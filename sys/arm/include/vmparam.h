@@ -109,17 +109,17 @@
 #define	VM_NFREEORDER		9
 
 /*
- * Only one memory domain.
+ * Enable superpage reservations: 1 level.
  */
-#ifndef VM_NDOMAIN
-#define	VM_NDOMAIN		1
+#ifndef	VM_NRESERVLEVEL
+#define	VM_NRESERVLEVEL		1
 #endif
 
 /*
- * Disable superpage reservations.
+ * Level 0 reservations consist of 256 pages.
  */
-#ifndef	VM_NRESERVLEVEL
-#define	VM_NRESERVLEVEL		0
+#ifndef	VM_LEVEL_0_ORDER
+#define	VM_LEVEL_0_ORDER	8
 #endif
 
 #define UPT_MAX_ADDRESS		VADDR(UPTPTDI + 3, 0)

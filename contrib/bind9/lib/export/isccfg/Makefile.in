@@ -1,4 +1,4 @@
-# Copyright (C) 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -31,7 +31,7 @@ CDEFINES =
 CWARNINGS =
 
 ISCLIBS =	../isc/libisc.@A@
-DNSLIBS =	../dns/libdns.@A@
+DNSLIBS =	../dns/libdns.@A@ @DNS_CRYPTO_LIBS@
 
 ISCDEPLIBS =	../../lib/isc/libisc.@A@
 ISCCFGDEPLIBS =	libisccfg.@A@

@@ -3,6 +3,7 @@
 .PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../common ${.CURDIR}/../../common
 
 FILES=		gptboot
+MAN=		gptboot.8
 
 NM?=		nm
 

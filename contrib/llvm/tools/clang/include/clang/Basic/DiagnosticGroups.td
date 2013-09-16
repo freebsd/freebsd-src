@@ -27,7 +27,9 @@ def ArrayBoundsPointerArithmetic : DiagGroup<"array-bounds-pointer-arithmetic">;
 def Availability : DiagGroup<"availability">;
 def Section : DiagGroup<"section">;
 def AutoImport : DiagGroup<"auto-import">;
-def ConstantConversion : DiagGroup<"constant-conversion">;
+def BitFieldConstantConversion : DiagGroup<"bitfield-constant-conversion">;
+def ConstantConversion :
+  DiagGroup<"constant-conversion", [ BitFieldConstantConversion ] >;
 def LiteralConversion : DiagGroup<"literal-conversion">;
 def StringConversion : DiagGroup<"string-conversion">;
 def SignConversion : DiagGroup<"sign-conversion">;
@@ -66,7 +68,9 @@ def : DiagGroup<"discard-qual">;
 def : DiagGroup<"div-by-zero">;
 
 def DocumentationHTML : DiagGroup<"documentation-html">;
-def DocumentationPedantic : DiagGroup<"documentation-pedantic">;
+def DocumentationUnknownCommand : DiagGroup<"documentation-unknown-command">;
+def DocumentationPedantic : DiagGroup<"documentation-pedantic",
+                                      [DocumentationUnknownCommand]>;
 def DocumentationDeprecatedSync : DiagGroup<"documentation-deprecated-sync">;
 def Documentation : DiagGroup<"documentation",
                               [DocumentationHTML,
@@ -80,6 +84,11 @@ def ExtraSemi : DiagGroup<"extra-semi", [CXX11ExtraSemi]>;
 def FormatExtraArgs : DiagGroup<"format-extra-args">;
 def FormatZeroLength : DiagGroup<"format-zero-length">;
 
+// Warnings for C++1y code which is not compatible with prior C++ standards.
+def CXXPre1yCompat : DiagGroup<"cxx98-cxx11-compat">;
+def CXXPre1yCompatPedantic : DiagGroup<"cxx98-cxx11-compat-pedantic",
+                                       [CXXPre1yCompat]>;
+
 def CXX98CompatBindToTemporaryCopy :
   DiagGroup<"c++98-compat-bind-to-temporary-copy">;
 def CXX98CompatLocalTypeTemplateArgs :
@@ -90,9 +99,12 @@ def CXX98CompatUnnamedTypeTemplateArgs :
 def CXX98Compat : DiagGroup<"c++98-compat",
                             [CXX98CompatBindToTemporaryCopy,
                              CXX98CompatLocalTypeTemplateArgs,
-                             CXX98CompatUnnamedTypeTemplateArgs]>;
+                             CXX98CompatUnnamedTypeTemplateArgs,
+                             CXXPre1yCompat]>;
 // Warnings for C++11 features which are Extensions in C++98 mode.
-def CXX98CompatPedantic : DiagGroup<"c++98-compat-pedantic", [CXX98Compat]>;
+def CXX98CompatPedantic : DiagGroup<"c++98-compat-pedantic",
+                                    [CXX98Compat,
+                                     CXXPre1yCompatPedantic]>;
 
 def CXX11Narrowing : DiagGroup<"c++11-narrowing">;
 
@@ -110,8 +122,11 @@ def ReservedUserDefinedLiteral :
 
 def CXX11Compat : DiagGroup<"c++11-compat",
                             [CXX11Narrowing,
-                             CXX11CompatReservedUserDefinedLiteral]>;
+                             CXX11CompatReservedUserDefinedLiteral,
+                             CXXPre1yCompat]>;
 def : DiagGroup<"c++0x-compat", [CXX11Compat]>;
+def CXX11CompatPedantic : DiagGroup<"c++11-compat-pedantic",
+                                    [CXXPre1yCompatPedantic]>;
 
 def : DiagGroup<"effc++">;
 def DivZero : DiagGroup<"division-by-zero">;
@@ -122,6 +137,7 @@ def GlobalConstructors : DiagGroup<"global-constructors">;
 def BitwiseOpParentheses: DiagGroup<"bitwise-op-parentheses">;
 def LogicalOpParentheses: DiagGroup<"logical-op-parentheses">;
 def ShiftOpParentheses: DiagGroup<"shift-op-parentheses">;
+def OverloadedShiftOpParentheses: DiagGroup<"overloaded-shift-op-parentheses">;
 def DanglingElse: DiagGroup<"dangling-else">;
 def DanglingField : DiagGroup<"dangling-field">;
 def DistributedObjectModifiers : DiagGroup<"distributed-object-modifiers">;
@@ -253,7 +269,6 @@ def : DiagGroup<"strict-overflow=5">;
 def : DiagGroup<"strict-overflow">;
 
 def InvalidOffsetof : DiagGroup<"invalid-offsetof">;
-def LambdaExtensions : DiagGroup<"lambda-extensions">;
 def : DiagGroup<"strict-prototypes">;
 def StrictSelector : DiagGroup<"strict-selector-match">;
 def MethodDuplicate : DiagGroup<"duplicate-method-match">;
@@ -352,6 +367,7 @@ def Parentheses : DiagGroup<"parentheses",
                             [LogicalOpParentheses,
                              BitwiseOpParentheses,
                              ShiftOpParentheses,
+                             OverloadedShiftOpParentheses,
                              ParenthesesOnEquality,
                              DanglingElse]>;
 
@@ -475,6 +491,10 @@ def NonGCC : DiagGroup<"non-gcc",
 // A warning group for warnings about using C++11 features as extensions in
 // earlier C++ versions.
 def CXX11 : DiagGroup<"c++11-extensions", [CXX11ExtraSemi, CXX11LongLong]>;
+
+// A warning group for warnings about using C++1y features as extensions in
+// earlier C++ versions.
+def CXX1y : DiagGroup<"c++1y-extensions">;
 
 def : DiagGroup<"c++0x-extensions", [CXX11]>;
 def DelegatingCtorCycles :

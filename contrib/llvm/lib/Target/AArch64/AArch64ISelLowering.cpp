@@ -59,13 +59,6 @@ AArch64TargetLowering::AArch64TargetLowering(AArch64TargetMachine &TM)
 
   computeRegisterProperties();
 
-  // Some atomic operations can be folded into load-acquire or store-release
-  // instructions on AArch64. It's marginally simpler to let LLVM expand
-  // everything out to a barrier and then recombine the (few) barriers we can.
-  setInsertFencesForAtomic(true);
-  setTargetDAGCombine(ISD::ATOMIC_FENCE);
-  setTargetDAGCombine(ISD::ATOMIC_STORE);
-
   // We combine OR nodes for bitfield and NEON BSL operations.
   setTargetDAGCombine(ISD::OR);
 
@@ -275,27 +268,34 @@ EVT AArch64TargetLowering::getSetCCResultType(EVT VT) const {
   return VT.changeVectorElementTypeToInteger();
 }
 
-static void getExclusiveOperation(unsigned Size, unsigned &ldrOpc,
-                                  unsigned &strOpc) {
-  switch (Size) {
-  default: llvm_unreachable("unsupported size for atomic binary op!");
-  case 1:
-    ldrOpc = AArch64::LDXR_byte;
-    strOpc = AArch64::STXR_byte;
-    break;
-  case 2:
-    ldrOpc = AArch64::LDXR_hword;
-    strOpc = AArch64::STXR_hword;
-    break;
-  case 4:
-    ldrOpc = AArch64::LDXR_word;
-    strOpc = AArch64::STXR_word;
-    break;
-  case 8:
-    ldrOpc = AArch64::LDXR_dword;
-    strOpc = AArch64::STXR_dword;
-    break;
-  }
+static void getExclusiveOperation(unsigned Size, AtomicOrdering Ord,
+                                  unsigned &LdrOpc,
+                                  unsigned &StrOpc) {
+  static unsigned LoadBares[] = {AArch64::LDXR_byte, AArch64::LDXR_hword,
+                                 AArch64::LDXR_word, AArch64::LDXR_dword};
+  static unsigned LoadAcqs[] = {AArch64::LDAXR_byte, AArch64::LDAXR_hword,
+                                AArch64::LDAXR_word, AArch64::LDAXR_dword};
+  static unsigned StoreBares[] = {AArch64::STXR_byte, AArch64::STXR_hword,
+                                  AArch64::STXR_word, AArch64::STXR_dword};
+  static unsigned StoreRels[] = {AArch64::STLXR_byte, AArch64::STLXR_hword,
+                                 AArch64::STLXR_word, AArch64::STLXR_dword};
+
+  unsigned *LoadOps, *StoreOps;
+  if (Ord == Acquire || Ord == AcquireRelease || Ord == SequentiallyConsistent)
+    LoadOps = LoadAcqs;
+  else
+    LoadOps = LoadBares;
+
+  if (Ord == Release || Ord == AcquireRelease || Ord == SequentiallyConsistent)
+    StoreOps = StoreRels;
+  else
+    StoreOps = StoreBares;
+
+  assert(isPowerOf2_32(Size) && Size <= 8 &&
+         "unsupported size for atomic binary op!");
+
+  LdrOpc = LoadOps[Log2_32(Size)];
+  StrOpc = StoreOps[Log2_32(Size)];
 }
 
 MachineBasicBlock *
@@ -313,12 +313,13 @@ AArch64TargetLowering::emitAtomicBinary(MachineInstr *MI, MachineBasicBlock *BB,
   unsigned dest = MI->getOperand(0).getReg();
   unsigned ptr = MI->getOperand(1).getReg();
   unsigned incr = MI->getOperand(2).getReg();
+  AtomicOrdering Ord = static_cast<AtomicOrdering>(MI->getOperand(3).getImm());
   DebugLoc dl = MI->getDebugLoc();
 
   MachineRegisterInfo &MRI = BB->getParent()->getRegInfo();
 
   unsigned ldrOpc, strOpc;
-  getExclusiveOperation(Size, ldrOpc, strOpc);
+  getExclusiveOperation(Size, Ord, ldrOpc, strOpc);
 
   MachineBasicBlock *loopMBB = MF->CreateMachineBasicBlock(LLVM_BB);
   MachineBasicBlock *exitMBB = MF->CreateMachineBasicBlock(LLVM_BB);
@@ -397,6 +398,8 @@ AArch64TargetLowering::emitAtomicBinaryMinMax(MachineInstr *MI,
   unsigned dest = MI->getOperand(0).getReg();
   unsigned ptr = MI->getOperand(1).getReg();
   unsigned incr = MI->getOperand(2).getReg();
+  AtomicOrdering Ord = static_cast<AtomicOrdering>(MI->getOperand(3).getImm());
+
   unsigned oldval = dest;
   DebugLoc dl = MI->getDebugLoc();
 
@@ -411,7 +414,7 @@ AArch64TargetLowering::emitAtomicBinaryMinMax(MachineInstr *MI,
   }
 
   unsigned ldrOpc, strOpc;
-  getExclusiveOperation(Size, ldrOpc, strOpc);
+  getExclusiveOperation(Size, Ord, ldrOpc, strOpc);
 
   MachineBasicBlock *loopMBB = MF->CreateMachineBasicBlock(LLVM_BB);
   MachineBasicBlock *exitMBB = MF->CreateMachineBasicBlock(LLVM_BB);
@@ -479,6 +482,7 @@ AArch64TargetLowering::emitAtomicCmpSwap(MachineInstr *MI,
   unsigned ptr     = MI->getOperand(1).getReg();
   unsigned oldval  = MI->getOperand(2).getReg();
   unsigned newval  = MI->getOperand(3).getReg();
+  AtomicOrdering Ord = static_cast<AtomicOrdering>(MI->getOperand(4).getImm());
   const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
   DebugLoc dl = MI->getDebugLoc();
 
@@ -487,7 +491,7 @@ AArch64TargetLowering::emitAtomicCmpSwap(MachineInstr *MI,
   TRCsp = Size == 8 ? &AArch64::GPR64xspRegClass : &AArch64::GPR32wspRegClass;
 
   unsigned ldrOpc, strOpc;
-  getExclusiveOperation(Size, ldrOpc, strOpc);
+  getExclusiveOperation(Size, Ord, ldrOpc, strOpc);
 
   MachineFunction *MF = BB->getParent();
   const BasicBlock *LLVM_BB = BB->getBasicBlock();
@@ -777,6 +781,7 @@ const char *AArch64TargetLowering::getTargetNodeName(unsigned Opcode) const {
   case AArch64ISD::TC_RETURN:      return "AArch64ISD::TC_RETURN";
   case AArch64ISD::THREAD_POINTER: return "AArch64ISD::THREAD_POINTER";
   case AArch64ISD::TLSDESCCALL:    return "AArch64ISD::TLSDESCCALL";
+  case AArch64ISD::WrapperLarge:   return "AArch64ISD::WrapperLarge";
   case AArch64ISD::WrapperSmall:   return "AArch64ISD::WrapperSmall";
 
   default:                       return NULL;
@@ -1662,17 +1667,26 @@ AArch64TargetLowering::LowerBlockAddress(SDValue Op, SelectionDAG &DAG) const {
   EVT PtrVT = getPointerTy();
   const BlockAddress *BA = cast<BlockAddressSDNode>(Op)->getBlockAddress();
 
-  assert(getTargetMachine().getCodeModel() == CodeModel::Small
-         && "Only small code model supported at the moment");
-
-  // The most efficient code is PC-relative anyway for the small memory model,
-  // so we don't need to worry about relocation model.
-  return DAG.getNode(AArch64ISD::WrapperSmall, DL, PtrVT,
-                     DAG.getTargetBlockAddress(BA, PtrVT, 0,
-                                               AArch64II::MO_NO_FLAG),
-                     DAG.getTargetBlockAddress(BA, PtrVT, 0,
-                                               AArch64II::MO_LO12),
-                     DAG.getConstant(/*Alignment=*/ 4, MVT::i32));
+  switch(getTargetMachine().getCodeModel()) {
+  case CodeModel::Small:
+    // The most efficient code is PC-relative anyway for the small memory model,
+    // so we don't need to worry about relocation model.
+    return DAG.getNode(AArch64ISD::WrapperSmall, DL, PtrVT,
+                       DAG.getTargetBlockAddress(BA, PtrVT, 0,
+                                                 AArch64II::MO_NO_FLAG),
+                       DAG.getTargetBlockAddress(BA, PtrVT, 0,
+                                                 AArch64II::MO_LO12),
+                       DAG.getConstant(/*Alignment=*/ 4, MVT::i32));
+  case CodeModel::Large:
+    return DAG.getNode(
+      AArch64ISD::WrapperLarge, DL, PtrVT,
+      DAG.getTargetBlockAddress(BA, PtrVT, 0, AArch64II::MO_ABS_G3),
+      DAG.getTargetBlockAddress(BA, PtrVT, 0, AArch64II::MO_ABS_G2_NC),
+      DAG.getTargetBlockAddress(BA, PtrVT, 0, AArch64II::MO_ABS_G1_NC),
+      DAG.getTargetBlockAddress(BA, PtrVT, 0, AArch64II::MO_ABS_G0_NC));
+  default:
+    llvm_unreachable("Only small and large code models supported now");
+  }
 }
 
 
@@ -1841,12 +1855,33 @@ AArch64TargetLowering::LowerFP_TO_INT(SDValue Op, SelectionDAG &DAG,
 }
 
 SDValue
-AArch64TargetLowering::LowerGlobalAddressELF(SDValue Op,
-                                             SelectionDAG &DAG) const {
-  // TableGen doesn't have easy access to the CodeModel or RelocationModel, so
-  // we make that distinction here.
+AArch64TargetLowering::LowerGlobalAddressELFLarge(SDValue Op,
+                                                  SelectionDAG &DAG) const {
+  assert(getTargetMachine().getCodeModel() == CodeModel::Large);
+  assert(getTargetMachine().getRelocationModel() == Reloc::Static);
 
-  // We support the small memory model for now.
+  EVT PtrVT = getPointerTy();
+  DebugLoc dl = Op.getDebugLoc();
+  const GlobalAddressSDNode *GN = cast<GlobalAddressSDNode>(Op);
+  const GlobalValue *GV = GN->getGlobal();
+
+  SDValue GlobalAddr = DAG.getNode(
+      AArch64ISD::WrapperLarge, dl, PtrVT,
+      DAG.getTargetGlobalAddress(GV, dl, PtrVT, 0, AArch64II::MO_ABS_G3),
+      DAG.getTargetGlobalAddress(GV, dl, PtrVT, 0, AArch64II::MO_ABS_G2_NC),
+      DAG.getTargetGlobalAddress(GV, dl, PtrVT, 0, AArch64II::MO_ABS_G1_NC),
+      DAG.getTargetGlobalAddress(GV, dl, PtrVT, 0, AArch64II::MO_ABS_G0_NC));
+
+  if (GN->getOffset() != 0)
+    return DAG.getNode(ISD::ADD, dl, PtrVT, GlobalAddr,
+                       DAG.getConstant(GN->getOffset(), PtrVT));
+
+  return GlobalAddr;
+}
+
+SDValue
+AArch64TargetLowering::LowerGlobalAddressELFSmall(SDValue Op,
+                                                  SelectionDAG &DAG) const {
   assert(getTargetMachine().getCodeModel() == CodeModel::Small);
 
   EVT PtrVT = getPointerTy();
@@ -1925,6 +1960,22 @@ AArch64TargetLowering::LowerGlobalAddressELF(SDValue Op,
   return GlobalRef;
 }
 
+SDValue
+AArch64TargetLowering::LowerGlobalAddressELF(SDValue Op,
+                                             SelectionDAG &DAG) const {
+  // TableGen doesn't have easy access to the CodeModel or RelocationModel, so
+  // we make those distinctions here.
+
+  switch (getTargetMachine().getCodeModel()) {
+  case CodeModel::Small:
+    return LowerGlobalAddressELFSmall(Op, DAG);
+  case CodeModel::Large:
+    return LowerGlobalAddressELFLarge(Op, DAG);
+  default:
+    llvm_unreachable("Only small and large code models supported now");
+  }
+}
+
 SDValue AArch64TargetLowering::LowerTLSDescCall(SDValue SymAddr,
                                                 SDValue DescAddr,
                                                 DebugLoc DL,
@@ -1974,6 +2025,8 @@ AArch64TargetLowering::LowerGlobalTLSAddress(SDValue Op,
                                              SelectionDAG &DAG) const {
   assert(Subtarget->isTargetELF() &&
          "TLS not implemented for non-ELF targets");
+  assert(getTargetMachine().getCodeModel() == CodeModel::Small
+         && "TLS only supported in small memory model");
   const GlobalAddressSDNode *GA = cast<GlobalAddressSDNode>(Op);
 
   TLSModel::Model Model = getTargetMachine().getTLSModel(GA->getGlobal());
@@ -2082,14 +2135,27 @@ SDValue
 AArch64TargetLowering::LowerJumpTable(SDValue Op, SelectionDAG &DAG) const {
   JumpTableSDNode *JT = cast<JumpTableSDNode>(Op);
   DebugLoc dl = JT->getDebugLoc();
+  EVT PtrVT = getPointerTy();
 
   // When compiling PIC, jump tables get put in the code section so a static
   // relocation-style is acceptable for both cases.
-  return DAG.getNode(AArch64ISD::WrapperSmall, dl, getPointerTy(),
-                     DAG.getTargetJumpTable(JT->getIndex(), getPointerTy()),
-                     DAG.getTargetJumpTable(JT->getIndex(), getPointerTy(),
-                                            AArch64II::MO_LO12),
-                     DAG.getConstant(1, MVT::i32));
+  switch (getTargetMachine().getCodeModel()) {
+  case CodeModel::Small:
+    return DAG.getNode(AArch64ISD::WrapperSmall, dl, PtrVT,
+                       DAG.getTargetJumpTable(JT->getIndex(), PtrVT),
+                       DAG.getTargetJumpTable(JT->getIndex(), PtrVT,
+                                              AArch64II::MO_LO12),
+                       DAG.getConstant(1, MVT::i32));
+  case CodeModel::Large:
+    return DAG.getNode(
+      AArch64ISD::WrapperLarge, dl, PtrVT,
+      DAG.getTargetJumpTable(JT->getIndex(), PtrVT, AArch64II::MO_ABS_G3),
+      DAG.getTargetJumpTable(JT->getIndex(), PtrVT, AArch64II::MO_ABS_G2_NC),
+      DAG.getTargetJumpTable(JT->getIndex(), PtrVT, AArch64II::MO_ABS_G1_NC),
+      DAG.getTargetJumpTable(JT->getIndex(), PtrVT, AArch64II::MO_ABS_G0_NC));
+  default:
+    llvm_unreachable("Only small and large code models supported now");
+  }
 }
 
 // (SELECT_CC lhs, rhs, iftrue, iffalse, condcode)
@@ -2375,78 +2441,6 @@ static SDValue PerformANDCombine(SDNode *N,
   return DAG.getNode(AArch64ISD::UBFX, DL, VT, Shift.getOperand(0),
                      DAG.getConstant(LSB, MVT::i64),
                      DAG.getConstant(LSB + Width - 1, MVT::i64));
-}
-
-static SDValue PerformATOMIC_FENCECombine(SDNode *FenceNode,
-                                         TargetLowering::DAGCombinerInfo &DCI) {
-  // An atomic operation followed by an acquiring atomic fence can be reduced to
-  // an acquiring load. The atomic operation provides a convenient pointer to
-  // load from. If the original operation was a load anyway we can actually
-  // combine the two operations into an acquiring load.
-  SelectionDAG &DAG = DCI.DAG;
-  SDValue AtomicOp = FenceNode->getOperand(0);
-  AtomicSDNode *AtomicNode = dyn_cast<AtomicSDNode>(AtomicOp);
-
-  // A fence on its own can't be optimised
-  if (!AtomicNode)
-    return SDValue();
-
-  AtomicOrdering FenceOrder
-    = static_cast<AtomicOrdering>(FenceNode->getConstantOperandVal(1));
-  SynchronizationScope FenceScope
-    = static_cast<SynchronizationScope>(FenceNode->getConstantOperandVal(2));
-
-  if (FenceOrder != Acquire || FenceScope != AtomicNode->getSynchScope())
-    return SDValue();
-
-  // If the original operation was an ATOMIC_LOAD then we'll be replacing it, so
-  // the chain we use should be its input, otherwise we'll put our store after
-  // it so we use its output chain.
-  SDValue Chain = AtomicNode->getOpcode() == ISD::ATOMIC_LOAD ?
-    AtomicNode->getChain() : AtomicOp;
-
-  // We have an acquire fence with a handy atomic operation nearby, we can
-  // convert the fence into a load-acquire, discarding the result.
-  DebugLoc DL = FenceNode->getDebugLoc();
-  SDValue Op = DAG.getAtomic(ISD::ATOMIC_LOAD, DL, AtomicNode->getMemoryVT(),
-                             AtomicNode->getValueType(0),
-                             Chain,                  // Chain
-                             AtomicOp.getOperand(1), // Pointer
-                             AtomicNode->getMemOperand(), Acquire,
-                             FenceScope);
-
-  if (AtomicNode->getOpcode() == ISD::ATOMIC_LOAD)
-    DAG.ReplaceAllUsesWith(AtomicNode, Op.getNode());
-
-  return Op.getValue(1);
-}
-
-static SDValue PerformATOMIC_STORECombine(SDNode *N,
-                                         TargetLowering::DAGCombinerInfo &DCI) {
-  // A releasing atomic fence followed by an atomic store can be combined into a
-  // single store operation.
-  SelectionDAG &DAG = DCI.DAG;
-  AtomicSDNode *AtomicNode = cast<AtomicSDNode>(N);
-  SDValue FenceOp = AtomicNode->getOperand(0);
-
-  if (FenceOp.getOpcode() != ISD::ATOMIC_FENCE)
-    return SDValue();
-
-  AtomicOrdering FenceOrder
-    = static_cast<AtomicOrdering>(FenceOp->getConstantOperandVal(1));
-  SynchronizationScope FenceScope
-    = static_cast<SynchronizationScope>(FenceOp->getConstantOperandVal(2));
-
-  if (FenceOrder != Release || FenceScope != AtomicNode->getSynchScope())
-    return SDValue();
-
-  DebugLoc DL = AtomicNode->getDebugLoc();
-  return DAG.getAtomic(ISD::ATOMIC_STORE, DL, AtomicNode->getMemoryVT(),
-                       FenceOp.getOperand(0),  // Chain
-                       AtomicNode->getOperand(1),       // Pointer
-                       AtomicNode->getOperand(2),       // Value
-                       AtomicNode->getMemOperand(), Release,
-                       FenceScope);
 }
 
 /// For a true bitfield insert, the bits getting into that contiguous mask
@@ -2804,8 +2798,6 @@ AArch64TargetLowering::PerformDAGCombine(SDNode *N,
   switch (N->getOpcode()) {
   default: break;
   case ISD::AND: return PerformANDCombine(N, DCI);
-  case ISD::ATOMIC_FENCE: return PerformATOMIC_FENCECombine(N, DCI);
-  case ISD::ATOMIC_STORE: return PerformATOMIC_STORECombine(N, DCI);
   case ISD::OR: return PerformORCombine(N, DCI, Subtarget);
   case ISD::SRA: return PerformSRACombine(N, DCI);
   }

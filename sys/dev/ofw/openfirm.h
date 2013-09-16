@@ -118,6 +118,14 @@ ssize_t		OF_canon(const char *path, char *buf, size_t len);
 phandle_t	OF_finddevice(const char *path);
 ssize_t		OF_package_to_path(phandle_t node, char *buf, size_t len);
 
+/*
+ * Some OF implementations (IBM, FDT) have a concept of effective phandles
+ * used for device-tree cross-references. Given one of these, returns the
+ * real phandle. If one can't be found (or running on OF implementations
+ * without this property), returns its input.
+ */
+phandle_t	OF_xref_phandle(phandle_t xref);
+
 /* Device I/O functions */
 ihandle_t	OF_open(const char *path);
 void		OF_close(ihandle_t instance);

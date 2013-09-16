@@ -52,7 +52,7 @@ linux${SFX}_support.o: linux${SFX}_support.s assym.s linux${SFX}_assym.h
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 	    ${.IMPSRC} -o ${.TARGET}
 
-linux${SFX}_genassym.o: linux${SFX}_genassym.c linux.h @ machine
+linux${SFX}_genassym.o: linux${SFX}_genassym.c linux.h @ machine x86
 	${CC} -c ${CFLAGS:N-fno-common} ${.IMPSRC}
 
 .if !defined(KERNBUILDDIR)
@@ -64,7 +64,3 @@ CFLAGS+=	-DKTR
 .endif
 
 .include <bsd.kmod.mk>
-
-# XXX: clang integrated-as doesn't grok .codeNN directives yet
-CFLAGS.linux32_locore.s=	${CLANG_NO_IAS}
-CFLAGS+=			${CFLAGS.${.IMPSRC:T}}

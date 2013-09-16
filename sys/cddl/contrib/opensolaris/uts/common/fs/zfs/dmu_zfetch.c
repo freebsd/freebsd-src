@@ -66,11 +66,11 @@ SYSCTL_UQUAD(_vfs_zfs_zfetch, OID_AUTO, array_rd_sz, CTLFLAG_RDTUN,
     "Number of bytes in a array_read at which we stop prefetching");
 
 /* forward decls for static routines */
-static int		dmu_zfetch_colinear(zfetch_t *, zstream_t *);
+static boolean_t	dmu_zfetch_colinear(zfetch_t *, zstream_t *);
 static void		dmu_zfetch_dofetch(zfetch_t *, zstream_t *);
 static uint64_t		dmu_zfetch_fetch(dnode_t *, uint64_t, uint64_t);
 static uint64_t		dmu_zfetch_fetchsz(dnode_t *, uint64_t, uint64_t);
-static int		dmu_zfetch_find(zfetch_t *, zstream_t *, int);
+static boolean_t	dmu_zfetch_find(zfetch_t *, zstream_t *, int);
 static int		dmu_zfetch_stream_insert(zfetch_t *, zstream_t *);
 static zstream_t	*dmu_zfetch_stream_reclaim(zfetch_t *);
 static void		dmu_zfetch_stream_remove(zfetch_t *, zstream_t *);
@@ -122,9 +122,9 @@ kstat_t		*zfetch_ksp;
  * last stream, then we are probably in a strided access pattern.  So
  * combine the two sequential streams into a single strided stream.
  *
- * If no co-linear streams are found, return NULL.
+ * Returns whether co-linear streams were found.
  */
-static int
+static boolean_t
 dmu_zfetch_colinear(zfetch_t *zf, zstream_t *zh)
 {
 	zstream_t	*z_walk;
@@ -344,7 +344,7 @@ dmu_zfetch_fetchsz(dnode_t *dn, uint64_t blkid, uint64_t nblks)
  * for this block read.  If so, it starts a prefetch for the stream it
  * located and returns true, otherwise it returns false
  */
-static int
+static boolean_t
 dmu_zfetch_find(zfetch_t *zf, zstream_t *zh, int prefetched)
 {
 	zstream_t	*zs;
@@ -669,7 +669,7 @@ dmu_zfetch(zfetch_t *zf, uint64_t offset, uint64_t size, int prefetched)
 {
 	zstream_t	zst;
 	zstream_t	*newstream;
-	int		fetched;
+	boolean_t	fetched;
 	int		inserted;
 	unsigned int	blkshft;
 	uint64_t	blksz;
@@ -695,7 +695,8 @@ dmu_zfetch(zfetch_t *zf, uint64_t offset, uint64_t size, int prefetched)
 		ZFETCHSTAT_BUMP(zfetchstat_hits);
 	} else {
 		ZFETCHSTAT_BUMP(zfetchstat_misses);
-		if (fetched = dmu_zfetch_colinear(zf, &zst)) {
+		fetched = dmu_zfetch_colinear(zf, &zst);
+		if (fetched) {
 			ZFETCHSTAT_BUMP(zfetchstat_colinear_hits);
 		} else {
 			ZFETCHSTAT_BUMP(zfetchstat_colinear_misses);

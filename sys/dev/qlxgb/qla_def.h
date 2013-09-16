@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2011 Qlogic Corporation
+ * Copyright (c) 2011-2013 Qlogic Corporation
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -194,6 +194,8 @@ struct qla_host {
 	/* debug stuff */
 	volatile const char 	*qla_lock;
 	volatile const char	*qla_unlock;
+
+	uint8_t			fw_ver_str[32];
 };
 typedef struct qla_host qla_host_t;
 

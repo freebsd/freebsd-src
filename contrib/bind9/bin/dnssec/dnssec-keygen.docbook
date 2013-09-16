@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007-2010, 2012  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007-2012  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-keygen.docbook,v 1.36 2010/12/23 04:07:59 marka Exp $ -->
+<!-- $Id: dnssec-keygen.docbook,v 1.38 2011/03/17 23:47:29 tbox Exp $ -->
 <refentry id="man.dnssec-keygen">
   <refentryinfo>
     <date>June 30, 2000</date>
@@ -43,6 +43,7 @@
       <year>2008</year>
       <year>2009</year>
       <year>2010</year>
+      <year>2011</year>
       <year>2012</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
@@ -67,7 +68,6 @@
       <arg><option>-c <replaceable class="parameter">class</replaceable></option></arg>
       <arg><option>-D <replaceable class="parameter">date/offset</replaceable></option></arg>
       <arg><option>-E <replaceable class="parameter">engine</replaceable></option></arg>
-      <arg><option>-e</option></arg>
       <arg><option>-f <replaceable class="parameter">flag</replaceable></option></arg>
       <arg><option>-G</option></arg>
       <arg><option>-g <replaceable class="parameter">generator</replaceable></option></arg>
@@ -75,6 +75,7 @@
       <arg><option>-I <replaceable class="parameter">date/offset</replaceable></option></arg>
       <arg><option>-i <replaceable class="parameter">interval</replaceable></option></arg>
       <arg><option>-K <replaceable class="parameter">directory</replaceable></option></arg>
+      <arg><option>-L <replaceable class="parameter">ttl</replaceable></option></arg>
       <arg><option>-k</option></arg>
       <arg><option>-P <replaceable class="parameter">date/offset</replaceable></option></arg>
       <arg><option>-p <replaceable class="parameter">protocol</replaceable></option></arg>
@@ -232,15 +233,6 @@
       </varlistentry>
 
       <varlistentry>
-        <term>-e</term>
-        <listitem>
-          <para>
-            If generating an RSAMD5/RSASHA1 key, use a large exponent.
-          </para>
-        </listitem>
-      </varlistentry>
-
-      <varlistentry>
         <term>-f <replaceable class="parameter">flag</replaceable></term>
         <listitem>
           <para>
@@ -296,6 +288,20 @@
         <listitem>
           <para>
             Deprecated in favor of -T KEY.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-L <replaceable class="parameter">ttl</replaceable></term>
+        <listitem>
+          <para>
+            Sets the default TTL to use for this key when it is converted
+            into a DNSKEY RR.  If the key is imported into a zone,
+            this is the TTL that will be used for it, unless there was
+            already a DNSKEY RRset in place, in which case the existing TTL
+            would take precedence.  Setting the default TTL to
+            <literal>0</literal> or <literal>none</literal> removes it.
           </para>
         </listitem>
       </varlistentry>

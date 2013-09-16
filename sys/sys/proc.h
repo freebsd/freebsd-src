@@ -274,6 +274,7 @@ struct thread {
 	pid_t		td_dbg_forked;	/* (c) Child pid for debugger. */
 	u_int		td_vp_reserv;	/* (k) Count of reserved vnodes. */
 	int		td_no_sleeping;	/* (k) Sleeping disabled count. */
+	int		td_dom_rr_idx;	/* (k) RR Numa domain selection. */
 #define	td_endzero td_sigmask
 
 /* Copied during fork1() or create_thread(). */
@@ -891,7 +892,6 @@ int	setrunnable(struct thread *);
 void	setsugid(struct proc *p);
 int	should_yield(void);
 int	sigonstack(size_t sp);
-void	sleepinit(void);
 void	stopevent(struct proc *, u_int, u_int);
 struct	thread *tdfind(lwpid_t, pid_t);
 void	threadinit(void);

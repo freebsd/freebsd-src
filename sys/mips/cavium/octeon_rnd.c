@@ -131,7 +131,7 @@ octeon_rnd_harvest(void *arg)
 	for (i = 0; i < OCTEON_RND_WORDS; i++)
 		sc->sc_entropy[i] = cvmx_rng_get_random64();
 	random_harvest(sc->sc_entropy, sizeof sc->sc_entropy,
-		       sizeof sc->sc_entropy * 8, 0, RANDOM_PURE);
+		       (sizeof(sc->sc_entropy)*8)/2, 0, RANDOM_PURE);
 
 	callout_reset(&sc->sc_callout, hz * 5, octeon_rnd_harvest, sc);
 }

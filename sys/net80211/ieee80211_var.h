@@ -55,7 +55,7 @@
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_scan.h>
 
-#define	IEEE80211_TXPOWER_MAX	100	/* .5 dbM (XXX units?) */
+#define	IEEE80211_TXPOWER_MAX	100	/* .5 dBm (XXX units?) */
 #define	IEEE80211_TXPOWER_MIN	0	/* kill radio */
 
 #define	IEEE80211_DTIM_DEFAULT	1	/* default DTIM period */
@@ -496,8 +496,13 @@ struct ieee80211vap {
 	int			(*iv_newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
 	/* 802.3 output method for raw frame xmit */
+#if __FreeBSD_version >= 1000031
 	int			(*iv_output)(struct ifnet *, struct mbuf *,
 				    const struct sockaddr *, struct route *);
+#else
+	int			(*iv_output)(struct ifnet *, struct mbuf *,
+				    struct sockaddr *, struct route *);
+#endif
 	uint64_t		iv_spare[6];
 };
 MALLOC_DECLARE(M_80211_VAP);

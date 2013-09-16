@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_ipfw.h"
 #include "opt_ipsec.h"
+#include "opt_kdtrace.h"
 #include "opt_route.h"
 
 #include <sys/param.h>
@@ -76,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
+#include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/errno.h>
@@ -92,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/ip_var.h>
 #include <netinet/in_systm.h>
 #include <net/if_llatbl.h>
@@ -141,7 +144,11 @@ VNET_DECLARE(struct callout, in6_tmpaddrtimer_ch);
 
 VNET_DEFINE(struct pfil_head, inet6_pfil_hook);
 
-VNET_DEFINE(struct ip6stat, ip6stat);
+VNET_PCPUSTAT_DEFINE(struct ip6stat, ip6stat);
+VNET_PCPUSTAT_SYSINIT(ip6stat);
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(ip6stat);
+#endif /* VIMAGE */
 
 struct rwlock in6_ifaddr_lock;
 RW_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");
@@ -300,7 +307,11 @@ ip6proto_unregister(short ip6proto)
 void
 ip6_destroy()
 {
+	int i;
 
+	if ((i = pfil_head_unregister(&V_inet6_pfil_hook)) != 0)
+		printf("%s: WARNING: unable to unregister pfil hook, "
+		    "error %d\n", __func__, i);
 	hashdestroy(V_in6_ifaddrhashtbl, M_IFADDR, V_in6_ifaddrhmask);
 	nd6_destroy();
 	callout_drain(&V_in6_tmpaddrtimer_ch);
@@ -533,6 +544,8 @@ ip6_input(struct mbuf *m)
 	}
 
 	IP6STAT_INC(ip6s_nxthist[ip6->ip6_nxt]);
+
+	IP_PROBE(receive, NULL, NULL, ip6, m->m_pkthdr.rcvif, NULL, ip6);
 
 	/*
 	 * Check against address spoofing/corruption.

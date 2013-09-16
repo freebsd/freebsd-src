@@ -111,14 +111,6 @@ ProgramStateManager::removeDeadBindings(ProgramStateRef state,
   return ConstraintMgr->removeDeadBindings(Result, SymReaper);
 }
 
-ProgramStateRef ProgramState::bindCompoundLiteral(const CompoundLiteralExpr *CL,
-                                            const LocationContext *LC,
-                                            SVal V) const {
-  const StoreRef &newStore = 
-    getStateManager().StoreMgr->bindCompoundLiteral(getStore(), CL, LC, V);
-  return makeWithStore(newStore);
-}
-
 ProgramStateRef ProgramState::bindLoc(Loc LV, SVal V, bool notifyChanges) const {
   ProgramStateManager &Mgr = getStateManager();
   ProgramStateRef newState = makeWithStore(Mgr.StoreMgr->Bind(getStore(), 
@@ -270,7 +262,7 @@ SVal ProgramState::getSValAsScalarOrLoc(const MemRegion *R) const {
 
   if (const TypedValueRegion *TR = dyn_cast<TypedValueRegion>(R)) {
     QualType T = TR->getValueType();
-    if (Loc::isLocType(T) || T->isIntegerType())
+    if (Loc::isLocType(T) || T->isIntegralOrEnumerationType())
       return getSVal(R);
   }
 
@@ -383,7 +375,7 @@ ConditionTruthVal ProgramState::isNull(SVal V) const {
   if (V.isConstant())
     return false;
   
-  SymbolRef Sym = V.getAsSymbol();
+  SymbolRef Sym = V.getAsSymbol(/* IncludeBaseRegion */ true);
   if (!Sym)
     return ConditionTruthVal();
   

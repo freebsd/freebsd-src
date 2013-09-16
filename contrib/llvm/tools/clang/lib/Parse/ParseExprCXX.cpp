@@ -1455,7 +1455,9 @@ bool Parser::ParseCXXCondition(ExprResult &ExprOut,
 
   if (!InitExpr.isInvalid())
     Actions.AddInitializerToDecl(DeclOut, InitExpr.take(), !CopyInitialization,
-                                 DS.getTypeSpecType() == DeclSpec::TST_auto);
+                                 DS.containsPlaceholderType());
+  else
+    Actions.ActOnInitializerError(DeclOut);
 
   // FIXME: Build a reference to this declaration? Convert it to bool?
   // (This is currently handled by Sema).
@@ -2033,7 +2035,7 @@ bool Parser::ParseUnqualifiedIdOperator(CXXScopeSpec &SS, bool EnteringContext,
   
   // Parse the conversion-declarator, which is merely a sequence of
   // ptr-operators.
-  Declarator D(DS, Declarator::TypeNameContext);
+  Declarator D(DS, Declarator::ConversionIdContext);
   ParseDeclaratorInternal(D, /*DirectDeclParser=*/0);
   
   // Finish up the type.

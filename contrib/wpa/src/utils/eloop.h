@@ -2,14 +2,8 @@
  * Event loop
  * Copyright (c) 2002-2006, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  *
  * This file defines an event loop interface that supports processing events
  * from registered timeouts (i.e., do something after N seconds), sockets
@@ -144,7 +138,7 @@ void eloop_unregister_sock(int sock, eloop_event_type type);
  * Returns: 0 on success, -1 on failure
  *
  * Register an event handler for the given event. This function is used to
- * register eloop implementation specific events which are mainly targetted for
+ * register eloop implementation specific events which are mainly targeted for
  * operating system specific code (driver interface and l2_packet) since the
  * portable code will not be able to use such an OS-specific call. The handler
  * function will be called whenever the event is triggered. The handler

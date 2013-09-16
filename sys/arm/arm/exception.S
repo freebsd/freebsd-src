@@ -83,10 +83,7 @@ ASENTRY_NP(swi_entry)
 	PUSHFRAME
 
 	mov	r0, sp			/* Pass the frame to any function */
-	mov	r6, sp			/* Backup the stack pointer */
-	bic	sp, sp, #7		/* Align the stack pointer */
 	bl	_C_LABEL(swi_handler)	/* It's a SWI ! */
-	mov	sp, r6			/* Restore the stack */
 
 	DO_AST
 	PULLFRAME
@@ -206,7 +203,7 @@ END(address_exception_entry)
  */
 
 ASENTRY_NP(exception_exit)
-	STOP_UNWINDING
+	UNWINDSVCFRAME
 	DO_AST
 	PULLFRAMEFROMSVCANDEXIT
 END(exception_exit)

@@ -138,8 +138,6 @@ SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr4_ones_mask, CTLFLAG_RD,
 SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr4_zeros_mask, CTLFLAG_RD,
 	     &cr4_zeros_mask, 0, NULL);
 
-static volatile u_int nextvpid;
-
 static int vmx_no_patmsr;
 
 static int vmx_initialized;
@@ -171,6 +169,11 @@ static int cap_monitor_trap;
  
 /* statistics */
 static VMM_STAT_INTEL(VMEXIT_HLT_IGNORED, "number of times hlt was ignored");
+
+static struct unrhdr *vpid_unr;
+static u_int vpid_alloc_failed;
+SYSCTL_UINT(_hw_vmm_vmx, OID_AUTO, vpid_alloc_failed, CTLFLAG_RD,
+	    &vpid_alloc_failed, 0, NULL);
 
 #ifdef KTR
 static const char *
@@ -382,6 +385,88 @@ vmx_fix_cr4(u_long cr4)
 }
 
 static void
+vpid_free(int vpid)
+{
+	if (vpid < 0 || vpid > 0xffff)
+		panic("vpid_free: invalid vpid %d", vpid);
+
+	/*
+	 * VPIDs [0,VM_MAXCPU] are special and are not allocated from
+	 * the unit number allocator.
+	 */
+
+	if (vpid > VM_MAXCPU)
+		free_unr(vpid_unr, vpid);
+}
+
+static void
+vpid_alloc(uint16_t *vpid, int num)
+{
+	int i, x;
+
+	if (num <= 0 || num > VM_MAXCPU)
+		panic("invalid number of vpids requested: %d", num);
+
+	/*
+	 * If the "enable vpid" execution control is not enabled then the
+	 * VPID is required to be 0 for all vcpus.
+	 */
+	if ((procbased_ctls2 & PROCBASED2_ENABLE_VPID) == 0) {
+		for (i = 0; i < num; i++)
+			vpid[i] = 0;
+		return;
+	}
+
+	/*
+	 * Allocate a unique VPID for each vcpu from the unit number allocator.
+	 */
+	for (i = 0; i < num; i++) {
+		x = alloc_unr(vpid_unr);
+		if (x == -1)
+			break;
+		else
+			vpid[i] = x;
+	}
+
+	if (i < num) {
+		atomic_add_int(&vpid_alloc_failed, 1);
+
+		/*
+		 * If the unit number allocator does not have enough unique
+		 * VPIDs then we need to allocate from the [1,VM_MAXCPU] range.
+		 *
+		 * These VPIDs are not be unique across VMs but this does not
+		 * affect correctness because the combined mappings are also
+		 * tagged with the EP4TA which is unique for each VM.
+		 *
+		 * It is still sub-optimal because the invvpid will invalidate
+		 * combined mappings for a particular VPID across all EP4TAs.
+		 */
+		while (i-- > 0)
+			vpid_free(vpid[i]);
+
+		for (i = 0; i < num; i++)
+			vpid[i] = i + 1;
+	}
+}
+
+static void
+vpid_init(void)
+{
+	/*
+	 * VPID 0 is required when the "enable VPID" execution control is
+	 * disabled.
+	 *
+	 * VPIDs [1,VM_MAXCPU] are used as the "overflow namespace" when the
+	 * unit number allocator does not have sufficient unique VPIDs to
+	 * satisfy the allocation.
+	 *
+	 * The remaining VPIDs are managed by the unit number allocator.
+	 */
+	vpid_unr = new_unrhdr(VM_MAXCPU + 1, 0xffff, NULL);
+}
+
+static void
 msr_save_area_init(struct msr_entry *g_area, int *g_count)
 {
 	int cnt;
@@ -421,6 +506,11 @@ vmx_disable(void *arg __unused)
 static int
 vmx_cleanup(void)
 {
+
+	if (vpid_unr != NULL) {
+		delete_unrhdr(vpid_unr);
+		vpid_unr = NULL;
+	}
 
 	smp_rendezvous(NULL, vmx_disable, NULL, NULL);
 
@@ -607,6 +697,8 @@ vmx_init(void)
 	cr4_ones_mask = fixed0 & fixed1;
 	cr4_zeros_mask = ~fixed0 & ~fixed1;
 
+	vpid_init();
+
 	/* enable VMX operation */
 	smp_rendezvous(NULL, vmx_enable, NULL, NULL);
 
@@ -615,42 +707,11 @@ vmx_init(void)
 	return (0);
 }
 
-/*
- * If this processor does not support VPIDs then simply return 0.
- *
- * Otherwise generate the next value of VPID to use. Any value is alright
- * as long as it is non-zero.
- *
- * We always execute in VMX non-root context with EPT enabled. Thus all
- * combined mappings are tagged with the (EP4TA, VPID, PCID) tuple. This
- * in turn means that multiple VMs can share the same VPID as long as
- * they have distinct EPT page tables.
- *
- * XXX
- * We should optimize this so that it returns VPIDs that are not in
- * use. Then we will not unnecessarily invalidate mappings in
- * vmx_set_pcpu_defaults() just because two or more vcpus happen to
- * use the same 'vpid'.
- */
-static uint16_t
-vmx_vpid(void)
-{
-	uint16_t vpid = 0;
-
-	if ((procbased_ctls2 & PROCBASED2_ENABLE_VPID) != 0) {
-		do {
-			vpid = atomic_fetchadd_int(&nextvpid, 1);
-		} while (vpid == 0);
-	}
-
-	return (vpid);
-}
-
 static int
-vmx_setup_cr_shadow(int which, struct vmcs *vmcs)
+vmx_setup_cr_shadow(int which, struct vmcs *vmcs, uint32_t initial)
 {
 	int error, mask_ident, shadow_ident;
-	uint64_t mask_value, shadow_value;
+	uint64_t mask_value;
 
 	if (which != 0 && which != 4)
 		panic("vmx_setup_cr_shadow: unknown cr%d", which);
@@ -659,31 +720,29 @@ vmx_setup_cr_shadow(int which, struct vmcs *vmcs)
 		mask_ident = VMCS_CR0_MASK;
 		mask_value = cr0_ones_mask | cr0_zeros_mask;
 		shadow_ident = VMCS_CR0_SHADOW;
-		shadow_value = cr0_ones_mask;
 	} else {
 		mask_ident = VMCS_CR4_MASK;
 		mask_value = cr4_ones_mask | cr4_zeros_mask;
 		shadow_ident = VMCS_CR4_SHADOW;
-		shadow_value = cr4_ones_mask;
 	}
 
 	error = vmcs_setreg(vmcs, 0, VMCS_IDENT(mask_ident), mask_value);
 	if (error)
 		return (error);
 
-	error = vmcs_setreg(vmcs, 0, VMCS_IDENT(shadow_ident), shadow_value);
+	error = vmcs_setreg(vmcs, 0, VMCS_IDENT(shadow_ident), initial);
 	if (error)
 		return (error);
 
 	return (0);
 }
-#define	vmx_setup_cr0_shadow(vmcs)	vmx_setup_cr_shadow(0, (vmcs))
-#define	vmx_setup_cr4_shadow(vmcs)	vmx_setup_cr_shadow(4, (vmcs))
+#define	vmx_setup_cr0_shadow(vmcs,init)	vmx_setup_cr_shadow(0, (vmcs), (init))
+#define	vmx_setup_cr4_shadow(vmcs,init)	vmx_setup_cr_shadow(4, (vmcs), (init))
 
 static void *
 vmx_vminit(struct vm *vm)
 {
-	uint16_t vpid;
+	uint16_t vpid[VM_MAXCPU];
 	int i, error, guest_msr_count;
 	struct vmx *vmx;
 
@@ -746,6 +805,8 @@ vmx_vminit(struct vm *vm)
 	if (!vmx_no_patmsr && guest_msr_rw(vmx, MSR_PAT))
 		panic("vmx_vminit: error setting guest pat msr access");
 
+	vpid_alloc(vpid, VM_MAXCPU);
+
 	for (i = 0; i < VM_MAXCPU; i++) {
 		vmx->vmcs[i].identifier = vmx_revision();
 		error = vmclear(&vmx->vmcs[i]);
@@ -753,8 +814,6 @@ vmx_vminit(struct vm *vm)
 			panic("vmx_vminit: vmclear error %d on vcpu %d\n",
 			      error, i);
 		}
-
-		vpid = vmx_vpid();
 
 		error = vmcs_set_defaults(&vmx->vmcs[i],
 					  (u_long)vmx_longjmp,
@@ -765,7 +824,7 @@ vmx_vminit(struct vm *vm)
 					  procbased_ctls2,
 					  exit_ctls, entry_ctls,
 					  vtophys(vmx->msr_bitmap),
-					  vpid);
+					  vpid[i]);
 
 		if (error != 0)
 			panic("vmx_vminit: vmcs_set_defaults error %d", error);
@@ -774,7 +833,7 @@ vmx_vminit(struct vm *vm)
 		vmx->cap[i].proc_ctls = procbased_ctls;
 
 		vmx->state[i].lastcpu = -1;
-		vmx->state[i].vpid = vpid;
+		vmx->state[i].vpid = vpid[i];
 
 		msr_save_area_init(vmx->guest_msrs[i], &guest_msr_count);
 
@@ -784,11 +843,17 @@ vmx_vminit(struct vm *vm)
 		if (error != 0)
 			panic("vmcs_set_msr_save error %d", error);
 
-		error = vmx_setup_cr0_shadow(&vmx->vmcs[i]);
+		/*
+		 * Set up the CR0/4 shadows, and init the read shadow
+		 * to the power-on register value from the Intel Sys Arch.
+		 *  CR0 - 0x60000010
+		 *  CR4 - 0
+		 */
+		error = vmx_setup_cr0_shadow(&vmx->vmcs[i], 0x60000010);
 		if (error != 0)
 			panic("vmx_setup_cr0_shadow %d", error);
 
-		error = vmx_setup_cr4_shadow(&vmx->vmcs[i]);
+		error = vmx_setup_cr4_shadow(&vmx->vmcs[i], 0);
 		if (error != 0)
 			panic("vmx_setup_cr4_shadow %d", error);
 	}
@@ -1079,8 +1144,8 @@ cantinject:
 static int
 vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 {
-	int error, cr, vmcs_guest_cr;
-	uint64_t regval, ones_mask, zeros_mask;
+	int error, cr, vmcs_guest_cr, vmcs_shadow_cr;
+	uint64_t crval, regval, ones_mask, zeros_mask;
 	const struct vmxctx *vmxctx;
 
 	/* We only handle mov to %cr0 or %cr4 at this time */
@@ -1156,17 +1221,60 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 		ones_mask = cr0_ones_mask;
 		zeros_mask = cr0_zeros_mask;
 		vmcs_guest_cr = VMCS_GUEST_CR0;
+		vmcs_shadow_cr = VMCS_CR0_SHADOW;
 	} else {
 		ones_mask = cr4_ones_mask;
 		zeros_mask = cr4_zeros_mask;
 		vmcs_guest_cr = VMCS_GUEST_CR4;
+		vmcs_shadow_cr = VMCS_CR4_SHADOW;
 	}
-	regval |= ones_mask;
-	regval &= ~zeros_mask;
-	error = vmwrite(vmcs_guest_cr, regval);
+
+	error = vmwrite(vmcs_shadow_cr, regval);
+	if (error) {
+		panic("vmx_emulate_cr_access: error %d writing cr%d shadow",
+		      error, cr);
+	}
+
+	crval = regval | ones_mask;
+	crval &= ~zeros_mask;
+	error = vmwrite(vmcs_guest_cr, crval);
 	if (error) {
 		panic("vmx_emulate_cr_access: error %d writing cr%d",
 		      error, cr);
+	}
+
+	if (cr == 0 && regval & CR0_PG) {
+		uint64_t efer, entry_ctls;
+
+		/*
+		 * If CR0.PG is 1 and EFER.LME is 1 then EFER.LMA and
+		 * the "IA-32e mode guest" bit in VM-entry control must be
+		 * equal.
+		 */
+		error = vmread(VMCS_GUEST_IA32_EFER, &efer);
+		if (error) {
+		  panic("vmx_emulate_cr_access: error %d efer read",
+			error);			
+		}
+		if (efer & EFER_LME) {
+			efer |= EFER_LMA;
+			error = vmwrite(VMCS_GUEST_IA32_EFER, efer);
+			if (error) {
+				panic("vmx_emulate_cr_access: error %d"
+				      " efer write", error);
+			}
+			error = vmread(VMCS_ENTRY_CTLS, &entry_ctls);
+			if (error) {
+				panic("vmx_emulate_cr_access: error %d"
+				      " entry ctls read", error);
+			}
+			entry_ctls |= VM_ENTRY_GUEST_LMA;
+			error = vmwrite(VMCS_ENTRY_CTLS, entry_ctls);
+			if (error) {
+				panic("vmx_emulate_cr_access: error %d"
+				      " entry ctls write", error);
+			}
+		}
 	}
 
 	return (HANDLED);
@@ -1533,8 +1641,11 @@ err_exit:
 static void
 vmx_vmcleanup(void *arg)
 {
-	int error;
+	int i, error;
 	struct vmx *vmx = arg;
+
+	for (i = 0; i < VM_MAXCPU; i++)
+		vpid_free(vmx->state[i].vpid);
 
 	/*
 	 * XXXSMP we also need to clear the VMCS active on the other vcpus.
@@ -1615,6 +1726,27 @@ vmxctx_setreg(struct vmxctx *vmxctx, int reg, uint64_t val)
 }
 
 static int
+vmx_shadow_reg(int reg)
+{
+	int shreg;
+
+	shreg = -1;
+
+	switch (reg) {
+	case VM_REG_GUEST_CR0:
+		shreg = VMCS_CR0_SHADOW;
+                break;
+        case VM_REG_GUEST_CR4:
+		shreg = VMCS_CR4_SHADOW;
+		break;
+	default:
+		break;
+	}
+
+	return (shreg);
+}
+
+static int
 vmx_getreg(void *arg, int vcpu, int reg, uint64_t *retval)
 {
 	int running, hostcpu;
@@ -1633,7 +1765,7 @@ vmx_getreg(void *arg, int vcpu, int reg, uint64_t *retval)
 static int
 vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 {
-	int error, hostcpu, running;
+	int error, hostcpu, running, shadow;
 	uint64_t ctls;
 	struct vmx *vmx = arg;
 
@@ -1662,6 +1794,15 @@ vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 				ctls &= ~VM_ENTRY_GUEST_LMA;
 			vmcs_setreg(&vmx->vmcs[vcpu], running,
 				    VMCS_IDENT(VMCS_ENTRY_CTLS), ctls);
+		}
+
+		shadow = vmx_shadow_reg(reg);
+		if (shadow > 0) {
+			/*
+			 * Store the unmodified value in the shadow
+			 */			
+			error = vmcs_setreg(&vmx->vmcs[vcpu], running,
+				    VMCS_IDENT(shadow), val);
 		}
 	}
 

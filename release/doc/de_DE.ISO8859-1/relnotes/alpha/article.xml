@@ -1,9 +1,8 @@
-<?xml version="1.0" encoding="iso-8859-1" standalone="no"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.2-Based Extension//EN" [
-<!ENTITY % entities PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Entity Set//DE">
-%entities;
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
-%release;
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+ %release;
 <!ENTITY % sections SYSTEM "../common/relnotes.ent"> %sections;
 
 <!-- Architecture-specific customization -->

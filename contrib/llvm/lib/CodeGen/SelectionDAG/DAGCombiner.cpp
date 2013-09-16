@@ -205,6 +205,7 @@ namespace {
     SDValue visitCTTZ_ZERO_UNDEF(SDNode *N);
     SDValue visitCTPOP(SDNode *N);
     SDValue visitSELECT(SDNode *N);
+    SDValue visitVSELECT(SDNode *N);
     SDValue visitSELECT_CC(SDNode *N);
     SDValue visitSETCC(SDNode *N);
     SDValue visitSIGN_EXTEND(SDNode *N);
@@ -243,7 +244,6 @@ namespace {
     SDValue visitCONCAT_VECTORS(SDNode *N);
     SDValue visitEXTRACT_SUBVECTOR(SDNode *N);
     SDValue visitVECTOR_SHUFFLE(SDNode *N);
-    SDValue visitMEMBARRIER(SDNode *N);
 
     SDValue XformToShuffleWithZero(SDNode *N);
     SDValue ReassociateOps(unsigned Opc, DebugLoc DL, SDValue LHS, SDValue RHS);
@@ -1127,6 +1127,7 @@ SDValue DAGCombiner::visit(SDNode *N) {
   case ISD::CTTZ_ZERO_UNDEF:    return visitCTTZ_ZERO_UNDEF(N);
   case ISD::CTPOP:              return visitCTPOP(N);
   case ISD::SELECT:             return visitSELECT(N);
+  case ISD::VSELECT:            return visitVSELECT(N);
   case ISD::SELECT_CC:          return visitSELECT_CC(N);
   case ISD::SETCC:              return visitSETCC(N);
   case ISD::SIGN_EXTEND:        return visitSIGN_EXTEND(N);
@@ -1165,7 +1166,6 @@ SDValue DAGCombiner::visit(SDNode *N) {
   case ISD::CONCAT_VECTORS:     return visitCONCAT_VECTORS(N);
   case ISD::EXTRACT_SUBVECTOR:  return visitEXTRACT_SUBVECTOR(N);
   case ISD::VECTOR_SHUFFLE:     return visitVECTOR_SHUFFLE(N);
-  case ISD::MEMBARRIER:         return visitMEMBARRIER(N);
   }
   return SDValue();
 }
@@ -4164,6 +4164,46 @@ SDValue DAGCombiner::visitSELECT(SDNode *N) {
   return SDValue();
 }
 
+SDValue DAGCombiner::visitVSELECT(SDNode *N) {
+  SDValue N0 = N->getOperand(0);
+  SDValue N1 = N->getOperand(1);
+  SDValue N2 = N->getOperand(2);
+  DebugLoc DL = N->getDebugLoc();
+
+  // Canonicalize integer abs.
+  // vselect (setg[te] X,  0),  X, -X ->
+  // vselect (setgt    X, -1),  X, -X ->
+  // vselect (setl[te] X,  0), -X,  X ->
+  // Y = sra (X, size(X)-1); xor (add (X, Y), Y)
+  if (N0.getOpcode() == ISD::SETCC) {
+    SDValue LHS = N0.getOperand(0), RHS = N0.getOperand(1);
+    ISD::CondCode CC = cast<CondCodeSDNode>(N0.getOperand(2))->get();
+    bool isAbs = false;
+    bool RHSIsAllZeros = ISD::isBuildVectorAllZeros(RHS.getNode());
+
+    if (((RHSIsAllZeros && (CC == ISD::SETGT || CC == ISD::SETGE)) ||
+         (ISD::isBuildVectorAllOnes(RHS.getNode()) && CC == ISD::SETGT)) &&
+        N1 == LHS && N2.getOpcode() == ISD::SUB && N1 == N2.getOperand(1))
+      isAbs = ISD::isBuildVectorAllZeros(N2.getOperand(0).getNode());
+    else if ((RHSIsAllZeros && (CC == ISD::SETLT || CC == ISD::SETLE)) &&
+             N2 == LHS && N1.getOpcode() == ISD::SUB && N2 == N1.getOperand(1))
+      isAbs = ISD::isBuildVectorAllZeros(N1.getOperand(0).getNode());
+
+    if (isAbs) {
+      EVT VT = LHS.getValueType();
+      SDValue Shift = DAG.getNode(
+          ISD::SRA, DL, VT, LHS,
+          DAG.getConstant(VT.getScalarType().getSizeInBits() - 1, VT));
+      SDValue Add = DAG.getNode(ISD::ADD, DL, VT, LHS, Shift);
+      AddToWorkList(Shift.getNode());
+      AddToWorkList(Add.getNode());
+      return DAG.getNode(ISD::XOR, DL, VT, Add, Shift);
+    }
+  }
+
+  return SDValue();
+}
+
 SDValue DAGCombiner::visitSELECT_CC(SDNode *N) {
   SDValue N0 = N->getOperand(0);
   SDValue N1 = N->getOperand(1);
@@ -4453,7 +4493,9 @@ SDValue DAGCombiner::visitSIGN_EXTEND(SDNode *N) {
   if (N0.getOpcode() == ISD::SETCC) {
     // sext(setcc) -> sext_in_reg(vsetcc) for vectors.
     // Only do this before legalize for now.
-    if (VT.isVector() && !LegalOperations) {
+    if (VT.isVector() && !LegalOperations &&
+        TLI.getBooleanContents(true) == 
+          TargetLowering::ZeroOrNegativeOneBooleanContent) {
       EVT N0VT = N0.getOperand(0).getValueType();
       // On some architectures (such as SSE/NEON/etc) the SETCC result type is
       // of the same size as the compared operands. Only optimize sext(setcc())
@@ -7110,25 +7152,40 @@ bool DAGCombiner::CombineToPreIndexedLoadStore(SDNode *N) {
     assert(OtherUses[i]->getOperand(!OffsetIdx).getNode() ==
            BasePtr.getNode() && "Expected BasePtr operand");
 
-    APInt OV =
-      cast<ConstantSDNode>(Offset)->getAPIntValue();
-    if (AM == ISD::PRE_DEC)
-      OV = -OV;
+    // We need to replace ptr0 in the following expression:
+    //   x0 * offset0 + y0 * ptr0 = t0
+    // knowing that
+    //   x1 * offset1 + y1 * ptr0 = t1 (the indexed load/store)
+    // 
+    // where x0, x1, y0 and y1 in {-1, 1} are given by the types of the
+    // indexed load/store and the expresion that needs to be re-written.
+    //
+    // Therefore, we have:
+    //   t0 = (x0 * offset0 - x1 * y0 * y1 *offset1) + (y0 * y1) * t1
 
     ConstantSDNode *CN =
       cast<ConstantSDNode>(OtherUses[i]->getOperand(OffsetIdx));
-    APInt CNV = CN->getAPIntValue();
-    if (OtherUses[i]->getOpcode() == ISD::SUB && OffsetIdx == 1)
-      CNV += OV;
-    else
-      CNV -= OV;
+    int X0, X1, Y0, Y1;
+    APInt Offset0 = CN->getAPIntValue();
+    APInt Offset1 = cast<ConstantSDNode>(Offset)->getAPIntValue();
 
-    SDValue NewOp1 = Result.getValue(isLoad ? 1 : 0);
-    SDValue NewOp2 = DAG.getConstant(CNV, CN->getValueType(0));
-    if (OffsetIdx == 0)
-      std::swap(NewOp1, NewOp2);
+    X0 = (OtherUses[i]->getOpcode() == ISD::SUB && OffsetIdx == 1) ? -1 : 1;
+    Y0 = (OtherUses[i]->getOpcode() == ISD::SUB && OffsetIdx == 0) ? -1 : 1;
+    X1 = (AM == ISD::PRE_DEC && !Swapped) ? -1 : 1;
+    Y1 = (AM == ISD::PRE_DEC && Swapped) ? -1 : 1;
 
-    SDValue NewUse = DAG.getNode(OtherUses[i]->getOpcode(),
+    unsigned Opcode = (Y0 * Y1 < 0) ? ISD::SUB : ISD::ADD;
+
+    APInt CNV = Offset0;
+    if (X0 < 0) CNV = -CNV;
+    if (X1 * Y0 * Y1 < 0) CNV = CNV + Offset1;
+    else CNV = CNV - Offset1;
+
+    // We can now generate the new expression.
+    SDValue NewOp1 = DAG.getConstant(CNV, CN->getValueType(0));
+    SDValue NewOp2 = Result.getValue(isLoad ? 1 : 0);
+
+    SDValue NewUse = DAG.getNode(Opcode,
                                  OtherUses[i]->getDebugLoc(),
                                  OtherUses[i]->getValueType(0), NewOp1, NewOp2);
     DAG.ReplaceAllUsesOfValueWith(SDValue(OtherUses[i], 0), NewUse);
@@ -9065,6 +9122,51 @@ SDValue DAGCombiner::visitCONCAT_VECTORS(SDNode *N) {
   if (ISD::allOperandsUndef(N))
     return DAG.getUNDEF(N->getValueType(0));
 
+  // Type legalization of vectors and DAG canonicalization of SHUFFLE_VECTOR
+  // nodes often generate nop CONCAT_VECTOR nodes.
+  // Scan the CONCAT_VECTOR operands and look for a CONCAT operations that
+  // place the incoming vectors at the exact same location.
+  SDValue SingleSource = SDValue();
+  unsigned PartNumElem = N->getOperand(0).getValueType().getVectorNumElements();
+
+  for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
+    SDValue Op = N->getOperand(i);
+
+    if (Op.getOpcode() == ISD::UNDEF)
+      continue;
+
+    // Check if this is the identity extract:
+    if (Op.getOpcode() != ISD::EXTRACT_SUBVECTOR)
+      return SDValue();
+
+    // Find the single incoming vector for the extract_subvector.
+    if (SingleSource.getNode()) {
+      if (Op.getOperand(0) != SingleSource)
+        return SDValue();
+    } else {
+      SingleSource = Op.getOperand(0);
+
+      // Check the source type is the same as the type of the result.
+      // If not, this concat may extend the vector, so we can not
+      // optimize it away.
+      if (SingleSource.getValueType() != N->getValueType(0))
+        return SDValue();
+    }
+
+    unsigned IdentityIndex = i * PartNumElem;
+    ConstantSDNode *CS = dyn_cast<ConstantSDNode>(Op.getOperand(1));
+    // The extract index must be constant.
+    if (!CS)
+      return SDValue();
+    
+    // Check that we are reading from the identity index.
+    if (CS->getZExtValue() != IdentityIndex)
+      return SDValue();
+  }
+
+  if (SingleSource.getNode())
+    return SingleSource;
+  
   return SDValue();
 }
 
@@ -9123,6 +9225,44 @@ SDValue DAGCombiner::visitEXTRACT_SUBVECTOR(SDNode* N) {
   }
 
   return SDValue();
+}
+
+// Tries to turn a shuffle of two CONCAT_VECTORS into a single concat.
+static SDValue partitionShuffleOfConcats(SDNode *N, SelectionDAG &DAG) {
+  EVT VT = N->getValueType(0);
+  unsigned NumElts = VT.getVectorNumElements();
+
+  SDValue N0 = N->getOperand(0);
+  SDValue N1 = N->getOperand(1);
+  ShuffleVectorSDNode *SVN = cast<ShuffleVectorSDNode>(N);
+
+  SmallVector<SDValue, 4> Ops;
+  EVT ConcatVT = N0.getOperand(0).getValueType();
+  unsigned NumElemsPerConcat = ConcatVT.getVectorNumElements();
+  unsigned NumConcats = NumElts / NumElemsPerConcat;
+
+  // Look at every vector that's inserted. We're looking for exact
+  // subvector-sized copies from a concatenated vector
+  for (unsigned I = 0; I != NumConcats; ++I) {
+    // Make sure we're dealing with a copy.
+    unsigned Begin = I * NumElemsPerConcat;
+    if (SVN->getMaskElt(Begin) % NumElemsPerConcat != 0)
+      return SDValue();
+
+    for (unsigned J = 1; J != NumElemsPerConcat; ++J) {
+      if (SVN->getMaskElt(Begin + J - 1) + 1 != SVN->getMaskElt(Begin + J))
+        return SDValue();
+    }
+
+    unsigned FirstElt = SVN->getMaskElt(Begin) / NumElemsPerConcat;
+    if (FirstElt < N0.getNumOperands())
+      Ops.push_back(N0.getOperand(FirstElt));
+    else
+      Ops.push_back(N1.getOperand(FirstElt - N0.getNumOperands()));
+  }
+
+  return DAG.getNode(ISD::CONCAT_VECTORS, N->getDebugLoc(), VT, Ops.data(),
+                     Ops.size());
 }
 
 SDValue DAGCombiner::visitVECTOR_SHUFFLE(SDNode *N) {
@@ -9226,6 +9366,17 @@ SDValue DAGCombiner::visitVECTOR_SHUFFLE(SDNode *N) {
     }
   }
 
+  if (N0.getOpcode() == ISD::CONCAT_VECTORS &&
+      Level < AfterLegalizeVectorOps &&
+      (N1.getOpcode() == ISD::UNDEF ||
+      (N1.getOpcode() == ISD::CONCAT_VECTORS &&
+       N0.getOperand(0).getValueType() == N1.getOperand(0).getValueType()))) {
+    SDValue V = partitionShuffleOfConcats(N, DAG);
+
+    if (V.getNode())
+      return V;
+  }
+
   // If this shuffle node is simply a swizzle of another shuffle node,
   // and it reverses the swizzle of the previous shuffle then we can
   // optimize shuffle(shuffle(x, undef), undef) -> x.
@@ -9260,59 +9411,6 @@ SDValue DAGCombiner::visitVECTOR_SHUFFLE(SDNode *N) {
   }
 
   return SDValue();
-}
-
-SDValue DAGCombiner::visitMEMBARRIER(SDNode* N) {
-  if (!TLI.getShouldFoldAtomicFences())
-    return SDValue();
-
-  SDValue atomic = N->getOperand(0);
-  switch (atomic.getOpcode()) {
-    case ISD::ATOMIC_CMP_SWAP:
-    case ISD::ATOMIC_SWAP:
-    case ISD::ATOMIC_LOAD_ADD:
-    case ISD::ATOMIC_LOAD_SUB:
-    case ISD::ATOMIC_LOAD_AND:
-    case ISD::ATOMIC_LOAD_OR:
-    case ISD::ATOMIC_LOAD_XOR:
-    case ISD::ATOMIC_LOAD_NAND:
-    case ISD::ATOMIC_LOAD_MIN:
-    case ISD::ATOMIC_LOAD_MAX:
-    case ISD::ATOMIC_LOAD_UMIN:
-    case ISD::ATOMIC_LOAD_UMAX:
-      break;
-    default:
-      return SDValue();
-  }
-
-  SDValue fence = atomic.getOperand(0);
-  if (fence.getOpcode() != ISD::MEMBARRIER)
-    return SDValue();
-
-  switch (atomic.getOpcode()) {
-    case ISD::ATOMIC_CMP_SWAP:
-      return SDValue(DAG.UpdateNodeOperands(atomic.getNode(),
-                                    fence.getOperand(0),
-                                    atomic.getOperand(1), atomic.getOperand(2),
-                                    atomic.getOperand(3)), atomic.getResNo());
-    case ISD::ATOMIC_SWAP:
-    case ISD::ATOMIC_LOAD_ADD:
-    case ISD::ATOMIC_LOAD_SUB:
-    case ISD::ATOMIC_LOAD_AND:
-    case ISD::ATOMIC_LOAD_OR:
-    case ISD::ATOMIC_LOAD_XOR:
-    case ISD::ATOMIC_LOAD_NAND:
-    case ISD::ATOMIC_LOAD_MIN:
-    case ISD::ATOMIC_LOAD_MAX:
-    case ISD::ATOMIC_LOAD_UMIN:
-    case ISD::ATOMIC_LOAD_UMAX:
-      return SDValue(DAG.UpdateNodeOperands(atomic.getNode(),
-                                    fence.getOperand(0),
-                                    atomic.getOperand(1), atomic.getOperand(2)),
-                     atomic.getResNo());
-    default:
-      return SDValue();
-  }
 }
 
 /// XformToShuffleWithZero - Returns a vector_shuffle if it able to transform

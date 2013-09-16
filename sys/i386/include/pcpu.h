@@ -44,15 +44,6 @@
  * other processors"
  */
 
-#if defined(XEN) || defined(XENHVM)
-#ifndef NR_VIRQS
-#define	NR_VIRQS	24
-#endif
-#ifndef NR_IPIS
-#define	NR_IPIS		2
-#endif
-#endif
-
 #if defined(XEN)
 
 /* These are peridically updated in shared_info, and then copied here. */
@@ -71,21 +62,9 @@ struct shadow_time_info {
 	vm_paddr_t *pc_pdir_shadow;					\
 	uint64_t pc_processed_system_time;				\
 	struct shadow_time_info pc_shadow_time;				\
-	int	pc_resched_irq;						\
-	int	pc_callfunc_irq;					\
-	int	pc_virq_to_irq[NR_VIRQS];				\
-	int	pc_ipi_to_irq[NR_IPIS];					\
-	char	__pad[77]
+	char	__pad[189]
 
-#elif defined(XENHVM)
-
-#define	PCPU_XEN_FIELDS							\
-	;								\
-	unsigned int pc_last_processed_l1i;				\
-	unsigned int pc_last_processed_l2i;				\
-	char	__pad[229]
-
-#else /* !XEN && !XENHVM */
+#else /* !XEN */
 
 #define PCPU_XEN_FIELDS							\
 	;								\

@@ -375,14 +375,17 @@ AcpiUtExecute_CID (
         switch (CidObjects[i]->Common.Type)
         {
         case ACPI_TYPE_INTEGER:
+
             StringAreaSize += ACPI_EISAID_STRING_SIZE;
             break;
 
         case ACPI_TYPE_STRING:
+
             StringAreaSize += CidObjects[i]->String.Length + 1;
             break;
 
         default:
+
             Status = AE_TYPE;
             goto Cleanup;
         }

@@ -186,8 +186,8 @@ void llvm::DumpBytes(StringRef bytes) {
 
 bool llvm::RelocAddressLess(RelocationRef a, RelocationRef b) {
   uint64_t a_addr, b_addr;
-  if (error(a.getAddress(a_addr))) return false;
-  if (error(b.getAddress(b_addr))) return false;
+  if (error(a.getOffset(a_addr))) return false;
+  if (error(b.getOffset(b_addr))) return false;
   return a_addr < b_addr;
 }
 
@@ -255,10 +255,10 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
     std::sort(Rels.begin(), Rels.end(), RelocAddressLess);
 
     StringRef SegmentName = "";
-    if (const MachOObjectFile *MachO = dyn_cast<const MachOObjectFile>(Obj)) {
+    if (const MachOObjectFile *MachO =
+        dyn_cast<const MachOObjectFile>(Obj)) {
       DataRefImpl DR = i->getRawDataRefImpl();
-      if (error(MachO->getSectionFinalSegmentName(DR, SegmentName)))
-        break;
+      SegmentName = MachO->getSectionFinalSegmentName(DR);
     }
     StringRef name;
     if (error(i->getName(name))) break;
@@ -378,7 +378,7 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
           if (error(rel_cur->getHidden(hidden))) goto skip_print_rel;
           if (hidden) goto skip_print_rel;
 
-          if (error(rel_cur->getAddress(addr))) goto skip_print_rel;
+          if (error(rel_cur->getOffset(addr))) goto skip_print_rel;
           // Stop when rel_cur's address is past the current instruction.
           if (addr >= Index + Size) break;
           if (error(rel_cur->getTypeName(name))) goto skip_print_rel;
@@ -417,7 +417,7 @@ static void PrintRelocations(const ObjectFile *o) {
       if (error(ri->getHidden(hidden))) continue;
       if (hidden) continue;
       if (error(ri->getTypeName(relocname))) continue;
-      if (error(ri->getAddress(address))) continue;
+      if (error(ri->getOffset(address))) continue;
       if (error(ri->getValueString(valuestr))) continue;
       outs() << address << " " << relocname << " " << valuestr << "\n";
     }
@@ -460,11 +460,19 @@ static void PrintSectionContents(const ObjectFile *o) {
     StringRef Name;
     StringRef Contents;
     uint64_t BaseAddr;
+    bool BSS;
     if (error(si->getName(Name))) continue;
     if (error(si->getContents(Contents))) continue;
     if (error(si->getAddress(BaseAddr))) continue;
+    if (error(si->isBSS(BSS))) continue;
 
     outs() << "Contents of section " << Name << ":\n";
+    if (BSS) {
+      outs() << format("<skipping contents of bss section at [%04" PRIx64
+                       ", %04" PRIx64 ")>\n", BaseAddr,
+                       BaseAddr + Contents.size());
+      continue;
+    }
 
     // Dump out the content as hex and printable ascii characters.
     for (std::size_t addr = 0, end = Contents.size(); addr < end; addr += 16) {
@@ -592,11 +600,10 @@ static void PrintSymbolTable(const ObjectFile *o) {
       else if (Section == o->end_sections())
         outs() << "*UND*";
       else {
-        if (const MachOObjectFile *MachO = dyn_cast<const MachOObjectFile>(o)) {
-          StringRef SegmentName;
+        if (const MachOObjectFile *MachO =
+            dyn_cast<const MachOObjectFile>(o)) {
           DataRefImpl DR = Section->getRawDataRefImpl();
-          if (error(MachO->getSectionFinalSegmentName(DR, SegmentName)))
-            SegmentName = "";
+          StringRef SegmentName = MachO->getSectionFinalSegmentName(DR);
           outs() << SegmentName << ",";
         }
         StringRef SectionName;

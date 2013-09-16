@@ -37,9 +37,9 @@ __FBSDID("$FreeBSD$");
 
 static void	usage(void);
 static int	kdumpenv(void);
-static int	kgetenv(char *);
-static int	ksetenv(char *, char *);
-static int	kunsetenv(char *);
+static int	kgetenv(const char *);
+static int	ksetenv(const char *, char *);
+static int	kunsetenv(const char *);
 
 static int hflag = 0;
 static int Nflag = 0;
@@ -170,7 +170,7 @@ kdumpenv(void)
 }
 
 static int
-kgetenv(char *env)
+kgetenv(const char *env)
 {
 	char buf[1024];
 	int ret;
@@ -186,7 +186,7 @@ kgetenv(char *env)
 }
 
 static int
-ksetenv(char *env, char *val)
+ksetenv(const char *env, char *val)
 {
 	int ret;
 
@@ -197,7 +197,7 @@ ksetenv(char *env, char *val)
 }
 
 static int
-kunsetenv(char *env)
+kunsetenv(const char *env)
 {
 	int ret;
 	

@@ -111,8 +111,7 @@ def CC_ARM_AAPCS_Common : CallingConv<[
   // i64 is 8-aligned i32 here, so we may need to eat R1 as a pad register
   // (and the same is true for f64 if VFP is not enabled)
   CCIfType<[i32], CCIfAlign<"8", CCAssignToRegWithShadow<[R0, R2], [R0, R1]>>>,
-  CCIfType<[i32], CCIf<"State.getNextStackOffset() == 0 &&"
-                       "ArgFlags.getOrigAlign() != 8",
+  CCIfType<[i32], CCIf<"ArgFlags.getOrigAlign() != 8",
                        CCAssignToReg<[R0, R1, R2, R3]>>>,
 
   CCIfType<[i32], CCIfAlign<"8", CCAssignToStackWithShadow<4, 8, R3>>>,
@@ -195,9 +194,20 @@ def CSR_NoRegs : CalleeSavedRegs<(add)>;
 def CSR_AAPCS : CalleeSavedRegs<(add LR, R11, R10, R9, R8, R7, R6, R5, R4,
                                      (sequence "D%u", 15, 8))>;
 
+// Constructors and destructors return 'this' in the ARM C++ ABI; since 'this'
+// and the pointer return value are both passed in R0 in these cases, this can
+// be partially modelled by treating R0 as a callee-saved register
+// Only the resulting RegMask is used; the SaveList is ignored
+def CSR_AAPCS_ThisReturn : CalleeSavedRegs<(add LR, R11, R10, R9, R8, R7, R6,
+                                            R5, R4, (sequence "D%u", 15, 8),
+                                            R0)>;
+
 // iOS ABI deviates from ARM standard ABI. R9 is not a callee-saved register.
 // Also save R7-R4 first to match the stack frame fixed spill areas.
 def CSR_iOS : CalleeSavedRegs<(add LR, R7, R6, R5, R4, (sub CSR_AAPCS, R9))>;
+
+def CSR_iOS_ThisReturn : CalleeSavedRegs<(add LR, R7, R6, R5, R4,
+                                          (sub CSR_AAPCS_ThisReturn, R9))>;
 
 // GHC set of callee saved regs is empty as all those regs are
 // used for passing STG regs around

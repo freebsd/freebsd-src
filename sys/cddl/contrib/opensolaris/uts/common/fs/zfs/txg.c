@@ -241,7 +241,7 @@ txg_thread_exit(tx_state_t *tx, callb_cpr_t *cpr, kthread_t **tpp)
 }
 
 static void
-txg_thread_wait(tx_state_t *tx, callb_cpr_t *cpr, kcondvar_t *cv, uint64_t time)
+txg_thread_wait(tx_state_t *tx, callb_cpr_t *cpr, kcondvar_t *cv, clock_t time)
 {
 	CALLB_CPR_SAFE_BEGIN(cpr);
 
@@ -348,6 +348,12 @@ txg_rele_to_sync(txg_handle_t *th)
 	th->th_cpu = NULL;	/* defensive */
 }
 
+/*
+ * Blocks until all transactions in the group are committed.
+ *
+ * On return, the transaction group has reached a stable state in which it can
+ * then be passed off to the syncing context.
+ */
 static void
 txg_quiesce(dsl_pool_t *dp, uint64_t txg)
 {
@@ -363,6 +369,9 @@ txg_quiesce(dsl_pool_t *dp, uint64_t txg)
 
 	ASSERT(txg == tx->tx_open_txg);
 	tx->tx_open_txg++;
+
+	DTRACE_PROBE2(txg__quiescing, dsl_pool_t *, dp, uint64_t, txg);
+	DTRACE_PROBE2(txg__opened, dsl_pool_t *, dp, uint64_t, tx->tx_open_txg);
 
 	/*
 	 * Now that we've incremented tx_open_txg, we can let threads
@@ -397,6 +406,9 @@ txg_do_callbacks(void *arg)
 
 /*
  * Dispatch the commit callbacks registered on this txg to worker threads.
+ *
+ * If no callbacks are registered for a given TXG, nothing happens.
+ * This function creates a taskq for the associated pool, if needed.
  */
 static void
 txg_dispatch_callbacks(dsl_pool_t *dp, uint64_t txg)
@@ -407,7 +419,10 @@ txg_dispatch_callbacks(dsl_pool_t *dp, uint64_t txg)
 
 	for (c = 0; c < max_ncpus; c++) {
 		tx_cpu_t *tc = &tx->tx_cpu[c];
-		/* No need to lock tx_cpu_t at this point */
+		/*
+		 * No need to lock tx_cpu_t at this point, since this can
+		 * only be called once a txg has been synced.
+		 */
 
 		int g = txg & TXG_MASK;
 
@@ -427,7 +442,7 @@ txg_dispatch_callbacks(dsl_pool_t *dp, uint64_t txg)
 		list_create(cb_list, sizeof (dmu_tx_callback_t),
 		    offsetof(dmu_tx_callback_t, dcb_node));
 
-		list_move_tail(&tc->tc_callbacks[g], cb_list);
+		list_move_tail(cb_list, &tc->tc_callbacks[g]);
 
 		(void) taskq_dispatch(tx->tx_commit_cb_taskq, (task_func_t *)
 		    txg_do_callbacks, cb_list, TQ_SLEEP);
@@ -489,6 +504,7 @@ txg_sync_thread(void *arg)
 		txg = tx->tx_quiesced_txg;
 		tx->tx_quiesced_txg = 0;
 		tx->tx_syncing_txg = txg;
+		DTRACE_PROBE2(txg__syncing, dsl_pool_t *, dp, uint64_t, txg);
 		cv_broadcast(&tx->tx_quiesce_more_cv);
 
 		dprintf("txg=%llu quiesce_txg=%llu sync_txg=%llu\n",
@@ -502,6 +518,7 @@ txg_sync_thread(void *arg)
 		mutex_enter(&tx->tx_sync_lock);
 		tx->tx_synced_txg = txg;
 		tx->tx_syncing_txg = 0;
+		DTRACE_PROBE2(txg__synced, dsl_pool_t *, dp, uint64_t, txg);
 		cv_broadcast(&tx->tx_sync_done_cv);
 
 		/*
@@ -551,23 +568,24 @@ txg_quiesce_thread(void *arg)
 		 */
 		dprintf("quiesce done, handing off txg %llu\n", txg);
 		tx->tx_quiesced_txg = txg;
+		DTRACE_PROBE2(txg__quiesced, dsl_pool_t *, dp, uint64_t, txg);
 		cv_broadcast(&tx->tx_sync_more_cv);
 		cv_broadcast(&tx->tx_quiesce_done_cv);
 	}
 }
 
 /*
- * Delay this thread by 'ticks' if we are still in the open transaction
- * group and there is already a waiting txg quiesing or quiesced.  Abort
- * the delay if this txg stalls or enters the quiesing state.
+ * Delay this thread by delay nanoseconds if we are still in the open
+ * transaction group and there is already a waiting txg quiesing or quiesced.
+ * Abort the delay if this txg stalls or enters the quiesing state.
  */
 void
-txg_delay(dsl_pool_t *dp, uint64_t txg, int ticks)
+txg_delay(dsl_pool_t *dp, uint64_t txg, hrtime_t delay, hrtime_t resolution)
 {
 	tx_state_t *tx = &dp->dp_tx;
-	clock_t timeout = ddi_get_lbolt() + ticks;
+	hrtime_t start = gethrtime();
 
-	/* don't delay if this txg could transition to quiesing immediately */
+	/* don't delay if this txg could transition to quiescing immediately */
 	if (tx->tx_open_txg > txg ||
 	    tx->tx_syncing_txg == txg-1 || tx->tx_synced_txg == txg-1)
 		return;
@@ -578,10 +596,11 @@ txg_delay(dsl_pool_t *dp, uint64_t txg, int ticks)
 		return;
 	}
 
-	while (ddi_get_lbolt() < timeout &&
-	    tx->tx_syncing_txg < txg-1 && !txg_stalled(dp))
-		(void) cv_timedwait(&tx->tx_quiesce_more_cv, &tx->tx_sync_lock,
-		    timeout - ddi_get_lbolt());
+	while (gethrtime() - start < delay &&
+	    tx->tx_syncing_txg < txg-1 && !txg_stalled(dp)) {
+		(void) cv_timedwait_hires(&tx->tx_quiesce_more_cv,
+		    &tx->tx_sync_lock, delay, resolution, 0);
+	}
 
 	mutex_exit(&tx->tx_sync_lock);
 }

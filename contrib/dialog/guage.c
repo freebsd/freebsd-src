@@ -1,9 +1,9 @@
 /*
- *  $Id: guage.c,v 1.60 2011/06/27 00:52:28 tom Exp $
+ *  $Id: guage.c,v 1.65 2012/11/30 10:43:31 tom Exp $
  *
  *  guage.c -- implements the gauge dialog
  *
- *  Copyright 2000-2010,2011	Thomas E. Dickey
+ *  Copyright 2000-2011,2012	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -94,6 +94,7 @@ read_data(char *buffer, FILE *fp)
 	result = 0;
     } else if (fgets(buffer, MY_LEN, fp) != 0) {
 	DLG_TRACE(("read_data:%s", buffer));
+	buffer[MY_LEN] = '\0';
 	dlg_trim_string(buffer);
 	result = 1;
     } else {
@@ -122,27 +123,29 @@ repaint_text(MY_OBJ * obj)
 
     if (dialog != 0 && obj->obj.input != 0) {
 	(void) werase(dialog);
-	dlg_draw_box(dialog, 0, 0, obj->height, obj->width, dialog_attr, border_attr);
+	dlg_draw_box2(dialog, 0, 0, obj->height, obj->width, dialog_attr,
+		      border_attr, border2_attr);
 
 	dlg_draw_title(dialog, obj->title);
 
-	wattrset(dialog, dialog_attr);
+	(void) wattrset(dialog, dialog_attr);
 	dlg_draw_helpline(dialog, FALSE);
 	dlg_print_autowrap(dialog, obj->prompt, obj->height, obj->width);
 
-	dlg_draw_box(dialog,
-		     obj->height - 4, 2 + MARGIN,
-		     2 + MARGIN, obj->width - 2 * (2 + MARGIN),
-		     dialog_attr,
-		     border_attr);
+	dlg_draw_box2(dialog,
+		      obj->height - 4, 2 + MARGIN,
+		      2 + MARGIN, obj->width - 2 * (2 + MARGIN),
+		      dialog_attr,
+		      border_attr,
+		      border2_attr);
 
 	/*
 	 * Clear the area for the progress bar by filling it with spaces
-	 * in the title-attribute, and write the percentage with that
+	 * in the gauge-attribute, and write the percentage with that
 	 * attribute.
 	 */
 	(void) wmove(dialog, obj->height - 3, 4);
-	wattrset(dialog, gauge_attr);
+	(void) wattrset(dialog, gauge_attr);
 
 	for (i = 0; i < (obj->width - 2 * (3 + MARGIN)); i++)
 	    (void) waddch(dialog, ' ');
@@ -156,15 +159,15 @@ repaint_text(MY_OBJ * obj)
 	 * but requires some tweaks to reverse it.
 	 */
 	x = (obj->percent * (obj->width - 2 * (3 + MARGIN))) / 100;
-	if ((title_attr & A_REVERSE) != 0) {
+	if ((gauge_attr & A_REVERSE) != 0) {
 	    wattroff(dialog, A_REVERSE);
 	} else {
-	    wattrset(dialog, A_REVERSE);
+	    (void) wattrset(dialog, A_REVERSE);
 	}
 	(void) wmove(dialog, obj->height - 3, 4);
 	for (i = 0; i < x; i++) {
 	    chtype ch2 = winch(dialog);
-	    if (title_attr & A_REVERSE) {
+	    if (gauge_attr & A_REVERSE) {
 		ch2 &= ~A_REVERSE;
 	    }
 	    (void) waddch(dialog, ch2);
@@ -180,7 +183,7 @@ handle_input(DIALOG_CALLBACK * cb)
     MY_OBJ *obj = (MY_OBJ *) cb;
     bool result;
     int status;
-    char buf[MY_LEN];
+    char buf[MY_LEN + 1];
 
     if (dialog_state.pipe_input == 0) {
 	status = -1;
@@ -335,7 +338,6 @@ dlg_free_gauge(void *objptr)
 	delink(obj);
 	obj->obj.keep_win = FALSE;
 	dlg_remove_callback(&(obj->obj));
-	free(obj);
     }
 }
 
@@ -362,6 +364,7 @@ dialog_gauge(const char *title,
     dlg_add_callback_ref((DIALOG_CALLBACK **) & obj, my_cleanup);
     dlg_update_gauge(obj, percent);
 
+    dlg_trace_win(obj->obj.win);
     do {
 	ch = dlg_getc(obj->obj.win, &fkey);
 #ifdef KEY_RESIZE

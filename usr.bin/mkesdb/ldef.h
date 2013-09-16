@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-extern int	 line_number;
+extern int	 linenumber;
 extern int	 yyerror(const char *);
 extern int	 yylex(void);
 

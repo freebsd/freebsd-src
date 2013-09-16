@@ -296,6 +296,13 @@ typedef struct {
 #define	SHT_HIOS		0x6fffffff	/* Last of OS specific semantics */
 #define	SHT_LOPROC		0x70000000	/* reserved range for processor */
 #define	SHT_AMD64_UNWIND	0x70000001	/* unwind information */
+#define	SHT_ARM_EXIDX		0x70000001	/* Exception index table. */
+#define	SHT_ARM_PREEMPTMAP	0x70000002	/* BPABI DLL dynamic linking 
+						   pre-emption map. */
+#define	SHT_ARM_ATTRIBUTES	0x70000003	/* Object file compatibility 
+						   attributes. */
+#define	SHT_ARM_DEBUGOVERLAY	0x70000004	/* See DBGOVL for details. */
+#define	SHT_ARM_OVERLAYSECTION	0x70000005	/* See DBGOVL for details. */
 #define	SHT_MIPS_REGINFO	0x70000006
 #define	SHT_MIPS_OPTIONS	0x7000000d
 #define	SHT_MIPS_DWARF		0x7000001e	/* MIPS gcc uses MIPS_DWARF */

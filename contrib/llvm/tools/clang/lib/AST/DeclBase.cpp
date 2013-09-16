@@ -493,6 +493,7 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case NonTypeTemplateParm:
     case ObjCMethod:
     case ObjCProperty:
+    case MSProperty:
       return IDNS_Ordinary;
     case Label:
       return IDNS_Label;
@@ -552,6 +553,7 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case StaticAssert:
     case ObjCPropertyImpl:
     case Block:
+    case Captured:
     case TranslationUnit:
 
     case UsingDirective:
@@ -702,21 +704,37 @@ void Decl::CheckAccessDeclContext() const {
 #endif
 }
 
-DeclContext *Decl::getNonClosureContext() {
-  return getDeclContext()->getNonClosureAncestor();
+static Decl::Kind getKind(const Decl *D) { return D->getKind(); }
+static Decl::Kind getKind(const DeclContext *DC) { return DC->getDeclKind(); }
+
+/// Starting at a given context (a Decl or DeclContext), look for a
+/// code context that is not a closure (a lambda, block, etc.).
+template <class T> static Decl *getNonClosureContext(T *D) {
+  if (getKind(D) == Decl::CXXMethod) {
+    CXXMethodDecl *MD = cast<CXXMethodDecl>(D);
+    if (MD->getOverloadedOperator() == OO_Call &&
+        MD->getParent()->isLambda())
+      return getNonClosureContext(MD->getParent()->getParent());
+    return MD;
+  } else if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
+    return FD;
+  } else if (ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D)) {
+    return MD;
+  } else if (BlockDecl *BD = dyn_cast<BlockDecl>(D)) {
+    return getNonClosureContext(BD->getParent());
+  } else if (CapturedDecl *CD = dyn_cast<CapturedDecl>(D)) {
+    return getNonClosureContext(CD->getParent());
+  } else {
+    return 0;
+  }
 }
 
-DeclContext *DeclContext::getNonClosureAncestor() {
-  DeclContext *DC = this;
+Decl *Decl::getNonClosureContext() {
+  return ::getNonClosureContext(this);
+}
 
-  // This is basically "while (DC->isClosure()) DC = DC->getParent();"
-  // except that it's significantly more efficient to cast to a known
-  // decl type and call getDeclContext() than to call getParent().
-  while (isa<BlockDecl>(DC))
-    DC = cast<BlockDecl>(DC)->getDeclContext();
-
-  assert(!DC->isClosure());
-  return DC;
+Decl *DeclContext::getNonClosureAncestor() {
+  return ::getNonClosureContext(this);
 }
 
 //===----------------------------------------------------------------------===//
@@ -801,28 +819,6 @@ bool DeclContext::isTransparentContext() const {
   return false;
 }
 
-bool DeclContext::isExternCContext() const {
-  const DeclContext *DC = this;
-  while (DC->DeclKind != Decl::TranslationUnit) {
-    if (DC->DeclKind == Decl::LinkageSpec)
-      return cast<LinkageSpecDecl>(DC)->getLanguage()
-        == LinkageSpecDecl::lang_c;
-    DC = DC->getParent();
-  }
-  return false;
-}
-
-bool DeclContext::isExternCXXContext() const {
-  const DeclContext *DC = this;
-  while (DC->DeclKind != Decl::TranslationUnit) {
-    if (DC->DeclKind == Decl::LinkageSpec)
-      return cast<LinkageSpecDecl>(DC)->getLanguage()
-        == LinkageSpecDecl::lang_cxx;
-    DC = DC->getParent();
-  }
-  return false;
-}
-
 bool DeclContext::Encloses(const DeclContext *DC) const {
   if (getPrimaryContext() != this)
     return getPrimaryContext()->Encloses(DC);
@@ -838,6 +834,7 @@ DeclContext *DeclContext::getPrimaryContext() {
   case Decl::TranslationUnit:
   case Decl::LinkageSpec:
   case Decl::Block:
+  case Decl::Captured:
     // There is only one DeclContext for these entities.
     return this;
 
@@ -1043,6 +1040,11 @@ bool DeclContext::decls_empty() const {
     LoadLexicalDeclsFromExternalStorage();
 
   return !FirstDecl;
+}
+
+bool DeclContext::containsDecl(Decl *D) const {
+  return (D->getLexicalDeclContext() == this &&
+          (D->NextInContextAndBits.getPointer() || D == LastDecl));
 }
 
 void DeclContext::removeDecl(Decl *D) {

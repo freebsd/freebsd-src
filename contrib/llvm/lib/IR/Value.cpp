@@ -118,7 +118,7 @@ bool Value::isUsedInBasicBlock(const BasicBlock *BB) const {
   for (BasicBlock::const_iterator I = BB->begin(), E = BB->end(); I != E; ++I) {
     if (std::find(I->op_begin(), I->op_end(), this) != I->op_end())
       return true;
-    if (MaxBlockSize-- == 0) // If the block is larger fall back to use_iterator
+    if (--MaxBlockSize == 0) // If the block is larger fall back to use_iterator
       break;
   }
 
@@ -333,6 +333,7 @@ namespace {
 // Various metrics for how much to strip off of pointers.
 enum PointerStripKind {
   PSK_ZeroIndices,
+  PSK_ZeroIndicesAndAliases,
   PSK_InBoundsConstantIndices,
   PSK_InBounds
 };
@@ -350,6 +351,7 @@ static Value *stripPointerCastsAndOffsets(Value *V) {
   do {
     if (GEPOperator *GEP = dyn_cast<GEPOperator>(V)) {
       switch (StripKind) {
+      case PSK_ZeroIndicesAndAliases:
       case PSK_ZeroIndices:
         if (!GEP->hasAllZeroIndices())
           return V;
@@ -367,7 +369,7 @@ static Value *stripPointerCastsAndOffsets(Value *V) {
     } else if (Operator::getOpcode(V) == Instruction::BitCast) {
       V = cast<Operator>(V)->getOperand(0);
     } else if (GlobalAlias *GA = dyn_cast<GlobalAlias>(V)) {
-      if (GA->mayBeOverridden())
+      if (StripKind == PSK_ZeroIndices || GA->mayBeOverridden())
         return V;
       V = GA->getAliasee();
     } else {
@@ -381,6 +383,10 @@ static Value *stripPointerCastsAndOffsets(Value *V) {
 } // namespace
 
 Value *Value::stripPointerCasts() {
+  return stripPointerCastsAndOffsets<PSK_ZeroIndicesAndAliases>(this);
+}
+
+Value *Value::stripPointerCastsNoFollowAliases() {
   return stripPointerCastsAndOffsets<PSK_ZeroIndices>(this);
 }
 

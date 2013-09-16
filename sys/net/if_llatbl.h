@@ -30,8 +30,6 @@ __FBSDID("$FreeBSD$");
 #ifndef	_NET_IF_LLATBL_H_
 #define	_NET_IF_LLATBL_H_
 
-#include "opt_ofed.h"
-
 #include <sys/_rwlock.h>
 #include <netinet/in.h>
 
@@ -43,7 +41,7 @@ struct rt_addrinfo;
 struct llentry;
 LIST_HEAD(llentries, llentry);
 
-extern struct rwlock_padalign lltable_rwlock;
+extern struct rwlock lltable_rwlock;
 #define	LLTABLE_RLOCK()		rw_rlock(&lltable_rwlock)
 #define	LLTABLE_RUNLOCK()	rw_runlock(&lltable_rwlock)
 #define	LLTABLE_WLOCK()		rw_wlock(&lltable_rwlock)
@@ -75,9 +73,7 @@ struct llentry {
 	union {
 		uint64_t	mac_aligned;
 		uint16_t	mac16[3];
-#ifdef OFED
 		uint8_t		mac8[20];	/* IB needs 20 bytes. */
-#endif
 	} ll_addr;
 
 	/* XXX af-private? */

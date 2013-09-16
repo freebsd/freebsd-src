@@ -25,6 +25,7 @@
 #include "llvm/ADT/Triple.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -414,7 +415,10 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple, const HeaderSearchOp
 #endif
     break;
   case llvm::Triple::DragonFly:
-    AddPath("/usr/include/c++/4.1", CXXSystem, false);
+    if (llvm::sys::fs::exists("/usr/lib/gcc47"))
+      AddPath("/usr/include/c++/4.7", CXXSystem, false);
+    else
+      AddPath("/usr/include/c++/4.4", CXXSystem, false);
     break;
   case llvm::Triple::FreeBSD:
     // FreeBSD 8.0
@@ -423,9 +427,6 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple, const HeaderSearchOp
                                 "", "", "", triple);
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.2/backward",
                                 "", "", "", triple);
-    break;
-  case llvm::Triple::NetBSD:
-    AddGnuCPlusPlusIncludePaths("/usr/include/g++", "", "", "", triple);
     break;
   case llvm::Triple::OpenBSD: {
     std::string t = triple.getTriple();

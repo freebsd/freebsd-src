@@ -170,6 +170,26 @@ bool X86Subtarget::IsLegalToCallImmediateAddr(const TargetMachine &TM) const {
   return isTargetELF() || TM.getRelocationModel() == Reloc::Static;
 }
 
+static bool OSHasAVXSupport() {
+#if defined(i386) || defined(__i386__) || defined(__x86__) || defined(_M_IX86)\
+    || defined(__x86_64__) || defined(_M_AMD64) || defined (_M_X64)
+#if defined(__GNUC__)
+  // Check xgetbv; this uses a .byte sequence instead of the instruction
+  // directly because older assemblers do not include support for xgetbv and
+  // there is no easy way to conditionally compile based on the assembler used.
+  int rEAX, rEDX;
+  __asm__ (".byte 0x0f, 0x01, 0xd0" : "=a" (rEAX), "=d" (rEDX) : "c" (0));
+#elif defined(_MSC_FULL_VER) && defined(_XCR_XFEATURE_ENABLED_MASK)
+  unsigned long long rEAX = _xgetbv(_XCR_XFEATURE_ENABLED_MASK);
+#else
+  int rEAX = 0; // Ensures we return false
+#endif
+  return (rEAX & 6) == 6;
+#else
+  return false;
+#endif
+}
+
 void X86Subtarget::AutoDetectSubtargetFeatures() {
   unsigned EAX = 0, EBX = 0, ECX = 0, EDX = 0;
   unsigned MaxLevel;
@@ -192,7 +212,9 @@ void X86Subtarget::AutoDetectSubtargetFeatures() {
   if ((ECX >> 9)  & 1) { X86SSELevel = SSSE3; ToggleFeature(X86::FeatureSSSE3);}
   if ((ECX >> 19) & 1) { X86SSELevel = SSE41; ToggleFeature(X86::FeatureSSE41);}
   if ((ECX >> 20) & 1) { X86SSELevel = SSE42; ToggleFeature(X86::FeatureSSE42);}
-  if ((ECX >> 28) & 1) { X86SSELevel = AVX;   ToggleFeature(X86::FeatureAVX); }
+  if (((ECX >> 27) & 1) && ((ECX >> 28) & 1) && OSHasAVXSupport()) {
+    X86SSELevel = AVX;   ToggleFeature(X86::FeatureAVX);
+  }
 
   bool IsIntel = memcmp(text.c, "GenuineIntel", 12) == 0;
   bool IsAMD   = !IsIntel && memcmp(text.c, "AuthenticAMD", 12) == 0;
@@ -467,6 +489,7 @@ void X86Subtarget::initializeEnvironment() {
   PostRAScheduler = false;
   PadShortFunctions = false;
   CallRegIndirect = false;
+  LEAUsesAG = false;
   stackAlignment = 4;
   // FIXME: this is a known good value for Yonah. How about others?
   MaxInlineSizeThreshold = 128;

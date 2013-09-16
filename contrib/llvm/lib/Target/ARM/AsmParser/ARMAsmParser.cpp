@@ -86,11 +86,11 @@ class ARMAsmParser : public MCTargetAsmParser {
   MCAsmLexer &getLexer() const { return Parser.getLexer(); }
 
   bool Warning(SMLoc L, const Twine &Msg,
-               ArrayRef<SMRange> Ranges = ArrayRef<SMRange>()) {
+               ArrayRef<SMRange> Ranges = None) {
     return Parser.Warning(L, Msg, Ranges);
   }
   bool Error(SMLoc L, const Twine &Msg,
-             ArrayRef<SMRange> Ranges = ArrayRef<SMRange>()) {
+             ArrayRef<SMRange> Ranges = None) {
     return Parser.Error(L, Msg, Ranges);
   }
 
@@ -609,6 +609,13 @@ public:
     if (!CE) return false;
     int64_t Value = CE->getValue();
     return ((Value & 3) == 0) && Value >= -1020 && Value <= 1020;
+  }
+  bool isImm0_4() const {
+    if (!isImm()) return false;
+    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(getImm());
+    if (!CE) return false;
+    int64_t Value = CE->getValue();
+    return Value >= 0 && Value < 5;
   }
   bool isImm0_1020s4() const {
     if (!isImm()) return false;
@@ -4745,6 +4752,7 @@ StringRef ARMAsmParser::splitMnemonic(StringRef Mnemonic,
       Mnemonic == "mls"   || Mnemonic == "smmls"  || Mnemonic == "vcls"  ||
       Mnemonic == "vmls"  || Mnemonic == "vnmls"  || Mnemonic == "vacge" ||
       Mnemonic == "vcge"  || Mnemonic == "vclt"   || Mnemonic == "vacgt" ||
+      Mnemonic == "vaclt" || Mnemonic == "vacle"  ||
       Mnemonic == "vcgt"  || Mnemonic == "vcle"   || Mnemonic == "smlal" ||
       Mnemonic == "umaal" || Mnemonic == "umlal"  || Mnemonic == "vabal" ||
       Mnemonic == "vmlal" || Mnemonic == "vpadal" || Mnemonic == "vqdmlal" ||
@@ -5014,8 +5022,8 @@ static bool isDataTypeToken(StringRef Tok) {
 static bool doesIgnoreDataTypeSuffix(StringRef Mnemonic, StringRef DT) {
   return Mnemonic.startswith("vldm") || Mnemonic.startswith("vstm");
 }
-
-static void applyMnemonicAliases(StringRef &Mnemonic, unsigned Features);
+static void applyMnemonicAliases(StringRef &Mnemonic, unsigned Features,
+                                 unsigned VariantID);
 /// Parse an arm instruction mnemonic followed by its operands.
 bool ARMAsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
                                     SMLoc NameLoc,
@@ -5026,7 +5034,8 @@ bool ARMAsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
   // MatchInstructionImpl(), but that's too late for aliases that include
   // any sort of suffix.
   unsigned AvailableFeatures = getAvailableFeatures();
-  applyMnemonicAliases(Name, AvailableFeatures);
+  unsigned AssemblerDialect = getParser().getAssemblerDialect();
+  applyMnemonicAliases(Name, AvailableFeatures, AssemblerDialect);
 
   // First check for the ARM-specific .req directive.
   if (Parser.getTok().is(AsmToken::Identifier) &&
@@ -7613,6 +7622,11 @@ MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
     return Error(IDLoc, "instruction variant requires ARMv6 or later");
   case Match_RequiresThumb2:
     return Error(IDLoc, "instruction variant requires Thumb2");
+  case Match_ImmRange0_4: {
+    SMLoc ErrorLoc = ((ARMOperand*)Operands[ErrorInfo])->getStartLoc();
+    if (ErrorLoc == SMLoc()) ErrorLoc = IDLoc;
+    return Error(ErrorLoc, "immediate operand must be in the range [0,4]");
+  }
   case Match_ImmRange0_15: {
     SMLoc ErrorLoc = ((ARMOperand*)Operands[ErrorInfo])->getStartLoc();
     if (ErrorLoc == SMLoc()) ErrorLoc = IDLoc;

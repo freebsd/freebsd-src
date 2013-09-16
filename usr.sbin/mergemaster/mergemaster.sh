@@ -483,6 +483,7 @@ if [ ! -f ${SOURCEDIR}/Makefile.inc1 -a \
   sleep 3
   SOURCEDIR=${SOURCEDIR}/..
 fi
+SOURCEDIR=$(realpath "$SOURCEDIR")
 
 # Setup make to use system files from SOURCEDIR
 MM_MAKE="make ${ARCHSTRING} -m ${SOURCEDIR}/share/mk"
@@ -706,7 +707,7 @@ case "${RERUN}" in
   # Build the mtree database in a temporary location.
   case "${PRE_WORLD}" in
   '') MTREENEW=`mktemp -t mergemaster.mtree`
-      mtree -ci -p ${TEMPROOT} -k size,md5digest > ${MTREENEW} 2>/dev/null
+      mtree -nci -p ${TEMPROOT} -k size,md5digest > ${MTREENEW} 2>/dev/null
       ;;
   *) # We don't want to mess with the mtree database on a pre-world run or
      # when re-scanning a previously-built tree.
@@ -1326,7 +1327,7 @@ case "${NEED_PWD_MKDB}" in
   ;;
 esac
 
-if [ -e "${DESTDIR}/etc/localtime" -a -z "${PRE_WORLD}" ]; then	# Ignore if TZ == UTC
+if [ -e "${DESTDIR}/etc/localtime" -a ! -L "${DESTDIR}/etc/localtime" -a -z "${PRE_WORLD}" ]; then	# Ignore if TZ == UTC
   echo ''
   [ -n "${DESTDIR}" ] && tzs_args="-C ${DESTDIR}"
   if [ -f "${DESTDIR}/var/db/zoneinfo" ]; then

@@ -30,6 +30,7 @@ FILES=	DAEMON \
 	cleanvar \
 	cleartmp \
 	cron \
+	ctld \
 	ddb \
 	defaultroute \
 	devd \
@@ -37,7 +38,6 @@ FILES=	DAEMON \
 	dhclient \
 	dmesg \
 	dumpon \
-	encswap \
 	faith \
 	fsck \
 	ftp-proxy \
@@ -63,6 +63,8 @@ FILES=	DAEMON \
 	ipnat \
 	ipsec \
 	${_ipxrouted} \
+	iscsictl \
+	iscsid \
 	jail \
 	kadmind \
 	kerberos \
@@ -139,7 +141,8 @@ FILES=	DAEMON \
 	static_arp \
 	static_ndp \
 	stf \
-	swap1 \
+	swap \
+	swaplate \
 	syscons \
 	sysctl \
 	syslogd \

@@ -779,8 +779,8 @@ ktrstruct(name, data, datalen)
 void
 ktrcapfail(type, needed, held)
 	enum ktr_cap_fail_type type;
-	cap_rights_t needed;
-	cap_rights_t held;
+	const cap_rights_t *needed;
+	const cap_rights_t *held;
 {
 	struct thread *td = curthread;
 	struct ktr_request *req;
@@ -791,8 +791,8 @@ ktrcapfail(type, needed, held)
 		return;
 	kcf = &req->ktr_data.ktr_cap_fail;
 	kcf->cap_type = type;
-	kcf->cap_needed = needed;
-	kcf->cap_held = held;
+	kcf->cap_needed = *needed;
+	kcf->cap_held = *held;
 	ktr_enqueuerequest(td, req);
 	ktrace_exit(td);
 }

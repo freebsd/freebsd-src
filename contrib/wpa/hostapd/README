@@ -2,37 +2,22 @@ hostapd - user space IEEE 802.11 AP and IEEE 802.1X/WPA/WPA2/EAP
 	  Authenticator and RADIUS authentication server
 ================================================================
 
-Copyright (c) 2002-2010, Jouni Malinen <j@w1.fi> and contributors
+Copyright (c) 2002-2012, Jouni Malinen <j@w1.fi> and contributors
 All Rights Reserved.
 
-This program is dual-licensed under both the GPL version 2 and BSD
-license. Either license may be used at your option.
+This program is licensed under the BSD license (the one with
+advertisement clause removed).
+
+If you are submitting changes to the project, please see CONTRIBUTIONS
+file for more instructions.
 
 
 
 License
 -------
 
-GPL v2:
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License version 2 as
-published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-
-(this copy of the license is in COPYING file)
-
-
-Alternatively, this software may be distributed, used, and modified
-under the terms of BSD license:
+This software may be distributed, used, and modified under the terms of
+BSD license:
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are

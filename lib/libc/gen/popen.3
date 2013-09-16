@@ -28,7 +28,7 @@
 .\"     @(#)popen.3	8.2 (Berkeley) 5/3/95
 .\" $FreeBSD$
 .\"
-.Dd May 3, 1995
+.Dd May 20, 2013
 .Dt POPEN 3
 .Os
 .Sh NAME
@@ -78,6 +78,11 @@ for reading,
 for writing, or
 .Ql r+
 for reading and writing.
+.Pp
+A letter
+.Ql e
+may be appended to that to request that the underlying file descriptor
+be set close-on-exec.
 .Pp
 The
 .Fa command

@@ -2,23 +2,16 @@
  * AES (Rijndael) cipher - decrypt
  *
  * Modifications to public domain implementation:
- * - support only 128-bit keys
  * - cleanup
  * - use C pre-processor to make it easier to change S table access
  * - added option (AES_SMALL_TABLES) for reducing code size by about 8 kB at
  *   cost of reduced throughput (quite small difference on Pentium 4,
  *   10-25% when using -O1 or -O2 optimization)
  *
- * Copyright (c) 2003-2005, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2003-2012, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -32,13 +25,15 @@
  *
  * @return	the number of rounds for the given cipher key size.
  */
-void rijndaelKeySetupDec(u32 rk[/*44*/], const u8 cipherKey[])
+static int rijndaelKeySetupDec(u32 rk[], const u8 cipherKey[], int keyBits)
 {
-	int Nr = 10, i, j;
+	int Nr, i, j;
 	u32 temp;
 
 	/* expand the cipher key: */
-	rijndaelKeySetupEnc(rk, cipherKey);
+	Nr = rijndaelKeySetupEnc(rk, cipherKey, keyBits);
+	if (Nr < 0)
+		return Nr;
 	/* invert the order of the round keys: */
 	for (i = 0, j = 4*Nr; i < j; i += 4, j -= 4) {
 		temp = rk[i    ]; rk[i    ] = rk[j    ]; rk[j    ] = temp;
@@ -57,24 +52,30 @@ void rijndaelKeySetupDec(u32 rk[/*44*/], const u8 cipherKey[])
 				TD3_(TE4((rk[j]      ) & 0xff));
 		}
 	}
+
+	return Nr;
 }
 
 void * aes_decrypt_init(const u8 *key, size_t len)
 {
 	u32 *rk;
-	if (len != 16)
-		return NULL;
+	int res;
 	rk = os_malloc(AES_PRIV_SIZE);
 	if (rk == NULL)
 		return NULL;
-	rijndaelKeySetupDec(rk, key);
+	res = rijndaelKeySetupDec(rk, key, len * 8);
+	if (res < 0) {
+		os_free(rk);
+		return NULL;
+	}
+	rk[AES_PRIV_NR_POS] = res;
 	return rk;
 }
 
-static void rijndaelDecrypt(const u32 rk[/*44*/], const u8 ct[16], u8 pt[16])
+static void rijndaelDecrypt(const u32 rk[/*44*/], int Nr, const u8 ct[16],
+			    u8 pt[16])
 {
 	u32 s0, s1, s2, s3, t0, t1, t2, t3;
-	const int Nr = 10;
 #ifndef FULL_UNROLL
 	int r;
 #endif /* ?FULL_UNROLL */
@@ -105,6 +106,14 @@ d##3 = TD0(s##3) ^ TD1(s##2) ^ TD2(s##1) ^ TD3(s##0) ^ rk[4 * i + 3]
 	ROUND(7,t,s);
 	ROUND(8,s,t);
 	ROUND(9,t,s);
+	if (Nr > 10) {
+		ROUND(10,s,t);
+		ROUND(11,t,s);
+		if (Nr > 12) {
+			ROUND(12,s,t);
+			ROUND(13,t,s);
+		}
+	}
 
 	rk += Nr << 2;
 
@@ -140,7 +149,8 @@ d##3 = TD0(s##3) ^ TD1(s##2) ^ TD2(s##1) ^ TD3(s##0) ^ rk[4 * i + 3]
 
 void aes_decrypt(void *ctx, const u8 *crypt, u8 *plain)
 {
-	rijndaelDecrypt(ctx, crypt, plain);
+	u32 *rk = ctx;
+	rijndaelDecrypt(ctx, rk[AES_PRIV_NR_POS], crypt, plain);
 }
 
 

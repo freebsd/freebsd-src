@@ -40,9 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
-#if __FreeBSD_version < 500000
-#include <sys/time.h>
-#endif
 #include <sys/ioctl.h>
 #include <netdb.h>
 #include <stdlib.h>
@@ -56,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <camlib.h>
 
-#include <dev/iscsi/initiator/iscsi.h>
+#include <dev/iscsi_initiator/iscsi.h>
 #include "iscontrol.h"
 
 typedef enum {

@@ -176,8 +176,6 @@
 #define ENVY24HT_VOL_MIN   96 /* -144db(negate) */
 #define ENVY24HT_VOL_MUTE 127 /* mute */
 
-#define BUS_SPACE_MAXADDR_ENVY24 0x0fffffff /* Address space beyond 256MB is not
- supported */
 #define BUS_SPACE_MAXSIZE_ENVY24 0x3fffc /* 64k x 4byte(1dword) */
 
 #define ENVY24HT_CCS_GPIO_HDATA 0x1E

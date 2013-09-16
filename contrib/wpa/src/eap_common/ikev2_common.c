@@ -2,14 +2,8 @@
  * IKEv2 common routines for initiator and responder
  * Copyright (c) 2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -18,6 +12,7 @@
 #include "crypto/crypto.h"
 #include "crypto/md5.h"
 #include "crypto/sha1.h"
+#include "crypto/random.h"
 #include "ikev2_common.h"
 
 
@@ -639,7 +634,7 @@ int ikev2_build_encrypted(int encr_id, int integ_id, struct ikev2_keys *keys,
 	phdr->flags = 0;
 
 	iv = wpabuf_put(msg, iv_len);
-	if (os_get_random(iv, iv_len)) {
+	if (random_get_bytes(iv, iv_len)) {
 		wpa_printf(MSG_INFO, "IKEV2: Could not generate IV");
 		return -1;
 	}

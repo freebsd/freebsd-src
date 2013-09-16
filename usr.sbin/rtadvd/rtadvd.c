@@ -35,7 +35,6 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
-#include <sys/time.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
@@ -95,7 +94,7 @@ struct sockaddr_in6 rcvfrom;
 static const char *pidfilename = _PATH_RTADVDPID;
 const char *conffile = _PATH_RTADVDCONF;
 static struct pidfh *pfh;
-int dflag = 0, sflag = 0;
+static int dflag, sflag;
 static int wait_shutdown;
 
 #define	PFD_RAWSOCK	0
@@ -139,7 +138,7 @@ union nd_opt {
 #define NDOPT_FLAG_RDNSS	(1 << 5)
 #define NDOPT_FLAG_DNSSL	(1 << 6)
 
-uint32_t ndopt_flags[] = {
+static uint32_t ndopt_flags[] = {
 	[ND_OPT_SOURCE_LINKADDR]	= NDOPT_FLAG_SRCLINKADDR,
 	[ND_OPT_TARGET_LINKADDR]	= NDOPT_FLAG_TGTLINKADDR,
 	[ND_OPT_PREFIX_INFORMATION]	= NDOPT_FLAG_PREFIXINFO,
@@ -179,7 +178,7 @@ int
 main(int argc, char *argv[])
 {
 	struct pollfd set[PFD_MAX];
-	struct timeval *timeout;
+	struct timespec *timeout;
 	int i, ch;
 	int fflag = 0, logopt;
 	int error;
@@ -331,7 +330,7 @@ main(int argc, char *argv[])
 			    "<%s> set timer to %ld:%ld. waiting for "
 			    "inputs or timeout", __func__,
 			    (long int)timeout->tv_sec,
-			    (long int)timeout->tv_usec);
+			    (long int)timeout->tv_nsec / 1000);
 		} else {
 			syslog(LOG_DEBUG,
 			    "<%s> there's no timer. waiting for inputs",
@@ -339,7 +338,7 @@ main(int argc, char *argv[])
 		}
 		if ((i = poll(set, sizeof(set)/sizeof(set[0]),
 			    timeout ? (timeout->tv_sec * 1000 +
-				timeout->tv_usec / 1000) : INFTIM)) < 0) {
+				timeout->tv_nsec / 1000 / 1000) : INFTIM)) < 0) {
 
 			/* EINTR would occur if a signal was delivered */
 			if (errno != EINTR)
@@ -432,7 +431,7 @@ rtadvd_shutdown(void)
 		if (ifi->ifi_ra_timer == NULL)
 			continue;
 		if (ifi->ifi_ra_lastsent.tv_sec == 0 &&
-		    ifi->ifi_ra_lastsent.tv_usec == 0 &&
+		    ifi->ifi_ra_lastsent.tv_nsec == 0 &&
 		    ifi->ifi_ra_timer != NULL) {
 			/*
 			 * When RA configured but never sent,
@@ -1006,7 +1005,7 @@ static void
 set_short_delay(struct ifinfo *ifi)
 {
 	long delay;	/* must not be greater than 1000000 */
-	struct timeval interval, now, min_delay, tm_tmp, *rest;
+	struct timespec interval, now, min_delay, tm_tmp, *rest;
 
 	if (ifi->ifi_ra_timer == NULL)
 		return;
@@ -1023,9 +1022,9 @@ set_short_delay(struct ifinfo *ifi)
 	delay = random() % MAX_RA_DELAY_TIME;
 #endif
 	interval.tv_sec = 0;
-	interval.tv_usec = delay;
+	interval.tv_nsec = delay * 1000;
 	rest = rtadvd_timer_rest(ifi->ifi_ra_timer);
-	if (TIMEVAL_LT(rest, &interval)) {
+	if (TS_CMP(rest, &interval, <)) {
 		syslog(LOG_DEBUG, "<%s> random delay is larger than "
 		    "the rest of the current timer", __func__);
 		interval = *rest;
@@ -1038,13 +1037,13 @@ set_short_delay(struct ifinfo *ifi)
 	 * MIN_DELAY_BETWEEN_RAS plus the random value after the
 	 * previous advertisement was sent.
 	 */
-	gettimeofday(&now, NULL);
-	TIMEVAL_SUB(&now, &ifi->ifi_ra_lastsent, &tm_tmp);
+	clock_gettime(CLOCK_MONOTONIC_FAST, &now);
+	TS_SUB(&now, &ifi->ifi_ra_lastsent, &tm_tmp);
 	min_delay.tv_sec = MIN_DELAY_BETWEEN_RAS;
-	min_delay.tv_usec = 0;
-	if (TIMEVAL_LT(&tm_tmp, &min_delay)) {
-		TIMEVAL_SUB(&min_delay, &tm_tmp, &min_delay);
-		TIMEVAL_ADD(&min_delay, &interval, &interval);
+	min_delay.tv_nsec = 0;
+	if (TS_CMP(&tm_tmp, &min_delay, <)) {
+		TS_SUB(&min_delay, &tm_tmp, &min_delay);
+		TS_ADD(&min_delay, &interval, &interval);
 	}
 	rtadvd_set_timer(&interval, ifi->ifi_ra_timer);
 }
@@ -1242,7 +1241,7 @@ prefix_check(struct nd_opt_prefix_info *pinfo,
 	int inconsistent = 0;
 	char ntopbuf[INET6_ADDRSTRLEN];
 	char prefixbuf[INET6_ADDRSTRLEN];
-	struct timeval now;
+	struct timespec now;
 
 #if 0				/* impossible */
 	if (pinfo->nd_opt_pi_type != ND_OPT_PREFIX_INFORMATION)
@@ -1285,7 +1284,7 @@ prefix_check(struct nd_opt_prefix_info *pinfo,
 		 * XXX: can we really expect that all routers on the link
 		 * have synchronized clocks?
 		 */
-		gettimeofday(&now, NULL);
+		clock_gettime(CLOCK_MONOTONIC_FAST, &now);
 		preferred_time += now.tv_sec;
 
 		if (!pfx->pfx_timer && rai->rai_clockskew &&
@@ -1318,7 +1317,7 @@ prefix_check(struct nd_opt_prefix_info *pinfo,
 
 	valid_time = ntohl(pinfo->nd_opt_pi_valid_time);
 	if (pfx->pfx_vltimeexpire) {
-		gettimeofday(&now, NULL);
+		clock_gettime(CLOCK_MONOTONIC_FAST, &now);
 		valid_time += now.tv_sec;
 
 		if (!pfx->pfx_timer && rai->rai_clockskew &&
@@ -1637,6 +1636,11 @@ struct ifinfo *
 if_indextoifinfo(int idx)
 {
 	struct ifinfo *ifi;
+	char *name, name0[IFNAMSIZ];
+
+	/* Check if the interface has a valid name or not. */
+	if (if_indextoname(idx, name0) == NULL)
+		return (NULL);
 
 	TAILQ_FOREACH(ifi, &ifilist, ifi_next) {
 		if (ifi->ifi_ifindex == idx)
@@ -1779,7 +1783,7 @@ ra_output(struct ifinfo *ifi)
 	}
 
 	/* update timestamp */
-	gettimeofday(&ifi->ifi_ra_lastsent, NULL);
+	clock_gettime(CLOCK_MONOTONIC_FAST, &ifi->ifi_ra_lastsent);
 
 	/* update counter */
 	ifi->ifi_rs_waitcount = 0;
@@ -1861,7 +1865,7 @@ ra_timeout(void *arg)
 
 /* update RA timer */
 void
-ra_timer_update(void *arg, struct timeval *tm)
+ra_timer_update(void *arg, struct timespec *tm)
 {
 	uint16_t interval;
 	struct rainfo *rai;
@@ -1911,12 +1915,12 @@ ra_timer_update(void *arg, struct timeval *tm)
 	}
 
 	tm->tv_sec = interval;
-	tm->tv_usec = 0;
+	tm->tv_nsec = 0;
 
 	syslog(LOG_DEBUG,
 	    "<%s> RA timer on %s is set to %ld:%ld",
 	    __func__, ifi->ifi_ifname,
-	    (long int)tm->tv_sec, (long int)tm->tv_usec);
+	    (long int)tm->tv_sec, (long int)tm->tv_nsec / 1000);
 
 	return;
 }

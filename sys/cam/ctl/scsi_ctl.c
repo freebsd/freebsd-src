@@ -961,23 +961,23 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 
 		/*
 		 * Valid combinations:
-		 *  - CAM_SEND_STATUS, SCATTER_VALID = 0, dxfer_len = 0,
+		 *  - CAM_SEND_STATUS, CAM_DATA_SG = 0, dxfer_len = 0,
 		 *    sglist_cnt = 0
-		 *  - CAM_SEND_STATUS = 0, SCATTER_VALID = 0, dxfer_len != 0,
+		 *  - CAM_SEND_STATUS = 0, CAM_DATA_SG = 0, dxfer_len != 0,
 		 *    sglist_cnt = 0 
-		 *  - CAM_SEND_STATUS = 0, SCATTER_VALID, dxfer_len != 0,
+		 *  - CAM_SEND_STATUS = 0, CAM_DATA_SG, dxfer_len != 0,
 		 *    sglist_cnt != 0
 		 */
 #ifdef CTLFEDEBUG
 		if (((flags & CAM_SEND_STATUS)
-		  && (((flags & CAM_SCATTER_VALID) != 0)
+		  && (((flags & CAM_DATA_SG) != 0)
 		   || (dxfer_len != 0)
 		   || (csio->sglist_cnt != 0)))
 		 || (((flags & CAM_SEND_STATUS) == 0)
 		  && (dxfer_len == 0))
-		 || ((flags & CAM_SCATTER_VALID)
+		 || ((flags & CAM_DATA_SG)
 		  && (csio->sglist_cnt == 0))
-		 || (((flags & CAM_SCATTER_VALID) == 0)
+		 || (((flags & CAM_DATA_SG) == 0)
 		  && (csio->sglist_cnt != 0))) {
 			printf("%s: tag %04x cdb %02x flags %#x dxfer_len "
 			       "%d sg %u\n", __func__, atio->tag_id,
@@ -2137,7 +2137,7 @@ ctlfe_dump_queue(struct ctlfe_lun_softc *softc)
 
 	xpt_print(periph->path, "%d requests total waiting for CCBs\n",
 		  num_items);
-	xpt_print(periph->path, "%ju CCBs oustanding (%ju allocated, %ju "
+	xpt_print(periph->path, "%ju CCBs outstanding (%ju allocated, %ju "
 		  "freed)\n", (uintmax_t)(softc->ccbs_alloced -
 		  softc->ccbs_freed), (uintmax_t)softc->ccbs_alloced,
 		  (uintmax_t)softc->ccbs_freed);

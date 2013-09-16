@@ -23,6 +23,8 @@
         remote          uname=auditdistd gname=wheel mode=0700
         ..
     ..
+    authpf              uname=root gname=authpf mode=0770
+    ..
 /set gname=wheel
     backups
     ..
@@ -94,6 +96,8 @@
     tmp             mode=01777
         vi.recover      mode=01777
         ..
+    ..
+    unbound		uname=unbound gname=unbound mode=0750
     ..
     yp
     ..

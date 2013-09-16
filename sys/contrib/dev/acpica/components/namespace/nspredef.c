@@ -166,6 +166,16 @@ AcpiNsCheckReturnValue (
     }
 
     /*
+     *
+     * 4) If there is no return value and it is optional, just return
+     * AE_OK (_WAK).
+     */
+    if (!(*ReturnObjectPtr))
+    {
+        goto Exit;
+    }
+
+    /*
      * For returned Package objects, check the type of all sub-objects.
      * Note: Package may have been newly created by call above.
      */
@@ -175,7 +185,13 @@ AcpiNsCheckReturnValue (
         Status = AcpiNsCheckPackage (Info, ReturnObjectPtr);
         if (ACPI_FAILURE (Status))
         {
-            goto Exit;
+            /* We might be able to fix some errors */
+
+            if ((Status != AE_AML_OPERAND_TYPE) &&
+                (Status != AE_AML_OPERAND_VALUE))
+            {
+                goto Exit;
+            }
         }
     }
 
@@ -287,7 +303,13 @@ TypeErrorExit:
 
     AcpiUtGetExpectedReturnTypes (TypeBuffer, ExpectedBtypes);
 
-    if (PackageIndex == ACPI_NOT_PACKAGE_ELEMENT)
+    if (!ReturnObject)
+    {
+        ACPI_WARN_PREDEFINED ((AE_INFO, Info->FullPathname, Info->NodeFlags,
+            "Expected return object of type %s",
+            TypeBuffer));
+    }
+    else if (PackageIndex == ACPI_NOT_PACKAGE_ELEMENT)
     {
         ACPI_WARN_PREDEFINED ((AE_INFO, Info->FullPathname, Info->NodeFlags,
             "Return type mismatch - found %s, expected %s",
@@ -377,26 +399,32 @@ AcpiNsGetBitmappedType (
     switch (ReturnObject->Common.Type)
     {
     case ACPI_TYPE_INTEGER:
+
         ReturnBtype = ACPI_RTYPE_INTEGER;
         break;
 
     case ACPI_TYPE_BUFFER:
+
         ReturnBtype = ACPI_RTYPE_BUFFER;
         break;
 
     case ACPI_TYPE_STRING:
+
         ReturnBtype = ACPI_RTYPE_STRING;
         break;
 
     case ACPI_TYPE_PACKAGE:
+
         ReturnBtype = ACPI_RTYPE_PACKAGE;
         break;
 
     case ACPI_TYPE_LOCAL_REFERENCE:
+
         ReturnBtype = ACPI_RTYPE_REFERENCE;
         break;
 
     default:
+
         /* Not one of the supported objects, must be incorrect */
 
         ReturnBtype = ACPI_RTYPE_ANY;

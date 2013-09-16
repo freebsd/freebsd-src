@@ -77,24 +77,25 @@ __FBSDID("$FreeBSD$");
 
 static struct job *jobtab;	/* array of jobs */
 static int njobs;		/* size of array */
-MKINIT pid_t backgndpid = -1;	/* pid of last background process */
-MKINIT struct job *bgjob = NULL; /* last background process */
+static pid_t backgndpid = -1;	/* pid of last background process */
+static struct job *bgjob = NULL; /* last background process */
 #if JOBS
 static struct job *jobmru;	/* most recently used job list */
 static pid_t initialpgrp;	/* pgrp of shell on invocation */
 #endif
-int in_waitcmd = 0;		/* are we in waitcmd()? */
-volatile sig_atomic_t breakwaitcmd = 0;	/* should wait be terminated? */
 static int ttyfd = -1;
 
 /* mode flags for dowait */
 #define DOWAIT_BLOCK	0x1 /* wait until a child exits */
-#define DOWAIT_SIG	0x2 /* if DOWAIT_BLOCK, abort on signals */
+#define DOWAIT_SIG	0x2 /* if DOWAIT_BLOCK, abort on SIGINT/SIGQUIT */
+#define DOWAIT_SIG_ANY	0x4 /* if DOWAIT_SIG, abort on any signal */
 
 #if JOBS
 static void restartjob(struct job *);
 #endif
 static void freejob(struct job *);
+static int waitcmdloop(struct job *);
+static struct job *getjob_nonotfound(char *);
 static struct job *getjob(char *);
 pid_t getjobpgrp(char *);
 static pid_t dowait(int, struct job *);
@@ -114,7 +115,7 @@ static void showjob(struct job *, int);
  * Turn job control on and off.
  */
 
-MKINIT int jobctl;
+static int jobctl;
 
 #if JOBS
 void
@@ -181,13 +182,14 @@ out:				out2fmt_flush("sh: can't access tty; job control turned off\n");
 
 #if JOBS
 int
-fgcmd(int argc __unused, char **argv)
+fgcmd(int argc __unused, char **argv __unused)
 {
 	struct job *jp;
 	pid_t pgrp;
 	int status;
 
-	jp = getjob(argv[1]);
+	nextopt("");
+	jp = getjob(*argptr);
 	if (jp->jobctl == 0)
 		error("job not created under job control");
 	printjobcmd(jp);
@@ -208,8 +210,9 @@ bgcmd(int argc, char **argv)
 {
 	struct job *jp;
 
+	nextopt("");
 	do {
-		jp = getjob(*++argv);
+		jp = getjob(*argptr);
 		if (jp->jobctl == 0)
 			error("job not created under job control");
 		if (jp->state == JOBDONE)
@@ -218,7 +221,7 @@ bgcmd(int argc, char **argv)
 		jp->foreground = 0;
 		out1fmt("[%td] ", jp - jobtab + 1);
 		printjobcmd(jp);
-	} while (--argc > 1);
+	} while (*argptr != NULL && *++argptr != NULL);
 	return 0;
 }
 
@@ -459,32 +462,41 @@ int
 waitcmd(int argc __unused, char **argv __unused)
 {
 	struct job *job;
-	int status, retval;
-	struct job *jp;
+	int retval;
 
 	nextopt("");
-	if (*argptr != NULL) {
-		job = getjob(*argptr);
-	} else {
-		job = NULL;
-	}
+	if (*argptr == NULL)
+		return (waitcmdloop(NULL));
+
+	do {
+		job = getjob_nonotfound(*argptr);
+		if (job == NULL)
+			retval = 127;
+		else
+			retval = waitcmdloop(job);
+		argptr++;
+	} while (*argptr != NULL);
+
+	return (retval);
+}
+
+static int
+waitcmdloop(struct job *job)
+{
+	int status, retval, sig;
+	struct job *jp;
 
 	/*
 	 * Loop until a process is terminated or stopped, or a SIGINT is
 	 * received.
 	 */
 
-	in_waitcmd++;
 	do {
 		if (job != NULL) {
-			if (job->state) {
+			if (job->state == JOBDONE) {
 				status = job->ps[job->nprocs - 1].status;
 				if (WIFEXITED(status))
 					retval = WEXITSTATUS(status);
-#if JOBS
-				else if (WIFSTOPPED(status))
-					retval = WSTOPSIG(status) + 128;
-#endif
 				else
 					retval = WTERMSIG(status) + 128;
 				if (! iflag || ! job->changed)
@@ -494,7 +506,6 @@ waitcmd(int argc __unused, char **argv __unused)
 					if (job == bgjob)
 						bgjob = NULL;
 				}
-				in_waitcmd--;
 				return retval;
 			}
 		} else {
@@ -510,7 +521,6 @@ waitcmd(int argc __unused, char **argv __unused)
 				}
 			for (jp = jobtab ; ; jp++) {
 				if (jp >= jobtab + njobs) {	/* no running procs */
-					in_waitcmd--;
 					return 0;
 				}
 				if (jp->used && jp->state == 0)
@@ -518,20 +528,22 @@ waitcmd(int argc __unused, char **argv __unused)
 			}
 		}
 	} while (dowait(DOWAIT_BLOCK | DOWAIT_SIG, (struct job *)NULL) != -1);
-	in_waitcmd--;
 
-	return pendingsig + 128;
+	sig = pendingsig_waitcmd;
+	pendingsig_waitcmd = 0;
+	return sig + 128;
 }
 
 
 
 int
-jobidcmd(int argc __unused, char **argv)
+jobidcmd(int argc __unused, char **argv __unused)
 {
 	struct job *jp;
 	int i;
 
-	jp = getjob(argv[1]);
+	nextopt("");
+	jp = getjob(*argptr);
 	for (i = 0 ; i < jp->nprocs ; ) {
 		out1fmt("%d", (int)jp->ps[i].pid);
 		out1c(++i < jp->nprocs? ' ' : '\n');
@@ -546,7 +558,7 @@ jobidcmd(int argc __unused, char **argv)
  */
 
 static struct job *
-getjob(char *name)
+getjob_nonotfound(char *name)
 {
 	int jobno;
 	struct job *found, *jp;
@@ -611,9 +623,19 @@ currentjob:	if ((jp = getcurjob(NULL)) == NULL)
 				return jp;
 		}
 	}
-	error("No such job: %s", name);
-	/*NOTREACHED*/
 	return NULL;
+}
+
+
+static struct job *
+getjob(char *name)
+{
+	struct job *jp;
+
+	jp = getjob_nonotfound(name);
+	if (jp == NULL)
+		error("No such job: %s", name);
+	return (jp);
 }
 
 
@@ -965,7 +987,8 @@ waitforjob(struct job *jp, int *origstatus)
 	INTOFF;
 	TRACE(("waitforjob(%%%td) called\n", jp - jobtab + 1));
 	while (jp->state == 0)
-		if (dowait(DOWAIT_BLOCK | (Tflag ? DOWAIT_SIG : 0), jp) == -1)
+		if (dowait(DOWAIT_BLOCK | (Tflag ? DOWAIT_SIG |
+		    DOWAIT_SIG_ANY : 0), jp) == -1)
 			dotrap();
 #if JOBS
 	if (jp->jobctl) {
@@ -1056,12 +1079,17 @@ dowait(int mode, struct job *job)
 		pid = wait3(&status, wflags, (struct rusage *)NULL);
 		TRACE(("wait returns %d, status=%d\n", (int)pid, status));
 		if (pid == 0 && (mode & DOWAIT_SIG) != 0) {
-			sigsuspend(&omask);
 			pid = -1;
+			if (((mode & DOWAIT_SIG_ANY) != 0 ?
+			    pendingsig : pendingsig_waitcmd) != 0) {
+				errno = EINTR;
+				break;
+			}
+			sigsuspend(&omask);
 			if (int_pending())
 				break;
 		}
-	} while (pid == -1 && errno == EINTR && breakwaitcmd == 0);
+	} while (pid == -1 && errno == EINTR);
 	if (pid == -1 && errno == ECHILD && job != NULL)
 		job->state = JOBDONE;
 	if ((mode & DOWAIT_SIG) != 0) {
@@ -1069,11 +1097,6 @@ dowait(int mode, struct job *job)
 			sigaction(SIGCHLD, &osa, NULL);
 		sigprocmask(SIG_SETMASK, &omask, NULL);
 		INTON;
-	}
-	if (breakwaitcmd != 0) {
-		breakwaitcmd = 0;
-		if (pid <= 0)
-			return -1;
 	}
 	if (pid <= 0)
 		return pid;

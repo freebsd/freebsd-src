@@ -102,7 +102,7 @@ struct vm_object {
 	TAILQ_ENTRY(vm_object) object_list; /* list of all objects */
 	LIST_HEAD(, vm_object) shadow_head; /* objects that this is a shadow for */
 	LIST_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
-	TAILQ_HEAD(, vm_page) memq;	/* list of resident pages */
+	TAILQ_HEAD(respgs, vm_page) memq; /* list of resident pages */
 	struct vm_radix rtree;		/* root of the resident page radix trie*/
 	vm_pindex_t size;		/* Object size */
 	int generation;			/* generation ID */
@@ -205,6 +205,7 @@ struct vm_object {
  */
 #define	OBJPR_CLEANONLY	0x1		/* Don't remove dirty pages. */
 #define	OBJPR_NOTMAPPED	0x2		/* Don't unmap pages. */
+#define	OBJPR_NOTWIRED	0x4		/* Don't remove wired pages. */
 
 TAILQ_HEAD(object_q, vm_object);
 
@@ -223,6 +224,8 @@ extern struct vm_object kmem_object_store;
 	rw_assert(&(object)->lock, RA_RLOCKED)
 #define	VM_OBJECT_ASSERT_WLOCKED(object)				\
 	rw_assert(&(object)->lock, RA_WLOCKED)
+#define	VM_OBJECT_LOCK_DOWNGRADE(object)				\
+	rw_downgrade(&(object)->lock)
 #define	VM_OBJECT_RLOCK(object)						\
 	rw_rlock(&(object)->lock)
 #define	VM_OBJECT_RUNLOCK(object)					\

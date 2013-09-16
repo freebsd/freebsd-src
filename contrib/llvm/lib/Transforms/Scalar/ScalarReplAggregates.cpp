@@ -1462,8 +1462,8 @@ bool SROA::ShouldAttemptScalarRepl(AllocaInst *AI) {
 }
 
 // performScalarRepl - This algorithm is a simple worklist driven algorithm,
-// which runs on all of the alloca instructions in the function, removing them
-// if they are only used by getelementptr instructions.
+// which runs on all of the alloca instructions in the entry block, removing
+// them if they are only used by getelementptr instructions.
 //
 bool SROA::performScalarRepl(Function &F) {
   std::vector<AllocaInst*> WorkList;
@@ -1724,17 +1724,8 @@ void SROA::isSafeGEP(GetElementPtrInst *GEPI,
       continue;
 
     ConstantInt *IdxVal = dyn_cast<ConstantInt>(GEPIt.getOperand());
-    if (!IdxVal) {
-      // Non constant GEPs are only a problem on arrays, structs, and pointers
-      // Vectors can be dynamically indexed.
-      // FIXME: Add support for dynamic indexing on arrays.  This should be
-      // ok on any subarrays of the alloca array, eg, a[0][i] is ok, but a[i][0]
-      // isn't.
-      if (!(*GEPIt)->isVectorTy())
-        return MarkUnsafe(Info, GEPI);
-      NonConstant = true;
-      NonConstantIdxSize = TD->getTypeAllocSize(*GEPIt);
-    }
+    if (!IdxVal)
+      return MarkUnsafe(Info, GEPI);
   }
 
   // Compute the offset due to this GEP and check if the alloca has a

@@ -56,11 +56,11 @@ dtrace_load(void *dummy)
 	/* Hang our hook for exceptions. */
 	dtrace_invop_init();
 
-	/*
-	 * XXX This is a short term hack to avoid having to comment
-	 * out lots and lots of lock/unlock calls.
-	 */
-	mutex_init(&mod_lock,"XXX mod_lock hack", MUTEX_DEFAULT, NULL);
+	/* Register callbacks for linker file load and unload events. */
+	dtrace_kld_load_tag = EVENTHANDLER_REGISTER(kld_load,
+	    dtrace_kld_load, NULL, EVENTHANDLER_PRI_ANY);
+	dtrace_kld_unload_try_tag = EVENTHANDLER_REGISTER(kld_unload_try,
+	    dtrace_kld_unload_try, NULL, EVENTHANDLER_PRI_ANY);
 
 	/*
 	 * Initialise the mutexes without 'witness' because the dtrace
@@ -73,7 +73,9 @@ dtrace_load(void *dummy)
 	mutex_init(&dtrace_lock,"dtrace probe state", MUTEX_DEFAULT, NULL);
 	mutex_init(&dtrace_provider_lock,"dtrace provider state", MUTEX_DEFAULT, NULL);
 	mutex_init(&dtrace_meta_lock,"dtrace meta-provider state", MUTEX_DEFAULT, NULL);
+#ifdef DEBUG
 	mutex_init(&dtrace_errlock,"dtrace error lock", MUTEX_DEFAULT, NULL);
+#endif
 
 	mutex_enter(&dtrace_provider_lock);
 	mutex_enter(&dtrace_lock);

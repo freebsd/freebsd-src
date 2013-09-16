@@ -385,10 +385,12 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
         case CVMX_BOARD_TYPE_SIM:
             /* Simulator doesn't have MII */
             return -1;
-        case CVMX_BOARD_TYPE_EBT3000:
+#if !defined(OCTEON_VENDOR_GEFES)
         case CVMX_BOARD_TYPE_EBT5800:
-        case CVMX_BOARD_TYPE_THUNDER:
         case CVMX_BOARD_TYPE_NICPRO2:
+#endif
+        case CVMX_BOARD_TYPE_EBT3000:
+        case CVMX_BOARD_TYPE_THUNDER:
             /* Interface 0 is SPI4, interface 1 is RGMII */
             if ((ipd_port >= 16) && (ipd_port < 20))
                 return ipd_port - 16;
@@ -410,7 +412,9 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
         case CVMX_BOARD_TYPE_HIKARI:
         case CVMX_BOARD_TYPE_CN3010_EVB_HS5:
         case CVMX_BOARD_TYPE_CN3005_EVB_HS5:
+#if !defined(OCTEON_VENDOR_GEFES)
         case CVMX_BOARD_TYPE_CN3020_EVB_HS5:
+#endif
             /* Port 0 is WAN connected to a PHY, Port 1 is GMII connected to a
                 switch */
             if (ipd_port == 0)
@@ -602,6 +606,30 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 	case CVMX_BOARD_TYPE_CUST_RADISYS_RSYS4GBE:
 	    /* No MII.  */
 	    return -1;
+#endif
+#if defined(OCTEON_VENDOR_GEFES)
+        case CVMX_BOARD_TYPE_AT5810:
+		return -1;
+        case CVMX_BOARD_TYPE_TNPA3804:
+    	case CVMX_BOARD_TYPE_CUST_TNPA5804:
+	case CVMX_BOARD_TYPE_CUST_W5800:
+	case CVMX_BOARD_TYPE_WNPA3850:
+	case CVMX_BOARD_TYPE_W3860:
+		return -1;// RGMII boards should use inbad status
+	case CVMX_BOARD_TYPE_CUST_W5651X:
+	case CVMX_BOARD_TYPE_CUST_W5650:
+	case CVMX_BOARD_TYPE_CUST_TNPA56X4:
+	case CVMX_BOARD_TYPE_CUST_TNPA5651X:
+        case CVMX_BOARD_TYPE_CUST_W63XX:
+		return -1; /* No PHYs are connected to Octeon, PHYs inside of SFPs which is accessed over TWSI */
+	case CVMX_BOARD_TYPE_CUST_W5434:
+		/* Board has 4 SGMII ports. 4 connect out 
+		 * must return the MII address of the PHY connected to each IPD port 
+		 */
+		if ((ipd_port >= 16) && (ipd_port < 20))
+			return ipd_port - 16 + 0x40;
+		else
+			return -1;
 #endif
     }
 
@@ -991,7 +1019,9 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
         case CVMX_BOARD_TYPE_EBH3100:
         case CVMX_BOARD_TYPE_CN3010_EVB_HS5:
         case CVMX_BOARD_TYPE_CN3005_EVB_HS5:
+#if !defined(OCTEON_VENDOR_GEFES)
         case CVMX_BOARD_TYPE_CN3020_EVB_HS5:
+#endif
             /* Port 1 on these boards is always Gigabit */
             if (ipd_port == 1)
             {
@@ -1077,6 +1107,15 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
 	    }
 	    break;
 #endif
+#if defined(OCTEON_VENDOR_GEFES)
+	case CVMX_BOARD_TYPE_CUST_TNPA5651X:
+	   /* Since we don't auto-negotiate... 1Gbps full duplex link */
+	   result.s.link_up = 1;
+	   result.s.full_duplex = 1;
+	   result.s.speed = 1000;
+	   return result;
+	   break;
+#endif
     }
 #endif
 
@@ -1103,6 +1142,44 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
             here. Reading broken in-band status tends to do bad things */
         result = __get_inband_link_state(ipd_port);
     }
+#if defined(OCTEON_VENDOR_GEFES)
+    else if( (OCTEON_IS_MODEL(OCTEON_CN56XX)) || (OCTEON_IS_MODEL(OCTEON_CN63XX)) ) 
+    {
+        int interface = cvmx_helper_get_interface_num(ipd_port);
+        int index = cvmx_helper_get_interface_index_num(ipd_port);
+        cvmx_pcsx_miscx_ctl_reg_t mode_type;
+        cvmx_pcsx_mrx_status_reg_t mrx_status;
+        cvmx_pcsx_anx_adv_reg_t anxx_adv;
+        cvmx_pcsx_sgmx_lp_adv_reg_t sgmii_inband_status;
+
+        anxx_adv.u64 = cvmx_read_csr(CVMX_PCSX_ANX_ADV_REG(index, interface));
+        mrx_status.u64 = cvmx_read_csr(CVMX_PCSX_MRX_STATUS_REG(index, interface));
+
+        mode_type.u64 = cvmx_read_csr(CVMX_PCSX_MISCX_CTL_REG(index, interface));
+
+        /* Read Octeon's inband status */
+        sgmii_inband_status.u64 = cvmx_read_csr(CVMX_PCSX_SGMX_LP_ADV_REG(index, interface));
+
+        result.s.link_up = sgmii_inband_status.s.link; 
+        result.s.full_duplex = sgmii_inband_status.s.dup;
+        switch (sgmii_inband_status.s.speed)
+        {
+        case 0: /* 10 Mbps */
+            result.s.speed = 10;
+            break;
+        case 1: /* 100 Mbps */
+            result.s.speed = 100;
+            break;
+        case 2: /* 1 Gbps */
+            result.s.speed = 1000;
+            break;
+        case 3: /* Illegal */
+            result.s.speed = 0;
+            result.s.link_up = 0;
+            break;
+        }
+    }
+#endif
     else
     {
         /* We don't have a PHY address and we don't have in-band status. There
@@ -1319,6 +1396,33 @@ int __cvmx_helper_board_interface_probe(int interface, int supported_ports)
 	        return 12;
 	    break;
 #endif
+#if defined(OCTEON_VENDOR_GEFES)
+        case CVMX_BOARD_TYPE_CUST_TNPA5651X:
+                if (interface < 2) /* interface can be EITHER 0 or 1 */
+			return 1;//always return 1 for XAUI and SGMII mode. 
+		break;
+        case CVMX_BOARD_TYPE_CUST_TNPA56X4:
+		if ((interface == 0) && 
+			(cvmx_helper_interface_get_mode(interface) == CVMX_HELPER_INTERFACE_MODE_SGMII))
+		{
+			cvmx_pcsx_miscx_ctl_reg_t pcsx_miscx_ctl_reg;
+	
+			/* For this port we need to set the mode to 1000BaseX */
+			pcsx_miscx_ctl_reg.u64 =
+				cvmx_read_csr(CVMX_PCSX_MISCX_CTL_REG(0, interface));
+			pcsx_miscx_ctl_reg.cn56xx.mode = 1;
+			cvmx_write_csr(CVMX_PCSX_MISCX_CTL_REG(0, interface),
+						   pcsx_miscx_ctl_reg.u64);
+			pcsx_miscx_ctl_reg.u64 =
+				cvmx_read_csr(CVMX_PCSX_MISCX_CTL_REG(1, interface));
+			pcsx_miscx_ctl_reg.cn56xx.mode = 1;
+			cvmx_write_csr(CVMX_PCSX_MISCX_CTL_REG(1, interface),
+						   pcsx_miscx_ctl_reg.u64);
+	
+			return 2;        
+		} 
+		break;
+#endif
     }
 #ifdef CVMX_BUILD_FOR_UBOOT
     if (CVMX_HELPER_INTERFACE_MODE_SPI == cvmx_helper_interface_get_mode(interface) && getenv("disable_spi"))
@@ -1481,14 +1585,28 @@ cvmx_helper_board_usb_clock_types_t __cvmx_helper_board_usb_get_clock_type(void)
         case CVMX_BOARD_TYPE_LANAI2_U:
         case CVMX_BOARD_TYPE_LANAI2_G:
 #if defined(OCTEON_VENDOR_LANNER)
-    case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
-    case CVMX_BOARD_TYPE_CUST_LANNER_MR321X:
+        case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
+        case CVMX_BOARD_TYPE_CUST_LANNER_MR321X:
 #endif
 #if defined(OCTEON_VENDOR_UBIQUITI)
-    case CVMX_BOARD_TYPE_CUST_UBIQUITI_E100:
+        case CVMX_BOARD_TYPE_CUST_UBIQUITI_E100:
 #endif
 #if defined(OCTEON_BOARD_CAPK_0100ND)
 	case CVMX_BOARD_TYPE_CN3010_EVB_HS5:
+#endif
+#if defined(OCTEON_VENDOR_GEFES) /* All GEFES' boards use same xtal type */
+        case CVMX_BOARD_TYPE_TNPA3804:
+        case CVMX_BOARD_TYPE_AT5810:
+        case CVMX_BOARD_TYPE_WNPA3850:
+        case CVMX_BOARD_TYPE_W3860:
+        case CVMX_BOARD_TYPE_CUST_TNPA5804:
+        case CVMX_BOARD_TYPE_CUST_W5434:
+        case CVMX_BOARD_TYPE_CUST_W5650:
+        case CVMX_BOARD_TYPE_CUST_W5800:
+        case CVMX_BOARD_TYPE_CUST_W5651X:
+        case CVMX_BOARD_TYPE_CUST_TNPA5651X:
+        case CVMX_BOARD_TYPE_CUST_TNPA56X4:
+        case CVMX_BOARD_TYPE_CUST_W63XX:
 #endif
         case CVMX_BOARD_TYPE_NIC10E_66:
             return USB_CLOCK_TYPE_CRYSTAL_12;

@@ -69,11 +69,15 @@
 
 #if defined(SMP) || defined(KLD_MODULE)
 #ifndef MAXCPU
-#define	MAXCPU		8
+#define	MAXCPU		32	
 #endif
 #else
 #define	MAXCPU		1
 #endif /* SMP || KLD_MODULE */
+
+#ifndef MAXMEMDOM
+#define	MAXMEMDOM	1
+#endif
 
 #define	ALIGNBYTES	_ALIGNBYTES
 #define	ALIGN(p)	_ALIGN(p)

@@ -314,7 +314,7 @@ static SDValue getCopyFromPartsVector(SelectionDAG &DAG, DebugLoc DL,
     } else {
       Ctx.emitError(ErrMsg);
     }
-    report_fatal_error("Cannot handle scalar-to-vector conversion!");
+    return DAG.getUNDEF(ValueVT);
   }
 
   if (ValueVT.getVectorNumElements() == 1 &&
@@ -1910,33 +1910,25 @@ void SelectionDAGBuilder::visitLandingPad(const LandingPadInst &LP) {
 
   SmallVector<EVT, 2> ValueVTs;
   ComputeValueVTs(TLI, LP.getType(), ValueVTs);
+  assert(ValueVTs.size() == 2 && "Only two-valued landingpads are supported");
 
-  // Insert the EXCEPTIONADDR instruction.
-  assert(FuncInfo.MBB->isLandingPad() &&
-         "Call to eh.exception not in landing pad!");
-  SDVTList VTs = DAG.getVTList(TLI.getPointerTy(), MVT::Other);
+  // Get the two live-in registers as SDValues. The physregs have already been
+  // copied into virtual registers.
   SDValue Ops[2];
-  Ops[0] = DAG.getRoot();
-  SDValue Op1 = DAG.getNode(ISD::EXCEPTIONADDR, getCurDebugLoc(), VTs, Ops, 1);
-  SDValue Chain = Op1.getValue(1);
+  Ops[0] = DAG.getZExtOrTrunc(
+    DAG.getCopyFromReg(DAG.getEntryNode(), getCurDebugLoc(),
+                       FuncInfo.ExceptionPointerVirtReg, TLI.getPointerTy()),
+    getCurDebugLoc(), ValueVTs[0]);
+  Ops[1] = DAG.getZExtOrTrunc(
+    DAG.getCopyFromReg(DAG.getEntryNode(), getCurDebugLoc(),
+                       FuncInfo.ExceptionSelectorVirtReg, TLI.getPointerTy()),
+    getCurDebugLoc(), ValueVTs[1]);
 
-  // Insert the EHSELECTION instruction.
-  VTs = DAG.getVTList(TLI.getPointerTy(), MVT::Other);
-  Ops[0] = Op1;
-  Ops[1] = Chain;
-  SDValue Op2 = DAG.getNode(ISD::EHSELECTION, getCurDebugLoc(), VTs, Ops, 2);
-  Chain = Op2.getValue(1);
-  Op2 = DAG.getSExtOrTrunc(Op2, getCurDebugLoc(), MVT::i32);
-
-  Ops[0] = Op1;
-  Ops[1] = Op2;
+  // Merge into one.
   SDValue Res = DAG.getNode(ISD::MERGE_VALUES, getCurDebugLoc(),
                             DAG.getVTList(&ValueVTs[0], ValueVTs.size()),
                             &Ops[0], 2);
-
-  std::pair<SDValue, SDValue> RetPair = std::make_pair(Res, Chain);
-  setValue(&LP, RetPair.first);
-  DAG.setRoot(RetPair.second);
+  setValue(&LP, Res);
 }
 
 /// handleSmallSwitchCaseRange - Emit a series of specific tests (suitable for
@@ -5034,6 +5026,11 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
     setValue(&I, Res);
     return 0;
   }
+  case Intrinsic::annotation:
+  case Intrinsic::ptr_annotation:
+    // Drop the intrinsic, but forward the value
+    setValue(&I, getValue(I.getOperand(0)));
+    return 0;
   case Intrinsic::var_annotation:
     // Discard annotate attributes
     return 0;
@@ -5232,6 +5229,7 @@ void SelectionDAGBuilder::LowerCallTo(ImmutableCallSite CS, SDValue Callee,
     Entry.isSRet = true;
     Entry.isNest = false;
     Entry.isByVal = false;
+    Entry.isReturned = false;
     Entry.Alignment = Align;
     Args.push_back(Entry);
     RetTy = Type::getVoidTy(FTy->getContext());
@@ -5249,13 +5247,14 @@ void SelectionDAGBuilder::LowerCallTo(ImmutableCallSite CS, SDValue Callee,
     Entry.Node = ArgNode; Entry.Ty = V->getType();
 
     unsigned attrInd = i - CS.arg_begin() + 1;
-    Entry.isSExt  = CS.paramHasAttr(attrInd, Attribute::SExt);
-    Entry.isZExt  = CS.paramHasAttr(attrInd, Attribute::ZExt);
-    Entry.isInReg = CS.paramHasAttr(attrInd, Attribute::InReg);
-    Entry.isSRet  = CS.paramHasAttr(attrInd, Attribute::StructRet);
-    Entry.isNest  = CS.paramHasAttr(attrInd, Attribute::Nest);
-    Entry.isByVal = CS.paramHasAttr(attrInd, Attribute::ByVal);
-    Entry.Alignment = CS.getParamAlignment(attrInd);
+    Entry.isSExt     = CS.paramHasAttr(attrInd, Attribute::SExt);
+    Entry.isZExt     = CS.paramHasAttr(attrInd, Attribute::ZExt);
+    Entry.isInReg    = CS.paramHasAttr(attrInd, Attribute::InReg);
+    Entry.isSRet     = CS.paramHasAttr(attrInd, Attribute::StructRet);
+    Entry.isNest     = CS.paramHasAttr(attrInd, Attribute::Nest);
+    Entry.isByVal    = CS.paramHasAttr(attrInd, Attribute::ByVal);
+    Entry.isReturned = CS.paramHasAttr(attrInd, Attribute::Returned);
+    Entry.Alignment  = CS.getParamAlignment(attrInd);
     Args.push_back(Entry);
   }
 
@@ -6169,10 +6168,17 @@ void SelectionDAGBuilder::visitInlineAsm(ImmutableCallSite CS) {
           MatchedRegs.RegVTs.push_back(RegVT);
           MachineRegisterInfo &RegInfo = DAG.getMachineFunction().getRegInfo();
           for (unsigned i = 0, e = InlineAsm::getNumOperandRegisters(OpFlag);
-               i != e; ++i)
-            MatchedRegs.Regs.push_back
-              (RegInfo.createVirtualRegister(TLI.getRegClassFor(RegVT)));
-
+               i != e; ++i) {
+            if (const TargetRegisterClass *RC = TLI.getRegClassFor(RegVT))
+              MatchedRegs.Regs.push_back(RegInfo.createVirtualRegister(RC));
+            else {
+              LLVMContext &Ctx = *DAG.getContext();
+              Ctx.emitError(CS.getInstruction(), "inline asm error: This value"
+                            " type register class is not natively supported!");
+              report_fatal_error("inline asm error: This value type register "
+                                 "class is not natively supported!");
+            }
+          }
           // Use the produced MatchedRegs object to
           MatchedRegs.getCopyToRegs(InOperandVal, DAG, getCurDebugLoc(),
                                     Chain, &Flag, CS.getInstruction());
@@ -6389,6 +6395,28 @@ void SelectionDAGBuilder::visitVACopy(const CallInst &I) {
 /// migrated to using LowerCall, this hook should be integrated into SDISel.
 std::pair<SDValue, SDValue>
 TargetLowering::LowerCallTo(TargetLowering::CallLoweringInfo &CLI) const {
+  // Handle the incoming return values from the call.
+  CLI.Ins.clear();
+  SmallVector<EVT, 4> RetTys;
+  ComputeValueVTs(*this, CLI.RetTy, RetTys);
+  for (unsigned I = 0, E = RetTys.size(); I != E; ++I) {
+    EVT VT = RetTys[I];
+    MVT RegisterVT = getRegisterType(CLI.RetTy->getContext(), VT);
+    unsigned NumRegs = getNumRegisters(CLI.RetTy->getContext(), VT);
+    for (unsigned i = 0; i != NumRegs; ++i) {
+      ISD::InputArg MyFlags;
+      MyFlags.VT = RegisterVT;
+      MyFlags.Used = CLI.IsReturnValueUsed;
+      if (CLI.RetSExt)
+        MyFlags.Flags.setSExt();
+      if (CLI.RetZExt)
+        MyFlags.Flags.setZExt();
+      if (CLI.IsInReg)
+        MyFlags.Flags.setInReg();
+      CLI.Ins.push_back(MyFlags);
+    }
+  }
+
   // Handle all of the outgoing arguments.
   CLI.Outs.clear();
   CLI.OutVals.clear();
@@ -6442,6 +6470,26 @@ TargetLowering::LowerCallTo(TargetLowering::CallLoweringInfo &CLI) const {
       else if (Args[i].isZExt)
         ExtendKind = ISD::ZERO_EXTEND;
 
+      // Conservatively only handle 'returned' on non-vectors for now
+      if (Args[i].isReturned && !Op.getValueType().isVector()) {
+        assert(CLI.RetTy == Args[i].Ty && RetTys.size() == NumValues &&
+               "unexpected use of 'returned'");
+        // Before passing 'returned' to the target lowering code, ensure that
+        // either the register MVT and the actual EVT are the same size or that
+        // the return value and argument are extended in the same way; in these
+        // cases it's safe to pass the argument register value unchanged as the
+        // return register value (although it's at the target's option whether
+        // to do so)
+        // TODO: allow code generation to take advantage of partially preserved
+        // registers rather than clobbering the entire register when the
+        // parameter extension method is not compatible with the return
+        // extension method
+        if ((NumParts * PartVT.getSizeInBits() == VT.getSizeInBits()) ||
+            (ExtendKind != ISD::ANY_EXTEND &&
+             CLI.RetSExt == Args[i].isSExt && CLI.RetZExt == Args[i].isZExt))
+        Flags.setReturned();
+      }
+
       getCopyToParts(CLI.DAG, CLI.DL, Op, &Parts[0], NumParts,
                      PartVT, CLI.CS ? CLI.CS->getInstruction() : 0, ExtendKind);
 
@@ -6458,28 +6506,6 @@ TargetLowering::LowerCallTo(TargetLowering::CallLoweringInfo &CLI) const {
         CLI.Outs.push_back(MyFlags);
         CLI.OutVals.push_back(Parts[j]);
       }
-    }
-  }
-
-  // Handle the incoming return values from the call.
-  CLI.Ins.clear();
-  SmallVector<EVT, 4> RetTys;
-  ComputeValueVTs(*this, CLI.RetTy, RetTys);
-  for (unsigned I = 0, E = RetTys.size(); I != E; ++I) {
-    EVT VT = RetTys[I];
-    MVT RegisterVT = getRegisterType(CLI.RetTy->getContext(), VT);
-    unsigned NumRegs = getNumRegisters(CLI.RetTy->getContext(), VT);
-    for (unsigned i = 0; i != NumRegs; ++i) {
-      ISD::InputArg MyFlags;
-      MyFlags.VT = RegisterVT;
-      MyFlags.Used = CLI.IsReturnValueUsed;
-      if (CLI.RetSExt)
-        MyFlags.Flags.setSExt();
-      if (CLI.RetZExt)
-        MyFlags.Flags.setZExt();
-      if (CLI.IsInReg)
-        MyFlags.Flags.setInReg();
-      CLI.Ins.push_back(MyFlags);
     }
   }
 

@@ -157,12 +157,6 @@ void daemon_remote_start_accept(struct daemon_remote* rc);
  */
 void daemon_remote_exec(struct worker* worker);
 
-/** handle remote control accept callbacks */
-int remote_accept_callback(struct comm_point*, void*, int, struct comm_reply*);
-
-/** handle remote control data callbacks */
-int remote_control_callback(struct comm_point*, void*, int, struct comm_reply*);
-
 #ifdef HAVE_SSL
 /** 
  * Print fixed line of text over ssl connection in blocking mode
@@ -191,8 +185,5 @@ int ssl_printf(SSL* ssl, const char* format, ...)
  */
 int ssl_read_line(SSL* ssl, char* buf, size_t max);
 #endif /* HAVE_SSL */
-
-/** routine to printout option values over SSL */
-void remote_get_opt_ssl(char* line, void* arg);
 
 #endif /* DAEMON_REMOTE_H */

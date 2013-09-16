@@ -106,7 +106,8 @@ ProgramStateRef ExprEngine::getInitialState(const LocationContext *InitLoc) {
 
       const ParmVarDecl *PD = FD->getParamDecl(0);
       QualType T = PD->getType();
-      if (!T->isIntegerType())
+      const BuiltinType *BT = dyn_cast<BuiltinType>(T);
+      if (!BT || !BT->isInteger())
         break;
 
       const MemRegion *R = state->getRegion(PD, InitLoc);
@@ -180,7 +181,8 @@ ExprEngine::createTemporaryRegionIfNeeded(ProgramStateRef State,
   } else {
     // We need to create a region no matter what. For sanity, make sure we don't
     // try to stuff a Loc into a non-pointer temporary region.
-    assert(!V.getAs<Loc>() || Loc::isLocType(Result->getType()));
+    assert(!V.getAs<Loc>() || Loc::isLocType(Result->getType()) ||
+           Result->getType()->isMemberPointerType());
   }
 
   ProgramStateManager &StateMgr = State->getStateManager();
@@ -602,11 +604,13 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
   switch (S->getStmtClass()) {
     // C++ and ARC stuff we don't support yet.
     case Expr::ObjCIndirectCopyRestoreExprClass:
+    case Stmt::CXXDefaultInitExprClass:
     case Stmt::CXXDependentScopeMemberExprClass:
     case Stmt::CXXPseudoDestructorExprClass:
     case Stmt::CXXTryStmtClass:
     case Stmt::CXXTypeidExprClass:
     case Stmt::CXXUuidofExprClass:
+    case Stmt::MSPropertyRefExprClass:
     case Stmt::CXXUnresolvedConstructExprClass:
     case Stmt::DependentScopeDeclRefExprClass:
     case Stmt::UnaryTypeTraitExprClass:
@@ -653,6 +657,7 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
     case Stmt::SwitchStmtClass:
     case Stmt::WhileStmtClass:
     case Expr::MSDependentExistsStmtClass:
+    case Stmt::CapturedStmtClass:
       llvm_unreachable("Stmt should not be in analyzer evaluation loop");
 
     case Stmt::ObjCSubscriptRefExprClass:
@@ -736,21 +741,22 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
       const CXXDefaultArgExpr *DefaultE = cast<CXXDefaultArgExpr>(S);
       const Expr *ArgE = DefaultE->getExpr();
 
-      // Avoid creating and destroying a lot of APSInts.
-      SVal V;
-      llvm::APSInt Result;
+      bool IsTemporary = false;
+      if (const MaterializeTemporaryExpr *MTE =
+            dyn_cast<MaterializeTemporaryExpr>(ArgE)) {
+        ArgE = MTE->GetTemporaryExpr();
+        IsTemporary = true;
+      }
+
+      Optional<SVal> ConstantVal = svalBuilder.getConstantVal(ArgE);
+      if (!ConstantVal)
+        ConstantVal = UnknownVal();
 
       for (ExplodedNodeSet::iterator I = PreVisit.begin(), E = PreVisit.end();
            I != E; ++I) {
         ProgramStateRef State = (*I)->getState();
-
-        if (ArgE->EvaluateAsInt(Result, getContext()))
-          V = svalBuilder.makeIntVal(Result);
-        else
-          V = State->getSVal(ArgE, LCtx);
-
-        State = State->BindExpr(DefaultE, LCtx, V);
-        if (DefaultE->isGLValue())
+        State = State->BindExpr(DefaultE, LCtx, *ConstantVal);
+        if (IsTemporary)
           State = createTemporaryRegionIfNeeded(State, LCtx, DefaultE,
                                                 DefaultE);
         Bldr2.generateNode(S, *I, State);
@@ -860,9 +866,13 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
           const LocationContext *LCtx = Pred->getLocationContext();
           ProgramStateRef NewState =
             createTemporaryRegionIfNeeded(State, LCtx, OCE->getArg(0));
-          if (NewState != State)
+          if (NewState != State) {
             Pred = Bldr.generateNode(OCE, Pred, NewState, /*Tag=*/0,
                                      ProgramPoint::PreStmtKind);
+            // Did we cache out?
+            if (!Pred)
+              break;
+          }
         }
       }
       // FALLTHROUGH
@@ -1235,7 +1245,7 @@ static SVal RecoverCastedSymbol(ProgramStateManager& StateMgr,
   while (const CastExpr *CE = dyn_cast<CastExpr>(Ex)) {
     QualType T = CE->getType();
 
-    if (!T->isIntegerType())
+    if (!T->isIntegralOrEnumerationType())
       return UnknownVal();
 
     uint64_t newBits = Ctx.getTypeSize(T);
@@ -1250,7 +1260,8 @@ static SVal RecoverCastedSymbol(ProgramStateManager& StateMgr,
   // We reached a non-cast.  Is it a symbolic value?
   QualType T = Ex->getType();
 
-  if (!bitsInit || !T->isIntegerType() || Ctx.getTypeSize(T) > bits)
+  if (!bitsInit || !T->isIntegralOrEnumerationType() ||
+      Ctx.getTypeSize(T) > bits)
     return UnknownVal();
 
   return state->getSVal(Ex, LCtx);
@@ -1342,7 +1353,7 @@ void ExprEngine::processBranch(const Stmt *Condition, const Stmt *Term,
     if (X.isUnknownOrUndef()) {
       // Give it a chance to recover from unknown.
       if (const Expr *Ex = dyn_cast<Expr>(Condition)) {
-        if (Ex->getType()->isIntegerType()) {
+        if (Ex->getType()->isIntegralOrEnumerationType()) {
           // Try to recover some path-sensitivity.  Right now casts of symbolic
           // integers that promote their values are currently not tracked well.
           // If 'Condition' is such an expression, try and recover the
@@ -1802,7 +1813,8 @@ ExprEngine::notifyCheckersOfPointerEscape(ProgramStateRef State,
     return getCheckerManager().runCheckersForPointerEscape(State,
                                                            *Invalidated,
                                                            0,
-                                                           PSK_EscapeOther);
+                                                           PSK_EscapeOther,
+                                                           IsConst);
 
   // Note: Due to current limitations of RegionStore, we only process the top
   // level const pointers correctly. The lower level const pointers are

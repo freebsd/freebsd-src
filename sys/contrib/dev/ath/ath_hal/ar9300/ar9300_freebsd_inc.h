@@ -34,6 +34,7 @@
 #define ATH_SUPPORT_WIFIPOS     0
 #define ATH_SUPPORT_PAPRD       1
 #define ATH_SUPPORT_TxBF        0
+#define AH_PRIVATE_DIAG         1
 
 /* XXX need to reverify these; they came in with qcamain */
 #define ATH_SUPPORT_FAST_CC 0
@@ -50,10 +51,13 @@
 #define	AH_SUPPORT_AR9300		1
 
 /* These are the embedded boards; we don't currently support these */
-//#define AH_SUPPORT_HORNET               1
-//#define AH_SUPPORT_WASP                 1
+#ifdef	AH_SUPPORT_AR9330
+#define AH_SUPPORT_HORNET		1
+#endif	/* AH_SUPPORT_AR9330 */
+#ifdef	AH_SUPPORT_AR9340
+#define AH_SUPPORT_WASP			1
+#endif	/* AH_SUPPORT_AR9340 */
 //#define AH_SUPPORT_SCORPION             1
-
 #define FIX_NOISE_FLOOR                 1
 
 /* XXX this needs to be removed! No atomics in the HAL! */

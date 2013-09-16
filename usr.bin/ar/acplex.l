@@ -40,6 +40,8 @@ int lineno = 1;
 
 int	yylex(void);
 
+#define	YY_DECL	int yylex(void)
+
 %}
 
 %option nounput

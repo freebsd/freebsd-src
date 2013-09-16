@@ -68,6 +68,7 @@ SUBDIR=	alias \
 	id \
 	ipcrm \
 	ipcs \
+	iscsictl \
 	join \
 	jot \
 	${_kdump} \
@@ -262,6 +263,10 @@ SUBDIR+=        truss
 SUBDIR+=	compile_et
 .endif
 
+.if ${MK_LDNS_UTILS} != "no"
+SUBDIR+=	host
+.endif
+
 .if ${MK_LIBTHR} != "no"
 SUBDIR+=	csup
 .endif
@@ -364,6 +369,14 @@ SUBDIR+=	usbhidctl
 SUBDIR+=	last
 SUBDIR+=	users
 SUBDIR+=	who
+.endif
+
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64" || \
+    ${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "i386" || \
+    (${MACHINE_ARCH} == "armv6" && ${COMPILER_TYPE} == "clang")
+.if ${MK_SVN} == "yes" || ${MK_SVNLITE} == "yes"
+SUBDIR+=	svn
+.endif
 .endif
 
 .include <bsd.arch.inc.mk>

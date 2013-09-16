@@ -105,6 +105,10 @@ namespace llvm {
     MachineBasicBlock::iterator RegionEnd;
 
     /// The index in BB of RegionEnd.
+    ///
+    /// This is the instruction number from the top of the current block, not
+    /// the SlotIndex. It is only used by the AntiDepBreaker and should be
+    /// removed once that client is obsolete.
     unsigned EndIndex;
 
     /// After calling BuildSchedGraph, each machine instruction in the current
@@ -145,6 +149,9 @@ namespace llvm {
                                LiveIntervals *LIS = 0);
 
     virtual ~ScheduleDAGInstrs() {}
+
+    /// \brief Expose LiveIntervals for use in DAG mutators and such.
+    LiveIntervals *getLIS() const { return LIS; }
 
     /// \brief Get the machine model for instruction scheduling.
     const TargetSchedModel *getSchedModel() const { return &SchedModel; }

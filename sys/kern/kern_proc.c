@@ -92,33 +92,18 @@ __FBSDID("$FreeBSD$");
 #endif
 
 SDT_PROVIDER_DEFINE(proc);
-SDT_PROBE_DEFINE(proc, kernel, ctor, entry, entry);
-SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 0, "struct proc *");
-SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 1, "int");
-SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 2, "void *");
-SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 3, "int");
-SDT_PROBE_DEFINE(proc, kernel, ctor, return, return);
-SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 0, "struct proc *");
-SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 1, "int");
-SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 2, "void *");
-SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 3, "int");
-SDT_PROBE_DEFINE(proc, kernel, dtor, entry, entry);
-SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 0, "struct proc *");
-SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 1, "int");
-SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 2, "void *");
-SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 3, "struct thread *");
-SDT_PROBE_DEFINE(proc, kernel, dtor, return, return);
-SDT_PROBE_ARGTYPE(proc, kernel, dtor, return, 0, "struct proc *");
-SDT_PROBE_ARGTYPE(proc, kernel, dtor, return, 1, "int");
-SDT_PROBE_ARGTYPE(proc, kernel, dtor, return, 2, "void *");
-SDT_PROBE_DEFINE(proc, kernel, init, entry, entry);
-SDT_PROBE_ARGTYPE(proc, kernel, init, entry, 0, "struct proc *");
-SDT_PROBE_ARGTYPE(proc, kernel, init, entry, 1, "int");
-SDT_PROBE_ARGTYPE(proc, kernel, init, entry, 2, "int");
-SDT_PROBE_DEFINE(proc, kernel, init, return, return);
-SDT_PROBE_ARGTYPE(proc, kernel, init, return, 0, "struct proc *");
-SDT_PROBE_ARGTYPE(proc, kernel, init, return, 1, "int");
-SDT_PROBE_ARGTYPE(proc, kernel, init, return, 2, "int");
+SDT_PROBE_DEFINE4(proc, kernel, ctor, entry, entry, "struct proc *", "int",
+    "void *", "int");
+SDT_PROBE_DEFINE4(proc, kernel, ctor, return, return, "struct proc *", "int",
+    "void *", "int");
+SDT_PROBE_DEFINE4(proc, kernel, dtor, entry, entry, "struct proc *", "int",
+    "void *", "struct thread *");
+SDT_PROBE_DEFINE3(proc, kernel, dtor, return, return, "struct proc *", "int",
+    "void *");
+SDT_PROBE_DEFINE3(proc, kernel, init, entry, entry, "struct proc *", "int",
+    "int");
+SDT_PROBE_DEFINE3(proc, kernel, init, return, return, "struct proc *", "int",
+    "int");
 
 MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
 MALLOC_DEFINE(M_SESSION, "session", "session header");
@@ -877,6 +862,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_swtime = (ticks - p->p_swtick) / hz;
 	kp->ki_pid = p->p_pid;
 	kp->ki_nice = p->p_nice;
+	kp->ki_fibnum = p->p_fibnum;
 	kp->ki_start = p->p_stats->p_start;
 	timevaladd(&kp->ki_start, &boottime);
 	PROC_SLOCK(p);
@@ -1175,6 +1161,7 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	bcopy(ki->ki_comm, ki32->ki_comm, COMMLEN + 1);
 	bcopy(ki->ki_emul, ki32->ki_emul, KI_EMULNAMELEN + 1);
 	bcopy(ki->ki_loginclass, ki32->ki_loginclass, LOGINCLASSLEN + 1);
+	CP(*ki, *ki32, ki_fibnum);
 	CP(*ki, *ki32, ki_cr_flags);
 	CP(*ki, *ki32, ki_jid);
 	CP(*ki, *ki32, ki_numthreads);

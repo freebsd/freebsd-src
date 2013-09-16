@@ -139,6 +139,8 @@ def FeaturePadShortFunctions : SubtargetFeature<"pad-short-functions",
 def FeatureCallRegIndirect : SubtargetFeature<"call-reg-indirect",
                                      "CallRegIndirect", "true",
                                      "Call register indirect">;
+def FeatureLEAUsesAG : SubtargetFeature<"lea-uses-ag", "LEAUsesAG", "true",
+                                   "LEA instruction needs inputs at AG stage">;
 
 //===----------------------------------------------------------------------===//
 // X86 processors supported.
@@ -188,6 +190,7 @@ def : ProcessorModel<"atom", AtomModel,
                       FeatureMOVBE, FeatureSlowBTMem, FeatureLeaForSP,
                       FeatureSlowDivide,
                       FeatureCallRegIndirect,
+                      FeatureLEAUsesAG,
                       FeaturePadShortFunctions]>;
 
 // "Arrandale" along with corei3 and corei5
@@ -252,11 +255,16 @@ def : Proc<"amdfam10",        [FeatureSSE4A,
 // Bobcat
 def : Proc<"btver1",          [FeatureSSSE3, FeatureSSE4A, FeatureCMPXCHG16B,
                                FeatureLZCNT, FeaturePOPCNT]>;
+// Jaguar
+def : Proc<"btver2",          [FeatureAVX, FeatureSSE4A, FeatureCMPXCHG16B,
+                               FeatureAES, FeaturePCLMUL, FeatureBMI,
+                               FeatureF16C, FeatureMOVBE, FeatureLZCNT,
+                               FeaturePOPCNT]>;
 // Bulldozer
 def : Proc<"bdver1",          [FeatureXOP, FeatureFMA4, FeatureCMPXCHG16B,
                                FeatureAES, FeaturePCLMUL,
                                FeatureLZCNT, FeaturePOPCNT]>;
-// Enhanced Bulldozer
+// Piledriver
 def : Proc<"bdver2",          [FeatureXOP, FeatureFMA4, FeatureCMPXCHG16B,
                                FeatureAES, FeaturePCLMUL,
                                FeatureF16C, FeatureLZCNT,
@@ -300,6 +308,9 @@ def ATTAsmParser : AsmParser {
 def ATTAsmParserVariant : AsmParserVariant {
   int Variant = 0;
 
+  // Variant name.
+  string Name = "att";
+
   // Discard comments in assembly strings.
   string CommentDelimiter = "#";
 
@@ -309,6 +320,9 @@ def ATTAsmParserVariant : AsmParserVariant {
 
 def IntelAsmParserVariant : AsmParserVariant {
   int Variant = 1;
+
+  // Variant name.
+  string Name = "intel";
 
   // Discard comments in assembly strings.
   string CommentDelimiter = ";";

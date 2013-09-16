@@ -91,7 +91,7 @@ a firewall in the sample firewall section below.
 .Sh IPFW KERNEL CONFIGURATION
 You do not need to create a custom kernel to use the IP firewalling features.
 If you enable firewalling in your
-.Em /etc/rc.conf
+.Pa /etc/rc.conf
 (see below), the ipfw kernel module will be loaded automatically
 when necessary.
 However,
@@ -103,7 +103,7 @@ option set.
 If compiled in the kernel, ipfw denies all
 packets by default, which means that, if you do not load in
 a permissive ruleset via
-.Em /etc/rc.conf ,
+.Pa /etc/rc.conf ,
 rebooting into your new kernel will take the network offline.
 This can prevent you from being able to access your system if you
 are not sitting at the console.

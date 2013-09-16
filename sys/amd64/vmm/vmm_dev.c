@@ -235,18 +235,13 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = vm_run(sc->vm, vmrun);
 		break;
 	case VM_STAT_DESC: {
-		const char *desc;
 		statdesc = (struct vm_stat_desc *)data;
-		desc = vmm_stat_desc(statdesc->index);
-		if (desc != NULL) {
-			error = 0;
-			strlcpy(statdesc->desc, desc, sizeof(statdesc->desc));
-		} else
-			error = EINVAL;
+		error = vmm_stat_desc_copy(statdesc->index,
+					statdesc->desc, sizeof(statdesc->desc));
 		break;
 	}
 	case VM_STATS: {
-		CTASSERT(MAX_VM_STATS >= MAX_VMM_STAT_TYPES);
+		CTASSERT(MAX_VM_STATS >= MAX_VMM_STAT_ELEMS);
 		vmstats = (struct vm_stats *)data;
 		getmicrotime(&vmstats->tv);
 		error = vmm_stat_copy(sc->vm, vmstats->cpuid,

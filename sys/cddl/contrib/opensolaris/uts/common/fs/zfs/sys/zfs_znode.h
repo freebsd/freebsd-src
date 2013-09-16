@@ -135,8 +135,9 @@ extern "C" {
 
 #define	ZFS_MAX_BLOCKSIZE	(SPA_MAXBLOCKSIZE)
 
-/* Path component length */
 /*
+ * Path component length
+ *
  * The generic fs code uses MAXNAMELEN to represent
  * what the largest component length is.  Unfortunately,
  * this length includes the terminating NULL.  ZFS needs
@@ -252,12 +253,7 @@ VTOZ(vnode_t *vp)
 #define	VTOZ(VP)	((znode_t *)(VP)->v_data)
 #endif
 
-/*
- * ZFS_ENTER() is called on entry to each ZFS vnode and vfs operation.
- * ZFS_ENTER_NOERROR() is called when we can't return EIO.
- * ZFS_EXIT() must be called before exitting the vop.
- * ZFS_VERIFY_ZP() verifies the znode is valid.
- */
+/* Called on entry to each ZFS vnode and vfs operation  */
 #define	ZFS_ENTER(zfsvfs) \
 	{ \
 		rrw_enter_read(&(zfsvfs)->z_teardown_lock, FTAG); \
@@ -267,11 +263,14 @@ VTOZ(vnode_t *vp)
 		} \
 	}
 
+/* Called on entry to each ZFS vnode and vfs operation that can not return EIO */
 #define	ZFS_ENTER_NOERROR(zfsvfs) \
 	rrw_enter(&(zfsvfs)->z_teardown_lock, RW_READER, FTAG)
 
+/* Must be called before exiting the vop */
 #define	ZFS_EXIT(zfsvfs) rrw_exit(&(zfsvfs)->z_teardown_lock, FTAG)
 
+/* Verifies the znode is valid */
 #define	ZFS_VERIFY_ZP(zp) \
 	if ((zp)->z_sa_hdl == NULL) { \
 		ZFS_EXIT((zp)->z_zfsvfs); \
@@ -291,15 +290,14 @@ VTOZ(vnode_t *vp)
 #define	ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num) \
 	mutex_exit(ZFS_OBJ_MUTEX((zfsvfs), (obj_num)))
 
-/*
- * Macros to encode/decode ZFS stored time values from/to struct timespec
- */
+/* Encode ZFS stored time values from a struct timespec */
 #define	ZFS_TIME_ENCODE(tp, stmp)		\
 {						\
 	(stmp)[0] = (uint64_t)(tp)->tv_sec;	\
 	(stmp)[1] = (uint64_t)(tp)->tv_nsec;	\
 }
 
+/* Decode ZFS stored time values to a struct timespec */
 #define	ZFS_TIME_DECODE(tp, stmp)		\
 {						\
 	(tp)->tv_sec = (time_t)(stmp)[0];		\

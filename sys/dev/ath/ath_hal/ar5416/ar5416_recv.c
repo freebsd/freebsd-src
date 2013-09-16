@@ -209,6 +209,14 @@ ar5416ProcRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	if (ads->ds_rxstatus3 & AR_2040)
 		rs->rs_flags |= HAL_RX_2040;
 
+	/*
+	 * Only the AR9280 and later chips support STBC RX, so
+	 * ensure we only set this bit for those chips.
+	 */
+	if (AR_SREV_MERLIN_10_OR_LATER(ah)
+	    && ads->ds_rxstatus3 & AR_STBCFrame)
+		rs->rs_flags |= HAL_RX_STBC;
+
 	if (ads->ds_rxstatus8 & AR_PreDelimCRCErr)
 		rs->rs_flags |= HAL_RX_DELIM_CRC_PRE;
 	if (ads->ds_rxstatus8 & AR_PostDelimCRCErr)

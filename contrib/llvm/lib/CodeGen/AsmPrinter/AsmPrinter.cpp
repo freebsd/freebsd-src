@@ -133,9 +133,13 @@ const DataLayout &AsmPrinter::getDataLayout() const {
   return *TM.getDataLayout();
 }
 
+StringRef AsmPrinter::getTargetTriple() const {
+  return TM.getTargetTriple();
+}
+
 /// getCurrentSection() - Return the current section we are emitting to.
 const MCSection *AsmPrinter::getCurrentSection() const {
-  return OutStreamer.getCurrentSection();
+  return OutStreamer.getCurrentSection().first;
 }
 
 
@@ -813,7 +817,7 @@ void AsmPrinter::EmitDwarfRegOp(const MachineLocation &MLoc) const {
   // caller might be in the middle of an dwarf expression. We should
   // probably assert that Reg >= 0 once debug info generation is more mature.
 
-  if (int Offset =  MLoc.getOffset()) {
+  if (MLoc.isIndirect()) {
     if (Reg < 32) {
       OutStreamer.AddComment(
         dwarf::OperationEncodingString(dwarf::DW_OP_breg0 + Reg));
@@ -824,7 +828,7 @@ void AsmPrinter::EmitDwarfRegOp(const MachineLocation &MLoc) const {
       OutStreamer.AddComment(Twine(Reg));
       EmitULEB128(Reg);
     }
-    EmitSLEB128(Offset);
+    EmitSLEB128(MLoc.getOffset());
   } else {
     if (Reg < 32) {
       OutStreamer.AddComment(
@@ -1213,7 +1217,7 @@ void AsmPrinter::EmitJumpTableEntry(const MachineJumpTableInfo *MJTI,
 bool AsmPrinter::EmitSpecialLLVMGlobal(const GlobalVariable *GV) {
   if (GV->getName() == "llvm.used") {
     if (MAI->hasNoDeadStrip())    // No need to emit this at all.
-      EmitLLVMUsedList(GV->getInitializer());
+      EmitLLVMUsedList(cast<ConstantArray>(GV->getInitializer()));
     return true;
   }
 
@@ -1256,11 +1260,8 @@ bool AsmPrinter::EmitSpecialLLVMGlobal(const GlobalVariable *GV) {
 /// EmitLLVMUsedList - For targets that define a MAI::UsedDirective, mark each
 /// global in the specified llvm.used list for which emitUsedDirectiveFor
 /// is true, as being used with this directive.
-void AsmPrinter::EmitLLVMUsedList(const Constant *List) {
+void AsmPrinter::EmitLLVMUsedList(const ConstantArray *InitList) {
   // Should be an array of 'i8*'.
-  const ConstantArray *InitList = dyn_cast<ConstantArray>(List);
-  if (InitList == 0) return;
-
   for (unsigned i = 0, e = InitList->getNumOperands(); i != e; ++i) {
     const GlobalValue *GV =
       dyn_cast<GlobalValue>(InitList->getOperand(i)->stripPointerCasts());

@@ -38,17 +38,28 @@
 #ifndef _FS_EXT2FS_INODE_H_
 #define	_FS_EXT2FS_INODE_H_
 
+#include <sys/param.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/queue.h>
 
-#define	NDADDR	12			/* Direct addresses in inode. */
-#define	NIADDR	3			/* Indirect addresses in inode. */
+#include <fs/ext2fs/ext2_extents.h>
 
 /*
  * This must agree with the definition in <ufs/ufs/dir.h>.
  */
 #define	doff_t		int32_t
 
+#define	NDADDR	12			/* Direct addresses in inode. */
+#define	NIADDR	3			/* Indirect addresses in inode. */
+
+/*
+ * The size of physical and logical block numbers in EXT2FS.
+ */
+typedef	uint32_t e2fs_daddr_t;
+typedef	int64_t	e2fs_lbn_t;
+typedef	int64_t e4fs_daddr_t;
+ 
 /*
  * The inode is used to describe each active (or recently active) file in the
  * EXT2FS filesystem. It is composed of two types of information. The first
@@ -81,7 +92,10 @@ struct inode {
 	/* Fields from struct dinode in UFS. */
 	uint16_t	i_mode;		/* IFMT, permissions; see below. */
 	int16_t		i_nlink;	/* File link count. */
+	uint32_t	i_uid;		/* File owner. */
+	uint32_t	i_gid;		/* File group. */
 	uint64_t	i_size;		/* File byte count. */
+	uint64_t	i_blocks;	/* Blocks actually held. */
 	int32_t		i_atime;	/* Last access time. */
 	int32_t		i_mtime;	/* Last modified time. */
 	int32_t		i_ctime;	/* Last inode change time. */
@@ -90,13 +104,12 @@ struct inode {
 	int32_t		i_atimensec;	/* Last access time. */
 	int32_t		i_ctimensec;	/* Last inode change time. */
 	int32_t		i_birthnsec;	/* Inode creation time. */
+	uint32_t	i_gen;		/* Generation number. */
+	uint32_t	i_flags;	/* Status flags (chflags). */
 	uint32_t	i_db[NDADDR];	/* Direct disk blocks. */
 	uint32_t	i_ib[NIADDR];	/* Indirect disk blocks. */
-	uint32_t	i_flags;	/* Status flags (chflags). */
-	uint32_t	i_blocks;	/* Blocks actually held. */
-	uint32_t	i_gen;		/* Generation number. */
-	uint32_t	i_uid;		/* File owner. */
-	uint32_t	i_gid;		/* File group. */
+
+	struct ext4_extent_cache i_ext_cache; /* cache for ext4 extent */
 };
 
 /*
@@ -148,7 +161,7 @@ struct inode {
  * ext2_getlbns and used by truncate and bmap code.
  */
 struct indir {
-	int32_t in_lbn;			/* Logical block number. */
+	e2fs_lbn_t in_lbn;		/* Logical block number. */
 	int	in_off;			/* Offset in buffer. */
 };
 

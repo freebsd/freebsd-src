@@ -1,19 +1,13 @@
 #!/bin/sh
 # $FreeBSD$
+name=$1
 format=$2
-mkdir -p results
-if [ -f /usr/ucb/touch ] ; then
-	TOUCH=/usr/ucb/touch
-else
-	if [ -f /usr/bin/touch ] ; then
-		TOUCH=/usr/bin/touch
-	else
-		if [ -f /bin/touch ] ; then
-			TOUCH=/bin/touch
-		fi
-	fi
-fi
-echo "$1...";
+
+. ./ipflib.sh
+
+test_init
+
+echo "$name...";
 
 case `uname -s` in
 OSF1)
@@ -24,16 +18,20 @@ OSF1)
 	;;
 esac
 
-/bin/cp /dev/null results/$1
-/bin/cp /dev/null results/$1.b
+n=1
+/bin/cp /dev/null results/$name
+/bin/cp /dev/null results/$name.b
 
 ( while read rule; do
-	echo $rule >> results/$1 
-	echo $rule | ../ipftest -br - -F $format -i input/$1 -l logout > /dev/null
-	if [ $? -ne 0 ] ; then
-		/bin/rm -f logout
-		exit 1
-	fi
+	/bin/rm -f logout
+	set_core $name $n
+	echo $rule >> results/$name
+	echo $rule | ../ipftest -br - -F $format -i input/$name -l logout > /dev/null &
+	back=$!
+	wait $back
+	test_end_leak $?
+	n=`expr $n + 1`
+
 	TZ=$GMT ../ipmon -P /dev/null -f logout >> results/$1
         echo "--------" >> results/$1
 	TZ=$GMT ../ipmon -P /dev/null -bf logout >> results/$1.b

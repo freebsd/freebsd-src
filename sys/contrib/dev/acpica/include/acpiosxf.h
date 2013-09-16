@@ -391,6 +391,29 @@ AcpiOsGetLine (
 
 
 /*
+ * Obtain ACPI table(s)
+ */
+ACPI_STATUS
+AcpiOsGetTableByName (
+    char                    *Signature,
+    UINT32                  Instance,
+    ACPI_TABLE_HEADER       **Table,
+    ACPI_PHYSICAL_ADDRESS   *Address);
+
+ACPI_STATUS
+AcpiOsGetTableByIndex (
+    UINT32                  Index,
+    ACPI_TABLE_HEADER       **Table,
+    UINT32                  *Instance,
+    ACPI_PHYSICAL_ADDRESS   *Address);
+
+ACPI_STATUS
+AcpiOsGetTableByAddress (
+    ACPI_PHYSICAL_ADDRESS   Address,
+    ACPI_TABLE_HEADER       **Table);
+
+
+/*
  * Directory manipulation
  */
 void *

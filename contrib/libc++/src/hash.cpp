@@ -12,11 +12,8 @@
 #include "stdexcept"
 #include "type_traits"
 
-// Don't silence a non-existent warning if clang doesn't yet have this warning.
 #ifdef __clang__
-#if (__clang_major__ > 3) || ((__clang_major__ == 3) && (__clang_minor__ >= 2))
 #pragma clang diagnostic ignored "-Wtautological-constant-out-of-range-compare"
-#endif
 #endif
 
 _LIBCPP_BEGIN_NAMESPACE_STD

@@ -32,7 +32,7 @@
 #ifndef _MPSVAR_H
 #define _MPSVAR_H
 
-#define MPS_DRIVER_VERSION	"14.00.00.02-fbsd"
+#define MPS_DRIVER_VERSION	"16.00.00.00-fbsd"
 
 #define MPS_DB_MAX_WAIT		2500
 
@@ -304,7 +304,6 @@ struct mps_softc {
 	bus_dma_tag_t			buffer_dmat;
 
 	MPI2_IOC_FACTS_REPLY		*facts;
-	MPI2_PORT_FACTS_REPLY		*pfacts;
 	int				num_reqs;
 	int				num_replies;
 	int				fqdepth;	/* Free queue */
@@ -415,6 +414,9 @@ struct mps_softc {
 	uint16_t			DD_block_exponent;
 	uint64_t			DD_max_lba;
 	struct mps_column_map		DD_column_map[MPS_MAX_DISKS_IN_VOL];
+
+	char				exclude_ids[80];
+	struct timeval			lastfail;
 };
 
 struct mps_config_params {
@@ -581,11 +583,17 @@ mps_unlock(struct mps_softc *sc)
 	mtx_unlock(&sc->mps_mtx);
 }
 
-#define MPS_INFO	(1 << 0)
-#define MPS_TRACE	(1 << 1)
-#define MPS_FAULT	(1 << 2)
-#define MPS_EVENT	(1 << 3)
-#define MPS_LOG		(1 << 4)
+#define MPS_INFO	(1 << 0)	/* Basic info */
+#define MPS_FAULT	(1 << 1)	/* Hardware faults */
+#define MPS_EVENT	(1 << 2)	/* Event data from the controller */
+#define MPS_LOG		(1 << 3)	/* Log data from the controller */
+#define MPS_RECOVERY	(1 << 4)	/* Command error recovery tracing */
+#define MPS_ERROR	(1 << 5)	/* Parameter errors, programming bugs */
+#define MPS_INIT	(1 << 6)	/* Things related to system init */
+#define MPS_XINFO	(1 << 7)	/* More detailed/noisy info */
+#define MPS_USER	(1 << 8)	/* Trace user-generated commands */
+#define MPS_MAPPING	(1 << 9)	/* Trace device mappings */
+#define MPS_TRACE	(1 << 10)	/* Function-by-function trace */
 
 #define mps_printf(sc, args...)				\
 	device_printf((sc)->mps_dev, ##args)
@@ -598,29 +606,32 @@ do {							\
 
 #define mps_dprint(sc, level, msg, args...)		\
 do {							\
-	if (sc->mps_debug & level)			\
-		device_printf(sc->mps_dev, msg, ##args);	\
+	if ((sc)->mps_debug & (level))			\
+		device_printf((sc)->mps_dev, msg, ##args);	\
 } while (0)
 
 #define mps_dprint_field(sc, level, msg, args...)		\
 do {								\
-	if (sc->mps_debug & level)				\
+	if ((sc)->mps_debug & (level))				\
 		printf("\t" msg, ##args);			\
 } while (0)
 
 #define MPS_PRINTFIELD_START(sc, tag...)	\
-	mps_dprint((sc), MPS_INFO, ##tag);	\
-	mps_dprint_field((sc), MPS_INFO, ":\n")
+	mps_dprint((sc), MPS_XINFO, ##tag);	\
+	mps_dprint_field((sc), MPS_XINFO, ":\n")
 #define MPS_PRINTFIELD_END(sc, tag)		\
-	mps_dprint((sc), MPS_INFO, tag "\n")
+	mps_dprint((sc), MPS_XINFO, tag "\n")
 #define MPS_PRINTFIELD(sc, facts, attr, fmt)	\
-	mps_dprint_field((sc), MPS_INFO, #attr ": " #fmt "\n", (facts)->attr)
+	mps_dprint_field((sc), MPS_XINFO, #attr ": " #fmt "\n", (facts)->attr)
 
 #define MPS_EVENTFIELD_START(sc, tag...)	\
 	mps_dprint((sc), MPS_EVENT, ##tag);	\
 	mps_dprint_field((sc), MPS_EVENT, ":\n")
 #define MPS_EVENTFIELD(sc, facts, attr, fmt)	\
 	mps_dprint_field((sc), MPS_EVENT, #attr ": " #fmt "\n", (facts)->attr)
+
+#define MPS_FUNCTRACE(sc)			\
+	mps_dprint((sc), MPS_TRACE, "%s\n", __func__)
 
 #define  CAN_SLEEP                      1
 #define  NO_SLEEP                       0
@@ -686,7 +697,8 @@ void mpssas_record_event(struct mps_softc *sc,
     MPI2_EVENT_NOTIFICATION_REPLY *event_reply);
 
 int mps_map_command(struct mps_softc *sc, struct mps_command *cm);
-int mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout);
+int mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout,
+    int sleep_flag);
 int mps_request_polled(struct mps_softc *sc, struct mps_command *cm);
 
 int mps_config_get_bios_pg3(struct mps_softc *sc, Mpi2ConfigReply_t

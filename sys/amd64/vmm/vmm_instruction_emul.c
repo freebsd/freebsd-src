@@ -60,6 +60,7 @@ enum {
 	VIE_OP_TYPE_NONE = 0,
 	VIE_OP_TYPE_MOV,
 	VIE_OP_TYPE_AND,
+	VIE_OP_TYPE_OR,
 	VIE_OP_TYPE_LAST
 };
 
@@ -74,6 +75,10 @@ static const struct vie_op one_byte_opcodes[256] = {
 	},
 	[0x89] = {
 		.op_byte = 0x89,
+		.op_type = VIE_OP_TYPE_MOV,
+	},
+	[0x8A] = {
+		.op_byte = 0x8A,
 		.op_type = VIE_OP_TYPE_MOV,
 	},
 	[0x8B] = {
@@ -94,7 +99,13 @@ static const struct vie_op one_byte_opcodes[256] = {
 		.op_byte = 0x81,
 		.op_type = VIE_OP_TYPE_AND,
 		.op_flags = VIE_OP_F_IMM,
-	}
+	},
+	[0x83] = {
+		/* XXX Group 1 extended opcode - not just OR */
+		.op_byte = 0x83,
+		.op_type = VIE_OP_TYPE_OR,
+		.op_flags = VIE_OP_F_IMM8,
+	},
 };
 
 /* struct vie.mod */
@@ -261,13 +272,18 @@ emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 			error = memwrite(vm, vcpuid, gpa, val, size, arg);
 		}
 		break;
+	case 0x8A:
 	case 0x8B:
 		/*
 		 * MOV from mem (ModRM:r/m) to reg (ModRM:reg)
+		 * 8A/r:	mov r/m8, r8
+		 * REX + 8A/r:	mov r/m8, r8
 		 * 8B/r:	mov r32, r/m32
 		 * REX.W 8B/r:	mov r64, r/m64
 		 */
-		if (vie->rex_w)
+		if (vie->op.op_byte == 0x8A)
+			size = 1;
+		else if (vie->rex_w)
 			size = 8;
 		error = memread(vm, vcpuid, gpa, &val, size, arg);
 		if (error == 0) {
@@ -338,8 +354,8 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		break;
 	case 0x81:
 		/*
-		 * AND reg (ModRM:reg) with immediate and store the
-		 * result in reg
+		 * AND mem (ModRM:r/m) with immediate and store the
+		 * result in mem.
 		 *
 		 * 81/          and r/m32, imm32
 		 * REX.W + 81/  and r/m64, imm32 sign-extended to 64
@@ -371,6 +387,52 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	return (error);
 }
 
+static int
+emulate_or(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
+{
+	int error, size;
+	uint64_t val1;
+
+	size = 4;
+	error = EINVAL;
+
+	switch (vie->op.op_byte) {
+	case 0x83:
+		/*
+		 * OR mem (ModRM:r/m) with immediate and store the
+		 * result in mem.
+		 *
+		 * 83/          OR r/m32, imm8 sign-extended to 32
+		 * REX.W + 83/  OR r/m64, imm8 sign-extended to 64
+		 *
+		 * Currently, only the OR operation of the 0x83 opcode
+		 * is implemented (ModRM:reg = b001).
+		 */
+		if ((vie->reg & 7) != 1)
+			break;
+
+		if (vie->rex_w)
+			size = 8;
+		
+		/* get the first operand */
+                error = memread(vm, vcpuid, gpa, &val1, size, arg);
+                if (error)
+			break;
+
+                /*
+		 * perform the operation with the pre-fetched immediate
+		 * operand and write the result
+		 */
+                val1 |= vie->immediate;
+                error = memwrite(vm, vcpuid, gpa, val1, size, arg);
+		break;
+	default:
+		break;
+	}
+	return (error);
+}
+
 int
 vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 			mem_region_read_t memread, mem_region_write_t memwrite,
@@ -388,6 +450,10 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		break;
 	case VIE_OP_TYPE_AND:
 		error = emulate_and(vm, vcpuid, gpa, vie,
+				    memread, memwrite, memarg);
+		break;
+	case VIE_OP_TYPE_OR:
+		error = emulate_or(vm, vcpuid, gpa, vie,
 				    memread, memwrite, memarg);
 		break;
 	default:
@@ -631,7 +697,6 @@ decode_modrm(struct vie *vie)
 				vie->base_register = VM_REG_GUEST_RIP;
 			else
 				vie->base_register = VM_REG_LAST;
-				
 		}
 		break;
 	}
@@ -780,6 +845,19 @@ decode_immediate(struct vie *vie)
 }
 
 /*
+ * Verify that all the bytes in the instruction buffer were consumed.
+ */
+static int
+verify_inst_length(struct vie *vie)
+{
+
+	if (vie->num_processed == vie->num_valid)
+		return (0);
+	else
+		return (-1);
+}
+
+/*
  * Verify that the 'guest linear address' provided as collateral of the nested
  * page table fault matches with our instruction decoding.
  */
@@ -851,6 +929,9 @@ vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 		return (-1);
 	
 	if (decode_immediate(vie))
+		return (-1);
+
+	if (verify_inst_length(vie))
 		return (-1);
 
 	if (verify_gla(vm, cpuid, gla, vie))

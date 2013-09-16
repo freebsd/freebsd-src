@@ -1565,6 +1565,13 @@ Parser::ParseObjCAtImplementationDeclaration(SourceLocation AtLoc) {
   
     if (Tok.is(tok::l_brace)) // we have ivars
       ParseObjCClassInstanceVariables(ObjCImpDecl, tok::objc_private, AtLoc);
+    else if (Tok.is(tok::less)) { // we have illegal '<' try to recover
+      Diag(Tok, diag::err_unexpected_protocol_qualifier);
+      // try to recover.
+      AttributeFactory attr;
+      DeclSpec DS(attr);
+      (void)ParseObjCProtocolQualifiers(DS);
+    }
   }
   assert(ObjCImpDecl);
 
@@ -1675,7 +1682,7 @@ Decl *Parser::ParseObjCAtAliasDeclaration(SourceLocation atLoc) {
 ///
 Decl *Parser::ParseObjCPropertySynthesize(SourceLocation atLoc) {
   assert(Tok.isObjCAtKeyword(tok::objc_synthesize) &&
-         "ParseObjCPropertyDynamic(): Expected '@synthesize'");
+         "ParseObjCPropertySynthesize(): Expected '@synthesize'");
   ConsumeToken(); // consume synthesize
 
   while (true) {
@@ -2501,7 +2508,14 @@ Parser::ParseObjCMessageExpressionBody(SourceLocation LBracLoc,
         return ExprError();
       }
       
-      ExprResult Res(ParseAssignmentExpression());
+      ExprResult Expr;
+      if (getLangOpts().CPlusPlus11 && Tok.is(tok::l_brace)) {
+        Diag(Tok, diag::warn_cxx98_compat_generalized_initializer_lists);
+        Expr = ParseBraceInitializer();
+      } else
+        Expr = ParseAssignmentExpression();
+      
+      ExprResult Res(Expr);
       if (Res.isInvalid()) {
         // We must manually skip to a ']', otherwise the expression skipper will
         // stop at the ']' when it skips to the ';'.  We want it to skip beyond
@@ -2747,7 +2761,9 @@ ExprResult Parser::ParseObjCDictionaryLiteral(SourceLocation AtLoc) {
     if (Tok.is(tok::colon)) {
       ConsumeToken();
     } else {
-      return ExprError(Diag(Tok, diag::err_expected_colon));
+      Diag(Tok, diag::err_expected_colon);
+      SkipUntil(tok::r_brace);
+      return ExprError();
     }
     
     ExprResult ValueExpr(ParseAssignmentExpression());

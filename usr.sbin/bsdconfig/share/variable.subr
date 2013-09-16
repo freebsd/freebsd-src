@@ -1,7 +1,7 @@
 if [ ! "$_VARIABLE_SUBR" ]; then _VARIABLE_SUBR=1
 #
 # Copyright (c) 2012-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_VARIABLE_SUBR" ]; then _VARIABLE_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -32,6 +32,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." variable.subr
 f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/strings.subr
 
 ############################################################ GLOBALS
 
@@ -93,8 +94,7 @@ f_variable_get_value()
 
 	if ! { f_getvar $var cp && ! f_interactive; }; then
 		shift 1 # var
-		cp=$( f_dialog_input "$( printf "$@" )" "$cp" ) &&
-			setvar $var "$cp"
+		f_dialog_input cp "$( printf "$@" )" "$cp" && setvar $var "$cp"
 	fi
 
 	return $SUCCESS
@@ -106,18 +106,42 @@ f_variable_get_value()
 #
 f_variable_set_defaults()
 {
+	f_dprintf "f_variable_set_defaults: Initializing defaults..."
+
 	#
 	# Initialize various user-edittable values to their defaults
 	#
 	setvar $VAR_EDITOR		"${EDITOR:-/usr/bin/ee}"
-	setvar $VAR_FTP_STATE		"passive"
+	setvar $VAR_FTP_STATE		"auto"
 	setvar $VAR_FTP_USER		"ftp"
 	setvar $VAR_HOSTNAME		"$( hostname )"
 	setvar $VAR_MEDIA_TIMEOUT	"300"
 	setvar $VAR_NFS_SECURE		"NO"
 	setvar $VAR_NFS_TCP		"NO"
 	setvar $VAR_NFS_V3		"YES"
+	setvar $VAR_PKG_TMPDIR		"/var/tmp"
 	setvar $VAR_RELNAME		"$UNAME_R"
+
+	#
+	# Debugging
+	#
+	if f_debugging; then
+		local var
+		for var in \
+			$VAR_EDITOR		\
+			$VAR_FTP_STATE		\
+			$VAR_FTP_USER		\
+			$VAR_HOSTNAME		\
+			$VAR_MEDIA_TIMEOUT	\
+			$VAR_NFS_SECURE		\
+			$VAR_NFS_TCP		\
+			$VAR_NFS_V3		\
+			$VAR_PKG_TMPDIR		\
+			$VAR_RELNAME		\
+		; do
+			f_quietly f_getvar $var
+		done
+	fi
 
 	f_dprintf "f_variable_set_defaults: Defaults initialized."
 }
@@ -130,12 +154,12 @@ f_variable_set_defaults()
 #
 f_dump_variables()
 {
-	local err sanitize_awk="{ gsub(/'/, \"'\\\\''\"); print }"
+	local err
 	if ! err=$(
 		( for handle in $VARIABLES; do
 			f_getvar $handle var || continue
 			f_getvar $var value || continue
-			value=$( echo "$value" | awk "$sanitize_awk" )
+			f_shell_escape "$value" value
 			printf "%s='%s'\n" "$var" "$value"
 		  done > "$VARIABLE_DUMPFILE" ) 2>&1
 	); then
@@ -203,7 +227,11 @@ f_variable_new VAR_FTP_STATE		ftpState
 f_variable_new VAR_FTP_USER		ftpUser
 f_variable_new VAR_GATEWAY		defaultrouter
 f_variable_new VAR_HOSTNAME		hostname
+f_variable_new VAR_HTTP_DIR		httpDirectory
 f_variable_new VAR_HTTP_FTP_MODE	httpFtpMode
+f_variable_new VAR_HTTP_HOST		httpHost
+f_variable_new VAR_HTTP_PATH		_httpPath
+f_variable_new VAR_HTTP_PORT		httpPort
 f_variable_new VAR_HTTP_PROXY		httpProxy
 f_variable_new VAR_HTTP_PROXY_HOST	httpProxyHost
 f_variable_new VAR_HTTP_PROXY_PATH	_httpProxyPath
@@ -224,8 +252,12 @@ f_variable_new VAR_NFS_SECURE		nfs_reserved_port_only
 f_variable_new VAR_NFS_TCP		nfs_use_tcp
 f_variable_new VAR_NFS_V3		nfs_use_v3
 f_variable_new VAR_NONINTERACTIVE	nonInteractive
+f_variable_new VAR_NO_CONFIRM		noConfirm
 f_variable_new VAR_NO_ERROR		noError
 f_variable_new VAR_NO_INET6		noInet6
+f_variable_new VAR_PACKAGE		package
+f_variable_new VAR_PKG_TMPDIR		PKG_TMPDIR
+f_variable_new VAR_PORTS_PATH		ports
 f_variable_new VAR_RELNAME		releaseName
 f_variable_new VAR_SLOW_ETHER		slowEthernetCard
 f_variable_new VAR_TRY_DHCP		tryDHCP

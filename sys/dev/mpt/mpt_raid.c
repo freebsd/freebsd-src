@@ -605,7 +605,7 @@ mpt_issue_raid_req(struct mpt_softc *mpt, struct mpt_raid_volume *vol,
 	MPI_pSGE_SET_FLAGS(se, (MPI_SGE_FLAGS_SIMPLE_ELEMENT |
 	    MPI_SGE_FLAGS_LAST_ELEMENT | MPI_SGE_FLAGS_END_OF_BUFFER |
 	    MPI_SGE_FLAGS_END_OF_LIST |
-	    write ? MPI_SGE_FLAGS_HOST_TO_IOC : MPI_SGE_FLAGS_IOC_TO_HOST));
+	    (write ? MPI_SGE_FLAGS_HOST_TO_IOC : MPI_SGE_FLAGS_IOC_TO_HOST)));
 	se->FlagsLength = htole32(se->FlagsLength);
 	rap->MsgContext = htole32(req->index | raid_handler_id);
 

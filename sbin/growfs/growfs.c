@@ -1544,7 +1544,7 @@ main(int argc, char **argv)
 		printf(" from %s to %s? [Yes/No] ", oldsizebuf, newsizebuf);
 		fflush(stdout);
 		fgets(reply, (int)sizeof(reply), stdin);
-		if (strcmp(reply, "Yes\n")){
+		if (strcasecmp(reply, "Yes\n")){
 			printf("\nNothing done\n");
 			exit (0);
 		}

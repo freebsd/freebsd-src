@@ -53,16 +53,17 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
-	struct pidfh *pfh = NULL;
+	struct pidfh  *ppfh, *pfh;
 	sigset_t mask, oldmask;
 	int ch, nochdir, noclose, restart;
-	const char *pidfile, *user;
+	const char *pidfile, *ppidfile,  *user;
 	pid_t otherpid, pid;
 
 	nochdir = noclose = 1;
 	restart = 0;
-	pidfile = user = NULL;
-	while ((ch = getopt(argc, argv, "cfp:ru:")) != -1) {
+	ppfh = pfh = NULL;
+	ppidfile = pidfile = user = NULL;
+	while ((ch = getopt(argc, argv, "cfp:P:ru:")) != -1) {
 		switch (ch) {
 		case 'c':
 			nochdir = 0;
@@ -72,6 +73,9 @@ main(int argc, char *argv[])
 			break;
 		case 'p':
 			pidfile = optarg;
+			break;
+		case 'P':
+			ppidfile = optarg;
 			break;
 		case 'r':
 			restart = 1;
@@ -89,7 +93,7 @@ main(int argc, char *argv[])
 	if (argc == 0)
 		usage();
 
-	pfh = NULL;
+	ppfh = pfh = NULL;
 	/*
 	 * Try to open the pidfile before calling daemon(3),
 	 * to be able to report the error intelligently
@@ -102,6 +106,18 @@ main(int argc, char *argv[])
 				    otherpid);
 			}
 			err(2, "pidfile ``%s''", pidfile);
+		}
+	}
+	
+	/* do same for actual daemon process */
+	if (ppidfile != NULL) {
+		ppfh = pidfile_open(ppidfile, 0600, &otherpid);
+		if (ppfh == NULL) {
+			if (errno == EEXIST) {
+				errx(3, "process already running, pid: %d",
+				     otherpid);
+			}
+			err(2, "ppidfile ``%s''", ppidfile);
 		}
 	}
 
@@ -176,12 +192,17 @@ restart:
 		 */
 		err(1, "%s", argv[0]);
 	}
+	/* write out parent pidfile if needed */
+	if (ppidfile != NULL)
+		pidfile_write(ppfh);
+
 	setproctitle("%s[%d]", argv[0], pid);
 	if (wait_child(pid, &mask) == 0 && restart) {
 		sleep(1);
 		goto restart;
 	}
 	pidfile_remove(pfh);
+	pidfile_remove(ppfh);
 	exit(0); /* Exit status does not matter. */
 }
 
@@ -240,7 +261,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: daemon [-cfr] [-p pidfile] [-u user] command "
-		"arguments ...\n");
+	    "usage: daemon [-cfr] [-p child_pidfile] [-P supervisor_pidfile] "
+	    "[-u user]\n              command arguments ...\n");
 	exit(1);
 }

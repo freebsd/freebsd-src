@@ -56,64 +56,64 @@ struct bintime {
 };
 
 static __inline void
-bintime_addx(struct bintime *bt, uint64_t x)
+bintime_addx(struct bintime *_bt, uint64_t _x)
 {
-	uint64_t u;
+	uint64_t _u;
 
-	u = bt->frac;
-	bt->frac += x;
-	if (u > bt->frac)
-		bt->sec++;
+	_u = _bt->frac;
+	_bt->frac += _x;
+	if (_u > _bt->frac)
+		_bt->sec++;
 }
 
 static __inline void
-bintime_add(struct bintime *bt, const struct bintime *bt2)
+bintime_add(struct bintime *_bt, const struct bintime *_bt2)
 {
-	uint64_t u;
+	uint64_t _u;
 
-	u = bt->frac;
-	bt->frac += bt2->frac;
-	if (u > bt->frac)
-		bt->sec++;
-	bt->sec += bt2->sec;
+	_u = _bt->frac;
+	_bt->frac += _bt2->frac;
+	if (_u > _bt->frac)
+		_bt->sec++;
+	_bt->sec += _bt2->sec;
 }
 
 static __inline void
-bintime_sub(struct bintime *bt, const struct bintime *bt2)
+bintime_sub(struct bintime *_bt, const struct bintime *_bt2)
 {
-	uint64_t u;
+	uint64_t _u;
 
-	u = bt->frac;
-	bt->frac -= bt2->frac;
-	if (u < bt->frac)
-		bt->sec--;
-	bt->sec -= bt2->sec;
+	_u = _bt->frac;
+	_bt->frac -= _bt2->frac;
+	if (_u < _bt->frac)
+		_bt->sec--;
+	_bt->sec -= _bt2->sec;
 }
 
 static __inline void
-bintime_mul(struct bintime *bt, u_int x)
+bintime_mul(struct bintime *_bt, u_int _x)
 {
-	uint64_t p1, p2;
+	uint64_t _p1, _p2;
 
-	p1 = (bt->frac & 0xffffffffull) * x;
-	p2 = (bt->frac >> 32) * x + (p1 >> 32);
-	bt->sec *= x;
-	bt->sec += (p2 >> 32);
-	bt->frac = (p2 << 32) | (p1 & 0xffffffffull);
+	_p1 = (_bt->frac & 0xffffffffull) * _x;
+	_p2 = (_bt->frac >> 32) * _x + (_p1 >> 32);
+	_bt->sec *= _x;
+	_bt->sec += (_p2 >> 32);
+	_bt->frac = (_p2 << 32) | (_p1 & 0xffffffffull);
 }
 
 static __inline void
-bintime_shift(struct bintime *bt, int exp)
+bintime_shift(struct bintime *_bt, int _exp)
 {
 
-	if (exp > 0) {
-		bt->sec <<= exp;
-		bt->sec |= bt->frac >> (64 - exp);
-		bt->frac <<= exp;
-	} else if (exp < 0) {
-		bt->frac >>= -exp;
-		bt->frac |= (uint64_t)bt->sec << (64 + exp);
-		bt->sec >>= -exp;
+	if (_exp > 0) {
+		_bt->sec <<= _exp;
+		_bt->sec |= _bt->frac >> (64 - _exp);
+		_bt->frac <<= _exp;
+	} else if (_exp < 0) {
+		_bt->frac >>= -_exp;
+		_bt->frac |= (uint64_t)_bt->sec << (64 + _exp);
+		_bt->sec >>= -_exp;
 	}
 }
 
@@ -131,27 +131,27 @@ bintime_shift(struct bintime *bt, int exp)
 #define	SBT_1NS	(SBT_1S / 1000000000)
 
 static __inline int
-sbintime_getsec(sbintime_t sbt)
+sbintime_getsec(sbintime_t _sbt)
 {
 
-	return (sbt >> 32);
+	return (_sbt >> 32);
 }
 
 static __inline sbintime_t
-bttosbt(const struct bintime bt)
+bttosbt(const struct bintime _bt)
 {
 
-	return (((sbintime_t)bt.sec << 32) + (bt.frac >> 32));
+	return (((sbintime_t)_bt.sec << 32) + (_bt.frac >> 32));
 }
 
 static __inline struct bintime
-sbttobt(sbintime_t sbt)
+sbttobt(sbintime_t _sbt)
 {
-	struct bintime bt;
+	struct bintime _bt;
 
-	bt.sec = sbt >> 32;
-	bt.frac = sbt << 32;
-	return (bt);
+	_bt.sec = _sbt >> 32;
+	_bt.frac = _sbt << 32;
+	return (_bt);
 }
 
 /*-
@@ -169,73 +169,74 @@ sbttobt(sbintime_t sbt)
  */
 
 static __inline void
-bintime2timespec(const struct bintime *bt, struct timespec *ts)
+bintime2timespec(const struct bintime *_bt, struct timespec *_ts)
 {
 
-	ts->tv_sec = bt->sec;
-	ts->tv_nsec = ((uint64_t)1000000000 * (uint32_t)(bt->frac >> 32)) >> 32;
+	_ts->tv_sec = _bt->sec;
+	_ts->tv_nsec = ((uint64_t)1000000000 *
+	    (uint32_t)(_bt->frac >> 32)) >> 32;
 }
 
 static __inline void
-timespec2bintime(const struct timespec *ts, struct bintime *bt)
+timespec2bintime(const struct timespec *_ts, struct bintime *_bt)
 {
 
-	bt->sec = ts->tv_sec;
+	_bt->sec = _ts->tv_sec;
 	/* 18446744073 = int(2^64 / 1000000000) */
-	bt->frac = ts->tv_nsec * (uint64_t)18446744073LL;
+	_bt->frac = _ts->tv_nsec * (uint64_t)18446744073LL;
 }
 
 static __inline void
-bintime2timeval(const struct bintime *bt, struct timeval *tv)
+bintime2timeval(const struct bintime *_bt, struct timeval *_tv)
 {
 
-	tv->tv_sec = bt->sec;
-	tv->tv_usec = ((uint64_t)1000000 * (uint32_t)(bt->frac >> 32)) >> 32;
+	_tv->tv_sec = _bt->sec;
+	_tv->tv_usec = ((uint64_t)1000000 * (uint32_t)(_bt->frac >> 32)) >> 32;
 }
 
 static __inline void
-timeval2bintime(const struct timeval *tv, struct bintime *bt)
+timeval2bintime(const struct timeval *_tv, struct bintime *_bt)
 {
 
-	bt->sec = tv->tv_sec;
+	_bt->sec = _tv->tv_sec;
 	/* 18446744073709 = int(2^64 / 1000000) */
-	bt->frac = tv->tv_usec * (uint64_t)18446744073709LL;
+	_bt->frac = _tv->tv_usec * (uint64_t)18446744073709LL;
 }
 
 static __inline struct timespec
-sbttots(sbintime_t sbt)
+sbttots(sbintime_t _sbt)
 {
-	struct timespec ts;
+	struct timespec _ts;
 
-	ts.tv_sec = sbt >> 32;
-	ts.tv_nsec = ((uint64_t)1000000000 * (uint32_t)sbt) >> 32;
-	return (ts);
+	_ts.tv_sec = _sbt >> 32;
+	_ts.tv_nsec = ((uint64_t)1000000000 * (uint32_t)_sbt) >> 32;
+	return (_ts);
 }
 
 static __inline sbintime_t
-tstosbt(struct timespec ts)
+tstosbt(struct timespec _ts)
 {
 
-	return (((sbintime_t)ts.tv_sec << 32) +
-	    (ts.tv_nsec * (((uint64_t)1 << 63) / 500000000) >> 32));
+	return (((sbintime_t)_ts.tv_sec << 32) +
+	    (_ts.tv_nsec * (((uint64_t)1 << 63) / 500000000) >> 32));
 }
 
 static __inline struct timeval
-sbttotv(sbintime_t sbt)
+sbttotv(sbintime_t _sbt)
 {
-	struct timeval tv;
+	struct timeval _tv;
 
-	tv.tv_sec = sbt >> 32;
-	tv.tv_usec = ((uint64_t)1000000 * (uint32_t)sbt) >> 32;
-	return (tv);
+	_tv.tv_sec = _sbt >> 32;
+	_tv.tv_usec = ((uint64_t)1000000 * (uint32_t)_sbt) >> 32;
+	return (_tv);
 }
 
 static __inline sbintime_t
-tvtosbt(struct timeval tv)
+tvtosbt(struct timeval _tv)
 {
 
-	return (((sbintime_t)tv.tv_sec << 32) +
-	    (tv.tv_usec * (((uint64_t)1 << 63) / 500000) >> 32));
+	return (((sbintime_t)_tv.tv_sec << 32) +
+	    (_tv.tv_usec * (((uint64_t)1 << 63) / 500000) >> 32));
 }
 #endif /* __BSD_VISIBLE */
 
@@ -411,10 +412,10 @@ void	microuptime(struct timeval *tvp);
 static __inline sbintime_t
 sbinuptime(void)
 {
-	struct bintime bt;
+	struct bintime _bt;
 
-	binuptime(&bt);
-	return (bttosbt(bt));
+	binuptime(&_bt);
+	return (bttosbt(_bt));
 }
 
 void	bintime(struct bintime *bt);
@@ -428,10 +429,10 @@ void	getmicrouptime(struct timeval *tvp);
 static __inline sbintime_t
 getsbinuptime(void)
 {
-	struct bintime bt;
+	struct bintime _bt;
 
-	getbinuptime(&bt);
-	return (bttosbt(bt));
+	getbinuptime(&_bt);
+	return (bttosbt(_bt));
 }
 
 void	getbintime(struct bintime *bt);

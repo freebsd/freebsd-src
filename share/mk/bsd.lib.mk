@@ -43,6 +43,12 @@ CTFFLAGS+= -g
 STRIP?=	-s
 .endif
 
+.if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
+    empty(DEBUG_FLAGS:M-gdwarf*)
+CFLAGS+= -g
+CTFFLAGS+= -g
+.endif
+
 .include <bsd.libnames.mk>
 
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
@@ -113,9 +119,26 @@ PO_FLAG=-pg
 
 all: objwarn
 
+.if defined(PRIVATELIB)
+_LIBDIR:=${LIBPRIVATEDIR}
+_SHLIBDIR:=${LIBPRIVATEDIR}
+.else
+_LIBDIR:=${LIBDIR}
+_SHLIBDIR:=${SHLIBDIR}
+.endif
+
 .if defined(SHLIB_NAME)
-.if defined(DEBUG_FLAGS)
-SHLIB_NAME_FULL=${SHLIB_NAME}.debug
+.if ${MK_DEBUG_FILES} != "no"
+SHLIB_NAME_FULL=${SHLIB_NAME}.full
+# Use ${DEBUGDIR} for base system debug files, else .debug subdirectory
+.if ${_SHLIBDIR} == "/boot" ||\
+    ${SHLIBDIR:C%/lib(/.*)?$%/lib%} == "/lib" ||\
+    ${SHLIBDIR:C%/usr/lib(32)?(/.*)?%/usr/lib%} == "/usr/lib"
+DEBUGFILEDIR=${DEBUGDIR}${_SHLIBDIR}
+.else
+DEBUGFILEDIR=${_SHLIBDIR}/.debug
+DEBUGMKDIR=
+.endif
 .else
 SHLIB_NAME_FULL=${SHLIB_NAME}
 .endif
@@ -128,6 +151,10 @@ SHLIB_NAME_FULL=${SHLIB_NAME}
 .if ${MK_SYMVER} == "yes" && !empty(VERSION_MAP)
 ${SHLIB_NAME_FULL}:	${VERSION_MAP}
 LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
+.endif
+
+.if defined(USEPRIVATELIB)
+LDFLAGS+= -L${_SHLIBDIRPREFIX}${LIBPRIVATEDIR} -rpath ${LIBPRIVATEDIR}
 .endif
 
 .if defined(LIB) && !empty(LIB) || defined(SHLIB_NAME)
@@ -201,13 +228,13 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS}
 .endif
 
-.if defined(DEBUG_FLAGS)
-CLEANFILES+=	${SHLIB_NAME_FULL} ${SHLIB_NAME}.symbols
-${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.symbols
-	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.symbols \
+.if ${MK_DEBUG_FILES} != "no"
+CLEANFILES+=	${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
+${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
+	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.debug \
 	    ${SHLIB_NAME_FULL} ${.TARGET}
 
-${SHLIB_NAME}.symbols: ${SHLIB_NAME_FULL}
+${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
 	${OBJCOPY} --only-keep-debug ${SHLIB_NAME_FULL} ${.TARGET}
 .endif
 .endif #defined(SHLIB_NAME)
@@ -276,49 +303,60 @@ realinstall: _libinstall
 _libinstall:
 .if defined(LIB) && !empty(LIB) && ${MK_INSTALLLIB} != "no"
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${LIBDIR}
+	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${_LIBDIR}
 .endif
 .if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${LIBDIR}
+	    ${_INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${_LIBDIR}
 .endif
 .if defined(SHLIB_NAME)
 	${INSTALL} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
-	    ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}
-.if defined(DEBUG_FLAGS)
-	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${SHLIB_NAME} ${DESTDIR}${_SHLIBDIR}
+.if ${MK_DEBUG_FILES} != "no"
+.if defined(DEBUGMKDIR)
+	${INSTALL} -T debug -d ${DESTDIR}${DEBUGFILEDIR}
+.endif
+	${INSTALL} -T debug -o ${LIBOWN} -g ${LIBGRP} -m ${DEBUGMODE} \
 	    ${_INSTALLFLAGS} \
-	    ${SHLIB_NAME}.symbols ${DESTDIR}${SHLIBDIR}
+	    ${SHLIB_NAME}.debug ${DESTDIR}${DEBUGFILEDIR}
 .endif
 .if defined(SHLIB_LINK)
 # ${_SHLIBDIRPREFIX} and ${_LDSCRIPTROOT} are both needed when cross-building
 # and when building 32 bits library shims.  ${_SHLIBDIRPREFIX} is the directory
-# prefix where shared objects will be installed.  ${_LDSCRIPTROOT} is the
-# directory prefix that will be used in generated ld(1) scripts.  They cannot
-# be coalesced because of the way ld(1) handles the sysroot prefix (used in the
-# cross-toolchain):
-# - 64 bits libs are located under sysroot, so ${_LDSCRIPTROOT} must be empty.
+# prefix where shared objects will be installed by the install target.
+#
+# ${_LDSCRIPTROOT} is the directory prefix that will be used when generating
+# ld(1) scripts.  The crosstools' ld is configured to lookup libraries in an
+# alternative directory which is called "sysroot", so during buildworld binaries
+# won't be linked against the running system libraries but against the ones of
+# the current source tree.  ${_LDSCRIPTROOT} behavior is twisted because of
+# the location where we store them:
+# - 64 bits libs are located under sysroot, so ${_LDSCRIPTROOT} must be empty
+#   because ld(1) will manage to find them from sysroot;
 # - 32 bits shims are not, so ${_LDSCRIPTROOT} is used to specify their full
-#   path.  Note that ld(1) scripts are generated both during buildworld and
-#   installworld; in the later case ${_LDSCRIPTROOT} must be obviously empty.
-# On the other hand, the use of ${_SHLIBDIRPREFIX} is more consistent since it
-# does not involve the logic of a tool we do not own.
+#   path, outside of sysroot.
+# Note that ld(1) scripts are generated both during buildworld and
+# installworld; in the later case ${_LDSCRIPTROOT} must be obviously empty
+# because on the target system, libraries are meant to be looked up from /.
 .if defined(SHLIB_LDSCRIPT) && !empty(SHLIB_LDSCRIPT) && exists(${.CURDIR}/${SHLIB_LDSCRIPT})
-	sed -e 's,@@SHLIB@@,${_LDSCRIPTROOT}${SHLIBDIR}/${SHLIB_NAME},g' \
-	    -e 's,@@LIBDIR@@,${_LDSCRIPTROOT}${LIBDIR},g' \
-	    ${.CURDIR}/${SHLIB_LDSCRIPT} > lib${LIB}.ld
+	sed -e 's,@@SHLIB@@,${_LDSCRIPTROOT}${_SHLIBDIR}/${SHLIB_NAME},g' \
+	    -e 's,@@LIBDIR@@,${_LDSCRIPTROOT}${_LIBDIR},g' \
+	    ${.CURDIR}/${SHLIB_LDSCRIPT} > ${DESTDIR}${_LIBDIR}/${SHLIB_LINK:R}.ld
 	${INSTALL} -S -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}.ld ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
+	    ${_INSTALLFLAGS} ${DESTDIR}${_LIBDIR}/${SHLIB_LINK:R}.ld \
+	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
+	rm -f ${DESTDIR}${_LIBDIR}/${SHLIB_LINK:R}.ld
+
 .else
-.if ${SHLIBDIR} == ${LIBDIR}
-	${INSTALL_SYMLINK} ${SHLIB_NAME} ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
+.if ${_SHLIBDIR} == ${_LIBDIR}
+	${INSTALL_SYMLINK} ${SHLIB_NAME} ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
 .else
-	${INSTALL_SYMLINK} ${_SHLIBDIRPREFIX}${SHLIBDIR}/${SHLIB_NAME} \
-	    ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
-.if exists(${DESTDIR}${LIBDIR}/${SHLIB_NAME})
-	-chflags noschg ${DESTDIR}${LIBDIR}/${SHLIB_NAME}
-	rm -f ${DESTDIR}${LIBDIR}/${SHLIB_NAME}
+	${INSTALL_SYMLINK} ${_SHLIBDIRPREFIX}${_SHLIBDIR}/${SHLIB_NAME} \
+	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
+.if exists(${DESTDIR}${_LIBDIR}/${SHLIB_NAME})
+	-chflags noschg ${DESTDIR}${_LIBDIR}/${SHLIB_NAME}
+	rm -f ${DESTDIR}${_LIBDIR}/${SHLIB_NAME}
 .endif
 .endif
 .endif # SHLIB_LDSCRIPT
@@ -326,7 +364,7 @@ _libinstall:
 .endif # SHIB_NAME
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
+	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${_LIBDIR}
 .endif
 .if defined(WANT_LINT) && !defined(NO_LINT) && defined(LIB) && !empty(LIB)
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \

@@ -213,7 +213,8 @@ vmm_handler(module_t mod, int what, void *arg)
 	switch (what) {
 	case MOD_LOAD:
 		vmmdev_init();
-		iommu_init();
+		if (ppt_num_devices() > 0)
+			iommu_init();
 		error = vmm_init();
 		if (error == 0)
 			vmm_initialized = 1;
@@ -224,8 +225,13 @@ vmm_handler(module_t mod, int what, void *arg)
 			iommu_cleanup();
 			vmm_ipi_cleanup();
 			error = VMM_CLEANUP();
+			/*
+			 * Something bad happened - prevent new
+			 * VMs from being created
+			 */
+			if (error)
+				vmm_initialized = 0;
 		}
-		vmm_initialized = 0;
 		break;
 	default:
 		error = 0;

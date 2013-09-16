@@ -25,6 +25,7 @@
  * Copyright (c) 2012 by Delphix. All rights reserved.
  * Copyright (c) 2012 by Frederik Wessels. All rights reserved.
  * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
+ * Copyright (c) 2013 by Prasad Joshi (sTec). All rights reserved.
  */
 
 #include <solaris.h>
@@ -804,6 +805,7 @@ zpool_do_create(int argc, char **argv)
 				goto errout;
 			break;
 		case 'm':
+			/* Equivalent to -O mountpoint=optarg */
 			mountpoint = optarg;
 			break;
 		case 'o':
@@ -842,8 +844,18 @@ zpool_do_create(int argc, char **argv)
 			*propval = '\0';
 			propval++;
 
-			if (add_prop_list(optarg, propval, &fsprops, B_FALSE))
+			/*
+			 * Mountpoints are checked and then added later.
+			 * Uniquely among properties, they can be specified
+			 * more than once, to avoid conflict with -m.
+			 */
+			if (0 == strcmp(optarg,
+			    zfs_prop_to_name(ZFS_PROP_MOUNTPOINT))) {
+				mountpoint = propval;
+			} else if (add_prop_list(optarg, propval, &fsprops,
+			    B_FALSE)) {
 				goto errout;
+			}
 			break;
 		case ':':
 			(void) fprintf(stderr, gettext("missing argument for "
@@ -961,6 +973,18 @@ zpool_do_create(int argc, char **argv)
 		}
 	}
 
+	/*
+	 * Now that the mountpoint's validity has been checked, ensure that
+	 * the property is set appropriately prior to creating the pool.
+	 */
+	if (mountpoint != NULL) {
+		ret = add_prop_list(zfs_prop_to_name(ZFS_PROP_MOUNTPOINT),
+		    mountpoint, &fsprops, B_FALSE);
+		if (ret != 0)
+			goto errout;
+	}
+
+	ret = 1;
 	if (dryrun) {
 		/*
 		 * For a dry run invocation, print out a basic message and run
@@ -995,21 +1019,19 @@ zpool_do_create(int argc, char **argv)
 				if (nvlist_exists(props, propname))
 					continue;
 
-				if (add_prop_list(propname, ZFS_FEATURE_ENABLED,
-				    &props, B_TRUE) != 0)
+				ret = add_prop_list(propname,
+				    ZFS_FEATURE_ENABLED, &props, B_TRUE);
+				if (ret != 0)
 					goto errout;
 			}
 		}
+
+		ret = 1;
 		if (zpool_create(g_zfs, poolname,
 		    nvroot, props, fsprops) == 0) {
 			zfs_handle_t *pool = zfs_open(g_zfs, poolname,
 			    ZFS_TYPE_FILESYSTEM);
 			if (pool != NULL) {
-				if (mountpoint != NULL)
-					verify(zfs_prop_set(pool,
-					    zfs_prop_to_name(
-					    ZFS_PROP_MOUNTPOINT),
-					    mountpoint) == 0);
 				if (zfs_mount(pool, NULL, 0) == 0)
 					ret = zfs_shareall(pool);
 				zfs_close(pool);
@@ -1274,12 +1296,13 @@ print_status_config(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
     int namewidth, int depth, boolean_t isspare)
 {
 	nvlist_t **child;
-	uint_t c, children;
+	uint_t c, vsc, children;
 	pool_scan_stat_t *ps = NULL;
 	vdev_stat_t *vs;
 	char rbuf[6], wbuf[6], cbuf[6];
 	char *vname;
 	uint64_t notpresent;
+	uint64_t ashift;
 	spare_cbdata_t cb;
 	const char *state;
 
@@ -1288,7 +1311,7 @@ print_status_config(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 		children = 0;
 
 	verify(nvlist_lookup_uint64_array(nv, ZPOOL_CONFIG_VDEV_STATS,
-	    (uint64_t **)&vs, &c) == 0);
+	    (uint64_t **)&vs, &vsc) == 0);
 
 	state = zpool_state_to_name(vs->vs_state, vs->vs_aux);
 	if (isspare) {
@@ -1342,6 +1365,10 @@ print_status_config(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 			(void) printf(gettext("unsupported feature(s)"));
 			break;
 
+		case VDEV_AUX_ASHIFT_TOO_BIG:
+			(void) printf(gettext("unsupported minimum blocksize"));
+			break;
+
 		case VDEV_AUX_SPARED:
 			verify(nvlist_lookup_uint64(nv, ZPOOL_CONFIG_GUID,
 			    &cb.cb_guid) == 0);
@@ -1384,6 +1411,12 @@ print_status_config(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 			(void) printf(gettext("corrupted data"));
 			break;
 		}
+	} else if (children == 0 && !isspare &&
+	    VDEV_STAT_VALID(vs_physical_ashift, vsc) &&
+	    vs->vs_configured_ashift < vs->vs_physical_ashift) {
+		(void) printf(
+		    gettext("  block size: %dB configured, %dB native"),
+		    1 << vs->vs_configured_ashift, 1 << vs->vs_physical_ashift);
 	}
 
 	(void) nvlist_lookup_uint64_array(nv, ZPOOL_CONFIG_SCAN_STATS,
@@ -2096,8 +2129,10 @@ zpool_do_import(int argc, char **argv)
 
 		errno = 0;
 		searchguid = strtoull(argv[0], &endptr, 10);
-		if (errno != 0 || *endptr != '\0')
+		if (errno != 0 || *endptr != '\0') {
 			searchname = argv[0];
+			searchguid = 0;
+		}
 		found_config = NULL;
 
 		/*
@@ -3976,7 +4011,7 @@ print_dedup_stats(nvlist_t *config)
 
 	/*
 	 * If the pool was faulted then we may not have been able to
-	 * obtain the config. Otherwise, if have anything in the dedup
+	 * obtain the config. Otherwise, if we have anything in the dedup
 	 * table continue processing the stats.
 	 */
 	if (nvlist_lookup_uint64_array(config, ZPOOL_CONFIG_DDT_OBJ_STATS,
@@ -4245,6 +4280,15 @@ status_callback(zpool_handle_t *zhp, void *data)
 		    "device(s) and run 'zpool online',\n"
 		    "\tor ignore the intent log records by running "
 		    "'zpool clear'.\n"));
+		break;
+
+	case ZPOOL_STATUS_NON_NATIVE_ASHIFT:
+		(void) printf(gettext("status: One or more devices are "
+		    "configured to use a non-native block size.\n"
+		    "\tExpect reduced performance.\n"));
+		(void) printf(gettext("action: Replace affected devices with "
+		    "devices that support the\n\tconfigured block size, or "
+		    "migrate data to a properly configured\n\tpool.\n"));
 		break;
 
 	default:
@@ -5323,10 +5367,9 @@ main(int argc, char **argv)
 		 * 'freeze' is a vile debugging abomination, so we treat
 		 * it as such.
 		 */
-		char buf[16384];
-		int fd = open(ZFS_DEV, O_RDWR);
-		(void) strcpy((void *)buf, argv[2]);
-		return (!!ioctl(fd, ZFS_IOC_POOL_FREEZE, buf));
+		zfs_cmd_t zc = { 0 };
+		(void) strlcpy(zc.zc_name, argv[2], sizeof (zc.zc_name));
+		return (!!zfs_ioctl(g_zfs, ZFS_IOC_POOL_FREEZE, &zc));
 	} else {
 		(void) fprintf(stderr, gettext("unrecognized "
 		    "command '%s'\n"), cmdname);

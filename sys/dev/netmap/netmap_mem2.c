@@ -381,7 +381,7 @@ netmap_obj_free_va(struct netmap_obj_pool *p, void *vaddr)
 		ssize_t relofs = (ssize_t) vaddr - (ssize_t) base;
 
 		/* Given address, is out of the scope of the current cluster.*/
-		if (vaddr < base || relofs > p->_clustsize)
+		if (vaddr < base || relofs >= p->_clustsize)
 			continue;
 
 		j = j + relofs / p->_objsize;

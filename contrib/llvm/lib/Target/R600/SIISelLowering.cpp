@@ -49,6 +49,7 @@ SITargetLowering::SITargetLowering(TargetMachine &TM) :
 
   addRegisterClass(MVT::v4i32, &AMDGPU::VReg_128RegClass);
   addRegisterClass(MVT::v4f32, &AMDGPU::VReg_128RegClass);
+  addRegisterClass(MVT::i128, &AMDGPU::SReg_128RegClass);
 
   addRegisterClass(MVT::v8i32, &AMDGPU::VReg_256RegClass);
   addRegisterClass(MVT::v8f32, &AMDGPU::VReg_256RegClass);
@@ -70,6 +71,10 @@ SITargetLowering::SITargetLowering(TargetMachine &TM) :
   setOperationAction(ISD::SELECT_CC, MVT::i32, Custom);
 
   setOperationAction(ISD::SELECT_CC, MVT::Other, Expand);
+
+  setOperationAction(ISD::STORE, MVT::i32, Custom);
+  setOperationAction(ISD::STORE, MVT::i64, Custom);
+
   setTargetDAGCombine(ISD::SELECT_CC);
 
   setTargetDAGCombine(ISD::SETCC);
@@ -234,6 +239,7 @@ SDValue SITargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   default: return AMDGPUTargetLowering::LowerOperation(Op, DAG);
   case ISD::BRCOND: return LowerBRCOND(Op, DAG);
   case ISD::SELECT_CC: return LowerSELECT_CC(Op, DAG);
+  case ISD::STORE: return LowerSTORE(Op, DAG);
   }
   return SDValue();
 }
@@ -332,6 +338,32 @@ SDValue SITargetLowering::LowerBRCOND(SDValue BRCOND,
   return Chain;
 }
 
+#define RSRC_DATA_FORMAT 0xf00000000000
+
+SDValue SITargetLowering::LowerSTORE(SDValue Op, SelectionDAG &DAG) const {
+  StoreSDNode *StoreNode = cast<StoreSDNode>(Op);
+  SDValue Chain = Op.getOperand(0);
+  SDValue Value = Op.getOperand(1);
+  SDValue VirtualAddress = Op.getOperand(2);
+  DebugLoc DL = Op.getDebugLoc();
+
+  if (StoreNode->getAddressSpace() != AMDGPUAS::GLOBAL_ADDRESS) {
+    return SDValue();
+  }
+
+  SDValue SrcSrc = DAG.getNode(ISD::BUILD_PAIR, DL, MVT::i128,
+                               DAG.getConstant(0, MVT::i64),
+			       DAG.getConstant(RSRC_DATA_FORMAT, MVT::i64));
+
+  SDValue Ops[2];
+  Ops[0] = DAG.getNode(AMDGPUISD::BUFFER_STORE, DL, MVT::Other, Chain,
+                       Value, SrcSrc, VirtualAddress);
+  Ops[1] = Chain;
+
+  return DAG.getMergeValues(Ops, 2, DL);
+
+}
+
 SDValue SITargetLowering::LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const {
   SDValue LHS = Op.getOperand(0);
   SDValue RHS = Op.getOperand(1);
@@ -424,9 +456,12 @@ int32_t SITargetLowering::analyzeImmediate(const SDNode *N) const {
     float F;
   } Imm;
 
-  if (const ConstantSDNode *Node = dyn_cast<ConstantSDNode>(N))
+  if (const ConstantSDNode *Node = dyn_cast<ConstantSDNode>(N)) {
+    if (Node->getZExtValue() >> 32) {
+        return -1;
+    }
     Imm.I = Node->getSExtValue();
-  else if (const ConstantFPSDNode *Node = dyn_cast<ConstantFPSDNode>(N))
+  } else if (const ConstantFPSDNode *Node = dyn_cast<ConstantFPSDNode>(N))
     Imm.F = Node->getValueAPF().convertToFloat();
   else
     return -1; // It isn't an immediate
@@ -534,8 +569,9 @@ void SITargetLowering::ensureSRegLimit(SelectionDAG &DAG, SDValue &Operand,
   Operand = SDValue(Node, 0);
 }
 
-SDNode *SITargetLowering::PostISelFolding(MachineSDNode *Node,
-                                          SelectionDAG &DAG) const {
+/// \brief Try to fold the Nodes operands into the Node
+SDNode *SITargetLowering::foldOperands(MachineSDNode *Node,
+                                       SelectionDAG &DAG) const {
 
   // Original encoding (either e32 or e64)
   int Opcode = Node->getMachineOpcode();
@@ -666,5 +702,116 @@ SDNode *SITargetLowering::PostISelFolding(MachineSDNode *Node,
 
   // Create a complete new instruction
   return DAG.getMachineNode(Desc->Opcode, Node->getDebugLoc(),
-                            Node->getVTList(), Ops.data(), Ops.size());
+                            Node->getVTList(), Ops);
+}
+
+/// \brief Helper function for adjustWritemask
+unsigned SubIdx2Lane(unsigned Idx) {
+  switch (Idx) {
+  default: return 0;
+  case AMDGPU::sub0: return 0;
+  case AMDGPU::sub1: return 1;
+  case AMDGPU::sub2: return 2;
+  case AMDGPU::sub3: return 3;
+  }
+}
+
+/// \brief Adjust the writemask of MIMG instructions
+void SITargetLowering::adjustWritemask(MachineSDNode *&Node,
+                                       SelectionDAG &DAG) const {
+  SDNode *Users[4] = { };
+  unsigned Writemask = 0, Lane = 0;
+
+  // Try to figure out the used register components
+  for (SDNode::use_iterator I = Node->use_begin(), E = Node->use_end();
+       I != E; ++I) {
+
+    // Abort if we can't understand the usage
+    if (!I->isMachineOpcode() ||
+        I->getMachineOpcode() != TargetOpcode::EXTRACT_SUBREG)
+      return;
+
+    Lane = SubIdx2Lane(I->getConstantOperandVal(1));
+
+    // Abort if we have more than one user per component
+    if (Users[Lane])
+      return;
+
+    Users[Lane] = *I;
+    Writemask |= 1 << Lane;
+  }
+
+  // Abort if all components are used
+  if (Writemask == 0xf)
+    return;
+
+  // Adjust the writemask in the node
+  std::vector<SDValue> Ops;
+  Ops.push_back(DAG.getTargetConstant(Writemask, MVT::i32));
+  for (unsigned i = 1, e = Node->getNumOperands(); i != e; ++i)
+    Ops.push_back(Node->getOperand(i));
+  Node = (MachineSDNode*)DAG.UpdateNodeOperands(Node, Ops.data(), Ops.size());
+
+  // If we only got one lane, replace it with a copy
+  if (Writemask == (1U << Lane)) {
+    SDValue RC = DAG.getTargetConstant(AMDGPU::VReg_32RegClassID, MVT::i32);
+    SDNode *Copy = DAG.getMachineNode(TargetOpcode::COPY_TO_REGCLASS,
+                                      DebugLoc(), Users[Lane]->getValueType(0),
+                                      SDValue(Node, 0), RC);
+    DAG.ReplaceAllUsesWith(Users[Lane], Copy);
+    return;
+  }
+
+  // Update the users of the node with the new indices
+  for (unsigned i = 0, Idx = AMDGPU::sub0; i < 4; ++i) {
+
+    SDNode *User = Users[i];
+    if (!User)
+      continue;
+
+    SDValue Op = DAG.getTargetConstant(Idx, MVT::i32);
+    DAG.UpdateNodeOperands(User, User->getOperand(0), Op);
+
+    switch (Idx) {
+    default: break;
+    case AMDGPU::sub0: Idx = AMDGPU::sub1; break;
+    case AMDGPU::sub1: Idx = AMDGPU::sub2; break;
+    case AMDGPU::sub2: Idx = AMDGPU::sub3; break;
+    }
+  }
+}
+
+/// \brief Fold the instructions after slecting them
+SDNode *SITargetLowering::PostISelFolding(MachineSDNode *Node,
+                                          SelectionDAG &DAG) const {
+
+  if (AMDGPU::isMIMG(Node->getMachineOpcode()) != -1)
+    adjustWritemask(Node, DAG);
+
+  return foldOperands(Node, DAG);
+}
+
+/// \brief Assign the register class depending on the number of
+/// bits set in the writemask
+void SITargetLowering::AdjustInstrPostInstrSelection(MachineInstr *MI,
+                                                     SDNode *Node) const {
+  if (AMDGPU::isMIMG(MI->getOpcode()) == -1)
+    return;
+
+  unsigned VReg = MI->getOperand(0).getReg();
+  unsigned Writemask = MI->getOperand(1).getImm();
+  unsigned BitsSet = 0;
+  for (unsigned i = 0; i < 4; ++i)
+    BitsSet += Writemask & (1 << i) ? 1 : 0;
+
+  const TargetRegisterClass *RC;
+  switch (BitsSet) {
+  default: return;
+  case 1:  RC = &AMDGPU::VReg_32RegClass; break;
+  case 2:  RC = &AMDGPU::VReg_64RegClass; break;
+  case 3:  RC = &AMDGPU::VReg_96RegClass; break;
+  }
+
+  MachineRegisterInfo &MRI = MI->getParent()->getParent()->getRegInfo();
+  MRI.setRegClass(VReg, RC);
 }

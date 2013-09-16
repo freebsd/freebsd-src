@@ -2,14 +2,8 @@
  * WPA Supplicant / main() function for UNIX like OSes and MinGW
  * Copyright (c) 2003-2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -33,7 +27,8 @@ static void usage(void)
 	       "[-g<global ctrl>] \\\n"
 	       "        -i<ifname> -c<config file> [-C<ctrl>] [-D<driver>] "
 	       "[-p<driver_param>] \\\n"
-	       "        [-b<br_ifname>] [-f<debug file>] \\\n"
+	       "        [-b<br_ifname>] [-f<debug file>] [-e<entropy file>] "
+	       "\\\n"
 	       "        [-o<override driver>] [-O<override ctrl>] \\\n"
 	       "        [-N -i<ifname> -c<conf> [-C<ctrl>] "
 	       "[-D<driver>] \\\n"
@@ -56,7 +51,8 @@ static void usage(void)
 	       "  -C = ctrl_interface parameter (only used if -c is not)\n"
 	       "  -i = interface name\n"
 	       "  -d = increase debugging verbosity (-dd even more)\n"
-	       "  -D = driver name (can be multiple drivers: nl80211,wext)\n");
+	       "  -D = driver name (can be multiple drivers: nl80211,wext)\n"
+	       "  -e = entropy file\n");
 #ifdef CONFIG_DEBUG_FILE
 	printf("  -f = log output to debug file instead of stdout\n");
 #endif /* CONFIG_DEBUG_FILE */
@@ -65,9 +61,13 @@ static void usage(void)
 #ifdef CONFIG_DEBUG_SYSLOG
 	printf("  -s = log output to syslog instead of stdout\n");
 #endif /* CONFIG_DEBUG_SYSLOG */
+#ifdef CONFIG_DEBUG_LINUX_TRACING
+	printf("  -T = record to Linux tracing in addition to logging\n");
+	printf("       (records all messages regardless of debug verbosity)\n");
+#endif /* CONFIG_DEBUG_LINUX_TRACING */
 	printf("  -t = include timestamp in debug messages\n"
 	       "  -h = show this help text\n"
-	       "  -L = show license (GPL and BSD)\n"
+	       "  -L = show license (BSD)\n"
 	       "  -o = override driver parameter for new interfaces\n"
 	       "  -O = override ctrl_interface parameter for new interfaces\n"
 	       "  -p = driver parameters\n"
@@ -101,20 +101,31 @@ static void license(void)
 }
 
 
-static void wpa_supplicant_fd_workaround(void)
+static void wpa_supplicant_fd_workaround(int start)
 {
 #ifdef __linux__
-	int s, i;
+	static int fd[3] = { -1, -1, -1 };
+	int i;
 	/* When started from pcmcia-cs scripts, wpa_supplicant might start with
 	 * fd 0, 1, and 2 closed. This will cause some issues because many
 	 * places in wpa_supplicant are still printing out to stdout. As a
 	 * workaround, make sure that fd's 0, 1, and 2 are not used for other
 	 * sockets. */
-	for (i = 0; i < 3; i++) {
-		s = open("/dev/null", O_RDWR);
-		if (s > 2) {
-			close(s);
-			break;
+	if (start) {
+		for (i = 0; i < 3; i++) {
+			fd[i] = open("/dev/null", O_RDWR);
+			if (fd[i] > 2) {
+				close(fd[i]);
+				fd[i] = -1;
+				break;
+			}
+		}
+	} else {
+		for (i = 0; i < 3; i++) {
+			if (fd[i] >= 0) {
+				close(fd[i]);
+				fd[i] = -1;
+			}
 		}
 	}
 #endif /* __linux__ */
@@ -140,10 +151,11 @@ int main(int argc, char *argv[])
 		return -1;
 	iface_count = 1;
 
-	wpa_supplicant_fd_workaround();
+	wpa_supplicant_fd_workaround(1);
 
 	for (;;) {
-		c = getopt(argc, argv, "b:Bc:C:D:df:g:hi:KLNo:O:p:P:qstuvW");
+		c = getopt(argc, argv,
+			   "b:Bc:C:D:de:f:g:hi:KLNo:O:p:P:qsTtuvW");
 		if (c < 0)
 			break;
 		switch (c) {
@@ -172,6 +184,9 @@ int main(int argc, char *argv[])
 			params.wpa_debug_level--;
 			break;
 #endif /* CONFIG_NO_STDOUT_DEBUG */
+		case 'e':
+			params.entropy_file = optarg;
+			break;
 #ifdef CONFIG_DEBUG_FILE
 		case 'f':
 			params.wpa_debug_file_path = optarg;
@@ -215,6 +230,11 @@ int main(int argc, char *argv[])
 			params.wpa_debug_syslog++;
 			break;
 #endif /* CONFIG_DEBUG_SYSLOG */
+#ifdef CONFIG_DEBUG_LINUX_TRACING
+		case 'T':
+			params.wpa_debug_tracing++;
+			break;
+#endif /* CONFIG_DEBUG_LINUX_TRACING */
 		case 't':
 			params.wpa_debug_timestamp++;
 			break;
@@ -232,8 +252,8 @@ int main(int argc, char *argv[])
 			break;
 		case 'N':
 			iface_count++;
-			iface = os_realloc(ifaces, iface_count *
-					   sizeof(struct wpa_interface));
+			iface = os_realloc_array(ifaces, iface_count,
+						 sizeof(struct wpa_interface));
 			if (iface == NULL)
 				goto out;
 			ifaces = iface;
@@ -253,6 +273,9 @@ int main(int argc, char *argv[])
 		wpa_printf(MSG_ERROR, "Failed to initialize wpa_supplicant");
 		exitcode = -1;
 		goto out;
+	} else {
+		wpa_printf(MSG_INFO, "Successfully initialized "
+			   "wpa_supplicant");
 	}
 
 	for (i = 0; exitcode == 0 && i < iface_count; i++) {
@@ -276,6 +299,7 @@ int main(int argc, char *argv[])
 	wpa_supplicant_deinit(global);
 
 out:
+	wpa_supplicant_fd_workaround(0);
 	os_free(ifaces);
 	os_free(params.pid_file);
 

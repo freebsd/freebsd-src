@@ -75,6 +75,8 @@ static char depth1_provname[PATH_MAX];
 static char depth1_localpath[PATH_MAX];
 static int depth1_metaflush;
 
+extern void yyerror(const char *);
+extern int yylex(void);
 extern void yyrestart(FILE *);
 
 static int isitme(const char *name);

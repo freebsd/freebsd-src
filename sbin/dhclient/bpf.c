@@ -43,7 +43,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/capability.h>
+
 #include "dhcpd.h"
+#include "privsep.h"
+#include <sys/capability.h>
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 
@@ -61,15 +65,15 @@ __FBSDID("$FreeBSD$");
  * mask.
  */
 int
-if_register_bpf(struct interface_info *info)
+if_register_bpf(struct interface_info *info, int flags)
 {
 	char filename[50];
 	int sock, b;
 
 	/* Open a BPF device */
-	for (b = 0; 1; b++) {
+	for (b = 0;; b++) {
 		snprintf(filename, sizeof(filename), BPF_FORMAT, b);
-		sock = open(filename, O_RDWR, 0);
+		sock = open(filename, flags);
 		if (sock < 0) {
 			if (errno == EBUSY)
 				continue;
@@ -87,16 +91,81 @@ if_register_bpf(struct interface_info *info)
 	return (sock);
 }
 
+/*
+ * Packet write filter program:
+ * 'ip and udp and src port bootps and dst port (bootps or bootpc)'
+ */
+struct bpf_insn dhcp_bpf_wfilter[] = {
+	BPF_STMT(BPF_LD + BPF_B + BPF_IND, 14),
+	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, (IPVERSION << 4) + 5, 0, 12),
+
+	/* Make sure this is an IP packet... */
+	BPF_STMT(BPF_LD + BPF_H + BPF_ABS, 12),
+	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, ETHERTYPE_IP, 0, 10),
+
+	/* Make sure it's a UDP packet... */
+	BPF_STMT(BPF_LD + BPF_B + BPF_ABS, 23),
+	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, IPPROTO_UDP, 0, 8),
+
+	/* Make sure this isn't a fragment... */
+	BPF_STMT(BPF_LD + BPF_H + BPF_ABS, 20),
+	BPF_JUMP(BPF_JMP + BPF_JSET + BPF_K, 0x1fff, 6, 0),	/* patched */
+
+	/* Get the IP header length... */
+	BPF_STMT(BPF_LDX + BPF_B + BPF_MSH, 14),
+
+	/* Make sure it's from the right port... */
+	BPF_STMT(BPF_LD + BPF_H + BPF_IND, 14),
+	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, 68, 0, 3),
+
+	/* Make sure it is to the right ports ... */
+	BPF_STMT(BPF_LD + BPF_H + BPF_IND, 16),
+	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, 67, 0, 1),
+
+	/* If we passed all the tests, ask for the whole packet. */
+	BPF_STMT(BPF_RET+BPF_K, (u_int)-1),
+
+	/* Otherwise, drop it. */
+	BPF_STMT(BPF_RET+BPF_K, 0),
+};
+
+int dhcp_bpf_wfilter_len = sizeof(dhcp_bpf_wfilter) / sizeof(struct bpf_insn);
+
 void
 if_register_send(struct interface_info *info)
 {
+	cap_rights_t rights;
+	struct bpf_version v;
+	struct bpf_program p;
 	int sock, on = 1;
 
-	/*
-	 * If we're using the bpf API for sending and receiving, we
-	 * don't need to register this interface twice.
-	 */
-	info->wfdesc = info->rfdesc;
+	/* Open a BPF device and hang it on this interface... */
+	info->wfdesc = if_register_bpf(info, O_WRONLY);
+
+	/* Make sure the BPF version is in range... */
+	if (ioctl(info->wfdesc, BIOCVERSION, &v) < 0)
+		error("Can't get BPF version: %m");
+
+	if (v.bv_major != BPF_MAJOR_VERSION ||
+	    v.bv_minor < BPF_MINOR_VERSION)
+		error("Kernel BPF version out of range - recompile dhcpd!");
+
+	/* Set up the bpf write filter program structure. */
+	p.bf_len = dhcp_bpf_wfilter_len;
+	p.bf_insns = dhcp_bpf_wfilter;
+
+	if (dhcp_bpf_wfilter[7].k == 0x1fff)
+		dhcp_bpf_wfilter[7].k = htons(IP_MF|IP_OFFMASK);
+
+	if (ioctl(info->wfdesc, BIOCSETWF, &p) < 0)
+		error("Can't install write filter program: %m");
+
+	if (ioctl(info->wfdesc, BIOCLOCK, NULL) < 0)
+		error("Cannot lock bpf");
+
+	cap_rights_init(&rights, CAP_WRITE);
+	if (cap_rights_limit(info->wfdesc, &rights) < 0 && errno != ENOSYS)
+		error("Can't limit bpf descriptor: %m");
 
 	/*
 	 * Use raw socket for unicast send.
@@ -144,55 +213,17 @@ struct bpf_insn dhcp_bpf_filter[] = {
 
 int dhcp_bpf_filter_len = sizeof(dhcp_bpf_filter) / sizeof(struct bpf_insn);
 
-/*
- * Packet write filter program:
- * 'ip and udp and src port bootps and dst port (bootps or bootpc)'
- */
-struct bpf_insn dhcp_bpf_wfilter[] = {
-	BPF_STMT(BPF_LD + BPF_B + BPF_IND, 14),
-	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, (IPVERSION << 4) + 5, 0, 12),
-
-	/* Make sure this is an IP packet... */
-	BPF_STMT(BPF_LD + BPF_H + BPF_ABS, 12),
-	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, ETHERTYPE_IP, 0, 10),
-
-	/* Make sure it's a UDP packet... */
-	BPF_STMT(BPF_LD + BPF_B + BPF_ABS, 23),
-	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, IPPROTO_UDP, 0, 8),
-
-	/* Make sure this isn't a fragment... */
-	BPF_STMT(BPF_LD + BPF_H + BPF_ABS, 20),
-	BPF_JUMP(BPF_JMP + BPF_JSET + BPF_K, 0x1fff, 6, 0),	/* patched */
-
-	/* Get the IP header length... */
-	BPF_STMT(BPF_LDX + BPF_B + BPF_MSH, 14),
-
-	/* Make sure it's from the right port... */
-	BPF_STMT(BPF_LD + BPF_H + BPF_IND, 14),
-	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, 68, 0, 3),
-
-	/* Make sure it is to the right ports ... */
-	BPF_STMT(BPF_LD + BPF_H + BPF_IND, 16),
-	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, 67, 0, 1),
-
-	/* If we passed all the tests, ask for the whole packet. */
-	BPF_STMT(BPF_RET+BPF_K, (u_int)-1),
-
-	/* Otherwise, drop it. */
-	BPF_STMT(BPF_RET+BPF_K, 0),
-};
-
-int dhcp_bpf_wfilter_len = sizeof(dhcp_bpf_wfilter) / sizeof(struct bpf_insn);
-
 void
 if_register_receive(struct interface_info *info)
 {
+	static const unsigned long cmds[2] = { SIOCGIFFLAGS, SIOCGIFMEDIA };
+	cap_rights_t rights;
 	struct bpf_version v;
 	struct bpf_program p;
 	int flag = 1, sz;
 
 	/* Open a BPF device and hang it on this interface... */
-	info->rfdesc = if_register_bpf(info);
+	info->rfdesc = if_register_bpf(info, O_RDONLY);
 
 	/* Make sure the BPF version is in range... */
 	if (ioctl(info->rfdesc, BIOCVERSION, &v) < 0)
@@ -235,48 +266,94 @@ if_register_receive(struct interface_info *info)
 	if (ioctl(info->rfdesc, BIOCSETF, &p) < 0)
 		error("Can't install packet filter program: %m");
 
-	/* Set up the bpf write filter program structure. */
-	p.bf_len = dhcp_bpf_wfilter_len;
-	p.bf_insns = dhcp_bpf_wfilter;
-
-	if (dhcp_bpf_wfilter[7].k == 0x1fff)
-		dhcp_bpf_wfilter[7].k = htons(IP_MF|IP_OFFMASK);
-
-	if (ioctl(info->rfdesc, BIOCSETWF, &p) < 0)
-		error("Can't install write filter program: %m");
-
 	if (ioctl(info->rfdesc, BIOCLOCK, NULL) < 0)
 		error("Cannot lock bpf");
+
+	cap_rights_init(&rights, CAP_IOCTL, CAP_POLL_EVENT, CAP_READ);
+	if (cap_rights_limit(info->rfdesc, &rights) < 0 && errno != ENOSYS)
+		error("Can't limit bpf descriptor: %m");
+	if (cap_ioctls_limit(info->rfdesc, cmds, 2) < 0 && errno != ENOSYS)
+		error("Can't limit ioctls for bpf descriptor: %m");
 }
 
-ssize_t
-send_packet(struct interface_info *interface, struct dhcp_packet *raw,
-    size_t len, struct in_addr from, struct sockaddr_in *to,
-    struct hardware *hto)
+void
+send_packet_unpriv(int privfd, struct dhcp_packet *raw, size_t len,
+    struct in_addr from, struct in_addr to)
+{
+	struct imsg_hdr hdr;
+	struct buf *buf;
+	int errs;
+
+	hdr.code = IMSG_SEND_PACKET;
+	hdr.len = sizeof(hdr) +
+	    sizeof(size_t) + len +
+	    sizeof(from) + sizeof(to);
+
+	if ((buf = buf_open(hdr.len)) == NULL)
+		error("buf_open: %m");
+
+	errs = 0;
+	errs += buf_add(buf, &hdr, sizeof(hdr));
+	errs += buf_add(buf, &len, sizeof(len));
+	errs += buf_add(buf, raw, len);
+	errs += buf_add(buf, &from, sizeof(from));
+	errs += buf_add(buf, &to, sizeof(to));
+	if (errs)
+		error("buf_add: %m");
+
+	if (buf_close(privfd, buf) == -1)
+		error("buf_close: %m");
+}
+
+void
+send_packet_priv(struct interface_info *interface, struct imsg_hdr *hdr, int fd)
 {
 	unsigned char buf[256];
 	struct iovec iov[2];
 	struct msghdr msg;
+	struct dhcp_packet raw;
+	size_t len;
+	struct in_addr from, to;
 	int result, bufp = 0;
 
-	/* Assemble the headers... */
-	if (to->sin_addr.s_addr == INADDR_BROADCAST)
-		assemble_hw_header(interface, buf, &bufp, hto);
-	assemble_udp_ip_header(buf, &bufp, from.s_addr,
-	    to->sin_addr.s_addr, to->sin_port, (unsigned char *)raw, len);
+	if (hdr->len < sizeof(*hdr) + sizeof(size_t))
+		error("corrupted message received");
+	buf_read(fd, &len, sizeof(len));
+	if (hdr->len != sizeof(*hdr) + sizeof(size_t) + len +
+	    sizeof(from) + sizeof(to)) {
+		error("corrupted message received");
+	}
+	if (len > sizeof(raw))
+		error("corrupted message received");
+	buf_read(fd, &raw, len);
+	buf_read(fd, &from, sizeof(from));
+	buf_read(fd, &to, sizeof(to));
 
-	iov[0].iov_base = (char *)buf;
+	/* Assemble the headers... */
+	if (to.s_addr == INADDR_BROADCAST)
+		assemble_hw_header(interface, buf, &bufp);
+	assemble_udp_ip_header(buf, &bufp, from.s_addr, to.s_addr,
+	    htons(REMOTE_PORT), (unsigned char *)&raw, len);
+
+	iov[0].iov_base = buf;
 	iov[0].iov_len = bufp;
-	iov[1].iov_base = (char *)raw;
+	iov[1].iov_base = &raw;
 	iov[1].iov_len = len;
 
 	/* Fire it off */
-	if (to->sin_addr.s_addr == INADDR_BROADCAST)
+	if (to.s_addr == INADDR_BROADCAST)
 		result = writev(interface->wfdesc, iov, 2);
 	else {
+		struct sockaddr_in sato;
+
+		sato.sin_addr = to;
+		sato.sin_port = htons(REMOTE_PORT);
+		sato.sin_family = AF_INET;
+		sato.sin_len = sizeof(sato);
+
 		memset(&msg, 0, sizeof(msg));
-		msg.msg_name = (struct sockaddr *)to;
-		msg.msg_namelen = sizeof(*to);
+		msg.msg_name = (struct sockaddr *)&sato;
+		msg.msg_namelen = sizeof(sato);
 		msg.msg_iov = iov;
 		msg.msg_iovlen = 2;
 		result = sendmsg(interface->ufdesc, &msg, 0);
@@ -284,7 +361,6 @@ send_packet(struct interface_info *interface, struct dhcp_packet *raw,
 
 	if (result < 0)
 		warning("send_packet: %m");
-	return (result);
 }
 
 ssize_t

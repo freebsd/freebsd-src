@@ -88,6 +88,9 @@ typedef enum {
 					    * and text.
 					    */
 	SSQ_PRINT_SENSE		= 0x0800,
+	SSQ_UA			= 0x1000,  /* Broadcast UA. */
+	SSQ_RESCAN		= 0x2000,  /* Rescan target for LUNs. */
+	SSQ_LOST		= 0x4000,  /* Destroy the LUNs. */
 	SSQ_MASK		= 0xff00
 } scsi_sense_action_qualifier;
 
@@ -917,10 +920,10 @@ struct ata_pass_12 {
 #define	AP_PROTO_DMA_QUEUED	(0x07 << 1)
 #define	AP_PROTO_DEVICE_DIAG	(0x08 << 1)
 #define	AP_PROTO_DEVICE_RESET	(0x09 << 1)
-#define	AP_PROTO_UDMA_IN	(0x10 << 1)
-#define	AP_PROTO_UDMA_OUT	(0x11 << 1)
-#define	AP_PROTO_FPDMA		(0x12 << 1)
-#define	AP_PROTO_RESP_INFO	(0x15 << 1)
+#define	AP_PROTO_UDMA_IN	(0x0a << 1)
+#define	AP_PROTO_UDMA_OUT	(0x0b << 1)
+#define	AP_PROTO_FPDMA		(0x0c << 1)
+#define	AP_PROTO_RESP_INFO	(0x0f << 1)
 #define	AP_MULTI	0xe0
 	u_int8_t flags;
 #define	AP_T_LEN	0x03
@@ -1285,13 +1288,14 @@ struct scsi_vpd_id_descriptor
 #define	SCSI_PROTO_SSA		0x02
 #define	SCSI_PROTO_1394		0x03
 #define	SCSI_PROTO_RDMA		0x04
-#define SCSI_PROTO_iSCSI	0x05
+#define	SCSI_PROTO_ISCSI	0x05
 #define	SCSI_PROTO_SAS		0x06
 #define	SCSI_PROTO_ADT		0x07
 #define	SCSI_PROTO_ATA		0x08
 #define	SVPD_ID_PROTO_SHIFT	4
 #define	SVPD_ID_CODESET_BINARY	0x01
 #define	SVPD_ID_CODESET_ASCII	0x02
+#define	SVPD_ID_CODESET_UTF8	0x03
 #define	SVPD_ID_CODESET_MASK	0x0f
 	u_int8_t	id_type;
 #define	SVPD_ID_PIV		0x80
@@ -2316,7 +2320,12 @@ u_int		scsi_calc_syncparam(u_int period);
 typedef int	(*scsi_devid_checkfn_t)(uint8_t *);
 int		scsi_devid_is_naa_ieee_reg(uint8_t *bufp);
 int		scsi_devid_is_sas_target(uint8_t *bufp);
-uint8_t *	scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t len,
+int		scsi_devid_is_lun_eui64(uint8_t *bufp);
+int		scsi_devid_is_lun_naa(uint8_t *bufp);
+int		scsi_devid_is_lun_name(uint8_t *bufp);
+int		scsi_devid_is_lun_t10(uint8_t *bufp);
+struct scsi_vpd_id_descriptor *
+		scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t len,
 			       scsi_devid_checkfn_t ck_fn);
 
 void		scsi_test_unit_ready(struct ccb_scsiio *csio, u_int32_t retries,

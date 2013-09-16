@@ -1,4 +1,4 @@
-# $Id: lib.mk,v 1.48 2012/11/12 04:08:18 sjg Exp $
+# $Id: lib.mk,v 1.49 2013/07/18 05:46:24 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -146,9 +146,6 @@ LD_shared=${SHLIB_SHFLAGS}
 MKPICLIB?= yes
 
 # sys.mk can override these
-CC_PG?=-pg
-CC_PIC?=-DPIC
-
 LD_X?=-X
 LD_x?=-x
 LD_r?=-r
@@ -284,7 +281,7 @@ SHLIB_AGE != . ${.CURDIR}/shlib_version ; echo $$age
 
 .if (${LD_X} == "")
 .c.po:
-	${COMPILE.c} ${CC_PG} ${.IMPSRC} -o ${.TARGET}
+	${COMPILE.c} ${CC_PG} ${PROFFLAGS} ${.IMPSRC} -o ${.TARGET}
 
 .cc.po .C.po:
 	${COMPILE.cc} -pg ${.IMPSRC} -o ${.TARGET}
@@ -293,14 +290,14 @@ SHLIB_AGE != . ${.CURDIR}/shlib_version ; echo $$age
 	${COMPILE.S} ${PICFLAG} ${CC_PIC} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}
 .else
 .c.po:
-	@echo ${COMPILE.c} ${CC_PG} ${.IMPSRC} -o ${.TARGET}
-	@${COMPILE.c} ${CC_PG} ${.IMPSRC} -o ${.TARGET}.o
+	@echo ${COMPILE.c} ${CC_PG} ${PROFFLAGS} ${.IMPSRC} -o ${.TARGET}
+	@${COMPILE.c} ${CC_PG} ${PROFFLAGS} ${.IMPSRC} -o ${.TARGET}.o
 	@${LD} ${LD_X} ${LD_r} ${.TARGET}.o -o ${.TARGET}
 	@rm -f ${.TARGET}.o
 
 .cc.po .C.po:
-	@echo ${COMPILE.cc} -pg ${.IMPSRC} -o ${.TARGET}
-	@${COMPILE.cc} -pg ${.IMPSRC} -o ${.TARGET}.o
+	@echo ${COMPILE.cc} ${CXX_PG} ${PROFFLAGS} ${.IMPSRC} -o ${.TARGET}
+	@${COMPILE.cc} ${CXX_PG} ${.IMPSRC} -o ${.TARGET}.o
 	@${LD} ${LD_X} ${LD_r} ${.TARGET}.o -o ${.TARGET}
 	@rm -f ${.TARGET}.o
 
@@ -319,7 +316,7 @@ SHLIB_AGE != . ${.CURDIR}/shlib_version ; echo $$age
 	${COMPILE.cc} ${PICFLAG} ${CC_PIC} ${.IMPSRC} -o ${.TARGET}
 
 .S.po .s.po:
-	${COMPILE.S} -DGPROF -DPROF ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}
+	${COMPILE.S} ${PROFFLAGS} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}
 .else
 
 .c.so:
@@ -335,8 +332,8 @@ SHLIB_AGE != . ${.CURDIR}/shlib_version ; echo $$age
 	@rm -f ${.TARGET}.o
 
 .S.po .s.po:
-	@echo ${COMPILE.S} -DGPROF -DPROF ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}
-	@${COMPILE.S} -DGPROF -DPROF ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}.o
+	@echo ${COMPILE.S} ${PROFFLAGS} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}
+	@${COMPILE.S} ${PROFFLAGS} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} -o ${.TARGET}.o
 	@${LD} ${LD_X} ${LD_r} ${.TARGET}.o -o ${.TARGET}
 	@rm -f ${.TARGET}.o
 

@@ -42,7 +42,10 @@ SRCS+=		builtin.c client.c config.c control.c \
 		lwaddr.c lwresd.c lwdclient.c lwderror.c lwdgabn.c \
 		lwdgnba.c lwdgrbn.c lwdnoop.c lwsearch.c
 
-CFLAGS+=	-DCONFIGARGS="\"${CONFIGARGS}\""
+CFLAGS+=	-DCONFIGARGS="\"${CONFIGARGS}\"" \
+		-DPRODUCT=\"${PRODUCT}\" \
+		-DDESCRIPTION=\"${DESCRIPTION}\" \
+		-DSRCID=\"${SRCID}\"
 
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include -I${LIB_BIND_DIR}
 CFLAGS+=	-I${BIND_DIR}/lib/isc/${ISC_ATOMIC_ARCH}/include

@@ -119,7 +119,7 @@ pfkey_stats(u_long off, const char *name, int family __unused,
 	if (off == 0)
 		return;
 	printf ("%s:\n", name);
-	kread(off, (char *)&pfkeystat, sizeof(pfkeystat));
+	kread_counters(off, (char *)&pfkeystat, sizeof(pfkeystat));
 
 #define	p(f, m) if (pfkeystat.f || sflag <= 1) \
     printf(m, (uintmax_t)pfkeystat.f, plural(pfkeystat.f))

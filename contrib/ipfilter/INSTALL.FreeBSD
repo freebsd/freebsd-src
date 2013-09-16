@@ -1,8 +1,11 @@
 
-This file is for use with FreeBSD 4.x and 5.x only.
+Thi file is for use with FreeBSD 4.x and 5.x only.
 
 To build a kernel for use with the loadable kernel module, follow these
 steps:
+	0. Run "config GENERIC" or similar in /sys/i386/conf or the
+	   appropriate directory for your kernel.
+
 	1. For FreeBSD version:
 		4.*	 do	make freebsd4
 		5.*	 do	make freebsd5
@@ -16,10 +19,12 @@ steps:
 
 	5. install and reboot with the new kernel
 
-	6. use modload(8) to load the packet filter with:
+	6. use modload(8)/kldload(8) to load the packet filter with:
 		modload if_ipl.o
+		kldload ipf.ko
 
-	7. do "modstat" to confirm that it has been loaded successfully.
+	7. do "modstat" or "kldstat" to confirm that it has been loaded
+	   successfully.
 
 There is no need to use mknod to create the device in /dev;
 - upon loading the module, it will create itself with the correct values,

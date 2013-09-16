@@ -66,6 +66,7 @@ protected:
   unsigned char LongWidth, LongAlign;
   unsigned char LongLongWidth, LongLongAlign;
   unsigned char SuitableAlign;
+  unsigned char MinGlobalAlign;
   unsigned char MaxAtomicPromoteWidth, MaxAtomicInlineWidth;
   unsigned short MaxVectorAlign;
   const char *DescriptionString;
@@ -156,7 +157,16 @@ public:
     /// __builtin_va_list as defined by ARM AAPCS ABI
     /// http://infocenter.arm.com
     //        /help/topic/com.arm.doc.ihi0042d/IHI0042D_aapcs.pdf
-    AAPCSABIBuiltinVaList
+    AAPCSABIBuiltinVaList,
+
+    // typedef struct __va_list_tag
+    //   {
+    //     long __gpr;
+    //     long __fpr;
+    //     void *__overflow_arg_area;
+    //     void *__reg_save_area;
+    //   } va_list[1];
+    SystemZBuiltinVaList
   };
 
 protected:
@@ -265,6 +275,10 @@ public:
   /// \brief Return the alignment that is suitable for storing any
   /// object with a fundamental alignment requirement.
   unsigned getSuitableAlign() const { return SuitableAlign; }
+
+  /// getMinGlobalAlign - Return the minimum alignment of a global variable,
+  /// unless its alignment is explicitly reduced via attributes.
+  unsigned getMinGlobalAlign() const { return MinGlobalAlign; }
 
   /// getWCharWidth/Align - Return the size of 'wchar_t' for this target, in
   /// bits.

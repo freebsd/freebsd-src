@@ -39,6 +39,24 @@
 #pragma weak pthread_setspecific
 #pragma weak pthread_getspecific
 #pragma weak pthread_once
+#ifdef LIBCXXRT_WEAK_LOCKS
+#pragma weak pthread_mutex_lock
+#define pthread_mutex_lock(mtx) do {\
+	if (pthread_mutex_lock) pthread_mutex_lock(mtx);\
+	} while(0)
+#pragma weak pthread_mutex_unlock
+#define pthread_mutex_unlock(mtx) do {\
+	if (pthread_mutex_unlock) pthread_mutex_unlock(mtx);\
+	} while(0)
+#pragma weak pthread_cond_signal
+#define pthread_cond_signal(cv) do {\
+	if (pthread_cond_signal) pthread_cond_signal(cv);\
+	} while(0)
+#pragma weak pthread_cond_wait
+#define pthread_cond_wait(cv, mtx) do {\
+	if (pthread_cond_wait) pthread_cond_wait(cv, mtx);\
+	} while(0)
+#endif
 
 using namespace ABI_NAMESPACE;
 
@@ -213,8 +231,6 @@ namespace std
 	};
 
 }
-
-extern "C" std::type_info *__cxa_current_exception_type();
 
 /**
  * Class of exceptions to distinguish between this and other exception types.
@@ -699,7 +715,9 @@ static void report_failure(_Unwind_Reason_Code err, __cxa_exception *thrown_exce
 			if (status == 0) { free(demangled); }
 			// Print a back trace if no handler is found.
 			// TODO: Make this optional
+#ifndef __arm__
 			_Unwind_Backtrace(trace, 0);
+#endif
 			break;
 	}
 	std::terminate();

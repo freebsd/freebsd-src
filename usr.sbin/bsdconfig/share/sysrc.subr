@@ -1,7 +1,7 @@
 if [ ! "$_SYSRC_SUBR" ]; then _SYSRC_SUBR=1
 #
 # Copyright (c) 2006-2012 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,7 +13,7 @@ if [ ! "$_SYSRC_SUBR" ]; then _SYSRC_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
@@ -135,7 +135,7 @@ f_sysrc_get()
 	case "$1" in
 	[0-9]*)
 		# Don't expand possible positional parameters
-		return $FAILURE;;
+		return $FAILURE ;;
 	*)
 		[ "$1" ] || return $FAILURE
 	esac
@@ -218,7 +218,7 @@ f_sysrc_get_default()
 	case "$1" in
 	[0-9]*)
 		# Don't expand possible positional parameters
-		return $FAILURE;;
+		return $FAILURE ;;
 	*)
 		[ "$1" ] || return $FAILURE
 	esac

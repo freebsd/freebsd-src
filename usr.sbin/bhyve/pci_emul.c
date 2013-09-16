@@ -47,12 +47,13 @@ __FBSDID("$FreeBSD$");
 #include "bhyverun.h"
 #include "inout.h"
 #include "mem.h"
-#include "mptbl.h"
 #include "pci_emul.h"
 #include "ioapic.h"
 
 #define CONF1_ADDR_PORT    0x0cf8
 #define CONF1_DATA_PORT    0x0cfc
+
+#define CONF1_ENABLE	   0x80000000ul
 
 #define	CFGWRITE(pi,off,val,b)						\
 do {									\
@@ -139,20 +140,15 @@ pci_parse_slot(char *opt, int legacy)
 	error = -1;
 	str = cpy = strdup(opt);
 
-	config = NULL;
-
-	if (strchr(str, ':') != NULL) {
-		slot = strsep(&str, ":");
-		func = strsep(&str, ",");
-	} else {
-		slot = strsep(&str, ",");
-		func = NULL;
-	}
-
+        slot = strsep(&str, ",");
+        func = NULL;
+        if (strchr(slot, ':') != NULL) {
+		func = cpy;
+		(void) strsep(&func, ":");
+        }
+	
 	emul = strsep(&str, ",");
-	if (str != NULL) {
-		config = strsep(&str, ",");
-	}
+	config = str;
 
 	if (emul == NULL) {
 		pci_parse_slot_usage(opt);
@@ -249,8 +245,12 @@ pci_emul_msix_tread(struct pci_devinst *pi, uint64_t offset, int size)
 	int tab_index;
 	uint64_t retval = ~0;
 
-	/* support only 4 or 8 byte reads */
-	if (size != 4 && size != 8)
+	/*
+	 * The PCI standard only allows 4 and 8 byte accesses to the MSI-X
+	 * table but we also allow 1 byte access to accomodate reads from
+	 * ddb.
+	 */
+	if (size != 1 && size != 4 && size != 8)
 		return (retval);
 
 	msix_entry_offset = offset % MSIX_TABLE_ENTRY_SIZE;
@@ -267,7 +267,9 @@ pci_emul_msix_tread(struct pci_devinst *pi, uint64_t offset, int size)
 		dest = (char *)(pi->pi_msix.table + tab_index);
 		dest += msix_entry_offset;
 
-		if (size == 4)
+		if (size == 1)
+			retval = *((uint8_t *)dest);
+		else if (size == 4)
 			retval = *((uint32_t *)dest);
 		else
 			retval = *((uint64_t *)dest);
@@ -666,11 +668,13 @@ pci_emul_finddev(char *name)
 	return (NULL);
 }
 
-static void
+static int
 pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int slot, int func,
 	      char *params)
 {
 	struct pci_devinst *pdi;
+	int err;
+
 	pdi = malloc(sizeof(struct pci_devinst));
 	bzero(pdi, sizeof(*pdi));
 
@@ -688,12 +692,15 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int slot, int func,
 	pci_set_cfgdata8(pdi, PCIR_COMMAND,
 		    PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
 
-	if ((*pde->pe_init)(ctx, pdi, params) != 0) {
+	err = (*pde->pe_init)(ctx, pdi, params);
+	if (err != 0) {
 		free(pdi);
 	} else {
 		pci_emul_devices++;
 		pci_slotinfo[slot][func].si_devi = pdi;
-	}	
+	}
+
+	return (err);
 }
 
 void
@@ -993,7 +1000,7 @@ pci_emul_fallback_handler(struct vmctx *ctx, int vcpu, int dir, uint64_t addr,
 	return (0);
 }
 
-void
+int
 init_pci(struct vmctx *ctx)
 {
 	struct mem_range memp;
@@ -1007,18 +1014,6 @@ init_pci(struct vmctx *ctx)
 	pci_emul_membase32 = vm_get_lowmem_limit(ctx);
 	pci_emul_membase64 = PCI_EMUL_MEMBASE64;
 
-	for (slot = 0; slot < MAXSLOTS; slot++) {
-		for (func = 0; func < MAXFUNCS; func++) {
-			si = &pci_slotinfo[slot][func];
-			if (si->si_name != NULL) {
-				pde = pci_emul_finddev(si->si_name);
-				assert(pde != NULL);
-				pci_emul_init(ctx, pde, slot, func,
-					      si->si_param);
-			}
-		}
-	}
-
 	/*
 	 * Allow ISA IRQs 5,10,11,12, and 15 to be available for
 	 * generic use
@@ -1028,6 +1023,20 @@ init_pci(struct vmctx *ctx)
 	lirq[11].li_generic = 1;
 	lirq[12].li_generic = 1;
 	lirq[15].li_generic = 1;
+
+	for (slot = 0; slot < MAXSLOTS; slot++) {
+		for (func = 0; func < MAXFUNCS; func++) {
+			si = &pci_slotinfo[slot][func];
+			if (si->si_name != NULL) {
+				pde = pci_emul_finddev(si->si_name);
+				assert(pde != NULL);
+				error = pci_emul_init(ctx, pde, slot, func,
+					    si->si_param);
+				if (error)
+					return (error);
+			}
+		}
+	}
 
 	/*
 	 * The guest physical memory map looks like the following:
@@ -1051,6 +1060,8 @@ init_pci(struct vmctx *ctx)
 
 	error = register_mem_fallback(&memp);
 	assert(error == 0);
+
+	return (0);
 }
 
 int
@@ -1224,20 +1235,29 @@ pci_emul_cfgaddr(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 {
 	uint32_t x;
 
-	assert(!in);
+	if (bytes != 4) {
+		if (in)
+			*eax = (bytes == 2) ? 0xffff : 0xff;
+		return (0);
+	}
 
-	if (bytes != 4)
-		return (-1);
-
-	x = *eax;
-	cfgoff = x & PCI_REGMAX;
-	cfgfunc = (x >> 8) & PCI_FUNCMAX;
-	cfgslot = (x >> 11) & PCI_SLOTMAX;
-	cfgbus = (x >> 16) & PCI_BUSMAX;
+	if (in) {
+		x = (cfgbus << 16) |
+		    (cfgslot << 11) |
+		    (cfgfunc << 8) |
+		    cfgoff;
+		*eax = x | CONF1_ENABLE;
+	} else {
+		x = *eax;
+		cfgoff = x & PCI_REGMAX;
+		cfgfunc = (x >> 8) & PCI_FUNCMAX;
+		cfgslot = (x >> 11) & PCI_SLOTMAX;
+		cfgbus = (x >> 16) & PCI_BUSMAX;
+	}
 
 	return (0);
 }
-INOUT_PORT(pci_cfgaddr, CONF1_ADDR_PORT, IOPORT_F_OUT, pci_emul_cfgaddr);
+INOUT_PORT(pci_cfgaddr, CONF1_ADDR_PORT, IOPORT_F_INOUT, pci_emul_cfgaddr);
 
 static uint32_t
 bits_changed(uint32_t old, uint32_t new, uint32_t mask)

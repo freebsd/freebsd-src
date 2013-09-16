@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.172 2013/03/05 22:01:43 christos Exp $	*/
+/*	$NetBSD: job.c,v 1.176 2013/08/04 16:48:15 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: job.c,v 1.172 2013/03/05 22:01:43 christos Exp $";
+static char rcsid[] = "$NetBSD: job.c,v 1.176 2013/08/04 16:48:15 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)job.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: job.c,v 1.172 2013/03/05 22:01:43 christos Exp $");
+__RCSID("$NetBSD: job.c,v 1.176 2013/08/04 16:48:15 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -170,6 +170,22 @@ __RCSID("$NetBSD: job.c,v 1.172 2013/03/05 22:01:43 christos Exp $");
 #include "pathnames.h"
 #include "trace.h"
 # define STATIC static
+
+/*
+ * FreeBSD: traditionally .MAKE is not required to
+ * pass jobs queue to sub-makes.
+ * Use .MAKE.ALWAYS_PASS_JOB_QUEUE=no to disable.
+ */
+#define MAKE_ALWAYS_PASS_JOB_QUEUE ".MAKE.ALWAYS_PASS_JOB_QUEUE"
+static int Always_pass_job_queue = TRUE;
+/*
+ * FreeBSD: aborting entire parallel make isn't always
+ * desired. When doing tinderbox for example, failure of
+ * one architecture should not stop all.
+ * We still want to bail on interrupt though.
+ */
+#define MAKE_JOB_ERROR_TOKEN "MAKE_JOB_ERROR_TOKEN"
+static int Job_error_token = TRUE;
 
 /*
  * error handling variables
@@ -313,6 +329,7 @@ static Shell *commandShell = &shells[DEFSHELL_INDEX]; /* this is the shell to
 const char *shellPath = NULL,		  	  /* full pathname of
 						   * executable image */
            *shellName = NULL;		      	  /* last component of shell */
+char *shellErrFlag = NULL;
 static const char *shellArgv = NULL;		  /* Custom shell args */
 
 
@@ -344,7 +361,7 @@ static Job childExitJob;	/* child exit pseudo-job */
 
 #define TARG_FMT  "%s %s ---\n" /* Default format */
 #define MESSAGE(fp, gn) \
-	if (maxJobs != 1) \
+	if (maxJobs != 1 && targPrefix && *targPrefix) \
 	    (void)fprintf(fp, TARG_FMT, targPrefix, gn->name)
 
 static sigset_t caught_signals;	/* Set of signals we handle */
@@ -414,6 +431,15 @@ JobCreatePipe(Job *job, int minfd)
     if (pipe(job->jobPipe) == -1)
 	Punt("Cannot create pipe: %s", strerror(errno));
 
+    for (i = 0; i < 2; i++) {
+       /* Avoid using low numbered fds */
+       fd = fcntl(job->jobPipe[i], F_DUPFD, minfd);
+       if (fd != -1) {
+	   close(job->jobPipe[i]);
+	   job->jobPipe[i] = fd;
+       }
+    }
+    
     /* Set close-on-exec flag for both */
     (void)fcntl(job->jobPipe[0], F_SETFD, 1);
     (void)fcntl(job->jobPipe[1], F_SETFD, 1);
@@ -426,15 +452,6 @@ JobCreatePipe(Job *job, int minfd)
      */
     fcntl(job->jobPipe[0], F_SETFL, 
 	fcntl(job->jobPipe[0], F_GETFL, 0) | O_NONBLOCK);
-
-    for (i = 0; i < 2; i++) {
-       /* Avoid using low numbered fds */
-       fd = fcntl(job->jobPipe[i], F_DUPFD, minfd);
-       if (fd != -1) {
-	   close(job->jobPipe[i]);
-	   job->jobPipe[i] = fd;
-       }
-    }
 }
 
 /*-
@@ -1359,7 +1376,7 @@ JobExec(Job *job, char **argv)
 	(void)fcntl(0, F_SETFD, 0);
 	(void)lseek(0, (off_t)0, SEEK_SET);
 
-	if (job->node->type & OP_MAKE) {
+	if (Always_pass_job_queue || (job->node->type & OP_MAKE)) {
 		/*
 		 * Pass job token pipe to submakes.
 		 */
@@ -2152,6 +2169,24 @@ Shell_Init(void)
     if (commandShell->echo == NULL) {
 	commandShell->echo = "";
     }
+    if (commandShell->hasErrCtl && *commandShell->exit) {
+	if (shellErrFlag &&
+	    strcmp(commandShell->exit, &shellErrFlag[1]) != 0) {
+	    free(shellErrFlag);
+	    shellErrFlag = NULL;
+	}
+	if (!shellErrFlag) {
+	    int n = strlen(commandShell->exit) + 2;
+
+	    shellErrFlag = bmake_malloc(n);
+	    if (shellErrFlag) {
+		snprintf(shellErrFlag, n, "-%s", commandShell->exit);
+	    }
+	}
+    } else if (shellErrFlag) {
+	free(shellErrFlag);
+	shellErrFlag = NULL;
+    }
 }
 
 /*-
@@ -2195,6 +2230,7 @@ Job_SetPrefix(void)
 void
 Job_Init(void)
 {
+    Job_SetPrefix();
     /* Allocate space for all the job info */
     job_table = bmake_malloc(maxJobs * sizeof *job_table);
     memset(job_table, 0, maxJobs * sizeof *job_table);
@@ -2205,6 +2241,12 @@ Job_Init(void)
     errors = 	  0;
 
     lastNode =	  NULL;
+
+    Always_pass_job_queue = getBoolean(MAKE_ALWAYS_PASS_JOB_QUEUE,
+				       Always_pass_job_queue);
+
+    Job_error_token = getBoolean(MAKE_JOB_ERROR_TOKEN, Job_error_token);
+
 
     /*
      * There is a non-zero chance that we already have children.
@@ -2496,6 +2538,8 @@ Job_ParseShell(char *line)
 	    commandShell = bmake_malloc(sizeof(Shell));
 	    *commandShell = newShell;
 	}
+	/* this will take care of shellErrFlag */
+	Shell_Init();
     }
 
     if (commandShell->echoOn && commandShell->echoOff) {
@@ -2799,13 +2843,19 @@ JobTokenAdd(void)
 {
     char tok = JOB_TOKENS[aborting], tok1;
 
+    if (!Job_error_token && aborting == ABORT_ERROR) {
+	if (jobTokensRunning == 0)
+	    return;
+	tok = '+';			/* no error token */
+    }
+
     /* If we are depositing an error token flush everything else */
     while (tok != '+' && read(tokenWaitJob.inPipe, &tok1, 1) == 1)
 	continue;
 
     if (DEBUG(JOB))
 	fprintf(debug_file, "(%d) aborting %d, deposit token %c\n",
-	    getpid(), aborting, JOB_TOKENS[aborting]);
+	    getpid(), aborting, tok);
     while (write(tokenWaitJob.outPipe, &tok, 1) == -1 && errno == EAGAIN)
 	continue;
 }
@@ -2828,6 +2878,8 @@ Job_ServerStart(int max_tokens, int jp_0, int jp_1)
 	/* Pipe passed in from parent */
 	tokenWaitJob.inPipe = jp_0;
 	tokenWaitJob.outPipe = jp_1;
+	(void)fcntl(jp_0, F_SETFD, 1);
+	(void)fcntl(jp_1, F_SETFD, 1);
 	return;
     }
 

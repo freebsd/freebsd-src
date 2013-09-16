@@ -138,6 +138,8 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 				printf("Opened disk %s -> %d\n",
 				    pp->name, error);
 			g_disk_unlock_giant(dp);
+			if (error != 0)
+				return (error);
 		}
 		pp->mediasize = dp->d_mediasize;
 		pp->sectorsize = dp->d_sectorsize;
@@ -146,14 +148,12 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 			    dp->d_name, dp->d_unit);
 			dp->d_maxsize = DFLTPHYS;
 		}
-		if (dp->d_flags & DISKFLAG_CANDELETE) {
-			if (bootverbose && dp->d_delmaxsize == 0) {
-				printf("WARNING: Disk drive %s%d has no d_delmaxsize\n",
-				    dp->d_name, dp->d_unit);
-				dp->d_delmaxsize = dp->d_maxsize;
+		if (dp->d_delmaxsize == 0) {
+			if (bootverbose && dp->d_flags & DISKFLAG_CANDELETE) {
+				printf("WARNING: Disk drive %s%d has no "
+				    "d_delmaxsize\n", dp->d_name, dp->d_unit);
 			}
-		} else {
-			dp->d_delmaxsize = 0;
+			dp->d_delmaxsize = dp->d_maxsize;
 		}
 		pp->stripeoffset = dp->d_stripeoffset;
 		pp->stripesize = dp->d_stripesize;
@@ -425,8 +425,11 @@ g_disk_start(struct bio *bp)
 static void
 g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp)
 {
+	struct bio *bp;
 	struct disk *dp;
 	struct g_disk_softc *sc;
+	char *buf;
+	int res = 0;
 
 	sc = gp->softc;
 	if (sc == NULL || (dp = sc->dp) == NULL)
@@ -441,7 +444,33 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 		    indent, dp->d_fwheads);
 		sbuf_printf(sb, "%s<fwsectors>%u</fwsectors>\n",
 		    indent, dp->d_fwsectors);
-		sbuf_printf(sb, "%s<ident>%s</ident>\n", indent, dp->d_ident);
+		if (dp->d_getattr != NULL) {
+			buf = g_malloc(DISK_IDENT_SIZE, M_WAITOK);
+			bp = g_alloc_bio();
+			bp->bio_disk = dp;
+			bp->bio_attribute = "GEOM::ident";
+			bp->bio_length = DISK_IDENT_SIZE;
+			bp->bio_data = buf;
+			res = dp->d_getattr(bp);
+			sbuf_printf(sb, "%s<ident>%s</ident>\n", indent,
+			    res == 0 ? buf: dp->d_ident);
+			bp->bio_attribute = "GEOM::lunid";
+			bp->bio_length = DISK_IDENT_SIZE;
+			bp->bio_data = buf;
+			if (dp->d_getattr(bp) == 0)
+				sbuf_printf(sb, "%s<lunid>%s</lunid>\n",
+				    indent, buf);
+			bp->bio_attribute = "GEOM::lunname";
+			bp->bio_length = DISK_IDENT_SIZE;
+			bp->bio_data = buf;
+			if (dp->d_getattr(bp) == 0)
+				sbuf_printf(sb, "%s<lunname>%s</lunname>\n",
+				    indent, buf);
+			g_destroy_bio(bp);
+			g_free(buf);
+		} else
+			sbuf_printf(sb, "%s<ident>%s</ident>\n", indent,
+			    dp->d_ident);
 		sbuf_printf(sb, "%s<descr>%s</descr>\n", indent, dp->d_descr);
 	}
 }
@@ -604,7 +633,7 @@ void
 disk_create(struct disk *dp, int version)
 {
 
-	if (version != DISK_VERSION_02) {
+	if (version != DISK_VERSION) {
 		printf("WARNING: Attempt to add disk %s%d %s",
 		    dp->d_name, dp->d_unit,
 		    " using incompatible ABI version of disk(9)\n");

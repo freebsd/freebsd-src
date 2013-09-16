@@ -42,6 +42,8 @@ static ssize_t text2lval(size_t triml, size_t trimr, int tovar);
 
 static int instr;
 static int lineno = 1;
+
+#define YY_DECL int yylex(void)
 %}
 
 %option noinput

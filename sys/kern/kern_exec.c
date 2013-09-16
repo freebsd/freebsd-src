@@ -96,12 +96,9 @@ dtrace_execexit_func_t	dtrace_fasttrap_exec;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE(proc, kernel, , exec, exec);
-SDT_PROBE_ARGTYPE(proc, kernel, , exec, 0, "char *");
-SDT_PROBE_DEFINE(proc, kernel, , exec_failure, exec-failure);
-SDT_PROBE_ARGTYPE(proc, kernel, , exec_failure, 0, "int");
-SDT_PROBE_DEFINE(proc, kernel, , exec_success, exec-success);
-SDT_PROBE_ARGTYPE(proc, kernel, , exec_success, 0, "char *");
+SDT_PROBE_DEFINE1(proc, kernel, , exec, exec, "char *");
+SDT_PROBE_DEFINE1(proc, kernel, , exec_failure, exec-failure, "int");
+SDT_PROBE_DEFINE1(proc, kernel, , exec_success, exec-success, "char *");
 
 MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");
 
@@ -341,6 +338,7 @@ do_execve(td, args, mac_p)
 	struct ucred *tracecred = NULL;
 #endif
 	struct vnode *textvp = NULL, *binvp = NULL;
+	cap_rights_t rights;
 	int credential_changing;
 	int textset;
 #ifdef MAC
@@ -441,7 +439,8 @@ interpret:
 		/*
 		 * Descriptors opened only with O_EXEC or O_RDONLY are allowed.
 		 */
-		error = fgetvp_exec(td, args->fd, CAP_FEXECVE, &binvp);
+		error = fgetvp_exec(td, args->fd,
+		    cap_rights_init(&rights, CAP_FEXECVE), &binvp);
 		if (error)
 			goto exec_fail;
 		vn_lock(binvp, LK_EXCLUSIVE | LK_RETRY);
@@ -937,7 +936,7 @@ exec_map_first_page(imgp)
 		object->pg_color = 0;
 	}
 #endif
-	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL);
 	if (ma[0]->valid != VM_PAGE_BITS_ALL) {
 		initial_pagein = VM_INITIAL_PAGEIN;
 		if (initial_pagein > object->size)
@@ -946,9 +945,8 @@ exec_map_first_page(imgp)
 			if ((ma[i] = vm_page_next(ma[i - 1])) != NULL) {
 				if (ma[i]->valid)
 					break;
-				if ((ma[i]->oflags & VPO_BUSY) || ma[i]->busy)
+				if (vm_page_tryxbusy(ma[i]))
 					break;
-				vm_page_busy(ma[i]);
 			} else {
 				ma[i] = vm_page_alloc(object, i,
 				    VM_ALLOC_NORMAL | VM_ALLOC_IFNOTCACHED);
@@ -969,10 +967,10 @@ exec_map_first_page(imgp)
 			return (EIO);
 		}
 	}
+	vm_page_xunbusy(ma[0]);
 	vm_page_lock(ma[0]);
 	vm_page_hold(ma[0]);
 	vm_page_unlock(ma[0]);
-	vm_page_wakeup(ma[0]);
 	VM_OBJECT_WUNLOCK(object);
 
 	imgp->firstpage = sf_buf_alloc(ma[0], 0);
@@ -1050,8 +1048,9 @@ exec_new_vmspace(imgp, sv)
 		vm_object_reference(obj);
 		error = vm_map_fixed(map, obj, 0,
 		    sv->sv_shared_page_base, sv->sv_shared_page_len,
-		    VM_PROT_READ | VM_PROT_EXECUTE, VM_PROT_ALL,
-		    MAP_COPY_ON_WRITE | MAP_ACC_NO_CHARGE);
+		    VM_PROT_READ | VM_PROT_EXECUTE,
+		    VM_PROT_READ | VM_PROT_EXECUTE,
+		    MAP_INHERIT_SHARE | MAP_ACC_NO_CHARGE);
 		if (error) {
 			vm_object_deallocate(obj);
 			return (error);
@@ -1189,7 +1188,7 @@ int
 exec_alloc_args(struct image_args *args)
 {
 
-	args->buf = (char *)kmem_alloc_wait(exec_map, PATH_MAX + ARG_MAX);
+	args->buf = (char *)kmap_alloc_wait(exec_map, PATH_MAX + ARG_MAX);
 	return (args->buf != NULL ? 0 : ENOMEM);
 }
 
@@ -1198,7 +1197,7 @@ exec_free_args(struct image_args *args)
 {
 
 	if (args->buf != NULL) {
-		kmem_free_wakeup(exec_map, (vm_offset_t)args->buf,
+		kmap_free_wakeup(exec_map, (vm_offset_t)args->buf,
 		    PATH_MAX + ARG_MAX);
 		args->buf = NULL;
 	}

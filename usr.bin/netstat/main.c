@@ -112,78 +112,58 @@ static struct nlist nl[] = {
 	{ .n_name = "_mif6table" },
 #define	N_PFKEYSTAT	20
 	{ .n_name = "_pfkeystat" },
-#define	N_MBSTAT	21
-	{ .n_name = "_mbstat" },
-#define	N_MBTYPES	22
-	{ .n_name = "_mbtypes" },
-#define	N_NMBCLUSTERS	23
-	{ .n_name = "_nmbclusters" },
-#define	N_NMBUFS	24
-	{ .n_name = "_nmbufs" },
-#define	N_MBHI		25
-	{ .n_name = "_mbuf_hiwm" },
-#define	N_CLHI		26
-	{ .n_name = "_clust_hiwm" },
-#define	N_NCPUS		27
-	{ .n_name = "_smp_cpus" },
-#define	N_PAGESZ	28
-	{ .n_name = "_pagesize" },
-#define	N_MBPSTAT	29
-	{ .n_name = "_mb_statpcpu" },
-#define	N_RTTRASH	30
+#define	N_RTTRASH	21
 	{ .n_name = "_rttrash" },
-#define	N_MBLO		31
-	{ .n_name = "_mbuf_lowm" },
-#define	N_CLLO		32
-	{ .n_name = "_clust_lowm" },
-#define	N_CARPSTAT	33
+#define	N_CARPSTAT	22
 	{ .n_name = "_carpstats" },
-#define	N_PFSYNCSTAT	34
+#define	N_PFSYNCSTAT	23
 	{ .n_name = "_pfsyncstats" },
-#define	N_AHSTAT	35
+#define	N_AHSTAT	24
 	{ .n_name = "_ahstat" },
-#define	N_ESPSTAT	36
+#define	N_ESPSTAT	25
 	{ .n_name = "_espstat" },
-#define	N_IPCOMPSTAT	37
+#define	N_IPCOMPSTAT	26
 	{ .n_name = "_ipcompstat" },
-#define	N_TCPSTAT	38
-	{ .n_name = "_tcpstatp" },
-#define	N_UDPSTAT	39
+#define	N_TCPSTAT	27
+	{ .n_name = "_tcpstat" },
+#define	N_UDPSTAT	28
 	{ .n_name = "_udpstat" },
-#define	N_IPSTAT	40
-	{ .n_name = "_ipstatp" },
-#define	N_ICMPSTAT	41
+#define	N_IPSTAT	29
+	{ .n_name = "_ipstat" },
+#define	N_ICMPSTAT	30
 	{ .n_name = "_icmpstat" },
-#define	N_IGMPSTAT	42
+#define	N_IGMPSTAT	31
 	{ .n_name = "_igmpstat" },
-#define	N_PIMSTAT	43
+#define	N_PIMSTAT	32
 	{ .n_name = "_pimstat" },
-#define	N_TCBINFO	44
+#define	N_TCBINFO	33
 	{ .n_name = "_tcbinfo" },
-#define	N_UDBINFO	45
+#define	N_UDBINFO	34
 	{ .n_name = "_udbinfo" },
-#define	N_DIVCBINFO	46
+#define	N_DIVCBINFO	35
 	{ .n_name = "_divcbinfo" },
-#define	N_RIPCBINFO	47
+#define	N_RIPCBINFO	36
 	{ .n_name = "_ripcbinfo" },
-#define	N_UNP_COUNT	48
+#define	N_UNP_COUNT	37
 	{ .n_name = "_unp_count" },
-#define	N_UNP_GENCNT	49
+#define	N_UNP_GENCNT	38
 	{ .n_name = "_unp_gencnt" },
-#define	N_UNP_DHEAD	50
+#define	N_UNP_DHEAD	39
 	{ .n_name = "_unp_dhead" },
-#define	N_UNP_SHEAD	51
+#define	N_UNP_SHEAD	40
 	{ .n_name = "_unp_shead" },
-#define	N_RIP6STAT	52
+#define	N_RIP6STAT	41
 	{ .n_name = "_rip6stat" },
-#define	N_SCTPSTAT	53
+#define	N_SCTPSTAT	42
 	{ .n_name = "_sctpstat" },
-#define	N_MFCTABLESIZE	54
+#define	N_MFCTABLESIZE	43
 	{ .n_name = "_mfctablesize" },
-#define N_ARPSTAT       55
+#define	N_ARPSTAT       44
 	{ .n_name = "_arpstat" },
-#define	N_UNP_SPHEAD	56
+#define	N_UNP_SPHEAD	45
 	{ .n_name = "unp_sphead" },
+#define	N_SFSTAT	46
+	{ .n_name = "_sfstat"},
 	{ .n_name = NULL },
 };
 
@@ -363,10 +343,12 @@ main(int argc, char *argv[])
 {
 	struct protox *tp = NULL;  /* for printing cblocks & stats */
 	int ch;
+	int fib = -1;
+	char *endptr;
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "AaBbdf:ghI:iLlM:mN:np:Qq:rSTsuWw:xz"))
+	while ((ch = getopt(argc, argv, "AaBbdF:f:ghI:iLlM:mN:np:Qq:rSTsuWw:xz"))
 	    != -1)
 		switch(ch) {
 		case 'A':
@@ -383,6 +365,12 @@ main(int argc, char *argv[])
 			break;
 		case 'd':
 			dflag = 1;
+			break;
+		case 'F':
+			fib = strtol(optarg, &endptr, 0);
+			if (*endptr != '\0' ||
+			    (fib == 0 && (errno == EINVAL || errno == ERANGE)))
+				errx(1, "%s: invalid fib", optarg);
 			break;
 		case 'f':
 			if (strcmp(optarg, "ipx") == 0)
@@ -535,7 +523,7 @@ main(int argc, char *argv[])
 	if (mflag) {
 		if (!live) {
 			if (kread(0, NULL, 0) == 0)
-				mbpr(kvmd, nl[N_MBSTAT].n_value);
+				mbpr(kvmd, nl[N_SFSTAT].n_value);
 		} else
 			mbpr(NULL, 0);
 		exit(0);
@@ -571,7 +559,7 @@ main(int argc, char *argv[])
 		if (sflag)
 			rt_stats(nl[N_RTSTAT].n_value, nl[N_RTTRASH].n_value);
 		else
-			routepr(nl[N_RTREE].n_value);
+			routepr(nl[N_RTREE].n_value, fib);
 		exit(0);
 	}
 	if (gflag) {
@@ -753,15 +741,21 @@ kread(u_long addr, void *buf, size_t size)
  * Read an array of N counters in kernel memory into array of N uint64_t's.
  */
 int
-kread_counters(u_long *addr, uint64_t *rval, size_t count)
+kread_counters(u_long addr, void *buf, size_t size)
 {
+	uint64_t *c = buf;
 
 	if (kvmd_init() < 0)
 		return (-1);
 
-	for (u_int i = 0; i < count; i++, addr++, rval++)
-		*rval = kvm_counter_u64_fetch(kvmd, *addr);
+	if (kread(addr, buf, size) < 0)
+		return (-1);
 
+	while (size != 0) {
+		*c = kvm_counter_u64_fetch(kvmd, *c);
+		size -= sizeof(*c);
+		c++;
+	}
 	return (0);
 }
 

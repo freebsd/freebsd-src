@@ -1,7 +1,7 @@
-dnl $Id: configure.in,v 1.65 2011/06/27 10:42:27 tom Exp $
+dnl $Id: configure.in,v 1.75 2012/12/30 22:38:00 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
 dnl ---------------------------------------------------------------------------
-dnl Copyright 1999-2010,2011 -- Thomas E. Dickey
+dnl Copyright 1999-2011,2012 -- Thomas E. Dickey
 dnl
 dnl Permission is hereby granted, free of charge, to any person obtaining a
 dnl copy of this software and associated documentation files (the
@@ -27,7 +27,7 @@ dnl holders shall not be used in advertising or otherwise to promote the
 dnl sale, use or other dealings in this Software without prior written
 dnl authorization.
 dnl ---------------------------------------------------------------------------
-AC_PREREQ(2.13.20020210)
+AC_PREREQ(2.52.20011201)
 AC_INIT(dialog.h)
 AC_CONFIG_HEADER(dlg_config.h:config.hin)
 
@@ -39,18 +39,15 @@ AC_SUBST(DESTDIR)
 dnl
 dnl Checks for programs.
 dnl
-AC_PROG_CC
+CF_PROG_CC
 AC_PROG_CPP
-AC_PROG_GCC_TRADITIONAL
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 AC_PROG_INSTALL
+CF_PROG_LINT
 
 dnl needed for CF_WITH_LIBTOOL
 AC_CHECK_TOOL(AR, ar, ar)
-
-AC_ISC_POSIX
-AC_C_CONST
 
 CF_MAKEFLAGS
 CF_MAKE_TAGS
@@ -94,7 +91,7 @@ CF_ARG_MSG_ENABLE([if you want --trace option],
 	trace,
 	[  --disable-trace         do not support --trace option],
 	[EXTRAOBJS="$EXTRAOBJS trace\$o"
-	 AC_DEFINE(HAVE_DLG_TRACE)],,yes)
+	 AC_DEFINE(HAVE_DLG_TRACE,1,[Define to 1 to support --trace option])],,yes)
 
 LIBTOOL_MAKE="#"
 CF_WITH_LIBTOOL
@@ -135,48 +132,59 @@ CF_ARG_MSG_ENABLE([if you want config-file support],
 	rc-file,
 	[  --disable-rc-file       do not include config-file support],
 	[EXTRAOBJS="$EXTRAOBJS rc\$o"
-	 AC_DEFINE(HAVE_RC_FILE)],,$cf_all_widgets)
+	 AC_DEFINE(HAVE_RC_FILE,1,[Define to 1 to include config-file support])],,$cf_all_widgets)
 
 CF_ARG_MSG_ENABLE([if you want Xdialog-style dialogs],
 	Xdialog,
-	[  --disable-Xdialog       do not include Xdialog-style dialogs],
+	[  --disable-Xdialog       do not include Xdialog-style dialogs (1.1)],
 	[EXTRAOBJS="$EXTRAOBJS calendar\$o fselect\$o timebox\$o"
-	 AC_DEFINE(HAVE_XDIALOG)],,$cf_all_widgets)
+	 AC_DEFINE(HAVE_XDIALOG,1,[Define to 1 to include Xdialog-style dialogs])],,$cf_all_widgets)
+
+CF_ARG_MSG_ENABLE([if you want extra Xdialog-style dialogs (1.2)],
+	Xdialog2,
+	[  --disable-Xdialog2      do not include extra Xdialog-style dialogs (1.2)],
+	[EXTRAOBJS="$EXTRAOBJS buildlist\$o rangebox\$o treeview\$o"
+	 AC_DEFINE(HAVE_XDIALOG2,1,[Define to 1 to include extra Xdialog-style dialogs])],,$cf_all_widgets)
+
+CF_ARG_MSG_ENABLE([if you want compatibility with whiptail options],
+	whiptail,
+	[  --disable-whiptail      do not map extra whiptail options],
+	[AC_DEFINE(HAVE_WHIPTAIL,1,[Define to 1 to include extra whiptail options])],,$cf_all_widgets)
 
 CF_ARG_MSG_ENABLE([if you want the form dialog],
 	form,
 	[  --disable-form          do not include the form dialog],
 	[EXTRAOBJS="$EXTRAOBJS formbox\$o"
-	 AC_DEFINE(HAVE_DLG_FORMBOX)],,$cf_all_widgets)
+	 AC_DEFINE(HAVE_DLG_FORMBOX,1,[Define to 1 to include the form dialog])],,$cf_all_widgets)
 
 CF_ARG_MSG_ENABLE([if you want the gauge dialog],
 	gauge,
 	[  --disable-gauge         do not include the gauge dialogs],
 	[EXTRAOBJS="$EXTRAOBJS guage\$o pause\$o prgbox\$o progressbox\$o"
-	 AC_DEFINE(HAVE_DLG_GAUGE)],,$cf_all_widgets)
+	 AC_DEFINE(HAVE_DLG_GAUGE,1,[Define to 1 to include the gauge dialogs])],,$cf_all_widgets)
 
 CF_ARG_MSG_ENABLE([if you want the tailbox dialog],
 	tailbox,
 	[  --disable-tailbox       do not include the tailbox dialog],
 	[EXTRAOBJS="$EXTRAOBJS tailbox\$o"
-	 AC_DEFINE(HAVE_DLG_TAILBOX)],,$cf_all_widgets)
+	 AC_DEFINE(HAVE_DLG_TAILBOX,1,[Define to 1 to include the tailbox dialog])],,$cf_all_widgets)
 
 CF_ARG_MSG_ENABLE([if you want the mixedform dialog],
 	mixedform,
 	[  --disable-mixedform     do not include the mixedform dialog],
 	[EXTRAOBJS="$EXTRAOBJS mixedform\$o"
-	 AC_DEFINE(HAVE_DLG_MIXEDFORM)],,$cf_all_widgets)
+	 AC_DEFINE(HAVE_DLG_MIXEDFORM,1,[Define to 1 to include the mixedform dialog])],,$cf_all_widgets)
 
 CF_ARG_MSG_ENABLE([if you want the mixedgauge dialog],
 	mixedgauge,
 	[  --disable-mixedgauge    do not include the mixedgauge dialog],
 	[EXTRAOBJS="$EXTRAOBJS mixedgauge\$o"
-	 AC_DEFINE(HAVE_MIXEDGAUGE)],,$cf_all_widgets)
+	 AC_DEFINE(HAVE_MIXEDGAUGE,1,[Define to 1 to include the mixedgauge dialog])],,$cf_all_widgets)
 
 CF_ARG_MSG_ENABLE([if you want the wide-curses features],
 	widec,
 	[  --enable-widec          enable wide-curses features],
-	[AC_DEFINE(USE_WIDE_CURSES)],,$cf_wide_curses)
+	[AC_DEFINE(USE_WIDE_CURSES,1,[Define to 1 to enable wide-curses features])],,$cf_wide_curses)
 
 AC_SUBST(EXTRAOBJS)
 
@@ -226,19 +234,22 @@ getpary \
 getparyx \
 use_default_colors \
 wchgat \
+wcursyncup \
 wget_wch \
+wsyncup \
 )
 
-AC_CHECK_FUNC(start_color,[AC_DEFINE(HAVE_COLOR)])
+AC_CHECK_FUNC(start_color,[AC_DEFINE(HAVE_COLOR,1,[Define to 1 if (n)curses has start_color function])])
 CF_CURSES_CHTYPE
 CF_CURSES_WACS_SYMBOLS
+CF_CURSES_WGETPARENT
 CF_FUNC_WAIT
 CF_MBSTATE_T
 
 CF_HEADERS_SH(DLG,dlg_config.h)
 
-AC_TRY_LINK([#include <locale.h>],[setlocale(LC_ALL, "")],[AC_DEFINE(HAVE_SETLOCALE)])
+AC_TRY_LINK([#include <locale.h>],[setlocale(LC_ALL, "")],[AC_DEFINE(HAVE_SETLOCALE,1,[Define to 1 if locale feature can be enabled])])
 
 CF_DISABLE_RPATH_HACK
 
-AC_OUTPUT(dialog-config makefile $EXTRA_OUTPUT $SUB_MAKEFILE samples/install/makefile,,,sort -u)
+AC_OUTPUT(dialog-config makefile $EXTRA_OUTPUT $SUB_MAKEFILE,,,sort -u)

@@ -26,7 +26,8 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <netinet/ip_var.h>
+#include <netinet/udp.h>
+#include <netinet/tcp.h>
 
 #include <stdio.h>
 #include <netdb.h>
@@ -44,7 +45,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)sbpf.c	1.3 8/25/95 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: sbpf.c,v 2.5.4.1 2006/03/21 16:32:58 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id$";
 #endif
 
 /*
@@ -55,8 +56,8 @@ static	int	bufsize = 0, timeout = 1;
 
 
 int	initdevice(device, tout)
-char	*device;
-int	tout;
+	char	*device;
+	int	tout;
 {
 	struct	bpf_version bv;
 	struct	timeval to;
@@ -139,9 +140,9 @@ int	tout;
  * output an IP packet onto a fd opened for /dev/bpf
  */
 int	sendip(fd, pkt, len)
-int	fd, len;
-char	*pkt;
-{			
+	int	fd, len;
+	char	*pkt;
+{
 	if (write(fd, pkt, len) == -1)
 	    {
 		perror("send");

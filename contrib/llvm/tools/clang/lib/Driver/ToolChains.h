@@ -123,6 +123,7 @@ public:
 
   virtual bool IsUnwindTablesDefault() const;
   virtual bool isPICDefault() const;
+  virtual bool isPIEDefault() const;
   virtual bool isPICDefaultForced() const;
 
 protected:
@@ -332,6 +333,7 @@ public:
     return ToolChain::RLT_CompilerRT;
   }
   virtual bool isPICDefault() const;
+  virtual bool isPIEDefault() const;
   virtual bool isPICDefaultForced() const;
 
   virtual bool SupportsProfiling() const;
@@ -456,8 +458,13 @@ class LLVM_LIBRARY_VISIBILITY FreeBSD : public Generic_ELF {
 public:
   FreeBSD(const Driver &D, const llvm::Triple& Triple, const ArgList &Args);
 
+  virtual CXXStdlibType GetCXXStdlibType(const ArgList &Args) const;
+
   virtual bool IsMathErrnoDefault() const { return false; }
   virtual bool IsObjCNonFragileABIDefault() const { return true; }
+
+  virtual void AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
+                                            ArgStringList &CC1Args) const;
 
   virtual bool UseSjLjExceptions() const;
 protected:
@@ -471,6 +478,11 @@ public:
 
   virtual bool IsMathErrnoDefault() const { return false; }
   virtual bool IsObjCNonFragileABIDefault() const { return true; }
+
+  virtual CXXStdlibType GetCXXStdlibType(const ArgList &Args) const;
+
+  virtual void AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
+                                            ArgStringList &CC1Args) const;
 
 protected:
   virtual Tool *buildAssembler() const;
@@ -509,9 +521,11 @@ public:
                                      ArgStringList &CC1Args) const;
   virtual void AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
                                             ArgStringList &CC1Args) const;
+  virtual bool isPIEDefault() const;
 
   std::string Linker;
   std::vector<std::string> ExtraOpts;
+  bool IsPIEDefault;
 
 protected:
   virtual Tool *buildAssembler() const;
@@ -526,6 +540,8 @@ private:
   static bool addLibStdCXXIncludePaths(Twine Base, Twine TargetArchDir,
                                        const ArgList &DriverArgs,
                                        ArgStringList &CC1Args);
+
+  std::string computeSysRoot(const ArgList &Args) const;
 };
 
 class LLVM_LIBRARY_VISIBILITY Hexagon_TC : public Linux {
@@ -562,6 +578,7 @@ public:
 
   bool IsMathErrnoDefault() const;
   bool isPICDefault() const;
+  bool isPIEDefault() const;
   bool isPICDefaultForced() const;
 };
 
@@ -572,6 +589,7 @@ public:
   virtual bool IsIntegratedAssemblerDefault() const;
   virtual bool IsUnwindTablesDefault() const;
   virtual bool isPICDefault() const;
+  virtual bool isPIEDefault() const;
   virtual bool isPICDefaultForced() const;
 
   virtual void AddClangSystemIncludeArgs(const ArgList &DriverArgs,

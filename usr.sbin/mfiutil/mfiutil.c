@@ -60,13 +60,15 @@ usage(void)
 	fprintf(stderr, "    show drives               - list physical drives\n");
 	fprintf(stderr, "    show events               - display event log\n");
 	fprintf(stderr, "    show firmware             - list firmware images\n");
+	fprintf(stderr, "    show foreign              - display detected foreign volumes\n");
 	fprintf(stderr, "    show logstate             - display event log sequence numbers\n");
 	fprintf(stderr, "    show volumes              - list logical volumes\n");
 	fprintf(stderr, "    show patrol               - display patrol read status\n");
 	fprintf(stderr, "    show progress             - display status of active operations\n");
 	fprintf(stderr, "    fail <drive>              - fail a physical drive\n");
-	fprintf(stderr, "    good <drive>              - mark a bad physical drive as good\n");
+	fprintf(stderr, "    good <drive>              - set a failed/SYSPD drive as UNCONFIGURED\n");
 	fprintf(stderr, "    rebuild <drive>           - mark failed drive ready for rebuild\n");
+	fprintf(stderr, "    syspd <drive>             - set drive into use as SYSPD JBOD\n");
 	fprintf(stderr, "    drive progress <drive>    - display status of active operations\n");
 	fprintf(stderr, "    drive clear <drive> <start|stop> - clear a drive with all 0x00\n");
 	fprintf(stderr, "    start rebuild <drive>\n");
@@ -83,6 +85,11 @@ usage(void)
 	fprintf(stderr, "    patrol <disable|auto|manual> [interval [start]]\n");
 	fprintf(stderr, "    start patrol              - start a patrol read\n");
 	fprintf(stderr, "    stop patrol               - stop a patrol read\n");
+	fprintf(stderr, "    foreign scan              - scan for foreign configurations\n");
+	fprintf(stderr, "    foreign clear [volume]    - clear foreign configurations (default all)\n");
+	fprintf(stderr, "    foreign diag [volume]     - diagnostic display foreign configurations (default all)\n");
+	fprintf(stderr, "    foreign preview [volume]  - preview foreign configurations (default all)\n");
+	fprintf(stderr, "    foreign import [volume]   - import foreign configurations (default all)\n");
 	fprintf(stderr, "    flash <firmware>\n");
 	fprintf(stderr, "    start learn               - start a BBU relearn\n");
 	fprintf(stderr, "    bbu <setting> <value>     - set BBU properties\n");
@@ -97,7 +104,7 @@ static int
 version(int ac __unused, char **av __unused)
 {
 
-	printf("mfiutil version 1.0.14");
+	printf("mfiutil version 1.0.15");
 #ifdef DEBUG
 	printf(" (DEBUG)");
 #endif

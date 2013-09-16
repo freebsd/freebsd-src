@@ -31,7 +31,7 @@ CFLAGS+=-DINET6
 .endif
 
 DPADD=	${LIBGEOM} ${LIBBSDXML} ${LIBSBUF} ${LIBL} ${LIBPTHREAD} ${LIBUTIL}
-LDADD=	-lgeom -lbsdxml -lsbuf -ll -lpthread -lutil
+LDADD=	-lgeom -lbsdxml -lsbuf -lpthread -lutil
 .if ${MK_OPENSSL} != "no"
 DPADD+=	${LIBCRYPTO}
 LDADD+=	-lcrypto

@@ -70,12 +70,20 @@ def A64cmn : PatFrag<(ops node:$lhs, node:$rhs),
 //       made for a variable/address at ISelLowering.
 //     + The output of ISelLowering should be selectable (hence the Wrapper,
 //       rather than a bare target opcode)
-def SDTAArch64Wrapper : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,
-                                             SDTCisSameAs<1, 2>,
-                                             SDTCisVT<3, i32>,
-                                             SDTCisPtrTy<0>]>;
+def SDTAArch64WrapperLarge : SDTypeProfile<1, 4, [SDTCisSameAs<0, 1>,
+                                                  SDTCisSameAs<0, 2>,
+                                                  SDTCisSameAs<0, 3>,
+                                                  SDTCisSameAs<0, 4>,
+                                                  SDTCisPtrTy<0>]>;
 
-def A64WrapperSmall : SDNode<"AArch64ISD::WrapperSmall", SDTAArch64Wrapper>;
+def A64WrapperLarge :SDNode<"AArch64ISD::WrapperLarge", SDTAArch64WrapperLarge>;
+
+def SDTAArch64WrapperSmall : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,
+                                                  SDTCisSameAs<1, 2>,
+                                                  SDTCisVT<3, i32>,
+                                                  SDTCisPtrTy<0>]>;
+
+def A64WrapperSmall :SDNode<"AArch64ISD::WrapperSmall", SDTAArch64WrapperSmall>;
 
 
 def SDTAArch64GOTLoad : SDTypeProfile<1, 1, [SDTCisPtrTy<0>, SDTCisPtrTy<1>]>;
@@ -159,48 +167,54 @@ let Defs = [XSP], Uses = [XSP] in {
 // Atomic operation pseudo-instructions
 //===----------------------------------------------------------------------===//
 
-let usesCustomInserter = 1 in {
-multiclass AtomicSizes<string opname> {
-  def _I8 : PseudoInst<(outs GPR32:$dst), (ins GPR64:$ptr, GPR32:$incr),
-          [(set i32:$dst, (!cast<SDNode>(opname # "_8") i64:$ptr, i32:$incr))]>;
-  def _I16 : PseudoInst<(outs GPR32:$dst), (ins GPR64:$ptr, GPR32:$incr),
-         [(set i32:$dst, (!cast<SDNode>(opname # "_16") i64:$ptr, i32:$incr))]>;
-  def _I32 : PseudoInst<(outs GPR32:$dst), (ins GPR64:$ptr, GPR32:$incr),
-         [(set i32:$dst, (!cast<SDNode>(opname # "_32") i64:$ptr, i32:$incr))]>;
-  def _I64 : PseudoInst<(outs GPR64:$dst), (ins GPR64:$ptr, GPR64:$incr),
-         [(set i64:$dst, (!cast<SDNode>(opname # "_64") i64:$ptr, i64:$incr))]>;
+// These get selected from C++ code as a pretty much direct translation from the
+// generic DAG nodes. The one exception is the AtomicOrdering is added as an
+// operand so that the eventual lowering can make use of it and choose
+// acquire/release operations when required.
+
+let usesCustomInserter = 1, hasCtrlDep = 1, mayLoad = 1, mayStore = 1 in {
+multiclass AtomicSizes {
+  def _I8 : PseudoInst<(outs GPR32:$dst),
+                       (ins GPR64xsp:$ptr, GPR32:$incr, i32imm:$ordering), []>;
+  def _I16 : PseudoInst<(outs GPR32:$dst),
+                        (ins GPR64xsp:$ptr, GPR32:$incr, i32imm:$ordering), []>;
+  def _I32 : PseudoInst<(outs GPR32:$dst),
+                        (ins GPR64xsp:$ptr, GPR32:$incr, i32imm:$ordering), []>;
+  def _I64 : PseudoInst<(outs GPR64:$dst),
+                        (ins GPR64xsp:$ptr, GPR64:$incr, i32imm:$ordering), []>;
 }
 }
 
-defm ATOMIC_LOAD_ADD  : AtomicSizes<"atomic_load_add">;
-defm ATOMIC_LOAD_SUB  : AtomicSizes<"atomic_load_sub">;
-defm ATOMIC_LOAD_AND  : AtomicSizes<"atomic_load_and">;
-defm ATOMIC_LOAD_OR   : AtomicSizes<"atomic_load_or">;
-defm ATOMIC_LOAD_XOR  : AtomicSizes<"atomic_load_xor">;
-defm ATOMIC_LOAD_NAND : AtomicSizes<"atomic_load_nand">;
-defm ATOMIC_SWAP      : AtomicSizes<"atomic_swap">;
+defm ATOMIC_LOAD_ADD  : AtomicSizes;
+defm ATOMIC_LOAD_SUB  : AtomicSizes;
+defm ATOMIC_LOAD_AND  : AtomicSizes;
+defm ATOMIC_LOAD_OR   : AtomicSizes;
+defm ATOMIC_LOAD_XOR  : AtomicSizes;
+defm ATOMIC_LOAD_NAND : AtomicSizes;
+defm ATOMIC_SWAP      : AtomicSizes;
 let Defs = [NZCV] in {
   // These operations need a CMP to calculate the correct value
-  defm ATOMIC_LOAD_MIN  : AtomicSizes<"atomic_load_min">;
-  defm ATOMIC_LOAD_MAX  : AtomicSizes<"atomic_load_max">;
-  defm ATOMIC_LOAD_UMIN : AtomicSizes<"atomic_load_umin">;
-  defm ATOMIC_LOAD_UMAX : AtomicSizes<"atomic_load_umax">;
+  defm ATOMIC_LOAD_MIN  : AtomicSizes;
+  defm ATOMIC_LOAD_MAX  : AtomicSizes;
+  defm ATOMIC_LOAD_UMIN : AtomicSizes;
+  defm ATOMIC_LOAD_UMAX : AtomicSizes;
 }
 
-let usesCustomInserter = 1, Defs = [NZCV] in {
-def ATOMIC_CMP_SWAP_I8
-  : PseudoInst<(outs GPR32:$dst), (ins GPR64:$ptr, GPR32:$old, GPR32:$new),
-            [(set i32:$dst, (atomic_cmp_swap_8 i64:$ptr, i32:$old, i32:$new))]>;
-def ATOMIC_CMP_SWAP_I16
-  : PseudoInst<(outs GPR32:$dst), (ins GPR64:$ptr, GPR32:$old, GPR32:$new),
-           [(set i32:$dst, (atomic_cmp_swap_16 i64:$ptr, i32:$old, i32:$new))]>;
-def ATOMIC_CMP_SWAP_I32
-  : PseudoInst<(outs GPR32:$dst), (ins GPR64:$ptr, GPR32:$old, GPR32:$new),
-           [(set i32:$dst, (atomic_cmp_swap_32 i64:$ptr, i32:$old, i32:$new))]>;
-def ATOMIC_CMP_SWAP_I64
-  : PseudoInst<(outs GPR64:$dst), (ins GPR64:$ptr, GPR64:$old, GPR64:$new),
-           [(set i64:$dst, (atomic_cmp_swap_64 i64:$ptr, i64:$old, i64:$new))]>;
+class AtomicCmpSwap<RegisterClass GPRData>
+  : PseudoInst<(outs GPRData:$dst),
+               (ins GPR64xsp:$ptr, GPRData:$old, GPRData:$new,
+                    i32imm:$ordering), []> {
+  let usesCustomInserter = 1;
+  let hasCtrlDep = 1;
+  let mayLoad = 1;
+  let mayStore = 1;
+  let Defs = [NZCV];
 }
+
+def ATOMIC_CMP_SWAP_I8  : AtomicCmpSwap<GPR32>;
+def ATOMIC_CMP_SWAP_I16 : AtomicCmpSwap<GPR32>;
+def ATOMIC_CMP_SWAP_I32 : AtomicCmpSwap<GPR32>;
+def ATOMIC_CMP_SWAP_I64 : AtomicCmpSwap<GPR64>;
 
 //===----------------------------------------------------------------------===//
 // Add-subtract (extended register) instructions
@@ -2579,7 +2593,8 @@ defm LDAR  : A64I_LRex<"ldar",  0b101>;
 
 class acquiring_load<PatFrag base>
   : PatFrag<(ops node:$ptr), (base node:$ptr), [{
-  return cast<AtomicSDNode>(N)->getOrdering() == Acquire;
+  AtomicOrdering Ordering = cast<AtomicSDNode>(N)->getOrdering();
+  return Ordering == Acquire || Ordering == SequentiallyConsistent;
 }]>;
 
 def atomic_load_acquire_8  : acquiring_load<atomic_load_8>;
@@ -2610,7 +2625,8 @@ class A64I_SLexs_impl<bits<2> size, bits<3> opcode, string asm, dag outs,
 
 class releasing_store<PatFrag base>
   : PatFrag<(ops node:$ptr, node:$val), (base node:$ptr, node:$val), [{
-  return cast<AtomicSDNode>(N)->getOrdering() == Release;
+  AtomicOrdering Ordering = cast<AtomicSDNode>(N)->getOrdering();
+  return Ordering == Release || Ordering == SequentiallyConsistent;
 }]>;
 
 def atomic_store_release_8  : releasing_store<atomic_store_8>;
@@ -3863,7 +3879,7 @@ multiclass movw_operands<string prefix, string instname, int width> {
     let DiagnosticType = "MOVWUImm16";
   }
 
-  def _imm : Operand<i32> {
+  def _imm : Operand<i64> {
     let ParserMatchClass = !cast<AsmOperandClass>(prefix # "_imm_asmoperand");
     let PrintMethod = "printMoveWideImmOperand";
     let EncoderMethod = "getMoveWideImmOpValue";
@@ -3934,7 +3950,7 @@ multiclass movalias_operand<string prefix, string basename,
                                        # "A64Imms::" # immpredicate # ">";
   }
 
-  def _movimm : Operand<i32> {
+  def _movimm : Operand<i64> {
     let ParserMatchClass = !cast<AsmOperandClass>(prefix # "_asmoperand");
 
     let MIOperandInfo = (ops uimm16:$UImm16, imm:$Shift);
@@ -3957,6 +3973,15 @@ def : movalias<MOVZwii, GPR32, movz32_movimm>;
 def : movalias<MOVZxii, GPR64, movz64_movimm>;
 def : movalias<MOVNwii, GPR32, movn32_movimm>;
 def : movalias<MOVNxii, GPR64, movn64_movimm>;
+
+def movw_addressref : ComplexPattern<i64, 2, "SelectMOVWAddressRef">;
+
+def : Pat<(A64WrapperLarge movw_addressref:$G3, movw_addressref:$G2,
+                           movw_addressref:$G1, movw_addressref:$G0),
+          (MOVKxii (MOVKxii (MOVKxii (MOVZxii movw_addressref:$G3),
+                                     movw_addressref:$G2),
+                            movw_addressref:$G1),
+                   movw_addressref:$G0)>;
 
 //===----------------------------------------------------------------------===//
 // PC-relative addressing instructions
@@ -4453,8 +4478,6 @@ def : ADRP_ADD<A64WrapperSmall, tjumptable>;
 //===----------------------------------------------------------------------===//
 // GOT access patterns
 //===----------------------------------------------------------------------===//
-
-// FIXME: Wibble
 
 class GOTLoadSmall<SDNode addrfrag>
   : Pat<(A64GOTLoad (A64WrapperSmall addrfrag:$Hi, addrfrag:$Lo12, 8)),

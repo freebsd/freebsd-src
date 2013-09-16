@@ -3,7 +3,7 @@
 
 PROG=	gcore
 SRCS=	elfcore.c gcore.c
-DPADD=	${LIBUTIL}
+DPADD=	${LIBSBUF} ${LIBUTIL}
 LDADD=	-lsbuf -lutil
 
 WARNS?=	1

@@ -309,7 +309,7 @@ fdesc_lookup(ap)
 	/*
 	 * No rights to check since 'fp' isn't actually used.
 	 */
-	if ((error = fget(td, fd, 0, &fp)) != 0)
+	if ((error = fget(td, fd, NULL, &fp)) != 0)
 		goto bad;
 
 	/* Check if we're looking up ourselves. */
@@ -333,7 +333,7 @@ fdesc_lookup(ap)
 		 * and the root vnode lock will be obtained afterwards (in case
 		 * we're looking up the fd of the root vnode), which will be the
 		 * opposite lock order. Vhold the root vnode first so we don't
-		 * loose it.
+		 * lose it.
 		 */
 		vhold(dvp);
 		VOP_UNLOCK(dvp, 0);
@@ -445,6 +445,7 @@ fdesc_setattr(ap)
 	struct mount *mp;
 	struct file *fp;
 	struct thread *td = curthread;
+	cap_rights_t rights;
 	unsigned fd;
 	int error;
 
@@ -459,7 +460,8 @@ fdesc_setattr(ap)
 	/*
 	 * Allow setattr where there is an underlying vnode.
 	 */
-	error = getvnode(td->td_proc->p_fd, fd, CAP_EXTATTR_SET, &fp);
+	error = getvnode(td->td_proc->p_fd, fd,
+	    cap_rights_init(&rights, CAP_EXTATTR_SET), &fp);
 	if (error) {
 		/*
 		 * getvnode() returns EINVAL if the file descriptor is not
@@ -538,7 +540,7 @@ fdesc_readdir(ap)
 				break;
 			dp->d_namlen = sprintf(dp->d_name, "%d", fcnt);
 			dp->d_reclen = UIO_MX;
-			dp->d_type = DT_UNKNOWN;
+			dp->d_type = DT_CHR;
 			dp->d_fileno = i + FD_DESC;
 			break;
 		}

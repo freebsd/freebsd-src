@@ -68,12 +68,12 @@ public:
 
   virtual bool TargetSelectInstruction(const Instruction *I);
 
-  /// TryToFoldLoad - The specified machine instr operand is a vreg, and that
+  /// \brief The specified machine instr operand is a vreg, and that
   /// vreg is being provided by the specified load instruction.  If possible,
   /// try to fold the load as an operand to the instruction, returning true if
   /// possible.
-  virtual bool TryToFoldLoad(MachineInstr *MI, unsigned OpNo,
-                             const LoadInst *LI);
+  virtual bool tryToFoldLoadIntoMI(MachineInstr *MI, unsigned OpNo,
+                                   const LoadInst *LI);
 
   virtual bool FastLowerArguments();
 
@@ -106,6 +106,8 @@ private:
   bool X86SelectBranch(const Instruction *I);
 
   bool X86SelectShift(const Instruction *I);
+
+  bool X86SelectDivRem(const Instruction *I);
 
   bool X86SelectSelect(const Instruction *I);
 
@@ -691,11 +693,6 @@ bool X86FastISel::X86SelectStore(const Instruction *I) {
   if (S->isAtomic())
     return false;
 
-  unsigned SABIAlignment =
-    TD.getABITypeAlignment(S->getValueOperand()->getType());
-  if (S->getAlignment() != 0 && S->getAlignment() < SABIAlignment)
-    return false;
-
   MVT VT;
   if (!isTypeLegal(I->getOperand(0)->getType(), VT, /*AllowI1=*/true))
     return false;
@@ -1232,6 +1229,124 @@ bool X86FastISel::X86SelectShift(const Instruction *I) {
   BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL, TII.get(OpReg), ResultReg)
     .addReg(Op0Reg);
   UpdateValueMap(I, ResultReg);
+  return true;
+}
+
+bool X86FastISel::X86SelectDivRem(const Instruction *I) {
+  const static unsigned NumTypes = 4; // i8, i16, i32, i64
+  const static unsigned NumOps   = 4; // SDiv, SRem, UDiv, URem
+  const static bool S = true;  // IsSigned
+  const static bool U = false; // !IsSigned
+  const static unsigned Copy = TargetOpcode::COPY;
+  // For the X86 DIV/IDIV instruction, in most cases the dividend
+  // (numerator) must be in a specific register pair highreg:lowreg,
+  // producing the quotient in lowreg and the remainder in highreg.
+  // For most data types, to set up the instruction, the dividend is
+  // copied into lowreg, and lowreg is sign-extended or zero-extended
+  // into highreg.  The exception is i8, where the dividend is defined
+  // as a single register rather than a register pair, and we
+  // therefore directly sign-extend or zero-extend the dividend into
+  // lowreg, instead of copying, and ignore the highreg.
+  const static struct DivRemEntry {
+    // The following portion depends only on the data type.
+    const TargetRegisterClass *RC;
+    unsigned LowInReg;  // low part of the register pair
+    unsigned HighInReg; // high part of the register pair
+    // The following portion depends on both the data type and the operation.
+    struct DivRemResult {
+    unsigned OpDivRem;        // The specific DIV/IDIV opcode to use.
+    unsigned OpSignExtend;    // Opcode for sign-extending lowreg into
+                              // highreg, or copying a zero into highreg.
+    unsigned OpCopy;          // Opcode for copying dividend into lowreg, or
+                              // zero/sign-extending into lowreg for i8.
+    unsigned DivRemResultReg; // Register containing the desired result.
+    bool IsOpSigned;          // Whether to use signed or unsigned form.
+    } ResultTable[NumOps];
+  } OpTable[NumTypes] = {
+    { &X86::GR8RegClass,  X86::AX,  0, {
+        { X86::IDIV8r,  0,            X86::MOVSX16rr8, X86::AL,  S }, // SDiv
+        { X86::IDIV8r,  0,            X86::MOVSX16rr8, X86::AH,  S }, // SRem
+        { X86::DIV8r,   0,            X86::MOVZX16rr8, X86::AL,  U }, // UDiv
+        { X86::DIV8r,   0,            X86::MOVZX16rr8, X86::AH,  U }, // URem
+      }
+    }, // i8
+    { &X86::GR16RegClass, X86::AX,  X86::DX, {
+        { X86::IDIV16r, X86::CWD,     Copy,            X86::AX,  S }, // SDiv
+        { X86::IDIV16r, X86::CWD,     Copy,            X86::DX,  S }, // SRem
+        { X86::DIV16r,  X86::MOV16r0, Copy,            X86::AX,  U }, // UDiv
+        { X86::DIV16r,  X86::MOV16r0, Copy,            X86::DX,  U }, // URem
+      }
+    }, // i16
+    { &X86::GR32RegClass, X86::EAX, X86::EDX, {
+        { X86::IDIV32r, X86::CDQ,     Copy,            X86::EAX, S }, // SDiv
+        { X86::IDIV32r, X86::CDQ,     Copy,            X86::EDX, S }, // SRem
+        { X86::DIV32r,  X86::MOV32r0, Copy,            X86::EAX, U }, // UDiv
+        { X86::DIV32r,  X86::MOV32r0, Copy,            X86::EDX, U }, // URem
+      }
+    }, // i32
+    { &X86::GR64RegClass, X86::RAX, X86::RDX, {
+        { X86::IDIV64r, X86::CQO,     Copy,            X86::RAX, S }, // SDiv
+        { X86::IDIV64r, X86::CQO,     Copy,            X86::RDX, S }, // SRem
+        { X86::DIV64r,  X86::MOV64r0, Copy,            X86::RAX, U }, // UDiv
+        { X86::DIV64r,  X86::MOV64r0, Copy,            X86::RDX, U }, // URem
+      }
+    }, // i64
+  };
+
+  MVT VT;
+  if (!isTypeLegal(I->getType(), VT))
+    return false;
+
+  unsigned TypeIndex, OpIndex;
+  switch (VT.SimpleTy) {
+  default: return false;
+  case MVT::i8:  TypeIndex = 0; break;
+  case MVT::i16: TypeIndex = 1; break;
+  case MVT::i32: TypeIndex = 2; break;
+  case MVT::i64: TypeIndex = 3;
+    if (!Subtarget->is64Bit())
+      return false;
+    break;
+  }
+
+  switch (I->getOpcode()) {
+  default: llvm_unreachable("Unexpected div/rem opcode");
+  case Instruction::SDiv: OpIndex = 0; break;
+  case Instruction::SRem: OpIndex = 1; break;
+  case Instruction::UDiv: OpIndex = 2; break;
+  case Instruction::URem: OpIndex = 3; break;
+  }
+
+  const DivRemEntry &TypeEntry = OpTable[TypeIndex];
+  const DivRemEntry::DivRemResult &OpEntry = TypeEntry.ResultTable[OpIndex];
+  unsigned Op0Reg = getRegForValue(I->getOperand(0));
+  if (Op0Reg == 0)
+    return false;
+  unsigned Op1Reg = getRegForValue(I->getOperand(1));
+  if (Op1Reg == 0)
+    return false;
+
+  // Move op0 into low-order input register.
+  BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL,
+          TII.get(OpEntry.OpCopy), TypeEntry.LowInReg).addReg(Op0Reg);
+  // Zero-extend or sign-extend into high-order input register.
+  if (OpEntry.OpSignExtend) {
+    if (OpEntry.IsOpSigned)
+      BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL,
+              TII.get(OpEntry.OpSignExtend));
+    else
+      BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL,
+              TII.get(OpEntry.OpSignExtend), TypeEntry.HighInReg);
+  }
+  // Generate the DIV/IDIV instruction.
+  BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL,
+          TII.get(OpEntry.OpDivRem)).addReg(Op1Reg);
+  // Copy output register into result register.
+  unsigned ResultReg = createResultReg(TypeEntry.RC);
+  BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL,
+          TII.get(Copy), ResultReg).addReg(OpEntry.DivRemResultReg);
+  UpdateValueMap(I, ResultReg);
+
   return true;
 }
 
@@ -2084,6 +2199,11 @@ X86FastISel::TargetSelectInstruction(const Instruction *I)  {
   case Instruction::AShr:
   case Instruction::Shl:
     return X86SelectShift(I);
+  case Instruction::SDiv:
+  case Instruction::UDiv:
+  case Instruction::SRem:
+  case Instruction::URem:
+    return X86SelectDivRem(I);
   case Instruction::Select:
     return X86SelectSelect(I);
   case Instruction::Trunc:
@@ -2275,12 +2395,8 @@ unsigned X86FastISel::TargetMaterializeFloatZero(const ConstantFP *CF) {
 }
 
 
-/// TryToFoldLoad - The specified machine instr operand is a vreg, and that
-/// vreg is being provided by the specified load instruction.  If possible,
-/// try to fold the load as an operand to the instruction, returning true if
-/// possible.
-bool X86FastISel::TryToFoldLoad(MachineInstr *MI, unsigned OpNo,
-                                const LoadInst *LI) {
+bool X86FastISel::tryToFoldLoadIntoMI(MachineInstr *MI, unsigned OpNo,
+                                      const LoadInst *LI) {
   X86AddressMode AM;
   if (!X86SelectAddress(LI->getOperand(0), AM))
     return false;

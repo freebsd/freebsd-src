@@ -12,7 +12,8 @@ SRCS=	ARMAsmBackend.cpp \
 	ARMMCAsmInfo.cpp \
 	ARMMCCodeEmitter.cpp \
 	ARMMCExpr.cpp \
-	ARMMCTargetDesc.cpp
+	ARMMCTargetDesc.cpp \
+	ARMUnwindOpAsm.cpp
 CFLAGS+= -I${LLVM_SRCS}/${SRCDIR}/..
 
 TGHDRS=	ARMGenInstrInfo \

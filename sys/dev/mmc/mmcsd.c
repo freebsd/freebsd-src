@@ -162,6 +162,7 @@ mmcsd_attach(device_t dev)
 	d->d_stripesize = mmc_get_erase_sector(dev) * d->d_sectorsize;
 	d->d_unit = device_get_unit(dev);
 	d->d_flags = DISKFLAG_CANDELETE;
+	d->d_delmaxsize = mmc_get_erase_sector(dev) * d->d_sectorsize * 1; /* conservative */
 	/*
 	 * Display in most natural units.  There's no cards < 1MB.  The SD
 	 * standard goes to 2GiB due to its reliance on FAT, but the data
@@ -170,13 +171,14 @@ mmcsd_attach(device_t dev)
 	 * data format supports up to 2TiB however. 2048GB isn't too ugly, so
 	 * we note it in passing here and don't add the code to print
 	 * TB). Since these cards are sold in terms of MB and GB not MiB and
-	 * GiB, report them like that.
+	 * GiB, report them like that. We also round to the nearest unit, since
+	 * many cards are a few percent short, even of the power of 10 size.
 	 */
-	mb = d->d_mediasize / 1000000;
+	mb = (d->d_mediasize + 1000000 / 2 - 1) / 1000000;
 	unit = 'M';
 	if (mb >= 1000) {
 		unit = 'G';
-		mb /= 1000;
+		mb = (mb + 1000 / 2 - 1) / 1000;
 	}
 	/*
 	 * Report the clock speed of the underlying hardware, which might be
@@ -197,7 +199,8 @@ mmcsd_attach(device_t dev)
 	sc->running = 1;
 	sc->suspend = 0;
 	sc->eblock = sc->eend = 0;
-	kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "task: mmc/sd card");
+	kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "%s: mmc/sd card", 
+	    device_get_nameunit(dev));
 
 	return (0);
 }
@@ -258,7 +261,8 @@ mmcsd_resume(device_t dev)
 	if (sc->running <= 0) {
 		sc->running = 1;
 		MMCSD_UNLOCK(sc);
-		kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "task: mmc/sd card");
+		kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "%s: mmc/sd card",
+		    device_get_nameunit(dev));
 	} else
 		MMCSD_UNLOCK(sc);
 	return (0);
@@ -324,6 +328,7 @@ mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp)
 		memset(&req, 0, sizeof(req));
     		memset(&cmd, 0, sizeof(cmd));
 		memset(&stop, 0, sizeof(stop));
+		memset(&data, 0, sizeof(data));
 		cmd.mrq = &req;
 		req.cmd = &cmd;
 		cmd.data = &data;

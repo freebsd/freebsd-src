@@ -39,7 +39,9 @@ namespace R600_InstFlag {
     //FlagOperand bits 7, 8
     NATIVE_OPERANDS = (1 << 9),
     OP1 = (1 << 10),
-    OP2 = (1 << 11)
+    OP2 = (1 << 11),
+    VTX_INST  = (1 << 12),
+    TEX_INST = (1 << 13)
   };
 }
 
@@ -51,6 +53,9 @@ namespace R600_InstFlag {
 
 #define GET_REG_CHAN(reg) ((reg) >> HW_CHAN_SHIFT)
 #define GET_REG_INDEX(reg) ((reg) & HW_REG_MASK)
+
+#define IS_VTX(desc) ((desc).TSFlags & R600_InstFlag::VTX_INST)
+#define IS_TEX(desc) ((desc).TSFlags & R600_InstFlag::TEX_INST)
 
 namespace R600Operands {
   enum Ops {
@@ -78,6 +83,7 @@ namespace R600Operands {
     LAST,
     PRED_SEL,
     IMM,
+    BANK_SWIZZLE,
     COUNT
  };
 
@@ -85,13 +91,39 @@ namespace R600Operands {
 //            W        C     S  S  S  S     S  S  S  S     S  S  S
 //            R  O  D  L  S  R  R  R  R  S  R  R  R  R  S  R  R  R  L  P
 //   D  U     I  M  R  A  R  C  C  C  C  R  C  C  C  C  R  C  C  C  A  R  I
-//   S  E  U  T  O  E  M  C  0  0  0  0  C  1  1  1  1  C  2  2  2  S  E  M
-//   T  M  P  E  D  L  P  0  N  R  A  S  1  N  R  A  S  2  N  R  S  T  D  M
-    {0,-1,-1, 1, 2, 3, 4, 5, 6, 7, 8, 9,-1,-1,-1,-1,-1,-1,-1,-1,-1,10,11,12},
-    {0, 1, 2, 3, 4 ,5 ,6 ,7, 8, 9,10,11,12,13,14,15,16,-1,-1,-1,-1,17,18,19},
-    {0,-1,-1,-1,-1, 1, 2, 3, 4, 5,-1, 6, 7, 8, 9,-1,10,11,12,13,14,15,16,17}
+//   S  E  U  T  O  E  M  C  0  0  0  0  C  1  1  1  1  C  2  2  2  S  E  M  B
+//   T  M  P  E  D  L  P  0  N  R  A  S  1  N  R  A  S  2  N  R  S  T  D  M  S
+    {0,-1,-1, 1, 2, 3, 4, 5, 6, 7, 8, 9,-1,-1,-1,-1,-1,-1,-1,-1,-1,10,11,12,13},
+    {0, 1, 2, 3, 4 ,5 ,6 ,7, 8, 9,10,11,12,13,14,15,16,-1,-1,-1,-1,17,18,19,20},
+    {0,-1,-1,-1,-1, 1, 2, 3, 4, 5,-1, 6, 7, 8, 9,-1,10,11,12,13,14,15,16,17,18}
   };
 
 }
+
+//===----------------------------------------------------------------------===//
+// Config register definitions
+//===----------------------------------------------------------------------===//
+
+#define R_02880C_DB_SHADER_CONTROL                    0x02880C
+#define   S_02880C_KILL_ENABLE(x)                      (((x) & 0x1) << 6)
+
+// These fields are the same for all shader types and families.
+#define   S_NUM_GPRS(x)                         (((x) & 0xFF) << 0)
+#define   S_STACK_SIZE(x)                       (((x) & 0xFF) << 8)
+//===----------------------------------------------------------------------===//
+// R600, R700 Registers
+//===----------------------------------------------------------------------===//
+
+#define R_028850_SQ_PGM_RESOURCES_PS                 0x028850
+#define R_028868_SQ_PGM_RESOURCES_VS                 0x028868
+
+//===----------------------------------------------------------------------===//
+// Evergreen, Northern Islands Registers
+//===----------------------------------------------------------------------===//
+
+#define R_028844_SQ_PGM_RESOURCES_PS                 0x028844
+#define R_028860_SQ_PGM_RESOURCES_VS                 0x028860
+#define R_028878_SQ_PGM_RESOURCES_GS                 0x028878
+#define R_0288D4_SQ_PGM_RESOURCES_LS                 0x0288d4
 
 #endif // R600DEFINES_H_

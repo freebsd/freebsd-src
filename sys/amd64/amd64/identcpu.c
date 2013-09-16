@@ -407,11 +407,11 @@ printcpuinfo(void)
 				       /* Restricted Transactional Memory */
 				       "\014RTM"
 				       /* Enhanced NRBG */
-				       "\022RDSEED"
+				       "\023RDSEED"
 				       /* ADCX + ADOX */
-				       "\023ADX"
+				       "\024ADX"
 				       /* Supervisor Mode Access Prevention */
-				       "\024SMAP"
+				       "\025SMAP"
 				       );
 			}
 
@@ -530,6 +530,13 @@ identify_cpu(void)
 			do_cpuid(0, regs);
 			cpu_high = regs[0];
 		}
+	}
+
+	if (cpu_high >= 5 && (cpu_feature2 & CPUID2_MON) != 0) {
+		do_cpuid(5, regs);
+		cpu_mon_mwait_flags = regs[2];
+		cpu_mon_min_size = regs[0] &  CPUID5_MON_MIN_SIZE;
+		cpu_mon_max_size = regs[1] &  CPUID5_MON_MAX_SIZE;
 	}
 
 	if (cpu_high >= 7) {

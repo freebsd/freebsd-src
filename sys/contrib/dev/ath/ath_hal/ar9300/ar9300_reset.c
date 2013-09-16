@@ -778,6 +778,11 @@ ar9300_set_delta_slope(struct ath_hal *ah, struct ieee80211_channel *chan)
 HAL_CHANNEL_INTERNAL *
 ar9300_check_chan(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
+
+    if (chan == NULL) {
+        return AH_NULL;
+    }
+
     if ((IS(chan, CHAN_2GHZ) ^ IS(chan, CHAN_5GHZ)) == 0) {
         HALDEBUG(ah, HAL_DEBUG_CHANNEL,
             "%s: invalid channel %u/0x%x; not marked as 2GHz or 5GHz\n",
@@ -3554,7 +3559,7 @@ ar9300_init_cal_internal(struct ath_hal *ah, struct ieee80211_channel *chan,
              * no chip specific code for Jupiter/Posdeion except for register names.
              */
             if (txiqcal_success_flag) {
-                ar9300_tx_iq_cal_post_proc(ah,ichan, 1, 1,is_cal_reusable,false);
+                ar9300_tx_iq_cal_post_proc(ah,ichan, 1, 1,is_cal_reusable, AH_FALSE);
             }
     } else {
         if (!txiqcal_success_flag) {

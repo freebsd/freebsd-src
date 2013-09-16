@@ -74,9 +74,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/rwlock.h>
 #include <sys/sysctl.h>
+#include <sys/vmem.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
+#include <vm/vm_kern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
@@ -86,11 +88,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 vm_map_t kernel_map;
-vm_map_t kmem_map;
 vm_map_t exec_map;
 vm_map_t pipe_map;
-vm_map_t buffer_map;
-vm_map_t bio_transient_map;
 
 const void *zero_region;
 CTASSERT((ZERO_REGION_SIZE & PAGE_MASK) == 0);
@@ -107,7 +106,7 @@ SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
     "Max kernel address");
 
 /*
- *	kmem_alloc_nofault:
+ *	kva_alloc:
  *
  *	Allocate a virtual address range with no underlying object and
  *	no initial mapping to physical memory.  Any mapping from this
@@ -116,94 +115,35 @@ SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
  *	a mapping on demand through vm_fault() will result in a panic. 
  */
 vm_offset_t
-kmem_alloc_nofault(map, size)
-	vm_map_t map;
+kva_alloc(size)
 	vm_size_t size;
 {
 	vm_offset_t addr;
-	int result;
 
 	size = round_page(size);
-	addr = vm_map_min(map);
-	result = vm_map_find(map, NULL, 0, &addr, size, VMFS_ANY_SPACE,
-	    VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
-	if (result != KERN_SUCCESS) {
+	if (vmem_alloc(kernel_arena, size, M_BESTFIT | M_NOWAIT, &addr))
 		return (0);
-	}
+
 	return (addr);
 }
 
 /*
- *	kmem_alloc_nofault_space:
+ *	kva_free:
  *
- *	Allocate a virtual address range with no underlying object and
- *	no initial mapping to physical memory within the specified
- *	address space.  Any mapping from this range to physical memory
- *	must be explicitly created prior to its use, typically with
- *	pmap_qenter().  Any attempt to create a mapping on demand
- *	through vm_fault() will result in a panic. 
+ *	Release a region of kernel virtual memory allocated
+ *	with kva_alloc, and return the physical pages
+ *	associated with that region.
+ *
+ *	This routine may not block on kernel maps.
  */
-vm_offset_t
-kmem_alloc_nofault_space(map, size, find_space)
-	vm_map_t map;
-	vm_size_t size;
-	int find_space;
-{
+void
+kva_free(addr, size)
 	vm_offset_t addr;
-	int result;
-
-	size = round_page(size);
-	addr = vm_map_min(map);
-	result = vm_map_find(map, NULL, 0, &addr, size, find_space,
-	    VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
-	if (result != KERN_SUCCESS) {
-		return (0);
-	}
-	return (addr);
-}
-
-/*
- *	Allocate wired-down memory in the kernel's address map
- *	or a submap.
- */
-vm_offset_t
-kmem_alloc(map, size)
-	vm_map_t map;
 	vm_size_t size;
 {
-	vm_offset_t addr;
-	vm_offset_t offset;
 
 	size = round_page(size);
-
-	/*
-	 * Use the kernel object for wired-down kernel pages. Assume that no
-	 * region of the kernel object is referenced more than once.
-	 */
-
-	/*
-	 * Locate sufficient space in the map.  This will give us the final
-	 * virtual address for the new memory, and thus will tell us the
-	 * offset within the kernel map.
-	 */
-	vm_map_lock(map);
-	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
-		vm_map_unlock(map);
-		return (0);
-	}
-	offset = addr - VM_MIN_KERNEL_ADDRESS;
-	vm_object_reference(kernel_object);
-	vm_map_insert(map, kernel_object, offset, addr, addr + size,
-		VM_PROT_ALL, VM_PROT_ALL, 0);
-	vm_map_unlock(map);
-
-	/*
-	 * And finally, mark the data as non-pageable.
-	 */
-	(void) vm_map_wire(map, addr, addr + size,
-	    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
-
-	return (addr);
+	vmem_free(kernel_arena, addr, size);
 }
 
 /*
@@ -215,62 +155,57 @@ kmem_alloc(map, size)
  *	given flags, then the pages are zeroed before they are mapped.
  */
 vm_offset_t
-kmem_alloc_attr(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
+kmem_alloc_attr(vmem_t *vmem, vm_size_t size, int flags, vm_paddr_t low,
     vm_paddr_t high, vm_memattr_t memattr)
 {
-	vm_object_t object = kernel_object;
+	vm_object_t object = vmem == kmem_arena ? kmem_object : kernel_object;
 	vm_offset_t addr;
-	vm_ooffset_t end_offset, offset;
+	vm_ooffset_t offset;
 	vm_page_t m;
 	int pflags, tries;
+	int i;
 
 	size = round_page(size);
-	vm_map_lock(map);
-	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
-		vm_map_unlock(map);
+	if (vmem_alloc(vmem, size, M_BESTFIT | flags, &addr))
 		return (0);
-	}
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
-	vm_object_reference(object);
-	vm_map_insert(map, object, offset, addr, addr + size, VM_PROT_ALL,
-	    VM_PROT_ALL, 0);
-	pflags = malloc2vm_flags(flags) | VM_ALLOC_NOBUSY;
+	pflags = malloc2vm_flags(flags) | VM_ALLOC_NOBUSY | VM_ALLOC_WIRED;
 	VM_OBJECT_WLOCK(object);
-	end_offset = offset + size;
-	for (; offset < end_offset; offset += PAGE_SIZE) {
+	for (i = 0; i < size; i += PAGE_SIZE) {
 		tries = 0;
 retry:
-		m = vm_page_alloc_contig(object, OFF_TO_IDX(offset), pflags, 1,
-		    low, high, PAGE_SIZE, 0, memattr);
+		m = vm_page_alloc_contig(object, OFF_TO_IDX(offset + i),
+		    pflags, 1, low, high, PAGE_SIZE, 0, memattr);
 		if (m == NULL) {
 			VM_OBJECT_WUNLOCK(object);
 			if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
-				vm_map_unlock(map);
 				vm_pageout_grow_cache(tries, low, high);
-				vm_map_lock(map);
 				VM_OBJECT_WLOCK(object);
 				tries++;
 				goto retry;
 			}
-
-			/*
-			 * Since the pages that were allocated by any previous
-			 * iterations of this loop are not busy, they can be
-			 * freed by vm_object_page_remove(), which is called
-			 * by vm_map_delete().
+			/* 
+			 * Unmap and free the pages.
 			 */
-			vm_map_delete(map, addr, addr + size);
-			vm_map_unlock(map);
+			if (i != 0)
+				pmap_remove(kernel_pmap, addr, addr + i);
+			while (i != 0) {
+				i -= PAGE_SIZE;
+				m = vm_page_lookup(object,
+				    OFF_TO_IDX(offset + i));
+				vm_page_unwire(m, 0);
+				vm_page_free(m);
+			}
+			vmem_free(vmem, addr, size);
 			return (0);
 		}
 		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
 		m->valid = VM_PAGE_BITS_ALL;
+		pmap_enter(kernel_pmap, addr + i, VM_PROT_ALL, m, VM_PROT_ALL,
+		    TRUE);
 	}
 	VM_OBJECT_WUNLOCK(object);
-	vm_map_unlock(map);
-	vm_map_wire(map, addr, addr + size, VM_MAP_WIRE_SYSTEM |
-	    VM_MAP_WIRE_NOHOLES);
 	return (addr);
 }
 
@@ -283,27 +218,21 @@ retry:
  *	mapped.
  */
 vm_offset_t
-kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
+kmem_alloc_contig(struct vmem *vmem, vm_size_t size, int flags, vm_paddr_t low,
     vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
     vm_memattr_t memattr)
 {
-	vm_object_t object = kernel_object;
-	vm_offset_t addr;
+	vm_object_t object = vmem == kmem_arena ? kmem_object : kernel_object;
+	vm_offset_t addr, tmp;
 	vm_ooffset_t offset;
 	vm_page_t end_m, m;
 	int pflags, tries;
  
 	size = round_page(size);
-	vm_map_lock(map);
-	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
-		vm_map_unlock(map);
+	if (vmem_alloc(vmem, size, flags | M_BESTFIT, &addr))
 		return (0);
-	}
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
-	vm_object_reference(object);
-	vm_map_insert(map, object, offset, addr, addr + size, VM_PROT_ALL,
-	    VM_PROT_ALL, 0);
-	pflags = malloc2vm_flags(flags) | VM_ALLOC_NOBUSY;
+	pflags = malloc2vm_flags(flags) | VM_ALLOC_NOBUSY | VM_ALLOC_WIRED;
 	VM_OBJECT_WLOCK(object);
 	tries = 0;
 retry:
@@ -312,47 +241,25 @@ retry:
 	if (m == NULL) {
 		VM_OBJECT_WUNLOCK(object);
 		if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
-			vm_map_unlock(map);
 			vm_pageout_grow_cache(tries, low, high);
-			vm_map_lock(map);
 			VM_OBJECT_WLOCK(object);
 			tries++;
 			goto retry;
 		}
-		vm_map_delete(map, addr, addr + size);
-		vm_map_unlock(map);
+		vmem_free(vmem, addr, size);
 		return (0);
 	}
 	end_m = m + atop(size);
+	tmp = addr;
 	for (; m < end_m; m++) {
 		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
 		m->valid = VM_PAGE_BITS_ALL;
+		pmap_enter(kernel_pmap, tmp, VM_PROT_ALL, m, VM_PROT_ALL, true);
+		tmp += PAGE_SIZE;
 	}
 	VM_OBJECT_WUNLOCK(object);
-	vm_map_unlock(map);
-	vm_map_wire(map, addr, addr + size, VM_MAP_WIRE_SYSTEM |
-	    VM_MAP_WIRE_NOHOLES);
 	return (addr);
-}
-
-/*
- *	kmem_free:
- *
- *	Release a region of kernel virtual memory allocated
- *	with kmem_alloc, and return the physical pages
- *	associated with that region.
- *
- *	This routine may not block on kernel maps.
- */
-void
-kmem_free(map, addr, size)
-	vm_map_t map;
-	vm_offset_t addr;
-	vm_size_t size;
-{
-
-	(void) vm_map_remove(map, trunc_page(addr), round_page(addr + size));
 }
 
 /*
@@ -378,8 +285,8 @@ kmem_suballoc(vm_map_t parent, vm_offset_t *min, vm_offset_t *max,
 	size = round_page(size);
 
 	*min = vm_map_min(parent);
-	ret = vm_map_find(parent, NULL, 0, min, size, superpage_align ?
-	    VMFS_ALIGNED_SPACE : VMFS_ANY_SPACE, VM_PROT_ALL, VM_PROT_ALL,
+	ret = vm_map_find(parent, NULL, 0, min, size, 0, superpage_align ?
+	    VMFS_SUPER_SPACE : VMFS_ANY_SPACE, VM_PROT_ALL, VM_PROT_ALL,
 	    MAP_ACC_NO_CHARGE);
 	if (ret != KERN_SUCCESS)
 		panic("kmem_suballoc: bad status return of %d", ret);
@@ -395,65 +302,25 @@ kmem_suballoc(vm_map_t parent, vm_offset_t *min, vm_offset_t *max,
 /*
  *	kmem_malloc:
  *
- * 	Allocate wired-down memory in the kernel's address map for the higher
- * 	level kernel memory allocator (kern/kern_malloc.c).  We cannot use
- * 	kmem_alloc() because we may need to allocate memory at interrupt
- * 	level where we cannot block (canwait == FALSE).
- *
- * 	This routine has its own private kernel submap (kmem_map) and object
- * 	(kmem_object).  This, combined with the fact that only malloc uses
- * 	this routine, ensures that we will never block in map or object waits.
- *
- * 	We don't worry about expanding the map (adding entries) since entries
- * 	for wired maps are statically allocated.
- *
- *	`map' is ONLY allowed to be kmem_map or one of the mbuf submaps to
- *	which we never free.
+ *	Allocate wired-down pages in the kernel's address space.
  */
 vm_offset_t
-kmem_malloc(map, size, flags)
-	vm_map_t map;
-	vm_size_t size;
-	int flags;
+kmem_malloc(struct vmem *vmem, vm_size_t size, int flags)
 {
 	vm_offset_t addr;
-	int i, rv;
+	int rv;
 
 	size = round_page(size);
-	addr = vm_map_min(map);
+	if (vmem_alloc(vmem, size, flags | M_BESTFIT, &addr))
+		return (0);
 
-	/*
-	 * Locate sufficient space in the map.  This will give us the final
-	 * virtual address for the new memory, and thus will tell us the
-	 * offset within the kernel map.
-	 */
-	vm_map_lock(map);
-	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
-		vm_map_unlock(map);
-                if ((flags & M_NOWAIT) == 0) {
-			for (i = 0; i < 8; i++) {
-				EVENTHANDLER_INVOKE(vm_lowmem, 0);
-				uma_reclaim();
-				vm_map_lock(map);
-				if (vm_map_findspace(map, vm_map_min(map),
-				    size, &addr) == 0) {
-					break;
-				}
-				vm_map_unlock(map);
-				tsleep(&i, 0, "nokva", (hz / 4) * (i + 1));
-			}
-			if (i == 8) {
-				panic("kmem_malloc(%ld): kmem_map too small: %ld total allocated",
-				    (long)size, (long)map->size);
-			}
-		} else {
-			return (0);
-		}
+	rv = kmem_back((vmem == kmem_arena) ? kmem_object : kernel_object,
+	    addr, size, flags);
+	if (rv != KERN_SUCCESS) {
+		vmem_free(vmem, addr, size);
+		return (0);
 	}
-
-	rv = kmem_back(map, addr, size, flags);
-	vm_map_unlock(map);
-	return (rv == KERN_SUCCESS ? addr : 0);
+	return (addr);
 }
 
 /*
@@ -462,37 +329,22 @@ kmem_malloc(map, size, flags)
  *	Allocate physical pages for the specified virtual address range.
  */
 int
-kmem_back(vm_map_t map, vm_offset_t addr, vm_size_t size, int flags)
+kmem_back(vm_object_t object, vm_offset_t addr, vm_size_t size, int flags)
 {
 	vm_offset_t offset, i;
-	vm_map_entry_t entry;
 	vm_page_t m;
 	int pflags;
-	boolean_t found;
 
-	KASSERT(vm_map_locked(map), ("kmem_back: map %p is not locked", map));
+	KASSERT(object == kmem_object || object == kernel_object,
+	    ("kmem_back: only supports kernel objects."));
+
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
-	vm_object_reference(kmem_object);
-	vm_map_insert(map, kmem_object, offset, addr, addr + size,
-	    VM_PROT_ALL, VM_PROT_ALL, 0);
+	pflags = malloc2vm_flags(flags) | VM_ALLOC_NOBUSY | VM_ALLOC_WIRED;
 
-	/*
-	 * Assert: vm_map_insert() will never be able to extend the
-	 * previous entry so vm_map_lookup_entry() will find a new
-	 * entry exactly corresponding to this address range and it
-	 * will have wired_count == 0.
-	 */
-	found = vm_map_lookup_entry(map, addr, &entry);
-	KASSERT(found && entry->start == addr && entry->end == addr + size &&
-	    entry->wired_count == 0 && (entry->eflags & MAP_ENTRY_IN_TRANSITION)
-	    == 0, ("kmem_back: entry not found or misaligned"));
-
-	pflags = malloc2vm_flags(flags) | VM_ALLOC_WIRED;
-
-	VM_OBJECT_WLOCK(kmem_object);
+	VM_OBJECT_WLOCK(object);
 	for (i = 0; i < size; i += PAGE_SIZE) {
 retry:
-		m = vm_page_alloc(kmem_object, OFF_TO_IDX(offset + i), pflags);
+		m = vm_page_alloc(object, OFF_TO_IDX(offset + i), pflags);
 
 		/*
 		 * Ran out of space, free everything up and return. Don't need
@@ -501,79 +353,78 @@ retry:
 		 */
 		if (m == NULL) {
 			if ((flags & M_NOWAIT) == 0) {
-				VM_OBJECT_WUNLOCK(kmem_object);
-				entry->eflags |= MAP_ENTRY_IN_TRANSITION;
-				vm_map_unlock(map);
+				VM_OBJECT_WUNLOCK(object);
 				VM_WAIT;
-				vm_map_lock(map);
-				KASSERT(
-(entry->eflags & (MAP_ENTRY_IN_TRANSITION | MAP_ENTRY_NEEDS_WAKEUP)) ==
-				    MAP_ENTRY_IN_TRANSITION,
-				    ("kmem_back: volatile entry"));
-				entry->eflags &= ~MAP_ENTRY_IN_TRANSITION;
-				VM_OBJECT_WLOCK(kmem_object);
+				VM_OBJECT_WLOCK(object);
 				goto retry;
 			}
 			/* 
-			 * Free the pages before removing the map entry.
-			 * They are already marked busy.  Calling
-			 * vm_map_delete before the pages has been freed or
-			 * unbusied will cause a deadlock.
+			 * Unmap and free the pages.
 			 */
+			if (i != 0)
+				pmap_remove(kernel_pmap, addr, addr + i);
 			while (i != 0) {
 				i -= PAGE_SIZE;
-				m = vm_page_lookup(kmem_object,
+				m = vm_page_lookup(object,
 						   OFF_TO_IDX(offset + i));
 				vm_page_unwire(m, 0);
 				vm_page_free(m);
 			}
-			VM_OBJECT_WUNLOCK(kmem_object);
-			vm_map_delete(map, addr, addr + size);
+			VM_OBJECT_WUNLOCK(object);
 			return (KERN_NO_SPACE);
 		}
 		if (flags & M_ZERO && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
-		m->valid = VM_PAGE_BITS_ALL;
 		KASSERT((m->oflags & VPO_UNMANAGED) != 0,
 		    ("kmem_malloc: page %p is managed", m));
-	}
-	VM_OBJECT_WUNLOCK(kmem_object);
-
-	/*
-	 * Mark map entry as non-pageable.  Repeat the assert.
-	 */
-	KASSERT(entry->start == addr && entry->end == addr + size &&
-	    entry->wired_count == 0,
-	    ("kmem_back: entry not found or misaligned after allocation"));
-	entry->wired_count = 1;
-
-	/*
-	 * At this point, the kmem_object must be unlocked because
-	 * vm_map_simplify_entry() calls vm_object_deallocate(), which
-	 * locks the kmem_object.
-	 */
-	vm_map_simplify_entry(map, entry);
-
-	/*
-	 * Loop thru pages, entering them in the pmap.
-	 */
-	VM_OBJECT_WLOCK(kmem_object);
-	for (i = 0; i < size; i += PAGE_SIZE) {
-		m = vm_page_lookup(kmem_object, OFF_TO_IDX(offset + i));
-		/*
-		 * Because this is kernel_pmap, this call will not block.
-		 */
+		m->valid = VM_PAGE_BITS_ALL;
 		pmap_enter(kernel_pmap, addr + i, VM_PROT_ALL, m, VM_PROT_ALL,
 		    TRUE);
-		vm_page_wakeup(m);
 	}
-	VM_OBJECT_WUNLOCK(kmem_object);
+	VM_OBJECT_WUNLOCK(object);
 
 	return (KERN_SUCCESS);
 }
 
+void
+kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
+{
+	vm_page_t m;
+	vm_offset_t offset;
+	int i;
+
+	KASSERT(object == kmem_object || object == kernel_object,
+	    ("kmem_unback: only supports kernel objects."));
+
+	offset = addr - VM_MIN_KERNEL_ADDRESS;
+	VM_OBJECT_WLOCK(object);
+	pmap_remove(kernel_pmap, addr, addr + size);
+	for (i = 0; i < size; i += PAGE_SIZE) {
+		m = vm_page_lookup(object, OFF_TO_IDX(offset + i));
+		vm_page_unwire(m, 0);
+		vm_page_free(m);
+	}
+	VM_OBJECT_WUNLOCK(object);
+}
+
 /*
- *	kmem_alloc_wait:
+ *	kmem_free:
+ *
+ *	Free memory allocated with kmem_malloc.  The size must match the
+ *	original allocation.
+ */
+void
+kmem_free(struct vmem *vmem, vm_offset_t addr, vm_size_t size)
+{
+
+	size = round_page(size);
+	kmem_unback((vmem == kmem_arena) ? kmem_object : kernel_object,
+	    addr, size);
+	vmem_free(vmem, addr, size);
+}
+
+/*
+ *	kmap_alloc_wait:
  *
  *	Allocates pageable memory from a sub-map of the kernel.  If the submap
  *	has no room, the caller sleeps waiting for more memory in the submap.
@@ -581,7 +432,7 @@ retry:
  *	This routine may block.
  */
 vm_offset_t
-kmem_alloc_wait(map, size)
+kmap_alloc_wait(map, size)
 	vm_map_t map;
 	vm_size_t size;
 {
@@ -615,13 +466,13 @@ kmem_alloc_wait(map, size)
 }
 
 /*
- *	kmem_free_wakeup:
+ *	kmap_free_wakeup:
  *
  *	Returns memory to a submap of the kernel, and wakes up any processes
  *	waiting for memory in that map.
  */
 void
-kmem_free_wakeup(map, addr, size)
+kmap_free_wakeup(map, addr, size)
 	vm_map_t map;
 	vm_offset_t addr;
 	vm_size_t size;
@@ -636,28 +487,25 @@ kmem_free_wakeup(map, addr, size)
 	vm_map_unlock(map);
 }
 
-static void
+void
 kmem_init_zero_region(void)
 {
 	vm_offset_t addr, i;
 	vm_page_t m;
-	int error;
 
 	/*
 	 * Map a single physical page of zeros to a larger virtual range.
 	 * This requires less looping in places that want large amounts of
 	 * zeros, while not using much more physical resources.
 	 */
-	addr = kmem_alloc_nofault(kernel_map, ZERO_REGION_SIZE);
+	addr = kva_alloc(ZERO_REGION_SIZE);
 	m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
 	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 	if ((m->flags & PG_ZERO) == 0)
 		pmap_zero_page(m);
 	for (i = 0; i < ZERO_REGION_SIZE; i += PAGE_SIZE)
 		pmap_qenter(addr + i, &m, 1);
-	error = vm_map_protect(kernel_map, addr, addr + ZERO_REGION_SIZE,
-	    VM_PROT_READ, TRUE);
-	KASSERT(error == 0, ("error=%d", error));
+	pmap_protect(kernel_pmap, addr, addr + ZERO_REGION_SIZE, VM_PROT_READ);
 
 	zero_region = (const void *)addr;
 }
@@ -690,8 +538,6 @@ kmem_init(start, end)
 	    start, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
 	/* ... and ending with the completion of the above `insert' */
 	vm_map_unlock(m);
-
-	kmem_init_zero_region();
 }
 
 #ifdef DIAGNOSTIC

@@ -18,6 +18,13 @@ def w_asm_qualifier_ignored : Warning<"ignored %0 qualifier on asm">,
 def warn_file_asm_volatile : Warning<
   "meaningless 'volatile' on asm outside function">, CatInlineAsm;
 
+let CategoryName = "Inline Assembly Issue" in {
+def err_asm_empty : Error<"__asm used with no assembly instructions">;
+def err_inline_ms_asm_parsing : Error<"%0">;
+def err_msasm_unsupported_arch : Error<
+  "Unsupported architecture '%0' for MS-style inline assembly">;
+}
+
 let CategoryName = "Parse Issue" in {
 
 def ext_empty_translation_unit : Extension<
@@ -277,6 +284,11 @@ def warn_auto_storage_class : Warning<
 def ext_auto_storage_class : ExtWarn<
   "'auto' storage class specifier is not permitted in C++11, and will not "
   "be supported in future releases">, InGroup<DiagGroup<"auto-storage-class">>;
+def ext_decltype_auto_type_specifier : ExtWarn<
+  "'decltype(auto)' type specifier is a C++1y extension">, InGroup<CXX1y>;
+def warn_cxx11_compat_decltype_auto_type_specifier : Warning<
+  "'decltype(auto)' type specifier is incompatible with C++ standards before "
+  "C++1y">, InGroup<CXXPre1yCompat>, DefaultIgnore;
 def ext_for_range : ExtWarn<
   "range-based for loop is a C++11 extension">, InGroup<CXX11>;
 def warn_cxx98_compat_for_range : Warning<
@@ -352,6 +364,8 @@ def warn_cxx98_compat_static_assert : Warning<
   InGroup<CXX98Compat>, DefaultIgnore;
 def err_paren_after_colon_colon : Error<
   "unexpected parenthesis after '::'">;
+def err_function_definition_not_allowed : Error<
+  "function definition is not allowed here">;
 
 /// Objective-C parser diagnostics
 def err_expected_minus_or_plus : Error<
@@ -411,6 +425,8 @@ def err_missing_catch_finally : Error<
 def err_objc_concat_string : Error<"unexpected token after Objective-C string">;
 def err_expected_objc_container : Error<
   "'@end' must appear in an Objective-C context">;
+def err_unexpected_protocol_qualifier : Error<
+  "@implementation declaration can not be protocol qualified">;
 def err_objc_unexpected_atend : Error<
   "'@end' appears where closing brace '}' is expected">;
 def error_property_ivar_decl : Error<
@@ -527,6 +543,22 @@ def err_ms_declspec_type : Error<
   "__declspec attributes must be an identifier or string literal">;
 def warn_ms_declspec_unknown : Warning<
   "unknown __declspec attribute %0 ignored">, InGroup<UnknownAttributes>;
+def err_ms_property_no_getter_or_putter : Error<
+  "property does not specify a getter or a putter">;
+def err_ms_property_unknown_accessor : Error<
+  "expected 'get' or 'put' in property declaration">;
+def err_ms_property_has_set_accessor : Error<
+  "putter for property must be specified as 'put', not 'set'">;
+def err_ms_property_missing_accessor_kind : Error<
+  "missing 'get=' or 'put='">;
+def err_ms_property_expected_equal : Error<
+  "expected '=' after '%0'">;
+def err_ms_property_duplicate_accessor : Error<
+  "property declaration specifies '%0' accessor twice">;
+def err_ms_property_expected_accessor_name : Error<
+  "expected name of accessor method">;
+def err_ms_property_expected_comma_or_rparen : Error<
+  "expected ',' or ')' at end of property accessor list">;
 
 /// C++ Templates
 def err_expected_template : Error<"expected template">;
@@ -670,6 +702,8 @@ def err_duplicate_virt_specifier : Error<
 
 def err_scoped_enum_missing_identifier : Error<
   "scoped enumeration requires a name">;
+def ext_scoped_enum : ExtWarn<
+  "scoped enumerations are a C++11 extension">, InGroup<CXX11>;
 def warn_cxx98_compat_scoped_enum : Warning<
   "scoped enumerations are incompatible with C++98">,
   InGroup<CXX98Compat>, DefaultIgnore;
@@ -751,6 +785,10 @@ def warn_pragma_unused_expected_punc : Warning<
 def err_pragma_fp_contract_scope : Error<
   "'#pragma fp_contract' should only appear at file scope or at the start of a "
   "compound expression">; 
+// - #pragma comment
+def err_pragma_comment_malformed : Error<
+  "pragma comment requires parenthesized identifier and optional string">;
+def err_pragma_comment_unknown_kind : Error<"unknown kind of pragma comment">;
 
 
 // OpenCL Section 6.8.g

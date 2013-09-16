@@ -45,7 +45,7 @@ SRCS=	main.c				\
 	priv_vm_mlock.c			\
 	priv_vm_munlock.c
 
-NO_MAN=
+MAN=
 WARNS?=	3
 
 DPADD+= ${LIBIPSEC}

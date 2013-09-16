@@ -33,7 +33,12 @@ RunLoopVectorization("vectorize-loops",
                      cl::desc("Run the Loop vectorization passes"));
 
 static cl::opt<bool>
-RunBBVectorization("vectorize", cl::desc("Run the BB vectorization passes"));
+RunSLPVectorization("vectorize-slp",
+                    cl::desc("Run the SLP vectorization passes"));
+
+static cl::opt<bool>
+RunBBVectorization("vectorize-slp-aggressive",
+                    cl::desc("Run the BB vectorization passes"));
 
 static cl::opt<bool>
 UseGVNAfterVectorization("use-gvn-after-vectorization",
@@ -52,7 +57,8 @@ PassManagerBuilder::PassManagerBuilder() {
     DisableSimplifyLibCalls = false;
     DisableUnitAtATime = false;
     DisableUnrollLoops = false;
-    Vectorize = RunBBVectorization;
+    BBVectorize = RunBBVectorization;
+    SLPVectorize = RunSLPVectorization;
     LoopVectorize = RunLoopVectorization;
 }
 
@@ -207,7 +213,10 @@ void PassManagerBuilder::populateModulePassManager(PassManagerBase &MPM) {
 
   addExtensionsToPM(EP_ScalarOptimizerLate, MPM);
 
-  if (Vectorize) {
+  if (SLPVectorize)
+    MPM.add(createSLPVectorizerPass());     // Vectorize parallel scalar chains.
+
+  if (BBVectorize) {
     MPM.add(createBBVectorizePass());
     MPM.add(createInstructionCombiningPass());
     if (OptLevel > 1 && UseGVNAfterVectorization)
@@ -319,6 +328,14 @@ void PassManagerBuilder::populateLTOPassManager(PassManagerBase &PM,
 
   // Now that we have optimized the program, discard unreachable functions.
   PM.add(createGlobalDCEPass());
+}
+
+inline PassManagerBuilder *unwrap(LLVMPassManagerBuilderRef P) {
+    return reinterpret_cast<PassManagerBuilder*>(P);
+}
+
+inline LLVMPassManagerBuilderRef wrap(PassManagerBuilder *P) {
+  return reinterpret_cast<LLVMPassManagerBuilderRef>(P);
 }
 
 LLVMPassManagerBuilderRef LLVMPassManagerBuilderCreate() {

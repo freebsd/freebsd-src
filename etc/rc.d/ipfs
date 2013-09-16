@@ -23,7 +23,7 @@ ipfs_prestart()
 	if ! checkyesno ipfilter_enable -o ! checkyesno ipnat_enable ; then
 		err 1  "${name} requires either ipfilter or ipnat enabled"
 	fi
-	if ! sysctl net.inet.ipf.fr_pass >/dev/null 2>&1; then
+	if ! ${ipfilter_program:-/sbin/ipf} -V | grep -q 'Running: yes' >/dev/null 2>&1; then
 		err 1 "ipfilter module is not loaded"
 	fi
 	return 0

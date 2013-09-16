@@ -1,34 +1,41 @@
 /******************************************************************************
- * os.h
+ * amd64/xen/xen-os.h
  * 
- * random collection of macros and definition
+ * Random collection of macros and definition
+ *
+ * Copyright (c) 2003, 2004 Keir Fraser (on behalf of the Xen team)
+ * All rights reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to
+ * deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+ * sell copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+ * DEALINGS IN THE SOFTWARE.
  *
  * $FreeBSD$
  */
 
-#ifndef _XEN_OS_H_
-#define _XEN_OS_H_
+#ifndef _MACHINE_XEN_XEN_OS_H_
+#define _MACHINE_XEN_XEN_OS_H_
 
 #ifdef PAE
 #define CONFIG_X86_PAE
 #endif
 
-#if !defined(__XEN_INTERFACE_VERSION__)  
-/*  
- * Can update to a more recent version when we implement  
- * the hypercall page  
- */  
-#define  __XEN_INTERFACE_VERSION__ 0x00030204  
-#endif  
-
-#include <xen/interface/xen.h>
-
-/* Force a proper event-channel callback from Xen. */
-void force_evtchn_callback(void);
-
-extern int gdtset;
-
-extern shared_info_t *HYPERVISOR_shared_info;
+/* Everything below this point is not included by assembler (.S) files. */
+#ifndef __ASSEMBLY__
 
 /* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
 static inline void rep_nop(void)
@@ -37,165 +44,12 @@ static inline void rep_nop(void)
 }
 #define cpu_relax() rep_nop()
 
-/* crude memory allocator for memory allocation early in 
- *  boot
- */
-void *bootmem_alloc(unsigned int size);
-void bootmem_free(void *ptr, unsigned int size);
-
-
-/* Everything below this point is not included by assembler (.S) files. */
-#ifndef __ASSEMBLY__
-
-void printk(const char *fmt, ...);
-
-/* some function prototypes */
-void trap_init(void);
-
-#define likely(x)  __builtin_expect((x),1)
-#define unlikely(x)  __builtin_expect((x),0)
-
-#ifndef XENHVM
-
-/*
- * STI/CLI equivalents. These basically set and clear the virtual
- * event_enable flag in the shared_info structure. Note that when
- * the enable bit is set, there may be pending events to be handled.
- * We may therefore call into do_hypervisor_callback() directly.
- */
-
-#define __cli()                                                         \
-do {                                                                    \
-        vcpu_info_t *_vcpu;                                             \
-        _vcpu = &HYPERVISOR_shared_info->vcpu_info[PCPU_GET(cpuid)];	\
-        _vcpu->evtchn_upcall_mask = 1;                                  \
-        barrier();                                                      \
-} while (0)
-
-#define __sti()                                                         \
-do {                                                                    \
-        vcpu_info_t *_vcpu;                                             \
-        barrier();                                                      \
-        _vcpu = &HYPERVISOR_shared_info->vcpu_info[PCPU_GET(cpuid)];	\
-        _vcpu->evtchn_upcall_mask = 0;                                  \
-        barrier(); /* unmask then check (avoid races) */                \
-        if ( unlikely(_vcpu->evtchn_upcall_pending) )                   \
-                force_evtchn_callback();                                \
-} while (0)
-
-#define __restore_flags(x)                                              \
-do {                                                                    \
-        vcpu_info_t *_vcpu;                                             \
-        barrier();                                                      \
-        _vcpu = &HYPERVISOR_shared_info->vcpu_info[PCPU_GET(cpuid)];	\
-        if ((_vcpu->evtchn_upcall_mask = (x)) == 0) {                   \
-                barrier(); /* unmask then check (avoid races) */        \
-                if ( unlikely(_vcpu->evtchn_upcall_pending) )           \
-                        force_evtchn_callback();                        \
-        } 								\
-} while (0)
-
-/*
- * Add critical_{enter, exit}?
- *
- */
-#define __save_and_cli(x)                                               \
-do {                                                                    \
-        vcpu_info_t *_vcpu;                                             \
-        _vcpu = &HYPERVISOR_shared_info->vcpu_info[PCPU_GET(cpuid)];	\
-        (x) = _vcpu->evtchn_upcall_mask;                                \
-        _vcpu->evtchn_upcall_mask = 1;                                  \
-        barrier();                                                      \
-} while (0)
-
-
-#define cli() __cli()
-#define sti() __sti()
-#define save_flags(x) __save_flags(x)
-#define restore_flags(x) __restore_flags(x)
-#define save_and_cli(x) __save_and_cli(x)
-
-#define local_irq_save(x)       __save_and_cli(x)
-#define local_irq_restore(x)    __restore_flags(x)
-#define local_irq_disable()     __cli()
-#define local_irq_enable()      __sti()
-
-#define mtx_lock_irqsave(lock, x) {local_irq_save((x)); mtx_lock_spin((lock));}
-#define mtx_unlock_irqrestore(lock, x) {mtx_unlock_spin((lock)); local_irq_restore((x)); }
-#define spin_lock_irqsave mtx_lock_irqsave
-#define spin_unlock_irqrestore mtx_unlock_irqrestore
-
-#else
-#endif
-
-#ifndef mb
-#define mb() __asm__ __volatile__("mfence":::"memory")
-#endif
-#ifndef rmb
-#define rmb() __asm__ __volatile__("lfence":::"memory");
-#endif
-#ifndef wmb
-#define wmb() barrier()
-#endif
-#ifdef SMP
-#define smp_mb() mb() 
-#define smp_rmb() rmb()
-#define smp_wmb() wmb()
-#define smp_read_barrier_depends()      read_barrier_depends()
-#define set_mb(var, value) do { xchg(&var, value); } while (0)
-#else
-#define smp_mb()        barrier()
-#define smp_rmb()       barrier()
-#define smp_wmb()       barrier()
-#define smp_read_barrier_depends()      do { } while(0)
-#define set_mb(var, value) do { var = value; barrier(); } while (0)
-#endif
-
-
 /* This is a barrier for the compiler only, NOT the processor! */
 #define barrier() __asm__ __volatile__("": : :"memory")
 
 #define LOCK_PREFIX ""
 #define LOCK ""
 #define ADDR (*(volatile long *) addr)
-/*
- * Make sure gcc doesn't try to be clever and move things around
- * on us. We need to use _exactly_ the address the user gave us,
- * not some alias that contains the same information.
- */
-typedef struct { volatile int counter; } atomic_t;
-
-
-
-#define xen_xchg(ptr,v) \
-        ((__typeof__(*(ptr)))__xchg((unsigned long)(v),(ptr),sizeof(*(ptr))))
-struct __xchg_dummy { unsigned long a[100]; };
-#define __xg(x) ((volatile struct __xchg_dummy *)(x))
-static __inline unsigned long __xchg(unsigned long x, volatile void * ptr,
-                                   int size)
-{
-    switch (size) {
-    case 1:
-        __asm__ __volatile__("xchgb %b0,%1"
-                             :"=q" (x)
-                             :"m" (*__xg(ptr)), "0" (x)
-                             :"memory");
-        break;
-    case 2:
-        __asm__ __volatile__("xchgw %w0,%1"
-                             :"=r" (x)
-                             :"m" (*__xg(ptr)), "0" (x)
-                             :"memory");
-        break;
-    case 4:
-        __asm__ __volatile__("xchgl %0,%1"
-                             :"=r" (x)
-                             :"m" (*__xg(ptr)), "0" (x)
-                             :"memory");
-        break;
-    }
-    return x;
-}
 
 /**
  * test_and_clear_bit - Clear a bit and return its old value
@@ -237,7 +91,6 @@ static __inline int variable_test_bit(int nr, volatile void * addr)
  constant_test_bit((nr),(addr)) : \
  variable_test_bit((nr),(addr)))
 
-
 /**
  * set_bit - Atomically set a bit in memory
  * @nr: the bit to set
@@ -274,25 +127,6 @@ static __inline__ void clear_bit(int nr, volatile void * addr)
                 :"Ir" (nr));
 }
 
-/**
- * atomic_inc - increment atomic variable
- * @v: pointer of type atomic_t
- * 
- * Atomically increments @v by 1.  Note that the guaranteed
- * useful range of an atomic_t is only 24 bits.
- */ 
-static __inline__ void atomic_inc(atomic_t *v)
-{
-        __asm__ __volatile__(
-                LOCK "incl %0"
-                :"=m" (v->counter)
-                :"m" (v->counter));
-}
-
-
-#define rdtscll(val) \
-     __asm__ __volatile__("rdtsc" : "=A" (val))
-
 #endif /* !__ASSEMBLY__ */
 
-#endif /* _OS_H_ */
+#endif /* _MACHINE_XEN_XEN_OS_H_ */

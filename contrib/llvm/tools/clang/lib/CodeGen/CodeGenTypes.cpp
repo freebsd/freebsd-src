@@ -28,12 +28,12 @@
 using namespace clang;
 using namespace CodeGen;
 
-CodeGenTypes::CodeGenTypes(CodeGenModule &CGM)
-  : Context(CGM.getContext()), Target(Context.getTargetInfo()),
-    TheModule(CGM.getModule()), TheDataLayout(CGM.getDataLayout()),
-    TheABIInfo(CGM.getTargetCodeGenInfo().getABIInfo()),
-    TheCXXABI(CGM.getCXXABI()),
-    CodeGenOpts(CGM.getCodeGenOpts()), CGM(CGM) {
+CodeGenTypes::CodeGenTypes(CodeGenModule &cgm)
+  : CGM(cgm), Context(cgm.getContext()), TheModule(cgm.getModule()),
+    TheDataLayout(cgm.getDataLayout()),
+    Target(cgm.getTarget()), TheCXXABI(cgm.getCXXABI()),
+    CodeGenOpts(cgm.getCodeGenOpts()),
+    TheABIInfo(cgm.getTargetCodeGenInfo().getABIInfo()) {
   SkippedLayout = false;
 }
 
@@ -392,6 +392,8 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
     }
     break;
   }
+  case Type::Auto:
+    llvm_unreachable("Unexpected undeduced auto type!");
   case Type::Complex: {
     llvm::Type *EltTy = ConvertType(cast<ComplexType>(Ty)->getElementType());
     ResultType = llvm::StructType::get(EltTy, EltTy, NULL);

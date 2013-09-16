@@ -1,6 +1,6 @@
 Frequently Asked Questions about BIND 9
 
-Copyright © 2004-2010 Internet Systems Consortium, Inc. ("ISC")
+Copyright © 2004-2010, 2013 Internet Systems Consortium, Inc. ("ISC")
 
 Copyright © 2000-2003 Internet Software Consortium.
 
@@ -869,7 +869,7 @@ A: If you run Tiger(Mac OS 10.4) or later then this is all you need to do:
    Copy the key statement from /etc/rndc.conf into /etc/rndc.key, e.g.:
 
    key "rndc-key" {
-           algorithm hmac-md5;
+           algorithm hmac-sha256;
            secret "uvceheVuqf17ZwIcTydddw==";
    };
 

@@ -133,6 +133,11 @@ static int	ofw_cpu_attach(device_t);
 static int	ofw_cpu_read_ivar(device_t dev, device_t child, int index,
     uintptr_t *result);
 
+struct ofw_cpu_softc {
+	struct pcpu	*sc_cpu_pcpu;
+	uint32_t	 sc_nominal_mhz;
+};
+
 static device_method_t ofw_cpu_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ofw_cpu_probe),
@@ -153,7 +158,7 @@ static device_method_t ofw_cpu_methods[] = {
 static driver_t ofw_cpu_driver = {
 	"cpu",
 	ofw_cpu_methods,
-	0
+	sizeof(struct ofw_cpu_softc)
 };
 
 static devclass_t ofw_cpu_devclass;
@@ -175,6 +180,15 @@ ofw_cpu_probe(device_t dev)
 static int
 ofw_cpu_attach(device_t dev)
 {
+	struct ofw_cpu_softc *sc;
+	uint32_t cell;
+
+	sc = device_get_softc(dev);
+	OF_getprop(ofw_bus_get_node(dev), "reg", &cell, sizeof(cell));
+	sc->sc_cpu_pcpu = pcpu_find(cell);
+	OF_getprop(ofw_bus_get_node(dev), "clock-frequency", &cell, sizeof(cell));
+	sc->sc_nominal_mhz = cell / 1000000; /* convert to MHz */
+
 	bus_generic_probe(dev);
 	return (bus_generic_attach(dev));
 }
@@ -182,19 +196,16 @@ ofw_cpu_attach(device_t dev)
 static int
 ofw_cpu_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 {
-	uint32_t cell;
+	struct ofw_cpu_softc *sc;
+
+	sc = device_get_softc(dev);
 
 	switch (index) {
 	case CPU_IVAR_PCPU:
-		OF_getprop(ofw_bus_get_node(dev), "reg", &cell, sizeof(cell));
-		*result = (uintptr_t)(pcpu_find(cell));
+		*result = (uintptr_t)sc->sc_cpu_pcpu;
 		return (0);
 	case CPU_IVAR_NOMINAL_MHZ:
-		cell = 0;
-		OF_getprop(ofw_bus_get_node(dev), "clock-frequency",
-		    &cell, sizeof(cell));
-		cell /= 1000000; /* convert to MHz */
-		*result = (uintptr_t)(cell);
+		*result = (uintptr_t)sc->sc_nominal_mhz;
 		return (0);
 	}
 
