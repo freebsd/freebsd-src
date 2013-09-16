@@ -834,6 +834,10 @@ EMIT_ALL_OPS_N(1, uint8_t, "ldrb", "strb", "streqb")
 EMIT_ALL_OPS_N(2, uint16_t, "ldrh", "strh", "streqh")
 EMIT_ALL_OPS_N(4, uint32_t, "ldr", "str", "streq")
 
+#endif /* _KERNEL */
+
+#endif
+
 #ifndef __clang__
 __strong_reference(__sync_lock_test_and_set_1_c, __sync_lock_test_and_set_1);
 __strong_reference(__sync_lock_test_and_set_2_c, __sync_lock_test_and_set_2);
@@ -856,10 +860,6 @@ __strong_reference(__sync_fetch_and_or_4_c, __sync_fetch_and_or_4);
 __strong_reference(__sync_fetch_and_xor_1_c, __sync_fetch_and_xor_1);
 __strong_reference(__sync_fetch_and_xor_2_c, __sync_fetch_and_xor_2);
 __strong_reference(__sync_fetch_and_xor_4_c, __sync_fetch_and_xor_4);
-#endif
-
-#endif /* _KERNEL */
-
 #endif
 
 #endif /* __SYNC_ATOMICS */
