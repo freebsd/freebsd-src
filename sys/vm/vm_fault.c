@@ -333,24 +333,6 @@ RetryFault:;
 		 */
 		fs.m = vm_page_lookup(fs.object, fs.pindex);
 		if (fs.m != NULL) {
-			/* 
-			 * check for page-based copy on write.
-			 * We check fs.object == fs.first_object so
-			 * as to ensure the legacy COW mechanism is
-			 * used when the page in question is part of
-			 * a shadow object.  Otherwise, vm_page_cowfault()
-			 * removes the page from the backing object, 
-			 * which is not what we want.
-			 */
-			vm_page_lock(fs.m);
-			if ((fs.m->cow) && 
-			    (fault_type & VM_PROT_WRITE) &&
-			    (fs.object == fs.first_object)) {
-				vm_page_cowfault(fs.m);
-				unlock_and_deallocate(&fs);
-				goto RetryFault;
-			}
-
 			/*
 			 * Wait/Retry if the page is busy.  We have to do this
 			 * if the page is either exclusive or shared busy
@@ -374,7 +356,6 @@ RetryFault:;
 				 * likely to reclaim it. 
 				 */
 				vm_page_aflag_set(fs.m, PGA_REFERENCED);
-				vm_page_unlock(fs.m);
 				if (fs.object != fs.first_object) {
 					if (!VM_OBJECT_TRYWLOCK(
 					    fs.first_object)) {
@@ -400,6 +381,7 @@ RetryFault:;
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
 			}
+			vm_page_lock(fs.m);
 			vm_page_remque(fs.m);
 			vm_page_unlock(fs.m);
 
