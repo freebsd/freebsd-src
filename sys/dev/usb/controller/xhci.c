@@ -87,12 +87,18 @@
    ((struct xhci_softc *)(((uint8_t *)(bus)) - \
     ((uint8_t *)&(((struct xhci_softc *)0)->sc_bus))))
 
+static SYSCTL_NODE(_hw_usb, OID_AUTO, xhci, CTLFLAG_RW, 0, "USB XHCI");
+
+static int xhcistreams;
+SYSCTL_INT(_hw_usb_xhci, OID_AUTO, streams, CTLFLAG_RW | CTLFLAG_TUN,
+    &xhcistreams, 0, "Set to enable streams mode support");
+TUNABLE_INT("hw.usb.xhci.streams", &xhcistreams);
+
 #ifdef USB_DEBUG
 static int xhcidebug;
 static int xhciroute;
 static int xhcipolling;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, xhci, CTLFLAG_RW, 0, "USB XHCI");
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &xhcidebug, 0, "Debug level");
 TUNABLE_INT("hw.usb.xhci.debug", &xhcidebug);
@@ -1474,7 +1480,6 @@ void
 xhci_interrupt(struct xhci_softc *sc)
 {
 	uint32_t status;
-	uint32_t iman;
 
 	USB_BUS_LOCK(&sc->sc_bus);
 
@@ -1489,15 +1494,6 @@ xhci_interrupt(struct xhci_softc *sc)
 	DPRINTFN(16, "real interrupt (status=0x%08x)\n", status);
  
 	if (status & XHCI_STS_EINT) {
-
-		/* acknowledge pending event */
-		iman = XREAD4(sc, runt, XHCI_IMAN(0));
-
-		/* reset interrupt */
-		XWRITE4(sc, runt, XHCI_IMAN(0), iman);
- 
-		DPRINTFN(16, "real interrupt (iman=0x%08x)\n", iman);
- 
 		/* check for event(s) */
 		xhci_interrupt_poll(sc);
 	}
@@ -4127,7 +4123,8 @@ xhci_set_endpoint_mode(struct usb_device *udev, struct usb_endpoint *ep,
 	case USB_EP_MODE_DEFAULT:
 		return (0);
 	case USB_EP_MODE_STREAMS:
-		if ((ep->edesc->bmAttributes & UE_XFERTYPE) != UE_BULK ||
+		if (xhcistreams == 0 || 
+		    (ep->edesc->bmAttributes & UE_XFERTYPE) != UE_BULK ||
 		    udev->speed != USB_SPEED_SUPER)
 			return (USB_ERR_INVAL);
 		return (0);

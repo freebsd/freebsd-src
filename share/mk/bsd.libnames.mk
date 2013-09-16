@@ -88,7 +88,7 @@ LIBKRB5?=	${DESTDIR}${LIBDIR}/libkrb5.a
 LIBKVM?=	${DESTDIR}${LIBDIR}/libkvm.a
 LIBL?=		${DESTDIR}${LIBDIR}/libl.a
 .if ${MK_LDNS} != "no"
-LIBLDNS?=	${DESTDIR}${LIBDIR}/libldns.a
+LIBLDNS?=	${DESTDIR}${LIBPRIVATEDIR}/libldns.a
 .endif
 LIBLN?=		"don't use LIBLN, use LIBL"
 .if ${MK_BIND} != "no"
@@ -151,7 +151,7 @@ LIBRTLD_DB?=	${DESTDIR}${LIBDIR}/librtld_db.a
 LIBSBUF?=	${DESTDIR}${LIBDIR}/libsbuf.a
 LIBSDP?=	${DESTDIR}${LIBDIR}/libsdp.a
 LIBSMB?=	${DESTDIR}${LIBDIR}/libsmb.a
-LIBSSH?=	${DESTDIR}${LIBDIR}/libssh.a
+LIBSSH?=	${DESTDIR}${LIBPRIVATEDIR}/libssh.a
 LIBSSL?=	${DESTDIR}${LIBDIR}/libssl.a
 LIBSTAND?=	${DESTDIR}${LIBDIR}/libstand.a
 LIBSTDCPLUSPLUS?= ${DESTDIR}${LIBDIR}/libstdc++.a

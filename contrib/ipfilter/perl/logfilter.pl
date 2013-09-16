@@ -3,7 +3,7 @@
 # Author: Chris Grant
 # Copyright 1999, Codetalker Communications, Inc.
 #
-# This script takes a firewall log and breaks it into several 
+# This script takes a firewall log and breaks it into several
 # different files. Each file is named based on the service that
 # runs on the port that was recognized in log line. After
 # this script has run, you should end up with several files.
@@ -18,11 +18,11 @@
 #
 # You may be wondering why I haven't simply parsed RFC1700 to come up
 # with a list of port numbers and files. The reason is that I don't
-# believe reading firewall logs should be all that automated. You 
+# believe reading firewall logs should be all that automated. You
 # should be familiar with what probes are hitting your system. By
-# manually adding entries to the data section this ensures that I 
-# have at least educated myself about what this protocol is, what 
-# the potential exposure is, and why you might be seeing this traffic. 
+# manually adding entries to the data section this ensures that I
+# have at least educated myself about what this protocol is, what
+# the potential exposure is, and why you might be seeing this traffic.
 
 %icmp = ();
 %udp = ();
@@ -61,30 +61,30 @@ while($line = <LOGFILE>) {
     # determine the protocol - send to unknown.log if not found
     SWITCH: {
 
-	($line =~ m /\sicmp\s/) && do { 
+	($line =~ m /\sicmp\s/) && do {
 
 	    #
-	    # ICMP Protocol 
+	    # ICMP Protocol
 	    #
 	    # Extract the icmp packet information specifying the type.
-	    # 
+	    #
 	    # Note: Must check for ICMP first because this may be an ICMP reply
 	    #       to a TCP or UDP connection (eg Port Unreachable).
-	    
+
 	    ($icmptype) = $line =~ m/icmp (\d+)\/\d+/;
 
 	    $filename = $TIDBITSFILE;
 	    $filename = $icmp{$icmptype} if (defined($icmp{$icmptype}));
 
-	    last SWITCH; 
+	    last SWITCH;
 	  };
 
-	($line =~ m /\stcp\s/) && do { 
+	($line =~ m /\stcp\s/) && do {
 
-	    # 
+	    #
 	    # TCP Protocol
 	    #
-	    # extract the source and destination ports and compare them to 
+	    # extract the source and destination ports and compare them to
 	    # known ports in the tcp hash. For the first match, place this
 	    # line in the file specified by the tcp hash. Ignore one of the
 	    # port matches if both ports happen to be known services.
@@ -96,14 +96,14 @@ while($line = <LOGFILE>) {
 	    $filename = $tcp{$sport} if (defined($tcp{$sport}));
 	    $filename = $tcp{$dport} if (defined($tcp{$dport}));
 
-	    last SWITCH; 
+	    last SWITCH;
 	  };
 
-	($line =~ m /\sudp\s/) && do { 
+	($line =~ m /\sudp\s/) && do {
 
 	    #
 	    # UDP Protocol - same procedure as with TCP, different hash
-	    # 
+	    #
 
 	    ($sport, $dport) = $line =~ m/\d+\.\d+\.\d+\.\d+,(\d+) -> \d+\.\d+\.\d+\.\d+,(\d+)/;
 
@@ -111,7 +111,7 @@ while($line = <LOGFILE>) {
 	    $filename = $udp{$sport} if (defined($udp{$sport}));
 	    $filename = $udp{$dport} if (defined($udp{$dport}));
 
-	    last SWITCH; 
+	    last SWITCH;
 	  };
 
 	#
@@ -126,7 +126,7 @@ while($line = <LOGFILE>) {
     # check for filename in the openfiles hash. if it exists then write
     # to the given handle. otherwise open a handle to the file and add
     # it to the hash of open files.
-    
+
     if (defined($openfiles{$filename})) {
 	$handle = $openfiles{$filename};
     } else {

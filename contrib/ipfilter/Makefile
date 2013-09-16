@@ -1,5 +1,5 @@
 #
-# Copyright (C) 1993-2001 by Darren Reed.
+# Copyright (C) 2012 by Darren Reed.
 #
 # Redistribution and use in source and binary forms are permitted
 # provided that this notice is preserved and due credit is given
@@ -13,8 +13,7 @@ BINDEST=/usr/local/bin
 SBINDEST=/sbin
 MANDIR=/usr/local/man
 #To test prototyping
-#CC=gcc -Wstrict-prototypes -Wmissing-prototypes
-# -Wunused -Wuninitialized
+CC=gcc -Wstrict-prototypes -Wmissing-prototypes -Wunused -Wuninitialized
 #CC=gcc
 #CC=cc -Dconst=
 DEBUG=-g
@@ -36,13 +35,13 @@ IPFLOG=-DIPFILTER_LOG
 #
 #COMPIPF=-DIPFILTER_COMPILED
 #
+# To enable IPFilter compatibility with older CLI utilities
+#
+#COMPATIPF=-DIPFILTER_COMPAT
+#
 # To enable synchronisation between IPFilter hosts
 #
 #SYNC=-DIPFILTER_SYNC
-#
-# To enable extended IPFilter functionality
-#
-LOOKUP=-DIPFILTER_LOOKUP -DIPFILTER_SCAN
 #
 # The facility you wish to log messages from ipmon to syslogd with.
 #
@@ -65,22 +64,27 @@ LOGFAC=-DLOGFAC=LOG_SECURITY
 # By default IPFilter looks for /usr/src/linux, but you may have to change
 # it to /usr/src/linux-2.4 or similar.
 #
-LINUXKERNEL=/usr/src/linux
+LINUXKERNEL=/usr/src/kernels/2.6.29.5-191.fc11.i586
 LINUX=`uname -r | awk -F. ' { printf"%d",$$1;for(i=1;i<NF&&i<3;i++){printf("%02d",$$(i+1));}}'`
+#
+#
+#
+#BUILDROOT=/usr/src/redhat/BUILD/ipfilter
+BUILDROOT=${HOME}/rpmbuild/BUILDROOT/ipfilter-4.1.32-1.i386
 
 #
 # All of the compile-time options are here, used for compiling the userland
 # tools for regression testing.  Well, all except for IPFILTER_LKM, of course.
 #
 ALLOPTS=-DIPFILTER_LOG -DIPFILTER_LOOKUP \
-        -DIPFILTER_SCAN -DIPFILTER_SYNC -DIPFILTER_CKSUM
+        -DIPFILTER_SYNC -DIPFILTER_CKSUM
 
 #
 # Uncomment the next 3 lines if you want to view the state table a la top(1)
 # (requires that you have installed ncurses).
 #STATETOP_CFLAGS=-DSTATETOP
 #
-# Where to find the ncurses include files (if not in default path), 
+# Where to find the ncurses include files (if not in default path),
 #
 #STATETOP_INC=
 #STATETOP_INC=-I/usr/local/include
@@ -93,7 +97,7 @@ ALLOPTS=-DIPFILTER_LOG -DIPFILTER_LOOKUP \
 #
 # Uncomment this when building IPv6 capability.
 #
-#INET6=-DUSE_INET6
+INET6=-DUSE_INET6
 #
 # For packets which don't match any pass rules or any block rules, set either
 # FR_PASS or FR_BLOCK (respectively).  It defaults to FR_PASS if left
@@ -110,6 +114,7 @@ MFLAGS1='CFLAGS=$(CFLAGS) $(ARCHINC) $(SOLARIS2) $(SGIREV) $(INET6)' \
         'STATETOP_CFLAGS=$(STATETOP_CFLAGS)' "BPFILTER=$(BPFILTER)" \
         'STATETOP_INC=$(STATETOP_INC)' 'STATETOP_LIB=$(STATETOP_LIB)' \
 	"BITS=$(BITS)" "OBJ=$(OBJ)" "LOOKUP=$(LOOKUP)" "COMPIPF=$(COMPIPF)" \
+	"COMPATIPF=$(COMPATIPF)" \
 	'SYNC=$(SYNC)' 'ALLOPTS=$(ALLOPTS)' 'LIBBPF=$(LIBBPF)'
 MFLAGS=$(MFLAGS1) "IPFLKM=$(IPFLKM)"
 MACHASSERT=`/bin/ls -1 /usr/sys/*/mach_assert.h | head -1`
@@ -156,10 +161,6 @@ include:
 		touch netinet/done; \
 	fi
 	-(cd netinet; ln -s ../ip_rules.h ip_rules.h)
-	if [ ! -f net/done ] ; then \
-		(cd net; ln -s ../radix_ipf.h .; ); \
-		touch net/done; \
-	fi
 
 sunos solaris: include
 	MAKE="$(MAKE)" MAKEFLAGS="$(MAKEFLAGS)" BPFILTER=$(BPFILTER) \
@@ -189,7 +190,7 @@ freebsd22: include
 	fi
 	make freebsd20
 
-freebsd5 freebsd6 freebsd7: include
+freebsd5 freebsd6 freebsd7 freebsd8: include
 	if [ x$(INET6) = x ] ; then \
 		echo "#undef INET6" > opt_inet6.h; \
 	else \
@@ -212,7 +213,7 @@ freebsd5 freebsd6 freebsd7: include
 
 	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
 	(cd BSD/$(CPUDIR); make build TOP=../.. $(MFLAGS) "ML=mlfk_ipl.c" "MLD=mlfk_ipl.c" "LKM=ipf.ko.5" "LKMR=ipfrule.ko.5" "DLKM=-DKLD_MODULE" "MLR=mlfk_rule.o"; cd ..)
-	(cd BSD/$(CPUDIR); make -f Makefile.ipsend build TOP=../.. $(MFLAGS1); cd ..)
+#	(cd BSD/$(CPUDIR); make -f Makefile.ipsend build TOP=../.. $(MFLAGS1); cd ..)
 
 freebsd4 : include
 	if [ x$(INET6) = x ] ; then \
@@ -241,7 +242,7 @@ netbsd: include
 		exit 1; \
 	fi
 	(cd BSD/$(CPUDIR); make build TOP=../.. $(MFLAGS) 'DLKM=-D_LKM' "ML=mln_ipl.c" LKMR= "MLR=mln_rule.o"; cd ..)
-	(cd BSD/$(CPUDIR); make -f Makefile.ipsend build TOP=../.. $(MFLAGS); cd ..)
+#	(cd BSD/$(CPUDIR); make -f Makefile.ipsend build TOP=../.. $(MFLAGS); cd ..)
 
 openbsd: include
 	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
@@ -294,7 +295,7 @@ setup:
 
 clean: clean-include
 	/bin/rm -rf h y.output
-	${RM} -f core *.o ipt fils ipf ipfstat ipftest ipmon if_ipl \
+	${RM} -f core *.o ipt fils ipf ipfstat ipftest ipmon if_ipl ipflkm \
 	vnode_if.h $(LKM) *~
 	/bin/rm -rf sparcv7 sparcv9 mdbgen_build
 	(cd SunOS4; $(MAKE) TOP=.. clean)
@@ -352,7 +353,7 @@ sunos4 solaris1:
 	(cd SunOS4; make -f Makefile.ipsend build "CC=$(CC)" TOP=.. $(DEST) $(MFLAGS); cd ..)
 
 sunos5 solaris2: null
-	(cd SunOS5/$(CPUDIR); $(MAKE) build TOP=../.. "CC=$(CC)" $(DEST) $(MFLAGS) "SOLARIS2=$(SOLARIS2)"; cd ..)
+	(cd SunOS5/$(CPUDIR); $(MAKE) build TOP=../.. "CC=$(CC)" $(DEST) $(MFLAGS) "SOLARIS2=$(SOLARIS2)" INSTANCE=$(INSTANCE); cd ..)
 	(cd SunOS5/$(CPUDIR); $(MAKE) -f Makefile.ipsend build TOP=../.. "CC=$(CC)" $(DEST) $(MFLAGS); cd ..)
 
 linux: include
@@ -361,7 +362,7 @@ linux: include
 #	(cd Linux; make -f Makefile.ipsend build LINUX=$(LINUX) TOP=.. "CC=$(CC)" $(MFLAGS); cd ..)
 
 install-linux: linux
-	(cd Linux/; make LINUX=$(LINUX) TOP=.. "DEBUG=-g" "CC=$(CC)" $(MFLAGS) OBJ=$(CPUDIR) install ; cd ..)
+	(cd Linux/; make LINUX=$(LINUX) TOP=.. "DEBUG=-g" "CC=$(CC)" $(MFLAGS) OBJ=$(CPUDIR) ROOTDIR=$(BUILDROOT) install ; cd ..)
 
 install-bsd:
 	(cd BSD/$(CPUDIR); make install "TOP=../.." $(MFLAGS); cd ..)
@@ -407,4 +408,3 @@ mdb:
 	       -DIPFILTER_SCAN -DIPFILTER_LKM -DSOLARIS2=10 -n ipf_mdb -k \
 	       -I/home/dr146992/pfil -I/home/dr146992/ipf -f \
 	       /usr/include/netinet/in_systm.h,/usr/include/sys/ethernet.h,/usr/include/netinet/in.h,/usr/include/netinet/ip.h,/usr/include/netinet/ip_var.h,/usr/include/netinet/tcp.h,/usr/include/netinet/tcpip.h,/usr/include/netinet/ip_icmp.h,/usr/include/netinet/udp.h,ip_compat.h,ip_fil.h,ip_nat.h,ip_state.h,ip_proxy.h,ip_scan.h
-
