@@ -1446,7 +1446,6 @@ void
 xhci_interrupt(struct xhci_softc *sc)
 {
 	uint32_t status;
-	uint32_t iman;
 
 	USB_BUS_LOCK(&sc->sc_bus);
 
@@ -1461,15 +1460,6 @@ xhci_interrupt(struct xhci_softc *sc)
 	DPRINTFN(16, "real interrupt (status=0x%08x)\n", status);
  
 	if (status & XHCI_STS_EINT) {
-
-		/* acknowledge pending event */
-		iman = XREAD4(sc, runt, XHCI_IMAN(0));
-
-		/* reset interrupt */
-		XWRITE4(sc, runt, XHCI_IMAN(0), iman);
- 
-		DPRINTFN(16, "real interrupt (iman=0x%08x)\n", iman);
- 
 		/* check for event(s) */
 		xhci_interrupt_poll(sc);
 	}
