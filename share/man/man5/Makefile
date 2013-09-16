@@ -25,7 +25,6 @@ MAN=	acct.5 \
 	fbtab.5 \
 	fdescfs.5 \
 	forward.5 \
-	freebsd-update.conf.5 \
 	fs.5 \
 	fstab.5 \
 	group.5 \
@@ -79,6 +78,10 @@ MLINKS+=passwd.5 master.passwd.5
 MLINKS+=quota.user.5 quota.group.5
 MLINKS+=rc.conf.5 rc.conf.local.5
 MLINKS+=resolver.5 resolv.conf.5
+
+.if ${MK_FREEBSD_UPDATE} != "no"
+MAN+=	freebsd-update.conf.5
+.endif
 
 .if ${MK_HESIOD} != "no"
 MAN+=	hesiod.conf.5 
