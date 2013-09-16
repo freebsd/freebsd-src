@@ -844,11 +844,11 @@ _bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
 		     bus_dma_segment_t *segs, int nsegs, int error)
 {
 
+	map->nsegs = nsegs;
 	if (segs != NULL)
 		memcpy(map->segments, segs, map->nsegs*sizeof(segs[0]));
 	else
 		segs = map->segments;
-	map->nsegs = nsegs;
 	if (dmat->iommu != NULL)
 		IOMMU_MAP(dmat->iommu, map->segments, &map->nsegs,
 		    dmat->lowaddr, dmat->highaddr, dmat->alignment,
