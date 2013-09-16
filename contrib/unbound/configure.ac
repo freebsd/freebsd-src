@@ -1244,6 +1244,6 @@ void *unbound_stat_realloc_log(void *ptr, size_t size, const char* file,
 
 ])
 
-AC_CONFIG_FILES([Makefile doc/example.conf doc/libunbound.3 doc/unbound.8 doc/unbound-anchor.8 doc/unbound-checkconf.8 doc/unbound.conf.5 doc/unbound-control.8])
+AC_CONFIG_FILES([Makefile doc/example.conf doc/libunbound.3 doc/unbound.8 doc/unbound-anchor.8 doc/unbound-checkconf.8 doc/unbound.conf.5 doc/unbound-control.8 smallapp/unbound-control-setup.sh])
 AC_CONFIG_HEADER([config.h])
 AC_OUTPUT

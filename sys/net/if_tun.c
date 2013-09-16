@@ -552,10 +552,6 @@ tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		tuninit(ifp);
 		TUNDEBUG(ifp, "address set\n");
 		break;
-	case SIOCSIFDSTADDR:
-		tuninit(ifp);
-		TUNDEBUG(ifp, "destination address set\n");
-		break;
 	case SIOCSIFMTU:
 		ifp->if_mtu = ifr->ifr_mtu;
 		TUNDEBUG(ifp, "mtu set\n");

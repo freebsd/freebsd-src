@@ -159,7 +159,7 @@ int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
 
 #include <machine/vmm_instruction_emul.h>
 
-#define	VM_MAXCPU	8			/* maximum virtual cpus */
+#define	VM_MAXCPU	16			/* maximum virtual cpus */
 
 /*
  * Identifiers for events that can be injected into the VM

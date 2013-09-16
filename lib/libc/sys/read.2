@@ -28,7 +28,7 @@
 .\"     @(#)read.2	8.4 (Berkeley) 2/26/94
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2012
+.Dd September 11, 2013
 .Dt READ 2
 .Os
 .Sh NAME
@@ -43,14 +43,14 @@
 .In sys/types.h
 .In unistd.h
 .Ft ssize_t
-.Fn read "int d" "void *buf" "size_t nbytes"
+.Fn read "int fd" "void *buf" "size_t nbytes"
 .Ft ssize_t
-.Fn pread "int d" "void *buf" "size_t nbytes" "off_t offset"
+.Fn pread "int fd" "void *buf" "size_t nbytes" "off_t offset"
 .In sys/uio.h
 .Ft ssize_t
-.Fn readv "int d" "const struct iovec *iov" "int iovcnt"
+.Fn readv "int fd" "const struct iovec *iov" "int iovcnt"
 .Ft ssize_t
-.Fn preadv "int d" "const struct iovec *iov" "int iovcnt" "off_t offset"
+.Fn preadv "int fd" "const struct iovec *iov" "int iovcnt" "off_t offset"
 .Sh DESCRIPTION
 The
 .Fn read
@@ -58,7 +58,7 @@ system call
 attempts to read
 .Fa nbytes
 of data from the object referenced by the descriptor
-.Fa d
+.Fa fd
 into the buffer pointed to by
 .Fa buf .
 The
@@ -107,7 +107,7 @@ On objects capable of seeking, the
 .Fn read
 starts at a position
 given by the pointer associated with
-.Fa d
+.Fa fd
 (see
 .Xr lseek 2 ) .
 Upon return from
@@ -149,12 +149,12 @@ will succeed unless:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The
-.Fa d
+.Fa fd
 argument
 is not a valid file or socket descriptor open for reading.
 .It Bq Er ECONNRESET
 The
-.Fa d
+.Fa fd
 argument refers to a socket, and the remote socket end is
 forcibly closed.
 .It Bq Er EFAULT
@@ -173,7 +173,7 @@ was interrupted by the delivery of a signal
 before any data arrived.
 .It Bq Er EINVAL
 The pointer associated with
-.Fa d
+.Fa fd
 was negative.
 .It Bq Er EAGAIN
 The file was marked for non-blocking I/O,

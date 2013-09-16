@@ -444,22 +444,12 @@ max_dsgl_nsegs(int tx_credits)
 
 static inline void
 write_tx_wr(void *dst, struct toepcb *toep, unsigned int immdlen,
-    unsigned int plen, uint8_t credits, int more_to_come)
+    unsigned int plen, uint8_t credits, int shove)
 {
 	struct fw_ofld_tx_data_wr *txwr = dst;
-	int shove = !more_to_come;
-	int compl = 1;
-
-	/*
-	 * We always request completion notifications from the firmware.  The
-	 * only exception is when we know we'll get more data to send shortly
-	 * and that we'll have some tx credits remaining to transmit that data.
-	 */
-	if (more_to_come && toep->tx_credits - credits >= MIN_OFLD_TX_CREDITS)
-		compl = 0;
 
 	txwr->op_to_immdlen = htobe32(V_WR_OP(FW_OFLD_TX_DATA_WR) |
-	    V_FW_WR_COMPL(compl) | V_FW_WR_IMMDLEN(immdlen));
+	    V_FW_WR_IMMDLEN(immdlen));
 	txwr->flowid_len16 = htobe32(V_FW_WR_FLOWID(toep->tid) |
 	    V_FW_WR_LEN16(credits));
 	txwr->tunnel_to_proxy =
@@ -529,19 +519,26 @@ write_tx_sgl(void *dst, struct mbuf *start, struct mbuf *stop, int nsegs, int n)
  * The socket's so_snd buffer consists of a stream of data starting with sb_mb
  * and linked together with m_next.  sb_sndptr, if set, is the last mbuf that
  * was transmitted.
+ *
+ * drop indicates the number of bytes that should be dropped from the head of
+ * the send buffer.  It is an optimization that lets do_fw4_ack avoid creating
+ * contention on the send buffer lock (before this change it used to do
+ * sowwakeup and then t4_push_frames right after that when recovering from tx
+ * stalls).  When drop is set this function MUST drop the bytes and wake up any
+ * writers.
  */
 static void
-t4_push_frames(struct adapter *sc, struct toepcb *toep)
+t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 {
 	struct mbuf *sndptr, *m, *sb_sndptr;
 	struct fw_ofld_tx_data_wr *txwr;
 	struct wrqe *wr;
-	unsigned int plen, nsegs, credits, max_imm, max_nsegs, max_nsegs_1mbuf;
+	u_int plen, nsegs, credits, max_imm, max_nsegs, max_nsegs_1mbuf;
 	struct inpcb *inp = toep->inp;
 	struct tcpcb *tp = intotcpcb(inp);
 	struct socket *so = inp->inp_socket;
 	struct sockbuf *sb = &so->so_snd;
-	int tx_credits;
+	int tx_credits, shove, compl, space, sowwakeup;
 	struct ofld_tx_sdesc *txsd = &toep->txsd[toep->txsd_pidx];
 
 	INP_WLOCK_ASSERT(inp);
@@ -557,8 +554,11 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep)
 	 * This function doesn't resume by itself.  Someone else must clear the
 	 * flag and call this function.
 	 */
-	if (__predict_false(toep->flags & TPF_TX_SUSPENDED))
+	if (__predict_false(toep->flags & TPF_TX_SUSPENDED)) {
+		KASSERT(drop == 0,
+		    ("%s: drop (%d) != 0 but tx is suspended", __func__, drop));
 		return;
+	}
 
 	do {
 		tx_credits = min(toep->tx_credits, MAX_OFLD_TX_CREDITS);
@@ -566,6 +566,11 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep)
 		max_nsegs = max_dsgl_nsegs(tx_credits);
 
 		SOCKBUF_LOCK(sb);
+		sowwakeup = drop;
+		if (drop) {
+			sbdrop_locked(sb, drop);
+			drop = 0;
+		}
 		sb_sndptr = sb->sb_sndptr;
 		sndptr = sb_sndptr ? sb_sndptr->m_next : sb->sb_mb;
 		plen = 0;
@@ -584,7 +589,11 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep)
 				if (plen == 0) {
 					/* Too few credits */
 					toep->flags |= TPF_TX_SUSPENDED;
-					SOCKBUF_UNLOCK(sb);
+					if (sowwakeup)
+						sowwakeup_locked(so);
+					else
+						SOCKBUF_UNLOCK(sb);
+					SOCKBUF_UNLOCK_ASSERT(sb);
 					return;
 				}
 				break;
@@ -601,23 +610,32 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep)
 			}
 		}
 
+		shove = m == NULL && !(tp->t_flags & TF_MORETOCOME);
+		space = sbspace(sb);
+
+		if (space <= sb->sb_hiwat * 3 / 8 &&
+		    toep->plen_nocompl + plen >= sb->sb_hiwat / 4)
+			compl = 1;
+		else
+			compl = 0;
+
 		if (sb->sb_flags & SB_AUTOSIZE &&
 		    V_tcp_do_autosndbuf &&
 		    sb->sb_hiwat < V_tcp_autosndbuf_max &&
-		    sbspace(sb) < sb->sb_hiwat / 8 * 7) {
+		    space < sb->sb_hiwat / 8) {
 			int newsize = min(sb->sb_hiwat + V_tcp_autosndbuf_inc,
 			    V_tcp_autosndbuf_max);
 
 			if (!sbreserve_locked(sb, newsize, so, NULL))
 				sb->sb_flags &= ~SB_AUTOSIZE;
-			else {
-				sowwakeup_locked(so);	/* room available */
-				SOCKBUF_UNLOCK_ASSERT(sb);
-				goto unlocked;
-			}
+			else
+				sowwakeup = 1;	/* room available */
 		}
-		SOCKBUF_UNLOCK(sb);
-unlocked:
+		if (sowwakeup)
+			sowwakeup_locked(so);
+		else
+			SOCKBUF_UNLOCK(sb);
+		SOCKBUF_UNLOCK_ASSERT(sb);
 
 		/* nothing to send */
 		if (plen == 0) {
@@ -642,9 +660,9 @@ unlocked:
 			}
 			txwr = wrtod(wr);
 			credits = howmany(wr->wr_len, 16);
-			write_tx_wr(txwr, toep, plen, plen, credits,
-			    tp->t_flags & TF_MORETOCOME);
+			write_tx_wr(txwr, toep, plen, plen, credits, shove);
 			m_copydata(sndptr, 0, plen, (void *)(txwr + 1));
+			nsegs = 0;
 		} else {
 			int wr_len;
 
@@ -660,8 +678,7 @@ unlocked:
 			}
 			txwr = wrtod(wr);
 			credits = howmany(wr_len, 16);
-			write_tx_wr(txwr, toep, 0, plen, credits,
-			    tp->t_flags & TF_MORETOCOME);
+			write_tx_wr(txwr, toep, 0, plen, credits, shove);
 			write_tx_sgl(txwr + 1, sndptr, m, nsegs,
 			    max_nsegs_1mbuf);
 			if (wr_len & 0xf) {
@@ -675,6 +692,17 @@ unlocked:
 			("%s: not enough credits", __func__));
 
 		toep->tx_credits -= credits;
+		toep->tx_nocompl += credits;
+		toep->plen_nocompl += plen;
+		if (toep->tx_credits <= toep->tx_total * 3 / 8 &&
+		    toep->tx_nocompl >= toep->tx_total / 4)
+			compl = 1;
+
+		if (compl) {
+			txwr->op_to_immdlen |= htobe32(F_FW_WR_COMPL);
+			toep->tx_nocompl = 0;
+			toep->plen_nocompl = 0;
+		}
 
 		tp->snd_nxt += plen;
 		tp->snd_max += plen;
@@ -685,6 +713,8 @@ unlocked:
 		SOCKBUF_UNLOCK(sb);
 
 		toep->flags |= TPF_TX_DATA_SENT;
+		if (toep->tx_credits < MIN_OFLD_TX_CREDITS)
+			toep->flags |= TPF_TX_SUSPENDED;
 
 		KASSERT(toep->txsd_avail > 0, ("%s: no txsd", __func__));
 		txsd->plen = plen;
@@ -718,7 +748,7 @@ t4_tod_output(struct toedev *tod, struct tcpcb *tp)
 	    ("%s: inp %p dropped.", __func__, inp));
 	KASSERT(toep != NULL, ("%s: toep is NULL", __func__));
 
-	t4_push_frames(sc, toep);
+	t4_push_frames(sc, toep, 0);
 
 	return (0);
 }
@@ -738,7 +768,8 @@ t4_send_fin(struct toedev *tod, struct tcpcb *tp)
 	KASSERT(toep != NULL, ("%s: toep is NULL", __func__));
 
 	toep->flags |= TPF_SEND_FIN;
-	t4_push_frames(sc, toep);
+	if (tp->t_state >= TCPS_ESTABLISHED)
+		t4_push_frames(sc, toep, 0);
 
 	return (0);
 }
@@ -1369,7 +1400,16 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		}
 	}
 
-	if (plen > 0) {
+	if (toep->tx_credits == toep->tx_total) {
+		toep->tx_nocompl = 0;
+		toep->plen_nocompl = 0;
+	}
+
+	if (toep->flags & TPF_TX_SUSPENDED &&
+	    toep->tx_credits >= toep->tx_total / 4) {
+		toep->flags &= ~TPF_TX_SUSPENDED;
+		t4_push_frames(sc, toep, plen);
+	} else if (plen > 0) {
 		struct sockbuf *sb = &so->so_snd;
 
 		SOCKBUF_LOCK(sb);
@@ -1378,14 +1418,6 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		SOCKBUF_UNLOCK_ASSERT(sb);
 	}
 
-	/* XXX */
-	if ((toep->flags & TPF_TX_SUSPENDED &&
-	    toep->tx_credits >= MIN_OFLD_TX_CREDITS) ||
-	    toep->tx_credits == toep->txsd_total *
-	    howmany((sizeof(struct fw_ofld_tx_data_wr) + 1), 16)) {
-		toep->flags &= ~TPF_TX_SUSPENDED;
-		t4_push_frames(sc, toep);
-	}
 	INP_WUNLOCK(inp);
 
 	return (0);

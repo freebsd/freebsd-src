@@ -388,8 +388,10 @@
 #define NT_PRPSINFO	3		/* Contains copy of prpsinfo struct */
 #define NT_TASKSTRUCT	4		/* Contains copy of task struct */
 #define NT_AUXV		6		/* Contains copy of Elfxx_auxv_t */
+#define NT_FILE		0x46494c45
 #define NT_PRXFPREG	0x46e62b7f	/* Contains a user_xfpregs_struct; */
 					/*   note name must be "LINUX".  */
+#define NT_SIGINFO	0x53494749
 
 /* Note segments for core files on dir-style procfs systems.  */
 
@@ -434,6 +436,9 @@
 #define GNU_ABI_TAG_SOLARIS	2
 #define GNU_ABI_TAG_FREEBSD	3
 #define GNU_ABI_TAG_NETBSD	4
+
+/* Values for GNU .note.gnu.build-id notes.  Note name is "GNU"." */
+#define NT_GNU_BUILD_ID		3
 
 /* Values for NetBSD .note.netbsd.ident notes.  Note name is "NetBSD".  */
 

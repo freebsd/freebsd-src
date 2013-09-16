@@ -1,0 +1,85 @@
+%{
+/*-
+ * Copyright (c) 2012 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * This software was developed by Edward Tomasz Napierala under sponsorship
+ * from the FreeBSD Foundation.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
+#include "ctld.h"
+#include "y.tab.h"
+
+int lineno;
+
+#define	YY_DECL int yylex(void)
+extern int	yylex(void);
+
+%}
+
+%option noinput
+%option nounput
+
+%%
+alias			{ return ALIAS; }
+auth-group		{ return AUTH_GROUP; }
+backend			{ return BACKEND; }
+blocksize		{ return BLOCKSIZE; }
+chap			{ return CHAP; }
+chap-mutual		{ return CHAP_MUTUAL; }
+debug			{ return DEBUG; }
+device-id		{ return DEVICE_ID; }
+discovery-auth-group	{ return DISCOVERY_AUTH_GROUP; }
+listen			{ return LISTEN; }
+listen-iser		{ return LISTEN_ISER; }
+lun			{ return LUN; }
+maxproc			{ return MAXPROC; }
+option			{ return OPTION; }
+path			{ return PATH; }
+pidfile			{ return PIDFILE; }
+portal-group		{ return PORTAL_GROUP; }
+serial			{ return SERIAL; }
+size			{ return SIZE; }
+target			{ return TARGET; }
+timeout			{ return TIMEOUT; }
+[0-9]+[kKmMgGtTpPeE]?	{ if (expand_number(yytext, &yylval.num) == 0)
+				return NUM;
+			  else
+				return STR;
+			}
+\"[^"]+\"		{ yylval.str = strndup(yytext + 1,
+			    strlen(yytext) - 2); return STR; }
+[a-zA-Z0-9\.\-_/\:\[\]]+ { yylval.str = strdup(yytext); return STR; }
+\{			{ return OPENING_BRACKET; }
+\}			{ return CLOSING_BRACKET; }
+#.*$			/* ignore comments */;
+\n			{ lineno++; }
+[ \t]+			/* ignore whitespace */;
+%%

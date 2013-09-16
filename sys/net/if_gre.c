@@ -534,8 +534,6 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
 		break;
-	case SIOCSIFDSTADDR:
-		break;
 	case SIOCSIFFLAGS:
 		/*
 		 * XXXRW: Isn't this priv_check() redundant to the ifnet

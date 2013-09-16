@@ -281,7 +281,6 @@ vm_create(const char *name, struct vm **retvm)
 	int i;
 	struct vm *vm;
 	struct vmspace *vmspace;
-	vm_paddr_t maxaddr;
 
 	const int BSP = 0;
 
@@ -308,8 +307,6 @@ vm_create(const char *name, struct vm **retvm)
 		guest_msrs_init(vm, i);
 	}
 
-	maxaddr = vmm_mem_maxaddr();
-	vm->iommu = iommu_create_domain(maxaddr);
 	vm_activate_cpu(vm, BSP);
 	vm->vmspace = vmspace;
 
@@ -334,6 +331,8 @@ vm_destroy(struct vm *vm)
 
 	ppt_unassign_all(vm);
 
+	KASSERT(vm->iommu == NULL, ("vm_destroy: iommu should be NULL"));
+
 	for (i = 0; i < vm->num_mem_segs; i++)
 		vm_free_mem_seg(vm, &vm->mem_segs[i]);
 
@@ -341,8 +340,6 @@ vm_destroy(struct vm *vm)
 
 	for (i = 0; i < VM_MAXCPU; i++)
 		vcpu_cleanup(&vm->vcpu[i]);
-
-	iommu_destroy_domain(vm->iommu);
 
 	VMSPACE_FREE(vm->vmspace);
 
@@ -567,6 +564,8 @@ vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func)
 	if (ppt_num_devices(vm) == 0) {
 		vm_iommu_unmap(vm);
 		vm_gpa_unwire(vm);
+		iommu_destroy_domain(vm->iommu);
+		vm->iommu = NULL;
 	}
 	return (0);
 }
@@ -575,6 +574,7 @@ int
 vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
 {
 	int error;
+	vm_paddr_t maxaddr;
 
 	/*
 	 * Virtual machines with pci passthru devices get special treatment:
@@ -584,6 +584,11 @@ vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
 	 * We need to do this before the first pci passthru device is attached.
 	 */
 	if (ppt_num_devices(vm) == 0) {
+		KASSERT(vm->iommu == NULL,
+			("vm_assign_pptdev: iommu must be NULL"));
+		maxaddr = vmm_mem_maxaddr();
+		vm->iommu = iommu_create_domain(maxaddr);
+
 		error = vm_gpa_wire(vm);
 		if (error)
 			return (error);

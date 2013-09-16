@@ -83,7 +83,7 @@ vmm_mmio_alloc(struct vmspace *vmspace, vm_paddr_t gpa, size_t len,
 			panic("vmm_mmio_alloc: vm_object_set_memattr error %d",
 				error);
 		}
-		error = vm_map_find(&vmspace->vm_map, obj, 0, &gpa, len,
+		error = vm_map_find(&vmspace->vm_map, obj, 0, &gpa, len, 0,
 				    VMFS_NO_SPACE, VM_PROT_RW, VM_PROT_RW, 0);
 		if (error != KERN_SUCCESS) {
 			vm_object_deallocate(obj);
@@ -128,7 +128,7 @@ vmm_mem_alloc(struct vmspace *vmspace, vm_paddr_t gpa, size_t len)
 
 	obj = vm_object_allocate(OBJT_DEFAULT, len >> PAGE_SHIFT);
 	if (obj != NULL) {
-		error = vm_map_find(&vmspace->vm_map, obj, 0, &gpa, len,
+		error = vm_map_find(&vmspace->vm_map, obj, 0, &gpa, len, 0,
 				    VMFS_NO_SPACE, VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (error != KERN_SUCCESS) {
 			vm_object_deallocate(obj);

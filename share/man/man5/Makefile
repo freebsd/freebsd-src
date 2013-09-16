@@ -26,7 +26,6 @@ MAN=	acct.5 \
 	fbtab.5 \
 	fdescfs.5 \
 	forward.5 \
-	freebsd-update.conf.5 \
 	fs.5 \
 	fstab.5 \
 	group.5 \
@@ -85,6 +84,10 @@ MLINKS+=resolver.5 resolv.conf.5
 ATF=			${.CURDIR}/../../../contrib/atf
 .PATH:			${ATF}/doc
 _atf_formats.5=		atf-formats.5
+.endif
+
+.if ${MK_FREEBSD_UPDATE} != "no"
+MAN+=	freebsd-update.conf.5
 .endif
 
 .if ${MK_HESIOD} != "no"
