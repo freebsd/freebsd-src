@@ -2999,7 +2999,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* cap_enter */
+	/* freebsd32_cap_enter */
 	case 516: {
 		*n_args = 0;
 		break;
@@ -8275,7 +8275,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* cap_enter */
+	/* freebsd32_cap_enter */
 	case 516:
 		break;
 	/* cap_getmode */
@@ -10522,7 +10522,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* cap_enter */
+	/* freebsd32_cap_enter */
 	case 516:
 	/* cap_getmode */
 	case 517:
