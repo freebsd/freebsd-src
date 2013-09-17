@@ -7,10 +7,11 @@ SUBDIR=	APPLE AST BIG5 CNS CP EBCDIC GB GEORGIAN ISO646 ISO-8859 JIS \
 	KAZAKH KOI KS MISC TCVN
 
 mapper.dir: ${SUBDIR}
-	> ${.TARGET}
-.for i in ${SUBDIR}
-	cat ${i}/mapper.dir.${i} >> ${.TARGET}
-.endfor
+	newfile=$$(for i in ${SUBDIR}; do \
+		cat $$i/mapper.dir.$$i; \
+	done); \
+	[ "$$newfile" = "$$(cat ${.TARGET} 2>/dev/null)" ] || \
+		printf '%s\n' "$$newfile" >${.TARGET}
 mapper.dir.db: mapper.dir
 	${MKCSMAPPER} -m -o ${.TARGET} ${.ALLSRC}
 
@@ -18,10 +19,11 @@ FILES+=	mapper.dir mapper.dir.db
 CLEANFILES+= mapper.dir mapper.dir.db
 
 charset.pivot: ${SUBDIR}
-	> ${.TARGET}
-.for i in ${SUBDIR}
-	cat ${i}/charset.pivot.${i} >> ${.TARGET}
-.endfor
+	newfile=$$(for i in ${SUBDIR}; do \
+		cat $$i/charset.pivot.$$i; \
+	done); \
+	[ "$$newfile" = "$$(cat ${.TARGET} 2>/dev/null)" ] || \
+		printf '%s\n' "$$newfile" >${.TARGET}
 charset.pivot.pvdb: charset.pivot
 	${MKCSMAPPER} -p -o ${.TARGET} ${.ALLSRC}
 
