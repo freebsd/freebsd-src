@@ -968,8 +968,7 @@ vm_page_insert_after(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
 	KASSERT(m->object == NULL,
 	    ("vm_page_insert_after: page already inserted"));
 	if (mpred != NULL) {
-		KASSERT(mpred->object == object ||
-		    (mpred->flags & PG_SLAB) != 0,
+		KASSERT(mpred->object == object,
 		    ("vm_page_insert_after: object doesn't contain mpred"));
 		KASSERT(mpred->pindex < pindex,
 		    ("vm_page_insert_after: mpred doesn't precede pindex"));
@@ -1019,8 +1018,7 @@ vm_page_insert_radixdone(vm_page_t m, vm_object_t object, vm_page_t mpred)
 	KASSERT(object != NULL && m->object == object,
 	    ("vm_page_insert_radixdone: page %p has inconsistent object", m));
 	if (mpred != NULL) {
-		KASSERT(mpred->object == object ||
-		    (mpred->flags & PG_SLAB) != 0,
+		KASSERT(mpred->object == object,
 		    ("vm_page_insert_after: object doesn't contain mpred"));
 		KASSERT(mpred->pindex < m->pindex,
 		    ("vm_page_insert_after: mpred doesn't precede pindex"));
