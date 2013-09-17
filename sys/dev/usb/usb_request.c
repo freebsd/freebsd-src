@@ -71,6 +71,11 @@ static int usb_no_cs_fail;
 SYSCTL_INT(_hw_usb, OID_AUTO, no_cs_fail, CTLFLAG_RW,
     &usb_no_cs_fail, 0, "USB clear stall failures are ignored, if set");
 
+static int usb_full_ddesc;
+
+SYSCTL_INT(_hw_usb, OID_AUTO, full_ddesc, CTLFLAG_RW,
+    &usb_full_ddesc, 0, "USB always read complete device descriptor, if set");
+
 #ifdef USB_DEBUG
 #ifdef USB_REQ_DEBUG
 /* The following structures are used in connection to fault injection. */
@@ -996,7 +1001,7 @@ usbd_req_get_desc(struct usb_device *udev,
 		USETW(req.wLength, min_len);
 
 		err = usbd_do_request_flags(udev, mtx, &req,
-		    desc, 0, NULL, 1000);
+		    desc, 0, NULL, 500 /* ms */);
 
 		if (err) {
 			if (!retries) {
@@ -1881,32 +1886,41 @@ usbd_setup_device_desc(struct usb_device *udev, struct mtx *mtx)
 	 */
 	switch (udev->speed) {
 	case USB_SPEED_FULL:
-	case USB_SPEED_LOW:
+		if (usb_full_ddesc != 0) {
+			/* get full device descriptor */
+			err = usbd_req_get_device_desc(udev, mtx, &udev->ddesc);
+			if (err == 0)
+				break;
+		}
+
+		/* get partial device descriptor, some devices crash on this */
 		err = usbd_req_get_desc(udev, mtx, NULL, &udev->ddesc,
 		    USB_MAX_IPACKET, USB_MAX_IPACKET, 0, UDESC_DEVICE, 0, 0);
-		if (err != 0) {
-			DPRINTFN(0, "getting device descriptor "
-			    "at addr %d failed, %s\n", udev->address,
-			    usbd_errstr(err));
-			return (err);
-		}
+		if (err != 0)
+			break;
+
+		/* get the full device descriptor */
+		err = usbd_req_get_device_desc(udev, mtx, &udev->ddesc);
 		break;
+
 	default:
 		DPRINTF("Minimum MaxPacketSize is large enough "
-		    "to hold the complete device descriptor\n");
+		    "to hold the complete device descriptor or "
+		    "only once MaxPacketSize choice\n");
+
+		/* get the full device descriptor */
+		err = usbd_req_get_device_desc(udev, mtx, &udev->ddesc);
+
+		/* try one more time, if error */
+		if (err != 0)
+			err = usbd_req_get_device_desc(udev, mtx, &udev->ddesc);
 		break;
 	}
 
-	/* get the full device descriptor */
-	err = usbd_req_get_device_desc(udev, mtx, &udev->ddesc);
-
-	/* try one more time, if error */
-	if (err)
-		err = usbd_req_get_device_desc(udev, mtx, &udev->ddesc);
-
-	if (err) {
-		DPRINTF("addr=%d, getting full desc failed\n",
-		    udev->address);
+	if (err != 0) {
+		DPRINTFN(0, "getting device descriptor "
+		    "at addr %d failed, %s\n", udev->address,
+		    usbd_errstr(err));
 		return (err);
 	}
 
