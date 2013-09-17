@@ -163,7 +163,12 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			 * Hide the performance and debug features.
 			 */
 			regs[2] &= ~CPUID2_PDCM;
-			
+
+			/*
+			 * No TSC deadline support in the APIC yet
+			 */
+			regs[2] &= ~CPUID2_TSCDLT;
+
 			/*
 			 * Hide thermal monitoring
 			 */
