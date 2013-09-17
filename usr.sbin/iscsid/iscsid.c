@@ -76,8 +76,9 @@ checked_strdup(const char *s)
 	return (c);
 }
 
-static int
-resolve_addr(const char *address, struct addrinfo **ai)
+static void
+resolve_addr(const struct connection *conn, const char *address,
+    struct addrinfo **ai, bool initiator_side)
 {
 	struct addrinfo hints;
 	char *arg, *addr, *ch;
@@ -87,8 +88,8 @@ resolve_addr(const char *address, struct addrinfo **ai)
 	arg = checked_strdup(address);
 
 	if (arg[0] == '\0') {
-		log_warnx("empty address");
-		return (1);
+		fail(conn, "empty address");
+		log_errx(1, "empty address");
 	}
 	if (arg[0] == '[') {
 		/*
@@ -97,16 +98,16 @@ resolve_addr(const char *address, struct addrinfo **ai)
 		arg++;
 		addr = strsep(&arg, "]");
 		if (arg == NULL) {
-			log_warnx("invalid address %s", address);
-			return (1);
+			fail(conn, "malformed address");
+			log_errx(1, "malformed address %s", address);
 		}
 		if (arg[0] == '\0') {
-			port = "3260";
+			port = NULL;
 		} else if (arg[0] == ':') {
 			port = arg + 1;
 		} else {
-			log_warnx("invalid address %s", address);
-			return (1);
+			fail(conn, "malformed address");
+			log_errx(1, "malformed address %s", address);
 		}
 	} else {
 		/*
@@ -119,29 +120,32 @@ resolve_addr(const char *address, struct addrinfo **ai)
 		}
 		if (colons > 1) {
 			addr = arg;
-			port = "3260";
+			port = NULL;
 		} else {
 			addr = strsep(&arg, ":");
 			if (arg == NULL)
-				port = "3260";
+				port = NULL;
 			else
 				port = arg;
 		}
 	}
 
+	if (port == NULL && !initiator_side)
+		port = "3260";
+
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE;
+	hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV;
+	if (initiator_side)
+		hints.ai_flags |= AI_PASSIVE;
 
 	error = getaddrinfo(addr, port, &hints, ai);
 	if (error != 0) {
-		log_warnx("getaddrinfo for %s failed: %s",
+		fail(conn, gai_strerror(error));
+		log_errx(1, "getaddrinfo for %s failed: %s",
 		    address, gai_strerror(error));
-		return (1);
 	}
-
-	return (0);
 }
 
 static struct connection *
@@ -172,6 +176,8 @@ connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
 	conn->conn_first_burst_length = 65536;
 
 	conn->conn_session_id = session_id;
+	conn->conn_iscsi_fd = iscsi_fd;
+
 	/*
 	 * XXX: Should we sanitize this somehow?
 	 */
@@ -180,20 +186,12 @@ connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
 	from_addr = conn->conn_conf.isc_initiator_addr;
 	to_addr = conn->conn_conf.isc_target_addr;
 
-	if (from_addr[0] != '\0') {
-		error = resolve_addr(from_addr, &from_ai);
-		if (error != 0)
-			log_errx(1, "failed to resolve initiator address %s",
-			    from_addr);
-	} else {
+	if (from_addr[0] != '\0')
+		resolve_addr(conn, from_addr, &from_ai, true);
+	else
 		from_ai = NULL;
-	}
 
-	error = resolve_addr(to_addr, &to_ai);
-	if (error != 0)
-		log_errx(1, "failed to resolve target address %s", to_addr);
-
-	conn->conn_iscsi_fd = iscsi_fd;
+	resolve_addr(conn, to_addr, &to_ai, false);
 
 #ifdef ICL_KERNEL_PROXY
 
@@ -224,19 +222,25 @@ connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
 
 #else /* !ICL_KERNEL_PROXY */
 
-	if (conn->conn_conf.isc_iser)
+	if (conn->conn_conf.isc_iser) {
+		fail(conn, "iSER not supported");
 		log_errx(1, "iscsid(8) compiled without ICL_KERNEL_PROXY "
 		    "does not support iSER");
+	}
 
 	conn->conn_socket = socket(to_ai->ai_family, to_ai->ai_socktype,
 	    to_ai->ai_protocol);
-	if (conn->conn_socket < 0)
+	if (conn->conn_socket < 0) {
+		fail(conn, strerror(errno));
 		log_err(1, "failed to create socket for %s", from_addr);
+	}
 	if (from_ai != NULL) {
 		error = bind(conn->conn_socket, from_ai->ai_addr,
 		    from_ai->ai_addrlen);
-		if (error != 0)
+		if (error != 0) {
+			fail(conn, strerror(errno));
 			log_err(1, "failed to bind to %s", from_addr);
+		}
 	}
 	log_debugx("connecting to %s", to_addr);
 	error = connect(conn->conn_socket, to_ai->ai_addr, to_ai->ai_addrlen);
