@@ -709,6 +709,10 @@ CHECK_GIDS+=	smmsp
 CHECK_UIDS+=	proxy
 CHECK_GIDS+=	proxy authpf
 .endif
+.if ${MK_UNBOUND} != "no"
+CHECK_UIDS+=	unbound
+CHECK_GIDS+=	unbound
+.endif
 installcheck_UGID:
 .for uid in ${CHECK_UIDS}
 	@if ! `id -u ${uid} >/dev/null 2>&1`; then \
