@@ -703,10 +703,9 @@ ip_mrouter_init(struct socket *so, int version)
 static int
 X_ip_mrouter_done(void)
 {
-    vifi_t vifi;
-    int i;
     struct ifnet *ifp;
-    struct ifreq ifr;
+    int i;
+    vifi_t vifi;
 
     MROUTER_LOCK();
 
@@ -731,11 +730,6 @@ X_ip_mrouter_done(void)
     for (vifi = 0; vifi < V_numvifs; vifi++) {
 	if (!in_nullhost(V_viftable[vifi].v_lcl_addr) &&
 		!(V_viftable[vifi].v_flags & (VIFF_TUNNEL | VIFF_REGISTER))) {
-	    struct sockaddr_in *so = (struct sockaddr_in *)&(ifr.ifr_addr);
-
-	    so->sin_len = sizeof(struct sockaddr_in);
-	    so->sin_family = AF_INET;
-	    so->sin_addr.s_addr = INADDR_ANY;
 	    ifp = V_viftable[vifi].v_ifp;
 	    if_allmulti(ifp, 0);
 	}
