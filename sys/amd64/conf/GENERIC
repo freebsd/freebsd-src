@@ -341,3 +341,5 @@ device		virtio_blk	# VirtIO Block device
 device		virtio_scsi	# VirtIO SCSI device
 device		virtio_balloon	# VirtIO Memory Balloon device
 
+# VMware support
+device		vmx		# VMware VMXNET3 Ethernet
