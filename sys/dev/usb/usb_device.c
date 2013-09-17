@@ -1673,10 +1673,14 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	err = usbd_setup_device_desc(udev, NULL);
 
 	if (err != 0) {
-		/* XXX try to re-enumerate the device */
+		/* try to enumerate two more times */
 		err = usbd_req_re_enumerate(udev, NULL);
-		if (err)
-			goto done;
+		if (err != 0) {
+			err = usbd_req_re_enumerate(udev, NULL);
+			if (err != 0) {
+				goto done;
+			}
+		}
 	}
 
 	/*
