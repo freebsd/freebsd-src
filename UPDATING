@@ -63,9 +63,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	kdump, procstat, rwho, rwhod, uniq.
 
 20130903:
-       AES-NI intrinsic support has been added to gcc.  The AES-NI module
-       has been updated to use this support.  A new gcc is required to build
-       the aesni module on both i386 and amd64.
+	AES-NI intrinsic support has been added to gcc.  The AES-NI module
+	has been updated to use this support.  A new gcc is required to build
+	the aesni module on both i386 and amd64.
 
 20130827:
         Thomas Dickey (vendor author thereof) reports that dialog(1) since
@@ -307,8 +307,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 
 20121201:
 	With the addition of auditdistd(8), a new auditdistd user is now
-	depended on during installworld.  "mergemaster -p" can be used to add
-	the user prior to installworld, as documented in the handbook.
+	required during installworld.  "mergemaster -p" can be used to
+	add the user prior to installworld, as documented in the handbook.
 
 20121117:
 	The sin6_scope_id member variable in struct sockaddr_in6 is now
