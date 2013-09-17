@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130916:
+	With the addition of unbound(8), a new unbound user is now
+	required during installworld.  "mergemaster -p" can be used to
+	add the user prior to installworld, as documented in the handbook.
+
 20130911:
 	OpenSSH is now built with DNSSEC support, and will by default
 	silently trust signed SSHFP records.  This can be controlled with
