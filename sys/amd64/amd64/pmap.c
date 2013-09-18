@@ -76,6 +76,8 @@
  * SUCH DAMAGE.
  */
 
+#define	AMD64_NPT_AWARE
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -143,28 +145,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #endif
 
-/* Intel EPT bits */
-#define	EPT_PG_RD			(1 << 0)
-#define	EPT_PG_WR			(1 << 1)
-#define	EPT_PG_EX			(1 << 2)
-#define	EPT_PG_MEMORY_TYPE(x)		((x) << 3)
-#define	EPT_PG_IGNORE_PAT		(1 << 6)
-#define	EPT_PG_PS			(1 << 7)
-#define	EPT_PG_A			(1 << 8)
-#define	EPT_PG_M			(1 << 9)
-
-/* 
- * undef the PG_xx macros that define bits in the regular x86 PTEs that have
- * a different position in nested PTEs.
- *
- * The appropriate bitmask is now calculated at runtime based on the pmap
- * type.
- */
-
-#undef PG_AVAIL1			/* PG_AVAIL1 aliases with EPT_PG_M */
-
-#undef	PG_G
-#define	X86_PG_G			0x100
 static __inline pt_entry_t
 pmap_global_bit(pmap_t pmap)
 {
@@ -184,8 +164,6 @@ pmap_global_bit(pmap_t pmap)
 	return (mask);
 }
 
-#undef PG_A
-#define X86_PG_A			0x020
 static __inline pt_entry_t
 pmap_accessed_bit(pmap_t pmap)
 {
@@ -205,8 +183,6 @@ pmap_accessed_bit(pmap_t pmap)
 	return (mask);
 }
 
-#undef PG_M
-#define	X86_PG_M			0x040
 static __inline pt_entry_t
 pmap_modified_bit(pmap_t pmap)
 {
@@ -225,18 +201,6 @@ pmap_modified_bit(pmap_t pmap)
 
 	return (mask);
 }
-
-#undef PG_PDE_PAT
-#define	X86_PG_PDE_PAT			0x1000
-
-#undef PG_PDE_CACHE
-#define	X86_PG_PDE_CACHE		(X86_PG_PDE_PAT | PG_NC_PWT | PG_NC_PCD)
-
-#undef PG_PTE_PAT
-#define	X86_PG_PTE_PAT			0x080
-
-#undef PG_PTE_CACHE
-#define	X86_PG_PTE_CACHE		(X86_PG_PTE_PAT | PG_NC_PWT | PG_NC_PCD)
 
 #if !defined(DIAGNOSTIC)
 #ifdef __GNUC_GNU_INLINE__
