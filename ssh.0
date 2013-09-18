@@ -5,11 +5,13 @@ NAME
 
 SYNOPSIS
      ssh [-1246AaCfgKkMNnqsTtVvXxYy] [-b bind_address] [-c cipher_spec]
-         [-D [bind_address:]port] [-e escape_char] [-F configfile] [-I pkcs11]
-         [-i identity_file] [-L [bind_address:]port:host:hostport]
-         [-l login_name] [-m mac_spec] [-O ctl_cmd] [-o option] [-p port]
+         [-D [bind_address:]port] [-E log_file] [-e escape_char]
+         [-F configfile] [-I pkcs11] [-i identity_file]
+         [-L [bind_address:]port:host:hostport] [-l login_name] [-m mac_spec]
+         [-O ctl_cmd] [-o option] [-p port]
          [-R [bind_address:]port:host:hostport] [-S ctl_path] [-W host:port]
          [-w local_tun[:remote_tun]] [user@]hostname [command]
+     ssh -Q protocol_feature
 
 DESCRIPTION
      ssh (SSH client) is a program for logging into a remote machine and for
@@ -101,6 +103,9 @@ DESCRIPTION
              bind_address of ``localhost'' indicates that the listening port
              be bound for local use only, while an empty address or `*'
              indicates that the port should be available from all interfaces.
+
+     -E log_file
+             Append debug logs to log_file instead of standard error.
 
      -e escape_char
              Sets the escape character for sessions with a pty (default: `~').
@@ -288,6 +293,14 @@ DESCRIPTION
      -p port
              Port to connect to on the remote host.  This can be specified on
              a per-host basis in the configuration file.
+
+     -Q protocol_feature
+             Queries ssh for the algorithms supported for the specified
+             version 2 protocol_feature.  The queriable features are:
+             ``cipher'' (supported symmetric ciphers), ``MAC'' (supported
+             message integrity codes), ``KEX'' (key exchange algorithms),
+             ``key'' (key types).  Protocol features are treated case-
+             insensitively.
 
      -q      Quiet mode.  Causes most warning and diagnostic messages to be
              suppressed.
@@ -788,7 +801,7 @@ FILES
              This is the per-user configuration file.  The file format and
              configuration options are described in ssh_config(5).  Because of
              the potential for abuse, this file must have strict permissions:
-             read/write for the user, and not accessible by others.
+             read/write for the user, and not writable by others.
 
      ~/.ssh/environment
              Contains additional definitions for environment variables; see
@@ -919,4 +932,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.3                     October 4, 2012                    OpenBSD 5.3
+OpenBSD 5.4                      July 18, 2013                     OpenBSD 5.4

@@ -369,9 +369,9 @@ DESCRIPTION
              for protocol version 1, and ~/.ssh/id_dsa, ~/.ssh/id_ecdsa and
              ~/.ssh/id_rsa for protocol version 2.  Additionally, any
              identities represented by the authentication agent will be used
-             for authentication.  ssh(1) will try to load certificate
-             information from the filename obtained by appending -cert.pub to
-             the path of a specified IdentityFile.
+             for authentication unless IdentitiesOnly is set.  ssh(1) will try
+             to load certificate information from the filename obtained by
+             appending -cert.pub to the path of a specified IdentityFile.
 
              The file name may use the tilde syntax to refer to a user's home
              directory or one of the following escape characters: `%d' (local
@@ -383,6 +383,18 @@ DESCRIPTION
              sequence.  Multiple IdentityFile directives will add to the list
              of identities tried (this behaviour differs from that of other
              configuration directives).
+
+             IdentityFile may be used in conjunction with IdentitiesOnly to
+             select which identities in an agent are offered during
+             authentication.
+
+     IgnoreUnknown
+             Specifies a pattern-list of unknown options to be ignored if they
+             are encountered in configuration parsing.  This may be used to
+             suppress errors if ssh_config contains options that are
+             unrecognised by ssh(1).  It is recommended that IgnoreUnknown be
+             listed early in the configuration file as it will not be applied
+             to unknown options that appear before it.
 
      IPQoS   Specifies the IPv4 type-of-service or DSCP class for connections.
              Accepted values are ``af11'', ``af12'', ``af13'', ``af21'',
@@ -552,11 +564,18 @@ DESCRIPTION
 
      RekeyLimit
              Specifies the maximum amount of data that may be transmitted
-             before the session key is renegotiated.  The argument is the
-             number of bytes, with an optional suffix of `K', `M', or `G' to
-             indicate Kilobytes, Megabytes, or Gigabytes, respectively.  The
-             default is between `1G' and `4G', depending on the cipher.  This
-             option applies to protocol version 2 only.
+             before the session key is renegotiated, optionally followed a
+             maximum amount of time that may pass before the session key is
+             renegotiated.  The first argument is specified in bytes and may
+             have a suffix of `K', `M', or `G' to indicate Kilobytes,
+             Megabytes, or Gigabytes, respectively.  The default is between
+             `1G' and `4G', depending on the cipher.  The optional second
+             value is specified in seconds and may use any of the units
+             documented in the TIME FORMATS section of sshd_config(5).  The
+             default value for RekeyLimit is ``default none'', which means
+             that rekeying is performed after the cipher's default amount of
+             data has been sent or received and no time based rekeying is
+             done.  This option applies to protocol version 2 only.
 
      RemoteForward
              Specifies that a TCP port on the remote machine be forwarded over
@@ -773,4 +792,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.3                     January 8, 2013                    OpenBSD 5.3
+OpenBSD 5.4                      June 27, 2013                     OpenBSD 5.4

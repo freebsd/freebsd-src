@@ -1,4 +1,4 @@
-#	$OpenBSD: keytype.sh,v 1.1 2010/09/02 16:12:55 markus Exp $
+#	$OpenBSD: keytype.sh,v 1.2 2013/05/17 00:37:40 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="login with different key types"
@@ -40,7 +40,7 @@ for ut in $ktypes; do
 			echo IdentityFile $OBJ/key.$ut 
 		) > $OBJ/ssh_proxy
 		(
-			echon 'localhost-with-alias,127.0.0.1,::1 '
+			printf 'localhost-with-alias,127.0.0.1,::1 '
 			cat $OBJ/key.$ht.pub
 		) > $OBJ/known_hosts
 		cat $OBJ/key.$ut.pub > $OBJ/authorized_keys_$USER

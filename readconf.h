@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.h,v 1.93 2013/02/22 04:45:09 dtucker Exp $ */
+/* $OpenBSD: readconf.h,v 1.95 2013/05/16 04:27:50 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -110,6 +110,7 @@ typedef struct {
 
 	int	enable_ssh_keysign;
 	int64_t rekey_limit;
+	int	rekey_interval;
 	int	no_host_authentication_for_localhost;
 	int	identities_only;
 	int	server_alive_interval;
@@ -136,6 +137,8 @@ typedef struct {
 	int	use_roaming;
 
 	int	request_tty;
+
+	char	*ignored_unknown; /* Pattern list of unknown tokens to ignore */
 }       Options;
 
 #define SSHCTL_MASTER_NO	0

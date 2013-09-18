@@ -55,10 +55,10 @@ DESCRIPTION
              used in conjunction with non-interactive authentication.  A
              batchfile of `-' may be used to indicate standard input.  sftp
              will abort if any of the following commands fail: get, put,
-             rename, ln, rm, mkdir, chdir, ls, lchdir, chmod, chown, chgrp,
-             lpwd, df, symlink, and lmkdir.  Termination on error can be
-             suppressed on a command by command basis by prefixing the command
-             with a `-' character (for example, -rm /tmp/blah*).
+             reget, rename, ln, rm, mkdir, chdir, ls, lchdir, chmod, chown,
+             chgrp, lpwd, df, symlink, and lmkdir.  Termination on error can
+             be suppressed on a command by command basis by prefixing the
+             command with a `-' character (for example, -rm /tmp/blah*).
 
      -C      Enables compression (via ssh's -C flag).
 
@@ -209,13 +209,19 @@ INTERACTIVE COMMANDS
 
      exit    Quit sftp.
 
-     get [-Ppr] remote-path [local-path]
+     get [-aPpr] remote-path [local-path]
              Retrieve the remote-path and store it on the local machine.  If
              the local path name is not specified, it is given the same name
              it has on the remote machine.  remote-path may contain glob(3)
              characters and may match multiple files.  If it does and
              local-path is specified, then local-path must specify a
              directory.
+
+             If the -a flag is specified, then attempt to resume partial
+             transfers of existing files.  Note that resumption assumes that
+             any partial copy of the local file matches the remote copy.  If
+             the remote file differs from the partial local copy then the
+             resultant file is likely to be corrupt.
 
              If either the -P or -p flag is specified, then full file
              permissions and access times are copied too.
@@ -306,6 +312,10 @@ INTERACTIVE COMMANDS
 
      quit    Quit sftp.
 
+     reget [-Ppr] remote-path [local-path]
+             Resume download of remote-path.  Equivalent to get with the -a
+             flag set.
+
      rename oldpath newpath
              Rename remote file from oldpath to newpath.
 
@@ -336,4 +346,4 @@ SEE ALSO
      draft-ietf-secsh-filexfer-00.txt, January 2001, work in progress
      material.
 
-OpenBSD 5.3                    September 5, 2011                   OpenBSD 5.3
+OpenBSD 5.4                      July 25, 2013                     OpenBSD 5.4

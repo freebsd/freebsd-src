@@ -1,4 +1,4 @@
-#	$OpenBSD: localcommand.sh,v 1.1 2007/10/29 06:57:13 dtucker Exp $
+#	$OpenBSD: localcommand.sh,v 1.2 2013/05/17 10:24:48 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="localcommand"

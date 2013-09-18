@@ -1,4 +1,4 @@
-#	$OpenBSD: cert-userkey.sh,v 1.10 2013/01/18 00:45:29 djm Exp $
+#	$OpenBSD: cert-userkey.sh,v 1.11 2013/05/17 00:37:40 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="certified user keys"
@@ -126,7 +126,7 @@ for ktype in rsa dsa $ecdsa rsa_v00 dsa_v00 ; do
 		# Wrong principals list
 		verbose "$tid: ${_prefix} wrong principals key option"
 		(
-			echon 'cert-authority,principals="gregorsamsa" '
+			printf 'cert-authority,principals="gregorsamsa" '
 			cat $OBJ/user_ca_key.pub
 		) > $OBJ/authorized_keys_$USER
 		${SSH} -2i $OBJ/cert_user_key_${ktype} \
@@ -138,7 +138,7 @@ for ktype in rsa dsa $ecdsa rsa_v00 dsa_v00 ; do
 		# Correct principals list
 		verbose "$tid: ${_prefix} correct principals key option"
 		(
-			echon 'cert-authority,principals="mekmitasdigoat" '
+			printf 'cert-authority,principals="mekmitasdigoat" '
 			cat $OBJ/user_ca_key.pub
 		) > $OBJ/authorized_keys_$USER
 		${SSH} -2i $OBJ/cert_user_key_${ktype} \
@@ -154,7 +154,7 @@ basic_tests() {
 	if test "x$auth" = "xauthorized_keys" ; then
 		# Add CA to authorized_keys
 		(
-			echon 'cert-authority '
+			printf 'cert-authority '
 			cat $OBJ/user_ca_key.pub
 		) > $OBJ/authorized_keys_$USER
 	else
@@ -264,7 +264,7 @@ test_one() {
 			if test "x$auth" = "xauthorized_keys" ; then
 				# Add CA to authorized_keys
 				(
-					echon "cert-authority${auth_opt} "
+					printf "cert-authority${auth_opt} "
 					cat $OBJ/user_ca_key.pub
 				) > $OBJ/authorized_keys_$USER
 			else

@@ -39,10 +39,6 @@ serial: 799
 serial: 599-701
 EOF
 
-jot() {
-	awk "BEGIN { for (i = $2; i < $2 + $1; i++) { printf \"%d\n\", i } exit }"
-}
-
 # A specification that revokes some certificated by key ID.
 touch $OBJ/revoked-keyid
 for n in 1 2 3 4 10 15 30 50 `jot 500 300` 999 1000 1001 1002; do

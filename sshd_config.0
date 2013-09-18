@@ -90,6 +90,13 @@ DESCRIPTION
              example, it would not be possible to attempt password or
              keyboard-interactive authentication before public key.
 
+             For keyboard interactive authentication it is also possible to
+             restrict authentication to a specific device by appending a colon
+             followed by the device identifier ``bsdauth'', ``pam'', or
+             ``skey'', depending on the server configuration.  For example,
+             ``keyboard-interactive:bsdauth'' would restrict keyboard
+             interactive authentication to the ``bsdauth'' device.
+
              This option is only available for SSH protocol 2 and will yield a
              fatal error if enabled if protocol 1 is also enabled.  Note that
              each authentication method listed should also be explicitly
@@ -99,7 +106,8 @@ DESCRIPTION
 
      AuthorizedKeysCommand
              Specifies a program to be used to look up the user's public keys.
-             The program will be invoked with a single argument of the
+             The program must be owned by root and not writable by group or
+             others.  It will be invoked with a single argument of the
              username being authenticated, and should produce on standard
              output zero or more lines of authorized_keys output (see
              AUTHORIZED_KEYS in sshd(8)).  If a key supplied by
@@ -322,7 +330,16 @@ DESCRIPTION
              sshd(8) will refuse to use a file if it is group/world-
              accessible.  It is possible to have multiple host key files.
              ``rsa1'' keys are used for version 1 and ``dsa'', ``ecdsa'' or
-             ``rsa'' are used for version 2 of the SSH protocol.
+             ``rsa'' are used for version 2 of the SSH protocol.  It is also
+             possible to specify public host key files instead.  In this case
+             operations on the private key will be delegated to an
+             ssh-agent(1).
+
+     HostKeyAgent
+             Identifies the UNIX-domain socket used to communicate with an
+             agent that has access to the private host keys.  If
+             ``SSH_AUTH_SOCK'' is specified, the location of the socket will
+             be read from the SSH_AUTH_SOCK environment variable.
 
      IgnoreRhosts
              Specifies that .rhosts and .shosts files will not be used in
@@ -461,8 +478,9 @@ DESCRIPTION
              KbdInteractiveAuthentication, KerberosAuthentication,
              MaxAuthTries, MaxSessions, PasswordAuthentication,
              PermitEmptyPasswords, PermitOpen, PermitRootLogin, PermitTunnel,
-             PubkeyAuthentication, RhostsRSAAuthentication, RSAAuthentication,
-             X11DisplayOffset, X11Forwarding and X11UseLocalHost.
+             PubkeyAuthentication, RekeyLimit, RhostsRSAAuthentication,
+             RSAAuthentication, X11DisplayOffset, X11Forwarding and
+             X11UseLocalHost.
 
      MaxAuthTries
              Specifies the maximum number of authentication attempts permitted
@@ -570,6 +588,21 @@ DESCRIPTION
              Specifies whether public key authentication is allowed.  The
              default is ``yes''.  Note that this option applies to protocol
              version 2 only.
+
+     RekeyLimit
+             Specifies the maximum amount of data that may be transmitted
+             before the session key is renegotiated, optionally followed a
+             maximum amount of time that may pass before the session key is
+             renegotiated.  The first argument is specified in bytes and may
+             have a suffix of `K', `M', or `G' to indicate Kilobytes,
+             Megabytes, or Gigabytes, respectively.  The default is between
+             `1G' and `4G', depending on the cipher.  The optional second
+             value is specified in seconds and may use any of the units
+             documented in the TIME FORMATS section.  The default value for
+             RekeyLimit is ``default none'', which means that rekeying is
+             performed after the cipher's default amount of data has been sent
+             or received and no time based rekeying is done.  This option
+             applies to protocol version 2 only.
 
      RevokedKeys
              Specifies revoked public keys.  Keys listed in this file will be
@@ -777,4 +810,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 5.3                    February 6, 2013                    OpenBSD 5.3
+OpenBSD 5.4                      July 19, 2013                     OpenBSD 5.4
