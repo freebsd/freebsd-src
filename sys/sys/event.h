@@ -236,6 +236,9 @@ struct proc;
 struct knlist;
 struct mtx;
 struct rwlock;
+struct uio;
+struct stat;
+struct ucred;
 
 extern void	knote(struct knlist *list, long hint, int lockflags);
 extern void	knote_fork(struct knlist *list, int pid);
@@ -260,6 +263,21 @@ extern int 	kqfd_register(int fd, struct kevent *kev, struct thread *p,
 		    int waitok);
 extern int	kqueue_add_filteropts(int filt, struct filterops *filtops);
 extern int	kqueue_del_filteropts(int filt);
+
+int kqueue_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
+	int flags, struct thread *td);
+int kqueue_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
+	 int flags, struct thread *td);
+int kqueue_truncate(struct file *fp, off_t length, struct ucred *active_cred,
+	struct thread *td);
+int kqueue_ioctl(struct file *fp, u_long cmd, void *data,
+	struct ucred *active_cred, struct thread *td);
+int kqueue_poll(struct file *fp, int events, struct ucred *active_cred,
+	struct thread *td);
+int kqueue_kqfilter(struct file *fp, struct knote *kn);
+int kqueue_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
+	struct thread *td);
+int kqueue_close(struct file *fp, struct thread *td);
 
 #else 	/* !_KERNEL */
 

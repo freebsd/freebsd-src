@@ -169,6 +169,8 @@ struct file {
 	union {
 		struct cdev_privdata *fvn_cdevpriv;
 					/* (d) Private data for the cdev. */
+		void	*fvn_epollpriv;
+					/* (d) Private data for the epoll. */
 		struct fadvise_info *fvn_advice;
 	} f_vnun;
 	/*
