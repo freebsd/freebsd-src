@@ -121,12 +121,7 @@ int	kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data);
 int	kern_jail(struct thread *td, struct jail *j);
 int	kern_jail_get(struct thread *td, struct uio *options, int flags);
 int	kern_jail_set(struct thread *td, struct uio *options, int flags);
-int	kern_kqueue(struct thread *td);
-int	kern_kqueue_locked(struct thread *td, struct file **fpp);
 int	kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
-	    struct kevent_copyops *k_ops, const struct timespec *timeout);
-int	kern_kevent_locked(struct thread *td, struct file *fp, int nchanges,
-	    int nevents,
 	    struct kevent_copyops *k_ops, const struct timespec *timeout);
 int	kern_kldload(struct thread *td, const char *file, int *fileid);
 int	kern_kldstat(struct thread *td, int fileid, struct kld_file_stat *stat);
@@ -253,8 +248,6 @@ int	kern_utimes(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct timeval *tptr, enum uio_seg tptrseg);
 int	kern_utimesat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, struct timeval *tptr, enum uio_seg tptrseg);
-int	kern_utimensat(struct thread *td, int fd, char *path,
-	    enum uio_seg pathseg, struct timespec *tptr, enum uio_seg tptrseg);
 int	kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	    struct rusage *rup);
 int	kern_wait6(struct thread *td, enum idtype idtype, id_t id, int *status,
