@@ -9,7 +9,7 @@ CFLAGS+=-DCOMPAT_FREEBSD32 -DCOMPAT_LINUX32
 
 KMOD=	linux
 SRCS=	linux_fork.c linux${SFX}_dummy.c linux_emul.c linux_file.c \
-	linux_futex.c linux_getcwd.c linux_ioctl.c linux_ipc.c linux_epoll.c \
+	linux_futex.c linux_getcwd.c linux_ioctl.c linux_ipc.c \
 	linux${SFX}_machdep.c linux_mib.c linux_misc.c linux_signal.c \
 	linux_socket.c linux_stats.c linux_sysctl.c linux${SFX}_sysent.c \
 	linux${SFX}_sysvec.c linux_uid16.c linux_util.c linux_time.c \

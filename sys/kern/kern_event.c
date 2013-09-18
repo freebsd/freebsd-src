@@ -107,7 +107,16 @@ static void 	kqueue_wakeup(struct kqueue *kq);
 static struct filterops *kqueue_fo_find(int filt);
 static void	kqueue_fo_release(int filt);
 
-struct fileops kqueueops = {
+static fo_rdwr_t	kqueue_read;
+static fo_rdwr_t	kqueue_write;
+static fo_truncate_t	kqueue_truncate;
+static fo_ioctl_t	kqueue_ioctl;
+static fo_poll_t	kqueue_poll;
+static fo_kqfilter_t	kqueue_kqfilter;
+static fo_stat_t	kqueue_stat;
+static fo_close_t	kqueue_close;
+
+static struct fileops kqueueops = {
 	.fo_read = kqueue_read,
 	.fo_write = kqueue_write,
 	.fo_truncate = kqueue_truncate,
@@ -294,7 +303,7 @@ filt_fileattach(struct knote *kn)
 }
 
 /*ARGSUSED*/
-int
+static int
 kqueue_kqfilter(struct file *fp, struct knote *kn)
 {
 	struct kqueue *kq = kn->kn_fp->f_data;
@@ -679,7 +688,34 @@ filt_usertouch(struct knote *kn, struct kevent *kev, u_long type)
 int
 sys_kqueue(struct thread *td, struct kqueue_args *uap)
 {
-	return (kern_kqueue(td));
+	struct filedesc *fdp;
+	struct kqueue *kq;
+	struct file *fp;
+	int fd, error;
+
+	fdp = td->td_proc->p_fd;
+	error = falloc(td, &fp, &fd, 0);
+	if (error)
+		goto done2;
+
+	/* An extra reference on `fp' has been held for us by falloc(). */
+	kq = malloc(sizeof *kq, M_KQUEUE, M_WAITOK | M_ZERO);
+	mtx_init(&kq->kq_lock, "kqueue", NULL, MTX_DEF|MTX_DUPOK);
+	TAILQ_INIT(&kq->kq_head);
+	kq->kq_fdp = fdp;
+	knlist_init_mtx(&kq->kq_sel.si_note, &kq->kq_lock);
+	TASK_INIT(&kq->kq_task, 0, kqueue_task, kq);
+
+	FILEDESC_XLOCK(fdp);
+	TAILQ_INSERT_HEAD(&fdp->fd_kqlist, kq, kq_list);
+	FILEDESC_XUNLOCK(fdp);
+
+	finit(fp, FREAD | FWRITE, DTYPE_KQUEUE, kq, &kqueueops);
+	fdrop(fp, td);
+
+	td->td_retval[0] = fd;
+done2:
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -781,75 +817,19 @@ kevent_copyin(void *arg, struct kevent *kevp, int count)
 }
 
 int
-kern_kqueue(struct thread *td)
-{
-	struct file *fp;
-	int error;
-
-	error = kern_kqueue_locked(td, &fp);
-
-	fdrop(fp, td);
-	return (error);
-}
-
-int
-kern_kqueue_locked(struct thread *td, struct file **fpp)
-{
-	struct filedesc *fdp;
-	struct kqueue *kq;
-	struct file *fp;
-	int fd, error;
-
-	fdp = td->td_proc->p_fd;
-	error = falloc(td, &fp, &fd, 0);
-	if (error)
-		return (error);
-
-	/* An extra reference on `fp' has been held for us by falloc(). */
-	kq = malloc(sizeof *kq, M_KQUEUE, M_WAITOK | M_ZERO);
-	mtx_init(&kq->kq_lock, "kqueue", NULL, MTX_DEF|MTX_DUPOK);
-	TAILQ_INIT(&kq->kq_head);
-	kq->kq_fdp = fdp;
-	knlist_init_mtx(&kq->kq_sel.si_note, &kq->kq_lock);
-	TASK_INIT(&kq->kq_task, 0, kqueue_task, kq);
-
-	FILEDESC_XLOCK(fdp);
-	TAILQ_INSERT_HEAD(&fdp->fd_kqlist, kq, kq_list);
-	FILEDESC_XUNLOCK(fdp);
-
-	finit(fp, FREAD | FWRITE, DTYPE_KQUEUE, kq, &kqueueops);
-
-	td->td_retval[0] = fd;
-	*fpp = fp;
-	return (0);
-}
-
-int
 kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
-    struct kevent_copyops *k_ops, const struct timespec *timeout)
-{
-	struct file *fp;
-	cap_rights_t rights;
-	int error;
-
-	if ((error = fget(td, fd, cap_rights_init(&rights, CAP_POST_EVENT), &fp)) != 0)
-		return (error);
-
-	error = kern_kevent_locked(td, fp, nchanges, nevents, k_ops, timeout);
-
-	fdrop(fp, td);
-	return (error);
-}
-
-int
-kern_kevent_locked(struct thread *td, struct file *fp, int nchanges, int nevents,
     struct kevent_copyops *k_ops, const struct timespec *timeout)
 {
 	struct kevent keva[KQ_NEVENTS];
 	struct kevent *kevp, *changes;
 	struct kqueue *kq;
+	struct file *fp;
+	cap_rights_t rights;
 	int i, n, nerrors, error;
 
+	error = fget(td, fd, cap_rights_init(&rights, CAP_POST_EVENT), &fp);
+	if (error != 0)
+		return (error);
 	if ((error = kqueue_acquire(fp, &kq)) != 0)
 		goto done_norel;
 
@@ -892,6 +872,7 @@ kern_kevent_locked(struct thread *td, struct file *fp, int nchanges, int nevents
 done:
 	kqueue_release(kq, 0);
 done_norel:
+	fdrop(fp, td);
 	return (error);
 }
 
@@ -1545,7 +1526,7 @@ done_nl:
  * This could be expanded to call kqueue_scan, if desired.
  */
 /*ARGSUSED*/
-int
+static int
 kqueue_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	int flags, struct thread *td)
 {
@@ -1553,7 +1534,7 @@ kqueue_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 }
 
 /*ARGSUSED*/
-int
+static int
 kqueue_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	 int flags, struct thread *td)
 {
@@ -1561,7 +1542,7 @@ kqueue_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 }
 
 /*ARGSUSED*/
-int
+static int
 kqueue_truncate(struct file *fp, off_t length, struct ucred *active_cred,
 	struct thread *td)
 {
@@ -1570,7 +1551,7 @@ kqueue_truncate(struct file *fp, off_t length, struct ucred *active_cred,
 }
 
 /*ARGSUSED*/
-int
+static int
 kqueue_ioctl(struct file *fp, u_long cmd, void *data,
 	struct ucred *active_cred, struct thread *td)
 {
@@ -1618,7 +1599,7 @@ kqueue_ioctl(struct file *fp, u_long cmd, void *data,
 }
 
 /*ARGSUSED*/
-int
+static int
 kqueue_poll(struct file *fp, int events, struct ucred *active_cred,
 	struct thread *td)
 {
@@ -1645,7 +1626,7 @@ kqueue_poll(struct file *fp, int events, struct ucred *active_cred,
 }
 
 /*ARGSUSED*/
-int
+static int
 kqueue_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
 	struct thread *td)
 {
@@ -1663,7 +1644,7 @@ kqueue_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
 }
 
 /*ARGSUSED*/
-int
+static int
 kqueue_close(struct file *fp, struct thread *td)
 {
 	struct kqueue *kq = fp->f_data;
