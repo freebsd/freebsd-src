@@ -462,8 +462,8 @@ vm_gpa_unwire(struct vm *vm)
 				   seg->gpa, seg->gpa + seg->len,
 				   VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
 		KASSERT(rv == KERN_SUCCESS, ("vm(%s) memory segment "
-			"%#lx/%ld could not be unwired: %d",
-			vm_name(vm), seg->gpa, seg->len, rv));
+		    "%#lx/%ld could not be unwired: %d",
+		    vm_name(vm), seg->gpa, seg->len, rv));
 
 		seg->wired = FALSE;
 	}
@@ -514,16 +514,15 @@ vm_iommu_modify(struct vm *vm, boolean_t map)
 
 	for (i = 0; i < vm->num_mem_segs; i++) {
 		seg = &vm->mem_segs[i];
-		KASSERT(seg->wired,
-			("vm(%s) memory segment %#lx/%ld not wired",
-			vm_name(vm), seg->gpa, seg->len));
-		
+		KASSERT(seg->wired, ("vm(%s) memory segment %#lx/%ld not wired",
+		    vm_name(vm), seg->gpa, seg->len));
+
 		gpa = seg->gpa;
 		while (gpa < seg->gpa + seg->len) {
 			vp = vm_gpa_hold(vm, gpa, PAGE_SIZE, VM_PROT_WRITE,
 					 &cookie);
 			KASSERT(vp != NULL, ("vm(%s) could not map gpa %#lx",
-				vm_name(vm), gpa));
+			    vm_name(vm), gpa));
 
 			vm_gpa_release(cookie);
 
@@ -584,7 +583,7 @@ vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
 	 */
 	if (ppt_num_devices(vm) == 0) {
 		KASSERT(vm->iommu == NULL,
-			("vm_assign_pptdev: iommu must be NULL"));
+		    ("vm_assign_pptdev: iommu must be NULL"));
 		maxaddr = vmm_mem_maxaddr();
 		vm->iommu = iommu_create_domain(maxaddr);
 
@@ -906,10 +905,9 @@ vm_handle_paging(struct vm *vm, int vcpuid, boolean_t *retu)
 	vme = &vcpu->exitinfo;
 
 	ftype = vme->u.paging.fault_type;
-	KASSERT(ftype == VM_PROT_WRITE ||
-		ftype == VM_PROT_EXECUTE ||
-		ftype == VM_PROT_READ,
-		("vm_handle_paging: invalid fault_type %d", ftype));
+	KASSERT(ftype == VM_PROT_READ ||
+	    ftype == VM_PROT_WRITE || ftype == VM_PROT_EXECUTE,
+	    ("vm_handle_paging: invalid fault_type %d", ftype));
 
 	/*
 	 * If the mapping exists then the write fault may be intentional
@@ -1007,7 +1005,7 @@ restart:
 	critical_enter();
 
 	KASSERT(!CPU_ISSET(curcpu, &pmap->pm_active),
-		("vm_run: absurd pm_active"));
+	    ("vm_run: absurd pm_active"));
 
 	tscval = rdtsc();
 

@@ -1064,7 +1064,7 @@ pmap_swap_pat(pmap_t pmap, pt_entry_t entry)
 	case PT_X86:
 		/* Verify that both PAT bits are not set at the same time */
 		KASSERT((entry & x86_pat_bits) != x86_pat_bits,
-			("Invalid PAT bits in entry %#lx", entry));
+		    ("Invalid PAT bits in entry %#lx", entry));
 
 		/* Swap the PAT bits if one of them is set */
 		if ((entry & x86_pat_bits) != 0)
@@ -1278,7 +1278,7 @@ pmap_invalidate_ept(pmap_t pmap)
 {
 
 	KASSERT(!CPU_ISSET(curcpu, &pmap->pm_active),
-		("pmap_invalidate_ept: absurd pm_active"));
+	    ("pmap_invalidate_ept: absurd pm_active"));
 
 	/*
 	 * The TLB mappings associated with a vcpu context are not
@@ -2738,7 +2738,8 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 				m = PHYS_TO_VM_PAGE(tpte & PG_FRAME);
 				if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
 					KASSERT((tpte & PG_RO) == 0,
-					  ("readonly modified PTE %#lx", tpte));
+					    ("readonly modified PTE %#lx",
+					    tpte));
 					vm_page_dirty(m);
 				}
 				if ((tpte & PG_A) != 0)
@@ -3450,7 +3451,7 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 		    va < eva; va += PAGE_SIZE, m++) {
 			if ((oldpde & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
 				KASSERT((oldpde & PG_RO) == 0,
-					("readonly modified PDE %#lx", oldpde));
+				    ("readonly modified PDE %#lx", oldpde));
 				vm_page_dirty(m);
 			}
 			if (oldpde & PG_A)
@@ -3500,7 +3501,7 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va,
 		m = PHYS_TO_VM_PAGE(oldpte & PG_FRAME);
 		if ((oldpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
 			KASSERT((oldpte & PG_RO) == 0,
-				("readonly modified PTE %#lx", oldpte));
+			    ("readonly modified PTE %#lx", oldpte));
 			vm_page_dirty(m);
 		}
 		if (oldpte & PG_A)
@@ -3750,7 +3751,7 @@ small_mappings:
 		 */
 		if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
 			KASSERT((tpte & PG_RO) == 0,
-				("readonly modified PTE %#lx", tpte));
+			    ("readonly modified PTE %#lx", tpte));
 			vm_page_dirty(m);
 		}
 		pmap_unuse_pt(pmap, pv->pv_va, *pde, &free);
@@ -3792,7 +3793,7 @@ retry:
 		    va < eva; va += PAGE_SIZE, m++)
 			if ((oldpde & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
 				KASSERT((oldpde & PG_RO) == 0,
-					("readonly modified PDE %#lx", oldpde));
+				    ("readonly modified PDE %#lx", oldpde));
 				vm_page_dirty(m);
 			}
 	}
@@ -3931,8 +3932,8 @@ retry:
 				if ((pbits & (PG_MANAGED | PG_M | PG_RW)) ==
 				    (PG_MANAGED | PG_M | PG_RW)) {
 					KASSERT((pbits & PG_RO) == 0,
-						("readonly modified PTE %#lx",
-						pbits));
+					    ("readonly modified PTE %#lx",
+					    pbits));
 					m = PHYS_TO_VM_PAGE(pbits & PG_FRAME);
 					vm_page_dirty(m);
 				}
@@ -4027,8 +4028,8 @@ setpte:
 		}
 		if ((oldpte & (PG_M | PG_RW)) == PG_RW) {
 			KASSERT(!pmap_emulate_ad_bits(pmap),
-				("invalid RW/M bits for dirty bit "
-				 "emulation %#lx", oldpte));
+			    ("invalid RW/M bits for dirty bit emulation %#lx",
+			    oldpte));
 			/*
 			 * When PG_M is already clear, PG_RW can be cleared
 			 * without a TLB invalidation.
@@ -4298,8 +4299,8 @@ validate:
 				if ((origpte & (PG_M | PG_RW)) == (PG_M |
 				    PG_RW)) {
 					KASSERT((origpte & PG_RO) == 0,
-						("readonly modified PTE %#lx",
-						origpte));
+					    ("readonly modified PTE %#lx",
+					    origpte));
 					vm_page_dirty(om);
 				}
 				if ((origpte & PG_A) != 0)
@@ -5269,8 +5270,8 @@ pmap_remove_pages(pmap_t pmap)
 				 */
 				if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
 					KASSERT((tpte & PG_RO) == 0,
-						("readonly modified PTE %#lx",
-						tpte));
+					    ("readonly modified PTE %#lx",
+					    tpte));
 					if (superpage) {
 						for (mt = m; mt < &m[NBPDR / PAGE_SIZE]; mt++)
 							vm_page_dirty(mt);
@@ -5558,7 +5559,7 @@ retry:
 				goto retry;
 			if ((oldpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
 				KASSERT((oldpte & PG_RO) == 0,
-					("readonly modified PTE %#lx", oldpte));
+				    ("readonly modified PTE %#lx", oldpte));
 				vm_page_dirty(m);
 			}
 			pmap_invalidate_page(pmap, pv->pv_va);
@@ -5986,8 +5987,8 @@ small_mappings:
 				    ("modified readonly pte %#lx", oldpte));
 			} else {
 				KASSERT((oldpte & (PG_M | PG_RW)) == 0,
-					("invalid RW/M bits for dirty bit "
-					 "emulation %#lx", oldpte));
+				    ("invalid RW/M bits for dirty bit "
+				    "emulation %#lx", oldpte));
 			}
 		}
 		if ((oldpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
@@ -6678,8 +6679,8 @@ pmap_emulate_dirty(pmap_t pmap, vm_offset_t va)
 		pte = pmap_pde_to_pte(pde, va);
 		if ((*pte & (PG_V | PG_RO)) == PG_V) {
 			KASSERT((*pte & PG_A) != 0,
-				("pmap_emulate_dirty: accessed and valid bits "
-				 "mismatch %#lx", *pte));
+			    ("pmap_emulate_dirty: accessed and valid bits "
+			    "mismatch %#lx", *pte));
 			atomic_set_long(pte, PG_M | PG_RW);
 			rv = 0;		/* success */
 

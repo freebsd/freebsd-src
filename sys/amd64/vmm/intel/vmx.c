@@ -1543,9 +1543,9 @@ vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap)
 	vmexit = vm_exitinfo(vmx->vm, vcpu);
 
 	KASSERT(vmxctx->pmap == pmap,
-		("pmap %p different than ctx pmap %p", pmap, vmxctx->pmap));
+	    ("pmap %p different than ctx pmap %p", pmap, vmxctx->pmap));
 	KASSERT(vmxctx->eptp == vmx->eptp,
-		("eptp %p different than ctx eptp %#lx", eptp, vmxctx->eptp));
+	    ("eptp %p different than ctx eptp %#lx", eptp, vmxctx->eptp));
 
 	/*
 	 * XXX Can we avoid doing this every time we do a vm run?
