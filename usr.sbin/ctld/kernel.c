@@ -628,7 +628,7 @@ kernel_port_on(void)
 	struct ctl_port_entry entry;
 	int error;
 
-	bzero(&entry, sizeof(&entry));
+	bzero(&entry, sizeof(entry));
 
 	entry.port_type = CTL_PORT_ISCSI;
 	entry.targ_port = -1;
@@ -648,7 +648,7 @@ kernel_port_off(void)
 	struct ctl_port_entry entry;
 	int error;
 
-	bzero(&entry, sizeof(&entry));
+	bzero(&entry, sizeof(entry));
 
 	entry.port_type = CTL_PORT_ISCSI;
 	entry.targ_port = -1;

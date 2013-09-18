@@ -43,7 +43,7 @@
 #define	ISCSI_ADDR_LEN		47	/* INET6_ADDRSTRLEN + '\0' */
 #define	ISCSI_ALIAS_LEN		256	/* XXX: Where did it come from? */
 #define	ISCSI_SECRET_LEN	17	/* 16 + '\0' */
-#define	ISCSI_REASON_LEN	32
+#define	ISCSI_REASON_LEN	64
 
 #define	ISCSI_DIGEST_NONE	0
 #define	ISCSI_DIGEST_CRC32C	1
