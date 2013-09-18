@@ -79,7 +79,7 @@ kernel_init(void)
 	int retval, saved_errno;
 
 	ctl_fd = open(CTL_DEFAULT_DEV, O_RDWR);
-	if (ctl_fd < 0) {
+	if (ctl_fd < 0 && errno == ENOENT) {
 		saved_errno = errno;
 		retval = kldload("ctl");
 		if (retval != -1)

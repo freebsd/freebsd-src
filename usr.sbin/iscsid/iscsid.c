@@ -509,7 +509,7 @@ main(int argc, char **argv)
 	}
 
 	iscsi_fd = open(ISCSI_PATH, O_RDWR);
-	if (iscsi_fd < 0) {
+	if (iscsi_fd < 0 && errno == ENOENT) {
 		saved_errno = errno;
 		retval = kldload("iscsi");
 		if (retval != -1)
