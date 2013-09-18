@@ -676,8 +676,9 @@ kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries}
 #
 # Checks to be sure system is ready for installworld/installkernel.
 #
-installcheck:
-installcheck_UGID:
+installcheck: _installcheck_world _installcheck_kernel
+_installcheck_world:
+_installcheck_kernel:
 
 #
 # Require DESTDIR to be set if installing for a different architecture or
@@ -686,8 +687,9 @@ installcheck_UGID:
 .if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${TARGET} != ${MACHINE} || \
     defined(DB_FROM_SRC)
 .if !make(distributeworld)
-installcheck: installcheck_DESTDIR
-installcheck_DESTDIR:
+_installcheck_world: __installcheck_DESTDIR
+_installcheck_kernel: __installcheck_DESTDIR
+__installcheck_DESTDIR:
 .if !defined(DESTDIR) || empty(DESTDIR)
 	@echo "ERROR: Please set DESTDIR!"; \
 	false
@@ -713,7 +715,8 @@ CHECK_GIDS+=	proxy authpf
 CHECK_UIDS+=	unbound
 CHECK_GIDS+=	unbound
 .endif
-installcheck_UGID:
+_installcheck_world: __installcheck_UGID
+__installcheck_UGID:
 .for uid in ${CHECK_UIDS}
 	@if ! `id -u ${uid} >/dev/null 2>&1`; then \
 		echo "ERROR: Required ${uid} user is missing, see /usr/src/UPDATING."; \
@@ -768,7 +771,7 @@ EXTRA_DISTRIBUTIONS+=	lib32
 
 MTREE_MAGIC?=	mtree 2.0
 
-distributeworld installworld: installcheck installcheck_UGID
+distributeworld installworld: _installcheck_world
 	mkdir -p ${INSTALLTMP}
 	progs=$$(for prog in ${ITOOLS}; do \
 		if progpath=`which $$prog`; then \
@@ -1046,7 +1049,7 @@ buildkernel:
 # Install the kernel defined by INSTALLKERNEL
 #
 installkernel installkernel.debug \
-reinstallkernel reinstallkernel.debug: installcheck
+reinstallkernel reinstallkernel.debug: _installcheck_kernel
 .if empty(INSTALLKERNEL)
 	@echo "ERROR: No kernel \"${KERNCONF}\" to install."; \
 	false
