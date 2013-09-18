@@ -30,6 +30,8 @@
  */
 
 #include <sys/ioctl.h>
+#include <sys/param.h>
+#include <sys/linker.h>
 #include <assert.h>
 #include <ctype.h>
 #include <err.h>
@@ -512,7 +514,7 @@ main(int argc, char **argv)
 	const char *conf_path = DEFAULT_CONFIG_PATH;
 	char *nickname = NULL, *discovery_host = NULL, *host = NULL,
 	     *target = NULL, *user = NULL, *secret = NULL;
-	int ch, error, iscsi_fd;
+	int ch, error, iscsi_fd, retval, saved_errno;
 	int failed = 0;
 	struct conf *conf;
 	struct target *targ;
@@ -672,6 +674,14 @@ main(int argc, char **argv)
 	}
 
 	iscsi_fd = open(ISCSI_PATH, O_RDWR);
+	if (iscsi_fd < 0 && errno == ENOENT) {
+		saved_errno = errno;
+		retval = kldload("iscsi");
+		if (retval != -1)
+			iscsi_fd = open(ISCSI_PATH, O_RDWR);
+		else
+			errno = saved_errno;
+	}
 	if (iscsi_fd < 0)
 		err(1, "failed to open %s", ISCSI_PATH);
 
