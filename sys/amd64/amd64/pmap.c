@@ -1166,8 +1166,8 @@ pmap_update_pde_invalidate(pmap_t pmap, vm_offset_t va, pd_entry_t newpde)
 	if (pmap->pm_type == PT_EPT)
 		return;
 
-	if (pmap->pm_type != PT_X86)
-		panic("pmap_update_pde_invalidate: bad type %d", pmap->pm_type);
+	KASSERT(pmap->pm_type == PT_X86,
+	    ("pmap_update_pde_invalidate: invalid type %d", pmap->pm_type));
 
 	PG_G = pmap_global_bit(pmap);
 
@@ -1281,8 +1281,8 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 		return;
 	}
 
-	if (pmap->pm_type != PT_X86)
-		panic("pmap_invalidate_page: invalid type %d", pmap->pm_type);
+	KASSERT(pmap->pm_type == PT_X86,
+	    ("pmap_invalidate_page: invalid type %d", pmap->pm_type));
 
 	sched_pin();
 	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
@@ -1359,8 +1359,8 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		return;
 	}
 
-	if (pmap->pm_type != PT_X86)
-		panic("pmap_invalidate_range: invalid type %d", pmap->pm_type);
+	KASSERT(pmap->pm_type == PT_X86,
+	    ("pmap_invalidate_range: invalid type %d", pmap->pm_type));
 
 	sched_pin();
 	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
@@ -1418,8 +1418,8 @@ pmap_invalidate_all(pmap_t pmap)
 		return;
 	}
 
-	if (pmap->pm_type != PT_X86)
-		panic("pmap_invalidate_all: invalid type %d", pmap->pm_type);
+	KASSERT(pmap->pm_type == PT_X86,
+	    ("pmap_invalidate_all: invalid type %d", pmap->pm_type));
 
 	sched_pin();
 	cpuid = PCPU_GET(cpuid);
@@ -5919,11 +5919,11 @@ pmap_clear_modify(vm_page_t m)
 					pte = pmap_pde_to_pte(pde, va);
 					oldpte = *pte;
 
-					if ((oldpte & (PG_RO | PG_RW | PG_M)) !=
-						(PG_RW | PG_M))
-						panic("inconsistent pte %#lx "
-						    "after demotion from pde "
-						    "%#lx", oldpte, oldpde);
+					KASSERT((oldpte & (PG_RO|PG_RW|PG_M)) ==
+					    (PG_RW | PG_M),
+					    ("inconsistent pte %#lx after "
+					    "demotion from pde %#lx",
+					    oldpte, oldpde));
 
 					while (!atomic_cmpset_long(pte, oldpte,
 					    oldpte & ~(PG_M | PG_RW)))
