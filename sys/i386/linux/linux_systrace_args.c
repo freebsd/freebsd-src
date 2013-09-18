@@ -1743,29 +1743,17 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_epoll_create */
 	case 254: {
-		struct linux_epoll_create_args *p = params;
-		iarg[0] = p->size; /* l_int */
-		*n_args = 1;
+		*n_args = 0;
 		break;
 	}
 	/* linux_epoll_ctl */
 	case 255: {
-		struct linux_epoll_ctl_args *p = params;
-		iarg[0] = p->epfd; /* l_int */
-		iarg[1] = p->op; /* l_int */
-		iarg[2] = p->fd; /* l_int */
-		uarg[3] = (intptr_t) p->event; /* struct linux_epoll_event * */
-		*n_args = 4;
+		*n_args = 0;
 		break;
 	}
 	/* linux_epoll_wait */
 	case 256: {
-		struct linux_epoll_wait_args *p = params;
-		iarg[0] = p->epfd; /* l_int */
-		uarg[1] = (intptr_t) p->events; /* struct linux_epoll_event * */
-		iarg[2] = p->maxevents; /* l_int */
-		iarg[3] = p->timeout; /* l_int */
-		*n_args = 4;
+		*n_args = 0;
 		break;
 	}
 	/* linux_remap_file_pages */
@@ -2262,9 +2250,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_epoll_create1 */
 	case 329: {
-		struct linux_epoll_create1_args *p = params;
-		iarg[0] = p->flags; /* l_int */
-		*n_args = 1;
+		*n_args = 0;
 		break;
 	}
 	/* linux_dup3 */
@@ -4983,51 +4969,12 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_epoll_create */
 	case 254:
-		switch(ndx) {
-		case 0:
-			p = "l_int";
-			break;
-		default:
-			break;
-		};
 		break;
 	/* linux_epoll_ctl */
 	case 255:
-		switch(ndx) {
-		case 0:
-			p = "l_int";
-			break;
-		case 1:
-			p = "l_int";
-			break;
-		case 2:
-			p = "l_int";
-			break;
-		case 3:
-			p = "struct linux_epoll_event *";
-			break;
-		default:
-			break;
-		};
 		break;
 	/* linux_epoll_wait */
 	case 256:
-		switch(ndx) {
-		case 0:
-			p = "l_int";
-			break;
-		case 1:
-			p = "struct linux_epoll_event *";
-			break;
-		case 2:
-			p = "l_int";
-			break;
-		case 3:
-			p = "l_int";
-			break;
-		default:
-			break;
-		};
 		break;
 	/* linux_remap_file_pages */
 	case 257:
@@ -5702,13 +5649,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_epoll_create1 */
 	case 329:
-		switch(ndx) {
-		case 0:
-			p = "l_int";
-			break;
-		default:
-			break;
-		};
 		break;
 	/* linux_dup3 */
 	case 330:
@@ -6785,19 +6725,10 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 253:
 	/* linux_epoll_create */
 	case 254:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
 	/* linux_epoll_ctl */
 	case 255:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
 	/* linux_epoll_wait */
 	case 256:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
 	/* linux_remap_file_pages */
 	case 257:
 	/* linux_set_tid_address */
@@ -7045,9 +6976,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 328:
 	/* linux_epoll_create1 */
 	case 329:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
 	/* linux_dup3 */
 	case 330:
 	/* linux_pipe2 */
