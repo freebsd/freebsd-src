@@ -1,4 +1,4 @@
-#	$OpenBSD: sftp-cmds.sh,v 1.12 2012/06/01 00:52:52 djm Exp $
+#	$OpenBSD: sftp-cmds.sh,v 1.14 2013/06/21 02:26:26 djm Exp $
 #	Placed in the Public Domain.
 
 # XXX - TODO: 
@@ -7,8 +7,6 @@
 
 tid="sftp commands"
 
-DATA=/bin/ls${EXEEXT}
-COPY=${OBJ}/copy
 # test that these files are readable!
 for i in `(cd /bin;echo l*)`
 do
@@ -108,7 +106,7 @@ rm -f ${COPY}.dd/*
 verbose "$tid: get to directory"
 echo "get $DATA ${COPY}.dd" | ${SFTP} -D ${SFTPSERVER} >/dev/null 2>&1 \
         || fail "get failed"
-cmp $DATA ${COPY}.dd/`basename $DATA` || fail "corrupted copy after get"
+cmp $DATA ${COPY}.dd/$DATANAME || fail "corrupted copy after get"
 
 rm -f ${COPY}.dd/*
 verbose "$tid: glob get to directory"
@@ -122,7 +120,7 @@ rm -f ${COPY}.dd/*
 verbose "$tid: get to local dir"
 (echo "lcd ${COPY}.dd"; echo "get $DATA" ) | ${SFTP} -D ${SFTPSERVER} >/dev/null 2>&1 \
         || fail "get failed"
-cmp $DATA ${COPY}.dd/`basename $DATA` || fail "corrupted copy after get"
+cmp $DATA ${COPY}.dd/$DATANAME || fail "corrupted copy after get"
 
 rm -f ${COPY}.dd/*
 verbose "$tid: glob get to local dir"
@@ -156,7 +154,7 @@ rm -f ${COPY}.dd/*
 verbose "$tid: put to directory"
 echo "put $DATA ${COPY}.dd" | ${SFTP} -D ${SFTPSERVER} >/dev/null 2>&1 \
 	|| fail "put failed"
-cmp $DATA ${COPY}.dd/`basename $DATA` || fail "corrupted copy after put"
+cmp $DATA ${COPY}.dd/$DATANAME || fail "corrupted copy after put"
 
 rm -f ${COPY}.dd/*
 verbose "$tid: glob put to directory"
@@ -170,7 +168,7 @@ rm -f ${COPY}.dd/*
 verbose "$tid: put to local dir"
 (echo "cd ${COPY}.dd"; echo "put $DATA") | ${SFTP} -D ${SFTPSERVER} >/dev/null 2>&1 \
 	|| fail "put failed"
-cmp $DATA ${COPY}.dd/`basename $DATA` || fail "corrupted copy after put"
+cmp $DATA ${COPY}.dd/$DATANAME || fail "corrupted copy after put"
 
 rm -f ${COPY}.dd/*
 verbose "$tid: glob put to local dir"

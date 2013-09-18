@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh-com.sh,v 1.7 2004/02/24 17:06:52 markus Exp $
+#	$OpenBSD: ssh-com.sh,v 1.8 2013/05/17 00:37:40 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="connect to ssh.com server"
@@ -70,7 +70,7 @@ done
 
 # convert and append DSA hostkey
 (
-	echon 'ssh2-localhost-with-alias,127.0.0.1,::1 '
+	printf 'ssh2-localhost-with-alias,127.0.0.1,::1 '
 	${SSHKEYGEN} -if ${SRC}/dsa_ssh2.pub
 ) >> $OBJ/known_hosts
 

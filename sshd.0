@@ -5,8 +5,9 @@ NAME
 
 SYNOPSIS
      sshd [-46DdeiqTt] [-b bits] [-C connection_spec]
-          [-c host_certificate_file] [-f config_file] [-g login_grace_time]
-          [-h host_key_file] [-k key_gen_time] [-o option] [-p port] [-u len]
+          [-c host_certificate_file] [-E log_file] [-f config_file]
+          [-g login_grace_time] [-h host_key_file] [-k key_gen_time]
+          [-o option] [-p port] [-u len]
 
 DESCRIPTION
      sshd (OpenSSH Daemon) is the daemon program for ssh(1).  Together these
@@ -60,8 +61,10 @@ DESCRIPTION
              option is only intended for debugging for the server.  Multiple
              -d options increase the debugging level.  Maximum is 3.
 
-     -e      When this option is specified, sshd will send the output to the
-             standard error instead of the system log.
+     -E log_file
+             Append debug logs to log_file instead of the system log.
+
+     -e      Write debug logs to standard error instead of the system log.
 
      -f config_file
              Specifies the name of the configuration file.  The default is
@@ -634,4 +637,4 @@ CAVEATS
      System security is not improved unless rshd, rlogind, and rexecd are
      disabled (thus completely disabling rlogin and rsh into the machine).
 
-OpenBSD 5.3                     October 4, 2012                    OpenBSD 5.3
+OpenBSD 5.4                      June 27, 2013                     OpenBSD 5.4

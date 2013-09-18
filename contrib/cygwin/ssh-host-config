@@ -606,9 +606,9 @@ do
     echo "  --no     -n            Answer all questions with \"no\" automatically."
     echo "  --cygwin -c <options>  Use \"options\" as value for CYGWIN environment var."
     echo "  --port   -p <n>        sshd listens on port n."
-    echo "  --user   -u <account>  privileged user for service."
+    echo "  --user   -u <account>  privileged user for service, default 'cyg_server'."
     echo "  --pwd    -w <passwd>   Use \"pwd\" as password for privileged user."
-    echo "  --privileged           On Windows NT/2k/XP, require privileged user"
+    echo "  --privileged           On Windows XP, require privileged user"
     echo "                         instead of LocalSystem for sshd service."
     echo
     exit 1

@@ -1,10 +1,7 @@
-#	$OpenBSD: putty-transfer.sh,v 1.2 2008/06/30 10:31:11 djm Exp $
+#	$OpenBSD: putty-transfer.sh,v 1.3 2013/05/17 04:29:14 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="putty transfer data"
-
-DATA=/bin/ls
-COPY=${OBJ}/copy
 
 if test "x$REGRESS_INTEROP_PUTTY" != "xyes" ; then
 	echo "putty interop tests not enabled"

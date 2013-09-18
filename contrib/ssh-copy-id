@@ -165,7 +165,7 @@ done
 
 eval set -- "$SAVEARGS"
 
-if [ $# == 0 ] ; then
+if [ $# = 0 ] ; then
   usage
 fi
 if [ $# != 1 ] ; then

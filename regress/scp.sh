@@ -1,4 +1,4 @@
-#	$OpenBSD: scp.sh,v 1.7 2006/01/31 10:36:33 djm Exp $
+#	$OpenBSD: scp.sh,v 1.9 2013/05/17 10:35:43 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="scp"
@@ -12,8 +12,6 @@ else
 	DIFFOPT="-r"
 fi
 
-DATA=/bin/ls${EXEEXT}
-COPY=${OBJ}/copy
 COPY2=${OBJ}/copy2
 DIR=${COPY}.dd
 DIR2=${COPY}.dd2

@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.89 2013/02/06 00:20:42 dtucker Exp $
+#	$OpenBSD: sshd_config,v 1.90 2013/05/16 04:09:14 dtucker Exp $
 
 # This is the sshd server system-wide configuration file.  See
 # sshd_config(5) for more information.
@@ -28,6 +28,9 @@
 # Lifetime and size of ephemeral version 1 server key
 #KeyRegenerationInterval 1h
 #ServerKeyBits 1024
+
+# Ciphers and keying
+#RekeyLimit default none
 
 # Logging
 # obsoletes QuietMode and FascistLogging

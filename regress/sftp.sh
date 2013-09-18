@@ -1,10 +1,7 @@
-#	$OpenBSD: sftp.sh,v 1.3 2009/08/13 01:11:55 djm Exp $
+#	$OpenBSD: sftp.sh,v 1.5 2013/05/17 10:28:11 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="basic sftp put/get"
-
-DATA=/bin/ls${EXEEXT}
-COPY=${OBJ}/copy
 
 SFTPCMDFILE=${OBJ}/batch
 cat >$SFTPCMDFILE <<EOF

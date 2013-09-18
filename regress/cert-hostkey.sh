@@ -1,4 +1,4 @@
-#	$OpenBSD: cert-hostkey.sh,v 1.6 2011/05/20 02:43:36 djm Exp $
+#	$OpenBSD: cert-hostkey.sh,v 1.7 2013/05/17 00:37:40 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="certified host keys"
@@ -18,8 +18,8 @@ HOSTS='localhost-with-alias,127.0.0.1,::1'
 ${SSHKEYGEN} -q -N '' -t rsa  -f $OBJ/host_ca_key ||\
 	fail "ssh-keygen of host_ca_key failed"
 (
-	echon '@cert-authority '
-	echon "$HOSTS "
+	printf '@cert-authority '
+	printf "$HOSTS "
 	cat $OBJ/host_ca_key.pub
 ) > $OBJ/known_hosts-cert
 
@@ -66,25 +66,25 @@ done
 
 # Revoked certificates with key present
 (
-	echon '@cert-authority '
-	echon "$HOSTS "
+	printf '@cert-authority '
+	printf "$HOSTS "
 	cat $OBJ/host_ca_key.pub
-	echon '@revoked '
-	echon "* "
+	printf '@revoked '
+	printf "* "
 	cat $OBJ/cert_host_key_rsa.pub
 	if test "x$TEST_SSH_ECC" = "xyes"; then
-		echon '@revoked '
-		echon "* "
+		printf '@revoked '
+		printf "* "
 		cat $OBJ/cert_host_key_ecdsa.pub
 	fi
-	echon '@revoked '
-	echon "* "
+	printf '@revoked '
+	printf "* "
 	cat $OBJ/cert_host_key_dsa.pub
-	echon '@revoked '
-	echon "* "
+	printf '@revoked '
+	printf "* "
 	cat $OBJ/cert_host_key_rsa_v00.pub
-	echon '@revoked '
-	echon "* "
+	printf '@revoked '
+	printf "* "
 	cat $OBJ/cert_host_key_dsa_v00.pub
 ) > $OBJ/known_hosts-cert
 for privsep in yes no ; do
@@ -108,11 +108,11 @@ done
 
 # Revoked CA
 (
-	echon '@cert-authority '
-	echon "$HOSTS "
+	printf '@cert-authority '
+	printf "$HOSTS "
 	cat $OBJ/host_ca_key.pub
-	echon '@revoked '
-	echon "* "
+	printf '@revoked '
+	printf "* "
 	cat $OBJ/host_ca_key.pub
 ) > $OBJ/known_hosts-cert
 for ktype in rsa dsa $ecdsa rsa_v00 dsa_v00 ; do 
@@ -132,8 +132,8 @@ done
 
 # Create a CA key and add it to known hosts
 (
-	echon '@cert-authority '
-	echon "$HOSTS "
+	printf '@cert-authority '
+	printf "$HOSTS "
 	cat $OBJ/host_ca_key.pub
 ) > $OBJ/known_hosts-cert
 
@@ -200,7 +200,7 @@ for v in v01 v00 ;  do
 		    -n $HOSTS $OBJ/cert_host_key_${ktype} ||
 			fail "couldn't sign cert_host_key_${ktype}"
 		(
-			echon "$HOSTS "
+			printf "$HOSTS "
 			cat $OBJ/cert_host_key_${ktype}.pub
 		) > $OBJ/known_hosts-cert
 		(
@@ -220,8 +220,8 @@ done
 
 # Wrong certificate
 (
-	echon '@cert-authority '
-	echon "$HOSTS "
+	printf '@cert-authority '
+	printf "$HOSTS "
 	cat $OBJ/host_ca_key.pub
 ) > $OBJ/known_hosts-cert
 for v in v01 v00 ;  do 

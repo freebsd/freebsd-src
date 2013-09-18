@@ -222,10 +222,6 @@ do
     shift
     ;;
 
-  --privileged )
-    csih_FORCE_PRIVILEGED_USER=yes
-    ;;
-
   *)
     echo "usage: ${PROGNAME} [OPTION]..."
     echo
@@ -236,8 +232,6 @@ do
     echo "    --yes        -y        Answer all questions with \"yes\" automatically."
     echo "    --no         -n        Answer all questions with \"no\" automatically."
     echo "    --passphrase -p word   Use \"word\" as passphrase automatically."
-    echo "    --privileged           On Windows NT/2k/XP, assume privileged user"
-    echo "                           instead of LocalSystem for sshd service."
     echo
     exit 1
     ;;

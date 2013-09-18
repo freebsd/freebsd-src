@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.336 2013/03/07 15:37:13 tim Exp $
+# $Id: Makefile.in,v 1.340 2013/06/11 01:26:10 dtucker Exp $
 
 # uncomment if you run a non bourne compatable shell. Ie. csh
 #SHELL = @SH@
@@ -121,6 +121,8 @@ PATHSUBS	= \
 	-e 's|/usr/bin:/bin:/usr/sbin:/sbin|@user_path@|g'
 
 FIXPATHSCMD	= $(SED) $(PATHSUBS)
+FIXALGORITHMSCMD= $(SHELL) $(srcdir)/fixalgorithms $(SED) \
+		     @UNSUPPORTED_ALGORITHMS@
 
 all: $(CONFIGFILES) $(MANPAGES) $(TARGETS)
 
@@ -184,9 +186,10 @@ $(MANPAGES): $(MANPAGES_IN)
 		manpage=$(srcdir)/`echo $@ | sed 's/\.out$$//'`; \
 	fi; \
 	if test "$(MANTYPE)" = "man"; then \
-		$(FIXPATHSCMD) $${manpage} | $(AWK) -f $(srcdir)/mdoc2man.awk > $@; \
+		$(FIXPATHSCMD) $${manpage} | $(FIXALGORITHMSCMD) | \
+		    $(AWK) -f $(srcdir)/mdoc2man.awk > $@; \
 	else \
-		$(FIXPATHSCMD) $${manpage} > $@; \
+		$(FIXPATHSCMD) $${manpage} | $(FIXALGORITHMSCMD) > $@; \
 	fi
 
 $(CONFIGFILES): $(CONFIGFILES_IN)
@@ -382,15 +385,14 @@ uninstall:
 	-rm -f $(DESTDIR)$(mandir)/$(mansubdir)1/slogin.1
 
 regress/modpipe$(EXEEXT): $(srcdir)/regress/modpipe.c
-	[ -d `pwd`/regress ]  ||  mkdir -p `pwd`/regress; \
-	$(CC) $(CPPFLAGS) -o $@ $? \
-	$(LDFLAGS) -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+	[ -d `pwd`/regress ]  ||  mkdir -p `pwd`/regress
+	[ -f `pwd`/regress/Makefile ]  || \
+	    ln -s `cd $(srcdir) && pwd`/regress/Makefile `pwd`/regress/Makefile
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $? \
+	$(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
 tests interop-tests:	$(TARGETS) regress/modpipe$(EXEEXT)
 	BUILDDIR=`pwd`; \
-	[ -d `pwd`/regress ]  ||  mkdir -p `pwd`/regress; \
-	[ -f `pwd`/regress/Makefile ]  || \
-	    ln -s `cd $(srcdir) && pwd`/regress/Makefile `pwd`/regress/Makefile ; \
 	TEST_SHELL="@TEST_SHELL@"; \
 	TEST_SSH_SSH="$${BUILDDIR}/ssh"; \
 	TEST_SSH_SSHD="$${BUILDDIR}/sshd"; \

@@ -1,4 +1,4 @@
-#	$OpenBSD: agent.sh,v 1.7 2007/11/25 15:35:09 jmc Exp $
+#	$OpenBSD: agent.sh,v 1.8 2013/05/17 00:37:40 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="simple agent test"
@@ -19,7 +19,7 @@ else
 		fail "ssh-add -l did not fail with exit code 1"
 	fi
 	trace "overwrite authorized keys"
-	echon > $OBJ/authorized_keys_$USER
+	printf '' > $OBJ/authorized_keys_$USER
 	for t in rsa rsa1; do
 		# generate user key for agent
 		rm -f $OBJ/$t-agent

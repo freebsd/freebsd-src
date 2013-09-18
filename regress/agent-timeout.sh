@@ -1,4 +1,4 @@
-#	$OpenBSD: agent-timeout.sh,v 1.1 2002/06/06 00:38:40 markus Exp $
+#	$OpenBSD: agent-timeout.sh,v 1.2 2013/05/17 01:16:09 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="agent timeout test"

@@ -1,4 +1,4 @@
-#	$OpenBSD: agent-getpeereid.sh,v 1.4 2007/11/25 15:35:09 jmc Exp $
+#	$OpenBSD: agent-getpeereid.sh,v 1.5 2013/05/17 10:33:09 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="disallow agent attach from other uid"
@@ -17,7 +17,6 @@ if [ -z "$SUDO" ]; then
 	echo "skipped: need SUDO to switch to uid $UNPRIV"
 	exit 0
 fi
-
 
 trace "start agent"
 eval `${SSHAGENT} -s -a ${ASOCK}` > /dev/null
