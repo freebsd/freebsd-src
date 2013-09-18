@@ -331,7 +331,8 @@ vm_destroy(struct vm *vm)
 
 	ppt_unassign_all(vm);
 
-	KASSERT(vm->iommu == NULL, ("vm_destroy: iommu should be NULL"));
+	if (vm->iommu != NULL)
+		iommu_destroy_domain(vm->iommu);
 
 	for (i = 0; i < vm->num_mem_segs; i++)
 		vm_free_mem_seg(vm, &vm->mem_segs[i]);
@@ -564,8 +565,6 @@ vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func)
 	if (ppt_num_devices(vm) == 0) {
 		vm_iommu_unmap(vm);
 		vm_gpa_unwire(vm);
-		iommu_destroy_domain(vm->iommu);
-		vm->iommu = NULL;
 	}
 	return (0);
 }
