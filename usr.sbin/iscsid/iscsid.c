@@ -156,7 +156,7 @@ connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
 	struct addrinfo *from_ai, *to_ai;
 	const char *from_addr, *to_addr;
 #ifdef ICL_KERNEL_PROXY
-	struct iscsi_daemon_connect *idc;
+	struct iscsi_daemon_connect idc;
 #endif
 	int error;
 
@@ -195,25 +195,22 @@ connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
 
 #ifdef ICL_KERNEL_PROXY
 
-	idc = calloc(1, sizeof(*idc));
-	if (idc == NULL)
-		log_err(1, "calloc");
-
-	idc->idc_session_id = conn->conn_session_id;
+	memset(&idc, 0, sizeof(idc));
+	idc.idc_session_id = conn->conn_session_id;
 	if (conn->conn_conf.isc_iser)
-		idc->idc_iser = 1;
-	idc->idc_domain = to_ai->ai_family;
-	idc->idc_socktype = to_ai->ai_socktype;
-	idc->idc_protocol = to_ai->ai_protocol;
+		idc.idc_iser = 1;
+	idc.idc_domain = to_ai->ai_family;
+	idc.idc_socktype = to_ai->ai_socktype;
+	idc.idc_protocol = to_ai->ai_protocol;
 	if (from_ai != NULL) {
-		idc->idc_from_addr = from_ai->ai_addr;
-		idc->idc_from_addrlen = from_ai->ai_addrlen;
+		idc.idc_from_addr = from_ai->ai_addr;
+		idc.idc_from_addrlen = from_ai->ai_addrlen;
 	}
-	idc->idc_to_addr = to_ai->ai_addr;
-	idc->idc_to_addrlen = to_ai->ai_addrlen;
+	idc.idc_to_addr = to_ai->ai_addr;
+	idc.idc_to_addrlen = to_ai->ai_addrlen;
 
 	log_debugx("connecting to %s using ICL kernel proxy", to_addr);
-	error = ioctl(iscsi_fd, ISCSIDCONNECT, idc);
+	error = ioctl(iscsi_fd, ISCSIDCONNECT, &idc);
 	if (error != 0) {
 		fail(conn, strerror(errno));
 		log_err(1, "failed to connect to %s using ICL kernel proxy",
@@ -257,31 +254,29 @@ connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
 static void
 handoff(struct connection *conn)
 {
-	struct iscsi_daemon_handoff *idh;
+	struct iscsi_daemon_handoff idh;
 	int error;
 
 	log_debugx("handing off connection to the kernel");
 
-	idh = calloc(1, sizeof(*idh));
-	if (idh == NULL)
-		log_err(1, "calloc");
-	idh->idh_session_id = conn->conn_session_id;
+	memset(&idh, 0, sizeof(idh));
+	idh.idh_session_id = conn->conn_session_id;
 #ifndef ICL_KERNEL_PROXY
-	idh->idh_socket = conn->conn_socket;
+	idh.idh_socket = conn->conn_socket;
 #endif
-	strlcpy(idh->idh_target_alias, conn->conn_target_alias,
-	    sizeof(idh->idh_target_alias));
-	memcpy(idh->idh_isid, conn->conn_isid, sizeof(idh->idh_isid));
-	idh->idh_statsn = conn->conn_statsn;
-	idh->idh_header_digest = conn->conn_header_digest;
-	idh->idh_data_digest = conn->conn_data_digest;
-	idh->idh_initial_r2t = conn->conn_initial_r2t;
-	idh->idh_immediate_data = conn->conn_immediate_data;
-	idh->idh_max_data_segment_length = conn->conn_max_data_segment_length;
-	idh->idh_max_burst_length = conn->conn_max_burst_length;
-	idh->idh_first_burst_length = conn->conn_first_burst_length;
+	strlcpy(idh.idh_target_alias, conn->conn_target_alias,
+	    sizeof(idh.idh_target_alias));
+	memcpy(idh.idh_isid, conn->conn_isid, sizeof(idh.idh_isid));
+	idh.idh_statsn = conn->conn_statsn;
+	idh.idh_header_digest = conn->conn_header_digest;
+	idh.idh_data_digest = conn->conn_data_digest;
+	idh.idh_initial_r2t = conn->conn_initial_r2t;
+	idh.idh_immediate_data = conn->conn_immediate_data;
+	idh.idh_max_data_segment_length = conn->conn_max_data_segment_length;
+	idh.idh_max_burst_length = conn->conn_max_burst_length;
+	idh.idh_first_burst_length = conn->conn_first_burst_length;
 
-	error = ioctl(conn->conn_iscsi_fd, ISCSIDHANDOFF, idh);
+	error = ioctl(conn->conn_iscsi_fd, ISCSIDHANDOFF, &idh);
 	if (error != 0)
 		log_err(1, "ISCSIDHANDOFF");
 }
@@ -289,17 +284,14 @@ handoff(struct connection *conn)
 void
 fail(const struct connection *conn, const char *reason)
 {
-	struct iscsi_daemon_fail *idf;
+	struct iscsi_daemon_fail idf;
 	int error;
 
-	idf = calloc(1, sizeof(*idf));
-	if (idf == NULL)
-		log_err(1, "calloc");
+	memset(&idf, 0, sizeof(idf));
+	idf.idf_session_id = conn->conn_session_id;
+	strlcpy(idf.idf_reason, reason, sizeof(idf.idf_reason));
 
-	idf->idf_session_id = conn->conn_session_id;
-	strlcpy(idf->idf_reason, reason, sizeof(idf->idf_reason));
-
-	error = ioctl(conn->conn_iscsi_fd, ISCSIDFAIL, idf);
+	error = ioctl(conn->conn_iscsi_fd, ISCSIDFAIL, &idf);
 	if (error != 0)
 		log_err(1, "ISCSIDFAIL");
 }
@@ -402,7 +394,7 @@ set_timeout(int timeout)
 }
 
 static void
-handle_request(int iscsi_fd, struct iscsi_daemon_request *request, int timeout)
+handle_request(int iscsi_fd, const struct iscsi_daemon_request *request, int timeout)
 {
 	struct connection *conn;
 
@@ -468,7 +460,7 @@ main(int argc, char **argv)
 	struct pidfh *pidfh;
 	pid_t pid, otherpid;
 	const char *pidfile_path = DEFAULT_PIDFILE;
-	struct iscsi_daemon_request *request;
+	struct iscsi_daemon_request request;
 
 	while ((ch = getopt(argc, argv, "P:dl:m:t:")) != -1) {
 		switch (ch) {
@@ -533,11 +525,8 @@ main(int argc, char **argv)
 	for (;;) {
 		log_debugx("waiting for request from the kernel");
 
-		request = calloc(1, sizeof(*request));
-		if (request == NULL)
-			log_err(1, "calloc");
-
-		error = ioctl(iscsi_fd, ISCSIDWAIT, request);
+		memset(&request, 0, sizeof(request));
+		error = ioctl(iscsi_fd, ISCSIDWAIT, &request);
 		if (error != 0) {
 			if (errno == EINTR) {
 				nchildren -= wait_for_children(false);
@@ -573,7 +562,7 @@ main(int argc, char **argv)
 		}
 
 		pidfile_close(pidfh);
-		handle_request(iscsi_fd, request, timeout);
+		handle_request(iscsi_fd, &request, timeout);
 	}
 
 	return (0);
