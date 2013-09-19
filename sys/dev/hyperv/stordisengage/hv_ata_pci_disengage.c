@@ -92,8 +92,17 @@ static int hv_check_for_hyper_v(void);
 static int
 hv_ata_pci_probe(device_t dev)
 {
-	int ata_disk_enable = 0;
-	if(bootverbose)
+	int ata_disk_enable;
+
+	ata_disk_enable = 0;
+
+	/*
+	 * Don't probe if not running in a Hyper-V environment
+	 */
+	if (!hv_check_for_hyper_v())
+		return (ENXIO);
+
+	if (bootverbose)
 		device_printf(dev,
 		    "hv_ata_pci_probe dev_class/subslcass = %d, %d\n",
 			pci_get_class(dev), pci_get_subclass(dev));
@@ -116,18 +125,15 @@ hv_ata_pci_probe(device_t dev)
 	 * ATA driver, the environment variable
 	 * hw_ata.disk_enable must be explicitly set to 1.
 	 */
-	if (hv_check_for_hyper_v()) {
-		if (getenv_int("hw.ata.disk_enable", &ata_disk_enable)) {
-			if(bootverbose)
-				device_printf(dev,
-				"hw.ata.disk_enable flag is disabling Hyper-V"
-				" ATA driver support\n");
+	if (getenv_int("hw.ata.disk_enable", &ata_disk_enable)) {
+		if(bootverbose)
+			device_printf(dev,
+			    "hw.ata.disk_enable flag is disabling Hyper-V"
+			    " ATA driver support\n");
 			return (ENXIO);
-		}
-
 	}
 
-	if(bootverbose)
+	if (bootverbose)
 		device_printf(dev, "Hyper-V ATA storage driver enabled.\n");
 
 	return (BUS_PROBE_VENDOR);
@@ -136,13 +142,15 @@ hv_ata_pci_probe(device_t dev)
 static int
 hv_ata_pci_attach(device_t dev)
 {
-	return 0;
+
+	return (0);
 }
 
 static int
 hv_ata_pci_detach(device_t dev)
 {
-	return 0;
+
+	return (0);
 }
 
 /**
@@ -153,42 +161,44 @@ static int
 hv_check_for_hyper_v(void)
 {
 	u_int regs[4];
-	int hyper_v_detected = 0;
+	int hyper_v_detected;
+
+	hyper_v_detected = 0;
 	do_cpuid(1, regs);
 	if (regs[2] & 0x80000000) {
-		/* if(a hypervisor is detected) */
-		/* make sure this really is Hyper-V */
-		/* we look at the CPUID info */
+		/*
+		 * if(a hypervisor is detected)
+		 *  make sure this really is Hyper-V
+		 */
 		do_cpuid(HV_X64_MSR_GUEST_OS_ID, regs);
 		hyper_v_detected =
 			regs[0] >= HV_X64_CPUID_MIN &&
 			regs[0] <= HV_X64_CPUID_MAX &&
 			!memcmp("Microsoft Hv", &regs[1], 12);
 	}
+
 	return (hyper_v_detected);
 }
 
 static device_method_t hv_ata_pci_methods[] = {
-    /* device interface */
-    DEVMETHOD(device_probe,	hv_ata_pci_probe),
-    DEVMETHOD(device_attach,	hv_ata_pci_attach),
-    DEVMETHOD(device_detach,	hv_ata_pci_detach),
-    DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	/* device interface */
+	DEVMETHOD(device_probe,	hv_ata_pci_probe),
+	DEVMETHOD(device_attach,	hv_ata_pci_attach),
+	DEVMETHOD(device_detach,	hv_ata_pci_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 
-    DEVMETHOD_END
+	DEVMETHOD_END
 };
 
 devclass_t hv_ata_pci_devclass;
 
 static driver_t hv_ata_pci_disengage_driver = {
-    "pciata-disable",
-    hv_ata_pci_methods,
-    sizeof(struct ata_pci_controller),
+	"pciata-disable",
+	hv_ata_pci_methods,
+	sizeof(struct ata_pci_controller),
 };
 
 DRIVER_MODULE(atapci_dis, pci, hv_ata_pci_disengage_driver,
 		hv_ata_pci_devclass, NULL, NULL);
 MODULE_VERSION(atapci_dis, 1);
 MODULE_DEPEND(atapci_dis, ata, 1, 1, 1);
-
-
