@@ -291,22 +291,28 @@ primary_exitx(int exitcode, const char *fmt, ...)
 	exit(exitcode);
 }
 
+/* Expects res->hr_amp locked, returns unlocked. */
 static int
 hast_activemap_flush(struct hast_resource *res)
 {
 	const unsigned char *buf;
 	size_t size;
+	int ret;
 
+	mtx_lock(&res->hr_amp_diskmap_lock);
 	buf = activemap_bitmap(res->hr_amp, &size);
+	mtx_unlock(&res->hr_amp_lock);
 	PJDLOG_ASSERT(buf != NULL);
 	PJDLOG_ASSERT((size % res->hr_local_sectorsize) == 0);
+	ret = 0;
 	if (pwrite(res->hr_localfd, buf, size, METADATA_SIZE) !=
 	    (ssize_t)size) {
 		pjdlog_errno(LOG_ERR, "Unable to flush activemap to disk");
 		res->hr_stat_activemap_write_error++;
-		return (-1);
+		ret = -1;
 	}
-	if (res->hr_metaflush == 1 && g_flush(res->hr_localfd) == -1) {
+	if (ret == 0 && res->hr_metaflush == 1 &&
+	    g_flush(res->hr_localfd) == -1) {
 		if (errno == EOPNOTSUPP) {
 			pjdlog_warning("The %s provider doesn't support flushing write cache. Disabling it.",
 			    res->hr_localpath);
@@ -315,10 +321,11 @@ hast_activemap_flush(struct hast_resource *res)
 			pjdlog_errno(LOG_ERR,
 			    "Unable to flush disk cache on activemap update");
 			res->hr_stat_activemap_flush_error++;
-			return (-1);
+			ret = -1;
 		}
 	}
-	return (0);
+	mtx_unlock(&res->hr_amp_diskmap_lock);
+	return (ret);
 }
 
 static bool
@@ -783,6 +790,7 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		 * Now that we merged bitmaps from both nodes, flush it to the
 		 * disk before we start to synchronize.
 		 */
+		mtx_lock(&res->hr_amp_lock);
 		(void)hast_activemap_flush(res);
 	}
 	nv_free(nvin);
@@ -1288,8 +1296,9 @@ ggate_recv_thread(void *arg)
 			    ggio->gctl_offset, ggio->gctl_length)) {
 				res->hr_stat_activemap_update++;
 				(void)hast_activemap_flush(res);
+			} else {
+				mtx_unlock(&res->hr_amp_lock);
 			}
-			mtx_unlock(&res->hr_amp_lock);
 			break;
 		case BIO_DELETE:
 			res->hr_stat_delete++;
@@ -1650,8 +1659,9 @@ done_queue:
 			if (activemap_need_sync(res->hr_amp, ggio->gctl_offset,
 			    ggio->gctl_length)) {
 				(void)hast_activemap_flush(res);
+			} else {
+				mtx_unlock(&res->hr_amp_lock);
 			}
-			mtx_unlock(&res->hr_amp_lock);
 			if (hio->hio_replication == HAST_REPLICATION_MEMSYNC)
 				(void)refcnt_release(&hio->hio_countdown);
 		}
@@ -1918,8 +1928,9 @@ ggate_send_thread(void *arg)
 			    ggio->gctl_offset, ggio->gctl_length)) {
 				res->hr_stat_activemap_update++;
 				(void)hast_activemap_flush(res);
+			} else {
+				mtx_unlock(&res->hr_amp_lock);
 			}
-			mtx_unlock(&res->hr_amp_lock);
 		}
 		if (ggio->gctl_cmd == BIO_WRITE) {
 			/*
@@ -2015,8 +2026,11 @@ sync_thread(void *arg __unused)
 			 */
 			if (activemap_extent_complete(res->hr_amp, syncext))
 				(void)hast_activemap_flush(res);
+			else
+				mtx_unlock(&res->hr_amp_lock);
+		} else {
+			mtx_unlock(&res->hr_amp_lock);
 		}
-		mtx_unlock(&res->hr_amp_lock);
 		if (dorewind) {
 			dorewind = false;
 			if (offset == -1)
