@@ -1113,7 +1113,7 @@ static __inline boolean_t
 pmap_ps_enabled(pmap_t pmap)
 {
 
-	return ((pmap->pm_flags & PMAP_PDE_SUPERPAGE) != 0);
+	return (pg_ps_enabled && (pmap->pm_flags & PMAP_PDE_SUPERPAGE) != 0);
 }
 
 static void
@@ -4297,7 +4297,7 @@ unchanged:
 	 * populated, then attempt promotion.
 	 */
 	if ((mpte == NULL || mpte->wire_count == NPTEPG) &&
-	    pg_ps_enabled && pmap_ps_enabled(pmap) &&
+	    pmap_ps_enabled(pmap) &&
 	    (m->flags & PG_FICTITIOUS) == 0 &&
 	    vm_reserv_level_iffullpop(m) == 0)
 		pmap_promote_pde(pmap, pde, va, &lock);
@@ -4422,7 +4422,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 		va = start + ptoa(diff);
 		if ((va & PDRMASK) == 0 && va + NBPDR <= end &&
 		    (VM_PAGE_TO_PHYS(m) & PDRMASK) == 0 &&
-		    pg_ps_enabled && pmap_ps_enabled(pmap) &&
+		    pmap_ps_enabled(pmap) &&
 		    vm_reserv_level_iffullpop(m) == 0 &&
 		    pmap_enter_pde(pmap, va, m, prot, &lock))
 			m = &m[NBPDR / PAGE_SIZE - 1];
@@ -6647,7 +6647,7 @@ pmap_emulate_dirty(pmap_t pmap, vm_offset_t va)
 			m = PHYS_TO_VM_PAGE(*pte & PG_FRAME);
 
 			if ((mpte == NULL || mpte->wire_count == NPTEPG) &&
-			    pg_ps_enabled && pmap_ps_enabled(pmap) &&
+			    pmap_ps_enabled(pmap) &&
 			    (m->flags & PG_FICTITIOUS) == 0 &&
 			    vm_reserv_level_iffullpop(m) == 0)
 				pmap_promote_pde(pmap, pde, va, &lock);
