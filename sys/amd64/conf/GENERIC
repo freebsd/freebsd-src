@@ -341,5 +341,8 @@ device		virtio_blk	# VirtIO Block device
 device		virtio_scsi	# VirtIO SCSI device
 device		virtio_balloon	# VirtIO Memory Balloon device
 
+# HyperV drivers
+device		hyperv		# HyperV drivers 
+
 # VMware support
 device		vmx		# VMware VMXNET3 Ethernet
