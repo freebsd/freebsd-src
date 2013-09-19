@@ -85,14 +85,13 @@ static TAILQ_HEAD(, hio) hio_free_list;
 static pthread_mutex_t hio_free_list_lock;
 static pthread_cond_t hio_free_list_cond;
 /*
- * Disk thread (the one that do I/O requests) takes requests from this list.
+ * Disk thread (the one that does I/O requests) takes requests from this list.
  */
 static TAILQ_HEAD(, hio) hio_disk_list;
 static pthread_mutex_t hio_disk_list_lock;
 static pthread_cond_t hio_disk_list_cond;
 /*
- * There is one recv list for every component, although local components don't
- * use recv lists as local requests are done synchronously.
+ * Thread that sends requests back to primary takes requests from this list.
  */
 static TAILQ_HEAD(, hio) hio_send_list;
 static pthread_mutex_t hio_send_list_lock;
