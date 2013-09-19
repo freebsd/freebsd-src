@@ -2067,7 +2067,8 @@ usbd_transfer_power_ref(struct usb_xfer *xfer, int val)
 static uint8_t
 usb_peer_should_wakeup(struct usb_device *udev)
 {
-	return ((udev->power_mode == USB_POWER_MODE_ON) ||
+	return (((udev->power_mode == USB_POWER_MODE_ON) &&
+	    (udev->flags.usb_mode == USB_MODE_HOST)) ||
 	    (udev->driver_added_refcount != udev->bus->driver_added_refcount) ||
 	    (udev->re_enumerate_wait != 0) ||
 	    (udev->pwr_save.type_refs[UE_ISOCHRONOUS] != 0) ||
