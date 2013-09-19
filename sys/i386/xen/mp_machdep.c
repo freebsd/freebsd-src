@@ -251,6 +251,9 @@ cpu_add(u_int apic_id, char boot_cpu)
 	if (bootverbose)
 		printf("SMP: Added CPU %d (%s)\n", apic_id, boot_cpu ? "BSP" :
 		    "AP");
+
+	/* Set the ACPI id (it is needed by VCPU operations) */
+	pcpu_find(apic_id)->pc_acpi_id = apic_id;
 }
 
 void
