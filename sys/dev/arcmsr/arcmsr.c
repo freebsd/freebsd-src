@@ -74,6 +74,7 @@
 ** 1.20.00.25   08/17/2012  Ching Huang     Fixed hotplug device no function on type A adapter
 ** 1.20.00.26   12/14/2012  Ching Huang     Added support ARC1214,1224,1264,1284
 ** 1.20.00.27   05/06/2013  Ching Huang     Fixed out standing cmd full on ARC-12x4
+** 1.20.00.28   09/13/2013  Ching Huang     Removed recursive mutex in arcmsr_abort_dr_ccbs
 ******************************************************************************************
 */
 
@@ -145,7 +146,7 @@ __FBSDID("$FreeBSD$");
 #define arcmsr_callout_init(a)	callout_init(a);
 #endif
 
-#define ARCMSR_DRIVER_VERSION	"Driver Version 1.20.00.27 2013-05-06"
+#define ARCMSR_DRIVER_VERSION	"arcmsr version 1.20.00.28 2013-09-13"
 #include <dev/arcmsr/arcmsr.h>
 /*
 **************************************************************************
@@ -1621,7 +1622,6 @@ static void arcmsr_abort_dr_ccbs(struct AdapterControlBlock *acb, int target, in
 	u_int32_t intmask_org;
    	int i;
 
-	ARCMSR_LOCK_ACQUIRE(&acb->isr_lock);
 	/* disable all outbound interrupts */
 	intmask_org = arcmsr_disable_allintr(acb);
 	for (i = 0; i < ARCMSR_MAX_FREESRB_NUM; i++)
@@ -1640,7 +1640,6 @@ static void arcmsr_abort_dr_ccbs(struct AdapterControlBlock *acb, int target, in
 	}
 	/* enable outbound Post Queue, outbound doorbell Interrupt */
 	arcmsr_enable_allintr(acb, intmask_org);
-	ARCMSR_LOCK_RELEASE(&acb->isr_lock);
 }
 /*
 **************************************************************************
@@ -3424,8 +3423,7 @@ static void arcmsr_get_hba_config(struct AdapterControlBlock *acb)
 		acb_device_map++;
 		i++;
 	}
-	printf("ARECA RAID ADAPTER%d: %s \n", acb->pci_unit, ARCMSR_DRIVER_VERSION);
-	printf("ARECA RAID ADAPTER%d: FIRMWARE VERSION %s \n", acb->pci_unit, acb->firm_version);
+	printf("Areca RAID adapter%d: %s F/W version %s \n", acb->pci_unit, acb->firm_model, acb->firm_version);
 	acb->firm_request_len = CHIP_REG_READ32(HBA_MessageUnit, 0, msgcode_rwbuffer[1]);   /*firm_request_len, 1, 04-07*/
 	acb->firm_numbers_queue = CHIP_REG_READ32(HBA_MessageUnit, 0, msgcode_rwbuffer[2]); /*firm_numbers_queue, 2, 08-11*/
 	acb->firm_sdram_size = CHIP_REG_READ32(HBA_MessageUnit, 0, msgcode_rwbuffer[3]);    /*firm_sdram_size, 3, 12-15*/
@@ -3474,8 +3472,7 @@ static void arcmsr_get_hbb_config(struct AdapterControlBlock *acb)
 		acb_device_map++;
 		i++;
 	}
-	printf("ARECA RAID ADAPTER%d: %s \n", acb->pci_unit, ARCMSR_DRIVER_VERSION);
-	printf("ARECA RAID ADAPTER%d: FIRMWARE VERSION %s \n", acb->pci_unit, acb->firm_version);
+	printf("Areca RAID adapter%d: %s F/W version %s \n", acb->pci_unit, acb->firm_model, acb->firm_version);
 	acb->firm_request_len = CHIP_REG_READ32(HBB_RWBUFFER, 1, msgcode_rwbuffer[1]);   /*firm_request_len, 1, 04-07*/
 	acb->firm_numbers_queue = CHIP_REG_READ32(HBB_RWBUFFER, 1, msgcode_rwbuffer[2]); /*firm_numbers_queue, 2, 08-11*/
 	acb->firm_sdram_size = CHIP_REG_READ32(HBB_RWBUFFER, 1, msgcode_rwbuffer[3]);    /*firm_sdram_size, 3, 12-15*/
@@ -3525,8 +3522,7 @@ static void arcmsr_get_hbc_config(struct AdapterControlBlock *acb)
 		acb_device_map++;
 		i++;
 	}
-	printf("ARECA RAID ADAPTER%d: %s \n", acb->pci_unit, ARCMSR_DRIVER_VERSION);
-	printf("ARECA RAID ADAPTER%d: FIRMWARE VERSION %s \n", acb->pci_unit, acb->firm_version);
+	printf("Areca RAID adapter%d: %s F/W version %s \n", acb->pci_unit, acb->firm_model, acb->firm_version);
 	acb->firm_request_len	= CHIP_REG_READ32(HBC_MessageUnit, 0, msgcode_rwbuffer[1]);	/*firm_request_len,   1, 04-07*/
 	acb->firm_numbers_queue	= CHIP_REG_READ32(HBC_MessageUnit, 0, msgcode_rwbuffer[2]);	/*firm_numbers_queue, 2, 08-11*/
 	acb->firm_sdram_size	= CHIP_REG_READ32(HBC_MessageUnit, 0, msgcode_rwbuffer[3]);	/*firm_sdram_size,    3, 12-15*/
@@ -3577,8 +3573,7 @@ static void arcmsr_get_hbd_config(struct AdapterControlBlock *acb)
 		acb_device_map++;
 		i++;
 	}
-	printf("ARECA RAID ADAPTER%d: %s \n", acb->pci_unit, ARCMSR_DRIVER_VERSION);
-	printf("ARECA RAID ADAPTER%d: FIRMWARE VERSION %s \n", acb->pci_unit, acb->firm_version);
+	printf("Areca RAID adapter%d: %s F/W version %s \n", acb->pci_unit, acb->firm_model, acb->firm_version);
 	acb->firm_request_len	= CHIP_REG_READ32(HBD_MessageUnit, 0, msgcode_rwbuffer[2]);	/*firm_request_len,   1, 04-07*/
 	acb->firm_numbers_queue	= CHIP_REG_READ32(HBD_MessageUnit, 0, msgcode_rwbuffer[3]);	/*firm_numbers_queue, 2, 08-11*/
 	acb->firm_sdram_size	= CHIP_REG_READ32(HBD_MessageUnit, 0, msgcode_rwbuffer[4]);	/*firm_sdram_size,    3, 12-15*/
@@ -4263,6 +4258,8 @@ static int arcmsr_attach(device_t dev)
 		return (ENOMEM);
 	}
 	arcmsr_mutex_init(acb);
+	acb->pci_dev = dev;
+	acb->pci_unit = unit;
 	if(arcmsr_initialize(dev)) {
 		printf("arcmsr%d: initialize failure!\n", unit);
 		arcmsr_mutex_destroy(acb);
@@ -4283,8 +4280,6 @@ static int arcmsr_attach(device_t dev)
 		return ENXIO;
 	}
 	acb->irqres = irqres;
-	acb->pci_dev = dev;
-	acb->pci_unit = unit;
 	/*
 	 * Now let the CAM generic SCSI layer find the SCSI devices on
 	 * the bus *  start queue to reset to the idle loop. *
@@ -4366,7 +4361,7 @@ static int arcmsr_probe(device_t dev)
 {
 	u_int32_t id;
 	static char buf[256];
-	char x_type[]={"X-TYPE"};
+	char x_type[]={"unknown"};
 	char *type;
 	int raid6 = 1;
 	
@@ -4412,11 +4407,13 @@ static int arcmsr_probe(device_t dev)
 		break;
 	default:
 		type = x_type;
+		raid6 = 0;
 		break;
 	}
 	if(type == x_type)
 		return(ENXIO);
-	sprintf(buf, "Areca %s Host Adapter RAID Controller %s\n", type, raid6 ? "(RAID6 capable)" : "");
+	sprintf(buf, "Areca %s Host Adapter RAID Controller %s\n%s\n",
+		type, raid6 ? "(RAID6 capable)" : "", ARCMSR_DRIVER_VERSION);
 	device_set_desc_copy(dev, buf);
 	return (BUS_PROBE_DEFAULT);
 }
