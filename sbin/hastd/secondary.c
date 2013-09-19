@@ -115,7 +115,7 @@ static void *send_thread(void *arg);
 	TAILQ_INSERT_TAIL(&hio_##name##_list, (hio), hio_next);		\
 	mtx_unlock(&hio_##name##_list_lock);				\
 	if (_wakeup)							\
-		cv_signal(&hio_##name##_list_cond);			\
+		cv_broadcast(&hio_##name##_list_cond);			\
 } while (0)
 #define	QUEUE_TAKE(name, hio)	do {					\
 	mtx_lock(&hio_##name##_list_lock);				\
