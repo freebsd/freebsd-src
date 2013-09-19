@@ -322,7 +322,7 @@ rtc_init(struct vmctx *ctx)
 		himem /= m_64KB;
 		rtc_nvram[nvoff(RTC_HMEM_LSB)] = himem;
 		rtc_nvram[nvoff(RTC_HMEM_SB)]  = himem >> 8;
-		rtc_nvram[nvoff(RTC_NVRAM_START)] = himem >> 16;
+		rtc_nvram[nvoff(RTC_HMEM_MSB)] = himem >> 16;
 	}
 }
 
