@@ -54,7 +54,7 @@ to control as many of the selected possibles as possible.
 An error is only returned if no selected processes successfully complete
 the request.
 The following identifier types are supported:
-.Bl -tag -width Dv P_PGID
+.Bl -tag -width "Dv P_PGID"
 .It Dv P_PID
 Control the process with the process ID
 .Fa id .
@@ -67,7 +67,7 @@ The control request to perform is specified by the
 .Fa cmd
 argument.
 The following commands are supported:
-.Bl -tag -width Dv PROC_SPROTECT
+.Bl -tag -width "Dv PROC_SPROTECT"
 .It Dv PROC_SPROTECT
 Set process protection state.
 This is used to mark a process as protected from being killed if the system
@@ -77,7 +77,7 @@ The
 parameter must point to an integer containing an operation and zero or more
 optional flags.
 The following operations are supported:
-.Bl -tag -width Dv PPROT_CLEAR
+.Bl -tag -width "Dv PPROT_CLEAR"
 .It Dv PPROT_SET
 Mark the selected processes as protected.
 .It Dv PPROT_CLEAR
@@ -85,7 +85,7 @@ Clear the protected state of selected processes.
 .El
 .Pp
 The following optional flags are supported:
-.Bl -tag -width Dv PPROT_DESCEND
+.Bl -tag -width "Dv PPROT_DESCE"
 .It Dv PPROT_DESCEND
 Apply the requested operation to all child processes of each selected process
 in addition to each selected process.

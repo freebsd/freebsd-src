@@ -46,7 +46,7 @@ The kernel does not kill protected processes when swap space is exhausted.
 Note that this protected state is not inherited by child processes by default.
 .Pp
 The options are:
-.Bl -tag -width indent
+.Bl -tag -width XXXXXXXXXX
 .It Fl c
 Remove protection from the specified processes.
 .It Fl d
@@ -74,9 +74,11 @@ flags may be specified when adjusting the state of existing processes.
 Mark the Xorg server as protected:
 .Pp
 .Dl "pgrep Xorg | xargs protect -p"
+.Pp
 Protect all ssh sessions and their child processes:
 .Pp
 .Dl "pgrep sshd | xargs protect -dip"
+.Pp
 Remove protection from all current and future processes:
 .Pp
 .Dl "protect -cdi -p 1"
