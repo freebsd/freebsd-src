@@ -2139,6 +2139,7 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 {
 	vm_page_t pml4pg;
 	pt_entry_t PG_A, PG_M;
+	vm_paddr_t pml4phys;
 	int i;
 
 	/*
@@ -2148,9 +2149,10 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL)
 		VM_WAIT;
 
-	pmap->pm_cr3 = VM_PAGE_TO_PHYS(pml4pg);
-	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(pmap->pm_cr3);
+	pml4phys = VM_PAGE_TO_PHYS(pml4pg);
+	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(pml4phys);
 	pmap->pm_pcid = -1;
+	pmap->pm_cr3 = ~0;	/* initialize to an invalid value */
 
 	if ((pml4pg->flags & PG_ZERO) == 0)
 		pagezero(pmap->pm_pml4);
@@ -2163,6 +2165,8 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 	if ((pmap->pm_type = pm_type) == PT_X86) {
 		PG_A = pmap_accessed_bit(pmap);
 		PG_M = pmap_modified_bit(pmap);
+
+		pmap->pm_cr3 = pml4phys;
 
 		/* Wire in kernel global address entries. */
 		for (i = 0; i < NKPML4E; i++) {
