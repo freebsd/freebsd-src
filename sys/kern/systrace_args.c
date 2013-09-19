@@ -3376,6 +3376,16 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
+	/* procctl */
+	case 544: {
+		struct procctl_args *p = params;
+		iarg[0] = p->idtype; /* idtype_t */
+		iarg[1] = p->id; /* id_t */
+		iarg[2] = p->com; /* int */
+		uarg[3] = (intptr_t) p->data; /* void * */
+		*n_args = 4;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -8995,6 +9005,25 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* procctl */
+	case 544:
+		switch(ndx) {
+		case 0:
+			p = "idtype_t";
+			break;
+		case 1:
+			p = "id_t";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "void *";
+			break;
+		default:
+			break;
+		};
+		break;
 	default:
 		break;
 	};
@@ -10935,6 +10964,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* aio_mlock */
 	case 543:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* procctl */
+	case 544:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
