@@ -5382,66 +5382,6 @@ small_mappings:
 }
 
 /*
- *	pmap_clear_reference:
- *
- *	Clear the reference bit on the specified physical page.
- */
-void
-pmap_clear_reference(vm_page_t m)
-{
-	struct md_page *pvh;
-	pmap_t pmap;
-	pv_entry_t next_pv, pv;
-	pd_entry_t oldpde, *pde;
-	pt_entry_t *pte;
-	vm_offset_t va;
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("pmap_clear_reference: page %p is not managed", m));
-	rw_wlock(&pvh_global_lock);
-	if ((m->flags & PG_FICTITIOUS) != 0)
-		goto small_mappings;
-	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
-	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) {
-		pmap = PV_PMAP(pv);
-		PMAP_LOCK(pmap);
-		va = pv->pv_va;
-		pde = pmap_pde(pmap, va);
-		oldpde = *pde;
-		if ((oldpde & PG_A) != 0) {
-			if (pmap_demote_pde(pmap, pde, va)) {
-				/*
-				 * Remove the mapping to a single page so
-				 * that a subsequent access may repromote.
-				 * Since the underlying page table page is
-				 * fully populated, this removal never frees
-				 * a page table page.
-				 */
-				va += VM_PAGE_TO_PHYS(m) - (oldpde &
-				    PG_PS_FRAME);
-				pmap_remove_page(pmap, va, pde, NULL);
-			}
-		}
-		PMAP_UNLOCK(pmap);
-	}
-small_mappings:
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
-		pmap = PV_PMAP(pv);
-		PMAP_LOCK(pmap);
-		pde = pmap_pde(pmap, pv->pv_va);
-		KASSERT((*pde & PG_PS) == 0, ("pmap_clear_reference: found"
-		    " a 2mpage in page %p's pv list", m));
-		pte = pmap_pde_to_pte(pde, pv->pv_va);
-		if (*pte & PG_A) {
-			atomic_clear_long(pte, PG_A);
-			pmap_invalidate_page(pmap, pv->pv_va);
-		}
-		PMAP_UNLOCK(pmap);
-	}
-	rw_wunlock(&pvh_global_lock);
-}
-
-/*
  * Miscellaneous support routines follow
  */
 
