@@ -254,6 +254,8 @@ restart:
 				goto bad;
 		}
 	}
+	if (vp->v_type == VFIFO && VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
+		vn_lock(vp, LK_UPGRADE | LK_RETRY);
 	if ((error = VOP_OPEN(vp, fmode, cred, td, fp)) != 0)
 		goto bad;
 
@@ -307,7 +309,7 @@ vn_close(vp, flags, file_cred, td)
 	struct mount *mp;
 	int error, lock_flags;
 
-	if (!(flags & FWRITE) && vp->v_mount != NULL &&
+	if (vp->v_type != VFIFO && !(flags & FWRITE) && vp->v_mount != NULL &&
 	    vp->v_mount->mnt_kern_flag & MNTK_EXTENDED_SHARED)
 		lock_flags = LK_SHARED;
 	else
