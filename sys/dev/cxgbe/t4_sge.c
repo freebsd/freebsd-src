@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
+#include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/smp.h>
 #include <net/bpf.h>
@@ -54,19 +55,6 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_regs.h"
 #include "common/t4_regs_values.h"
 #include "common/t4_msg.h"
-
-struct fl_buf_info {
-	int size;
-	int type;
-	uma_zone_t zone;
-};
-
-/* Filled up by t4_sge_modload */
-static struct fl_buf_info fl_buf_info[FL_BUF_SIZES];
-
-#define FL_BUF_SIZE(x)	(fl_buf_info[x].size)
-#define FL_BUF_TYPE(x)	(fl_buf_info[x].type)
-#define FL_BUF_ZONE(x)	(fl_buf_info[x].zone)
 
 #ifdef T4_PKT_TIMESTAMP
 #define RX_COPY_THRESHOLD (MINCLSIZE - 8)
@@ -84,7 +72,8 @@ TUNABLE_INT("hw.cxgbe.fl_pktshift", &fl_pktshift);
 /*
  * Pad ethernet payload up to this boundary.
  * -1: driver should figure out a good value.
- *  Any power of 2, from 32 to 4096 (both inclusive) is a valid value.
+ *  0: disable padding.
+ *  Any power of 2 from 32 to 4096 (both inclusive) is also a valid value.
  */
 static int fl_pad = -1;
 TUNABLE_INT("hw.cxgbe.fl_pad", &fl_pad);
@@ -106,6 +95,33 @@ TUNABLE_INT("hw.cxgbe.spg_len", &spg_len);
 static int cong_drop = 0;
 TUNABLE_INT("hw.cxgbe.cong_drop", &cong_drop);
 
+/*
+ * Deliver multiple frames in the same free list buffer if they fit.
+ * -1: let the driver decide whether to enable buffer packing or not.
+ *  0: disable buffer packing.
+ *  1: enable buffer packing.
+ */
+static int buffer_packing = -1;
+TUNABLE_INT("hw.cxgbe.buffer_packing", &buffer_packing);
+
+/*
+ * Start next frame in a packed buffer at this boundary.
+ * -1: driver should figure out a good value.
+ * T4:
+ * ---
+ * if fl_pad != 0
+ * 	value specified here will be overridden by fl_pad.
+ * else
+ * 	power of 2 from 32 to 4096 (both inclusive) is a valid value here.
+ * T5:
+ * ---
+ * 16, or a power of 2 from 64 to 4096 (both inclusive) is a valid value.
+ */
+static int fl_pack = -1;
+static int t4_fl_pack;
+static int t5_fl_pack;
+TUNABLE_INT("hw.cxgbe.fl_pack", &fl_pack);
+
 /* Used to track coalesced tx work request */
 struct txpkts {
 	uint64_t *flitp;	/* ptr to flit where next pkt should start */
@@ -122,12 +138,15 @@ struct sgl {
 };
 
 static int service_iq(struct sge_iq *, int);
-static struct mbuf *get_fl_payload(struct adapter *, struct sge_fl *, uint32_t,
+static struct mbuf *get_fl_payload1(struct adapter *, struct sge_fl *, uint32_t,
+    int *);
+static struct mbuf *get_fl_payload2(struct adapter *, struct sge_fl *, uint32_t,
     int *);
 static int t4_eth_rx(struct sge_iq *, const struct rss_header *, struct mbuf *);
 static inline void init_iq(struct sge_iq *, struct adapter *, int, int, int,
     int);
-static inline void init_fl(struct sge_fl *, int, int, char *);
+static inline void init_fl(struct adapter *, struct sge_fl *, int, int, int,
+    char *);
 static inline void init_eq(struct sge_eq *, int, int, uint8_t, uint16_t,
     char *);
 static int alloc_ring(struct adapter *, size_t, bus_dma_tag_t *, bus_dmamap_t *,
@@ -169,8 +188,8 @@ static inline void ring_fl_db(struct adapter *, struct sge_fl *);
 static int refill_fl(struct adapter *, struct sge_fl *, int);
 static void refill_sfl(void *);
 static int alloc_fl_sdesc(struct sge_fl *);
-static void free_fl_sdesc(struct sge_fl *);
-static void set_fl_tag_idx(struct sge_fl *, int);
+static void free_fl_sdesc(struct adapter *, struct sge_fl *);
+static void set_fl_tag_idx(struct adapter *, struct sge_fl *, int);
 static void add_fl_to_sfl(struct adapter *, struct sge_fl *);
 
 static int get_pkt_sgl(struct sge_txq *, struct mbuf **, struct sgl *, int);
@@ -201,27 +220,20 @@ extern u_int cpu_clflush_line_size;
 #endif
 
 /*
- * Called on MOD_LOAD.  Fills up fl_buf_info[] and validates/calculates the SGE
- * tunables.
+ * Called on MOD_LOAD.  Validates and calculates the SGE tunables.
  */
 void
 t4_sge_modload(void)
 {
-	int i;
-	int bufsize[FL_BUF_SIZES] = {
-		MCLBYTES,
-#if MJUMPAGESIZE != MCLBYTES
-		MJUMPAGESIZE,
-#endif
-		MJUM9BYTES,
-		MJUM16BYTES
-	};
+	int pad;
 
-	for (i = 0; i < FL_BUF_SIZES; i++) {
-		FL_BUF_SIZE(i) = bufsize[i];
-		FL_BUF_TYPE(i) = m_gettype(bufsize[i]);
-		FL_BUF_ZONE(i) = m_getzone(bufsize[i]);
-	}
+	/* set pad to a reasonable powerof2 between 16 and 4096 (inclusive) */
+#if defined(__i386__) || defined(__amd64__)
+	pad = max(cpu_clflush_line_size, 16);
+#else
+	pad = max(CACHE_LINE_SIZE, 16);
+#endif
+	pad = min(pad, 4096);
 
 	if (fl_pktshift < 0 || fl_pktshift > 7) {
 		printf("Invalid hw.cxgbe.fl_pktshift value (%d),"
@@ -229,22 +241,34 @@ t4_sge_modload(void)
 		fl_pktshift = 2;
 	}
 
-	if (fl_pad < 32 || fl_pad > 4096 || !powerof2(fl_pad)) {
-		int pad;
-
-#if defined(__i386__) || defined(__amd64__)
-		pad = max(cpu_clflush_line_size, 32);
-#else
-		pad = max(CACHE_LINE_SIZE, 32);
-#endif
-		pad = min(pad, 4096);
+	if (fl_pad != 0 &&
+	    (fl_pad < 32 || fl_pad > 4096 || !powerof2(fl_pad))) {
 
 		if (fl_pad != -1) {
 			printf("Invalid hw.cxgbe.fl_pad value (%d),"
-			    " using %d instead.\n", fl_pad, pad);
+			    " using %d instead.\n", fl_pad, max(pad, 32));
 		}
-		fl_pad = pad;
+		fl_pad = max(pad, 32);
 	}
+
+	/*
+	 * T4 has the same pad and pack boundary.  If a pad boundary is set,
+	 * pack boundary must be set to the same value.  Otherwise take the
+	 * specified value or auto-calculate something reasonable.
+	 */
+	if (fl_pad)
+		t4_fl_pack = fl_pad;
+	else if (fl_pack < 32 || fl_pack > 4096 || !powerof2(fl_pack))
+		t4_fl_pack = max(pad, 32);
+	else
+		t4_fl_pack = fl_pack;
+
+	/* T5's pack boundary is independent of the pad boundary. */
+	if (fl_pack < 16 || fl_pack == 32 || fl_pack > 4096 ||
+	    !powerof2(fl_pack))
+	       t5_fl_pack = max(pad, 64);
+	else
+	       t5_fl_pack = fl_pack;
 
 	if (spg_len != 64 && spg_len != 128) {
 		int len;
@@ -291,16 +315,40 @@ t4_tweak_chip_settings(struct adapter *sc)
 	int timer_max = M_TIMERVALUE0 * 1000 / sc->params.vpd.cclk;
 	int intr_pktcount[SGE_NCOUNTERS] = {1, 8, 16, 32}; /* 63 max */
 	uint16_t indsz = min(RX_COPY_THRESHOLD - 1, M_INDICATESIZE);
+	int sw_flbuf_sizes[] = {
+		MCLBYTES,
+#if MJUMPAGESIZE != MCLBYTES
+		MJUMPAGESIZE,
+#endif
+		MJUM9BYTES,
+		MJUM16BYTES,
+		MJUMPAGESIZE - MSIZE
+	};
 
 	KASSERT(sc->flags & MASTER_PF,
 	    ("%s: trying to change chip settings when not master.", __func__));
 
-	m = V_PKTSHIFT(M_PKTSHIFT) | F_RXPKTCPLMODE |
-	    V_INGPADBOUNDARY(M_INGPADBOUNDARY) | F_EGRSTATUSPAGESIZE;
+	m = V_PKTSHIFT(M_PKTSHIFT) | F_RXPKTCPLMODE | F_EGRSTATUSPAGESIZE;
 	v = V_PKTSHIFT(fl_pktshift) | F_RXPKTCPLMODE |
-	    V_INGPADBOUNDARY(ilog2(fl_pad) - 5) |
 	    V_EGRSTATUSPAGESIZE(spg_len == 128);
+	if (is_t4(sc) && (fl_pad || buffer_packing)) {
+		/* t4_fl_pack has the correct value even when fl_pad = 0 */
+		m |= V_INGPADBOUNDARY(M_INGPADBOUNDARY);
+		v |= V_INGPADBOUNDARY(ilog2(t4_fl_pack) - 5);
+	} else if (is_t5(sc) && fl_pad) {
+		m |= V_INGPADBOUNDARY(M_INGPADBOUNDARY);
+		v |= V_INGPADBOUNDARY(ilog2(fl_pad) - 5);
+	}
 	t4_set_reg_field(sc, A_SGE_CONTROL, m, v);
+
+	if (is_t5(sc) && buffer_packing) {
+		m = V_INGPACKBOUNDARY(M_INGPACKBOUNDARY);
+		if (t5_fl_pack == 16)
+			v = V_INGPACKBOUNDARY(0);
+		else
+			v = V_INGPACKBOUNDARY(ilog2(t5_fl_pack) - 5);
+		t4_set_reg_field(sc, A_SGE_CONTROL2, m, v);
+	}
 
 	v = V_HOSTPAGESIZEPF0(PAGE_SHIFT - 10) |
 	    V_HOSTPAGESIZEPF1(PAGE_SHIFT - 10) |
@@ -312,9 +360,9 @@ t4_tweak_chip_settings(struct adapter *sc)
 	    V_HOSTPAGESIZEPF7(PAGE_SHIFT - 10);
 	t4_write_reg(sc, A_SGE_HOST_PAGE_SIZE, v);
 
-	for (i = 0; i < FL_BUF_SIZES; i++) {
+	for (i = 0; i < min(nitems(sw_flbuf_sizes), 16); i++) {
 		t4_write_reg(sc, A_SGE_FL_BUFFER_SIZE0 + (4 * i),
-		    FL_BUF_SIZE(i));
+		    sw_flbuf_sizes[i]);
 	}
 
 	v = V_THRESHOLD_0(intr_pktcount[0]) | V_THRESHOLD_1(intr_pktcount[1]) |
@@ -375,19 +423,46 @@ int
 t4_read_chip_settings(struct adapter *sc)
 {
 	struct sge *s = &sc->sge;
-	int i, rc = 0;
+	int i, j, n, rc = 0;
 	uint32_t m, v, r;
 	uint16_t indsz = min(RX_COPY_THRESHOLD - 1, M_INDICATESIZE);
+	uint32_t sge_flbuf_sizes[16], sw_flbuf_sizes[] = {
+		MCLBYTES,
+#if MJUMPAGESIZE != MCLBYTES
+		MJUMPAGESIZE,
+#endif
+		MJUM9BYTES,
+		MJUM16BYTES
+	};
 
-	m = V_PKTSHIFT(M_PKTSHIFT) | F_RXPKTCPLMODE |
-	    V_INGPADBOUNDARY(M_INGPADBOUNDARY) | F_EGRSTATUSPAGESIZE;
+	m = V_PKTSHIFT(M_PKTSHIFT) | F_RXPKTCPLMODE | F_EGRSTATUSPAGESIZE;
 	v = V_PKTSHIFT(fl_pktshift) | F_RXPKTCPLMODE |
-	    V_INGPADBOUNDARY(ilog2(fl_pad) - 5) |
 	    V_EGRSTATUSPAGESIZE(spg_len == 128);
+	if (is_t4(sc) && (fl_pad || buffer_packing)) {
+		m |= V_INGPADBOUNDARY(M_INGPADBOUNDARY);
+		v |= V_INGPADBOUNDARY(ilog2(t4_fl_pack) - 5);
+	} else if (is_t5(sc) && fl_pad) {
+		m |= V_INGPADBOUNDARY(M_INGPADBOUNDARY);
+		v |= V_INGPADBOUNDARY(ilog2(fl_pad) - 5);
+	}
 	r = t4_read_reg(sc, A_SGE_CONTROL);
 	if ((r & m) != v) {
 		device_printf(sc->dev, "invalid SGE_CONTROL(0x%x)\n", r);
 		rc = EINVAL;
+	}
+
+	if (is_t5(sc) && buffer_packing) {
+		m = V_INGPACKBOUNDARY(M_INGPACKBOUNDARY);
+		if (t5_fl_pack == 16)
+			v = V_INGPACKBOUNDARY(0);
+		else
+			v = V_INGPACKBOUNDARY(ilog2(t5_fl_pack) - 5);
+		r = t4_read_reg(sc, A_SGE_CONTROL2);
+		if ((r & m) != v) {
+			device_printf(sc->dev,
+			    "invalid SGE_CONTROL2(0x%x)\n", r);
+			rc = EINVAL;
+		}
 	}
 
 	v = V_HOSTPAGESIZEPF0(PAGE_SHIFT - 10) |
@@ -404,14 +479,45 @@ t4_read_chip_settings(struct adapter *sc)
 		rc = EINVAL;
 	}
 
-	for (i = 0; i < FL_BUF_SIZES; i++) {
-		v = t4_read_reg(sc, A_SGE_FL_BUFFER_SIZE0 + (4 * i));
-		if (v != FL_BUF_SIZE(i)) {
-			device_printf(sc->dev,
-			    "invalid SGE_FL_BUFFER_SIZE[%d](0x%x)\n", i, v);
-			rc = EINVAL;
+	/*
+	 * Make a list of SGE FL buffer sizes programmed in the chip and tally
+	 * it with the FL buffer sizes that we'd like to use.
+	 */
+	n = 0;
+	for (i = 0; i < nitems(sge_flbuf_sizes); i++) {
+		r = t4_read_reg(sc, A_SGE_FL_BUFFER_SIZE0 + (4 * i));
+		sge_flbuf_sizes[i] = r;
+		if (r == MJUMPAGESIZE - MSIZE &&
+		    (sc->flags & BUF_PACKING_OK) == 0) {
+			sc->flags |= BUF_PACKING_OK;
+			FL_BUF_HWTAG(sc, n) = i;
+			FL_BUF_SIZE(sc, n) = MJUMPAGESIZE - MSIZE;
+			FL_BUF_TYPE(sc, n) = m_gettype(MJUMPAGESIZE);
+			FL_BUF_ZONE(sc, n) = m_getzone(MJUMPAGESIZE);
+			n++;
 		}
 	}
+	for (i = 0; i < nitems(sw_flbuf_sizes); i++) {
+		for (j = 0; j < nitems(sge_flbuf_sizes); j++) {
+			if (sw_flbuf_sizes[i] != sge_flbuf_sizes[j])
+				continue;
+			FL_BUF_HWTAG(sc, n) = j;
+			FL_BUF_SIZE(sc, n) = sw_flbuf_sizes[i];
+			FL_BUF_TYPE(sc, n) = m_gettype(sw_flbuf_sizes[i]);
+			FL_BUF_ZONE(sc, n) = m_getzone(sw_flbuf_sizes[i]);
+			n++;
+			break;
+		}
+	}
+	if (n == 0) {
+		device_printf(sc->dev, "no usable SGE FL buffer size.\n");
+		rc = EINVAL;
+	} else if (n == 1 && (sc->flags & BUF_PACKING_OK)) {
+		device_printf(sc->dev,
+		    "no usable SGE FL buffer size when not packing buffers.\n");
+		rc = EINVAL;
+	}
+	FL_BUF_SIZES(sc) = n;
 
 	r = t4_read_reg(sc, A_SGE_INGRESS_RX_THRESHOLD);
 	s->counter_val[0] = G_THRESHOLD_0(r);
@@ -498,6 +604,17 @@ t4_create_dma_tag(struct adapter *sc)
 	return (rc);
 }
 
+static inline int
+enable_buffer_packing(struct adapter *sc)
+{
+
+	if (sc->flags & BUF_PACKING_OK &&
+	    ((is_t5(sc) && buffer_packing) ||	/* 1 or -1 both ok for T5 */
+	    (is_t4(sc) && buffer_packing == 1)))
+		return (1);
+	return (0);
+}
+
 void
 t4_sge_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
     struct sysctl_oid_list *children)
@@ -514,6 +631,14 @@ t4_sge_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "cong_drop", CTLFLAG_RD,
 	    NULL, cong_drop, "congestion drop setting");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "buffer_packing", CTLFLAG_RD,
+	    NULL, enable_buffer_packing(sc),
+	    "pack multiple frames in one fl buffer");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "fl_pack", CTLFLAG_RD,
+	    NULL, is_t5(sc) ? t5_fl_pack : t4_fl_pack,
+	    "payload pack boundary (bytes)");
 }
 
 int
@@ -705,7 +830,7 @@ t4_setup_port_queues(struct port_info *pi)
 	struct ifnet *ifp = pi->ifp;
 	struct sysctl_oid *oid = device_get_sysctl_tree(pi->dev);
 	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
-	int bufsize;
+	int bufsize, pack;
 
 	oid = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, "rxq", CTLFLAG_RD,
 	    NULL, "rx queues");
@@ -727,6 +852,7 @@ t4_setup_port_queues(struct port_info *pi)
 	 * b) allocate queue iff it will take direct interrupts.
 	 */
 	bufsize = mtu_to_bufsize(ifp->if_mtu);
+	pack = enable_buffer_packing(sc);
 	for_each_rxq(pi, i, rxq) {
 
 		init_iq(&rxq->iq, sc, pi->tmr_idx, pi->pktc_idx, pi->qsize_rxq,
@@ -734,7 +860,7 @@ t4_setup_port_queues(struct port_info *pi)
 
 		snprintf(name, sizeof(name), "%s rxq%d-fl",
 		    device_get_nameunit(pi->dev), i);
-		init_fl(&rxq->fl, pi->qsize_rxq / 8, bufsize, name);
+		init_fl(sc, &rxq->fl, pi->qsize_rxq / 8, bufsize, pack, name);
 
 		if (sc->flags & INTR_DIRECT
 #ifdef TCP_OFFLOAD
@@ -751,6 +877,7 @@ t4_setup_port_queues(struct port_info *pi)
 
 #ifdef TCP_OFFLOAD
 	bufsize = mtu_to_bufsize_toe(sc, ifp->if_mtu);
+	pack = 0;	/* XXX: think about this some more */
 	for_each_ofld_rxq(pi, i, ofld_rxq) {
 
 		init_iq(&ofld_rxq->iq, sc, pi->tmr_idx, pi->pktc_idx,
@@ -758,7 +885,8 @@ t4_setup_port_queues(struct port_info *pi)
 
 		snprintf(name, sizeof(name), "%s ofld_rxq%d-fl",
 		    device_get_nameunit(pi->dev), i);
-		init_fl(&ofld_rxq->fl, pi->qsize_rxq / 8, bufsize, name);
+		init_fl(sc, &ofld_rxq->fl, pi->qsize_rxq / 8, bufsize, pack,
+		    name);
 
 		if (sc->flags & INTR_DIRECT ||
 		    (sc->intr_count > 1 && pi->nofldrxq > pi->nrxq)) {
@@ -1006,6 +1134,9 @@ service_iq(struct sge_iq *iq, int budget)
 	uint32_t lq;
 	struct mbuf *m0;
 	STAILQ_HEAD(, sge_iq) iql = STAILQ_HEAD_INITIALIZER(iql);
+#if defined(INET) || defined(INET6)
+	const struct timeval lro_timeout = {0, sc->lro_timeout};
+#endif
 
 	limit = budget ? budget : iq->qsize / 8;
 
@@ -1032,7 +1163,12 @@ service_iq(struct sge_iq *iq, int budget)
 				    ("%s: data for an iq (%p) with no freelist",
 				    __func__, iq));
 
-				m0 = get_fl_payload(sc, fl, lq, &fl_bufs_used);
+				m0 = fl->flags & FL_BUF_PACKING ?
+				    get_fl_payload1(sc, fl, lq, &fl_bufs_used) :
+				    get_fl_payload2(sc, fl, lq, &fl_bufs_used);
+
+				if (__predict_false(m0 == NULL))
+					goto process_iql;
 #ifdef T4_PKT_TIMESTAMP
 				/*
 				 * 60 bit timestamp for the payload is
@@ -1069,6 +1205,17 @@ service_iq(struct sge_iq *iq, int budget)
 				    ("%s: budget %u, rsp_type %u", __func__,
 				    budget, rsp_type));
 
+				/*
+				 * There are 1K interrupt-capable queues (qids 0
+				 * through 1023).  A response type indicating a
+				 * forwarded interrupt with a qid >= 1K is an
+				 * iWARP async notification.
+				 */
+				if (lq >= 1024) {
+                                        sc->an_handler(iq, ctrl);
+                                        break;
+                                }
+
 				q = sc->sge.iqmap[lq - sc->sge.iq_start];
 				if (atomic_cmpset_int(&q->state, IQS_IDLE,
 				    IQS_BUSY)) {
@@ -1083,7 +1230,12 @@ service_iq(struct sge_iq *iq, int budget)
 				break;
 
 			default:
-				sc->an_handler(iq, ctrl);
+				KASSERT(0,
+				    ("%s: illegal response type %d on iq %p",
+				    __func__, rsp_type, iq));
+				log(LOG_ERR,
+				    "%s: illegal response type %d on iq %p",
+				    device_get_nameunit(sc->dev), rsp_type, iq);
 				break;
 			}
 
@@ -1094,6 +1246,14 @@ service_iq(struct sge_iq *iq, int budget)
 				    V_INGRESSQID(iq->cntxt_id) |
 				    V_SEINTARM(V_QINTR_TIMER_IDX(X_TIMERREG_UPDATE_CIDX)));
 				ndescs = 0;
+
+#if defined(INET) || defined(INET6)
+				if (iq->flags & IQ_LRO_ENABLED &&
+				    sc->lro_timeout != 0) {
+					tcp_lro_flush_inactive(&rxq->lro,
+					    &lro_timeout);
+				}
+#endif
 
 				if (fl_bufs_used > 0) {
 					FL_LOCK(fl);
@@ -1108,6 +1268,7 @@ service_iq(struct sge_iq *iq, int budget)
 			}
 		}
 
+process_iql:
 		if (STAILQ_EMPTY(&iql))
 			break;
 
@@ -1153,8 +1314,249 @@ service_iq(struct sge_iq *iq, int budget)
 	return (0);
 }
 
+static int
+fill_mbuf_stash(struct sge_fl *fl)
+{
+	int i;
+
+	for (i = 0; i < nitems(fl->mstash); i++) {
+		if (fl->mstash[i] == NULL) {
+			struct mbuf *m;
+			if ((m = m_get(M_NOWAIT, MT_NOINIT)) == NULL)
+				return (ENOBUFS);
+			fl->mstash[i] = m;
+		}
+	}
+	return (0);
+}
+
 static struct mbuf *
-get_fl_payload(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
+get_mbuf_from_stash(struct sge_fl *fl)
+{
+	int i;
+
+	for (i = 0; i < nitems(fl->mstash); i++) {
+		if (fl->mstash[i] != NULL) {
+			struct mbuf *m;
+
+			m = fl->mstash[i];
+			fl->mstash[i] = NULL;
+			return (m);
+		} else
+			fl->mstash[i] = m_get(M_NOWAIT, MT_NOINIT);
+	}
+
+	return (m_get(M_NOWAIT, MT_NOINIT));
+}
+
+static void
+return_mbuf_to_stash(struct sge_fl *fl, struct mbuf *m)
+{
+	int i;
+
+	if (m == NULL)
+		return;
+
+	for (i = 0; i < nitems(fl->mstash); i++) {
+		if (fl->mstash[i] == NULL) {
+			fl->mstash[i] = m;
+			return;
+		}
+	}
+	m_init(m, NULL, 0, M_NOWAIT, MT_DATA, 0);
+	m_free(m);
+}
+
+/* buf can be any address within the buffer */
+static inline u_int *
+find_buf_refcnt(caddr_t buf)
+{
+	uintptr_t ptr = (uintptr_t)buf;
+
+	return ((u_int *)((ptr & ~(MJUMPAGESIZE - 1)) + MSIZE - sizeof(u_int)));
+}
+
+static inline struct mbuf *
+find_buf_mbuf(caddr_t buf)
+{
+	uintptr_t ptr = (uintptr_t)buf;
+
+	return ((struct mbuf *)(ptr & ~(MJUMPAGESIZE - 1)));
+}
+
+static int
+rxb_free(struct mbuf *m, void *arg1, void *arg2)
+{
+	uma_zone_t zone = arg1;
+	caddr_t cl = arg2;
+#ifdef INVARIANTS
+	u_int refcount;
+
+	refcount = *find_buf_refcnt(cl);
+	KASSERT(refcount == 0, ("%s: cl %p refcount is %u", __func__,
+	    cl - MSIZE, refcount));
+#endif
+	cl -= MSIZE;
+	uma_zfree(zone, cl);
+
+	return (EXT_FREE_OK);
+}
+
+static struct mbuf *
+get_fl_payload1(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
+    int *fl_bufs_used)
+{
+	struct mbuf *m0, *m;
+	struct fl_sdesc *sd = &fl->sdesc[fl->cidx];
+	unsigned int nbuf, len;
+	int pack_boundary = is_t4(sc) ? t4_fl_pack : t5_fl_pack;
+
+	/*
+	 * No assertion for the fl lock because we don't need it.  This routine
+	 * is called only from the rx interrupt handler and it only updates
+	 * fl->cidx.  (Contrast that with fl->pidx/fl->needed which could be
+	 * updated in the rx interrupt handler or the starvation helper routine.
+	 * That's why code that manipulates fl->pidx/fl->needed needs the fl
+	 * lock but this routine does not).
+	 */
+
+	KASSERT(fl->flags & FL_BUF_PACKING,
+	    ("%s: buffer packing disabled for fl %p", __func__, fl));
+
+	len = G_RSPD_LEN(len_newbuf);
+
+	if ((len_newbuf & F_RSPD_NEWBUF) == 0) {
+		KASSERT(fl->rx_offset > 0,
+		    ("%s: packed frame but driver at offset=0", __func__));
+
+		/* A packed frame is guaranteed to fit entirely in this buf. */
+		KASSERT(FL_BUF_SIZE(sc, sd->tag_idx) - fl->rx_offset >= len,
+		    ("%s: packing error.  bufsz=%u, offset=%u, len=%u",
+		    __func__, FL_BUF_SIZE(sc, sd->tag_idx), fl->rx_offset,
+		    len));
+
+		m0 = get_mbuf_from_stash(fl);
+		if (m0 == NULL ||
+		    m_init(m0, NULL, 0, M_NOWAIT, MT_DATA, M_PKTHDR) != 0) {
+			return_mbuf_to_stash(fl, m0);
+			return (NULL);
+		}
+
+		bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map,
+		    BUS_DMASYNC_POSTREAD);
+		if (len < RX_COPY_THRESHOLD) {
+#ifdef T4_PKT_TIMESTAMP
+			/* Leave room for a timestamp */
+			m0->m_data += 8;
+#endif
+			bcopy(sd->cl + fl->rx_offset, mtod(m0, caddr_t), len);
+			m0->m_pkthdr.len = len;
+			m0->m_len = len;
+		} else {
+			m0->m_pkthdr.len = len;
+			m0->m_len = len;
+			m_extaddref(m0, sd->cl + fl->rx_offset,
+			    roundup2(m0->m_len, fl_pad),
+			    find_buf_refcnt(sd->cl), rxb_free,
+			    FL_BUF_ZONE(sc, sd->tag_idx), sd->cl);
+		}
+		fl->rx_offset += len;
+		fl->rx_offset = roundup2(fl->rx_offset, fl_pad);
+		fl->rx_offset = roundup2(fl->rx_offset, pack_boundary);
+		if (fl->rx_offset >= FL_BUF_SIZE(sc, sd->tag_idx)) {
+			fl->rx_offset = 0;
+			(*fl_bufs_used) += 1;
+			if (__predict_false(++fl->cidx == fl->cap))
+				fl->cidx = 0;
+		}
+
+		return (m0);
+	}
+
+	KASSERT(len_newbuf & F_RSPD_NEWBUF,
+	    ("%s: only new buffer handled here", __func__));
+
+	nbuf = 0;
+
+	/*
+	 * Move to the start of the next buffer if we are still in the middle of
+	 * some buffer.  This is the case where there was some room left in the
+	 * previous buffer but not enough to fit this frame in its entirety.
+	 */
+	if (fl->rx_offset > 0) {
+		KASSERT(roundup2(len, fl_pad) > FL_BUF_SIZE(sc, sd->tag_idx) -
+		    fl->rx_offset, ("%s: frame (%u bytes) should have fit at "
+		    "cidx %u offset %u bufsize %u", __func__, len, fl->cidx,
+		    fl->rx_offset, FL_BUF_SIZE(sc, sd->tag_idx)));
+		nbuf++;
+		fl->rx_offset = 0;
+		sd++;
+		if (__predict_false(++fl->cidx == fl->cap)) {
+			sd = fl->sdesc;
+			fl->cidx = 0;
+		}
+	}
+
+	m0 = find_buf_mbuf(sd->cl);
+	if (m_init(m0, NULL, 0, M_NOWAIT, MT_DATA, M_PKTHDR | M_NOFREE))
+		goto done;
+	bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map, BUS_DMASYNC_POSTREAD);
+	m0->m_len = min(len, FL_BUF_SIZE(sc, sd->tag_idx));
+	m_extaddref(m0, sd->cl, roundup2(m0->m_len, fl_pad),
+	    find_buf_refcnt(sd->cl), rxb_free, FL_BUF_ZONE(sc, sd->tag_idx),
+	    sd->cl);
+	m0->m_pkthdr.len = len;
+
+	fl->rx_offset = roundup2(m0->m_len, fl_pad);
+	fl->rx_offset = roundup2(fl->rx_offset, pack_boundary);
+	if (fl->rx_offset >= FL_BUF_SIZE(sc, sd->tag_idx)) {
+		fl->rx_offset = 0;
+		nbuf++;
+		sd++;
+		if (__predict_false(++fl->cidx == fl->cap)) {
+			sd = fl->sdesc;
+			fl->cidx = 0;
+		}
+	}
+
+	m = m0;
+	len -= m->m_len;
+
+	while (len > 0) {
+		m->m_next = find_buf_mbuf(sd->cl);
+		m = m->m_next;
+
+		bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map,
+		    BUS_DMASYNC_POSTREAD);
+
+		/* m_init for !M_PKTHDR can't fail so don't bother */
+		m_init(m, NULL, 0, M_NOWAIT, MT_DATA, M_NOFREE);
+		m->m_len = min(len, FL_BUF_SIZE(sc, sd->tag_idx));
+		m_extaddref(m, sd->cl, roundup2(m->m_len, fl_pad),
+		    find_buf_refcnt(sd->cl), rxb_free,
+		    FL_BUF_ZONE(sc, sd->tag_idx), sd->cl);
+
+		fl->rx_offset = roundup2(m->m_len, fl_pad);
+		fl->rx_offset = roundup2(fl->rx_offset, pack_boundary);
+		if (fl->rx_offset >= FL_BUF_SIZE(sc, sd->tag_idx)) {
+			fl->rx_offset = 0;
+			nbuf++;
+			sd++;
+			if (__predict_false(++fl->cidx == fl->cap)) {
+				sd = fl->sdesc;
+				fl->cidx = 0;
+			}
+		}
+
+		len -= m->m_len;
+	}
+done:
+	(*fl_bufs_used) += nbuf;
+	return (m0);
+}
+
+static struct mbuf *
+get_fl_payload2(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
     int *fl_bufs_used)
 {
 	struct mbuf *m0, *m;
@@ -1170,29 +1572,42 @@ get_fl_payload(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
 	 * lock but this routine does not).
 	 */
 
+	KASSERT((fl->flags & FL_BUF_PACKING) == 0,
+	    ("%s: buffer packing enabled for fl %p", __func__, fl));
 	if (__predict_false((len_newbuf & F_RSPD_NEWBUF) == 0))
 		panic("%s: cannot handle packed frames", __func__);
 	len = G_RSPD_LEN(len_newbuf);
 
-	m0 = sd->m;
-	sd->m = NULL;	/* consumed */
+	/*
+	 * We never want to run out of mbufs in between a frame when a frame
+	 * spans multiple fl buffers.  If the fl's mbuf stash isn't full and
+	 * can't be filled up to the brim then fail early.
+	 */
+	if (len > FL_BUF_SIZE(sc, sd->tag_idx) && fill_mbuf_stash(fl) != 0)
+		return (NULL);
+
+	m0 = get_mbuf_from_stash(fl);
+	if (m0 == NULL ||
+	    m_init(m0, NULL, 0, M_NOWAIT, MT_DATA, M_PKTHDR) != 0) {
+		return_mbuf_to_stash(fl, m0);
+		return (NULL);
+	}
 
 	bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map, BUS_DMASYNC_POSTREAD);
-	m_init(m0, NULL, 0, M_NOWAIT, MT_DATA, M_PKTHDR);
-#ifdef T4_PKT_TIMESTAMP
-	/* Leave room for a timestamp */
-	m0->m_data += 8;
-#endif
 
 	if (len < RX_COPY_THRESHOLD) {
+#ifdef T4_PKT_TIMESTAMP
+		/* Leave room for a timestamp */
+		m0->m_data += 8;
+#endif
 		/* copy data to mbuf, buffer will be recycled */
 		bcopy(sd->cl, mtod(m0, caddr_t), len);
 		m0->m_len = len;
 	} else {
 		bus_dmamap_unload(fl->tag[sd->tag_idx], sd->map);
-		m_cljset(m0, sd->cl, FL_BUF_TYPE(sd->tag_idx));
+		m_cljset(m0, sd->cl, FL_BUF_TYPE(sc, sd->tag_idx));
 		sd->cl = NULL;	/* consumed */
-		m0->m_len = min(len, FL_BUF_SIZE(sd->tag_idx));
+		m0->m_len = min(len, FL_BUF_SIZE(sc, sd->tag_idx));
 	}
 	m0->m_pkthdr.len = len;
 
@@ -1207,23 +1622,23 @@ get_fl_payload(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
 	nbuf = 1;	/* # of fl buffers used */
 
 	while (len > 0) {
-		m->m_next = sd->m;
-		sd->m = NULL;	/* consumed */
+		/* Can't fail, we checked earlier that the stash was full. */
+		m->m_next = get_mbuf_from_stash(fl);
 		m = m->m_next;
 
 		bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map,
 		    BUS_DMASYNC_POSTREAD);
 
+		/* m_init for !M_PKTHDR can't fail so don't bother */
 		m_init(m, NULL, 0, M_NOWAIT, MT_DATA, 0);
 		if (len <= MLEN) {
 			bcopy(sd->cl, mtod(m, caddr_t), len);
 			m->m_len = len;
 		} else {
-			bus_dmamap_unload(fl->tag[sd->tag_idx],
-			    sd->map);
-			m_cljset(m, sd->cl, FL_BUF_TYPE(sd->tag_idx));
+			bus_dmamap_unload(fl->tag[sd->tag_idx], sd->map);
+			m_cljset(m, sd->cl, FL_BUF_TYPE(sc, sd->tag_idx));
 			sd->cl = NULL;	/* consumed */
-			m->m_len = min(len, FL_BUF_SIZE(sd->tag_idx));
+			m->m_len = min(len, FL_BUF_SIZE(sc, sd->tag_idx));
 		}
 
 		sd++;
@@ -1588,6 +2003,7 @@ void
 t4_update_fl_bufsize(struct ifnet *ifp)
 {
 	struct port_info *pi = ifp->if_softc;
+	struct adapter *sc = pi->adapter;
 	struct sge_rxq *rxq;
 #ifdef TCP_OFFLOAD
 	struct sge_ofld_rxq *ofld_rxq;
@@ -1600,7 +2016,7 @@ t4_update_fl_bufsize(struct ifnet *ifp)
 		fl = &rxq->fl;
 
 		FL_LOCK(fl);
-		set_fl_tag_idx(fl, bufsize);
+		set_fl_tag_idx(sc, fl, bufsize);
 		FL_UNLOCK(fl);
 	}
 #ifdef TCP_OFFLOAD
@@ -1609,7 +2025,7 @@ t4_update_fl_bufsize(struct ifnet *ifp)
 		fl = &ofld_rxq->fl;
 
 		FL_LOCK(fl);
-		set_fl_tag_idx(fl, bufsize);
+		set_fl_tag_idx(sc, fl, bufsize);
 		FL_UNLOCK(fl);
 	}
 #endif
@@ -1643,11 +2059,15 @@ init_iq(struct sge_iq *iq, struct adapter *sc, int tmr_idx, int pktc_idx,
 }
 
 static inline void
-init_fl(struct sge_fl *fl, int qsize, int bufsize, char *name)
+init_fl(struct adapter *sc, struct sge_fl *fl, int qsize, int bufsize, int pack,
+    char *name)
 {
+
 	fl->qsize = qsize;
 	strlcpy(fl->lockname, name, sizeof(fl->lockname));
-	set_fl_tag_idx(fl, bufsize);
+	if (pack)
+		fl->flags |= FL_BUF_PACKING;
+	set_fl_tag_idx(sc, fl, bufsize);
 }
 
 static inline void
@@ -1776,7 +2196,7 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 	if (fl) {
 		mtx_init(&fl->fl_lock, fl->lockname, NULL, MTX_DEF);
 
-		for (i = 0; i < FL_BUF_SIZES; i++) {
+		for (i = 0; i < FL_BUF_SIZES(sc); i++) {
 
 			/*
 			 * A freelist buffer must be 16 byte aligned as the SGE
@@ -1785,8 +2205,8 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 			 */
 			rc = bus_dma_tag_create(sc->dmat, 16, 0,
 			    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
-			    FL_BUF_SIZE(i), 1, FL_BUF_SIZE(i), BUS_DMA_ALLOCNOW,
-			    NULL, NULL, &fl->tag[i]);
+			    FL_BUF_SIZE(sc, i), 1, FL_BUF_SIZE(sc, i),
+			    BUS_DMA_ALLOCNOW, NULL, NULL, &fl->tag[i]);
 			if (rc != 0) {
 				device_printf(sc->dev,
 				    "failed to create fl DMA tag[%d]: %d\n",
@@ -1802,9 +2222,7 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 
 		/* Allocate space for one software descriptor per buffer. */
 		fl->cap = (fl->qsize - spg_len / RX_FL_ESIZE) * 8;
-		FL_LOCK(fl);
 		rc = alloc_fl_sdesc(fl);
-		FL_UNLOCK(fl);
 		if (rc != 0) {
 			device_printf(sc->dev,
 			    "failed to setup fl software descriptors: %d\n",
@@ -1817,7 +2235,9 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 		c.iqns_to_fl0congen |=
 		    htobe32(V_FW_IQ_CMD_FL0HOSTFCMODE(X_HOSTFCMODE_NONE) |
 			F_FW_IQ_CMD_FL0FETCHRO | F_FW_IQ_CMD_FL0DATARO |
-			F_FW_IQ_CMD_FL0PADEN);
+			(fl_pad ? F_FW_IQ_CMD_FL0PADEN : 0) |
+			(fl->flags & FL_BUF_PACKING ? F_FW_IQ_CMD_FL0PACKEN :
+			    0));
 		if (cong >= 0) {
 			c.iqns_to_fl0congen |=
 				htobe32(V_FW_IQ_CMD_FL0CNGCHMAP(cong) |
@@ -1937,16 +2357,22 @@ free_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl)
 		free_ring(sc, fl->desc_tag, fl->desc_map, fl->ba,
 		    fl->desc);
 
-		if (fl->sdesc) {
-			FL_LOCK(fl);
-			free_fl_sdesc(fl);
-			FL_UNLOCK(fl);
+		if (fl->sdesc)
+			free_fl_sdesc(sc, fl);
+
+		for (i = 0; i < nitems(fl->mstash); i++) {
+			struct mbuf *m = fl->mstash[i];
+
+			if (m != NULL) {
+				m_init(m, NULL, 0, M_NOWAIT, MT_DATA, 0);
+				m_free(m);
+			}
 		}
 
 		if (mtx_initialized(&fl->fl_lock))
 			mtx_destroy(&fl->fl_lock);
 
-		for (i = 0; i < FL_BUF_SIZES; i++) {
+		for (i = 0; i < FL_BUF_SIZES(sc); i++) {
 			if (fl->tag[i])
 				bus_dma_tag_destroy(fl->tag[i]);
 		}
@@ -2107,6 +2533,10 @@ alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx,
 	    "SGE context id of the queue");
 	SYSCTL_ADD_UINT(&pi->ctx, children, OID_AUTO, "cidx", CTLFLAG_RD,
 	    &rxq->fl.cidx, 0, "consumer index");
+	if (rxq->fl.flags & FL_BUF_PACKING) {
+		SYSCTL_ADD_UINT(&pi->ctx, children, OID_AUTO, "rx_offset",
+		    CTLFLAG_RD, &rxq->fl.rx_offset, 0, "packing rx offset");
+	}
 	SYSCTL_ADD_UINT(&pi->ctx, children, OID_AUTO, "pidx", CTLFLAG_RD,
 	    &rxq->fl.pidx, 0, "producer index");
 
@@ -2668,6 +3098,12 @@ refill_fl(struct adapter *sc, struct sge_fl *fl, int nbufs)
 	int rc;
 
 	FL_LOCK_ASSERT_OWNED(fl);
+#ifdef INVARIANTS
+	if (fl->flags & FL_BUF_PACKING)
+		KASSERT(sd->tag_idx == 0,
+		    ("%s: expected tag 0 but found tag %d at pidx %u instead",
+		    __func__, sd->tag_idx, fl->pidx));
+#endif
 
 	if (nbufs > fl->needed)
 		nbufs = fl->needed;
@@ -2676,24 +3112,34 @@ refill_fl(struct adapter *sc, struct sge_fl *fl, int nbufs)
 
 		if (sd->cl != NULL) {
 
-			/*
-			 * This happens when a frame small enough to fit
-			 * entirely in an mbuf was received in cl last time.
-			 * We'd held on to cl and can reuse it now.  Note that
-			 * we reuse a cluster of the old size if fl->tag_idx is
-			 * no longer the same as sd->tag_idx.
-			 */
-
-			KASSERT(*d == sd->ba_tag,
+			KASSERT(*d == sd->ba_hwtag,
 			    ("%s: recyling problem at pidx %d",
 			    __func__, fl->pidx));
 
-			d++;
-			goto recycled;
+			if (fl->flags & FL_BUF_PACKING) {
+				u_int *refcount = find_buf_refcnt(sd->cl);
+
+				if (atomic_fetchadd_int(refcount, -1) == 1) {
+					*refcount = 1;	/* reinstate */
+					d++;
+					goto recycled;
+				}
+				sd->cl = NULL;	/* gave up my reference */
+			} else {
+				/*
+				 * This happens when a frame small enough to fit
+				 * entirely in an mbuf was received in cl last
+				 * time.  We'd held on to cl and can reuse it
+				 * now.  Note that we reuse a cluster of the old
+				 * size if fl->tag_idx is no longer the same as
+				 * sd->tag_idx.
+				 */
+				d++;
+				goto recycled;
+			}
 		}
 
-
-		if (fl->tag_idx != sd->tag_idx) {
+		if (__predict_false(fl->tag_idx != sd->tag_idx)) {
 			bus_dmamap_t map;
 			bus_dma_tag_t newtag = fl->tag[fl->tag_idx];
 			bus_dma_tag_t oldtag = fl->tag[sd->tag_idx];
@@ -2713,33 +3159,32 @@ refill_fl(struct adapter *sc, struct sge_fl *fl, int nbufs)
 
 		tag = fl->tag[sd->tag_idx];
 
-		cl = m_cljget(NULL, M_NOWAIT, FL_BUF_SIZE(sd->tag_idx));
+		cl = uma_zalloc(FL_BUF_ZONE(sc, sd->tag_idx), M_NOWAIT);
 		if (cl == NULL)
 			break;
+		if (fl->flags & FL_BUF_PACKING) {
+			*find_buf_refcnt(cl) = 1;
+			cl += MSIZE;
+		}
 
-		rc = bus_dmamap_load(tag, sd->map, cl, FL_BUF_SIZE(sd->tag_idx),
-		    oneseg_dma_callback, &pa, 0);
+		rc = bus_dmamap_load(tag, sd->map, cl,
+		    FL_BUF_SIZE(sc, sd->tag_idx), oneseg_dma_callback, &pa, 0);
 		if (rc != 0 || pa == 0) {
 			fl->dmamap_failed++;
-			uma_zfree(FL_BUF_ZONE(sd->tag_idx), cl);
+			if (fl->flags & FL_BUF_PACKING)
+				cl -= MSIZE;
+			uma_zfree(FL_BUF_ZONE(sc, sd->tag_idx), cl);
 			break;
 		}
 
 		sd->cl = cl;
-		*d++ = htobe64(pa | sd->tag_idx);
+		*d++ = htobe64(pa | FL_BUF_HWTAG(sc, sd->tag_idx));
 
 #ifdef INVARIANTS
-		sd->ba_tag = htobe64(pa | sd->tag_idx);
+		sd->ba_hwtag = htobe64(pa | FL_BUF_HWTAG(sc, sd->tag_idx));
 #endif
 
 recycled:
-		/* sd->m is never recycled, should always be NULL */
-		KASSERT(sd->m == NULL, ("%s: stray mbuf", __func__));
-
-		sd->m = m_gethdr(M_NOWAIT, MT_NOINIT);
-		if (sd->m == NULL)
-			break;
-
 		fl->pending++;
 		fl->needed--;
 		sd++;
@@ -2788,8 +3233,6 @@ alloc_fl_sdesc(struct sge_fl *fl)
 	bus_dma_tag_t tag;
 	int i, rc;
 
-	FL_LOCK_ASSERT_OWNED(fl);
-
 	fl->sdesc = malloc(fl->cap * sizeof(struct fl_sdesc), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 
@@ -2808,11 +3251,6 @@ failed:
 	while (--i >= 0) {
 		sd--;
 		bus_dmamap_destroy(tag, sd->map);
-		if (sd->m) {
-			m_init(sd->m, NULL, 0, M_NOWAIT, MT_DATA, 0);
-			m_free(sd->m);
-			sd->m = NULL;
-		}
 	}
 	KASSERT(sd == fl->sdesc, ("%s: EDOOFUS", __func__));
 
@@ -2823,25 +3261,17 @@ failed:
 }
 
 static void
-free_fl_sdesc(struct sge_fl *fl)
+free_fl_sdesc(struct adapter *sc, struct sge_fl *fl)
 {
 	struct fl_sdesc *sd;
 	int i;
 
-	FL_LOCK_ASSERT_OWNED(fl);
-
 	sd = fl->sdesc;
 	for (i = 0; i < fl->cap; i++, sd++) {
 
-		if (sd->m) {
-			m_init(sd->m, NULL, 0, M_NOWAIT, MT_DATA, 0);
-			m_free(sd->m);
-			sd->m = NULL;
-		}
-
 		if (sd->cl) {
 			bus_dmamap_unload(fl->tag[sd->tag_idx], sd->map);
-			uma_zfree(FL_BUF_ZONE(sd->tag_idx), sd->cl);
+			uma_zfree(FL_BUF_ZONE(sc, sd->tag_idx), sd->cl);
 			sd->cl = NULL;
 		}
 
@@ -3696,17 +4126,52 @@ get_flit(bus_dma_segment_t *sgl, int nsegs, int idx)
 	return (0);
 }
 
+/*
+ * Find an SGE FL buffer size to use for the given bufsize.  Look for the the
+ * smallest size that is large enough to hold bufsize or pick the largest size
+ * if all sizes are less than bufsize.
+ */
 static void
-set_fl_tag_idx(struct sge_fl *fl, int bufsize)
+set_fl_tag_idx(struct adapter *sc, struct sge_fl *fl, int bufsize)
 {
-	int i;
+	int i, largest, best, delta, start;
 
-	for (i = 0; i < FL_BUF_SIZES - 1; i++) {
-		if (FL_BUF_SIZE(i) >= bufsize)
-			break;
+	if (fl->flags & FL_BUF_PACKING) {
+		fl->tag_idx = 0;	/* first tag is the one for packing */
+		return;
 	}
 
-	fl->tag_idx = i;
+	start = sc->flags & BUF_PACKING_OK ? 1 : 0;
+	delta = FL_BUF_SIZE(sc, start) - bufsize;
+	if (delta == 0) {
+		fl->tag_idx = start;	/* ideal fit, look no further */
+		return;
+	}
+	best = start;
+	largest = start;
+
+	for (i = start + 1; i < FL_BUF_SIZES(sc); i++) {
+		int d, fl_buf_size;
+
+		fl_buf_size = FL_BUF_SIZE(sc, i);
+		d = fl_buf_size - bufsize;
+
+		if (d == 0) {
+			fl->tag_idx = i;	/* ideal fit, look no further */
+			return;
+		}
+		if (fl_buf_size > FL_BUF_SIZE(sc, largest))
+			largest = i;
+		if (d > 0 && (delta < 0 || delta > d)) {
+			delta = d;
+			best = i;
+		}
+	}
+
+	if (delta > 0)
+		fl->tag_idx = best;	/* Found a buf bigger than bufsize */
+	else
+		fl->tag_idx = largest;	/* No buf large enough for bufsize */
 }
 
 static void

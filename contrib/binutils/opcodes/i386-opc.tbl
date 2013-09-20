@@ -1498,3 +1498,7 @@ xsetbv, 0, 0xf01, 0xd1, CpuXSAVE, No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSu
 xsave, 1, 0xfae, 0x4, CpuXSAVE, Modrm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_xSuf, { BaseIndex|Disp8|Disp16|Disp32|Disp32S }
 xsaveopt, 1, 0xfae, 0x6, CpuXSAVE, Modrm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_xSuf, { BaseIndex|Disp8|Disp16|Disp32|Disp32S }
 xrstor, 1, 0xfae, 0x5, CpuXSAVE, Modrm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_xSuf, { BaseIndex|Disp8|Disp16|Disp32|Disp32S }
+
+// INVPCID
+invpcid, 2, 0x660f3882, None, CpuNo64, Modrm|IgnoreSize|No_bSuf|No_wSuf|No_sSuf|No_qSuf|No_xSuf|NoRex64, { BaseIndex|Disp8|Disp16|Disp32|Disp32S, Reg32 }
+invpcid, 2, 0x660f3882, None, Cpu64, Modrm|IgnoreSize|No_bSuf|No_wSuf|No_sSuf|No_qSuf|No_xSuf|NoRex64, { BaseIndex|Disp8|Disp16|Disp32|Disp32S, Reg64 }

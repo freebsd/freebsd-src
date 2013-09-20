@@ -10,7 +10,7 @@ To build a kernel with the IP filter, follow these seven steps:
 	4. build a new kernel
 
 	5. install the new kernel
- 
+
 	6. If not using DEVFS, create devices for IP Filter as follows:
 		mknod /dev/ipl c 79 0
 		mknod /dev/ipnat c 79 1
@@ -18,7 +18,7 @@ To build a kernel with the IP filter, follow these seven steps:
 		mknod /dev/ipauth c 79 3
 		mknod /dev/ipsync c 79 4
 		mknod /dev/ipscan c 79 5
- 
+
 	7. reboot
 
 

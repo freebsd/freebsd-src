@@ -424,6 +424,19 @@ init_6x86(void)
 
 #ifdef I586_CPU
 /*
+ * Rise mP6
+ */
+static void
+init_rise(void)
+{
+
+	/*
+	 * The CMPXCHG8B instruction is always available but hidden.
+	 */
+	cpu_feature |= CPUID_CX8;
+}
+
+/*
  * IDT WinChip C6/2/2A/2B/3
  *
  * http://www.centtech.com/winchip_bios_writers_guide_v4_0.pdf
@@ -689,6 +702,9 @@ initializecpu(void)
 			break;
 		case CPU_VENDOR_TRANSMETA:
 			init_transmeta();
+			break;
+		case CPU_VENDOR_RISE:
+			init_rise();
 			break;
 		}
 		break;

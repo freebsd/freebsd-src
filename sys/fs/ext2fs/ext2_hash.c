@@ -73,7 +73,7 @@
 
 /*
  * FF, GG, and HH are transformations for rounds 1, 2, and 3.
- * Rotation is separated from addition to prevent recompuatation
+ * Rotation is separated from addition to prevent recomputation.
  */
 #define FF(a, b, c, d, x, s) { \
 	(a) += F ((b), (c), (d)) + (x); \

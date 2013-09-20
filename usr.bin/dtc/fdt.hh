@@ -48,6 +48,8 @@ class string_table;
 
 namespace fdt
 {
+class property;
+typedef std::map<string, property*> define_map;
 /**
  * Properties may contain a number of different value, each with a different
  * label.  This class encapsulates a single value.
@@ -263,6 +265,10 @@ class property
 	 */
 	void parse_reference(input_buffer &input);
 	/**
+	 * Parse a predefined macro definition for a property.
+	 */
+	void parse_define(input_buffer &input, define_map *defines);
+	/**
 	 * Constructs a new property from two input buffers, pointing to the
 	 * struct and strings tables in the device tree blob, respectively.
 	 * The structs input buffer is assumed to have just consumed the
@@ -272,7 +278,11 @@ class property
 	/**
 	 * Parses a new property from the input buffer.  
 	 */
-	property(input_buffer &input, string k, string l);
+	property(input_buffer &input,
+	         string k,
+	         string l,
+	         bool terminated,
+	         define_map *defines);
 	public:
 	/**
 	 * Creates an empty property.
@@ -298,7 +308,9 @@ class property
 	 */
 	static property* parse(input_buffer &input,
 	                       string key,
-	                       string label=string());
+	                       string label=string(),
+	                       bool semicolonTerminated=true,
+	                       define_map *defines=0);
 	/**
 	 * Iterator type used for accessing the values of a property.
 	 */
@@ -398,7 +410,7 @@ class node
 	 * node.  The name, and optionally label and unit address, should have
 	 * already been parsed.
 	 */
-	node(input_buffer &input, string n, string l, string a);
+	node(input_buffer &input, string n, string l, string a, define_map*);
 	/**
 	 * Comparison function for properties, used when sorting the properties
 	 * vector.  Orders the properties based on their names.
@@ -476,7 +488,8 @@ class node
 	static node* parse(input_buffer &input,
 	                   string name,
 	                   string label=string(),
-	                   string address=string());
+	                   string address=string(),
+	                   define_map *defines=0);
 	/**
 	 * Factory method for constructing a new node.  Attempts to parse a
 	 * node in DTB format from the input, and returns it on success.  On
@@ -616,6 +629,10 @@ class device_tree
 	 * must be freed separately.
 	 */
 	std::vector<const char*> include_paths;
+	/**
+	 * Dictionary of predefined macros provided on the command line.
+	 */
+	define_map               defines;
 	/**
 	 * The default boot CPU, specified in the device tree header.
 	 */
@@ -773,6 +790,10 @@ class device_tree
 	{
 		blob_padding = p;
 	}
+	/**
+	 * Parses a predefined macro value.
+	 */
+	bool parse_define(const char *def);
 };
 
 } // namespace fdt

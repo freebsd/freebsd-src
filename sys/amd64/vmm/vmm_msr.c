@@ -57,6 +57,9 @@ static struct vmm_msr vmm_msr[] = {
 	{ MSR_PAT,      VMM_MSR_F_EMULATE | VMM_MSR_F_INVALID },
 	{ MSR_BIOS_SIGN,VMM_MSR_F_EMULATE },
 	{ MSR_MCG_CAP,	VMM_MSR_F_EMULATE | VMM_MSR_F_READONLY },
+#if 0 /* XXX unsupported on AMD */
+	{ MSR_IA32_MISC_ENABLE, VMM_MSR_F_EMULATE | VMM_MSR_F_READONLY },
+#endif
 };
 
 #define	vmm_msr_num	(sizeof(vmm_msr) / sizeof(vmm_msr[0]))
@@ -91,7 +94,11 @@ void
 guest_msrs_init(struct vm *vm, int cpu)
 {
 	int i;
+#if 0
+	uint64_t *guest_msrs, misc;
+#else
 	uint64_t *guest_msrs;
+#endif
 
 	guest_msrs = vm_guest_msrs(vm, cpu);
 	
@@ -115,6 +122,22 @@ guest_msrs_init(struct vm *vm, int cpu)
 				PAT_VALUE(6, PAT_UNCACHED)        |
 				PAT_VALUE(7, PAT_UNCACHEABLE);
 			break;
+#if 0 /* XXX unsupported on AMD */
+		case MSR_IA32_MISC_ENABLE:
+			misc = rdmsr(MSR_IA32_MISC_ENABLE);
+			/*
+			 * Set mandatory bits
+			 *  11:   branch trace disabled
+			 *  12:   PEBS unavailable
+			 * Clear unsupported features
+			 *  16:   SpeedStep enable
+			 *  18:   enable MONITOR FSM
+                         */
+			misc |= (1 << 12) | (1 << 11);
+			misc &= ~((1 << 18) | (1 << 16));
+			guest_msrs[i] = misc;
+                        break;
+#endif
 		default:
 			panic("guest_msrs_init: missing initialization for msr "
 			      "0x%0x", vmm_msr[i].num);

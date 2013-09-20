@@ -82,6 +82,8 @@ DRIVER_MODULE(nvbl, vgapci, nvbl_driver, nvbl_devclass, 0, 0);
 static void
 nvbl_identify(driver_t *driver, device_t parent)
 {
+	if (OF_finddevice("mac-io/backlight") == -1)
+		return;
 	if (device_find_child(parent, "backlight", -1) == NULL)
 		device_add_child(parent, "backlight", -1);
 }

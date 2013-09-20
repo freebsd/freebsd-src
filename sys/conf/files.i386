@@ -124,10 +124,13 @@ bf_enc.o			optional crypto | ipsec	\
 	dependency	"$S/crypto/blowfish/arch/i386/bf_enc.S $S/crypto/blowfish/arch/i386/bf_enc_586.S $S/crypto/blowfish/arch/i386/bf_enc_686.S" \
 	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}" \
 	no-implicit-rule
-crypto/aesni/aesencdec_i386.S	optional aesni
 crypto/aesni/aeskeys_i386.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
-crypto/aesni/aesni_wrap.c	optional aesni
+aesni_wrap.o			optional aesni				\
+	dependency	"$S/crypto/aesni/aesni_wrap.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -maes ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"aesni_wrap.o"
 crypto/des/arch/i386/des_enc.S	optional crypto | ipsec | netsmb
 crypto/via/padlock.c		optional padlock
 crypto/via/padlock_cipher.c	optional padlock
@@ -267,6 +270,7 @@ dev/tpm/tpm_acpi.c		optional tpm acpi
 dev/tpm/tpm_isa.c		optional tpm isa
 dev/uart/uart_cpu_x86.c		optional uart
 dev/viawd/viawd.c		optional viawd
+dev/vmware/vmxnet3/if_vmx.c	optional vmx
 dev/acpica/acpi_if.m		standard
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/wbwd/wbwd.c			optional wbwd
@@ -482,8 +486,6 @@ i386/ibcs2/ibcs2_xenix.c	optional ibcs2
 i386/ibcs2/ibcs2_xenix_sysent.c	optional ibcs2
 i386/ibcs2/imgact_coff.c	optional ibcs2
 i386/xen/clock.c		optional xen
-i386/xen/xen_clock_util.c	optional xen
-i386/xen/xen_rtc.c		optional xen
 i386/isa/elink.c		optional ep | ie
 i386/isa/npx.c			optional npx
 i386/isa/pmtimer.c		optional pmtimer
@@ -567,3 +569,5 @@ x86/x86/mptable_pci.c		optional apic native pci
 x86/x86/msi.c			optional apic pci
 x86/x86/nexus.c			standard
 x86/x86/tsc.c			standard
+x86/xen/hvm.c			optional xenhvm
+x86/xen/xen_intr.c		optional xen | xenhvm

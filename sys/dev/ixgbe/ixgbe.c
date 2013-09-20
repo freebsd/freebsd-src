@@ -2456,12 +2456,18 @@ ixgbe_setup_msix(struct adapter *adapter)
 		    msgs, want);
 		goto msi;
 	}
-	if (pci_alloc_msix(dev, &msgs) == 0) {
+	if ((pci_alloc_msix(dev, &msgs) == 0) && (msgs == want)) {
                	device_printf(adapter->dev,
 		    "Using MSIX interrupts with %d vectors\n", msgs);
 		adapter->num_queues = queues;
 		return (msgs);
 	}
+	/*
+	** If MSIX alloc failed or provided us with
+	** less than needed, free and fall through to MSI
+	*/
+	pci_release_msi(dev);
+
 msi:
        	if (adapter->msix_mem != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY,
@@ -4619,7 +4625,7 @@ ixgbe_rx_checksum(u32 staterr, struct mbuf * mp, u32 ptype)
 			mp->m_pkthdr.csum_flags = 0;
 	}
 	if (status & IXGBE_RXD_STAT_L4CS) {
-		u16 type = (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+		u64 type = (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 #if __FreeBSD_version >= 800000
 		if (sctp)
 			type = CSUM_SCTP_VALID;

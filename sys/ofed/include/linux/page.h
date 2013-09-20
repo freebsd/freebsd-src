@@ -32,6 +32,7 @@
 
 #include <sys/param.h>
 
+#include <machine/atomic.h>
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 

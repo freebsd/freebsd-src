@@ -143,7 +143,7 @@ static_inet()
 	[Nn][Oo] | '')
 		;;
 	*)
-		static_routes="_default ${static_routes}"
+		static_routes="${static_routes} _default"
 		route__default="default ${defaultrouter}"
 		;;
 	esac
@@ -205,7 +205,7 @@ static_inet6()
 	[Nn][Oo] | '')
 		;;
 	*)
-		ipv6_static_routes="_default ${ipv6_static_routes}"
+		ipv6_static_routes="${ipv6_static_routes} _default"
 		ipv6_route__default="default ${ipv6_defaultrouter}"
 		;;
 	esac

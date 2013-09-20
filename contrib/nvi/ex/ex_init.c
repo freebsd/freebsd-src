@@ -10,11 +10,10 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_init.c	10.26 (Berkeley) 8/12/96";
+static const char sccsid[] = "$Id: ex_init.c,v 10.33 2012/04/11 19:12:34 zy Exp $";
 #endif /* not lint */
 
-#include <sys/param.h>
-#include <sys/types.h>		/* XXX: param.h may not have included types.h */
+#include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
 
@@ -42,8 +41,7 @@ static int ex_run_file __P((SCR *, char *));
  * PUBLIC: int ex_screen_copy __P((SCR *, SCR *));
  */
 int
-ex_screen_copy(orig, sp)
-	SCR *orig, *sp;
+ex_screen_copy(SCR *orig, SCR *sp)
 {
 	EX_PRIVATE *oexp, *nexp;
 
@@ -52,16 +50,17 @@ ex_screen_copy(orig, sp)
 	sp->ex_private = nexp;
 
 	/* Initialize queues. */
-	CIRCLEQ_INIT(&nexp->tq);
-	TAILQ_INIT(&nexp->tagfq);
-	LIST_INIT(&nexp->cscq);
+	TAILQ_INIT(nexp->tq);
+	TAILQ_INIT(nexp->tagfq);
+	SLIST_INIT(nexp->cscq);
 
 	if (orig == NULL) {
 	} else {
 		oexp = EXP(orig);
 
 		if (oexp->lastbcomm != NULL &&
-		    (nexp->lastbcomm = strdup(oexp->lastbcomm)) == NULL) {
+		    (nexp->lastbcomm = v_wstrdup(sp, oexp->lastbcomm, 
+				     STRLEN(oexp->lastbcomm))) == NULL) {
 			msgq(sp, M_SYSERR, NULL);
 			return(1);
 		}
@@ -78,8 +77,7 @@ ex_screen_copy(orig, sp)
  * PUBLIC: int ex_screen_end __P((SCR *));
  */
 int
-ex_screen_end(sp)
-	SCR *sp;
+ex_screen_end(SCR *sp)
 {
 	EX_PRIVATE *exp;
 	int rval;
@@ -102,7 +100,13 @@ ex_screen_end(sp)
 	if (exp->lastbcomm != NULL)
 		free(exp->lastbcomm);
 
+	if (exp->ibcw.bp1.c != NULL)
+		free(exp->ibcw.bp1.c);
+
 	if (ex_tag_free(sp))
+		rval = 1;
+
+	if (cscope_end(sp))
 		rval = 1;
 
 	/* Free private memory. */
@@ -119,11 +123,7 @@ ex_screen_end(sp)
  * PUBLIC: int ex_optchange __P((SCR *, int, char *, u_long *));
  */
 int
-ex_optchange(sp, offset, str, valp)
-	SCR *sp;
-	int offset;
-	char *str;
-	u_long *valp;
+ex_optchange(SCR *sp, int offset, char *str, u_long *valp)
 {
 	switch (offset) {
 	case O_TAGS:
@@ -140,11 +140,12 @@ ex_optchange(sp, offset, str, valp)
  * PUBLIC: int ex_exrc __P((SCR *));
  */
 int
-ex_exrc(sp)
-	SCR *sp;
+ex_exrc(SCR *sp)
 {
 	struct stat hsb, lsb;
-	char *p, path[MAXPATHLEN];
+	char *p, *path;
+	CHAR_T *wp;
+	size_t wlen;
 
 	/*
 	 * Source the system, environment, $HOME and local .exrc values.
@@ -187,28 +188,41 @@ ex_exrc(sp)
 		return (0);
 
 	if ((p = getenv("NEXINIT")) != NULL) {
-		if (ex_run_str(sp, "NEXINIT", p, strlen(p), 1, 0))
+		CHAR2INT(sp, p, strlen(p) + 1, wp, wlen);
+		if (ex_run_str(sp, "NEXINIT", wp, wlen - 1, 1, 0))
 			return (1);
 	} else if ((p = getenv("EXINIT")) != NULL) {
-		if (ex_run_str(sp, "EXINIT", p, strlen(p), 1, 0))
+		CHAR2INT(sp, p, strlen(p) + 1, wp, wlen);
+		if (ex_run_str(sp, "EXINIT", wp, wlen - 1, 1, 0))
 			return (1);
 	} else if ((p = getenv("HOME")) != NULL && *p) {
-		(void)snprintf(path, sizeof(path), "%s/%s", p, _PATH_NEXRC);
+		int st = 0;
+
+		if ((path = join(p, _PATH_NEXRC)) == NULL) {
+			msgq(sp, M_SYSERR, NULL);
+			return (1);
+		}
 		switch (exrc_isok(sp, &hsb, path, 0, 1)) {
 		case NOEXIST:
-			(void)snprintf(path,
-			    sizeof(path), "%s/%s", p, _PATH_EXRC);
+			free(path);
+			if ((path = join(p, _PATH_EXRC)) == NULL) {
+				msgq(sp, M_SYSERR, NULL);
+				return (1);
+			}
 			if (exrc_isok(sp,
 			    &hsb, path, 0, 1) == RCOK && ex_run_file(sp, path))
-				return (1);
+				st = 1;
 			break;
 		case NOPERM:
 			break;
 		case RCOK:
 			if (ex_run_file(sp, path))
-				return (1);
+				st = 1;
 			break;
 		}
+		free(path);
+		if (st)
+			return st;
 	}
 
 	/* Run the commands. */
@@ -251,15 +265,15 @@ ex_exrc(sp)
  *	Set up a file of ex commands to run.
  */
 static int
-ex_run_file(sp, name)
-	SCR *sp;
-	char *name;
+ex_run_file(SCR *sp, char *name)
 {
-	ARGS *ap[2], a;
 	EXCMD cmd;
+	CHAR_T *wp;
+	size_t wlen;
 
-	ex_cinit(&cmd, C_SOURCE, 0, OOBLNO, OOBLNO, 0, ap);
-	ex_cadd(&cmd, &a, name, strlen(name));
+	ex_cinit(sp, &cmd, C_SOURCE, 0, OOBLNO, OOBLNO, 0);
+	CHAR2INT(sp, name, strlen(name)+1, wp, wlen);
+	argv_exp0(sp, &cmd, wp, wlen - 1);
 	return (ex_source(sp, &cmd));
 }
 
@@ -267,14 +281,10 @@ ex_run_file(sp, name)
  * ex_run_str --
  *	Set up a string of ex commands to run.
  *
- * PUBLIC: int ex_run_str __P((SCR *, char *, char *, size_t, int, int));
+ * PUBLIC: int ex_run_str __P((SCR *, char *, CHAR_T *, size_t, int, int));
  */
 int
-ex_run_str(sp, name, str, len, ex_flags, nocopy)
-	SCR *sp;
-	char *name, *str;
-	size_t len;
-	int ex_flags, nocopy;
+ex_run_str(SCR *sp, char *name, CHAR_T *str, size_t len, int ex_flags, int nocopy)
 {
 	GS *gp;
 	EXCMD *ecp;
@@ -282,7 +292,7 @@ ex_run_str(sp, name, str, len, ex_flags, nocopy)
 	gp = sp->gp;
 	if (EXCMD_RUNNING(gp)) {
 		CALLOC_RET(sp, ecp, EXCMD *, 1, sizeof(EXCMD));
-		LIST_INSERT_HEAD(&gp->ecq, ecp, q);
+		SLIST_INSERT_HEAD(gp->ecq, ecp, q);
 	} else
 		ecp = &gp->excmd;
 
@@ -292,7 +302,7 @@ ex_run_str(sp, name, str, len, ex_flags, nocopy)
 	if (nocopy)
 		ecp->cp = str;
 	else
-		if ((ecp->cp = v_strdup(sp, str, len)) == NULL)
+		if ((ecp->cp = v_wstrdup(sp, str, len)) == NULL)
 			return (1);
 	ecp->clen = len;
 
@@ -345,16 +355,12 @@ ex_run_str(sp, name, str, len, ex_flags, nocopy)
  * files.
  */
 static enum rc
-exrc_isok(sp, sbp, path, rootown, rootid)
-	SCR *sp;
-	struct stat *sbp;
-	char *path;
-	int rootown, rootid;
+exrc_isok(SCR *sp, struct stat *sbp, char *path, int rootown, int rootid)
 {
 	enum { ROOTOWN, OWN, WRITER } etype;
 	uid_t euid;
 	int nf1, nf2;
-	char *a, *b, buf[MAXPATHLEN];
+	char *a, *b, *buf;
 
 	/* Check for the file's existence. */
 	if (stat(path, sbp))
@@ -376,23 +382,30 @@ exrc_isok(sp, sbp, path, rootown, rootid)
 	return (RCOK);
 
 denied:	a = msg_print(sp, path, &nf1);
-	if (strchr(path, '/') == NULL && getcwd(buf, sizeof(buf)) != NULL) {
+	if (strchr(path, '/') == NULL && (buf = getcwd(NULL, 0)) != NULL) {
+		char *p;
+
 		b = msg_print(sp, buf, &nf2);
+		if ((p = join(b, a)) == NULL) {
+			msgq(sp, M_SYSERR, NULL);
+			goto err;
+		}
 		switch (etype) {
 		case ROOTOWN:
 			msgq(sp, M_ERR,
-			    "125|%s/%s: not sourced: not owned by you or root",
-			    b, a);
+			    "128|%s: not sourced: not owned by you or root", p);
 			break;
 		case OWN:
 			msgq(sp, M_ERR,
-			    "126|%s/%s: not sourced: not owned by you", b, a);
+			    "129|%s: not sourced: not owned by you", p);
 			break;
 		case WRITER:
 			msgq(sp, M_ERR,
-    "127|%s/%s: not sourced: writeable by a user other than the owner", b, a);
+    "130|%s: not sourced: writeable by a user other than the owner", p);
 			break;
 		}
+		free(p);
+err:		free(buf);
 		if (nf2)
 			FREE_SPACE(sp, b, 0);
 	} else

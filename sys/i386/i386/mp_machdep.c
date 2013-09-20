@@ -81,6 +81,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/psl.h>
 #include <machine/smp.h>
 #include <machine/specialreg.h>
+#include <machine/cpu.h>
+
+#ifdef XENHVM
+#include <xen/hvm.h>
+#endif
 
 #define WARMBOOT_TARGET		0
 #define WARMBOOT_OFF		(KERNBASE + 0x0467)
@@ -165,6 +170,11 @@ u_long *ipi_rendezvous_counts[MAXCPU];
 u_long *ipi_lazypmap_counts[MAXCPU];
 static u_long *ipi_hardclock_counts[MAXCPU];
 #endif
+
+/* Default cpu_ops implementation. */
+struct cpu_ops cpu_ops = {
+	.ipi_vectored = lapic_ipi_vectored
+};
 
 /*
  * Local data and functions.
@@ -747,6 +757,11 @@ init_secondary(void)
 	/* set up SSE registers */
 	enable_sse();
 
+#ifdef XENHVM
+	/* register vcpu_info area */
+	xen_hvm_init_cpu();
+#endif
+
 #ifdef PAE
 	/* Enable the PTE no-execute bit. */
 	if ((amd_feature & AMDID_NX) != 0) {
@@ -959,8 +974,10 @@ start_all_aps(void)
 
 		/* allocate and set up a boot stack data page */
 		bootstacks[cpu] =
-		    (char *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
-		dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
+		    (char *)kmem_malloc(kernel_arena, KSTACK_PAGES * PAGE_SIZE,
+		    M_WAITOK | M_ZERO);
+		dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
+		    M_WAITOK | M_ZERO);
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
 		*((volatile u_short *) WARMBOOT_SEG) = (boot_address >> 4);
@@ -1198,7 +1215,7 @@ ipi_send_cpu(int cpu, u_int ipi)
 		if (old_pending)
 			return;
 	}
-	lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
+	cpu_ops.ipi_vectored(ipi, cpu_apic_ids[cpu]);
 }
 
 /*
@@ -1449,7 +1466,7 @@ ipi_all_but_self(u_int ipi)
 		CPU_OR_ATOMIC(&ipi_nmi_pending, &other_cpus);
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
+	cpu_ops.ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
 }
 
 int

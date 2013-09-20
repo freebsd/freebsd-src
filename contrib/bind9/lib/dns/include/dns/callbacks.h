@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: callbacks.h,v 1.26 2011/12/09 23:47:05 tbox Exp $ */
 
 #ifndef DNS_CALLBACKS_H
 #define DNS_CALLBACKS_H 1
@@ -41,6 +41,14 @@ struct dns_rdatacallbacks {
 	 * dns_load_master calls this when it has rdatasets to commit.
 	 */
 	dns_addrdatasetfunc_t add;
+
+	/*%
+	 * dns_master_load*() call this when loading a raw zonefile,
+	 * to pass back information obtained from the file header
+	 */
+	dns_rawdatafunc_t rawdata;
+	dns_zone_t *zone;
+
 	/*%
 	 * dns_load_master / dns_rdata_fromtext call this to issue a error.
 	 */

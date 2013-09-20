@@ -319,18 +319,6 @@ popredir(void)
 	INTON;
 }
 
-/*
- * Undo all redirections.  Called on error or interrupt.
- */
-
-void
-resetredir(void)
-{
-	while (redirlist)
-		popredir();
-}
-
-
 /* Return true if fd 0 has already been redirected at least once.  */
 int
 fd0_redirected_p(void)

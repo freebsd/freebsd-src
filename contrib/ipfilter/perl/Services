@@ -89,7 +89,7 @@
 110 pop3 PostOfficeProtocol-Version3
 111 sunrpc SUNRemoteProcedureCall
 112 mcidas McIDASDataTransmissionProtocol
-113 ident 
+113 ident
 114 audionews AudioNewsMulticast
 115 sftp SimpleFileTransferProtocol
 116 ansanotify ANSAREXNotify
@@ -426,7 +426,7 @@
 515 printer spooler
 516 videotex videotex
 517 talk liketenexlink,butacross
-518 ntalk 
+518 ntalk
 519 utime unixtime
 520 route
 521 ripng ripng
@@ -451,7 +451,7 @@
 540 uucp uucpd
 541 uucp-rlogin uucp-rlogin
 542 commerce commerce
-543 klogin 
+543 klogin
 544 kshell krcmd
 545 appleqtcsrvr appleqtcsrvr
 546 dhcpv6-client DHCPv6Client
@@ -463,7 +463,7 @@
 552 deviceshare deviceshare
 553 pirp pirp
 554 rtsp RealTimeStreamControlProtocol
-555 dsf 
+555 dsf
 556 remotefs rfsserver
 557 openvms-sysipc openvms-sysipc
 558 sdnskmp SDNSKMP
@@ -542,7 +542,7 @@
 637 lanserver lanserver
 638 mcns-sec mcns-sec
 639 msdp MSDP
-666 mdqs 
+666 mdqs
 667 disclose campaigncontributiondisclosures-SDRTechnologies
 668 mecomm MeComm
 669 meregister MeRegister
@@ -569,32 +569,32 @@
 748 ris-cm RussellInfoSciCalendarManager
 749 kerberos-adm kerberosadministration
 750 kerberos-iv kerberosversioniv
-751 pump 
-752 qrh 
-753 rrh 
+751 pump
+752 qrh
+753 rrh
 754 tell send
-758 nlogin 
-759 con 
-760 ns 
-761 rxe 
-762 quotad 
-763 cycleserv 
-764 omserv 
-765 webster 
+758 nlogin
+759 con
+760 ns
+761 rxe
+762 quotad
+763 cycleserv
+764 omserv
+765 webster
 767 phonebook phone
-769 vid 
-770 cadlock 
-771 rtip 
-772 cycleserv2 
-773 notify 
-774 rpasswd 
-775 acmaint_transd 
-776 wpages 
-780 wpgs 
+769 vid
+770 cadlock
+771 rtip
+772 cycleserv2
+773 notify
+774 rpasswd
+775 acmaint_transd
+776 wpages
+780 wpgs
 786 concert Concert
 787 qsc QSC
-800 mdbs_daemon 
-801 device 
+800 mdbs_daemon
+801 device
 829 pkix-3-ca-ra PKIX-3CA/RA
 873 rsync rsync
 886 iclcnet-locate ICLcoNETionlocateserver
@@ -610,10 +610,10 @@
 994 ircs ircprotocoloverTLS/SSL
 995 pop3s pop3protocoloverTLS/SSL(wasspop3)
 996 vsinet vsinet
-997 maitrd 
-998 busboy 
-999 garcon 
-1000 cadlock 
+997 maitrd
+998 busboy
+999 garcon
+1000 cadlock
 1008 ufsd
 1010 surf surf
 1011 Reserved
@@ -654,7 +654,7 @@
 1222 nerv SNIR&Dnetwork
 1234 search-agent InfoseekSearchAgent
 1239 nmsd NMSD
-1248 hermes 
+1248 hermes
 1300 h323hostcallsc H323HostCallSecure
 1313 bmc_patroldb BMC_PATROLDB
 1314 pdps PhotoscriptDistributedPrintingSystem
@@ -695,7 +695,7 @@
 1379 dbreporter IntegritySolutions
 1380 telesis-licman TelesisNetworkLicenseManager
 1381 apple-licman AppleNetworkLicenseManager
-1382 udt_os 
+1382 udt_os
 1383 gwha GWHannawayNetworkLicenseManager
 1384 os-licman ObjectiveSolutionsLicenseManager
 1385 atex_elmd AtexPublishingLicenseManager
@@ -913,7 +913,7 @@
 1597 orbplus-iiop orbplus-iiop
 1598 picknfs picknfs
 1599 simbaservices simbaservices
-1600 issd 
+1600 issd
 1601 aas aas
 1602 inspect inspect
 1603 picodbc pickodbc
@@ -1079,7 +1079,7 @@
 1772 essweb-gw EssWebGateway
 1773 kmscontrol KMSControl
 1774 global-dtserv global-dtserv
-1775 Unknown 
+1775 Unknown
 1776 femis FederalEmergencyManagementInformationSystem
 1777 powerguardian powerguardian
 1778 prodigy-intrnet prodigy-internet
@@ -1180,49 +1180,49 @@
 1997 gdp-port ciscoGatewayDiscoveryProtocol
 1998 x25-svc-port ciscoX.25service(XOT)
 1999 tcp-id-port ciscoidentificationport
-2000 callbook 
-2001 dc 
-2002 globe 
-2004 mailbox 
-2005 berknet 
-2006 invokator 
-2007 dectalk 
-2008 conf 
-2009 news 
-2010 search 
+2000 callbook
+2001 dc
+2002 globe
+2004 mailbox
+2005 berknet
+2006 invokator
+2007 dectalk
+2008 conf
+2009 news
+2010 search
 2011 raid-cc raid
-2012 ttyinfo 
-2013 raid-am 
-2014 troff 
-2015 cypress 
-2016 bootserver 
-2017 cypress-stat 
-2018 terminaldb 
-2019 whosockami 
-2020 xinupageserver 
-2021 servexec 
-2022 down 
-2023 xinuexpansion3 
-2024 xinuexpansion4 
-2025 ellpack 
-2026 scrabble 
-2027 shadowserver 
-2028 submitserver 
-2030 device2 
-2032 blackboard 
-2033 glogger 
-2034 scoremgr 
-2035 imsldoc 
-2038 objectmanager 
-2040 lam 
-2041 interbase 
+2012 ttyinfo
+2013 raid-am
+2014 troff
+2015 cypress
+2016 bootserver
+2017 cypress-stat
+2018 terminaldb
+2019 whosockami
+2020 xinupageserver
+2021 servexec
+2022 down
+2023 xinuexpansion3
+2024 xinuexpansion4
+2025 ellpack
+2026 scrabble
+2027 shadowserver
+2028 submitserver
+2030 device2
+2032 blackboard
+2033 glogger
+2034 scoremgr
+2035 imsldoc
+2038 objectmanager
+2040 lam
+2041 interbase
 2042 isis isis
 2043 isis-bcast isis-bcast
-2044 rimsl 
-2045 cdfunc 
-2046 sdfunc 
-2047 dls 
-2048 dls-monitor 
+2044 rimsl
+2045 cdfunc
+2046 sdfunc
+2047 dls
+2048 dls-monitor
 2049 nfsd-or-shilp
 2065 dlsrpn DataLinkSwitchReadPortNumber
 2067 dlswpn DataLinkSwitchWritePortNumber
@@ -1798,8 +1798,8 @@
 4868 phrelay PhotonRelay
 4869 phrelaydbg PhotonRelayDebug
 4885 abbs ABBS
-5000 commplex-main 
-5001 commplex-link 
+5000 commplex-main
+5001 commplex-link
 5002 rfe radiofreeethernet
 5003 fmpro-internal FileMaker,Inc.-Proprietarynamebinding
 5004 avt-profile-1 avt-profile-1
@@ -1812,13 +1812,13 @@
 5051 ita-agent ITAAgent
 5052 ita-manager ITAManager
 5060 sip SIP
-5145 rmonitor_secure 
+5145 rmonitor_secure
 5150 atmp AscendTunnelManagementProtocol
 5190 aol America-Online
 5191 aol-1 AmericaOnline1
 5192 aol-2 AmericaOnline2
 5193 aol-3 AmericaOnline3
-5236 padl2sim 
+5236 padl2sim
 5272 pk PK
 5300 hacl-hb #HAclusterheartbeat
 5301 hacl-gs #HAclustergeneralservices
@@ -1975,7 +1975,7 @@
 6506 badm_pub BoKSAdminPublicPort
 6507 bdir_priv BoKSDirServer,PrivatePort
 6508 bdir_pub BoKSDirServer,PublicPort
-6558 xdsxdm 
+6558 xdsxdm
 6665 ircu
 6666 ircu
 6667 ircu
@@ -2059,7 +2059,7 @@
 9000 cslistener CSlistener
 9006 sctp SCTP
 9090 websm WebSM
-9535 man 
+9535 man
 9594 msgsys MessageSystem
 9595 pds PingDiscoveryService
 9876 sd SessionDirector
@@ -2093,7 +2093,7 @@
 13821 dsmcc-download DSMCCDownloadProtocol
 13822 dsmcc-ccp DSMCCChannelChangeProtocol
 14001 itu-sccp-ss7 ITUSCCP(SS7)
-17007 isode-dua 
+17007 isode-dua
 17219 chipper Chipper
 18000 biimenu BeckmanInstruments,Inc.
 19541 jcp JCPClient

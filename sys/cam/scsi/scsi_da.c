@@ -1008,6 +1008,14 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * Intel X25-M Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "INTEL SSDSA2M*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
 		 * Kingston E100 Series SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
 		 */
@@ -1020,6 +1028,22 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "KINGSTON SH103S3*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * Marvell SSDs (entry taken from OpenSolaris)
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "MARVELL SD88SA02*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * OCZ Agility 2 SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "OCZ-AGILITY2*", "*" },
 		/*quirks*/DA_Q_4K
 	},
 	{
@@ -2820,6 +2844,7 @@ cmd6workaround(union ccb *ccb)
 			xpt_print(ccb->ccb_h.path,
 			    "SYNCHRONIZE CACHE(10) not supported.\n");
 		softc->quirks |= DA_Q_NO_SYNC_CACHE;
+		softc->disk->d_flags &= ~DISKFLAG_CANFLUSHCACHE;
 		return (0);
 	}
 
@@ -3813,6 +3838,33 @@ scsi_format_unit(struct ccb_scsiio *csio, u_int32_t retries,
 	scsi_cmd->opcode = FORMAT_UNIT;
 	scsi_cmd->byte2 = byte2;
 	scsi_ulto2b(ileave, scsi_cmd->interleave);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/ (dxfer_len > 0) ? CAM_DIR_OUT : CAM_DIR_NONE,
+		      tag_action,
+		      data_ptr,
+		      dxfer_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
+scsi_sanitize(struct ccb_scsiio *csio, u_int32_t retries,
+	      void (*cbfcnp)(struct cam_periph *, union ccb *),
+	      u_int8_t tag_action, u_int8_t byte2, u_int16_t control,
+	      u_int8_t *data_ptr, u_int32_t dxfer_len, u_int8_t sense_len,
+	      u_int32_t timeout)
+{
+	struct scsi_sanitize *scsi_cmd;
+
+	scsi_cmd = (struct scsi_sanitize *)&csio->cdb_io.cdb_bytes;
+	scsi_cmd->opcode = SANITIZE;
+	scsi_cmd->byte2 = byte2;
+	scsi_cmd->control = control;
+	scsi_ulto2b(dxfer_len, scsi_cmd->length);
 
 	cam_fill_csio(csio,
 		      retries,

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: private.h,v 1.5 2011/10/28 12:20:31 tbox Exp $ */
 
 #include <isc/lang.h>
 #include <isc/types.h>
@@ -47,6 +47,23 @@ dns_private_chains(dns_db_t *db, dns_dbversion_t *ver,
  *
  * Returns:
  * \li 	ISC_R_SUCCESS, 'build_nsec' and 'build_nsec3' will be valid.
+ * \li	other on error
+ */
+
+isc_result_t
+dns_private_totext(dns_rdata_t *privaterdata, isc_buffer_t *buffer);
+/*%<
+ * Convert a private-type RR 'privaterdata' to human-readable form,
+ * and place the result in 'buffer'.  The text should indicate
+ * which action the private-type record specifies and whether the
+ * action has been completed.
+ *
+ * Requires:
+ * \li	'privaterdata' is a valid rdata containing at least five bytes
+ * \li	'buffer' is a valid buffer
+ *
+ * Returns:
+ * \li 	ISC_R_SUCCESS
  * \li	other on error
  */
 

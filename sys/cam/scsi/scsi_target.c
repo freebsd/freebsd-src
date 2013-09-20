@@ -551,6 +551,7 @@ targwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		switch (func_code) {
 		case XPT_ACCEPT_TARGET_IO:
 		case XPT_IMMED_NOTIFY:
+		case XPT_IMMEDIATE_NOTIFY:
 			cam_periph_lock(softc->periph);
 			ccb = targgetccb(softc, func_code, priority);
 			descr = (struct targ_cmd_descr *)ccb->ccb_h.targ_descr;
@@ -781,6 +782,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 	switch (done_ccb->ccb_h.func_code) {
 	/* All FC_*_QUEUED CCBs go back to userland */
 	case XPT_IMMED_NOTIFY:
+	case XPT_IMMEDIATE_NOTIFY:
 	case XPT_ACCEPT_TARGET_IO:
 	case XPT_CONT_TARGET_IO:
 		TAILQ_INSERT_TAIL(&softc->user_ccb_queue, &done_ccb->ccb_h,
@@ -961,6 +963,7 @@ targfreeccb(struct targ_softc *softc, union ccb *ccb)
 	switch (ccb->ccb_h.func_code) {
 	case XPT_ACCEPT_TARGET_IO:
 	case XPT_IMMED_NOTIFY:
+	case XPT_IMMEDIATE_NOTIFY:
 		CAM_DEBUG_PRINT(CAM_DEBUG_PERIPH, ("freeing ccb %p\n", ccb));
 		free(ccb, M_TARG);
 		break;
@@ -1130,6 +1133,9 @@ targccblen(xpt_opcode func_code)
 		break;
 	case XPT_IMMED_NOTIFY:
 		len = sizeof(struct ccb_immed_notify);
+		break;
+	case XPT_IMMEDIATE_NOTIFY:
+		len = sizeof(struct ccb_immediate_notify);
 		break;
 	case XPT_REL_SIMQ:
 		len = sizeof(struct ccb_relsim);

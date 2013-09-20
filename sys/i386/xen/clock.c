@@ -79,16 +79,15 @@ __FBSDID("$FreeBSD$");
 #include <x86/isa/isa.h>
 #include <isa/rtc.h>
 
-#include <xen/xen_intr.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/pmap.h>
 #include <xen/hypervisor.h>
-#include <machine/xen/xen-os.h>
+#include <xen/xen-os.h>
 #include <machine/xen/xenfunc.h>
 #include <xen/interface/vcpu.h>
 #include <machine/cpu.h>
-#include <machine/xen/xen_clock_util.h>
+#include <xen/xen_intr.h>
 
 /*
  * 32-bit time_t's can't reach leap years before 1904 or after 2036, so we
@@ -117,6 +116,7 @@ struct mtx clock_lock;
 	mtx_init(&clock_lock, "clk", NULL, MTX_SPIN | MTX_NOPROFILE)
 #define	RTC_LOCK	mtx_lock_spin(&clock_lock)
 #define	RTC_UNLOCK	mtx_unlock_spin(&clock_lock)
+#define	NS_PER_TICK	(1000000000ULL/hz)
 
 int adjkerntz;		/* local offset from GMT in seconds */
 int clkintr_pending;
@@ -124,20 +124,10 @@ int pscnt = 1;
 int psdiv = 1;
 int wall_cmos_clock;
 u_int timer_freq = TIMER_FREQ;
-static int independent_wallclock;
-static int xen_disable_rtc_set;
 static u_long cyc2ns_scale; 
-static struct timespec shadow_tv;
-static uint32_t shadow_tv_version;	/* XXX: lazy locking */
 static uint64_t processed_system_time;	/* stime (ns) at last processing. */
 
-static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
-
-SYSCTL_INT(_machdep, OID_AUTO, independent_wallclock,
-    CTLFLAG_RW, &independent_wallclock, 0, "");
-SYSCTL_INT(_machdep, OID_AUTO, xen_disable_rtc_set,
-    CTLFLAG_RW, &xen_disable_rtc_set, 1, "");
-
+extern volatile uint64_t xen_timer_last_time;
 
 #define do_div(n,base) ({ \
         unsigned long __upper, __low, __high, __mod, __base; \
@@ -152,12 +142,6 @@ SYSCTL_INT(_machdep, OID_AUTO, xen_disable_rtc_set,
         __asm("":"=A" (n):"a" (__low),"d" (__high)); \
         __mod; \
 })
-
-
-#define NS_PER_TICK (1000000000ULL/hz)
-
-#define rdtscll(val) \
-    __asm__ __volatile__("rdtsc" : "=A" (val))
 
 
 /* convert from cycles(64bits) => nanoseconds (64bits)
@@ -182,201 +166,13 @@ static inline void set_cyc2ns_scale(unsigned long cpu_mhz)
 
 static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 {
-	return (cyc * cyc2ns_scale) >> CYC2NS_SCALE_FACTOR;
+	return ((cyc * cyc2ns_scale) >> CYC2NS_SCALE_FACTOR);
 }
 
-/*
- * Scale a 64-bit delta by scaling and multiplying by a 32-bit fraction,
- * yielding a 64-bit result.
- */
-static inline uint64_t 
-scale_delta(uint64_t delta, uint32_t mul_frac, int shift)
-{
-	uint64_t product;
-	uint32_t tmp1, tmp2;
-
-	if ( shift < 0 )
-		delta >>= -shift;
-	else
-		delta <<= shift;
-
-	__asm__ (
-		"mul  %5       ; "
-		"mov  %4,%%eax ; "
-		"mov  %%edx,%4 ; "
-		"mul  %5       ; "
-		"xor  %5,%5    ; "
-		"add  %4,%%eax ; "
-		"adc  %5,%%edx ; "
-		: "=A" (product), "=r" (tmp1), "=r" (tmp2)
-		: "a" ((uint32_t)delta), "1" ((uint32_t)(delta >> 32)), "2" (mul_frac) );
-
-	return product;
-}
-
-static uint64_t
-get_nsec_offset(struct shadow_time_info *shadow)
-{
-	uint64_t now, delta;
-	rdtscll(now);
-	delta = now - shadow->tsc_timestamp;
-	return scale_delta(delta, shadow->tsc_to_nsec_mul, shadow->tsc_shift);
-}
-
-static void update_wallclock(void)
-{
-	shared_info_t *s = HYPERVISOR_shared_info;
-
-	do {
-		shadow_tv_version = s->wc_version;
-		rmb();
-		shadow_tv.tv_sec  = s->wc_sec;
-		shadow_tv.tv_nsec = s->wc_nsec;
-		rmb();
-	}
-	while ((s->wc_version & 1) | (shadow_tv_version ^ s->wc_version));
-
-}
-
-static void
-add_uptime_to_wallclock(void)
-{
-	struct timespec ut;
-
-	xen_fetch_uptime(&ut);
-	timespecadd(&shadow_tv, &ut);
-}
-
-/*
- * Reads a consistent set of time-base values from Xen, into a shadow data
- * area. Must be called with the xtime_lock held for writing.
- */
-static void __get_time_values_from_xen(void)
-{
-	shared_info_t           *s = HYPERVISOR_shared_info;
-	struct vcpu_time_info   *src;
-	struct shadow_time_info *dst;
-	uint32_t pre_version, post_version;
-
-	src = &s->vcpu_info[smp_processor_id()].time;
-	dst = &per_cpu(shadow_time, smp_processor_id());
-
-	spinlock_enter();
-	do {
-	        pre_version = dst->version = src->version;
-		rmb();
-		dst->tsc_timestamp     = src->tsc_timestamp;
-		dst->system_timestamp  = src->system_time;
-		dst->tsc_to_nsec_mul   = src->tsc_to_system_mul;
-		dst->tsc_shift         = src->tsc_shift;
-		rmb();
-		post_version = src->version;
-	}
-	while ((pre_version & 1) | (pre_version ^ post_version));
-
-	dst->tsc_to_usec_mul = dst->tsc_to_nsec_mul / 1000;
-	spinlock_exit();
-}
-
-
-static inline int time_values_up_to_date(int cpu)
-{
-	struct vcpu_time_info   *src;
-	struct shadow_time_info *dst;
-
-	src = &HYPERVISOR_shared_info->vcpu_info[cpu].time; 
-	dst = &per_cpu(shadow_time, cpu); 
-
-	rmb();
-	return (dst->version == src->version);
-}
-
-static	unsigned xen_get_timecount(struct timecounter *tc);
-
-static struct timecounter xen_timecounter = {
-	xen_get_timecount,	/* get_timecount */
-	0,			/* no poll_pps */
-	~0u,			/* counter_mask */
-	0,			/* frequency */
-	"ixen",			/* name */
-	0			/* quality */
-};
-
-static struct eventtimer xen_et;
-
-struct xen_et_state {
-	int		mode;
-#define	MODE_STOP	0
-#define	MODE_PERIODIC	1
-#define	MODE_ONESHOT	2
-	int64_t		period;
-	int64_t		next;
-};
-
-static DPCPU_DEFINE(struct xen_et_state, et_state);
-
-static int
-clkintr(void *arg)
-{
-	int64_t now;
-	int cpu = smp_processor_id();
-	struct shadow_time_info *shadow = &per_cpu(shadow_time, cpu);
-	struct xen_et_state *state = DPCPU_PTR(et_state);
-
-	do {
-		__get_time_values_from_xen();
-		now = shadow->system_timestamp + get_nsec_offset(shadow);
-	} while (!time_values_up_to_date(cpu));
-
-	/* Process elapsed ticks since last call. */
-	processed_system_time = now;
-	if (state->mode == MODE_PERIODIC) {
-		while (now >= state->next) {
-		        state->next += state->period;
-			if (xen_et.et_active)
-				xen_et.et_event_cb(&xen_et, xen_et.et_arg);
-		}
-		HYPERVISOR_set_timer_op(state->next + 50000);
-	} else if (state->mode == MODE_ONESHOT) {
-		if (xen_et.et_active)
-			xen_et.et_event_cb(&xen_et, xen_et.et_arg);
-	}
-	/*
-	 * Take synchronised time from Xen once a minute if we're not
-	 * synchronised ourselves, and we haven't chosen to keep an independent
-	 * time base.
-	 */
-	
-	if (shadow_tv_version != HYPERVISOR_shared_info->wc_version &&
-	    !independent_wallclock) {
-		printf("[XEN] hypervisor wallclock nudged; nudging TOD.\n");
-		update_wallclock();
-		add_uptime_to_wallclock();
-		tc_setclock(&shadow_tv);
-	}
-	
-	/* XXX TODO */
-	return (FILTER_HANDLED);
-}
 static uint32_t
 getit(void)
 {
-	struct shadow_time_info *shadow;
-	uint64_t time;
-	uint32_t local_time_version;
-
-	shadow = &per_cpu(shadow_time, smp_processor_id());
-
-	do {
-	  local_time_version = shadow->version;
-	  barrier();
-	  time = shadow->system_timestamp + get_nsec_offset(shadow);
-	  if (!time_values_up_to_date(smp_processor_id()))
-	    __get_time_values_from_xen(/*cpu */);
-	  barrier();
-	} while (local_time_version != shadow->version);
-
-	  return (time);
+	return (xen_timer_last_time);
 }
 
 
@@ -480,38 +276,12 @@ DELAY(int n)
 #endif
 }
 
-
-/*
- * Restore all the timers non-atomically (XXX: should be atomically).
- *
- * This function is called from pmtimer_resume() to restore all the timers.
- * This should not be necessary, but there are broken laptops that do not
- * restore all the timers on resume.
- */
-void
-timer_restore(void)
-{
-	struct xen_et_state *state = DPCPU_PTR(et_state);
-
-	/* Get timebases for new environment. */ 
-	__get_time_values_from_xen();
-
-	/* Reset our own concept of passage of system time. */
-	processed_system_time = per_cpu(shadow_time, 0).system_timestamp;
-	state->next = processed_system_time;
-}
-
 void
 startrtclock()
 {
-	unsigned long long alarm;
 	uint64_t __cpu_khz;
 	uint32_t cpu_khz;
 	struct vcpu_time_info *info;
-
-	/* initialize xen values */
-	__get_time_values_from_xen();
-	processed_system_time = per_cpu(shadow_time, 0).system_timestamp;
 
 	__cpu_khz = 1000000ULL << 32;
 	info = &HYPERVISOR_shared_info->vcpu_info[0].time;
@@ -530,12 +300,6 @@ startrtclock()
 
 	set_cyc2ns_scale(cpu_khz/1000);
 	tsc_freq = cpu_khz * 1000;
-
-        timer_freq = 1000000000LL;
-	xen_timecounter.tc_frequency = timer_freq >> 9;
-        tc_init(&xen_timecounter);
-
-	rdtscll(alarm);
 }
 
 /*
@@ -594,8 +358,10 @@ domu_resettodr(void)
 	int s;
 	dom0_op_t op;
 	struct shadow_time_info *shadow;
+	struct pcpu *pc;
 
-	shadow = &per_cpu(shadow_time, smp_processor_id());
+	pc = pcpu_find(smp_processor_id());
+	shadow = &pc->pc_shadow_time;
 	if (xen_disable_rtc_set)
 		return;
 	
@@ -767,120 +533,20 @@ resettodr()
 }
 #endif
 
-static int
-xen_et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
-{
-	struct xen_et_state *state = DPCPU_PTR(et_state);
-	struct shadow_time_info *shadow;
-	int64_t fperiod;
-
-	__get_time_values_from_xen();
-
-	if (period != 0) {
-		state->mode = MODE_PERIODIC;
-		state->period = (1000000000LLU * period) >> 32;
-	} else {
-		state->mode = MODE_ONESHOT;
-		state->period = 0;
-	}
-	if (first != 0)
-		fperiod = (1000000000LLU * first) >> 32;
-	else
-		fperiod = state->period;
-
-	shadow = &per_cpu(shadow_time, smp_processor_id());
-	state->next = shadow->system_timestamp + get_nsec_offset(shadow);
-	state->next += fperiod;
-	HYPERVISOR_set_timer_op(state->next + 50000);
-	return (0);
-}
-
-static int
-xen_et_stop(struct eventtimer *et)
-{
-	struct xen_et_state *state = DPCPU_PTR(et_state);
-
-	state->mode = MODE_STOP;
-	HYPERVISOR_set_timer_op(0);
-	return (0);
-}
-
 /*
  * Start clocks running.
  */
 void
 cpu_initclocks(void)
 {
-	unsigned int time_irq;
-	int error;
-
-	HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, 0, NULL);
-	error = bind_virq_to_irqhandler(VIRQ_TIMER, 0, "cpu0:timer",
-	    clkintr, NULL, NULL, INTR_TYPE_CLK, &time_irq);
-	if (error)
-		panic("failed to register clock interrupt\n");
-	/* should fast clock be enabled ? */
-
-	bzero(&xen_et, sizeof(xen_et));
-	xen_et.et_name = "ixen";
-	xen_et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT |
-	    ET_FLAGS_PERCPU;
-	xen_et.et_quality = 600;
-	xen_et.et_frequency = 1000000000;
-	xen_et.et_min_period = 0x00400000LL;
-	xen_et.et_max_period = (0xfffffffeLLU << 32) / xen_et.et_frequency;
-	xen_et.et_start = xen_et_start;
-	xen_et.et_stop = xen_et_stop;
-	xen_et.et_priv = NULL;
-	et_register(&xen_et);
-
 	cpu_initclocks_bsp();
-}
-
-int
-ap_cpu_initclocks(int cpu)
-{
-	char buf[MAXCOMLEN + 1];
-	unsigned int time_irq;
-	int error;
-
-	HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, cpu, NULL);
-	snprintf(buf, sizeof(buf), "cpu%d:timer", cpu);
-	error = bind_virq_to_irqhandler(VIRQ_TIMER, cpu, buf,
-	    clkintr, NULL, NULL, INTR_TYPE_CLK, &time_irq);
-	if (error)
-		panic("failed to register clock interrupt\n");
-
-	return (0);
-}
-
-static uint32_t
-xen_get_timecount(struct timecounter *tc)
-{	
-	uint64_t clk;
-	struct shadow_time_info *shadow;
-	shadow = &per_cpu(shadow_time, smp_processor_id());
-
-	__get_time_values_from_xen();
-	
-        clk = shadow->system_timestamp + get_nsec_offset(shadow);
-
-	return (uint32_t)(clk >> 9);
-
 }
 
 /* Return system time offset by ticks */
 uint64_t
 get_system_time(int ticks)
 {
-    return processed_system_time + (ticks * NS_PER_TICK);
-}
-
-void
-idle_block(void)
-{
-
-	HYPERVISOR_sched_op(SCHEDOP_block, 0);
+    return (processed_system_time + (ticks * NS_PER_TICK));
 }
 
 int

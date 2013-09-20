@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ddns-confgen.c,v 1.9.308.2 2011/03/12 04:59:13 tbox Exp $ */
+/* $Id: ddns-confgen.c,v 1.11 2011/03/12 04:59:46 tbox Exp $ */
 
 /*! \file */
 

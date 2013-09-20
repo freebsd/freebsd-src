@@ -4480,7 +4480,6 @@ lmc_raw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 # if (defined(__FreeBSD__) && defined(DEVICE_POLLING))  /* XXX necessary? */
     case SIOCSIFCAP:
 # endif
-    case SIOCSIFDSTADDR:
     case SIOCAIFADDR:
     case SIOCSIFFLAGS:
 #if 0

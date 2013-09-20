@@ -453,11 +453,11 @@ stge_attach(device_t dev)
 	pci_enable_busmaster(dev);
 	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
 	val = pci_read_config(dev, PCIR_BAR(1), 4);
-	if ((val & 0x01) != 0)
+	if (PCI_BAR_IO(val))
 		sc->sc_spec = stge_res_spec_mem;
 	else {
 		val = pci_read_config(dev, PCIR_BAR(0), 4);
-		if ((val & 0x01) == 0) {
+		if (!PCI_BAR_IO(val)) {
 			device_printf(sc->sc_dev, "couldn't locate IO BAR\n");
 			error = ENXIO;
 			goto fail;

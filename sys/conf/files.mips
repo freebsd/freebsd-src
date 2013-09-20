@@ -38,6 +38,7 @@ mips/mips/stack_machdep.c		optional	ddb | stack
 mips/mips/stdatomic.c			standard \
 	compile-with "${NORMAL_C:N-Wmissing-prototypes}"
 mips/mips/support.S			standard
+mips/mips/bcopy.S			standard
 mips/mips/swtch.S			standard
 mips/mips/sys_machdep.c			standard
 mips/mips/tlb.c				standard
@@ -56,6 +57,7 @@ libkern/ffsl.c				standard
 libkern/fls.c				standard
 libkern/flsl.c				standard
 libkern/memmove.c			standard
+libkern/cmpdi2.c			optional	mips | mipsel
 libkern/ucmpdi2.c			optional	mips | mipsel
 
 # cfe support

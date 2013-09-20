@@ -133,6 +133,7 @@ struct dns_loadctx {
 	/* Members specific to the raw format: */
 	FILE			*f;
 	isc_boolean_t		first;
+	dns_masterrawheader_t	header;
 
 	/* Which fixed buffers we are using? */
 	unsigned int		loop_cnt;		/*% records per quantum,
@@ -597,6 +598,7 @@ loadctx_create(dns_masterformat_t format, isc_mem_t *mctx,
 
 	lctx->f = NULL;
 	lctx->first = ISC_TRUE;
+	dns_master_initrawheader(&lctx->header);
 
 	lctx->loop_cnt = (done != NULL) ? 100 : 0;
 	lctx->callbacks = callbacks;
@@ -2105,50 +2107,74 @@ load_raw(dns_loadctx_t *lctx) {
 	int target_size = TSIZ;
 	isc_buffer_t target, buf;
 	unsigned char *target_mem = NULL;
+	dns_masterrawheader_t header;
 	dns_decompress_t dctx;
 
 	REQUIRE(DNS_LCTX_VALID(lctx));
 	callbacks = lctx->callbacks;
 	dns_decompress_init(&dctx, -1, DNS_DECOMPRESS_NONE);
 
+	dns_master_initrawheader(&header);
+
 	if (lctx->first) {
-		dns_masterrawheader_t header;
-		isc_uint32_t format, version, dumptime;
-		size_t hdrlen = sizeof(format) + sizeof(version) +
-			sizeof(dumptime);
+		unsigned char data[sizeof(header)];
+		size_t commonlen =
+			sizeof(header.format) + sizeof(header.version);
+		size_t remainder;
 
-		INSIST(hdrlen <= sizeof(header));
-		isc_buffer_init(&target, &header, sizeof(header));
+		INSIST(commonlen <= sizeof(header));
+		isc_buffer_init(&target, data, sizeof(data));
 
-		result = isc_stdio_read(&header, 1, hdrlen, lctx->f, NULL);
+		result = isc_stdio_read(data, 1, commonlen, lctx->f, NULL);
 		if (result != ISC_R_SUCCESS) {
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
 					 "isc_stdio_read failed: %s",
 					 isc_result_totext(result));
 			return (result);
 		}
-		isc_buffer_add(&target, hdrlen);
-		format = isc_buffer_getuint32(&target);
-		if (format != dns_masterformat_raw) {
+		isc_buffer_add(&target, commonlen);
+		header.format = isc_buffer_getuint32(&target);
+		if (header.format != dns_masterformat_raw) {
 			(*callbacks->error)(callbacks,
 					    "dns_master_load: "
 					    "file format mismatch");
 			return (ISC_R_NOTIMPLEMENTED);
 		}
 
-		version = isc_buffer_getuint32(&target);
-		if (version > DNS_RAWFORMAT_VERSION) {
+		header.version = isc_buffer_getuint32(&target);
+		switch (header.version) {
+		case 0:
+			remainder = sizeof(header.dumptime);
+			break;
+		case DNS_RAWFORMAT_VERSION:
+			remainder = sizeof(header) - commonlen;
+			break;
+		default:
 			(*callbacks->error)(callbacks,
 					    "dns_master_load: "
 					    "unsupported file format version");
 			return (ISC_R_NOTIMPLEMENTED);
 		}
 
-		/* Empty read: currently, we do not use dumptime */
-		dumptime = isc_buffer_getuint32(&target);
-		POST(dumptime);
+		result = isc_stdio_read(data + commonlen, 1, remainder,
+					lctx->f, NULL);
+		if (result != ISC_R_SUCCESS) {
+			UNEXPECTED_ERROR(__FILE__, __LINE__,
+					 "isc_stdio_read failed: %s",
+					 isc_result_totext(result));
+			return (result);
+		}
+
+		isc_buffer_add(&target, remainder);
+		header.dumptime = isc_buffer_getuint32(&target);
+		if (header.version == DNS_RAWFORMAT_VERSION) {
+			header.flags = isc_buffer_getuint32(&target);
+			header.sourceserial = isc_buffer_getuint32(&target);
+			header.lastxfrin = isc_buffer_getuint32(&target);
+		}
 
 		lctx->first = ISC_FALSE;
+		lctx->header = header;
 	}
 
 	ISC_LIST_INIT(head);
@@ -2382,6 +2408,9 @@ load_raw(dns_loadctx_t *lctx) {
 		result = DNS_R_CONTINUE;
 	} else if (result == ISC_R_SUCCESS && lctx->result != ISC_R_SUCCESS)
 		result = lctx->result;
+
+	if (result == ISC_R_SUCCESS && callbacks->rawdata != NULL)
+		(*callbacks->rawdata)(callbacks->zone, &header);
 
  cleanup:
 	if (rdata != NULL)
@@ -2968,4 +2997,9 @@ dns_loadctx_cancel(dns_loadctx_t *lctx) {
 	LOCK(&lctx->lock);
 	lctx->canceled = ISC_TRUE;
 	UNLOCK(&lctx->lock);
+}
+
+void
+dns_master_initrawheader(dns_masterrawheader_t *header) {
+	memset(header, 0, sizeof(dns_masterrawheader_t));
 }

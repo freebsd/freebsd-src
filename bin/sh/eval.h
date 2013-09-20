@@ -67,5 +67,4 @@ extern int skipcount;
 /* reasons for skipping commands (see comment on breakcmd routine) */
 #define SKIPBREAK	1
 #define SKIPCONT	2
-#define SKIPFUNC	3
-#define SKIPFILE	4
+#define SKIPRETURN	3

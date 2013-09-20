@@ -116,6 +116,7 @@
 #if !defined(sun)
 #include <sys/callout.h>
 #include <sys/ctype.h>
+#include <sys/eventhandler.h>
 #include <sys/limits.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -240,6 +241,8 @@ int		dtrace_in_probe;	/* non-zero if executing a probe */
 #if defined(__i386__) || defined(__amd64__) || defined(__mips__) || defined(__powerpc__)
 uintptr_t	dtrace_in_probe_addr;	/* Address of invop when already in probe */
 #endif
+static eventhandler_tag	dtrace_kld_load_tag;
+static eventhandler_tag	dtrace_kld_unload_try_tag;
 #endif
 
 /*
@@ -8098,19 +8101,6 @@ dtrace_probe_description(const dtrace_probe_t *prp, dtrace_probedesc_t *pdp)
 	(void) strncpy(pdp->dtpd_name, prp->dtpr_name, DTRACE_NAMELEN - 1);
 }
 
-#if !defined(sun)
-static int
-dtrace_probe_provide_cb(linker_file_t lf, void *arg)
-{
-	dtrace_provider_t *prv = (dtrace_provider_t *) arg;
-
-	prv->dtpv_pops.dtps_provide_module(prv->dtpv_arg, lf);
-
-	return(0);
-}
-#endif
-
-
 /*
  * Called to indicate that a probe -- or probes -- should be provided by a
  * specfied provider.  If the specified description is NULL, the provider will
@@ -8166,8 +8156,6 @@ dtrace_probe_provide(dtrace_probedesc_t *desc, dtrace_provider_t *prv)
 		} while ((ctl = ctl->mod_next) != &modules);
 
 		mutex_exit(&mod_lock);
-#else
-		(void) linker_file_foreach(dtrace_probe_provide_cb, prv);
 #endif
 	} while (all && (prv = prv->dtpv_next) != NULL);
 }
@@ -15152,7 +15140,6 @@ dtrace_helpers_duplicate(proc_t *from, proc_t *to)
 		dtrace_helper_provider_register(to, newhelp, NULL);
 }
 
-#if defined(sun)
 /*
  * DTrace Hook Functions
  */
@@ -15166,7 +15153,9 @@ dtrace_module_loaded(modctl_t *ctl)
 	mutex_enter(&mod_lock);
 #endif
 
+#if defined(sun)
 	ASSERT(ctl->mod_busy);
+#endif
 
 	/*
 	 * We're going to call each providers per-module provide operation
@@ -15214,18 +15203,47 @@ dtrace_module_loaded(modctl_t *ctl)
 }
 
 static void
+#if defined(sun)
 dtrace_module_unloaded(modctl_t *ctl)
+#else
+dtrace_module_unloaded(modctl_t *ctl, int *error)
+#endif
 {
 	dtrace_probe_t template, *probe, *first, *next;
 	dtrace_provider_t *prov;
+#if !defined(sun)
+	char modname[DTRACE_MODNAMELEN];
+	size_t len;
+#endif
 
+#if defined(sun)
 	template.dtpr_mod = ctl->mod_modname;
+#else
+	/* Handle the fact that ctl->filename may end in ".ko". */
+	strlcpy(modname, ctl->filename, sizeof(modname));
+	len = strlen(ctl->filename);
+	if (len > 3 && strcmp(modname + len - 3, ".ko") == 0)
+		modname[len - 3] = '\0';
+	template.dtpr_mod = modname;
+#endif
 
 	mutex_enter(&dtrace_provider_lock);
 #if defined(sun)
 	mutex_enter(&mod_lock);
 #endif
 	mutex_enter(&dtrace_lock);
+
+#if !defined(sun)
+	if (ctl->nenabled > 0) {
+		/* Don't allow unloads if a probe is enabled. */
+		mutex_exit(&dtrace_provider_lock);
+		mutex_exit(&dtrace_lock);
+		*error = -1;
+		printf(
+	"kldunload: attempt to unload module that has DTrace probes enabled\n");
+		return;
+	}
+#endif
 
 	if (dtrace_bymod == NULL) {
 		/*
@@ -15260,8 +15278,13 @@ dtrace_module_unloaded(modctl_t *ctl)
 			 * probe, either.
 			 */
 			if (dtrace_err_verbose) {
+#if defined(sun)
 				cmn_err(CE_WARN, "unloaded module '%s' had "
 				    "enabled probes", ctl->mod_modname);
+#else
+				cmn_err(CE_WARN, "unloaded module '%s' had "
+				    "enabled probes", modname);
+#endif
 			}
 
 			return;
@@ -15304,7 +15327,11 @@ dtrace_module_unloaded(modctl_t *ctl)
 		kmem_free(probe->dtpr_mod, strlen(probe->dtpr_mod) + 1);
 		kmem_free(probe->dtpr_func, strlen(probe->dtpr_func) + 1);
 		kmem_free(probe->dtpr_name, strlen(probe->dtpr_name) + 1);
+#if defined(sun)
 		vmem_free(dtrace_arena, (void *)(uintptr_t)probe->dtpr_id, 1);
+#else
+		free_unr(dtrace_arena, probe->dtpr_id);
+#endif
 		kmem_free(probe, sizeof (dtrace_probe_t));
 	}
 
@@ -15315,6 +15342,26 @@ dtrace_module_unloaded(modctl_t *ctl)
 	mutex_exit(&dtrace_provider_lock);
 }
 
+#if !defined(sun)
+static void
+dtrace_kld_load(void *arg __unused, linker_file_t lf)
+{
+
+	dtrace_module_loaded(lf);
+}
+
+static void
+dtrace_kld_unload_try(void *arg __unused, linker_file_t lf, int *error)
+{
+
+	if (*error != 0)
+		/* We already have an error, so don't do anything. */
+		return;
+	dtrace_module_unloaded(lf, error);
+}
+#endif
+
+#if defined(sun)
 static void
 dtrace_suspend(void)
 {

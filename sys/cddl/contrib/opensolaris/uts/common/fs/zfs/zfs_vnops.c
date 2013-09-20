@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
  */
 
 /* Portions Copyright 2007 Jeremy Teo */
@@ -335,20 +336,24 @@ page_busy(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 	for (;;) {
 		if ((pp = vm_page_lookup(obj, OFF_TO_IDX(start))) != NULL &&
 		    pp->valid) {
-			if ((pp->oflags & VPO_BUSY) != 0) {
+			if (vm_page_xbusied(pp)) {
 				/*
 				 * Reference the page before unlocking and
 				 * sleeping so that the page daemon is less
 				 * likely to reclaim it.
 				 */
 				vm_page_reference(pp);
-				vm_page_sleep(pp, "zfsmwb");
+				vm_page_lock(pp);
+				zfs_vmobject_wunlock(obj);
+				vm_page_busy_sleep(pp, "zfsmwb");
+				zfs_vmobject_wlock(obj);
 				continue;
 			}
+			vm_page_sbusy(pp);
 		} else if (pp == NULL) {
 			pp = vm_page_alloc(obj, OFF_TO_IDX(start),
 			    VM_ALLOC_SYSTEM | VM_ALLOC_IFCACHED |
-			    VM_ALLOC_NOBUSY);
+			    VM_ALLOC_SBUSY);
 		} else {
 			ASSERT(pp != NULL && !pp->valid);
 			pp = NULL;
@@ -357,7 +362,6 @@ page_busy(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 		if (pp != NULL) {
 			ASSERT3U(pp->valid, ==, VM_PAGE_BITS_ALL);
 			vm_object_pip_add(obj, 1);
-			vm_page_io_start(pp);
 			pmap_remove_write(pp);
 			vm_page_clear_dirty(pp, off, nbytes);
 		}
@@ -370,7 +374,7 @@ static void
 page_unbusy(vm_page_t pp)
 {
 
-	vm_page_io_finish(pp);
+	vm_page_sunbusy(pp);
 	vm_object_pip_subtract(pp->object, 1);
 }
 
@@ -386,14 +390,17 @@ page_hold(vnode_t *vp, int64_t start)
 	for (;;) {
 		if ((pp = vm_page_lookup(obj, OFF_TO_IDX(start))) != NULL &&
 		    pp->valid) {
-			if ((pp->oflags & VPO_BUSY) != 0) {
+			if (vm_page_xbusied(pp)) {
 				/*
 				 * Reference the page before unlocking and
 				 * sleeping so that the page daemon is less
 				 * likely to reclaim it.
 				 */
 				vm_page_reference(pp);
-				vm_page_sleep(pp, "zfsmwb");
+				vm_page_lock(pp);
+				zfs_vmobject_wunlock(obj);
+				vm_page_busy_sleep(pp, "zfsmwb");
+				zfs_vmobject_wlock(obj);
 				continue;
 			}
 
@@ -467,7 +474,7 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 			    ("zfs update_pages: unaligned data in putpages case"));
 			KASSERT(pp->valid == VM_PAGE_BITS_ALL,
 			    ("zfs update_pages: invalid page in putpages case"));
-			KASSERT(pp->busy > 0,
+			KASSERT(vm_page_sbusied(pp),
 			    ("zfs update_pages: unbusy page in putpages case"));
 			KASSERT(!pmap_page_is_write_mapped(pp),
 			    ("zfs update_pages: writable page in putpages case"));
@@ -503,7 +510,7 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
  * ZFS to populate a range of page cache pages with data.
  *
  * NOTE: this function could be optimized to pre-allocate
- * all pages in advance, drain VPO_BUSY on all of them,
+ * all pages in advance, drain exclusive busy on all of them,
  * map them into contiguous KVA region and populate them
  * in one single dmu_read() call.
  */
@@ -531,10 +538,9 @@ mappedread_sf(vnode_t *vp, int nbytes, uio_t *uio)
 	for (start = uio->uio_loffset; len > 0; start += PAGESIZE) {
 		int bytes = MIN(PAGESIZE, len);
 
-		pp = vm_page_grab(obj, OFF_TO_IDX(start), VM_ALLOC_NOBUSY |
-		    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_IGN_SBUSY);
+		pp = vm_page_grab(obj, OFF_TO_IDX(start), VM_ALLOC_SBUSY |
+		    VM_ALLOC_NORMAL | VM_ALLOC_IGN_SBUSY);
 		if (pp->valid == 0) {
-			vm_page_io_start(pp);
 			zfs_vmobject_wunlock(obj);
 			va = zfs_map_page(pp, &sf);
 			error = dmu_read(os, zp->z_id, start, bytes, va,
@@ -543,18 +549,19 @@ mappedread_sf(vnode_t *vp, int nbytes, uio_t *uio)
 				bzero(va + bytes, PAGESIZE - bytes);
 			zfs_unmap_page(sf);
 			zfs_vmobject_wlock(obj);
-			vm_page_io_finish(pp);
+			vm_page_sunbusy(pp);
 			vm_page_lock(pp);
 			if (error) {
 				if (pp->wire_count == 0 && pp->valid == 0 &&
-				    pp->busy == 0 && !(pp->oflags & VPO_BUSY))
+				    !vm_page_busied(pp))
 					vm_page_free(pp);
 			} else {
 				pp->valid = VM_PAGE_BITS_ALL;
 				vm_page_activate(pp);
 			}
 			vm_page_unlock(pp);
-		}
+		} else
+			vm_page_sunbusy(pp);
 		if (error)
 			break;
 		uio->uio_resid -= bytes;
@@ -1519,7 +1526,7 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 			VOP_UNLOCK(dvp, 0);
 		}
 		ZFS_EXIT(zfsvfs);
-		error = zfs_vnode_lock(*vpp, cnp->cn_lkflags);
+		error = vn_lock(*vpp, cnp->cn_lkflags);
 		if (cnp->cn_flags & ISDOTDOT)
 			vn_lock(dvp, ltype | LK_RETRY);
 		if (error != 0) {
@@ -3721,13 +3728,18 @@ zfs_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm, cred_t *cr,
 	if (VOP_REALVP(tdvp, &realvp, ct) == 0)
 		tdvp = realvp;
 
-	if (tdvp->v_vfsp != sdvp->v_vfsp || zfsctl_is_node(tdvp)) {
+	tdzp = VTOZ(tdvp);
+	ZFS_VERIFY_ZP(tdzp);
+
+	/*
+	 * We check z_zfsvfs rather than v_vfsp here, because snapshots and the
+	 * ctldir appear to have the same v_vfsp.
+	 */
+	if (tdzp->z_zfsvfs != zfsvfs || zfsctl_is_node(tdvp)) {
 		ZFS_EXIT(zfsvfs);
 		return (SET_ERROR(EXDEV));
 	}
 
-	tdzp = VTOZ(tdvp);
-	ZFS_VERIFY_ZP(tdzp);
 	if (zfsvfs->z_utf8 && u8_validate(tnm,
 	    strlen(tnm), NULL, U8_VALIDATE_ENTIRE, &error) < 0) {
 		ZFS_EXIT(zfsvfs);
@@ -4287,13 +4299,17 @@ zfs_link(vnode_t *tdvp, vnode_t *svp, char *name, cred_t *cr,
 		return (SET_ERROR(EPERM));
 	}
 
-	if (svp->v_vfsp != tdvp->v_vfsp || zfsctl_is_node(svp)) {
+	szp = VTOZ(svp);
+	ZFS_VERIFY_ZP(szp);
+
+	/*
+	 * We check z_zfsvfs rather than v_vfsp here, because snapshots and the
+	 * ctldir appear to have the same v_vfsp.
+	 */
+	if (szp->z_zfsvfs != zfsvfs || zfsctl_is_node(svp)) {
 		ZFS_EXIT(zfsvfs);
 		return (SET_ERROR(EXDEV));
 	}
-
-	szp = VTOZ(svp);
-	ZFS_VERIFY_ZP(szp);
 
 	/* Prevent links to .zfs/shares files */
 
@@ -6055,6 +6071,14 @@ zfs_freebsd_getattr(ap)
 	XVA_SET_REQ(&xvap, XAT_APPENDONLY);
 	XVA_SET_REQ(&xvap, XAT_NOUNLINK);
 	XVA_SET_REQ(&xvap, XAT_NODUMP);
+	XVA_SET_REQ(&xvap, XAT_READONLY);
+	XVA_SET_REQ(&xvap, XAT_ARCHIVE);
+	XVA_SET_REQ(&xvap, XAT_SYSTEM);
+	XVA_SET_REQ(&xvap, XAT_HIDDEN);
+	XVA_SET_REQ(&xvap, XAT_REPARSE);
+	XVA_SET_REQ(&xvap, XAT_OFFLINE);
+	XVA_SET_REQ(&xvap, XAT_SPARSE);
+
 	error = zfs_getattr(ap->a_vp, (vattr_t *)&xvap, 0, ap->a_cred, NULL);
 	if (error != 0)
 		return (error);
@@ -6070,8 +6094,23 @@ zfs_freebsd_getattr(ap)
 	    xvap.xva_xoptattrs.xoa_appendonly);
 	FLAG_CHECK(SF_NOUNLINK, XAT_NOUNLINK,
 	    xvap.xva_xoptattrs.xoa_nounlink);
+	FLAG_CHECK(UF_ARCHIVE, XAT_ARCHIVE,
+	    xvap.xva_xoptattrs.xoa_archive);
 	FLAG_CHECK(UF_NODUMP, XAT_NODUMP,
 	    xvap.xva_xoptattrs.xoa_nodump);
+	FLAG_CHECK(UF_READONLY, XAT_READONLY,
+	    xvap.xva_xoptattrs.xoa_readonly);
+	FLAG_CHECK(UF_SYSTEM, XAT_SYSTEM,
+	    xvap.xva_xoptattrs.xoa_system);
+	FLAG_CHECK(UF_HIDDEN, XAT_HIDDEN,
+	    xvap.xva_xoptattrs.xoa_hidden);
+	FLAG_CHECK(UF_REPARSE, XAT_REPARSE,
+	    xvap.xva_xoptattrs.xoa_reparse);
+	FLAG_CHECK(UF_OFFLINE, XAT_OFFLINE,
+	    xvap.xva_xoptattrs.xoa_offline);
+	FLAG_CHECK(UF_SPARSE, XAT_SPARSE,
+	    xvap.xva_xoptattrs.xoa_sparse);
+
 #undef	FLAG_CHECK
 	*vap = xvap.xva_vattr;
 	vap->va_flags = fflags;
@@ -6109,7 +6148,16 @@ zfs_freebsd_setattr(ap)
 			return (EOPNOTSUPP);
 
 		fflags = vap->va_flags;
-		if ((fflags & ~(SF_IMMUTABLE|SF_APPEND|SF_NOUNLINK|UF_NODUMP)) != 0)
+		/*
+		 * XXX KDM 
+		 * We need to figure out whether it makes sense to allow
+		 * UF_REPARSE through, since we don't really have other
+		 * facilities to handle reparse points and zfs_setattr()
+		 * doesn't currently allow setting that attribute anyway.
+		 */
+		if ((fflags & ~(SF_IMMUTABLE|SF_APPEND|SF_NOUNLINK|UF_ARCHIVE|
+		     UF_NODUMP|UF_SYSTEM|UF_HIDDEN|UF_READONLY|UF_REPARSE|
+		     UF_OFFLINE|UF_SPARSE)) != 0)
 			return (EOPNOTSUPP);
 		/*
 		 * Unprivileged processes are not permitted to unset system
@@ -6161,8 +6209,22 @@ zfs_freebsd_setattr(ap)
 		    xvap.xva_xoptattrs.xoa_appendonly);
 		FLAG_CHANGE(SF_NOUNLINK, ZFS_NOUNLINK, XAT_NOUNLINK,
 		    xvap.xva_xoptattrs.xoa_nounlink);
+		FLAG_CHANGE(UF_ARCHIVE, ZFS_ARCHIVE, XAT_ARCHIVE,
+		    xvap.xva_xoptattrs.xoa_archive);
 		FLAG_CHANGE(UF_NODUMP, ZFS_NODUMP, XAT_NODUMP,
 		    xvap.xva_xoptattrs.xoa_nodump);
+		FLAG_CHANGE(UF_READONLY, ZFS_READONLY, XAT_READONLY,
+		    xvap.xva_xoptattrs.xoa_readonly);
+		FLAG_CHANGE(UF_SYSTEM, ZFS_SYSTEM, XAT_SYSTEM,
+		    xvap.xva_xoptattrs.xoa_system);
+		FLAG_CHANGE(UF_HIDDEN, ZFS_HIDDEN, XAT_HIDDEN,
+		    xvap.xva_xoptattrs.xoa_hidden);
+		FLAG_CHANGE(UF_REPARSE, ZFS_REPARSE, XAT_REPARSE,
+		    xvap.xva_xoptattrs.xoa_hidden);
+		FLAG_CHANGE(UF_OFFLINE, ZFS_OFFLINE, XAT_OFFLINE,
+		    xvap.xva_xoptattrs.xoa_offline);
+		FLAG_CHANGE(UF_SPARSE, ZFS_SPARSE, XAT_SPARSE,
+		    xvap.xva_xoptattrs.xoa_sparse);
 #undef	FLAG_CHANGE
 	}
 	return (zfs_setattr(vp, (vattr_t *)&xvap, 0, cred, NULL));
@@ -6188,8 +6250,11 @@ zfs_freebsd_rename(ap)
 	ASSERT(ap->a_fcnp->cn_flags & (SAVENAME|SAVESTART));
 	ASSERT(ap->a_tcnp->cn_flags & (SAVENAME|SAVESTART));
 
-	error = zfs_rename(fdvp, ap->a_fcnp->cn_nameptr, tdvp,
-	    ap->a_tcnp->cn_nameptr, ap->a_fcnp->cn_cred, NULL, 0);
+	if (fdvp->v_mount == tdvp->v_mount)
+		error = zfs_rename(fdvp, ap->a_fcnp->cn_nameptr, tdvp,
+		    ap->a_tcnp->cn_nameptr, ap->a_fcnp->cn_cred, NULL, 0);
+	else
+		error = EXDEV;
 
 	if (tdvp == tvp)
 		VN_RELE(tdvp);
@@ -6246,10 +6311,15 @@ zfs_freebsd_link(ap)
 	} */ *ap;
 {
 	struct componentname *cnp = ap->a_cnp;
+	vnode_t *vp = ap->a_vp;
+	vnode_t *tdvp = ap->a_tdvp;
+
+	if (tdvp->v_mount != vp->v_mount)
+		return (EXDEV);
 
 	ASSERT(cnp->cn_flags & SAVENAME);
 
-	return (zfs_link(ap->a_tdvp, ap->a_vp, cnp->cn_nameptr, cnp->cn_cred, NULL, 0));
+	return (zfs_link(tdvp, vp, cnp->cn_nameptr, cnp->cn_cred, NULL, 0));
 }
 
 static int

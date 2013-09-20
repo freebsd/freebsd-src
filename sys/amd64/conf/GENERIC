@@ -66,6 +66,7 @@ options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
 options 	CAPABILITY_MODE		# Capsicum capability mode
 options 	CAPABILITIES		# Capsicum capabilities
+options 	PROCDESC		# Support for process descriptors
 options 	MAC			# TrustedBSD MAC Framework
 options 	KDTRACE_FRAME		# Ensure frames are compiled in
 options 	KDTRACE_HOOKS		# Kernel DTrace hooks
@@ -74,9 +75,8 @@ options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
-# For minimum debugger support (stable branch) use:
-#options 	KDB_TRACE		# Print a stack trace for a panic.
-# For full debugger support use this instead:
+options 	KDB_TRACE		# Print a stack trace for a panic.
+# For full debugger support use (turn off in stable branch):
 options 	DDB			# Support DDB.
 options 	GDB			# Support remote GDB.
 options 	DEADLKRES		# Enable the deadlock resolver
@@ -293,8 +293,8 @@ device		wpi		# Intel 3945ABG wireless NICs.
 # Pseudo devices.
 device		loop		# Network loopback
 device		random		# Entropy device
-options 	PADLOCK_RNG	# VIA Padlock RNG
-options 	RDRAND_RNG	# Intel Bull Mountain RNG
+device		padlock_rng	# VIA Padlock RNG
+device		rdrand_rng	# Intel Bull Mountain RNG
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.
@@ -340,3 +340,9 @@ device		vtnet		# VirtIO Ethernet device
 device		virtio_blk	# VirtIO Block device
 device		virtio_scsi	# VirtIO SCSI device
 device		virtio_balloon	# VirtIO Memory Balloon device
+
+# HyperV drivers
+device		hyperv		# HyperV drivers 
+
+# VMware support
+device		vmx		# VMware VMXNET3 Ethernet

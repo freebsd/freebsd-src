@@ -439,229 +439,51 @@ tmpfs_setattr(struct vop_setattr_args *v)
 }
 
 static int
-tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
-    vm_offset_t offset, size_t tlen, struct uio *uio)
-{
-	vm_page_t	m;
-	int		error, rv;
-
-	VM_OBJECT_WLOCK(tobj);
-
-	/*
-	 * Parallel reads of the page content from disk are prevented
-	 * by VPO_BUSY.
-	 *
-	 * Although the tmpfs vnode lock is held here, it is
-	 * nonetheless safe to sleep waiting for a free page.  The
-	 * pageout daemon does not need to acquire the tmpfs vnode
-	 * lock to page out tobj's pages because tobj is a OBJT_SWAP
-	 * type object.
-	 */
-	m = vm_page_grab(tobj, idx, VM_ALLOC_NORMAL | VM_ALLOC_RETRY |
-	    VM_ALLOC_NOBUSY);
-	if (m->valid != VM_PAGE_BITS_ALL) {
-		vm_page_busy(m);
-		if (vm_pager_has_page(tobj, idx, NULL, NULL)) {
-			rv = vm_pager_get_pages(tobj, &m, 1, 0);
-			m = vm_page_lookup(tobj, idx);
-			if (m == NULL) {
-				printf(
-		    "tmpfs: vm_obj %p idx %jd null lookup rv %d\n",
-				    tobj, idx, rv);
-				VM_OBJECT_WUNLOCK(tobj);
-				return (EIO);
-			}
-			if (rv != VM_PAGER_OK) {
-				printf(
-		    "tmpfs: vm_obj %p idx %jd valid %x pager error %d\n",
-				    tobj, idx, m->valid, rv);
-				vm_page_lock(m);
-				vm_page_free(m);
-				vm_page_unlock(m);
-				VM_OBJECT_WUNLOCK(tobj);
-				return (EIO);
-			}
-		} else
-			vm_page_zero_invalid(m, TRUE);
-		vm_page_wakeup(m);
-	}
-	vm_page_lock(m);
-	vm_page_hold(m);
-	vm_page_unlock(m);
-	VM_OBJECT_WUNLOCK(tobj);
-	error = uiomove_fromphys(&m, offset, tlen, uio);
-	vm_page_lock(m);
-	vm_page_unhold(m);
-	if (m->queue == PQ_NONE) {
-		vm_page_deactivate(m);
-	} else {
-		/* Requeue to maintain LRU ordering. */
-		vm_page_requeue(m);
-	}
-	vm_page_unlock(m);
-
-	return (error);
-}
-
-static int
 tmpfs_read(struct vop_read_args *v)
 {
-	struct vnode *vp = v->a_vp;
-	struct uio *uio = v->a_uio;
+	struct vnode *vp;
+	struct uio *uio;
 	struct tmpfs_node *node;
-	vm_object_t uobj;
-	size_t len;
-	int resid;
-	int error = 0;
-	vm_pindex_t	idx;
-	vm_offset_t	offset;
-	off_t		addr;
-	size_t		tlen;
 
+	vp = v->a_vp;
+	if (vp->v_type != VREG)
+		return (EISDIR);
+	uio = v->a_uio;
+	if (uio->uio_offset < 0)
+		return (EINVAL);
 	node = VP_TO_TMPFS_NODE(vp);
-
-	if (vp->v_type != VREG) {
-		error = EISDIR;
-		goto out;
-	}
-
-	if (uio->uio_offset < 0) {
-		error = EINVAL;
-		goto out;
-	}
-
 	node->tn_status |= TMPFS_NODE_ACCESSED;
-
-	uobj = node->tn_reg.tn_aobj;
-	while ((resid = uio->uio_resid) > 0) {
-		error = 0;
-		if (node->tn_size <= uio->uio_offset)
-			break;
-		len = MIN(node->tn_size - uio->uio_offset, resid);
-		if (len == 0)
-			break;
-		addr = uio->uio_offset;
-		idx = OFF_TO_IDX(addr);
-		offset = addr & PAGE_MASK;
-		tlen = MIN(PAGE_SIZE - offset, len);
-		error = tmpfs_nocacheread(uobj, idx, offset, tlen, uio);
-		if ((error != 0) || (resid == uio->uio_resid))
-			break;
-	}
-
-out:
-
-	return error;
-}
-
-/* --------------------------------------------------------------------- */
-
-static int
-tmpfs_mappedwrite(vm_object_t tobj, size_t len, struct uio *uio)
-{
-	vm_pindex_t	idx;
-	vm_page_t	tpg;
-	vm_offset_t	offset;
-	off_t		addr;
-	size_t		tlen;
-	int		error, rv;
-
-	error = 0;
-	
-	addr = uio->uio_offset;
-	idx = OFF_TO_IDX(addr);
-	offset = addr & PAGE_MASK;
-	tlen = MIN(PAGE_SIZE - offset, len);
-
-	VM_OBJECT_WLOCK(tobj);
-	tpg = vm_page_grab(tobj, idx, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
-	    VM_ALLOC_RETRY);
-	if (tpg->valid != VM_PAGE_BITS_ALL) {
-		vm_page_busy(tpg);
-		if (vm_pager_has_page(tobj, idx, NULL, NULL)) {
-			rv = vm_pager_get_pages(tobj, &tpg, 1, 0);
-			tpg = vm_page_lookup(tobj, idx);
-			if (tpg == NULL) {
-				printf(
-		    "tmpfs: vm_obj %p idx %jd null lookup rv %d\n",
-				    tobj, idx, rv);
-				VM_OBJECT_WUNLOCK(tobj);
-				return (EIO);
-			}
-			if (rv != VM_PAGER_OK) {
-				printf(
-		    "tmpfs: vm_obj %p idx %jd valid %x pager error %d\n",
-				    tobj, idx, tpg->valid, rv);
-				vm_page_lock(tpg);
-				vm_page_free(tpg);
-				vm_page_unlock(tpg);
-				VM_OBJECT_WUNLOCK(tobj);
-				return (EIO);
-			}
-		} else
-			vm_page_zero_invalid(tpg, TRUE);
-		vm_page_wakeup(tpg);
-	}
-	vm_page_lock(tpg);
-	vm_page_hold(tpg);
-	vm_page_unlock(tpg);
-	VM_OBJECT_WUNLOCK(tobj);
-	error = uiomove_fromphys(&tpg, offset, tlen, uio);
-	VM_OBJECT_WLOCK(tobj);
-	if (error == 0)
-		vm_page_dirty(tpg);
-	vm_page_lock(tpg);
-	vm_page_unhold(tpg);
-	if (tpg->queue == PQ_NONE) {
-		vm_page_deactivate(tpg);
-	} else {
-		/* Requeue to maintain LRU ordering. */
-		vm_page_requeue(tpg);
-	}
-	vm_page_unlock(tpg);
-	VM_OBJECT_WUNLOCK(tobj);
-
-	return	(error);
+	return (uiomove_object(node->tn_reg.tn_aobj, node->tn_size, uio));
 }
 
 static int
 tmpfs_write(struct vop_write_args *v)
 {
-	struct vnode *vp = v->a_vp;
-	struct uio *uio = v->a_uio;
-	int ioflag = v->a_ioflag;
-
-	boolean_t extended;
-	int error = 0;
-	off_t oldsize;
+	struct vnode *vp;
+	struct uio *uio;
 	struct tmpfs_node *node;
-	vm_object_t uobj;
-	size_t len;
-	int resid;
+	off_t oldsize;
+	int error, ioflag;
+	boolean_t extended;
 
+	vp = v->a_vp;
+	uio = v->a_uio;
+	ioflag = v->a_ioflag;
+	error = 0;
 	node = VP_TO_TMPFS_NODE(vp);
 	oldsize = node->tn_size;
 
-	if (uio->uio_offset < 0 || vp->v_type != VREG) {
-		error = EINVAL;
-		goto out;
-	}
-
-	if (uio->uio_resid == 0) {
-		error = 0;
-		goto out;
-	}
-
+	if (uio->uio_offset < 0 || vp->v_type != VREG)
+		return (EINVAL);
+	if (uio->uio_resid == 0)
+		return (0);
 	if (ioflag & IO_APPEND)
 		uio->uio_offset = node->tn_size;
-
 	if (uio->uio_offset + uio->uio_resid >
 	  VFS_TO_TMPFS(vp->v_mount)->tm_maxfilesize)
 		return (EFBIG);
-
 	if (vn_rlimit_fsize(vp, uio, uio->uio_td))
 		return (EFBIG);
-
 	extended = uio->uio_offset + uio->uio_resid > node->tn_size;
 	if (extended) {
 		error = tmpfs_reg_resize(vp, uio->uio_offset + uio->uio_resid,
@@ -670,26 +492,13 @@ tmpfs_write(struct vop_write_args *v)
 			goto out;
 	}
 
-	uobj = node->tn_reg.tn_aobj;
-	while ((resid = uio->uio_resid) > 0) {
-		if (node->tn_size <= uio->uio_offset)
-			break;
-		len = MIN(node->tn_size - uio->uio_offset, resid);
-		if (len == 0)
-			break;
-		error = tmpfs_mappedwrite(uobj, len, uio);
-		if ((error != 0) || (resid == uio->uio_resid))
-			break;
-	}
-
+	error = uiomove_object(node->tn_reg.tn_aobj, node->tn_size, uio);
 	node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_MODIFIED |
 	    (extended ? TMPFS_NODE_CHANGED : 0);
-
 	if (node->tn_mode & (S_ISUID | S_ISGID)) {
 		if (priv_check_cred(v->a_cred, PRIV_VFS_RETAINSUGID, 0))
 			node->tn_mode &= ~(S_ISUID | S_ISGID);
 	}
-
 	if (error != 0)
 		(void)tmpfs_reg_resize(vp, oldsize, TRUE);
 
@@ -697,7 +506,7 @@ out:
 	MPASS(IMPLIES(error == 0, uio->uio_resid == 0));
 	MPASS(IMPLIES(error != 0, oldsize == node->tn_size));
 
-	return error;
+	return (error);
 }
 
 /* --------------------------------------------------------------------- */

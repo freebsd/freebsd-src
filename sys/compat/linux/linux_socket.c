@@ -748,6 +748,7 @@ int linux_connect(struct thread *, struct linux_connect_args *);
 int
 linux_connect(struct thread *td, struct linux_connect_args *args)
 {
+	cap_rights_t rights;
 	struct socket *so;
 	struct sockaddr *sa;
 	u_int fflag;
@@ -772,7 +773,8 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 	 * socket and use the file descriptor reference instead of
 	 * creating a new one.
 	 */
-	error = fgetsock(td, args->s, CAP_CONNECT, &so, &fflag);
+	error = fgetsock(td, args->s, cap_rights_init(&rights, CAP_CONNECT),
+	    &so, &fflag);
 	if (error == 0) {
 		error = EISCONN;
 		if (fflag & FNONBLOCK) {

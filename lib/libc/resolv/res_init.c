@@ -304,7 +304,7 @@ __res_vinit(res_state statp, int preinit) {
 	 line[sizeof(name) - 1] == '\t'))
 
 	nserv = 0;
-	if ((fp = fopen(_PATH_RESCONF, "r")) != NULL) {
+	if ((fp = fopen(_PATH_RESCONF, "re")) != NULL) {
 	    /* read the config file */
 	    while (fgets(buf, sizeof(buf), fp) != NULL) {
 		/* skip comments */

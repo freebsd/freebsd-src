@@ -61,7 +61,7 @@ biosacpi_detect(void)
 	return;
 
     /* export values from the RSDP */
-    sprintf(buf, "%u", VTOP(rsdp));
+    sprintf(buf, "0x%08x", VTOP(rsdp));
     setenv("hint.acpi.0.rsdp", buf, 1);
     revision = rsdp->Revision;
     if (revision == 0)

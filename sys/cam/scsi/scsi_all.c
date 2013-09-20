@@ -1118,7 +1118,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x04, 0x10, SS_RDEF,	/* XXX TBD */
 	    "Logical unit not ready, auxiliary memory not accessible") },
 	/* DT  WRO AEB VF */
-	{ SST(0x04, 0x11, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x11, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | EBUSY,
 	    "Logical unit not ready, notify (enable spinup) required") },
 	/*        M    V  */
 	{ SST(0x04, 0x12, SS_RDEF,	/* XXX TBD */

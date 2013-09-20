@@ -76,16 +76,15 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/intr_machdep.h>
 
-#include <machine/xen/xen-os.h>
-#include <machine/xen/xenfunc.h>
-#include <machine/xen/xenvar.h>
+#include <xen/xen-os.h>
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
-#include <xen/evtchn.h>
 #include <xen/gnttab.h>
 #include <xen/interface/memory.h>
 #include <xen/interface/io/netif.h>
 #include <xen/xenbus/xenbusvar.h>
+
+#include <machine/xen/xenvar.h>
 
 #include <dev/xen/netfront/mbufq.h>
 
@@ -257,8 +256,7 @@ struct netfront_info {
 	struct mtx   rx_lock;
 	struct mtx   sc_lock;
 
-	u_int handle;
-	u_int irq;
+	xen_intr_handle_t xen_intr_handle;
 	u_int copying_receiver;
 	u_int carrier;
 	u_int maxfrags;
@@ -547,7 +545,8 @@ talk_to_backend(device_t dev, struct netfront_info *info)
 		goto abort_transaction;
 	}
 	err = xs_printf(xst, node,
-			"event-channel", "%u", irq_to_evtchn_port(info->irq));
+			"event-channel", "%u",
+			xen_intr_port(info->xen_intr_handle));
 	if (err) {
 		message = "writing event-channel";
 		goto abort_transaction;
@@ -609,7 +608,6 @@ setup_device(device_t dev, struct netfront_info *info)
 	info->rx_ring_ref = GRANT_REF_INVALID;
 	info->rx.sring = NULL;
 	info->tx.sring = NULL;
-	info->irq = 0;
 
 	txs = (netif_tx_sring_t *)malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (!txs) {
@@ -636,12 +634,13 @@ setup_device(device_t dev, struct netfront_info *info)
 	if (error)
 		goto fail;
 
-	error = bind_listening_port_to_irqhandler(xenbus_get_otherend_id(dev),
-	    "xn", xn_intr, info, INTR_TYPE_NET | INTR_MPSAFE, &info->irq);
+	error = xen_intr_alloc_and_bind_local_port(dev,
+	    xenbus_get_otherend_id(dev), /*filter*/NULL, xn_intr, info,
+	    INTR_TYPE_NET | INTR_MPSAFE | INTR_ENTROPY, &info->xen_intr_handle);
 
 	if (error) {
 		xenbus_dev_fatal(dev, error,
-				 "bind_evtchn_to_irqhandler failed");
+				 "xen_intr_alloc_and_bind_local_port failed");
 		goto fail;
 	}
 
@@ -806,7 +805,7 @@ network_alloc_rx_buffers(struct netfront_info *sc)
 	
 	req_prod = sc->rx.req_prod_pvt;
 
-	if (unlikely(sc->carrier == 0))
+	if (__predict_false(sc->carrier == 0))
 		return;
 	
 	/*
@@ -946,7 +945,7 @@ refill:
 			/* Zap PTEs and give away pages in one big multicall. */
 			(void)HYPERVISOR_multicall(sc->rx_mcl, i+1);
 
-			if (unlikely(sc->rx_mcl[i].result != i ||
+			if (__predict_false(sc->rx_mcl[i].result != i ||
 			    HYPERVISOR_memory_op(XENMEM_decrease_reservation,
 			    &reservation) != i))
 				panic("%s: unable to reduce memory "
@@ -961,7 +960,7 @@ refill:
 push:
 	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&sc->rx, notify);
 	if (notify)
-		notify_remote_via_irq(sc->irq);
+		xen_intr_signal(sc->xen_intr_handle);
 }
 
 static void
@@ -1003,7 +1002,7 @@ xn_rxeof(struct netfront_info *np)
 			err = xennet_get_responses(np, &rinfo, rp, &i, &m,
 			    &pages_flipped);
 
-			if (unlikely(err)) {
+			if (__predict_false(err)) {
 				if (m)
 					mbufq_tail(&errq, m);
 				np->stats.rx_errors++;
@@ -1151,7 +1150,7 @@ xn_txeof(struct netfront_info *np)
 			 */
 			if (!m->m_next)
 				ifp->if_opackets++;
-			if (unlikely(gnttab_query_foreign_access(
+			if (__predict_false(gnttab_query_foreign_access(
 			    np->grant_tx_ref[id]) != 0)) {
 				panic("%s: grant id %u still in use by the "
 				    "backend", __func__, id);
@@ -1249,7 +1248,7 @@ xennet_get_extras(struct netfront_info *np,
 		struct mbuf *m;
 		grant_ref_t ref;
 
-		if (unlikely(*cons + 1 == rp)) {
+		if (__predict_false(*cons + 1 == rp)) {
 #if 0			
 			if (net_ratelimit())
 				WPRINTK("Missing extra info\n");
@@ -1261,7 +1260,7 @@ xennet_get_extras(struct netfront_info *np,
 		extra = (struct netif_extra_info *)
 		RING_GET_RESPONSE(&np->rx, ++(*cons));
 
-		if (unlikely(!extra->type ||
+		if (__predict_false(!extra->type ||
 			extra->type >= XEN_NETIF_EXTRA_TYPE_MAX)) {
 #if 0				
 			if (net_ratelimit())
@@ -1317,7 +1316,7 @@ xennet_get_responses(struct netfront_info *np,
 		DPRINTK("rx->status=%hd rx->offset=%hu frags=%u\n",
 			rx->status, rx->offset, frags);
 #endif
-		if (unlikely(rx->status < 0 ||
+		if (__predict_false(rx->status < 0 ||
 			rx->offset + rx->status > PAGE_SIZE)) {
 
 #if 0						
@@ -1679,7 +1678,7 @@ xn_start_locked(struct ifnet *ifp)
 
 	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&sc->tx, notify);
 	if (notify)
-		notify_remote_via_irq(sc->irq);
+		xen_intr_signal(sc->xen_intr_handle);
 
 	if (RING_FULL(&sc->tx)) {
 		sc->tx_full = 1;
@@ -1961,7 +1960,7 @@ network_connect(struct netfront_info *np)
 	 * packets.
 	 */
 	netfront_carrier_on(np);
-	notify_remote_via_irq(np->irq);
+	xen_intr_signal(np->xen_intr_handle);
 	XN_TX_LOCK(np);
 	xn_txeof(np);
 	XN_TX_UNLOCK(np);
@@ -2050,8 +2049,9 @@ xn_configure_features(struct netfront_info *np)
 	return (err);
 }
 
-/** Create a network device.
- * @param handle device handle
+/**
+ * Create a network device.
+ * @param dev  Newbus device representing this virtual NIC.
  */
 int 
 create_netdev(device_t dev)
@@ -2198,10 +2198,7 @@ netif_disconnect_backend(struct netfront_info *info)
 	free_ring(&info->tx_ring_ref, &info->tx.sring);
 	free_ring(&info->rx_ring_ref, &info->rx.sring);
 
-	if (info->irq)
-		unbind_from_irqhandler(info->irq);
-
-	info->irq = 0;
+	xen_intr_unbind(&info->xen_intr_handle);
 }
 
 static void

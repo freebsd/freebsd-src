@@ -58,6 +58,7 @@ options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
+options 	VFP			# vfp/neon
 
 # required for netbooting
 #options 	BOOTP

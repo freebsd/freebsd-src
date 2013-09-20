@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2010, 2013  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2011, 2013  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dig.docbook,v 1.47 2010/03/04 23:50:34 tbox Exp $ -->
+<!-- $Id: dig.docbook,v 1.51 2011/11/04 11:02:50 jreed Exp $ -->
 <refentry id="man.dig">
 
   <refentryinfo>
@@ -45,6 +45,7 @@
       <year>2008</year>
       <year>2009</year>
       <year>2010</year>
+      <year>2011</year>
       <year>2013</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
@@ -467,7 +468,8 @@
 	      policy of the server.  AD=1 indicates that all records
 	      have been validated as secure and the answer is not
 	      from a OPT-OUT range.  AD=0 indicate that some part
-	      of the answer was insecure or not validated.
+	      of the answer was insecure or not validated.  This
+	      bit is set by default.
 	    </para>
 	  </listitem>
 	</varlistentry>
@@ -504,19 +506,17 @@
 
         <varlistentry>
           <term><option>+[no]recurse</option></term>
-          <listitem>
-            <para>
-              Toggle the setting of the RD (recursion desired) bit in the
-              query.
-              This bit is set by default, which means <command>dig</command>
-              normally sends recursive queries.  Recursion is automatically
-              disabled
-              when the <parameter>+nssearch</parameter> or
-              <parameter>+trace</parameter> query options are
-              used.
-            </para>
-          </listitem>
-        </varlistentry>
+	  <listitem>
+	    <para>
+	      Toggle the setting of the RD (recursion desired) bit
+	      in the query.  This bit is set by default, which means
+	      <command>dig</command> normally sends recursive
+	      queries.  Recursion is automatically disabled when
+	      the <parameter>+nssearch</parameter> or
+	      <parameter>+trace</parameter> query options are used.
+	    </para>
+	  </listitem>
+	</varlistentry>
 
         <varlistentry>
           <term><option>+[no]nssearch</option></term>
@@ -536,20 +536,21 @@
         <varlistentry>
           <term><option>+[no]trace</option></term>
           <listitem>
-            <para>
-              Toggle tracing of the delegation path from the root name servers
-              for
-              the name being looked up.  Tracing is disabled by default.  When
-              tracing is enabled, <command>dig</command> makes
-              iterative queries to
-              resolve the name being looked up.  It will follow referrals from
-              the
-              root servers, showing the answer from each server that was used
-              to
-              resolve the lookup.
-            </para>
-          </listitem>
-        </varlistentry>
+	    <para>
+	      Toggle tracing of the delegation path from the root
+	      name servers for the name being looked up.  Tracing
+	      is disabled by default.  When tracing is enabled,
+	      <command>dig</command> makes iterative queries to
+	      resolve the name being looked up.  It will follow
+	      referrals from the root servers, showing the answer
+	      from each server that was used to resolve the lookup.
+	    </para>
+	    <para>
+	      <command>+dnssec</command> is also set when +trace is
+	      set to better emulate the default queries from a nameserver.
+	    </para>
+	  </listitem>
+	</varlistentry>
 
         <varlistentry>
           <term><option>+[no]cmd</option></term>
@@ -594,8 +595,35 @@
           <listitem>
             <para>
               Toggle the display of comment lines in the output.  The default
-              is to
-              print comments.
+              is to print comments.
+            </para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><option>+[no]rrcomments</option></term>
+          <listitem>
+            <para>
+              Toggle the display of per-record comments in the output (for
+              example, human-readable key information about DNSKEY records).
+              The default is not to print record comments unless multiline
+              mode is active.
+            </para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><option>+split=W</option></term>
+          <listitem>
+            <para>
+              Split long hex- or base64-formatted fields in resource
+              records into chunks of <parameter>W</parameter> characters
+              (where <parameter>W</parameter> is rounded up to the nearest
+              multiple of 4).
+              <parameter>+nosplit</parameter> or
+              <parameter>+split=0</parameter> causes fields not to be
+              split at all.  The default is 56 characters, or 44 characters
+              when multiline mode is active.
             </para>
           </listitem>
         </varlistentry>
@@ -755,9 +783,10 @@
 	  <listitem>
 	    <para>
 	       Specify the EDNS version to query with.  Valid values
-	       are 0 to 255.  Setting the EDNS version will cause a
-	       EDNS query to be sent.  <option>+noedns</option> clears the
-	       remembered EDNS version.
+	       are 0 to 255.  Setting the EDNS version will cause
+	       a EDNS query to be sent.  <option>+noedns</option>
+	       clears the remembered EDNS version.  EDNS is set to
+	       0 by default.
 	    </para>
 	  </listitem>
 	</varlistentry>

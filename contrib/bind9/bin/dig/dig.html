@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2010, 2013 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2011, 2013 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -34,7 +34,7 @@
 <div class="cmdsynopsis"><p><code class="command">dig</code>  [global-queryopt...] [query...]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543527"></a><h2>DESCRIPTION</h2>
+<a name="id2543530"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dig</strong></span>
       (domain information groper) is a flexible tool
       for interrogating DNS name servers.  It performs DNS lookups and
@@ -81,7 +81,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543606"></a><h2>SIMPLE USAGE</h2>
+<a name="id2543609"></a><h2>SIMPLE USAGE</h2>
 <p>
       A typical invocation of <span><strong class="command">dig</strong></span> looks like:
       </p>
@@ -134,7 +134,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543709"></a><h2>OPTIONS</h2>
+<a name="id2543713"></a><h2>OPTIONS</h2>
 <p>
       The <code class="option">-b</code> option sets the source IP address of the query
       to <em class="parameter"><code>address</code></em>.  This must be a valid
@@ -238,7 +238,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544058"></a><h2>QUERY OPTIONS</h2>
+<a name="id2544061"></a><h2>QUERY OPTIONS</h2>
 <p><span><strong class="command">dig</strong></span>
       provides a number of query options which affect
       the way in which lookups are made and the results displayed.  Some of
@@ -323,7 +323,8 @@
 	      policy of the server.  AD=1 indicates that all records
 	      have been validated as secure and the answer is not
 	      from a OPT-OUT range.  AD=0 indicate that some part
-	      of the answer was insecure or not validated.
+	      of the answer was insecure or not validated.  This
+	      bit is set by default.
 	    </p></dd>
 <dt><span class="term"><code class="option">+[no]cdflag</code></span></dt>
 <dd><p>
@@ -342,15 +343,13 @@
             </p></dd>
 <dt><span class="term"><code class="option">+[no]recurse</code></span></dt>
 <dd><p>
-              Toggle the setting of the RD (recursion desired) bit in the
-              query.
-              This bit is set by default, which means <span><strong class="command">dig</strong></span>
-              normally sends recursive queries.  Recursion is automatically
-              disabled
-              when the <em class="parameter"><code>+nssearch</code></em> or
-              <em class="parameter"><code>+trace</code></em> query options are
-              used.
-            </p></dd>
+	      Toggle the setting of the RD (recursion desired) bit
+	      in the query.  This bit is set by default, which means
+	      <span><strong class="command">dig</strong></span> normally sends recursive
+	      queries.  Recursion is automatically disabled when
+	      the <em class="parameter"><code>+nssearch</code></em> or
+	      <em class="parameter"><code>+trace</code></em> query options are used.
+	    </p></dd>
 <dt><span class="term"><code class="option">+[no]nssearch</code></span></dt>
 <dd><p>
               When this option is set, <span><strong class="command">dig</strong></span>
@@ -362,18 +361,21 @@
               zone.
             </p></dd>
 <dt><span class="term"><code class="option">+[no]trace</code></span></dt>
-<dd><p>
-              Toggle tracing of the delegation path from the root name servers
-              for
-              the name being looked up.  Tracing is disabled by default.  When
-              tracing is enabled, <span><strong class="command">dig</strong></span> makes
-              iterative queries to
-              resolve the name being looked up.  It will follow referrals from
-              the
-              root servers, showing the answer from each server that was used
-              to
-              resolve the lookup.
-            </p></dd>
+<dd>
+<p>
+	      Toggle tracing of the delegation path from the root
+	      name servers for the name being looked up.  Tracing
+	      is disabled by default.  When tracing is enabled,
+	      <span><strong class="command">dig</strong></span> makes iterative queries to
+	      resolve the name being looked up.  It will follow
+	      referrals from the root servers, showing the answer
+	      from each server that was used to resolve the lookup.
+	    </p>
+<p>
+	      <span><strong class="command">+dnssec</strong></span> is also set when +trace is
+	      set to better emulate the default queries from a nameserver.
+	    </p>
+</dd>
 <dt><span class="term"><code class="option">+[no]cmd</code></span></dt>
 <dd><p>
               Toggles the printing of the initial comment in the output
@@ -400,8 +402,25 @@
 <dt><span class="term"><code class="option">+[no]comments</code></span></dt>
 <dd><p>
               Toggle the display of comment lines in the output.  The default
-              is to
-              print comments.
+              is to print comments.
+            </p></dd>
+<dt><span class="term"><code class="option">+[no]rrcomments</code></span></dt>
+<dd><p>
+              Toggle the display of per-record comments in the output (for
+              example, human-readable key information about DNSKEY records).
+              The default is not to print record comments unless multiline
+              mode is active.
+            </p></dd>
+<dt><span class="term"><code class="option">+split=W</code></span></dt>
+<dd><p>
+              Split long hex- or base64-formatted fields in resource
+              records into chunks of <em class="parameter"><code>W</code></em> characters
+              (where <em class="parameter"><code>W</code></em> is rounded up to the nearest
+              multiple of 4).
+              <em class="parameter"><code>+nosplit</code></em> or
+              <em class="parameter"><code>+split=0</code></em> causes fields not to be
+              split at all.  The default is 56 characters, or 44 characters
+              when multiline mode is active.
             </p></dd>
 <dt><span class="term"><code class="option">+[no]stats</code></span></dt>
 <dd><p>
@@ -496,9 +515,10 @@
 <dt><span class="term"><code class="option">+edns=#</code></span></dt>
 <dd><p>
 	       Specify the EDNS version to query with.  Valid values
-	       are 0 to 255.  Setting the EDNS version will cause a
-	       EDNS query to be sent.  <code class="option">+noedns</code> clears the
-	       remembered EDNS version.
+	       are 0 to 255.  Setting the EDNS version will cause
+	       a EDNS query to be sent.  <code class="option">+noedns</code>
+	       clears the remembered EDNS version.  EDNS is set to
+	       0 by default.
 	    </p></dd>
 <dt><span class="term"><code class="option">+[no]multiline</code></span></dt>
 <dd><p>
@@ -569,7 +589,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545207"></a><h2>MULTIPLE QUERIES</h2>
+<a name="id2545324"></a><h2>MULTIPLE QUERIES</h2>
 <p>
       The BIND 9 implementation of <span><strong class="command">dig </strong></span>
       supports
@@ -615,7 +635,7 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545337"></a><h2>IDN SUPPORT</h2>
+<a name="id2545386"></a><h2>IDN SUPPORT</h2>
 <p>
       If <span><strong class="command">dig</strong></span> has been built with IDN (internationalized
       domain name) support, it can accept and display non-ASCII domain names.
@@ -629,14 +649,14 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545360"></a><h2>FILES</h2>
+<a name="id2545409"></a><h2>FILES</h2>
 <p><code class="filename">/etc/resolv.conf</code>
     </p>
 <p><code class="filename">${HOME}/.digrc</code>
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545377"></a><h2>SEE ALSO</h2>
+<a name="id2545426"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">host</span>(1)</span>,
       <span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
@@ -644,7 +664,7 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545414"></a><h2>BUGS</h2>
+<a name="id2545531"></a><h2>BUGS</h2>
 <p>
       There are probably too many query options.
     </p>

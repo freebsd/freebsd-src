@@ -335,11 +335,6 @@ struct nfsreferral {
  */
 #define	NFS_NFSSTATS	1		/* struct: struct nfsstats */
 
-#define	FS_NFS_NAMES { 							\
-		       { 0, 0 }, 					\
-		       { "nfsstats", CTLTYPE_STRUCT }, 			\
-}
-
 /*
  * Here is the definition of the attribute bits array and macros that
  * manipulate it.

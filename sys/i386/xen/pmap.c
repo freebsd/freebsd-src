@@ -620,8 +620,7 @@ pmap_init(void)
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 
 	pv_maxchunks = MAX(pv_entry_max / _NPCPV, maxproc);
-	pv_chunkbase = (struct pv_chunk *)kmem_alloc_nofault(kernel_map,
-	    PAGE_SIZE * pv_maxchunks);
+	pv_chunkbase = (struct pv_chunk *)kva_alloc(PAGE_SIZE * pv_maxchunks);
 	if (pv_chunkbase == NULL)
 		panic("pmap_init: not enough kvm for pv chunks");
 	pmap_ptelist_init(&pv_vafree, pv_chunkbase, pv_maxchunks);
@@ -1453,15 +1452,12 @@ pmap_pinit(pmap_t pmap)
 	mtx_lock(&createdelete_lock);
 #endif
 
-	PMAP_LOCK_INIT(pmap);
-
 	/*
 	 * No need to allocate page table space yet but we do need a valid
 	 * page directory table.
 	 */
 	if (pmap->pm_pdir == NULL) {
-		pmap->pm_pdir = (pd_entry_t *)kmem_alloc_nofault(kernel_map,
-		    NBPTD);
+		pmap->pm_pdir = (pd_entry_t *)kva_alloc(NBPTD);
 		if (pmap->pm_pdir == NULL) {
 			PMAP_LOCK_DESTROY(pmap);
 #ifdef HAMFISTED_LOCKING
@@ -1470,7 +1466,7 @@ pmap_pinit(pmap_t pmap)
 			return (0);
 		}
 #ifdef PAE
-		pmap->pm_pdpt = (pd_entry_t *)kmem_alloc_nofault(kernel_map, 1);
+		pmap->pm_pdpt = (pd_entry_t *)kva_alloc(1);
 #endif
 	}
 
@@ -1823,7 +1819,6 @@ pmap_release(pmap_t pmap)
 #ifdef PAE
 	pmap_qremove((vm_offset_t)pmap->pm_pdpt, 1);
 #endif
-	PMAP_LOCK_DESTROY(pmap);
 
 #ifdef HAMFISTED_LOCKING
 	mtx_unlock(&createdelete_lock);
@@ -2667,7 +2662,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
 	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%x)",
 	    va));
-	if ((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) == 0)
+	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
 		VM_OBJECT_ASSERT_WLOCKED(m->object);
 
 	mpte = NULL;
@@ -3696,13 +3691,12 @@ pmap_is_modified(vm_page_t m)
 	rv = FALSE;
 
 	/*
-	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be
+	 * If the page is not exclusive busied, then PGA_WRITEABLE cannot be
 	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no PTEs can have PG_M set.
 	 */
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->aflags & PGA_WRITEABLE) == 0)
+	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return (rv);
 	rw_wlock(&pvh_global_lock);
 	sched_pin();
@@ -3827,13 +3821,12 @@ pmap_remove_write(vm_page_t m)
 	    ("pmap_remove_write: page %p is not managed", m));
 
 	/*
-	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be set by
-	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
-	 * is clear, no page table entries need updating.
+	 * If the page is not exclusive busied, then PGA_WRITEABLE cannot be
+	 * set by another thread while the object is locked.  Thus,
+	 * if PGA_WRITEABLE is clear, no page table entries need updating.
 	 */
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->aflags & PGA_WRITEABLE) == 0)
+	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	rw_wlock(&pvh_global_lock);
 	sched_pin();
@@ -3921,6 +3914,72 @@ pmap_ts_referenced(vm_page_t m)
 }
 
 /*
+ *	Apply the given advice to the specified range of addresses within the
+ *	given pmap.  Depending on the advice, clear the referenced and/or
+ *	modified flags in each mapping and set the mapped page's dirty field.
+ */
+void
+pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
+{
+	pd_entry_t oldpde;
+	pt_entry_t *pte;
+	vm_offset_t pdnxt;
+	vm_page_t m;
+	boolean_t anychanged;
+
+	if (advice != MADV_DONTNEED && advice != MADV_FREE)
+		return;
+	anychanged = FALSE;
+	rw_wlock(&pvh_global_lock);
+	sched_pin();
+	PMAP_LOCK(pmap);
+	for (; sva < eva; sva = pdnxt) {
+		pdnxt = (sva + NBPDR) & ~PDRMASK;
+		if (pdnxt < sva)
+			pdnxt = eva;
+		oldpde = pmap->pm_pdir[sva >> PDRSHIFT];
+		if ((oldpde & (PG_PS | PG_V)) != PG_V)
+			continue;
+		if (pdnxt > eva)
+			pdnxt = eva;
+		for (pte = pmap_pte_quick(pmap, sva); sva != pdnxt; pte++,
+		    sva += PAGE_SIZE) {
+			if ((*pte & (PG_MANAGED | PG_V)) != (PG_MANAGED |
+			    PG_V))
+				continue;
+			else if ((*pte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
+				if (advice == MADV_DONTNEED) {
+					/*
+					 * Future calls to pmap_is_modified()
+					 * can be avoided by making the page
+					 * dirty now.
+					 */
+					m = PHYS_TO_VM_PAGE(xpmap_mtop(*pte) &
+					    PG_FRAME);
+					vm_page_dirty(m);
+				}
+				PT_SET_VA_MA(pte, *pte & ~(PG_M | PG_A), TRUE);
+			} else if ((*pte & PG_A) != 0)
+				PT_SET_VA_MA(pte, *pte & ~PG_A, TRUE);
+			else
+				continue;
+			if ((*pte & PG_G) != 0)
+				pmap_invalidate_page(pmap, sva);
+			else
+				anychanged = TRUE;
+		}
+	}
+	PT_UPDATES_FLUSH();
+	if (*PMAP1)
+		PT_SET_VA_MA(PMAP1, 0, TRUE);
+	if (anychanged)
+		pmap_invalidate_all(pmap);
+	sched_unpin();
+	rw_wunlock(&pvh_global_lock);
+	PMAP_UNLOCK(pmap);
+}
+
+/*
  *	Clear the modify bits on the specified physical page.
  */
 void
@@ -3933,13 +3992,13 @@ pmap_clear_modify(vm_page_t m)
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_modify: page %p is not managed", m));
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	KASSERT((m->oflags & VPO_BUSY) == 0,
-	    ("pmap_clear_modify: page %p is busy", m));
+	KASSERT(!vm_page_xbusied(m),
+	    ("pmap_clear_modify: page %p is exclusive busied", m));
 
 	/*
 	 * If the page is not PGA_WRITEABLE, then no PTEs can have PG_M set.
 	 * If the object containing the page is locked and the page is not
-	 * VPO_BUSY, then PGA_WRITEABLE cannot be concurrently set.
+	 * exclusive busied, then PGA_WRITEABLE cannot be concurrently set.
 	 */
 	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
@@ -4022,7 +4081,7 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 	if (pa < KERNLOAD && pa + size <= KERNLOAD)
 		va = KERNBASE + pa;
 	else
-		va = kmem_alloc_nofault(kernel_map, size);
+		va = kva_alloc(size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 
@@ -4057,7 +4116,7 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
 	size = round_page(offset + size);
-	kmem_free(kernel_map, base, size);
+	kva_free(base, size);
 }
 
 /*

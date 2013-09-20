@@ -108,7 +108,6 @@ static void vm_hold_load_pages(struct buf *bp, vm_offset_t from,
 static void vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, vm_page_t m);
 static void vfs_page_set_validclean(struct buf *bp, vm_ooffset_t off,
 		vm_page_t m);
-static void vfs_drain_busy_pages(struct buf *bp);
 static void vfs_clean_pages_dirty_buf(struct buf *bp);
 static void vfs_setdirty_locked_object(struct buf *bp);
 static void vfs_vmio_release(struct buf *bp);
@@ -584,7 +583,7 @@ vfs_buf_test_cache(struct buf *bp,
 		  vm_page_t m)
 {
 
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
+	VM_OBJECT_ASSERT_LOCKED(m->object);
 	if (bp->b_flags & B_CACHE) {
 		int base = (foff + off) & PAGE_MASK;
 		if (vm_page_is_valid(m, base, size) == 0)
@@ -856,7 +855,7 @@ bufinit(void)
 
 	bogus_page = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ |
 	    VM_ALLOC_NORMAL | VM_ALLOC_WIRED);
-	unmapped_buf = (caddr_t)kmem_alloc_nofault(kernel_map, MAXPHYS);
+	unmapped_buf = (caddr_t)kva_alloc(MAXPHYS);
 }
 
 #ifdef INVARIANTS
@@ -1694,6 +1693,12 @@ brelse(struct buf *bp)
 
 				KASSERT(presid >= 0, ("brelse: extra page"));
 				VM_OBJECT_WLOCK(obj);
+				while (vm_page_xbusied(m)) {
+					vm_page_lock(m);
+					VM_OBJECT_WUNLOCK(obj);
+					vm_page_busy_sleep(m, "mbncsh");
+					VM_OBJECT_WLOCK(obj);
+				}
 				if (pmap_page_wired_mappings(m) == 0)
 					vm_page_set_invalid(m, poffset, presid);
 				VM_OBJECT_WUNLOCK(obj);
@@ -1852,26 +1857,19 @@ vfs_vmio_release(struct buf *bp)
 		 */
 		vm_page_lock(m);
 		vm_page_unwire(m, 0);
+
 		/*
-		 * We don't mess with busy pages, it is
-		 * the responsibility of the process that
-		 * busied the pages to deal with them.
+		 * Might as well free the page if we can and it has
+		 * no valid data.  We also free the page if the
+		 * buffer was used for direct I/O
 		 */
-		if ((m->oflags & VPO_BUSY) == 0 && m->busy == 0 &&
-		    m->wire_count == 0) {
-			/*
-			 * Might as well free the page if we can and it has
-			 * no valid data.  We also free the page if the
-			 * buffer was used for direct I/O
-			 */
-			if ((bp->b_flags & B_ASYNC) == 0 && !m->valid) {
+		if ((bp->b_flags & B_ASYNC) == 0 && !m->valid) {
+			if (m->wire_count == 0 && !vm_page_busied(m))
 				vm_page_free(m);
-			} else if (bp->b_flags & B_DIRECT) {
-				vm_page_try_to_free(m);
-			} else if (buf_vm_page_count_severe()) {
-				vm_page_try_to_cache(m);
-			}
-		}
+		} else if (bp->b_flags & B_DIRECT)
+			vm_page_try_to_free(m);
+		else if (buf_vm_page_count_severe())
+			vm_page_try_to_cache(m);
 		vm_page_unlock(m);
 	}
 	VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
@@ -3450,7 +3448,7 @@ allocbuf(struct buf *bp, int size)
 					m = bp->b_pages[i];
 					KASSERT(m != bogus_page,
 					    ("allocbuf: bogus page found"));
-					while (vm_page_sleep_if_busy(m, TRUE,
+					while (vm_page_sleep_if_busy(m,
 					    "biodep"))
 						continue;
 
@@ -3489,15 +3487,15 @@ allocbuf(struct buf *bp, int size)
 				 * here could interfere with paging I/O, no
 				 * matter which process we are.
 				 *
-				 * We can only test VPO_BUSY here.  Blocking on
-				 * m->busy might lead to a deadlock:
-				 *  vm_fault->getpages->cluster_read->allocbuf
-				 * Thus, we specify VM_ALLOC_IGN_SBUSY.
+				 * Only exclusive busy can be tested here.
+				 * Blocking on shared busy might lead to
+				 * deadlocks once allocbuf() is called after
+				 * pages are vfs_busy_pages().
 				 */
 				m = vm_page_grab(obj, OFF_TO_IDX(bp->b_offset) +
 				    bp->b_npages, VM_ALLOC_NOBUSY |
 				    VM_ALLOC_SYSTEM | VM_ALLOC_WIRED |
-				    VM_ALLOC_RETRY | VM_ALLOC_IGN_SBUSY |
+				    VM_ALLOC_IGN_SBUSY |
 				    VM_ALLOC_COUNT(desiredpages - bp->b_npages));
 				if (m->valid == 0)
 					bp->b_flags &= ~B_CACHE;
@@ -3852,7 +3850,7 @@ bufdone_finish(struct buf *bp)
 				vfs_page_set_valid(bp, foff, m);
 			}
 
-			vm_page_io_finish(m);
+			vm_page_sunbusy(m);
 			vm_object_pip_subtract(obj, 1);
 			foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 			iosize -= resid;
@@ -3914,7 +3912,7 @@ vfs_unbusy_pages(struct buf *bp)
 				BUF_CHECK_UNMAPPED(bp);
 		}
 		vm_object_pip_subtract(obj, 1);
-		vm_page_io_finish(m);
+		vm_page_sunbusy(m);
 	}
 	vm_object_pip_wakeupn(obj, 0);
 	VM_OBJECT_WUNLOCK(obj);
@@ -3987,10 +3985,10 @@ vfs_page_set_validclean(struct buf *bp, vm_ooffset_t off, vm_page_t m)
 }
 
 /*
- * Ensure that all buffer pages are not busied by VPO_BUSY flag. If
- * any page is busy, drain the flag.
+ * Ensure that all buffer pages are not exclusive busied.  If any page is
+ * exclusive busy, drain it.
  */
-static void
+void
 vfs_drain_busy_pages(struct buf *bp)
 {
 	vm_page_t m;
@@ -4000,22 +3998,26 @@ vfs_drain_busy_pages(struct buf *bp)
 	last_busied = 0;
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
-		if ((m->oflags & VPO_BUSY) != 0) {
+		if (vm_page_xbusied(m)) {
 			for (; last_busied < i; last_busied++)
-				vm_page_busy(bp->b_pages[last_busied]);
-			while ((m->oflags & VPO_BUSY) != 0)
-				vm_page_sleep(m, "vbpage");
+				vm_page_sbusy(bp->b_pages[last_busied]);
+			while (vm_page_xbusied(m)) {
+				vm_page_lock(m);
+				VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
+				vm_page_busy_sleep(m, "vbpage");
+				VM_OBJECT_WLOCK(bp->b_bufobj->bo_object);
+			}
 		}
 	}
 	for (i = 0; i < last_busied; i++)
-		vm_page_wakeup(bp->b_pages[i]);
+		vm_page_sunbusy(bp->b_pages[i]);
 }
 
 /*
  * This routine is called before a device strategy routine.
  * It is used to tell the VM system that paging I/O is in
  * progress, and treat the pages associated with the buffer
- * almost as being VPO_BUSY.  Also the object paging_in_progress
+ * almost as being exclusive busy.  Also the object paging_in_progress
  * flag is handled to make sure that the object doesn't become
  * inconsistant.
  *
@@ -4048,7 +4050,7 @@ vfs_busy_pages(struct buf *bp, int clear_modify)
 
 		if ((bp->b_flags & B_CLUSTER) == 0) {
 			vm_object_pip_add(obj, 1);
-			vm_page_io_start(m);
+			vm_page_sbusy(m);
 		}
 		/*
 		 * When readying a buffer for a read ( i.e
@@ -4268,7 +4270,7 @@ vm_hold_free_pages(struct buf *bp, int newbsize)
 	for (index = newnpages; index < bp->b_npages; index++) {
 		p = bp->b_pages[index];
 		bp->b_pages[index] = NULL;
-		if (p->busy != 0)
+		if (vm_page_sbusied(p))
 			printf("vm_hold_free_pages: blkno: %jd, lblkno: %jd\n",
 			    (intmax_t)bp->b_blkno, (intmax_t)bp->b_lblkno);
 		p->wire_count--;

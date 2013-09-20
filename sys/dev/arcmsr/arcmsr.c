@@ -4101,8 +4101,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 	pci_command |= PCIM_CMD_BUSMASTEREN;
 	pci_command |= PCIM_CMD_PERRESPEN;
 	pci_command |= PCIM_CMD_MWRICEN;
-	/* Enable Busmaster/Mem */
-	pci_command |= PCIM_CMD_MEMEN;
+	/* Enable Busmaster */
 	pci_write_config(dev, PCIR_COMMAND, pci_command, 2);
 	switch(acb->adapter_type) {
 	case ACB_ADAPTER_TYPE_A: {

@@ -88,6 +88,7 @@
 
 #define ISC_TASKEVENT_FIRSTEVENT	(ISC_EVENTCLASS_TASK + 0)
 #define ISC_TASKEVENT_SHUTDOWN		(ISC_EVENTCLASS_TASK + 1)
+#define ISC_TASKEVENT_TEST		(ISC_EVENTCLASS_TASK + 1)
 #define ISC_TASKEVENT_LASTEVENT		(ISC_EVENTCLASS_TASK + 65535)
 
 /*****
@@ -100,9 +101,17 @@ ISC_LANG_BEGINDECLS
  *** Types
  ***/
 
+typedef enum {
+		isc_taskmgrmode_normal = 0,
+		isc_taskmgrmode_privileged
+} isc_taskmgrmode_t;
+
 /*% Task and task manager methods */
 typedef struct isc_taskmgrmethods {
 	void		(*destroy)(isc_taskmgr_t **managerp);
+	void		(*setmode)(isc_taskmgr_t *manager,
+				   isc_taskmgrmode_t mode);
+	isc_taskmgrmode_t (*mode)(isc_taskmgr_t *manager);
 	isc_result_t	(*taskcreate)(isc_taskmgr_t *manager,
 				      unsigned int quantum,
 				      isc_task_t **taskp);
@@ -129,6 +138,8 @@ typedef struct isc_taskmethods {
 				   void *tag);
 	isc_result_t (*beginexclusive)(isc_task_t *task);
 	void (*endexclusive)(isc_task_t *task);
+    void (*setprivilege)(isc_task_t *task, isc_boolean_t priv);
+    isc_boolean_t (*privilege)(isc_task_t *task);
 } isc_taskmethods_t;
 
 /*%
@@ -613,6 +624,32 @@ isc_task_exiting(isc_task_t *t);
  *\li	'task' is a valid task.
  */
 
+void
+isc_task_setprivilege(isc_task_t *task, isc_boolean_t priv);
+/*%<
+ * Set or unset the task's "privileged" flag depending on the value of
+ * 'priv'.
+ *
+ * Under normal circumstances this flag has no effect on the task behavior,
+ * but when the task manager has been set to privileged exeuction mode via
+ * isc_taskmgr_setmode(), only tasks with the flag set will be executed,
+ * and all other tasks will wait until they're done.  Once all privileged
+ * tasks have finished executing, the task manager will automatically
+ * return to normal execution mode and nonprivileged task can resume.
+ *
+ * Requires:
+ *\li	'task' is a valid task.
+ */
+
+isc_boolean_t
+isc_task_privilege(isc_task_t *task);
+/*%<
+ * Returns the current value of the task's privilege flag.
+ *
+ * Requires:
+ *\li	'task' is a valid task.
+ */
+
 /*****
  ***** Task Manager.
  *****/
@@ -663,6 +700,31 @@ isc_taskmgr_create(isc_mem_t *mctx, unsigned int workers,
  *\li	#ISC_R_UNEXPECTED		An unexpected error occurred.
  *\li	#ISC_R_SHUTTINGDOWN      	The non-threaded, shared, task
  *					manager shutting down.
+ */
+
+void
+isc_taskmgr_setmode(isc_taskmgr_t *manager, isc_taskmgrmode_t mode);
+
+isc_taskmgrmode_t
+isc_taskmgr_mode(isc_taskmgr_t *manager);
+/*%<
+ * Set/get the current operating mode of the task manager.  Valid modes are:
+ *
+ *\li  isc_taskmgrmode_normal
+ *\li  isc_taskmgrmode_privileged
+ *
+ * In privileged execution mode, only tasks that have had the "privilege"
+ * flag set via isc_task_setprivilege() can be executed.  When all such
+ * tasks are complete, the manager automatically returns to normal mode
+ * and proceeds with running non-privileged ready tasks.  This means it is
+ * necessary to have at least one privileged task waiting on the ready
+ * queue *before* setting the manager into privileged execution mode,
+ * which in turn means the task which calls this function should be in
+ * task-exclusive mode when it does so.
+ *
+ * Requires:
+ *
+ *\li      'manager' is a valid task manager.
  */
 
 void
