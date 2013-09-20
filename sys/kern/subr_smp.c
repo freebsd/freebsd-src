@@ -225,17 +225,15 @@ generic_stop_cpus(cpuset_t map, u_int type)
 	CTR2(KTR_SMP, "stop_cpus(%s) with %u type",
 	    cpusetobj_strprint(cpusetbuf, &map), type);
 
-#ifdef XENHVM
 	/*
-	 * When migrating a PVHVM domain we need to make sure there are
-	 * no IPIs in progress.  IPIs that have been issued, but not
-	 * yet delivered (not pending on a vCPU) will be lost in the
-	 * IPI rebinding process, violating FreeBSD's assumption of
-	 * reliable IPI delivery.
+	 * When suspending, ensure there are are no IPIs in progress.
+	 * IPIs that have been issued, but not yet delivered (e.g.
+	 * not pending on a vCPU when running under virtualization)
+	 * will be lost, violating FreeBSD's assumption of reliable
+	 * IPI delivery.
 	 */
 	if (type == IPI_SUSPEND)
 		mtx_lock_spin(&smp_ipi_mtx);
-#endif
 
 	if (stopping_cpu != PCPU_GET(cpuid))
 		while (atomic_cmpset_int(&stopping_cpu, NOCPU,
@@ -264,10 +262,8 @@ generic_stop_cpus(cpuset_t map, u_int type)
 		}
 	}
 
-#ifdef XENHVM
 	if (type == IPI_SUSPEND)
 		mtx_unlock_spin(&smp_ipi_mtx);
-#endif
 
 	stopping_cpu = NOCPU;
 	return (1);
