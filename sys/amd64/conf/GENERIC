@@ -72,6 +72,7 @@ options 	KDTRACE_FRAME		# Ensure frames are compiled in
 options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	DDB_CTF			# Kernel ELF linker loads CTF data
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
+options 	XENHVM			# Include Xen support
 
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
@@ -340,6 +341,9 @@ device		vtnet		# VirtIO Ethernet device
 device		virtio_blk	# VirtIO Block device
 device		virtio_scsi	# VirtIO SCSI device
 device		virtio_balloon	# VirtIO Memory Balloon device
+
+# Xen support
+device		xenpci		# Generic Xen bus
 
 # VMware support
 device		vmx		# VMware VMXNET3 Ethernet
