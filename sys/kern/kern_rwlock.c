@@ -83,11 +83,11 @@ SYSCTL_INT(_debug_rwlock, OID_AUTO, loops, CTLFLAG_RW, &rowner_loops, 0, "");
 static void	db_show_rwlock(const struct lock_object *lock);
 #endif
 static void	assert_rw(const struct lock_object *lock, int what);
-static void	lock_rw(struct lock_object *lock, int how);
+static void	lock_rw(struct lock_object *lock, uintptr_t how);
 #ifdef KDTRACE_HOOKS
 static int	owner_rw(const struct lock_object *lock, struct thread **owner);
 #endif
-static int	unlock_rw(struct lock_object *lock);
+static uintptr_t unlock_rw(struct lock_object *lock);
 
 struct lock_class lock_class_rw = {
 	.lc_name = "rw",
@@ -141,7 +141,7 @@ assert_rw(const struct lock_object *lock, int what)
 }
 
 void
-lock_rw(struct lock_object *lock, int how)
+lock_rw(struct lock_object *lock, uintptr_t how)
 {
 	struct rwlock *rw;
 
@@ -152,7 +152,7 @@ lock_rw(struct lock_object *lock, int how)
 		rw_rlock(rw);
 }
 
-int
+uintptr_t
 unlock_rw(struct lock_object *lock)
 {
 	struct rwlock *rw;
