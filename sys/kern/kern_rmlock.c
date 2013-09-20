@@ -77,11 +77,11 @@ static void	assert_rm(const struct lock_object *lock, int what);
 #ifdef DDB
 static void	db_show_rm(const struct lock_object *lock);
 #endif
-static void	lock_rm(struct lock_object *lock, int how);
+static void	lock_rm(struct lock_object *lock, uintptr_t how);
 #ifdef KDTRACE_HOOKS
 static int	owner_rm(const struct lock_object *lock, struct thread **owner);
 #endif
-static int	unlock_rm(struct lock_object *lock);
+static uintptr_t unlock_rm(struct lock_object *lock);
 
 struct lock_class lock_class_rm = {
 	.lc_name = "rm",
@@ -118,34 +118,61 @@ assert_rm(const struct lock_object *lock, int what)
 	rm_assert((const struct rmlock *)lock, what);
 }
 
-/*
- * These do not support read locks because it would be hard to make
- * the tracker work correctly with the current lock_class API as you
- * would need to have the tracker pointer available when calling
- * rm_rlock() in lock_rm().
- */
 static void
-lock_rm(struct lock_object *lock, int how)
+lock_rm(struct lock_object *lock, uintptr_t how)
 {
 	struct rmlock *rm;
+	struct rm_priotracker *tracker;
 
 	rm = (struct rmlock *)lock;
-	if (how)
+	if (how == 0)
 		rm_wlock(rm);
-#ifdef INVARIANTS
-	else
-		panic("lock_rm called in read mode");
-#endif
+	else {
+		tracker = (struct rm_priotracker *)how;
+		rm_rlock(rm, tracker);
+	}
 }
 
-static int
+static uintptr_t
 unlock_rm(struct lock_object *lock)
 {
+	struct thread *td;
+	struct pcpu *pc;
 	struct rmlock *rm;
+	struct rm_queue *queue;
+	struct rm_priotracker *tracker;
+	uintptr_t how;
 
 	rm = (struct rmlock *)lock;
-	rm_wunlock(rm);
-	return (1);
+	tracker = NULL;
+	how = 0;
+	rm_assert(rm, RA_LOCKED | RA_NOTRECURSED);
+	if (rm_wowned(rm))
+		rm_wunlock(rm);
+	else {
+		/*
+		 * Find the right rm_priotracker structure for curthread.
+		 * The guarantee about its uniqueness is given by the fact
+		 * we already asserted the lock wasn't recursively acquired.
+		 */
+		critical_enter();
+		td = curthread;
+		pc = pcpu_find(curcpu);
+		for (queue = pc->pc_rm_queue.rmq_next;
+		    queue != &pc->pc_rm_queue; queue = queue->rmq_next) {
+			tracker = (struct rm_priotracker *)queue;
+				if ((tracker->rmp_rmlock == rm) &&
+				    (tracker->rmp_thread == td)) {
+					how = (uintptr_t)tracker;
+					break;
+				}
+		}
+		KASSERT(tracker != NULL,
+		    ("rm_priotracker is non-NULL when lock held in read mode"));
+		critical_exit();
+		rm_runlock(rm, tracker);
+	}
+	return (how);
 }
 
 #ifdef KDTRACE_HOOKS

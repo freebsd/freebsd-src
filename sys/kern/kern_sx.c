@@ -116,11 +116,11 @@ static void	assert_sx(const struct lock_object *lock, int what);
 #ifdef DDB
 static void	db_show_sx(const struct lock_object *lock);
 #endif
-static void	lock_sx(struct lock_object *lock, int how);
+static void	lock_sx(struct lock_object *lock, uintptr_t how);
 #ifdef KDTRACE_HOOKS
 static int	owner_sx(const struct lock_object *lock, struct thread **owner);
 #endif
-static int	unlock_sx(struct lock_object *lock);
+static uintptr_t unlock_sx(struct lock_object *lock);
 
 struct lock_class lock_class_sx = {
 	.lc_name = "sx",
@@ -156,7 +156,7 @@ assert_sx(const struct lock_object *lock, int what)
 }
 
 void
-lock_sx(struct lock_object *lock, int how)
+lock_sx(struct lock_object *lock, uintptr_t how)
 {
 	struct sx *sx;
 
@@ -167,7 +167,7 @@ lock_sx(struct lock_object *lock, int how)
 		sx_slock(sx);
 }
 
-int
+uintptr_t
 unlock_sx(struct lock_object *lock)
 {
 	struct sx *sx;
