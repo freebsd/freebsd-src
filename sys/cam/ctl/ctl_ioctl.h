@@ -662,12 +662,14 @@ struct ctl_iscsi_handoff_params {
 	uint32_t		max_burst_length;
 	uint32_t		first_burst_length;
 	uint32_t		immediate_data;
+	int			spare[4];
 };
 
 struct ctl_iscsi_list_params {
 	uint32_t		alloc_len;	/* passed to kernel */
 	char                   *conn_xml;	/* filled in kernel */
 	uint32_t		fill_len;	/* passed to userland */
+	int			spare[4];
 };
 
 struct ctl_iscsi_logout_params {
@@ -677,6 +679,7 @@ struct ctl_iscsi_logout_params {
 	char			initiator_addr[CTL_ISCSI_ADDR_LEN];
 						/* passed to kernel */
 	int			all;		/* passed to kernel */
+	int			spare[4];
 };
 
 struct ctl_iscsi_terminate_params {
@@ -686,6 +689,7 @@ struct ctl_iscsi_terminate_params {
 	char			initiator_addr[CTL_ISCSI_NAME_LEN];
 						/* passed to kernel */
 	int			all;		/* passed to kernel */
+	int			spare[4];
 };
 
 #ifdef ICL_KERNEL_PROXY
@@ -696,10 +700,12 @@ struct ctl_iscsi_listen_params {
 	int				protocol;
 	struct sockaddr			*addr;
 	socklen_t			addrlen;
+	int				spare[4];
 };
 
 struct ctl_iscsi_accept_params {
 	int				connection_id;
+	int				spare[4];
 };
 
 struct ctl_iscsi_send_params {
@@ -709,6 +715,7 @@ struct ctl_iscsi_send_params {
 	void				*spare2;
 	size_t				data_segment_len;
 	void				*data_segment;
+	int				spare[4];
 };
 
 struct ctl_iscsi_receive_params {
@@ -718,10 +725,12 @@ struct ctl_iscsi_receive_params {
 	void				*spare2;
 	size_t				data_segment_len;
 	void				*data_segment;
+	int				spare[4];
 };
 
 struct ctl_iscsi_close_params {
 	int				connection_id;
+	int				spare[4];
 };
 #endif /* ICL_KERNEL_PROXY */
 
