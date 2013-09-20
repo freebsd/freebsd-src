@@ -280,15 +280,22 @@ vm_map_zdtor(void *mem, int size, void *arg)
 /*
  * Allocate a vmspace structure, including a vm_map and pmap,
  * and initialize those structures.  The refcnt is set to 1.
+ *
+ * If 'pinit' is NULL then the embedded pmap is initialized via pmap_pinit().
  */
 struct vmspace *
-vmspace_alloc(min, max)
-	vm_offset_t min, max;
+vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
 {
 	struct vmspace *vm;
 
 	vm = uma_zalloc(vmspace_zone, M_WAITOK);
-	if (vm->vm_map.pmap == NULL && !pmap_pinit(vmspace_pmap(vm))) {
+
+	KASSERT(vm->vm_map.pmap == NULL, ("vm_map.pmap must be NULL"));
+
+	if (pinit == NULL)
+		pinit = &pmap_pinit;
+
+	if (!pinit(vmspace_pmap(vm))) {
 		uma_zfree(vmspace_zone, vm);
 		return (NULL);
 	}
@@ -3157,7 +3164,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 
 	old_map = &vm1->vm_map;
 	/* Copy immutable fields of vm1 to vm2. */
-	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset);
+	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset, NULL);
 	if (vm2 == NULL)
 		return (NULL);
 	vm2->vm_taddr = vm1->vm_taddr;
@@ -3739,7 +3746,7 @@ vmspace_exec(struct proc *p, vm_offset_t minuser, vm_offset_t maxuser)
 	struct vmspace *oldvmspace = p->p_vmspace;
 	struct vmspace *newvmspace;
 
-	newvmspace = vmspace_alloc(minuser, maxuser);
+	newvmspace = vmspace_alloc(minuser, maxuser, NULL);
 	if (newvmspace == NULL)
 		return (ENOMEM);
 	newvmspace->vm_swrss = oldvmspace->vm_swrss;
