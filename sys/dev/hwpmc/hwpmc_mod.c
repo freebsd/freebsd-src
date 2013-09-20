@@ -2027,7 +2027,6 @@ pmc_allocate_owner_descriptor(struct proc *p)
 	/* allocate space for N pointers and one descriptor struct */
 	po = malloc(sizeof(struct pmc_owner), M_PMC, M_WAITOK|M_ZERO);
 	po->po_owner = p;
-	LIST_INIT(&po->po_pmcs);
 	LIST_INSERT_HEAD(poh, po, po_next); /* insert into hash table */
 
 	TAILQ_INIT(&po->po_logbuffers);
@@ -2153,7 +2152,6 @@ pmc_allocate_pmc_descriptor(void)
 	struct pmc *pmc;
 
 	pmc = malloc(sizeof(struct pmc), M_PMC, M_WAITOK|M_ZERO);
-	LIST_INIT(&pmc->pm_targets);
 
 	PMCDBG(PMC,ALL,1, "allocate-pmc -> pmc=%p", pmc);
 
