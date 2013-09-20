@@ -76,8 +76,9 @@ checked_strdup(const char *s)
 	return (c);
 }
 
-static int
-resolve_addr(const char *address, struct addrinfo **ai)
+static void
+resolve_addr(const struct connection *conn, const char *address,
+    struct addrinfo **ai, bool initiator_side)
 {
 	struct addrinfo hints;
 	char *arg, *addr, *ch;
@@ -87,8 +88,8 @@ resolve_addr(const char *address, struct addrinfo **ai)
 	arg = checked_strdup(address);
 
 	if (arg[0] == '\0') {
-		log_warnx("empty address");
-		return (1);
+		fail(conn, "empty address");
+		log_errx(1, "empty address");
 	}
 	if (arg[0] == '[') {
 		/*
@@ -97,16 +98,16 @@ resolve_addr(const char *address, struct addrinfo **ai)
 		arg++;
 		addr = strsep(&arg, "]");
 		if (arg == NULL) {
-			log_warnx("invalid address %s", address);
-			return (1);
+			fail(conn, "malformed address");
+			log_errx(1, "malformed address %s", address);
 		}
 		if (arg[0] == '\0') {
-			port = "3260";
+			port = NULL;
 		} else if (arg[0] == ':') {
 			port = arg + 1;
 		} else {
-			log_warnx("invalid address %s", address);
-			return (1);
+			fail(conn, "malformed address");
+			log_errx(1, "malformed address %s", address);
 		}
 	} else {
 		/*
@@ -119,29 +120,32 @@ resolve_addr(const char *address, struct addrinfo **ai)
 		}
 		if (colons > 1) {
 			addr = arg;
-			port = "3260";
+			port = NULL;
 		} else {
 			addr = strsep(&arg, ":");
 			if (arg == NULL)
-				port = "3260";
+				port = NULL;
 			else
 				port = arg;
 		}
 	}
 
+	if (port == NULL && !initiator_side)
+		port = "3260";
+
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE;
+	hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV;
+	if (initiator_side)
+		hints.ai_flags |= AI_PASSIVE;
 
 	error = getaddrinfo(addr, port, &hints, ai);
 	if (error != 0) {
-		log_warnx("getaddrinfo for %s failed: %s",
+		fail(conn, gai_strerror(error));
+		log_errx(1, "getaddrinfo for %s failed: %s",
 		    address, gai_strerror(error));
-		return (1);
 	}
-
-	return (0);
 }
 
 static struct connection *
@@ -152,7 +156,7 @@ connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
 	struct addrinfo *from_ai, *to_ai;
 	const char *from_addr, *to_addr;
 #ifdef ICL_KERNEL_PROXY
-	struct iscsi_daemon_connect *idc;
+	struct iscsi_daemon_connect idc;
 #endif
 	int error;
 
@@ -172,6 +176,8 @@ connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
 	conn->conn_first_burst_length = 65536;
 
 	conn->conn_session_id = session_id;
+	conn->conn_iscsi_fd = iscsi_fd;
+
 	/*
 	 * XXX: Should we sanitize this somehow?
 	 */
@@ -180,42 +186,31 @@ connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
 	from_addr = conn->conn_conf.isc_initiator_addr;
 	to_addr = conn->conn_conf.isc_target_addr;
 
-	if (from_addr[0] != '\0') {
-		error = resolve_addr(from_addr, &from_ai);
-		if (error != 0)
-			log_errx(1, "failed to resolve initiator address %s",
-			    from_addr);
-	} else {
+	if (from_addr[0] != '\0')
+		resolve_addr(conn, from_addr, &from_ai, true);
+	else
 		from_ai = NULL;
-	}
 
-	error = resolve_addr(to_addr, &to_ai);
-	if (error != 0)
-		log_errx(1, "failed to resolve target address %s", to_addr);
-
-	conn->conn_iscsi_fd = iscsi_fd;
+	resolve_addr(conn, to_addr, &to_ai, false);
 
 #ifdef ICL_KERNEL_PROXY
 
-	idc = calloc(1, sizeof(*idc));
-	if (idc == NULL)
-		log_err(1, "calloc");
-
-	idc->idc_session_id = conn->conn_session_id;
+	memset(&idc, 0, sizeof(idc));
+	idc.idc_session_id = conn->conn_session_id;
 	if (conn->conn_conf.isc_iser)
-		idc->idc_iser = 1;
-	idc->idc_domain = to_ai->ai_family;
-	idc->idc_socktype = to_ai->ai_socktype;
-	idc->idc_protocol = to_ai->ai_protocol;
+		idc.idc_iser = 1;
+	idc.idc_domain = to_ai->ai_family;
+	idc.idc_socktype = to_ai->ai_socktype;
+	idc.idc_protocol = to_ai->ai_protocol;
 	if (from_ai != NULL) {
-		idc->idc_from_addr = from_ai->ai_addr;
-		idc->idc_from_addrlen = from_ai->ai_addrlen;
+		idc.idc_from_addr = from_ai->ai_addr;
+		idc.idc_from_addrlen = from_ai->ai_addrlen;
 	}
-	idc->idc_to_addr = to_ai->ai_addr;
-	idc->idc_to_addrlen = to_ai->ai_addrlen;
+	idc.idc_to_addr = to_ai->ai_addr;
+	idc.idc_to_addrlen = to_ai->ai_addrlen;
 
 	log_debugx("connecting to %s using ICL kernel proxy", to_addr);
-	error = ioctl(iscsi_fd, ISCSIDCONNECT, idc);
+	error = ioctl(iscsi_fd, ISCSIDCONNECT, &idc);
 	if (error != 0) {
 		fail(conn, strerror(errno));
 		log_err(1, "failed to connect to %s using ICL kernel proxy",
@@ -224,19 +219,25 @@ connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
 
 #else /* !ICL_KERNEL_PROXY */
 
-	if (conn->conn_conf.isc_iser)
+	if (conn->conn_conf.isc_iser) {
+		fail(conn, "iSER not supported");
 		log_errx(1, "iscsid(8) compiled without ICL_KERNEL_PROXY "
 		    "does not support iSER");
+	}
 
 	conn->conn_socket = socket(to_ai->ai_family, to_ai->ai_socktype,
 	    to_ai->ai_protocol);
-	if (conn->conn_socket < 0)
+	if (conn->conn_socket < 0) {
+		fail(conn, strerror(errno));
 		log_err(1, "failed to create socket for %s", from_addr);
+	}
 	if (from_ai != NULL) {
 		error = bind(conn->conn_socket, from_ai->ai_addr,
 		    from_ai->ai_addrlen);
-		if (error != 0)
+		if (error != 0) {
+			fail(conn, strerror(errno));
 			log_err(1, "failed to bind to %s", from_addr);
+		}
 	}
 	log_debugx("connecting to %s", to_addr);
 	error = connect(conn->conn_socket, to_ai->ai_addr, to_ai->ai_addrlen);
@@ -253,31 +254,29 @@ connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
 static void
 handoff(struct connection *conn)
 {
-	struct iscsi_daemon_handoff *idh;
+	struct iscsi_daemon_handoff idh;
 	int error;
 
 	log_debugx("handing off connection to the kernel");
 
-	idh = calloc(1, sizeof(*idh));
-	if (idh == NULL)
-		log_err(1, "calloc");
-	idh->idh_session_id = conn->conn_session_id;
+	memset(&idh, 0, sizeof(idh));
+	idh.idh_session_id = conn->conn_session_id;
 #ifndef ICL_KERNEL_PROXY
-	idh->idh_socket = conn->conn_socket;
+	idh.idh_socket = conn->conn_socket;
 #endif
-	strlcpy(idh->idh_target_alias, conn->conn_target_alias,
-	    sizeof(idh->idh_target_alias));
-	memcpy(idh->idh_isid, conn->conn_isid, sizeof(idh->idh_isid));
-	idh->idh_statsn = conn->conn_statsn;
-	idh->idh_header_digest = conn->conn_header_digest;
-	idh->idh_data_digest = conn->conn_data_digest;
-	idh->idh_initial_r2t = conn->conn_initial_r2t;
-	idh->idh_immediate_data = conn->conn_immediate_data;
-	idh->idh_max_data_segment_length = conn->conn_max_data_segment_length;
-	idh->idh_max_burst_length = conn->conn_max_burst_length;
-	idh->idh_first_burst_length = conn->conn_first_burst_length;
+	strlcpy(idh.idh_target_alias, conn->conn_target_alias,
+	    sizeof(idh.idh_target_alias));
+	memcpy(idh.idh_isid, conn->conn_isid, sizeof(idh.idh_isid));
+	idh.idh_statsn = conn->conn_statsn;
+	idh.idh_header_digest = conn->conn_header_digest;
+	idh.idh_data_digest = conn->conn_data_digest;
+	idh.idh_initial_r2t = conn->conn_initial_r2t;
+	idh.idh_immediate_data = conn->conn_immediate_data;
+	idh.idh_max_data_segment_length = conn->conn_max_data_segment_length;
+	idh.idh_max_burst_length = conn->conn_max_burst_length;
+	idh.idh_first_burst_length = conn->conn_first_burst_length;
 
-	error = ioctl(conn->conn_iscsi_fd, ISCSIDHANDOFF, idh);
+	error = ioctl(conn->conn_iscsi_fd, ISCSIDHANDOFF, &idh);
 	if (error != 0)
 		log_err(1, "ISCSIDHANDOFF");
 }
@@ -285,17 +284,14 @@ handoff(struct connection *conn)
 void
 fail(const struct connection *conn, const char *reason)
 {
-	struct iscsi_daemon_fail *idf;
+	struct iscsi_daemon_fail idf;
 	int error;
 
-	idf = calloc(1, sizeof(*idf));
-	if (idf == NULL)
-		log_err(1, "calloc");
+	memset(&idf, 0, sizeof(idf));
+	idf.idf_session_id = conn->conn_session_id;
+	strlcpy(idf.idf_reason, reason, sizeof(idf.idf_reason));
 
-	idf->idf_session_id = conn->conn_session_id;
-	strlcpy(idf->idf_reason, reason, sizeof(idf->idf_reason));
-
-	error = ioctl(conn->conn_iscsi_fd, ISCSIDFAIL, idf);
+	error = ioctl(conn->conn_iscsi_fd, ISCSIDFAIL, &idf);
 	if (error != 0)
 		log_err(1, "ISCSIDFAIL");
 }
@@ -398,7 +394,7 @@ set_timeout(int timeout)
 }
 
 static void
-handle_request(int iscsi_fd, struct iscsi_daemon_request *request, int timeout)
+handle_request(int iscsi_fd, const struct iscsi_daemon_request *request, int timeout)
 {
 	struct connection *conn;
 
@@ -464,7 +460,7 @@ main(int argc, char **argv)
 	struct pidfh *pidfh;
 	pid_t pid, otherpid;
 	const char *pidfile_path = DEFAULT_PIDFILE;
-	struct iscsi_daemon_request *request;
+	struct iscsi_daemon_request request;
 
 	while ((ch = getopt(argc, argv, "P:dl:m:t:")) != -1) {
 		switch (ch) {
@@ -505,7 +501,7 @@ main(int argc, char **argv)
 	}
 
 	iscsi_fd = open(ISCSI_PATH, O_RDWR);
-	if (iscsi_fd < 0) {
+	if (iscsi_fd < 0 && errno == ENOENT) {
 		saved_errno = errno;
 		retval = kldload("iscsi");
 		if (retval != -1)
@@ -529,11 +525,8 @@ main(int argc, char **argv)
 	for (;;) {
 		log_debugx("waiting for request from the kernel");
 
-		request = calloc(1, sizeof(*request));
-		if (request == NULL)
-			log_err(1, "calloc");
-
-		error = ioctl(iscsi_fd, ISCSIDWAIT, request);
+		memset(&request, 0, sizeof(request));
+		error = ioctl(iscsi_fd, ISCSIDWAIT, &request);
 		if (error != 0) {
 			if (errno == EINTR) {
 				nchildren -= wait_for_children(false);
@@ -569,7 +562,7 @@ main(int argc, char **argv)
 		}
 
 		pidfile_close(pidfh);
-		handle_request(iscsi_fd, request, timeout);
+		handle_request(iscsi_fd, &request, timeout);
 	}
 
 	return (0);

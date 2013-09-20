@@ -348,12 +348,10 @@ portal_group_new(struct conf *conf, const char *name)
 {
 	struct portal_group *pg;
 
-	if (name != NULL) {
-		pg = portal_group_find(conf, name);
-		if (pg != NULL) {
-			log_warnx("duplicated portal-group \"%s\"", name);
-			return (NULL);
-		}
+	pg = portal_group_find(conf, name);
+	if (pg != NULL) {
+		log_warnx("duplicated portal-group \"%s\"", name);
+		return (NULL);
 	}
 
 	pg = calloc(1, sizeof(*pg));

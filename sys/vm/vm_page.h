@@ -325,7 +325,6 @@ extern struct mtx_padalign pa_lock[];
 #define	PG_FICTITIOUS	0x0004		/* physical page doesn't exist */
 #define	PG_ZERO		0x0008		/* page is zeroed */
 #define	PG_MARKER	0x0010		/* special queue marker page */
-#define	PG_SLAB		0x0020		/* object pointer is actually a slab */
 #define	PG_WINATCFLS	0x0040		/* flush dirty page on inactive q */
 #define	PG_NODUMP	0x0080		/* don't include this page in a dump */
 #define	PG_UNHOLDFREE	0x0100		/* delayed free of a held page */

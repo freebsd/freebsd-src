@@ -79,7 +79,7 @@ kernel_init(void)
 	int retval, saved_errno;
 
 	ctl_fd = open(CTL_DEFAULT_DEV, O_RDWR);
-	if (ctl_fd < 0) {
+	if (ctl_fd < 0 && errno == ENOENT) {
 		saved_errno = errno;
 		retval = kldload("ctl");
 		if (retval != -1)
@@ -628,7 +628,7 @@ kernel_port_on(void)
 	struct ctl_port_entry entry;
 	int error;
 
-	bzero(&entry, sizeof(&entry));
+	bzero(&entry, sizeof(entry));
 
 	entry.port_type = CTL_PORT_ISCSI;
 	entry.targ_port = -1;
@@ -648,7 +648,7 @@ kernel_port_off(void)
 	struct ctl_port_entry entry;
 	int error;
 
-	bzero(&entry, sizeof(&entry));
+	bzero(&entry, sizeof(entry));
 
 	entry.port_type = CTL_PORT_ISCSI;
 	entry.targ_port = -1;

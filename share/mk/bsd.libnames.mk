@@ -165,7 +165,7 @@ LIBUFS?=	${DESTDIR}${LIBDIR}/libufs.a
 LIBUGIDFW?=	${DESTDIR}${LIBDIR}/libugidfw.a
 LIBUMEM?=	${DESTDIR}${LIBDIR}/libumem.a
 .if ${MK_UNBOUND} != "no"
-LIBUNBOUND?=	${DESTDIR}${LIBDIR}/libunbound.a
+LIBUNBOUND?=	${DESTDIR}${LIBPRIVATEDIR}/libunbound.a
 .endif
 LIBUSBHID?=	${DESTDIR}${LIBDIR}/libusbhid.a
 LIBUSB?=	${DESTDIR}${LIBDIR}/libusb.a

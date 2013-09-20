@@ -1513,8 +1513,13 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 	memcpy(&is->is_conf, &isa->isa_conf, sizeof(is->is_conf));
 
 	if (is->is_conf.isc_initiator[0] == '\0' ||
-	    is->is_conf.isc_target == '\0' ||
-	    is->is_conf.isc_target_addr == '\0') {
+	    is->is_conf.isc_target_addr[0] == '\0') {
+		free(is, M_ISCSI);
+		return (EINVAL);
+	}
+
+	if ((is->is_conf.isc_discovery != 0 && is->is_conf.isc_target[0] != 0) ||
+	    (is->is_conf.isc_discovery == 0 && is->is_conf.isc_target[0] == 0)) {
 		free(is, M_ISCSI);
 		return (EINVAL);
 	}
@@ -1525,11 +1530,22 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 	 * Prevent duplicates.
 	 */
 	TAILQ_FOREACH(is2, &sc->sc_sessions, is_next) {
-		if (strcmp(is2->is_conf.isc_target,
-		    is->is_conf.isc_target) == 0) {
-			sx_xunlock(&sc->sc_lock);
-			return (EBUSY);
-		}
+		if (!!is->is_conf.isc_discovery !=
+		    !!is2->is_conf.isc_discovery)
+			continue;
+
+		if (strcmp(is->is_conf.isc_target_addr,
+		    is2->is_conf.isc_target_addr) != 0)
+			continue;
+
+		if (is->is_conf.isc_discovery == 0 &&
+		    strcmp(is->is_conf.isc_target,
+		    is2->is_conf.isc_target) != 0)
+			continue;
+
+		sx_xunlock(&sc->sc_lock);
+		free(is, M_ISCSI);
+		return (EBUSY);
 	}
 
 	is->is_conn = icl_conn_new();
@@ -1936,9 +1952,9 @@ iscsi_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_lun = 255;
 		//cpi->initiator_id = 0; /* XXX */
 		cpi->initiator_id = 64; /* XXX */
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "iSCSI", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "iSCSI", HBA_IDLEN);
+		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
 		cpi->bus_id = cam_sim_bus(sim);
 		cpi->base_transfer_speed = 150000; /* XXX */
