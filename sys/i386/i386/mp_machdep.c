@@ -1529,6 +1529,10 @@ cpususpend_handler(void)
 
 	cpu = PCPU_GET(cpuid);
 
+#ifdef XENHVM
+	mtx_assert(&smp_ipi_mtx, MA_NOTOWNED);
+#endif
+
 	if (savectx(susppcbs[cpu])) {
 		wbinvd();
 		CPU_SET_ATOMIC(cpu, &suspended_cpus);
@@ -1545,10 +1549,22 @@ cpususpend_handler(void)
 	while (!CPU_ISSET(cpu, &started_cpus))
 		ia32_pause();
 
+#ifdef XENHVM
+	/*
+	 * Reset pending bitmap IPIs, because Xen doesn't preserve pending
+	 * event channels on migration.
+	 */
+	cpu_ipi_pending[cpu] = 0;
+	/* register vcpu_info area */
+	xen_hvm_init_cpu();
+#endif
+
 	/* Resume MCA and local APIC */
 	mca_resume();
 	lapic_setup(0);
 
+	/* Indicate that we are resumed */
+	CPU_CLR_ATOMIC(cpu, &suspended_cpus);
 	CPU_CLR_ATOMIC(cpu, &started_cpus);
 }
 /*
