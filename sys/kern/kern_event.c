@@ -707,7 +707,7 @@ sys_kqueue(struct thread *td, struct kqueue_args *uap)
 	TASK_INIT(&kq->kq_task, 0, kqueue_task, kq);
 
 	FILEDESC_XLOCK(fdp);
-	SLIST_INSERT_HEAD(&fdp->fd_kqlist, kq, kq_list);
+	TAILQ_INSERT_HEAD(&fdp->fd_kqlist, kq, kq_list);
 	FILEDESC_XUNLOCK(fdp);
 
 	finit(fp, FREAD | FWRITE, DTYPE_KQUEUE, kq, &kqueueops);
@@ -1708,7 +1708,7 @@ kqueue_close(struct file *fp, struct thread *td)
 	KQ_UNLOCK(kq);
 
 	FILEDESC_XLOCK(fdp);
-	SLIST_REMOVE(&fdp->fd_kqlist, kq, kqueue, kq_list);
+	TAILQ_REMOVE(&fdp->fd_kqlist, kq, kq_list);
 	FILEDESC_XUNLOCK(fdp);
 
 	seldrain(&kq->kq_sel);
@@ -2044,7 +2044,7 @@ knote_fdclose(struct thread *td, int fd)
 	 * We shouldn't have to worry about new kevents appearing on fd
 	 * since filedesc is locked.
 	 */
-	SLIST_FOREACH(kq, &fdp->fd_kqlist, kq_list) {
+	TAILQ_FOREACH(kq, &fdp->fd_kqlist, kq_list) {
 		KQ_LOCK(kq);
 
 again:
