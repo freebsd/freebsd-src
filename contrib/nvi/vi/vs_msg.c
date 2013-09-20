@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)vs_msg.c	10.77 (Berkeley) 10/13/96";
+static const char sccsid[] = "$Id: vs_msg.c,v 10.88 2013/03/19 09:59:03 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -56,15 +56,13 @@ static void	vs_wait __P((SCR *, int *, sw_t));
  * PUBLIC: void vs_busy __P((SCR *, const char *, busy_t));
  */
 void
-vs_busy(sp, msg, btype)
-	SCR *sp;
-	const char *msg;
-	busy_t btype;
+vs_busy(SCR *sp, const char *msg, busy_t btype)
 {
 	GS *gp;
 	VI_PRIVATE *vip;
 	static const char flagc[] = "|/-\\";
-	struct timeval tv;
+	struct timespec ts, ts_diff;
+	const struct timespec ts_min = { 0, 125000000 };
 	size_t len, notused;
 	const char *p;
 
@@ -89,7 +87,7 @@ vs_busy(sp, msg, btype)
 
 		/* Initialize state for updates. */
 		vip->busy_ch = 0;
-		(void)gettimeofday(&vip->busy_tv, NULL);
+		timepoint_steady(&vip->busy_ts);
 
 		/* Save the current cursor. */
 		(void)gp->scr_cursor(sp, &vip->busy_oldy, &vip->busy_oldx);
@@ -122,11 +120,12 @@ vs_busy(sp, msg, btype)
 			break;
 
 		/* Update no more than every 1/8 of a second. */
-		(void)gettimeofday(&tv, NULL);
-		if (((tv.tv_sec - vip->busy_tv.tv_sec) * 1000000 +
-		    (tv.tv_usec - vip->busy_tv.tv_usec)) < 125000)
+		timepoint_steady(&ts);
+		ts_diff = ts;
+		timespecsub(&ts_diff, &vip->busy_ts);
+		if (timespeccmp(&ts_diff, &ts_min, <))
 			return;
-		vip->busy_tv = tv;
+		vip->busy_ts = ts;
 
 		/* Display the update. */
 		if (vip->busy_ch == sizeof(flagc) - 1)
@@ -146,8 +145,7 @@ vs_busy(sp, msg, btype)
  * PUBLIC: void vs_home __P((SCR *));
  */
 void
-vs_home(sp)
-	SCR *sp;
+vs_home(SCR *sp)
 {
 	(void)sp->gp->scr_move(sp, LASTLINE(sp), 0);
 	(void)sp->gp->scr_refresh(sp, 0);
@@ -157,15 +155,15 @@ vs_home(sp)
  * vs_update --
  *	Update a command.
  *
- * PUBLIC: void vs_update __P((SCR *, const char *, const char *));
+ * PUBLIC: void vs_update __P((SCR *, const char *, const CHAR_T *));
  */
 void
-vs_update(sp, m1, m2)
-	SCR *sp;
-	const char *m1, *m2;
+vs_update(SCR *sp, const char *m1, const CHAR_T *m2)
 {
 	GS *gp;
 	size_t len, mlen, oldx, oldy;
+	CONST char *np;
+	size_t nlen;
 
 	gp = sp->gp;
 
@@ -178,8 +176,10 @@ vs_update(sp, m1, m2)
 	 * expanded, and by the ex substitution confirmation prompt.
 	 */
 	if (F_ISSET(sp, SC_SCR_EXWROTE)) {
+		if (m2 != NULL)
+			INT2CHAR(sp, m2, STRLEN(m2) + 1, np, nlen);
 		(void)ex_printf(sp,
-		    "%s\n", m1 == NULL? "" : m1, m2 == NULL ? "" : m2);
+		    "%s\n", m1 == NULL? "" : m1, m2 == NULL ? "" : np);
 		(void)ex_fflush(sp);
 	}
 
@@ -205,10 +205,10 @@ vs_update(sp, m1, m2)
 	} else
 		len = 0;
 	if (m2 != NULL) {
-		mlen = strlen(m2);
+		mlen = STRLEN(m2);
 		if (len + mlen > sp->cols - 2)
 			mlen = (sp->cols - 2) - len;
-		(void)gp->scr_addstr(sp, m2, mlen);
+		(void)gp->scr_waddstr(sp, m2, mlen);
 	}
 
 	(void)gp->scr_move(sp, oldy, oldx);
@@ -228,11 +228,7 @@ vs_update(sp, m1, m2)
  * PUBLIC: void vs_msg __P((SCR *, mtype_t, char *, size_t));
  */
 void
-vs_msg(sp, mtype, line, len)
-	SCR *sp;
-	mtype_t mtype;
-	char *line;
-	size_t len;
+vs_msg(SCR *sp, mtype_t mtype, char *line, size_t len)
 {
 	GS *gp;
 	VI_PRIVATE *vip;
@@ -394,17 +390,12 @@ ret:	(void)gp->scr_move(sp, oldy, oldx);
  *	Output the text to the screen.
  */
 static void
-vs_output(sp, mtype, line, llen)
-	SCR *sp;
-	mtype_t mtype;
-	const char *line;
-	int llen;
+vs_output(SCR *sp, mtype_t mtype, const char *line, int llen)
 {
-	CHAR_T *kp;
 	GS *gp;
 	VI_PRIVATE *vip;
-	size_t chlen, notused;
-	int ch, len, rlen, tlen;
+	size_t notused;
+	int len, rlen, tlen;
 	const char *p, *t;
 	char *cbp, *ecbp, cbuf[128];
 
@@ -472,7 +463,6 @@ vs_output(sp, mtype, line, llen)
 }
 		ecbp = (cbp = cbuf) + sizeof(cbuf) - 1;
 		for (t = line, tlen = len; tlen--; ++t) {
-			ch = *t;
 			/*
 			 * Replace tabs with spaces, there are places in
 			 * ex that do column calculations without looking
@@ -480,13 +470,9 @@ vs_output(sp, mtype, line, llen)
 			 * <tabs> do their own expansions.  This catches
 			 * <tabs> in things like tag search strings.
 			 */
-			if (ch == '\t')
-				ch = ' ';
-			chlen = KEY_LEN(sp, ch);
-			if (cbp + chlen >= ecbp)
+			if (cbp + 1 >= ecbp)
 				FLUSH;
-			for (kp = KEY_NAME(sp, ch); chlen--;)
-				*cbp++ = *kp++;
+			*cbp++ = *t == '\t' ? ' ' : *t;
 		}
 		if (cbp > cbuf)
 			FLUSH;
@@ -523,9 +509,7 @@ vs_output(sp, mtype, line, llen)
  * PUBLIC: int vs_ex_resolve __P((SCR *, int *));
  */
 int
-vs_ex_resolve(sp, continuep)
-	SCR *sp;
-	int *continuep;
+vs_ex_resolve(SCR *sp, int *continuep)
 {
 	EVENT ev;
 	GS *gp;
@@ -598,7 +582,7 @@ vs_ex_resolve(sp, continuep)
 	 * If we're not the bottom of the split screen stack, the screen
 	 * image itself is wrong, so redraw everything.
 	 */
-	if (sp->q.cqe_next != (void *)&sp->gp->dq)
+	if (TAILQ_NEXT(sp, q) != NULL)
 		F_SET(sp, SC_SCR_REDRAW);
 
 	/* If ex changed the underlying file, the map itself is wrong. */
@@ -649,9 +633,7 @@ vs_ex_resolve(sp, continuep)
  * PUBLIC: int vs_resolve __P((SCR *, SCR *, int));
  */
 int
-vs_resolve(sp, csp, forcewait)
-	SCR *sp, *csp;
-	int forcewait;
+vs_resolve(SCR *sp, SCR *csp, int forcewait)
 {
 	EVENT ev;
 	GS *gp;
@@ -696,12 +678,12 @@ vs_resolve(sp, csp, forcewait)
 	 * messages.)  Once this is done, don't trust the cursor.  That
 	 * extra refresh screwed the pooch.
 	 */
-	if (gp->msgq.lh_first != NULL) {
+	if (!SLIST_EMPTY(gp->msgq)) {
 		if (!F_ISSET(sp, SC_SCR_VI) && vs_refresh(sp, 1))
 			return (1);
-		while ((mp = gp->msgq.lh_first) != NULL) {
+		while ((mp = SLIST_FIRST(gp->msgq)) != NULL) {
 			gp->scr_msg(sp, mp->mtype, mp->buf, mp->len);
-			LIST_REMOVE(mp, q);
+			SLIST_REMOVE_HEAD(gp->msgq, q);
 			free(mp->buf);
 			free(mp);
 		}
@@ -758,10 +740,7 @@ vs_resolve(sp, csp, forcewait)
  *	Scroll the screen for output.
  */
 static void
-vs_scroll(sp, continuep, wtype)
-	SCR *sp;
-	int *continuep;
-	sw_t wtype;
+vs_scroll(SCR *sp, int *continuep, sw_t wtype)
 {
 	GS *gp;
 	VI_PRIVATE *vip;
@@ -779,7 +758,7 @@ vs_scroll(sp, continuep, wtype)
 		(void)gp->scr_deleteln(sp);
 
 		/* If there are screens below us, push them back into place. */
-		if (sp->q.cqe_next != (void *)&sp->gp->dq) {
+		if (TAILQ_NEXT(sp, q) != NULL) {
 			(void)gp->scr_move(sp, LASTLINE(sp), 0);
 			(void)gp->scr_insertln(sp);
 		}
@@ -794,10 +773,7 @@ vs_scroll(sp, continuep, wtype)
  *	Prompt the user to continue.
  */
 static void
-vs_wait(sp, continuep, wtype)
-	SCR *sp;
-	int *continuep;
-	sw_t wtype;
+vs_wait(SCR *sp, int *continuep, sw_t wtype)
 {
 	EVENT ev;
 	VI_PRIVATE *vip;
@@ -868,8 +844,7 @@ vs_wait(sp, continuep, wtype)
  *	Draw a dividing line between the screen and the output.
  */
 static void
-vs_divider(sp)
-	SCR *sp;
+vs_divider(SCR *sp)
 {
 	GS *gp;
 	size_t len;
@@ -888,11 +863,7 @@ vs_divider(sp)
  *	Save a message for later display.
  */
 static void
-vs_msgsave(sp, mt, p, len)
-	SCR *sp;
-	mtype_t mt;
-	char *p;
-	size_t len;
+vs_msgsave(SCR *sp, mtype_t mt, char *p, size_t len)
 {
 	GS *gp;
 	MSGS *mp_c, *mp_n;
@@ -912,11 +883,13 @@ vs_msgsave(sp, mt, p, len)
 	mp_n->mtype = mt;
 
 	gp = sp->gp;
-	if ((mp_c = gp->msgq.lh_first) == NULL) {
-		LIST_INSERT_HEAD(&gp->msgq, mp_n, q);
+	if (SLIST_EMPTY(gp->msgq)) {
+		SLIST_INSERT_HEAD(gp->msgq, mp_n, q);
 	} else {
-		for (; mp_c->q.le_next != NULL; mp_c = mp_c->q.le_next);
-		LIST_INSERT_AFTER(mp_c, mp_n, q);
+		SLIST_FOREACH(mp_c, gp->msgq, q)
+			if (SLIST_NEXT(mp_c, q) == NULL)
+				break;
+		SLIST_INSERT_AFTER(mp_c, mp_n, q);
 	}
 	return;
 

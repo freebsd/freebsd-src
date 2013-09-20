@@ -203,7 +203,7 @@
 0101 0101 0014 8033 d9f8 11d5 bd78 5c13
 5010 269c 8ac7 0000
 
-# 21,32819 ACK "150 Opening ASCII mode data connection for /bin/ls.\r\n"
+# 21,32818 ACK "150 Opening ASCII mode data connection for /bin/ls.\r\n"
 [in,ppp0]
 4500 005d ffe9 4000 ef06 12e1 96cb e002
 0101 0101 0015 8032 3786 78d5 bd6b ca16

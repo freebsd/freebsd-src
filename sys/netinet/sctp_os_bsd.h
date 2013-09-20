@@ -104,6 +104,9 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/ip_options.h>
 
+#include <crypto/sha1.h>
+#include <crypto/sha2/sha2.h>
+
 #ifndef in6pcb
 #define in6pcb		inpcb
 #endif
@@ -429,6 +432,11 @@ typedef struct rtentry sctp_rtentry_t;
 #define SCTP_ZERO_COPY_SENDQ_EVENT(inp, so)
 
 /*
+ * SCTP protocol specific mbuf flags.
+ */
+#define	M_NOTIFICATION		M_PROTO1	/* SCTP notification */
+
+/*
  * IP output routines
  */
 #define SCTP_IP_OUTPUT(result, o_pak, ro, stcb, vrf_id) \
@@ -439,12 +447,14 @@ typedef struct rtentry sctp_rtentry_t;
 	    local_stcb->sctp_ep && \
 	    local_stcb->sctp_ep->sctp_socket) \
 		o_flgs |= local_stcb->sctp_ep->sctp_socket->so_options & SO_DONTROUTE; \
+	m_clrprotoflags(o_pak); \
 	result = ip_output(o_pak, NULL, ro, o_flgs, 0, NULL); \
 }
 
 #define SCTP_IP6_OUTPUT(result, o_pak, ro, ifp, stcb, vrf_id) \
 { \
 	struct sctp_tcb *local_stcb = stcb; \
+	m_clrprotoflags(o_pak); \
 	if (local_stcb && local_stcb->sctp_ep) \
 		result = ip6_output(o_pak, \
 				    ((struct in6pcb *)(local_stcb->sctp_ep))->in6p_outputopts, \
@@ -461,23 +471,18 @@ sctp_get_mbuf_for_msg(unsigned int space_needed,
 /*
  * SCTP AUTH
  */
-#define HAVE_SHA2
-
 #define SCTP_READ_RANDOM(buf, len)	read_random(buf, len)
 
-#ifdef USE_SCTP_SHA1
-#include <netinet/sctp_sha1.h>
-#else
-#include <crypto/sha1.h>
 /* map standard crypto API names */
-#define SHA1_Init	SHA1Init
-#define SHA1_Update	SHA1Update
-#define SHA1_Final(x,y)	SHA1Final((caddr_t)x, y)
-#endif
+#define SCTP_SHA1_CTX		SHA1_CTX
+#define SCTP_SHA1_INIT		SHA1Init
+#define SCTP_SHA1_UPDATE	SHA1Update
+#define SCTP_SHA1_FINAL(x,y)	SHA1Final((caddr_t)x, y)
 
-#if defined(HAVE_SHA2)
-#include <crypto/sha2/sha2.h>
-#endif
+#define SCTP_SHA256_CTX		SHA256_CTX
+#define SCTP_SHA256_INIT	SHA256_Init
+#define SCTP_SHA256_UPDATE	SHA256_Update
+#define SCTP_SHA256_FINAL(x,y)	SHA256_Final((caddr_t)x, y)
 
 #endif
 

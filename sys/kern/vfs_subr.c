@@ -2906,7 +2906,7 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
  */
 DB_SHOW_COMMAND(lockedvnods, lockedvnodes)
 {
-	struct mount *mp, *nmp;
+	struct mount *mp;
 	struct vnode *vp;
 
 	/*
@@ -2916,14 +2916,11 @@ DB_SHOW_COMMAND(lockedvnods, lockedvnodes)
 	 * about that.
 	 */
 	db_printf("Locked vnodes\n");
-	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
-		nmp = TAILQ_NEXT(mp, mnt_list);
+	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
 		TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
-			if (vp->v_type != VMARKER &&
-			    VOP_ISLOCKED(vp))
+			if (vp->v_type != VMARKER && VOP_ISLOCKED(vp))
 				vprint("", vp);
 		}
-		nmp = TAILQ_NEXT(mp, mnt_list);
 	}
 }
 

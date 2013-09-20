@@ -32,7 +32,7 @@
 
 TYPE="FreeBSD"
 REVISION="10.0"
-BRANCH="CURRENT"
+BRANCH="ALPHA2"
 if [ "X${BRANCH_OVERRIDE}" != "X" ]; then
 	BRANCH=${BRANCH_OVERRIDE}
 fi
@@ -88,19 +88,31 @@ v=`cat version` u=${USER:-root} d=`pwd` h=${HOSTNAME:-`hostname`} t=`date`
 i=`${MAKE:-make} -V KERN_IDENT`
 compiler_v=$($(${MAKE:-make} -V CC) -v 2>&1 | grep 'version')
 
-if [ -x /usr/bin/svnliteversion ] ; then
-	svnversion=/usr/bin/svnliteversion
-fi
-
 for dir in /usr/bin /usr/local/bin; do
 	if [ ! -z "${svnversion}" ] ; then
 		break
 	fi
 	if [ -x "${dir}/svnversion" ] && [ -z ${svnversion} ] ; then
-		svnversion=${dir}/svnversion
-		break
+		# Run svnversion from ${dir} on this script; if return code
+		# is not zero, the checkout might not be compatible with the
+		# svnversion being used.
+		${dir}/svnversion $(realpath ${0}) >/dev/null 2>&1
+		if [ $? -eq 0 ]; then
+			svnversion=${dir}/svnversion
+			break
+		fi
 	fi
 done
+
+if [ -z "${svnversion}" ] && [ -x /usr/bin/svnliteversion ] ; then
+	/usr/bin/svnliteversion $(realpath ${0}) >/dev/null 2>&1
+	if [ $? -eq 0 ]; then
+		svnversion=/usr/bin/svnliteversion
+	else
+		svnversion=
+	fi
+fi
+
 for dir in /usr/bin /usr/local/bin; do
 	if [ -x "${dir}/p4" ] && [ -z ${p4_cmd} ] ; then
 		p4_cmd=${dir}/p4

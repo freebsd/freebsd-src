@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
+#include <sys/malloc.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/selinfo.h>
@@ -101,6 +102,26 @@ static void vm_mem_init(void *);
 SYSINIT(vm_mem, SI_SUB_VM, SI_ORDER_FIRST, vm_mem_init, NULL);
 
 /*
+ * Import kva into the kernel arena.
+ */
+static int
+kva_import(void *unused, vmem_size_t size, int flags, vmem_addr_t *addrp)
+{
+	vm_offset_t addr;
+	int result;
+ 
+	addr = vm_map_min(kernel_map);
+	result = vm_map_find(kernel_map, NULL, 0, &addr, size, 0,
+	    VMFS_SUPER_SPACE, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
+	if (result != KERN_SUCCESS)
+                return (ENOMEM);
+
+	*addrp = addr;
+
+	return (0);
+}
+
+/*
  *	vm_init initializes the virtual memory system.
  *	This is done only by the first cpu up.
  *
@@ -111,6 +132,7 @@ static void
 vm_mem_init(dummy)
 	void *dummy;
 {
+
 	/*
 	 * Initializes resident memory structures. From here on, all physical
 	 * memory is accounted for, and we use only virtual addresses.
@@ -125,6 +147,20 @@ vm_mem_init(dummy)
 	vm_object_init();
 	vm_map_startup();
 	kmem_init(virtual_avail, virtual_end);
+
+	/*
+	 * Initialize the kernel_arena.  This can grow on demand.
+	 */
+	vmem_init(kernel_arena, "kernel arena", 0, 0, PAGE_SIZE, 0, 0);
+	vmem_set_import(kernel_arena, kva_import, NULL, NULL,
+#if VM_NRESERVLEVEL > 0
+	    1 << (VM_LEVEL_0_ORDER + PAGE_SHIFT));
+#else
+	    /* On non-superpage architectures want large import sizes. */
+	    PAGE_SIZE * 1024);
+#endif
+
+	kmem_init_zero_region();
 	pmap_init();
 	vm_pager_init();
 }
@@ -138,7 +174,6 @@ vm_ksubmap_init(struct kva_md_info *kmi)
 	long physmem_est;
 	vm_offset_t minaddr;
 	vm_offset_t maxaddr;
-	vm_map_t clean_map;
 
 	/*
 	 * Allocate space for system data structures.
@@ -146,8 +181,6 @@ vm_ksubmap_init(struct kva_md_info *kmi)
 	 * As pages of kernel virtual memory are allocated, "v" is incremented.
 	 * As pages of memory are allocated and cleared,
 	 * "firstaddr" is incremented.
-	 * An index into the kernel page table corresponding to the
-	 * virtual memory address maintained in "v" is kept in "mapaddr".
 	 */
 
 	/*
@@ -173,7 +206,8 @@ again:
 	 */
 	if (firstaddr == 0) {
 		size = (vm_size_t)v;
-		firstaddr = kmem_alloc(kernel_map, round_page(size));
+		firstaddr = kmem_malloc(kernel_arena, round_page(size),
+		    M_ZERO | M_WAITOK);
 		if (firstaddr == 0)
 			panic("startup: no room for tables");
 		goto again;
@@ -185,31 +219,49 @@ again:
 	if ((vm_size_t)((char *)v - firstaddr) != size)
 		panic("startup: table size inconsistency");
 
+	/*
+	 * Allocate the clean map to hold all of the paging and I/O virtual
+	 * memory.
+	 */
 	size = (long)nbuf * BKVASIZE + (long)nswbuf * MAXPHYS +
 	    (long)bio_transient_maxcnt * MAXPHYS;
-	clean_map = kmem_suballoc(kernel_map, &kmi->clean_sva, &kmi->clean_eva,
-	    size, TRUE);
+	kmi->clean_sva = firstaddr = kva_alloc(size);
+	kmi->clean_eva = firstaddr + size;
 
+	/*
+	 * Allocate the buffer arena.
+	 */
 	size = (long)nbuf * BKVASIZE;
-	kmi->buffer_sva = kmem_alloc_nofault(clean_map, size);
+	kmi->buffer_sva = firstaddr;
 	kmi->buffer_eva = kmi->buffer_sva + size;
 	vmem_init(buffer_arena, "buffer arena", kmi->buffer_sva, size,
 	    PAGE_SIZE, 0, 0);
+	firstaddr += size;
 
+	/*
+	 * Now swap kva.
+	 */
+	swapbkva = firstaddr;
 	size = (long)nswbuf * MAXPHYS;
-	swapbkva = kmem_alloc_nofault(clean_map, size);
-	if (!swapbkva)
-		panic("Not enough clean_map VM space for pager buffers");
+	firstaddr += size;
 
+	/*
+	 * And optionally transient bio space.
+	 */
 	if (bio_transient_maxcnt != 0) {
 		size = (long)bio_transient_maxcnt * MAXPHYS;
 		vmem_init(transient_arena, "transient arena",
-		    kmem_alloc_nofault(clean_map, size),
-		    size, PAGE_SIZE, 0, 0);
+		    firstaddr, size, PAGE_SIZE, 0, 0);
+		firstaddr += size;
 	}
+	if (firstaddr != kmi->clean_eva)
+		panic("Clean map calculation incorrect");
+
+	/*
+ 	 * Allocate the pageable submaps.
+	 */
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
 	    exec_map_entries * round_page(PATH_MAX + ARG_MAX), FALSE);
 	pipe_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr, maxpipekva,
 	    FALSE);
 }
-

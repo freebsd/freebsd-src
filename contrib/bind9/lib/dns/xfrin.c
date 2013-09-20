@@ -360,7 +360,7 @@ ixfr_init(dns_xfrin_ctx_t *xfr) {
 	journalfile = dns_zone_getjournal(xfr->zone);
 	if (journalfile != NULL)
 		CHECK(dns_journal_open(xfr->mctx, journalfile,
-				       ISC_TRUE, &xfr->ixfr.journal));
+				       DNS_JOURNAL_CREATE, &xfr->ixfr.journal));
 
 	result = ISC_R_SUCCESS;
  failure:
@@ -631,7 +631,8 @@ dns_xfrin_create2(dns_zone_t *zone, dns_rdatatype_t xfrtype,
 		  isc_sockaddr_t *masteraddr, isc_sockaddr_t *sourceaddr,
 		  dns_tsigkey_t *tsigkey, isc_mem_t *mctx,
 		  isc_timermgr_t *timermgr, isc_socketmgr_t *socketmgr,
-		  isc_task_t *task, dns_xfrindone_t done, dns_xfrin_ctx_t **xfrp)
+		  isc_task_t *task, dns_xfrindone_t done,
+		  dns_xfrin_ctx_t **xfrp)
 {
 	dns_name_t *zonename = dns_zone_getorigin(zone);
 	dns_xfrin_ctx_t *xfr = NULL;

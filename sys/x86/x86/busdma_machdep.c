@@ -544,11 +544,11 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	    dmat->alignment <= PAGE_SIZE &&
 	    (dmat->boundary == 0 || dmat->boundary >= dmat->lowaddr)) {
 		/* Page-based multi-segment allocations allowed */
-		*vaddr = (void *)kmem_alloc_attr(kernel_map, dmat->maxsize,
+		*vaddr = (void *)kmem_alloc_attr(kernel_arena, dmat->maxsize,
 		    mflags, 0ul, dmat->lowaddr, attr);
 		*mapp = &contig_dmamap;
 	} else {
-		*vaddr = (void *)kmem_alloc_contig(kernel_map, dmat->maxsize,
+		*vaddr = (void *)kmem_alloc_contig(kernel_arena, dmat->maxsize,
 		    mflags, 0ul, dmat->lowaddr, dmat->alignment ?
 		    dmat->alignment : 1ul, dmat->boundary, attr);
 		*mapp = &contig_dmamap;
@@ -582,7 +582,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	if (map == NULL)
 		free(vaddr, M_DEVBUF);
 	else
-		kmem_free(kernel_map, (vm_offset_t)vaddr, dmat->maxsize);
+		kmem_free(kernel_arena, (vm_offset_t)vaddr, dmat->maxsize);
 	CTR3(KTR_BUSDMA, "%s: tag %p flags 0x%x", __func__, dmat, dmat->flags);
 }
 

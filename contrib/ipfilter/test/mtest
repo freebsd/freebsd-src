@@ -1,38 +1,20 @@
 #!/bin/sh
+name=$1
 format=$2
-mkdir -p results
-# multiple rules at the same time
 
-if [ -f /usr/ucb/touch ] ; then
-	TOUCH=/usr/ucb/touch
-else
-	if [ -f /usr/bin/touch ] ; then
-		TOUCH=/usr/bin/touch
-	else
-		if [ -f /bin/touch ] ; then
-			TOUCH=/bin/touch
-		fi
-	fi
-fi
-echo "$1...";
+. ./ipflib.sh
+
+test_init
+
+echo "$name...";
 
 /bin/cp /dev/null results/$1
 
-../ipftest -F $format -Rbr regress/$1 -i input/$1 > results/$1
-if [ $? -ne 0 ] ; then
-	exit 1
-fi
-echo "--------" >> results/$1
+../ipftest -F $format $4 -Rbr regress/$name -i input/$name > results/$name &
+back=$!
+wait $back
+test_end_leak $?
+echo "--------" >> results/$name
 
-cmp expected/$1 results/$1
-status=$?
-if [ $status -ne 0 ] ; then
-	exit $status
-fi
-cmp expected/$1 results/$1
-status=$?
-if [ $status -ne 0 ] ; then
-	exit $status
-fi
-$TOUCH $1
-exit 0
+check_results $name
+exit $status

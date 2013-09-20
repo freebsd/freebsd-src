@@ -65,8 +65,8 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 	struct buf *bp, *nbp;
 	struct vnode *vp = ITOV(ip);
 	struct indir indirs[NIADDR + 2];
-	uint32_t nb, newb;
-	int32_t *bap, pref;
+	e4fs_daddr_t nb, newb;
+	e2fs_daddr_t *bap, pref;
 	int osize, nsize, num, i, error;
 
 	*bpp = NULL;
@@ -195,7 +195,7 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 			brelse(bp);
 			return (error);
 		}
-		bap = (int32_t *)bp->b_data;
+		bap = (e2fs_daddr_t *)bp->b_data;
 		nb = bap[indirs[i].in_off];
 		if (i == num)
 			break;

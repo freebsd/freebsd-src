@@ -1073,6 +1073,8 @@ ipoib_remove_one(struct ib_device *device)
 		if (rdma_port_get_link_layer(device, priv->port) != IB_LINK_LAYER_INFINIBAND)
 			continue;
 
+		ipoib_stop(priv);
+
 		ib_unregister_event_handler(&priv->event_handler);
 
 		/* dev_change_flags(priv->dev, priv->dev->flags & ~IFF_UP); */
@@ -1442,7 +1444,7 @@ ipoib_input(struct ifnet *ifp, struct mbuf *m)
 	 * Strip off Infiniband header.
 	 */
 	m->m_flags &= ~M_VLANTAG;
-	m->m_flags &= ~(M_PROTOFLAGS);
+	m_clrprotoflags(m);
 	m_adj(m, IPOIB_HEADER_LEN);
 
 	if (IPOIB_IS_MULTICAST(eh->hwaddr)) {

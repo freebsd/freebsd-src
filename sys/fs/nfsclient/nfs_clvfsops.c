@@ -120,6 +120,7 @@ static vfs_root_t nfs_root;
 static vfs_statfs_t nfs_statfs;
 static vfs_sync_t nfs_sync;
 static vfs_sysctl_t nfs_sysctl;
+static vfs_purge_t nfs_purge;
 
 /*
  * nfs vfs operations.
@@ -134,6 +135,7 @@ static struct vfsops nfs_vfsops = {
 	.vfs_uninit =		ncl_uninit,
 	.vfs_unmount =		nfs_unmount,
 	.vfs_sysctl =		nfs_sysctl,
+	.vfs_purge =		nfs_purge,
 };
 VFS_SET(nfs_vfsops, nfs, VFCF_NETWORK | VFCF_SBDRY);
 
@@ -1673,6 +1675,19 @@ nfs_sysctl(struct mount *mp, fsctlop_t op, struct sysctl_req *req)
 		return (ENOTSUP);
 	}
 	return (0);
+}
+
+/*
+ * Purge any RPCs in progress, so that they will all return errors.
+ * This allows dounmount() to continue as far as VFS_UNMOUNT() for a
+ * forced dismount.
+ */
+static void
+nfs_purge(struct mount *mp)
+{
+	struct nfsmount *nmp = VFSTONFS(mp);
+
+	newnfs_nmcancelreqs(nmp);
 }
 
 /*

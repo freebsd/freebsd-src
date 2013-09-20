@@ -1648,6 +1648,8 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	 * has asked for, but we always tell userland how big the
 	 * buffer really needs to be.
 	 */
+	if (msfr.msfr_nsrcs > in_mcast_maxsocksrc)
+		msfr.msfr_nsrcs = in_mcast_maxsocksrc;
 	tss = NULL;
 	if (msfr.msfr_srcs != NULL && msfr.msfr_nsrcs > 0) {
 		tss = malloc(sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs,

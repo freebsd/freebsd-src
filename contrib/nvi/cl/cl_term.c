@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)cl_term.c	10.22 (Berkeley) 9/15/96";
+static const char sccsid[] = "$Id: cl_term.c,v 10.33 2012/04/21 23:51:46 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -19,13 +19,15 @@ static const char sccsid[] = "@(#)cl_term.c	10.22 (Berkeley) 9/15/96";
 #include <sys/stat.h>
 
 #include <bitstring.h>
-#include <curses.h>
 #include <errno.h>
 #include <limits.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef HAVE_TERM_H
+#include <term.h>
+#endif
 #include <termios.h>
 #include <unistd.h>
 
@@ -82,20 +84,30 @@ static TKLIST const m2_tklist[] = {	/* Input mappings (set or delete). */
  * PUBLIC: int cl_term_init __P((SCR *));
  */
 int
-cl_term_init(sp)
-	SCR *sp;
+cl_term_init(SCR *sp)
 {
 	KEYLIST *kp;
 	SEQ *qp;
 	TKLIST const *tkp;
 	char *t;
+	CHAR_T name[60];
+	CHAR_T output[5];
+	CHAR_T ts[20];
+	CHAR_T *wp;
+	size_t wlen;
 
 	/* Command mappings. */
 	for (tkp = c_tklist; tkp->name != NULL; ++tkp) {
 		if ((t = tigetstr(tkp->ts)) == NULL || t == (char *)-1)
 			continue;
-		if (seq_set(sp, tkp->name, strlen(tkp->name), t, strlen(t),
-		    tkp->output, strlen(tkp->output), SEQ_COMMAND,
+		CHAR2INT(sp, tkp->name, strlen(tkp->name), wp, wlen);
+		MEMCPY(name, wp, wlen);
+		CHAR2INT(sp, t, strlen(t), wp, wlen);
+		MEMCPY(ts, wp, wlen);
+		CHAR2INT(sp, tkp->output, strlen(tkp->output), wp, wlen);
+		MEMCPY(output, wp, wlen);
+		if (seq_set(sp, name, strlen(tkp->name), ts, strlen(t),
+		    output, strlen(tkp->output), SEQ_COMMAND,
 		    SEQ_NOOVERWRITE | SEQ_SCREEN))
 			return (1);
 	}
@@ -109,8 +121,13 @@ cl_term_init(sp)
 				break;
 		if (kp == NULL)
 			continue;
-		if (seq_set(sp, tkp->name, strlen(tkp->name), t, strlen(t),
-		    &kp->ch, 1, SEQ_INPUT, SEQ_NOOVERWRITE | SEQ_SCREEN))
+		CHAR2INT(sp, tkp->name, strlen(tkp->name), wp, wlen);
+		MEMCPY(name, wp, wlen);
+		CHAR2INT(sp, t, strlen(t), wp, wlen);
+		MEMCPY(ts, wp, wlen);
+		output[0] = (UCHAR_T)kp->ch;
+		if (seq_set(sp, name, strlen(tkp->name), ts, strlen(t),
+		    output, 1, SEQ_INPUT, SEQ_NOOVERWRITE | SEQ_SCREEN))
 			return (1);
 	}
 
@@ -128,22 +145,33 @@ cl_term_init(sp)
 		if (!strcmp(t, "\b"))
 			continue;
 		if (tkp->output == NULL) {
-			if (seq_set(sp, tkp->name, strlen(tkp->name),
-			    t, strlen(t), NULL, 0,
+			CHAR2INT(sp, tkp->name, strlen(tkp->name), wp, wlen);
+			MEMCPY(name, wp, wlen);
+			CHAR2INT(sp, t, strlen(t), wp, wlen);
+			MEMCPY(ts, wp, wlen);
+			if (seq_set(sp, name, strlen(tkp->name),
+			    ts, strlen(t), NULL, 0,
 			    SEQ_INPUT, SEQ_NOOVERWRITE | SEQ_SCREEN))
 				return (1);
-		} else
-			if (seq_set(sp, tkp->name, strlen(tkp->name),
-			    t, strlen(t), tkp->output, strlen(tkp->output),
+		} else {
+			CHAR2INT(sp, tkp->name, strlen(tkp->name), wp, wlen);
+			MEMCPY(name, wp, wlen);
+			CHAR2INT(sp, t, strlen(t), wp, wlen);
+			MEMCPY(ts, wp, wlen);
+			CHAR2INT(sp, tkp->output, strlen(tkp->output), wp, wlen);
+			MEMCPY(output, wp, wlen);
+			if (seq_set(sp, name, strlen(tkp->name),
+			    ts, strlen(t), output, strlen(tkp->output),
 			    SEQ_INPUT, SEQ_NOOVERWRITE | SEQ_SCREEN))
 				return (1);
+		}
 	}
 
 	/*
 	 * Rework any function key mappings that were set before the
 	 * screen was initialized.
 	 */
-	for (qp = sp->gp->seqq.lh_first; qp != NULL; qp = qp->q.le_next)
+	SLIST_FOREACH(qp, sp->gp->seqq, q)
 		if (F_ISSET(qp, SEQ_FUNCMAP))
 			(void)cl_pfmap(sp, qp->stype,
 			    qp->input, qp->ilen, qp->output, qp->olen);
@@ -157,17 +185,16 @@ cl_term_init(sp)
  * PUBLIC: int cl_term_end __P((GS *));
  */
 int
-cl_term_end(gp)
-	GS *gp;
+cl_term_end(GS *gp)
 {
 	SEQ *qp, *nqp;
 
 	/* Delete screen specific mappings. */
-	for (qp = gp->seqq.lh_first; qp != NULL; qp = nqp) {
-		nqp = qp->q.le_next;
-		if (F_ISSET(qp, SEQ_SCREEN))
-			(void)seq_mdel(qp);
-	}
+	SLIST_FOREACH_SAFE(qp, gp->seqq, q, nqp)
+		if (F_ISSET(qp, SEQ_SCREEN)) {
+			SLIST_REMOVE_HEAD(gp->seqq, q);
+			(void)seq_free(qp);
+		}
 	return (0);
 }
 
@@ -178,11 +205,7 @@ cl_term_end(gp)
  * PUBLIC: int cl_fmap __P((SCR *, seq_t, CHAR_T *, size_t, CHAR_T *, size_t));
  */
 int
-cl_fmap(sp, stype, from, flen, to, tlen)
-	SCR *sp;
-	seq_t stype;
-	CHAR_T *from, *to;
-	size_t flen, tlen;
+cl_fmap(SCR *sp, seq_t stype, CHAR_T *from, size_t flen, CHAR_T *to, size_t tlen)
 {
 	/* Ignore until the screen is running, do the real work then. */
 	if (F_ISSET(sp, SC_VI) && !F_ISSET(sp, SC_SCR_VI))
@@ -198,28 +221,33 @@ cl_fmap(sp, stype, from, flen, to, tlen)
  *	Map a function key (private version).
  */
 static int
-cl_pfmap(sp, stype, from, flen, to, tlen)
-	SCR *sp;
-	seq_t stype;
-	CHAR_T *from, *to;
-	size_t flen, tlen;
+cl_pfmap(SCR *sp, seq_t stype, CHAR_T *from, size_t flen, CHAR_T *to, size_t tlen)
 {
 	size_t nlen;
-	char *p, keyname[64];
+	char *p;
+	char name[64];
+	CHAR_T keyname[64];
+	CHAR_T ts[20];
+	CHAR_T *wp;
+	size_t wlen;
 
-	(void)snprintf(keyname, sizeof(keyname), "kf%d", atoi(from + 1));
-	if ((p = tigetstr(keyname)) == NULL ||
+	(void)snprintf(name, sizeof(name), "kf%d", 
+			(int)STRTOL(from+1,NULL,10));
+	if ((p = tigetstr(name)) == NULL ||
 	    p == (char *)-1 || strlen(p) == 0)
 		p = NULL;
 	if (p == NULL) {
-		msgq_str(sp, M_ERR, from, "233|This terminal has no %s key");
+		msgq_wstr(sp, M_ERR, from, "233|This terminal has no %s key");
 		return (1);
 	}
 
-	nlen = snprintf(keyname,
-	    sizeof(keyname), "function key %d", atoi(from + 1));
+	nlen = SPRINTF(keyname,
+	    SIZE(keyname), L("function key %d"), 
+			(int)STRTOL(from+1,NULL,10));
+	CHAR2INT(sp, p, strlen(p), wp, wlen);
+	MEMCPY(ts, wp, wlen);
 	return (seq_set(sp, keyname, nlen,
-	    p, strlen(p), to, tlen, stype, SEQ_NOOVERWRITE | SEQ_SCREEN));
+	    ts, strlen(p), to, tlen, stype, SEQ_NOOVERWRITE | SEQ_SCREEN));
 }
 
 /*
@@ -229,11 +257,7 @@ cl_pfmap(sp, stype, from, flen, to, tlen)
  * PUBLIC: int cl_optchange __P((SCR *, int, char *, u_long *));
  */
 int
-cl_optchange(sp, opt, str, valp)
-	SCR *sp;
-	int opt;
-	char *str;
-	u_long *valp;
+cl_optchange(SCR *sp, int opt, char *str, u_long *valp)
 {
 	CL_PRIVATE *clp;
 
@@ -251,14 +275,10 @@ cl_optchange(sp, opt, str, valp)
 		F_CLR(sp, SC_SCR_EX | SC_SCR_VI);
 		break;
 	case O_MESG:
-		(void)cl_omesg(sp, clp, !*valp);
+		(void)cl_omesg(sp, clp, *valp);
 		break;
 	case O_WINDOWNAME:
 		if (*valp) {
-			F_CLR(clp, CL_RENAME_OK);
-
-			(void)cl_rename(sp, NULL, 0);
-		} else {
 			F_SET(clp, CL_RENAME_OK);
 
 			/*
@@ -267,6 +287,10 @@ cl_optchange(sp, opt, str, valp)
 			 */
 			if (sp->frp != NULL && sp->frp->name != NULL)
 				(void)cl_rename(sp, sp->frp->name, 1);
+		} else {
+			F_CLR(clp, CL_RENAME_OK);
+
+			(void)cl_rename(sp, NULL, 0);
 		}
 		break;
 	}
@@ -280,10 +304,7 @@ cl_optchange(sp, opt, str, valp)
  * PUBLIC: int cl_omesg __P((SCR *, CL_PRIVATE *, int));
  */
 int
-cl_omesg(sp, clp, on)
-	SCR *sp;
-	CL_PRIVATE *clp;
-	int on;
+cl_omesg(SCR *sp, CL_PRIVATE *clp, int on)
 {
 	struct stat sb;
 	char *tty;
@@ -329,15 +350,9 @@ cl_omesg(sp, clp, on)
  * PUBLIC: int cl_ssize __P((SCR *, int, size_t *, size_t *, int *));
  */
 int
-cl_ssize(sp, sigwinch, rowp, colp, changedp)
-	SCR *sp;
-	int sigwinch;
-	size_t *rowp, *colp;
-	int *changedp;
+cl_ssize(SCR *sp, int sigwinch, size_t *rowp, size_t *colp, int *changedp)
 {
-#ifdef TIOCGWINSZ
 	struct winsize win;
-#endif
 	size_t col, row;
 	int rval;
 	char *p;
@@ -358,12 +373,10 @@ cl_ssize(sp, sigwinch, rowp, colp, changedp)
 	 * Try TIOCGWINSZ.
 	 */
 	row = col = 0;
-#ifdef TIOCGWINSZ
 	if (ioctl(STDERR_FILENO, TIOCGWINSZ, &win) != -1) {
 		row = win.ws_row;
 		col = win.ws_col;
 	}
-#endif
 	/* If here because of suspend or a signal, only trust TIOCGWINSZ. */
 	if (sigwinch) {
 		/*
@@ -453,8 +466,7 @@ noterm:	if (row == 0)
  * PUBLIC: int cl_putchar __P((int));
  */
 int
-cl_putchar(ch)
-	int ch;
+cl_putchar(int ch)
 {
 	return (putchar(ch));
 }

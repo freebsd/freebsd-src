@@ -718,18 +718,6 @@ keg_free_slab(uma_keg_t keg, uma_slab_t slab, int start)
 			keg->uk_fini(slab->us_data + (keg->uk_rsize * i),
 			    keg->uk_size);
 	}
-	if (keg->uk_flags & UMA_ZONE_VTOSLAB) {
-		vm_object_t obj;
-
-		if (flags & UMA_SLAB_KMEM)
-			obj = kmem_object;
-		else if (flags & UMA_SLAB_KERNEL)
-			obj = kernel_object;
-		else
-			obj = NULL;
-		for (i = 0; i < keg->uk_ppera; i++)
-			vsetobj((vm_offset_t)mem + (i * PAGE_SIZE), obj);
-	}
 	if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 		zone_free_item(keg->uk_slabzone, slab, NULL, SKIP_NONE);
 #ifdef UMA_DEBUG
@@ -792,7 +780,7 @@ finished:
 
 	while ((slab = SLIST_FIRST(&freeslabs)) != NULL) {
 		SLIST_REMOVE(&freeslabs, slab, uma_slab, us_hlink);
-		keg_free_slab(keg, slab, 0);
+		keg_free_slab(keg, slab, keg->uk_ipers);
 	}
 }
 
@@ -1015,7 +1003,7 @@ page_alloc(uma_zone_t zone, int bytes, uint8_t *pflag, int wait)
 	void *p;	/* Returned page */
 
 	*pflag = UMA_SLAB_KMEM;
-	p = (void *) kmem_malloc(kmem_map, bytes, wait);
+	p = (void *) kmem_malloc(kmem_arena, bytes, wait);
 
 	return (p);
 }
@@ -1097,16 +1085,16 @@ noobj_alloc(uma_zone_t zone, int bytes, uint8_t *flags, int wait)
 static void
 page_free(void *mem, int size, uint8_t flags)
 {
-	vm_map_t map;
+	struct vmem *vmem;
 
 	if (flags & UMA_SLAB_KMEM)
-		map = kmem_map;
+		vmem = kmem_arena;
 	else if (flags & UMA_SLAB_KERNEL)
-		map = kernel_map;
+		vmem = kernel_arena;
 	else
 		panic("UMA: page_free used with invalid flags %d", flags);
 
-	kmem_free(map, (vm_offset_t)mem, size);
+	kmem_free(vmem, (vm_offset_t)mem, size);
 }
 
 /*
@@ -2983,7 +2971,7 @@ uma_zone_reserve_kva(uma_zone_t zone, int count)
 #else
 	if (1) {
 #endif
-		kva = kmem_alloc_nofault(kernel_map, pages * UMA_SLAB_SIZE);
+		kva = kva_alloc(pages * UMA_SLAB_SIZE);
 		if (kva == 0)
 			return (0);
 	} else
@@ -3112,7 +3100,7 @@ uma_large_malloc(int size, int wait)
 void
 uma_large_free(uma_slab_t slab)
 {
-	vsetobj((vm_offset_t)slab->us_data, kmem_object);
+
 	page_free(slab->us_data, slab->us_size, slab->us_flags);
 	zone_free_item(slabzone, slab, NULL, SKIP_NONE);
 }

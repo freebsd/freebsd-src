@@ -74,6 +74,7 @@ struct dns_master_style {
 	unsigned int rdata_column;
 	unsigned int line_length;
 	unsigned int tab_width;
+	unsigned int split_width;
 };
 
 /*%
@@ -108,15 +109,16 @@ dns_master_style_default = {
 	DNS_STYLEFLAG_OMIT_TTL |
 	DNS_STYLEFLAG_TTL |
 	DNS_STYLEFLAG_COMMENT |
+	DNS_STYLEFLAG_RRCOMMENT |
 	DNS_STYLEFLAG_MULTILINE,
-	24, 24, 24, 32, 80, 8
+	24, 24, 24, 32, 80, 8, UINT_MAX
 };
 
 LIBDNS_EXTERNAL_DATA const dns_master_style_t
 dns_master_style_full = {
 	DNS_STYLEFLAG_COMMENT |
 	DNS_STYLEFLAG_RESIGN,
-	46, 46, 46, 64, 120, 8
+	46, 46, 46, 64, 120, 8, UINT_MAX
 };
 
 LIBDNS_EXTERNAL_DATA const dns_master_style_t
@@ -126,8 +128,9 @@ dns_master_style_explicitttl = {
 	DNS_STYLEFLAG_REL_OWNER |
 	DNS_STYLEFLAG_REL_DATA |
 	DNS_STYLEFLAG_COMMENT |
+	DNS_STYLEFLAG_RRCOMMENT |
 	DNS_STYLEFLAG_MULTILINE,
-	24, 32, 32, 40, 80, 8
+	24, 32, 32, 40, 80, 8, UINT_MAX
 };
 
 LIBDNS_EXTERNAL_DATA const dns_master_style_t
@@ -137,13 +140,13 @@ dns_master_style_cache = {
 	DNS_STYLEFLAG_MULTILINE |
 	DNS_STYLEFLAG_TRUST |
 	DNS_STYLEFLAG_NCACHE,
-	24, 32, 32, 40, 80, 8
+	24, 32, 32, 40, 80, 8, UINT_MAX
 };
 
 LIBDNS_EXTERNAL_DATA const dns_master_style_t
 dns_master_style_simple = {
 	0,
-	24, 32, 32, 40, 80, 8
+	24, 32, 32, 40, 80, 8, UINT_MAX
 };
 
 /*%
@@ -152,7 +155,7 @@ dns_master_style_simple = {
 LIBDNS_EXTERNAL_DATA const dns_master_style_t
 dns_master_style_debug = {
 	DNS_STYLEFLAG_REL_OWNER,
-	24, 32, 40, 48, 80, 8
+	24, 32, 40, 48, 80, 8, UINT_MAX
 };
 
 
@@ -185,6 +188,7 @@ struct dns_dumpctx {
 	char			*file;
 	char 			*tmpfile;
 	dns_masterformat_t	format;
+	dns_masterrawheader_t	header;
 	isc_result_t		(*dumpsets)(isc_mem_t *mctx, dns_name_t *name,
 					    dns_rdatasetiter_t *rdsiter,
 					    dns_totext_ctx_t *ctx,
@@ -373,7 +377,7 @@ ncache_summary(dns_rdataset_t *rdataset, isc_boolean_t omit_final_dot,
 				dns_rdataset_current(&rds, &rdata);
 				CHECK(str_totext(" ", target));
 				CHECK(dns_rdata_tofmttext(&rdata, dns_rootname,
-							  0, 0, " ", target));
+							  0, 0, 0, " ", target));
 				CHECK(str_totext("\n", target));
 			}
 		}
@@ -533,6 +537,7 @@ rdataset_totext(dns_rdataset_t *rdataset,
 						   ctx->style.flags,
 						   ctx->style.line_length -
 						       ctx->style.rdata_column,
+						   ctx->style.split_width,
 						   ctx->linebreak,
 						   target));
 
@@ -1147,20 +1152,52 @@ dns_dumpctx_cancel(dns_dumpctx_t *dctx) {
 }
 
 static isc_result_t
+flushandsync(FILE *f, isc_result_t result, const char *temp) {
+	isc_boolean_t logit = ISC_TF(result == ISC_R_SUCCESS);
+
+	if (result == ISC_R_SUCCESS)
+		result = isc_stdio_flush(f);
+	if (result != ISC_R_SUCCESS && logit) {
+		if (temp != NULL)
+			isc_log_write(dns_lctx, ISC_LOGCATEGORY_GENERAL,
+				      DNS_LOGMODULE_MASTERDUMP, ISC_LOG_ERROR,
+				      "dumping to master file: %s: flush: %s",
+				      temp, isc_result_totext(result));
+		else
+			isc_log_write(dns_lctx, ISC_LOGCATEGORY_GENERAL,
+				      DNS_LOGMODULE_MASTERDUMP, ISC_LOG_ERROR,
+				      "dumping to stream: flush: %s",
+				      isc_result_totext(result));
+		logit = ISC_FALSE;
+	}
+
+	if (result == ISC_R_SUCCESS)
+		result = isc_stdio_sync(f);
+	if (result != ISC_R_SUCCESS && logit) {
+		if (temp != NULL)
+			isc_log_write(dns_lctx, ISC_LOGCATEGORY_GENERAL,
+				      DNS_LOGMODULE_MASTERDUMP, ISC_LOG_ERROR,
+				      "dumping to master file: %s: fsync: %s",
+				      temp, isc_result_totext(result));
+		else
+			isc_log_write(dns_lctx, ISC_LOGCATEGORY_GENERAL,
+				      DNS_LOGMODULE_MASTERDUMP, ISC_LOG_ERROR,
+				      "dumping to stream: fsync: %s",
+				      isc_result_totext(result));
+	}
+	return (result);
+}
+
+static isc_result_t
 closeandrename(FILE *f, isc_result_t result, const char *temp, const char *file)
 {
 	isc_result_t tresult;
 	isc_boolean_t logit = ISC_TF(result == ISC_R_SUCCESS);
 
-	if (result == ISC_R_SUCCESS)
-		result = isc_stdio_sync(f);
-	if (result != ISC_R_SUCCESS && logit) {
-		isc_log_write(dns_lctx, ISC_LOGCATEGORY_GENERAL,
-			      DNS_LOGMODULE_MASTERDUMP, ISC_LOG_ERROR,
-			      "dumping master file: %s: fsync: %s",
-			      temp, isc_result_totext(result));
+	result = flushandsync(f, result, temp);
+	if (result != ISC_R_SUCCESS)
 		logit = ISC_FALSE;
-	}
+
 	tresult = isc_stdio_close(f);
 	if (result == ISC_R_SUCCESS)
 		result = tresult;
@@ -1208,7 +1245,8 @@ dump_quantum(isc_task_t *task, isc_event_t *event) {
 					 dctx->tmpfile, dctx->file);
 		if (tresult != ISC_R_SUCCESS && result == ISC_R_SUCCESS)
 			result = tresult;
-	}
+	} else
+		result = flushandsync(dctx->f, result, NULL);
 	(dctx->done)(dctx->done_arg, result);
 	isc_event_free(&event);
 	dns_dumpctx_detach(&dctx);
@@ -1229,7 +1267,7 @@ task_send(dns_dumpctx_t *dctx) {
 static isc_result_t
 dumpctx_create(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *version,
 	       const dns_master_style_t *style, FILE *f, dns_dumpctx_t **dctxp,
-	       dns_masterformat_t format)
+	       dns_masterformat_t format, dns_masterrawheader_t *header)
 {
 	dns_dumpctx_t *dctx;
 	isc_result_t result;
@@ -1253,6 +1291,10 @@ dumpctx_create(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *version,
 	dctx->file = NULL;
 	dctx->tmpfile = NULL;
 	dctx->format = format;
+	if (header == NULL)
+		dns_master_initrawheader(&dctx->header);
+	else
+		dctx->header = *header;
 
 	switch (format) {
 	case dns_masterformat_text:
@@ -1320,7 +1362,7 @@ dumptostreaminc(dns_dumpctx_t *dctx) {
 	dns_fixedname_t fixname;
 	unsigned int nodes;
 	dns_masterrawheader_t rawheader;
-	isc_uint32_t now32;
+	isc_uint32_t rawversion, now32;
 	isc_time_t start;
 
 	bufmem = isc_mem_get(dctx->mctx, initial_buffer_length);
@@ -1355,8 +1397,6 @@ dumptostreaminc(dns_dumpctx_t *dctx) {
 			r.base = (unsigned char *)&rawheader;
 			r.length = sizeof(rawheader);
 			isc_buffer_region(&buffer, &r);
-			isc_buffer_putuint32(&buffer, dns_masterformat_raw);
-			isc_buffer_putuint32(&buffer, DNS_RAWFORMAT_VERSION);
 #if !defined(STDTIME_ON_32BITS) || (STDTIME_ON_32BITS + 0) != 1
 			/*
 			 * We assume isc_stdtime_t is a 32-bit integer,
@@ -1375,7 +1415,22 @@ dumptostreaminc(dns_dumpctx_t *dctx) {
 #else
 			now32 = dctx->now;
 #endif
+			rawversion = 1;
+			if ((dctx->header.flags & DNS_MASTERRAW_COMPAT) != 0)
+				rawversion = 0;
+			isc_buffer_putuint32(&buffer, dns_masterformat_raw);
+			isc_buffer_putuint32(&buffer, rawversion);
 			isc_buffer_putuint32(&buffer, now32);
+
+			if (rawversion == 1) {
+				isc_buffer_putuint32(&buffer,
+						     dctx->header.flags);
+				isc_buffer_putuint32(&buffer,
+						     dctx->header.sourceserial);
+				isc_buffer_putuint32(&buffer,
+						     dctx->header.lastxfrin);
+			}
+
 			INSIST(isc_buffer_usedlength(&buffer) <=
 			       sizeof(rawheader));
 			result = isc_stdio_write(buffer.base, 1,
@@ -1494,7 +1549,7 @@ dns_master_dumptostreaminc(isc_mem_t *mctx, dns_db_t *db,
 	REQUIRE(done != NULL);
 
 	result = dumpctx_create(mctx, db, version, style, f, &dctx,
-				dns_masterformat_text);
+				dns_masterformat_text, NULL);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 	isc_task_attach(task, &dctx->task);
@@ -1521,8 +1576,8 @@ dns_master_dumptostream(isc_mem_t *mctx, dns_db_t *db,
 			const dns_master_style_t *style,
 			FILE *f)
 {
-	return (dns_master_dumptostream2(mctx, db, version, style,
-					 dns_masterformat_text, f));
+	return (dns_master_dumptostream3(mctx, db, version, style,
+					 dns_masterformat_text, NULL, f));
 }
 
 isc_result_t
@@ -1531,16 +1586,30 @@ dns_master_dumptostream2(isc_mem_t *mctx, dns_db_t *db,
 			 const dns_master_style_t *style,
 			 dns_masterformat_t format, FILE *f)
 {
+	return (dns_master_dumptostream3(mctx, db, version, style,
+					 format, NULL, f));
+}
+
+isc_result_t
+dns_master_dumptostream3(isc_mem_t *mctx, dns_db_t *db,
+			 dns_dbversion_t *version,
+			 const dns_master_style_t *style,
+			 dns_masterformat_t format,
+			 dns_masterrawheader_t *header, FILE *f)
+{
 	dns_dumpctx_t *dctx = NULL;
 	isc_result_t result;
 
-	result = dumpctx_create(mctx, db, version, style, f, &dctx, format);
+	result = dumpctx_create(mctx, db, version, style, f, &dctx,
+				format, header);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
 	result = dumptostreaminc(dctx);
 	INSIST(result != DNS_R_CONTINUE);
 	dns_dumpctx_detach(&dctx);
+
+	result = flushandsync(f, result, NULL);
 	return (result);
 }
 
@@ -1587,9 +1656,9 @@ dns_master_dumpinc(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *version,
 		   isc_task_t *task, dns_dumpdonefunc_t done, void *done_arg,
 		   dns_dumpctx_t **dctxp)
 {
-	return (dns_master_dumpinc2(mctx, db, version, style, filename, task,
+	return (dns_master_dumpinc3(mctx, db, version, style, filename, task,
 				    done, done_arg, dctxp,
-				    dns_masterformat_text));
+				    dns_masterformat_text, NULL));
 }
 
 isc_result_t
@@ -1597,6 +1666,17 @@ dns_master_dumpinc2(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *version,
 		    const dns_master_style_t *style, const char *filename,
 		    isc_task_t *task, dns_dumpdonefunc_t done, void *done_arg,
 		    dns_dumpctx_t **dctxp, dns_masterformat_t format)
+{
+	return (dns_master_dumpinc3(mctx, db, version, style, filename, task,
+				    done, done_arg, dctxp, format, NULL));
+}
+
+isc_result_t
+dns_master_dumpinc3(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *version,
+		    const dns_master_style_t *style, const char *filename,
+		    isc_task_t *task, dns_dumpdonefunc_t done, void *done_arg,
+		    dns_dumpctx_t **dctxp, dns_masterformat_t format,
+		    dns_masterrawheader_t *header)
 {
 	FILE *f = NULL;
 	isc_result_t result;
@@ -1612,7 +1692,8 @@ dns_master_dumpinc2(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *version,
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 
-	result = dumpctx_create(mctx, db, version, style, f, &dctx, format);
+	result = dumpctx_create(mctx, db, version, style, f, &dctx,
+				format, header);
 	if (result != ISC_R_SUCCESS) {
 		(void)isc_stdio_close(f);
 		(void)isc_file_remove(tempname);
@@ -1648,14 +1729,23 @@ isc_result_t
 dns_master_dump(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *version,
 		const dns_master_style_t *style, const char *filename)
 {
-	return (dns_master_dump2(mctx, db, version, style, filename,
-				 dns_masterformat_text));
+	return (dns_master_dump3(mctx, db, version, style, filename,
+				 dns_masterformat_text, NULL));
 }
 
 isc_result_t
 dns_master_dump2(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *version,
 		 const dns_master_style_t *style, const char *filename,
 		 dns_masterformat_t format)
+{
+	return (dns_master_dump3(mctx, db, version, style, filename,
+				 format, NULL));
+}
+
+isc_result_t
+dns_master_dump3(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *version,
+		 const dns_master_style_t *style, const char *filename,
+		 dns_masterformat_t format, dns_masterrawheader_t *header)
 {
 	FILE *f = NULL;
 	isc_result_t result;
@@ -1666,7 +1756,8 @@ dns_master_dump2(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *version,
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
-	result = dumpctx_create(mctx, db, version, style, f, &dctx, format);
+	result = dumpctx_create(mctx, db, version, style, f, &dctx,
+				format, header);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 
@@ -1777,6 +1868,19 @@ dns_master_stylecreate(dns_master_style_t **stylep, unsigned int flags,
 		       unsigned int line_length, unsigned int tab_width,
 		       isc_mem_t *mctx)
 {
+	return (dns_master_stylecreate2(stylep, flags, ttl_column,
+					class_column, type_column,
+					rdata_column, line_length,
+					tab_width, 0xffffffff, mctx));
+}
+
+isc_result_t
+dns_master_stylecreate2(dns_master_style_t **stylep, unsigned int flags,
+			unsigned int ttl_column, unsigned int class_column,
+			unsigned int type_column, unsigned int rdata_column,
+			unsigned int line_length, unsigned int tab_width,
+			unsigned int split_width, isc_mem_t *mctx)
+{
 	dns_master_style_t *style;
 
 	REQUIRE(stylep != NULL && *stylep == NULL);
@@ -1791,6 +1895,7 @@ dns_master_stylecreate(dns_master_style_t **stylep, unsigned int flags,
 	style->rdata_column = rdata_column;
 	style->line_length = line_length;
 	style->tab_width = tab_width;
+	style->split_width = split_width;
 
 	*stylep = style;
 	return (ISC_R_SUCCESS);

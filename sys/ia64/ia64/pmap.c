@@ -622,6 +622,8 @@ pmap_free_rid(uint32_t rid)
 void
 pmap_pinit0(struct pmap *pmap)
 {
+
+	PMAP_LOCK_INIT(pmap);
 	/* kernel_pmap is the same as any other pmap. */
 	pmap_pinit(pmap);
 }
@@ -635,7 +637,6 @@ pmap_pinit(struct pmap *pmap)
 {
 	int i;
 
-	PMAP_LOCK_INIT(pmap);
 	for (i = 0; i < IA64_VM_MINKERN_REGION; i++)
 		pmap->pm_rid[i] = pmap_allocate_rid();
 	TAILQ_INIT(&pmap->pm_pvchunk);
@@ -660,7 +661,6 @@ pmap_release(pmap_t pmap)
 	for (i = 0; i < IA64_VM_MINKERN_REGION; i++)
 		if (pmap->pm_rid[i])
 			pmap_free_rid(pmap->pm_rid[i]);
-	PMAP_LOCK_DESTROY(pmap);
 }
 
 /*
@@ -1677,7 +1677,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 
 	va &= ~PAGE_MASK;
  	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
-	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) != 0 || vm_page_xbusied(m),
 	    ("pmap_enter: page %p is not busy", m));
 
 	/*
@@ -2234,13 +2234,12 @@ pmap_is_modified(vm_page_t m)
 	rv = FALSE;
 
 	/*
-	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be
+	 * If the page is not exclusive busied, then PGA_WRITEABLE cannot be
 	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no PTEs can be dirty.
 	 */
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->aflags & PGA_WRITEABLE) == 0)
+	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return (rv);
 	rw_wlock(&pvh_global_lock);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
@@ -2311,6 +2310,50 @@ pmap_is_referenced(vm_page_t m)
 }
 
 /*
+ *	Apply the given advice to the specified range of addresses within the
+ *	given pmap.  Depending on the advice, clear the referenced and/or
+ *	modified flags in each mapping and set the mapped page's dirty field.
+ */
+void
+pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
+{
+	struct ia64_lpte *pte;
+	pmap_t oldpmap;
+	vm_page_t m;
+
+	PMAP_LOCK(pmap);
+	oldpmap = pmap_switch(pmap);
+	for (; sva < eva; sva += PAGE_SIZE) {
+		/* If page is invalid, skip this page. */
+		pte = pmap_find_vhpt(sva);
+		if (pte == NULL)
+			continue;
+
+		/* If it isn't managed, skip it too. */
+		if (!pmap_managed(pte))
+			continue;
+
+		/* Clear its modified and referenced bits. */
+		if (pmap_dirty(pte)) {
+			if (advice == MADV_DONTNEED) {
+				/*
+				 * Future calls to pmap_is_modified() can be
+				 * avoided by making the page dirty now.
+				 */
+				m = PHYS_TO_VM_PAGE(pmap_ppn(pte));
+				vm_page_dirty(m);
+			}
+			pmap_clear_dirty(pte);
+		} else if (!pmap_accessed(pte))
+			continue;
+		pmap_clear_accessed(pte);
+		pmap_invalidate_page(sva);
+	}
+	pmap_switch(oldpmap);
+	PMAP_UNLOCK(pmap);
+}
+
+/*
  *	Clear the modify bits on the specified physical page.
  */
 void
@@ -2323,13 +2366,13 @@ pmap_clear_modify(vm_page_t m)
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_modify: page %p is not managed", m));
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	KASSERT((m->oflags & VPO_BUSY) == 0,
-	    ("pmap_clear_modify: page %p is busy", m));
+	KASSERT(!vm_page_xbusied(m),
+	    ("pmap_clear_modify: page %p is exclusive busied", m));
 
 	/*
 	 * If the page is not PGA_WRITEABLE, then no PTEs can be modified.
 	 * If the object containing the page is locked and the page is not
-	 * VPO_BUSY, then PGA_WRITEABLE cannot be concurrently set.
+	 * exclusive busied, then PGA_WRITEABLE cannot be concurrently set.
 	 */
 	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
@@ -2396,13 +2439,12 @@ pmap_remove_write(vm_page_t m)
 	    ("pmap_remove_write: page %p is not managed", m));
 
 	/*
-	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be set by
-	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
-	 * is clear, no page table entries need updating.
+	 * If the page is not exclusive busied, then PGA_WRITEABLE cannot be
+	 * set by another thread while the object is locked.  Thus,
+	 * if PGA_WRITEABLE is clear, no page table entries need updating.
 	 */
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->aflags & PGA_WRITEABLE) == 0)
+	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	rw_wlock(&pvh_global_lock);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {

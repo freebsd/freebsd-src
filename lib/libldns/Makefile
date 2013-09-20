@@ -6,7 +6,7 @@ LDNSDIR = ${.CURDIR}/../../contrib/ldns
 .PATH: ${LDNSDIR} ${LDNSDIR}/compat
 
 LIB=	ldns
-INTERNALLIB= true
+PRIVATELIB= true
 
 CFLAGS+= -I${LDNSDIR}
 
@@ -17,6 +17,9 @@ SRCS=	buffer.c dane.c dname.c dnssec.c dnssec_sign.c dnssec_verify.c \
 	wire2host.c zone.c
 
 SRCS+=	b32_ntop.c b32_pton.c b64_ntop.c b64_pton.c
+
+DPADD+=	${LIBCRYPTO}
+LDADD+=	-lcrypto
 
 WARNS ?= 3
 

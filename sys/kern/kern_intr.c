@@ -1147,7 +1147,7 @@ swi_sched(void *cookie, int flags)
 		entropy.event = (uintptr_t)ih;
 		entropy.td = curthread;
 		random_harvest(&entropy, sizeof(entropy), 1, 0,
-		    RANDOM_INTERRUPT);
+		    RANDOM_SWI);
 	}
 
 	/*

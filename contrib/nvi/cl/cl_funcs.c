@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)cl_funcs.c	10.50 (Berkeley) 9/24/96";
+static const char sccsid[] = "$Id: cl_funcs.c,v 10.74 2012/10/11 10:30:16 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -19,17 +19,70 @@ static const char sccsid[] = "@(#)cl_funcs.c	10.50 (Berkeley) 9/24/96";
 
 #include <bitstring.h>
 #include <ctype.h>
-#include <curses.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef HAVE_TERM_H
+#include <term.h>
+#endif
 #include <termios.h>
 #include <unistd.h>
 
 #include "../common/common.h"
 #include "../vi/vi.h"
 #include "cl.h"
+
+static void cl_rdiv __P((SCR *));
+
+static int 
+addstr4(SCR *sp, void *str, size_t len, int wide)
+{
+	CL_PRIVATE *clp;
+	WINDOW *win;
+	size_t y, x;
+	int iv;
+
+	clp = CLP(sp);
+	win = CLSP(sp) ? CLSP(sp) : stdscr;
+
+	/*
+	 * If ex isn't in control, it's the last line of the screen and
+	 * it's a split screen, use inverse video.
+	 */
+	iv = 0;
+	getyx(win, y, x);
+	if (!F_ISSET(sp, SC_SCR_EXWROTE) &&
+	    y == RLNO(sp, LASTLINE(sp)) && IS_SPLIT(sp)) {
+		iv = 1;
+		(void)wstandout(win);
+	}
+
+#ifdef USE_WIDECHAR
+	if (wide) {
+	    if (waddnwstr(win, str, len) == ERR)
+		return (1);
+	} else 
+#endif
+	    if (waddnstr(win, str, len) == ERR)
+		    return (1);
+
+	if (iv)
+		(void)wstandend(win);
+	return (0);
+}
+
+/*
+ * cl_waddstr --
+ *	Add len bytes from the string at the cursor, advancing the cursor.
+ *
+ * PUBLIC: int cl_waddstr __P((SCR *, const CHAR_T *, size_t));
+ */
+int
+cl_waddstr(SCR *sp, const CHAR_T *str, size_t len)
+{
+    return addstr4(sp, (void *)str, len, 1);
+}
 
 /*
  * cl_addstr --
@@ -38,35 +91,9 @@ static const char sccsid[] = "@(#)cl_funcs.c	10.50 (Berkeley) 9/24/96";
  * PUBLIC: int cl_addstr __P((SCR *, const char *, size_t));
  */
 int
-cl_addstr(sp, str, len)
-	SCR *sp;
-	const char *str;
-	size_t len;
+cl_addstr(SCR *sp, const char *str, size_t len)
 {
-	CL_PRIVATE *clp;
-	size_t oldy, oldx;
-	int iv;
-
-	clp = CLP(sp);
-
-	/*
-	 * If ex isn't in control, it's the last line of the screen and
-	 * it's a split screen, use inverse video.
-	 */
-	iv = 0;
-	getyx(stdscr, oldy, oldx);
-	if (!F_ISSET(sp, SC_SCR_EXWROTE) &&
-	    oldy == RLNO(sp, LASTLINE(sp)) && IS_SPLIT(sp)) {
-		iv = 1;
-		(void)standout();
-	}
-
-	if (addnstr(str, len) == ERR)
-		return (1);
-
-	if (iv)
-		(void)standend();
-	return (0);
+    return addstr4(sp, (void *)str, len, 0);
 }
 
 /*
@@ -76,14 +103,13 @@ cl_addstr(sp, str, len)
  * PUBLIC: int cl_attr __P((SCR *, scr_attr_t, int));
  */
 int
-cl_attr(sp, attribute, on)
-	SCR *sp;
-	scr_attr_t attribute;
-	int on;
+cl_attr(SCR *sp, scr_attr_t attribute, int on)
 {
 	CL_PRIVATE *clp;
+	WINDOW *win;
 
 	clp = CLP(sp);
+	win = CLSP(sp) ? CLSP(sp) : stdscr;
 
 	switch (attribute) {
 	case SA_ALTERNATE:
@@ -146,9 +172,9 @@ cl_attr(sp, attribute, on)
 			(void)fflush(stdout);
 		} else {
 			if (on)
-				(void)standout();
+				(void)wstandout(win);
 			else
-				(void)standend();
+				(void)wstandend(win);
 		}
 		break;
 	default:
@@ -164,9 +190,7 @@ cl_attr(sp, attribute, on)
  * PUBLIC: int cl_baud __P((SCR *, u_long *));
  */
 int
-cl_baud(sp, ratep)
-	SCR *sp;
-	u_long *ratep;
+cl_baud(SCR *sp, u_long *ratep)
 {
 	CL_PRIVATE *clp;
 
@@ -207,10 +231,9 @@ cl_baud(sp, ratep)
  * PUBLIC: int cl_bell __P((SCR *));
  */
 int
-cl_bell(sp)
-	SCR *sp;
+cl_bell(SCR *sp)
 {
-	if (F_ISSET(sp, SC_EX | SC_SCR_EXWROTE))
+	if (F_ISSET(sp, SC_EX | SC_SCR_EXWROTE | SC_SCR_EX))
 		(void)write(STDOUT_FILENO, "\07", 1);		/* \a */
 	else {
 		/*
@@ -232,10 +255,26 @@ cl_bell(sp)
  * PUBLIC: int cl_clrtoeol __P((SCR *));
  */
 int
-cl_clrtoeol(sp)
-	SCR *sp;
+cl_clrtoeol(SCR *sp)
 {
-	return (clrtoeol() == ERR);
+	WINDOW *win;
+#if 0
+	size_t spcnt, y, x;
+#endif
+
+	win = CLSP(sp) ? CLSP(sp) : stdscr;
+
+#if 0
+	if (IS_VSPLIT(sp)) {
+		/* The cursor must be returned to its original position. */
+		getyx(win, y, x);
+		for (spcnt = (sp->coff + sp->cols) - x; spcnt > 0; --spcnt)
+			(void)waddch(win, ' ');
+		(void)wmove(win, y, x);
+		return (0);
+	} else
+#endif
+		return (wclrtoeol(win) == ERR);
 }
 
 /*
@@ -245,10 +284,10 @@ cl_clrtoeol(sp)
  * PUBLIC: int cl_cursor __P((SCR *, size_t *, size_t *));
  */
 int
-cl_cursor(sp, yp, xp)
-	SCR *sp;
-	size_t *yp, *xp;
+cl_cursor(SCR *sp, size_t *yp, size_t *xp)
 {
+	WINDOW *win;
+	win = CLSP(sp) ? CLSP(sp) : stdscr;
 	/*
 	 * The curses screen support splits a single underlying curses screen
 	 * into multiple screens to support split screen semantics.  For this
@@ -256,8 +295,11 @@ cl_cursor(sp, yp, xp)
 	 * current screen, and not absolute.  Screens that implement the split
 	 * using physically distinct screens won't need this hack.
 	 */
-	getyx(stdscr, *yp, *xp);
-	*yp -= sp->woff;
+	getyx(win, *yp, *xp);
+	/*
+	*yp -= sp->roff;
+	*xp -= sp->coff;
+	*/
 	return (0);
 }
 
@@ -268,14 +310,14 @@ cl_cursor(sp, yp, xp)
  * PUBLIC: int cl_deleteln __P((SCR *));
  */
 int
-cl_deleteln(sp)
-	SCR *sp;
+cl_deleteln(SCR *sp)
 {
-	CHAR_T ch;
 	CL_PRIVATE *clp;
-	size_t col, lno, spcnt, oldy, oldx;
+	WINDOW *win;
+	size_t y, x;
 
 	clp = CLP(sp);
+	win = CLSP(sp) ? CLSP(sp) : stdscr;
 
 	/*
 	 * This clause is required because the curses screen uses reverse
@@ -284,45 +326,58 @@ cl_deleteln(sp)
 	 *
 	 * If the bottom line was in reverse video, rewrite it in normal
 	 * video before it's scrolled.
-	 *
-	 * Check for the existence of a chgat function; XSI requires it, but
-	 * historic implementations of System V curses don't.   If it's not
-	 * a #define, we'll fall back to doing it by hand, which is slow but
-	 * acceptable.
-	 *
-	 * By hand means walking through the line, retrieving and rewriting
-	 * each character.  Curses has no EOL marker, so track strings of
-	 * spaces, and copy the trailing spaces only if there's a non-space
-	 * character following.
 	 */
 	if (!F_ISSET(sp, SC_SCR_EXWROTE) && IS_SPLIT(sp)) {
-		getyx(stdscr, oldy, oldx);
-#ifdef mvchgat
-		mvchgat(RLNO(sp, LASTLINE(sp)), 0, -1, A_NORMAL, 0, NULL);
-#else
-		for (lno = RLNO(sp, LASTLINE(sp)), col = spcnt = 0;;) {
-			(void)move(lno, col);
-			ch = winch(stdscr);
-			if (isblank(ch))
-				++spcnt;
-			else {
-				(void)move(lno, col - spcnt);
-				for (; spcnt > 0; --spcnt)
-					(void)addch(' ');
-				(void)addch(ch);
-			}
-			if (++col >= sp->cols)
-				break;
-		}
-#endif
-		(void)move(oldy, oldx);
+		getyx(win, y, x);
+		mvwchgat(win, RLNO(sp, LASTLINE(sp)), 0, -1, A_NORMAL, 0, NULL);
+		(void)wmove(win, y, x);
 	}
 
 	/*
 	 * The bottom line is expected to be blank after this operation,
 	 * and other screens must support that semantic.
 	 */
-	return (deleteln() == ERR);
+	return (wdeleteln(win) == ERR);
+}
+
+/* 
+ * cl_discard --
+ *	Discard a screen.
+ *
+ * PUBLIC: int cl_discard __P((SCR *, SCR **));
+ */
+int
+cl_discard(SCR *discardp, SCR **acquirep)
+{
+	CL_PRIVATE *clp;
+	SCR*	tsp;
+
+	if (discardp) {
+	    clp = CLP(discardp);
+	    F_SET(clp, CL_LAYOUT);
+
+	    if (CLSP(discardp)) {
+		    delwin(CLSP(discardp));
+		    discardp->cl_private = NULL;
+	    }
+	}
+
+	/* no screens got a piece; we're done */
+	if (!acquirep) 
+		return 0;
+
+	for (; (tsp = *acquirep) != NULL; ++acquirep) {
+		clp = CLP(tsp);
+		F_SET(clp, CL_LAYOUT);
+
+		if (CLSP(tsp))
+			delwin(CLSP(tsp));
+		tsp->cl_private = subwin(stdscr, tsp->rows, tsp->cols,
+					   tsp->roff, tsp->coff);
+	}
+
+	/* discardp is going away, acquirep is taking up its space. */
+	return (0);
 }
 
 /* 
@@ -333,9 +388,7 @@ cl_deleteln(sp)
  * PUBLIC: int cl_ex_adjust __P((SCR *, exadj_t));
  */
 int
-cl_ex_adjust(sp, action)
-	SCR *sp;
-	exadj_t action;
+cl_ex_adjust(SCR *sp, exadj_t action)
 {
 	CL_PRIVATE *clp;
 	int cnt;
@@ -390,14 +443,15 @@ cl_ex_adjust(sp, action)
  * PUBLIC: int cl_insertln __P((SCR *));
  */
 int
-cl_insertln(sp)
-	SCR *sp;
+cl_insertln(SCR *sp)
 {
+	WINDOW *win;
+	win = CLSP(sp) ? CLSP(sp) : stdscr;
 	/*
 	 * The current line is expected to be blank after this operation,
 	 * and the screen must support that semantic.
 	 */
-	return (insertln() == ERR);
+	return (winsertln(win) == ERR);
 }
 
 /*
@@ -407,11 +461,7 @@ cl_insertln(sp)
  * PUBLIC: int cl_keyval __P((SCR *, scr_keyval_t, CHAR_T *, int *));
  */
 int
-cl_keyval(sp, val, chp, dnep)
-	SCR *sp;
-	scr_keyval_t val;
-	CHAR_T *chp;
-	int *dnep;
+cl_keyval(SCR *sp, scr_keyval_t val, CHAR_T *chp, int *dnep)
 {
 	CL_PRIVATE *clp;
 
@@ -449,14 +499,14 @@ cl_keyval(sp, val, chp, dnep)
  * PUBLIC: int cl_move __P((SCR *, size_t, size_t));
  */
 int
-cl_move(sp, lno, cno)
-	SCR *sp;
-	size_t lno, cno;
+cl_move(SCR *sp, size_t lno, size_t cno)
 {
+	WINDOW *win;
+	win = CLSP(sp) ? CLSP(sp) : stdscr;
 	/* See the comment in cl_cursor. */
-	if (move(RLNO(sp, lno), cno) == ERR) {
-		msgq(sp, M_ERR,
-		    "Error: move: l(%u) c(%u) o(%u)", lno, cno, sp->woff);
+	if (wmove(win, RLNO(sp, lno), RCNO(sp, cno)) == ERR) {
+		msgq(sp, M_ERR, "Error: move: l(%zu + %zu) c(%zu + %zu)",
+		    lno, sp->roff, cno, sp->coff);
 		return (1);
 	}
 	return (0);
@@ -469,13 +519,17 @@ cl_move(sp, lno, cno)
  * PUBLIC: int cl_refresh __P((SCR *, int));
  */
 int
-cl_refresh(sp, repaint)
-	SCR *sp;
-	int repaint;
+cl_refresh(SCR *sp, int repaint)
 {
+	GS *gp;
 	CL_PRIVATE *clp;
+	WINDOW *win;
+	SCR *psp, *tsp;
+	size_t y, x;
 
+	gp = sp->gp;
 	clp = CLP(sp);
+	win = CLSP(sp) ? CLSP(sp) : stdscr;
 
 	/*
 	 * If we received a killer signal, we're done, there's no point
@@ -488,13 +542,57 @@ cl_refresh(sp, repaint)
 	 * If repaint is set, the editor is telling us that we don't know
 	 * what's on the screen, so we have to repaint from scratch.
 	 *
+	 * If repaint set or the screen layout changed, we need to redraw
+	 * any lines separating vertically split screens.  If the horizontal
+	 * offsets are the same, then the split was vertical, and need to
+	 * draw a dividing line.
+	 */
+	if (repaint || F_ISSET(clp, CL_LAYOUT)) {
+		getyx(stdscr, y, x);
+		for (psp = sp; psp != NULL; psp = TAILQ_NEXT(psp, q))
+			for (tsp = TAILQ_NEXT(psp, q); tsp != NULL;
+			    tsp = TAILQ_NEXT(tsp, q))
+				if (psp->roff == tsp->roff) {
+				    if (psp->coff + psp->cols + 1 == tsp->coff)
+					cl_rdiv(psp);
+				    else 
+				    if (tsp->coff + tsp->cols + 1 == psp->coff)
+					cl_rdiv(tsp);
+				}
+		(void)wmove(stdscr, y, x);
+		F_CLR(clp, CL_LAYOUT);
+	}
+
+	/*
 	 * In the curses library, doing wrefresh(curscr) is okay, but the
 	 * screen flashes when we then apply the refresh() to bring it up
 	 * to date.  So, use clearok().
 	 */
 	if (repaint)
 		clearok(curscr, 1);
-	return (refresh() == ERR);
+	/*
+	 * Only do an actual refresh, when this is the focus window,
+	 * i.e. the one holding the cursor. This assumes that refresh
+	 * is called for that window after refreshing the others.
+	 * This prevents the cursor being drawn in the other windows.
+	 */
+	return (wnoutrefresh(stdscr) == ERR || 
+		wnoutrefresh(win) == ERR || 
+		(sp == clp->focus && doupdate() == ERR));
+}
+
+/*
+ * cl_rdiv --
+ *	Draw a dividing line between two vertically split screens.
+ */
+static void
+cl_rdiv(SCR *sp)
+{
+#ifdef __NetBSD__
+	mvvline(sp->roff, sp->cols + sp->coff, '|', sp->rows);
+#else
+	mvvline(sp->roff, sp->cols + sp->coff, ACS_VLINE, sp->rows);
+#endif
 }
 
 /*
@@ -504,37 +602,94 @@ cl_refresh(sp, repaint)
  * PUBLIC: int cl_rename __P((SCR *, char *, int));
  */
 int
-cl_rename(sp, name, on)
-	SCR *sp;
-	char *name;
-	int on;
+cl_rename(SCR *sp, char *name, int on)
 {
 	GS *gp;
 	CL_PRIVATE *clp;
-	char *ttype;
+	FILE *pfp;
+	char buf[256], *s, *e;
+	char * wid;
+	char cmd[64];
 
 	gp = sp->gp;
 	clp = CLP(sp);
-
-	ttype = OG_STR(gp, GO_TERM);
 
 	/*
 	 * XXX
 	 * We can only rename windows for xterm.
 	 */
 	if (on) {
-		if (F_ISSET(clp, CL_RENAME_OK) &&
-		    !strncmp(ttype, "xterm", sizeof("xterm") - 1)) {
-			F_SET(clp, CL_RENAME);
-			(void)printf(XTERM_RENAME, name);
-			(void)fflush(stdout);
+		clp->focus = sp;
+		if (!F_ISSET(clp, CL_RENAME_OK) ||
+				strncmp(OG_STR(gp, GO_TERM), "xterm", 5))
+			return (0);
+
+		if (clp->oname == NULL && (wid = getenv("WINDOWID"))) {
+			snprintf(cmd, sizeof(cmd), "xprop -id %s WM_NAME", wid);
+			if ((pfp = popen(cmd, "r")) == NULL)
+				goto rename;
+			if (fgets(buf, sizeof(buf), pfp) == NULL) {
+				pclose(pfp);
+				goto rename;
+			}
+			pclose(pfp);
+			if ((s = strchr(buf, '"')) != NULL &&
+			    (e = strrchr(buf, '"')) != NULL)
+				clp->oname = strndup(s + 1, e - s - 1);
 		}
+
+rename:		cl_setname(gp, name);
+
+		F_SET(clp, CL_RENAME);
 	} else
 		if (F_ISSET(clp, CL_RENAME)) {
+			cl_setname(gp, clp->oname);
+
 			F_CLR(clp, CL_RENAME);
-			(void)printf(XTERM_RENAME, ttype);
-			(void)fflush(stdout);
 		}
+	return (0);
+}
+
+/*
+ * cl_setname --
+ *	Set a X11 icon/window name.
+ *
+ * PUBLIC: void cl_setname __P((GS *, char *));
+ */
+void
+cl_setname(GS *gp, char *name)
+{
+/* X11 xterm escape sequence to rename the icon/window. */
+#define	XTERM_RENAME	"\033]0;%s\007"
+
+	(void)printf(XTERM_RENAME, name == NULL ? OG_STR(gp, GO_TERM) : name);
+	(void)fflush(stdout);
+#undef XTERM_RENAME
+}
+
+/* 
+ * cl_split --
+ *	Split a screen.
+ *
+ * PUBLIC: int cl_split __P((SCR *, SCR *));
+ */
+int
+cl_split(SCR *origp, SCR *newp)
+{
+	CL_PRIVATE *clp;
+
+	clp = CLP(origp);
+	F_SET(clp, CL_LAYOUT);
+
+	if (CLSP(origp))
+		delwin(CLSP(origp));
+
+	origp->cl_private = subwin(stdscr, origp->rows, origp->cols,
+				     origp->roff, origp->coff);
+	newp->cl_private = subwin(stdscr, newp->rows, newp->cols,
+				     newp->roff, newp->coff);
+
+	/* origp is the original screen, giving up space to newp. */
 	return (0);
 }
 
@@ -545,18 +700,18 @@ cl_rename(sp, name, on)
  * PUBLIC: int cl_suspend __P((SCR *, int *));
  */
 int
-cl_suspend(sp, allowedp)
-	SCR *sp;
-	int *allowedp;
+cl_suspend(SCR *sp, int *allowedp)
 {
 	struct termios t;
 	CL_PRIVATE *clp;
+	WINDOW *win;
 	GS *gp;
-	size_t oldy, oldx;
+	size_t y, x;
 	int changed;
 
 	gp = sp->gp;
 	clp = CLP(sp);
+	win = CLSP(sp) ? CLSP(sp) : stdscr;
 	*allowedp = 1;
 
 	/*
@@ -596,9 +751,9 @@ cl_suspend(sp, allowedp)
 	 * Not sure this is necessary in System V implementations, but it
 	 * shouldn't hurt.
 	 */
-	getyx(stdscr, oldy, oldx);
-	(void)move(LINES - 1, 0);
-	(void)refresh();
+	getyx(win, y, x);
+	(void)wmove(win, LINES - 1, 0);
+	(void)wrefresh(win);
 
 	/*
 	 * Temporarily end the screen.  System V introduced a semantic where
@@ -607,10 +762,8 @@ cl_suspend(sp, allowedp)
 	 * restarting after endwin(), so we have to do what clean up we can
 	 * without calling it.
 	 */
-#ifdef HAVE_BSD_CURSES
 	/* Save the terminal settings. */
 	(void)tcgetattr(STDIN_FILENO, &t);
-#endif
 
 	/* Restore the cursor keys to normal mode. */
 	(void)keypad(stdscr, FALSE);
@@ -618,11 +771,8 @@ cl_suspend(sp, allowedp)
 	/* Restore the window name. */
 	(void)cl_rename(sp, NULL, 0);
 
-#ifdef HAVE_BSD_CURSES
-	(void)cl_attr(sp, SA_ALTERNATE, 0);
-#else
 	(void)endwin();
-#endif
+
 	/*
 	 * XXX
 	 * Restore the original terminal settings.  This is bad -- the
@@ -647,13 +797,10 @@ cl_suspend(sp, allowedp)
 		return (0);
 	}
 
-#ifdef HAVE_BSD_CURSES
 	/* Restore terminal settings. */
+	wrefresh(win);			    /* Needed on SunOs/Solaris ? */
 	if (F_ISSET(clp, CL_STDIN_TTY))
 		(void)tcsetattr(STDIN_FILENO, TCSASOFT | TCSADRAIN, &t);
-
-	(void)cl_attr(sp, SA_ALTERNATE, 1);
-#endif
 
 	/* Set the window name. */
 	(void)cl_rename(sp, sp->frp->name, 1);
@@ -662,7 +809,7 @@ cl_suspend(sp, allowedp)
 	(void)keypad(stdscr, TRUE);
 
 	/* Refresh and repaint the screen. */
-	(void)move(oldy, oldx);
+	(void)wmove(win, y, x);
 	(void)cl_refresh(sp, 1);
 
 	/* If the screen changed size, set the SIGWINCH bit. */
@@ -681,7 +828,7 @@ cl_suspend(sp, allowedp)
  * PUBLIC: void cl_usage __P((void));
  */
 void
-cl_usage()
+cl_usage(void)
 {
 #define	USAGE "\
 usage: ex [-eFRrSsv] [-c command] [-t tag] [-w size] [file ...]\n\
@@ -695,8 +842,9 @@ usage: vi [-eFlRrSv] [-c command] [-t tag] [-w size] [file ...]\n"
  * gdbrefresh --
  *	Stub routine so can flush out curses screen changes using gdb.
  */
-int
-gdbrefresh()
+static int
+	__attribute__((unused))
+gdbrefresh(void)
 {
 	refresh();
 	return (0);		/* XXX Convince gdb to run it. */

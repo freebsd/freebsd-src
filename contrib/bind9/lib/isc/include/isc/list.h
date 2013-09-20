@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006, 2007, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006, 2007, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -166,6 +166,19 @@
 			(list1).tail->link.next = (list2).head; \
 			(list2).head->link.prev = (list1).tail; \
 			(list1).tail = (list2).tail; \
+		} \
+		(list2).head = NULL; \
+		(list2).tail = NULL; \
+	} while (0)
+
+#define ISC_LIST_PREPENDLIST(list1, list2, link) \
+	do { \
+		if (ISC_LIST_EMPTY(list1)) \
+			(list1) = (list2); \
+		else if (!ISC_LIST_EMPTY(list2)) { \
+			(list2).tail->link.next = (list1).head; \
+			(list1).head->link.prev = (list2).tail; \
+			(list1).head = (list2).head; \
 		} \
 		(list2).head = NULL; \
 		(list2).tail = NULL; \

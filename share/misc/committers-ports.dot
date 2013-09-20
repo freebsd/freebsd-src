@@ -103,6 +103,7 @@ gerald [label="Gerald Pfeifer\ngerald@FreeBSD.org\n2002/04/03"]
 gjb [label="Glen Barber\ngjb@FreeBSD.org\n2012/06/19"]
 glarkin [label="Greg Larkin\nglarkin@FreeBSD.org\n2008/07/17"]
 glewis [label="Greg Lewis\nglewis@FreeBSD.org\n2002/04/08"]
+gnn [label="George Neville-Neil\ngnn@FreeBSD.org\n2013/09/04"]
 hq [label="Herve Quiroz\nhq@FreeBSD.org\n2004/08/05"]
 ijliao [label="Ying-Chieh Liao\nijliao@FreeBSD.org\n2001/01/20"]
 itetcu [label="Ion-Mihai Tetcu\nitetcu@FreeBSD.org\n2006/06/07"]
@@ -155,6 +156,7 @@ miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2006/06/04"]
 mm [label="Martin Matuska\nmm@FreeBSD.org\n2007/04/04"]
 mnag [label="Marcus Alves Grando\nmnag@FreeBSD.org\n2005/09/15"]
 mva [label="Marcus von Appen\nmva@FreeBSD.org\n2009/02/16"]
+nemysis [label="Rusmir Dusko\nnemysis@FreeBSD.org\n2013/07/31"]
 nemoliu [label="Tong Liu\nnemoliu@FreeBSD.org\n2007/04/25"]
 netchild [label="Alexander Leidinger\nnetchild@FreeBSD.org\n2002/03/19"]
 nobutaka [label="Nobutaka Mantani\nnobutaka@FreeBSD.org\n2001/11/02"]
@@ -421,6 +423,7 @@ miwi -> lme
 miwi -> makc
 miwi -> mandree
 miwi -> mva
+miwi -> nemysis
 miwi -> nox
 miwi -> olivierd
 miwi -> pawel
@@ -456,6 +459,8 @@ pav -> josef
 pav -> kwm
 pav -> mnag
 
+pawel -> nemysis
+
 pgj -> ashish
 pgj -> jacula
 
@@ -486,6 +491,8 @@ sem -> stas
 
 shaun -> timur
 shaun -> matthew
+
+skreuzer -> gnn
 
 sobomax -> demon
 sobomax -> glewis
@@ -525,9 +532,12 @@ wen -> cs
 wen -> culot
 wen -> pawel
 
+wg -> nemysis
+
 will -> lioux
 
 wxs -> jsa
+wxs -> nemysis
 wxs -> sahil
 wxs -> skreuzer
 wxs -> swills

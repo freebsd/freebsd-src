@@ -15,6 +15,8 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
+/* $Id$ */
+
 /*! \file */
 
 #include <config.h>
@@ -878,7 +880,8 @@ dns_rdata_totext(dns_rdata_t *rdata, dns_name_t *origin, isc_buffer_t *target)
 isc_result_t
 dns_rdata_tofmttext(dns_rdata_t *rdata, dns_name_t *origin,
 		    unsigned int flags, unsigned int width,
-		    const char *linebreak, isc_buffer_t *target)
+		    unsigned int split_width, const char *linebreak,
+		    isc_buffer_t *target)
 {
 	dns_rdata_textctx_t tctx;
 
@@ -889,11 +892,16 @@ dns_rdata_tofmttext(dns_rdata_t *rdata, dns_name_t *origin,
 	 */
 	tctx.origin = origin;
 	tctx.flags = flags;
-	if ((flags & DNS_STYLEFLAG_MULTILINE) != 0) {
+	if (split_width == 0xffffffff)
 		tctx.width = width;
+	else
+		tctx.width = split_width;
+
+	if ((flags & DNS_STYLEFLAG_MULTILINE) != 0)
 		tctx.linebreak = linebreak;
-	} else {
-		tctx.width = 60; /* Used for hex word length only. */
+	else {
+		if (split_width == 0xffffffff)
+			tctx.width = 60; /* Used for hex word length only. */
 		tctx.linebreak = " ";
 	}
 	return (rdata_totext(rdata, &tctx, target));
@@ -1409,7 +1417,8 @@ multitxt_fromwire(isc_buffer_t *source, isc_buffer_t *target) {
 		if (n > tregion.length)
 			return (ISC_R_NOSPACE);
 
-		memcpy(tregion.base, sregion.base, n);
+		if (tregion.base != sregion.base)
+			memcpy(tregion.base, sregion.base, n);
 		isc_buffer_forward(source, n);
 		isc_buffer_add(target, n);
 		isc_buffer_activeregion(source, &sregion);

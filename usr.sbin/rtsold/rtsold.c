@@ -67,7 +67,6 @@
 #define RTSOL_DUMPFILE	"/var/run/rtsold.dump";
 #define RTSOL_PIDFILE	"/var/run/rtsold.pid";
 
-struct ifinfo *iflist;
 struct timespec tm_max;
 static int log_upto = 999;
 static int fflag = 0;

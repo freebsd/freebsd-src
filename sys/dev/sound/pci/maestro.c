@@ -1844,15 +1844,10 @@ agg_attach(device_t dev)
 	ess->curpwr = PCI_POWERSTATE_D3;
 	pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
-	data |= (PCIM_CMD_PORTEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, data, 2);
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
+	pci_enable_busmaster(dev);
 
 	/* Allocate resources. */
-	if (data & PCIM_CMD_PORTEN)
-		reg = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &regid,
-		    RF_ACTIVE);
+	reg = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &regid, RF_ACTIVE);
 	if (reg != NULL) {
 		ess->reg = reg;
 		ess->regid = regid;

@@ -732,7 +732,9 @@ dns_message_create(isc_mem_t *mctx, unsigned int intent, dns_message_t **msgp)
 
 	for (i = 0; i < DNS_SECTION_MAX; i++)
 		ISC_LIST_INIT(m->sections[i]);
-	m->mctx = mctx;
+
+	m->mctx = NULL;
+	isc_mem_attach(mctx, &m->mctx);
 
 	ISC_LIST_INIT(m->scratchpad);
 	ISC_LIST_INIT(m->cleanup);
@@ -786,7 +788,7 @@ dns_message_create(isc_mem_t *mctx, unsigned int intent, dns_message_t **msgp)
 	if (m->rdspool != NULL)
 		isc_mempool_destroy(&m->rdspool);
 	m->magic = 0;
-	isc_mem_put(mctx, m, sizeof(dns_message_t));
+	isc_mem_putanddetach(&mctx, m, sizeof(dns_message_t));
 
 	return (ISC_R_NOMEMORY);
 }
@@ -815,7 +817,7 @@ dns_message_destroy(dns_message_t **msgp) {
 	isc_mempool_destroy(&msg->namepool);
 	isc_mempool_destroy(&msg->rdspool);
 	msg->magic = 0;
-	isc_mem_put(msg->mctx, msg, sizeof(dns_message_t));
+	isc_mem_putanddetach(&msg->mctx, msg, sizeof(dns_message_t));
 }
 
 static isc_result_t

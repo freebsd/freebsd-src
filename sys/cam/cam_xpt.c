@@ -96,7 +96,6 @@ typedef enum {
 
 struct xpt_softc {
 	xpt_flags		flags;
-	u_int32_t		xpt_generation;
 
 	/* number of high powered commands that can go through right now */
 	STAILQ_HEAD(highpowerlist, cam_ed)	highpowerq;
@@ -608,24 +607,11 @@ xptdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *
 		struct periph_driver **p_drv;
 		char   *name;
 		u_int unit;
-		u_int cur_generation;
 		int base_periph_found;
-		int splbreaknum;
 
 		ccb = (union ccb *)addr;
 		unit = ccb->cgdl.unit_number;
 		name = ccb->cgdl.periph_name;
-		/*
-		 * Every 100 devices, we want to drop our lock protection to
-		 * give the software interrupt handler a chance to run.
-		 * Most systems won't run into this check, but this should
-		 * avoid starvation in the software interrupt handler in
-		 * large systems.
-		 */
-		splbreaknum = 100;
-
-		ccb = (union ccb *)addr;
-
 		base_periph_found = 0;
 
 		/*
@@ -639,8 +625,6 @@ xptdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *
 
 		/* Keep the list from changing while we traverse it */
 		xpt_lock_buses();
-ptstartover:
-		cur_generation = xsoftc.xpt_generation;
 
 		/* first find our driver in the list of drivers */
 		for (p_drv = periph_drivers; *p_drv != NULL; p_drv++)
@@ -667,15 +651,8 @@ ptstartover:
 		for (periph = TAILQ_FIRST(&(*p_drv)->units); periph != NULL;
 		     periph = TAILQ_NEXT(periph, unit_links)) {
 
-			if (periph->unit_number == unit) {
+			if (periph->unit_number == unit)
 				break;
-			} else if (--splbreaknum == 0) {
-				xpt_unlock_buses();
-				xpt_lock_buses();
-				splbreaknum = 100;
-				if (cur_generation != xsoftc.xpt_generation)
-				       goto ptstartover;
-			}
 		}
 		/*
 		 * If we found the peripheral driver that the user passed
@@ -1015,15 +992,11 @@ xpt_add_periph(struct cam_periph *periph)
 		SLIST_INSERT_HEAD(periph_head, periph, periph_links);
 	}
 
-	xpt_lock_buses();
-	xsoftc.xpt_generation++;
-	xpt_unlock_buses();
-
 	return (status);
 }
 
 void
-xpt_remove_periph(struct cam_periph *periph, int topology_lock_held)
+xpt_remove_periph(struct cam_periph *periph)
 {
 	struct cam_ed *device;
 
@@ -1043,14 +1016,6 @@ xpt_remove_periph(struct cam_periph *periph, int topology_lock_held)
 
 		SLIST_REMOVE(periph_head, periph, cam_periph, periph_links);
 	}
-
-	if (topology_lock_held == 0)
-		xpt_lock_buses();
-
-	xsoftc.xpt_generation++;
-
-	if (topology_lock_held == 0)
-		xpt_unlock_buses();
 }
 
 
@@ -1126,7 +1091,8 @@ xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 		cdai.buftype = CDAI_TYPE_SERIAL_NUM;
 	else if (!strcmp(attr, "GEOM::physpath"))
 		cdai.buftype = CDAI_TYPE_PHYS_PATH;
-	else if (!strcmp(attr, "GEOM::lunid")) {
+	else if (strcmp(attr, "GEOM::lunid") == 0 ||
+		 strcmp(attr, "GEOM::lunname") == 0) {
 		cdai.buftype = CDAI_TYPE_SCSI_DEVID;
 		cdai.bufsiz = CAM_SCSI_DEVID_MAXLEN;
 	} else
@@ -1143,11 +1109,14 @@ xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 	if (cdai.provsiz == 0)
 		goto out;
 	if (cdai.buftype == CDAI_TYPE_SCSI_DEVID) {
-		idd = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
-		    cdai.provsiz, scsi_devid_is_lun_naa);
-		if (idd == NULL)
+		if (strcmp(attr, "GEOM::lunid") == 0) {
 			idd = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
-			    cdai.provsiz, scsi_devid_is_lun_eui64);
+			    cdai.provsiz, scsi_devid_is_lun_naa);
+			if (idd == NULL)
+				idd = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
+				    cdai.provsiz, scsi_devid_is_lun_eui64);
+		} else
+			idd = NULL;
 		if (idd == NULL)
 			idd = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
 			    cdai.provsiz, scsi_devid_is_lun_t10);
@@ -3592,6 +3561,40 @@ xpt_path_comp(struct cam_path *path1, struct cam_path *path2)
 	return (retval);
 }
 
+int
+xpt_path_comp_dev(struct cam_path *path, struct cam_ed *dev)
+{
+	int retval = 0;
+
+	if (path->bus != dev->target->bus) {
+		if (path->bus->path_id == CAM_BUS_WILDCARD)
+			retval = 1;
+		else if (dev->target->bus->path_id == CAM_BUS_WILDCARD)
+			retval = 2;
+		else
+			return (-1);
+	}
+	if (path->target != dev->target) {
+		if (path->target->target_id == CAM_TARGET_WILDCARD) {
+			if (retval == 0)
+				retval = 1;
+		} else if (dev->target->target_id == CAM_TARGET_WILDCARD)
+			retval = 2;
+		else
+			return (-1);
+	}
+	if (path->device != dev) {
+		if (path->device->lun_id == CAM_LUN_WILDCARD) {
+			if (retval == 0)
+				retval = 1;
+		} else if (dev->lun_id == CAM_LUN_WILDCARD)
+			retval = 2;
+		else
+			return (-1);
+	}
+	return (retval);
+}
+
 void
 xpt_print_path(struct cam_path *path)
 {
@@ -3621,6 +3624,21 @@ xpt_print_path(struct cam_path *path)
 			printf("%d): ", path->device->lun_id);
 		else
 			printf("X): ");
+	}
+}
+
+void
+xpt_print_device(struct cam_ed *device)
+{
+
+	if (device == NULL)
+		printf("(nopath): ");
+	else {
+		printf("(noperiph:%s%d:%d:%d:%d): ", device->sim->sim_name,
+		       device->sim->unit_number,
+		       device->sim->bus_id,
+		       device->target->target_id,
+		       device->lun_id);
 	}
 }
 
@@ -4145,6 +4163,8 @@ xpt_freeze_devq(struct cam_path *path, u_int count)
 	struct cam_ed *dev = path->device;
 
 	mtx_assert(path->bus->sim->mtx, MA_OWNED);
+	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_freeze_devq() %u->%u\n",
+	    dev->ccbq.queue.qfrozen_cnt, dev->ccbq.queue.qfrozen_cnt + count));
 	dev->ccbq.queue.qfrozen_cnt += count;
 	/* Remove frozen device from sendq. */
 	if (device_is_queued(dev)) {
@@ -4169,6 +4189,7 @@ xpt_release_devq_timeout(void *arg)
 	struct cam_ed *device;
 
 	device = (struct cam_ed *)arg;
+	CAM_DEBUG_DEV(device, CAM_DEBUG_TRACE, ("xpt_release_devq_timeout\n"));
 	xpt_release_devq_device(device, /*count*/1, /*run_queue*/TRUE);
 }
 
@@ -4177,6 +4198,8 @@ xpt_release_devq(struct cam_path *path, u_int count, int run_queue)
 {
 
 	mtx_assert(path->bus->sim->mtx, MA_OWNED);
+	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_release_devq(%d, %d)\n",
+	    count, run_queue));
 	xpt_release_devq_device(path->device, count, run_queue);
 }
 
@@ -4184,6 +4207,9 @@ void
 xpt_release_devq_device(struct cam_ed *dev, u_int count, int run_queue)
 {
 
+	CAM_DEBUG_DEV(dev, CAM_DEBUG_TRACE,
+	    ("xpt_release_devq_device(%d, %d) %u->%u\n", count, run_queue,
+	    dev->ccbq.queue.qfrozen_cnt, dev->ccbq.queue.qfrozen_cnt - count));
 	if (count > dev->ccbq.queue.qfrozen_cnt) {
 #ifdef INVARIANTS
 		printf("xpt_release_devq(): requested %u > present %u\n",

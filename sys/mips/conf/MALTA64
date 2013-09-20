@@ -31,6 +31,8 @@ makeoptions	MODULES_OVERRIDE=""
 options 	TICK_USE_YAMON_FREQ=defined
 #options 	TICK_USE_MALTA_RTC=defined
 
+makeoptions 	KERNLOADADDR=0xffffffff80100000
+
 include		"../malta/std.malta"
 
 hints		"MALTA.hints"		#Default places to look for devices.
@@ -66,4 +68,5 @@ device		ether
 device		le
 device		miibus
 device		md
+device		bpf
 device		uart

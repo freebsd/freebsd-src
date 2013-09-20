@@ -103,7 +103,7 @@ struct if_data {
 	u_long	ifi_omcasts;		/* packets sent via multicast */
 	u_long	ifi_iqdrops;		/* dropped on input, this interface */
 	u_long	ifi_noproto;		/* destined for unsupported protocol */
-	u_long	ifi_hwassist;		/* HW offload capabilities, see IFCAP */
+	uint64_t ifi_hwassist;		/* HW offload capabilities, see IFCAP */
 	time_t	ifi_epoch;		/* uptime at attach or stat reset */
 	struct	timeval ifi_lastchange;	/* time of last administrative change */
 };

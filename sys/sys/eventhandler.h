@@ -266,4 +266,13 @@ EVENTHANDLER_DECLARE(nmbclusters_change, uma_zone_chfn);
 EVENTHANDLER_DECLARE(nmbufs_change, uma_zone_chfn);
 EVENTHANDLER_DECLARE(maxsockets_change, uma_zone_chfn);
 
+/* Kernel linker file load and unload events */
+struct linker_file;
+typedef void (*kld_load_fn)(void *, struct linker_file *);
+typedef void (*kld_unload_fn)(void *, const char *, caddr_t, size_t);
+typedef void (*kld_unload_try_fn)(void *, struct linker_file *, int *);
+EVENTHANDLER_DECLARE(kld_load, kld_load_fn);
+EVENTHANDLER_DECLARE(kld_unload, kld_unload_fn);
+EVENTHANDLER_DECLARE(kld_unload_try, kld_unload_try_fn);
+
 #endif /* SYS_EVENTHANDLER_H */

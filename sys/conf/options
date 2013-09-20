@@ -528,8 +528,6 @@ NGATM_CCATM		opt_netgraph.h
 # DRM options
 DRM_DEBUG		opt_drm.h
 
-SOCKET_SEND_COW		opt_zero.h
-SOCKET_RECV_PFLIP	opt_zero.h
 TI_SF_BUF_JUMBO		opt_ti.h
 TI_JUMBO_HDRSPLIT	opt_ti.h
 
@@ -641,8 +639,9 @@ BKTR_SIS_VIA_MODE		opt_bktr.h
 BKTR_USE_FREEBSD_SMBUS		opt_bktr.h
 BKTR_NEW_MSP34XX_DRIVER		opt_bktr.h
 
-# Options to support PPS
+# Options for uart(4)
 UART_PPS_ON_CTS		opt_uart.h
+UART_POLL_FREQ		opt_uart.h
 
 # options for bus/device framework
 BUS_DEBUG		opt_bus.h

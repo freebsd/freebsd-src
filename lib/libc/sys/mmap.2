@@ -28,7 +28,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2012
+.Dd September 9, 2013
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -97,7 +97,36 @@ Sharing, mapping type and options are specified in the
 argument by
 .Em or Ns 'ing
 the following values:
-.Bl -tag -width MAP_HASSEMAPHORE
+.Bl -tag -width MAP_PREFAULT_READ
+.It Dv MAP_32BIT
+Request a region in the first 2GB of the current process's address space.
+If a suitable region cannot be found,
+.Fn mmap
+will fail.
+This flag is only available on 64-bit platforms.
+.It Dv MAP_ALIGNED Ns Pq Fa n
+Align the region on a requested boundary.
+If a suitable region cannot be found,
+.Fn mmap
+will fail.
+The
+.Fa n
+argument specifies the binary logarithm of the desired alignment.
+.It Dv MAP_ALIGNED_SUPER
+Align the region to maximize the potential use of large
+.Pq Dq super
+pages.
+If a suitable region cannot be found,
+.Fn mmap
+will fail.
+The system will choose a suitable page size based on the size of
+mapping.
+The page size used as well as the alignment of the region may both be
+affected by properties of the file being mapped.
+In particular,
+the physical address of existing pages of a file may require a specific
+alignment.
+The region is not guaranteed to be aligned on any specific boundary.
 .It Dv MAP_ANON
 Map anonymous memory not associated with any specific file.
 The file descriptor used for creating
@@ -274,6 +303,25 @@ Although this implementation does not impose any alignment restrictions on
 the
 .Fa offset
 argument, a portable program must only use page-aligned values.
+.Pp
+Large page mappings require that the pages backing an object be
+aligned in matching blocks in both the virtual address space and RAM.
+The system will automatically attempt to use large page mappings when
+mapping an object that is already backed by large pages in RAM by
+aligning the mapping request in the virtual address space to match the
+alignment of the large physical pages.
+The system may also use large page mappings when mapping portions of an
+object that are not yet backed by pages in RAM.
+The
+.Dv MAP_ALIGNED_SUPER
+flag is an optimization that will align the mapping request to the
+size of a large page similar to
+.Dv MAP_ALIGNED ,
+except that the system will override this alignment if an object already
+uses large pages so that the mapping will be consistent with the existing
+large pages.
+This flag is mostly useful for maximizing the use of large pages on the
+first mapping of objects that do not yet have pages present in RAM.
 .Sh RETURN VALUES
 Upon successful completion,
 .Fn mmap
@@ -320,10 +368,21 @@ was specified and the
 argument was not page aligned, or part of the desired address space
 resides out of the valid address space for a user process.
 .It Bq Er EINVAL
+Both
+.Dv MAP_FIXED
+and
+.Dv MAP_32BIT
+were specified and part of the desired address space resides outside
+of the first 2GB of user address space.
+.It Bq Er EINVAL
 The
 .Fa len
 argument
 was equal to zero.
+.It Bq Er EINVAL
+.Dv MAP_ALIGNED
+was specified and the desired alignment was either larger than the
+virtual address size of the machine or smaller than a page.
 .It Bq Er EINVAL
 .Dv MAP_ANON
 was specified and the
@@ -356,7 +415,8 @@ was specified and insufficient memory was available.
 .Xr msync 2 ,
 .Xr munlock 2 ,
 .Xr munmap 2 ,
-.Xr getpagesize 3
+.Xr getpagesize 3 ,
+.Xr getpagesizes 3
 .Sh BUGS
 The
 .Fa len

@@ -706,13 +706,10 @@ isp_pci_attach(device_t dev)
 	pcs->irq = pcs->regs = NULL;
 	pcs->rgd = pcs->rtp = pcs->iqd = 0;
 
-	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (cmd & m1) {
-		pcs->rtp = (m1 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
-		pcs->rgd = (m1 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
-		pcs->regs = bus_alloc_resource_any(dev, pcs->rtp, &pcs->rgd, RF_ACTIVE);
-	}
-	if (pcs->regs == NULL && (cmd & m2)) {
+	pcs->rtp = (m1 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
+	pcs->rgd = (m1 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
+	pcs->regs = bus_alloc_resource_any(dev, pcs->rtp, &pcs->rgd, RF_ACTIVE);
+	if (pcs->regs == NULL) {
 		pcs->rtp = (m2 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
 		pcs->rgd = (m2 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
 		pcs->regs = bus_alloc_resource_any(dev, pcs->rtp, &pcs->rgd, RF_ACTIVE);
@@ -891,6 +888,7 @@ isp_pci_attach(device_t dev)
 	/*
 	 * Make sure that SERR, PERR, WRITE INVALIDATE and BUSMASTER are set.
 	 */
+	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
 	cmd |= PCIM_CMD_SEREN | PCIM_CMD_PERRESPEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_INVEN;
 	if (IS_2300(isp)) {	/* per QLogic errata */
 		cmd &= ~PCIM_CMD_INVEN;

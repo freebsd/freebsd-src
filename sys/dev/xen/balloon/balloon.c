@@ -40,14 +40,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
 
-#include <machine/xen/xen-os.h>
-#include <machine/xen/xenvar.h>
-#include <machine/xen/xenfunc.h>
-#include <xen/hypervisor.h>
-#include <xen/xenstore/xenstorevar.h>
-
 #include <vm/vm.h>
 #include <vm/vm_page.h>
+
+#include <xen/xen-os.h>
+#include <xen/hypervisor.h>
+#include <xen/features.h>
+#include <xen/xenstore/xenstorevar.h>
+
+#include <machine/xen/xenvar.h>
 
 static MALLOC_DEFINE(M_BALLOON, "Balloon", "Xen Balloon Driver");
 

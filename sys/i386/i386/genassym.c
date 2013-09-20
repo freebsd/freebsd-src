@@ -246,9 +246,8 @@ ASSYM(BUS_SPACE_HANDLE_IAT, offsetof(struct bus_space_handle, bsh_iat));
 #endif
 
 #ifdef XEN
-#include <xen/hypervisor.h>
 ASSYM(PC_CR3, offsetof(struct pcpu, pc_cr3));
-ASSYM(HYPERVISOR_VIRT_START, __HYPERVISOR_VIRT_START);
+ASSYM(XEN_HYPERVISOR_VIRT_START, HYPERVISOR_VIRT_START);
 #endif
 
 #ifdef	HWPMC_HOOKS

@@ -91,8 +91,22 @@ PLATFORM_DEF(powermac_platform);
 static int
 powermac_probe(platform_t plat)
 {
-	if (OF_finddevice("/memory") != -1 || OF_finddevice("/memory@0") != -1)
-		return (BUS_PROBE_GENERIC);
+	char compat[255];
+	ssize_t compatlen;
+	char *curstr;
+	phandle_t root;
+
+	root = OF_peer(0);
+	if (root == 0)
+		return (ENXIO);
+
+	compatlen = OF_getprop(root, "compatible", compat, sizeof(compat));
+	
+	for (curstr = compat; curstr < compat + compatlen;
+	    curstr += strlen(curstr) + 1) {
+		if (strncmp(curstr, "MacRISC", 7) == 0)
+			return (BUS_PROBE_SPECIFIC);
+	}
 
 	return (ENXIO);
 }

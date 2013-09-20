@@ -70,6 +70,7 @@ savecore_start()
 		if checkyesno crashinfo_enable; then
 			${crashinfo_program} -d ${dumpdir}
 		fi
+		sync
 	else
 		check_startmsgs && echo 'No core dumps found.'
 	fi

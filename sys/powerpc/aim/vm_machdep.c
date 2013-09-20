@@ -187,6 +187,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	cf->cf_arg1 = (register_t)tf;
 
 	pcb->pcb_sp = (register_t)cf;
+	KASSERT(pcb->pcb_sp % 16 == 0, ("stack misaligned"));
 	#ifdef __powerpc64__
 	pcb->pcb_lr = ((register_t *)fork_trampoline)[0];
 	pcb->pcb_toc = ((register_t *)fork_trampoline)[1];
@@ -253,7 +254,7 @@ sf_buf_init(void *arg)
 
         sf_buf_active = hashinit(nsfbufs, M_TEMP, &sf_buf_hashmask);
         TAILQ_INIT(&sf_buf_freelist);
-        sf_base = kmem_alloc_nofault(kernel_map, nsfbufs * PAGE_SIZE);
+        sf_base = kva_alloc(nsfbufs * PAGE_SIZE);
         sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP, M_NOWAIT | M_ZERO);
 
         for (i = 0; i < nsfbufs; i++) {

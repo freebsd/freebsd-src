@@ -1435,8 +1435,14 @@ fill_default_options(Options * options)
 		options->enable_ssh_keysign = 0;
 	if (options->rekey_limit == -1)
 		options->rekey_limit = 0;
+#if HAVE_LDNS
+	if (options->verify_host_key_dns == -1)
+		/* automatically trust a verified SSHFP record */
+		options->verify_host_key_dns = 1;
+#else
 	if (options->verify_host_key_dns == -1)
 		options->verify_host_key_dns = 0;
+#endif
 	if (options->server_alive_interval == -1)
 		options->server_alive_interval = 0;
 	if (options->server_alive_count_max == -1)
