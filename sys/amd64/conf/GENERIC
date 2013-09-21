@@ -342,6 +342,9 @@ device		virtio_blk	# VirtIO Block device
 device		virtio_scsi	# VirtIO SCSI device
 device		virtio_balloon	# VirtIO Memory Balloon device
 
+# HyperV drivers
+device		hyperv		# HyperV drivers 
+
 # Xen support
 device		xenpci		# Generic Xen bus
 
