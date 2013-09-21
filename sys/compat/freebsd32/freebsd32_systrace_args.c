@@ -3266,8 +3266,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 541: {
 		struct accept4_args *p = params;
 		iarg[0] = p->s; /* int */
-		uarg[1] = (intptr_t) p->name; /* struct sockaddr *__restrict */
-		uarg[2] = (intptr_t) p->anamelen; /* __socklen_t *__restrict */
+		uarg[1] = (intptr_t) p->name; /* struct sockaddr * */
+		uarg[2] = (intptr_t) p->anamelen; /* __socklen_t * */
 		iarg[3] = p->flags; /* int */
 		*n_args = 4;
 		break;
@@ -8793,10 +8793,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "struct sockaddr *__restrict";
+			p = "struct sockaddr *";
 			break;
 		case 2:
-			p = "__socklen_t *__restrict";
+			p = "__socklen_t *";
 			break;
 		case 3:
 			p = "int";
