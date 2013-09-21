@@ -91,12 +91,8 @@ __FBSDID("$FreeBSD$");
 MALLOC_DEFINE(M_FADVISE, "fadvise", "posix_fadvise(2) information");
 
 SDT_PROVIDER_DEFINE(vfs);
-SDT_PROBE_DEFINE(vfs, , stat, mode, mode);
-SDT_PROBE_ARGTYPE(vfs, , stat, mode, 0, "char *");
-SDT_PROBE_ARGTYPE(vfs, , stat, mode, 1, "int");
-SDT_PROBE_DEFINE(vfs, , stat, reg, reg);
-SDT_PROBE_ARGTYPE(vfs, , stat, reg, 0, "char *");
-SDT_PROBE_ARGTYPE(vfs, , stat, reg, 1, "int");
+SDT_PROBE_DEFINE2(vfs, , stat, mode, mode, "char *", "int");
+SDT_PROBE_DEFINE2(vfs, , stat, reg, reg, "char *", "int");
 
 static int chroot_refuse_vdir_fds(struct filedesc *fdp);
 static int getutimes(const struct timeval *, enum uio_seg, struct timespec *);

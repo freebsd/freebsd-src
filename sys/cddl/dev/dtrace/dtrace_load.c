@@ -56,6 +56,12 @@ dtrace_load(void *dummy)
 	/* Hang our hook for exceptions. */
 	dtrace_invop_init();
 
+	/* Register callbacks for linker file load and unload events. */
+	dtrace_kld_load_tag = EVENTHANDLER_REGISTER(kld_load,
+	    dtrace_kld_load, NULL, EVENTHANDLER_PRI_ANY);
+	dtrace_kld_unload_tag = EVENTHANDLER_REGISTER(kld_unload,
+	    dtrace_kld_unload, NULL, EVENTHANDLER_PRI_ANY);
+
 	/*
 	 * XXX This is a short term hack to avoid having to comment
 	 * out lots and lots of lock/unlock calls.

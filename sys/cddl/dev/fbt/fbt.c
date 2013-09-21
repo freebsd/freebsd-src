@@ -1329,6 +1329,15 @@ fbt_getargdesc(void *arg __unused, dtrace_id_t id __unused, void *parg, dtrace_a
 	return;
 }
 
+static int
+fbt_linker_file_cb(linker_file_t lf, void *arg)
+{
+
+	fbt_provide_module(arg, lf);
+
+	return (0);
+}
+
 static void
 fbt_load(void *dummy)
 {
@@ -1353,8 +1362,10 @@ fbt_load(void *dummy)
 	if (dtrace_register("fbt", &fbt_attr, DTRACE_PRIV_USER,
 	    NULL, &fbt_pops, NULL, &fbt_id) != 0)
 		return;
-}
 
+	/* Create probes for the kernel and already-loaded modules. */
+	linker_file_foreach(fbt_linker_file_cb, NULL);
+}
 
 static int
 fbt_unload()

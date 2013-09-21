@@ -67,6 +67,8 @@ dtrace_unload()
 	}
 
 	dtrace_provider = NULL;
+	EVENTHANDLER_DEREGISTER(kld_load, dtrace_kld_load_tag);
+	EVENTHANDLER_DEREGISTER(kld_unload, dtrace_kld_unload_tag);
 
 	if ((state = dtrace_anon_grab()) != NULL) {
 		/*

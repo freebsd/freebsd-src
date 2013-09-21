@@ -61,11 +61,9 @@ __FBSDID("$FreeBSD$");
 #endif
 
 SDT_PROVIDER_DEFINE(callout_execute);
-SDT_PROBE_DEFINE(callout_execute, kernel, , callout_start, callout-start);
-SDT_PROBE_ARGTYPE(callout_execute, kernel, , callout_start, 0,
+SDT_PROBE_DEFINE1(callout_execute, kernel, , callout_start, callout-start,
     "struct callout *");
-SDT_PROBE_DEFINE(callout_execute, kernel, , callout_end, callout-end); 
-SDT_PROBE_ARGTYPE(callout_execute, kernel, , callout_end, 0,
+SDT_PROBE_DEFINE1(callout_execute, kernel, , callout_end, callout-end,
     "struct callout *");
 
 static int avg_depth;
