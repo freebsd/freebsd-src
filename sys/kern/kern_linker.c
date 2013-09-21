@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/linker.h>
+#include <sys/eventhandler.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
 #include <sys/libkern.h>
@@ -580,8 +581,6 @@ linker_make_file(const char *pathname, linker_class_t lc)
 	lf->ndeps = 0;
 	lf->deps = NULL;
 	lf->loadcnt = ++loadcnt;
-	lf->sdt_probes = NULL;
-	lf->sdt_nprobes = 0;
 	STAILQ_INIT(&lf->common);
 	TAILQ_INIT(&lf->modules);
 	TAILQ_INSERT_TAIL(&linker_files, lf, link);
@@ -1044,6 +1043,9 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 	lf->userrefs++;
 	if (fileid != NULL)
 		*fileid = lf->id;
+
+	EVENTHANDLER_INVOKE(kld_load, lf);
+
 #ifdef HWPMC_HOOKS
 	KLD_DOWNGRADE();
 	pkm.pm_file = lf->filename;
@@ -1099,12 +1101,10 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 	if (lf) {
 		KLD_DPF(FILE, ("kldunload: lf->userrefs=%d\n", lf->userrefs));
 
-		/* Check if there are DTrace probes enabled on this file. */
-		if (lf->nenabled > 0) {
-			printf("kldunload: attempt to unload file that has"
-			    " DTrace probes enabled\n");
+		EVENTHANDLER_INVOKE(kld_unload, lf, &error);
+		if (error != 0)
 			error = EBUSY;
-		} else if (lf->userrefs == 0) {
+		else if (lf->userrefs == 0) {
 			/*
 			 * XXX: maybe LINKER_UNLOAD_FORCE should override ?
 			 */

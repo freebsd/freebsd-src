@@ -77,6 +77,9 @@
 
 #else /* _KERNEL */
 
+#include <sys/cdefs.h>
+#include <sys/linker_set.h>
+
 #ifndef KDTRACE_HOOKS
 
 #define SDT_PROVIDER_DEFINE(prov)
@@ -86,6 +89,7 @@
 #define SDT_PROBE(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4)
 #define SDT_PROBE_ARGTYPE(prov, mod, func, name, num, type)
 
+#define	SDT_PROBE_DEFINE0(prov, mod, func, name, sname)
 #define	SDT_PROBE_DEFINE1(prov, mod, func, name, sname, arg0)
 #define	SDT_PROBE_DEFINE2(prov, mod, func, name, sname, arg0, arg1)
 #define	SDT_PROBE_DEFINE3(prov, mod, func, name, sname, arg0, arg1, arg2)
@@ -108,85 +112,26 @@
 
 #else
 
-/*
- * This type definition must match that of dtrace_probe. It is defined this
- * way to avoid having to rely on CDDL code.
- */
-typedef	void (*sdt_probe_func_t)(u_int32_t, uintptr_t arg0, uintptr_t arg1,
-    uintptr_t arg2, uintptr_t arg3, uintptr_t arg4);
-
-/*
- * The hook for the probe function. See kern_sdt.c which defaults this to
- * it's own stub. The 'sdt' provider will set it to dtrace_probe when it
- * loads.
- */
-extern sdt_probe_func_t	sdt_probe_func;
-
-typedef enum {
-	SDT_UNINIT = 1,
-	SDT_INIT,
-} sdt_state_t;
-
-struct sdt_probe;
-struct sdt_provider;
-
-struct sdt_argtype {
-	int	ndx;			/* Argument index. */
-	const char *type;		/* Argument type string. */
-	TAILQ_ENTRY(sdt_argtype)
-			argtype_entry;	/* Argument type list entry. */
-	struct sdt_probe
-			*probe;		/* Ptr to the probe structure. */
-};
-
-struct sdt_probe {
-	int		version;	/* Set to sizeof(struct sdt_ref). */
-	sdt_state_t	state;
-	struct sdt_provider
-			*prov;		/* Ptr to the provider structure. */
-	TAILQ_ENTRY(sdt_probe)
-			probe_entry;	/* SDT probe list entry. */
-	TAILQ_HEAD(argtype_list_head, sdt_argtype) argtype_list;
-	const char	*mod;
-	const char	*func;
-	const char	*name;
-	id_t		id;		/* DTrace probe ID. */
-	int		n_args;		/* Number of arguments. */
-};
-
-struct sdt_provider {
-	const char *name;		/* Provider name. */
-	TAILQ_ENTRY(sdt_provider)
-			prov_entry;	/* SDT provider list entry. */
-	TAILQ_HEAD(probe_list_head, sdt_probe) probe_list;
-	uintptr_t	id;		/* DTrace provider ID. */
-};
+SET_DECLARE(sdt_providers_set, struct sdt_provider);
+SET_DECLARE(sdt_probes_set, struct sdt_probe);
+SET_DECLARE(sdt_argtypes_set, struct sdt_argtype);
 
 #define SDT_PROVIDER_DEFINE(prov)						\
 	struct sdt_provider sdt_provider_##prov[1] = {				\
-		{ #prov, { NULL, NULL }, { NULL, NULL } }			\
+		{ #prov, { NULL, NULL }, { NULL, NULL }, 0, 0 }			\
 	};									\
-	SYSINIT(sdt_provider_##prov##_init, SI_SUB_KDTRACE, 			\
-	    SI_ORDER_SECOND, sdt_provider_register, 				\
-	    sdt_provider_##prov );						\
-	SYSUNINIT(sdt_provider_##prov##_uninit, SI_SUB_KDTRACE,			\
-	    SI_ORDER_SECOND, sdt_provider_deregister, 				\
-	    sdt_provider_##prov )
+	DATA_SET(sdt_providers_set, sdt_provider_##prov);
 
 #define SDT_PROVIDER_DECLARE(prov)						\
 	extern struct sdt_provider sdt_provider_##prov[1]
 
 #define SDT_PROBE_DEFINE(prov, mod, func, name, sname)				\
 	struct sdt_probe sdt_##prov##_##mod##_##func##_##name[1] = {		\
-		{ sizeof(struct sdt_probe), 0, sdt_provider_##prov,		\
-		    { NULL, NULL }, { NULL, NULL }, #mod, #func, #sname, 0, 0 }	\
+		{ sizeof(struct sdt_probe), sdt_provider_##prov,		\
+		    { NULL, NULL }, { NULL, NULL }, #mod, #func, #sname, 0, 0,	\
+		    NULL }							\
 	};									\
-	SYSINIT(sdt_##prov##_##mod##_##func##_##name##_init, SI_SUB_KDTRACE, 	\
-	    SI_ORDER_SECOND + 1, sdt_probe_register, 				\
-	    sdt_##prov##_##mod##_##func##_##name );				\
-	SYSUNINIT(sdt_##prov##_##mod##_##func##_##name##_uninit, 		\
-	    SI_SUB_KDTRACE, SI_ORDER_SECOND + 1, sdt_probe_deregister, 		\
-	    sdt_##prov##_##mod##_##func##_##name )
+	DATA_SET(sdt_probes_set, sdt_##prov##_##mod##_##func##_##name);
 
 #define SDT_PROBE_DECLARE(prov, mod, func, name)				\
 	extern struct sdt_probe sdt_##prov##_##mod##_##func##_##name[1]
@@ -202,12 +147,10 @@ struct sdt_provider {
 	    = { { num, type, { NULL, NULL },					\
 	    sdt_##prov##_##mod##_##func##_##name }				\
 	};									\
-	SYSINIT(sdt_##prov##_##mod##_##func##_##name##num##_init,		\
-	    SI_SUB_KDTRACE, SI_ORDER_SECOND + 2, sdt_argtype_register, 		\
-	    sdt_##prov##_##mod##_##func##_##name##num );			\
-	SYSUNINIT(sdt_##prov##_##mod##_##func##_##name##num##_uninit, 		\
-	    SI_SUB_KDTRACE, SI_ORDER_SECOND + 2, sdt_argtype_deregister,	\
-	    sdt_##prov##_##mod##_##func##_##name##num )
+	DATA_SET(sdt_argtypes_set, sdt_##prov##_##mod##_##func##_##name##num);
+
+#define	SDT_PROBE_DEFINE0(prov, mod, func, name, sname)			\
+	SDT_PROBE_DEFINE(prov, mod, func, name, sname)
 
 #define	SDT_PROBE_DEFINE1(prov, mod, func, name, sname, arg0)		\
 	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\
@@ -294,27 +237,58 @@ struct sdt_provider {
 			    (uintptr_t)arg6);				       \
 	} while (0)
 
-typedef int (*sdt_argtype_listall_func_t)(struct sdt_argtype *, void *);
-typedef int (*sdt_probe_listall_func_t)(struct sdt_probe *, void *);
-typedef int (*sdt_provider_listall_func_t)(struct sdt_provider *, void *);
-
-void sdt_argtype_deregister(void *);
-void sdt_argtype_register(void *);
-void sdt_probe_deregister(void *);
-void sdt_probe_register(void *);
-void sdt_provider_deregister(void *);
-void sdt_provider_register(void *);
-void sdt_probe_stub(u_int32_t, uintptr_t arg0, uintptr_t arg1, uintptr_t arg2,
-    uintptr_t arg3, uintptr_t arg4);
-int sdt_argtype_listall(struct sdt_probe *, sdt_argtype_listall_func_t, void *);
-int sdt_probe_listall(struct sdt_provider *, sdt_probe_listall_func_t, void *);
-int sdt_provider_listall(sdt_provider_listall_func_t,void *);
-
-void sdt_register_callbacks(sdt_provider_listall_func_t, void *,
-    sdt_provider_listall_func_t, void *, sdt_probe_listall_func_t, void *);
-void sdt_deregister_callbacks(void);
-
 #endif /* KDTRACE_HOOKS */
+
+/*
+ * This type definition must match that of dtrace_probe. It is defined this
+ * way to avoid having to rely on CDDL code.
+ */
+typedef	void (*sdt_probe_func_t)(uint32_t, uintptr_t arg0, uintptr_t arg1,
+    uintptr_t arg2, uintptr_t arg3, uintptr_t arg4);
+
+/*
+ * The 'sdt' provider will set it to dtrace_probe when it loads.
+ */
+extern sdt_probe_func_t	sdt_probe_func;
+
+struct sdt_probe;
+struct sdt_provider;
+struct linker_file;
+
+struct sdt_argtype {
+	int	ndx;			/* Argument index. */
+	const char *type;		/* Argument type string. */
+	TAILQ_ENTRY(sdt_argtype)
+			argtype_entry;	/* Argument type list entry. */
+	struct sdt_probe
+			*probe;		/* Ptr to the probe structure. */
+};
+
+struct sdt_probe {
+	int		version;	/* Set to sizeof(struct sdt_probe). */
+	struct sdt_provider *prov;	/* Ptr to the provider structure. */
+	TAILQ_ENTRY(sdt_probe)
+			probe_entry;	/* SDT probe list entry. */
+	TAILQ_HEAD(argtype_list_head, sdt_argtype) argtype_list;
+	const char	*mod;
+	const char	*func;
+	const char	*name;
+	id_t		id;		/* DTrace probe ID. */
+	int		n_args;		/* Number of arguments. */
+	struct linker_file *sdtp_lf;	/* Module in which we're defined. */
+};
+
+struct sdt_provider {
+	char *name;			/* Provider name. */
+	TAILQ_ENTRY(sdt_provider)
+			prov_entry;	/* SDT provider list entry. */
+	TAILQ_HEAD(probe_list_head, sdt_probe) probe_list;
+	uintptr_t	id;		/* DTrace provider ID. */
+	int		sdt_refs;	/* Number of module references. */
+};
+
+void sdt_probe_stub(uint32_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t,
+    uintptr_t);
 
 #endif /* _KERNEL */
 
