@@ -265,6 +265,7 @@ SUBDIR+=	compile_et
 .endif
 
 .if ${MK_LDNS_UTILS} != "no"
+SUBDIR+=	drill
 SUBDIR+=	host
 .endif
 
