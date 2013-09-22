@@ -147,9 +147,9 @@ lock_rw(struct lock_object *lock, uintptr_t how)
 
 	rw = (struct rwlock *)lock;
 	if (how)
-		rw_wlock(rw);
-	else
 		rw_rlock(rw);
+	else
+		rw_wlock(rw);
 }
 
 uintptr_t
@@ -161,10 +161,10 @@ unlock_rw(struct lock_object *lock)
 	rw_assert(rw, RA_LOCKED | LA_NOTRECURSED);
 	if (rw->rw_lock & RW_LOCK_READ) {
 		rw_runlock(rw);
-		return (0);
+		return (1);
 	} else {
 		rw_wunlock(rw);
-		return (1);
+		return (0);
 	}
 }
 
