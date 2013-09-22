@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -64,13 +65,19 @@ __FBSDID("$FreeBSD$");
 #define	EPT_PWLEVELS		4		/* page walk levels */
 #define	EPT_ENABLE_AD_BITS	(1 << 6)
 
-static int ept_pmap_flags;
+SYSCTL_DECL(_hw_vmm);
+SYSCTL_NODE(_hw_vmm, OID_AUTO, ept, CTLFLAG_RW, NULL, NULL);
+
 static int ept_enable_ad_bits;
+
+static int ept_pmap_flags;
+SYSCTL_INT(_hw_vmm_ept, OID_AUTO, pmap_flags, CTLFLAG_RD,
+    &ept_pmap_flags, 0, NULL);
 
 int
 ept_init(void)
 {
-	int use_hw_ad_bits;
+	int use_hw_ad_bits, use_superpages;
 	uint64_t cap;
 
 	cap = rdmsr(MSR_VMX_EPT_VPID_CAP);
@@ -90,11 +97,13 @@ ept_init(void)
 	    !INVEPT_ALL_TYPES_SUPPORTED(cap))
 		return (EINVAL);
 
-	if (EPT_PDE_SUPERPAGE(cap))
+	use_superpages = 1;
+	TUNABLE_INT_FETCH("hw.vmm.ept.use_superpages", &use_superpages);
+	if (use_superpages && EPT_PDE_SUPERPAGE(cap))
 		ept_pmap_flags |= PMAP_PDE_SUPERPAGE;	/* 2MB superpage */
 
 	use_hw_ad_bits = 1;
-	TUNABLE_INT_FETCH("vmx.ept.use_hw_ad_bits", &use_hw_ad_bits);
+	TUNABLE_INT_FETCH("hw.vmm.ept.use_hw_ad_bits", &use_hw_ad_bits);
 	if (use_hw_ad_bits && AD_BITS_SUPPORTED(cap))
 		ept_enable_ad_bits = 1;
 	else
