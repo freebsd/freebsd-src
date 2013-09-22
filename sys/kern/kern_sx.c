@@ -162,9 +162,9 @@ lock_sx(struct lock_object *lock, uintptr_t how)
 
 	sx = (struct sx *)lock;
 	if (how)
-		sx_xlock(sx);
-	else
 		sx_slock(sx);
+	else
+		sx_xlock(sx);
 }
 
 uintptr_t
@@ -176,10 +176,10 @@ unlock_sx(struct lock_object *lock)
 	sx_assert(sx, SA_LOCKED | SA_NOTRECURSED);
 	if (sx_xlocked(sx)) {
 		sx_xunlock(sx);
-		return (1);
+		return (0);
 	} else {
 		sx_sunlock(sx);
-		return (0);
+		return (1);
 	}
 }
 
