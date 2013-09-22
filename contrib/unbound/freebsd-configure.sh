@@ -39,4 +39,4 @@ EOF
 /usr/bin/flex -L -t util/configlexer.lex
 } >util/configlexer.c
 
-/usr/bin/yacc -o util/configparser.c util/configparser.y
+/usr/bin/yacc -d -o util/configparser.c util/configparser.y
