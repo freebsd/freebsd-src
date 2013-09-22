@@ -968,12 +968,13 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td, int wa
 	struct knote *kn, *tkn;
 	cap_rights_t rights;
 	int error, filt, event;
-	int haskqglobal;
+	int haskqglobal, filedesc_unlock;
 
 	fp = NULL;
 	kn = NULL;
 	error = 0;
 	haskqglobal = 0;
+	filedesc_unlock = 0;
 
 	filt = kev->filter;
 	fops = kqueue_fo_find(filt);
@@ -1014,6 +1015,13 @@ findkn:
 				goto done;
 			}
 
+			/*
+			 * Pre-lock the filedesc before the global
+			 * lock mutex, see the comment in
+			 * kqueue_close().
+			 */
+			FILEDESC_XLOCK(td->td_proc->p_fd);
+			filedesc_unlock = 1;
 			KQ_GLOBAL_LOCK(&kq_global, haskqglobal);
 		}
 
@@ -1043,6 +1051,10 @@ findkn:
 	/* knote is in the process of changing, wait for it to stablize. */
 	if (kn != NULL && (kn->kn_status & KN_INFLUX) == KN_INFLUX) {
 		KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
+		if (filedesc_unlock) {
+			FILEDESC_XUNLOCK(td->td_proc->p_fd);
+			filedesc_unlock = 0;
+		}
 		kq->kq_state |= KQ_FLUXWAIT;
 		msleep(kq, &kq->kq_lock, PSOCK | PDROP, "kqflxwt", 0);
 		if (fp != NULL) {
@@ -1159,6 +1171,8 @@ done_ev_add:
 
 done:
 	KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
+	if (filedesc_unlock)
+		FILEDESC_XUNLOCK(td->td_proc->p_fd);
 	if (fp != NULL)
 		fdrop(fp, td);
 	if (tkn != NULL)
@@ -1652,10 +1666,12 @@ kqueue_close(struct file *fp, struct thread *td)
 	struct knote *kn;
 	int i;
 	int error;
+	int filedesc_unlock;
 
 	if ((error = kqueue_acquire(fp, &kq)))
 		return error;
 
+	filedesc_unlock = 0;
 	KQ_LOCK(kq);
 
 	KASSERT((kq->kq_state & KQ_CLOSING) != KQ_CLOSING,
@@ -1717,9 +1733,20 @@ kqueue_close(struct file *fp, struct thread *td)
 
 	KQ_UNLOCK(kq);
 
-	FILEDESC_XLOCK(fdp);
+	/*
+	 * We could be called due to the knote_drop() doing fdrop(),
+	 * called from kqueue_register().  In this case the global
+	 * lock is owned, and filedesc sx is locked before, to not
+	 * take the sleepable lock after non-sleepable.
+	 */
+	if (!sx_xlocked(FILEDESC_LOCK(fdp))) {
+		FILEDESC_XLOCK(fdp);
+		filedesc_unlock = 1;
+	} else
+		filedesc_unlock = 0;
 	TAILQ_REMOVE(&fdp->fd_kqlist, kq, kq_list);
-	FILEDESC_XUNLOCK(fdp);
+	if (filedesc_unlock)
+		FILEDESC_XUNLOCK(fdp);
 
 	seldrain(&kq->kq_sel);
 	knlist_destroy(&kq->kq_sel.si_note);
