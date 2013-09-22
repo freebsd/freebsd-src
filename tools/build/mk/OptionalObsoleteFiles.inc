@@ -214,7 +214,6 @@ OLD_FILES+=usr/share/man/man8/authpf-noip.8.gz
 .if ${MK_BIND} == no
 OLD_FILES+=etc/periodic/daily/470.status-named
 OLD_FILES+=usr/bin/dig
-OLD_FILES+=usr/bin/host
 OLD_FILES+=usr/bin/nslookup
 OLD_FILES+=usr/bin/nsupdate
 OLD_FILES+=usr/include/lwres/context.h
@@ -270,7 +269,6 @@ OLD_FILES+=usr/share/doc/bind9/COPYRIGHT
 OLD_FILES+=usr/share/doc/bind9/FAQ
 OLD_FILES+=usr/share/doc/bind9/README
 OLD_FILES+=usr/share/man/man1/dig.1.gz
-OLD_FILES+=usr/share/man/man1/host.1.gz
 OLD_FILES+=usr/share/man/man1/nslookup.1.gz
 OLD_FILES+=usr/share/man/man3/lwres.3.gz
 OLD_FILES+=usr/share/man/man3/lwres_buffer.3.gz
@@ -3399,6 +3397,15 @@ OLD_FILES+=usr/lib32/private/libldns.a
 OLD_FILES+=usr/lib32/private/libldns.so
 OLD_LIBS+=usr/lib32/private/libldns.so.5
 OLD_FILES+=usr/lib32/private/libldns_p.a
+.endif
+.endif
+
+.if ${MK_LDNS_UTILS} == no
+OLD_FILES+=usr/bin/drill
+OLD_FILES+=usr/share/man/man1/drill.1.gz
+.if ${MK_BIND} == no
+OLD_FILES+=usr/bin/host
+OLD_FILES+=usr/share/man/man1/host.1.gz
 .endif
 .endif
 
