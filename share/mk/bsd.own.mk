@@ -358,6 +358,7 @@ __DEFAULT_YES_OPTIONS = \
     TELNET \
     TEXTPROC \
     TOOLCHAIN \
+    UNBOUND \
     USB \
     UTMPX \
     WIRELESS \
@@ -380,6 +381,7 @@ __DEFAULT_NO_OPTIONS = \
     LIBICONV_COMPAT \
     INSTALL_AS_USER \
     LDNS_UTILS \
+    LLDB \
     NMTREE \
     NAND \
     OFED \
@@ -521,6 +523,7 @@ MK_LIBICONV_COMPAT:=	no
 
 .if ${MK_LDNS} == "no"
 MK_LDNS_UTILS:=	no
+MK_UNBOUND:= no
 .endif
 
 .if ${MK_LDNS_UTILS} != "no"
@@ -586,6 +589,10 @@ MK_GDB:=	no
 MK_CLANG_EXTRAS:= no
 MK_CLANG_FULL:= no
 MK_CLANG_IS_CC:= no
+.endif
+
+.if ${MK_CLANG_IS_CC} == "no"
+MK_LLDB:= no
 .endif
 
 #

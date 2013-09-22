@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/procctl.h>
 #include <sys/racct.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
@@ -68,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/vmmeter.h>
 
@@ -94,10 +96,8 @@ SYSCTL_INT(_vm, OID_AUTO, old_mlock, CTLFLAG_RW | CTLFLAG_TUN, &old_mlock, 0,
     "Do not apply RLIMIT_MEMLOCK on mlockall");
 TUNABLE_INT("vm.old_mlock", &old_mlock);
 
-#ifndef _SYS_SYSPROTO_H_
-struct sbrk_args {
-	int incr;
-};
+#ifdef MAP_32BIT
+#define	MAP_32BIT_MAX_ADDR	((vm_offset_t)1 << 31)
 #endif
 
 static int vm_mmap_vnode(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *,
@@ -106,6 +106,12 @@ static int vm_mmap_cdev(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *,
     int *, struct cdev *, vm_ooffset_t *, vm_object_t *);
 static int vm_mmap_shm(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *,
     int *, struct shmfd *, vm_ooffset_t, vm_object_t *);
+
+#ifndef _SYS_SYSPROTO_H_
+struct sbrk_args {
+	int incr;
+};
+#endif
 
 /*
  * MPSAFE
@@ -278,6 +284,18 @@ sys_mmap(td, uap)
 			return (EINVAL);
 		if (addr + size < addr)
 			return (EINVAL);
+#ifdef MAP_32BIT
+		if (flags & MAP_32BIT && addr + size > MAP_32BIT_MAX_ADDR)
+			return (EINVAL);
+	} else if (flags & MAP_32BIT) {
+		/*
+		 * For MAP_32BIT, override the hint if it is too high and
+		 * do not bother moving the mapping past the heap (since
+		 * the heap is usually above 2GB).
+		 */
+		if (addr + size > MAP_32BIT_MAX_ADDR)
+			addr = 0;
+#endif
 	} else {
 		/*
 		 * XXX for non-fixed mappings where no hint is provided or
@@ -723,23 +741,18 @@ sys_madvise(td, uap)
 {
 	vm_offset_t start, end;
 	vm_map_t map;
-	struct proc *p;
-	int error;
+	int flags;
 
 	/*
 	 * Check for our special case, advising the swap pager we are
 	 * "immortal."
 	 */
 	if (uap->behav == MADV_PROTECT) {
-		error = priv_check(td, PRIV_VM_MADV_PROTECT);
-		if (error == 0) {
-			p = td->td_proc;
-			PROC_LOCK(p);
-			p->p_flag |= P_PROTECTED;
-			PROC_UNLOCK(p);
-		}
-		return (error);
+		flags = PPROT_SET;
+		return (kern_procctl(td, P_PID, td->td_proc->p_pid,
+		    PROC_SPROTECT, &flags));
 	}
+
 	/*
 	 * Check for illegal behavior
 	 */
@@ -968,12 +981,12 @@ RestartScan:
 			 * the byte vector is zeroed for those skipped entries.
 			 */
 			while ((lastvecindex + 1) < vecindex) {
+				++lastvecindex;
 				error = subyte(vec + lastvecindex, 0);
 				if (error) {
 					error = EFAULT;
 					goto done2;
 				}
-				++lastvecindex;
 			}
 
 			/*
@@ -1009,12 +1022,12 @@ RestartScan:
 	 */
 	vecindex = OFF_TO_IDX(end - first_addr);
 	while ((lastvecindex + 1) < vecindex) {
+		++lastvecindex;
 		error = subyte(vec + lastvecindex, 0);
 		if (error) {
 			error = EFAULT;
 			goto done2;
 		}
-		++lastvecindex;
 	}
 
 	/*
@@ -1620,8 +1633,11 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 			    MAP_ALIGNMENT_SHIFT);
 		else
 			findspace = VMFS_OPTIMAL_SPACE;
-		rv = vm_map_find(map, object, foff, addr, size, findspace,
-		    prot, maxprot, docow);
+		rv = vm_map_find(map, object, foff, addr, size,
+#ifdef MAP_32BIT
+		    flags & MAP_32BIT ? MAP_32BIT_MAX_ADDR :
+#endif
+		    0, findspace, prot, maxprot, docow);
 	} else
 		rv = vm_map_fixed(map, object, foff, *addr, size,
 				 prot, maxprot, docow);

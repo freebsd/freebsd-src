@@ -263,7 +263,7 @@ uintptr_t	moea64_scratchpage_pte[2];
 struct	mtx	moea64_scratchpage_mtx;
 
 uint64_t 	moea64_large_page_mask = 0;
-int		moea64_large_page_size = 0;
+uint64_t	moea64_large_page_size = 0;
 int		moea64_large_page_shift = 0;
 
 /*
@@ -288,7 +288,6 @@ static void		moea64_syncicache(mmu_t, pmap_t pmap, vm_offset_t va,
  */
 void moea64_change_wiring(mmu_t, pmap_t, vm_offset_t, boolean_t);
 void moea64_clear_modify(mmu_t, vm_page_t);
-void moea64_clear_reference(mmu_t, vm_page_t);
 void moea64_copy_page(mmu_t, vm_page_t, vm_page_t);
 void moea64_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
     vm_page_t *mb, vm_offset_t b_offset, int xfersize);
@@ -334,7 +333,6 @@ static void moea64_sync_icache(mmu_t, pmap_t, vm_offset_t, vm_size_t);
 static mmu_method_t moea64_methods[] = {
 	MMUMETHOD(mmu_change_wiring,	moea64_change_wiring),
 	MMUMETHOD(mmu_clear_modify,	moea64_clear_modify),
-	MMUMETHOD(mmu_clear_reference,	moea64_clear_reference),
 	MMUMETHOD(mmu_copy_page,	moea64_copy_page),
 	MMUMETHOD(mmu_copy_pages,	moea64_copy_pages),
 	MMUMETHOD(mmu_enter,		moea64_enter),
@@ -546,12 +544,9 @@ moea64_probe_large_page(void)
 		powerpc_sync(); isync();
 		
 		/* FALLTHROUGH */
-	case IBMCELLBE:
+	default:
 		moea64_large_page_size = 0x1000000; /* 16 MB */
 		moea64_large_page_shift = 24;
-		break;
-	default:
-		moea64_large_page_size = 0;
 	}
 
 	moea64_large_page_mask = moea64_large_page_size - 1;
@@ -1526,7 +1521,7 @@ moea64_is_modified(mmu_t mmu, vm_page_t m)
 	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no PTEs can have LPTE_CHG set.
 	 */
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
+	VM_OBJECT_ASSERT_LOCKED(m->object);
 	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return (FALSE);
 	return (moea64_query_bit(mmu, m, LPTE_CHG));
@@ -1543,15 +1538,6 @@ moea64_is_prefaultable(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 	rv = pvo == NULL || (pvo->pvo_pte.lpte.pte_hi & LPTE_VALID) == 0;
 	PMAP_UNLOCK(pmap);
 	return (rv);
-}
-
-void
-moea64_clear_reference(mmu_t mmu, vm_page_t m)
-{
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("moea64_clear_reference: page %p is not managed", m));
-	moea64_clear_bit(mmu, m, LPTE_REF);
 }
 
 void

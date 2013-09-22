@@ -97,6 +97,8 @@
         vi.recover      mode=01777
         ..
     ..
+    unbound         uname=unbound gname=unbound mode=0755
+    ..
     yp
     ..
 ..

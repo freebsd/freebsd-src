@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.373 2013/02/22 22:09:01 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.381 2013/07/25 00:29:10 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -199,9 +199,9 @@ usage(void)
 {
 	fprintf(stderr,
 "usage: ssh [-1246AaCfgKkMNnqsTtVvXxYy] [-b bind_address] [-c cipher_spec]\n"
-"           [-D [bind_address:]port] [-e escape_char] [-F configfile]\n"
-"           [-I pkcs11] [-i identity_file]\n"
-"           [-L [bind_address:]port:host:hostport]\n"
+"           [-D [bind_address:]port] [-E log_file] [-e escape_char]\n"
+"           [-F configfile] [-I pkcs11] [-i identity_file]\n"
+"           [-L [bind_address:]port:host:hostport] [-Q protocol_feature]\n"
 "           [-l login_name] [-m mac_spec] [-O ctl_cmd] [-o option] [-p port]\n"
 "           [-R [bind_address:]port:host:hostport] [-S ctl_path]\n"
 "           [-W host:port] [-w local_tun[:remote_tun]]\n"
@@ -228,7 +228,7 @@ tilde_expand_paths(char **paths, u_int num_paths)
 
 	for (i = 0; i < num_paths; i++) {
 		cp = tilde_expand_filename(paths[i], original_real_uid);
-		xfree(paths[i]);
+		free(paths[i]);
 		paths[i] = cp;
 	}
 }
@@ -240,7 +240,7 @@ int
 main(int ac, char **av)
 {
 	int i, r, opt, exit_status, use_syslog;
-	char *p, *cp, *line, *argv0, buf[MAXPATHLEN], *host_arg;
+	char *p, *cp, *line, *argv0, buf[MAXPATHLEN], *host_arg, *logfile;
 	char thishost[NI_MAXHOST], shorthost[NI_MAXHOST], portstr[NI_MAXSERV];
 	struct stat st;
 	struct passwd *pw;
@@ -301,7 +301,7 @@ main(int ac, char **av)
 	/* Get user data. */
 	pw = getpwuid(original_real_uid);
 	if (!pw) {
-		logit("You don't exist, go away!");
+		logit("No user exists for uid %lu", (u_long)original_real_uid);
 		exit(255);
 	}
 	/* Take a copy of the returned structure. */
@@ -324,11 +324,12 @@ main(int ac, char **av)
 	/* Parse command-line arguments. */
 	host = NULL;
 	use_syslog = 0;
+	logfile = NULL;
 	argv0 = av[0];
 
  again:
 	while ((opt = getopt(ac, av, "1246ab:c:e:fgi:kl:m:no:p:qstvx"
-	    "ACD:F:I:KL:MNO:PR:S:TVw:W:XYy")) != -1) {
+	    "ACD:E:F:I:KL:MNO:PQ:R:S:TVw:W:XYy")) != -1) {
 		switch (opt) {
 		case '1':
 			options.protocol = SSH_PROTO_1;
@@ -358,6 +359,9 @@ main(int ac, char **av)
 		case 'y':
 			use_syslog = 1;
 			break;
+		case 'E':
+			logfile = xstrdup(optarg);
+			break;
 		case 'Y':
 			options.forward_x11 = 1;
 			options.forward_x11_trusted = 1;
@@ -386,6 +390,22 @@ main(int ac, char **av)
 			break;
 		case 'P':	/* deprecated */
 			options.use_privileged_port = 0;
+			break;
+		case 'Q':	/* deprecated */
+			cp = NULL;
+			if (strcasecmp(optarg, "cipher") == 0)
+				cp = cipher_alg_list();
+			else if (strcasecmp(optarg, "mac") == 0)
+				cp = mac_alg_list();
+			else if (strcasecmp(optarg, "kex") == 0)
+				cp = kex_alg_list();
+			else if (strcasecmp(optarg, "key") == 0)
+				cp = key_alg_list();
+			if (cp == NULL)
+				fatal("Unsupported query \"%s\"", optarg);
+			printf("%s\n", cp);
+			free(cp);
+			exit(0);
 			break;
 		case 'a':
 			options.forward_agent = 0;
@@ -429,9 +449,8 @@ main(int ac, char **av)
 			} else {
 				if (options.log_level < SYSLOG_LEVEL_DEBUG3)
 					options.log_level++;
-				break;
 			}
-			/* FALLTHROUGH */
+			break;
 		case 'V':
 			if (options.version_addendum &&
 			    *options.version_addendum != '\0')
@@ -464,7 +483,7 @@ main(int ac, char **av)
 			if (parse_forward(&fwd, optarg, 1, 0)) {
 				stdio_forward_host = fwd.listen_host;
 				stdio_forward_port = fwd.listen_port;
-				xfree(fwd.connect_host);
+				free(fwd.connect_host);
 			} else {
 				fprintf(stderr,
 				    "Bad stdio forwarding specification '%s'\n",
@@ -601,7 +620,7 @@ main(int ac, char **av)
 			    line, "command-line", 0, &dummy, SSHCONF_USERCONF)
 			    != 0)
 				exit(255);
-			xfree(line);
+			free(line);
 			break;
 		case 's':
 			subsystem_flag = 1;
@@ -682,18 +701,28 @@ main(int ac, char **av)
 
 	/*
 	 * Initialize "log" output.  Since we are the client all output
-	 * actually goes to stderr.
+	 * goes to stderr unless otherwise specified by -y or -E.
 	 */
+	if (use_syslog && logfile != NULL)
+		fatal("Can't specify both -y and -E");
+	if (logfile != NULL) {
+		log_redirect_stderr_to(logfile);
+		free(logfile);
+	}
 	log_init(argv0,
 	    options.log_level == -1 ? SYSLOG_LEVEL_INFO : options.log_level,
 	    SYSLOG_FACILITY_USER, !use_syslog);
+
+	if (debug_flag)
+		logit("%s, %s", SSH_VERSION, SSLeay_version(SSLEAY_VERSION));
 
 	/*
 	 * Read per-user configuration file.  Ignore the system wide config
 	 * file if the user specifies a config file on the command line.
 	 */
 	if (config != NULL) {
-		if (!read_config_file(config, host, &options, SSHCONF_USERCONF))
+		if (strcasecmp(config, "none") != 0 &&
+		    !read_config_file(config, host, &options, SSHCONF_USERCONF))
 			fatal("Can't open user config file %.100s: "
 			    "%.100s", config, strerror(errno));
 	} else {
@@ -768,7 +797,7 @@ main(int ac, char **av)
 		    "p", portstr, "u", pw->pw_name, "L", shorthost,
 		    (char *)NULL);
 		debug3("expanded LocalCommand: %s", options.local_command);
-		xfree(cp);
+		free(cp);
 	}
 
 	/* Find canonic host name. */
@@ -797,24 +826,24 @@ main(int ac, char **av)
 
 	if (options.proxy_command != NULL &&
 	    strcmp(options.proxy_command, "none") == 0) {
-		xfree(options.proxy_command);
+		free(options.proxy_command);
 		options.proxy_command = NULL;
 	}
 	if (options.control_path != NULL &&
 	    strcmp(options.control_path, "none") == 0) {
-		xfree(options.control_path);
+		free(options.control_path);
 		options.control_path = NULL;
 	}
 
 	if (options.control_path != NULL) {
 		cp = tilde_expand_filename(options.control_path,
 		    original_real_uid);
-		xfree(options.control_path);
+		free(options.control_path);
 		options.control_path = percent_expand(cp, "h", host,
 		    "l", thishost, "n", host_arg, "r", options.user,
 		    "p", portstr, "u", pw->pw_name, "L", shorthost,
 		    (char *)NULL);
-		xfree(cp);
+		free(cp);
 	}
 	if (muxclient_command != 0 && options.control_path == NULL)
 		fatal("No ControlPath specified for \"-O\" command");
@@ -965,13 +994,11 @@ main(int ac, char **av)
 				sensitive_data.keys[i] = NULL;
 			}
 		}
-		xfree(sensitive_data.keys);
+		free(sensitive_data.keys);
 	}
 	for (i = 0; i < options.num_identity_files; i++) {
-		if (options.identity_files[i]) {
-			xfree(options.identity_files[i]);
-			options.identity_files[i] = NULL;
-		}
+		free(options.identity_files[i]);
+		options.identity_files[i] = NULL;
 		if (options.identity_keys[i]) {
 			key_free(options.identity_keys[i]);
 			options.identity_keys[i] = NULL;
@@ -1031,6 +1058,7 @@ control_persist_detach(void)
 		if (devnull > STDERR_FILENO)
 			close(devnull);
 	}
+	daemon(1, 1);
 	setproctitle("%s [mux]", options.control_path);
 }
 
@@ -1530,6 +1558,11 @@ ssh_session2(void)
 
 	if (!no_shell_flag || (datafellows & SSH_BUG_DUMMYCHAN))
 		id = ssh_session2_open();
+	else {
+		packet_set_interactive(
+		    options.control_master == SSHCTL_MASTER_NO,
+		    options.ip_qos_interactive, options.ip_qos_bulk);
+	}
 
 	/* If we don't expect to open a new session, then disallow it */
 	if (options.control_master == SSHCTL_MASTER_NO &&
@@ -1602,7 +1635,7 @@ load_public_identity_files(void)
 			    xstrdup(options.pkcs11_provider); /* XXX */
 			n_ids++;
 		}
-		xfree(keys);
+		free(keys);
 	}
 #endif /* ENABLE_PKCS11 */
 	if ((pw = getpwuid(original_real_uid)) == NULL)
@@ -1615,7 +1648,7 @@ load_public_identity_files(void)
 	for (i = 0; i < options.num_identity_files; i++) {
 		if (n_ids >= SSH_MAX_IDENTITY_FILES ||
 		    strcasecmp(options.identity_files[i], "none") == 0) {
-			xfree(options.identity_files[i]);
+			free(options.identity_files[i]);
 			continue;
 		}
 		cp = tilde_expand_filename(options.identity_files[i],
@@ -1623,11 +1656,11 @@ load_public_identity_files(void)
 		filename = percent_expand(cp, "d", pwdir,
 		    "u", pwname, "l", thishost, "h", host,
 		    "r", options.user, (char *)NULL);
-		xfree(cp);
+		free(cp);
 		public = key_load_public(filename, NULL);
 		debug("identity file %s type %d", filename,
 		    public ? public->type : -1);
-		xfree(options.identity_files[i]);
+		free(options.identity_files[i]);
 		identity_files[n_ids] = filename;
 		identity_keys[n_ids] = public;
 
@@ -1640,14 +1673,14 @@ load_public_identity_files(void)
 		debug("identity file %s type %d", cp,
 		    public ? public->type : -1);
 		if (public == NULL) {
-			xfree(cp);
+			free(cp);
 			continue;
 		}
 		if (!key_is_cert(public)) {
 			debug("%s: key %s type %s is not a certificate",
 			    __func__, cp, key_type(public));
 			key_free(public);
-			xfree(cp);
+			free(cp);
 			continue;
 		}
 		identity_keys[n_ids] = public;
@@ -1660,9 +1693,9 @@ load_public_identity_files(void)
 	memcpy(options.identity_keys, identity_keys, sizeof(identity_keys));
 
 	bzero(pwname, strlen(pwname));
-	xfree(pwname);
+	free(pwname);
 	bzero(pwdir, strlen(pwdir));
-	xfree(pwdir);
+	free(pwdir);
 }
 
 static void

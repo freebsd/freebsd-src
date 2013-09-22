@@ -325,7 +325,6 @@ int	soconnect(struct socket *so, struct sockaddr *nam, struct thread *td);
 int	soconnectat(int fd, struct socket *so, struct sockaddr *nam,
 	    struct thread *td);
 int	soconnect2(struct socket *so1, struct socket *so2);
-int	socow_setup(struct mbuf *m0, struct uio *uio);
 int	socreate(int dom, struct socket **aso, int type, int proto,
 	    struct ucred *cred, struct thread *td);
 int	sodisconnect(struct socket *so);

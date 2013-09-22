@@ -19,16 +19,16 @@
 .\"
 .\" Copyright (c) 2010, Sun Microsystems, Inc. All Rights Reserved.
 .\" Copyright (c) 2012 by Delphix. All rights reserved.
-.\" Copyright (c) 2012, Joyent, Inc. All rights reserved.
 .\" Copyright (c) 2011, Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
 .\" Copyright (c) 2012, Bryan Drewery <bdrewery@FreeBSD.org>
 .\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
 .\" Copyright (c) 2013 Nexenta Systems, Inc. All Rights Reserved.
+.\" Copyright (c) 2013, Joyent, Inc. All rights reserved.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 21, 2013
+.Dd September 20, 2013
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -891,14 +891,21 @@ command or unmounted by the
 command.
 .Pp
 This property is not inherited.
-.It Sy checksum Ns = Ns Cm on | off | fletcher2 | fletcher4 | sha256
+.It Sy checksum Ns = Ns Cm on | off | fletcher2 | fletcher4 | sha256 | noparity
 Controls the checksum used to verify data integrity. The default value is
 .Cm on ,
 which automatically selects an appropriate algorithm (currently,
 .Cm fletcher4 ,
 but this may change in future releases). The value
 .Cm off
-disables integrity checking on user data. Disabling checksums is
+disables integrity checking on user data.
+The value
+.Cm noparity
+not only
+disables integrity but also disables maintaining parity for user data.  This
+setting is used internally by a dump device residing on a RAID-Z pool and should
+not be used by any other dataset.
+Disabling checksums is
 .Em NOT
 a recommended practice.
 .It Sy compression Ns = Ns Cm on | off | lzjb | gzip | gzip- Ns Ar N | zle | Cm lz4

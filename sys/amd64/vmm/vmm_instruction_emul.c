@@ -701,12 +701,6 @@ decode_modrm(struct vie *vie)
 		break;
 	}
 
-	/* Figure out immediate operand size (if any) */
-	if (vie->op.op_flags & VIE_OP_F_IMM)
-		vie->imm_bytes = 4;
-	else if (vie->op.op_flags & VIE_OP_F_IMM8)
-		vie->imm_bytes = 1;
-
 done:
 	vie_advance(vie);
 
@@ -821,6 +815,12 @@ decode_immediate(struct vie *vie)
 		int8_t	signed8;
 		int32_t	signed32;
 	} u;
+
+	/* Figure out immediate operand size (if any) */
+	if (vie->op.op_flags & VIE_OP_F_IMM)
+		vie->imm_bytes = 4;
+	else if (vie->op.op_flags & VIE_OP_F_IMM8)
+		vie->imm_bytes = 1;
 
 	if ((n = vie->imm_bytes) == 0)
 		return (0);

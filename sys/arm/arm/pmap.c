@@ -4591,21 +4591,6 @@ pmap_is_referenced(vm_page_t m)
 	return ((m->md.pvh_attrs & PVF_REF) != 0);
 }
 
-/*
- *	pmap_clear_reference:
- *
- *	Clear the reference bit on the specified physical page.
- */
-void
-pmap_clear_reference(vm_page_t m)
-{
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("pmap_clear_reference: page %p is not managed", m));
-	if (m->md.pvh_attrs & PVF_REF)
-		pmap_clearbit(m, PVF_REF);
-}
-
 
 /*
  * Clear the write and modified bits in each of the given page's mappings.

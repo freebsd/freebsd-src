@@ -786,7 +786,7 @@ pmap_init(void)
 			continue;
 		if (addr < VM_MIN_PROM_ADDRESS || addr > VM_MAX_PROM_ADDRESS)
 			continue;
-		result = vm_map_find(kernel_map, NULL, 0, &addr, size,
+		result = vm_map_find(kernel_map, NULL, 0, &addr, size, 0,
 		    VMFS_NO_SPACE, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
 		if (result != KERN_SUCCESS || addr != translations[i].om_start)
 			panic("pmap_init: vm_map_find");
@@ -2159,25 +2159,6 @@ pmap_clear_modify(vm_page_t m)
 			continue;
 		data = atomic_clear_long(&tp->tte_data, TD_W);
 		if ((data & TD_W) != 0)
-			tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
-	}
-	rw_wunlock(&tte_list_global_lock);
-}
-
-void
-pmap_clear_reference(vm_page_t m)
-{
-	struct tte *tp;
-	u_long data;
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("pmap_clear_reference: page %p is not managed", m));
-	rw_wlock(&tte_list_global_lock);
-	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
-		if ((tp->tte_data & TD_PV) == 0)
-			continue;
-		data = atomic_clear_long(&tp->tte_data, TD_REF);
-		if ((data & TD_REF) != 0)
 			tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
 	}
 	rw_wunlock(&tte_list_global_lock);

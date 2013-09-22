@@ -12552,14 +12552,10 @@ fi
   # before this can be enabled.
   hardcode_into_libs=yes
 
-  # Add ABI-specific directories to the system library path.
-  sys_lib_dlsearch_path_spec="/lib64 /usr/lib64 /lib /usr/lib"
-
   # Append ld.so.conf contents to the search path
   if test -f /etc/ld.so.conf; then
     lt_ld_extra=`awk '/^include / { system(sprintf("cd /etc; cat %s 2>/dev/null", \$2)); skip = 1; } { if (!skip) print \$0; skip = 0; }' < /etc/ld.so.conf | $SED -e 's/#.*//;/^[	 ]*hwcap[	 ]/d;s/[:,	]/ /g;s/=[^=]*$//;s/=[^= ]* / /g;s/"//g;/^$/d' | tr '\n' ' '`
-    sys_lib_dlsearch_path_spec="$sys_lib_dlsearch_path_spec $lt_ld_extra"
-
+    sys_lib_dlsearch_path_spec="/lib /usr/lib $lt_ld_extra"
   fi
 
   # We used to test for /lib/ld.so.1 and disable shared libraries on
@@ -18180,7 +18176,7 @@ _ACEOF
 
 
 
-ac_config_files="$ac_config_files Makefile doc/example.conf doc/libunbound.3 doc/unbound.8 doc/unbound-anchor.8 doc/unbound-checkconf.8 doc/unbound.conf.5 doc/unbound-control.8"
+ac_config_files="$ac_config_files Makefile doc/example.conf doc/libunbound.3 doc/unbound.8 doc/unbound-anchor.8 doc/unbound-checkconf.8 doc/unbound.conf.5 doc/unbound-control.8 smallapp/unbound-control-setup.sh"
 
 ac_config_headers="$ac_config_headers config.h"
 
@@ -19169,6 +19165,7 @@ do
     "doc/unbound-checkconf.8") CONFIG_FILES="$CONFIG_FILES doc/unbound-checkconf.8" ;;
     "doc/unbound.conf.5") CONFIG_FILES="$CONFIG_FILES doc/unbound.conf.5" ;;
     "doc/unbound-control.8") CONFIG_FILES="$CONFIG_FILES doc/unbound-control.8" ;;
+    "smallapp/unbound-control-setup.sh") CONFIG_FILES="$CONFIG_FILES smallapp/unbound-control-setup.sh" ;;
     "config.h") CONFIG_HEADERS="$CONFIG_HEADERS config.h" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;

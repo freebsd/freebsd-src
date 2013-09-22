@@ -214,7 +214,6 @@ OLD_FILES+=usr/share/man/man8/authpf-noip.8.gz
 .if ${MK_BIND} == no
 OLD_FILES+=etc/periodic/daily/470.status-named
 OLD_FILES+=usr/bin/dig
-OLD_FILES+=usr/bin/host
 OLD_FILES+=usr/bin/nslookup
 OLD_FILES+=usr/bin/nsupdate
 OLD_FILES+=usr/include/lwres/context.h
@@ -270,7 +269,6 @@ OLD_FILES+=usr/share/doc/bind9/COPYRIGHT
 OLD_FILES+=usr/share/doc/bind9/FAQ
 OLD_FILES+=usr/share/doc/bind9/README
 OLD_FILES+=usr/share/man/man1/dig.1.gz
-OLD_FILES+=usr/share/man/man1/host.1.gz
 OLD_FILES+=usr/share/man/man1/nslookup.1.gz
 OLD_FILES+=usr/share/man/man3/lwres.3.gz
 OLD_FILES+=usr/share/man/man3/lwres_buffer.3.gz
@@ -1562,9 +1560,7 @@ OLD_FILES+=usr/share/man/man8/unstr.8.gz
 .endif
 
 .if ${MK_GCC} == no
-.if ${MK_CXX} == no
 OLD_FILES+=usr/bin/c++filt
-.endif
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/bin/gcc
 OLD_FILES+=usr/bin/gcov
@@ -2548,6 +2544,14 @@ OLD_FILES+=usr/lib/pam_krb5.so
 OLD_LIBS+=usr/lib/pam_krb5.so.5
 OLD_FILES+=usr/lib/pam_ksu.so
 OLD_LIBS+=usr/lib/pam_ksu.so.5
+OLD_FILES+=usr/lib/private/libheimipcc.a
+OLD_FILES+=usr/lib/private/libheimipcc.so
+OLD_LIBS+=usr/lib/private/libheimipcc.so.11
+OLD_FILES+=usr/lib/private/libheimipcc_p.a
+OLD_FILES+=usr/lib/private/libheimipcs.a
+OLD_FILES+=usr/lib/private/libheimipcs.so
+OLD_LIBS+=usr/lib/private/libheimipcs.so.11
+OLD_FILES+=usr/lib/private/libheimipcs_p.a
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libasn1.a
 OLD_FILES+=usr/lib32/libasn1.so
@@ -2617,6 +2621,14 @@ OLD_FILES+=usr/lib32/pam_krb5.so
 OLD_LIBS+=usr/lib32/pam_krb5.so.5
 OLD_FILES+=usr/lib32/pam_ksu.so
 OLD_LIBS+=usr/lib32/pam_ksu.so.5
+OLD_FILES+=usr/lib32/private/libheimipcc.a
+OLD_FILES+=usr/lib32/private/libheimipcc.so
+OLD_LIBS+=usr/lib32/private/libheimipcc.so.11
+OLD_FILES+=usr/lib32/private/libheimipcc_p.a
+OLD_FILES+=usr/lib32/private/libheimipcs.a
+OLD_FILES+=usr/lib32/private/libheimipcs.so
+OLD_LIBS+=usr/lib32/private/libheimipcs.so.11
+OLD_FILES+=usr/lib32/private/libheimipcs_p.a
 .endif
 OLD_FILES+=usr/libexec/digest-service
 OLD_FILES+=usr/libexec/hprop
@@ -3375,6 +3387,28 @@ OLD_FILES+=usr/share/man/man8/verify_krb5_conf.8.gz
 OLD_FILES+=usr/share/man/man8/verify_krb5_conf.8.gz
 .endif
 
+.if ${MK_LDNS} == no
+OLD_FILES+=usr/lib/private/libldns.a
+OLD_FILES+=usr/lib/private/libldns.so
+OLD_LIBS+=usr/lib/private/libldns.so.5
+OLD_FILES+=usr/lib/private/libldns_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/private/libldns.a
+OLD_FILES+=usr/lib32/private/libldns.so
+OLD_LIBS+=usr/lib32/private/libldns.so.5
+OLD_FILES+=usr/lib32/private/libldns_p.a
+.endif
+.endif
+
+.if ${MK_LDNS_UTILS} == no
+OLD_FILES+=usr/bin/drill
+OLD_FILES+=usr/share/man/man1/drill.1.gz
+.if ${MK_BIND} == no
+OLD_FILES+=usr/bin/host
+OLD_FILES+=usr/share/man/man1/host.1.gz
+.endif
+.endif
+
 #.if ${MK_LIB32} == no
 # to be filled in
 #.endif
@@ -3701,7 +3735,27 @@ OLD_FILES+=usr/share/man/man8/ntptime.8.gz
 #.endif
 
 .if ${MK_OPENSSH} == no
-OLD_FILES+=usr.bin/ssh-copy-id
+OLD_FILES+=usr/bin/sftp
+OLD_FILES+=usr/bin/ssh
+OLD_FILES+=usr/bin/ssh-add
+OLD_FILES+=usr/bin/ssh-agent
+OLD_FILES+=usr/bin/ssh-copy-id
+OLD_FILES+=usr/bin/ssh-keygen
+OLD_FILES+=usr/bin/ssh-keyscan
+OLD_FILES+=usr/lib/private/libssh.a
+OLD_FILES+=usr/lib/private/libssh.so
+OLD_LIBS+=usr/lib/private/libssh.so.5
+OLD_FILES+=usr/lib/private/libssh_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/private/libssh.a
+OLD_FILES+=usr/lib32/private/libssh.so
+OLD_LIBS+=usr/lib32/private/libssh.so.5
+OLD_FILES+=usr/lib32/private/libssh_p.a
+.endif
+OLD_FILES+=usr/libexec/sftp-server
+OLD_FILES+=usr/libexec/ssh-keysign
+OLD_FILES+=usr/libexec/ssh-pkcs11-helper
+OLD_FILES+=usr/sbin/sshd
 .endif
 
 #.if ${MK_OPENSSL} == no
@@ -3958,7 +4012,6 @@ OLD_FILES+=usr/lib/librt_p.a
 OLD_FILES+=usr/lib/libsbuf_p.a
 OLD_FILES+=usr/lib/libsdp_p.a
 OLD_FILES+=usr/lib/libsmb_p.a
-OLD_FILES+=usr/lib/libssh_p.a
 OLD_FILES+=usr/lib/libssl_p.a
 OLD_FILES+=usr/lib/libstdc++_p.a
 OLD_FILES+=usr/lib/libsupc++_p.a
@@ -3981,6 +4034,8 @@ OLD_FILES+=usr/lib/libwrap_p.a
 OLD_FILES+=usr/lib/liby_p.a
 OLD_FILES+=usr/lib/libypclnt_p.a
 OLD_FILES+=usr/lib/libz_p.a
+OLD_FILES+=usr/lib/private/libldns_p.a
+OLD_FILES+=usr/lib/private/libssh_p.a
 .endif
 
 .if ${MK_RCMDS} == no
@@ -4318,6 +4373,24 @@ OLD_FILES+=usr/share/man/man8/telnetd.8.gz
 #.if ${MK_TOOLCHAIN} == no
 # to be filled in
 #.endif
+
+.if ${MK_UNBOUND} == no
+OLD_FILES+=usr/lib/private/libunbound.a
+OLD_FILES+=usr/lib/private/libunbound.so
+OLD_LIBS+=usr/lib/private/libunbound.so.5
+OLD_FILES+=usr/lib/private/libunbound_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/private/libunbound.a
+OLD_FILES+=usr/lib32/private/libunbound.so
+OLD_LIBS+=usr/lib32/private/libunbound.so.5
+OLD_FILES+=usr/lib32/private/libunbound_p.a
+.endif
+OLD_FILES+=usr/sbin/unbound
+OLD_FILES+=usr/sbin/unbound-anchor
+OLD_FILES+=usr/sbin/unbound-checkconf
+OLD_FILES+=usr/sbin/unbound-control
+OLD_FILES+=usr/sbin/unbound-control-setup
+.endif
 
 #.if ${MK_USB} == no
 # to be filled in

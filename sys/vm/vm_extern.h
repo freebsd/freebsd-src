@@ -33,6 +33,7 @@
 #ifndef _VM_EXTERN_H_
 #define	_VM_EXTERN_H_
 
+struct pmap;
 struct proc;
 struct vmspace;
 struct vnode;
@@ -88,7 +89,8 @@ int vm_mmap(vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int, objty
 int vm_mmap_to_errno(int rv);
 void vm_set_page_size(void);
 void vm_sync_icache(vm_map_t, vm_offset_t, vm_size_t);
-struct vmspace *vmspace_alloc(vm_offset_t, vm_offset_t);
+typedef int (*pmap_pinit_t)(struct pmap *pmap);
+struct vmspace *vmspace_alloc(vm_offset_t, vm_offset_t, pmap_pinit_t);
 struct vmspace *vmspace_fork(struct vmspace *, vm_ooffset_t *);
 int vmspace_exec(struct proc *, vm_offset_t, vm_offset_t);
 int vmspace_unshare(struct proc *);

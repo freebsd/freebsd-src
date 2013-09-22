@@ -151,26 +151,25 @@ uprintf(const char *fmt, ...)
 	PROC_LOCK(p);
 	if ((p->p_flag & P_CONTROLT) == 0) {
 		PROC_UNLOCK(p);
-		retval = 0;
-		goto out;
+		sx_sunlock(&proctree_lock);
+		return (0);
 	}
 	SESS_LOCK(p->p_session);
 	pca.tty = p->p_session->s_ttyp;
 	SESS_UNLOCK(p->p_session);
 	PROC_UNLOCK(p);
 	if (pca.tty == NULL) {
-		retval = 0;
-		goto out;
+		sx_sunlock(&proctree_lock);
+		return (0);
 	}
 	pca.flags = TOTTY;
 	pca.p_bufr = NULL;
 	va_start(ap, fmt);
 	tty_lock(pca.tty);
+	sx_sunlock(&proctree_lock);
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	tty_unlock(pca.tty);
 	va_end(ap);
-out:
-	sx_sunlock(&proctree_lock);
 	return (retval);
 }
 
@@ -219,13 +218,13 @@ vtprintf(struct proc *p, int pri, const char *fmt, va_list ap)
 	pca.p_bufr = NULL;
 	if (pca.tty != NULL)
 		tty_lock(pca.tty);
+	sx_sunlock(&proctree_lock);
 	kvprintf(fmt, putchar, &pca, 10, ap);
 	if (pca.tty != NULL)
 		tty_unlock(pca.tty);
 	if (sess != NULL)
 		sess_release(sess);
 	msgbuftrigger = 1;
-	sx_sunlock(&proctree_lock);
 }
 
 /*

@@ -270,7 +270,7 @@ FBSD_1.3 {
 	log1pl;
 	log2l;
 	logl;
-	# Implemented as weak aliases for imprecise versions
+	/* Implemented as weak aliases for imprecise versions */
 	coshl;
 	erfcl;
 	erfl;
