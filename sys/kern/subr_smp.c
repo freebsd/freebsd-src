@@ -225,6 +225,7 @@ generic_stop_cpus(cpuset_t map, u_int type)
 	CTR2(KTR_SMP, "stop_cpus(%s) with %u type",
 	    cpusetobj_strprint(cpusetbuf, &map), type);
 
+#if defined(__amd64__) || defined(__i386__)
 	/*
 	 * When suspending, ensure there are are no IPIs in progress.
 	 * IPIs that have been issued, but not yet delivered (e.g.
@@ -234,6 +235,7 @@ generic_stop_cpus(cpuset_t map, u_int type)
 	 */
 	if (type == IPI_SUSPEND)
 		mtx_lock_spin(&smp_ipi_mtx);
+#endif
 
 	if (stopping_cpu != PCPU_GET(cpuid))
 		while (atomic_cmpset_int(&stopping_cpu, NOCPU,
@@ -262,8 +264,10 @@ generic_stop_cpus(cpuset_t map, u_int type)
 		}
 	}
 
+#if defined(__amd64__) || defined(__i386__)
 	if (type == IPI_SUSPEND)
 		mtx_unlock_spin(&smp_ipi_mtx);
+#endif
 
 	stopping_cpu = NOCPU;
 	return (1);
