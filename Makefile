@@ -374,7 +374,7 @@ kernel-toolchains:
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
 TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64
-TARGET_ARCHES_arm?=	arm armeb armv6 armv6eb
+TARGET_ARCHES_arm?=	arm armeb armv6
 TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32
 TARGET_ARCHES_powerpc?=	powerpc powerpc64
 TARGET_ARCHES_pc98?=	i386
