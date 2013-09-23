@@ -892,7 +892,10 @@ mpssas_volume_add(struct mps_softc *sc, u16 handle)
 		free(lun, M_MPT2);
 	}
 	SLIST_INIT(&targ->luns);
+#if ((__FreeBSD_version >= 1000000) && (__FreeBSD_version < 1000039)) || \
+    (__FreeBSD_version < 902502)
 	if ((sassc->flags & MPSSAS_IN_STARTUP) == 0)
+#endif
 		mpssas_rescan_target(sc, targ);
 	mps_dprint(sc, MPS_MAPPING, "RAID target id %d added (WWID = 0x%jx)\n",
 	    targ->tid, wwid);
