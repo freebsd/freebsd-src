@@ -558,7 +558,11 @@ iscsi_callout(void *context)
 	if (is->is_timeout < 2)
 		return;
 
-	request = icl_pdu_new_bhs(is->is_conn, M_WAITOK);
+	request = icl_pdu_new_bhs(is->is_conn, M_NOWAIT);
+	if (request == NULL) {
+		ISCSI_SESSION_WARN(is, "failed to allocate PDU");
+		return;
+	}
 	bhsno = (struct iscsi_bhs_nop_out *)request->ip_bhs;
 	bhsno->bhsno_opcode = ISCSI_BHS_OPCODE_NOP_OUT |
 	    ISCSI_BHS_OPCODE_IMMEDIATE;
