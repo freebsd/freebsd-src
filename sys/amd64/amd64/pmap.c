@@ -4107,6 +4107,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			continue;
 			
 		if (srcptepaddr & PG_PS) {
+			if ((addr & PDRMASK) != 0 || addr + NBPDR > end_addr)
+				continue;
 			dstmpde = pmap_allocpde(dst_pmap, addr, NULL);
 			if (dstmpde == NULL)
 				break;
