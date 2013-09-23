@@ -150,6 +150,7 @@ FILES=	DAEMON \
 	tmp \
 	${_ubthidhci} \
 	ugidfw \
+	${_unbound} \
 	${_utx} \
 	var \
 	virecover \
@@ -182,6 +183,10 @@ _nscd=		nscd
 
 .if ${MK_BLUETOOTH} != "no"
 _ubthidhci=	ubthidhci
+.endif
+
+.if ${MK_UNBOUND} != "no"
+_unbound=	local_unbound
 .endif
 
 .if ${MK_UTMPX} != "no"
