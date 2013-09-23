@@ -367,7 +367,7 @@ cpu_thread_clean(struct thread *td)
 		 * XXX do we need to move the TSS off the allocated pages
 		 * before freeing them?  (not done here)
 		 */
-		kva_free((vm_offset_t)pcb->pcb_ext,
+		kmem_free(kernel_arena, (vm_offset_t)pcb->pcb_ext,
 		    ctob(IOPAGES + 1));
 		pcb->pcb_ext = NULL;
 	}
