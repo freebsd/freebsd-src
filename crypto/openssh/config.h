@@ -157,7 +157,7 @@
 /* #undef GLOB_HAS_GL_STATV */
 
 /* Define this if you want GSSAPI support in the version 2 protocol */
-#define GSSAPI 1
+/* #undef GSSAPI */
 
 /* Define if you want to use shadow password expire field */
 /* #undef HAS_SHADOW_EXPIRE */
@@ -271,7 +271,7 @@
 
 /* Define to 1 if you have the declaration of `GSS_C_NT_HOSTBASED_SERVICE',
    and to 0 if you don't. */
-#define HAVE_DECL_GSS_C_NT_HOSTBASED_SERVICE 1
+/* #undef HAVE_DECL_GSS_C_NT_HOSTBASED_SERVICE */
 
 /* Define to 1 if you have the declaration of `howmany', and to 0 if you
    don't. */
@@ -535,10 +535,10 @@
 /* #undef HAVE_GSSAPI_GSSAPI_GENERIC_H */
 
 /* Define to 1 if you have the <gssapi/gssapi.h> header file. */
-#define HAVE_GSSAPI_GSSAPI_H 1
+/* #undef HAVE_GSSAPI_GSSAPI_H */
 
 /* Define to 1 if you have the <gssapi/gssapi_krb5.h> header file. */
-#define HAVE_GSSAPI_GSSAPI_KRB5_H 1
+/* #undef HAVE_GSSAPI_GSSAPI_KRB5_H */
 
 /* Define to 1 if you have the <gssapi.h> header file. */
 /* #undef HAVE_GSSAPI_H */
@@ -601,13 +601,13 @@
 #define HAVE_ISBLANK 1
 
 /* Define to 1 if you have the `krb5_cc_new_unique' function. */
-#define HAVE_KRB5_CC_NEW_UNIQUE 1
+/* #undef HAVE_KRB5_CC_NEW_UNIQUE */
 
 /* Define to 1 if you have the `krb5_free_error_message' function. */
-#define HAVE_KRB5_FREE_ERROR_MESSAGE 1
+/* #undef HAVE_KRB5_FREE_ERROR_MESSAGE */
 
 /* Define to 1 if you have the `krb5_get_error_message' function. */
-#define HAVE_KRB5_GET_ERROR_MESSAGE 1
+/* #undef HAVE_KRB5_GET_ERROR_MESSAGE */
 
 /* Define to 1 if you have the <lastlog.h> header file. */
 /* #undef HAVE_LASTLOG_H */
@@ -1310,7 +1310,7 @@
 #define HAVE___func__ 1
 
 /* Define this if you are using the Heimdal version of Kerberos V5 */
-#define HEIMDAL 1
+/* #undef HEIMDAL */
 
 /* Define if you need to use IP address instead of hostname in $DISPLAY */
 /* #undef IPADDR_IN_DISPLAY */
@@ -1322,7 +1322,7 @@
 /* #undef IP_TOS_IS_BROKEN */
 
 /* Define if you want Kerberos 5 support */
-#define KRB5 1
+/* #undef KRB5 */
 
 /* Define if pututxline updates lastlog too */
 /* #undef LASTLOG_WRITE_PUTUTXLINE */
