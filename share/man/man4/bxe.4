@@ -32,10 +32,7 @@
 .Os
 .Sh NAME
 .Nm bxe
-.Nd "Broadcom NetXtreme II Ethernet adapter driver for BCM57710 / BCM57711 /
-BCM57711E / BCM57712 / BCM57712-MF / BCM57800 / BCM57800-MF / BCM57810 /
-BCM57810-MF / BCM57840 / BCM57840-MF 10Gb PCIE Ethernet Network Controllers
-and Broadcom NetXtreme II BCM57840 10Gb/20Gb PCIE Ethernet Network Controllers.
+.Nd Broadcom NetXtreme II Ethernet 10Gb PCIe adapter driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -54,7 +51,8 @@ if_bxe_load="YES"
 The
 .Nm
 driver provides support for PCIe 10Gb Ethernet adapters based on the Broadcom
-NetXtreme II family of 10Gb chips. The driver supports Jumbo Frames, VLAN
+NetXtreme II family of 10Gb chips.
+The driver supports Jumbo Frames, VLAN
 tagging, checksum offload (IPv4, TCP, UDP, IPv6-TCP, IPv6-UDP), MSI-X
 interrupts, TCP Segmentation Offload (TSO), Large Receive Offload (LRO), and
 Receive Side Scaling (RSS).
@@ -90,35 +88,45 @@ Broadcom NetXtreme II BCM57840-MF 10Gb
 .El
 .Sh CONFIGURATION
 There a number of configuration parameters that can be set to tweak the
-driver's behavior. These parameters can be set via the
+driver's behavior.
+These parameters can be set via the
 .Xr loader.conf 5
-file to take affect during the next system boot. The following parameters affect
+file to take affect during the next system boot.
+The following parameters affect
 ALL instances of the driver.
 .Bl -tag -width indent
 .It Va hw.bxe.debug
 DEFAULT = 0
 .br
-Sets the default logging level of the driver. See the Diagnostics and Debugging
+Sets the default logging level of the driver.
+See the Diagnostics and Debugging
 section below for more details.
 .It Va hw.bxe.interrupt_mode
 DEFAULT = 2
 .br
-Sets the default interrupt mode: 0=IRQ, 1=MSI, 2=MSIX. If set to MSIX and
-allocation fails, the driver will roll back and attempt MSI allocation. If MSI
+Sets the default interrupt mode: 0=IRQ, 1=MSI, 2=MSIX.
+If set to MSIX and
+allocation fails, the driver will roll back and attempt MSI allocation.
+If MSI
 allocation fails, the driver will roll back and attempt fixed level IRQ
-allocation. If IRQ allocation fails, then the driver load fails. With MSI/MSIX,
+allocation.
+If IRQ allocation fails, then the driver load fails.
+With MSI/MSIX,
 the driver attempts to allocate a vector for each queue in addition to one more
 for default processing.
 .It Va hw.bxe.queue_count
 DEFAULT = 4
 .br
-Sets the default number of fast path packet processing queues. Note that one
+Sets the default number of fast path packet processing queues.
+Note that one
 MSI/MSIX interrupt vector is allocated per-queue.
 .It Va hw.bxe.max_rx_bufs
 DEFAULT = 0
 .br
-Sets the maximum number of receive buffers to allocate per-queue. Zero(0) means
-to allocate a receive buffer for every buffer descriptor. By default this
+Sets the maximum number of receive buffers to allocate per-queue.
+Zero(0) means
+to allocate a receive buffer for every buffer descriptor.
+By default this
 equates to 4080 buffers per-queue which is the maximum value for this config
 parameter.
 .It Va hw.bxe.hc_rx_ticks
@@ -132,14 +140,17 @@ Sets the number of ticks for host interrupt coalescing in the transmit path.
 .It Va hw.bxe.rx_budget
 DEFAULT = 0xffffffff
 .br
-Sets the maximum number of receive packets to process in an interrupt. If the
+Sets the maximum number of receive packets to process in an interrupt.
+If the
 budget is reached then the remaining/pending packets will be processed in a
 scheduled taskqueue.
 .It Va hw.bxe.max_aggregation_size
 DEFAULT = 32768
 .br
-Sets the maximum LRO aggregration byte size. The higher the value the more
-packets the hardware will aggregate. Maximum is 65K.
+Sets the maximum LRO aggregration byte size.
+The higher the value the more
+packets the hardware will aggregate.
+Maximum is 65K.
 .It Va hw.bxe.mrrs
 DEFAULT = -1
 .br
@@ -155,11 +166,15 @@ Enable/Disable 4-tuple RSS for UDP: 0=DISABLED, 1=ENABLED
 .El
 .Pp
 Special care must be taken when modifying the number of queues and receive
-buffers. FreeBSD imposes a limit on the maximum number of
+buffers.
+FreeBSD imposes a limit on the maximum number of
 .Xr mbuf 9
-allocations. If buffer allocations fail, the interface initialization will fail
-and the interface will not be usable. The driver does not make a best effort
-for buffer allocations. It is an all or nothing effort.
+allocations.
+If buffer allocations fail, the interface initialization will fail
+and the interface will not be usable.
+The driver does not make a best effort
+for buffer allocations.
+It is an all or nothing effort.
 .Pp
 You can tweak the
 .Xr mbuf 9
@@ -175,19 +190,26 @@ as follows:
 .Ed
 .Pp
 There are additional configuration parameters that can be set on a per-instance
-basis to dynamically override the default configuration. The '#' below must be
+basis to dynamically override the default configuration.
+The '#' below must be
 replaced with the driver instance / interface unit number:
 .Bl -tag -width indent
 .It Va dev.bxe.#.debug
 DEFAULT = 0
 .br
-Sets the default logging level of the driver instance. See hw.bxe.debug above and
+Sets the default logging level of the driver instance.
+See
+.Va hw.bxe.debug
+above and
 the Diagnostics and Debugging section below for more details.
 .It Va dev.bxe.#.rx_budget
 DEFAULT = 0xffffffff
 .br
 Sets the maximum number of receive packets to process in an interrupt for the
-driver instance. See hw.bxe.rx_budget above for more details.
+driver instance.
+See
+.Va hw.bxe.rx_budget
+above for more details.
 .El
 .Pp
 Additional items can be configured using
@@ -221,7 +243,8 @@ DEFAULT = ON
 .Sh DIAGNOSTICS AND DEBUGGING
 There are many statistics exposed by
 .Nm
-via sysctl.
+via
+.Xr sysctl 8 .
 .Pp
 To dump the default driver configuration:
 .Bd -literal -offset indent
@@ -253,12 +276,20 @@ additional '#' with the queue number):
 The
 .Nm
 driver has the ability to dump a ton of debug messages to the system
-log. The default level of logging can be set with the 'hw.bxe.debug'
-configuration parameter. Take care with this setting as it can result in too
-many logs being dumped. Since this parameter is the default one, it affects
-every instance and will dramatically change the timing in the driver. A better
+log.
+The default level of logging can be set with the
+.Va hw.bxe.debug
+.Xr sysctl 8 .
+Take care with this setting as it can result in too
+many logs being dumped.
+Since this parameter is the default one, it affects
+every instance and will dramatically change the timing in the driver.
+A better
 alternative to aid in debugging is to dynamically change the debug level of a
-specific instance with the 'dev.bxe.#.debug' configuration parameter. This allows
+specific instance with the
+.Va dev.bxe.#.debug
+.Xr sysctl 8 .
+This allows
 you to turn on/off logging of various debug groups on-the-fly.
 .Pp
 The different debug groups that can be toggled are:
@@ -288,13 +319,13 @@ When finished turn the logging back off:
 # sysctl dev.bxe.0.debug=0
 .Ed
 .Sh SEE ALSO
+.Xr netstat 1 ,
 .Xr altq 4 ,
 .Xr arp 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr vlan 4 ,
 .Xr ifconfig 8
-.Xr netstat 1
 .Sh HISTORY
 The
 .Nm
