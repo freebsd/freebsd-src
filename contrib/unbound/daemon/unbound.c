@@ -177,8 +177,6 @@ static void usage()
 	for(m = module_list_avail(); *m; m++)
 		printf(" %s", *m);
 	printf("\n");
-	printf("configured for %s on %s with options:%s\n",
-		CONFIGURE_TARGET, CONFIGURE_DATE, CONFIGURE_BUILD_WITH);
 	printf("BSD licensed, see LICENSE in source package for details.\n");
 	printf("Report bugs to %s\n", PACKAGE_BUGREPORT);
 }
