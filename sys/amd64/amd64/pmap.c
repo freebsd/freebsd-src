@@ -5331,13 +5331,13 @@ pmap_clear_modify(vm_page_t m)
 	 */
 	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
+	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 	rw_rlock(&pvh_global_lock);
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	rw_wlock(lock);
 restart:
 	if ((m->flags & PG_FICTITIOUS) != 0)
 		goto small_mappings;
-	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) {
 		pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
