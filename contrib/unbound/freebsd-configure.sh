@@ -24,9 +24,11 @@ ldnsobj=$(realpath $(make -C$ldnsbld -V.OBJDIR))
 [ -f $ldnsobj/libldns.a ] || error "can't find LDNS object directory"
 export LDFLAGS="-L$ldnsobj"
 
+autoconf
+autoheader
 ./configure \
 	--prefix= --exec-prefix=/usr \
-	--with-conf-file=/etc/unbound/unbound.conf \
+	--with-conf-file=/var/unbound/unbound.conf \
 	--with-run-dir=/var/unbound \
 	--with-username=unbound
 
