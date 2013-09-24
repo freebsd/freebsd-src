@@ -2036,10 +2036,6 @@ iscsi_load(void)
 	    NULL, UID_ROOT, GID_WHEEL, 0600, "iscsi");
 	if (error != 0) {
 		ISCSI_WARN("failed to create device node, error %d", error);
-		sx_destroy(&sc->sc_lock);
-		cv_destroy(&sc->sc_cv);
-		uma_zdestroy(iscsi_outstanding_zone);
-		free(sc, M_ISCSI);
 		return (error);
 	}
 	sc->sc_cdev->si_drv1 = sc;
@@ -2056,16 +2052,16 @@ iscsi_load(void)
 static int
 iscsi_unload(void)
 {
-	/*
-	 * XXX: kldunload hangs on "devdrn".
-	 */
 	struct iscsi_session *is, *tmp;
 
-	ISCSI_DEBUG("removing device node");
-	destroy_dev(sc->sc_cdev);
-	ISCSI_DEBUG("device node removed");
+	if (sc->sc_cdev != NULL) {
+		ISCSI_DEBUG("removing device node");
+		destroy_dev(sc->sc_cdev);
+		ISCSI_DEBUG("device node removed");
+	}
 
-	EVENTHANDLER_DEREGISTER(shutdown_post_sync, sc->sc_shutdown_eh);
+	if (sc->sc_shutdown_eh != NULL)
+		EVENTHANDLER_DEREGISTER(shutdown_post_sync, sc->sc_shutdown_eh);
 
 	sx_slock(&sc->sc_lock);
 	TAILQ_FOREACH_SAFE(is, &sc->sc_sessions, is_next, tmp)
