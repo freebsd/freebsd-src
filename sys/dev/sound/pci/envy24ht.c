@@ -2080,7 +2080,7 @@ envy24ht_pci_probe(device_t dev)
 static void
 envy24ht_dmapsetmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-	/* struct sc_info *sc = (struct sc_info *)arg; */
+	struct sc_info *sc = arg;
 
 #if(0)
 	device_printf(sc->dev, "envy24ht_dmapsetmap()\n");
@@ -2088,15 +2088,16 @@ envy24ht_dmapsetmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 		printf("envy24ht(play): setmap %lx, %lx; ",
 		    (unsigned long)segs->ds_addr,
 		    (unsigned long)segs->ds_len);
-		printf("%p -> %lx\n", sc->pmap, (unsigned long)vtophys(sc->pmap));
 	}
 #endif
+	envy24ht_wrmt(sc, ENVY24HT_MT_PADDR, (uint32_t)segs->ds_addr, 4);
+	envy24ht_wrmt(sc, ENVY24HT_MT_PCNT, (uint32_t)(segs->ds_len / 4 - 1), 2);
 }
 
 static void
 envy24ht_dmarsetmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-	/* struct sc_info *sc = (struct sc_info *)arg; */
+	struct sc_info *sc = arg;
 
 #if(0)
 	device_printf(sc->dev, "envy24ht_dmarsetmap()\n");
@@ -2104,9 +2105,10 @@ envy24ht_dmarsetmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 		printf("envy24ht(record): setmap %lx, %lx; ",
 		    (unsigned long)segs->ds_addr,
 		    (unsigned long)segs->ds_len);
-		printf("%p -> %lx\n", sc->rmap, (unsigned long)vtophys(sc->pmap));
 	}
 #endif
+	envy24ht_wrmt(sc, ENVY24HT_MT_RADDR, (uint32_t)segs->ds_addr, 4);
+	envy24ht_wrmt(sc, ENVY24HT_MT_RCNT, (uint32_t)(segs->ds_len / 4 - 1), 2);
 }
 
 static void
@@ -2149,7 +2151,6 @@ envy24ht_dmafree(struct sc_info *sc)
 static int
 envy24ht_dmainit(struct sc_info *sc)
 {
-	u_int32_t addr;
 
 #if(0)
 	device_printf(sc->dev, "envy24ht_dmainit()\n");
@@ -2176,33 +2177,15 @@ envy24ht_dmainit(struct sc_info *sc)
 #if(0)
 	device_printf(sc->dev, "envy24ht_dmainit(): bus_dmamem_load(): sc->pmap\n");
 #endif
-	if (bus_dmamap_load(sc->dmat, sc->pmap, sc->pbuf, sc->psize, envy24ht_dmapsetmap, sc, 0))
+	if (bus_dmamap_load(sc->dmat, sc->pmap, sc->pbuf, sc->psize, envy24ht_dmapsetmap, sc, BUS_DMA_NOWAIT))
 		goto bad;
 #if(0)
 	device_printf(sc->dev, "envy24ht_dmainit(): bus_dmamem_load(): sc->rmap\n");
 #endif
-	if (bus_dmamap_load(sc->dmat, sc->rmap, sc->rbuf, sc->rsize, envy24ht_dmarsetmap, sc, 0))
+	if (bus_dmamap_load(sc->dmat, sc->rmap, sc->rbuf, sc->rsize, envy24ht_dmarsetmap, sc, BUS_DMA_NOWAIT))
 		goto bad;
 	bzero(sc->pbuf, sc->psize);
 	bzero(sc->rbuf, sc->rsize);
-
-	/* set values to register */
-	addr = vtophys(sc->pbuf);
-#if(0)
-	device_printf(sc->dev, "pbuf(0x%08x)\n", addr);
-#endif
-	envy24ht_wrmt(sc, ENVY24HT_MT_PADDR, addr, 4);
-#if(0)
-	device_printf(sc->dev, "PADDR-->(0x%08x)\n", envy24ht_rdmt(sc, ENVY24HT_MT_PADDR, 4));
-	device_printf(sc->dev, "psize(%ld)\n", sc->psize / 4 - 1);
-#endif
-	envy24ht_wrmt(sc, ENVY24HT_MT_PCNT, sc->psize / 4 - 1, 2);
-#if(0)
-	device_printf(sc->dev, "PCNT-->(%ld)\n", envy24ht_rdmt(sc, ENVY24HT_MT_PCNT, 2));
-#endif
-	addr = vtophys(sc->rbuf);
-	envy24ht_wrmt(sc, ENVY24HT_MT_RADDR, addr, 4);
-	envy24ht_wrmt(sc, ENVY24HT_MT_RCNT, sc->rsize / 4 - 1, 2);
 
 	return 0;
  bad:
@@ -2441,7 +2424,7 @@ envy24ht_alloc_resource(struct sc_info *sc)
 	sc->irq = bus_alloc_resource(sc->dev, SYS_RES_IRQ, &sc->irqid,
 				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
 	if (!sc->irq ||
-	    snd_setup_intr(sc->dev, sc->irq, 0, envy24ht_intr, sc, &sc->ih)) {
+	    snd_setup_intr(sc->dev, sc->irq, INTR_MPSAFE, envy24ht_intr, sc, &sc->ih)) {
 		device_printf(sc->dev, "unable to map interrupt\n");
 		return ENXIO;
 	}
@@ -2450,13 +2433,13 @@ envy24ht_alloc_resource(struct sc_info *sc)
 	if (bus_dma_tag_create(/*parent*/bus_get_dma_tag(sc->dev),
 	    /*alignment*/4,
 	    /*boundary*/0,
-	    /*lowaddr*/BUS_SPACE_MAXADDR_ENVY24,
-	    /*highaddr*/BUS_SPACE_MAXADDR_ENVY24,
+	    /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
+	    /*highaddr*/BUS_SPACE_MAXADDR,
 	    /*filter*/NULL, /*filterarg*/NULL,
 	    /*maxsize*/BUS_SPACE_MAXSIZE_ENVY24,
 	    /*nsegments*/1, /*maxsegsz*/0x3ffff,
-	    /*flags*/0, /*lockfunc*/busdma_lock_mutex,
-	    /*lockarg*/&Giant, &sc->dmat) != 0) {
+	    /*flags*/0, /*lockfunc*/NULL,
+	    /*lockarg*/NULL, &sc->dmat) != 0) {
 		device_printf(sc->dev, "unable to create dma tag\n");
 		return ENXIO;
 	}

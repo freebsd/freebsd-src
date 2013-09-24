@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -72,6 +72,7 @@ typedef ISC_LIST(dns_dns64_t)			dns_dns64list_t;
 typedef struct dns_dnsseckey			dns_dnsseckey_t;
 typedef ISC_LIST(dns_dnsseckey_t)		dns_dnsseckeylist_t;
 typedef struct dns_dumpctx			dns_dumpctx_t;
+typedef struct dns_ednsopt			dns_ednsopt_t;
 typedef struct dns_fetch			dns_fetch_t;
 typedef struct dns_fixedname			dns_fixedname_t;
 typedef struct dns_forwarders			dns_forwarders_t;
@@ -372,5 +373,8 @@ typedef isc_boolean_t
 typedef isc_boolean_t
 (*dns_isselffunc_t)(dns_view_t *, dns_tsigkey_t *, isc_sockaddr_t *,
 		    isc_sockaddr_t *, dns_rdataclass_t, void *);
+
+typedef void
+(*dns_nseclog_t)(void *val, int , const char *, ...);
 
 #endif /* DNS_TYPES_H */

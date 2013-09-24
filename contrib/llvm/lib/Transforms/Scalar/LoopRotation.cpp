@@ -13,20 +13,21 @@
 
 #define DEBUG_TYPE "loop-rotate"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Function.h"
-#include "llvm/IntrinsicInst.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/CodeMetrics.h"
-#include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/InstructionSimplify.h"
+#include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/Transforms/Utils/Local.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
-#include "llvm/Transforms/Utils/SSAUpdater.h"
-#include "llvm/Transforms/Utils/ValueMapper.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/ADT/Statistic.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/Local.h"
+#include "llvm/Transforms/Utils/SSAUpdater.h"
+#include "llvm/Transforms/Utils/ValueMapper.h"
 using namespace llvm;
 
 #define MAX_HEADER_SIZE 16
@@ -51,19 +52,22 @@ namespace {
       AU.addRequiredID(LCSSAID);
       AU.addPreservedID(LCSSAID);
       AU.addPreserved<ScalarEvolution>();
+      AU.addRequired<TargetTransformInfo>();
     }
 
     bool runOnLoop(Loop *L, LPPassManager &LPM);
-    void simplifyLoopLatch(Loop *L);
-    bool rotateLoop(Loop *L);
+    bool simplifyLoopLatch(Loop *L);
+    bool rotateLoop(Loop *L, bool SimplifiedLatch);
 
   private:
     LoopInfo *LI;
+    const TargetTransformInfo *TTI;
   };
 }
 
 char LoopRotate::ID = 0;
 INITIALIZE_PASS_BEGIN(LoopRotate, "loop-rotate", "Rotate Loops", false, false)
+INITIALIZE_AG_DEPENDENCY(TargetTransformInfo)
 INITIALIZE_PASS_DEPENDENCY(LoopInfo)
 INITIALIZE_PASS_DEPENDENCY(LoopSimplify)
 INITIALIZE_PASS_DEPENDENCY(LCSSA)
@@ -75,17 +79,19 @@ Pass *llvm::createLoopRotatePass() { return new LoopRotate(); }
 /// the loop is rotated at least once.
 bool LoopRotate::runOnLoop(Loop *L, LPPassManager &LPM) {
   LI = &getAnalysis<LoopInfo>();
+  TTI = &getAnalysis<TargetTransformInfo>();
 
   // Simplify the loop latch before attempting to rotate the header
   // upward. Rotation may not be needed if the loop tail can be folded into the
   // loop exit.
-  simplifyLoopLatch(L);
+  bool SimplifiedLatch = simplifyLoopLatch(L);
 
   // One loop can be rotated multiple times.
   bool MadeChange = false;
-  while (rotateLoop(L))
+  while (rotateLoop(L, SimplifiedLatch)) {
     MadeChange = true;
-
+    SimplifiedLatch = false;
+  }
   return MadeChange;
 }
 
@@ -207,25 +213,25 @@ static bool shouldSpeculateInstrs(BasicBlock::iterator Begin,
 /// canonical form so downstream passes can handle it.
 ///
 /// I don't believe this invalidates SCEV.
-void LoopRotate::simplifyLoopLatch(Loop *L) {
+bool LoopRotate::simplifyLoopLatch(Loop *L) {
   BasicBlock *Latch = L->getLoopLatch();
   if (!Latch || Latch->hasAddressTaken())
-    return;
+    return false;
 
   BranchInst *Jmp = dyn_cast<BranchInst>(Latch->getTerminator());
   if (!Jmp || !Jmp->isUnconditional())
-    return;
+    return false;
 
   BasicBlock *LastExit = Latch->getSinglePredecessor();
   if (!LastExit || !L->isLoopExiting(LastExit))
-    return;
+    return false;
 
   BranchInst *BI = dyn_cast<BranchInst>(LastExit->getTerminator());
   if (!BI)
-    return;
+    return false;
 
   if (!shouldSpeculateInstrs(Latch->begin(), Jmp))
-    return;
+    return false;
 
   DEBUG(dbgs() << "Folding loop latch " << Latch->getName() << " into "
         << LastExit->getName() << "\n");
@@ -248,10 +254,20 @@ void LoopRotate::simplifyLoopLatch(Loop *L) {
   if (DominatorTree *DT = getAnalysisIfAvailable<DominatorTree>())
     DT->eraseNode(Latch);
   Latch->eraseFromParent();
+  return true;
 }
 
 /// Rotate loop LP. Return true if the loop is rotated.
-bool LoopRotate::rotateLoop(Loop *L) {
+///
+/// \param SimplifiedLatch is true if the latch was just folded into the final
+/// loop exit. In this case we may want to rotate even though the new latch is
+/// now an exiting branch. This rotation would have happened had the latch not
+/// been simplified. However, if SimplifiedLatch is false, then we avoid
+/// rotating loops in which the latch exits to avoid excessive or endless
+/// rotation. LoopRotate should be repeatable and converge to a canonical
+/// form. This property is satisfied because simplifying the loop latch can only
+/// happen once across multiple invocations of the LoopRotate pass.
+bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
   // If the loop has only one block then there is not much to rotate.
   if (L->getBlocks().size() == 1)
     return false;
@@ -271,13 +287,24 @@ bool LoopRotate::rotateLoop(Loop *L) {
 
   // If the loop latch already contains a branch that leaves the loop then the
   // loop is already rotated.
-  if (OrigLatch == 0 || L->isLoopExiting(OrigLatch))
+  if (OrigLatch == 0)
     return false;
 
-  // Check size of original header and reject loop if it is very big.
+  // Rotate if either the loop latch does *not* exit the loop, or if the loop
+  // latch was just simplified.
+  if (L->isLoopExiting(OrigLatch) && !SimplifiedLatch)
+    return false;
+
+  // Check size of original header and reject loop if it is very big or we can't
+  // duplicate blocks inside it.
   {
     CodeMetrics Metrics;
-    Metrics.analyzeBasicBlock(OrigHeader);
+    Metrics.analyzeBasicBlock(OrigHeader, *TTI);
+    if (Metrics.notDuplicatable) {
+      DEBUG(dbgs() << "LoopRotation: NOT rotating - contains non duplicatable"
+            << " instructions: "; L->dump());
+      return false;
+    }
     if (Metrics.NumInsts > MAX_HEADER_SIZE)
       return false;
   }
@@ -494,4 +521,3 @@ bool LoopRotate::rotateLoop(Loop *L) {
   ++NumRotated;
   return true;
 }
-

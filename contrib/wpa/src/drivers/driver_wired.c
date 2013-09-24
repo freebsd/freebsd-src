@@ -3,14 +3,8 @@
  * Copyright (c) 2005-2009, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2004, Gunter Burchardt <tira@isx.de>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -23,7 +17,11 @@
 #endif /* __linux__ */
 #if defined(__FreeBSD__) || defined(__DragonFly__) || defined(__FreeBSD_kernel__)
 #include <net/if_dl.h>
+#include <net/if_media.h>
 #endif /* defined(__FreeBSD__) || defined(__DragonFly__) || defined(__FreeBSD_kernel__) */
+#ifdef __sun__
+#include <sys/sockio.h>
+#endif /* __sun__ */
 
 #include "common.h"
 #include "eloop.h"
@@ -311,7 +309,7 @@ static int wired_init_sockets(struct wpa_driver_wired_data *drv, u8 *own_addr)
 
 static int wired_send_eapol(void *priv, const u8 *addr,
 			    const u8 *data, size_t data_len, int encrypt,
-			    const u8 *own_addr)
+			    const u8 *own_addr, u32 flags)
 {
 	struct wpa_driver_wired_data *drv = priv;
 	struct ieee8023_hdr *hdr;
@@ -456,11 +454,39 @@ static int wpa_driver_wired_set_ifflags(const char *ifname, int flags)
 	return 0;
 }
 
+static int wpa_driver_wired_get_ifstatus(const char *ifname, int *status)
+{
+	struct ifmediareq ifmr;
+	int s;
+
+	s = socket(PF_INET, SOCK_DGRAM, 0);
+	if (s < 0) {
+		perror("socket");
+		return -1;
+	}
+
+	os_memset(&ifmr, 0, sizeof(ifmr));
+	os_strlcpy(ifmr.ifm_name, ifname, IFNAMSIZ);
+	if (ioctl(s, SIOCGIFMEDIA, (caddr_t) &ifmr) < 0) {
+		perror("ioctl[SIOCGIFMEDIA]");
+		close(s);
+		return -1;
+	}
+	close(s);
+	*status = (ifmr.ifm_status & (IFM_ACTIVE|IFM_AVALID)) == 
+	    (IFM_ACTIVE|IFM_AVALID);
+
+	return 0;
+}
 
 static int wpa_driver_wired_multi(const char *ifname, const u8 *addr, int add)
 {
 	struct ifreq ifr;
 	int s;
+
+#ifdef __sun__
+	return -1;
+#endif /* __sun__ */
 
 	s = socket(PF_INET, SOCK_DGRAM, 0);
 	if (s < 0) {
@@ -510,7 +536,7 @@ static int wpa_driver_wired_multi(const char *ifname, const u8 *addr, int add)
 static void * wpa_driver_wired_init(void *ctx, const char *ifname)
 {
 	struct wpa_driver_wired_data *drv;
-	int flags;
+	int flags, status;
 
 	drv = os_zalloc(sizeof(*drv));
 	if (drv == NULL)
@@ -561,6 +587,11 @@ static void * wpa_driver_wired_init(void *ctx, const char *ifname)
 			   __func__);
 		drv->iff_allmulti = 1;
 	}
+	wpa_printf(MSG_DEBUG, "%s: waiting for link to become active",
+	    __func__);
+	while (wpa_driver_wired_get_ifstatus(ifname, &status) == 0 && 
+	    status == 0)
+		sleep(1);
 
 	return drv;
 }

@@ -1261,7 +1261,7 @@ moea64_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 	}
 
 	if ((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) == 0)
-		VM_OBJECT_ASSERT_WLOCKED(m->object);
+		VM_OBJECT_ASSERT_LOCKED(m->object);
 
 	/* XXX change the pvo head for fake pages */
 	if ((m->oflags & VPO_UNMANAGED) != 0) {
@@ -1359,6 +1359,8 @@ moea64_enter_object(mmu_t mmu, pmap_t pm, vm_offset_t start, vm_offset_t end,
 {
 	vm_page_t m;
 	vm_pindex_t diff, psize;
+
+	VM_OBJECT_ASSERT_LOCKED(m_start->object);
 
 	psize = atop(end - start);
 	m = m_start;
@@ -1976,7 +1978,7 @@ moea64_pvo_protect(mmu_t mmu,  pmap_t pm, struct pvo_entry *pvo, vm_prot_t prot)
 	 * removed write access.
 	 */
 	if ((pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED && 
-	    (oldlo & LPTE_PP) != LPTE_BR && !(prot && VM_PROT_WRITE)) {
+	    (oldlo & LPTE_PP) != LPTE_BR && !(prot & VM_PROT_WRITE)) {
 		if (pg != NULL) {
 			if (pvo->pvo_pte.lpte.pte_lo & LPTE_CHG)
 				vm_page_dirty(pg);
@@ -2542,7 +2544,7 @@ moea64_mapdev_attr(mmu_t mmu, vm_offset_t pa, vm_size_t size, vm_memattr_t ma)
 	offset = pa & PAGE_MASK;
 	size = roundup2(offset + size, PAGE_SIZE);
 
-	va = kmem_alloc_nofault(kernel_map, size);
+	va = kva_alloc(size);
 
 	if (!va)
 		panic("moea64_mapdev: Couldn't alloc kernel virtual memory");
@@ -2573,7 +2575,7 @@ moea64_unmapdev(mmu_t mmu, vm_offset_t va, vm_size_t size)
 	offset = va & PAGE_MASK;
 	size = roundup2(offset + size, PAGE_SIZE);
 
-	kmem_free(kernel_map, base, size);
+	kva_free(base, size);
 }
 
 void

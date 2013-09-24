@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 The FreeBSD Foundation
+ * Copyright (c) 2012, 2013 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Oleksandr Rybalko under sponsorship
@@ -261,8 +261,8 @@ imx51_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	if (i >= sc->gpio_npins)
 		return (EINVAL);
 
-	/* Filter out unwanted flags */
-	if ((flags &= sc->gpio_pins[i].gp_caps) != flags)
+	/* Check for unwanted flags. */
+	if ((flags & sc->gpio_pins[i].gp_caps) != flags)
 		return (EINVAL);
 
 	/* Can't mix input/output together */

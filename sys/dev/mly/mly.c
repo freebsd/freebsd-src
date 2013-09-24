@@ -2025,7 +2025,7 @@ mly_cam_rescan_btl(struct mly_softc *sc, int bus, int target)
 	mly_printf(sc, "rescan failed (can't allocate CCB)\n");
 	return;
     }
-    if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, 
+    if (xpt_create_path(&ccb->ccb_h.path, NULL,
 	    cam_sim_path(sc->mly_cam_sim[bus]), target, 0) != CAM_REQ_CMP) {
 	mly_printf(sc, "rescan failed (can't create path)\n");
 	xpt_free_ccb(ccb);

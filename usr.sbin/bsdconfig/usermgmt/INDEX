@@ -26,22 +26,25 @@
 # $FreeBSD$
 
 #
-# Title that will be shown on the bsdconfig menu
+# Title that will be shown in the bsdconfig menu.
+#
 menu_title="Login/Group Management"
+
 #
-# a short descriptive line shown at the bottom of the bsdconfig menu.
-# keep it short because any line longer than the terminal width will
-#   be truncated.
+# A short descriptive line shown at the bottom of the bsdconfig menu. keep it
+# short because any line longer than the terminal width will be truncated.
+#
 menu_help="Manage system user and/or group information"
+
 #
-# two-part variable that defines an action to take when 'keyword'
-#   is passed on a bsdconfig command line. variable takes the form
-#   "keyword|command" and multiple occurrences of the variable 
-#   (with different 'keyword's, or different 'keyword's AND 'command's) 
-#   are allowed.  If 'command' begins with a '/' then the full
-#   path to the program is needed. If 'command' begins with anything
-#   else it is a path relative to the directory this INDEX file is in.
-#   'keyword' can be i18n'ed but 'command' is the name of a script.
+# Two-part variable that defines an action to take when `keyword' is passed on
+# a bsdconfig command line. Variable takes the form "keyword|command" and
+# multiple occurrences of the variable (with different `keyword's, or different
+# `keyword's AND `command's) are allowed.  If `command' begins with a '/' then
+# the full path to the program is needed. If `command' begins with anything
+# else it is a path relative to the directory this INDEX file is in. `keyword'
+# can be i18n'ed but `command' is the name of a script.
+#
 menu_selection="usermgmt|usermgmt"
 menu_selection="useradd|useradd"
 menu_selection="useredit|useredit"
@@ -50,11 +53,12 @@ menu_selection="groupmgmt|usermgmt"
 menu_selection="groupadd|groupadd"
 menu_selection="groupedit|groupedit"
 menu_selection="groupdel|groupdel"
+
 #
-# Items below this line do NOT need i18n translation----------------------
+# ------------ Items below this line do NOT need i18n translation ------------
 #
-# Name of the program to be run when this menu choice is selected.
-#   if it begins with a '/' then the full path to the program is needed.
-#   if it begins with anything else it is a path relative to the directory
-#     this INDEX file is in.
+# Name of the program to be run when this menu choice is selected. If it begins
+# with a '/' then the full path to the program is needed. If it begins with
+# anything else it is a path relative to the directory this INDEX file is in.
+#
 menu_program="usermgmt"

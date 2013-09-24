@@ -25,7 +25,7 @@
  */
 
 /*
- * Intel Core, Core 2 and Atom PMCs.
+ * Intel Core PMCs.
  */
 
 #include <sys/cdefs.h>
@@ -59,6 +59,10 @@ __FBSDID("$FreeBSD$");
 #define	IAP_PMC_CAPS (PMC_CAP_INTERRUPT | PMC_CAP_USER | PMC_CAP_SYSTEM | \
     PMC_CAP_EDGE | PMC_CAP_THRESHOLD | PMC_CAP_READ | PMC_CAP_WRITE |	 \
     PMC_CAP_INVERT | PMC_CAP_QUALIFIER | PMC_CAP_PRECISE)
+
+#define	EV_IS_NOTARCH		0
+#define	EV_IS_ARCH_SUPP		1
+#define	EV_IS_ARCH_NOTSUPP	-1
 
 /*
  * "Architectural" events defined by Intel.  The values of these
@@ -560,7 +564,7 @@ struct iap_event_descr {
 #define	IAP_F_SB	(1 << 6)	/* CPU: Sandy Bridge */
 #define	IAP_F_IB	(1 << 7)	/* CPU: Ivy Bridge */
 #define	IAP_F_SBX	(1 << 8)	/* CPU: Sandy Bridge Xeon */
-#define	IAP_F_IBX	(1 << 9)	/* CPU: Ivy Bridge */
+#define	IAP_F_IBX	(1 << 9)	/* CPU: Ivy Bridge Xeon */
 #define	IAP_F_HW	(1 << 10)	/* CPU: Haswell */
 #define	IAP_F_FM	(1 << 11)	/* Fixed mask */
 
@@ -604,7 +608,7 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(03H_00H, 0x03, 0x00, IAP_F_FM | IAP_F_CC),
     IAPDESCR(03H_01H, 0x03, 0x01, IAP_F_FM | IAP_F_I7O | IAP_F_SB |
 	IAP_F_SBX),
-    IAPDESCR(03H_02H, 0x03, 0x02, IAP_F_FM | IAP_F_CA | IAP_F_CC2 | 
+    IAPDESCR(03H_02H, 0x03, 0x02, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
 	IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(03H_04H, 0x03, 0x04, IAP_F_FM | IAP_F_CA | IAP_F_CC2 | IAP_F_I7O),
     IAPDESCR(03H_08H, 0x03, 0x08, IAP_F_FM | IAP_F_CA | IAP_F_CC2 | IAP_F_SB |
@@ -622,8 +626,8 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(05H_00H, 0x05, 0x00, IAP_F_FM | IAP_F_CC),
     IAPDESCR(05H_01H, 0x05, 0x01, IAP_F_FM | IAP_F_I7O | IAP_F_SB | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
-    IAPDESCR(05H_02H, 0x05, 0x02, IAP_F_FM | IAP_F_I7O | IAP_F_WM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(05H_02H, 0x05, 0x02, IAP_F_FM | IAP_F_I7O | IAP_F_WM | IAP_F_SB |
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(05H_03H, 0x05, 0x03, IAP_F_FM | IAP_F_I7O),
 
     IAPDESCR(06H_00H, 0x06, 0x00, IAP_F_FM | IAP_F_CC | IAP_F_CC2 |
@@ -635,7 +639,7 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(06H_0FH, 0x06, 0x0F, IAP_F_FM | IAP_F_I7O),
 
     IAPDESCR(07H_00H, 0x07, 0x00, IAP_F_FM | IAP_F_CC | IAP_F_CC2),
-    IAPDESCR(07H_01H, 0x07, 0x01, IAP_F_FM | IAP_F_ALLCPUSCORE2 | 
+    IAPDESCR(07H_01H, 0x07, 0x01, IAP_F_FM | IAP_F_ALLCPUSCORE2 |
 	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX |
 	IAP_F_HW),
     IAPDESCR(07H_02H, 0x07, 0x02, IAP_F_FM | IAP_F_ALLCPUSCORE2),
@@ -683,8 +687,8 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(0DH_03H, 0x0D, 0x03, IAP_F_FM | IAP_F_SB | IAP_F_SBX | IAP_F_HW),
     IAPDESCR(0DH_40H, 0x0D, 0x40, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
 
-    IAPDESCR(0EH_01H, 0x0E, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(0EH_01H, 0x0E, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB |
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(0EH_02H, 0x0E, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(0EH_10H, 0x0E, 0x10, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(0EH_20H, 0x0E, 0x20, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
@@ -698,7 +702,7 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(0FH_80H, 0x0F, 0x80, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
 
     IAPDESCR(10H_00H, 0x10, 0x00, IAP_F_FM | IAP_F_ALLCPUSCORE2),
-    IAPDESCR(10H_01H, 0x10, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_I7 | 
+    IAPDESCR(10H_01H, 0x10, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_I7 |
 	IAP_F_WM | IAP_F_SB | IAP_F_SBX),
     IAPDESCR(10H_02H, 0x10, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(10H_04H, 0x10, 0x04, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
@@ -737,7 +741,7 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(13H_81H, 0x13, 0x81, IAP_F_FM | IAP_F_CA),
 
     IAPDESCR(14H_00H, 0x14, 0x00, IAP_F_FM | IAP_F_CC | IAP_F_CC2),
-    IAPDESCR(14H_01H, 0x14, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_I7 | 
+    IAPDESCR(14H_01H, 0x14, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_I7 |
 	 IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX),
     IAPDESCR(14H_02H, 0x14, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
 
@@ -764,37 +768,37 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(23H, 0x23, IAP_M_CORE, IAP_F_ALLCPUSCORE2),
 
     IAPDESCR(24H, 0x24, IAP_M_CORE | IAP_M_PREFETCH, IAP_F_ALLCPUSCORE2),
-    IAPDESCR(24H_01H, 0x24, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX),
+    IAPDESCR(24H_01H, 0x24, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB |
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX),
     IAPDESCR(24H_02H, 0x24, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
-    IAPDESCR(24H_03H, 0x24, 0x03, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX),
-    IAPDESCR(24H_04H, 0x24, 0x04, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX),
-    IAPDESCR(24H_08H, 0x24, 0x08, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX),
-    IAPDESCR(24H_0CH, 0x24, 0x0C, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX),
-    IAPDESCR(24H_10H, 0x24, 0x10, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX),
-    IAPDESCR(24H_20H, 0x24, 0x20, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX),
+    IAPDESCR(24H_03H, 0x24, 0x03, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB |
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX),
+    IAPDESCR(24H_04H, 0x24, 0x04, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB |
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX),
+    IAPDESCR(24H_08H, 0x24, 0x08, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB |
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX),
+    IAPDESCR(24H_0CH, 0x24, 0x0C, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB |
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX),
+    IAPDESCR(24H_10H, 0x24, 0x10, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB |
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX),
+    IAPDESCR(24H_20H, 0x24, 0x20, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB |
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX),
     IAPDESCR(24H_21H, 0x24, 0x21, IAP_F_FM | IAP_F_HW),
     IAPDESCR(24H_22H, 0x24, 0x22, IAP_F_FM | IAP_F_HW),
     IAPDESCR(24H_24H, 0x24, 0x24, IAP_F_FM | IAP_F_HW),
     IAPDESCR(24H_27H, 0x24, 0x27, IAP_F_FM | IAP_F_HW),
-    IAPDESCR(24H_30H, 0x24, 0x30, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
-    IAPDESCR(24H_40H, 0x24, 0x40, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX),
+    IAPDESCR(24H_30H, 0x24, 0x30, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB |
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(24H_40H, 0x24, 0x40, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB |
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX),
     IAPDESCR(24H_41H, 0x24, 0x41, IAP_F_FM | IAP_F_HW),
     IAPDESCR(24H_42H, 0x24, 0x42, IAP_F_FM | IAP_F_HW),
     IAPDESCR(24H_44H, 0x24, 0x44, IAP_F_FM | IAP_F_HW),
     IAPDESCR(24H_50H, 0x24, 0x50, IAP_F_FM | IAP_F_HW),
-    IAPDESCR(24H_80H, 0x24, 0x80, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX),
-    IAPDESCR(24H_C0H, 0x24, 0xC0, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX),
+    IAPDESCR(24H_80H, 0x24, 0x80, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB |
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX),
+    IAPDESCR(24H_C0H, 0x24, 0xC0, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB |
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX),
     IAPDESCR(24H_E1H, 0x24, 0xE1, IAP_F_FM | IAP_F_HW),
     IAPDESCR(24H_E2H, 0x24, 0xE2, IAP_F_FM | IAP_F_HW),
     IAPDESCR(24H_E4H, 0x24, 0xE4, IAP_F_FM | IAP_F_HW),
@@ -820,16 +824,16 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(26H_FFH, 0x26, 0xFF, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
 
     IAPDESCR(27H, 0x27, IAP_M_CORE | IAP_M_PREFETCH, IAP_F_ALLCPUSCORE2),
-    IAPDESCR(27H_01H, 0x27, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX),
+    IAPDESCR(27H_01H, 0x27, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB |
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX),
     IAPDESCR(27H_02H, 0x27, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(27H_04H, 0x27, 0x04, IAP_F_FM | IAP_F_I7O | IAP_F_SB |
 	IAP_F_SBX),
-    IAPDESCR(27H_08H, 0x27, 0x08, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX),
+    IAPDESCR(27H_08H, 0x27, 0x08, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB |
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX),
     IAPDESCR(27H_0EH, 0x27, 0x0E, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
-    IAPDESCR(27H_0FH, 0x27, 0x0F, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX),
+    IAPDESCR(27H_0FH, 0x27, 0x0F, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB |
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX),
     IAPDESCR(27H_10H, 0x27, 0x10, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(27H_20H, 0x27, 0x20, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
     IAPDESCR(27H_40H, 0x27, 0x40, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
@@ -839,15 +843,15 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(27H_F0H, 0x27, 0xF0, IAP_F_FM | IAP_F_I7 | IAP_F_WM),
 
     IAPDESCR(28H, 0x28, IAP_M_CORE | IAP_M_MESI, IAP_F_ALLCPUSCORE2),
-    IAPDESCR(28H_01H, 0x28, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_IB | IAP_F_SBX |
-	IAP_F_IBX),
+    IAPDESCR(28H_01H, 0x28, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_IB |
+	IAP_F_SBX | IAP_F_IBX),
     IAPDESCR(28H_02H, 0x28, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SBX),
-    IAPDESCR(28H_04H, 0x28, 0x04, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB |
+    IAPDESCR(28H_04H, 0x28, 0x04, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB |
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX),
+    IAPDESCR(28H_08H, 0x28, 0x08, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB |
+	IAP_F_IB | IAP_F_SBX | IAP_F_IBX),
+    IAPDESCR(28H_0FH, 0x28, 0x0F, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX),
-    IAPDESCR(28H_08H, 0x28, 0x08, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX),
-    IAPDESCR(28H_0FH, 0x28, 0x0F, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_IB | IAP_F_SBX |
-	IAP_F_IBX),
 
     IAPDESCR(29H, 0x29, IAP_M_CORE | IAP_M_MESI, IAP_F_CC),
     IAPDESCR(29H, 0x29, IAP_M_CORE | IAP_M_MESI | IAP_M_PREFETCH,
@@ -860,9 +864,9 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(2EH_01H, 0x2E, 0x01, IAP_F_FM | IAP_F_WM),
     IAPDESCR(2EH_02H, 0x2E, 0x02, IAP_F_FM | IAP_F_WM),
     IAPDESCR(2EH_41H, 0x2E, 0x41, IAP_F_FM | IAP_F_ALLCPUSCORE2 | IAP_F_I7 |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+	IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(2EH_4FH, 0x2E, 0x4F, IAP_F_FM | IAP_F_ALLCPUSCORE2 | IAP_F_I7 |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+	IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
 
     IAPDESCR(30H, 0x30, IAP_M_CORE | IAP_M_MESI | IAP_M_PREFETCH,
 	IAP_F_ALLCPUSCORE2),
@@ -875,9 +879,11 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(3BH_C0H, 0x3B, 0xC0, IAP_F_FM | IAP_F_ALLCPUSCORE2),
 
     IAPDESCR(3CH_00H, 0x3C, 0x00, IAP_F_FM | IAP_F_ALLCPUSCORE2 |
-        IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX |
+	IAP_F_HW),
     IAPDESCR(3CH_01H, 0x3C, 0x01, IAP_F_FM | IAP_F_ALLCPUSCORE2 |
-        IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX |
+	IAP_F_HW),
     IAPDESCR(3CH_02H, 0x3C, 0x02, IAP_F_FM | IAP_F_ALLCPUSCORE2),
 
     IAPDESCR(3DH_01H, 0x3D, 0x01, IAP_F_FM | IAP_F_I7O),
@@ -924,14 +930,16 @@ static struct iap_event_descr iap_events[] = {
 
     IAPDESCR(49H_00H, 0x49, 0x00, IAP_F_FM | IAP_F_CC),
     IAPDESCR(49H_01H, 0x49, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
-        IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX  | IAP_F_IBX | IAP_F_HW),
+	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX  | IAP_F_IBX |
+	IAP_F_HW),
     IAPDESCR(49H_02H, 0x49, 0x02, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
-        IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX |
+	IAP_F_HW),
     IAPDESCR(49H_04H, 0x49, 0x04, IAP_F_FM | IAP_F_WM | IAP_F_SB | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(49H_0EH, 0x49, 0x0E, IAP_F_FM | IAP_F_HW),
     IAPDESCR(49H_10H, 0x49, 0x10, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-        IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(49H_20H, 0x49, 0x20, IAP_F_FM | IAP_F_I7 | IAP_F_HW),
     IAPDESCR(49H_40H, 0x49, 0x40, IAP_F_FM | IAP_F_I7O | IAP_F_HW),
     IAPDESCR(49H_60H, 0x49, 0x60, IAP_F_FM | IAP_F_HW),
@@ -994,7 +1002,7 @@ static struct iap_event_descr iap_events[] = {
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(5CH_02H, 0x5C, 0x02, IAP_F_FM | IAP_F_SB | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
-    
+
     IAPDESCR(5EH_01H, 0x5E, 0x01, IAP_F_FM | IAP_F_SB | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
 
@@ -1079,7 +1087,7 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(79H_18H, 0x79, 0x18, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(79H_24H, 0x79, 0x24, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(79H_3CH, 0x79, 0x3C, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
- 
+
     IAPDESCR(7AH, 0x7A, IAP_M_AGENT, IAP_F_CA | IAP_F_CC2),
 
     IAPDESCR(7BH, 0x7B, IAP_M_AGENT, IAP_F_CA | IAP_F_CC2),
@@ -1198,7 +1206,7 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(94H_00H, 0x94, 0x00, IAP_F_FM | IAP_F_ALLCPUSCORE2),
 
     IAPDESCR(9CH_01H, 0x9C, 0x01, IAP_F_FM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX | IAP_F_HW), 
+	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
 
     IAPDESCR(97H_00H, 0x97, 0x00, IAP_F_FM | IAP_F_CA | IAP_F_CC2),
     IAPDESCR(98H_00H, 0x98, 0x00, IAP_F_FM | IAP_F_CA | IAP_F_CC2),
@@ -1224,7 +1232,7 @@ static struct iap_event_descr iap_events[] = {
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(A1H_80H, 0xA1, 0x80, IAP_F_FM | IAP_F_SB | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
-    
+
     IAPDESCR(A2H_00H, 0xA2, 0x00, IAP_F_FM | IAP_F_CC),
     IAPDESCR(A2H_01H, 0xA2, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
 	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
@@ -1355,7 +1363,7 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(BFH_05H, 0xBF, 0x05, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
 
     IAPDESCR(C0H_00H, 0xC0, 0x00, IAP_F_FM | IAP_F_ALLCPUSCORE2 |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+	IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(C0H_01H, 0xC0, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
 	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX |
 	IAP_F_IBX | IAP_F_HW),
@@ -1501,7 +1509,7 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(CDH_01H, 0xCD, 0x01, IAP_F_FM | IAP_F_SB | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(CDH_02H, 0xCD, 0x02, IAP_F_FM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX), 
+	IAP_F_SBX | IAP_F_IBX),
 
     IAPDESCR(CEH_00H, 0xCE, 0x00, IAP_F_FM | IAP_F_ALLCPUSCORE2),
     IAPDESCR(CFH_00H, 0xCF, 0x00, IAP_F_FM | IAP_F_CA | IAP_F_CC2),
@@ -1519,7 +1527,7 @@ static struct iap_event_descr iap_events[] = {
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(D0H_80H, 0xD0, 0X80, IAP_F_FM | IAP_F_SB | IAP_F_IB |
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
- 
+
     IAPDESCR(D1H_01H, 0xD1, 0x01, IAP_F_FM | IAP_F_WM | IAP_F_SB |
 	IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(D1H_02H, 0xD1, 0x02, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
@@ -1719,43 +1727,53 @@ iap_pmc_has_overflowed(int ri)
 /*
  * Check an event against the set of supported architectural events.
  *
- * Returns 1 if the event is architectural and unsupported on this
- * CPU.  Returns 0 otherwise.
+ * If the event is not architectural EV_IS_NOTARCH is returned.
+ * If the event is architectural and supported on this CPU, the correct
+ * event+umask mapping is returned in map, and EV_IS_ARCH_SUPP is returned.
+ * Otherwise, the function returns EV_IS_ARCH_NOTSUPP.
  */
 
 static int
-iap_architectural_event_is_unsupported(enum pmc_event pe)
+iap_is_event_architectural(enum pmc_event pe, enum pmc_event *map)
 {
 	enum core_arch_events ae;
 
 	switch (pe) {
-	case PMC_EV_IAP_EVENT_3CH_00H:
+	case PMC_EV_IAP_ARCH_UNH_COR_CYC:
 		ae = CORE_AE_UNHALTED_CORE_CYCLES;
+		*map = PMC_EV_IAP_EVENT_C4H_00H;
 		break;
-	case PMC_EV_IAP_EVENT_C0H_00H:
+	case PMC_EV_IAP_ARCH_INS_RET:
 		ae = CORE_AE_INSTRUCTION_RETIRED;
+		*map = PMC_EV_IAP_EVENT_C0H_00H;
 		break;
-	case PMC_EV_IAP_EVENT_3CH_01H:
+	case PMC_EV_IAP_ARCH_UNH_REF_CYC:
 		ae = CORE_AE_UNHALTED_REFERENCE_CYCLES;
+		*map = PMC_EV_IAP_EVENT_3CH_01H;
 		break;
-	case PMC_EV_IAP_EVENT_2EH_4FH:
+	case PMC_EV_IAP_ARCH_LLC_REF:
 		ae = CORE_AE_LLC_REFERENCE;
+		*map = PMC_EV_IAP_EVENT_2EH_4FH;
 		break;
-	case PMC_EV_IAP_EVENT_2EH_41H:
+	case PMC_EV_IAP_ARCH_LLC_MIS:
 		ae = CORE_AE_LLC_MISSES;
+		*map = PMC_EV_IAP_EVENT_2EH_41H;
 		break;
-	case PMC_EV_IAP_EVENT_C4H_00H:
+	case PMC_EV_IAP_ARCH_BR_INS_RET:
 		ae = CORE_AE_BRANCH_INSTRUCTION_RETIRED;
+		*map = PMC_EV_IAP_EVENT_C4H_00H;
 		break;
-	case PMC_EV_IAP_EVENT_C5H_00H:
+	case PMC_EV_IAP_ARCH_BR_MIS_RET:
 		ae = CORE_AE_BRANCH_MISSES_RETIRED;
+		*map = PMC_EV_IAP_EVENT_C5H_00H;
 		break;
 
 	default:	/* Non architectural event. */
-		return (0);
+		return (EV_IS_NOTARCH);
 	}
 
-	return ((core_architectural_events & (1 << ae)) == 0);
+	return (((core_architectural_events & (1 << ae)) == 0) ? 
+	    EV_IS_ARCH_NOTSUPP : EV_IS_ARCH_SUPP);
 }
 
 static int
@@ -1809,7 +1827,7 @@ iap_event_westmere_ok_on_counter(enum pmc_event pe, int ri)
 	case PMC_EV_IAP_EVENT_60H_01H:
 	case PMC_EV_IAP_EVENT_60H_02H:
 	case PMC_EV_IAP_EVENT_60H_04H:
-	case PMC_EV_IAP_EVENT_60H_08H:	
+	case PMC_EV_IAP_EVENT_60H_08H:
 	case PMC_EV_IAP_EVENT_B3H_01H:
 	case PMC_EV_IAP_EVENT_B3H_02H:
 	case PMC_EV_IAP_EVENT_B3H_04H:
@@ -1913,8 +1931,8 @@ static int
 iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a)
 {
-	int n, model;
-	enum pmc_event ev;
+	int arch, n, model;
+	enum pmc_event ev, map;
 	struct iap_event_descr *ie;
 	uint32_t c, caps, config, cpuflag, evsel, mask;
 
@@ -1927,22 +1945,25 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	caps = a->pm_caps;
 	if ((IAP_PMC_CAPS & caps) != caps)
 		return (EPERM);
-
-	ev = pm->pm_event;
-
-	if (iap_architectural_event_is_unsupported(ev))
+	map = 0;	/* XXX: silent GCC warning */
+	arch = iap_is_event_architectural(pm->pm_event, &map);
+	if (arch == EV_IS_ARCH_NOTSUPP)
 		return (EOPNOTSUPP);
+	else if (arch == EV_IS_ARCH_SUPP)
+		ev = map;
+	else
+		ev = pm->pm_event;
 
 	/*
 	 * A small number of events are not supported in all the
 	 * processors based on a given microarchitecture.
 	 */
-	if (ev == PMC_EV_IAP_EVENT_0FH_01H || ev == PMC_EV_IAP_EVENT_0FH_80H) { 
+	if (ev == PMC_EV_IAP_EVENT_0FH_01H || ev == PMC_EV_IAP_EVENT_0FH_80H) {
 		model = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
-		if (core_cputype == PMC_CPU_INTEL_COREI7 && model != 0x2E)  
-			return (EINVAL); 	
+		if (core_cputype == PMC_CPU_INTEL_COREI7 && model != 0x2E)
+			return (EINVAL);
 	}
-	
+
 	switch (core_cputype) {
 	case PMC_CPU_INTEL_COREI7:
 		if (iap_event_corei7_ok_on_counter(ev, ri) == 0)
@@ -1996,10 +2017,10 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	case PMC_CPU_INTEL_IVYBRIDGE_XEON:
 		cpuflag = IAP_F_IBX;
 		break;
-	case PMC_CPU_INTEL_SANDYBRIDGE:	
+	case PMC_CPU_INTEL_SANDYBRIDGE:
 		cpuflag = IAP_F_SB;
 		break;
-	case PMC_CPU_INTEL_SANDYBRIDGE_XEON:	
+	case PMC_CPU_INTEL_SANDYBRIDGE_XEON:
 		cpuflag = IAP_F_SBX;
 		break;
 	case PMC_CPU_INTEL_WESTMERE:
@@ -2459,7 +2480,7 @@ core_intr(int cpu, struct trapframe *tf)
 		if (error)
 			continue;
 
-		wrmsr(IAP_EVSEL0 + ri, msr | (pm->pm_md.pm_iap.pm_iap_evsel | 
+		wrmsr(IAP_EVSEL0 + ri, msr | (pm->pm_md.pm_iap.pm_iap_evsel |
 					      IAP_EN));
 	}
 
@@ -2539,8 +2560,8 @@ core2_intr(int cpu, struct trapframe *tf)
 		/* Reload sampling count. */
 		wrmsr(IAF_CTR0 + n, v);
 
-		PMCDBG(MDP,INT, 1, "iaf-intr cpu=%d error=%d v=%jx(%jx)", cpu, error,
-		    (uintmax_t) v, (uintmax_t) rdpmc(IAF_RI_TO_MSR(n)));
+		PMCDBG(MDP,INT, 1, "iaf-intr cpu=%d error=%d v=%jx(%jx)", cpu,
+		    error, (uintmax_t) v, (uintmax_t) rdpmc(IAF_RI_TO_MSR(n)));
 	}
 
 	/*

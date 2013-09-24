@@ -36,6 +36,11 @@
 
 struct segment_descriptor; /* Forward declaration */
 
+#include <sys/types.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <machine/pmap.h>
+
 void _xen_queue_pt_update(vm_paddr_t, vm_paddr_t, char *, int);
 void xen_pt_switch(vm_paddr_t);
 void xen_pt_user_switch(vm_paddr_t);

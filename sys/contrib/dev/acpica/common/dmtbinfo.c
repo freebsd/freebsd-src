@@ -780,6 +780,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoDmar[] =
 {
     {ACPI_DMT_UINT8,    ACPI_DMAR_OFFSET (Width),                   "Host Address Width", 0},
     {ACPI_DMT_UINT8,    ACPI_DMAR_OFFSET (Flags),                   "Flags", 0},
+    {ACPI_DMT_BUF10,    ACPI_DMAR_OFFSET (Reserved[0]),             "Reserved", 0},
     ACPI_DMT_TERMINATOR
 };
 

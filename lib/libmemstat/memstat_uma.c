@@ -446,7 +446,7 @@ skip_percpu:
 				    kz.uk_ipers;
 			mtp->mt_byteslimit = mtp->mt_countlimit * mtp->mt_size;
 			mtp->mt_count = mtp->mt_numallocs - mtp->mt_numfrees;
-			for (ubp = LIST_FIRST(&uz.uz_full_bucket); ubp !=
+			for (ubp = LIST_FIRST(&uz.uz_buckets); ubp !=
 			    NULL; ubp = LIST_NEXT(&ub, ub_link)) {
 				ret = kread(kvm, ubp, &ub, sizeof(ub), 0);
 				mtp->mt_zonefree += ub.ub_cnt;

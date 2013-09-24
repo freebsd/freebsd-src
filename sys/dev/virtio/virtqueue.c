@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011, Bryan Venteicher <bryanv@daemoninthecloset.org>
+ * Copyright (c) 2011, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -414,16 +414,22 @@ virtqueue_nused(struct virtqueue *vq)
 }
 
 int
+virtqueue_intr_filter(struct virtqueue *vq)
+{
+
+	if (vq->vq_used_cons_idx == vq->vq_ring.used->idx)
+		return (0);
+
+	virtqueue_disable_intr(vq);
+
+	return (1);
+}
+
+void
 virtqueue_intr(struct virtqueue *vq)
 {
 
-	if (vq->vq_intrhand == NULL ||
-	    vq->vq_used_cons_idx == vq->vq_ring.used->idx)
-		return (0);
-
 	vq->vq_intrhand(vq->vq_intrhand_arg);
-
-	return (1);
 }
 
 int

@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect2.c,v 1.191 2013/02/15 00:21:01 dtucker Exp $ */
+/* $OpenBSD: sshconnect2.c,v 1.192 2013/02/17 23:16:57 dtucker Exp $ */
 /* $FreeBSD$ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -1418,7 +1418,7 @@ pubkey_prepare(Authctxt *authctxt)
 		id = xcalloc(1, sizeof(*id));
 		id->key = key;
 		id->filename = xstrdup(options.identity_files[i]);
-		id->userprovided = 1;
+		id->userprovided = options.identity_file_userprovided[i];
 		TAILQ_INSERT_TAIL(&files, id, next);
 	}
 	/* Prefer PKCS11 keys that are explicitly listed */

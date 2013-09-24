@@ -156,7 +156,8 @@ opensslrsa_createctx(dst_key_t *key, dst_context_t *dctx) {
 
 	if (!EVP_DigestInit_ex(evp_md_ctx, type, NULL)) {
 		EVP_MD_CTX_destroy(evp_md_ctx);
-		return (dst__openssl_toresult2("EVP_DigestInit_ex",
+		return (dst__openssl_toresult3(dctx->category,
+					       "EVP_DigestInit_ex",
 					       ISC_R_FAILURE));
 	}
 	dctx->ctxdata.evp_md_ctx = evp_md_ctx;
@@ -305,7 +306,8 @@ opensslrsa_adddata(dst_context_t *dctx, const isc_region_t *data) {
 
 #if USE_EVP
 	if (!EVP_DigestUpdate(evp_md_ctx, data->base, data->length)) {
-		return (dst__openssl_toresult2("EVP_DigestUpdate",
+		return (dst__openssl_toresult3(dctx->category,
+					       "EVP_DigestUpdate",
 					       ISC_R_FAILURE));
 	}
 #else
@@ -395,7 +397,8 @@ opensslrsa_sign(dst_context_t *dctx, isc_buffer_t *sig) {
 		return (ISC_R_NOSPACE);
 
 	if (!EVP_SignFinal(evp_md_ctx, r.base, &siglen, pkey)) {
-		return (dst__openssl_toresult2("EVP_SignFinal",
+		return (dst__openssl_toresult3(dctx->category,
+					       "EVP_SignFinal",
 					       ISC_R_FAILURE));
 	}
 #else
@@ -489,7 +492,8 @@ opensslrsa_sign(dst_context_t *dctx, isc_buffer_t *sig) {
 	status = RSA_sign(type, digest, digestlen, r.base, &siglen, rsa);
 #endif
 	if (status == 0)
-		return (dst__openssl_toresult2("RSA_sign",
+		return (dst__openssl_toresult3(dctx->category,
+					       "RSA_sign",
 					       DST_R_OPENSSLFAILURE));
 #endif
 
@@ -525,6 +529,16 @@ opensslrsa_verify(dst_context_t *dctx, const isc_region_t *sig) {
 
 #if USE_EVP
 	status = EVP_VerifyFinal(evp_md_ctx, sig->base, sig->length, pkey);
+	switch (status) {
+	case 1:
+		return (ISC_R_SUCCESS);
+	case 0:
+		return (dst__openssl_toresult(DST_R_VERIFYFAILURE));
+	default:
+		return (dst__openssl_toresult3(dctx->category,
+					       "EVP_VerifyFinal",
+					       DST_R_VERIFYFAILURE));
+	}
 #else
 	switch (dctx->key->key_alg) {
 	case DST_ALG_RSAMD5:
@@ -610,7 +624,8 @@ opensslrsa_verify(dst_context_t *dctx, const isc_region_t *sig) {
 						    original, rsa,
 						    RSA_PKCS1_PADDING);
 			if (status <= 0)
-				return (dst__openssl_toresult2(
+				return (dst__openssl_toresult3(
+						dctx->category,
 						"RSA_public_decrypt",
 						DST_R_VERIFYFAILURE));
 			if (status != (int)(prefixlen + digestlen))
@@ -631,12 +646,10 @@ opensslrsa_verify(dst_context_t *dctx, const isc_region_t *sig) {
 	status = RSA_verify(type, digest, digestlen, sig->base,
 			     RSA_size(rsa), rsa);
 #endif
-#endif
 	if (status != 1)
-		return (dst__openssl_toresult2("RSA_verify",
-					       DST_R_VERIFYFAILURE));
-
+		return (dst__openssl_toresult(DST_R_VERIFYFAILURE));
 	return (ISC_R_SUCCESS);
+#endif
 }
 
 static isc_boolean_t

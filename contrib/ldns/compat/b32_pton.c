@@ -40,6 +40,7 @@
  * IF IBM IS APPRISED OF THE POSSIBILITY OF SUCH DAMAGES.
  */
 #include <ldns/config.h>
+#ifndef HAVE_B32_PTON
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -58,6 +59,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <ldns/util.h>
 
 /*	"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";*/
 static const char Base32[] =
@@ -174,7 +177,7 @@ static const char Pad32 = '=';
    it returns the number of data bytes stored at the target, or -1 on error.
  */
 
-int
+static int
 ldns_b32_pton_ar(char const *src, size_t hashed_owner_str_len, uint8_t *target, size_t targsize, const char B32_ar[])
 {
 	int tarindex, state, ch;
@@ -385,3 +388,5 @@ b32_pton_extended_hex(char const *src, size_t hashed_owner_str_len, uint8_t *tar
 {
 	return ldns_b32_pton_ar(src, hashed_owner_str_len, target, targsize, Base32_extended_hex);
 }
+
+#endif /* !HAVE_B32_PTON */

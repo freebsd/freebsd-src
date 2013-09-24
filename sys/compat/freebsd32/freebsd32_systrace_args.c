@@ -1195,6 +1195,47 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* freebsd32_ktimer_create */
+	case 235: {
+		struct freebsd32_ktimer_create_args *p = params;
+		iarg[0] = p->clock_id; /* clockid_t */
+		uarg[1] = (intptr_t) p->evp; /* struct sigevent32 * */
+		uarg[2] = (intptr_t) p->timerid; /* int * */
+		*n_args = 3;
+		break;
+	}
+	/* ktimer_delete */
+	case 236: {
+		struct ktimer_delete_args *p = params;
+		iarg[0] = p->timerid; /* int */
+		*n_args = 1;
+		break;
+	}
+	/* freebsd32_ktimer_settime */
+	case 237: {
+		struct freebsd32_ktimer_settime_args *p = params;
+		iarg[0] = p->timerid; /* int */
+		iarg[1] = p->flags; /* int */
+		uarg[2] = (intptr_t) p->value; /* const struct itimerspec32 * */
+		uarg[3] = (intptr_t) p->ovalue; /* struct itimerspec32 * */
+		*n_args = 4;
+		break;
+	}
+	/* freebsd32_ktimer_gettime */
+	case 238: {
+		struct freebsd32_ktimer_gettime_args *p = params;
+		iarg[0] = p->timerid; /* int */
+		uarg[1] = (intptr_t) p->value; /* struct itimerspec32 * */
+		*n_args = 2;
+		break;
+	}
+	/* ktimer_getoverrun */
+	case 239: {
+		struct ktimer_getoverrun_args *p = params;
+		iarg[0] = p->timerid; /* int */
+		*n_args = 1;
+		break;
+	}
 	/* freebsd32_nanosleep */
 	case 240: {
 		struct freebsd32_nanosleep_args *p = params;
@@ -1224,13 +1265,14 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* clock_getcpuclockid2 */
+	/* freebsd32_clock_getcpuclockid2 */
 	case 247: {
-		struct clock_getcpuclockid2_args *p = params;
-		iarg[0] = p->id; /* id_t */
-		iarg[1] = p->which; /* int */
-		uarg[2] = (intptr_t) p->clock_id; /* clockid_t * */
-		*n_args = 3;
+		struct freebsd32_clock_getcpuclockid2_args *p = params;
+		uarg[0] = p->id1; /* uint32_t */
+		uarg[1] = p->id2; /* uint32_t */
+		iarg[2] = p->which; /* int */
+		uarg[3] = (intptr_t) p->clock_id; /* clockid_t * */
+		*n_args = 4;
 		break;
 	}
 	/* minherit */
@@ -1292,7 +1334,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->mode; /* int */
 		uarg[1] = (intptr_t) p->acb_list; /* struct aiocb32 *const * */
 		iarg[2] = p->nent; /* int */
-		uarg[3] = (intptr_t) p->sig; /* struct sigevent * */
+		uarg[3] = (intptr_t) p->sig; /* struct sigevent32 * */
 		*n_args = 4;
 		break;
 	}
@@ -2405,11 +2447,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 5;
 		break;
 	}
-	/* kmq_notify */
+	/* freebsd32_kmq_notify */
 	case 461: {
-		struct kmq_notify_args *p = params;
+		struct freebsd32_kmq_notify_args *p = params;
 		iarg[0] = p->mqd; /* int */
-		uarg[1] = (intptr_t) p->sigev; /* const struct sigevent * */
+		uarg[1] = (intptr_t) p->sigev; /* const struct sigevent32 * */
 		*n_args = 2;
 		break;
 	}
@@ -3053,6 +3095,47 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 4;
 		break;
 	}
+#ifdef PAD64_REQUIRED
+	/* freebsd32_posix_fallocate */
+	case 530: {
+		struct freebsd32_posix_fallocate_args *p = params;
+		iarg[0] = p->fd; /* int */
+		iarg[1] = p->pad; /* int */
+		uarg[2] = p->offset1; /* uint32_t */
+		uarg[3] = p->offset2; /* uint32_t */
+		uarg[4] = p->len1; /* uint32_t */
+		uarg[5] = p->len2; /* uint32_t */
+		*n_args = 6;
+		break;
+	}
+	/* freebsd32_posix_fadvise */
+	case 531: {
+		struct freebsd32_posix_fadvise_args *p = params;
+		iarg[0] = p->fd; /* int */
+		iarg[1] = p->pad; /* int */
+		uarg[2] = p->offset1; /* uint32_t */
+		uarg[3] = p->offset2; /* uint32_t */
+		uarg[4] = p->len1; /* uint32_t */
+		uarg[5] = p->len2; /* uint32_t */
+		iarg[6] = p->advice; /* int */
+		*n_args = 7;
+		break;
+	}
+	/* freebsd32_wait6 */
+	case 532: {
+		struct freebsd32_wait6_args *p = params;
+		iarg[0] = p->idtype; /* int */
+		iarg[1] = p->pad; /* int */
+		uarg[2] = p->id1; /* uint32_t */
+		uarg[3] = p->id2; /* uint32_t */
+		uarg[4] = (intptr_t) p->status; /* int * */
+		iarg[5] = p->options; /* int */
+		uarg[6] = (intptr_t) p->wrusage; /* struct wrusage32 * */
+		uarg[7] = (intptr_t) p->info; /* siginfo_t * */
+		*n_args = 8;
+		break;
+	}
+#else
 	/* freebsd32_posix_fallocate */
 	case 530: {
 		struct freebsd32_posix_fallocate_args *p = params;
@@ -3080,14 +3163,16 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 532: {
 		struct freebsd32_wait6_args *p = params;
 		iarg[0] = p->idtype; /* int */
-		iarg[1] = p->id; /* int */
-		uarg[2] = (intptr_t) p->status; /* int * */
-		iarg[3] = p->options; /* int */
-		uarg[4] = (intptr_t) p->wrusage; /* struct wrusage32 * */
-		uarg[5] = (intptr_t) p->info; /* siginfo_t * */
-		*n_args = 6;
+		uarg[1] = p->id1; /* uint32_t */
+		uarg[2] = p->id2; /* uint32_t */
+		uarg[3] = (intptr_t) p->status; /* int * */
+		iarg[4] = p->options; /* int */
+		uarg[5] = (intptr_t) p->wrusage; /* struct wrusage32 * */
+		uarg[6] = (intptr_t) p->info; /* siginfo_t * */
+		*n_args = 7;
 		break;
 	}
+#endif
 	/* cap_rights_limit */
 	case 533: {
 		struct cap_rights_limit_args *p = params;
@@ -3158,6 +3243,31 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[2] = p->flags; /* u_long */
 		iarg[3] = p->atflag; /* int */
 		*n_args = 4;
+		break;
+	}
+	/* accept4 */
+	case 541: {
+		struct accept4_args *p = params;
+		iarg[0] = p->s; /* int */
+		uarg[1] = (intptr_t) p->name; /* struct sockaddr *__restrict */
+		uarg[2] = (intptr_t) p->anamelen; /* __socklen_t *__restrict */
+		iarg[3] = p->flags; /* int */
+		*n_args = 4;
+		break;
+	}
+	/* pipe2 */
+	case 542: {
+		struct pipe2_args *p = params;
+		uarg[0] = (intptr_t) p->fildes; /* int * */
+		iarg[1] = p->flags; /* int */
+		*n_args = 2;
+		break;
+	}
+	/* freebsd32_aio_mlock */
+	case 543: {
+		struct freebsd32_aio_mlock_args *p = params;
+		uarg[0] = (intptr_t) p->aiocbp; /* struct aiocb32 * */
+		*n_args = 1;
 		break;
 	}
 	default:
@@ -5041,6 +5151,74 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* freebsd32_ktimer_create */
+	case 235:
+		switch(ndx) {
+		case 0:
+			p = "clockid_t";
+			break;
+		case 1:
+			p = "struct sigevent32 *";
+			break;
+		case 2:
+			p = "int *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ktimer_delete */
+	case 236:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_ktimer_settime */
+	case 237:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "const struct itimerspec32 *";
+			break;
+		case 3:
+			p = "struct itimerspec32 *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_ktimer_gettime */
+	case 238:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct itimerspec32 *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ktimer_getoverrun */
+	case 239:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* freebsd32_nanosleep */
 	case 240:
 		switch(ndx) {
@@ -5084,16 +5262,19 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* clock_getcpuclockid2 */
+	/* freebsd32_clock_getcpuclockid2 */
 	case 247:
 		switch(ndx) {
 		case 0:
-			p = "id_t";
+			p = "uint32_t";
 			break;
 		case 1:
-			p = "int";
+			p = "uint32_t";
 			break;
 		case 2:
+			p = "int";
+			break;
+		case 3:
 			p = "clockid_t *";
 			break;
 		default:
@@ -5194,7 +5375,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 3:
-			p = "struct sigevent *";
+			p = "struct sigevent32 *";
 			break;
 		default:
 			break;
@@ -7049,14 +7230,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* kmq_notify */
+	/* freebsd32_kmq_notify */
 	case 461:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "const struct sigevent *";
+			p = "const struct sigevent32 *";
 			break;
 		default:
 			break;
@@ -8243,6 +8424,92 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+#ifdef PAD64_REQUIRED
+	/* freebsd32_posix_fallocate */
+	case 530:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "uint32_t";
+			break;
+		case 3:
+			p = "uint32_t";
+			break;
+		case 4:
+			p = "uint32_t";
+			break;
+		case 5:
+			p = "uint32_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_posix_fadvise */
+	case 531:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "uint32_t";
+			break;
+		case 3:
+			p = "uint32_t";
+			break;
+		case 4:
+			p = "uint32_t";
+			break;
+		case 5:
+			p = "uint32_t";
+			break;
+		case 6:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_wait6 */
+	case 532:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "uint32_t";
+			break;
+		case 3:
+			p = "uint32_t";
+			break;
+		case 4:
+			p = "int *";
+			break;
+		case 5:
+			p = "int";
+			break;
+		case 6:
+			p = "struct wrusage32 *";
+			break;
+		case 7:
+			p = "siginfo_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+#else
 	/* freebsd32_posix_fallocate */
 	case 530:
 		switch(ndx) {
@@ -8297,24 +8564,28 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "int";
+			p = "uint32_t";
 			break;
 		case 2:
-			p = "int *";
+			p = "uint32_t";
 			break;
 		case 3:
-			p = "int";
+			p = "int *";
 			break;
 		case 4:
-			p = "struct wrusage32 *";
+			p = "int";
 			break;
 		case 5:
+			p = "struct wrusage32 *";
+			break;
+		case 6:
 			p = "siginfo_t *";
 			break;
 		default:
 			break;
 		};
 		break;
+#endif
 	/* cap_rights_limit */
 	case 533:
 		switch(ndx) {
@@ -8438,6 +8709,48 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 3:
 			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* accept4 */
+	case 541:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct sockaddr *__restrict";
+			break;
+		case 2:
+			p = "__socklen_t *__restrict";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* pipe2 */
+	case 542:
+		switch(ndx) {
+		case 0:
+			p = "int *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_aio_mlock */
+	case 543:
+		switch(ndx) {
+		case 0:
+			p = "struct aiocb32 *";
 			break;
 		default:
 			break;
@@ -9132,6 +9445,31 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
+	/* freebsd32_ktimer_create */
+	case 235:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ktimer_delete */
+	case 236:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_ktimer_settime */
+	case 237:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_ktimer_gettime */
+	case 238:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ktimer_getoverrun */
+	case 239:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* freebsd32_nanosleep */
 	case 240:
 		if (ndx == 0 || ndx == 1)
@@ -9152,7 +9490,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* clock_getcpuclockid2 */
+	/* freebsd32_clock_getcpuclockid2 */
 	case 247:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -9493,7 +9831,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* extattr_set_file */
 	case 356:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* extattr_get_file */
 	case 357:
@@ -9530,7 +9868,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* extattr_set_fd */
 	case 371:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* extattr_get_fd */
 	case 372:
@@ -9645,7 +9983,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* extattr_set_link */
 	case 412:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* extattr_get_link */
 	case 413:
@@ -9852,7 +10190,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* kmq_notify */
+	/* freebsd32_kmq_notify */
 	case 461:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -10190,6 +10528,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
+#ifdef PAD64_REQUIRED
 	/* freebsd32_posix_fallocate */
 	case 530:
 		if (ndx == 0 || ndx == 1)
@@ -10205,6 +10544,23 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
+#else
+	/* freebsd32_posix_fallocate */
+	case 530:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_posix_fadvise */
+	case 531:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_wait6 */
+	case 532:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+#endif
 	/* cap_rights_limit */
 	case 533:
 		if (ndx == 0 || ndx == 1)
@@ -10242,6 +10598,21 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* chflagsat */
 	case 540:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* accept4 */
+	case 541:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* pipe2 */
+	case 542:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_aio_mlock */
+	case 543:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

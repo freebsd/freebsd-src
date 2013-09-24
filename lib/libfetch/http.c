@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2000-2013 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1373,6 +1373,7 @@ http_authorize(conn_t *conn, const char *hdr, http_auth_challenges_t *cs,
 static conn_t *
 http_connect(struct url *URL, struct url *purl, const char *flags)
 {
+	struct url *curl;
 	conn_t *conn;
 	int verbose;
 	int af, val;
@@ -1391,19 +1392,23 @@ http_connect(struct url *URL, struct url *purl, const char *flags)
 		af = AF_INET6;
 #endif
 
-	if (purl && strcasecmp(URL->scheme, SCHEME_HTTPS) != 0) {
-		URL = purl;
-	} else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0) {
-		/* can't talk http to an ftp server */
-		/* XXX should set an error code */
-		return (NULL);
-	}
+	curl = (purl != NULL) ? purl : URL;
 
-	if ((conn = fetch_connect(URL->host, URL->port, af, verbose)) == NULL)
+	if ((conn = fetch_connect(curl->host, curl->port, af, verbose)) == NULL)
 		/* fetch_connect() has already set an error code */
 		return (NULL);
+	if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0 && purl) {
+		http_cmd(conn, "CONNECT %s:%d HTTP/1.1",
+		    URL->host, URL->port);
+		http_cmd(conn, "");
+		if (http_get_reply(conn) != HTTP_OK) {
+			fetch_close(conn);
+			return (NULL);
+		}
+		http_get_reply(conn);
+	}
 	if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0 &&
-	    fetch_ssl(conn, verbose) == -1) {
+	    fetch_ssl(conn, URL, verbose) == -1) {
 		fetch_close(conn);
 		/* grrr */
 		errno = EAUTH;
@@ -1576,7 +1581,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 		if (verbose)
 			fetch_info("requesting %s://%s%s",
 			    url->scheme, host, url->doc);
-		if (purl) {
+		if (purl && strcasecmp(URL->scheme, SCHEME_HTTPS) != 0) {
 			http_cmd(conn, "%s %s://%s%s HTTP/1.1",
 			    op, url->scheme, host, url->doc);
 		} else {
@@ -1659,6 +1664,12 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 		}
 
 		/* other headers */
+		if ((p = getenv("HTTP_ACCEPT")) != NULL) {
+			if (*p != '\0')
+				http_cmd(conn, "Accept: %s", p);
+		} else {
+			http_cmd(conn, "Accept: */*");
+		}
 		if ((p = getenv("HTTP_REFERER")) != NULL && *p != '\0') {
 			if (strcasecmp(p, "auto") == 0)
 				http_cmd(conn, "Referer: %s://%s%s",

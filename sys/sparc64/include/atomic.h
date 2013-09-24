@@ -133,17 +133,14 @@
 	t;								\
 })
 
-#define	atomic_load(p, sz)						\
-	atomic_cas((p), 0, 0, sz)
-
-#define	atomic_load_acq(p, sz) ({					\
+#define	atomic_ld_acq(p, sz) ({						\
 	itype(sz) v;							\
-	v = atomic_load((p), sz);					\
+	v = atomic_cas((p), 0, 0, sz);					\
 	__compiler_membar();						\
 	v;								\
 })
 
-#define	atomic_load_clear(p, sz) ({					\
+#define	atomic_ld_clear(p, sz) ({					\
 	itype(sz) e, r;							\
 	for (e = *(volatile itype(sz) *)(p);; e = r) {			\
 		r = atomic_cas((p), e, 0, sz);				\
@@ -153,7 +150,7 @@
 	e;								\
 })
 
-#define	atomic_store(p, v, sz) do {					\
+#define	atomic_st(p, v, sz) do {					\
 	itype(sz) e, r;							\
 	for (e = *(volatile itype(sz) *)(p);; e = r) {			\
 		r = atomic_cas((p), e, (v), sz);			\
@@ -162,9 +159,14 @@
 	}								\
 } while (0)
 
-#define	atomic_store_rel(p, v, sz) do {					\
+#define	atomic_st_acq(p, v, sz) do {					\
+	atomic_st((p), (v), sz);					\
+	__compiler_membar();						\
+} while (0)
+
+#define	atomic_st_rel(p, v, sz) do {					\
 	membar(LoadStore | StoreStore);					\
-	atomic_store((p), (v), sz);					\
+	atomic_st((p), (v), sz);					\
 } while (0)
 
 #define	ATOMIC_GEN(name, ptype, vtype, atype, sz)			\
@@ -231,7 +233,7 @@ atomic_load_acq_ ## name(volatile ptype p)				\
 static __inline vtype							\
 atomic_readandclear_ ## name(volatile ptype p)				\
 {									\
-	return ((vtype)atomic_load_clear((p), sz));			\
+	return ((vtype)atomic_ld_clear((p), sz));			\
 }									\
 									\
 static __inline vtype							\
@@ -267,14 +269,14 @@ atomic_subtract_rel_ ## name(volatile ptype p, atype v)			\
 }									\
 									\
 static __inline void							\
-atomic_store_ ## name(volatile ptype p, vtype v)			\
+atomic_store_acq_ ## name(volatile ptype p, vtype v)			\
 {									\
-	atomic_store((p), (v), sz);					\
+	atomic_st_acq((p), (v), sz);					\
 }									\
 static __inline void							\
 atomic_store_rel_ ## name(volatile ptype p, vtype v)			\
 {									\
-	atomic_store_rel((p), (v), sz);					\
+	atomic_st_rel((p), (v), sz);					\
 }
 
 ATOMIC_GEN(int, u_int *, u_int, u_int, 32);
@@ -296,8 +298,10 @@ ATOMIC_GEN(ptr, uintptr_t *, uintptr_t, uintptr_t, 64);
 #undef atomic_op
 #undef atomic_op_acq
 #undef atomic_op_rel
-#undef atomic_load_acq
-#undef atomic_store_rel
-#undef atomic_load_clear
+#undef atomic_ld_acq
+#undef atomic_ld_clear
+#undef atomic_st
+#undef atomic_st_acq
+#undef atomic_st_rel
 
 #endif /* !_MACHINE_ATOMIC_H_ */

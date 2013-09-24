@@ -798,7 +798,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	
 	pcb->pcb_fsbase = 0;
 	pcb->pcb_gsbase = 0;
-	clear_pcb_flags(pcb, PCB_32BIT | PCB_GS32BIT);
+	clear_pcb_flags(pcb, PCB_32BIT);
 	pcb->pcb_initial_fpucw = __INITIAL_FPUCW__;
 	set_pcb_flags(pcb, PCB_FULL_IRET);
 
@@ -1368,7 +1368,7 @@ xen_set_proc(struct pcb *newpcb)
 
 	if (!(curthread->td_pflags & TDP_KTHREAD)) { /* Only for user proc */
 		/* XXX: compat32 */
-		if (newpcb->pcb_flags & (PCB_32BIT | PCB_GS32BIT)) {
+		if (newpcb->pcb_flags & PCB_32BIT) {
 			struct user_segment_descriptor gsd;
 			gsd = gdt[GUGS32_SEL];
 			USD_SETBASE(&gsd, newpcb->pcb_gsbase);

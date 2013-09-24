@@ -131,6 +131,15 @@ struct usb_device_info {
 	char	udi_release[8];
 };
 
+#define	USB_DEVICE_PORT_PATH_MAX 32
+
+struct usb_device_port_path {
+	uint8_t udp_bus;		/* which bus we are on */
+	uint8_t udp_index;		/* which device index */
+	uint8_t udp_port_level;		/* how many levels: 0, 1, 2 ... */
+	uint8_t udp_port_no[USB_DEVICE_PORT_PATH_MAX];
+};
+
 struct usb_device_stats {
 	uint32_t uds_requests_ok[4];	/* Indexed by transfer type UE_XXX */
 	uint32_t uds_requests_fail[4];	/* Indexed by transfer type UE_XXX */
@@ -277,7 +286,8 @@ struct usb_gen_quirk {
 #define	USB_IFACE_DRIVER_DETACH	_IOW ('U', 125, int)
 #define	USB_GET_PLUGTIME	_IOR ('U', 126, uint32_t)
 #define	USB_READ_DIR		_IOW ('U', 127, struct usb_read_dir)
-/* 128 - 134 unused */
+/* 128 - 133 unused */
+#define	USB_GET_DEV_PORT_PATH	_IOR ('U', 134, struct usb_device_port_path)
 #define	USB_GET_POWER_USAGE	_IOR ('U', 135, int)
 #define	USB_SET_TX_FORCE_SHORT	_IOW ('U', 136, int)
 #define	USB_SET_TX_TIMEOUT	_IOW ('U', 137, int)

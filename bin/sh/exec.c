@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include "syntax.h"
 #include "memalloc.h"
 #include "error.h"
-#include "init.h"
 #include "mystring.h"
 #include "show.h"
 #include "jobs.h"
@@ -165,7 +164,7 @@ tryexec(char *cmd, char **argv, char **envp)
 			}
 		}
 		*argv = cmd;
-		*--argv = _PATH_BSHELL;
+		*--argv = __DECONST(char *, _PATH_BSHELL);
 		execve(_PATH_BSHELL, argv, envp);
 	}
 	errno = e;
@@ -188,7 +187,7 @@ padvance(const char **path, const char *name)
 {
 	const char *p, *start;
 	char *q;
-	int len;
+	size_t len;
 
 	if (*path == NULL)
 		return NULL;

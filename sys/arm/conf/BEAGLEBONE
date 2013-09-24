@@ -1,5 +1,7 @@
 # BEAGLEBONE -- Custom configuration for the BeagleBone ARM development
-# platform, check out http://www.beagleboard.org/bone
+# platforms, check out http://www.beagleboard.org/bone and
+# http://www.beagleboard.org/black. This kernel config file is used for the
+# original BeagleBone and the BeagleBone Black.
 #
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
@@ -22,7 +24,6 @@ ident		BEAGLEBONE
 
 include		"../ti/am335x/std.beaglebone"
 
-makeoptions	MODULES_OVERRIDE=""
 makeoptions	WITHOUT_MODULES="ahc"
 
 options 	HZ=100
@@ -120,6 +121,10 @@ device		bpf
 # USB ethernet support, requires miibus
 device		miibus
 device		axe			# ASIX Electronics USB Ethernet
+
+# Device mode support and USFS template
+device		usb_template    # Control of the gadget
+device		usfs
 
 # Flattened Device Tree
 options         FDT

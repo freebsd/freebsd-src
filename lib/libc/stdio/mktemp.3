@@ -28,7 +28,7 @@
 .\"     @(#)mktemp.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 4, 2012
+.Dd July 5, 2013
 .Dt MKTEMP 3
 .Os
 .Sh NAME
@@ -37,15 +37,16 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In unistd.h
+.In stdlib.h
 .Ft char *
 .Fn mktemp "char *template"
 .Ft int
 .Fn mkstemp "char *template"
-.Ft int
-.Fn mkstemps "char *template" "int suffixlen"
 .Ft char *
 .Fn mkdtemp "char *template"
+.In unistd.h
+.Ft int
+.Fn mkstemps "char *template" "int suffixlen"
 .Sh DESCRIPTION
 The
 .Fn mktemp
@@ -180,12 +181,36 @@ with an argument of
 will result in a core dump due to
 .Fn mkstemp
 attempting to modify the string constant that was given.
+.Pp
+The
+.Fn mkdtemp ,
+.Fn mkstemp
+and
+.Fn mktemp
+function prototypes are also available from
+.In unistd.h .
 .Sh SEE ALSO
 .Xr chmod 2 ,
 .Xr getpid 2 ,
 .Xr mkdir 2 ,
 .Xr open 2 ,
 .Xr stat 2
+.Sh STANDARDS
+The
+.Fn mkstemp
+and
+.Fn mkdtemp
+functions are expected to conform to
+.St -p1003.1-2008 .
+The
+.Fn mktemp
+function is expected to conform to
+.St -p1003.1-2001
+and is not specified by
+.St -p1003.1-2008 .
+The
+.Fn mkstemps
+function does not conform to any standard.
 .Sh HISTORY
 A
 .Fn mktemp

@@ -99,6 +99,20 @@ struct if_ath_alq_interrupt {
 	uint32_t	intr_syncstate;
 };
 
+#define	ATH_ALQ_MIB_COUNTERS		11
+struct if_ath_alq_mib_counters {
+	uint32_t	valid;
+	uint32_t	tx_busy;
+	uint32_t	rx_busy;
+	uint32_t	chan_busy;
+	uint32_t	ext_chan_busy;
+	uint32_t	cycle_count;
+};
+
+#define	ATH_ALQ_MISSED_BEACON		12
+#define	ATH_ALQ_STUCK_BEACON		13
+#define	ATH_ALQ_RESUME_BEACON		14
+
 /*
  * These will always be logged, regardless.
  */

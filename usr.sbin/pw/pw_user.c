@@ -200,7 +200,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			strlcpy(dbuf, cnf->home, sizeof(dbuf));
 			p = dbuf;
 			if (stat(dbuf, &st) == -1) {
-				while ((p = strchr(++p, '/')) != NULL) {
+				while ((p = strchr(p + 1, '/')) != NULL) {
 					*p = '\0';
 					if (stat(dbuf, &st) == -1) {
 						if (mkdir(dbuf, _DEF_DIRMODE) == -1)
@@ -513,8 +513,6 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				time_t          now = time(NULL);
 				time_t          expire = parse_date(now, arg->val);
 
-				if (now == expire)
-					errx(EX_DATAERR, "invalid password change date `%s'", arg->val);
 				if (pwd->pw_change != expire) {
 					pwd->pw_change = expire;
 					edited = 1;
@@ -533,8 +531,6 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				time_t          now = time(NULL);
 				time_t          expire = parse_date(now, arg->val);
 
-				if (now == expire)
-					errx(EX_DATAERR, "invalid account expiry date `%s'", arg->val);
 				if (pwd->pw_expire != expire) {
 					pwd->pw_expire = expire;
 					edited = 1;
@@ -577,7 +573,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 			lc = login_getpwclass(pwd);
 			if (lc == NULL ||
-			    login_setcryptfmt(lc, "md5", NULL) == NULL)
+			    login_setcryptfmt(lc, "sha512", NULL) == NULL)
 				warn("setting crypt(3) format");
 			login_close(lc);
 			pwd->pw_passwd = pw_password(cnf, args, pwd->pw_name);

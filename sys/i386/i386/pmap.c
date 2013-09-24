@@ -655,7 +655,7 @@ pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 
 	/* Inform UMA that this allocator uses kernel_map/object. */
 	*flags = UMA_SLAB_KERNEL;
-	return ((void *)kmem_alloc_contig(kernel_map, bytes, wait, 0x0ULL,
+	return ((void *)kmem_alloc_contig(kernel_arena, bytes, wait, 0x0ULL,
 	    0xffffffffULL, 1, 0, VM_MEMATTR_DEFAULT));
 }
 #endif
@@ -680,7 +680,7 @@ pmap_ptelist_alloc(vm_offset_t *head)
 
 	va = *head;
 	if (va == 0)
-		return (va);	/* Out of memory */
+		panic("pmap_ptelist_alloc: exhausted ptelist KVA");
 	pte = vtopte(va);
 	*head = *pte;
 	if (*head & PG_V)
@@ -783,13 +783,13 @@ pmap_init(void)
 	 */
 	s = (vm_size_t)(pv_npg * sizeof(struct md_page));
 	s = round_page(s);
-	pv_table = (struct md_page *)kmem_alloc(kernel_map, s);
+	pv_table = (struct md_page *)kmem_malloc(kernel_arena, s,
+	    M_WAITOK | M_ZERO);
 	for (i = 0; i < pv_npg; i++)
 		TAILQ_INIT(&pv_table[i].pv_list);
 
 	pv_maxchunks = MAX(pv_entry_max / _NPCPV, maxproc);
-	pv_chunkbase = (struct pv_chunk *)kmem_alloc_nofault(kernel_map,
-	    PAGE_SIZE * pv_maxchunks);
+	pv_chunkbase = (struct pv_chunk *)kva_alloc(PAGE_SIZE * pv_maxchunks);
 	if (pv_chunkbase == NULL)
 		panic("pmap_init: not enough kvm for pv chunks");
 	pmap_ptelist_init(&pv_vafree, pv_chunkbase, pv_maxchunks);
@@ -1747,8 +1747,7 @@ pmap_pinit(pmap_t pmap)
 	 * page directory table.
 	 */
 	if (pmap->pm_pdir == NULL) {
-		pmap->pm_pdir = (pd_entry_t *)kmem_alloc_nofault(kernel_map,
-		    NBPTD);
+		pmap->pm_pdir = (pd_entry_t *)kva_alloc(NBPTD);
 		if (pmap->pm_pdir == NULL) {
 			PMAP_LOCK_DESTROY(pmap);
 			return (0);
@@ -1957,7 +1956,7 @@ pmap_lazyfix(pmap_t pmap)
 		spins = 50000000;
 
 		/* Find least significant set bit. */
-		lsb = cpusetobj_ffs(&mask);
+		lsb = CPU_FFS(&mask);
 		MPASS(lsb != 0);
 		lsb--;
 		CPU_SETOF(lsb, &mask);
@@ -2311,6 +2310,7 @@ out:
 	if (m_pc == NULL && pv_vafree != 0 && free != NULL) {
 		m_pc = free;
 		free = (void *)m_pc->object;
+		m_pc->object = NULL;
 		/* Recycle a freed page table page. */
 		m_pc->wire_count = 1;
 		atomic_add_int(&cnt.v_wire_count, 1);
@@ -2772,6 +2772,44 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 }
 
 /*
+ * Removes a 2- or 4MB page mapping from the kernel pmap.
+ */
+static void
+pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
+{
+	pd_entry_t newpde;
+	vm_paddr_t mptepa;
+	vm_page_t mpte;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	mpte = pmap_lookup_pt_page(pmap, va);
+	if (mpte == NULL)
+		panic("pmap_remove_kernel_pde: Missing pt page.");
+
+	pmap_remove_pt_page(pmap, mpte);
+	mptepa = VM_PAGE_TO_PHYS(mpte);
+	newpde = mptepa | PG_M | PG_A | PG_RW | PG_V;
+
+	/*
+	 * Initialize the page table page.
+	 */
+	pagezero((void *)&KPTmap[i386_btop(trunc_4mpage(va))]);
+
+	/*
+	 * Remove the mapping.
+	 */
+	if (workaround_erratum383)
+		pmap_update_pde(pmap, va, pde, newpde);
+	else 
+		pmap_kenter_pde(va, newpde);
+
+	/*
+	 * Invalidate the recursive mapping of the page table page.
+	 */
+	pmap_invalidate_page(pmap, (vm_offset_t)vtopte(va));
+}
+
+/*
  * pmap_remove_pde: do the things to unmap a superpage in a process
  */
 static void
@@ -2813,8 +2851,7 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 		}
 	}
 	if (pmap == kernel_pmap) {
-		if (!pmap_demote_pde(pmap, pdq, sva))
-			panic("pmap_remove_pde: failed demotion");
+		pmap_remove_kernel_pde(pmap, pdq, sva);
 	} else {
 		mpte = pmap_lookup_pt_page(pmap, sva);
 		if (mpte != NULL) {
@@ -3677,7 +3714,8 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	vm_page_t m, mpte;
 	vm_pindex_t diff, psize;
 
-	VM_OBJECT_ASSERT_WLOCKED(m_start->object);
+	VM_OBJECT_ASSERT_LOCKED(m_start->object);
+
 	psize = atop(end - start);
 	mpte = NULL;
 	m = m_start;
@@ -5005,7 +5043,7 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 	if (pa < KERNLOAD && pa + size <= KERNLOAD)
 		va = KERNBASE + pa;
 	else
-		va = kmem_alloc_nofault(kernel_map, size);
+		va = kva_alloc(size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 
@@ -5040,7 +5078,7 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
 	size = round_page(offset + size);
-	kmem_free(kernel_map, base, size);
+	kva_free(base, size);
 }
 
 /*

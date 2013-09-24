@@ -182,7 +182,7 @@ s3c2xx0_bs_map(void *t, bus_addr_t bpa, bus_size_t size,
 	startpa = trunc_page(bpa);
 	endpa = round_page(bpa + size);
 
-	va = kmem_alloc_nofault(kernel_map, endpa - startpa);
+	va = kva_alloc(endpa - startpa);
 	if (!va)
 		return (ENOMEM);
 
@@ -214,7 +214,7 @@ s3c2xx0_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
-	kmem_free(kernel_map, va, endva - va);
+	kva_free(va, endva - va);
 }
 
 int

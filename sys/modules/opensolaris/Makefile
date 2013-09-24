@@ -27,3 +27,5 @@ CFLAGS+=	-I${.CURDIR}/../../cddl/compat/opensolaris		\
 IGNORE_PRAGMA=	1
 
 .include <bsd.kmod.mk>
+
+CFLAGS+=	-include ${.CURDIR}/../../cddl/compat/opensolaris/sys/debug_compat.h

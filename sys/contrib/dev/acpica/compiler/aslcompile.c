@@ -126,13 +126,16 @@ AslCompilerSignon (
         break;
 
     case ASL_FILE_C_SOURCE_OUTPUT:
+    case ASL_FILE_C_OFFSET_OUTPUT:
     case ASL_FILE_C_INCLUDE_OUTPUT:
 
         Prefix = " * ";
         break;
 
     default:
+
         /* No other output types supported */
+
         break;
     }
 
@@ -199,13 +202,16 @@ AslCompilerFileHeader (
         break;
 
     case ASL_FILE_C_SOURCE_OUTPUT:
+    case ASL_FILE_C_OFFSET_OUTPUT:
     case ASL_FILE_C_INCLUDE_OUTPUT:
 
         Prefix = " * ";
         break;
 
     default:
+
         /* No other output types supported */
+
         break;
     }
 
@@ -222,12 +228,16 @@ AslCompilerFileHeader (
     switch (FileId)
     {
     case ASL_FILE_C_SOURCE_OUTPUT:
+    case ASL_FILE_C_OFFSET_OUTPUT:
     case ASL_FILE_C_INCLUDE_OUTPUT:
+
         FlPrintFile (FileId, " */\n");
         break;
 
     default:
+
         /* Nothing to do for other output types */
+
         break;
     }
 }
@@ -956,7 +966,19 @@ CmCleanupAndExit (
 
     /* Close all open files */
 
-    Gbl_Files[ASL_FILE_PREPROCESSOR].Handle = NULL; /* the .i file is same as source file */
+    /*
+     * Take care with the preprocessor file (.i), it might be the same
+     * as the "input" file, depending on where the compiler has terminated
+     * or aborted. Prevent attempt to close the same file twice in
+     * loop below.
+     */
+    if (Gbl_Files[ASL_FILE_PREPROCESSOR].Handle ==
+        Gbl_Files[ASL_FILE_INPUT].Handle)
+    {
+        Gbl_Files[ASL_FILE_PREPROCESSOR].Handle = NULL;
+    }
+
+    /* Close the standard I/O files */
 
     for (i = ASL_FILE_INPUT; i < ASL_MAX_FILE_TYPE; i++)
     {

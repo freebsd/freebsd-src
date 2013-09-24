@@ -612,7 +612,6 @@ nodevice	ida		# Compaq Smart RAID
 nodevice	mlx		# Mylex DAC960
 nodevice	amr		# AMI MegaRAID
 nodevice	twe		# 3ware ATA RAID
-nodevice	ataraid
 nodevice	cm
 nodevice	ex
 nodevice	fea

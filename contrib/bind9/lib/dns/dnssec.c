@@ -275,7 +275,7 @@ dns_dnssec_sign(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	if (ret != ISC_R_SUCCESS)
 		goto cleanup_databuf;
 
-	ret = dst_context_create(key, mctx, &ctx);
+	ret = dst_context_create2(key, mctx, DNS_LOGCATEGORY_DNSSEC, &ctx);
 	if (ret != ISC_R_SUCCESS)
 		goto cleanup_databuf;
 
@@ -352,7 +352,6 @@ dns_dnssec_sign(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 		ret = ISC_R_NOSPACE;
 		goto cleanup_array;
 	}
-	memcpy(sig.signature, r.base, sig.siglen);
 
 	ret = dns_rdata_fromstruct(sigrdata, sig.common.rdclass,
 				   sig.common.rdtype, &sig, buffer);
@@ -462,7 +461,7 @@ dns_dnssec_verify2(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	}
 
  again:
-	ret = dst_context_create(key, mctx, &ctx);
+	ret = dst_context_create2(key, mctx, DNS_LOGCATEGORY_DNSSEC, &ctx);
 	if (ret != ISC_R_SUCCESS)
 		goto cleanup_struct;
 
@@ -551,9 +550,9 @@ dns_dnssec_verify2(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	if (ret == ISC_R_SUCCESS && downcase) {
 		char namebuf[DNS_NAME_FORMATSIZE];
 		dns_name_format(&sig.signer, namebuf, sizeof(namebuf));
-		isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
-			      DNS_LOGMODULE_DNSSEC, ISC_LOG_INFO,
-			      "sucessfully validated after lower casing "
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_DNSSEC,
+			      DNS_LOGMODULE_DNSSEC, ISC_LOG_DEBUG(1),
+			      "successfully validated after lower casing "
 			      "signer '%s'", namebuf);
 		inc_stat(dns_dnssecstats_downcase);
 	} else if (ret == ISC_R_SUCCESS)
@@ -854,7 +853,7 @@ dns_dnssec_signmessage(dns_message_t *msg, dst_key_t *key) {
 
 	isc_buffer_init(&databuf, data, sizeof(data));
 
-	RETERR(dst_context_create(key, mctx, &ctx));
+	RETERR(dst_context_create2(key, mctx, DNS_LOGCATEGORY_DNSSEC, &ctx));
 
 	/*
 	 * Digest the fields of the SIG - we can cheat and use
@@ -1004,7 +1003,7 @@ dns_dnssec_verifymessage(isc_buffer_t *source, dns_message_t *msg,
 		goto failure;
 	}
 
-	RETERR(dst_context_create(key, mctx, &ctx));
+	RETERR(dst_context_create2(key, mctx, DNS_LOGCATEGORY_DNSSEC, &ctx));
 
 	/*
 	 * Digest the SIG(0) record, except for the signature.

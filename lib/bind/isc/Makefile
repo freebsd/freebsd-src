@@ -40,7 +40,7 @@ SRCS+=		inet_pton.c \
 		parseint.c portset.c \
 		print.c \
 		quota.c radix.c random.c \
-		ratelimiter.c refcount.c region.c result.c rwlock.c \
+		ratelimiter.c refcount.c region.c regex.c result.c rwlock.c \
 		serial.c sha1.c sha2.c sockaddr.c stats.c string.c strtoul.c \
 		symtab.c task.c taskpool.c timer.c version.c
 
@@ -107,6 +107,7 @@ INCS=		${SRCDIR}/include/isc/app.h \
 		${SRCDIR}/include/isc/ratelimiter.h \
 		${SRCDIR}/include/isc/refcount.h \
 		${SRCDIR}/include/isc/region.h \
+		${SRCDIR}/include/isc/regex.h \
 		${SRCDIR}/include/isc/resource.h \
 		${SRCDIR}/include/isc/result.h \
 		${SRCDIR}/include/isc/resultclass.h \

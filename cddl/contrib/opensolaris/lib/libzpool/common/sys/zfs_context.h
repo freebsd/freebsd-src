@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  */
 
@@ -86,6 +87,9 @@ extern "C" {
 #include <sys/sysevent/dev.h>
 #include <machine/atomic.h>
 #include <sys/debug.h>
+#ifdef illumos
+#include "zfs.h"
+#endif
 
 #define	ZFS_EXPORTS_PATH	"/etc/zfs/exports"
 
@@ -133,28 +137,64 @@ extern int aok;
 
 #ifdef DTRACE_PROBE
 #undef	DTRACE_PROBE
-#define	DTRACE_PROBE(a)	((void)0)
 #endif	/* DTRACE_PROBE */
+#ifdef illumos
+#define	DTRACE_PROBE(a) \
+	ZFS_PROBE0(#a)
+#endif
 
 #ifdef DTRACE_PROBE1
 #undef	DTRACE_PROBE1
-#define	DTRACE_PROBE1(a, b, c)	((void)0)
 #endif	/* DTRACE_PROBE1 */
+#ifdef illumos
+#define	DTRACE_PROBE1(a, b, c) \
+	ZFS_PROBE1(#a, (unsigned long)c)
+#endif
 
 #ifdef DTRACE_PROBE2
 #undef	DTRACE_PROBE2
-#define	DTRACE_PROBE2(a, b, c, d, e)	((void)0)
 #endif	/* DTRACE_PROBE2 */
+#ifdef illumos
+#define	DTRACE_PROBE2(a, b, c, d, e) \
+	ZFS_PROBE2(#a, (unsigned long)c, (unsigned long)e)
+#endif
 
 #ifdef DTRACE_PROBE3
 #undef	DTRACE_PROBE3
-#define	DTRACE_PROBE3(a, b, c, d, e, f, g)	((void)0)
 #endif	/* DTRACE_PROBE3 */
+#ifdef illumos
+#define	DTRACE_PROBE3(a, b, c, d, e, f, g) \
+	ZFS_PROBE3(#a, (unsigned long)c, (unsigned long)e, (unsigned long)g)
+#endif
 
 #ifdef DTRACE_PROBE4
 #undef	DTRACE_PROBE4
-#define	DTRACE_PROBE4(a, b, c, d, e, f, g, h, i)	((void)0)
 #endif	/* DTRACE_PROBE4 */
+#ifdef illumos
+#define	DTRACE_PROBE4(a, b, c, d, e, f, g, h, i) \
+	ZFS_PROBE4(#a, (unsigned long)c, (unsigned long)e, (unsigned long)g, \
+	(unsigned long)i)
+#endif
+
+#ifdef illumos
+/*
+ * We use the comma operator so that this macro can be used without much
+ * additional code.  For example, "return (EINVAL);" becomes
+ * "return (SET_ERROR(EINVAL));".  Note that the argument will be evaluated
+ * twice, so it should not have side effects (e.g. something like:
+ * "return (SET_ERROR(log_error(EINVAL, info)));" would log the error twice).
+ */
+#define	SET_ERROR(err)	(ZFS_SET_ERROR(err), err)
+#else	/* !illumos */
+
+#define	DTRACE_PROBE(a)	((void)0)
+#define	DTRACE_PROBE1(a, b, c)	((void)0)
+#define	DTRACE_PROBE2(a, b, c, d, e)	((void)0)
+#define	DTRACE_PROBE3(a, b, c, d, e, f, g)	((void)0)
+#define	DTRACE_PROBE4(a, b, c, d, e, f, g, h, i)	((void)0)
+
+#define SET_ERROR(err) (err)
+#endif	/* !illumos */
 
 /*
  * Threads

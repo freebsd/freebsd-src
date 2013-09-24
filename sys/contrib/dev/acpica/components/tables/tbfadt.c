@@ -132,7 +132,7 @@ static ACPI_FADT_INFO     FadtInfoTable[] =
         ACPI_FADT_OFFSET (PmTimerBlock),
         ACPI_FADT_OFFSET (PmTimerLength),
         ACPI_PM_TIMER_WIDTH,
-        ACPI_FADT_REQUIRED},
+        ACPI_FADT_SEPARATE_LENGTH},         /* ACPI 5.0A: Timer is optional */
 
     {"Gpe0Block",
         ACPI_FADT_OFFSET (XGpe0Block),
@@ -590,8 +590,12 @@ AcpiTbValidateFadt (
         /*
          * For each extended field, check for length mismatch between the
          * legacy length field and the corresponding 64-bit X length field.
+         * Note: If the legacy length field is > 0xFF bits, ignore this
+         * check. (GPE registers can be larger than the 64-bit GAS structure
+         * can accomodate, 0xFF bits).
          */
         if (Address64->Address &&
+           (ACPI_MUL_8 (Length) <= ACPI_UINT8_MAX) &&
            (Address64->BitWidth != ACPI_MUL_8 (Length)))
         {
             ACPI_BIOS_WARNING ((AE_INFO,
@@ -602,7 +606,7 @@ AcpiTbValidateFadt (
         if (FadtInfoTable[i].Type & ACPI_FADT_REQUIRED)
         {
             /*
-             * Field is required (PM1aEvent, PM1aControl, PmTimer).
+             * Field is required (PM1aEvent, PM1aControl).
              * Both the address and length must be non-zero.
              */
             if (!Address64->Address || !Length)

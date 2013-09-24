@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -73,7 +73,8 @@ opensslecdsa_createctx(dst_key_t *key, dst_context_t *dctx) {
 
 	if (!EVP_DigestInit_ex(evp_md_ctx, type, NULL)) {
 		EVP_MD_CTX_destroy(evp_md_ctx);
-		return (dst__openssl_toresult2("EVP_DigestInit_ex",
+		return (dst__openssl_toresult3(dctx->category,
+					       "EVP_DigestInit_ex",
 					       ISC_R_FAILURE));
 	}
 
@@ -103,7 +104,8 @@ opensslecdsa_adddata(dst_context_t *dctx, const isc_region_t *data) {
 		dctx->key->key_alg == DST_ALG_ECDSA384);
 
 	if (!EVP_DigestUpdate(evp_md_ctx, data->base, data->length))
-		return (dst__openssl_toresult2("EVP_DigestUpdate",
+		return (dst__openssl_toresult3(dctx->category,
+					       "EVP_DigestUpdate",
 					       ISC_R_FAILURE));
 
 	return (ISC_R_SUCCESS);
@@ -147,12 +149,14 @@ opensslecdsa_sign(dst_context_t *dctx, isc_buffer_t *sig) {
 		DST_RET(ISC_R_NOSPACE);
 
 	if (!EVP_DigestFinal(evp_md_ctx, digest, &dgstlen))
-		DST_RET(dst__openssl_toresult2("EVP_DigestFinal",
+		DST_RET(dst__openssl_toresult3(dctx->category,
+					       "EVP_DigestFinal",
 					       ISC_R_FAILURE));
 
 	ecdsasig = ECDSA_do_sign(digest, dgstlen, eckey);
 	if (ecdsasig == NULL)
-		DST_RET(dst__openssl_toresult2("ECDSA_do_sign",
+		DST_RET(dst__openssl_toresult3(dctx->category,
+					       "ECDSA_do_sign",
 					       DST_R_SIGNFAILURE));
 	BN_bn2bin_fixed(ecdsasig->r, r.base, siglen / 2);
 	r.base += siglen / 2;
@@ -196,14 +200,19 @@ opensslecdsa_verify(dst_context_t *dctx, const isc_region_t *sig) {
 		return (DST_R_VERIFYFAILURE);
 
 	if (!EVP_DigestFinal_ex(evp_md_ctx, digest, &dgstlen))
-		DST_RET (dst__openssl_toresult2("EVP_DigestFinal_ex",
+		DST_RET (dst__openssl_toresult3(dctx->category,
+						"EVP_DigestFinal_ex",
 						ISC_R_FAILURE));
 
 	ecdsasig = ECDSA_SIG_new();
 	if (ecdsasig == NULL)
 		DST_RET (ISC_R_NOMEMORY);
+	if (ecdsasig->r != NULL)
+		BN_free(ecdsasig->r);
 	ecdsasig->r = BN_bin2bn(cp, siglen / 2, NULL);
 	cp += siglen / 2;
+	if (ecdsasig->s != NULL)
+		BN_free(ecdsasig->s);
 	ecdsasig->s = BN_bin2bn(cp, siglen / 2, NULL);
 	/* cp += siglen / 2; */
 
@@ -216,7 +225,8 @@ opensslecdsa_verify(dst_context_t *dctx, const isc_region_t *sig) {
 		ret = dst__openssl_toresult(DST_R_VERIFYFAILURE);
 		break;
 	default:
-		ret = dst__openssl_toresult2("ECDSA_do_verify",
+		ret = dst__openssl_toresult3(dctx->category,
+					     "ECDSA_do_verify",
 					     DST_R_VERIFYFAILURE);
 		break;
 	}

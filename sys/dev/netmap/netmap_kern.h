@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2012 Matteo Landi, Luigi Rizzo. All rights reserved.
+ * Copyright (C) 2011-2013 Matteo Landi, Luigi Rizzo. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,7 +25,6 @@
 
 /*
  * $FreeBSD$
- * $Id: netmap_kern.h 11829 2012-09-26 04:06:34Z luigi $
  *
  * The header contains the definitions of constants and function
  * prototypes used only in kernelspace.
@@ -34,18 +33,21 @@
 #ifndef _NET_NETMAP_KERN_H_
 #define _NET_NETMAP_KERN_H_
 
-#define NETMAP_MEM2    // use the new memory allocator
-
 #if defined(__FreeBSD__)
+
 #define likely(x)	__builtin_expect(!!(x), 1)
 #define unlikely(x)	__builtin_expect(!!(x), 0)
 
 #define	NM_LOCK_T	struct mtx
+#define	NM_RWLOCK_T	struct rwlock
 #define	NM_SELINFO_T	struct selinfo
 #define	MBUF_LEN(m)	((m)->m_pkthdr.len)
 #define	NM_SEND_UP(ifp, m)	((ifp)->if_input)(ifp, m)
+
 #elif defined (linux)
-#define	NM_LOCK_T	spinlock_t
+
+#define	NM_LOCK_T	safe_spinlock_t	// see bsd_glue.h
+#define	NM_RWLOCK_T	safe_spinlock_t	// see bsd_glue.h
 #define	NM_SELINFO_T	wait_queue_head_t
 #define	MBUF_LEN(m)	((m)->len)
 #define	NM_SEND_UP(ifp, m)	netif_rx(m)
@@ -63,10 +65,11 @@
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37)
 #define IFCAP_NETMAP	0x8000
 #else
-#define IFCAP_NETMAP	0x100000
+#define IFCAP_NETMAP	0x200000
 #endif
 
 #elif defined (__APPLE__)
+
 #warning apple support is incomplete.
 #define likely(x)	__builtin_expect(!!(x), 1)
 #define unlikely(x)	__builtin_expect(!!(x), 0)
@@ -76,8 +79,10 @@
 #define	NM_SEND_UP(ifp, m)	((ifp)->if_input)(ifp, m)
 
 #else
+
 #error unsupported platform
-#endif
+
+#endif /* end - platform-specific code */
 
 #define ND(format, ...)
 #define D(format, ...)						\
@@ -102,6 +107,9 @@
 	} while (0)
 
 struct netmap_adapter;
+struct nm_bdg_fwd;
+struct nm_bridge;
+struct netmap_priv_d;
 
 /*
  * private, kernel view of a ring. Keeps track of the status of
@@ -135,6 +143,7 @@ struct netmap_kring {
 	uint16_t	nkr_slot_flags;	/* initial value for flags */
 	int	nkr_hwofs;	/* offset between NIC and netmap ring */
 	struct netmap_adapter *na;
+	struct nm_bdg_fwd *nkr_ft;
 	NM_SELINFO_T si;	/* poll/select wait queue */
 	NM_LOCK_T q_lock;	/* used if no device lock available */
 } __attribute__((__aligned__(64)));
@@ -157,6 +166,7 @@ struct netmap_adapter {
 #define NAF_SKIP_INTR	1	/* use the regular interrupt handler.
 				 * useful during initialization
 				 */
+#define NAF_SW_ONLY	2	/* forward packets only to sw adapter */
 	int refcount; /* number of user-space descriptors using this
 			 interface, which is equal to the number of
 			 struct netmap_if objs in the mapped region. */
@@ -207,10 +217,27 @@ struct netmap_adapter {
 	int (*nm_config)(struct ifnet *, u_int *txr, u_int *txd,
 					u_int *rxr, u_int *rxd);
 
+	/*
+	 * Bridge support:
+	 *
+	 * bdg_port is the port number used in the bridge;
+	 * na_bdg_refcount is a refcount used for bridge ports,
+	 *	when it goes to 0 we can detach+free this port
+	 *	(a bridge port is always attached if it exists;
+	 *	it is not always registered)
+	 * na_bdg points to the bridge this NA is attached to.
+	 */
 	int bdg_port;
+	int na_bdg_refcount;
+	struct nm_bridge *na_bdg;
+	/* When we attach a physical interface to the bridge, we
+	 * allow the controlling process to terminate, so we need
+	 * a place to store the netmap_priv_d data structure.
+	 * This is only done when physical interfaces are attached to a bridge.
+	 */
+	struct netmap_priv_d *na_kpriv;
 #ifdef linux
 	struct net_device_ops nm_ndo;
-	int if_refcount;	// XXX additions for bridge
 #endif /* linux */
 };
 
@@ -245,6 +272,10 @@ enum {
 #endif
 };
 
+/* How to handle locking support in netmap_rx_irq/netmap_tx_irq */
+#define	NETMAP_LOCKED_ENTER	0x10000000	/* already locked on enter */
+#define	NETMAP_LOCKED_EXIT	0x20000000	/* keep locked on exit */
+
 /*
  * The following are support routines used by individual drivers to
  * support netmap operation.
@@ -271,8 +302,24 @@ struct netmap_slot *netmap_reset(struct netmap_adapter *na,
 	enum txrx tx, int n, u_int new_cur);
 int netmap_ring_reinit(struct netmap_kring *);
 
+/*
+ * The following bridge-related interfaces are used by other kernel modules
+ * In the version that only supports unicast or broadcast, the lookup
+ * function can return 0 .. NM_BDG_MAXPORTS-1 for regular ports,
+ * NM_BDG_MAXPORTS for broadcast, NM_BDG_MAXPORTS+1 for unknown.
+ * XXX in practice "unknown" might be handled same as broadcast.
+ */
+typedef u_int (*bdg_lookup_fn_t)(char *buf, u_int len, uint8_t *ring_nr,
+		struct netmap_adapter *);
+int netmap_bdg_ctl(struct nmreq *nmr, bdg_lookup_fn_t func);
+u_int netmap_bdg_learning(char *, u_int, uint8_t *, struct netmap_adapter *);
+#define	NM_NAME			"vale"	/* prefix for the bridge port name */
+#define	NM_BDG_MAXPORTS		254	/* up to 32 for bitmap, 254 ok otherwise */
+#define	NM_BDG_BROADCAST	NM_BDG_MAXPORTS
+#define	NM_BDG_NOPORT		(NM_BDG_MAXPORTS+1)
+
 extern u_int netmap_buf_size;
-#define NETMAP_BUF_SIZE	netmap_buf_size
+#define NETMAP_BUF_SIZE	netmap_buf_size	// XXX remove
 extern int netmap_mitigate;
 extern int netmap_no_pendintr;
 extern u_int netmap_total_buffers;
@@ -292,11 +339,15 @@ enum {                                  /* verbose flags */
 /*
  * NA returns a pointer to the struct netmap adapter from the ifp,
  * WNA is used to write it.
+ * SWNA() is used for the "host stack" endpoint associated
+ *	to an interface. It is allocated together with the main NA(),
+ *	as an array of two objects.
  */
 #ifndef WNA
 #define	WNA(_ifp)	(_ifp)->if_pspare[0]
 #endif
 #define	NA(_ifp)	((struct netmap_adapter *)WNA(_ifp))
+#define	SWNA(_ifp)	(NA(_ifp) + 1)
 
 /*
  * Macros to determine if an interface is netmap capable or netmap enabled.
@@ -431,20 +482,16 @@ netmap_idx_k2n(struct netmap_kring *kr, int idx)
 }
 
 
-#ifdef NETMAP_MEM2
 /* Entries of the look-up table. */
 struct lut_entry {
 	void *vaddr;		/* virtual address. */
-	vm_paddr_t paddr;	/* phisical address. */
+	vm_paddr_t paddr;	/* physical address. */
 };
 
 struct netmap_obj_pool;
 extern struct lut_entry *netmap_buffer_lut;
 #define NMB_VA(i)	(netmap_buffer_lut[i].vaddr)
 #define NMB_PA(i)	(netmap_buffer_lut[i].paddr)
-#else /* NETMAP_MEM1 */
-#define NMB_VA(i)	(netmap_buffer_base + (i * NETMAP_BUF_SIZE) )
-#endif /* NETMAP_MEM2 */
 
 /*
  * NMB return the virtual address of a buffer (buffer 0 on bad index)
@@ -462,11 +509,8 @@ PNMB(struct netmap_slot *slot, uint64_t *pp)
 {
 	uint32_t i = slot->buf_idx;
 	void *ret = (i >= netmap_total_buffers) ? NMB_VA(0) : NMB_VA(i);
-#ifdef NETMAP_MEM2
+
 	*pp = (i >= netmap_total_buffers) ? NMB_PA(0) : NMB_PA(i);
-#else
-	*pp = vtophys(ret);
-#endif
 	return ret;
 }
 
@@ -474,5 +518,4 @@ PNMB(struct netmap_slot *slot, uint64_t *pp)
 int netmap_rx_irq(struct ifnet *, int, int *);
 #define netmap_tx_irq(_n, _q) netmap_rx_irq(_n, _q, NULL)
 
-extern int netmap_copy;
 #endif /* _NET_NETMAP_KERN_H_ */

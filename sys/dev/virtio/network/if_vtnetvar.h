@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011, Bryan Venteicher <bryanv@daemoninthecloset.org>
+ * Copyright (c) 2011, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -78,11 +78,6 @@ struct vtnet_softc {
 	int			 vtnet_if_flags;
 	int			 vtnet_watchdog_timer;
 	uint64_t		 vtnet_features;
-
-	struct taskqueue	*vtnet_tq;
-	struct task		 vtnet_rx_intr_task;
-	struct task		 vtnet_tx_intr_task;
-	struct task		 vtnet_cfgchg_task;
 
 	struct vtnet_statistics	 vtnet_stats;
 

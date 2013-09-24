@@ -92,6 +92,7 @@
 #include <machine/cpu.h>
 #include <machine/regnum.h>
 #include <machine/cpuregs.h>
+#include <machine/pcb.h>
 
 #include "assym.s"
 
@@ -1079,35 +1080,35 @@ END(breakpoint)
 
 LEAF(setjmp)
 	mfc0	v0, MIPS_COP_0_STATUS	# Later the "real" spl value!
-	REG_S	s0, (SZREG * PREG_S0)(a0)
-	REG_S	s1, (SZREG * PREG_S1)(a0)
-	REG_S	s2, (SZREG * PREG_S2)(a0)
-	REG_S	s3, (SZREG * PREG_S3)(a0)
-	REG_S	s4, (SZREG * PREG_S4)(a0)
-	REG_S	s5, (SZREG * PREG_S5)(a0)
-	REG_S	s6, (SZREG * PREG_S6)(a0)
-	REG_S	s7, (SZREG * PREG_S7)(a0)
-	REG_S	s8, (SZREG * PREG_S8)(a0)
-	REG_S	sp, (SZREG * PREG_SP)(a0)
-	REG_S	ra, (SZREG * PREG_RA)(a0)
-	REG_S	v0, (SZREG * PREG_SR)(a0)
+	REG_S	s0, (SZREG * PCB_REG_S0)(a0)
+	REG_S	s1, (SZREG * PCB_REG_S1)(a0)
+	REG_S	s2, (SZREG * PCB_REG_S2)(a0)
+	REG_S	s3, (SZREG * PCB_REG_S3)(a0)
+	REG_S	s4, (SZREG * PCB_REG_S4)(a0)
+	REG_S	s5, (SZREG * PCB_REG_S5)(a0)
+	REG_S	s6, (SZREG * PCB_REG_S6)(a0)
+	REG_S	s7, (SZREG * PCB_REG_S7)(a0)
+	REG_S	s8, (SZREG * PCB_REG_S8)(a0)
+	REG_S	sp, (SZREG * PCB_REG_SP)(a0)
+	REG_S	ra, (SZREG * PCB_REG_RA)(a0)
+	REG_S	v0, (SZREG * PCB_REG_SR)(a0)
 	jr	ra
 	li	v0, 0			# setjmp return
 END(setjmp)
 
 LEAF(longjmp)
-	REG_L	v0, (SZREG * PREG_SR)(a0)
-	REG_L	ra, (SZREG * PREG_RA)(a0)
-	REG_L	s0, (SZREG * PREG_S0)(a0)
-	REG_L	s1, (SZREG * PREG_S1)(a0)
-	REG_L	s2, (SZREG * PREG_S2)(a0)
-	REG_L	s3, (SZREG * PREG_S3)(a0)
-	REG_L	s4, (SZREG * PREG_S4)(a0)
-	REG_L	s5, (SZREG * PREG_S5)(a0)
-	REG_L	s6, (SZREG * PREG_S6)(a0)
-	REG_L	s7, (SZREG * PREG_S7)(a0)
-	REG_L	s8, (SZREG * PREG_S8)(a0)
-	REG_L	sp, (SZREG * PREG_SP)(a0)
+	REG_L	v0, (SZREG * PCB_REG_SR)(a0)
+	REG_L	ra, (SZREG * PCB_REG_RA)(a0)
+	REG_L	s0, (SZREG * PCB_REG_S0)(a0)
+	REG_L	s1, (SZREG * PCB_REG_S1)(a0)
+	REG_L	s2, (SZREG * PCB_REG_S2)(a0)
+	REG_L	s3, (SZREG * PCB_REG_S3)(a0)
+	REG_L	s4, (SZREG * PCB_REG_S4)(a0)
+	REG_L	s5, (SZREG * PCB_REG_S5)(a0)
+	REG_L	s6, (SZREG * PCB_REG_S6)(a0)
+	REG_L	s7, (SZREG * PCB_REG_S7)(a0)
+	REG_L	s8, (SZREG * PCB_REG_S8)(a0)
+	REG_L	sp, (SZREG * PCB_REG_SP)(a0)
 	mtc0	v0, MIPS_COP_0_STATUS	# Later the "real" spl value!
 	ITLBNOPFIX
 	jr	ra

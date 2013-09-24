@@ -96,9 +96,9 @@ static struct heredoc *heredoclist;	/* list of here documents to read */
 static int doprompt;		/* if set, prompt the user */
 static int needprompt;		/* true if interactive and at start of line */
 static int lasttoken;		/* last token read */
-MKINIT int tokpushback;		/* last token pushed back */
+int tokpushback;		/* last token pushed back */
 static char *wordtext;		/* text of last word returned by readtoken */
-MKINIT int checkkwd;            /* 1 == check for kwds, 2 == also eat newlines */
+static int checkkwd;
 static struct nodelist *backquotelist;
 static union node *redirnode;
 static struct heredoc *heredoc;
@@ -119,7 +119,7 @@ static void parseheredoc(void);
 static int peektoken(void);
 static int readtoken(void);
 static int xxreadtoken(void);
-static int readtoken1(int, char const *, char *, int);
+static int readtoken1(int, const char *, const char *, int);
 static int noexpand(char *);
 static void synexpect(int) __dead2;
 static void synerror(const char *) __dead2;
@@ -983,7 +983,7 @@ parsebackq(char *out, struct nodelist **pbqlist,
 	char *volatile str;
 	struct jmploc jmploc;
 	struct jmploc *const savehandler = handler;
-	int savelen;
+	size_t savelen;
 	int saveprompt;
 	const int bq_startlinno = plinno;
 	char *volatile ostr = NULL;
@@ -1300,7 +1300,8 @@ readcstyleesc(char *out)
 #define	PARSEARITH()	{goto parsearith; parsearith_return:;}
 
 static int
-readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
+readtoken1(int firstc, char const *initialsyntax, const char *eofmark,
+    int striptabs)
 {
 	int c = firstc;
 	char *out;
@@ -1521,7 +1522,7 @@ checkend: {
 		}
 		if (c == *eofmark) {
 			if (pfgets(line, sizeof line) != NULL) {
-				char *p, *q;
+				const char *p, *q;
 
 				p = line;
 				for (q = eofmark + 1 ; *q && *p == *q ; p++, q++);
@@ -1818,13 +1819,13 @@ parsearith: {
 } /* end of readtoken */
 
 
-
-#ifdef mkinit
-RESET {
+void
+resetparser(void)
+{
 	tokpushback = 0;
 	checkkwd = 0;
 }
-#endif
+
 
 /*
  * Returns true if the text contains nothing to expand (no dollar signs
@@ -2038,7 +2039,7 @@ getprompt(void *unused __unused)
 
 
 const char *
-expandstr(char *ps)
+expandstr(const char *ps)
 {
 	union node n;
 	struct jmploc jmploc;

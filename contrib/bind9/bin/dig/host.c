@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -446,10 +446,18 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 	if (msg->rcode != 0) {
 		char namestr[DNS_NAME_FORMATSIZE];
 		dns_name_format(query->lookup->name, namestr, sizeof(namestr));
-		printf("Host %s not found: %d(%s)\n",
-		       (msg->rcode != dns_rcode_nxdomain) ? namestr :
-		       query->lookup->textname, msg->rcode,
-		       rcode_totext(msg->rcode));
+
+		if (query->lookup->identify_previous_line)
+			printf("Nameserver %s:\n\t%s not found: %d(%s)\n",
+			       query->servname,
+			       (msg->rcode != dns_rcode_nxdomain) ? namestr :
+			       query->lookup->textname, msg->rcode,
+			       rcode_totext(msg->rcode));
+		else
+			printf("Host %s not found: %d(%s)\n",
+			       (msg->rcode != dns_rcode_nxdomain) ? namestr :
+			       query->lookup->textname, msg->rcode,
+			       rcode_totext(msg->rcode));
 		return (ISC_R_SUCCESS);
 	}
 

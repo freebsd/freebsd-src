@@ -5,10 +5,10 @@
 LIB=	clangstaticanalyzercheckers
 
 SRCDIR=	tools/clang/lib/StaticAnalyzer/Checkers
-SRCS=	AnalyzerStatsChecker.cpp \
+SRCS=	AllocationDiagnostics.cpp \
+	AnalyzerStatsChecker.cpp \
 	ArrayBoundChecker.cpp \
 	ArrayBoundCheckerV2.cpp \
-	AttrNonNullChecker.cpp \
 	BasicObjCFoundationChecks.cpp \
 	BoolAssignmentChecker.cpp \
 	BuiltinFunctionChecker.cpp \
@@ -44,6 +44,7 @@ SRCS=	AnalyzerStatsChecker.cpp \
 	MallocSizeofChecker.cpp \
 	NSAutoreleasePoolChecker.cpp \
 	NSErrorChecker.cpp \
+	NonNullParamChecker.cpp \
 	NoReturnFunctionChecker.cpp \
 	ObjCAtSyncChecker.cpp \
 	ObjCContainersASTChecker.cpp \
@@ -75,6 +76,7 @@ SRCS=	AnalyzerStatsChecker.cpp \
 TGHDRS=	AttrList \
 	Attrs \
 	Checkers \
+	CommentCommandList \
 	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \

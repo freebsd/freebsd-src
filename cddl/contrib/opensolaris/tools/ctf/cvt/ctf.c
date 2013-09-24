@@ -47,10 +47,12 @@
  *
  * The value is only valid during a call to ctf_load.
  */
-char *curfile;
+static char *curfile;
 
 #define	CTF_BUF_CHUNK_SIZE	(64 * 1024)
 #define	RES_BUF_CHUNK_SIZE	(64 * 1024)
+
+static int ntypes = 0;		/* The number of types. */
 
 struct ctf_buf {
 	strtab_t ctb_strtab;	/* string table */
@@ -1143,6 +1145,10 @@ resurrect_types(ctf_header_t *h, tdata_t *td, tdesc_t **tdarr, int tdsize,
 					(*mpp)->ml_type = tdarr[ctm->ctm_type];
 					(*mpp)->ml_offset = ctm->ctm_offset;
 					(*mpp)->ml_size = 0;
+					if (ctm->ctm_type > ntypes) {
+						parseterminate("Invalid member type ctm_type=%d",
+						    ctm->ctm_type);
+					}
 				}
 			} else {
 				for (i = 0, mpp = &tdp->t_members; i < vlen;
@@ -1159,6 +1165,10 @@ resurrect_types(ctf_header_t *h, tdata_t *td, tdesc_t **tdarr, int tdsize,
 					(*mpp)->ml_offset =
 					    (int)CTF_LMEM_OFFSET(ctlm);
 					(*mpp)->ml_size = 0;
+					if (ctlm->ctlm_type > ntypes) {
+						parseterminate("Invalid lmember type ctlm_type=%d",
+						    ctlm->ctlm_type);
+					}
 				}
 			}
 
@@ -1272,8 +1282,9 @@ ctf_parse(ctf_header_t *h, caddr_t buf, symit_data_t *si, char *label)
 {
 	tdata_t *td = tdata_new();
 	tdesc_t **tdarr;
-	int ntypes = count_types(h, buf);
 	int idx, i;
+
+	ntypes = count_types(h, buf);
 
 	/* shudder */
 	tdarr = xcalloc(sizeof (tdesc_t *) * (ntypes + 1));

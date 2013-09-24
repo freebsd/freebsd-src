@@ -620,8 +620,7 @@ pmap_init(void)
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 
 	pv_maxchunks = MAX(pv_entry_max / _NPCPV, maxproc);
-	pv_chunkbase = (struct pv_chunk *)kmem_alloc_nofault(kernel_map,
-	    PAGE_SIZE * pv_maxchunks);
+	pv_chunkbase = (struct pv_chunk *)kva_alloc(PAGE_SIZE * pv_maxchunks);
 	if (pv_chunkbase == NULL)
 		panic("pmap_init: not enough kvm for pv chunks");
 	pmap_ptelist_init(&pv_vafree, pv_chunkbase, pv_maxchunks);
@@ -1460,8 +1459,7 @@ pmap_pinit(pmap_t pmap)
 	 * page directory table.
 	 */
 	if (pmap->pm_pdir == NULL) {
-		pmap->pm_pdir = (pd_entry_t *)kmem_alloc_nofault(kernel_map,
-		    NBPTD);
+		pmap->pm_pdir = (pd_entry_t *)kva_alloc(NBPTD);
 		if (pmap->pm_pdir == NULL) {
 			PMAP_LOCK_DESTROY(pmap);
 #ifdef HAMFISTED_LOCKING
@@ -1470,7 +1468,7 @@ pmap_pinit(pmap_t pmap)
 			return (0);
 		}
 #ifdef PAE
-		pmap->pm_pdpt = (pd_entry_t *)kmem_alloc_nofault(kernel_map, 1);
+		pmap->pm_pdpt = (pd_entry_t *)kva_alloc(1);
 #endif
 	}
 
@@ -1707,7 +1705,7 @@ pmap_lazyfix(pmap_t pmap)
 		spins = 50000000;
 
 		/* Find least significant set bit. */
-		lsb = cpusetobj_ffs(&mask);
+		lsb = CPU_FFS(&mask);
 		MPASS(lsb != 0);
 		lsb--;
 		CPU_SETOF(lsb, &mask);
@@ -2871,7 +2869,8 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	multicall_entry_t *mclp = mcl;
 	int error, count = 0;
 
-	VM_OBJECT_ASSERT_WLOCKED(m_start->object);
+	VM_OBJECT_ASSERT_LOCKED(m_start->object);
+
 	psize = atop(end - start);
 	mpte = NULL;
 	m = m_start;
@@ -4021,7 +4020,7 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 	if (pa < KERNLOAD && pa + size <= KERNLOAD)
 		va = KERNBASE + pa;
 	else
-		va = kmem_alloc_nofault(kernel_map, size);
+		va = kva_alloc(size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 
@@ -4056,7 +4055,7 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
 	size = round_page(offset + size);
-	kmem_free(kernel_map, base, size);
+	kva_free(base, size);
 }
 
 /*

@@ -73,9 +73,7 @@ tws_ioctl(struct cdev *dev, u_long cmd, caddr_t buf, int flags,
             break;
         case TWS_IOCTL_SCAN_BUS :
             TWS_TRACE_DEBUG(sc, "scan-bus", 0, 0);
-            mtx_lock(&sc->sim_lock);
             error = tws_bus_scan(sc);
-            mtx_unlock(&sc->sim_lock);
             break;
         default :
             TWS_TRACE_DEBUG(sc, "ioctl-aen", cmd, buf);

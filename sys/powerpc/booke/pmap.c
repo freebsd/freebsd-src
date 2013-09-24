@@ -1564,7 +1564,7 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 		    ("mmu_booke_enter_locked: user pmap, non user va"));
 	}
 	if ((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) == 0)
-		VM_OBJECT_ASSERT_WLOCKED(m->object);
+		VM_OBJECT_ASSERT_LOCKED(m->object);
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
@@ -1715,6 +1715,8 @@ mmu_booke_enter_object(mmu_t mmu, pmap_t pmap, vm_offset_t start,
 {
 	vm_page_t m;
 	vm_pindex_t diff, psize;
+
+	VM_OBJECT_ASSERT_LOCKED(m_start->object);
 
 	psize = atop(end - start);
 	m = m_start;
@@ -2679,7 +2681,7 @@ mmu_booke_unmapdev(mmu_t mmu, vm_offset_t va, vm_size_t size)
 		base = trunc_page(va);
 		offset = va & PAGE_MASK;
 		size = roundup(offset + size, PAGE_SIZE);
-		kmem_free(kernel_map, base, size);
+		kva_free(base, size);
 	}
 }
 

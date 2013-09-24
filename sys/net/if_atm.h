@@ -292,7 +292,7 @@ void	atm_ifattach(struct ifnet *);
 void	atm_ifdetach(struct ifnet *);
 void	atm_input(struct ifnet *, struct atm_pseudohdr *,
 	    struct mbuf *, void *);
-int	atm_output(struct ifnet *, struct mbuf *, struct sockaddr *, 
+int	atm_output(struct ifnet *, struct mbuf *, const struct sockaddr *, 
 	    struct route *);
 struct atmio_vcctable *atm_getvccs(struct atmio_vcc **, u_int, u_int,
 	    struct mtx *, int);

@@ -14,15 +14,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Rewrite/Frontend/FixItRewriter.h"
-#include "clang/Edit/Commit.h"
-#include "clang/Edit/EditsReceiver.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Edit/Commit.h"
+#include "clang/Edit/EditsReceiver.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Path.h"
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/raw_ostream.h"
 #include <cstdio>
 
 using namespace clang;
@@ -195,11 +195,6 @@ void FixItRewriter::Diag(SourceLocation Loc, unsigned DiagID) {
   Diags.Report(Loc, DiagID);
   Diags.takeClient();
   Diags.setClient(this);
-}
-
-DiagnosticConsumer *FixItRewriter::clone(DiagnosticsEngine &Diags) const {
-  return new FixItRewriter(Diags, Diags.getSourceManager(), 
-                           Rewrite.getLangOpts(), FixItOpts);
 }
 
 FixItOptions::~FixItOptions() {}

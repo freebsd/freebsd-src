@@ -357,6 +357,8 @@ apb_filter(void *arg)
 			case AR71XX_SOC_AR7240:
 			case AR71XX_SOC_AR7241:
 			case AR71XX_SOC_AR7242:
+			case AR71XX_SOC_AR9330:
+			case AR71XX_SOC_AR9331:
 				/* Ack/clear the irq on status register for AR724x */
 				ATH_WRITE_REG(AR71XX_MISC_INTR_STATUS,
 				    reg & ~(1 << irq));

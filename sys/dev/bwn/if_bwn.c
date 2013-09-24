@@ -9242,7 +9242,7 @@ back:
 	/*
 	 * Setup RX buf descriptor
 	 */
-	dr->setdesc(dr, desc, paddr, meta->mt_m->m_len -
+	dr->setdesc(dr, desc, meta->mt_paddr, meta->mt_m->m_len -
 	    sizeof(*hdr), 0, 0, 0);
 	return (error);
 }

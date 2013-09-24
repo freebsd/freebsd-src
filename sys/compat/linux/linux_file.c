@@ -70,9 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_file.h>
 
-/* XXX */
-int	do_pipe(struct thread *td, int fildes[2], int flags);
-
 int
 linux_creat(struct thread *td, struct linux_creat_args *args)
 {
@@ -1584,7 +1581,7 @@ linux_pipe(struct thread *td, struct linux_pipe_args *args)
 		printf(ARGS(pipe, "*"));
 #endif
 
-	error = do_pipe(td, fildes, 0);
+	error = kern_pipe2(td, fildes, 0);
 	if (error)
 		return (error);
 
@@ -1611,7 +1608,7 @@ linux_pipe2(struct thread *td, struct linux_pipe2_args *args)
 		flags |= O_NONBLOCK;
 	if ((args->flags & LINUX_O_CLOEXEC) != 0)
 		flags |= O_CLOEXEC;
-	error = do_pipe(td, fildes, flags);
+	error = kern_pipe2(td, fildes, flags);
 	if (error)
 		return (error);
 

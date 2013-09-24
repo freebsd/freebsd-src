@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011, Bryan Venteicher <bryanv@daemoninthecloset.org>
+ * Copyright (c) 2011, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
-#include <sys/taskqueue.h>
 #include <sys/random.h>
 #include <sys/sglist.h>
 #include <sys/lock.h>
@@ -97,7 +96,6 @@ static void	vtnet_set_hwaddr(struct vtnet_softc *);
 static int	vtnet_is_link_up(struct vtnet_softc *);
 static void	vtnet_update_link_status(struct vtnet_softc *);
 static void	vtnet_watchdog(struct vtnet_softc *);
-static void	vtnet_config_change_task(void *, int);
 static int	vtnet_change_mtu(struct vtnet_softc *, int);
 static int	vtnet_ioctl(struct ifnet *, u_long, caddr_t);
 
@@ -123,8 +121,7 @@ static int	vtnet_rx_csum(struct vtnet_softc *, struct mbuf *,
 		    struct virtio_net_hdr *);
 static int	vtnet_rxeof_merged(struct vtnet_softc *, struct mbuf *, int);
 static int	vtnet_rxeof(struct vtnet_softc *, int, int *);
-static void	vtnet_rx_intr_task(void *, int);
-static int	vtnet_rx_vq_intr(void *);
+static void	vtnet_rx_vq_intr(void *);
 
 static void	vtnet_txeof(struct vtnet_softc *);
 static struct mbuf * vtnet_tx_offload(struct vtnet_softc *, struct mbuf *,
@@ -135,8 +132,7 @@ static int	vtnet_encap(struct vtnet_softc *, struct mbuf **);
 static void	vtnet_start_locked(struct ifnet *);
 static void	vtnet_start(struct ifnet *);
 static void	vtnet_tick(void *);
-static void	vtnet_tx_intr_task(void *, int);
-static int	vtnet_tx_vq_intr(void *);
+static void	vtnet_tx_vq_intr(void *);
 
 static void	vtnet_stop(struct vtnet_softc *);
 static int	vtnet_reinit(struct vtnet_softc *);
@@ -427,28 +423,12 @@ vtnet_attach(device_t dev)
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
 
-	TASK_INIT(&sc->vtnet_rx_intr_task, 0, vtnet_rx_intr_task, sc);
-	TASK_INIT(&sc->vtnet_tx_intr_task, 0, vtnet_tx_intr_task, sc);
-	TASK_INIT(&sc->vtnet_cfgchg_task, 0, vtnet_config_change_task, sc);
-
-	sc->vtnet_tq = taskqueue_create_fast("vtnet_taskq", M_NOWAIT,
-	    taskqueue_thread_enqueue, &sc->vtnet_tq);
-	if (sc->vtnet_tq == NULL) {
-		error = ENOMEM;
-		device_printf(dev, "cannot allocate taskqueue\n");
-		ether_ifdetach(ifp);
-		goto fail;
-	}
-
 	error = virtio_setup_intr(dev, INTR_TYPE_NET);
 	if (error) {
 		device_printf(dev, "cannot setup virtqueue interrupts\n");
 		ether_ifdetach(ifp);
 		goto fail;
 	}
-
-	taskqueue_start_threads(&sc->vtnet_tq, 1, PI_NET, "%s taskq",
-	    device_get_nameunit(dev));
 
 	/*
 	 * Device defaults to promiscuous mode for backwards
@@ -495,16 +475,8 @@ vtnet_detach(device_t dev)
 		VTNET_UNLOCK(sc);
 
 		callout_drain(&sc->vtnet_tick_ch);
-		taskqueue_drain(taskqueue_fast, &sc->vtnet_cfgchg_task);
 
 		ether_ifdetach(ifp);
-	}
-
-	if (sc->vtnet_tq != NULL) {
-		taskqueue_drain(sc->vtnet_tq, &sc->vtnet_rx_intr_task);
-		taskqueue_drain(sc->vtnet_tq, &sc->vtnet_tx_intr_task);
-		taskqueue_free(sc->vtnet_tq);
-		sc->vtnet_tq = NULL;
 	}
 
 	if (sc->vtnet_vlan_attach != NULL) {
@@ -590,9 +562,11 @@ vtnet_config_change(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	taskqueue_enqueue_fast(taskqueue_fast, &sc->vtnet_cfgchg_task);
+	VTNET_LOCK(sc);
+	vtnet_update_link_status(sc);
+	VTNET_UNLOCK(sc);
 
-	return (1);
+	return (0);
 }
 
 static void
@@ -786,18 +760,6 @@ vtnet_watchdog(struct vtnet_softc *sc)
 	ifp->if_oerrors++;
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	vtnet_init_locked(sc);
-}
-
-static void
-vtnet_config_change_task(void *arg, int pending)
-{
-	struct vtnet_softc *sc;
-
-	sc = arg;
-
-	VTNET_LOCK(sc);
-	vtnet_update_link_status(sc);
-	VTNET_UNLOCK(sc);
 }
 
 static int
@@ -1705,15 +1667,16 @@ vtnet_rxeof(struct vtnet_softc *sc, int count, int *rx_npktsp)
 }
 
 static void
-vtnet_rx_intr_task(void *arg, int pending)
+vtnet_rx_vq_intr(void *xsc)
 {
 	struct vtnet_softc *sc;
 	struct ifnet *ifp;
 	int more;
 
-	sc = arg;
+	sc = xsc;
 	ifp = sc->vtnet_ifp;
 
+again:
 	VTNET_LOCK(sc);
 
 #ifdef DEVICE_POLLING
@@ -1730,31 +1693,15 @@ vtnet_rx_intr_task(void *arg, int pending)
 	}
 
 	more = vtnet_rxeof(sc, sc->vtnet_rx_process_limit, NULL);
-	if (!more && vtnet_enable_rx_intr(sc) != 0) {
-		vtnet_disable_rx_intr(sc);
-		more = 1;
+	if (more || vtnet_enable_rx_intr(sc) != 0) {
+		if (!more)
+			vtnet_disable_rx_intr(sc);
+		sc->vtnet_stats.rx_task_rescheduled++;
+		VTNET_UNLOCK(sc);
+		goto again;
 	}
 
 	VTNET_UNLOCK(sc);
-
-	if (more) {
-		sc->vtnet_stats.rx_task_rescheduled++;
-		taskqueue_enqueue_fast(sc->vtnet_tq,
-		    &sc->vtnet_rx_intr_task);
-	}
-}
-
-static int
-vtnet_rx_vq_intr(void *xsc)
-{
-	struct vtnet_softc *sc;
-
-	sc = xsc;
-
-	vtnet_disable_rx_intr(sc);
-	taskqueue_enqueue_fast(sc->vtnet_tq, &sc->vtnet_rx_intr_task);
-
-	return (1);
 }
 
 static void
@@ -1800,7 +1747,6 @@ vtnet_tx_offload(struct vtnet_softc *sc, struct mbuf *m,
 	uint8_t ip_proto, gso_type;
 
 	ifp = sc->vtnet_ifp;
-	M_ASSERTPKTHDR(m);
 
 	ip_offset = sizeof(struct ether_header);
 	if (m->m_len < ip_offset) {
@@ -1918,7 +1864,7 @@ vtnet_enqueue_txbuf(struct vtnet_softc *sc, struct mbuf **m_head,
 	sglist_init(&sg, VTNET_MAX_TX_SEGS, segs);
 	error = sglist_append(&sg, &txhdr->vth_uhdr, sc->vtnet_hdr_size);
 	KASSERT(error == 0 && sg.sg_nseg == 1,
-	    ("cannot add header to sglist"));
+	    ("%s: cannot add header to sglist error %d", __func__, error));
 
 again:
 	error = sglist_append_mbuf(&sg, m);
@@ -1955,6 +1901,7 @@ vtnet_encap(struct vtnet_softc *sc, struct mbuf **m_head)
 	int error;
 
 	m = *m_head;
+	M_ASSERTPKTHDR(m);
 
 	txhdr = uma_zalloc(vtnet_tx_header_zone, M_NOWAIT | M_ZERO);
 	if (txhdr == NULL) {
@@ -2077,14 +2024,15 @@ vtnet_tick(void *xsc)
 }
 
 static void
-vtnet_tx_intr_task(void *arg, int pending)
+vtnet_tx_vq_intr(void *xsc)
 {
 	struct vtnet_softc *sc;
 	struct ifnet *ifp;
 
-	sc = arg;
+	sc = xsc;
 	ifp = sc->vtnet_ifp;
 
+again:
 	VTNET_LOCK(sc);
 
 #ifdef DEVICE_POLLING
@@ -2109,24 +2057,10 @@ vtnet_tx_intr_task(void *arg, int pending)
 		vtnet_disable_tx_intr(sc);
 		sc->vtnet_stats.tx_task_rescheduled++;
 		VTNET_UNLOCK(sc);
-		taskqueue_enqueue_fast(sc->vtnet_tq, &sc->vtnet_tx_intr_task);
-		return;
+		goto again;
 	}
 
 	VTNET_UNLOCK(sc);
-}
-
-static int
-vtnet_tx_vq_intr(void *xsc)
-{
-	struct vtnet_softc *sc;
-
-	sc = xsc;
-
-	vtnet_disable_tx_intr(sc);
-	taskqueue_enqueue_fast(sc->vtnet_tq, &sc->vtnet_tx_intr_task);
-
-	return (1);
 }
 
 static void
@@ -2470,9 +2404,9 @@ vtnet_rx_filter_mac(struct vtnet_softc *sc)
 	sglist_init(&sg, 4, segs);
 	error |= sglist_append(&sg, &hdr, sizeof(struct virtio_net_ctrl_hdr));
 	error |= sglist_append(&sg, &filter->vmf_unicast,
-	    sizeof(struct vtnet_mac_table));
+	    sizeof(uint32_t) + filter->vmf_unicast.nentries * ETHER_ADDR_LEN);
 	error |= sglist_append(&sg, &filter->vmf_multicast,
-	    sizeof(struct vtnet_mac_table));
+	    sizeof(uint32_t) + filter->vmf_multicast.nentries * ETHER_ADDR_LEN);
 	error |= sglist_append(&sg, &ack, sizeof(uint8_t));
 	KASSERT(error == 0 && sg.sg_nseg == 4,
 	    ("error adding MAC filtering message to sglist"));

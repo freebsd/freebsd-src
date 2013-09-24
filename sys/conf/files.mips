@@ -35,6 +35,8 @@ mips/mips/pmap.c			standard
 mips/mips/ptrace_machdep.c		standard
 mips/mips/sc_machdep.c			standard
 mips/mips/stack_machdep.c		optional	ddb | stack
+mips/mips/stdatomic.c			standard \
+	compile-with "${NORMAL_C:N-Wmissing-prototypes}"
 mips/mips/support.S			standard
 mips/mips/swtch.S			standard
 mips/mips/sys_machdep.c			standard
@@ -53,7 +55,6 @@ kern/subr_dummy_vdso_tc.c		standard
 libkern/ffsl.c				standard
 libkern/fls.c				standard
 libkern/flsl.c				standard
-libkern/memchr.c			optional	fdt
 libkern/memmove.c			standard
 libkern/ucmpdi2.c			optional	mips | mipsel
 
@@ -72,10 +73,11 @@ mips/mips/sc_machdep.c			optional	sc
 
 # FDT support
 dev/fdt/fdt_mips.c			optional	fdt
+dev/uart/uart_cpu_fdt.c			optional	uart fdt
 
 # crypto support -- use generic
 crypto/blowfish/bf_enc.c		optional	crypto | ipsec 
-crypto/des/des_enc.c			optional	crypto | ipsec
+crypto/des/des_enc.c			optional	crypto | ipsec | netsmb
 
 # AP common nvram interface MIPS specific, but maybe should be more generic
 dev/nvram2env/nvram2env.c		optional	nvram2env

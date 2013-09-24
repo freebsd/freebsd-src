@@ -88,17 +88,13 @@ extern int	acpi_release_global_lock(uint32_t *lock);
         :"0"(n_hi), "1"(n_lo))
 
 /*! [End] no source code translation !*/
-#endif /* _KERNEL */
-
-#define	ACPI_MACHINE_WIDTH             32
-#define	COMPILER_DEPENDENT_INT64       long long
-#define	COMPILER_DEPENDENT_UINT64      unsigned long long
-#define	ACPI_USE_NATIVE_DIVIDE
 
 void	acpi_SetDefaultIntrModel(int model);
 void	acpi_cpu_c1(void);
 void	*acpi_map_table(vm_paddr_t pa, const char *sig);
 void	acpi_unmap_table(void *table);
 vm_paddr_t acpi_find_table(const char *sig);
+
+#endif /* _KERNEL */
 
 #endif /* __ACPICA_MACHDEP_H__ */

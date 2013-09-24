@@ -37,19 +37,23 @@
  * ICMPv6 stat is counted separately.  see netinet/icmp6.h
  */
 struct rip6stat {
-	u_quad_t rip6s_ipackets;	/* total input packets */
-	u_quad_t rip6s_isum;		/* input checksum computations */
-	u_quad_t rip6s_badsum;		/* of above, checksum error */
-	u_quad_t rip6s_nosock;		/* no matching socket */
-	u_quad_t rip6s_nosockmcast;	/* of above, arrived as multicast */
-	u_quad_t rip6s_fullsock;	/* not delivered, input socket full */
+	uint64_t rip6s_ipackets;	/* total input packets */
+	uint64_t rip6s_isum;		/* input checksum computations */
+	uint64_t rip6s_badsum;		/* of above, checksum error */
+	uint64_t rip6s_nosock;		/* no matching socket */
+	uint64_t rip6s_nosockmcast;	/* of above, arrived as multicast */
+	uint64_t rip6s_fullsock;	/* not delivered, input socket full */
 
-	u_quad_t rip6s_opackets;	/* total output packets */
+	uint64_t rip6s_opackets;	/* total output packets */
 };
 
 #ifdef _KERNEL
-VNET_DECLARE(struct rip6stat, rip6stat);
-#define	V_rip6stat			VNET(rip6stat)
-#endif
+#include <sys/counter.h>
+
+VNET_PCPUSTAT_DECLARE(struct rip6stat, rip6stat);
+#define	RIP6STAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct rip6stat, rip6stat, name, (val))
+#define	RIP6STAT_INC(name)	RIP6STAT_ADD(name, 1)
+#endif /* _KERNEL */
 
 #endif

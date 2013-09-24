@@ -266,13 +266,13 @@ static bool intel_sdvo_read_byte(struct intel_sdvo *intel_sdvo, u8 addr, u8 *ch)
 {
 	struct iic_msg msgs[] = {
 		{
-			.slave = intel_sdvo->slave_addr,
+			.slave = intel_sdvo->slave_addr << 1,
 			.flags = 0,
 			.len = 1,
 			.buf = &addr,
 		},
 		{
-			.slave = intel_sdvo->slave_addr,
+			.slave = intel_sdvo->slave_addr << 1,
 			.flags = IIC_M_RD,
 			.len = 1,
 			.buf = ch,
@@ -454,14 +454,14 @@ intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd, const void *args,
 	intel_sdvo_debug_write(intel_sdvo, cmd, args, args_len);
 
 	for (i = 0; i < args_len; i++) {
-		msgs[i].slave = intel_sdvo->slave_addr;
+		msgs[i].slave = intel_sdvo->slave_addr << 1;
 		msgs[i].flags = 0;
 		msgs[i].len = 2;
 		msgs[i].buf = buf + 2 *i;
 		buf[2*i + 0] = SDVO_I2C_ARG_0 - i;
 		buf[2*i + 1] = ((const u8*)args)[i];
 	}
-	msgs[i].slave = intel_sdvo->slave_addr;
+	msgs[i].slave = intel_sdvo->slave_addr << 1;
 	msgs[i].flags = 0;
 	msgs[i].len = 2;
 	msgs[i].buf = buf + 2*i;
@@ -470,12 +470,12 @@ intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd, const void *args,
 
 	/* the following two are to read the response */
 	status = SDVO_I2C_CMD_STATUS;
-	msgs[i+1].slave = intel_sdvo->slave_addr;
+	msgs[i+1].slave = intel_sdvo->slave_addr << 1;
 	msgs[i+1].flags = 0;
 	msgs[i+1].len = 1;
 	msgs[i+1].buf = &status;
 
-	msgs[i+2].slave = intel_sdvo->slave_addr;
+	msgs[i+2].slave = intel_sdvo->slave_addr << 1;
 	msgs[i+2].flags = IIC_M_RD;
 	msgs[i+2].len = 1;
 	msgs[i+2].buf = &status;

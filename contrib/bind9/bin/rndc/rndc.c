@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -771,6 +771,7 @@ main(int argc, char **argv) {
 					program, isc_commandline_option);
 				usage(1);
 			}
+			/* FALLTHROUGH */
 		case 'h':
 			usage(0);
 			break;

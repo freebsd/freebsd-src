@@ -115,6 +115,22 @@ static struct {
 #define AHCI_Q_NOCOUNT	1024
 #define AHCI_Q_ALTSIG	2048
 #define AHCI_Q_NOMSI	4096
+
+#define AHCI_Q_BIT_STRING	\
+	"\020"			\
+	"\001NOFORCE"		\
+	"\002NOPMP"		\
+	"\003NONCQ"		\
+	"\0041CH"		\
+	"\0052CH"		\
+	"\0064CH"		\
+	"\007EDGEIS"		\
+	"\010SATA2"		\
+	"\011NOBSYRES"		\
+	"\012NOAA"		\
+	"\013NOCOUNT"		\
+	"\014ALTSIG"		\
+	"\015NOMSI"
 } ahci_ids[] = {
 	{0x43801002, 0x00, "ATI IXP600",	AHCI_Q_NOMSI},
 	{0x43901002, 0x00, "ATI IXP700",	0},
@@ -180,6 +196,7 @@ static struct {
 	{0x1e078086, 0x00, "Intel Panther Point",	0},
 	{0x1e0e8086, 0x00, "Intel Panther Point",	0},
 	{0x1e0f8086, 0x00, "Intel Panther Point",	0},
+	{0x23a38086, 0x00, "Intel Coleto Creek",        0},
 	{0x8c028086, 0x00, "Intel Lynx Point",	0},
 	{0x8c038086, 0x00, "Intel Lynx Point",	0},
 	{0x8c048086, 0x00, "Intel Lynx Point",	0},
@@ -212,6 +229,8 @@ static struct {
 	{0x91301b4b, 0x00, "Marvell 88SE9130",  AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
 	{0x91721b4b, 0x00, "Marvell 88SE9172",	AHCI_Q_NOBSYRES},
 	{0x91821b4b, 0x00, "Marvell 88SE9182",	AHCI_Q_NOBSYRES},
+	{0x91a01b4b, 0x00, "Marvell 88SE91Ax",	AHCI_Q_NOBSYRES},
+	{0x92151b4b, 0x00, "Marvell 88SE9215",  AHCI_Q_NOBSYRES},
 	{0x92201b4b, 0x00, "Marvell 88SE9220",  AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
 	{0x92301b4b, 0x00, "Marvell 88SE9230",  AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
 	{0x92351b4b, 0x00, "Marvell 88SE9235",  AHCI_Q_NOBSYRES},
@@ -223,6 +242,9 @@ static struct {
 	{0x06401b4b, 0x00, "HighPoint RocketRAID 640",	AHCI_Q_NOBSYRES},
 	{0x06441103, 0x00, "HighPoint RocketRAID 644",	AHCI_Q_NOBSYRES},
 	{0x06441b4b, 0x00, "HighPoint RocketRAID 644",	AHCI_Q_NOBSYRES},
+	{0x06411103, 0x00, "HighPoint RocketRAID 640L",	AHCI_Q_NOBSYRES},
+	{0x06421103, 0x00, "HighPoint RocketRAID 642L",	AHCI_Q_NOBSYRES},
+	{0x06451103, 0x00, "HighPoint RocketRAID 644L",	AHCI_Q_NOBSYRES},
 	{0x044c10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
 	{0x044d10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
 	{0x044e10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
@@ -452,9 +474,23 @@ ahci_attach(device_t dev)
 	if ((ctlr->caps & AHCI_CAP_CCCS) == 0)
 		ctlr->ccc = 0;
 	ctlr->emloc = ATA_INL(ctlr->r_mem, AHCI_EM_LOC);
+
+	/* Create controller-wide DMA tag. */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), 0, 0,
+	    (ctlr->caps & AHCI_CAP_64BIT) ? BUS_SPACE_MAXADDR :
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    BUS_SPACE_MAXSIZE, BUS_SPACE_UNRESTRICTED, BUS_SPACE_MAXSIZE,
+	    0, NULL, NULL, &ctlr->dma_tag)) {
+		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid,
+		    ctlr->r_mem);
+		rman_fini(&ctlr->sc_iomem);
+		return ENXIO;
+	}
+
 	ahci_ctlr_setup(dev);
 	/* Setup interrupts. */
 	if (ahci_setup_interrupt(dev)) {
+		bus_dma_tag_destroy(ctlr->dma_tag);
 		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid, ctlr->r_mem);
 		rman_fini(&ctlr->sc_iomem);
 		return ENXIO;
@@ -472,6 +508,10 @@ ahci_attach(device_t dev)
 		    "supported" : "not supported",
 		    (ctlr->caps & AHCI_CAP_FBSS) ?
 		    " with FBS" : "");
+	if (ctlr->quirks != 0) {
+		device_printf(dev, "quirks=0x%b\n", ctlr->quirks,
+		    AHCI_Q_BIT_STRING);
+	}
 	if (bootverbose) {
 		device_printf(dev, "Caps:%s%s%s%s%s%s%s%s %sGbps",
 		    (ctlr->caps & AHCI_CAP_64BIT) ? " 64bit":"",
@@ -498,7 +538,10 @@ ahci_attach(device_t dev)
 		    (ctlr->caps & AHCI_CAP_NPMASK) + 1);
 	}
 	if (bootverbose && version >= 0x00010200) {
-		device_printf(dev, "Caps2:%s%s%s\n",
+		device_printf(dev, "Caps2:%s%s%s%s%s%s\n",
+		    (ctlr->caps2 & AHCI_CAP2_DESO) ? " DESO":"",
+		    (ctlr->caps2 & AHCI_CAP2_SADM) ? " SADM":"",
+		    (ctlr->caps2 & AHCI_CAP2_SDS) ? " SDS":"",
 		    (ctlr->caps2 & AHCI_CAP2_APST) ? " APST":"",
 		    (ctlr->caps2 & AHCI_CAP2_NVMP) ? " NVMP":"",
 		    (ctlr->caps2 & AHCI_CAP2_BOH) ? " BOH":"");
@@ -544,6 +587,7 @@ ahci_detach(device_t dev)
 		}
 	}
 	pci_release_msi(dev);
+	bus_dma_tag_destroy(ctlr->dma_tag);
 	/* Free memory. */
 	rman_fini(&ctlr->sc_iomem);
 	if (ctlr->r_mem)
@@ -876,6 +920,14 @@ ahci_child_location_str(device_t dev, device_t child, char *buf,
 	return (0);
 }
 
+static bus_dma_tag_t
+ahci_get_dma_tag(device_t dev, device_t child)
+{
+	struct ahci_controller *ctlr = device_get_softc(dev);
+
+	return (ctlr->dma_tag);
+}
+
 devclass_t ahci_devclass;
 static device_method_t ahci_methods[] = {
 	DEVMETHOD(device_probe,     ahci_probe),
@@ -889,6 +941,7 @@ static device_method_t ahci_methods[] = {
 	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
 	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
+	DEVMETHOD(bus_get_dma_tag,  ahci_get_dma_tag),
 	{ 0, 0 }
 };
 static driver_t ahci_driver = {
@@ -1198,13 +1251,9 @@ ahci_dmainit(device_t dev)
 	struct ahci_dc_cb_args dcba;
 	size_t rfsize;
 
-	if (ch->caps & AHCI_CAP_64BIT)
-		ch->dma.max_address = BUS_SPACE_MAXADDR;
-	else
-		ch->dma.max_address = BUS_SPACE_MAXADDR_32BIT;
 	/* Command area. */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 1024, 0,
-	    ch->dma.max_address, BUS_SPACE_MAXADDR,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	    NULL, NULL, AHCI_WORK_SIZE, 1, AHCI_WORK_SIZE,
 	    0, NULL, NULL, &ch->dma.work_tag))
 		goto error;
@@ -1223,7 +1272,7 @@ ahci_dmainit(device_t dev)
 	else
 	    rfsize = 256;
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), rfsize, 0,
-	    ch->dma.max_address, BUS_SPACE_MAXADDR,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	    NULL, NULL, rfsize, 1, rfsize,
 	    0, NULL, NULL, &ch->dma.rfis_tag))
 		goto error;
@@ -1238,7 +1287,7 @@ ahci_dmainit(device_t dev)
 	ch->dma.rfis_bus = dcba.maddr;
 	/* Data area. */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 2, 0,
-	    ch->dma.max_address, BUS_SPACE_MAXADDR,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	    NULL, NULL,
 	    AHCI_SG_ENTRIES * PAGE_SIZE * ch->numslots,
 	    AHCI_SG_ENTRIES, AHCI_PRD_MAX,

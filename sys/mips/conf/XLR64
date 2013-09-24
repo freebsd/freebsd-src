@@ -80,7 +80,6 @@ options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 
 device		pci
 #device		ata
-#device		atadisk
 device 		uart
 # Pseudo
 device 		loop

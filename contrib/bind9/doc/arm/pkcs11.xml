@@ -43,7 +43,7 @@
     This is a shared library object, providing a low-level PKCS #11
     interface to the HSM hardware. It is dynamically loaded by
     OpenSSL at runtime. The PKCS #11 provider comes from the HSM
-    vendor, and and is specific to the HSM to be controlled.</para>
+    vendor, and is specific to the HSM to be controlled.</para>
     <para>There are two "flavors" of PKCS #11 support provided by
     the patched OpenSSL, one of which must be chosen at
     configuration time. The correct choice depends on the HSM

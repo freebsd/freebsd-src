@@ -17,6 +17,16 @@ FBSD_1.2 {
 	libiconvlist;
 };
 
+FBSD_1.3 {
+	iconv;
+	iconv_open;
+	iconv_close;
+	iconv_open_into;
+	iconv_set_relocation_prefix;
+	iconvctl;
+	iconvlist;
+};
+
 FBSDprivate_1.0 {
 	_citrus_bcs_convert_to_lower;
 	_citrus_bcs_convert_to_upper;

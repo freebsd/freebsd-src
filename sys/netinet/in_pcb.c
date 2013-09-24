@@ -467,6 +467,23 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 
 	return (0);
 }
+
+/*
+ * Return cached socket options.
+ */
+short
+inp_so_options(const struct inpcb *inp)
+{
+   short so_options;
+
+   so_options = 0;
+
+   if ((inp->inp_flags2 & INP_REUSEPORT) != 0)
+	   so_options |= SO_REUSEPORT;
+   if ((inp->inp_flags2 & INP_REUSEADDR) != 0)
+	   so_options |= SO_REUSEADDR;
+   return (so_options);
+}
 #endif /* INET || INET6 */
 
 #ifdef INET
@@ -537,7 +554,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			 * and a multicast address is bound on both
 			 * new and duplicated sockets.
 			 */
-			if (so->so_options & SO_REUSEADDR)
+			if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) != 0)
 				reuseport = SO_REUSEADDR|SO_REUSEPORT;
 		} else if (sin->sin_addr.s_addr != INADDR_ANY) {
 			sin->sin_port = 0;		/* yech... */
@@ -595,8 +612,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 				if (tw == NULL ||
 				    (reuseport & tw->tw_so_options) == 0)
 					return (EADDRINUSE);
-			} else if (t && (reuseport == 0 ||
-			    (t->inp_flags2 & INP_REUSEPORT) == 0)) {
+			} else if (t && (reuseport & inp_so_options(t)) == 0) {
 #ifdef INET6
 				if (ntohl(sin->sin_addr.s_addr) !=
 				    INADDR_ANY ||

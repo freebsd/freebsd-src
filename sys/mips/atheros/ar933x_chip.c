@@ -114,6 +114,10 @@ ar933x_chip_detect_sys_frequency(void)
 		     AR933X_PLL_CLOCK_CTRL_AHB_DIV_MASK) + 1;
 		u_ar71xx_ahb_freq = freq / t;
 	}
+
+	/* XXX uart should be the refclk, no? */
+	u_ar71xx_uart_freq = u_ar71xx_ahb_freq;
+	u_ar71xx_wdt_freq = u_ar71xx_ahb_freq;
 }
 
 static void
@@ -200,50 +204,36 @@ ar933x_chip_ddr_flush_ip2(void)
 static uint32_t
 ar933x_chip_get_eth_pll(unsigned int mac, int speed)
 {
+	uint32_t pll;
 
-	return (0);
+	switch (speed) {
+	case 10:
+		pll = AR933X_PLL_VAL_10;
+		break;
+	case 100:
+		pll = AR933X_PLL_VAL_100;
+		break;
+	case 1000:
+		pll = AR933X_PLL_VAL_1000;
+		break;
+	default:
+		printf("%s%d: invalid speed %d\n", __func__, mac, speed);
+		pll = 0;
+	}
+	return (pll);
 }
 
 static void
 ar933x_chip_init_usb_peripheral(void)
 {
-#if 0
-	switch (ar71xx_soc) {
-	case AR71XX_SOC_AR7240:
-		ar71xx_device_stop(AR724X_RESET_MODULE_USB_OHCI_DLL |
-		    AR724X_RESET_USB_HOST);
-		DELAY(1000);
+	ar71xx_device_stop(AR933X_RESET_USBSUS_OVERRIDE);
+	DELAY(100);
 
-		ar71xx_device_start(AR724X_RESET_MODULE_USB_OHCI_DLL |
-		    AR724X_RESET_USB_HOST);
-		DELAY(1000);
+	ar71xx_device_start(AR933X_RESET_USB_HOST);
+	DELAY(100);
 
-		/*
-		 * WAR for HW bug. Here it adjusts the duration
-		 * between two SOFS.
-		 */
-		ATH_WRITE_REG(AR71XX_USB_CTRL_FLADJ,
-		    (3 << USB_CTRL_FLADJ_A0_SHIFT));
-
-		break;
-
-	case AR71XX_SOC_AR7241:
-	case AR71XX_SOC_AR7242:
-		ar71xx_device_start(AR724X_RESET_MODULE_USB_OHCI_DLL);
-		DELAY(100);
-
-		ar71xx_device_start(AR724X_RESET_USB_HOST);
-		DELAY(100);
-
-		ar71xx_device_start(AR724X_RESET_USB_PHY);
-		DELAY(100);
-
-		break;
-
-	default:
-		break;
-	}
-#endif
+	ar71xx_device_start(AR933X_RESET_USB_PHY);
+	DELAY(100);
 }
 
 struct ar71xx_cpu_def ar933x_chip_def = {

@@ -250,11 +250,11 @@ _citrus_VIQR_unpack_state(_VIQREncodingInfo * __restrict ei __unused,
 
 static int
 _citrus_VIQR_mbrtowc_priv(_VIQREncodingInfo * __restrict ei,
-    wchar_t * __restrict pwc, char ** __restrict s, size_t n,
+    wchar_t * __restrict pwc, const char ** __restrict s, size_t n,
     _VIQRState * __restrict psenc, size_t * __restrict nresult)
 {
 	mnemonic_t *m, *m0;
-	char *s0;
+	const char *s0;
 	wchar_t wc;
 	ssize_t i;
 	int ch, escape;

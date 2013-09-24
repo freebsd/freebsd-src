@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -2756,7 +2756,7 @@ get_udpsocket(dns_dispatchmgr_t *mgr, dns_dispatch_t *disp,
 		 * If no port is specified, we first try to pick up a random
 		 * port by ourselves.
 		 */
-		if (isc_sockaddr_pf(&disp->local) == AF_INET) {
+		if (isc_sockaddr_pf(localaddr) == AF_INET) {
 			nports = disp->mgr->nv4ports;
 			ports = disp->mgr->v4ports;
 		} else {
@@ -2775,12 +2775,16 @@ get_udpsocket(dns_dispatchmgr_t *mgr, dns_dispatch_t *disp,
 			isc_sockaddr_setport(&localaddr_bound, prt);
 			result = open_socket(sockmgr, &localaddr_bound,
 					     0, &sock);
-			if (result == ISC_R_SUCCESS ||
-			    result != ISC_R_ADDRINUSE) {
-				disp->localport = prt;
-				*sockp = sock;
-				return (result);
-			}
+			/*
+			 * Continue if the port choosen is already in use
+			 * or the OS has reserved it.
+			 */
+			if (result == ISC_R_NOPERM ||
+			    result == ISC_R_ADDRINUSE)
+				continue;
+			disp->localport = prt;
+			*sockp = sock;
+			return (result);
 		}
 
 		/*
@@ -2805,8 +2809,6 @@ get_udpsocket(dns_dispatchmgr_t *mgr, dns_dispatch_t *disp,
 		result = open_socket(sockmgr, localaddr, 0, &sock);
 		if (result != ISC_R_SUCCESS)
 			goto end;
-		else if (!anyport)
-			break;
 		else if (portavailable(mgr, sock, NULL))
 			break;
 		if (held[i] != NULL)

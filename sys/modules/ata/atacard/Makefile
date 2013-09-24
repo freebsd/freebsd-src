@@ -4,6 +4,6 @@
 
 KMOD=	atacard
 SRCS=	ata-card.c
-SRCS+=  opt_ata.h pccarddevs.h ata_if.h device_if.h bus_if.h isa_if.h card_if.h
+SRCS+=	ata_if.h bus_if.h card_if.h device_if.h pccarddevs.h
 
 .include <bsd.kmod.mk>

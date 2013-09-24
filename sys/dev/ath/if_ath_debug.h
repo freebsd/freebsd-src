@@ -67,6 +67,7 @@ enum {
 	ATH_DEBUG_EDMA_RX	= 0x200000000ULL,	/* RX EDMA state */
 	ATH_DEBUG_SW_TX_FILT	= 0x400000000ULL,	/* SW TX FF */
 	ATH_DEBUG_NODE_PWRSAVE	= 0x800000000ULL,	/* node powersave */
+	ATH_DEBUG_DIVERSITY	= 0x1000000000ULL,	/* Diversity logic */
 
 	ATH_DEBUG_ANY		= 0xffffffffffffffffULL
 };

@@ -42,7 +42,6 @@
 #include <sys/stat.h>
 #include <sys/module.h>
 #define FREEBSD_ELF
-#include <link.h>
 #include <err.h>
 #include <fts.h>
 #include <string.h>

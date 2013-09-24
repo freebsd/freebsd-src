@@ -87,7 +87,7 @@ CRUNCH_SUPPRESS_LINK_-tcsh= 1
 # headers in addition to the standard 'paths.h' header.
 #
 CRUNCH_SRCDIRS+= sbin
-CRUNCH_PROGS_sbin= atacontrol badsect				\
+CRUNCH_PROGS_sbin= badsect					\
 	camcontrol ccdconfig clri devfs dmesg dump		\
 	dumpfs dumpon fsck fsck_ffs fsck_msdosfs fsdb		\
 	fsirand gbde geom ifconfig init 			\
@@ -130,6 +130,8 @@ CRUNCH_LIBS+= -lgeom -lbsdxml -lkiconv -lmd -lsbuf -lufs -lz
 .if ${MACHINE_CPUARCH} == "i386"
 CRUNCH_PROGS_sbin+= bsdlabel sconfig fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
+#CRUNCH_PROGS+= mount_smbfs
+#CRUNCH_LIBS+= -lsmb
 .endif
 
 .if ${MACHINE} == "pc98"
@@ -183,6 +185,9 @@ CRUNCH_ALIAS_gzip= gunzip gzcat zcat
 CRUNCH_PROGS_usr.bin+= bzip2
 CRUNCH_ALIAS_bzip2= bunzip2 bzcat
 CRUNCH_LIBS+= -lbz2
+
+CRUNCH_PROGS_usr.bin+= less
+CRUNCH_ALIAS_less= more
 
 CRUNCH_PROGS_usr.bin+= xz
 CRUNCH_ALIAS_xz= unxz lzma unlzma xzcat lzcat

@@ -829,7 +829,9 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		m = vm_page_grab(sc->object, i, VM_ALLOC_NORMAL |
 		    VM_ALLOC_RETRY);
 		if (bp->bio_cmd == BIO_READ) {
-			if (m->valid != VM_PAGE_BITS_ALL)
+			if (m->valid == VM_PAGE_BITS_ALL)
+				rv = VM_PAGER_OK;
+			else
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
 			if (rv == VM_PAGER_ERROR) {
 				vm_page_wakeup(m);
@@ -854,6 +856,8 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		} else if (bp->bio_cmd == BIO_WRITE) {
 			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
+			else
+				rv = VM_PAGER_OK;
 			if (rv == VM_PAGER_ERROR) {
 				vm_page_wakeup(m);
 				break;
@@ -868,6 +872,8 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		} else if (bp->bio_cmd == BIO_DELETE) {
 			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
+			else
+				rv = VM_PAGER_OK;
 			if (rv == VM_PAGER_ERROR) {
 				vm_page_wakeup(m);
 				break;
@@ -1008,7 +1014,15 @@ mdinit(struct md_s *sc)
 	pp = g_new_providerf(gp, "md%d", sc->unit);
 	pp->mediasize = sc->mediasize;
 	pp->sectorsize = sc->sectorsize;
-	pp->flags |= G_PF_ACCEPT_UNMAPPED;
+	switch (sc->type) {
+	case MD_MALLOC:
+	case MD_VNODE:
+	case MD_SWAP:
+		pp->flags |= G_PF_ACCEPT_UNMAPPED;
+		break;
+	case MD_PRELOAD:
+		break;
+	}
 	sc->gp = gp;
 	sc->pp = pp;
 	g_error_provider(pp, 0);

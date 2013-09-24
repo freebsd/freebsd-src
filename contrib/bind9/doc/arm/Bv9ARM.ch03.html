@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2012 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2013 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -47,14 +47,14 @@
 <dl>
 <dt><span class="sect1"><a href="Bv9ARM.ch03.html#sample_configuration">Sample Configurations</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2567771">A Caching-only Name Server</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2567992">An Authoritative-only Name Server</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2567774">A Caching-only Name Server</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2567995">An Authoritative-only Name Server</a></span></dt>
 </dl></dd>
-<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2568014">Load Balancing</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2568369">Name Server Operations</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2568018">Load Balancing</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2568372">Name Server Operations</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2568374">Tools for Use With the Name Server Daemon</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2570421">Signals</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2568377">Tools for Use With the Name Server Daemon</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2570424">Signals</a></span></dt>
 </dl></dd>
 </dl>
 </div>
@@ -68,7 +68,7 @@
 <a name="sample_configuration"></a>Sample Configurations</h2></div></div></div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2567771"></a>A Caching-only Name Server</h3></div></div></div>
+<a name="id2567774"></a>A Caching-only Name Server</h3></div></div></div>
 <p>
           The following sample configuration is appropriate for a caching-only
           name server for use by clients internal to a corporation.  All
@@ -98,7 +98,7 @@ zone "0.0.127.in-addr.arpa" {
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2567992"></a>An Authoritative-only Name Server</h3></div></div></div>
+<a name="id2567995"></a>An Authoritative-only Name Server</h3></div></div></div>
 <p>
           This sample configuration is for an authoritative-only server
           that is the master server for "<code class="filename">example.com</code>"
@@ -146,7 +146,7 @@ zone "eng.example.com" {
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2568014"></a>Load Balancing</h2></div></div></div>
+<a name="id2568018"></a>Load Balancing</h2></div></div></div>
 <p>
         A primitive form of load balancing can be achieved in
         the <acronym class="acronym">DNS</acronym> by using multiple records
@@ -289,10 +289,10 @@ zone "eng.example.com" {
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2568369"></a>Name Server Operations</h2></div></div></div>
+<a name="id2568372"></a>Name Server Operations</h2></div></div></div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2568374"></a>Tools for Use With the Name Server Daemon</h3></div></div></div>
+<a name="id2568377"></a>Tools for Use With the Name Server Daemon</h3></div></div></div>
 <p>
           This section describes several indispensable diagnostic,
           administrative and monitoring tools available to the system
@@ -681,7 +681,7 @@ zone "eng.example.com" {
                      <em class="replaceable"><code>keyname</code></em>
                      [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span></dt>
 <dd><p>
-                        Delete a given TKEY-negotated key from the server.
+                        Delete a given TKEY-negotiated key from the server.
                         (This does not apply to statically configured TSIG
                         keys.)
                       </p></dd>
@@ -888,7 +888,7 @@ controls {
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2570421"></a>Signals</h3></div></div></div>
+<a name="id2570424"></a>Signals</h3></div></div></div>
 <p>
           Certain UNIX signals cause the name server to take specific
           actions, as described in the following table.  These signals can

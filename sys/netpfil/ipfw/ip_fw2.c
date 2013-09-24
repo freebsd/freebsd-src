@@ -780,6 +780,38 @@ set_match(struct ip_fw_args *args, int slot,
 }
 
 /*
+ * Helper function to enable cached rule lookups using
+ * x_next and next_rule fields in ipfw rule.
+ */
+static int
+jump_fast(struct ip_fw_chain *chain, struct ip_fw *f, int num,
+    int tablearg, int jump_backwards)
+{
+	int f_pos;
+
+	/* If possible use cached f_pos (in f->next_rule),
+	 * whose version is written in f->next_rule
+	 * (horrible hacks to avoid changing the ABI).
+	 */
+	if (num != IP_FW_TABLEARG && (uintptr_t)f->x_next == chain->id)
+		f_pos = (uintptr_t)f->next_rule;
+	else {
+		int i = IP_FW_ARG_TABLEARG(num);
+		/* make sure we do not jump backward */
+		if (jump_backwards == 0 && i <= f->rulenum)
+			i = f->rulenum + 1;
+		f_pos = ipfw_find_rule(chain, i, 0);
+		/* update the cache */
+		if (num != IP_FW_TABLEARG) {
+			f->next_rule = (void *)(uintptr_t)f_pos;
+			f->x_next = (void *)(uintptr_t)chain->id;
+		}
+	}
+
+	return (f_pos);
+}
+
+/*
  * The main check routine for the firewall.
  *
  * All arguments are in args so we can modify them and return them
@@ -2123,27 +2155,7 @@ do {								\
 
 			case O_SKIPTO:
 			    IPFW_INC_RULE_COUNTER(f, pktlen);
-			    /* If possible use cached f_pos (in f->next_rule),
-			     * whose version is written in f->next_rule
-			     * (horrible hacks to avoid changing the ABI).
-			     */
-			    if (cmd->arg1 != IP_FW_TABLEARG &&
-				    (uintptr_t)f->x_next == chain->id) {
-				f_pos = (uintptr_t)f->next_rule;
-			    } else {
-				int i = IP_FW_ARG_TABLEARG(cmd->arg1);
-				/* make sure we do not jump backward */
-				if (i <= f->rulenum)
-				    i = f->rulenum + 1;
-				f_pos = ipfw_find_rule(chain, i, 0);
-				/* update the cache */
-				if (cmd->arg1 != IP_FW_TABLEARG) {
-				    f->next_rule =
-					(void *)(uintptr_t)f_pos;
-				    f->x_next =
-					(void *)(uintptr_t)chain->id;
-				}
-			    }
+			    f_pos = jump_fast(chain, f, cmd->arg1, tablearg, 0);
 			    /*
 			     * Skip disabled rules, and re-enter
 			     * the inner loop with the correct
@@ -2232,25 +2244,8 @@ do {								\
 				if (IS_CALL) {
 					stack[mtag->m_tag_id] = f->rulenum;
 					mtag->m_tag_id++;
-					if (cmd->arg1 != IP_FW_TABLEARG &&
-					    (uintptr_t)f->x_next == chain->id) {
-						f_pos = (uintptr_t)f->next_rule;
-					} else {
-						jmpto = IP_FW_ARG_TABLEARG(
-						    cmd->arg1);
-						f_pos = ipfw_find_rule(chain,
-						    jmpto, 0);
-						/* update the cache */
-						if (cmd->arg1 !=
-						    IP_FW_TABLEARG) {
-							f->next_rule =
-							    (void *)(uintptr_t)
-							    f_pos;
-							f->x_next =
-							    (void *)(uintptr_t)
-							    chain->id;
-						}
-					}
+			    		f_pos = jump_fast(chain, f, cmd->arg1,
+					    tablearg, 1);
 				} else {	/* `return' action */
 					mtag->m_tag_id--;
 					jmpto = stack[mtag->m_tag_id] + 1;

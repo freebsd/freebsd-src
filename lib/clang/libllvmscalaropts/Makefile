@@ -27,7 +27,6 @@ SRCS=	ADCE.cpp \
 	LoopUnswitch.cpp \
 	LowerAtomic.cpp \
 	MemCpyOptimizer.cpp \
-	ObjCARC.cpp \
 	Reassociate.cpp \
 	Reg2Mem.cpp \
 	SCCP.cpp \

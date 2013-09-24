@@ -16,6 +16,9 @@
 #ifndef LLVM_SUPPORT_DWARF_H
 #define LLVM_SUPPORT_DWARF_H
 
+#include "llvm/Support/DataTypes.h"
+
+
 namespace llvm {
 
 //===----------------------------------------------------------------------===//
@@ -37,7 +40,7 @@ enum {
 namespace dwarf {
 
 //===----------------------------------------------------------------------===//
-// Dwarf constants as gleaned from the DWARF Debugging Information Format V.3
+// Dwarf constants as gleaned from the DWARF Debugging Information Format V.4
 // reference manual http://dwarf.freestandards.org .
 //
 
@@ -50,14 +53,18 @@ enum llvm_dwarf_constants {
 
   DW_TAG_auto_variable = 0x100,         // Tag for local (auto) variables.
   DW_TAG_arg_variable = 0x101,          // Tag for argument variables.
-  DW_TAG_return_variable = 0x102,       // Tag for return variables.
-  DW_TAG_vector_type = 0x103,           // Tag for vector types.
 
   DW_TAG_user_base = 0x1000,            // Recommended base for user tags.
 
-  DW_CIE_VERSION = 1,                   // Common frame information version.
-  DW_CIE_ID       = 0xffffffff          // Common frame information mark.
+  DW_CIE_VERSION = 1                    // Common frame information version.
 };
+
+
+// Special ID values that distinguish a CIE from a FDE in DWARF CFI.
+// Not inside an enum because a 64-bit value is needed.
+const uint32_t DW_CIE_ID = UINT32_MAX;
+const uint64_t DW64_CIE_ID = UINT64_MAX;
+
 
 enum dwarf_constants {
   DWARF_VERSION = 2,
@@ -231,6 +238,10 @@ enum dwarf_constants {
   DW_AT_const_expr = 0x6c,
   DW_AT_enum_class = 0x6d,
   DW_AT_linkage_name = 0x6e,
+
+  DW_AT_lo_user = 0x2000,
+  DW_AT_hi_user = 0x3fff,
+
   DW_AT_MIPS_loop_begin = 0x2002,
   DW_AT_MIPS_tail_loop_begin = 0x2003,
   DW_AT_MIPS_epilog_begin = 0x2004,
@@ -246,6 +257,12 @@ enum dwarf_constants {
   DW_AT_MIPS_ptr_dopetype = 0x200e,
   DW_AT_MIPS_allocatable_dopetype = 0x200f,
   DW_AT_MIPS_assumed_shape_dopetype = 0x2010,
+
+  // This one appears to have only been implemented by Open64 for
+  // fortran and may conflict with other extensions.
+  DW_AT_MIPS_assumed_size = 0x2011,
+
+  // GNU extensions
   DW_AT_sf_names = 0x2101,
   DW_AT_src_info = 0x2102,
   DW_AT_mac_info = 0x2103,
@@ -254,9 +271,14 @@ enum dwarf_constants {
   DW_AT_body_end = 0x2106,
   DW_AT_GNU_vector = 0x2107,
   DW_AT_GNU_template_name = 0x2110,
-  DW_AT_MIPS_assumed_size = 0x2011,
-  DW_AT_lo_user = 0x2000,
-  DW_AT_hi_user = 0x3fff,
+
+  // Extensions for Fission proposal.
+  DW_AT_GNU_dwo_name = 0x2130,
+  DW_AT_GNU_dwo_id = 0x2131,
+  DW_AT_GNU_ranges_base = 0x2132,
+  DW_AT_GNU_addr_base = 0x2133,
+  DW_AT_GNU_pubnames = 0x2134,
+  DW_AT_GNU_pubtypes = 0x2135,
 
   // Apple extensions.
   DW_AT_APPLE_optimized = 0x3fe1,
@@ -299,6 +321,10 @@ enum dwarf_constants {
   DW_FORM_exprloc = 0x18,
   DW_FORM_flag_present = 0x19,
   DW_FORM_ref_sig8 = 0x20,
+
+  // Extensions for Fission proposal
+  DW_FORM_GNU_addr_index = 0x1f01,
+  DW_FORM_GNU_str_index = 0x1f02,
 
   // Operation encodings
   DW_OP_addr = 0x03,
@@ -457,6 +483,10 @@ enum dwarf_constants {
   DW_OP_stack_value = 0x9f,
   DW_OP_lo_user = 0xe0,
   DW_OP_hi_user = 0xff,
+
+  // Extensions for Fission proposal.
+  DW_OP_GNU_addr_index = 0xfb,
+  DW_OP_GNU_const_index = 0xfc,
 
   // Encoding attribute values
   DW_ATE_address = 0x01,

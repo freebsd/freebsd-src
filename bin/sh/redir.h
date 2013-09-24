@@ -40,6 +40,7 @@
 union node;
 void redirect(union node *, int);
 void popredir(void);
+void resetredir(void);
 int fd0_redirected_p(void);
 void clearredir(void);
 

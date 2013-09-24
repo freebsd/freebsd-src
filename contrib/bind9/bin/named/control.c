@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2010, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -61,7 +61,7 @@ command_compare(const char *text, const char *command) {
 isc_result_t
 ns_control_docommand(isccc_sexpr_t *message, isc_buffer_t *text) {
 	isccc_sexpr_t *data;
-	char *command;
+	char *command = NULL;
 	isc_result_t result;
 	int log_level;
 #ifdef HAVE_LIBSCF

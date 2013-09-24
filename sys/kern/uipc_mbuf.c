@@ -649,13 +649,10 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 		m = m->m_next;
 		np = &n->m_next;
 	}
-	if (top == NULL)
-		mbstat.m_mcfail++;	/* XXX: No consistency. */
 
 	return (top);
 nospace:
 	m_freem(top);
-	mbstat.m_mcfail++;	/* XXX: No consistency. */
 	return (NULL);
 }
 
@@ -860,7 +857,6 @@ m_copypacket(struct mbuf *m, int how)
 	return top;
 nospace:
 	m_freem(top);
-	mbstat.m_mcfail++;	/* XXX: No consistency. */ 
 	return (NULL);
 }
 
@@ -964,7 +960,6 @@ m_dup(struct mbuf *m, int how)
 
 nospace:
 	m_freem(top);
-	mbstat.m_mcfail++;	/* XXX: No consistency. */
 	return (NULL);
 }
 
@@ -1124,7 +1119,6 @@ m_pullup(struct mbuf *n, int len)
 	return (m);
 bad:
 	m_freem(n);
-	mbstat.m_mpfail++;	/* XXX: No consistency. */
 	return (NULL);
 }
 
@@ -1197,7 +1191,16 @@ m_split(struct mbuf *m0, int len0, int wait)
 	if (m == NULL)
 		return (NULL);
 	remain = m->m_len - len;
-	if (m0->m_flags & M_PKTHDR) {
+	if (m0->m_flags & M_PKTHDR && remain == 0) {
+		n = m_gethdr(wait, m0->m_type);
+			return (NULL);
+		n->m_next = m->m_next;
+		m->m_next = NULL;
+		n->m_pkthdr.rcvif = m0->m_pkthdr.rcvif;
+		n->m_pkthdr.len = m0->m_pkthdr.len - len0;
+		m0->m_pkthdr.len = len0;
+		return (n);
+	} else if (m0->m_flags & M_PKTHDR) {
 		n = m_gethdr(wait, m0->m_type);
 		if (n == NULL)
 			return (NULL);

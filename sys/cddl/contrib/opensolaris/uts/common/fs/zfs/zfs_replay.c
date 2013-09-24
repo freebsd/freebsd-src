@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #include <sys/types.h>
@@ -73,7 +74,7 @@ zfs_init_vattr(vattr_t *vap, uint64_t mask, uint64_t mode,
 static int
 zfs_replay_error(zfsvfs_t *zfsvfs, lr_t *lr, boolean_t byteswap)
 {
-	return (ENOTSUP);
+	return (SET_ERROR(ENOTSUP));
 }
 
 static void
@@ -396,7 +397,7 @@ zfs_replay_create_acl(zfsvfs_t *zfsvfs,
 #endif
 		break;
 	default:
-		error = ENOTSUP;
+		error = SET_ERROR(ENOTSUP);
 	}
 
 bail:
@@ -528,7 +529,7 @@ zfs_replay_create(zfsvfs_t *zfsvfs, lr_create_t *lr, boolean_t byteswap)
 		error = VOP_SYMLINK(ZTOV(dzp), &vp, &cn, &xva.xva_vattr, link /*,vflg*/);
 		break;
 	default:
-		error = ENOTSUP;
+		error = SET_ERROR(ENOTSUP);
 	}
 	VOP_UNLOCK(ZTOV(dzp), 0);
 
@@ -584,7 +585,7 @@ zfs_replay_remove(zfsvfs_t *zfsvfs, lr_remove_t *lr, boolean_t byteswap)
 		error = VOP_RMDIR(ZTOV(dzp), vp, &cn /*,vflg*/);
 		break;
 	default:
-		error = ENOTSUP;
+		error = SET_ERROR(ENOTSUP);
 	}
 	vput(vp);
 	VOP_UNLOCK(ZTOV(dzp), 0);

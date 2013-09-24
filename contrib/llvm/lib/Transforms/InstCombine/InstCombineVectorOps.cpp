@@ -13,7 +13,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "InstCombine.h"
+#include "llvm/Support/PatternMatch.h"
 using namespace llvm;
+using namespace PatternMatch;
 
 /// CheapToScalarize - Return true if the value is cheaper to scalarize than it
 /// is to leave as a vector operation.  isConstant indicates whether we're
@@ -92,8 +94,84 @@ static Value *FindScalarElement(Value *V, unsigned EltNo) {
     return FindScalarElement(SVI->getOperand(1), InEl - LHSWidth);
   }
 
+  // Extract a value from a vector add operation with a constant zero.
+  Value *Val = 0; Constant *Con = 0;
+  if (match(V, m_Add(m_Value(Val), m_Constant(Con)))) {
+    if (Con->getAggregateElement(EltNo)->isNullValue())
+      return FindScalarElement(Val, EltNo);
+  }
+
   // Otherwise, we don't know.
   return 0;
+}
+
+// If we have a PHI node with a vector type that has only 2 uses: feed
+// itself and be an operand of extractelemnt at a constant location,
+// try to replace the PHI of the vector type with a PHI of a scalar type
+Instruction *InstCombiner::scalarizePHI(ExtractElementInst &EI, PHINode *PN) {
+  // Verify that the PHI node has exactly 2 uses. Otherwise return NULL.
+  if (!PN->hasNUses(2))
+    return NULL;
+
+  // If so, it's known at this point that one operand is PHI and the other is
+  // an extractelement node. Find the PHI user that is not the extractelement
+  // node.
+  Value::use_iterator iu = PN->use_begin();
+  Instruction *PHIUser = dyn_cast<Instruction>(*iu);
+  if (PHIUser == cast<Instruction>(&EI))
+    PHIUser = cast<Instruction>(*(++iu));
+
+  // Verify that this PHI user has one use, which is the PHI itself,
+  // and that it is a binary operation which is cheap to scalarize.
+  // otherwise return NULL.
+  if (!PHIUser->hasOneUse() || !(PHIUser->use_back() == PN) ||
+    !(isa<BinaryOperator>(PHIUser)) ||
+    !CheapToScalarize(PHIUser, true))
+    return NULL;
+
+  // Create a scalar PHI node that will replace the vector PHI node
+  // just before the current PHI node.
+  PHINode * scalarPHI = cast<PHINode>(
+    InsertNewInstWith(PHINode::Create(EI.getType(),
+    PN->getNumIncomingValues(), ""), *PN));
+  // Scalarize each PHI operand.
+  for (unsigned i=0; i < PN->getNumIncomingValues(); i++) {
+    Value *PHIInVal = PN->getIncomingValue(i);
+    BasicBlock *inBB = PN->getIncomingBlock(i);
+    Value *Elt = EI.getIndexOperand();
+    // If the operand is the PHI induction variable:
+    if (PHIInVal == PHIUser) {
+      // Scalarize the binary operation. Its first operand is the
+      // scalar PHI and the second operand is extracted from the other
+      // vector operand.
+      BinaryOperator *B0 = cast<BinaryOperator>(PHIUser);
+      unsigned opId = (B0->getOperand(0) == PN) ? 1: 0;
+      Value *Op = Builder->CreateExtractElement(
+        B0->getOperand(opId), Elt, B0->getOperand(opId)->getName()+".Elt");
+      Value *newPHIUser = InsertNewInstWith(
+        BinaryOperator::Create(B0->getOpcode(), scalarPHI,Op),
+        *B0);
+      scalarPHI->addIncoming(newPHIUser, inBB);
+    } else {
+      // Scalarize PHI input:
+      Instruction *newEI =
+        ExtractElementInst::Create(PHIInVal, Elt, "");
+      // Insert the new instruction into the predecessor basic block.
+      Instruction *pos = dyn_cast<Instruction>(PHIInVal);
+      BasicBlock::iterator InsertPos;
+      if (pos && !isa<PHINode>(pos)) {
+        InsertPos = pos;
+        ++InsertPos;
+      } else {
+        InsertPos = inBB->getFirstInsertionPt();
+      }
+
+      InsertNewInstWith(newEI, *InsertPos);
+
+      scalarPHI->addIncoming(newEI, inBB);
+    }
+  }
+  return ReplaceInstUsesWith(EI, scalarPHI);
 }
 
 Instruction *InstCombiner::visitExtractElementInst(ExtractElementInst &EI) {
@@ -139,6 +217,14 @@ Instruction *InstCombiner::visitExtractElementInst(ExtractElementInst &EI) {
         if (VT->getNumElements() == VectorWidth)
           if (Value *Elt = FindScalarElement(BCI->getOperand(0), IndexVal))
             return new BitCastInst(Elt, EI.getType());
+    }
+
+    // If there's a vector PHI feeding a scalar use through this extractelement
+    // instruction, try to scalarize the PHI.
+    if (PHINode *PN = dyn_cast<PHINode>(EI.getOperand(0))) {
+      Instruction *scalarPHI = scalarizePHI(EI, PN);
+      if (scalarPHI)
+        return (scalarPHI);
     }
   }
 
@@ -192,10 +278,10 @@ Instruction *InstCombiner::visitExtractElementInst(ExtractElementInst &EI) {
     } else if (CastInst *CI = dyn_cast<CastInst>(I)) {
       // Canonicalize extractelement(cast) -> cast(extractelement)
       // bitcasts can change the number of vector elements and they cost nothing
-      if (CI->hasOneUse() && EI.hasOneUse() &&
-          (CI->getOpcode() != Instruction::BitCast)) {
+      if (CI->hasOneUse() && (CI->getOpcode() != Instruction::BitCast)) {
         Value *EE = Builder->CreateExtractElement(CI->getOperand(0),
                                                   EI.getIndexOperand());
+        Worklist.AddValue(EE);
         return CastInst::Create(CI->getOpcode(), EE, EI.getType());
       }
     }
@@ -295,12 +381,12 @@ static Value *CollectShuffleElements(Value *V, SmallVectorImpl<Constant*> &Mask,
     Mask.assign(NumElts, UndefValue::get(Type::getInt32Ty(V->getContext())));
     return V;
   }
-  
+
   if (isa<ConstantAggregateZero>(V)) {
     Mask.assign(NumElts, ConstantInt::get(Type::getInt32Ty(V->getContext()),0));
     return V;
   }
-  
+
   if (InsertElementInst *IEI = dyn_cast<InsertElementInst>(V)) {
     // If this is an insert of an extract from some other vector, include it.
     Value *VecOp    = IEI->getOperand(0);
@@ -327,6 +413,10 @@ static Value *CollectShuffleElements(Value *V, SmallVectorImpl<Constant*> &Mask,
 
         if (VecOp == RHS) {
           Value *V = CollectShuffleElements(EI->getOperand(0), Mask, RHS);
+          // Update Mask to reflect that `ScalarOp' has been inserted at
+          // position `InsertedIdx' within the vector returned by IEI.
+          Mask[InsertedIdx % NumElts] = Mask[ExtractedIdx];
+
           // Everything but the extracted element is replaced with the RHS.
           for (unsigned i = 0; i != NumElts; ++i) {
             if (i != InsertedIdx)
@@ -595,12 +685,12 @@ Instruction *InstCombiner::visitShuffleVectorInst(ShuffleVectorInst &SVI) {
   // ShuffleVectorInst is equivalent to the original one.
   for (unsigned i = 0; i < VWidth; ++i) {
     int eltMask;
-    if (Mask[i] == -1) {
+    if (Mask[i] < 0) {
       // This element is an undef value.
       eltMask = -1;
     } else if (Mask[i] < (int)LHSWidth) {
       // This element is from left hand side vector operand.
-      // 
+      //
       // If LHS is going to be replaced (case 1, 2, or 4), calculate the
       // new mask value for the element.
       if (newLHS != LHS) {
@@ -609,8 +699,7 @@ Instruction *InstCombiner::visitShuffleVectorInst(ShuffleVectorInst &SVI) {
         // with a -1 mask value.
         if (eltMask >= (int)LHSOp0Width && isa<UndefValue>(LHSOp1))
           eltMask = -1;
-      }
-      else
+      } else
         eltMask = Mask[i];
     } else {
       // This element is from right hand side vector operand
@@ -630,8 +719,7 @@ Instruction *InstCombiner::visitShuffleVectorInst(ShuffleVectorInst &SVI) {
                  && "should have been check above");
           eltMask = -1;
         }
-      }
-      else
+      } else
         eltMask = Mask[i]-LHSWidth;
 
       // If LHS's width is changed, shift the mask value accordingly.

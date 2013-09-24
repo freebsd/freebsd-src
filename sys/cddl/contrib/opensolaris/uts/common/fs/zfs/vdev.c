@@ -22,7 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
@@ -357,10 +357,10 @@ vdev_alloc(spa_t *spa, vdev_t **vdp, nvlist_t *nv, vdev_t *parent, uint_t id,
 	ASSERT(spa_config_held(spa, SCL_ALL, RW_WRITER) == SCL_ALL);
 
 	if (nvlist_lookup_string(nv, ZPOOL_CONFIG_TYPE, &type) != 0)
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 
 	if ((ops = vdev_getops(type)) == NULL)
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 
 	/*
 	 * If this is a load, get the vdev guid from the nvlist.
@@ -371,26 +371,26 @@ vdev_alloc(spa_t *spa, vdev_t **vdp, nvlist_t *nv, vdev_t *parent, uint_t id,
 
 		if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_ID, &label_id) ||
 		    label_id != id)
-			return (EINVAL);
+			return (SET_ERROR(EINVAL));
 
 		if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_GUID, &guid) != 0)
-			return (EINVAL);
+			return (SET_ERROR(EINVAL));
 	} else if (alloctype == VDEV_ALLOC_SPARE) {
 		if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_GUID, &guid) != 0)
-			return (EINVAL);
+			return (SET_ERROR(EINVAL));
 	} else if (alloctype == VDEV_ALLOC_L2CACHE) {
 		if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_GUID, &guid) != 0)
-			return (EINVAL);
+			return (SET_ERROR(EINVAL));
 	} else if (alloctype == VDEV_ALLOC_ROOTPOOL) {
 		if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_GUID, &guid) != 0)
-			return (EINVAL);
+			return (SET_ERROR(EINVAL));
 	}
 
 	/*
 	 * The first allocated vdev must be of type 'root'.
 	 */
 	if (ops != &vdev_root_ops && spa->spa_root_vdev == NULL)
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 
 	/*
 	 * Determine whether we're a log vdev.
@@ -398,10 +398,10 @@ vdev_alloc(spa_t *spa, vdev_t **vdp, nvlist_t *nv, vdev_t *parent, uint_t id,
 	islog = 0;
 	(void) nvlist_lookup_uint64(nv, ZPOOL_CONFIG_IS_LOG, &islog);
 	if (islog && spa_version(spa) < SPA_VERSION_SLOGS)
-		return (ENOTSUP);
+		return (SET_ERROR(ENOTSUP));
 
 	if (ops == &vdev_hole_ops && spa_version(spa) < SPA_VERSION_HOLES)
-		return (ENOTSUP);
+		return (SET_ERROR(ENOTSUP));
 
 	/*
 	 * Set the nparity property for RAID-Z vdevs.
@@ -411,24 +411,24 @@ vdev_alloc(spa_t *spa, vdev_t **vdp, nvlist_t *nv, vdev_t *parent, uint_t id,
 		if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_NPARITY,
 		    &nparity) == 0) {
 			if (nparity == 0 || nparity > VDEV_RAIDZ_MAXPARITY)
-				return (EINVAL);
+				return (SET_ERROR(EINVAL));
 			/*
 			 * Previous versions could only support 1 or 2 parity
 			 * device.
 			 */
 			if (nparity > 1 &&
 			    spa_version(spa) < SPA_VERSION_RAIDZ2)
-				return (ENOTSUP);
+				return (SET_ERROR(ENOTSUP));
 			if (nparity > 2 &&
 			    spa_version(spa) < SPA_VERSION_RAIDZ3)
-				return (ENOTSUP);
+				return (SET_ERROR(ENOTSUP));
 		} else {
 			/*
 			 * We require the parity to be specified for SPAs that
 			 * support multiple parity levels.
 			 */
 			if (spa_version(spa) >= SPA_VERSION_RAIDZ2)
-				return (EINVAL);
+				return (SET_ERROR(EINVAL));
 			/*
 			 * Otherwise, we default to 1 parity device for RAID-Z.
 			 */
@@ -946,7 +946,7 @@ vdev_probe_done(zio_t *zio)
 			ASSERT(zio->io_error != 0);
 			zfs_ereport_post(FM_EREPORT_ZFS_PROBE_FAILURE,
 			    spa, vd, NULL, 0, 0);
-			zio->io_error = ENXIO;
+			zio->io_error = SET_ERROR(ENXIO);
 		}
 
 		mutex_enter(&vd->vdev_probe_lock);
@@ -956,16 +956,18 @@ vdev_probe_done(zio_t *zio)
 
 		while ((pio = zio_walk_parents(zio)) != NULL)
 			if (!vdev_accessible(vd, pio))
-				pio->io_error = ENXIO;
+				pio->io_error = SET_ERROR(ENXIO);
 
 		kmem_free(vps, sizeof (*vps));
 	}
 }
 
 /*
- * Determine whether this device is accessible by reading and writing
- * to several known locations: the pad regions of each vdev label
- * but the first (which we leave alone in case it contains a VTOC).
+ * Determine whether this device is accessible.
+ *
+ * Read and write to several known locations: the pad regions of each
+ * vdev label but the first, which we leave alone in case it contains
+ * a VTOC.
  */
 zio_t *
 vdev_probe(vdev_t *vd, zio_t *zio)
@@ -1141,11 +1143,11 @@ vdev_open(vdev_t *vd)
 		    vd->vdev_label_aux == VDEV_AUX_EXTERNAL);
 		vdev_set_state(vd, B_TRUE, VDEV_STATE_FAULTED,
 		    vd->vdev_label_aux);
-		return (ENXIO);
+		return (SET_ERROR(ENXIO));
 	} else if (vd->vdev_offline) {
 		ASSERT(vd->vdev_children == 0);
 		vdev_set_state(vd, B_TRUE, VDEV_STATE_OFFLINE, VDEV_AUX_NONE);
-		return (ENXIO);
+		return (SET_ERROR(ENXIO));
 	}
 
 	error = vd->vdev_ops->vdev_op_open(vd, &osize, &max_osize, &ashift);
@@ -1180,7 +1182,7 @@ vdev_open(vdev_t *vd)
 		    vd->vdev_label_aux == VDEV_AUX_EXTERNAL);
 		vdev_set_state(vd, B_TRUE, VDEV_STATE_FAULTED,
 		    vd->vdev_label_aux);
-		return (ENXIO);
+		return (SET_ERROR(ENXIO));
 	}
 
 	if (vd->vdev_degraded) {
@@ -1217,7 +1219,7 @@ vdev_open(vdev_t *vd)
 		if (osize < SPA_MINDEVSIZE) {
 			vdev_set_state(vd, B_TRUE, VDEV_STATE_CANT_OPEN,
 			    VDEV_AUX_TOO_SMALL);
-			return (EOVERFLOW);
+			return (SET_ERROR(EOVERFLOW));
 		}
 		psize = osize;
 		asize = osize - (VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE);
@@ -1228,7 +1230,7 @@ vdev_open(vdev_t *vd)
 		    (VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE)) {
 			vdev_set_state(vd, B_TRUE, VDEV_STATE_CANT_OPEN,
 			    VDEV_AUX_TOO_SMALL);
-			return (EOVERFLOW);
+			return (SET_ERROR(EOVERFLOW));
 		}
 		psize = 0;
 		asize = osize;
@@ -1243,7 +1245,7 @@ vdev_open(vdev_t *vd)
 	if (asize < vd->vdev_min_asize) {
 		vdev_set_state(vd, B_TRUE, VDEV_STATE_CANT_OPEN,
 		    VDEV_AUX_BAD_LABEL);
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 	}
 
 	if (vd->vdev_asize == 0) {
@@ -1256,12 +1258,16 @@ vdev_open(vdev_t *vd)
 		vd->vdev_ashift = MAX(ashift, vd->vdev_ashift);
 	} else {
 		/*
-		 * Make sure the alignment requirement hasn't increased.
+		 * Detect if the alignment requirement has increased.
+		 * We don't want to make the pool unavailable, just
+		 * issue a warning instead.
 		 */
-		if (ashift > vd->vdev_top->vdev_ashift) {
-			vdev_set_state(vd, B_TRUE, VDEV_STATE_CANT_OPEN,
-			    VDEV_AUX_BAD_LABEL);
-			return (EINVAL);
+		if (ashift > vd->vdev_top->vdev_ashift &&
+		    vd->vdev_ops->vdev_op_leaf) {
+			cmn_err(CE_WARN,
+			    "Disk, '%s', has a block alignment that is "
+			    "larger than the pool's alignment\n",
+			    vd->vdev_path);
 		}
 		vd->vdev_max_asize = max_asize;
 	}
@@ -1325,7 +1331,7 @@ vdev_validate(vdev_t *vd, boolean_t strict)
 
 	for (int c = 0; c < vd->vdev_children; c++)
 		if (vdev_validate(vd->vdev_child[c], strict) != 0)
-			return (EBADF);
+			return (SET_ERROR(EBADF));
 
 	/*
 	 * If the device has already failed, or was marked offline, don't do
@@ -1411,7 +1417,7 @@ vdev_validate(vdev_t *vd, boolean_t strict)
 		if (!(spa->spa_import_flags & ZFS_IMPORT_VERBATIM) &&
 		    spa_load_state(spa) == SPA_LOAD_OPEN &&
 		    state != POOL_STATE_ACTIVE)
-			return (EBADF);
+			return (SET_ERROR(EBADF));
 
 		/*
 		 * If we were able to open and validate a vdev that was
@@ -1834,6 +1840,7 @@ vdev_dtl_sync(vdev_t *vd, uint64_t txg)
 		vdev_config_dirty(vd->vdev_top);
 	}
 
+	bzero(&smlock, sizeof (smlock));
 	mutex_init(&smlock, NULL, MUTEX_DEFAULT, NULL);
 
 	space_map_create(&smsync, sm->sm_start, sm->sm_size, sm->sm_shift,
@@ -2190,10 +2197,12 @@ vdev_degrade(spa_t *spa, uint64_t guid, vdev_aux_t aux)
 }
 
 /*
- * Online the given vdev.  If 'unspare' is set, it implies two things.  First,
- * any attached spare device should be detached when the device finishes
- * resilvering.  Second, the online should be treated like a 'test' online case,
- * so no FMA events are generated if the device fails to open.
+ * Online the given vdev.
+ *
+ * If 'ZFS_ONLINE_UNSPARE' is set, it implies two things.  First, any attached
+ * spare device should be detached when the device finishes resilvering.
+ * Second, the online should be treated like a 'test' online case, so no FMA
+ * events are generated if the device fails to open.
  */
 int
 vdev_online(spa_t *spa, uint64_t guid, uint64_t flags, vdev_state_t *newstate)
@@ -2373,6 +2382,14 @@ vdev_clear(spa_t *spa, vdev_t *vd)
 
 	for (int c = 0; c < vd->vdev_children; c++)
 		vdev_clear(spa, vd->vdev_child[c]);
+
+	if (vd == rvd) {
+		for (int c = 0; c < spa->spa_l2cache.sav_count; c++)
+			vdev_clear(spa, spa->spa_l2cache.sav_vdevs[c]);
+
+		for (int c = 0; c < spa->spa_spares.sav_count; c++)
+			vdev_clear(spa, spa->spa_spares.sav_vdevs[c]);
+	}
 
 	/*
 	 * If we're in the FAULTED state or have experienced failed I/O, then
@@ -3200,10 +3217,10 @@ vdev_deadman(vdev_t *vd)
 			 * the spa_deadman_synctime we panic the system.
 			 */
 			fio = avl_first(&vq->vq_pending_tree);
-			delta = ddi_get_lbolt64() - fio->io_timestamp;
-			if (delta > NSEC_TO_TICK(spa_deadman_synctime(spa))) {
-				zfs_dbgmsg("SLOW IO: zio timestamp %llu, "
-				    "delta %llu, last io %llu",
+			delta = gethrtime() - fio->io_timestamp;
+			if (delta > spa_deadman_synctime(spa)) {
+				zfs_dbgmsg("SLOW IO: zio timestamp %lluns, "
+				    "delta %lluns, last io %lluns",
 				    fio->io_timestamp, delta,
 				    vq->vq_io_complete_ts);
 				fm_panic("I/O to pool '%s' appears to be "

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -377,6 +377,7 @@ lwres_context_send(lwres_context_t *ctx,
 		lwresult = context_connect(ctx);
 		if (lwresult != LWRES_R_SUCCESS)
 			return (lwresult);
+		INSIST(ctx->sock >= 0);
 	}
 
 	ret = sendto(ctx->sock, sendbase, sendlen, 0, NULL, 0);

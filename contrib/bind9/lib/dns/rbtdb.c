@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -1550,15 +1550,16 @@ delete_node(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node)
 					      DNS_LOGCATEGORY_DATABASE,
 					      DNS_LOGMODULE_CACHE,
 					      ISC_LOG_WARNING,
-					      "delete_nsecnode(): "
+					      "delete_node(): "
 					      "dns_rbt_deletenode(nsecnode): %s",
 					      isc_result_totext(result));
 			}
 		}
-		result = dns_rbt_deletenode(rbtdb->tree, node, ISC_FALSE);
 #ifdef BIND9
-		dns_rpz_cidr_deleteip(rbtdb->rpz_cidr, name);
+		if (rbtdb->rpz_cidr != NULL)
+			dns_rpz_cidr_deleteip(rbtdb->rpz_cidr, name);
 #endif
+		result = dns_rbt_deletenode(rbtdb->tree, node, ISC_FALSE);
 		break;
 	case DNS_RBT_NSEC_NSEC:
 		result = dns_rbt_deletenode(rbtdb->nsec, node, ISC_FALSE);
@@ -1572,7 +1573,7 @@ delete_node(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node)
 			      DNS_LOGCATEGORY_DATABASE,
 			      DNS_LOGMODULE_CACHE,
 			      ISC_LOG_WARNING,
-			      "delete_nsecnode(): "
+			      "delete_cnode(): "
 			      "dns_rbt_deletenode: %s",
 			      isc_result_totext(result));
 	}
@@ -4547,19 +4548,28 @@ find_coveringnsec(rbtdb_search_t *search, dns_dbnode_t **nodep,
 }
 
 /*
- * Mark a database for response policy rewriting.
+ * Mark a database for response policy rewriting
+ * or find which RPZ data is available.
  */
 #ifdef BIND9
-static void
-get_rpz_enabled(dns_db_t *db, dns_rpz_st_t *st)
-{
+static isc_result_t
+rpz_enabled(dns_db_t *db, dns_rpz_st_t *st) {
 	dns_rbtdb_t *rbtdb;
+	isc_result_t result;
 
+	result = ISC_R_SUCCESS;
 	rbtdb = (dns_rbtdb_t *)db;
 	REQUIRE(VALID_RBTDB(rbtdb));
 	RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_read);
-	dns_rpz_enabled(rbtdb->rpz_cidr, st);
+	if (st != NULL) {
+		dns_rpz_enabled_get(rbtdb->rpz_cidr, st);
+	} else {
+		result = dns_rpz_new_cidr(rbtdb->common.mctx,
+					  &rbtdb->common.origin,
+					  &rbtdb->rpz_cidr);
+	}
 	RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_read);
+	return (result);
 }
 
 /*
@@ -6224,6 +6234,7 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 				 * will do it on the LRU side, so memory
 				 * will not leak... for long.
 				 */
+				INSIST(rbtdb->heaps != NULL);
 				isc_heap_insert(rbtdb->heaps[idx], newheader);
 			} else if (RESIGN(newheader))
 				resign_insert(rbtdb, idx, newheader);
@@ -6357,7 +6368,8 @@ addnoqname(dns_rbtdb_t *rbtdb, rdatasetheader_t *newheader,
 cleanup:
 	dns_rdataset_disassociate(&neg);
 	dns_rdataset_disassociate(&negsig);
-	free_noqname(mctx, &noqname);
+	if (noqname != NULL)
+		free_noqname(mctx, &noqname);
 	return(result);
 }
 
@@ -6407,7 +6419,8 @@ addclosest(dns_rbtdb_t *rbtdb, rdatasetheader_t *newheader,
  cleanup:
 	dns_rdataset_disassociate(&neg);
 	dns_rdataset_disassociate(&negsig);
-	free_noqname(mctx, &closest);
+	if (closest != NULL)
+		free_noqname(mctx, &closest);
 	return(result);
 }
 
@@ -6860,7 +6873,7 @@ loadnode(dns_rbtdb_t *rbtdb, dns_name_t *name, dns_rbtnode_t **nodep,
 	noderesult = dns_rbt_addnode(rbtdb->tree, name, nodep);
 
 #ifdef BIND9
-	if (noderesult == ISC_R_SUCCESS)
+	if (noderesult == ISC_R_SUCCESS && rbtdb->rpz_cidr != NULL)
 		dns_rpz_cidr_addip(rbtdb->rpz_cidr, name);
 #endif
 
@@ -7447,8 +7460,8 @@ static dns_dbmethods_t zone_methods = {
 	isdnssec,
 	NULL,
 #ifdef BIND9
-	get_rpz_enabled,
-	rpz_findips
+	rpz_enabled,
+	rpz_findips,
 #else
 	NULL,
 	NULL
@@ -7680,24 +7693,6 @@ dns_rbtdb_create
 		free_rbtdb(rbtdb, ISC_FALSE, NULL);
 		return (result);
 	}
-
-#ifdef BIND9
-	/*
-	 * Get ready for response policy IP address searching if at least one
-	 * zone has been configured as a response policy zone and this
-	 * is not a cache zone.
-	 * It would be better to know that this database is for a policy
-	 * zone named for a view, but that would require knowledge from
-	 * above such as an argv[] set from data in the zone.
-	 */
-	if (type == dns_dbtype_zone && !dns_name_equal(origin, dns_rootname)) {
-		result = dns_rpz_new_cidr(mctx, origin, &rbtdb->rpz_cidr);
-		if (result != ISC_R_SUCCESS) {
-			free_rbtdb(rbtdb, ISC_FALSE, NULL);
-			return (result);
-		}
-	}
-#endif
 
 	/*
 	 * In order to set the node callback bit correctly in zone databases,
@@ -7977,7 +7972,9 @@ rdataset_clone(dns_rdataset_t *source, dns_rdataset_t *target) {
 	dns_dbnode_t *cloned_node = NULL;
 
 	attachnode(db, node, &cloned_node);
+	INSIST(!ISC_LINK_LINKED(target, link));
 	*target = *source;
+	ISC_LINK_INIT(target, link);
 
 	/*
 	 * Reset iterator state.
@@ -8929,12 +8926,10 @@ acache_callback(dns_acacheentry_t *entry, void **arg) {
 	if (acarray != NULL && acarray[count].entry == entry) {
 		acarray[count].entry = NULL;
 		INSIST(acarray[count].cbarg == cbarg);
-		isc_mem_put(rbtdb->common.mctx, cbarg, sizeof(acache_cbarg_t));
 		acarray[count].cbarg = NULL;
-	} else
 		isc_mem_put(rbtdb->common.mctx, cbarg, sizeof(acache_cbarg_t));
-
-	dns_acache_detachentry(&entry);
+		dns_acache_detachentry(&entry);
+	}
 
 	NODE_UNLOCK(nodelock, isc_rwlocktype_write);
 
@@ -8958,9 +8953,10 @@ acache_cancelentry(isc_mem_t *mctx, dns_acacheentry_t *entry,
 
 	cbarg = *cbargp;
 
-	dns_acache_cancelentry(entry);
-	dns_db_detachnode(cbarg->db, &cbarg->node);
-	dns_db_detach(&cbarg->db);
+	if (dns_acache_cancelentry(entry)) {
+		dns_db_detachnode(cbarg->db, &cbarg->node);
+		dns_db_detach(&cbarg->db);
+	}
 
 	isc_mem_put(mctx, cbarg, sizeof(acache_cbarg_t));
 
@@ -9027,6 +9023,7 @@ rdataset_setadditional(dns_rdataset_t *rdataset, dns_rdatasetadditional_t type,
 					acache_callback, newcbarg, &newentry);
 	if (result != ISC_R_SUCCESS)
 		goto fail;
+
 	/* Set cache data in the new entry. */
 	result = dns_acache_setentry(acache, newentry, zone, db,
 				     version, node, fname);

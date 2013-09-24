@@ -130,7 +130,7 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	else
 		high = BUS_SPACE_MAXADDR_32BIT;
 	align = PAGE_SIZE << get_order(size);
-	mem = (void *)kmem_alloc_contig(kmem_map, size, flag, 0, high, align,
+	mem = (void *)kmem_alloc_contig(kmem_arena, size, flag, 0, high, align,
 	    0, VM_MEMATTR_DEFAULT);
 	if (mem)
 		*dma_handle = vtophys(mem);
@@ -144,7 +144,7 @@ dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
     dma_addr_t dma_handle)
 {
 
-	kmem_free(kmem_map, (vm_offset_t)cpu_addr, size);
+	kmem_free(kmem_arena, (vm_offset_t)cpu_addr, size);
 }
 
 /* XXX This only works with no iommu. */

@@ -14,8 +14,8 @@
 #ifndef LLVM_ADT_STRINGEXTRAS_H
 #define LLVM_ADT_STRINGEXTRAS_H
 
-#include "llvm/Support/DataTypes.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/DataTypes.h"
 
 namespace llvm {
 template<typename T> class SmallVectorImpl;
@@ -25,6 +25,17 @@ template<typename T> class SmallVectorImpl;
 static inline char hexdigit(unsigned X, bool LowerCase = false) {
   const char HexChar = LowerCase ? 'a' : 'A';
   return X < 10 ? '0' + X : HexChar + X - 10;
+}
+
+/// Interpret the given character \p C as a hexadecimal digit and return its
+/// value.
+///
+/// If \p C is not a valid hex digit, -1U is returned.
+static inline unsigned hexDigitValue(char C) {
+  if (C >= '0' && C <= '9') return C-'0';
+  if (C >= 'a' && C <= 'f') return C-'a'+10U;
+  if (C >= 'A' && C <= 'F') return C-'A'+10U;
+  return -1U;
 }
 
 /// utohex_buffer - Emit the specified number into the buffer specified by

@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.210 2013/01/27 18:52:01 sjg Exp $
+.\"	$NetBSD: make.1,v 1.220 2013/07/30 19:09:57 sjg Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd January 23, 2013
+.Dd July 30, 2013
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -37,7 +37,7 @@
 .Nd maintain program dependencies
 .Sh SYNOPSIS
 .Nm
-.Op Fl BeikNnqrstWX
+.Op Fl BeikNnqrstWwX
 .Op Fl C Ar directory
 .Op Fl D Ar variable
 .Op Fl d Ar flags
@@ -209,6 +209,8 @@ Force the
 option to print raw values of variables.
 .It Ar v
 Print debugging information about variable assignment.
+.It Ar w
+Print entering and leaving directory messages, pre and post processing.
 .It Ar x
 Run shell commands with
 .Fl x
@@ -743,6 +745,9 @@ then output for each target is prefixed with a token
 .Ql --- target ---
 the first part of which can be controlled via
 .Va .MAKE.JOB.PREFIX .
+If 
+.Va .MAKE.JOB.PREFIX
+is empty, no token is printed.
 .br
 For example:
 .Li .MAKE.JOB.PREFIX=${.newline}---${.MAKE:T}[${.MAKE.PID}]
@@ -856,6 +861,11 @@ In "meta" mode, this variable contains a list of all the meta files
 used (updated or not).
 This list can be used to process the meta files to extract dependency
 information.
+.It Va .MAKE.META.IGNORE_PATHS
+Provides a list of path prefixes that should be ignored;
+because the contents are expected to change over time.
+The default list includes:
+.Ql Pa /dev /etc /proc /tmp /var/run /var/tmp
 .It Va .MAKE.META.PREFIX
 Defines the message printed for each meta file updated in "meta verbose" mode.
 The default value is:
@@ -874,6 +884,13 @@ by appending their names to
 is re-exported whenever
 .Ql Va .MAKEOVERRIDES
 is modified.
+.It Va .MAKE.PATH_FILEMON
+If
+.Nm
+was built with
+.Xr filemon 4
+support, this is set to the path of the device node.
+This allows makefiles to test for this support.
 .It Va .MAKE.PID
 The process-id of
 .Nm .
@@ -1291,7 +1308,7 @@ should start and end with a period.
 For example.
 .Dl ${LINKS:@.LINK.@${LN} ${TARGET} ${.LINK.}@}
 .Pp
-However a single character varaiable is often more readable:
+However a single character variable is often more readable:
 .Dl ${MAKE_PRINT_VAR_ON_ERROR:@v@$v='${$v}'${.newline}@}
 .It Cm \&:U Ns Ar newval
 If the variable is undefined
@@ -1314,7 +1331,7 @@ The path of the node which has the same name as the variable
 is the value.
 If no such node exists or its path is null, then the
 name of the variable is used.
-In order for this modifier to work, the name (node) must at least have 
+In order for this modifier to work, the name (node) must at least have
 appeared on the rhs of a dependency.
 .Sm off
 .It Cm \&:\&! Ar cmd Cm \&!
@@ -1757,6 +1774,20 @@ targets.
 Ignore differences in commands when deciding if target is out of date.
 This is useful if the command contains a value which always changes.
 If the number of commands change, though, the target will still be out of date.
+The same effect applies to any command line that uses the variable
+.Va .OODATE ,
+which can be used for that purpose even when not otherwise needed or desired:
+.Bd -literal -offset indent
+
+skip-compare-for-some:
+	@echo this will be compared
+	@echo this will not ${.OODATE:M.NOMETA_CMP}
+	@echo this will also be compared
+
+.Ed
+The
+.Cm \&:M
+pattern suppresses any expansion of the unwanted variable.
 .It Ic .NOPATH
 Do not search for the target in the directories specified by
 .Ic .PATH .
@@ -2008,6 +2039,10 @@ If no sources are specified, the
 .Ic .SILENT
 attribute is applied to every
 command in the file.
+.It Ic .STALE
+This target gets run when a dependency file contains stale entries, having
+.Va .ALLSRC
+set to the name of that dependency file.
 .It Ic .SUFFIXES
 Each source specifies a suffix to
 .Nm .
@@ -2085,6 +2120,13 @@ for Sprite at Berkeley.
 It was designed to be a parallel distributed make running jobs on different
 machines using a daemon called
 .Dq customs .
+.Pp
+Historically the target/dependency
+.Dq FRC
+has been used to FoRCe rebuilding (since the target/dependency
+does not exist... unless someone creates an
+.Dq FRC
+file).
 .Sh BUGS
 The
 .Nm

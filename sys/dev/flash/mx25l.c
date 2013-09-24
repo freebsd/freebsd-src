@@ -108,10 +108,14 @@ struct mx25l_flash_ident flash_devices[] = {
 	{ "s25s1032",	0x01, 0x0215, 64 * 1024, 64, FL_NONE },
 	{ "s25sl064a",	0x01, 0x0216, 64 * 1024, 128, FL_NONE },
 	{ "SST25VF032B", 0xbf, 0x254a, 64 * 1024, 64, FL_ERASE_4K | FL_ERASE_32K },
+
+	/* Winbond -- w25x "blocks" are 64K, "sectors" are 4KiB */
+	{ "w25x32",	0xef, 0x3016, 64 * 1024, 64, FL_ERASE_4K },
 	{ "w25q32",	0xef, 0x4016, 64 * 1024, 64, FL_ERASE_4K },
 	{ "w25q64",	0xef, 0x4017, 64 * 1024, 128, FL_ERASE_4K },
 	{ "w25q64bv",	0xef, 0x4017, 64 * 1024, 128, FL_ERASE_4K },
-	{ "w25x32",	0xef, 0x3016, 64 * 1024, 64, FL_ERASE_4K },
+	{ "w25q128",	0xef, 0x4018, 64 * 1024, 256, FL_ERASE_4K },
+	{ "w25q256",	0xef, 0x4019, 64 * 1024, 512, FL_ERASE_4K },
 };
 
 static uint8_t

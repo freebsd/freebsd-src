@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
@@ -119,9 +118,7 @@ ata_ite_ch_attach(device_t dev)
  
 	error = ata_pci_ch_attach(dev);
 	ch->flags |= ATA_CHECKS_CABLE;
-#ifdef ATA_CAM
 	ch->flags |= ATA_NO_ATAPI_DMA;
-#endif
 	return (error);
 }
 

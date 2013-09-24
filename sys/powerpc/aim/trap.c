@@ -385,6 +385,8 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	case EXC_DSI:
 		printf("   virtual address = 0x%" PRIxPTR "\n",
 		    frame->cpu.aim.dar);
+		printf("   dsisr           = 0x%" PRIxPTR "\n",
+		    frame->cpu.aim.dsisr);
 		break;
 	case EXC_ISE:
 	case EXC_ISI:

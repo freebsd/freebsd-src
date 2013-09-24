@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2013  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -398,5 +398,5 @@ main(int argc, char *argv[]) {
 	isc_app_ctxfinish(query_actx);
 	ctxs_destroy(&mctx, &query_actx, &taskmgr, &socketmgr, &timermgr);
 
-	exit(0);
+	return (0);
 }

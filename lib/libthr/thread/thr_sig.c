@@ -205,9 +205,9 @@ handle_signal(struct sigaction *actp, int sig, siginfo_t *info, ucontext_t *ucp)
 	curthread->in_sigsuspend = 0;
 
 	/*
-	 * if thread is in deferred cancellation mode, disable cancellation
+	 * If thread is in deferred cancellation mode, disable cancellation
 	 * in signal handler.
-	 * if user signal handler calls a cancellation point function, e.g,
+	 * If user signal handler calls a cancellation point function, e.g,
 	 * it calls write() to write data to file, because write() is a
 	 * cancellation point, the thread is immediately cancelled if 
 	 * cancellation is pending, to avoid this problem while thread is in
@@ -229,7 +229,7 @@ handle_signal(struct sigaction *actp, int sig, siginfo_t *info, ucontext_t *ucp)
 	 * We have already reset cancellation point flags, so if user's code
 	 * longjmp()s out of its signal handler, wish its jmpbuf was set
 	 * outside of a cancellation point, in most cases, this would be
-	 * true. however, ther is no way to save cancel_enable in jmpbuf,
+	 * true.  However, there is no way to save cancel_enable in jmpbuf,
 	 * so after setjmps() returns once more, the user code may need to
 	 * re-set cancel_enable flag by calling pthread_setcancelstate().
 	 */
@@ -318,33 +318,23 @@ check_deferred_signal(struct pthread *curthread)
 	ucontext_t *uc;
 	struct sigaction act;
 	siginfo_t info;
+	int uc_len;
 
 	if (__predict_true(curthread->deferred_siginfo.si_signo == 0))
 		return;
 
-#if defined(__amd64__) || defined(__i386__)
-	uc = alloca(__getcontextx_size());
-	__fillcontextx((char *)uc);
-#else
-	ucontext_t ucv;
-	uc = &ucv;
+	uc_len = __getcontextx_size();
+	uc = alloca(uc_len);
 	getcontext(uc);
-#endif
-	if (curthread->deferred_siginfo.si_signo != 0) {
-		act = curthread->deferred_sigact;
-		uc->uc_sigmask = curthread->deferred_sigmask;
-		memcpy(&info, &curthread->deferred_siginfo, sizeof(siginfo_t));
-		/* remove signal */
-		curthread->deferred_siginfo.si_signo = 0;
-		if (act.sa_flags & SA_RESETHAND) {
-			struct sigaction tact;
-
-			tact = act;
-			tact.sa_handler = SIG_DFL;
-			_sigaction(info.si_signo, &tact, NULL);
-		}
-		handle_signal(&act, info.si_signo, &info, uc);
-	}
+	if (curthread->deferred_siginfo.si_signo == 0)
+		return;
+	__fillcontextx2((char *)uc);
+	act = curthread->deferred_sigact;
+	uc->uc_sigmask = curthread->deferred_sigmask;
+	memcpy(&info, &curthread->deferred_siginfo, sizeof(siginfo_t));
+	/* remove signal */
+	curthread->deferred_siginfo.si_signo = 0;
+	handle_signal(&act, info.si_signo, &info, uc);
 }
 
 static void
@@ -732,8 +722,14 @@ _setcontext(const ucontext_t *ucp)
 {
 	ucontext_t uc;
 
+	if (ucp == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+	if (!SIGISMEMBER(uc.uc_sigmask, SIGCANCEL))
+		return __sys_setcontext(ucp);
 	(void) memcpy(&uc, ucp, sizeof(uc));
-	remove_thr_signals(&uc.uc_sigmask);
+	SIGDELSET(uc.uc_sigmask, SIGCANCEL);
 	return __sys_setcontext(&uc);
 }
 
@@ -743,7 +739,14 @@ _swapcontext(ucontext_t *oucp, const ucontext_t *ucp)
 {
 	ucontext_t uc;
 
-	(void) memcpy(&uc, ucp, sizeof(uc));
-	remove_thr_signals(&uc.uc_sigmask);
-	return __sys_swapcontext(oucp, &uc);
+	if (oucp == NULL || ucp == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+	if (SIGISMEMBER(ucp->uc_sigmask, SIGCANCEL)) {
+		(void) memcpy(&uc, ucp, sizeof(uc));
+		SIGDELSET(uc.uc_sigmask, SIGCANCEL);
+		ucp = &uc;
+	}
+	return __sys_swapcontext(oucp, ucp);
 }

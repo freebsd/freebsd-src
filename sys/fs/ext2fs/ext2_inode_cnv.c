@@ -91,7 +91,7 @@ ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 		ip->i_birthtime = ei->e2di_crtime;
 		ip->i_birthnsec = XTIME_TO_NSEC(ei->e2di_crtime_extra);
 	}
-	ip->i_flags = 0;
+	ip->i_flags = ei->e2di_flags;
 	ip->i_flags |= (ei->e2di_flags & EXT2_APPEND) ? SF_APPEND : 0;
 	ip->i_flags |= (ei->e2di_flags & EXT2_IMMUTABLE) ? SF_IMMUTABLE : 0;
 	ip->i_flags |= (ei->e2di_flags & EXT2_NODUMP) ? UF_NODUMP : 0;
@@ -115,7 +115,7 @@ ext2_i2ei(struct inode *ip, struct ext2fs_dinode *ei)
 	int i;
 
 	ei->e2di_mode = ip->i_mode;
-        ei->e2di_nlink = ip->i_nlink;
+	ei->e2di_nlink = ip->i_nlink;
 	/* 
 	   Godmar thinks: if dtime is nonzero, ext2 says this inode
 	   has been deleted, this would correspond to a zero link count
@@ -135,7 +135,6 @@ ext2_i2ei(struct inode *ip, struct ext2fs_dinode *ei)
 		ei->e2di_crtime_extra = NSEC_TO_XTIME(ip->i_birthnsec);
 	}
 	ei->e2di_flags = ip->i_flags;
-	ei->e2di_flags = 0;
 	ei->e2di_flags |= (ip->i_flags & SF_APPEND) ? EXT2_APPEND: 0;
 	ei->e2di_flags |= (ip->i_flags & SF_IMMUTABLE) ? EXT2_IMMUTABLE: 0;
 	ei->e2di_flags |= (ip->i_flags & UF_NODUMP) ? EXT2_NODUMP: 0;

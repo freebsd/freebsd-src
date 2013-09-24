@@ -1,10 +1,39 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.2011 2012/12/21 18:42:16 ca Exp $
+      $Id: RELEASE_NOTES,v 8.2024 2013/04/19 15:01:58 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.14.7/8.14.7	2013/04/21
+	Drop support for IPv4-mapped IPv6 addresses to prevent the MTA
+		from using a mapped address over a legitimate IPv6 address
+		and to enforce the proper semantics over the IPv6
+		connection.  Problem noted by Ulrich Sporlein.
+	Fix a regression introduced in 8.14.6: the wrong list of
+		macros was sent to a milter in the EHLO stage.
+		Problem found by Fabrice Bellet, reported via RedHat
+		(Jaroslav Skarvada).
+	Fix handling of ORCPT parameter for DSNs: xtext decoding
+		was not performed and a wrong syntax check was applied
+		to the "addr-type" field.  Problem noted by Dan Lukes
+		of Obludarium.
+	Fix handling of NUL characters in the MIME conversion functions
+		so that message bodies containing them will be sent
+		on properly. Note: this usually also affects mails
+		that are not converted as those functions are used
+		for other purposes too.  Problem noted by Elchonon
+		Edelson of Lockheed Martin.
+	Do not perform "duplicate" elimination of recipients if they
+		resolve to the error mailer using a temporary failure
+		(4xy) via ruleset 0.  Problem noted by Akira Takahashi
+		of IIJ.
+	CONTRIB: Updated version of etrn.pl script from John Beck
+		of Oracle.
+	Portability:
+		Unlike gcc, clang doesn't apply full prototypes to K&R
+		definitions.
 
 8.14.6/8.14.6	2012/12/23
 	Fix a regression introduced in 8.14.5: if a server offers

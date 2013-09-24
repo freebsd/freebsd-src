@@ -80,27 +80,43 @@ extern const union __nan_un {
 #define	FP_NORMAL	0x04
 #define	FP_SUBNORMAL	0x08
 #define	FP_ZERO		0x10
-#define	fpclassify(x) \
-    ((sizeof (x) == sizeof (float)) ? __fpclassifyf(x) \
-    : (sizeof (x) == sizeof (double)) ? __fpclassifyd(x) \
-    : __fpclassifyl(x))
 
-#define	isfinite(x)					\
-    ((sizeof (x) == sizeof (float)) ? __isfinitef(x)	\
-    : (sizeof (x) == sizeof (double)) ? __isfinite(x)	\
-    : __isfinitel(x))
-#define	isinf(x)					\
-    ((sizeof (x) == sizeof (float)) ? __isinff(x)	\
-    : (sizeof (x) == sizeof (double)) ? isinf(x)	\
-    : __isinfl(x))
-#define	isnan(x)					\
-    ((sizeof (x) == sizeof (float)) ? __isnanf(x)	\
-    : (sizeof (x) == sizeof (double)) ? isnan(x)	\
-    : __isnanl(x))
-#define	isnormal(x)					\
-    ((sizeof (x) == sizeof (float)) ? __isnormalf(x)	\
-    : (sizeof (x) == sizeof (double)) ? __isnormal(x)	\
-    : __isnormall(x))
+#if (__STDC_VERSION__ >= 201112L && defined(__clang__)) || \
+    __has_extension(c_generic_selections)
+#define	__fp_type_select(x, f, d, ld) _Generic((x),			\
+    float: f(x),							\
+    double: d(x),							\
+    long double: ld(x),							\
+    volatile float: f(x),						\
+    volatile double: d(x),						\
+    volatile long double: ld(x),					\
+    volatile const float: f(x),						\
+    volatile const double: d(x),					\
+    volatile const long double: ld(x),					\
+    const float: f(x),							\
+    const double: d(x),							\
+    const long double: ld(x))
+#elif __GNUC_PREREQ__(3, 1) && !defined(__cplusplus)
+#define	__fp_type_select(x, f, d, ld) __builtin_choose_expr(		\
+    __builtin_types_compatible_p(__typeof(x), long double), ld(x),	\
+    __builtin_choose_expr(						\
+    __builtin_types_compatible_p(__typeof(x), double), d(x),		\
+    __builtin_choose_expr(						\
+    __builtin_types_compatible_p(__typeof(x), float), f(x), (void)0)))
+#else
+#define	 __fp_type_select(x, f, d, ld)					\
+    ((sizeof(x) == sizeof(float)) ? f(x)				\
+    : (sizeof(x) == sizeof(double)) ? d(x)				\
+    : ld(x))
+#endif
+
+#define	fpclassify(x) \
+	__fp_type_select(x, __fpclassifyf, __fpclassifyd, __fpclassifyl)
+#define	isfinite(x) __fp_type_select(x, __isfinitef, __isfinite, __isfinitel)
+#define	isinf(x) __fp_type_select(x, __isinff, __isinf, __isinfl)
+#define	isnan(x) \
+	__fp_type_select(x, __inline_isnanf, __inline_isnan, __inline_isnanl)
+#define	isnormal(x) __fp_type_select(x, __isnormalf, __isnormal, __isnormall)
 
 #ifdef __MATH_BUILTIN_RELOPS
 #define	isgreater(x, y)		__builtin_isgreater((x), (y))
@@ -119,10 +135,7 @@ extern const union __nan_un {
 #define	isunordered(x, y)	(isnan(x) || isnan(y))
 #endif /* __MATH_BUILTIN_RELOPS */
 
-#define	signbit(x)					\
-    ((sizeof (x) == sizeof (float)) ? __signbitf(x)	\
-    : (sizeof (x) == sizeof (double)) ? __signbit(x)	\
-    : __signbitl(x))
+#define	signbit(x) __fp_type_select(x, __signbitf, __signbit, __signbitl)
 
 typedef	__double_t	double_t;
 typedef	__float_t	float_t;
@@ -175,15 +188,50 @@ int	__isfinitef(float) __pure2;
 int	__isfinite(double) __pure2;
 int	__isfinitel(long double) __pure2;
 int	__isinff(float) __pure2;
+int	__isinf(double) __pure2;
 int	__isinfl(long double) __pure2;
-int	__isnanf(float) __pure2;
-int	__isnanl(long double) __pure2;
 int	__isnormalf(float) __pure2;
 int	__isnormal(double) __pure2;
 int	__isnormall(long double) __pure2;
 int	__signbit(double) __pure2;
 int	__signbitf(float) __pure2;
 int	__signbitl(long double) __pure2;
+
+static __inline int
+__inline_isnan(__const double __x)
+{
+
+	return (__x != __x);
+}
+
+static __inline int
+__inline_isnanf(__const float __x)
+{
+
+	return (__x != __x);
+}
+
+static __inline int
+__inline_isnanl(__const long double __x)
+{
+
+	return (__x != __x);
+}
+
+/*
+ * Version 2 of the Single UNIX Specification (UNIX98) defined isnan() and
+ * isinf() as functions taking double.  C99, and the subsequent POSIX revisions
+ * (SUSv3, POSIX.1-2001, define it as a macro that accepts any real floating
+ * point type.  If we are targeting SUSv2 and C99 or C11 (or C++11) then we
+ * expose the newer definition, assuming that the language spec takes
+ * precedence over the operating system interface spec.
+ */
+#if	__XSI_VISIBLE > 0 && __XSI_VISIBLE < 600 && __ISO_C_VISIBLE < 1999
+#undef isinf
+#undef isnan
+int	isinf(double);
+int	isnan(double);
+#endif
 
 double	acos(double);
 double	asin(double);
@@ -227,8 +275,6 @@ double	expm1(double);
 double	fma(double, double, double);
 double	hypot(double, double);
 int	ilogb(double) __pure2;
-int	(isinf)(double) __pure2;
-int	(isnan)(double) __pure2;
 double	lgamma(double);
 long long llrint(double);
 long long llround(double);
@@ -395,9 +441,12 @@ float	significandf(float);
  * long double versions of ISO/POSIX math functions
  */
 #if __ISO_C_VISIBLE >= 1999
+long double	acoshl(long double);
 long double	acosl(long double);
+long double	asinhl(long double);
 long double	asinl(long double);
 long double	atan2l(long double, long double);
+long double	atanhl(long double);
 long double	atanl(long double);
 long double	cbrtl(long double);
 long double	ceill(long double);
@@ -405,6 +454,7 @@ long double	copysignl(long double, long double) __pure2;
 long double	cosl(long double);
 long double	exp2l(long double);
 long double	expl(long double);
+long double	expm1l(long double);
 long double	fabsl(long double) __pure2;
 long double	fdiml(long double, long double);
 long double	floorl(long double);
@@ -418,7 +468,11 @@ int		ilogbl(long double) __pure2;
 long double	ldexpl(long double, int);
 long long	llrintl(long double);
 long long	llroundl(long double);
+long double	log10l(long double);
+long double	log1pl(long double);
+long double	log2l(long double);
 long double	logbl(long double);
+long double	logl(long double);
 long		lrintl(long double);
 long		lroundl(long double);
 long double	modfl(long double, long double *); /* fundamentally !__pure2 */
@@ -456,18 +510,10 @@ __END_DECLS
  */
 __BEGIN_DECLS
 
-long double	acoshl(long double);
-long double	asinhl(long double);
-long double	atanhl(long double);
 long double	coshl(long double);
 long double	erfcl(long double);
 long double	erfl(long double);
-long double	expm1l(long double);
 long double	lgammal(long double);
-long double	log10l(long double);
-long double	log1pl(long double);
-long double	log2l(long double);
-long double	logl(long double);
 long double	powl(long double, long double);
 long double	sinhl(long double);
 long double	tanhl(long double);

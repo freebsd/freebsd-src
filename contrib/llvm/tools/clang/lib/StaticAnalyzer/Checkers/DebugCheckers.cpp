@@ -7,16 +7,16 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  This file defines a checkers that display debugging information.
+//  This file defines checkers that display debugging information.
 //
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/Analysis/Analyses/Dominators.h"
+#include "clang/Analysis/Analyses/LiveVariables.h"
+#include "clang/Analysis/CallGraph.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
-#include "clang/Analysis/Analyses/LiveVariables.h"
-#include "clang/Analysis/Analyses/Dominators.h"
-#include "clang/Analysis/CallGraph.h"
 #include "llvm/Support/Process.h"
 
 using namespace clang;

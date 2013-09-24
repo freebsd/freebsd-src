@@ -322,7 +322,7 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 		, m->m_len + IEEE80211_CRC_LEN	/* frame length */
 		, sizeof(struct ieee80211_frame)/* header length */
 		, HAL_PKT_TYPE_BEACON		/* Atheros packet type */
-		, ni->ni_txpower		/* txpower XXX */
+		, ieee80211_get_node_txpower(ni)	/* txpower XXX */
 		, rate, 1			/* series 0 rate/tries */
 		, HAL_TXKEYIX_INVALID		/* no encryption */
 		, antenna			/* antenna mode */
@@ -399,6 +399,11 @@ ath_beacon_miss(struct ath_softc *sc)
 		    hangs);
 	}
 
+#ifdef	ATH_DEBUG_ALQ
+	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_MISSED_BEACON))
+		if_ath_alq_post(&sc->sc_alq, ATH_ALQ_MISSED_BEACON, 0, NULL);
+#endif
+
 	DPRINTF(sc, ATH_DEBUG_BEACON,
 	    "%s: valid=%d, txbusy=%u, rxbusy=%u, chanbusy=%u, "
 	    "extchanbusy=%u, cyclecount=%u\n",
@@ -451,6 +456,10 @@ ath_beacon_proc(void *arg, int pending)
 			"%s: resume beacon xmit after %u misses\n",
 			__func__, sc->sc_bmisscount);
 		sc->sc_bmisscount = 0;
+#ifdef	ATH_DEBUG_ALQ
+		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_RESUME_BEACON))
+			if_ath_alq_post(&sc->sc_alq, ATH_ALQ_RESUME_BEACON, 0, NULL);
+#endif
 	}
 
 	if (sc->sc_stagbeacons) {			/* staggered beacons */
@@ -633,6 +642,7 @@ ath_beacon_cabq_start_edma(struct ath_softc *sc)
 
 	/* Push the first entry into the hardware */
 	ath_hal_puttxbuf(sc->sc_ah, cabq->axq_qnum, bf->bf_daddr);
+	cabq->axq_flags |= ATH_TXQ_PUTRUNNING;
 
 	/* NB: gated by beacon so safe to start here */
 	ath_hal_txstart(sc->sc_ah, cabq->axq_qnum);
@@ -652,6 +662,7 @@ ath_beacon_cabq_start_legacy(struct ath_softc *sc)
 
 	/* Push the first entry into the hardware */
 	ath_hal_puttxbuf(sc->sc_ah, cabq->axq_qnum, bf->bf_daddr);
+	cabq->axq_flags |= ATH_TXQ_PUTRUNNING;
 
 	/* NB: gated by beacon so safe to start here */
 	ath_hal_txstart(sc->sc_ah, cabq->axq_qnum);
@@ -726,6 +737,16 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 			 * out as otherwise this vap's stations will get cab
 			 * frames from a different vap.
 			 * XXX could be slow causing us to miss DBA
+			 */
+			/*
+			 * XXX TODO: this doesn't stop CABQ DMA - it assumes
+			 * that since we're about to transmit a beacon, we've
+			 * already stopped transmitting on the CABQ.  But this
+			 * doesn't at all mean that the CABQ DMA QCU will
+			 * accept a new TXDP!  So what, should we do a DMA
+			 * stop? What if it fails?
+			 *
+			 * More thought is required here.
 			 */
 			ath_tx_draintxq(sc, cabq);
 		}

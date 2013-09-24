@@ -74,9 +74,9 @@
  *
  *	A small structure is kept for each resident
  *	page, indexed by page number.  Each structure
- *	is an element of several lists:
+ *	is an element of several collections:
  *
- *		A hash table bucket used to quickly
+ *		A radix tree used to quickly
  *		perform object/offset lookups
  *
  *		A list of all pages for a given object,
@@ -143,7 +143,7 @@ struct vm_page {
 	uint8_t aflags;			/* access is atomic */
 	uint8_t oflags;			/* page VPO_* flags (O) */
 	uint16_t flags;			/* page PG_* flags (P) */
-	u_char	act_count;		/* page usage count (O) */
+	u_char	act_count;		/* page usage count (P) */
 	u_char	busy;			/* page busy count (O) */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page!!! */
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
@@ -222,18 +222,20 @@ extern struct mtx_padalign pa_lock[];
 #define	vm_page_lock(m)		vm_page_lock_KBI((m), LOCK_FILE, LOCK_LINE)
 #define	vm_page_unlock(m)	vm_page_unlock_KBI((m), LOCK_FILE, LOCK_LINE)
 #define	vm_page_trylock(m)	vm_page_trylock_KBI((m), LOCK_FILE, LOCK_LINE)
-#if defined(INVARIANTS)
-#define	vm_page_lock_assert(m, a)		\
-    vm_page_lock_assert_KBI((m), (a), __FILE__, __LINE__)
-#else
-#define	vm_page_lock_assert(m, a)
-#endif
 #else	/* !KLD_MODULE */
 #define	vm_page_lockptr(m)	(PA_LOCKPTR(VM_PAGE_TO_PHYS((m))))
 #define	vm_page_lock(m)		mtx_lock(vm_page_lockptr((m)))
 #define	vm_page_unlock(m)	mtx_unlock(vm_page_lockptr((m)))
 #define	vm_page_trylock(m)	mtx_trylock(vm_page_lockptr((m)))
-#define	vm_page_lock_assert(m, a)	mtx_assert(vm_page_lockptr((m)), (a))
+#endif
+#if defined(INVARIANTS)
+#define	vm_page_assert_locked(m)		\
+    vm_page_assert_locked_KBI((m), __FILE__, __LINE__)
+#define	vm_page_lock_assert(m, a)		\
+    vm_page_lock_assert_KBI((m), (a), __FILE__, __LINE__)
+#else
+#define	vm_page_assert_locked(m)
+#define	vm_page_lock_assert(m, a)
 #endif
 
 /*
@@ -241,10 +243,9 @@ extern struct mtx_padalign pa_lock[];
  * these flags, the functions vm_page_aflag_set() and vm_page_aflag_clear()
  * must be used.  Neither these flags nor these functions are part of the KBI.
  *
- * PGA_REFERENCED may be cleared only if the object containing the page is
- * locked.  It is set by both the MI and MD VM layers.  However, kernel
- * loadable modules should not directly set this flag.  They should call
- * vm_page_reference() instead.
+ * PGA_REFERENCED may be cleared only if the page is locked.  It is set by
+ * both the MI and MD VM layers.  However, kernel loadable modules should not
+ * directly set this flag.  They should call vm_page_reference() instead.
  *
  * PGA_WRITEABLE is set exclusively on managed pages by pmap_enter().  When it
  * does so, the page must be VPO_BUSY.  The MI VM layer must never access this
@@ -369,6 +370,7 @@ void vm_page_free_zero(vm_page_t m);
 void vm_page_wakeup(vm_page_t m);
 
 void vm_page_activate (vm_page_t);
+void vm_page_advise(vm_page_t m, int advice);
 vm_page_t vm_page_alloc (vm_object_t, vm_pindex_t, int);
 vm_page_t vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
     u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
@@ -380,7 +382,6 @@ void vm_page_cache_free(vm_object_t, vm_pindex_t, vm_pindex_t);
 void vm_page_cache_transfer(vm_object_t, vm_pindex_t, vm_object_t);
 int vm_page_try_to_cache (vm_page_t);
 int vm_page_try_to_free (vm_page_t);
-void vm_page_dontneed(vm_page_t);
 void vm_page_deactivate (vm_page_t);
 void vm_page_dequeue(vm_page_t m);
 void vm_page_dequeue_locked(vm_page_t m);
@@ -425,6 +426,7 @@ void vm_page_lock_KBI(vm_page_t m, const char *file, int line);
 void vm_page_unlock_KBI(vm_page_t m, const char *file, int line);
 int vm_page_trylock_KBI(vm_page_t m, const char *file, int line);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
+void vm_page_assert_locked_KBI(vm_page_t m, const char *file, int line);
 void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 #endif
 
@@ -452,11 +454,10 @@ vm_page_aflag_clear(vm_page_t m, uint8_t bits)
 	uint32_t *addr, val;
 
 	/*
-	 * The PGA_REFERENCED flag can only be cleared if the object
-	 * containing the page is locked.
+	 * The PGA_REFERENCED flag can only be cleared if the page is locked.
 	 */
 	if ((bits & PGA_REFERENCED) != 0)
-		VM_PAGE_OBJECT_LOCK_ASSERT(m);
+		vm_page_assert_locked(m);
 
 	/*
 	 * Access the whole 32-bit word containing the aflags field with an

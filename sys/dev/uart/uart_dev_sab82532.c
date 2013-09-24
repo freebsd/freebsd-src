@@ -407,9 +407,6 @@ sab82532_bus_attach(struct uart_softc *sc)
 	if (sc->sc_sysdev == NULL)
 		sab82532_init(bas, 9600, 8, 1, UART_PARITY_NONE);
 
-	sc->sc_rxfifosz = 32;
-	sc->sc_txfifosz = 32;
-
 	imr0 = SAB_IMR0_TCD|SAB_IMR0_TIME|SAB_IMR0_CDSC|SAB_IMR0_RFO|
 	    SAB_IMR0_RPF;
 	uart_setreg(bas, SAB_IMR0, 0xff & ~imr0);
@@ -591,6 +588,9 @@ sab82532_bus_probe(struct uart_softc *sc)
 	error = sab82532_probe(&sc->sc_bas);
 	if (error)
 		return (error);
+
+	sc->sc_rxfifosz = 32;
+	sc->sc_txfifosz = 32;
 
 	ch = sc->sc_bas.chan - 1 + 'A';
 

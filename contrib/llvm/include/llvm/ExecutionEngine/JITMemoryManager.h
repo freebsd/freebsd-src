@@ -7,12 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_EXECUTION_ENGINE_JIT_MEMMANAGER_H
-#define LLVM_EXECUTION_ENGINE_JIT_MEMMANAGER_H
+#ifndef LLVM_EXECUTIONENGINE_JITMEMORYMANAGER_H
+#define LLVM_EXECUTIONENGINE_JITMEMORYMANAGER_H
 
 #include "llvm/ExecutionEngine/RuntimeDyld.h"
 #include "llvm/Support/DataTypes.h"
-
 #include <string>
 
 namespace llvm {

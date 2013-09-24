@@ -21,11 +21,13 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
 #include <sys/dmu.h>
+#include <sys/dmu_send.h>
 #include <sys/dmu_impl.h>
 #include <sys/dbuf.h>
 #include <sys/dmu_objset.h>
@@ -568,6 +570,8 @@ dbuf_read_impl(dmu_buf_impl_t *db, zio_t *zio, uint32_t *flags)
 
 	if (DBUF_IS_L2CACHEABLE(db))
 		aflags |= ARC_L2CACHE;
+	if (DBUF_IS_L2COMPRESSIBLE(db))
+		aflags |= ARC_L2COMPRESS;
 
 	SET_BOOKMARK(&zb, db->db_objset->os_dsl_dataset ?
 	    db->db_objset->os_dsl_dataset->ds_object : DMU_META_OBJSET,
@@ -598,7 +602,7 @@ dbuf_read(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags)
 	ASSERT(!refcount_is_zero(&db->db_holds));
 
 	if (db->db_state == DB_NOFILL)
-		return (EIO);
+		return (SET_ERROR(EIO));
 
 	DB_DNODE_ENTER(db);
 	dn = DB_DNODE(db);
@@ -638,6 +642,14 @@ dbuf_read(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags)
 		if (!havepzio)
 			err = zio_wait(zio);
 	} else {
+		/*
+		 * Another reader came in while the dbuf was in flight
+		 * between UNCACHED and CACHED.  Either a writer will finish
+		 * writing the buffer (sending the dbuf to CACHED) or the
+		 * first reader's request will reach the read_done callback
+		 * and send the dbuf to CACHED.  Otherwise, a failure
+		 * occurred and the dbuf went to UNCACHED.
+		 */
 		mutex_exit(&db->db_mtx);
 		if (prefetch)
 			dmu_zfetch(&dn->dn_zfetch, db->db.db_offset,
@@ -646,6 +658,7 @@ dbuf_read(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags)
 			rw_exit(&dn->dn_struct_rwlock);
 		DB_DNODE_EXIT(db);
 
+		/* Skip the wait per the caller's request. */
 		mutex_enter(&db->db_mtx);
 		if ((flags & DB_RF_NEVERWAIT) == 0) {
 			while (db->db_state == DB_READ ||
@@ -655,7 +668,7 @@ dbuf_read(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags)
 				cv_wait(&db->db_changed, &db->db_mtx);
 			}
 			if (db->db_state == DB_UNCACHED)
-				err = EIO;
+				err = SET_ERROR(EIO);
 		}
 		mutex_exit(&db->db_mtx);
 	}
@@ -784,9 +797,12 @@ dbuf_unoverride(dbuf_dirty_record_t *dr)
 /*
  * Evict (if its unreferenced) or clear (if its referenced) any level-0
  * data blocks in the free range, so that any future readers will find
- * empty blocks.  Also, if we happen accross any level-1 dbufs in the
+ * empty blocks.  Also, if we happen across any level-1 dbufs in the
  * range that have not already been marked dirty, mark them dirty so
  * they stay in memory.
+ *
+ * This is a no-op if the dataset is in the middle of an incremental
+ * receive; see comment below for details.
  */
 void
 dbuf_free_range(dnode_t *dn, uint64_t start, uint64_t end, dmu_tx_t *tx)
@@ -802,6 +818,20 @@ dbuf_free_range(dnode_t *dn, uint64_t start, uint64_t end, dmu_tx_t *tx)
 		last_l1 = end >> epbs;
 	}
 	dprintf_dnode(dn, "start=%llu end=%llu\n", start, end);
+
+	if (dmu_objset_is_receiving(dn->dn_objset)) {
+		/*
+		 * When processing a free record from a zfs receive,
+		 * there should have been no previous modifications to the
+		 * data in this range.  Therefore there should be no dbufs
+		 * in the range.  Searching dn_dbufs for these non-existent
+		 * dbufs can be very expensive, so simply ignore this.
+		 */
+		VERIFY3P(dbuf_find(dn, 0, start), ==, NULL);
+		VERIFY3P(dbuf_find(dn, 0, end), ==, NULL);
+		return;
+	}
+
 	mutex_enter(&dn->dn_dbufs_mtx);
 	for (db = list_head(&dn->dn_dbufs); db; db = db_next) {
 		db_next = list_next(&dn->dn_dbufs, db);
@@ -1261,7 +1291,8 @@ dbuf_dirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 }
 
 /*
- * Return TRUE if this evicted the dbuf.
+ * Undirty a buffer in the transaction group referenced by the given
+ * transaction.  Return whether this evicted the dbuf.
  */
 static boolean_t
 dbuf_undirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
@@ -1593,7 +1624,7 @@ dbuf_findbp(dnode_t *dn, int level, uint64_t blkid, int fail_sparse,
 	if (level >= nlevels ||
 	    (blkid > (dn->dn_phys->dn_maxblkid >> (level * epbs)))) {
 		/* the buffer has no parent yet */
-		return (ENOENT);
+		return (SET_ERROR(ENOENT));
 	} else if (level < nlevels-1) {
 		/* this block is referenced from an indirect block */
 		int err = dbuf_hold_impl(dn, level+1,
@@ -1844,7 +1875,7 @@ top:
 		err = dbuf_findbp(dn, level, blkid, fail_sparse, &parent, &bp);
 		if (fail_sparse) {
 			if (err == 0 && bp && BP_IS_HOLE(bp))
-				err = ENOENT;
+				err = SET_ERROR(ENOENT);
 			if (err) {
 				if (parent)
 					dbuf_rele(parent, NULL);
@@ -1941,7 +1972,7 @@ dbuf_spill_set_blksz(dmu_buf_t *db_fake, uint64_t blksz, dmu_tx_t *tx)
 	dnode_t *dn;
 
 	if (db->db_blkid != DMU_SPILL_BLKID)
-		return (ENOTSUP);
+		return (SET_ERROR(ENOTSUP));
 	if (blksz == 0)
 		blksz = SPA_MINBLOCKSIZE;
 	if (blksz > SPA_MAXBLOCKSIZE)
@@ -2222,6 +2253,7 @@ dbuf_sync_indirect(dbuf_dirty_record_t *dr, dmu_tx_t *tx)
 	ASSERT(db->db_level > 0);
 	DBUF_VERIFY(db);
 
+	/* Read the block if it hasn't been read yet. */
 	if (db->db_buf == NULL) {
 		mutex_exit(&db->db_mtx);
 		(void) dbuf_read(db, NULL, DB_RF_MUST_SUCCEED);
@@ -2232,10 +2264,12 @@ dbuf_sync_indirect(dbuf_dirty_record_t *dr, dmu_tx_t *tx)
 
 	DB_DNODE_ENTER(db);
 	dn = DB_DNODE(db);
+	/* Indirect block size must match what the dnode thinks it is. */
 	ASSERT3U(db->db.db_size, ==, 1<<dn->dn_phys->dn_indblkshift);
 	dbuf_check_blkptr(dn, db);
 	DB_DNODE_EXIT(db);
 
+	/* Provide the pending dirty record to child dbufs */
 	db->db_data_pending = dr;
 
 	mutex_exit(&db->db_mtx);
@@ -2626,6 +2660,7 @@ dbuf_write_override_done(zio_t *zio)
 	dbuf_write_done(zio, NULL, db);
 }
 
+/* Issue I/O to commit a dirty buffer to disk. */
 static void
 dbuf_write(dbuf_dirty_record_t *dr, arc_buf_t *data, dmu_tx_t *tx)
 {
@@ -2660,11 +2695,19 @@ dbuf_write(dbuf_dirty_record_t *dr, arc_buf_t *data, dmu_tx_t *tx)
 	}
 
 	if (parent != dn->dn_dbuf) {
+		/* Our parent is an indirect block. */
+		/* We have a dirty parent that has been scheduled for write. */
 		ASSERT(parent && parent->db_data_pending);
+		/* Our parent's buffer is one level closer to the dnode. */
 		ASSERT(db->db_level == parent->db_level-1);
+		/*
+		 * We're about to modify our parent's db_data by modifying
+		 * our block pointer, so the parent must be released.
+		 */
 		ASSERT(arc_released(parent->db_buf));
 		zio = parent->db_data_pending->dr_zio;
 	} else {
+		/* Our parent is the dnode itself. */
 		ASSERT((db->db_level == dn->dn_phys->dn_nlevels-1 &&
 		    db->db_blkid != DMU_SPILL_BLKID) ||
 		    (db->db_blkid == DMU_SPILL_BLKID && db->db_level == 0));
@@ -2710,8 +2753,9 @@ dbuf_write(dbuf_dirty_record_t *dr, arc_buf_t *data, dmu_tx_t *tx)
 	} else {
 		ASSERT(arc_released(data));
 		dr->dr_zio = arc_write(zio, os->os_spa, txg,
-		    db->db_blkptr, data, DBUF_IS_L2CACHEABLE(db), &zp,
-		    dbuf_write_ready, dbuf_write_done, db,
-		    ZIO_PRIORITY_ASYNC_WRITE, ZIO_FLAG_MUSTSUCCEED, &zb);
+		    db->db_blkptr, data, DBUF_IS_L2CACHEABLE(db),
+		    DBUF_IS_L2COMPRESSIBLE(db), &zp, dbuf_write_ready,
+		    dbuf_write_done, db, ZIO_PRIORITY_ASYNC_WRITE,
+		    ZIO_FLAG_MUSTSUCCEED, &zb);
 	}
 }

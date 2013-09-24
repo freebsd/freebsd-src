@@ -7,94 +7,126 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines a summary of a function gathered/used by static analyzes.
+// This file defines a summary of a function gathered/used by static analysis.
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_GR_FUNCTIONSUMMARY_H
 #define LLVM_CLANG_GR_FUNCTIONSUMMARY_H
 
-#include <deque>
-#include "clang/AST/Decl.h"
+#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/SmallBitVector.h"
+#include <deque>
 
 namespace clang {
+class Decl;
+
 namespace ento {
 typedef std::deque<Decl*> SetOfDecls;
 typedef llvm::DenseSet<const Decl*> SetOfConstDecls;
 
 class FunctionSummariesTy {
-  struct FunctionSummary {
-    /// True if this function has reached a max block count while inlined from
-    /// at least one call site.
-    bool MayReachMaxBlockCount;
+  class FunctionSummary {
+  public:
+    /// Marks the IDs of the basic blocks visited during the analyzes.
+    llvm::SmallBitVector VisitedBasicBlocks;
 
     /// Total number of blocks in the function.
-    unsigned TotalBasicBlocks;
+    unsigned TotalBasicBlocks : 30;
 
-    /// Marks the IDs of the basic blocks visited during the analyzes.
-    llvm::BitVector VisitedBasicBlocks;
+    /// True if this function has been checked against the rules for which
+    /// functions may be inlined.
+    unsigned InlineChecked : 1;
+
+    /// True if this function may be inlined.
+    unsigned MayInline : 1;
+
+    /// The number of times the function has been inlined.
+    unsigned TimesInlined : 32;
 
     FunctionSummary() :
-      MayReachMaxBlockCount(false),
       TotalBasicBlocks(0),
-      VisitedBasicBlocks(0) {}
+      InlineChecked(0),
+      TimesInlined(0) {}
   };
 
-  typedef llvm::DenseMap<const Decl*, FunctionSummary*> MapTy;
+  typedef llvm::DenseMap<const Decl *, FunctionSummary> MapTy;
   MapTy Map;
 
 public:
-  ~FunctionSummariesTy();
-
   MapTy::iterator findOrInsertSummary(const Decl *D) {
     MapTy::iterator I = Map.find(D);
     if (I != Map.end())
       return I;
-    FunctionSummary *DS = new FunctionSummary();
-    I = Map.insert(std::pair<const Decl*, FunctionSummary*>(D, DS)).first;
+
+    typedef std::pair<const Decl *, FunctionSummary> KVPair;
+    I = Map.insert(KVPair(D, FunctionSummary())).first;
     assert(I != Map.end());
     return I;
   }
 
-  void markReachedMaxBlockCount(const Decl* D) {
+  void markMayInline(const Decl *D) {
     MapTy::iterator I = findOrInsertSummary(D);
-    I->second->MayReachMaxBlockCount = true;
+    I->second.InlineChecked = 1;
+    I->second.MayInline = 1;
   }
 
-  bool hasReachedMaxBlockCount(const Decl* D) {
-  MapTy::const_iterator I = Map.find(D);
-    if (I != Map.end())
-      return I->second->MayReachMaxBlockCount;
-    return false;
+  void markShouldNotInline(const Decl *D) {
+    MapTy::iterator I = findOrInsertSummary(D);
+    I->second.InlineChecked = 1;
+    I->second.MayInline = 0;
+  }
+
+  void markReachedMaxBlockCount(const Decl *D) {
+    markShouldNotInline(D);
+  }
+
+  Optional<bool> mayInline(const Decl *D) {
+    MapTy::const_iterator I = Map.find(D);
+    if (I != Map.end() && I->second.InlineChecked)
+      return I->second.MayInline;
+    return None;
   }
 
   void markVisitedBasicBlock(unsigned ID, const Decl* D, unsigned TotalIDs) {
     MapTy::iterator I = findOrInsertSummary(D);
-    llvm::BitVector &Blocks = I->second->VisitedBasicBlocks;
+    llvm::SmallBitVector &Blocks = I->second.VisitedBasicBlocks;
     assert(ID < TotalIDs);
     if (TotalIDs > Blocks.size()) {
       Blocks.resize(TotalIDs);
-      I->second->TotalBasicBlocks = TotalIDs;
+      I->second.TotalBasicBlocks = TotalIDs;
     }
-    Blocks[ID] = true;
+    Blocks.set(ID);
   }
 
   unsigned getNumVisitedBasicBlocks(const Decl* D) {
     MapTy::const_iterator I = Map.find(D);
-      if (I != Map.end())
-        return I->second->VisitedBasicBlocks.count();
+    if (I != Map.end())
+      return I->second.VisitedBasicBlocks.count();
     return 0;
+  }
+
+  unsigned getNumTimesInlined(const Decl* D) {
+    MapTy::const_iterator I = Map.find(D);
+    if (I != Map.end())
+      return I->second.TimesInlined;
+    return 0;
+  }
+
+  void bumpNumTimesInlined(const Decl* D) {
+    MapTy::iterator I = findOrInsertSummary(D);
+    I->second.TimesInlined++;
   }
 
   /// Get the percentage of the reachable blocks.
   unsigned getPercentBlocksReachable(const Decl *D) {
     MapTy::const_iterator I = Map.find(D);
       if (I != Map.end())
-        return ((I->second->VisitedBasicBlocks.count() * 100) /
-                 I->second->TotalBasicBlocks);
+        return ((I->second.VisitedBasicBlocks.count() * 100) /
+                 I->second.TotalBasicBlocks);
     return 0;
   }
 

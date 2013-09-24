@@ -278,9 +278,6 @@ uart_pl011_bus_attach(struct uart_softc *sc)
 	/* Clear RX & TX interrupts */
 	__uart_setreg(bas, UART_ICR, IMSC_MASK_ALL);
 
-	sc->sc_rxfifosz = 1;
-	sc->sc_txfifosz = 1;
-
 	return (0);
 }
 
@@ -376,6 +373,9 @@ uart_pl011_bus_probe(struct uart_softc *sc)
 {
 
 	device_set_desc(sc->sc_dev, "PrimeCell UART (PL011)");
+
+	sc->sc_rxfifosz = 1;
+	sc->sc_txfifosz = 1;
 
 	return (0);
 }

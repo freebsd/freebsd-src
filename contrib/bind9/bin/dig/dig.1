@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004-2010 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2010, 2013 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2003 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -57,7 +57,9 @@ allows multiple lookups to be issued from the command line.
 Unless it is told to query a specific name server,
 \fBdig\fR
 will try each of the servers listed in
-\fI/etc/resolv.conf\fR.
+\fI/etc/resolv.conf\fR. If no usable server addreses are found,
+\fBdig\fR
+will send the query to the local host.
 .PP
 When no command line arguments or options are given,
 \fBdig\fR
@@ -95,13 +97,20 @@ is the name or IP address of the name server to query. This can be an IPv4 addre
 \fIserver\fR
 argument is a hostname,
 \fBdig\fR
-resolves that name before querying that name server. If no
+resolves that name before querying that name server.
+.sp
+If no
 \fIserver\fR
 argument is provided,
 \fBdig\fR
 consults
-\fI/etc/resolv.conf\fR
-and queries the name servers listed there. The reply from the name server that responds is displayed.
+\fI/etc/resolv.conf\fR; if an address is found there, it queries the name server at that address. If either of the
+\fB\-4\fR
+or
+\fB\-6\fR
+options are in use, then only addresses for the corresponding transport will be tried. If no usable addresses are found,
+\fBdig\fR
+will send the query to the local host. The reply from the name server that responds is displayed.
 .RE
 .PP
 \fBname\fR
@@ -567,7 +576,7 @@ RFC1035.
 .PP
 There are probably too many query options.
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2010 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2010, 2013 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2003 Internet Software Consortium.
 .br

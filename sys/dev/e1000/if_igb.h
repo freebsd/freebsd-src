@@ -297,7 +297,7 @@ struct tx_ring {
 	u32			next_to_clean;
 	volatile u16		tx_avail;
 	struct igb_tx_buffer	*tx_buffers;
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 	struct buf_ring		*br;
 	struct task		txq_task;
 #endif

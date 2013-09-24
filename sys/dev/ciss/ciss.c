@@ -338,6 +338,15 @@ static struct
     { 0x103C, 0x3354, CISS_BOARD_SA5,   "HP Smart Array P420i" },
     { 0x103C, 0x3355, CISS_BOARD_SA5,   "HP Smart Array P220i" },
     { 0x103C, 0x3356, CISS_BOARD_SA5,   "HP Smart Array P721m" },
+    { 0x103C, 0x1920, CISS_BOARD_SA5,   "HP Smart Array P430i" },
+    { 0x103C, 0x1921, CISS_BOARD_SA5,   "HP Smart Array P830i" },
+    { 0x103C, 0x1922, CISS_BOARD_SA5,   "HP Smart Array P430" },
+    { 0x103C, 0x1923, CISS_BOARD_SA5,   "HP Smart Array P431" },
+    { 0x103C, 0x1924, CISS_BOARD_SA5,   "HP Smart Array P830" },
+    { 0x103C, 0x1926, CISS_BOARD_SA5,   "HP Smart Array P731m" },
+    { 0x103C, 0x1928, CISS_BOARD_SA5,   "HP Smart Array P230i" },
+    { 0x103C, 0x1929, CISS_BOARD_SA5,   "HP Smart Array P530" },
+    { 0x103C, 0x192A, CISS_BOARD_SA5,   "HP Smart Array P531" },
     { 0, 0, 0, NULL }
 };
 
@@ -2487,6 +2496,7 @@ ciss_preen_command(struct ciss_request *cr)
     cc->header.sg_total = 0;
     cc->header.host_tag = cr->cr_tag << 2;
     cc->header.host_tag_zeroes = 0;
+    bzero(&(cc->sg[0]), CISS_COMMAND_ALLOC_SIZE - sizeof(struct ciss_command));
     cmdphys = cr->cr_ccphys;
     cc->error_info.error_info_address = cmdphys + sizeof(struct ciss_command);
     cc->error_info.error_info_length = CISS_COMMAND_ALLOC_SIZE - sizeof(struct ciss_command);
@@ -2913,7 +2923,7 @@ ciss_cam_rescan_target(struct ciss_softc *sc, int bus, int target)
 	return;
     }
 
-    if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+    if (xpt_create_path(&ccb->ccb_h.path, NULL,
 	    cam_sim_path(sc->ciss_cam_sim[bus]),
 	    target, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 	ciss_printf(sc, "rescan failed (can't create path)\n");
@@ -2985,6 +2995,7 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
     case XPT_PATH_INQ:
     {
 	struct ccb_pathinq	*cpi = &ccb->cpi;
+	int			sg_length;
 
 	debug(1, "XPT_PATH_INQ %d:%d:%d", cam_sim_bus(sim), ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
 
@@ -3005,7 +3016,22 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
 	cpi->transport_version = 2;
 	cpi->protocol = PROTO_SCSI;
 	cpi->protocol_version = SCSI_REV_2;
-	cpi->maxio = (CISS_MAX_SG_ELEMENTS - 1) * PAGE_SIZE;
+	if (sc->ciss_cfg->max_sg_length == 0) {
+		sg_length = 17;
+	} else {
+	/* XXX Fix for ZMR cards that advertise max_sg_length == 32
+	 * Confusing bit here. max_sg_length is usually a power of 2. We always
+	 * need to subtract 1 to account for partial pages. Then we need to 
+	 * align on a valid PAGE_SIZE so we round down to the nearest power of 2. 
+	 * Add 1 so we can then subtract it out in the assignment to maxio.
+	 * The reason for all these shenanigans is to create a maxio value that
+	 * creates IO operations to volumes that yield consistent operations
+	 * with good performance.
+	 */
+		sg_length = sc->ciss_cfg->max_sg_length - 1;
+		sg_length = (1 << (fls(sg_length) - 1)) + 1;
+	}
+	cpi->maxio = (min(CISS_MAX_SG_ELEMENTS, sg_length) - 1) * PAGE_SIZE;
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	break;
     }
@@ -3202,6 +3228,19 @@ ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio)
 	}
     }
 
+    /* 
+     * A CISS target can only ever have one lun per target. REPORT_LUNS requires
+     * at least one LUN field to be pre created for us, so snag it and fill in
+     * the least significant byte indicating 1 LUN here.  Emulate the command
+     * return to shut up warning on console of a CDB error.  swb 
+     */
+    if (opcode == REPORT_LUNS && csio->dxfer_len > 0) {
+       csio->data_ptr[3] = 8;
+       csio->ccb_h.status |= CAM_REQ_CMP;
+       xpt_done((union ccb *)csio);
+       return(1);
+    }
+
     return(0);
 }
 
@@ -3346,9 +3385,14 @@ ciss_cam_complete_fixup(struct ciss_softc *sc, struct ccb_scsiio *csio)
 
 	cl = &sc->ciss_logical[bus][target];
 
-	padstr(inq->vendor, "COMPAQ", 8);
-	padstr(inq->product, ciss_name_ldrive_org(cl->cl_ldrive->fault_tolerance), 8);
-	padstr(inq->revision, ciss_name_ldrive_status(cl->cl_lstatus->status), 16);
+	padstr(inq->vendor, "HP",
+	       SID_VENDOR_SIZE);
+	padstr(inq->product,
+	       ciss_name_ldrive_org(cl->cl_ldrive->fault_tolerance),
+	       SID_PRODUCT_SIZE);
+	padstr(inq->revision,
+	       ciss_name_ldrive_status(cl->cl_lstatus->status),
+	       SID_REVISION_SIZE);
     }
 }
 
@@ -3959,7 +4003,8 @@ static void
 ciss_notify_logical(struct ciss_softc *sc, struct ciss_notify *cn)
 {
     struct ciss_ldrive	*ld;
-    int			ostatus, bus, target;
+    int			bus, target;
+    int			rescan_ld;
 
     debug_called(2);
 
@@ -3982,7 +4027,6 @@ ciss_notify_logical(struct ciss_softc *sc, struct ciss_notify *cn)
 	    /*
 	     * Update our idea of the drive's status.
 	     */
-	    ostatus = ciss_decode_ldrive_status(cn->data.logical_status.previous_state);
 	    ld->cl_status = ciss_decode_ldrive_status(cn->data.logical_status.new_state);
 	    if (ld->cl_lstatus != NULL)
 		ld->cl_lstatus->status = cn->data.logical_status.new_state;
@@ -3990,7 +4034,9 @@ ciss_notify_logical(struct ciss_softc *sc, struct ciss_notify *cn)
 	    /*
 	     * Have CAM rescan the drive if its status has changed.
 	     */
-	    if (ostatus != ld->cl_status) {
+            rescan_ld = (cn->data.logical_status.previous_state !=
+                         cn->data.logical_status.new_state) ? 1 : 0;
+	    if (rescan_ld) {
 		ld->cl_update = 1;
 		ciss_notify_rescan_logical(sc);
 	    }
@@ -4341,11 +4387,17 @@ ciss_print_adapter(struct ciss_softc *sc)
 DB_COMMAND(ciss_prt, db_ciss_prt)
 {
     struct ciss_softc	*sc;
+    devclass_t dc;
+    int maxciss, i;
 
-    sc = devclass_get_softc(devclass_find("ciss"), 0);
-    if (sc == NULL) {
-	printf("no ciss controllers\n");
-    } else {
+    dc = devclass_find("ciss");
+    if ( dc == NULL ) {
+        printf("%s: can't find devclass!\n", __func__);
+        return;
+    }
+    maxciss = devclass_get_maxunit(dc);
+    for (i = 0; i < maxciss; i++) {
+        sc = devclass_get_softc(dc, i);
 	ciss_print_adapter(sc);
     }
 }

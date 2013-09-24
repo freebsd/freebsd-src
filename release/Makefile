@@ -3,8 +3,8 @@
 # Makefile for building releases and release media.
 # 
 # User-driven targets:
-#  cdrom: Builds release CD-ROM media (release.iso)
-#  memstick: Builds memory stick image (memstick)
+#  cdrom: Builds release CD-ROM media (disc1.iso)
+#  memstick: Builds memory stick image (memstick.img)
 #  ftp: Sets up FTP distribution area (ftp)
 #  release: Build all media and FTP distribution area
 #  install: Copies all release media into ${DESTDIR}
@@ -70,11 +70,11 @@ RELEASE_TARGETS= ftp
 IMAGES=
 .if exists(${.CURDIR}/${TARGET}/mkisoimages.sh)
 RELEASE_TARGETS+= cdrom
-IMAGES+=	release.iso bootonly.iso
+IMAGES+=	disc1.iso bootonly.iso
 .endif
 .if exists(${.CURDIR}/${TARGET}/make-memstick.sh)
-RELEASE_TARGETS+= memstick
-IMAGES+=	memstick
+RELEASE_TARGETS+= memstick.img
+IMAGES+=	memstick.img
 .endif
 
 .include <bsd.obj.mk>
@@ -113,8 +113,8 @@ reldoc:
 	    INSTALL_COMPRESSED='' URLS_ABSOLUTE=YES DOCDIR=${.OBJDIR}/rdoc
 	mkdir -p reldoc
 .for i in hardware readme relnotes errata
-	ln -f rdoc/${RELNOTES_LANG}/${i}/article.txt reldoc/${i:U}.TXT
-	ln -f rdoc/${RELNOTES_LANG}/${i}/article.html reldoc/${i:U}.HTM
+	ln -f rdoc/${RELNOTES_LANG}/${i}/article.txt reldoc/${i:tu}.TXT
+	ln -f rdoc/${RELNOTES_LANG}/${i}/article.html reldoc/${i:tu}.HTM
 .endfor
 	cp rdoc/${RELNOTES_LANG}/readme/docbook.css reldoc
 
@@ -161,20 +161,22 @@ bootonly: packagesystem
 	echo hostid_enable=\"NO\" >> bootonly/etc/rc.conf
 	cp ${.CURDIR}/rc.local bootonly/etc
 
-release.iso: system
+release.iso: disc1.iso
+disc1.iso: system
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} release
 
 bootonly.iso: bootonly
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} bootonly
 
-memstick: system
+memstick: memstick.img
+memstick.img: system
 	sh ${.CURDIR}/${TARGET}/make-memstick.sh release ${.TARGET}
 
 packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
 	sh ${.CURDIR}/scripts/make-manifest.sh *.txz > MANIFEST
 	touch ${.TARGET}
 
-cdrom: release.iso bootonly.iso
+cdrom: disc1.iso bootonly.iso
 ftp: packagesystem
 	rm -rf ftp
 	mkdir -p ftp
@@ -191,7 +193,7 @@ clean:
 	rm -f *.txz MANIFEST
 	rm -f system
 	rm -rf release bootonly
-	rm -f release.iso bootonly.iso memstick
+	rm -f disc1.iso bootonly.iso memstick.img
 
 install:
 .if defined(DESTDIR) && !empty(DESTDIR)

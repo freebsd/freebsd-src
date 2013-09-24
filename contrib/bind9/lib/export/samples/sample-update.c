@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2010, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -305,7 +305,7 @@ main(int argc, char *argv[]) {
 	dns_client_destroy(&client);
 	dns_lib_shutdown();
 
-	exit(0);
+	return (0);
 }
 
 /*
@@ -372,7 +372,7 @@ parse_name(char **cmdlinep, dns_name_t *name) {
 	isc_buffer_t source;
 
 	word = nsu_strsep(cmdlinep, " \t\r\n");
-	if (*word == 0) {
+	if (word == NULL || *word == 0) {
 		fprintf(stderr, "could not read owner name\n");
 		exit(1);
 	}

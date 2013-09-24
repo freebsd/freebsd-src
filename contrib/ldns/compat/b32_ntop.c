@@ -40,6 +40,7 @@
  * IF IBM IS APPRISED OF THE POSSIBILITY OF SUCH DAMAGES.
  */
 #include <ldns/config.h>
+#ifndef HAVE_B32_NTOP
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -60,6 +61,8 @@
 #include <string.h>
 
 #include <assert.h>
+
+#include <ldns/util.h>
 
 static const char Base32[] =
 	"abcdefghijklmnopqrstuvwxyz234567";
@@ -171,7 +174,7 @@ static const char Pad32 = '=';
 */
 
 
-int
+static int
 ldns_b32_ntop_ar(uint8_t const *src, size_t srclength, char *target, size_t targsize, const char B32_ar[]) {
 	size_t datalength = 0;
 	uint8_t input[5];
@@ -331,3 +334,4 @@ b32_ntop_extended_hex(uint8_t const *src, size_t srclength, char *target, size_t
 	return ldns_b32_ntop_ar(src, srclength, target, targsize, Base32_extended_hex);
 }
 
+#endif /* !HAVE_B32_NTOP */

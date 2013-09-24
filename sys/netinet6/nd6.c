@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 #define ND6_SLOWTIMER_INTERVAL (60 * 60) /* 1 hour */
 #define ND6_RECALC_REACHTM_INTERVAL (60 * 120) /* 2 hours */
 
-#define SIN6(s) ((struct sockaddr_in6 *)s)
+#define SIN6(s) ((const struct sockaddr_in6 *)(s))
 
 /* timer values */
 VNET_DEFINE(int, nd6_prune)	= 1;	/* walk list every 1 seconds */
@@ -176,13 +176,25 @@ nd6_ifattach(struct ifnet *ifp)
 
 	nd->flags = ND6_IFF_PERFORMNUD;
 
-	/* A loopback interface always has ND6_IFF_AUTO_LINKLOCAL. */
-	if (V_ip6_auto_linklocal || (ifp->if_flags & IFF_LOOPBACK))
+	/* A loopback interface always has ND6_IFF_AUTO_LINKLOCAL.
+	 * XXXHRS: Clear ND6_IFF_AUTO_LINKLOCAL on an IFT_BRIDGE interface by
+	 * default regardless of the V_ip6_auto_linklocal configuration to
+	 * give a reasonable default behavior.
+	 */
+	if ((V_ip6_auto_linklocal && ifp->if_type != IFT_BRIDGE) ||
+	    (ifp->if_flags & IFF_LOOPBACK))
 		nd->flags |= ND6_IFF_AUTO_LINKLOCAL;
-
-	/* A loopback interface does not need to accept RTADV. */
-	if (V_ip6_accept_rtadv && !(ifp->if_flags & IFF_LOOPBACK))
-		nd->flags |= ND6_IFF_ACCEPT_RTADV;
+	/*
+	 * A loopback interface does not need to accept RTADV.
+	 * XXXHRS: Clear ND6_IFF_ACCEPT_RTADV on an IFT_BRIDGE interface by
+	 * default regardless of the V_ip6_accept_rtadv configuration to
+	 * prevent the interface from accepting RA messages arrived
+	 * on one of the member interfaces with ND6_IFF_ACCEPT_RTADV.
+	 */
+	if (V_ip6_accept_rtadv &&
+	    !(ifp->if_flags & IFF_LOOPBACK) &&
+	    (ifp->if_type != IFT_BRIDGE))
+			nd->flags |= ND6_IFF_ACCEPT_RTADV;
 	if (V_ip6_no_radr && !(ifp->if_flags & IFF_LOOPBACK))
 		nd->flags |= ND6_IFF_NO_RADR;
 
@@ -416,7 +428,7 @@ nd6_llinfo_settimer_locked(struct llentry *ln, long tick)
 		ln->ln_ntick = 0;
 		canceled = callout_stop(&ln->ln_timer_ch);
 	} else {
-		ln->la_expire = time_second + tick / hz;
+		ln->la_expire = time_uptime + tick / hz;
 		LLE_ADDREF(ln);
 		if (tick > INT_MAX) {
 			ln->ln_ntick = tick - INT_MAX;
@@ -579,7 +591,7 @@ nd6_timer(void *arg)
 
 	/* expire default router list */
 	TAILQ_FOREACH_SAFE(dr, &V_nd_defrouter, dr_entry, ndr) {
-		if (dr->expire && dr->expire < time_second)
+		if (dr->expire && dr->expire < time_uptime)
 			defrtrlist_del(dr);
 	}
 
@@ -663,7 +675,7 @@ nd6_timer(void *arg)
 		 * prefix is not necessary.
 		 */
 		if (pr->ndpr_vltime != ND6_INFINITE_LIFETIME &&
-		    time_second - pr->ndpr_lastupdate > pr->ndpr_vltime) {
+		    time_uptime - pr->ndpr_lastupdate > pr->ndpr_vltime) {
 
 			/*
 			 * address expiration and prefix expiration are
@@ -1021,9 +1033,9 @@ nd6_free(struct llentry *ln, int gc)
 			 * XXX: the check for ln_state would be redundant,
 			 *      but we intentionally keep it just in case.
 			 */
-			if (dr->expire > time_second)
+			if (dr->expire > time_uptime)
 				nd6_llinfo_settimer_locked(ln,
-				    (dr->expire - time_second) * hz);
+				    (dr->expire - time_uptime) * hz);
 			else
 				nd6_llinfo_settimer_locked(ln,
 				    (long)V_nd6_gctimer * hz);
@@ -1215,6 +1227,8 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 	struct nd_prefix *pr;
 	int i = 0, error = 0;
 
+	if (ifp->if_afdata[AF_INET6] == NULL)
+		return (EPFNOSUPPORT);
 	switch (cmd) {
 	case SIOCGDRLST_IN6:
 		/*
@@ -1229,7 +1243,8 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 
 			drl->defrouter[i].flags = dr->flags;
 			drl->defrouter[i].rtlifetime = dr->rtlifetime;
-			drl->defrouter[i].expire = dr->expire;
+			drl->defrouter[i].expire = dr->expire +
+			    (time_second - time_uptime);
 			drl->defrouter[i].if_index = dr->ifp->if_index;
 			i++;
 		}
@@ -1273,7 +1288,8 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 				    maxexpire - pr->ndpr_lastupdate) {
 					oprl->prefix[i].expire =
 					    pr->ndpr_lastupdate +
-					    pr->ndpr_vltime;
+					    pr->ndpr_vltime +
+					    (time_second - time_uptime);
 				} else
 					oprl->prefix[i].expire = maxexpire;
 			}
@@ -1492,7 +1508,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		nbi->state = ln->ln_state;
 		nbi->asked = ln->la_asked;
 		nbi->isrouter = ln->ln_router;
-		nbi->expire = ln->la_expire;
+		nbi->expire = ln->la_expire + (time_second - time_uptime);
 		LLE_RUNLOCK(ln);
 		break;
 	}
@@ -1789,6 +1805,8 @@ nd6_slowtimo(void *arg)
 	    nd6_slowtimo, curvnet);
 	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_list) {
+		if (ifp->if_afdata[AF_INET6] == NULL)
+			continue;
 		nd6if = ND_IFINFO(ifp);
 		if (nd6if->basereachable && /* already initialized */
 		    (nd6if->recalctm -= ND6_SLOWTIMER_INTERVAL) <= 0) {
@@ -2156,7 +2174,7 @@ nd6_need_cache(struct ifnet *ifp)
  */
 int
 nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
-    struct sockaddr *dst, u_char *desten, struct llentry **lle)
+    const struct sockaddr *dst, u_char *desten, struct llentry **lle)
 {
 	struct llentry *ln;
 
@@ -2270,7 +2288,7 @@ nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 			return (error);
 		d.flags = dr->flags;
 		d.rtlifetime = dr->rtlifetime;
-		d.expire = dr->expire;
+		d.expire = dr->expire + (time_second - time_uptime);
 		d.if_index = dr->ifp->if_index;
 		error = SYSCTL_OUT(req, &d, sizeof(d));
 		if (error != 0)
@@ -2322,7 +2340,8 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 			    ~((time_t)1 << ((sizeof(maxexpire) * 8) - 1));
 			if (pr->ndpr_vltime < maxexpire - pr->ndpr_lastupdate)
 				p.expire = pr->ndpr_lastupdate +
-				    pr->ndpr_vltime;
+				    pr->ndpr_vltime +
+				    (time_second - time_uptime);
 			else
 				p.expire = maxexpire;
 		}

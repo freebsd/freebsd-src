@@ -540,6 +540,7 @@ ENTRY(savectx)
 END(savectx)
 
 ENTRY(fork_trampoline)
+	STOP_UNWINDING	/* Can't unwind beyond the thread enty point */
 	mov	r1, r5
 	mov	r2, sp
 	mov	r0, r4

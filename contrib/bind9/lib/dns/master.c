@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -156,6 +156,7 @@ struct dns_incctx {
 	int			glue_in_use;
 	int			current_in_use;
 	int			origin_in_use;
+	isc_boolean_t		origin_changed;
 	isc_boolean_t		drop;
 	unsigned int		glue_line;
 	unsigned int		current_line;
@@ -568,6 +569,7 @@ loadctx_create(dns_masterformat_t format, isc_mem_t *mctx,
 			goto cleanup_inc;
 		lctx->keep_lex = ISC_FALSE;
 		memset(specials, 0, sizeof(specials));
+		specials[0] = 1;
 		specials['('] = 1;
 		specials[')'] = 1;
 		specials['"'] = 1;
@@ -770,7 +772,7 @@ static isc_result_t
 openfile_raw(dns_loadctx_t *lctx, const char *master_file) {
 	isc_result_t result;
 
-	result = isc_stdio_open(master_file, "r", &lctx->f);
+	result = isc_stdio_open(master_file, "rb", &lctx->f);
 	if (result != ISC_R_SUCCESS && result != ISC_R_FILENOTFOUND) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "isc_stdio_open() failed: %s",
@@ -1402,6 +1404,7 @@ load_text(dns_loadctx_t *lctx) {
 				ictx->origin_in_use = new_in_use;
 				ictx->in_use[ictx->origin_in_use] = ISC_TRUE;
 				ictx->origin = new_name;
+				ictx->origin_changed = ISC_TRUE;
 				finish_origin = ISC_FALSE;
 				EXPECTEOL;
 				continue;
@@ -1574,7 +1577,23 @@ load_text(dns_loadctx_t *lctx) {
 				} else if (result != ISC_R_SUCCESS)
 					goto insist_and_cleanup;
 			}
+
+			if (ictx->origin_changed) {
+				char cbuf[DNS_NAME_FORMATSIZE];
+				char obuf[DNS_NAME_FORMATSIZE];
+				dns_name_format(ictx->current, cbuf,
+						sizeof(cbuf));
+				dns_name_format(ictx->origin, obuf,
+						sizeof(obuf));
+				(*callbacks->warn)(callbacks,
+					"%s:%lu: record with inherited "
+					"owner (%s) immediately after "
+					"$ORIGIN (%s)", source, line,
+					cbuf, obuf);
+			}
 		}
+
+		ictx->origin_changed = ISC_FALSE;
 
 		if (dns_rdataclass_fromtext(&rdclass,
 					    &token.value.as_textregion)

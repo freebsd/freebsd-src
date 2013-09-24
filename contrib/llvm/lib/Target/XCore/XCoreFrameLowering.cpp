@@ -16,16 +16,16 @@
 #include "XCore.h"
 #include "XCoreInstrInfo.h"
 #include "XCoreMachineFunctionInfo.h"
-#include "llvm/Function.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetOptions.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Target/TargetOptions.h"
 
 using namespace llvm;
 
@@ -98,13 +98,10 @@ void XCoreFrameLowering::emitPrologue(MachineFunction &MF) const {
   DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
 
   bool FP = hasFP(MF);
-  const AttrListPtr &PAL = MF.getFunction()->getAttributes();
+  const AttributeSet &PAL = MF.getFunction()->getAttributes();
 
-  for (unsigned I = 0, E = PAL.getNumAttrs(); I != E; ++I)
-    if (PAL.getAttributesAtIndex(I).hasAttribute(Attributes::Nest)) {
-      loadFromStack(MBB, MBBI, XCore::R11, 0, dl, TII);
-      break;
-    }
+  if (PAL.hasAttrSomewhere(Attribute::Nest))
+    loadFromStack(MBB, MBBI, XCore::R11, 0, dl, TII);
 
   // Work out frame sizes.
   int FrameSize = MFI->getStackSize();
@@ -264,7 +261,7 @@ void XCoreFrameLowering::emitEpilogue(MachineFunction &MF,
       BuildMI(MBB, MBBI, dl, TII.get(Opcode)).addImm(FrameSize);
       MBB.erase(MBBI);
     } else {
-      int Opcode = (isU6) ? XCore::LDAWSP_ru6_RRegs : XCore::LDAWSP_lru6_RRegs;
+      int Opcode = (isU6) ? XCore::LDAWSP_ru6 : XCore::LDAWSP_lru6;
       BuildMI(MBB, MBBI, dl, TII.get(Opcode), XCore::SP).addImm(FrameSize);
     }
   }
@@ -335,6 +332,58 @@ bool XCoreFrameLowering::restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
   return true;
 }
 
+// This function eliminates ADJCALLSTACKDOWN,
+// ADJCALLSTACKUP pseudo instructions
+void XCoreFrameLowering::
+eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
+                              MachineBasicBlock::iterator I) const {
+  const XCoreInstrInfo &TII =
+    *static_cast<const XCoreInstrInfo*>(MF.getTarget().getInstrInfo());
+  if (!hasReservedCallFrame(MF)) {
+    // Turn the adjcallstackdown instruction into 'extsp <amt>' and the
+    // adjcallstackup instruction into 'ldaw sp, sp[<amt>]'
+    MachineInstr *Old = I;
+    uint64_t Amount = Old->getOperand(0).getImm();
+    if (Amount != 0) {
+      // We need to keep the stack aligned properly.  To do this, we round the
+      // amount of space needed for the outgoing arguments up to the next
+      // alignment boundary.
+      unsigned Align = getStackAlignment();
+      Amount = (Amount+Align-1)/Align*Align;
+
+      assert(Amount%4 == 0);
+      Amount /= 4;
+
+      bool isU6 = isImmU6(Amount);
+      if (!isU6 && !isImmU16(Amount)) {
+        // FIX could emit multiple instructions in this case.
+#ifndef NDEBUG
+        errs() << "eliminateCallFramePseudoInstr size too big: "
+               << Amount << "\n";
+#endif
+        llvm_unreachable(0);
+      }
+
+      MachineInstr *New;
+      if (Old->getOpcode() == XCore::ADJCALLSTACKDOWN) {
+        int Opcode = isU6 ? XCore::EXTSP_u6 : XCore::EXTSP_lu6;
+        New=BuildMI(MF, Old->getDebugLoc(), TII.get(Opcode))
+          .addImm(Amount);
+      } else {
+        assert(Old->getOpcode() == XCore::ADJCALLSTACKUP);
+        int Opcode = isU6 ? XCore::LDAWSP_ru6 : XCore::LDAWSP_lru6;
+        New=BuildMI(MF, Old->getDebugLoc(), TII.get(Opcode), XCore::SP)
+          .addImm(Amount);
+      }
+
+      // Replace the pseudo instruction with a new instruction...
+      MBB.insert(I, New);
+    }
+  }
+  
+  MBB.erase(I);
+}
+
 void
 XCoreFrameLowering::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                                      RegScavenger *RS) const {
@@ -360,7 +409,7 @@ XCoreFrameLowering::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
   }
   if (RegInfo->requiresRegisterScavenging(MF)) {
     // Reserve a slot close to SP or frame pointer.
-    RS->setScavengingFrameIndex(MFI->CreateStackObject(RC->getSize(),
+    RS->addScavengingFrameIndex(MFI->CreateStackObject(RC->getSize(),
                                                        RC->getAlignment(),
                                                        false));
   }

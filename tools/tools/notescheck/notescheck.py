@@ -93,7 +93,7 @@ class Option:
             return
 
         if global_platform in self.defines:
-            # If the device is defined globally ans is never tested, whine.
+            # If the device is defined globally and is never tested, whine.
             if len(self.tests) == 0:
                 print('WARN: %s is defined globally but never tested' % \
                     (self.title()))

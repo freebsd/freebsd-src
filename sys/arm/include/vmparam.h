@@ -109,13 +109,6 @@
 #define	VM_NFREEORDER		9
 
 /*
- * Only one memory domain.
- */
-#ifndef VM_NDOMAIN
-#define	VM_NDOMAIN		1
-#endif
-
-/*
  * Disable superpage reservations.
  */
 #ifndef	VM_NRESERVLEVEL

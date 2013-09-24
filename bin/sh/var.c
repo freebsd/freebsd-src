@@ -877,7 +877,7 @@ unsetvar(const char *s)
 
 
 /*
- * Returns true if the two strings specify the same varable.  The first
+ * Returns true if the two strings specify the same variable.  The first
  * variable name is terminated by '='; the second may be terminated by
  * either '=' or '\0'.
  */
@@ -898,7 +898,7 @@ varequal(const char *p, const char *q)
  * Search for a variable.
  * 'name' may be terminated by '=' or a NUL.
  * vppp is set to the pointer to vp, or the list head if vp isn't found
- * lenp is set to the number of charactets in 'name'
+ * lenp is set to the number of characters in 'name'
  */
 
 static struct var *

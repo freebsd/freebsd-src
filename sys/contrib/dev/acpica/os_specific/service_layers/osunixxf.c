@@ -45,8 +45,6 @@
 /*
  * These interfaces are required in order to compile the ASL compiler and the
  * various ACPICA tools under Linux or other Unix-like system.
- *
- * Note: Use #define __APPLE__ for OS X generation.
  */
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -87,12 +85,6 @@ typedef void* (*PTHREAD_CALLBACK) (void *);
 /* Buffer used by AcpiOsVprintf */
 
 #define ACPI_VPRINTF_BUFFER_SIZE        512
-
-/* Apple-specific */
-
-#ifdef __APPLE__
-#define sem_destroy         sem_close
-#endif
 
 
 /******************************************************************************
@@ -1086,18 +1078,22 @@ AcpiOsReadPort (
     switch (Width)
     {
     case 8:
+
         *Value = 0xFF;
         break;
 
     case 16:
+
         *Value = 0xFFFF;
         break;
 
     case 32:
+
         *Value = 0xFFFFFFFF;
         break;
 
     default:
+
         return (AE_BAD_PARAMETER);
     }
 
@@ -1158,10 +1154,12 @@ AcpiOsReadMemory (
     case 16:
     case 32:
     case 64:
+
         *Value = 0;
         break;
 
     default:
+
         return (AE_BAD_PARAMETER);
     }
     return (AE_OK);
@@ -1261,12 +1259,15 @@ AcpiOsSignal (
     switch (Function)
     {
     case ACPI_SIGNAL_FATAL:
+
         break;
 
     case ACPI_SIGNAL_BREAKPOINT:
+
         break;
 
     default:
+
         break;
     }
 

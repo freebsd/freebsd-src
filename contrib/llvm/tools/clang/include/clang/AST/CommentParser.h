@@ -14,10 +14,10 @@
 #ifndef LLVM_CLANG_AST_COMMENT_PARSER_H
 #define LLVM_CLANG_AST_COMMENT_PARSER_H
 
-#include "clang/Basic/Diagnostic.h"
-#include "clang/AST/CommentLexer.h"
 #include "clang/AST/Comment.h"
+#include "clang/AST/CommentLexer.h"
 #include "clang/AST/CommentSema.h"
+#include "clang/Basic/Diagnostic.h"
 #include "llvm/Support/Allocator.h"
 
 namespace clang {
@@ -84,6 +84,11 @@ class Parser {
     }
 
     Tok = Toks[0];
+  }
+
+  bool isTokBlockCommand() {
+    return (Tok.is(tok::backslash_command) || Tok.is(tok::at_command)) &&
+           Traits.getCommandInfo(Tok.getCommandID())->IsBlockCommand;
   }
 
 public:

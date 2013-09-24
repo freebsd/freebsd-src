@@ -8,6 +8,7 @@ SUBDIR=	console \
 	include \
 	mouse \
 	networking \
+	packages \
 	password \
 	security \
 	share \

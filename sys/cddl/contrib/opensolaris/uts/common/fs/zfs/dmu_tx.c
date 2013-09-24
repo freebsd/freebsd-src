@@ -160,7 +160,7 @@ dmu_tx_check_ioerr(zio_t *zio, dnode_t *dn, int level, uint64_t blkid)
 	db = dbuf_hold_level(dn, level, blkid, FTAG);
 	rw_exit(&dn->dn_struct_rwlock);
 	if (db == NULL)
-		return (EIO);
+		return (SET_ERROR(EIO));
 	err = dbuf_read(db, zio, DB_RF_CANFAIL | DB_RF_NOPREFETCH);
 	dbuf_rele(db, FTAG);
 	return (err);
@@ -370,7 +370,7 @@ dmu_tx_count_write(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 out:
 	if (txh->txh_space_towrite + txh->txh_space_tooverwrite >
 	    2 * DMU_MAX_ACCESS)
-		err = EFBIG;
+		err = SET_ERROR(EFBIG);
 
 	if (err)
 		txh->txh_tx->tx_err = err;
@@ -587,8 +587,7 @@ dmu_tx_hold_free(dmu_tx_t *tx, uint64_t object, uint64_t off, uint64_t len)
 {
 	dmu_tx_hold_t *txh;
 	dnode_t *dn;
-	uint64_t start, end, i;
-	int err, shift;
+	int err;
 	zio_t *zio;
 
 	ASSERT(tx->tx_txg == 0);
@@ -599,34 +598,48 @@ dmu_tx_hold_free(dmu_tx_t *tx, uint64_t object, uint64_t off, uint64_t len)
 		return;
 	dn = txh->txh_dnode;
 
-	/* first block */
-	if (off != 0)
-		dmu_tx_count_write(txh, off, 1);
-	/* last block */
-	if (len != DMU_OBJECT_END)
-		dmu_tx_count_write(txh, off+len, 1);
-
-	dmu_tx_count_dnode(txh);
-
 	if (off >= (dn->dn_maxblkid+1) * dn->dn_datablksz)
 		return;
 	if (len == DMU_OBJECT_END)
 		len = (dn->dn_maxblkid+1) * dn->dn_datablksz - off;
 
+	dmu_tx_count_dnode(txh);
+
 	/*
-	 * For i/o error checking, read the first and last level-0
-	 * blocks, and all the level-1 blocks.  The above count_write's
-	 * have already taken care of the level-0 blocks.
+	 * For i/o error checking, we read the first and last level-0
+	 * blocks if they are not aligned, and all the level-1 blocks.
+	 *
+	 * Note:  dbuf_free_range() assumes that we have not instantiated
+	 * any level-0 dbufs that will be completely freed.  Therefore we must
+	 * exercise care to not read or count the first and last blocks
+	 * if they are blocksize-aligned.
+	 */
+	if (dn->dn_datablkshift == 0) {
+		dmu_tx_count_write(txh, off, len);
+	} else {
+		/* first block will be modified if it is not aligned */
+		if (!IS_P2ALIGNED(off, 1 << dn->dn_datablkshift))
+			dmu_tx_count_write(txh, off, 1);
+		/* last block will be modified if it is not aligned */
+		if (!IS_P2ALIGNED(off + len, 1 << dn->dn_datablkshift))
+			dmu_tx_count_write(txh, off+len, 1);
+	}
+
+	/*
+	 * Check level-1 blocks.
 	 */
 	if (dn->dn_nlevels > 1) {
-		shift = dn->dn_datablkshift + dn->dn_indblkshift -
+		int shift = dn->dn_datablkshift + dn->dn_indblkshift -
 		    SPA_BLKPTRSHIFT;
-		start = off >> shift;
-		end = dn->dn_datablkshift ? ((off+len) >> shift) : 0;
+		uint64_t start = off >> shift;
+		uint64_t end = (off + len) >> shift;
+
+		ASSERT(dn->dn_datablkshift != 0);
+		ASSERT(dn->dn_indblkshift != 0);
 
 		zio = zio_root(tx->tx_pool->dp_spa,
 		    NULL, NULL, ZIO_FLAG_CANFAIL);
-		for (i = start; i <= end; i++) {
+		for (uint64_t i = start; i <= end; i++) {
 			uint64_t ibyte = i << shift;
 			err = dnode_next_offset(dn, 0, &ibyte, 2, 1, 0);
 			i = ibyte >> shift;
@@ -922,9 +935,9 @@ dmu_tx_try_assign(dmu_tx_t *tx, txg_how_t txg_how)
 		 */
 		if (spa_get_failmode(spa) == ZIO_FAILURE_MODE_CONTINUE &&
 		    txg_how != TXG_WAIT)
-			return (EIO);
+			return (SET_ERROR(EIO));
 
-		return (ERESTART);
+		return (SET_ERROR(ERESTART));
 	}
 
 	tx->tx_txg = txg_hold_open(tx->tx_pool, &tx->tx_txgh);
@@ -945,7 +958,7 @@ dmu_tx_try_assign(dmu_tx_t *tx, txg_how_t txg_how)
 			if (dn->dn_assigned_txg == tx->tx_txg - 1) {
 				mutex_exit(&dn->dn_mtx);
 				tx->tx_needassign_txh = txh;
-				return (ERESTART);
+				return (SET_ERROR(ERESTART));
 			}
 			if (dn->dn_assigned_txg == 0)
 				dn->dn_assigned_txg = tx->tx_txg;
@@ -1014,6 +1027,10 @@ dmu_tx_unassign(dmu_tx_t *tx)
 
 	txg_rele_to_quiesce(&tx->tx_txgh);
 
+	/*
+	 * Walk the transaction's hold list, removing the hold on the
+	 * associated dnode, and notifying waiters if the refcount drops to 0.
+	 */
 	for (txh = list_head(&tx->tx_holds); txh != tx->tx_needassign_txh;
 	    txh = list_next(&tx->tx_holds, txh)) {
 		dnode_t *dn = txh->txh_dnode;
@@ -1126,6 +1143,10 @@ dmu_tx_commit(dmu_tx_t *tx)
 
 	ASSERT(tx->tx_txg != 0);
 
+	/*
+	 * Go through the transaction's hold list and remove holds on
+	 * associated dnodes, notifying waiters if no holds remain.
+	 */
 	while (txh = list_head(&tx->tx_holds)) {
 		dnode_t *dn = txh->txh_dnode;
 

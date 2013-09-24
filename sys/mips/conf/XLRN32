@@ -79,7 +79,6 @@ options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 
 device		pci
 #device		ata
-#device		atadisk
 #options 	XLR_PERFMON		# Enable XLR processor activity monitoring
 options  	BREAK_TO_DEBUGGER
 device 		uart

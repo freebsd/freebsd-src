@@ -822,12 +822,13 @@ swp_pager_freeswapspace(daddr_t blk, int npages)
  *	The external callers of this routine typically have already destroyed
  *	or renamed vm_page_t's associated with this range in the object so
  *	we should be ok.
+ *
+ *	The object must be locked.
  */
 void
 swap_pager_freespace(vm_object_t object, vm_pindex_t start, vm_size_t size)
 {
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
 	swp_pager_meta_free(object, start, size);
 }
 
@@ -835,7 +836,7 @@ swap_pager_freespace(vm_object_t object, vm_pindex_t start, vm_size_t size)
  * SWAP_PAGER_RESERVE() - reserve swap blocks in object
  *
  *	Assigns swap blocks to the specified range within the object.  The
- *	swap blocks are not zerod.  Any previous swap assignment is destroyed.
+ *	swap blocks are not zeroed.  Any previous swap assignment is destroyed.
  *
  *	Returns 0 on success, -1 on failure.
  */
@@ -999,7 +1000,7 @@ swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *aft
 {
 	daddr_t blk0;
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
+	VM_OBJECT_ASSERT_LOCKED(object);
 	/*
 	 * do we have good backing store at the requested index ?
 	 */
@@ -1065,12 +1066,13 @@ swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *aft
  *	depends on it.
  *
  *	This routine may not sleep.
+ *
+ *	The object containing the page must be locked.
  */
 static void
 swap_pager_unswapped(vm_page_t m)
 {
 
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	swp_pager_meta_ctl(m->object, m->pindex, SWM_FREE);
 }
 
@@ -1704,18 +1706,19 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 	vm_page_t m;
 
 	vm_object_pip_add(object, 1);
-	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
+	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY |
+	    VM_ALLOC_NOBUSY);
 	if (m->valid == VM_PAGE_BITS_ALL) {
 		vm_object_pip_subtract(object, 1);
 		vm_page_dirty(m);
 		vm_page_lock(m);
 		vm_page_activate(m);
 		vm_page_unlock(m);
-		vm_page_wakeup(m);
 		vm_pager_page_unswapped(m);
 		return;
 	}
 
+	vm_page_busy(m);
 	if (swap_pager_getpages(object, &m, 1, 0) != VM_PAGER_OK)
 		panic("swap_pager_force_pagein: read from swap failed");/*XXX*/
 	vm_object_pip_subtract(object, 1);
@@ -1852,7 +1855,8 @@ retry:
 		if (swapblk == SWAPBLK_NONE)
 			goto done;
 
-		swap = *pswap = uma_zalloc(swap_zone, M_NOWAIT);
+		swap = *pswap = uma_zalloc(swap_zone, M_NOWAIT |
+		    (curproc == pageproc ? M_USE_RESERVE : 0));
 		if (swap == NULL) {
 			mtx_unlock(&swhash_mtx);
 			VM_OBJECT_WUNLOCK(object);
@@ -1916,7 +1920,7 @@ static void
 swp_pager_meta_free(vm_object_t object, vm_pindex_t index, daddr_t count)
 {
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
+	VM_OBJECT_ASSERT_LOCKED(object);
 	if (object->type != OBJT_SWAP)
 		return;
 
@@ -2021,7 +2025,7 @@ swp_pager_meta_ctl(vm_object_t object, vm_pindex_t pindex, int flags)
 	daddr_t r1;
 	int idx;
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
+	VM_OBJECT_ASSERT_LOCKED(object);
 	/*
 	 * The meta data only exists of the object is OBJT_SWAP
 	 * and even then might not be allocated yet.

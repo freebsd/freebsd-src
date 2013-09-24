@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -186,7 +186,7 @@ help(void) {
 "                 +domain=###         (Set default domainname)\n"
 "                 +bufsize=###        (Set EDNS0 Max UDP packet size)\n"
 "                 +ndots=###          (Set NDOTS value)\n"
-"                 +edns=###           (Set EDNS version)\n"
+"                 +[no]edns[=###]     (Set EDNS version) [0]\n"
 "                 +[no]search         (Set whether to use searchlist)\n"
 "                 +[no]showsearch     (Search with intermediate results)\n"
 "                 +[no]defname        (Ditto)\n"
@@ -240,6 +240,8 @@ received(int bytes, isc_sockaddr_t *from, dig_query_t *query) {
 	isc_uint64_t diff;
 	isc_time_t now;
 	time_t tnow;
+	struct tm tmnow;
+	char time_str[100];
 	char fromtext[ISC_SOCKADDR_FORMATSIZE];
 
 	isc_sockaddr_format(from, fromtext, sizeof(fromtext));
@@ -251,7 +253,10 @@ received(int bytes, isc_sockaddr_t *from, dig_query_t *query) {
 		printf(";; Query time: %ld msec\n", (long int)diff/1000);
 		printf(";; SERVER: %s(%s)\n", fromtext, query->servname);
 		time(&tnow);
-		printf(";; WHEN: %s", ctime(&tnow));
+		tmnow  = *localtime(&tnow);
+		if (strftime(time_str, sizeof(time_str),
+			     "%a %b %d %H:%M:%S %Z %Y", &tmnow) > 0U)
+			printf(";; WHEN: %s\n", time_str);
 		if (query->lookup->doing_xfr) {
 			printf(";; XFR size: %u records (messages %u, "
 			       "bytes %" ISC_PRINT_QUADFORMAT "u)\n",
@@ -259,7 +264,6 @@ received(int bytes, isc_sockaddr_t *from, dig_query_t *query) {
 			       query->byte_count);
 		} else {
 			printf(";; MSG SIZE  rcvd: %u\n", bytes);
-
 		}
 		if (key != NULL) {
 			if (!validated)
@@ -276,7 +280,7 @@ received(int bytes, isc_sockaddr_t *from, dig_query_t *query) {
 		       "from %s(%s) in %d ms\n\n",
 		       query->lookup->doing_xfr ?
 				query->byte_count : (isc_uint64_t)bytes,
-		       fromtext, query->servname,
+		       fromtext, query->userarg,
 		       (int)diff/1000);
 	}
 }
@@ -525,6 +529,13 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 				printf(";; WARNING: recursion requested "
 				       "but not available\n");
 		}
+		if (msg != query->lookup->sendmsg &&
+		    query->lookup->edns != -1 && msg->opt == NULL &&
+		    (msg->rcode == dns_rcode_formerr ||
+		     msg->rcode == dns_rcode_notimp))
+			printf("\n;; WARNING: EDNS query returned status "
+			       "%s - retry with '+noedns'\n",
+			       rcode_totext(msg->rcode));
 		if (msg != query->lookup->sendmsg && extrabytes != 0U)
 			printf(";; WARNING: Messages has %u extra byte%s at "
 			       "end\n", extrabytes, extrabytes != 0 ? "s" : "");
@@ -855,8 +866,10 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 			lookup->edns = -1;
 			break;
 		}
-		if (value == NULL)
-			goto need_value;
+		if (value == NULL) {
+			lookup->edns = 0;
+			break;
+		}
 		result = parse_uint(&num, value, 255, "edns");
 		if (result != ISC_R_SUCCESS)
 			fatal("Couldn't parse edns");

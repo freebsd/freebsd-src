@@ -157,11 +157,6 @@ typedef u_int64_t pt_entry_t;
 typedef u_int64_t pdp_entry_t;
 typedef u_int64_t pml4_entry_t;
 
-#define	PML4ESHIFT	(3)
-#define	PDPESHIFT	(3)
-#define	PTESHIFT	(3)
-#define	PDESHIFT	(3)
-
 /*
  * Address of current address space page table maps and directories.
  */
@@ -267,6 +262,7 @@ struct	pv_chunk;
 
 struct md_page {
 	TAILQ_HEAD(,pv_entry)	pv_list;
+	int			pv_gen;
 	int			pat_mode;
 };
 

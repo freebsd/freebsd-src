@@ -22,6 +22,8 @@ compile on other systems like Solaris and Mac OS X.
 
 REQUIREMENTS
 - OpenSSL (Optional, but needed for features like DNSSEC)
+  - OpenSSL >= 0.9.7f for DANE support
+  - OpenSSL >= 1.0.0  for ECDSA and GOST support
 - libpcap (Optional, but needed for examples/ldns-dpa)
 - (GNU) libtool (in OSX, that's glibtool, not libtool)
 - GNU make
@@ -29,32 +31,10 @@ REQUIREMENTS
 INSTALLATION
 1. Unpack the tarball
 2. cd ldns-<VERSION>
-3. ./configure
-4. gmake (it needs gnu make to compile, on systems where GNU make is the
-   default you can just use 'make')
-5. sudo gmake install
-6. Optional. (cd examples; ./configure; gmake), make example programs included.
-7. Optional. (cd drill; ./configure; gmake; gmake install), to build drill.
-
-You can configure and compile it in a separate build directory.
-
-* Examples
-There are some examples and dns related tools in the examples/ directory.
-These can be built with:
-1. cd examples/
-2. ./configure [--with-ldns=<path to ldns installation or build>]
-3. gmake
-
-* Drill
-Drill can be built with:
-1. cd drill/
-2. ./configure [--with-ldns=<path to ldns installation or build>]
-3. gmake
-
-Note that you need to set LD_LIBRARY_PATH if you want to run the binaries
-and you have not installed the library to a system directory. You can use
-the make target all-static for the examples to run them if you don't want to
-install the library.
+3. ./configure --with-examples --with-drill
+   (optionally compile python bindings too with: --with-pyldns)
+4. make
+5. make install
 
 
 * Building from subversion repository
@@ -84,6 +64,10 @@ We have received patches from the following people, thanks!
   o Paul Wouters
   o Simon Vallet
   o Ondřej Surý
+  o Karel Slany
+  o Havard Eidnes
+  o Leo Baltus
+  o Dag-Erling Smørgrav
 
 
 INFORMATION FOR SPECIFIC OPERATING SYSTEMS

@@ -2,14 +2,8 @@
  * wpa_supplicant/hostapd control interface library
  * Copyright (c) 2004-2006, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef WPA_CTRL_H
@@ -32,6 +26,8 @@ extern "C" {
 #define WPA_EVENT_CONNECTED "CTRL-EVENT-CONNECTED "
 /** Disconnected, data connection is not available */
 #define WPA_EVENT_DISCONNECTED "CTRL-EVENT-DISCONNECTED "
+/** Association rejected during connection attempt */
+#define WPA_EVENT_ASSOC_REJECT "CTRL-EVENT-ASSOC-REJECT "
 /** wpa_supplicant is exiting */
 #define WPA_EVENT_TERMINATING "CTRL-EVENT-TERMINATING "
 /** Password change was completed successfully */
@@ -52,8 +48,14 @@ extern "C" {
 #define WPA_EVENT_EAP_SUCCESS "CTRL-EVENT-EAP-SUCCESS "
 /** EAP authentication failed (EAP-Failure received) */
 #define WPA_EVENT_EAP_FAILURE "CTRL-EVENT-EAP-FAILURE "
+/** Network block temporarily disabled (e.g., due to authentication failure) */
+#define WPA_EVENT_TEMP_DISABLED "CTRL-EVENT-SSID-TEMP-DISABLED "
+/** Temporarily disabled network block re-enabled */
+#define WPA_EVENT_REENABLED "CTRL-EVENT-SSID-REENABLED "
 /** New scan results available */
 #define WPA_EVENT_SCAN_RESULTS "CTRL-EVENT-SCAN-RESULTS "
+/** wpa_supplicant state change */
+#define WPA_EVENT_STATE_CHANGE "CTRL-EVENT-STATE-CHANGE "
 /** A new BSS entry was added (followed by BSS entry id and BSSID) */
 #define WPA_EVENT_BSS_ADDED "CTRL-EVENT-BSS-ADDED "
 /** A BSS entry was removed (followed by BSS entry id and BSSID) */
@@ -63,6 +65,8 @@ extern "C" {
 #define WPS_EVENT_OVERLAP "WPS-OVERLAP-DETECTED "
 /** Available WPS AP with active PBC found in scan results */
 #define WPS_EVENT_AP_AVAILABLE_PBC "WPS-AP-AVAILABLE-PBC "
+/** Available WPS AP with our address as authorized in scan results */
+#define WPS_EVENT_AP_AVAILABLE_AUTH "WPS-AP-AVAILABLE-AUTH "
 /** Available WPS AP with recently selected PIN registrar found in scan results
  */
 #define WPS_EVENT_AP_AVAILABLE_PIN "WPS-AP-AVAILABLE-PIN "
@@ -81,11 +85,55 @@ extern "C" {
 
 #define WPS_EVENT_ENROLLEE_SEEN "WPS-ENROLLEE-SEEN "
 
+#define WPS_EVENT_OPEN_NETWORK "WPS-OPEN-NETWORK "
+
 /* WPS ER events */
 #define WPS_EVENT_ER_AP_ADD "WPS-ER-AP-ADD "
 #define WPS_EVENT_ER_AP_REMOVE "WPS-ER-AP-REMOVE "
 #define WPS_EVENT_ER_ENROLLEE_ADD "WPS-ER-ENROLLEE-ADD "
 #define WPS_EVENT_ER_ENROLLEE_REMOVE "WPS-ER-ENROLLEE-REMOVE "
+#define WPS_EVENT_ER_AP_SETTINGS "WPS-ER-AP-SETTINGS "
+#define WPS_EVENT_ER_SET_SEL_REG "WPS-ER-AP-SET-SEL-REG "
+
+/** P2P device found */
+#define P2P_EVENT_DEVICE_FOUND "P2P-DEVICE-FOUND "
+
+/** P2P device lost */
+#define P2P_EVENT_DEVICE_LOST "P2P-DEVICE-LOST "
+
+/** A P2P device requested GO negotiation, but we were not ready to start the
+ * negotiation */
+#define P2P_EVENT_GO_NEG_REQUEST "P2P-GO-NEG-REQUEST "
+#define P2P_EVENT_GO_NEG_SUCCESS "P2P-GO-NEG-SUCCESS "
+#define P2P_EVENT_GO_NEG_FAILURE "P2P-GO-NEG-FAILURE "
+#define P2P_EVENT_GROUP_FORMATION_SUCCESS "P2P-GROUP-FORMATION-SUCCESS "
+#define P2P_EVENT_GROUP_FORMATION_FAILURE "P2P-GROUP-FORMATION-FAILURE "
+#define P2P_EVENT_GROUP_STARTED "P2P-GROUP-STARTED "
+#define P2P_EVENT_GROUP_REMOVED "P2P-GROUP-REMOVED "
+#define P2P_EVENT_CROSS_CONNECT_ENABLE "P2P-CROSS-CONNECT-ENABLE "
+#define P2P_EVENT_CROSS_CONNECT_DISABLE "P2P-CROSS-CONNECT-DISABLE "
+/* parameters: <peer address> <PIN> */
+#define P2P_EVENT_PROV_DISC_SHOW_PIN "P2P-PROV-DISC-SHOW-PIN "
+/* parameters: <peer address> */
+#define P2P_EVENT_PROV_DISC_ENTER_PIN "P2P-PROV-DISC-ENTER-PIN "
+/* parameters: <peer address> */
+#define P2P_EVENT_PROV_DISC_PBC_REQ "P2P-PROV-DISC-PBC-REQ "
+/* parameters: <peer address> */
+#define P2P_EVENT_PROV_DISC_PBC_RESP "P2P-PROV-DISC-PBC-RESP "
+/* parameters: <peer address> <status> */
+#define P2P_EVENT_PROV_DISC_FAILURE "P2P-PROV-DISC-FAILURE"
+/* parameters: <freq> <src addr> <dialog token> <update indicator> <TLVs> */
+#define P2P_EVENT_SERV_DISC_REQ "P2P-SERV-DISC-REQ "
+/* parameters: <src addr> <update indicator> <TLVs> */
+#define P2P_EVENT_SERV_DISC_RESP "P2P-SERV-DISC-RESP "
+#define P2P_EVENT_INVITATION_RECEIVED "P2P-INVITATION-RECEIVED "
+#define P2P_EVENT_INVITATION_RESULT "P2P-INVITATION-RESULT "
+#define P2P_EVENT_FIND_STOPPED "P2P-FIND-STOPPED "
+
+#define INTERWORKING_AP "INTERWORKING-AP "
+#define INTERWORKING_NO_MATCH "INTERWORKING-NO-MATCH "
+
+#define GAS_RESPONSE_INFO "GAS-RESPONSE-INFO "
 
 /* hostapd control interface - fixed message prefixes */
 #define WPS_EVENT_PIN_NEEDED "WPS-PIN-NEEDED "
@@ -97,6 +145,28 @@ extern "C" {
 #define WPS_EVENT_AP_PIN_DISABLED "WPS-AP-PIN-DISABLED "
 #define AP_STA_CONNECTED "AP-STA-CONNECTED "
 #define AP_STA_DISCONNECTED "AP-STA-DISCONNECTED "
+
+
+/* BSS command information masks */
+
+#define WPA_BSS_MASK_ALL		0xFFFFFFFF
+#define WPA_BSS_MASK_ID			BIT(0)
+#define WPA_BSS_MASK_BSSID		BIT(1)
+#define WPA_BSS_MASK_FREQ		BIT(2)
+#define WPA_BSS_MASK_BEACON_INT		BIT(3)
+#define WPA_BSS_MASK_CAPABILITIES	BIT(4)
+#define WPA_BSS_MASK_QUAL		BIT(5)
+#define WPA_BSS_MASK_NOISE		BIT(6)
+#define WPA_BSS_MASK_LEVEL		BIT(7)
+#define WPA_BSS_MASK_TSF		BIT(8)
+#define WPA_BSS_MASK_AGE		BIT(9)
+#define WPA_BSS_MASK_IE			BIT(10)
+#define WPA_BSS_MASK_FLAGS		BIT(11)
+#define WPA_BSS_MASK_SSID		BIT(12)
+#define WPA_BSS_MASK_WPS_SCAN		BIT(13)
+#define WPA_BSS_MASK_P2P_SCAN		BIT(14)
+#define WPA_BSS_MASK_INTERNETW		BIT(15)
+#define WPA_BSS_MASK_WIFI_DISPLAY	BIT(16)
 
 
 /* wpa_supplicant/hostapd control interface access */
@@ -223,9 +293,25 @@ int wpa_ctrl_pending(struct wpa_ctrl *ctrl);
  */
 int wpa_ctrl_get_fd(struct wpa_ctrl *ctrl);
 
+char * wpa_ctrl_get_remote_ifname(struct wpa_ctrl *ctrl);
+
+#ifdef ANDROID
+/**
+ * wpa_ctrl_cleanup() - Delete any local UNIX domain socket files that
+ * may be left over from clients that were previously connected to
+ * wpa_supplicant. This keeps these files from being orphaned in the
+ * event of crashes that prevented them from being removed as part
+ * of the normal orderly shutdown.
+ */
+void wpa_ctrl_cleanup(void);
+#endif /* ANDROID */
+
 #ifdef CONFIG_CTRL_IFACE_UDP
+/* Port range for multiple wpa_supplicant instances and multiple VIFs */
 #define WPA_CTRL_IFACE_PORT 9877
+#define WPA_CTRL_IFACE_PORT_LIMIT 50 /* decremented from start */
 #define WPA_GLOBAL_CTRL_IFACE_PORT 9878
+#define WPA_GLOBAL_CTRL_IFACE_PORT_LIMIT 20 /* incremented from start */
 #endif /* CONFIG_CTRL_IFACE_UDP */
 
 

@@ -1,4 +1,4 @@
-# $Id: sys.dependfile.mk,v 1.4 2012/11/08 18:31:42 sjg Exp $
+# $Id: sys.dependfile.mk,v 1.5 2013/03/08 00:59:21 sjg Exp $
 #
 #	@(#) Copyright (c) 2012, Simon J. Gerraty
 #
@@ -25,16 +25,20 @@
 # All depend file names should start with this
 .MAKE.DEPENDFILE_PREFIX ?= Makefile.depend
 
-# The order of preference: we will use the first one of these we find
-# otherwise the 1st entry will be used by default.
+# The order of preference: we will use the first one of these we find.
+# It usually makes sense to order from most specific to least.
 .MAKE.DEPENDFILE_PREFERENCE ?= \
 	${.CURDIR}/${.MAKE.DEPENDFILE_PREFIX}.${MACHINE} \
 	${.CURDIR}/${.MAKE.DEPENDFILE_PREFIX}
 
+# Normally the 1st entry is our default choice
+# Another useful default is ${.MAKE.DEPENDFILE_PREFIX}
+.MAKE.DEPENDFILE_DEFAULT ?= ${.MAKE.DEPENDFILE_PREFERENCE:[1]}
+
 _e := ${.MAKE.DEPENDFILE_PREFERENCE:@m@${exists($m):?$m:}@}
 .if !empty(_e)
 .MAKE.DEPENDFILE := ${_e:[1]}
-.elif ${.MAKE.DEPENDFILE_PREFERENCE:M*${MACHINE}} != "" && ${.MAKE.DEPENDFILE_PREFERENCE:[1]:E} != ${MACHINE}
+.elif ${.MAKE.DEPENDFILE_PREFERENCE:M*${MACHINE}} != "" && ${.MAKE.DEPENDFILE_DEFAULT:E} != ${MACHINE}
 # MACHINE specific depend files are supported, but *not* default.
 # If any already exist, we should follow suit.
 _aml = ${ALL_MACHINE_LIST:Uarm amd64 i386 powerpc:N${MACHINE}} ${MACHINE}
@@ -44,4 +48,4 @@ _e := ${_aml:@MACHINE@${.MAKE.DEPENDFILE_PREFERENCE:@m@${exists($m):?$m:}@}@}
 .MAKE.DEPENDFILE ?= ${.MAKE.DEPENDFILE_PREFERENCE:M*${MACHINE}:[1]}
 .endif
 .endif
-.MAKE.DEPENDFILE ?= ${.MAKE.DEPENDFILE_PREFERENCE:[1]}
+.MAKE.DEPENDFILE ?= ${.MAKE.DEPENDFILE_DEFAULT}

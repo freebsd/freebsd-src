@@ -17,8 +17,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "Windows.h"
-#include <malloc.h>
 #include <cstdio>
+#include <malloc.h>
 
 // We need to undo a macro defined in Windows.h, otherwise we won't compile:
 #undef CopyFile
@@ -82,7 +82,7 @@ Path::isValid() const {
   pos = path.rfind(':',len);
   size_t rootslash = 0;
   if (pos != std::string::npos) {
-    if (pos != 1 || !isalpha(path[0]) || len < 3)
+    if (pos != 1 || !isalpha(static_cast<unsigned char>(path[0])) || len < 3)
       return false;
       rootslash = 2;
   }

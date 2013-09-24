@@ -136,11 +136,14 @@ struct scsi_position_to_element {
 struct scsi_read_element_status {
 	u_int8_t	opcode;
 	u_int8_t	byte2;
-#define READ_ELEMENT_STATUS_VOLTAG	0x10	/* report volume tag info */
+#define	READ_ELEMENT_STATUS_VOLTAG	0x10	/* report volume tag info */
 	/* ...next 4 bits are an element type code... */
 	u_int8_t	sea[2];	/* starting element address */
 	u_int8_t	count[2]; /* number of elements */
-	u_int8_t	reserved0;
+	u_int8_t	flags;
+#define	READ_ELEMENT_STATUS_DVCID	0x01 /* report device serial number */
+#define	READ_ELEMENT_STATUS_CURDATA	0x02 /* allow motion during command */
+
 	u_int8_t	len[3];	/* length of data buffer */
 	u_int8_t	reserved1;
 	u_int8_t	control;
@@ -149,7 +152,7 @@ struct scsi_read_element_status {
 struct scsi_request_volume_element_address {
 	u_int8_t	opcode;
 	u_int8_t	byte2;
-#define REQUEST_VOLUME_ELEMENT_ADDRESS_VOLTAG	0x10
+#define	REQUEST_VOLUME_ELEMENT_ADDRESS_VOLTAG	0x10
 	/* ...next 4 bits are an element type code... */
 	u_int8_t	eaddr[2];	/* element address */
 	u_int8_t	count[2];	/* number of elements */
@@ -182,8 +185,8 @@ struct read_element_status_header {
 struct read_element_status_page_header {
 	u_int8_t	type;	/* element type code; see type codes below */
 	u_int8_t	flags;
-#define READ_ELEMENT_STATUS_AVOLTAG	0x40
-#define READ_ELEMENT_STATUS_PVOLTAG	0x80
+#define	READ_ELEMENT_STATUS_AVOLTAG	0x40
+#define	READ_ELEMENT_STATUS_PVOLTAG	0x80
 	u_int8_t	edl[2];	/* element descriptor length */
 	u_int8_t	reserved;
 	u_int8_t	nbytes[3]; /* byte count of all descriptors */
@@ -199,50 +202,79 @@ struct volume_tag {
 	u_int8_t	vsn[2];		/* volume sequence number */
 };
 
+struct read_element_status_device_id {
+	u_int8_t	prot_code_set;
+#define	READ_ELEMENT_STATUS_CODE_SET(p) ((p) & 0x0F)
+#define	READ_ELEMENT_STATUS_PROTOCOL_ID(p) ((p) >> 4)
+
+	u_int8_t	piv_assoc_designator_type;
+#define	READ_ELEMENT_STATUS_PIV_SET 0x80
+#define	READ_ELEMENT_STATUS_ASSOCIATION(p) ((p) >> 4)
+#define	READ_ELEMENT_STATUS_DESIGNATOR_TYPE(p) ((p) & 0x0F)
+
+	u_int8_t	reserved2;
+	u_int8_t	designator_length;
+	u_int8_t	designator[256]; /* Allocate max length */
+};
+
 struct read_element_status_descriptor {
 	u_int8_t	eaddr[2];	/* element address */
 	u_int8_t	flags1;
 
-#define READ_ELEMENT_STATUS_FULL	0x01
-#define READ_ELEMENT_STATUS_IMPEXP	0x02
-#define READ_ELEMENT_STATUS_EXCEPT	0x04
-#define READ_ELEMENT_STATUS_ACCESS	0x08
-#define READ_ELEMENT_STATUS_EXENAB	0x10
-#define READ_ELEMENT_STATUS_INENAB	0x20
+#define	READ_ELEMENT_STATUS_FULL	0x01
+#define	READ_ELEMENT_STATUS_IMPEXP	0x02
+#define	READ_ELEMENT_STATUS_EXCEPT	0x04
+#define	READ_ELEMENT_STATUS_ACCESS	0x08
+#define	READ_ELEMENT_STATUS_EXENAB	0x10
+#define	READ_ELEMENT_STATUS_INENAB	0x20
 
-#define READ_ELEMENT_STATUS_MT_MASK1	0x05
-#define READ_ELEMENT_STATUS_ST_MASK1	0x0c
-#define READ_ELEMENT_STATUS_IE_MASK1	0x3f
-#define READ_ELEMENT_STATUS_DT_MASK1	0x0c
+#define	READ_ELEMENT_STATUS_MT_MASK1	0x05
+#define	READ_ELEMENT_STATUS_ST_MASK1	0x0c
+#define	READ_ELEMENT_STATUS_IE_MASK1	0x3f
+#define	READ_ELEMENT_STATUS_DT_MASK1	0x0c
 
 	u_int8_t	reserved0;
 	u_int8_t	sense_code;
 	u_int8_t	sense_qual;
 
-	/*
-	 * dt_scsi_flags and dt_scsi_addr are valid only on data transport
-	 * elements.  These bytes are undefined for all other element types.
-	 */
-	u_int8_t	dt_scsi_flags;
+	union {
+		struct {
+			u_int8_t	dt_scsi_flags;
 
-#define READ_ELEMENT_STATUS_DT_LUNMASK	0x07
-#define READ_ELEMENT_STATUS_DT_LUVALID	0x10
-#define READ_ELEMENT_STATUS_DT_IDVALID	0x20
-#define READ_ELEMENT_STATUS_DT_NOTBUS	0x80
+#define	READ_ELEMENT_STATUS_DT_LUNMASK	0x07
+#define	READ_ELEMENT_STATUS_DT_LUVALID	0x10
+#define	READ_ELEMENT_STATUS_DT_IDVALID	0x20
+#define	READ_ELEMENT_STATUS_DT_NOTBUS	0x80
 
-	u_int8_t	dt_scsi_addr;
+			u_int8_t	dt_scsi_addr;
+			u_int8_t	reserved1;
+		} scsi_2;
 
-	u_int8_t	reserved1;
+		/* reserved and obsolete (as of SCSI-3) fields */
+		u_int8_t	reserved_or_obsolete[3];
+	} dt_or_obsolete;
 
 	u_int8_t	flags2;
-#define READ_ELEMENT_STATUS_INVERT	0x40
-#define READ_ELEMENT_STATUS_SVALID	0x80
+#define	READ_ELEMENT_STATUS_INVERT		0x40
+#define	READ_ELEMENT_STATUS_SVALID		0x80
+#define	READ_ELEMENT_STATUS_ED			0x80
+#define	READ_ELEMENT_STATUS_MEDIA_TYPE_MASK	0x07
+
 	u_int8_t	ssea[2];	/* source storage element address */
 
-	struct volume_tag pvoltag;	/* omitted if PVOLTAG == 0 */
-	struct volume_tag avoltag;	/* omitted if AVOLTAG == 0 */
-
-	/* Other data may follow */
+	union {
+		struct volume_tag			pvoltag;
+		struct volume_tag 			voltag[2];
+		struct read_element_status_device_id	devid;
+		struct {
+			struct volume_tag			pvoltag;
+			struct read_element_status_device_id	devid;
+		} pvol_and_devid;
+		struct {
+			struct volume_tag			voltag[2];
+			struct read_element_status_device_id	devid;
+		} vol_tags_and_devid;
+	} voltag_devid;
 };
 
 /* XXX add data returned by REQUEST VOLUME ELEMENT ADDRESS */
@@ -457,6 +489,7 @@ void scsi_position_to_element(struct ccb_scsiio *csio, u_int32_t retries,
 void scsi_read_element_status(struct ccb_scsiio *csio, u_int32_t retries,
 			      void (*cbfcnp)(struct cam_periph *, union ccb *),
 			      u_int8_t tag_action, int voltag, u_int32_t sea,
+			      int curdata, int dvcid,
 			      u_int32_t count, u_int8_t *data_ptr,
 			      u_int32_t dxfer_len, u_int8_t sense_len,
 			      u_int32_t timeout);

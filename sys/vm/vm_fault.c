@@ -280,6 +280,19 @@ RetryFault:;
 		    (u_long)vaddr);
 	}
 
+	if (fs.entry->eflags & MAP_ENTRY_IN_TRANSITION &&
+	    fs.entry->wiring_thread != curthread) {
+		vm_map_unlock_read(fs.map);
+		vm_map_lock(fs.map);
+		if (vm_map_lookup_entry(fs.map, vaddr, &fs.entry) &&
+		    (fs.entry->eflags & MAP_ENTRY_IN_TRANSITION)) {
+			fs.entry->eflags |= MAP_ENTRY_NEEDS_WAKEUP;
+			vm_map_unlock_and_wait(fs.map, 0);
+		} else
+			vm_map_unlock(fs.map);
+		goto RetryFault;
+	}
+
 	/*
 	 * Make a reference to this object to prevent its disposal while we
 	 * are messing with it.  Once we have the reference, the map is free
@@ -1044,28 +1057,28 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 
 		pindex = ((addr - entry->start) + entry->offset) >> PAGE_SHIFT;
 		lobject = object;
-		VM_OBJECT_WLOCK(lobject);
+		VM_OBJECT_RLOCK(lobject);
 		while ((m = vm_page_lookup(lobject, pindex)) == NULL &&
 		    lobject->type == OBJT_DEFAULT &&
 		    (backing_object = lobject->backing_object) != NULL) {
 			KASSERT((lobject->backing_object_offset & PAGE_MASK) ==
 			    0, ("vm_fault_prefault: unaligned object offset"));
 			pindex += lobject->backing_object_offset >> PAGE_SHIFT;
-			VM_OBJECT_WLOCK(backing_object);
-			VM_OBJECT_WUNLOCK(lobject);
+			VM_OBJECT_RLOCK(backing_object);
+			VM_OBJECT_RUNLOCK(lobject);
 			lobject = backing_object;
 		}
 		/*
 		 * give-up when a page is not in memory
 		 */
 		if (m == NULL) {
-			VM_OBJECT_WUNLOCK(lobject);
+			VM_OBJECT_RUNLOCK(lobject);
 			break;
 		}
 		if (m->valid == VM_PAGE_BITS_ALL &&
 		    (m->flags & PG_FICTITIOUS) == 0)
 			pmap_enter_quick(pmap, addr, m, entry->protection);
-		VM_OBJECT_WUNLOCK(lobject);
+		VM_OBJECT_RUNLOCK(lobject);
 	}
 }
 
@@ -1318,7 +1331,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		 * (Because the source is wired down, the page will be in
 		 * memory.)
 		 */
-		VM_OBJECT_WLOCK(src_object);
+		VM_OBJECT_RLOCK(src_object);
 		object = src_object;
 		pindex = src_pindex + dst_pindex;
 		while ((src_m = vm_page_lookup(object, pindex)) == NULL &&
@@ -1327,15 +1340,15 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 			/*
 			 * Allow fallback to backing objects if we are reading.
 			 */
-			VM_OBJECT_WLOCK(backing_object);
+			VM_OBJECT_RLOCK(backing_object);
 			pindex += OFF_TO_IDX(object->backing_object_offset);
-			VM_OBJECT_WUNLOCK(object);
+			VM_OBJECT_RUNLOCK(object);
 			object = backing_object;
 		}
 		if (src_m == NULL)
 			panic("vm_fault_copy_wired: page missing");
 		pmap_copy_page(src_m, dst_m);
-		VM_OBJECT_WUNLOCK(object);
+		VM_OBJECT_RUNLOCK(object);
 		dst_m->valid = VM_PAGE_BITS_ALL;
 		dst_m->dirty = VM_PAGE_BITS_ALL;
 		VM_OBJECT_WUNLOCK(dst_object);

@@ -19,32 +19,33 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "post-RA-sched"
-#include "AntiDepBreaker.h"
-#include "AggressiveAntiDepBreaker.h"
-#include "CriticalAntiDepBreaker.h"
 #include "llvm/CodeGen/Passes.h"
+#include "AggressiveAntiDepBreaker.h"
+#include "AntiDepBreaker.h"
+#include "CriticalAntiDepBreaker.h"
+#include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/CodeGen/LatencyPriorityQueue.h"
-#include "llvm/CodeGen/SchedulerRegistry.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterClassInfo.h"
 #include "llvm/CodeGen/ScheduleDAGInstrs.h"
 #include "llvm/CodeGen/ScheduleHazardRecognizer.h"
-#include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
+#include "llvm/CodeGen/SchedulerRegistry.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/Statistic.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetLowering.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 STATISTIC(NumNoops, "Number of noops inserted");
@@ -110,9 +111,6 @@ namespace {
     /// the operation).  Once the operands becomes available, the instruction is
     /// added to the AvailableQueue.
     std::vector<SUnit*> PendingQueue;
-
-    /// Topo - A topological ordering for SUnits.
-    ScheduleDAGTopologicalSort Topo;
 
     /// HazardRec - The hazard recognizer to use.
     ScheduleHazardRecognizer *HazardRec;
@@ -198,7 +196,7 @@ SchedulePostRATDList::SchedulePostRATDList(
   AliasAnalysis *AA, const RegisterClassInfo &RCI,
   TargetSubtargetInfo::AntiDepBreakMode AntiDepMode,
   SmallVectorImpl<const TargetRegisterClass*> &CriticalPathRCs)
-  : ScheduleDAGInstrs(MF, MLI, MDT, /*IsPostRA=*/true), Topo(SUnits), AA(AA),
+  : ScheduleDAGInstrs(MF, MLI, MDT, /*IsPostRA=*/true), AA(AA),
     LiveRegs(TRI->getNumRegs())
 {
   const TargetMachine &TM = MF.getTarget();
@@ -420,30 +418,16 @@ void SchedulePostRATDList::StartBlockForKills(MachineBasicBlock *BB) {
   // Start with no live registers.
   LiveRegs.reset();
 
-  // Determine the live-out physregs for this block.
-  if (!BB->empty() && BB->back().isReturn()) {
-    // In a return block, examine the function live-out regs.
-    for (MachineRegisterInfo::liveout_iterator I = MRI.liveout_begin(),
-           E = MRI.liveout_end(); I != E; ++I) {
+  // Examine the live-in regs of all successors.
+  for (MachineBasicBlock::succ_iterator SI = BB->succ_begin(),
+       SE = BB->succ_end(); SI != SE; ++SI) {
+    for (MachineBasicBlock::livein_iterator I = (*SI)->livein_begin(),
+         E = (*SI)->livein_end(); I != E; ++I) {
       unsigned Reg = *I;
       LiveRegs.set(Reg);
       // Repeat, for all subregs.
       for (MCSubRegIterator SubRegs(Reg, TRI); SubRegs.isValid(); ++SubRegs)
         LiveRegs.set(*SubRegs);
-    }
-  }
-  else {
-    // In a non-return block, examine the live-in regs of all successors.
-    for (MachineBasicBlock::succ_iterator SI = BB->succ_begin(),
-           SE = BB->succ_end(); SI != SE; ++SI) {
-      for (MachineBasicBlock::livein_iterator I = (*SI)->livein_begin(),
-             E = (*SI)->livein_end(); I != E; ++I) {
-        unsigned Reg = *I;
-        LiveRegs.set(Reg);
-        // Repeat, for all subregs.
-        for (MCSubRegIterator SubRegs(Reg, TRI); SubRegs.isValid(); ++SubRegs)
-          LiveRegs.set(*SubRegs);
-      }
     }
   }
 }
@@ -467,13 +451,10 @@ bool SchedulePostRATDList::ToggleKillFlag(MachineInstr *MI,
   MO.setIsKill(false);
   bool AllDead = true;
   const unsigned SuperReg = MO.getReg();
+  MachineInstrBuilder MIB(MF, MI);
   for (MCSubRegIterator SubRegs(SuperReg, TRI); SubRegs.isValid(); ++SubRegs) {
     if (LiveRegs.test(*SubRegs)) {
-      MI->addOperand(MachineOperand::CreateReg(*SubRegs,
-                                               true  /*IsDef*/,
-                                               true  /*IsImp*/,
-                                               false /*IsKill*/,
-                                               false /*IsDead*/));
+      MIB.addReg(*SubRegs, RegState::ImplicitDefine);
       AllDead = false;
     }
   }
@@ -580,10 +561,14 @@ void SchedulePostRATDList::FixupKills(MachineBasicBlock *MBB) {
 //===----------------------------------------------------------------------===//
 
 /// ReleaseSucc - Decrement the NumPredsLeft count of a successor. Add it to
-/// the PendingQueue if the count reaches zero. Also update its cycle bound.
+/// the PendingQueue if the count reaches zero.
 void SchedulePostRATDList::ReleaseSucc(SUnit *SU, SDep *SuccEdge) {
   SUnit *SuccSU = SuccEdge->getSUnit();
 
+  if (SuccEdge->isWeak()) {
+    --SuccSU->WeakPredsLeft;
+    return;
+  }
 #ifndef NDEBUG
   if (SuccSU->NumPredsLeft == 0) {
     dbgs() << "*** Scheduling failed! ***\n";
@@ -653,8 +638,7 @@ void SchedulePostRATDList::ListScheduleTopDown() {
   // Add all leaves to Available queue.
   for (unsigned i = 0, e = SUnits.size(); i != e; ++i) {
     // It is available if it has no predecessors.
-    bool available = SUnits[i].Preds.empty();
-    if (available) {
+    if (!SUnits[i].NumPredsLeft && !SUnits[i].isAvailable) {
       AvailableQueue.push(&SUnits[i]);
       SUnits[i].isAvailable = true;
     }

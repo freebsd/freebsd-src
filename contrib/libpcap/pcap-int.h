@@ -144,6 +144,7 @@ struct pcap_md {
 	char	*mondevice;	/* mac80211 monitor device we created */
 	u_char	*mmapbuf;	/* memory-mapped region pointer */
 	size_t	mmapbuflen;	/* size of region */
+	int	vlan_offset;	/* offset at which to insert vlan tags; if -1, don't insert */
 	u_int	tp_version;	/* version of tpacket_hdr for mmaped ring */
 	u_int	tp_hdrlen;	/* hdrlen of tpacket_hdr for mmaped ring */
 	u_char	*oneshot_buffer; /* buffer for copy of packet */
@@ -374,12 +375,13 @@ struct pcap_timeval {
  *	the old record header as well as files with the new record header
  *	(using the magic number to determine the header format).
  *
- * Then supply the changes as a patch at
+ * Then supply the changes by forking the branch at
  *
- *	http://sourceforge.net/projects/libpcap/
+ *	https://github.com/mcr/libpcap/issues
  *
- * so that future versions of libpcap and programs that use it (such as
- * tcpdump) will be able to read your new capture file format.
+ * and issuing a pull request, so that future versions of libpcap and
+ * programs that use it (such as tcpdump) will be able to read your new
+ * capture file format.
  */
 
 struct pcap_sf_pkthdr {
@@ -454,6 +456,18 @@ int	pcap_getnonblock_fd(pcap_t *, char *);
 int	pcap_setnonblock_fd(pcap_t *p, int, char *);
 #endif
 
+/*
+ * Internal interfaces for "pcap_create()".
+ *
+ * "pcap_create_interface()" is the routine to do a pcap_create on
+ * a regular network interface.  There are multiple implementations
+ * of this, one for each platform type (Linux, BPF, DLPI, etc.),
+ * with the one used chosen by the configure script.
+ *
+ * "pcap_create_common()" allocates and fills in a pcap_t, for use
+ * by pcap_create routines.
+ */
+pcap_t	*pcap_create_interface(const char *, char *);
 pcap_t	*pcap_create_common(const char *, char *);
 int	pcap_do_addexit(pcap_t *);
 void	pcap_add_to_pcaps_to_close(pcap_t *);
@@ -465,12 +479,16 @@ int	pcap_check_activated(pcap_t *);
 /*
  * Internal interfaces for "pcap_findalldevs()".
  *
- * "pcap_platform_finddevs()" is a platform-dependent routine to
- * add devices not found by the "standard" mechanisms (SIOCGIFCONF,
- * "getifaddrs()", etc..
+ * "pcap_findalldevs_interfaces()" finds interfaces using the
+ * "standard" mechanisms (SIOCGIFCONF, "getifaddrs()", etc.).
  *
- * "pcap_add_if()" adds an interface to the list of interfaces.
+ * "pcap_platform_finddevs()" is a platform-dependent routine to
+ * add devices not found by the "standard" mechanisms.
+ *
+ * "pcap_add_if()" adds an interface to the list of interfaces, for
+ * use by various "find interfaces" routines.
  */
+int	pcap_findalldevs_interfaces(pcap_if_t **, char *);
 int	pcap_platform_finddevs(pcap_if_t **, char *);
 int	add_addr_to_iflist(pcap_if_t **, const char *, u_int, struct sockaddr *,
 	    size_t, struct sockaddr *, size_t, struct sockaddr *, size_t,

@@ -3,14 +3,14 @@
 
 .include <bsd.own.mk>
 
-.if ${MK_BSD_PATCH} == "yes"
-PROG=	patch
-.else
+.if ${MK_GNU_PATCH} == "yes"
 PROG=	bsdpatch
 CLEANFILES+= bsdpatch.1
 
 bsdpatch.1: patch.1
 	cp ${.ALLSRC} ${.TARGET}
+.else
+PROG=	patch
 .endif
 
 SRCS=	backupfile.c inp.c mkpath.c patch.c pch.c util.c

@@ -77,7 +77,7 @@ options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
 # For minimum debugger support (stable branch) use:
-#options 	KDB_TRACE		# Print a stack trace for a panic.
+options 	KDB_TRACE		# Print a stack trace for a panic.
 # For full debugger support use this instead:
 options 	DDB			#Support DDB
 #options 	DEADLKRES		#Enable the deadlock resolver
@@ -100,7 +100,6 @@ device		agp
 # ATA controllers
 device		ahci		# AHCI-compatible SATA controllers
 device		ata		# Legacy ATA/SATA controllers
-options 	ATA_CAM		# Handle legacy controllers with CAM
 device		mvs		# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
 device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
 

@@ -107,7 +107,9 @@ HxDoHexOutput (
         break;
 
     default:
+
         /* No other output types supported */
+
         break;
     }
 }

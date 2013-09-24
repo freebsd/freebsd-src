@@ -51,7 +51,7 @@ struct random_systat {
 	random_reseed_func_t	*reseed;
 };
 
-extern struct random_systat random_systat;
+extern struct random_systat *random_systat;
 
-extern void random_ident_hardware(struct random_systat *);
+extern void random_ident_hardware(struct random_systat **);
 extern void random_null_func(void);

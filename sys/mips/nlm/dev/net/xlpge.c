@@ -975,7 +975,7 @@ nlm_mii_pollstat(void *arg)
 	if (sc->mii_bus) {
 		mii = device_get_softc(sc->mii_bus);
 
-		KASSERT(mii == NULL, ("mii ptr is NULL"));
+		KASSERT(mii != NULL, ("mii ptr is NULL"));
 
 		mii_pollstat(mii);
 
@@ -1143,7 +1143,7 @@ get_buf(void)
 #ifdef INVARIANTS
 	temp1 = vtophys((vm_offset_t) m_new->m_data);
 	temp2 = vtophys((vm_offset_t) m_new->m_data + 1536);
-	KASSERT((temp1 + 1536) != temp2,
+	KASSERT((temp1 + 1536) == temp2,
 	    ("Alloced buffer is not contiguous"));
 #endif
 	return ((void *)m_new->m_data);

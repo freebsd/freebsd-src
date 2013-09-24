@@ -299,15 +299,16 @@ TrTransformSubtree (
     switch (Op->Asl.ParseOpcode)
     {
     case PARSEOP_DEFINITIONBLOCK:
+
         TrDoDefinitionBlock (Op);
         break;
 
     case PARSEOP_SWITCH:
+
         TrDoSwitch (Op);
         break;
 
     case PARSEOP_METHOD:
-
         /*
          * TBD: Zero the tempname (_T_x) count. Probably shouldn't be a global,
          * however
@@ -316,7 +317,9 @@ TrTransformSubtree (
         break;
 
     default:
+
         /* Nothing to do here for other opcodes */
+
         break;
     }
 }
@@ -700,18 +703,21 @@ TrDoSwitch (
     switch (Btype)
     {
     case ACPI_BTYPE_INTEGER:
+
         NewOp2->Asl.Next = TrCreateValuedLeafNode (PARSEOP_ZERO,
                                 (UINT64) 0);
         TrAmlInitLineNumbers (NewOp2->Asl.Next, NewOp);
         break;
 
     case ACPI_BTYPE_STRING:
+
         NewOp2->Asl.Next = TrCreateValuedLeafNode (PARSEOP_STRING_LITERAL,
                                 (UINT64) ACPI_TO_INTEGER (""));
         TrAmlInitLineNumbers (NewOp2->Asl.Next, NewOp);
         break;
 
     case ACPI_BTYPE_BUFFER:
+
         (void) TrLinkPeerNode (NewOp2, TrCreateValuedLeafNode (PARSEOP_BUFFER,
                                     (UINT64) 0));
         Next = NewOp2->Asl.Next;
@@ -728,6 +734,7 @@ TrDoSwitch (
         break;
 
     default:
+
         break;
     }
 

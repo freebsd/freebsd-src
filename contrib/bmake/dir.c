@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.c,v 1.65 2012/06/12 19:21:50 joerg Exp $	*/
+/*	$NetBSD: dir.c,v 1.67 2013/03/05 22:01:43 christos Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: dir.c,v 1.65 2012/06/12 19:21:50 joerg Exp $";
+static char rcsid[] = "$NetBSD: dir.c,v 1.67 2013/03/05 22:01:43 christos Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)dir.c	8.2 (Berkeley) 1/2/94";
 #else
-__RCSID("$NetBSD: dir.c,v 1.65 2012/06/12 19:21:50 joerg Exp $");
+__RCSID("$NetBSD: dir.c,v 1.67 2013/03/05 22:01:43 christos Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -145,6 +145,7 @@ __RCSID("$NetBSD: dir.c,v 1.65 2012/06/12 19:21:50 joerg Exp $");
 #include "make.h"
 #include "hash.h"
 #include "dir.h"
+#include "job.h"
 
 /*
  *	A search path consists of a Lst of Path structures. A Path structure
@@ -1463,9 +1464,11 @@ Dir_MTime(GNode *gn, Boolean recheck)
 			 * so that we give that to the compiler.
 			 */
 			gn->path = bmake_strdup(fullName);
-			fprintf(stdout,
-				"%s: ignoring stale %s for %s, found %s\n",
-				progname, makeDependfile, gn->name, fullName);
+			if (!Job_RunTarget(".STALE", gn->fname))
+			    fprintf(stdout,
+				"%s: %s, %d: ignoring stale %s for %s, "
+				"found %s\n", progname, gn->fname, gn->lineno,
+				makeDependfile, gn->name, fullName);
 		    }
 		}
 	    }

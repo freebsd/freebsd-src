@@ -574,8 +574,17 @@ initarm(struct arm_boot_params *abp)
 
 	at91_soc_id();
 
-	/* Initialize all the clocks, so that the console can work */
-	at91_pmc_init_clock();
+	/*
+	 * Initialize all the clocks, so that the console can work.  We can only
+	 * do this if at91_soc_id() was able to fill in the support data.  Even
+	 * if we can't init the clocks, still try to do a console init so we can
+	 * try to print the error message about missing soc support.  There's a
+	 * chance the printf will work if the bootloader set up the DBGU.
+	 */
+	if (soc_info.soc_data != NULL) {
+		soc_info.soc_data->soc_clock_init();
+		at91_pmc_init_clock();
+	}
 
 	cninit();
 

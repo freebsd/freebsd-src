@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
@@ -174,11 +175,10 @@ static const int npagers = sizeof(pagertab) / sizeof(pagertab[0]);
  * cleaning requests (NPENDINGIO == 64) * the maximum swap cluster size
  * (MAXPHYS == 64k) if you want to get the most efficiency.
  */
-vm_map_t pager_map;
-static int bswneeded;
-static vm_offset_t swapbkva;		/* swap buffers kva */
-struct mtx pbuf_mtx;
+struct mtx_padalign pbuf_mtx;
 static TAILQ_HEAD(swqueue, buf) bswlist;
+static int bswneeded;
+vm_offset_t swapbkva;		/* swap buffers kva */
 
 void
 vm_pager_init()
@@ -215,10 +215,6 @@ vm_pager_bufferinit()
 
 	cluster_pbuf_freecnt = nswbuf / 2;
 	vnode_pbuf_freecnt = nswbuf / 2 + 1;
-
-	swapbkva = kmem_alloc_nofault(pager_map, nswbuf * MAXPHYS);
-	if (!swapbkva)
-		panic("Not enough pager_map VM space for physical buffers");
 }
 
 /*
@@ -469,17 +465,9 @@ pbrelvp(struct buf *bp)
 
 	KASSERT(bp->b_vp != NULL, ("pbrelvp: NULL"));
 	KASSERT(bp->b_bufobj != NULL, ("pbrelvp: NULL bufobj"));
+	KASSERT((bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) == 0,
+	    ("pbrelvp: pager buf on vnode list."));
 
-	/* XXX REMOVE ME */
-	BO_LOCK(bp->b_bufobj);
-	if (TAILQ_NEXT(bp, b_bobufs) != NULL) {
-		panic(
-		    "relpbuf(): b_vp was probably reassignbuf()d %p %x",
-		    bp,
-		    (int)bp->b_flags
-		);
-	}
-	BO_UNLOCK(bp->b_bufobj);
 	bp->b_vp = NULL;
 	bp->b_bufobj = NULL;
 	bp->b_flags &= ~B_PAGING;
@@ -494,17 +482,9 @@ pbrelbo(struct buf *bp)
 
 	KASSERT(bp->b_vp == NULL, ("pbrelbo: vnode"));
 	KASSERT(bp->b_bufobj != NULL, ("pbrelbo: NULL bufobj"));
+	KASSERT((bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) == 0,
+	    ("pbrelbo: pager buf on vnode list."));
 
-	/* XXX REMOVE ME */
-	BO_LOCK(bp->b_bufobj);
-	if (TAILQ_NEXT(bp, b_bobufs) != NULL) {
-		panic(
-		    "relpbuf(): b_vp was probably reassignbuf()d %p %x",
-		    bp,
-		    (int)bp->b_flags
-		);
-	}
-	BO_UNLOCK(bp->b_bufobj);
 	bp->b_bufobj = NULL;
 	bp->b_flags &= ~B_PAGING;
 }

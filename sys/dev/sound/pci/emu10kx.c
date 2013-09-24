@@ -1928,7 +1928,7 @@ emu_initefx(struct emu_sc_info *sc)
 			/*
 			 * Substream map (in byte offsets, each substream is 2 bytes):
 			 *	0x00..0x1E - outputs
-			 *	0x20..0x3E - FX, inputs ans sync stream
+			 *	0x20..0x3E - FX, inputs and sync stream
 			 */
 
 			/* First 2 channels (offset 0x20,0x22) are empty */

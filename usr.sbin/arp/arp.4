@@ -28,7 +28,7 @@
 .\"	@(#)arp4.4	6.5 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd September 3, 2012
+.Dd May 11, 2013
 .Dt ARP 4
 .Os
 .Sh NAME
@@ -148,6 +148,10 @@ See
 .Sx DIAGNOSTICS
 below.
 Turned on by default.
+.It Va max_log_per_second
+Limit number of remotely triggered logging events to a configured value
+per second.
+Default is 1 log message per second.
 .It Va max_age
 How long an ARP entry is held in the cache until it needs to be refreshed.
 Default is 1200 seconds.

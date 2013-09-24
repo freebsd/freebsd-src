@@ -143,6 +143,7 @@ typedef enum {
 	ZFS_PROP_CLONES,
 	ZFS_PROP_LOGICALUSED,
 	ZFS_PROP_LOGICALREFERENCED,
+	ZFS_PROP_INCONSISTENT,		/* not exposed to the user */
 	ZFS_NUM_PROPS
 } zfs_prop_t;
 

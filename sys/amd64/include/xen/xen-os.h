@@ -2,37 +2,34 @@
  * os.h
  * 
  * random collection of macros and definition
+ *
+ * $FreeBSD$
  */
 
 #ifndef _XEN_OS_H_
 #define _XEN_OS_H_
-#include <machine/param.h>
 
 #ifdef PAE
 #define CONFIG_X86_PAE
 #endif
 
+#ifdef LOCORE
+#define __ASSEMBLY__
+#endif
+
 #if !defined(__XEN_INTERFACE_VERSION__)  
-/*  
- * Can update to a more recent version when we implement  
- * the hypercall page  
- */  
-#define  __XEN_INTERFACE_VERSION__ 0x00030204  
+#define  __XEN_INTERFACE_VERSION__ 0x00030208
 #endif  
+
+#define GRANT_REF_INVALID   0xffffffff
 
 #include <xen/interface/xen.h>
 
+/* Everything below this point is not included by assembler (.S) files. */
+#ifndef __ASSEMBLY__
+
 /* Force a proper event-channel callback from Xen. */
 void force_evtchn_callback(void);
-
-#define likely(x)  __builtin_expect((x),1)
-#define unlikely(x)  __builtin_expect((x),0)
-
-#ifndef vtophys
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
-#endif
 
 extern int gdtset;
 #ifdef SMP
@@ -69,11 +66,6 @@ static inline void rep_nop(void)
 void *bootmem_alloc(unsigned int size);
 void bootmem_free(void *ptr, unsigned int size);
 
-
-/* Everything below this point is not included by assembler (.S) files. */
-#ifndef __ASSEMBLY__
-#include <sys/types.h>
-
 void printk(const char *fmt, ...);
 int vprintk(const char *fmt, __va_list ap);
 
@@ -87,7 +79,7 @@ void trap_init(void);
 
 /*
  * STI/CLI equivalents. These basically set and clear the virtual
- * event_enable flag in teh shared_info structure. Note that when
+ * event_enable flag in the shared_info structure. Note that when
  * the enable bit is set, there may be pending events to be handled.
  * We may therefore call into do_hypervisor_callback() directly.
  */
@@ -156,14 +148,14 @@ do {                                                                    \
 #else
 #endif
 
-#ifndef mb
-#define mb() __asm__ __volatile__("mfence":::"memory")
+#ifndef xen_mb
+#define xen_mb() mb()
 #endif
-#ifndef rmb
-#define rmb() __asm__ __volatile__("lfence":::"memory");
+#ifndef xen_rmb
+#define xen_rmb() rmb()
 #endif
-#ifndef wmb
-#define wmb() barrier()
+#ifndef xen_wmb
+#define xen_wmb() wmb()
 #endif
 #ifdef SMP
 #define smp_mb() mb() 

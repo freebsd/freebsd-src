@@ -47,16 +47,13 @@
 #include "citrus_hash.h"
 #include "citrus_iconv.h"
 
-#ifdef __weak_alias
-__weak_alias(libiconv, _iconv)
-__weak_alias(libiconv_open, _iconv_open)
-__weak_alias(libiconv_open_into, _iconv_open_into)
-__weak_alias(libiconv_close, _iconv_close)
-__weak_alias(libiconvlist, _iconvlist)
-__weak_alias(libiconvctl, _iconvctl)
-__weak_alias(libiconv_set_relocation_prefix, _iconv_set_relocation_prefix)
-__weak_alias(iconv_canonicalize, _iconv_canonicalize)
-#endif
+__weak_reference(libiconv, iconv);
+__weak_reference(libiconv_open, iconv_open);
+__weak_reference(libiconv_open_into, iconv_open_into);
+__weak_reference(libiconv_close, iconv_close);
+__weak_reference(libiconvlist, iconvlist);
+__weak_reference(libiconvctl, iconvctl);
+__weak_reference(libiconv_set_relocation_prefix, iconv_set_relocation_prefix);
 
 #define ISBADF(_h_)	(!(_h_) || (_h_) == (iconv_t)-1)
 
@@ -66,37 +63,31 @@ iconv_t		 _iconv_open(const char *out, const char *in,
 		    struct _citrus_iconv *prealloc);
 
 iconv_t
-_iconv_open(const char *out, const char *in, struct _citrus_iconv *prealloc)
+_iconv_open(const char *out, const char *in, struct _citrus_iconv *handle)
 {
-	struct _citrus_iconv *handle;
-	char *out_truncated, *p;
+	const char *out_slashes;
+	char *out_noslashes;
 	int ret;
-
-	handle = prealloc;
 
 	/*
 	 * Remove anything following a //, as these are options (like
 	 * //ignore, //translate, etc) and we just don't handle them.
-	 * This is for compatibilty with software that uses thees
+	 * This is for compatibility with software that uses these
 	 * blindly.
 	 */
-	out_truncated = strdup(out);
-	if (out_truncated == NULL) {
-		errno = ENOMEM;
-		return ((iconv_t)-1);
+	out_slashes = strstr(out, "//");
+	if (out_slashes != NULL) {
+		out_noslashes = strndup(out, out_slashes - out);
+		if (out_noslashes == NULL) {
+			errno = ENOMEM;
+			return ((iconv_t)-1);
+		}
+		ret = _citrus_iconv_open(&handle, in, out_noslashes);
+		free(out_noslashes);
+	} else {
+		ret = _citrus_iconv_open(&handle, in, out);
 	}
 
-	p = out_truncated;
-        while (*p != 0) {
-                if (p[0] == '/' && p[1] == '/') {
-                        *p = '\0';
-                        break;
-                }
-                p++;
-        }
-
-	ret = _citrus_iconv_open(&handle, in, out_truncated);
-	free(out_truncated);
 	if (ret) {
 		errno = ret == ENOENT ? EINVAL : ret;
 		return ((iconv_t)-1);
@@ -139,7 +130,7 @@ libiconv_close(iconv_t handle)
 }
 
 size_t
-libiconv(iconv_t handle, char **in, size_t *szin, char **out, size_t *szout)
+libiconv(iconv_t handle, const char **in, size_t *szin, char **out, size_t *szout)
 {
 	size_t ret;
 	int err;
@@ -160,7 +151,7 @@ libiconv(iconv_t handle, char **in, size_t *szin, char **out, size_t *szout)
 }
 
 size_t
-__iconv(iconv_t handle, char **in, size_t *szin, char **out,
+__iconv(iconv_t handle, const char **in, size_t *szin, char **out,
     size_t *szout, uint32_t flags, size_t *invalids)
 {
 	size_t ret;

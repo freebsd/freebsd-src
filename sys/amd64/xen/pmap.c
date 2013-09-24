@@ -724,7 +724,7 @@ pmap_init(void)
 	/* Get a va for console and map the console mfn into it */
 	vm_paddr_t ma = xen_start_info->console.domU.mfn << PAGE_SHIFT;
 
-	va = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+	va = kva_alloc(PAGE_SIZE);
 	KASSERT(va != 0, ("Could not allocate KVA for console page!\n"));
 
 	pmap_kenter_ma(va, ma);
@@ -733,7 +733,7 @@ pmap_init(void)
 	/* Get a va for the xenstore shared page */
 	ma = xen_start_info->store_mfn << PAGE_SHIFT;
 
-	va = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+	va = kva_alloc(PAGE_SIZE);
 	KASSERT(va != 0, ("Could not allocate KVA for xenstore page!\n"));
 
 	pmap_kenter_ma(va, ma);
@@ -766,15 +766,15 @@ pmap_pinit(pmap_t pmap)
 {
 
 	KASSERT(pmap != kernel_pmap, 
-		("kernel map re-initialised!", __func__));
+		("%s: kernel map re-initialised!", __func__));
 
 	PMAP_LOCK_INIT(pmap);
 
 	/*
 	 * allocate the page directory page
 	 */
-	pmap->pm_pml4 = (void *) kmem_alloc(kernel_map, PAGE_SIZE);
-	bzero(pmap->pm_pml4, PAGE_SIZE);
+	pmap->pm_pml4 = (void *) kmem_malloc(kernel_arena, PAGE_SIZE, M_ZERO);
+	if (pmap->pm_pml4 == NULL) return 0;
 
 	/* 
 	 * We do not wire in kernel space, or the self-referencial
@@ -826,7 +826,7 @@ pmap_release(pmap_t pmap)
 	pmap_xen_setpages_rw((uintptr_t)pmap->pm_pml4, 1);
 
 	bzero(pmap->pm_pml4, PAGE_SIZE);
-	kmem_free(kernel_map, (vm_offset_t)pmap->pm_pml4, PAGE_SIZE);
+	kmem_free(kernel_arena, (vm_offset_t)pmap->pm_pml4, PAGE_SIZE);
 
 	PMAP_LOCK_DESTROY(pmap);
 }
@@ -1909,7 +1909,7 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 	KASSERT(msrc != NULL && mdst != NULL,
 		("Invalid source or destination page!"));
 
-	va_src = kmem_alloc_nofault(kernel_map, PAGE_SIZE * 2);
+	va_src = kmem_malloc(kernel_arena, PAGE_SIZE * 2, M_ZERO);
 	va_dst = va_src + PAGE_SIZE;
 
 	KASSERT(va_src != 0,
@@ -1926,7 +1926,7 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 	pmap_kremove(va_src);
 	pmap_kremove(va_dst);
 
-	kmem_free(kernel_map, va_src, PAGE_SIZE * 2);
+	kmem_free(kernel_arena, va_src, PAGE_SIZE * 2);
 }
 
 int unmapped_buf_allowed = 1;
@@ -1940,7 +1940,7 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	vm_offset_t a_pg_offset, b_pg_offset;
 	int cnt;
 
-	a_pg = kmem_alloc_nofault(kernel_map, PAGE_SIZE * 2);
+	a_pg = kva_alloc(PAGE_SIZE * 2);
 	b_pg = a_pg + PAGE_SIZE;
 
 	KASSERT(a_pg != 0,
@@ -1967,7 +1967,7 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	pmap_kremove(a_pg);
 	pmap_kremove(b_pg);
 
-	kmem_free(kernel_map, a_pg, PAGE_SIZE * 2);
+	kmem_free(kernel_arena, a_pg, PAGE_SIZE * 2);
 }
 
 void

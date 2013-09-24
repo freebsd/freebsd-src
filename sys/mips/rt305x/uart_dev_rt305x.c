@@ -272,9 +272,6 @@ rt305x_uart_bus_attach(struct uart_softc *sc)
 		rt305x_uart_init(bas, 115200, 8, 1, 0);
 	}
 
-	sc->sc_rxfifosz = 16;
-	sc->sc_txfifosz = 16;
-
 	(void)rt305x_uart_bus_getsig(sc);
 
 	/* Enable FIFO */
@@ -437,6 +434,9 @@ rt305x_uart_bus_probe(struct uart_softc *sc)
 	error = rt305x_uart_probe(&sc->sc_bas);
 	if (error)
 		return (error);
+
+	sc->sc_rxfifosz = 16;
+	sc->sc_txfifosz = 16;
 
 	snprintf(buf, sizeof(buf), "rt305x_uart");
 	device_set_desc_copy(sc->sc_dev, buf);

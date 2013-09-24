@@ -9,6 +9,7 @@ CXXINCLUDEDIR=	${INCLUDEDIR}/c++/v${SHLIB_MAJOR}
 
 LIB=		c++
 SHLIB_MAJOR=	1
+SHLIB_LDSCRIPT=	libc++.ldscript
 
 SRCS+=		algorithm.cpp\
 		bind.cpp\

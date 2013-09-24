@@ -189,13 +189,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	pmap_kremove((vm_offset_t)pc);
 
 	/* Free va range */
-	if (__predict_true(((vm_offset_t)pc <= pv_maxva &&
-			    (vm_offset_t)pc >= pv_minva))) {
-		kmem_free(pv_map, (vm_offset_t) pc, PAGE_SIZE);
-	}
-	else {
-		kmem_free(kernel_map, (vm_offset_t) pc, PAGE_SIZE);
-	}
+	kva_free((vm_offset_t) pc, PAGE_SIZE);
 
 	dump_drop_page(m->phys_addr);
 	vm_page_unwire(m, 0);
@@ -286,13 +280,7 @@ pmap_get_pv_entry(pmap_t pmap)
 	 * We thus explicitly allocate the space + mapping.
 	 */
 
-	if (!gdtset) {
-		/* pmap_init() has not been run yet - use the kernel_map */
-		pc = (void *) kmem_alloc_nofault(kernel_map, PAGE_SIZE);
-	}
-	else {
-		pc = (void *) kmem_alloc_nofault(pv_map, PAGE_SIZE);
-	}
+	pc = (void *) kva_alloc(PAGE_SIZE);
 
 	KASSERT(pc != NULL, ("Failed to allocate VA for pv chunk\n"));
 

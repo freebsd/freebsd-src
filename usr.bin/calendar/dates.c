@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -22,7 +22,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  */
 
 #include <sys/cdefs.h>
@@ -73,8 +73,8 @@ int	cumdaytab[][14] = {
 	{0, -1, 30, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365},
 };
 /* 1-based month, individual */
-static int *mondays;
-int	mondaytab[][14] = {
+static int *monthdays;
+int	monthdaytab[][14] = {
 	{0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 30},
 	{0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 30},
 };
@@ -192,11 +192,11 @@ generatedates(struct tm *tp1, struct tm *tp2)
 		 * - Take all days from <m1 .. m2>
 		 * - Take the first days from m2
 		 */
-		mondays = mondaytab[isleap(y1)];
-		for (d = d1; d <= mondays[m1]; d++)
+		monthdays = monthdaytab[isleap(y1)];
+		for (d = d1; d <= monthdays[m1]; d++)
 			createdate(y1, m1, d);
 		for (m = m1 + 1; m < m2; m++)
-			for (d = 1; d <= mondays[m]; d++)
+			for (d = 1; d <= monthdays[m]; d++)
 				createdate(y1, m, d);
 		for (d = 1; d <= d2; d++)
 			createdate(y1, m2, d);
@@ -210,21 +210,21 @@ generatedates(struct tm *tp1, struct tm *tp2)
 	 * - Take all days from y2-[1 .. m2>
 	 * - Take the first days of y2-m2
 	 */
-	mondays = mondaytab[isleap(y1)];
-	for (d = d1; d <= mondays[m1]; d++)
+	monthdays = monthdaytab[isleap(y1)];
+	for (d = d1; d <= monthdays[m1]; d++)
 		createdate(y1, m1, d);
 	for (m = m1 + 1; m <= 12; m++)
-		for (d = 1; d <= mondays[m]; d++)
+		for (d = 1; d <= monthdays[m]; d++)
 			createdate(y1, m, d);
 	for (y = y1 + 1; y < y2; y++) {
-		mondays = mondaytab[isleap(y)];
+		monthdays = monthdaytab[isleap(y)];
 		for (m = 1; m <= 12; m++)
-			for (d = 1; d <= mondays[m]; d++)
+			for (d = 1; d <= monthdays[m]; d++)
 				createdate(y, m, d);
 	}
-	mondays = mondaytab[isleap(y2)];
+	monthdays = monthdaytab[isleap(y2)];
 	for (m = 1; m < m2; m++)
-		for (d = 1; d <= mondays[m]; d++)
+		for (d = 1; d <= monthdays[m]; d++)
 			createdate(y2, m, d);
 	for (d = 1; d <= d2; d++)
 		createdate(y2, m2, d);
@@ -360,12 +360,12 @@ first_dayofweek_of_month(int yy, int mm)
 				return (m->firstdayofweek);
 			m = m->nextmonth;
 		}
-		/* Should not happen */
+		/* No data for this month */
 		return (-1);
 	}
 
-	/* Should not happen */
-	return (-1);
+	/* No data for this year.  Error? */
+        return (-1);
 }
 
 int

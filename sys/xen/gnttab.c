@@ -527,8 +527,7 @@ gnttab_map(unsigned int start_idx, unsigned int end_idx)
 	if (shared == NULL) {
 		vm_offset_t area;
 
-		area = kmem_alloc_nofault(kernel_map,
-		    PAGE_SIZE * max_nr_grant_frames());
+		area = kva_alloc(PAGE_SIZE * max_nr_grant_frames());
 		KASSERT(area, ("can't allocate VM space for grant table"));
 		shared = (grant_entry_t *)area;
 	}
@@ -590,8 +589,7 @@ gnttab_map(unsigned int start_idx, unsigned int end_idx)
 	if (shared == NULL) {
 		vm_offset_t area;
 
-		area = kmem_alloc_nofault(kernel_map,
-		    PAGE_SIZE * max_nr_grant_frames());
+		area = kva_alloc(PAGE_SIZE * max_nr_grant_frames());
 		KASSERT(area, ("can't allocate VM space for grant table"));
 		shared = (grant_entry_t *)area;
 	}

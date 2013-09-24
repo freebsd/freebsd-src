@@ -46,14 +46,38 @@ _Static_assert(__generic(_Complex_I, float _Complex, 1, 0),
 #define	complex		_Complex
 #define	I		_Complex_I
 
+#if __ISO_C_VISIBLE >= 2011
+#ifdef __clang__
+#define	CMPLX(x, y)	((double complex){ x, y })
+#define	CMPLXF(x, y)	((float complex){ x, y })
+#define	CMPLXL(x, y)	((long double complex){ x, y })
+#elif __GNUC_PREREQ__(4, 7)
+#define	CMPLX(x, y)	__builtin_complex((double)(x), (double)(y))
+#define	CMPLXF(x, y)	__builtin_complex((float)(x), (float)(y))
+#define	CMPLXL(x, y)	__builtin_complex((long double)(x), (long double)(y))
+#endif
+#endif /* __ISO_C_VISIBLE >= 2011 */
+
 __BEGIN_DECLS
 
 double		cabs(double complex);
 float		cabsf(float complex);
 long double	cabsl(long double complex);
+double complex	cacos(double complex);
+float complex	cacosf(float complex);
+double complex	cacosh(double complex);
+float complex	cacoshf(float complex);
 double		carg(double complex);
 float		cargf(float complex);
 long double	cargl(long double complex);
+double complex	casin(double complex);
+float complex	casinf(float complex);
+double complex	casinh(double complex);
+float complex	casinhf(float complex);
+double complex	catan(double complex);
+float complex	catanf(float complex);
+double complex	catanh(double complex);
+float complex	catanhf(float complex);
 double complex	ccos(double complex);
 float complex	ccosf(float complex);
 double complex	ccosh(double complex);

@@ -97,6 +97,7 @@ int decode_win_overlap(int, int, const struct decode_win *);
 int win_cpu_can_remap(int);
 void decode_win_pcie_setup(u_long);
 
+void ddr_disable(int i);
 int ddr_is_active(int i);
 uint32_t ddr_base(int i);
 uint32_t ddr_size(int i);

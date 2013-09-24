@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2012 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2013 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -52,7 +52,7 @@
 <div class="cmdsynopsis"><p><code class="command">dig</code>  [global-queryopt...] [query...]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2609644"></a><h2>DESCRIPTION</h2>
+<a name="id2610344"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dig</strong></span>
       (domain information groper) is a flexible tool
       for interrogating DNS name servers.  It performs DNS lookups and
@@ -75,9 +75,10 @@
     </p>
 <p>
       Unless it is told to query a specific name server,
-      <span><strong class="command">dig</strong></span> will try each of the servers listed
-      in
-      <code class="filename">/etc/resolv.conf</code>.
+      <span><strong class="command">dig</strong></span> will try each of the servers listed in
+      <code class="filename">/etc/resolv.conf</code>. If no usable server addreses
+      are found, <span><strong class="command">dig</strong></span> will send the query to the local
+      host.
     </p>
 <p>
       When no command line arguments or options are given,
@@ -98,7 +99,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2609808"></a><h2>SIMPLE USAGE</h2>
+<a name="id2610515"></a><h2>SIMPLE USAGE</h2>
 <p>
       A typical invocation of <span><strong class="command">dig</strong></span> looks like:
       </p>
@@ -109,22 +110,29 @@
       </p>
 <div class="variablelist"><dl>
 <dt><span class="term"><code class="constant">server</code></span></dt>
-<dd><p>
-              is the name or IP address of the name server to query.  This can
-              be an IPv4
-              address in dotted-decimal notation or an IPv6
+<dd>
+<p>
+              is the name or IP address of the name server to query.  This
+              can be an IPv4 address in dotted-decimal notation or an IPv6
               address in colon-delimited notation.  When the supplied
-              <em class="parameter"><code>server</code></em> argument is a
-              hostname,
-              <span><strong class="command">dig</strong></span> resolves that name before
-              querying that name
-              server.  If no <em class="parameter"><code>server</code></em>
-              argument is provided,
-              <span><strong class="command">dig</strong></span> consults <code class="filename">/etc/resolv.conf</code>
-              and queries the name servers listed there.  The reply from the
-              name
-              server that responds is displayed.
-            </p></dd>
+              <em class="parameter"><code>server</code></em> argument is a hostname,
+              <span><strong class="command">dig</strong></span> resolves that name before querying
+              that name server.
+            </p>
+<p>
+              If no <em class="parameter"><code>server</code></em> argument is
+              provided, <span><strong class="command">dig</strong></span> consults
+              <code class="filename">/etc/resolv.conf</code>; if an
+              address is found there, it queries the name server at
+              that address. If either of the <code class="option">-4</code> or
+              <code class="option">-6</code> options are in use, then
+              only addresses for the corresponding transport
+              will be tried.  If no usable addresses are found,
+              <span><strong class="command">dig</strong></span> will send the query to the
+              local host.  The reply from the name server that
+              responds is displayed.
+            </p>
+</dd>
 <dt><span class="term"><code class="constant">name</code></span></dt>
 <dd><p>
               is the name of the resource record that is to be looked up.
@@ -144,7 +152,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2610055"></a><h2>OPTIONS</h2>
+<a name="id2610641"></a><h2>OPTIONS</h2>
 <p>
       The <code class="option">-b</code> option sets the source IP address of the query
       to <em class="parameter"><code>address</code></em>.  This must be a valid
@@ -248,7 +256,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2662690"></a><h2>QUERY OPTIONS</h2>
+<a name="id2663207"></a><h2>QUERY OPTIONS</h2>
 <p><span><strong class="command">dig</strong></span>
       provides a number of query options which affect
       the way in which lookups are made and the results displayed.  Some of
@@ -579,7 +587,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2663772"></a><h2>MULTIPLE QUERIES</h2>
+<a name="id2664290"></a><h2>MULTIPLE QUERIES</h2>
 <p>
       The BIND 9 implementation of <span><strong class="command">dig </strong></span>
       supports
@@ -625,7 +633,7 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2663858"></a><h2>IDN SUPPORT</h2>
+<a name="id2664375"></a><h2>IDN SUPPORT</h2>
 <p>
       If <span><strong class="command">dig</strong></span> has been built with IDN (internationalized
       domain name) support, it can accept and display non-ASCII domain names.
@@ -639,14 +647,14 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2663886"></a><h2>FILES</h2>
+<a name="id2664540"></a><h2>FILES</h2>
 <p><code class="filename">/etc/resolv.conf</code>
     </p>
 <p><code class="filename">${HOME}/.digrc</code>
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2663908"></a><h2>SEE ALSO</h2>
+<a name="id2664562"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">host</span>(1)</span>,
       <span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
@@ -654,7 +662,7 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2663945"></a><h2>BUGS</h2>
+<a name="id2664599"></a><h2>BUGS</h2>
 <p>
       There are probably too many query options.
     </p>

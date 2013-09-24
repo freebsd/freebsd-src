@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="koi8-r"?>
 <!--
 The FreeBSD Russian Documentation Project
 
@@ -27,7 +28,7 @@ from {alpha,i386}/INSTALL.TXT.
     с иллюстрациями.</para>
 
   <para>Если вы обновляете предыдущий релиз &os;, ознакомьтесь с
-    <xref linkend="upgrading">, где находятся инструкции по
+    <xref linkend="upgrading"/>, где находятся инструкции по
     обновлению.</para>
 
   <sect2 id="getting-started">
@@ -54,7 +55,7 @@ from {alpha,i386}/INSTALL.TXT.
       установке.</para>
 
     <para>Даже правильные действия иногда приводят к неудаче, так что
-      если вы столкнулись с проблемами, обратитесь к <xref linkend="trouble">,
+      если вы столкнулись с проблемами, обратитесь к <xref linkend="trouble"/>,
       где находится информация по решению проблем.  Вам также понадобится
       прочесть свежую копию файла <filename>ERRATA.TXT</filename> перед
       установкой, он предупредит вас о проблемах, которые были обнаружены
@@ -242,7 +243,7 @@ from {alpha,i386}/INSTALL.TXT.
 	<listitem>
 	  <para>Создайте набор загрузочных дискет &os; из каталога
 	    <filename>floppies/</filename> дистрибутива &os;.
-	    Прочтите <xref linkend="floppies"> с более
+	    Прочтите <xref linkend="floppies"/> с более
 	    подробной информацией по созданию загрузочных дискет
 	    под различными операционными системами.  Затем просто
 	    загрузитесь с первой дискеты, и вскоре начнется установка
@@ -258,7 +259,7 @@ from {alpha,i386}/INSTALL.TXT.
 	<listitem>
 	  <para>Создайте набор загрузочных дискет &os; из каталога
 	    <filename>floppies/</filename> дистрибутива &os;.
-	    Прочтите <xref linkend="floppies"> с более подробной
+	    Прочтите <xref linkend="floppies"/> с более подробной
 	    информацией по созданию загрузочных дискет под различными
 	    операционными системами.  Затем просто загрузитесь с первой
 	    дискеты, и вскоре начнется установка &os;.</para>
@@ -272,10 +273,10 @@ from {alpha,i386}/INSTALL.TXT.
       Начните установку, создав набор загрузочных дискет &os;
       из файлов <filename>floppies/boot.flp</filename> и
       <filename>floppies/kern<replaceable>X</replaceable>.flp</filename>, используя инструкции
-      в <xref linkend="floppies">.  Перезагрузите компьютер,
+      в <xref linkend="floppies"/>.  Перезагрузите компьютер,
       диск <filename>boot.flp</filename>; после запроса вставьте
       последовательно остальные диски.  Прочтите
-      <xref linkend="ftpnfs"> с дополнительной информацией по установке
+      <xref linkend="ftpnfs"/> с дополнительной информацией по установке
       через FTP или NFS.</para>
 
     <para arch="pc98">Если у вас нет CDROM, вы можете просто выполнить
@@ -283,10 +284,10 @@ from {alpha,i386}/INSTALL.TXT.
       Начните установку, создав набор загрузочных дискет &os;
       из файлов <filename>floppies/boot.flp</filename> и
       <filename>floppies/mfsroot.flp</filename>, используя инструкции
-      в <xref linkend="floppies">.  Перезагрузите компьютер,
+      в <xref linkend="floppies"/>.  Перезагрузите компьютер,
       диск <filename>kern.flp</filename>; после запроса вставьте
       последовательно остальные диски.  Прочтите
-      <xref linkend="ftpnfs"> с дополнительной информацией по установке
+      <xref linkend="ftpnfs"/> с дополнительной информацией по установке
       через FTP или NFS.</para>
 
 <!-- alpha text starts here -->
@@ -304,7 +305,7 @@ from {alpha,i386}/INSTALL.TXT.
       с дискеты.  Для начала вам потребуется создать набор загрузочных
       дискет из <filename>floppies/boot.flp</filename> и файлов
       <filename>floppies/kern<replaceable>X</replaceable>.flp</filename>, используя инструкции из
-      <xref linkend="floppies">.  Вставьте <filename>boot.flp</filename>,
+      <xref linkend="floppies"/>.  Вставьте <filename>boot.flp</filename>,
       для запуска установки из приглашения SRM консоли
       (<literal>&gt;&gt;&gt;</literal>) наберите следующую команду:</para>
 
@@ -342,8 +343,8 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
 
     <screenco arch="sparc64">
       <areaspec>
-	<area id="prompt-single" coords="1 5">
-	<area id="prompt-smp" coords="2 5">
+	<area id="prompt-single" coords="1 5"/>
+	<area id="prompt-smp" coords="2 5"/>
       </areaspec>
 
       <screen><prompt>ok     </prompt>
@@ -440,7 +441,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       <title>Установка с CDROM по сети</title>
 
       <para>Если вы просто хотите установить систему с локального привода
-	CDROM, прочтите <xref linkend="start-installation">.  Если в вашей
+	CDROM, прочтите <xref linkend="start-installation"/>.  Если в вашей
 	системе нет привода CDROM и вы хотите использовать CDROM на другой
 	системе, к которой у вас есть подключение по сети, существует
 	несколько способов чтобы сделать это:</para>
@@ -500,9 +501,9 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	дискеты.</para>
 
       <para>Сначала подготовьте дискеты, как описано в
-	<xref linkend="floppies">.</para>
+	<xref linkend="floppies"/>.</para>
 
-      <para>Затем, внимательно прочтите <xref linkend="layout"> и обратите
+      <para>Затем, внимательно прочтите <xref linkend="layout"/> и обратите
 	особое внимание на раздел <quote>Distribution Format</quote>,
 	поскольку он описывает файлы, которые необходимо поместить на
 	дискеты и те, которые вы можете пропустить.</para>
@@ -621,7 +622,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       </note>
 
       <para>Теперь создайте загрузочные дискеты, как описано в
-	<xref linkend="floppies"> и приступайте к установке.</para>
+	<xref linkend="floppies"/> и приступайте к установке.</para>
     </sect3>
 
     <sect3 id="ftpnfs">
@@ -833,7 +834,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  <para>Если вы не видите ничего на последовательной консоли,
 	    подключите клавиатуру опять.
 	    Если вы загружаетесь с CDROM, выполните <xref
-	    linkend="hitspace"> после получения сигналов.</para>
+	    linkend="hitspace"/> после получения сигналов.</para>
 	</step>
 	<step>
 	  <para>При загрузке с дискет, после остановки чтения с диска

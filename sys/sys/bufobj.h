@@ -53,7 +53,8 @@
 
 #include <sys/queue.h>
 #include <sys/_lock.h>
-#include <sys/_mutex.h>
+#include <sys/_rwlock.h>
+#include <sys/_pctrie.h>
 
 struct bufobj;
 struct buf_ops;
@@ -65,7 +66,7 @@ TAILQ_HEAD(buflists, buf);
 /* A Buffer splay list */
 struct bufv {
 	struct buflists	bv_hd;		/* Sorted blocklist */
-	struct buf	*bv_root;	/* Buf splay tree */
+	struct pctrie	bv_root;	/* Buf trie */
 	int		bv_cnt;		/* Number of buffers */
 };
 
@@ -88,7 +89,7 @@ struct buf_ops {
 #define BO_BDFLUSH(bo, bp)	((bo)->bo_ops->bop_bdflush((bo), (bp)))
 
 struct bufobj {
-	struct mtx	bo_mtx;		/* Mutex which protects "i" things */
+	struct rwlock	bo_lock;	/* Lock which protects "i" things */
 	struct buf_ops	*bo_ops;	/* - Buffer operations */
 	struct vm_object *bo_object;	/* v Place to store VM object */
 	LIST_ENTRY(bufobj) bo_synclist;	/* S dirty vnode list */
@@ -112,11 +113,14 @@ struct bufobj {
 #define	BO_ONWORKLST	(1 << 0)	/* On syncer work-list */
 #define	BO_WWAIT	(1 << 1)	/* Wait for output to complete */
 
-#define	BO_MTX(bo)		(&(bo)->bo_mtx)
-#define	BO_LOCK(bo)		mtx_lock(BO_MTX((bo)))
-#define	BO_UNLOCK(bo)		mtx_unlock(BO_MTX((bo)))
-#define	ASSERT_BO_LOCKED(bo)	mtx_assert(BO_MTX((bo)), MA_OWNED)
-#define	ASSERT_BO_UNLOCKED(bo)	mtx_assert(BO_MTX((bo)), MA_NOTOWNED)
+#define	BO_LOCKPTR(bo)		(&(bo)->bo_lock)
+#define	BO_LOCK(bo)		rw_wlock(BO_LOCKPTR((bo)))
+#define	BO_UNLOCK(bo)		rw_wunlock(BO_LOCKPTR((bo)))
+#define	BO_RLOCK(bo)		rw_rlock(BO_LOCKPTR((bo)))
+#define	BO_RUNLOCK(bo)		rw_runlock(BO_LOCKPTR((bo)))
+#define	ASSERT_BO_WLOCKED(bo)	rw_assert(BO_LOCKPTR((bo)), RA_WLOCKED)
+#define	ASSERT_BO_LOCKED(bo)	rw_assert(BO_LOCKPTR((bo)), RA_LOCKED)
+#define	ASSERT_BO_UNLOCKED(bo)	rw_assert(BO_LOCKPTR((bo)), RA_UNLOCKED)
 
 void bufobj_wdrop(struct bufobj *bo);
 void bufobj_wref(struct bufobj *bo);

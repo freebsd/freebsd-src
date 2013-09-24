@@ -23,8 +23,9 @@
  * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -1409,6 +1410,7 @@ main(int argc, char *argv[])
 	(void) dtrace_setopt(g_dtp, "bufsize", "4m");
 	(void) dtrace_setopt(g_dtp, "aggsize", "4m");
 #endif
+	(void) dtrace_setopt(g_dtp, "temporal", "yes");
 
 	/*
 	 * If -G is specified, enable -xlink=dynamic and -xunodefs to permit

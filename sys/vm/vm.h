@@ -134,10 +134,6 @@ struct kva_md_info {
 	vm_offset_t	buffer_eva;
 	vm_offset_t	clean_sva;
 	vm_offset_t	clean_eva;
-	vm_offset_t	pager_sva;
-	vm_offset_t	pager_eva;
-	vm_offset_t	bio_transient_sva;
-	vm_offset_t	bio_transient_eva;
 };
 
 extern struct kva_md_info	kmi;
@@ -151,6 +147,7 @@ int swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred);
 void swap_reserve_force(vm_ooffset_t incr);
 void swap_release(vm_ooffset_t decr);
 void swap_release_by_cred(vm_ooffset_t decr, struct ucred *cred);
+void swapper(void);
 
 #endif				/* VM_H */
 

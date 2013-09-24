@@ -754,13 +754,13 @@ static struct ucp_event_descr ucp_events[] = {
     UCPDESCR(66H_04H, 0x66, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
 
     UCPDESCR(67H_01H, 0x67, 0x01, UCP_F_FM | UCP_F_WM),
-    
+
     UCPDESCR(80H_01H, 0x80, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB |
 	UCP_F_HW),
     UCPDESCR(80H_02H, 0x80, 0x02, UCP_F_FM | UCP_F_WM),
     UCPDESCR(80H_04H, 0x80, 0x04, UCP_F_FM | UCP_F_WM),
     UCPDESCR(80H_08H, 0x80, 0x08, UCP_F_FM | UCP_F_WM),
-    
+
     UCPDESCR(81H_01H, 0x81, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB |
 	UCP_F_HW),
     UCPDESCR(81H_02H, 0x81, 0x02, UCP_F_FM | UCP_F_WM),
@@ -770,13 +770,13 @@ static struct ucp_event_descr ucp_events[] = {
     UCPDESCR(81H_80H, 0x81, 0x80, UCP_F_FM | UCP_F_SB | UCP_F_HW),
 
     UCPDESCR(82H_01H, 0x82, 0x01, UCP_F_FM | UCP_F_WM),
- 
+
     UCPDESCR(83H_01H, 0x83, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB |
 	UCP_F_HW),
     UCPDESCR(83H_02H, 0x83, 0x02, UCP_F_FM | UCP_F_WM),
     UCPDESCR(83H_04H, 0x83, 0x04, UCP_F_FM | UCP_F_WM),
     UCPDESCR(83H_08H, 0x83, 0x08, UCP_F_FM | UCP_F_WM),
- 
+
     UCPDESCR(84H_01H, 0x84, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB |
 	UCP_F_HW),
     UCPDESCR(84H_02H, 0x84, 0x02, UCP_F_FM | UCP_F_WM),
@@ -808,20 +808,20 @@ static int
 ucp_event_sb_hw_ok_on_counter(enum pmc_event pe, int ri)
 {
 	uint32_t mask;
-	
+
 	switch (pe) {
-		/*	
+		/*
 		 * Events valid only on counter 0.
 		 */
 	case PMC_EV_UCP_EVENT_80H_01H:
 	case PMC_EV_UCP_EVENT_83H_01H:
 		mask = (1 << 0);
 		break;
-	
+
 	default:
 		mask = ~0;	/* Any row index is ok. */
 	}
-	
+
 	return (mask & (1 << ri));
 }
 
@@ -855,7 +855,7 @@ ucp_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	default:
 		break;
 	}
-	
+
 
 	/*
 	 * Look for an event descriptor with matching CPU and event id
@@ -1045,9 +1045,9 @@ ucp_start_pmc(int cpu, int ri)
 
 	evsel = pm->pm_md.pm_ucp.pm_ucp_evsel;
 
-	PMCDBG(MDP,STA,2, 
-	    "ucp-start/2 cpu=%d ri=%d evselmsr=0x%x evsel=0x%x", 
-	    cpu, ri, SELECTSEL(uncore_cputype) + ri, evsel); 
+	PMCDBG(MDP,STA,2,
+	    "ucp-start/2 cpu=%d ri=%d evselmsr=0x%x evsel=0x%x",
+	    cpu, ri, SELECTSEL(uncore_cputype) + ri, evsel);
 
 	/* Event specific configuration. */
 	switch (pm->pm_event) {
@@ -1067,12 +1067,12 @@ ucp_start_pmc(int cpu, int ri)
 	case PMC_EV_UCP_EVENT_0CH_08H_S:
 		wrmsr(MSR_GQ_SNOOP_MESF,0x4);
 		break;
-	default:	
+	default:
 		break;
 	}
 
 	wrmsr(SELECTSEL(uncore_cputype) + ri, evsel);
-	
+
 	do {
 		cc->pc_resync = 0;
 		cc->pc_globalctrl |= (1ULL << ri);

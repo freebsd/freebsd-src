@@ -32,7 +32,7 @@
 .Nd execute a command while holding a file lock
 .Sh SYNOPSIS
 .Nm
-.Op Fl ks
+.Op Fl kns
 .Op Fl t Ar seconds
 .Ar file
 .Ar command
@@ -90,6 +90,18 @@ Causes
 .Nm
 to operate silently.
 Failure to acquire the lock is indicated only in the exit status.
+.It Fl n
+Causes
+.Nm
+to fail if the specified lock
+.Ar file
+does not exist. If
+.Fl n
+is not specified,
+.Nm
+will create
+.Ar file
+if necessary.
 .It Fl t Ar seconds
 Specifies a timeout for waiting for the lock.
 By default,
@@ -130,6 +142,10 @@ The
 utility
 was unable to create the lock file, e.g., because of insufficient access
 privileges.
+.It Dv EX_UNAVAILABLE
+The
+.Fl n
+option is specified and the specified lock file does not exist.
 .It Dv EX_USAGE
 There was an error on the
 .Nm

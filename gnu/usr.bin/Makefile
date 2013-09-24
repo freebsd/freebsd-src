@@ -4,7 +4,6 @@
 
 SUBDIR= ${_binutils} \
 	${_cc} \
-	${_cvs} \
 	dialog \
 	diff \
 	diff3 \
@@ -24,10 +23,6 @@ _gperf=		gperf
 .if ${MK_GROFF} != "no"
 _groff=		groff
 .endif
-.endif
-
-.if ${MK_CVS} != "no"
-_cvs=		cvs
 .endif
 
 .if ${MK_GPL_DTC} != "no"

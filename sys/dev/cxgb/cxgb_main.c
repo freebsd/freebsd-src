@@ -149,6 +149,7 @@ static devclass_t	cxgb_controller_devclass;
 DRIVER_MODULE(cxgbc, pci, cxgb_controller_driver, cxgb_controller_devclass,
     cxgbc_mod_event, 0);
 MODULE_VERSION(cxgbc, 1);
+MODULE_DEPEND(cxgbc, firmware, 1, 1, 1);
 
 /*
  * Attachment glue for the ports.  Attachment is done directly to the

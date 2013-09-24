@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -523,6 +523,10 @@ parse_command_line(int argc, char *argv[]) {
 				maxudp = 512;
 			else if (!strcmp(isc_commandline_argument, "maxudp1460"))
 				maxudp = 1460;
+			else if (!strcmp(isc_commandline_argument, "nosyslog"))
+				ns_g_nosyslog = ISC_TRUE;
+			else if (!strcmp(isc_commandline_argument, "nonearest"))
+				ns_g_nonearest = ISC_TRUE;
 			else
 				fprintf(stderr, "unknown -T flag '%s\n",
 					isc_commandline_argument);
@@ -531,10 +535,16 @@ parse_command_line(int argc, char *argv[]) {
 			ns_g_username = isc_commandline_argument;
 			break;
 		case 'v':
-			printf("BIND %s\n", ns_g_version);
+			printf("%s %s", ns_g_product, ns_g_version);
+			if (*ns_g_description != 0)
+				printf(" %s", ns_g_description);
+			printf("\n");
 			exit(0);
 		case 'V':
-			printf("BIND %s built with %s\n", ns_g_version,
+			printf("%s %s", ns_g_product, ns_g_version);
+			if (*ns_g_description != 0)
+				printf(" %s", ns_g_description);
+			printf(" <id:%s> built with %s\n", ns_g_srcid,
 				ns_g_configargs);
 #ifdef OPENSSL
 			printf("using OpenSSL version: %s\n",
@@ -787,8 +797,8 @@ setup(void) {
 				   isc_result_totext(result));
 
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
-		      ISC_LOG_NOTICE, "starting BIND %s%s", ns_g_version,
-		      saved_command_line);
+		      ISC_LOG_NOTICE, "starting %s %s%s", ns_g_product,
+		      ns_g_version, saved_command_line);
 
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
 		      ISC_LOG_NOTICE, "built with %s", ns_g_configargs);
@@ -1029,9 +1039,9 @@ main(int argc, char *argv[]) {
 	 */
 	strlcat(version,
 #if defined(NO_VERSION_DATE) || !defined(__DATE__)
-		"named version: BIND " VERSION,
+		"named version: BIND " VERSION " <" SRCID ">",
 #else
-		"named version: BIND " VERSION " (" __DATE__ ")",
+		"named version: BIND " VERSION " <" SRCID "> (" __DATE__ ")",
 #endif
 		sizeof(version));
 	result = isc_file_progname(*argv, program_name, sizeof(program_name));

@@ -574,28 +574,26 @@ acpi_hp_attach(device_t dev)
 static int
 acpi_hp_detach(device_t dev)
 {
-	int	ret;
+	struct acpi_hp_softc *sc;
 	
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
-	struct acpi_hp_softc *sc = device_get_softc(dev);
-	if (sc->has_cmi && sc->hpcmi_open_pid != 0) {
-		ret = EBUSY;
-	}
-	else {
-		if (sc->has_notify) {
-			ACPI_WMI_REMOVE_EVENT_HANDLER(dev,
-			    ACPI_HP_WMI_EVENT_GUID);
-		}
+	sc = device_get_softc(dev);
+	if (sc->has_cmi && sc->hpcmi_open_pid != 0)
+		return (EBUSY);
+
+	if (sc->has_notify)
+		ACPI_WMI_REMOVE_EVENT_HANDLER(dev, ACPI_HP_WMI_EVENT_GUID);
+
+	if (sc->has_cmi) {
 		if (sc->hpcmi_bufptr != -1) {
 			sbuf_delete(&sc->hpcmi_sbuf);
 			sc->hpcmi_bufptr = -1;
 		}
 		sc->hpcmi_open_pid = 0;
 		destroy_dev(sc->hpcmi_dev_t);
-		ret = 0;
 	}
 
-	return (ret);
+	return (0);
 }
 
 static int

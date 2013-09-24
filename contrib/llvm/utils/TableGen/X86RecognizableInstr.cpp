@@ -14,12 +14,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "X86DisassemblerShared.h"
 #include "X86RecognizableInstr.h"
+#include "X86DisassemblerShared.h"
 #include "X86ModRMFilters.h"
-
 #include "llvm/Support/ErrorHandling.h"
-
 #include <string>
 
 using namespace llvm;
@@ -31,22 +29,25 @@ using namespace llvm;
   MAP(C4, 36)           \
   MAP(C8, 37)           \
   MAP(C9, 38)           \
-  MAP(E8, 39)           \
-  MAP(F0, 40)           \
-  MAP(F8, 41)           \
-  MAP(F9, 42)           \
-  MAP(D0, 45)           \
-  MAP(D1, 46)           \
-  MAP(D4, 47)           \
-  MAP(D5, 48)           \
-  MAP(D8, 49)           \
-  MAP(D9, 50)           \
-  MAP(DA, 51)           \
-  MAP(DB, 52)           \
-  MAP(DC, 53)           \
-  MAP(DD, 54)           \
-  MAP(DE, 55)           \
-  MAP(DF, 56)
+  MAP(CA, 39)           \
+  MAP(CB, 40)           \
+  MAP(E8, 41)           \
+  MAP(F0, 42)           \
+  MAP(F8, 45)           \
+  MAP(F9, 46)           \
+  MAP(D0, 47)           \
+  MAP(D1, 48)           \
+  MAP(D4, 49)           \
+  MAP(D5, 50)           \
+  MAP(D6, 51)           \
+  MAP(D8, 52)           \
+  MAP(D9, 53)           \
+  MAP(DA, 54)           \
+  MAP(DB, 55)           \
+  MAP(DC, 56)           \
+  MAP(DD, 57)           \
+  MAP(DE, 58)           \
+  MAP(DF, 59)
 
 // A clone of X86 since we can't depend on something that is generated.
 namespace X86Local {
@@ -121,6 +122,7 @@ namespace X86Local {
 #define TWO_BYTE_EXTENSION_TABLES \
   EXTENSION_TABLE(00)             \
   EXTENSION_TABLE(01)             \
+  EXTENSION_TABLE(0d)             \
   EXTENSION_TABLE(18)             \
   EXTENSION_TABLE(71)             \
   EXTENSION_TABLE(72)             \
@@ -764,6 +766,17 @@ void RecognizableInstr::emitInstructionSpecifier(DisassemblerTables &tables) {
     // operand 2 is a 16-bit immediate
     HANDLE_OPERAND(immediate)
     HANDLE_OPERAND(immediate)
+    break;
+  case X86Local::MRM_F8:
+    if (Opcode == 0xc6) {
+      assert(numPhysicalOperands == 1 &&
+             "Unexpected number of operands for X86Local::MRM_F8");
+      HANDLE_OPERAND(immediate)
+    } else if (Opcode == 0xc7) {
+      assert(numPhysicalOperands == 1 &&
+             "Unexpected number of operands for X86Local::MRM_F8");
+      HANDLE_OPERAND(relocation)
+    }
     break;
   case X86Local::MRMInitReg:
     // Ignored.

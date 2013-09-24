@@ -95,9 +95,8 @@ extern struct pagerops mgtdevicepagerops;
 
 #ifdef _KERNEL
 
-extern vm_map_t pager_map;
 extern struct pagerops *pagertab[];
-extern struct mtx pbuf_mtx;
+extern struct mtx_padalign pbuf_mtx;
 
 vm_object_t vm_pager_allocate(objtype_t, void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);

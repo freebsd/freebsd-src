@@ -69,6 +69,15 @@ struct timespec32 {
 	CP((src).fld,(dst).fld,tv_nsec);	\
 } while (0)
 
+struct itimerspec32 {
+	struct timespec32  it_interval;
+	struct timespec32  it_value;
+};
+#define ITS_CP(src, dst) do {			\
+	TS_CP((src), (dst), it_interval);	\
+	TS_CP((src), (dst), it_value);		\
+} while (0)
+
 struct rusage32 {
 	struct timeval32 ru_utime;
 	struct timeval32 ru_stime;

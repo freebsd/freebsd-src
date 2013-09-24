@@ -26,7 +26,7 @@
 
  /*
   * Copyright (c) 2011, Joyent, Inc. All rights reserved.
-  * Copyright (c) 2011 by Delphix. All rights reserved.
+  * Copyright (c) 2012 by Delphix. All rights reserved.
   */
 
 #ifndef	_DT_ERRTAGS_H
@@ -190,8 +190,10 @@ typedef enum {
 	D_PRINTA_AGGPROTO,		/* printa() aggregation mismatch */
 	D_TRACE_VOID,			/* trace() argument has void type */
 	D_TRACE_DYN,			/* trace() argument has dynamic type */
+	D_TRACE_AGG,			/* trace() argument is an aggregation */
 	D_PRINT_VOID,			/* print() argument has void type */
 	D_PRINT_DYN,			/* print() argument has dynamic type */
+	D_PRINT_AGG,			/* print() argument is an aggregation */
 	D_TRACEMEM_ADDR,		/* tracemem() address bad type */
 	D_TRACEMEM_SIZE,		/* tracemem() size bad type */
 	D_TRACEMEM_ARGS,		/* tracemem() illegal number of args */
@@ -260,6 +262,7 @@ typedef enum {
 	D_LLQUANT_FACTOREVEN,		/* llquantize() bad # steps/factor */
 	D_LLQUANT_FACTORSMALL,		/* llquantize() magnitude too small */
 	D_LLQUANT_MAGTOOBIG,		/* llquantize() high mag too large */
+	D_NOREG,			/* no available internal registers */
 	D_PRINTM_ADDR,			/* printm() memref bad type */
 	D_PRINTM_SIZE,			/* printm() size bad type */
 	D_PRINTT_ADDR,			/* printt() typeref bad type */

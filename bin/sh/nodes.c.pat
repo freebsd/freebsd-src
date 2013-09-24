@@ -58,7 +58,7 @@ static void calcsize(union node *);
 static void sizenodelist(struct nodelist *);
 static union node *copynode(union node *);
 static struct nodelist *copynodelist(struct nodelist *);
-static char *nodesavestr(char *);
+static char *nodesavestr(const char *);
 
 
 struct funcdef {
@@ -147,9 +147,9 @@ copynodelist(struct nodelist *lp)
 
 
 static char *
-nodesavestr(char *s)
+nodesavestr(const char *s)
 {
-	char *p = s;
+	const char *p = s;
 	char *q = funcstring;
 	char   *rtn = funcstring;
 

@@ -1,4 +1,4 @@
-/*	$OpenBSD: eval.c,v 1.69 2011/03/24 11:23:08 espie Exp $	*/
+/*	$OpenBSD: eval.c,v 1.70 2012/04/12 17:00:11 espie Exp $	*/
 /*	$NetBSD: eval.c,v 1.7 1996/11/10 21:21:29 pk Exp $	*/
 
 /*

@@ -1116,7 +1116,7 @@ isc__socketmgr_maxudp(isc_socketmgr_t *mgr, int maxudp);
 
 #ifdef HAVE_LIBXML2
 
-void
+int
 isc_socketmgr_renderxml(isc_socketmgr_t *mgr, xmlTextWriterPtr writer);
 /*%<
  * Render internal statistics and other state into the XML document.

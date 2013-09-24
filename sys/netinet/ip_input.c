@@ -153,11 +153,6 @@ VNET_DEFINE(struct in_ifaddrhead, in_ifaddrhead);  /* first inet address */
 VNET_DEFINE(struct in_ifaddrhashhead *, in_ifaddrhashtbl); /* inet addr hash table  */
 VNET_DEFINE(u_long, in_ifaddrhmask);		/* mask for hash table */
 
-VNET_DEFINE(struct ipstat, ipstat);
-SYSCTL_VNET_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RW,
-    &VNET_NAME(ipstat), ipstat,
-    "IP statistics (struct ipstat, netinet/ip_var.h)");
-
 static VNET_DEFINE(uma_zone_t, ipq_zone);
 static VNET_DEFINE(TAILQ_HEAD(ipqhead, ipq), ipq[IPREASS_NHASH]);
 static struct mtx ipqlock;
@@ -213,24 +208,33 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, output_flowtable_size, CTLFLAG_RDTUN,
 static void	ip_freef(struct ipqhead *, struct ipq *);
 
 /*
+ * IP statistics are stored in the "array" of counter(9)s.
+ */
+VNET_PCPUSTAT_DEFINE(struct ipstat, ipstat);
+VNET_PCPUSTAT_SYSINIT(ipstat);
+SYSCTL_VNET_PCPUSTAT(_net_inet_ip, IPCTL_STATS, stats, struct ipstat, ipstat,
+    "IP statistics (struct ipstat, netinet/ip_var.h)");
+
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(ipstat);
+#endif /* VIMAGE */
+
+/*
  * Kernel module interface for updating ipstat.  The argument is an index
- * into ipstat treated as an array of u_long.  While this encodes the general
- * layout of ipstat into the caller, it doesn't encode its location, so that
- * future changes to add, for example, per-CPU stats support won't cause
- * binary compatibility problems for kernel modules.
+ * into ipstat treated as an array.
  */
 void
 kmod_ipstat_inc(int statnum)
 {
 
-	(*((u_long *)&V_ipstat + statnum))++;
+	counter_u64_add(VNET(ipstat)[statnum], 1);
 }
 
 void
 kmod_ipstat_dec(int statnum)
 {
 
-	(*((u_long *)&V_ipstat + statnum))--;
+	counter_u64_add(VNET(ipstat)[statnum], -1);
 }
 
 static int

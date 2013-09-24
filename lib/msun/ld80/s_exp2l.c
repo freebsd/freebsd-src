@@ -36,28 +36,31 @@ __FBSDID("$FreeBSD$");
 
 #include "fpmath.h"
 #include "math.h"
+#include "math_private.h"
 
 #define	TBLBITS	7
 #define	TBLSIZE	(1 << TBLBITS)
 
 #define	BIAS	(LDBL_MAX_EXP - 1)
-#define	EXPMASK	(BIAS + LDBL_MAX_EXP)
 
-static const long double huge = 0x1p10000L;
-#if 0 /* XXX Prevent gcc from erroneously constant folding this. */
-static const long double twom10000 = 0x1p-10000L;
-#else
-static volatile long double twom10000 = 0x1p-10000L;
-#endif
+static volatile long double
+    huge = 0x1p10000L,
+    twom10000 = 0x1p-10000L;
+
+static const union IEEEl2bits
+P1 = LD80C(0xb17217f7d1cf79ac, -1, 6.93147180559945309429e-1L);
 
 static const double
-    redux     = 0x1.8p63 / TBLSIZE,
-    P1        = 0x1.62e42fefa39efp-1,
-    P2        = 0x1.ebfbdff82c58fp-3,
-    P3        = 0x1.c6b08d7049fap-5,
-    P4        = 0x1.3b2ab6fba4da5p-7,
-    P5        = 0x1.5d8804780a736p-10,
-    P6        = 0x1.430918835e33dp-13;
+redux = 0x1.8p63 / TBLSIZE,
+/*
+ * Domain [-0.00390625, 0.00390625], range ~[-1.7079e-23, 1.7079e-23]
+ * |exp(x) - p(x)| < 2**-75.6
+ */
+P2 = 2.4022650695910072e-1,		/*  0x1ebfbdff82c58f.0p-55 */
+P3 = 5.5504108664816879e-2,		/*  0x1c6b08d7049e1a.0p-57 */
+P4 = 9.6181291055695180e-3,		/*  0x13b2ab6fa8321a.0p-59 */
+P5 = 1.3333563089183052e-3,		/*  0x15d8806f67f251.0p-62 */
+P6 = 1.5413361552277414e-4;		/*  0x1433ddacff3441.0p-65 */
 
 static const double tbl[TBLSIZE * 2] = {
 	0x1.6a09e667f3bcdp-1,	-0x1.bdd3413b2648p-55,
@@ -190,8 +193,8 @@ static const double tbl[TBLSIZE * 2] = {
 	0x1.68155d44ca973p+0,	 0x1.038ae44f74p-57,
 };
 
-/*
- * exp2l(x): compute the base 2 exponential of x
+/**
+ * Compute the base 2 exponential of x for Intel 80-bit format.
  *
  * Accuracy: Peak error < 0.511 ulp.
  *
@@ -207,7 +210,7 @@ static const double tbl[TBLSIZE * 2] = {
  *     with |z| <= 2**-(TBLBITS+1).
  *
  *   We compute exp2(i/TBLSIZE) via table lookup and exp2(z) via a
- *   degree-6 minimax polynomial with maximum error under 2**-69.
+ *   degree-6 minimax polynomial with maximum error under 2**-75.6.
  *   The table entries each have 104 bits of accuracy, encoded as
  *   a pair of double precision values.
  */
@@ -222,30 +225,22 @@ exp2l(long double x)
 	/* Filter out exceptional cases. */
 	u.e = x;
 	hx = u.xbits.expsign;
-	ix = hx & EXPMASK;
+	ix = hx & 0x7fff;
 	if (ix >= BIAS + 14) {		/* |x| >= 16384 or x is NaN */
 		if (ix == BIAS + LDBL_MAX_EXP) {
-			if (u.xbits.man != 1ULL << 63 || (hx & 0x8000) == 0)
-				return (x + x);	/* x is +Inf or NaN */
-			else
-				return (0.0);	/* x is -Inf */
+			if (hx & 0x8000 && u.xbits.man == 1ULL << 63)
+				return (0.0L);	/* x is -Inf */
+			return (x + x); /* x is +Inf, NaN or unsupported */
 		}
 		if (x >= 16384)
 			return (huge * huge);	/* overflow */
 		if (x <= -16446)
 			return (twom10000 * twom10000);	/* underflow */
-	} else if (ix <= BIAS - 66) {		/* |x| < 0x1p-66 */
-		return (1.0 + x);
+	} else if (ix <= BIAS - 66) {	/* |x| < 0x1p-65 (includes pseudos) */
+		return (1.0L + x);	/* 1 with inexact */
 	}
 
-#ifdef __i386__
-	/*
-	 * The default precision on i386 is 53 bits, so long doubles are
-	 * broken. Call exp2() to get an accurate (double precision) result.
-	 */
-	if (fpgetprec() != FP_PE)
-		return (exp2(x));
-#endif
+	ENTERI();
 
 	/*
 	 * Reduce x, computing z, i0, and k. The low bits of x + redux
@@ -269,26 +264,25 @@ exp2l(long double x)
 	z = x - u.e;
 	v.xbits.man = 1ULL << 63;
 	if (k >= LDBL_MIN_EXP) {
-		v.xbits.expsign = LDBL_MAX_EXP - 1 + k;
+		v.xbits.expsign = BIAS + k;
 		twopk = v.e;
 	} else {
-		v.xbits.expsign = LDBL_MAX_EXP - 1 + k + 10000;
+		v.xbits.expsign = BIAS + k + 10000;
 		twopkp10000 = v.e;
 	}
 
 	/* Compute r = exp2l(y) = exp2lt[i0] * p(z). */
 	long double t_hi = tbl[i0];
 	long double t_lo = tbl[i0 + 1];
-	/* XXX This gives > 1 ulp errors outside of FE_TONEAREST mode */
-	r = t_lo + (t_hi + t_lo) * z * (P1 + z * (P2 + z * (P3 + z * (P4
+	r = t_lo + (t_hi + t_lo) * z * (P1.e + z * (P2 + z * (P3 + z * (P4
 	    + z * (P5 + z * P6))))) + t_hi;
 
 	/* Scale by 2**k. */
 	if (k >= LDBL_MIN_EXP) {
 		if (k == LDBL_MAX_EXP)
-			return (r * 2.0 * 0x1p16383L);
-		return (r * twopk);
+			RETURNI(r * 2.0 * 0x1p16383L);
+		RETURNI(r * twopk);
 	} else {
-		return (r * twopkp10000 * twom10000);
+		RETURNI(r * twopkp10000 * twom10000);
 	}
 }

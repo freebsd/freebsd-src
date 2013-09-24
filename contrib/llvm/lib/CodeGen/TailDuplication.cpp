@@ -13,25 +13,25 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "tailduplication"
-#include "llvm/Function.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/SetVector.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineSSAUpdater.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/OwningPtr.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/SetVector.h"
-#include "llvm/ADT/Statistic.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 using namespace llvm;
 
 STATISTIC(NumTails     , "Number of tails duplicated");
@@ -461,6 +461,7 @@ TailDuplicatePass::UpdateSuccessorsPHIs(MachineBasicBlock *FromBB, bool isDead,
          II != EE; ++II) {
       if (!II->isPHI())
         break;
+      MachineInstrBuilder MIB(*FromBB->getParent(), II);
       unsigned Idx = 0;
       for (unsigned i = 1, e = II->getNumOperands(); i != e; i += 2) {
         MachineOperand &MO = II->getOperand(i+1);
@@ -508,8 +509,7 @@ TailDuplicatePass::UpdateSuccessorsPHIs(MachineBasicBlock *FromBB, bool isDead,
             II->getOperand(Idx+1).setMBB(SrcBB);
             Idx = 0;
           } else {
-            II->addOperand(MachineOperand::CreateReg(SrcReg, false));
-            II->addOperand(MachineOperand::CreateMBB(SrcBB));
+            MIB.addReg(SrcReg).addMBB(SrcBB);
           }
         }
       } else {
@@ -521,8 +521,7 @@ TailDuplicatePass::UpdateSuccessorsPHIs(MachineBasicBlock *FromBB, bool isDead,
             II->getOperand(Idx+1).setMBB(SrcBB);
             Idx = 0;
           } else {
-            II->addOperand(MachineOperand::CreateReg(Reg, false));
-            II->addOperand(MachineOperand::CreateMBB(SrcBB));
+            MIB.addReg(Reg).addMBB(SrcBB);
           }
         }
       }
@@ -552,8 +551,8 @@ TailDuplicatePass::shouldTailDuplicate(const MachineFunction &MF,
   // compensate for the duplication.
   unsigned MaxDuplicateCount;
   if (TailDuplicateSize.getNumOccurrences() == 0 &&
-      MF.getFunction()->getFnAttributes().
-        hasAttribute(Attributes::OptimizeForSize))
+      MF.getFunction()->getAttributes().
+        hasAttribute(AttributeSet::FunctionIndex, Attribute::OptimizeForSize))
     MaxDuplicateCount = 1;
   else
     MaxDuplicateCount = TailDuplicateSize;

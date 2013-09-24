@@ -39,6 +39,24 @@
 #pragma weak pthread_setspecific
 #pragma weak pthread_getspecific
 #pragma weak pthread_once
+#ifdef LIBCXXRT_WEAK_LOCKS
+#pragma weak pthread_mutex_lock
+#define pthread_mutex_lock(mtx) do {\
+	if (pthread_mutex_lock) pthread_mutex_lock(mtx);\
+	} while(0)
+#pragma weak pthread_mutex_unlock
+#define pthread_mutex_unlock(mtx) do {\
+	if (pthread_mutex_unlock) pthread_mutex_unlock(mtx);\
+	} while(0)
+#pragma weak pthread_cond_signal
+#define pthread_cond_signal(cv) do {\
+	if (pthread_cond_signal) pthread_cond_signal(cv);\
+	} while(0)
+#pragma weak pthread_cond_wait
+#define pthread_cond_wait(cv, mtx) do {\
+	if (pthread_cond_wait) pthread_cond_wait(cv, mtx);\
+	} while(0)
+#endif
 
 using namespace ABI_NAMESPACE;
 
@@ -213,8 +231,6 @@ namespace std
 	};
 
 }
-
-extern "C" std::type_info *__cxa_current_exception_type();
 
 /**
  * Class of exceptions to distinguish between this and other exception types.
@@ -1404,7 +1420,7 @@ namespace std
 	 */
 	void terminate()
 	{
-		static __cxa_thread_info *info = thread_info_fast();
+		static __cxa_thread_info *info = thread_info();
 		if (0 != info && 0 != info->terminateHandler)
 		{
 			info->terminateHandler();
@@ -1421,7 +1437,7 @@ namespace std
 	 */
 	void unexpected()
 	{
-		static __cxa_thread_info *info = thread_info_fast();
+		static __cxa_thread_info *info = thread_info();
 		if (0 != info && 0 != info->unexpectedHandler)
 		{
 			info->unexpectedHandler();

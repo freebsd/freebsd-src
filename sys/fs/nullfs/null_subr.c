@@ -247,6 +247,7 @@ null_nodeget(mp, lowervp, vpp)
 
 	xp->null_vnode = vp;
 	xp->null_lowervp = lowervp;
+	xp->null_flags = 0;
 	vp->v_type = lowervp->v_type;
 	vp->v_data = xp;
 	vp->v_vnlock = lowervp->v_vnlock;

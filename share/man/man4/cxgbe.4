@@ -46,9 +46,10 @@ kernel configuration file:
 .Ed
 .Pp
 To load the driver as a
-module at boot time, place the following line in
+module at boot time, place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
+t4fw_cfg_load="YES"
 if_cxgbe_load="YES"
 .Ed
 .Sh DESCRIPTION

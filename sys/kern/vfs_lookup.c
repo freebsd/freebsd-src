@@ -172,7 +172,8 @@ namei(struct nameidata *ndp)
 	 * not an absolute path, and not containing '..' components) to
 	 * a real file descriptor, not the pseudo-descriptor AT_FDCWD.
 	 */
-	if (IN_CAPABILITY_MODE(td) && (cnp->cn_flags & NOCAPCHECK) == 0) {
+	if (error == 0 && IN_CAPABILITY_MODE(td) &&
+	    (cnp->cn_flags & NOCAPCHECK) == 0) {
 		ndp->ni_strictrelative = 1;
 		if (ndp->ni_dirfd == AT_FDCWD) {
 #ifdef KTRACE
@@ -698,6 +699,10 @@ unionlookup:
 	    VOP_ISLOCKED(dp) == LK_SHARED &&
 	    (cnp->cn_flags & ISLASTCN) && (cnp->cn_flags & LOCKPARENT))
 		vn_lock(dp, LK_UPGRADE|LK_RETRY);
+	if ((dp->v_iflag & VI_DOOMED) != 0) {
+		error = ENOENT;
+		goto bad;
+	}
 	/*
 	 * If we're looking up the last component and we need an exclusive
 	 * lock, adjust our lkflags.

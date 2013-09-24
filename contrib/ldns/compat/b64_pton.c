@@ -40,6 +40,7 @@
  * IF IBM IS APPRISED OF THE POSSIBILITY OF SUCH DAMAGES.
  */
 #include <ldns/config.h>
+#ifndef HAVE_B64_PTON
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -59,7 +60,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define Assert(Cond) if (!(Cond)) abort()
+#include <ldns/util.h>
 
 static const char Base64[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -258,3 +259,5 @@ ldns_b64_pton(char const *src, uint8_t *target, size_t targsize)
 
 	return (tarindex);
 }
+
+#endif /* !HAVE_B64_PTON */

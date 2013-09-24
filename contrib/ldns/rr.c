@@ -1394,25 +1394,6 @@ ldns_rr_list_clone(const ldns_rr_list *rrlist)
 	return new_list;
 }
 
-#if 0
-static int
-qsort_rr_compare(const void *a, const void *b)
-{
-	const ldns_rr *rr1 = * (const ldns_rr **) a;
-	const ldns_rr *rr2 = * (const ldns_rr **) b;
-
-	if (rr1 == NULL && rr2 == NULL) {
-		return 0;
-	}
-	if (rr1 == NULL) {
-		return -1;
-	}
-	if (rr2 == NULL) {
-		return 1;
-	}
-	return ldns_rr_compare(rr1, rr2);
-}
-#endif
 
 static int
 qsort_schwartz_rr_compare(const void *a, const void *b)

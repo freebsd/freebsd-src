@@ -129,6 +129,8 @@ struct pkthdr {
 		u_int16_t vt_vtag;	/* Ethernet 802.1p+q vlan tag */
 		u_int16_t vt_nrecs;	/* # of IGMPv3 records in this chain */
 	} PH_vt;
+	u_int16_t	 fibnum;	/* this packet should use this fib */
+	u_int16_t	 pad2;		/* align to 32 bits */
 	SLIST_HEAD(packet_tags, m_tag) tags; /* list of packet tags */
 };
 #define ether_vtag	PH_vt.vt_vtag
@@ -205,12 +207,6 @@ struct mbuf {
 #define	M_FLOWID	0x00400000 /* deprecated: flowid is valid */
 #define	M_HASHTYPEBITS	0x0F000000 /* mask of bits holding flowid hash type */
 
-/*
- * For RELENG_{6,7} steal these flags for limited multiple routing table
- * support. In RELENG_8 and beyond, use just one flag and a tag.
- */
-#define	M_FIB		0xF0000000 /* steal some bits to store fib number. */
-
 #define	M_NOTIFICATION	M_PROTO5    /* SCTP notification */
 
 /*
@@ -258,7 +254,7 @@ struct mbuf {
  */
 #define	M_COPYFLAGS \
     (M_PKTHDR|M_EOR|M_RDONLY|M_PROTOFLAGS|M_SKIP_FIREWALL|M_BCAST|M_MCAST|\
-     M_FRAG|M_FIRSTFRAG|M_LASTFRAG|M_VLANTAG|M_PROMISC|M_FIB|M_HASHTYPEBITS)
+     M_FRAG|M_FIRSTFRAG|M_LASTFRAG|M_VLANTAG|M_PROMISC|M_HASHTYPEBITS)
 
 /*
  * External buffer types: identify ext_buf type.
@@ -319,34 +315,6 @@ struct mbuf {
 				   a non-initialized mbuf */
 
 #define MB_NOTAGS	0x1UL	/* no tags attached to mbuf */
-
-/*
- * General mbuf allocator statistics structure.
- *
- * Many of these statistics are no longer used; we instead track many
- * allocator statistics through UMA's built in statistics mechanism.
- */
-struct mbstat {
-	u_long	m_mbufs;	/* XXX */
-	u_long	m_mclusts;	/* XXX */
-
-	u_long	m_drain;	/* times drained protocols for space */
-	u_long	m_mcfail;	/* XXX: times m_copym failed */
-	u_long	m_mpfail;	/* XXX: times m_pullup failed */
-	u_long	m_msize;	/* length of an mbuf */
-	u_long	m_mclbytes;	/* length of an mbuf cluster */
-	u_long	m_minclsize;	/* min length of data to allocate a cluster */
-	u_long	m_mlen;		/* length of data in an mbuf */
-	u_long	m_mhlen;	/* length of data in a header mbuf */
-
-	/* Number of mbtypes (gives # elems in mbtypes[] array) */
-	short	m_numtypes;
-
-	/* XXX: Sendfile stats should eventually move to their own struct */
-	u_long	sf_iocnt;	/* times sendfile had to do disk I/O */
-	u_long	sf_allocfail;	/* times sfbuf allocation failed */
-	u_long	sf_allocwait;	/* times sfbuf allocation had to wait */
-};
 
 /*
  * Compatibility with historic mbuf allocator.
@@ -782,7 +750,6 @@ extern int		max_datalen;	/* MHLEN - max_hdr */
 extern int		max_hdr;	/* Largest link + protocol header */
 extern int		max_linkhdr;	/* Largest link-level header */
 extern int		max_protohdr;	/* Largest protocol header */
-extern struct mbstat	mbstat;		/* General mbuf stats/infos */
 extern int		nmbclusters;	/* Maximum number of clusters */
 
 struct uio;
@@ -1010,17 +977,18 @@ m_tag_find(struct mbuf *m, int type, struct m_tag *start)
 	    m_tag_locate(m, MTAG_ABI_COMPAT, type, start));
 }
 
-/* XXX temporary FIB methods probably eventually use tags.*/
-#define M_FIBSHIFT    28
-#define M_FIBMASK	0x0F
+static int inline
+rt_m_getfib(struct mbuf *m)
+{
+	KASSERT(m->m_flags & M_PKTHDR , ("Attempt to get FIB from non header mbuf."));
+	return (m->m_pkthdr.fibnum);
+}
 
-/* get the fib from an mbuf and if it is not set, return the default */
-#define M_GETFIB(_m) \
-    ((((_m)->m_flags & M_FIB) >> M_FIBSHIFT) & M_FIBMASK)
+#define M_GETFIB(_m)   rt_m_getfib(_m)
 
 #define M_SETFIB(_m, _fib) do {						\
-	_m->m_flags &= ~M_FIB;					   	\
-	_m->m_flags |= (((_fib) << M_FIBSHIFT) & M_FIB);  \
+        KASSERT((_m)->m_flags & M_PKTHDR, ("Attempt to set FIB on non header mbuf."));	\
+	((_m)->m_pkthdr.fibnum) = (_fib);				\
 } while (0)
 
 #endif /* _KERNEL */

@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
  * to produce the hexadecimal values shown.
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -81,6 +83,7 @@ Lg6 = 1.531383769920937332e-01,  /* 3FC39A09 D078C69F */
 Lg7 = 1.479819860511658591e-01;  /* 3FC2F112 DF3E5244 */
 
 static const double zero   =  0.0;
+static volatile double vzero = 0.0;
 
 double
 __ieee754_log(double x)
@@ -94,7 +97,7 @@ __ieee754_log(double x)
 	k=0;
 	if (hx < 0x00100000) {			/* x < 2**-1022  */
 	    if (((hx&0x7fffffff)|lx)==0) 
-		return -two54/zero;		/* log(+-0)=-inf */
+		return -two54/vzero;		/* log(+-0)=-inf */
 	    if (hx<0) return (x-x)/zero;	/* log(-#) = NaN */
 	    k -= 54; x *= two54; /* subnormal number, scale up x */
 	    GET_HIGH_WORD(hx,x);
@@ -138,3 +141,7 @@ __ieee754_log(double x)
 		     return dk*ln2_hi-((s*(f-R)-dk*ln2_lo)-f);
 	}
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(log, logl);
+#endif

@@ -46,6 +46,7 @@ extern int errno;
 #include <sys/errno.h>
 #undef _KERNEL
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/errno.h>
 #define _KERNEL
 #include <sys/time.h>
@@ -73,10 +74,13 @@ extern int errno;
 #include <grp.h>
 #include <inttypes.h>
 #include <locale.h>
+#include <netdb.h>
+#include <nl_types.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <time.h>
 #include <unistd.h>
 #include <vis.h>
@@ -105,6 +109,7 @@ void ktrstruct(char *, size_t);
 void ktrcapfail(struct ktr_cap_fail *);
 void ktrfault(struct ktr_fault *);
 void ktrfaultend(struct ktr_faultend *);
+void limitfd(int fd);
 void usage(void);
 void ioctlname(unsigned long, int);
 
@@ -159,6 +164,31 @@ struct proc_info
 };
 
 TAILQ_HEAD(trace_procs, proc_info) trace_procs;
+
+static void
+strerror_init(void)
+{
+
+	/*
+	 * Cache NLS data before entering capability mode.
+	 * XXXPJD: There should be strerror_init() and strsignal_init() in libc.
+	 */
+	(void)catopen("libc", NL_CAT_LOCALE);
+}
+
+static void
+localtime_init(void)
+{
+	time_t ltime;
+
+	/*
+	 * Allow localtime(3) to cache /etc/localtime content before entering
+	 * capability mode.
+	 * XXXPJD: There should be localtime_init() in libc.
+	 */
+	(void)time(&ltime);
+	(void)localtime(&ltime);
+}
 
 int
 main(int argc, char *argv[])
@@ -230,6 +260,18 @@ main(int argc, char *argv[])
 		errx(1, "%s", strerror(ENOMEM));
 	if (!freopen(tracefile, "r", stdin))
 		err(1, "%s", tracefile);
+
+	strerror_init();
+	localtime_init();
+
+	if (resolv == 0) {
+		if (cap_enter() < 0 && errno != ENOSYS)
+			err(1, "unable to enter capability mode");
+	}
+	limitfd(STDIN_FILENO);
+	limitfd(STDOUT_FILENO);
+	limitfd(STDERR_FILENO);
+
 	TAILQ_INIT(&trace_procs);
 	drop_logged = 0;
 	while (fread_tail(&ktr_header, sizeof(struct ktr_header), 1)) {
@@ -329,6 +371,40 @@ main(int argc, char *argv[])
 			fflush(stdout);
 	}
 	return 0;
+}
+
+void
+limitfd(int fd)
+{
+	cap_rights_t rights;
+	unsigned long cmd;
+
+	rights = CAP_FSTAT;
+	cmd = -1;
+
+	switch (fd) {
+	case STDIN_FILENO:
+		rights |= CAP_READ;
+		break;
+	case STDOUT_FILENO:
+		rights |= CAP_IOCTL | CAP_WRITE;
+		cmd = TIOCGETA;	/* required by isatty(3) in printf(3) */
+		break;
+	case STDERR_FILENO:
+		rights |= CAP_WRITE;
+		if (!suppressdata) {
+			rights |= CAP_IOCTL;
+			cmd = TIOCGWINSZ;
+		}
+		break;
+	default:
+		abort();
+	}
+
+	if (cap_rights_limit(fd, rights) < 0 && errno != ENOSYS)
+		err(1, "unable to limit rights for descriptor %d", fd);
+	if (cmd != -1 && cap_ioctls_limit(fd, &cmd, 1) < 0 && errno != ENOSYS)
+		err(1, "unable to limit ioctls for descriptor %d", fd);
 }
 
 int
@@ -1205,6 +1281,11 @@ ktrgenio(struct ktr_genio *ktr, int len)
 	static int screenwidth = 0;
 	int i, binary;
 
+	printf("fd %d %s %d byte%s\n", ktr->ktr_fd,
+		ktr->ktr_rw == UIO_READ ? "read" : "wrote", datalen,
+		datalen == 1 ? "" : "s");
+	if (suppressdata)
+		return;
 	if (screenwidth == 0) {
 		struct winsize ws;
 
@@ -1214,11 +1295,6 @@ ktrgenio(struct ktr_genio *ktr, int len)
 		else
 			screenwidth = 80;
 	}
-	printf("fd %d %s %d byte%s\n", ktr->ktr_fd,
-		ktr->ktr_rw == UIO_READ ? "read" : "wrote", datalen,
-		datalen == 1 ? "" : "s");
-	if (suppressdata)
-		return;
 	if (maxdata && datalen > maxdata)
 		datalen = maxdata;
 
@@ -1429,6 +1505,8 @@ ktrsockaddr(struct sockaddr *sa)
  TODO: Support additional address families
 	#include <netnatm/natm.h>
 	struct sockaddr_natm	*natm;
+	#include <netsmb/netbios.h>
+	struct sockaddr_nb	*nb;
 */
 	char addr[64];
 
@@ -1479,7 +1557,8 @@ ktrsockaddr(struct sockaddr *sa)
 		memset(&sa_in6, 0, sizeof(sa_in6));
 		memcpy(&sa_in6, sa, sa->sa_len);
 		check_sockaddr_len(in6);
-		inet_ntop(AF_INET6, &sa_in6.sin6_addr, addr, sizeof addr);
+		getnameinfo((struct sockaddr *)&sa_in6, sizeof(sa_in6),
+		    addr, sizeof(addr), NULL, 0, NI_NUMERICHOST);
 		printf("[%s]:%u", addr, htons(sa_in6.sin6_port));
 		break;
 	}

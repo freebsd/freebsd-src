@@ -1798,8 +1798,6 @@ pmap_pinit0(struct pmap *pmap)
 {
 	PDEBUG(1, printf("pmap_pinit0: pmap = %08x\n", (u_int32_t) pmap));
 
-	dprintf("pmap_pinit0: pmap = %08x, pm_pdir = %08x\n",
-		(u_int32_t) pmap, (u_int32_t) pmap->pm_pdir);
 	bcopy(kernel_pmap, pmap, sizeof(*pmap));
 	bzero(&pmap->pm_mtx, sizeof(pmap->pm_mtx));
 	PMAP_LOCK_INIT(pmap);
@@ -3587,6 +3585,8 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	vm_page_t m;
 	vm_pindex_t diff, psize;
 
+	VM_OBJECT_ASSERT_LOCKED(m_start->object);
+
 	psize = atop(end - start);
 	m = m_start;
 	rw_wlock(&pvh_global_lock);
@@ -4718,7 +4718,7 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 	
 	GIANT_REQUIRED;
 	
-	va = kmem_alloc_nofault(kernel_map, size);
+	va = kva_alloc(size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 	for (tmpva = va; size > 0;) {
