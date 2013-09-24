@@ -255,7 +255,6 @@ __DEFAULT_YES_OPTIONS = \
     ATM \
     AUDIT \
     AUTHPF \
-    BIND \
     BIND_DNSSEC \
     BIND_ETC \
     BIND_LIBS_LWRES \
@@ -308,6 +307,7 @@ __DEFAULT_YES_OPTIONS = \
     KERNEL_SYMBOLS \
     KVM \
     LDNS \
+    LDNS_UTILS \
     LEGACY_CONSOLE \
     LIB32 \
     LIBPTHREAD \
@@ -367,6 +367,7 @@ __DEFAULT_YES_OPTIONS = \
     ZONEINFO
 
 __DEFAULT_NO_OPTIONS = \
+    BIND \
     BIND_IDN \
     BIND_LARGE_FILE \
     BIND_LIBS \
@@ -380,7 +381,6 @@ __DEFAULT_NO_OPTIONS = \
     HESIOD \
     LIBICONV_COMPAT \
     INSTALL_AS_USER \
-    LDNS_UTILS \
     LLDB \
     NMTREE \
     NAND \
