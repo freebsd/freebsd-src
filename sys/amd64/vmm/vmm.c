@@ -602,17 +602,17 @@ void *
 vm_gpa_hold(struct vm *vm, vm_paddr_t gpa, size_t len, int reqprot,
 	    void **cookie)
 {
-	int rv, pageoff;
+	int count, pageoff;
 	vm_page_t m;
 
 	pageoff = gpa & PAGE_MASK;
 	if (len > PAGE_SIZE - pageoff)
 		panic("vm_gpa_hold: invalid gpa/len: 0x%016lx/%lu", gpa, len);
 
-	rv = vm_fault_hold(&vm->vmspace->vm_map, trunc_page(gpa), reqprot,
-			   VM_FAULT_NORMAL, &m);
+	count = vm_fault_quick_hold_pages(&vm->vmspace->vm_map,
+	    trunc_page(gpa), PAGE_SIZE, reqprot, &m, 1);
 
-	if (rv == KERN_SUCCESS) {
+	if (count == 1) {
 		*cookie = m;
 		return ((void *)(PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)) + pageoff));
 	} else {
