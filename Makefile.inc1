@@ -1089,9 +1089,11 @@ distributekernel distributekernel.debug:
 	    KERNEL=${INSTKERNNAME}.${_kernel} \
 	    DESTDIR=${INSTALL_DDIR}/kernel.${_kernel} \
 	    ${.TARGET:S/distributekernel/install/}
+.if defined(NO_ROOT)
 	sed -e 's|^./kernel|.|' \
 	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta > \
 	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
+.endif
 .endfor
 
 packagekernel:
