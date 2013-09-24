@@ -930,7 +930,11 @@ cfiscsi_callout(void *context)
 	if (cs->cs_timeout < 2)
 		return;
 
-	cp = icl_pdu_new_bhs(cs->cs_conn, M_WAITOK);
+	cp = icl_pdu_new_bhs(cs->cs_conn, M_NOWAIT);
+	if (cp == NULL) {
+		CFISCSI_SESSION_WARN(cs, "failed to allocate PDU");
+		return;
+	}
 	bhsni = (struct iscsi_bhs_nop_in *)cp->ip_bhs;
 	bhsni->bhsni_opcode = ISCSI_BHS_OPCODE_NOP_IN;
 	bhsni->bhsni_flags = 0x80;
@@ -2245,7 +2249,7 @@ cfiscsi_datamove(union ctl_io *io)
 	struct ctl_sg_entry ctl_sg_entry, *ctl_sglist;
 	size_t copy_len, len, off;
 	const char *addr;
-	int ctl_sg_count, i;
+	int ctl_sg_count, error, i;
 	uint32_t target_transfer_tag;
 	bool done;
 
@@ -2298,7 +2302,13 @@ cfiscsi_datamove(union ctl_io *io)
 			KASSERT(i < ctl_sg_count, ("i >= ctl_sg_count"));
 			if (response == NULL) {
 				response =
-				    cfiscsi_pdu_new_response(request, M_WAITOK);
+				    cfiscsi_pdu_new_response(request, M_NOWAIT);
+				if (response == NULL) {
+					CFISCSI_SESSION_WARN(cs, "failed to "
+					    "allocate memory; dropping connection");
+					cfiscsi_session_terminate(cs);
+					return;
+				}
 				bhsdi = (struct iscsi_bhs_data_in *)
 				    response->ip_bhs;
 				bhsdi->bhsdi_opcode =
@@ -2323,7 +2333,14 @@ cfiscsi_datamove(union ctl_io *io)
 				copy_len = cs->cs_max_data_segment_length -
 				    response->ip_data_len;
 			KASSERT(copy_len <= len, ("copy_len > len"));
-			icl_pdu_append_data(response, addr, copy_len, M_WAITOK);
+			error = icl_pdu_append_data(response, addr, copy_len, M_NOWAIT);
+			if (error != 0) {
+				CFISCSI_SESSION_WARN(cs, "failed to "
+				    "allocate memory; dropping connection");
+				icl_pdu_free(response);
+				cfiscsi_session_terminate(cs);
+				return;
+			}
 			addr += copy_len;
 			len -= copy_len;
 			off += copy_len;

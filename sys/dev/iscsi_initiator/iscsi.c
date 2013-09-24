@@ -717,7 +717,7 @@ iscsi_start(void)
      isc =  malloc(sizeof(struct isc_softc), M_ISCSI, M_ZERO|M_WAITOK);
      isc->dev = make_dev(&iscsi_cdevsw, max_sessions, UID_ROOT, GID_WHEEL, 0600, "iscsi");
      isc->dev->si_drv1 = isc;
-     mtx_init(&isc->isc_mtx, "iscsi", NULL, MTX_DEF);
+     mtx_init(&isc->isc_mtx, "iscsi-isc", NULL, MTX_DEF);
 
      TAILQ_INIT(&isc->isc_sess);
      /*
