@@ -564,6 +564,9 @@ acl_alloc(int flags)
 	struct acl *aclp;
 
 	aclp = malloc(sizeof(*aclp), M_ACL, flags);
+	if (aclp == NULL)
+		return (NULL);
+
 	aclp->acl_maxcnt = ACL_MAX_ENTRIES;
 
 	return (aclp);
