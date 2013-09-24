@@ -684,6 +684,7 @@ struct gdt_ccb {
     union ccb   *gc_ccb;
     gdt_ucmd_t  *gc_ucmd;
     bus_dmamap_t gc_dmamap;
+    struct callout_handle gc_timeout_ch;
     int         gc_map_flag;
     int         gc_timeout;
     u_int8_t    gc_service;
