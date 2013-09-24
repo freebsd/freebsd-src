@@ -41,9 +41,7 @@ static struct cdev *ipf_devs[IPL_LOGSIZE];
 static dev_t ipf_devs[IPL_LOGSIZE];
 #endif
 
-#if 0
 static int sysctl_ipf_int ( SYSCTL_HANDLER_ARGS );
-#endif
 static int ipf_modload(void);
 static int ipf_modunload(void);
 
@@ -68,7 +66,6 @@ static	int	ipfwrite __P((dev_t, struct uio *, int));
 #endif /* __FreeBSD_version >= 502116 */
 
 
-
 SYSCTL_DECL(_net_inet);
 #define SYSCTL_IPF(parent, nbr, name, access, ptr, val, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
@@ -76,55 +73,58 @@ SYSCTL_DECL(_net_inet);
 #define	CTLFLAG_OFF	0x00800000	/* IPFilter must be disabled */
 #define	CTLFLAG_RWO	(CTLFLAG_RW|CTLFLAG_OFF)
 SYSCTL_NODE(_net_inet, OID_AUTO, ipf, CTLFLAG_RW, 0, "IPF");
-#if 0
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_flags, CTLFLAG_RW, &ipf_flags, 0, "");
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_pass, CTLFLAG_RW, &ipf_pass, 0, "");
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_active, CTLFLAG_RD, &ipf_active, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_flags, CTLFLAG_RW, &ipfmain.ipf_flags, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_pass, CTLFLAG_RW, &ipfmain.ipf_pass, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_active, CTLFLAG_RD, &ipfmain.ipf_active, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_tcpidletimeout, CTLFLAG_RWO,
-	   &ipf_tcpidletimeout, 0, "");
+	   &ipfmain.ipf_tcpidletimeout, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_tcphalfclosed, CTLFLAG_RWO,
-	   &ipf_tcphalfclosed, 0, "");
+	   &ipfmain.ipf_tcphalfclosed, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_tcpclosewait, CTLFLAG_RWO,
-	   &ipf_tcpclosewait, 0, "");
+	   &ipfmain.ipf_tcpclosewait, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_tcplastack, CTLFLAG_RWO,
-	   &ipf_tcplastack, 0, "");
+	   &ipfmain.ipf_tcplastack, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_tcptimeout, CTLFLAG_RWO,
-	   &ipf_tcptimeout, 0, "");
+	   &ipfmain.ipf_tcptimeout, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_tcpclosed, CTLFLAG_RWO,
-	   &ipf_tcpclosed, 0, "");
+	   &ipfmain.ipf_tcpclosed, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_udptimeout, CTLFLAG_RWO,
-	   &ipf_udptimeout, 0, "");
+	   &ipfmain.ipf_udptimeout, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_udpacktimeout, CTLFLAG_RWO,
-	   &ipf_udpacktimeout, 0, "");
+	   &ipfmain.ipf_udpacktimeout, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_icmptimeout, CTLFLAG_RWO,
-	   &ipf_icmptimeout, 0, "");
+	   &ipfmain.ipf_icmptimeout, 0, "");
+#if 0
+/* this needs to be resolved at compile time */
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_defnatage, CTLFLAG_RWO,
-	   &ipf_nat_defage, 0, "");
+	   &((ipf_nat_softc_t *)ipfmain.ipf_nat_soft)->ipf_nat_defage, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_ipfrttl, CTLFLAG_RW,
 	   &ipf_ipfrttl, 0, "");
+#endif
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_running, CTLFLAG_RD,
-	   &ipf_running, 0, "");
+	   &ipfmain.ipf_running, 0, "");
+#if 0
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_statesize, CTLFLAG_RWO,
-	   &ipf_state_size, 0, "");
+	   &ipfmain.ipf_state_soft)->ipf_state_size, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_statemax, CTLFLAG_RWO,
-	   &ipf_state_max, 0, "");
+	   &(ipfmain.ipf_state_soft)->ipf_state_max, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_nattable_sz, CTLFLAG_RWO,
-	   &ipf_nat_table_sz, 0, "");
+	   &(ipfmain.ipf_nat_soft)->ipf_nat_table_sz, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_natrules_sz, CTLFLAG_RWO,
-	   &ipf_nat_maprules_sz, 0, "");
+	   &(ipfmain.ipf_nat_soft)->ipf_nat_maprules_sz, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_rdrrules_sz, CTLFLAG_RWO,
-	   &ipf_nat_rdrrules_sz, 0, "");
+	   &(ipfmain.ipf_nat_soft)->ipf_nat_rdrrules_sz, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_hostmap_sz, CTLFLAG_RWO,
-	   &ipf_nat_hostmap_sz, 0, "");
+	   &(ipfmain.ipf_nat_soft)->ipf_nat_hostmap_sz, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_authsize, CTLFLAG_RWO,
 	   &ipf_auth_size, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_authused, CTLFLAG_RD,
 	   &ipf_auth_used, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_defaultauthage, CTLFLAG_RW,
 	   &ipf_auth_defaultage, 0, "");
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_chksrc, CTLFLAG_RW, &ipf_chksrc, 0, "");
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_minttl, CTLFLAG_RW, &ipf_minttl, 0, "");
 #endif
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_chksrc, CTLFLAG_RW, &ipfmain.ipf_chksrc, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_minttl, CTLFLAG_RW, &ipfmain.ipf_minttl, 0, "");
 
 #define CDEV_MAJOR 79
 #include <sys/poll.h>
@@ -308,7 +308,6 @@ MODULE_VERSION(ipfilter, 1);
 #endif
 
 
-#if 0
 #ifdef SYSCTL_IPF
 int
 sysctl_ipf_int ( SYSCTL_HANDLER_ARGS )
@@ -333,7 +332,6 @@ sysctl_ipf_int ( SYSCTL_HANDLER_ARGS )
 	}
 	return (error);
 }
-#endif
 #endif
 
 

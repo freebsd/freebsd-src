@@ -341,7 +341,7 @@ cpu_thread_clean(struct thread *td)
 	 * Clean TSS/iomap
 	 */
 	if (pcb->pcb_tssp != NULL) {
-		kva_free((vm_offset_t)pcb->pcb_tssp,
+		kmem_free(kernel_arena, (vm_offset_t)pcb->pcb_tssp,
 		    ctob(IOPAGES + 1));
 		pcb->pcb_tssp = NULL;
 	}
@@ -400,9 +400,13 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		 * for the next iteration.
 		 * %r10 restore is only required for freebsd/amd64 processes,
 		 * but shall be innocent for any ia32 ABI.
+		 *
+		 * Require full context restore to get the arguments
+		 * in the registers reloaded at return to usermode.
 		 */
 		td->td_frame->tf_rip -= td->td_frame->tf_err;
 		td->td_frame->tf_r10 = td->td_frame->tf_rcx;
+		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 		break;
 
 	case EJUSTRETURN:

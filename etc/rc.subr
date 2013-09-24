@@ -546,6 +546,8 @@ check_startmsgs()
 #
 #	rcvar		Display what rc.conf variable is used (if any).
 #
+#	enabled		Return true if the service is enabled.
+#
 #	Variables available to methods, and after run_rc_command() has
 #	completed:
 #
@@ -614,7 +616,7 @@ run_rc_command()
 	eval _override_command=\$${name}_program
 	command=${_override_command:-$command}
 
-	_keywords="start stop restart rcvar $extra_commands"
+	_keywords="start stop restart rcvar enabled $extra_commands"
 	rc_pid=
 	_pidcmd=
 	_procname=${procname:-${command}}
@@ -633,6 +635,11 @@ run_rc_command()
 
 	if [ -z "$rc_arg" ]; then
 		rc_usage $_keywords
+	fi
+
+	if [ "$rc_arg" = "enabled" ] ; then
+		checkyesno ${rcvar}
+		return $?
 	fi
 
 	if [ -n "$flags" ]; then	# allow override from environment

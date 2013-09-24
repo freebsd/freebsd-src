@@ -5,16 +5,7 @@
 #define CHROOT_DIR "/var/unbound"
 
 /* Pathname to the Unbound configuration file */
-#define CONFIGFILE "/etc/unbound/unbound.conf"
-
-/* configure flags */
-#define CONFIGURE_BUILD_WITH " '--prefix=' '--exec-prefix=/usr' '--with-conf-file=/etc/unbound/unbound.conf' '--with-run-dir=/var/unbound' '--with-username=unbound'"
-
-/* configure date */
-#define CONFIGURE_DATE "Sun Sep 15 15:38:41 CEST 2013"
-
-/* configure target system */
-#define CONFIGURE_TARGET "x86_64-unknown-freebsd10.0"
+#define CONFIGFILE "/var/unbound/unbound.conf"
 
 /* Define this if on macOSX10.4-darwin8 and setreuid and setregid do not work
    */
@@ -240,7 +231,7 @@
 #define HAVE_RECVMSG 1
 
 /* Define to 1 if you have the `sbrk' function. */
-/* #undef HAVE_SBRK */
+#define HAVE_SBRK 1
 
 /* Define to 1 if you have the `sendmsg' function. */
 #define HAVE_SENDMSG 1

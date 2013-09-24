@@ -83,10 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/cpu.h>
 
-#ifdef XENHVM
-#include <xen/hvm.h>
-#endif
-
 #define WARMBOOT_TARGET		0
 #define WARMBOOT_OFF		(KERNBASE + 0x0467)
 #define WARMBOOT_SEG		(KERNBASE + 0x0469)
@@ -202,7 +198,7 @@ int cpu_apic_ids[MAXCPU];
 int apic_cpuids[MAX_APIC_ID + 1];
 
 /* Holds pending bitmap based IPIs per CPU */
-static volatile u_int cpu_ipi_pending[MAXCPU];
+volatile u_int cpu_ipi_pending[MAXCPU];
 
 static u_int boot_address;
 static int cpu_logical;			/* logical cpus per core */
@@ -757,10 +753,8 @@ init_secondary(void)
 	/* set up SSE registers */
 	enable_sse();
 
-#ifdef XENHVM
-	/* register vcpu_info area */
-	xen_hvm_init_cpu();
-#endif
+	if (cpu_ops.cpu_init)
+		cpu_ops.cpu_init();
 
 #ifdef PAE
 	/* Enable the PTE no-execute bit. */
@@ -1527,8 +1521,9 @@ cpususpend_handler(void)
 {
 	u_int cpu;
 
-	cpu = PCPU_GET(cpuid);
+	mtx_assert(&smp_ipi_mtx, MA_NOTOWNED);
 
+	cpu = PCPU_GET(cpuid);
 	if (savectx(susppcbs[cpu])) {
 		wbinvd();
 		CPU_SET_ATOMIC(cpu, &suspended_cpus);
@@ -1545,10 +1540,15 @@ cpususpend_handler(void)
 	while (!CPU_ISSET(cpu, &started_cpus))
 		ia32_pause();
 
+	if (cpu_ops.cpu_resume)
+		cpu_ops.cpu_resume();
+
 	/* Resume MCA and local APIC */
 	mca_resume();
 	lapic_setup(0);
 
+	/* Indicate that we are resumed */
+	CPU_CLR_ATOMIC(cpu, &suspended_cpus);
 	CPU_CLR_ATOMIC(cpu, &started_cpus);
 }
 /*

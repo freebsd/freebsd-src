@@ -19,10 +19,11 @@
 .\"
 .\" Copyright (c) 2012 by Delphix. All rights reserved.
 .\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
+.\" Copyright (c) 2013, Joyent, Inc. All rights reserved.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2013
+.Dd September 20, 2013
 .Dt ZPOOL-FEATURES 7
 .Os
 .Sh NAME
@@ -229,6 +230,27 @@ feature. At the
 moment, this operation cannot be reversed. Booting off of
 .Sy lz4
 -compressed root pools is supported.
+.It Sy multi_vdev_crash_dump
+.Bl -column "READ\-ONLY COMPATIBLE" "com.joyent:multi_vdev_crash_dump"
+.It GUID Ta com.joyent:multi_vdev_crash_dump
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This feature allows a dump device to be configured with a pool comprised
+of multiple vdevs.
+Those vdevs may be arranged in any mirrored or raidz
+configuration.
+.\" TODO: this is not yet supported on FreeBSD.
+.\" .Pp
+.\" When the
+.\" .Sy multi_vdev_crash_dump
+.\" feature is set to
+.\" .Sy enabled ,
+.\" the administrator can use the
+.\" .Xr dumpon 8
+.\" command to configure a
+.\" dump device on a pool comprised of multiple vdevs.
 .El
 .Sh SEE ALSO
 .Xr zpool 8

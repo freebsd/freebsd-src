@@ -1,4 +1,4 @@
-/**
+/*-
  * Copyright (c) 2009 Adrian Chadd
  * Copyright (c) 2012 Spectra Logic Corporation
  * All rights reserved.
@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/clock.h>
 #include <machine/_inttypes.h>
+#include <machine/smp.h>
 
 #include "clock_if.h"
 
@@ -316,7 +317,7 @@ xentimer_settime(device_t dev __unused, struct timespec *ts)
 	 * Don't return EINVAL here; just silently fail if the domain isn't
 	 * privileged enough to set the TOD.
 	 */
-	return(0);
+	return (0);
 }
 
 /**
@@ -339,7 +340,7 @@ xentimer_gettime(device_t dev, struct timespec *ts)
 	xen_fetch_uptime(&u_ts);
 	timespecadd(ts, &u_ts);
 
-	return(0);
+	return (0);
 }
 
 /**
@@ -457,8 +458,9 @@ xentimer_attach(device_t dev)
 
 	/* Bind an event channel to a VIRQ on each VCPU. */
 	CPU_FOREACH(i) {
-		struct xentimer_pcpu_data *pcpu = DPCPU_ID_PTR(i, xentimer_pcpu);
+		struct xentimer_pcpu_data *pcpu;
 
+		pcpu = DPCPU_ID_PTR(i, xentimer_pcpu);
 		error = HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, i, NULL);
 		if (error) {
 			device_printf(dev, "Error disabling Xen periodic timer "
@@ -493,6 +495,7 @@ xentimer_attach(device_t dev)
 	/* Register the timecounter. */
 	sc->tc.tc_name = "XENTIMER";
 	sc->tc.tc_quality = XENTIMER_QUALITY;
+	sc->tc.tc_flags = TC_FLAGS_SUSPEND_SAFE;
 	/*
 	 * The underlying resolution is in nanoseconds, since the timer info
 	 * scales TSC frequencies using a fraction that represents time in
@@ -523,75 +526,60 @@ xentimer_detach(device_t dev)
 	return (EBUSY);
 }
 
-/**
- * The following device methods are disabled because they wouldn't work
- * properly.
- */
-#ifdef NOTYET
+static void
+xentimer_percpu_resume(void *arg)
+{
+	device_t dev = (device_t) arg;
+	struct xentimer_softc *sc = device_get_softc(dev);
+
+	xentimer_et_start(&sc->et, sc->et.et_min_period, 0);
+}
+
 static int
 xentimer_resume(device_t dev)
 {
-	struct xentimer_softc *sc = device_get_softc(dev);
-	int error = 0;
+	int error;
 	int i;
 
-	device_printf(sc->dev, "%s", __func__);
+	/* Disable the periodic timer */
 	CPU_FOREACH(i) {
-		struct xentimer_pcpu_data *pcpu = DPCPU_ID_PTR(i, xentimer_pcpu);
-
-		/* Skip inactive timers. */
-		if (pcpu->timer == 0)
-			continue;
-
-		/*
-		 * XXX This won't actually work, because Xen requires that
-		 *     singleshot timers be set while running on the given CPU.
-		 */
-		error = xentimer_vcpu_start_timer(i, pcpu->timer);
-		if (error == -ETIME) {
-			/* Event time has already passed; process. */
-			xentimer_intr(sc);
-		} else if (error != 0) {
-			panic("%s: error %d restarting vcpu %d\n",
-			    __func__, error, i);
+		error = HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, i, NULL);
+		if (error != 0) {
+			device_printf(dev,
+			    "Error disabling Xen periodic timer on CPU %d\n",
+			    i);
+			return (error);
 		}
 	}
 
-	return (error);
+	/* Reset the last uptime value */
+	xen_timer_last_time = 0;
+
+	/* Reset the RTC clock */
+	inittodr(time_second);
+
+	/* Kick the timers on all CPUs */
+	smp_rendezvous(NULL, xentimer_percpu_resume, NULL, dev);
+
+	if (bootverbose)
+		device_printf(dev, "resumed operation after suspension\n");
+
+	return (0);
 }
 
 static int
 xentimer_suspend(device_t dev)
 {
-	struct xentimer_softc *sc = device_get_softc(dev);
-	int error = 0;
-	int i;
-
-	device_printf(sc->dev, "%s", __func__);
-	CPU_FOREACH(i) {
-		struct xentimer_pcpu_data *pcpu = DPCPU_ID_PTR(i, xentimer_pcpu);
-
-		/* Skip inactive timers. */
-		if (pcpu->timer == 0)
-			continue;
-		error = xentimer_vcpu_stop_timer(i);
-		if (error)
-			panic("Error %d stopping VCPU %d timer\n", error, i);
-	}
-
-	return (error);
+	return (0);
 }
-#endif
 
 static device_method_t xentimer_methods[] = {
 	DEVMETHOD(device_identify, xentimer_identify),
 	DEVMETHOD(device_probe, xentimer_probe),
 	DEVMETHOD(device_attach, xentimer_attach),
 	DEVMETHOD(device_detach, xentimer_detach),
-#ifdef NOTYET
 	DEVMETHOD(device_suspend, xentimer_suspend),
 	DEVMETHOD(device_resume, xentimer_resume),
-#endif
 	/* clock interface */
 	DEVMETHOD(clock_gettime, xentimer_gettime),
 	DEVMETHOD(clock_settime, xentimer_settime),

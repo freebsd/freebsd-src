@@ -123,19 +123,11 @@ counter_u64_t sfstat[sizeof(struct sfstat) / sizeof(uint64_t)];
 /*
  * sendfile(2)-related variables and associated sysctls
  */
-int nsfbufs;
-int nsfbufspeak;
-int nsfbufsused;
+static SYSCTL_NODE(_kern_ipc, OID_AUTO, sendfile, CTLFLAG_RW, 0,
+    "sendfile(2) tunables");
 static int sfreadahead = 1;
-
-SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
-    "Maximum number of sendfile(2) sf_bufs available");
-SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufspeak, CTLFLAG_RD, &nsfbufspeak, 0,
-    "Number of sendfile(2) sf_bufs at peak usage");
-SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
-    "Number of sendfile(2) sf_bufs in use");
-SYSCTL_INT(_kern_ipc, OID_AUTO, sfreadahead, CTLFLAG_RW, &sfreadahead, 0,
-    "Number of sendfile(2) read-ahead MAXBSIZE blocks");
+SYSCTL_INT(_kern_ipc_sendfile, OID_AUTO, readahead, CTLFLAG_RW,
+    &sfreadahead, 0, "Number of sendfile(2) read-ahead MAXBSIZE blocks");
 
 
 static void

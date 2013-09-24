@@ -127,9 +127,7 @@ static uma_zone_t kmapentzone;
 static uma_zone_t mapzone;
 static uma_zone_t vmspace_zone;
 static int vmspace_zinit(void *mem, int size, int flags);
-static void vmspace_zfini(void *mem, int size);
 static int vm_map_zinit(void *mem, int ize, int flags);
-static void vm_map_zfini(void *mem, int size);
 static void _vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min,
     vm_offset_t max);
 static void vm_map_entry_deallocate(vm_map_entry_t entry, boolean_t system_map);
@@ -192,7 +190,7 @@ vm_map_startup(void)
 #else
 	    NULL,
 #endif
-	    vm_map_zinit, vm_map_zfini, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    vm_map_zinit, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_prealloc(mapzone, MAX_KMAP);
 	kmapentzone = uma_zcreate("KMAP ENTRY", sizeof(struct vm_map_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
@@ -205,16 +203,7 @@ vm_map_startup(void)
 #else
 	    NULL,
 #endif
-	    vmspace_zinit, vmspace_zfini, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-}
-
-static void
-vmspace_zfini(void *mem, int size)
-{
-	struct vmspace *vm;
-
-	vm = (struct vmspace *)mem;
-	vm_map_zfini(&vm->vm_map, sizeof(vm->vm_map));
+	    vmspace_zinit, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 }
 
 static int
@@ -228,16 +217,6 @@ vmspace_zinit(void *mem, int size, int flags)
 	(void)vm_map_zinit(&vm->vm_map, sizeof(vm->vm_map), flags);
 	PMAP_LOCK_INIT(vmspace_pmap(vm));
 	return (0);
-}
-
-static void
-vm_map_zfini(void *mem, int size)
-{
-	vm_map_t map;
-
-	map = (vm_map_t)mem;
-	mtx_destroy(&map->system_mtx);
-	sx_destroy(&map->lock);
 }
 
 static int
