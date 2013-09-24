@@ -2306,6 +2306,7 @@ cfiscsi_datamove(union ctl_io *io)
 				if (response == NULL) {
 					CFISCSI_SESSION_WARN(cs, "failed to "
 					    "allocate memory; dropping connection");
+					icl_pdu_free(request);
 					cfiscsi_session_terminate(cs);
 					return;
 				}
@@ -2337,6 +2338,7 @@ cfiscsi_datamove(union ctl_io *io)
 			if (error != 0) {
 				CFISCSI_SESSION_WARN(cs, "failed to "
 				    "allocate memory; dropping connection");
+				icl_pdu_free(request);
 				icl_pdu_free(response);
 				cfiscsi_session_terminate(cs);
 				return;
@@ -2406,7 +2408,13 @@ cfiscsi_datamove(union ctl_io *io)
 		    "task tag 0x%x, target transfer tag 0x%x",
 		    bhssc->bhssc_initiator_task_tag, target_transfer_tag);
 #endif
-		cdw = uma_zalloc(cfiscsi_data_wait_zone, M_WAITOK | M_ZERO);
+		cdw = uma_zalloc(cfiscsi_data_wait_zone, M_NOWAIT | M_ZERO);
+		if (cdw == NULL) {
+			CFISCSI_SESSION_WARN(cs, "failed to "
+			    "allocate memory; dropping connection");
+			icl_pdu_free(request);
+			cfiscsi_session_terminate(cs);
+		}
 		cdw->cdw_ctl_io = io;
 		cdw->cdw_target_transfer_tag = htonl(target_transfer_tag);
 		cdw->cdw_initiator_task_tag = bhssc->bhssc_initiator_task_tag;
@@ -2435,7 +2443,13 @@ cfiscsi_datamove(union ctl_io *io)
 		 * XXX: We should limit the number of outstanding R2T PDUs
 		 * 	per task to MaxOutstandingR2T.
 		 */
-		response = cfiscsi_pdu_new_response(request, M_WAITOK);
+		response = cfiscsi_pdu_new_response(request, M_NOWAIT);
+		if (response == NULL) {
+			CFISCSI_SESSION_WARN(cs, "failed to "
+			    "allocate memory; dropping connection");
+			icl_pdu_free(request);
+			cfiscsi_session_terminate(cs);
+		}
 		bhsr2t = (struct iscsi_bhs_r2t *)response->ip_bhs;
 		bhsr2t->bhsr2t_opcode = ISCSI_BHS_OPCODE_R2T;
 		bhsr2t->bhsr2t_flags = 0x80;
