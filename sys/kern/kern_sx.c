@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -246,6 +247,9 @@ _sx_slock(struct sx *sx, int opts, const char *file, int line)
 
 	if (SCHEDULER_STOPPED())
 		return (0);
+	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
+	    ("sx_slock() by idle thread %p on sx %s @ %s:%d",
+	    curthread, sx->lock_object.lo_name, file, line));
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_slock() of destroyed sx @ %s:%d", file, line));
 	WITNESS_CHECKORDER(&sx->lock_object, LOP_NEWORDER, file, line, NULL);
@@ -266,6 +270,10 @@ _sx_try_slock(struct sx *sx, const char *file, int line)
 
 	if (SCHEDULER_STOPPED())
 		return (1);
+
+	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
+	    ("sx_try_slock() by idle thread %p on sx %s @ %s:%d",
+	    curthread, sx->lock_object.lo_name, file, line));
 
 	for (;;) {
 		x = sx->sx_lock;
@@ -292,6 +300,9 @@ _sx_xlock(struct sx *sx, int opts, const char *file, int line)
 
 	if (SCHEDULER_STOPPED())
 		return (0);
+	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
+	    ("sx_xlock() by idle thread %p on sx %s @ %s:%d",
+	    curthread, sx->lock_object.lo_name, file, line));
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_xlock() of destroyed sx @ %s:%d", file, line));
 	WITNESS_CHECKORDER(&sx->lock_object, LOP_NEWORDER | LOP_EXCLUSIVE, file,
@@ -315,6 +326,9 @@ _sx_try_xlock(struct sx *sx, const char *file, int line)
 	if (SCHEDULER_STOPPED())
 		return (1);
 
+	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
+	    ("sx_try_xlock() by idle thread %p on sx %s @ %s:%d",
+	    curthread, sx->lock_object.lo_name, file, line));
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_try_xlock() of destroyed sx @ %s:%d", file, line));
 
