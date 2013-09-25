@@ -177,6 +177,7 @@ struct sbp_ocb {
 	struct sbp_dev	*sdev;
 	int		flags; /* XXX should be removed */
 	bus_dmamap_t	dmamap;
+	struct callout_handle timeout_ch;
 };
 
 #define OCB_ACT_MGM 0
@@ -591,6 +592,7 @@ END_DEBUG
 				/* XXX */
 				goto next;
 			}
+			callout_handle_init(&ocb->timeout_ch);
 			sbp_free_ocb(sdev, ocb);
 		}
 next:
@@ -2763,7 +2765,7 @@ END_DEBUG
 			STAILQ_REMOVE(&sdev->ocbs, ocb, sbp_ocb, ocb);
 			if (ocb->ccb != NULL)
 				untimeout(sbp_timeout, (caddr_t)ocb,
-						ocb->ccb->ccb_h.timeout_ch);
+						ocb->timeout_ch);
 			if (ntohl(ocb->orb[4]) & 0xffff) {
 				bus_dmamap_sync(sdev->target->sbp->dmat,
 					ocb->dmamap,
@@ -2836,7 +2838,7 @@ END_DEBUG
 	STAILQ_INSERT_TAIL(&sdev->ocbs, ocb, ocb);
 
 	if (ocb->ccb != NULL)
-		ocb->ccb->ccb_h.timeout_ch = timeout(sbp_timeout, (caddr_t)ocb,
+		ocb->timeout_ch = timeout(sbp_timeout, (caddr_t)ocb,
 					(ocb->ccb->ccb_h.timeout * hz) / 1000);
 
 	if (use_doorbell && prev == NULL)
@@ -2930,7 +2932,7 @@ END_DEBUG
 	}
 	if (ocb->ccb != NULL) {
 		untimeout(sbp_timeout, (caddr_t)ocb,
-					ocb->ccb->ccb_h.timeout_ch);
+					ocb->timeout_ch);
 		ocb->ccb->ccb_h.status = status;
 		SBP_LOCK(sdev->target->sbp);
 		xpt_done(ocb->ccb);
