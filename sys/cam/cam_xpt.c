@@ -397,7 +397,9 @@ xptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	int error;
 
 	if ((error = xptdoioctl(dev, cmd, addr, flag, td)) == ENOTTY) {
-		error = cam_compat_ioctl(dev, cmd, addr, flag, td, xptdoioctl);
+		error = cam_compat_ioctl(dev, &cmd, &addr, &flag, td);
+		if (error == EAGAIN)
+			return (xptdoioctl(dev, cmd, addr, flag, td));
 	}
 	return (error);
 }
@@ -4383,6 +4385,8 @@ xpt_get_ccb(struct cam_ed *device)
                 if (new_ccb == NULL) {
 			return (NULL);
 		}
+		if ((sim->flags & CAM_SIM_MPSAFE) == 0)
+			callout_handle_init(&new_ccb->ccb_h.timeout_ch);
 		SLIST_INSERT_HEAD(&sim->ccb_freeq, &new_ccb->ccb_h,
 				  xpt_links.sle);
 		sim->ccb_count++;
