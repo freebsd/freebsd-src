@@ -2008,7 +2008,8 @@ get_next_command(void) {
 	if (interactive) {
 #ifdef HAVE_READLINE
 		cmdline = readline("> ");
-		add_history(cmdline);
+		if (cmdline != NULL && *cmdline != '\0')
+			add_history(cmdline);
 #else
 		fprintf(stdout, "> ");
 		fflush(stdout);
