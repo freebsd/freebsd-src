@@ -11,6 +11,9 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20130930:
+	9.2-RELEASE.
+
 20130823:
 	Behavior of devfs rules path matching has been changed.
 	Pattern is now always matched against fully qualified devfs
