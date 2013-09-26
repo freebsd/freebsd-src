@@ -386,9 +386,7 @@ chrp_reset(platform_t platform)
 static void
 phyp_cpu_idle(sbintime_t sbt)
 {
-	#ifdef NOTYET /* Causes hangs on QEMU */
 	phyp_hcall(H_CEDE);
-	#endif
 }
 
 static void
