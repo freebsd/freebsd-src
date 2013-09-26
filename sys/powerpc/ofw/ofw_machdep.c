@@ -680,7 +680,7 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	bus_size_t size, rsize;
 	uint32_t c, nbridge, naddr, nsize;
 	phandle_t bridge, parent;
-	u_int spc, rspc;
+	u_int spc, rspc, prefetch;
 	int pci, pcib, res;
 
 	/* Sanity checking. */
@@ -707,6 +707,7 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	if (regno + naddr + nsize > res)
 		return (EINVAL);
 	spc = (pci) ? cell[regno] & OFW_PCI_PHYS_HI_SPACEMASK : ~0;
+	prefetch = (pci) ? cell[regno] & OFW_PCI_PHYS_HI_PREFETCHABLE : 0;
 	addr = 0;
 	for (c = 0; c < naddr; c++)
 		addr = ((uint64_t)addr << 32) | cell[regno++];
@@ -763,6 +764,7 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	}
 
 	*tag = &bs_le_tag;
-	return (bus_space_map(*tag, addr, size, 0, handle));
+	return (bus_space_map(*tag, addr, size,
+	    prefetch ? BUS_SPACE_MAP_PREFETCHABLE : 0, handle));
 }
 
