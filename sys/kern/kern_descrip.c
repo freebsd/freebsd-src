@@ -1518,7 +1518,7 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 
 	/*
 	 * In order to have a valid pattern for fget_unlocked()
-	 * fdp->fd_nfiles might be the last member to be updated, otherwise
+	 * fdp->fd_nfiles must be the last member to be updated, otherwise
 	 * fget_unlocked() consumers may reference a new, higher value for
 	 * fdp->fd_nfiles before to access the fdp->fd_ofiles array,
 	 * resulting in OOB accesses.
