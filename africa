@@ -1100,9 +1100,7 @@ Zone	Africa/Khartoum	2:10:08 -	LMT	1931
 			3:00	-	EAT
 
 # South Sudan
-Zone	Africa/Juba	2:06:24 -	LMT	1931
-			2:00	Sudan	CA%sT	2000 Jan 15 12:00
-			3:00	-	EAT
+Link Africa/Khartoum Africa/Juba
 
 # Swaziland
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
