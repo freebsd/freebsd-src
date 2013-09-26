@@ -187,6 +187,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	cf->cf_arg1 = (register_t)tf;
 
 	pcb->pcb_sp = (register_t)cf;
+	KASSERT(pcb->pcb_sp % 16 == 0, ("stack misaligned"));
 	#ifdef __powerpc64__
 	pcb->pcb_lr = ((register_t *)fork_trampoline)[0];
 	pcb->pcb_toc = ((register_t *)fork_trampoline)[1];
