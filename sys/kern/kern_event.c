@@ -554,7 +554,16 @@ static int
 filt_timerattach(struct knote *kn)
 {
 	struct callout *calloutp;
+	sbintime_t to;
 	unsigned int ncallouts;
+
+	if ((intptr_t)kn->kn_sdata < 0)
+		return (EINVAL);
+	if ((intptr_t)kn->kn_sdata == 0 && (kn->kn_flags & EV_ONESHOT) == 0)
+		kn->kn_sdata = 1;
+	to = timer2sbintime(kn->kn_sdata);
+	if (to < 0)
+		return (EINVAL);
 
 	ncallouts = atomic_load_explicit(&kq_ncallouts, memory_order_relaxed);
 	do {
@@ -569,8 +578,7 @@ filt_timerattach(struct knote *kn)
 	calloutp = malloc(sizeof(*calloutp), M_KQUEUE, M_WAITOK);
 	callout_init(calloutp, CALLOUT_MPSAFE);
 	kn->kn_hook = calloutp;
-	callout_reset_sbt_on(calloutp,
-	    timer2sbintime(kn->kn_sdata), 0 /* 1ms? */,
+	callout_reset_sbt_on(calloutp, to, 0 /* 1ms? */,
 	    filt_timerexpire, kn, PCPU_GET(cpuid), 0);
 
 	return (0);
