@@ -425,18 +425,13 @@ aac_pci_attach(device_t dev)
 	 * Allocate the interrupt.
 	 */
 	rid = 0;
-	count = 0;
-	if (aac_enable_msi != 0 && (sc->flags & AAC_FLAGS_NOMSI) == 0 &&
-	    (count = pci_msi_count(dev)) != 0) {
-		if (count > 1)
-			count = 1;
-		else
-			count = 0;
-		if (count == 1 && pci_alloc_msi(dev, &count) == 0)
+	if (aac_enable_msi != 0 && (sc->flags & AAC_FLAGS_NOMSI) == 0) {
+		count = 1;
+		if (pci_alloc_msi(dev, &count) == 0)
 			rid = 1;
 	}
 	if ((sc->aac_irq = bus_alloc_resource_any(sc->aac_dev, SYS_RES_IRQ,
-	    &rid, RF_ACTIVE | (count != 0 ? 0 : RF_SHAREABLE))) == NULL) {
+	    &rid, RF_ACTIVE | (rid != 0 ? 0 : RF_SHAREABLE))) == NULL) {
 		device_printf(dev, "can't allocate interrupt\n");
 		goto out;
 	}
@@ -489,14 +484,10 @@ static device_method_t aacch_methods[] = {
 	DEVMETHOD_END
 };
 
-struct aacch_softc {
-	device_t	dev;
-};
-
 static driver_t aacch_driver = {
 	"aacch",
 	aacch_methods,
-	sizeof(struct aacch_softc)
+	1	/* no softc */
 };
 
 static devclass_t	aacch_devclass;
@@ -515,19 +506,14 @@ aacch_probe(device_t dev)
 }
 
 static int
-aacch_attach(device_t dev)
+aacch_attach(device_t dev __unused)
 {
-	struct aacch_softc *sc;
-
-	sc = device_get_softc(dev);
-
-	sc->dev = dev;
 
 	return (0);
 }
 
 static int
-aacch_detach(device_t dev)
+aacch_detach(device_t dev __unused)
 {
 
 	return (0);
