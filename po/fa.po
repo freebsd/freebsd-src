@@ -1,112 +1,113 @@
-# translation of dialog to Lithuanian
+# Dialog
+# Copyright 2003-2007,2008 # Thomas Dickey
 # This file is distributed under the same license as the dialog package.
-# Gintautas Miliauskas <gintas@akl.lt>, 2008.
-# Rimas Kudelis <rq@akl.lt>, 2013.
+#
+# Seyed Ali Akbar Najafian <s.ali.najafian@chmail.ir>, 2012.
 msgid ""
 msgstr ""
-"Project-Id-Version: dialog-1.1.20080819\n"
+"Project-Id-Version: dialog 1.1.20080819\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2008-06-18 18:26-0400\n"
-"PO-Revision-Date: 2013-06-28 18:38+0300\n"
-"Last-Translator: Rimas Kudelis <rq@akl.lt>\n"
-"Language-Team: Lithuanian <komp_lt@konferencijos.lt>\n"
-"Language: lt\n"
+"PO-Revision-Date: 2013-08-03 17:04+0330\n"
+"Last-Translator: سید‌علی‌اکبر نجفیان <s.ali.najafian@chmail.ir>\n"
+"Language-Team: Persian <translation-team-fa@lists.sourceforge.net>\n"
+"Language: persian\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
-"X-Generator: Virtaal 0.7.1\n"
+"X-Generator: Poedit 1.5.4\n"
 
 #: buttons.c:385
+#, fuzzy
 msgid "Yes"
-msgstr "Taip"
+msgstr "بله"
 
 #: buttons.c:393
 msgid "No"
-msgstr "Ne"
+msgstr "خیر"
 
 #: buttons.c:401
 msgid "OK"
-msgstr "Gerai"
+msgstr "باشه"
 
 #: buttons.c:409
 msgid "Cancel"
-msgstr "Atsisakyti"
+msgstr "لغو"
 
 #: buttons.c:417
 msgid "EXIT"
-msgstr "IŠEITI"
+msgstr "خروج"
 
 #: buttons.c:425
 msgid "Extra"
-msgstr "Kita"
+msgstr "اضافس"
 
 #: buttons.c:433
 msgid "Help"
-msgstr "Žinynas"
+msgstr "راهنما"
 
 #. Headline "Month"
 #: calendar.c:273
 msgid "Month"
-msgstr "Mėnuo"
+msgstr "ماه"
 
 #. Headline "Year"
 #: calendar.c:293
 msgid "Year"
-msgstr "Metai"
+msgstr "سال"
 
 #: dialog.c:741
 msgid "Rename"
-msgstr "Pervadinti"
+msgstr "تغییر نام"
 
 #: fselect.c:550
 msgid "Directories"
-msgstr "Aplankai"
+msgstr "مسیرها"
 
 #: fselect.c:551
 msgid "Files"
-msgstr "Failai"
+msgstr "پرونده‌ها"
 
 #: mixedgauge.c:58
 msgid "Succeeded"
-msgstr "Pavyko"
+msgstr "موفقیت آمیز"
 
 #: mixedgauge.c:61
 msgid "Failed"
-msgstr "Nepavyko"
+msgstr "شکست خورد"
 
 #: mixedgauge.c:64
 msgid "Passed"
-msgstr "Praėjo"
+msgstr "متوقف شد"
 
 #: mixedgauge.c:67
 msgid "Completed"
-msgstr "Užbaigta"
+msgstr "کامل شد"
 
 #: mixedgauge.c:70
 msgid "Checked"
-msgstr "Patikrinta"
+msgstr "بررسی شد"
 
 #: mixedgauge.c:73
 msgid "Done"
-msgstr "Atlikta"
+msgstr "انجام شد"
 
 #: mixedgauge.c:76
 msgid "Skipped"
-msgstr "Praleista"
+msgstr "رها شد"
 
 #: mixedgauge.c:79
 msgid "In Progress"
-msgstr "Vykdoma"
+msgstr "در حال پیشرفت"
 
 #: mixedgauge.c:85
 msgid "N/A"
-msgstr "Nepasiekiama"
+msgstr "N/A"
 
 #: mixedgauge.c:193
 msgid "Overall Progress"
-msgstr "Bendras progresas"
+msgstr "پیشرفت جاری"
 
 #: textbox.c:489
 msgid "Search"
-msgstr "Ieškoti"
+msgstr "جستجو"
