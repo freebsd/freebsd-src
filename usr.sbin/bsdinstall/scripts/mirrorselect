@@ -87,7 +87,6 @@ MIRROR=`dialog --backtitle "FreeBSD Installer" \
 	ftp://ftp8.de.freebsd.org 	"Germany #8"\
 	ftp://ftp.gr.freebsd.org 	"Greece"\
 	ftp://ftp2.gr.freebsd.org 	"Greece #2"\
-	ftp://ftp.is.freebsd.org 	"Iceland"\
 	ftp://ftp3.ie.freebsd.org 	"Ireland #3"\
 	ftp://ftp.il.freebsd.org 	"Israel"\
 	ftp://ftp.it.freebsd.org 	"Italy"\
