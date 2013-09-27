@@ -125,7 +125,6 @@ f_dialog_menu_media_ftp()
 		' $msg_germany #8'        'ftp8.de.freebsd.org'
 		'$msg_greece'             'ftp.gr.freebsd.org'
 		' $msg_greece #2'         'ftp2.gr.freebsd.org'
-		'$msg_iceland'            'ftp.is.freebsd.org'
 		'$msg_ireland'            'ftp3.ie.freebsd.org'
 		'$msg_israel'             'ftp.il.freebsd.org'
 		'$msg_italy'              'ftp.it.freebsd.org'
