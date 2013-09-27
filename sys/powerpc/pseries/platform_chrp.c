@@ -151,6 +151,9 @@ chrp_attach(platform_t plat)
 	}
 #endif
 
+	/* Some systems (e.g. QEMU) need Open Firmware to stand down */
+	ofw_quiesce();
+
 	return (0);
 }
 
