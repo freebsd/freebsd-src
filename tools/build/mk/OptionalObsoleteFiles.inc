@@ -296,7 +296,6 @@ OLD_FILES+=usr/share/doc/bind9/FAQ
 OLD_FILES+=usr/share/doc/bind9/HISTORY
 OLD_FILES+=usr/share/doc/bind9/README
 OLD_FILES+=usr/share/man/man1/dig.1.gz
-OLD_FILES+=usr/share/man/man1/host.1.gz
 OLD_FILES+=usr/share/man/man1/nslookup.1.gz
 OLD_FILES+=usr/share/man/man3/lwres.3.gz
 OLD_FILES+=usr/share/man/man3/lwres_buffer.3.gz
