@@ -117,7 +117,7 @@ struct xen_ipi_handler
 enum xen_domain_type xen_domain_type = XEN_NATIVE;
 
 struct cpu_ops xen_hvm_cpu_ops = {
-	.ipi_vectored	= xen_ipi_vectored,
+	.ipi_vectored	= lapic_ipi_vectored,
 	.cpu_init	= xen_hvm_cpu_init,
 	.cpu_resume	= xen_hvm_cpu_resume
 };
@@ -535,7 +535,7 @@ xen_setup_cpus(void)
 		xen_cpu_ipi_init(i);
 
 	/* Set the xen pv ipi ops to replace the native ones */
-	cpu_ops = xen_hvm_cpu_ops;
+	cpu_ops.ipi_vectored = xen_ipi_vectored;
 }
 #endif
 
@@ -699,6 +699,7 @@ xen_hvm_init(enum xen_hvm_init_type init_type)
 			return;
 
 		setup_xen_features();
+		cpu_ops = xen_hvm_cpu_ops;
 		break;
 	case XEN_HVM_INIT_RESUME:
 		if (error != 0)
