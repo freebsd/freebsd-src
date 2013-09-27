@@ -201,6 +201,7 @@ mphyp_pte_synch(mmu_t mmu, uintptr_t slot, struct lpte *pvo_pt)
 	struct lpte pte;
 	uint64_t junk;
 
+	__asm __volatile("ptesync");
 	phyp_pft_hcall(H_READ, 0, slot, 0, 0, &pte.pte_hi, &pte.pte_lo,
 	    &junk);
 
@@ -221,9 +222,16 @@ mphyp_pte_clear(mmu_t mmu, uintptr_t slot, struct lpte *pvo_pt, uint64_t vpn,
 static void
 mphyp_pte_unset(mmu_t mmu, uintptr_t slot, struct lpte *pvo_pt, uint64_t vpn)
 {
+	struct lpte pte;
+	uint64_t junk;
+	int err;
 
-	/* XXX: last argument can check the VPN -- set flag to enable */
-	phyp_hcall(H_REMOVE, 0, slot, vpn);
+	err = phyp_pft_hcall(H_REMOVE, 1UL << 31, slot,
+	    pvo_pt->pte_hi & LPTE_AVPN_MASK, 0, &pte.pte_hi, &pte.pte_lo,
+	    &junk);
+	KASSERT(err == H_SUCCESS, ("Error removing page: %d", err));
+
+	pvo_pt->pte_lo |= pte.pte_lo & (LPTE_CHG | LPTE_REF);
 }
 
 static void
@@ -242,9 +250,7 @@ mphyp_pte_change(mmu_t mmu, uintptr_t slot, struct lpte *pvo_pt, uint64_t vpn)
 	    ("Locked pages not supported on PHYP"));
 
 	/* XXX: optimization using H_PROTECT for common case? */
-	result = phyp_hcall(H_REMOVE, 0, slot, vpn);
-	if (result != H_SUCCESS)
-		panic("mphyp_pte_change() invalidation failure: %ld\n", result);
+	mphyp_pte_unset(mmu, slot, pvo_pt, vpn);
 	result = phyp_pft_hcall(H_ENTER, H_EXACT, slot, pvo_pt->pte_hi,
 				pvo_pt->pte_lo, &index, &evicted.pte_lo, &junk);
 	if (result != H_SUCCESS)
@@ -360,7 +366,8 @@ mphyp_pte_insert(mmu_t mmu, u_int ptegidx, struct lpte *pvo_pt)
 		if (pvo->pvo_pte.lpte.pte_hi == evicted.pte_hi) {
 			KASSERT(pvo->pvo_pte.lpte.pte_hi & LPTE_VALID,
 			    ("Invalid PVO for valid PTE!"));
-			phyp_hcall(H_REMOVE, 0, index, 0);
+			mphyp_pte_unset(mmu, index, &pvo->pvo_pte.lpte,
+			    pvo->pvo_vpn);
 			PVO_PTEGIDX_CLR(pvo);
 			moea64_pte_overflow++;
 			break;
