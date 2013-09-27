@@ -262,6 +262,7 @@ typedef enum {
 	XPORT_SAS,	/* Serial Attached SCSI */
 	XPORT_SATA,	/* Serial AT Attachment */
 	XPORT_ISCSI,	/* iSCSI */
+	XPORT_SRP,	/* SCSI RDMA Protocol */
 } cam_xport;
 
 #define XPORT_IS_ATA(t)		((t) == XPORT_ATA || (t) == XPORT_SATA)
@@ -1233,6 +1234,7 @@ cam_fill_csio(struct ccb_scsiio *csio, u_int32_t retries,
 {
 	csio->ccb_h.func_code = XPT_SCSI_IO;
 	csio->ccb_h.flags = flags;
+	csio->ccb_h.xflags = 0;
 	csio->ccb_h.retry_count = retries;	
 	csio->ccb_h.cbfcnp = cbfcnp;
 	csio->ccb_h.timeout = timeout;
@@ -1252,6 +1254,7 @@ cam_fill_ctio(struct ccb_scsiio *csio, u_int32_t retries,
 {
 	csio->ccb_h.func_code = XPT_CONT_TARGET_IO;
 	csio->ccb_h.flags = flags;
+	csio->ccb_h.xflags = 0;
 	csio->ccb_h.retry_count = retries;	
 	csio->ccb_h.cbfcnp = cbfcnp;
 	csio->ccb_h.timeout = timeout;
