@@ -1355,11 +1355,8 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize, boolean_t ignerr)
 retry:
 			m = vm_page_lookup(uobj, idx);
 			if (m != NULL) {
-				if ((m->oflags & VPO_BUSY) != 0 ||
-				    m->busy != 0) {
-					vm_page_sleep(m, "tmfssz");
+				if (vm_page_sleep_if_busy(m, "tmfssz"))
 					goto retry;
-				}
 				MPASS(m->valid == VM_PAGE_BITS_ALL);
 			} else if (vm_pager_has_page(uobj, idx, NULL, NULL)) {
 				m = vm_page_alloc(uobj, idx, VM_ALLOC_NORMAL);
@@ -1379,7 +1376,7 @@ retry:
 				if (rv == VM_PAGER_OK) {
 					vm_page_deactivate(m);
 					vm_page_unlock(m);
-					vm_page_wakeup(m);
+					vm_page_xunbusy(m);
 				} else {
 					vm_page_free(m);
 					vm_page_unlock(m);
@@ -1436,9 +1433,10 @@ tmpfs_chflags(struct vnode *vp, u_long flags, struct ucred *cred,
 
 	node = VP_TO_TMPFS_NODE(vp);
 
-	if ((flags & ~(UF_NODUMP | UF_IMMUTABLE | UF_APPEND | UF_OPAQUE |
-	    UF_NOUNLINK | SF_ARCHIVED | SF_IMMUTABLE | SF_APPEND |
-	    SF_NOUNLINK)) != 0)
+	if ((flags & ~(SF_APPEND | SF_ARCHIVED | SF_IMMUTABLE | SF_NOUNLINK |
+	    UF_APPEND | UF_ARCHIVE | UF_HIDDEN | UF_IMMUTABLE | UF_NODUMP |
+	    UF_NOUNLINK | UF_OFFLINE | UF_OPAQUE | UF_READONLY | UF_REPARSE |
+	    UF_SPARSE | UF_SYSTEM)) != 0)
 		return (EOPNOTSUPP);
 
 	/* Disallow this operation if the file system is mounted read-only. */

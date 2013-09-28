@@ -740,13 +740,14 @@ kmeminit(void)
 	if (vm_kmem_size / 2 / PAGE_SIZE > mem_size)
 		vm_kmem_size = 2 * mem_size * PAGE_SIZE;
 
+	vm_kmem_size = round_page(vm_kmem_size);
 #ifdef DEBUG_MEMGUARD
 	tmp = memguard_fudge(vm_kmem_size, kernel_map);
 #else
 	tmp = vm_kmem_size;
 #endif
 	vmem_init(kmem_arena, "kmem arena", kva_alloc(tmp), tmp, PAGE_SIZE,
-	    PAGE_SIZE * 16, 0);
+	    0, 0);
 	vmem_set_reclaim(kmem_arena, kmem_reclaim);
 
 #ifdef DEBUG_MEMGUARD

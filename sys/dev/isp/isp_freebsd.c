@@ -5445,6 +5445,11 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_target = ISP_MAX_TARGETS(isp) - 1;
 		cpi->max_lun = ISP_MAX_LUNS(isp) - 1;
 		cpi->bus_id = cam_sim_bus(sim);
+		if (isp->isp_osinfo.sixtyfourbit)
+			cpi->maxio = (ISP_NSEG64_MAX - 1) * PAGE_SIZE;
+		else
+			cpi->maxio = (ISP_NSEG_MAX - 1) * PAGE_SIZE;
+
 		bus = cam_sim_bus(xpt_path_sim(cpi->ccb_h.path));
 		if (IS_FC(isp)) {
 			fcparam *fcp = FCPARAM(isp, bus);

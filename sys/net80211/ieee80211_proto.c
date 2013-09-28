@@ -662,13 +662,12 @@ ieee80211_set_shortslottime(struct ieee80211com *ic, int onoff)
 int
 ieee80211_iserp_rateset(const struct ieee80211_rateset *rs)
 {
-#define N(a)	(sizeof(a) / sizeof(a[0]))
 	static const int rates[] = { 2, 4, 11, 22, 12, 24, 48 };
 	int i, j;
 
-	if (rs->rs_nrates < N(rates))
+	if (rs->rs_nrates < nitems(rates))
 		return 0;
-	for (i = 0; i < N(rates); i++) {
+	for (i = 0; i < nitems(rates); i++) {
 		for (j = 0; j < rs->rs_nrates; j++) {
 			int r = rs->rs_rates[j] & IEEE80211_RATE_VAL;
 			if (rates[i] == r)
@@ -681,7 +680,6 @@ ieee80211_iserp_rateset(const struct ieee80211_rateset *rs)
 		;
 	}
 	return 1;
-#undef N
 }
 
 /*
@@ -1784,15 +1782,11 @@ ieee80211_newstate_cb(void *xvap, int npending)
 		 * Note this can also happen as a result of SLEEP->RUN
 		 * (i.e. coming out of power save mode).
 		 */
-		IF_LOCK(&vap->iv_ifp->if_snd);
 		vap->iv_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		IF_UNLOCK(&vap->iv_ifp->if_snd);
 
 		/*
-		 * XXX Kick-start a VAP queue - this should be a method,
-		 * not if_start()!
+		 * XXX TODO Kick-start a VAP queue - this should be a method!
 		 */
-		if_start(vap->iv_ifp);
 
 		/* bring up any vaps waiting on us */
 		wakeupwaiting(vap);
@@ -1805,8 +1799,9 @@ ieee80211_newstate_cb(void *xvap, int npending)
 		 */
 		ieee80211_scan_flush(vap);
 
-		/* XXX NB: cast for altq */
-		ieee80211_flush_ifq((struct ifqueue *)&ic->ic_ifp->if_snd, vap);
+		/*
+		 * XXX TODO: ic/vap queue flush
+		 */
 	}
 done:
 	IEEE80211_UNLOCK(ic);

@@ -90,7 +90,8 @@
 #include <machine/stdarg.h>
 #include <machine/tss.h>
 #include <machine/vmparam.h>
-#include <machine/xen/xen-os.h>
+
+#include <xen/xen-os.h>
 #include <machine/xen/xenpmap.h>
 #include <xen/hypervisor.h>
 #include <xen/interface/arch-x86/cpuid.h>
@@ -113,6 +114,9 @@ xen_pfn_t *xen_machine_phys = machine_to_phys_mapping;
 xen_pfn_t *xen_phys_machine;
 xen_pfn_t *xen_pfn_to_mfn_frame_list[16]; /* XXX: TODO init for suspend/resume */
 xen_pfn_t *xen_pfn_to_mfn_frame_list_list; /* XXX: TODO init for suspend/resume */
+
+int xen_vector_callback_enabled = 0;
+enum xen_domain_type xen_domain_type = XEN_PV_DOMAIN;
 
 #define	PHYSMAP_SIZE	(2 * VM_PHYSSEG_MAX)
 vm_offset_t pa_index = 0;
@@ -145,6 +149,9 @@ extern void panicifcpuunsupported(void); /* XXX header file */
 static void get_fpcontext(struct thread *td, mcontext_t *mcp);
 static int  set_fpcontext(struct thread *td, const mcontext_t *mcp,
     char *xfpustate, size_t xfpustate_len);
+
+/*------------------------------- Per-CPU Data -------------------------------*/
+DPCPU_DEFINE(struct vcpu_info *, vcpu_info);
 
 /* Expects a zero-ed page aligned page */
 static void
@@ -316,6 +323,12 @@ static void init_event_callbacks(void)
 void xen_set_hypercall_page(vm_paddr_t);
 extern char hypercall_page[]; /* locore.s */
 extern uint64_t xenstack; /* start of Xen provided stack */
+
+void
+force_evtchn_callback(void)
+{
+    (void)HYPERVISOR_xen_version(0, NULL);
+}
 
 /*
  * Modify the cmd_line by converting ',' to NULLs so that it is in a  format 
@@ -670,6 +683,13 @@ cpu_halt(void)
 #define	STATE_SLEEPING	0x2
 
 int scheduler_running;
+
+static void
+idle_block(void)
+{
+
+	HYPERVISOR_sched_op(SCHEDOP_block, 0);
+}
 
 void
 cpu_idle(int busy)

@@ -572,6 +572,7 @@ static dst_func_t opensslecdsa_functions = {
 	opensslecdsa_adddata,
 	opensslecdsa_sign,
 	opensslecdsa_verify,
+	NULL, /*%< verify2 */
 	NULL, /*%< computesecret */
 	opensslecdsa_compare,
 	NULL, /*%< paramcompare */

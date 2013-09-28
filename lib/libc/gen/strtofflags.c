@@ -62,13 +62,29 @@ static struct {
 #endif
 	{ "nouappnd",		0, UF_APPEND	},
 	{ "nouappend",		0, UF_APPEND	},
+	{ "nouarch", 		0, UF_ARCHIVE	},
+	{ "nouarchive",		0, UF_ARCHIVE	},
+	{ "nohidden",		0, UF_HIDDEN	},
+	{ "nouhidden",		0, UF_HIDDEN	},
 	{ "nouchg",		0, UF_IMMUTABLE	},
 	{ "nouchange",		0, UF_IMMUTABLE	},
 	{ "nouimmutable",	0, UF_IMMUTABLE	},
 	{ "nodump",		1, UF_NODUMP	},
-	{ "noopaque",		0, UF_OPAQUE	},
 	{ "nouunlnk",		0, UF_NOUNLINK	},
-	{ "nouunlink",		0, UF_NOUNLINK	}
+	{ "nouunlink",		0, UF_NOUNLINK	},
+	{ "nooffline",		0, UF_OFFLINE	},
+	{ "nouoffline",		0, UF_OFFLINE	},
+	{ "noopaque",		0, UF_OPAQUE	},
+	{ "nordonly",		0, UF_READONLY	},
+	{ "nourdonly",		0, UF_READONLY	},
+	{ "noreadonly",		0, UF_READONLY	},
+	{ "noureadonly",	0, UF_READONLY	},
+	{ "noreparse",		0, UF_REPARSE	},
+	{ "noureparse",		0, UF_REPARSE	},
+	{ "nosparse",		0, UF_SPARSE	},
+	{ "nousparse",		0, UF_SPARSE	},
+	{ "nosystem",		0, UF_SYSTEM	},
+	{ "nousystem",		0, UF_SYSTEM	}
 };
 #define nmappings	(sizeof(mapping) / sizeof(mapping[0]))
 

@@ -77,33 +77,7 @@ ENTRY(cpu_throw)
 	LK btrl	%eax,PM_ACTIVE(%rdx)		/* clear old */
 1:
 	movq	TD_PCB(%rsi),%r8		/* newtd->td_pcb */
-#ifndef XEN
-	movq	PCB_CR3(%r8),%rdx
-	movq	%rdx,%cr3			/* new address space */
-#else
-	pushq	%rsi
-	pushq	%r8
-
-	/*
-	 * On xen, the hypervisor loads %cr3 for us on return to
-	 * userland. We use a separate "kernel space" for kernel mode,
-	 * which is setup at boot time (see: pmap.c:pmap_bootstrap)
-	 *
-	 * We need to tell the hypervisor via xen_pt_user_switch()
-	 * about the new user pmap. Additionally, we modify the kernel VA
-	 * space by copying in the userland bits of the new pmap, in
-	 * case the kernel needs to access them.
-	 */
-
-	movq	TD_PROC(%rsi), %rdx		/* newproc */
-	movq	P_VMSPACE(%rdx), %rdx
-	addq	$VM_PMAP, %rdx
-	movq	%rdx, %rdi
-	callq	pmap_xen_userload
-	
-	popq	%r8
-	popq	%rsi
-#endif
+	movq	PCB_CR3(%r8),%rcx		/* new address space */
 	jmp	swact
 END(cpu_throw)
 
@@ -187,6 +161,23 @@ ctx_switch_xsave:
 	SETLK	%rdx, TD_LOCK(%rdi)		/* Release the old thread */
 	jmp	sw1
 swinact:
+	movl	PCPU(CPUID),%eax
+	/* Release bit from old pmap->pm_active */
+	movq	PCPU(CURPMAP),%r12
+	LK btrl	%eax,PM_ACTIVE(%r12)		/* clear old */
+	SETLK	%rdx,TD_LOCK(%rdi)		/* Release the old thread */
+swact:
+	/* Set bit in new pmap->pm_active */
+	movq	TD_PROC(%rsi),%rdx		/* newproc */
+	movq	P_VMSPACE(%rdx), %rdx
+	addq	$VM_PMAP,%rdx
+	cmpl	$-1,PM_PCID(%rdx)
+	je	1f
+	LK btsl	%eax,PM_SAVE(%rdx)
+	jnc	1f
+	btsq	$63,%rcx			/* CR3_PCID_SAVE */
+	incq	PCPU(PM_SAVE_CNT)
+1:
 #ifndef XEN
 	movq	%rcx,%cr3			/* new address space */
 #else
@@ -216,20 +207,23 @@ swinact:
 	popq	%rdx
 	popq	%rsi
 	popq	%rdi
-
-#endif  /* XEN */
-	movl	PCPU(CPUID), %eax
-	/* Release bit from old pmap->pm_active */
-	movq	PCPU(CURPMAP),%rcx
-	LK btrl	%eax,PM_ACTIVE(%rcx)		/* clear old */
-	SETLK	%rdx, TD_LOCK(%rdi)		/* Release the old thread */
-swact:
-	/* Set bit in new pmap->pm_active */
-	movq	TD_PROC(%rsi),%rdx		/* newproc */
-	movq	P_VMSPACE(%rdx), %rdx
-	addq	$VM_PMAP,%rdx
+#endif  /* XEN */	
 	LK btsl	%eax,PM_ACTIVE(%rdx)		/* set new */
 	movq	%rdx,PCPU(CURPMAP)
+	/*
+	 * We might lose the race and other CPU might have changed
+	 * the pmap after we set our bit in pmap->pm_save.  Recheck.
+	 * Reload %cr3 with CR3_PCID_SAVE bit cleared if pmap was
+	 * modified, causing TLB flush for this pcid.
+	 */
+	btrq	$63,%rcx
+	jnc	1f
+	LK btsl	%eax,PM_SAVE(%rdx)
+	jc	1f
+	decq	PCPU(PM_SAVE_CNT)
+	movq	%rcx,%cr3
+1:
+
 sw1:
 #if defined(SCHED_ULE) && defined(SMP)
 	/* Wait for the new thread to become unblocked */

@@ -515,11 +515,13 @@ vendor USR		0x0baf	U.S. Robotics
 vendor AMBIT		0x0bb2	Ambit Microsystems
 vendor HTC		0x0bb4	HTC
 vendor REALTEK		0x0bda	Realtek
+vendor ERICSSON2	0x0bdb	Ericsson
 vendor MEI		0x0bed	MEI
 vendor ADDONICS2	0x0bf6	Addonics Technology
 vendor FSC		0x0bf8	Fujitsu Siemens Computers
 vendor AGATE		0x0c08	Agate Technologies
 vendor DMI		0x0c0b	DMI
+vendor CANYON		0x0c10	Canyon
 vendor ICOM		0x0c26	Icom Inc.
 vendor GNOTOMETRICS	0x0c33	GN Otometrics
 vendor CHICONY2		0x0c45	Chicony
@@ -1545,6 +1547,7 @@ product DLINK DWLG122		0x3c00	DWL-G122 b1 Wireless Adapter
 product DLINK DUBE100B1		0x3c05	DUB-E100 rev B1
 product DLINK RT2870		0x3c09	RT2870
 product DLINK RT3072		0x3c0a	RT3072
+product DLINK DWA127		0x3c1b	DWA-127 Wireless Adapter
 product DLINK DSB650C		0x4000	10Mbps Ethernet
 product DLINK DSB650TX1		0x4001	10/100 Ethernet
 product DLINK DSB650TX		0x4002	10/100 Ethernet
@@ -1774,6 +1777,7 @@ product FTDI SERIAL_8U232AM4	0x6004	8U232AM Serial
 product FTDI SERIAL_232RL	0x6006	FT232RL Serial
 product FTDI SERIAL_2232C	0x6010	FT2232C Dual port Serial
 product FTDI 232H		0x6014	FTDI compatible adapter
+product FTDI 232EX		0x6015	FTDI compatible adapter
 product FTDI SERIAL_2232D	0x9e90	FT2232D Dual port Serial
 product FTDI SERIAL_4232H	0x6011	FT4232H Quad port Serial
 product FTDI BEAGLEBONE		0xa6d0	BeagleBone

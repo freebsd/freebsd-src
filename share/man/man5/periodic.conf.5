@@ -482,121 +482,6 @@ This variable behaves in the same way as the
 .Va *_output
 variables above, namely it can be set either to one or more email addresses
 or to an absolute file name.
-.It Va daily_status_security_diff_flags
-.Pq Vt str
-Set to the arguments to pass to the
-.Xr diff 1
-utility when generating differences.
-The default is
-.Fl b u .
-.It Va daily_status_security_chksetuid_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to compare the modes and modification times of setuid executables with
-the previous day's values.
-.It Va daily_status_security_chkportsum_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to verify checksums of all installed packages against the known checksums in
-.Pa /var/db/pkg .
-.It Va daily_status_security_neggrpperm_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to check for files where the group of a file has less permissions than
-the world at large.
-When users are in more than 14 supplemental groups these negative
-permissions may not be enforced via NFS shares.
-.It Va daily_status_security_chkmounts_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to check for changes mounted file systems to the previous day's values.
-.It Va daily_status_security_noamd
-.Pq Vt bool
-Set to
-.Dq Li YES
-if you want to ignore
-.Xr amd 8
-mounts when comparing against yesterday's file system mounts in the
-.Va daily_status_security_chkmounts_enable
-check.
-.It Va daily_status_security_chkuid0_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to check
-.Pa /etc/master.passwd
-for accounts with UID 0.
-.It Va daily_status_security_passwdless_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to check
-.Pa /etc/master.passwd
-for accounts with empty passwords.
-.It Va daily_status_security_logincheck_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to check
-.Pa /etc/login.conf
-ownership, see
-.Xr login.conf 5
-for more information.
-.It Va daily_status_security_ipfwdenied_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to show log entries for packets denied by
-.Xr ipfw 8
-since yesterday's check.
-.It Va daily_status_security_ipfdenied_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to show log entries for packets denied by
-.Xr ipf 8
-since yesterday's check.
-.It Va daily_status_security_pfdenied_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to show log entries for packets denied by
-.Xr pf 4
-since yesterday's check.
-.It Va daily_status_security_ipfwlimit_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to display
-.Xr ipfw 8
-rules that have reached their verbosity limit.
-.It Va daily_status_security_kernelmsg_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to show new
-.Xr dmesg 8
-entries since yesterday's check.
-.It Va daily_status_security_loginfail_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to display failed logins from
-.Pa /var/log/messages
-in the previous day.
-.It Va daily_status_security_tcpwrap_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to display connections denied by tcpwrappers (see
-.Xr hosts_access 5 )
-from
-.Pa /var/log/messages
-during the previous day.
 .It Va daily_status_mail_rejects_enable
 .Pq Vt bool
 Set to
@@ -709,6 +594,18 @@ An orphaned file is one with an invalid owner or group.
 A list of directories under which orphaned files are searched for.
 This would usually be set to
 .Pa / .
+.It Va weekly_status_security_enable
+.Pq Vt bool
+Weekly counterpart of
+.Va daily_status_securiy_enable .
+.It Va weekly_status_security_inline
+.Pq Vt bool
+Weekly counterpart of
+.Va daily_status_securiy_inline .
+.It Va weekly_status_security_output
+.Pq Vt str
+Weekly counterpart of
+.Va daily_status_securiy_output .
 .It Va weekly_status_pkg_enable
 .Pq Vt bool
 Set to
@@ -776,11 +673,278 @@ Set to
 if you want to do login accounting using the
 .Xr ac 8
 command.
+.It Va monthly_status_security_enable
+.Pq Vt bool
+Monthly counterpart of
+.Va daily_status_securiy_enable .
+.It Va monthly_status_security_inline
+.Pq Vt bool
+Monthly counterpart of
+.Va daily_status_securiy_inline .
+.It Va monthly_status_security_output
+.Pq Vt str
+Monthly counterpart of
+.Va daily_status_securiy_output .
 .It Va monthly_local
 .Pq Vt str
 Set to a list of extra scripts that should be run after all other
 monthly scripts.
 All scripts must be absolute path names.
+.El
+.Pp
+The following variables are used by the standard scripts that reside in
+.Pa /etc/periodic/security .
+Those scripts are usually run from daily
+.Pq Va daily_status_security_enable ,
+weekly
+.Pq Va weekly_status_security_enable ,
+and monthly
+.Pq Va monthly_status_security_enable
+periodic hooks.
+The
+.Va ..._period
+of each script can be configured as
+.Dq daily ,
+.Dq weekly ,
+.Dq monthly
+or
+.Dq NO .
+Note that when periodic security scripts are run from
+.Xr crontab 5 ,
+they will be always run unless their
+.Va ..._enable
+or
+.Va ..._period
+variable is set to
+.Dq No .
+.Bl -tag -offset 4n -width 2n
+.It Va security_status_diff_flags
+.Pq Vt str
+Set to the arguments to pass to the
+.Xr diff 1
+utility when generating differences.
+The default is
+.Fl b u .
+.It Va security_status_chksetuid_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to compare the modes and modification times of setuid executables with
+the previous day's values.
+.It Va security_status_chksetuid_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_chkportsum_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to verify checksums of all installed packages against the known checksums in
+.Pa /var/db/pkg .
+.It Va security_status_chkportsum_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_neggrpperm_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to check for files where the group of a file has less permissions than
+the world at large.
+When users are in more than 14 supplemental groups these negative
+permissions may not be enforced via NFS shares.
+.It Va security_status_neggrpperm_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_chkmounts_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to check for changes mounted file systems to the previous day's values.
+.It Va security_status_chkmounts_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_noamd
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to ignore
+.Xr amd 8
+mounts when comparing against yesterday's file system mounts in the
+.Va security_status_chkmounts_enable
+check.
+.It Va security_status_chkuid0_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to check
+.Pa /etc/master.passwd
+for accounts with UID 0.
+.It Va security_status_chkuid0_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_passwdless_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to check
+.Pa /etc/master.passwd
+for accounts with empty passwords.
+.It Va security_status_passwdless_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_logincheck_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to check
+.Pa /etc/login.conf
+ownership, see
+.Xr login.conf 5
+for more information.
+.It Va security_status_logincheck_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_ipfwdenied_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to show log entries for packets denied by
+.Xr ipfw 8
+since yesterday's check.
+.It Va security_status_ipfwdenied_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_ipfdenied_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to show log entries for packets denied by
+.Xr ipf 8
+since yesterday's check.
+.It Va security_status_ipfdenied_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_pfdenied_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to show log entries for packets denied by
+.Xr pf 4
+since yesterday's check.
+.It Va security_status_pfdenied_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_ipfwlimit_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to display
+.Xr ipfw 8
+rules that have reached their verbosity limit.
+.It Va security_status_ipfwlimit_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_kernelmsg_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to show new
+.Xr dmesg 8
+entries since yesterday's check.
+.It Va security_status_kernelmsg_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_loginfail_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to display failed logins from
+.Pa /var/log/messages
+in the previous day.
+.It Va security_status_loginfail_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
+.It Va security_status_tcpwrap_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to display connections denied by tcpwrappers (see
+.Xr hosts_access 5 )
+from
+.Pa /var/log/messages
+during the previous day.
+.It Va security_status_tcpwrap_period
+.Pq Vt str
+Set to either
+.Dq Li daily ,
+.Dq Li weekly ,
+.Dq Li monthly
+or
+.Dq Li NO .
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/periodic.conf"

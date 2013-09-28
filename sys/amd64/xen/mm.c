@@ -23,7 +23,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/_inttypes.h> /* For PRIxxx macros */
 
 #include <machine/cpufunc.h>
-#include <machine/xen/xen-os.h>
+#include <xen/xen-os.h>
+
 #include <machine/xen/xenpmap.h>
 #include <machine/xen/xenfunc.h>
 #include <machine/xen/xenvar.h>

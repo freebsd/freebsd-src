@@ -63,14 +63,14 @@ options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
 options 	CAPABILITY_MODE		# Capsicum capability mode
 options 	CAPABILITIES		# Capsicum capabilities
+options 	PROCDESC		# Support for process descriptors
 options 	MAC			# TrustedBSD MAC Framework
 options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
 
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
-# For minimum debugger support (stable branch) use:
 options 	KDB_TRACE		# Print a stack trace for a panic.
-# For full debugger support use this instead:
+# For full debugger support use (turn off in stable branch):
 options 	DDB			# Support DDB.
 options 	GDB			# Support remote GDB.
 options 	DEADLKRES		# Enable the deadlock resolver

@@ -50,6 +50,10 @@ BIN1=	crontab \
 	syslog.conf \
 	termcap.small
 
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
+BIN1+=	libmap32.conf
+.endif
+
 .if exists(${.CURDIR}/etc.${MACHINE}/ttys)
 BIN1+=	etc.${MACHINE}/ttys
 .elif exists(${.CURDIR}/etc.${MACHINE_ARCH}/ttys)
@@ -245,6 +249,11 @@ distribution:
 .endif
 .if ${MK_BIND_ETC} != "no"
 	${_+_}cd ${.CURDIR}/namedb; ${MAKE} install
+.endif
+.if ${MK_UNBOUND} != "no"
+	if [ ! -e ${DESTDIR}/etc/unbound ]; then \
+		${INSTALL_SYMLINK} ../var/unbound ${DESTDIR}/etc/unbound; \
+	fi
 .endif
 .if ${MK_SENDMAIL} != "no"
 	${_+_}cd ${.CURDIR}/sendmail; ${MAKE} distribution

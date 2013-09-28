@@ -56,6 +56,12 @@ dtrace_load(void *dummy)
 	/* Hang our hook for exceptions. */
 	dtrace_invop_init();
 
+	/* Register callbacks for linker file load and unload events. */
+	dtrace_kld_load_tag = EVENTHANDLER_REGISTER(kld_load,
+	    dtrace_kld_load, NULL, EVENTHANDLER_PRI_ANY);
+	dtrace_kld_unload_try_tag = EVENTHANDLER_REGISTER(kld_unload_try,
+	    dtrace_kld_unload_try, NULL, EVENTHANDLER_PRI_ANY);
+
 	/*
 	 * Initialise the mutexes without 'witness' because the dtrace
 	 * code is mostly written to wait for memory. To have the

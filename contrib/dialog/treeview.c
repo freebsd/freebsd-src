@@ -1,5 +1,5 @@
 /*
- *  $Id: treeview.c,v 1.22 2013/05/23 23:35:46 tom Exp $
+ *  $Id: treeview.c,v 1.24 2013/09/02 17:13:33 tom Exp $
  *
  *  treeview.c -- implements the treeview dialog
  *
@@ -579,6 +579,7 @@ dialog_treeview(const char *title,
     int *depths;
     bool show_status = FALSE;
     int current = 0;
+    char *help_result;
 
     listitems = dlg_calloc(DIALOG_LISTITEM, (size_t) item_no + 1);
     assert_ptr(listitems, "dialog_treeview");
@@ -617,31 +618,16 @@ dialog_treeview(const char *title,
 	show_status = TRUE;
 	break;
     case DLG_EXIT_HELP:
-	dlg_add_result("HELP ");
-	show_status = dialog_vars.help_status;
-	if (USE_ITEM_HELP(listitems[current].help)) {
-	    if (show_status) {
-		if (dialog_vars.separate_output) {
-		    dlg_add_string(listitems[current].help);
-		    dlg_add_separator();
-		} else {
-		    dlg_add_quoted(listitems[current].help);
-		}
+	dlg_add_help_listitem(&result, &help_result, &listitems[current]);
+	if ((show_status = dialog_vars.help_status)) {
+	    if (dialog_vars.separate_output) {
+		dlg_add_string(help_result);
+		dlg_add_separator();
 	    } else {
-		dlg_add_string(listitems[current].help);
+		dlg_add_quoted(help_result);
 	    }
-	    result = DLG_EXIT_ITEM_HELP;
 	} else {
-	    if (show_status) {
-		if (dialog_vars.separate_output) {
-		    dlg_add_string(listitems[current].name);
-		    dlg_add_separator();
-		} else {
-		    dlg_add_quoted(listitems[current].name);
-		}
-	    } else {
-		dlg_add_string(listitems[current].name);
-	    }
+	    dlg_add_string(help_result);
 	}
 	break;
     }

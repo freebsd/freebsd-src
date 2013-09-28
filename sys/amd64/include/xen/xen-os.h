@@ -1,37 +1,42 @@
 /******************************************************************************
- * os.h
+ * amd64/xen/xen-os.h
  * 
- * random collection of macros and definition
+ * Random collection of macros and definition
+ *
+ * Copyright (c) 2003, 2004 Keir Fraser (on behalf of the Xen team)
+ * All rights reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to
+ * deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+ * sell copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+ * DEALINGS IN THE SOFTWARE.
  *
  * $FreeBSD$
  */
 
-#ifndef _XEN_OS_H_
-#define _XEN_OS_H_
+#ifndef _MACHINE_XEN_XEN_OS_H_
+#define _MACHINE_XEN_XEN_OS_H_
 
 #ifdef PAE
 #define CONFIG_X86_PAE
 #endif
 
-#ifdef LOCORE
-#define __ASSEMBLY__
-#endif
-
-#if !defined(__XEN_INTERFACE_VERSION__)  
-#define  __XEN_INTERFACE_VERSION__ 0x00030208
-#endif  
-
-#define GRANT_REF_INVALID   0xffffffff
-
-#include <xen/interface/xen.h>
-
 /* Everything below this point is not included by assembler (.S) files. */
 #ifndef __ASSEMBLY__
 
-/* Force a proper event-channel callback from Xen. */
-void force_evtchn_callback(void);
-
-extern int gdtset;
 #ifdef SMP
 #include <sys/time.h> /* XXX for pcpu.h */
 #include <sys/pcpu.h> /* XXX for PCPU_GET */
@@ -45,7 +50,7 @@ smp_processor_id(void)
 #define smp_processor_id() 0
 #endif /* SMP */
 
-extern shared_info_t *HYPERVISOR_shared_info;
+#include <xen/interface/xen.h>
 
 #ifndef PANIC_IF
 #define PANIC_IF(exp) if (unlikely(exp)) {printk("panic - %s: %s:%d\n",#exp, __FILE__, __LINE__); panic("%s: %s:%d", #exp, __FILE__, __LINE__);} 
@@ -171,21 +176,12 @@ do {                                                                    \
 #define set_mb(var, value) do { var = value; barrier(); } while (0)
 #endif
 
-
 /* This is a barrier for the compiler only, NOT the processor! */
 #define barrier() __asm__ __volatile__("": : :"memory")
 
 #define LOCK_PREFIX ""
 #define LOCK ""
 #define ADDR (*(volatile long *) addr)
-/*
- * Make sure gcc doesn't try to be clever and move things around
- * on us. We need to use _exactly_ the address the user gave us,
- * not some alias that contains the same information.
- */
-typedef struct { volatile int counter; } atomic_t;
-
-
 
 #define xen_xchg(ptr,v) \
         ((__typeof__(*(ptr)))__xchg((unsigned long)(v),(ptr),sizeof(*(ptr))))
@@ -262,7 +258,6 @@ static __inline int variable_test_bit(int nr, volatile void * addr)
  constant_test_bit((nr),(addr)) : \
  variable_test_bit((nr),(addr)))
 
-
 /**
  * set_bit - Atomically set a bit in memory
  * @nr: the bit to set
@@ -299,25 +294,6 @@ static __inline__ void clear_bit(int nr, volatile void * addr)
                 :"Ir" (nr));
 }
 
-/**
- * atomic_inc - increment atomic variable
- * @v: pointer of type atomic_t
- * 
- * Atomically increments @v by 1.  Note that the guaranteed
- * useful range of an atomic_t is only 24 bits.
- */ 
-static __inline__ void atomic_inc(atomic_t *v)
-{
-        __asm__ __volatile__(
-                LOCK "incl %0"
-                :"=m" (v->counter)
-                :"m" (v->counter));
-}
-
-
-#define rdtscll(val) \
-     __asm__ __volatile__("rdtsc" : "=A" (val))
-
 #endif /* !__ASSEMBLY__ */
 
-#endif /* _OS_H_ */
+#endif /* _MACHINE_XEN_XEN_OS_H_ */

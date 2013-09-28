@@ -149,10 +149,13 @@ amd64/pci/pci_cfgreg.c		optional	pci
 amd64/xen/clock.c		optional xen
 amd64/xen/xen_clock_util.c	optional xen
 cddl/contrib/opensolaris/common/atomic/amd64/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
-crypto/aesni/aesencdec_amd64.S	optional aesni
 crypto/aesni/aeskeys_amd64.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
-crypto/aesni/aesni_wrap.c	optional aesni
+aesni_wrap.o			optional aesni				\
+	dependency	"$S/crypto/aesni/aesni_wrap.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -maes ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"aesni_wrap.o"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 crypto/via/padlock.c		optional	padlock
@@ -174,6 +177,14 @@ dev/atkbdc/atkbdc.c		optional	atkbdc
 dev/atkbdc/atkbdc_isa.c		optional	atkbdc isa
 dev/atkbdc/atkbdc_subr.c	optional	atkbdc
 dev/atkbdc/psm.c		optional	psm atkbdc
+dev/bxe/bxe.c                   optional	bxe pci
+dev/bxe/bxe_stats.c             optional	bxe pci
+dev/bxe/bxe_debug.c             optional	bxe pci
+dev/bxe/ecore_sp.c              optional	bxe pci
+dev/bxe/bxe_elink.c             optional	bxe pci
+dev/bxe/57710_init_values.c     optional	bxe pci
+dev/bxe/57711_init_values.c     optional	bxe pci
+dev/bxe/57712_init_values.c     optional	bxe pci
 dev/coretemp/coretemp.c		optional	coretemp
 dev/cpuctl/cpuctl.c		optional	cpuctl
 dev/dpms/dpms.c			optional	dpms
@@ -229,6 +240,18 @@ dev/hwpmc/hwpmc_uncore.c	optional	hwpmc
 dev/hwpmc/hwpmc_piv.c		optional	hwpmc
 dev/hwpmc/hwpmc_tsc.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc
+dev/hyperv/netvsc/hv_net_vsc.c				optional	hyperv
+dev/hyperv/netvsc/hv_netvsc_drv_freebsd.c		optional	hyperv
+dev/hyperv/netvsc/hv_rndis_filter.c			optional	hyperv
+dev/hyperv/stordisengage/hv_ata_pci_disengage.c		optional	hyperv
+dev/hyperv/storvsc/hv_storvsc_drv_freebsd.c		optional	hyperv
+dev/hyperv/utilities/hv_util.c				optional	hyperv
+dev/hyperv/vmbus/hv_channel.c				optional	hyperv
+dev/hyperv/vmbus/hv_channel_mgmt.c			optional	hyperv
+dev/hyperv/vmbus/hv_connection.c			optional	hyperv
+dev/hyperv/vmbus/hv_hv.c				optional	hyperv
+dev/hyperv/vmbus/hv_ring_buffer.c			optional	hyperv
+dev/hyperv/vmbus/hv_vmbus_drv_freebsd.c			optional	hyperv
 dev/kbd/kbd.c			optional	atkbd | sc | ukbd
 dev/lindev/full.c		optional	lindev
 dev/lindev/lindev.c		optional	lindev
@@ -315,6 +338,7 @@ dev/tpm/tpm_acpi.c		optional	tpm acpi
 dev/tpm/tpm_isa.c		optional	tpm isa
 dev/uart/uart_cpu_x86.c		optional	uart
 dev/viawd/viawd.c		optional	viawd
+dev/vmware/vmxnet3/if_vmx.c	optional	vmx
 dev/wbwd/wbwd.c			optional	wbwd
 dev/wpi/if_wpi.c		optional	wpi
 dev/isci/isci.c							optional isci
@@ -541,3 +565,5 @@ x86/x86/mptable_pci.c		optional	native mptable pci
 x86/x86/msi.c			optional	native pci
 x86/x86/nexus.c			standard
 x86/x86/tsc.c			standard
+x86/xen/hvm.c			optional	xenhvm
+x86/xen/xen_intr.c		optional	xen | xenhvm

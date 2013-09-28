@@ -45,6 +45,7 @@ LINUX_IOCTL_SET(tdfx, LINUX_IOCTL_TDFX_MIN, LINUX_IOCTL_TDFX_MAX);
 static int
 linux_ioctl_tdfx(struct thread *td, struct linux_ioctl_args* args)
 {
+   cap_rights_t rights;
    int error = 0;
    u_long cmd = args->cmd & 0xffff;
 
@@ -54,7 +55,8 @@ linux_ioctl_tdfx(struct thread *td, struct linux_ioctl_args* args)
 
    struct file *fp;
 
-   if ((error = fget(td, args->fd, CAP_IOCTL, &fp)) != 0)
+   error = fget(td, args->fd, cap_rights_init(&rights, CAP_IOCTL), &fp);
+   if (error != 0)
 	   return (error);
    /* We simply copy the data and send it right to ioctl */
    copyin((caddr_t)args->arg, &d_pio, sizeof(d_pio));

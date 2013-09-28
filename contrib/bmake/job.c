@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.175 2013/07/30 19:09:57 sjg Exp $	*/
+/*	$NetBSD: job.c,v 1.176 2013/08/04 16:48:15 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: job.c,v 1.175 2013/07/30 19:09:57 sjg Exp $";
+static char rcsid[] = "$NetBSD: job.c,v 1.176 2013/08/04 16:48:15 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)job.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: job.c,v 1.175 2013/07/30 19:09:57 sjg Exp $");
+__RCSID("$NetBSD: job.c,v 1.176 2013/08/04 16:48:15 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -170,6 +170,22 @@ __RCSID("$NetBSD: job.c,v 1.175 2013/07/30 19:09:57 sjg Exp $");
 #include "pathnames.h"
 #include "trace.h"
 # define STATIC static
+
+/*
+ * FreeBSD: traditionally .MAKE is not required to
+ * pass jobs queue to sub-makes.
+ * Use .MAKE.ALWAYS_PASS_JOB_QUEUE=no to disable.
+ */
+#define MAKE_ALWAYS_PASS_JOB_QUEUE ".MAKE.ALWAYS_PASS_JOB_QUEUE"
+static int Always_pass_job_queue = TRUE;
+/*
+ * FreeBSD: aborting entire parallel make isn't always
+ * desired. When doing tinderbox for example, failure of
+ * one architecture should not stop all.
+ * We still want to bail on interrupt though.
+ */
+#define MAKE_JOB_ERROR_TOKEN "MAKE_JOB_ERROR_TOKEN"
+static int Job_error_token = TRUE;
 
 /*
  * error handling variables
@@ -1360,7 +1376,7 @@ JobExec(Job *job, char **argv)
 	(void)fcntl(0, F_SETFD, 0);
 	(void)lseek(0, (off_t)0, SEEK_SET);
 
-	if (job->node->type & OP_MAKE) {
+	if (Always_pass_job_queue || (job->node->type & OP_MAKE)) {
 		/*
 		 * Pass job token pipe to submakes.
 		 */
@@ -2226,6 +2242,12 @@ Job_Init(void)
 
     lastNode =	  NULL;
 
+    Always_pass_job_queue = getBoolean(MAKE_ALWAYS_PASS_JOB_QUEUE,
+				       Always_pass_job_queue);
+
+    Job_error_token = getBoolean(MAKE_JOB_ERROR_TOKEN, Job_error_token);
+
+
     /*
      * There is a non-zero chance that we already have children.
      * eg after 'make -f- <<EOF'
@@ -2821,13 +2843,19 @@ JobTokenAdd(void)
 {
     char tok = JOB_TOKENS[aborting], tok1;
 
+    if (!Job_error_token && aborting == ABORT_ERROR) {
+	if (jobTokensRunning == 0)
+	    return;
+	tok = '+';			/* no error token */
+    }
+
     /* If we are depositing an error token flush everything else */
     while (tok != '+' && read(tokenWaitJob.inPipe, &tok1, 1) == 1)
 	continue;
 
     if (DEBUG(JOB))
 	fprintf(debug_file, "(%d) aborting %d, deposit token %c\n",
-	    getpid(), aborting, JOB_TOKENS[aborting]);
+	    getpid(), aborting, tok);
     while (write(tokenWaitJob.outPipe, &tok, 1) == -1 && errno == EAGAIN)
 	continue;
 }

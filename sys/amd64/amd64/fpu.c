@@ -1007,7 +1007,7 @@ fpu_save_area_reset(struct savefpu *fsa)
 }
 
 #ifdef XEN
-#include <machine/xen/xen-os.h>
+#include <xen/xen-os.h>
 #include <xen/hypervisor.h>
 
 /* Wrapper for the hypervisor version which is inline */

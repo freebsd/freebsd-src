@@ -104,21 +104,21 @@ generic_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend, bus_size_t size,
 void
 generic_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
 {
-	vm_offset_t va, endva;
+	vm_offset_t va, endva, origva;
 
-	if (pmap_devmap_find_va((vm_offset_t)t, size) != NULL) {
+	if (pmap_devmap_find_va((vm_offset_t)h, size) != NULL) {
 		/* Device was statically mapped; nothing to do. */
 		return;
 	}
 
-	endva = round_page((vm_offset_t)t + size);
-	va = trunc_page((vm_offset_t)t);
+	endva = round_page((vm_offset_t)h + size);
+	origva = va = trunc_page((vm_offset_t)h);
 
 	while (va < endva) {
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
-	kva_free(va, endva - va);
+	kva_free(origva, endva - origva);
 }
 
 void

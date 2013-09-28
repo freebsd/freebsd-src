@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 4, 2012
+.Dd September 13, 2013
 .Dt DAEMON 8
 .Os
 .Sh NAME
@@ -35,7 +35,8 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl cfr
-.Op Fl p Ar pidfile
+.Op Fl p Ar child_pidfile
+.Op Fl P Ar supervisor_pidfile
 .Op Fl u Ar user
 .Ar command arguments ...
 .Sh DESCRIPTION
@@ -53,19 +54,39 @@ Change the current working directory to the root
 .It Fl f
 Redirect standard input, standard output and standard error to
 .Pa /dev/null .
-.It Fl p Ar file
+.It Fl p Ar child_pidfile
 Write the ID of the created process into the
-.Ar file
+.Ar child_pidfile
 using the
 .Xr pidfile 3
 functionality.
 The program is executed in a spawned child process while the
 .Nm
 waits until it terminates to keep the
-.Ar file
+.Ar child_pidfile
 locked and removes it after the process exits.
 The
-.Ar file
+.Ar child_pidfile
+owner is the user who runs the
+.Nm
+regardless of whether the
+.Fl u
+option is used or not.
+.It Fl P Ar supervisor_pidfile
+Write the ID of the
+.Nm
+process into the
+.Ar supervisor_pidfile
+using the
+.Xr pidfile 3
+functionality.
+The program is executed in a spawned child process while the
+.Nm
+waits until it terminates to keep the
+.Ar supervisor_pidfile
+locked and removes it after the process exits.
+The
+.Ar supervisor_pidfile
 owner is the user who runs the
 .Nm
 regardless of whether the
@@ -79,27 +100,46 @@ Requires adequate superuser privileges.
 .El
 .Pp
 If the
-.Fl p
+.Fl p ,
+.Fl P
 or
 .Fl r
 option is specified the program is executed in a spawned child process.
 The
 .Nm
-waits until it terminates to keep the pid file locked and removes it
+waits until it terminates to keep the pid file(s) locked and removes them
 after the process exits or restarts the program.
 In this case if the monitoring
 .Nm
 receives software termination signal (SIGTERM) it forwards it to the
 spawned process.
-Normally it will cause the child to exit followed by the termination
-of the supervising process after removing the pidfile.
+Normally it will cause the child to exit, remove the pidfile(s)
+and then terminate.
+.Pp
+The
+.Fl P
+option is useful combined with the
+.Fl r
+option as
+.Ar supervisor_pidfile
+contains the ID of the supervisor
+not the child. This is especially important if you use
+.Fl r
+in an rc script as the
+.Fl p
+option will give you the child's ID to signal when you attempt to
+stop the service, causing
+.Nm
+to restart the child.
 .Sh EXIT STATUS
 The
 .Nm
 utility exits 1 if an error is returned by the
 .Xr daemon 3
-library routine, 2 if the
-.Ar pidfile
+library routine, 2 if
+.Ar child_pidfile
+or
+.Ar supervisor_pidfile
 is requested, but cannot be opened, 3 if process is already running (pidfile
 exists and is locked),
 otherwise 0.

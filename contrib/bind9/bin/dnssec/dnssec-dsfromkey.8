@@ -1,4 +1,4 @@
-.\" Copyright (C) 2008-2010, 2012 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2008-2012 Internet Systems Consortium, Inc. ("ISC")
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -32,9 +32,9 @@
 dnssec\-dsfromkey \- DNSSEC DS RR generation tool
 .SH "SYNOPSIS"
 .HP 17
-\fBdnssec\-dsfromkey\fR [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-1\fR] [\fB\-2\fR] [\fB\-a\ \fR\fB\fIalg\fR\fR] [\fB\-l\ \fR\fB\fIdomain\fR\fR] {keyfile}
+\fBdnssec\-dsfromkey\fR [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-1\fR] [\fB\-2\fR] [\fB\-a\ \fR\fB\fIalg\fR\fR] [\fB\-l\ \fR\fB\fIdomain\fR\fR] [\fB\-T\ \fR\fB\fITTL\fR\fR] {keyfile}
 .HP 17
-\fBdnssec\-dsfromkey\fR {\-s} [\fB\-1\fR] [\fB\-2\fR] [\fB\-a\ \fR\fB\fIalg\fR\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-l\ \fR\fB\fIdomain\fR\fR] [\fB\-s\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-f\ \fR\fB\fIfile\fR\fR] [\fB\-A\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] {dnsname}
+\fBdnssec\-dsfromkey\fR {\-s} [\fB\-1\fR] [\fB\-2\fR] [\fB\-a\ \fR\fB\fIalg\fR\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-l\ \fR\fB\fIdomain\fR\fR] [\fB\-s\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-T\ \fR\fB\fITTL\fR\fR] [\fB\-f\ \fR\fB\fIfile\fR\fR] [\fB\-A\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] {dnsname}
 .SH "DESCRIPTION"
 .PP
 \fBdnssec\-dsfromkey\fR
@@ -58,6 +58,11 @@ Select the digest algorithm. The value of
 must be one of SHA\-1 (SHA1), SHA\-256 (SHA256), GOST or SHA\-384 (SHA384). These values are case insensitive.
 .RE
 .PP
+\-T \fITTL\fR
+.RS 4
+Specifies the TTL of the DS records.
+.RE
+.PP
 \-K \fIdirectory\fR
 .RS 4
 Look for key files (or, in keyset mode,
@@ -71,6 +76,15 @@ files) in
 Zone file mode: in place of the keyfile name, the argument is the DNS domain name of a zone master file, which can be read from
 \fBfile\fR. If the zone name is the same as
 \fBfile\fR, then it may be omitted.
+.sp
+If
+\fBfile\fR
+is set to
+"\-", then the zone data is read from the standard input. This makes it possible to use the output of the
+\fBdig\fR
+command as input, as in:
+.sp
+\fBdig dnskey example.com | dnssec\-dsfromkey \-f \- example.com\fR
 .RE
 .PP
 \-A
@@ -139,5 +153,5 @@ RFC 4509.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2008\-2010, 2012 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2008\-2012 Internet Systems Consortium, Inc. ("ISC")
 .br

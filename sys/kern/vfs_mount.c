@@ -1269,8 +1269,16 @@ dounmount(mp, flags, td)
 	}
 	mp->mnt_kern_flag |= MNTK_UNMOUNT | MNTK_NOINSMNTQ;
 	/* Allow filesystems to detect that a forced unmount is in progress. */
-	if (flags & MNT_FORCE)
+	if (flags & MNT_FORCE) {
 		mp->mnt_kern_flag |= MNTK_UNMOUNTF;
+		MNT_IUNLOCK(mp);
+		/*
+		 * Must be done after setting MNTK_UNMOUNTF and before
+		 * waiting for mnt_lockref to become 0.
+		 */
+		VFS_PURGE(mp);
+		MNT_ILOCK(mp);
+	}
 	error = 0;
 	if (mp->mnt_lockref) {
 		mp->mnt_kern_flag |= MNTK_DRAINING;

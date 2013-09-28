@@ -12,6 +12,7 @@
 # libcom_err must be built before libpam.
 # libcrypt must be built before libpam.
 # libkvm must be built before libdevstat.
+# libldns must be built before libunbound.
 # msun must be built before libg++ and libstdc++.
 # libmd must be built before libatm, libopie, libradius, and libtacplus.
 # ncurses must be built before libdialog, libedit and libreadline.
@@ -38,6 +39,7 @@ SUBDIR_ORDERED=	${_csu} \
 	libelf \
 	${_libiconv_modules} \
 	libkvm \
+	${_libldns} \
 	msun \
 	libmd \
 	ncurses \
@@ -72,17 +74,18 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libdwarf \
 	libedit \
 	${_libefi} \
+	libexecinfo \
 	libexpat \
 	libfetch \
 	libgeom \
 	${_libgpib} \
 	${_libgssapi} \
 	${_librpcsec_gss} \
+	${_libiconv_compat} \
 	libipsec \
 	${_libipx} \
 	libjail \
 	libkiconv \
-	${_libldns} \
 	liblzma \
 	libmagic \
 	libmandoc \
@@ -114,6 +117,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libufs \
 	libugidfw \
 	libulog \
+	${_libunbound} \
 	${_libusbhid} \
 	${_libusb} \
 	${_libvgl} \
@@ -189,6 +193,10 @@ _libcxxrt=	libcxxrt
 _libcplusplus=	libc++
 .endif
 
+.if ${MK_LIBICONV_COMPAT} != "no"
+_libiconv_compat=	libiconv_compat
+.endif
+
 .if ${MK_LIBTHR} != "no"
 _libthr=	libthr
 .endif
@@ -253,6 +261,10 @@ _libsmutil=	libsmutil
 
 .if ${MK_TELNET} != "no"
 _libtelnet=	libtelnet
+.endif
+
+.if ${MK_UNBOUND} != "no"
+_libunbound=	libunbound
 .endif
 
 .if ${MK_USB} != "no"

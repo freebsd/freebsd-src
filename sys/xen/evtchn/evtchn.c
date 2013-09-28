@@ -25,7 +25,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/intr_machdep.h>
 
-#include <machine/xen/xen-os.h>
+#include <xen/xen-os.h>
 #include <machine/xen/xenvar.h>
 #include <xen/xen_intr.h>
 #include <machine/xen/synch_bitops.h>

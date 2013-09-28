@@ -111,6 +111,17 @@
 #define NSFBUFS         (512 + maxusers * 16)
 #endif
 
+static int nsfbufs;
+static int nsfbufspeak;
+static int nsfbufsused;
+
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
+    "Maximum number of sendfile(2) sf_bufs available");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufspeak, CTLFLAG_RD, &nsfbufspeak, 0,
+    "Number of sendfile(2) sf_bufs at peak usage");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
+    "Number of sendfile(2) sf_bufs in use");
+
 static void sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
  
@@ -187,6 +198,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	cf->cf_arg1 = (register_t)tf;
 
 	pcb->pcb_sp = (register_t)cf;
+	KASSERT(pcb->pcb_sp % 16 == 0, ("stack misaligned"));
 	#ifdef __powerpc64__
 	pcb->pcb_lr = ((register_t *)fork_trampoline)[0];
 	pcb->pcb_toc = ((register_t *)fork_trampoline)[1];

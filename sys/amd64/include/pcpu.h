@@ -97,8 +97,8 @@ struct shadow_time_info {
 	struct system_segment_descriptor *pc_ldt;			\
 	/* Pointer to the CPU TSS descriptor */				\
 	struct system_segment_descriptor *pc_tss;			\
-	u_int	pc_cmci_mask		/* MCx banks for CMCI */	\
-	PCPU_XEN_FIELDS;						\
+	uint64_t	pc_pm_save_cnt;					\
+	u_int	pc_cmci_mask;		/* MCx banks for CMCI */	\
 	uint64_t pc_dbreg[16];		/* ddb debugging regs */	\
 	int pc_dbreg_cmd;		/* ddb debugging reg cmd */	\
 	char	__pad[161]		/* be divisor of PAGE_SIZE	\

@@ -32,7 +32,7 @@
 dnssec\-keyfromlabel \- DNSSEC key generation tool
 .SH "SYNOPSIS"
 .HP 20
-\fBdnssec\-keyfromlabel\fR {\-l\ \fIlabel\fR} [\fB\-3\fR] [\fB\-a\ \fR\fB\fIalgorithm\fR\fR] [\fB\-A\ \fR\fB\fIdate/offset\fR\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-D\ \fR\fB\fIdate/offset\fR\fR] [\fB\-E\ \fR\fB\fIengine\fR\fR] [\fB\-f\ \fR\fB\fIflag\fR\fR] [\fB\-G\fR] [\fB\-I\ \fR\fB\fIdate/offset\fR\fR] [\fB\-k\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-n\ \fR\fB\fInametype\fR\fR] [\fB\-P\ \fR\fB\fIdate/offset\fR\fR] [\fB\-p\ \fR\fB\fIprotocol\fR\fR] [\fB\-R\ \fR\fB\fIdate/offset\fR\fR] [\fB\-t\ \fR\fB\fItype\fR\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-y\fR] {name}
+\fBdnssec\-keyfromlabel\fR {\-l\ \fIlabel\fR} [\fB\-3\fR] [\fB\-a\ \fR\fB\fIalgorithm\fR\fR] [\fB\-A\ \fR\fB\fIdate/offset\fR\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-D\ \fR\fB\fIdate/offset\fR\fR] [\fB\-E\ \fR\fB\fIengine\fR\fR] [\fB\-f\ \fR\fB\fIflag\fR\fR] [\fB\-G\fR] [\fB\-I\ \fR\fB\fIdate/offset\fR\fR] [\fB\-k\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-L\ \fR\fB\fIttl\fR\fR] [\fB\-n\ \fR\fB\fInametype\fR\fR] [\fB\-P\ \fR\fB\fIdate/offset\fR\fR] [\fB\-p\ \fR\fB\fIprotocol\fR\fR] [\fB\-R\ \fR\fB\fIdate/offset\fR\fR] [\fB\-t\ \fR\fB\fItype\fR\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-y\fR] {name}
 .SH "DESCRIPTION"
 .PP
 \fBdnssec\-keyfromlabel\fR
@@ -120,6 +120,15 @@ Sets the directory in which the key files are to be written.
 \-k
 .RS 4
 Generate KEY records rather than DNSKEY records.
+.RE
+.PP
+\-L \fIttl\fR
+.RS 4
+Sets the default TTL to use for this key when it is converted into a DNSKEY RR. If the key is imported into a zone, this is the TTL that will be used for it, unless there was already a DNSKEY RRset in place, in which case the existing TTL would take precedence. Setting the default TTL to
+0
+or
+none
+removes it.
 .RE
 .PP
 \-p \fIprotocol\fR

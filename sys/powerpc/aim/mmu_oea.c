@@ -278,7 +278,6 @@ int		moea_pte_spill(vm_offset_t);
  */
 void moea_change_wiring(mmu_t, pmap_t, vm_offset_t, boolean_t);
 void moea_clear_modify(mmu_t, vm_page_t);
-void moea_clear_reference(mmu_t, vm_page_t);
 void moea_copy_page(mmu_t, vm_page_t, vm_page_t);
 void moea_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
     vm_page_t *mb, vm_offset_t b_offset, int xfersize);
@@ -328,7 +327,6 @@ struct pmap_md * moea_scan_md(mmu_t mmu, struct pmap_md *prev);
 static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_change_wiring,	moea_change_wiring),
 	MMUMETHOD(mmu_clear_modify,	moea_clear_modify),
-	MMUMETHOD(mmu_clear_reference,	moea_clear_reference),
 	MMUMETHOD(mmu_copy_page,	moea_copy_page),
 	MMUMETHOD(mmu_copy_pages,	moea_copy_pages),
 	MMUMETHOD(mmu_enter,		moea_enter),
@@ -1158,7 +1156,7 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (pmap_bootstrapped)
 		rw_assert(&pvh_global_lock, RA_WLOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if ((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) == 0)
+	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
 		VM_OBJECT_ASSERT_LOCKED(m->object);
 
 	/* XXX change the pvo head for fake pages */
@@ -1326,13 +1324,12 @@ moea_is_modified(mmu_t mmu, vm_page_t m)
 	    ("moea_is_modified: page %p is not managed", m));
 
 	/*
-	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be
+	 * If the page is not exclusive busied, then PGA_WRITEABLE cannot be
 	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no PTEs can have PTE_CHG set.
 	 */
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->aflags & PGA_WRITEABLE) == 0)
+	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return (FALSE);
 	rw_wlock(&pvh_global_lock);
 	rv = moea_query_bit(m, PTE_CHG);
@@ -1354,30 +1351,19 @@ moea_is_prefaultable(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 }
 
 void
-moea_clear_reference(mmu_t mmu, vm_page_t m)
-{
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("moea_clear_reference: page %p is not managed", m));
-	rw_wlock(&pvh_global_lock);
-	moea_clear_bit(m, PTE_REF);
-	rw_wunlock(&pvh_global_lock);
-}
-
-void
 moea_clear_modify(mmu_t mmu, vm_page_t m)
 {
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_clear_modify: page %p is not managed", m));
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	KASSERT((m->oflags & VPO_BUSY) == 0,
-	    ("moea_clear_modify: page %p is busy", m));
+	KASSERT(!vm_page_xbusied(m),
+	    ("moea_clear_modify: page %p is exclusive busy", m));
 
 	/*
 	 * If the page is not PGA_WRITEABLE, then no PTEs can have PTE_CHG
 	 * set.  If the object containing the page is locked and the page is
-	 * not VPO_BUSY, then PGA_WRITEABLE cannot be concurrently set.
+	 * not exclusive busied, then PGA_WRITEABLE cannot be concurrently set.
 	 */
 	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
@@ -1401,13 +1387,12 @@ moea_remove_write(mmu_t mmu, vm_page_t m)
 	    ("moea_remove_write: page %p is not managed", m));
 
 	/*
-	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be set by
-	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
-	 * is clear, no page table entries need updating.
+	 * If the page is not exclusive busied, then PGA_WRITEABLE cannot be
+	 * set by another thread while the object is locked.  Thus,
+	 * if PGA_WRITEABLE is clear, no page table entries need updating.
 	 */
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->aflags & PGA_WRITEABLE) == 0)
+	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	rw_wlock(&pvh_global_lock);
 	lo = moea_attr_fetch(m);
@@ -1657,7 +1642,6 @@ moea_pinit(mmu_t mmu, pmap_t pmap)
 	u_int	entropy;
 
 	KASSERT((int)pmap < VM_MIN_KERNEL_ADDRESS, ("moea_pinit: virt pmap"));
-	PMAP_LOCK_INIT(pmap);
 	RB_INIT(&pmap->pmap_pvo);
 
 	entropy = 0;
@@ -1721,6 +1705,7 @@ void
 moea_pinit0(mmu_t mmu, pmap_t pm)
 {
 
+	PMAP_LOCK_INIT(pm);
 	moea_pinit(mmu, pm);
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
 }
@@ -1826,7 +1811,6 @@ moea_release(mmu_t mmu, pmap_t pmap)
         idx /= VSID_NBPW;
         moea_vsid_bitmap[idx] &= ~mask;
 	mtx_unlock(&moea_vsid_mutex);
-	PMAP_LOCK_DESTROY(pmap);
 }
 
 /*

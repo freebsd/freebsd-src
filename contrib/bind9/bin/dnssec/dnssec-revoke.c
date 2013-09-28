@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-revoke.c,v 1.22.124.2 2011/10/20 23:46:27 tbox Exp $ */
+/* $Id: dnssec-revoke.c,v 1.24 2011/10/20 23:46:51 tbox Exp $ */
 
 /*! \file */
 

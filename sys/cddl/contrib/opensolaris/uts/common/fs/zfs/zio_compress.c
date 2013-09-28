@@ -33,9 +33,31 @@
 
 #include <sys/zfs_context.h>
 #include <sys/compress.h>
+#include <sys/kstat.h>
 #include <sys/spa.h>
 #include <sys/zio.h>
 #include <sys/zio_compress.h>
+
+typedef struct zcomp_stats {
+	kstat_named_t zcompstat_attempts;
+	kstat_named_t zcompstat_empty;
+	kstat_named_t zcompstat_skipped_minblocksize;
+	kstat_named_t zcompstat_skipped_insufficient_gain;
+} zcomp_stats_t;
+
+static zcomp_stats_t zcomp_stats = {
+	{ "attempts",			KSTAT_DATA_UINT64 },
+	{ "empty",			KSTAT_DATA_UINT64 },
+	{ "skipped_minblocksize",	KSTAT_DATA_UINT64 },
+	{ "skipped_insufficient_gain",	KSTAT_DATA_UINT64 }
+};
+
+#define	ZCOMPSTAT_INCR(stat, val) \
+	atomic_add_64(&zcomp_stats.stat.value.ui64, (val));
+
+#define	ZCOMPSTAT_BUMP(stat)		ZCOMPSTAT_INCR(stat, 1);
+
+kstat_t		*zcomp_ksp;
 
 /*
  * Compression vectors.
@@ -77,7 +99,8 @@ zio_compress_select(enum zio_compress child, enum zio_compress parent)
 }
 
 size_t
-zio_compress_data(enum zio_compress c, void *src, void *dst, size_t s_len)
+zio_compress_data(enum zio_compress c, void *src, void *dst, size_t s_len,
+    size_t minblocksize)
 {
 	uint64_t *word, *word_end;
 	size_t c_len, d_len, r_len;
@@ -85,6 +108,8 @@ zio_compress_data(enum zio_compress c, void *src, void *dst, size_t s_len)
 
 	ASSERT((uint_t)c < ZIO_COMPRESS_FUNCTIONS);
 	ASSERT((uint_t)c == ZIO_COMPRESS_EMPTY || ci->ci_compress != NULL);
+
+	ZCOMPSTAT_BUMP(zcompstat_attempts);
 
 	/*
 	 * If the data is all zeroes, we don't even need to allocate
@@ -95,34 +120,40 @@ zio_compress_data(enum zio_compress c, void *src, void *dst, size_t s_len)
 		if (*word != 0)
 			break;
 
-	if (word == word_end)
-		return (0);
+	if (word == word_end) {
+		ZCOMPSTAT_BUMP(zcompstat_empty);
+ 		return (0);
+	}
 
 	if (c == ZIO_COMPRESS_EMPTY)
 		return (s_len);
 
 	/* Compress at least 12.5% */
-	d_len = P2ALIGN(s_len - (s_len >> 3), (size_t)SPA_MINBLOCKSIZE);
-	if (d_len == 0)
+	d_len = P2ALIGN(s_len - (s_len >> 3), minblocksize);
+	if (d_len == 0) {
+		ZCOMPSTAT_BUMP(zcompstat_skipped_minblocksize);
 		return (s_len);
+	}
 
 	c_len = ci->ci_compress(src, dst, s_len, d_len, ci->ci_level);
 
-	if (c_len > d_len)
+	if (c_len > d_len) {
+		ZCOMPSTAT_BUMP(zcompstat_skipped_insufficient_gain);
 		return (s_len);
+	}
 
 	/*
 	 * Cool.  We compressed at least as much as we were hoping to.
 	 * For both security and repeatability, pad out the last sector.
 	 */
-	r_len = P2ROUNDUP(c_len, (size_t)SPA_MINBLOCKSIZE);
+	r_len = P2ROUNDUP(c_len, minblocksize);
 	if (r_len > c_len) {
 		bzero((char *)dst + c_len, r_len - c_len);
 		c_len = r_len;
 	}
 
 	ASSERT3U(c_len, <=, d_len);
-	ASSERT(P2PHASE(c_len, (size_t)SPA_MINBLOCKSIZE) == 0);
+	ASSERT(P2PHASE(c_len, minblocksize) == 0);
 
 	return (c_len);
 }
@@ -137,4 +168,27 @@ zio_decompress_data(enum zio_compress c, void *src, void *dst,
 		return (SET_ERROR(EINVAL));
 
 	return (ci->ci_decompress(src, dst, s_len, d_len, ci->ci_level));
+}
+
+void
+zio_compress_init(void)
+{
+
+	zcomp_ksp = kstat_create("zfs", 0, "zcompstats", "misc",
+	    KSTAT_TYPE_NAMED, sizeof (zcomp_stats) / sizeof (kstat_named_t),
+	    KSTAT_FLAG_VIRTUAL);
+
+	if (zcomp_ksp != NULL) {
+		zcomp_ksp->ks_data = &zcomp_stats;
+		kstat_install(zcomp_ksp);
+	}
+}
+
+void
+zio_compress_fini(void)
+{
+	if (zcomp_ksp != NULL) {
+		kstat_delete(zcomp_ksp);
+		zcomp_ksp = NULL;
+	}
 }

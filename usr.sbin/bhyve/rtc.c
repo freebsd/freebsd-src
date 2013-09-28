@@ -46,8 +46,11 @@ __FBSDID("$FreeBSD$");
 #define	IO_RTC	0x70
 
 #define RTC_SEC		0x00	/* seconds */
+#define	RTC_SEC_ALARM	0x01
 #define	RTC_MIN		0x02
+#define	RTC_MIN_ALARM	0x03
 #define	RTC_HRS		0x04
+#define	RTC_HRS_ALARM	0x05
 #define	RTC_WDAY	0x06
 #define	RTC_DAY		0x07
 #define	RTC_MONTH	0x08
@@ -93,6 +96,12 @@ static uint8_t rtc_nvram[RTC_NVRAM_SZ];
 
 /* XXX initialize these to default values as they would be from BIOS */
 static uint8_t status_a, status_b;
+
+static struct {
+	uint8_t  hours;
+	uint8_t  mins;
+	uint8_t  secs;
+} rtc_alarm;
 
 static u_char const bin2bcd_data[] = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
@@ -148,8 +157,11 @@ rtc_addr_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 
 	switch (*eax & 0x7f) {
 	case RTC_SEC:
+	case RTC_SEC_ALARM:
 	case RTC_MIN:
+	case RTC_MIN_ALARM:
 	case RTC_HRS:
+	case RTC_HRS_ALARM:
 	case RTC_WDAY:
 	case RTC_DAY:
 	case RTC_MONTH:
@@ -199,6 +211,15 @@ rtc_data_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 
 	if (in) {
 		switch (addr) {
+		case RTC_SEC_ALARM:
+			*eax = rtc_alarm.secs;
+			break;
+		case RTC_MIN_ALARM:
+			*eax = rtc_alarm.mins;
+			break;
+		case RTC_HRS_ALARM:
+			*eax = rtc_alarm.hours;
+			break;
 		case RTC_SEC:
 			*eax = rtcout(tm.tm_sec);
 			return (0);
@@ -266,6 +287,15 @@ rtc_data_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	case RTC_STATUSD:
 		/* ignore write */
 		break;
+	case RTC_SEC_ALARM:
+		rtc_alarm.secs = *eax;
+		break;
+	case RTC_MIN_ALARM:
+		rtc_alarm.mins = *eax;
+		break;
+	case RTC_HRS_ALARM:
+		rtc_alarm.hours = *eax;
+		break;
 	case RTC_SEC:
 	case RTC_MIN:
 	case RTC_HRS:
@@ -322,7 +352,7 @@ rtc_init(struct vmctx *ctx)
 		himem /= m_64KB;
 		rtc_nvram[nvoff(RTC_HMEM_LSB)] = himem;
 		rtc_nvram[nvoff(RTC_HMEM_SB)]  = himem >> 8;
-		rtc_nvram[nvoff(RTC_NVRAM_START)] = himem >> 16;
+		rtc_nvram[nvoff(RTC_HMEM_MSB)] = himem >> 16;
 	}
 }
 

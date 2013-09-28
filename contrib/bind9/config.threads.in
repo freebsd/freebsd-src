@@ -43,8 +43,13 @@ case $host in
 	# OpenBSD users have reported that named dumps core on
 	# startup when built with threads.
 	use_threads=false ;;
-*-freebsd*)
+[*-freebsd[1234567].*])
+	# Threads are broken at least up to FreeBSD 4.11.
+	# FreeBSD 5, 6 and 7 we have never officially supported threads
+	# on. YMMV
 	use_threads=false ;;
+*-freebsd*)
+	use_threads=true ;;
 [*-bsdi[234]*])
 	# Thread signals do not work reliably on some versions of BSD/OS.
 	use_threads=false ;;
@@ -55,6 +60,10 @@ case $host in
 	# Linux kernels produce unusable core dumps from multithreaded
 	# programs, and because of limitations in setuid().
 	use_threads=false ;;	
+*-darwin[[123456789]].*)
+	use_threads=false ;;
+*-darwin*.*)
+	use_threads=true ;;
 *)
 	use_threads=false ;;
 esac

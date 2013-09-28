@@ -29,7 +29,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: dst_internal.h,v 1.31 2011/10/20 21:20:02 marka Exp $ */
 
 #ifndef DST_DST_INTERNAL_H
 #define DST_DST_INTERNAL_H 1
@@ -98,6 +98,7 @@ struct dst_key {
 					     revoked */
 	isc_uint16_t	key_bits;	/*%< hmac digest bits */
 	dns_rdataclass_t key_class;	/*%< class of the key record */
+	dns_ttl_t	key_ttl;	/*%< default/initial dnskey ttl */
 	isc_mem_t	*mctx;		/*%< memory context */
 	char		*engine;	/*%< engine name (HSM) */
 	char		*label;		/*%< engine label (HSM) */
@@ -170,6 +171,8 @@ struct dst_func {
 	 */
 	isc_result_t (*sign)(dst_context_t *dctx, isc_buffer_t *sig);
 	isc_result_t (*verify)(dst_context_t *dctx, const isc_region_t *sig);
+	isc_result_t (*verify2)(dst_context_t *dctx, int maxbits,
+				const isc_region_t *sig);
 	isc_result_t (*computesecret)(const dst_key_t *pub,
 				      const dst_key_t *priv,
 				      isc_buffer_t *secret);

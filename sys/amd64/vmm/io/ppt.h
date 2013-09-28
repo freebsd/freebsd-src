@@ -38,4 +38,5 @@ int	ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
 		      int destcpu, int vector, int numvec);
 int	ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
 		       int idx, uint32_t msg, uint32_t vector_control, uint64_t addr);
+int	ppt_num_devices(void);
 #endif

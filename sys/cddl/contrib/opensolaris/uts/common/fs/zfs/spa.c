@@ -759,6 +759,7 @@ spa_change_guid(spa_t *spa)
 	int error;
 	uint64_t guid;
 
+	mutex_enter(&spa->spa_vdev_top_lock);
 	mutex_enter(&spa_namespace_lock);
 	guid = spa_generate_guid(NULL);
 
@@ -771,6 +772,7 @@ spa_change_guid(spa_t *spa)
 	}
 
 	mutex_exit(&spa_namespace_lock);
+	mutex_exit(&spa->spa_vdev_top_lock);
 
 	return (error);
 }
@@ -3422,6 +3424,7 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 	    (error = spa_validate_aux(spa, nvroot, txg,
 	    VDEV_ALLOC_ADD)) == 0) {
 		for (int c = 0; c < rvd->vdev_children; c++) {
+			vdev_ashift_optimize(rvd->vdev_child[c]);
 			vdev_metaslab_set_size(rvd->vdev_child[c]);
 			vdev_expand(rvd->vdev_child[c], txg);
 		}
@@ -4631,7 +4634,7 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing)
 	}
 
 	/* mark the device being resilvered */
-	newvd->vdev_resilvering = B_TRUE;
+	newvd->vdev_resilver_txg = txg;
 
 	/*
 	 * If the parent is not a mirror, or if we're replacing, insert the new
@@ -4861,7 +4864,6 @@ spa_vdev_detach(spa_t *spa, uint64_t guid, uint64_t pguid, int replace_done)
 		if (pvd->vdev_ops == &vdev_spare_ops)
 			cvd->vdev_unspare = B_FALSE;
 		vdev_remove_parent(cvd);
-		cvd->vdev_resilvering = B_FALSE;
 	}
 
 
@@ -5585,6 +5587,8 @@ spa_vdev_resilver_done(spa_t *spa)
 			ASSERT(pvd->vdev_ops == &vdev_replacing_ops);
 			sguid = ppvd->vdev_child[1]->vdev_guid;
 		}
+		ASSERT(vd->vdev_resilver_txg == 0 || !vdev_dtl_required(vd));
+
 		spa_config_exit(spa, SCL_ALL, FTAG);
 		if (spa_vdev_detach(spa, guid, pguid, B_TRUE) != 0)
 			return;

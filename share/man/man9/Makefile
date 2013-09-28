@@ -324,6 +324,7 @@ MAN=	accept_filter.9 \
 	vm_map_wire.9 \
 	vm_page_alloc.9 \
 	vm_page_bits.9 \
+	vm_page_busy.9 \
 	vm_page_cache.9 \
 	vm_page_deactivate.9 \
 	vm_page_dontneed.9 \
@@ -332,11 +333,8 @@ MAN=	accept_filter.9 \
 	vm_page_grab.9 \
 	vm_page_hold.9 \
 	vm_page_insert.9 \
-	vm_page_io.9 \
 	vm_page_lookup.9 \
 	vm_page_rename.9 \
-	vm_page_sleep_if_busy.9 \
-	vm_page_wakeup.9 \
 	vm_page_wire.9 \
 	vm_set_page_size.9 \
 	vmem.9 \
@@ -1306,22 +1304,24 @@ MLINKS+=sysctl.9 SYSCTL_DECL.9 \
 	sysctl.9 SYSCTL_NODE.9 \
 	sysctl.9 SYSCTL_OPAQUE.9 \
 	sysctl.9 SYSCTL_PROC.9 \
+	sysctl.9 SYSCTL_QUAD.9 \
 	sysctl.9 SYSCTL_STRING.9 \
 	sysctl.9 SYSCTL_STRUCT.9 \
 	sysctl.9 SYSCTL_UINT.9 \
 	sysctl.9 SYSCTL_ULONG.9 \
-	sysctl.9 SYSCTL_QUAD.9
+	sysctl.9 SYSCTL_UQUAD.9
 MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_INT.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_LONG.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_NODE.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_OID.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_OPAQUE.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_PROC.9 \
+	sysctl_add_oid.9 SYSCTL_ADD_QUAD.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_STRING.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_STRUCT.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_UINT.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_ULONG.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_QUAD.9 \
+	sysctl_add_oid.9 SYSCTL_ADD_UQUAD.9 \
 	sysctl_add_oid.9 SYSCTL_CHILDREN.9 \
 	sysctl_add_oid.9 sysctl_move_oid.9 \
 	sysctl_add_oid.9 sysctl_remove_oid.9 \
@@ -1445,6 +1445,13 @@ MLINKS+=vfs_getopt.9 vfs_copyopt.9 \
 MLINKS+=vhold.9 vdrop.9 \
 	vhold.9 vdropl.9 \
 	vhold.9 vholdl.9
+MLINKS+=vmem.9 vmem_add.9 \
+	vmem.9 vmem_alloc.9 \
+	vmem.9 vmem_create.9 \
+	vmem.9 vmem_destroy.9 \
+	vmem.9 vmem_free.9 \
+	vmem.9 vmem_xalloc.9 \
+	vmem.9 vmem_xfree.9  
 MLINKS+=vm_map_lock.9 vm_map_lock_downgrade.9 \
 	vm_map_lock.9 vm_map_lock_read.9 \
 	vm_map_lock.9 vm_map_lock_upgrade.9 \
@@ -1465,6 +1472,21 @@ MLINKS+=vm_page_bits.9 vm_page_clear_dirty.9 \
 	vm_page_bits.9 vm_page_test_dirty.9 \
 	vm_page_bits.9 vm_page_undirty.9 \
 	vm_page_bits.9 vm_page_zero_invalid.9
+MLINKS+=vm_page_busy.9 vm_page_busied.9 \
+	vm_page_busy.9 vm_page_busy_downgrade.9 \
+	vm_page_busy.9 vm_page_busy_sleep.9 \
+	vm_page_busy.9 vm_page_sbusied.9 \
+	vm_page_busy.9 vm_page_sbusy.9 \
+	vm_page_busy.9 vm_page_sleep_if_busy.9 \
+	vm_page_busy.9 vm_page_sunbusy.9 \
+	vm_page_busy.9 vm_page_trysbusy.9 \
+	vm_page_busy.9 vm_page_tryxbusy.9 \
+	vm_page_busy.9 vm_page_xbusied.9 \
+	vm_page_busy.9 vm_page_xbusy.9 \
+	vm_page_busy.9 vm_page_xunbusy.9 \
+	vm_page_busy.9 vm_page_assert_sbusied.9 \
+	vm_page_busy.9 vm_page_assert_unbusied.9 \
+	vm_page_busy.9 vm_page_assert_xbusied.9
 MLINKS+=vm_page_aflag.9 vm_page_aflag_clear.9 \
 	vm_page_aflag.9 vm_page_aflag_set.9 \
 	vm_page_aflag.9 vm_page_reference.9
@@ -1473,10 +1495,6 @@ MLINKS+=vm_page_free.9 vm_page_free_toq.9 \
 	vm_page_free.9 vm_page_try_to_free.9
 MLINKS+=vm_page_hold.9 vm_page_unhold.9
 MLINKS+=vm_page_insert.9 vm_page_remove.9
-MLINKS+=vm_page_io.9 vm_page_io_finish.9 \
-	vm_page_io.9 vm_page_io_start.9
-MLINKS+=vm_page_wakeup.9 vm_page_busy.9 \
-	vm_page_wakeup.9 vm_page_flash.9
 MLINKS+=vm_page_wire.9 vm_page_unwire.9
 MLINKS+=VOP_ACCESS.9 VOP_ACCESSX.9
 MLINKS+=VOP_ATTRIB.9 VOP_GETATTR.9 \

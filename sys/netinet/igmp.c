@@ -289,7 +289,7 @@ igmp_save_context(struct mbuf *m, struct ifnet *ifp)
 {
 
 #ifdef VIMAGE
-	m->m_pkthdr.header = ifp->if_vnet;
+	m->m_pkthdr.PH_loc.ptr = ifp->if_vnet;
 #endif /* VIMAGE */
 	m->m_pkthdr.flowid = ifp->if_index;
 }
@@ -298,7 +298,7 @@ static __inline void
 igmp_scrub_context(struct mbuf *m)
 {
 
-	m->m_pkthdr.header = NULL;
+	m->m_pkthdr.PH_loc.ptr = NULL;
 	m->m_pkthdr.flowid = 0;
 }
 
@@ -326,7 +326,7 @@ igmp_restore_context(struct mbuf *m)
 
 #ifdef notyet
 #if defined(VIMAGE) && defined(INVARIANTS)
-	KASSERT(curvnet == (m->m_pkthdr.header),
+	KASSERT(curvnet == (m->m_pkthdr.PH_loc.ptr),
 	    ("%s: called when curvnet was not restored", __func__));
 #endif
 #endif
@@ -3403,7 +3403,7 @@ igmp_intr(struct mbuf *m)
 	 * indexes to guard against interface detach, they are
 	 * unique to each VIMAGE and must be retrieved.
 	 */
-	CURVNET_SET((struct vnet *)(m->m_pkthdr.header));
+	CURVNET_SET((struct vnet *)(m->m_pkthdr.PH_loc.ptr));
 	ifindex = igmp_restore_context(m);
 
 	/*
@@ -3450,7 +3450,7 @@ igmp_intr(struct mbuf *m)
 	}
 
 	igmp_scrub_context(m0);
-	m->m_flags &= ~(M_PROTOFLAGS);
+	m_clrprotoflags(m);
 	m0->m_pkthdr.rcvif = V_loif;
 #ifdef MAC
 	mac_netinet_igmp_send(ifp, m0);

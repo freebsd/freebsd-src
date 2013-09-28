@@ -768,8 +768,6 @@ pmap_pinit(pmap_t pmap)
 	KASSERT(pmap != kernel_pmap, 
 		("%s: kernel map re-initialised!", __func__));
 
-	PMAP_LOCK_INIT(pmap);
-
 	/*
 	 * allocate the page directory page
 	 */
@@ -795,6 +793,8 @@ pmap_pinit(pmap_t pmap)
 	CPU_ZERO(&pmap->pm_active);
 	pmap_pv_pmap_init(pmap);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
+	pmap->pm_pcid = -1; /* No pcid for now */
+	CPU_ZERO(&pmap->pm_save);
 
 	return 1;
 }
@@ -1029,7 +1029,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
 	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%lx)",
 	    va));
-	if ((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) == 0)
+	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
 		VM_OBJECT_ASSERT_WLOCKED(m->object);
 
 	KASSERT(VM_PAGE_TO_PHYS(m) != 0,
@@ -1069,7 +1069,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 
 	pte = pmap_vtopte_hold(pmap, va, &tptr);
 
-	origpte = pte_load(pte);
+	origpte = *pte;
 
 	/*
 	 * Is the specified virtual address already mapped?
@@ -1131,7 +1131,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 validate:
 		{
 			/* XXX: This is not atomic */
-			origpte = pte_load(pte);
+			origpte = *pte;
 			PT_SET_VA_MA(pte, newpte, true);
 			/* Sync the kernel's view of the pmap */
 			if (pmap != kernel_pmap && PCPU_GET(curpmap) == pmap) {
@@ -1266,7 +1266,7 @@ pmap_remove_pte(pmap_t pmap, vm_offset_t va, pt_entry_t *ptq)
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
 	{ /* XXX: there's no way to make this atomic ? */
-		oldpte = pte_load(ptq);
+		oldpte = *ptq;
 		if (oldpte & PG_FRAME) { /* Optimise */
 			PT_CLEAR_VA(ptq, TRUE);
 		}
@@ -1309,7 +1309,7 @@ static void
 pmap_remove_page(pmap_t pmap, vm_offset_t va, pt_entry_t *pte)
 {
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if ((pte_load(pte) & PG_V) == 0)
+	if ((*pte & PG_V) == 0)
 		return;
 
 	pmap_remove_pte(pmap, va, pte);
@@ -1409,7 +1409,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 		for (pte = (mmu_map_pt(tptr) + pt_index(sva)); 
 		     sva != va_next;pte++, sva += PAGE_SIZE) {
-			if (pte_load(pte) == 0) {
+			if (*pte == 0) {
 				if (va != va_next) {
 					pmap_invalidate_range(pmap, sva, va);
 					va = va_next;
@@ -1420,7 +1420,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			 * XXX: PG_G is set on *user* entries unlike
 			 * native, where it is set on kernel entries 
 			 */ 
-			if ((pte_load(pte) & PG_G) != 0) 
+			if ((*pte & PG_G) != 0) 
 				anyvalid = 1;
 			else if (va == va_next)
 				va = sva;
@@ -1457,7 +1457,7 @@ pv_remove(pmap_t pmap, vm_offset_t va, vm_page_t m)
 
 	KASSERT(pte != NULL, ("pte has no backing page tables!"));
 
-	tpte = pte_load(pte);
+	tpte = *pte;
 	PT_CLEAR_VA(pte, TRUE);
 	if (tpte & PG_A)
 		vm_page_aflag_set(m, PGA_REFERENCED);
@@ -1530,17 +1530,17 @@ retry:
 		goto nomapping;
 	}
 
-	if ((pte_load(pte) & PG_V) == 0) {
+	if ((*pte & PG_V) == 0) {
 		goto nomapping;
 	}
 
-	ma = pte_load(pte) & PG_FRAME;
+	ma = *pte & PG_FRAME;
 
 	if (ma == 0) {
 		goto nomapping;
 	}
 
-	if (((pte_load(pte) & PG_RW) ||
+	if (((*pte & PG_RW) ||
 	     prot & VM_PROT_WRITE) == 0) {
 		if (vm_page_pa_tryrelock(pmap, ma, &pa)) goto retry;
 
@@ -1872,7 +1872,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 				}
 
 				dst_pte = mmu_map_pt(dtptr) + pt_index(addr);
-				if (pte_load(dst_pte) == 0 &&
+				if (*dst_pte == 0 &&
  				    pmap_put_pv_entry(dst_pmap, addr,
 					MACH_TO_VM_PAGE(ptetemp & PG_FRAME))) {
 					/*
@@ -2055,7 +2055,7 @@ pv_map_remove(pmap_t pmap, vm_offset_t va, vm_page_t m)
 
 	KASSERT(pte != NULL, ("pte has no backing page tables!"));
 
-	tpte = pte_load(pte);
+	tpte = *pte;
 
 	if ((tpte & PG_V) == 0) {
 		panic("bad pte va %lx pte %lx", va, tpte);
@@ -2210,16 +2210,29 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 	return prefaultable;
 }
 
+/*
+ *	Apply the given advice to the specified range of addresses within the
+ *	given pmap.  Depending on the advice, clear the referenced and/or
+ *	modified flags in each mapping and set the mapped page's dirty field.
+ */
+void
+pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
+{
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
+}
+
 void
 pmap_clear_modify(vm_page_t m)
 {
 	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
-void
-pmap_clear_reference(vm_page_t m)
+void *
+pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 {
+
 	KASSERT(0, ("XXX: %s: TODO\n", __func__));
+	return NULL;
 }
 
 /* Callback to remove write access on given va and pmap */
@@ -2239,7 +2252,7 @@ pv_remove_write(pmap_t pmap, vm_offset_t va, vm_page_t m)
 
 	KASSERT(pte != NULL, ("pte has no backing page tables!"));
 
-	oldpte = pte_load(pte);
+	oldpte = *pte;
 	if (oldpte & PG_RW) {
 		PT_SET_MA(va, oldpte & ~(PG_RW | PG_M));
 		if ((oldpte & PG_M) != 0)
@@ -2267,9 +2280,8 @@ pmap_remove_write(vm_page_t m)
 	 * is clear, no page table entries need updating.
 	 */
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->aflags & PGA_WRITEABLE) == 0)
-		return;
+	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
+ 		return;
 
 	pmap_pv_iterate(m, pv_remove_write);
 	vm_page_aflag_clear(m, PGA_WRITEABLE);

@@ -32,10 +32,12 @@
 #include <isc/lang.h>
 #include <isc/rwlock.h>
 
+#include <dns/master.h>
 #include <dns/masterdump.h>
 #include <dns/rdatastruct.h>
 #include <dns/rpz.h>
 #include <dns/types.h>
+#include <dns/zt.h>
 
 typedef enum {
 	dns_zone_none,
@@ -44,8 +46,15 @@ typedef enum {
 	dns_zone_stub,
 	dns_zone_staticstub,
 	dns_zone_key,
-	dns_zone_dlz
+	dns_zone_dlz,
+	dns_zone_redirect
 } dns_zonetype_t;
+
+typedef enum {
+	dns_zonestat_none = 0,
+	dns_zonestat_terse,
+	dns_zonestat_full
+} dns_zonestat_level_t;
 
 #define DNS_ZONEOPT_SERVERS	  0x00000001U	/*%< perform server checks */
 #define DNS_ZONEOPT_PARENTS	  0x00000002U	/*%< perform parent checks */
@@ -94,6 +103,7 @@ typedef enum {
 #define DNS_ZONEKEY_MAINTAIN	0x00000002U	/*%< publish/sign on schedule */
 #define DNS_ZONEKEY_CREATE	0x00000004U	/*%< make keys when needed */
 #define DNS_ZONEKEY_FULLSIGN    0x00000008U     /*%< roll to new keys immediately */
+#define DNS_ZONEKEY_NORESIGN	0x00000010U	/*%< no automatic resigning */
 
 #ifndef DNS_ZONE_MINREFRESH
 #define DNS_ZONE_MINREFRESH		    300	/*%< 5 minutes */
@@ -287,6 +297,7 @@ dns_zone_loadnew(dns_zone_t *zone);
 
 isc_result_t
 dns_zone_loadandthaw(dns_zone_t *zone);
+
 /*%<
  *	Cause the database to be loaded from its backing store.
  *	Confirm that the minimum requirements for the zone type are
@@ -309,6 +320,25 @@ dns_zone_loadandthaw(dns_zone_t *zone);
  *			  file system timestamps.
  *\li	DNS_R_BADZONE
  *\li	Any result value from dns_db_load().
+ */
+
+isc_result_t
+dns_zone_asyncload(dns_zone_t *zone, dns_zt_zoneloaded_t done, void *arg);
+/*%<
+ * Cause the database to be loaded from its backing store asynchronously.
+ * Other zone maintenance functions are suspended until this is complete.
+ * When finished, 'done' is called to inform the caller, with 'arg' as
+ * its first argument and 'zone' as its second.  (Normally, 'arg' is
+ * expected to point to the zone table but is left undefined for testing
+ * purposes.)
+ */
+
+isc_boolean_t
+dns__zone_loadpending(dns_zone_t *zone);
+/*%<
+ * Indicates whether the zone is waiting to be loaded asynchronously.
+ * (Not currently intended for use outside of this module and associated
+ * tests.)
  */
 
 void
@@ -489,6 +519,10 @@ dns_zone_dumptostream(dns_zone_t *zone, FILE *fd);
 isc_result_t
 dns_zone_dumptostream2(dns_zone_t *zone, FILE *fd, dns_masterformat_t format,
 		       const dns_master_style_t *style);
+isc_result_t
+dns_zone_dumptostream3(dns_zone_t *zone, FILE *fd, dns_masterformat_t format,
+		       const dns_master_style_t *style,
+		       const isc_uint32_t rawversion);
 /*%<
  *    Write the zone to stream 'fd' in the specified 'format'.
  *    If the 'format' is dns_masterformat_text (RFC1035), 'style' also
@@ -498,7 +532,11 @@ dns_zone_dumptostream2(dns_zone_t *zone, FILE *fd, dns_masterformat_t format,
  *    dns_zone_dumptostream2(), which always uses the dns_masterformat_text
  *    format and the dns_master_style_default style.
  *
- *    Note that dns_zone_dumptostream2() is the most flexible form.  It
+ *    dns_zone_dumptostream2() is a backward-compatible form of
+ *    dns_zone_dumptostream3(), which always uses the current
+ *    default raw file format version.
+ *
+ *    Note that dns_zone_dumptostream3() is the most flexible form.  It
  *    can also provide the functionality of dns_zone_fulldumptostream().
  *
  * Require:
@@ -558,9 +596,15 @@ dns_zone_setmasterswithkeys(dns_zone_t *zone,
 isc_result_t
 dns_zone_setalsonotify(dns_zone_t *zone, const isc_sockaddr_t *notify,
 		       isc_uint32_t count);
+isc_result_t
+dns_zone_setalsonotifywithkeys(dns_zone_t *zone, const isc_sockaddr_t *notify,
+							   dns_name_t **keynames, isc_uint32_t count);
 /*%<
  *	Set the list of additional servers to be notified when
  *	a zone changes.	 To clear the list use 'count = 0'.
+ *
+ *	dns_zone_alsonotifywithkeys() allows each notify address to
+ *	be associated with a TSIG key.
  *
  * Require:
  *\li	'zone' to be a valid zone.
@@ -1405,6 +1449,18 @@ dns_zonemgr_setsize(dns_zonemgr_t *zmgr, int num_zones);
  */
 
 isc_result_t
+dns_zonemgr_createzone(dns_zonemgr_t *zmgr, dns_zone_t **zonep);
+/*%<
+ *	Allocate a new zone using a memory context from the
+ *	zone manager's memory context pool.
+ *
+ * Require:
+ *\li	'zmgr' to be a valid zone manager.
+ *\li	'zonep' != NULL and '*zonep' == NULL.
+ */
+
+
+isc_result_t
 dns_zonemgr_managezone(dns_zonemgr_t *zmgr, dns_zone_t *zone);
 /*%<
  *	Bring the zone under control of a zone manager.
@@ -1419,6 +1475,14 @@ dns_zonemgr_forcemaint(dns_zonemgr_t *zmgr);
 /*%<
  * Force zone maintenance of all zones managed by 'zmgr' at its
  * earliest convenience.
+ */
+
+void
+dns__zonemgr_run(isc_task_t *task, isc_event_t *event);
+/*%<
+ * Event handler to call dns_zonemgr_forcemaint(); used to start
+ * zone operations from a unit test.  Not intended for use outside
+ * libdns or related tests.
  */
 
 void
@@ -1647,9 +1711,13 @@ dns_zone_setstats(dns_zone_t *zone, isc_stats_t *stats);
 
 void
 dns_zone_setrequeststats(dns_zone_t *zone, isc_stats_t *stats);
+
+void
+dns_zone_setrcvquerystats(dns_zone_t *zone, dns_stats_t *stats);
 /*%<
- * Set an additional statistics set to zone.  It is attached in the zone
- * but is not counted in the zone module; only the caller updates the counters.
+ * Set additional statistics sets to zone.  These are attached to the zone
+ * but are not counted in the zone module; only the caller updates the
+ * counters.
  *
  * Requires:
  * \li	'zone' to be a valid zone.
@@ -1657,8 +1725,19 @@ dns_zone_setrequeststats(dns_zone_t *zone, isc_stats_t *stats);
  *\li	stats is a valid statistics.
  */
 
+#ifdef NEWSTATS
+void
+dns_zone_setrcvquerystats(dns_zone_t *zone, dns_stats_t *stats);
+#endif
+
 isc_stats_t *
 dns_zone_getrequeststats(dns_zone_t *zone);
+
+#ifdef NEWSTATS
+dns_stats_t *
+dns_zone_getrcvquerystats(dns_zone_t *zone);
+#endif
+
 /*%<
  * Get the additional statistics for zone, if one is installed.
  *
@@ -1893,6 +1972,107 @@ dns_zone_dlzpostload(dns_zone_t *zone, dns_db_t *db);
  * Load the origin names for a writeable DLZ database.
  */
 
+isc_boolean_t
+dns_zone_isdynamic(dns_zone_t *zone, isc_boolean_t ignore_freeze);
+/*%
+ * Return true iff the zone is "dynamic", in the sense that the zone's
+ * master file (if any) is written by the server, rather than being
+ * updated manually and read by the server.
+ *
+ * This is true for slave zones, stub zones, key zones, and zones that
+ * allow dynamic updates either by having an update policy ("ssutable")
+ * or an "allow-update" ACL with a value other than exactly "{ none; }".
+ *
+ * If 'ignore_freeze' is true, then the zone which has had updates disabled
+ * will still report itself to be dynamic.
+ *
+ * Requires:
+ * \li	'zone' to be valid.
+ */
+
+isc_result_t
+dns_zone_setrefreshkeyinterval(dns_zone_t *zone, isc_uint32_t interval);
+/*%
+ * Sets the frequency, in minutes, with which the key repository will be
+ * checked to see if the keys for this zone have been updated.  Any value
+ * higher than 1440 minutes (24 hours) will be silently reduced.  A
+ * value of zero will return an out-of-range error.
+ *
+ * Requires:
+ * \li	'zone' to be valid.
+ */
+
+isc_boolean_t
+dns_zone_getrequestixfr(dns_zone_t *zone);
+/*%
+ * Returns the true/false value of the request-ixfr option in the zone.
+ *
+ * Requires:
+ * \li	'zone' to be valid.
+ */
+
+void
+dns_zone_setrequestixfr(dns_zone_t *zone, isc_boolean_t flag);
+/*%
+ * Sets the request-ixfr option for the zone. Either true or false. The
+ * default value is determined by the setting of this option in the view.
+ *
+ * Requires:
+ * \li	'zone' to be valid.
+ */
+
+void
+dns_zone_setserialupdatemethod(dns_zone_t *zone, dns_updatemethod_t method);
+/*%
+ * Sets the update method to use when incrementing the zone serial number
+ * due to a DDNS update.  Valid options are dns_updatemethod_increment
+ * and dns_updatemethod_unixtime.
+ *
+ * Requires:
+ * \li	'zone' to be valid.
+ */
+
+dns_updatemethod_t
+dns_zone_getserialupdatemethod(dns_zone_t *zone);
+/*%
+ * Returns the update method to be used when incrementing the zone serial
+ * number due to a DDNS update.
+ *
+ * Requires:
+ * \li	'zone' to be valid.
+ */
+
+isc_result_t
+dns_zone_link(dns_zone_t *zone, dns_zone_t *raw);
+
+void
+dns_zone_getraw(dns_zone_t *zone, dns_zone_t **raw);
+
+isc_result_t
+dns_zone_keydone(dns_zone_t *zone, const char *data);
+
+isc_result_t
+dns_zone_setnsec3param(dns_zone_t *zone, isc_uint8_t hash, isc_uint8_t flags,
+		       isc_uint16_t iter, isc_uint8_t saltlen,
+		       unsigned char *salt, isc_boolean_t replace);
+/*%
+ * Set the NSEC3 parameters for the zone.
+ *
+ * If 'replace' is ISC_TRUE, then the existing NSEC3 chain, if any, will
+ * be replaced with the new one.  If 'hash' is zero, then the replacement
+ * chain will be NSEC rather than NSEC3.
+ *
+ * Requires:
+ * \li	'zone' to be valid.
+ */
+
+void
+dns_zone_setrawdata(dns_zone_t *zone, dns_masterrawheader_t *header);
+/*%
+ * Set the data to be included in the header when the zone is dumped in
+ * binary format.
+ */
+
 isc_result_t
 dns_zone_synckeyzone(dns_zone_t *zone);
 /*%
@@ -1908,6 +2088,16 @@ dns_zone_rpz_enable(dns_zone_t *zone);
 
 isc_boolean_t
 dns_zone_get_rpz(dns_zone_t *zone);
+
+void
+dns_zone_setstatlevel(dns_zone_t *zone, dns_zonestat_level_t level);
+
+dns_zonestat_level_t
+dns_zone_getstatlevel(dns_zone_t *zone);
+/*%
+ * Set and get the statistics reporting level for the zone;
+ * full, terse, or none.
+ */
 
 ISC_LANG_ENDDECLS
 

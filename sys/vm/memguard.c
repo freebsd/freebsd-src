@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/uma_int.h>
 #include <vm/memguard.h>
@@ -100,7 +101,6 @@ SYSCTL_PROC(_vm_memguard, OID_AUTO, desc,
     CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
     memguard_sysctl_desc, "A", "Short description of memory type to monitor");
 
-static vmem_t *memguard_map = NULL;
 static vm_offset_t memguard_cursor;
 static vm_offset_t memguard_base;
 static vm_size_t memguard_mapsize;
@@ -206,8 +206,8 @@ memguard_init(vmem_t *parent)
 {
 	vm_offset_t base;
 
-	vmem_alloc(parent, memguard_mapsize, M_WAITOK, &base);
-	memguard_map = vmem_create("memguard arena", base, memguard_mapsize,
+	vmem_alloc(parent, memguard_mapsize, M_BESTFIT | M_WAITOK, &base);
+	vmem_init(memguard_arena, "memguard arena", base, memguard_mapsize,
 	    PAGE_SIZE, 0, M_WAITOK);
 	memguard_cursor = base;
 	memguard_base = base;
@@ -261,7 +261,7 @@ v2sizep(vm_offset_t va)
 	p = PHYS_TO_VM_PAGE(pa);
 	KASSERT(p->wire_count != 0 && p->queue == PQ_NONE,
 	    ("MEMGUARD: Expected wired page %p in vtomgfifo!", p));
-	return ((u_long *)&p->pageq.tqe_next);
+	return (&p->plinks.memguard.p);
 }
 
 static u_long *
@@ -276,7 +276,7 @@ v2sizev(vm_offset_t va)
 	p = PHYS_TO_VM_PAGE(pa);
 	KASSERT(p->wire_count != 0 && p->queue == PQ_NONE,
 	    ("MEMGUARD: Expected wired page %p in vtomgfifo!", p));
-	return ((u_long *)&p->pageq.tqe_prev);
+	return (&p->plinks.memguard.v);
 }
 
 /*
@@ -311,7 +311,7 @@ memguard_alloc(unsigned long req_size, int flags)
 	 * of physical memory whether we allocate or hand off to
 	 * uma_large_alloc(), so keep those.
 	 */
-	if (vmem_size(memguard_map, VMEM_ALLOC) >= memguard_physlimit &&
+	if (vmem_size(memguard_arena, VMEM_ALLOC) >= memguard_physlimit &&
 	    req_size < PAGE_SIZE) {
 		addr = (vm_offset_t)NULL;
 		memguard_fail_pgs++;
@@ -328,8 +328,9 @@ memguard_alloc(unsigned long req_size, int flags)
 	 * map, unless vm_map_findspace() is tweaked.
 	 */
 	for (;;) {
-		if (vmem_xalloc(memguard_map, size_v, 0, 0, 0, memguard_cursor,
-		    VMEM_ADDR_MAX, M_BESTFIT | M_NOWAIT, &addr) == 0)
+		if (vmem_xalloc(memguard_arena, size_v, 0, 0, 0,
+		    memguard_cursor, VMEM_ADDR_MAX,
+		    M_BESTFIT | M_NOWAIT, &addr) == 0)
 			break;
 		/*
 		 * The map has no space.  This may be due to
@@ -348,7 +349,7 @@ memguard_alloc(unsigned long req_size, int flags)
 		addr += PAGE_SIZE;
 	rv = kmem_back(kmem_object, addr, size_p, flags);
 	if (rv != KERN_SUCCESS) {
-		vmem_xfree(memguard_map, addr, size_v);
+		vmem_xfree(memguard_arena, addr, size_v);
 		memguard_fail_pgs++;
 		addr = (vm_offset_t)NULL;
 		goto out;
@@ -419,7 +420,7 @@ memguard_free(void *ptr)
 	kmem_unback(kmem_object, addr, size);
 	if (sizev > size)
 		addr -= PAGE_SIZE;
-	vmem_xfree(memguard_map, addr, sizev);
+	vmem_xfree(memguard_arena, addr, sizev);
 	if (req_size < PAGE_SIZE)
 		memguard_wasted -= (PAGE_SIZE - req_size);
 }

@@ -2052,8 +2052,8 @@ g_mirror_launch_provider(struct g_mirror_softc *sc)
 			}
 			/* A provider underneath us doesn't support unmapped */
 			if ((dp->flags & G_PF_ACCEPT_UNMAPPED) == 0) {
-				G_MIRROR_DEBUG(0, "cancelling unmapped "
-				    "because of %s\n", dp->name);
+				G_MIRROR_DEBUG(0, "Cancelling unmapped "
+				    "because of %s.", dp->name);
 				pp->flags &= ~G_PF_ACCEPT_UNMAPPED;
 			}
 		}

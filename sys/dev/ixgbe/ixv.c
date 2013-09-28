@@ -1561,14 +1561,8 @@ ixv_identify_hardware(struct adapter *adapter)
 	** Make sure BUSMASTER is set, on a VM under
 	** KVM it may not be and will break things.
 	*/
+	pci_enable_busmaster(dev);
 	pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (!((pci_cmd_word & PCIM_CMD_BUSMASTEREN) &&
-	    (pci_cmd_word & PCIM_CMD_MEMEN))) {
-		INIT_DEBUGOUT("Memory Access and/or Bus Master "
-		    "bits were not set!\n");
-		pci_cmd_word |= (PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
-		pci_write_config(dev, PCIR_COMMAND, pci_cmd_word, 2);
-	}
 
 	/* Save off the information about this board */
 	adapter->hw.vendor_id = pci_get_vendor(dev);
@@ -1704,11 +1698,13 @@ ixv_setup_msix(struct adapter *adapter)
 	** plus an additional for mailbox.
 	*/
 	want = 2;
-	if (pci_alloc_msix(dev, &want) == 0) {
+	if ((pci_alloc_msix(dev, &want) == 0) && (want == 2)) {
                	device_printf(adapter->dev,
 		    "Using MSIX interrupts with %d vectors\n", want);
 		return (want);
 	}
+	/* Release in case alloc was insufficient */
+	pci_release_msi(dev);
 out:
        	if (adapter->msix_mem != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY,
@@ -3548,7 +3544,7 @@ ixv_rx_checksum(u32 staterr, struct mbuf * mp, u32 ptype)
 			mp->m_pkthdr.csum_flags = 0;
 	}
 	if (status & IXGBE_RXD_STAT_L4CS) {
-		u16 type = (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+		u64 type = (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 #if __FreeBSD_version >= 800000
 		if (sctp)
 			type = CSUM_SCTP_VALID;

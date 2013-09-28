@@ -91,9 +91,7 @@ than zero.
 The optional flags are:
 .Bl -tag -width ".Dv VM_ALLOC_IFNOTCACHED"
 .It Dv VM_ALLOC_NOBUSY
-The returned page will not have the
-.Dv VPO_BUSY
-flag set.
+The returned page will not be exclusive busy.
 .It Dv VM_ALLOC_NODUMP
 The returned page will not be included in any kernel core dumps
 regardless of whether or not it is mapped in to KVA.
@@ -112,6 +110,8 @@ Only allocate the page if it is not cached in the
 If the page at the specified
 .Fa pindex
 is cached, NULL is returned instead.
+.It Dv VM_ALLOC_SBUSY
+The returned page will be shared busy.
 .It Dv VM_ALLOC_WIRED
 The returned page will be wired.
 .It Dv VM_ALLOC_ZERO

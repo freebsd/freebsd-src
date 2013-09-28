@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named.conf.docbook,v 1.49.14.2 2011/11/07 00:31:47 marka Exp $ -->
+<!-- $Id: named.conf.docbook,v 1.55 2011/11/07 00:25:53 each Exp $ -->
 <refentry>
   <refentryinfo>
     <date>Aug 13, 2004</date>
@@ -326,7 +326,8 @@ options {
 	notify-delay <replaceable>seconds</replaceable>;
 	notify-to-soa <replaceable>boolean</replaceable>;
 	also-notify <optional> port <replaceable>integer</replaceable> </optional> { ( <replaceable>ipv4_address</replaceable> | <replaceable>ipv6_address</replaceable> )
-		<optional> port <replaceable>integer</replaceable> </optional>; ... };
+		<optional> port <replaceable>integer</replaceable> </optional>; ...
+		<optional> key <replaceable>keyname</replaceable> </optional> ... };
 	allow-notify { <replaceable>address_match_element</replaceable>; ... };
 
 	forward ( first | only );
@@ -513,7 +514,8 @@ view <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	notify-delay <replaceable>seconds</replaceable>;
 	notify-to-soa <replaceable>boolean</replaceable>;
 	also-notify <optional> port <replaceable>integer</replaceable> </optional> { ( <replaceable>ipv4_address</replaceable> | <replaceable>ipv6_address</replaceable> )
-		<optional> port <replaceable>integer</replaceable> </optional>; ... };
+		<optional> port <replaceable>integer</replaceable> </optional>; ...
+		<optional> key <replaceable>keyname</replaceable> </optional> ... };
 	allow-notify { <replaceable>address_match_element</replaceable>; ... };
 
 	forward ( first | only );
@@ -563,7 +565,7 @@ view <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
     <title>ZONE</title>
     <literallayout>
 zone <replaceable>string</replaceable> <replaceable>optional_class</replaceable> {
-	type ( master | slave | stub | hint |
+	type ( master | slave | stub | hint | redirect |
 		forward | delegation-only );
 	file <replaceable>quoted_string</replaceable>;
 
@@ -609,7 +611,8 @@ zone <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	notify-delay <replaceable>seconds</replaceable>;
 	notify-to-soa <replaceable>boolean</replaceable>;
 	also-notify <optional> port <replaceable>integer</replaceable> </optional> { ( <replaceable>ipv4_address</replaceable> | <replaceable>ipv6_address</replaceable> )
-		<optional> port <replaceable>integer</replaceable> </optional>; ... };
+		<optional> port <replaceable>integer</replaceable> </optional>; ...
+		<optional> key <replaceable>keyname</replaceable> </optional> ... };
 	allow-notify { <replaceable>address_match_element</replaceable>; ... };
 
 	forward ( first | only );
@@ -627,6 +630,7 @@ zone <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	max-refresh-time <replaceable>integer</replaceable>;
 	min-refresh-time <replaceable>integer</replaceable>;
 	multi-master <replaceable>boolean</replaceable>;
+	request-ixfr <replaceable>boolean</replaceable>;
 	sig-validity-interval <replaceable>integer</replaceable>;
 
 	transfer-source ( <replaceable>ipv4_address</replaceable> | * )

@@ -1,4 +1,4 @@
-/* $OpenBSD: mac.c,v 1.21 2012/12/11 22:51:45 sthen Exp $ */
+/* $OpenBSD: mac.c,v 1.24 2013/06/03 00:03:18 dtucker Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -50,7 +50,7 @@
 #define SSH_UMAC	2	/* UMAC (not integrated with OpenSSL) */
 #define SSH_UMAC128	3
 
-struct {
+struct macalg {
 	char		*name;
 	int		type;
 	const EVP_MD *	(*mdfunc)(void);
@@ -58,7 +58,9 @@ struct {
 	int		key_len;	/* just for UMAC */
 	int		len;		/* just for UMAC */
 	int		etm;		/* Encrypt-then-MAC */
-} macs[] = {
+};
+
+static const struct macalg macs[] = {
 	/* Encrypt-and-MAC (encrypt-and-authenticate) variants */
 	{ "hmac-sha1",				SSH_EVP, EVP_sha1, 0, 0, 0, 0 },
 	{ "hmac-sha1-96",			SSH_EVP, EVP_sha1, 96, 0, 0, 0 },
@@ -89,38 +91,58 @@ struct {
 	{ NULL,					0, NULL, 0, 0, 0, 0 }
 };
 
+/* Returns a comma-separated list of supported MACs. */
+char *
+mac_alg_list(void)
+{
+	char *ret = NULL;
+	size_t nlen, rlen = 0;
+	const struct macalg *m;
+
+	for (m = macs; m->name != NULL; m++) {
+		if (ret != NULL)
+			ret[rlen++] = '\n';
+		nlen = strlen(m->name);
+		ret = xrealloc(ret, 1, rlen + nlen + 2);
+		memcpy(ret + rlen, m->name, nlen + 1);
+		rlen += nlen;
+	}
+	return ret;
+}
+
 static void
-mac_setup_by_id(Mac *mac, int which)
+mac_setup_by_alg(Mac *mac, const struct macalg *macalg)
 {
 	int evp_len;
-	mac->type = macs[which].type;
+
+	mac->type = macalg->type;
 	if (mac->type == SSH_EVP) {
-		mac->evp_md = (*macs[which].mdfunc)();
+		mac->evp_md = macalg->mdfunc();
 		if ((evp_len = EVP_MD_size(mac->evp_md)) <= 0)
 			fatal("mac %s len %d", mac->name, evp_len);
 		mac->key_len = mac->mac_len = (u_int)evp_len;
 	} else {
-		mac->mac_len = macs[which].len / 8;
-		mac->key_len = macs[which].key_len / 8;
+		mac->mac_len = macalg->len / 8;
+		mac->key_len = macalg->key_len / 8;
 		mac->umac_ctx = NULL;
 	}
-	if (macs[which].truncatebits != 0)
-		mac->mac_len = macs[which].truncatebits / 8;
-	mac->etm = macs[which].etm;
+	if (macalg->truncatebits != 0)
+		mac->mac_len = macalg->truncatebits / 8;
+	mac->etm = macalg->etm;
 }
 
 int
 mac_setup(Mac *mac, char *name)
 {
-	int i;
+	const struct macalg *m;
 
-	for (i = 0; macs[i].name; i++) {
-		if (strcmp(name, macs[i].name) == 0) {
-			if (mac != NULL)
-				mac_setup_by_id(mac, i);
-			debug2("mac_setup: found %s", name);
-			return (0);
-		}
+	for (m = macs; m->name != NULL; m++) {
+		if (strcmp(name, m->name) != 0)
+			continue;
+		if (mac != NULL)
+			mac_setup_by_alg(mac, m);
+		debug2("mac_setup: found %s", name);
+		return (0);
 	}
 	debug2("mac_setup: unknown %s", name);
 	return (-1);
@@ -152,12 +174,15 @@ mac_init(Mac *mac)
 u_char *
 mac_compute(Mac *mac, u_int32_t seqno, u_char *data, int datalen)
 {
-	static u_char m[EVP_MAX_MD_SIZE];
+	static union {
+		u_char m[EVP_MAX_MD_SIZE];
+		u_int64_t for_align;
+	} u;
 	u_char b[4], nonce[8];
 
-	if (mac->mac_len > sizeof(m))
+	if (mac->mac_len > sizeof(u))
 		fatal("mac_compute: mac too long %u %lu",
-		    mac->mac_len, (u_long)sizeof(m));
+		    mac->mac_len, (u_long)sizeof(u));
 
 	switch (mac->type) {
 	case SSH_EVP:
@@ -166,22 +191,22 @@ mac_compute(Mac *mac, u_int32_t seqno, u_char *data, int datalen)
 		HMAC_Init(&mac->evp_ctx, NULL, 0, NULL);
 		HMAC_Update(&mac->evp_ctx, b, sizeof(b));
 		HMAC_Update(&mac->evp_ctx, data, datalen);
-		HMAC_Final(&mac->evp_ctx, m, NULL);
+		HMAC_Final(&mac->evp_ctx, u.m, NULL);
 		break;
 	case SSH_UMAC:
 		put_u64(nonce, seqno);
 		umac_update(mac->umac_ctx, data, datalen);
-		umac_final(mac->umac_ctx, m, nonce);
+		umac_final(mac->umac_ctx, u.m, nonce);
 		break;
 	case SSH_UMAC128:
 		put_u64(nonce, seqno);
 		umac128_update(mac->umac_ctx, data, datalen);
-		umac128_final(mac->umac_ctx, m, nonce);
+		umac128_final(mac->umac_ctx, u.m, nonce);
 		break;
 	default:
 		fatal("mac_compute: unknown MAC type");
 	}
-	return (m);
+	return (u.m);
 }
 
 void
@@ -213,13 +238,13 @@ mac_valid(const char *names)
 	    (p = strsep(&cp, MAC_SEP))) {
 		if (mac_setup(NULL, p) < 0) {
 			debug("bad mac %s [%s]", p, names);
-			xfree(maclist);
+			free(maclist);
 			return (0);
 		} else {
 			debug3("mac ok: %s [%s]", p, names);
 		}
 	}
 	debug3("macs ok: [%s]", names);
-	xfree(maclist);
+	free(maclist);
 	return (1);
 }

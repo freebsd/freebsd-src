@@ -37,7 +37,8 @@ enum test_state {
 	RDMA_READ_COMPLETE,
 	RDMA_WRITE_ADV,
 	RDMA_WRITE_COMPLETE,
-	ERROR
+	ERROR,
+	CLEANUP
 };
 
 struct krping_rdma_info {
@@ -100,13 +101,15 @@ struct krping_cb {
 					/* listener on service side. */
 	struct rdma_cm_id *child_cm_id;	/* connection on server side */
 	TAILQ_ENTRY(krping_cb) list;	
-	
+
 	int rlat;			/* run read latency test */
 	int wlat;			/* run write latency test */
 	int bw;				/* run write bw test */
 	int duplex;			/* run write bw full duplex test */
 	int poll;			/* poll vs block in rlat */
 	int txdepth;
+
+	char name[16];
 };
 
 static __inline uint64_t

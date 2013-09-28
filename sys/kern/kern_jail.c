@@ -206,6 +206,7 @@ static char *pr_allow_names[] = {
 	"allow.mount.nullfs",
 	"allow.mount.zfs",
 	"allow.mount.procfs",
+	"allow.mount.tmpfs",
 };
 const size_t pr_allow_names_size = sizeof(pr_allow_names);
 
@@ -221,6 +222,7 @@ static char *pr_allow_nonames[] = {
 	"allow.mount.nonullfs",
 	"allow.mount.nozfs",
 	"allow.mount.noprocfs",
+	"allow.mount.notmpfs",
 };
 const size_t pr_allow_nonames_size = sizeof(pr_allow_nonames);
 
@@ -3883,6 +3885,13 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_VFS_SETGID:
 	case PRIV_VFS_STAT:
 	case PRIV_VFS_STICKYFILE:
+
+		/*
+		 * As in the non-jail case, non-root users are expected to be
+		 * able to read kernel/phyiscal memory (provided /dev/[k]mem
+		 * exists in the jail and they have permission to access it).
+		 */
+	case PRIV_KMEM_READ:
 		return (0);
 
 		/*
@@ -4228,6 +4237,10 @@ SYSCTL_PROC(_security_jail, OID_AUTO, mount_procfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_PROCFS, sysctl_jail_default_allow, "I",
     "Processes in jail can mount the procfs file system");
+SYSCTL_PROC(_security_jail, OID_AUTO, mount_tmpfs_allowed,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    NULL, PR_ALLOW_MOUNT_TMPFS, sysctl_jail_default_allow, "I",
+    "Processes in jail can mount the tmpfs file system");
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_zfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_ZFS, sysctl_jail_default_allow, "I",
@@ -4380,6 +4393,8 @@ SYSCTL_JAIL_PARAM(_allow_mount, nullfs, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount the nullfs file system");
 SYSCTL_JAIL_PARAM(_allow_mount, procfs, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount the procfs file system");
+SYSCTL_JAIL_PARAM(_allow_mount, tmpfs, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may mount the tmpfs file system");
 SYSCTL_JAIL_PARAM(_allow_mount, zfs, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount the zfs file system");
 

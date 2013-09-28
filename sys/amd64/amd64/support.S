@@ -33,7 +33,6 @@
 #include "opt_ddb.h"
 
 #include <machine/asmacros.h>
-#include <machine/intr_machdep.h>
 #include <machine/pmap.h>
 
 #include "assym.s"

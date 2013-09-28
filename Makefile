@@ -242,6 +242,7 @@ cleanworld:
 # skip this for -n to avoid changing previous behavior of 
 # 'make -n buildworld' etc.
 ${TGTS}: .MAKE
+tinderbox toolchains kernel-toolchains: .MAKE
 .endif
 
 ${TGTS}:
@@ -340,7 +341,7 @@ MMAKEENV=	MAKEOBJDIRPREFIX=${MYMAKE:H} \
 MMAKE=		${MMAKEENV} ${MAKE} \
 		-D_UPGRADING \
 		-DNOMAN -DNO_MAN -DNOSHARED -DNO_SHARED \
-		-DNO_CPU_CFLAGS -DNO_WERROR
+		-DNO_CPU_CFLAGS -DNO_WERROR DESTDIR= PROGNAME=${MYMAKE:T}
 
 make bmake: .PHONY
 	@echo
@@ -351,16 +352,18 @@ make bmake: .PHONY
 		${MMAKE} obj && \
 		${MMAKE} depend && \
 		${MMAKE} all && \
-		${MMAKE} install DESTDIR=${MYMAKE:H} BINDIR= PROGNAME=${MYMAKE:T}
+		${MMAKE} install DESTDIR=${MYMAKE:H} BINDIR=
+
+tinderbox toolchains kernel-toolchains: upgrade_checks
 
 tinderbox:
-	@cd ${.CURDIR} && ${MAKE} DOING_TINDERBOX=YES universe
+	@cd ${.CURDIR} && ${SUB_MAKE} DOING_TINDERBOX=YES universe
 
 toolchains:
-	@cd ${.CURDIR} && ${MAKE} UNIVERSE_TARGET=toolchain universe
+	@cd ${.CURDIR} && ${SUB_MAKE} UNIVERSE_TARGET=toolchain universe
 
 kernel-toolchains:
-	@cd ${.CURDIR} && ${MAKE} UNIVERSE_TARGET=kernel-toolchain universe
+	@cd ${.CURDIR} && ${SUB_MAKE} UNIVERSE_TARGET=kernel-toolchain universe
 
 #
 # universe
@@ -371,7 +374,7 @@ kernel-toolchains:
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
 TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64
-TARGET_ARCHES_arm?=	arm armeb armv6 armv6eb
+TARGET_ARCHES_arm?=	arm armeb armv6
 TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32
 TARGET_ARCHES_powerpc?=	powerpc powerpc64
 TARGET_ARCHES_pc98?=	i386
@@ -419,7 +422,7 @@ universe_${target}_prologue: universe_prologue
 .if !defined(MAKE_JUST_KERNELS)
 .for target_arch in ${TARGET_ARCHES_${target}}
 universe_${target}: universe_${target}_${target_arch}
-universe_${target}_${target_arch}: universe_${target}_prologue
+universe_${target}_${target_arch}: universe_${target}_prologue .MAKE
 	@echo ">> ${target}.${target_arch} ${UNIVERSE_TARGET} started on `LC_ALL=C date`"
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
 	    ${SUB_MAKE} ${JFLAG} ${UNIVERSE_TARGET} \
@@ -440,7 +443,7 @@ universe_${target}_kernels: universe_${target}_${target_arch}
 .endfor
 .endif
 universe_${target}: universe_${target}_kernels
-universe_${target}_kernels: universe_${target}_prologue
+universe_${target}_kernels: universe_${target}_prologue .MAKE
 .if exists(${KERNSRCDIR}/${target}/conf/NOTES)
 	@(cd ${KERNSRCDIR}/${target}/conf && env __MAKE_CONF=/dev/null \
 	    ${SUB_MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
@@ -468,7 +471,7 @@ TARGET_ARCH_${kernel}!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 .error "Target architecture for ${TARGET}/conf/${kernel} unknown.  config(8) likely too old."
 .endif
 universe_kernconfs: universe_kernconf_${TARGET}_${kernel}
-universe_kernconf_${TARGET}_${kernel}:
+universe_kernconf_${TARGET}_${kernel}: .MAKE
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
 	    ${SUB_MAKE} ${JFLAG} buildkernel \
 	    TARGET=${TARGET} \
@@ -495,3 +498,11 @@ universe_epilogue:
 
 buildLINT:
 	${MAKE} -C ${.CURDIR}/sys/${_TARGET}/conf LINT
+
+.if defined(.PARSEDIR)
+.if make(universe)
+# we do not want a failure of one branch abort all.
+MAKE_JOB_ERROR_TOKEN= no
+.export MAKE_JOB_ERROR_TOKEN
+.endif
+.endif

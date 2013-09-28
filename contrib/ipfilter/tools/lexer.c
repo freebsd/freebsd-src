@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2002-2006 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
@@ -42,6 +42,7 @@ char		yychars[YYBUFSIZ+1];
 int		yylineNum = 1;
 int		yypos = 0;
 int		yylast = -1;
+int		yydictfixed = 0;
 int		yyexpectaddr = 0;
 int		yybreakondot = 0;
 int		yyvarnext = 0;
@@ -60,7 +61,7 @@ static	void		yystrtotext __P((char *));
 static	char		*yytexttochar __P((void));
 
 static int yygetc(docont)
-int docont;
+	int docont;
 {
 	int c;
 
@@ -98,7 +99,7 @@ int docont;
 
 
 static void yyunputc(c)
-int c;
+	int c;
 {
 	if (c == '\n')
 		yylineNum--;
@@ -107,7 +108,7 @@ int c;
 
 
 static int yyswallow(last)
-int last;
+	int last;
 {
 	int c;
 
@@ -134,7 +135,7 @@ static char *yytexttochar()
 
 
 static void yystrtotext(str)
-char *str;
+	char *str;
 {
 	int len;
 	char *s;
@@ -150,7 +151,7 @@ char *str;
 
 
 static char *yytexttostr(offset, max)
-int offset, max;
+	int offset, max;
 {
 	char *str;
 	int i;
@@ -175,8 +176,11 @@ int offset, max;
 
 int yylex()
 {
+	static int prior = 0;
+	static int priornum = 0;
 	int c, n, isbuilding, rval, lnext, nokey = 0;
 	char *name;
+	int triedv6 = 0;
 
 	isbuilding = 0;
 	lnext = 0;
@@ -190,7 +194,8 @@ int yylex()
 nextchar:
 	c = yygetc(0);
 	if (yydebug > 1)
-		printf("yygetc = (%x) %c [%*.*s]\n", c, c, yypos, yypos, yytexttochar());
+		printf("yygetc = (%x) %c [%*.*s]\n",
+		       c, c, yypos, yypos, yytexttochar());
 
 	switch (c)
 	{
@@ -209,6 +214,8 @@ nextchar:
 			      sizeof(yytext[0]) * (yylast - yypos + 1));
 		}
 		yylast -= yypos;
+		if (yyexpectaddr == 2)
+			yyexpectaddr = 0;
 		yypos = 0;
 		lnext = 0;
 		nokey = 0;
@@ -232,6 +239,7 @@ nextchar:
 	if (lnext == 1) {
 		lnext = 0;
 		if ((isbuilding == 0) && !ISALNUM(c)) {
+			prior = c;
 			return c;
 		}
 		goto nextchar;
@@ -246,7 +254,7 @@ nextchar:
 		}
 		yyswallow('\n');
 		rval = YY_COMMENT;
-		goto nextchar;
+		goto done;
 
 	case '$' :
 		if (isbuilding == 1) {
@@ -320,6 +328,9 @@ nextchar:
 		yybreakondot = 0;
 		yyvarnext = 0;
 		yytokentype = 0;
+		if (yydebug)
+			fprintf(stderr, "reset at EOF\n");
+		prior = 0;
 		return 0;
 	}
 
@@ -344,16 +355,21 @@ nextchar:
 	switch (c)
 	{
 	case '-' :
-		if (yyexpectaddr)
-			break;
-		if (isbuilding == 1)
-			break;
 		n = yygetc(0);
 		if (n == '>') {
 			isbuilding = 1;
 			goto done;
 		}
 		yyunputc(n);
+		if (yyexpectaddr) {
+			if (isbuilding == 1)
+				yyunputc(c);
+			else
+				rval = '-';
+			goto done;
+		}
+		if (isbuilding == 1)
+			break;
 		rval = '-';
 		goto done;
 
@@ -420,13 +436,20 @@ nextchar:
 	 * 0000:0000:0000:0000:0000:0000:0000:0000
 	 */
 #ifdef	USE_INET6
-	if (yyexpectaddr == 1 && isbuilding == 0 && (ishex(c) || c == ':')) {
+	if (yyexpectaddr != 0 && isbuilding == 0 &&
+	    (ishex(c) || isdigit(c) || c == ':')) {
 		char ipv6buf[45 + 1], *s, oc;
 		int start;
 
+buildipv6:
 		start = yypos;
 		s = ipv6buf;
 		oc = c;
+
+		if (prior == YY_NUMBER && c == ':') {
+			sprintf(s, "%d", priornum);
+			s += strlen(s);
+		}
 
 		/*
 		 * Perhaps we should implement stricter controls on what we
@@ -451,7 +474,25 @@ nextchar:
 	}
 #endif
 
-	if (c == ':') {
+	if ((c == ':') && (rval != YY_IPV6) && (triedv6 == 0)) {
+#ifdef	USE_INET6
+		yystr = yytexttostr(0, yypos - 1);
+		if (yystr != NULL) {
+			char *s;
+
+			for (s = yystr; *s && ishex(*s); s++)
+				;
+			if (!*s && *yystr) {
+				isbuilding = 0;
+				c = *yystr;
+				free(yystr);
+				triedv6 = 1;
+				yypos = 1;
+				goto buildipv6;
+			}
+			free(yystr);
+		}
+#endif
 		if (isbuilding == 1) {
 			yyunputc(c);
 			goto done;
@@ -492,8 +533,8 @@ done:
 	yystr = yytexttostr(0, yypos);
 
 	if (yydebug)
-		printf("isbuilding %d yyvarnext %d nokey %d\n",
-		       isbuilding, yyvarnext, nokey);
+		printf("isbuilding %d yyvarnext %d nokey %d fixed %d addr %d\n",
+		       isbuilding, yyvarnext, nokey, yydictfixed, yyexpectaddr);
 	if (isbuilding == 1) {
 		wordtab_t *w;
 
@@ -502,7 +543,7 @@ done:
 
 		if ((yyvarnext == 0) && (nokey == 0)) {
 			w = yyfindkey(yystr);
-			if (w == NULL && yywordtab != NULL) {
+			if (w == NULL && yywordtab != NULL && !yydictfixed) {
 				yyresetdict();
 				w = yyfindkey(yystr);
 			}
@@ -514,14 +555,19 @@ done:
 			rval = YY_STR;
 	}
 
-	if (rval == YY_STR && yysavedepth > 0)
-		yyresetdict();
+	if (rval == YY_STR) {
+		if (yysavedepth > 0 && !yydictfixed)
+			yyresetdict();
+		if (yyexpectaddr != 0)
+			yyexpectaddr = 0;
+	}
 
 	yytokentype = rval;
 
 	if (yydebug)
-		printf("lexed(%s) [%d,%d,%d] => %d @%d\n", yystr, string_start,
-			string_end, pos, rval, yysavedepth);
+		printf("lexed(%s) %d,%d,%d [%d,%d,%d] => %d @%d\n",
+		       yystr, isbuilding, yyexpectaddr, yysavedepth,
+		       string_start, string_end, pos, rval, yysavedepth);
 
 	switch (rval)
 	{
@@ -548,12 +594,15 @@ done:
 		yypos = 0;
 	}
 
+	if (rval == YY_NUMBER)
+		priornum = yylval.num;
+	prior = rval;
 	return rval;
 }
 
 
 static wordtab_t *yyfindkey(key)
-char *key;
+	char *key;
 {
 	wordtab_t *w;
 
@@ -568,7 +617,7 @@ char *key;
 
 
 char *yykeytostr(num)
-int num;
+	int num;
 {
 	wordtab_t *w;
 
@@ -583,7 +632,7 @@ int num;
 
 
 wordtab_t *yysettab(words)
-wordtab_t *words;
+	wordtab_t *words;
 {
 	wordtab_t *save;
 
@@ -594,7 +643,7 @@ wordtab_t *words;
 
 
 void yyerror(msg)
-char *msg;
+	char *msg;
 {
 	char *txt, letter[2];
 	int freetxt = 0;
@@ -620,9 +669,31 @@ char *msg;
 }
 
 
-void yysetdict(newdict)
-wordtab_t *newdict;
+void yysetfixeddict(newdict)
+	wordtab_t *newdict;
 {
+	if (yydebug)
+		printf("yysetfixeddict(%lx)\n", (u_long)newdict);
+
+	if (yysavedepth == sizeof(yysavewords)/sizeof(yysavewords[0])) {
+		fprintf(stderr, "%d: at maximum dictionary depth\n",
+			yylineNum);
+		return;
+	}
+
+	yysavewords[yysavedepth++] = yysettab(newdict);
+	if (yydebug)
+		printf("yysavedepth++ => %d\n", yysavedepth);
+	yydictfixed = 1;
+}
+
+
+void yysetdict(newdict)
+	wordtab_t *newdict;
+{
+	if (yydebug)
+		printf("yysetdict(%lx)\n", (u_long)newdict);
+
 	if (yysavedepth == sizeof(yysavewords)/sizeof(yysavewords[0])) {
 		fprintf(stderr, "%d: at maximum dictionary depth\n",
 			yylineNum);
@@ -643,14 +714,15 @@ void yyresetdict()
 		if (yydebug)
 			printf("yysavedepth-- => %d\n", yysavedepth);
 	}
+	yydictfixed = 0;
 }
 
 
 
 #ifdef	TEST_LEXER
 int main(argc, argv)
-int argc;
-char *argv[];
+	int argc;
+	char *argv[];
 {
 	int n;
 

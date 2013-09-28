@@ -189,7 +189,7 @@
 #define EVENT_UPCALL \
 	cld			; \
 	movq	%rsp, %rdi	; \
-	call	evtchn_do_upcall
+	call	xen_intr_handle_upcall
 
 #define DO_AST_MAYBE \
 	testb	$SEL_RPL_MASK, TF_CS(%rsp) /* are we returning to user mode? */	; \
@@ -212,7 +212,7 @@
 1:
 	
 #define INTR_EXIT \
-	pushq	$0		; \
+	pushq	$0		; /* struct iret_context.flags */ \
 	jmp hypercall_page + (__HYPERVISOR_iret * 32)
 
 #define CALLSYSCALL \

@@ -134,6 +134,7 @@
 
 #define	KPML4I		(NPML4EPG-1)	/* Top 512GB for KVM */
 #define	DMPML4I		rounddown(KPML4I - NDMPML4E, NDMPML4E) /* Below KVM */
+#define        KPML4BASE       (NPML4EPG-NKPML4E) /* KVM at highest addresses */
 
 #define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
 
@@ -191,45 +192,19 @@ pt_entry_t *vtopte(vm_offset_t);
 #endif
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 
-static __inline pt_entry_t
-pte_load(pt_entry_t *ptep)
-{
-	pt_entry_t r;
+#define	pte_load_store(ptep, pte)	atomic_swap_long(ptep, pte)
+#define	pte_load_clear(ptep)		atomic_swap_long(ptep, 0)
+#define	pte_store(ptep, pte) do { \
+	*(u_long *)(ptep) = (u_long)(pte); \
+} while (0)
+#define	pte_clear(ptep)			pte_store(ptep, 0)
 
-	r = *ptep;
-	return (r);
-}
-
-static __inline pt_entry_t
-pte_load_store(pt_entry_t *ptep, pt_entry_t pte)
-{
-	pt_entry_t r;
-
-	__asm __volatile(
-	    "xchgq %0,%1"
-	    : "=m" (*ptep),
-	      "=r" (r)
-	    : "1" (pte),
-	      "m" (*ptep));
-	return (r);
-}
-
-#define	pte_load_clear(pte)	atomic_readandclear_long(pte)
-
-static __inline void
-pte_store(pt_entry_t *ptep, pt_entry_t pte)
-{
-
-	*ptep = pte;
-}
-
-#define	pte_clear(ptep)		pte_store((ptep), (pt_entry_t)0ULL)
-
-#define	pde_store(pdep, pde)	pte_store((pdep), (pde))
+#define	pde_store(pdep, pde)		pte_store(pdep, pde)
 
 #if defined(XEN)
 #include <machine/atomic.h>
-#include <machine/xen/xen-os.h>
+#include <xen/xen-os.h>
+
 #include <machine/xen/xenvar.h>
 #include <machine/xen/xenpmap.h>
 
@@ -266,6 +241,12 @@ struct md_page {
 	int			pat_mode;
 };
 
+enum pmap_type {
+	PT_X86,			/* regular x86 page tables */
+	PT_EPT,			/* Intel's nested page tables */
+	PT_RVI,			/* AMD's nested page tables */
+};
+
 /*
  * The kernel virtual address (KVA) of the level 4 page table page is always
  * within the direct map (DMAP) region.
@@ -273,11 +254,16 @@ struct md_page {
 struct pmap {
 	struct mtx		pm_mtx;
 	pml4_entry_t		*pm_pml4;	/* KVA of level 4 page table */
+	uint64_t		pm_cr3;
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	cpuset_t		pm_active;	/* active on cpus */
-	/* spare u_int here due to padding */
+	cpuset_t		pm_save;	/* Context valid on cpus mask */
+	int			pm_pcid;	/* context id */
+	enum pmap_type		pm_type;	/* regular or nested tables */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct vm_radix		pm_root;	/* spare page table pages */
+	long			pm_eptgen;	/* EPT pmap generation id */
+	int			pm_flags;
 };
 
 typedef struct pmap	*pmap_t;

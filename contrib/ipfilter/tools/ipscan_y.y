@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2001-2004 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
@@ -13,6 +13,7 @@
 #include "kmem.h"
 #include "ipscan_l.h"
 #include "netinet/ip_scan.h"
+#include <ctype.h>
 
 #define	YYDEBUG	1
 
@@ -60,7 +61,7 @@ int		fd = -1;
 
 %token  <num>   YY_NUMBER YY_HEX
 %token  <str>   YY_STR
-%token          YY_COMMENT 
+%token          YY_COMMENT
 %token          YY_CMP_EQ YY_CMP_NE YY_CMP_LE YY_CMP_GE YY_CMP_LT YY_CMP_GT
 %token          YY_RANGE_OUT YY_RANGE_IN
 %token  <ip6>   YY_IPV6
