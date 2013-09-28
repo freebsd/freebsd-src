@@ -104,8 +104,9 @@ SHARED?=	copies
 
 INCS+=	osreldate.h
 
-NEWVERS_SH=		${.CURDIR}/../sys/conf/newvers.sh
-PARAM_H=		${.CURDIR}/../sys/sys/param.h
+SYSDIR=			${.CURDIR}/../sys
+NEWVERS_SH=		${SYSDIR}/conf/newvers.sh
+PARAM_H=		${SYSDIR}/sys/param.h
 MK_OSRELDATE_SH=	${.CURDIR}/mk-osreldate.sh
 
 osreldate.h vers.c: ${NEWVERS_SH} ${PARAM_H} ${MK_OSRELDATE_SH}
@@ -113,6 +114,7 @@ osreldate.h vers.c: ${NEWVERS_SH} ${PARAM_H} ${MK_OSRELDATE_SH}
 	    MAKE="${MAKE}" \
 	    NEWVERS_SH=${NEWVERS_SH} \
 	    PARAM_H=${PARAM_H} \
+	    SYSDIR=${SYSDIR} \
 	    sh ${MK_OSRELDATE_SH}
 
 .for i in ${LHDRS}
