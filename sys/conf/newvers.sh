@@ -38,7 +38,10 @@ if [ "X${BRANCH_OVERRIDE}" != "X" ]; then
 fi
 RELEASE="${REVISION}-${BRANCH}"
 VERSION="${TYPE} ${RELEASE}"
-SYSDIR=$(dirname $0)/..
+
+if [ "X${SYSDIR}" = "X" ]; then
+    SYSDIR=$(dirname $0)/..
+fi
 
 if [ "X${PARAMFILE}" != "X" ]; then
 	RELDATE=$(awk '/__FreeBSD_version.*propagated to newvers/ {print $3}' \
