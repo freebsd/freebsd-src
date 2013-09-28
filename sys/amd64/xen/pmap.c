@@ -125,6 +125,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/mman.h>
 #include <sys/rwlock.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
@@ -1724,13 +1725,116 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 	return (sva);
 }
 
+/*
+ *	Set the physical protection on the
+ *	specified range of this map as requested.
+ */
+
+
 void
 pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
-	/* 
-	 * XXX: TODO - ignore for now - we need to revisit this as
-	 * soon as  kdb is up.
-	 */
+	vm_offset_t addr;
+	vm_offset_t va_next;
+
+	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
+		pmap_remove(pmap, sva, eva);
+		return;
+	}
+
+	if ((prot & (VM_PROT_WRITE|VM_PROT_EXECUTE)) ==
+	    (VM_PROT_WRITE|VM_PROT_EXECUTE))
+		return;
+
+	PMAP_LOCK(pmap);
+
+	/* XXX: unify va range operations over ptes across functions */
+
+	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
+			 * effectively const.
+			 */
+
+	mmu_map_t tptr = tbuf;
+
+	struct mmu_map_mbackend mb = {
+		ptmb_mappedalloc,
+		ptmb_mappedfree,
+		ptmb_ptov,
+		ptmb_vtop
+	};
+	mmu_map_t_init(tptr, &mb);
+
+	for (addr = sva; addr < eva; addr = va_next) {
+		pt_entry_t *pte;
+
+		if (!mmu_map_inspect_va(pmap, tptr, addr)) {
+			if (mmu_map_pdpt(tptr) == NULL) {
+				va_next = (addr + NBPML4) & ~PML4MASK;
+				if (va_next < addr) /* Overflow */
+					va_next = eva;
+				continue;
+			}
+
+			if (mmu_map_pdt(tptr) == NULL) {
+				va_next = (addr + NBPDP) & ~PDPMASK;
+				if (va_next < addr) /* Overflow */
+					va_next = eva;
+				continue;
+			}
+
+
+			if (mmu_map_pt(tptr) == NULL) {
+				va_next = (addr + NBPDR) & ~PDRMASK;
+				if (va_next < addr)
+					va_next = eva;
+				continue;
+			}
+
+			panic("%s: All backing tables non-NULL,"
+			      "yet hierarchy can't be inspected at va = 0x%lx\n", 
+			      __func__, addr);
+		}
+
+		va_next = (addr + NBPDR) & ~PDRMASK;
+		if (va_next < addr)
+			va_next = eva;
+	
+		pte = mmu_map_pt(tptr) + pt_index(addr);
+
+		while (addr < va_next) {
+			pt_entry_t ptetemp;
+			ptetemp = *pte;
+
+			if ((ptetemp & PG_V) == 0) {
+				goto nextpte; /* continue */
+			}
+
+			if ((prot & VM_PROT_WRITE) == 0) {
+				if ((ptetemp & (PG_MANAGED | PG_M | PG_RW)) ==
+				    (PG_MANAGED | PG_M | PG_RW)) {
+					vm_page_t m = MACH_TO_VM_PAGE(ptetemp & PG_FRAME);
+					vm_page_dirty(m);
+				}
+				ptetemp &= ~(PG_RW | PG_M);
+			}
+
+			if ((prot & VM_PROT_EXECUTE) == 0)
+				ptetemp |= pg_nx;
+
+			if (ptetemp != *pte) {
+				PT_SET_VA_MA(pte, ptetemp, true);
+			}
+
+		nextpte:
+			addr += PAGE_SIZE;
+			pte++;
+		}
+	}
+
+	mmu_map_t_fini(tptr);
+
+	PMAP_UNLOCK(pmap);
+
 }
 
 void
@@ -2218,7 +2322,96 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 void
 pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 {
-	KASSERT(0, ("XXX: %s: TODO\n", __func__));
+	vm_offset_t addr;
+	vm_offset_t va_next;
+	vm_page_t m;
+	boolean_t anychanged, pv_lists_locked;
+
+	if (advice != MADV_DONTNEED && advice != MADV_FREE)
+		return;
+	pv_lists_locked = FALSE;
+
+	anychanged = FALSE;
+	PMAP_LOCK(pmap);
+	/* XXX: unify va range operations over ptes across functions */
+
+	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
+			 * effectively const.
+			 */
+
+	mmu_map_t tptr = tbuf;
+
+	struct mmu_map_mbackend mb = {
+		ptmb_mappedalloc,
+		ptmb_mappedfree,
+		ptmb_ptov,
+		ptmb_vtop
+	};
+	mmu_map_t_init(tptr, &mb);
+
+	for (addr = sva; addr < eva; addr = va_next) {
+		pt_entry_t *pte;
+
+		if (!mmu_map_inspect_va(pmap, tptr, addr)) {
+			if (mmu_map_pdpt(tptr) == NULL) {
+				va_next = (addr + NBPML4) & ~PML4MASK;
+				if (va_next < addr) /* Overflow */
+					va_next = eva;
+				continue;
+			}
+
+			if (mmu_map_pdt(tptr) == NULL) {
+				va_next = (addr + NBPDP) & ~PDPMASK;
+				if (va_next < addr) /* Overflow */
+					va_next = eva;
+				continue;
+			}
+
+
+			if (mmu_map_pt(tptr) == NULL) {
+				va_next = (addr + NBPDR) & ~PDRMASK;
+				if (va_next < addr)
+					va_next = eva;
+				continue;
+
+			}
+		}
+		va_next = (addr + NBPDR) & ~PDRMASK;
+		if (va_next > eva)
+			va_next = eva;
+
+		for (pte = mmu_map_pt(tptr) + pt_index(sva); sva != va_next; pte++,
+		    sva += PAGE_SIZE) {
+			if ((*pte & (PG_MANAGED | PG_V)) != (PG_MANAGED |
+			    PG_V))
+				continue;
+			else if ((*pte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
+				if (advice == MADV_DONTNEED) {
+					/*
+					 * Future calls to pmap_is_modified()
+					 * can be avoided by making the page
+					 * dirty now.
+					 */
+					m = PHYS_TO_VM_PAGE(*pte & PG_FRAME);
+					vm_page_dirty(m);
+				}
+				/* XXX: This is not atomic */
+				PT_SET_VA_MA(pte, *pte & ~(PG_M | PG_A), true);
+			} else if ((*pte & PG_A) != 0)
+				/* XXX: This is not atomic */
+				PT_SET_VA_MA(pte, *pte & ~(PG_A), true);
+			else
+				continue;
+			if ((*pte & PG_G) != 0)
+				pmap_invalidate_page(pmap, sva);
+			else
+				anychanged = TRUE;
+		}
+	}
+	if (anychanged)
+		pmap_invalidate_all(pmap);
+	PMAP_UNLOCK(pmap);
+	mmu_map_t_fini(tptr);
 }
 
 void
