@@ -105,6 +105,10 @@ sysctl_handle_attr(SYSCTL_HANDLER_ARGS)
 			/* Trim trailing newline. */
 			buf[len] = '\0';
 		}
+
+		/* Trim trailing newline. */
+		len--;
+		((char*)buf)[len] = '\0';
 	}
 
 	/* Leave one trailing byte to append a newline. */
@@ -184,5 +188,7 @@ sysfs_remove_dir(struct kobject *kobj)
 		return;
 	sysctl_remove_oid(kobj->oidp, 1, 1);
 }
+
+#define sysfs_attr_init(attr) do {} while(0)
 
 #endif	/* _LINUX_SYSFS_H_ */

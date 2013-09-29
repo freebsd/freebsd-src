@@ -1006,7 +1006,7 @@ static struct ib_mr *mthca_reg_phys_mr(struct ib_pd       *pd,
 }
 
 static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
-				       u64 virt, int acc, struct ib_udata *udata)
+				       u64 virt, int acc, struct ib_udata *udata, int mr_id)
 {
 	struct mthca_dev *dev = to_mdev(pd->device);
 	struct ib_umem_chunk *chunk;
@@ -1402,7 +1402,7 @@ int mthca_register_device(struct mthca_dev *dev)
 
 	mutex_init(&dev->cap_mask_mutex);
 
-	ret = ib_register_device(&dev->ib_dev);
+	ret = ib_register_device(&dev->ib_dev, NULL);
 	if (ret)
 		return ret;
 
