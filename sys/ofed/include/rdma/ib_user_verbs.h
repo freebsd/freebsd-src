@@ -82,9 +82,13 @@ enum {
 	IB_USER_VERBS_CMD_QUERY_SRQ,
 	IB_USER_VERBS_CMD_DESTROY_SRQ,
 	IB_USER_VERBS_CMD_POST_SRQ_RECV,
+	IB_USER_VERBS_CMD_OPEN_XRCD,
+	IB_USER_VERBS_CMD_CLOSE_XRCD,
+	IB_USER_VERBS_CMD_CREATE_XSRQ,
+	IB_USER_VERBS_CMD_OPEN_QP,
+	IB_USER_VERBS_CMD_ATTACH_FLOW,
+	IB_USER_VERBS_CMD_DETACH_FLOW,
 	IB_USER_VERBS_CMD_CREATE_XRC_SRQ,
-	IB_USER_VERBS_CMD_OPEN_XRC_DOMAIN,
-	IB_USER_VERBS_CMD_CLOSE_XRC_DOMAIN,
 	IB_USER_VERBS_CMD_CREATE_XRC_RCV_QP,
 	IB_USER_VERBS_CMD_MODIFY_XRC_RCV_QP,
 	IB_USER_VERBS_CMD_QUERY_XRC_RCV_QP,
@@ -228,6 +232,21 @@ struct ib_uverbs_alloc_pd_resp {
 
 struct ib_uverbs_dealloc_pd {
 	__u32 pd_handle;
+};
+
+struct ib_uverbs_open_xrcd {
+	__u64 response;
+	__u32 fd;
+	__u32 oflags;
+	__u64 driver_data[0];
+};
+
+struct ib_uverbs_open_xrcd_resp {
+	__u32 xrcd_handle;
+};
+
+struct ib_uverbs_close_xrcd {
+	__u32 xrcd_handle;
 };
 
 struct ib_uverbs_reg_mr {
@@ -412,6 +431,17 @@ struct ib_uverbs_create_qp {
 	__u64 driver_data[0];
 };
 
+struct ib_uverbs_open_qp {
+	__u64 response;
+	__u64 user_handle;
+	__u32 pd_handle;
+	__u32 qpn;
+	__u8  qp_type;
+	__u8  reserved[7];
+	__u64 driver_data[0];
+};
+
+/* also used for open response */
 struct ib_uverbs_create_qp_resp {
 	__u32 qp_handle;
 	__u32 qpn;
@@ -569,6 +599,16 @@ struct ib_uverbs_send_wr {
 	} wr;
 };
 
+struct ibv_uverbs_flow_spec {
+	__u32  type;
+	__be32 src_ip;
+	__be32 dst_ip;
+	__be16 src_port;
+	__be16 dst_port;
+	__u8   l4_protocol;
+	__u8   block_mc_loopback;
+};
+
 struct ib_uverbs_post_send {
 	__u64 response;
 	__u32 qp_handle;
@@ -646,6 +686,45 @@ struct ib_uverbs_detach_mcast {
 	__u64 driver_data[0];
 };
 
+struct ibv_kern_flow_spec {
+	__u32  type;
+	__u32  reserved1;
+	union {
+		struct {
+			__be16 ethertype;
+			__be16 vlan;
+			__u8 vlan_present;
+			__u8  mac[6];
+			__u8  port;
+		} eth;
+		struct {
+			__be32 qpn;
+		} ib_uc;
+		struct {
+			__u8  mgid[16];
+		} ib_mc;
+	} l2_id;
+	__be32 src_ip;
+	__be32 dst_ip;
+	__be16 src_port;
+	__be16 dst_port;
+	__u8   l4_protocol;
+	__u8   block_mc_loopback;
+	__u8   reserved[2];
+};
+
+struct ib_uverbs_attach_flow {
+	__u32 qp_handle;
+	__u32 priority;
+	struct ibv_kern_flow_spec spec;
+};
+
+struct ib_uverbs_detach_flow {
+	__u32 qp_handle;
+	__u32 priority;
+	struct ibv_kern_flow_spec spec;
+};
+
 struct ib_uverbs_create_srq {
 	__u64 response;
 	__u64 user_handle;
@@ -656,15 +735,17 @@ struct ib_uverbs_create_srq {
 	__u64 driver_data[0];
 };
 
-struct ib_uverbs_create_xrc_srq {
+struct ib_uverbs_create_xsrq {
 	__u64 response;
 	__u64 user_handle;
+	__u32 srq_type;
 	__u32 pd_handle;
 	__u32 max_wr;
 	__u32 max_sge;
 	__u32 srq_limit;
+	__u32 reserved;
 	__u32 xrcd_handle;
-	__u32 xrc_cq;
+	__u32 cq_handle;
 	__u64 driver_data[0];
 };
 
@@ -672,7 +753,7 @@ struct ib_uverbs_create_srq_resp {
 	__u32 srq_handle;
 	__u32 max_wr;
 	__u32 max_sge;
-	__u32 reserved;
+	__u32 srqn;
 };
 
 struct ib_uverbs_modify_srq {
