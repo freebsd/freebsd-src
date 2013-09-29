@@ -121,4 +121,8 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
         return (virt_to_page(page));
 }
 
+#define alloc_pages_node(node, mask, order)     alloc_pages(mask, order)
+
+#define kmalloc_node(chunk, mask, node)         kmalloc(chunk, mask)
+
 #endif	/* _LINUX_GFP_H_ */
