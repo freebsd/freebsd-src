@@ -292,7 +292,8 @@ mac_init(void)
 	mac_labelzone_init();
 
 #ifndef MAC_STATIC
-	rm_init_flags(&mac_policy_rm, "mac_policy_rm", RM_NOWITNESS);
+	rm_init_flags(&mac_policy_rm, "mac_policy_rm", RM_NOWITNESS |
+	    RM_RECURSE);
 	sx_init_flags(&mac_policy_sx, "mac_policy_sx", SX_NOWITNESS);
 #endif
 }
