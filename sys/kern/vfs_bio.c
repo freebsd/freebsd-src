@@ -2624,6 +2624,8 @@ flushbufqueues(struct vnode *lvp, int target, int flushdeps)
 	int hasdeps;
 	int flushed;
 	int queue;
+	int error;
+	bool unlock;
 
 	flushed = 0;
 	queue = QUEUE_DIRTY;
@@ -2699,7 +2701,16 @@ flushbufqueues(struct vnode *lvp, int target, int flushdeps)
 			BUF_UNLOCK(bp);
 			continue;
 		}
-		if (vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_CANRECURSE) == 0) {
+		if (lvp == NULL) {
+			unlock = true;
+			error = vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT);
+		} else {
+			ASSERT_VOP_LOCKED(vp, "getbuf");
+			unlock = false;
+			error = VOP_ISLOCKED(vp) == LK_EXCLUSIVE ? 0 :
+			    vn_lock(vp, LK_TRYUPGRADE);
+		}
+		if (error == 0) {
 			mtx_unlock(&bqdirty);
 			CTR3(KTR_BUF, "flushbufqueue(%p) vp %p flags %X",
 			    bp, bp->b_vp, bp->b_flags);
@@ -2711,7 +2722,8 @@ flushbufqueues(struct vnode *lvp, int target, int flushdeps)
 				notbufdflushes++;
 			}
 			vn_finished_write(mp);
-			VOP_UNLOCK(vp, 0);
+			if (unlock)
+				VOP_UNLOCK(vp, 0);
 			flushwithdeps += hasdeps;
 			flushed++;
 
