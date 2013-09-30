@@ -48,4 +48,5 @@ $COPYRIGHT
 #define __FreeBSD_version $RELDATE
 #endif
 EOF
+chmod 644 $tmpfile
 mv $tmpfile osreldate.h
