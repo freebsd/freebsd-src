@@ -395,7 +395,7 @@ LIB32WMAKEFLAGS+=	\
 		-DNO_LINT
 
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} ${LIB32WMAKEFLAGS} \
-		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_INFO -DWITHOUT_HTML
+		-DWITHOUT_MAN -DWITHOUT_INFO -DWITHOUT_HTML
 LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS \
 		${IMAKE_INSTALL}
 .endif
@@ -484,10 +484,6 @@ _worldtmp:
 	    -p ${WORLDTMP}/legacy/usr/lib >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${WORLDTMP}/usr/lib >/dev/null
-.endif
-.if ${MK_BIND_LIBS} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BIND.include.dist \
-	    -p ${WORLDTMP}/usr/include >/dev/null
 .endif
 .for _mtree in ${LOCAL_MTREE}
 	mtree -deU -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null

@@ -127,7 +127,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libyaml \
 	libz \
 	${_atf} \
-	${_bind} \
 	${_clang}
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
@@ -148,10 +147,6 @@ _atf=		atf
 
 .if ${MK_ATM} != "no"
 _libngatm=	libngatm
-.endif
-
-.if ${MK_BIND} != "no"
-_bind=		bind
 .endif
 
 .if ${MK_BLUETOOTH} != "no"
