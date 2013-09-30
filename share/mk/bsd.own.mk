@@ -255,12 +255,6 @@ __DEFAULT_YES_OPTIONS = \
     ATM \
     AUDIT \
     AUTHPF \
-    BIND_DNSSEC \
-    BIND_ETC \
-    BIND_LIBS_LWRES \
-    BIND_MTREE \
-    BIND_NAMED \
-    BIND_UTILS \
     BINUTILS \
     BLUETOOTH \
     BMAKE \
@@ -367,12 +361,6 @@ __DEFAULT_YES_OPTIONS = \
     ZONEINFO
 
 __DEFAULT_NO_OPTIONS = \
-    BIND \
-    BIND_IDN \
-    BIND_LARGE_FILE \
-    BIND_LIBS \
-    BIND_SIGCHASE \
-    BIND_XML \
     BSD_GREP \
     CLANG_EXTRAS \
     CTF \
@@ -503,20 +491,6 @@ MK_${var}:=	no
 MK_LIBTHR:=	no
 .endif
 
-.if ${MK_LIBTHR} == "no"
-MK_BIND:=	no
-.endif
-
-.if ${MK_BIND} == "no"
-MK_BIND_DNSSEC:= no
-MK_BIND_ETC:=	no
-MK_BIND_LIBS:=	no
-MK_BIND_LIBS_LWRES:= no
-MK_BIND_MTREE:=	no
-MK_BIND_NAMED:=	no
-MK_BIND_UTILS:=	no
-.endif
-
 .if ${MK_ICONV} == "no"
 MK_LIBICONV_COMPAT:=	no
 .endif
@@ -524,14 +498,6 @@ MK_LIBICONV_COMPAT:=	no
 .if ${MK_LDNS} == "no"
 MK_LDNS_UTILS:=	no
 MK_UNBOUND:= no
-.endif
-
-.if ${MK_LDNS_UTILS} != "no"
-MK_BIND_UTILS:=	no
-.endif
-
-.if ${MK_BIND_MTREE} == "no"
-MK_BIND_ETC:=	no
 .endif
 
 .if ${MK_SOURCELESS} == "no"
