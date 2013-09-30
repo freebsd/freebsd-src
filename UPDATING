@@ -31,6 +31,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130930:
+	BIND has been removed from the base system.  If all you need
+	is a local resolver, simply enable and start the local_unbound
+	service instead.  Otherwise, several versions of BIND are
+	available in the ports tree.
+
 20130916:
 	With the addition of unbound(8), a new unbound user is now
 	required during installworld.  "mergemaster -p" can be used to
