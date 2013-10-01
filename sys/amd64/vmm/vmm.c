@@ -896,7 +896,7 @@ vm_handle_hlt(struct vm *vm, int vcpuid, boolean_t *retu)
 static int
 vm_handle_paging(struct vm *vm, int vcpuid, boolean_t *retu)
 {
-	int rv, ftype, prot;
+	int rv, ftype;
 	struct vm_map *map;
 	struct vcpu *vcpu;
 	struct vm_exit *vme;
@@ -909,14 +909,9 @@ vm_handle_paging(struct vm *vm, int vcpuid, boolean_t *retu)
 	    ftype == VM_PROT_WRITE || ftype == VM_PROT_EXECUTE,
 	    ("vm_handle_paging: invalid fault_type %d", ftype));
 
-	/*
-	 * If the mapping exists then the write fault may be intentional
-	 * for doing dirty bit emulation.
-	 */
-	prot = vme->u.paging.protection;
-	if ((prot & VM_PROT_READ) != 0 && ftype == VM_PROT_WRITE) {
-		rv = pmap_emulate_dirty(vmspace_pmap(vm->vmspace),
-					vme->u.paging.gpa);
+	if (ftype == VM_PROT_READ || ftype == VM_PROT_WRITE) {
+		rv = pmap_emulate_accessed_dirty(vmspace_pmap(vm->vmspace),
+		    vme->u.paging.gpa, ftype);
 		if (rv == 0)
 			goto done;
 	}

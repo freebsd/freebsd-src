@@ -65,6 +65,7 @@
 #define	X86_PG_AVAIL3	0x800	/*    \				*/
 #define	X86_PG_PDE_PAT	0x1000	/* PAT	PAT index		*/
 #define	X86_PG_NX	(1ul<<63) /* No-execute */
+#define	X86_PG_AVAIL(x)	(1ul << (x))
 
 /* Page level cache control fields used to determine the PAT type */
 #define X86_PG_PDE_CACHE (X86_PG_PDE_PAT | X86_PG_NC_PWT | X86_PG_NC_PCD)
@@ -73,9 +74,9 @@
 /*
  * Intel extended page table (EPT) bit definitions.
  */
-#define	EPT_PG_RD		0x001	/* R	Read		*/
-#define	EPT_PG_WR		0x002	/* W	Write		*/
-#define	EPT_PG_EX		0x004	/* X	Execute		*/
+#define	EPT_PG_READ		0x001	/* R	Read		*/
+#define	EPT_PG_WRITE		0x002	/* W	Write		*/
+#define	EPT_PG_EXECUTE		0x004	/* X	Execute		*/
 #define	EPT_PG_IGNORE_PAT	0x040	/* IPAT	Ignore PAT	*/
 #define	EPT_PG_PS		0x080	/* PS	Page size	*/
 #define	EPT_PG_A		0x100	/* A	Accessed	*/
@@ -104,23 +105,19 @@
 #define PG_PTE_CACHE	X86_PG_PTE_CACHE
 
 /* Our various interpretations of the above */
-#define PG_W		PG_AVAIL3	/* "Wired" pseudoflag */
-#define	PG_MANAGED	PG_AVAIL2
+#define PG_W		X86_PG_AVAIL3	/* "Wired" pseudoflag */
+#define	PG_MANAGED	X86_PG_AVAIL2
+#define	EPT_PG_EMUL_V	X86_PG_AVAIL(52)
+#define	EPT_PG_EMUL_RW	X86_PG_AVAIL(53)
 #define	PG_FRAME	(0x000ffffffffff000ul)
 #define	PG_PS_FRAME	(0x000fffffffe00000ul)
-
-/*
- * "readonly" pseudo-flag used in pmap entries that require software emulation
- * of accessed/dirty bits.
- */
-#define	PG_RO		(1ul << 52)
 
 /*
  * Promotion to a 2MB (PDE) page mapping requires that the corresponding 4KB
  * (PTE) page mappings have identical settings for the following fields:
  */
 #define	PG_PTE_PROMOTE	(PG_NX | PG_MANAGED | PG_W | PG_G | PG_PTE_CACHE | \
-	    PG_M | PG_A | PG_U | PG_RW | PG_V | PG_RO)
+	    PG_M | PG_A | PG_U | PG_RW | PG_V)
 
 /*
  * Page Protection Exception bits
@@ -150,6 +147,8 @@
 #undef PG_PDE_CACHE
 #undef PG_PTE_PAT
 #undef PG_PTE_CACHE
+#undef PG_RW
+#undef PG_V
 #endif
 
 /*
@@ -315,6 +314,7 @@ struct pmap {
 /* flags */
 #define	PMAP_PDE_SUPERPAGE	(1 << 0)	/* supports 2MB superpages */
 #define	PMAP_EMULATE_AD_BITS	(1 << 1)	/* needs A/D bits emulation */
+#define	PMAP_SUPPORTS_EXEC_ONLY	(1 << 2)	/* execute only mappings ok */
 
 typedef struct pmap	*pmap_t;
 
@@ -334,7 +334,7 @@ extern struct pmap	kernel_pmap_store;
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 
 int pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags);
-int pmap_emulate_dirty(pmap_t pmap, vm_offset_t va);
+int pmap_emulate_accessed_dirty(pmap_t pmap, vm_offset_t va, int ftype);
 #endif
 
 /*

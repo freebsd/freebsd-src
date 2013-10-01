@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "vmx_msr.h"
 #include "ept.h"
 
+#define	EPT_SUPPORTS_EXEC_ONLY(cap)	((cap) & (1UL << 0))
 #define	EPT_PWL4(cap)			((cap) & (1UL << 6))
 #define	EPT_MEMORY_TYPE_WB(cap)		((cap) & (1UL << 14))
 #define	EPT_PDE_SUPERPAGE(cap)		((cap) & (1UL << 16))	/* 2MB pages */
@@ -77,7 +78,7 @@ SYSCTL_INT(_hw_vmm_ept, OID_AUTO, pmap_flags, CTLFLAG_RD,
 int
 ept_init(void)
 {
-	int use_hw_ad_bits, use_superpages;
+	int use_hw_ad_bits, use_superpages, use_exec_only;
 	uint64_t cap;
 
 	cap = rdmsr(MSR_VMX_EPT_VPID_CAP);
@@ -108,6 +109,11 @@ ept_init(void)
 		ept_enable_ad_bits = 1;
 	else
 		ept_pmap_flags |= PMAP_EMULATE_AD_BITS;
+
+	use_exec_only = 1;
+	TUNABLE_INT_FETCH("hw.vmm.ept.use_exec_only", &use_exec_only);
+	if (use_exec_only && EPT_SUPPORTS_EXEC_ONLY(cap))
+		ept_pmap_flags |= PMAP_SUPPORTS_EXEC_ONLY;
 
 	return (0);
 }
