@@ -611,6 +611,7 @@ static int qp_has_rq(struct ib_qp_init_attr *attr)
 	return !attr->srq;
 }
 
+#ifdef __linux__
 static int init_qpg_parent(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *pqp,
 			   struct ib_qp_init_attr *attr, int *qpn)
 {
@@ -791,6 +792,7 @@ static void free_qpg_qpn(struct mlx4_ib_qp *mqp, int qpn)
 		break;
 	}
 }
+#endif
 
 static int alloc_qpn_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 			    struct ib_qp_init_attr *attr, int *qpn)
@@ -811,11 +813,15 @@ static int alloc_qpn_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 		}
 		break;
 	case IB_QPG_PARENT:
+#ifdef __linux__
 		err = init_qpg_parent(dev, qp, attr, qpn);
+#endif
 		break;
 	case IB_QPG_CHILD_TX:
 	case IB_QPG_CHILD_RX:
+#ifdef __linux__
 		err = alloc_qpg_qpn(attr, qp, qpn);
+#endif
 		break;
 	default:
 		qp->qpg_type = IB_QPG_NONE;
@@ -839,11 +845,15 @@ static void free_qpn_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 			mlx4_qp_release_range(dev->dev, qpn, 1);
 		break;
 	case IB_QPG_PARENT:
+#ifdef __linux__
 		free_qpg_parent(dev, qp);
+#endif
 		break;
 	case IB_QPG_CHILD_TX:
 	case IB_QPG_CHILD_RX:
+#ifdef __linux__
 		free_qpg_qpn(qp, qpn);
+#endif
 		break;
 	default:
 		break;
@@ -871,6 +881,10 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	struct mlx4_ib_sqp *sqp;
 	struct mlx4_ib_qp *qp;
 	enum mlx4_ib_qp_type qp_type = (enum mlx4_ib_qp_type) init_attr->qp_type;
+
+#ifndef __linux__
+        init_attr->qpg_type = IB_QPG_NONE;
+#endif
 
 	/* When tunneling special qps, we use a plain UD qp */
 	if (sqpn) {
@@ -1287,6 +1301,7 @@ static u32 get_sqp_num(struct mlx4_ib_dev *dev, struct ib_qp_init_attr *attr)
 		return dev->dev->caps.qp1_proxy[attr->port_num - 1];
 }
 
+#ifdef __linux__
 static int check_qpg_attr(struct mlx4_ib_dev *dev,
 			  struct ib_qp_init_attr *attr)
 {
@@ -1332,6 +1347,7 @@ static int check_qpg_attr(struct mlx4_ib_dev *dev,
 	}
 	return 0;
 }
+#endif
 
 #define RESERVED_FLAGS_MASK ((((unsigned int)IB_QP_CREATE_RESERVED_END - 1) | IB_QP_CREATE_RESERVED_END)   \
 							& ~(IB_QP_CREATE_RESERVED_START - 1))
@@ -1390,9 +1406,11 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 	      init_attr->qp_type > IB_QPT_GSI)))
 		return ERR_PTR(-EINVAL);
 
+#ifdef __linux__
 	err = check_qpg_attr(to_mdev(device), init_attr);
 	if (err)
 		return ERR_PTR(err);
+#endif
 
 	switch (init_attr->qp_type) {
 	case IB_QPT_XRC_TGT:
