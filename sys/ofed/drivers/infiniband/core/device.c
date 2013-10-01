@@ -296,6 +296,8 @@ int ib_register_device(struct ib_device *device,
 	INIT_LIST_HEAD(&device->client_data_list);
 	spin_lock_init(&device->event_handler_lock);
 	spin_lock_init(&device->client_data_lock);
+	device->ib_uverbs_xrcd_table = RB_ROOT;
+	mutex_init(&device->xrcd_table_mutex);
 
 	ret = read_port_table_lengths(device);
 	if (ret) {
