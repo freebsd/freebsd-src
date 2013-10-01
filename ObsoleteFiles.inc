@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20131001: ar and ranlib from binutils not used
+OLD_FILES+=usr/bin/gnu-ar
+OLD_FILES+=usr/bin/gnu-ranlib
 # 20130930: BIND removed from base
 OLD_FILES+=etc/namedb
 OLD_FILES+=etc/periodic/daily/470.status-named
