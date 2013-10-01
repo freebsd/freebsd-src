@@ -2431,7 +2431,7 @@ static void __exit mlx4_ib_cleanup(void)
 
 }
 
-module_init(mlx4_ib_init);
+module_init_order(mlx4_ib_init, SI_ORDER_MIDDLE);
 module_exit(mlx4_ib_cleanup);
 
 #undef MODULE_VERSION
