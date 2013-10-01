@@ -726,6 +726,7 @@ full_search:
 		addr = ALIGN(vma->vm_end, 1 << page_size_order);
 	}
 }
+#endif
 
 static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 {
@@ -780,7 +781,6 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 
 	return 0;
 }
-#endif
 
 static struct ib_pd *mlx4_ib_alloc_pd(struct ib_device *ibdev,
 				      struct ib_ucontext *context,
@@ -1984,8 +1984,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.modify_port	= mlx4_ib_modify_port;
 	ibdev->ib_dev.alloc_ucontext	= mlx4_ib_alloc_ucontext;
 	ibdev->ib_dev.dealloc_ucontext	= mlx4_ib_dealloc_ucontext;
-#ifdef __linux__
 	ibdev->ib_dev.mmap		= mlx4_ib_mmap;
+#ifdef __linux__
 	ibdev->ib_dev.get_unmapped_area = mlx4_ib_get_unmapped_area;
 #endif
 	ibdev->ib_dev.alloc_pd		= mlx4_ib_alloc_pd;
