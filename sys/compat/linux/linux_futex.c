@@ -119,7 +119,7 @@ LIN_SDT_PROBE_DEFINE1(futex, futex_sleep, return, "int");
 LIN_SDT_PROBE_DEFINE3(futex, futex_wake, entry, "struct futex *", "int",
     "uint32_t");
 LIN_SDT_PROBE_DEFINE3(futex, futex_wake, iterate, "uint32_t",
-    "struct waiting_proc *", "uin32_t");
+    "struct waiting_proc *", "uint32_t");
 LIN_SDT_PROBE_DEFINE1(futex, futex_wake, wakeup, "struct waiting_proc *");
 LIN_SDT_PROBE_DEFINE1(futex, futex_wake, return, "int");
 LIN_SDT_PROBE_DEFINE4(futex, futex_requeue, entry, "struct futex *", "int",
