@@ -63,13 +63,9 @@
     ..
     msgs            uname=daemon
     ..
-    named
-    ..
     preserve
     ..
     run
-        named           uname=bind gname=bind
-        ..
         ppp             gname=network mode=0770
         ..
         wpa_supplicant

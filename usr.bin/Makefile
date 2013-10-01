@@ -218,13 +218,6 @@ _atf=		atf
 SUBDIR+=	atm
 .endif
 
-.if ${MK_BIND_UTILS} != "no"
-SUBDIR+=	dig
-SUBDIR+=	host
-SUBDIR+=	nslookup
-SUBDIR+=	nsupdate
-.endif
-
 .if ${MK_BLUETOOTH} != "no"
 SUBDIR+=	bluetooth
 .endif

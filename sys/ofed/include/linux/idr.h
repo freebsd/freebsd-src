@@ -40,6 +40,10 @@
 #define	MAX_ID_MASK	(MAX_ID_BIT - 1)
 #define	MAX_LEVEL	(MAX_ID_SHIFT + IDR_BITS - 1) / IDR_BITS
 
+#define MAX_IDR_SHIFT (sizeof(int)*8 - 1)
+#define MAX_IDR_BIT (1U << MAX_IDR_SHIFT)
+#define MAX_IDR_MASK (MAX_IDR_BIT - 1)
+
 struct idr_layer {
 	unsigned long		bitmap;
 	struct idr_layer	*ary[IDR_SIZE];
