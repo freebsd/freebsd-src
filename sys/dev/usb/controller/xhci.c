@@ -94,6 +94,8 @@ TUNABLE_INT("hw.usb.xhci.debug", &xhcidebug);
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, xhci_port_route, CTLFLAG_RW | CTLFLAG_TUN,
     &xhciroute, 0, "Routing bitmap for switching EHCI ports to XHCI controller");
 TUNABLE_INT("hw.usb.xhci.xhci_port_route", &xhciroute);
+#else
+#define	xhciroute 0
 #endif
 
 #define	XHCI_INTR_ENDPT 1
@@ -178,16 +180,6 @@ xhci_dump_device(struct xhci_softc *sc, struct xhci_slot_ctx *psl)
 	DPRINTFN(5, "dwSctx3=0x%08x\n", xhci_ctx_get_le32(sc, &psl->dwSctx3));
 }
 #endif
-
-uint32_t
-xhci_get_port_route(void)
-{
-#ifdef USB_DEBUG
-	return (0xFFFFFFFFU ^ ((uint32_t)xhciroute));
-#else
-	return (0xFFFFFFFFU);
-#endif
-}
 
 static void
 xhci_iterate_hw_softc(struct usb_bus *bus, usb_bus_mem_sub_cb_t *cb)
@@ -480,6 +472,11 @@ xhci_start_controller(struct xhci_softc *sc)
 	/* catch any lost interrupts */
 	xhci_do_poll(&sc->sc_bus);
 
+	if (sc->sc_port_route != NULL) {
+		/* Route all ports to the XHCI by default */
+		sc->sc_port_route(sc->sc_bus.parent,
+		    ~xhciroute, xhciroute);
+	}
 	return (0);
 }
 
@@ -917,7 +914,7 @@ xhci_check_transfer(struct xhci_softc *sc, struct xhci_trb *trb)
 	}
 }
 
-static void
+static int
 xhci_check_command(struct xhci_softc *sc, struct xhci_trb *trb)
 {
 	if (sc->sc_cmd_addr == trb->qwTrb0) {
@@ -925,16 +922,19 @@ xhci_check_command(struct xhci_softc *sc, struct xhci_trb *trb)
 		sc->sc_cmd_result[0] = trb->dwTrb2;
 		sc->sc_cmd_result[1] = trb->dwTrb3;
 		cv_signal(&sc->sc_cmd_cv);
+		return (1);	/* command match */
 	}
+	return (0);
 }
 
-static void
+static int
 xhci_interrupt_poll(struct xhci_softc *sc)
 {
 	struct usb_page_search buf_res;
 	struct xhci_hw_root *phwr;
 	uint64_t addr;
 	uint32_t temp;
+	int retval = 0;
 	uint16_t i;
 	uint8_t event;
 	uint8_t j;
@@ -974,7 +974,7 @@ xhci_interrupt_poll(struct xhci_softc *sc)
 			xhci_check_transfer(sc, &phwr->hwr_events[i]);
 			break;
 		case XHCI_TRB_EVENT_CMD_COMPLETE:
-			xhci_check_command(sc, &phwr->hwr_events[i]);
+			retval |= xhci_check_command(sc, &phwr->hwr_events[i]);
 			break;
 		default:
 			DPRINTF("Unhandled event = %u\n", event);
@@ -1011,6 +1011,8 @@ xhci_interrupt_poll(struct xhci_softc *sc)
 
 	XWRITE4(sc, runt, XHCI_ERDP_LO(0), (uint32_t)addr);
 	XWRITE4(sc, runt, XHCI_ERDP_HI(0), (uint32_t)(addr >> 32));
+
+	return (retval);
 }
 
 static usb_error_t
@@ -1098,7 +1100,15 @@ xhci_do_command(struct xhci_softc *sc, struct xhci_trb *trb,
 	err = cv_timedwait(&sc->sc_cmd_cv, &sc->sc_bus.bus_mtx,
 	    USB_MS_TO_TICKS(timeout_ms));
 
-	if (err) {
+	/*
+	 * In some error cases event interrupts are not generated.
+	 * Poll one time to see if the command has completed.
+	 */
+	if (err != 0 && xhci_interrupt_poll(sc) != 0) {
+		DPRINTF("Command was completed when polling\n");
+		err = 0;
+	}
+	if (err != 0) {
 		DPRINTFN(0, "Command timeout!\n");
 		err = USB_ERR_TIMEOUT;
 		trb->dwTrb2 = 0;
@@ -1277,6 +1287,14 @@ xhci_set_address(struct usb_device *udev, struct mtx *mtx, uint16_t address)
 		    (address == 0), index);
 
 		if (err != 0) {
+			temp = le32toh(sc->sc_cmd_result[0]);
+			if (address == 0 && sc->sc_port_route != NULL &&
+			    XHCI_TRB_2_ERROR_GET(temp) ==
+			    XHCI_TRB_ERROR_PARAMETER) {
+				/* LynxPoint XHCI - ports are not switchable */
+				/* Un-route all ports from the XHCI */
+				sc->sc_port_route(sc->sc_bus.parent, 0, ~0);
+			}
 			DPRINTF("Could not set address "
 			    "for slot %u.\n", index);
 			if (address != 0)
