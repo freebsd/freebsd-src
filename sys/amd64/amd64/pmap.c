@@ -6592,6 +6592,10 @@ SYSCTL_ULONG(_vm_pmap, OID_AUTO, num_accessed_emulations, CTLFLAG_RW,
 static unsigned long num_superpage_accessed_emulations;
 SYSCTL_ULONG(_vm_pmap, OID_AUTO, num_superpage_accessed_emulations, CTLFLAG_RW,
 	     &num_superpage_accessed_emulations, 0, NULL);
+
+static unsigned long ad_emulation_superpage_promotions;
+SYSCTL_ULONG(_vm_pmap, OID_AUTO, ad_emulation_superpage_promotions, CTLFLAG_RW,
+	     &ad_emulation_superpage_promotions, 0, NULL);
 #endif	/* INVARIANTS */
 
 int
@@ -6602,6 +6606,7 @@ pmap_emulate_accessed_dirty(pmap_t pmap, vm_offset_t va, int ftype)
 	vm_page_t m, mpte;
 	pd_entry_t *pde;
 	pt_entry_t *pte, PG_A, PG_M, PG_RW, PG_V;
+	boolean_t pv_lists_locked;
 
 	KASSERT(ftype == VM_PROT_READ || ftype == VM_PROT_WRITE,
 	    ("pmap_emulate_accessed_dirty: invalid fault type %d", ftype));
@@ -6613,10 +6618,11 @@ pmap_emulate_accessed_dirty(pmap_t pmap, vm_offset_t va, int ftype)
 	PG_M = pmap_modified_bit(pmap);
 	PG_V = pmap_valid_bit(pmap);
 	PG_RW = pmap_rw_bit(pmap);
-	rv = -1;
 
+	rv = -1;
 	lock = NULL;
-	rw_rlock(&pvh_global_lock);
+	pv_lists_locked = FALSE;
+retry:
 	PMAP_LOCK(pmap);
 
 	pde = pmap_pde(pmap, va);
@@ -6644,14 +6650,6 @@ pmap_emulate_accessed_dirty(pmap_t pmap, vm_offset_t va, int ftype)
 		*pte |= PG_M;
 	}
 	*pte |= PG_A;
-	rv = 0;
-
-#ifdef INVARIANTS
-	if (ftype == VM_PROT_WRITE)
-		atomic_add_long(&num_dirty_emulations, 1);
-	else
-		atomic_add_long(&num_accessed_emulations, 1);
-#endif
 
 	/* try to promote the mapping */
 	if (va < VM_MAXUSER_ADDRESS)
@@ -6664,12 +6662,32 @@ pmap_emulate_accessed_dirty(pmap_t pmap, vm_offset_t va, int ftype)
 	if ((mpte == NULL || mpte->wire_count == NPTEPG) &&
 	    pmap_ps_enabled(pmap) &&
 	    (m->flags & PG_FICTITIOUS) == 0 &&
-	    vm_reserv_level_iffullpop(m) == 0)
+	    vm_reserv_level_iffullpop(m) == 0) {
+		if (!pv_lists_locked) {
+			pv_lists_locked = TRUE;
+			if (!rw_try_rlock(&pvh_global_lock)) {
+				PMAP_UNLOCK(pmap);
+				rw_rlock(&pvh_global_lock);
+				goto retry;
+			}
+		}
 		pmap_promote_pde(pmap, pde, va, &lock);
+#ifdef INVARIANTS
+		atomic_add_long(&ad_emulation_superpage_promotions, 1);
+#endif
+	}
+#ifdef INVARIANTS
+	if (ftype == VM_PROT_WRITE)
+		atomic_add_long(&num_dirty_emulations, 1);
+	else
+		atomic_add_long(&num_accessed_emulations, 1);
+#endif
+	rv = 0;		/* success */
 done:
 	if (lock != NULL)
 		rw_wunlock(lock);
-	rw_runlock(&pvh_global_lock);
+	if (pv_lists_locked)
+		rw_runlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
 	return (rv);
 }
