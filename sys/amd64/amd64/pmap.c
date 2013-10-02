@@ -1962,7 +1962,6 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 void
 pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 {
-
 	pt_entry_t *endpte, oldpte, pa, *pte;
 	vm_page_t m;
 	int cache_bits;
@@ -2219,11 +2218,11 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 		/* Wire in kernel global address entries. */
 		for (i = 0; i < NKPML4E; i++) {
 			pmap->pm_pml4[KPML4BASE + i] = (KPDPphys + ptoa(i)) |
-				X86_PG_RW | X86_PG_V | PG_U;
+			    X86_PG_RW | X86_PG_V | PG_U;
 		}
 		for (i = 0; i < ndmpdpphys; i++) {
 			pmap->pm_pml4[DMPML4I + i] = (DMPDPphys + ptoa(i)) |
-				X86_PG_RW | X86_PG_V | PG_U;
+			    X86_PG_RW | X86_PG_V | PG_U;
 		}
 
 		/* install self-referential address mapping entry(s) */
@@ -4656,8 +4655,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 		 */ 
 		PMAP_LOCK(pmap);
 		for (pa = ptepa | pmap_cache_bits(pmap, pat_mode, 1);
-		     pa < ptepa + size;
-		     pa += NBPDR) {
+		    pa < ptepa + size; pa += NBPDR) {
 			pdpg = pmap_allocpde(pmap, addr, NULL);
 			if (pdpg == NULL) {
 				/*
@@ -5658,7 +5656,7 @@ retry:
 					pmap_invalidate_page(pmap, pv->pv_va);
 					demoted = FALSE;
 				} else if (pmap_demote_pde_locked(pmap, pde,
-							    pv->pv_va, &lock)) {
+				    pv->pv_va, &lock)) {
 					/*
 					 * Remove the mapping to a single page
 					 * so that a subsequent access may
@@ -5742,7 +5740,7 @@ small_mappings:
 				 * hard work for unwired pages only.
 				 */
 				pmap_remove_pte(pmap, pte, pv->pv_va,
-						*pde, &free, &lock);
+				    *pde, &free, &lock);
 				pmap_invalidate_page(pmap, pv->pv_va);
 				cleared++;
 				if (pvf == pv)
@@ -6329,7 +6327,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 		if (*pdpe & PG_PS) {
 			if ((*pdpe & X86_PG_PDE_CACHE) != cache_bits_pde) {
 				pmap_pde_attr(pdpe, cache_bits_pde,
-					      X86_PG_PDE_CACHE);
+				    X86_PG_PDE_CACHE);
 				changed = TRUE;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
@@ -6358,7 +6356,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 		if (*pde & PG_PS) {
 			if ((*pde & X86_PG_PDE_CACHE) != cache_bits_pde) {
 				pmap_pde_attr(pde, cache_bits_pde,
-					      X86_PG_PDE_CACHE);
+				    X86_PG_PDE_CACHE);
 				changed = TRUE;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
@@ -6385,7 +6383,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 			pte = pmap_pde_to_pte(pde, tmpva);
 			if ((*pte & X86_PG_PTE_CACHE) != cache_bits_pte) {
 				pmap_pte_attr(pte, cache_bits_pte,
-					      X86_PG_PTE_CACHE);
+				    X86_PG_PTE_CACHE);
 				changed = TRUE;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
