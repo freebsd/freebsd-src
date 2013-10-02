@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .\" Based on rwlock.9 man page
-.Dd November 10, 2007
+.Dd June 25, 2013
 .Dt RMLOCK 9
 .Os
 .Sh NAME
@@ -40,8 +40,10 @@
 .Nm rm_runlock ,
 .Nm rm_wunlock ,
 .Nm rm_wowned ,
+.Nm rm_sleep ,
+.Nm rm_assert ,
 .Nm RM_SYSINIT
-.Nd kernel reader/writer lock optimized for mostly read access patterns
+.Nd kernel reader/writer lock optimized for read-mostly access patterns
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/lock.h
@@ -64,10 +66,17 @@
 .Fn rm_wunlock "struct rmlock *rm"
 .Ft int
 .Fn rm_wowned "struct rmlock *rm"
+.Ft int
+.Fn rm_sleep "void *wchan" "struct rmlock *rm" "int priority" "const char *wmesg" "int timo"
+.Pp
+.Cd "options INVARIANTS"
+.Cd "options INVARIANT_SUPPORT"
+.Ft void
+.Fn rm_assert "struct rmlock *rm" "int what"
 .In sys/kernel.h
 .Fn RM_SYSINIT "name" "struct rmlock *rm" "const char *desc" "int opts"
 .Sh DESCRIPTION
-Mostly reader locks allow shared access to protected data by multiple threads,
+Read-mostly locks allow shared access to protected data by multiple threads,
 or exclusive access by a single thread.
 The threads with shared access are known as
 .Em readers
@@ -76,83 +85,82 @@ A thread with exclusive access is known as a
 .Em writer
 since it can modify protected data.
 .Pp
-Read mostly locks are designed to be efficient for locks almost exclusively
+Read-mostly locks are designed to be efficient for locks almost exclusively
 used as reader locks and as such should be used for protecting data that
 rarely changes.
-Acquiring an exclusive lock after the lock had been locked for shared access
+Acquiring an exclusive lock after the lock has been locked for shared access
 is an expensive operation.
 .Pp
-Although reader/writer locks look very similar to
-.Xr sx 9
-locks, their usage pattern is different.
-Reader/writer locks can be treated as mutexes (see
-.Xr mutex 9 )
-with shared/exclusive semantics unless initialized with
-.Dv RM_SLEEPABLE .
+Normal read-mostly locks are similar to
+.Xr rwlock 9
+locks and follow the same lock ordering rules as
+.Xr rwlock 9
+locks.
+Read-mostly locks have full priority propagation like mutexes.
 Unlike
-.Xr sx 9 ,
-an
-.Nm
-can be locked while holding a non-spin mutex, and an
-.Nm
-cannot be held while sleeping, again unless initialized with
-.Dv RM_SLEEPABLE .
-The
-.Nm
-locks have full priority propagation like mutexes.
-The
+.Xr rwlock 9 ,
+read-mostly locks propagate priority to both readers and writers.
+This is implemented via the
 .Va rm_priotracker
-structure argument supplied in
+structure argument supplied to
 .Fn rm_rlock
 and
-.Fn rm_runlock
-is used to keep track of the read owner(s).
-Another important property is that shared holders of
-.Nm
-can recurse if the lock has been initialized with the
-.Dv LO_RECURSABLE
-option, however exclusive locks are not allowed to recurse.
+.Fn rm_runlock .
+Readers can recurse if the lock is initialized with the
+.Dv RM_RECURSE
+option;
+however, writers are never allowed to recurse.
+.Pp
+Sleepable read-mostly locks are created by passing
+.Dv RM_SLEEPABLE
+to
+.Fn rm_init_flags .
+Unlike normal read-mostly locks,
+sleepable read-mostly locks follow the same lock ordering rules as
+.Xr sx 9
+locks.
+Sleepable read-mostly locks do not propagate priority to writers,
+but they do propagate priority to readers.
+Writers are permitted to sleep while holding a read-mostly lock,
+but readers are not.
+Unlike other sleepable locks such as
+.Xr sx 9
+locks,
+readers must use try operations on other sleepable locks to avoid sleeping.
 .Ss Macros and Functions
 .Bl -tag -width indent
 .It Fn rm_init "struct rmlock *rm" "const char *name"
-Initialize structure located at
-.Fa rm
-as mostly reader lock, described by
-.Fa name .
-The name description is used solely for debugging purposes.
+Initialize the read-mostly lock
+.Fa rm .
+The
+.Fa name
+description is used solely for debugging purposes.
 This function must be called before any other operations
 on the lock.
 .It Fn rm_init_flags "struct rmlock *rm" "const char *name" "int opts"
-Initialize the rm lock just like the
-.Fn rm_init
-function, but specifying a set of optional flags to alter the
-behaviour of
-.Fa rm ,
-through the
+Similar to
+.Fn rm_init ,
+initialize the read-mostly lock
+.Fa rm
+with a set of optional flags.
+The
 .Fa opts
-argument.
-It contains one or more of the following flags:
+arguments contains one or more of the following flags:
 .Bl -tag -width ".Dv RM_NOWITNESS"
 .It Dv RM_NOWITNESS
 Instruct
 .Xr witness 4
 to ignore this lock.
 .It Dv RM_RECURSE
-Allow threads to recursively acquire exclusive locks for
+Allow threads to recursively acquire shared locks for
 .Fa rm .
 .It Dv RM_SLEEPABLE
-Allow writers to sleep while holding the lock.
-Readers must not sleep while holding the lock and can avoid to sleep on
-taking the lock by using
-.Fn rm_try_rlock
-instead of
-.Fn rm_rlock .
+Create a sleepable read-mostly lock.
 .El
 .It Fn rm_rlock "struct rmlock *rm" "struct rm_priotracker* tracker"
 Lock
 .Fa rm
-as a reader.
-Using
+as a reader using
 .Fa tracker
 to track read owners of a lock for priority propagation.
 This data structure is only used internally by
@@ -161,28 +169,32 @@ and must persist until
 .Fn rm_runlock
 has been called.
 This data structure can be allocated on the stack since
-rmlocks cannot be held while sleeping.
+readers cannot sleep.
 If any thread holds this lock exclusively, the current thread blocks,
 and its priority is propagated to the exclusive holder.
 If the lock was initialized with the
-.Dv LO_RECURSABLE
+.Dv RM_RECURSE
 option the
 .Fn rm_rlock
-function can be called when the thread has already acquired reader
+function can be called when the current thread has already acquired reader
 access on
 .Fa rm .
-This is called
-.Dq "recursing on a lock" .
 .It Fn rm_try_rlock "struct rmlock *rm" "struct rm_priotracker* tracker"
 Try to lock
 .Fa rm
 as a reader.
 .Fn rm_try_rlock
 will return 0 if the lock cannot be acquired immediately;
-otherwise the lock will be acquired and a non-zero value will be returned.
+otherwise,
+the lock will be acquired and a non-zero value will be returned.
 Note that
 .Fn rm_try_rlock
 may fail even while the lock is not currently held by a writer.
+If the lock was initialized with the
+.Dv RM_RECURSE
+option,
+.Fn rm_try_rlock
+will succeed if the current thread has already acquired reader access.
 .It Fn rm_wlock "struct rmlock *rm"
 Lock
 .Fa rm
@@ -212,12 +224,63 @@ lock must be unlocked.
 This function returns a non-zero value if the current thread owns an
 exclusive lock on
 .Fa rm .
+.It Fn rm_sleep "void *wchan" "struct rmlock *rm" "int priority" "const char *wmesg" "int timo"
+This function atomically releases
+.Fa rm
+while waiting for an event.
+The
+.Fa rm
+lock must be exclusively locked.
+For more details on the parameters to this function,
+see
+.Xr sleep 9 .
+.It Fn rm_assert "struct rmlock *rm" "int what"
+This function asserts that the
+.Fa rm
+lock is in the state specified by
+.Fa what .
+If the assertions are not true and the kernel is compiled with
+.Cd "options INVARIANTS"
+and
+.Cd "options INVARIANT_SUPPORT" ,
+the kernel will panic.
+Currently the following base assertions are supported:
+.Bl -tag -width ".Dv RA_UNLOCKED"
+.It Dv RA_LOCKED
+Assert that current thread holds either a shared or exclusive lock
+of
+.Fa rm .
+.It Dv RA_RLOCKED
+Assert that current thread holds a shared lock of
+.Fa rm .
+.It Dv RA_WLOCKED
+Assert that current thread holds an exclusive lock of
+.Fa rm .
+.It Dv RA_UNLOCKED
+Assert that current thread holds neither a shared nor exclusive lock of
+.Fa rm .
+.El
+.Pp
+In addition, one of the following optional flags may be specified with
+.Dv RA_LOCKED ,
+.Dv RA_RLOCKED ,
+or
+.Dv RA_WLOCKED :
+.Bl -tag -width ".Dv RA_NOTRECURSED"
+.It Dv RA_RECURSED
+Assert that the current thread holds a recursive lock of
+.Fa rm .
+.It Dv RA_NOTRECURSED
+Assert that the current thread does not hold a recursive lock of
+.Fa rm .
+.El
 .El
 .Sh SEE ALSO
 .Xr locking 9 ,
 .Xr mutex 9 ,
 .Xr panic 9 ,
 .Xr rwlock 9 ,
+.Xr sleep 9 ,
 .Xr sema 9 ,
 .Xr sx 9
 .Sh HISTORY
@@ -249,8 +312,3 @@ implementation uses a single per CPU list shared by all
 rmlocks in the system.
 If rmlocks become popular, hashing to multiple per CPU queues may
 be needed to speed up the writer lock process.
-.Pp
-The
-.Nm
-can currently not be used as a lock argument for condition variable
-wait functions.

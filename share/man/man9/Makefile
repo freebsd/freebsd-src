@@ -1058,12 +1058,15 @@ MLINKS+=rman.9 rman_activate_resource.9 \
 	rman.9 rman_set_bustag.9 \
 	rman.9 rman_set_rid.9 \
 	rman.9 rman_set_virtual.9
-MLINKS+=rmlock.9 rm_destroy.9 \
+MLINKS+=rmlock.9 rm_assert.9 \
+	rmlock.9 rm_destroy.9 \
 	rmlock.9 rm_init.9 \
+	rmlock.9 rm_init_flags.9 \
 	rmlock.9 rm_rlock.9 \
-	rmlock.9 rm_try_rlock.9 \
 	rmlock.9 rm_runlock.9 \
+	rmlock.9 rm_sleep.9 \
 	rmlock.9 RM_SYSINIT.9 \
+	rmlock.9 rm_try_rlock.9 \
 	rmlock.9 rm_wlock.9 \
 	rmlock.9 rm_wowned.9 \
 	rmlock.9 rm_wunlock.9
