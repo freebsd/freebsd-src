@@ -471,6 +471,7 @@ xentimer_attach(device_t dev)
 		error = xen_intr_bind_virq(dev, VIRQ_TIMER, i, xentimer_intr,
 		    NULL, sc, INTR_TYPE_CLK, &pcpu->irq_handle);
 		if (error) {
+		  panic(__func__);
 			device_printf(dev, "Error %d binding VIRQ_TIMER "
 			    "to VCPU %d\n", error, i);
 			return (error);
