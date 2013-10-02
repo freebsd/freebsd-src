@@ -41,6 +41,8 @@ struct random_adaptor *random_adaptor_get(const char *);
 int random_adaptor_register(const char *, struct random_adaptor *);
 void random_adaptor_choose(struct random_adaptor **);
 
+extern struct random_adaptor *random_adaptor;
+
 /*
  * random_adaptor's should be registered prior to
  * random module (SI_SUB_DRIVERS/SI_ORDER_MIDDLE)

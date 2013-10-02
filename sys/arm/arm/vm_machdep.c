@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sf_buf.h>
 #include <sys/syscall.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/unistd.h>
 #include <machine/cpu.h>
@@ -80,16 +81,27 @@ __FBSDID("$FreeBSD$");
 CTASSERT(sizeof(struct switchframe) == 24);
 CTASSERT(sizeof(struct trapframe) == 80);
 
+#ifndef ARM_USE_SMALL_ALLOC
+
 #ifndef NSFBUFS
 #define NSFBUFS		(512 + maxusers * 16)
 #endif
 
-#ifndef ARM_USE_SMALL_ALLOC
+static int nsfbufs;
+static int nsfbufspeak;
+static int nsfbufsused;
+
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
+    "Maximum number of sendfile(2) sf_bufs available");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufspeak, CTLFLAG_RD, &nsfbufspeak, 0,
+    "Number of sendfile(2) sf_bufs at peak usage");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
+    "Number of sendfile(2) sf_bufs in use");
+
 static void     sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
 
 LIST_HEAD(sf_head, sf_buf);
-	
 
 /*
  * A hash table of active sendfile(2) buffers
@@ -106,7 +118,7 @@ static u_int    sf_buf_alloc_want;
  * A lock used to synchronize access to the hash table and free list
  */
 static struct mtx sf_buf_lock;
-#endif
+#endif /* !ARM_USE_SMALL_ALLOC */
 
 /*
  * Finish a fork operation, with process p2 nearly set up.

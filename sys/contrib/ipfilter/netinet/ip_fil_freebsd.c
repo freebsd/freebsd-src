@@ -178,11 +178,13 @@ ipf_timer_func(arg)
 		ipf_slowtimer(softc);
 
 	if (softc->ipf_running == -1 || softc->ipf_running == 1) {
-#if FREEBSD_GE_REV(300000)
+#if 0
 		softc->ipf_slow_ch = timeout(ipf_timer_func, softc, hz/2);
-#else
-		timeout(ipf_timer_func, softc, hz/2);
 #endif
+		callout_init(&softc->ipf_slow_ch, CALLOUT_MPSAFE);
+		callout_reset(&softc->ipf_slow_ch,
+			(hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT,
+			ipf_timer_func, softc);
 	}
 	RWLOCK_EXIT(&softc->ipf_global);
 	SPL_X(s);
@@ -223,8 +225,13 @@ ipfattach(softc)
 	ipid = 0;
 
 	SPL_X(s);
+#if 0
 	softc->ipf_slow_ch = timeout(ipf_timer_func, softc,
 				     (hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT);
+#endif
+	callout_init(&softc->ipf_slow_ch, CALLOUT_MPSAFE);
+	callout_reset(&softc->ipf_slow_ch, (hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT,
+		ipf_timer_func, softc);
 	return 0;
 }
 
@@ -246,9 +253,12 @@ ipfdetach(softc)
 
 	SPL_NET(s);
 
+#if 0
 	if (softc->ipf_slow_ch.callout != NULL)
 		untimeout(ipf_timer_func, softc, softc->ipf_slow_ch);
 	bzero(&softc->ipf_slow, sizeof(softc->ipf_slow));
+#endif
+	callout_drain(&softc->ipf_slow_ch);
 
 #ifndef NETBSD_PF
 	if (ipf_checkp != NULL)

@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.89 2013/02/06 00:20:42 dtucker Exp $
+#	$OpenBSD: sshd_config,v 1.90 2013/05/16 04:09:14 dtucker Exp $
 #	$FreeBSD$
 
 # This is the sshd server system-wide configuration file.  See
@@ -32,6 +32,9 @@
 # Lifetime and size of ephemeral version 1 server key
 #KeyRegenerationInterval 1h
 #ServerKeyBits 1024
+
+# Ciphers and keying
+#RekeyLimit default none
 
 # Logging
 # obsoletes QuietMode and FascistLogging
@@ -115,7 +118,7 @@
 #MaxStartups 10:30:100
 #PermitTunnel no
 #ChrootDirectory none
-#VersionAddendum FreeBSD-20130515
+#VersionAddendum FreeBSD-20130918
 
 # no default banner path
 #Banner none

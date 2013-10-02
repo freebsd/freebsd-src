@@ -12,6 +12,7 @@
 # libcom_err must be built before libpam.
 # libcrypt must be built before libpam.
 # libkvm must be built before libdevstat.
+# libldns must be built before libunbound.
 # msun must be built before libg++ and libstdc++.
 # libmd must be built before libatm, libopie, libradius, and libtacplus.
 # ncurses must be built before libdialog, libedit and libreadline.
@@ -38,6 +39,7 @@ SUBDIR_ORDERED=	${_csu} \
 	libelf \
 	${_libiconv_modules} \
 	libkvm \
+	${_libldns} \
 	msun \
 	libmd \
 	ncurses \
@@ -84,7 +86,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libipx} \
 	libjail \
 	libkiconv \
-	${_libldns} \
 	liblzma \
 	libmagic \
 	libmandoc \
@@ -116,6 +117,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libufs \
 	libugidfw \
 	libulog \
+	${_libunbound} \
 	${_libusbhid} \
 	${_libusb} \
 	${_libvgl} \
@@ -125,7 +127,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libyaml \
 	libz \
 	${_atf} \
-	${_bind} \
 	${_clang}
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
@@ -146,10 +147,6 @@ _atf=		atf
 
 .if ${MK_ATM} != "no"
 _libngatm=	libngatm
-.endif
-
-.if ${MK_BIND} != "no"
-_bind=		bind
 .endif
 
 .if ${MK_BLUETOOTH} != "no"
@@ -259,6 +256,10 @@ _libsmutil=	libsmutil
 
 .if ${MK_TELNET} != "no"
 _libtelnet=	libtelnet
+.endif
+
+.if ${MK_UNBOUND} != "no"
+_libunbound=	libunbound
 .endif
 
 .if ${MK_USB} != "no"

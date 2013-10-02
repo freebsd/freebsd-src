@@ -165,7 +165,12 @@ void	dodebug(char *type);
 /* io.c */
 void	cal(void);
 void	closecal(FILE *);
-FILE	*opencal(void);
+FILE	*opencalin(void);
+FILE	*opencalout(void);
+
+/* calcpp.c */
+void	initcpp(void);
+FILE	*fincludegets(char *buf, int size, FILE *fp);
 
 /* ostern.c / paskha.c */
 int	paskha(int);

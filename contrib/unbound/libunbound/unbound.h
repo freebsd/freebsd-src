@@ -245,7 +245,7 @@ void ub_ctx_delete(struct ub_ctx* ctx);
  * @param val: value of the option.
  * @return: 0 if OK, else error.
  */
-int ub_ctx_set_option(struct ub_ctx* ctx, char* opt, char* val);
+int ub_ctx_set_option(struct ub_ctx* ctx, const char* opt, const char* val);
 
 /**
  * Get an option from the context.
@@ -261,7 +261,7 @@ int ub_ctx_set_option(struct ub_ctx* ctx, char* opt, char* val);
  * 	returned in the string.
  * @return 0 if OK else an error code (malloc failure, syntax error).
  */
-int ub_ctx_get_option(struct ub_ctx* ctx, char* opt, char** str);
+int ub_ctx_get_option(struct ub_ctx* ctx, const char* opt, char** str);
 
 /**
  * setup configuration for the given context.
@@ -273,7 +273,7 @@ int ub_ctx_get_option(struct ub_ctx* ctx, char* opt, char** str);
  * 	routines exist.
  * @return: 0 if OK, else error.
  */
-int ub_ctx_config(struct ub_ctx* ctx, char* fname);
+int ub_ctx_config(struct ub_ctx* ctx, const char* fname);
 
 /**
  * Set machine to forward DNS queries to, the caching resolver to use. 
@@ -292,7 +292,7 @@ int ub_ctx_config(struct ub_ctx* ctx, char* fname);
  * 	If the addr is NULL, forwarding is disabled.
  * @return 0 if OK, else error.
  */
-int ub_ctx_set_fwd(struct ub_ctx* ctx, char* addr);
+int ub_ctx_set_fwd(struct ub_ctx* ctx, const char* addr);
 
 /**
  * Read list of nameservers to use from the filename given.
@@ -308,7 +308,7 @@ int ub_ctx_set_fwd(struct ub_ctx* ctx, char* addr);
  * @param fname: file name string. If NULL "/etc/resolv.conf" is used.
  * @return 0 if OK, else error.
  */
-int ub_ctx_resolvconf(struct ub_ctx* ctx, char* fname);
+int ub_ctx_resolvconf(struct ub_ctx* ctx, const char* fname);
 
 /**
  * Read list of hosts from the filename given.
@@ -321,7 +321,7 @@ int ub_ctx_resolvconf(struct ub_ctx* ctx, char* fname);
  * @param fname: file name string. If NULL "/etc/hosts" is used.
  * @return 0 if OK, else error.
  */
-int ub_ctx_hosts(struct ub_ctx* ctx, char* fname);
+int ub_ctx_hosts(struct ub_ctx* ctx, const char* fname);
 
 /**
  * Add a trust anchor to the given context.
@@ -334,7 +334,7 @@ int ub_ctx_hosts(struct ub_ctx* ctx, char* fname);
  * 	[domainname] [TTL optional] [type] [class optional] [rdata contents]
  * @return 0 if OK, else error.
  */
-int ub_ctx_add_ta(struct ub_ctx* ctx, char* ta);
+int ub_ctx_add_ta(struct ub_ctx* ctx, const char* ta);
 
 /**
  * Add trust anchors to the given context.
@@ -345,7 +345,7 @@ int ub_ctx_add_ta(struct ub_ctx* ctx, char* ta);
  * @param fname: filename of file with keyfile with trust anchors.
  * @return 0 if OK, else error.
  */
-int ub_ctx_add_ta_file(struct ub_ctx* ctx, char* fname);
+int ub_ctx_add_ta_file(struct ub_ctx* ctx, const char* fname);
 
 /**
  * Add trust anchors to the given context.
@@ -357,7 +357,7 @@ int ub_ctx_add_ta_file(struct ub_ctx* ctx, char* fname);
  * 	anchors.
  * @return 0 if OK, else error.
  */
-int ub_ctx_trustedkeys(struct ub_ctx* ctx, char* fname);
+int ub_ctx_trustedkeys(struct ub_ctx* ctx, const char* fname);
 
 /**
  * Set debug output (and error output) to the specified stream.
@@ -442,7 +442,7 @@ int ub_process(struct ub_ctx* ctx);
  * 	in that case (out of memory).
  * @return 0 if OK, else error.
  */
-int ub_resolve(struct ub_ctx* ctx, char* name, int rrtype, 
+int ub_resolve(struct ub_ctx* ctx, const char* name, int rrtype, 
 	int rrclass, struct ub_result** result);
 
 /**
@@ -473,7 +473,7 @@ int ub_resolve(struct ub_ctx* ctx, char* name, int rrtype,
  *	cancel the query.
  * @return 0 if OK, else error.
  */
-int ub_resolve_async(struct ub_ctx* ctx, char* name, int rrtype, 
+int ub_resolve_async(struct ub_ctx* ctx, const char* name, int rrtype, 
 	int rrclass, void* mydata, ub_callback_t callback, int* async_id);
 
 /**

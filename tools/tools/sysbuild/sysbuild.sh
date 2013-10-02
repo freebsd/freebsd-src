@@ -254,6 +254,13 @@ ports_build() (
 			fi
 		fi
 
+		miss=`(cd $p ; make missing ${PORTS_OPTS}) || true`
+
+		if [ "x${miss}" != "x" ] ; then
+			log_it "MISSING for $p:" $miss
+			continue
+		fi
+
 		log_it "build $pn ($p)"
 		(
 			set +e

@@ -2900,8 +2900,8 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	oldpde = *pde;
 	KASSERT((oldpde & (PG_PS | PG_V)) == (PG_PS | PG_V),
 	    ("pmap_demote_pde: oldpde is missing PG_PS and/or PG_V"));
-	mpte = pmap_lookup_pt_page(pmap, va);
-	if (mpte != NULL)
+	if ((oldpde & PG_A) != 0 && (mpte = pmap_lookup_pt_page(pmap, va)) !=
+	    NULL)
 		pmap_remove_pt_page(pmap, mpte);
 	else {
 		KASSERT((oldpde & PG_W) == 0,
@@ -4356,6 +4356,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			continue;
 			
 		if (srcptepaddr & PG_PS) {
+			if ((addr & PDRMASK) != 0 || addr + NBPDR > end_addr)
+				continue;
 			dstmpde = pmap_allocpde(dst_pmap, addr, NULL);
 			if (dstmpde == NULL)
 				break;
@@ -5046,6 +5048,8 @@ retry:
 	rw_runlock(&pvh_global_lock);
 }
 
+#define	PMAP_TS_REFERENCED_MAX	5
+
 /*
  *	pmap_ts_referenced:
  *
@@ -5062,25 +5066,29 @@ int
 pmap_ts_referenced(vm_page_t m)
 {
 	struct md_page *pvh;
-	pv_entry_t pv, pvf, pvn;
+	pv_entry_t pv, pvf;
 	pmap_t pmap;
 	struct rwlock *lock;
-	pd_entry_t oldpde, *pde;
+	pd_entry_t *pde;
 	pt_entry_t *pte;
-	vm_offset_t va;
-	int rtval, pvh_gen, md_gen;
+	vm_paddr_t pa;
+	int cleared, md_gen, not_cleared, pvh_gen;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_ts_referenced: page %p is not managed", m));
+	cleared = 0;
+	pa = VM_PAGE_TO_PHYS(m);
+	lock = PHYS_TO_PV_LIST_LOCK(pa);
+	pvh = pa_to_pvh(pa);
 	rw_rlock(&pvh_global_lock);
-	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
-	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
-	rtval = 0;
 	rw_wlock(lock);
 retry:
-	if ((m->flags & PG_FICTITIOUS) != 0)
+	not_cleared = 0;
+	if ((m->flags & PG_FICTITIOUS) != 0 ||
+	    (pvf = TAILQ_FIRST(&pvh->pv_list)) == NULL)
 		goto small_mappings;
-	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, pvn) {
+	pv = pvf;
+	do {
 		pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
 			pvh_gen = pvh->pv_gen;
@@ -5092,78 +5100,85 @@ retry:
 				goto retry;
 			}
 		}
-		va = pv->pv_va;
-		pde = pmap_pde(pmap, va);
-		oldpde = *pde;
-		if ((oldpde & PG_A) != 0) {
-			if (pmap_demote_pde_locked(pmap, pde, va, &lock)) {
-				if ((oldpde & PG_W) == 0) {
-					/*
-					 * Remove the mapping to a single page
-					 * so that a subsequent access may
-					 * repromote.  Since the underlying
-					 * page table page is fully populated,
-					 * this removal never frees a page
-					 * table page.
-					 */
-					va += VM_PAGE_TO_PHYS(m) - (oldpde &
-					    PG_PS_FRAME);
-					pte = pmap_pde_to_pte(pde, va);
-					pmap_remove_pte(pmap, pte, va, *pde,
-					    NULL, &lock);
-					pmap_invalidate_page(pmap, va);
-					rtval++;
-					if (rtval > 4) {
-						PMAP_UNLOCK(pmap);
-						goto out;
-					}
-				}
-			}
-			KASSERT(lock == VM_PAGE_TO_PV_LIST_LOCK(m),
-			    ("inconsistent pv lock %p %p for page %p",
-			    lock, VM_PAGE_TO_PV_LIST_LOCK(m), m));
+		pde = pmap_pde(pmap, pv->pv_va);
+		if ((*pde & PG_A) != 0) {
+			/*
+			 * Since this reference bit is shared by 512 4KB
+			 * pages, it should not be cleared every time it is
+			 * tested.  Apply a simple "hash" function on the
+			 * physical page number, the virtual superpage number,
+			 * and the pmap address to select one 4KB page out of
+			 * the 512 on which testing the reference bit will
+			 * result in clearing that reference bit.  This
+			 * function is designed to avoid the selection of the
+			 * same 4KB page for every 2MB page mapping.
+			 *
+			 * On demotion, a mapping that hasn't been referenced
+			 * is simply destroyed.  To avoid the possibility of a
+			 * subsequent page fault on a demoted wired mapping,
+			 * always leave its reference bit set.  Moreover,
+			 * since the superpage is wired, the current state of
+			 * its reference bit won't affect page replacement.
+			 */
+			if ((((pa >> PAGE_SHIFT) ^ (pv->pv_va >> PDRSHIFT) ^
+			    (uintptr_t)pmap) & (NPTEPG - 1)) == 0 &&
+			    (*pde & PG_W) == 0) {
+				atomic_clear_long(pde, PG_A);
+				pmap_invalidate_page(pmap, pv->pv_va);
+				cleared++;
+			} else
+				not_cleared++;
 		}
 		PMAP_UNLOCK(pmap);
-	}
+		/* Rotate the PV list if it has more than one entry. */
+		if (TAILQ_NEXT(pv, pv_next) != NULL) {
+			TAILQ_REMOVE(&pvh->pv_list, pv, pv_next);
+			TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_next);
+			pvh->pv_gen++;
+		}
+		if (cleared + not_cleared >= PMAP_TS_REFERENCED_MAX)
+			goto out;
+	} while ((pv = TAILQ_FIRST(&pvh->pv_list)) != pvf);
 small_mappings:
-	if ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
-		pvf = pv;
-		do {
-			pvn = TAILQ_NEXT(pv, pv_next);
+	if ((pvf = TAILQ_FIRST(&m->md.pv_list)) == NULL)
+		goto out;
+	pv = pvf;
+	do {
+		pmap = PV_PMAP(pv);
+		if (!PMAP_TRYLOCK(pmap)) {
+			pvh_gen = pvh->pv_gen;
+			md_gen = m->md.pv_gen;
+			rw_wunlock(lock);
+			PMAP_LOCK(pmap);
+			rw_wlock(lock);
+			if (pvh_gen != pvh->pv_gen || md_gen != m->md.pv_gen) {
+				PMAP_UNLOCK(pmap);
+				goto retry;
+			}
+		}
+		pde = pmap_pde(pmap, pv->pv_va);
+		KASSERT((*pde & PG_PS) == 0,
+		    ("pmap_ts_referenced: found a 2mpage in page %p's pv list",
+		    m));
+		pte = pmap_pde_to_pte(pde, pv->pv_va);
+		if ((*pte & PG_A) != 0) {
+			atomic_clear_long(pte, PG_A);
+			pmap_invalidate_page(pmap, pv->pv_va);
+			cleared++;
+		}
+		PMAP_UNLOCK(pmap);
+		/* Rotate the PV list if it has more than one entry. */
+		if (TAILQ_NEXT(pv, pv_next) != NULL) {
 			TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 			TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 			m->md.pv_gen++;
-			pmap = PV_PMAP(pv);
-			if (!PMAP_TRYLOCK(pmap)) {
-				pvh_gen = pvh->pv_gen;
-				md_gen = m->md.pv_gen;
-				rw_wunlock(lock);
-				PMAP_LOCK(pmap);
-				rw_wlock(lock);
-				if (pvh_gen != pvh->pv_gen ||
-				    md_gen != m->md.pv_gen) {
-					PMAP_UNLOCK(pmap);
-					goto retry;
-				}
-			}
-			pde = pmap_pde(pmap, pv->pv_va);
-			KASSERT((*pde & PG_PS) == 0, ("pmap_ts_referenced:"
-			    " found a 2mpage in page %p's pv list", m));
-			pte = pmap_pde_to_pte(pde, pv->pv_va);
-			if ((*pte & PG_A) != 0) {
-				atomic_clear_long(pte, PG_A);
-				pmap_invalidate_page(pmap, pv->pv_va);
-				rtval++;
-				if (rtval > 4)
-					pvn = NULL;
-			}
-			PMAP_UNLOCK(pmap);
-		} while ((pv = pvn) != NULL && pv != pvf);
-	}
+		}
+	} while ((pv = TAILQ_FIRST(&m->md.pv_list)) != pvf && cleared +
+	    not_cleared < PMAP_TS_REFERENCED_MAX);
 out:
 	rw_wunlock(lock);
 	rw_runlock(&pvh_global_lock);
-	return (rtval);
+	return (cleared + not_cleared);
 }
 
 /*
@@ -5299,7 +5314,9 @@ pmap_clear_modify(vm_page_t m)
 	pv_entry_t next_pv, pv;
 	pd_entry_t oldpde, *pde;
 	pt_entry_t oldpte, *pte;
+	struct rwlock *lock;
 	vm_offset_t va;
+	int md_gen, pvh_gen;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_modify: page %p is not managed", m));
@@ -5314,18 +5331,30 @@ pmap_clear_modify(vm_page_t m)
 	 */
 	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
-	rw_wlock(&pvh_global_lock);
+	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+	rw_rlock(&pvh_global_lock);
+	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
+	rw_wlock(lock);
+restart:
 	if ((m->flags & PG_FICTITIOUS) != 0)
 		goto small_mappings;
-	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) {
 		pmap = PV_PMAP(pv);
-		PMAP_LOCK(pmap);
+		if (!PMAP_TRYLOCK(pmap)) {
+			pvh_gen = pvh->pv_gen;
+			rw_wunlock(lock);
+			PMAP_LOCK(pmap);
+			rw_wlock(lock);
+			if (pvh_gen != pvh->pv_gen) {
+				PMAP_UNLOCK(pmap);
+				goto restart;
+			}
+		}
 		va = pv->pv_va;
 		pde = pmap_pde(pmap, va);
 		oldpde = *pde;
 		if ((oldpde & PG_RW) != 0) {
-			if (pmap_demote_pde(pmap, pde, va)) {
+			if (pmap_demote_pde_locked(pmap, pde, va, &lock)) {
 				if ((oldpde & PG_W) == 0) {
 					/*
 					 * Write protect the mapping to a
@@ -5352,7 +5381,17 @@ pmap_clear_modify(vm_page_t m)
 small_mappings:
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
-		PMAP_LOCK(pmap);
+		if (!PMAP_TRYLOCK(pmap)) {
+			md_gen = m->md.pv_gen;
+			pvh_gen = pvh->pv_gen;
+			rw_wunlock(lock);
+			PMAP_LOCK(pmap);
+			rw_wlock(lock);
+			if (pvh_gen != pvh->pv_gen || md_gen != m->md.pv_gen) {
+				PMAP_UNLOCK(pmap);
+				goto restart;
+			}
+		}
 		pde = pmap_pde(pmap, pv->pv_va);
 		KASSERT((*pde & PG_PS) == 0, ("pmap_clear_modify: found"
 		    " a 2mpage in page %p's pv list", m));
@@ -5363,67 +5402,8 @@ small_mappings:
 		}
 		PMAP_UNLOCK(pmap);
 	}
-	rw_wunlock(&pvh_global_lock);
-}
-
-/*
- *	pmap_clear_reference:
- *
- *	Clear the reference bit on the specified physical page.
- */
-void
-pmap_clear_reference(vm_page_t m)
-{
-	struct md_page *pvh;
-	pmap_t pmap;
-	pv_entry_t next_pv, pv;
-	pd_entry_t oldpde, *pde;
-	pt_entry_t *pte;
-	vm_offset_t va;
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("pmap_clear_reference: page %p is not managed", m));
-	rw_wlock(&pvh_global_lock);
-	if ((m->flags & PG_FICTITIOUS) != 0)
-		goto small_mappings;
-	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
-	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) {
-		pmap = PV_PMAP(pv);
-		PMAP_LOCK(pmap);
-		va = pv->pv_va;
-		pde = pmap_pde(pmap, va);
-		oldpde = *pde;
-		if ((oldpde & PG_A) != 0) {
-			if (pmap_demote_pde(pmap, pde, va)) {
-				/*
-				 * Remove the mapping to a single page so
-				 * that a subsequent access may repromote.
-				 * Since the underlying page table page is
-				 * fully populated, this removal never frees
-				 * a page table page.
-				 */
-				va += VM_PAGE_TO_PHYS(m) - (oldpde &
-				    PG_PS_FRAME);
-				pmap_remove_page(pmap, va, pde, NULL);
-			}
-		}
-		PMAP_UNLOCK(pmap);
-	}
-small_mappings:
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
-		pmap = PV_PMAP(pv);
-		PMAP_LOCK(pmap);
-		pde = pmap_pde(pmap, pv->pv_va);
-		KASSERT((*pde & PG_PS) == 0, ("pmap_clear_reference: found"
-		    " a 2mpage in page %p's pv list", m));
-		pte = pmap_pde_to_pte(pde, pv->pv_va);
-		if (*pte & PG_A) {
-			atomic_clear_long(pte, PG_A);
-			pmap_invalidate_page(pmap, pv->pv_va);
-		}
-		PMAP_UNLOCK(pmap);
-	}
-	rw_wunlock(&pvh_global_lock);
+	rw_wunlock(lock);
+	rw_runlock(&pvh_global_lock);
 }
 
 /*

@@ -409,8 +409,6 @@ tapcreate(struct cdev *dev)
 	const char		*name = NULL;
 	u_char			eaddr[6];
 
-	dev->si_flags &= ~SI_CHEAPCLONE;
-
 	/* allocate driver storage and create device */
 	tp = malloc(sizeof(*tp), M_TAP, M_WAITOK | M_ZERO);
 	mtx_init(&tp->tap_mtx, "tap_mtx", NULL, MTX_DEF);

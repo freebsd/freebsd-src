@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/interface/vcpu.h>
 
 /*--------------------------- Forward Declarations ---------------------------*/
+#ifdef SMP
 static driver_filter_t xen_smp_rendezvous_action;
 static driver_filter_t xen_invltlb;
 static driver_filter_t xen_invlpg;
@@ -70,6 +71,10 @@ static driver_filter_t xen_ipi_bitmap_handler;
 static driver_filter_t xen_cpustop_handler;
 static driver_filter_t xen_cpususpend_handler;
 static driver_filter_t xen_cpustophard_handler;
+#endif
+static void xen_ipi_vectored(u_int vector, int dest);
+static void xen_hvm_cpu_resume(void);
+static void xen_hvm_cpu_init(void);
 
 /*---------------------------- Extern Declarations ---------------------------*/
 /* Variables used by mp_machdep to perform the MMU related IPIs */
@@ -89,10 +94,19 @@ extern pmap_t smp_tlb_pmap;
 extern void pmap_lazyfix_action(void);
 #endif
 
+/* Variables used by mp_machdep to perform the bitmap IPI */
+extern volatile u_int cpu_ipi_pending[MAXCPU];
+
 /*---------------------------------- Macros ----------------------------------*/
 #define	IPI_TO_IDX(ipi) ((ipi) - APIC_IPI_INTS)
 
 /*-------------------------------- Local Types -------------------------------*/
+enum xen_hvm_init_type {
+	XEN_HVM_INIT_COLD,
+	XEN_HVM_INIT_CANCELLED_SUSPEND,
+	XEN_HVM_INIT_RESUME
+};
+
 struct xen_ipi_handler
 {
 	driver_filter_t	*filter;
@@ -102,8 +116,15 @@ struct xen_ipi_handler
 /*-------------------------------- Global Data -------------------------------*/
 enum xen_domain_type xen_domain_type = XEN_NATIVE;
 
+struct cpu_ops xen_hvm_cpu_ops = {
+	.ipi_vectored	= lapic_ipi_vectored,
+	.cpu_init	= xen_hvm_cpu_init,
+	.cpu_resume	= xen_hvm_cpu_resume
+};
+
 static MALLOC_DEFINE(M_XENHVM, "xen_hvm", "Xen HVM PV Support");
 
+#ifdef SMP
 static struct xen_ipi_handler xen_ipis[] = 
 {
 	[IPI_TO_IDX(IPI_RENDEZVOUS)]	= { xen_smp_rendezvous_action,	"r"   },
@@ -119,6 +140,7 @@ static struct xen_ipi_handler xen_ipis[] =
 	[IPI_TO_IDX(IPI_SUSPEND)]	= { xen_cpususpend_handler,	"sp"  },
 	[IPI_TO_IDX(IPI_STOP_HARD)]	= { xen_cpustophard_handler,	"sth" },
 };
+#endif
 
 /**
  * If non-zero, the hypervisor has been configured to use a direct
@@ -129,13 +151,16 @@ int xen_vector_callback_enabled;
 /*------------------------------- Per-CPU Data -------------------------------*/
 DPCPU_DEFINE(struct vcpu_info, vcpu_local_info);
 DPCPU_DEFINE(struct vcpu_info *, vcpu_info);
+#ifdef SMP
 DPCPU_DEFINE(xen_intr_handle_t, ipi_handle[nitems(xen_ipis)]);
+#endif
 
 /*------------------ Hypervisor Access Shared Memory Regions -----------------*/
 /** Hypercall table accessed via HYPERVISOR_*_op() methods. */
 char *hypercall_stubs;
 shared_info_t *HYPERVISOR_shared_info;
 
+#ifdef SMP
 /*---------------------------- XEN PV IPI Handlers ---------------------------*/
 /*
  * This are C clones of the ASM functions found in apic_vector.s
@@ -449,6 +474,22 @@ xen_ipi_vectored(u_int vector, int dest)
 	}
 }
 
+/* XEN diverged cpu operations */
+static void
+xen_hvm_cpu_resume(void)
+{
+	u_int cpuid = PCPU_GET(cpuid);
+
+	/*
+	 * Reset pending bitmap IPIs, because Xen doesn't preserve pending
+	 * event channels on migration.
+	 */
+	cpu_ipi_pending[cpuid] = 0;
+
+	/* register vcpu_info area */
+	xen_hvm_cpu_init();
+}
+
 static void
 xen_cpu_ipi_init(int cpu)
 {
@@ -477,7 +518,7 @@ xen_cpu_ipi_init(int cpu)
 }
 
 static void
-xen_init_ipis(void)
+xen_setup_cpus(void)
 {
 	int i;
 
@@ -496,6 +537,7 @@ xen_init_ipis(void)
 	/* Set the xen pv ipi ops to replace the native ones */
 	cpu_ops.ipi_vectored = xen_ipi_vectored;
 }
+#endif
 
 /*---------------------- XEN Hypervisor Probe and Setup ----------------------*/
 static uint32_t
@@ -579,6 +621,9 @@ xen_hvm_set_callback(device_t dev)
 	struct xen_hvm_param xhp;
 	int irq;
 
+	if (xen_vector_callback_enabled)
+		return;
+
 	xhp.domid = DOMID_SELF;
 	xhp.index = HVM_PARAM_CALLBACK_IRQ;
 	if (xen_feature(XENFEAT_hvm_callback_vector) != 0) {
@@ -637,41 +682,87 @@ xen_hvm_disable_emulated_devices(void)
 	outw(XEN_MAGIC_IOPORT, XMI_UNPLUG_IDE_DISKS|XMI_UNPLUG_NICS);
 }
 
+static void
+xen_hvm_init(enum xen_hvm_init_type init_type)
+{
+	int error;
+	int i;
+
+	if (init_type == XEN_HVM_INIT_CANCELLED_SUSPEND)
+		return;
+
+	error = xen_hvm_init_hypercall_stubs();
+
+	switch (init_type) {
+	case XEN_HVM_INIT_COLD:
+		if (error != 0)
+			return;
+
+		setup_xen_features();
+		cpu_ops = xen_hvm_cpu_ops;
+		break;
+	case XEN_HVM_INIT_RESUME:
+		if (error != 0)
+			panic("Unable to init Xen hypercall stubs on resume");
+
+		/* Clear stale vcpu_info. */
+		CPU_FOREACH(i)
+			DPCPU_ID_SET(i, vcpu_info, NULL);
+		break;
+	default:
+		panic("Unsupported HVM initialization type");
+	}
+
+	xen_vector_callback_enabled = 0;
+	xen_domain_type = XEN_HVM_DOMAIN;
+	xen_hvm_init_shared_info_page();
+	xen_hvm_set_callback(NULL);
+	xen_hvm_disable_emulated_devices();
+} 
+
 void
 xen_hvm_suspend(void)
 {
 }
 
 void
-xen_hvm_resume(void)
+xen_hvm_resume(bool suspend_cancelled)
 {
 
-	xen_hvm_init_hypercall_stubs();
-	xen_hvm_init_shared_info_page();
+	xen_hvm_init(suspend_cancelled ?
+	    XEN_HVM_INIT_CANCELLED_SUSPEND : XEN_HVM_INIT_RESUME);
+
+	/* Register vcpu_info area for CPU#0. */
+	xen_hvm_cpu_init();
 }
  
 static void
-xen_hvm_init(void *dummy __unused)
+xen_hvm_sysinit(void *arg __unused)
 {
+	xen_hvm_init(XEN_HVM_INIT_COLD);
+}
 
-	if (xen_hvm_init_hypercall_stubs() != 0)
-		return;
-
-	xen_domain_type = XEN_HVM_DOMAIN;
-	setup_xen_features();
-	xen_hvm_init_shared_info_page();
-	xen_hvm_set_callback(NULL);
-	xen_hvm_disable_emulated_devices();
-} 
-
-void xen_hvm_init_cpu(void)
+static void
+xen_hvm_cpu_init(void)
 {
 	struct vcpu_register_vcpu_info info;
 	struct vcpu_info *vcpu_info;
 	int cpu, rc;
 
-	cpu = PCPU_GET(acpi_id);
+	if (!xen_domain())
+		return;
+
+	if (DPCPU_GET(vcpu_info) != NULL) {
+		/*
+		 * vcpu_info is already set.  We're resuming
+		 * from a failed migration and our pre-suspend
+		 * configuration is still valid.
+		 */
+		return;
+	}
+
 	vcpu_info = DPCPU_PTR(vcpu_local_info);
+	cpu = PCPU_GET(acpi_id);
 	info.mfn = vtophys(vcpu_info) >> PAGE_SHIFT;
 	info.offset = vtophys(vcpu_info) - trunc_page(vtophys(vcpu_info));
 
@@ -682,6 +773,8 @@ void xen_hvm_init_cpu(void)
 		DPCPU_SET(vcpu_info, vcpu_info);
 }
 
-SYSINIT(xen_hvm_init, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, xen_hvm_init, NULL);
-SYSINIT(xen_init_ipis, SI_SUB_SMP, SI_ORDER_FIRST, xen_init_ipis, NULL);
-SYSINIT(xen_hvm_init_cpu, SI_SUB_INTR, SI_ORDER_FIRST, xen_hvm_init_cpu, NULL);
+SYSINIT(xen_hvm_init, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, xen_hvm_sysinit, NULL);
+#ifdef SMP
+SYSINIT(xen_setup_cpus, SI_SUB_SMP, SI_ORDER_FIRST, xen_setup_cpus, NULL);
+#endif
+SYSINIT(xen_hvm_cpu_init, SI_SUB_INTR, SI_ORDER_FIRST, xen_hvm_cpu_init, NULL);

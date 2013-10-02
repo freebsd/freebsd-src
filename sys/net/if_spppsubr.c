@@ -1200,7 +1200,6 @@ sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 	rv = 0;
 	switch (cmd) {
 	case SIOCAIFADDR:
-	case SIOCSIFDSTADDR:
 		break;
 
 	case SIOCSIFADDR:

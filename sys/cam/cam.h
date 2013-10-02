@@ -40,6 +40,10 @@
 typedef u_int path_id_t;
 typedef u_int target_id_t;
 typedef u_int lun_id_t;
+typedef union {
+	u_int64_t	lun64;
+	u_int8_t	lun[8];
+} lun64_id_t;
 
 #define	CAM_XPT_PATH_ID	((path_id_t)~0)
 #define	CAM_BUS_WILDCARD ((path_id_t)~0)
@@ -120,69 +124,184 @@ enum {
 
 /* CAM  Status field values */
 typedef enum {
-	CAM_REQ_INPROG,		/* CCB request is in progress */
-	CAM_REQ_CMP,		/* CCB request completed without error */
-	CAM_REQ_ABORTED,	/* CCB request aborted by the host */
-	CAM_UA_ABORT,		/* Unable to abort CCB request */
-	CAM_REQ_CMP_ERR,	/* CCB request completed with an error */
-	CAM_BUSY,		/* CAM subsystem is busy */
-	CAM_REQ_INVALID,	/* CCB request was invalid */
-	CAM_PATH_INVALID,	/* Supplied Path ID is invalid */
-	CAM_DEV_NOT_THERE,	/* SCSI Device Not Installed/there */
-	CAM_UA_TERMIO,		/* Unable to terminate I/O CCB request */
-	CAM_SEL_TIMEOUT,	/* Target Selection Timeout */
-	CAM_CMD_TIMEOUT,	/* Command timeout */
-	CAM_SCSI_STATUS_ERROR,	/* SCSI error, look at error code in CCB */
-	CAM_MSG_REJECT_REC,	/* Message Reject Received */
-	CAM_SCSI_BUS_RESET,	/* SCSI Bus Reset Sent/Received */
-	CAM_UNCOR_PARITY,	/* Uncorrectable parity error occurred */
-	CAM_AUTOSENSE_FAIL = 0x10,/* Autosense: request sense cmd fail */
-	CAM_NO_HBA,		/* No HBA Detected error */
-	CAM_DATA_RUN_ERR,	/* Data Overrun error */
-	CAM_UNEXP_BUSFREE,	/* Unexpected Bus Free */
-	CAM_SEQUENCE_FAIL,	/* Target Bus Phase Sequence Failure */
-	CAM_CCB_LEN_ERR,	/* CCB length supplied is inadequate */
-	CAM_PROVIDE_FAIL,	/* Unable to provide requested capability */
-	CAM_BDR_SENT,		/* A SCSI BDR msg was sent to target */
-	CAM_REQ_TERMIO,		/* CCB request terminated by the host */
-	CAM_UNREC_HBA_ERROR,	/* Unrecoverable Host Bus Adapter Error */
-	CAM_REQ_TOO_BIG,	/* The request was too large for this host */
-	CAM_REQUEUE_REQ,	/*
-				 * This request should be requeued to preserve
-				 * transaction ordering.  This typically occurs
-				 * when the SIM recognizes an error that should
-				 * freeze the queue and must place additional
-				 * requests for the target at the sim level
-				 * back into the XPT queue.
-				 */
-	CAM_ATA_STATUS_ERROR,	/* ATA error, look at error code in CCB */
-	CAM_SCSI_IT_NEXUS_LOST,	/* Initiator/Target Nexus lost. */
-	CAM_SMP_STATUS_ERROR,	/* SMP error, look at error code in CCB */
-	CAM_IDE = 0x33,		/* Initiator Detected Error */
-	CAM_RESRC_UNAVAIL,	/* Resource Unavailable */
-	CAM_UNACKED_EVENT,	/* Unacknowledged Event by Host */
-	CAM_MESSAGE_RECV,	/* Message Received in Host Target Mode */
-	CAM_INVALID_CDB,	/* Invalid CDB received in Host Target Mode */
-	CAM_LUN_INVALID,	/* Lun supplied is invalid */
-	CAM_TID_INVALID,	/* Target ID supplied is invalid */
-	CAM_FUNC_NOTAVAIL,	/* The requested function is not available */
-	CAM_NO_NEXUS,		/* Nexus is not established */
-	CAM_IID_INVALID,	/* The initiator ID is invalid */
-	CAM_CDB_RECVD,		/* The SCSI CDB has been received */
-	CAM_LUN_ALRDY_ENA,	/* The LUN is already enabled for target mode */
-	CAM_SCSI_BUSY,		/* SCSI Bus Busy */
+	/* CCB request is in progress */
+	CAM_REQ_INPROG		= 0x00,
 
-	CAM_DEV_QFRZN = 0x40,	/* The DEV queue is frozen w/this err */
+	/* CCB request completed without error */
+	CAM_REQ_CMP		= 0x01,
 
-				/* Autosense data valid for target */
-	CAM_AUTOSNS_VALID = 0x80,
-	CAM_RELEASE_SIMQ = 0x100,/* SIM ready to take more commands */
-	CAM_SIM_QUEUED   = 0x200,/* SIM has this command in it's queue */
+	/* CCB request aborted by the host */
+	CAM_REQ_ABORTED		= 0x02,
 
-	CAM_STATUS_MASK = 0x3F,	/* Mask bits for just the status # */
+	/* Unable to abort CCB request */
+	CAM_UA_ABORT		= 0x03,
 
-				/* Target Specific Adjunct Status */
-	CAM_SENT_SENSE = 0x40000000	/* sent sense with status */
+	/* CCB request completed with an error */
+	CAM_REQ_CMP_ERR		= 0x04,
+
+	/* CAM subsystem is busy */
+	CAM_BUSY		= 0x05,
+
+	/* CCB request was invalid */
+	CAM_REQ_INVALID		= 0x06,
+
+	/* Supplied Path ID is invalid */
+	CAM_PATH_INVALID	= 0x07,
+
+	/* SCSI Device Not Installed/there */
+	CAM_DEV_NOT_THERE	= 0x08,
+
+	/* Unable to terminate I/O CCB request */
+	CAM_UA_TERMIO		= 0x09,
+
+	/* Target Selection Timeout */
+	CAM_SEL_TIMEOUT		= 0x0a,
+
+	/* Command timeout */
+	CAM_CMD_TIMEOUT		= 0x0b,
+
+	/* SCSI error, look at error code in CCB */
+	CAM_SCSI_STATUS_ERROR	= 0x0c,
+
+	/* Message Reject Received */
+	CAM_MSG_REJECT_REC	= 0x0d,
+
+	/* SCSI Bus Reset Sent/Received */
+	CAM_SCSI_BUS_RESET	= 0x0e,
+
+	/* Uncorrectable parity error occurred */
+	CAM_UNCOR_PARITY	= 0x0f,
+
+	/* Autosense: request sense cmd fail */
+	CAM_AUTOSENSE_FAIL	= 0x10,
+
+	/* No HBA Detected error */
+	CAM_NO_HBA		= 0x11,
+
+	/* Data Overrun error */
+	CAM_DATA_RUN_ERR	= 0x12,
+
+	/* Unexpected Bus Free */
+	CAM_UNEXP_BUSFREE	= 0x13,
+
+	/* Target Bus Phase Sequence Failure */
+	CAM_SEQUENCE_FAIL	= 0x14,
+
+	/* CCB length supplied is inadequate */
+	CAM_CCB_LEN_ERR		= 0x15,
+
+	/* Unable to provide requested capability*/
+	CAM_PROVIDE_FAIL	= 0x16,
+
+	/* A SCSI BDR msg was sent to target */
+	CAM_BDR_SENT		= 0x17,
+
+	/* CCB request terminated by the host */
+	CAM_REQ_TERMIO		= 0x18,
+
+	/* Unrecoverable Host Bus Adapter Error */
+	CAM_UNREC_HBA_ERROR	= 0x19,
+
+	/* Request was too large for this host */
+	CAM_REQ_TOO_BIG		= 0x1a,
+
+	/*
+	 * This request should be requeued to preserve
+	 * transaction ordering.  This typically occurs
+	 * when the SIM recognizes an error that should
+	 * freeze the queue and must place additional
+	 * requests for the target at the sim level
+	 * back into the XPT queue.
+	 */
+	CAM_REQUEUE_REQ		= 0x1b,
+
+	/* ATA error, look at error code in CCB */
+	CAM_ATA_STATUS_ERROR	= 0x1c,
+
+	/* Initiator/Target Nexus lost. */
+	CAM_SCSI_IT_NEXUS_LOST	= 0x1d,
+
+	/* SMP error, look at error code in CCB */
+	CAM_SMP_STATUS_ERROR	= 0x1e,
+
+	/*
+	 * Command completed without error but  exceeded the soft
+	 * timeout threshold.
+	 */
+	CAM_REQ_SOFTTIMEOUT	= 0x1f,
+
+	/*
+	 * 0x20 - 0x32 are unassigned
+	 */
+
+	/* Initiator Detected Error */
+	CAM_IDE			= 0x33,
+
+	/* Resource Unavailable */
+	CAM_RESRC_UNAVAIL	= 0x34,
+
+	/* Unacknowledged Event by Host */
+	CAM_UNACKED_EVENT	= 0x35,
+
+	/* Message Received in Host Target Mode */
+	CAM_MESSAGE_RECV	= 0x36,
+
+	/* Invalid CDB received in Host Target Mode */
+	CAM_INVALID_CDB		= 0x37,
+
+	/* Lun supplied is invalid */
+	CAM_LUN_INVALID		= 0x38,
+
+	/* Target ID supplied is invalid */
+	CAM_TID_INVALID		= 0x39,
+
+	/* The requested function is not available */
+	CAM_FUNC_NOTAVAIL	= 0x3a,
+
+	/* Nexus is not established */
+	CAM_NO_NEXUS		= 0x3b,
+
+	/* The initiator ID is invalid */
+	CAM_IID_INVALID		= 0x3c,
+
+	/* The SCSI CDB has been received */
+	CAM_CDB_RECVD		= 0x3d,
+
+	/* The LUN is already enabled for target mode */
+	CAM_LUN_ALRDY_ENA	= 0x3e,
+
+	/* SCSI Bus Busy */
+	CAM_SCSI_BUSY		= 0x3f,
+
+
+	/*
+	 * Flags
+	 */
+
+	/* The DEV queue is frozen w/this err */
+	CAM_DEV_QFRZN		= 0x40,
+
+	/* Autosense data valid for target */
+	CAM_AUTOSNS_VALID	= 0x80,
+
+	/* SIM ready to take more commands */
+	CAM_RELEASE_SIMQ	= 0x100,
+
+	/* SIM has this command in it's queue */
+	CAM_SIM_QUEUED		= 0x200,
+
+	/* Quality of service data is valid */
+	CAM_QOS_VALID		= 0x400,
+
+	/* Mask bits for just the status # */
+	CAM_STATUS_MASK = 0x3F,
+
+	/*
+	 * Target Specific Adjunct Status
+	 */
+	
+	/* sent sense with status */
+	CAM_SENT_SENSE		= 0x40000000
 } cam_status;
 
 typedef enum {

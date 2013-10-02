@@ -1,4 +1,6 @@
 
+       _Ἀπόδοτε οὖν τὰ Καίσαρος Καίσαρι καὶ τὰ τοῦ Θεοῦ τῷ Θεῷ_
+
 The OpenPAM library was developed for the FreeBSD Project by ThinkSec AS
 and Network Associates Laboratories, the Security Research Division of
 Network Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
@@ -21,12 +23,14 @@ ideas:
 	Don Lewis <truckman@freebsd.org>
 	Emmanuel Dreyfus <manu@netbsd.org>
 	Eric Melville <eric@freebsd.org>
+	Espen Grøndahl <espegro@usit.uio.no>
 	Gary Winiger <gary.winiger@sun.com>
 	Gleb Smirnoff <glebius@freebsd.org>
 	Hubert Feyrer <hubert@feyrer.de>
 	Jason Evans <jasone@freebsd.org>
 	Joe Marcus Clarke <marcus@freebsd.org>
 	Juli Mallett <jmallett@freebsd.org>
+	Ankita Pal <pal.ankita.ankita@gmail.com>
 	Jörg Sonnenberger <joerg@britannica.bec.de>
 	Maëlle Lesage <lesage.maelle@gmail.com>
 	Mark Murray <markm@freebsd.org>
@@ -43,4 +47,4 @@ ideas:
 	Wojciech A. Koszek <wkoszek@freebsd.org>
 	Yar Tikhiy <yar@freebsd.org>
 
-$Id: CREDITS 587 2012-04-08 11:12:10Z des $
+$Id: CREDITS 648 2013-03-05 17:54:27Z des $

@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.h,v 1.20 2010/12/04 00:18:01 djm Exp $ */
+/* $OpenBSD: sftp-client.h,v 1.21 2013/07/25 00:56:51 djm Exp $ */
 
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
@@ -106,13 +106,13 @@ int do_symlink(struct sftp_conn *, char *, char *);
  * Download 'remote_path' to 'local_path'. Preserve permissions and times
  * if 'pflag' is set
  */
-int do_download(struct sftp_conn *, char *, char *, Attrib *, int);
+int do_download(struct sftp_conn *, char *, char *, Attrib *, int, int);
 
 /*
  * Recursively download 'remote_directory' to 'local_directory'. Preserve 
  * times if 'pflag' is set
  */
-int download_dir(struct sftp_conn *, char *, char *, Attrib *, int, int);
+int download_dir(struct sftp_conn *, char *, char *, Attrib *, int, int, int);
 
 /*
  * Upload 'local_path' to 'remote_path'. Preserve permissions and times
