@@ -141,6 +141,25 @@ typedef struct tcpinfo {
 	struct tcphdr *tcp_hdr;		/* raw TCP header */
 } tcpinfo_t;
 
+/*
+ * A clone of tcpinfo_t used to handle the fact that the TCP input path
+ * overwrites some fields of the TCP header with their host-order equivalents.
+ * Unfortunately, DTrace doesn't let us simply typedef a new name for struct
+ * tcpinfo and define a separate translator for it.
+ */
+typedef struct tcpinfoh {
+	uint16_t tcp_sport;		/* source port */
+	uint16_t tcp_dport;		/* destination port */
+	uint32_t tcp_seq;		/* sequence number */
+	uint32_t tcp_ack;		/* acknowledgment number */
+	uint8_t tcp_offset;		/* data offset, in bytes */
+	uint8_t tcp_flags;		/* flags */
+	uint16_t tcp_window;		/* window size */
+	uint16_t tcp_checksum;		/* checksum */
+	uint16_t tcp_urgent;		/* urgent data pointer */
+	struct tcphdr *tcp_hdr;		/* raw TCP header */
+} tcpinfoh_t;
+
 #pragma D binding "1.0" translator
 translator csinfo_t < struct tcpcb *p > {
 	cs_addr =	NULL;
@@ -180,7 +199,7 @@ translator tcpsinfo_t < struct tcpcb *p > {
 	tcps_sack_snxt =	p == NULL ? 0  : p->sack_newdata;
 	tcps_rto =		p == NULL ? -1  : p->t_rxtcur / 1000; /* XXX */
 	tcps_mss =		p == NULL ? -1  : p->t_maxseg;
-	tcps_retransmit =	-1; /* XXX */
+	tcps_retransmit =	p == NULL ? -1 : p->t_rxtshift > 0 ? 1 : 0;
 };
 
 #pragma D binding "1.0" translator
@@ -194,6 +213,25 @@ translator tcpinfo_t < struct tcphdr *p > {
 	tcp_window =	p == NULL ? 0  : ntohs(p->th_win);
 	tcp_checksum =	p == NULL ? 0  : ntohs(p->th_sum);
 	tcp_urgent =	p == NULL ? 0  : ntohs(p->th_urp);
+	tcp_hdr =	(struct tcphdr *)p;
+};
+
+/*
+ * This translator differs from the one for tcpinfo_t in that the sequence
+ * number, acknowledgement number, window size and urgent pointer are already
+ * in host order and thus don't need to be converted.
+ */
+#pragma D binding "1.0" translator
+translator tcpinfoh_t < struct tcphdr *p > {
+	tcp_sport =	p == NULL ? 0  : ntohs(p->th_sport);
+	tcp_dport =	p == NULL ? 0  : ntohs(p->th_dport);
+	tcp_seq =	p == NULL ? -1 : p->th_seq;
+	tcp_ack =	p == NULL ? -1 : p->th_ack;
+	tcp_offset =	p == NULL ? -1 : (p->th_off >> 2);
+	tcp_flags =	p == NULL ? 0  : p->th_flags;
+	tcp_window =	p == NULL ? 0  : (p->th_win);
+	tcp_checksum =	p == NULL ? 0  : ntohs(p->th_sum);
+	tcp_urgent =	p == NULL ? 0  : p->th_urp;
 	tcp_hdr =	(struct tcphdr *)p;
 };
 
