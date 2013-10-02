@@ -77,7 +77,6 @@ TARGET_ARCH="${TARGET}"
 # ports/ checkout also forces NODOC to be set.
 NODOC=
 NOPORTS=
-MAKE_FLAGS="${MAKE_FLAGS}"
 
 get_rev_branch () {
 	# Set up the OSVERSION, BRANCH, and REVISION based on the src/ tree
