@@ -51,11 +51,11 @@
  */
 				/* ---- Intel Nomenclature ---- */
 #define	X86_PG_V	0x001	/* P	Valid			*/
-#define X86_PG_RW	0x002	/* R/W	Read/Write		*/
-#define X86_PG_U	0x004	/* U/S  User/Supervisor		*/
+#define	X86_PG_RW	0x002	/* R/W	Read/Write		*/
+#define	X86_PG_U	0x004	/* U/S  User/Supervisor		*/
 #define	X86_PG_NC_PWT	0x008	/* PWT	Write through		*/
 #define	X86_PG_NC_PCD	0x010	/* PCD	Cache disable		*/
-#define X86_PG_A	0x020	/* A	Accessed		*/
+#define	X86_PG_A	0x020	/* A	Accessed		*/
 #define	X86_PG_M	0x040	/* D	Dirty			*/
 #define	X86_PG_PS	0x080	/* PS	Page size (0=4k,1=2M)	*/
 #define	X86_PG_PTE_PAT	0x080	/* PAT	PAT index		*/
@@ -68,8 +68,8 @@
 #define	X86_PG_AVAIL(x)	(1ul << (x))
 
 /* Page level cache control fields used to determine the PAT type */
-#define X86_PG_PDE_CACHE (X86_PG_PDE_PAT | X86_PG_NC_PWT | X86_PG_NC_PCD)
-#define X86_PG_PTE_CACHE (X86_PG_PTE_PAT | X86_PG_NC_PWT | X86_PG_NC_PCD)
+#define	X86_PG_PDE_CACHE (X86_PG_PDE_PAT | X86_PG_NC_PWT | X86_PG_NC_PCD)
+#define	X86_PG_PTE_CACHE (X86_PG_PTE_PAT | X86_PG_NC_PWT | X86_PG_NC_PCD)
 
 /*
  * Intel extended page table (EPT) bit definitions.
@@ -87,11 +87,11 @@
  * Define the PG_xx macros in terms of the bits on x86 PTEs.
  */
 #define	PG_V		X86_PG_V
-#define PG_RW		X86_PG_RW
-#define PG_U		X86_PG_U
+#define	PG_RW		X86_PG_RW
+#define	PG_U		X86_PG_U
 #define	PG_NC_PWT	X86_PG_NC_PWT
 #define	PG_NC_PCD	X86_PG_NC_PCD
-#define PG_A		X86_PG_A
+#define	PG_A		X86_PG_A
 #define	PG_M		X86_PG_M
 #define	PG_PS		X86_PG_PS
 #define	PG_PTE_PAT	X86_PG_PTE_PAT
@@ -101,11 +101,11 @@
 #define	PG_AVAIL3	X86_PG_AVAIL3
 #define	PG_PDE_PAT	X86_PG_PDE_PAT
 #define	PG_NX		X86_PG_NX
-#define PG_PDE_CACHE	X86_PG_PDE_CACHE
-#define PG_PTE_CACHE	X86_PG_PTE_CACHE
+#define	PG_PDE_CACHE	X86_PG_PDE_CACHE
+#define	PG_PTE_CACHE	X86_PG_PTE_CACHE
 
 /* Our various interpretations of the above */
-#define PG_W		X86_PG_AVAIL3	/* "Wired" pseudoflag */
+#define	PG_W		X86_PG_AVAIL3	/* "Wired" pseudoflag */
 #define	PG_MANAGED	X86_PG_AVAIL2
 #define	EPT_PG_EMUL_V	X86_PG_AVAIL(52)
 #define	EPT_PG_EMUL_RW	X86_PG_AVAIL(53)
@@ -333,8 +333,8 @@ extern struct pmap	kernel_pmap_store;
 #define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 
-int pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags);
-int pmap_emulate_accessed_dirty(pmap_t pmap, vm_offset_t va, int ftype);
+int	pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags);
+int	pmap_emulate_accessed_dirty(pmap_t pmap, vm_offset_t va, int ftype);
 #endif
 
 /*
