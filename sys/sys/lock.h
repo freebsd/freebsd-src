@@ -192,6 +192,7 @@ extern struct lock_class lock_class_mtx_spin;
 extern struct lock_class lock_class_sx;
 extern struct lock_class lock_class_rw;
 extern struct lock_class lock_class_rm;
+extern struct lock_class lock_class_rm_sleepable;
 extern struct lock_class lock_class_lockmgr;
 
 extern struct lock_class *lock_classes[];
