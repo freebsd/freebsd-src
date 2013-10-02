@@ -22,7 +22,7 @@
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011, Joyent, Inc. All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <sys/types.h>
@@ -92,7 +92,7 @@
 
 /*
  * The version number should be increased for every customer visible release
- * of Solaris. The major number should be incremented when a fundamental
+ * of DTrace. The major number should be incremented when a fundamental
  * change has been made that would affect all consumers, and would reflect
  * sweeping changes to DTrace or the D language. The minor number should be
  * incremented when a change is introduced that could break scripts that had
@@ -121,8 +121,9 @@
 #define	DT_VERS_1_8	DT_VERSION_NUMBER(1, 8, 0)
 #define	DT_VERS_1_8_1	DT_VERSION_NUMBER(1, 8, 1)
 #define	DT_VERS_1_9	DT_VERSION_NUMBER(1, 9, 0)
-#define	DT_VERS_LATEST	DT_VERS_1_9
-#define	DT_VERS_STRING	"Sun D 1.9"
+#define	DT_VERS_1_9_1	DT_VERSION_NUMBER(1, 9, 1)
+#define	DT_VERS_LATEST	DT_VERS_1_9_1
+#define	DT_VERS_STRING	"Sun D 1.9.1"
 
 const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_0,	/* D API 1.0.0 (PSARC 2001/466) Solaris 10 FCS */
@@ -143,6 +144,7 @@ const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_8,	/* D API 1.8 */
 	DT_VERS_1_8_1,	/* D API 1.8.1 */
 	DT_VERS_1_9,	/* D API 1.9 */
+	DT_VERS_1_9_1,	/* D API 1.9.1 */
 	0
 };
 
@@ -1630,7 +1632,6 @@ dtrace_close(dtrace_hdl_t *dtp)
 	dt_strdata_destroy(dtp);
 	dt_buffered_destroy(dtp);
 	dt_aggregate_destroy(dtp);
-	free(dtp->dt_buf.dtbd_data);
 	dt_pfdict_destroy(dtp);
 	dt_provmod_destroy(&dtp->dt_provmod);
 	dt_dof_fini(dtp);
