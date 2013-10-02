@@ -996,21 +996,6 @@ options 	TCP_SIGNATURE		#include support for RFC 2385
 # a smooth scheduling of the traffic.
 options 	DUMMYNET
 
-# "Zero copy" sockets support is split into the send and receive path
-# which operate very differently.
-# For the send path the VM page with the data is wired into the kernel
-# and marked as COW (copy-on-write).  If the application touches the
-# data while it is still in the send socket buffer the page is copied
-# and divorced from its kernel wiring (no longer zero copy).
-# The receive side requires explicit NIC driver support to create
-# disposable pages which are flipped from kernel to user-space VM.
-# See zero_copy(9) for more details.
-# XXX: The COW based send mechanism is not safe and may result in
-# kernel crashes.
-# XXX: None of the current NIC drivers support disposable pages.
-options		SOCKET_SEND_COW
-options		SOCKET_RECV_PFLIP
-
 #####################################################################
 # FILESYSTEM OPTIONS
 
@@ -1910,7 +1895,7 @@ device		xmphy		# XaQti XMAC II
 #	BCM570x family of controllers, including the 3Com 3c996-T,
 #	the Netgear GA302T, the SysKonnect SK-9D21 and SK-9D41, and
 #	the embedded gigE NICs on Dell PowerEdge 2550 servers.
-# bxe:	Broadcom NetXtreme II (BCM57710/57711/57711E) PCIe 10b Ethernet
+# bxe:	Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
 #       adapters.
 # bwi:	Broadcom BCM430* and BCM431* family of wireless adapters.
 # bwn:	Broadcom BCM43xx family of wireless adapters.
@@ -2095,7 +2080,6 @@ device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # PCI Ethernet NICs.
-device		bxe		# Broadcom BCM57710/BCM57711/BCM57711E 10Gb Ethernet
 device		cxgbe		# Chelsio T4 10GbE PCIe adapter
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel Pro/1000 Gigabit Ethernet

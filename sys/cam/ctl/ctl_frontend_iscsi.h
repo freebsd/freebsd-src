@@ -1,0 +1,112 @@
+/*-
+ * Copyright (c) 2012 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * This software was developed by Edward Tomasz Napierala under sponsorship
+ * from the FreeBSD Foundation.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+#ifndef CTL_FRONTEND_ISCSI_H
+#define	CTL_FRONTEND_ISCSI_H
+
+struct cfiscsi_target {
+	TAILQ_ENTRY(cfiscsi_target)	ct_next;
+	int				ct_luns[CTL_MAX_LUNS];
+	struct cfiscsi_softc		*ct_softc;
+	volatile u_int			ct_refcount;
+	char				ct_name[CTL_ISCSI_NAME_LEN];
+	char				ct_alias[CTL_ISCSI_ALIAS_LEN];
+};
+
+struct cfiscsi_data_wait {
+	TAILQ_ENTRY(cfiscsi_data_wait)	cdw_next;
+	union ctl_io			*cdw_ctl_io;
+	uint32_t			cdw_target_transfer_tag;
+	uint32_t			cdw_initiator_task_tag;
+	int				cdw_sg_index;
+	char				*cdw_sg_addr;
+	size_t				cdw_sg_len;
+};
+
+#define CFISCSI_SESSION_STATE_INVALID		0
+#define CFISCSI_SESSION_STATE_BHS		1
+#define CFISCSI_SESSION_STATE_AHS		2
+#define CFISCSI_SESSION_STATE_HEADER_DIGEST	3
+#define CFISCSI_SESSION_STATE_DATA		4
+#define CFISCSI_SESSION_STATE_DATA_DIGEST	5
+
+struct cfiscsi_session {
+	TAILQ_ENTRY(cfiscsi_session)	cs_next;
+	struct mtx			cs_lock;
+	struct icl_conn			*cs_conn;
+	uint32_t			cs_cmdsn;
+	uint32_t			cs_statsn;
+	uint32_t			cs_target_transfer_tag;
+	volatile u_int			cs_outstanding_ctl_pdus;
+	TAILQ_HEAD(, cfiscsi_data_wait)	cs_waiting_for_data_out;
+	struct cfiscsi_target		*cs_target;
+	struct callout			cs_callout;
+	int				cs_timeout;
+	int				cs_portal_group_tag;
+	struct cv			cs_maintenance_cv;
+	int				cs_terminating;
+	size_t				cs_max_data_segment_length;
+	size_t				cs_max_burst_length;
+	bool				cs_immediate_data;
+	char				cs_initiator_name[CTL_ISCSI_NAME_LEN];
+	char				cs_initiator_addr[CTL_ISCSI_ADDR_LEN];
+	char				cs_initiator_alias[CTL_ISCSI_ALIAS_LEN];
+	unsigned int			cs_id;
+	int				cs_ctl_initid;
+#ifdef ICL_KERNEL_PROXY
+	bool				cs_login_phase;
+	bool				cs_waiting_for_ctld;
+	struct cv			cs_login_cv;
+	struct icl_pdu			*cs_login_pdu;
+#endif
+};
+
+#ifdef ICL_KERNEL_PROXY
+struct icl_listen;
+#endif
+
+struct cfiscsi_softc {
+	struct ctl_frontend		fe;
+	struct mtx			lock;
+	char				port_name[32];
+	int				online;
+	unsigned int			last_session_id;
+	TAILQ_HEAD(, cfiscsi_target)	targets;
+	TAILQ_HEAD(, cfiscsi_session)	sessions;
+	char				ctl_initids[CTL_MAX_INIT_PER_PORT];
+	int				max_initiators;
+#ifdef ICL_KERNEL_PROXY
+	struct icl_listen		*listener;
+	struct cv			accept_cv;
+#endif
+};
+
+#endif /* !CTL_FRONTEND_ISCSI_H */

@@ -30,6 +30,7 @@ FILES=	DAEMON \
 	cleanvar \
 	cleartmp \
 	cron \
+	ctld \
 	ddb \
 	defaultroute \
 	devd \
@@ -62,6 +63,8 @@ FILES=	DAEMON \
 	ipnat \
 	ipsec \
 	${_ipxrouted} \
+	iscsictl \
+	iscsid \
 	jail \
 	kadmind \
 	kerberos \
@@ -147,6 +150,7 @@ FILES=	DAEMON \
 	tmp \
 	${_ubthidhci} \
 	ugidfw \
+	${_unbound} \
 	${_utx} \
 	var \
 	virecover \
@@ -179,6 +183,10 @@ _nscd=		nscd
 
 .if ${MK_BLUETOOTH} != "no"
 _ubthidhci=	ubthidhci
+.endif
+
+.if ${MK_UNBOUND} != "no"
+_unbound=	local_unbound
 .endif
 
 .if ${MK_UTMPX} != "no"

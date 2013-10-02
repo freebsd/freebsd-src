@@ -228,7 +228,7 @@ struct vmxnet3_softc {
 	struct ifmedia			 vmx_media;
 	eventhandler_tag		 vmx_vlan_attach;
 	eventhandler_tag		 vmx_vlan_detach;
-	uint8_t				 vmx_vlan_filter[4096/32];
+	uint32_t			 vmx_vlan_filter[4096/32];
 	uint8_t				 vmx_lladdr[ETHER_ADDR_LEN];
 };
 

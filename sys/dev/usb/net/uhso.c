@@ -1854,7 +1854,6 @@ uhso_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		break;
 	case SIOCSIFADDR:
-	case SIOCSIFDSTADDR:
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		break;

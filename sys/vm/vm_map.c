@@ -127,9 +127,7 @@ static uma_zone_t kmapentzone;
 static uma_zone_t mapzone;
 static uma_zone_t vmspace_zone;
 static int vmspace_zinit(void *mem, int size, int flags);
-static void vmspace_zfini(void *mem, int size);
 static int vm_map_zinit(void *mem, int ize, int flags);
-static void vm_map_zfini(void *mem, int size);
 static void _vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min,
     vm_offset_t max);
 static void vm_map_entry_deallocate(vm_map_entry_t entry, boolean_t system_map);
@@ -192,7 +190,7 @@ vm_map_startup(void)
 #else
 	    NULL,
 #endif
-	    vm_map_zinit, vm_map_zfini, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    vm_map_zinit, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_prealloc(mapzone, MAX_KMAP);
 	kmapentzone = uma_zcreate("KMAP ENTRY", sizeof(struct vm_map_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
@@ -205,16 +203,7 @@ vm_map_startup(void)
 #else
 	    NULL,
 #endif
-	    vmspace_zinit, vmspace_zfini, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-}
-
-static void
-vmspace_zfini(void *mem, int size)
-{
-	struct vmspace *vm;
-
-	vm = (struct vmspace *)mem;
-	vm_map_zfini(&vm->vm_map, sizeof(vm->vm_map));
+	    vmspace_zinit, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 }
 
 static int
@@ -228,16 +217,6 @@ vmspace_zinit(void *mem, int size, int flags)
 	(void)vm_map_zinit(&vm->vm_map, sizeof(vm->vm_map), flags);
 	PMAP_LOCK_INIT(vmspace_pmap(vm));
 	return (0);
-}
-
-static void
-vm_map_zfini(void *mem, int size)
-{
-	vm_map_t map;
-
-	map = (vm_map_t)mem;
-	mtx_destroy(&map->system_mtx);
-	sx_destroy(&map->lock);
 }
 
 static int
@@ -280,15 +259,22 @@ vm_map_zdtor(void *mem, int size, void *arg)
 /*
  * Allocate a vmspace structure, including a vm_map and pmap,
  * and initialize those structures.  The refcnt is set to 1.
+ *
+ * If 'pinit' is NULL then the embedded pmap is initialized via pmap_pinit().
  */
 struct vmspace *
-vmspace_alloc(min, max)
-	vm_offset_t min, max;
+vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
 {
 	struct vmspace *vm;
 
 	vm = uma_zalloc(vmspace_zone, M_WAITOK);
-	if (vm->vm_map.pmap == NULL && !pmap_pinit(vmspace_pmap(vm))) {
+
+	KASSERT(vm->vm_map.pmap == NULL, ("vm_map.pmap must be NULL"));
+
+	if (pinit == NULL)
+		pinit = &pmap_pinit;
+
+	if (!pinit(vmspace_pmap(vm))) {
 		uma_zfree(vmspace_zone, vm);
 		return (NULL);
 	}
@@ -1432,8 +1418,8 @@ vm_map_fixed(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 int
 vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	    vm_offset_t *addr,	/* IN/OUT */
-	    vm_size_t length, int find_space, vm_prot_t prot,
-	    vm_prot_t max, int cow)
+	    vm_size_t length, vm_offset_t max_addr, int find_space,
+	    vm_prot_t prot, vm_prot_t max, int cow)
 {
 	vm_offset_t alignment, initial_addr, start;
 	int result;
@@ -1452,7 +1438,8 @@ again:
 	vm_map_lock(map);
 	do {
 		if (find_space != VMFS_NO_SPACE) {
-			if (vm_map_findspace(map, start, length, addr)) {
+			if (vm_map_findspace(map, start, length, addr) ||
+			    (max_addr != 0 && *addr + length > max_addr)) {
 				vm_map_unlock(map);
 				if (find_space == VMFS_OPTIMAL_SPACE) {
 					find_space = VMFS_ANY_SPACE;
@@ -3156,7 +3143,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 
 	old_map = &vm1->vm_map;
 	/* Copy immutable fields of vm1 to vm2. */
-	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset);
+	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset, NULL);
 	if (vm2 == NULL)
 		return (NULL);
 	vm2->vm_taddr = vm1->vm_taddr;
@@ -3738,7 +3725,7 @@ vmspace_exec(struct proc *p, vm_offset_t minuser, vm_offset_t maxuser)
 	struct vmspace *oldvmspace = p->p_vmspace;
 	struct vmspace *newvmspace;
 
-	newvmspace = vmspace_alloc(minuser, maxuser);
+	newvmspace = vmspace_alloc(minuser, maxuser, NULL);
 	if (newvmspace == NULL)
 		return (ENOMEM);
 	newvmspace->vm_swrss = oldvmspace->vm_swrss;

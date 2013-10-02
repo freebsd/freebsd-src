@@ -157,7 +157,8 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	struct thread *td;
 	struct proc *p;
 	struct lock_class *class;
-	int catch, lock_state, pri, rval, sleepq_flags;
+	uintptr_t lock_state;
+	int catch, pri, rval, sleepq_flags;
 	WITNESS_SAVE_DECL(lock_witness);
 
 	td = curthread;
@@ -569,8 +570,8 @@ loadav(void *arg)
 	 * run at regular intervals.
 	 */
 	callout_reset_sbt(&loadav_callout,
-	    tick_sbt * (hz * 4 + (int)(random() % (hz * 2 + 1))), 0,
-	    loadav, NULL, C_DIRECT_EXEC | C_HARDCLOCK);
+	    SBT_1US * (4000000 + (int)(random() % 2000001)), SBT_1US,
+	    loadav, NULL, C_DIRECT_EXEC | C_PREL(32));
 }
 
 /* ARGSUSED */

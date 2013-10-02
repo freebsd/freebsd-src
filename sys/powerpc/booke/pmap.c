@@ -270,7 +270,6 @@ void pmap_bootstrap_ap(volatile uint32_t *);
  */
 static void		mmu_booke_change_wiring(mmu_t, pmap_t, vm_offset_t, boolean_t);
 static void		mmu_booke_clear_modify(mmu_t, vm_page_t);
-static void		mmu_booke_clear_reference(mmu_t, vm_page_t);
 static void		mmu_booke_copy(mmu_t, pmap_t, pmap_t, vm_offset_t,
     vm_size_t, vm_offset_t);
 static void		mmu_booke_copy_page(mmu_t, vm_page_t, vm_page_t);
@@ -333,7 +332,6 @@ static mmu_method_t mmu_booke_methods[] = {
 	/* pmap dispatcher interface */
 	MMUMETHOD(mmu_change_wiring,	mmu_booke_change_wiring),
 	MMUMETHOD(mmu_clear_modify,	mmu_booke_clear_modify),
-	MMUMETHOD(mmu_clear_reference,	mmu_booke_clear_reference),
 	MMUMETHOD(mmu_copy,		mmu_booke_copy),
 	MMUMETHOD(mmu_copy_page,	mmu_booke_copy_page),
 	MMUMETHOD(mmu_copy_pages,	mmu_booke_copy_pages),
@@ -2354,38 +2352,6 @@ mmu_booke_ts_referenced(mmu_t mmu, vm_page_t m)
 	}
 	rw_wunlock(&pvh_global_lock);
 	return (count);
-}
-
-/*
- * Clear the reference bit on the specified physical page.
- */
-static void
-mmu_booke_clear_reference(mmu_t mmu, vm_page_t m)
-{
-	pte_t *pte;
-	pv_entry_t pv;
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("mmu_booke_clear_reference: page %p is not managed", m));
-	rw_wlock(&pvh_global_lock);
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_link) {
-		PMAP_LOCK(pv->pv_pmap);
-		if ((pte = pte_find(mmu, pv->pv_pmap, pv->pv_va)) != NULL &&
-		    PTE_ISVALID(pte)) {
-			if (PTE_ISREFERENCED(pte)) {
-				mtx_lock_spin(&tlbivax_mutex);
-				tlb_miss_lock();
-				
-				tlb0_flush_entry(pv->pv_va);
-				pte->flags &= ~PTE_REFERENCED;
-
-				tlb_miss_unlock();
-				mtx_unlock_spin(&tlbivax_mutex);
-			}
-		}
-		PMAP_UNLOCK(pv->pv_pmap);
-	}
-	rw_wunlock(&pvh_global_lock);
 }
 
 /*

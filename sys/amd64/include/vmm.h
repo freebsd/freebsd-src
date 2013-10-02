@@ -150,7 +150,7 @@ void vm_interrupt_hostcpu(struct vm *vm, int vcpu);
 
 #include <machine/vmm_instruction_emul.h>
 
-#define	VM_MAXCPU	8			/* maximum virtual cpus */
+#define	VM_MAXCPU	16			/* maximum virtual cpus */
 
 /*
  * Identifiers for events that can be injected into the VM

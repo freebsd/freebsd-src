@@ -1,8 +1,37 @@
--- $Id: CHANGES,v 1.458 2013/05/24 00:23:22 tom Exp $
+-- $Id: CHANGES,v 1.476 2013/09/24 00:06:47 tom Exp $
 -- Thomas E. Dickey <dickey@invisible-island.net>
 
 This version of dialog was originally from a Debian snapshot.  I've done this
 to it:
+
+2013/09/23
+	+ fix samples/inputbox6-utf8, which had depended unnecessarily on bash.
+	+ improve memory caching for wide-character manipulation in gauge
+	  widget (report by Devin Teske).
+	+ add dlg_reallocate_gauge (discussion with Devin Teske).
+	+ updated configure macros to use msys changes from ncurses.
+	+ update config.guess, config.sub
+
+2013/09/02
+	+ modify makefile rule to make the ".png" filenames created by groff
+	  predictable.
+	+ add option --help-tags to allow scripts to get the item's tag field
+	  consistently from help- and help-item button results rather than
+	  getting the item's text for the latter (discussion with Florent
+	  Rougon).
+	+ correct manpage discussion of DIALOG_ITEM_HELP versus --item-help,
+	  as well as --help-button return status (report by Florent Rougon).
+	+ correct limit used for --hline option (report by Devin Teske,
+	  cf: 2011/06/30).
+	+ do not print empty "[]" if a --hline option was given with an empty
+	  value (report by Devin Teske).
+	+ miscellaneous configure script fixes/updates.  In particular, add
+	  option --with-shared which builds shared libraries without a libtool
+	  dependency.
+	+ add FreeBSD port-files for test-builds.
+	+ update lt.po, add fa.po from
+		http://translationproject.org/latest/dialog/
+	+ update config.guess, config.sub
 
 2013/05/23
 	+ modify ifdef in arrows.c to work around packages which use the
@@ -298,7 +327,7 @@ to it:
 	    separate ncurses' header files.
 	  + CF_DISABLE_RPATH_HACK, fix garbled message
 	  + CF_LD_RPATH_OPT, add mirbsd
-	  + CF_MAKEFLAGS, filter out GNU make's entering/leaving messages. 
+	  + CF_MAKEFLAGS, filter out GNU make's entering/leaving messages.
 	    This only appeared when using the macro in a dpkg script, though it
 	    should have in other cases.
 	  + CF_RPATH_HACK, add a check for libraries not found, e.g., from

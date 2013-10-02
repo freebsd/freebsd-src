@@ -341,7 +341,7 @@ MMAKEENV=	MAKEOBJDIRPREFIX=${MYMAKE:H} \
 MMAKE=		${MMAKEENV} ${MAKE} \
 		-D_UPGRADING \
 		-DNOMAN -DNO_MAN -DNOSHARED -DNO_SHARED \
-		-DNO_CPU_CFLAGS -DNO_WERROR
+		-DNO_CPU_CFLAGS -DNO_WERROR DESTDIR= PROGNAME=${MYMAKE:T}
 
 make bmake: .PHONY
 	@echo
@@ -349,10 +349,10 @@ make bmake: .PHONY
 	@echo ">>> Building an up-to-date make(1)"
 	@echo "--------------------------------------------------------------"
 	${_+_}@cd ${.CURDIR}/usr.bin/${.TARGET}; \
-		${MMAKE} obj DESTDIR= && \
-		${MMAKE} depend DESTDIR= && \
-		${MMAKE} all DESTDIR= && \
-		${MMAKE} install DESTDIR=${MYMAKE:H} BINDIR= PROGNAME=${MYMAKE:T}
+		${MMAKE} obj && \
+		${MMAKE} depend && \
+		${MMAKE} all && \
+		${MMAKE} install DESTDIR=${MYMAKE:H} BINDIR=
 
 tinderbox toolchains kernel-toolchains: upgrade_checks
 
@@ -374,7 +374,7 @@ kernel-toolchains:
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
 TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64
-TARGET_ARCHES_arm?=	arm armeb armv6 armv6eb
+TARGET_ARCHES_arm?=	arm armeb armv6
 TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32
 TARGET_ARCHES_powerpc?=	powerpc powerpc64
 TARGET_ARCHES_pc98?=	i386

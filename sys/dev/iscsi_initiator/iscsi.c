@@ -706,7 +706,7 @@ free_pdus(struct isc_softc *sc)
      }
 }
 
-static void
+static int
 iscsi_start(void)
 {
      debug_called(8);
@@ -715,9 +715,7 @@ iscsi_start(void)
      TUNABLE_INT_FETCH("net.iscsi_initiator.max_pdus", &max_pdus);
 
      isc =  malloc(sizeof(struct isc_softc), M_ISCSI, M_ZERO|M_WAITOK);
-     isc->dev = make_dev(&iscsi_cdevsw, max_sessions, UID_ROOT, GID_WHEEL, 0600, "iscsi");
-     isc->dev->si_drv1 = isc;
-     mtx_init(&isc->isc_mtx, "iscsi", NULL, MTX_DEF);
+     mtx_init(&isc->isc_mtx, "iscsi-isc", NULL, MTX_DEF);
 
      TAILQ_INIT(&isc->isc_sess);
      /*
@@ -726,10 +724,6 @@ iscsi_start(void)
      isc->pdu_zone = uma_zcreate("pdu", sizeof(pduq_t),
 				 NULL, NULL, NULL, NULL,
 				 0, 0);
-     if(isc->pdu_zone == NULL) {
-	  xdebug("iscsi_initiator: uma_zcreate failed");
-	  // XXX: should fail...
-     }
      uma_zone_set_max(isc->pdu_zone, max_pdus);
      isc->unit = new_unrhdr(0, max_sessions-1, NULL);
      sx_init(&isc->unit_sx, "iscsi sx");
@@ -782,7 +776,16 @@ iscsi_start(void)
      mtx_init(&iscsi_dbg_mtx, "iscsi_dbg", NULL, MTX_DEF);
 #endif
 
+     isc->dev = make_dev_credf(MAKEDEV_CHECKNAME, &iscsi_cdevsw, max_sessions,
+			       NULL, UID_ROOT, GID_WHEEL, 0600, "iscsi");
+     if (isc->dev == NULL) {
+	  xdebug("iscsi_initiator: make_dev_credf failed");
+	  return (EEXIST);
+     }
+     isc->dev->si_drv1 = isc;
+
      printf("iscsi: version %s\n", iscsi_driver_version);
+     return (0);
 }
 
 /*
@@ -830,11 +833,13 @@ iscsi_stop(void)
 static int
 iscsi_modevent(module_t mod, int what, void *arg)
 {
+     int error = 0;
+
      debug_called(8);
 
      switch(what) {
      case MOD_LOAD:
-	  iscsi_start();
+	  error = iscsi_start();
 	  break;
 
      case MOD_QUIESCE:
@@ -854,11 +859,11 @@ iscsi_modevent(module_t mod, int what, void *arg)
      default:
 	  break;
      }
-     return 0;
+     return (error);
 }
 
 moduledata_t iscsi_mod = {
-         "iscsi",
+         "iscsi_initiator",
          (modeventhand_t) iscsi_modevent,
          0
 };
@@ -878,5 +883,5 @@ iscsi_rootconf(void)
 SYSINIT(cpu_rootconf1, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, iscsi_rootconf, NULL)
 #endif
 
-DECLARE_MODULE(iscsi, iscsi_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
-MODULE_DEPEND(iscsi, cam, 1, 1, 1);
+DECLARE_MODULE(iscsi_initiator, iscsi_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
+MODULE_DEPEND(iscsi_initiator, cam, 1, 1, 1);

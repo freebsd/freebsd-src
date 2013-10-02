@@ -144,7 +144,7 @@ typedef struct tcpinfo {
 #pragma D binding "1.0" translator
 translator csinfo_t < struct tcpcb *p > {
 	cs_addr =	NULL;
-	cs_cid =	(uint64_t)p;
+	cs_cid =	(uint64_t)(p == NULL ? 0 : p->t_inpcb);
 	cs_pid =	0;
 	cs_zoneid =	0;
 };

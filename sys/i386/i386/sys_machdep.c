@@ -132,7 +132,7 @@ sysarch(td, uap)
 		default:
 #ifdef KTRACE
 			if (KTRPOINT(td, KTR_CAPFAIL))
-				ktrcapfail(CAPFAIL_SYSCALL, 0, 0);
+				ktrcapfail(CAPFAIL_SYSCALL, NULL, NULL);
 #endif
 			return (ECAPMODE);
 		}

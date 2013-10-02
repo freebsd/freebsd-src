@@ -56,6 +56,7 @@ extern void *ap_pcpu;
 #endif
 
 static int powermac_probe(platform_t);
+static int powermac_attach(platform_t);
 void powermac_mem_regions(platform_t, struct mem_region **phys, int *physsz,
     struct mem_region **avail, int *availsz);
 static u_long powermac_timebase_freq(platform_t, struct cpuref *cpuref);
@@ -67,6 +68,7 @@ static void powermac_reset(platform_t);
 
 static platform_method_t powermac_methods[] = {
 	PLATFORMMETHOD(platform_probe, 		powermac_probe),
+	PLATFORMMETHOD(platform_attach,		powermac_attach),
 	PLATFORMMETHOD(platform_mem_regions,	powermac_mem_regions),
 	PLATFORMMETHOD(platform_timebase_freq,	powermac_timebase_freq),
 	
@@ -91,8 +93,22 @@ PLATFORM_DEF(powermac_platform);
 static int
 powermac_probe(platform_t plat)
 {
-	if (OF_finddevice("/memory") != -1 || OF_finddevice("/memory@0") != -1)
-		return (BUS_PROBE_GENERIC);
+	char compat[255];
+	ssize_t compatlen;
+	char *curstr;
+	phandle_t root;
+
+	root = OF_peer(0);
+	if (root == 0)
+		return (ENXIO);
+
+	compatlen = OF_getprop(root, "compatible", compat, sizeof(compat));
+	
+	for (curstr = compat; curstr < compat + compatlen;
+	    curstr += strlen(curstr) + 1) {
+		if (strncmp(curstr, "MacRISC", 7) == 0)
+			return (BUS_PROBE_SPECIFIC);
+	}
 
 	return (ENXIO);
 }
@@ -102,6 +118,35 @@ powermac_mem_regions(platform_t plat, struct mem_region **phys, int *physsz,
     struct mem_region **avail, int *availsz)
 {
 	ofw_mem_regions(phys,physsz,avail,availsz);
+}
+
+static int
+powermac_attach(platform_t plat)
+{
+	phandle_t rootnode;
+	char model[32];
+
+
+	/*
+	 * Quiesce Open Firmware on PowerMac11,2 and 12,1. It is
+	 * necessary there to shut down a background thread doing fan
+	 * management, and is harmful on other machines (it will make OF
+	 * shut off power to various system components it had turned on).
+	 *
+	 * Note: we don't need to worry about which OF module we are
+	 * using since this is called only from very early boot, within
+	 * OF's boot context.
+	 */
+
+	rootnode = OF_finddevice("/");
+	if (OF_getprop(rootnode, "model", model, sizeof(model)) > 0) {
+		if (strcmp(model, "PowerMac11,2") == 0 ||
+		    strcmp(model, "PowerMac12,1") == 0) {
+			ofw_quiesce();
+		}
+	}
+
+	return (0);
 }
 
 static u_long

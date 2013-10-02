@@ -1,9 +1,9 @@
 /*
- *  $Id: guage.c,v 1.65 2012/11/30 10:43:31 tom Exp $
+ *  $Id: guage.c,v 1.68 2013/09/22 19:10:22 tom Exp $
  *
  *  guage.c -- implements the gauge dialog
  *
- *  Copyright 2000-2011,2012	Thomas E. Dickey
+ *  Copyright 2000-2012,2013	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -39,7 +39,7 @@ typedef struct _my_obj {
     DIALOG_CALLBACK obj;	/* has to be first in struct */
     struct _my_obj *next;
     WINDOW *text;
-    const char *title;
+    char *title;
     char *prompt;
     char prompt_buf[MY_LEN];
     int percent;
@@ -273,15 +273,87 @@ void
 dlg_update_gauge(void *objptr, int percent)
 {
     MY_OBJ *obj = (MY_OBJ *) objptr;
+    bool save_finish_string = dialog_state.finish_string;
 
+    dialog_state.finish_string = TRUE;
     curs_set(0);
     obj->percent = percent;
     repaint_text(obj);
+    dialog_state.finish_string = save_finish_string;
 }
 
 /*
- * Allocates a new object and fills it as per the arguments
+ * (Re)Allocates an object and fills it as per the arguments
  */
+void *
+dlg_reallocate_gauge(void *objptr,
+		     const char *title,
+		     const char *cprompt,
+		     int height,
+		     int width,
+		     int percent)
+{
+    char *prompt = dlg_strclone(cprompt);
+    MY_OBJ *obj = objptr;
+    bool save_finish_string = dialog_state.finish_string;
+
+    dialog_state.finish_string = TRUE;
+    dlg_tab_correct_str(prompt);
+
+    if (objptr == 0) {
+	/* create a new object */
+	obj = dlg_calloc(MY_OBJ, 1);
+	assert_ptr(obj, "dialog_gauge");
+
+	dlg_auto_size(title, prompt, &height, &width, MIN_HIGH, MIN_WIDE);
+	dlg_print_size(height, width);
+	dlg_ctl_size(height, width);
+
+    } else {
+	/* reuse an existing object */
+	obj = objptr;
+	height = obj->height;
+	width = obj->width;
+    }
+
+    if (obj->obj.win == 0) {
+	/* center dialog box on screen */
+	int x = dlg_box_x_ordinate(width);
+	int y = dlg_box_y_ordinate(height);
+	WINDOW *dialog = dlg_new_window(height, width, y, x);
+	obj->obj.win = dialog;
+    }
+
+    obj->obj.input = dialog_state.pipe_input;
+    obj->obj.keep_win = TRUE;
+    obj->obj.bg_task = TRUE;
+    obj->obj.handle_getc = handle_my_getc;
+    obj->obj.handle_input = handle_input;
+
+    if (obj->title == 0 || strcmp(obj->title, title)) {
+	dlg_finish_string(obj->title);
+	free(obj->title);
+	obj->title = dlg_strclone(title);
+    }
+
+    dlg_finish_string(obj->prompt);
+    free(obj->prompt);
+
+    obj->prompt = prompt;
+    obj->percent = percent;
+    obj->height = height;
+    obj->width = width;
+
+    /* if this was a new object, link it into the list */
+    if (objptr == 0) {
+	obj->next = all_objects;
+	all_objects = obj;
+    }
+
+    dialog_state.finish_string = save_finish_string;
+    return (void *) obj;
+}
+
 void *
 dlg_allocate_gauge(const char *title,
 		   const char *cprompt,
@@ -289,43 +361,7 @@ dlg_allocate_gauge(const char *title,
 		   int width,
 		   int percent)
 {
-    int x, y;
-    char *prompt = dlg_strclone(cprompt);
-    WINDOW *dialog;
-    MY_OBJ *obj = 0;
-
-    dlg_tab_correct_str(prompt);
-
-    dlg_auto_size(title, prompt, &height, &width, MIN_HIGH, MIN_WIDE);
-    dlg_print_size(height, width);
-    dlg_ctl_size(height, width);
-
-    /* center dialog box on screen */
-    x = dlg_box_x_ordinate(width);
-    y = dlg_box_y_ordinate(height);
-
-    dialog = dlg_new_window(height, width, y, x);
-
-    obj = dlg_calloc(MY_OBJ, 1);
-    assert_ptr(obj, "dialog_gauge");
-
-    obj->obj.input = dialog_state.pipe_input;
-    obj->obj.win = dialog;
-    obj->obj.keep_win = TRUE;
-    obj->obj.bg_task = TRUE;
-    obj->obj.handle_getc = handle_my_getc;
-    obj->obj.handle_input = handle_input;
-
-    obj->title = title;
-    obj->prompt = prompt;
-    obj->percent = percent;
-    obj->height = height;
-    obj->width = width;
-
-    obj->next = all_objects;
-    all_objects = obj;
-
-    return (void *) obj;
+    return dlg_reallocate_gauge(NULL, title, cprompt, height, width, percent);
 }
 
 void

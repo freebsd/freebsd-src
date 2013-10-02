@@ -160,11 +160,11 @@ SET_DECLARE(sdt_argtypes_set, struct sdt_argtype);
 } while (0)
 
 #define SDT_PROBE_ARGTYPE(prov, mod, func, name, num, type, xtype)		\
-	static struct sdt_argtype sdt_##prov##_##mod##_##func##_##name##num[1]	\
+	static struct sdt_argtype sdta_##prov##_##mod##_##func##_##name##num[1]	\
 	    = { { num, type, xtype, { NULL, NULL },				\
 	    sdt_##prov##_##mod##_##func##_##name }				\
 	};									\
-	DATA_SET(sdt_argtypes_set, sdt_##prov##_##mod##_##func##_##name##num);
+	DATA_SET(sdt_argtypes_set, sdta_##prov##_##mod##_##func##_##name##num);
 
 #define	SDT_PROBE_DEFINE0(prov, mod, func, name, sname)			\
 	SDT_PROBE_DEFINE(prov, mod, func, name, sname)

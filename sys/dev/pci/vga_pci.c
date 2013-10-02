@@ -67,6 +67,12 @@ struct vga_pci_softc {
 
 SYSCTL_DECL(_hw_pci);
 
+static struct vga_resource *lookup_res(struct vga_pci_softc *sc, int rid);
+static struct resource *vga_pci_alloc_resource(device_t dev, device_t child,
+    int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
+static int	vga_pci_release_resource(device_t dev, device_t child, int type,
+    int rid, struct resource *r);
+
 int vga_pci_default_unit = -1;
 TUNABLE_INT("hw.pci.default_vgapci_unit", &vga_pci_default_unit);
 SYSCTL_INT(_hw_pci, OID_AUTO, default_vgapci_unit, CTLFLAG_RDTUN,
@@ -80,7 +86,6 @@ vga_pci_is_boot_display(device_t dev)
 	 * Return true if the given device is the default display used
 	 * at boot time.
 	 */
-
 	return (
 	    (pci_get_class(dev) == PCIC_DISPLAY ||
 	     (pci_get_class(dev) == PCIC_OLD &&
@@ -111,7 +116,8 @@ vga_pci_map_bios(device_t dev, size_t *size)
 #endif
 
 	rid = PCIR_BIOS;
-	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	res = vga_pci_alloc_resource(dev, NULL, SYS_RES_MEMORY, &rid, 0ul,
+	    ~0ul, 1, RF_ACTIVE);
 	if (res == NULL) {
 		return (NULL);
 	}
@@ -123,8 +129,7 @@ vga_pci_map_bios(device_t dev, size_t *size)
 void
 vga_pci_unmap_bios(device_t dev, void *bios)
 {
-	int rid;
-	struct resource *res;
+	struct vga_resource *vr;
 
 	if (bios == NULL) {
 		return;
@@ -140,25 +145,15 @@ vga_pci_unmap_bios(device_t dev, void *bios)
 #endif
 
 	/*
-	 * FIXME: We returned only the virtual address of the resource
-	 * to the caller. Now, to get the resource struct back, we
-	 * allocate it again: the struct exists once in memory in
-	 * device softc. Therefore, we release twice now to release the
-	 * reference we just obtained to get the structure back and the
-	 * caller's reference.
+	 * Look up the PCIR_BIOS resource in our softc.  It should match
+	 * the address we returned previously.
 	 */
-
-	rid = PCIR_BIOS;
-	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
-
-	KASSERT(res != NULL,
-	    ("%s: Can't get BIOS resource back", __func__));
-	KASSERT(bios == rman_get_virtual(res),
-	    ("%s: Given BIOS address doesn't match "
-	     "resource virtual address", __func__));
-
-	bus_release_resource(dev, SYS_RES_MEMORY, rid, bios);
-	bus_release_resource(dev, SYS_RES_MEMORY, rid, bios);
+	vr = lookup_res(device_get_softc(dev), PCIR_BIOS);
+	KASSERT(vr->vr_res != NULL, ("vga_pci_unmap_bios: bios not mapped"));
+	KASSERT(rman_get_virtual(vr->vr_res) == bios,
+	    ("vga_pci_unmap_bios: mismatch"));
+	vga_pci_release_resource(dev, NULL, SYS_RES_MEMORY, PCIR_BIOS,
+	    vr->vr_res);
 }
 
 static int
