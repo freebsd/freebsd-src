@@ -77,7 +77,8 @@ f_dialog_menu_media_http()
 	f_dialog_title_restore
 	local prompt="$msg_please_select_the_site_closest_to_you_or_other"
 	local menu_list="
-		'URL' '$msg_specify_some_other_http_site'
+		'$msg_main_site'      'ftp.freebsd.org'
+		'URL'                 '$msg_specify_some_other_http_site'
 	" # END-QUOTE
 	local hline="$msg_select_a_site_thats_close"
 
@@ -390,8 +391,12 @@ f_http_check_access()
 	f_show_info "$msg_checking_access_to" "$http_path"
 
 	local rx
+	case "$http_path" in
+	http://*|/*) : valid request ;;
+	*) http_path="/$http_path" # full URI requests only
+	esac
 	if ! rx=$(
-		printf "GET /%s/ HTTP/1.0\r\n\r\n" "${http_path%/}" |
+		printf "GET %s/ HTTP/1.0\r\n\r\n" "${http_path%/}" |
 			nc -n "$host" "$http_port"
 	); then
 		f_show_msg "$msg_couldnt_connect_to_server http://%s:%s/" \
@@ -581,8 +586,12 @@ f_media_get_http()
 
 	local http_path
 	f_getvar $VAR_HTTP_PATH%/ http_path
-	local url="/$http_path/$file" rx
+	case "$http_path" in
+	http://*|/*) : valid request ;;
+	*) http_path="/$http_path" # full URI requests only
+	esac
 
+	local url="$http_path/$file" rx
 	f_dprintf "sending http request for: %s" "$url"
 	printf "GET %s HTTP/1.0\r\n\r\n" "$url" | nc -n "$host" "$http_port" |
 	(
