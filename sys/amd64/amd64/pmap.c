@@ -1902,7 +1902,7 @@ PMAP_INLINE void
 pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 {
 	pt_entry_t *pte;
-	
+
 	pte = vtopte(va);
 	pte_store(pte, pa | X86_PG_RW | X86_PG_V | X86_PG_G);
 }
@@ -6703,7 +6703,7 @@ pmap_get_mapping(pmap_t pmap, vm_offset_t va, uint64_t *ptr, int *num)
 	ptr[idx++] = *pde;
 	if ((*pde & PG_V) == 0 || (*pde & PG_PS) != 0)
 		goto done;
-	
+
 	pte = pmap_pde_to_pte(pde, va);
 	ptr[idx++] = *pte;
 
