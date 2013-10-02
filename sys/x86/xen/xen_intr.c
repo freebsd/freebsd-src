@@ -1073,7 +1073,6 @@ xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
 
 	isrc = NULL;
 	error = HYPERVISOR_event_channel_op(EVTCHNOP_bind_virq, &bind_virq);
-		panic(__func__);
 	if (error != 0) {
 		/*
 		 * XXX Trap Hypercall error code Linuxisms in
@@ -1084,6 +1083,7 @@ xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
 
 	error = xen_intr_bind_isrc(&isrc, bind_virq.port, EVTCHN_TYPE_VIRQ, dev,
 				 filter, handler, arg, flags, port_handlep);
+
 #ifdef SMP
 	if (error == 0)
 		error = intr_event_bind(isrc->xi_intsrc.is_event, cpu);
