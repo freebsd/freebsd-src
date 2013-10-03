@@ -656,7 +656,7 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 	 * variables will fit in our mp buffers, including the
 	 * terminating NUL.
 	 */
-	if (fstypelen >= MFSNAMELEN - 1 || fspathlen >= MNAMELEN - 1) {
+	if (fstypelen > MFSNAMELEN || fspathlen > MNAMELEN) {
 		error = ENAMETOOLONG;
 		goto bail;
 	}
