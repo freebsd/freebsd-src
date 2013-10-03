@@ -4525,6 +4525,7 @@ vfs_kqfilter(struct vop_kqfilter_args *ap)
 	if (vp->v_pollinfo == NULL)
 		return (ENOMEM);
 	knl = &vp->v_pollinfo->vpi_selinfo.si_note;
+	vhold(vp);
 	knlist_add(knl, kn, 0);
 
 	return (0);
@@ -4540,6 +4541,7 @@ filt_vfsdetach(struct knote *kn)
 
 	KASSERT(vp->v_pollinfo != NULL, ("Missing v_pollinfo"));
 	knlist_remove(&vp->v_pollinfo->vpi_selinfo.si_note, kn, 0);
+	vdrop(vp);
 }
 
 /*ARGSUSED*/
