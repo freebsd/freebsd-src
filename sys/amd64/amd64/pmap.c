@@ -4762,6 +4762,14 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	if (dst_pmap->pm_type != src_pmap->pm_type)
 		return;
 
+	/*
+	 * EPT page table entries that require emulation of A/D bits are
+	 * sensitive to clearing the PG_A bit (aka EPT_PG_READ). Although
+	 * we clear PG_M (aka EPT_PG_WRITE) concomitantly, the PG_U bit
+	 * (aka EPT_PG_EXECUTE) could still be set. Since some EPT
+	 * implementations flag an EPT misconfiguration for exec-only
+	 * mappings we skip this function entirely for emulated pmaps.
+	 */
 	if (pmap_emulate_ad_bits(dst_pmap))
 		return;
 
