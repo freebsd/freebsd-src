@@ -2,13 +2,13 @@
 
 .include <bsd.own.mk>
 
-FILES=	BSD.include.dist \
+FILES=	${_BSD.debug.dist} \
+	BSD.include.dist \
 	BSD.root.dist \
 	${_BSD.sendmail.dist} \
 	BSD.usr.dist \
 	BSD.var.dist
 
-.endif
 .if ${MK_DEBUG_FILES} != "no"
 _BSD.debug.dist=	BSD.debug.dist
 .endif
