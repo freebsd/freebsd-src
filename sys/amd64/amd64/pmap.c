@@ -3836,11 +3836,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	pt_entry_t *pte, PG_G, PG_M, PG_RW, PG_V;
 	boolean_t anychanged, pv_lists_locked;
 
-	PG_G = pmap_global_bit(pmap);
-	PG_M = pmap_modified_bit(pmap);
-	PG_V = pmap_valid_bit(pmap);
-	PG_RW = pmap_rw_bit(pmap);
-
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
 		pmap_remove(pmap, sva, eva);
 		return;
@@ -3850,6 +3845,10 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	    (VM_PROT_WRITE|VM_PROT_EXECUTE))
 		return;
 
+	PG_G = pmap_global_bit(pmap);
+	PG_M = pmap_modified_bit(pmap);
+	PG_V = pmap_valid_bit(pmap);
+	PG_RW = pmap_rw_bit(pmap);
 	pv_lists_locked = FALSE;
 resume:
 	anychanged = FALSE;
@@ -4154,16 +4153,14 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		newpte |= PG_G;
 	newpte |= pmap_cache_bits(pmap, m->md.pat_mode, 0);
 
-	if (pmap_emulate_ad_bits(pmap)) {
-		/*
-		 * Set modified bit gratuitously for writeable mappings if
-		 * the page is unmanaged. We do not want to take a fault
-		 * to do the dirty bit accounting for these mappings.
-		 */
-		if ((m->oflags & VPO_UNMANAGED) != 0) {
-			if ((newpte & PG_RW) != 0)
-				newpte |= PG_M;
-		}
+	/*
+	 * Set modified bit gratuitously for writeable mappings if
+	 * the page is unmanaged. We do not want to take a fault
+	 * to do the dirty bit accounting for these mappings.
+	 */
+	if ((m->oflags & VPO_UNMANAGED) != 0) {
+		if ((newpte & PG_RW) != 0)
+			newpte |= PG_M;
 	}
 
 	mpte = NULL;
@@ -4760,6 +4757,9 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	pt_entry_t PG_A, PG_M, PG_V;
 
 	if (dst_addr != src_addr)
+		return;
+
+	if (dst_pmap->pm_type != src_pmap->pm_type)
 		return;
 
 	if (pmap_emulate_ad_bits(dst_pmap))
