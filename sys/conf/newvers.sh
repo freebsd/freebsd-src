@@ -159,6 +159,10 @@ if [ -n "$git_cmd" ] ; then
 			git=" ${git}"
 		fi
 	fi
+	git_b=`$git_cmd rev-parse --abbrev-ref HEAD`
+	if [ -n "$git_b" ] ; then
+		git="${git}(${git_b})"
+	fi
 	if $git_cmd --work-tree=${SYSDIR}/.. diff-index \
 	    --name-only HEAD | read dummy; then
 		git="${git}-dirty"
