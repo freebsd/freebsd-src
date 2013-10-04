@@ -461,7 +461,7 @@ i386/i386/mp_machdep.c		optional native smp
 i386/xen/mp_machdep.c		optional xen smp
 i386/i386/mp_watchdog.c		optional mp_watchdog smp
 i386/i386/mpboot.s		optional smp native
-i386/xen/mptable.c		optional apic xen
+x86/xen/mptable.c		optional apic xen
 i386/i386/perfmon.c		optional perfmon
 i386/i386/pmap.c		optional native
 i386/xen/pmap.c			optional xen
