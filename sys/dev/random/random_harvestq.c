@@ -1,6 +1,6 @@
 /*-
+ * Copyright (c) 2000-2013 Mark R V Murray
  * Copyright (c) 2013 Arthur Mesh
- * Copyright (c) 2000-2009 Mark R V Murray
  * Copyright (c) 2004 Robert N. M. Watson
  * All rights reserved.
  *
@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include "random_harvestq.h"
 
-#define RANDOM_FIFO_MAX	256	/* How many events to queue up */
+#define RANDOM_FIFO_MAX	1024	/* How many events to queue up */
 
 MALLOC_DEFINE(M_ENTROPY, "entropy", "Entropy harvesting buffers");
 
@@ -64,8 +64,6 @@ struct entropyfifo {
 
 /* Empty entropy buffers */
 static struct entropyfifo emptyfifo;
-
-#define EMPTYBUFFERS	1024
 
 /* Harvested entropy */
 static struct entropyfifo harvestfifo[ENTROPYSOURCE];
@@ -103,9 +101,8 @@ random_kthread(void *arg)
 		}
 
 		/*
-		 * Deal with events, if any, dropping the mutex as we process
-		 * each event.  Then push the events back into the empty
-		 * fifo.
+		 * Deal with events, if any.
+		 * Then transfer the used events back into the empty fifo.
 		 */
 		if (!STAILQ_EMPTY(&local_queue)) {
 			mtx_unlock_spin(&harvest_mtx);
@@ -121,15 +118,28 @@ random_kthread(void *arg)
 		    local_count));
 
 		/*
+		 * Do Hardware/fast RNG source processing here.
+		 */
+#if 0
+		while (hardware_source) {
+			event = hardware_source->read();
+			func(event);
+			hardware_source++;
+			/* Throttle somehow? */
+		}
+#endif
+
+		/*
 		 * If a queue flush was commanded, it has now happened,
 		 * and we can mark this by resetting the command.
 		 */
+
 		if (random_kthread_control == 1)
 			random_kthread_control = 0;
 
 		/* Work done, so don't belabour the issue */
 		msleep_spin_sbt(&random_kthread_control, &harvest_mtx,
-		    "-", SBT_1S / 10, 0, C_PREL(1));
+		    "-", SBT_1S/10, 0, C_PREL(1));
 
 	}
 	mtx_unlock_spin(&harvest_mtx);
@@ -148,7 +158,7 @@ random_harvestq_init(event_proc_f cb)
 	/* Initialise the harvest fifos */
 	STAILQ_INIT(&emptyfifo.head);
 	emptyfifo.count = 0;
-	for (i = 0; i < EMPTYBUFFERS; i++) {
+	for (i = 0; i < RANDOM_FIFO_MAX; i++) {
 		np = malloc(sizeof(struct harvest), M_ENTROPY, M_WAITOK);
 		STAILQ_INSERT_TAIL(&emptyfifo.head, np, next);
 	}
@@ -197,11 +207,11 @@ random_harvestq_deinit(void)
  */
 void
 random_harvestq_internal(u_int64_t somecounter, const void *entropy,
-    u_int count, u_int bits, u_int frac, enum esource origin)
+    u_int count, u_int bits, enum esource origin)
 {
 	struct harvest *event;
 
-	KASSERT(origin >= RANDOM_START && origin <= RANDOM_PURE,
+	KASSERT(origin >= RANDOM_START && origin < ENTROPYSOURCE,
 	    ("random_harvest_internal: origin %d invalid\n", origin));
 
 	/* Lockless read to avoid lock operations if fifo is full. */
@@ -223,7 +233,6 @@ random_harvestq_internal(u_int64_t somecounter, const void *entropy,
 			event->somecounter = somecounter;
 			event->size = count;
 			event->bits = bits;
-			event->frac = frac;
 			event->source = origin;
 
 			/* XXXX Come back and make this dynamic! */
@@ -238,7 +247,7 @@ random_harvestq_internal(u_int64_t somecounter, const void *entropy,
 				printf("%02X", event->entropy[i]);
 			for (; i < 16; i++)
 				printf("  ");
-			printf(" %2d 0x%2X.%03X %02X\n", event->size, event->bits, event->frac, event->source);
+			printf(" %2d %2d %02X\n", event->size, event->bits, event->source);
 			}
 #endif
 
@@ -248,4 +257,3 @@ random_harvestq_internal(u_int64_t somecounter, const void *entropy,
 	}
 	mtx_unlock_spin(&harvest_mtx);
 }
-
