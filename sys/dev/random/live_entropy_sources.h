@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013 Arthur Mesh <arthurmesh@gmail.com>
+ * Copyright (c) 2013 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,16 +27,32 @@
  * $FreeBSD$
  */
 
-#ifndef __RANDOM_HARVEST_H__
-#define __RANDOM_HARVEST_H__
+#ifndef __LIVE_ENTROPY_SOURCES__
+#define __LIVE_ENTROPY_SOURCES__
 
-typedef void (*event_proc_f)(struct harvest *event);
+/*
+ * Live entropy source is a source of entropy that can provide
+ * specified or approximate amount of entropy immediately upon request or within
+ * an acceptable amount of time.
+ */
+struct live_entropy_sources {
+	LIST_ENTRY(live_entropy_sources) entries;	/* list of providers */
+	struct random_hardware_source	*rsource;	/* associated random adaptor */
+};
 
-void random_harvestq_init(event_proc_f);
-void random_harvestq_deinit(void);
-void random_harvestq_internal(u_int64_t, const void *,
-    u_int, u_int, enum esource);
+void live_entropy_source_register(struct random_hardware_source *);
+void live_entropy_source_deregister(struct random_hardware_source *);
+void live_entropy_sources_feed(int);
 
-extern int random_kthread_control;
+#define LIVE_ENTROPY_SRC_MODULE(name, modevent, ver)		\
+    static moduledata_t name##_mod = {				\
+	#name,							\
+	modevent,						\
+	0							\
+    };								\
+    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS,		\
+		   SI_ORDER_SECOND);				\
+    MODULE_VERSION(name, ver);					\
+    MODULE_DEPEND(name, random, 1, 1, 1);
 
-#endif /* __RANDOM_HARVEST_H__ */
+#endif /* __LIVE_ENTROPY_SOURCES__ */

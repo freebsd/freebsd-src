@@ -67,8 +67,6 @@ static struct random_state {
 	struct pool {
 		struct source {
 			u_int bits;	/* estimated bits of entropy */
-			u_int frac;	/* fractional bits of entropy
-					   (given as 1024/n) */
 		} source[ENTROPYSOURCE];
 		u_int thresh;	/* pool reseed threshhold */
 		struct randomdev_hash hash;	/* accumulated entropy */
@@ -122,9 +120,7 @@ random_process_event(struct harvest *event)
 		sizeof(event->entropy));
 	randomdev_hash_iterate(&random_state.pool[pl].hash, &event->somecounter,
 		sizeof(event->somecounter));
-	source->frac += event->frac;
-	source->bits += event->bits + (source->frac >> 12); /* bits + frac/0x1000 */
-	source->frac &= 0xFFF; /* Keep the fractional bits */
+	source->bits += event->bits;
 
 	/* Count the over-threshold sources in each pool */
 	for (pl = 0; pl < 2; pl++) {
@@ -286,12 +282,9 @@ reseed(u_int fastslow)
 
 	/* 5. Reset entropy estimate accumulators to zero */
 
-	for (i = 0; i <= fastslow; i++) {
-		for (j = RANDOM_START; j < ENTROPYSOURCE; j++) {
+	for (i = 0; i <= fastslow; i++)
+		for (j = RANDOM_START; j < ENTROPYSOURCE; j++)
 			random_state.pool[i].source[j].bits = 0;
-			random_state.pool[i].source[j].frac = 0;
-		}
-	}
 
 	/* 6. Wipe memory of intermediate values */
 
@@ -319,6 +312,10 @@ random_yarrow_read(void *buf, int count)
 	size_t tomove;
 	int i;
 	int retval;
+
+	/* Check for final read request */
+	if (buf == NULL && count == 0)
+		return (0);
 
 	/* The reseed task must not be jumped on */
 	mtx_lock(&random_reseed_mtx);
@@ -362,7 +359,7 @@ random_yarrow_read(void *buf, int count)
 		}
 	}
 	mtx_unlock(&random_reseed_mtx);
-	return retval;
+	return (retval);
 }
 
 static void

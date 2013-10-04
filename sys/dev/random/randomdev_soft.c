@@ -76,10 +76,9 @@ static struct random_adaptor random_context = {
 	.deinit = randomdev_deinit,
 	.block = randomdev_block,
 	.read = random_yarrow_read,
-	.write = randomdev_write,
 	.poll = randomdev_poll,
 	.reseed = randomdev_flush_reseed,
-	.seeded = 1,
+	.seeded = 0, /* This will be seeded during entropy processing */
 };
 #define RANDOM_MODULE_NAME	yarrow
 #define RANDOM_CSPRNG_NAME	"yarrow"
@@ -92,14 +91,12 @@ static struct random_adaptor random_context = {
 	.deinit = randomdev_deinit,
 	.block = randomdev_block,
 	.read = random_fortuna_read,
-	.write = randomdev_write,
 	.poll = randomdev_poll,
 	.reseed = randomdev_flush_reseed,
-	.seeded = 1,
+	.seeded = 0, /* This will be excplicitly seeded at startup when secured */
 };
 #define RANDOM_MODULE_NAME	fortuna
 #define RANDOM_CSPRNG_NAME	"fortuna"
-
 #endif
 
 /* List for the dynamic sysctls */
@@ -111,7 +108,7 @@ random_check_boolean(SYSCTL_HANDLER_ARGS)
 {
 	if (oidp->oid_arg1 != NULL && *(u_int *)(oidp->oid_arg1) != 0)
 		*(u_int *)(oidp->oid_arg1) = 1;
-	return sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
+	return (sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req));
 }
 
 void
@@ -134,7 +131,7 @@ randomdev_init(void)
 	SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_o),
 	    OID_AUTO, "seeded", CTLTYPE_INT | CTLFLAG_RW,
-	    &random_context.seeded, 1, random_check_boolean, "I",
+	    &random_context.seeded, 0, random_check_boolean, "I",
 	    "Seeded State");
 
 	random_sys_harvest_o = SYSCTL_ADD_NODE(&random_clist,
@@ -155,12 +152,12 @@ randomdev_init(void)
 	SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_harvest_o),
 	    OID_AUTO, "interrupt", CTLTYPE_INT | CTLFLAG_RW,
-	    &harvest.interrupt, 0, random_check_boolean, "I",
+	    &harvest.interrupt, 1, random_check_boolean, "I",
 	    "Harvest IRQ entropy");
 	SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_harvest_o),
 	    OID_AUTO, "swi", CTLTYPE_INT | CTLFLAG_RW,
-	    &harvest.swi, 0, random_check_boolean, "I",
+	    &harvest.swi, 1, random_check_boolean, "I",
 	    "Harvest SWI entropy");
 
 	random_harvestq_init(random_process_event);
@@ -193,32 +190,15 @@ randomdev_deinit(void)
 }
 
 void
-randomdev_write(void *buf, int count)
-{
-	int i;
-	u_int chunk;
-
-	/*
-	 * Break the input up into HARVESTSIZE chunks. The writer has too
-	 * much control here, so "estimate" the entropy as zero.
-	 */
-	for (i = 0; i < count; i += HARVESTSIZE) {
-		chunk = HARVESTSIZE;
-		if (i + chunk >= count)
-			chunk = (u_int)(count - i);
-		random_harvestq_internal(get_cyclecount(), (char *)buf + i,
-		    chunk, 0, 0, RANDOM_WRITE);
-	}
-}
-
-void
 randomdev_unblock(void)
 {
 	if (!random_context.seeded) {
-		random_context.seeded = 1;
 		selwakeuppri(&random_context.rsel, PUSER);
 		wakeup(&random_context);
+                printf("random: unblocking device.\n");
+		random_context.seeded = 1;
 	}
+	/* Do arc4random(9) a favour while we are about it. */
 	(void)atomic_cmpset_int(&arc4rand_iniseed_state, ARC4_ENTR_NONE,
 	    ARC4_ENTR_HAVE);
 }
@@ -227,6 +207,7 @@ static int
 randomdev_poll(int events, struct thread *td)
 {
 	int revents = 0;
+
 	mtx_lock(&random_reseed_mtx);
 
 	if (random_context.seeded)
@@ -235,7 +216,7 @@ randomdev_poll(int events, struct thread *td)
 		selrecord(td, &random_context.rsel);
 
 	mtx_unlock(&random_reseed_mtx);
-	return revents;
+	return (revents);
 }
 
 static int
@@ -250,7 +231,7 @@ randomdev_block(int flag)
 		if (flag & O_NONBLOCK)
 			error = EWOULDBLOCK;
 		else {
-			printf("Entropy device is blocking.\n");
+			printf("random: blocking on read.\n");
 			error = msleep(&random_context,
 			    &random_reseed_mtx,
 			    PUSER | PCATCH, "block", 0);
@@ -258,7 +239,7 @@ randomdev_block(int flag)
 	}
 	mtx_unlock(&random_reseed_mtx);
 
-	return error;
+	return (error);
 }
 
 /* Helper routine to perform explicit reseeds */
@@ -271,15 +252,17 @@ randomdev_flush_reseed(void)
 		pause("-", hz / 10);
 
 #if defined(YARROW_RNG)
+	/* This ultimately calls randomdev_unblock() */
 	random_yarrow_reseed();
 #endif
 #if defined(FORTUNA_RNG)
+	/* This ultimately calls randomdev_unblock() */
 	random_fortuna_reseed();
 #endif
 }
 
 static int
-randomdev_modevent(module_t mod, int type, void *unused)
+randomdev_modevent(module_t mod __unused, int type, void *unused __unused)
 {
 
 	switch (type) {

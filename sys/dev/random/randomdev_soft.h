@@ -49,18 +49,16 @@ MALLOC_DECLARE(M_ENTROPY);
 struct harvest {
 	uintmax_t somecounter;		/* fast counter for clock jitter */
 	uint8_t entropy[HARVESTSIZE];	/* the harvested entropy */
-	u_int size, bits, frac;		/* stats about the entropy */
-	enum esource source;		/* stats about the entropy */
+	u_int size, bits;		/* stats about the entropy */
+	enum esource source;		/* origin of the entropy */
 	STAILQ_ENTRY(harvest) next;	/* next item on the list */
 };
 
 void randomdev_init(void);
 void randomdev_deinit(void);
 
-void randomdev_write(void *, int);
-
 void randomdev_init_harvester(void (*)(u_int64_t, const void *, u_int,
-	u_int, u_int, enum esource), int (*)(void *, int));
+	u_int, enum esource), int (*)(void *, int));
 void randomdev_deinit_harvester(void);
 
 void random_set_wakeup_exit(void *);
@@ -80,6 +78,6 @@ random_check_uint_##name(SYSCTL_HANDLER_ARGS)				\
 		 else if (*(u_int *)(oidp->oid_arg1) > (max))		\
 			*(u_int *)(oidp->oid_arg1) = (max);		\
 	}								\
-        return sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2,	\
-		req);							\
+        return (sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2,	\
+		req));							\
 }

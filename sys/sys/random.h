@@ -47,10 +47,17 @@ enum esource {
 	RANDOM_NET_NG,
 	RANDOM_INTERRUPT,
 	RANDOM_SWI,
+	RANDOM_PURE_OCTEON,
+	RANDOM_PURE_SAFE,
+	RANDOM_PURE_GLXSB,
+	RANDOM_PURE_UBSEC,
+	RANDOM_PURE_HIFN,
+	RANDOM_PURE_RDRAND,
+	RANDOM_PURE_NEHEMIAH,
 	RANDOM_PURE,
 	ENTROPYSOURCE
 };
-void random_harvest(void *, u_int, u_int, u_int, enum esource);
+void random_harvest(void *, u_int, u_int, enum esource);
 
 /* Allow the sysadmin to select the broad category of
  * entropy types to harvest
