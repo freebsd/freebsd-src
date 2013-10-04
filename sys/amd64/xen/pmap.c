@@ -220,7 +220,6 @@ extern char *console_page; /* The shared ring for console i/o */
 extern struct xenstore_domain_interface *xen_store; /* xenstore page */
 
 extern vm_map_t pv_map;
-vm_offset_t pv_minva, pv_maxva;
 
 /* Index offset into a pagetable, for a given va */
 static int
@@ -742,9 +741,6 @@ pmap_init(void)
 
 	/* Reserve pv VA space by allocating a submap */
 	KASSERT(kernel_map != 0, ("Initialising kernel submap before kernel_map!"));
-	pv_map = kmem_suballoc(kernel_map, &pv_minva, &pv_maxva, 
-			       sizeof(struct pv_chunk) * 100 /* XXX: Totally arbitrary */, 0);
-	KASSERT(pv_map != NULL, ("Could not allocate kernel submap for pv_map!"));
 
 	gdtset = 1; /* xpq may assert for locking sanity from this point onwards */
 
