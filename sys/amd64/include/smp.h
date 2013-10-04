@@ -90,5 +90,10 @@ void	smp_masked_invltlb(cpuset_t mask, struct pmap *pmap);
 #endif /* !LOCORE */
 #endif /* SMP */
 
+#ifdef XEN
+/* XXX: shim - remove when we get -D SMP */
+void	cpu_add(u_int apic_id, char boot_cpu); 
+#endif
+
 #endif /* _KERNEL */
 #endif /* _MACHINE_SMP_H_ */

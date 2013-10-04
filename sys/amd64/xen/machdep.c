@@ -88,6 +88,7 @@
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/stdarg.h>
+#include <machine/smp.h>
 #include <machine/tss.h>
 #include <machine/vmparam.h>
 
@@ -858,6 +859,56 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 
 	pcpu->pc_acpi_id = 0xffffffff;
 }
+
+/* XXX: Delete when we get mp_machdep.c */
+/* Dummy defines to get x86/x86/local_apic.c to link. */
+int Xspuriousint, Xtimerint, Xerrorint, Xcmcint, Xapic_isr1;
+int Xapic_isr2, Xapic_isr3, Xapic_isr4, Xapic_isr5;
+int Xapic_isr6, Xapic_isr7;
+int cmc_intr;
+
+void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int ist)
+{
+}
+
+
+struct cpu_info {
+	int	cpu_present:1;
+	int	cpu_bsp:1;
+	int	cpu_disabled:1;
+};
+
+/* We don't want to #include <machine/apicvar.h */
+#define	MAX_APIC_ID	0xfe 
+
+static struct cpu_info cpu_info[MAX_APIC_ID + 1];
+int	boot_cpu_id = -1;	/* designated BSP */
+
+void
+cpu_add(u_int apic_id, char boot_cpu)
+{
+
+	if (apic_id > MAX_APIC_ID) {
+		panic("SMP: APIC ID %d too high", apic_id);
+		return;
+	}
+	KASSERT(cpu_info[apic_id].cpu_present == 0, ("CPU %d added twice",
+	    apic_id));
+	cpu_info[apic_id].cpu_present = 1;
+	if (boot_cpu) {
+		KASSERT(boot_cpu_id == -1,
+		    ("CPU %d claims to be BSP, but CPU %d already is", apic_id,
+		    boot_cpu_id));
+		boot_cpu_id = apic_id;
+		cpu_info[apic_id].cpu_bsp = 1;
+	}
+	if (mp_ncpus < MAXCPU)
+		mp_ncpus++;
+	if (bootverbose)
+		printf("SMP: Added CPU %d (%s)\n", apic_id, boot_cpu ? "BSP" :
+		    "AP");
+}
+/* Delete when we get mp_machdep.c : XXX*/
 
 void
 spinlock_enter(void)
