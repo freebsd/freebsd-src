@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/errno.h>
+#include <sys/endian.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -69,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <mips/nlm/dev/sec/nlmrsalib.h>
 
 #ifdef NLM_RSA_DEBUG
-static	int print_krp_params(struct cryptkop *krp);
+static	void print_krp_params(struct cryptkop *krp);
 #endif
 
 static	int xlp_rsa_init(struct xlp_rsa_softc *sc, int node);
@@ -114,7 +115,7 @@ DRIVER_MODULE(nlmrsa, pci, xlp_rsa_driver, xlp_rsa_devclass, 0, 0);
 MODULE_DEPEND(nlmrsa, crypto, 1, 1, 1);
 
 #ifdef NLM_RSA_DEBUG
-static int
+static void
 print_krp_params(struct cryptkop *krp)
 {
 	int i;
@@ -131,7 +132,6 @@ print_krp_params(struct cryptkop *krp)
 		printf("krp->krp_param[%d].crp_nbytes	:%d\n", i,
 		    howmany(krp->krp_param[i].crp_nbits, 8));
 	}
-	return (0);
 }
 #endif
 
@@ -139,7 +139,7 @@ static int
 xlp_rsa_init(struct xlp_rsa_softc *sc, int node)
 {
 	struct xlp_rsa_command *cmd = NULL;
-	uint32_t size, fbvc, dstvc, endsel, regval;
+	uint32_t fbvc, dstvc, endsel, regval;
 	struct nlm_fmn_msg m;
 	int err, ret, i;
 	uint64_t base;
@@ -151,39 +151,36 @@ xlp_rsa_init(struct xlp_rsa_softc *sc, int node)
 		printf("Couldn't register rsa/ecc msgring handler\n");
 		goto errout;
 	}
-	fbvc = nlm_cpuid() / CMS_MAX_VCPU_VC;
+	fbvc = nlm_cpuid() * 4 + XLPGE_FB_VC;
 	/* Do the CMS credit initialization */
 	/* Currently it is configured by default to 50 when kernel comes up */
 
-	cmd = malloc(sizeof(struct xlp_rsa_command), M_DEVBUF,
-	    M_NOWAIT | M_ZERO);
-	if (cmd == NULL) {
-		err = ENOMEM;
-		printf("Failed to allocate mem for cmd\n");
-		goto errout;
-	}
-	size = sizeof(nlm_rsa_ucode_data);
-	cmd->rsasrc = malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (cmd->rsasrc == NULL) {
-		err = ENOMEM;
-		printf("Failed to allocate mem for cmd->rsasrc\n");
-		goto errout;
-	}
-	if (((uintptr_t)cmd->rsasrc & (XLP_L2L3_CACHELINE_SIZE - 1))) {
-		err = EINVAL;
-		printf("cmd->rsasrc is not cacheline aligned\n");
-		goto errout;
-	}
-	memcpy(cmd->rsasrc, (uint8_t *)nlm_rsa_ucode_data, size);
-	m.msg[0] = nlm_crypto_form_rsa_ecc_fmn_entry0(1, 0x70, 0,
-	    vtophys(cmd->rsasrc));
-	m.msg[1] = nlm_crypto_form_rsa_ecc_fmn_entry1(0, 1, fbvc,
-	    vtophys(cmd->rsasrc));
-	/* Software scratch pad */
-	m.msg[2] = (uintptr_t)cmd;
-	m.msg[3] = 0;
-
+#if BYTE_ORDER == LITTLE_ENDIAN
+	for (i = 0; i < nitems(nlm_rsa_ucode_data); i++)
+		nlm_rsa_ucode_data[i] = htobe64(nlm_rsa_ucode_data[i]);
+#endif
 	for (dstvc = sc->rsaecc_vc_start; dstvc <= sc->rsaecc_vc_end; dstvc++) {
+		cmd = malloc(sizeof(struct xlp_rsa_command), M_DEVBUF,
+		    M_NOWAIT | M_ZERO);
+		KASSERT(cmd != NULL, ("%s:cmd is NULL\n", __func__));
+		cmd->rsasrc = contigmalloc(sizeof(nlm_rsa_ucode_data),
+		    M_DEVBUF,
+		    (M_WAITOK | M_ZERO),
+		    0UL /* low address */, -1UL /* high address */,
+		    XLP_L2L3_CACHELINE_SIZE /* alignment */,
+		    0UL /* boundary */);
+		KASSERT(cmd->rsasrc != NULL,
+		    ("%s:cmd->rsasrc is NULL\n", __func__));
+		memcpy(cmd->rsasrc, nlm_rsa_ucode_data,
+		    sizeof(nlm_rsa_ucode_data));
+		m.msg[0] = nlm_crypto_form_rsa_ecc_fmn_entry0(1, 0x70, 0,
+		    vtophys(cmd->rsasrc));
+		m.msg[1] = nlm_crypto_form_rsa_ecc_fmn_entry1(0, 1, fbvc,
+		    vtophys(cmd->rsasrc));
+		/* Software scratch pad */
+		m.msg[2] = (uintptr_t)cmd;
+		m.msg[3] = 0;
+
 		ret = nlm_fmn_msgsend(dstvc, 3, FMN_SWCODE_RSA, &m);
 		if (ret != 0) {
 			err = -1;
@@ -230,19 +227,23 @@ nlm_xlprsaecc_msgring_handler(int vc, int size, int code, int src_id,
 	cmd = (struct xlp_rsa_command *)(uintptr_t)msg->msg[1];
 	KASSERT(cmd != NULL, ("%s:cmd not received properly\n", __func__));
 
-	KASSERT(RSA_ERROR(msg->msg[0]) == 0,
-	    ("%s: Message rcv msg0 %llx msg1 %llx err %x \n", __func__,
-	    (unsigned long long)msg->msg[0], (unsigned long long)msg->msg[1],
-	    (int)RSA_ERROR(msg->msg[0])));
+	if (RSA_ERROR(msg->msg[0]) != 0) {
+		printf("%s: Message rcv msg0 %llx msg1 %llx err %x \n",
+		    __func__, (unsigned long long)msg->msg[0],
+		    (unsigned long long)msg->msg[1],
+		    (int)RSA_ERROR(msg->msg[0]));
+		cmd->krp->krp_status = EBADMSG;
+	}
 
-	ostart = cmd->krp->krp_iparams;
-	outparam = &cmd->krp->krp_param[ostart];
-	xlp_rsa_inp2hwformat(cmd->rsasrc + cmd->rsaopsize * ostart,
-	    outparam->crp_p,
-	    howmany(outparam->crp_nbits, 8),
-	    1);
-	if (cmd->krp != NULL)
+	if (cmd->krp != NULL) {
+		ostart = cmd->krp->krp_iparams;
+		outparam = &cmd->krp->krp_param[ostart];
+		xlp_rsa_inp2hwformat(cmd->rsasrc + cmd->rsaopsize * ostart,
+		    outparam->crp_p,
+		    howmany(outparam->crp_nbits, 8),
+		    1);
 		crypto_kdone(cmd->krp);
+	}
 
 	xlp_free_cmd_params(cmd);
 }
@@ -277,7 +278,7 @@ xlp_rsa_attach(device_t dev)
 	freq = nlm_set_device_frequency(node, DFS_DEVICE_RSA, 250);
 	if (bootverbose)
 		device_printf(dev, "RSA Freq: %dMHz\n", freq);
-	if(pci_get_device(dev) == PCI_DEVICE_ID_NLM_RSA) {
+	if (pci_get_device(dev) == PCI_DEVICE_ID_NLM_RSA) {
 		device_set_desc(dev, "XLP RSA/ECC Accelerator");
 		if ((sc->sc_cid = crypto_get_driverid(dev,
 		    CRYPTOCAP_F_HARDWARE)) < 0) {
@@ -285,7 +286,7 @@ xlp_rsa_attach(device_t dev)
 			goto error_exit;
 		}
 		if (crypto_kregister(sc->sc_cid, CRK_MOD_EXP, 0) != 0)
-			printf("register failed for CRK_MOD_EXP\n");
+			goto error_exit;
 
 		base = nlm_get_rsa_pcibase(node);
 		qstart = nlm_qidstart(base);
@@ -390,43 +391,43 @@ static void
 xlp_free_cmd_params(struct xlp_rsa_command *cmd)
 {
 
-	if (cmd->rsasrc != NULL)
-		free(cmd->rsasrc, M_DEVBUF);
-	if (cmd != NULL)
-		free(cmd, M_DEVBUF);
+	if (cmd == NULL)
+		return;
+	if (cmd->rsasrc != NULL) {
+		if (cmd->krp == NULL) /* Micro code load */
+			contigfree(cmd->rsasrc, sizeof(nlm_rsa_ucode_data),
+			    M_DEVBUF);
+		else
+			free(cmd->rsasrc, M_DEVBUF);
+	}
+	free(cmd, M_DEVBUF);
 }
 
 static int
 xlp_get_rsa_opsize(struct xlp_rsa_command *cmd, unsigned int bits)
 {
 
-	if (bits == 0)
+	if (bits == 0 || bits > 8192)
 		return (-1);
 	/* XLP hardware expects always a fixed size with unused bytes
 	 * zeroed out in the input data */
 	if (bits <= 512) {
 		cmd->rsatype = 0x40;
-		cmd->rsaopsize = (512/8);
-		return (0);
-	} else if ((bits > 512) && (bits <= 1024)) {
+		cmd->rsaopsize = 64;
+	} else if (bits <= 1024) {
 		cmd->rsatype = 0x41;
-		cmd->rsaopsize = (1024/8);
-		return (0);
-	} else if ((bits > 1024) && (bits <= 2048)) {
+		cmd->rsaopsize = 128;
+	} else if (bits <= 2048) {
 		cmd->rsatype = 0x42;
-		cmd->rsaopsize = (2048/8);
-		return (0);
-	} else if ((bits > 2048) && (bits <= 4096)) {
+		cmd->rsaopsize = 256;
+	} else if (bits <= 4096) {
 		cmd->rsatype = 0x43;
-		cmd->rsaopsize = (4096/8);
-		return (0);
-	} else if ((bits > 4096) && (bits <= 8192)) {
+		cmd->rsaopsize = 512;
+	} else if (bits <= 8192) {
 		cmd->rsatype = 0x44;
-		cmd->rsaopsize = (8192/8);
-		return (0);
-	} else {
-		return (-1);
+		cmd->rsaopsize = 1024;
 	}
+	return (0);
 }
 
 static int
@@ -467,7 +468,8 @@ nlm_crypto_complete_rsa_request(struct xlp_rsa_softc *sc,
 	struct nlm_fmn_msg m;
 	int ret;
 
-	fbvc = nlm_cpuid() / CMS_MAX_VCPU_VC;
+	fbvc = nlm_cpuid() * 4 + XLPGE_FB_VC;
+
 	m.msg[0] = nlm_crypto_form_rsa_ecc_fmn_entry0(1, cmd->rsatype,
 	    cmd->rsafn, vtophys(cmd->rsasrc));
 	m.msg[1] = nlm_crypto_form_rsa_ecc_fmn_entry1(0, 1, fbvc,
@@ -493,22 +495,20 @@ xlp_rsa_kprocess(device_t dev, struct cryptkop *krp, int hint)
 	struct xlp_rsa_softc *sc = device_get_softc(dev);
 	struct xlp_rsa_command *cmd;
 	struct crparam *kp;
-	int err = -1, i;
+	int err, i;
 
 	if (krp == NULL || krp->krp_callback == NULL)
 		return (EINVAL);
 
 	cmd = malloc(sizeof(struct xlp_rsa_command), M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
-	if (cmd == NULL) {
-		err = ENOMEM;
-		goto errout;
-	}
+	KASSERT(cmd != NULL, ("%s:cmd is NULL\n", __func__));
 	cmd->krp = krp;
 
 #ifdef NLM_RSA_DEBUG
 	print_krp_params(krp);
 #endif
+	err = EOPNOTSUPP;
 	switch (krp->krp_op) {
 	case CRK_MOD_EXP:
 		if (krp->krp_iparams == 3 && krp->krp_oparams == 1)
@@ -534,10 +534,7 @@ xlp_rsa_kprocess(device_t dev, struct cryptkop *krp, int hint)
 		err = ENOMEM;
 		goto errout;
 	}
-	if (((uintptr_t)cmd->rsasrc & (XLP_L2L3_CACHELINE_SIZE - 1))) {
-		err = EINVAL;
-		goto errout;
-	}
+
 	for (i = 0, kp = krp->krp_param; i < krp->krp_iparams; i++, kp++) {
 		KASSERT(kp->crp_nbits != 0,
 		    ("%s: parameter[%d]'s length is zero\n", __func__, i));
@@ -545,7 +542,8 @@ xlp_rsa_kprocess(device_t dev, struct cryptkop *krp, int hint)
 		    cmd->rsasrc + i * cmd->rsaopsize,
 		    howmany(kp->crp_nbits, 8), 0);
 	}
-	if (nlm_crypto_complete_rsa_request(sc, cmd) != 0)
+	err = nlm_crypto_complete_rsa_request(sc, cmd);
+	if (err != 0)
 		goto errout;
 
 	return (0);
