@@ -1255,7 +1255,7 @@ cfiscsi_init(void)
 
 	cfiscsi_data_wait_zone = uma_zcreate("cfiscsi_data_wait",
 	    sizeof(struct cfiscsi_data_wait), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    UMA_ALIGN_PTR, 0);
 
 	return (0);
 
