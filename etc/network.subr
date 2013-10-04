@@ -48,9 +48,11 @@ ifn_start()
 
 	ifscript_up ${ifn} && cfg=0
 	ifconfig_up ${ifn} && cfg=0
-	afexists inet && ipv4_up ${ifn} && cfg=0
-	afexists inet6 && ipv6_up ${ifn} && cfg=0
-	afexists ipx && ipx_up ${ifn} && cfg=0
+	if ! noafif $ifn; then
+		afexists inet && ipv4_up ${ifn} && cfg=0
+		afexists inet6 && ipv6_up ${ifn} && cfg=0
+		afexists ipx && ipx_up ${ifn} && cfg=0
+	fi
 	childif_create ${ifn} && cfg=0
 
 	return $cfg
@@ -68,9 +70,11 @@ ifn_stop()
 
 	[ -z "$ifn" ] && err 1 "ifn_stop called without an interface"
 
-	afexists ipx && ipx_down ${ifn} && cfg=0
-	afexists inet6 && ipv6_down ${ifn} && cfg=0
-	afexists inet && ipv4_down ${ifn} && cfg=0
+	if ! noafif $ifn; then
+		afexists ipx && ipx_down ${ifn} && cfg=0
+		afexists inet6 && ipv6_down ${ifn} && cfg=0
+		afexists inet && ipv4_down ${ifn} && cfg=0
+	fi
 	ifconfig_down ${ifn} && cfg=0
 	ifscript_down ${ifn} && cfg=0
 	childif_destroy ${ifn} && cfg=0
@@ -103,7 +107,7 @@ ifconfig_up()
 	fi
 
 	# inet6 specific
-	if afexists inet6; then
+	if ! noafif $1 && afexists inet6; then
 		if checkyesno ipv6_activate_all_interfaces; then
 			_ipv6_opts="-ifdisabled"
 		elif [ "$1" != "lo0" ]; then
@@ -463,6 +467,7 @@ noafif()
 	case $_if in
 	pflog[0-9]*|\
 	pfsync[0-9]*|\
+	usbus[0-9]*|\
 	an[0-9]*|\
 	ath[0-9]*|\
 	ipw[0-9]*|\
