@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/vmparam.h>
 
-#include <x86/apicreg.h>
-
 #include <machine/vmm.h>
 #include "vmm_host.h"
 #include "vmm_lapic.h"
@@ -167,9 +165,6 @@ static int cap_pause_exit;
 static int cap_unrestricted_guest;
 static int cap_monitor_trap;
  
-/* statistics */
-static VMM_STAT_INTEL(VMEXIT_HLT_IGNORED, "number of times hlt was ignored");
-
 static struct unrhdr *vpid_unr;
 static u_int vpid_alloc_failed;
 SYSCTL_UINT(_hw_vmm_vmx, OID_AUTO, vpid_alloc_failed, CTLFLAG_RD,
@@ -740,7 +735,7 @@ vmx_setup_cr_shadow(int which, struct vmcs *vmcs, uint32_t initial)
 #define	vmx_setup_cr4_shadow(vmcs,init)	vmx_setup_cr_shadow(4, (vmcs), (init))
 
 static void *
-vmx_vminit(struct vm *vm)
+vmx_vminit(struct vm *vm, pmap_t pmap)
 {
 	uint16_t vpid[VM_MAXCPU];
 	int i, error, guest_msr_count;
@@ -753,6 +748,8 @@ vmx_vminit(struct vm *vm)
 	}
 	vmx->vm = vm;
 
+	vmx->eptp = eptp(vtophys((vm_offset_t)pmap->pm_pml4));
+
 	/*
 	 * Clean up EPTP-tagged guest physical and combined mappings
 	 *
@@ -762,7 +759,7 @@ vmx_vminit(struct vm *vm)
 	 *
 	 * Combined mappings for this EP4TA are also invalidated for all VPIDs.
 	 */
-	ept_invalidate_mappings(vtophys(vmx->pml4ept));
+	ept_invalidate_mappings(vmx->eptp);
 
 	msr_bitmap_initialize(vmx->msr_bitmap);
 
@@ -818,7 +815,7 @@ vmx_vminit(struct vm *vm)
 		error = vmcs_set_defaults(&vmx->vmcs[i],
 					  (u_long)vmx_longjmp,
 					  (u_long)&vmx->ctx[i],
-					  vtophys(vmx->pml4ept),
+					  vmx->eptp,
 					  pinbased_ctls,
 					  procbased_ctls,
 					  procbased_ctls2,
@@ -856,6 +853,9 @@ vmx_vminit(struct vm *vm)
 		error = vmx_setup_cr4_shadow(&vmx->vmcs[i], 0);
 		if (error != 0)
 			panic("vmx_setup_cr4_shadow %d", error);
+
+		vmx->ctx[i].pmap = pmap;
+		vmx->ctx[i].eptp = vmx->eptp;
 	}
 
 	return (vmx);
@@ -1281,21 +1281,49 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 }
 
 static int
-vmx_ept_fault(struct vm *vm, int cpu,
-	      uint64_t gla, uint64_t gpa, uint64_t rip, int inst_length,
-	      uint64_t cr3, uint64_t ept_qual, struct vie *vie)
+ept_fault_type(uint64_t ept_qual)
 {
-	int read, write, error;
+	int fault_type;
 
-	/* EPT violation on an instruction fetch doesn't make sense here */
+	if (ept_qual & EPT_VIOLATION_DATA_WRITE)
+		fault_type = VM_PROT_WRITE;
+	else if (ept_qual & EPT_VIOLATION_INST_FETCH)
+		fault_type = VM_PROT_EXECUTE;
+	else
+		fault_type= VM_PROT_READ;
+
+	return (fault_type);
+}
+
+static int
+ept_protection(uint64_t ept_qual)
+{
+	int prot = 0;
+
+	if (ept_qual & EPT_VIOLATION_GPA_READABLE)
+		prot |= VM_PROT_READ;
+	if (ept_qual & EPT_VIOLATION_GPA_WRITEABLE)
+		prot |= VM_PROT_WRITE;
+	if (ept_qual & EPT_VIOLATION_GPA_EXECUTABLE)
+		prot |= VM_PROT_EXECUTE;
+
+	return (prot);
+}
+
+static boolean_t
+ept_emulation_fault(uint64_t ept_qual)
+{
+	int read, write;
+
+	/* EPT fault on an instruction fetch doesn't make sense here */
 	if (ept_qual & EPT_VIOLATION_INST_FETCH)
-		return (UNHANDLED);
+		return (FALSE);
 
-	/* EPT violation must be a read fault or a write fault */
+	/* EPT fault must be a read fault or a write fault */
 	read = ept_qual & EPT_VIOLATION_DATA_READ ? 1 : 0;
 	write = ept_qual & EPT_VIOLATION_DATA_WRITE ? 1 : 0;
 	if ((read | write) == 0)
-		return (UNHANDLED);
+		return (FALSE);
 
 	/*
 	 * The EPT violation must have been caused by accessing a
@@ -1304,26 +1332,10 @@ vmx_ept_fault(struct vm *vm, int cpu,
 	 */
 	if ((ept_qual & EPT_VIOLATION_GLA_VALID) == 0 ||
 	    (ept_qual & EPT_VIOLATION_XLAT_VALID) == 0) {
-		return (UNHANDLED);
+		return (FALSE);
 	}
 
-	/* Fetch, decode and emulate the faulting instruction */
-	if (vmm_fetch_instruction(vm, cpu, rip, inst_length, cr3, vie) != 0)
-		return (UNHANDLED);
-
-	if (vmm_decode_instruction(vm, cpu, gla, vie) != 0)
-		return (UNHANDLED);
-
-	/*
-	 * Check if this is a local apic access
-	 */
-	if (gpa < DEFAULT_APIC_BASE || gpa >= DEFAULT_APIC_BASE + PAGE_SIZE)
-		return (UNHANDLED);
-
-	error = vmm_emulate_instruction(vm, cpu, gpa, vie,
-					lapic_mmio_read, lapic_mmio_write, 0);
-
-	return (error ? UNHANDLED : HANDLED);
+	return (TRUE);
 }
 
 static int
@@ -1332,18 +1344,47 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	int error, handled;
 	struct vmcs *vmcs;
 	struct vmxctx *vmxctx;
-	uint32_t eax, ecx, edx;
-	uint64_t qual, gla, gpa, cr3, intr_info;
+	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, reason;
+	uint64_t qual, gpa;
 
 	handled = 0;
 	vmcs = &vmx->vmcs[vcpu];
 	vmxctx = &vmx->ctx[vcpu];
 	qual = vmexit->u.vmx.exit_qualification;
+	reason = vmexit->u.vmx.exit_reason;
 	vmexit->exitcode = VM_EXITCODE_BOGUS;
 
 	vmm_stat_incr(vmx->vm, vcpu, VMEXIT_COUNT, 1);
 
-	switch (vmexit->u.vmx.exit_reason) {
+	/*
+	 * VM exits that could be triggered during event injection on the
+	 * previous VM entry need to be handled specially by re-injecting
+	 * the event.
+	 *
+	 * See "Information for VM Exits During Event Delivery" in Intel SDM
+	 * for details.
+	 */
+	switch (reason) {
+	case EXIT_REASON_EPT_FAULT:
+	case EXIT_REASON_EPT_MISCONFIG:
+	case EXIT_REASON_APIC:
+	case EXIT_REASON_TASK_SWITCH:
+	case EXIT_REASON_EXCEPTION:
+		idtvec_info = vmcs_idt_vectoring_info();
+		if (idtvec_info & VMCS_IDT_VEC_VALID) {
+			idtvec_info &= ~(1 << 12); /* clear undefined bit */
+			vmwrite(VMCS_ENTRY_INTR_INFO, idtvec_info);
+			if (idtvec_info & VMCS_IDT_VEC_ERRCODE_VALID) {
+				idtvec_err = vmcs_idt_vectoring_err();
+				vmwrite(VMCS_ENTRY_EXCEPTION_ERROR, idtvec_err);
+			}
+			vmwrite(VMCS_ENTRY_INST_LENGTH, vmexit->inst_length);
+		}
+	default:
+		break;
+	}
+
+	switch (reason) {
 	case EXIT_REASON_CR_ACCESS:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_CR_ACCESS, 1);
 		handled = vmx_emulate_cr_access(vmx, vcpu, qual);
@@ -1374,19 +1415,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		break;
 	case EXIT_REASON_HLT:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_HLT, 1);
-		/*
-		 * If there is an event waiting to be injected then there is
-		 * no need to 'hlt'.
-		 */
-		error = vmread(VMCS_ENTRY_INTR_INFO, &intr_info);
-		if (error)
-			panic("vmx_exit_process: vmread(intrinfo) %d", error);
-
-		if (intr_info & VMCS_INTERRUPTION_INFO_VALID) {
-			handled = 1;
-			vmm_stat_incr(vmx->vm, vcpu, VMEXIT_HLT_IGNORED, 1);
-		} else
-			vmexit->exitcode = VM_EXITCODE_HLT;
+		vmexit->exitcode = VM_EXITCODE_HLT;
 		break;
 	case EXIT_REASON_MTF:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_MTRAP, 1);
@@ -1440,15 +1469,22 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		break;
 	case EXIT_REASON_EPT_FAULT:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_EPT_FAULT, 1);
-		gla = vmcs_gla();
+		/*
+		 * If 'gpa' lies within the address space allocated to
+		 * memory then this must be a nested page fault otherwise
+		 * this must be an instruction that accesses MMIO space.
+		 */
 		gpa = vmcs_gpa();
-		cr3 = vmcs_guest_cr3();
-		handled = vmx_ept_fault(vmx->vm, vcpu, gla, gpa,
-					vmexit->rip, vmexit->inst_length,
-					cr3, qual, &vmexit->u.paging.vie);
-		if (!handled) {
+		if (vm_mem_allocated(vmx->vm, gpa)) {
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->u.paging.gpa = gpa;
+			vmexit->u.paging.fault_type = ept_fault_type(qual);
+			vmexit->u.paging.protection = ept_protection(qual);
+		} else if (ept_emulation_fault(qual)) {
+			vmexit->exitcode = VM_EXITCODE_INST_EMUL;
+			vmexit->u.inst_emul.gpa = gpa;
+			vmexit->u.inst_emul.gla = vmcs_gla();
+			vmexit->u.inst_emul.cr3 = vmcs_guest_cr3();
 		}
 		break;
 	default:
@@ -1470,14 +1506,6 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vm_exit_update_rip(vmexit);
 		vmexit->rip += vmexit->inst_length;
 		vmexit->inst_length = 0;
-
-		/*
-		 * Special case for spinning up an AP - exit to userspace to
-		 * give the controlling process a chance to intercept and
-		 * spin up a thread for the AP.
-		 */
-		if (vmexit->exitcode == VM_EXITCODE_SPINUP_AP)
-			handled = 0;
 	} else {
 		if (vmexit->exitcode == VM_EXITCODE_BOGUS) {
 			/*
@@ -1497,7 +1525,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 }
 
 static int
-vmx_run(void *arg, int vcpu, register_t rip)
+vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap)
 {
 	int error, vie, rc, handled, astpending;
 	uint32_t exit_reason;
@@ -1505,7 +1533,7 @@ vmx_run(void *arg, int vcpu, register_t rip)
 	struct vmxctx *vmxctx;
 	struct vmcs *vmcs;
 	struct vm_exit *vmexit;
-	
+
 	vmx = arg;
 	vmcs = &vmx->vmcs[vcpu];
 	vmxctx = &vmx->ctx[vcpu];
@@ -1513,6 +1541,11 @@ vmx_run(void *arg, int vcpu, register_t rip)
 
 	astpending = 0;
 	vmexit = vm_exitinfo(vmx->vm, vcpu);
+
+	KASSERT(vmxctx->pmap == pmap,
+	    ("pmap %p different than ctx pmap %p", pmap, vmxctx->pmap));
+	KASSERT(vmxctx->eptp == vmx->eptp,
+	    ("eptp %p different than ctx eptp %#lx", eptp, vmxctx->eptp));
 
 	/*
 	 * XXX Can we avoid doing this every time we do a vm run?
@@ -1576,6 +1609,9 @@ vmx_run(void *arg, int vcpu, register_t rip)
 				vmxctx->launch_error, vie);
 #endif
 			goto err_exit;
+		case VMX_RETURN_INVEPT:
+			panic("vm %s:%d invept error %d",
+			      vm_name(vmx->vm), vcpu, vmxctx->launch_error);
 		default:
 			panic("vmx_setjmp returned %d", rc);
 		}
@@ -1654,7 +1690,6 @@ vmx_vmcleanup(void *arg)
 	if (error != 0)
 		panic("vmx_vmcleanup: vmclear error %d on vcpu 0", error);
 
-	ept_vmcleanup(vmx);
 	free(vmx, M_VMX);
 
 	return;
@@ -2000,13 +2035,13 @@ struct vmm_ops vmm_ops_intel = {
 	vmx_vminit,
 	vmx_run,
 	vmx_vmcleanup,
-	ept_vmmmap_set,
-	ept_vmmmap_get,
 	vmx_getreg,
 	vmx_setreg,
 	vmx_getdesc,
 	vmx_setdesc,
 	vmx_inject,
 	vmx_getcap,
-	vmx_setcap
+	vmx_setcap,
+	ept_vmspace_alloc,
+	ept_vmspace_free,
 };

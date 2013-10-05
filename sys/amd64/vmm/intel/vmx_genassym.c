@@ -72,6 +72,10 @@ ASSYM(VMXCTX_HOST_RBX, offsetof(struct vmxctx, host_rbx));
 ASSYM(VMXCTX_HOST_RIP, offsetof(struct vmxctx, host_rip));
 
 ASSYM(VMXCTX_LAUNCH_ERROR, offsetof(struct vmxctx, launch_error));
+ASSYM(VMXCTX_EPTGEN, offsetof(struct vmxctx, eptgen));
+
+ASSYM(VMXCTX_PMAP, offsetof(struct vmxctx, pmap));
+ASSYM(VMXCTX_EPTP, offsetof(struct vmxctx, eptp));
 
 ASSYM(VM_SUCCESS,	VM_SUCCESS);
 ASSYM(VM_FAIL_INVALID,	VM_FAIL_INVALID);
@@ -82,8 +86,13 @@ ASSYM(VMX_RETURN_LONGJMP,	VMX_RETURN_LONGJMP);
 ASSYM(VMX_RETURN_VMRESUME,	VMX_RETURN_VMRESUME);
 ASSYM(VMX_RETURN_VMLAUNCH,	VMX_RETURN_VMLAUNCH);
 ASSYM(VMX_RETURN_AST,		VMX_RETURN_AST);
+ASSYM(VMX_RETURN_INVEPT,	VMX_RETURN_INVEPT);
 
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
 ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
+ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
+
+ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
+ASSYM(PM_EPTGEN, offsetof(struct pmap, pm_eptgen));
