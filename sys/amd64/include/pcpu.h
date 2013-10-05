@@ -62,7 +62,8 @@
 	u_int	pc_cmci_mask;		/* MCx banks for CMCI */	\
 	uint64_t pc_dbreg[16];		/* ddb debugging regs */	\
 	int pc_dbreg_cmd;		/* ddb debugging reg cmd */	\
-	char	__pad[161]		/* be divisor of PAGE_SIZE	\
+	u_int	pc_vcpu_id;		/* Xen vCPU ID */		\
+	char	__pad[157]		/* be divisor of PAGE_SIZE	\
 					   after cache alignment */
 
 #define	PC_DBREG_CMD_NONE	0

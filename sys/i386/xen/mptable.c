@@ -88,7 +88,7 @@ mptable_setup_local(void)
 {
 
 	PCPU_SET(apic_id, 0);
-	PCPU_SET(acpi_id, 0);
+	PCPU_SET(vcpu_id, 0);
 	return (0);
 }
 
