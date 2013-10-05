@@ -700,6 +700,7 @@ xen_hvm_init(enum xen_hvm_init_type init_type)
 
 		setup_xen_features();
 		cpu_ops = xen_hvm_cpu_ops;
+ 		vm_guest = VM_GUEST_XEN;
 		break;
 	case XEN_HVM_INIT_RESUME:
 		if (error != 0)

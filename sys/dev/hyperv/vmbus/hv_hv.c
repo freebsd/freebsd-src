@@ -29,6 +29,8 @@
 /**
  * Implements low-level interactions with Hypver-V/Azure
  */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/malloc.h>
@@ -88,6 +90,14 @@ hv_vmbus_query_hypervisor_presence(void)
 {
 	u_int regs[4];
 	int hyper_v_detected = 0;
+
+	/*
+	 * When Xen is detected and native Xen PV support is enabled,
+	 * ignore Xen's HyperV emulation.
+	 */
+	if (vm_guest == VM_GUEST_XEN)
+		return (0);
+
 	do_cpuid(1, regs);
 	if (regs[2] & 0x80000000) { /* if(a hypervisor is detected) */
 		/* make sure this really is Hyper-V */
