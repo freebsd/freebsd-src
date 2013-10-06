@@ -2919,7 +2919,6 @@ kern/tty_pts.c			standard
 kern/tty_tty.c			standard
 kern/tty_ttydisc.c		standard
 kern/uipc_accf.c		optional inet
-kern/uipc_cow.c			optional socket_send_cow
 kern/uipc_debug.c		optional ddb
 kern/uipc_domain.c		standard
 kern/uipc_mbuf.c		standard
