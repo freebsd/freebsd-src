@@ -37,5 +37,6 @@ void random_harvestq_internal(u_int64_t, const void *,
     u_int, u_int, enum esource);
 
 extern int random_kthread_control;
+extern struct mtx harvest_mtx;
 
 #endif /* __RANDOM_HARVEST_H__ */

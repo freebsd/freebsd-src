@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * The harvest mutex protects the consistency of the entropy fifos and
- * empty fifo.
+ * empty fifo and other associated structures.
  */
 struct mtx	harvest_mtx;
 

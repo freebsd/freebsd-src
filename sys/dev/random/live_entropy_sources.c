@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 
 LIST_HEAD(les_head, live_entropy_sources);
 static struct les_head sources = LIST_HEAD_INITIALIZER(sources);
-static struct sx les_lock; /* need a sleepable lock */
 
 #define LES_THRESHOLD 10
 
@@ -65,9 +64,9 @@ live_entropy_source_register(struct random_hardware_source *rsource)
 	les = malloc(sizeof(struct live_entropy_sources), M_ENTROPY, M_WAITOK);
 	les->rsource = rsource;
 
-	sx_xlock(&les_lock);
+	mtx_lock_spin(&harvest_mtx);
 	LIST_INSERT_HEAD(&sources, les, entries);
-	sx_xunlock(&les_lock);
+	mtx_unlock_spin(&harvest_mtx);
 }
 
 void
@@ -77,7 +76,7 @@ live_entropy_source_deregister(struct random_hardware_source *rsource)
 
 	KASSERT(rsource != NULL, ("invalid input to %s", __func__));
 
-	sx_xlock(&les_lock);
+	mtx_lock_spin(&harvest_mtx);
 	LIST_FOREACH(les, &sources, entries) {
 		if (les->rsource == rsource) {
 			LIST_REMOVE(les, entries);
@@ -85,7 +84,7 @@ live_entropy_source_deregister(struct random_hardware_source *rsource)
 			break;
 		}
 	}
-	sx_xunlock(&les_lock);
+	mtx_unlock_spin(&harvest_mtx);
 }
 
 static int
@@ -96,7 +95,7 @@ live_entropy_source_handler(SYSCTL_HANDLER_ARGS)
 
 	count = error = 0;
 
-	sx_slock(&les_lock);
+	mtx_lock_spin(&harvest_mtx);
 
 	if (LIST_EMPTY(&sources))
 		error = SYSCTL_OUT(req, "", 0);
@@ -113,7 +112,7 @@ live_entropy_source_handler(SYSCTL_HANDLER_ARGS)
 		}
 	}
 
-	sx_sunlock(&les_lock);
+	mtx_unlock_spin(&harvest_mtx);
 
 	return (error);
 }
@@ -126,8 +125,6 @@ live_entropy_sources_init(void *unused)
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    NULL, 0, live_entropy_source_handler, "",
 	    "List of Active Live Entropy Sources");
-
-	sx_init(&les_lock, "live_entropy_sources");
 }
 
 /*
@@ -138,6 +135,7 @@ live_entropy_sources_init(void *unused)
  *
  * BEWARE!!!
  * This function runs inside the RNG thread! Don't do anything silly!
+ * The harvest_mtx mutex is held; you may count on that.
  */
 void
 live_entropy_sources_feed(int rounds, event_proc_f entropy_processor)
@@ -146,8 +144,6 @@ live_entropy_sources_feed(int rounds, event_proc_f entropy_processor)
 	static uint8_t buf[HARVESTSIZE];
 	struct live_entropy_sources *les;
 	int i, n;
-
-	sx_slock(&les_lock);
 
 	/*
 	 * Walk over all of live entropy sources, and feed their output
@@ -176,15 +172,11 @@ live_entropy_sources_feed(int rounds, event_proc_f entropy_processor)
 		}
 
 	}
-
-	sx_sunlock(&les_lock);
 }
 
 static void
 live_entropy_sources_deinit(void *unused)
 {
-
-	sx_destroy(&les_lock);
 }
 
 SYSINIT(random_adaptors, SI_SUB_DRIVERS, SI_ORDER_FIRST,
