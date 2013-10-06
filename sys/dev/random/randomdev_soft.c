@@ -53,9 +53,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 
-#include <dev/random/random_adaptors.h>
 #include <dev/random/randomdev.h>
 #include <dev/random/randomdev_soft.h>
+#include <dev/random/random_harvestq.h>
+#include <dev/random/random_adaptors.h>
 #if defined(YARROW_RNG)
 #include <dev/random/yarrow.h>
 #endif
@@ -63,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/fortuna.h>
 #endif
 
-#include "random_harvestq.h"
 
 static int randomdev_poll(int event, struct thread *td);
 static int randomdev_block(int flag);

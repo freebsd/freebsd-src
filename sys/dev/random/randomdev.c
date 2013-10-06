@@ -52,9 +52,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 
-#include <dev/random/random_adaptors.h>
-#include <dev/random/live_entropy_sources.h>
 #include <dev/random/randomdev.h>
+#include <dev/random/randomdev_soft.h>
+#include <dev/random/random_adaptors.h>
+#include <dev/random/random_harvestq.h>
+#include <dev/random/live_entropy_sources.h>
 
 #define RANDOM_MINOR	0
 
@@ -72,6 +74,8 @@ static struct cdevsw random_cdevsw = {
 	.d_name = "random",
 };
 
+MALLOC_DEFINE(M_ENTROPY, "entropy", "Entropy harvesting buffers");
+
 /* For use with make_dev(9)/destroy_dev(9). */
 static struct cdev *random_dev;
 
@@ -82,10 +86,6 @@ random_read(struct cdev *dev __unused, struct uio *uio, int flag)
 	int c, error = 0;
 	void *random_buf;
 
-	/* XXX: Harvest some entropy from live entropy sources, if available */
-	live_entropy_sources_feed(65); /* 65 is meaningless --
-					  need to decide appropriate value */
-
 	/* Blocking logic */
 	if (!random_adaptor->seeded)
 		error = (*random_adaptor->block)(flag);
@@ -93,7 +93,7 @@ random_read(struct cdev *dev __unused, struct uio *uio, int flag)
 	/* The actual read */
 	if (!error) {
 
-		random_buf = (void *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+		random_buf = (void *)malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
 
 		while (uio->uio_resid > 0 && !error) {
 			c = MIN(uio->uio_resid, PAGE_SIZE);
@@ -104,7 +104,7 @@ random_read(struct cdev *dev __unused, struct uio *uio, int flag)
 		 * optional housekeeping */
 		(*random_adaptor->read)(NULL, 0);
 
-		free(random_buf, M_TEMP);
+		free(random_buf, M_ENTROPY);
 
 	}
 

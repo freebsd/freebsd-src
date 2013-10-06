@@ -97,6 +97,7 @@ clear_counter(void)
 
 /* 128-bit C = C + 1 */
 /* Nothing to see here, folks, just an ugly mess. */
+/* TODO: Make a Galois counter instead? */
 static void
 increment_counter(void)
 {
@@ -113,13 +114,25 @@ random_process_event(struct harvest *event)
 	struct source *source;
 	enum esource src;
 
-	/* Unpack the event into the appropriate source accumulator */
+#if 1
+	/* Do this better with DTrace */
+	{
+		int i;
+
+		printf("Harvest:%16jX ", event->somecounter);
+		for (i = 0; i < event->size; i++)
+			printf("%02X", event->entropy[i]);
+		for (; i < 16; i++)
+			printf("  ");
+		printf(" %2d %2d %02X\n", event->size, event->bits, event->source);
+	}
+#endif
+
+	/* Accumulate the event into the appropriate pool */
 	pl = random_state.which;
 	source = &random_state.pool[pl].source[event->source];
-	randomdev_hash_iterate(&random_state.pool[pl].hash, event->entropy,
-		sizeof(event->entropy));
-	randomdev_hash_iterate(&random_state.pool[pl].hash, &event->somecounter,
-		sizeof(event->somecounter));
+	randomdev_hash_iterate(&random_state.pool[pl].hash, event,
+		sizeof(*event));
 	source->bits += event->bits;
 
 	/* Count the over-threshold sources in each pool */
