@@ -39,16 +39,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/random.h>
+#include <sys/selinfo.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 
+#include <dev/random/randomdev.h>
 #include <dev/random/randomdev_soft.h>
-
-#include "random_harvestq.h"
+#include <dev/random/random_harvestq.h>
+#include <dev/random/live_entropy_sources.h>
 
 #define RANDOM_FIFO_MAX	1024	/* How many events to queue up */
-
-MALLOC_DEFINE(M_ENTROPY, "entropy", "Entropy harvesting buffers");
 
 /*
  * The harvest mutex protects the consistency of the entropy fifos and
@@ -66,7 +66,7 @@ struct entropyfifo {
 static struct entropyfifo emptyfifo;
 
 /* Harvested entropy */
-static struct entropyfifo harvestfifo[ENTROPYSOURCE];
+static struct entropyfifo harvestfifo;
 
 /* <0 to end the kthread, 0 to let it run, 1 to flush the harvest queues */
 int random_kthread_control = 0;
@@ -79,8 +79,7 @@ random_kthread(void *arg)
 	STAILQ_HEAD(, harvest) local_queue;
 	struct harvest *event = NULL;
 	int local_count;
-	enum esource source;
-	event_proc_f func = arg;
+	event_proc_f entropy_processor = arg;
 
 	STAILQ_INIT(&local_queue);
 	local_count = 0;
@@ -89,16 +88,14 @@ random_kthread(void *arg)
 	mtx_lock_spin(&harvest_mtx);
 	for (; random_kthread_control >= 0;) {
 
-		/* Cycle through all the entropy sources */
-		for (source = RANDOM_START; source < ENTROPYSOURCE; source++) {
-			/*
-			 * Drain entropy source records into a thread-local
-			 * queue for processing while not holding the mutex.
-			 */
-			STAILQ_CONCAT(&local_queue, &harvestfifo[source].head);
-			local_count += harvestfifo[source].count;
-			harvestfifo[source].count = 0;
-		}
+		/*
+		 * Grab all the entropy events.
+		 * Drain entropy source records into a thread-local
+		 * queue for processing while not holding the mutex.
+		 */
+		STAILQ_CONCAT(&local_queue, &harvestfifo.head);
+		local_count += harvestfifo.count;
+		harvestfifo.count = 0;
 
 		/*
 		 * Deal with events, if any.
@@ -107,7 +104,7 @@ random_kthread(void *arg)
 		if (!STAILQ_EMPTY(&local_queue)) {
 			mtx_unlock_spin(&harvest_mtx);
 			STAILQ_FOREACH(event, &local_queue, next)
-				func(event);
+				entropy_processor(event);
 			mtx_lock_spin(&harvest_mtx);
 			STAILQ_CONCAT(&emptyfifo.head, &local_queue);
 			emptyfifo.count += local_count;
@@ -118,16 +115,10 @@ random_kthread(void *arg)
 		    local_count));
 
 		/*
-		 * Do Hardware/fast RNG source processing here.
+		 * Do only one round of the hardware sources for now.
+		 * Later we'll need to make it rate-adaptive.
 		 */
-#if 0
-		while (hardware_source) {
-			event = hardware_source->read();
-			func(event);
-			hardware_source++;
-			/* Throttle somehow? */
-		}
-#endif
+		live_entropy_sources_feed(1, entropy_processor);
 
 		/*
 		 * If a queue flush was commanded, it has now happened,
@@ -153,22 +144,22 @@ random_harvestq_init(event_proc_f cb)
 {
 	int error, i;
 	struct harvest *np;
-	enum esource e;
 
 	/* Initialise the harvest fifos */
+
+	/* Contains the currently unused event structs. */
 	STAILQ_INIT(&emptyfifo.head);
-	emptyfifo.count = 0;
 	for (i = 0; i < RANDOM_FIFO_MAX; i++) {
 		np = malloc(sizeof(struct harvest), M_ENTROPY, M_WAITOK);
 		STAILQ_INSERT_TAIL(&emptyfifo.head, np, next);
 	}
-	for (e = RANDOM_START; e < ENTROPYSOURCE; e++) {
-		STAILQ_INIT(&harvestfifo[e].head);
-		harvestfifo[e].count = 0;
-	}
+	emptyfifo.count = RANDOM_FIFO_MAX;
+
+	/* Will contain the queued-up events. */
+	STAILQ_INIT(&harvestfifo.head);
+	harvestfifo.count = 0;
 
 	mtx_init(&harvest_mtx, "entropy harvest mutex", NULL, MTX_SPIN);
-
 
 	/* Start the hash/reseed thread */
 	error = kproc_create(random_kthread, cb,
@@ -182,7 +173,6 @@ void
 random_harvestq_deinit(void)
 {
 	struct harvest *np;
-	enum esource e;
 
 	/* Destroy the harvest fifos */
 	while (!STAILQ_EMPTY(&emptyfifo.head)) {
@@ -190,20 +180,26 @@ random_harvestq_deinit(void)
 		STAILQ_REMOVE_HEAD(&emptyfifo.head, next);
 		free(np, M_ENTROPY);
 	}
-	for (e = RANDOM_START; e < ENTROPYSOURCE; e++) {
-		while (!STAILQ_EMPTY(&harvestfifo[e].head)) {
-			np = STAILQ_FIRST(&harvestfifo[e].head);
-			STAILQ_REMOVE_HEAD(&harvestfifo[e].head, next);
-			free(np, M_ENTROPY);
-		}
+	emptyfifo.count = 0;
+	while (!STAILQ_EMPTY(&harvestfifo.head)) {
+		np = STAILQ_FIRST(&harvestfifo.head);
+		STAILQ_REMOVE_HEAD(&harvestfifo.head, next);
+		free(np, M_ENTROPY);
 	}
+	harvestfifo.count = 0;
 
 	mtx_destroy(&harvest_mtx);
 }
 
 /*
- * Entropy harvesting routine. This is supposed to be fast; do
- * not do anything slow in here!
+ * Entropy harvesting routine.
+ * This is supposed to be fast; do not do anything slow in here!
+ *
+ * It is also illegal (and morally reprehensible) to insert any
+ * high-rate data here. "High-rate" is define as a data source
+ * that will usually cause lots of failures of the "Lockless read"
+ * check a few lines below. This includes the "always-on" sources
+ * like the Intel "rdrand" or the VIA Nehamiah "xstore" sources.
  */
 void
 random_harvestq_internal(u_int64_t somecounter, const void *entropy,
@@ -215,21 +211,21 @@ random_harvestq_internal(u_int64_t somecounter, const void *entropy,
 	    ("random_harvest_internal: origin %d invalid\n", origin));
 
 	/* Lockless read to avoid lock operations if fifo is full. */
-	if (harvestfifo[origin].count >= RANDOM_FIFO_MAX)
+	if (harvestfifo.count >= RANDOM_FIFO_MAX)
 		return;
 
 	mtx_lock_spin(&harvest_mtx);
 
 	/*
-	 * Don't make the harvest queues too big - help to prevent low-grade
-	 * entropy swamping
+	 * On't overfill the harvest queue; this could steal all
+	 * our memory.
 	 */
-	if (harvestfifo[origin].count < RANDOM_FIFO_MAX) {
+	if (harvestfifo.count < RANDOM_FIFO_MAX) {
 		event = STAILQ_FIRST(&emptyfifo.head);
 		if (event != NULL) {
 			/* Add the harvested data to the fifo */
 			STAILQ_REMOVE_HEAD(&emptyfifo.head, next);
-			harvestfifo[origin].count++;
+			emptyfifo.count--;
 			event->somecounter = somecounter;
 			event->size = count;
 			event->bits = bits;
@@ -239,21 +235,11 @@ random_harvestq_internal(u_int64_t somecounter, const void *entropy,
 			count = MIN(count, HARVESTSIZE);
 			memcpy(event->entropy, entropy, count);
 
-#if 0
-			{
-			int i;
-			printf("Harvest:%16jX ", event->somecounter);
-			for (i = 0; i < event->size; i++)
-				printf("%02X", event->entropy[i]);
-			for (; i < 16; i++)
-				printf("  ");
-			printf(" %2d %2d %02X\n", event->size, event->bits, event->source);
-			}
-#endif
-
-			STAILQ_INSERT_TAIL(&harvestfifo[origin].head,
+			STAILQ_INSERT_TAIL(&harvestfifo.head,
 			    event, next);
+			harvestfifo.count++;
 		}
 	}
+
 	mtx_unlock_spin(&harvest_mtx);
 }

@@ -55,8 +55,6 @@ static struct sysctl_ctx_list random_clist;
 
 struct random_adaptor *random_adaptor;
 
-MALLOC_DEFINE(M_RANDOM_ADAPTORS, "random_adaptors", "Random adaptors buffers");
-
 int
 random_adaptor_register(const char *name, struct random_adaptor *rsp)
 {
@@ -64,8 +62,7 @@ random_adaptor_register(const char *name, struct random_adaptor *rsp)
 
 	KASSERT(name != NULL && rsp != NULL, ("invalid input to %s", __func__));
 
-	rpp = malloc(sizeof(struct random_adaptors), M_RANDOM_ADAPTORS,
-	    M_WAITOK);
+	rpp = malloc(sizeof(struct random_adaptors), M_ENTROPY, M_WAITOK);
 	rpp->name = name;
 	rpp->rsp = rsp;
 

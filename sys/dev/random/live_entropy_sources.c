@@ -40,9 +40,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/unistd.h>
 
+#include <machine/cpu.h>
+
 #include <dev/random/randomdev.h>
 #include <dev/random/randomdev_soft.h>
 #include <dev/random/random_adaptors.h>
+#include <dev/random/random_harvestq.h>
 
 #include "live_entropy_sources.h"
 
@@ -52,9 +55,6 @@ static struct sx les_lock; /* need a sleepable lock */
 
 #define LES_THRESHOLD 10
 
-MALLOC_DEFINE(M_LIVE_ENTROPY_SRCS, "live_entropy_sources",
-    "Live Entropy Sources");
-
 void
 live_entropy_source_register(struct random_hardware_source *rsource)
 {
@@ -62,8 +62,7 @@ live_entropy_source_register(struct random_hardware_source *rsource)
 
 	KASSERT(rsource != NULL, ("invalid input to %s", __func__));
 
-	les = malloc(sizeof(struct live_entropy_sources), M_LIVE_ENTROPY_SRCS,
-	    M_WAITOK);
+	les = malloc(sizeof(struct live_entropy_sources), M_ENTROPY, M_WAITOK);
 	les->rsource = rsource;
 
 	sx_xlock(&les_lock);
@@ -82,7 +81,7 @@ live_entropy_source_deregister(struct random_hardware_source *rsource)
 	LIST_FOREACH(les, &sources, entries) {
 		if (les->rsource == rsource) {
 			LIST_REMOVE(les, entries);
-			free(les, M_LIVE_ENTROPY_SRCS);
+			free(les, M_ENTROPY);
 			break;
 		}
 	}
@@ -136,12 +135,16 @@ live_entropy_sources_init(void *unused)
  * number of rounds, which should be a multiple of the number
  * of entropy accumulation pools in use; 2 for Yarrow and 32
  * for Fortuna.
+ *
+ * BEWARE!!!
+ * This function runs inside the RNG thread! Don't do anything silly!
  */
 void
-live_entropy_sources_feed(int rounds)
+live_entropy_sources_feed(int rounds, event_proc_f entropy_processor)
 {
+	static struct harvest event;
+	static uint8_t buf[HARVESTSIZE];
 	struct live_entropy_sources *les;
-	uint8_t buf[HARVESTSIZE];
 	int i, n;
 
 	sx_slock(&les_lock);
@@ -157,14 +160,19 @@ live_entropy_sources_feed(int rounds)
 			 * This should be quick, since it's a live entropy
 			 * source.
 			 */
-			n = les->rsource->read(buf, sizeof(buf));
 			/* FIXME: Whine loudly if this didn't work. */
+			n = les->rsource->read(buf, sizeof(buf));
+			n = MIN(n, HARVESTSIZE);
 
-			/*
-			 * FIXME: Cannot harvest this stuff into the queue;
-			 * the poor thing will choke to death!
-			 */
-			random_harvest(buf, n, 0, les->rsource->source);
+			event.somecounter = get_cyclecount();
+			event.size = n;
+			event.bits = (n*8)/2;
+			event.source = les->rsource->source;
+			memcpy(event.entropy, buf, n);
+
+			/* Do the actual entropy insertion */
+			entropy_processor(&event);
+
 		}
 
 	}

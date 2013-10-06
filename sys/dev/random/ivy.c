@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/random.h>
 #include <sys/selinfo.h>
@@ -40,9 +41,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
+#include <dev/random/randomdev.h>
+#include <dev/random/randomdev_soft.h>
+#include <dev/random/random_harvestq.h>
 #include <dev/random/live_entropy_sources.h>
 #include <dev/random/random_adaptors.h>
-#include <dev/random/randomdev.h>
 
 #define	RETRY_COUNT	10
 

@@ -41,8 +41,6 @@
 
 #define HARVESTSIZE	16	/* max size of each harvested entropy unit */
 
-MALLOC_DECLARE(M_ENTROPY);
-
 /* These are used to queue harvested packets of entropy. The entropy
  * buffer size is pretty arbitrary.
  */
