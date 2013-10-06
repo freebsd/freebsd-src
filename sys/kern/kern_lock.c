@@ -490,6 +490,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			op = LK_EXCLUSIVE;
 			break;
 		case LK_UPGRADE:
+		case LK_TRYUPGRADE:
 		case LK_DOWNGRADE:
 			_lockmgr_assert(lk, KA_XLOCKED | KA_NOTRECURSED,
 			    file, line);
@@ -687,6 +688,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		}
 		break;
 	case LK_UPGRADE:
+	case LK_TRYUPGRADE:
 		_lockmgr_assert(lk, KA_SLOCKED, file, line);
 		v = lk->lk_lock;
 		x = v & LK_ALL_WAITERS;
@@ -703,6 +705,17 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			WITNESS_UPGRADE(&lk->lock_object, LOP_EXCLUSIVE |
 			    LK_TRYWIT(flags), file, line);
 			TD_SLOCKS_DEC(curthread);
+			break;
+		}
+
+		/*
+		 * In LK_TRYUPGRADE mode, do not drop the lock,
+		 * returning EBUSY instead.
+		 */
+		if (op == LK_TRYUPGRADE) {
+			LOCK_LOG2(lk, "%s: %p failed the nowait upgrade",
+			    __func__, lk);
+			error = EBUSY;
 			break;
 		}
 
