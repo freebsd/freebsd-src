@@ -114,7 +114,7 @@ random_process_event(struct harvest *event)
 	struct source *source;
 	enum esource src;
 
-#if 1
+#if 0
 	/* Do this better with DTrace */
 	{
 		int i;
@@ -242,6 +242,10 @@ reseed(u_int fastslow)
 	uint8_t temp[KEYSIZE];
 	u_int i;
 	enum esource j;
+
+#if 0
+	printf("Yarrow: %s reseed\n", fastslow == FAST ? "fast" : "slow");
+#endif
 
 	/* The reseed task must not be jumped on */
 	mtx_lock(&random_reseed_mtx);
