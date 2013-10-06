@@ -99,6 +99,8 @@ static struct random_adaptor random_context = {
 #define RANDOM_CSPRNG_NAME	"fortuna"
 #endif
 
+TUNABLE_INT("kern.random.sys.seeded", &random_context.seeded);
+
 /* List for the dynamic sysctls */
 static struct sysctl_ctx_list random_clist;
 

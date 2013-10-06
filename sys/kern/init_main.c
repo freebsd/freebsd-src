@@ -847,6 +847,8 @@ kick_init(const void *udata __unused)
 {
 	struct thread *td;
 
+	EVENTHANDLER_INVOKE(multiuser);
+
 	td = FIRST_THREAD_IN_PROC(initproc);
 	thread_lock(td);
 	TD_SET_CAN_RUN(td);
