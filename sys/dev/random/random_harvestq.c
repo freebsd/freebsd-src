@@ -33,8 +33,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -43,10 +45,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 
+#include <machine/cpu.h>
+
 #include <dev/random/randomdev.h>
 #include <dev/random/randomdev_soft.h>
 #include <dev/random/random_harvestq.h>
 #include <dev/random/live_entropy_sources.h>
+#include <dev/random/rwfile.h>
 
 #define RANDOM_FIFO_MAX	1024	/* How many events to queue up */
 
@@ -72,6 +77,56 @@ static struct entropyfifo harvestfifo;
 int random_kthread_control = 0;
 
 static struct proc *random_kthread_proc;
+
+static const char *entropy_files[] = {
+	"/entropy",
+	"/var/db/entropy",
+	"/boot/entropy",	/* Yeah, Yeah. I know this is loaded by
+				 * loader(8), but not always, and it doesn't
+				 * hurt to do this again.
+				 */
+	NULL
+};
+
+/* Deal with entropy cached externally if this is present.
+ */
+static void
+random_harvestq_cache(void *arg __unused)
+{
+	const char **entropy_file;
+	uint8_t *keyfile, *data;
+	size_t size, i;
+	int error;
+
+	/* Get stuff that may have been preloaded by loader(8) */
+	keyfile = preload_search_by_type("/boot/entropy");
+	if (keyfile != NULL) {
+		data = preload_fetch_addr(keyfile);
+		size = preload_fetch_size(keyfile);
+		if (data != NULL && size != 0) {
+			for (i = 0U; i < size; i += 16)
+				random_harvestq_internal(get_cyclecount(), data + i, 16, (16*8)/4, RANDOM_CACHED);
+			printf("random: read %zu bytes from preloaded cache\n", size);
+			bzero(data, size);
+		}
+		else
+			printf("random: no preloaded entropy cache available\n");
+	}
+	data = malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
+	for (entropy_file = entropy_files; *entropy_file; entropy_file++) {
+		error = randomdev_read_file(*entropy_file, data);
+		if (error == 0) {
+			for (i = 0U; i < PAGE_SIZE; i += 16)
+				random_harvestq_internal(get_cyclecount(), data + i, 16, (16*8)/4, RANDOM_CACHED);
+			printf("random: read %d bytes from '%s'\n", PAGE_SIZE, *entropy_file);
+		}
+		else
+			printf("random: entropy cache '%s' not present or unreadable; error = %d\n", *entropy_file, error);
+	}
+	bzero(data, PAGE_SIZE);
+	free(data, M_ENTROPY);
+}
+EVENTHANDLER_DEFINE(multiuser, random_harvestq_cache, NULL, 0);
 
 static void
 random_kthread(void *arg)
@@ -118,7 +173,9 @@ random_kthread(void *arg)
 		 * Do only one round of the hardware sources for now.
 		 * Later we'll need to make it rate-adaptive.
 		 */
+		mtx_unlock_spin(&harvest_mtx);
 		live_entropy_sources_feed(1, entropy_processor);
+		mtx_lock_spin(&harvest_mtx);
 
 		/*
 		 * If a queue flush was commanded, it has now happened,

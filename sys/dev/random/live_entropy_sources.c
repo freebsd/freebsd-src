@@ -52,7 +52,11 @@ __FBSDID("$FreeBSD$");
 LIST_HEAD(les_head, live_entropy_sources);
 static struct les_head sources = LIST_HEAD_INITIALIZER(sources);
 
-#define LES_THRESHOLD 10
+/*
+ * The harvest mutex protects the consistency of the entropy fifos and
+ * empty fifo and other associated structures.
+ */
+struct mtx	live_mtx;
 
 void
 live_entropy_source_register(struct random_hardware_source *rsource)
@@ -64,27 +68,27 @@ live_entropy_source_register(struct random_hardware_source *rsource)
 	les = malloc(sizeof(struct live_entropy_sources), M_ENTROPY, M_WAITOK);
 	les->rsource = rsource;
 
-	mtx_lock_spin(&harvest_mtx);
+	mtx_lock(&live_mtx);
 	LIST_INSERT_HEAD(&sources, les, entries);
-	mtx_unlock_spin(&harvest_mtx);
+	mtx_unlock(&live_mtx);
 }
 
 void
 live_entropy_source_deregister(struct random_hardware_source *rsource)
 {
-	struct live_entropy_sources *les;
+	struct live_entropy_sources *les = NULL;
 
 	KASSERT(rsource != NULL, ("invalid input to %s", __func__));
 
-	mtx_lock_spin(&harvest_mtx);
-	LIST_FOREACH(les, &sources, entries) {
+	mtx_lock(&live_mtx);
+	LIST_FOREACH(les, &sources, entries)
 		if (les->rsource == rsource) {
 			LIST_REMOVE(les, entries);
-			free(les, M_ENTROPY);
 			break;
 		}
-	}
-	mtx_unlock_spin(&harvest_mtx);
+	mtx_unlock(&live_mtx);
+	if (les != NULL)
+		free(les, M_ENTROPY);
 }
 
 static int
@@ -95,7 +99,7 @@ live_entropy_source_handler(SYSCTL_HANDLER_ARGS)
 
 	count = error = 0;
 
-	mtx_lock_spin(&harvest_mtx);
+	mtx_lock(&live_mtx);
 
 	if (LIST_EMPTY(&sources))
 		error = SYSCTL_OUT(req, "", 0);
@@ -112,7 +116,7 @@ live_entropy_source_handler(SYSCTL_HANDLER_ARGS)
 		}
 	}
 
-	mtx_unlock_spin(&harvest_mtx);
+	mtx_unlock(&live_mtx);
 
 	return (error);
 }
@@ -125,6 +129,8 @@ live_entropy_sources_init(void *unused)
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    NULL, 0, live_entropy_source_handler, "",
 	    "List of Active Live Entropy Sources");
+
+	mtx_init(&live_mtx, "live entropy source mutex", NULL, MTX_DEF);
 }
 
 /*
@@ -135,7 +141,7 @@ live_entropy_sources_init(void *unused)
  *
  * BEWARE!!!
  * This function runs inside the RNG thread! Don't do anything silly!
- * The harvest_mtx mutex is held; you may count on that.
+ * Remember that we are NOT holding harvest_mtx on entry!
  */
 void
 live_entropy_sources_feed(int rounds, event_proc_f entropy_processor)
@@ -144,6 +150,8 @@ live_entropy_sources_feed(int rounds, event_proc_f entropy_processor)
 	static uint8_t buf[HARVESTSIZE];
 	struct live_entropy_sources *les;
 	int i, n;
+
+	mtx_lock(&live_mtx);
 
 	/*
 	 * Walk over all of live entropy sources, and feed their output
@@ -168,15 +176,18 @@ live_entropy_sources_feed(int rounds, event_proc_f entropy_processor)
 
 			/* Do the actual entropy insertion */
 			entropy_processor(&event);
-
 		}
 
 	}
+
+	mtx_unlock(&live_mtx);
 }
 
 static void
 live_entropy_sources_deinit(void *unused)
 {
+
+	mtx_destroy(&live_mtx);
 }
 
 SYSINIT(random_adaptors, SI_SUB_DRIVERS, SI_ORDER_FIRST,

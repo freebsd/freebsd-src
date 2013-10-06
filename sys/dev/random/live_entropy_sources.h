@@ -40,6 +40,8 @@ struct live_entropy_sources {
 	struct random_hardware_source	*rsource;	/* associated random adaptor */
 };
 
+extern struct mtx live_mtx;
+
 void live_entropy_source_register(struct random_hardware_source *);
 void live_entropy_source_deregister(struct random_hardware_source *);
 void live_entropy_sources_feed(int, event_proc_f);
