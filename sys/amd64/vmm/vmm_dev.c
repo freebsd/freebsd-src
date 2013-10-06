@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 #include <machine/pmap.h>
 #include <machine/vmparam.h>
@@ -95,8 +96,9 @@ vmmdev_lookup2(struct cdev *cdev)
 static int
 vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 {
-	int error, off, c;
-	vm_paddr_t hpa, gpa;
+	int error, off, c, prot;
+	vm_paddr_t gpa;
+	void *hpa, *cookie;
 	struct vmmdev_softc *sc;
 
 	static char zerobuf[PAGE_SIZE];
@@ -107,6 +109,7 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 	if (sc == NULL)
 		error = ENXIO;
 
+	prot = (uio->uio_rw == UIO_WRITE ? VM_PROT_WRITE : VM_PROT_READ);
 	while (uio->uio_resid > 0 && error == 0) {
 		gpa = uio->uio_offset;
 		off = gpa & PAGE_MASK;
@@ -120,14 +123,16 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 		 * Since this device does not support lseek(2), dd(1) will
 		 * read(2) blocks of data to simulate the lseek(2).
 		 */
-		hpa = vm_gpa2hpa(sc->vm, gpa, c);
-		if (hpa == (vm_paddr_t)-1) {
+		hpa = vm_gpa_hold(sc->vm, gpa, c, prot, &cookie);
+		if (hpa == NULL) {
 			if (uio->uio_rw == UIO_READ)
 				error = uiomove(zerobuf, c, uio);
 			else
 				error = EFAULT;
-		} else
-			error = uiomove((void *)PHYS_TO_DMAP(hpa), c, uio);
+		} else {
+			error = uiomove(hpa, c, uio);
+			vm_gpa_release(cookie);
+		}
 	}
 
 	mtx_unlock(&vmmdev_mtx);
@@ -139,7 +144,6 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	     struct thread *td)
 {
 	int error, vcpu, state_changed;
-	enum vcpu_state new_state;
 	struct vmmdev_softc *sc;
 	struct vm_memory_segment *seg;
 	struct vm_register *vmreg;
@@ -156,6 +160,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_stats *vmstats;
 	struct vm_stat_desc *statdesc;
 	struct vm_x2apic *x2apic;
+	struct vm_gpa_pte *gpapte;
 
 	sc = vmmdev_lookup2(cdev);
 	if (sc == NULL)
@@ -189,12 +194,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			goto done;
 		}
 
-		if (cmd == VM_RUN)
-			new_state = VCPU_RUNNING;
-		else
-			new_state = VCPU_CANNOT_RUN;
-
-		error = vcpu_set_state(sc->vm, vcpu, new_state);
+		error = vcpu_set_state(sc->vm, vcpu, VCPU_FROZEN);
 		if (error)
 			goto done;
 
@@ -211,7 +211,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		 */
 		error = 0;
 		for (vcpu = 0; vcpu < VM_MAXCPU; vcpu++) {
-			error = vcpu_set_state(sc->vm, vcpu, VCPU_CANNOT_RUN);
+			error = vcpu_set_state(sc->vm, vcpu, VCPU_FROZEN);
 			if (error)
 				break;
 		}
@@ -271,13 +271,13 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_BIND_PPTDEV:
 		pptdev = (struct vm_pptdev *)data;
-		error = ppt_assign_device(sc->vm, pptdev->bus, pptdev->slot,
-					  pptdev->func);
+		error = vm_assign_pptdev(sc->vm, pptdev->bus, pptdev->slot,
+					 pptdev->func);
 		break;
 	case VM_UNBIND_PPTDEV:
 		pptdev = (struct vm_pptdev *)data;
-		error = ppt_unassign_device(sc->vm, pptdev->bus, pptdev->slot,
-					    pptdev->func);
+		error = vm_unassign_pptdev(sc->vm, pptdev->bus, pptdev->slot,
+					   pptdev->func);
 		break;
 	case VM_INJECT_EVENT:
 		vmevent = (struct vm_event *)data;
@@ -348,6 +348,12 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = vm_get_x2apic_state(sc->vm,
 					    x2apic->cpuid, &x2apic->state);
 		break;
+	case VM_GET_GPA_PMAP:
+		gpapte = (struct vm_gpa_pte *)data;
+		pmap_get_mapping(vmspace_pmap(vm_get_vmspace(sc->vm)),
+				 gpapte->gpa, gpapte->pte, &gpapte->ptenum);
+		error = 0;
+		break;
 	default:
 		error = ENOTTY;
 		break;
@@ -361,25 +367,25 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	}
 
 done:
+	/* Make sure that no handler returns a bogus value like ERESTART */
+	KASSERT(error >= 0, ("vmmdev_ioctl: invalid error return %d", error));
 	return (error);
 }
 
 static int
-vmmdev_mmap(struct cdev *cdev, vm_ooffset_t offset, vm_paddr_t *paddr,
-    int nprot, vm_memattr_t *memattr)
+vmmdev_mmap_single(struct cdev *cdev, vm_ooffset_t *offset,
+		   vm_size_t size, struct vm_object **object, int nprot)
 {
 	int error;
 	struct vmmdev_softc *sc;
 
-	error = -1;
 	mtx_lock(&vmmdev_mtx);
 
 	sc = vmmdev_lookup2(cdev);
-	if (sc != NULL && (nprot & PROT_EXEC) == 0) {
-		*paddr = vm_gpa2hpa(sc->vm, (vm_paddr_t)offset, PAGE_SIZE);
-		if (*paddr != (vm_paddr_t)-1)
-			error = 0;
-	}
+	if (sc != NULL && (nprot & PROT_EXEC) == 0)
+		error = vm_get_memobj(sc->vm, *offset, size, offset, object);
+	else
+		error = EINVAL;
 
 	mtx_unlock(&vmmdev_mtx);
 
@@ -446,7 +452,7 @@ static struct cdevsw vmmdevsw = {
 	.d_name		= "vmmdev",
 	.d_version	= D_VERSION,
 	.d_ioctl	= vmmdev_ioctl,
-	.d_mmap		= vmmdev_mmap,
+	.d_mmap_single	= vmmdev_mmap_single,
 	.d_read		= vmmdev_rw,
 	.d_write	= vmmdev_rw,
 };

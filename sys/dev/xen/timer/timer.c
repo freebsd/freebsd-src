@@ -396,7 +396,7 @@ xentimer_et_start(struct eventtimer *et,
 {
 	int error = 0, i = 0;
 	struct xentimer_softc *sc = et->et_priv;
-	int cpu = PCPU_GET(acpi_id);
+	int cpu = PCPU_GET(vcpu_id);
 	struct xentimer_pcpu_data *pcpu = DPCPU_PTR(xentimer_pcpu);
 	uint64_t first_in_ns, next_time;
 
@@ -433,7 +433,7 @@ xentimer_et_start(struct eventtimer *et,
 static int
 xentimer_et_stop(struct eventtimer *et)
 {
-	int cpu = PCPU_GET(acpi_id);
+	int cpu = PCPU_GET(vcpu_id);
 	struct xentimer_pcpu_data *pcpu = DPCPU_PTR(xentimer_pcpu);
 
 	pcpu->timer = 0;
