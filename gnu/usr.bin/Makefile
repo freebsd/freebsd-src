@@ -12,7 +12,6 @@ SUBDIR= ${_binutils} \
 	${_gperf} \
 	grep \
 	${_groff} \
-	${_rcs} \
 	sdiff \
 	send-pr \
 	${_texinfo}
@@ -30,10 +29,6 @@ _dtc=		dtc
 
 .if ${MK_INFO} != "no"
 _texinfo=	texinfo
-.endif
-
-.if ${MK_RCS} != "no"
-_rcs=		rcs
 .endif
 
 .if ${MK_BINUTILS} != "no"
