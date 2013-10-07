@@ -371,6 +371,7 @@ xctrl_suspend()
 	mtx_unlock(&Giant);
 
 #ifdef SMP
+	CPU_ZERO(&cpu_suspend_map);	/* silence gcc */
 	if (smp_started) {
 		/*
 		 * Suspend other CPUs. This prevents IPIs while we
