@@ -40,6 +40,62 @@
         ..
     ..
     libexec
+        bsdconfig
+            020.docsinstall
+                include
+                ..
+            ..
+            030.packages
+                include
+                ..
+            ..
+            040.password
+                include
+                ..
+            ..
+            050.diskmgmt
+                include
+                ..
+            ..
+            070.usermgmt
+                include
+                ..
+            ..
+            080.console
+                include
+                ..
+            ..
+            090.timezone
+                include
+                ..
+            ..
+            110.mouse
+                include
+                ..
+            ..
+            120.networking
+                include
+                ..
+            ..
+            130.security
+                include
+                ..
+            ..
+            140.startup
+                include
+                ..
+            ..
+            150.ttys
+                include
+                ..
+            ..
+            dot
+                include
+                ..
+            ..
+            include
+            ..
+        ..
         bsdinstall
         ..
         lpr
@@ -58,6 +114,22 @@
     sbin
     ..
     share
+        bsdconfig
+            media
+            ..
+            networking
+            ..
+            packages
+            ..
+            password
+            ..
+            startup
+            ..
+            timezone
+            ..
+            usermgmt
+            ..
+        ..
         calendar
             de_AT.ISO_8859-15
             ..
@@ -220,6 +292,8 @@
             IPv6
             ..
             bootforth
+            ..
+            bsdconfig
             ..
             csh
             ..
