@@ -343,7 +343,9 @@ MAN=	accept_filter.9 \
 	vnode.9 \
 	VOP_ACCESS.9 \
 	VOP_ACLCHECK.9 \
+	VOP_ADVISE.9 \
 	VOP_ADVLOCK.9 \
+	VOP_ALLOCATE.9 \
 	VOP_ATTRIB.9 \
 	VOP_BWRITE.9 \
 	VOP_CREATE.9 \
