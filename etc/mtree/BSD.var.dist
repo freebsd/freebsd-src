@@ -19,6 +19,8 @@
 /set gname=audit
     audit
     ..
+    authpf              uname=root gname=authpf mode=0770
+    ..
 /set gname=wheel
     backups
     ..
