@@ -151,6 +151,9 @@ chrp_attach(platform_t plat)
 	}
 #endif
 
+	/* Some systems (e.g. QEMU) need Open Firmware to stand down */
+	ofw_quiesce();
+
 	return (0);
 }
 
@@ -386,9 +389,7 @@ chrp_reset(platform_t platform)
 static void
 phyp_cpu_idle(sbintime_t sbt)
 {
-	#ifdef NOTYET /* Causes hangs on QEMU */
 	phyp_hcall(H_CEDE);
-	#endif
 }
 
 static void

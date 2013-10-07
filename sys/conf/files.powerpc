@@ -227,7 +227,8 @@ powerpc/ps3/ps3_syscons.c	optional	ps3 sc
 powerpc/ps3/ps3-hvcall.S	optional	ps3 sc
 powerpc/pseries/phyp-hvcall.S	optional	pseries powerpc64
 powerpc/pseries/mmu_phyp.c	optional	pseries powerpc64
-powerpc/pseries/phyp_console.c	optional	pseries powerpc64
+powerpc/pseries/phyp_console.c	optional	pseries powerpc64 uart
+powerpc/pseries/phyp_vscsi.c	optional	pseries powerpc64 scbus
 powerpc/pseries/platform_chrp.c	optional	pseries
 powerpc/pseries/plpar_iommu.c	optional	pseries powerpc64
 powerpc/pseries/rtas_dev.c	optional	pseries

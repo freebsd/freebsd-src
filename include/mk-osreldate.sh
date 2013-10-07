@@ -36,7 +36,9 @@ trap "rm -f $tmpfile" EXIT
 ${ECHO} creating osreldate.h from newvers.sh
 
 export PARAMFILE="${PARAM_H:=$CURDIR/../sys/sys/param.h}"
-. "${NEWVERS_SH:=$CURDIR/../sys/conf/newvers.sh}"
+set +e
+. "${NEWVERS_SH:=$CURDIR/../sys/conf/newvers.sh}" || exit 1
+set -e
 cat > $tmpfile <<EOF
 $COPYRIGHT
 #ifdef _KERNEL
@@ -46,4 +48,5 @@ $COPYRIGHT
 #define __FreeBSD_version $RELDATE
 #endif
 EOF
+chmod 644 $tmpfile
 mv $tmpfile osreldate.h

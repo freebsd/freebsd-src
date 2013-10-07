@@ -632,8 +632,7 @@ int mlx4_en_start_port(struct net_device *dev)
 	/* Set port mac number */
 	en_dbg(DRV, priv, "Setting mac for port %d\n", priv->port);
 	err = mlx4_register_mac(mdev->dev, priv->port,
-				mlx4_en_mac_to_u64(IF_LLADDR(dev)),
-				&priv->mac_index);
+				mlx4_en_mac_to_u64(IF_LLADDR(dev)));
 	if (err) {
 		en_err(priv, "Failed setting port mac\n");
 		goto tx_err;
@@ -697,7 +696,7 @@ wol_err:
 	mlx4_CLOSE_PORT(mdev->dev, priv->port);
 
 mac_err:
-	mlx4_unregister_mac(mdev->dev, priv->port, priv->mac_index);
+	mlx4_unregister_mac(mdev->dev, priv->port, priv->mac);
 tx_err:
 	while (tx_index--) {
 		mlx4_en_deactivate_tx_ring(priv, &priv->tx_ring[tx_index]);
@@ -730,7 +729,7 @@ void mlx4_en_stop_port(struct net_device *dev)
 	priv->port_up = false;
 
 	/* Unregister Mac address for the port */
-	mlx4_unregister_mac(mdev->dev, priv->port, priv->mac_index);
+	mlx4_unregister_mac(mdev->dev, priv->port, priv->mac);
 	mdev->mac_removed[priv->port] = 1;
 
 	/* Free TX Rings */
@@ -946,6 +945,7 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	mutex_unlock(&mdev->state_lock);
 
 	mlx4_en_free_resources(priv);
+
 	mtx_destroy(&priv->stats_lock.m);
 	mtx_destroy(&priv->vlan_lock.m);
 	kfree(priv);
@@ -1587,6 +1587,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	/*
 	 * Setup wake-on-lan.
 	 */
+#if 0
 	if (priv->mdev->dev->caps.wol) {
 		u64 config;
 		if (mlx4_wol_read(priv->mdev->dev, &config, priv->port) == 0) {
@@ -1596,6 +1597,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 				dev->if_capenable |= IFCAP_WOL_MAGIC;
 		}
 	}
+#endif
 
         /* Register for VLAN events */
 	priv->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,

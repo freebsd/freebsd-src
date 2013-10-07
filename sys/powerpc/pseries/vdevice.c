@@ -41,12 +41,17 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <powerpc/pseries/plpar_iommu.h>
+
+#include "iommu_if.h"
+
 static int	vdevice_probe(device_t);
 static int	vdevice_attach(device_t);
 static const struct ofw_bus_devinfo *vdevice_get_devinfo(device_t dev,
     device_t child);
 static int	vdevice_print_child(device_t dev, device_t child);
-static struct resource_list *vdevice_get_resource_list (device_t, device_t);
+static struct resource_list *vdevice_get_resource_list(device_t, device_t);
+static bus_dma_tag_t vdevice_get_dma_tag(device_t dev, device_t child);
 
 /*
  * VDevice devinfo
@@ -54,6 +59,7 @@ static struct resource_list *vdevice_get_resource_list (device_t, device_t);
 struct vdevice_devinfo {
 	struct ofw_bus_devinfo mdi_obdinfo;
 	struct resource_list mdi_resources;
+	bus_dma_tag_t mdi_dma_tag;
 };
 
 static device_method_t vdevice_methods[] = {
@@ -80,6 +86,11 @@ static device_method_t vdevice_methods[] = {
 	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
+
+	/* IOMMU interface */
+	DEVMETHOD(bus_get_dma_tag,	vdevice_get_dma_tag),
+	DEVMETHOD(iommu_map,		phyp_iommu_map),
+	DEVMETHOD(iommu_unmap,		phyp_iommu_unmap),
 
 	DEVMETHOD_END
 };
@@ -198,5 +209,24 @@ vdevice_get_resource_list (device_t dev, device_t child)
 
         dinfo = device_get_ivars(child);
         return (&dinfo->mdi_resources);
+}
+
+static bus_dma_tag_t
+vdevice_get_dma_tag(device_t dev, device_t child)
+{
+	struct vdevice_devinfo *dinfo;
+	while (child != NULL && device_get_parent(child) != dev)
+		child = device_get_parent(child);
+        dinfo = device_get_ivars(child);
+
+	if (dinfo->mdi_dma_tag == NULL) {
+		bus_dma_tag_create(bus_get_dma_tag(dev),
+		    1, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
+		    NULL, NULL, BUS_SPACE_MAXSIZE, BUS_SPACE_UNRESTRICTED,
+		    BUS_SPACE_MAXSIZE, 0, NULL, NULL, &dinfo->mdi_dma_tag);
+		phyp_iommu_set_dma_tag(dev, child, dinfo->mdi_dma_tag);
+	}
+
+        return (dinfo->mdi_dma_tag);
 }
 

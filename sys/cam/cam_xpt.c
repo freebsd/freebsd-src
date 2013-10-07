@@ -397,9 +397,7 @@ xptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	int error;
 
 	if ((error = xptdoioctl(dev, cmd, addr, flag, td)) == ENOTTY) {
-		error = cam_compat_ioctl(dev, &cmd, &addr, &flag, td);
-		if (error == EAGAIN)
-			return (xptdoioctl(dev, cmd, addr, flag, td));
+		error = cam_compat_ioctl(dev, cmd, addr, flag, td, xptdoioctl);
 	}
 	return (error);
 }
@@ -3328,6 +3326,7 @@ xpt_setup_ccb(struct ccb_hdr *ccb_h, struct cam_path *path, u_int32_t priority)
 	}
 	ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
 	ccb_h->flags = 0;
+	ccb_h->xflags = 0;
 }
 
 /* Path manipulation functions */
@@ -3880,6 +3879,7 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 		case XPORT_FC:
 		case XPORT_USB:
 		case XPORT_ISCSI:
+		case XPORT_SRP:
 		case XPORT_PPB:
 			new_bus->xport = scsi_get_xport();
 			break;

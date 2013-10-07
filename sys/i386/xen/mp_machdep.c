@@ -783,13 +783,7 @@ start_all_aps(void)
 		dpcpu_init((void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
 		    M_WAITOK | M_ZERO), bootAP);
 		pc->pc_apic_id = cpu_apic_ids[bootAP];
-		/*
-		 * The i386 PV port uses the apic_id as vCPU id, but the
-		 * PVHVM port needs to use the acpi_id, so set it for PV
-		 * also in order to work with shared devices between PV
-		 * and PVHVM.
-		 */
-		pc->pc_acpi_id = cpu_apic_ids[bootAP];
+		pc->pc_vcpu_id = cpu_apic_ids[bootAP];
 		pc->pc_prvspace = pc;
 		pc->pc_curthread = 0;
 

@@ -60,7 +60,7 @@ SDT_PROBE_DEFINE5_XLATE(tcp, , , accept_established, accept-established,
     "struct tcpcb *", "csinfo_t *",
     "uint8_t *", "ipinfo_t *",
     "struct tcpcb *", "tcpsinfo_t *" ,
-    "struct tcphdr *", "tcpinfo_t *");
+    "struct tcphdr *", "tcpinfoh_t *");
 
 SDT_PROBE_DEFINE5_XLATE(tcp, , , accept_refused, accept-refused,
     "void *", "pktinfo_t *",
@@ -74,14 +74,14 @@ SDT_PROBE_DEFINE5_XLATE(tcp, , , connect_established, connect-established,
     "struct tcpcb *", "csinfo_t *",
     "uint8_t *", "ipinfo_t *",
     "struct tcpcb *", "tcpsinfo_t *" ,
-    "struct tcphdr *", "tcpinfo_t *");
+    "struct tcphdr *", "tcpinfoh_t *");
 
 SDT_PROBE_DEFINE5_XLATE(tcp, , , connect_refused, connect-refused,
     "void *", "pktinfo_t *",
     "struct tcpcb *", "csinfo_t *",
     "uint8_t *", "ipinfo_t *",
     "struct tcpcb *", "tcpsinfo_t *" ,
-    "struct tcphdr *", "tcpinfo_t *");
+    "struct tcphdr *", "tcpinfoh_t *");
 
 SDT_PROBE_DEFINE5_XLATE(tcp, , , connect_request, connect-request,
     "void *", "pktinfo_t *",
@@ -95,7 +95,7 @@ SDT_PROBE_DEFINE5_XLATE(tcp, , , receive, receive,
     "struct tcpcb *", "csinfo_t *",
     "uint8_t *", "ipinfo_t *",
     "struct tcpcb *", "tcpsinfo_t *" ,
-    "struct tcphdr *", "tcpinfo_t *");
+    "struct tcphdr *", "tcpinfoh_t *");
 
 SDT_PROBE_DEFINE5_XLATE(tcp, , , send, send,
     "void *", "pktinfo_t *",

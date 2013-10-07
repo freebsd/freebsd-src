@@ -572,6 +572,8 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	 * Inform the eventtimers(4) subsystem there's a new callout
 	 * that has been inserted, but only if really required.
 	 */
+	if (INT64_MAX - c->c_time < c->c_precision)
+		c->c_precision = INT64_MAX - c->c_time;
 	sbt = c->c_time + c->c_precision;
 	if (sbt < cc->cc_firstevent) {
 		cc->cc_firstevent = sbt;
@@ -949,7 +951,10 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 				to_sbt += tick_sbt;
 		} else
 			to_sbt = sbinuptime();
-		to_sbt += sbt;
+		if (INT64_MAX - to_sbt < sbt)
+			to_sbt = INT64_MAX;
+		else
+			to_sbt += sbt;
 		pr = ((C_PRELGET(flags) < 0) ? sbt >> tc_precexp :
 		    sbt >> C_PRELGET(flags));
 		if (pr > precision)
