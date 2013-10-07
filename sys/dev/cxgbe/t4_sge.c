@@ -215,10 +215,6 @@ static int handle_fw_msg(struct sge_iq *, const struct rss_header *,
 
 static int sysctl_uint16(SYSCTL_HANDLER_ARGS);
 
-#if defined(__i386__) || defined(__amd64__)
-extern u_int cpu_clflush_line_size;
-#endif
-
 /*
  * Called on MOD_LOAD.  Validates and calculates the SGE tunables.
  */
