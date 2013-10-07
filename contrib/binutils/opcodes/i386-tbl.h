@@ -4374,6 +4374,11 @@ const template i386_optab[] =
     Modrm|IgnoreSize|NoSuf|ImmExt,
     { RegXMM|LLongMem,
       RegXMM } },
+
+  /* Intel Random Number Generator extensions */
+  {"rdrand", 1, 0x0fc7, 0x6, CpuRdRnd,
+    Modrm|NoSuf,
+    { Reg16|Reg32|Reg64 } },
   
   { NULL, 0, 0, 0, 0, 0, { 0 } }
 };

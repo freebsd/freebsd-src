@@ -1502,3 +1502,21 @@ xrstor, 1, 0xfae, 0x5, CpuXSAVE, Modrm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_xSuf, 
 // INVPCID
 invpcid, 2, 0x660f3882, None, CpuNo64, Modrm|IgnoreSize|No_bSuf|No_wSuf|No_sSuf|No_qSuf|No_xSuf|NoRex64, { BaseIndex|Disp8|Disp16|Disp32|Disp32S, Reg32 }
 invpcid, 2, 0x660f3882, None, Cpu64, Modrm|IgnoreSize|No_bSuf|No_wSuf|No_sSuf|No_qSuf|No_xSuf|NoRex64, { BaseIndex|Disp8|Disp16|Disp32|Disp32S, Reg64 }
+
+// Intel AES extensions
+aesdec, 2, 0x660f38de, None, CpuAES, Modrm|IgnoreSize|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { RegXMM|LLongMem, RegXMM }
+aesdeclast, 2, 0x660f38df, None, CpuAES, Modrm|IgnoreSize|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { RegXMM|LLongMem, RegXMM }
+aesenc, 2, 0x660f38dc, None, CpuAES, Modrm|IgnoreSize|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { RegXMM|LLongMem, RegXMM }
+aesenclast, 2, 0x660f38dd, None, CpuAES, Modrm|IgnoreSize|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { RegXMM|LLongMem, RegXMM }
+aesimc, 2, 0x660f38db, None, CpuAES, Modrm|IgnoreSize|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { RegXMM|LLongMem, RegXMM }
+aeskeygenassist, 3, 0x660f3adf, None, CpuAES, Modrm|IgnoreSize|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { Imm8, RegXMM|LLongMem, RegXMM }
+
+// Intel Carry-less Multiplication extensions
+pclmulqdq, 3, 0x660f3a44, None, CpuPCLMUL, Modrm|IgnoreSize|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { Imm8, RegXMM|LLongMem, RegXMM }
+pclmullqlqdq, 2, 0x660f3a44, 0x0, CpuPCLMUL, Modrm|IgnoreSize|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf|ImmExt, { RegXMM|LLongMem, RegXMM }
+pclmulhqlqdq, 2, 0x660f3a44, 0x1, CpuPCLMUL, Modrm|IgnoreSize|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf|ImmExt, { RegXMM|LLongMem, RegXMM }
+pclmullqhqdq, 2, 0x660f3a44, 0x10, CpuPCLMUL, Modrm|IgnoreSize|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf|ImmExt, { RegXMM|LLongMem, RegXMM }
+pclmulhqhqdq, 2, 0x660f3a44, 0x11, CpuPCLMUL, Modrm|IgnoreSize|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf|ImmExt, { RegXMM|LLongMem, RegXMM }
+
+// Intel Random Number Generator extensions
+rdrand, 1, 0x0fc7, 0x6, CpuRdRnd, Modrm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { Reg16|Reg32|Reg64 }
