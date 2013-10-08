@@ -65,6 +65,7 @@ static const struct vt_driver vt_ofwfb_driver = {
 	.vd_init	= ofwfb_init,
 	.vd_blank	= ofwfb_blank,
 	.vd_bitblt	= ofwfb_bitblt,
+	.vd_priority	= VD_PRIORITY_GENERIC,
 };
 
 static struct ofwfb_softc ofwfb_conssoftc;

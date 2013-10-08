@@ -40,9 +40,20 @@
 #include <sys/consio.h>
 #include <sys/kbio.h>
 #include <sys/terminal.h>
+#include <sys/sysctl.h>
 
 #define	VT_MAXWINDOWS	12
 #define	VT_CONSWINDOW	0
+
+#define	SC_DRIVER_NAME	"vt"
+#define	DPRINTF(_l, ...)	if (vt_debug > (_l)) printf( __VA_ARGS__ )
+#define	ISSIGVALID(sig)	((sig) > 0 && (sig) < NSIG)
+
+#define	VT_SYSCTL_INT(_name, _default, _descr)				\
+static int vt_##_name = _default;					\
+SYSCTL_INT(_kern_vt, OID_AUTO, _name, CTLFLAG_RW, &vt_##_name, _default,\
+		_descr);						\
+TUNABLE_INT("kern.vt." #_name, &vt_##_name);
 
 struct vt_driver;
 
@@ -80,10 +91,9 @@ struct vt_device {
 #define	VDF_ASYNC	0x04	/* vt_timer() running. */
 #define	VDF_INVALID	0x08	/* Entire screen should be re-rendered. */
 #define	VDF_DEAD	0x10	/* Early probing found nothing. */
+#define	VDF_INITIALIZED	0x20	/* vtterm_cnprobe already done. */
 	int			 vd_keyboard;	/* (G) Keyboard index. */
 	unsigned int		 vd_unit;	/* (c) Device unit. */
-	/* XXX: HACK */
-	unsigned int		 vd_scrollpos;	/* (d) Last scroll position. */
 };
 
 /*
@@ -104,27 +114,45 @@ struct vt_bufmask {
 
 struct vt_buf {
 	struct mtx		 vb_lock;	/* Buffer lock. */
-	term_pos_t		 vb_size;	/* (b) Screen dimensions. */
+	term_pos_t		 vb_scr_size;	/* (b) Screen dimensions. */
 	int			 vb_flags;	/* (b) Flags. */
 #define	VBF_CURSOR	0x1	/* Cursor visible. */
 #define	VBF_STATIC	0x2	/* Buffer is statically allocated. */
+#define	VBF_MTX_INIT	0x4	/* Mutex initialized. */
+#define	VBF_SCROLL	0x8	/* scroll locked mode. */
+	int			 vb_history_size;
+#define	VBF_DEFAULT_HISTORY_SIZE	200
+	int			 vb_roffset;	/* (b) History rows offset. */
+	int			 vb_curroffset;	/* (b) Saved rows offset. */
 	term_pos_t		 vb_cursor;	/* (u) Cursor position. */
 	term_rect_t		 vb_dirtyrect;	/* (b) Dirty rectangle. */
 	struct vt_bufmask	 vb_dirtymask;	/* (b) Dirty bitmasks. */
 	term_char_t		*vb_buffer;	/* (u) Data buffer. */
+	term_char_t		**vb_rows;	/* (u) Array of rows */
 };
 
 void vtbuf_copy(struct vt_buf *, const term_rect_t *, const term_pos_t *);
-void vtbuf_fill(struct vt_buf *, const term_rect_t *, term_char_t);
+void vtbuf_fill_locked(struct vt_buf *, const term_rect_t *, term_char_t);
 void vtbuf_init_early(struct vt_buf *);
 void vtbuf_init(struct vt_buf *, const term_pos_t *);
-void vtbuf_grow(struct vt_buf *, const term_pos_t *);
+void vtbuf_grow(struct vt_buf *, const term_pos_t *, int);
 void vtbuf_putchar(struct vt_buf *, const term_pos_t *, term_char_t);
 void vtbuf_cursor_position(struct vt_buf *, const term_pos_t *);
 void vtbuf_cursor_visibility(struct vt_buf *, int);
 void vtbuf_undirty(struct vt_buf *, term_rect_t *, struct vt_bufmask *);
+void vtbuf_sethistory_size(struct vt_buf *, int);
+
+#define	VTBUF_SLCK_ENABLE(vb)	(vb)->vb_flags |= VBF_SCROLL
+#define	VTBUF_SLCK_DISABLE(vb)	(vb)->vb_flags &= ~VBF_SCROLL
+
+#define	VTBUF_MAX_HEIGHT(vb) \
+	((vb)->vb_history_size)
+#define	VTBUF_GET_ROW(vb, r) \
+	((vb)->vb_rows[((vb)->vb_roffset + (r)) % VTBUF_MAX_HEIGHT(vb)])
+#define	VTBUF_GET_FIELD(vb, r, c) \
+	((vb)->vb_rows[((vb)->vb_roffset + (r)) % VTBUF_MAX_HEIGHT(vb)][(c)])
 #define	VTBUF_FIELD(vb, r, c) \
-	(vb)->vb_buffer[(r) * (vb)->vb_size.tp_col + (c)]
+	((vb)->vb_rows[((vb)->vb_curroffset + (r)) % VTBUF_MAX_HEIGHT(vb)][(c)])
 #define	VTBUF_ISCURSOR(vb, r, c) \
 	((vb)->vb_flags & VBF_CURSOR && \
 	(vb)->vb_cursor.tp_row == (r) && (vb)->vb_cursor.tp_col == (c))
@@ -132,26 +160,14 @@ void vtbuf_undirty(struct vt_buf *, term_rect_t *, struct vt_bufmask *);
 	((mask)->vbm_row & ((uint64_t)1 << ((row) % 64)))
 #define	VTBUF_DIRTYCOL(mask, col) \
 	((mask)->vbm_col & ((uint64_t)1 << ((col) % 64)))
+#define	VTBUF_SPACE_CHAR	(' ' | TC_WHITE << 26 | TC_BLACK << 29)
 
-/*
- * Per-window history tracking.
- *
- * XXX: Unimplemented!
- */
-
-struct vt_history {
-	unsigned int	vh_offset;
-};
-
-void vthistory_add(struct vt_history *vh, struct vt_buf *vb,
-    const term_rect_t *r);
 #define	VHS_SET	0
 #define	VHS_CUR	1
 #define	VHS_END	2
-void vthistory_seek(struct vt_history *vh, int offset, int whence);
-void vthistory_getpos(const struct vt_history *vh, unsigned int *offset);
-#define	VTHISTORY_FIELD(vh, r, c) \
-	('?' | (TF_BOLD|TF_REVERSE) << 22 | TC_GREEN << 26 | TC_BLACK << 29)
+int vthistory_seek(struct vt_buf *, int offset, int whence);
+void vthistory_addlines(struct vt_buf *vb, int offset);
+void vthistory_getpos(const struct vt_buf *, unsigned int *offset);
 
 /*
  * Per-window datastructure.
@@ -161,7 +177,6 @@ struct vt_window {
 	struct vt_device	*vw_device;	/* (c) Device. */
 	struct terminal		*vw_terminal;	/* (c) Terminal. */
 	struct vt_buf		 vw_buf;	/* (u) Screen buffer. */
-	struct vt_history	 vw_history;	/* (?) History buffer. */
 	struct vt_font		*vw_font;	/* (d) Graphical font. */
 	unsigned int		 vw_number;	/* (c) Window number. */
 	int			 vw_kbdmode;	/* (?) Keyboard mode. */
@@ -170,7 +185,21 @@ struct vt_window {
 #define	VWF_OPENED	0x2	/* TTY in use. */
 #define	VWF_SCROLL	0x4	/* Keys influence scrollback. */
 #define	VWF_CONSOLE	0x8	/* Kernel message console window. */
+#define	VWF_VTYLOCK	0x10	/* Prevent window switch. */
+#define	VWF_SWWAIT_REL	0x10000	/* Program wait for VT acquire is done. */
+#define	VWF_SWWAIT_ACQ	0x20000	/* Program wait for VT release is done. */
+	pid_t			 vw_pid;	/* Terminal holding process */
+	struct proc		*vw_proc;
+	struct vt_mode		 vw_smode;	/* switch mode */
+	struct callout		 vw_proc_dead_timer;
+	struct vt_window	*vw_switch_to;
 };
+
+#define	VT_AUTO		0		/* switching is automatic */
+#define	VT_PROCESS	1		/* switching controlled by prog */
+#define	VT_KERNEL	255		/* switching controlled in kernel */
+
+#define	IS_VT_PROC_MODE(vw)	((vw)->vw_smode.mode == VT_PROCESS)
 
 /*
  * Per-device driver routines.
@@ -181,6 +210,7 @@ struct vt_window {
  */
 
 typedef int vd_init_t(struct vt_device *vd);
+typedef void vd_postswitch_t(struct vt_device *vd);
 typedef void vd_blank_t(struct vt_device *vd, term_color_t color);
 typedef void vd_bitblt_t(struct vt_device *vd, const uint8_t *src,
     vt_axis_t top, vt_axis_t left, unsigned int width, unsigned int height,
@@ -190,14 +220,23 @@ typedef void vd_putchar_t(struct vt_device *vd, term_char_t,
 
 struct vt_driver {
 	/* Console attachment. */
-	vd_init_t		*vd_init;
+	vd_init_t	*vd_init;
 
 	/* Drawing. */
-	vd_blank_t		*vd_blank;
-	vd_bitblt_t		*vd_bitblt;
+	vd_blank_t	*vd_blank;
+	vd_bitblt_t	*vd_bitblt;
 
 	/* Text mode operation. */
-	vd_putchar_t		*vd_putchar;
+	vd_putchar_t	*vd_putchar;
+
+	/* Update display setting on vt switch. */
+	vd_postswitch_t	*vd_postswitch;
+
+	/* Priority to know which one can override */
+	int		vd_priority;
+#define	VD_PRIORITY_DUMB	10000
+#define	VD_PRIORITY_GENERIC	1000
+#define	VD_PRIORITY_SPECIFIC	100
 };
 
 /*
@@ -222,14 +261,21 @@ static struct vt_device	driver ## _consdev = {				\
 	.vd_windows = { [VT_CONSWINDOW] =  &driver ## _conswindow, },	\
 	.vd_curwindow = &driver ## _conswindow,				\
 };									\
-static term_char_t	driver ## _constextbuf[(width) * (height)];	\
+static term_char_t	driver ## _constextbuf[(width) * 		\
+	    (VBF_DEFAULT_HISTORY_SIZE)];				\
+static term_char_t	*driver ## _constextbufrows[			\
+	    VBF_DEFAULT_HISTORY_SIZE];					\
 static struct vt_window	driver ## _conswindow = {			\
 	.vw_number = VT_CONSWINDOW,					\
 	.vw_flags = VWF_CONSOLE,					\
 	.vw_buf = {							\
 		.vb_buffer = driver ## _constextbuf,			\
+		.vb_rows = driver ## _constextbufrows,			\
+		.vb_history_size = VBF_DEFAULT_HISTORY_SIZE,		\
+		.vb_curroffset = 0,					\
+		.vb_roffset = 0,					\
 		.vb_flags = VBF_STATIC,					\
-		.vb_size = {						\
+		.vb_scr_size = {					\
 			.tp_row = height,				\
 			.tp_col = width,				\
 		},							\

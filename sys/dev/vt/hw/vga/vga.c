@@ -81,6 +81,7 @@ static const struct vt_driver vt_vga_driver = {
 	.vd_blank	= vga_blank,
 	.vd_bitblt	= vga_bitblt,
 	.vd_putchar	= vga_putchar,
+	.vd_priority	= VD_PRIORITY_GENERIC,
 };
 
 /*

@@ -158,7 +158,7 @@ vtfont_load(vfnt_t *f, struct vt_font **ret)
 	/* Not too many mappings. */
 	if (f->nnormal > VTFONT_MAXMAPPINGS || f->nbold > VTFONT_MAXMAPPINGS)
 		return (E2BIG);
-	
+
 	/* Character 0 must always be present. */
 	if (f->nglyphs < 1)
 		return (EINVAL);
@@ -202,7 +202,7 @@ vtfont_load(vfnt_t *f, struct vt_font **ret)
 	    f->nglyphs);
 	if (error)
 		goto bad;
-	
+
 	/* Success. */
 	*ret = vf;
 	return (0);

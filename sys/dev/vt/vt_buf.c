@@ -43,6 +43,77 @@ static MALLOC_DEFINE(M_VTBUF, "vtbuf", "vt buffer");
 
 #define	VTBUF_LOCK(vb)		mtx_lock_spin(&(vb)->vb_lock)
 #define	VTBUF_UNLOCK(vb)	mtx_unlock_spin(&(vb)->vb_lock)
+/*
+ * line4
+ * line5 <--- curroffset (terminal output to that line)
+ * line0
+ * line1                  <--- roffset (history display from that point)
+ * line2
+ * line3
+ */
+int
+vthistory_seek(struct vt_buf *vb, int offset, int whence)
+{
+	int roffset;
+
+	/* No scrolling if not enabled. */
+	if ((vb->vb_flags & VBF_SCROLL) == 0) {
+		if (vb->vb_roffset != vb->vb_curroffset) {
+			vb->vb_roffset = vb->vb_curroffset;
+			return (1);
+		}
+		return (0); /* No changes */
+	}
+	/*
+	 * Operate on copy of offset value, since it temporary can be bigger
+	 * than amount of rows in buffer.
+	 */
+	roffset = vb->vb_roffset;
+	switch (whence) {
+	case VHS_SET:
+		roffset = offset;
+		break;
+	case VHS_CUR:
+		roffset += offset;
+		break;
+	case VHS_END:
+		/* Go to current offset. */
+		roffset = vb->vb_curroffset;
+		break;
+	}
+
+	if (roffset < 0)
+		roffset = 0;
+	if (roffset >= vb->vb_history_size)
+		/* Still have screen_height rows. */
+		roffset %= VTBUF_MAX_HEIGHT(vb);
+
+	if (vb->vb_roffset != roffset) {
+		vb->vb_roffset = roffset;
+		return (1); /* Offset changed, please update sceen. */
+	}
+	return (0); /* No changes */
+}
+
+void
+vthistory_addlines(struct vt_buf *vb, int offset)
+{
+
+	vb->vb_curroffset += offset;
+	if (vb->vb_curroffset < 0)
+		vb->vb_curroffset = 0;
+	vb->vb_curroffset %= vb->vb_history_size;
+	if ((vb->vb_flags & VBF_SCROLL) == 0) {
+		vb->vb_roffset = vb->vb_curroffset;
+	}
+}
+
+void
+vthistory_getpos(const struct vt_buf *vb, unsigned int *offset)
+{
+
+	*offset = vb->vb_roffset;
+}
 
 static inline uint64_t
 vtbuf_dirty_axis(unsigned int begin, unsigned int end)
@@ -112,7 +183,7 @@ static void
 vtbuf_make_undirty(struct vt_buf *vb)
 {
 
-	vb->vb_dirtyrect.tr_begin = vb->vb_size;
+	vb->vb_dirtyrect.tr_begin = vb->vb_scr_size;
 	vb->vb_dirtyrect.tr_end.tp_row = vb->vb_dirtyrect.tr_end.tp_col = 0;
 	vb->vb_dirtymask.vbm_row = vb->vb_dirtymask.vbm_col = 0;
 }
@@ -134,13 +205,39 @@ vtbuf_copy(struct vt_buf *vb, const term_rect_t *r, const term_pos_t *p2)
 	const term_pos_t *p1 = &r->tr_begin;
 	term_rect_t area;
 	unsigned int rows, cols;
-	int pr;
+	int pr, rdiff;
+
+	KASSERT(r->tr_begin.tp_row < vb->vb_scr_size.tp_row,
+	    ("vtbuf_copy begin.tp_row %d must be less than screen width %d",
+		r->tr_begin.tp_row, vb->vb_scr_size.tp_row));
+	KASSERT(r->tr_begin.tp_col < vb->vb_scr_size.tp_col,
+	    ("vtbuf_copy begin.tp_col %d must be less than screen height %d",
+		r->tr_begin.tp_col, vb->vb_scr_size.tp_col));
+
+	KASSERT(r->tr_end.tp_row <= vb->vb_scr_size.tp_row,
+	    ("vtbuf_copy end.tp_row %d must be less than screen width %d",
+		r->tr_end.tp_row, vb->vb_scr_size.tp_row));
+	KASSERT(r->tr_end.tp_col <= vb->vb_scr_size.tp_col,
+	    ("vtbuf_copy end.tp_col %d must be less than screen height %d",
+		r->tr_end.tp_col, vb->vb_scr_size.tp_col));
+
+	KASSERT(p2->tp_row < vb->vb_scr_size.tp_row,
+	    ("vtbuf_copy tp_row %d must be less than screen width %d",
+		p2->tp_row, vb->vb_scr_size.tp_row));
+	KASSERT(p2->tp_col < vb->vb_scr_size.tp_col,
+	    ("vtbuf_copy tp_col %d must be less than screen height %d",
+		p2->tp_col, vb->vb_scr_size.tp_col));
 
 	rows = r->tr_end.tp_row - r->tr_begin.tp_row;
+	rdiff = r->tr_begin.tp_row - p2->tp_row;
 	cols = r->tr_end.tp_col - r->tr_begin.tp_col;
-
-	/* Handle overlapping copies. */
-	if (p2->tp_row < p1->tp_row) {
+	if (r->tr_begin.tp_row > p2->tp_row && r->tr_begin.tp_col == 0 &&
+	    r->tr_end.tp_col == vb->vb_scr_size.tp_col && /* Full row. */
+	    (rows + rdiff) == vb->vb_scr_size.tp_row && /* Whole screen. */
+	    rdiff > 0) { /* Only forward dirrection. Do not eat history. */
+		vthistory_addlines(vb, rdiff);
+	} else if (p2->tp_row < p1->tp_row) {
+		/* Handle overlapping copies of line segments. */
 		/* Move data up. */
 		for (pr = 0; pr < rows; pr++)
 			memmove(
@@ -157,21 +254,60 @@ vtbuf_copy(struct vt_buf *vb, const term_rect_t *r, const term_pos_t *p2)
 	}
 
 	area.tr_begin = *p2;
-	area.tr_end.tp_row = p2->tp_row + rows;
-	area.tr_end.tp_col = p2->tp_col + cols;
+	area.tr_end.tp_row = MIN(p2->tp_row + rows, vb->vb_scr_size.tp_row);
+	area.tr_end.tp_col = MIN(p2->tp_col + cols, vb->vb_scr_size.tp_col);
 	vtbuf_dirty(vb, &area);
 }
 
-void
+static void
 vtbuf_fill(struct vt_buf *vb, const term_rect_t *r, term_char_t c)
 {
 	unsigned int pr, pc;
+	term_char_t *row;
 
-	for (pr = r->tr_begin.tp_row; pr < r->tr_end.tp_row; pr++)
-		for (pc = r->tr_begin.tp_col; pc < r->tr_end.tp_col; pc++)
-			VTBUF_FIELD(vb, pr, pc) = c;
+	for (pr = r->tr_begin.tp_row; pr < r->tr_end.tp_row; pr++) {
+		row = vb->vb_rows[(vb->vb_curroffset + pr) %
+		    VTBUF_MAX_HEIGHT(vb)];
+		for (pc = r->tr_begin.tp_col; pc < r->tr_end.tp_col; pc++) {
+			row[pc] = c;
+		}
+	}
+}
+
+void
+vtbuf_fill_locked(struct vt_buf *vb, const term_rect_t *r, term_char_t c)
+{
+	KASSERT(r->tr_begin.tp_row < vb->vb_scr_size.tp_row,
+	    ("vtbuf_fill_locked begin.tp_row %d must be < screen width %d",
+		r->tr_begin.tp_row, vb->vb_scr_size.tp_row));
+	KASSERT(r->tr_begin.tp_col < vb->vb_scr_size.tp_col,
+	    ("vtbuf_fill_locked begin.tp_col %d must be < screen height %d",
+		r->tr_begin.tp_col, vb->vb_scr_size.tp_col));
+
+	KASSERT(r->tr_end.tp_row <= vb->vb_scr_size.tp_row,
+	    ("vtbuf_fill_locked end.tp_row %d must be <= screen width %d",
+		r->tr_end.tp_row, vb->vb_scr_size.tp_row));
+	KASSERT(r->tr_end.tp_col <= vb->vb_scr_size.tp_col,
+	    ("vtbuf_fill_locked end.tp_col %d must be <= screen height %d",
+		r->tr_end.tp_col, vb->vb_scr_size.tp_col));
+
+	VTBUF_LOCK(vb);
+	vtbuf_fill(vb, r, c);
+	VTBUF_UNLOCK(vb);
 
 	vtbuf_dirty(vb, r);
+}
+
+static void
+vtbuf_init_rows(struct vt_buf *vb)
+{
+	int r;
+
+	vb->vb_history_size = MAX(vb->vb_history_size, vb->vb_scr_size.tp_row);
+
+	for (r = 0; r < vb->vb_history_size; r++)
+		vb->vb_rows[r] = &vb->vb_buffer[r *
+		    vb->vb_scr_size.tp_col];
 }
 
 void
@@ -179,52 +315,124 @@ vtbuf_init_early(struct vt_buf *vb)
 {
 
 	vb->vb_flags |= VBF_CURSOR;
+	vb->vb_roffset = 0;
+	vb->vb_curroffset = 0;
+
+	vtbuf_init_rows(vb);
 	vtbuf_make_undirty(vb);
-	mtx_init(&vb->vb_lock, "vtbuf", NULL, MTX_SPIN);
+	if ((vb->vb_flags & VBF_MTX_INIT) == 0) {
+		mtx_init(&vb->vb_lock, "vtbuf", NULL, MTX_SPIN);
+		vb->vb_flags |= VBF_MTX_INIT;
+	}
 }
 
 void
 vtbuf_init(struct vt_buf *vb, const term_pos_t *p)
 {
+	int sz;
 
-	vb->vb_size = *p;
-	vb->vb_buffer = malloc(p->tp_row * p->tp_col * sizeof(term_char_t),
-	    M_VTBUF, M_WAITOK);
+	vb->vb_scr_size = *p;
+	vb->vb_history_size = VBF_DEFAULT_HISTORY_SIZE;
+
+	if ((vb->vb_flags & VBF_STATIC) == 0) {
+		sz = vb->vb_history_size * p->tp_col * sizeof(term_char_t);
+		vb->vb_buffer = malloc(sz, M_VTBUF, M_WAITOK);
+
+		sz = vb->vb_history_size * sizeof(term_char_t *);
+		vb->vb_rows = malloc(sz, M_VTBUF, M_WAITOK);
+	}
+
 	vtbuf_init_early(vb);
 }
 
 void
-vtbuf_grow(struct vt_buf *vb, const term_pos_t *p)
+vtbuf_sethistory_size(struct vt_buf *vb, int size)
 {
-	term_char_t *old, *new;
+	term_pos_t p;
 
-	if (p->tp_row > vb->vb_size.tp_row ||
-	    p->tp_col > vb->vb_size.tp_col) {
+	/* With same size */
+	p.tp_row = vb->vb_scr_size.tp_row;
+	p.tp_col = vb->vb_scr_size.tp_col;
+	vtbuf_grow(vb, &p, size);
+}
+
+void
+vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, int history_size)
+{
+	term_char_t *old, *new, **rows, **oldrows, **copyrows, *row;
+	int bufsize, rowssize, w, h, c, r;
+	term_rect_t rect;
+
+	history_size = MAX(history_size, p->tp_row);
+
+	if (history_size > vb->vb_history_size || p->tp_col >
+	    vb->vb_scr_size.tp_col) {
 		/* Allocate new buffer. */
-		new = malloc(p->tp_row * p->tp_col * sizeof(term_char_t),
-		    M_VTBUF, M_WAITOK|M_ZERO);
+		bufsize = history_size * p->tp_col * sizeof(term_char_t);
+		new = malloc(bufsize, M_VTBUF, M_WAITOK|M_ZERO);
+		rowssize = history_size * sizeof(term_pos_t *);
+		rows = malloc(rowssize, M_VTBUF, M_WAITOK|M_ZERO);
 
 		/* Toggle it. */
 		VTBUF_LOCK(vb);
 		old = vb->vb_flags & VBF_STATIC ? NULL : vb->vb_buffer;
+		oldrows = vb->vb_flags & VBF_STATIC ? NULL : vb->vb_rows;
+		copyrows = vb->vb_rows;
+		w = vb->vb_scr_size.tp_col;
+		h = vb->vb_history_size;
+
+		vb->vb_history_size = history_size;
 		vb->vb_buffer = new;
+		vb->vb_rows = rows;
 		vb->vb_flags &= ~VBF_STATIC;
-		vb->vb_size = *p;
+		vb->vb_scr_size = *p;
+		vtbuf_init_rows(vb);
+
+		/* Copy history and fill extra space. */
+		for (r = 0; r < history_size; r ++) {
+			row = rows[r];
+			if (r < h) { /* Copy. */
+				memmove(rows[r], copyrows[r],
+				    MIN(p->tp_col, w) * sizeof(term_char_t));
+				for (c = MIN(p->tp_col, w); c < p->tp_col;
+				    c++) {
+					row[c] = VTBUF_SPACE_CHAR;
+				}
+			} else { /* Just fill. */
+				rect.tr_begin.tp_col = 0;
+				rect.tr_begin.tp_row = r;
+				rect.tr_end.tp_col = p->tp_col;
+				rect.tr_end.tp_row = p->tp_row;
+				vtbuf_fill(vb, &rect, VTBUF_SPACE_CHAR);
+				break;
+			}
+		}
 		vtbuf_make_undirty(vb);
 		VTBUF_UNLOCK(vb);
-
 		/* Deallocate old buffer. */
-		if (old != NULL)
-			free(old, M_VTBUF);
+		free(old, M_VTBUF);
+		free(oldrows, M_VTBUF);
 	}
 }
 
 void
 vtbuf_putchar(struct vt_buf *vb, const term_pos_t *p, term_char_t c)
 {
+	term_char_t *row;
 
-	if (VTBUF_FIELD(vb, p->tp_row, p->tp_col) != c) {
-		VTBUF_FIELD(vb, p->tp_row, p->tp_col) = c;
+	KASSERT(p->tp_row < vb->vb_scr_size.tp_row,
+	    ("vtbuf_putchar tp_row %d must be less than screen width %d",
+		p->tp_row, vb->vb_scr_size.tp_row));
+	KASSERT(p->tp_col < vb->vb_scr_size.tp_col,
+	    ("vtbuf_putchar tp_col %d must be less than screen height %d",
+		p->tp_col, vb->vb_scr_size.tp_col));
+
+	row = vb->vb_rows[(vb->vb_curroffset + p->tp_row) %
+	    VTBUF_MAX_HEIGHT(vb)];
+	if (row[p->tp_col] != c) {
+		VTBUF_LOCK(vb);
+		row[p->tp_col] = c;
+		VTBUF_UNLOCK(vb);
 		vtbuf_dirty_cell(vb, p);
 	}
 }

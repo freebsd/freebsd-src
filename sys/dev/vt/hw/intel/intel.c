@@ -65,6 +65,8 @@ static vd_bitblt_t	intel_vtbitblt;
 static struct vt_driver intel_vtops = {
 	.vd_init	= intel_vtinit,
 	.vd_bitblt	= intel_vtbitblt,
+	/* Prefer to use KMS, so GENERIC - 10 */
+	.vd_priority	= VD_PRIORITY_GENERIC - 10,
 };
 
 struct intel_softc {
