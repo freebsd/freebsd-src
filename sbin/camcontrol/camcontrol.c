@@ -2748,7 +2748,7 @@ atasecurity(struct cam_device *device, int retry_count, int timeout,
 			if (strcasecmp(optarg, "user") == 0) {
 				pwd.ctrl |= ATA_SECURITY_PASSWORD_USER;
 				pwd.ctrl &= ~ATA_SECURITY_PASSWORD_MASTER;
-			} else if (strcasecmp(optarg, "master") != 0) {
+			} else if (strcasecmp(optarg, "master") == 0) {
 				pwd.ctrl |= ATA_SECURITY_PASSWORD_MASTER;
 				pwd.ctrl &= ~ATA_SECURITY_PASSWORD_USER;
 			} else {
