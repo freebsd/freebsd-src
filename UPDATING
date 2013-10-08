@@ -31,6 +31,52 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20131006:
+	RCS has been removed from the base system.  If you need RCS
+	install either devel/rcs or devel/rcs57.
+
+20130930:
+	BIND has been removed from the base system.  If all you need
+	is a local resolver, simply enable and start the local_unbound
+	service instead.  Otherwise, several versions of BIND are
+	available in the ports tree.
+
+20130916:
+	With the addition of unbound(8), a new unbound user is now
+	required during installworld.  "mergemaster -p" can be used to
+	add the user prior to installworld, as documented in the handbook.
+
+20130911:
+	OpenSSH is now built with DNSSEC support, and will by default
+	silently trust signed SSHFP records.  This can be controlled with
+	the VerifyHostKeyDNS client configuration setting.  DNSSEC support
+	can be disabled entirely with the WITHOUT_LDNS option in src.conf.
+
+20130906:
+	The GNU Compiler Collection and C++ standard library (libstdc++)
+	are no longer built by default on platforms where clang is the system
+	compiler.  You can enable them with the WITH_GCC and WITH_GNUCXX
+	options in src.conf.  
+
+20130905:
+	The PROCDESC kernel option is now part of the GENERIC kernel
+	configuration and is required for the rwhod(8) to work.
+	If you are using custom kernel configuration, you should include
+	'options PROCDESC'.
+
+20130905:
+	The API and ABI related to the Capsicum framework was modified
+	in backward incompatible way. The userland libraries and programs
+	have to be recompiled to work with the new kernel. This includes the
+	following libraries and programs, but the whole buildworld is
+	advised: libc, libprocstat, dhclient, tcpdump, hastd, hastctl,
+	kdump, procstat, rwho, rwhod, uniq.
+
+20130903:
+	AES-NI intrinsic support has been added to gcc.  The AES-NI module
+	has been updated to use this support.  A new gcc is required to build
+	the aesni module on both i386 and amd64.
+
 20130827:
         Thomas Dickey (vendor author thereof) reports that dialog(1) since
         2011/10/18 has a bug in handling --hline. Testers and I noticed the
@@ -271,8 +317,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 
 20121201:
 	With the addition of auditdistd(8), a new auditdistd user is now
-	depended on during installworld.  "mergemaster -p" can be used to add
-	the user prior to installworld, as documented in the handbook.
+	required during installworld.  "mergemaster -p" can be used to
+	add the user prior to installworld, as documented in the handbook.
 
 20121117:
 	The sin6_scope_id member variable in struct sockaddr_in6 is now

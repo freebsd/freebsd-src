@@ -461,6 +461,34 @@ invltlb(void)
 	load_cr3(rcr3());
 }
 
+#ifndef CR4_PGE
+#define	CR4_PGE	0x00000080	/* Page global enable */
+#endif
+
+/*
+ * Perform the guaranteed invalidation of all TLB entries.  This
+ * includes the global entries, and entries in all PCIDs, not only the
+ * current context.  The function works both on non-PCID CPUs and CPUs
+ * with the PCID turned off or on.  See IA-32 SDM Vol. 3a 4.10.4.1
+ * Operations that Invalidate TLBs and Paging-Structure Caches.
+ */
+static __inline void
+invltlb_globpcid(void)
+{
+	uint64_t cr4;
+
+	cr4 = rcr4();
+	load_cr4(cr4 & ~CR4_PGE);
+	/*
+	 * Although preemption at this point could be detrimental to
+	 * performance, it would not lead to an error.  PG_G is simply
+	 * ignored if CR4.PGE is clear.  Moreover, in case this block
+	 * is re-entered, the load_cr4() either above or below will
+	 * modify CR4.PGE flushing the TLB.
+	 */
+	load_cr4(cr4 | CR4_PGE);
+}
+
 /*
  * TLB flush for an individual page (even if it has PG_G).
  * Only works on 486+ CPUs (i386 does not have PG_G).

@@ -97,7 +97,7 @@ struct	sockbuf {
 	u_int	sb_mbmax;	/* (c/d) max chars of mbufs to use */
 	u_int	sb_ctl;		/* (c/d) non-data chars in buffer */
 	int	sb_lowat;	/* (c/d) low water mark */
-	int	sb_timeo;	/* (c/d) timeout for read/write */
+	sbintime_t	sb_timeo;	/* (c/d) timeout for read/write */
 	short	sb_flags;	/* (c/d) flags, see below */
 	int	(*sb_upcall)(struct socket *, void *, int); /* (c/d) */
 	void	*sb_upcallarg;	/* (c/d) */

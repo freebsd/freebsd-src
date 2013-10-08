@@ -307,7 +307,11 @@ ip6proto_unregister(short ip6proto)
 void
 ip6_destroy()
 {
+	int i;
 
+	if ((i = pfil_head_unregister(&V_inet6_pfil_hook)) != 0)
+		printf("%s: WARNING: unable to unregister pfil hook, "
+		    "error %d\n", __func__, i);
 	hashdestroy(V_in6_ifaddrhashtbl, M_IFADDR, V_in6_ifaddrhmask);
 	nd6_destroy();
 	callout_drain(&V_in6_tmpaddrtimer_ch);

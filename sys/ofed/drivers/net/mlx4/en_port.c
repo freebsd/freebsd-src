@@ -39,13 +39,14 @@
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/cmd.h>
 
-
+#if 0 //  moved to port.c
 int mlx4_SET_MCAST_FLTR(struct mlx4_dev *dev, u8 port,
 			u64 mac, u64 clear, u8 mode)
 {
 	return mlx4_cmd(dev, (mac | (clear << 63)), port, mode,
-			MLX4_CMD_SET_MCAST_FLTR, MLX4_CMD_TIME_CLASS_B);
+			MLX4_CMD_SET_MCAST_FLTR, MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
 }
+#endif
 
 int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, u8 port, u32 *vlans)
 {
@@ -65,12 +66,13 @@ int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, u8 port, u32 *vlans)
 		    i++, j--)
 			filter->entry[j] = cpu_to_be32(vlans[i]);
 	err = mlx4_cmd(dev, mailbox->dma, port, 0, MLX4_CMD_SET_VLAN_FLTR,
-		       MLX4_CMD_TIME_CLASS_B);
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
 }
 
 
+#if 0 //moved to port.c - shahark
 int mlx4_SET_PORT_general(struct mlx4_dev *dev, u8 port, int mtu,
 			  u8 pptx, u8 pfctx, u8 pprx, u8 pfcrx)
 {
@@ -94,15 +96,19 @@ int mlx4_SET_PORT_general(struct mlx4_dev *dev, u8 port, int mtu,
 
 	in_mod = MLX4_SET_PORT_GENERAL << 8 | port;
 	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B);
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
 }
-
 int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 			   u8 promisc)
 {
+
+        printf("%s %s:%d\n", __func__, __FILE__, __LINE__);
+
+
+
 	struct mlx4_cmd_mailbox *mailbox;
 	struct mlx4_set_port_rqp_calc_context *context;
 	int err;
@@ -116,8 +122,10 @@ int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 
 	context->base_qpn = cpu_to_be32(base_qpn);
 	context->promisc = cpu_to_be32(promisc << SET_PORT_PROMISC_EN_SHIFT | base_qpn);
+/*
 	context->mcast = cpu_to_be32((dev->caps.mc_promisc_mode <<
 				      SET_PORT_PROMISC_MODE_SHIFT) | base_qpn);
+*/
 	context->intra_no_vlan = 0;
 	context->no_vlan = MLX4_NO_VLAN_IDX;
 	context->intra_vlan_miss = 0;
@@ -125,11 +133,12 @@ int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 
 	in_mod = MLX4_SET_PORT_RQP_CALC << 8 | port;
 	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B);
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
 }
+#endif
 
 int mlx4_en_QUERY_PORT(struct mlx4_en_dev *mdev, u8 port)
 {
@@ -144,7 +153,7 @@ int mlx4_en_QUERY_PORT(struct mlx4_en_dev *mdev, u8 port)
 		return PTR_ERR(mailbox);
 	memset(mailbox->buf, 0, sizeof(*qport_context));
 	err = mlx4_cmd_box(mdev->dev, 0, mailbox->dma, port, 0,
-			   MLX4_CMD_QUERY_PORT, MLX4_CMD_TIME_CLASS_B);
+			   MLX4_CMD_QUERY_PORT, MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
 	if (err)
 		goto out;
 	qport_context = mailbox->buf;
@@ -176,6 +185,7 @@ out:
 	return err;
 }
 
+#if 0
 static int read_iboe_counters(struct mlx4_dev *dev, int index, u64 counters[])
 {
 	struct mlx4_cmd_mailbox *mailbox;
@@ -189,7 +199,7 @@ static int read_iboe_counters(struct mlx4_dev *dev, int index, u64 counters[])
 		return -ENOMEM;
 
 	err = mlx4_cmd_box(dev, 0, mailbox->dma, index, 0,
-			   MLX4_CMD_QUERY_IF_STAT, MLX4_CMD_TIME_CLASS_C);
+			   MLX4_CMD_QUERY_IF_STAT, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_WRAPPED);
 	if (err)
 		goto out;
 
@@ -217,6 +227,7 @@ out:
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
 }
+#endif
 
 int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 {
@@ -229,22 +240,24 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	unsigned long ierror;
 	int err;
 	int i;
-	int counter;
+	//int counter;
 	u64 counters[4];
 
 	dev = mdev->pndev[port];
 	priv = netdev_priv(dev);
 	memset(counters, 0, sizeof counters);
+        /*
 	counter = mlx4_get_iboe_counter(priv->mdev->dev, port);
 	if (counter >= 0)
 		err = read_iboe_counters(priv->mdev->dev, counter, counters);
+        */
 
 	mailbox = mlx4_alloc_cmd_mailbox(mdev->dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
 	memset(mailbox->buf, 0, sizeof(*mlx4_en_stats));
 	err = mlx4_cmd_box(mdev->dev, 0, mailbox->dma, in_mod, 0,
-			   MLX4_CMD_DUMP_ETH_STATS, MLX4_CMD_TIME_CLASS_B);
+			   MLX4_CMD_DUMP_ETH_STATS, MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
 	if (err)
 		goto out;
 

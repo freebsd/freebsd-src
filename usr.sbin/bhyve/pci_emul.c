@@ -1048,7 +1048,7 @@ init_pci(struct vmctx *ctx)
 	 * Accesses to memory addresses that are not allocated to system
 	 * memory or PCI devices return 0xff's.
 	 */
-	error = vm_get_memory_seg(ctx, 0, &lowmem);
+	error = vm_get_memory_seg(ctx, 0, &lowmem, NULL);
 	assert(error == 0);
 
 	memset(&memp, 0, sizeof(struct mem_range));

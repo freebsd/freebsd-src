@@ -156,7 +156,7 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 	 * XXX - note - this fails on crash dump, which does a
 	 * VIRTIO_BLK_T_FLUSH with a zero transfer length
 	 */
-	assert (n >= 3 && n <= VTBLK_MAXSEGS + 2);
+	assert(n >= 2 && n <= VTBLK_MAXSEGS + 2);
 
 	assert((flags[0] & VRING_DESC_F_WRITE) == 0);
 	assert(iov[0].iov_len == sizeof(struct virtio_blk_hdr));

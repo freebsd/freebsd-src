@@ -492,11 +492,8 @@ struct proc {
 	struct callout	p_limco;	/* (c) Limit callout handle */
 	struct sigacts	*p_sigacts;	/* (x) Signal actions, state (CPU). */
 
-	/*
-	 * The following don't make too much sense.
-	 * See the td_ or ke_ versions of the same flags.
-	 */
 	int		p_flag;		/* (c) P_* flags. */
+	int		p_flag2;	/* (c) P2_* flags. */
 	enum {
 		PRS_NEW = 0,		/* In creation */
 		PRS_NORMAL,		/* threads can be run. */
@@ -640,6 +637,9 @@ struct proc {
 #define	P_STOPPED	(P_STOPPED_SIG|P_STOPPED_SINGLE|P_STOPPED_TRACE)
 #define	P_SHOULDSTOP(p)	((p)->p_flag & P_STOPPED)
 #define	P_KILLED(p)	((p)->p_flag & P_WKILLED)
+
+/* These flags are kept in p_flag2. */
+#define	P2_INHERIT_PROTECTED 0x00000001 /* New children get P_PROTECTED. */
 
 /*
  * These were process status values (p_stat), now they are only used in

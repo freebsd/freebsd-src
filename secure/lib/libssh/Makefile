@@ -3,6 +3,7 @@
 .include <bsd.own.mk>
 
 LIB=	ssh
+PRIVATELIB=	true
 SHLIB_MAJOR=	5
 SRCS=	authfd.c authfile.c bufaux.c bufbn.c buffer.c \
 	canohost.c channels.c cipher.c cipher-aes.c \
@@ -20,20 +21,25 @@ SRCS=	authfd.c authfile.c bufaux.c bufbn.c buffer.c \
 # compiled directly into sshd instead.
 
 # Portability layer
-SRCS+=	bsd-misc.c fmt_scaled.c getrrsetbyname.c glob.c \
+SRCS+=	bsd-misc.c fmt_scaled.c glob.c \
 	openssl-compat.c port-tun.c strtonum.c timingsafe_bcmp.c \
 	vis.c xcrypt.c xmmap.c
 
-.if defined(COMPAT_GETADDRINFO)
-SRCS+=	getaddrinfo.c getnameinfo.c name6.c rcmd.c bindresvport.c
+.if ${MK_LDNS} == "no"
+SRCS+=	getrrsetbyname.c
+.else
+LDNSDIR=	${.CURDIR}/../../../contrib/ldns
+CFLAGS+=	-DHAVE_LDNS=1 -I${LDNSDIR}
+SRCS+=	getrrsetbyname-ldns.c
+DPADD+=	${LIBLDNS}
+LDADD+=	-lldns
+USEPRIVATELIB+= ldns
 .endif
 
 CFLAGS+= -I${SSHDIR} -include ssh_namespace.h
-DPADD=	${LIBZ}
-LDADD=	-lz
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
-CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_GSSAPI_H=1 -DKRB5 -DHEIMDAL
+CFLAGS+= -include krb5_config.h
 DPADD+=	${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
 LDADD+=	-lgssapi -lkrb5 -lhx509 -lasn1 -lcom_err -lmd -lroken
 .endif
@@ -44,11 +50,14 @@ CFLAGS+= -DNONE_CIPHER_ENABLED
 
 NO_LINT=
 
-DPADD+=	${LIBCRYPTO} ${LIBCRYPT}
-LDADD+=	-lcrypto -lcrypt
+DPADD+=	${LIBCRYPTO} ${LIBCRYPT} ${LIBZ}
+LDADD+=	-lcrypto -lcrypt -lz
 
 .include <bsd.lib.mk>
 
 .PATH: ${SSHDIR} ${SSHDIR}/openbsd-compat
 
 ${OBJS} ${POBJS} ${SOBJS}: ssh_namespace.h
+.if ${MK_KERBEROS_SUPPORT} != "no"
+${OBJS} ${POBJS} ${SOBJS}: krb5_config.h
+.endif

@@ -554,7 +554,16 @@ static int
 filt_timerattach(struct knote *kn)
 {
 	struct callout *calloutp;
+	sbintime_t to;
 	unsigned int ncallouts;
+
+	if ((intptr_t)kn->kn_sdata < 0)
+		return (EINVAL);
+	if ((intptr_t)kn->kn_sdata == 0 && (kn->kn_flags & EV_ONESHOT) == 0)
+		kn->kn_sdata = 1;
+	to = timer2sbintime(kn->kn_sdata);
+	if (to < 0)
+		return (EINVAL);
 
 	ncallouts = atomic_load_explicit(&kq_ncallouts, memory_order_relaxed);
 	do {
@@ -569,8 +578,7 @@ filt_timerattach(struct knote *kn)
 	calloutp = malloc(sizeof(*calloutp), M_KQUEUE, M_WAITOK);
 	callout_init(calloutp, CALLOUT_MPSAFE);
 	kn->kn_hook = calloutp;
-	callout_reset_sbt_on(calloutp,
-	    timer2sbintime(kn->kn_sdata), 0 /* 1ms? */,
+	callout_reset_sbt_on(calloutp, to, 0 /* 1ms? */,
 	    filt_timerexpire, kn, PCPU_GET(cpuid), 0);
 
 	return (0);
@@ -707,7 +715,7 @@ sys_kqueue(struct thread *td, struct kqueue_args *uap)
 	TASK_INIT(&kq->kq_task, 0, kqueue_task, kq);
 
 	FILEDESC_XLOCK(fdp);
-	SLIST_INSERT_HEAD(&fdp->fd_kqlist, kq, kq_list);
+	TAILQ_INSERT_HEAD(&fdp->fd_kqlist, kq, kq_list);
 	FILEDESC_XUNLOCK(fdp);
 
 	finit(fp, FREAD | FWRITE, DTYPE_KQUEUE, kq, &kqueueops);
@@ -824,9 +832,11 @@ kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 	struct kevent *kevp, *changes;
 	struct kqueue *kq;
 	struct file *fp;
+	cap_rights_t rights;
 	int i, n, nerrors, error;
 
-	if ((error = fget(td, fd, CAP_POST_EVENT, &fp)) != 0)
+	error = fget(td, fd, cap_rights_init(&rights, CAP_POST_EVENT), &fp);
+	if (error != 0)
 		return (error);
 	if ((error = kqueue_acquire(fp, &kq)) != 0)
 		goto done_norel;
@@ -964,13 +974,15 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td, int wa
 	struct filterops *fops;
 	struct file *fp;
 	struct knote *kn, *tkn;
+	cap_rights_t rights;
 	int error, filt, event;
-	int haskqglobal;
+	int haskqglobal, filedesc_unlock;
 
 	fp = NULL;
 	kn = NULL;
 	error = 0;
 	haskqglobal = 0;
+	filedesc_unlock = 0;
 
 	filt = kev->filter;
 	fops = kqueue_fo_find(filt);
@@ -982,7 +994,8 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td, int wa
 findkn:
 	if (fops->f_isfd) {
 		KASSERT(td != NULL, ("td is NULL"));
-		error = fget(td, kev->ident, CAP_POLL_EVENT, &fp);
+		error = fget(td, kev->ident,
+		    cap_rights_init(&rights, CAP_POLL_EVENT), &fp);
 		if (error)
 			goto done;
 
@@ -1010,6 +1023,13 @@ findkn:
 				goto done;
 			}
 
+			/*
+			 * Pre-lock the filedesc before the global
+			 * lock mutex, see the comment in
+			 * kqueue_close().
+			 */
+			FILEDESC_XLOCK(td->td_proc->p_fd);
+			filedesc_unlock = 1;
 			KQ_GLOBAL_LOCK(&kq_global, haskqglobal);
 		}
 
@@ -1039,6 +1059,10 @@ findkn:
 	/* knote is in the process of changing, wait for it to stablize. */
 	if (kn != NULL && (kn->kn_status & KN_INFLUX) == KN_INFLUX) {
 		KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
+		if (filedesc_unlock) {
+			FILEDESC_XUNLOCK(td->td_proc->p_fd);
+			filedesc_unlock = 0;
+		}
 		kq->kq_state |= KQ_FLUXWAIT;
 		msleep(kq, &kq->kq_lock, PSOCK | PDROP, "kqflxwt", 0);
 		if (fp != NULL) {
@@ -1155,6 +1179,8 @@ done_ev_add:
 
 done:
 	KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
+	if (filedesc_unlock)
+		FILEDESC_XUNLOCK(td->td_proc->p_fd);
 	if (fp != NULL)
 		fdrop(fp, td);
 	if (tkn != NULL)
@@ -1648,10 +1674,12 @@ kqueue_close(struct file *fp, struct thread *td)
 	struct knote *kn;
 	int i;
 	int error;
+	int filedesc_unlock;
 
 	if ((error = kqueue_acquire(fp, &kq)))
 		return error;
 
+	filedesc_unlock = 0;
 	KQ_LOCK(kq);
 
 	KASSERT((kq->kq_state & KQ_CLOSING) != KQ_CLOSING,
@@ -1713,9 +1741,20 @@ kqueue_close(struct file *fp, struct thread *td)
 
 	KQ_UNLOCK(kq);
 
-	FILEDESC_XLOCK(fdp);
-	SLIST_REMOVE(&fdp->fd_kqlist, kq, kqueue, kq_list);
-	FILEDESC_XUNLOCK(fdp);
+	/*
+	 * We could be called due to the knote_drop() doing fdrop(),
+	 * called from kqueue_register().  In this case the global
+	 * lock is owned, and filedesc sx is locked before, to not
+	 * take the sleepable lock after non-sleepable.
+	 */
+	if (!sx_xlocked(FILEDESC_LOCK(fdp))) {
+		FILEDESC_XLOCK(fdp);
+		filedesc_unlock = 1;
+	} else
+		filedesc_unlock = 0;
+	TAILQ_REMOVE(&fdp->fd_kqlist, kq, kq_list);
+	if (filedesc_unlock)
+		FILEDESC_XUNLOCK(fdp);
 
 	seldrain(&kq->kq_sel);
 	knlist_destroy(&kq->kq_sel.si_note);
@@ -2091,7 +2130,7 @@ knote_fdclose(struct thread *td, int fd)
 	 * We shouldn't have to worry about new kevents appearing on fd
 	 * since filedesc is locked.
 	 */
-	SLIST_FOREACH(kq, &fdp->fd_kqlist, kq_list) {
+	TAILQ_FOREACH(kq, &fdp->fd_kqlist, kq_list) {
 		KQ_LOCK(kq);
 
 again:
@@ -2237,9 +2276,11 @@ kqfd_register(int fd, struct kevent *kev, struct thread *td, int waitok)
 {
 	struct kqueue *kq;
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
-	if ((error = fget(td, fd, CAP_POST_EVENT, &fp)) != 0)
+	error = fget(td, fd, cap_rights_init(&rights, CAP_POST_EVENT), &fp);
+	if (error != 0)
 		return (error);
 	if ((error = kqueue_acquire(fp, &kq)) != 0)
 		goto noacquire;

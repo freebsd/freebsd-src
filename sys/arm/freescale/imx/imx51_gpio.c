@@ -370,7 +370,8 @@ static int
 imx51_gpio_probe(device_t dev)
 {
 
-	if (ofw_bus_is_compatible(dev, "fsl,imx51-gpio")) {
+	if (ofw_bus_is_compatible(dev, "fsl,imx51-gpio") ||
+	    ofw_bus_is_compatible(dev, "fsl,imx53-gpio")) {
 		device_set_desc(dev, "i.MX515 GPIO Controller");
 		return (BUS_PROBE_DEFAULT);
 	}

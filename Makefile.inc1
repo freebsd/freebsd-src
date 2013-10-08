@@ -132,7 +132,7 @@ VERSION!=	uname -srp
 VERSION+=	${OSRELDATE}
 .endif
 
-KNOWN_ARCHES?=	amd64 arm armeb/arm armv6/arm armv6eb/arm i386 i386/pc98 ia64 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
+KNOWN_ARCHES?=	amd64 arm armeb/arm armv6/arm i386 i386/pc98 ia64 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
 .else
@@ -382,6 +382,7 @@ LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		PATH=${TMPPATH} \
 		LIBDIR=/usr/lib32 \
 		SHLIBDIR=/usr/lib32 \
+		LIBPRIVATEDIR=/usr/lib32/private \
 		COMPILER_TYPE=${WMAKE_COMPILER_TYPE}
 LIB32WMAKEFLAGS+=	\
 		CC="${XCC} ${LIB32FLAGS}" \
@@ -394,7 +395,7 @@ LIB32WMAKEFLAGS+=	\
 		-DNO_LINT
 
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} ${LIB32WMAKEFLAGS} \
-		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_INFO -DWITHOUT_HTML
+		-DWITHOUT_MAN -DWITHOUT_INFO -DWITHOUT_HTML
 LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS \
 		${IMAKE_INSTALL}
 .endif
@@ -483,10 +484,6 @@ _worldtmp:
 	    -p ${WORLDTMP}/legacy/usr/lib >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${WORLDTMP}/usr/lib >/dev/null
-.endif
-.if ${MK_BIND_LIBS} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BIND.include.dist \
-	    -p ${WORLDTMP}/usr/include >/dev/null
 .endif
 .for _mtree in ${LOCAL_MTREE}
 	mtree -deU -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
@@ -675,8 +672,9 @@ kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries}
 #
 # Checks to be sure system is ready for installworld/installkernel.
 #
-installcheck:
-installcheck_UGID:
+installcheck: _installcheck_world _installcheck_kernel
+_installcheck_world:
+_installcheck_kernel:
 
 #
 # Require DESTDIR to be set if installing for a different architecture or
@@ -685,8 +683,9 @@ installcheck_UGID:
 .if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${TARGET} != ${MACHINE} || \
     defined(DB_FROM_SRC)
 .if !make(distributeworld)
-installcheck: installcheck_DESTDIR
-installcheck_DESTDIR:
+_installcheck_world: __installcheck_DESTDIR
+_installcheck_kernel: __installcheck_DESTDIR
+__installcheck_DESTDIR:
 .if !defined(DESTDIR) || empty(DESTDIR)
 	@echo "ERROR: Please set DESTDIR!"; \
 	false
@@ -708,7 +707,12 @@ CHECK_GIDS+=	smmsp
 CHECK_UIDS+=	proxy
 CHECK_GIDS+=	proxy authpf
 .endif
-installcheck_UGID:
+.if ${MK_UNBOUND} != "no"
+CHECK_UIDS+=	unbound
+CHECK_GIDS+=	unbound
+.endif
+_installcheck_world: __installcheck_UGID
+__installcheck_UGID:
 .for uid in ${CHECK_UIDS}
 	@if ! `id -u ${uid} >/dev/null 2>&1`; then \
 		echo "ERROR: Required ${uid} user is missing, see /usr/src/UPDATING."; \
@@ -763,7 +767,7 @@ EXTRA_DISTRIBUTIONS+=	lib32
 
 MTREE_MAGIC?=	mtree 2.0
 
-distributeworld installworld: installcheck installcheck_UGID
+distributeworld installworld: _installcheck_world
 	mkdir -p ${INSTALLTMP}
 	progs=$$(for prog in ${ITOOLS}; do \
 		if progpath=`which $$prog`; then \
@@ -1041,7 +1045,7 @@ buildkernel:
 # Install the kernel defined by INSTALLKERNEL
 #
 installkernel installkernel.debug \
-reinstallkernel reinstallkernel.debug: installcheck
+reinstallkernel reinstallkernel.debug: _installcheck_kernel
 .if empty(INSTALLKERNEL)
 	@echo "ERROR: No kernel \"${KERNCONF}\" to install."; \
 	false
@@ -1081,9 +1085,11 @@ distributekernel distributekernel.debug:
 	    KERNEL=${INSTKERNNAME}.${_kernel} \
 	    DESTDIR=${INSTALL_DDIR}/kernel.${_kernel} \
 	    ${.TARGET:S/distributekernel/install/}
+.if defined(NO_ROOT)
 	sed -e 's|^./kernel|.|' \
 	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta > \
 	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
+.endif
 .endfor
 
 packagekernel:
@@ -1469,8 +1475,8 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
 		${_cddl_lib_libzfs_core} \
 		lib/libutil ${_lib_libypclnt} lib/libz lib/msun \
-		${_secure_lib_libcrypto} ${_secure_lib_libssh} \
-		${_secure_lib_libssl}
+		${_secure_lib_libcrypto} ${_lib_libldns} \
+		${_secure_lib_libssh} ${_secure_lib_libssl}
 
 .if ${MK_ATF} != "no"
 _lib_atf_libatf_c=	lib/atf/libatf-c
@@ -1506,9 +1512,16 @@ cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
 _secure_lib_libcrypto= secure/lib/libcrypto
 _secure_lib_libssl= secure/lib/libssl
 lib/libradius__L secure/lib/libssl__L: secure/lib/libcrypto__L
+.if ${MK_LDNS} != "no"
+_lib_libldns= lib/libldns
+lib/libldns__L: secure/lib/libcrypto__L
+.endif
 .if ${MK_OPENSSH} != "no"
 _secure_lib_libssh= secure/lib/libssh
 secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
+.if ${MK_LDNS} != "no"
+secure/lib/libssh__L: lib/libldns__L
+.endif
 .if ${MK_KERBEROS_SUPPORT} != "no"
 secure/lib/libssh__L: lib/libgssapi__L kerberos5/lib/libkrb5__L \
     kerberos5/lib/libhx509__L kerberos5/lib/libasn1__L lib/libcom_err__L \
@@ -1725,7 +1738,7 @@ check-old-libs:
 delete-old-dirs:
 	@echo ">>> Removing old directories"
 	@${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_DIRS | xargs -n1 | \
+	    -V OLD_DIRS | xargs -n1 | sort -r | \
 	while read dir; do \
 		if [ -d "${DESTDIR}/$${dir}" ]; then \
 			rmdir -v "${DESTDIR}/$${dir}" || true; \

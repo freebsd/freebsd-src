@@ -53,6 +53,11 @@ Show the list of current NAT table entry mappings.
 This flag (no-change) prevents \fBipf\fP from actually making any ioctl
 calls or doing anything which would alter the currently running kernel.
 .TP
+.B \-p
+This flag is used with the \fB-r\fP flag to cause any active NAT
+sessions that were created by the rules being removed and that are
+currently active to also be removed.
+.TP
 .B \-r
 Remove matching NAT rules rather than add them to the internal lists.
 .TP

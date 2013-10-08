@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $OpenBSD: krl.c,v 1.10 2013/02/19 02:12:47 dtucker Exp $ */
+/* $OpenBSD: krl.c,v 1.13 2013/07/20 22:20:42 djm Exp $ */
 
 #include "includes.h"
 
@@ -502,11 +502,11 @@ choose_next_state(int current_state, u_int64_t contig, int final,
 	}
 	debug3("%s: contig %llu last_gap %llu next_gap %llu final %d, costs:"
 	    "list %llu range %llu bitmap %llu new bitmap %llu, "
-	    "selected 0x%02x%s", __func__, (unsigned long long)contig,
-	    (unsigned long long)last_gap, (unsigned long long)next_gap, final,
-	    (unsigned long long)cost_list, (unsigned long long)cost_range,
-	    (unsigned long long)cost_bitmap,
-	    (unsigned long long)cost_bitmap_restart, new_state,
+	    "selected 0x%02x%s", __func__, (long long unsigned)contig,
+	    (long long unsigned)last_gap, (long long unsigned)next_gap, final,
+	    (long long unsigned)cost_list, (long long unsigned)cost_range,
+	    (long long unsigned)cost_bitmap,
+	    (long long unsigned)cost_bitmap_restart, new_state,
 	    *force_new_section ? " restart" : "");
 	return new_state;
 }
@@ -542,7 +542,7 @@ revoked_certs_generate(struct revoked_certs *rc, Buffer *buf)
 	     rs != NULL;
 	     rs = RB_NEXT(revoked_serial_tree, &rc->revoked_serials, rs)) {
 		debug3("%s: serial %llu:%llu state 0x%02x", __func__,
-		    (unsigned long long)rs->lo, (unsigned long long)rs->hi,
+		    (long long unsigned)rs->lo, (long long unsigned)rs->hi,
 		    state);
 
 		/* Check contiguous length and gap to next section (if any) */
@@ -887,9 +887,10 @@ ssh_krl_from_blob(Buffer *buf, struct ssh_krl **krlp,
 	char timestamp[64];
 	int ret = -1, r, sig_seen;
 	Key *key = NULL, **ca_used = NULL;
-	u_char type, *blob;
-	u_int i, j, sig_off, sects_off, blen, format_version, nca_used = 0;
+	u_char type, *blob, *rdata = NULL;
+	u_int i, j, sig_off, sects_off, rlen, blen, format_version, nca_used;
 
+	nca_used = 0;
 	*krlp = NULL;
 	if (buffer_len(buf) < sizeof(KRL_MAGIC) - 1 ||
 	    memcmp(buffer_ptr(buf), KRL_MAGIC, sizeof(KRL_MAGIC) - 1) != 0) {
@@ -933,7 +934,7 @@ ssh_krl_from_blob(Buffer *buf, struct ssh_krl **krlp,
 
 	format_timestamp(krl->generated_date, timestamp, sizeof(timestamp));
 	debug("KRL version %llu generated at %s%s%s",
-	    (unsigned long long)krl->krl_version, timestamp,
+	    (long long unsigned)krl->krl_version, timestamp,
 	    *krl->comment ? ": " : "", krl->comment);
 
 	/*
@@ -972,7 +973,7 @@ ssh_krl_from_blob(Buffer *buf, struct ssh_krl **krlp,
 		}
 		/* Check signature over entire KRL up to this point */
 		if (key_verify(key, blob, blen,
-		    buffer_ptr(buf), buffer_len(buf) - sig_off) == -1) {
+		    buffer_ptr(buf), buffer_len(buf) - sig_off) != 1) {
 			error("bad signaure on KRL");
 			goto out;
 		}
@@ -1015,21 +1016,22 @@ ssh_krl_from_blob(Buffer *buf, struct ssh_krl **krlp,
 		case KRL_SECTION_EXPLICIT_KEY:
 		case KRL_SECTION_FINGERPRINT_SHA1:
 			while (buffer_len(&sect) > 0) {
-				if ((blob = buffer_get_string_ret(&sect,
-				    &blen)) == NULL) {
+				if ((rdata = buffer_get_string_ret(&sect,
+				    &rlen)) == NULL) {
 					error("%s: buffer error", __func__);
 					goto out;
 				}
 				if (type == KRL_SECTION_FINGERPRINT_SHA1 &&
-				    blen != 20) {
+				    rlen != 20) {
 					error("%s: bad SHA1 length", __func__);
 					goto out;
 				}
 				if (revoke_blob(
 				    type == KRL_SECTION_EXPLICIT_KEY ?
 				    &krl->revoked_keys : &krl->revoked_sha1s,
-				    blob, blen) != 0)
-					goto out; /* revoke_blob frees blob */
+				    rdata, rlen) != 0)
+					goto out;
+				rdata = NULL; /* revoke_blob frees blob */
 			}
 			break;
 		case KRL_SECTION_SIGNATURE:
@@ -1095,6 +1097,7 @@ ssh_krl_from_blob(Buffer *buf, struct ssh_krl **krlp,
 			key_free(ca_used[i]);
 	}
 	free(ca_used);
+	free(rdata);
 	if (key != NULL)
 		key_free(key);
 	buffer_free(&copy);

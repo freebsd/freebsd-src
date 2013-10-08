@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
-#include <compat/freebsd32/freebsd32_misc.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
 #ifdef CAPABILITIES
@@ -50,14 +49,15 @@ __FBSDID("$FreeBSD$");
 MALLOC_DECLARE(M_FILECAPS);
 
 int
-freebsd32_cap_rights_limit(struct thread *td,
-    struct freebsd32_cap_rights_limit_args *uap)
+freebsd32_cap_enter(struct thread *td,
+    struct freebsd32_cap_enter_args *uap)
 {
-	struct cap_rights_limit_args ap;
 
-	ap.fd = uap->fd;
-	ap.rights = PAIR32TO64(uint64_t, uap->rights);
-	return (sys_cap_rights_limit(td, &ap));
+	/*
+	 * We do not have an equivalent of capabilities.conf for freebsd32
+	 * compatibility, so do not allow capability mode for now.
+	 */
+	return (ENOSYS);
 }
 
 int
@@ -148,8 +148,8 @@ out:
 #else /* !CAPABILITIES */
 
 int
-freebsd32_cap_rights_limit(struct thread *td,
-    struct freebsd32_cap_rights_limit_args *uap)
+freebsd32_cap_enter(struct thread *td,
+    struct freebsd32_cap_enter_args *uap)
 {
 
 	return (ENOSYS);

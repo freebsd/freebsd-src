@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2004 Mark R V Murray
+ * Copyright (c) 2000-2013 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,20 +45,67 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/randomdev_soft.h>
 #include <dev/random/yarrow.h>
 
+#define TIMEBIN		16	/* max value for Pt/t */
+
+#define FAST		0
+#define SLOW		1
+
+/* This is the beastie that needs protecting. It contains all of the
+ * state that we are excited about.
+ * Exactly one is instantiated.
+ */
+static struct random_state {
+	union {
+		uint8_t byte[BLOCKSIZE];
+		uint64_t qword[BLOCKSIZE/sizeof(uint64_t)];
+	} counter;		/* C */
+	struct randomdev_key key; /* K */
+	u_int gengateinterval;	/* Pg */
+	u_int bins;		/* Pt/t */
+	u_int outputblocks;	/* count output blocks for gates */
+	u_int slowoverthresh;	/* slow pool overthreshhold reseed count */
+	struct pool {
+		struct source {
+			u_int bits;	/* estimated bits of entropy */
+			u_int frac;	/* fractional bits of entropy
+					   (given as 1024/n) */
+		} source[ENTROPYSOURCE];
+		u_int thresh;	/* pool reseed threshhold */
+		struct randomdev_hash hash;	/* accumulated entropy */
+	} pool[2];		/* pool[0] is fast, pool[1] is slow */
+	u_int which;		/* toggle - sets the current insertion pool */
+} random_state;
+
 RANDOM_CHECK_UINT(gengateinterval, 4, 64);
 RANDOM_CHECK_UINT(bins, 2, 16);
-RANDOM_CHECK_UINT(fastthresh, BLOCKSIZE/4, BLOCKSIZE);
-RANDOM_CHECK_UINT(slowthresh, BLOCKSIZE/4, BLOCKSIZE);
+RANDOM_CHECK_UINT(fastthresh, (BLOCKSIZE*8)/4, (BLOCKSIZE*8)); /* Bit counts */
+RANDOM_CHECK_UINT(slowthresh, (BLOCKSIZE*8)/4, (BLOCKSIZE*8)); /* Bit counts */
 RANDOM_CHECK_UINT(slowoverthresh, 1, 5);
-
-/* Structure holding the entropy state */
-static struct random_state random_state;
 
 static void generator_gate(void);
 static void reseed(u_int);
 
 /* The reseed thread mutex */
 struct mtx random_reseed_mtx;
+
+/* 128-bit C = 0 */
+/* Nothing to see here, folks, just an ugly mess. */
+static void
+clear_counter(void)
+{
+	random_state.counter.qword[0] = 0UL;
+	random_state.counter.qword[1] = 0UL;
+}
+
+/* 128-bit C = C + 1 */
+/* Nothing to see here, folks, just an ugly mess. */
+static void
+increment_counter(void)
+{
+	random_state.counter.qword[0]++;
+	if (!random_state.counter.qword[0])
+		random_state.counter.qword[1]++;
+}
 
 /* Process a single stochastic event off the harvest queue */
 void
@@ -71,13 +118,13 @@ random_process_event(struct harvest *event)
 	/* Unpack the event into the appropriate source accumulator */
 	pl = random_state.which;
 	source = &random_state.pool[pl].source[event->source];
-	yarrow_hash_iterate(&random_state.pool[pl].hash, event->entropy,
+	randomdev_hash_iterate(&random_state.pool[pl].hash, event->entropy,
 		sizeof(event->entropy));
-	yarrow_hash_iterate(&random_state.pool[pl].hash, &event->somecounter,
+	randomdev_hash_iterate(&random_state.pool[pl].hash, &event->somecounter,
 		sizeof(event->somecounter));
 	source->frac += event->frac;
-	source->bits += event->bits + source->frac/1024;
-	source->frac %= 1024;
+	source->bits += event->bits + (source->frac >> 12); /* bits + frac/0x1000 */
+	source->frac &= 0xFFF; /* Keep the fractional bits */
 
 	/* Count the over-threshold sources in each pool */
 	for (pl = 0; pl < 2; pl++) {
@@ -132,14 +179,14 @@ random_yarrow_init_alg(struct sysctl_ctx_list *clist)
 	SYSCTL_ADD_PROC(clist,
 		SYSCTL_CHILDREN(random_yarrow_o), OID_AUTO,
 		"fastthresh", CTLTYPE_INT|CTLFLAG_RW,
-		&random_state.pool[0].thresh, (3*BLOCKSIZE)/4,
+		&random_state.pool[0].thresh, (3*(BLOCKSIZE*8))/4,
 		random_check_uint_fastthresh, "I",
 		"Fast reseed threshold");
 
 	SYSCTL_ADD_PROC(clist,
 		SYSCTL_CHILDREN(random_yarrow_o), OID_AUTO,
 		"slowthresh", CTLTYPE_INT|CTLFLAG_RW,
-		&random_state.pool[1].thresh, BLOCKSIZE,
+		&random_state.pool[1].thresh, (BLOCKSIZE*8),
 		random_check_uint_slowthresh, "I",
 		"Slow reseed threshold");
 
@@ -152,21 +199,20 @@ random_yarrow_init_alg(struct sysctl_ctx_list *clist)
 
 	random_state.gengateinterval = 10;
 	random_state.bins = 10;
-	random_state.pool[0].thresh = (3*BLOCKSIZE)/4;
-	random_state.pool[1].thresh = BLOCKSIZE;
+	random_state.pool[0].thresh = (3*(BLOCKSIZE*8))/4;
+	random_state.pool[1].thresh = (BLOCKSIZE*8);
 	random_state.slowoverthresh = 2;
 	random_state.which = FAST;
 
 	/* Initialise the fast and slow entropy pools */
 	for (i = 0; i < 2; i++)
-		yarrow_hash_init(&random_state.pool[i].hash);
+		randomdev_hash_init(&random_state.pool[i].hash);
 
 	/* Clear the counter */
-	for (i = 0; i < 4; i++)
-		random_state.counter[i] = 0;
+	clear_counter();
 
 	/* Set up a lock for the reseed process */
-	mtx_init(&random_reseed_mtx, "random reseed", NULL, MTX_DEF);
+	mtx_init(&random_reseed_mtx, "Yarrow reseed", NULL, MTX_DEF);
 }
 
 void
@@ -181,10 +227,10 @@ reseed(u_int fastslow)
 	/* Interrupt-context stack is a limited resource; make large
 	 * structures static.
 	 */
-	static u_char v[TIMEBIN][KEYSIZE];	/* v[i] */
-	static struct yarrowhash context;
-	u_char hash[KEYSIZE];			/* h' */
-	u_char temp[KEYSIZE];
+	static uint8_t v[TIMEBIN][KEYSIZE];	/* v[i] */
+	static struct randomdev_hash context;
+	uint8_t hash[KEYSIZE];			/* h' */
+	uint8_t temp[KEYSIZE];
 	u_int i;
 	enum esource j;
 
@@ -193,15 +239,15 @@ reseed(u_int fastslow)
 
 	/* 1. Hash the accumulated entropy into v[0] */
 
-	yarrow_hash_init(&context);
+	randomdev_hash_init(&context);
 	/* Feed the slow pool hash in if slow */
 	if (fastslow == SLOW)
-		yarrow_hash_iterate(&context,
+		randomdev_hash_iterate(&context,
 			&random_state.pool[SLOW].hash,
-			sizeof(struct yarrowhash));
-	yarrow_hash_iterate(&context,
-		&random_state.pool[FAST].hash, sizeof(struct yarrowhash));
-	yarrow_hash_finish(&context, v[0]);
+			sizeof(struct randomdev_hash));
+	randomdev_hash_iterate(&context,
+		&random_state.pool[FAST].hash, sizeof(struct randomdev_hash));
+	randomdev_hash_finish(&context, v[0]);
 
 	/* 2. Compute hash values for all v. _Supposed_ to be computationally
 	 *    intensive.
@@ -210,34 +256,33 @@ reseed(u_int fastslow)
 	if (random_state.bins > TIMEBIN)
 		random_state.bins = TIMEBIN;
 	for (i = 1; i < random_state.bins; i++) {
-		yarrow_hash_init(&context);
+		randomdev_hash_init(&context);
 		/* v[i] #= h(v[i - 1]) */
-		yarrow_hash_iterate(&context, v[i - 1], KEYSIZE);
+		randomdev_hash_iterate(&context, v[i - 1], KEYSIZE);
 		/* v[i] #= h(v[0]) */
-		yarrow_hash_iterate(&context, v[0], KEYSIZE);
+		randomdev_hash_iterate(&context, v[0], KEYSIZE);
 		/* v[i] #= h(i) */
-		yarrow_hash_iterate(&context, &i, sizeof(u_int));
+		randomdev_hash_iterate(&context, &i, sizeof(u_int));
 		/* Return the hashval */
-		yarrow_hash_finish(&context, v[i]);
+		randomdev_hash_finish(&context, v[i]);
 	}
 
 	/* 3. Compute a new key; h' is the identity function here;
 	 *    it is not being ignored!
 	 */
 
-	yarrow_hash_init(&context);
-	yarrow_hash_iterate(&context, &random_state.key, KEYSIZE);
+	randomdev_hash_init(&context);
+	randomdev_hash_iterate(&context, &random_state.key, KEYSIZE);
 	for (i = 1; i < random_state.bins; i++)
-		yarrow_hash_iterate(&context, &v[i], KEYSIZE);
-	yarrow_hash_finish(&context, temp);
-	yarrow_encrypt_init(&random_state.key, temp);
+		randomdev_hash_iterate(&context, &v[i], KEYSIZE);
+	randomdev_hash_finish(&context, temp);
+	randomdev_encrypt_init(&random_state.key, temp);
 
 	/* 4. Recompute the counter */
 
-	for (i = 0; i < 4; i++)
-		random_state.counter[i] = 0;
-	yarrow_encrypt(&random_state.key, random_state.counter, temp);
-	memcpy(random_state.counter, temp, sizeof(random_state.counter));
+	clear_counter();
+	randomdev_encrypt(&random_state.key, random_state.counter.byte, temp, BLOCKSIZE);
+	memcpy(random_state.counter.byte, temp, BLOCKSIZE);
 
 	/* 5. Reset entropy estimate accumulators to zero */
 
@@ -258,7 +303,7 @@ reseed(u_int fastslow)
 	/* XXX Not done here yet */
 
 	/* Unblock the device if it was blocked due to being unseeded */
-	random_yarrow_unblock();
+	randomdev_unblock();
 
 	/* Release the reseed mutex */
 	mtx_unlock(&random_reseed_mtx);
@@ -270,7 +315,7 @@ random_yarrow_read(void *buf, int count)
 {
 	static int cur = 0;
 	static int gate = 1;
-	static u_char genval[KEYSIZE];
+	static uint8_t genval[KEYSIZE];
 	size_t tomove;
 	int i;
 	int retval;
@@ -283,16 +328,14 @@ random_yarrow_read(void *buf, int count)
 		random_state.outputblocks = 0;
 		gate = 0;
 	}
-	if (count > 0 && (size_t)count >= sizeof(random_state.counter)) {
+	if (count > 0 && (size_t)count >= BLOCKSIZE) {
 		retval = 0;
-		for (i = 0; i < count; i += (int)sizeof(random_state.counter)) {
-			random_state.counter[0]++;
-			yarrow_encrypt(&random_state.key, random_state.counter,
-				genval);
-			tomove = min(count - i, sizeof(random_state.counter));
+		for (i = 0; i < count; i += BLOCKSIZE) {
+			increment_counter();
+			randomdev_encrypt(&random_state.key, random_state.counter.byte, genval, BLOCKSIZE);
+			tomove = MIN(count - i, BLOCKSIZE);
 			memcpy((char *)buf + i, genval, tomove);
-			if (++random_state.outputblocks >=
-				random_state.gengateinterval) {
+			if (++random_state.outputblocks >= random_state.gengateinterval) {
 				generator_gate();
 				random_state.outputblocks = 0;
 			}
@@ -302,13 +345,11 @@ random_yarrow_read(void *buf, int count)
 	}
 	else {
 		if (!cur) {
-			random_state.counter[0]++;
-			yarrow_encrypt(&random_state.key, random_state.counter,
-				genval);
+			increment_counter();
+			randomdev_encrypt(&random_state.key, random_state.counter.byte, genval, BLOCKSIZE);
 			memcpy(buf, genval, (size_t)count);
-			cur = (int)sizeof(random_state.counter) - count;
-			if (++random_state.outputblocks >=
-				random_state.gengateinterval) {
+			cur = BLOCKSIZE - count;
+			if (++random_state.outputblocks >= random_state.gengateinterval) {
 				generator_gate();
 				random_state.outputblocks = 0;
 			}
@@ -316,9 +357,7 @@ random_yarrow_read(void *buf, int count)
 		}
 		else {
 			retval = MIN(cur, count);
-			memcpy(buf,
-			    &genval[(int)sizeof(random_state.counter) - cur],
-			    (size_t)retval);
+			memcpy(buf, &genval[BLOCKSIZE - cur], (size_t)retval);
 			cur -= retval;
 		}
 	}
@@ -330,17 +369,15 @@ static void
 generator_gate(void)
 {
 	u_int i;
-	u_char temp[KEYSIZE];
+	uint8_t temp[KEYSIZE];
 
-	for (i = 0; i < KEYSIZE; i += sizeof(random_state.counter)) {
-		random_state.counter[0]++;
-		yarrow_encrypt(&random_state.key, random_state.counter,
-			&(temp[i]));
+	for (i = 0; i < KEYSIZE; i += BLOCKSIZE) {
+		increment_counter();
+		randomdev_encrypt(&random_state.key, random_state.counter.byte, temp + i, BLOCKSIZE);
 	}
 
-	yarrow_encrypt_init(&random_state.key, temp);
+	randomdev_encrypt_init(&random_state.key, temp);
 	memset((void *)temp, 0, KEYSIZE);
-
 }
 
 /* Helper routine to perform explicit reseeds */

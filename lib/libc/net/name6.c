@@ -235,7 +235,7 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 	if (flags & AI_ADDRCONFIG) {
 		int s;
 
-		if ((s = _socket(af, SOCK_DGRAM, 0)) < 0)
+		if ((s = _socket(af, SOCK_DGRAM | SOCK_CLOEXEC, 0)) < 0)
 			return NULL;
 		/*
 		 * TODO:
@@ -868,7 +868,8 @@ set_source(struct hp_order *aio, struct policyhead *ph)
 	}
 
 	/* open a socket to get the source address for the given dst */
-	if ((s = _socket(ss.ss_family, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+	if ((s = _socket(ss.ss_family, SOCK_DGRAM | SOCK_CLOEXEC,
+	    IPPROTO_UDP)) < 0)
 		return;		/* give up */
 	if (_connect(s, (struct sockaddr *)&ss, ss.ss_len) < 0)
 		goto cleanup;

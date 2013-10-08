@@ -31,6 +31,8 @@
  * SOFTWARE.
  */
 
+#include <linux/slab.h>
+
 #include "mlx4.h"
 
 struct mlx4_device_context {
@@ -112,37 +114,8 @@ void mlx4_unregister_interface(struct mlx4_interface *intf)
 }
 EXPORT_SYMBOL_GPL(mlx4_unregister_interface);
 
-struct mlx4_dev *mlx4_query_interface(void *int_dev, int *port)
-{
-	struct mlx4_priv *priv;
-	struct mlx4_device_context *dev_ctx;
-	enum mlx4_query_reply r;
-	unsigned long flags;
-
-	mutex_lock(&intf_mutex);
-
-	list_for_each_entry(priv, &dev_list, dev_list) {
-		spin_lock_irqsave(&priv->ctx_lock, flags);
-		list_for_each_entry(dev_ctx, &priv->ctx_list, list) {
-			if (!dev_ctx->intf->query)
-				continue;
-			r = dev_ctx->intf->query(dev_ctx->context, int_dev);
-			if (r != MLX4_QUERY_NOT_MINE) {
-				*port = r;
-				spin_unlock_irqrestore(&priv->ctx_lock, flags);
-				mutex_unlock(&intf_mutex);
-				return &priv->dev;
-			}
-		}
-		spin_unlock_irqrestore(&priv->ctx_lock, flags);
-	}
-
-	mutex_unlock(&intf_mutex);
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(mlx4_query_interface);
-
-void mlx4_dispatch_event(struct mlx4_dev *dev, enum mlx4_dev_event type, int port)
+void mlx4_dispatch_event(struct mlx4_dev *dev, enum mlx4_dev_event type,
+			 unsigned long param)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_device_context *dev_ctx;
@@ -152,7 +125,7 @@ void mlx4_dispatch_event(struct mlx4_dev *dev, enum mlx4_dev_event type, int por
 
 	list_for_each_entry(dev_ctx, &priv->ctx_list, list)
 		if (dev_ctx->intf->event)
-			dev_ctx->intf->event(dev, dev_ctx->context, type, port);
+			dev_ctx->intf->event(dev, dev_ctx->context, type, param);
 
 	spin_unlock_irqrestore(&priv->ctx_lock, flags);
 }
@@ -169,7 +142,8 @@ int mlx4_register_device(struct mlx4_dev *dev)
 		mlx4_add_device(intf, priv);
 
 	mutex_unlock(&intf_mutex);
-	mlx4_start_catas_poll(dev);
+	if (!mlx4_is_slave(dev))
+		mlx4_start_catas_poll(dev);
 
 	return 0;
 }
@@ -179,7 +153,8 @@ void mlx4_unregister_device(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_interface *intf;
 
-	mlx4_stop_catas_poll(dev);
+	if (!mlx4_is_slave(dev))
+		mlx4_stop_catas_poll(dev);
 	mutex_lock(&intf_mutex);
 
 	list_for_each_entry(intf, &intf_list, list)
@@ -190,7 +165,7 @@ void mlx4_unregister_device(struct mlx4_dev *dev)
 	mutex_unlock(&intf_mutex);
 }
 
-void *mlx4_find_get_prot_dev(struct mlx4_dev *dev, enum mlx4_prot proto, int port)
+void *mlx4_get_protocol_dev(struct mlx4_dev *dev, enum mlx4_protocol proto, int port)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_device_context *dev_ctx;
@@ -200,13 +175,13 @@ void *mlx4_find_get_prot_dev(struct mlx4_dev *dev, enum mlx4_prot proto, int por
 	spin_lock_irqsave(&priv->ctx_lock, flags);
 
 	list_for_each_entry(dev_ctx, &priv->ctx_list, list)
-		if (dev_ctx->intf->protocol == proto && dev_ctx->intf->get_prot_dev) {
-			result = dev_ctx->intf->get_prot_dev(dev, dev_ctx->context, port);
+		if (dev_ctx->intf->protocol == proto && dev_ctx->intf->get_dev) {
+			result = dev_ctx->intf->get_dev(dev, dev_ctx->context, port);
 			break;
-	}
+		}
 
 	spin_unlock_irqrestore(&priv->ctx_lock, flags);
 
 	return result;
 }
-
+EXPORT_SYMBOL_GPL(mlx4_get_protocol_dev);

@@ -553,6 +553,8 @@ hint.mse.0.irq="5"
 # Network interfaces:
 #
 
+# bxe:  Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
+#       adapters.
 # ce:   Cronyx Tau-PCI/32 sync single/dual port G.703/E1 serial adaptor
 #       with 32 HDLC subchannels (requires sppp (default), or NETGRAPH if
 #       NETGRAPH_CRONYX is configured)
@@ -580,12 +582,14 @@ hint.mse.0.irq="5"
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
 # nve:	nVidia nForce MCP on-board Ethernet Networking
 # sbni: Granch SBNI12-xx ISA and PCI adapters
+# vmx:	VMware VMXNET3 Ethernet (BSD open source)
 # wl:   Lucent Wavelan (ISA card only).
 # wpi:	Intel 3945ABG Wireless LAN controller
 #	Requires the wpi firmware module
 
 # Order for ISA/EISA devices is important here
 
+device          bxe             # Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 device		ce
 device		cp
 device		cs		# Crystal Semiconductor CS89x0 NIC
@@ -629,6 +633,7 @@ hint.sbni.0.at="isa"
 hint.sbni.0.port="0x210"
 hint.sbni.0.irq="0xefdead"
 hint.sbni.0.flags="0"
+device		vmx		# VMware VMXNET3 Ethernet
 device		wl
 hint.wl.0.at="isa"
 hint.wl.0.port="0x300"
@@ -852,6 +857,7 @@ device		asmc
 device		tpm
 device		padlock_rng	# VIA Padlock RNG
 device		rdrand_rng	# Intel Bull Mountain RNG
+device		aesni		# AES-NI OpenCrypto module
 
 #
 # Laptop/Notebook options:

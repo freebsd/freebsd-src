@@ -142,6 +142,7 @@ static int arge_resume(device_t);
 static int arge_rx_ring_init(struct arge_softc *);
 static void arge_rx_ring_free(struct arge_softc *sc);
 static int arge_tx_ring_init(struct arge_softc *);
+static void arge_tx_ring_free(struct arge_softc *);
 #ifdef DEVICE_POLLING
 static int arge_poll(struct ifnet *, enum poll_cmd, int);
 #endif
@@ -1278,6 +1279,7 @@ arge_stop(struct arge_softc *sc)
 	/* Flush FIFO and free any existing mbufs */
 	arge_flush_ddr(sc);
 	arge_rx_ring_free(sc);
+	arge_tx_ring_free(sc);
 }
 
 
@@ -1705,6 +1707,30 @@ arge_tx_ring_init(struct arge_softc *sc)
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	return (0);
+}
+
+/*
+ * Free the Tx ring, unload any pending dma transaction and free the mbuf.
+ */
+static void
+arge_tx_ring_free(struct arge_softc *sc)
+{
+	struct arge_txdesc	*txd;
+	int			i;
+
+	/* Free the Tx buffers. */
+	for (i = 0; i < ARGE_TX_RING_COUNT; i++) {
+		txd = &sc->arge_cdata.arge_txdesc[i];
+		if (txd->tx_dmamap) {
+			bus_dmamap_sync(sc->arge_cdata.arge_tx_tag,
+			    txd->tx_dmamap, BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->arge_cdata.arge_tx_tag,
+			    txd->tx_dmamap);
+		}
+		if (txd->tx_m)
+			m_freem(txd->tx_m);
+		txd->tx_m = NULL;
+	}
 }
 
 /*

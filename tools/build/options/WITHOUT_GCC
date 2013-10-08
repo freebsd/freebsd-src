@@ -1,6 +1,2 @@
 .\" $FreeBSD$
-Set to not install gcc and g++.
-.Bf -symbolic
-The option does not generally work for build targets, unless some alternative
-toolchain is enabled.
-.Ef
+Set to not build and install gcc and g++.

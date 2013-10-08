@@ -404,15 +404,9 @@ static __inline uma_slab_t
 vtoslab(vm_offset_t va)
 {
 	vm_page_t p;
-	uma_slab_t slab;
 
 	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
-	slab = (uma_slab_t )p->plinks.s.pv;
-
-	if (p->flags & PG_SLAB)
-		return (slab);
-	else
-		return (NULL);
+	return ((uma_slab_t)p->plinks.s.pv);
 }
 
 static __inline void
@@ -422,7 +416,6 @@ vsetslab(vm_offset_t va, uma_slab_t slab)
 
 	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
 	p->plinks.s.pv = slab;
-	p->flags |= PG_SLAB;
 }
 
 /*

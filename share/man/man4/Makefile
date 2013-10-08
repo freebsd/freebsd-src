@@ -154,6 +154,7 @@ MAN=	aac.4 \
 	geom_uzip.4 \
 	gif.4 \
 	gpib.4 \
+	gpio.4 \
 	gre.4 \
 	h_ertt.4 \
 	hatm.4 \

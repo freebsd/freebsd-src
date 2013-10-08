@@ -592,6 +592,9 @@ vtnet_setup_features(struct vtnet_softc *sc)
 
 	vtnet_negotiate_features(sc);
 
+	if (virtio_with_feature(dev, VIRTIO_RING_F_EVENT_IDX))
+		sc->vtnet_flags |= VTNET_FLAG_EVENT_IDX;
+
 	if (virtio_with_feature(dev, VIRTIO_NET_F_MAC)) {
 		/* This feature should always be negotiated. */
 		sc->vtnet_flags |= VTNET_FLAG_MAC;
@@ -1531,7 +1534,7 @@ vtnet_rxq_csum_by_parse(struct vtnet_rxq *rxq, struct mbuf *m,
 		 */
 #if 0
 		if_printf(sc->vtnet_ifp, "cksum offload of unsupported "
-		    "protocol eth_type=%#x proto=%d csum_start=%d
+		    "protocol eth_type=%#x proto=%d csum_start=%d "
 		    "csum_offset=%d\n", __func__, eth_type, proto,
 		    hdr->csum_start, hdr->csum_offset);
 #endif
@@ -1697,9 +1700,9 @@ vtnet_rxq_input(struct vtnet_rxq *rxq, struct mbuf *m,
 	rxq->vtnrx_stats.vrxs_ipackets++;
 	rxq->vtnrx_stats.vrxs_ibytes += m->m_pkthdr.len;
 
-	/* VTNET_RXQ_UNLOCK(rxq); */
+	VTNET_RXQ_UNLOCK(rxq);
 	(*ifp->if_input)(ifp, m);
-	/* VTNET_RXQ_LOCK(rxq); */
+	VTNET_RXQ_LOCK(rxq);
 }
 
 static int
@@ -1779,6 +1782,10 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 		m_adj(m, adjsz);
 
 		vtnet_rxq_input(rxq, m, hdr);
+
+		/* Must recheck after dropping the Rx lock. */
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			break;
 	}
 
 	if (deq > 0)
@@ -2155,6 +2162,8 @@ vtnet_start_locked(struct vtnet_txq *txq, struct ifnet *ifp)
 	    sc->vtnet_link_active == 0)
 		return;
 
+	vtnet_txq_eof(txq);
+
 	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
 		if (virtqueue_full(vq))
 			break;
@@ -2225,6 +2234,8 @@ vtnet_txq_mq_start_locked(struct vtnet_txq *txq, struct mbuf *m)
 		if (error)
 			return (error);
 	}
+
+	vtnet_txq_eof(txq);
 
 	while ((m = drbr_peek(ifp, br)) != NULL) {
 		error = vtnet_txq_encap(txq, &m);
@@ -2471,6 +2482,8 @@ vtnet_watchdog(struct vtnet_txq *txq)
 	sc = txq->vtntx_sc;
 
 	VTNET_TXQ_LOCK(txq);
+	if (sc->vtnet_flags & VTNET_FLAG_EVENT_IDX)
+		vtnet_txq_eof(txq);
 	if (txq->vtntx_watchdog == 0 || --txq->vtntx_watchdog) {
 		VTNET_TXQ_UNLOCK(txq);
 		return (0);

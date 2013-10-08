@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 22, 2013
+.Dd September 23, 2013
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1192,10 +1192,8 @@ be added since the search would
 stop with the missing
 .Dq Li alias3
 entry.
-Due to this difficult to manage behavior, the
-.Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
-form is deprecated.
-There is
+Because of this difficult to manage behavior,
+there is
 .Va ifconfig_ Ns Ao Ar interface Ac Ns Va _aliases
 variable, which has the same functionality as
 .Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
@@ -2043,6 +2041,13 @@ is set to
 .Dq Li YES ,
 these are the flags to pass to
 .Xr hastd 8 .
+.It Va local_unbound_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+run the
+.Xr unbound 8
+daemon as a local caching resolver.
 .It Va named_enable
 .Pq Vt bool
 If set to
@@ -4788,6 +4793,7 @@ The default is 30.
 .Xr sysctl 8 ,
 .Xr syslogd 8 ,
 .Xr timed 8 ,
+.Xr unbound 8 ,
 .Xr usbconfig 8 ,
 .Xr wlandebug 8 ,
 .Xr yp 8 ,
