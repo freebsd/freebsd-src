@@ -192,10 +192,6 @@ EVENTHANDLER_DECLARE(vm_lowmem, vm_lowmem_handler_t);
 typedef void (*mountroot_handler_t)(void *);
 EVENTHANDLER_DECLARE(mountroot, mountroot_handler_t);
 
-/* Going multiuser (starting pid 1) event */
-typedef void (*multiuser_handler_t)(void *);
-EVENTHANDLER_DECLARE(multiuser, multiuser_handler_t);
-
 /* File system mount events */
 struct mount;
 struct vnode;
