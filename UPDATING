@@ -77,19 +77,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	has been updated to use this support.  A new gcc is required to build
 	the aesni module on both i386 and amd64.
 
-20130827:
-        Thomas Dickey (vendor author thereof) reports that dialog(1) since
-        2011/10/18 has a bug in handling --hline. Testers and I noticed the
-        --hline is not ignored but displayed as a NULL string, regardless of
-        value. This will cause confusion in some bsdconfig dialogs where the
-        --hline is used to inform users which keybindings to use. This will
-        likewise affect any other persons relying on --hline. It also looks
-        rather strange seeing "[]" at the bottom of dialog(1) widgets when
-        passing --hline "anything". Thomas said he will have a look in a few
-        weeks. NOTE: The "[]" brackets appear with the left-edge where it
-        would normally appear given the width of text to display, but the
-        displayed text is not there (part of the bug).
-
 20130821:
 	The PADLOCK_RNG and RDRAND_RNG kernel options are now devices.
 	Thus "device padlock_rng" and "device rdrand_rng" should be
