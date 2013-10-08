@@ -660,7 +660,7 @@ struct ib_qp_init_attr {
 	union {
 		struct ib_qp *qpg_parent; /* see qpg_type */
 		struct ib_qpg_init_attrib parent_attrib;
-	};
+	} pp;
 	enum ib_sig_type	sq_sig_type;
 	enum ib_qp_type		qp_type;
 	enum ib_qp_create_flags	create_flags;

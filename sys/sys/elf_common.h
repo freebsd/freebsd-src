@@ -487,6 +487,7 @@ typedef struct {
 #define	DF_1_LOADFLTR	0x00000010	/* Immediate loading of filtees */
 #define	DF_1_NOOPEN     0x00000040	/* Do not allow loading on dlopen() */
 #define	DF_1_ORIGIN	0x00000080	/* Process $ORIGIN */
+#define	DF_1_INTERPOSE	0x00000400	/* Interpose all objects but main */
 #define	DF_1_NODEFLIB	0x00000800	/* Do not search default paths */
 
 /* Values for n_type.  Used in core files. */
