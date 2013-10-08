@@ -227,3 +227,17 @@ SYSINIT(random_adaptors, SI_SUB_DRIVERS, SI_ORDER_FIRST, random_adaptors_init,
     NULL);
 SYSUNINIT(random_adaptors, SI_SUB_DRIVERS, SI_ORDER_FIRST,
     random_adaptors_deinit, NULL);
+
+static void
+random_adaptors_reseed(void *unused)
+{
+
+	(void)unused;
+	if (random_adaptor != NULL) {
+		(*random_adaptor->reseed)();
+		random_adaptor->seeded = 1;
+	}
+	arc4rand(NULL, 0, 1);
+}
+SYSINIT(random_reseed, SI_SUB_INTRINSIC_POST, SI_ORDER_SECOND,
+    random_adaptors_reseed, NULL);
