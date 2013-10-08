@@ -2452,7 +2452,6 @@ dev/vt/vt_buf.c			optional vt
 dev/vt/vt_consolectl.c		optional vt
 dev/vt/vt_core.c		optional vt
 dev/vt/vt_font.c		optional vt
-dev/vt/vt_history.c		optional vt
 dev/vt/vt_sysmouse.c		optional vt
 dev/vte/if_vte.c		optional vte pci
 dev/vx/if_vx.c			optional vx
