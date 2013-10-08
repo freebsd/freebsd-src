@@ -119,8 +119,8 @@ struct ahci_ioreq {
 struct ahci_port {
 	struct blockif_ctxt *bctx;
 	struct pci_ahci_softc *pr_sc;
-	uint64_t cmd_lst;
-	uint64_t rfis;
+	uint8_t *cmd_lst;
+	uint8_t *rfis;
 	int atapi;
 	int reset;
 	int mult_sectors;
@@ -222,7 +222,7 @@ ahci_write_fis(struct ahci_port *p, enum sata_fis_type ft, uint8_t *fis)
 {
 	int offset, len, irq;
 
-	if (p->rfis == 0 || !(p->cmd & AHCI_P_CMD_FRE))
+	if (p->rfis == NULL || !(p->cmd & AHCI_P_CMD_FRE))
 		return;
 
 	switch (ft) {
@@ -396,7 +396,7 @@ ahci_handle_dma(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done,
 
 	sc = p->pr_sc;
 	prdt = (struct ahci_prdt_entry *)(cfis + 0x80);
-	hdr = p->cmd_lst + slot * AHCI_CL_SIZE;
+	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
 	ncq = 0;
 	readop = 1;
 
@@ -508,7 +508,7 @@ write_prdt(struct ahci_port *p, int slot, uint8_t *cfis,
 	void *from;
 	int i, len;
 
-	hdr = p->cmd_lst + slot * AHCI_CL_SIZE;
+	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
 	len = size;
 	from = buf;
 	prdt = (struct ahci_prdt_entry *)(cfis + 0x80);
@@ -528,7 +528,7 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 {
 	struct ahci_cmd_hdr *hdr;
 
-	hdr = p->cmd_lst + slot * AHCI_CL_SIZE;
+	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
 	if (p->atapi || hdr->prdtl == 0) {
 		p->tfd = (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR;
 		p->is |= AHCI_P_IX_TFE;
@@ -869,7 +869,7 @@ atapi_read(struct ahci_port *p, int slot, uint8_t *cfis,
 
 	sc = p->pr_sc;
 	acmd = cfis + 0x40;
-	hdr = p->cmd_lst + slot * AHCI_CL_SIZE;
+	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
 	prdt = (struct ahci_prdt_entry *)(cfis + 0x80);
 
 	prdt += seek;
@@ -1178,7 +1178,7 @@ ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 	}
 	case ATA_SET_MULTI:
 		if (cfis[12] != 0 &&
-			(cfis[12] > 128 || (cfis[12] & cfis[12] - 1))) {
+			(cfis[12] > 128 || (cfis[12] & (cfis[12] - 1)))) {
 			p->tfd = ATA_S_ERROR | ATA_S_READY;
 			p->tfd |= (ATA_ERROR_ABORT << 8);
 		} else {
@@ -1241,7 +1241,7 @@ ahci_handle_slot(struct ahci_port *p, int slot)
 	int cfl;
 
 	sc = p->pr_sc;
-	hdr = p->cmd_lst + slot * AHCI_CL_SIZE;
+	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
 	cfl = (hdr->flags & 0x1f) * 4;
 	cfis = paddr_guest2host(ahci_ctx(sc), hdr->ctba,
 			0x80 + hdr->prdtl * sizeof(struct ahci_prdt_entry));
@@ -1318,7 +1318,7 @@ ata_ioreq_cb(struct blockif_req *br, int err)
 	slot = aior->slot;
 	pending = aior->prdtl;
 	sc = p->pr_sc;
-	hdr = p->cmd_lst + slot * AHCI_CL_SIZE;
+	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
 
 	if (cfis[2] == ATA_WRITE_FPDMA_QUEUED ||
 			cfis[2] == ATA_READ_FPDMA_QUEUED)
@@ -1380,7 +1380,7 @@ atapi_ioreq_cb(struct blockif_req *br, int err)
 	slot = aior->slot;
 	pending = aior->prdtl;
 	sc = p->pr_sc;
-	hdr = p->cmd_lst + aior->slot * AHCI_CL_SIZE;
+	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + aior->slot * AHCI_CL_SIZE);
 
 	pthread_mutex_lock(&sc->mtx);
 
