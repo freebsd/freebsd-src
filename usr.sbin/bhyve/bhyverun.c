@@ -217,17 +217,6 @@ fbsdrun_addcpu(struct vmctx *ctx, int vcpu, uint64_t rip)
 }
 
 static int
-fbsdrun_get_next_cpu(int curcpu)
-{
-
-	/*
-	 * Get the next available CPU. Assumes they arrive
-	 * in ascending order with no gaps.
-	 */
-	return ((curcpu + 1) % foundcpus);
-}
-
-static int
 vmexit_catch_reset(void)
 {
         stats.io_reset++;
