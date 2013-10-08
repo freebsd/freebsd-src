@@ -123,7 +123,7 @@ usage(int code)
 		" <vmname>\n"
 		"       -a: local apic is in XAPIC mode (default is X2APIC)\n"
 		"       -A: create an ACPI table\n"
-		"       -g: gdb port (default is %d and 0 means don't open)\n"
+		"       -g: gdb port\n"
 		"       -c: # cpus (default 1)\n"
 		"       -p: pin vcpu 'n' to host cpu 'pincpu + n'\n"
 		"       -H: vmexit from the guest on hlt\n"
@@ -134,7 +134,7 @@ usage(int code)
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
 		"       -S: <slot,driver,configinfo> legacy PCI slot config\n"
 		"       -m: memory size in MB\n",
-		progname, DEFAULT_GDB_PORT);
+		progname);
 
 	exit(code);
 }
@@ -504,7 +504,7 @@ main(int argc, char *argv[])
 
 	bvmcons = 0;
 	progname = basename(argv[0]);
-	gdb_port = DEFAULT_GDB_PORT;
+	gdb_port = 0;
 	guest_ncpus = 1;
 	ioapic = 0;
 	memsize = 256 * MB;
