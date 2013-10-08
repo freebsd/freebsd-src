@@ -128,6 +128,7 @@ struct terminal {
 #define	TF_MUTE		0x1	/* Drop incoming data. */
 #define	TF_BELL		0x2	/* Bell needs to be sent. */
 #define	TF_CONS		0x4	/* Console device (needs spinlock). */
+	struct consdev	*consdev;
 };
 
 #ifdef _KERNEL
@@ -140,8 +141,10 @@ void	terminal_input_char(struct terminal *tm, term_char_t c);
 void	terminal_input_raw(struct terminal *tm, char c);
 void	terminal_input_special(struct terminal *tm, unsigned int k);
 
+void	termcn_cnregister(struct terminal *tm);
+
 /* Kernel console helper interface. */
-extern const struct consdev_ops termcn_ops;
+extern const struct consdev_ops termcn_cnops;
 
 #define	TERMINAL_DECLARE_EARLY(name, class, softc)			\
 	static struct terminal name = {					\
@@ -149,7 +152,7 @@ extern const struct consdev_ops termcn_ops;
 		.tm_softc = softc,					\
 		.tm_flags = TF_CONS,					\
 	};								\
-	CONSOLE_DEVICE(name ## _consdev, termcn_ops, &name)
+	CONSOLE_DEVICE(name ## _consdev, termcn_cnops, &name)
 
 #endif /* _KERNEL */
 

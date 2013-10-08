@@ -140,7 +140,6 @@ terminal_init(struct terminal *tm)
 		mtx_init(&tm->tm_mtx, "trmlck", NULL, MTX_SPIN);
 	teken_init(&tm->tm_emulator, &terminal_drawmethods, tm);
 	teken_set_defattr(&tm->tm_emulator, &default_message);
-
 }
 
 struct terminal *
@@ -403,42 +402,90 @@ termtty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
  * Binding with the kernel and debug console.
  */
 
-static cn_probe_t	termcn_probe;
-static cn_init_t	termcn_init;
-static cn_term_t	termcn_term;
-static cn_getc_t	termcn_getc;
-static cn_putc_t	termcn_putc;
+static cn_probe_t	termcn_cnprobe;
+static cn_init_t	termcn_cninit;
+static cn_term_t	termcn_cnterm;
+static cn_getc_t	termcn_cngetc;
+static cn_putc_t	termcn_cnputc;
+static cn_grab_t	termcn_cngrab;
+static cn_ungrab_t	termcn_cnungrab;
 
-const struct consdev_ops termcn_ops = {
-	.cn_probe	= termcn_probe,
-	.cn_init	= termcn_init,
-	.cn_term	= termcn_term,
-	.cn_getc	= termcn_getc,
-	.cn_putc	= termcn_putc,
+const struct consdev_ops termcn_cnops = {
+	.cn_probe	= termcn_cnprobe,
+	.cn_init	= termcn_cninit,
+	.cn_term	= termcn_cnterm,
+	.cn_getc	= termcn_cngetc,
+	.cn_putc	= termcn_cnputc,
+	.cn_grab	= termcn_cngrab,
+	.cn_ungrab	= termcn_cnungrab,
 };
 
+void
+termcn_cnregister(struct terminal *tm)
+{
+	struct consdev *cp;
+
+	cp = tm->consdev;
+	if (cp == NULL) {
+		cp = malloc(sizeof(struct consdev), M_TERMINAL,
+		    M_WAITOK|M_ZERO);
+		cp->cn_ops = &termcn_cnops;
+		cp->cn_arg = tm;
+		cp->cn_pri = CN_INTERNAL;
+		sprintf(cp->cn_name, "ttyv0");
+
+		tm->tm_flags = TF_CONS;
+		tm->consdev = cp;
+
+		terminal_init(tm);
+	}
+
+	/* Attach terminal as console. */
+	cnadd(cp);
+}
+
 static void
-termcn_probe(struct consdev *cp)
+termcn_cngrab(struct consdev *cp)
+{
+
+}
+
+static void
+termcn_cnungrab(struct consdev *cp)
+{
+
+}
+
+static void
+termcn_cnprobe(struct consdev *cp)
 {
 	struct terminal *tm = cp->cn_arg;
 
+	if (tm == NULL) {
+		cp->cn_pri = CN_DEAD;
+		return;
+	}
+
+	tm->consdev = cp;
 	terminal_init(tm);
 
 	tm->tm_class->tc_cnprobe(tm, cp);
 }
 
 static void
-termcn_init(struct consdev *cp)
+termcn_cninit(struct consdev *cp)
 {
+
 }
 
 static void
-termcn_term(struct consdev *cp)
+termcn_cnterm(struct consdev *cp)
 {
+
 }
 
 static int
-termcn_getc(struct consdev *cp)
+termcn_cngetc(struct consdev *cp)
 {
 	struct terminal *tm = cp->cn_arg;
 
@@ -446,7 +493,7 @@ termcn_getc(struct consdev *cp)
 }
 
 static void
-termcn_putc(struct consdev *cp, int c)
+termcn_cnputc(struct consdev *cp, int c)
 {
 	struct terminal *tm = cp->cn_arg;
 	teken_attr_t backup;
