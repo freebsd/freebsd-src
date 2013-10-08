@@ -74,8 +74,6 @@ static struct cdevsw random_cdevsw = {
 	.d_name = "random",
 };
 
-MALLOC_DEFINE(M_ENTROPY, "entropy", "Entropy harvesting buffers");
-
 /* For use with make_dev(9)/destroy_dev(9). */
 static struct cdev *random_dev;
 

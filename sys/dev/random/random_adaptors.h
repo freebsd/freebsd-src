@@ -31,6 +31,8 @@
 
 #include <sys/eventhandler.h>
 
+MALLOC_DECLARE(M_ENTROPY);
+
 struct random_adaptors {
 	LIST_ENTRY(random_adaptors) entries;	/* list of providers */
 	const char		*name;		/* name of random adaptor */

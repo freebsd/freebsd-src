@@ -57,10 +57,13 @@ struct random_hardware_source random_nehemiah = {
 	.read = random_nehemiah_read
 };
 
-/* This H/W RNG never stores more than 8 bytes in one go */
-
+/* TODO: now that the Davies-Meyer hash is gone and we only use
+ * the 'xstore' instruction, do we still need to preserve the
+ * FPU state with fpu_kern_(enter|leave)() ?
+ */
 static struct fpu_kern_ctx *fpu_ctx_save;
 
+/* This H/W source never stores more than 8 bytes in one go */
 /* ARGSUSED */
 static __inline size_t
 VIA_RNG_store(void *buf)
