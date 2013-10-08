@@ -928,6 +928,11 @@ newroute(int argc, char **argv)
 		}
 	}
 
+	if (so[RTAX_DST].ss_len == 0) {
+		warnx("destination parameter required");
+		usage(NULL);
+	}
+
 	if (nrflags & F_FORCEHOST) {
 		nrflags |= F_ISHOST;
 #ifdef INET6
