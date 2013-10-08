@@ -26,5 +26,5 @@
  * $FreeBSD$
  */
 
-int randomdev_read_file(const char *filename, void *buf);
-int randomdev_write_file(const char *filename, void *buf);
+int randomdev_read_file(const char *filename, void *buf, size_t);
+int randomdev_write_file(const char *filename, void *buf, size_t);
