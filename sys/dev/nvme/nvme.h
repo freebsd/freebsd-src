@@ -535,7 +535,7 @@ struct nvme_controller_data {
 	uint8_t			reserved6[1024];
 
 	/* bytes 3072-4095: vendor specific */
-	uint8_t			reserved7[1024];
+	uint8_t			vs[1024];
 } __packed __aligned(4);
 
 struct nvme_namespace_data {
