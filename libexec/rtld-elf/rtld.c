@@ -116,6 +116,7 @@ static Objlist_Entry *objlist_find(Objlist *, const Obj_Entry *);
 static void objlist_init(Objlist *);
 static void objlist_push_head(Objlist *, Obj_Entry *);
 static void objlist_push_tail(Objlist *, Obj_Entry *);
+static void objlist_put_after(Objlist *, Obj_Entry *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
 static void *path_enumerate(const char *, path_enum_proc, void *);
 static int relocate_object_dag(Obj_Entry *root, bool bind_now,
@@ -323,6 +324,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     Objlist_Entry *entry;
     Obj_Entry *obj;
     Obj_Entry **preload_tail;
+    Obj_Entry *last_interposer;
     Objlist initlist;
     RtldLockState lockstate;
     char *library_path_rpath;
@@ -537,8 +539,14 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	die();
 
     /* Make a list of all objects loaded at startup. */
+    last_interposer = obj_main;
     for (obj = obj_list;  obj != NULL;  obj = obj->next) {
-	objlist_push_tail(&list_main, obj);
+	if (obj->z_interpose && obj != obj_main) {
+	    objlist_put_after(&list_main, last_interposer, obj);
+	    last_interposer = obj;
+	} else {
+	    objlist_push_tail(&list_main, obj);
+	}
     	obj->refcount++;
     }
 
@@ -1128,6 +1136,8 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 		    obj->z_nodelete = true;
 		if (dynp->d_un.d_val & DF_1_LOADFLTR)
 		    obj->z_loadfltr = true;
+		if (dynp->d_un.d_val & DF_1_INTERPOSE)
+		    obj->z_interpose = true;
 		if (dynp->d_un.d_val & DF_1_NODEFLIB)
 		    obj->z_nodeflib = true;
 	    break;
@@ -1976,6 +1986,7 @@ static int
 load_preload_objects(void)
 {
     char *p = ld_preload;
+    Obj_Entry *obj;
     static const char delim[] = " \t:;";
 
     if (p == NULL)
@@ -1988,8 +1999,10 @@ load_preload_objects(void)
 
 	savech = p[len];
 	p[len] = '\0';
-	if (load_object(p, -1, NULL, 0) == NULL)
+	obj = load_object(p, -1, NULL, 0);
+	if (obj == NULL)
 	    return -1;	/* XXX - cleanup */
+	obj->z_interpose = true;
 	p[len] = savech;
 	p += len;
 	p += strspn(p, delim);
@@ -2375,6 +2388,23 @@ objlist_push_tail(Objlist *list, Obj_Entry *obj)
     elm = NEW(Objlist_Entry);
     elm->obj = obj;
     STAILQ_INSERT_TAIL(list, elm, link);
+}
+
+static void
+objlist_put_after(Objlist *list, Obj_Entry *listobj, Obj_Entry *obj)
+{
+	Objlist_Entry *elm, *listelm;
+
+	STAILQ_FOREACH(listelm, list, link) {
+		if (listelm->obj == listobj)
+			break;
+	}
+	elm = NEW(Objlist_Entry);
+	elm->obj = obj;
+	if (listelm != NULL)
+		STAILQ_INSERT_AFTER(list, listelm, elm, link);
+	else
+		STAILQ_INSERT_TAIL(list, elm, link);
 }
 
 static void
