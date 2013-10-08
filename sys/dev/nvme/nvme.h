@@ -720,7 +720,7 @@ struct nvme_io_test {
 	uint32_t		time;	/* in seconds */
 	uint32_t		num_threads;
 	uint32_t		flags;
-	uint32_t		io_completed[NVME_TEST_MAX_THREADS];
+	uint64_t		io_completed[NVME_TEST_MAX_THREADS];
 };
 
 enum nvme_io_test_flags {
