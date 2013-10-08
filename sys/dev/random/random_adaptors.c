@@ -55,6 +55,8 @@ static struct sysctl_ctx_list random_clist;
 
 struct random_adaptor *random_adaptor;
 
+MALLOC_DEFINE(M_ENTROPY, "entropy", "Entropy harvesting buffers and data structures");
+
 int
 random_adaptor_register(const char *name, struct random_adaptor *rsp)
 {
@@ -233,10 +235,8 @@ random_adaptors_reseed(void *unused)
 {
 
 	(void)unused;
-	if (random_adaptor != NULL) {
+	if (random_adaptor != NULL)
 		(*random_adaptor->reseed)();
-		random_adaptor->seeded = 1;
-	}
 	arc4rand(NULL, 0, 1);
 }
 SYSINIT(random_reseed, SI_SUB_INTRINSIC_POST, SI_ORDER_SECOND,

@@ -30,8 +30,6 @@
  * and non algorithm-specific for the entropy processor
  */
 
-MALLOC_DECLARE(M_ENTROPY);
-
 typedef void random_init_func_t(void);
 typedef void random_deinit_func_t(void);
 typedef int random_block_func_t(int);

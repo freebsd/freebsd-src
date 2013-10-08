@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/random/randomdev.h>
 #include <dev/random/randomdev_soft.h>
+#include <dev/random/random_adaptors.h>
 #include <dev/random/random_harvestq.h>
 #include <dev/random/live_entropy_sources.h>
 #include <dev/random/rwfile.h>

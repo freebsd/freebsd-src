@@ -57,15 +57,6 @@ struct random_hardware_source random_ivy = {
 	.read = random_ivy_read
 };
 
-#if 1
-static inline int
-ivy_rng_store(uint64_t *tmp)
-{
-	*tmp = 0xF001FACE;
-
-	return (sizeof(uint64_t));
-}
-#else
 static inline int
 ivy_rng_store(uint64_t *tmp)
 {
@@ -91,7 +82,6 @@ ivy_rng_store(uint64_t *tmp)
 	return (0);
 #endif
 }
-#endif
 
 static int
 random_ivy_read(void *buf, int c)
@@ -124,10 +114,6 @@ rdrand_modevent(module_t mod, int type, void *unused)
 
 	switch (type) {
 	case MOD_LOAD:
-#if 1
-		live_entropy_source_register(&random_ivy);
-		printf("%s: CRAP RDRAND is present\n", random_ivy.ident);
-#else
 		if (cpu_feature2 & CPUID2_RDRAND)
 			live_entropy_source_register(&random_ivy);
 		else
@@ -136,7 +122,6 @@ rdrand_modevent(module_t mod, int type, void *unused)
 #endif
 				printf("%s: RDRAND is not present\n",
 				    random_ivy.ident);
-#endif
 		break;
 
 	case MOD_UNLOAD:
