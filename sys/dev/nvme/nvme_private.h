@@ -322,6 +322,9 @@ struct nvme_controller {
 
 	struct cdev			*cdev;
 
+	/** bit mask of warning types currently enabled for async events */
+	union nvme_critical_warning_state	async_event_config;
+
 	uint32_t			num_aers;
 	struct nvme_async_event_request	aer[NVME_MAX_ASYNC_EVENTS];
 
