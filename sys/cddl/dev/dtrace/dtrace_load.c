@@ -56,6 +56,8 @@ dtrace_load(void *dummy)
 	/* Hang our hook for exceptions. */
 	dtrace_invop_init();
 
+	dtrace_taskq = taskq_create("dtrace_taskq", 1, maxclsyspri, 0, 0, 0);
+
 	/* Register callbacks for linker file load and unload events. */
 	dtrace_kld_load_tag = EVENTHANDLER_REGISTER(kld_load,
 	    dtrace_kld_load, NULL, EVENTHANDLER_PRI_ANY);
