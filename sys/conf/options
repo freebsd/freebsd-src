@@ -904,3 +904,8 @@ RACCT		opt_global.h
 
 # Resource Limits
 RCTL		opt_global.h
+
+# Random number generator(s)
+YARROW_RNG	opt_random.h
+FORTUNA_RNG	opt_random.h
+RANDOM_DEBUG	opt_random.h

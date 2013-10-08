@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_random.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -398,5 +400,17 @@ generator_gate(void)
 void
 random_yarrow_reseed(void)
 {
+#ifdef RANDOM_DEBUG
+	int i;
+
+	printf("%s(): fast:", __func__);
+	for (i = RANDOM_START; i < ENTROPYSOURCE; ++i)
+		printf(" %d", random_state.pool[FAST].source[i].bits);
+	printf("\n");
+	printf("%s(): slow:", __func__);
+	for (i = RANDOM_START; i < ENTROPYSOURCE; ++i)
+		printf(" %d", random_state.pool[SLOW].source[i].bits);
+	printf("\n");
+#endif
 	reseed(SLOW);
 }

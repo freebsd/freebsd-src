@@ -26,10 +26,15 @@
  *
  */
 
+#include "opt_random.h"
+
 #if !defined(YARROW_RNG) && !defined(FORTUNA_RNG)
 #define YARROW_RNG
 #elif defined(YARROW_RNG) && defined(FORTUNA_RNG)
 #error "Must define either YARROW_RNG or FORTUNA_RNG"
+#endif
+#if defined(FORTUNA_RNG)
+#error "Fortuna is not yet implemented"
 #endif
 
 #include <sys/cdefs.h>
