@@ -2705,6 +2705,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 	KASSERT(lockp != NULL, ("reclaim_pv_chunk: lockp is NULL"));
 	pmap = NULL;
 	m_pc = NULL;
+	PG_G = PG_A = PG_M = PG_RW = 0;
 	SLIST_INIT(&free);
 	TAILQ_INIT(&new_tail);
 	mtx_lock(&pv_chunks_mutex);
