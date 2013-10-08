@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_backend.h>
+#include <cam/ctl/ctl_error.h>
 #include <cam/ctl/ctl_frontend.h>
 #include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_debug.h>
@@ -2301,7 +2302,8 @@ cfiscsi_datamove_in(union ctl_io *io)
 			if (response == NULL) {
 				CFISCSI_SESSION_WARN(cs, "failed to "
 				    "allocate memory; dropping connection");
-				icl_pdu_free(request);
+				ctl_set_busy(&io->scsiio);
+				io->scsiio.be_move_done(io);
 				cfiscsi_session_terminate(cs);
 				return;
 			}
@@ -2330,8 +2332,9 @@ cfiscsi_datamove_in(union ctl_io *io)
 		if (error != 0) {
 			CFISCSI_SESSION_WARN(cs, "failed to "
 			    "allocate memory; dropping connection");
-			icl_pdu_free(request);
 			icl_pdu_free(response);
+			ctl_set_busy(&io->scsiio);
+			io->scsiio.be_move_done(io);
 			cfiscsi_session_terminate(cs);
 			return;
 		}
@@ -2428,8 +2431,10 @@ cfiscsi_datamove_out(union ctl_io *io)
 	if (cdw == NULL) {
 		CFISCSI_SESSION_WARN(cs, "failed to "
 		    "allocate memory; dropping connection");
-		icl_pdu_free(request);
+		ctl_set_busy(&io->scsiio);
+		io->scsiio.be_move_done(io);
 		cfiscsi_session_terminate(cs);
+		return;
 	}
 	cdw->cdw_ctl_io = io;
 	cdw->cdw_target_transfer_tag = htonl(target_transfer_tag);
@@ -2462,8 +2467,10 @@ cfiscsi_datamove_out(union ctl_io *io)
 	if (response == NULL) {
 		CFISCSI_SESSION_WARN(cs, "failed to "
 		    "allocate memory; dropping connection");
-		icl_pdu_free(request);
+		ctl_set_busy(&io->scsiio);
+		io->scsiio.be_move_done(io);
 		cfiscsi_session_terminate(cs);
+		return;
 	}
 	bhsr2t = (struct iscsi_bhs_r2t *)response->ip_bhs;
 	bhsr2t->bhsr2t_opcode = ISCSI_BHS_OPCODE_R2T;
