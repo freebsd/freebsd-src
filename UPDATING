@@ -31,10 +31,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
-20131006:
-	RCS has been removed from the base system.  If you need RCS
-	install either devel/rcs or devel/rcs57.
-
 20130930:
 	BIND has been removed from the base system.  If all you need
 	is a local resolver, simply enable and start the local_unbound
