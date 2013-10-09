@@ -88,6 +88,7 @@ typedef struct {
 #define CAM_UNQUEUED_INDEX	-1
 #define CAM_ACTIVE_INDEX	-2	
 #define CAM_DONEQ_INDEX		-3	
+#define CAM_EXTRAQ_INDEX	INT_MAX
 } cam_pinfo;
 
 /*

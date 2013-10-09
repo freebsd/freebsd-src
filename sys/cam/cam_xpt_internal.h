@@ -115,7 +115,6 @@ struct cam_ed {
 #define CAM_DEV_REL_TIMEOUT_PENDING	0x02
 #define CAM_DEV_REL_ON_COMPLETE		0x04
 #define CAM_DEV_REL_ON_QUEUE_EMPTY	0x08
-#define CAM_DEV_RESIZE_QUEUE_NEEDED	0x10
 #define CAM_DEV_TAG_AFTER_COUNT		0x20
 #define CAM_DEV_INQUIRY_DATA_VALID	0x40
 #define	CAM_DEV_IN_DV			0x80
@@ -126,6 +125,7 @@ struct cam_ed {
 	u_int32_t	 tag_saved_openings;
 	u_int32_t	 refcount;
 	struct callout	 callout;
+	STAILQ_ENTRY(cam_ed) highpowerq_entry;
 };
 
 /*
