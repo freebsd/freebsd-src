@@ -26,6 +26,9 @@
  * $FreeBSD$
  */
 
+#ifndef SYS_DEV_RANDOM_RANDOMDEV_H_INCLUDED
+#define SYS_DEV_RANDOM_RANDOMDEV_H_INCLUDED
+
 /* This header contains only those definitions that are global
  * and non algorithm-specific for the entropy processor
  */
@@ -54,3 +57,5 @@ struct random_hardware_source {
 	enum esource		source;
 	random_read_func_t	*read;
 };
+
+#endif

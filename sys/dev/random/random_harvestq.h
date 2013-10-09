@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef __RANDOM_HARVEST_H__
-#define __RANDOM_HARVEST_H__
+#ifndef SYS_DEV_RANDOM_RANDOM_HARVESTQ_H_INCLUDED
+#define SYS_DEV_RANDOM_RANDOM_HARVESTQ_H_INCLUDED
 
 typedef void (*event_proc_f)(struct harvest *event);
 
@@ -39,4 +39,4 @@ void random_harvestq_internal(u_int64_t, const void *,
 extern int random_kthread_control;
 extern struct mtx harvest_mtx;
 
-#endif /* __RANDOM_HARVEST_H__ */
+#endif /* SYS_DEV_RANDOM_RANDOM_HARVESTQ_H_INCLUDED */

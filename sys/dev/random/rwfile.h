@@ -26,5 +26,10 @@
  * $FreeBSD$
  */
 
+#ifndef SYS_DEV_RANDOM_RWFILE_H_INCLUDED
+#define SYS_DEV_RANDOM_RWFILE_H_INCLUDED
+
 int randomdev_read_file(const char *filename, void *buf, size_t);
 int randomdev_write_file(const char *filename, void *buf, size_t);
+
+#endif
