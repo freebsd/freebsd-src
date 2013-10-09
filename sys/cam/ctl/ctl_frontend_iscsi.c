@@ -229,8 +229,6 @@ cfiscsi_pdu_update_cmdsn(const struct icl_pdu *request)
 	/*
 	 * The target MUST silently ignore any non-immediate command outside
 	 * of this range.
-	 *
-	 * XXX:	... or non-immediate duplicates within the range.
 	 */
 	if (cmdsn < cs->cs_cmdsn || cmdsn > cs->cs_cmdsn + maxcmdsn_delta) {
 		CFISCSI_SESSION_UNLOCK(cs);
@@ -720,10 +718,6 @@ cfiscsi_handle_data_segment(struct icl_pdu *request, struct cfiscsi_data_wait *c
 		ctl_sglist->len = io->scsiio.kern_data_len;
 		ctl_sg_count = 1;
 	}
-#if 0
-	if (ctl_sg_count > 1)
-		CFISCSI_SESSION_DEBUG(cs, "ctl_sg_count = %d", ctl_sg_count);
-#endif
 
 	if ((request->ip_bhs->bhs_opcode & ~ISCSI_BHS_OPCODE_IMMEDIATE) ==
 	    ISCSI_BHS_OPCODE_SCSI_DATA_OUT)
@@ -2340,11 +2334,6 @@ cfiscsi_datamove_in(union ctl_io *io)
 	 */
 	PDU_TOTAL_TRANSFER_LEN(request) = io->scsiio.kern_total_len;
 
-#if 0
-	if (ctl_sg_count > 1)
-		CFISCSI_SESSION_DEBUG(cs, "ctl_sg_count = %d", ctl_sg_count);
-#endif
-
 	/*
 	 * This is the offset within the current SCSI command;
 	 * i.e. for the first call of datamove(), it will be 0,
@@ -2352,8 +2341,6 @@ cfiscsi_datamove_in(union ctl_io *io)
 	 * of previous ones.
 	 */
 	off = htonl(io->scsiio.kern_rel_offset);
-	if (off > 1)
-		CFISCSI_SESSION_DEBUG(cs, "off = %zd", off);
 
 	i = 0;
 	addr = NULL;
@@ -2445,10 +2432,12 @@ cfiscsi_datamove_in(union ctl_io *io)
 	if (response != NULL) {
 		if (off == io->scsiio.kern_total_len) {
 			bhsdi->bhsdi_flags |= BHSDI_FLAGS_F;
+#if 0
 		} else {
 			CFISCSI_SESSION_DEBUG(cs, "not setting the F flag; "
 			    "have %zd, need %zd", off,
 			    (size_t)io->scsiio.kern_total_len);
+#endif
 		}
 		KASSERT(response->ip_data_len > 0, ("sending empty Data-In"));
 		cfiscsi_pdu_queue(response);
