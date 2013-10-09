@@ -92,7 +92,7 @@ dialog_menu_main()
 	local retval=$?
 	f_dialog_menutag_store -s "$menu_choice"
 
-	if [ $retval -eq $SUCCESS ]; then
+	if [ $retval -eq $DIALOG_OK ]; then
 		local item
 		item=$( eval f_dialog_menutag2item \
 		        	\"\$menu_choice\" $menu_list )

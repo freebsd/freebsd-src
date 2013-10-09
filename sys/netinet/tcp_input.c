@@ -1461,6 +1461,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	u_long tiwin;
 	char *s;
 	struct in_conninfo *inc;
+	struct mbuf *mfree;
 	struct tcpopt to;
 
 #ifdef TCPDEBUG
@@ -2718,15 +2719,17 @@ process_ACK:
 		SOCKBUF_LOCK(&so->so_snd);
 		if (acked > so->so_snd.sb_cc) {
 			tp->snd_wnd -= so->so_snd.sb_cc;
-			sbdrop_locked(&so->so_snd, (int)so->so_snd.sb_cc);
+			mfree = sbcut_locked(&so->so_snd,
+			    (int)so->so_snd.sb_cc);
 			ourfinisacked = 1;
 		} else {
-			sbdrop_locked(&so->so_snd, acked);
+			mfree = sbcut_locked(&so->so_snd, acked);
 			tp->snd_wnd -= acked;
 			ourfinisacked = 0;
 		}
 		/* NB: sowwakeup_locked() does an implicit unlock. */
 		sowwakeup_locked(so);
+		m_freem(mfree);
 		/* Detect una wraparound. */
 		if (!IN_RECOVERY(tp->t_flags) &&
 		    SEQ_GT(tp->snd_una, tp->snd_recover) &&

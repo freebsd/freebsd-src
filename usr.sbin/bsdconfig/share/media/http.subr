@@ -101,7 +101,7 @@ f_dialog_menu_media_http()
 		$height $width $rows            \
 		$menu_list                      \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	) || return $FAILURE
+	) || return $DIALOG_CANCEL
 	f_dialog_data_sanitize mtag
 
 	case "$mtag" in
@@ -112,7 +112,7 @@ f_dialog_menu_media_http()
 		setvar $VAR_HTTP_PATH "http://$value"
 	esac
 	
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_media_set_http
