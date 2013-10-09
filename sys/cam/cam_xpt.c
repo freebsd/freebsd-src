@@ -246,7 +246,7 @@ static xpt_devicefunc_t xptpassannouncefunc;
 static void	 xptaction(struct cam_sim *sim, union ccb *work_ccb);
 static void	 xptpoll(struct cam_sim *sim);
 static void	 camisr(void *);
-static void	 camisr_runqueue(void *);
+static void	 camisr_runqueue(struct cam_sim *);
 static dev_match_ret	xptbusmatch(struct dev_match_pattern *patterns,
 				    u_int num_patterns, struct cam_eb *bus);
 static dev_match_ret	xptdevicematch(struct dev_match_pattern *patterns,
@@ -3089,7 +3089,7 @@ xpt_polled_action(union ccb *start_ccb)
 	   dev->ccbq.dev_openings < 0) && (--timeout > 0)) {
 		DELAY(100);
 		(*(sim->sim_poll))(sim);
-		camisr_runqueue(&sim->sim_doneq);
+		camisr_runqueue(sim);
 	}
 
 	dev->ccbq.devq_openings++;
@@ -3099,7 +3099,7 @@ xpt_polled_action(union ccb *start_ccb)
 		xpt_action(start_ccb);
 		while(--timeout > 0) {
 			(*(sim->sim_poll))(sim);
-			camisr_runqueue(&sim->sim_doneq);
+			camisr_runqueue(sim);
 			if ((start_ccb->ccb_h.status  & CAM_STATUS_MASK)
 			    != CAM_REQ_INPROG)
 				break;
@@ -4346,7 +4346,7 @@ xpt_batch_done(struct cam_sim *sim)
 	sim->flags &= ~CAM_SIM_BATCH;
 	if (!TAILQ_EMPTY(&sim->sim_doneq) &&
 	    (sim->flags & CAM_SIM_ON_DONEQ) == 0)
-		camisr_runqueue(&sim->sim_doneq);
+		camisr_runqueue(sim);
 }
 
 union ccb *
@@ -4967,7 +4967,7 @@ camisr(void *dummy)
 		while ((sim = TAILQ_FIRST(&queue)) != NULL) {
 			TAILQ_REMOVE(&queue, sim, links);
 			CAM_SIM_LOCK(sim);
-			camisr_runqueue(&sim->sim_doneq);
+			camisr_runqueue(sim);
 			sim->flags &= ~CAM_SIM_ON_DONEQ;
 			CAM_SIM_UNLOCK(sim);
 		}
@@ -4977,15 +4977,14 @@ camisr(void *dummy)
 }
 
 static void
-camisr_runqueue(void *V_queue)
+camisr_runqueue(struct cam_sim *sim)
 {
-	cam_isrq_t *queue = V_queue;
 	struct	ccb_hdr *ccb_h;
 
-	while ((ccb_h = TAILQ_FIRST(queue)) != NULL) {
+	while ((ccb_h = TAILQ_FIRST(&sim->sim_doneq)) != NULL) {
 		int	runq;
 
-		TAILQ_REMOVE(queue, ccb_h, sim_links.tqe);
+		TAILQ_REMOVE(&sim->sim_doneq, ccb_h, sim_links.tqe);
 		ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
 
 		CAM_DEBUG(ccb_h->path, CAM_DEBUG_TRACE,
@@ -5027,8 +5026,8 @@ camisr_runqueue(void *V_queue)
 			dev = ccb_h->path->device;
 
 			cam_ccbq_ccb_done(&dev->ccbq, (union ccb *)ccb_h);
-			ccb_h->path->bus->sim->devq->send_active--;
-			ccb_h->path->bus->sim->devq->send_openings++;
+			sim->devq->send_active--;
+			sim->devq->send_openings++;
 			runq = TRUE;
 
 			if (((dev->flags & CAM_DEV_REL_ON_QUEUE_EMPTY) != 0
@@ -5049,14 +5048,12 @@ camisr_runqueue(void *V_queue)
 			 && (--dev->tag_delay_count == 0))
 				xpt_start_tags(ccb_h->path);
 			if (!device_is_queued(dev)) {
-				(void)xpt_schedule_devq(
-				    ccb_h->path->bus->sim->devq, dev);
+				(void)xpt_schedule_devq(sim->devq, dev);
 			}
 		}
 
 		if (ccb_h->status & CAM_RELEASE_SIMQ) {
-			xpt_release_simq(ccb_h->path->bus->sim,
-					 /*run_queue*/TRUE);
+			xpt_release_simq(sim, /*run_queue*/TRUE);
 			ccb_h->status &= ~CAM_RELEASE_SIMQ;
 			runq = FALSE;
 		}
@@ -5067,7 +5064,7 @@ camisr_runqueue(void *V_queue)
 					 /*run_queue*/TRUE);
 			ccb_h->status &= ~CAM_DEV_QFRZN;
 		} else if (runq) {
-			xpt_run_devq(ccb_h->path->bus->sim->devq);
+			xpt_run_devq(sim->devq);
 		}
 
 		/* Call the peripheral driver's callback */
