@@ -950,18 +950,16 @@ iscsi_pdu_handle_data_in(struct icl_pdu *response)
 
 	csio = &io->io_ccb->csio;
 
-	if (ntohl(bhsdi->bhsdi_buffer_offset) + data_segment_len >
-	    csio->dxfer_len) {
+	if (io->io_received + data_segment_len > csio->dxfer_len) {
 		ISCSI_SESSION_WARN(is, "oversize data segment (%zd bytes "
-		    "at offset %d, buffer is %d)",
-		    data_segment_len, ntohl(bhsdi->bhsdi_buffer_offset),
-		    csio->dxfer_len);
+		    "at offset %zd, buffer is %d)",
+		    data_segment_len, io->io_received, csio->dxfer_len);
 		icl_pdu_free(response);
 		iscsi_session_reconnect(is);
 		return;
 	}
 
-	icl_pdu_get_data(response, 0, csio->data_ptr + ntohl(bhsdi->bhsdi_buffer_offset), data_segment_len);
+	icl_pdu_get_data(response, 0, csio->data_ptr + io->io_received, data_segment_len);
 	io->io_received += data_segment_len;
 
 	/*
@@ -1033,8 +1031,24 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 	 */
 
 	io->io_datasn = 0;
+
 	off = ntohl(bhsr2t->bhsr2t_buffer_offset);
+	if (off > csio->dxfer_len) {
+		ISCSI_SESSION_WARN(is, "target requested invalid offset "
+		    "%zd, buffer is is %d; reconnecting", off, csio->dxfer_len);
+		icl_pdu_free(response);
+		iscsi_session_reconnect(is);
+		return;
+	}
+
 	total_len = ntohl(bhsr2t->bhsr2t_desired_data_transfer_length);
+	if (total_len == 0 || total_len > csio->dxfer_len) {
+		ISCSI_SESSION_WARN(is, "target requested invalid length "
+		    "%zd, buffer is %d; reconnecting", total_len, csio->dxfer_len);
+		icl_pdu_free(response);
+		iscsi_session_reconnect(is);
+		return;
+	}
 
 	//ISCSI_SESSION_DEBUG(is, "r2t; off %zd, len %zd", off, total_len);
 
@@ -1045,7 +1059,8 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 			len = is->is_max_data_segment_length;
 
 		if (off + len > csio->dxfer_len) {
-			ISCSI_SESSION_WARN(is, "bad off %zd, len %d",
+			ISCSI_SESSION_WARN(is, "target requested invalid "
+			    "length/offset %zd, buffer is %d; reconnecting",
 			    off + len, csio->dxfer_len);
 			icl_pdu_free(response);
 			iscsi_session_reconnect(is);
@@ -1068,8 +1083,11 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 		    bhsr2t->bhsr2t_target_transfer_tag;
 		bhsdo->bhsdo_datasn = htonl(io->io_datasn++);
 		bhsdo->bhsdo_buffer_offset = htonl(off);
-		error = icl_pdu_append_data(request, csio->data_ptr + off, len, M_NOWAIT);
+		error = icl_pdu_append_data(request, csio->data_ptr + off, len,
+		    M_NOWAIT);
 		if (error != 0) {
+			ISCSI_SESSION_WARN(is, "failed to allocate memory; "
+			    "reconnecting");
 			icl_pdu_free(request);
 			icl_pdu_free(response);
 			iscsi_session_reconnect(is);
