@@ -4217,7 +4217,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 {
 	struct ctl_lun *nlun, *lun;
 	struct ctl_frontend *fe;
-	int lun_number, i;
+	int lun_number, i, lun_malloced;
 
 	if (be_lun == NULL)
 		return (EINVAL);
@@ -4239,11 +4239,15 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	}
 	if (ctl_lun == NULL) {
 		lun = malloc(sizeof(*lun), M_CTL, M_WAITOK);
-		lun->flags = CTL_LUN_MALLOCED;
-	} else
+		lun_malloced = 1;
+	} else {
+		lun_malloced = 0;
 		lun = ctl_lun;
+	}
 
 	memset(lun, 0, sizeof(*lun));
+	if (lun_malloced)
+		lun->flags = CTL_LUN_MALLOCED;
 
 	mtx_lock(&ctl_softc->ctl_lock);
 	/*
@@ -4295,7 +4299,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	 * The processor LUN is always enabled.  Disk LUNs come on line
 	 * disabled, and must be enabled by the backend.
 	 */
-	lun->flags = CTL_LUN_DISABLED;
+	lun->flags |= CTL_LUN_DISABLED;
 	lun->backend = be_lun->be;
 	be_lun->ctl_lun = lun;
 	be_lun->lun_id = lun_number;
