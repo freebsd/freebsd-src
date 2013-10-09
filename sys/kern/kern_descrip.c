@@ -129,6 +129,7 @@ static int	fill_sem_info(struct file *fp, struct kinfo_file *kif);
 static int	fill_shm_info(struct file *fp, struct kinfo_file *kif);
 static int	fill_socket_info(struct socket *so, struct kinfo_file *kif);
 static int	fill_vnode_info(struct vnode *vp, struct kinfo_file *kif);
+static int	getmaxfd(struct proc *p);
 
 /*
  * Each process has:
@@ -771,6 +772,18 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	return (error);
 }
 
+static int
+getmaxfd(struct proc *p)
+{
+	int maxfd;
+
+	PROC_LOCK(p);
+	maxfd = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
+	PROC_UNLOCK(p);
+
+	return (maxfd);
+}
+
 /*
  * Common code for dup, dup2, fcntl(F_DUPFD) and fcntl(F_DUP2FD).
  */
@@ -797,9 +810,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 		return (EBADF);
 	if (new < 0)
 		return (flags & DUP_FCNTL ? EINVAL : EBADF);
-	PROC_LOCK(p);
-	maxfd = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
-	PROC_UNLOCK(p);
+	maxfd = getmaxfd(p);
 	if (new >= maxfd)
 		return (flags & DUP_FCNTL ? EINVAL : EBADF);
 
@@ -1563,9 +1574,7 @@ fdalloc(struct thread *td, int minfd, int *result)
 	if (fdp->fd_freefile > minfd)
 		minfd = fdp->fd_freefile;
 
-	PROC_LOCK(p);
-	maxfd = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
-	PROC_UNLOCK(p);
+	maxfd = getmaxfd(p);
 
 	/*
 	 * Search the bitmap for a free descriptor starting at minfd.
@@ -1652,9 +1661,7 @@ fdavail(struct thread *td, int n)
 	 *      call racct_add() from there instead of dealing with containers
 	 *      here.
 	 */
-	PROC_LOCK(p);
-	lim = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
-	PROC_UNLOCK(p);
+	lim = getmaxfd(p);
 	if ((i = lim - fdp->fd_nfiles) > 0 && (n -= i) <= 0)
 		return (1);
 	last = min(fdp->fd_nfiles, lim);
