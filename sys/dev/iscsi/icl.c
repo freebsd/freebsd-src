@@ -564,6 +564,7 @@ icl_conn_receive_pdu(struct icl_conn *ic, size_t *availablep)
 			    "MaxDataSegmentLength %zd; "
 			    "dropping connection",
 			    len, ic->ic_max_data_segment_length);
+			error = EINVAL;
 			break;
 		}
 
