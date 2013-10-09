@@ -99,7 +99,7 @@ struct xpt_softc {
 	u_int32_t		xpt_generation;
 
 	/* number of high powered commands that can go through right now */
-	STAILQ_HEAD(highpowerlist, ccb_hdr)	highpowerq;
+	STAILQ_HEAD(highpowerlist, cam_ed)	highpowerq;
 	int			num_highpower;
 
 	/* queue for handling async rescan requests. */
@@ -2721,7 +2721,7 @@ xpt_action_default(union ccb *start_ccb)
 			cgds->dev_openings = dev->ccbq.dev_openings;
 			cgds->dev_active = dev->ccbq.dev_active;
 			cgds->devq_openings = dev->ccbq.devq_openings;
-			cgds->devq_queued = dev->ccbq.queue.entries;
+			cgds->devq_queued = cam_ccbq_pending_ccb_count(&dev->ccbq);
 			cgds->held = dev->ccbq.held;
 			cgds->last_reset = tar->last_reset;
 			cgds->maxtags = dev->maxtags;
@@ -3292,8 +3292,8 @@ xpt_run_devq(struct cam_devq *devq)
 				 */
 				xpt_freeze_devq(work_ccb->ccb_h.path, 1);
 				STAILQ_INSERT_TAIL(&xsoftc.highpowerq,
-						   &work_ccb->ccb_h,
-						   xpt_links.stqe);
+						   work_ccb->ccb_h.path->device,
+						   highpowerq_entry);
 
 				mtx_unlock(&xsoftc.xpt_lock);
 				continue;
@@ -3815,11 +3815,6 @@ xpt_release_ccb(union ccb *free_ccb)
 	mtx_assert(sim->mtx, MA_OWNED);
 
 	cam_ccbq_release_opening(&device->ccbq);
-	if (device->flags & CAM_DEV_RESIZE_QUEUE_NEEDED) {
-		device->flags &= ~CAM_DEV_RESIZE_QUEUE_NEEDED;
-		cam_ccbq_resize(&device->ccbq,
-		    device->ccbq.dev_openings + device->ccbq.dev_active);
-	}
 	if (sim->ccb_count > sim->max_ccbs) {
 		xpt_free_ccb(free_ccb);
 		sim->ccb_count--;
@@ -4619,9 +4614,6 @@ xpt_dev_ccbq_resize(struct cam_path *path, int newopenings)
 
 	diff = newopenings - (dev->ccbq.dev_active + dev->ccbq.dev_openings);
 	result = cam_ccbq_resize(&dev->ccbq, newopenings);
-	if (result == CAM_REQ_CMP && (diff < 0)) {
-		dev->flags |= CAM_DEV_RESIZE_QUEUE_NEEDED;
-	}
 	if ((dev->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
 	 || (dev->inq_flags & SID_CmdQue) != 0)
 		dev->tag_saved_openings = newopenings;
@@ -5003,12 +4995,12 @@ camisr_runqueue(void *V_queue)
 
 		if (ccb_h->flags & CAM_HIGH_POWER) {
 			struct highpowerlist	*hphead;
-			union ccb		*send_ccb;
+			struct cam_ed		*device;
 
 			mtx_lock(&xsoftc.xpt_lock);
 			hphead = &xsoftc.highpowerq;
 
-			send_ccb = (union ccb *)STAILQ_FIRST(hphead);
+			device = STAILQ_FIRST(hphead);
 
 			/*
 			 * Increment the count since this command is done.
@@ -5018,12 +5010,12 @@ camisr_runqueue(void *V_queue)
 			/*
 			 * Any high powered commands queued up?
 			 */
-			if (send_ccb != NULL) {
+			if (device != NULL) {
 
-				STAILQ_REMOVE_HEAD(hphead, xpt_links.stqe);
+				STAILQ_REMOVE_HEAD(hphead, highpowerq_entry);
 				mtx_unlock(&xsoftc.xpt_lock);
 
-				xpt_release_devq(send_ccb->ccb_h.path,
+				xpt_release_devq_device(device,
 						 /*count*/1, /*runqueue*/TRUE);
 			} else
 				mtx_unlock(&xsoftc.xpt_lock);
