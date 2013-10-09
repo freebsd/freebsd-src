@@ -179,6 +179,7 @@ random_initialize(void *p, struct random_adaptor *s)
 	 * with daemons */
 	random_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &random_cdevsw,
 	    RANDOM_MINOR, NULL, UID_ROOT, GID_WHEEL, 0666, "random");
+	make_dev_alias(random_dev, "urandom"); /* compatibility */
 
 	/* mark random(4) as initialized, to avoid being called again */
 	random_inited = 1;
