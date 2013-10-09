@@ -2299,7 +2299,7 @@ skipstate:
 
 out:
 		/*
-		 * Block out any asyncronous callbacks
+		 * Block out any asynchronous callbacks
 		 * while we touch the pending ccb list.
 		 */
 		LIST_INSERT_HEAD(&softc->pending_ccbs,
@@ -2961,7 +2961,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 
 		/*
-		 * Block out any asyncronous callbacks
+		 * Block out any asynchronous callbacks
 		 * while we touch the pending ccb list.
 		 */
 		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
