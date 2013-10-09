@@ -334,6 +334,7 @@ __DEFAULT_YES_OPTIONS = \
     PROFILE \
     QUOTAS \
     RCMDS \
+    RCS \
     RESCUE \
     ROUTED \
     SENDMAIL \
