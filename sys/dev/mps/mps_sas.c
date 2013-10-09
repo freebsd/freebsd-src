@@ -308,6 +308,10 @@ mpssas_log_command(struct mps_command *cm, u_int level, const char *fmt, ...)
 	if (cm == NULL)
 		return;
 
+	/* No need to be in here if debugging isn't enabled */
+	if ((cm->cm_sc->mps_debug & level) == 0)
+		return;
+
 	sbuf_new(&sb, str, sizeof(str), 0);
 
 	va_start(ap, fmt);
