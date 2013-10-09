@@ -55,6 +55,7 @@ enum esource {
 	RANDOM_PURE_HIFN,
 	RANDOM_PURE_RDRAND,
 	RANDOM_PURE_NEHEMIAH,
+	RANDOM_PURE_RNDTEST,
 	ENTROPYSOURCE
 };
 void random_harvest(void *, u_int, u_int, enum esource);
