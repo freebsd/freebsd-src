@@ -100,13 +100,13 @@ and the kernel.
 .Sh EXAMPLES
 To determine the version of the currently running userland:
 .Bd -literal -offset indent
-/libexec/freebsd-version -u
+/bin/freebsd-version -u
 .Ed
 .Pp
 To inspect a system being repaired using a live CD:
 .Bd -literal -offset indent
 mount -rt ufs /dev/ada0p2 /mnt
-env ROOT=/mnt /mnt/libexec/freebsd-version -ku
+env ROOT=/mnt /mnt/bin/freebsd-version -ku
 .Ed
 .Sh SEE ALSO
 .Xr uname 1 ,
