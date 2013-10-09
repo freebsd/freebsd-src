@@ -2076,7 +2076,8 @@ getnewbuf_bufd_help(struct vnode *vp, int gbflags, int slpflag, int slptimeo,
 	wait = MNT_NOWAIT;
 	mtx_lock(&nblock);
 	while (needsbuffer & flags) {
-		if (vp != NULL && (td->td_pflags & TDP_BUFNEED) == 0) {
+		if (vp != NULL && vp->v_type != VCHR &&
+		    (td->td_pflags & TDP_BUFNEED) == 0) {
 			mtx_unlock(&nblock);
 
 			/*
