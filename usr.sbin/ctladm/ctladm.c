@@ -700,7 +700,7 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 	} else if ((targ_port == -1) && (port_type == CTL_PORT_NONE))
 		port_type = CTL_PORT_ALL;
 
-	bzero(&entry, sizeof(&entry));
+	bzero(&entry, sizeof(entry));
 
 	/*
 	 * These are needed for all but list/dump mode.
