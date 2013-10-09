@@ -2662,7 +2662,8 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_capabilities |= IFCAP_LRO;
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING
 			     |  IFCAP_VLAN_HWTSO
-			     |  IFCAP_VLAN_MTU;
+			     |  IFCAP_VLAN_MTU
+			     |  IFCAP_HWSTATS;
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/*

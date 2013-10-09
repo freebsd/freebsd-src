@@ -8,7 +8,6 @@ SUBDIR=	${_atf} \
 	bootpd \
 	${_comsat} \
 	fingerd \
-	freebsd-version \
 	ftpd \
 	getty \
 	${_mail.local} \
