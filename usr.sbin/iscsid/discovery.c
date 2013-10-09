@@ -212,6 +212,7 @@ discovery(struct connection *conn)
 	log_debugx("discovery done; logging out");
 	request = logout_new_request(conn);
 	pdu_send(request);
+	pdu_delete(request);
 	request = NULL;
 
 	log_debugx("waiting for Logout Response");
