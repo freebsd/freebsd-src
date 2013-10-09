@@ -112,7 +112,7 @@ random_harvestq_cache(void *arg __unused)
 	}
 
 	/* Read and attempt to overwrite the entropy cache files.
-	 * If the file exists, can be read and then overwritten,i
+	 * If the file exists, can be read and then overwritten,
 	 * then use it. Ignore it otherwise, but print out what is
 	 * going on.
 	 */
