@@ -8950,17 +8950,7 @@ ctl_inquiry_evpd_supported(struct ctl_scsiio *ctsio, int alloc_len)
 
 	sup_page_size = sizeof(struct scsi_vpd_supported_pages) +
 		SCSI_EVPD_NUM_SUPPORTED_PAGES;
-	/*
-	 * XXX KDM GFP_???  We probably don't want to wait here,
-	 * unless we end up having a process/thread context.
-	 */
 	ctsio->kern_data_ptr = malloc(sup_page_size, M_CTL, M_WAITOK | M_ZERO);
-	if (ctsio->kern_data_ptr == NULL) {
-		ctsio->io_hdr.status = CTL_SCSI_ERROR;
-		ctsio->scsi_status = SCSI_STATUS_BUSY;
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
 	pages = (struct scsi_vpd_supported_pages *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
 
@@ -9015,14 +9005,7 @@ ctl_inquiry_evpd_serial(struct ctl_scsiio *ctsio, int alloc_len)
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
-	/* XXX KDM which malloc flags here?? */
 	ctsio->kern_data_ptr = malloc(sizeof(*sn_ptr), M_CTL, M_WAITOK | M_ZERO);
-	if (ctsio->kern_data_ptr == NULL) {
-		ctsio->io_hdr.status = CTL_SCSI_ERROR;
-		ctsio->scsi_status = SCSI_STATUS_BUSY;
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
 	sn_ptr = (struct scsi_vpd_unit_serial_number *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
 
@@ -9107,14 +9090,7 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 		sizeof(struct scsi_vpd_id_descriptor) +
 		sizeof(struct scsi_vpd_id_trgt_port_grp_id);
 
-	/* XXX KDM which malloc flags here ?? */
 	ctsio->kern_data_ptr = malloc(devid_len, M_CTL, M_WAITOK | M_ZERO);
-	if (ctsio->kern_data_ptr == NULL) {
-		ctsio->io_hdr.status = CTL_SCSI_ERROR;
-		ctsio->scsi_status = SCSI_STATUS_BUSY;
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
 	devid_ptr = (struct scsi_vpd_device_id *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
 
@@ -9337,14 +9313,7 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	 * in.  If the user only asks for less, we'll give him
 	 * that much.
 	 */
-	/* XXX KDM what malloc flags should we use here?? */
 	ctsio->kern_data_ptr = malloc(sizeof(*inq_ptr), M_CTL, M_WAITOK | M_ZERO);
-	if (ctsio->kern_data_ptr == NULL) {
-		ctsio->io_hdr.status = CTL_SCSI_ERROR;
-		ctsio->scsi_status = SCSI_STATUS_BUSY;
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
 	inq_ptr = (struct scsi_inquiry_data *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
 	ctsio->kern_data_resid = 0;
