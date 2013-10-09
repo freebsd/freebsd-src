@@ -288,8 +288,8 @@ cfiscsi_pdu_handle(struct icl_pdu *request)
 		CFISCSI_SESSION_WARN(cs, "received PDU with unsupported "
 		    "opcode 0x%x; dropping connection",
 		    request->ip_bhs->bhs_opcode);
-		cfiscsi_session_terminate(cs);
 		icl_pdu_free(request);
+		cfiscsi_session_terminate(cs);
 	}
 
 }
@@ -532,14 +532,16 @@ cfiscsi_pdu_handle_scsi_command(struct icl_pdu *request)
 	if (request->ip_data_len > 0 && cs->cs_immediate_data == false) {
 		CFISCSI_SESSION_WARN(cs, "unsolicited data with "
 		    "ImmediateData=No; dropping connection");
-		cfiscsi_session_terminate(cs);
 		icl_pdu_free(request);
+		cfiscsi_session_terminate(cs);
 		return;
 	}
 	io = ctl_alloc_io(cs->cs_target->ct_softc->fe.ctl_pool_ref);
 	if (io == NULL) {
-		CFISCSI_SESSION_WARN(cs, "can't allocate ctl_io");
+		CFISCSI_SESSION_WARN(cs, "can't allocate ctl_io; "
+		    "dropping connection");
 		icl_pdu_free(request);
+		cfiscsi_session_terminate(cs);
 		return;
 	}
 	ctl_zero_io(io);
@@ -579,10 +581,12 @@ cfiscsi_pdu_handle_scsi_command(struct icl_pdu *request)
 	refcount_acquire(&cs->cs_outstanding_ctl_pdus);
 	error = ctl_queue(io);
 	if (error != CTL_RETVAL_COMPLETE) {
-		CFISCSI_SESSION_WARN(cs, "ctl_queue() failed; error %d", error);
+		CFISCSI_SESSION_WARN(cs, "ctl_queue() failed; error %d; "
+		    "dropping connection", error);
 		ctl_free_io(io);
 		refcount_release(&cs->cs_outstanding_ctl_pdus);
 		icl_pdu_free(request);
+		cfiscsi_session_terminate(cs);
 	}
 }
 
@@ -600,8 +604,10 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 	bhstmr = (struct iscsi_bhs_task_management_request *)request->ip_bhs;
 	io = ctl_alloc_io(cs->cs_target->ct_softc->fe.ctl_pool_ref);
 	if (io == NULL) {
-		CFISCSI_SESSION_WARN(cs, "can't allocate ctl_io");
+		CFISCSI_SESSION_WARN(cs, "can't allocate ctl_io;"
+		    "dropping connection");
 		icl_pdu_free(request);
+		cfiscsi_session_terminate(cs);
 		return;
 	}
 	ctl_zero_io(io);
@@ -642,7 +648,10 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 
 		response = cfiscsi_pdu_new_response(request, M_NOWAIT);
 		if (response == NULL) {
+			CFISCSI_SESSION_WARN(cs, "failed to allocate memory; "
+			    "dropping connection");
 			icl_pdu_free(request);
+			cfiscsi_session_terminate(cs);
 			return;
 		}
 		bhstmr2 = (struct iscsi_bhs_task_management_response *)
@@ -661,10 +670,12 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 	refcount_acquire(&cs->cs_outstanding_ctl_pdus);
 	error = ctl_queue(io);
 	if (error != CTL_RETVAL_COMPLETE) {
-		CFISCSI_SESSION_WARN(cs, "ctl_queue() failed; error %d", error);
+		CFISCSI_SESSION_WARN(cs, "ctl_queue() failed; error %d; "
+		    "dropping connection", error);
 		ctl_free_io(io);
 		refcount_release(&cs->cs_outstanding_ctl_pdus);
 		icl_pdu_free(request);
+		cfiscsi_session_terminate(cs);
 	}
 }
 
@@ -859,8 +870,8 @@ cfiscsi_pdu_handle_data_out(struct icl_pdu *request)
 	CFISCSI_SESSION_UNLOCK(cs);
 	if (cdw == NULL) {
 		CFISCSI_SESSION_WARN(cs, "data transfer tag 0x%x, initiator task tag "
-		    "0x%x, not found", bhsdo->bhsdo_target_transfer_tag,
-		    bhsdo->bhsdo_initiator_task_tag);
+		    "0x%x, not found; dropping connection",
+		    bhsdo->bhsdo_target_transfer_tag, bhsdo->bhsdo_initiator_task_tag);
 		icl_pdu_free(request);
 		cfiscsi_session_terminate(cs);
 		return;
@@ -897,6 +908,7 @@ cfiscsi_pdu_handle_logout_request(struct icl_pdu *request)
 	case BHSLR_REASON_CLOSE_CONNECTION:
 		response = cfiscsi_pdu_new_response(request, M_NOWAIT);
 		if (response == NULL) {
+			CFISCSI_SESSION_DEBUG(cs, "failed to allocate memory");
 			icl_pdu_free(request);
 			cfiscsi_session_terminate(cs);
 			return;
@@ -914,6 +926,8 @@ cfiscsi_pdu_handle_logout_request(struct icl_pdu *request)
 	case BHSLR_REASON_REMOVE_FOR_RECOVERY:
 		response = cfiscsi_pdu_new_response(request, M_NOWAIT);
 		if (response == NULL) {
+			CFISCSI_SESSION_WARN(cs,
+			    "failed to allocate memory; dropping connection");
 			icl_pdu_free(request);
 			cfiscsi_session_terminate(cs);
 			return;
@@ -985,7 +999,7 @@ cfiscsi_callout(void *context)
 
 	cp = icl_pdu_new_bhs(cs->cs_conn, M_NOWAIT);
 	if (cp == NULL) {
-		CFISCSI_SESSION_WARN(cs, "failed to allocate PDU");
+		CFISCSI_SESSION_WARN(cs, "failed to allocate memory");
 		return;
 	}
 	bhsni = (struct iscsi_bhs_nop_in *)cp->ip_bhs;
