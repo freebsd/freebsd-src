@@ -119,6 +119,7 @@ static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
 static int	fd_first_free(struct filedesc *fdp, int low, int size);
 static int	fd_last_used(struct filedesc *fdp, int size);
 static void	fdgrowtable(struct filedesc *fdp, int nfd);
+static void	fdgrowtable_exp(struct filedesc *fdp, int nfd);
 static void	fdunused(struct filedesc *fdp, int fd);
 static void	fdused(struct filedesc *fdp, int fd);
 static int	fill_pipe_info(struct pipe *pi, struct kinfo_file *kif);
@@ -855,7 +856,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 				return (EMFILE);
 			}
 #endif
-			fdgrowtable(fdp, new + 1);
+			fdgrowtable_exp(fdp, new + 1);
 			oldfde = &fdp->fd_ofiles[old];
 		}
 		newfde = &fdp->fd_ofiles[new];
@@ -1478,6 +1479,24 @@ filecaps_validate(const struct filecaps *fcaps, const char *func)
 	    ("%s: ioctls without CAP_IOCTL", func));
 }
 
+static void
+fdgrowtable_exp(struct filedesc *fdp, int nfd)
+{
+	int nfd1, maxfd;
+
+	FILEDESC_XLOCK_ASSERT(fdp);
+
+	nfd1 = fdp->fd_nfiles * 2;
+	if (nfd1 < nfd)
+		nfd1 = nfd;
+	maxfd = getmaxfd(curproc);
+	if (maxfd < nfd1)
+		nfd1 = maxfd;
+	KASSERT(nfd <= nfd1,
+	    ("too low nfd1 %d %d %d %d", nfd, fdp->fd_nfiles, maxfd, nfd1));
+	fdgrowtable(fdp, nfd1);
+}
+
 /*
  * Grow the file table to accomodate (at least) nfd descriptors.
  */
@@ -1596,7 +1615,7 @@ fdalloc(struct thread *td, int minfd, int *result)
 		 * fd is already equal to first free descriptor >= minfd, so
 		 * we only need to grow the table and we are done.
 		 */
-		fdgrowtable(fdp, allocfd);
+		fdgrowtable_exp(fdp, allocfd);
 	}
 
 	/*
