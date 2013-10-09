@@ -27,8 +27,8 @@
  * $FreeBSD$
  */
 
-#ifndef __LIVE_ENTROPY_SOURCES__
-#define __LIVE_ENTROPY_SOURCES__
+#ifndef SYS_DEV_RANDOM_LIVE_ENTROPY_SOURCES_H_INCLUDED
+#define SYS_DEV_RANDOM_LIVE_ENTROPY_SOURCES_H_INCLUDED
 
 /*
  * Live entropy source is a source of entropy that can provide
@@ -57,4 +57,4 @@ void live_entropy_sources_feed(int, event_proc_f);
     MODULE_VERSION(name, ver);					\
     MODULE_DEPEND(name, random, 1, 1, 1);
 
-#endif /* __LIVE_ENTROPY_SOURCES__ */
+#endif /* SYS_DEV_RANDOM_LIVE_ENTROPY_SOURCES_H_INCLUDED */

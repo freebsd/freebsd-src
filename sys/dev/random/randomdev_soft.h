@@ -26,6 +26,9 @@
  * $FreeBSD$
  */
 
+#ifndef SYS_DEV_RANDOM_RANDOMDEV_SOFT_H_INCLUDED
+#define SYS_DEV_RANDOM_RANDOMDEV_SOFT_H_INCLUDED
+
 /* This header contains only those definitions that are global
  * and harvester-specific for the entropy processor
  */
@@ -79,3 +82,5 @@ random_check_uint_##name(SYSCTL_HANDLER_ARGS)				\
         return (sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2,	\
 		req));							\
 }
+
+#endif
