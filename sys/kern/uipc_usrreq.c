@@ -1342,7 +1342,7 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		}
 
 		/*
-		 * The connecter's (client's) credentials are copied from its
+		 * The connector's (client's) credentials are copied from its
 		 * process structure at the time of connect() (which is now).
 		 */
 		cru2x(td->td_ucred, &unp3->unp_peercred);
