@@ -84,6 +84,7 @@ static const char *entropy_files[] = {
 	NULL
 };
 
+#ifdef NOTYET /* This is full of policy stuff, needs further discussion */
 /* Deal with entropy cached externally if this is present.
  * Lots of policy may eventually arrive in this function.
  * Called after / is mounted.
@@ -138,6 +139,7 @@ random_harvestq_cache(void *arg __unused)
 	free(data, M_ENTROPY);
 }
 EVENTHANDLER_DEFINE(mountroot, random_harvestq_cache, NULL, 0);
+#endif /* NOTYET */
 
 static void
 random_kthread(void *arg)
