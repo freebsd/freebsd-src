@@ -336,7 +336,7 @@ f_dialog_input_view_details()
 
 	f_dialog_title_restore
 
-	[ $retval -eq 0 ] || return $FAILURE
+	[ $retval -eq $DIALOG_OK ] || return $DIALOG_CANCEL
 
 	case "$mtag" in
 	"R $msg_reset")
@@ -465,7 +465,7 @@ f_dialog_input_rcvar()
 
 		# Return if user either pressed ESC or chosen Cancel/No
 		f_dialog_input _input "$msg_please_enter_rcvar_name" \
-		               "$_input" "$hline_alnum_tab_enter" || return
+		               "$_input" "$hline_alnum_tab_enter" || return $?
 
 		# Check for invalid entry (1of2)
 		if ! echo "$_input" | grep -q "^[[:alpha:]_]"; then
@@ -486,7 +486,7 @@ f_dialog_input_rcvar()
 
 	f_dprintf "f_dialog_input_rcvar: rcvar->[%s]" "$rcvar"
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 ############################################################ MAIN
