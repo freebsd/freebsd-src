@@ -37,12 +37,14 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <err.h>
 #include <libgen.h>
 #include <unistd.h>
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
 #include <pthread_np.h>
+#include <sysexits.h>
 
 #include <machine/vmm.h>
 #include <vmmapi.h>
@@ -529,7 +531,9 @@ main(int argc, char *argv[])
 			else
 				break;
                 case 'm':
-			memsize = strtoul(optarg, NULL, 0) * MB;
+			error = vm_parse_memsize(optarg, &memsize);
+			if (error)
+				errx(EX_USAGE, "invalid memsize '%s'", optarg);
 			break;
 		case 'H':
 			guest_vmexit_on_hlt = 1;
