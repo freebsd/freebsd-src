@@ -51,7 +51,7 @@ static void random_nehemiah_init(void);
 static void random_nehemiah_deinit(void);
 static int random_nehemiah_read(void *, int);
 
-struct random_hardware_source random_nehemiah = {
+static struct random_hardware_source random_nehemiah = {
 	.ident = "Hardware, VIA Nehemiah Padlock RNG",
 	.source = RANDOM_PURE_NEHEMIAH,
 	.read = random_nehemiah_read

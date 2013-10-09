@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 static int random_ivy_read(void *, int);
 
-struct random_hardware_source random_ivy = {
+static struct random_hardware_source random_ivy = {
 	.ident = "Hardware, Intel IvyBridge+ RNG",
 	.source = RANDOM_PURE_RDRAND,
 	.read = random_ivy_read
