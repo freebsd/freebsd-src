@@ -127,7 +127,7 @@ f_media_generic_get()
 			fi
 			[ "$probe_type" ] && return $SUCCESS
 			cat "$path"
-			return
+			return $?
 		fi
 	done
 
