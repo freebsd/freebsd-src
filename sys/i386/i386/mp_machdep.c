@@ -1256,7 +1256,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, vm_offset_t addr1, vm_of
 		ipi_all_but_self(vector);
 	} else {
 		ncpu = 0;
-		while ((cpu = cpusetobj_ffs(&mask)) != 0) {
+		while ((cpu = CPU_FFS(&mask)) != 0) {
 			cpu--;
 			CPU_CLR(cpu, &mask);
 			CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu,
@@ -1405,7 +1405,7 @@ ipi_selected(cpuset_t cpus, u_int ipi)
 	if (ipi == IPI_STOP_HARD)
 		CPU_OR_ATOMIC(&ipi_nmi_pending, &cpus);
 
-	while ((cpu = cpusetobj_ffs(&cpus)) != 0) {
+	while ((cpu = CPU_FFS(&cpus)) != 0) {
 		cpu--;
 		CPU_CLR(cpu, &cpus);
 		CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu, ipi);
