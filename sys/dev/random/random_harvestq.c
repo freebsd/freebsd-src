@@ -79,12 +79,12 @@ int random_kthread_control = 0;
 
 static struct proc *random_kthread_proc;
 
+#ifdef NOTYET /* This is full of policy stuff, needs further discussion */
 static const char *entropy_files[] = {
 	"/entropy",
 	NULL
 };
 
-#ifdef NOTYET /* This is full of policy stuff, needs further discussion */
 /* Deal with entropy cached externally if this is present.
  * Lots of policy may eventually arrive in this function.
  * Called after / is mounted.
