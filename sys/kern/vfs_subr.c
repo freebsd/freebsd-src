@@ -1315,6 +1315,8 @@ vinvalbuf(struct vnode *vp, int flags, int slpflag, int slptimeo)
 
 	CTR3(KTR_VFS, "%s: vp %p with flags %d", __func__, vp, flags);
 	ASSERT_VOP_LOCKED(vp, "vinvalbuf");
+	if (vp->v_object != NULL && vp->v_object->handle != vp)
+		return (0);
 	return (bufobj_invalbuf(&vp->v_bufobj, flags, slpflag, slptimeo));
 }
 

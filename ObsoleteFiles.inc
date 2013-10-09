@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20131009: freebsd-version moved from /libexec to /bin
+OLD_FILES+=/libexec/freebsd-version
 # 20131001: ar and ranlib from binutils not used
 OLD_FILES+=usr/bin/gnu-ar
 OLD_FILES+=usr/bin/gnu-ranlib

@@ -950,40 +950,59 @@ iscsi_pdu_handle_data_in(struct icl_pdu *response)
 
 	csio = &io->io_ccb->csio;
 
-	if (ntohl(bhsdi->bhsdi_buffer_offset) + data_segment_len >
-	    csio->dxfer_len) {
+	if (io->io_received + data_segment_len > csio->dxfer_len) {
 		ISCSI_SESSION_WARN(is, "oversize data segment (%zd bytes "
-		    "at offset %d, buffer is %d)",
-		    data_segment_len, ntohl(bhsdi->bhsdi_buffer_offset),
-		    csio->dxfer_len);
+		    "at offset %zd, buffer is %d)",
+		    data_segment_len, io->io_received, csio->dxfer_len);
 		icl_pdu_free(response);
 		iscsi_session_reconnect(is);
 		return;
 	}
 
-	icl_pdu_get_data(response, 0, csio->data_ptr + ntohl(bhsdi->bhsdi_buffer_offset), data_segment_len);
+	icl_pdu_get_data(response, 0, csio->data_ptr + io->io_received, data_segment_len);
 	io->io_received += data_segment_len;
 
 	/*
 	 * XXX: Check DataSN.
 	 * XXX: Check F.
 	 */
-	if (bhsdi->bhsdi_flags & BHSDI_FLAGS_S) {
-		//ISCSI_SESSION_DEBUG(is, "got S flag; status 0x%x", bhsdi->bhsdi_status);
-		if (bhsdi->bhsdi_status == 0) {
-			io->io_ccb->ccb_h.status = CAM_REQ_CMP;
-		} else {
-			if ((io->io_ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
-				xpt_freeze_devq(io->io_ccb->ccb_h.path, 1);
-				ISCSI_SESSION_DEBUG(is, "freezing devq");
-			}
-			io->io_ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR | CAM_DEV_QFRZN;
-			csio->scsi_status = bhsdi->bhsdi_status;
-		}
-		xpt_done(io->io_ccb);
-		iscsi_outstanding_remove(is, io);
+	if ((bhsdi->bhsdi_flags & BHSDI_FLAGS_S) == 0) {
+		/*
+		 * Nothing more to do.
+		 */
+		icl_pdu_free(response);
+		return;
 	}
 
+	//ISCSI_SESSION_DEBUG(is, "got S flag; status 0x%x", bhsdi->bhsdi_status);
+	if (bhsdi->bhsdi_status == 0) {
+		io->io_ccb->ccb_h.status = CAM_REQ_CMP;
+	} else {
+		if ((io->io_ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
+			xpt_freeze_devq(io->io_ccb->ccb_h.path, 1);
+			ISCSI_SESSION_DEBUG(is, "freezing devq");
+		}
+		io->io_ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR | CAM_DEV_QFRZN;
+		csio->scsi_status = bhsdi->bhsdi_status;
+	}
+
+	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+		KASSERT(io->io_received <= csio->dxfer_len,
+		    ("io->io_received > csio->dxfer_len"));
+		if (io->io_received < csio->dxfer_len) {
+			csio->resid = ntohl(bhsdi->bhsdi_residual_count);
+			if (csio->resid != csio->dxfer_len - io->io_received) {
+				ISCSI_SESSION_WARN(is, "underflow mismatch: "
+				    "target indicates %d, we calculated %zd",
+				    csio->resid,
+				    csio->dxfer_len - io->io_received);
+			}
+			csio->resid = csio->dxfer_len - io->io_received;
+		}
+	}
+
+	xpt_done(io->io_ccb);
+	iscsi_outstanding_remove(is, io);
 	icl_pdu_free(response);
 }
 
@@ -1033,8 +1052,24 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 	 */
 
 	io->io_datasn = 0;
+
 	off = ntohl(bhsr2t->bhsr2t_buffer_offset);
+	if (off > csio->dxfer_len) {
+		ISCSI_SESSION_WARN(is, "target requested invalid offset "
+		    "%zd, buffer is is %d; reconnecting", off, csio->dxfer_len);
+		icl_pdu_free(response);
+		iscsi_session_reconnect(is);
+		return;
+	}
+
 	total_len = ntohl(bhsr2t->bhsr2t_desired_data_transfer_length);
+	if (total_len == 0 || total_len > csio->dxfer_len) {
+		ISCSI_SESSION_WARN(is, "target requested invalid length "
+		    "%zd, buffer is %d; reconnecting", total_len, csio->dxfer_len);
+		icl_pdu_free(response);
+		iscsi_session_reconnect(is);
+		return;
+	}
 
 	//ISCSI_SESSION_DEBUG(is, "r2t; off %zd, len %zd", off, total_len);
 
@@ -1045,7 +1080,8 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 			len = is->is_max_data_segment_length;
 
 		if (off + len > csio->dxfer_len) {
-			ISCSI_SESSION_WARN(is, "bad off %zd, len %d",
+			ISCSI_SESSION_WARN(is, "target requested invalid "
+			    "length/offset %zd, buffer is %d; reconnecting",
 			    off + len, csio->dxfer_len);
 			icl_pdu_free(response);
 			iscsi_session_reconnect(is);
@@ -1068,8 +1104,11 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 		    bhsr2t->bhsr2t_target_transfer_tag;
 		bhsdo->bhsdo_datasn = htonl(io->io_datasn++);
 		bhsdo->bhsdo_buffer_offset = htonl(off);
-		error = icl_pdu_append_data(request, csio->data_ptr + off, len, M_NOWAIT);
+		error = icl_pdu_append_data(request, csio->data_ptr + off, len,
+		    M_NOWAIT);
 		if (error != 0) {
+			ISCSI_SESSION_WARN(is, "failed to allocate memory; "
+			    "reconnecting");
 			icl_pdu_free(request);
 			icl_pdu_free(response);
 			iscsi_session_reconnect(is);
