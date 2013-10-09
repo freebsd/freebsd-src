@@ -43,11 +43,14 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <libutil.h>
+
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 
 #include "vmmapi.h"
 
+#define	MB	(1024 * 1024UL)
 #define	GB	(1024 * 1024 * 1024UL)
 
 struct vmctx {
@@ -121,6 +124,30 @@ vm_destroy(struct vmctx *vm)
 	DESTROY(vm->name);
 
 	free(vm);
+}
+
+int
+vm_parse_memsize(const char *optarg, size_t *ret_memsize)
+{
+	char *endptr;
+	size_t optval;
+	int error;
+
+	optval = strtoul(optarg, &endptr, 0);
+	if (*optarg != '\0' && *endptr == '\0') {
+		/*
+		 * For the sake of backward compatibility if the memory size
+		 * specified on the command line is less than a megabyte then
+		 * it is interpreted as being in units of MB.
+		 */
+		if (optval < MB)
+			optval *= MB;
+		*ret_memsize = optval;
+		error = 0;
+	} else
+		error = expand_number(optarg, ret_memsize);
+
+	return (error);
 }
 
 int
