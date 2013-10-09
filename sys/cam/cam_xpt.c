@@ -96,7 +96,6 @@ typedef enum {
 
 struct xpt_softc {
 	xpt_flags		flags;
-	u_int32_t		xpt_generation;
 
 	/* number of high powered commands that can go through right now */
 	STAILQ_HEAD(highpowerlist, cam_ed)	highpowerq;
@@ -608,24 +607,11 @@ xptdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *
 		struct periph_driver **p_drv;
 		char   *name;
 		u_int unit;
-		u_int cur_generation;
 		int base_periph_found;
-		int splbreaknum;
 
 		ccb = (union ccb *)addr;
 		unit = ccb->cgdl.unit_number;
 		name = ccb->cgdl.periph_name;
-		/*
-		 * Every 100 devices, we want to drop our lock protection to
-		 * give the software interrupt handler a chance to run.
-		 * Most systems won't run into this check, but this should
-		 * avoid starvation in the software interrupt handler in
-		 * large systems.
-		 */
-		splbreaknum = 100;
-
-		ccb = (union ccb *)addr;
-
 		base_periph_found = 0;
 
 		/*
@@ -639,8 +625,6 @@ xptdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *
 
 		/* Keep the list from changing while we traverse it */
 		xpt_lock_buses();
-ptstartover:
-		cur_generation = xsoftc.xpt_generation;
 
 		/* first find our driver in the list of drivers */
 		for (p_drv = periph_drivers; *p_drv != NULL; p_drv++)
@@ -667,15 +651,8 @@ ptstartover:
 		for (periph = TAILQ_FIRST(&(*p_drv)->units); periph != NULL;
 		     periph = TAILQ_NEXT(periph, unit_links)) {
 
-			if (periph->unit_number == unit) {
+			if (periph->unit_number == unit)
 				break;
-			} else if (--splbreaknum == 0) {
-				xpt_unlock_buses();
-				xpt_lock_buses();
-				splbreaknum = 100;
-				if (cur_generation != xsoftc.xpt_generation)
-				       goto ptstartover;
-			}
 		}
 		/*
 		 * If we found the peripheral driver that the user passed
@@ -1015,15 +992,11 @@ xpt_add_periph(struct cam_periph *periph)
 		SLIST_INSERT_HEAD(periph_head, periph, periph_links);
 	}
 
-	xpt_lock_buses();
-	xsoftc.xpt_generation++;
-	xpt_unlock_buses();
-
 	return (status);
 }
 
 void
-xpt_remove_periph(struct cam_periph *periph, int topology_lock_held)
+xpt_remove_periph(struct cam_periph *periph)
 {
 	struct cam_ed *device;
 
@@ -1043,14 +1016,6 @@ xpt_remove_periph(struct cam_periph *periph, int topology_lock_held)
 
 		SLIST_REMOVE(periph_head, periph, cam_periph, periph_links);
 	}
-
-	if (topology_lock_held == 0)
-		xpt_lock_buses();
-
-	xsoftc.xpt_generation++;
-
-	if (topology_lock_held == 0)
-		xpt_unlock_buses();
 }
 
 
