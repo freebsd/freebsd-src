@@ -966,22 +966,43 @@ iscsi_pdu_handle_data_in(struct icl_pdu *response)
 	 * XXX: Check DataSN.
 	 * XXX: Check F.
 	 */
-	if (bhsdi->bhsdi_flags & BHSDI_FLAGS_S) {
-		//ISCSI_SESSION_DEBUG(is, "got S flag; status 0x%x", bhsdi->bhsdi_status);
-		if (bhsdi->bhsdi_status == 0) {
-			io->io_ccb->ccb_h.status = CAM_REQ_CMP;
-		} else {
-			if ((io->io_ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
-				xpt_freeze_devq(io->io_ccb->ccb_h.path, 1);
-				ISCSI_SESSION_DEBUG(is, "freezing devq");
-			}
-			io->io_ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR | CAM_DEV_QFRZN;
-			csio->scsi_status = bhsdi->bhsdi_status;
-		}
-		xpt_done(io->io_ccb);
-		iscsi_outstanding_remove(is, io);
+	if ((bhsdi->bhsdi_flags & BHSDI_FLAGS_S) == 0) {
+		/*
+		 * Nothing more to do.
+		 */
+		icl_pdu_free(response);
+		return;
 	}
 
+	//ISCSI_SESSION_DEBUG(is, "got S flag; status 0x%x", bhsdi->bhsdi_status);
+	if (bhsdi->bhsdi_status == 0) {
+		io->io_ccb->ccb_h.status = CAM_REQ_CMP;
+	} else {
+		if ((io->io_ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
+			xpt_freeze_devq(io->io_ccb->ccb_h.path, 1);
+			ISCSI_SESSION_DEBUG(is, "freezing devq");
+		}
+		io->io_ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR | CAM_DEV_QFRZN;
+		csio->scsi_status = bhsdi->bhsdi_status;
+	}
+
+	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+		KASSERT(io->io_received <= csio->dxfer_len,
+		    ("io->io_received > csio->dxfer_len"));
+		if (io->io_received < csio->dxfer_len) {
+			csio->resid = ntohl(bhsdi->bhsdi_residual_count);
+			if (csio->resid != csio->dxfer_len - io->io_received) {
+				ISCSI_SESSION_WARN(is, "underflow mismatch: "
+				    "target indicates %d, we calculated %zd",
+				    csio->resid,
+				    csio->dxfer_len - io->io_received);
+			}
+			csio->resid = csio->dxfer_len - io->io_received;
+		}
+	}
+
+	xpt_done(io->io_ccb);
+	iscsi_outstanding_remove(is, io);
 	icl_pdu_free(response);
 }
 
