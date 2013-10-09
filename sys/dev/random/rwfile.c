@@ -28,6 +28,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_random.h"
+
+#ifdef RANDOM_RWFILE
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -88,3 +92,5 @@ randomdev_write_file(const char *filename, void *buf, size_t length)
 
 	return (error);
 }
+
+#endif

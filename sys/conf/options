@@ -906,6 +906,7 @@ RACCT		opt_global.h
 RCTL		opt_global.h
 
 # Random number generator(s)
-YARROW_RNG	opt_random.h
-FORTUNA_RNG	opt_random.h
+RANDOM_YARROW	opt_random.h
+RANDOM_FORTUNA	opt_random.h
 RANDOM_DEBUG	opt_random.h
+RANDOM_RWFILE	opt_random.h
