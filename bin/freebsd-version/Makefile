@@ -2,7 +2,6 @@
 
 SCRIPTS = freebsd-version
 MAN = freebsd-version.1
-BINDIR = /libexec
 CLEANFILES = freebsd-version.sh
 NEWVERS = ${.CURDIR}/../../sys/conf/newvers.sh
 
