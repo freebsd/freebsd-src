@@ -674,7 +674,7 @@ cfiscsi_handle_data_segment(struct icl_pdu *request, struct cfiscsi_data_wait *c
 	struct iscsi_bhs_data_out *bhsdo;
 	struct cfiscsi_session *cs;
 	struct ctl_sg_entry ctl_sg_entry, *ctl_sglist;
-	size_t copy_len, off, buffer_offset;
+	size_t copy_len, len, off, buffer_offset;
 	int ctl_sg_count;
 	union ctl_io *io;
 
@@ -732,7 +732,20 @@ cfiscsi_handle_data_segment(struct icl_pdu *request, struct cfiscsi_data_wait *c
 		return (true);
 	}
 
+	/*
+	 * This is the offset within the PDU data segment, as opposed
+	 * to buffer_offset, which is the offset within the task (SCSI
+	 * command).
+	 */
 	off = 0;
+	len = icl_pdu_data_segment_length(request);
+
+	/*
+	 * Iterate over the scatter/gather segments, filling them with data
+	 * from the PDU data segment.  Note that this can get called multiple
+	 * times for one SCSI command; the cdw structure holds state for the
+	 * scatter/gather list.
+	 */
 	for (;;) {
 		KASSERT(cdw->cdw_sg_index < ctl_sg_count,
 		    ("cdw->cdw_sg_index >= ctl_sg_count"));
@@ -740,7 +753,8 @@ cfiscsi_handle_data_segment(struct icl_pdu *request, struct cfiscsi_data_wait *c
 			cdw->cdw_sg_addr = ctl_sglist[cdw->cdw_sg_index].addr;
 			cdw->cdw_sg_len = ctl_sglist[cdw->cdw_sg_index].len;
 		}
-		copy_len = icl_pdu_data_segment_length(request) - off;
+		KASSERT(off <= len, ("len > off"));
+		copy_len = len - off;
 		if (copy_len > cdw->cdw_sg_len)
 			copy_len = cdw->cdw_sg_len;
 
@@ -751,15 +765,27 @@ cfiscsi_handle_data_segment(struct icl_pdu *request, struct cfiscsi_data_wait *c
 		io->scsiio.ext_data_filled += copy_len;
 
 		if (cdw->cdw_sg_len == 0) {
-			if (cdw->cdw_sg_index == ctl_sg_count - 1)
+			/*
+			 * End of current segment.
+			 */
+			if (cdw->cdw_sg_index == ctl_sg_count - 1) {
+				/*
+				 * Last segment in scatter/gather list.
+				 */
 				break;
+			}
 			cdw->cdw_sg_index++;
 		}
-		if (off == icl_pdu_data_segment_length(request))
+
+		if (off == len) {
+			/*
+			 * End of PDU payload.
+			 */
 			break;
+		}
 	}
 
-	if (off < icl_pdu_data_segment_length(request)) {
+	if (len > off) {
 		CFISCSI_SESSION_WARN(cs, "received too much data: got %zd bytes, "
 		    "expected %zd", icl_pdu_data_segment_length(request), off);
 		cfiscsi_session_terminate(cs);
@@ -2386,7 +2412,7 @@ cfiscsi_datamove_in(union ctl_io *io)
 			/*
 			 * Can't stuff more data into the current PDU;
 			 * queue it.  Note that's not enough to check
-			 * for kern_data_resid == 0  instead; there
+			 * for kern_data_resid == 0 instead; there
 			 * may be several Data-In PDUs for the final
 			 * call to cfiscsi_datamove(), and we want
 			 * to set the F flag only on the last of them.
