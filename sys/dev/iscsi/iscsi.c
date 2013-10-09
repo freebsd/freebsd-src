@@ -726,10 +726,15 @@ iscsi_error_callback(struct icl_conn *ic)
 static void
 iscsi_pdu_handle_nop_in(struct icl_pdu *response)
 {
+	struct iscsi_session *is;
 	struct iscsi_bhs_nop_out *bhsno;
 	struct iscsi_bhs_nop_in *bhsni;
 	struct icl_pdu *request;
+	void *data = NULL;
+	size_t datasize;
+	int error;
 
+	is = PDU_SESSION(response);
 	bhsni = (struct iscsi_bhs_nop_in *)response->ip_bhs;
 
 	if (bhsni->bhsni_target_transfer_tag == 0xffffffff) {
@@ -741,22 +746,47 @@ iscsi_pdu_handle_nop_in(struct icl_pdu *response)
 		return;
 	}
 
+	datasize = icl_pdu_data_segment_length(response);
+	if (datasize > 0) {
+		data = malloc(datasize, M_ISCSI, M_NOWAIT | M_ZERO);
+		if (data == NULL) {
+			ISCSI_SESSION_WARN(is, "failed to allocate memory; "
+			    "reconnecting");
+			icl_pdu_free(response);
+			iscsi_session_reconnect(is);
+			return;
+		}
+		icl_pdu_get_data(response, 0, data, datasize);
+	}
+
 	request = icl_pdu_new_bhs(response->ip_conn, M_NOWAIT);
 	if (request == NULL) {
+		ISCSI_SESSION_WARN(is, "failed to allocate memory; "
+		    "reconnecting");
+		free(data, M_ISCSI);
 		icl_pdu_free(response);
+		iscsi_session_reconnect(is);
 		return;
 	}
 	bhsno = (struct iscsi_bhs_nop_out *)request->ip_bhs;
 	bhsno->bhsno_opcode = ISCSI_BHS_OPCODE_NOP_OUT |
 	    ISCSI_BHS_OPCODE_IMMEDIATE;
 	bhsno->bhsno_flags = 0x80;
-	bhsno->bhsno_initiator_task_tag = 0xffffffff; /* XXX */
+	bhsno->bhsno_initiator_task_tag = 0xffffffff;
 	bhsno->bhsno_target_transfer_tag = bhsni->bhsni_target_transfer_tag;
-
-	request->ip_data_len = response->ip_data_len;
-	request->ip_data_mbuf = response->ip_data_mbuf;
-	response->ip_data_len = 0;
-	response->ip_data_mbuf = NULL;
+	if (datasize > 0) {
+		error = icl_pdu_append_data(request, data, datasize, M_NOWAIT);
+		if (error != 0) {
+			ISCSI_SESSION_WARN(is, "failed to allocate memory; "
+			    "reconnecting");
+			free(data, M_ISCSI);
+			icl_pdu_free(request);
+			icl_pdu_free(response);
+			iscsi_session_reconnect(is);
+			return;
+		}
+		free(data, M_ISCSI);
+	}
 
 	icl_pdu_free(response);
 	iscsi_pdu_queue_locked(request);

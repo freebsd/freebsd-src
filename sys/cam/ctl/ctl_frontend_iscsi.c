@@ -455,6 +455,9 @@ cfiscsi_pdu_handle_nop_out(struct icl_pdu *request)
 	struct iscsi_bhs_nop_out *bhsno;
 	struct iscsi_bhs_nop_in *bhsni;
 	struct icl_pdu *response;
+	void *data = NULL;
+	size_t datasize;
+	int error;
 
 	cs = PDU_SESSION(request);
 	bhsno = (struct iscsi_bhs_nop_out *)request->ip_bhs;
@@ -468,9 +471,26 @@ cfiscsi_pdu_handle_nop_out(struct icl_pdu *request)
 		return;
 	}
 
+	datasize = icl_pdu_data_segment_length(request);
+	if (datasize > 0) {
+		data = malloc(datasize, M_CFISCSI, M_NOWAIT | M_ZERO);
+		if (data == NULL) {
+			CFISCSI_SESSION_WARN(cs, "failed to allocate memory; "
+			    "dropping connection");
+			icl_pdu_free(request);
+			cfiscsi_session_terminate(cs);
+			return;
+		}
+		icl_pdu_get_data(request, 0, data, datasize);
+	}
+
 	response = cfiscsi_pdu_new_response(request, M_NOWAIT);
 	if (response == NULL) {
+		CFISCSI_SESSION_WARN(cs, "failed to allocate memory; "
+		    "droppping connection");
+		free(data, M_CFISCSI);
 		icl_pdu_free(request);
+		cfiscsi_session_terminate(cs);
 		return;
 	}
 	bhsni = (struct iscsi_bhs_nop_in *)response->ip_bhs;
@@ -478,14 +498,19 @@ cfiscsi_pdu_handle_nop_out(struct icl_pdu *request)
 	bhsni->bhsni_flags = 0x80;
 	bhsni->bhsni_initiator_task_tag = bhsno->bhsno_initiator_task_tag;
 	bhsni->bhsni_target_transfer_tag = 0xffffffff;
-
-#if 0
-	/* XXX */
-	response->ip_data_len = request->ip_data_len;
-	response->ip_data_mbuf = request->ip_data_mbuf;
-	request->ip_data_len = 0;
-	request->ip_data_mbuf = NULL;
-#endif
+	if (datasize > 0) {
+		error = icl_pdu_append_data(response, data, datasize, M_NOWAIT);
+		if (error != 0) {
+			CFISCSI_SESSION_WARN(cs, "failed to allocate memory; "
+			    "dropping connection");
+			free(data, M_CFISCSI);
+			icl_pdu_free(request);
+			icl_pdu_free(response);
+			cfiscsi_session_terminate(cs);
+			return;
+		}
+		free(data, M_CFISCSI);
+	}
 
 	icl_pdu_free(request);
 	cfiscsi_pdu_queue(response);
