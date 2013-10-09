@@ -30,6 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_random.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
@@ -79,11 +81,12 @@ int random_kthread_control = 0;
 
 static struct proc *random_kthread_proc;
 
-#ifdef NOTYET /* This is full of policy stuff, needs further discussion */
+#ifdef RANDOM_RWFILE
 static const char *entropy_files[] = {
 	"/entropy",
 	NULL
 };
+#endif
 
 /* Deal with entropy cached externally if this is present.
  * Lots of policy may eventually arrive in this function.
@@ -92,10 +95,13 @@ static const char *entropy_files[] = {
 static void
 random_harvestq_cache(void *arg __unused)
 {
-	const char **entropy_file;
-	uint8_t *keyfile, *data, *zbuf;
+	uint8_t *keyfile, *data;
 	size_t size, i;
+#ifdef RANDOM_RWFILE
+	const char **entropy_file;
+	uint8_t *zbuf;
 	int error;
+#endif
 
 	/* Get stuff that may have been preloaded by loader(8) */
 	keyfile = preload_search_by_type("/boot/entropy");
@@ -112,6 +118,7 @@ random_harvestq_cache(void *arg __unused)
 			printf("random: no preloaded entropy cache available\n");
 	}
 
+#ifdef RANDOM_RWFILE
 	/* Read and attempt to overwrite the entropy cache files.
 	 * If the file exists, can be read and then overwritten,
 	 * then use it. Ignore it otherwise, but print out what is
@@ -137,9 +144,9 @@ random_harvestq_cache(void *arg __unused)
 	}
 	bzero(data, PAGE_SIZE);
 	free(data, M_ENTROPY);
+#endif
 }
 EVENTHANDLER_DEFINE(mountroot, random_harvestq_cache, NULL, 0);
-#endif /* NOTYET */
 
 static void
 random_kthread(void *arg)

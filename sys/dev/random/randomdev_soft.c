@@ -28,12 +28,12 @@
 
 #include "opt_random.h"
 
-#if !defined(YARROW_RNG) && !defined(FORTUNA_RNG)
-#define YARROW_RNG
-#elif defined(YARROW_RNG) && defined(FORTUNA_RNG)
-#error "Must define either YARROW_RNG or FORTUNA_RNG"
+#if !defined(RANDOM_YARROW) && !defined(RANDOM_FORTUNA)
+#define RANDOM_YARROW
+#elif defined(RANDOM_YARROW) && defined(RANDOM_FORTUNA)
+#error "Must define either RANDOM_YARROW or RANDOM_FORTUNA"
 #endif
-#if defined(FORTUNA_RNG)
+#if defined(RANDOM_FORTUNA)
 #error "Fortuna is not yet implemented"
 #endif
 
@@ -62,10 +62,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/randomdev_soft.h>
 #include <dev/random/random_harvestq.h>
 #include <dev/random/random_adaptors.h>
-#if defined(YARROW_RNG)
+#if defined(RANDOM_YARROW)
 #include <dev/random/yarrow.h>
 #endif
-#if defined(FORTUNA_RNG)
+#if defined(RANDOM_FORTUNA)
 #include <dev/random/fortuna.h>
 #endif
 
@@ -74,7 +74,7 @@ static int randomdev_poll(int event, struct thread *td);
 static int randomdev_block(int flag);
 static void randomdev_flush_reseed(void);
 
-#if defined(YARROW_RNG)
+#if defined(RANDOM_YARROW)
 static struct random_adaptor random_context = {
 	.ident = "Software, Yarrow",
 	.init = randomdev_init,
@@ -89,7 +89,7 @@ static struct random_adaptor random_context = {
 #define RANDOM_CSPRNG_NAME	"yarrow"
 #endif
 
-#if defined(FORTUNA_RNG)
+#if defined(RANDOM_FORTUNA)
 static struct random_adaptor random_context = {
 	.ident = "Software, Fortuna",
 	.init = randomdev_init,
@@ -123,10 +123,10 @@ randomdev_init(void)
 {
 	struct sysctl_oid *random_sys_o, *random_sys_harvest_o;
 
-#if defined(YARROW_RNG)
+#if defined(RANDOM_YARROW)
 	random_yarrow_init_alg(&random_clist);
 #endif
-#if defined(FORTUNA_RNG)
+#if defined(RANDOM_FORTUNA)
 	random_fortuna_init_alg(&random_clist);
 #endif
 
@@ -186,10 +186,10 @@ randomdev_deinit(void)
 	random_kthread_control = -1;
 	tsleep((void *)&random_kthread_control, 0, "term", 0);
 
-#if defined(YARROW_RNG)
+#if defined(RANDOM_YARROW)
 	random_yarrow_deinit_alg();
 #endif
-#if defined(FORTUNA_RNG)
+#if defined(RANDOM_FORTUNA)
 	random_fortuna_deinit_alg();
 #endif
 
@@ -258,11 +258,11 @@ randomdev_flush_reseed(void)
 	while (random_kthread_control)
 		pause("-", hz / 10);
 
-#if defined(YARROW_RNG)
+#if defined(RANDOM_YARROW)
 	/* This ultimately calls randomdev_unblock() */
 	random_yarrow_reseed();
 #endif
-#if defined(FORTUNA_RNG)
+#if defined(RANDOM_FORTUNA)
 	/* This ultimately calls randomdev_unblock() */
 	random_fortuna_reseed();
 #endif
