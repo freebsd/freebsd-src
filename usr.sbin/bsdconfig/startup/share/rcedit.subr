@@ -69,11 +69,11 @@ f_dialog_rcedit()
 
 	# Return if user has either pressed ESC or chosen Cancel/No
 	f_dialog_input _input "$msg" "$_input" \
-	               "$hline_alnum_punc_tab_enter" || return
+	               "$hline_alnum_punc_tab_enter" || return $?
 
 	# Return if the value has not changed from current
 	local cur_val="$( f_sysrc_get "$var" )"
-	[ "$_input" = "$cur_val" ] && return $SUCCESS
+	[ "$_input" = "$cur_val" ] && return $DIALOG_OK
 
 	f_dprintf "%s: [%s]->[%s]" "$var" "$cur_val" "$_input"
 

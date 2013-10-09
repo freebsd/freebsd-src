@@ -2415,7 +2415,7 @@ xptsetasyncbusfunc(struct cam_eb *bus, void *arg)
 	struct ccb_setasync *csa = (struct ccb_setasync *)arg;
 
 	xpt_compile_path(&path, /*periph*/NULL,
-			 bus->sim->path_id,
+			 bus->path_id,
 			 CAM_TARGET_WILDCARD,
 			 CAM_LUN_WILDCARD);
 	xpt_setup_ccb(&cpi.ccb_h, &path, CAM_PRIORITY_NORMAL);
@@ -3840,13 +3840,8 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 		/* Couldn't satisfy request */
 		return (CAM_RESRC_UNAVAIL);
 	}
-	if (strcmp(sim->sim_name, "xpt") != 0) {
-		sim->path_id =
-		    xptpathid(sim->sim_name, sim->unit_number, sim->bus_id);
-	}
 
 	TAILQ_INIT(&new_bus->et_entries);
-	new_bus->path_id = sim->path_id;
 	cam_sim_hold(sim);
 	new_bus->sim = sim;
 	timevalclear(&new_bus->last_reset);
@@ -3855,6 +3850,8 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 	new_bus->generation = 0;
 
 	xpt_lock_buses();
+	sim->path_id = new_bus->path_id =
+	    xptpathid(sim->sim_name, sim->unit_number, sim->bus_id);
 	old_bus = TAILQ_FIRST(&xsoftc.xpt_busses);
 	while (old_bus != NULL
 	    && old_bus->path_id < new_bus->path_id)
@@ -3958,8 +3955,8 @@ xptnextfreepathid(void)
 	path_id_t pathid;
 	const char *strval;
 
+	mtx_assert(&xsoftc.xpt_topo_lock, MA_OWNED);
 	pathid = 0;
-	xpt_lock_buses();
 	bus = TAILQ_FIRST(&xsoftc.xpt_busses);
 retry:
 	/* Find an unoccupied pathid */
@@ -3968,7 +3965,6 @@ retry:
 			pathid++;
 		bus = TAILQ_NEXT(bus, links);
 	}
-	xpt_unlock_buses();
 
 	/*
 	 * Ensure that this pathid is not reserved for
@@ -3977,7 +3973,6 @@ retry:
 	if (resource_string_value("scbus", pathid, "at", &strval) == 0) {
 		++pathid;
 		/* Start the search over */
-		xpt_lock_buses();
 		goto retry;
 	}
 	return (pathid);
@@ -3993,6 +3988,8 @@ xptpathid(const char *sim_name, int sim_unit, int sim_bus)
 
 	pathid = CAM_XPT_PATH_ID;
 	snprintf(buf, sizeof(buf), "%s%d", sim_name, sim_unit);
+	if (strcmp(buf, "xpt0") == 0 && sim_bus == 0)
+		return (pathid);
 	i = 0;
 	while ((resource_find_match(&i, &dname, &dunit, "at", buf)) == 0) {
 		if (strcmp(dname, "scbus")) {

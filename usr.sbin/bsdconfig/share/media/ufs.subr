@@ -177,7 +177,7 @@ f_media_shutdown_ufs()
 {
 	local dev="$1" err
 
-	[ "$UFS_MOUNTED" ] || return
+	[ "$UFS_MOUNTED" ] || return $FAILURE
 
 	if ! err=$( umount -f "$MOUNTPOINT" 2>&1 ); then
 		err="${err#umount: }"; err="${err#*: }"
