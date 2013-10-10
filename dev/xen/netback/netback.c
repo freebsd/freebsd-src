@@ -1706,7 +1706,7 @@ xnb_txpkt2gnttab(const struct xnb_pkt *pkt, const struct mbuf *mbufc,
 
 	while (size_remaining > 0) {
 		const netif_tx_request_t *txq = RING_GET_REQUEST(txb, r_idx);
-		const size_t mbuf_space = M_TRAILINGSPACE(mbuf) - m_ofs;
+		const size_t mbuf_space = M_TRAILINGSPACE(__DECONST(struct mbuf *, mbuf)) - m_ofs;
 		const size_t req_size =
 			r_idx == pkt->car ? pkt->car_size : txq->size;
 		const size_t pkt_space = req_size - r_ofs;
@@ -1739,7 +1739,7 @@ xnb_txpkt2gnttab(const struct xnb_pkt *pkt, const struct mbuf *mbufc,
 			r_ofs = 0;
 			r_idx = (r_idx == pkt->car) ? pkt->cdr : r_idx + 1;
 		}
-		if (M_TRAILINGSPACE(mbuf) - m_ofs <= 0) {
+		if (M_TRAILINGSPACE(__DECONST(struct mbuf *, mbuf)) - m_ofs <= 0) {
 			/* Must move to the next mbuf */
 			m_ofs = 0;
 			mbuf = mbuf->m_next;

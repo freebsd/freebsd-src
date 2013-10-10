@@ -122,6 +122,17 @@ SYSCTL_QUAD(_kern_ipc, OID_AUTO, maxmbufmem, CTLFLAG_RDTUN, &maxmbufmem, 0,
 static uma_zone_t	m_getzone(int);
 
 /*
+ * Ensure the correct size of various mbuf parameters.  It could be off due
+ * to compiler-induced padding and alignment artifacts.
+ */
+CTASSERT(sizeof(struct mbuf) == MSIZE);
+CTASSERT(MSIZE - offsetof(struct mbuf, m_dat) == MLEN);
+CTASSERT(MSIZE - offsetof(struct mbuf, m_pktdat) == MHLEN);
+
+/* Ensure that MSIZE is a power of 2. */
+CTASSERT((((MSIZE - 1) ^ MSIZE) + 1) >> 1 == MSIZE);
+
+/*
  * tunable_mbinit() has to be run before any mbuf allocations are done.
  */
 static void
@@ -287,9 +298,6 @@ static void	mb_zfini_pack(void *, int);
 
 static void	mb_reclaim(void *);
 static void    *mbuf_jumbo_alloc(uma_zone_t, int, uint8_t *, int);
-
-/* Ensure that MSIZE is a power of 2. */
-CTASSERT((((MSIZE - 1) ^ MSIZE) + 1) >> 1 == MSIZE);
 
 /*
  * Initialize FreeBSD Network buffer allocation.

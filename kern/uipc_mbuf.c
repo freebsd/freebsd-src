@@ -85,14 +85,6 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragrandomfailures, CTLFLAG_RW,
 #endif
 
 /*
- * Ensure the correct size of various mbuf parameters.  It could be off due
- * to compiler-induced padding and alignment artifacts.
- */
-CTASSERT(sizeof(struct mbuf) == MSIZE);
-CTASSERT(MSIZE - offsetof(struct mbuf, m_dat) == MLEN);
-CTASSERT(MSIZE - offsetof(struct mbuf, m_pktdat) == MHLEN);
-
-/*
  * Attach the cluster from *m to *n, set up m_ext in *n
  * and bump the refcount of the cluster.
  */
@@ -1764,6 +1756,82 @@ m_unshare(struct mbuf *m0, int how)
 		mprev = mfirst;
 	}
 	return (m0);
+}
+
+int
+_m_writable(struct mbuf *m)
+{
+
+	return (!((m)->m_flags & M_RDONLY) &&
+	    (!(((m)->m_flags & M_EXT)) || (*((m)->m_ext.ref_cnt) == 1)) );
+}
+
+void
+_m_align(struct mbuf *m, int len)
+{
+	KASSERT(!((m)->m_flags & (M_PKTHDR|M_EXT)),
+		("%s: M_ALIGN not normal mbuf", __func__));
+	KASSERT((m)->m_data == (m)->m_dat,
+		("%s: M_ALIGN not a virgin mbuf", __func__));
+	(m)->m_data += (MLEN - (len)) & ~(sizeof(long) - 1);
+}
+
+void
+_mh_align(struct mbuf *m, int len)
+{
+	KASSERT((m)->m_flags & M_PKTHDR && !((m)->m_flags & M_EXT),
+		("%s: MH_ALIGN not PKTHDR mbuf", __func__));
+	KASSERT((m)->m_data == (m)->m_pktdat,
+		("%s: MH_ALIGN not a virgin mbuf", __func__));
+	(m)->m_data += (MHLEN - (len)) & ~(sizeof(long) - 1);
+}
+
+void
+_mext_align(struct mbuf *m, int len)
+{
+	KASSERT((m)->m_flags & M_EXT,
+		("%s: MEXT_ALIGN not an M_EXT mbuf", __func__));
+	KASSERT((m)->m_data == (m)->m_ext.ext_buf,
+		("%s: MEXT_ALIGN not a virgin mbuf", __func__));
+	(m)->m_data += ((m)->m_ext.ext_size - (len)) &
+	    ~(sizeof(long) - 1);
+}
+
+int
+_m_leadingspace(struct mbuf *m)
+{
+	return ((m)->m_flags & M_EXT ?
+	    (M_WRITABLE(m) ? (m)->m_data - (m)->m_ext.ext_buf : 0):
+	    (m)->m_flags & M_PKTHDR ? (m)->m_data - (m)->m_pktdat :
+	    (m)->m_data - (m)->m_dat);
+}
+
+int
+_m_trailingspace(struct mbuf *m)
+{
+	return ((m)->m_flags & M_EXT ?
+	    (M_WRITABLE(m) ? (m)->m_ext.ext_buf + (m)->m_ext.ext_size
+		- ((m)->m_data + (m)->m_len) : 0) :
+	    &(m)->m_dat[MLEN] - ((m)->m_data + (m)->m_len));
+}
+
+void
+_m_prepend(struct mbuf *m, int plen, int how)
+{
+	struct mbuf **_mmp = &(m);
+	struct mbuf *_mm = *_mmp;
+	int _mplen = (plen);
+	int __mhow = (how);
+
+	MBUF_CHECKSLEEP(how);
+	if (M_LEADINGSPACE(_mm) >= _mplen) {
+		_mm->m_data -= _mplen;
+		_mm->m_len += _mplen;
+	} else
+		_mm = m_prepend(_mm, _mplen, __mhow);
+	if (_mm != NULL && _mm->m_flags & M_PKTHDR)
+		_mm->m_pkthdr.len += _mplen;
+	*_mmp = _mm;
 }
 
 #ifdef MBUF_PROFILING
