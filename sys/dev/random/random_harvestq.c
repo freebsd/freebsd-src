@@ -129,7 +129,7 @@ random_harvestq_cache(void *arg __unused)
 	for (entropy_file = entropy_files; *entropy_file; entropy_file++) {
 		error = randomdev_read_file(*entropy_file, data, PAGE_SIZE);
 		if (error == 0) {
-			printf("random: entropy cache '%s' provides %d bytes\n", *entropy_file, PAGE_SIZE);
+			printf("random: entropy cache '%s' provides %ld bytes\n", *entropy_file, (long)PAGE_SIZE);
 			error = randomdev_write_file(*entropy_file, zbuf, PAGE_SIZE);
 			if (error == 0) {
 				printf("random: entropy cache '%s' contents used and successfully overwritten\n", *entropy_file);
