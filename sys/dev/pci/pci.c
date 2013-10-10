@@ -162,7 +162,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_delete_resource,	pci_delete_resource),
 	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
 	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
+	DEVMETHOD(bus_release_resource,	pci_release_resource),
 	DEVMETHOD(bus_activate_resource, pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
 	DEVMETHOD(bus_child_pnpinfo_str, pci_child_pnpinfo_str_method),
@@ -4172,11 +4172,11 @@ struct resource *
 pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		   u_long start, u_long end, u_long count, u_int flags)
 {
-	struct pci_devinfo *dinfo = device_get_ivars(child);
-	struct resource_list *rl = &dinfo->resources;
+	struct pci_devinfo *dinfo;
+	struct resource_list *rl;
 	struct resource_list_entry *rle;
 	struct resource *res;
-	pcicfgregs *cfg = &dinfo->cfg;
+	pcicfgregs *cfg;
 
 	if (device_get_parent(child) != dev)
 		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
@@ -4185,6 +4185,9 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	/*
 	 * Perform lazy resource allocation
 	 */
+	dinfo = device_get_ivars(child);
+	rl = &dinfo->resources;
+	cfg = &dinfo->cfg;
 	switch (type) {
 	case SYS_RES_IRQ:
 		/*
@@ -4237,6 +4240,41 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	}
 	return (resource_list_alloc(rl, dev, child, type, rid,
 	    start, end, count, flags));
+}
+
+int
+pci_release_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	struct pci_devinfo *dinfo;
+	struct resource_list *rl;
+	pcicfgregs *cfg;
+
+	if (device_get_parent(child) != dev)
+		return (BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
+		    type, rid, r));
+
+	dinfo = device_get_ivars(child);
+	cfg = &dinfo->cfg;
+#ifdef NEW_PCIB
+	/*
+	 * PCI-PCI bridge I/O window resources are not BARs.  For
+	 * those allocations just pass the request up the tree.
+	 */
+	if (cfg->hdrtype == PCIM_HDRTYPE_BRIDGE &&
+	    (type == SYS_RES_IOPORT || type == SYS_RES_MEMORY)) {
+		switch (rid) {
+		case PCIR_IOBASEL_1:
+		case PCIR_MEMBASE_1:
+		case PCIR_PMBASEL_1:
+			return (bus_generic_release_resource(dev, child, type,
+			    rid, r));
+		}
+	}
+#endif
+
+	rl = &dinfo->resources;
+	return (resource_list_release(rl, dev, child, type, rid, r));
 }
 
 int

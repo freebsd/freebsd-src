@@ -73,7 +73,8 @@ struct pcib_window {
 	pci_addr_t	base;		/* base address */
 	pci_addr_t	limit;		/* topmost address */
 	struct rman	rman;
-	struct resource *res;
+	struct resource **res;
+	int		count;		/* size of 'res' array */
 	int		reg;		/* resource id from parent */
 	int		valid;
 	int		mask;		/* WIN_* bitmask of this window */
