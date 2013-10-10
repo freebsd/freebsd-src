@@ -19,6 +19,7 @@ FILES=	DAEMON \
 	atm2 \
 	atm3 \
 	auditd \
+	auditdistd \
 	bgfsck \
 	${_bluetooth} \
 	bootparams \
