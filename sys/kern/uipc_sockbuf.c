@@ -65,7 +65,7 @@ u_long sb_max_adj =
 
 static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
 
-static void	sbdrop_internal(struct sockbuf *sb, int len);
+static struct mbuf	*sbcut_internal(struct sockbuf *sb, int len);
 static void	sbflush_internal(struct sockbuf *sb);
 
 /*
@@ -818,7 +818,7 @@ sbflush_internal(struct sockbuf *sb)
 		 */
 		if (!sb->sb_cc && (sb->sb_mb == NULL || sb->sb_mb->m_len))
 			break;
-		sbdrop_internal(sb, (int)sb->sb_cc);
+		m_freem(sbcut_internal(sb, (int)sb->sb_cc));
 	}
 	if (sb->sb_cc || sb->sb_mb || sb->sb_mbcnt)
 		panic("sbflush_internal: cc %u || mb %p || mbcnt %u",
@@ -843,15 +843,16 @@ sbflush(struct sockbuf *sb)
 }
 
 /*
- * Drop data from (the front of) a sockbuf.
+ * Cut data from (the front of) a sockbuf.
  */
-static void
-sbdrop_internal(struct sockbuf *sb, int len)
+static struct mbuf *
+sbcut_internal(struct sockbuf *sb, int len)
 {
-	struct mbuf *m;
-	struct mbuf *next;
+	struct mbuf *m, *n, *next, *mfree;
 
 	next = (m = sb->sb_mb) ? m->m_nextpkt : 0;
+	mfree = NULL;
+
 	while (len > 0) {
 		if (m == 0) {
 			if (next == 0)
@@ -872,11 +873,17 @@ sbdrop_internal(struct sockbuf *sb, int len)
 		}
 		len -= m->m_len;
 		sbfree(sb, m);
-		m = m_free(m);
+		n = m->m_next;
+		m->m_next = mfree;
+		mfree = m;
+		m = n;
 	}
 	while (m && m->m_len == 0) {
 		sbfree(sb, m);
-		m = m_free(m);
+		n = m->m_next;
+		m->m_next = mfree;
+		mfree = m;
+		m = n;
 	}
 	if (m) {
 		sb->sb_mb = m;
@@ -894,6 +901,8 @@ sbdrop_internal(struct sockbuf *sb, int len)
 	} else if (m->m_nextpkt == NULL) {
 		sb->sb_lastrecord = m;
 	}
+
+	return (mfree);
 }
 
 /*
@@ -904,17 +913,31 @@ sbdrop_locked(struct sockbuf *sb, int len)
 {
 
 	SOCKBUF_LOCK_ASSERT(sb);
+	m_freem(sbcut_internal(sb, len));
+}
 
-	sbdrop_internal(sb, len);
+/*
+ * Drop data from (the front of) a sockbuf,
+ * and return it to caller.
+ */
+struct mbuf *
+sbcut_locked(struct sockbuf *sb, int len)
+{
+
+	SOCKBUF_LOCK_ASSERT(sb);
+	return (sbcut_internal(sb, len));
 }
 
 void
 sbdrop(struct sockbuf *sb, int len)
 {
+	struct mbuf *mfree;
 
 	SOCKBUF_LOCK(sb);
-	sbdrop_locked(sb, len);
+	mfree = sbcut_internal(sb, len);
 	SOCKBUF_UNLOCK(sb);
+
+	m_freem(mfree);
 }
 
 /*

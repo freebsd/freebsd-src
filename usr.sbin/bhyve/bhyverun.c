@@ -37,12 +37,14 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <err.h>
 #include <libgen.h>
 #include <unistd.h>
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
 #include <pthread_np.h>
+#include <sysexits.h>
 
 #include <machine/vmm.h>
 #include <vmmapi.h>
@@ -123,7 +125,7 @@ usage(int code)
 		" <vmname>\n"
 		"       -a: local apic is in XAPIC mode (default is X2APIC)\n"
 		"       -A: create an ACPI table\n"
-		"       -g: gdb port (default is %d and 0 means don't open)\n"
+		"       -g: gdb port\n"
 		"       -c: # cpus (default 1)\n"
 		"       -p: pin vcpu 'n' to host cpu 'pincpu + n'\n"
 		"       -H: vmexit from the guest on hlt\n"
@@ -134,7 +136,7 @@ usage(int code)
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
 		"       -S: <slot,driver,configinfo> legacy PCI slot config\n"
 		"       -m: memory size in MB\n",
-		progname, DEFAULT_GDB_PORT);
+		progname);
 
 	exit(code);
 }
@@ -214,17 +216,6 @@ fbsdrun_addcpu(struct vmctx *ctx, int vcpu, uint64_t rip)
 	error = pthread_create(&mt_vmm_info[vcpu].mt_thr, NULL,
 	    fbsdrun_start_thread, &mt_vmm_info[vcpu]);
 	assert(error == 0);
-}
-
-static int
-fbsdrun_get_next_cpu(int curcpu)
-{
-
-	/*
-	 * Get the next available CPU. Assumes they arrive
-	 * in ascending order with no gaps.
-	 */
-	return ((curcpu + 1) % foundcpus);
 }
 
 static int
@@ -504,7 +495,7 @@ main(int argc, char *argv[])
 
 	bvmcons = 0;
 	progname = basename(argv[0]);
-	gdb_port = DEFAULT_GDB_PORT;
+	gdb_port = 0;
 	guest_ncpus = 1;
 	ioapic = 0;
 	memsize = 256 * MB;
@@ -540,7 +531,9 @@ main(int argc, char *argv[])
 			else
 				break;
                 case 'm':
-			memsize = strtoul(optarg, NULL, 0) * MB;
+			error = vm_parse_memsize(optarg, &memsize);
+			if (error)
+				errx(EX_USAGE, "invalid memsize '%s'", optarg);
 			break;
 		case 'H':
 			guest_vmexit_on_hlt = 1;

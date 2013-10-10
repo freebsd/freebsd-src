@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 23, 2013
+.Dd October 10, 2013
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3891,14 +3891,32 @@ indicates that the highest frequency (less power savings) should be used.
 If set to
 .Dq Li NO ,
 any configured jails will not be started.
+.It Va jail_conf
+.Pq Vt str
+The configuration filename used by
+.Xr jail 8
+utility.
+The default value is
+.Pa /etc/jail.conf .
 .It Va jail_parallel_start
 .Pq Vt bool
 If set to
 .Dq Li YES ,
 all configured jails will be started in the background (in parallel).
+.It Va jail_flags
+.Pq Vt str
+Unset by default.
+When set, use as default value for
+.Va jail_ Ns Ao Ar jname Ac Ns Va _flags
+for every jail in
+.Va jail_list .
 .It Va jail_list
 .Pq Vt str
 A space separated list of names for jails.
+If this variable is empty,
+all of
+.Xr jail 8
+instances in the configuration file will be configured.
 This is purely a configuration aid to help identify and
 configure multiple jails.
 The names specified in this list will be used to
@@ -3908,171 +3926,41 @@ The literal jail name of
 .Dq Li 0
 .Pq zero
 is not allowed.
-.Pp
-Assuming that the jail in question was named
-.Li vjail ,
-you would have the following dependent variables:
-.Bd -literal
-jail_vjail_hostname="jail.example.com"
-jail_vjail_ip="192.0.2.100"
-jail_vjail_rootdir="/var/jails/vjail/root"
-.Ed
-.Pp
-.It Va jail_flags
-.Pq Vt str
-Unset by default.
-When set, use as default value for
-.Va jail_ Ns Ao Ar jname Ac Ns Va _flags
-for every jail in
-.Va jail_list .
-.It Va jail_interface
-.Pq Vt str
-Unset by default.
-When set, use as default value for
-.Va jail_ Ns Ao Ar jname Ac Ns Va _interface
-for every jail in
-.Va jail_list .
-.It Va jail_fstab
-.Pq Vt str
-Unset by default.
-When set, use as default value for
-.Va jail_ Ns Ao Ar jname Ac Ns Va _fstab
-for every jail in
-.Va jail_list .
-.It Va jail_mount_enable
-.Pq Vt bool
-Set to
-.Dq Li NO
-by default.
-When set to
-.Dq Li YES ,
-sets
-.Va jail_ Ns Ao Ar jname Ac Ns Va _mount_enable
-to
-.Dq Li YES
-by default for every jail in
-.Va jail_list .
-.It Va jail_devfs_ruleset
-.Pq Vt str
-Unset by default.
-When set, sets
-.Va jail_ Ns Ao Ar jname Ac Ns Va _devfs_ruleset
-to given value for every jail in
-.Va jail_list .
-.It Va jail_devfs_enable
-.Pq Vt bool
-Set to
-.Dq Li NO
-by default.
-When set to
-.Dq Li YES ,
-sets
-.Va jail_ Ns Ao Ar jname Ac Ns Va _devfs_enable
-to
-.Dq Li YES
-by default for every jail in
-.Va jail_list .
-.It Va jail_fdescfs_enable
-.Pq Vt bool
-Set to
-.Dq Li NO
-by default.
-When set to
-.Dq Li YES ,
-sets
-.Va jail_ Ns Ao Ar jname Ac Ns Va _fdescfs_enable
-to
-.Dq Li YES
-by default for every jail in
-.Va jail_list .
-.It Va jail_procfs_enable
-.Pq Vt bool
-Set to
-.Dq Li NO
-by default.
-When set to
-.Dq Li YES ,
-sets
-.Va jail_ Ns Ao Ar jname Ac Ns Va _fdescfs_enable
-to
-.Dq Li YES
-by default for every jail in
-.Va jail_list .
-.It Va jail_exec_prestart Ns Aq Ar N
-.Pq Vt str
-Unset by default.
-When set, use as default value for
-.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_prestart Ns Aq Ar N
-for every jail in
-.Va jail_list .
-.It Va jail_exec_start
-.Pq Vt str
-Unset by default.
-When set, use as default value for
-.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_start
-for every jail in
-.Va jail_list .
-.It Va jail_exec_afterstart Ns Aq Ar N
-.Pq Vt str
-Unset by default.
-When set, use as default value for
-.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_afterstart Ns Aq Ar N
-for every jail in
-.Va jail_list .
-.It Va jail_exec_poststart Ns Aq Ar N
-.Pq Vt str
-Unset by default.
-When set, use as default value for
-.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_poststart Ns Aq Ar N
-for every jail in
-.Va jail_list .
-.It Va jail_exec_prestop Ns Aq Ar N
-.Pq Vt str
-Unset by default.
-When set, use as default value for
-.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_prestop Ns Aq Ar N
-for every jail in
-.Va jail_list .
-.It Va jail_exec_stop
-Unset by default.
-When set, use as default value for
-.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_stop
-for every jail in
-.Va jail_list .
-.It Va jail_exec_poststop Ns Aq Ar N
-.Pq Vt str
-Unset by default.
-When set, use as default value for
-.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_poststop Ns Aq Ar N
-for every jail in
-.Va jail_list .
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _rootdir
-.Pq Vt str
-Unset by default.
-Set to the root directory used by jail
-.Va jname .
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _hostname
-.Pq Vt str
-Unset by default.
-Set to the fully qualified domain name (FQDN) assigned to jail
-.Va jname .
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _parameters
-.Pq Vt str
-Unset by default.
-Set extra parameters for jail
-.Va jname ,
-such as
-.Dq Li allow.chflags
-or
-.Dq Li children.max .
-See
+.It Va jail_* variables
+Note that older releases supported per-jail configuration via
+.Xr rc.conf 5
+variables.
+For example,
+hostname of a jail named
+.Li vjail
+was able to be set by
+.Li jail_vjail_hostname .
+These per-jail configuration variables are now obsolete in favor of
 .Xr jail 8
-for a list of available parameters.
-Note that the following parameters are already defined by
+configuration file.
+For backward compatibility,
+when per-jail configuration variables are defined,
+.Xr jail 8
+configuration files are created as
+.Pa /var/run/jail. Ns Ao Ar jname Ac Ns Pa .conf
+and used.
+.Pp
+The following per-jail parameters are handled by
 .Pa rc.d/jail
 script out of their corresponding
 .Nm
-variables:
+variables.
+In addition to them, parameters in
+.Va jail_ Ns Ao Ar jname Ac Ns Va _parameters
+will be added to the configuration file.
+They must be a semi-colon
+.Pq Ql \&;
+delimited list of
+.Dq key=value .
+For more details,
+see
+.Xr jail 8
+manual page.
 .Bl  -tag -width "host.hostname" -offset indent
 .It Li path
 set from
@@ -4080,202 +3968,90 @@ set from
 .It Li host.hostname
 set from
 .Va jail_ Ns Ao Ar jname Ac Ns Va _hostname
-.It Li command
+.It Li exec.consolelog
 set from
-.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_start
+.Va jail_ Ns Ao Ar jname Ac Ns Va _consolelog .
+The default value is
+.Pa /var/log/jail_ Ao Ar jname Ac Pa _console.log .
+.It Li interface
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _interface .
+.It Li vnet.interface
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _vnet_interface .
+This implies
+.Li vnet
+parameter will be enabled and cannot be specified with
+.Va jail_ Ns Ao Ar jname Ac Ns Va _interface ,
+.Va jail_ Ns Ao Ar jname Ac Ns Va _ip
+and/or
+.Va jail_ Ns Ao Ar jname Ac Ns Va _ip_multi Ns Aq Ar n
+at the same time.
+.It Li fstab
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _fstab
+.It Li mount
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _fdescfs_enable
+or
+.Va jail_ Ns Ao Ar jname Ac Ns Va _procfs_enable.
+.It Li exec.fib
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _fib
+.It Li exec.start
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_start .
+The parameter name was
+.Li command
+in some older releases.
+.It Li exec.prestart
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_prestart
+.It Li exec.poststart
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_poststart
+.It Li exec.stop
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_stop
+.It Li exec.prestop
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_prestop
+.It Li exec.poststop
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_poststop
 .It Li ip4.addr
 set if
 .Va jail_ Ns Ao Ar jname Ac Ns Va _ip
-contains IPv4 addresses
+or
+.Va jail_ Ns Ao Ar jname Ac Ns Va _ip_multi Ns Aq Ar n
+contain IPv4 addresses
 .It Li ip6.addr
 set if
-.Va jail_ Ns Ao Ar jname Ac Ns Va _ip6
-contains IPv6 addresses
-.El
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _ip
-.Pq Vt str
-Unset by default.
-Set to the (primary) IPv4 and/or IPv6 address(es) assigned to the jail.
-The argument can be a sole address or a comma separated list of addresses.
-Additionally each address can be prefixed by the name of an interface
-followed by a pipe to overwrite
-.Va jail_ Ns Ao Ar jname Ac Ns Va _interface
-or
-.Va jail_interface
-and/or suffixed by a netmask, prefixlen or prefix.
-In case no netmask, prefixlen or prefix is given,
-.Sq /32
-will be used for IPv4 and
-.Sq /128
-will be used for an IPv6 address.
-If no address is given for the jail then the jail will be started with
-no networking support.
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _ip_multi Ns Aq Ar n
-.Pq Vt str
-Unset by default.
-Set additional IPv4 and/or IPv6 address(es) assigned to the jail.
-The sequence starts with
-.Dq Li _multi0
-and the numbers have to be strictly ascending.
-These entries follow the same syntax as their primary
 .Va jail_ Ns Ao Ar jname Ac Ns Va _ip
-entry.
-The order of the entries can be important as the first address for
-each address family found will be the primary address of the jail.
-See
-.Va ip-addresses
-option in
-.Xr jail 8
-for more details.
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _flags
-.Pq Vt str
-Set to
-.Dq Li -l -U root
-by default.
-These are flags to pass to
-.Xr jail 8 .
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _interface
-.Pq Vt str
-Unset by default.
-When set, sets the interface to use when setting IP address alias.
-Note that the alias is created at jail startup and removed at jail shutdown.
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _fib
-.Pq Vt str
-Unset by default.
-When set, the jail is started with the specified forwarding table (sometimes
-referred to as a routing table) via
-.Xr setfib 1 .
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _fstab
-.Pq Vt str
-Set to
-.Pa /etc/fstab. Ns Aq Ar jname
-by default.
-This is the file system information file to use for jail
-.Va jname .
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _mount_enable
-.Pq Vt bool
-Set to
-.Dq Li NO
-by default.
-When set to
-.Dq Li YES ,
-mount all file systems from
-.Va jail_ Ns Ao Ar jname Ac Ns Va _fstab
-at jail startup.
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _devfs_ruleset
-.Pq Vt str
-Unset by default.
-When set, defines the device file system ruleset file to use for jail
-.Va jname .
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _devfs_enable
-.Pq Vt bool
-Set to
-.Dq Li NO
-by default.
-When set to
-.Dq Li YES ,
-mount the device file system inside jail
-.Ar jname
-at jail startup.
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _fdescfs_enable
-.Pq Vt bool
-Set to
-.Dq Li NO
-by default.
-When set to
-.Dq Li YES ,
-mount the file-descriptor file system inside jail
-.Ar jname
-at jail startup.
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _procfs_enable
-.Pq Vt bool
-Set to
-.Dq Li NO
-by default.
-When set to
-.Dq Li YES ,
-mount the process file system inside jail
-.Ar jname
-at jail startup.
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_prestart Ns Aq Ar N
-.Pq Vt str
-Unset by default.
-This is the command run as
-.Ar N Ns
-th command
-before jail startup, where
-.Ar N
-is 0, 1, and so on.
-It is run outside the jail.
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_start
-.Pq Vt str
-Set to
-.Dq Li /bin/sh /etc/rc
-by default.
-This is the command executed in a jail at jail startup.
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_afterstart Ns Aq Ar N
-.Pq Vt str
-Unset by default.
-This is the command run as
-.Ar N Ns
-th command
-in a jail
-after jail startup, where
-.Ar N
-is 1, 2, and so on.
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_poststart Ns Aq Ar N
-.Pq Vt str
-Unset by default.
-This is the command run as
-.Ar N Ns
-th command
-after jail startup, where
-.Ar N
-is 0, 1, and so on.
-It is run outside the jail.
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_prestop Ns Aq Ar N
-.Pq Vt str
-Unset by default.
-This is the command run as
-.Ar N Ns
-th command
-before jail shutdown, where
-.Ar N
-is 0, 1, and so on.
-It is run outside the jail.
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_stop
-.Pq Vt str
-Set to
-.Dq Li /bin/sh /etc/rc.shutdown
-by default.
-This is the command executed in a jail at jail shutdown.
-.It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_poststop Ns Aq Ar N
-.Pq Vt str
-Unset by default.
-This is the command run as
-.Ar N Ns
-th command
-after jail shutdown, where
-.Ar N
-is 0, 1, and so on.
-It is run outside the jail.
-.It Va jail_set_hostname_allow
-.Pq Vt bool
-If set to
-.Dq Li NO ,
-do not allow the root user in a jail to set its hostname.
-.It Va jail_socket_unixiproute_only
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-do not allow any sockets,
-besides UNIX/IP/route sockets,
-to be used within a jail.
-.It Va jail_sysvipc_allow
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-allow applications within a jail to use System V IPC.
+or
+.Va jail_ Ns Ao Ar jname Ac Ns Va _ip_multi Ns Aq Ar n
+contain IPv6 addresses
+.It Li allow.mount
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _mount_enable
+.It Li mount.devfs
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _devfs_enable
+.It Li devfs_ruleset
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _devfs_ruleset .
+This must be an integer,
+not a string.
+.It Li allow.set_hostname
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _set_hostname_allow
+.It Li allow.rawsocket
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _socket_unixiproute_only
+.It Li allow.sysvipc
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _sysvipc_allow
+.El
 .\" -----------------------------------------------------
 .It Va harvest_interrupt
 .Pq Vt bool

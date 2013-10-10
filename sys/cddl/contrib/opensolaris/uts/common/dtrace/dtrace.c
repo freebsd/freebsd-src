@@ -15751,10 +15751,6 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 #else
 	devfs_set_cdevpriv(state, dtrace_dtr);
 #endif
-	/* This code actually belongs in dtrace_attach() */
-	if (dtrace_opens == 1)
-		dtrace_taskq = taskq_create("dtrace_taskq", 1, maxclsyspri,
-		    1, INT_MAX, 0);
 #endif
 
 	mutex_exit(&cpu_lock);
@@ -15842,11 +15838,6 @@ dtrace_dtr(void *data)
 		(void) kdi_dtrace_set(KDI_DTSET_DTRACE_DEACTIVATE);
 #else
 	--dtrace_opens;
-	/* This code actually belongs in dtrace_detach() */
-	if ((dtrace_opens == 0) && (dtrace_taskq != NULL)) {
-		taskq_destroy(dtrace_taskq);
-		dtrace_taskq = NULL;
-	}
 #endif
 
 	mutex_exit(&dtrace_lock);
