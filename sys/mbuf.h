@@ -61,8 +61,8 @@
  * MHLEN is data length in an mbuf with pktheader.
  * MINCLSIZE is a smallest amount of data that should be put into cluster.
  */
-#define	MLEN		((int)(MSIZE - sizeof(struct m_hdr)))
-#define	MHLEN		((int)(MLEN - sizeof(struct pkthdr)))
+#define	MLEN		((int)(MSIZE - sizeof(struct mh_hdr)))
+#define	MHLEN		((int)(MLEN - sizeof(struct mh_pkthdr)))
 #define	MINCLSIZE	(MHLEN + 1)
 
 #ifdef _KERNEL
@@ -71,7 +71,7 @@
  * type:
  *
  * mtod(m, t)	-- Convert mbuf pointer to data pointer of correct type.
- * mtodo(m, o) -- Same as above but with offset 'o' into data.
+ * mtodo(m, o)	-- Same as above but with offset 'o' into data.
  */
 #define	mtod(m, t)	((t)((m)->m_data))
 #define	mtodo(m, o)	((void *)(((m)->m_data) + (o)))
@@ -91,7 +91,7 @@ struct mb_args {
  * Size ILP32: 24
  *	 LP64: 32
  */
-struct m_hdr {
+struct mh_hdr {
 	struct mbuf	*mh_next;	/* next buffer in chain */
 	struct mbuf	*mh_nextpkt;	/* next chain in queue/record */
 	caddr_t		 mh_data;	/* location of data */
@@ -105,6 +105,8 @@ struct m_hdr {
 
 /*
  * Packet tag structure (see below for details).
+ * Size ILP32: 16
+ *	 LP64: 24
  */
 struct m_tag {
 	SLIST_ENTRY(m_tag)	m_tag_link;	/* List of packet tags */
@@ -119,7 +121,7 @@ struct m_tag {
  * Size ILP32: 48
  *	 LP64: 56
  */
-struct pkthdr {
+struct mh_pkthdr {
 	struct ifnet	*rcvif;		/* rcv interface */
 	SLIST_HEAD(packet_tags, m_tag) tags; /* list of packet tags */
 	int32_t		 len;		/* total packet length */
@@ -166,7 +168,7 @@ struct pkthdr {
  * Size ILP32: 28
  *	 LP64: 48
  */
-struct m_ext {
+struct mh_ext {
 	volatile u_int	*ref_cnt;	/* pointer to ref count info */
 	caddr_t		 ext_buf;	/* start of buffer */
 	uint32_t	 ext_size;	/* size of buffer, for ext_free */
@@ -183,12 +185,12 @@ struct m_ext {
  * purposes.
  */
 struct mbuf {
-	struct m_hdr	m_hdr;
+	struct mh_hdr	m_hdr;
 	union {
 		struct {
-			struct pkthdr	MH_pkthdr;	/* M_PKTHDR set */
+			struct mh_pkthdr	MH_pkthdr;	/* M_PKTHDR set */
 			union {
-				struct m_ext	MH_ext;	/* M_EXT set */
+				struct mh_ext	MH_ext;	/* M_EXT set */
 				char		MH_databuf[MHLEN];
 			} MH_dat;
 		} MH;

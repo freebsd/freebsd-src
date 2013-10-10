@@ -397,7 +397,7 @@ m_demote(struct mbuf *m0, int all)
 		if (m->m_flags & M_PKTHDR) {
 			m_tag_delete_chain(m, NULL);
 			m->m_flags &= ~M_PKTHDR;
-			bzero(&m->m_pkthdr, sizeof(struct pkthdr));
+			bzero(&m->m_pkthdr, sizeof(struct mh_pkthdr));
 		}
 		if (m != m0 && m->m_nextpkt != NULL) {
 			KASSERT(m->m_nextpkt == NULL,
