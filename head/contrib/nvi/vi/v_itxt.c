@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_itxt.c	10.16 (Berkeley) 10/23/96";
+static const char sccsid[] = "$Id: v_itxt.c,v 10.21 2001/06/25 15:19:32 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -66,9 +66,7 @@ static u_int32_t set_txt_std __P((SCR *, VICMD *, u_int32_t));
  * PUBLIC: int v_iA __P((SCR *, VICMD *));
  */
 int
-v_iA(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_iA(SCR *sp, VICMD *vp)
 {
 	size_t len;
 
@@ -88,14 +86,12 @@ v_iA(sp, vp)
  * PUBLIC: int v_ia __P((SCR *, VICMD *));
  */
 int
-v_ia(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_ia(SCR *sp, VICMD *vp)
 {
 	size_t len;
 	u_int32_t flags;
 	int isempty;
-	char *p;
+	CHAR_T *p;
 
 	flags = set_txt_std(sp, vp, 0);
 	sp->showmode = SM_APPEND;
@@ -127,9 +123,7 @@ v_ia(sp, vp)
  * PUBLIC: int v_iI __P((SCR *, VICMD *));
  */
 int
-v_iI(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_iI(SCR *sp, VICMD *vp)
 {
 	sp->cno = 0;
 	if (nonblank(sp, vp->m_start.lno, &sp->cno))
@@ -148,14 +142,12 @@ v_iI(sp, vp)
  * PUBLIC: int v_ii __P((SCR *, VICMD *));
  */
 int
-v_ii(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_ii(SCR *sp, VICMD *vp)
 {
 	size_t len;
 	u_int32_t flags;
 	int isempty;
-	char *p;
+	CHAR_T *p;
 
 	flags = set_txt_std(sp, vp, 0);
 	sp->showmode = SM_INSERT;
@@ -183,9 +175,7 @@ static int io __P((SCR *, VICMD *, enum which));
  * PUBLIC: int v_iO __P((SCR *, VICMD *));
  */
 int
-v_iO(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_iO(SCR *sp, VICMD *vp)
 {
 	return (io(sp, vp, O_cmd));
 }
@@ -197,23 +187,18 @@ v_iO(sp, vp)
  * PUBLIC: int v_io __P((SCR *, VICMD *));
  */
 int
-v_io(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_io(SCR *sp, VICMD *vp)
 {
 	return (io(sp, vp, o_cmd));
 }
 
 static int
-io(sp, vp, cmd)
-	SCR *sp;
-	VICMD *vp;
-	enum which cmd;
+io(SCR *sp, VICMD *vp, enum which cmd)
 {
 	recno_t ai_line, lno;
 	size_t len;
 	u_int32_t flags;
-	char *p;
+	CHAR_T *p;
 
 	flags = set_txt_std(sp, vp, TXT_ADDNEWLINE | TXT_APPENDEOL);
 	sp->showmode = SM_INSERT;
@@ -227,7 +212,7 @@ io(sp, vp, cmd)
 		len = 0;
 		ai_line = OOBLNO;
 	} else {
-insert:		p = "";
+insert:		p = L("");
 		sp->cno = 0;
 		LOG_CORRECT;
 
@@ -258,14 +243,13 @@ insert:		p = "";
  * PUBLIC: int v_change __P((SCR *, VICMD *));
  */
 int
-v_change(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_change(SCR *sp, VICMD *vp)
 {
 	size_t blen, len;
 	u_int32_t flags;
 	int isempty, lmode, rval;
-	char *bp, *p;
+	CHAR_T *bp;
+	CHAR_T *p;
 
 	/*
 	 * 'c' can be combined with motion commands that set the resulting
@@ -356,8 +340,8 @@ v_change(sp, vp)
 		 */
 		if (db_get(sp, vp->m_start.lno, DBG_FATAL, &p, &len))
 			return (1);
-		GET_SPACE_RET(sp, bp, blen, vp->m_start.cno);
-		memmove(bp, p, vp->m_start.cno);
+		GET_SPACE_RETW(sp, bp, blen, vp->m_start.cno);
+		MEMMOVE(bp, p, vp->m_start.cno);
 	} else
 		bp = NULL;
 
@@ -388,7 +372,7 @@ v_change(sp, vp)
 	    0, OOBLNO, F_ISSET(vp, VC_C1SET) ? vp->count : 1, flags);
 
 	if (bp != NULL)
-		FREE_SPACE(sp, bp, blen);
+		FREE_SPACEW(sp, bp, blen);
 	return (rval);
 }
 
@@ -399,14 +383,12 @@ v_change(sp, vp)
  * PUBLIC: int v_Replace __P((SCR *, VICMD *));
  */
 int
-v_Replace(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_Replace(SCR *sp, VICMD *vp)
 {
 	size_t len;
 	u_int32_t flags;
 	int isempty;
-	char *p;
+	CHAR_T *p;
 
 	flags = set_txt_std(sp, vp, 0);
 	sp->showmode = SM_REPLACE;
@@ -435,14 +417,12 @@ v_Replace(sp, vp)
  * PUBLIC: int v_subst __P((SCR *, VICMD *));
  */
 int
-v_subst(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_subst(SCR *sp, VICMD *vp)
 {
 	size_t len;
 	u_int32_t flags;
 	int isempty;
-	char *p;
+	CHAR_T *p;
 
 	flags = set_txt_std(sp, vp, 0);
 	sp->showmode = SM_CHANGE;
@@ -477,10 +457,7 @@ v_subst(sp, vp)
  *	Initialize text processing flags.
  */
 static u_int32_t
-set_txt_std(sp, vp, flags)
-	SCR *sp;
-	VICMD *vp;
-	u_int32_t flags;
+set_txt_std(SCR *sp, VICMD *vp, u_int32_t flags)
 {
 	LF_SET(TXT_CNTRLT |
 	    TXT_ESCAPE | TXT_MAPINPUT | TXT_RECORD | TXT_RESOLVE);

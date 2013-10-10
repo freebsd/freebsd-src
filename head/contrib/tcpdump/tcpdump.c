@@ -71,6 +71,8 @@ extern int SIZE_BUF;
 #ifdef __FreeBSD__
 #include <sys/capability.h>
 #include <sys/ioccom.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
 #include <net/bpf.h>
 #include <fcntl.h>
 #include <libgen.h>
@@ -713,8 +715,9 @@ main(int argc, char **argv)
 	int status;
 	FILE *VFile;
 #ifdef __FreeBSD__
+	cap_rights_t rights;
 	int cansandbox;
-#endif
+#endif	/* __FreeBSD__ */
 
 #ifdef WIN32
 	if(wsockinit() != 0) return 1;
@@ -1204,7 +1207,8 @@ main(int argc, char **argv)
 		if (pd == NULL)
 			error("%s", ebuf);
 #ifdef __FreeBSD__
-		if (cap_rights_limit(fileno(pcap_file(pd)), CAP_READ) < 0 &&
+		cap_rights_init(&rights, CAP_READ);
+		if (cap_rights_limit(fileno(pcap_file(pd)), &rights) < 0 &&
 		    errno != ENOSYS) {
 			error("unable to limit pcap descriptor");
 		}
@@ -1307,6 +1311,27 @@ main(int argc, char **argv)
 			         *cp != '\0')
 				error("%s: %s\n(%s)", device,
 				    pcap_statustostr(status), cp);
+#ifdef __FreeBSD__
+			else if (status == PCAP_ERROR_RFMON_NOTSUP &&
+			    strncmp(device, "wlan", 4) == 0) {
+				char parent[8], newdev[8];
+				char sysctl[32];
+				size_t s = sizeof(parent);
+
+				snprintf(sysctl, sizeof(sysctl),
+				    "net.wlan.%d.%%parent", atoi(device + 4));
+				sysctlbyname(sysctl, parent, &s, NULL, 0);
+				strlcpy(newdev, device, sizeof(newdev));
+				/* Suggest a new wlan device. */
+				newdev[strlen(newdev)-1]++;
+				error("%s is not a monitor mode VAP\n"
+				    "To create a new monitor mode VAP use:\n"
+				    "  ifconfig %s create wlandev %s wlanmode "
+				    "monitor\nand use %s as the tcpdump "
+				    "interface", device, newdev, parent,
+				    newdev);
+			}
+#endif
 			else
 				error("%s: %s", device,
 				    pcap_statustostr(status));
@@ -1461,8 +1486,9 @@ main(int argc, char **argv)
 	if (RFileName == NULL && VFileName == NULL) {
 		static const unsigned long cmds[] = { BIOCGSTATS };
 
-		if (cap_rights_limit(pcap_fileno(pd),
-		    CAP_IOCTL | CAP_READ) < 0 && errno != ENOSYS) {
+		cap_rights_init(&rights, CAP_IOCTL, CAP_READ);
+		if (cap_rights_limit(pcap_fileno(pd), &rights) < 0 &&
+		    errno != ENOSYS) {
 			error("unable to limit pcap descriptor");
 		}
 		if (cap_ioctls_limit(pcap_fileno(pd), cmds,
@@ -1493,8 +1519,9 @@ main(int argc, char **argv)
 		if (p == NULL)
 			error("%s", pcap_geterr(pd));
 #ifdef __FreeBSD__
-		if (cap_rights_limit(fileno(pcap_dump_file(p)),
-		    CAP_SEEK | CAP_WRITE) < 0 && errno != ENOSYS) {
+		cap_rights_init(&rights, CAP_SEEK, CAP_WRITE);
+		if (cap_rights_limit(fileno(pcap_dump_file(p)), &rights) < 0 &&
+		    errno != ENOSYS) {
 			error("unable to limit dump descriptor");
 		}
 #endif
@@ -1507,9 +1534,10 @@ main(int argc, char **argv)
 				error("unable to open directory %s",
 				    dirname(WFileName));
 			}
-			if (cap_rights_limit(dumpinfo.dirfd, CAP_CREATE |
-			    CAP_FCNTL | CAP_FTRUNCATE | CAP_LOOKUP | CAP_SEEK |
-			    CAP_WRITE) < 0 && errno != ENOSYS) {
+			cap_rights_init(&rights, CAP_CREATE, CAP_FCNTL,
+			    CAP_FTRUNCATE, CAP_LOOKUP, CAP_SEEK, CAP_WRITE);
+			if (cap_rights_limit(dumpinfo.dirfd, &rights) < 0 &&
+			    errno != ENOSYS) {
 				error("unable to limit directory rights");
 			}
 #else	/* !__FreeBSD__ */
@@ -1592,7 +1620,7 @@ main(int argc, char **argv)
 		error("unable to enter the capability mode");
 	if (cap_sandboxed())
 		fprintf(stderr, "capability mode sandbox enabled\n");
-#endif
+#endif	/* __FreeBSD__ */
 
 	do {
 		status = pcap_loop(pd, cnt, callback, pcap_userdata);
@@ -1634,8 +1662,9 @@ main(int argc, char **argv)
 				if (pd == NULL)
 					error("%s", ebuf);
 #ifdef __FreeBSD__
+				cap_rights_init(&rights, CAP_READ);
 				if (cap_rights_limit(fileno(pcap_file(pd)),
-				    CAP_READ) < 0 && errno != ENOSYS) {
+				    &rights) < 0 && errno != ENOSYS) {
 					error("unable to limit pcap descriptor");
 				}
 #endif
@@ -1807,6 +1836,9 @@ static void
 dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 {
 	struct dump_info *dump_info;
+#ifdef __FreeBSD__
+	cap_rights_t rights;
+#endif
 
 	++packets_captured;
 
@@ -1910,8 +1942,9 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 			if (dump_info->p == NULL)
 				error("%s", pcap_geterr(pd));
 #ifdef __FreeBSD__
+			cap_rights_init(&rights, CAP_SEEK, CAP_WRITE);
 			if (cap_rights_limit(fileno(pcap_dump_file(dump_info->p)),
-			    CAP_SEEK | CAP_WRITE) < 0 && errno != ENOSYS) {
+			    &rights) < 0 && errno != ENOSYS) {
 				error("unable to limit dump descriptor");
 			}
 #endif
@@ -1970,8 +2003,9 @@ dump_packet_and_trunc(u_char *user, const struct pcap_pkthdr *h, const u_char *s
 		if (dump_info->p == NULL)
 			error("%s", pcap_geterr(pd));
 #ifdef __FreeBSD__
+		cap_rights_init(&rights, CAP_SEEK, CAP_WRITE);
 		if (cap_rights_limit(fileno(pcap_dump_file(dump_info->p)),
-		    CAP_SEEK | CAP_WRITE) < 0 && errno != ENOSYS) {
+		    &rights) < 0 && errno != ENOSYS) {
 			error("unable to limit dump descriptor");
 		}
 #endif

@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 23, 2008
+.Dd October 1, 2013
 .Dt MOUNT_MSDOSFS 8
 .Os
 .Sh NAME
@@ -182,14 +182,14 @@ Specify text file name with conversion table:
 .El
 .Sh EXAMPLES
 To mount a Russian MS-DOS file system located in
-.Pa /dev/ad1s1 :
+.Pa /dev/ada1s1 :
 .Pp
-.Dl "mount_msdosfs -L ru_RU.KOI8-R -D CP866 /dev/ad1s1 /mnt"
+.Dl "mount_msdosfs -L ru_RU.KOI8-R -D CP866 /dev/ada1s1 /mnt"
 .Pp
 To mount a Japanese MS-DOS file system located in
-.Pa /dev/ad1s1 :
+.Pa /dev/ada1s1 :
 .Pp
-.Dl "mount_msdosfs -L ja_JP.eucJP -D CP932 /dev/ad1s1 /mnt"
+.Dl "mount_msdosfs -L ja_JP.eucJP -D CP932 /dev/ada1s1 /mnt"
 .Sh SEE ALSO
 .Xr mount 2 ,
 .Xr unmount 2 ,

@@ -44,7 +44,7 @@ static inline int
 sock_getname(struct socket *so, struct sockaddr *addr, int *sockaddr_len,
     int peer)
 {
-	struct sockaddr **nam;
+	struct sockaddr *nam;
 	int error;
 
 	nam = NULL;
@@ -52,15 +52,15 @@ sock_getname(struct socket *so, struct sockaddr *addr, int *sockaddr_len,
 		if ((so->so_state & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0)
 			return (-ENOTCONN);
 
-		error = (*so->so_proto->pr_usrreqs->pru_peeraddr)(so, nam);
+		error = (*so->so_proto->pr_usrreqs->pru_peeraddr)(so, &nam);
 	} else
-		error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, nam);
+		error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, &nam);
 	if (error)
 		return (-error);
-	*addr = **nam;
+	*addr = *nam;
 	*sockaddr_len = addr->sa_len;
 
-	free(*nam, M_SONAME);
+	free(nam, M_SONAME);
 	return (0);
 }
 

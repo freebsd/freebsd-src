@@ -299,7 +299,7 @@ copy_msg(struct regional* region, struct lruhash_entry* e,
 		sizeof(struct ub_packed_rrset_key*) * rep->rrset_count);
 	if(!*d)
 		return 0;
-	(*d)->rrsets = (struct ub_packed_rrset_key**)(
+	(*d)->rrsets = (struct ub_packed_rrset_key**)(void *)(
 		(uint8_t*)(&((*d)->ref[0])) + 
 		sizeof(struct rrset_ref) * rep->rrset_count);
 	*k = (struct query_info*)regional_alloc_init(region, 

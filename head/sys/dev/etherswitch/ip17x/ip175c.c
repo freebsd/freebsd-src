@@ -147,9 +147,9 @@ ip175c_dot1q_vlan_setup(struct ip17x_softc *sc)
 	memset(vlans, 0, sizeof(vlans));
 	for (i = 0; i < IP17X_MAX_VLANS; i++) {
 		v = &sc->vlan[i];
-		if (v->vlanid == 0)
+		if ((v->vlanid & ETHERSWITCH_VID_VALID) == 0)
 			continue;
-		vlans[v->vlanid] = v->ports;
+		vlans[v->vlanid & ETHERSWITCH_VID_MASK] = v->ports;
 	}
 
 	for (j = 0, i = 1; i <= IP17X_MAX_VLANS / 2; i++) {

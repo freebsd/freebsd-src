@@ -552,7 +552,7 @@ f_device_find()
 f_device_init()
 {
 	local name="$1" init_func
-	device_$name get init init_func || return
+	device_$name get init init_func || return $?
 	${init_func:-:} $name
 }
 
@@ -564,7 +564,7 @@ f_device_init()
 f_device_get()
 {
 	local name="$1" file="$2" probe="$3" get_func
-	device_$name get get get_func || return
+	device_$name get get get_func || return $?
 	${get_func:-:} $name "$file" ${3+"$probe"}
 }
 
@@ -575,7 +575,7 @@ f_device_get()
 f_device_shutdown()
 {
 	local name="$1" shutdown_func
-	device_$name get shutdown shutdown_func || return
+	device_$name get shutdown shutdown_func || return $?
 	${shutdown_func:-:} $name
 }
 
@@ -597,7 +597,7 @@ f_device_menu()
 		[ "$devtype" = "$type" ] || continue
 		devs="$devs $dev"
 	done
-	[ "$devs" ] || return $FAILURE
+	[ "$devs" ] || return $DIALOG_CANCEL
 
 	local desc menu_list=
 	for dev in $devs; do
@@ -637,7 +637,7 @@ f_device_menu()
 		)
 		local retval=$?
 
-		[ $retval -ne 2 ] && break
+		[ $retval -ne $DIALOG_HELP ] && break
 			# Otherwise, the Help button was pressed
 		f_show_help "$helpfile"
 			# ...then loop back to menu
@@ -646,7 +646,7 @@ f_device_menu()
 
 	[ "$errexit" ] && set -e
 
-	if [ $retval -eq 0 ]; then
+	if [ $retval -eq $DIALOG_OK ]; then
 		# Clean up the output of [X]dialog(1) and return it
 		f_dialog_data_sanitize mtag
 		echo "$mtag" >&2

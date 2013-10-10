@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2013
+.Dd July 27, 2013
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -185,7 +185,7 @@ and applications use both of them.
 .Pp
 To prevent this situation,
 .Nm
-checks whether an link-local scoped IPv6 address is configured on
+checks whether a link-local scoped IPv6 address is configured on
 a member interface to be added and the
 .Nm
 interface.
@@ -194,13 +194,13 @@ When the
 interface has IPv6 addresses,
 IPv6 addresses on the member interface will be automatically removed
 before the interface is added.
-When both
-.Nm
-interface and the existing member interfaces do not have one,
-adding an interface with IPv6 addresses as a new member interface is allowed.
-These means only one interface in the link-local scope zone where the
-.Nm
-interface forms can have link-local scoped IPv6 addresses.
+.Pp
+This behavior can be disabled by setting
+.Xr sysctl 8
+variable
+.Va net.link.bridge.allow_llz_overlap
+to
+.Li 1 .
 .Pp
 Note that
 .Li ACCEPT_RTADV

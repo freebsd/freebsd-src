@@ -160,10 +160,10 @@ MALLOC_DEFINE(M_CXGBE, "cxgbe", "Chelsio T4/T5 Ethernet driver and services");
  * Correct lock order when you need to acquire multiple locks is t4_list_lock,
  * then ADAPTER_LOCK, then t4_uld_list_lock.
  */
-static struct mtx t4_list_lock;
+static struct sx t4_list_lock;
 static SLIST_HEAD(, adapter) t4_list;
 #ifdef TCP_OFFLOAD
-static struct mtx t4_uld_list_lock;
+static struct sx t4_uld_list_lock;
 static SLIST_HEAD(, uld_info) t4_uld_list;
 #endif
 
@@ -379,6 +379,7 @@ static int sysctl_holdoff_pktc_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_txq(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
+static int sysctl_temperature(SYSCTL_HANDLER_ARGS);
 #ifdef SBUF_DRAIN
 static int sysctl_cctrl(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS);
@@ -392,6 +393,7 @@ static int sysctl_devlog(SYSCTL_HANDLER_ARGS);
 static int sysctl_fcoe_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_hw_sched(SYSCTL_HANDLER_ARGS);
 static int sysctl_lb_stats(SYSCTL_HANDLER_ARGS);
+static int sysctl_linkdnrc(SYSCTL_HANDLER_ARGS);
 static int sysctl_meminfo(SYSCTL_HANDLER_ARGS);
 static int sysctl_mps_tcam(SYSCTL_HANDLER_ARGS);
 static int sysctl_path_mtus(SYSCTL_HANDLER_ARGS);
@@ -447,26 +449,27 @@ struct {
 }, t5_pciids[] = {
 	{0xb000, "Chelsio Terminator 5 FPGA"},
 	{0x5400, "Chelsio T580-dbg"},
-	{0x5401,  "Chelsio T520-CR"},
+	{0x5401,  "Chelsio T520-CR"},		/* 2 x 10G */
+	{0x5402,  "Chelsio T522-CR"},		/* 2 x 10G, 2 X 1G */
 	{0x5403,  "Chelsio T540-CR"},		/* 4 x 10G */
-	{0x5407,  "Chelsio T520-SO"},
-	{0x5408,  "Chelsio T520-CX"},
+	{0x5407,  "Chelsio T520-SO"},		/* 2 x 10G, nomem */
+	{0x5409,  "Chelsio T520-BT"},		/* 2 x 10GBaseT */
+	{0x540a,  "Chelsio T504-BT"},		/* 4 x 1G */
+	{0x540d,  "Chelsio T580-CR"},		/* 2 x 40G */
+	{0x540e,  "Chelsio T540-LP-CR"},	/* 4 x 10G */
 	{0x5410,  "Chelsio T580-LP-CR"},	/* 2 x 40G */
-	{0x5411,  "Chelsio T520-LL-CR"},
+	{0x5411,  "Chelsio T520-LL-CR"},	/* 2 x 10G */
+	{0x5412,  "Chelsio T560-CR"},		/* 1 x 40G, 2 x 10G */
+	{0x5414,  "Chelsio T580-LP-SO-CR"},	/* 2 x 40G, nomem */
 #ifdef notyet
-	{0x5402,  "Chelsio T522-CR"},
 	{0x5404,  "Chelsio T520-BCH"},
 	{0x5405,  "Chelsio T540-BCH"},
 	{0x5406,  "Chelsio T540-CH"},
-	{0x5409,  "Chelsio T520-BT"},
-	{0x540a,  "Chelsio T504-BT"},
+	{0x5408,  "Chelsio T520-CX"},
 	{0x540b,  "Chelsio B520-SR"},
 	{0x540c,  "Chelsio B504-BT"},
-	{0x540d,  "Chelsio T580-CR"},
-	{0x540e,  "Chelsio T540-LP-CR"},
 	{0x540f,  "Chelsio Amsterdam"},
-	{0x5412,  "Chelsio T560-CR"},
-	{0x5413,  "Chelsio T580-CR"},
+	{0x5413,  "Chelsio T580-CHR"},
 #endif
 };
 
@@ -557,12 +560,17 @@ t4_attach(device_t dev)
 		pci_write_config(dev, i + PCIER_DEVICE_CTL, v, 2);
 	}
 
+	sc->traceq = -1;
+	mtx_init(&sc->ifp_lock, sc->ifp_lockname, 0, MTX_DEF);
+	snprintf(sc->ifp_lockname, sizeof(sc->ifp_lockname), "%s tracer",
+	    device_get_nameunit(dev));
+
 	snprintf(sc->lockname, sizeof(sc->lockname), "%s",
 	    device_get_nameunit(dev));
 	mtx_init(&sc->sc_lock, sc->lockname, 0, MTX_DEF);
-	mtx_lock(&t4_list_lock);
+	sx_xlock(&t4_list_lock);
 	SLIST_INSERT_HEAD(&t4_list, sc, link);
-	mtx_unlock(&t4_list_lock);
+	sx_xunlock(&t4_list_lock);
 
 	mtx_init(&sc->sfl_lock, "starving freelists", 0, MTX_DEF);
 	TAILQ_INIT(&sc->sfl);
@@ -588,6 +596,8 @@ t4_attach(device_t dev)
 	for (i = 0; i < nitems(sc->fw_msg_handler); i++)
 		sc->fw_msg_handler[i] = fw_msg_not_handled;
 	t4_register_cpl_handler(sc, CPL_SET_TCB_RPL, t4_filter_rpl);
+	t4_register_cpl_handler(sc, CPL_TRACE_PKT, t4_trace_pkt);
+	t4_register_cpl_handler(sc, CPL_TRACE_PKT_T5, t5_trace_pkt);
 	t4_init_sge_cpl_handlers(sc);
 
 	/* Prepare the adapter for operation */
@@ -668,6 +678,7 @@ t4_attach(device_t dev)
 		snprintf(pi->lockname, sizeof(pi->lockname), "%sp%d",
 		    device_get_nameunit(dev), i);
 		mtx_init(&pi->pi_lock, pi->lockname, 0, MTX_DEF);
+		sc->chan_map[pi->tx_chan] = i;
 
 		if (is_10G_port(pi) || is_40G_port(pi)) {
 			n10g++;
@@ -906,9 +917,9 @@ t4_detach(device_t dev)
 	free(sc->tids.ftid_tab, M_CXGBE);
 	t4_destroy_dma_tag(sc);
 	if (mtx_initialized(&sc->sc_lock)) {
-		mtx_lock(&t4_list_lock);
+		sx_xlock(&t4_list_lock);
 		SLIST_REMOVE(&t4_list, sc, adapter, link);
-		mtx_unlock(&t4_list_lock);
+		sx_xunlock(&t4_list_lock);
 		mtx_destroy(&sc->sc_lock);
 	}
 
@@ -916,6 +927,8 @@ t4_detach(device_t dev)
 		mtx_destroy(&sc->tids.ftid_lock);
 	if (mtx_initialized(&sc->sfl_lock))
 		mtx_destroy(&sc->sfl_lock);
+	if (mtx_initialized(&sc->ifp_lock))
+		mtx_destroy(&sc->ifp_lock);
 
 	bzero(sc, sizeof(*sc));
 
@@ -937,7 +950,7 @@ cxgbe_probe(device_t dev)
 
 #define T4_CAP (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | \
     IFCAP_VLAN_HWCSUM | IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_LRO | \
-    IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE | IFCAP_HWCSUM_IPV6)
+    IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE | IFCAP_HWCSUM_IPV6 | IFCAP_HWSTATS)
 #define T4_CAP_ENABLE (T4_CAP)
 
 static int
@@ -1017,6 +1030,11 @@ cxgbe_detach(device_t dev)
 	sc->last_op_thr = curthread;
 #endif
 	ADAPTER_UNLOCK(sc);
+
+	if (pi->flags & HAS_TRACEQ) {
+		sc->traceq = -1;	/* cloner should not create ifnet */
+		t4_tracer_port_detach(sc);
+	}
 
 	if (pi->vlan_c)
 		EVENTHANDLER_DEREGISTER(vlan_config, pi->vlan_c);
@@ -2473,7 +2491,7 @@ get_params__post_init(struct adapter *sc)
 		param[3] = FW_PARAM_PFVF(CQ_END);
 		param[4] = FW_PARAM_PFVF(OCQ_START);
 		param[5] = FW_PARAM_PFVF(OCQ_END);
-		rc = -t4_query_params(sc, 0, 0, 0, 6, param, val);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 6, param, val);
 		if (rc != 0) {
 			device_printf(sc->dev,
 			    "failed to query RDMA parameters(2): %d.\n", rc);
@@ -2530,9 +2548,9 @@ t4_set_desc(struct adapter *sc)
 	char buf[128];
 	struct adapter_params *p = &sc->params;
 
-	snprintf(buf, sizeof(buf), "Chelsio %s %sNIC (rev %d), S/N:%s, E/C:%s",
-	    p->vpd.id, is_offload(sc) ? "R" : "", chip_rev(sc), p->vpd.sn,
-	    p->vpd.ec);
+	snprintf(buf, sizeof(buf), "Chelsio %s %sNIC (rev %d), S/N:%s, "
+	    "P/N:%s, E/C:%s", p->vpd.id, is_offload(sc) ? "R" : "",
+	    chip_rev(sc), p->vpd.sn, p->vpd.pn, p->vpd.ec);
 
 	device_set_desc_copy(sc->dev, buf);
 }
@@ -2885,6 +2903,17 @@ cxgbe_init_synchronized(struct port_info *pi)
 	if (rc != 0) {
 		if_printf(ifp, "enable_vi failed: %d\n", rc);
 		goto done;
+	}
+
+	/*
+	 * The first iq of the first port to come up is used for tracing.
+	 */
+	if (sc->traceq < 0) {
+		sc->traceq = sc->sge.rxq[pi->first_rxq].iq.abs_id;
+		t4_write_reg(sc, is_t4(sc) ?  A_MPS_TRC_RSS_CONTROL :
+		    A_MPS_T5_TRC_RSS_CONTROL, V_RSSCONTROL(pi->tx_chan) |
+		    V_QUEUENUMBER(sc->traceq));
+		pi->flags |= HAS_TRACEQ;
 	}
 
 	/* all ok */
@@ -4194,6 +4223,16 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nfilters", CTLFLAG_RD,
 	    NULL, sc->tids.nftids, "number of filters");
 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "temperature", CTLTYPE_INT |
+	    CTLFLAG_RD, sc, 0, sysctl_temperature, "A",
+	    "chip temperature (in Celsius)");
+
+	t4_sge_sysctls(sc, ctx, children);
+
+	sc->lro_timeout = 100;
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "lro_timeout", CTLFLAG_RW,
+	    &sc->lro_timeout, 0, "lro inactive-flush timeout (in us)");
+
 #ifdef SBUF_DRAIN
 	/*
 	 * dev.t4nex.X.misc.  Marked CTLFLAG_SKIP to avoid information overload.
@@ -4411,8 +4450,8 @@ cxgbe_sysctls(struct port_info *pi)
 	oid = device_get_sysctl_tree(pi->dev);
 	children = SYSCTL_CHILDREN(oid);
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "linkdnrc", CTLFLAG_RD,
-	    &pi->linkdnrc, 0, "reason why link is down");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "linkdnrc", CTLTYPE_STRING |
+	   CTLFLAG_RD, pi, 0, sysctl_linkdnrc, "A", "reason why link is down");
 	if (pi->port_type == FW_PORT_TYPE_BT_XAUI) {
 		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "temperature",
 		    CTLTYPE_INT | CTLFLAG_RD, pi, 0, sysctl_btphy, "I",
@@ -4832,6 +4871,31 @@ sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS)
 	val = t4_read_reg64(sc, reg);
 
 	return (sysctl_handle_64(oidp, &val, 0, req));
+}
+
+static int
+sysctl_temperature(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	int rc, t;
+	uint32_t param, val;
+
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4temp");
+	if (rc)
+		return (rc);
+	param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_DIAG) |
+	    V_FW_PARAMS_PARAM_Y(FW_PARAM_DEV_DIAG_TMP);
+	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
+	end_synchronized_op(sc, 0);
+	if (rc)
+		return (rc);
+
+	/* unknown is returned as 0 but we display -1 in that case */
+	t = val == 0 ? -1 : val;
+
+	rc = sysctl_handle_int(oidp, &t, 0, req);
+	return (rc);
 }
 
 #ifdef SBUF_DRAIN
@@ -5451,6 +5515,37 @@ sysctl_lb_stats(SYSCTL_HANDLER_ARGS)
 			sbuf_printf(sb, "\n%-17s %20ju %20ju", stat_name[j],
 				   *p0++, *p1++);
 	}
+
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (rc);
+}
+
+static int
+sysctl_linkdnrc(SYSCTL_HANDLER_ARGS)
+{
+	int rc = 0;
+	struct port_info *pi = arg1;
+	struct sbuf *sb;
+	static const char *linkdnreasons[] = {
+		"non-specific", "remote fault", "autoneg failed", "reserved3",
+		"PHY overheated", "unknown", "rx los", "reserved7"
+	};
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return(rc);
+	sb = sbuf_new_for_sysctl(NULL, NULL, 64, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	if (pi->linkdnrc < 0)
+		sbuf_printf(sb, "n/a");
+	else if (pi->linkdnrc < nitems(linkdnreasons))
+		sbuf_printf(sb, "%s", linkdnreasons[pi->linkdnrc]);
+	else
+		sbuf_printf(sb, "%d", pi->linkdnrc);
 
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
@@ -7250,7 +7345,7 @@ t4_iterate(void (*func)(struct adapter *, void *), void *arg)
 {
 	struct adapter *sc;
 
-	mtx_lock(&t4_list_lock);
+	sx_slock(&t4_list_lock);
 	SLIST_FOREACH(sc, &t4_list, link) {
 		/*
 		 * func should not make any assumptions about what state sc is
@@ -7258,7 +7353,7 @@ t4_iterate(void (*func)(struct adapter *, void *), void *arg)
 		 */
 		func(sc, arg);
 	}
-	mtx_unlock(&t4_list_lock);
+	sx_sunlock(&t4_list_lock);
 }
 
 static int
@@ -7414,6 +7509,12 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		}
 		break;
 	}
+	case CHELSIO_T4_GET_TRACER:
+		rc = t4_get_tracer(sc, (struct t4_tracer *)data);
+		break;
+	case CHELSIO_T4_SET_TRACER:
+		rc = t4_set_tracer(sc, (struct t4_tracer *)data);
+		break;
 	default:
 		rc = EINVAL;
 	}
@@ -7480,7 +7581,7 @@ t4_register_uld(struct uld_info *ui)
 	int rc = 0;
 	struct uld_info *u;
 
-	mtx_lock(&t4_uld_list_lock);
+	sx_xlock(&t4_uld_list_lock);
 	SLIST_FOREACH(u, &t4_uld_list, link) {
 	    if (u->uld_id == ui->uld_id) {
 		    rc = EEXIST;
@@ -7491,7 +7592,7 @@ t4_register_uld(struct uld_info *ui)
 	SLIST_INSERT_HEAD(&t4_uld_list, ui, link);
 	ui->refcount = 0;
 done:
-	mtx_unlock(&t4_uld_list_lock);
+	sx_xunlock(&t4_uld_list_lock);
 	return (rc);
 }
 
@@ -7501,7 +7602,7 @@ t4_unregister_uld(struct uld_info *ui)
 	int rc = EINVAL;
 	struct uld_info *u;
 
-	mtx_lock(&t4_uld_list_lock);
+	sx_xlock(&t4_uld_list_lock);
 
 	SLIST_FOREACH(u, &t4_uld_list, link) {
 	    if (u == ui) {
@@ -7516,7 +7617,7 @@ t4_unregister_uld(struct uld_info *ui)
 	    }
 	}
 done:
-	mtx_unlock(&t4_uld_list_lock);
+	sx_xunlock(&t4_uld_list_lock);
 	return (rc);
 }
 
@@ -7528,7 +7629,7 @@ t4_activate_uld(struct adapter *sc, int id)
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
-	mtx_lock(&t4_uld_list_lock);
+	sx_slock(&t4_uld_list_lock);
 
 	SLIST_FOREACH(ui, &t4_uld_list, link) {
 		if (ui->uld_id == id) {
@@ -7539,7 +7640,7 @@ t4_activate_uld(struct adapter *sc, int id)
 		}
 	}
 done:
-	mtx_unlock(&t4_uld_list_lock);
+	sx_sunlock(&t4_uld_list_lock);
 
 	return (rc);
 }
@@ -7552,7 +7653,7 @@ t4_deactivate_uld(struct adapter *sc, int id)
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
-	mtx_lock(&t4_uld_list_lock);
+	sx_slock(&t4_uld_list_lock);
 
 	SLIST_FOREACH(ui, &t4_uld_list, link) {
 		if (ui->uld_id == id) {
@@ -7563,7 +7664,7 @@ t4_deactivate_uld(struct adapter *sc, int id)
 		}
 	}
 done:
-	mtx_unlock(&t4_uld_list_lock);
+	sx_sunlock(&t4_uld_list_lock);
 
 	return (rc);
 }
@@ -7644,36 +7745,38 @@ mod_event(module_t mod, int cmd, void *arg)
 		if (atomic_fetchadd_int(&loaded, 1))
 			break;
 		t4_sge_modload();
-		mtx_init(&t4_list_lock, "T4 adapters", 0, MTX_DEF);
+		sx_init(&t4_list_lock, "T4/T5 adapters");
 		SLIST_INIT(&t4_list);
 #ifdef TCP_OFFLOAD
-		mtx_init(&t4_uld_list_lock, "T4 ULDs", 0, MTX_DEF);
+		sx_init(&t4_uld_list_lock, "T4/T5 ULDs");
 		SLIST_INIT(&t4_uld_list);
 #endif
+		t4_tracer_modload();
 		tweak_tunables();
 		break;
 
 	case MOD_UNLOAD:
 		if (atomic_fetchadd_int(&loaded, -1) > 1)
 			break;
+		t4_tracer_modunload();
 #ifdef TCP_OFFLOAD
-		mtx_lock(&t4_uld_list_lock);
+		sx_slock(&t4_uld_list_lock);
 		if (!SLIST_EMPTY(&t4_uld_list)) {
 			rc = EBUSY;
-			mtx_unlock(&t4_uld_list_lock);
+			sx_sunlock(&t4_uld_list_lock);
 			break;
 		}
-		mtx_unlock(&t4_uld_list_lock);
-		mtx_destroy(&t4_uld_list_lock);
+		sx_sunlock(&t4_uld_list_lock);
+		sx_destroy(&t4_uld_list_lock);
 #endif
-		mtx_lock(&t4_list_lock);
+		sx_slock(&t4_list_lock);
 		if (!SLIST_EMPTY(&t4_list)) {
 			rc = EBUSY;
-			mtx_unlock(&t4_list_lock);
+			sx_sunlock(&t4_list_lock);
 			break;
 		}
-		mtx_unlock(&t4_list_lock);
-		mtx_destroy(&t4_list_lock);
+		sx_sunlock(&t4_list_lock);
+		sx_destroy(&t4_list_lock);
 		break;
 	}
 

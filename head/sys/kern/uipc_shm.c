@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
+#include <sys/unistd.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -119,6 +120,7 @@ static fo_stat_t	shm_stat;
 static fo_close_t	shm_close;
 static fo_chmod_t	shm_chmod;
 static fo_chown_t	shm_chown;
+static fo_seek_t	shm_seek;
 
 /* File descriptor operations. */
 static struct fileops shm_ops = {
@@ -132,25 +134,198 @@ static struct fileops shm_ops = {
 	.fo_close = shm_close,
 	.fo_chmod = shm_chmod,
 	.fo_chown = shm_chown,
-	.fo_flags = DFLAG_PASSABLE
+	.fo_sendfile = vn_sendfile,
+	.fo_seek = shm_seek,
+	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
 FEATURE(posix_shm, "POSIX shared memory");
 
 static int
+uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
+{
+	vm_page_t m;
+	vm_pindex_t idx;
+	size_t tlen;
+	int error, offset, rv;
+
+	idx = OFF_TO_IDX(uio->uio_offset);
+	offset = uio->uio_offset & PAGE_MASK;
+	tlen = MIN(PAGE_SIZE - offset, len);
+
+	VM_OBJECT_WLOCK(obj);
+
+	/*
+	 * Parallel reads of the page content from disk are prevented
+	 * by exclusive busy.
+	 *
+	 * Although the tmpfs vnode lock is held here, it is
+	 * nonetheless safe to sleep waiting for a free page.  The
+	 * pageout daemon does not need to acquire the tmpfs vnode
+	 * lock to page out tobj's pages because tobj is a OBJT_SWAP
+	 * type object.
+	 */
+	m = vm_page_grab(obj, idx, VM_ALLOC_NORMAL);
+	if (m->valid != VM_PAGE_BITS_ALL) {
+		if (vm_pager_has_page(obj, idx, NULL, NULL)) {
+			rv = vm_pager_get_pages(obj, &m, 1, 0);
+			m = vm_page_lookup(obj, idx);
+			if (m == NULL) {
+				printf(
+		    "uiomove_object: vm_obj %p idx %jd null lookup rv %d\n",
+				    obj, idx, rv);
+				VM_OBJECT_WUNLOCK(obj);
+				return (EIO);
+			}
+			if (rv != VM_PAGER_OK) {
+				printf(
+	    "uiomove_object: vm_obj %p idx %jd valid %x pager error %d\n",
+				    obj, idx, m->valid, rv);
+				vm_page_lock(m);
+				vm_page_free(m);
+				vm_page_unlock(m);
+				VM_OBJECT_WUNLOCK(obj);
+				return (EIO);
+			}
+		} else
+			vm_page_zero_invalid(m, TRUE);
+	}
+	vm_page_xunbusy(m);
+	vm_page_lock(m);
+	vm_page_hold(m);
+	vm_page_unlock(m);
+	VM_OBJECT_WUNLOCK(obj);
+	error = uiomove_fromphys(&m, offset, tlen, uio);
+	if (uio->uio_rw == UIO_WRITE && error == 0) {
+		VM_OBJECT_WLOCK(obj);
+		vm_page_dirty(m);
+		VM_OBJECT_WUNLOCK(obj);
+	}
+	vm_page_lock(m);
+	vm_page_unhold(m);
+	if (m->queue == PQ_NONE) {
+		vm_page_deactivate(m);
+	} else {
+		/* Requeue to maintain LRU ordering. */
+		vm_page_requeue(m);
+	}
+	vm_page_unlock(m);
+
+	return (error);
+}
+
+int
+uiomove_object(vm_object_t obj, off_t obj_size, struct uio *uio)
+{
+	ssize_t resid;
+	size_t len;
+	int error;
+
+	error = 0;
+	while ((resid = uio->uio_resid) > 0) {
+		if (obj_size <= uio->uio_offset)
+			break;
+		len = MIN(obj_size - uio->uio_offset, resid);
+		if (len == 0)
+			break;
+		error = uiomove_object_page(obj, len, uio);
+		if (error != 0 || resid == uio->uio_resid)
+			break;
+	}
+	return (error);
+}
+
+static int
+shm_seek(struct file *fp, off_t offset, int whence, struct thread *td)
+{
+	struct shmfd *shmfd;
+	off_t foffset;
+	int error;
+
+	shmfd = fp->f_data;
+	foffset = foffset_lock(fp, 0);
+	error = 0;
+	switch (whence) {
+	case L_INCR:
+		if (foffset < 0 ||
+		    (offset > 0 && foffset > OFF_MAX - offset)) {
+			error = EOVERFLOW;
+			break;
+		}
+		offset += foffset;
+		break;
+	case L_XTND:
+		if (offset > 0 && shmfd->shm_size > OFF_MAX - offset) {
+			error = EOVERFLOW;
+			break;
+		}
+		offset += shmfd->shm_size;
+		break;
+	case L_SET:
+		break;
+	default:
+		error = EINVAL;
+	}
+	if (error == 0) {
+		if (offset < 0 || offset > shmfd->shm_size)
+			error = EINVAL;
+		else
+			*(off_t *)(td->td_retval) = offset;
+	}
+	foffset_unlock(fp, offset, error != 0 ? FOF_NOUPDATE : 0);
+	return (error);
+}
+
+static int
 shm_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
     int flags, struct thread *td)
 {
+	struct shmfd *shmfd;
+	void *rl_cookie;
+	int error;
 
-	return (EOPNOTSUPP);
+	shmfd = fp->f_data;
+	foffset_lock_uio(fp, uio, flags);
+	rl_cookie = rangelock_rlock(&shmfd->shm_rl, uio->uio_offset,
+	    uio->uio_offset + uio->uio_resid, &shmfd->shm_mtx);
+#ifdef MAC
+	error = mac_posixshm_check_read(active_cred, fp->f_cred, shmfd);
+	if (error)
+		return (error);
+#endif
+	error = uiomove_object(shmfd->shm_object, shmfd->shm_size, uio);
+	rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
+	foffset_unlock_uio(fp, uio, flags);
+	return (error);
 }
 
 static int
 shm_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
     int flags, struct thread *td)
 {
+	struct shmfd *shmfd;
+	void *rl_cookie;
+	int error;
 
-	return (EOPNOTSUPP);
+	shmfd = fp->f_data;
+#ifdef MAC
+	error = mac_posixshm_check_write(active_cred, fp->f_cred, shmfd);
+	if (error)
+		return (error);
+#endif
+	foffset_lock_uio(fp, uio, flags);
+	if ((flags & FOF_OFFSET) == 0) {
+		rl_cookie = rangelock_wlock(&shmfd->shm_rl, 0, OFF_MAX,
+		    &shmfd->shm_mtx);
+	} else {
+		rl_cookie = rangelock_wlock(&shmfd->shm_rl, uio->uio_offset,
+		    uio->uio_offset + uio->uio_resid, &shmfd->shm_mtx);
+	}
+
+	error = uiomove_object(shmfd->shm_object, shmfd->shm_size, uio);
+	rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
+	foffset_unlock_uio(fp, uio, flags);
+	return (error);
 }
 
 static int
@@ -281,11 +456,8 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 retry:
 			m = vm_page_lookup(object, idx);
 			if (m != NULL) {
-				if ((m->oflags & VPO_BUSY) != 0 ||
-				    m->busy != 0) {
-					vm_page_sleep(m, "shmtrc");
+				if (vm_page_sleep_if_busy(m, "shmtrc"))
 					goto retry;
-				}
 			} else if (vm_pager_has_page(object, idx, NULL, NULL)) {
 				m = vm_page_alloc(object, idx, VM_ALLOC_NORMAL);
 				if (m == NULL) {
@@ -305,7 +477,7 @@ retry:
 				if (rv == VM_PAGER_OK) {
 					vm_page_deactivate(m);
 					vm_page_unlock(m);
-					vm_page_wakeup(m);
+					vm_page_xunbusy(m);
 				} else {
 					vm_page_free(m);
 					vm_page_unlock(m);
@@ -379,6 +551,8 @@ shm_alloc(struct ucred *ucred, mode_t mode)
 	shmfd->shm_atime = shmfd->shm_mtime = shmfd->shm_ctime =
 	    shmfd->shm_birthtime;
 	refcount_init(&shmfd->shm_refs, 1);
+	mtx_init(&shmfd->shm_mtx, "shmrl", NULL, MTX_DEF);
+	rangelock_init(&shmfd->shm_rl);
 #ifdef MAC
 	mac_posixshm_init(shmfd);
 	mac_posixshm_create(ucred, shmfd);
@@ -403,6 +577,8 @@ shm_drop(struct shmfd *shmfd)
 #ifdef MAC
 		mac_posixshm_destroy(shmfd);
 #endif
+		rangelock_destroy(&shmfd->shm_rl);
+		mtx_destroy(&shmfd->shm_mtx);
 		vm_object_deallocate(shmfd->shm_object);
 		free(shmfd, M_SHMFD);
 	}
@@ -778,8 +954,8 @@ shm_map(struct file *fp, size_t size, off_t offset, void **memp)
 	ofs = offset & PAGE_MASK;
 	offset = trunc_page(offset);
 	size = round_page(size + ofs);
-	rv = vm_map_find(kernel_map, obj, offset, &kva, size,
-	    VMFS_ALIGNED_SPACE, VM_PROT_READ | VM_PROT_WRITE,
+	rv = vm_map_find(kernel_map, obj, offset, &kva, size, 0,
+	    VMFS_OPTIMAL_SPACE, VM_PROT_READ | VM_PROT_WRITE,
 	    VM_PROT_READ | VM_PROT_WRITE, 0);
 	if (rv == KERN_SUCCESS) {
 		rv = vm_map_wire(kernel_map, kva, kva + size,

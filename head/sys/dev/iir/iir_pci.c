@@ -163,7 +163,7 @@ MODULE_DEPEND(iir, cam, 1, 1, 1);
 static int
 iir_pci_probe(device_t dev)
 {
-    if (pci_get_vendor(dev) == INTEL_VENDOR_ID &&
+    if (pci_get_vendor(dev) == INTEL_VENDOR_ID_IIR &&
         pci_get_device(dev) == INTEL_DEVICE_ID_IIR) {
         device_set_desc(dev, "Intel Integrated RAID Controller");
         return (BUS_PROBE_DEFAULT);

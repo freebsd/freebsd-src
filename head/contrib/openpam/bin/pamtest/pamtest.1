@@ -26,9 +26,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: pamtest.1 610 2012-05-26 14:03:45Z des $
+.\" $Id: pamtest.1 741 2013-09-07 13:34:02Z des $
 .\"
-.Dd May 26, 2012
+.Dd September 7, 2013
 .Dt PAMTEST 1
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@
 .Op Fl dkMPsv
 .Op Fl H Ar rhost
 .Op Fl h Ar host
+.Op Fl T Ar timeout
 .Op Fl t Ar tty
 .Op Fl U Ar ruser
 .Op Fl u Ar user
@@ -136,6 +137,9 @@ flag when calling the
 and
 .Xr pam_close_session 3
 primitives.
+.It Fl T Ar timeout
+Set the conversation timeout (in seconds) for
+.Xr openpam_ttyconv 3 .
 .It Fl t Ar tty
 Specify the name of the tty.
 The default is to use the result of calling

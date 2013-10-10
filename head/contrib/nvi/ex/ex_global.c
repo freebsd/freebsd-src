@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_global.c	10.22 (Berkeley) 10/10/96";
+static const char sccsid[] = "$Id: ex_global.c,v 10.32 2011/12/26 23:37:01 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <ctype.h>
@@ -38,9 +39,7 @@ static int ex_g_setup __P((SCR *, EXCMD *, enum which));
  * PUBLIC: int ex_global __P((SCR *, EXCMD *));
  */
 int
-ex_global(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_global(SCR *sp, EXCMD *cmdp)
 {
 	return (ex_g_setup(sp,
 	    cmdp, FL_ISSET(cmdp->iflags, E_C_FORCE) ? V : GLOBAL));
@@ -53,9 +52,7 @@ ex_global(sp, cmdp)
  * PUBLIC: int ex_v __P((SCR *, EXCMD *));
  */
 int
-ex_v(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_v(SCR *sp, EXCMD *cmdp)
 {
 	return (ex_g_setup(sp, cmdp, V));
 }
@@ -65,10 +62,7 @@ ex_v(sp, cmdp)
  *	Ex global and v commands.
  */
 static int
-ex_g_setup(sp, cmdp, cmd)
-	SCR *sp;
-	EXCMD *cmdp;
-	enum which cmd;
+ex_g_setup(SCR *sp, EXCMD *cmdp, enum which cmd)
 {
 	CHAR_T *ptrn, *p, *t;
 	EXCMD *ecp;
@@ -80,14 +74,13 @@ ex_g_setup(sp, cmdp, cmd)
 	regmatch_t match[1];
 	size_t len;
 	int cnt, delim, eval;
-	char *dbp;
+	CHAR_T *dbp;
 
 	NEEDFILE(sp, cmdp);
 
 	if (F_ISSET(sp, SC_EX_GLOBAL)) {
-		msgq(sp, M_ERR,
-	"124|The %s command can't be used as part of a global or v command",
-		    cmdp->cmd->name);
+		msgq_wstr(sp, M_ERR, cmdp->cmd->name,
+	"124|The %s command can't be used as part of a global or v command");
 		return (1);
 	}
 
@@ -97,8 +90,8 @@ ex_g_setup(sp, cmdp, cmd)
 	 */
 	if (cmdp->argc == 0)
 		goto usage;
-	for (p = cmdp->argv[0]->bp; isblank(*p); ++p);
-	if (*p == '\0' || isalnum(*p) ||
+	for (p = cmdp->argv[0]->bp; cmdskip(*p); ++p);
+	if (!isascii(*p) || *p == '\0' || isalnum(*p) ||
 	    *p == '\\' || *p == '|' || *p == '\n') {
 usage:		ex_emsg(sp, cmdp->cmd->usage, EXM_USAGE);
 		return (1);
@@ -139,13 +132,14 @@ usage:		ex_emsg(sp, cmdp->cmd->usage, EXM_USAGE);
 		}
 
 		/* Re-compile the RE if necessary. */
-		if (!F_ISSET(sp, SC_RE_SEARCH) && re_compile(sp,
-		    sp->re, sp->re_len, NULL, NULL, &sp->re_c, RE_C_SEARCH))
+		if (!F_ISSET(sp, SC_RE_SEARCH) &&
+		    re_compile(sp, sp->re, sp->re_len,
+		    NULL, NULL, &sp->re_c, RE_C_SEARCH))
 			return (1);
 	} else {
 		/* Compile the RE. */
-		if (re_compile(sp, ptrn, t - ptrn,
-		    &sp->re, &sp->re_len, &sp->re_c, RE_C_SEARCH))
+		if (re_compile(sp, ptrn, t - ptrn, &sp->re,
+		    &sp->re_len, &sp->re_c, RE_C_SEARCH))
 			return (1);
 
 		/*
@@ -164,7 +158,7 @@ usage:		ex_emsg(sp, cmdp->cmd->usage, EXM_USAGE);
 
 	/* Get an EXCMD structure. */
 	CALLOC_RET(sp, ecp, EXCMD *, 1, sizeof(EXCMD));
-	CIRCLEQ_INIT(&ecp->rq);
+	TAILQ_INIT(ecp->rq);
 
 	/*
 	 * Get a copy of the command string; the default command is print.
@@ -174,17 +168,17 @@ usage:		ex_emsg(sp, cmdp->cmd->usage, EXM_USAGE);
 	 * parsing it.
 	 */
 	if ((len = cmdp->argv[0]->len - (p - cmdp->argv[0]->bp)) == 0) {
-		p = "pp";
+		p = L("p");
 		len = 1;
 	}
 
-	MALLOC_RET(sp, ecp->cp, char *, len * 2);
+	MALLOC_RET(sp, ecp->cp, CHAR_T *, (len * 2) * sizeof(CHAR_T));
 	ecp->o_cp = ecp->cp;
 	ecp->o_clen = len;
-	memcpy(ecp->cp + len, p, len);
+	MEMCPY(ecp->cp + len, p, len);
 	ecp->range_lno = OOBLNO;
 	FL_SET(ecp->agv_flags, cmd == GLOBAL ? AGV_GLOBAL : AGV_V);
-	LIST_INSERT_HEAD(&sp->gp->ecq, ecp, q);
+	SLIST_INSERT_HEAD(sp->gp->ecq, ecp, q);
 
 	/*
 	 * For each line...  The semantics of global matching are that we first
@@ -204,7 +198,7 @@ usage:		ex_emsg(sp, cmdp->cmd->usage, EXM_USAGE);
 	    end = cmdp->addr2.lno; start <= end; ++start) {
 		if (cnt-- == 0) {
 			if (INTERRUPTED(sp)) {
-				LIST_REMOVE(ecp, q);
+				SLIST_REMOVE_HEAD(sp->gp->ecq, q);
 				free(ecp->cp);
 				free(ecp);
 				break;
@@ -233,7 +227,7 @@ usage:		ex_emsg(sp, cmdp->cmd->usage, EXM_USAGE);
 		}
 
 		/* If follows the last entry, extend the last entry's range. */
-		if ((rp = ecp->rq.cqh_last) != (void *)&ecp->rq &&
+		if ((rp = TAILQ_LAST(ecp->rq, _rh)) != NULL &&
 		    rp->stop == start - 1) {
 			++rp->stop;
 			continue;
@@ -244,7 +238,7 @@ usage:		ex_emsg(sp, cmdp->cmd->usage, EXM_USAGE);
 		if (rp == NULL)
 			return (1);
 		rp->start = rp->stop = start;
-		CIRCLEQ_INSERT_TAIL(&ecp->rq, rp, q);
+		TAILQ_INSERT_TAIL(ecp->rq, rp, q);
 	}
 	search_busy(sp, BUSY_OFF);
 	return (0);
@@ -257,10 +251,7 @@ usage:		ex_emsg(sp, cmdp->cmd->usage, EXM_USAGE);
  * PUBLIC: int ex_g_insdel __P((SCR *, lnop_t, recno_t));
  */
 int
-ex_g_insdel(sp, op, lno)
-	SCR *sp;
-	lnop_t op;
-	recno_t lno;
+ex_g_insdel(SCR *sp, lnop_t op, recno_t lno)
 {
 	EXCMD *ecp;
 	RANGE *nrp, *rp;
@@ -272,12 +263,10 @@ ex_g_insdel(sp, op, lno)
 	if (op == LINE_RESET)
 		return (0);
 
-	for (ecp = sp->gp->ecq.lh_first; ecp != NULL; ecp = ecp->q.le_next) {
+	SLIST_FOREACH(ecp, sp->gp->ecq, q) {
 		if (!FL_ISSET(ecp->agv_flags, AGV_AT | AGV_GLOBAL | AGV_V))
 			continue;
-		for (rp = ecp->rq.cqh_first; rp != (void *)&ecp->rq; rp = nrp) {
-			nrp = rp->q.cqe_next;
-
+		TAILQ_FOREACH_SAFE(rp, ecp->rq, q, nrp) {
 			/* If range less than the line, ignore it. */
 			if (rp->stop < lno)
 				continue;
@@ -305,7 +294,7 @@ ex_g_insdel(sp, op, lno)
 			 */
 			if (op == LINE_DELETE) {
 				if (rp->start > --rp->stop) {
-					CIRCLEQ_REMOVE(&ecp->rq, rp, q);
+					TAILQ_REMOVE(ecp->rq, rp, q);
 					free(rp);
 				}
 			} else {
@@ -313,8 +302,7 @@ ex_g_insdel(sp, op, lno)
 				nrp->start = lno + 1;
 				nrp->stop = rp->stop + 1;
 				rp->stop = lno - 1;
-				CIRCLEQ_INSERT_AFTER(&ecp->rq, rp, nrp, q);
-				rp = nrp;
+				TAILQ_INSERT_AFTER(ecp->rq, rp, nrp, q);
 			}
 		}
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.107 2013/01/03 05:49:36 djm Exp $ */
+/* $OpenBSD: servconf.h,v 1.109 2013/07/19 07:37:48 markus Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -66,6 +66,7 @@ typedef struct {
 	int     num_host_key_files;     /* Number of files for host keys. */
 	char   *host_cert_files[MAX_HOSTCERTS];	/* Files containing host certs. */
 	int     num_host_cert_files;     /* Number of files for host certs. */
+	char   *host_key_agent;		 /* ssh-agent socket for host keys. */
 	char   *pid_file;	/* Where to put our pid */
 	int     server_key_bits;/* Size of the server key. */
 	int     login_grace_time;	/* Disconnect if no auth in this time
@@ -176,6 +177,9 @@ typedef struct {
 	char   *authorized_principals_file;
 	char   *authorized_keys_command;
 	char   *authorized_keys_command_user;
+
+	int64_t rekey_limit;
+	int	rekey_interval;
 
 	char   *version_addendum;	/* Appended to SSH banner */
 

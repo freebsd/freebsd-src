@@ -40,6 +40,10 @@
 
 __BEGIN_DECLS
 
+#ifndef DEBUG_LIBGEOM
+#define DEBUG_LIBGEOM 0
+#endif
+
 void geom_stats_close(void);
 void geom_stats_resync(void);
 int geom_stats_open(void);

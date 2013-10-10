@@ -282,7 +282,9 @@ EndElement(void *userData, const char *name)
 	}
 
 	if (p != NULL) {
+#if DEBUG_LIBGEOM > 0
 		printf("Unexpected XML: name=%s data=\"%s\"\n", name, p);
+#endif
 		free(p);
 	}
 

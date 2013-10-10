@@ -60,7 +60,8 @@ MLINKS+=getc.3 fgetc.3 getc.3 getc_unlocked.3 getc.3 getchar.3 \
 	getc.3 getchar_unlocked.3 getc.3 getw.3
 MLINKS+=getline.3 getdelim.3
 MLINKS+=getwc.3 fgetwc.3 getwc.3 getwchar.3
-MLINKS+=mktemp.3 mkdtemp.3 mktemp.3 mkstemp.3 mktemp.3 mkstemps.3
+MLINKS+=mktemp.3 mkdtemp.3 mktemp.3 mkstemp.3 mktemp.3 mkstemps.3 \
+	mktemp.3 mkostemp.3 mktemp.3 mkostemps.3
 MLINKS+=open_memstream.3 open_wmemstream.3
 MLINKS+=printf.3 asprintf.3 printf.3 dprintf.3 printf.3 fprintf.3 \
 	printf.3 snprintf.3 printf.3 sprintf.3 \

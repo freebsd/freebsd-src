@@ -99,10 +99,10 @@ argument.
 .Rv -std cap_ioctls_limit
 .Pp
 The
-.Fn cap_ioctls_limit
+.Fn cap_ioctls_get
 function, if successfull, returns the total number of allowed ioctl commands or
 the value
-.Dv INT_MAX
+.Dv CAP_IOCTLS_ALL
 if all ioctls commands are allowed.
 On failure the value
 .Va -1

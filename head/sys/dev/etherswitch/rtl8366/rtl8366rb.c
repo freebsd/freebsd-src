@@ -619,7 +619,7 @@ rtl_getvgroup(device_t dev, etherswitch_vlangroup_t *vg)
 	for (i=0; i<3; i++)
 		vmcr[i] = rtl_readreg(dev, RTL8366RB_VMCR(i, vg->es_vlangroup));
 		
-	vg->es_vid = RTL8366RB_VMCR_VID(vmcr);
+	vg->es_vid = RTL8366RB_VMCR_VID(vmcr) | ETHERSWITCH_VID_VALID;
 	vg->es_member_ports = RTL8366RB_VMCR_MEMBER(vmcr);
 	vg->es_untagged_ports = RTL8366RB_VMCR_UNTAG(vmcr);
 	vg->es_fid = RTL8366RB_VMCR_FID(vmcr);

@@ -388,9 +388,10 @@
 #define NT_PRPSINFO	3		/* Contains copy of prpsinfo struct */
 #define NT_TASKSTRUCT	4		/* Contains copy of task struct */
 #define NT_AUXV		6		/* Contains copy of Elfxx_auxv_t */
-#define NT_THRMISC	7		/* Contains copy of thrmisc struct */
+#define NT_FILE		0x46494c45
 #define NT_PRXFPREG	0x46e62b7f	/* Contains a user_xfpregs_struct; */
 					/*   note name must be "LINUX".  */
+#define NT_SIGINFO	0x53494749
 
 /* Note segments for core files on dir-style procfs systems.  */
 
@@ -400,6 +401,19 @@
 #define NT_LWPSTATUS	16		/* Has a struct lwpstatus_t */
 #define NT_LWPSINFO	17		/* Has a struct lwpsinfo_t */
 #define NT_WIN32PSTATUS	18		/* Has a struct win32_pstatus */
+
+/* Note segments for core files on FreeBSD systems.  Note name
+   must start with "FreeBSD".  */
+#define NT_THRMISC		7	/* Contains copy of thrmisc struct */
+#define NT_PROCSTAT_PROC	8
+#define NT_PROCSTAT_FILES	9
+#define NT_PROCSTAT_VMMAP	10
+#define NT_PROCSTAT_GROUPS	11
+#define NT_PROCSTAT_UMASK	12
+#define NT_PROCSTAT_RLIMIT	13
+#define NT_PROCSTAT_OSREL	14
+#define NT_PROCSTAT_PSSTRINGS	15
+#define NT_PROCSTAT_AUXV	16
 
 
 /* Note segments for core files on NetBSD systems.  Note name
@@ -423,6 +437,9 @@
 #define GNU_ABI_TAG_FREEBSD	3
 #define GNU_ABI_TAG_NETBSD	4
 
+/* Values for GNU .note.gnu.build-id notes.  Note name is "GNU"." */
+#define NT_GNU_BUILD_ID		3
+
 /* Values for NetBSD .note.netbsd.ident notes.  Note name is "NetBSD".  */
 
 #define NT_NETBSD_IDENT		1
@@ -439,6 +456,7 @@
 
 #define NT_FREEBSD_TAG		1
 #define NT_FREEBSD_NOINIT_TAG	2
+#define NT_FREEBSD_ARCH_TAG	3
 
 /* These three macros disassemble and assemble a symbol table st_info field,
    which contains the symbol binding and symbol type.  The STB_ and STT_

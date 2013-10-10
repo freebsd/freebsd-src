@@ -100,6 +100,7 @@
 #define         ATA_SS_IPM_ACTIVE       0x00000100
 #define         ATA_SS_IPM_PARTIAL      0x00000200
 #define         ATA_SS_IPM_SLUMBER      0x00000600
+#define         ATA_SS_IPM_DEVSLEEP     0x00000800
 
 #define ATA_SERROR                      14
 #define         ATA_SE_DATA_CORRECTED   0x00000001
@@ -205,6 +206,9 @@
 #define		AHCI_CAP2_BOH	0x00000001
 #define		AHCI_CAP2_NVMP	0x00000002
 #define		AHCI_CAP2_APST	0x00000004
+#define		AHCI_CAP2_SDS	0x00000008
+#define		AHCI_CAP2_SADM	0x00000010
+#define		AHCI_CAP2_DESO	0x00000020
 
 #define AHCI_OFFSET                 0x100
 #define AHCI_STEP                   0x80
@@ -262,6 +266,7 @@
 #define         AHCI_P_CMD_ACTIVE   0x10000000
 #define         AHCI_P_CMD_PARTIAL  0x20000000
 #define         AHCI_P_CMD_SLUMBER  0x60000000
+#define         AHCI_P_CMD_DEVSLEEP 0x80000000
 
 #define AHCI_P_TFD                  0x20
 #define AHCI_P_SIG                  0x24

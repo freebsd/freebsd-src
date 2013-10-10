@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_word.c	10.5 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: v_word.c,v 10.7 2011/12/27 00:49:31 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -77,9 +77,7 @@ static int fword __P((SCR *, VICMD *, enum which));
  * PUBLIC: int v_wordW __P((SCR *, VICMD *));
  */
 int
-v_wordW(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_wordW(SCR *sp, VICMD *vp)
 {
 	return (fword(sp, vp, BIGWORD));
 }
@@ -91,9 +89,7 @@ v_wordW(sp, vp)
  * PUBLIC: int v_wordw __P((SCR *, VICMD *));
  */
 int
-v_wordw(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_wordw(SCR *sp, VICMD *vp)
 {
 	return (fword(sp, vp, LITTLEWORD));
 }
@@ -103,10 +99,7 @@ v_wordw(sp, vp)
  *	Move forward by words.
  */
 static int
-fword(sp, vp, type)
-	SCR *sp;
-	VICMD *vp;
-	enum which type;
+fword(SCR *sp, VICMD *vp, enum which type)
 {
 	enum { INWORD, NOTWORD } state;
 	VCS cs;
@@ -125,7 +118,7 @@ fword(sp, vp, type)
 	 *	counts as a single word move.  If it's a motion command,
 	 *	don't move off the end of the line.
 	 */
-	if (cs.cs_flags == CS_EMP || cs.cs_flags == 0 && isblank(cs.cs_ch)) {
+	if (cs.cs_flags == CS_EMP || (cs.cs_flags == 0 && ISBLANK(cs.cs_ch))) {
 		if (ISMOTION(vp) && cs.cs_flags != CS_EMP && cnt == 1) {
 			if (ISCMD(vp->rkp, 'c'))
 				return (0);
@@ -153,7 +146,7 @@ fword(sp, vp, type)
 					return (1);
 				if (cs.cs_flags == CS_EOF)
 					goto ret;
-				if (cs.cs_flags != 0 || isblank(cs.cs_ch))
+				if (cs.cs_flags != 0 || ISBLANK(cs.cs_ch))
 					break;
 			}
 			/*
@@ -185,7 +178,7 @@ fword(sp, vp, type)
 					return (1);
 				if (cs.cs_flags == CS_EOF)
 					goto ret;
-				if (cs.cs_flags != 0 || isblank(cs.cs_ch))
+				if (cs.cs_flags != 0 || ISBLANK(cs.cs_ch))
 					break;
 				if (state == INWORD) {
 					if (!inword(cs.cs_ch))
@@ -204,7 +197,7 @@ fword(sp, vp, type)
 			}
 
 			/* Eat whitespace characters. */
-			if (cs.cs_flags != 0 || isblank(cs.cs_ch))
+			if (cs.cs_flags != 0 || ISBLANK(cs.cs_ch))
 				if (cs_fblank(sp, &cs))
 					return (1);
 			if (cs.cs_flags == CS_EOF)
@@ -244,9 +237,7 @@ ret:	if (!ISMOTION(vp) &&
  * PUBLIC: int v_wordE __P((SCR *, VICMD *));
  */
 int
-v_wordE(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_wordE(SCR *sp, VICMD *vp)
 {
 	return (eword(sp, vp, BIGWORD));
 }
@@ -258,9 +249,7 @@ v_wordE(sp, vp)
  * PUBLIC: int v_worde __P((SCR *, VICMD *));
  */
 int
-v_worde(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_worde(SCR *sp, VICMD *vp)
 {
 	return (eword(sp, vp, LITTLEWORD));
 }
@@ -270,10 +259,7 @@ v_worde(sp, vp)
  *	Move forward to the end of the word.
  */
 static int
-eword(sp, vp, type)
-	SCR *sp;
-	VICMD *vp;
-	enum which type;
+eword(SCR *sp, VICMD *vp, enum which type)
 {
 	enum { INWORD, NOTWORD } state;
 	VCS cs;
@@ -291,10 +277,10 @@ eword(sp, vp, type)
 	 * it.  (This doesn't count as a word move.)  Stay at the character
 	 * past the current one, it sets word "state" for the 'e' command.
 	 */
-	if (cs.cs_flags == 0 && !isblank(cs.cs_ch)) {
+	if (cs.cs_flags == 0 && !ISBLANK(cs.cs_ch)) {
 		if (cs_next(sp, &cs))
 			return (1);
-		if (cs.cs_flags == 0 && !isblank(cs.cs_ch))
+		if (cs.cs_flags == 0 && !ISBLANK(cs.cs_ch))
 			goto start;
 	}
 	if (cs_fblank(sp, &cs))
@@ -313,7 +299,7 @@ start:	if (type == BIGWORD)
 					return (1);
 				if (cs.cs_flags == CS_EOF)
 					goto ret;
-				if (cs.cs_flags != 0 || isblank(cs.cs_ch))
+				if (cs.cs_flags != 0 || ISBLANK(cs.cs_ch))
 					break;
 			}
 			/*
@@ -342,7 +328,7 @@ start:	if (type == BIGWORD)
 					return (1);
 				if (cs.cs_flags == CS_EOF)
 					goto ret;
-				if (cs.cs_flags != 0 || isblank(cs.cs_ch))
+				if (cs.cs_flags != 0 || ISBLANK(cs.cs_ch))
 					break;
 				if (state == INWORD) {
 					if (!inword(cs.cs_ch))
@@ -359,7 +345,7 @@ start:	if (type == BIGWORD)
 			}
 
 			/* Eat whitespace characters. */
-			if (cs.cs_flags != 0 || isblank(cs.cs_ch))
+			if (cs.cs_flags != 0 || ISBLANK(cs.cs_ch))
 				if (cs_fblank(sp, &cs))
 					return (1);
 			if (cs.cs_flags == CS_EOF)
@@ -397,9 +383,7 @@ ret:	if (!ISMOTION(vp) &&
  * PUBLIC: int v_wordB __P((SCR *, VICMD *));
  */
 int
-v_wordB(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_wordB(SCR *sp, VICMD *vp)
 {
 	return (bword(sp, vp, BIGWORD));
 }
@@ -411,9 +395,7 @@ v_wordB(sp, vp)
  * PUBLIC: int v_wordb __P((SCR *, VICMD *));
  */
 int
-v_wordb(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_wordb(SCR *sp, VICMD *vp)
 {
 	return (bword(sp, vp, LITTLEWORD));
 }
@@ -423,10 +405,7 @@ v_wordb(sp, vp)
  *	Move backward by words.
  */
 static int
-bword(sp, vp, type)
-	SCR *sp;
-	VICMD *vp;
-	enum which type;
+bword(SCR *sp, VICMD *vp, enum which type)
 {
 	enum { INWORD, NOTWORD } state;
 	VCS cs;
@@ -445,10 +424,10 @@ bword(sp, vp, type)
 	 * character before the current one, it sets word "state" for the
 	 * 'b' command.
 	 */
-	if (cs.cs_flags == 0 && !isblank(cs.cs_ch)) {
+	if (cs.cs_flags == 0 && !ISBLANK(cs.cs_ch)) {
 		if (cs_prev(sp, &cs))
 			return (1);
-		if (cs.cs_flags == 0 && !isblank(cs.cs_ch))
+		if (cs.cs_flags == 0 && !ISBLANK(cs.cs_ch))
 			goto start;
 	}
 	if (cs_bblank(sp, &cs))
@@ -467,7 +446,7 @@ start:	if (type == BIGWORD)
 					return (1);
 				if (cs.cs_flags == CS_SOF)
 					goto ret;
-				if (cs.cs_flags != 0 || isblank(cs.cs_ch))
+				if (cs.cs_flags != 0 || ISBLANK(cs.cs_ch))
 					break;
 			}
 			/*
@@ -496,7 +475,7 @@ start:	if (type == BIGWORD)
 					return (1);
 				if (cs.cs_flags == CS_SOF)
 					goto ret;
-				if (cs.cs_flags != 0 || isblank(cs.cs_ch))
+				if (cs.cs_flags != 0 || ISBLANK(cs.cs_ch))
 					break;
 				if (state == INWORD) {
 					if (!inword(cs.cs_ch))
@@ -513,7 +492,7 @@ start:	if (type == BIGWORD)
 			}
 
 			/* Eat whitespace characters. */
-			if (cs.cs_flags != 0 || isblank(cs.cs_ch))
+			if (cs.cs_flags != 0 || ISBLANK(cs.cs_ch))
 				if (cs_bblank(sp, &cs))
 					return (1);
 			if (cs.cs_flags == CS_SOF)

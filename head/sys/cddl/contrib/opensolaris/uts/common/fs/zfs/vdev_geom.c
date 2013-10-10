@@ -73,6 +73,8 @@ vdev_geom_orphan(struct g_consumer *cp)
 		/* Vdev close in progress.  Ignore the event. */
 		return;
 	}
+	if (vd == NULL)
+		return;
 
 	/*
 	 * Orphan callbacks occur from the GEOM event thread.
@@ -212,7 +214,7 @@ vdev_geom_attach(struct g_provider *pp, vdev_t *vd)
 }
 
 static void
-vdev_geom_detach(void *arg)
+vdev_geom_detach(void *arg, int flag __unused)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -638,7 +640,7 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 			g_topology_lock();
 			if (pguid != spa_guid(vd->vdev_spa) ||
 			    vguid != vd->vdev_guid) {
-				vdev_geom_detach(cp);
+				vdev_geom_detach(cp, 0);
 				cp = NULL;
 				ZFS_LOG(1, "guid mismatch for provider %s: "
 				    "%ju:%ju != %ju:%ju.", vd->vdev_path,
@@ -657,7 +659,7 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 
 static int
 vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
-    uint64_t *ashift)
+    uint64_t *logical_ashift, uint64_t *physical_ashift)
 {
 	struct g_provider *pp;
 	struct g_consumer *cp;
@@ -719,7 +721,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	    !ISP2(cp->provider->sectorsize)) {
 		ZFS_LOG(1, "Provider %s has unsupported sectorsize.",
 		    vd->vdev_path);
-		vdev_geom_detach(cp);
+		vdev_geom_detach(cp, 0);
 		error = EINVAL;
 		cp = NULL;
 	} else if (cp->acw == 0 && (spa_mode(vd->vdev_spa) & FWRITE) != 0) {
@@ -736,7 +738,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 		if (error != 0) {
 			printf("ZFS WARNING: Unable to open %s for writing (error=%d).\n",
 			    vd->vdev_path, error);
-			vdev_geom_detach(cp);
+			vdev_geom_detach(cp, 0);
 			cp = NULL;
 		}
 	}
@@ -756,9 +758,13 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	*max_psize = *psize = pp->mediasize;
 
 	/*
-	 * Determine the device's minimum transfer size.
+	 * Determine the device's minimum transfer size and preferred
+	 * transfer size.
 	 */
-	*ashift = highbit(MAX(pp->sectorsize, SPA_MINBLOCKSIZE)) - 1;
+	*logical_ashift = highbit(MAX(pp->sectorsize, SPA_MINBLOCKSIZE)) - 1;
+	*physical_ashift = 0;
+	if (pp->stripesize)
+		*physical_ashift = highbit(pp->stripesize) - 1;
 
 	/*
 	 * Clear the nowritecache settings, so that on a vdev_reopen()
@@ -777,9 +783,10 @@ vdev_geom_close(vdev_t *vd)
 	cp = vd->vdev_tsd;
 	if (cp == NULL)
 		return;
-	g_topology_lock();
-	vdev_geom_detach(cp);
-	g_topology_unlock();
+	vd->vdev_tsd = NULL;
+	vd->vdev_delayed_close = B_FALSE;
+	cp->private = NULL;	/* XXX locking */
+	g_post_event(vdev_geom_detach, cp, M_WAITOK, NULL);
 }
 
 static void

@@ -31,7 +31,7 @@ LOADER=/usr/sbin/bhyveload
 BHYVECTL=/usr/sbin/bhyvectl
 FBSDRUN=/usr/sbin/bhyve
 
-DEFAULT_MEMSIZE=512
+DEFAULT_MEMSIZE=512M
 DEFAULT_CPUS=2
 DEFAULT_TAPDEV=tap0
 
@@ -47,7 +47,7 @@ usage() {
 	echo "       -g: listen for connection from kgdb at <gdbport>"
 	echo "       -i: force boot of the Installation CDROM image"
 	echo "       -I: Installation CDROM image location (default is ${DEFAULT_ISOFILE})"
-	echo "       -m: memory size in MB (default is ${DEFAULT_MEMSIZE}MB)"
+	echo "       -m: memory size (default is ${DEFAULT_MEMSIZE})"
 	echo "       -t: tap device for virtio-net (default is $DEFAULT_TAPDEV)"
 	echo ""
 	echo "       This script needs to be executed with superuser privileges"

@@ -24,7 +24,9 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
 
 #pragma D option quiet
 
@@ -35,4 +37,9 @@ BEGIN
 	printf("%s\n", strjoin("", "baz"));
 	printf("%s\n", strjoin("", ""));
 	exit(0);
+}
+
+BEGIN
+{
+	exit(1);
 }

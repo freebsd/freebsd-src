@@ -101,14 +101,14 @@ static void	assert_mtx(const struct lock_object *lock, int what);
 #ifdef DDB
 static void	db_show_mtx(const struct lock_object *lock);
 #endif
-static void	lock_mtx(struct lock_object *lock, int how);
-static void	lock_spin(struct lock_object *lock, int how);
+static void	lock_mtx(struct lock_object *lock, uintptr_t how);
+static void	lock_spin(struct lock_object *lock, uintptr_t how);
 #ifdef KDTRACE_HOOKS
 static int	owner_mtx(const struct lock_object *lock,
 		    struct thread **owner);
 #endif
-static int	unlock_mtx(struct lock_object *lock);
-static int	unlock_spin(struct lock_object *lock);
+static uintptr_t unlock_mtx(struct lock_object *lock);
+static uintptr_t unlock_spin(struct lock_object *lock);
 
 /*
  * Lock classes for sleep and spin mutexes.
@@ -154,20 +154,20 @@ assert_mtx(const struct lock_object *lock, int what)
 }
 
 void
-lock_mtx(struct lock_object *lock, int how)
+lock_mtx(struct lock_object *lock, uintptr_t how)
 {
 
 	mtx_lock((struct mtx *)lock);
 }
 
 void
-lock_spin(struct lock_object *lock, int how)
+lock_spin(struct lock_object *lock, uintptr_t how)
 {
 
 	panic("spin locks can only use msleep_spin");
 }
 
-int
+uintptr_t
 unlock_mtx(struct lock_object *lock)
 {
 	struct mtx *m;
@@ -178,7 +178,7 @@ unlock_mtx(struct lock_object *lock)
 	return (0);
 }
 
-int
+uintptr_t
 unlock_spin(struct lock_object *lock)
 {
 
@@ -218,13 +218,14 @@ __mtx_lock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_sleep,
 	    ("mtx_lock() of spin mutex %s @ %s:%d", m->lock_object.lo_name,
 	    file, line));
-	WITNESS_CHECKORDER(&m->lock_object, opts | LOP_NEWORDER | LOP_EXCLUSIVE,
-	    file, line, NULL);
+	WITNESS_CHECKORDER(&m->lock_object, (opts & ~MTX_RECURSE) |
+	    LOP_NEWORDER | LOP_EXCLUSIVE, file, line, NULL);
 
 	__mtx_lock(m, curthread, opts, file, line);
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
-	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
+	WITNESS_LOCK(&m->lock_object, (opts & ~MTX_RECURSE) | LOP_EXCLUSIVE,
+	    file, line);
 	curthread->td_locks++;
 }
 
@@ -271,9 +272,11 @@ __mtx_lock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
 	    ("mtx_lock_spin() of sleep mutex %s @ %s:%d",
 	    m->lock_object.lo_name, file, line));
 	if (mtx_owned(m))
-		KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) != 0,
+		KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) != 0 ||
+		    (opts & MTX_RECURSE) != 0,
 	    ("mtx_lock_spin: recursed on non-recursive mutex %s @ %s:%d\n",
 		    m->lock_object.lo_name, file, line));
+	opts &= ~MTX_RECURSE;
 	WITNESS_CHECKORDER(&m->lock_object, opts | LOP_NEWORDER | LOP_EXCLUSIVE,
 	    file, line, NULL);
 	__mtx_lock_spin(m, curthread, opts, file, line);
@@ -335,12 +338,14 @@ _mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file, int line)
 	    ("mtx_trylock() of spin mutex %s @ %s:%d", m->lock_object.lo_name,
 	    file, line));
 
-	if (mtx_owned(m) && (m->lock_object.lo_flags & LO_RECURSABLE) != 0) {
+	if (mtx_owned(m) && ((m->lock_object.lo_flags & LO_RECURSABLE) != 0 ||
+	    (opts & MTX_RECURSE) != 0)) {
 		m->mtx_recurse++;
 		atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
 		rval = 1;
 	} else
 		rval = _mtx_obtain_lock(m, (uintptr_t)curthread);
+	opts &= ~MTX_RECURSE;
 
 	LOCK_LOG_TRY("LOCK", &m->lock_object, opts, rval, file, line);
 	if (rval) {
@@ -391,15 +396,18 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t tid, int opts,
 	m = mtxlock2mtx(c);
 
 	if (mtx_owned(m)) {
-		KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) != 0,
+		KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) != 0 ||
+		    (opts & MTX_RECURSE) != 0,
 	    ("_mtx_lock_sleep: recursed on non-recursive mutex %s @ %s:%d\n",
 		    m->lock_object.lo_name, file, line));
+		opts &= ~MTX_RECURSE;
 		m->mtx_recurse++;
 		atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
 		if (LOCK_LOG_TEST(&m->lock_object, opts))
 			CTR1(KTR_LOCK, "_mtx_lock_sleep: %p recursing", m);
 		return;
 	}
+	opts &= ~MTX_RECURSE;
 
 #ifdef HWPMC_HOOKS
 	PMC_SOFT_CALL( , , lock, failed);

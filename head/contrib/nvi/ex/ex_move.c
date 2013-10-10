@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_move.c	10.10 (Berkeley) 9/15/96";
+static const char sccsid[] = "$Id: ex_move.c,v 10.16 2012/02/11 15:52:33 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <limits.h>
@@ -31,11 +32,9 @@ static const char sccsid[] = "@(#)ex_move.c	10.10 (Berkeley) 9/15/96";
  * PUBLIC: int ex_copy __P((SCR *, EXCMD *));
  */
 int
-ex_copy(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_copy(SCR *sp, EXCMD *cmdp)
 {
-	CB cb;
+	CB cb = {{ 0 }};
 	MARK fm1, fm2, m, tm;
 	recno_t cnt;
 	int rval;
@@ -51,10 +50,9 @@ ex_copy(sp, cmdp)
 	 */
 	fm1 = cmdp->addr1;
 	fm2 = cmdp->addr2;
-	memset(&cb, 0, sizeof(cb));
-	CIRCLEQ_INIT(&cb.textq);
+	TAILQ_INIT(cb.textq);
 	for (cnt = fm1.lno; cnt <= fm2.lno; ++cnt)
-		if (cut_line(sp, cnt, 0, 0, &cb)) {
+		if (cut_line(sp, cnt, 0, ENTIRE_LINE, &cb)) {
 			rval = 1;
 			goto err;
 		}
@@ -75,7 +73,7 @@ ex_copy(sp, cmdp)
 		sp->lno = m.lno + (cnt - 1);
 		sp->cno = 0;
 	}
-err:	text_lfree(&cb.textq);
+err:	text_lfree(cb.textq);
 	return (rval);
 }
 
@@ -86,16 +84,15 @@ err:	text_lfree(&cb.textq);
  * PUBLIC: int ex_move __P((SCR *, EXCMD *));
  */
 int
-ex_move(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_move(SCR *sp, EXCMD *cmdp)
 {
 	LMARK *lmp;
 	MARK fm1, fm2;
 	recno_t cnt, diff, fl, tl, mfl, mtl;
 	size_t blen, len;
 	int mark_reset;
-	char *bp, *p;
+	CHAR_T *bp;
+	CHAR_T *p;
 
 	NEEDFILE(sp, cmdp);
 
@@ -126,7 +123,7 @@ ex_move(sp, cmdp)
 
 	/* Log the old positions of the marks. */
 	mark_reset = 0;
-	for (lmp = sp->ep->marks.lh_first; lmp != NULL; lmp = lmp->q.le_next)
+	SLIST_FOREACH(lmp, sp->ep->marks, q)
 		if (lmp->name != ABSMARK1 &&
 		    lmp->lno >= fl && lmp->lno <= tl) {
 			mark_reset = 1;
@@ -135,7 +132,7 @@ ex_move(sp, cmdp)
 		}
 
 	/* Get memory for the copy. */
-	GET_SPACE_RET(sp, bp, blen, 256);
+	GET_SPACE_RETW(sp, bp, blen, 256);
 
 	/* Move the lines. */
 	diff = (fm2.lno - fm1.lno) + 1;
@@ -145,13 +142,12 @@ ex_move(sp, cmdp)
 		for (cnt = diff; cnt--;) {
 			if (db_get(sp, fl, DBG_FATAL, &p, &len))
 				return (1);
-			BINC_RET(sp, bp, blen, len);
-			memcpy(bp, p, len);
+			BINC_RETW(sp, bp, blen, len);
+			MEMCPY(bp, p, len);
 			if (db_append(sp, 1, tl, bp, len))
 				return (1);
 			if (mark_reset)
-				for (lmp = sp->ep->marks.lh_first;
-				    lmp != NULL; lmp = lmp->q.le_next)
+				SLIST_FOREACH(lmp, sp->ep->marks, q)
 					if (lmp->name != ABSMARK1 &&
 					    lmp->lno == fl)
 						lmp->lno = tl + 1;
@@ -164,13 +160,12 @@ ex_move(sp, cmdp)
 		for (cnt = diff; cnt--;) {
 			if (db_get(sp, fl, DBG_FATAL, &p, &len))
 				return (1);
-			BINC_RET(sp, bp, blen, len);
-			memcpy(bp, p, len);
+			BINC_RETW(sp, bp, blen, len);
+			MEMCPY(bp, p, len);
 			if (db_append(sp, 1, tl++, bp, len))
 				return (1);
 			if (mark_reset)
-				for (lmp = sp->ep->marks.lh_first;
-				    lmp != NULL; lmp = lmp->q.le_next)
+				SLIST_FOREACH(lmp, sp->ep->marks, q)
 					if (lmp->name != ABSMARK1 &&
 					    lmp->lno == fl)
 						lmp->lno = tl;
@@ -179,15 +174,14 @@ ex_move(sp, cmdp)
 				return (1);
 		}
 	}
-	FREE_SPACE(sp, bp, blen);
+	FREE_SPACEW(sp, bp, blen);
 
 	sp->lno = tl;				/* Last line moved. */
 	sp->cno = 0;
 
 	/* Log the new positions of the marks. */
 	if (mark_reset)
-		for (lmp = sp->ep->marks.lh_first;
-		    lmp != NULL; lmp = lmp->q.le_next)
+		SLIST_FOREACH(lmp, sp->ep->marks, q)
 			if (lmp->name != ABSMARK1 &&
 			    lmp->lno >= mfl && lmp->lno <= mtl)
 				(void)log_mark(sp, lmp);

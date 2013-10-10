@@ -2,23 +2,26 @@
 .\"     The Regents of the University of California.  All rights reserved.
 .\" Copyright (c) 1994, 1995, 1996
 .\"	Keith Bostic.  All rights reserved.
+.\" Copyright (c) 2011
+.\"	Zhihao Yuan.  All rights reserved.
 .\"
 .\" This document may not be republished without written permission from
 .\" Keith Bostic. 
 .\"
 .\" See the LICENSE file for redistribution information.
 .\"
-.\"     @(#)vi.1	8.51 (Berkeley) 10/10/96
+.\"     @(#)vi.1       8.51 (Berkeley) 10/10/96
 .\"	$FreeBSD$
+.\"     $Id: vi.1,v 8.59 2012/02/12 12:56:37 zy Exp $
 .\"
-.TH VI 1 "October 10, 1996"
+.TH VI 1 "11 February, 2012"
 .UC
 .SH NAME
 ex, vi, view \- text editors
 .SH SYNOPSIS
 .B ex
 [\c
-.B -eFGRrSsv\c
+.B -eFRrSsv\c
 ] [\c
 .BI -c " cmd"\c
 ] [\c
@@ -29,7 +32,7 @@ ex, vi, view \- text editors
 .br
 .B vi
 [\c
-.B -eFGlRrSv\c
+.B -eFlRrSv\c
 ] [\c
 .BI -c " cmd"\c
 ] [\c
@@ -40,7 +43,7 @@ ex, vi, view \- text editors
 .br
 .B view
 [\c
-.B -eFGRrSv\c
+.B -eFRrSv\c
 ] [\c
 .BI -c " cmd"\c
 ] [\c
@@ -121,9 +124,6 @@ the file during your edit session.)
 .TP
 .B \-l
 Start editing with the lisp and showmatch options set.
-.TP
-.B \-G
-Start editing in gtags mode, as if the gtagsmode option was set.
 .TP
 .B \-R
 Start editing in read-only mode, as if the command name was
@@ -433,8 +433,6 @@ commands or cancel partial commands.
 .TP
 .B "<control-]>"
 Push a tag reference onto the tag stack.
-In gtagsmode, if at the first column of line,
-locate function references otherwise function definitions.
 .TP
 .B "<control-^>"
 Switch to the most recently edited file.
@@ -946,9 +944,6 @@ Grow or shrink the current screen.
 .B "rew[ind][!]"
 Rewind the argument list.
 .TP
-.B "rta[g][!] tagstring"
-Edit the file referring the specified tag. (Only in gtagsmode)
-.TP
 .B "se[t] [option[=[value]] ...] [nooption ...] [option? ...] [all]"
 Display or set editor options.
 .TP
@@ -1112,15 +1107,15 @@ Regular expressions are extended (i.e.
 .IR egrep (1)\-\c
 style) expressions.
 .TP
-.B "filec [no default]"
+.B "filec [<tab>]"
 Set the character to perform file path completion on the colon
 command line.
 .TP
+.B "fileencoding, fe [auto detect]"
+Set the encoding of the current file.
+.TP
 .B "flash [on]"
 Flash the screen instead of beeping the keyboard on error.
-.TP
-.B "gtagsmode, gt [off]"
-Use GTAGS and GRTAGS instead of tags.
 .TP
 .B "hardtabs, ht [8]"
 Set the spacing between hardware tab settings.
@@ -1131,6 +1126,9 @@ as long as an upper-case letter does not appear in the search string.
 .TP
 .B "ignorecase, ic [off]"
 Ignore case differences in regular expressions.
+.TP
+.B "inputencoding, ie [locale]"
+Set the encoding of your input characters.
 .TP
 .B "keytime [6]"
 The 10th's of a second
@@ -1162,6 +1160,11 @@ read or written.
 .TP
 .B "magic [on]"
 Treat certain characters specially in regular expressions.
+.TP
+.B "matchchars [[]{}()]"
+Character pairs looked for by the
+.B %
+command.
 .TP
 .B "matchtime [7]"
 .I \&Vi
@@ -1303,7 +1306,7 @@ Set the autoindent and shift command indentation width.
 .B "showmatch, sm [off]"
 .I \&Vi
 only.
-Note matching ``{'' and ``('' for ``}'' and ``)'' characters.
+Note the left matching characters when the right ones are inserted.
 .TP
 .B "showmode, smd [off]"
 .I \&Vi
@@ -1384,8 +1387,7 @@ command.
 Set the window size for the screen.
 .TP
 .B "windowname [off]"
-Change the icon/window name to the current file name even if it can't
-be restored on editor exit.
+Change the icon/window name to the current file name.
 .TP
 .B "wraplen, wl [0]"
 .I \&Vi
@@ -1554,6 +1556,7 @@ $HOME/.exrc
 2nd choice for local directory startup file.
 .SH SEE ALSO
 .IR ctags (1),
+.IR iconv (1),
 .IR more (1),
 .IR curses (3),
 .IR dbopen (3)

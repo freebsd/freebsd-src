@@ -233,6 +233,8 @@ xlate_alloc_handle(xlate_handle_node_t **ret,
   else if (apr_err != APR_SUCCESS)
     {
       const char *errstr;
+      char apr_strerr[512];
+
       /* Can't use svn_error_wrap_apr here because it calls functions in
          this file, leading to infinite recursion. */
       if (frompage == SVN_APR_LOCALE_CHARSET)
@@ -248,7 +250,13 @@ xlate_alloc_handle(xlate_handle_node_t **ret,
                               _("Can't create a character converter from "
                                 "'%s' to '%s'"), frompage, topage);
 
-      return svn_error_create(apr_err, NULL, errstr);
+      /* Just put the error on the stack, since svn_error_create duplicates it
+         later.  APR_STRERR will be in the local encoding, not in UTF-8, though.
+       */
+      svn_strerror(apr_err, apr_strerr, sizeof(apr_strerr));
+      return svn_error_create(apr_err, 
+                              svn_error_create(apr_err, NULL, apr_strerr),
+                              errstr);
     }
 
   /* Allocate and initialize the node. */

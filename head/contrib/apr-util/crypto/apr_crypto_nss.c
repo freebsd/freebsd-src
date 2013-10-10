@@ -57,7 +57,7 @@ struct apr_crypto_t {
 };
 
 struct apr_crypto_config_t {
-	void *opaque;
+       void *opaque;
 };
 
 struct apr_crypto_key_t {
@@ -121,7 +121,8 @@ static apr_status_t crypto_shutdown_helper(void *data)
 /**
  * Initialise the crypto library and perform one time initialisation.
  */
-static apr_status_t crypto_init(apr_pool_t *pool, const char *params, int *rc)
+static apr_status_t crypto_init(apr_pool_t *pool, const char *params,
+        const apu_err_t **result)
 {
     SECStatus s;
     const char *dir = NULL;
@@ -209,8 +210,12 @@ static apr_status_t crypto_init(apr_pool_t *pool, const char *params, int *rc)
         s = NSS_NoDB_Init(NULL);
     }
     if (s != SECSuccess) {
-        if (rc) {
-            *rc = PR_GetError();
+        if (result) {
+            apu_err_t *err = apr_pcalloc(pool, sizeof(apu_err_t));
+            err->rc = PR_GetError();
+            err->msg = PR_ErrorToName(s);
+            err->reason = "Error during 'nss' initialisation";
+            *result = err;
         }
         return APR_ECRYPT;
     }

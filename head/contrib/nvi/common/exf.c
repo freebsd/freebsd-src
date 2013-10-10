@@ -5,23 +5,18 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
  */
 
 #include "config.h"
 
 #ifndef lint
-#if 0
-static const char sccsid[] = "@(#)exf.c	10.49 (Berkeley) 10/10/96";
-#endif
-static const char rcsid[] = 
-  "$FreeBSD$";
+static const char sccsid[] = "$Id: exf.c,v 10.62 2013/07/01 23:28:13 zy Exp $";
 #endif /* not lint */
 
-#include <sys/param.h>
-#include <sys/types.h>		/* XXX: param.h may not have included types.h */
+#include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 
 /*
  * We include <sys/file.h>, because the flock(2) and open(2) #defines
@@ -44,6 +39,7 @@ static const char rcsid[] =
 
 static int	file_backup __P((SCR *, char *, char *));
 static void	file_cinit __P((SCR *));
+static void	file_encinit __P((SCR *));
 static void	file_comment __P((SCR *));
 static int	file_spath __P((SCR *, FREF *, struct stat *, int *));
 
@@ -60,12 +56,12 @@ static int	file_spath __P((SCR *, FREF *, struct stat *, int *));
  * vi now remembers the last location in any file that it has ever edited,
  * not just the previously edited file.
  *
- * PUBLIC: FREF *file_add __P((SCR *, CHAR_T *));
+ * PUBLIC: FREF *file_add __P((SCR *, char *));
  */
 FREF *
-file_add(sp, name)
-	SCR *sp;
-	CHAR_T *name;
+file_add(
+	SCR *sp,
+	char *name)
 {
 	GS *gp;
 	FREF *frp, *tfrp;
@@ -81,15 +77,12 @@ file_add(sp, name)
 	 */
 	gp = sp->gp;
 	if (name != NULL)
-		for (frp = gp->frefq.cqh_first;
-		    frp != (FREF *)&gp->frefq; frp = frp->q.cqe_next) {
+		TAILQ_FOREACH_SAFE(frp, gp->frefq, q, tfrp) {
 			if (frp->name == NULL) {
-				tfrp = frp->q.cqe_next;
-				CIRCLEQ_REMOVE(&gp->frefq, frp, q);
+				TAILQ_REMOVE(gp->frefq, frp, q);
 				if (frp->name != NULL)
 					free(frp->name);
 				free(frp);
-				frp = tfrp;
 				continue;
 			}
 			if (!strcmp(frp->name, name))
@@ -114,7 +107,7 @@ file_add(sp, name)
 	}
 
 	/* Append into the chain of file names. */
-	CIRCLEQ_INSERT_TAIL(&gp->frefq, frp, q);
+	TAILQ_INSERT_TAIL(gp->frefq, frp, q);
 
 	return (frp);
 }
@@ -128,18 +121,18 @@ file_add(sp, name)
  * PUBLIC: int file_init __P((SCR *, FREF *, char *, int));
  */
 int
-file_init(sp, frp, rcv_name, flags)
-	SCR *sp;
-	FREF *frp;
-	char *rcv_name;
-	int flags;
+file_init(
+	SCR *sp,
+	FREF *frp,
+	char *rcv_name,
+	int flags)
 {
 	EXF *ep;
-	RECNOINFO oinfo;
+	RECNOINFO oinfo = { 0 };
 	struct stat sb;
 	size_t psize;
 	int fd, exists, open_err, readonly;
-	char *oname, tname[MAXPATHLEN];
+	char *oname, *tname;
 
 	open_err = readonly = 0;
 
@@ -169,7 +162,7 @@ file_init(sp, frp, rcv_name, flags)
 	 */
 	CALLOC_RET(sp, ep, EXF *, 1, sizeof(EXF));
 	ep->c_lno = ep->c_nlines = OOBLNO;
-	ep->rcv_fd = ep->fcntl_fd = -1;
+	ep->rcv_fd = -1;
 	F_SET(ep, F_FIRSTMODIFY);
 
 	/*
@@ -187,52 +180,56 @@ file_init(sp, frp, rcv_name, flags)
 	 */
 	oname = frp->name;
 	if (LF_ISSET(FS_OPENERR) || oname == NULL || !exists) {
-		if (opts_empty(sp, O_TMP_DIRECTORY, 0))
+		struct stat sb;
+
+		if (opts_empty(sp, O_TMPDIR, 0))
 			goto err;
-		(void)snprintf(tname, sizeof(tname),
-		    "%s/vi.XXXXXXXXXX", O_STR(sp, O_TMP_DIRECTORY));
-		if ((fd = mkstemp(tname)) == -1) {
+		if ((tname =
+		    join(O_STR(sp, O_TMPDIR), "vi.XXXXXXXXXX")) == NULL) {
+			msgq(sp, M_SYSERR, NULL);
+			goto err;
+		}
+		if ((fd = mkstemp(tname)) == -1 || fstat(fd, &sb)) {
+			free(tname);
 			msgq(sp, M_SYSERR,
 			    "237|Unable to create temporary file");
 			goto err;
 		}
 		(void)close(fd);
 
-		if (frp->name == NULL)
+		frp->tname = tname;
+		if (frp->name == NULL) {
 			F_SET(frp, FR_TMPFILE);
-		if ((frp->tname = strdup(tname)) == NULL ||
-		    frp->name == NULL && (frp->name = strdup(tname)) == NULL) {
-			if (frp->tname != NULL)
-				free(frp->tname);
-			msgq(sp, M_SYSERR, NULL);
-			(void)unlink(tname);
-			goto err;
+			if ((frp->name = strdup(tname)) == NULL) {
+				msgq(sp, M_SYSERR, NULL);
+				goto err;
+			}
 		}
 		oname = frp->tname;
 		psize = 1024;
 		if (!LF_ISSET(FS_OPENERR))
 			F_SET(frp, FR_NEWFILE);
 
-		time(&ep->mtime);
+		ep->mtim = sb.st_mtimespec;
 	} else {
 		/*
 		 * XXX
 		 * A seat of the pants calculation: try to keep the file in
-		 * 15 pages or less.  Don't use a page size larger than 10K
+		 * 15 pages or less.  Don't use a page size larger than 16K
 		 * (vi should have good locality) or smaller than 1K.
 		 */
 		psize = ((sb.st_size / 15) + 1023) / 1024;
-		if (psize > 10)
-			psize = 10;
+		if (psize > 16)
+			psize = 16;
 		if (psize == 0)
 			psize = 1;
-		psize *= 1024;
+		psize = p2roundup(psize) << 10;
 
 		F_SET(ep, F_DEVSET);
 		ep->mdev = sb.st_dev;
 		ep->minode = sb.st_ino;
 
-		ep->mtime = sb.st_mtime;
+		ep->mtim = sb.st_mtimespec;
 
 		if (!S_ISREG(sb.st_mode))
 			msgq_str(sp, M_ERR, oname,
@@ -240,7 +237,6 @@ file_init(sp, frp, rcv_name, flags)
 	}
 
 	/* Set up recovery. */
-	memset(&oinfo, 0, sizeof(RECNOINFO));
 	oinfo.bval = '\n';			/* Always set. */
 	oinfo.psize = psize;
 	oinfo.flags = F_ISSET(sp->gp, G_SNAPSHOT) ? R_SNAPSHOT : 0;
@@ -338,8 +334,7 @@ file_init(sp, frp, rcv_name, flags)
 	 * an error.
 	 */
 	if (rcv_name == NULL)
-		switch (file_lock(sp, oname,
-		    &ep->fcntl_fd, ep->db->fd(ep->db), 0)) {
+		switch (file_lock(sp, oname, ep->db->fd(ep->db), 0)) {
 		case LOCK_FAILED:
 			F_SET(frp, FR_UNLOCKED);
 			break;
@@ -396,9 +391,9 @@ file_init(sp, frp, rcv_name, flags)
 	 * probably isn't a problem for vi when it's running standalone.
 	 */
 	if (readonly || F_ISSET(sp, SC_READONLY) ||
-	    !F_ISSET(frp, FR_NEWFILE) &&
+	    (!F_ISSET(frp, FR_NEWFILE) &&
 	    (!(sb.st_mode & (S_IWUSR | S_IWGRP | S_IWOTH)) ||
-	    access(frp->name, W_OK)))
+	    access(frp->name, W_OK))))
 		O_SET(sp, O_READONLY);
 	else
 		O_CLR(sp, O_READONLY);
@@ -407,6 +402,9 @@ file_init(sp, frp, rcv_name, flags)
 	++ep->refcnt;
 	sp->ep = ep;
 	sp->frp = frp;
+
+	/* Detect and set the file encoding */
+	file_encinit(sp);
 
 	/* Set the initial cursor position, queue initial command. */
 	file_cinit(sp);
@@ -446,16 +444,16 @@ oerr:	if (F_ISSET(ep, F_RCV_ON))
  *	try and open.
  */
 static int
-file_spath(sp, frp, sbp, existsp)
-	SCR *sp;
-	FREF *frp;
-	struct stat *sbp;
-	int *existsp;
+file_spath(
+	SCR *sp,
+	FREF *frp,
+	struct stat *sbp,
+	int *existsp)
 {
-	CHAR_T savech;
+	int savech;
 	size_t len;
 	int found;
-	char *name, *p, *t, path[MAXPATHLEN];
+	char *name, *p, *t, *path;
 
 	/*
 	 * If the name is NULL or an explicit reference (i.e., the first
@@ -466,8 +464,8 @@ file_spath(sp, frp, sbp, existsp)
 		*existsp = 0;
 		return (0);
 	}
-	if (name[0] == '/' || name[0] == '.' &&
-	    (name[1] == '/' || name[1] == '.' && name[2] == '/')) {
+	if (name[0] == '/' || (name[0] == '.' &&
+	    (name[1] == '/' || (name[1] == '.' && name[2] == '/')))) {
 		*existsp = !stat(name, sbp);
 		return (0);
 	}
@@ -481,16 +479,24 @@ file_spath(sp, frp, sbp, existsp)
 	/* Try the O_PATH option values. */
 	for (found = 0, p = t = O_STR(sp, O_PATH);; ++p)
 		if (*p == ':' || *p == '\0') {
-			if (t < p - 1) {
+			/*
+			 * Ignore the empty strings and ".", since we've already
+			 * tried the current directory.
+			 */
+			if (t < p && (p - t != 1 || *t != '.')) {
 				savech = *p;
 				*p = '\0';
-				len = snprintf(path,
-				    sizeof(path), "%s/%s", t, name);
+				if ((path = join(t, name)) == NULL) {
+					msgq(sp, M_SYSERR, NULL);
+					break;
+				}
+				len = strlen(path);
 				*p = savech;
 				if (!stat(path, sbp)) {
 					found = 1;
 					break;
 				}
+				free(path);
 			}
 			t = p + 1;
 			if (*p == '\0')
@@ -499,10 +505,8 @@ file_spath(sp, frp, sbp, existsp)
 
 	/* If we found it, build a new pathname and discard the old one. */
 	if (found) {
-		MALLOC_RET(sp, p, char *, len + 1);
-		memcpy(p, path, len + 1);
 		free(frp->name);
-		frp->name = p;
+		frp->name = path;
 	}
 	*existsp = found;
 	return (0);
@@ -513,13 +517,14 @@ file_spath(sp, frp, sbp, existsp)
  *	Set up the initial cursor position.
  */
 static void
-file_cinit(sp)
-	SCR *sp;
+file_cinit(SCR *sp)
 {
 	GS *gp;
 	MARK m;
 	size_t len;
 	int nb;
+	CHAR_T *wp;
+	size_t wlen;
 
 	/* Set some basic defaults. */
 	sp->lno = 1;
@@ -553,8 +558,9 @@ file_cinit(sp)
 			sp->lno = 1;
 			sp->cno = 0;
 		}
-		if (ex_run_str(sp,
-		    "-c option", gp->c_option, strlen(gp->c_option), 1, 1))
+		CHAR2INT(sp, gp->c_option, strlen(gp->c_option) + 1,
+			 wp, wlen);
+		if (ex_run_str(sp, "-c option", wp, wlen - 1, 1, 1))
 			return;
 		gp->c_option = NULL;
 	} else if (F_ISSET(sp, SC_EX)) {
@@ -622,10 +628,10 @@ file_cinit(sp)
  * PUBLIC: int file_end __P((SCR *, EXF *, int));
  */
 int
-file_end(sp, ep, force)
-	SCR *sp;
-	EXF *ep;
-	int force;
+file_end(
+	SCR *sp,
+	EXF *ep,
+	int force)
 {
 	FREF *frp;
 
@@ -670,7 +676,7 @@ file_end(sp, ep, force)
 		free(frp->tname);
 		frp->tname = NULL;
 		if (F_ISSET(frp, FR_TMPFILE)) {
-			CIRCLEQ_REMOVE(&sp->gp->frefq, frp, q);
+			TAILQ_REMOVE(sp->gp->frefq, frp, q);
 			if (frp->name != NULL)
 				free(frp->name);
 			free(frp);
@@ -712,14 +718,14 @@ file_end(sp, ep, force)
 		if (ep->rcv_mpath != NULL && unlink(ep->rcv_mpath))
 			msgq_str(sp, M_SYSERR, ep->rcv_mpath, "243|%s: remove");
 	}
-	if (ep->fcntl_fd != -1)
-		(void)close(ep->fcntl_fd);
 	if (ep->rcv_fd != -1)
 		(void)close(ep->rcv_fd);
 	if (ep->rcv_path != NULL)
 		free(ep->rcv_path);
 	if (ep->rcv_mpath != NULL)
 		free(ep->rcv_mpath);
+	if (ep->c_blen > 0)
+		free(ep->c_lp);
 
 	free(ep);
 	return (0);
@@ -734,11 +740,12 @@ file_end(sp, ep, force)
  * PUBLIC: int file_write __P((SCR *, MARK *, MARK *, char *, int));
  */
 int
-file_write(sp, fm, tm, name, flags)
-	SCR *sp;
-	MARK *fm, *tm;
-	char *name;
-	int flags;
+file_write(
+	SCR *sp,
+	MARK *fm,
+	MARK *tm,
+	char *name,
+	int flags)
 {
 	enum { NEWFILE, OLDFILE } mtype;
 	struct stat sb;
@@ -749,7 +756,7 @@ file_write(sp, fm, tm, name, flags)
 	size_t len;
 	u_long nlno, nch;
 	int fd, nf, noname, oflags, rval;
-	char *p, *s, *t, buf[MAXPATHLEN + 64];
+	char *p, *s, *t, buf[1024];
 	const char *msgstr;
 
 	ep = sp->ep;
@@ -812,9 +819,9 @@ file_write(sp, fm, tm, name, flags)
 		mtype = NEWFILE;
 	else {
 		if (noname && !LF_ISSET(FS_FORCE | FS_APPEND) &&
-		    (F_ISSET(ep, F_DEVSET) &&
-		    (sb.st_dev != ep->mdev || sb.st_ino != ep->minode) ||
-		    sb.st_mtime != ep->mtime)) {
+		    ((F_ISSET(ep, F_DEVSET) &&
+		    (sb.st_dev != ep->mdev || sb.st_ino != ep->minode)) ||
+		    timespeccmp(&sb.st_mtimespec, &ep->mtim, !=))) {
 			msgq_str(sp, M_ERR, name, LF_ISSET(FS_POSSIBLE) ?
 "250|%s: file modified more recently than this copy; use ! to override" :
 "251|%s: file modified more recently than this copy");
@@ -873,24 +880,9 @@ success_open:
 	SIGUNBLOCK;
 
 	/* Try and get a lock. */
-	if (!noname && file_lock(sp, NULL, NULL, fd, 0) == LOCK_UNAVAIL)
+	if (!noname && file_lock(sp, NULL, fd, 0) == LOCK_UNAVAIL)
 		msgq_str(sp, M_ERR, name,
 		    "252|%s: write lock was unavailable");
-
-#if __linux__
-	/*
-	 * XXX
-	 * In libc 4.5.x, fdopen(fd, "w") clears the O_APPEND flag (if set).
-	 * This bug is fixed in libc 4.6.x.
-	 *
-	 * This code works around this problem for libc 4.5.x users.
-	 * Note that this code is harmless if you're using libc 4.6.x.
-	 */
-	if (LF_ISSET(FS_APPEND) && lseek(fd, (off_t)0, SEEK_END) < 0) {
-		msgq(sp, M_SYSERR, name);
-		return (1);
-	}
-#endif
 
 	/*
 	 * Use stdio for buffering.
@@ -925,13 +917,13 @@ success_open:
 	 */
 	if (noname)
 		if (stat(name, &sb))
-			time(&ep->mtime);
+			timepoint_system(&ep->mtim);
 		else {
 			F_SET(ep, F_DEVSET);
 			ep->mdev = sb.st_dev;
 			ep->minode = sb.st_ino;
 
-			ep->mtime = sb.st_mtime;
+			ep->mtim = sb.st_mtimespec;
 		}
 
 	/*
@@ -1023,9 +1015,10 @@ success_open:
  * recreate the file.  So, let's not risk it.
  */
 static int
-file_backup(sp, name, bname)
-	SCR *sp;
-	char *name, *bname;
+file_backup(
+	SCR *sp,
+	char *name,
+	char *bname)
 {
 	struct dirent *dp;
 	struct stat sb;
@@ -1035,6 +1028,10 @@ file_backup(sp, name, bname)
 	size_t blen;
 	int flags, maxnum, nr, num, nw, rfd, wfd, version;
 	char *bp, *estr, *p, *pct, *slash, *t, *wfname, buf[8192];
+	CHAR_T *wp;
+	size_t wlen;
+	size_t nlen;
+	char *d = NULL;
 
 	rfd = wfd = -1;
 	bp = estr = wfname = NULL;
@@ -1064,15 +1061,20 @@ file_backup(sp, name, bname)
 	 *
 	 * Shell and file name expand the option's value.
 	 */
-	argv_init(sp, &cmd);
-	ex_cinit(&cmd, 0, 0, 0, 0, 0, NULL);
+	ex_cinit(sp, &cmd, 0, 0, 0, 0, 0);
 	if (bname[0] == 'N') {
 		version = 1;
 		++bname;
 	} else
 		version = 0;
-	if (argv_exp2(sp, &cmd, bname, strlen(bname)))
+	CHAR2INT(sp, bname, strlen(bname), wp, wlen);
+	if ((wp = v_wstrdup(sp, wp, wlen)) == NULL)
 		return (1);
+	if (argv_exp2(sp, &cmd, wp, wlen)) {
+		free(wp);
+		return (1);
+	}
+	free(wp);
 
 	/*
 	 *  0 args: impossible.
@@ -1095,9 +1097,13 @@ file_backup(sp, name, bname)
 	 * by one.
 	 */
 	if (version) {
-		GET_SPACE_GOTO(sp, bp, blen, cmd.argv[0]->len * 2 + 50);
-		for (t = bp, slash = NULL,
-		    p = cmd.argv[0]->bp; p[0] != '\0'; *t++ = *p++)
+		GET_SPACE_GOTOC(sp, bp, blen, cmd.argv[0]->len * 2 + 50);
+		INT2CHAR(sp, cmd.argv[0]->bp, cmd.argv[0]->len + 1,
+			 p, nlen); 
+		d = strdup(p);
+		p = d;
+		for (t = bp, slash = NULL;
+		     p[0] != '\0'; *t++ = *p++)
 			if (p[0] == '%') {
 				if (p[1] != '%')
 					*t++ = '%';
@@ -1118,7 +1124,8 @@ file_backup(sp, name, bname)
 			p = slash + 1;
 		}
 		if (dirp == NULL) {
-			estr = cmd.argv[0]->bp;
+			INT2CHAR(sp, cmd.argv[0]->bp, cmd.argv[0]->len + 1,
+				estr, nlen);
 			goto err;
 		}
 
@@ -1132,7 +1139,8 @@ file_backup(sp, name, bname)
 		wfname = bp;
 	} else {
 		bp = NULL;
-		wfname = cmd.argv[0]->bp;
+		INT2CHAR(sp, cmd.argv[0]->bp, cmd.argv[0]->len + 1,
+			wfname, nlen);
 	}
 	
 	/* Open the backup file, avoiding lurkers. */
@@ -1192,9 +1200,57 @@ err:	if (rfd != -1)
 	}
 	if (estr)
 		msgq_str(sp, M_SYSERR, estr, "%s");
+	if (d != NULL)
+		free(d);
 	if (bp != NULL)
 		FREE_SPACE(sp, bp, blen);
 	return (1);
+}
+
+/*
+ * file_encinit --
+ *	Read the first line and set the O_FILEENCODING.
+ */
+static void
+file_encinit(SCR *sp)
+{
+#if defined(USE_WIDECHAR) && defined(USE_ICONV)
+	size_t len;
+	char *p;
+	size_t blen = 0;
+	char buf[4096];	/* not need to be '\0'-terminated */
+	recno_t ln = 1;
+	EXF *ep;
+
+	ep = sp->ep;
+
+	while (!db_rget(sp, ln++, &p, &len)) {
+		if (blen + len > sizeof(buf))
+			len = sizeof(buf) - blen;
+		memcpy(buf + blen, p, len);
+		blen += len;
+		if (blen == sizeof(buf))
+			break;
+		else
+			buf[blen++] = '\n';
+	}
+
+	/*
+	 * Detect UTF-8 and fallback to the locale/preset encoding.
+	 *
+	 * XXX
+	 * A manually set O_FILEENCODING indicates the "fallback
+	 * encoding", but UTF-8, which can be safely detected, is not
+	 * inherited from the old screen.
+	 */
+	if (looks_utf8(buf, blen) > 1)
+		o_set(sp, O_FILEENCODING, OS_STRDUP, "utf-8", 0);
+	else if (!O_ISSET(sp, O_FILEENCODING) ||
+	    !strncasecmp(O_STR(sp, O_FILEENCODING), "utf-8", 5))
+		o_set(sp, O_FILEENCODING, OS_STRDUP, codeset(), 0);
+
+	conv_enc(sp, O_FILEENCODING, 0);
+#endif
 }
 
 /*
@@ -1202,12 +1258,11 @@ err:	if (rfd != -1)
  *	Skip the first comment.
  */
 static void
-file_comment(sp)
-	SCR *sp;
+file_comment(SCR *sp)
 {
 	recno_t lno;
 	size_t len;
-	char *p;
+	CHAR_T *p;
 
 	for (lno = 1; !db_get(sp, lno, 0, &p, &len) && len == 0; ++lno);
 	if (p == NULL)
@@ -1250,9 +1305,10 @@ file_comment(sp)
  * PUBLIC: int file_m1 __P((SCR *, int, int));
  */
 int
-file_m1(sp, force, flags)
-	SCR *sp;
-	int force, flags;
+file_m1(
+	SCR *sp,
+	int force,
+	int flags)
 {
 	EXF *ep;
 
@@ -1290,9 +1346,9 @@ file_m1(sp, force, flags)
  * PUBLIC: int file_m2 __P((SCR *, int));
  */
 int
-file_m2(sp, force)
-	SCR *sp;
-	int force;
+file_m2(
+	SCR *sp,
+	int force)
 {
 	EXF *ep;
 
@@ -1322,9 +1378,9 @@ file_m2(sp, force)
  * PUBLIC: int file_m3 __P((SCR *, int));
  */
 int
-file_m3(sp, force)
-	SCR *sp;
-	int force;
+file_m3(
+	SCR *sp,
+	int force)
 {
 	EXF *ep;
 
@@ -1358,9 +1414,9 @@ file_m3(sp, force)
  * PUBLIC: int file_aw __P((SCR *, int));
  */
 int
-file_aw(sp, flags)
-	SCR *sp;
-	int flags;
+file_aw(
+	SCR *sp,
+	int flags)
 {
 	if (!F_ISSET(sp->ep, F_MODIFIED))
 		return (0);
@@ -1419,9 +1475,9 @@ file_aw(sp, flags)
  * PUBLIC: void set_alt_name __P((SCR *, char *));
  */
 void
-set_alt_name(sp, name)
-	SCR *sp;
-	char *name;
+set_alt_name(
+	SCR *sp,
+	char *name)
 {
 	if (sp->alt_name != NULL)
 		free(sp->alt_name);
@@ -1435,35 +1491,18 @@ set_alt_name(sp, name)
  * file_lock --
  *	Get an exclusive lock on a file.
  *
- * XXX
- * The default locking is flock(2) style, not fcntl(2).  The latter is
- * known to fail badly on some systems, and its only advantage is that
- * it occasionally works over NFS.
- *
- * Furthermore, the semantics of fcntl(2) are wrong.  The problems are
- * two-fold: you can't close any file descriptor associated with the file
- * without losing all of the locks, and you can't get an exclusive lock
- * unless you have the file open for writing.  Someone ought to be shot,
- * but it's probably too late, they may already have reproduced.  To get
- * around these problems, nvi opens the files for writing when it can and
- * acquires a second file descriptor when it can't.  The recovery files
- * are examples of the former, they're always opened for writing.  The DB
- * files can't be opened for writing because the semantics of DB are that
- * files opened for writing are flushed back to disk when the DB session
- * is ended. So, in that case we have to acquire an extra file descriptor.
- *
- * PUBLIC: lockr_t file_lock __P((SCR *, char *, int *, int, int));
+ * PUBLIC: lockr_t file_lock __P((SCR *, char *, int, int));
  */
 lockr_t
-file_lock(sp, name, fdp, fd, iswrite)
-	SCR *sp;
-	char *name;
-	int *fdp, fd, iswrite;
+file_lock(
+	SCR *sp,
+	char *name,
+	int fd,
+	int iswrite)
 {
 	if (!O_ISSET(sp, O_LOCKFILES))
 		return (LOCK_SUCCESS);
 	
-#ifdef HAVE_LOCK_FLOCK			/* Hurrah!  We've got flock(2). */
 	/*
 	 * !!!
 	 * We need to distinguish a lock not being available for the file
@@ -1481,59 +1520,4 @@ file_lock(sp, name, fdp, fd, iswrite)
 	    || errno == EWOULDBLOCK
 #endif
 	    ? LOCK_UNAVAIL : LOCK_FAILED);
-#endif
-#ifdef HAVE_LOCK_FCNTL			/* Gag me.  We've got fcntl(2). */
-{
-	struct flock arg;
-	int didopen, sverrno;
-
-	arg.l_type = F_WRLCK;
-	arg.l_whence = 0;		/* SEEK_SET */
-	arg.l_start = arg.l_len = 0;
-	arg.l_pid = 0;
-
-	/*
-	 * If the file descriptor isn't opened for writing, it must fail.
-	 * If we fail because we can't get a read/write file descriptor,
-	 * we return LOCK_SUCCESS, believing that the file is readonly
-	 * and that will be sufficient to warn the user.
-	 */
-	if (!iswrite) {
-		if (name == NULL || fdp == NULL)
-			return (LOCK_FAILED);
-		if ((fd = open(name, O_RDWR, 0)) == -1)
-			return (LOCK_SUCCESS);
-		*fdp = fd;
-		didopen = 1;
-	}
-
-	errno = 0;
-	if (!fcntl(fd, F_SETLK, &arg)) {
-		fcntl(fd, F_SETFD, 1);
-		return (LOCK_SUCCESS);
-	}
-
-	if (didopen) {
-		sverrno = errno;
-		(void)close(fd);
-		errno = sverrno;
-	}
-
-	/*
-	 * !!!
-	 * We need to distinguish a lock not being available for the file
-	 * from the file system not supporting locking.  Fcntl is documented
-	 * as returning EACCESS and EAGAIN; add EWOULDBLOCK for good measure,
-	 * and assume they are the former.  There's no portable way to do this.
-	 */
-	return (errno == EACCES || errno == EAGAIN
-#ifdef EWOULDBLOCK
-	|| errno == EWOULDBLOCK
-#endif
-	?  LOCK_UNAVAIL : LOCK_FAILED);
-}
-#endif
-#if !defined(HAVE_LOCK_FLOCK) && !defined(HAVE_LOCK_FCNTL)
-	return (LOCK_SUCCESS);
-#endif
 }

@@ -24,7 +24,9 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
 
 /*
  * ASSERTION:
@@ -39,7 +41,7 @@
  */
 
 
-#pragma D option bufsize=16
+#pragma D option bufsize=32
 #pragma D option bufpolicy=ring
 #pragma D option statusrate=1nsec
 

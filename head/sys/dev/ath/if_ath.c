@@ -4581,17 +4581,8 @@ ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf, int status)
 	/* Free the buffer, it's not needed any longer */
 	ath_freebuf(sc, bf);
 
-	if (ni != NULL) {
-		/*
-		 * Do any callback and reclaim the node reference.
-		 */
-		if (m0->m_flags & M_TXCB)
-			ieee80211_process_callback(ni, m0, status);
-		ieee80211_free_node(ni);
-	}
-
-	/* Finally, we don't need this mbuf any longer */
-	m_freem(m0);
+	/* Pass the buffer back to net80211 - completing it */
+	ieee80211_tx_complete(ni, m0, status);
 }
 
 static struct ath_buf *

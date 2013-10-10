@@ -48,9 +48,11 @@ ifn_start()
 
 	ifscript_up ${ifn} && cfg=0
 	ifconfig_up ${ifn} && cfg=0
-	afexists inet && ipv4_up ${ifn} && cfg=0
-	afexists inet6 && ipv6_up ${ifn} && cfg=0
-	afexists ipx && ipx_up ${ifn} && cfg=0
+	if ! noafif $ifn; then
+		afexists inet && ipv4_up ${ifn} && cfg=0
+		afexists inet6 && ipv6_up ${ifn} && cfg=0
+		afexists ipx && ipx_up ${ifn} && cfg=0
+	fi
 	childif_create ${ifn} && cfg=0
 
 	return $cfg
@@ -68,14 +70,51 @@ ifn_stop()
 
 	[ -z "$ifn" ] && err 1 "ifn_stop called without an interface"
 
-	afexists ipx && ipx_down ${ifn} && cfg=0
-	afexists inet6 && ipv6_down ${ifn} && cfg=0
-	afexists inet && ipv4_down ${ifn} && cfg=0
+	if ! noafif $ifn; then
+		afexists ipx && ipx_down ${ifn} && cfg=0
+		afexists inet6 && ipv6_down ${ifn} && cfg=0
+		afexists inet && ipv4_down ${ifn} && cfg=0
+	fi
 	ifconfig_down ${ifn} && cfg=0
 	ifscript_down ${ifn} && cfg=0
 	childif_destroy ${ifn} && cfg=0
 
 	return $cfg
+}
+
+# ifn_vnetup ifn
+#	Move ifn to the specified vnet jail.
+#
+ifn_vnetup()
+{
+
+	ifn_vnet0 $1 vnet
+}
+
+# ifn_vnetdown ifn
+#	Reclaim ifn from the specified vnet jail.
+#
+ifn_vnetdown()
+{
+
+	ifn_vnet0 $1 -vnet
+}
+
+# ifn_vnet0 ifn action
+#	Helper function for ifn_vnetup and ifn_vnetdown.
+#
+ifn_vnet0()
+{
+	local _ifn _cfg _action _vnet
+	_ifn="$1"
+	_action="$2"
+	_cfg=1
+
+	if _vnet=$(vnetif $_ifn); then
+		${IFCONFIG_CMD} $_ifn $_action $_vnet && _cfg=0
+	fi
+
+	return $_cfg
 }
 
 # ifconfig_up if
@@ -103,7 +142,7 @@ ifconfig_up()
 	fi
 
 	# inet6 specific
-	if afexists inet6; then
+	if ! noafif $1 && afexists inet6; then
 		if checkyesno ipv6_activate_all_interfaces; then
 			_ipv6_opts="-ifdisabled"
 		elif [ "$1" != "lo0" ]; then
@@ -113,9 +152,18 @@ ifconfig_up()
 		# backward compatibility: $ipv6_enable
 		case $ipv6_enable in
 		[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
-			if ! checkyesno ipv6_gateway_enable; then
-				_ipv6_opts="${_ipv6_opts} accept_rtadv"
-			fi
+			case $1 in
+			bridge[0-9]*)
+				# No accept_rtadv by default on if_bridge(4)
+				# to avoid a conflict with the member
+				# interfaces.
+			;;
+			*)
+				if ! checkyesno ipv6_gateway_enable; then
+					_ipv6_opts="${_ipv6_opts} accept_rtadv"
+				fi
+			;;
+			esac
 		;;
 		esac
 
@@ -271,24 +319,27 @@ _ifconfig_getargs()
 #	args such as DHCP and WPA.
 ifconfig_getargs()
 {
-	local _tmpargs _arg _args
+	local _tmpargs _arg _args _vnet
 	_tmpargs=`_ifconfig_getargs $1 $2`
 	if [ $? -eq 1 ]; then
 		return 1
 	fi
 	_args=
+	_vnet=0
 
 	for _arg in $_tmpargs; do
-		case $_arg in
-		[Dd][Hh][Cc][Pp]) ;;
-		[Nn][Oo][Aa][Uu][Tt][Oo]) ;;
-		[Nn][Oo][Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]) ;;
-		[Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]) ;;
-		[Ww][Pp][Aa]) ;;
-		[Hh][Oo][Ss][Tt][Aa][Pp]) ;;
-		*)
+		case $_arg:$_vnet in
+		[Dd][Hh][Cc][Pp]:0) ;;
+		[Nn][Oo][Aa][Uu][Tt][Oo]:0) ;;
+		[Nn][Oo][Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]:0) ;;
+		[Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]:0) ;;
+		[Ww][Pp][Aa]:0) ;;
+		[Hh][Oo][Ss][Tt][Aa][Pp]:0) ;;
+		vnet:0)	_vnet=1 ;;
+		*:1)	_vnet=0 ;;
+		*:0)
 			_args="$_args $_arg"
-			;;
+		;;
 		esac
 	done
 
@@ -413,6 +464,25 @@ hostapif()
 	return 1
 }
 
+# vnetif if
+#	Returns 0 and echo jail if "vnet" keyword is specified on the
+#	interface, and 1 otherwise.
+vnetif()
+{
+	local _tmpargs _arg _vnet
+	_tmpargs=`_ifconfig_getargs $1`
+
+	_vnet=0
+	for _arg in $_tmpargs; do
+		case $_arg:$_vnet in
+		vnet:0)	_vnet=1 ;;
+		*:1)	echo $_arg; return 0 ;;
+		esac
+	done
+
+	return 1
+}
+
 # afexists af
 #	Returns 0 if the address family is enabled in the kernel
 #	1 otherwise.
@@ -454,6 +524,7 @@ noafif()
 	case $_if in
 	pflog[0-9]*|\
 	pfsync[0-9]*|\
+	usbus[0-9]*|\
 	an[0-9]*|\
 	ath[0-9]*|\
 	ipw[0-9]*|\
@@ -550,9 +621,18 @@ ipv6_autoconfif()
 	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
 		if checkyesno ipv6_gateway_enable; then
 			return 1
-		else
-			return 0
 		fi
+		case $1 in
+		bridge[0-9]*)
+			# No accept_rtadv by default on if_bridge(4)
+			# to avoid a conflict with the member
+			# interfaces.
+			return 1
+		;;
+		*)
+			return 0
+		;;
+		esac
 	;;
 	esac
 
@@ -636,13 +716,16 @@ ipv4_down()
 
 	ifalias ${_if} inet -alias && _ret=0
 
-	inetList="`${IFCONFIG_CMD} ${_if} | grep 'inet ' | tr "\n" "$_ifs"`"
+	inetList="`${IFCONFIG_CMD} ${_if} | grep 'inet ' | tr "\n\t" "$_ifs"`"
 
 	oldifs="$IFS"
 	IFS="$_ifs"
 	for _inet in $inetList ; do
 		# get rid of extraneous line
-		[ -z "$_inet" ] && break
+		case $_inet in
+		inet\ *)	;;
+		*)		continue ;;
+		esac
 
 		_inet=`expr "$_inet" : '.*\(inet \([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}\).*'`
 
@@ -673,13 +756,16 @@ ipv6_down()
 	ipv6_prefix_hostid_addr_common ${_if} -alias && _ret=0
 	ifalias ${_if} inet6 -alias && _ret=0
 
-	inetList="`${IFCONFIG_CMD} ${_if} | grep 'inet6 ' | tr "\n" "$_ifs"`"
+	inetList="`${IFCONFIG_CMD} ${_if} | grep 'inet6 ' | tr "\n\t" "$_ifs"`"
 
 	oldifs="$IFS"
 	IFS="$_ifs"
 	for _inet6 in $inetList ; do
 		# get rid of extraneous line
-		[ -z "$_inet6" ] && break
+		case $_inet in
+		inet6\ *)	;;
+		*)		continue ;;
+		esac
 
 		_inet6=`expr "$_inet6" : '.*\(inet6 \([0-9a-f:]*\)\).*'`
 
@@ -721,9 +807,14 @@ ifalias()
 #
 ifalias_expand_addr()
 {
+	local _af _action
 
-	afexists $1 || return
-	ifalias_expand_addr_$1 $2 $3
+	_af=$1
+	_action=$2
+	shift 2
+
+	afexists $_af || return
+	ifalias_expand_addr_$_af $_action $*
 }
 
 # ifalias_expand_addr_inet action addr
@@ -731,19 +822,34 @@ ifalias_expand_addr()
 #
 ifalias_expand_addr_inet()
 {
-	local _action _arg _cidr _cidr_addr
+	local _action _arg _cidr _cidr_addr _exargs
 	local _ipaddr _plen _range _iphead _iptail _iplow _iphigh _ipcount
 	local _retstr _c
 	_action=$1
 	_arg=$2
+	shift 2
+	_exargs=$*
 	_retstr=
 
-	case $_action:$_arg in
-	*:*--*)		return ;;			# invalid
-	tmp:*)		echo $_arg && return ;;		# already expanded
-	tmp:*-*)	_action="alias"	;;		# to be expanded
-	*:*-*)		;;				# to be expanded
-	*:*)		echo inet $_arg && return ;;	# already expanded
+	case $_action:$_arg:$_exargs in
+	*:*--*)		return ;;	# invalid
+	tmp:*[0-9]-[0-9]*:*)		# to be expanded
+		_action="alias"
+	;;
+	*:*[0-9]-[0-9]*:*)		# to be expanded
+	;;
+	tmp:*:*netmask*)		# already expanded w/ netmask option
+		echo ${_arg%/[0-9]*} $_exargs && return
+	;;
+	tmp:*:*)			# already expanded w/o netmask option
+		echo $_arg $_exargs && return
+	;;
+	*:*:*netmask*)			# already expanded w/ netmask option
+		echo inet ${_arg%/[0-9]*} $_exargs && return
+	;;
+	*:*:*)				# already expanded w/o netmask option
+		echo inet $_arg $_exargs && return
+	;;
 	esac
 
 	for _cidr in $_arg; do
@@ -796,7 +902,7 @@ ifalias_expand_addr_inet()
 	done
 
 	for _c in $_retstr; do
-		ifalias_expand_addr_inet $_action $_c
+		ifalias_expand_addr_inet $_action $_c $_exargs
 	done
 }
 
@@ -805,20 +911,35 @@ ifalias_expand_addr_inet()
 #
 ifalias_expand_addr_inet6()
 {
-	local _action _arg _cidr _cidr_addr
+	local _action _arg _cidr _cidr_addr _exargs
 	local _ipaddr _plen _ipleft _ipright _iplow _iphigh _ipcount
 	local _ipv4part
 	local _retstr _c
 	_action=$1
 	_arg=$2
+	shift 2
+	_exargs=$*
 	_retstr=
 
-	case $_action:$_arg in
-	*:*--*)		return ;;			# invalid
-	tmp:*)		echo $_arg && return ;;
-	tmp:*-*)	_action="alias"	;;
-	*:*-*)		;;
-	*:*)		echo inet6 $_arg && return ;;
+	case $_action:$_arg:$_exargs in
+	*:*--*:*)	return ;;	# invalid
+	tmp:*[0-9a-zA-Z]-[0-9a-zA-Z]*:*)# to be expanded
+		_action="alias"
+	;;
+	*:*[0-9a-zA-Z]-[0-9a-zA-Z]*:*)	# to be expanded
+	;;
+	tmp:*:*prefixlen*)	# already expanded w/ prefixlen option
+		echo ${_arg%/[0-9]*} $_exargs && return
+	;;
+	tmp:*:*)		# already expanded w/o prefixlen option
+		echo $_arg $_exargs && return
+	;;
+	*:*:*prefixlen*)	# already expanded w/ prefixlen option
+		echo inet6 ${_arg%/[0-9]*} $_exargs && return
+	;;
+	*:*:*)			# already expanded w/o prefixlen option
+		echo inet6 $_arg $_exargs && return
+	;;
 	esac
 
 	for _cidr in $_arg; do
@@ -872,7 +993,7 @@ ifalias_expand_addr_inet6()
 			fi
 
 			for _c in $_retstr; do
-				ifalias_expand_addr_inet6 $_action $_c
+				ifalias_expand_addr_inet6 $_action $_c $_exargs
 			done
 		else
 			# v4mapped/v4compat should handle as an IPv4 alias
@@ -888,7 +1009,7 @@ ifalias_expand_addr_inet6()
 			_retstr=`ifalias_expand_addr_inet \
 			    tmp ${_ipv4part}${_plen:+/}${_plen}`
 			for _c in $_retstr; do
-				ifalias_expand_addr_inet $_action $_c
+				ifalias_expand_addr_inet $_action $_c $_exargs
 			done
 		fi
 	done
@@ -1052,16 +1173,12 @@ ifalias_af_common()
 #
 ipv6_prefix_hostid_addr_common()
 {
-	local _if _action prefix laddr hostid j address
+	local _if _action prefix j
 	_if=$1
 	_action=$2
 	prefix=`get_if_var ${_if} ipv6_prefix_IF`
 
 	if [ -n "${prefix}" ]; then
-		laddr=`network6_getladdr ${_if}`
-		hostid=${laddr#fe80::}
-		hostid=${hostid%\%*}
-
 		for j in ${prefix}; do
 			# The default prefixlen is 64.
 			plen=${j#*/}
@@ -1071,18 +1188,10 @@ ipv6_prefix_hostid_addr_common()
 			esac
 
 			# Normalize the last part by removing ":"
-			j=${j%:*}
+			j=${j%::*}
 			j=${j%:}
-			OIFS=$IFS; IFS=":"; set -- $j; nj=$#; IFS=$OIFS
-			OIFS=$IFS; IFS=":"; set -- $hostid; nh=$#; IFS=$OIFS
-			if [ $(($nj + $nh)) -eq 8 ]; then
-				address=$j\:$hostid
-			else
-				address=$j\::$hostid
-			fi
-
-			${IFCONFIG_CMD} ${_if} inet6 ${address} \
-				prefixlen $plen ${_action}
+			${IFCONFIG_CMD} ${_if} inet6 $j:: \
+				prefixlen $plen eui64 ${_action}
 
 			# if I am a router, add subnet router
 			# anycast address (RFC 2373).
@@ -1151,19 +1260,80 @@ ifscript_down()
 #
 clone_up()
 {
-	local _prefix _list ifn
-	_prefix=
+	local _list ifn ifopt _iflist _n tmpargs
 	_list=
+	_iflist=$*
 
 	# create_args_IF
 	for ifn in ${cloned_interfaces}; do
-		${IFCONFIG_CMD} ${ifn} create `get_if_var ${ifn} create_args_IF`
-		if [ $? -eq 0 ]; then
-			_list="${_list}${_prefix}${ifn}"
-			[ -z "$_prefix" ] && _prefix=' '
-		fi
+		# Parse ifn:ifopt.
+		OIFS=$IFS; IFS=:; set -- $ifn; ifn=$1; ifopt=$2; IFS=$OIFS
+		case $_iflist in
+		""|$ifn|$ifn\ *|*\ $ifn\ *|*\ $ifn)	;;
+		*)	continue ;;
+		esac
+		case $ifn in
+		epair[0-9]*)
+			# epair(4) uses epair[0-9] for creation and
+			# epair[0-9][ab] for configuration.
+			#
+			# Skip if ${ifn}a or ${ifn}b already exist.
+			if ${IFCONFIG_CMD} ${ifn}a > /dev/null 2>&1; then
+				continue
+			elif ${IFCONFIG_CMD} ${ifn}b > /dev/null 2>&1; then
+				continue
+			fi
+			${IFCONFIG_CMD} ${ifn} create \
+			    `get_if_var ${ifn} create_args_IF`
+			if [ $? -eq 0 ]; then
+				_list="$_list ${ifn}a ${ifn}b"
+			fi
+		;;
+		*)
+			# Skip if ${ifn} already exists.
+			if ${IFCONFIG_CMD} $ifn > /dev/null 2>&1; then
+				continue
+			fi
+			${IFCONFIG_CMD} ${ifn} create \
+			    `get_if_var ${ifn} create_args_IF`
+			if [ $? -eq 0 ]; then
+				_list="$_list $ifn"
+			fi
+		esac
 	done
-	debug "Cloned: ${_list}"
+	if [ -n "$gif_interfaces" ]; then
+		warn "\$gif_interfaces is obsolete.  Use \$cloned_interfaces instead."
+	fi
+	for ifn in ${gif_interfaces}; do
+		# Parse ifn:ifopt.
+		OIFS=$IFS; IFS=:; set -- $ifn; ifn=$1; ifopt=$2; IFS=$OIFS
+		case $_iflist in
+		""|$ifn|$ifn\ *|*\ $ifn\ *|*\ $ifn)	;;
+		*)	continue ;;
+		esac
+		# Skip if ifn already exists.
+		if ${IFCONFIG_CMD} $ifn > /dev/null 2>&1; then
+			continue
+		fi
+		case $ifn in
+		gif[0-9]*)
+			${IFCONFIG_CMD} $ifn create
+		;;
+		*)
+			_n=$(${IFCONFIG_CMD} gif create)
+			${IFCONFIG_CMD} $_n name $ifn
+		;;
+		esac
+		if [ $? -eq 0 ]; then
+			_list="$_list $ifn"
+		fi
+		tmpargs=$(get_if_var $ifn gifconfig_IF)
+		eval ifconfig_${ifn}=\"tunnel \$tmpargs\"
+	done
+	if [ -n "${_list# }" ]; then
+		echo "Created clone interfaces: ${_list# }."
+	fi
+	debug "Cloned: ${_list# }"
 }
 
 # clone_down
@@ -1172,18 +1342,62 @@ clone_up()
 #
 clone_down()
 {
-	local _prefix _list ifn
-	_prefix=
+	local _list ifn _difn ifopt _iflist _sticky
 	_list=
+	_iflist=$*
 
-	for ifn in ${cloned_interfaces}; do
-		${IFCONFIG_CMD} -n ${ifn} destroy
-		if [ $? -eq 0 ]; then
-			_list="${_list}${_prefix}${ifn}"
-			[ -z "$_prefix" ] && _prefix=' '
-		fi
+	: ${cloned_interfaces_sticky:=NO}
+	if checkyesno cloned_interfaces_sticky; then
+		_sticky=1
+	else
+		_sticky=0
+	fi
+	for ifn in ${cloned_interfaces} ${gif_interfaces}; do
+		# Parse ifn:ifopt.
+		OIFS=$IFS; IFS=:; set -- $ifn; ifn=$1; ifopt=$2; IFS=$OIFS
+		case $ifopt:$_sticky in
+		sticky:*)	continue ;;	# :sticky => not destroy
+		nosticky:*)	;;		# :nosticky => destroy
+		*:1)		continue ;;	# global sticky knob == 1
+		esac
+		case $_iflist in
+		""|$ifn|$ifn\ *|*\ $ifn\ *|*\ $ifn)	;;
+		*)	continue ;;
+		esac
+		case $ifn in
+		epair[0-9]*)
+			# Note: epair(4) uses epair[0-9] for removal and
+			# epair[0-9][ab] for configuration.
+			#
+			# Skip if both of ${ifn}a and ${ifn}b do not exist.
+			if ${IFCONFIG_CMD} ${ifn}a > /dev/null 2>&1; then
+				_difn=${ifn}a
+			elif ${IFCONFIG_CMD} ${ifn}b > /dev/null 2>&1; then
+				_difn=${ifn}b
+			else
+				continue
+			fi
+			${IFCONFIG_CMD} -n $_difn destroy
+			if [ $? -eq 0 ]; then
+				_list="$_list ${ifn}a ${ifn}b"
+			fi
+		;;
+		*)
+			# Skip if ifn does not exist.
+			if ! ${IFCONFIG_CMD} $ifn > /dev/null 2>&1; then
+				continue
+			fi
+			${IFCONFIG_CMD} -n ${ifn} destroy
+			if [ $? -eq 0 ]; then
+				_list="$_list $ifn"
+			fi
+		;;
+		esac
 	done
-	debug "Destroyed clones: ${_list}"
+	if [ -n "${_list# }" ]; then
+		echo "Destroyed clone interfaces: ${_list# }."
+	fi
+	debug "Destroyed clones: ${_list# }"
 }
 
 # childif_create
@@ -1306,32 +1520,6 @@ ng_create_one()
 	done
 }
 
-# gif_up
-#	Create gif(4) tunnel interfaces.
-gif_up()
-{
-	local i peers
-
-	for i in ${gif_interfaces}; do
-		peers=`get_if_var $i gifconfig_IF`
-		case ${peers} in
-		'')
-			continue
-			;;
-		*)
-			if expr $i : 'gif[0-9][0-9]*$' >/dev/null 2>&1; then
-				${IFCONFIG_CMD} $i create >/dev/null 2>&1
-			else
-				gif=`${IFCONFIG_CMD} gif create`
-				${IFCONFIG_CMD} $gif name $i
-			fi
-			${IFCONFIG_CMD} $i tunnel ${peers}
-			${IFCONFIG_CMD} $i up
-			;;
-		esac
-	done
-}
-
 # ng_fec_create ifn
 #	Configure Fast EtherChannel for interface $ifn. Returns 0 if
 #	FEC arguments were found and configured; returns !0 otherwise.
@@ -1429,15 +1617,15 @@ ipx_down()
 	return $_ret
 }
 
-# ifnet_rename
-#	Rename all requested interfaces.
+# ifnet_rename [ifname]
+#	Rename interfaces if ifconfig_IF_name is defined.
 #
 ifnet_rename()
 {
 	local _if _ifname
 
 	# ifconfig_IF_name
-	for _if in `${IFCONFIG_CMD} -l`; do
+	for _if in ${*:-$(${IFCONFIG_CMD} -l)}; do
 		_ifname=`get_if_var $_if ifconfig_IF_name`
 		if [ ! -z "$_ifname" ]; then
 			${IFCONFIG_CMD} $_if name $_ifname
@@ -1484,17 +1672,33 @@ list_net_interfaces()
 			fi
 		done
 		_tmplist="${_lo}${_tmplist# }"
-		;;
+	;;
 	*)
-		_tmplist="${network_interfaces} ${cloned_interfaces}"
-
+		for _if in ${network_interfaces} ${cloned_interfaces}; do
+			# epair(4) uses epair[0-9] for creation and
+			# epair[0-9][ab] for configuration.
+			case $_if in
+			epair[0-9]*)
+				_tmplist="$_tmplist ${_if}a ${_if}b"
+			;;
+			*)
+				_tmplist="$_tmplist $_if"
+			;;
+			esac
+		done
+		#
 		# lo0 is effectively mandatory, so help prevent foot-shooting
 		#
 		case "$_tmplist" in
-		lo0|'lo0 '*|*' lo0'|*' lo0 '*) ;; # This is fine, do nothing
-		*)	_tmplist="lo0 ${_tmplist}" ;;
-		esac
+		lo0|'lo0 '*|*' lo0'|*' lo0 '*)
+			# This is fine, do nothing
+			_tmplist="${_tmplist# }"
 		;;
+		*)
+			_tmplist="lo0 ${_tmplist# }"
+		;;
+		esac
+	;;
 	esac
 
 	_list=
@@ -1506,14 +1710,14 @@ list_net_interfaces()
 				_list="${_list# } ${_if}"
 			fi
 		done
-		;;
+	;;
 	dhcp)
 		for _if in ${_tmplist} ; do
 			if dhcpif $_if; then
 				_list="${_list# } ${_if}"
 			fi
 		done
-		;;
+	;;
 	noautoconf)
 		for _if in ${_tmplist} ; do
 			if ! ipv6_autoconfif $_if && \
@@ -1521,17 +1725,17 @@ list_net_interfaces()
 				_list="${_list# } ${_if}"
 			fi
 		done
-		;;
+	;;
 	autoconf)
 		for _if in ${_tmplist} ; do
 			if ipv6_autoconfif $_if; then
 				_list="${_list# } ${_if}"
 			fi
 		done
-		;;
+	;;
 	*)
 		_list=${_tmplist}
-		;;
+	;;
 	esac
 
 	echo $_list

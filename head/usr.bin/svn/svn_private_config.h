@@ -105,7 +105,7 @@
 #define PACKAGE_NAME "subversion"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "subversion 1.8.0"
+#define PACKAGE_STRING "subversion 1.8.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "subversion"
@@ -114,7 +114,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.8.0"
+#define PACKAGE_VERSION "1.8.1"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
@@ -129,10 +129,10 @@
 #define SVN_BINDIR "/usr/bin"
 
 /* Defined to the config.guess name of the build system */
-#define SVN_BUILD_HOST "bikeshed-violet-magenta-aqua-freebsd"
+#define SVN_BUILD_HOST "bikeshed-green-indigo-orange-freebsd"
 
 /* Defined to the config.guess name of the build target */
-#define SVN_BUILD_TARGET "bikeshed-violet-magenta-aqua-freebsd"
+#define SVN_BUILD_TARGET "bikeshed-green-indigo-orange-freebsd"
 
 /* The path of a default editor for the client. */
 /* #undef SVN_CLIENT_EDITOR */
@@ -153,7 +153,7 @@
 #define SVN_FS_WANT_DB_PATCH 14
 
 /* Define if compiler provides atomic builtins */
-#define SVN_HAS_ATOMIC_BUILTINS 1
+#define SVN_HAS_ATOMIC_BUILTINS 0
 
 /* Is GNOME Keyring support enabled? */
 /* #undef SVN_HAVE_GNOME_KEYRING */

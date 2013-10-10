@@ -36,7 +36,7 @@
 #pragma D option quiet
 #pragma D option statusrate=10ms
 
-fbt::ioctl:return
+fbt::kern_ioctl:return
 {
 	printf("The function return value is stored in %u\n", arg1);
 	exit(0);

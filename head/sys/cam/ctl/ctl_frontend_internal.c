@@ -490,9 +490,6 @@ cfi_lun_disable(void *arg, struct ctl_id target_id, int lun_id)
 	return (0);
 }
 
-/*
- * XXX KDM run this inside a thread, or inside the caller's context?
- */
 static void
 cfi_datamove(union ctl_io *io)
 {
@@ -532,18 +529,8 @@ cfi_datamove(union ctl_io *io)
 
 		ext_sglen = ctsio->ext_sg_entries * sizeof(*ext_sglist);
 
-		/*
-		 * XXX KDM GFP_KERNEL, don't know what the caller's context
-		 * is.  Need to figure that out.
-		 */
 		ext_sglist = (struct ctl_sg_entry *)malloc(ext_sglen, M_CTL_CFI,
 							   M_WAITOK);
-		if (ext_sglist == NULL) {
-			ctl_set_internal_failure(ctsio,
-						 /*sks_valid*/ 0,
-						 /*retry_count*/ 0);
-			return;
-		}
 		ext_sglist_malloced = 1;
 		if (memcpy(ext_sglist, ctsio->ext_data_ptr, ext_sglen) != 0) {
 			ctl_set_internal_failure(ctsio,

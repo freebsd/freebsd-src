@@ -45,9 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fdt/fdt_common.h>
 
-#define	DEVMAP_BOOTSTRAP_MAP_START 0xE0000000
-
-extern int unmapped_buf_allowed;
+#define	DEVMAP_BOOTSTRAP_MAP_START 0xF0000000
 
 vm_offset_t
 initarm_lastaddr(void)
@@ -64,9 +62,6 @@ initarm_gpio_init(void)
 void
 initarm_late_init(void)
 {
-
-	/* XXX: PR arm/180080 */
-	unmapped_buf_allowed = 0;
 }
 
 #define FDT_DEVMAP_MAX	(1 + 2 + 1 + 1)	/* FIXME */
@@ -83,7 +78,7 @@ platform_devmap_init(void)
 	int i;
 
 	i = 0;
-	fdt_devmap[i].pd_va = 0xe2C00000;
+	fdt_devmap[i].pd_va = 0xf2C00000;
 	fdt_devmap[i].pd_pa = 0x12C00000;
 	fdt_devmap[i].pd_size = 0x100000;
 	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
