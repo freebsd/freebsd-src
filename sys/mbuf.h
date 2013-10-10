@@ -502,25 +502,13 @@ struct mbuf {
 #endif
 
 /*
- * Network buffer allocation API
- *
- * The rest of it is defined in kern/kern_mbuf.c
+ * Network buffer allocation API is defined in kern/kern_mbuf.c
  */
-extern uma_zone_t	zone_mbuf;
-extern uma_zone_t	zone_clust;
-extern uma_zone_t	zone_pack;
-extern uma_zone_t	zone_jumbop;
-extern uma_zone_t	zone_jumbo9;
-extern uma_zone_t	zone_jumbo16;
-extern uma_zone_t	zone_ext_refcnt;
-
 void		 mb_free_ext(struct mbuf *);
 int		 m_pkthdr_init(struct mbuf *, int);
-uma_zone_t	 m_getzone(int size);
 int		 m_gettype(int);
 void		 m_extaddref(struct mbuf *, caddr_t, u_int, u_int *,
 		    int (*)(struct mbuf *, void *, void *), void *, void *);
-uma_zone_t	 m_getzone(int);
 int		 m_init(struct mbuf *, uma_zone_t, int, int, short, int);
 struct mbuf 	*m_get(int, short);
 struct mbuf	*m_getclr(int, short);
@@ -719,6 +707,7 @@ struct mbuf	*m_dup(struct mbuf *, int);
 int		 m_dup_pkthdr(struct mbuf *, struct mbuf *, int);
 u_int		 m_fixhdr(struct mbuf *);
 struct mbuf	*m_fragment(struct mbuf *, int, int);
+struct mbuf	*m_free(struct mbuf *);
 void		 m_freem(struct mbuf *);
 struct mbuf	*m_get2(int, int, short, int);
 struct mbuf	*m_getjcl(int, short, int, int);
@@ -915,20 +904,6 @@ m_tag_find(struct mbuf *m, int type, struct m_tag *start)
 {
 	return (SLIST_EMPTY(&m->m_pkthdr.tags) ? (struct m_tag *)NULL :
 	    m_tag_locate(m, MTAG_ABI_COMPAT, type, start));
-}
-
-static __inline struct mbuf *
-m_free(struct mbuf *m)
-{
-	struct mbuf *n = m->m_next;
-
-	if ((m->m_flags & (M_PKTHDR|M_NOFREE)) == (M_PKTHDR|M_NOFREE))
-		m_tag_delete_chain(m, NULL);
-	if (m->m_flags & M_EXT)
-		mb_free_ext(m);
-	else if ((m->m_flags & M_NOFREE) == 0)
-		uma_zfree(zone_mbuf, m);
-	return (n);
 }
 
 static int inline

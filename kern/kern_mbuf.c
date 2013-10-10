@@ -97,6 +97,17 @@ __FBSDID("$FreeBSD$");
  *
  */
 
+/*
+ * Zones from which we allocate.
+ */
+uma_zone_t	zone_mbuf;
+uma_zone_t	zone_clust;
+uma_zone_t	zone_pack;
+uma_zone_t	zone_jumbop;
+uma_zone_t	zone_jumbo9;
+uma_zone_t	zone_jumbo16;
+uma_zone_t	zone_ext_refcnt;
+
 int nmbufs;			/* limits number of mbufs */
 int nmbclusters;		/* limits number of mbuf clusters */
 int nmbjumbop;			/* limits number of page size jumbo clusters */
@@ -107,6 +118,8 @@ static quad_t maxmbufmem;	/* overall real memory limit for all mbufs */
 
 SYSCTL_QUAD(_kern_ipc, OID_AUTO, maxmbufmem, CTLFLAG_RDTUN, &maxmbufmem, 0,
     "Maximum real memory allocatable to various mbuf types");
+
+static uma_zone_t	m_getzone(int);
 
 /*
  * tunable_mbinit() has to be run before any mbuf allocations are done.
@@ -259,17 +272,6 @@ sysctl_nmbufs(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbufs, CTLTYPE_INT|CTLFLAG_RW,
 &nmbufs, 0, sysctl_nmbufs, "IU",
     "Maximum number of mbufs allowed");
-
-/*
- * Zones from which we allocate.
- */
-uma_zone_t	zone_mbuf;
-uma_zone_t	zone_clust;
-uma_zone_t	zone_pack;
-uma_zone_t	zone_jumbop;
-uma_zone_t	zone_jumbo9;
-uma_zone_t	zone_jumbo16;
-uma_zone_t	zone_ext_refcnt;
 
 /*
  * Local prototypes.
@@ -640,7 +642,7 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 	return (error);
 }
 
-uma_zone_t
+static uma_zone_t
 m_getzone(int size)
 {
 	uma_zone_t zone;
@@ -977,6 +979,20 @@ m_getm2(struct mbuf *m, int len, int how, short type, int flags)
 		m = nm;
 
 	return (m);
+}
+
+struct mbuf *
+m_free(struct mbuf *m)
+{
+	struct mbuf *n = m->m_next;
+
+	if ((m->m_flags & (M_PKTHDR|M_NOFREE)) == (M_PKTHDR|M_NOFREE))
+		m_tag_delete_chain(m, NULL);
+	if (m->m_flags & M_EXT)
+		mb_free_ext(m);
+	else if ((m->m_flags & M_NOFREE) == 0)
+		uma_zfree(zone_mbuf, m);
+	return (n);
 }
 
 /*
