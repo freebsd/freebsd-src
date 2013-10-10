@@ -240,8 +240,8 @@ hv_vmbus_init(void)
 	if (virt_addr == NULL)
 	    goto cleanup;
 
-	hypercall_msr.enable = 1;
-	hypercall_msr.guest_physical_address =
+	hypercall_msr.u.enable = 1;
+	hypercall_msr.u.guest_physical_address =
 	    (hv_get_phys_addr(virt_addr) >> PAGE_SHIFT);
 	wrmsr(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64_t);
 
@@ -251,7 +251,7 @@ hv_vmbus_init(void)
 	hypercall_msr.as_uint64_t = 0;
 	hypercall_msr.as_uint64_t = rdmsr(HV_X64_MSR_HYPERCALL);
 
-	if (!hypercall_msr.enable)
+	if (!hypercall_msr.u.enable)
 	    goto cleanup;
 
 	hv_vmbus_g_context.hypercall_page = virt_addr;
@@ -284,7 +284,7 @@ hv_vmbus_init(void)
 
 	cleanup:
 	if (virt_addr != NULL) {
-	    if (hypercall_msr.enable) {
+	    if (hypercall_msr.u.enable) {
 		hypercall_msr.as_uint64_t = 0;
 		wrmsr(HV_X64_MSR_HYPERCALL,
 					hypercall_msr.as_uint64_t);
@@ -426,8 +426,8 @@ hv_vmbus_synic_init(void *arg)
 	 */
 
 	simp.as_uint64_t = rdmsr(HV_X64_MSR_SIMP);
-	simp.simp_enabled = 1;
-	simp.base_simp_gpa = ((hv_get_phys_addr(
+	simp.u.simp_enabled = 1;
+	simp.u.base_simp_gpa = ((hv_get_phys_addr(
 	    hv_vmbus_g_context.syn_ic_msg_page[cpu])) >> PAGE_SHIFT);
 
 	wrmsr(HV_X64_MSR_SIMP, simp.as_uint64_t);
@@ -436,23 +436,23 @@ hv_vmbus_synic_init(void *arg)
 	 * Setup the Synic's event page
 	 */
 	siefp.as_uint64_t = rdmsr(HV_X64_MSR_SIEFP);
-	siefp.siefp_enabled = 1;
-	siefp.base_siefp_gpa = ((hv_get_phys_addr(
+	siefp.u.siefp_enabled = 1;
+	siefp.u.base_siefp_gpa = ((hv_get_phys_addr(
 	    hv_vmbus_g_context.syn_ic_event_page[cpu])) >> PAGE_SHIFT);
 
 	wrmsr(HV_X64_MSR_SIEFP, siefp.as_uint64_t);
 
 	/*HV_SHARED_SINT_IDT_VECTOR + 0x20; */
-	shared_sint.vector = setup_args->vector;
-	shared_sint.masked = FALSE;
-	shared_sint.auto_eoi = FALSE;
+	shared_sint.u.vector = setup_args->vector;
+	shared_sint.u.masked = FALSE;
+	shared_sint.u.auto_eoi = FALSE;
 
 	wrmsr(HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT,
 	    shared_sint.as_uint64_t);
 
 	/* Enable the global synic bit */
 	sctrl.as_uint64_t = rdmsr(HV_X64_MSR_SCONTROL);
-	sctrl.enable = 1;
+	sctrl.u.enable = 1;
 
 	wrmsr(HV_X64_MSR_SCONTROL, sctrl.as_uint64_t);
 
@@ -480,7 +480,7 @@ void hv_vmbus_synic_cleanup(void *arg)
 	shared_sint.as_uint64_t = rdmsr(
 	    HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT);
 
-	shared_sint.masked = 1;
+	shared_sint.u.masked = 1;
 
 	/*
 	 * Disable the interrupt
@@ -490,14 +490,14 @@ void hv_vmbus_synic_cleanup(void *arg)
 	    shared_sint.as_uint64_t);
 
 	simp.as_uint64_t = rdmsr(HV_X64_MSR_SIMP);
-	simp.simp_enabled = 0;
-	simp.base_simp_gpa = 0;
+	simp.u.simp_enabled = 0;
+	simp.u.base_simp_gpa = 0;
 
 	wrmsr(HV_X64_MSR_SIMP, simp.as_uint64_t);
 
 	siefp.as_uint64_t = rdmsr(HV_X64_MSR_SIEFP);
-	siefp.siefp_enabled = 0;
-	siefp.base_siefp_gpa = 0;
+	siefp.u.siefp_enabled = 0;
+	siefp.u.base_siefp_gpa = 0;
 
 	wrmsr(HV_X64_MSR_SIEFP, siefp.as_uint64_t);
 }
