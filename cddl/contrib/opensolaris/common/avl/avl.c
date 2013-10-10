@@ -89,9 +89,9 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/stdint.h>
 #include <sys/debug.h>
 #include <sys/avl.h>
-#include <sys/cmn_err.h>
 
 /*
  * Small arrays to translate between balance (or diff) values and child indeces.

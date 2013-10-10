@@ -1,7 +1,0 @@
-/var/log/opensm.log {
-    missingok
-    notifempty
-    copytruncate
-    weekly
-    compress
-}

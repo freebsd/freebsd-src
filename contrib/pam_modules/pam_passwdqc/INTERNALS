@@ -1,2 +1,0 @@
-The functions defined in passwdqc.h may be used without PAM at all.
-They will eventually be moved into a libpasswdqc.

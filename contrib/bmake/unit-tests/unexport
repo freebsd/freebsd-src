@@ -1,8 +1,0 @@
-# $Id: unexport,v 1.1.1.1 2009/11/19 00:31:11 sjg Exp $
-
-# pick up a bunch of exported vars
-.include "export"
-
-.unexport UT_ZOO UT_FOO
-
-UT_TEST = unexport

@@ -1,4 +1,0 @@
-.\" $FreeBSD$
-Set to not build
-.Xr pkg 1
-bootstrap tool

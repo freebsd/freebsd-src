@@ -1,3 +1,0 @@
-.\" $FreeBSD$
-Set to not build NLS catalog support for
-.Xr csh 1 .
