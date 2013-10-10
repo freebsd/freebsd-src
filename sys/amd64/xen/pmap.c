@@ -641,6 +641,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 */
 	PMAP_LOCK_INIT(kernel_pmap);
 	kernel_pmap->pm_pml4 = (pdp_entry_t *)KPML4phys;
+	kernel_pmap->pm_cr3 = pmap_kextract_ma((vm_offset_t) KPML4phys);
 	kernel_pmap->pm_root.rt_root = 0;
 	CPU_FILL(&kernel_pmap->pm_active);	/* don't allow deactivation */
 	pmap_pv_init();
@@ -751,6 +752,7 @@ pmap_pinit0(pmap_t pmap)
 {
 	PMAP_LOCK_INIT(pmap);
 	pmap->pm_pml4 = (void *) KPML4phys;
+	pmap->pm_cr3 = pmap_kextract_ma((vm_offset_t) KPML4phys);
 	pmap->pm_root.rt_root = 0;
 	CPU_ZERO(&pmap->pm_active);
 	PCPU_SET(curpmap, pmap);
@@ -771,6 +773,8 @@ pmap_pinit(pmap_t pmap)
 	pmap->pm_pml4 = (void *) kmem_malloc(kernel_arena, PAGE_SIZE, M_ZERO);
 	if (pmap->pm_pml4 == NULL) return 0;
 
+	pmap->pm_cr3 = pmap_kextract_ma((vm_offset_t)pmap->pm_pml4);
+
 	/* 
 	 * We do not wire in kernel space, or the self-referencial
 	 * entry in userspace pmaps becase both kernel and userland
@@ -784,7 +788,7 @@ pmap_pinit(pmap_t pmap)
 
 	pmap_xen_setpages_ro((uintptr_t)pmap->pm_pml4, 1);
 
-	xen_pgdir_pin(pmap_kextract_ma((uintptr_t)pmap->pm_pml4));
+	xen_pgdir_pin(pmap->pm_cr3);
 
 	pmap->pm_root.rt_root = 0;
 	CPU_ZERO(&pmap->pm_active);
@@ -810,7 +814,7 @@ void pmap_xen_userload(pmap_t pmap)
 	PT_UPDATES_FLUSH();
 
 	/* Tell xen about user pmap switch */
-	xen_pt_user_switch(vtomach(pmap->pm_pml4));
+	xen_pt_user_switch(pmap->pm_cr3);
 }
 
 void
@@ -819,7 +823,7 @@ pmap_release(pmap_t pmap)
 	KASSERT(pmap != kernel_pmap,
 		("%s: kernel pmap released", __func__));
 
-	xen_pgdir_unpin(pmap_kextract_ma((uintptr_t)pmap->pm_pml4));
+	xen_pgdir_unpin(pmap->pm_cr3);
 	pmap_xen_setpages_rw((uintptr_t)pmap->pm_pml4, 1);
 
 	bzero(pmap->pm_pml4, PAGE_SIZE);
@@ -2108,7 +2112,6 @@ pmap_activate(struct thread *td)
 {
 	pmap_t	pmap, oldpmap;
 	u_int	cpuid;
-	u_int64_t  cr3;
 
 	critical_enter();
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
@@ -2117,14 +2120,15 @@ pmap_activate(struct thread *td)
 #ifdef SMP
 	CPU_CLR_ATOMIC(cpuid, &oldpmap->pm_active);
 	CPU_SET_ATOMIC(cpuid, &pmap->pm_active);
+	CPU_SET_ATOMIC(cpuid, &pmap->pm_save);
 #else
 	CPU_CLR(cpuid, &oldpmap->pm_active);
 	CPU_SET(cpuid, &pmap->pm_active);
+	CPU_SET(cpuid, &pmap->pm_save);
 #endif
-	cr3 = pmap_kextract((vm_offset_t)pmap->pm_pml4);
-	td->td_pcb->pcb_cr3 = cr3;
+	td->td_pcb->pcb_cr3 = pmap->pm_cr3;
 	if (__predict_false(pmap == kernel_pmap)) {
-		xen_load_cr3(cr3);
+		load_cr3(pmap->pm_cr3);
 	}
 	else {
 		pmap_xen_userload(pmap);
