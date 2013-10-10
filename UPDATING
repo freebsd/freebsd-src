@@ -31,6 +31,25 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20131010:
+	The rc.d/jail script has been updated to support jail(8)
+	configuration file.  The "jail_<jname>_*" rc.conf(5) variables
+	for per-jail configuration are automatically converted to
+	/var/run/jail.<jname>.conf before the jail(8) utility is invoked.
+	This is transparently backward compatible.  See below about some
+	incompatibilities and rc.conf(5) manual page for more details.
+
+	These variables are now deprecated in favor of jail(8) configuration
+	file.  One can use "rc.d/jail config <jname>" command to generate
+	a jail(8) configuration file in /var/run/jail.<jname>.conf without
+	running the jail(8) utility.   The default pathname of the
+	configuration file is /etc/jail.conf and can be specified by
+	using $jail_conf or $jail_<jname>_conf variables.
+
+	Please note that jail_devfs_ruleset accepts an integer at
+	this moment.  Please consider to rewrite the ruleset name
+	with an integer.
+
 20130930:
 	BIND has been removed from the base system.  If all you need
 	is a local resolver, simply enable and start the local_unbound
