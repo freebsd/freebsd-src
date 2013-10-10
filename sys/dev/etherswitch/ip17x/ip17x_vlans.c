@@ -74,7 +74,7 @@ ip17x_reset_vlans(struct ip17x_softc *sc, uint32_t vlan_mode)
 			if (((1 << phy) & sc->phymask) == 0)
 				continue;
 			v = &sc->vlan[i];
-			v->vlanid = i++;
+			v->vlanid = i++ | ETHERSWITCH_VID_VALID;
 			v->ports = (1 << sc->cpuport);
 			for (j = 0; j < MII_NPHY; j++) {
 				if (((1 << j) & sc->phymask) == 0)
@@ -90,10 +90,10 @@ ip17x_reset_vlans(struct ip17x_softc *sc, uint32_t vlan_mode)
 		 * members of vlan 1.
 		 */
 		v = &sc->vlan[0];
-		v->vlanid = 1;
-		/* Set PVID for everyone. */
+		v->vlanid = 1 | ETHERSWITCH_VID_VALID;
+		/* Set PVID to 1 for everyone. */
 		for (i = 0; i < sc->numports; i++)
-			sc->pvid[i] = v->vlanid;
+			sc->pvid[i] = 1;
 		for (i = 0; i < MII_NPHY; i++) {
 			if ((sc->phymask & (1 << i)) == 0)
 				continue;
@@ -148,11 +148,29 @@ ip17x_setvgroup(device_t dev, etherswitch_vlangroup_t *vg)
 		return (EINVAL);
 
 	/* IP175C don't support VLAN IDs > 15. */
-	if (IP17X_IS_SWITCH(sc, IP175C) && vg->es_vid > IP175C_LAST_VLAN)
+	if (IP17X_IS_SWITCH(sc, IP175C) &&
+	    (vg->es_vid & ETHERSWITCH_VID_MASK) > IP175C_LAST_VLAN)
 		return (EINVAL);
 
 	/* Vlan ID. */
-	sc->vlan[vg->es_vlangroup].vlanid = vg->es_vid;
+	if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q) {
+		for (i = 0; i < sc->info.es_nvlangroups; i++) {
+			/* Is this Vlan ID already set in another vlangroup ? */
+			if (i != vg->es_vlangroup &&
+			    sc->vlan[i].vlanid & ETHERSWITCH_VID_VALID &&
+			    (sc->vlan[i].vlanid & ETHERSWITCH_VID_MASK) ==
+			    (vg->es_vid & ETHERSWITCH_VID_MASK))
+				return (EINVAL);
+		}
+		sc->vlan[vg->es_vlangroup].vlanid = vg->es_vid &
+		    ETHERSWITCH_VID_MASK;
+		/* Setting the vlanid to zero disables the vlangroup. */
+		if (sc->vlan[vg->es_vlangroup].vlanid == 0) {
+			sc->vlan[vg->es_vlangroup].ports = 0;
+			return (sc->hal.ip17x_hw_setup(sc));
+		}
+		sc->vlan[vg->es_vlangroup].vlanid |= ETHERSWITCH_VID_VALID;
+	}
 
 	/* Member Ports. */
 	sc->vlan[vg->es_vlangroup].ports = 0;

@@ -6,7 +6,7 @@ INTERNALLIB=	yes
 LIB=		serf
 
 SRCS=		aggregate_buckets.c allocator.c auth.c auth_basic.c \
-		auth_digest.c auth_kerb.c auth_kerb_gss.c barrier_buckets.c \
+		auth_digest.c auth_spnego.c auth_spnego_gss.c barrier_buckets.c \
 		buckets.c bwtp_buckets.c chunk_buckets.c context.c \
 		dechunk_buckets.c deflate_buckets.c file_buckets.c \
 		headers_buckets.c incoming.c iovec_buckets.c limit_buckets.c \

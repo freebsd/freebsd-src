@@ -115,6 +115,8 @@ static struct resource_spec arm_tmr_spec[] = {
 
 static struct arm_tmr_softc *arm_tmr_sc = NULL;
 
+uint32_t platform_arm_tmr_freq = 0;
+
 #define	tmr_prv_read_4(reg)		\
     bus_space_read_4(arm_tmr_sc->prv_bst, arm_tmr_sc->prv_bsh, reg)
 #define	tmr_prv_write_4(reg, val)		\
@@ -274,13 +276,18 @@ arm_tmr_attach(device_t dev)
 	if (arm_tmr_sc)
 		return (ENXIO);
 
-	/* Get the base clock frequency */
-	node = ofw_bus_get_node(dev);
-	if ((OF_getprop(node, "clock-frequency", &clock, sizeof(clock))) <= 0) {
-		device_printf(dev, "missing clock-frequency attribute in FDT\n");
-		return (ENXIO);
+	if (platform_arm_tmr_freq != 0)
+		sc->clkfreq = platform_arm_tmr_freq;
+	else {
+		/* Get the base clock frequency */
+		node = ofw_bus_get_node(dev);
+		if ((OF_getprop(node, "clock-frequency", &clock,
+		    sizeof(clock))) <= 0) {
+			device_printf(dev, "missing clock-frequency attribute in FDT\n");
+			return (ENXIO);
+		}
+		sc->clkfreq = fdt32_to_cpu(clock);
 	}
-	sc->clkfreq = fdt32_to_cpu(clock);
 
 
 	if (bus_alloc_resources(dev, arm_tmr_spec, sc->tmr_res)) {

@@ -31,6 +31,118 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20131010:
+	The rc.d/jail script has been updated to support jail(8)
+	configuration file.  The "jail_<jname>_*" rc.conf(5) variables
+	for per-jail configuration are automatically converted to
+	/var/run/jail.<jname>.conf before the jail(8) utility is invoked.
+	This is transparently backward compatible.  See below about some
+	incompatibilities and rc.conf(5) manual page for more details.
+
+	These variables are now deprecated in favor of jail(8) configuration
+	file.  One can use "rc.d/jail config <jname>" command to generate
+	a jail(8) configuration file in /var/run/jail.<jname>.conf without
+	running the jail(8) utility.   The default pathname of the
+	configuration file is /etc/jail.conf and can be specified by
+	using $jail_conf or $jail_<jname>_conf variables.
+
+	Please note that jail_devfs_ruleset accepts an integer at
+	this moment.  Please consider to rewrite the ruleset name
+	with an integer.
+
+20130930:
+	BIND has been removed from the base system.  If all you need
+	is a local resolver, simply enable and start the local_unbound
+	service instead.  Otherwise, several versions of BIND are
+	available in the ports tree.
+
+20130916:
+	With the addition of unbound(8), a new unbound user is now
+	required during installworld.  "mergemaster -p" can be used to
+	add the user prior to installworld, as documented in the handbook.
+
+20130911:
+	OpenSSH is now built with DNSSEC support, and will by default
+	silently trust signed SSHFP records.  This can be controlled with
+	the VerifyHostKeyDNS client configuration setting.  DNSSEC support
+	can be disabled entirely with the WITHOUT_LDNS option in src.conf.
+
+20130906:
+	The GNU Compiler Collection and C++ standard library (libstdc++)
+	are no longer built by default on platforms where clang is the system
+	compiler.  You can enable them with the WITH_GCC and WITH_GNUCXX
+	options in src.conf.  
+
+20130905:
+	The PROCDESC kernel option is now part of the GENERIC kernel
+	configuration and is required for the rwhod(8) to work.
+	If you are using custom kernel configuration, you should include
+	'options PROCDESC'.
+
+20130905:
+	The API and ABI related to the Capsicum framework was modified
+	in backward incompatible way. The userland libraries and programs
+	have to be recompiled to work with the new kernel. This includes the
+	following libraries and programs, but the whole buildworld is
+	advised: libc, libprocstat, dhclient, tcpdump, hastd, hastctl,
+	kdump, procstat, rwho, rwhod, uniq.
+
+20130903:
+	AES-NI intrinsic support has been added to gcc.  The AES-NI module
+	has been updated to use this support.  A new gcc is required to build
+	the aesni module on both i386 and amd64.
+
+20130821:
+	The PADLOCK_RNG and RDRAND_RNG kernel options are now devices.
+	Thus "device padlock_rng" and "device rdrand_rng" should be
+	used instead of "options PADLOCK_RNG" & "options RDRAND_RNG".
+
+20130813:
+	WITH_ICONV has been split into two feature sets.  WITH_ICONV now
+	enables just the iconv* functionality and is now on by default.
+	WITH_LIBICONV_COMPAT enables the libiconv api and link time
+	compatability.  Set WITHOUT_ICONV to build the old way.
+	If you have been using WITH_ICONV before, you will very likely
+	need to turn on WITH_LIBICONV_COMPAT.
+
+20130806:
+	INVARIANTS option now enables DEBUG for code with OpenSolaris and
+	Illumos origin, including ZFS.  If you have INVARIANTS in your
+	kernel configuration, then there is no need to set DEBUG or ZFS_DEBUG
+	explicitly.
+	DEBUG used to enable witness(9) tracking of OpenSolaris (mostly ZFS)
+	locks if WITNESS option was set.  Because that generated a lot of
+	witness(9) reports and all of them were believed to be false
+	positives, this is no longer done.  New option OPENSOLARIS_WITNESS
+	can be used to achieve the previous behavior.
+
+20130806:
+	Timer values in IPv6 data structures now use time_uptime instead
+	of time_second.  Although this is not a user-visible functional
+	change, userland utilities which directly use them---ndp(8),
+	rtadvd(8), and rtsold(8) in the base system---need to be updated
+	to r253970 or later.
+
+20130802:
+	find -delete can now delete the pathnames given as arguments,
+	instead of only files found below them or if the pathname did
+	not contain any slashes. Formerly, the following error message
+	would result:
+
+	find: -delete: <path>: relative path potentially not safe
+
+	Deleting the pathnames given as arguments can be prevented
+	without error messages using -mindepth 1 or by changing
+	directory and passing "." as argument to find. This works in the
+	old as well as the new version of find.
+
+20130726:
+	Behavior of devfs rules path matching has been changed.
+	Pattern is now always matched against fully qualified devfs
+	path and slash characters must be explicitly matched by
+	slashes in pattern (FNM_PATHNAME). Rulesets involving devfs
+	subdirectories must be reviewed.
+
 20130716:
 	The default ARM ABI has changed to the ARM EABI. The old ABI is
 	incompatible with the ARM EABI and all programs and modules will
@@ -207,8 +319,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 
 20121201:
 	With the addition of auditdistd(8), a new auditdistd user is now
-	depended on during installworld.  "mergemaster -p" can be used to add
-	the user prior to installworld, as documented in the handbook.
+	required during installworld.  "mergemaster -p" can be used to
+	add the user prior to installworld, as documented in the handbook.
 
 20121117:
 	The sin6_scope_id member variable in struct sockaddr_in6 is now
@@ -294,9 +406,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 20120913:
 	The random(4) support for the VIA hardware random number
 	generator (`PADLOCK') is no longer enabled unconditionally.
-	Add the PADLOCK_RNG option in the custom kernel config if
+	Add the padlock_rng device in the custom kernel config if
 	needed.  The GENERIC kernels on i386 and amd64 do include the
-	option, so the change only affects the custom kernel
+	device, so the change only affects the custom kernel
 	configurations.
 
 20120908:

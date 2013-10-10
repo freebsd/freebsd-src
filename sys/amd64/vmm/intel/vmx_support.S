@@ -30,6 +30,12 @@
 
 #include "vmx_assym.s"
 
+#ifdef SMP
+#define	LK	lock ;
+#else
+#define	LK
+#endif
+
 /*
  * Disable interrupts before updating %rsp in VMX_CHECK_AST or
  * VMX_GUEST_RESTORE.
@@ -86,15 +92,73 @@
 	movq	VMXCTX_GUEST_R15(%rdi),%r15;				\
 	movq	VMXCTX_GUEST_RDI(%rdi),%rdi; /* restore rdi the last */
 
-#define	VM_INSTRUCTION_ERROR(reg)					\
+/*
+ * Check for an error after executing a VMX instruction.
+ * 'errreg' will be zero on success and non-zero otherwise.
+ * 'ctxreg' points to the 'struct vmxctx' associated with the vcpu.
+ */
+#define	VM_INSTRUCTION_ERROR(errreg, ctxreg)				\
 	jnc 	1f;							\
-	movl 	$VM_FAIL_INVALID,reg;		/* CF is set */		\
+	movl 	$VM_FAIL_INVALID,errreg;		/* CF is set */	\
 	jmp 	3f;							\
 1:	jnz 	2f;							\
-	movl 	$VM_FAIL_VALID,reg;		/* ZF is set */		\
+	movl 	$VM_FAIL_VALID,errreg;		/* ZF is set */		\
 	jmp 	3f;							\
-2:	movl 	$VM_SUCCESS,reg;					\
-3:	movl	reg,VMXCTX_LAUNCH_ERROR(%rsp)
+2:	movl 	$VM_SUCCESS,errreg;					\
+3:	movl	errreg,VMXCTX_LAUNCH_ERROR(ctxreg)
+
+/*
+ * set or clear the appropriate bit in 'pm_active'
+ * %rdi = vmxctx
+ * %rax, %r11 = scratch registers
+ */
+#define	VMX_SET_PM_ACTIVE						\
+	movq	VMXCTX_PMAP(%rdi), %r11;				\
+	movl	PCPU(CPUID), %eax;					\
+	LK btsl	%eax, PM_ACTIVE(%r11)
+
+#define	VMX_CLEAR_PM_ACTIVE						\
+	movq	VMXCTX_PMAP(%rdi), %r11;				\
+	movl	PCPU(CPUID), %eax;					\
+	LK btrl	%eax, PM_ACTIVE(%r11)
+
+/*
+ * If 'vmxctx->eptgen[curcpu]' is not identical to 'pmap->pm_eptgen'
+ * then we must invalidate all mappings associated with this eptp.
+ *
+ * %rdi = vmxctx
+ * %rax, %rbx, %r11 = scratch registers
+ */
+#define	VMX_CHECK_EPTGEN						\
+	movl	PCPU(CPUID), %ebx;					\
+	movq	VMXCTX_PMAP(%rdi), %r11;				\
+	movq	PM_EPTGEN(%r11), %rax;					\
+	cmpq	%rax, VMXCTX_EPTGEN(%rdi, %rbx, 8);			\
+	je	9f;							\
+									\
+	/* Refresh 'vmxctx->eptgen[curcpu]' */				\
+	movq	%rax, VMXCTX_EPTGEN(%rdi, %rbx, 8);			\
+									\
+	/* Setup the invept descriptor at the top of tmpstk */		\
+	mov	%rdi, %r11;						\
+	addq	$VMXCTX_TMPSTKTOP, %r11;				\
+	movq	VMXCTX_EPTP(%rdi), %rax;				\
+	movq	%rax, -16(%r11);					\
+	movq	$0x0, -8(%r11);						\
+	mov	$0x1, %eax;	/* Single context invalidate */		\
+	invept	-16(%r11), %rax;					\
+									\
+	/* Check for invept error */					\
+	VM_INSTRUCTION_ERROR(%eax, %rdi);				\
+	testl	%eax, %eax;						\
+	jz	9f;							\
+									\
+	/* Return via vmx_setjmp with retval of VMX_RETURN_INVEPT */	\
+	movq	$VMX_RETURN_INVEPT, %rsi;				\
+	movq	%rdi,%rsp;						\
+	addq	$VMXCTX_TMPSTKTOP, %rsp;				\
+	callq	vmx_return;						\
+9:	;
 
 	.text
 /*
@@ -129,6 +193,9 @@ END(vmx_setjmp)
  * Return to vmm context through vmx_setjmp() with a value of 'retval'.
  */
 ENTRY(vmx_return)
+	/* The pmap is no longer active on the host cpu */
+	VMX_CLEAR_PM_ACTIVE
+
 	/* Restore host context. */
 	movq	VMXCTX_HOST_R15(%rdi),%r15
 	movq	VMXCTX_HOST_R14(%rdi),%r14
@@ -193,6 +260,10 @@ ENTRY(vmx_resume)
 
 	VMX_CHECK_AST
 
+	VMX_SET_PM_ACTIVE	/* This vcpu is now active on the host cpu */
+
+	VMX_CHECK_EPTGEN	/* Check if we have to invalidate TLB */
+
 	/*
 	 * Restore guest state that is not automatically loaded from the vmcs.
 	 */
@@ -203,7 +274,7 @@ ENTRY(vmx_resume)
 	/*
 	 * Capture the reason why vmresume failed.
 	 */
-	VM_INSTRUCTION_ERROR(%eax)
+	VM_INSTRUCTION_ERROR(%eax, %rsp)
 
 	/* Return via vmx_setjmp with return value of VMX_RETURN_VMRESUME */
 	movq	%rsp,%rdi
@@ -225,6 +296,10 @@ ENTRY(vmx_launch)
 
 	VMX_CHECK_AST
 
+	VMX_SET_PM_ACTIVE	/* This vcpu is now active on the host cpu */
+
+	VMX_CHECK_EPTGEN	/* Check if we have to invalidate TLB */
+
 	/*
 	 * Restore guest state that is not automatically loaded from the vmcs.
 	 */
@@ -235,7 +310,7 @@ ENTRY(vmx_launch)
 	/*
 	 * Capture the reason why vmlaunch failed.
 	 */
-	VM_INSTRUCTION_ERROR(%eax)
+	VM_INSTRUCTION_ERROR(%eax, %rsp)
 
 	/* Return via vmx_setjmp with return value of VMX_RETURN_VMLAUNCH */
 	movq	%rsp,%rdi

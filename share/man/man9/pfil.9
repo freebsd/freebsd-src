@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2012
+.Dd August 23, 2013
 .Dt PFIL 9
 .Os
 .Sh NAME
@@ -36,7 +36,6 @@
 .Nm pfil_head_register ,
 .Nm pfil_head_unregister ,
 .Nm pfil_head_get ,
-.Nm pfil_hook_get ,
 .Nm pfil_add_hook ,
 .Nm pfil_remove_hook ,
 .Nm pfil_run_hooks ,
@@ -50,20 +49,18 @@
 .In sys/mbuf.h
 .In net/if.h
 .In net/pfil.h
+.Bd -literal
+typedef int (*pfil_func_t)(void *arg, struct mbuf **mp, struct ifnet *, int dir, struct inpcb);
 .Ft int
 .Fn pfil_head_register "struct pfil_head *head"
 .Ft int
 .Fn pfil_head_unregister "struct pfil_head *head"
 .Ft "struct pfil_head *"
 .Fn pfil_head_get "int af" "u_long dlt"
-.Ft "struct packet_filter_hook *"
-.Fn pfil_hook_get "int dir" "struct pfil_head *head"
 .Ft void
-.Fn pfil_add_hook "int (*func)()" "void *arg" "int flags" "struct pfil_head *"
+.Fn pfil_add_hook "pfil_func_t" "void *arg" "int flags" "struct pfil_head *"
 .Ft void
-.Fn pfil_remove_hook "int (*func)()" "void *arg" "int flags" "struct pfil_head *"
-.Ft int
-.Fn (*func) "void *arg" "struct mbuf **mp" "struct ifnet *" "int dir" "struct inpcb *"
+.Fn pfil_remove_hook "pfil_func_t" "void *arg" "int flags" "struct pfil_head *"
 .Ft int
 .Fn pfil_run_hooks "struct pfil_head *head" "struct mbuf **mp" "struct ifnet *" "int dir" "struct inpcb *"
 .Ft void
@@ -74,6 +71,7 @@
 .Fn pfil_wlock "struct pfil_head *"
 .Ft void
 .Fn pfil_wunlock "struct pfil_head *"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -244,11 +242,6 @@ Fine-grained locking was added in
 lock export was added in
 .Fx 10.0 .
 .Sh BUGS
-The
-.Fn pfil_hook_get
-function
-is only safe for internal use.
-.Pp
 When a
 .Vt pfil_head
 is being modified, no traffic is diverted

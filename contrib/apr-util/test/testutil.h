@@ -41,6 +41,12 @@ extern apr_pool_t *p;
  * for RV and CONTEXT message. */
 void apr_assert_success(abts_case* tc, const char *context, apr_status_t rv);
 
+void apr_assert_failure(abts_case* tc, const char *context,
+                        apr_status_t rv, int lineno);
+#define APR_ASSERT_FAILURE(tc, ctxt, rv) \
+             apr_assert_failure(tc, ctxt, rv, __LINE__)
+
+
 void initialize(void);
 
 abts_suite *teststrmatch(abts_suite *suite);

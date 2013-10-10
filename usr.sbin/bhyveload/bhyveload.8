@@ -60,13 +60,29 @@ and will be created if it does not already exist.
 .Sh OPTIONS
 The following options are available:
 .Bl -tag -width indent
-.It Fl m Ar mem-size
+.It Fl m Ar mem-size Xo
+.Sm off
+.Op Cm K | k | M | m | G | g | T | t
+.Xc
+.Sm on
 .Ar mem-size
-is the amount of memory allocated to the guest in units of megabytes.
+is the amount of memory allocated to the guest.
+.Pp
+The
+.Ar mem-size
+argument may be suffixed with one of
+.Cm K ,
+.Cm M ,
+.Cm G
+or
+.Cm T
+(either upper or lower case) to indicate a multiple of
+Kilobytes, Megabytes, Gigabytes or Terabytes
+respectively.
 .Pp
 The default value of
 .Ar mem-size
-is 256.
+is 256M.
 .It Fl d Ar disk-path
 The
 .Ar disk-path
@@ -83,7 +99,7 @@ that boots off the ISO image
 .Pa /freebsd/release.iso
 and has 1GB memory allocated to it:
 .Pp
-.Dl "bhyveload -m 1024 -d /freebsd/release.iso freebsd-vm"
+.Dl "bhyveload -m 1G -d /freebsd/release.iso freebsd-vm"
 .Sh SEE ALSO
 .Xr bhyve 4 ,
 .Xr bhyve 8 ,

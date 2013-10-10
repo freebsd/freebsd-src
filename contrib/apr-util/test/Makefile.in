@@ -34,7 +34,7 @@ APRUTIL_LDFLAGS = $(ALL_LDFLAGS) @LT_NO_INSTALL@ @APRUTIL_LDFLAGS@
 
 # link programs using -no-install to get real executables not
 # libtool wrapper scripts which link an executable when first run.
-LINK_PROG = $(LIBTOOL) $(LTFLAGS) --mode=link $(LT_LDFLAGS) $(COMPILE) \
+LINK_PROG = $(LIBTOOL) $(LTFLAGS) --mode=link $(COMPILE) $(LT_LDFLAGS) \
 	    $(APRUTIL_LDFLAGS) -o $@
 
 # STDTEST_PORTABLE;

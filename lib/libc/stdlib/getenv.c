@@ -506,8 +506,7 @@ __setenv(const char *name, size_t nameLen, const char *value, int overwrite)
 
 		/* Save name of name/value pair. */
 		env = stpncpy(envVars[envNdx].name, name, nameLen);
-		if ((envVars[envNdx].name)[nameLen] != '=')
-			env = stpcpy(env, "=");
+		*env++ = '=';
 	}
 	else
 		env = envVars[envNdx].value;

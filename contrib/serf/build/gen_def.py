@@ -58,11 +58,19 @@ def extract_exports(fname):
     exports.append(name)
   return exports
 
+# Blacklist the serf v2 API for now
+blacklist = ['serf_connection_switch_protocol',
+             'serf_http_protocol_create',
+             'serf_http_request_create',
+             'serf_https_protocol_create']
 
 if __name__ == '__main__':
   # run the extraction over each file mentioned
   import sys
   print("EXPORTS")
+
   for fname in sys.argv[1:]:
-    for func in extract_exports(fname):
+    funclist = extract_exports(fname)
+    funclist = set(funclist) - set(blacklist)
+    for func in funclist:
       print(func)

@@ -83,7 +83,7 @@ struct open_disk {
 #define BD_OPTICAL		0x0020
     struct disklabel		od_disklabel;
     int				od_nslices;	/* slice count */
-    struct pc98_partition	od_slicetab[NDOSPART];
+    struct pc98_partition	od_slicetab[PC98_NPARTS];
 };
 
 /*
@@ -528,9 +528,9 @@ bd_open_pc98(struct open_disk *od, struct i386_devdesc *dev)
     /*
      * copy the partition table, then pick up any extended partitions.
      */
-    bcopy(buf + DOSPARTOFF, &od->od_slicetab,
-      sizeof(struct pc98_partition) * NDOSPART);
-    od->od_nslices = NDOSPART;		/* extended slices start here */
+    bcopy(buf + PC98_PARTOFF, &od->od_slicetab,
+      sizeof(struct pc98_partition) * PC98_NPARTS);
+    od->od_nslices = PC98_NPARTS;	/* extended slices start here */
     od->od_flags |= BD_PARTTABOK;
     dptr = &od->od_slicetab[0];
 
@@ -647,7 +647,7 @@ bd_open_pc98(struct open_disk *od, struct i386_devdesc *dev)
 #define PREF_NONE	7
 
 /*
- * slicelimit is in the range 0 .. NDOSPART
+ * slicelimit is in the range 0 .. PC98_NPARTS
  */
 static int
 bd_bestslice(struct open_disk *od)

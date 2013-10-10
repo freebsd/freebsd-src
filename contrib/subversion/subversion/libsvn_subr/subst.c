@@ -1944,7 +1944,11 @@ svn_subst_translate_string2(svn_string_t **new_value,
       return SVN_NO_ERROR;
     }
 
-  if (encoding)
+  if (encoding && !strcmp(encoding, "UTF-8")) 
+    {
+      val_utf8 = value->data;
+    }
+  else if (encoding)
     {
       SVN_ERR(svn_utf_cstring_to_utf8_ex2(&val_utf8, value->data,
                                           encoding, scratch_pool));

@@ -32,13 +32,16 @@
 
 TYPE="FreeBSD"
 REVISION="10.0"
-BRANCH="CURRENT"
+BRANCH="ALPHA5"
 if [ "X${BRANCH_OVERRIDE}" != "X" ]; then
 	BRANCH=${BRANCH_OVERRIDE}
 fi
 RELEASE="${REVISION}-${BRANCH}"
 VERSION="${TYPE} ${RELEASE}"
-SYSDIR=$(dirname $0)/..
+
+if [ "X${SYSDIR}" = "X" ]; then
+    SYSDIR=$(dirname $0)/..
+fi
 
 if [ "X${PARAMFILE}" != "X" ]; then
 	RELDATE=$(awk '/__FreeBSD_version.*propagated to newvers/ {print $3}' \
@@ -88,19 +91,31 @@ v=`cat version` u=${USER:-root} d=`pwd` h=${HOSTNAME:-`hostname`} t=`date`
 i=`${MAKE:-make} -V KERN_IDENT`
 compiler_v=$($(${MAKE:-make} -V CC) -v 2>&1 | grep 'version')
 
-if [ -x /usr/bin/svnliteversion ] ; then
-	svnversion=/usr/bin/svnliteversion
-fi
-
 for dir in /usr/bin /usr/local/bin; do
 	if [ ! -z "${svnversion}" ] ; then
 		break
 	fi
 	if [ -x "${dir}/svnversion" ] && [ -z ${svnversion} ] ; then
-		svnversion=${dir}/svnversion
-		break
+		# Run svnversion from ${dir} on this script; if return code
+		# is not zero, the checkout might not be compatible with the
+		# svnversion being used.
+		${dir}/svnversion $(realpath ${0}) >/dev/null 2>&1
+		if [ $? -eq 0 ]; then
+			svnversion=${dir}/svnversion
+			break
+		fi
 	fi
 done
+
+if [ -z "${svnversion}" ] && [ -x /usr/bin/svnliteversion ] ; then
+	/usr/bin/svnliteversion $(realpath ${0}) >/dev/null 2>&1
+	if [ $? -eq 0 ]; then
+		svnversion=/usr/bin/svnliteversion
+	else
+		svnversion=
+	fi
+fi
+
 for dir in /usr/bin /usr/local/bin; do
 	if [ -x "${dir}/p4" ] && [ -z ${p4_cmd} ] ; then
 		p4_cmd=${dir}/p4
@@ -116,7 +131,7 @@ if [ -d "${SYSDIR}/../.git" ] ; then
 fi
 
 if [ -n "$svnversion" ] ; then
-	svn=`cd ${SYSDIR} && $svnversion`
+	svn=`cd ${SYSDIR} && $svnversion 2>/dev/null`
 	case "$svn" in
 	[0-9]*)	svn=" r${svn}" ;;
 	*)	unset svn ;;
@@ -132,12 +147,21 @@ if [ -n "$git_cmd" ] ; then
 	else
 		svn=`$git_cmd log | fgrep 'git-svn-id:' | head -1 | \
 		     sed -n 's/^.*@\([0-9][0-9]*\).*$/\1/p'`
-		if [ -n $svn ] ; then
+		if [ -z "$svn" ] ; then
+			svn=`$git_cmd log --format='format:%N' | \
+			     grep '^svn ' | head -1 | \
+			     sed -n 's/^.*revision=\([0-9][0-9]*\).*$/\1/p'`
+		fi
+		if [ -n "$svn" ] ; then
 			svn=" r${svn}"
 			git="+${git}"
 		else
 			git=" ${git}"
 		fi
+	fi
+	git_b=`$git_cmd rev-parse --abbrev-ref HEAD`
+	if [ -n "$git_b" ] ; then
+		git="${git}(${git_b})"
 	fi
 	if $git_cmd --work-tree=${SYSDIR}/.. diff-index \
 	    --name-only HEAD | read dummy; then

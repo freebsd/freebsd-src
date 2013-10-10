@@ -404,6 +404,7 @@ ACPI_STATUS
 AcpiOsGetTableByIndex (
     UINT32                  Index,
     ACPI_TABLE_HEADER       **Table,
+    UINT32                  *Instance,
     ACPI_PHYSICAL_ADDRESS   *Address);
 
 ACPI_STATUS

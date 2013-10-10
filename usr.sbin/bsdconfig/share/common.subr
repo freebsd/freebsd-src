@@ -560,18 +560,19 @@ f_index_file()
 
 	if [ "$lang" ]; then
 		awk -v keyword="$keyword" "$f_index_file_awk" \
-			$BSDCFG_LIBE${BSDCFG_LIBE:+/}*/INDEX.$lang && return
+			$BSDCFG_LIBE${BSDCFG_LIBE:+/}*/INDEX.$lang &&
+			return $SUCCESS
 		# No match, fall-thru to non-i18n sources
 	fi
 	awk -v keyword="$keyword" "$f_index_file_awk" \
-		$BSDCFG_LIBE${BSDCFG_LIBE:+/}*/INDEX && return
+		$BSDCFG_LIBE${BSDCFG_LIBE:+/}*/INDEX && return $SUCCESS
 
 	# No match? Fall-thru to `local' libexec sources (add-on modules)
 
 	[ "$BSDCFG_LOCAL_LIBE" ] || return $FAILURE
 	if [ "$lang" ]; then
 		awk -v keyword="$keyword" "$f_index_file_awk" \
-			$BSDCFG_LOCAL_LIBE/*/INDEX.$lang && return
+			$BSDCFG_LOCAL_LIBE/*/INDEX.$lang && return $SUCCESS
 		# No match, fall-thru to non-i18n sources
 	fi
 	awk -v keyword="$keyword" "$f_index_file_awk" \

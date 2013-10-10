@@ -48,6 +48,7 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
+#include <sys/uuid.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -527,7 +528,8 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 		m->m_flags &= ~M_HASFCS;
 	}
 
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if (!(ifp->if_capenable & IFCAP_HWSTATS))
+		ifp->if_ibytes += m->m_pkthdr.len;
 
 	/* Allow monitor mode to claim this frame, after stats are updated. */
 	if (ifp->if_flags & IFF_MONITOR) {
@@ -637,9 +639,8 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 			m->m_flags |= M_PROMISC;
 	}
 
-	/* First chunk of an mbuf contains good entropy */
 	if (harvest.ethernet)
-		random_harvest(m, 16, 3, 0, RANDOM_NET);
+		random_harvest(&(m->m_data), 12, 3, 0, RANDOM_NET_ETHER);
 
 	ether_demux(ifp, m);
 	CURVNET_RESTORE();
@@ -773,7 +774,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 	 * Strip off Ethernet header.
 	 */
 	m->m_flags &= ~M_VLANTAG;
-	m->m_flags &= ~(M_PROTOFLAGS);
+	m_clrprotoflags(m);
 	m_adj(m, ETHER_HDR_LEN);
 
 	/*
@@ -926,6 +927,8 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
 			break; 
 	if (i != ifp->if_addrlen)
 		if_printf(ifp, "Ethernet address: %6D\n", lla, ":");
+
+	uuid_ether_add(LLADDR(sdl));
 }
 
 /*
@@ -934,6 +937,11 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
 void
 ether_ifdetach(struct ifnet *ifp)
 {
+	struct sockaddr_dl *sdl;
+
+	sdl = (struct sockaddr_dl *)(ifp->if_addr->ifa_addr);
+	uuid_ether_del(LLADDR(sdl));
+
 	if (IFP2AC(ifp)->ac_netgraph != NULL) {
 		KASSERT(ng_ether_detach_p != NULL,
 		    ("ng_ether_detach_p is NULL"));

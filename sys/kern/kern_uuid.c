@@ -71,54 +71,41 @@ struct uuid_private {
 
 CTASSERT(sizeof(struct uuid_private) == 16);
 
+struct uuid_macaddr {
+	uint16_t	state;
+#define	UUID_ETHER_EMPTY	0
+#define	UUID_ETHER_RANDOM	1
+#define	UUID_ETHER_UNIQUE	2
+	uint16_t	node[UUID_NODE_LEN>>1];
+};
+
 static struct uuid_private uuid_last;
+
+#define UUID_NETHER	4
+static struct uuid_macaddr uuid_ether[UUID_NETHER];
 
 static struct mtx uuid_mutex;
 MTX_SYSINIT(uuid_lock, &uuid_mutex, "UUID generator mutex lock", MTX_DEF);
 
 /*
- * Return the first MAC address we encounter or, if none was found,
- * construct a sufficiently random multicast address. We don't try
- * to return the same MAC address as previously returned. We always
- * generate a new multicast address if no MAC address exists in the
- * system.
- * It would be nice to know if 'ifnet' or any of its sub-structures
- * has been changed in any way. If not, we could simply skip the
- * scan and safely return the MAC address we returned before.
+ * Return the first MAC address added in the array. If it's empty, then
+ * construct a sufficiently random multicast MAC address first. Any
+ * addresses added later will bump the random MAC address up tp the next
+ * index.
  */
 static void
 uuid_node(uint16_t *node)
 {
-	struct ifnet *ifp;
-	struct ifaddr *ifa;
-	struct sockaddr_dl *sdl;
 	int i;
 
-	CURVNET_SET(TD_TO_VNET(curthread));
-	IFNET_RLOCK_NOSLEEP();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		/* Walk the address list */
-		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			sdl = (struct sockaddr_dl*)ifa->ifa_addr;
-			if (sdl != NULL && sdl->sdl_family == AF_LINK &&
-			    sdl->sdl_type == IFT_ETHER) {
-				/* Got a MAC address. */
-				bcopy(LLADDR(sdl), node, UUID_NODE_LEN);
-				IF_ADDR_RUNLOCK(ifp);
-				IFNET_RUNLOCK_NOSLEEP();
-				CURVNET_RESTORE();
-				return;
-			}
-		}
-		IF_ADDR_RUNLOCK(ifp);
+	if (uuid_ether[0].state == UUID_ETHER_EMPTY) {
+		for (i = 0; i < (UUID_NODE_LEN>>1); i++)
+			uuid_ether[0].node[i] = (uint16_t)arc4random();
+		*((uint8_t*)uuid_ether[0].node) |= 0x01;
+		uuid_ether[0].state = UUID_ETHER_RANDOM;
 	}
-	IFNET_RUNLOCK_NOSLEEP();
-
 	for (i = 0; i < (UUID_NODE_LEN>>1); i++)
-		node[i] = (uint16_t)arc4random();
-	*((uint8_t*)node) |= 0x01;
-	CURVNET_RESTORE();
+		node[i] = uuid_ether[0].node[i];
 }
 
 /*
@@ -208,6 +195,76 @@ sys_uuidgen(struct thread *td, struct uuidgen_args *uap)
 	error = copyout(store, uap->store, count * sizeof(struct uuid));
 	free(store, M_TEMP);
 	return (error);
+}
+
+int
+uuid_ether_add(const uint8_t *addr)
+{
+	int i, sum;
+
+	/*
+	 * Validate input. No multicast (flag 0x1), no locally administered
+	 * (flag 0x2) and no 'all-zeroes' addresses.
+	 */
+	if (addr[0] & 0x03)
+		return (EINVAL);
+	sum = 0;
+	for (i = 0; i < UUID_NODE_LEN; i++)
+		sum += addr[i];
+	if (sum == 0)
+		return (EINVAL);
+
+	mtx_lock(&uuid_mutex);
+
+	/* Make sure the MAC isn't known already and that there's space. */
+	i = 0;
+	while (i < UUID_NETHER && uuid_ether[i].state == UUID_ETHER_UNIQUE) {
+		if (!bcmp(addr, uuid_ether[i].node, UUID_NODE_LEN)) {
+			mtx_unlock(&uuid_mutex);
+			return (EEXIST);
+		}
+		i++;
+	}
+	if (i == UUID_NETHER) {
+		mtx_unlock(&uuid_mutex);
+		return (ENOSPC);
+	}
+
+	/* Insert MAC at index, moving the non-empty entry if possible. */
+	if (uuid_ether[i].state == UUID_ETHER_RANDOM && i < UUID_NETHER - 1)
+		uuid_ether[i + 1] = uuid_ether[i];
+	uuid_ether[i].state = UUID_ETHER_UNIQUE;
+	bcopy(addr, uuid_ether[i].node, UUID_NODE_LEN);
+	mtx_unlock(&uuid_mutex);
+	return (0);
+}
+
+int
+uuid_ether_del(const uint8_t *addr)
+{
+	int i;
+
+	mtx_lock(&uuid_mutex);
+	i = 0;
+	while (i < UUID_NETHER && uuid_ether[i].state == UUID_ETHER_UNIQUE &&
+	    bcmp(addr, uuid_ether[i].node, UUID_NODE_LEN))
+		i++;
+	if (i == UUID_NETHER || uuid_ether[i].state != UUID_ETHER_UNIQUE) {
+		mtx_unlock(&uuid_mutex);
+		return (ENOENT);
+	}
+
+	/* Remove it by shifting higher index entries down. */
+	while (i < UUID_NETHER - 1 && uuid_ether[i].state != UUID_ETHER_EMPTY) {
+		uuid_ether[i] = uuid_ether[i + 1];
+		i++;
+	}
+	if (uuid_ether[i].state != UUID_ETHER_EMPTY) {
+		uuid_ether[i].state = UUID_ETHER_EMPTY;
+		bzero(uuid_ether[i].node, UUID_NODE_LEN);
+	}
+	mtx_unlock(&uuid_mutex);
+	return (0);
 }
 
 int

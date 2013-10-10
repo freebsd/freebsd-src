@@ -35,18 +35,18 @@ struct rtadvd_timer {
 	TAILQ_ENTRY(rtadvd_timer)	rat_next;
 
 	struct rainfo	*rat_rai;
-	struct timeval	rat_tm;
+	struct timespec	rat_tm;
 	struct rtadvd_timer *(*rat_expire)(void *);
 	void	*rat_expire_data;
-	void	(*rat_update)(void *, struct timeval *);
+	void	(*rat_update)(void *, struct timespec *);
 	void	*rat_update_data;
 };
 
 void			rtadvd_timer_init(void);
 void			rtadvd_update_timeout_handler(void);
 struct rtadvd_timer	*rtadvd_add_timer(struct rtadvd_timer *(*)(void *),
-			    void (*)(void *, struct timeval *), void *, void *);
-void			rtadvd_set_timer(struct timeval *,
+			    void (*)(void *, struct timespec *), void *, void *);
+void			rtadvd_set_timer(struct timespec *,
 			    struct rtadvd_timer *);
 void			rtadvd_remove_timer(struct rtadvd_timer *);
-struct timeval		*rtadvd_check_timer(void);
+struct timespec		*rtadvd_check_timer(void);

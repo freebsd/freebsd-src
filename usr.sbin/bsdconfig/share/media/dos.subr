@@ -148,7 +148,7 @@ f_media_shutdown_dos()
 {
 	local dev="$1" err
 
-	[ "$DOS_MOUNTED" ] || return
+	[ "$DOS_MOUNTED" ] || return $FAILURE
 
 	if ! err=$( umount -f "$MOUNTPOINT" 2>&1 ); then
 		err="${err#umount: }"; err="${err#*: }"

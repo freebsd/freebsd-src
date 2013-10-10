@@ -80,20 +80,17 @@ required_files=
 if checkyesno sendmail_submit_enable; then
 	name="sendmail_submit"
 	rcvar="sendmail_submit_enable"
-	start_cmd="${command} ${sendmail_submit_flags}"
 	run_rc_command "$1"
 fi
 
 if checkyesno sendmail_outbound_enable; then
 	name="sendmail_outbound"
 	rcvar="sendmail_outbound_enable"
-	start_cmd="${command} ${sendmail_outbound_flags}"
 	run_rc_command "$1"
 fi
 
-name="sendmail_clientmqueue"
+name="sendmail_msp_queue"
 rcvar="sendmail_msp_queue_enable"
-start_cmd="${command} ${sendmail_msp_queue_flags}"
-pidfile="${sendmail_mspq_pidfile:-/var/spool/clientmqueue/sm-client.pid}"
+pidfile="${sendmail_msp_queue_pidfile:-/var/spool/clientmqueue/sm-client.pid}"
 required_files="/etc/mail/submit.cf"
 run_rc_command "$1"

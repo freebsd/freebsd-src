@@ -831,7 +831,8 @@ set_source(struct ai_order *aio, struct policyhead *ph)
 	get_port(&ai, "1", 0);
 
 	/* open a socket to get the source address for the given dst */
-	if ((s = _socket(ai.ai_family, ai.ai_socktype, ai.ai_protocol)) < 0)
+	if ((s = _socket(ai.ai_family, ai.ai_socktype | SOCK_CLOEXEC,
+	    ai.ai_protocol)) < 0)
 		return;		/* give up */
 	if (_connect(s, ai.ai_addr, ai.ai_addrlen) < 0)
 		goto cleanup;
@@ -1131,7 +1132,7 @@ explore_null(const struct addrinfo *pai, const char *servname,
 	 * filter out AFs that are not supported by the kernel
 	 * XXX errno?
 	 */
-	s = _socket(pai->ai_family, SOCK_DGRAM, 0);
+	s = _socket(pai->ai_family, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 	if (s < 0) {
 		if (errno != EMFILE)
 			return 0;
@@ -1541,18 +1542,19 @@ addrconfig(struct addrinfo *pai)
 	 */
 	af = pai->ai_family;
 	if (af == AF_UNSPEC) {
-		if ((s = _socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+		if ((s = _socket(AF_INET6, SOCK_DGRAM | SOCK_CLOEXEC, 0)) < 0)
 			af = AF_INET;
 		else {
 			_close(s);
-			if ((s = _socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+			if ((s = _socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC,
+			    0)) < 0)
 				af = AF_INET6;
 			else
 				_close(s);
 		}
 	}
 	if (af != AF_UNSPEC) {
-		if ((s = _socket(af, SOCK_DGRAM, 0)) < 0)
+		if ((s = _socket(af, SOCK_DGRAM | SOCK_CLOEXEC, 0)) < 0)
 			return 0;
 		_close(s);
 	}
@@ -2240,7 +2242,7 @@ static void
 _sethtent(FILE **hostf)
 {
 	if (!*hostf)
-		*hostf = fopen(_PATH_HOSTS, "r");
+		*hostf = fopen(_PATH_HOSTS, "re");
 	else
 		rewind(*hostf);
 }
@@ -2264,7 +2266,7 @@ _gethtent(FILE **hostf, const char *name, const struct addrinfo *pai)
 	const char *addr;
 	char hostbuf[8*1024];
 
-	if (!*hostf && !(*hostf = fopen(_PATH_HOSTS, "r")))
+	if (!*hostf && !(*hostf = fopen(_PATH_HOSTS, "re")))
 		return (NULL);
 again:
 	if (!(p = fgets(hostbuf, sizeof hostbuf, *hostf)))

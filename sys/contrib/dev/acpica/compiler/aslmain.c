@@ -138,6 +138,7 @@ Usage (
     ACPI_OPTION ("-dc <f1,f2>",     "Disassemble AML and immediately compile it");
     ACPI_OPTION ("",                "  (Obtain DSDT from current system if no input file)");
     ACPI_OPTION ("-e  <f1,f2>",     "Include ACPI table(s) for external symbol resolution");
+    ACPI_OPTION ("-fe <file>",      "Specify external symbol declaration file");
     ACPI_OPTION ("-g",              "Get ACPI tables and write to files (*.dat)");
     ACPI_OPTION ("-in",             "Ignore NoOp opcodes");
     ACPI_OPTION ("-vt",             "Dump binary table data in hex format within output file");

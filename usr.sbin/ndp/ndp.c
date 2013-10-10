@@ -367,7 +367,8 @@ getsocket()
 struct	sockaddr_in6 so_mask = {sizeof(so_mask), AF_INET6 };
 struct	sockaddr_in6 blank_sin = {sizeof(blank_sin), AF_INET6 }, sin_m;
 struct	sockaddr_dl blank_sdl = {sizeof(blank_sdl), AF_LINK }, sdl_m;
-int	expire_time, flags, found_entry;
+time_t	expire_time;
+int	flags, found_entry;
 struct	{
 	struct	rt_msghdr m_rtm;
 	char	m_space[512];
@@ -412,10 +413,10 @@ set(argc, argv)
 	flags = expire_time = 0;
 	while (argc-- > 0) {
 		if (strncmp(argv[0], "temp", 4) == 0) {
-			struct timeval time;
+			struct timeval now;
 
-			gettimeofday(&time, 0);
-			expire_time = time.tv_sec + 20 * 60;
+			gettimeofday(&now, 0);
+			expire_time = now.tv_sec + 20 * 60;
 		} else if (strncmp(argv[0], "proxy", 5) == 0)
 			flags |= RTF_ANNOUNCE;
 		argv++;
@@ -566,7 +567,7 @@ dump(addr, cflag)
 	struct sockaddr_dl *sdl;
 	extern int h_errno;
 	struct in6_nbrinfo *nbi;
-	struct timeval time;
+	struct timeval now;
 	int addrwidth;
 	int llwidth;
 	int ifwidth;
@@ -653,9 +654,9 @@ again:;
 #endif
 			continue;
 		}
-		gettimeofday(&time, 0);
+		gettimeofday(&now, 0);
 		if (tflag)
-			ts_print(&time);
+			ts_print(&now);
 
 		addrwidth = strlen(host_buf);
 		if (addrwidth < W_ADDR)
@@ -676,9 +677,9 @@ again:;
 		/* Print neighbor discovery specific informations */
 		nbi = getnbrinfo(&sin->sin6_addr, sdl->sdl_index, 1);
 		if (nbi) {
-			if (nbi->expire > time.tv_sec) {
+			if (nbi->expire > now.tv_sec) {
 				printf(" %-9.9s",
-				    sec2str(nbi->expire - time.tv_sec));
+				    sec2str(nbi->expire - now.tv_sec));
 			} else if (nbi->expire == 0)
 				printf(" %-9.9s", "permanent");
 			else
@@ -1075,7 +1076,7 @@ rtrlist()
 	char *buf;
 	struct in6_defrouter *p, *ep;
 	size_t l;
-	struct timeval time;
+	struct timeval now;
 
 	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), NULL, &l, NULL, 0) < 0) {
 		err(1, "sysctl(ICMPV6CTL_ND6_DRLIST)");
@@ -1110,18 +1111,18 @@ rtrlist()
 		rtpref = ((p->flags & ND_RA_FLAG_RTPREF_MASK) >> 3) & 0xff;
 		printf(", pref=%s", rtpref_str[rtpref]);
 
-		gettimeofday(&time, 0);
+		gettimeofday(&now, 0);
 		if (p->expire == 0)
 			printf(", expire=Never\n");
 		else
 			printf(", expire=%s\n",
-			    sec2str(p->expire - time.tv_sec));
+			    sec2str(p->expire - now.tv_sec));
 	}
 	free(buf);
 #else
 	struct in6_drlist dr;
 	int s, i;
-	struct timeval time;
+	struct timeval now;
 
 	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
 		err(1, "socket");
@@ -1150,12 +1151,12 @@ rtrlist()
 		printf(", flags=%s%s",
 		    DR.flags & ND_RA_FLAG_MANAGED ? "M" : "",
 		    DR.flags & ND_RA_FLAG_OTHER   ? "O" : "");
-		gettimeofday(&time, 0);
+		gettimeofday(&now, 0);
 		if (DR.expire == 0)
 			printf(", expire=Never\n");
 		else
 			printf(", expire=%s\n",
-			    sec2str(DR.expire - time.tv_sec));
+			    sec2str(DR.expire - now.tv_sec));
 	}
 #undef DR
 	close(s);
@@ -1171,7 +1172,7 @@ plist()
 	struct in6_prefix *p, *ep, *n;
 	struct sockaddr_in6 *advrtr;
 	size_t l;
-	struct timeval time;
+	struct timeval now;
 	const int niflags = NI_NUMERICHOST;
 	int ninflags = nflag ? NI_NUMERICHOST : 0;
 	char namebuf[NI_MAXHOST];
@@ -1202,7 +1203,7 @@ plist()
 		printf("%s/%d if=%s\n", namebuf, p->prefixlen,
 		    if_indextoname(p->if_index, ifix_buf));
 
-		gettimeofday(&time, 0);
+		gettimeofday(&now, 0);
 		/*
 		 * meaning of fields, especially flags, is very different
 		 * by origin.  notify the difference to the users.
@@ -1228,9 +1229,9 @@ plist()
 			printf(", pltime=%lu", (unsigned long)p->pltime);
 		if (p->expire == 0)
 			printf(", expire=Never");
-		else if (p->expire >= time.tv_sec)
+		else if (p->expire >= now.tv_sec)
 			printf(", expire=%s",
-			    sec2str(p->expire - time.tv_sec));
+			    sec2str(p->expire - now.tv_sec));
 		else
 			printf(", expired");
 		printf(", ref=%d", p->refcnt);
@@ -1278,9 +1279,9 @@ plist()
 #else
 	struct in6_prlist pr;
 	int s, i;
-	struct timeval time;
+	struct timeval now;
 
-	gettimeofday(&time, 0);
+	gettimeofday(&now, 0);
 
 	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
 		err(1, "socket");
@@ -1316,7 +1317,7 @@ plist()
 		printf("%s/%d if=%s\n", namebuf, PR.prefixlen,
 		    if_indextoname(PR.if_index, ifix_buf));
 
-		gettimeofday(&time, 0);
+		gettimeofday(&now, 0);
 		/*
 		 * meaning of fields, especially flags, is very different
 		 * by origin.  notify the difference to the users.
@@ -1352,9 +1353,9 @@ plist()
 			printf(", pltime=%lu", PR.pltime);
 		if (PR.expire == 0)
 			printf(", expire=Never");
-		else if (PR.expire >= time.tv_sec)
+		else if (PR.expire >= now.tv_sec)
 			printf(", expire=%s",
-			    sec2str(PR.expire - time.tv_sec));
+			    sec2str(PR.expire - now.tv_sec));
 		else
 			printf(", expired");
 #ifdef NDPRF_ONLINK

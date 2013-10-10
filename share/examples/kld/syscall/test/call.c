@@ -30,6 +30,7 @@
 #include <sys/module.h>
 #include <sys/syscall.h>
 
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -37,11 +38,14 @@
 int
 main(int argc __unused, char **argv __unused)
 {
-	int syscall_num;
+	int modid, syscall_num;
 	struct module_stat stat;
 
 	stat.version = sizeof(stat);
-	modstat(modfind("sys/syscall"), &stat);
+	if ((modid = modfind("sys/syscall")) == -1)
+		err(1, "modfind");
+	if (modstat(modid, &stat) != 0)
+		err(1, "modstat");
 	syscall_num = stat.data.intval;
 	return syscall (syscall_num);
 }

@@ -36,7 +36,8 @@ nvme_ns_cmd_read(struct nvme_namespace *ns, void *payload, uint64_t lba,
 	struct nvme_request	*req;
 	struct nvme_command	*cmd;
 
-	req = nvme_allocate_request_vaddr(payload, lba_count*512, cb_fn, cb_arg);
+	req = nvme_allocate_request_vaddr(payload,
+	    lba_count*nvme_ns_get_sector_size(ns), cb_fn, cb_arg);
 
 	if (req == NULL)
 		return (ENOMEM);
@@ -89,8 +90,8 @@ nvme_ns_cmd_write(struct nvme_namespace *ns, void *payload, uint64_t lba,
 	struct nvme_request	*req;
 	struct nvme_command	*cmd;
 
-	req = nvme_allocate_request_vaddr(payload, lba_count*512, cb_fn,
-	    cb_arg);
+	req = nvme_allocate_request_vaddr(payload,
+	    lba_count*nvme_ns_get_sector_size(ns), cb_fn, cb_arg);
 
 	if (req == NULL)
 		return (ENOMEM);

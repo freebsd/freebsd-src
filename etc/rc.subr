@@ -546,6 +546,8 @@ check_startmsgs()
 #
 #	rcvar		Display what rc.conf variable is used (if any).
 #
+#	enabled		Return true if the service is enabled.
+#
 #	Variables available to methods, and after run_rc_command() has
 #	completed:
 #
@@ -614,7 +616,7 @@ run_rc_command()
 	eval _override_command=\$${name}_program
 	command=${_override_command:-$command}
 
-	_keywords="start stop restart rcvar $extra_commands"
+	_keywords="start stop restart rcvar enabled $extra_commands"
 	rc_pid=
 	_pidcmd=
 	_procname=${procname:-${command}}
@@ -633,6 +635,11 @@ run_rc_command()
 
 	if [ -z "$rc_arg" ]; then
 		rc_usage $_keywords
+	fi
+
+	if [ "$rc_arg" = "enabled" ] ; then
+		checkyesno ${rcvar}
+		return $?
 	fi
 
 	if [ -n "$flags" ]; then	# allow override from environment
@@ -1452,28 +1459,6 @@ devfs_domount()
 		devfs_init_rulesets
 		devfs_set_ruleset $rs $devdir
 		devfs -m $devdir rule applyset
-	fi
-	return 0
-}
-
-# devfs_mount_jail dir [ruleset]
-#	Mounts a devfs file system appropriate for jails
-#	on the directory dir. If ruleset is specified, the ruleset
-#	it names will be used instead.  If present, ruleset must
-#	be the name of a ruleset as defined in a devfs.rules(5) file.
-#	This function returns non-zero if an error occurs.
-#
-devfs_mount_jail()
-{
-	local jdev rs _me
-	jdev="$1"
-	[ -n "$2" ] && rs=$2 || rs="devfsrules_jail"
-	_me="devfs_mount_jail"
-
-	devfs_init_rulesets
-	if ! devfs_domount "$jdev" $rs; then
-		warn "$_me: devfs was not mounted on $jdev"
-		return 1
 	fi
 	return 0
 }

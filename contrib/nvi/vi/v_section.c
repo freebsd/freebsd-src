@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_section.c	10.7 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: v_section.c,v 10.10 2001/06/25 15:19:35 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -62,13 +62,12 @@ static const char sccsid[] = "@(#)v_section.c	10.7 (Berkeley) 3/6/96";
  * PUBLIC: int v_sectionf __P((SCR *, VICMD *));
  */
 int
-v_sectionf(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_sectionf(SCR *sp, VICMD *vp)
 {
 	recno_t cnt, lno;
 	size_t len;
-	char *p, *list, *lp;
+	CHAR_T *p;
+	char *list, *lp;
 
 	/* Get the macro list. */
 	if ((list = O_STR(sp, O_SECTIONS)) == NULL)
@@ -98,7 +97,7 @@ v_sectionf(sp, vp)
 	for (lno = vp->m_start.lno; !db_get(sp, ++lno, 0, &p, &len);) {
 		if (len == 0)
 			continue;
-		if (p[0] == '{' || ISMOTION(vp) && p[0] == '}') {
+		if (p[0] == '{' || (ISMOTION(vp) && p[0] == '}')) {
 			if (!--cnt) {
 				if (p[0] == '{')
 					goto adjust1;
@@ -122,7 +121,7 @@ v_sectionf(sp, vp)
 			continue;
 		for (lp = list; *lp != '\0'; lp += 2 * sizeof(*lp))
 			if (lp[0] == p[1] &&
-			    (lp[1] == ' ' && len == 2 || lp[1] == p[2]) &&
+			    ((lp[1] == ' ' && len == 2) || lp[1] == p[2]) &&
 			    !--cnt) {
 				/*
 				 * !!!
@@ -170,13 +169,12 @@ ret2:	if (ISMOTION(vp)) {
  * PUBLIC: int v_sectionb __P((SCR *, VICMD *));
  */
 int
-v_sectionb(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_sectionb(SCR *sp, VICMD *vp)
 {
 	size_t len;
 	recno_t cnt, lno;
-	char *p, *list, *lp;
+	CHAR_T *p;
+	char *list, *lp;
 
 	/* An empty file or starting from line 1 is always illegal. */
 	if (vp->m_start.lno <= 1) {
@@ -213,7 +211,7 @@ v_sectionb(sp, vp)
 			continue;
 		for (lp = list; *lp != '\0'; lp += 2 * sizeof(*lp))
 			if (lp[0] == p[1] &&
-			    (lp[1] == ' ' && len == 2 || lp[1] == p[2]) &&
+			    ((lp[1] == ' ' && len == 2) || lp[1] == p[2]) &&
 			    !--cnt) {
 adjust1:			vp->m_stop.lno = lno;
 				vp->m_stop.cno = 0;

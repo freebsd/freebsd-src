@@ -1863,6 +1863,11 @@ g_raid_access(struct g_provider *pp, int acr, int acw, int ace)
 		error = ENXIO;
 		goto out;
 	}
+	/* Deny write opens for read-only volumes. */
+	if (vol->v_read_only && acw > 0) {
+		error = EROFS;
+		goto out;
+	}
 	if (dcw == 0)
 		g_raid_clean(vol, dcw);
 	vol->v_provider_open += acr + acw + ace;
@@ -2171,7 +2176,7 @@ g_raid_destroy_disk(struct g_raid_disk *disk)
 int
 g_raid_destroy(struct g_raid_softc *sc, int how)
 {
-	int opens;
+	int error, opens;
 
 	g_topology_assert_not();
 	if (sc == NULL)
@@ -2188,11 +2193,13 @@ g_raid_destroy(struct g_raid_softc *sc, int how)
 			G_RAID_DEBUG1(1, sc,
 			    "%d volumes are still open.",
 			    opens);
+			sx_xunlock(&sc->sc_lock);
 			return (EBUSY);
 		case G_RAID_DESTROY_DELAYED:
 			G_RAID_DEBUG1(1, sc,
 			    "Array will be destroyed on last close.");
 			sc->sc_stopping = G_RAID_DESTROY_DELAYED;
+			sx_xunlock(&sc->sc_lock);
 			return (EBUSY);
 		case G_RAID_DESTROY_HARD:
 			G_RAID_DEBUG1(1, sc,
@@ -2206,9 +2213,9 @@ g_raid_destroy(struct g_raid_softc *sc, int how)
 	/* Wake up worker to let it selfdestruct. */
 	g_raid_event_send(sc, G_RAID_NODE_E_WAKE, 0);
 	/* Sleep until node destroyed. */
-	sx_sleep(&sc->sc_stopping, &sc->sc_lock,
-	    PRIBIO | PDROP, "r:destroy", 0);
-	return (0);
+	error = sx_sleep(&sc->sc_stopping, &sc->sc_lock,
+	    PRIBIO | PDROP, "r:destroy", hz * 3);
+	return (error == EWOULDBLOCK ? EBUSY : 0);
 }
 
 static void
@@ -2303,8 +2310,6 @@ g_raid_destroy_geom(struct gctl_req *req __unused,
 	sx_xlock(&sc->sc_lock);
 	g_cancel_event(sc);
 	error = g_raid_destroy(gp->softc, G_RAID_DESTROY_SOFT);
-	if (error != 0)
-		sx_xunlock(&sc->sc_lock);
 	g_topology_lock();
 	return (error);
 }
@@ -2469,7 +2474,6 @@ g_raid_shutdown_post_sync(void *arg, int howto)
 	struct g_geom *gp, *gp2;
 	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
-	int error;
 
 	mp = arg;
 	DROP_GIANT();
@@ -2483,9 +2487,7 @@ g_raid_shutdown_post_sync(void *arg, int howto)
 		TAILQ_FOREACH(vol, &sc->sc_volumes, v_next)
 			g_raid_clean(vol, -1);
 		g_cancel_event(sc);
-		error = g_raid_destroy(sc, G_RAID_DESTROY_DELAYED);
-		if (error != 0)
-			sx_xunlock(&sc->sc_lock);
+		g_raid_destroy(sc, G_RAID_DESTROY_DELAYED);
 		g_topology_lock();
 	}
 	g_topology_unlock();

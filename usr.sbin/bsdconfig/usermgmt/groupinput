@@ -162,9 +162,9 @@ if [ "$mode" = "Add" ]; then
 	f_dialog_noyes "$msg_use_default_values_for_all_account_details"
 	retval=$?
 
-	if [ $retval -eq 255 ]; then # User pressed ESC
+	if [ $retval -eq $DIALOG_ESC ]; then
 		exit $SUCCESS
-	elif [ $retval -ne $SUCCESS ]; then
+	elif [ $retval -ne $DIALOG_OK ]; then
 		#
 		# Ask a series of questions to pre-fill the editor screen.
 		#
@@ -174,9 +174,9 @@ if [ "$mode" = "Add" ]; then
 		#
 	
 		[ "$passwdtype" = "yes" ] &&
-			{ f_dialog_input_group_password || exit 0; }
-		f_dialog_input_group_gid  || exit 0
-		f_dialog_input_group_members || exit 0
+			{ f_dialog_input_group_password || exit $SUCCESS; }
+		f_dialog_input_group_gid  || exit $SUCCESS
+		f_dialog_input_group_members || exit $SUCCESS
 	fi
 fi
 
@@ -255,13 +255,11 @@ while :; do
 	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	# Exit if user has either pressed ESC or chosen Cancel/No
-	[ $retval -eq $SUCCESS ] || f_die
+	[ $retval -eq $DIALOG_OK ] || f_die
 
 	case "$mtag" in
 	X) # Exit
-	   if [ "$save_flag" ]; then
-	   	save_changes || continue
-	   fi
+	   [ "$save_flag" ] && { save_changes || continue; }
 	   break
 	   ;;
 	1) # Group Name
@@ -274,7 +272,7 @@ while :; do
 	   	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	   	# Loop if user has either pressed ESC or chosen Cancel/No
-	   	[ $retval -eq $SUCCESS ] || continue
+	   	[ $retval -eq $DIALOG_OK ] || continue
 
 	   	[ "$mtag" = "X $msg_exit" ] && continue
 

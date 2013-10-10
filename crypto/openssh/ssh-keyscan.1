@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keyscan.1,v 1.30 2012/04/11 13:34:17 djm Exp $
+.\"	$OpenBSD: ssh-keyscan.1,v 1.31 2013/07/16 00:07:52 schwarze Exp $
 .\"	$FreeBSD$
 .\"
 .\" Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
@@ -7,7 +7,7 @@
 .\" permitted provided that due credit is given to the author and the
 .\" OpenBSD project by leaving this copyright notice intact.
 .\"
-.Dd April 11, 2012
+.Dd July 16, 2013
 .Dt SSH-KEYSCAN 1
 .Os
 .Sh NAME
@@ -165,9 +165,9 @@ $ ssh-keyscan -t rsa,dsa,ecdsa -f ssh_hosts | \e
 .Xr sshd 8
 .Sh AUTHORS
 .An -nosplit
-.An David Mazieres Aq dm@lcs.mit.edu
+.An David Mazieres Aq Mt dm@lcs.mit.edu
 wrote the initial version, and
-.An Wayne Davison Aq wayned@users.sourceforge.net
+.An Wayne Davison Aq Mt wayned@users.sourceforge.net
 added support for protocol version 2.
 .Sh BUGS
 It generates "Connection closed by remote host" messages on the consoles

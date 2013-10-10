@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd December 15, 2011
+.Dd September 20, 2013
 .Dt ETHERSWITCHCFG 8
 .Os
 .Sh NAME
@@ -69,7 +69,7 @@ is usually the port number, and
 is the register number.
 Both can be provided as decimal, octal or hexadecimal numbers in any of the formats
 understood by
-.Xr strtol 4 .
+.Xr strtol 3 .
 To set the register value, use the form instance.register=value.
 .Ss port
 The port command selects one of the ports of the switch.
@@ -145,9 +145,9 @@ to indicate that frames on this port are tagged.
 Control file for the ethernet switch driver.
 .El
 .Sh EXAMPLES
-Configure VLAN group 1 with a VID of 2 and makes ports 0 and 5 members,
+Configure VLAN group 1 with a VID of 2 and make ports 0 and 5 its members
 while excluding all other ports.
-Port 5 will send and receive tagged frames, while port 0 will be untagged.
+Port 5 will send and receive tagged frames while port 0 will be untagged.
 Incoming untagged frames on port 0 are assigned to vlangroup1.
 .Dl # etherswitchcfg vlangroup1 vlan 2 members 0,5t port0 pvid 2
 .Sh SEE ALSO

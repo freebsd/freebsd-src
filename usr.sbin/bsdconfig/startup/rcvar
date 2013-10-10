@@ -158,7 +158,7 @@ dialog_menu_main()
 	f_dialog_menutag_store "$menu_choice"
 	f_dialog_default_store "$menu_choice"
 
-	if [ $retval -eq $SUCCESS ]; then
+	if [ $retval -eq $DIALOG_OK ]; then
 		local item
 		item=$( eval f_dialog_menutag2item${SHOW_DESC:+_with_help} \
 		         	\"\$menu_choice\" $menu_list )

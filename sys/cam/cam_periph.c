@@ -258,7 +258,7 @@ failure:
 		break;
 	case 3:
 		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph destroyed\n"));
-		xpt_remove_periph(periph, /*topology_lock_held*/ 0);
+		xpt_remove_periph(periph);
 		/* FALLTHROUGH */
 	case 2:
 		xpt_lock_buses();
@@ -645,7 +645,7 @@ camperiphfree(struct cam_periph *periph)
 	TAILQ_REMOVE(&(*p_drv)->units, periph, unit_links);
 	(*p_drv)->generation++;
 
-	xpt_remove_periph(periph, /*topology_lock_held*/ 1);
+	xpt_remove_periph(periph);
 
 	xpt_unlock_buses();
 	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph destroyed\n"));
@@ -1115,6 +1115,7 @@ cam_freeze_devq(struct cam_path *path)
 {
 	struct ccb_hdr ccb_h;
 
+	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("cam_freeze_devq\n"));
 	xpt_setup_ccb(&ccb_h, path, /*priority*/1);
 	ccb_h.func_code = XPT_NOOP;
 	ccb_h.flags = CAM_DEV_QFREEZE;
@@ -1128,6 +1129,8 @@ cam_release_devq(struct cam_path *path, u_int32_t relsim_flags,
 {
 	struct ccb_relsim crs;
 
+	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("cam_release_devq(%u, %u, %u, %d)\n",
+	    relsim_flags, openings, arg, getcount_only));
 	xpt_setup_ccb(&crs.ccb_h, path, CAM_PRIORITY_NORMAL);
 	crs.ccb_h.func_code = XPT_REL_SIMQ;
 	crs.ccb_h.flags = getcount_only ? CAM_DEV_QFREEZE : 0;

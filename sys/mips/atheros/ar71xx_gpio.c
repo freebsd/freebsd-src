@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/gpio.h>
 
@@ -50,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <mips/atheros/ar71xx_setup.h>
 #include <mips/atheros/ar71xx_gpiovar.h>
 #include <mips/atheros/ar933xreg.h>
+#include <mips/atheros/ar934xreg.h>
 
 #include "gpio_if.h"
 
@@ -90,13 +92,23 @@ static int ar71xx_gpio_pin_toggle(device_t dev, uint32_t pin);
 static void
 ar71xx_gpio_function_enable(struct ar71xx_gpio_softc *sc, uint32_t mask)
 {
-	GPIO_SET_BITS(sc, AR71XX_GPIO_FUNCTION, mask);
+	if (ar71xx_soc == AR71XX_SOC_AR9341 ||
+	    ar71xx_soc == AR71XX_SOC_AR9342 ||
+	    ar71xx_soc == AR71XX_SOC_AR9344)
+		GPIO_SET_BITS(sc, AR934X_GPIO_REG_FUNC, mask);
+	else
+		GPIO_SET_BITS(sc, AR71XX_GPIO_FUNCTION, mask);
 }
 
 static void
 ar71xx_gpio_function_disable(struct ar71xx_gpio_softc *sc, uint32_t mask)
 {
-	GPIO_CLEAR_BITS(sc, AR71XX_GPIO_FUNCTION, mask);
+	if (ar71xx_soc == AR71XX_SOC_AR9341 ||
+	    ar71xx_soc == AR71XX_SOC_AR9342 ||
+	    ar71xx_soc == AR71XX_SOC_AR9344)
+		GPIO_CLEAR_BITS(sc, AR934X_GPIO_REG_FUNC, mask);
+	else
+		GPIO_CLEAR_BITS(sc, AR71XX_GPIO_FUNCTION, mask);
 }
 
 static void
@@ -140,6 +152,11 @@ ar71xx_gpio_pin_max(device_t dev, int *maxpin)
 		case AR71XX_SOC_AR9330:
 		case AR71XX_SOC_AR9331:
 			*maxpin = AR933X_GPIO_COUNT - 1;
+			break;
+		case AR71XX_SOC_AR9341:
+		case AR71XX_SOC_AR9342:
+		case AR71XX_SOC_AR9344:
+			*maxpin = AR934X_GPIO_COUNT - 1;
 			break;
 		default:
 			*maxpin = AR71XX_GPIO_PINS - 1;
@@ -402,7 +419,14 @@ ar71xx_gpio_attach(device_t dev)
 	    "pinon", &pinon) != 0)
 		pinon = 0;
 	device_printf(dev, "gpio pinmask=0x%x\n", mask);
-	for (i = 0, j = 0; j < maxpin; j++) {
+	for (j = 0; j <= maxpin; j++) {
+		if ((mask & (1 << j)) == 0)
+			continue;
+		sc->gpio_npins++;
+	}
+	sc->gpio_pins = malloc(sizeof(*sc->gpio_pins) * sc->gpio_npins,
+	    M_DEVBUF, M_WAITOK | M_ZERO);
+	for (i = 0, j = 0; j <= maxpin; j++) {
 		if ((mask & (1 << j)) == 0)
 			continue;
 		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME,
@@ -413,7 +437,6 @@ ar71xx_gpio_attach(device_t dev)
 		ar71xx_gpio_pin_configure(sc, &sc->gpio_pins[i], DEFAULT_CAPS);
 		i++;
 	}
-	sc->gpio_npins = i;
 	for (i = 0; i < sc->gpio_npins; i++) {
 		j = sc->gpio_pins[i].gp_pin;
 		if ((pinon & (1 << j)) != 0)
@@ -439,6 +462,7 @@ ar71xx_gpio_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->gpio_mem_rid,
 		    sc->gpio_mem_res);
 
+	free(sc->gpio_pins, M_DEVBUF);
 	mtx_destroy(&sc->gpio_mtx);
 
 	return(0);

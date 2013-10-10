@@ -1,45 +1,100 @@
                                                      -*- coding: utf-8 -*-
-Changes with APR-Util 1.4.1
+Changes with APR-util 1.5.2
 
-  *) Apply Windows build fixes for the apr_crypto API. [Mladen Turk]
+  *) Windows: Add command line makefiles. [Gregg Smith]
 
-Changes with APR-util 1.4.0
+  *) apr_uri_parse(): Do not accept invalid characters in the scheme.
+     Per RFC 3986 3.3, enforce that the first segment of a relative path does
+     not contain a colon. PR 52479. [Stefan Fritsch]
 
-  *) apr_ldap_init: Pass secure=1 to ldapssl_init() with Solaris LDAP SDK.
-     PR: 42682 [Stefan Fritsch]
+  *) Fix memory leak in hook sorting function. PR 51256.
+     [<horowity checkpoint com>]
 
-  *) apr_memcache_server_create: Fix possible segfault. PR 51064.
-     [Michajlo Matijkiw <michajlo_matijkiw comcast com>]
+  *) Speedup md5 calculation by avoiding some copying on little endian
+     architectures. PR 49011. [Stefan Fritsch, Stefan Fuhrmann
+     <stefanfuhrmann alice-dsl de>]
 
-  *) apr_thread_pool: Fix thread unsafe pool usage. [Stefan Fritsch]
+  *) Use heap memory for crypt in apr_password_validate(), to reduce stack
+     usage. PR 54572. [Stefan Fritsch]
 
-  *) Do not include apr.h and apr_errno.h from system search path in
-     apu_errno.h. PR 46487 [Rainer Jung]
+  *) Fix password validation failure for all crypt and crypt_r based
+     algorithms. PR 54603.  [Harvey Eneman <harvey.eneman oracle.com>]
 
-  *) Add optional dbm, openssl and nss subpackages to the RPM spec file.
-     [Graham Leggett]
+  *) Fix syntax error in crypto/apr_passwd.c on non-glibc systems. PR 54275.
+     [Stefan Fritsch]
 
-  *) apr_dbd_freetds: The sybdb.h header file might be freetds/sybdb.h
-     or sybdb.h. [Graham Leggett]
+  *) Fix potential data corruption in apr_brigade_write() and friends if
+     the last bucket of the brigade is a heap bucket that has been split,
+     and there are still references to the next part of the original bucket
+     in use. [Stefan Fritsch]
 
-  *) Add apr_crypto implementations for OpenSSL and Mozilla NSS. Add a unit
-     test to verify the interoperability of the two modules. Builds default
-     to disabled unless explicitly enabled.
-     [Graham Leggett]
+  *) Remove duplicated logic in apr_brigade_puts(). PR 53740. [Christophe
+     Jaillet <christophe jaillet wanadoo fr>]
 
-  *) Add the apr_crypto interface, a rewrite of the earlier apr_ssl code,
-     based on the modular dso interface used for dbd and ldap. Initially,
-     the interface supports symmetrical encryption and decryption. The
-     purpose of the interface is to offer portable and interoperable
-     access to basic crypto using the native crypto libraries present on
-     each platform.  [Graham Leggett]
+  *) apr_crypto: If --with-crypto is passed to configure but no crypto
+     libraries are enabled, autodetect available libraries.  [Jeff Trawick]
 
-  *) Add trace probes to hooks, making it easier to inspect APR Hook based
-     applications with DTrace or other such mechanisms.
-     [Theo Schlossnagle <jesus omniti.com>, generalized by Jeff Trawick]
+  *) memcache: Fix dead server retry logic.  [Gavin Shelley <columbusmonkey me.com>]
 
-  *) Implement resource list when threads are unavailable. PR 24325
-     [Bojan Smojver]
+Changes with APR-util 1.5.1
+
+  *) testmemcache: Fix crash. PR 52705. [Peter Poeml <peter poeml de>]
+
+  *) MinGW: Support shared builds of apr-util when apr is shared.
+     PR 46175.  [Carlo Bramini <carlo.bramix libero.it>, Jeff Trawick]
+
+  *) Add support for Berkeley DB 5.2 and 5.3. Simplify detection script.
+     PR 53684.  [Rainer Jung]
+
+  *) configure: Allow to specify library specific custom linker flags
+     via the LDADD_XXX variables. [Rainer Jung]
+
+  *) apr_password_validate(): Fix intermittent errors on systems
+     such as FreeBSD where the crypt() function is used.
+     (Broken only in 1.5.0)  [Jeff Trawick]
+
+  *) Improve platform detection for bundled expat by updating
+     config.guess and config.sub. [Rainer Jung]
+
+Changes with APR-util 1.5.0
+
+  *) dbd_pgsql_escape: Use PQescapeStringConn. [Nick Kew]
+
+  *) apr_password_validate, apr_bcrypt_encode: Add support for bcrypt encoded
+     passwords. The bcrypt implementation uses code from crypt_blowfish
+     written by Solar Designer <solar openwall com>. apr_bcrypt_encode creates
+     hashes with "$2y$" prefix, but apr_password_validate also accepts the old
+     prefix "$2a$". PR 49288. [Stefan Fritsch]
+
+  *) APR dbd: Allow to use apr_dbd_get_row() with a different pool than
+     apr_dbd_select(). PR 53533. [<arthur echo gmail com>]
+
+  *) APR dbd FreeTDS support: Fix spurious API errors caused by uninitialized
+     fields.  [TROY.LIU 劉春偉 <TROY.LIU deltaww.com.cn>]
+
+  *) apr_password_validate: Increase maximum hash string length to allow
+     more than 9999 rounds with sha512-crypt. PR 53410. [Stefan Fritsch]
+
+  *) Fix segfaults in crypt() and crypt_r() failure modes.
+     PR 47272.  [Arkadiusz Miskiewicz <arekm pld-linux.org>]
+
+  *) apr_crypto: Ensure that the if/else that governs the static
+     initialisation of each crypto driver works when the first driver
+     isn't in use. [Graham Leggett]
+
+  *) apr_crypto: Ensure the *driver variable is initialised when a statically
+     compiled library is initialised for the first time. [Graham Leggett]
+
+  *) apr_crypto: Ensure the *driver variable is initialised when the library
+     has already been loaded. Fix ported from apr_dbd. [Graham Leggett]
+
+  *) apr_crypto: Move the static initialisation of DRIVER_LOAD from
+     apr_crypto_init() to apr_crypto_get_driver(), so that we don't lose
+     the parameters. [Graham Leggett]
+
+Changes with APR-util 1.4.x and later:
+
+  *) http://svn.apache.org/viewvc/apr/apr-util/branches/1.4.x/CHANGES?view=markup
 
 Changes for APR-util 1.3.x and later:
 
