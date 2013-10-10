@@ -640,6 +640,60 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 	return (error);
 }
 
+uma_zone_t
+m_getzone(int size)
+{
+	uma_zone_t zone;
+
+	switch (size) {
+	case MCLBYTES:
+		zone = zone_clust;
+		break;
+#if MJUMPAGESIZE != MCLBYTES
+	case MJUMPAGESIZE:
+		zone = zone_jumbop;
+		break;
+#endif
+	case MJUM9BYTES:
+		zone = zone_jumbo9;
+		break;
+	case MJUM16BYTES:
+		zone = zone_jumbo16;
+		break;
+	default:
+		panic("%s: invalid cluster size", __func__);
+	}
+
+	return (zone);
+}
+
+/*
+ * Initialize an mbuf with linear storage.
+ *
+ * Inline because the consumer text overhead will be roughly the same to
+ * initialize or call a function with this many parameters and M_PKTHDR
+ * should go away with constant propagation for !MGETHDR.
+ */
+int
+m_init(struct mbuf *m, uma_zone_t zone, int size, int how, short type,
+    int flags)
+{
+	int error;
+
+	m->m_next = NULL;
+	m->m_nextpkt = NULL;
+	m->m_data = m->m_dat;
+	m->m_len = 0;
+	m->m_flags = flags;
+	m->m_type = type;
+	if (flags & M_PKTHDR) {
+		if ((error = m_pkthdr_init(m, how)) != 0)
+			return (error);
+	}
+
+	return (0);
+}
+
 int
 m_pkthdr_init(struct mbuf *m, int how)
 {
@@ -669,6 +723,132 @@ m_pkthdr_init(struct mbuf *m, int how)
 #endif
 
 	return (0);
+}
+
+struct mbuf *
+m_get(int how, short type)
+{
+	struct mb_args args;
+
+	args.flags = 0;
+	args.type = type;
+	return (uma_zalloc_arg(zone_mbuf, &args, how));
+}
+
+/*
+ * XXX This should be deprecated, very little use.
+ */
+struct mbuf *
+m_getclr(int how, short type)
+{
+	struct mbuf *m;
+	struct mb_args args;
+
+	args.flags = 0;
+	args.type = type;
+	m = uma_zalloc_arg(zone_mbuf, &args, how);
+	if (m != NULL)
+		bzero(m->m_data, MLEN);
+	return (m);
+}
+
+struct mbuf *
+m_gethdr(int how, short type)
+{
+	struct mb_args args;
+
+	args.flags = M_PKTHDR;
+	args.type = type;
+	return (uma_zalloc_arg(zone_mbuf, &args, how));
+}
+
+struct mbuf *
+m_getcl(int how, short type, int flags)
+{
+	struct mb_args args;
+
+	args.flags = flags;
+	args.type = type;
+	return (uma_zalloc_arg(zone_pack, &args, how));
+}
+
+void
+m_clget(struct mbuf *m, int how)
+{
+
+	if (m->m_flags & M_EXT)
+		printf("%s: %p mbuf already has cluster\n", __func__, m);
+	m->m_ext.ext_buf = (char *)NULL;
+	uma_zalloc_arg(zone_clust, m, how);
+	/*
+	 * On a cluster allocation failure, drain the packet zone and retry,
+	 * we might be able to loosen a few clusters up on the drain.
+	 */
+	if ((how & M_NOWAIT) && (m->m_ext.ext_buf == NULL)) {
+		zone_drain(zone_pack);
+		uma_zalloc_arg(zone_clust, m, how);
+	}
+}
+
+/*
+ * m_cljget() is different from m_clget() as it can allocate clusters without
+ * attaching them to an mbuf.  In that case the return value is the pointer
+ * to the cluster of the requested size.  If an mbuf was specified, it gets
+ * the cluster attached to it and the return value can be safely ignored.
+ * For size it takes MCLBYTES, MJUMPAGESIZE, MJUM9BYTES, MJUM16BYTES.
+ */
+void *
+m_cljget(struct mbuf *m, int how, int size)
+{
+	uma_zone_t zone;
+
+	if (m && m->m_flags & M_EXT)
+		printf("%s: %p mbuf already has cluster\n", __func__, m);
+	if (m != NULL)
+		m->m_ext.ext_buf = NULL;
+
+	zone = m_getzone(size);
+	return (uma_zalloc_arg(zone, m, how));
+}
+
+void
+m_cljset(struct mbuf *m, void *cl, int type)
+{
+	uma_zone_t zone;
+	int size;
+
+	switch (type) {
+	case EXT_CLUSTER:
+		size = MCLBYTES;
+		zone = zone_clust;
+		break;
+#if MJUMPAGESIZE != MCLBYTES
+	case EXT_JUMBOP:
+		size = MJUMPAGESIZE;
+		zone = zone_jumbop;
+		break;
+#endif
+	case EXT_JUMBO9:
+		size = MJUM9BYTES;
+		zone = zone_jumbo9;
+		break;
+	case EXT_JUMBO16:
+		size = MJUM16BYTES;
+		zone = zone_jumbo16;
+		break;
+	default:
+		panic("%s: unknown cluster type", __func__);
+		break;
+	}
+
+	m->m_data = m->m_ext.ext_buf = cl;
+	m->m_ext.ext_free = m->m_ext.ext_arg1 = m->m_ext.ext_arg2 = NULL;
+	m->m_ext.ext_size = size;
+	m->m_ext.ext_type = type;
+	m->m_ext.ext_flags = 0;
+	m->m_ext.ref_cnt = uma_find_refcnt(zone, cl);
+	m->m_flags |= M_EXT;
+
 }
 
 /*
