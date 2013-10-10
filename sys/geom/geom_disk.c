@@ -554,6 +554,9 @@ g_disk_create(void *arg, int flag)
 	gp = g_new_geomf(&g_disk_class, "%s%d", dp->d_name, dp->d_unit);
 	gp->softc = sc;
 	pp = g_new_providerf(gp, "%s", gp->name);
+	devstat_remove_entry(pp->stat);
+	pp->stat = NULL;
+	dp->d_devstat->id = pp;
 	pp->mediasize = dp->d_mediasize;
 	pp->sectorsize = dp->d_sectorsize;
 	pp->stripeoffset = dp->d_stripeoffset;

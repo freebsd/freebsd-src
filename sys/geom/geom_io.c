@@ -510,7 +510,7 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 
 	KASSERT(!(bp->bio_flags & BIO_ONQUEUE),
 	    ("Bio already on queue bp=%p", bp));
-	if (g_collectstats)
+	if ((g_collectstats & ~(pp->stat ? 0 : 1)) != 0)
 		binuptime(&bp->bio_t0);
 	else
 		getbinuptime(&bp->bio_t0);
@@ -647,7 +647,7 @@ g_io_deliver(struct bio *bp, int error)
 	 * can not update one instance of the statistics from more
 	 * than one thread at a time, so grab the lock first.
 	 */
-	if (g_collectstats)
+	if ((g_collectstats & ~(pp->stat ? 0 : 1)) != 0)
 		binuptime(&now);
 	mtxp = mtx_pool_find(mtxpool_sleep, cp);
 	mtx_lock(mtxp);
