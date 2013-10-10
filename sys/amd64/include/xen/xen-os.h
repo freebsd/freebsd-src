@@ -43,7 +43,9 @@
 static inline int 
 smp_processor_id(void)  
 {
+    if (__predict_true(gdtset))
 	return PCPU_GET(cpuid);
+    return 0;
 }
 
 #else
@@ -92,7 +94,7 @@ void trap_init(void);
 #define __cli()                                                         \
 do {                                                                    \
         vcpu_info_t *_vcpu;                                             \
-        _vcpu = &HYPERVISOR_shared_info->vcpu_info[PCPU_GET(cpuid)];	\
+        _vcpu = &HYPERVISOR_shared_info->vcpu_info[smp_processor_id()];	\
         _vcpu->evtchn_upcall_mask = 1;                                  \
         barrier();                                                      \
 } while (0)
@@ -101,7 +103,7 @@ do {                                                                    \
 do {                                                                    \
         vcpu_info_t *_vcpu;                                             \
         barrier();                                                      \
-        _vcpu = &HYPERVISOR_shared_info->vcpu_info[PCPU_GET(cpuid)];	\
+        _vcpu = &HYPERVISOR_shared_info->vcpu_info[smp_processor_id()];	\
         _vcpu->evtchn_upcall_mask = 0;                                  \
         barrier(); /* unmask then check (avoid races) */                \
         if ( unlikely(_vcpu->evtchn_upcall_pending) )                   \
@@ -112,7 +114,7 @@ do {                                                                    \
 do {                                                                    \
         vcpu_info_t *_vcpu;                                             \
         barrier();                                                      \
-        _vcpu = &HYPERVISOR_shared_info->vcpu_info[PCPU_GET(cpuid)];	\
+        _vcpu = &HYPERVISOR_shared_info->vcpu_info[smp_processor_id()];	\
         if ((_vcpu->evtchn_upcall_mask = (x)) == 0) {                   \
                 barrier(); /* unmask then check (avoid races) */        \
                 if ( unlikely(_vcpu->evtchn_upcall_pending) )           \
@@ -127,7 +129,7 @@ do {                                                                    \
 #define __save_and_cli(x)                                               \
 do {                                                                    \
         vcpu_info_t *_vcpu;                                             \
-        _vcpu = &HYPERVISOR_shared_info->vcpu_info[PCPU_GET(cpuid)];	\
+        _vcpu = &HYPERVISOR_shared_info->vcpu_info[smp_processor_id()];	\
         (x) = _vcpu->evtchn_upcall_mask;                                \
         _vcpu->evtchn_upcall_mask = 1;                                  \
         barrier();                                                      \
