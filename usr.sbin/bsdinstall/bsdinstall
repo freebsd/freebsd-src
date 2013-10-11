@@ -28,6 +28,7 @@
 
 : ${BSDINSTALL_LOG="/tmp/bsdinstall_log"}; export BSDINSTALL_LOG
 : ${BSDINSTALL_TMPETC="/tmp/bsdinstall_etc"}; export BSDINSTALL_TMPETC
+: ${BSDINSTALL_TMPBOOT="/tmp/bsdinstall_boot"}; export BSDINSTALL_TMPBOOT
 : ${PATH_FSTAB="$BSDINSTALL_TMPETC/fstab"}; export PATH_FSTAB
 : ${BSDINSTALL_DISTDIR="/usr/freebsd-dist"}; export BSDINSTALL_DISTDIR
 : ${BSDINSTALL_CHROOT="/mnt"}; export BSDINSTALL_CHROOT
@@ -35,5 +36,6 @@
 VERB=${1:-auto}; shift
 
 [ -d "$BSDINSTALL_TMPETC" ] || mkdir -p "$BSDINSTALL_TMPETC"
+[ -d "$BSDINSTALL_TMPBOOT" ] || mkdir -p "$BSDINSTALL_TMPBOOT"
 echo "Running installation step: $VERB $@" >> "$BSDINSTALL_LOG"
 exec "/usr/libexec/bsdinstall/$VERB" "$@" 2>> "$BSDINSTALL_LOG"
