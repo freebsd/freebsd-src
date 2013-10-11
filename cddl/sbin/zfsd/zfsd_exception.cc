@@ -93,32 +93,6 @@ ZfsdException::ZfsdException(nvlist_t *poolConfig, const char *fmt, ...)
 	va_end(ap);
 }
 
-inline
-ZfsdException::ZfsdException(zpool_handle_t *pool, nvlist_t *vdevConfig,
-			     const char *fmt, ...)
- : m_poolConfig(zpool_get_config(pool, NULL)),
-   m_vdevConfig(vdevConfig)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	FormatLog(fmt, ap);
-	va_end(ap);
-}
-
-inline
-ZfsdException::ZfsdException(nvlist_t *poolConfig, nvlist_t *vdevConfig,
-			     const char *fmt, ...)
- : m_poolConfig(poolConfig),
-   m_vdevConfig(vdevConfig)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	FormatLog(fmt, ap);
-	va_end(ap);
-}
-
 void
 ZfsdException::Log() const
 {

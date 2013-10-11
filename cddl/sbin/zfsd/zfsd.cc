@@ -61,7 +61,6 @@
 #include <sstream>
 #include <string>
 #include <syslog.h>
-#include <unistd.h>
 
 #include <sys/fs/zfs.h>
 #include <libzfs.h>
@@ -683,33 +682,4 @@ ZfsDaemon::EventLoop()
 	}
 }
 
-/*=============================== Program Main ===============================*/
-static void
-usage()
-{
-	fprintf(stderr, "usage: %s [-d]\n", getprogname());
-	exit(1);
-}
 
-/**
- * Program entry point.
- */
-int
-main(int argc, char **argv)
-{
-	int ch;
-
-	while ((ch = getopt(argc, argv, "d")) != -1) {
-		switch (ch) {
-		case 'd':
-			g_debug++;
-			break;
-		default:
-			usage();
-		}
-	}
-
-	ZfsDaemon::Run();
-
-	return (0);
-}

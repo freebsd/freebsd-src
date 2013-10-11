@@ -53,7 +53,7 @@ Callout::Init()
 	signal(SIGALRM,  Callout::AlarmSignalHandler);
 }
 
-inline bool
+bool
 Callout::Stop()
 {
 	if (!IsPending())
