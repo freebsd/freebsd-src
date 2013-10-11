@@ -46,56 +46,7 @@
 #include <sys/fs/zfs.h>
 #include <libzfs.h>
 
-
-/**
- * \brief Object that represents guids.
- *
- * It can generally be manipulated as a uint64_t, but with a special value
- * "None" that does not equal any valid guid.
- *
- * As of this writing, spa_generate_guid() in spa_misc.c explicitly refuses to
- * return a guid of 0.  So this class uses 0 as a flag value for "None".  In the
- * future, if 0 is allowed to be a valid guid, the implementation of this class
- * must change.
- */
-class Guid
-{
-public:
-	/* Constructors */
-	Guid(uint64_t guid) : m_GUID(guid) {};
-	Guid() 				{ m_GUID = NONE_FLAG; };
-
-	/* Assignment */
-	Guid& operator=(const uint64_t& other) {
-		m_GUID = other;
-		return (*this);
-	};
-
-	/* Test the validity of this guid. */
-	bool isValid() const		{ return ((bool)m_GUID);	};
-
-	/* Comparison to other Guid operators */
-	bool operator==(const Guid& other) const {
-		return (m_GUID == other.m_GUID);
-	};
-	bool operator!=(const Guid& other) const {
-		return (m_GUID != other.m_GUID);
-	};
-
-	/* Integer conversion operators */
-	operator uint64_t() const	{ return (m_GUID);		};
-	operator bool() const		{ return (m_GUID != NONE_FLAG);	};
-
-protected:
-	const static uint64_t NONE_FLAG = 0;
-	/* The stored value.  0 is a flag for "None" */
-	uint64_t  m_GUID;
-};
-
-
-/** Convert the GUID into its string representation */
-std::ostream& operator<< (std::ostream& out, Guid g);
-
+#include "guid.h"
 
 /**
  * \brief Wrapper class for a vdev's name/value configuration list
@@ -161,6 +112,7 @@ private:
 	nvlist_t *m_config;
 };
 
+//- Vdev Inline Public Methods ------------------------------------------------
 inline Guid
 Vdev::PoolGUID() const
 {

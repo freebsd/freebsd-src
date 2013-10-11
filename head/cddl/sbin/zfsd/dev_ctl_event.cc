@@ -165,7 +165,7 @@ DevCtlEvent::CreateEvent(const string &eventString)
 	EventFactoryRegistry::iterator foundMethod(s_factoryRegistry.find(key));
 	if (foundMethod == s_factoryRegistry.end()) {
 		syslog(LOG_INFO, "DevCtlEvent::CreateEvent: unhandled event %s",
-		    eventString.c_str());
+		       eventString.c_str());
 		return (NULL);
 	}
 	return ((foundMethod->second)(type, nvpairs, eventString));
@@ -684,7 +684,7 @@ ZfsEvent::Process() const
 		msg << zpool_get_name(zpl.front()) << ",";
 		msg << vdev.GUID() << ") ";
 		msg << (queued ? "queued" : "dropped");
-		syslog(priority, msg.str().c_str());
+		syslog(priority, "%s", msg.str().c_str());
 		return;
 	}
 }

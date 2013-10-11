@@ -4,11 +4,12 @@ PROG_CXX=	zfsd
 SRCS=		callout.cc		\
 		case_file.cc		\
 		dev_ctl_event.cc	\
+		guid.cc			\
 		vdev.cc			\
 		vdev_iterator.cc	\
 		zfsd.cc			\
 		zfsd_exception.cc	\
-		zpool_list.cc	\
+		zpool_list.cc		\
 		zfsd_main.cc
 
 NO_MAN=		YES
