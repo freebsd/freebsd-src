@@ -164,7 +164,7 @@ xen_invlpg(vm_offset_t va)
 inline void
 xen_load_cr3(u_long val)
 {
-	xen_pt_switch(xpmap_ptom(val));
+	xen_pt_switch(val);
 }
 
 void
