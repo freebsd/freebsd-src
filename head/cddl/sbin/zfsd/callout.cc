@@ -30,6 +30,13 @@
  * Authors: Justin T. Gibbs     (Spectra Logic Corporation)
  */
 
+/**
+ * \file callout.cc
+ *
+ * \brief Implementation of the Callout class - multi-client
+ *        timer services built on top of the POSIX interval timer.
+ */
+
 #include <signal.h>
 #include <syslog.h>
 
