@@ -95,7 +95,7 @@ public:
 	 * \return  If found, a pointer to a valid CaseFile object.
 	 *          Otherwise NULL.
 	 */
-	static CaseFile *Find(uint64_t poolGUID, uint64_t vdevGUID);
+	static CaseFile *Find(Guid poolGUID, Guid vdevGUID);
 
 	/**
 	 * \brief Find a CaseFile object by a vdev's current/last known
@@ -137,8 +137,8 @@ public:
 	 */
 	static void      PurgeAll();
 
-	uint64_t      PoolGUID()       const;
-	uint64_t      VdevGUID()       const;
+	Guid	      PoolGUID()       const;
+	Guid	      VdevGUID()       const;
 	vdev_state    VdevState()      const;
 	const string &PoolGUIDString() const;
 	const string &VdevGUIDString() const;
@@ -279,6 +279,30 @@ protected:
 	void OnGracePeriodEnded();
 
 	/**
+	 * \brief Attempt to activate a spare on this case's pool.
+	 *
+	 * Call this whenever a pool becomes degraded.  It will look for any
+	 * spare devices and activate one to replace the casefile's vdev.  It
+	 * will _not_ close the casefile; that should only happen when the
+	 * missing drive is replaced or the user promotes the spare.
+	 *
+	 * \return True if a spare was activated
+	 */
+	bool ActivateSpare();
+
+	/**
+	 * \brief replace a pool's vdev with another
+	 *
+	 * \param vdev_type   The type of the new vdev.  Usually either
+	 *                    VDEV_TYPE_DISK or VDEV_TYPE_FILE
+	 * \param path        The file system path to the new vdev
+	 *
+	 * \return            true iff the replacement was successful
+	 *
+	 */
+	bool Replace(const char* vdev_type, const char* path);
+
+	/**
 	 * \brief All CaseFiles being tracked by ZFSD.
 	 */
 	static CaseFileList  s_activeCases;
@@ -307,8 +331,8 @@ protected:
 	 */
 	DevCtlEventList m_tentativeEvents;
 
-	uint64_t	m_poolGUID;
-	uint64_t	m_vdevGUID;
+	Guid		m_poolGUID;
+	Guid		m_vdevGUID;
 	vdev_state	m_vdevState;
 	string		m_poolGUIDString;
 	string		m_vdevGUIDString;
@@ -320,13 +344,13 @@ protected:
 	Callout		m_tentativeTimer;
 };
 
-inline uint64_t
+inline Guid
 CaseFile::PoolGUID() const
 {
 	return (m_poolGUID);
 }
 
-inline uint64_t
+inline Guid
 CaseFile::VdevGUID() const
 {
 	return (m_vdevGUID);

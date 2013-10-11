@@ -97,7 +97,7 @@ public:
 	 * Upon return, the VdevIterator's cursor points to the vdev just
 	 * past the returned vdev or end() if no matching vdev is found.
 	 */
-	nvlist_t *Find(uint64_t vdevGUID);
+	nvlist_t *Find(Guid vdevGUID);
 
 	/**
 	 * \brief Perform the specified operation on each leaf member of

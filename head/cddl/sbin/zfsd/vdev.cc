@@ -50,51 +50,76 @@ __FBSDID("$FreeBSD$");
 using std::stringstream;
 
 /*=========================== Class Implementations ==========================*/
+/*----------------------------------- Guid -----------------------------------*/
+std::ostream& operator<< (std::ostream& out, Guid g){
+	if (g.isValid())
+		out << (uint64_t) g;
+	else
+		out << "None";
+	return (out);
+}
+
+
 /*----------------------------------- Vdev -----------------------------------*/
 Vdev::Vdev(zpool_handle_t *pool, nvlist_t *config)
  : m_poolConfig(zpool_get_config(pool, NULL)),
    m_config(config)
 {
+	uint64_t raw_guid;
 	if (nvlist_lookup_uint64(m_poolConfig, ZPOOL_CONFIG_POOL_GUID,
-				 &m_poolGUID) != 0)
+				 &raw_guid) != 0)
 		throw ZfsdException("Unable to extract pool GUID "
 				    "from pool handle.");
+	m_poolGUID = raw_guid;
 
-	if (nvlist_lookup_uint64(m_config, ZPOOL_CONFIG_GUID, &m_vdevGUID) != 0)
+	if (nvlist_lookup_uint64(m_config, ZPOOL_CONFIG_GUID, &raw_guid) != 0)
 		throw ZfsdException("Unable to extract vdev GUID "
 				    "from vdev config data.");
+	m_vdevGUID = raw_guid;
 }
 
 Vdev::Vdev(nvlist_t *poolConfig, nvlist_t *config)
  : m_poolConfig(poolConfig),
    m_config(config)
 {
+	uint64_t raw_guid;
 	if (nvlist_lookup_uint64(m_poolConfig, ZPOOL_CONFIG_POOL_GUID,
-				 &m_poolGUID) != 0)
+				 &raw_guid) != 0)
 		throw ZfsdException("Unable to extract pool GUID "
 				    "from pool handle.");
+	m_poolGUID = raw_guid;
 
-	if (nvlist_lookup_uint64(m_config, ZPOOL_CONFIG_GUID, &m_vdevGUID) != 0)
+	if (nvlist_lookup_uint64(m_config, ZPOOL_CONFIG_GUID, &raw_guid) != 0)
 		throw ZfsdException("Unable to extract vdev GUID "
 				    "from vdev config data.");
+	m_vdevGUID = raw_guid;
 }
 
 Vdev::Vdev(nvlist_t *labelConfig)
  : m_poolConfig(labelConfig)
 {
+	uint64_t raw_guid;
 	if (nvlist_lookup_uint64(labelConfig, ZPOOL_CONFIG_POOL_GUID,
-				 &m_poolGUID) != 0)
-		throw ZfsdException("Unable to extract pool GUID "
-				    "from vdev label data.");
+				 &raw_guid) != 0)
+		m_vdevGUID = Guid();
+	else
+		m_poolGUID = raw_guid;
 
 	if (nvlist_lookup_uint64(labelConfig, ZPOOL_CONFIG_GUID,
-				 &m_vdevGUID) != 0)
+				 &raw_guid) != 0)
 		throw ZfsdException("Unable to extract vdev GUID "
 				    "from vdev label data.");
-	m_config = VdevIterator(labelConfig).Find(m_vdevGUID);
-	if (m_config == NULL)
-		throw ZfsdException("Unable to find vdev config "
-				    "within vdev label data.");
+	m_vdevGUID = raw_guid;
+
+	try {
+		m_config = VdevIterator(labelConfig).Find(m_vdevGUID);
+	} catch (const ZfsdException &exp) {
+		/*
+		 * When reading a spare's label, it is normal not to find
+		 * a list of vdevs
+		 */
+		m_config = NULL;
+	}
 }
 
 vdev_state
@@ -102,6 +127,18 @@ Vdev::State() const
 {
 	vdev_stat_t *vs;
 	uint_t       vsc;
+
+	if (m_config == NULL) {
+		/*
+		 * If we couldn't find the list of vdevs, that normally means
+		 * that this is an available hotspare.  In that case, we will
+		 * presume it to be healthy.  Even if this spare had formerly
+		 * been in use, been degraded, and been replaced, the act of
+		 * replacement wipes the degraded bit from the label.  So we
+		 * have no choice but to presume that it is healthy.
+		 */
+		return (VDEV_STATE_HEALTHY);
+	}
 
 	if (nvlist_lookup_uint64_array(m_config, ZPOOL_CONFIG_VDEV_STATS,
 					(uint64_t **)&vs, &vsc) == 0)
@@ -136,7 +173,8 @@ Vdev::Path() const
 {
 	char *path(NULL);
 
-	if (nvlist_lookup_string(m_config, ZPOOL_CONFIG_PATH, &path) == 0)
+	if ((m_config != NULL)
+	    && (nvlist_lookup_string(m_config, ZPOOL_CONFIG_PATH, &path) == 0))
 		return (path);
 
 	return ("");
@@ -147,7 +185,8 @@ Vdev::PhysicalPath() const
 {
 	char *path(NULL);
 
-	if (nvlist_lookup_string(m_config, ZPOOL_CONFIG_PHYS_PATH, &path) == 0)
+	if ((m_config != NULL) && (nvlist_lookup_string(m_config,
+				    ZPOOL_CONFIG_PHYS_PATH, &path) == 0))
 		return (path);
 
 	return ("");

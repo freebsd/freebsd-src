@@ -40,10 +40,62 @@
 #ifndef	_VDEV_H_
 #define	_VDEV_H_
 
+#include <ostream>
 #include <string>
 
 #include <sys/fs/zfs.h>
 #include <libzfs.h>
+
+
+/**
+ * \brief Object that represents guids.
+ *
+ * It can generally be manipulated as a uint64_t, but with a special value
+ * "None" that does not equal any valid guid.
+ *
+ * As of this writing, spa_generate_guid() in spa_misc.c explicitly refuses to
+ * return a guid of 0.  So this class uses 0 as a flag value for "None".  In the
+ * future, if 0 is allowed to be a valid guid, the implementation of this class
+ * must change.
+ */
+class Guid
+{
+public:
+	/* Constructors */
+	Guid(uint64_t guid) : m_GUID(guid) {};
+	Guid() 				{ m_GUID = NONE_FLAG; };
+
+	/* Assignment */
+	Guid& operator=(const uint64_t& other) {
+		m_GUID = other;
+		return (*this);
+	};
+
+	/* Test the validity of this guid. */
+	bool isValid() const		{ return ((bool)m_GUID);	};
+
+	/* Comparison to other Guid operators */
+	bool operator==(const Guid& other) const {
+		return (m_GUID == other.m_GUID);
+	};
+	bool operator!=(const Guid& other) const {
+		return (m_GUID != other.m_GUID);
+	};
+
+	/* Integer conversion operators */
+	operator uint64_t() const	{ return (m_GUID);		};
+	operator bool() const		{ return (m_GUID != NONE_FLAG);	};
+
+protected:
+	const static uint64_t NONE_FLAG = 0;
+	/* The stored value.  0 is a flag for "None" */
+	uint64_t  m_GUID;
+};
+
+
+/** Convert the GUID into its string representation */
+std::ostream& operator<< (std::ostream& out, Guid g);
+
 
 /**
  * \brief Wrapper class for a vdev's name/value configuration list
@@ -93,8 +145,8 @@ public:
 	 */
 	Vdev(nvlist_t *vdevConfig);
 
-	uint64_t	 GUID()		const;
-	uint64_t	 PoolGUID()	const;
+	Guid		 GUID()		const;
+	Guid		 PoolGUID()	const;
 	vdev_state	 State()	const;
 	std::string	 Path()		const;
 	std::string	 PhysicalPath()	const;
@@ -103,19 +155,19 @@ public:
 	nvlist_t	*Config()	const;
 
 private:
-	uint64_t  m_poolGUID;
-	uint64_t  m_vdevGUID;
+	Guid	  m_poolGUID;
+	Guid	  m_vdevGUID;
 	nvlist_t *m_poolConfig;
 	nvlist_t *m_config;
 };
 
-inline uint64_t
+inline Guid
 Vdev::PoolGUID() const
 {
 	return (m_poolGUID);
 }
 
-inline uint64_t
+inline Guid
 Vdev::GUID() const
 {
 	return (m_vdevGUID);

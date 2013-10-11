@@ -163,8 +163,11 @@ DevCtlEvent::CreateEvent(const string &eventString)
 
 	EventFactoryKey key(type, nvpairs["system"]);
 	EventFactoryRegistry::iterator foundMethod(s_factoryRegistry.find(key));
-	if (foundMethod == s_factoryRegistry.end())
+	if (foundMethod == s_factoryRegistry.end()) {
+		syslog(LOG_INFO, "DevCtlEvent::CreateEvent: unhandled event %s",
+		    eventString.c_str());
 		return (NULL);
+	}
 	return ((foundMethod->second)(type, nvpairs, eventString));
 }
 
@@ -633,11 +636,13 @@ ZfsEvent::Process() const
 	}
 
 	/* Skip events that can't be handled. */
-	uint64_t poolGUID(PoolGUID());
+	Guid poolGUID(PoolGUID());
 	/* If there are no replicas for a pool, then it's not manageable. */
 	if (Value("class").find("fs.zfs.vdev.no_replicas") == 0) {
-		syslog(LOG_INFO, "No replicas available for pool %ju"
-		    ", ignoring\n", (uintmax_t)poolGUID);
+		stringstream msg;
+		msg << "No replicas available for pool "  << poolGUID;
+		msg << ", ignoring";
+		syslog(LOG_INFO, msg.str().c_str());
 		return;
 	}
 
@@ -647,21 +652,25 @@ ZfsEvent::Process() const
 	 */
 	ZpoolList zpl(ZpoolList::ZpoolByGUID, &poolGUID);
 	if (zpl.empty()) {
+		stringstream msg;
 		bool queued = ZfsDaemon::SaveEvent(*this);
 		int priority = queued ? LOG_INFO : LOG_ERR;
-		syslog(priority,
-		    "ZfsEvent::Process: Event for unknown pool %ju %s",
-		    (uintmax_t)poolGUID, queued ? "queued" : "dropped");
+		msg << "ZfsEvent::Process: Event for unknown pool ";
+		msg << poolGUID << " ";
+		msg << (queued ? "queued" : "dropped");
+		syslog(priority, msg.str().c_str());
 		return;
 	}
 
 	nvlist_t *vdevConfig = VdevIterator(zpl.front()).Find(VdevGUID());
 	if (vdevConfig == NULL) {
+		stringstream msg;
 		bool queued = ZfsDaemon::SaveEvent(*this);
 		int priority = queued ? LOG_INFO : LOG_ERR;
-		syslog(priority,
-		    "ZfsEvent::Process: Event for unknown vdev %ju %s",
-		    (uintmax_t)poolGUID, queued ? "queued" : "dropped");
+		msg << "ZfsEvent::Process: Event for unknown vdev ";
+		msg << VdevGUID() << " ";
+		msg << (queued ? "queued" : "dropped");
+		syslog(priority, msg.str().c_str());
 		return;
 	}
 
@@ -679,8 +688,18 @@ ZfsEvent::ZfsEvent(DevCtlEvent::Type type, NVPairMap &nvpairs,
 	 * These are zero on conversion failure as will happen if
 	 * Value returns the empty string.
 	 */
-	m_poolGUID = (uint64_t)strtoumax(Value("pool_guid").c_str(), NULL, 0);
-	m_vdevGUID = (uint64_t)strtoumax(Value("vdev_guid").c_str(), NULL, 0);
+	if (Contains("pool_guid")) {
+		m_poolGUID = (uint64_t)strtoumax(Value("pool_guid").c_str(),
+		    NULL, 0);
+	}
+	else
+		m_poolGUID = Guid();
+	if (Contains("vdev_guid")) {
+		m_vdevGUID = (uint64_t)strtoumax(Value("vdev_guid").c_str(),
+		    NULL, 0);
+	}
+	else
+		m_vdevGUID = Guid();
 }
 
 ZfsEvent::ZfsEvent(const ZfsEvent &src)

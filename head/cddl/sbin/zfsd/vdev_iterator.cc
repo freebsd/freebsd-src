@@ -126,7 +126,7 @@ VdevIterator::Each(VdevCallback_t *callBack, void *callBackArg)
 }
 
 nvlist_t *
-VdevIterator::Find(uint64_t vdevGUID)
+VdevIterator::Find(Guid vdevGUID)
 {
 	nvlist_t *vdevConfig;
 
