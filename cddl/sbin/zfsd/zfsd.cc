@@ -518,16 +518,17 @@ ZfsDaemon::EventsPending()
 		fds->events  = POLLIN;
 		fds->revents = 0;
 		result = poll(fds, NUM_ELEMENTS(fds), /*timeout*/0);
-	} while ( (result == -1) && (errno == EINTR) ) ;
+	} while (result == -1 && errno == EINTR);
 
 	if (result == -1) {
 		/* Unexpected error; try reconnecting the socket */
-		throw ZfsdException(
-		   "ZfsdDaemon::EventsPending(): Unexpected error from poll()");
+		throw ZfsdException("ZfsdDaemon::EventsPending(): "
+				    "Unexpected error from poll()");
 	}
 
 	if ((fds->revents & POLLHUP) != 0) {
-		/* The other end hung up the socket.  Throw an exception
+		/*
+		 * The other end hung up the socket.  Throw an exception
 		 * so ZfsDaemon will try to reconnect
 		 */
 		throw ZfsdException("ZfsDaemon::EventsPending(): Got POLLHUP");
@@ -535,8 +536,8 @@ ZfsDaemon::EventsPending()
 
 	if ((fds->revents & POLLERR) != 0) {
 		/* Try reconnecting. */
-		throw ZfsdException(
-		    "ZfsdDaemon:EventsPending(): Got POLLERR.  Reconnecting.");
+		throw ZfsdException("ZfsdDaemon:EventsPending(): Got POLLERR. "
+				    " Reconnecting.");
 	}
 
 	return ((fds->revents & POLLIN) != 0);
@@ -703,5 +704,3 @@ ZfsDaemon::EventLoop()
 		}
 	}
 }
-
-

@@ -372,37 +372,36 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 
 bool
 CaseFile::ActivateSpare() {
-	nvlist_t *config, *nvroot;
-	nvlist_t **spares;
-	zpool_handle_t *zhp;
-	char *devPath, *vdev_type;
-	const char* poolname;
-	unsigned nspares, i;
+	nvlist_t	*config, *nvroot;
+	nvlist_t       **spares;
+	zpool_handle_t	*zhp;
+	char		*devPath, *vdev_type;
+	const char	*poolname;
+	u_int		 nspares, i;
+	int		 error;
 
 	ZpoolList zpl(ZpoolList::ZpoolByGUID, &m_poolGUID);
 	if (zpl.empty()) {
-		syslog(LOG_ERR, "CaseFile::Replace: could not find pool for "
-		    "pool_guid %ju", (uint64_t)m_poolGUID);
+		syslog(LOG_ERR, "CaseFile::ActivateSpare: Could not find pool "
+		       "for pool_guid %ju.", (uint64_t)m_poolGUID);
 		return (false);
 	}
 	zhp = zpl.front();
 	poolname = zpool_get_name(zhp);
 	config = zpool_get_config(zhp, NULL);
 	if (config == NULL) {
-		syslog(LOG_ERR,
-		    "ActivateSpare: Could not find pool config for pool %s",
-		    poolname);
+		syslog(LOG_ERR, "CaseFile::ActivateSpare: Could not find pool "
+		       "config for pool %s", poolname);
 		return (false);
 	}
 	if (nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE, &nvroot) != 0){
-		syslog(LOG_ERR,
-		    "ActivateSpare: Could not find vdev tree for pool %s",
-		    poolname);
+		syslog(LOG_ERR, "CaseFile::ActivateSpare: Could not find vdev "
+		       "tree for pool %s", poolname);
 		return (false);
 	}
 	nspares = 0;
 	nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_SPARES, &spares,
-	    &nspares);
+				   &nspares);
 	if (nspares == 0) {
 		/* The pool has no spares configured */
 		return (false);
@@ -413,14 +412,14 @@ CaseFile::ActivateSpare() {
 
 		if (nvlist_lookup_uint64_array(spares[i],
 		    ZPOOL_CONFIG_VDEV_STATS, (uint64_t**)&vs, &nstats) != 0) {
-			syslog(LOG_ERR, "ActivateSpare: Could not find vdev "
-			    "stats for pool %s, spare %d",
-			    poolname, i);
+			syslog(LOG_ERR, "CaseFile::ActivateSpare: Could not "
+			       "find vdev stats for pool %s, spare %d",
+			       poolname, i);
 			return (false);
 		}
 
-		if ( (vs->vs_aux != VDEV_AUX_SPARED)
-		    && (vs->vs_state == VDEV_STATE_HEALTHY)) {
+		if ((vs->vs_aux != VDEV_AUX_SPARED)
+		 && (vs->vs_state == VDEV_STATE_HEALTHY)) {
 			/* We found a usable spare */
 			break;
 		}
@@ -431,15 +430,19 @@ CaseFile::ActivateSpare() {
 		return (false);
 	}
 
-	if (nvlist_lookup_string(spares[i], ZPOOL_CONFIG_PATH, &devPath) != 0){
-		syslog(LOG_ERR, "ActivateSpare: Cannot determine the path of "
-		    "pool %s, spare %d", poolname, i);
+	error = nvlist_lookup_string(spares[i], ZPOOL_CONFIG_PATH, &devPath);
+	if (error != 0) {
+		syslog(LOG_ERR, "CaseFile::ActivateSpare: Cannot determine "
+		       "the path of pool %s, spare %d. Error %d",
+		       poolname, i, error);
 		return (false);
 	}
 
-	if (nvlist_lookup_string(spares[i], ZPOOL_CONFIG_TYPE, &vdev_type)!= 0){
-		syslog(LOG_ERR, "ActivateSpare: Cannot determine the vdev type "
-		    "of pool %s, spare %d", poolname, i);
+	error = nvlist_lookup_string(spares[i], ZPOOL_CONFIG_TYPE, &vdev_type);
+	if (error != 0) {
+		syslog(LOG_ERR, "CaseFile::ActivateSpare: Cannot determine "
+		       "the vdev type of pool %s, spare %d. Error %d",
+		       poolname, i, error);
 		return (false);
 	}
 
@@ -728,7 +731,6 @@ CaseFile::SerializeEvList(const DevCtlEventList events, int fd,
 	}
 }
 
-
 void
 CaseFile::Serialize()
 {
@@ -800,15 +802,17 @@ CaseFile::OnGracePeriodEnded()
 		if (zpool_vdev_degrade(zpl.front(), (uint64_t)m_vdevGUID,
 				       VDEV_AUX_ERR_EXCEEDED) == 0) {
 			syslog(LOG_INFO, "Degrading vdev(%s/%s)",
-			    PoolGUIDString().c_str(), VdevGUIDString().c_str()); 
+			       PoolGUIDString().c_str(),
+			       VdevGUIDString().c_str()); 
 			Close();
 			return;
 		}
 		else {
 			syslog(LOG_ERR, "Degrade vdev(%s/%s): %s: %s\n",
-			    PoolGUIDString().c_str(), VdevGUIDString().c_str(),
-			    libzfs_error_action(g_zfsHandle),
-			    libzfs_error_description(g_zfsHandle));
+			       PoolGUIDString().c_str(),
+			       VdevGUIDString().c_str(),
+			       libzfs_error_action(g_zfsHandle),
+			       libzfs_error_description(g_zfsHandle));
 		}
 	}
 	Serialize();
@@ -824,7 +828,7 @@ CaseFile::Replace(const char* vdev_type, const char* path) {
 	ZpoolList zpl(ZpoolList::ZpoolByGUID, &m_poolGUID);
 	if (zpl.empty()) {
 		syslog(LOG_ERR, "CaseFile::Replace: could not find pool for "
-		    "pool_guid %ju", (uint64_t)m_poolGUID);
+		       "pool_guid %ju.", (uint64_t)m_poolGUID);
 		return (false);
 	}
 	zhp = zpl.front();

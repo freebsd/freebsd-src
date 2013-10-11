@@ -50,16 +50,6 @@ __FBSDID("$FreeBSD$");
 using std::stringstream;
 
 /*=========================== Class Implementations ==========================*/
-/*----------------------------------- Guid -----------------------------------*/
-std::ostream& operator<< (std::ostream& out, Guid g){
-	if (g.isValid())
-		out << (uint64_t) g;
-	else
-		out << "None";
-	return (out);
-}
-
-
 /*----------------------------------- Vdev -----------------------------------*/
 Vdev::Vdev(zpool_handle_t *pool, nvlist_t *config)
  : m_poolConfig(zpool_get_config(pool, NULL)),
