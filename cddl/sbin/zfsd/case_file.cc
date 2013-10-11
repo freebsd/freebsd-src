@@ -220,7 +220,7 @@ CaseFile::ReEvaluate(const string &devPath, const string &physPath, Vdev *vdev)
 		 * use a newly inserted spare to replace a degraded
 		 * or faulted device.
 		 */
-		return (false);
+		return (/*consumed*/false);
 	}
 
 	if (vdev != NULL
@@ -255,17 +255,17 @@ CaseFile::ReEvaluate(const string &devPath, const string &physPath, Vdev *vdev)
 		       PoolGUIDString().c_str(),
 		       VdevGUIDString().c_str(),
 		       zpool_state_to_name(VdevState(), VDEV_AUX_NONE));
-		return (false);
+		return (/*consumed*/false);
 	}
 
 	if (PhysicalPath().empty()) {
 		syslog(LOG_INFO,
-		       "CaseFile(%s:%s:%s): No vdev physical path information.  "
+		       "CaseFile(%s:%s:%s): No physical path information.  "
 		       "Ignoring device insertion.\n",
 		       PoolGUIDString().c_str(),
 		       VdevGUIDString().c_str(),
 		       zpool_state_to_name(VdevState(), VDEV_AUX_NONE));
-		return (false);
+		return (/*consumed*/false);
 	}
 
 	if (physPath != PhysicalPath()) {
@@ -275,7 +275,7 @@ CaseFile::ReEvaluate(const string &devPath, const string &physPath, Vdev *vdev)
 		       PoolGUIDString().c_str(),
 		       VdevGUIDString().c_str(),
 		       zpool_state_to_name(VdevState(), VDEV_AUX_NONE));
-		return (false);
+		return (/*consumed*/false);
 	}
 
 	/* Write a label on the newly inserted disk. */
@@ -315,7 +315,7 @@ CaseFile::ReEvaluate(const string &devPath, const string &physPath, Vdev *vdev)
 		       zpool_get_name(pool), VdevGUIDString().c_str());
 		nvlist_free(newvd);
 		nvlist_free(nvroot);
-		return (1);
+		return (/*consumed*/true);
 	}
 
 	/* Data was copied when added to the root vdev. */
@@ -405,11 +405,11 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 	return (consumed || closed);
 }
 
-
 void
 CaseFile::RegisterCallout(const DevCtlEvent &event)
-{
+{   
 	timeval now, countdown, elapsed, timestamp, zero, remaining;
+
 	gettimeofday(&now, 0);
 	timestamp = event.GetTimestamp();
 	timersub(&now, &timestamp, &elapsed);
@@ -427,7 +427,7 @@ CaseFile::RegisterCallout(const DevCtlEvent &event)
 	remaining = m_tentativeTimer.TimeRemaining();
 
 	if (!m_tentativeTimer.IsPending()
-			|| timercmp(&countdown, &remaining, <))
+	 || timercmp(&countdown, &remaining, <))
 		m_tentativeTimer.Reset(countdown, OnGracePeriodEnded, this);
 }
 
@@ -559,13 +559,12 @@ CaseFile::DeSerializeFile(const char *fileName)
 		}
 
 		ifstream caseStream(fullName.c_str());
-		if (! caseStream) {
+		if (!caseStream) {
 			throw ZfsdException("CaseFile::DeSerialize: Unable to "
-			       "read %s.\n", fileName);
+					    "read %s.\n", fileName);
 			return;
 		}
-		stringstream fakeDevdSocket(stringstream::in
-				| stringstream::out);
+		stringstream fakeDevdSocket(stringstream::in|stringstream::out);
 		IstreamReader caseReader(&fakeDevdSocket);
 
 		/* Re-load EventData */
@@ -604,7 +603,6 @@ CaseFile::DeSerializeFile(const char *fileName)
 				}
 			}
 		}
-
 	} catch (const ParseException &exp) {
 
 		exp.Log(evString);
@@ -672,7 +670,6 @@ CaseFile::PurgeTentativeEvents()
 
 	m_tentativeEvents.clear();
 }
-
 
 void
 CaseFile::SerializeEvList(const DevCtlEventList events, int fd,

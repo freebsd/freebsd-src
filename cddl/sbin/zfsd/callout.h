@@ -84,7 +84,7 @@ public:
 	Callout();
 
 	/**
-	 * returns true if callout has not been stopped,
+	 * Returns true if callout has not been stopped,
 	 * or deactivated since the last time the callout was
 	 * reset.
 	 */
@@ -105,7 +105,7 @@ public:
 	 *
 	 * \param interval  Timeval indicating the time which must elapse
 	 *                  before this callout fires.
-	 * \param func	    Pointer to the callback funtion
+	 * \param func      Pointer to the callback funtion
 	 * \param arg       Argument pointer to pass to callback function
 	 *
 	 * \return  Cancelation status.
@@ -119,7 +119,7 @@ public:
 
 	/**
 	 * \brief Calculate the remaining time until this Callout's timer
-	 * expires.
+	 *        expires.
 	 *
 	 * The return value will be slightly greater than the actual time to
 	 * expiry.

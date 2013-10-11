@@ -79,15 +79,14 @@ typedef int LeafIterFunc(zpool_handle_t *, nvlist_t *, void *);
 
 /*-------------------------------- Reader  -------------------------------*/
 /**
- * \brief A class that presents a common interface to both file descriptors and
- * istreams .
+ * \brief A class that presents a common interface to both file descriptors
+ *        and istreams.
  *
  * Standard C++ provides no way to create an iostream from a file descriptor or
  * a FILE.  The GNU, Apache, HPUX, and Solaris C++ libraries all provide
  * non-standard ways to construct such a stream using similar semantics, but
- * LLVM does not.  Therefore this class is needed to ensure that zfsd can
- * compile under LLVM.  This class supports only the functionality needed by
- * ZFSD; it does not implement the iostream API.
+ * FreeBSD's C++ library does not.  This class supports only the functionality
+ * needed by ZFSD; it does not implement the iostream API.
  */
 class Reader
 {
@@ -104,9 +103,9 @@ public:
 	 * On error, -1 is returned, and errno will be set by the underlying
 	 * source.
 	 *
-	 * \param buf   Destination for the data
-	 * \param count Maximum amount of data to read
-	 * \returns     Amount of data that was actually read
+	 * \param buf    Destination for the data
+	 * \param count  Maximum amount of data to read
+	 * \returns      Amount of data that was actually read
 	 */
 	virtual ssize_t read(char* buf, size_t count) = 0;
 };
@@ -122,12 +121,12 @@ public:
 	/**
 	 * \brief Constructor
 	 *
-	 * \param fd    An open file descriptor.  It will not be garbage
-	 *              collected by the destructor.
+	 * \param fd  An open file descriptor.  It will not be garbage
+	 *            collected by the destructor.
 	 */
 	FDReader(int fd);
 
-	virtual size_t in_avail() const;
+	virtual size_t  in_avail() const;
 
 	virtual ssize_t read(char* buf, size_t count);
 
@@ -137,8 +136,9 @@ protected:
 };
 
 //- FDReader Inline Public Methods -----------------------------------------
-inline FDReader::FDReader(int fd)
-	: m_fd(fd)
+inline
+FDReader::FDReader(int fd)
+ : m_fd(fd)
 {
 }
 
@@ -147,7 +147,6 @@ FDReader::read(char* buf, size_t count)
 {
 	return (::read(m_fd, buf, count));
 }
-
 
 /*-------------------------------- IstreamReader------------------------------*/
 /**
@@ -159,8 +158,8 @@ public:
 	/**
 	 * Constructor
 	 *
-	 * \param stream        Pointer to an open istream.  It will not be
-	 *                      garbage collected by the destructor.
+	 * \param stream  Pointer to an open istream.  It will not be
+	 *                garbage collected by the destructor.
 	 */
 	IstreamReader(istream* stream);
 
@@ -170,12 +169,13 @@ public:
 
 protected:
 	/** Copy of the underlying stream */
-	istream*	m_stream;
+	istream		*m_stream;
 };
 
 //- IstreamReader Inline Public Methods ----------------------------------------
-inline IstreamReader::IstreamReader(istream* stream)
-	: m_stream(stream)
+inline
+IstreamReader::IstreamReader(istream* stream)
+ : m_stream(stream)
 {
 }
 
@@ -189,7 +189,7 @@ IstreamReader::in_avail() const
 /*-------------------------------- EventBuffer -------------------------------*/
 /**
  * \brief Class buffering event data from Devd or a similar source and
- * 	  splitting it into individual event strings.
+ *        splitting it into individual event strings.
  *
  * Users of this class initialize it with a Reader associated with the unix
  * domain socket connection with devd or a compatible source.  The lifetime of
@@ -276,7 +276,7 @@ private:
 	char		    m_buf[EVENT_BUFSIZE];
 
 	/** Reference to the reader linked to devd's domain socket. */
-	Reader&	    	    m_reader;
+	Reader&		    m_reader;
 
 	/** Valid bytes in m_buf. */
 	size_t		    m_validLen;

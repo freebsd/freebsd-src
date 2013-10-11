@@ -215,10 +215,10 @@ EventBuffer::ExtractEvent(string &eventString)
 		 * Add a timestamp as the final field of the event if it is
 		 * not already present.
 		 */
-		if ( eventString.find("timestamp=") == string::npos) {
-			eventString.insert(
-					eventString.find_last_not_of('\n') + 1,
-					tsField.str());
+		if (eventString.find("timestamp=") == string::npos) {
+			size_t eventEnd(eventString.find_last_not_of('\n') + 1);
+
+			eventString.insert(eventEnd, tsField.str());
 		}
 
 		return (true);
