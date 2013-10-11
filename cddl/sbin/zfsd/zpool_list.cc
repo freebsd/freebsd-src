@@ -35,6 +35,7 @@
  *
  * Implementation of the ZpoolList class.
  */
+#include "vdev.h"
 #include "zpool_list.h"
 #include "zfsd.h"
 
@@ -50,13 +51,13 @@ bool
 ZpoolList::ZpoolByGUID(zpool_handle_t *pool, nvlist_t *poolConfig,
 			   void *cbArg)
 {
-	uint64_t *desiredPoolGUID(static_cast<uint64_t *>(cbArg));
+	Guid *desiredPoolGUID(static_cast<Guid *>(cbArg));
 	uint64_t poolGUID;
 
 	/* We are only intested in the pool that matches our pool GUID. */
 	return (nvlist_lookup_uint64(poolConfig, ZPOOL_CONFIG_POOL_GUID,
 				     &poolGUID) == 0
-	     && poolGUID == *desiredPoolGUID);
+	     && poolGUID == (uint64_t)*desiredPoolGUID);
 }
 
 bool

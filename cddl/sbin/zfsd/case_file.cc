@@ -66,8 +66,9 @@ const string  CaseFile::s_caseFilePath = "/etc/zfs/cases";
 const timeval CaseFile::s_removeGracePeriod = { 60 /*sec*/, 0 /*usec*/};
 
 //- CaseFile Static Public Methods ---------------------------------------------
+
 CaseFile *
-CaseFile::Find(uint64_t poolGUID, uint64_t vdevGUID)
+CaseFile::Find(Guid poolGUID, Guid vdevGUID)
 {
 	for (CaseFileList::iterator curCase = s_activeCases.begin();
 	     curCase != s_activeCases.end(); curCase++) {
@@ -163,16 +164,17 @@ CaseFile::RefreshVdevState()
 {
 	ZpoolList zpl(ZpoolList::ZpoolByGUID, &m_poolGUID);
 	if (zpl.empty()) {
-		syslog(LOG_INFO,
-		       "CaseFile::RefreshVdevState: Unknown pool for "
-		       "Vdev(%ju,%ju).\n",
-		       m_poolGUID, m_vdevGUID);
-		return (false);
+		stringstream msg;
+		msg << "CaseFile::RefreshVdevState: Unknown pool for Vdev(";
+		msg << m_poolGUID << "," << m_vdevGUID << ").";
+		syslog(LOG_INFO, msg.str().c_str());
+			return (false);
 	}
 
 	zpool_handle_t *casePool(zpl.front());
 	nvlist_t       *vdevConfig = VdevIterator(casePool).Find(VdevGUID());
 	if (vdevConfig == NULL) {
+		stringstream msg;
 		syslog(LOG_INFO,
 		       "CaseFile::RefreshVdevState: Unknown Vdev(%s,%s).\n",
 		       PoolGUIDString().c_str(), PoolGUIDString().c_str());
@@ -288,55 +290,7 @@ CaseFile::ReEvaluate(const string &devPath, const string &physPath, Vdev *vdev)
 		return (/*consumed*/false);
 	}
 
-	/*
-	 * Build a root vdev/leaf vdev configuration suitable for
-	 * zpool_vdev_attach. Only enough data for the kernel to find
-	 * the device (i.e. type and disk device node path) are needed.
-	 */
-	nvlist_t *nvroot(NULL);
-	nvlist_t *newvd(NULL);
-	if (nvlist_alloc(&nvroot, NV_UNIQUE_NAME, 0) != 0
-	 || nvlist_alloc(&newvd, NV_UNIQUE_NAME, 0) != 0) {
-		syslog(LOG_ERR, "Replace vdev(%s/%s) by physical path: "
-		       "Unable to allocate configuration data.\n",
-		       zpool_get_name(pool), VdevGUIDString().c_str());
-		if (nvroot != NULL)
-			nvlist_free(nvroot);
-		return (/*consumed*/false);
-	}
-
-	if (nvlist_add_string(newvd, ZPOOL_CONFIG_TYPE, VDEV_TYPE_DISK) != 0
-	 || nvlist_add_string(newvd, ZPOOL_CONFIG_PATH, devPath.c_str()) != 0
-	 || nvlist_add_string(nvroot, ZPOOL_CONFIG_TYPE, VDEV_TYPE_ROOT) != 0
-	 || nvlist_add_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
-				    &newvd, 1) != 0) {
-		syslog(LOG_ERR, "Replace vdev(%s/%s) by physical path: "
-		       "Unable to initialize configuration data.\n",
-		       zpool_get_name(pool), VdevGUIDString().c_str());
-		nvlist_free(newvd);
-		nvlist_free(nvroot);
-		return (/*consumed*/true);
-	}
-
-	/* Data was copied when added to the root vdev. */
-	nvlist_free(newvd);
-
-	if (zpool_vdev_attach(pool, VdevGUIDString().c_str(),
-			      devPath.c_str(), nvroot,
-			      /*replace*/B_TRUE) != 0) {
-		syslog(LOG_ERR,
-		       "Replace vdev(%s/%s) by physical path(attach): %s: %s\n",
-		       zpool_get_name(pool), VdevGUIDString().c_str(),
-		       libzfs_error_action(g_zfsHandle),
-		       libzfs_error_description(g_zfsHandle));
-	} else {
-		syslog(LOG_INFO, "Replacing vdev(%s/%s) with %s\n",
-		       zpool_get_name(pool), VdevGUIDString().c_str(),
-		       devPath.c_str());
-	}
-	nvlist_free(nvroot);
-
-	return (true);
+	return (Replace(VDEV_TYPE_DISK, devPath.c_str()));
 }
 
 bool
@@ -385,6 +339,9 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 		 */
 		PurgeTentativeEvents();
 
+		/* Try to activate spares if they are available */
+		ActivateSpare();
+
 		/*
 		 * Rescan the drives in the system to see if a recent
 		 * drive arrival can be used to solve this case.
@@ -403,6 +360,83 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 	bool closed(CloseIfSolved());
 
 	return (consumed || closed);
+}
+
+
+bool
+CaseFile::ActivateSpare() {
+	nvlist_t *config, *nvroot;
+	nvlist_t **spares;
+	zpool_handle_t *zhp;
+	char *devPath, *vdev_type;
+	const char* poolname;
+	unsigned nspares, i;
+
+	ZpoolList zpl(ZpoolList::ZpoolByGUID, &m_poolGUID);
+	if (zpl.empty()) {
+		syslog(LOG_ERR, "CaseFile::Replace: could not find pool for "
+		    "pool_guid %ju", (uint64_t)m_poolGUID);
+		return (false);
+	}
+	zhp = zpl.front();
+	poolname = zpool_get_name(zhp);
+	config = zpool_get_config(zhp, NULL);
+	if (config == NULL) {
+		syslog(LOG_ERR,
+		    "ActivateSpare: Could not find pool config for pool %s",
+		    poolname);
+		return (false);
+	}
+	if (nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE, &nvroot) != 0){
+		syslog(LOG_ERR,
+		    "ActivateSpare: Could not find vdev tree for pool %s",
+		    poolname);
+		return (false);
+	}
+	nspares = 0;
+	nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_SPARES, &spares,
+	    &nspares);
+	if (nspares == 0) {
+		/* The pool has no spares configured */
+		return (false);
+	}
+	for (i = 0; i < nspares; i++) {
+		vdev_stat_t *vs;
+		unsigned nstats;
+
+		if (nvlist_lookup_uint64_array(spares[i],
+		    ZPOOL_CONFIG_VDEV_STATS, (uint64_t**)&vs, &nstats) != 0) {
+			syslog(LOG_ERR, "ActivateSpare: Could not find vdev "
+			    "stats for pool %s, spare %d",
+			    poolname, i);
+			return (false);
+		}
+
+		if ( (vs->vs_aux != VDEV_AUX_SPARED)
+		    && (vs->vs_state == VDEV_STATE_HEALTHY)) {
+			/* We found a usable spare */
+			break;
+		}
+	}
+
+	if (i == nspares) {
+		/* No available spares were found */
+		return (false);
+	}
+
+	if (nvlist_lookup_string(spares[i], ZPOOL_CONFIG_PATH, &devPath) != 0){
+		syslog(LOG_ERR, "ActivateSpare: Cannot determine the path of "
+		    "pool %s, spare %d", poolname, i);
+		return (false);
+	}
+
+	if (nvlist_lookup_string(spares[i], ZPOOL_CONFIG_TYPE, &vdev_type)!= 0){
+		syslog(LOG_ERR, "ActivateSpare: Cannot determine the vdev type "
+		    "of pool %s, spare %d", poolname, i);
+		return (false);
+	}
+
+	return (Replace(vdev_type, devPath));
 }
 
 void
@@ -519,7 +553,7 @@ CaseFile::DeSerializeFile(const char *fileName)
 
 		sscanf(fileName, "pool_%ju_vdev_%ju.case",
 		       &poolGUID, &vdevGUID);
-		existingCaseFile = Find(poolGUID, vdevGUID);
+		existingCaseFile = Find(Guid(poolGUID), Guid(vdevGUID));
 		if (existingCaseFile != NULL) {
 			/*
 			 * If the vdev is already degraded or faulted,
@@ -756,11 +790,77 @@ CaseFile::OnGracePeriodEnded()
 		}
 
 		/* Degrade the vdev and close the case. */
-		if (zpool_vdev_degrade(zpl.front(), m_vdevGUID,
+		if (zpool_vdev_degrade(zpl.front(), (uint64_t)m_vdevGUID,
 				       VDEV_AUX_ERR_EXCEEDED) == 0) {
 			Close();
 			return;
 		}
 	}
 	Serialize();
+}
+
+bool
+CaseFile::Replace(const char* vdev_type, const char* path) {
+	nvlist_t *nvroot, *newvd;
+	zpool_handle_t *zhp;
+	const char* poolname;
+
+	/* Figure out what pool we're working on */
+	ZpoolList zpl(ZpoolList::ZpoolByGUID, &m_poolGUID);
+	if (zpl.empty()) {
+		syslog(LOG_ERR, "CaseFile::Replace: could not find pool for "
+		    "pool_guid %ju", (uint64_t)m_poolGUID);
+		return (false);
+	}
+	zhp = zpl.front();
+	poolname = zpool_get_name(zhp);
+
+	/*
+	 * Build a root vdev/leaf vdev configuration suitable for
+	 * zpool_vdev_attach. Only enough data for the kernel to find
+	 * the device (i.e. type and disk device node path) are needed.
+	 */
+	nvroot = NULL;
+	newvd = NULL;
+
+	if (nvlist_alloc(&nvroot, NV_UNIQUE_NAME, 0) != 0
+	 || nvlist_alloc(&newvd, NV_UNIQUE_NAME, 0) != 0) {
+		syslog(LOG_ERR, "Replace vdev(%s/%s) by physical path: "
+		       "Unable to allocate configuration data.\n",
+		       poolname, VdevGUIDString().c_str());
+		if (nvroot != NULL)
+			nvlist_free(nvroot);
+		return (false);
+	}
+	if (nvlist_add_string(newvd, ZPOOL_CONFIG_TYPE, vdev_type) != 0
+	 || nvlist_add_string(newvd, ZPOOL_CONFIG_PATH, path) != 0
+	 || nvlist_add_string(nvroot, ZPOOL_CONFIG_TYPE, VDEV_TYPE_ROOT) != 0
+	 || nvlist_add_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
+				    &newvd, 1) != 0) {
+		syslog(LOG_ERR, "Replace vdev(%s/%s) by physical path: "
+		       "Unable to initialize configuration data.\n",
+		       poolname, VdevGUIDString().c_str());
+		nvlist_free(newvd);
+		nvlist_free(nvroot);
+		return (true);
+	}
+
+	/* Data was copied when added to the root vdev. */
+	nvlist_free(newvd);
+
+	if (zpool_vdev_attach(zhp, VdevGUIDString().c_str(),
+			      path, nvroot, /*replace*/B_TRUE) != 0) {
+		syslog(LOG_ERR,
+		       "Replace vdev(%s/%s) by physical path(attach): %s: %s\n",
+		       poolname, VdevGUIDString().c_str(),
+		       libzfs_error_action(g_zfsHandle),
+		       libzfs_error_description(g_zfsHandle));
+	} else {
+		syslog(LOG_INFO, "Replacing vdev(%s/%s) with %s\n",
+		       poolname, VdevGUIDString().c_str(),
+		       path);
+	}
+	nvlist_free(nvroot);
+
+	return (true);
 }

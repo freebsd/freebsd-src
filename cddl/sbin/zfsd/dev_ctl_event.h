@@ -49,6 +49,8 @@
 #include <sys/fs/zfs.h>
 #include <libzfs.h>
 
+#include "vdev.h"
+
 /*============================ Namespace Control =============================*/
 using std::map;
 using std::pair;
@@ -473,8 +475,8 @@ public:
 	virtual void Process()		const;
 
 	const string &PoolName()	const;
-	uint64_t      PoolGUID()	const;
-	uint64_t      VdevGUID()	const;
+	Guid	      PoolGUID()	const;
+	Guid	      VdevGUID()	const;
 
 protected:
 	/** Constructor */
@@ -485,8 +487,8 @@ protected:
 
 	void ProcessPoolEvent()		const;
 
-	uint64_t m_poolGUID;
-	uint64_t m_vdevGUID;
+	Guid	 m_poolGUID;
+	Guid	 m_vdevGUID;
 };
 
 //- ZfsEvent Inline Public Methods --------------------------------------------
@@ -497,13 +499,13 @@ ZfsEvent::PoolName() const
 	return (Value("subsystem"));
 }
 
-inline uint64_t
+inline Guid
 ZfsEvent::PoolGUID() const
 {
 	return (m_poolGUID);
 }
 
-inline uint64_t
+inline Guid
 ZfsEvent::VdevGUID() const
 {
 	return (m_vdevGUID);
