@@ -256,7 +256,7 @@ DevCtlEvent::GetTimestamp() const
 	timeval tv_timestamp;
 	struct tm tm_timestamp;
 
-	if ( ! Contains("timestamp") ) {
+	if (!Contains("timestamp")) {
 		throw ZfsdException("Event contains no timestamp: %s",
 				m_eventString.c_str());
 	}
@@ -320,17 +320,6 @@ DevCtlEvent::ParseEventString(DevCtlEvent::Type type,
 		start += 4;
 		end = eventString.find_first_of(" \t\n", start);
 		nvpairs["parent"] = eventString.substr(start, end);
-		if (end == string::npos)
-			break;
-
-		/*
-		 * The parent field should terminate the event with the
-		 * exception of trailing whitespace.
-		 */
-		end = eventString.find_first_not_of(" \t\n", end);
-		if (end != string::npos)
-			throw ParseException(ParseException::INVALID_FORMAT,
-					     end);
 		break;
 	case NOTIFY:
 		break;
