@@ -1,0 +1,1043 @@
+#!/bin/sh
+#-
+# Copyright (c) 2013 Allan Jude
+# Copyright (c) 2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/device.subr
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/password/password.subr
+f_include $BSDCFG_SHARE/variable.subr
+
+############################################################ CONFIGURATION
+
+#
+# Default name of the boot-pool
+#
+: ${ZFSBOOT_POOL_NAME:=zroot}
+
+#
+# Default name for the boot environment parent dataset
+#
+: ${ZFSBOOT_BEROOT_NAME:=bootenv}
+
+#
+# Default name for the primany boot environment
+#
+: ${ZFSBOOT_BOOTFS_NAME:=default}
+
+#
+# Default Virtual Device (vdev) type to create
+#
+: ${ZFSBOOT_VDEV_TYPE:=stripe}
+
+#
+# Should we use gnop(8) to configure a transparent mapping to 4K sectors?
+#
+: ${ZFSBOOT_GNOP_4K_FORCE_ALIGN:=1}
+
+#
+# Should we use geli(8) to encrypt the drives?
+#
+: ${ZFSBOOT_GELI_ENCRYPTION:=}
+
+#
+# Default name the unencrypted pool when using geli(8) to encrypt the drives
+#
+: ${ZFSBOOT_GELI_POOL_NAME:=bootpool}
+
+#
+# Default size for the unencrypted boot pool when using geli(8)
+#
+: ${ZFSBOOT_GELI_BOOT_SIZE:=2g}
+
+#
+# Default path to the geli(8) keyfile used in drive encryption
+#
+: ${ZFSBOOT_GELI_KEY_FILE:=/boot/encryption.key}
+
+#
+# Default disks to use (always empty unless being scripted)
+#
+: ${ZFSBOOT_DISKS:=}
+
+#
+# Default partitioning scheme to use on disks
+#
+: ${ZFSBOOT_PARTITION_SCHEME:=GPT}
+
+#
+# How much swap to put on each block device in the boot zpool
+# NOTE: Value passed to gpart(8); which supports SI unit suffixes.
+#
+: ${ZFSBOOT_SWAP_SIZE:=2g}
+
+#
+# Default ZFS layout for root zpool
+#
+# NOTE: Requires /tmp, /var/tmp, /$ZFSBOOT_BOOTFS_NAME/$ZFSBOOT_BOOTFS_NAME
+# NOTE: Anything after pound/hash character [#] is ignored as a comment.
+#
+f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
+	# DATASET	OPTIONS (comma or space separated; or both)
+
+	# Boot Environment [BE] root and default boot dataset
+	/$ZFSBOOT_BEROOT_NAME				mountpoint=none
+	/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME	mountpoint=/
+
+	# Compress /tmp, allow exec but not setuid
+	/tmp		mountpoint=/tmp,compression=lz4,exec=on,setuid=off
+
+	# Don't mount /usr so that 'base' files go to the BEROOT
+	/usr		mountpoint=/usr,canmount=off
+
+	/usr/local # local files (i.e. from packages) separate from base system
+
+	# Home directories separated so they are common to all BEs
+	/usr/home	setuid=off
+
+	# Ports tree
+	/usr/ports		compression=lz4,setuid=off
+	/usr/ports/distfiles	compression=off,exec=off,setuid=off
+	/usr/ports/packages	compression=off,exec=off,setuid=off
+
+	# Source tree (compressed)
+	/usr/src	compression=lz4,exec=off,setuid=off
+	/usr/obj	# Object files
+
+	# Create /var and friends
+	/var		mountpoint=/var
+	/var/crash	compression=lz4,exec=off,setuid=off
+	/var/db		exec=off,setuid=off
+	/var/db/pkg	compression=lz4,exec=off,setuid=off
+	/var/empty	exec=off,setuid=off
+	/var/log	compression=lz4,exec=off,setuid=off
+	/var/mail	compression=lz4,exec=off,setuid=off
+	/var/run	exec=off,setuid=off
+	/var/tmp	compression=lz4,exec=on,setuid=off
+" # END-QUOTE
+
+############################################################ GLOBALS
+
+#
+# Strings that should be moved to an i18n file and loaded with f_include_lang()
+#
+hline_alnum_arrows_punc_tab_enter="Use alnum, arrows, punctuation, TAB or ENTER"
+hline_arrows_space_tab_enter="Use arrows, SPACE, TAB or ENTER"
+hline_arrows_tab_enter="Press arrows, TAB or ENTER"
+msg_back="Back"
+msg_cancel="Cancel"
+msg_change="Change Selection"
+msg_configure_options="Configure Options:"
+msg_create="Install"
+msg_create_desc="Proceed with Installation"
+msg_create_help="Create ZFS boot pool with displayed options"
+msg_detailed_disk_info="gpart(8) show %s:\n%s\n\ncamcontrol(8) inquiry %s:\n%s\n\n\ncamcontrol(8) identify %s:\n%s\n"
+msg_disk_info="Disk Info"
+msg_disk_info_help="Get detailed information on disk device(s)"
+msg_disks_to_use="Disks To Use"
+msg_disks_to_use_help="Choose which disks to use for the Virtual Device (Required)"
+msg_force_4k_sectors="Force 4K Sectors?"
+msg_force_4k_sectors_help="Use gnop(8) to configure forced 4K sector alignment"
+msg_freebsd_installer="FreeBSD Installer"
+msg_geli_encryption="Encrypt Disks?"
+msg_geli_encryption_help="Use geli(8) to encrypt all data partitions"
+msg_geli_password="Enter a strong passphrase, used to protect your encryption keys. You will be required to enter this passphrase each time the system is booted"
+msg_geli_setup="Initializing encryption on the selected disks, this will take several seconds per disk"
+msg_invalid_virtual_device_type="Invalid Virtual Device type \`%s'"
+msg_invalid_virtual_device_type_help="Select another Virtual Device type or Cancel to\nreturn to the ZFS menu. From there you can select\nmore disks or rescan for additional devices."
+msg_last_chance_are_you_sure="Last Chance! Are you sure you want to destroy the current contents of the following disks:\n%s"
+msg_last_chance_are_you_sure_color="\\\\ZrLast Chance!\\\\ZR Are you \\\\Z1sure\\\\Zn you want to \\\\Zr\\\\Z1destroy\\\\Zn the current contents of the following disks:\n%s"
+msg_mirror_desc="Mirror - n-Way Mirroring"
+msg_mirror_help="[2+ Disks] Mirroring provides the best performance, but the least storage"
+msg_no="NO"
+msg_no_disks_present_to_configure="No disk(s) present to configure"
+msg_no_disks_selected="No disks selected."
+msg_not_enough_disks_selected="Not enough disks selected. (%u < %u wanted)"
+msg_ok="OK"
+msg_partition_scheme="Partition Scheme"
+msg_partition_scheme_help="Toggle between GPT and MBR partitioning schemes"
+msg_please_enter_a_name_for_your_zpool="Please enter a name for your zpool:"
+msg_please_enter_amount_of_swap_space="Please enter amount of swap space (SI-Unit suffixes\nrecommended; e.g., \`2g' for 2 Gigabytes):"
+msg_please_select_one_or_more_disks="Please select one or more disks to create a zpool:"
+msg_pool_name="Pool Name"
+msg_pool_name_cannot_be_empty="Pool name cannot be empty."
+msg_pool_name_help="Customize the name of the zpool to be created (Required)"
+msg_processing_selection="Processing selection..."
+msg_raidz1_desc="RAID-Z1 - Single Redundant RAID"
+msg_raidz1_help="[3+ Disks] Withstand failure of 1 disk. Recommended for: 3, 5 or 9 disks"
+msg_raidz2_desc="RAID-Z2 - Double Redundant RAID"
+msg_raidz2_help="[4+ Disks] Withstand failure of 2 disks. Recommended for: 4, 6 or 10 disks"
+msg_raidz3_desc="RAID-Z3 - Triple Redundant RAID"
+msg_raidz3_help="[5+ Disks] Withstand failure of 3 disks. Recommended for: 5, 7 or 11 disks"
+msg_rescan_devices="Rescan Devices"
+msg_rescan_devices_help="Scan for device changes"
+msg_select="Select"
+msg_select_a_disk_device="Select a disk device"
+msg_select_virtual_device_type="Select Virtual Device type:"
+msg_stripe_desc="Stripe - No Redundancy"
+msg_stripe_help="[1+ Disks] Striping provides maximum storage but no redundancy"
+msg_swap_size="Swap Size"
+msg_swap_size_help="Customize how much swap space is allocated to each selected disk"
+msg_these_disks_are_too_small="These disks are too small given the amount of requested\nswap (%s) and/or GELI (%s) partitions, which would take\n50%% or more (not recommended) of each of the following\nselected disk devices:\n\n  %s\n\nRecommend changing partition size(s) and/or selecting a\ndifferent set of devices."
+msg_yes="YES"
+msg_zfs_configuration="ZFS Configuration"
+msg_zfs_vdev_type="ZFS VDev Type"
+msg_zfs_vdev_type_help="Select type of ZFS Virtual Device to create"
+
+############################################################ FUNCTIONS
+
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local title="$DIALOG_TITLE"
+	local btitle="$DIALOG_BACKTITLE"
+	local prompt="$msg_configure_options"
+	local force4k="$msg_no"
+	local usegeli="$msg_no"
+	[ "$ZFSBOOT_GNOP_4K_FORCE_ALIGN" ] && force4k="$msg_yes"
+	[ "$ZFSBOOT_GELI_ENCRYPTION" ] && usegeli="$msg_yes"
+	local menu_list="
+		'>>> $msg_create'         '$msg_create_desc'
+		                          '$msg_create_help'
+		'- $msg_rescan_devices'   '*'
+		                          '$msg_rescan_devices_help'
+		'- $msg_disk_info'        '*'
+		                          '$msg_disk_info_help'
+		'1 $msg_pool_name'        '$ZFSBOOT_POOL_NAME'
+		                          '$msg_pool_name_help'
+		'2 $msg_disks_to_use'     '$ZFSBOOT_DISKS'
+		                          '$msg_disks_to_use_help'
+		'3 $msg_zfs_vdev_type'    '$ZFSBOOT_VDEV_TYPE'
+		                          '$msg_zfs_vdev_type_help'
+		'4 $msg_force_4k_sectors' '$force4k'
+		                          '$msg_force_4k_sectors_help'
+		'5 $msg_geli_encryption'  '$usegeli'
+		                          '$msg_geli_encryption_help'
+		'6 $msg_partition_scheme' '$ZFSBOOT_PARTITION_SCHEME'
+		                          '$msg_partition_scheme_help'
+		'7 $msg_swap_size'        '$ZFSBOOT_SWAP_SIZE'
+		                          '$msg_swap_size_help'
+	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_alnum_arrows_punc_tab_enter"
+
+	local height width rows
+	eval f_dialog_menu_with_help_size height width rows \
+		\"\$title\" \"\$btitle\" \"\$prompt\" \"\$hline\" $menu_list
+
+	# Obtain default-item from previously stored selection
+	f_dialog_default_fetch defaultitem
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$title\"              \
+		--backtitle \"\$btitle\"         \
+		--hline \"\$hline\"              \
+		--item-help                      \
+		--ok-label \"\$msg_select\"      \
+		--cancel-label \"\$msg_cancel\"  \
+		--default-item \"\$defaultitem\" \
+		--menu \"\$prompt\"              \
+		$height $width $rows             \
+		$menu_list                       \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+
+	# Only update default-item on success
+	[ $retval -eq $DIALOG_OK ] && f_dialog_default_store "$menu_choice"
+
+	return $retval
+}
+
+# dialog_edit_disks
+#
+# Edit the list of disks to be used by the ZFS boot pool.
+#
+dialog_edit_disks()
+{
+	local title="$DIALOG_TITLE"
+	local btitle="$DIALOG_BACKTITLE"
+	local prompt="$msg_please_select_one_or_more_disks"
+	local check_list= # Calculated below
+	local hline="$hline_arrows_space_tab_enter"
+	local dev vardev disks=
+
+	#
+	# Get a [new] list of disk devices
+	#
+	f_device_find "" $DEVICE_TYPE_DISK disks
+	if [ ! "$disks" ]; then
+		f_show_msg "$msg_no_disks_present_to_configure"
+		return $FAILURE
+	fi
+
+	# Lets sort the disks array to be more user friendly
+	disks=$( echo "$disks" | tr ' ' '\n' | sort | tr '\n' ' ' )
+
+	#
+	# Loop through the list of selected disks and create temporary local
+	# variables mapping their status onto an up-to-date list of disks.
+	#
+	for dev in $ZFSBOOT_DISKS; do
+		f_str2varname "$dev" vardev
+		local _${vardev}_status=on
+	done
+
+	#
+	# Create the checklist menu of discovered disk devices
+	#
+	local on_off
+	for dev in $disks; do
+		local desc=
+		device_$dev get desc desc
+		f_shell_escape "$desc" desc
+		f_str2varname "$dev" vardev
+		f_getvar _${vardev}_status:-off on_off
+		check_list="$check_list '$dev' '$desc' $on_off"
+	done
+
+	#
+	# Prompt the user to check some disks
+	#
+	local height width rows
+	eval f_dialog_checklist_size height width rows \
+		\"\$title\" \"\$btitle\" \"\$prompt\" \"\$hline\" $check_list
+	disks=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--checklist \"\$prompt\"           \
+		$height $width $rows               \
+		$check_list                        \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	) || return $?
+		# Exit if user either pressed ESC or chose Cancel/No
+	f_dialog_data_sanitize disks
+
+	ZFSBOOT_DISKS="$disks"
+
+	return $DIALOG_OK
+}
+
+# dialog_menu_vdev
+#
+# Prompt the user to select a a Virtual Device type.
+#
+dialog_menu_vdev()
+{
+	local title="$DIALOG_TITLE"
+	local btitle="$DIALOG_BACKTITLE"
+	local prompt="$msg_select_virtual_device_type"
+	
+	# Make sure [potentially scripted] selections are real
+	real_disks=
+	for disk in $ZFSBOOT_DISKS; do
+		f_struct device_$disk && real_disks="$real_disks $disk"
+	done
+	# Make sure we have at least one real disk selected
+	ndisks=$( set -- $real_disks; echo $# )
+
+	local menu_list="
+		'stripe' '$msg_stripe_desc' '$msg_stripe_help'
+		'mirror' '$msg_mirror_desc' '$msg_mirror_help'
+		'raidz1' '$msg_raidz1_desc' '$msg_raidz1_help'
+		'raidz2' '$msg_raidz2_desc' '$msg_raidz2_help'
+		'raidz3' '$msg_raidz3_desc' '$msg_raidz3_help'
+	" # END-QUOTE
+
+	local defaultitem="$ZFSBOOT_VDEV_TYPE"
+	local hline="$hline_arrows_tab_enter"
+	local error_msg revalidate_choice
+
+	local mheight mwidth mrows
+	eval f_dialog_menu_size mheight mwidth mrows \
+		\"\$title\" \"\$btitle\" \"\$prompt\" \"\$hline\" $menu_list
+	local iheight iwidth
+	f_dialog_infobox_size iheight iwidth \
+		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$msg_processing_selection"
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$title\"              \
+		--backtitle \"\$btitle\"         \
+		--hline \"\$hline\"              \
+		--ok-label \"\$msg_ok\"          \
+		--cancel-label \"\$msg_cancel\"  \
+		--item-help                      \
+		--default-item \"\$defaultitem\" \
+		--menu \"\$prompt\"              \
+		$mheight $mwidth $mrows          \
+		$menu_list                       \
+		--and-widget                     \
+		${USE_XDIALOG:+--no-buttons}     \
+		--infobox \"\$msg_processing_selection\" \
+		$iheight $iwidth                 \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	) || return $FAILURE
+	f_dialog_data_sanitize menu_choice
+	sleep 0.5 # Give time to read `--and-widget --info-box'
+
+	# Make sure we have enough disks for the desired vdev type
+	case "$menu_choice" in
+	stripe) want_disks=1 ;;
+	mirror) want_disks=2 ;;
+	raidz1) want_disks=3 ;;
+	raidz2) want_disks=4 ;;
+	raidz3) want_disks=5 ;;
+	*)
+		f_show_msg "$msg_invalid_virtual_device_type" \
+	                   "$menu_choice"
+		continue
+	esac
+	if [ $ndisks -lt $want_disks ]; then
+		msg_yes="$msg_change" msg_no="$msg_cancel" f_yesno \
+			"%s: $msg_not_enough_disks_selected\n%s" \
+			"$menu_choice" $ndisks $want_disks \
+			"$msg_invalid_virtual_device_type_help" ||
+			return $FAILURE
+		dialog_menu_vdev
+	else
+		ZFSBOOT_VDEV_TYPE="$menu_choice"
+	fi
+}
+
+# zfs_create_diskpart $disk $index
+#
+# For each block device to be used in the zpool, rather than just create the
+# zpool with the raw block devices (e.g., da0, da1, etc.) we create partitions
+# so we can have some real swap. This also provides wiggle room incase your
+# replacement drivers do not have the exact same sector counts.
+#
+# NOTE: The MBR layout is more complicated (GPT is preferred).
+#
+zfs_create_diskpart()
+{
+	local disk="$1" index="$2"
+	local funcname=zfs_create_diskpart
+	local disksize partsize
+
+	# Check arguments
+	[ "$disk" -a "$index" ] || return $FAILURE
+
+	#
+	# Destroy whatever partition layout is currently on disk.
+	# NOTE: `-F' required to destroy if partitions still exist.
+	# NOTE: Failure is ok here, blank disk will have nothing to destroy.
+	#
+	f_quietly gpart destroy -F $disk
+	f_quietly zpool labelclear -f /dev/$disk # Kill it with fire
+
+	# Make doubly-sure backup GPT is destroyed
+	f_quietly gpart create -s gpt $disk || return $FAILURE
+	f_quietly gpart destroy -F $disk || return $FAILURE
+
+	# Calculate partition size given desired amount of swap
+	device_$disk get capacity disksize || return $FAILURE
+	partsize=$(( $disksize - $swapsize ))
+
+	#
+	# Lay down the desired type of partition scheme
+	#
+	local setsize mbrindex
+	case "$ZFSBOOT_PARTITION_SCHEME" in
+	""|GPT)
+		#
+		# 1. Create GPT layout using labels
+		#
+		gpart create -s gpt $disk || return $FAILURE
+
+		#
+		# 2. Add small freebsd-boot partition labeled `boot#'
+		#
+		gpart add -l gptboot$index -t freebsd-boot -s 512k $disk ||
+			return $FAILURE
+		gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 $disk ||
+			return $FAILURE
+
+		# zpool will use the `zfs#' GPT labels
+		bootpart=p2 targetpart=p2
+
+		# Change things around if we are using GELI
+		if [ "$ZFSBOOT_GELI_ENCRYPTION" ]; then
+			bootpart=p2 targetpart=p3
+			partsize=$(( $partsize - $gelisize ))
+			gpart add -l boot$index -t freebsd-zfs \
+				-s ${gelisize}b -a 1m $disk || return $FAILURE
+			# Pedantically nuke any old labels, stop geli
+			f_quietly zpool labelclear -f /dev/$disk$bootpart
+			f_quietly geli detach -f /dev/$disk$targetpart
+		fi
+
+		#
+		# 3. Add freebsd-zfs partition labeled `zfs#' for zpool
+		# NOTE: Using above calculated partsize to leave room for swap.
+		#
+		[ $swapsize -gt 0 ] && setsize="-s ${partsize}b"
+		gpart add -l zfs$index -t freebsd-zfs $setsize -a 1m $disk ||
+			return $FAILURE
+		f_quietly zpool labelclear -f /dev/$disk$targetpart # Pedantic
+
+		#
+		# 4. Add freebsd-swap partition labeled `swap#'
+		#
+		if [ $swapsize -gt 0 ]; then
+			gpart add -l swap$index -t freebsd-swap -a 1m $disk ||
+				return $FAILURE
+			# Update fstab(5)
+			printf "$fstab_fmt" \
+				/dev/gpt/swap$index none swap sw 0 0 \
+				>> $BSDINSTALL_TMPETC/fstab || return $FAILURE
+		fi
+		;;
+
+	MBR)
+		#
+		# 1. Create MBR layout (no labels)
+		#
+		gpart create -s mbr $disk || return $FAILURE
+		gpart bootcode -b /boot/boot0 $disk || return $FAILURE
+
+		#
+		# 2. Add freebsd slice with all available space
+		#
+		gpart add -t freebsd $disk || return $FAILURE
+		gpart set -a active -i 1 $disk || return $FAILURE
+		f_quietly zpool labelclear -f /dev/${disk}s1 # Pedantic
+		f_quietly gpart destroy -F ${disk}s1 # Pedantic
+
+		#
+		# 3. Write BSD sceme to the freebsd slice
+		#
+		gpart create -s BSD ${disk}s1 || return $FAILURE
+
+		# zpool will use s1a (no labels)
+		bootpart=s1a targetpart=s1a mbrindex=1
+
+		# Change things around if we are using GELI
+		if [ "$ZFSBOOT_GELI_ENCRYPTION" ]; then
+			bootpart=s1a targetpart=s1d
+			partsize=$(( $partsize - $gelisize ))
+			mbrindex=4 # If this is s1a then make the zpool s1d
+			gpart add -t freebsd-zfs -i 1 -s ${gelisize}b \
+				${disk}s1 || return $FAILURE
+			# Pedantically nuke any old labels, stop geli
+			f_quietly zpool labelclear -f /dev/$disk$bootpart
+			f_quietly geli detach -f /dev/$disk$targetpart
+		fi
+
+		#
+		# 4. Partition the BSD slice for ZFS
+		# NOTE: Using above calculated partsize to leave room for swap.
+		#
+		[ $swapsize -gt 0 ] && setsize="-s ${partsize}b"
+		gpart add -t freebsd-zfs -i $mbrindex $setsize ${disk}s1 || 
+			return $FAILURE
+		f_quietly zpool labelclear -f /dev/$disk$targetpart # Pedantic
+
+		#
+		# 5. Add freebsd-swap partition
+		#
+		if [ $swapsize -gt 0 ]; then
+			gpart add -t freebsd-swap -i 2 ${disk}s1 || 
+				return $FAILURE
+			# Update fstab(5)
+			printf "$fstab_fmt" /dev/${disk}s1b none swap sw 0 0 \
+				>> $BSDINSTALL_TMPETC/fstab || return $FAILURE
+		fi
+		;;
+
+	*)
+		printf "%s: %s is an unsupported partition scheme" \
+		       "$funcname" "$ZFSBOOT_PARTITION_SCHEME" >&2
+		return $FAILURE
+
+	esac # $ZFSBOOT_PARTITION_SCHEME
+
+	return $SUCCESS
+}
+
+# zfs_create_boot $poolname $vdev_type $real_disks ...
+#
+# Creates boot pool and dataset layout. Returns error if something goes wrong.
+# Errors are printed to stderr for collection and display.
+#
+zfs_create_boot()
+{
+	local poolname="$1" vdev_type="$2"
+	local fstab_fmt="%s\t\t%s\t%s\t%s\t\t%s\t%s\n"
+	local funcname=zfs_create_boot
+	local bootpart targetpart
+
+	shift 2 # name vdev_type
+
+	# We may need this later
+	local realdisks=$*
+
+	# Pedantic checks; should never be seen
+	if [ ! "$poolname" ]; then
+		echo "$funcname: NULL poolname" >&2
+		return $FAILURE
+	fi
+	if [ $# -lt 1 ]; then
+		echo "$funcname: missing disk arguments" >&2
+		return $FAILURE
+	fi
+
+	# Initialize fstab(5)
+	printf "$fstab_fmt" \
+		"# Device" Mountpoint FStype Options Dump "Pass#" \
+		>> $BSDINSTALL_TMPETC/fstab || return $FAILURE
+
+	# Expand SI units in desired sizes
+	local swapsize gelisize
+	f_expand_number "$ZFSBOOT_SWAP_SIZE" swapsize || return $FAILURE
+	f_expand_number "$ZFSBOOT_GELI_BOOT_SIZE" gelisize || return $FAILURE
+
+	# Prepare the disks
+	local n=0
+	for disk in $*; do
+		zfs_create_diskpart $disk $n || return $FAILURE
+		n=$(( $n + 1 ))
+	done
+
+	# MBR boot loader hack part 1
+	# We have to do this early because geli gets in the way later
+	if [ "$ZFSBOOT_PARTITION_SCHEME" = "MBR" ]; then
+		for disk in $realdisks; do
+			dd if=/boot/zfsboot of=/dev/${disk}s1 count=1 ||
+				return $FAILURE
+		done
+	fi
+
+	# Forced 4k alignment support provided by Geom NOP (see gnop(8))
+	local unenc_list=
+	if [ "$ZFSBOOT_GNOP_4K_FORCE_ALIGN" ]; then
+		local new_list=
+		for disk in $*; do
+			if [ "$ZFSBOOT_GELI_ENCRYPTION" ]; then
+				# We don't gnop the encrypted partition 
+				# because geli will do this for us
+				# gnop the unencrypted disk
+				gnop create -S 4096 $disk$bootpart ||
+					return $FAILURE
+				unenc_list="$unenc_list $disk$bootpart.nop"
+			else
+				gnop create -S 4096 $disk$targetpart ||
+					return $FAILURE
+				new_list="$new_list $disk$targetpart.nop"
+			fi
+		done
+		set -- $new_list
+	else
+		local new_list=
+		for disk in $*; do
+			new_list="$new_list $disk$targetpart"
+			[ "$ZFSBOOT_GELI_ENCRYPTION" ] &&
+				unenc_list="$unenc_list $disk$bootpart"
+		done
+		set -- $new_list
+	fi
+
+	#
+	# If encryption is enabled, we need to create the GEOMs
+	#
+	if [ "$ZFSBOOT_GELI_ENCRYPTION" ]; then
+		local bootvdev=
+		local geli_pool="$BSDINSTALL_CHROOT/$ZFSBOOT_GELI_POOL_NAME"
+		local key="$ZFSBOOT_GELI_KEY_FILE"
+
+		# Create the parent directories for our unencrypted pool
+		f_quietly umount /mnt
+		mount -t tmpfs none $BSDINSTALL_CHROOT || return $FAILURE
+
+		# Create mirror across the unencrypted partition on all disks
+		[ $( set -- $unenc_list; echo $# ) -gt 1 ] && bootvdev=mirror
+
+		zpool create -o altroot=$BSDINSTALL_CHROOT \
+			-m "/$ZFSBOOT_GELI_POOL_NAME" -f \
+			"$ZFSBOOT_GELI_POOL_NAME" $bootvdev $unenc_list || 
+			return $FAILURE
+		mkdir -p $geli_pool/boot || return $FAILURE
+
+		# Generate an encryption key using random(4)
+		dd if=/dev/random of="$geli_pool/$key" bs=4096 count=1 ||
+			return $FAILURE
+
+		# Create the geli(8) GEOMS
+		local geli_list
+		msg_enter_new_password="$msg_geli_password" \
+			f_dialog_input_password || return $FAILURE
+		f_dialog_info "$msg_geli_setup" \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		for disk in $realdisks; do
+			echo "$pw_password" | geli init -b -B \
+				"$geli_pool/boot/$disk$targetpart.eli" \
+				-e AES-XTS -J - -K "$geli_pool/$key" -l 256 \
+				-s 4096 $disk$targetpart || return $FAILURE
+			echo "$pw_password" | geli attach -j - \
+				-k "$geli_pool/$key" $disk$targetpart || 
+				return $FAILURE
+			geli_list="$geli_list $disk$targetpart.eli"
+		done
+		set -- $geli_list
+		zfs unmount "$ZFSBOOT_GELI_POOL_NAME" || return $FAILURE
+		f_quietly umount /mnt # done with tmpfs
+	fi
+
+	#
+	# Create the ZFS pool with desired type and disk devices
+	#
+	zpool create -o altroot=$BSDINSTALL_CHROOT -m none -f \
+		"$poolname" $vdev_type $* || return $FAILURE
+
+	# Customize the zpool a bit...
+	zfs set checksum=fletcher4	"$poolname" || return $FAILURE
+	zfs set atime=off		"$poolname" || return $FAILURE
+
+	#
+	# Create ZFS dataset layout within the new boot pool
+	#
+	echo "$ZFSBOOT_DATASETS" | while read dataset options; do
+		# Skip blank lines and comments
+		case "$dataset" in "#"*|"") continue; esac
+		# Remove potential inline comments in options
+		options="${options%%#*}"
+		# Replace tabs with spaces
+		f_replaceall "$options" "	" " " options
+		# Reduce contiguous runs of space to one single space
+		oldoptions=
+		while [ "$oldoptions" != "$options" ]; do
+			oldoptions="$options"
+			f_replaceall "$options" "  " " " options
+		done
+		# Replace both commas and spaces with ` -o '
+		f_replaceall "$options" "[ ,]" " -o " options
+		# Create the dataset with desired options
+		zfs create ${options:+-o $options} "$poolname$dataset" ||
+			return $FAILURE
+	done
+
+	# Touch up permissions on the tmp directories
+	chmod 1777 $BSDINSTALL_CHROOT/tmp || return $FAILURE
+	chmod 1777 $BSDINSTALL_CHROOT/var/tmp || return $FAILURE
+
+	# Create symlink(s)
+	[ "$ZFSBOOT_GELI_ENCRYPTION" ] &&
+		{ ln -s $ZFSBOOT_GELI_POOL_NAME/boot $BSDINSTALL_CHROOT/boot ||
+			return $FAILURE; }
+
+	# Set bootfs property
+	zpool set bootfs="$poolname/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME" \
+		"$poolname" || return $FAILURE
+
+	# Export the pool(s)
+	zpool export "$poolname" || return $FAILURE
+	[ "$ZFSBOOT_GELI_ENCRYPTION" ] &&
+		{ zpool export "$ZFSBOOT_GELI_POOL_NAME" || return $FAILURE; }
+
+	# Destroy the gnop devices (if enabled)
+	for disk in ${ZFSBOOT_GNOP_4K_FORCE_ALIGN:+$realdisks}; do
+		if [ "$ZFSBOOT_GELI_ENCRYPTION" ]; then
+			f_quietly gnop destroy $disk$bootpart.nop
+		else
+			f_quietly gnop destroy $disk$targetpart.nop
+		fi
+	done
+
+	# MBR boot loader hack part 2
+	if [ "$ZFSBOOT_PARTITION_SCHEME" = "MBR" ]; then
+		# Stick the ZFS boot loader in the "convienient hole" after 
+		# the ZFS internal metadata
+		for disk in $realdisks; do
+			dd if=/boot/zfsboot of=/dev/$disk$bootpart \
+				skip=1 seek=1024 || return $FAILURE
+		done
+	fi
+
+	# Re-import the ZFS pool(s)
+	zpool import -o altroot=$BSDINSTALL_CHROOT $poolname ||	return $FAILURE
+	[ "$ZFSBOOT_GELI_ENCRYPTION" ] &&
+		{ zpool import -o altroot=$BSDINSTALL_CHROOT \
+			"$ZFSBOOT_GELI_POOL_NAME" || return $FAILURE; }
+
+	# While this is apparently not needed, it seems to help MBR
+	mkdir -p $BSDINSTALL_CHROOT/boot/zfs || return $FAILURE
+	zpool set cachefile=$BSDINSTALL_CHROOT/boot/zfs/zpool.cache \
+		"$poolname" || return $FAILURE
+
+	# Last, but not least... add required lines to rc.conf(5)
+	# NOTE: We later concatenate these into their destination
+	echo 'zfs_enable="YES"' > $BSDINSTALL_TMPETC/rc.conf.zfs ||
+		return $FAILURE
+	echo 'zfs_load="YES"' > $BSDINSTALL_TMPBOOT/loader.conf.zfs ||
+		return $FAILURE
+
+	# We're all done unless we should go on to do encryption
+	[ "$ZFSBOOT_GELI_ENCRYPTION" ] || return $SUCCESS
+
+	#
+	# Configure geli(8)-based encryption
+	#
+	echo 'aesni_load="YES"' \
+		> $BSDINSTALL_TMPBOOT/loader.conf.aesni || return $FAILURE
+	echo 'geom_eli_load="YES"' \
+		> $BSDINSTALL_TMPBOOT/loader.conf.geli || return $FAILURE
+	printf 'vfs.root.mountfrom="zfs:%s/%s/%s"\n' "$poolname" \
+		"$ZFSBOOT_BEROOT_NAME" "$ZFSBOOT_BOOTFS_NAME" \
+		> $BSDINSTALL_TMPBOOT/loader.conf.root || return $FAILURE
+	for disk in $realdisks; do
+		printf 'geli_%s_keyfile0_load="YES"\n' \
+			"$disk$targetpart" \
+			> $BSDINSTALL_TMPBOOT/loader.conf.$disk$targetpart ||
+			return $FAILURE
+		printf 'geli_%s_keyfile0_type="%s:geli_keyfile0"\n' \
+			"$disk$targetpart" "$disk$targetpart" \
+			>> $BSDINSTALL_TMPBOOT/loader.conf.$disk$targetpart ||
+			return $FAILURE
+		printf 'geli_%s_keyfile0_name="%s"\n' \
+			"$disk$targetpart" "$ZFSBOOT_GELI_KEY_FILE" \
+			>> $BSDINSTALL_TMPBOOT/loader.conf.$disk$targetpart ||
+			return $FAILURE
+	done
+
+	return $SUCCESS
+}
+
+# dialog_menu_diskinfo
+#
+# Prompt the user to select a disk and then provide detailed info on it.
+#
+dialog_menu_diskinfo()
+{
+	local disk
+
+	#
+	# Break from loop when user cancels disk selection
+	#
+	while :; do
+		disk=$( msg_cancel="$msg_back" f_device_menu \
+			"$DIALOG_TITLE" "$msg_select_a_disk_device" "" \
+			$DEVICE_TYPE_DISK 2>&1 ) || break
+
+		# Show gpart(8) `show' and camcontrol(8) `inquiry' data
+		f_show_msg "$msg_detailed_disk_info" \
+			"$disk" "$( gpart show $disk 2> /dev/null )" \
+			"$disk" "$( camcontrol inquiry $disk 2> /dev/null )" \
+			"$disk" "$( camcontrol identify $disk 2> /dev/null )"
+	done
+
+	return $SUCCESS
+}
+
+############################################################ MAIN
+
+#
+# Initialize
+#
+f_dialog_title "$msg_zfs_configuration"
+f_dialog_backtitle "$msg_freebsd_installer"
+
+# User may have specifically requested ZFS-related operations be interactive
+! f_interactive && f_zfsinteractive && unset $VAR_NONINTERACTIVE
+
+#
+# Loop over the main menu until we've accomplished what we came here to do
+#
+while :; do
+	if ! f_interactive; then
+		retval=$DIALOG_OK
+		mtag=">>> $msg_create"
+	else
+		dialog_menu_main
+		retval=$?
+		f_dialog_menutag_fetch mtag
+	fi
+
+	f_dprintf "retval=%u mtag=[%s]" $reval "$mtag"
+	[ $retval -eq $DIALOG_OK ] || f_die
+
+	case "$mtag" in
+	">>> $msg_create")
+		#
+		# First, validate the user's selections
+		#
+
+		# Make sure they gave us a name for the pool
+		if [ ! "$ZFSBOOT_POOL_NAME" ]; then
+			f_show_msg "$msg_pool_name_cannot_be_empty"
+			f_interactive || f_die
+			continue
+		fi
+		# Make sure [potentially scripted] selections are real
+		real_disks=
+		for disk in $ZFSBOOT_DISKS; do
+			f_struct device_$disk && real_disks="$real_disks $disk"
+		done
+		# Make sure we have at least one real disk selected
+		ndisks=$( set -- $real_disks; echo $# )
+		if [ $ndisks -lt 1 ]; then
+			f_show_msg "$msg_no_disks_selected"
+			f_interactive || f_die
+			continue
+		fi
+		# Make sure we have enough disks for the desired vdev type
+		case "$ZFSBOOT_VDEV_TYPE" in
+		stripe) want_disks=1 ;;
+		mirror) want_disks=2 ;;
+		raidz1) want_disks=3 ;;
+		raidz2) want_disks=4 ;;
+		raidz3) want_disks=5 ;;
+		*)
+			f_show_msg "$msg_invalid_virtual_device_type" \
+		                   "$ZFSBOOT_VDEV_TYPE"
+			f_interactive || f_die
+			continue
+		esac
+		if [ $ndisks -lt $want_disks ]; then
+			f_show_msg "%s: $msg_not_enough_disks_selected" \
+			           "$ZFSBOOT_VDEV_TYPE" "$want_disks"
+			f_interactive || f_die
+			continue
+		fi
+		# Make sure each disk will be at least 50% ZFS
+		if f_expand_number "$ZFSBOOT_SWAP_SIZE" swapsize &&
+		   f_expand_number "$ZFSBOOT_GELI_BOOT_SIZE" gelisize
+		then
+			minsize=$swapsize teeny_disks=
+			[ "$ZFSBOOT_GELI_ENCRYPTION" ] &&
+				minsize=$(( $minsize + $gelisize ))
+			for disk in $real_disks; do
+				device_$disk get capacity disksize || continue
+				disksize=$(( $disksize - $minsize ))
+				[ $disksize -lt $minsize ] &&
+					teeny_disks="$teeny_disks $disk"
+			done
+			if [ "$teeny_disks" ]; then
+				f_show_msg "$msg_these_disks_are_too_small" \
+				           "$ZFSBOOT_SWAP_SIZE" \
+				           "$ZFSBOOT_GELI_BOOT_SIZE" \
+				           "$teeny_disks"
+				f_interactive || f_die
+				continue
+			fi
+		fi
+
+		#
+		# Last Chance!
+		#
+		if [ ! "$USE_XDIALOG" ]; then
+			f_interactive && DIALOG="$DIALOG --colors" f_noyes \
+				"$msg_last_chance_are_you_sure_color" \
+				"$ZFSBOOT_DISKS" || continue
+		else
+			f_interactive && f_noyes \
+				"$msg_last_chance_are_you_sure" \
+				"$ZFSBOOT_DISKS" || continue
+		fi
+
+		#
+		# Let's do this
+		#
+
+		vdev_type="$ZFSBOOT_VDEV_TYPE"
+
+		# Blank the vdev type for the default layout
+		[ "$vdev_type" = "stripe" ] && vdev_type=
+
+		if ! error=$( zfs_create_boot "$ZFSBOOT_POOL_NAME" \
+			"$vdev_type" $real_disks 2>&1 )
+		then
+			f_dialog_msgbox "$error"
+			f_interactive || f_die
+			continue
+		fi
+
+		break # to success
+		;;
+	"- $msg_rescan_devices") f_device_rescan ;;
+	"- $msg_disk_info") dialog_menu_diskinfo ;;
+	?" $msg_pool_name")
+		# Prompt the user to input/change the name for the new pool
+		f_dialog_input input \
+			"$msg_please_enter_a_name_for_your_zpool" \
+			"$ZFSBOOT_POOL_NAME" &&
+			ZFSBOOT_POOL_NAME="$input"
+		;;
+	?" $msg_disks_to_use") dialog_edit_disks ;;
+	?" $msg_zfs_vdev_type") dialog_menu_vdev ;;
+	?" $msg_force_4k_sectors")
+		# Toggle the variable referenced both by the menu and later
+		if [ "$ZFSBOOT_GNOP_4K_FORCE_ALIGN" ]; then
+			ZFSBOOT_GNOP_4K_FORCE_ALIGN=
+		else
+			ZFSBOOT_GNOP_4K_FORCE_ALIGN=1
+		fi
+		;;
+	?" $msg_geli_encryption")
+		# Toggle the variable referenced both by the menu and later
+		if [ "$ZFSBOOT_GELI_ENCRYPTION" ]; then
+			ZFSBOOT_GELI_ENCRYPTION=
+		else
+			ZFSBOOT_GELI_ENCRYPTION=1
+		fi
+		;;
+	?" $msg_partition_scheme")
+		# Toggle between GPT and MBR
+		if [ "$ZFSBOOT_PARTITION_SCHEME" = GPT ]; then
+			ZFSBOOT_PARTITION_SCHEME=MBR
+		else
+			ZFSBOOT_PARTITION_SCHEME=GPT
+		fi
+		;;
+	?" $msg_swap_size")
+		# Prompt the user to input/change the swap size for each disk
+		f_dialog_input input \
+			"$msg_please_enter_amount_of_swap_space" \
+			"$ZFSBOOT_SWAP_SIZE" &&
+			ZFSBOOT_SWAP_SIZE="$input"
+		;;
+	esac
+done
+
+return $SUCCESS
+
+################################################################################
+# END
+################################################################################
