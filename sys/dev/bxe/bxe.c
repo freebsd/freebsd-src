@@ -2532,9 +2532,9 @@ bxe_sp_post(struct bxe_softc *sc,
         atomic_subtract_acq_long(&sc->cq_spq_left, 1);
     }
 
-    BLOGD(sc, DBG_SP, "SPQE -> %p\n", (void *)sc->spq_dma.paddr);
-    BLOGD(sc, DBG_SP, "FUNC_RDATA -> %p / %p\n",
-          BXE_SP(sc, func_rdata), (void *)BXE_SP_MAPPING(sc, func_rdata));
+    BLOGD(sc, DBG_SP, "SPQE -> %#jx\n", (uintmax_t)sc->spq_dma.paddr);
+    BLOGD(sc, DBG_SP, "FUNC_RDATA -> %p / %#jx\n",
+          BXE_SP(sc, func_rdata), (uintmax_t)BXE_SP_MAPPING(sc, func_rdata));
     BLOGD(sc, DBG_SP,
           "SPQE[%x] (%x:%x) (cmd, common?) (%d,%d) hw_cid %x data (%x:%x) type(0x%x) left (CQ, EQ) (%lx,%lx)\n",
           sc->spq_prod_idx,
@@ -6923,11 +6923,11 @@ bxe_alloc_fw_stats_mem(struct bxe_softc *sc)
     sc->fw_stats_data_mapping = (sc->fw_stats_dma.paddr +
                                  sc->fw_stats_req_size);
 
-    BLOGD(sc, DBG_LOAD, "statistics request base address set to %p\n",
-          (void *)sc->fw_stats_req_mapping);
+    BLOGD(sc, DBG_LOAD, "statistics request base address set to %#jx\n",
+          (uintmax_t)sc->fw_stats_req_mapping);
 
-    BLOGD(sc, DBG_LOAD, "statistics data base address set to %p\n",
-          (void *)sc->fw_stats_data_mapping);
+    BLOGD(sc, DBG_LOAD, "statistics data base address set to %#jx\n",
+          (uintmax_t)sc->fw_stats_data_mapping);
 
     return (0);
 }
