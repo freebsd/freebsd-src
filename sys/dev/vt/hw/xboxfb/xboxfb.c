@@ -121,7 +121,6 @@ xbox_bitblt(struct vt_device *vd, const uint8_t *src,
 
 	line = (VT_XBOX_WIDTH * top + left) * 4;
 	for (; height > 0; height--) {
-		line += VT_XBOX_WIDTH * 4;
 		for (c = 0; c < width; c++) {
 			if (c % 8 == 0)
 				b = *src++;
@@ -129,6 +128,7 @@ xbox_bitblt(struct vt_device *vd, const uint8_t *src,
 				b <<= 1;
 			MEM_WRITE4(sc, line + c * 4, b & 0x80 ? fgc : bgc);
 		}
+		line += VT_XBOX_WIDTH * 4;
 	}
 }
 

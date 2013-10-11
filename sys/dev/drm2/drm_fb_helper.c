@@ -127,7 +127,6 @@ vt_kms_bitblt(struct vt_device *vd, const uint8_t *src,
 
 	line = (sc->sc_stride * top) + left * sc->sc_depth/8;
 	for (; height > 0; height--) {
-		line += sc->sc_stride;
 		for (c = 0; c < width; c++) {
 			if (c % 8 == 0)
 				b = *src++;
@@ -149,6 +148,7 @@ vt_kms_bitblt(struct vt_device *vd, const uint8_t *src,
 				break;
 			}
 		}
+		line += sc->sc_stride;
 	}
 }
 
