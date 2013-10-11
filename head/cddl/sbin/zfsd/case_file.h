@@ -171,7 +171,12 @@ public:
 	bool ReEvaluate(const ZfsEvent &event);
 
 	/**
-	 * \breif Close a case if it is no longer relevant.
+	 * \brief Register an itimer callout for the given event, if necessary
+	 */
+	void RegisterCallout(const DevCtlEvent &event);
+
+	/**
+	 * \brief Close a case if it is no longer relevant.
 	 *
 	 * This method deals with cases tracking soft errors.  Soft errors
 	 * will be discarded should a remove event occur within a short period
@@ -210,12 +215,12 @@ protected:
 	static int  DeSerializeSelector(const struct dirent *dirEntry);
 
 	/**
-	 * \brief Given the name of a file containing a serialized CaseFile
-	 *        object, create/update an in-core CaseFile object
+	 * \brief Given the name of a file containing serialized events from a
+	 * 	  CaseFile object, create/update an in-core CaseFile object
 	 *        representing the serialized data.
 	 *
-	 * \param fileName  The name of a file containing a serialized
-	 *                  CaseFile object.
+	 * \param fileName  The name of a file containing serialized events
+	 *                  from a CaseFile object.
 	 */
 	static void DeSerializeFile(const char *fileName);
 
@@ -247,6 +252,15 @@ protected:
 	 * \brief Commit to file system storage.
 	 */
 	void Serialize();
+
+ 	/**
+	 * \brief Serializes the supplied event list and writes it to fd
+	 *
+	 * \param	prefix If not NULL, this prefix will be prepended to
+	 *                     every event in the file.
+	 */
+	void SerializeEvList(const DevCtlEventList events, int fd,
+	    const char* prefix=NULL) const;
 
 	/**
 	 * \brief Unconditionally close a CaseFile.

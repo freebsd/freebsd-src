@@ -250,6 +250,23 @@ DevCtlEvent::Process() const
 {
 }
 
+timeval
+DevCtlEvent::GetTimestamp() const
+{
+	timeval tv_timestamp;
+	struct tm tm_timestamp;
+
+	if ( ! Contains("timestamp") ) {
+		throw ZfsdException("Event contains no timestamp: %s",
+				m_eventString.c_str());
+	}
+	strptime(Value(string("timestamp")).c_str(), "%s", &tm_timestamp);
+	tv_timestamp.tv_sec = mktime(&tm_timestamp);
+	tv_timestamp.tv_usec = 0;
+	return (tv_timestamp);
+}
+
+
 //- DevCtlEvent Protected Methods ----------------------------------------------
 DevCtlEvent::DevCtlEvent(Type type, NVPairMap &map, const string &eventString)
  : m_type(type),

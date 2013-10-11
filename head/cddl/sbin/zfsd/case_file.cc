@@ -144,9 +144,17 @@ CaseFile::LogAll()
 void
 CaseFile::PurgeAll()
 {
-	/* CaseFiles remove themselves from this list on destruction. */
-	while (s_activeCases.size() != 0)
-		delete s_activeCases.front();
+	/*
+	 * Serialize casefiles before deleting them so that they can be reread
+	 * and revalidated during BuildCaseFiles.
+	 * CaseFiles remove themselves from this list on destruction.
+	 */
+	while (s_activeCases.size() != 0) {
+		CaseFile *casefile = s_activeCases.front();
+		casefile->Serialize();
+		delete casefile;
+	}
+
 }
 
 //- CaseFile Public Methods ----------------------------------------------------
@@ -388,9 +396,7 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 		|| event.Value("class") == "ereport.fs.zfs.checksum") {
 
 		m_tentativeEvents.push_front(event.DeepCopy());
-		if (!m_tentativeTimer.IsPending())
-			m_tentativeTimer.Reset(s_removeGracePeriod,
-					       OnGracePeriodEnded, this);
+		RegisterCallout(event);
 		consumed = true;
 	}
 
@@ -398,6 +404,33 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 
 	return (consumed || closed);
 }
+
+
+void
+CaseFile::RegisterCallout(const DevCtlEvent &event)
+{
+	timeval now, countdown, elapsed, timestamp, zero, remaining;
+	gettimeofday(&now, 0);
+	timestamp = event.GetTimestamp();
+	timersub(&now, &timestamp, &elapsed);
+	timersub(&s_removeGracePeriod, &elapsed, &countdown);
+	/*
+	 * If countdown is <= zero, Reset the timer to the
+	 * smallest positive time value instead
+	 */
+	timerclear(&zero);
+	if (timercmp(&countdown, &zero, <=)) {
+		timerclear(&countdown);
+		countdown.tv_usec = 1;
+	}
+
+	remaining = m_tentativeTimer.TimeRemaining();
+
+	if (!m_tentativeTimer.IsPending()
+			|| timercmp(&countdown, &remaining, <))
+		m_tentativeTimer.Reset(countdown, OnGracePeriodEnded, this);
+}
+
 
 bool
 CaseFile::CloseIfSolved()
@@ -478,7 +511,6 @@ CaseFile::DeSerializeFile(const char *fileName)
 	string	  evString;
 	CaseFile *existingCaseFile(NULL);
 	CaseFile *caseFile(NULL);
-	ifstream *caseStream(NULL);
 
 	try {
 		uintmax_t poolGUID;
@@ -511,8 +543,8 @@ CaseFile::DeSerializeFile(const char *fileName)
 						    .Find(vdevGUID)) == NULL) {
 				/*
 				 * Either the pool no longer exists
-				 * of this vdev is no longer a member of
-				 * the pool. 
+				 * or this vdev is no longer a member of
+				 * the pool.
 				 */
 				unlink(fullName.c_str());
 				return;
@@ -526,29 +558,58 @@ CaseFile::DeSerializeFile(const char *fileName)
 			caseFile = new CaseFile(Vdev(zpl.front(), vdevConf));
 		}
 
-		caseStream = new ifstream(fullName.c_str());
-		if ( (caseStream == NULL) || (! *caseStream) ) {
+		ifstream caseStream(fullName.c_str());
+		if (! caseStream) {
 			throw ZfsdException("CaseFile::DeSerialize: Unable to "
 			       "read %s.\n", fileName);
 			return;
 		}
-		IstreamReader caseReader(caseStream);
+		stringstream fakeDevdSocket(stringstream::in
+				| stringstream::out);
+		IstreamReader caseReader(&fakeDevdSocket);
 
 		/* Re-load EventData */
 		EventBuffer eventBuffer(caseReader);
-		while (eventBuffer.ExtractEvent(evString)) {
-			DevCtlEvent *event(DevCtlEvent::CreateEvent(evString));
-			if (event != NULL)
-				caseFile->m_events.push_back(event);
+		caseStream >> std::noskipws >> std::ws;
+		while (!caseStream.eof()) {
+			/*
+			 * Outline:
+			 * read the beginning of a line and check it for
+			 * "tentative".  If found, discard "tentative".
+			 * Shove into fakeDevdSocket.
+			 * call ExtractEvent
+			 * continue
+			 */
+			DevCtlEventList* destEvents;
+			string tentFlag("tentative ");
+			string line;
+			std::stringbuf lineBuf;
+			caseStream.get(lineBuf);
+			caseStream.ignore();  /*discard the newline character*/
+			line = lineBuf.str();
+			if (line.compare(0, tentFlag.size(), tentFlag) == 0) {
+				line.erase(0, tentFlag.size());
+				destEvents = &caseFile->m_tentativeEvents;
+			} else {
+				destEvents = &caseFile->m_events;
+			}
+			fakeDevdSocket << line;
+			fakeDevdSocket << '\n';
+			while (eventBuffer.ExtractEvent(evString)) {
+				DevCtlEvent *event(DevCtlEvent::CreateEvent(
+							evString));
+				if (event != NULL) {
+					destEvents->push_back(event);
+					caseFile->RegisterCallout(*event);
+				}
+			}
 		}
-		delete caseStream;
+
 	} catch (const ParseException &exp) {
 
 		exp.Log(evString);
 		if (caseFile != existingCaseFile)
 			delete caseFile;
-		if (caseStream)
-			delete caseStream;
 
 		/*
 		 * Since we can't parse the file, unlink it so we don't
@@ -560,8 +621,6 @@ CaseFile::DeSerializeFile(const char *fileName)
 		zfsException.Log();
 		if (caseFile != existingCaseFile)
 			delete caseFile;
-		if (caseStream)
-			delete caseStream;
 	}
 }
 
@@ -614,6 +673,24 @@ CaseFile::PurgeTentativeEvents()
 	m_tentativeEvents.clear();
 }
 
+
+void
+CaseFile::SerializeEvList(const DevCtlEventList events, int fd,
+		const char* prefix) const
+{
+	if (events.empty())
+		return;
+	for (DevCtlEventList::const_iterator curEvent = events.begin();
+	     curEvent != events.end(); curEvent++) {
+		const string &eventString((*curEvent)->GetEventString());
+
+		if (prefix)
+			write(fd, prefix, strlen(prefix));
+		write(fd, eventString.c_str(), eventString.length());
+	}
+}
+
+
 void
 CaseFile::Serialize()
 {
@@ -625,7 +702,7 @@ CaseFile::Serialize()
 		 << "_vdev_" << VdevGUIDString()
 		 << ".case";
 
-	if (m_events.empty()) {
+	if (m_events.empty() && m_tentativeEvents.empty()) {
 		unlink(saveFile.str().c_str());
 		return;
 	}
@@ -636,12 +713,8 @@ CaseFile::Serialize()
 		       saveFile.str().c_str());
 		return;
 	}
-	for (DevCtlEventList::const_iterator curEvent = m_events.begin();
-	     curEvent != m_events.end(); curEvent++) {
-		const string &eventString((*curEvent)->GetEventString());
-
-		write(fd, eventString.c_str(), eventString.length());
-	}
+	SerializeEvList(m_events, fd);
+	SerializeEvList(m_tentativeEvents, fd, "tentative ");
 	close(fd);
 }
 

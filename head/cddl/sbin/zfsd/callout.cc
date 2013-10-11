@@ -167,3 +167,37 @@ Callout::ExpireCallouts()
 		setitimer(ITIMER_REAL, &timerval, NULL);
 	}
 }
+
+timeval
+Callout::TimeRemaining() const
+{
+	/*
+	 * Outline: Add the m_interval for each callout in s_activeCallouts
+	 * ahead of this, except for the first callout.  Add to that the result
+	 * of getitimer (That's because the first callout stores its original
+	 * interval setting while the timer is ticking).
+	 */
+	itimerval timervalToAlarm;
+	timeval timeToExpiry;
+	std::list<Callout *>::iterator it;
+
+	if (! IsPending() ) {
+		timeToExpiry.tv_sec = INT_MAX;
+		timeToExpiry.tv_usec = 999999;	/*maximum normalized value*/
+		return (timeToExpiry);
+	}
+
+	timerclear(&timeToExpiry);
+	getitimer(ITIMER_REAL, &timervalToAlarm);
+	timeval& timeToAlarm = timervalToAlarm.it_value;
+	timeradd(&timeToExpiry, &timeToAlarm, &timeToExpiry);
+
+	it =s_activeCallouts.begin();
+	it++;	/*skip the first callout in the list*/
+	for (; it != s_activeCallouts.end(); it++) {
+		timeradd(&timeToExpiry, &(*it)->m_interval, &timeToExpiry);
+		if ((*it) == this)
+			break;
+	}
+	return (timeToExpiry);
+}
