@@ -240,6 +240,7 @@ f_variable_new VAR_IFCONFIG		ifconfig_
 f_variable_new VAR_IPADDR		ipaddr
 f_variable_new VAR_IPV6ADDR		ipv6addr
 f_variable_new VAR_IPV6_ENABLE		ipv6_activate_all_interfaces
+f_variable_new VAR_KEYMAP		keymap
 f_variable_new VAR_MEDIA_TIMEOUT	MEDIA_TIMEOUT
 f_variable_new VAR_MEDIA_TYPE		mediaType
 f_variable_new VAR_NAMESERVER		nameserver
