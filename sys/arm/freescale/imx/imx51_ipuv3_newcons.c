@@ -426,7 +426,7 @@ vt_imx_blank(struct vt_device *vd, term_color_t color)
 	case 2:
 		/* XXX must be 16bits colormap */
 		for (ofs = 0; ofs < (sc->sc_stride * sc->sc_height); ofs++)
-			*(uint16_t *)(sc->sc_vaddr + 2 * ofs) = c 0xffff;
+			*(uint16_t *)(sc->sc_vaddr + 2 * ofs) = c & 0xffff;
 		break;
 	case 3: /*  */
 		/* line 0 */
