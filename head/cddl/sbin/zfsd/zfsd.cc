@@ -43,6 +43,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/disk.h>
+#include <sys/filio.h>
 #include <sys/param.h>
 #include <sys/poll.h>
 #include <sys/socket.h>
@@ -86,6 +87,32 @@ const char       g_devdSock[] = "/var/run/devd.pipe";
 int              g_debug = 0;
 libzfs_handle_t *g_zfsHandle;
 
+/*-------------------------------- FDReader    -------------------------------*/
+//- FDReader Public Methods ----------------------------------------------------
+size_t
+FDReader::in_avail() const
+{
+	int bytes;
+	if (ioctl(m_fd, FIONREAD, &bytes)) {
+		syslog(LOG_ERR, "ioctl FIONREAD: %s", strerror(errno));
+		return (0);
+	}
+	return (bytes);
+}
+
+
+/*-------------------------------- IstreamReader   ---------------------------*/
+//- IstreamReader Public Methods ----------------------------------------------
+ssize_t
+IstreamReader::read(char* buf, size_t count)
+{
+	m_stream->read(buf, count);
+	if (m_stream->fail())
+		return (-1);
+	return (m_stream->gcount());
+}
+
+
 /*-------------------------------- EventBuffer -------------------------------*/
 //- EventBuffer Static Data ----------------------------------------------------
 /**
@@ -104,8 +131,8 @@ const char EventBuffer::s_eventEndTokens[] = "\n";
 const char EventBuffer::s_keyPairSepTokens[] = " \t\n";
 
 //- EventBuffer Public Methods -------------------------------------------------
-EventBuffer::EventBuffer(int fd)
- : m_fd(fd),
+EventBuffer::EventBuffer(Reader& reader)
+ : m_reader(reader),
    m_validLen(0),
    m_parsedLen(0),
    m_nextEventOffset(0),
@@ -187,7 +214,8 @@ EventBuffer::ExtractEvent(string &eventString)
 bool
 EventBuffer::Fill()
 {
-	ssize_t result;
+	size_t avail;
+	ssize_t consumed(0);
 
 	/* Compact the buffer. */
 	if (m_nextEventOffset != 0) {
@@ -199,19 +227,26 @@ EventBuffer::Fill()
 	}
 
 	/* Fill any empty space. */
-	result = read(m_fd, m_buf + m_validLen, MAX_READ_SIZE - m_validLen);
-	if (result == -1) {
-		if (errno == EINTR || errno == EAGAIN)  {
-			return (false);
-		} else {
-			err(1, "Read from devd socket failed");
+	avail = m_reader.in_avail();
+	if (avail) {
+		size_t want;
+
+		want = std::min(avail, MAX_READ_SIZE - m_validLen);
+		consumed = m_reader.read(m_buf + m_validLen, want);
+		if (consumed == -1) {
+			if (errno == EINTR) {
+				return (false);
+			} else {
+				err(1, "EventBuffer::Fill(): Read failed");
+			}
 		}
 	}
-	m_validLen += result;
+
+	m_validLen += consumed;
 	/* Guarantee our buffer is always NUL terminated. */
 	m_buf[m_validLen] = '\0';
 
-	return (result > 0);
+	return (consumed > 0);
 }
 
 /*--------------------------------- ZfsDaemon --------------------------------*/
@@ -220,6 +255,7 @@ bool             ZfsDaemon::s_logCaseFiles;
 bool             ZfsDaemon::s_terminateEventLoop;
 char             ZfsDaemon::s_pidFilePath[] = "/var/run/zfsd.pid";
 pidfh           *ZfsDaemon::s_pidFH;
+FDReader*        ZfsDaemon::s_reader;
 int              ZfsDaemon::s_devdSockFD = -1;
 int              ZfsDaemon::s_signalPipeFD[2];
 bool		 ZfsDaemon::s_systemRescanRequested(false);
@@ -306,6 +342,7 @@ ZfsDaemon::Init()
 void
 ZfsDaemon::Fini()
 {
+	PurgeCaseFiles();
 	ClosePIDFile();
 }
 
@@ -387,10 +424,9 @@ ZfsDaemon::ConnectToDevd()
 		return (false);
 	}
 
-	/* Don't block on reads. */
-	if (fcntl(s_devdSockFD, F_SETFL, O_NONBLOCK) == -1)
-		err(1, "Unable to enable nonblocking behavior on devd socket");
 
+	/* Connect the stream to the file descriptor */
+	s_reader = new FDReader(s_devdSockFD);
 	syslog(LOG_INFO, "Connection to devd successful");
 	return (true);
 }
@@ -398,7 +434,10 @@ ZfsDaemon::ConnectToDevd()
 void
 ZfsDaemon::DisconnectFromDevd()
 {
+	delete s_reader;
+	s_reader = NULL;
 	close(s_devdSockFD);
+	s_devdSockFD = -1;
 }
 
 void
@@ -448,8 +487,8 @@ ZfsDaemon::FlushEvents()
 {
 	char discardBuf[256];
 
-	while (read(s_devdSockFD, discardBuf, sizeof(discardBuf)) > 0)
-		;
+	while (s_reader->in_avail())
+		s_reader->read(discardBuf, sizeof(discardBuf));
 }
 
 bool
@@ -528,6 +567,7 @@ ZfsDaemon::RescanSystem()
 				event = DevCtlEvent::CreateEvent(evString);
 				if (event != NULL)
 					event->Process();
+					delete event;
                         }
                 }
 	}
@@ -561,7 +601,7 @@ ZfsDaemon::DetectMissedEvents()
 void
 ZfsDaemon::EventLoop()
 {
-	EventBuffer eventBuffer(s_devdSockFD);
+	EventBuffer eventBuffer(*s_reader);
 
 	while (s_terminateEventLoop == false) {
 		struct pollfd fds[2];

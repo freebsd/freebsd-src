@@ -40,6 +40,7 @@
  */
 #include <dirent.h>
 #include <iomanip>
+#include <fstream>
 #include <sstream>
 #include <syslog.h>
 #include <unistd.h>
@@ -53,6 +54,7 @@
 /*============================ Namespace Control =============================*/
 using std::auto_ptr;
 using std::hex;
+using std::ifstream;
 using std::stringstream;
 using std::setfill;
 using std::setw;
@@ -116,8 +118,12 @@ CaseFile::DeSerialize()
 	int numCaseFiles(scandir(s_caseFilePath.c_str(), &caseFiles,
 			 DeSerializeSelector, /*compar*/NULL));
 
-	if (numCaseFiles == 0 || numCaseFiles == -1)
+	if (numCaseFiles == -1)
 		return;
+	if (numCaseFiles == 0) {
+		free(caseFiles);
+		return;
+	}
 
 	for (int i = 0; i < numCaseFiles; i++) {
 
@@ -472,7 +478,7 @@ CaseFile::DeSerializeFile(const char *fileName)
 	string	  evString;
 	CaseFile *existingCaseFile(NULL);
 	CaseFile *caseFile(NULL);
-	int	  fd(-1);
+	ifstream *caseStream(NULL);
 
 	try {
 		uintmax_t poolGUID;
@@ -519,28 +525,30 @@ CaseFile::DeSerializeFile(const char *fileName)
 			 */
 			caseFile = new CaseFile(Vdev(zpl.front(), vdevConf));
 		}
-		
-		fd = open(fullName.c_str(), O_RDONLY);
-		if (fd == -1) {
+
+		caseStream = new ifstream(fullName.c_str());
+		if ( (caseStream == NULL) || (! *caseStream) ) {
 			throw ZfsdException("CaseFile::DeSerialize: Unable to "
 			       "read %s.\n", fileName);
 			return;
 		}
+		IstreamReader caseReader(caseStream);
 
 		/* Re-load EventData */
-		EventBuffer eventBuffer(fd);
+		EventBuffer eventBuffer(caseReader);
 		while (eventBuffer.ExtractEvent(evString)) {
 			DevCtlEvent *event(DevCtlEvent::CreateEvent(evString));
 			if (event != NULL)
 				caseFile->m_events.push_back(event);
 		}
-		close(fd);
+		delete caseStream;
 	} catch (const ParseException &exp) {
 
 		exp.Log(evString);
 		if (caseFile != existingCaseFile)
 			delete caseFile;
-		close(fd);
+		if (caseStream)
+			delete caseStream;
 
 		/*
 		 * Since we can't parse the file, unlink it so we don't
@@ -552,6 +560,8 @@ CaseFile::DeSerializeFile(const char *fileName)
 		zfsException.Log();
 		if (caseFile != existingCaseFile)
 			delete caseFile;
+		if (caseStream)
+			delete caseStream;
 	}
 }
 
@@ -632,6 +642,7 @@ CaseFile::Serialize()
 
 		write(fd, eventString.c_str(), eventString.length());
 	}
+	close(fd);
 }
 
 void
