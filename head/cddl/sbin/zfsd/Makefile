@@ -8,7 +8,8 @@ SRCS=		callout.cc		\
 		vdev_iterator.cc	\
 		zfsd.cc			\
 		zfsd_exception.cc	\
-		zpool_list.cc
+		zpool_list.cc	\
+		zfsd_main.cc
 
 NO_MAN=		YES
 

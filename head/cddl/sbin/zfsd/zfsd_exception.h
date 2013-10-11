@@ -93,42 +93,6 @@ public:
 	ZfsdException(nvlist_t *poolConfig, const char *, ...);
 
 	/**
-	 * \brief ZfsdException constructor allowing arbitrary string
-	 *        data to be reported and associated with the configuration
-	 *        data for a single vdev and its parent pool.
-	 *
-	 * \param pool        Pool handle describing the pool to which this
-	 *                    exception is associated.
-	 * \param vdevConfig  A name/value list describing the vdev
-	 *                    to which this exception is associated.
-	 * \param fmt         Printf-like string format specifier.
-	 *
-	 * Instantiation with this method is used to report errors
-	 * associated with a vdev when both the vdev's config and
-	 * its pool membership are available.
-	 */
-	ZfsdException(zpool_handle_t *pool, nvlist_t *vdevConfig,
-		      const char *fmt, ...);
-
-	/**
-	 * \brief ZfsdException constructor allowing arbitrary string
-	 *        data to be reported and associated with the configuration
-	 *        data for a single vdev and its parent pool.
-	 *
-	 * \param poolConfig  Pool configuration describing the pool to
-	 *                    which this exception is associated.
-	 * \param vdevConfig  A name/value list describing the vdev
-	 *                    to which this exception is associated.
-	 * \param fmt         Printf-like string format specifier.
-	 *
-	 * Instantiation with this method is used to report errors
-	 * associated with a vdev when both the vdev's config and
-	 * its pool membership are available.
-	 */
-	ZfsdException(nvlist_t *poolConfig, nvlist_t *vdevConfig,
-		      const char *fmt, ...);
-
-	/**
 	 * \brief Augment/Modify a ZfsdException's string data.
 	 */
 	std::string& GetString();
