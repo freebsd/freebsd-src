@@ -42,6 +42,7 @@
 #define	_ZFSD_H_
 
 #include <cstdarg>
+#include <iostream>
 #include <list>
 #include <map>
 #include <utility>
@@ -57,6 +58,7 @@
 using std::auto_ptr;
 using std::map;
 using std::pair;
+using std::istream;
 using std::string;
 
 /*================================ Global Data ===============================*/
@@ -74,21 +76,131 @@ typedef int LeafIterFunc(zpool_handle_t *, nvlist_t *, void *);
 #define NUM_ELEMENTS(x) (sizeof(x) / sizeof(*x))
 
 /*============================= Class Definitions ============================*/
+
+/*-------------------------------- Reader  -------------------------------*/
+/**
+ * \brief A class that presents a common interface to both file descriptors and
+ * istreams .
+ *
+ * Standard C++ provides no way to create an iostream from a file descriptor or
+ * a FILE.  The GNU, Apache, HPUX, and Solaris C++ libraries all provide
+ * non-standard ways to construct such a stream using similar semantics, but
+ * LLVM does not.  Therefore this class is needed to ensure that zfsd can
+ * compile under LLVM.  This class supports only the functionality needed by
+ * ZFSD; it does not implement the iostream API.
+ */
+class Reader
+{
+public:
+	/**
+	 * \brief Return the number of bytes immediately available for reading
+	 */
+	virtual size_t	in_avail() const = 0;
+
+	/**
+	 * \brief Reads up to count bytes
+	 *
+	 * Whether this call blocks depends on the underlying input source.
+	 * On error, -1 is returned, and errno will be set by the underlying
+	 * source.
+	 *
+	 * \param buf   Destination for the data
+	 * \param count Maximum amount of data to read
+	 * \returns     Amount of data that was actually read
+	 */
+	virtual ssize_t read(char* buf, size_t count) = 0;
+};
+
+
+/*-------------------------------- FDReader    -------------------------------*/
+/**
+ * \brief Specialization of Reader that uses a file descriptor
+ */
+class FDReader : public Reader
+{
+public:
+	/**
+	 * \brief Constructor
+	 *
+	 * \param fd    An open file descriptor.  It will not be garbage
+	 *              collected by the destructor.
+	 */
+	FDReader(int fd);
+
+	virtual size_t in_avail() const;
+
+	virtual ssize_t read(char* buf, size_t count);
+
+protected:
+	/** Copy of the underlying file descriptor */
+	int	m_fd;
+};
+
+//- FDReader Inline Public Methods -----------------------------------------
+inline FDReader::FDReader(int fd)
+	: m_fd(fd)
+{
+}
+
+inline ssize_t
+FDReader::read(char* buf, size_t count)
+{
+	return (::read(m_fd, buf, count));
+}
+
+
+/*-------------------------------- IstreamReader------------------------------*/
+/**
+ * \brief Specialization of Reader that uses a std::istream
+ */
+class IstreamReader : public Reader
+{
+public:
+	/**
+	 * Constructor
+	 *
+	 * \param stream        Pointer to an open istream.  It will not be
+	 *                      garbage collected by the destructor.
+	 */
+	IstreamReader(istream* stream);
+
+	virtual size_t in_avail() const;
+
+	virtual ssize_t read(char* buf, size_t count);
+
+protected:
+	/** Copy of the underlying stream */
+	istream*	m_stream;
+};
+
+//- IstreamReader Inline Public Methods ----------------------------------------
+inline IstreamReader::IstreamReader(istream* stream)
+	: m_stream(stream)
+{
+}
+
+inline size_t
+IstreamReader::in_avail() const
+{
+	return (m_stream->rdbuf()->in_avail());
+}
+
+
 /*-------------------------------- EventBuffer -------------------------------*/
 /**
- * \brief Class buffering event data from Devd and splitting it
- *        into individual event strings.
+ * \brief Class buffering event data from Devd or a similar source and
+ * 	  splitting it into individual event strings.
  *
- * Users of this class initialize it with the file descriptor associated
- * with the unix domain socket connection with devd.  The lifetime of
- * an EventBuffer instance should match that of the file descriptor passed
- * to it.  This is required as data from partially received events is
- * retained in the EventBuffer in order to allow reconstruction of these
- * events across multiple reads of the Devd file descriptor.
+ * Users of this class initialize it with a Reader associated with the unix
+ * domain socket connection with devd or a compatible source.  The lifetime of
+ * an EventBuffer instance should match that of the Reader passed to it.  This
+ * is required as data from partially received events is retained in the
+ * EventBuffer in order to allow reconstruction of these events across multiple
+ * reads of the stream.
  *
- * Once the program determines that the Devd file descriptor is ready
- * for reading, the EventBuffer::ExtractEvent() should be called in a
- * loop until the method returns false.
+ * Once the program determines that the Reader is ready for reading, the
+ * EventBuffer::ExtractEvent() should be called in a loop until the method
+ * returns false.
  */
 class EventBuffer
 {
@@ -96,9 +208,9 @@ public:
 	/**
 	 * Constructor
 	 *
-	 * \param fd  The file descriptor on which to buffer/parse event data.
+	 * \param reader  The data source on which to buffer/parse event data.
 	 */
-	EventBuffer(int fd);
+	EventBuffer(Reader& reader);
 
 	/**
 	 * Pull a single event string out of the event buffer.
@@ -163,8 +275,8 @@ private:
 	/** Temporary space for event data during our parsing. */
 	char		    m_buf[EVENT_BUFSIZE];
 
-	/** Copy of the file descriptor linked to devd's domain socket. */
-	int		    m_fd;
+	/** Reference to the reader linked to devd's domain socket. */
+	Reader&	    	    m_reader;
 
 	/** Valid bytes in m_buf. */
 	size_t		    m_validLen;
@@ -360,6 +472,11 @@ private:
 	 * connection with devd.
 	 */
 	static int    s_devdSockFD;
+
+	/**
+	 * Reader object used by the EventBuffer
+	 */
+	static FDReader* s_reader;
 
 	/**
 	 * Pipe file descriptors used to close races with our
