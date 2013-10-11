@@ -26,6 +26,11 @@ if [ ! "$_STRINGS_SUBR" ]; then _STRINGS_SUBR=1
 #
 # $FreeBSD$
 #
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
 ############################################################ GLOBALS
 
 #
@@ -317,6 +322,112 @@ f_shell_unescape()
 {
 	local __string="$1" __var_to_set="$2"
 	f_replaceall "$__string" "'\\''" "'" "$__var_to_set"
+}
+
+# f_expand_number $string [$var_to_set]
+#
+# Unformat $string into a number, optionally to be stored in $var_to_set. This
+# function follows the SI power of two convention.
+#
+# The prefixes are:
+#
+# 	Prefix	Description	Multiplier
+# 	k	kilo		1024
+# 	M	mega		1048576
+# 	G	giga		1073741824
+# 	T	tera		1099511627776
+# 	P	peta		1125899906842624
+# 	E	exa		1152921504606846976
+#
+# NOTE: Prefixes are case-insensitive.
+#
+# Upon successful completion, the value 0 is returned (or stored to
+# $var_to_set); otherwise -1. Reasons for a -1 return include:
+#
+# 	Given $string contains no digits.
+# 	An unrecognized prefix was given.
+# 	Result too large to calculate.
+#
+f_expand_number()
+{
+	local __string="$1" __var_to_set="$2"
+	local __cp __num
+
+	# Remove any leading non-digits
+	while :; do
+		__cp="$__string"
+		__string="${__cp#[!0-9]}"
+		[ "$__string" = "$__cp" ] && break
+	done
+
+	# Return `-1' if string didn't contain any digits
+	if [ ! "$__string" ]; then
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" -1
+		else
+			echo -1
+		fi
+		return $FAILURE
+	fi
+
+	# Store the numbers
+	__num="${__string%%[!0-9]*}"
+
+	# Shortcut
+	if [ $__num -eq 0 ]; then
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" 0
+		else
+			echo 0
+		fi
+		return $SUCCESS
+	fi
+
+	# Remove all the leading numbers from the string to get at the prefix
+	while :; do
+		__cp="$__string"
+		__string="${__cp#[0-9]}"
+		[ "$__string" = "$__cp" ] && break
+	done
+
+	# Test for invalid prefix
+	case "$__string" in
+	""|[KkMmGgTtPpEe]*) : known prefix ;;
+	*)
+		# Unknown prefix
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" -1
+		else
+			echo -1
+		fi
+		return $FAILURE
+	esac
+
+	# Multiply the number out
+	case "$__string" in
+	[Kk]) __num=$(( $__num * 1024 )) ;;
+	[Mm]) __num=$(( $__num * 1048576 )) ;;
+	[Gg]) __num=$(( $__num * 1073741824 )) ;;
+	[Tt]) __num=$(( $__num * 1099511627776 )) ;;
+	[Pp]) __num=$(( $__num * 1125899906842624 )) ;;
+	[Ee]) __num=$(( $__num * 1152921504606846976 )) ;;
+	esac
+	if [ $__num -le 0 ]; then
+		# Arithmetic overflow
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" -1
+		else
+			echo -1
+		fi
+		return $FAILURE
+	fi
+
+	# Return the number
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" $__num
+	else
+		echo $__num
+	fi
 }
 
 ############################################################ MAIN
