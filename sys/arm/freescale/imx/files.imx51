@@ -48,4 +48,5 @@ dev/ofw/ofw_iicbus.c			optional fsliic
 
 # IPU - Image Processing Unit (frame buffer also)
 arm/freescale/imx/imx51_ipuv3.c		optional sc
+arm/freescale/imx/imx51_ipuv3_newcons.c	optional vt
 
