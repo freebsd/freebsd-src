@@ -158,7 +158,7 @@ typedef map<string, string> NVPairMap;
  *
  * All name => value data for events can be accessed via the Contains()
  * and Value() methods.  name => value pairs for data not explicitly
- * recieved as a a name => value pair are synthesized during parsing.  For
+ * recieved as a name => value pair are synthesized during parsing.  For
  * example, ATTACH and DETACH events have "device-name" and "parent"
  * name => value pairs added.
  */
@@ -276,6 +276,11 @@ public:
 	 */
 	virtual void Process()			const;
 
+	/**
+	 * Get the time that the event was created
+	 */
+	timeval GetTimestamp()			const;
+
 protected:
 	/** Table entries used to map a type to a user friendly string. */
 	struct EventTypeRecord
@@ -353,7 +358,8 @@ private:
 	/**
 	 * Ingest event data from the supplied string.
 	 *
-	 * \param eventString  The string of devd event data to parse.
+	 * \param[in] eventString	The string of devd event data to parse.
+	 * \param[out] nvpairs		Returns the parsed data
 	 */
 	static void ParseEventString(Type type, const string &eventString,
 				     NVPairMap &nvpairs);

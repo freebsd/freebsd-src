@@ -143,6 +143,11 @@ EventBuffer::EventBuffer(Reader& reader)
 bool
 EventBuffer::ExtractEvent(string &eventString)
 {
+	stringstream tsField;
+	timeval now;
+
+	gettimeofday(&now, NULL);
+	tsField << " timestamp=" << now.tv_sec;
 
 	while (UnParsed() > 0 || Fill()) {
 
@@ -160,7 +165,7 @@ EventBuffer::ExtractEvent(string &eventString)
 		size_t eventLen(strcspn(nextEvent, s_eventEndTokens));
 
 		if (!m_synchronized) {
-			/* Discard data until an end token is read. */ 
+			/* Discard data until an end token is read. */
 			if (nextEvent[eventLen] != '\0')
 				m_synchronized = true;
 			m_nextEventOffset += eventLen;
@@ -205,6 +210,17 @@ EventBuffer::ExtractEvent(string &eventString)
 			       "Truncated %d characters from event.",
 			       eventLen - fieldEnd);
 		}
+
+		/*
+		 * Add a timestamp as the final field of the event if it is
+		 * not already present.
+		 */
+		if ( eventString.find("timestamp=") == string::npos) {
+			eventString.insert(
+					eventString.find_last_not_of('\n') + 1,
+					tsField.str());
+		}
+
 		return (true);
 	}
 	return (false);
@@ -653,13 +669,13 @@ ZfsDaemon::EventLoop()
 			RescanSystem();
 		}
 
-		if ((fds->revents & POLLERR) != 0) {
+		if ((fds[0].revents & POLLERR) != 0) {
 			/* Try reconnecting. */
 			syslog(LOG_INFO, "Error on socket. Disconnecting.");
 			break;
 		}
 
-		if ((fds->revents & POLLHUP) != 0) {
+		if ((fds[0].revents & POLLHUP) != 0) {
 			/* Try reconnecting. */
 			syslog(LOG_INFO, "Hup on socket. Disconnecting.");
 			break;

@@ -117,6 +117,17 @@ public:
 	 */
 	bool  Reset(const timeval &interval, CalloutFunc_t *func, void *arg);
 
+	/**
+	 * \brief Calculate the remaining time until this Callout's timer
+	 * expires.
+	 *
+	 * The return value will be slightly greater than the actual time to
+	 * expiry.
+	 *
+	 * If the callout is not pending, returns INT_MAX.
+	 */
+	timeval TimeRemaining() const;
+
 private:
 	/**
 	 * All active callouts sorted by expiration time.  The callout
