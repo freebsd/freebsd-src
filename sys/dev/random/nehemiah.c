@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/selinfo.h>
 #include <sys/systm.h>
 
+#include <machine/segments.h>
 #include <machine/pcb.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
