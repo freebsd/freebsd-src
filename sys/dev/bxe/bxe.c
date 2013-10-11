@@ -34,7 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define BXE_DRIVER_VERSION "1.78.17"
+#define BXE_DRIVER_VERSION "1.78.18"
 
 #include "bxe.h"
 #include "ecore_sp.h"
@@ -936,8 +936,8 @@ bxe_dma_alloc(struct bxe_softc *sc,
     int rc;
 
     if (dma->size > 0) {
-        BLOGE(sc, "dma block '%s' already has size %lu\n", msg, 
-	  (unsigned long) dma->size);
+        BLOGE(sc, "dma block '%s' already has size %lu\n", msg,
+              (unsigned long)dma->size);
         return (1);
     }
 
@@ -14201,8 +14201,14 @@ bxe_media_detect(struct bxe_softc *sc)
     uint32_t phy_idx = bxe_get_cur_phy_idx(sc);
     switch (sc->link_params.phy[phy_idx].media_type) {
     case ELINK_ETH_PHY_SFPP_10G_FIBER:
-    case ELINK_ETH_PHY_SFP_1G_FIBER:
     case ELINK_ETH_PHY_XFP_FIBER:
+        BLOGI(sc, "Found 10Gb Fiber media.\n");
+        sc->media = IFM_10G_SR;
+        break;
+    case ELINK_ETH_PHY_SFP_1G_FIBER:
+        BLOGI(sc, "Found 1Gb Fiber media.\n");
+        sc->media = IFM_1000_SX;
+        break;
     case ELINK_ETH_PHY_KR:
     case ELINK_ETH_PHY_CX4:
         BLOGI(sc, "Found 10GBase-CX4 media.\n");
@@ -14213,8 +14219,14 @@ bxe_media_detect(struct bxe_softc *sc)
         sc->media = IFM_10G_TWINAX;
         break;
     case ELINK_ETH_PHY_BASE_T:
-        BLOGI(sc, "Found 10GBase-T media.\n");
-        sc->media = IFM_10G_T;
+        if (sc->link_params.speed_cap_mask[0] &
+            PORT_HW_CFG_SPEED_CAPABILITY_D0_10G) {
+            BLOGI(sc, "Found 10GBase-T media.\n");
+            sc->media = IFM_10G_T;
+        } else {
+            BLOGI(sc, "Found 1000Base-T media.\n");
+            sc->media = IFM_1000_T;
+        }
         break;
     case ELINK_ETH_PHY_NOT_PRESENT:
         BLOGI(sc, "Media not present.\n");
