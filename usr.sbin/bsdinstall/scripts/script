@@ -83,6 +83,7 @@ if [ -f /tmp/bsdinstall-installscript-ab ]; then
 	rm $BSDINSTALL_CHROOT/tmp/installscript
 fi
 
+bsdinstall entropy
 bsdinstall umount
 
 echo "Installation Completed at $(date)" >> $BSDINSTALL_LOG
