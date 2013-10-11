@@ -167,7 +167,7 @@ CaseFile::RefreshVdevState()
 		stringstream msg;
 		msg << "CaseFile::RefreshVdevState: Unknown pool for Vdev(";
 		msg << m_poolGUID << "," << m_vdevGUID << ").";
-		syslog(LOG_INFO, msg.str().c_str());
+		syslog(LOG_INFO, "%s", msg.str().c_str());
 			return (false);
 	}
 
