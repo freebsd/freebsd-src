@@ -612,7 +612,7 @@ ZfsEvent::Process() const
 	}
 
 	/* On config syncs, replay any queued events first. */
-	if (Value("type").find("ESC_ZFS_config_sync") == 0)
+	if (Value("type").find("misc.fs.zfs.config_sync") == 0)
 		ZfsDaemon::ReplayUnconsumedEvents();
 
 	Log(LOG_INFO);
@@ -676,7 +676,17 @@ ZfsEvent::Process() const
 
 	Vdev vdev(zpl.front(), vdevConfig);
 	caseFile = &CaseFile::Create(vdev);
-	caseFile->ReEvaluate(*this);
+	if ( caseFile->ReEvaluate(*this) == false) {
+		stringstream msg;
+		bool queued = ZfsDaemon::SaveEvent(*this);
+		int priority = queued ? LOG_INFO : LOG_ERR;
+		msg << "ZfsEvent::Process: Unconsumed event for vdev(";
+		msg << zpool_get_name(zpl.front()) << ",";
+		msg << vdev.GUID() << ") ";
+		msg << (queued ? "queued" : "dropped");
+		syslog(priority, msg.str().c_str());
+		return;
+	}
 }
 
 //- ZfsEvent Protected Methods -------------------------------------------------

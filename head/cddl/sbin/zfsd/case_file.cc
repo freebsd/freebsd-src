@@ -331,6 +331,7 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 	}
 
 	if (event.Value("class") == "resource.fs.zfs.removed") {
+		bool spare_activated;
 
 		/*
 		 * Discard any tentative I/O error events for
@@ -340,7 +341,7 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 		PurgeTentativeEvents();
 
 		/* Try to activate spares if they are available */
-		ActivateSpare();
+		spare_activated = ActivateSpare();
 
 		/*
 		 * Rescan the drives in the system to see if a recent
@@ -348,7 +349,13 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 		 */
 		ZfsDaemon::RequestSystemRescan();
 
-		consumed = true;
+		/* 
+		 * Consume the event if we successfully activated a spare.
+		 * Otherwise, leave it in the unconsumed events list so that the
+		 * future addition of a spare to this pool might be able to
+		 * close the case
+		 */
+		consumed = spare_activated;
 	} else if (event.Value("class") == "ereport.fs.zfs.io"
 		|| event.Value("class") == "ereport.fs.zfs.checksum") {
 
@@ -792,8 +799,16 @@ CaseFile::OnGracePeriodEnded()
 		/* Degrade the vdev and close the case. */
 		if (zpool_vdev_degrade(zpl.front(), (uint64_t)m_vdevGUID,
 				       VDEV_AUX_ERR_EXCEEDED) == 0) {
+			syslog(LOG_INFO, "Degrading vdev(%s/%s)",
+			    PoolGUIDString().c_str(), VdevGUIDString().c_str()); 
 			Close();
 			return;
+		}
+		else {
+			syslog(LOG_ERR, "Degrade vdev(%s/%s): %s: %s\n",
+			    PoolGUIDString().c_str(), VdevGUIDString().c_str(),
+			    libzfs_error_action(g_zfsHandle),
+			    libzfs_error_description(g_zfsHandle));
 		}
 	}
 	Serialize();
