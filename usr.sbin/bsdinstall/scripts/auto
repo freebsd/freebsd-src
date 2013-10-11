@@ -222,5 +222,8 @@ if [ $? -eq 0 ]; then
 	chroot "$BSDINSTALL_CHROOT" /bin/sh 2>&1
 fi
 
+bsdinstall entropy
+bsdinstall umount
+
 echo "Installation Completed at $(date)" >> $BSDINSTALL_LOG
 
