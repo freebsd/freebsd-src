@@ -43,11 +43,14 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <libutil.h>
+
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 
 #include "vmmapi.h"
 
+#define	MB	(1024 * 1024UL)
 #define	GB	(1024 * 1024 * 1024UL)
 
 struct vmctx {
@@ -124,7 +127,32 @@ vm_destroy(struct vmctx *vm)
 }
 
 int
-vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa, size_t *ret_len)
+vm_parse_memsize(const char *optarg, size_t *ret_memsize)
+{
+	char *endptr;
+	size_t optval;
+	int error;
+
+	optval = strtoul(optarg, &endptr, 0);
+	if (*optarg != '\0' && *endptr == '\0') {
+		/*
+		 * For the sake of backward compatibility if the memory size
+		 * specified on the command line is less than a megabyte then
+		 * it is interpreted as being in units of MB.
+		 */
+		if (optval < MB)
+			optval *= MB;
+		*ret_memsize = optval;
+		error = 0;
+	} else
+		error = expand_number(optarg, ret_memsize);
+
+	return (error);
+}
+
+int
+vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa, size_t *ret_len,
+		  int *wired)
 {
 	int error;
 	struct vm_memory_segment seg;
@@ -133,6 +161,8 @@ vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa, size_t *ret_len)
 	seg.gpa = gpa;
 	error = ioctl(ctx->fd, VM_GET_MEMORY_SEG, &seg);
 	*ret_len = seg.len;
+	if (wired != NULL)
+		*wired = seg.wired;
 	return (error);
 }
 
@@ -739,5 +769,25 @@ vcpu_reset(struct vmctx *vmctx, int vcpu)
 
 	error = 0;
 done:
+	return (error);
+}
+
+int
+vm_get_gpa_pmap(struct vmctx *ctx, uint64_t gpa, uint64_t *pte, int *num)
+{
+	int error, i;
+	struct vm_gpa_pte gpapte;
+
+	bzero(&gpapte, sizeof(gpapte));
+	gpapte.gpa = gpa;
+
+	error = ioctl(ctx->fd, VM_GET_GPA_PMAP, &gpapte);
+
+	if (error == 0) {
+		*num = gpapte.ptenum;
+		for (i = 0; i < gpapte.ptenum; i++)
+			pte[i] = gpapte.pte[i];
+	}
+
 	return (error);
 }

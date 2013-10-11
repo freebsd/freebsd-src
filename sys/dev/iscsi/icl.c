@@ -564,6 +564,7 @@ icl_conn_receive_pdu(struct icl_conn *ic, size_t *availablep)
 			    "MaxDataSegmentLength %zd; "
 			    "dropping connection",
 			    len, ic->ic_max_data_segment_length);
+			error = EINVAL;
 			break;
 		}
 
@@ -957,6 +958,7 @@ icl_pdu_queue(struct icl_pdu *ip)
 	if (ic->ic_disconnecting || ic->ic_socket == NULL) {
 		ICL_DEBUG("icl_pdu_queue on closed connection");
 		ICL_CONN_UNLOCK(ic);
+		icl_pdu_free(ip);
 		return;
 	}
 	TAILQ_INSERT_TAIL(&ic->ic_to_send, ip, ip_next);
@@ -1259,10 +1261,10 @@ icl_load(void)
 
 	icl_conn_zone = uma_zcreate("icl_conn",
 	    sizeof(struct icl_conn), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    UMA_ALIGN_PTR, 0);
 	icl_pdu_zone = uma_zcreate("icl_pdu",
 	    sizeof(struct icl_pdu), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    UMA_ALIGN_PTR, 0);
 
 	refcount_init(&icl_ncons, 0);
 }

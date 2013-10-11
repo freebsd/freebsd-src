@@ -39,19 +39,18 @@ struct seg_desc;
 struct vm_exit;
 struct vm_run;
 struct vlapic;
+struct vmspace;
+struct vm_object;
+struct pmap;
 
 enum x2apic_state;
 
 typedef int	(*vmm_init_func_t)(void);
 typedef int	(*vmm_cleanup_func_t)(void);
-typedef void *	(*vmi_init_func_t)(struct vm *vm); /* instance specific apis */
-typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip);
+typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
+typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip,
+				  struct pmap *pmap);
 typedef void	(*vmi_cleanup_func_t)(void *vmi);
-typedef int	(*vmi_mmap_set_func_t)(void *vmi, vm_paddr_t gpa,
-				       vm_paddr_t hpa, size_t length,
-				       vm_memattr_t attr, int prot,
-				       boolean_t superpages_ok);
-typedef vm_paddr_t (*vmi_mmap_get_func_t)(void *vmi, vm_paddr_t gpa);
 typedef int	(*vmi_get_register_t)(void *vmi, int vcpu, int num,
 				      uint64_t *retval);
 typedef int	(*vmi_set_register_t)(void *vmi, int vcpu, int num,
@@ -65,6 +64,8 @@ typedef int	(*vmi_inject_event_t)(void *vmi, int vcpu,
 				      uint32_t code, int code_valid);
 typedef int	(*vmi_get_cap_t)(void *vmi, int vcpu, int num, int *retval);
 typedef int	(*vmi_set_cap_t)(void *vmi, int vcpu, int num, int val);
+typedef struct vmspace * (*vmi_vmspace_alloc)(vm_offset_t min, vm_offset_t max);
+typedef void	(*vmi_vmspace_free)(struct vmspace *vmspace);
 
 struct vmm_ops {
 	vmm_init_func_t		init;		/* module wide initialization */
@@ -73,8 +74,6 @@ struct vmm_ops {
 	vmi_init_func_t		vminit;		/* vm-specific initialization */
 	vmi_run_func_t		vmrun;
 	vmi_cleanup_func_t	vmcleanup;
-	vmi_mmap_set_func_t	vmmmap_set;
-	vmi_mmap_get_func_t	vmmmap_get;
 	vmi_get_register_t	vmgetreg;
 	vmi_set_register_t	vmsetreg;
 	vmi_get_desc_t		vmgetdesc;
@@ -82,6 +81,8 @@ struct vmm_ops {
 	vmi_inject_event_t	vminject;
 	vmi_get_cap_t		vmgetcap;
 	vmi_set_cap_t		vmsetcap;
+	vmi_vmspace_alloc	vmspace_alloc;
+	vmi_vmspace_free	vmspace_free;
 };
 
 extern struct vmm_ops vmm_ops_intel;
@@ -93,9 +94,14 @@ const char *vm_name(struct vm *vm);
 int vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len);
 int vm_map_mmio(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t hpa);
 int vm_unmap_mmio(struct vm *vm, vm_paddr_t gpa, size_t len);
-vm_paddr_t vm_gpa2hpa(struct vm *vm, vm_paddr_t gpa, size_t size);
+void *vm_gpa_hold(struct vm *, vm_paddr_t gpa, size_t len, int prot,
+		  void **cookie);
+void vm_gpa_release(void *cookie);
 int vm_gpabase2memseg(struct vm *vm, vm_paddr_t gpabase,
 	      struct vm_memory_segment *seg);
+int vm_get_memobj(struct vm *vm, vm_paddr_t gpa, size_t len,
+		  vm_offset_t *offset, struct vm_object **object);
+boolean_t vm_mem_allocated(struct vm *vm, vm_paddr_t gpa);
 int vm_get_register(struct vm *vm, int vcpu, int reg, uint64_t *retval);
 int vm_set_register(struct vm *vm, int vcpu, int reg, uint64_t val);
 int vm_get_seg_desc(struct vm *vm, int vcpu, int reg,
@@ -130,8 +136,9 @@ void *vm_iommu_domain(struct vm *vm);
 
 enum vcpu_state {
 	VCPU_IDLE,
+	VCPU_FROZEN,
 	VCPU_RUNNING,
-	VCPU_CANNOT_RUN,
+	VCPU_SLEEPING,
 };
 
 int vcpu_set_state(struct vm *vm, int vcpu, enum vcpu_state state);
@@ -145,7 +152,9 @@ vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 
 void *vcpu_stats(struct vm *vm, int vcpu);
 void vm_interrupt_hostcpu(struct vm *vm, int vcpu);
-
+struct vmspace *vm_get_vmspace(struct vm *vm);
+int vm_assign_pptdev(struct vm *vm, int bus, int slot, int func);
+int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
 #endif	/* KERNEL */
 
 #include <machine/vmm_instruction_emul.h>
@@ -247,6 +256,7 @@ enum vm_exitcode {
 	VM_EXITCODE_MTRAP,
 	VM_EXITCODE_PAUSE,
 	VM_EXITCODE_PAGING,
+	VM_EXITCODE_INST_EMUL,
 	VM_EXITCODE_SPINUP_AP,
 	VM_EXITCODE_MAX
 };
@@ -266,8 +276,15 @@ struct vm_exit {
 		} inout;
 		struct {
 			uint64_t	gpa;
-			struct vie	vie;
+			int		fault_type;
+			int		protection;
 		} paging;
+		struct {
+			uint64_t	gpa;
+			uint64_t	gla;
+			uint64_t	cr3;
+			struct vie	vie;
+		} inst_emul;
 		/*
 		 * VMX specific payload. Used when there is no "better"
 		 * exitcode to represent the VM-exit.

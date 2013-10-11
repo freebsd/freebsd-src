@@ -385,4 +385,10 @@ class_remove_file(struct class *class, const struct class_attribute *attr)
 		sysfs_remove_file(&class->kobj, &attr->attr);
 }
 
+static inline int dev_to_node(struct device *dev)
+{
+                return -1;
+}
+
+
 #endif	/* _LINUX_DEVICE_H_ */

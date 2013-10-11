@@ -117,7 +117,7 @@ struct xen_ipi_handler
 enum xen_domain_type xen_domain_type = XEN_NATIVE;
 
 struct cpu_ops xen_hvm_cpu_ops = {
-	.ipi_vectored	= xen_ipi_vectored,
+	.ipi_vectored	= lapic_ipi_vectored,
 	.cpu_init	= xen_hvm_cpu_init,
 	.cpu_resume	= xen_hvm_cpu_resume
 };
@@ -535,7 +535,7 @@ xen_setup_cpus(void)
 		xen_cpu_ipi_init(i);
 
 	/* Set the xen pv ipi ops to replace the native ones */
-	cpu_ops = xen_hvm_cpu_ops;
+	cpu_ops.ipi_vectored = xen_ipi_vectored;
 }
 #endif
 
@@ -699,6 +699,8 @@ xen_hvm_init(enum xen_hvm_init_type init_type)
 			return;
 
 		setup_xen_features();
+		cpu_ops = xen_hvm_cpu_ops;
+ 		vm_guest = VM_GUEST_XEN;
 		break;
 	case XEN_HVM_INIT_RESUME:
 		if (error != 0)
@@ -742,6 +744,22 @@ xen_hvm_sysinit(void *arg __unused)
 }
 
 static void
+xen_set_vcpu_id(void)
+{
+	struct pcpu *pc;
+	int i;
+
+	/* Set vcpu_id to acpi_id */
+	CPU_FOREACH(i) {
+		pc = pcpu_find(i);
+		pc->pc_vcpu_id = pc->pc_acpi_id;
+		if (bootverbose)
+			printf("XEN: CPU %u has VCPU ID %u\n",
+			       i, pc->pc_vcpu_id);
+	}
+}
+
+static void
 xen_hvm_cpu_init(void)
 {
 	struct vcpu_register_vcpu_info info;
@@ -761,7 +779,7 @@ xen_hvm_cpu_init(void)
 	}
 
 	vcpu_info = DPCPU_PTR(vcpu_local_info);
-	cpu = PCPU_GET(acpi_id);
+	cpu = PCPU_GET(vcpu_id);
 	info.mfn = vtophys(vcpu_info) >> PAGE_SHIFT;
 	info.offset = vtophys(vcpu_info) - trunc_page(vtophys(vcpu_info));
 
@@ -777,3 +795,4 @@ SYSINIT(xen_hvm_init, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, xen_hvm_sysinit, NULL);
 SYSINIT(xen_setup_cpus, SI_SUB_SMP, SI_ORDER_FIRST, xen_setup_cpus, NULL);
 #endif
 SYSINIT(xen_hvm_cpu_init, SI_SUB_INTR, SI_ORDER_FIRST, xen_hvm_cpu_init, NULL);
+SYSINIT(xen_set_vcpu_id, SI_SUB_CPU, SI_ORDER_ANY, xen_set_vcpu_id, NULL);

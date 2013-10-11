@@ -360,6 +360,9 @@ versatile_pci_activate_resource(device_t bus, device_t child, int type, int rid,
 		res = (BUS_ACTIVATE_RESOURCE(device_get_parent(bus),
 		    child, type, rid, r));
 		break;
+	default:
+		res = ENXIO;
+		break;
 	}
 
 	return (res);

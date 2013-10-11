@@ -419,8 +419,9 @@ login_send_chap_c(struct pdu *request, const unsigned char id,
 	keys_add(response_keys, "CHAP_C", chap_c);
 	free(chap_c);
 	keys_save(response_keys, response);
-	keys_delete(response_keys);
 	pdu_send(response);
+	pdu_delete(response);
+	keys_delete(response_keys);
 }
 
 static struct pdu *
@@ -558,6 +559,7 @@ login_send_chap_success(struct pdu *request,
 
 	keys_delete(request_keys);
 	pdu_send(response);
+	pdu_delete(response);
 }
 
 static void

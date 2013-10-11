@@ -125,7 +125,6 @@ f_dialog_menu_media_ftp()
 		' $msg_germany #8'        'ftp8.de.freebsd.org'
 		'$msg_greece'             'ftp.gr.freebsd.org'
 		' $msg_greece #2'         'ftp2.gr.freebsd.org'
-		'$msg_iceland'            'ftp.is.freebsd.org'
 		'$msg_ireland'            'ftp3.ie.freebsd.org'
 		'$msg_israel'             'ftp.il.freebsd.org'
 		'$msg_italy'              'ftp.it.freebsd.org'
@@ -165,7 +164,6 @@ f_dialog_menu_media_ftp()
 		' $msg_sweden #2'         'ftp2.se.freebsd.org'
 		' $msg_sweden #3'         'ftp3.se.freebsd.org'
 		' $msg_sweden #4'         'ftp4.se.freebsd.org'
-		' $msg_sweden #5'         'ftp5.se.freebsd.org'
 		' $msg_sweden #6'         'ftp6.se.freebsd.org'
 		'$msg_switzerland'        'ftp.ch.freebsd.org'
 		'$msg_taiwan'             'ftp.tw.freebsd.org'
@@ -215,7 +213,7 @@ f_dialog_menu_media_ftp()
 		$height $width $rows            \
 		$menu_list                      \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	) || return $FAILURE
+	) || return $DIALOG_CANCEL
 	f_dialog_data_sanitize mtag
 
 	case "$mtag" in
@@ -226,7 +224,7 @@ f_dialog_menu_media_ftp()
 		setvar $VAR_FTP_PATH "ftp://$value"
 	esac
 	
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_media_set_ftp
@@ -742,7 +740,7 @@ f_media_init_ftp()
 			else
 				f_yesno "$msg_cant_find_distribution" \
 				        "$rel" "$ftp_host"
-				if [ $? -eq $SUCCESS ]; then
+				if [ $? -eq $DIALOG_OK ]; then
 					unset $VAR_FTP_PATH
 					f_media_set_ftp && continue
 				fi

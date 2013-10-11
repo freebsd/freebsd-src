@@ -31,7 +31,13 @@
 #ifndef _CAM_CAM_COMPAT_H
 #define _CAM_CAM_COMPAT_H
 
-int cam_compat_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td, d_ioctl_t *cbfnp);
+/* No user-servicable parts in here. */
+#ifdef _KERNEL
+
+int cam_compat_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
+    struct thread *td, int(*cbfnp)(struct cdev *, u_long, caddr_t, int,
+    struct thread *));
+
 
 /* Version 0x16 compatibility */
 #define CAM_VERSION_0x16	0x16
@@ -111,4 +117,4 @@ struct ccb_pathinq_0x17 {
 #define CAMGETPASSTHRU_0x17	_IOC(IOC_INOUT, CAM_VERSION_0x17, 3, CAM_0X17_LEN)
 
 #endif
-
+#endif

@@ -309,10 +309,10 @@ dialog_input_value()
 	f_dialog_title_restore
 
 	# Return if user has either pressed ESC or chosen Cancel/No
-	[ $retval -eq $SUCCESS ] || return $retval
+	[ $retval -eq $DIALOG_OK ] || return $retval
 
 	value="$_input"
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 ############################################################ MAIN
@@ -429,7 +429,7 @@ while :; do
 		;;
 	esac
 
-	[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n"
+	[ $? -eq $DIALOG_OK ] || f_dialog_msgbox "$err\n"
 done
 
 exit $SUCCESS
