@@ -642,7 +642,7 @@ ZfsEvent::Process() const
 		stringstream msg;
 		msg << "No replicas available for pool "  << poolGUID;
 		msg << ", ignoring";
-		syslog(LOG_INFO, msg.str().c_str());
+		syslog(LOG_INFO, "%s", msg.str().c_str());
 		return;
 	}
 
@@ -658,7 +658,7 @@ ZfsEvent::Process() const
 		msg << "ZfsEvent::Process: Event for unknown pool ";
 		msg << poolGUID << " ";
 		msg << (queued ? "queued" : "dropped");
-		syslog(priority, msg.str().c_str());
+		syslog(priority, "%s", msg.str().c_str());
 		return;
 	}
 
@@ -670,7 +670,7 @@ ZfsEvent::Process() const
 		msg << "ZfsEvent::Process: Event for unknown vdev ";
 		msg << VdevGUID() << " ";
 		msg << (queued ? "queued" : "dropped");
-		syslog(priority, msg.str().c_str());
+		syslog(priority, "%s", msg.str().c_str());
 		return;
 	}
 

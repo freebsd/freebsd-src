@@ -181,7 +181,8 @@ EventBuffer::ExtractEvent(string &eventString)
 				continue;
 			}
 			syslog(LOG_WARNING,
-			       "Event exceeds event size limit of %d bytes.");
+			       "Event exceeds event size limit of %d bytes.",
+			       MAX_EVENT_SIZE);
 		} else {
 			/*
 			 * Include the normal terminator in the extracted
@@ -206,7 +207,7 @@ EventBuffer::ExtractEvent(string &eventString)
 
 			m_synchronized = false;
 			syslog(LOG_WARNING,
-			       "Truncated %d characters from event.",
+			       "Truncated %zd characters from event.",
 			       eventLen - fieldEnd);
 		}
 
@@ -512,10 +513,31 @@ ZfsDaemon::EventsPending()
 	struct pollfd fds[1];
 	int	      result;
 
-	fds->fd      = s_devdSockFD;
-	fds->events  = POLLIN;
-	fds->revents = 0;
-	result = poll(fds, NUM_ELEMENTS(fds), /*timeout*/0);
+	do {
+		fds->fd      = s_devdSockFD;
+		fds->events  = POLLIN;
+		fds->revents = 0;
+		result = poll(fds, NUM_ELEMENTS(fds), /*timeout*/0);
+	} while ( (result == -1) && (errno == EINTR) ) ;
+
+	if (result == -1) {
+		/* Unexpected error; try reconnecting the socket */
+		throw ZfsdException(
+		   "ZfsdDaemon::EventsPending(): Unexpected error from poll()");
+	}
+
+	if ((fds->revents & POLLHUP) != 0) {
+		/* The other end hung up the socket.  Throw an exception
+		 * so ZfsDaemon will try to reconnect
+		 */
+		throw ZfsdException("ZfsDaemon::EventsPending(): Got POLLHUP");
+	}
+
+	if ((fds->revents & POLLERR) != 0) {
+		/* Try reconnecting. */
+		throw ZfsdException(
+		    "ZfsdDaemon:EventsPending(): Got POLLERR.  Reconnecting.");
+	}
 
 	return ((fds->revents & POLLIN) != 0);
 }
