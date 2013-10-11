@@ -210,13 +210,14 @@ protected:
 	 *
 	 * \param dirEntry  Directory entry for the file to filter.
 	 *
-	 * \return  Non-zero for a file to include in the selection, otherwise 0.
+	 * \return  Non-zero for a file to include in the selection,
+	 *          otherwise 0.
 	 */
 	static int  DeSerializeSelector(const struct dirent *dirEntry);
 
 	/**
 	 * \brief Given the name of a file containing serialized events from a
-	 * 	  CaseFile object, create/update an in-core CaseFile object
+	 *        CaseFile object, create/update an in-core CaseFile object
 	 *        representing the serialized data.
 	 *
 	 * \param fileName  The name of a file containing serialized events
@@ -253,14 +254,14 @@ protected:
 	 */
 	void Serialize();
 
- 	/**
+	/**
 	 * \brief Serializes the supplied event list and writes it to fd
 	 *
-	 * \param	prefix If not NULL, this prefix will be prepended to
-	 *                     every event in the file.
+	 * \param prefix  If not NULL, this prefix will be prepended to
+	 *                every event in the file.
 	 */
 	void SerializeEvList(const DevCtlEventList events, int fd,
-	    const char* prefix=NULL) const;
+			     const char* prefix=NULL) const;
 
 	/**
 	 * \brief Unconditionally close a CaseFile.
@@ -309,9 +310,9 @@ protected:
 	uint64_t	m_poolGUID;
 	uint64_t	m_vdevGUID;
 	vdev_state	m_vdevState;
-	string	        m_poolGUIDString;
-	string	        m_vdevGUIDString;
-	string	        m_vdevPhysPath;
+	string		m_poolGUIDString;
+	string		m_vdevGUIDString;
+	string		m_vdevPhysPath;
 
 	/**
 	 * \brief Callout activated when a grace period 

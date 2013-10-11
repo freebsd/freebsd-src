@@ -181,7 +181,7 @@ Callout::TimeRemaining() const
 	timeval timeToExpiry;
 	std::list<Callout *>::iterator it;
 
-	if (! IsPending() ) {
+	if (!IsPending()) {
 		timeToExpiry.tv_sec = INT_MAX;
 		timeToExpiry.tv_usec = 999999;	/*maximum normalized value*/
 		return (timeToExpiry);

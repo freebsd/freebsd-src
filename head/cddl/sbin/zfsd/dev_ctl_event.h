@@ -95,7 +95,7 @@ public:
 	 * Accessor
 	 *
 	 * \return  The offset into the event string where this exception
-	 *	    occurred.
+	 *          occurred.
 	 */
 	size_t GetOffset()			    const;
 
@@ -158,7 +158,7 @@ typedef map<string, string> NVPairMap;
  *
  * All name => value data for events can be accessed via the Contains()
  * and Value() methods.  name => value pairs for data not explicitly
- * recieved as a name => value pair are synthesized during parsing.  For
+ * received as a name => value pair are synthesized during parsing.  For
  * example, ATTACH and DETACH events have "device-name" and "parent"
  * name => value pairs added.
  */
@@ -219,7 +219,7 @@ public:
 	 *             associated value.
 	 *
 	 * \return  A const reference to the string representing the
-	 *	    value associated with key.
+	 *          value associated with key.
 	 *
 	 * \note  For key's with no registered value, the empty string
 	 *        is returned.
@@ -265,7 +265,7 @@ public:
 	 * Create and return a fully independent clone
 	 * of this event.
 	 */
-	virtual DevCtlEvent *DeepCopy() 	const = 0;
+	virtual DevCtlEvent *DeepCopy()		const = 0;
 
 	/** Destructor */
 	virtual ~DevCtlEvent();
@@ -358,8 +358,8 @@ private:
 	/**
 	 * Ingest event data from the supplied string.
 	 *
-	 * \param[in] eventString	The string of devd event data to parse.
-	 * \param[out] nvpairs		Returns the parsed data
+	 * \param[in] eventString  The string of devd event data to parse.
+	 * \param[out] nvpairs     Returns the parsed data
 	 */
 	static void ParseEventString(Type type, const string &eventString,
 				     NVPairMap &nvpairs);
@@ -470,11 +470,11 @@ public:
 	 * Interpret and perform any actions necessary to
 	 * consume the event.
 	 */
-	virtual void Process()	        const;
+	virtual void Process()		const;
 
-	const string &PoolName()        const;
-	uint64_t      PoolGUID()        const;
-	uint64_t      VdevGUID()        const;
+	const string &PoolName()	const;
+	uint64_t      PoolGUID()	const;
+	uint64_t      VdevGUID()	const;
 
 protected:
 	/** Constructor */
@@ -483,7 +483,7 @@ protected:
 	/** Deep copy constructor. */
 	ZfsEvent(const ZfsEvent &src);
 
-	void ProcessPoolEvent()         const;
+	void ProcessPoolEvent()		const;
 
 	uint64_t m_poolGUID;
 	uint64_t m_vdevGUID;
