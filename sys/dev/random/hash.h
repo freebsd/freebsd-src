@@ -26,6 +26,9 @@
  * $FreeBSD$
  */
 
+#ifndef SYS_DEV_RANDOM_HASH_H_INCLUDED
+#define SYS_DEV_RANDOM_HASH_H_INCLUDED
+
 #define	KEYSIZE		32	/* (in bytes) == 256 bits */
 #define	BLOCKSIZE	16	/* (in bytes) == 128 bits */
 
@@ -43,3 +46,5 @@ void randomdev_hash_iterate(struct randomdev_hash *, void *, size_t);
 void randomdev_hash_finish(struct randomdev_hash *, void *);
 void randomdev_encrypt_init(struct randomdev_key *, void *);
 void randomdev_encrypt(struct randomdev_key *context, void *, void *, unsigned);
+
+#endif

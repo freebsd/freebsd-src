@@ -30,38 +30,35 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/mutex.h>
+#include <sys/random.h>
 #include <sys/selinfo.h>
 #include <sys/systm.h>
 
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
-#include <dev/random/random_adaptors.h>
 #include <dev/random/randomdev.h>
+#include <dev/random/randomdev_soft.h>
+#include <dev/random/random_harvestq.h>
+#include <dev/random/live_entropy_sources.h>
+#include <dev/random/random_adaptors.h>
 
 #define	RETRY_COUNT	10
 
-static void random_ivy_init(void);
-static void random_ivy_deinit(void);
 static int random_ivy_read(void *, int);
 
-struct random_adaptor random_ivy = {
+static struct random_hardware_source random_ivy = {
 	.ident = "Hardware, Intel IvyBridge+ RNG",
-	.init = random_ivy_init,
-	.deinit = random_ivy_deinit,
-	.read = random_ivy_read,
-	.write = (random_write_func_t *)random_null_func,
-	.reseed = (random_reseed_func_t *)random_null_func,
-	.seeded = 1,
+	.source = RANDOM_PURE_RDRAND,
+	.read = random_ivy_read
 };
 
 static inline int
-ivy_rng_store(long *tmp)
+ivy_rng_store(uint64_t *tmp)
 {
 #ifdef __GNUCLIKE_ASM
 	uint32_t count;
@@ -86,34 +83,26 @@ ivy_rng_store(long *tmp)
 #endif
 }
 
-static void
-random_ivy_init(void)
-{
-}
-
-void
-random_ivy_deinit(void)
-{
-}
-
 static int
 random_ivy_read(void *buf, int c)
 {
-	char *b;
-	long tmp;
-	int count, res, retry;
+	uint8_t *b;
+	int count, ret, retry;
+	uint64_t tmp;
 
-	for (count = c, b = buf; count > 0; count -= res, b += res) {
+	b = buf;
+	for (count = c; count > 0; count -= ret) {
 		for (retry = 0; retry < RETRY_COUNT; retry++) {
-			res = ivy_rng_store(&tmp);
-			if (res != 0)
+			ret = ivy_rng_store(&tmp);
+			if (ret != 0)
 				break;
 		}
-		if (res == 0)
+		if (ret == 0)
 			break;
-		if (res > count)
-			res = count;
-		memcpy(b, &tmp, res);
+		if (ret > count)
+			ret = count;
+		memcpy(b, &tmp, ret);
+		b += ret;
 	}
 	return (c - count);
 }
@@ -121,25 +110,35 @@ random_ivy_read(void *buf, int c)
 static int
 rdrand_modevent(module_t mod, int type, void *unused)
 {
+	int error = 0;
 
 	switch (type) {
 	case MOD_LOAD:
-		if (cpu_feature2 & CPUID2_RDRAND) {
-			random_adaptor_register("rdrand", &random_ivy);
-			EVENTHANDLER_INVOKE(random_adaptor_attach, &random_ivy);
-			return (0);
-		} else {
+		if (cpu_feature2 & CPUID2_RDRAND)
+			live_entropy_source_register(&random_ivy);
+		else
 #ifndef KLD_MODULE
 			if (bootverbose)
 #endif
-				printf(
-			    "%s: RDRAND feature is not present on this CPU\n",
+				printf("%s: RDRAND is not present\n",
 				    random_ivy.ident);
-			return (0);
-		}
+		break;
+
+	case MOD_UNLOAD:
+		if (cpu_feature2 & CPUID2_RDRAND)
+			live_entropy_source_deregister(&random_ivy);
+		break;
+
+	case MOD_SHUTDOWN:
+		break;
+
+	default:
+		error = EOPNOTSUPP;
+		break;
+
 	}
 
-	return (EINVAL);
+	return (error);
 }
 
-RANDOM_ADAPTOR_MODULE(random_rdrand, rdrand_modevent, 1);
+LIVE_ENTROPY_SRC_MODULE(random_rdrand, rdrand_modevent, 1);
