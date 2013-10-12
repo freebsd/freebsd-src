@@ -26,10 +26,12 @@
  * $FreeBSD$
  */
 
-#ifndef __RANDOM_ADAPTORS_H__
-#define __RANDOM_ADAPTORS_H__
+#ifndef SYS_DEV_RANDOM_RANDOM_ADAPTORS_H_INCLUDED
+#define SYS_DEV_RANDOM_RANDOM_ADAPTORS_H_INCLUDED
 
 #include <sys/eventhandler.h>
+
+MALLOC_DECLARE(M_ENTROPY);
 
 struct random_adaptors {
 	LIST_ENTRY(random_adaptors) entries;	/* list of providers */
@@ -66,4 +68,4 @@ EVENTHANDLER_DECLARE(random_adaptor_attach, random_adaptor_attach_hook);
 SYSCTL_DECL(_kern_random);
 #endif /* SYSCTL_DECL */
 
-#endif /* __RANDOM_ADAPTORS_H__ */
+#endif /* SYS_DEV_RANDOM_RANDOM_ADAPTORS_H_INCLUDED */
