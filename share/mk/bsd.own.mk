@@ -192,6 +192,9 @@ NLSMODE?=	${NOBINMODE}
 
 INCLUDEDIR?=	/usr/include
 
+TESTSBASE?=	/usr/tests
+TESTSDIR?=	${TESTSBASE}/${RELDIR:S,/tests,,}
+
 #
 # install(1) parameters.
 #
