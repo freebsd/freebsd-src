@@ -1,5 +1,9 @@
 # $FreeBSD$
 
+.if ${MACHINE} == "common"
+COMPILER_TYPE= none
+.endif
+
 .if !defined(COMPILER_TYPE)
 . if ${CC:T:Mgcc*}
 COMPILER_TYPE:=	gcc  
