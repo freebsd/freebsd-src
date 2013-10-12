@@ -51,15 +51,19 @@ TARGET_ARCHES_mips?=    mipsel mips mips64el mips64 mipsn32
 TARGET_ARCHES_powerpc?= powerpc powerpc64
 TARGET_ARCHES_pc98?=    i386
 
+# some corner cases
+CSU_DIR.i386 = csu/i386-elf
+BOOT_MACHINE_DIR.amd64 = boot/i386
+MACHINE_ARCH.host = ${_HOST_ARCH}
+
 # the list of machines we support
 ALL_MACHINE_LIST?= amd64 arm i386 ia64 mips pc98 powerpc sparc64
 .for m in ${ALL_MACHINE_LIST:O:u}
 MACHINE_ARCH_LIST.$m?= ${TARGET_ARCHES_${m}:U$m}
 MACHINE_ARCH.$m?= ${MACHINE_ARCH_LIST.$m:[1]}
+BOOT_MACHINE_DIR.$m ?= boot/$m
 .endfor
-.if empty(MACHINE_ARCH)
 MACHINE_ARCH:= ${TARGET_ARCH:U${MACHINE_ARCH.${MACHINE}}}
-.endif
 
 .if !defined(_TARGETS)
 # some things we do only once
@@ -196,13 +200,14 @@ LDFLAGS_LAST+= -B${STAGE_LIBDIR} -L${STAGE_LIBDIR}
 CXXFLAGS_LAST += -isystem ${STAGE_OBJTOP}/usr/include/c++/${GCCVER:U4.2}
 # backward doesn't get searched if -nostdinc
 CXXFLAGS_LAST += -isystem ${STAGE_OBJTOP}/usr/include/c++/${GCCVER:U4.2}/backward
-CFLAGS_LAST.clang += -isystem ${STAGE_OBJTOP}/usr/include/clang/3.2
+CFLAGS_LAST.clang += -isystem ${STAGE_OBJTOP}/usr/include/clang/${CLANGVER:U3.3}
 CXXFLAGS_LAST += ${CFLAGS_LAST.${COMPILER_TYPE}}
 .else
 # if ld suppored sysroot, this would suffice
 CFLAGS_LAST+= --sysroot=${STAGE_OBJTOP}
 .endif
 .endif
+LDFLAGS_LAST+= -Wl,-rpath-link,${STAGE_LIBDIR}
 STAGED_INCLUDE_DIR= ${STAGE_OBJTOP}/usr/include
 .if ${USE_META:Uyes} == "yes"
 .include "meta.sys.mk"
@@ -226,12 +231,6 @@ UPDATE_DEPENDFILE= NO
 .endif
 
 .MAKE.META.BAILIWICK = ${SB} ${OBJROOT} ${STAGE_ROOT}
-
-# don't rely on MACHINE_ARCH being set or valid
-
-MACHINE_ARCH.host = ${_HOST_ARCH}
-MACHINE_ARCH.${MACHINE} ?= ${MACHINE}
-MACHINE_ARCH := ${MACHINE_ARCH.${MACHINE}}
 
 CSU_DIR.i386 = csu/i386-elf
 CSU_DIR.${MACHINE_ARCH} ?= csu/${MACHINE_ARCH}
