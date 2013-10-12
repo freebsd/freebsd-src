@@ -226,8 +226,7 @@ parse_options()
 
 		eval : \${jail_${_j}_fdescfs_enable:=${jail_fdescfs_enable:-NO}}
 		if checkyesno jail_${_j}_fdescfs_enable; then
-			echo "	mount += " \
-			    "\"fdescfs ${_rootdir%/}/dev/fd fdescfs rw 0 0\";"
+			echo "	mount.fdescfs;"
 		fi
 		eval : \${jail_${_j}_procfs_enable:=${jail_procfs_enable:-NO}}
 		if checkyesno jail_${_j}_procfs_enable; then
@@ -438,7 +437,7 @@ jail_start()
 			echo -n " ${_hostname:-${_jail}}"
 		else
 			echo " cannot start jail \"${_hostname:-${jail}}\": "
-			tail +2 $_tmp
+			cat $_tmp
 		fi
 		rm -f $_tmp
 	done
