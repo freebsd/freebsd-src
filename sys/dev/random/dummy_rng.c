@@ -102,6 +102,7 @@ struct random_adaptor dummy_random = {
 	.read = (random_read_func_t *)random_null_func,
 	.reseed = (random_reseed_func_t *)random_null_func,
 	.seeded = 0, /* This device can never be seeded */
+	.priority = 1, /* Bottom priority, so goes to last position */
 };
 
 static int
