@@ -93,7 +93,7 @@ _libiconv_compat.h:	${.CURDIR}/Makefile
 	echo "#undef __LIBICONV_COMPAT" >> _libiconv_compat.h
 .endif
 .endif
-	
+
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
@@ -178,6 +178,9 @@ compat:
 	    -f ${.CURDIR}/../etc/mtree/BIND.include.dist \
 	    -p ${DESTDIR}${INCLUDEDIR} > /dev/null
 .endif
+.if ${MK_META_MODE} == "yes"
+	touch ${.TARGET}
+.endif
 
 copies:
 .for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} altq crypto machine machine/pc \
@@ -257,6 +260,9 @@ copies:
 	cd ${.CURDIR}/../sys/rpc; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 types.h \
 	    ${DESTDIR}${INCLUDEDIR}/rpc
+.if ${MK_META_MODE} == "yes"
+	touch ${.TARGET}
+.endif
 
 symlinks:
 	@${ECHO} "Setting up symlinks to kernel source tree..."
@@ -369,3 +375,6 @@ symlinks:
 		ln -fs ../../../sys/rpc/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/rpc; \
 	done
+.if ${MK_META_MODE} == "yes"
+	touch ${.TARGET}
+.endif
