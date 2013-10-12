@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 10, 2013
+.Dd October 12, 2013
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3992,9 +3992,7 @@ set from
 .Va jail_ Ns Ao Ar jname Ac Ns Va _fstab
 .It Li mount
 set from
-.Va jail_ Ns Ao Ar jname Ac Ns Va _fdescfs_enable
-or
-.Va jail_ Ns Ao Ar jname Ac Ns Va _procfs_enable.
+.Va jail_ Ns Ao Ar jname Ac Ns Va _procfs_enable .
 .It Li exec.fib
 set from
 .Va jail_ Ns Ao Ar jname Ac Ns Va _fib
@@ -4042,6 +4040,9 @@ set from
 .Va jail_ Ns Ao Ar jname Ac Ns Va _devfs_ruleset .
 This must be an integer,
 not a string.
+.It Li mount.fdescfs
+set from
+.Va jail_ Ns Ao Ar jname Ac Ns Va _fdescfs_enable
 .It Li allow.set_hostname
 set from
 .Va jail_ Ns Ao Ar jname Ac Ns Va _set_hostname_allow
