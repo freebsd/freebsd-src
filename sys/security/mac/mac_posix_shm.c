@@ -133,7 +133,7 @@ mac_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd, int prot,
 }
 
 MAC_CHECK_PROBE_DEFINE3(posixshm_check_open, "struct ucred *",
-    "struct shmfd *", "accmode_t accmode");
+    "struct shmfd *", "accmode_t");
 
 int
 mac_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
@@ -225,6 +225,40 @@ mac_posixshm_check_setowner(struct ucred *cred, struct shmfd *shmfd, uid_t uid,
 	    shmfd->shm_label, uid, gid);
 	MAC_CHECK_PROBE4(posixshm_check_setowner, error, cred, shmfd,
 	    uid, gid);
+
+	return (error);
+}
+
+MAC_CHECK_PROBE_DEFINE3(posixshm_check_read, "struct ucred *",
+    "struct ucred *", "struct shmfd *");
+
+int
+mac_posixshm_check_read(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *shmfd)
+{
+	int error;
+
+	MAC_POLICY_CHECK_NOSLEEP(posixshm_check_read, active_cred,
+	    file_cred, shmfd, shmfd->shm_label);
+	MAC_CHECK_PROBE3(posixshm_check_read, error, active_cred,
+	    file_cred, shmfd);
+
+	return (error);
+}
+
+MAC_CHECK_PROBE_DEFINE3(posixshm_check_write, "struct ucred *",
+    "struct ucred *", "struct shmfd *");
+
+int
+mac_posixshm_check_write(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *shmfd)
+{
+	int error;
+
+	MAC_POLICY_CHECK_NOSLEEP(posixshm_check_write, active_cred,
+	    file_cred, shmfd, shmfd->shm_label);
+	MAC_CHECK_PROBE3(posixshm_check_write, error, active_cred,
+	    file_cred, shmfd);
 
 	return (error);
 }

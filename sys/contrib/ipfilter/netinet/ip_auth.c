@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1998-2003 by Darren Reed & Guido van Rooij.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
@@ -19,6 +19,9 @@
 #if !defined(_KERNEL)
 # include <stdio.h>
 # include <stdlib.h>
+# ifdef _STDC_C99
+#  include <stdbool.h>
+# endif
 # include <string.h>
 # define _KERNEL
 # ifdef __OpenBSD__
@@ -52,7 +55,7 @@ struct file;
 # include <sys/stream.h>
 # include <sys/kmem.h>
 #endif
-#if (defined(_BSDI_VERSION) && _BSDI_VERSION >= 199802) || \
+#if (defined(_BSDI_VERSION) && (_BSDI_VERSION >= 199802)) || \
     (defined(__FreeBSD_version) &&(__FreeBSD_version >= 400000))
 # include <sys/queue.h>
 #endif
@@ -62,11 +65,14 @@ struct file;
 #if defined(_KERNEL) && defined(__NetBSD__) && (__NetBSD_Version__ >= 104000000)
 # include <sys/proc.h>
 #endif
+#if defined(__NetBSD_Version__) &&  (__NetBSD_Version__ >= 400000) && \
+     !defined(_KERNEL)
+# include <stdbool.h>
+#endif
 #include <net/if.h>
 #ifdef sun
 # include <net/af.h>
 #endif
-#include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -125,71 +131,249 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
 
+
+typedef	struct ipf_auth_softc_s {
 #if SOLARIS && defined(_KERNEL)
-extern kcondvar_t ipfauthwait;
-extern struct pollhead iplpollhead[IPL_LOGSIZE];
+	kcondvar_t	ipf_auth_wait;
 #endif /* SOLARIS */
 #if defined(linux) && defined(_KERNEL)
-wait_queue_head_t     fr_authnext_linux;
+	wait_queue_head_t ipf_auth_next_linux;
 #endif
+	ipfrwlock_t	ipf_authlk;
+	ipfmutex_t	ipf_auth_mx;
+	int		ipf_auth_size;
+	int		ipf_auth_used;
+	int		ipf_auth_replies;
+	int		ipf_auth_defaultage;
+	int		ipf_auth_lock;
+	ipf_authstat_t	ipf_auth_stats;
+	frauth_t	*ipf_auth;
+	mb_t		**ipf_auth_pkts;
+	int		ipf_auth_start;
+	int		ipf_auth_end;
+	int		ipf_auth_next;
+	frauthent_t	*ipf_auth_entries;
+	frentry_t	*ipf_auth_ip;
+	frentry_t	*ipf_auth_rules;
+} ipf_auth_softc_t;
 
-int	fr_authsize = FR_NUMAUTH;
-int	fr_authused = 0;
-int	fr_defaultauthage = 600;
-int	fr_auth_lock = 0;
-int	fr_auth_init = 0;
-fr_authstat_t	fr_authstats;
-static frauth_t *fr_auth = NULL;
-mb_t	**fr_authpkts = NULL;
-int	fr_authstart = 0, fr_authend = 0, fr_authnext = 0;
-frauthent_t	*fae_list = NULL;
-frentry_t	*ipauth = NULL,
-		*fr_authlist = NULL;
 
-void fr_authderef __P((frauthent_t **));
-int fr_authgeniter __P((ipftoken_t *, ipfgeniter_t *));
-int fr_authreply __P((char *));
-int fr_authwait __P((char *));
+static void ipf_auth_deref __P((frauthent_t **));
+static void ipf_auth_deref_unlocked __P((ipf_auth_softc_t *, frauthent_t **));
+static int ipf_auth_geniter __P((ipf_main_softc_t *, ipftoken_t *,
+				 ipfgeniter_t *, ipfobj_t *));
+static int ipf_auth_reply __P((ipf_main_softc_t *, ipf_auth_softc_t *, char *));
+static int ipf_auth_wait __P((ipf_main_softc_t *, ipf_auth_softc_t *, char *));
+static int ipf_auth_flush __P((void *));
+
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_authinit                                                 */
+/* Function:    ipf_auth_main_load                                          */
 /* Returns:     int - 0 == success, else error                              */
 /* Parameters:  None                                                        */
+/*                                                                          */
+/* A null-op function that exists as a placeholder so that the flow in      */
+/* other functions is obvious.                                              */
+/* ------------------------------------------------------------------------ */
+int
+ipf_auth_main_load()
+{
+	return 0;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_auth_main_unload                                        */
+/* Returns:     int - 0 == success, else error                              */
+/* Parameters:  None                                                        */
+/*                                                                          */
+/* A null-op function that exists as a placeholder so that the flow in      */
+/* other functions is obvious.                                              */
+/* ------------------------------------------------------------------------ */
+int
+ipf_auth_main_unload()
+{
+	return 0;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_auth_soft_create                                        */
+/* Returns:     int - NULL = failure, else success                          */
+/* Parameters:  softc(I) - pointer to soft context data                     */
+/*                                                                          */
+/* Create a structre to store all of the run-time data for packet auth in   */
+/* and initialise some fields to their defaults.                            */
+/* ------------------------------------------------------------------------ */
+void *
+ipf_auth_soft_create(softc)
+	ipf_main_softc_t *softc;
+{
+	ipf_auth_softc_t *softa;
+
+	KMALLOC(softa, ipf_auth_softc_t *);
+	if (softa == NULL)
+		return NULL;
+
+	bzero((char *)softa, sizeof(*softa));
+
+	softa->ipf_auth_size = FR_NUMAUTH;
+	softa->ipf_auth_defaultage = 600;
+
+	RWLOCK_INIT(&softa->ipf_authlk, "ipf IP User-Auth rwlock");
+	MUTEX_INIT(&softa->ipf_auth_mx, "ipf auth log mutex");
+#if SOLARIS && defined(_KERNEL)
+	cv_init(&softa->ipf_auth_wait, "ipf auth condvar", CV_DRIVER, NULL);
+#endif
+
+	return softa;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_auth_soft_init                                          */
+/* Returns:     int - 0 == success, else error                              */
+/* Parameters:  softc(I) - pointer to soft context data                     */
+/*              arg(I)   - opaque pointer to auth context data              */
 /*                                                                          */
 /* Allocate memory and initialise data structures used in handling auth     */
 /* rules.                                                                   */
 /* ------------------------------------------------------------------------ */
-int fr_authinit()
+int
+ipf_auth_soft_init(softc, arg)
+	ipf_main_softc_t *softc;
+	void *arg;
 {
-	KMALLOCS(fr_auth, frauth_t *, fr_authsize * sizeof(*fr_auth));
-	if (fr_auth != NULL)
-		bzero((char *)fr_auth, fr_authsize * sizeof(*fr_auth));
-	else
+	ipf_auth_softc_t *softa = arg;
+
+	KMALLOCS(softa->ipf_auth, frauth_t *,
+		 softa->ipf_auth_size * sizeof(*softa->ipf_auth));
+	if (softa->ipf_auth == NULL)
 		return -1;
+	bzero((char *)softa->ipf_auth,
+	      softa->ipf_auth_size * sizeof(*softa->ipf_auth));
 
-	KMALLOCS(fr_authpkts, mb_t **, fr_authsize * sizeof(*fr_authpkts));
-	if (fr_authpkts != NULL)
-		bzero((char *)fr_authpkts, fr_authsize * sizeof(*fr_authpkts));
-	else
+	KMALLOCS(softa->ipf_auth_pkts, mb_t **,
+		 softa->ipf_auth_size * sizeof(*softa->ipf_auth_pkts));
+	if (softa->ipf_auth_pkts == NULL)
 		return -2;
+	bzero((char *)softa->ipf_auth_pkts,
+	      softa->ipf_auth_size * sizeof(*softa->ipf_auth_pkts));
 
-	MUTEX_INIT(&ipf_authmx, "ipf auth log mutex");
-	RWLOCK_INIT(&ipf_auth, "ipf IP User-Auth rwlock");
-#if SOLARIS && defined(_KERNEL)
-	cv_init(&ipfauthwait, "ipf auth condvar", CV_DRIVER, NULL);
-#endif
 #if defined(linux) && defined(_KERNEL)
-	init_waitqueue_head(&fr_authnext_linux);
+	init_waitqueue_head(&softa->ipf_auth_next_linux);
 #endif
-
-	fr_auth_init = 1;
 
 	return 0;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_checkauth                                                */
+/* Function:    ipf_auth_soft_fini                                          */
+/* Returns:     int - 0 == success, else error                              */
+/* Parameters:  softc(I) - pointer to soft context data                     */
+/*              arg(I)   - opaque pointer to auth context data              */
+/*                                                                          */
+/* Free all network buffer memory used to keep saved packets that have been */
+/* connectedd to the soft soft context structure *but* do not free that: it */
+/* is free'd by _destroy().                                                 */
+/* ------------------------------------------------------------------------ */
+int
+ipf_auth_soft_fini(softc, arg)
+	ipf_main_softc_t *softc;
+	void *arg;
+{
+	ipf_auth_softc_t *softa = arg;
+	frauthent_t *fae, **faep;
+	frentry_t *fr, **frp;
+	mb_t *m;
+	int i;
+
+	if (softa->ipf_auth != NULL) {
+		KFREES(softa->ipf_auth,
+		       softa->ipf_auth_size * sizeof(*softa->ipf_auth));
+		softa->ipf_auth = NULL;
+	}
+
+	if (softa->ipf_auth_pkts != NULL) {
+		for (i = 0; i < softa->ipf_auth_size; i++) {
+			m = softa->ipf_auth_pkts[i];
+			if (m != NULL) {
+				FREE_MB_T(m);
+				softa->ipf_auth_pkts[i] = NULL;
+			}
+		}
+		KFREES(softa->ipf_auth_pkts,
+		       softa->ipf_auth_size * sizeof(*softa->ipf_auth_pkts));
+		softa->ipf_auth_pkts = NULL;
+	}
+
+	faep = &softa->ipf_auth_entries;
+	while ((fae = *faep) != NULL) {
+		*faep = fae->fae_next;
+		KFREE(fae);
+	}
+	softa->ipf_auth_ip = NULL;
+
+	if (softa->ipf_auth_rules != NULL) {
+		for (frp = &softa->ipf_auth_rules; ((fr = *frp) != NULL); ) {
+			if (fr->fr_ref == 1) {
+				*frp = fr->fr_next;
+				MUTEX_DESTROY(&fr->fr_lock);
+				KFREE(fr);
+			} else
+				frp = &fr->fr_next;
+		}
+	}
+
+	return 0;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_auth_soft_destroy                                       */
+/* Returns:     void                                                        */
+/* Parameters:  softc(I) - pointer to soft context data                     */
+/*              arg(I)   - opaque pointer to auth context data              */
+/*                                                                          */
+/* Undo what was done in _create() - i.e. free the soft context data.       */
+/* ------------------------------------------------------------------------ */
+void
+ipf_auth_soft_destroy(softc, arg)
+	ipf_main_softc_t *softc;
+	void *arg;
+{
+	ipf_auth_softc_t *softa = arg;
+
+# if SOLARIS && defined(_KERNEL)
+	cv_destroy(&softa->ipf_auth_wait);
+# endif
+	MUTEX_DESTROY(&softa->ipf_auth_mx);
+	RW_DESTROY(&softa->ipf_authlk);
+
+	KFREE(softa);
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_auth_setlock                                            */
+/* Returns:     void                                                        */
+/* Paramters:   arg(I) - pointer to soft context data                       */
+/*              tmp(I) - value to assign to auth lock                       */
+/*                                                                          */
+/* ------------------------------------------------------------------------ */
+void
+ipf_auth_setlock(arg, tmp)
+	void *arg;
+	int tmp;
+{
+	ipf_auth_softc_t *softa = arg;
+
+	softa->ipf_auth_lock = tmp;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_auth_check                                              */
 /* Returns:     frentry_t* - pointer to ipf rule if match found, else NULL  */
 /* Parameters:  fin(I)   - pointer to ipftoken structure                    */
 /*              passp(I) - pointer to ipfgeniter structure                  */
@@ -198,10 +382,13 @@ int fr_authinit()
 /* authorization result and that would result in a feedback loop (i.e. it   */
 /* will end up returning FR_AUTH) then return FR_BLOCK instead.             */
 /* ------------------------------------------------------------------------ */
-frentry_t *fr_checkauth(fin, passp)
-fr_info_t *fin;
-u_32_t *passp;
+frentry_t *
+ipf_auth_check(fin, passp)
+	fr_info_t *fin;
+	u_32_t *passp;
 {
+	ipf_main_softc_t *softc = fin->fin_main_soft;
+	ipf_auth_softc_t *softa = softc->ipf_auth_soft;
 	frentry_t *fr;
 	frauth_t *fra;
 	u_32_t pass;
@@ -209,27 +396,29 @@ u_32_t *passp;
 	ip_t *ip;
 	int i;
 
-	if (fr_auth_lock || !fr_authused)
+	if (softa->ipf_auth_lock || !softa->ipf_auth_used)
 		return NULL;
 
 	ip = fin->fin_ip;
 	id = ip->ip_id;
 
-	READ_ENTER(&ipf_auth);
-	for (i = fr_authstart; i != fr_authend; ) {
+	READ_ENTER(&softa->ipf_authlk);
+	for (i = softa->ipf_auth_start; i != softa->ipf_auth_end; ) {
 		/*
 		 * index becomes -2 only after an SIOCAUTHW.  Check this in
 		 * case the same packet gets sent again and it hasn't yet been
 		 * auth'd.
 		 */
-		fra = fr_auth + i;
+		fra = softa->ipf_auth + i;
 		if ((fra->fra_index == -2) && (id == fra->fra_info.fin_id) &&
 		    !bcmp((char *)fin, (char *)&fra->fra_info, FI_CSIZE)) {
 			/*
 			 * Avoid feedback loop.
 			 */
-			if (!(pass = fra->fra_pass) || (FR_ISAUTH(pass)))
+			if (!(pass = fra->fra_pass) || (FR_ISAUTH(pass))) {
 				pass = FR_BLOCK;
+				fin->fin_reason = FRB_AUTHFEEDBACK;
+			}
 			/*
 			 * Create a dummy rule for the stateful checking to
 			 * use and return.  Zero out any values we don't
@@ -249,60 +438,65 @@ u_32_t *passp;
 					fr->fr_ifas[1] = NULL;
 					fr->fr_ifas[2] = NULL;
 					fr->fr_ifas[3] = NULL;
+					MUTEX_INIT(&fr->fr_lock,
+						   "ipf auth rule");
 				}
 			} else
 				fr = fra->fra_info.fin_fr;
 			fin->fin_fr = fr;
-			RWLOCK_EXIT(&ipf_auth);
+			fin->fin_flx |= fra->fra_flx;
+			RWLOCK_EXIT(&softa->ipf_authlk);
 
-			WRITE_ENTER(&ipf_auth);
+			WRITE_ENTER(&softa->ipf_authlk);
 			/*
-			 * fr_authlist is populated with the rules malloc'd
+			 * ipf_auth_rules is populated with the rules malloc'd
 			 * above and only those.
 			 */
 			if ((fr != NULL) && (fr != fra->fra_info.fin_fr)) {
-				fr->fr_next = fr_authlist;
-				fr_authlist = fr;
+				fr->fr_next = softa->ipf_auth_rules;
+				softa->ipf_auth_rules = fr;
 			}
-			fr_authstats.fas_hits++;
+			softa->ipf_auth_stats.fas_hits++;
 			fra->fra_index = -1;
-			fr_authused--;
-			if (i == fr_authstart) {
+			softa->ipf_auth_used--;
+			softa->ipf_auth_replies--;
+			if (i == softa->ipf_auth_start) {
 				while (fra->fra_index == -1) {
 					i++;
 					fra++;
-					if (i == fr_authsize) {
+					if (i == softa->ipf_auth_size) {
 						i = 0;
-						fra = fr_auth;
+						fra = softa->ipf_auth;
 					}
-					fr_authstart = i;
-					if (i == fr_authend)
+					softa->ipf_auth_start = i;
+					if (i == softa->ipf_auth_end)
 						break;
 				}
-				if (fr_authstart == fr_authend) {
-					fr_authnext = 0;
-					fr_authstart = fr_authend = 0;
+				if (softa->ipf_auth_start ==
+				    softa->ipf_auth_end) {
+					softa->ipf_auth_next = 0;
+					softa->ipf_auth_start = 0;
+					softa->ipf_auth_end = 0;
 				}
 			}
-			RWLOCK_EXIT(&ipf_auth);
+			RWLOCK_EXIT(&softa->ipf_authlk);
 			if (passp != NULL)
 				*passp = pass;
-			ATOMIC_INC64(fr_authstats.fas_hits);
+			softa->ipf_auth_stats.fas_hits++;
 			return fr;
 		}
 		i++;
-		if (i == fr_authsize)
+		if (i == softa->ipf_auth_size)
 			i = 0;
 	}
-	fr_authstats.fas_miss++;
-	RWLOCK_EXIT(&ipf_auth);
-	ATOMIC_INC64(fr_authstats.fas_miss);
+	RWLOCK_EXIT(&softa->ipf_authlk);
+	softa->ipf_auth_stats.fas_miss++;
 	return NULL;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_newauth                                                  */
+/* Function:    ipf_auth_new                                                */
 /* Returns:     int - 1 == success, 0 = did not put packet on auth queue    */
 /* Parameters:  m(I)   - pointer to mb_t with packet in it                  */
 /*              fin(I) - pointer to packet information                      */
@@ -311,10 +505,13 @@ u_32_t *passp;
 /* packet. If we do, store it and wake up any user programs which are       */
 /* waiting to hear about these events.                                      */
 /* ------------------------------------------------------------------------ */
-int fr_newauth(m, fin)
-mb_t *m;
-fr_info_t *fin;
+int
+ipf_auth_new(m, fin)
+	mb_t *m;
+	fr_info_t *fin;
 {
+	ipf_main_softc_t *softc = fin->fin_main_soft;
+	ipf_auth_softc_t *softa = softc->ipf_auth_soft;
 #if defined(_KERNEL) && defined(MENTAT)
 	qpktinfo_t *qpi = fin->fin_qpi;
 #endif
@@ -324,31 +521,33 @@ fr_info_t *fin;
 #endif
 	int i;
 
-	if (fr_auth_lock)
+	if (softa->ipf_auth_lock)
 		return 0;
 
-	WRITE_ENTER(&ipf_auth);
-	if (((fr_authend + 1) % fr_authsize) == fr_authstart) {
-		fr_authstats.fas_nospace++;
-		RWLOCK_EXIT(&ipf_auth);
+	WRITE_ENTER(&softa->ipf_authlk);
+	if (((softa->ipf_auth_end + 1) % softa->ipf_auth_size) ==
+	    softa->ipf_auth_start) {
+		softa->ipf_auth_stats.fas_nospace++;
+		RWLOCK_EXIT(&softa->ipf_authlk);
 		return 0;
 	}
 
-	fr_authstats.fas_added++;
-	fr_authused++;
-	i = fr_authend++;
-	if (fr_authend == fr_authsize)
-		fr_authend = 0;
-	fra = fr_auth + i;
-	fra->fra_index = i;
-	RWLOCK_EXIT(&ipf_auth);
+	softa->ipf_auth_stats.fas_added++;
+	softa->ipf_auth_used++;
+	i = softa->ipf_auth_end++;
+	if (softa->ipf_auth_end == softa->ipf_auth_size)
+		softa->ipf_auth_end = 0;
 
+	fra = softa->ipf_auth + i;
+	fra->fra_index = i;
 	if (fin->fin_fr != NULL)
 		fra->fra_pass = fin->fin_fr->fr_flags;
 	else
 		fra->fra_pass = 0;
-	fra->fra_age = fr_defaultauthage;
+	fra->fra_age = softa->ipf_auth_defaultage;
 	bcopy((char *)fin, (char *)&fra->fra_info, sizeof(*fin));
+	fra->fra_flx = fra->fra_info.fin_flx & (FI_STATE|FI_NATED);
+	fra->fra_info.fin_flx &= ~(FI_STATE|FI_NATED);
 #if !defined(sparc) && !defined(m68k)
 	/*
 	 * No need to copyback here as we want to undo the changes, not keep
@@ -370,24 +569,24 @@ fr_info_t *fin;
 #if SOLARIS && defined(_KERNEL)
 	COPYIFNAME(fin->fin_v, fin->fin_ifp, fra->fra_info.fin_ifname);
 	m->b_rptr -= qpi->qpi_off;
-	fr_authpkts[i] = *(mblk_t **)fin->fin_mp;
-# if !defined(_INET_IP_STACK_H)
 	fra->fra_q = qpi->qpi_q;	/* The queue can disappear! */
-# endif
 	fra->fra_m = *fin->fin_mp;
 	fra->fra_info.fin_mp = &fra->fra_m;
-	cv_signal(&ipfauthwait);
-	pollwakeup(&iplpollhead[IPL_LOGAUTH], POLLIN|POLLRDNORM);
+	softa->ipf_auth_pkts[i] = *(mblk_t **)fin->fin_mp;
+	RWLOCK_EXIT(&softa->ipf_authlk);
+	cv_signal(&softa->ipf_auth_wait);
+	pollwakeup(&softc->ipf_poll_head[IPL_LOGAUTH], POLLIN|POLLRDNORM);
 #else
-	fr_authpkts[i] = m;
-	WAKEUP(&fr_authnext,0);
+	softa->ipf_auth_pkts[i] = m;
+	RWLOCK_EXIT(&softa->ipf_authlk);
+	WAKEUP(&softa->ipf_auth_next, 0);
 #endif
 	return 1;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_auth_ioctl                                               */
+/* Function:    ipf_auth_ioctl                                              */
 /* Returns:     int - 0 == success, else error                              */
 /* Parameters:  data(IO) - pointer to ioctl data                            */
 /*              cmd(I)   - ioctl command                                    */
@@ -396,14 +595,17 @@ fr_info_t *fin;
 /*              ctx(I)   - pointer for context                              */
 /*                                                                          */
 /* This function handles all of the ioctls recognised by the auth component */
-/* in IPFilter - ie ioctls called on an open fd for /dev/ipauth             */
+/* in IPFilter - ie ioctls called on an open fd for /dev/ipf_auth           */
 /* ------------------------------------------------------------------------ */
-int fr_auth_ioctl(data, cmd, mode, uid, ctx)
-caddr_t data;
-ioctlcmd_t cmd;
-int mode, uid;
-void *ctx;
+int
+ipf_auth_ioctl(softc, data, cmd, mode, uid, ctx)
+	ipf_main_softc_t *softc;
+	caddr_t data;
+	ioctlcmd_t cmd;
+	int mode, uid;
+	void *ctx;
 {
+	ipf_auth_softc_t *softa = softc->ipf_auth_soft;
 	int error = 0, i;
 	SPL_INT(s);
 
@@ -413,18 +615,23 @@ void *ctx;
 	    {
 		ipftoken_t *token;
 		ipfgeniter_t iter;
+		ipfobj_t obj;
 
-		error = fr_inobj(data, &iter, IPFOBJ_GENITER);
+		error = ipf_inobj(softc, data, &obj, &iter, IPFOBJ_GENITER);
 		if (error != 0)
 			break;
 
 		SPL_SCHED(s);
-		token = ipf_findtoken(IPFGENITER_AUTH, uid, ctx);
+		token = ipf_token_find(softc, IPFGENITER_AUTH, uid, ctx);
 		if (token != NULL)
-			error = fr_authgeniter(token, &iter);
-		else
+			error = ipf_auth_geniter(softc, token, &iter, &obj);
+		else {
+			WRITE_ENTER(&softc->ipf_tokens);
+			ipf_token_deref(softc, token);
+			RWLOCK_EXIT(&softc->ipf_tokens);
+			IPFERROR(10001);
 			error = ESRCH;
-		RWLOCK_EXIT(&ipf_tokens);
+		}
 		SPL_X(s);
 
 		break;
@@ -432,46 +639,52 @@ void *ctx;
 
 	case SIOCADAFR :
 	case SIOCRMAFR :
-		if (!(mode & FWRITE))
+		if (!(mode & FWRITE)) {
+			IPFERROR(10002);
 			error = EPERM;
-		else
-			error = frrequest(IPL_LOGAUTH, cmd, data,
-					  fr_active, 1);
+		} else
+			error = frrequest(softc, IPL_LOGAUTH, cmd, data,
+					  softc->ipf_active, 1);
 		break;
 
 	case SIOCSTLCK :
 		if (!(mode & FWRITE)) {
+			IPFERROR(10003);
 			error = EPERM;
-			break;
+		} else {
+			error = ipf_lock(data, &softa->ipf_auth_lock);
 		}
-		error = fr_lock(data, &fr_auth_lock);
 		break;
 
 	case SIOCATHST:
-		fr_authstats.fas_faelist = fae_list;
-		error = fr_outobj(data, &fr_authstats, IPFOBJ_AUTHSTAT);
+		softa->ipf_auth_stats.fas_faelist = softa->ipf_auth_entries;
+		error = ipf_outobj(softc, data, &softa->ipf_auth_stats,
+				   IPFOBJ_AUTHSTAT);
 		break;
 
 	case SIOCIPFFL:
 		SPL_NET(s);
-		WRITE_ENTER(&ipf_auth);
-		i = fr_authflush();
-		RWLOCK_EXIT(&ipf_auth);
+		WRITE_ENTER(&softa->ipf_authlk);
+		i = ipf_auth_flush(softa);
+		RWLOCK_EXIT(&softa->ipf_authlk);
 		SPL_X(s);
-		error = BCOPYOUT((char *)&i, data, sizeof(i));
-		if (error != 0)
+		error = BCOPYOUT(&i, data, sizeof(i));
+		if (error != 0) {
+			IPFERROR(10004);
 			error = EFAULT;
+		}
 		break;
 
 	case SIOCAUTHW:
-		error = fr_authwait(data);
+		error = ipf_auth_wait(softc, softa, data);
 		break;
 
 	case SIOCAUTHR:
-		error = fr_authreply(data);
+		error = ipf_auth_reply(softc, softa, data);
 		break;
 
 	default :
+		IPFERROR(10005);
 		error = EINVAL;
 		break;
 	}
@@ -480,75 +693,18 @@ void *ctx;
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_authunload                                               */
-/* Returns:     None                                                        */
-/* Parameters:  None                                                        */
-/*                                                                          */
-/* Free all network buffer memory used to keep saved packets.               */
-/* ------------------------------------------------------------------------ */
-void fr_authunload()
-{
-	register int i;
-	register frauthent_t *fae, **faep;
-	frentry_t *fr, **frp;
-	mb_t *m;
-
-	if (fr_auth != NULL) {
-		KFREES(fr_auth, fr_authsize * sizeof(*fr_auth));
-		fr_auth = NULL;
-	}
-
-	if (fr_authpkts != NULL) {
-		for (i = 0; i < fr_authsize; i++) {
-			m = fr_authpkts[i];
-			if (m != NULL) {
-				FREE_MB_T(m);
-				fr_authpkts[i] = NULL;
-			}
-		}
-		KFREES(fr_authpkts, fr_authsize * sizeof(*fr_authpkts));
-		fr_authpkts = NULL;
-	}
-
-	faep = &fae_list;
-	while ((fae = *faep) != NULL) {
-		*faep = fae->fae_next;
-		KFREE(fae);
-	}
-	ipauth = NULL;
-
-	if (fr_authlist != NULL) {
-		for (frp = &fr_authlist; ((fr = *frp) != NULL); ) {
-			if (fr->fr_ref == 1) {
-				*frp = fr->fr_next;
-				KFREE(fr);
-			} else
-				frp = &fr->fr_next;
-		}
-	}
-
-	if (fr_auth_init == 1) {
-# if SOLARIS && defined(_KERNEL)
-		cv_destroy(&ipfauthwait);
-# endif
-		MUTEX_DESTROY(&ipf_authmx);
-		RW_DESTROY(&ipf_auth);
-
-		fr_auth_init = 0;
-	}
-}
-
-
-/* ------------------------------------------------------------------------ */
-/* Function:    fr_authexpire                                               */
+/* Function:    ipf_auth_expire                                             */
 /* Returns:     None                                                        */
 /* Parameters:  None                                                        */
 /*                                                                          */
 /* Slowly expire held auth records.  Timeouts are set in expectation of     */
 /* this being called twice per second.                                      */
 /* ------------------------------------------------------------------------ */
-void fr_authexpire()
+void
+ipf_auth_expire(softc)
+	ipf_main_softc_t *softc;
 {
+	ipf_auth_softc_t *softa = softc->ipf_auth_soft;
 	frauthent_t *fae, **faep;
 	frentry_t *fr, **frp;
 	frauth_t *fra;
@@ -556,70 +712,81 @@ void fr_authexpire()
 	int i;
 	SPL_INT(s);
 
-	if (fr_auth_lock)
+	if (softa->ipf_auth_lock)
 		return;
-
 	SPL_NET(s);
-	WRITE_ENTER(&ipf_auth);
-	for (i = 0, fra = fr_auth; i < fr_authsize; i++, fra++) {
+	WRITE_ENTER(&softa->ipf_authlk);
+	for (i = 0, fra = softa->ipf_auth; i < softa->ipf_auth_size;
+	     i++, fra++) {
 		fra->fra_age--;
-		if ((fra->fra_age == 0) && (m = fr_authpkts[i])) {
-			FREE_MB_T(m);
-			fr_authpkts[i] = NULL;
-			fr_auth[i].fra_index = -1;
-			fr_authstats.fas_expire++;
-			fr_authused--;
+		if ((fra->fra_age == 0) &&
+		    (softa->ipf_auth[i].fra_index != -1)) {
+			if ((m = softa->ipf_auth_pkts[i]) != NULL) {
+				FREE_MB_T(m);
+				softa->ipf_auth_pkts[i] = NULL;
+			} else if (softa->ipf_auth[i].fra_index == -2) {
+				softa->ipf_auth_replies--;
+			}
+			softa->ipf_auth[i].fra_index = -1;
+			softa->ipf_auth_stats.fas_expire++;
+			softa->ipf_auth_used--;
 		}
 	}
 
 	/*
 	 * Expire pre-auth rules
 	 */
-	for (faep = &fae_list; ((fae = *faep) != NULL); ) {
+	for (faep = &softa->ipf_auth_entries; ((fae = *faep) != NULL); ) {
 		fae->fae_age--;
 		if (fae->fae_age == 0) {
-			fr_authderef(&fae);
-			fr_authstats.fas_expire++;
+			ipf_auth_deref(&fae);
+			softa->ipf_auth_stats.fas_expire++;
 		} else
 			faep = &fae->fae_next;
 	}
-	if (fae_list != NULL)
-		ipauth = &fae_list->fae_fr;
+	if (softa->ipf_auth_entries != NULL)
+		softa->ipf_auth_ip = &softa->ipf_auth_entries->fae_fr;
 	else
-		ipauth = NULL;
+		softa->ipf_auth_ip = NULL;
 
-	for (frp = &fr_authlist; ((fr = *frp) != NULL); ) {
+	for (frp = &softa->ipf_auth_rules; ((fr = *frp) != NULL); ) {
 		if (fr->fr_ref == 1) {
 			*frp = fr->fr_next;
+			MUTEX_DESTROY(&fr->fr_lock);
 			KFREE(fr);
 		} else
 			frp = &fr->fr_next;
 	}
-	RWLOCK_EXIT(&ipf_auth);
+	RWLOCK_EXIT(&softa->ipf_authlk);
 	SPL_X(s);
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_preauthcmd                                               */
+/* Function:    ipf_auth_precmd                                             */
 /* Returns:     int - 0 == success, else error                              */
 /* Parameters:  cmd(I)  - ioctl command for rule                            */
 /*              fr(I)   - pointer to ipf rule                               */
 /*              fptr(I) - pointer to caller's 'fr'                          */
 /*                                                                          */
 /* ------------------------------------------------------------------------ */
-int fr_preauthcmd(cmd, fr, frptr)
-ioctlcmd_t cmd;
-frentry_t *fr, **frptr;
+int
+ipf_auth_precmd(softc, cmd, fr, frptr)
+	ipf_main_softc_t *softc;
+	ioctlcmd_t cmd;
+	frentry_t *fr, **frptr;
 {
+	ipf_auth_softc_t *softa = softc->ipf_auth_soft;
 	frauthent_t *fae, **faep;
 	int error = 0;
 	SPL_INT(s);
 
-	if ((cmd != SIOCADAFR) && (cmd != SIOCRMAFR))
+	if ((cmd != SIOCADAFR) && (cmd != SIOCRMAFR)) {
+		IPFERROR(10006);
 		return EIO;
+	}
 
-	for (faep = &fae_list; ((fae = *faep) != NULL); ) {
+	for (faep = &softa->ipf_auth_entries; ((fae = *faep) != NULL); ) {
 		if (&fae->fae_fr == fr)
 			break;
 		else
@@ -627,17 +794,22 @@ frentry_t *fr, **frptr;
 	}
 
 	if (cmd == (ioctlcmd_t)SIOCRMAFR) {
-		if (fr == NULL || frptr == NULL)
+		if (fr == NULL || frptr == NULL) {
+			IPFERROR(10007);
 			error = EINVAL;
-		else if (fae == NULL)
+
+		} else if (fae == NULL) {
+			IPFERROR(10008);
 			error = ESRCH;
-		else {
+
+		} else {
 			SPL_NET(s);
-			WRITE_ENTER(&ipf_auth);
+			WRITE_ENTER(&softa->ipf_authlk);
 			*faep = fae->fae_next;
-			if (ipauth == &fae->fae_fr)
-				ipauth = fae_list ? &fae_list->fae_fr : NULL;
-			RWLOCK_EXIT(&ipf_auth);
+			if (softa->ipf_auth_ip == &fae->fae_fr)
+				softa->ipf_auth_ip = softa->ipf_auth_entries ?
+				    &softa->ipf_auth_entries->fae_fr : NULL;
+			RWLOCK_EXIT(&softa->ipf_authlk);
 			SPL_X(s);
 
 			KFREE(fae);
@@ -648,161 +820,199 @@ frentry_t *fr, **frptr;
 			bcopy((char *)fr, (char *)&fae->fae_fr,
 			      sizeof(*fr));
 			SPL_NET(s);
-			WRITE_ENTER(&ipf_auth);
-			fae->fae_age = fr_defaultauthage;
+			WRITE_ENTER(&softa->ipf_authlk);
+			fae->fae_age = softa->ipf_auth_defaultage;
 			fae->fae_fr.fr_hits = 0;
 			fae->fae_fr.fr_next = *frptr;
 			fae->fae_ref = 1;
 			*frptr = &fae->fae_fr;
 			fae->fae_next = *faep;
 			*faep = fae;
-			ipauth = &fae_list->fae_fr;
-			RWLOCK_EXIT(&ipf_auth);
+			softa->ipf_auth_ip = &softa->ipf_auth_entries->fae_fr;
+			RWLOCK_EXIT(&softa->ipf_authlk);
 			SPL_X(s);
-		} else
+		} else {
+			IPFERROR(10009);
 			error = ENOMEM;
-	} else
+		}
+	} else {
+		IPFERROR(10010);
 		error = EINVAL;
+	}
 	return error;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_authflush                                                */
+/* Function:    ipf_auth_flush                                              */
 /* Returns:     int - number of auth entries flushed                        */
 /* Parameters:  None                                                        */
-/* Locks:       WRITE(ipf_auth)                                             */
+/* Locks:       WRITE(ipf_authlk)                                           */
 /*                                                                          */
-/* This function flushs the fr_authpkts array of any packet data with       */
+/* This function flushs the ipf_auth_pkts array of any packet data with     */
 /* references still there.                                                  */
 /* It is expected that the caller has already acquired the correct locks or */
 /* set the priority level correctly for this to block out other code paths  */
 /* into these data structures.                                              */
 /* ------------------------------------------------------------------------ */
-int fr_authflush()
+static int
+ipf_auth_flush(arg)
+	void *arg;
 {
-	register int i, num_flushed;
+	ipf_auth_softc_t *softa = arg;
+	int i, num_flushed;
 	mb_t *m;
 
-	if (fr_auth_lock)
+	if (softa->ipf_auth_lock)
 		return -1;
 
 	num_flushed = 0;
 
-	for (i = 0 ; i < fr_authsize; i++) {
-		m = fr_authpkts[i];
-		if (m != NULL) {
-			FREE_MB_T(m);
-			fr_authpkts[i] = NULL;
-			fr_auth[i].fra_index = -1;
+	for (i = 0 ; i < softa->ipf_auth_size; i++) {
+		if (softa->ipf_auth[i].fra_index != -1) {
+			m = softa->ipf_auth_pkts[i];
+			if (m != NULL) {
+				FREE_MB_T(m);
+				softa->ipf_auth_pkts[i] = NULL;
+			}
+
+			softa->ipf_auth[i].fra_index = -1;
 			/* perhaps add & use a flush counter inst.*/
-			fr_authstats.fas_expire++;
-			fr_authused--;
+			softa->ipf_auth_stats.fas_expire++;
 			num_flushed++;
 		}
 	}
 
-	fr_authstart = 0;
-	fr_authend = 0;
-	fr_authnext = 0;
+	softa->ipf_auth_start = 0;
+	softa->ipf_auth_end = 0;
+	softa->ipf_auth_next = 0;
+	softa->ipf_auth_used = 0;
+	softa->ipf_auth_replies = 0;
 
 	return num_flushed;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_auth_waiting                                             */
-/* Returns:     int - 0 = no packets waiting, 1 = packets waiting.          */
+/* Function:    ipf_auth_waiting                                            */
+/* Returns:     int - number of packets in the auth queue                   */
 /* Parameters:  None                                                        */
 /*                                                                          */
 /* Simple truth check to see if there are any packets waiting in the auth   */
 /* queue.                                                                   */
 /* ------------------------------------------------------------------------ */
-int fr_auth_waiting()
+int
+ipf_auth_waiting(softc)
+	ipf_main_softc_t *softc;
 {
-	return (fr_authused != 0);
+	ipf_auth_softc_t *softa = softc->ipf_auth_soft;
+
+	return (softa->ipf_auth_used != 0);
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_authgeniter                                              */
+/* Function:    ipf_auth_geniter                                            */
 /* Returns:     int - 0 == success, else error                              */
 /* Parameters:  token(I) - pointer to ipftoken structure                    */
 /*              itp(I)   - pointer to ipfgeniter structure                  */
+/*              objp(I)  - pointer to ipf object destription                */
 /*                                                                          */
+/* Iterate through the list of entries in the auth queue list.              */
+/* objp is used here to get the location of where to do the copy out to.    */
+/* Stomping over various fields with new information will not harm anything */
 /* ------------------------------------------------------------------------ */
-int fr_authgeniter(token, itp)
-ipftoken_t *token;
-ipfgeniter_t *itp;
+static int
+ipf_auth_geniter(softc, token, itp, objp)
+	ipf_main_softc_t *softc;
+	ipftoken_t *token;
+	ipfgeniter_t *itp;
+	ipfobj_t *objp;
 {
+	ipf_auth_softc_t *softa = softc->ipf_auth_soft;
 	frauthent_t *fae, *next, zero;
 	int error;
 
-	if (itp->igi_data == NULL)
+	if (itp->igi_data == NULL) {
+		IPFERROR(10011);
 		return EFAULT;
+	}
 
-	if (itp->igi_type != IPFGENITER_AUTH)
+	if (itp->igi_type != IPFGENITER_AUTH) {
+		IPFERROR(10012);
 		return EINVAL;
+	}
+
+	objp->ipfo_type = IPFOBJ_FRAUTH;
+	objp->ipfo_ptr = itp->igi_data;
+	objp->ipfo_size = sizeof(frauth_t);
+
+	READ_ENTER(&softa->ipf_authlk);
 
 	fae = token->ipt_data;
-	READ_ENTER(&ipf_auth);
 	if (fae == NULL) {
-		next = fae_list;
+		next = softa->ipf_auth_entries;
 	} else {
 		next = fae->fae_next;
 	}
 
+	/*
+	 * If we found an auth entry to use, bump its reference count
+	 * so that it can be used for is_next when we come back.
+	 */
 	if (next != NULL) {
-		/*
-		 * If we find an auth entry to use, bump its reference count
-		 * so that it can be used for is_next when we come back.
-		 */
 		ATOMIC_INC(next->fae_ref);
-		if (next->fae_next == NULL) {
-			ipf_freetoken(token);
-			token = NULL;
-		} else {
-			token->ipt_data = next;
-		}
+		token->ipt_data = next;
 	} else {
 		bzero(&zero, sizeof(zero));
 		next = &zero;
-	}
-	RWLOCK_EXIT(&ipf_auth);
-
-	/*
-	 * If we had a prior pointer to an auth entry, release it.
-	 */
-	if (fae != NULL) {
-		WRITE_ENTER(&ipf_auth);
-		fr_authderef(&fae);
-		RWLOCK_EXIT(&ipf_auth);
+		token->ipt_data = NULL;
 	}
 
-	/*
-	 * This should arguably be via fr_outobj() so that the auth
-	 * structure can (if required) be massaged going out.
-	 */
-	error = COPYOUT(next, itp->igi_data, sizeof(*next));
-	if (error != 0)
-		error = EFAULT;
+	RWLOCK_EXIT(&softa->ipf_authlk);
 
+	error = ipf_outobjk(softc, objp, next);
+	if (fae != NULL)
+		ipf_auth_deref_unlocked(softa, &fae);
+
+	if (next->fae_next == NULL)
+		ipf_token_mark_complete(token);
 	return error;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_authderef                                                */
+/* Function:    ipf_auth_deref_unlocked                                     */
 /* Returns:     None                                                        */
 /* Parameters:  faep(IO) - pointer to caller's frauthent_t pointer          */
-/* Locks:       WRITE(ipf_auth)                                             */
+/*                                                                          */
+/* Wrapper for ipf_auth_deref for when a write lock on ipf_authlk is not    */
+/* held.                                                                    */
+/* ------------------------------------------------------------------------ */
+static void
+ipf_auth_deref_unlocked(softa, faep)
+	ipf_auth_softc_t *softa;
+	frauthent_t **faep;
+{
+	WRITE_ENTER(&softa->ipf_authlk);
+	ipf_auth_deref(faep);
+	RWLOCK_EXIT(&softa->ipf_authlk);
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_auth_deref                                              */
+/* Returns:     None                                                        */
+/* Parameters:  faep(IO) - pointer to caller's frauthent_t pointer          */
+/* Locks:       WRITE(ipf_authlk)                                           */
 /*                                                                          */
 /* This function unconditionally sets the pointer in the caller to NULL,    */
 /* to make it clear that it should no longer use that pointer, and drops    */
 /* the reference count on the structure by 1.  If it reaches 0, free it up. */
 /* ------------------------------------------------------------------------ */
-void fr_authderef(faep)
-frauthent_t **faep;
+static void
+ipf_auth_deref(faep)
+	frauthent_t **faep;
 {
 	frauthent_t *fae;
 
@@ -817,30 +1027,30 @@ frauthent_t **faep;
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_authwait                                                 */
+/* Function:    ipf_auth_wait_pkt                                           */
 /* Returns:     int - 0 == success, else error                              */
 /* Parameters:  data(I) - pointer to data from ioctl call                   */
 /*                                                                          */
 /* This function is called when an application is waiting for a packet to   */
 /* match an "auth" rule by issuing an SIOCAUTHW ioctl.  If there is already */
 /* a packet waiting on the queue then we will return that _one_ immediately.*/
-/* If there are no packets present in the queue (fr_authpkts) then we go to */
-/* sleep.                                                                   */
+/* If there are no packets present in the queue (ipf_auth_pkts) then we go  */
+/* to sleep.                                                                */
 /* ------------------------------------------------------------------------ */
-int fr_authwait(data)
-char *data;
+static int
+ipf_auth_wait(softc, softa, data)
+	ipf_main_softc_t *softc;
+	ipf_auth_softc_t *softa;
+	char *data;
 {
 	frauth_t auth, *au = &auth;
 	int error, len, i;
 	mb_t *m;
 	char *t;
-#if defined(_KERNEL) && !defined(MENTAT) && !defined(linux) && \
-    (!defined(__FreeBSD_version) || (__FreeBSD_version < 501000))
 	SPL_INT(s);
-#endif
 
-fr_authioctlloop:
-	error = fr_inobj(data, au, IPFOBJ_FRAUTH);
+ipf_auth_ioctlloop:
+	error = ipf_inobj(softc, data, NULL, au, IPFOBJ_FRAUTH);
 	if (error != 0)
 		return error;
 
@@ -850,30 +1060,36 @@ fr_authioctlloop:
 	 * we are trying to guard against here is an error in the copyout
 	 * steps should not cause the packet to "disappear" from the queue.
 	 */
-	READ_ENTER(&ipf_auth);
+	SPL_NET(s);
+	READ_ENTER(&softa->ipf_authlk);
 
 	/*
-	 * If fr_authnext is not equal to fr_authend it will be because there
-	 * is a packet waiting to be delt with in the fr_authpkts array.  We
-	 * copy as much of that out to user space as requested.
+	 * If ipf_auth_next is not equal to ipf_auth_end it will be because
+	 * there is a packet waiting to be delt with in the ipf_auth_pkts
+	 * array.  We copy as much of that out to user space as requested.
 	 */
-	if (fr_authused > 0) {
-		while (fr_authpkts[fr_authnext] == NULL) {
-			fr_authnext++;
-			if (fr_authnext == fr_authsize)
-				fr_authnext = 0;
+	if (softa->ipf_auth_used > 0) {
+		while (softa->ipf_auth_pkts[softa->ipf_auth_next] == NULL) {
+			softa->ipf_auth_next++;
+			if (softa->ipf_auth_next == softa->ipf_auth_size)
+				softa->ipf_auth_next = 0;
 		}
 
-		error = fr_outobj(data, &fr_auth[fr_authnext], IPFOBJ_FRAUTH);
-		if (error != 0)
+		error = ipf_outobj(softc, data,
+				   &softa->ipf_auth[softa->ipf_auth_next],
+				   IPFOBJ_FRAUTH);
+		if (error != 0) {
+			RWLOCK_EXIT(&softa->ipf_authlk);
+			SPL_X(s);
 			return error;
+		}
 
 		if (auth.fra_len != 0 && auth.fra_buf != NULL) {
 			/*
 			 * Copy packet contents out to user space if
 			 * requested.  Bail on an error.
 			 */
-			m = fr_authpkts[fr_authnext];
+			m = softa->ipf_auth_pkts[softa->ipf_auth_next];
 			len = MSGDSIZE(m);
 			if (len > auth.fra_len)
 				len = auth.fra_len;
@@ -881,62 +1097,69 @@ fr_authioctlloop:
 
 			for (t = auth.fra_buf; m && (len > 0); ) {
 				i = MIN(M_LEN(m), len);
-				error = copyoutptr(MTOD(m, char *), &t, i);
+				error = copyoutptr(softc, MTOD(m, char *),
+						   &t, i);
 				len -= i;
 				t += i;
-				if (error != 0)
+				if (error != 0) {
+					RWLOCK_EXIT(&softa->ipf_authlk);
+					SPL_X(s);
 					return error;
+				}
 				m = m->m_next;
 			}
 		}
-		RWLOCK_EXIT(&ipf_auth);
+		RWLOCK_EXIT(&softa->ipf_authlk);
 
 		SPL_NET(s);
-		WRITE_ENTER(&ipf_auth);
-		fr_authnext++;
-		if (fr_authnext == fr_authsize)
-			fr_authnext = 0;
-		RWLOCK_EXIT(&ipf_auth);
+		WRITE_ENTER(&softa->ipf_authlk);
+		softa->ipf_auth_next++;
+		if (softa->ipf_auth_next == softa->ipf_auth_size)
+			softa->ipf_auth_next = 0;
+		RWLOCK_EXIT(&softa->ipf_authlk);
 		SPL_X(s);
 
 		return 0;
 	}
-	RWLOCK_EXIT(&ipf_auth);
+	RWLOCK_EXIT(&softa->ipf_authlk);
+	SPL_X(s);
 
-	MUTEX_ENTER(&ipf_authmx);
+	MUTEX_ENTER(&softa->ipf_auth_mx);
 #ifdef	_KERNEL
 # if	SOLARIS
 	error = 0;
-	if (!cv_wait_sig(&ipfauthwait, &ipf_authmx.ipf_lk))
+	if (!cv_wait_sig(&softa->ipf_auth_wait, &softa->ipf_auth_mx.ipf_lk)) {
+		IPFERROR(10014);
 		error = EINTR;
+	}
 # else /* SOLARIS */
 #  ifdef __hpux
 	{
 	lock_t *l;
 
-	l = get_sleep_lock(&fr_authnext);
-	error = sleep(&fr_authnext, PZERO+1);
+	l = get_sleep_lock(&softa->ipf_auth_next);
+	error = sleep(&softa->ipf_auth_next, PZERO+1);
 	spinunlock(l);
 	}
 #  else
 #   ifdef __osf__
-	error = mpsleep(&fr_authnext, PSUSP|PCATCH, "fr_authnext", 0,
-			&ipf_authmx, MS_LOCK_SIMPLE);
+	error = mpsleep(&softa->ipf_auth_next, PSUSP|PCATCH, "ipf_auth_next",
+			0, &softa->ipf_auth_mx, MS_LOCK_SIMPLE);
 #   else
-	error = SLEEP(&fr_authnext, "fr_authnext");
+	error = SLEEP(&softa->ipf_auth_next, "ipf_auth_next");
 #   endif /* __osf__ */
 #  endif /* __hpux */
 # endif /* SOLARIS */
 #endif
-	MUTEX_EXIT(&ipf_authmx);
+	MUTEX_EXIT(&softa->ipf_auth_mx);
 	if (error == 0)
-		goto fr_authioctlloop;
+		goto ipf_auth_ioctlloop;
 	return error;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_authreply                                                */
+/* Function:    ipf_auth_reply                                              */
 /* Returns:     int - 0 == success, else error                              */
 /* Parameters:  data(I) - pointer to data from ioctl call                   */
 /*                                                                          */
@@ -945,23 +1168,27 @@ fr_authioctlloop:
 /* received information using an SIOCAUTHW.  The decision returned in the   */
 /* form of flags, the same as those used in each rule.                      */
 /* ------------------------------------------------------------------------ */
-int fr_authreply(data)
-char *data;
+static int
+ipf_auth_reply(softc, softa, data)
+	ipf_main_softc_t *softc;
+	ipf_auth_softc_t *softa;
+	char *data;
 {
 	frauth_t auth, *au = &auth, *fra;
+	fr_info_t fin;
 	int error, i;
 	mb_t *m;
 	SPL_INT(s);
 
-	error = fr_inobj(data, &auth, IPFOBJ_FRAUTH);
+	error = ipf_inobj(softc, data, NULL, &auth, IPFOBJ_FRAUTH);
 	if (error != 0)
 		return error;
 
 	SPL_NET(s);
-	WRITE_ENTER(&ipf_auth);
+	WRITE_ENTER(&softa->ipf_authlk);
 
 	i = au->fra_index;
-	fra = fr_auth + i;
+	fra = softa->ipf_auth + i;
 	error = 0;
 
 	/*
@@ -969,19 +1196,27 @@ char *data;
 	 * checks.  First, the auth index value should be within the size of
 	 * the array and second the packet id being returned should also match.
 	 */
-	if ((i < 0) || (i >= fr_authsize) ||
-	    (fra->fra_info.fin_id != au->fra_info.fin_id)) {
-		RWLOCK_EXIT(&ipf_auth);
+	if ((i < 0) || (i >= softa->ipf_auth_size)) {
+		RWLOCK_EXIT(&softa->ipf_authlk);
 		SPL_X(s);
+		IPFERROR(10015);
+		return ESRCH;
+	}
+	if  (fra->fra_info.fin_id != au->fra_info.fin_id) {
+		RWLOCK_EXIT(&softa->ipf_authlk);
+		SPL_X(s);
+		IPFERROR(10019);
 		return ESRCH;
 	}
 
-	m = fr_authpkts[i];
+	m = softa->ipf_auth_pkts[i];
 	fra->fra_index = -2;
 	fra->fra_pass = au->fra_pass;
-	fr_authpkts[i] = NULL;
+	softa->ipf_auth_pkts[i] = NULL;
+	softa->ipf_auth_replies++;
+	bcopy(&fra->fra_info, &fin, sizeof(fin));
 
-	RWLOCK_EXIT(&ipf_auth);
+	RWLOCK_EXIT(&softa->ipf_authlk);
 
 	/*
 	 * Re-insert the packet back into the packet stream flowing through
@@ -992,22 +1227,25 @@ char *data;
 	 */
 #ifdef	_KERNEL
 	if ((m != NULL) && (au->fra_info.fin_out != 0)) {
-		error = ipf_inject(&fra->fra_info, m);
+		error = ipf_inject(&fin, m);
 		if (error != 0) {
+			IPFERROR(10016);
 			error = ENOBUFS;
-			fr_authstats.fas_sendfail++;
+			softa->ipf_auth_stats.fas_sendfail++;
 		} else {
-			fr_authstats.fas_sendok++;
+			softa->ipf_auth_stats.fas_sendok++;
 		}
 	} else if (m) {
-		error = ipf_inject(&fra->fra_info, m);
+		error = ipf_inject(&fin, m);
 		if (error != 0) {
+			IPFERROR(10017);
 			error = ENOBUFS;
-			fr_authstats.fas_quefail++;
+			softa->ipf_auth_stats.fas_quefail++;
 		} else {
-			fr_authstats.fas_queok++;
+			softa->ipf_auth_stats.fas_queok++;
 		}
 	} else {
+		IPFERROR(10018);
 		error = EINVAL;
 	}
 
@@ -1016,28 +1254,54 @@ char *data;
 	 * not being processed, make sure we advance to the next one.
 	 */
 	if (error == ENOBUFS) {
-		WRITE_ENTER(&ipf_auth);
-		fr_authused--;
+		WRITE_ENTER(&softa->ipf_authlk);
+		softa->ipf_auth_used--;
 		fra->fra_index = -1;
 		fra->fra_pass = 0;
-		if (i == fr_authstart) {
+		if (i == softa->ipf_auth_start) {
 			while (fra->fra_index == -1) {
 				i++;
-				if (i == fr_authsize)
+				if (i == softa->ipf_auth_size)
 					i = 0;
-				fr_authstart = i;
-				if (i == fr_authend)
+				softa->ipf_auth_start = i;
+				if (i == softa->ipf_auth_end)
 					break;
 			}
-			if (fr_authstart == fr_authend) {
-				fr_authnext = 0;
-				fr_authstart = fr_authend = 0;
+			if (softa->ipf_auth_start == softa->ipf_auth_end) {
+				softa->ipf_auth_next = 0;
+				softa->ipf_auth_start = 0;
+				softa->ipf_auth_end = 0;
 			}
 		}
-		RWLOCK_EXIT(&ipf_auth);
+		RWLOCK_EXIT(&softa->ipf_authlk);
 	}
 #endif /* _KERNEL */
 	SPL_X(s);
 
 	return 0;
+}
+
+
+u_32_t
+ipf_auth_pre_scanlist(softc, fin, pass)
+	ipf_main_softc_t *softc;
+	fr_info_t *fin;
+	u_32_t pass;
+{
+	ipf_auth_softc_t *softa = softc->ipf_auth_soft;
+
+	if (softa->ipf_auth_ip != NULL)
+		return ipf_scanlist(fin, softc->ipf_pass);
+
+	return pass;
+}
+
+
+frentry_t **
+ipf_auth_rulehead(softc)
+	ipf_main_softc_t *softc;
+{
+	ipf_auth_softc_t *softa = softc->ipf_auth_soft;
+
+	return &softa->ipf_auth_ip;
 }

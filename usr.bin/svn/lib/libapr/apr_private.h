@@ -97,7 +97,9 @@
 #define HAVE_ARPA_INET_H 1
 
 /* Define if compiler provides atomic builtins */
+#if !defined(__mips__) && !defined(__arm__)
 #define HAVE_ATOMIC_BUILTINS 1
+#endif
 
 /* Define if BONE_VERSION is defined in sys/socket.h */
 /* #undef HAVE_BONE_VERSION */

@@ -798,7 +798,7 @@ retry_read_init:
 		}
 		timersub(&sub_tv, &ref_tv, &res_tv);
 
-		if ((res_tv.tv_sec < 0) || (res_tv.tv_sec >= p->duration))
+		if ((res_tv.tv_sec < 0) || (res_tv.tv_sec >= (int)p->duration))
 			break;
 
 		do_io_test(p, lun, lba_max, buffer, reference);

@@ -1,11 +1,11 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2002-2005 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: load_pool.c,v 1.14.2.4 2006/06/16 17:21:06 darrenr Exp $
+ * $Id$
  */
 
 #include <fcntl.h>
@@ -14,20 +14,17 @@
 #include "netinet/ip_lookup.h"
 #include "netinet/ip_pool.h"
 
-static int poolfd = -1;
 
-
-int load_pool(plp, iocfunc)
-ip_pool_t *plp;
-ioctlfunc_t iocfunc;
+int
+load_pool(plp, iocfunc)
+	ip_pool_t *plp;
+	ioctlfunc_t iocfunc;
 {
 	iplookupop_t op;
 	ip_pool_node_t *a;
 	ip_pool_t pool;
 
-	if ((poolfd == -1) && ((opts & OPT_DONOTHING) == 0))
-		poolfd = open(IPLOOKUP_NAME, O_RDWR);
-	if ((poolfd == -1) && ((opts & OPT_DONOTHING) == 0))
+	if (pool_open() == -1)
 		return -1;
 
 	op.iplo_unit = plp->ipo_unit;
@@ -37,16 +34,18 @@ ioctlfunc_t iocfunc;
 	op.iplo_size = sizeof(pool);
 	op.iplo_struct = &pool;
 	bzero((char *)&pool, sizeof(pool));
+	pool.ipo_unit = plp->ipo_unit;
 	strncpy(pool.ipo_name, plp->ipo_name, sizeof(pool.ipo_name));
 	if (plp->ipo_name[0] == '\0')
 		op.iplo_arg |= IPOOL_ANON;
 
 	if ((opts & OPT_REMOVE) == 0) {
-		if ((*iocfunc)(poolfd, SIOCLOOKUPADDTABLE, &op))
+		if (pool_ioctl(iocfunc, SIOCLOOKUPADDTABLE, &op)) {
 			if ((opts & OPT_DONOTHING) == 0) {
-				perror("load_pool:SIOCLOOKUPADDTABLE");
-				return -1;
+				return ipf_perror_fd(pool_fd(), iocfunc,
+						     "add lookup table");
 			}
+		}
 	}
 
 	if (op.iplo_arg & IPOOL_ANON)
@@ -54,18 +53,19 @@ ioctlfunc_t iocfunc;
 
 	if ((opts & OPT_VERBOSE) != 0) {
 		pool.ipo_list = plp->ipo_list;
-		printpool(&pool, bcopywrap, pool.ipo_name, opts);
+		(void) printpool(&pool, bcopywrap, pool.ipo_name, opts, NULL);
 		pool.ipo_list = NULL;
 	}
 
 	for (a = plp->ipo_list; a != NULL; a = a->ipn_next)
-		load_poolnode(plp->ipo_unit, pool.ipo_name, a, iocfunc);
+		load_poolnode(plp->ipo_unit, pool.ipo_name,
+				     a, 0, iocfunc);
 
 	if ((opts & OPT_REMOVE) != 0) {
-		if ((*iocfunc)(poolfd, SIOCLOOKUPDELTABLE, &op))
+		if (pool_ioctl(iocfunc, SIOCLOOKUPDELTABLE, &op))
 			if ((opts & OPT_DONOTHING) == 0) {
-				perror("load_pool:SIOCLOOKUPDELTABLE");
-				return -1;
+				return ipf_perror_fd(pool_fd(), iocfunc,
+						     "delete lookup table");
 			}
 	}
 	return 0;

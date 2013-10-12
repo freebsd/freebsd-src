@@ -2046,7 +2046,7 @@ sys_kmq_open(struct thread *td, struct kmq_open_args *uap)
 	struct mq_attr attr;
 	int flags, error;
 
-	if ((uap->flags & O_ACCMODE) == O_ACCMODE)
+	if ((uap->flags & O_ACCMODE) == O_ACCMODE || uap->flags & O_EXEC)
 		return (EINVAL);
 	flags = FFLAGS(uap->flags);
 	if ((flags & O_CREAT) != 0 && uap->attr != NULL) {
@@ -2086,19 +2086,19 @@ sys_kmq_unlink(struct thread *td, struct kmq_unlink_args *uap)
 	return (error);
 }
 
-typedef int (*_fgetf)(struct thread *, int, cap_rights_t, struct file **);
+typedef int (*_fgetf)(struct thread *, int, cap_rights_t *, struct file **);
 
 /*
  * Get message queue by giving file slot
  */
 static int
-_getmq(struct thread *td, int fd, cap_rights_t rights, _fgetf func,
+_getmq(struct thread *td, int fd, cap_rights_t *rightsp, _fgetf func,
        struct file **fpp, struct mqfs_node **ppn, struct mqueue **pmq)
 {
 	struct mqfs_node *pn;
 	int error;
 
-	error = func(td, fd, rights, fpp);
+	error = func(td, fd, rightsp, fpp);
 	if (error)
 		return (error);
 	if (&mqueueops != (*fpp)->f_ops) {
@@ -2117,21 +2117,30 @@ static __inline int
 getmq(struct thread *td, int fd, struct file **fpp, struct mqfs_node **ppn,
 	struct mqueue **pmq)
 {
-	return _getmq(td, fd, CAP_POLL_EVENT, fget, fpp, ppn, pmq);
+	cap_rights_t rights;
+
+	return _getmq(td, fd, cap_rights_init(&rights, CAP_POLL_EVENT), fget,
+	    fpp, ppn, pmq);
 }
 
 static __inline int
 getmq_read(struct thread *td, int fd, struct file **fpp,
 	 struct mqfs_node **ppn, struct mqueue **pmq)
 {
-	return _getmq(td, fd, CAP_READ, fget_read, fpp, ppn, pmq);
+	cap_rights_t rights;
+
+	return _getmq(td, fd, cap_rights_init(&rights, CAP_READ), fget_read,
+	    fpp, ppn, pmq);
 }
 
 static __inline int
 getmq_write(struct thread *td, int fd, struct file **fpp,
 	struct mqfs_node **ppn, struct mqueue **pmq)
 {
-	return _getmq(td, fd, CAP_WRITE, fget_write, fpp, ppn, pmq);
+	cap_rights_t rights;
+
+	return _getmq(td, fd, cap_rights_init(&rights, CAP_WRITE), fget_write,
+	    fpp, ppn, pmq);
 }
 
 static int
@@ -2238,6 +2247,9 @@ sys_kmq_timedsend(struct thread *td, struct kmq_timedsend_args *uap)
 static int
 kern_kmq_notify(struct thread *td, int mqd, struct sigevent *sigev)
 {
+#ifdef CAPABILITIES
+	cap_rights_t rights;
+#endif
 	struct filedesc *fdp;
 	struct proc *p;
 	struct mqueue *mq;
@@ -2269,7 +2281,8 @@ again:
 		goto out;
 	}
 #ifdef CAPABILITIES
-	error = cap_check(cap_rights(fdp, mqd), CAP_POLL_EVENT);
+	error = cap_check(cap_rights(fdp, mqd),
+	    cap_rights_init(&rights, CAP_POLL_EVENT));
 	if (error) {
 		FILEDESC_SUNLOCK(fdp);
 		goto out;
@@ -2597,7 +2610,8 @@ static struct fileops mqueueops = {
 	.fo_stat		= mqf_stat,
 	.fo_chmod		= mqf_chmod,
 	.fo_chown		= mqf_chown,
-	.fo_close		= mqf_close
+	.fo_close		= mqf_close,
+	.fo_sendfile		= invfo_sendfile,
 };
 
 static struct vop_vector mqfs_vnodeops = {
@@ -2681,7 +2695,7 @@ freebsd32_kmq_open(struct thread *td, struct freebsd32_kmq_open_args *uap)
 	struct mq_attr32 attr32;
 	int flags, error;
 
-	if ((uap->flags & O_ACCMODE) == O_ACCMODE)
+	if ((uap->flags & O_ACCMODE) == O_ACCMODE || uap->flags & O_EXEC)
 		return (EINVAL);
 	flags = FFLAGS(uap->flags);
 	if ((flags & O_CREAT) != 0 && uap->attr != NULL) {

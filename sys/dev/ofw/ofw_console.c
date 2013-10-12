@@ -88,17 +88,19 @@ cn_drvinit(void *unused)
 
 	if (ofw_consdev.cn_pri != CN_DEAD &&
 	    ofw_consdev.cn_name[0] != '\0') {
-		if ((options = OF_finddevice("/options")) == -1 ||
-		    OF_getprop(options, "output-device", output,
-		    sizeof(output)) == -1)
-			return;
+		tp = tty_alloc(&ofw_ttydevsw, NULL);
+		tty_makedev(tp, NULL, "%s", "ofwcons");
+
 		/*
 		 * XXX: This is a hack and it may result in two /dev/ttya
 		 * XXX: devices on platforms where the sab driver works.
 		 */
-		tp = tty_alloc(&ofw_ttydevsw, NULL);
-		tty_makedev(tp, NULL, "%s", output);
-		tty_makealias(tp, "ofwcons");
+		if ((options = OF_finddevice("/options")) == -1 ||
+		    OF_getprop(options, "output-device", output,
+		    sizeof(output)) == -1)
+			return;
+		if (strlen(output) > 0)
+			tty_makealias(tp, output);
 	}
 }
 

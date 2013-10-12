@@ -67,12 +67,14 @@ __FBSDID("$FreeBSD$");
 #include <dirent.h>
 #include <dlfcn.h>
 #include <errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -492,8 +494,8 @@ static void
 cb_getmem(void *arg, uint64_t *ret_lowmem, uint64_t *ret_highmem)
 {
 
-	vm_get_memory_seg(ctx, 0, ret_lowmem);
-	vm_get_memory_seg(ctx, 4 * GB, ret_highmem);
+	vm_get_memory_seg(ctx, 0, ret_lowmem, NULL);
+	vm_get_memory_seg(ctx, 4 * GB, ret_highmem, NULL);
 }
 
 static const char *
@@ -581,9 +583,10 @@ main(int argc, char** argv)
 			break;
 
 		case 'm':
-			mem_size = strtoul(optarg, NULL, 0) * MB;
+			error = vm_parse_memsize(optarg, &mem_size);
+			if (error != 0)
+				errx(EX_USAGE, "Invalid memsize '%s'", optarg);
 			break;
-		
 		case '?':
 			usage();
 		}

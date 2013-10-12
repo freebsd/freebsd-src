@@ -160,9 +160,8 @@ uint32_t arch_i386_xbox_memsize = 0;
 
 #ifdef XEN
 /* XEN includes */
-#include <machine/xen/xen-os.h>
+#include <xen/xen-os.h>
 #include <xen/hypervisor.h>
-#include <machine/xen/xen-os.h>
 #include <machine/xen/xenvar.h>
 #include <machine/xen/xenfunc.h>
 #include <xen/xen_intr.h>
@@ -1216,6 +1215,13 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 
 #ifdef XEN
 
+static void
+idle_block(void)
+{
+
+	HYPERVISOR_sched_op(SCHEDOP_block, 0);
+}
+
 void
 cpu_halt(void)
 {
@@ -1547,22 +1553,6 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
     idle_sysctl, "A", "currently selected idle function");
-
-uint64_t (*atomic_load_acq_64)(volatile uint64_t *) =
-    atomic_load_acq_64_i386;
-void (*atomic_store_rel_64)(volatile uint64_t *, uint64_t) =
-    atomic_store_rel_64_i386;
-
-static void
-cpu_probe_cmpxchg8b(void)
-{
-
-	if ((cpu_feature & CPUID_CX8) != 0 ||
-	    cpu_vendor_id == CPU_VENDOR_RISE) {
-		atomic_load_acq_64 = atomic_load_acq_64_i586;
-		atomic_store_rel_64 = atomic_store_rel_64_i586;
-	}
-}
 
 /*
  * Reset registers to default values on exec.
@@ -1975,6 +1965,9 @@ extern inthand_t
 	IDTVEC(xmm),
 #ifdef KDTRACE_HOOKS
 	IDTVEC(dtrace_ret),
+#endif
+#ifdef XENHVM
+	IDTVEC(xen_intr_upcall),
 #endif
 	IDTVEC(lcall_syscall), IDTVEC(int0x80_syscall);
 
@@ -2825,7 +2818,6 @@ init386(first)
 	thread0.td_pcb->pcb_gsd = PCPU_GET(fsgs_gdt)[1];
 
 	cpu_probe_amdc1e();
-	cpu_probe_cmpxchg8b();
 }
 
 #else
@@ -2963,6 +2955,10 @@ init386(first)
 	    GSEL(GCODE_SEL, SEL_KPL));
 #ifdef KDTRACE_HOOKS
 	setidt(IDT_DTRACE_RET, &IDTVEC(dtrace_ret), SDT_SYS386TGT, SEL_UPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+#endif
+#ifdef XENHVM
+	setidt(IDT_EVTCHN, &IDTVEC(xen_intr_upcall), SDT_SYS386IGT, SEL_UPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
 #endif
 
@@ -3116,7 +3112,6 @@ init386(first)
 	thread0.td_frame = &proc0_tf;
 
 	cpu_probe_amdc1e();
-	cpu_probe_cmpxchg8b();
 
 #ifdef FDT
 	x86_init_fdt();

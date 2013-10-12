@@ -1828,6 +1828,7 @@ zfs_ioc_vdev_add(zfs_cmd_t *zc)
 	(void) nvlist_lookup_nvlist_array(config, ZPOOL_CONFIG_SPARES,
 	    &spares, &nspares);
 
+#ifdef illumos
 	/*
 	 * A root pool with concatenated devices is not supported.
 	 * Thus, can not add a device to a root pool.
@@ -1843,6 +1844,7 @@ zfs_ioc_vdev_add(zfs_cmd_t *zc)
 		spa_close(spa, FTAG);
 		return (SET_ERROR(EDOM));
 	}
+#endif /* illumos */
 
 	if (error == 0) {
 		error = spa_vdev_add(spa, config);
@@ -3550,29 +3552,32 @@ zfs_ioc_destroy(zfs_cmd_t *zc)
 }
 
 /*
- * inputs:
- * zc_name	name of dataset to rollback (to most recent snapshot)
+ * fsname is name of dataset to rollback (to most recent snapshot)
  *
- * outputs:	none
+ * innvl is not used.
+ *
+ * outnvl: "target" -> name of most recent snapshot
+ * }
  */
+/* ARGSUSED */
 static int
-zfs_ioc_rollback(zfs_cmd_t *zc)
+zfs_ioc_rollback(const char *fsname, nvlist_t *args, nvlist_t *outnvl)
 {
 	zfsvfs_t *zfsvfs;
 	int error;
 
-	if (getzfsvfs(zc->zc_name, &zfsvfs) == 0) {
+	if (getzfsvfs(fsname, &zfsvfs) == 0) {
 		error = zfs_suspend_fs(zfsvfs);
 		if (error == 0) {
 			int resume_err;
 
-			error = dsl_dataset_rollback(zc->zc_name, zfsvfs);
-			resume_err = zfs_resume_fs(zfsvfs, zc->zc_name);
+			error = dsl_dataset_rollback(fsname, zfsvfs, outnvl);
+			resume_err = zfs_resume_fs(zfsvfs, fsname);
 			error = error ? error : resume_err;
 		}
 		VFS_RELE(zfsvfs->z_vfs);
 	} else {
-		error = dsl_dataset_rollback(zc->zc_name, NULL);
+		error = dsl_dataset_rollback(fsname, NULL, outnvl);
 	}
 	return (error);
 }
@@ -4000,6 +4005,7 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 	char *origin = NULL;
 	char *tosnap;
 	char tofs[ZFS_MAXNAMELEN];
+	cap_rights_t rights;
 	boolean_t first_recvd_props = B_FALSE;
 
 	if (dataset_namecheck(zc->zc_value, NULL, NULL) != 0 ||
@@ -4017,7 +4023,7 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 		return (error);
 
 	fd = zc->zc_cookie;
-	fp = getf(fd, CAP_PREAD);
+	fp = getf(fd, cap_rights_init(&rights, CAP_PREAD));
 	if (fp == NULL) {
 		nvlist_free(props);
 		return (SET_ERROR(EBADF));
@@ -4255,7 +4261,11 @@ zfs_ioc_send(zfs_cmd_t *zc)
 		dsl_dataset_rele(tosnap, FTAG);
 		dsl_pool_rele(dp, FTAG);
 	} else {
-		file_t *fp = getf(zc->zc_cookie, CAP_WRITE);
+		file_t *fp;
+		cap_rights_t rights;
+
+		fp = getf(zc->zc_cookie,
+		    cap_rights_init(&rights, CAP_WRITE));
 		if (fp == NULL)
 			return (SET_ERROR(EBADF));
 
@@ -4846,10 +4856,11 @@ static int
 zfs_ioc_diff(zfs_cmd_t *zc)
 {
 	file_t *fp;
+	cap_rights_t rights;
 	offset_t off;
 	int error;
 
-	fp = getf(zc->zc_cookie, CAP_WRITE);
+	fp = getf(zc->zc_cookie, cap_rights_init(&rights, CAP_WRITE));
 	if (fp == NULL)
 		return (SET_ERROR(EBADF));
 
@@ -5209,6 +5220,7 @@ zfs_ioc_unjail(zfs_cmd_t *zc)
 static int
 zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 {
+	cap_rights_t rights;
 	int error;
 	offset_t off;
 	char *fromname = NULL;
@@ -5220,7 +5232,7 @@ zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 
 	(void) nvlist_lookup_string(innvl, "fromsnap", &fromname);
 
-	file_t *fp = getf(fd, CAP_READ);
+	file_t *fp = getf(fd, cap_rights_init(&rights, CAP_READ));
 	if (fp == NULL)
 		return (SET_ERROR(EBADF));
 
@@ -5446,6 +5458,10 @@ zfs_ioctl_init(void)
 	    zfs_ioc_get_holds, zfs_secpolicy_read, DATASET_NAME,
 	    POOL_CHECK_SUSPENDED, B_FALSE, B_FALSE);
 
+	zfs_ioctl_register("rollback", ZFS_IOC_ROLLBACK,
+	    zfs_ioc_rollback, zfs_secpolicy_rollback, DATASET_NAME,
+	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY, B_FALSE, B_TRUE);
+
 	/* IOCTLS that use the legacy function signature */
 
 	zfs_ioctl_register_legacy(ZFS_IOC_POOL_FREEZE, zfs_ioc_pool_freeze,
@@ -5557,8 +5573,6 @@ zfs_ioctl_init(void)
 	    zfs_secpolicy_none);
 	zfs_ioctl_register_dataset_modify(ZFS_IOC_DESTROY, zfs_ioc_destroy,
 	    zfs_secpolicy_destroy);
-	zfs_ioctl_register_dataset_modify(ZFS_IOC_ROLLBACK, zfs_ioc_rollback,
-	    zfs_secpolicy_rollback);
 	zfs_ioctl_register_dataset_modify(ZFS_IOC_RENAME, zfs_ioc_rename,
 	    zfs_secpolicy_rename);
 	zfs_ioctl_register_dataset_modify(ZFS_IOC_RECV, zfs_ioc_recv,

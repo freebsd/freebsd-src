@@ -1321,10 +1321,12 @@ umass_t_bbb_command_callback(struct usb_xfer *xfer, usb_error_t error)
 			}
 			sc->cbw.bCDBLength = sc->sc_transfer.cmd_len;
 
+			/* copy SCSI command data */
 			memcpy(sc->cbw.CBWCDB, sc->sc_transfer.cmd_data,
 			    sc->sc_transfer.cmd_len);
 
-			memset(sc->sc_transfer.cmd_data +
+			/* clear remaining command area */
+			memset(sc->cbw.CBWCDB +
 			    sc->sc_transfer.cmd_len, 0,
 			    sizeof(sc->cbw.CBWCDB) -
 			    sc->sc_transfer.cmd_len);

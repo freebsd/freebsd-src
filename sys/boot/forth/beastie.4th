@@ -181,8 +181,10 @@ variable logoY
 \ 	beastie     Color ``Helper Daemon'' mascot (19 rows x 34 columns)
 \ 	beastiebw   B/W ``Helper Daemon'' mascot (19 rows x 34 columns)
 \ 	fbsdbw      "FreeBSD" logo in B/W (13 rows x 21 columns)
-\ 	orb         Color ``Orb'' mascot (15 rows x 30 columns) (default)
+\ 	orb         Color ``Orb'' mascot (15 rows x 30 columns) (2nd default)
 \ 	orbbw       B/W ``Orb'' mascot (15 rows x 32 columns)
+\ 	tribute     Color ``Tribute'' (must fit 19 rows x 34 columns) (default)
+\ 	tributebw   B/W ``Tribute'' (must fit 19 rows x 34 columns)
 \ 
 \ NOTE: Setting `loader_logo' to an undefined value (such as "none") will
 \       prevent beastie from being drawn.
@@ -228,6 +230,24 @@ variable logoY
 	then
 	2dup s" orbbw" compare-insensitive 0= if
 		logoX @ logoY @ orbbw-logo
+		2drop exit
+	then
+	2dup s" tribute" compare-insensitive 0= if
+		logoX @ logoY @
+		s" tribute-logo" sfind if
+			execute
+		else
+			drop orb-logo
+		then
+		2drop exit
+	then
+	2dup s" tributebw" compare-insensitive 0= if
+		logoX @ logoY @
+		s" tributebw-logo" sfind if
+			execute
+		else
+			drop orbbw-logo
+		then
 		2drop exit
 	then
 

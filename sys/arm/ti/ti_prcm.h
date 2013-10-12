@@ -81,10 +81,15 @@ typedef enum {
 	USBP2_HSIC_CLK,
 
 	/* UART modules */
-	UART1_CLK = 400,
+	UART0_CLK = 400,
+	UART1_CLK,
 	UART2_CLK,
 	UART3_CLK,
 	UART4_CLK,
+	UART5_CLK,
+	UART6_CLK,
+	UART7_CLK,
+	UART8_CLK,
 
 	/* General purpose timer modules */
 	GPTIMER1_CLK = 500,

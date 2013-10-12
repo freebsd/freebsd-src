@@ -245,8 +245,12 @@ pci_emul_msix_tread(struct pci_devinst *pi, uint64_t offset, int size)
 	int tab_index;
 	uint64_t retval = ~0;
 
-	/* support only 4 or 8 byte reads */
-	if (size != 4 && size != 8)
+	/*
+	 * The PCI standard only allows 4 and 8 byte accesses to the MSI-X
+	 * table but we also allow 1 byte access to accomodate reads from
+	 * ddb.
+	 */
+	if (size != 1 && size != 4 && size != 8)
 		return (retval);
 
 	msix_entry_offset = offset % MSIX_TABLE_ENTRY_SIZE;
@@ -263,7 +267,9 @@ pci_emul_msix_tread(struct pci_devinst *pi, uint64_t offset, int size)
 		dest = (char *)(pi->pi_msix.table + tab_index);
 		dest += msix_entry_offset;
 
-		if (size == 4)
+		if (size == 1)
+			retval = *((uint8_t *)dest);
+		else if (size == 4)
 			retval = *((uint32_t *)dest);
 		else
 			retval = *((uint64_t *)dest);
@@ -935,10 +941,19 @@ pci_emul_capwrite(struct pci_devinst *pi, int offset, int bytes, uint32_t val)
 	assert(offset >= capoff);
 
 	/*
-	 * Capability ID and Next Capability Pointer are readonly
+	 * Capability ID and Next Capability Pointer are readonly.
+	 * However, some o/s's do 4-byte writes that include these.
+	 * For this case, trim the write back to 2 bytes and adjust
+	 * the data.
 	 */
-	if (offset == capoff || offset == capoff + 1)
-		return;
+	if (offset == capoff || offset == capoff + 1) {
+		if (offset == capoff && bytes == 4) {
+			bytes = 2;
+			offset += 2;
+			val >>= 16;
+		} else
+			return;
+	}
 
 	switch (capid) {
 	case PCIY_MSI:
@@ -1008,6 +1023,16 @@ init_pci(struct vmctx *ctx)
 	pci_emul_membase32 = vm_get_lowmem_limit(ctx);
 	pci_emul_membase64 = PCI_EMUL_MEMBASE64;
 
+	/*
+	 * Allow ISA IRQs 5,10,11,12, and 15 to be available for
+	 * generic use
+	 */
+	lirq[5].li_generic = 1;
+	lirq[10].li_generic = 1;
+	lirq[11].li_generic = 1;
+	lirq[12].li_generic = 1;
+	lirq[15].li_generic = 1;
+
 	for (slot = 0; slot < MAXSLOTS; slot++) {
 		for (func = 0; func < MAXFUNCS; func++) {
 			si = &pci_slotinfo[slot][func];
@@ -1023,16 +1048,6 @@ init_pci(struct vmctx *ctx)
 	}
 
 	/*
-	 * Allow ISA IRQs 5,10,11,12, and 15 to be available for
-	 * generic use
-	 */
-	lirq[5].li_generic = 1;
-	lirq[10].li_generic = 1;
-	lirq[11].li_generic = 1;
-	lirq[12].li_generic = 1;
-	lirq[15].li_generic = 1;
-
-	/*
 	 * The guest physical memory map looks like the following:
 	 * [0,		    lowmem)		guest system memory
 	 * [lowmem,	    lowmem_limit)	memory hole (may be absent)
@@ -1042,7 +1057,7 @@ init_pci(struct vmctx *ctx)
 	 * Accesses to memory addresses that are not allocated to system
 	 * memory or PCI devices return 0xff's.
 	 */
-	error = vm_get_memory_seg(ctx, 0, &lowmem);
+	error = vm_get_memory_seg(ctx, 0, &lowmem, NULL);
 	assert(error == 0);
 
 	memset(&memp, 0, sizeof(struct mem_range));

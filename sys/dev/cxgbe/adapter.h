@@ -128,9 +128,9 @@ enum {
 
 	RX_FL_ESIZE = EQ_ESIZE,	/* 8 64bit addresses */
 #if MJUMPAGESIZE != MCLBYTES
-	FL_BUF_SIZES = 4,	/* cluster, jumbop, jumbo9k, jumbo16k */
+	FL_BUF_SIZES_MAX = 5,	/* cluster, jumbop, jumbo9k, jumbo16k, extra */
 #else
-	FL_BUF_SIZES = 3,	/* cluster, jumbo9k, jumbo16k */
+	FL_BUF_SIZES_MAX = 4,	/* cluster, jumbo9k, jumbo16k, extra */
 #endif
 
 	CTRL_EQ_QSIZE = 128,
@@ -165,6 +165,7 @@ enum {
 	MASTER_PF	= (1 << 3),
 	ADAP_SYSCTL_CTX	= (1 << 4),
 	TOM_INIT_DONE	= (1 << 5),
+	BUF_PACKING_OK	= (1 << 6),
 
 	CXGBE_BUSY	= (1 << 9),
 
@@ -232,12 +233,11 @@ struct port_info {
 };
 
 struct fl_sdesc {
-	struct mbuf *m;
 	bus_dmamap_t map;
 	caddr_t cl;
-	uint8_t tag_idx;	/* the sc->fl_tag this map comes from */
+	uint8_t tag_idx;	/* the fl->tag entry this map comes from */
 #ifdef INVARIANTS
-	__be64 ba_tag;
+	__be64 ba_hwtag;
 #endif
 };
 
@@ -359,9 +359,22 @@ struct sge_eq {
 	uint32_t unstalled;	/* recovered from stall */
 };
 
+struct fl_buf_info {
+	u_int size;
+	int type;
+	int hwtag:4;	/* tag in low 4 bits of the pa. */
+	uma_zone_t zone;
+};
+#define FL_BUF_SIZES(sc)	(sc->sge.fl_buf_sizes)
+#define FL_BUF_SIZE(sc, x)	(sc->sge.fl_buf_info[x].size)
+#define FL_BUF_TYPE(sc, x)	(sc->sge.fl_buf_info[x].type)
+#define FL_BUF_HWTAG(sc, x)	(sc->sge.fl_buf_info[x].hwtag)
+#define FL_BUF_ZONE(sc, x)	(sc->sge.fl_buf_info[x].zone)
+
 enum {
 	FL_STARVING	= (1 << 0), /* on the adapter's list of starving fl's */
 	FL_DOOMED	= (1 << 1), /* about to be destroyed */
+	FL_BUF_PACKING	= (1 << 2), /* buffer packing enabled */
 };
 
 #define FL_RUNNING_LOW(fl)	(fl->cap - fl->needed <= fl->lowat)
@@ -370,7 +383,8 @@ enum {
 struct sge_fl {
 	bus_dma_tag_t desc_tag;
 	bus_dmamap_t desc_map;
-	bus_dma_tag_t tag[FL_BUF_SIZES];
+	bus_dma_tag_t tag[FL_BUF_SIZES_MAX]; /* only first FL_BUF_SIZES(sc) are
+						valid */
 	uint8_t tag_idx;
 	struct mtx fl_lock;
 	char lockname[16];
@@ -383,11 +397,13 @@ struct sge_fl {
 	uint16_t qsize;		/* size (# of entries) of the queue */
 	uint16_t cntxt_id;	/* SGE context id for the freelist */
 	uint32_t cidx;		/* consumer idx (buffer idx, NOT hw desc idx) */
+	uint32_t rx_offset;	/* offset in fl buf (when buffer packing) */
 	uint32_t pidx;		/* producer idx (buffer idx, NOT hw desc idx) */
 	uint32_t needed;	/* # of buffers needed to fill up fl. */
 	uint32_t lowat;		/* # of buffers <= this means fl needs help */
 	uint32_t pending;	/* # of bufs allocated since last doorbell */
-	unsigned int dmamap_failed;
+	u_int dmamap_failed;
+	struct mbuf *mstash[8];
 	TAILQ_ENTRY(sge_fl) link; /* All starving freelists */
 };
 
@@ -519,6 +535,9 @@ struct sge {
 	int eq_start;
 	struct sge_iq **iqmap;	/* iq->cntxt_id to iq mapping */
 	struct sge_eq **eqmap;	/* eq->cntxt_id to eq mapping */
+
+	u_int fl_buf_sizes __aligned(CACHE_LINE_SIZE);
+	struct fl_buf_info fl_buf_info[FL_BUF_SIZES_MAX];
 };
 
 struct rss_header;
@@ -559,6 +578,7 @@ struct adapter {
 	bus_dma_tag_t dmat;	/* Parent DMA tag */
 
 	struct sge sge;
+	int lro_timeout;
 
 	struct taskqueue *tq[NCHAN];	/* taskqueues that flush data out */
 	struct port_info *port[MAX_NPORTS];
@@ -567,6 +587,7 @@ struct adapter {
 #ifdef TCP_OFFLOAD
 	void *tom_softc;	/* (struct tom_data *) */
 	struct tom_tunables tt;
+	void *iwarp_softc;	/* (struct c4iw_dev *) */
 #endif
 	struct l2t_data *l2t;	/* L2 table */
 	struct tid_info tids;

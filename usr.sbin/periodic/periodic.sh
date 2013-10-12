@@ -21,7 +21,7 @@ output_pipe()
     case "$output" in
     /*) pipe="cat >>$output";;
     "") pipe=cat;;
-    *)  pipe="mail -E -s '$host ${1##*/} run output' $output";;
+    *)  pipe="mail -E -s '$host ${2}${2:+ }${1##*/} run output' $output";;
     esac
     eval $pipe
 }
@@ -53,12 +53,13 @@ if [ $1 != "LOCKED" ]; then
         case $? in
         0) ;;
         73) #EX_CANTCREATE
-            echo "can't create ${lockfile}" | output_pipe $arg
+            echo "can't create ${lockfile}" | \
+                output_pipe $arg "$PERIODIC"
             ret=1
             ;;
         75) #EX_TEMPFAIL
             echo "$host ${arg##*/} prior run still in progress" | \
-                output_pipe $arg
+                output_pipe $arg "$PERIODIC"
             ret=1
             ;;
         *)
@@ -76,6 +77,8 @@ shift
 arg=$1
 
 tmp_output=`mktemp ${TMPDIR:-/tmp}/periodic.XXXXXXXXXX`
+context="$PERIODIC"
+export PERIODIC="$arg${PERIODIC:+ }${PERIODIC}"
 
 # Execute each executable file in the directory list.  If the x bit is not
 # set, assume the user didn't really want us to muck with it (it's a
@@ -135,6 +138,6 @@ esac
         echo ""
         echo "-- End of $arg output --"
     fi
-} | output_pipe ${arg}
+} | output_pipe $arg "$context"
 
 rm -f $tmp_output

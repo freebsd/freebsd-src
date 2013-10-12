@@ -861,7 +861,7 @@ audit_arg_envv(char *envv, int envc, int length)
 }
 
 void
-audit_arg_rights(cap_rights_t rights)
+audit_arg_rights(cap_rights_t *rightsp)
 {
 	struct kaudit_record *ar;
 
@@ -869,7 +869,7 @@ audit_arg_rights(cap_rights_t rights)
 	if (ar == NULL)
 		return;
 
-	ar->k_ar.ar_arg_rights = rights;
+	ar->k_ar.ar_arg_rights = *rightsp;
 	ARG_SET_VALID(ar, ARG_RIGHTS);
 }
 

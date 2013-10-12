@@ -170,27 +170,30 @@ struct nvme_registers
 	union cap_lo_register	cap_lo;
 	union cap_hi_register	cap_hi;
 
-	uint32_t	vs;		/* version */
-	uint32_t	intms;		/* interrupt mask set */
-	uint32_t	intmc;		/* interrupt mask clear */
+	uint32_t		vs;	/* version */
+	uint32_t		intms;	/* interrupt mask set */
+	uint32_t		intmc;	/* interrupt mask clear */
 
 	/** controller configuration */
 	union cc_register	cc;
 
-	uint32_t	reserved1;
-	uint32_t	csts;		/* controller status */
-	uint32_t	reserved2;
+	uint32_t		reserved1;
+
+	/** controller status */
+	union csts_register	csts;
+
+	uint32_t		reserved2;
 
 	/** admin queue attributes */
 	union aqa_register	aqa;
 
-	uint64_t	asq;		/* admin submission queue base addr */
-	uint64_t	acq;		/* admin completion queue base addr */
-	uint32_t	reserved3[0x3f2];
+	uint64_t		asq;	/* admin submission queue base addr */
+	uint64_t		acq;	/* admin completion queue base addr */
+	uint32_t		reserved3[0x3f2];
 
 	struct {
-	    uint32_t	sq_tdbl;	/* submission queue tail doorbell */
-	    uint32_t	cq_hdbl;	/* completion queue head doorbell */
+	    uint32_t		sq_tdbl; /* submission queue tail doorbell */
+	    uint32_t		cq_hdbl; /* completion queue head doorbell */
 	} doorbell[1] __packed;
 } __packed;
 
@@ -532,7 +535,7 @@ struct nvme_controller_data {
 	uint8_t			reserved6[1024];
 
 	/* bytes 3072-4095: vendor specific */
-	uint8_t			reserved7[1024];
+	uint8_t			vs[1024];
 } __packed __aligned(4);
 
 struct nvme_namespace_data {
@@ -717,7 +720,7 @@ struct nvme_io_test {
 	uint32_t		time;	/* in seconds */
 	uint32_t		num_threads;
 	uint32_t		flags;
-	uint32_t		io_completed[NVME_TEST_MAX_THREADS];
+	uint64_t		io_completed[NVME_TEST_MAX_THREADS];
 };
 
 enum nvme_io_test_flags {

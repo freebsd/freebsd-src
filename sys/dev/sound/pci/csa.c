@@ -242,7 +242,6 @@ csa_probe(device_t dev)
 static int
 csa_attach(device_t dev)
 {
-	u_int32_t stcmd;
 	sc_p scp;
 	csa_res *resp;
 	struct sndcard_func *func;
@@ -254,12 +253,7 @@ csa_attach(device_t dev)
 	bzero(scp, sizeof(*scp));
 	scp->dev = dev;
 
-	/* Wake up the device. */
-	stcmd = pci_read_config(dev, PCIR_COMMAND, 2);
-	if ((stcmd & PCIM_CMD_MEMEN) == 0 || (stcmd & PCIM_CMD_BUSMASTEREN) == 0) {
-		stcmd |= (PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
-		pci_write_config(dev, PCIR_COMMAND, stcmd, 2);
-	}
+	pci_enable_busmaster(dev);
 
 	/* Allocate the resources. */
 	resp = &scp->res;

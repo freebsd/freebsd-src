@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.h,v 1.72 2012/12/02 20:34:09 djm Exp $ */
+/* $OpenBSD: auth.h,v 1.76 2013/07/19 07:37:48 markus Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -60,6 +60,7 @@ struct Authctxt {
 	struct passwd	*pw;		/* set if 'valid' */
 	char		*style;
 	void		*kbdintctxt;
+	char		*info;		/* Extra info for next auth_log */
 	void		*jpake_ctx;
 #ifdef BSD_AUTH
 	auth_session_t	*as;
@@ -121,6 +122,8 @@ int	 auth_rsa_key_allowed(struct passwd *, BIGNUM *, Key **);
 int	 auth_rhosts_rsa_key_allowed(struct passwd *, char *, char *, Key *);
 int	 hostbased_key_allowed(struct passwd *, const char *, char *, Key *);
 int	 user_key_allowed(struct passwd *, Key *);
+void	 pubkey_auth_info(Authctxt *, const Key *, const char *, ...)
+	    __attribute__((__format__ (printf, 3, 4)));
 
 struct stat;
 int	 auth_secure_path(const char *, struct stat *, const char *, uid_t,
@@ -148,8 +151,10 @@ void disable_forwarding(void);
 void	do_authentication(Authctxt *);
 void	do_authentication2(Authctxt *);
 
-void	auth_log(Authctxt *, int, int, const char *, const char *,
-    const char *);
+void	auth_info(Authctxt *authctxt, const char *, ...)
+	    __attribute__((__format__ (printf, 2, 3)))
+	    __attribute__((__nonnull__ (2)));
+void	auth_log(Authctxt *, int, int, const char *, const char *);
 void	userauth_finish(Authctxt *, int, const char *, const char *);
 int	auth_root_allowed(const char *);
 
@@ -157,8 +162,9 @@ void	userauth_send_banner(const char *);
 
 char	*auth2_read_banner(void);
 int	 auth2_methods_valid(const char *, int);
-int	 auth2_update_methods_lists(Authctxt *, const char *);
+int	 auth2_update_methods_lists(Authctxt *, const char *, const char *);
 int	 auth2_setup_methods_lists(Authctxt *);
+int	 auth2_method_allowed(Authctxt *, const char *, const char *);
 
 void	privsep_challenge_enable(void);
 
@@ -192,10 +198,12 @@ check_key_in_hostfiles(struct passwd *, Key *, const char *,
 
 /* hostkey handling */
 Key	*get_hostkey_by_index(int);
+Key	*get_hostkey_public_by_index(int);
 Key	*get_hostkey_public_by_type(int);
 Key	*get_hostkey_private_by_type(int);
 int	 get_hostkey_index(Key *);
 int	 ssh1_session_key(BIGNUM *);
+void	 sshd_hostkey_sign(Key *, Key *, u_char **, u_int *, u_char *, u_int);
 
 /* debug messages during authentication */
 void	 auth_debug_add(const char *fmt,...) __attribute__((format(printf, 1, 2)));

@@ -56,13 +56,14 @@ struct thread;
  */
 
 struct lock_class {
-	const	char *lc_name;
-	u_int	lc_flags;
-	void	(*lc_assert)(const struct lock_object *lock, int what);
-	void	(*lc_ddb_show)(const struct lock_object *lock);
-	void	(*lc_lock)(struct lock_object *lock, int how);
-	int	(*lc_owner)(const struct lock_object *lock, struct thread **owner);
-	int	(*lc_unlock)(struct lock_object *lock);
+	const		char *lc_name;
+	u_int		lc_flags;
+	void		(*lc_assert)(const struct lock_object *lock, int what);
+	void		(*lc_ddb_show)(const struct lock_object *lock);
+	void		(*lc_lock)(struct lock_object *lock, uintptr_t how);
+	int		(*lc_owner)(const struct lock_object *lock,
+			    struct thread **owner);
+	uintptr_t	(*lc_unlock)(struct lock_object *lock);
 };
 
 #define	LC_SLEEPLOCK	0x00000001	/* Sleep lock. */

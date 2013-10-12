@@ -2479,7 +2479,6 @@ pmap_release(pmap_t pmap)
 
 	}
 	pmap_free_l1(pmap);
-	PMAP_LOCK_DESTROY(pmap);
 	
 	dprintf("pmap_release()\n");
 }
@@ -3819,7 +3818,6 @@ pmap_pinit(pmap_t pmap)
 {
 	PDEBUG(1, printf("pmap_pinit: pmap = %08x\n", (uint32_t) pmap));
 	
-	PMAP_LOCK_INIT(pmap);
 	pmap_alloc_l1(pmap);
 	bzero(pmap->pm_l2, sizeof(pmap->pm_l2));
 
@@ -4518,6 +4516,14 @@ pmap_page_wired_mappings(vm_page_t m)
 }
 
 /*
+ *	This function is advisory.
+ */
+void
+pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
+{
+}
+
+/*
  *	pmap_ts_referenced:
  *
  *	Return the count of reference bits for a page, clearing all of them.
@@ -4583,21 +4589,6 @@ pmap_is_referenced(vm_page_t m)
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_is_referenced: page %p is not managed", m));
 	return ((m->md.pvh_attrs & PVF_REF) != 0);
-}
-
-/*
- *	pmap_clear_reference:
- *
- *	Clear the reference bit on the specified physical page.
- */
-void
-pmap_clear_reference(vm_page_t m)
-{
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("pmap_clear_reference: page %p is not managed", m));
-	if (m->md.pvh_attrs & PVF_REF)
-		pmap_clearbit(m, PVF_REF);
 }
 
 

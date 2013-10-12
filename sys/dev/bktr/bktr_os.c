@@ -318,7 +318,6 @@ bktr_attach( device_t dev )
 {
 	u_long		latency;
 	u_long		fun;
-	u_long		val;
 	unsigned int	rev;
 	unsigned int	unit;
 	int		error = 0;
@@ -336,9 +335,7 @@ bktr_attach( device_t dev )
 	/*
 	 * Enable bus mastering and Memory Mapped device
 	 */
-	val = pci_read_config(dev, PCIR_COMMAND, 4);
-	val |= (PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, val, 4);
+	pci_enable_busmaster(dev);
 
 	/*
 	 * Map control/status registers.

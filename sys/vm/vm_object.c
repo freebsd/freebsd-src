@@ -1910,6 +1910,12 @@ again:
 		 * not specified.
 		 */
 		vm_page_lock(p);
+		if (vm_page_xbusied(p)) {
+			VM_OBJECT_WUNLOCK(object);
+			vm_page_busy_sleep(p, "vmopax");
+			VM_OBJECT_WLOCK(object);
+			goto again;
+		}
 		if ((wirings = p->wire_count) != 0 &&
 		    (wirings = pmap_page_wired_mappings(p)) != p->wire_count) {
 			if ((options & (OBJPR_NOTWIRED | OBJPR_NOTMAPPED)) ==
@@ -2034,8 +2040,7 @@ vm_object_populate(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	for (pindex = start; pindex < end; pindex++) {
-		m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL |
-		    VM_ALLOC_RETRY);
+		m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
 		if (m->valid != VM_PAGE_BITS_ALL) {
 			ma[0] = m;
 			rv = vm_pager_get_pages(object, ma, 1, 0);

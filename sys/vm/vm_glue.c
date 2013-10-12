@@ -233,7 +233,7 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 
 	VM_OBJECT_WLOCK(object);
 	pindex = OFF_TO_IDX(offset);
-	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
 	if (m->valid != VM_PAGE_BITS_ALL) {
 		ma[0] = m;
 		rv = vm_pager_get_pages(object, ma, 1, 0);
@@ -395,7 +395,7 @@ vm_thread_new(struct thread *td, int pages)
 		 * Get a kernel stack page.
 		 */
 		m = vm_page_grab(ksobj, i, VM_ALLOC_NOBUSY |
-		    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED);
+		    VM_ALLOC_NORMAL | VM_ALLOC_WIRED);
 		ma[i] = m;
 		m->valid = VM_PAGE_BITS_ALL;
 	}
@@ -527,7 +527,7 @@ vm_thread_swapin(struct thread *td)
 	ksobj = td->td_kstack_obj;
 	VM_OBJECT_WLOCK(ksobj);
 	for (i = 0; i < pages; i++)
-		ma[i] = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY |
+		ma[i] = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL |
 		    VM_ALLOC_WIRED);
 	for (i = 0; i < pages; i++) {
 		if (ma[i]->valid != VM_PAGE_BITS_ALL) {

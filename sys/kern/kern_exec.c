@@ -96,12 +96,9 @@ dtrace_execexit_func_t	dtrace_fasttrap_exec;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE(proc, kernel, , exec, exec);
-SDT_PROBE_ARGTYPE(proc, kernel, , exec, 0, "char *");
-SDT_PROBE_DEFINE(proc, kernel, , exec_failure, exec-failure);
-SDT_PROBE_ARGTYPE(proc, kernel, , exec_failure, 0, "int");
-SDT_PROBE_DEFINE(proc, kernel, , exec_success, exec-success);
-SDT_PROBE_ARGTYPE(proc, kernel, , exec_success, 0, "char *");
+SDT_PROBE_DEFINE1(proc, kernel, , exec, exec, "char *");
+SDT_PROBE_DEFINE1(proc, kernel, , exec_failure, exec-failure, "int");
+SDT_PROBE_DEFINE1(proc, kernel, , exec_success, exec-success, "char *");
 
 MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");
 
@@ -341,6 +338,7 @@ do_execve(td, args, mac_p)
 	struct ucred *tracecred = NULL;
 #endif
 	struct vnode *textvp = NULL, *binvp = NULL;
+	cap_rights_t rights;
 	int credential_changing;
 	int textset;
 #ifdef MAC
@@ -441,7 +439,8 @@ interpret:
 		/*
 		 * Descriptors opened only with O_EXEC or O_RDONLY are allowed.
 		 */
-		error = fgetvp_exec(td, args->fd, CAP_FEXECVE, &binvp);
+		error = fgetvp_exec(td, args->fd,
+		    cap_rights_init(&rights, CAP_FEXECVE), &binvp);
 		if (error)
 			goto exec_fail;
 		vn_lock(binvp, LK_EXCLUSIVE | LK_RETRY);
@@ -937,7 +936,7 @@ exec_map_first_page(imgp)
 		object->pg_color = 0;
 	}
 #endif
-	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL);
 	if (ma[0]->valid != VM_PAGE_BITS_ALL) {
 		initial_pagein = VM_INITIAL_PAGEIN;
 		if (initial_pagein > object->size)

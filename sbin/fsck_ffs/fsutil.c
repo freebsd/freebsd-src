@@ -629,6 +629,10 @@ blerase(int fd, ufs2_daddr_t blk, long size)
 	return;
 }
 
+/*
+ * Fill a contiguous region with all-zeroes.  Note ZEROBUFSIZE is by
+ * definition a multiple of dev_bsize.
+ */
 void
 blzero(int fd, ufs2_daddr_t blk, long size)
 {
@@ -637,9 +641,8 @@ blzero(int fd, ufs2_daddr_t blk, long size)
 
 	if (fd < 0)
 		return;
-	len = ZEROBUFSIZE;
 	if (zero == NULL) {
-		zero = calloc(len, 1);
+		zero = calloc(ZEROBUFSIZE, 1);
 		if (zero == NULL)
 			errx(EEXIT, "cannot allocate buffer pool");
 	}
@@ -647,10 +650,7 @@ blzero(int fd, ufs2_daddr_t blk, long size)
 	if (lseek(fd, offset, 0) < 0)
 		rwerror("SEEK BLK", blk);
 	while (size > 0) {
-		if (size > len)
-			size = len;
-		else
-			len = size;
+		len = size > ZEROBUFSIZE ? ZEROBUFSIZE : size;
 		if (write(fd, zero, len) != len)
 			rwerror("WRITE BLK", blk);
 		blk += len / dev_bsize;

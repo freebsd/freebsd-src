@@ -1405,13 +1405,47 @@ ar5212Get11nExtBusy(struct ath_hal *ah)
 }
 
 /*
- * There's no channel survey support for the AR5212.
+ * Channel survey support.
  */
 HAL_BOOL
 ar5212GetMibCycleCounts(struct ath_hal *ah, HAL_SURVEY_SAMPLE *hsample)
 {
+	struct ath_hal_5212 *ahp = AH5212(ah);
+	u_int32_t good = AH_TRUE;
 
-	return (AH_FALSE);
+	/* XXX freeze/unfreeze mib counters */
+	uint32_t rc = OS_REG_READ(ah, AR_RCCNT);
+	uint32_t rf = OS_REG_READ(ah, AR_RFCNT);
+	uint32_t tf = OS_REG_READ(ah, AR_TFCNT);
+	uint32_t cc = OS_REG_READ(ah, AR_CCCNT); /* read cycles last */
+
+	if (ahp->ah_cycleCount == 0 || ahp->ah_cycleCount > cc) {
+		/*
+		 * Cycle counter wrap (or initial call); it's not possible
+		 * to accurately calculate a value because the registers
+		 * right shift rather than wrap--so punt and return 0.
+		 */
+		HALDEBUG(ah, HAL_DEBUG_ANY,
+		    "%s: cycle counter wrap. ExtBusy = 0\n", __func__);
+		good = AH_FALSE;
+	} else {
+		hsample->cycle_count = cc - ahp->ah_cycleCount;
+		hsample->chan_busy = rc - ahp->ah_ctlBusy;
+		hsample->ext_chan_busy = 0;
+		hsample->rx_busy = rf - ahp->ah_rxBusy;
+		hsample->tx_busy = tf - ahp->ah_txBusy;
+	}
+
+	/*
+	 * Keep a copy of the MIB results so the next sample has something
+	 * to work from.
+	 */
+	ahp->ah_cycleCount = cc;
+	ahp->ah_rxBusy = rf;
+	ahp->ah_ctlBusy = rc;
+	ahp->ah_txBusy = tf;
+
+	return (good);
 }
 
 void

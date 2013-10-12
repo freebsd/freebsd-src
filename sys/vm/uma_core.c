@@ -780,7 +780,7 @@ finished:
 
 	while ((slab = SLIST_FIRST(&freeslabs)) != NULL) {
 		SLIST_REMOVE(&freeslabs, slab, uma_slab, us_hlink);
-		keg_free_slab(keg, slab, 0);
+		keg_free_slab(keg, slab, keg->uk_ipers);
 	}
 }
 

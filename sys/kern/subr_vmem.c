@@ -54,8 +54,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/smp.h>
 #include <sys/condvar.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/vmem.h>
+
+#include "opt_vm.h"
 
 #include <vm/uma.h>
 #include <vm/vm.h>
@@ -165,6 +168,9 @@ struct vmem_btag {
 #define	BT_END(bt)	((bt)->bt_start + (bt)->bt_size - 1)
 
 #if defined(DIAGNOSTIC)
+static int enable_vmem_check = 1;
+SYSCTL_INT(_debug, OID_AUTO, vmem_check, CTLFLAG_RW,
+    &enable_vmem_check, 0, "Enable vmem check");
 static void vmem_check(vmem_t *);
 #endif
 
@@ -222,6 +228,11 @@ vmem_t *kernel_arena = &kernel_arena_storage;
 vmem_t *kmem_arena = &kmem_arena_storage;
 vmem_t *buffer_arena = &buffer_arena_storage;
 vmem_t *transient_arena = &transient_arena_storage;
+
+#ifdef DEBUG_MEMGUARD
+static struct vmem memguard_arena_storage;
+vmem_t *memguard_arena = &memguard_arena_storage;
+#endif
 
 /*
  * Fill the vmem's boundary tag cache.  We guarantee that boundary tag
@@ -713,9 +724,11 @@ vmem_periodic(void *unused, int pending)
 	LIST_FOREACH(vm, &vmem_list, vm_alllist) {
 #ifdef DIAGNOSTIC
 		/* Convenient time to verify vmem state. */
-		VMEM_LOCK(vm);
-		vmem_check(vm);
-		VMEM_UNLOCK(vm);
+		if (enable_vmem_check == 1) {
+			VMEM_LOCK(vm);
+			vmem_check(vm);
+			VMEM_UNLOCK(vm);
+		}
 #endif
 		desired = 1 << flsl(vm->vm_nbusytag);
 		desired = MIN(MAX(desired, VMEM_HASHSIZE_MIN),
@@ -751,6 +764,7 @@ vmem_add1(vmem_t *vm, vmem_addr_t addr, vmem_size_t size, int type)
 	bt_t *btfree;
 
 	MPASS(type == BT_TYPE_SPAN || type == BT_TYPE_SPAN_STATIC);
+	MPASS((size & vm->vm_quantum_mask) == 0);
 
 	btspan = bt_alloc(vm);
 	btspan->bt_type = type;
@@ -798,7 +812,7 @@ vmem_destroy1(vmem_t *vm)
 }
 
 static int
-vmem_import(vmem_t *vm, vmem_size_t size, int flags)
+vmem_import(vmem_t *vm, vmem_size_t size, vmem_size_t align, int flags)
 {
 	vmem_addr_t addr;
 	int error;
@@ -806,6 +820,12 @@ vmem_import(vmem_t *vm, vmem_size_t size, int flags)
 	if (vm->vm_importfn == NULL)
 		return EINVAL;
 
+	/*
+	 * To make sure we get a span that meets the alignment we double it
+	 * and add the size to the tail.  This slightly overestimates.
+	 */
+	if (align != vm->vm_quantum_mask + 1)
+		size = (align * 2) + size;
 	size = roundup(size, vm->vm_import_quantum);
 
 	/*
@@ -1150,7 +1170,7 @@ vmem_xalloc(vmem_t *vm, const vmem_size_t size0, vmem_size_t align,
 		 * imported region.  It is up to the user to specify the
 		 * import quantum such that it can satisfy any allocation.
 		 */
-		if (vmem_import(vm, size, flags) == 0)
+		if (vmem_import(vm, size, align, flags) == 0)
 			continue;
 
 		/*

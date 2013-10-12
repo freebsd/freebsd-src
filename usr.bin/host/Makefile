@@ -1,23 +1,21 @@
 # $FreeBSD$
 
-BIND_DIR=	${.CURDIR}/../../contrib/bind9
-LIB_BIND_REL=	../../lib/bind
-LIB_BIND_DIR=	${.CURDIR}/${LIB_BIND_REL}
-SRCDIR=		${BIND_DIR}/bin/dig
+LDNSDIR=	${.CURDIR}/../../contrib/ldns
+LDNSHOSTDIR=	${.CURDIR}/../../contrib/ldns-host
 
-.include	"${LIB_BIND_DIR}/config.mk"
+.PATH:		${LDNSHOSTDIR}
 
 PROG=		host
+SRCS=		ldns-host.c
+MAN=		host.1
 
-.PATH: ${SRCDIR}
-SRCS+=		dighost.c host.c
+host.1: ldns-host.1
+	sed -e 's/ldns-//gI' <${.ALLSRC} >${.TARGET} || \
+		(rm -rf ${.TARGET} ; false)
 
-CFLAGS+=	-I${SRCDIR}/include
-CFLAGS+=	-I${BIND_DIR}/lib/isc/${ISC_ATOMIC_ARCH}/include
-
-WARNS?=		1
-
-DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
-LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
+CFLAGS+=	-I${LDNSDIR}
+DPADD+=		${LIBLDNS} ${LIBCRYPTO}
+LDADD+=		-lldns -lcrypto
+USEPRIVATELIB=	ldns
 
 .include <bsd.prog.mk>

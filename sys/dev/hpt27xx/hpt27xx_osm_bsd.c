@@ -52,7 +52,7 @@ static int hpt_probe(device_t dev)
 				memset(hba, 0, sizeof(HBA));
 				hba->ext_type = EXT_TYPE_HBA;
 				hba->ldm_adapter.him = him;
-				return 0;
+				return (BUS_PROBE_DEFAULT);
 			}
 		}
 	}
@@ -432,7 +432,7 @@ static void os_cmddone(PCOMMAND pCmd)
 
 	KdPrint(("os_cmddone(%p, %d)", pCmd, pCmd->Result));
 	
-	untimeout(hpt_timeout, pCmd, ccb->ccb_h.timeout_ch);
+	untimeout(hpt_timeout, pCmd, ext->timeout_ch);
 
 	switch(pCmd->Result) {
 	case RETURN_SUCCESS:
@@ -510,8 +510,7 @@ static void hpt_io_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nsegs
 			    BUS_DMASYNC_PREWRITE);
 		}
 	}
-
-	ext->ccb->ccb_h.timeout_ch = timeout(hpt_timeout, pCmd, HPT_OSM_TIMEOUT);
+	ext->timeout_ch = timeout(hpt_timeout, pCmd, HPT_OSM_TIMEOUT);
 	ldm_queue_cmd(pCmd);
 }
 
@@ -1048,6 +1047,7 @@ static void hpt_final_init(void *dummy)
 				os_printk("Can't create dma map(%d)", i);
 				return ;
 			}
+			callout_handle_init(&ext->timeout_ch);
 		}
 
 		if ((devq = cam_simq_alloc(os_max_queue_comm)) == NULL) {

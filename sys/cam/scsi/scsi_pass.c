@@ -580,9 +580,7 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 	int error;
 
 	if ((error = passdoioctl(dev, cmd, addr, flag, td)) == ENOTTY) {
-		error = cam_compat_ioctl(dev, &cmd, &addr, &flag, td);
-		if (error == EAGAIN)
-			return (passdoioctl(dev, cmd, addr, flag, td));
+		error = cam_compat_ioctl(dev, cmd, addr, flag, td, passdoioctl);
 	}
 	return (error);
 }

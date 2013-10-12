@@ -267,6 +267,8 @@ linux_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
+        devfs_clear_cdevpriv();
+        
 
 	return (0);
 }
@@ -565,6 +567,7 @@ struct fileops linuxfileops = {
 	.fo_ioctl = linux_file_ioctl,
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
+	.fo_sendfile = invfo_sendfile,
 };
 
 /*

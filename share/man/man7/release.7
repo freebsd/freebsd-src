@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 11, 2013
+.Dd August 14, 2013
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -149,41 +149,23 @@ The
 .Li src/
 branch to use.
 Defaults to
-.Va head/ .
+.Va head/@rHEAD .
 .It Va DOCBRANCH
 The
 .Li doc/
 branch to use.
 Defaults to
-.Va head/ .
+.Va head/@rHEAD .
 .It Va PORTBRANCH
 The
 .Li ports/
 branch to use.
 Defaults to
-.Va head/ .
-.It Va SRCREVISION
-The revision of the
-.Li src/
-tree to use.
-Defaults to the current top of tree revision.
-.It Va DOCREVISION
-The revision of the
-.Li doc/
-tree to use.
-Defaults to the current top of tree revision.
-.It Va PORTREVISION
-The revision of the
-.Li ports/
-tree to use.
-Defaults to the current top of tree revision.
+.Va head/@rHEAD .
 .It Va TARGET
-The target machine type for the release.
-Defaults to the current machine type.
+The target machine type for cross-building a release.
 .It Va TARGET_ARCH
-The target machine architecture for the release.
-Defaults to the value of
-.Va TARGET .
+The target machine architecture for cross-building a release.
 .Pp
 For the supported list of
 .Va TARGET
@@ -227,7 +209,7 @@ Defaults to setting the number of
 .Xr make 1
 jobs
 .Pq Ar -j
-to the number of CPUs available on the system.
+to the number of CPUs available on a SMP-capable system.
 .It Va KERNEL_FLAGS
 Additional flags to pass to
 .Xr make 1
@@ -238,7 +220,7 @@ Defaults to setting the number of
 .Xr make 1
 jobs
 .Pq Ar -j
-to half the number of CPUs available on the system.
+to half the number of CPUs available on a SMP-capable system.
 .It Va NODOC
 Set to a non-empty value to skip the
 .Li doc/

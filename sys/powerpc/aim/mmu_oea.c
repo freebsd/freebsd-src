@@ -278,7 +278,6 @@ int		moea_pte_spill(vm_offset_t);
  */
 void moea_change_wiring(mmu_t, pmap_t, vm_offset_t, boolean_t);
 void moea_clear_modify(mmu_t, vm_page_t);
-void moea_clear_reference(mmu_t, vm_page_t);
 void moea_copy_page(mmu_t, vm_page_t, vm_page_t);
 void moea_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
     vm_page_t *mb, vm_offset_t b_offset, int xfersize);
@@ -328,7 +327,6 @@ struct pmap_md * moea_scan_md(mmu_t mmu, struct pmap_md *prev);
 static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_change_wiring,	moea_change_wiring),
 	MMUMETHOD(mmu_clear_modify,	moea_clear_modify),
-	MMUMETHOD(mmu_clear_reference,	moea_clear_reference),
 	MMUMETHOD(mmu_copy_page,	moea_copy_page),
 	MMUMETHOD(mmu_copy_pages,	moea_copy_pages),
 	MMUMETHOD(mmu_enter,		moea_enter),
@@ -1353,17 +1351,6 @@ moea_is_prefaultable(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 }
 
 void
-moea_clear_reference(mmu_t mmu, vm_page_t m)
-{
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("moea_clear_reference: page %p is not managed", m));
-	rw_wlock(&pvh_global_lock);
-	moea_clear_bit(m, PTE_REF);
-	rw_wunlock(&pvh_global_lock);
-}
-
-void
 moea_clear_modify(mmu_t mmu, vm_page_t m)
 {
 
@@ -1655,7 +1642,6 @@ moea_pinit(mmu_t mmu, pmap_t pmap)
 	u_int	entropy;
 
 	KASSERT((int)pmap < VM_MIN_KERNEL_ADDRESS, ("moea_pinit: virt pmap"));
-	PMAP_LOCK_INIT(pmap);
 	RB_INIT(&pmap->pmap_pvo);
 
 	entropy = 0;
@@ -1719,6 +1705,7 @@ void
 moea_pinit0(mmu_t mmu, pmap_t pm)
 {
 
+	PMAP_LOCK_INIT(pm);
 	moea_pinit(mmu, pm);
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
 }
@@ -1824,7 +1811,6 @@ moea_release(mmu_t mmu, pmap_t pmap)
         idx /= VSID_NBPW;
         moea_vsid_bitmap[idx] &= ~mask;
 	mtx_unlock(&moea_vsid_mutex);
-	PMAP_LOCK_DESTROY(pmap);
 }
 
 /*

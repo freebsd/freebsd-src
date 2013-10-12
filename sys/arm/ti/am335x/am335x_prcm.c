@@ -62,9 +62,14 @@ __FBSDID("$FreeBSD$");
 #define CM_PER_LCDC_CLKCTRL		(CM_PER + 0x018)
 #define CM_PER_USB0_CLKCTRL		(CM_PER + 0x01C)
 #define CM_PER_TPTC0_CLKCTRL		(CM_PER + 0x024)
+#define CM_PER_UART5_CLKCTRL		(CM_PER + 0x038)
 #define CM_PER_MMC0_CLKCTRL		(CM_PER + 0x03C)
 #define CM_PER_I2C2_CLKCTRL		(CM_PER + 0x044)
 #define CM_PER_I2C1_CLKCTRL		(CM_PER + 0x048)
+#define CM_PER_UART1_CLKCTRL		(CM_PER + 0x06C)
+#define CM_PER_UART2_CLKCTRL		(CM_PER + 0x070)
+#define CM_PER_UART3_CLKCTRL		(CM_PER + 0x074)
+#define CM_PER_UART4_CLKCTRL		(CM_PER + 0x078)
 #define CM_PER_TIMER7_CLKCTRL		(CM_PER + 0x07C)
 #define CM_PER_TIMER2_CLKCTRL		(CM_PER + 0x080)
 #define CM_PER_TIMER3_CLKCTRL		(CM_PER + 0x084)
@@ -132,9 +137,12 @@ static struct resource_spec am335x_prcm_spec[] = {
 
 static struct am335x_prcm_softc *am335x_prcm_sc = NULL;
 
+static int am335x_clk_noop_activate(struct ti_clock_dev *clkdev);
 static int am335x_clk_generic_activate(struct ti_clock_dev *clkdev);
 static int am335x_clk_gpio_activate(struct ti_clock_dev *clkdev);
+static int am335x_clk_noop_deactivate(struct ti_clock_dev *clkdev);
 static int am335x_clk_generic_deactivate(struct ti_clock_dev *clkdev);
+static int am335x_clk_noop_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc);
 static int am335x_clk_generic_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc);
 static int am335x_clk_hsmmc_get_source_freq(struct ti_clock_dev *clkdev,  unsigned int *freq);
 static int am335x_clk_get_sysclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
@@ -145,6 +153,15 @@ static int am335x_clk_cpsw_activate(struct ti_clock_dev *clkdev);
 static int am335x_clk_musb0_activate(struct ti_clock_dev *clkdev);
 static int am335x_clk_lcdc_activate(struct ti_clock_dev *clkdev);
 static int am335x_clk_pruss_activate(struct ti_clock_dev *clkdev);
+
+#define AM335X_NOOP_CLOCK_DEV(i) \
+	{	.id = (i), \
+		.clk_activate = am335x_clk_noop_activate, \
+		.clk_deactivate = am335x_clk_noop_deactivate, \
+		.clk_set_source = am335x_clk_noop_set_source, \
+		.clk_accessible = NULL, \
+		.clk_get_source_freq = NULL \
+	}
 
 #define AM335X_GENERIC_CLOCK_DEV(i) \
 	{	.id = (i), \
@@ -217,6 +234,14 @@ struct ti_clock_dev ti_clk_devmap[] = {
 		.clk_get_source_freq = am335x_clk_get_arm_disp_freq,
 	},
 
+        /* UART.  Uart0 clock cannot be controlled. */
+	AM335X_NOOP_CLOCK_DEV(UART0_CLK),
+	AM335X_GENERIC_CLOCK_DEV(UART1_CLK),
+	AM335X_GENERIC_CLOCK_DEV(UART2_CLK),
+	AM335X_GENERIC_CLOCK_DEV(UART3_CLK),
+	AM335X_GENERIC_CLOCK_DEV(UART4_CLK),
+	AM335X_GENERIC_CLOCK_DEV(UART5_CLK),
+
 	/* DMTimer */
 	AM335X_GENERIC_CLOCK_DEV(DMTIMER2_CLK),
 	AM335X_GENERIC_CLOCK_DEV(DMTIMER3_CLK),
@@ -285,6 +310,14 @@ struct am335x_clk_details {
 	}
 
 static struct am335x_clk_details g_am335x_clk_details[] = {
+
+        /* UART. UART0 clock not controllable. */
+	_CLK_DETAIL(UART0_CLK, 0, 0),
+	_CLK_DETAIL(UART1_CLK, CM_PER_UART1_CLKCTRL, 0),
+	_CLK_DETAIL(UART2_CLK, CM_PER_UART2_CLKCTRL, 0),
+	_CLK_DETAIL(UART3_CLK, CM_PER_UART3_CLKCTRL, 0),
+	_CLK_DETAIL(UART4_CLK, CM_PER_UART4_CLKCTRL, 0),
+	_CLK_DETAIL(UART5_CLK, CM_PER_UART5_CLKCTRL, 0),
 
 	/* DMTimer modules */
 	_CLK_DETAIL(DMTIMER2_CLK, CM_PER_TIMER2_CLKCTRL, CLKSEL_TIMER2_CLK),
@@ -406,6 +439,13 @@ am335x_clk_details(clk_ident_t id)
 }
 
 static int
+am335x_clk_noop_activate(struct ti_clock_dev *clkdev)
+{
+
+	return (0);
+}
+
+static int
 am335x_clk_generic_activate(struct ti_clock_dev *clkdev)
 {
 	struct am335x_prcm_softc *sc = am335x_prcm_sc;
@@ -452,6 +492,13 @@ am335x_clk_gpio_activate(struct ti_clock_dev *clkdev)
 }
 
 static int
+am335x_clk_noop_deactivate(struct ti_clock_dev *clkdev)
+{
+
+	return(0);
+}
+
+static int
 am335x_clk_generic_deactivate(struct ti_clock_dev *clkdev)
 {
 	struct am335x_prcm_softc *sc = am335x_prcm_sc;
@@ -469,6 +516,13 @@ am335x_clk_generic_deactivate(struct ti_clock_dev *clkdev)
 	prcm_write_4(clk_details->clkctrl_reg, 0);
 	while ((prcm_read_4(clk_details->clkctrl_reg) & 0x3) != 0)
 		DELAY(10);
+
+	return (0);
+}
+
+static int
+am335x_clk_noop_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc)
+{
 
 	return (0);
 }

@@ -281,6 +281,7 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
 	sa.sa_family = AF_ARP;
 	sa.sa_len = 2;
 	m->m_flags |= M_BCAST;
+	m_clrprotoflags(m);	/* Avoid confusing lower layers. */
 	(*ifp->if_output)(ifp, m, &sa, NULL);
 	ARPSTAT_INC(txrequests);
 }
@@ -784,6 +785,8 @@ match:
 			for (; m_hold != NULL; m_hold = m_hold_next) {
 				m_hold_next = m_hold->m_nextpkt;
 				m_hold->m_nextpkt = NULL;
+				/* Avoid confusing lower layers. */
+				m_clrprotoflags(m_hold);
 				(*ifp->if_output)(ifp, m_hold, &sa, NULL);
 			}
 		} else
@@ -888,6 +891,7 @@ reply:
 	m->m_pkthdr.rcvif = NULL;
 	sa.sa_family = AF_ARP;
 	sa.sa_len = 2;
+	m_clrprotoflags(m);	/* Avoid confusing lower layers. */
 	(*ifp->if_output)(ifp, m, &sa, NULL);
 	ARPSTAT_INC(txreplies);
 	return;

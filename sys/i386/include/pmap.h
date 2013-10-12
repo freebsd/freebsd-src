@@ -213,7 +213,9 @@ extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
 
 #if defined(XEN)
 #include <sys/param.h>
-#include <machine/xen/xen-os.h>
+
+#include <xen/xen-os.h>
+
 #include <machine/xen/xenvar.h>
 #include <machine/xen/xenpmap.h>
 
@@ -326,98 +328,27 @@ pmap_kextract(vm_offset_t va)
 
 #if defined(PAE) && !defined(XEN)
 
-#define	pde_cmpset(pdep, old, new) \
-				atomic_cmpset_64((pdep), (old), (new))
-
-static __inline pt_entry_t
-pte_load(pt_entry_t *ptep)
-{
-	pt_entry_t r;
-
-	__asm __volatile(
-	    "lock; cmpxchg8b %1"
-	    : "=A" (r)
-	    : "m" (*ptep), "a" (0), "d" (0), "b" (0), "c" (0));
-	return (r);
-}
-
-static __inline pt_entry_t
-pte_load_store(pt_entry_t *ptep, pt_entry_t v)
-{
-	pt_entry_t r;
-
-	r = *ptep;
-	__asm __volatile(
-	    "1:\n"
-	    "\tlock; cmpxchg8b %1\n"
-	    "\tjnz 1b"
-	    : "+A" (r)
-	    : "m" (*ptep), "b" ((uint32_t)v), "c" ((uint32_t)(v >> 32)));
-	return (r);
-}
-
-/* XXXRU move to atomic.h? */
-static __inline int
-atomic_cmpset_64(volatile uint64_t *dst, uint64_t exp, uint64_t src)
-{
-	int64_t res = exp;
-
-	__asm __volatile (
-	"	lock ;			"
-	"	cmpxchg8b %2 ;		"
-	"	setz	%%al ;		"
-	"	movzbl	%%al,%0 ;	"
-	"# atomic_cmpset_64"
-	: "+A" (res),			/* 0 (result) */
-	  "=m" (*dst)			/* 1 */
-	: "m" (*dst),			/* 2 */
-	  "b" ((uint32_t)src),
-	  "c" ((uint32_t)(src >> 32)));
-
-	return (res);
-}
-
-#define	pte_load_clear(ptep)	pte_load_store((ptep), (pt_entry_t)0ULL)
-
-#define	pte_store(ptep, pte)	pte_load_store((ptep), (pt_entry_t)pte)
+#define	pde_cmpset(pdep, old, new)	atomic_cmpset_64_i586(pdep, old, new)
+#define	pte_load_store(ptep, pte)	atomic_swap_64_i586(ptep, pte)
+#define	pte_load_clear(ptep)		atomic_swap_64_i586(ptep, 0)
+#define	pte_store(ptep, pte)		atomic_store_rel_64_i586(ptep, pte)
 
 extern pt_entry_t pg_nx;
 
-#elif !defined(PAE) && !defined (XEN)
+#elif !defined(PAE) && !defined(XEN)
 
-#define	pde_cmpset(pdep, old, new) \
-				atomic_cmpset_int((pdep), (old), (new))
-
-static __inline pt_entry_t
-pte_load(pt_entry_t *ptep)
-{
-	pt_entry_t r;
-
-	r = *ptep;
-	return (r);
-}
-
-static __inline pt_entry_t
-pte_load_store(pt_entry_t *ptep, pt_entry_t pte)
-{
-	__asm volatile("xchgl %0, %1" : "+m" (*ptep), "+r" (pte));
-	return (pte);
-}
-
-#define	pte_load_clear(pte)	atomic_readandclear_int(pte)
-
-static __inline void
-pte_store(pt_entry_t *ptep, pt_entry_t pte)
-{
-
-	*ptep = pte;
-}
+#define	pde_cmpset(pdep, old, new)	atomic_cmpset_int(pdep, old, new)
+#define	pte_load_store(ptep, pte)	atomic_swap_int(ptep, pte)
+#define	pte_load_clear(ptep)		atomic_swap_int(ptep, 0)
+#define	pte_store(ptep, pte) do { \
+	*(u_int *)(ptep) = (u_int)(pte); \
+} while (0)
 
 #endif /* PAE */
 
-#define	pte_clear(ptep)		pte_store((ptep), (pt_entry_t)0ULL)
+#define	pte_clear(ptep)			pte_store(ptep, 0)
 
-#define	pde_store(pdep, pde)	pte_store((pdep), (pde))
+#define	pde_store(pdep, pde)		pte_store(pdep, pde)
 
 #endif /* _KERNEL */
 

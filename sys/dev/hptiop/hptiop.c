@@ -643,7 +643,7 @@ static void hptiop_request_callback_mvfrey(struct hpt_iop_hba * hba,
 
 		ccb = (union ccb *)srb->ccb;
 
-		untimeout(hptiop_reset_adapter, hba, ccb->ccb_h.timeout_ch);
+		untimeout(hptiop_reset_adapter, hba, srb->timeout_ch);
 
 		if (ccb->ccb_h.flags & CAM_CDB_POINTER)
 			cdb = ccb->csio.cdb_io.cdb_ptr;
@@ -2629,7 +2629,7 @@ static void hptiop_post_req_mvfrey(struct hpt_iop_hba *hba,
 	BUS_SPACE_RD4_MVFREY2(inbound_write_ptr);
 
 	if (req->header.type == IOP_REQUEST_TYPE_SCSI_COMMAND) {
-		ccb->ccb_h.timeout_ch = timeout(hptiop_reset_adapter, hba, 20*hz);
+		srb->timeout_ch = timeout(hptiop_reset_adapter, hba, 20*hz);
 	}
 }
 
@@ -2741,6 +2741,7 @@ static void hptiop_map_srb(void *arg, bus_dma_segment_t *segs,
 				tmp_srb->phy_addr = phy_addr;
 			}
 
+			callout_handle_init(&tmp_srb->timeout_ch);
 			hptiop_free_srb(hba, tmp_srb);
 			hba->srb[i] = tmp_srb;
 			phy_addr += HPT_SRB_MAX_SIZE;

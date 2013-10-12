@@ -89,10 +89,8 @@ dtrace_fork_func_t	dtrace_fasttrap_fork;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE(proc, kernel, , create, create);
-SDT_PROBE_ARGTYPE(proc, kernel, , create, 0, "struct proc *");
-SDT_PROBE_ARGTYPE(proc, kernel, , create, 1, "struct proc *");
-SDT_PROBE_ARGTYPE(proc, kernel, , create, 2, "int");
+SDT_PROBE_DEFINE3(proc, kernel, , create, create, "struct proc *",
+    "struct proc *", "int");
 
 #ifndef _SYS_SYSPROTO_H_
 struct fork_args {
@@ -491,6 +489,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * Increase reference counts on shared objects.
 	 */
 	p2->p_flag = P_INMEM;
+	p2->p_flag2 = 0;
 	p2->p_swtick = ticks;
 	if (p1->p_flag & P_PROFIL)
 		startprofclock(p2);
@@ -513,6 +512,11 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	p2->p_textvp = p1->p_textvp;
 	p2->p_fd = fd;
 	p2->p_fdtol = fdtol;
+
+	if (p1->p_flag2 & P2_INHERIT_PROTECTED) {
+		p2->p_flag |= P_PROTECTED;
+		p2->p_flag2 |= P2_INHERIT_PROTECTED;
+	}
 
 	/*
 	 * p_limit is copy-on-write.  Bump its refcount.

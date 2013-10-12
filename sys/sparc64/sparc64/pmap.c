@@ -786,7 +786,7 @@ pmap_init(void)
 			continue;
 		if (addr < VM_MIN_PROM_ADDRESS || addr > VM_MAX_PROM_ADDRESS)
 			continue;
-		result = vm_map_find(kernel_map, NULL, 0, &addr, size,
+		result = vm_map_find(kernel_map, NULL, 0, &addr, size, 0,
 		    VMFS_NO_SPACE, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
 		if (result != KERN_SUCCESS || addr != translations[i].om_start)
 			panic("pmap_init: vm_map_find");
@@ -1204,8 +1204,6 @@ pmap_pinit(pmap_t pm)
 	vm_page_t m;
 	int i;
 
-	PMAP_LOCK_INIT(pm);
-
 	/*
 	 * Allocate KVA space for the TSB.
 	 */
@@ -1230,7 +1228,7 @@ pmap_pinit(pmap_t pm)
 	VM_OBJECT_WLOCK(pm->pm_tsb_obj);
 	for (i = 0; i < TSB_PAGES; i++) {
 		m = vm_page_grab(pm->pm_tsb_obj, i, VM_ALLOC_NOBUSY |
-		    VM_ALLOC_RETRY | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+		    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 		m->valid = VM_PAGE_BITS_ALL;
 		m->md.pmap = pm;
 		ma[i] = m;
@@ -1299,7 +1297,6 @@ pmap_release(pmap_t pm)
 		vm_page_free_zero(m);
 	}
 	VM_OBJECT_WUNLOCK(obj);
-	PMAP_LOCK_DESTROY(pm);
 }
 
 /*
@@ -2129,6 +2126,14 @@ pmap_is_referenced(vm_page_t m)
 	return (rv);
 }
 
+/*
+ * This function is advisory.
+ */
+void
+pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
+{
+}
+
 void
 pmap_clear_modify(vm_page_t m)
 {
@@ -2154,25 +2159,6 @@ pmap_clear_modify(vm_page_t m)
 			continue;
 		data = atomic_clear_long(&tp->tte_data, TD_W);
 		if ((data & TD_W) != 0)
-			tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
-	}
-	rw_wunlock(&tte_list_global_lock);
-}
-
-void
-pmap_clear_reference(vm_page_t m)
-{
-	struct tte *tp;
-	u_long data;
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("pmap_clear_reference: page %p is not managed", m));
-	rw_wlock(&tte_list_global_lock);
-	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
-		if ((tp->tte_data & TD_PV) == 0)
-			continue;
-		data = atomic_clear_long(&tp->tte_data, TD_REF);
-		if ((data & TD_REF) != 0)
 			tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
 	}
 	rw_wunlock(&tte_list_global_lock);

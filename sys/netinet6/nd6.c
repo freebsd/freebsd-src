@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -50,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/rwlock.h>
 #include <sys/queue.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
@@ -62,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <net/if_llatbl.h>
 #define	L3_ADDR_SIN6(le)	((struct sockaddr_in6 *) L3_ADDR(le))
 #include <netinet/if_ether.h>
@@ -1508,7 +1511,11 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		nbi->state = ln->ln_state;
 		nbi->asked = ln->la_asked;
 		nbi->isrouter = ln->ln_router;
-		nbi->expire = ln->la_expire + (time_second - time_uptime);
+		if (ln->la_expire == 0)
+			nbi->expire = 0;
+		else
+			nbi->expire = ln->la_expire +
+			    (time_second - time_uptime);
 		LLE_RUNLOCK(ln);
 		break;
 	}
@@ -2078,8 +2085,9 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 		}
 		return (error);
 	}
-	/* Reset layer specific mbuf flags to avoid confusing lower layers. */
-	m->m_flags &= ~(M_PROTOFLAGS);  
+	m_clrprotoflags(m);	/* Avoid confusing lower layers. */
+	IP_PROBE(send, NULL, NULL, mtod(m, struct ip6_hdr *), ifp, NULL,
+	    mtod(m, struct ip6_hdr *));
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
 		return ((*ifp->if_output)(origifp, m, (struct sockaddr *)dst,
 		    NULL));

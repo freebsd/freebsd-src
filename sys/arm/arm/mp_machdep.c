@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pte.h>
 #include <machine/intr.h>
 #include <machine/vmparam.h>
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 #include <machine/vfp.h>
 #endif
 
@@ -199,7 +199,7 @@ init_secondary(int cpu)
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	pc->pc_curthread = pc->pc_idlethread;
 	pc->pc_curpcb = pc->pc_idlethread->td_pcb;
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 	pc->pc_cpu = cpu;
 
 	vfp_init();
