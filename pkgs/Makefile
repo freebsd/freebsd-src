@@ -134,7 +134,7 @@ $t: dirdeps
 elapsed_time= seconds=`expr ${now_utc} - ${start_utc}`
 
 count-makefiles: .NOMETA
-	@echo "${TIME_STAMP} Makefiles read: total=${.MAKE.MAKEFILES:[#]} depend=${.MAKE.MAKEFILES:M*depend*:[#]} ${elapsed_time}"
+	@echo "${TIME_STAMP} Makefiles read: total=${.MAKE.MAKEFILES:[#]} depend=${.MAKE.MAKEFILES:M*depend*:[#]} dirdeps=${.ALLTARGETS:M${SRCTOP}*:O:u:[#]} ${elapsed_time}"
 
 .END: _build_finish
 _build_finish:	.NOMETA
