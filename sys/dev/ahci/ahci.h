@@ -409,6 +409,8 @@ struct ahci_channel {
 	struct ahci_slot	slot[AHCI_MAX_SLOTS];
 	union ccb		*hold[AHCI_MAX_SLOTS];
 	struct mtx		mtx;		/* state lock */
+	STAILQ_HEAD(, ccb_hdr)	doneq;		/* queue of completed CCBs */
+	int			batch;		/* doneq is in use */
 	int			devices;        /* What is present */
 	int			pm_present;	/* PM presence reported */
 	int			fbs_enabled;	/* FIS-based switching enabled */

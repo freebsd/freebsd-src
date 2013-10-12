@@ -159,7 +159,8 @@ SYSCTL_INT(_kern_cam, OID_AUTO, boot_delay, CTLFLAG_RDTUN,
 
 struct cam_doneq {
 	struct mtx_padalign	cam_doneq_mtx;
-	TAILQ_HEAD(, ccb_hdr)	cam_doneq;
+	STAILQ_HEAD(, ccb_hdr)	cam_doneq;
+	int			cam_doneq_sleep;
 };
 
 static struct cam_doneq cam_doneqs[MAXCPU];
@@ -924,7 +925,7 @@ xpt_init(void *dummy)
 	for (i = 0; i < cam_num_doneqs; i++) {
 		mtx_init(&cam_doneqs[i].cam_doneq_mtx, "CAM doneq", NULL,
 		    MTX_DEF);
-		TAILQ_INIT(&cam_doneqs[i].cam_doneq);
+		STAILQ_INIT(&cam_doneqs[i].cam_doneq);
 		error = kproc_kthread_add(xpt_done_td, &cam_doneqs[i],
 		    &cam_proc, NULL, 0, 0, "cam", "doneq%d", i);
 		if (error != 0) {
@@ -4412,71 +4413,34 @@ xpt_release_simq_timeout(void *arg)
 void
 xpt_done(union ccb *done_ccb)
 {
-	struct cam_sim *sim;
 	struct cam_doneq *queue;
 	int	run, hash;
 
 	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("xpt_done\n"));
-	if ((done_ccb->ccb_h.func_code & XPT_FC_QUEUED) != 0) {
-		/*
-		 * Queue up the request for handling by our SWI handler
-		 * any of the "non-immediate" type of ccbs.
-		 */
-		sim = done_ccb->ccb_h.path->bus->sim;
-		mtx_lock(&sim->sim_doneq_mtx);
-		if (sim->sim_doneq_flags & CAM_SIM_DQ_BATCH) {
-			TAILQ_INSERT_TAIL(&sim->sim_doneq, &done_ccb->ccb_h,
-			    sim_links.tqe);
-			done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
-			mtx_unlock(&sim->sim_doneq_mtx);
-			return;
-		}
-		run = ((sim->sim_doneq_flags & CAM_SIM_DQ_POLLED) == 0);
-		mtx_unlock(&sim->sim_doneq_mtx);
-		hash = (done_ccb->ccb_h.path_id + done_ccb->ccb_h.target_id +
-		    done_ccb->ccb_h.target_lun) % cam_num_doneqs;
-		queue = &cam_doneqs[hash];
-		mtx_lock(&queue->cam_doneq_mtx);
-		if (!TAILQ_EMPTY(&queue->cam_doneq))
-			run = 0;
-		TAILQ_INSERT_TAIL(&queue->cam_doneq, &done_ccb->ccb_h,
-		    sim_links.tqe);
-		done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
-		mtx_unlock(&queue->cam_doneq_mtx);
-		if (run)
-			wakeup(&queue->cam_doneq);
-	}
+	if ((done_ccb->ccb_h.func_code & XPT_FC_QUEUED) == 0)
+		return;
+
+	hash = (done_ccb->ccb_h.path_id + done_ccb->ccb_h.target_id +
+	    done_ccb->ccb_h.target_lun) % cam_num_doneqs;
+	queue = &cam_doneqs[hash];
+	mtx_lock(&queue->cam_doneq_mtx);
+	run = (queue->cam_doneq_sleep && STAILQ_EMPTY(&queue->cam_doneq));
+	STAILQ_INSERT_TAIL(&queue->cam_doneq, &done_ccb->ccb_h, sim_links.stqe);
+	done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
+	mtx_unlock(&queue->cam_doneq_mtx);
+	if (run)
+		wakeup(&queue->cam_doneq);
 }
 
 void
-xpt_batch_start(struct cam_sim *sim)
+xpt_done_direct(union ccb *done_ccb)
 {
 
-	mtx_lock(&sim->sim_doneq_mtx);
-	KASSERT((sim->sim_doneq_flags & CAM_SIM_DQ_BATCH) == 0,
-	    ("Batch flag already set"));
-	sim->sim_doneq_flags |= CAM_SIM_DQ_BATCH;
-	mtx_unlock(&sim->sim_doneq_mtx);
-}
+	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("xpt_done_direct\n"));
+	if ((done_ccb->ccb_h.func_code & XPT_FC_QUEUED) == 0)
+		return;
 
-void
-xpt_batch_done(struct cam_sim *sim)
-{
-	struct ccb_hdr *ccb_h;
-
-	mtx_assert(sim->mtx, MA_NOTOWNED);
-	mtx_lock(&sim->sim_doneq_mtx);
-	KASSERT((sim->sim_doneq_flags & CAM_SIM_DQ_BATCH) != 0,
-	    ("Batch flag was not set"));
-	sim->sim_doneq_flags &= ~CAM_SIM_DQ_BATCH;
-	while ((ccb_h = TAILQ_FIRST(&sim->sim_doneq)) != NULL) {
-		TAILQ_REMOVE(&sim->sim_doneq, ccb_h, sim_links.tqe);
-		mtx_unlock(&sim->sim_doneq_mtx);
-		ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
-		xpt_done_process(ccb_h);
-		mtx_lock(&sim->sim_doneq_mtx);
-	}
-	mtx_unlock(&sim->sim_doneq_mtx);
+	xpt_done_process(&done_ccb->ccb_h);
 }
 
 union ccb *
@@ -5265,18 +5229,26 @@ xpt_done_td(void *arg)
 {
 	struct cam_doneq *queue = arg;
 	struct ccb_hdr *ccb_h;
+	STAILQ_HEAD(, ccb_hdr)	doneq;
 
+	STAILQ_INIT(&doneq);
 	mtx_lock(&queue->cam_doneq_mtx);
 	while (1) {
-		if ((ccb_h = TAILQ_FIRST(&queue->cam_doneq)) == NULL) {
+		while (STAILQ_EMPTY(&queue->cam_doneq)) {
+			queue->cam_doneq_sleep = 1;
 			msleep(&queue->cam_doneq, &queue->cam_doneq_mtx,
 			    PRIBIO, "-", 0);
-			continue;
+			queue->cam_doneq_sleep = 0;
 		}
-		TAILQ_REMOVE(&queue->cam_doneq, ccb_h, sim_links.tqe);
+		STAILQ_CONCAT(&doneq, &queue->cam_doneq);
 		mtx_unlock(&queue->cam_doneq_mtx);
-		ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
-		xpt_done_process(ccb_h);
+
+		while ((ccb_h = STAILQ_FIRST(&doneq)) != NULL) {
+			STAILQ_REMOVE_HEAD(&doneq, sim_links.stqe);
+			ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
+			xpt_done_process(ccb_h);
+		}
+
 		mtx_lock(&queue->cam_doneq_mtx);
 	}
 }
@@ -5304,8 +5276,8 @@ camisr_runqueue(struct cam_sim *sim)
 	for (i = 0; i < cam_num_doneqs; i++) {
 		queue = &cam_doneqs[i];
 		mtx_lock(&queue->cam_doneq_mtx);
-		while ((ccb_h = TAILQ_FIRST(&queue->cam_doneq)) != NULL) {
-			TAILQ_REMOVE(&queue->cam_doneq, ccb_h, sim_links.tqe);
+		while ((ccb_h = STAILQ_FIRST(&queue->cam_doneq)) != NULL) {
+			STAILQ_REMOVE_HEAD(&queue->cam_doneq, sim_links.stqe);
 			mtx_unlock(&queue->cam_doneq_mtx);
 			ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
 			xpt_done_process(ccb_h);

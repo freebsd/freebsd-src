@@ -1000,6 +1000,7 @@ ahci_ch_attach(device_t dev)
 	mtx_init(&ch->mtx, "AHCI channel lock", NULL, MTX_DEF);
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "pm_level", &ch->pm_level);
+	STAILQ_INIT(&ch->doneq);
 	if (ch->pm_level > 3)
 		callout_init_mtx(&ch->pm_timer, &ch->mtx, 0);
 	callout_init_mtx(&ch->reset_timer, &ch->mtx, 0);
@@ -1465,16 +1466,35 @@ ahci_notify_events(device_t dev, u_int32_t status)
 }
 
 static void
+ahci_done(struct ahci_channel *ch, union ccb *ccb)
+{
+
+	mtx_assert(&ch->mtx, MA_OWNED);
+	if ((ccb->ccb_h.func_code & XPT_FC_QUEUED) == 0 ||
+	    ch->batch == 0) {
+		xpt_done(ccb);
+		return;
+	}
+
+	STAILQ_INSERT_TAIL(&ch->doneq, &ccb->ccb_h, sim_links.stqe);
+}
+
+static void
 ahci_ch_intr_locked(void *data)
 {
 	device_t dev = (device_t)data;
 	struct ahci_channel *ch = device_get_softc(dev);
+	struct ccb_hdr *ccb_h;
 
-	xpt_batch_start(ch->sim);
 	mtx_lock(&ch->mtx);
+	ch->batch = 1;
 	ahci_ch_intr(data);
+	ch->batch = 0;
 	mtx_unlock(&ch->mtx);
-	xpt_batch_done(ch->sim);
+	while ((ccb_h = STAILQ_FIRST(&ch->doneq)) != NULL) {
+		STAILQ_REMOVE_HEAD(&ch->doneq, sim_links.stqe);
+		xpt_done_direct((union ccb *)ccb_h);
+	}
 }
 
 static void
@@ -1598,7 +1618,7 @@ ahci_ch_intr(void *data)
 				xpt_freeze_devq(fccb->ccb_h.path, 1);
 				fccb->ccb_h.status |= CAM_DEV_QFRZN;
 			}
-			xpt_done(fccb);
+			ahci_done(ch, fccb);
 		}
 		for (i = 0; i < ch->numslots; i++) {
 			/* XXX: reqests in loading state. */
@@ -2007,7 +2027,7 @@ ahci_timeout(struct ahci_slot *slot)
 			xpt_freeze_devq(fccb->ccb_h.path, 1);
 			fccb->ccb_h.status |= CAM_DEV_QFRZN;
 		}
-		xpt_done(fccb);
+		ahci_done(ch, fccb);
 	}
 	if (!ch->fbs_enabled && !ch->wrongccs) {
 		/* Without FBS we know real timeout source. */
@@ -2213,7 +2233,7 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 		ch->hold[slot->slot] = ccb;
 		ch->numhslots++;
 	} else
-		xpt_done(ccb);
+		ahci_done(ch, ccb);
 	/* If we have no other active commands, ... */
 	if (ch->rslots == 0) {
 		/* if there was fatal error - reset port. */
@@ -2273,7 +2293,7 @@ completeall:
 				continue;
 			ch->hold[i]->ccb_h.status &= ~CAM_STATUS_MASK;
 			ch->hold[i]->ccb_h.status |= CAM_RESRC_UNAVAIL;
-			xpt_done(ch->hold[i]);
+			ahci_done(ch, ch->hold[i]);
 			ch->hold[i] = NULL;
 			ch->numhslots--;
 		}
@@ -2361,7 +2381,7 @@ ahci_process_read_log(device_t dev, union ccb *ccb)
 				ch->hold[i]->ccb_h.status &= ~CAM_STATUS_MASK;
 				ch->hold[i]->ccb_h.status |= CAM_REQUEUE_REQ;
 			}
-			xpt_done(ch->hold[i]);
+			ahci_done(ch, ch->hold[i]);
 			ch->hold[i] = NULL;
 			ch->numhslots--;
 		}
@@ -2376,7 +2396,7 @@ ahci_process_read_log(device_t dev, union ccb *ccb)
 				continue;
 			if (ch->hold[i]->ccb_h.func_code != XPT_ATA_IO)
 				continue;
-			xpt_done(ch->hold[i]);
+			ahci_done(ch, ch->hold[i]);
 			ch->hold[i] = NULL;
 			ch->numhslots--;
 		}
@@ -2401,7 +2421,7 @@ ahci_process_request_sense(device_t dev, union ccb *ccb)
 		ch->hold[i]->ccb_h.status &= ~CAM_STATUS_MASK;
 		ch->hold[i]->ccb_h.status |= CAM_AUTOSENSE_FAIL;
 	}
-	xpt_done(ch->hold[i]);
+	ahci_done(ch, ch->hold[i]);
 	ch->hold[i] = NULL;
 	ch->numhslots--;
 	xpt_free_ccb(ccb);
@@ -2585,7 +2605,7 @@ ahci_reset(device_t dev)
 			xpt_freeze_devq(fccb->ccb_h.path, 1);
 			fccb->ccb_h.status |= CAM_DEV_QFRZN;
 		}
-		xpt_done(fccb);
+		ahci_done(ch, fccb);
 	}
 	/* Kill the engine and requeue all running commands. */
 	ahci_stop(dev);
@@ -2599,7 +2619,7 @@ ahci_reset(device_t dev)
 	for (i = 0; i < ch->numslots; i++) {
 		if (!ch->hold[i])
 			continue;
-		xpt_done(ch->hold[i]);
+		ahci_done(ch, ch->hold[i]);
 		ch->hold[i] = NULL;
 		ch->numhslots--;
 	}
@@ -2795,12 +2815,12 @@ ahci_check_ids(device_t dev, union ccb *ccb)
 
 	if (ccb->ccb_h.target_id > ((ch->caps & AHCI_CAP_SPM) ? 15 : 0)) {
 		ccb->ccb_h.status = CAM_TID_INVALID;
-		xpt_done(ccb);
+		ahci_done(ch, ccb);
 		return (-1);
 	}
 	if (ccb->ccb_h.target_lun != 0) {
 		ccb->ccb_h.status = CAM_LUN_INVALID;
-		xpt_done(ccb);
+		ahci_done(ch, ccb);
 		return (-1);
 	}
 	return (0);
@@ -2992,7 +3012,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		ccb->ccb_h.status = CAM_REQ_INVALID;
 		break;
 	}
-	xpt_done(ccb);
+	ahci_done(ch, ccb);
 }
 
 static void
