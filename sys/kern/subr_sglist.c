@@ -321,7 +321,6 @@ sglist_append_mbuf(struct sglist *sg, struct mbuf *m0)
 	if (sg->sg_maxseg == 0)
 		return (EINVAL);
 
-	error = 0;
 	SGLIST_SAVE(sg, save);
 	for (m = m0; m != NULL; m = m->m_next) {
 		if (m->m_len > 0) {
