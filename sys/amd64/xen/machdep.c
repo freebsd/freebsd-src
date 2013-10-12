@@ -466,13 +466,6 @@ initxen(struct start_info *si)
 	KASSERT(PTOV(physfree) <= (xenstack + 512 * 1024), 
 		("Attempt to use unmapped va\n"));
 
-	/* Register the rest of free physical memory with phys_avail[] */
-	/* dump_avail[] starts at index 1 */
-	phys_avail[pa_index++] = physfree; 
-	dump_avail[pa_index] = physfree;
-	phys_avail[pa_index++] = ptoa(physmem);
-	dump_avail[pa_index] = ptoa(physmem);
-
 	/*
  	 * This may be done better later if it gets more high level
  	 * components in it. If so just link td->td_proc here.
@@ -532,9 +525,22 @@ initxen(struct start_info *si)
 
 	/* per cpu structures for cpu0 */
 	pcpu_init(pc, 0, sizeof(struct pcpu));
+
+	dpcpu_init((void *)(PTOV(physfree)), 0);
+	physfree += DPCPU_SIZE;
+
+	/* XXX: This is a hack until we have MP */
+	DPCPU_ID_SET(0, vcpu_info, &HYPERVISOR_shared_info->vcpu_info[0]);
+
+	/* Register the rest of free physical memory with phys_avail[] */
+	/* dump_avail[] starts at index 1 */
+	phys_avail[pa_index++] = physfree; 
+	dump_avail[pa_index] = physfree;
+	phys_avail[pa_index++] = ptoa(physmem);
+	dump_avail[pa_index] = ptoa(physmem);
+
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
-
 	PCPU_SET(tssp, &common_tss[0]); /* Dummy - see definition */
 	PCPU_SET(commontssp, &common_tss[0]); /* Dummy - see definition */
 	PCPU_SET(fs32p, (void *)xpmap_ptom(VTOP(&gdt[GUFS32_SEL]))); /* Note: On Xen PV, we set the machine address. */
