@@ -31,6 +31,11 @@ rm $BSDINSTALL_TMPETC/rc.conf.*
 
 cp $BSDINSTALL_TMPETC/* $BSDINSTALL_CHROOT/etc
 
+cat $BSDINSTALL_TMPBOOT/loader.conf.* >> $BSDINSTALL_TMPBOOT/loader.conf
+rm $BSDINSTALL_TMPBOOT/loader.conf.*
+
+cp $BSDINSTALL_TMPBOOT/* $BSDINSTALL_CHROOT/boot
+
 # Set up other things from installed config
 chroot $BSDINSTALL_CHROOT /usr/bin/newaliases
 
