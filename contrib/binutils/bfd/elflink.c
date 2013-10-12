@@ -438,9 +438,25 @@ bfd_elf_record_link_assignment (bfd *output_bfd ATTRIBUTE_UNUSED,
   if (h->root.type == bfd_link_hash_undefweak
       || h->root.type == bfd_link_hash_undefined)
     h->root.type = bfd_link_hash_new;
-
-  if (h->root.type == bfd_link_hash_new)
+  else if (h->root.type == bfd_link_hash_new)
     h->elf_link_hash_flags &= ~ELF_LINK_NON_ELF;
+  else if (h->root.type == bfd_link_hash_indirect)
+    {
+      const struct elf_backend_data *bed = get_elf_backend_data (output_bfd);
+      struct elf_link_hash_entry *hv = h;
+      do
+	hv = (struct elf_link_hash_entry *) hv->root.u.i.link;
+      while (hv->root.type == bfd_link_hash_indirect
+	     || hv->root.type == bfd_link_hash_warning);
+      h->root.type = bfd_link_hash_undefined;
+      hv->root.type = bfd_link_hash_indirect;
+      hv->root.u.i.link = (struct bfd_link_hash_entry *) h;
+      (*bed->elf_backend_copy_indirect_symbol) (info, h, hv);
+    }
+  else if (h->root.type == bfd_link_hash_warning)
+    {
+      abort ();
+    }
 
   /* If this symbol is being provided by the linker script, and it is
      currently defined by a dynamic object, but not by a regular
@@ -1142,10 +1158,10 @@ _bfd_elf_merge_symbol (bfd *abfd,
 	 case, we make the versioned symbol point to the normal one.  */
       const struct elf_backend_data *bed = get_elf_backend_data (abfd);
       flip->root.type = h->root.type;
+      flip->root.u.undef.abfd = h->root.u.undef.abfd;
       h->root.type = bfd_link_hash_indirect;
       h->root.u.i.link = (struct bfd_link_hash_entry *) flip;
       (*bed->elf_backend_copy_indirect_symbol) (bed, flip, h);
-      flip->root.u.undef.abfd = h->root.u.undef.abfd;
       if (h->elf_link_hash_flags & ELF_LINK_HASH_DEF_DYNAMIC)
 	{
 	  h->elf_link_hash_flags &= ~ELF_LINK_HASH_DEF_DYNAMIC;
