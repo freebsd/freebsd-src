@@ -44,6 +44,7 @@ struct random_adaptor {
 	struct selinfo		rsel;
 	const char		*ident;
 	int			seeded;
+	unsigned		priority;
 	random_init_func_t	*init;
 	random_deinit_func_t	*deinit;
 	random_block_func_t	*block;
