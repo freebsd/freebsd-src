@@ -129,6 +129,7 @@ random_adaptor_choose(struct random_adaptor **adaptor)
 		 */
 		sx_slock(&adaptors_lock);
 
+		ramax = NULL;
 		LIST_FOREACH(rppi, &adaptors, entries) {
 			if (rppi->rsp->priority >= primax) {
 				ramax = rppi;
