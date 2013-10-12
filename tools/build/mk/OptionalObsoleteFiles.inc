@@ -69,15 +69,7 @@ OLD_FILES+=usr/share/man/man8/atrun.8.gz
 .endif
 
 .if ${MK_ATF} == no
-OLD_DIRS+=etc/atf
-OLD_FILES+=etc/atf/FreeBSD.conf
-OLD_FILES+=etc/atf/atf-run.hooks
-OLD_FILES+=etc/atf/common.conf
-OLD_FILES+=usr/bin/atf-config
-OLD_FILES+=usr/bin/atf-report
-OLD_FILES+=usr/bin/atf-run
 OLD_FILES+=usr/bin/atf-sh
-OLD_FILES+=usr/bin/atf-version
 OLD_DIRS+=usr/include/atf-c
 OLD_FILES+=usr/include/atf-c/build.h
 OLD_FILES+=usr/include/atf-c/check.h
@@ -110,34 +102,20 @@ OLD_FILES+=usr/lib/libatf-c++.so
 OLD_FILES+=usr/lib/libatf-c.a
 OLD_FILES+=usr/libexec/atf-check
 OLD_DIRS+=usr/share/atf
-OLD_FILES+=usr/share/atf/atf-run.hooks
 OLD_FILES+=usr/share/atf/libatf-sh.subr
 OLD_DIRS+=usr/share/doc/atf
 OLD_FILES+=usr/share/doc/atf/AUTHORS
 OLD_FILES+=usr/share/doc/atf/COPYING
 OLD_FILES+=usr/share/doc/atf/NEWS
 OLD_FILES+=usr/share/doc/atf/README
-OLD_DIRS+=usr/share/examples/atf
-OLD_FILES+=usr/share/examples/atf/atf-run.hooks
-OLD_FILES+=usr/share/examples/atf/tests-results.css
 OLD_FILES+=usr/share/man/man1/atf-check.1.gz
-OLD_FILES+=usr/share/man/man1/atf-config.1.gz
-OLD_FILES+=usr/share/man/man1/atf-report.1.gz
-OLD_FILES+=usr/share/man/man1/atf-run.1.gz
 OLD_FILES+=usr/share/man/man1/atf-sh.1.gz
 OLD_FILES+=usr/share/man/man1/atf-test-program.1.gz
-OLD_FILES+=usr/share/man/man1/atf-version.1.gz
 OLD_FILES+=usr/share/man/man3/atf-c-api.3.gz
 OLD_FILES+=usr/share/man/man3/atf-c++-api.3.gz
 OLD_FILES+=usr/share/man/man3/atf-sh-api.3.gz
 OLD_FILES+=usr/share/man/man4/atf-test-case.4.gz
-OLD_FILES+=usr/share/man/man5/atf-formats.5.gz
-OLD_FILES+=usr/share/man/man7/atf.7.gz
 OLD_FILES+=usr/share/mk/atf.test.mk
-OLD_DIRS+=usr/share/xml/atf
-OLD_FILES+=usr/share/xml/atf/tests-results.dtd
-OLD_DIRS+=usr/share/xsl/atf
-OLD_FILES+=usr/share/xsl/atf/tests-results.xsl
 .endif
 
 .if ${MK_ATM} == no
