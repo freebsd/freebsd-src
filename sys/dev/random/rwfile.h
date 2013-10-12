@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2013 Mark R. V. Murray
+ * Copyright (c) 2013 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,53 +26,14 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_RANDOM_H_
-#define	_SYS_RANDOM_H_
+#ifndef SYS_DEV_RANDOM_RWFILE_H_INCLUDED
+#define SYS_DEV_RANDOM_RWFILE_H_INCLUDED
 
-#ifdef _KERNEL
+#ifdef RANDOM_RWFILE
 
-int read_random(void *, int);
+int randomdev_read_file(const char *filename, void *buf, size_t);
+int randomdev_write_file(const char *filename, void *buf, size_t);
 
-/*
- * Note: if you add or remove members of esource, remember to also update the
- * KASSERT regarding what valid members are in random_harvest_internal().
- */
-enum esource {
-	RANDOM_START = 0,
-	RANDOM_CACHED = 0,
-	RANDOM_ATTACH,
-	RANDOM_KEYBOARD,
-	RANDOM_MOUSE,
-	RANDOM_NET_TUN,
-	RANDOM_NET_ETHER,
-	RANDOM_NET_NG,
-	RANDOM_INTERRUPT,
-	RANDOM_SWI,
-	RANDOM_PURE_OCTEON,
-	RANDOM_PURE_SAFE,
-	RANDOM_PURE_GLXSB,
-	RANDOM_PURE_UBSEC,
-	RANDOM_PURE_HIFN,
-	RANDOM_PURE_RDRAND,
-	RANDOM_PURE_NEHEMIAH,
-	RANDOM_PURE_RNDTEST,
-	ENTROPYSOURCE
-};
-void random_harvest(void *, u_int, u_int, enum esource);
+#endif
 
-/* Allow the sysadmin to select the broad category of
- * entropy types to harvest
- */
-struct harvest_select {
-	int ethernet;
-	int point_to_point;
-	int interrupt;
-	int swi;
-	int namei;
-};
-
-extern struct harvest_select harvest;
-
-#endif /* _KERNEL */
-
-#endif /* _SYS_RANDOM_H_ */
+#endif
