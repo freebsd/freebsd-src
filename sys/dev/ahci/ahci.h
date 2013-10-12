@@ -483,6 +483,8 @@ struct ahci_controller {
 	int			ichannels;
 	int			ccc;		/* CCC timeout */
 	int			cccv;		/* CCC vector */
+	int			direct;		/* Direct command completion */
+	int			msi;		/* MSI interupts */
 	struct {
 		void			(*function)(void *);
 		void			*argument;
