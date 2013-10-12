@@ -24,6 +24,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -970,6 +972,8 @@ typedef struct hn_softc {
 	int             hn_if_flags;
 	struct mtx      hn_lock;
 	int             hn_initdone;
+	/* See hv_netvsc_drv_freebsd.c for rules on how to use */
+	int             temp_unusable;
 	struct hv_device  *hn_dev_obj;
 	netvsc_dev  	*net_dev;
 } hn_softc_t;
