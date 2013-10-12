@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2013
+.Dd October 6, 2013
 .Dt BSDINSTALL 8
 .Os
 .Sh NAME
@@ -60,6 +60,10 @@ targets.
 .Bl -tag -width ".Cm jail Ar destination"
 .It Cm auto
 Run the standard interactive installation, including disk partitioning.
+.It Cm entropy
+Reads a small amount of data from
+.Pa /dev/random
+and stores it in a file in the new system's root directory.
 .It Cm jail Ar destination
 Sets up a new chroot system at
 .Pa destination ,

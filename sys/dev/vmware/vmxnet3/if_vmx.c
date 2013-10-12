@@ -1317,7 +1317,7 @@ vmxnet3_init_shared_data(struct vmxnet3_softc *sc)
 
 	/* DriverInfo */
 	ds->version = VMXNET3_DRIVER_VERSION;
-	ds->guest = VMXNET3_GOS_FREEBSD | VMXNET3_GUEST_OS_VERSION |
+	ds->guest = VMXNET3_GOS_FREEBSD |
 #ifdef __LP64__
 	    VMXNET3_GOS_64BIT;
 #else

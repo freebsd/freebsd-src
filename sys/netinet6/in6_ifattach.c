@@ -809,6 +809,9 @@ in6_ifdetach(struct ifnet *ifp)
 	struct sockaddr_in6 sin6;
 	struct in6_multi_mship *imm;
 
+	if (ifp->if_afdata[AF_INET6] == NULL)
+		return;
+
 	/* remove neighbor management table */
 	nd6_purge(ifp);
 

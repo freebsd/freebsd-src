@@ -34,7 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define BXE_DRIVER_VERSION "1.78.17"
+#define BXE_DRIVER_VERSION "1.78.18"
 
 #include "bxe.h"
 #include "ecore_sp.h"
@@ -936,8 +936,8 @@ bxe_dma_alloc(struct bxe_softc *sc,
     int rc;
 
     if (dma->size > 0) {
-        BLOGE(sc, "dma block '%s' already has size %lu\n", msg, 
-	  (unsigned long) dma->size);
+        BLOGE(sc, "dma block '%s' already has size %lu\n", msg,
+              (unsigned long)dma->size);
         return (1);
     }
 
@@ -2532,9 +2532,9 @@ bxe_sp_post(struct bxe_softc *sc,
         atomic_subtract_acq_long(&sc->cq_spq_left, 1);
     }
 
-    BLOGD(sc, DBG_SP, "SPQE -> %p\n", (void *)sc->spq_dma.paddr);
-    BLOGD(sc, DBG_SP, "FUNC_RDATA -> %p / %p\n",
-          BXE_SP(sc, func_rdata), (void *)BXE_SP_MAPPING(sc, func_rdata));
+    BLOGD(sc, DBG_SP, "SPQE -> %#jx\n", (uintmax_t)sc->spq_dma.paddr);
+    BLOGD(sc, DBG_SP, "FUNC_RDATA -> %p / %#jx\n",
+          BXE_SP(sc, func_rdata), (uintmax_t)BXE_SP_MAPPING(sc, func_rdata));
     BLOGD(sc, DBG_SP,
           "SPQE[%x] (%x:%x) (cmd, common?) (%d,%d) hw_cid %x data (%x:%x) type(0x%x) left (CQ, EQ) (%lx,%lx)\n",
           sc->spq_prod_idx,
@@ -6923,11 +6923,11 @@ bxe_alloc_fw_stats_mem(struct bxe_softc *sc)
     sc->fw_stats_data_mapping = (sc->fw_stats_dma.paddr +
                                  sc->fw_stats_req_size);
 
-    BLOGD(sc, DBG_LOAD, "statistics request base address set to %p\n",
-          (void *)sc->fw_stats_req_mapping);
+    BLOGD(sc, DBG_LOAD, "statistics request base address set to %#jx\n",
+          (uintmax_t)sc->fw_stats_req_mapping);
 
-    BLOGD(sc, DBG_LOAD, "statistics data base address set to %p\n",
-          (void *)sc->fw_stats_data_mapping);
+    BLOGD(sc, DBG_LOAD, "statistics data base address set to %#jx\n",
+          (uintmax_t)sc->fw_stats_data_mapping);
 
     return (0);
 }
@@ -14201,8 +14201,14 @@ bxe_media_detect(struct bxe_softc *sc)
     uint32_t phy_idx = bxe_get_cur_phy_idx(sc);
     switch (sc->link_params.phy[phy_idx].media_type) {
     case ELINK_ETH_PHY_SFPP_10G_FIBER:
-    case ELINK_ETH_PHY_SFP_1G_FIBER:
     case ELINK_ETH_PHY_XFP_FIBER:
+        BLOGI(sc, "Found 10Gb Fiber media.\n");
+        sc->media = IFM_10G_SR;
+        break;
+    case ELINK_ETH_PHY_SFP_1G_FIBER:
+        BLOGI(sc, "Found 1Gb Fiber media.\n");
+        sc->media = IFM_1000_SX;
+        break;
     case ELINK_ETH_PHY_KR:
     case ELINK_ETH_PHY_CX4:
         BLOGI(sc, "Found 10GBase-CX4 media.\n");
@@ -14213,8 +14219,14 @@ bxe_media_detect(struct bxe_softc *sc)
         sc->media = IFM_10G_TWINAX;
         break;
     case ELINK_ETH_PHY_BASE_T:
-        BLOGI(sc, "Found 10GBase-T media.\n");
-        sc->media = IFM_10G_T;
+        if (sc->link_params.speed_cap_mask[0] &
+            PORT_HW_CFG_SPEED_CAPABILITY_D0_10G) {
+            BLOGI(sc, "Found 10GBase-T media.\n");
+            sc->media = IFM_10G_T;
+        } else {
+            BLOGI(sc, "Found 1000Base-T media.\n");
+            sc->media = IFM_1000_T;
+        }
         break;
     case ELINK_ETH_PHY_NOT_PRESENT:
         BLOGI(sc, "Media not present.\n");

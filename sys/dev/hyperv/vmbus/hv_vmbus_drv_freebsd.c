@@ -29,6 +29,8 @@
 /*
  * VM Bus Driver Implementation
  */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -113,7 +115,7 @@ vmbus_msg_swintr(void *dummy)
 	     */
 	    wmb();
 
-	    if (msg->header.message_flags.message_pending) {
+	    if (msg->header.message_flags.u.message_pending) {
 			/*
 			 * This will cause message queue rescan to possibly
 			 * deliver another msg from the hypervisor

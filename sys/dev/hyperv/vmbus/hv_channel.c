@@ -26,6 +26,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
@@ -70,7 +73,7 @@ vmbus_channel_set_event(hv_vmbus_channel *channel)
 
 		synch_set_bit(channel->monitor_bit,
 			(uint32_t *)&monitor_page->
-				trigger_group[channel->monitor_group].pending);
+				trigger_group[channel->monitor_group].u.pending);
 	} else {
 		hv_vmbus_set_event(channel->offer_msg.child_rel_id);
 	}
@@ -101,17 +104,19 @@ hv_vmbus_channel_open(
 
 	/* Allocate the ring buffer */
 	out = contigmalloc((send_ring_buffer_size + recv_ring_buffer_size),
-		M_DEVBUF, M_ZERO, 0UL, BUS_SPACE_MAXADDR, PAGE_SIZE, 0);
+	    M_DEVBUF, M_ZERO, 0UL, BUS_SPACE_MAXADDR, PAGE_SIZE, 0);
 	KASSERT(out != NULL,
 	    ("Error VMBUS: contigmalloc failed to allocate Ring Buffer!"));
 	if (out == NULL)
-	    return (ENOMEM);
+		return (ENOMEM);
 
 	in = ((uint8_t *) out + send_ring_buffer_size);
 
 	new_channel->ring_buffer_pages = out;
-	new_channel->ring_buffer_page_count = (send_ring_buffer_size
-		+ recv_ring_buffer_size) >> PAGE_SHIFT;
+	new_channel->ring_buffer_page_count = (send_ring_buffer_size +
+	    recv_ring_buffer_size) >> PAGE_SHIFT;
+	new_channel->ring_buffer_size = send_ring_buffer_size +
+	    recv_ring_buffer_size;
 
 	hv_vmbus_ring_buffer_init(
 		&new_channel->outbound,
@@ -536,10 +541,8 @@ hv_vmbus_channel_close(hv_vmbus_channel *channel)
 	hv_ring_buffer_cleanup(&channel->outbound);
 	hv_ring_buffer_cleanup(&channel->inbound);
 
-	contigfree(
-		channel->ring_buffer_pages,
-		channel->ring_buffer_page_count,
-		M_DEVBUF);
+	contigfree(channel->ring_buffer_pages, channel->ring_buffer_size,
+	    M_DEVBUF);
 
 	free(info, M_DEVBUF);
 
