@@ -152,7 +152,7 @@ rndtest_harvest(struct rndtest_state *rsp, void *buf, u_int len)
 		for (len /= sizeof (u_int32_t); len; len--)
 			add_true_randomness(*p++);
 #else
-		random_harvest(buf, len, len*NBBY/2, 0, RANDOM_PURE);
+		random_harvest(buf, len, len*NBBY/2, RANDOM_PURE_RNDTEST);
 #endif
 	}
 }

@@ -2043,13 +2043,15 @@ rt2860.fw			optional rt2860fw | ralfw		\
 	no-obj no-implicit-rule						\
 	clean		"rt2860.fw"
 dev/random/harvest.c		standard
-dev/random/hash.c		optional random
-dev/random/pseudo_rng.c		standard
+dev/random/dummy_rng.c		standard
 dev/random/random_adaptors.c	standard
-dev/random/random_harvestq.c	standard
+dev/random/live_entropy_sources.c	optional random
+dev/random/random_harvestq.c	optional random
 dev/random/randomdev.c		optional random
 dev/random/randomdev_soft.c	optional random
 dev/random/yarrow.c		optional random
+dev/random/hash.c		optional random
+dev/random/rwfile.c		optional random
 dev/rc/rc.c			optional rc
 dev/re/if_re.c			optional re
 dev/rndtest/rndtest.c		optional rndtest
