@@ -299,8 +299,6 @@
             ..
             IPv6
             ..
-            atf
-            ..
             bhyve
             ..
             bootforth
@@ -1408,14 +1406,6 @@
         ..
         vi
             catalog
-            ..
-        ..
-        xml
-            atf
-            ..
-        ..
-        xsl
-            atf
             ..
         ..
         zoneinfo
