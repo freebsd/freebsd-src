@@ -509,7 +509,7 @@ int		 m_pkthdr_init(struct mbuf *, int);
 int		 m_gettype(int);
 void		 m_extaddref(struct mbuf *, caddr_t, u_int, u_int *,
 		    int (*)(struct mbuf *, void *, void *), void *, void *);
-int		 m_init(struct mbuf *, uma_zone_t, int, int, short, int);
+int		 m_init(struct mbuf *, int, int, short, int);
 struct mbuf 	*m_get(int, short);
 struct mbuf	*m_getclr(int, short);
 struct mbuf	*m_gethdr(int, short);
@@ -517,6 +517,11 @@ struct mbuf	*m_getcl(int, short, int);
 void		 m_clget(struct mbuf *, int);
 void		*m_cljget(struct mbuf *, int, int);
 void		 m_cljset(struct mbuf *, void *, int);
+struct mbuf	*m_free(struct mbuf *);
+void		 m_freem(struct mbuf *);
+struct mbuf	*m_get2(int, int, short, int);
+struct mbuf	*m_getjcl(int, short, int, int);
+struct mbuf	*m_getm2(struct mbuf *, int, int, short, int);
 
 static __inline void
 m_chtype(struct mbuf *m, short new_type)
@@ -560,7 +565,7 @@ m_last(struct mbuf *m)
  * be both the local data payload, or an external buffer area, depending on
  * whether M_EXT is set).
  */
-int	_m_writable(struct mbuf *);
+int	_m_writable(const struct mbuf *);
 #define	M_WRITABLE(m)	_m_writable(m)
 
 /* Check if the supplied mbuf has a packet header, or else panic. */
@@ -580,40 +585,25 @@ int	_m_writable(struct mbuf *);
 /*
  * Set the m_data pointer of a newly-allocated mbuf (m_get/MGET) to place an
  * object of the specified size at the end of the mbuf, longword aligned.
- */
-void	_m_align(struct mbuf *, int);
-#define	M_ALIGN(m, len)	_m_align(m, len)
-
-/*
  * As above, for mbufs allocated with m_gethdr/MGETHDR or initialized by
  * M_DUP/MOVE_PKTHDR.
- */
-void	_mh_align(struct mbuf *, int);
-#define	MH_ALIGN(m, len)	_mh_align(m, len)
-
-/*
  * As above, for mbuf with external storage.
  */
-void	_mext_align(struct mbuf *, int);
-#define	MEXT_ALIGN(m, len)	_mext_align(m, len)
+#define	M_ALIGN(m, len)		m_align(m, len)
+#define	MH_ALIGN(m, len)	m_align(m, len)
+#define	MEXT_ALIGN(m, len)	m_align(m, len)
 
 /*
  * Compute the amount of space available before the current start of data in
  * an mbuf.
- *
- * The M_WRITABLE() is a temporary, conservative safety measure: the burden
- * of checking writability of the mbuf data area rests solely with the caller.
  */
-int	_m_leadingspace(struct mbuf *);
+int	_m_leadingspace(const struct mbuf *);
 #define	M_LEADINGSPACE(m)	_m_leadingspace(m)
 
 /*
  * Compute the amount of space available after the end of data in an mbuf.
- *
- * The M_WRITABLE() is a temporary, conservative safety measure: the burden
- * of checking writability of the mbuf data area rests solely with the caller.
  */
-int	_m_trailingspace(struct mbuf *);
+int	_m_trailingspace(const struct mbuf *);
 #define	M_TRAILINGSPACE(m)	_m_trailingspace(m)
 
 /*
@@ -621,8 +611,7 @@ int	_m_trailingspace(struct mbuf *);
  * allocated, how specifies whether to wait.  If the allocation fails, the
  * original mbuf chain is freed and m is set to NULL.
  */
-void	_m_prepend(struct mbuf *, int, int);
-#define	M_PREPEND(m, plen, how)	_m_prepend(m, plen, how)
+#define	M_PREPEND(m, plen, how)	(m = m_prepend(m, plen, how))
 
 /*
  * Change mbuf to new type.  This is a relatively expensive operation and
@@ -670,11 +659,6 @@ struct mbuf	*m_dup(struct mbuf *, int);
 int		 m_dup_pkthdr(struct mbuf *, struct mbuf *, int);
 u_int		 m_fixhdr(struct mbuf *);
 struct mbuf	*m_fragment(struct mbuf *, int, int);
-struct mbuf	*m_free(struct mbuf *);
-void		 m_freem(struct mbuf *);
-struct mbuf	*m_get2(int, int, short, int);
-struct mbuf	*m_getjcl(int, short, int, int);
-struct mbuf	*m_getm2(struct mbuf *, int, int, short, int);
 struct mbuf	*m_getptr(struct mbuf *, int, int *);
 u_int		 m_length(struct mbuf *, struct mbuf **);
 int		 m_mbuftouio(struct uio *, struct mbuf *, int);

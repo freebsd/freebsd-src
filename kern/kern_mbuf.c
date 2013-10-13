@@ -440,7 +440,7 @@ mb_ctor_mbuf(void *mem, int size, void *arg, int how)
 	m = (struct mbuf *)mem;
 	flags = args->flags;
 
-	error = m_init(m, NULL, size, how, type, flags);
+	error = m_init(m, size, how, type, flags);
 
 	return (error);
 }
@@ -641,7 +641,7 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 	trash_ctor(m->m_ext.ext_buf, MCLBYTES, arg, how);
 #endif
 
-	error = m_init(m, NULL, size, how, type, flags);
+	error = m_init(m, size, how, type, flags);
 
 	/* m_ext is already initialized. */
 	m->m_data = m->m_ext.ext_buf;
@@ -685,7 +685,7 @@ m_getzone(int size)
  * should go away with constant propagation for !MGETHDR.
  */
 int
-m_init(struct mbuf *m, uma_zone_t zone, int size, int how, short type,
+m_init(struct mbuf *m, int size, int how, short type,
     int flags)
 {
 	int error;
