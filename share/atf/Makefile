@@ -29,7 +29,6 @@ ATF=		${.CURDIR}/../../contrib/atf
 
 .PATH:		${ATF}/atf-run/sample
 
-NO_OBJ=
 
 FILESDIR=	${SHAREDIR}/atf
 FILES=		atf-run.hooks

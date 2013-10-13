@@ -29,7 +29,6 @@ ATF=		${.CURDIR}/../../../contrib/atf
 .PATH:		${ATF}
 .PATH:		${ATF}/doc
 
-NO_OBJ=
 
 FILESGROUPS=	TOP
 

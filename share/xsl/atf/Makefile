@@ -29,7 +29,6 @@ ATF=		${.CURDIR}/../../../contrib/atf
 
 .PATH:		${ATF}/atf-report
 
-NO_OBJ=
 
 FILESGROUPS=    XSL
 

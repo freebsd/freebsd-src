@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-NO_OBJ=
 
 FILESGROUPS=	CONF LICENSE
 CONF=		exclude-from-upgrade pc-sysinstall.conf avail-langs

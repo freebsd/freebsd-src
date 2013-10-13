@@ -8,6 +8,5 @@ FILES=	detect-laptop.sh detect-nics.sh detect-emulation.sh disk-info.sh \
 	xkeyboard-models.sh xkeyboard-variants.sh
 FILESMODE=	${BINMODE}
 FILESDIR=${SHAREDIR}/pc-sysinstall/backend-query
-NO_OBJ=
 
 .include <bsd.prog.mk>
