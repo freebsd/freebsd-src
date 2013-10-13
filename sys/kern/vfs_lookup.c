@@ -178,7 +178,7 @@ namei(struct nameidata *ndp)
 		if (ndp->ni_dirfd == AT_FDCWD) {
 #ifdef KTRACE
 			if (KTRPOINT(td, KTR_CAPFAIL))
-				ktrcapfail(CAPFAIL_LOOKUP, 0, 0);
+				ktrcapfail(CAPFAIL_LOOKUP, NULL, NULL);
 #endif
 			error = ECAPMODE;
 		}
@@ -284,7 +284,7 @@ namei(struct nameidata *ndp)
 			if (ndp->ni_strictrelative != 0) {
 #ifdef KTRACE
 				if (KTRPOINT(curthread, KTR_CAPFAIL))
-					ktrcapfail(CAPFAIL_LOOKUP, 0, 0);
+					ktrcapfail(CAPFAIL_LOOKUP, NULL, NULL);
 #endif
 				return (ENOTCAPABLE);
 			}
@@ -640,7 +640,7 @@ dirloop:
 		if (ndp->ni_strictrelative != 0) {
 #ifdef KTRACE
 			if (KTRPOINT(curthread, KTR_CAPFAIL))
-				ktrcapfail(CAPFAIL_LOOKUP, 0, 0);
+				ktrcapfail(CAPFAIL_LOOKUP, NULL, NULL);
 #endif
 			error = ENOTCAPABLE;
 			goto bad;

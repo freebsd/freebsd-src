@@ -973,7 +973,7 @@
 514	AUE_NULL	OBSOL	cap_new
 515	AUE_CAP_RIGHTS_GET	NOPROTO	{ int __cap_rights_get(int version, \
 				    int fd, cap_rights_t *rightsp); }
-516	AUE_CAP_ENTER	NOPROTO	{ int cap_enter(void); }
+516	AUE_CAP_ENTER	STD	{ int freebsd32_cap_enter(void); }
 517	AUE_CAP_GETMODE	NOPROTO	{ int cap_getmode(u_int *modep); }
 518	AUE_PDFORK	NOPROTO	{ int pdfork(int *fdp, int flags); }
 519	AUE_PDKILL	NOPROTO	{ int pdkill(int fd, int signum); }
@@ -1056,3 +1056,12 @@
 542	AUE_PIPE	NOPROTO	{ int pipe2(int *fildes, int flags); }
 543	AUE_NULL	NOSTD	{ int freebsd32_aio_mlock( \
 				    struct aiocb32 *aiocbp); }
+#ifdef PAD64_REQUIRED
+544	AUE_NULL	STD	{ int freebsd32_procctl(int idtype, int pad, \
+				    uint32_t id1, uint32_t id2, int com, \
+				    void *data); }
+#else
+544	AUE_NULL	STD	{ int freebsd32_procctl(int idtype, \
+				    uint32_t id1, uint32_t id2, int com, \
+				    void *data); }
+#endif

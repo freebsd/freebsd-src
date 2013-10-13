@@ -987,7 +987,7 @@ pmap_clearbit(struct vm_page *m, u_int maskbits)
 						    ("pmap_clearbit: no PV "
 						    "entry for managed mapping"));
 						pve->pv_flags &= ~PVF_WRITE;
-						*ptep &= ~L2_APX;
+						*ptep |= L2_APX;
 						PTE_SYNC(ptep);
 					}
 				}
@@ -4767,11 +4767,116 @@ pmap_is_modified(vm_page_t m)
 }
 
 /*
- *	This function is advisory.
+ *	Apply the given advice to the specified range of addresses within the
+ *	given pmap.  Depending on the advice, clear the referenced and/or
+ *	modified flags in each mapping.
  */
 void
 pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 {
+	struct l2_bucket *l2b;
+	struct pv_entry *pve;
+	pd_entry_t *pl1pd, l1pd;
+	pt_entry_t *ptep, opte, pte;
+	vm_offset_t next_bucket;
+	vm_page_t m;
+
+	if (advice != MADV_DONTNEED && advice != MADV_FREE)
+		return;
+	rw_wlock(&pvh_global_lock);
+	PMAP_LOCK(pmap);
+	for (; sva < eva; sva = next_bucket) {
+		next_bucket = L2_NEXT_BUCKET(sva);
+		if (next_bucket < sva)
+			next_bucket = eva;
+		pl1pd = &pmap->pm_l1->l1_kva[L1_IDX(sva)];
+		l1pd = *pl1pd;
+		if ((l1pd & L1_TYPE_MASK) == L1_S_PROTO) {
+			if (pmap == pmap_kernel())
+				continue;
+			if (!pmap_demote_section(pmap, sva)) {
+				/*
+				 * The large page mapping was destroyed.
+				 */
+				continue;
+			}
+			/*
+			 * Unless the page mappings are wired, remove the
+			 * mapping to a single page so that a subsequent
+			 * access may repromote. Since the underlying
+			 * l2_bucket is fully populated, this removal
+			 * never frees an entire l2_bucket.
+			 */
+			l2b = pmap_get_l2_bucket(pmap, sva);
+			KASSERT(l2b != NULL,
+			    ("pmap_advise: no l2 bucket for "
+			     "va 0x%#x, pmap 0x%p", sva, pmap));
+			ptep = &l2b->l2b_kva[l2pte_index(sva)];
+			opte = *ptep;
+			m = PHYS_TO_VM_PAGE(l2pte_pa(*ptep));
+			KASSERT(m != NULL,
+			    ("pmap_advise: no vm_page for demoted superpage"));
+			pve = pmap_find_pv(&m->md, pmap, sva);
+			KASSERT(pve != NULL,
+			    ("pmap_advise: no PV entry for managed mapping"));
+			if ((pve->pv_flags & PVF_WIRED) == 0) {
+				pmap_free_l2_bucket(pmap, l2b, 1);
+				pve = pmap_remove_pv(m, pmap, sva);
+				pmap_free_pv_entry(pmap, pve);
+				*ptep = 0;
+				PTE_SYNC(ptep);
+				if (pmap_is_current(pmap)) {
+					if (PTE_BEEN_EXECD(opte))
+						cpu_tlb_flushID_SE(sva);
+					else if (PTE_BEEN_REFD(opte))
+						cpu_tlb_flushD_SE(sva);
+				}
+			}
+		}
+		if (next_bucket > eva)
+			next_bucket = eva;
+		l2b = pmap_get_l2_bucket(pmap, sva);
+		if (l2b == NULL)
+			continue;
+		for (ptep = &l2b->l2b_kva[l2pte_index(sva)];
+		    sva != next_bucket; ptep++, sva += PAGE_SIZE) {
+			opte = pte = *ptep;
+			if ((opte & L2_S_PROTO) == 0)
+				continue;
+			m = PHYS_TO_VM_PAGE(l2pte_pa(opte));
+			if (m == NULL || (m->oflags & VPO_UNMANAGED) != 0)
+				continue;
+			else if (L2_S_WRITABLE(opte)) {
+				if (advice == MADV_DONTNEED) {
+					/*
+					 * Don't need to mark the page
+					 * dirty as it was already marked as
+					 * such in pmap_fault_fixup() or
+					 * pmap_enter_locked().
+					 * Just clear the state.
+					 */
+				} else
+					pte |= L2_APX;
+
+				pte &= ~L2_S_REF;
+				*ptep = pte;
+				PTE_SYNC(ptep);
+			} else if (L2_S_REFERENCED(opte)) {
+				pte &= ~L2_S_REF;
+				*ptep = pte;
+				PTE_SYNC(ptep);
+			} else
+				continue;
+			if (pmap_is_current(pmap)) {
+				if (PTE_BEEN_EXECD(opte))
+					cpu_tlb_flushID_SE(sva);
+				else if (PTE_BEEN_REFD(opte))
+					cpu_tlb_flushD_SE(sva);
+			}
+		}
+	}
+	rw_wunlock(&pvh_global_lock);
+	PMAP_UNLOCK(pmap);
 }
 
 /*
@@ -4796,22 +4901,6 @@ pmap_clear_modify(vm_page_t m)
 		return;
 	if (pmap_is_modified(m))
 		pmap_clearbit(m, PVF_MOD);
-}
-
-
-/*
- *	pmap_clear_reference:
- *
- *	Clear the reference bit on the specified physical page.
- */
-void
-pmap_clear_reference(vm_page_t m)
-{
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("pmap_clear_reference: page %p is not managed", m));
-	if (pmap_is_referenced(m))
-		pmap_clearbit(m, PVF_REF);
 }
 
 

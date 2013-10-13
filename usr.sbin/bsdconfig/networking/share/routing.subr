@@ -75,7 +75,7 @@ f_dialog_input_defaultrouter()
 		local setting="$( printf "$msg_current_default_router" \
 		                         "$defaultrouter" )"
 		f_noyes "$msg_nfs_mounts_may_cause_hang" "$setting" ||
-			return $FAILURE
+			return $DIALOG_CANCEL
 	fi
 
 	#
@@ -87,8 +87,8 @@ f_dialog_input_defaultrouter()
 		               "$msg_please_enter_default_router" \
 		               "$defaultrouter" "$hline_num_punc_tab_enter"
 		retval=$?
-		[ "$defaultrouter" ] || return $SUCCESS
-		[ $retval -eq $SUCCESS ] || return $retval
+		[ "$defaultrouter" ] || return $DIALOG_OK
+		[ $retval -eq $DIALOG_OK ] || return $retval
 
 		# Taint-check the user's input
 		f_dialog_validate_ipaddr "$defaultrouter" && break
@@ -112,7 +112,7 @@ f_dialog_input_defaultrouter()
 		f_dialog_clear
 		f_yesno "$msg_activate_default_router" \
 		        "$( f_route_get_default )" "$defaultrouter"
-		if [ $? -eq $SUCCESS ]; then
+		if [ $? -eq $DIALOG_OK ]; then
 			local err
 
 			# Apply the default router/gateway
@@ -120,7 +120,7 @@ f_dialog_input_defaultrouter()
 			err=$( route add default "$defaultrouter" 2>&1 )
 			if [ $? -ne $SUCCESS ]; then
 				f_dialog_msgbox "$err"
-				return $FAILURE
+				return $DIALOG_CANCEL
 			fi
 		fi
 	fi

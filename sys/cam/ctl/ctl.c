@@ -3148,6 +3148,28 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		sbuf_delete(sb);
 		break;
 	}
+	case CTL_ISCSI: {
+		struct ctl_iscsi *ci;
+		struct ctl_frontend *fe;
+
+		ci = (struct ctl_iscsi *)addr;
+
+		mtx_lock(&softc->ctl_lock);
+		STAILQ_FOREACH(fe, &softc->fe_list, links) {
+			if (strcmp(fe->port_name, "iscsi") == 0)
+				break;
+		}
+		mtx_unlock(&softc->ctl_lock);
+
+		if (fe == NULL) {
+			ci->status = CTL_ISCSI_ERROR;
+			snprintf(ci->error_str, sizeof(ci->error_str), "Backend \"iscsi\" not found.");
+			break;
+		}
+
+		retval = fe->ioctl(dev, cmd, addr, flag, td);
+		break;
+	}
 	default: {
 		/* XXX KDM should we fix this? */
 #if 0

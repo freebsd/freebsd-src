@@ -22,8 +22,8 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
  */
-
 /* Copyright (c) 2013 by Saso Kiselkov. All rights reserved. */
+/* Copyright (c) 2013, Joyent, Inc. All rights reserved. */
 
 #include <sys/dmu.h>
 #include <sys/dmu_impl.h>
@@ -677,6 +677,16 @@ dmu_free_long_range(objset_t *os, uint64_t object,
 	if (err != 0)
 		return (err);
 	err = dmu_free_long_range_impl(os, dn, offset, length);
+
+	/*
+	 * It is important to zero out the maxblkid when freeing the entire
+	 * file, so that (a) subsequent calls to dmu_free_long_range_impl()
+	 * will take the fast path, and (b) dnode_reallocate() can verify
+	 * that the entire file has been freed.
+	 */
+	if (offset == 0 && length == DMU_OBJECT_END)
+		dn->dn_maxblkid = 0;
+
 	dnode_rele(dn, FTAG);
 	return (err);
 }
@@ -1610,7 +1620,7 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 		 * pipeline.
 		 */
 		compress = ZIO_COMPRESS_OFF;
-		checksum = ZIO_CHECKSUM_OFF;
+		checksum = ZIO_CHECKSUM_NOPARITY;
 	} else {
 		compress = zio_compress_select(dn->dn_compress, compress);
 

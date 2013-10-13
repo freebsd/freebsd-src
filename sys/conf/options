@@ -528,8 +528,6 @@ NGATM_CCATM		opt_netgraph.h
 # DRM options
 DRM_DEBUG		opt_drm.h
 
-SOCKET_SEND_COW		opt_zero.h
-SOCKET_RECV_PFLIP	opt_zero.h
 TI_SF_BUF_JUMBO		opt_ti.h
 TI_JUMBO_HDRSPLIT	opt_ti.h
 
@@ -712,10 +710,6 @@ ED_SIC			opt_ed.h
 # bce driver
 BCE_DEBUG		opt_bce.h
 BCE_NVRAM_WRITE_SUPPORT	opt_bce.h
-
-# bxe driver
-BXE_DEBUG		opt_bxe.h
-BXE_NVRAM_WRITE_SUPPORT	opt_bxe.h
 
 SOCKBUF_DEBUG		opt_global.h
 

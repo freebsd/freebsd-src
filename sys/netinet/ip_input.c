@@ -363,6 +363,11 @@ ip_init(void)
 void
 ip_destroy(void)
 {
+	int i;
+
+	if ((i = pfil_head_unregister(&V_inet_pfil_hook)) != 0)
+		printf("%s: WARNING: unable to unregister pfil hook, "
+		    "error %d\n", __func__, i);
 
 	/* Cleanup in_ifaddr hash table; should be empty. */
 	hashdestroy(V_in_ifaddrhashtbl, M_IFADDR, V_in_ifaddrhmask);

@@ -1,4 +1,4 @@
-/* $OpenBSD: kexecdhs.c,v 1.2 2010/09/22 05:01:29 djm Exp $ */
+/* $OpenBSD: kexecdhs.c,v 1.5 2013/07/19 07:37:48 markus Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -59,11 +59,8 @@ kexecdh_server(Kex *kex)
 	u_char *server_host_key_blob = NULL, *signature = NULL;
 	u_char *kbuf, *hash;
 	u_int klen, slen, sbloblen, hashlen;
-	int curve_nid;
 
-	if ((curve_nid = kex_ecdh_name_to_nid(kex->name)) == -1)
-		fatal("%s: unsupported ECDH curve \"%s\"", __func__, kex->name);
-	if ((server_key = EC_KEY_new_by_curve_name(curve_nid)) == NULL)
+	if ((server_key = EC_KEY_new_by_curve_name(kex->ec_nid)) == NULL)
 		fatal("%s: EC_KEY_new_by_curve_name failed", __func__);
 	if (EC_KEY_generate_key(server_key) != 1)
 		fatal("%s: EC_KEY_generate_key failed", __func__);
@@ -81,9 +78,6 @@ kexecdh_server(Kex *kex)
 	if (server_host_public == NULL)
 		fatal("Unsupported hostkey type %d", kex->hostkey_type);
 	server_host_private = kex->load_host_private_key(kex->hostkey_type);
-	if (server_host_private == NULL)
-		fatal("Missing private key for hostkey type %d",
-		    kex->hostkey_type);
 
 	debug("expecting SSH2_MSG_KEX_ECDH_INIT");
 	packet_read_expect(SSH2_MSG_KEX_ECDH_INIT);
@@ -115,7 +109,7 @@ kexecdh_server(Kex *kex)
 	if (BN_bin2bn(kbuf, klen, shared_secret) == NULL)
 		fatal("%s: BN_bin2bn failed", __func__);
 	memset(kbuf, 0, klen);
-	xfree(kbuf);
+	free(kbuf);
 
 	/* calc H */
 	key_to_blob(server_host_public, &server_host_key_blob, &sbloblen);
@@ -142,9 +136,8 @@ kexecdh_server(Kex *kex)
 	}
 
 	/* sign H */
-	if (PRIVSEP(key_sign(server_host_private, &signature, &slen,
-	    hash, hashlen)) < 0)
-		fatal("kexdh_server: key_sign failed");
+	kex->sign(server_host_private, server_host_public, &signature, &slen,
+	    hash, hashlen);
 
 	/* destroy_sensitive_data(); */
 
@@ -155,8 +148,8 @@ kexecdh_server(Kex *kex)
 	packet_put_string(signature, slen);
 	packet_send();
 
-	xfree(signature);
-	xfree(server_host_key_blob);
+	free(signature);
+	free(server_host_key_blob);
 	/* have keys, free server key */
 	EC_KEY_free(server_key);
 

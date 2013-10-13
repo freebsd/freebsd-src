@@ -10,6 +10,9 @@ ident='$FreeBSD$'
 t=$(mktemp -d -t makeman)
 trap 'test -d $t && rm -rf $t' exit
 
+srcdir=$(realpath ../../..)
+make="make -C $srcdir -m $srcdir/share/mk"
+
 #
 # usage: no_targets all_targets yes_targets
 #
@@ -27,10 +30,10 @@ no_targets()
 
 show_options()
 {
-	ALL_TARGETS=$(echo $(make -C ../../.. targets | tail -n +2))
+	ALL_TARGETS=$(echo $(${make} targets | tail -n +2))
 	rm -f $t/settings
 	for target in ${ALL_TARGETS} ; do
-		make -C ../../.. showconfig \
+		${make} showconfig \
 		    SRCCONF=/dev/null __MAKE_CONF=/dev/null \
 		    TARGET_ARCH=${target#*/} TARGET=${target%/*} |
 		while read var _ val ; do
@@ -93,7 +96,7 @@ show()
 		exit 1
 		;;
 	esac
-	make -C ../../.. "$@" showconfig __MAKE_CONF=/dev/null |
+	${make} "$@" showconfig __MAKE_CONF=/dev/null |
 	while read var _ val ; do
 		opt=${var#MK_}
 		case ${val} in

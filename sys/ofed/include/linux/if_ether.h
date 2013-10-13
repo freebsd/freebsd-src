@@ -34,4 +34,9 @@
 
 #define	ETH_P_8021Q	ETHERTYPE_VLAN
 
+/*
+ * defined Ethernet Protocol ID's.
+ */
+#define ETH_P_IP        0x0800          /* Internet Protocol packet     */
+
 #endif	/* _LINUX_IF_ETHER_H_ */

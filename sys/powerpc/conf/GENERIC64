@@ -30,6 +30,7 @@ makeoptions	WITH_CTF=1
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PS3			#Sony Playstation 3
 options 	MAMBO			#IBM Mambo Full System Simulator
+options		PSERIES			#PAPR-compliant systems (e.g. IBM p)
 
 options 	SCHED_ULE		#ULE scheduler
 options 	PREEMPTION		#Enable kernel thread preemption
@@ -131,6 +132,9 @@ device		uart
 device		uart_z8530
 
 # Ethernet hardware
+device		em		# Intel PRO/1000 Gigabit Ethernet Family
+device		igb		# Intel PRO/1000 PCIE Server Gigabit Family
+device		ixgbe		# Intel PRO/10GbE PCIE Ethernet Family
 device		glc		# Sony Playstation 3 Ethernet
 
 # PCI Ethernet NICs that use the common MII bus controller code.
@@ -139,6 +143,8 @@ device		bge		# Broadcom BCM570xx Gigabit Ethernet
 device		gem		# Sun GEM/Sun ERI/Apple GMAC
 device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
+device		re		# RealTek 8139C+/8169/8169S/8110S
+device		rl		# RealTek 8129/8139
 
 # Pseudo devices.
 device		loop		# Network loopback

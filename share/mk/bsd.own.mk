@@ -258,13 +258,6 @@ __DEFAULT_YES_OPTIONS = \
     ATM \
     AUDIT \
     AUTHPF \
-    BIND \
-    BIND_DNSSEC \
-    BIND_ETC \
-    BIND_LIBS_LWRES \
-    BIND_MTREE \
-    BIND_NAMED \
-    BIND_UTILS \
     BINUTILS \
     BLUETOOTH \
     BMAKE \
@@ -311,6 +304,7 @@ __DEFAULT_YES_OPTIONS = \
     KERNEL_SYMBOLS \
     KVM \
     LDNS \
+    LDNS_UTILS \
     LEGACY_CONSOLE \
     LIB32 \
     LIBPTHREAD \
@@ -361,6 +355,7 @@ __DEFAULT_YES_OPTIONS = \
     TELNET \
     TEXTPROC \
     TOOLCHAIN \
+    UNBOUND \
     USB \
     UTMPX \
     WIRELESS \
@@ -370,11 +365,6 @@ __DEFAULT_YES_OPTIONS = \
 
 __DEFAULT_NO_OPTIONS = \
     AUTO_OBJ \
-    BIND_IDN \
-    BIND_LARGE_FILE \
-    BIND_LIBS \
-    BIND_SIGCHASE \
-    BIND_XML \
     BSD_GREP \
     BSD_PATCH \
     CLANG_EXTRAS \
@@ -384,7 +374,7 @@ __DEFAULT_NO_OPTIONS = \
     HESIOD \
     LIBICONV_COMPAT \
     INSTALL_AS_USER \
-    LDNS_UTILS \
+    LLDB \
     META_MODE \
     NAND \
     NMTREE \
@@ -509,34 +499,13 @@ MK_${var}:=	no
 MK_LIBTHR:=	no
 .endif
 
-.if ${MK_LIBTHR} == "no"
-MK_BIND:=	no
-.endif
-
-.if ${MK_BIND} == "no"
-MK_BIND_DNSSEC:= no
-MK_BIND_ETC:=	no
-MK_BIND_LIBS:=	no
-MK_BIND_LIBS_LWRES:= no
-MK_BIND_MTREE:=	no
-MK_BIND_NAMED:=	no
-MK_BIND_UTILS:=	no
-.endif
-
 .if ${MK_ICONV} == "no"
 MK_LIBICONV_COMPAT:=	no
 .endif
 
 .if ${MK_LDNS} == "no"
 MK_LDNS_UTILS:=	no
-.endif
-
-.if ${MK_LDNS_UTILS} != "no"
-MK_BIND_UTILS:=	no
-.endif
-
-.if ${MK_BIND_MTREE} == "no"
-MK_BIND_ETC:=	no
+MK_UNBOUND:= no
 .endif
 
 .if ${MK_SOURCELESS} == "no"
@@ -604,6 +573,10 @@ MK_META_MODE:=	no
 .if ${MK_META_MODE} == "no"
 MK_STAGING:=	no
 MK_STAGING_PROG:= no
+.endif
+
+.if ${MK_CLANG_IS_CC} == "no"
+MK_LLDB:= no
 .endif
 
 #
