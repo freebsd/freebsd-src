@@ -53,6 +53,7 @@
 #include "services/listen_dnsport.h"
 #include "services/cache/rrset.h"
 #include "services/cache/infra.h"
+#include "util/fptr_wlist.h"
 #include "util/data/msgreply.h"
 #include "util/module.h"
 #include "util/net_help.h"
@@ -92,8 +93,10 @@
 #  include "nss.h"
 #endif
 
+#ifdef HAVE_SBRK
 /** global debug value to keep track of heap memory allocation */
 void* unbound_start_brk = 0;
+#endif
 
 #if !defined(HAVE_EVENT_BASE_GET_METHOD) && (defined(HAVE_EV_LOOP) || defined(HAVE_EV_DEFAULT_LOOP))
 static const char* ev_backend2str(int b)
@@ -174,8 +177,6 @@ static void usage()
 	for(m = module_list_avail(); *m; m++)
 		printf(" %s", *m);
 	printf("\n");
-	printf("configured for %s on %s with options:%s\n",
-		CONFIGURE_TARGET, CONFIGURE_DATE, CONFIGURE_BUILD_WITH);
 	printf("BSD licensed, see LICENSE in source package for details.\n");
 	printf("Report bugs to %s\n", PACKAGE_BUGREPORT);
 }

@@ -37,13 +37,14 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <err.h>
 #include <libgen.h>
 #include <unistd.h>
 #include <assert.h>
 #include <errno.h>
-#include <signal.h>
 #include <pthread.h>
 #include <pthread_np.h>
+#include <sysexits.h>
 
 #include <machine/vmm.h>
 #include <vmmapi.h>
@@ -61,9 +62,6 @@ __FBSDID("$FreeBSD$");
 #include "spinup_ap.h"
 #include "rtc.h"
 
-#define	DEFAULT_GUEST_HZ	100
-#define	DEFAULT_GUEST_TSLICE	200
-
 #define GUEST_NIO_PORT		0x488	/* guest upcalls via i/o port */
 
 #define	VMEXIT_SWITCH		0	/* force vcpu switch in mux mode */
@@ -77,14 +75,11 @@ __FBSDID("$FreeBSD$");
 
 typedef int (*vmexit_handler_t)(struct vmctx *, struct vm_exit *, int *vcpu);
 
-int guest_tslice = DEFAULT_GUEST_TSLICE;
-int guest_hz = DEFAULT_GUEST_HZ;
 char *vmname;
 
 int guest_ncpus;
 
 static int pincpu = -1;
-static int guest_vcpu_mux;
 static int guest_vmexit_on_hlt, guest_vmexit_on_pause, disable_x2apic;
 
 static int foundcpus;
@@ -102,13 +97,13 @@ static void vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip);
 
 struct vm_exit vmexit[VM_MAXCPU];
 
-struct fbsdstats {
+struct bhyvestats {
         uint64_t        vmexit_bogus;
         uint64_t        vmexit_bogus_switch;
         uint64_t        vmexit_hlt;
         uint64_t        vmexit_pause;
         uint64_t        vmexit_mtrap;
-        uint64_t        vmexit_paging;
+        uint64_t        vmexit_inst_emul;
         uint64_t        cpu_switch_rotate;
         uint64_t        cpu_switch_direct;
         int             io_reset;
@@ -125,28 +120,24 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-aehABHIP][-g <gdb port>][-z <hz>][-s <pci>]"
-		"[-S <pci>][-p pincpu][-n <pci>][-m lowmem][-M highmem]"
+                "Usage: %s [-aehAHIP][-g <gdb port>][-s <pci>][-S <pci>]"
+		"[-c vcpus][-p pincpu][-m mem]"
 		" <vmname>\n"
 		"       -a: local apic is in XAPIC mode (default is X2APIC)\n"
 		"       -A: create an ACPI table\n"
-		"       -g: gdb port (default is %d and 0 means don't open)\n"
+		"       -g: gdb port\n"
 		"       -c: # cpus (default 1)\n"
 		"       -p: pin vcpu 'n' to host cpu 'pincpu + n'\n"
-		"       -B: inject breakpoint exception on vm entry\n"
 		"       -H: vmexit from the guest on hlt\n"
 		"       -I: present an ioapic to the guest\n"
 		"       -P: vmexit from the guest on pause\n"
 		"	-e: exit on unhandled i/o access\n"
 		"       -h: help\n"
-		"       -z: guest hz (default is %d)\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
 		"       -S: <slot,driver,configinfo> legacy PCI slot config\n"
-		"       -m: memory size in MB\n"
-		"       -x: mux vcpus to 1 hcpu\n"
-		"       -t: mux vcpu timeslice hz (default %d)\n",
-		progname, DEFAULT_GDB_PORT, DEFAULT_GUEST_HZ,
-		DEFAULT_GUEST_TSLICE);
+		"       -m: memory size in MB\n",
+		progname);
+
 	exit(code);
 }
 
@@ -176,13 +167,6 @@ fbsdrun_vmexit_on_hlt(void)
 {
 
 	return (guest_vmexit_on_hlt);
-}
-
-int
-fbsdrun_muxed(void)
-{
-
-	return (guest_vcpu_mux);
 }
 
 static void *
@@ -226,25 +210,12 @@ fbsdrun_addcpu(struct vmctx *ctx, int vcpu, uint64_t rip)
 	vmexit[vcpu].rip = rip;
 	vmexit[vcpu].inst_length = 0;
 
-	if (vcpu == BSP || !guest_vcpu_mux){
-		mt_vmm_info[vcpu].mt_ctx = ctx;
-		mt_vmm_info[vcpu].mt_vcpu = vcpu;
-	
-		error = pthread_create(&mt_vmm_info[vcpu].mt_thr, NULL,
-				fbsdrun_start_thread, &mt_vmm_info[vcpu]);
-		assert(error == 0);
-	}
-}
+	mt_vmm_info[vcpu].mt_ctx = ctx;
+	mt_vmm_info[vcpu].mt_vcpu = vcpu;
 
-static int
-fbsdrun_get_next_cpu(int curcpu)
-{
-
-	/*
-	 * Get the next available CPU. Assumes they arrive
-	 * in ascending order with no gaps.
-	 */
-	return ((curcpu + 1) % foundcpus);
+	error = pthread_create(&mt_vmm_info[vcpu].mt_thr, NULL,
+	    fbsdrun_start_thread, &mt_vmm_info[vcpu]);
+	assert(error == 0);
 }
 
 static int
@@ -264,17 +235,10 @@ static int
 vmexit_handle_notify(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu,
 		     uint32_t eax)
 {
-#if PG_DEBUG /* put all types of debug here */
-        if (eax == 0) {
-		pause_noswitch = 1;
-	} else if (eax == 1) {
-		pause_noswitch = 0;
-	} else {
-		pause_noswitch = 0;
-		if (eax == 5) {
-			vm_set_capability(ctx, *pvcpu, VM_CAP_MTRAP_EXIT, 1);
-		}
-	}
+#if BHYVE_DEBUG
+	/*
+	 * put guest-driven debug here
+	 */
 #endif
         return (VMEXIT_CONTINUE);
 }
@@ -337,11 +301,6 @@ vmexit_wrmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 
 	newcpu = emulate_wrmsr(ctx, *pvcpu, vme->u.msr.code,vme->u.msr.wval);
 
-	if (guest_vcpu_mux && *pvcpu != newcpu) {
-                retval = VMEXIT_SWITCH;
-                *pvcpu = newcpu;
-        }
-        
         return (retval);
 }
 
@@ -354,11 +313,6 @@ vmexit_spinup_ap(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 	newcpu = spinup_ap(ctx, *pvcpu,
 			   vme->u.spinup_ap.vcpu, vme->u.spinup_ap.rip);
 
-	if (guest_vcpu_mux && *pvcpu != newcpu) {
-		retval = VMEXIT_SWITCH;
-		*pvcpu = newcpu;
-	}
-        
 	return (retval);
 }
 
@@ -378,71 +332,55 @@ vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	return (VMEXIT_ABORT);
 }
 
-static int bogus_noswitch = 1;
-
 static int
 vmexit_bogus(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
+
 	stats.vmexit_bogus++;
 
-	if (!guest_vcpu_mux || guest_ncpus == 1 || bogus_noswitch) {
-		return (VMEXIT_RESTART);
-	} else {
-		stats.vmexit_bogus_switch++;
-		vmexit->inst_length = 0;
-		*pvcpu = -1;		
-		return (VMEXIT_SWITCH);
-	}
+	return (VMEXIT_RESTART);
 }
 
 static int
 vmexit_hlt(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
-	stats.vmexit_hlt++;
-	if (fbsdrun_muxed()) {
-		*pvcpu = -1;
-		return (VMEXIT_SWITCH);
-	} else {
-		/*
-		 * Just continue execution with the next instruction. We use
-		 * the HLT VM exit as a way to be friendly with the host
-		 * scheduler.
-		 */
-		return (VMEXIT_CONTINUE);
-	}
-}
 
-static int pause_noswitch;
+	stats.vmexit_hlt++;
+
+	/*
+	 * Just continue execution with the next instruction. We use
+	 * the HLT VM exit as a way to be friendly with the host
+	 * scheduler.
+	 */
+	return (VMEXIT_CONTINUE);
+}
 
 static int
 vmexit_pause(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
+
 	stats.vmexit_pause++;
 
-	if (fbsdrun_muxed() && !pause_noswitch) {
-		*pvcpu = -1;
-		return (VMEXIT_SWITCH);
-        } else {
-		return (VMEXIT_CONTINUE);
-	}
+	return (VMEXIT_CONTINUE);
 }
 
 static int
 vmexit_mtrap(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
+
 	stats.vmexit_mtrap++;
 
 	return (VMEXIT_RESTART);
 }
 
 static int
-vmexit_paging(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
+vmexit_inst_emul(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
 	int err;
-	stats.vmexit_paging++;
+	stats.vmexit_inst_emul++;
 
-	err = emulate_mem(ctx, *pvcpu, vmexit->u.paging.gpa,
-			  &vmexit->u.paging.vie);
+	err = emulate_mem(ctx, *pvcpu, vmexit->u.inst_emul.gpa,
+			  &vmexit->u.inst_emul.vie);
 
 	if (err) {
 		if (err == EINVAL) {
@@ -451,46 +389,13 @@ vmexit_paging(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 			    vmexit->rip);
 		} else if (err == ESRCH) {
 			fprintf(stderr, "Unhandled memory access to 0x%lx\n",
-			    vmexit->u.paging.gpa);
+			    vmexit->u.inst_emul.gpa);
 		}
 
 		return (VMEXIT_ABORT);
 	}
 
 	return (VMEXIT_CONTINUE);
-}
-
-static void
-sigalrm(int sig)
-{
-	return;
-}
-
-static void
-setup_timeslice(void)
-{
-	struct sigaction sa;
-	struct itimerval itv;
-	int error;
-
-	/*
-	 * Setup a realtime timer to generate a SIGALRM at a
-	 * frequency of 'guest_tslice' ticks per second.
-	 */
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = 0;
-	sa.sa_handler = sigalrm;
-	
-	error = sigaction(SIGALRM, &sa, NULL);
-	assert(error == 0);
-
-	itv.it_interval.tv_sec = 0;
-	itv.it_interval.tv_usec = 1000000 / guest_tslice;
-	itv.it_value.tv_sec = 0;
-	itv.it_value.tv_usec = 1000000 / guest_tslice;
-	
-	error = setitimer(ITIMER_REAL, &itv, NULL);
-	assert(error == 0);
 }
 
 static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
@@ -500,7 +405,7 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_RDMSR]  = vmexit_rdmsr,
 	[VM_EXITCODE_WRMSR]  = vmexit_wrmsr,
 	[VM_EXITCODE_MTRAP]  = vmexit_mtrap,
-	[VM_EXITCODE_PAGING] = vmexit_paging,
+	[VM_EXITCODE_INST_EMUL] = vmexit_inst_emul,
 	[VM_EXITCODE_SPINUP_AP] = vmexit_spinup_ap,
 };
 
@@ -510,9 +415,6 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 	cpuset_t mask;
 	int error, rc, prevcpu;
 	enum vm_exitcode exitcode;
-
-	if (guest_vcpu_mux)
-		setup_timeslice();
 
 	if (pincpu >= 0) {
 		CPU_ZERO(&mask);
@@ -550,15 +452,6 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
                 rc = (*handler[exitcode])(ctx, &vmexit[vcpu], &vcpu);
 
 		switch (rc) {
-                case VMEXIT_SWITCH:
-			assert(guest_vcpu_mux);
-			if (vcpu == -1) {
-				stats.cpu_switch_rotate++;
-				vcpu = fbsdrun_get_next_cpu(prevcpu);
-			} else {
-				stats.cpu_switch_direct++;
-			}
-			/* fall through */
 		case VMEXIT_CONTINUE:
                         rip = vmexit[vcpu].rip + vmexit[vcpu].inst_length;
 			break;
@@ -594,21 +487,20 @@ num_vcpus_allowed(struct vmctx *ctx)
 int
 main(int argc, char *argv[])
 {
-	int c, error, gdb_port, inject_bkpt, tmp, err, ioapic, bvmcons;
+	int c, error, gdb_port, tmp, err, ioapic, bvmcons;
 	int max_vcpus;
 	struct vmctx *ctx;
 	uint64_t rip;
 	size_t memsize;
 
 	bvmcons = 0;
-	inject_bkpt = 0;
 	progname = basename(argv[0]);
-	gdb_port = DEFAULT_GDB_PORT;
+	gdb_port = 0;
 	guest_ncpus = 1;
 	ioapic = 0;
 	memsize = 256 * MB;
 
-	while ((c = getopt(argc, argv, "abehABHIPxp:g:c:z:s:S:n:m:")) != -1) {
+	while ((c = getopt(argc, argv, "abehAHIPp:g:c:s:S:m:")) != -1) {
 		switch (c) {
 		case 'a':
 			disable_x2apic = 1;
@@ -619,12 +511,6 @@ main(int argc, char *argv[])
 		case 'b':
 			bvmcons = 1;
 			break;
-		case 'B':
-			inject_bkpt = 1;
-			break;
-		case 'x':
-			guest_vcpu_mux = 1;
-			break;
 		case 'p':
 			pincpu = atoi(optarg);
 			break;
@@ -633,12 +519,6 @@ main(int argc, char *argv[])
 			break;
 		case 'g':
 			gdb_port = atoi(optarg);
-			break;
-		case 'z':
-			guest_hz = atoi(optarg);
-			break;
-		case 't':
-			guest_tslice = atoi(optarg);
 			break;
 		case 's':
 			if (pci_parse_slot(optarg, 0) != 0)
@@ -651,7 +531,9 @@ main(int argc, char *argv[])
 			else
 				break;
                 case 'm':
-			memsize = strtoul(optarg, NULL, 0) * MB;
+			error = vm_parse_memsize(optarg, &memsize);
+			if (error)
+				errx(EX_USAGE, "invalid memsize '%s'", optarg);
 			break;
 		case 'H':
 			guest_vmexit_on_hlt = 1;
@@ -676,16 +558,6 @@ main(int argc, char *argv[])
 
 	if (argc != 1)
 		usage(1);
-
-	/* No need to mux if guest is uni-processor */
-	if (guest_ncpus <= 1)
-		guest_vcpu_mux = 0;
-
-	/* vmexit on hlt if guest is muxed */
-	if (guest_vcpu_mux) {
-		guest_vmexit_on_hlt = 1;
-		guest_vmexit_on_pause = 1;
-	}
 
 	vmname = argv[0];
 
@@ -764,11 +636,6 @@ main(int argc, char *argv[])
 
 	error = vm_get_register(ctx, BSP, VM_REG_GUEST_RIP, &rip);
 	assert(error == 0);
-
-	if (inject_bkpt) {
-		error = vm_inject_event(ctx, BSP, VM_HW_EXCEPTION, IDT_BP);
-		assert(error == 0);
-	}
 
 	/*
 	 * build the guest tables, MP etc.

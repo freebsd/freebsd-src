@@ -245,6 +245,8 @@ union e1000_adv_rx_desc {
 #define E1000_RXDADV_RSSTYPE_IPV6_UDP_EX 0x00000009
 
 /* RSS Packet Types as indicated in the receive descriptor */
+#define E1000_RXDADV_PKTTYPE_ILMASK	0x000000F0
+#define E1000_RXDADV_PKTTYPE_TLMASK	0x00000F00
 #define E1000_RXDADV_PKTTYPE_NONE	0x00000000
 #define E1000_RXDADV_PKTTYPE_IPV4	0x00000010 /* IPV4 hdr present */
 #define E1000_RXDADV_PKTTYPE_IPV4_EX	0x00000020 /* IPV4 hdr + extensions */
@@ -491,7 +493,10 @@ void e1000_vfta_set_vf(struct e1000_hw *, u16, bool);
 void e1000_rlpml_set_vf(struct e1000_hw *, u16);
 s32 e1000_promisc_set_vf(struct e1000_hw *, enum e1000_promisc_type type);
 u16 e1000_rxpbs_adjust_82580(u32 data);
+s32 e1000_read_emi_reg(struct e1000_hw *hw, u16 addr, u16 *data);
 s32 e1000_set_eee_i350(struct e1000_hw *);
+s32 e1000_set_eee_i354(struct e1000_hw *);
+s32 e1000_get_eee_status_i354(struct e1000_hw *, bool *);
 
 /* I2C SDA and SCL timing parameters for standard mode */
 #define E1000_I2C_T_HD_STA	4

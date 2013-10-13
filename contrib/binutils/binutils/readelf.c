@@ -9109,6 +9109,10 @@ get_note_type (unsigned e_type)
 	return _("NT_LWPSINFO (lwpsinfo_t structure)");
       case NT_WIN32PSTATUS:
 	return _("NT_WIN32PSTATUS (win32_pstatus structure)");
+      case NT_FILE:
+        return _("NT_FILE");
+      case NT_SIGINFO:
+        return _("NT_SIGINFO");
       default:
 	break;
       }
@@ -9165,11 +9169,30 @@ get_freebsd_note_type (unsigned e_type)
 	return _("NT_FREEBSD_ABI_TAG");
       case NT_FREEBSD_NOINIT_TAG:
 	return _("NT_FREEBSD_NOINIT_TAG");
+      case NT_FREEBSD_ARCH_TAG:
+	return _("NT_FREEBSD_ARCH_TAG");
       default:
 	break;
       }
 
   snprintf (buff, sizeof(buff), _("Unknown note type: (0x%08x)"), e_type);
+  return buff;
+}
+
+static const char *
+get_gnu_note_type (unsigned e_type)
+{
+  static char buff[64];
+
+  switch (e_type)
+    {
+    case NT_GNU_ABI_TAG:
+      return _("NT_GNU_ABI_TAG");
+    case NT_GNU_BUILD_ID:
+      return _("NT_GNU_BUILD_ID");
+    }
+
+  snprintf (buff, sizeof(buff), _("Unknown GNU note type: (0x%08x)"), e_type);
   return buff;
 }
 
@@ -9253,6 +9276,10 @@ process_note (Elf_Internal_Note *pnote)
   else if (const_strneq (pnote->namedata, "FreeBSD"))
     /* FreeBSD-specific core file notes.  */
     nt = get_freebsd_note_type (pnote->type);
+
+  else if (const_strneq (pnote->namedata, "GNU"))
+    /* GNU-specific notes */
+    nt = get_gnu_note_type (pnote->type);
 
   else if (const_strneq (pnote->namedata, "NetBSD-CORE"))
     /* NetBSD-specific core file notes.  */

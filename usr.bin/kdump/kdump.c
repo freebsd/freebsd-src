@@ -59,6 +59,7 @@ extern int errno;
 #include <sys/sysent.h>
 #include <sys/un.h>
 #include <sys/queue.h>
+#include <sys/wait.h>
 #ifdef IPX
 #include <sys/types.h>
 #include <netipx/ipx.h>
@@ -666,8 +667,30 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 			case SYS_wait4:
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
+				/*
+				 * A flags value of zero is valid for
+				 * wait4() but not for wait6(), so
+				 * handle zero special here.
+				 */
+				if (*ip == 0) {
+					print_number(ip, narg, c);
+				} else {
+					putchar(',');
+					wait6optname(*ip);
+					ip++;
+					narg--;
+				}
+				break;
+			case SYS_wait6:
+				putchar('(');
+				idtypename(*ip, decimal);
+				c = ',';
+				ip++;
+				narg--;
+				print_number(ip, narg, c);
+				print_number(ip, narg, c);
 				putchar(',');
-				wait4optname(*ip);
+				wait6optname(*ip);
 				ip++;
 				narg--;
 				break;
@@ -1135,6 +1158,18 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				(void)putchar(',');
 				fadvisebehavname((int)*ip);
+				ip++;
+				narg--;
+				break;
+			case SYS_procctl:
+				putchar('(');
+				idtypename(*ip, decimal);
+				c = ',';
+				ip++;
+				narg--;
+				print_number(ip, narg, c);
+				putchar(',');
+				procctlcmdname(*ip);
 				ip++;
 				narg--;
 				break;
@@ -1620,10 +1655,15 @@ ktrstat(struct stat *statp)
 	 * buffer exactly sizeof(struct stat) bytes long.
 	 */
 	printf("struct stat {");
-	strmode(statp->st_mode, mode);
-	printf("dev=%ju, ino=%ju, mode=%s, nlink=%ju, ",
-		(uintmax_t)statp->st_dev, (uintmax_t)statp->st_ino, mode,
-		(uintmax_t)statp->st_nlink);
+	printf("dev=%ju, ino=%ju, ",
+		(uintmax_t)statp->st_dev, (uintmax_t)statp->st_ino);
+	if (resolv == 0)
+		printf("mode=0%jo, ", (uintmax_t)statp->st_mode);
+	else {
+		strmode(statp->st_mode, mode);
+		printf("mode=%s, ", mode);
+	}
+	printf("nlink=%ju, ", (uintmax_t)statp->st_nlink);
 	if (resolv == 0 || (pwd = getpwuid(statp->st_uid)) == NULL)
 		printf("uid=%ju, ", (uintmax_t)statp->st_uid);
 	else

@@ -170,7 +170,7 @@ f_media_shutdown_cdrom()
 {
 	local dev="$1" err
 
-	[ "$CDROM_MOUNTED" ] || return
+	[ "$CDROM_MOUNTED" ] || return $FAILURE
 
 	if [ "$CDROM_PREVIOUSLY_MOUNTED" ]; then
 		CDROM_MOUNTED=

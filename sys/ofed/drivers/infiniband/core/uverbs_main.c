@@ -110,8 +110,8 @@ static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_CMD_QUERY_SRQ]     	= ib_uverbs_query_srq,
 	[IB_USER_VERBS_CMD_DESTROY_SRQ]   	= ib_uverbs_destroy_srq,
 	[IB_USER_VERBS_CMD_CREATE_XRC_SRQ]	= ib_uverbs_create_xrc_srq,
-	[IB_USER_VERBS_CMD_OPEN_XRC_DOMAIN]	= ib_uverbs_open_xrc_domain,
-	[IB_USER_VERBS_CMD_CLOSE_XRC_DOMAIN]	= ib_uverbs_close_xrc_domain,
+	[IB_USER_VERBS_CMD_OPEN_XRCD]	        = ib_uverbs_open_xrc_domain,
+	[IB_USER_VERBS_CMD_CLOSE_XRCD]	        = ib_uverbs_close_xrc_domain,
 	[IB_USER_VERBS_CMD_CREATE_XRC_RCV_QP]	= ib_uverbs_create_xrc_rcv_qp,
 	[IB_USER_VERBS_CMD_MODIFY_XRC_RCV_QP]	= ib_uverbs_modify_xrc_rcv_qp,
 	[IB_USER_VERBS_CMD_QUERY_XRC_RCV_QP]	= ib_uverbs_query_xrc_rcv_qp,
@@ -258,7 +258,7 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 	}
 
 	mutex_lock(&file->device->ib_dev->xrcd_table_mutex);
-	list_for_each_entry_safe(uobj, tmp, &context->xrc_domain_list, list) {
+	list_for_each_entry_safe(uobj, tmp, &context->xrcd_list, list) {
 		struct ib_xrcd *xrcd = uobj->object;
 		struct ib_uxrc_rcv_object *xrc_qp_obj, *tmp1;
 		struct ib_uxrcd_object *xrcd_uobj =
@@ -629,8 +629,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	if (hdr.in_words * 4 != count)
 		return -EINVAL;
 
-	if (hdr.command < 0				||
-	    hdr.command >= ARRAY_SIZE(uverbs_cmd_table) ||
+	if (hdr.command >= ARRAY_SIZE(uverbs_cmd_table) ||
 	    !uverbs_cmd_table[hdr.command]		||
 	    !(file->device->ib_dev->uverbs_cmd_mask & (1ull << hdr.command)))
 		return -EINVAL;

@@ -142,12 +142,12 @@ static void	assert_lockmgr(const struct lock_object *lock, int how);
 #ifdef DDB
 static void	db_show_lockmgr(const struct lock_object *lock);
 #endif
-static void	lock_lockmgr(struct lock_object *lock, int how);
+static void	lock_lockmgr(struct lock_object *lock, uintptr_t how);
 #ifdef KDTRACE_HOOKS
 static int	owner_lockmgr(const struct lock_object *lock,
 		    struct thread **owner);
 #endif
-static int	unlock_lockmgr(struct lock_object *lock);
+static uintptr_t unlock_lockmgr(struct lock_object *lock);
 
 struct lock_class lock_class_lockmgr = {
 	.lc_name = "lockmgr",
@@ -350,13 +350,13 @@ assert_lockmgr(const struct lock_object *lock, int what)
 }
 
 static void
-lock_lockmgr(struct lock_object *lock, int how)
+lock_lockmgr(struct lock_object *lock, uintptr_t how)
 {
 
 	panic("lockmgr locks do not support sleep interlocking");
 }
 
-static int
+static uintptr_t
 unlock_lockmgr(struct lock_object *lock)
 {
 
@@ -497,6 +497,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			op = LK_EXCLUSIVE;
 			break;
 		case LK_UPGRADE:
+		case LK_TRYUPGRADE:
 		case LK_DOWNGRADE:
 			_lockmgr_assert(lk, KA_XLOCKED | KA_NOTRECURSED,
 			    file, line);
@@ -694,6 +695,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		}
 		break;
 	case LK_UPGRADE:
+	case LK_TRYUPGRADE:
 		_lockmgr_assert(lk, KA_SLOCKED, file, line);
 		v = lk->lk_lock;
 		x = v & LK_ALL_WAITERS;
@@ -710,6 +712,17 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			WITNESS_UPGRADE(&lk->lock_object, LOP_EXCLUSIVE |
 			    LK_TRYWIT(flags), file, line);
 			TD_SLOCKS_DEC(curthread);
+			break;
+		}
+
+		/*
+		 * In LK_TRYUPGRADE mode, do not drop the lock,
+		 * returning EBUSY instead.
+		 */
+		if (op == LK_TRYUPGRADE) {
+			LOCK_LOG2(lk, "%s: %p failed the nowait upgrade",
+			    __func__, lk);
+			error = EBUSY;
 			break;
 		}
 

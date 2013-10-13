@@ -33,25 +33,27 @@
 #ifndef MLX4_DRIVER_H
 #define MLX4_DRIVER_H
 
-#include <linux/device.h>
+#include <linux/mlx4/device.h>
 
 struct mlx4_dev;
+
+#define MLX4_MAC_MASK	   0xffffffffffffULL
+#define MLX4_BE_SHORT_MASK cpu_to_be16(0xffff)
+#define MLX4_BE_WORD_MASK  cpu_to_be32(0xffffffff)
 
 enum mlx4_dev_event {
 	MLX4_DEV_EVENT_CATASTROPHIC_ERROR,
 	MLX4_DEV_EVENT_PORT_UP,
 	MLX4_DEV_EVENT_PORT_DOWN,
 	MLX4_DEV_EVENT_PORT_REINIT,
+	MLX4_DEV_EVENT_PORT_MGMT_CHANGE,
+	MLX4_DEV_EVENT_SLAVE_INIT,
+	MLX4_DEV_EVENT_SLAVE_SHUTDOWN,
 };
 
 enum mlx4_query_reply {
 	MLX4_QUERY_NOT_MINE	= -1,
 	MLX4_QUERY_MINE_NOPORT 	= 0
-};
-
-enum mlx4_prot {
-	MLX4_PROT_IB,
-	MLX4_PROT_EN,
 };
 
 enum mlx4_mcast_prot {
@@ -63,20 +65,32 @@ struct mlx4_interface {
 	void *			(*add)	 (struct mlx4_dev *dev);
 	void			(*remove)(struct mlx4_dev *dev, void *context);
 	void			(*event) (struct mlx4_dev *dev, void *context,
-					  enum mlx4_dev_event event, int port);
-	void *  (*get_prot_dev) (struct mlx4_dev *dev, void *context, u8 port);
-	enum mlx4_prot          protocol;
+					  enum mlx4_dev_event event, unsigned long param);
+	void *			(*get_dev)(struct mlx4_dev *dev, void *context, u8 port);
 
 	enum mlx4_query_reply	(*query) (void *context, void *);
 	struct list_head	list;
+	enum mlx4_protocol	protocol;
 };
 
 int mlx4_register_interface(struct mlx4_interface *intf);
 void mlx4_unregister_interface(struct mlx4_interface *intf);
-void *mlx4_get_prot_dev(struct mlx4_dev *dev, enum mlx4_prot proto, int port);
 
-struct mlx4_dev *mlx4_query_interface(void *, int *port);
-void mlx4_set_iboe_counter(struct mlx4_dev *dev, int index, u8 port);
-int mlx4_get_iboe_counter(struct mlx4_dev *dev, u8 port);
+void *mlx4_get_protocol_dev(struct mlx4_dev *dev, enum mlx4_protocol proto, int port);
+
+#ifndef ETH_ALEN
+#define ETH_ALEN	6
+#endif
+static inline u64 mlx4_mac_to_u64(u8 *addr)
+{
+	u64 mac = 0;
+	int i;
+
+	for (i = 0; i < ETH_ALEN; i++) {
+		mac <<= 8;
+		mac |= addr[i];
+	}
+	return mac;
+}
 
 #endif /* MLX4_DRIVER_H */

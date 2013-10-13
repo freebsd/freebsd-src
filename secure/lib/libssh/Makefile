@@ -39,7 +39,7 @@ USEPRIVATELIB+= ldns
 CFLAGS+= -I${SSHDIR} -include ssh_namespace.h
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
-CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_GSSAPI_H=1 -DKRB5 -DHEIMDAL
+CFLAGS+= -include krb5_config.h
 DPADD+=	${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
 LDADD+=	-lgssapi -lkrb5 -lhx509 -lasn1 -lcom_err -lmd -lroken
 .endif
@@ -58,3 +58,6 @@ LDADD+=	-lcrypto -lcrypt -lz
 .PATH: ${SSHDIR} ${SSHDIR}/openbsd-compat
 
 ${OBJS} ${POBJS} ${SOBJS}: ssh_namespace.h
+.if ${MK_KERBEROS_SUPPORT} != "no"
+${OBJS} ${POBJS} ${SOBJS}: krb5_config.h
+.endif

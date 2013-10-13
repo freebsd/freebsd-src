@@ -197,6 +197,7 @@ MAN+=	abort2.2 \
 	posix_fadvise.2 \
 	posix_fallocate.2 \
 	posix_openpt.2 \
+	procctl.2 \
 	profil.2 \
 	pselect.2 \
 	ptrace.2 \

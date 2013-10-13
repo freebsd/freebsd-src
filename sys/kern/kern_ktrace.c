@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
@@ -791,8 +792,14 @@ ktrcapfail(type, needed, held)
 		return;
 	kcf = &req->ktr_data.ktr_cap_fail;
 	kcf->cap_type = type;
-	kcf->cap_needed = *needed;
-	kcf->cap_held = *held;
+	if (needed != NULL)
+		kcf->cap_needed = *needed;
+	else
+		cap_rights_init(&kcf->cap_needed);
+	if (held != NULL)
+		kcf->cap_held = *held;
+	else
+		cap_rights_init(&kcf->cap_held);
 	ktr_enqueuerequest(td, req);
 	ktrace_exit(td);
 }

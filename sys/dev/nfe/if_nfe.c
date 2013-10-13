@@ -3205,8 +3205,8 @@ nfe_stats_clear(struct nfe_softc *sc)
 	else
 		return;
 
-	for (i = 0; i < mib_cnt; i += sizeof(uint32_t))
-		NFE_READ(sc, NFE_TX_OCTET + i);
+	for (i = 0; i < mib_cnt; i++)
+		NFE_READ(sc, NFE_TX_OCTET + i * sizeof(uint32_t));
 
 	if ((sc->nfe_flags & NFE_MIB_V3) != 0) {
 		NFE_READ(sc, NFE_TX_UNICAST);
@@ -3260,7 +3260,7 @@ nfe_stats_update(struct nfe_softc *sc)
 	if ((sc->nfe_flags & NFE_MIB_V3) != 0) {
 		stats->tx_unicast += NFE_READ(sc, NFE_TX_UNICAST);
 		stats->tx_multicast += NFE_READ(sc, NFE_TX_MULTICAST);
-		stats->rx_broadcast += NFE_READ(sc, NFE_TX_BROADCAST);
+		stats->tx_broadcast += NFE_READ(sc, NFE_TX_BROADCAST);
 	}
 }
 

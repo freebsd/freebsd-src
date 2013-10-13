@@ -231,6 +231,7 @@ struct if_data {
 #define	IFCAP_NETMAP		0x100000 /* netmap mode supported/enabled */
 #define	IFCAP_RXCSUM_IPV6	0x200000  /* can offload checksum on IPv6 RX */
 #define	IFCAP_TXCSUM_IPV6	0x400000  /* can offload checksum on IPv6 TX */
+#define	IFCAP_HWSTATS		0x800000 /* manages counters internally */
 
 #define IFCAP_HWCSUM_IPV6	(IFCAP_RXCSUM_IPV6 | IFCAP_TXCSUM_IPV6)
 
