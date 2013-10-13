@@ -3,9 +3,15 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
+	gnu/lib/libgcc \
 	include \
 	include/xlocale \
+	lib/${CSU_DIR} \
+	lib/libc \
+	lib/libcompiler_rt \
 	lib/libfetch \
+	secure/lib/libcrypto \
+	secure/lib/libssl \
 
 
 .include <dirdeps.mk>

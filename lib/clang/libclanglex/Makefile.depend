@@ -9,6 +9,7 @@ DIRDEPS = \
 	include/xlocale \
 	lib/clang/include \
 	lib/msun \
+	usr.bin/clang/clang-tblgen.host \
 
 
 .include <dirdeps.mk>
@@ -39,6 +40,8 @@ PPCaching.o: DiagnosticCommonKinds.inc.h
 PPCaching.po: DiagnosticCommonKinds.inc.h
 PPCallbacks.o: DiagnosticCommonKinds.inc.h
 PPCallbacks.po: DiagnosticCommonKinds.inc.h
+PPConditionalDirectiveRecord.o: DiagnosticCommonKinds.inc.h
+PPConditionalDirectiveRecord.po: DiagnosticCommonKinds.inc.h
 PPDirectives.o: DiagnosticCommonKinds.inc.h
 PPDirectives.o: DiagnosticLexKinds.inc.h
 PPDirectives.po: DiagnosticCommonKinds.inc.h

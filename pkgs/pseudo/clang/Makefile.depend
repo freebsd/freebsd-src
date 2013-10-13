@@ -16,7 +16,8 @@ DIRDEPS = \
 	lib/clang/libclangfrontendtool \
 	lib/clang/libclanglex \
 	lib/clang/libclangparse \
-	lib/clang/libclangrewrite \
+	lib/clang/libclangrewritecore \
+	lib/clang/libclangrewritefrontend \
 	lib/clang/libclangsema \
 	lib/clang/libclangserialization \
 	lib/clang/libclangstaticanalyzercheckers \
@@ -24,20 +25,45 @@ DIRDEPS = \
 	lib/clang/libclangstaticanalyzerfrontend \
 	lib/clang/libllvmanalysis \
 	lib/clang/libllvmarchive \
+	lib/clang/libllvmarmasmparser \
+	lib/clang/libllvmarmcodegen \
+	lib/clang/libllvmarmdesc \
+	lib/clang/libllvmarmdisassembler \
+	lib/clang/libllvmarminfo \
+	lib/clang/libllvmarminstprinter \
 	lib/clang/libllvmasmparser \
 	lib/clang/libllvmasmprinter \
 	lib/clang/libllvmbitreader \
 	lib/clang/libllvmbitwriter \
 	lib/clang/libllvmcodegen \
 	lib/clang/libllvmcore \
+	lib/clang/libllvmdebuginfo \
+	lib/clang/libllvmexecutionengine \
 	lib/clang/libllvminstcombine \
 	lib/clang/libllvminstrumentation \
+	lib/clang/libllvminterpreter \
 	lib/clang/libllvmipa \
 	lib/clang/libllvmipo \
+	lib/clang/libllvmirreader \
+	lib/clang/libllvmjit \
 	lib/clang/libllvmlinker \
 	lib/clang/libllvmmc \
+	lib/clang/libllvmmcdisassembler \
+	lib/clang/libllvmmcjit \
 	lib/clang/libllvmmcparser \
+	lib/clang/libllvmmipsasmparser \
+	lib/clang/libllvmmipscodegen \
+	lib/clang/libllvmmipsdesc \
+	lib/clang/libllvmmipsdisassembler \
+	lib/clang/libllvmmipsinfo \
+	lib/clang/libllvmmipsinstprinter \
+	lib/clang/libllvmobjcarcopts \
 	lib/clang/libllvmobject \
+	lib/clang/libllvmpowerpccodegen \
+	lib/clang/libllvmpowerpcdesc \
+	lib/clang/libllvmpowerpcinfo \
+	lib/clang/libllvmpowerpcinstprinter \
+	lib/clang/libllvmruntimedyld \
 	lib/clang/libllvmscalaropts \
 	lib/clang/libllvmselectiondag \
 	lib/clang/libllvmsupport \
@@ -45,22 +71,6 @@ DIRDEPS = \
 	lib/clang/libllvmtarget \
 	lib/clang/libllvmtransformutils \
 	lib/clang/libllvmvectorize \
-	lib/clang/libllvmarmasmparser \
-	lib/clang/libllvmarmcodegen \
-	lib/clang/libllvmarmdesc \
-	lib/clang/libllvmarmdisassembler \
-	lib/clang/libllvmarminfo \
-	lib/clang/libllvmarminstprinter \
-	lib/clang/libllvmmipsasmparser \
-	lib/clang/libllvmmipscodegen \
-	lib/clang/libllvmmipsdesc \
-	lib/clang/libllvmmipsdisassembler \
-	lib/clang/libllvmmipsinfo \
-	lib/clang/libllvmmipsinstprinter \
-	lib/clang/libllvmpowerpccodegen \
-	lib/clang/libllvmpowerpcdesc \
-	lib/clang/libllvmpowerpcinfo \
-	lib/clang/libllvmpowerpcinstprinter \
 	lib/clang/libllvmx86asmparser \
 	lib/clang/libllvmx86codegen \
 	lib/clang/libllvmx86desc \

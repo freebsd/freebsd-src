@@ -8,6 +8,7 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/msun \
+	usr.bin/clang/clang-tblgen.host \
 
 
 .include <dirdeps.mk>
@@ -55,7 +56,9 @@ Tools.po: DiagnosticCommonKinds.inc.h
 Tools.po: DiagnosticDriverKinds.inc.h
 Tools.po: Options.inc.h
 WindowsToolChain.o: DiagnosticCommonKinds.inc.h
+WindowsToolChain.o: DiagnosticDriverKinds.inc.h
 WindowsToolChain.o: Options.inc.h
 WindowsToolChain.po: DiagnosticCommonKinds.inc.h
+WindowsToolChain.po: DiagnosticDriverKinds.inc.h
 WindowsToolChain.po: Options.inc.h
 .endif

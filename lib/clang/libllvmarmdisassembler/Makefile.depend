@@ -8,6 +8,7 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/msun \
+	usr.bin/clang/tblgen.host \
 
 
 .include <dirdeps.mk>
@@ -15,12 +16,10 @@ DIRDEPS = \
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
 ARMDisassembler.o: ARMGenDisassemblerTables.inc.h
-ARMDisassembler.o: ARMGenEDInfo.inc.h
 ARMDisassembler.o: ARMGenInstrInfo.inc.h
 ARMDisassembler.o: ARMGenRegisterInfo.inc.h
 ARMDisassembler.o: ARMGenSubtargetInfo.inc.h
 ARMDisassembler.po: ARMGenDisassemblerTables.inc.h
-ARMDisassembler.po: ARMGenEDInfo.inc.h
 ARMDisassembler.po: ARMGenInstrInfo.inc.h
 ARMDisassembler.po: ARMGenRegisterInfo.inc.h
 ARMDisassembler.po: ARMGenSubtargetInfo.inc.h

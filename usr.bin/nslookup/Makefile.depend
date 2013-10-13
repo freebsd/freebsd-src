@@ -4,6 +4,7 @@ DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
 	gnu/lib/libgcc \
+	gnu/lib/libreadline/readline \
 	include \
 	include/arpa \
 	include/xlocale \
@@ -16,7 +17,9 @@ DIRDEPS = \
 	lib/bind/lwres \
 	lib/libc \
 	lib/libcompiler_rt \
+	lib/libedit \
 	lib/libthr \
+	lib/ncurses/ncurses \
 	secure/lib/libcrypto \
 
 

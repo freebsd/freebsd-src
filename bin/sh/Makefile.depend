@@ -53,8 +53,6 @@ expand.po: nodes.h
 expand.po: syntax.h
 histedit.o: builtins.h
 histedit.po: builtins.h
-init.o: init.c
-init.po: init.c
 input.o: syntax.h
 input.po: syntax.h
 jobs.o: builtins.h

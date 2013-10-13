@@ -12,8 +12,10 @@ DIRDEPS = \
 	lib/libdevstat \
 	lib/libedit \
 	lib/libedit/edit/readline \
+	lib/libexpat \
 	lib/libgeom \
 	lib/libkvm \
+	lib/libsbuf \
 	lib/ncurses/ncurses \
 
 

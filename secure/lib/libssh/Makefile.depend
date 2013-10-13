@@ -17,11 +17,13 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libcrypt \
 	lib/libgssapi \
+	lib/libldns \
 	lib/libmd \
 	lib/libpam/libpam \
 	lib/libutil \
 	lib/libz \
 	secure/lib/libcrypto \
+	secure/lib/libssl \
 
 
 .include <dirdeps.mk>

@@ -12,6 +12,7 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libmd \
 	lib/librt \
+	lib/libthr \
 	lib/msun \
 	secure/lib/libcrypto \
 	usr.sbin/ntp/libntp \

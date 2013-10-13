@@ -8,6 +8,7 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/msun \
+	usr.bin/clang/tblgen.host \
 
 
 .include <dirdeps.mk>
@@ -16,6 +17,8 @@ DIRDEPS = \
 # local dependencies - needed for -jN in clean tree
 Analysis.o: Intrinsics.inc.h
 Analysis.po: Intrinsics.inc.h
+BasicTargetTransformInfo.o: Intrinsics.inc.h
+BasicTargetTransformInfo.po: Intrinsics.inc.h
 DwarfEHPrepare.o: Intrinsics.inc.h
 DwarfEHPrepare.po: Intrinsics.inc.h
 GCStrategy.o: Intrinsics.inc.h

@@ -12,6 +12,7 @@ DIRDEPS = \
 	lib/libcam \
 	lib/libcompiler_rt \
 	lib/libmd \
+	lib/libsbuf \
 
 
 .include <dirdeps.mk>

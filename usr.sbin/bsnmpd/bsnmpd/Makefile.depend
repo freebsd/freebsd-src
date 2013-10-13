@@ -13,6 +13,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libwrap \
+	secure/lib/libcrypto \
 
 
 .include <dirdeps.mk>

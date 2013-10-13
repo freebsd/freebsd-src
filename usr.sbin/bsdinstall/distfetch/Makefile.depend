@@ -13,6 +13,8 @@ DIRDEPS = \
 	lib/libfetch \
 	lib/msun \
 	lib/ncurses/ncursesw \
+	secure/lib/libcrypto \
+	secure/lib/libssl \
 
 
 .include <dirdeps.mk>

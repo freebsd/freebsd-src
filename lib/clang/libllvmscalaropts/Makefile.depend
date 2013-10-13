@@ -8,6 +8,7 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/msun \
+	usr.bin/clang/tblgen.host \
 
 
 .include <dirdeps.mk>
@@ -38,12 +39,12 @@ LoopStrengthReduce.o: Intrinsics.inc.h
 LoopStrengthReduce.po: Intrinsics.inc.h
 LoopUnrollPass.o: Intrinsics.inc.h
 LoopUnrollPass.po: Intrinsics.inc.h
+LoopUnswitch.o: Intrinsics.inc.h
+LoopUnswitch.po: Intrinsics.inc.h
 LowerAtomic.o: Intrinsics.inc.h
 LowerAtomic.po: Intrinsics.inc.h
 MemCpyOptimizer.o: Intrinsics.inc.h
 MemCpyOptimizer.po: Intrinsics.inc.h
-ObjCARC.o: Intrinsics.inc.h
-ObjCARC.po: Intrinsics.inc.h
 Reassociate.o: Intrinsics.inc.h
 Reassociate.po: Intrinsics.inc.h
 SCCP.o: Intrinsics.inc.h
@@ -54,8 +55,6 @@ ScalarReplAggregates.o: Intrinsics.inc.h
 ScalarReplAggregates.po: Intrinsics.inc.h
 SimplifyCFGPass.o: Intrinsics.inc.h
 SimplifyCFGPass.po: Intrinsics.inc.h
-SimplifyLibCalls.o: Intrinsics.inc.h
-SimplifyLibCalls.po: Intrinsics.inc.h
 Sink.o: Intrinsics.inc.h
 Sink.po: Intrinsics.inc.h
 TailRecursionElimination.o: Intrinsics.inc.h

@@ -12,6 +12,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libnetgraph \
+	secure/lib/libcrypto \
 
 
 .include <dirdeps.mk>

@@ -27,7 +27,6 @@ DIRDEPS = \
 	lib/clang/libclangstaticanalyzercore \
 	lib/clang/libclangstaticanalyzerfrontend \
 	lib/clang/libllvmanalysis \
-	lib/clang/libllvmarchive \
 	lib/clang/libllvmarmasmparser \
 	lib/clang/libllvmarmcodegen \
 	lib/clang/libllvmarmdesc \
@@ -44,6 +43,7 @@ DIRDEPS = \
 	lib/clang/libllvminstrumentation \
 	lib/clang/libllvmipa \
 	lib/clang/libllvmipo \
+	lib/clang/libllvmirreader \
 	lib/clang/libllvmlinker \
 	lib/clang/libllvmmc \
 	lib/clang/libllvmmcparser \
@@ -53,6 +53,7 @@ DIRDEPS = \
 	lib/clang/libllvmmipsdisassembler \
 	lib/clang/libllvmmipsinfo \
 	lib/clang/libllvmmipsinstprinter \
+	lib/clang/libllvmobjcarcopts \
 	lib/clang/libllvmobject \
 	lib/clang/libllvmpowerpccodegen \
 	lib/clang/libllvmpowerpcdesc \
@@ -74,6 +75,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/msun \
+	usr.bin/clang/clang-tblgen.host \
 
 
 .include <dirdeps.mk>
@@ -99,7 +101,9 @@ cc1as_main.po: DiagnosticDriverKinds.inc.h
 cc1as_main.po: DiagnosticFrontendKinds.inc.h
 cc1as_main.po: Options.inc.h
 driver.o: DiagnosticCommonKinds.inc.h
+driver.o: DiagnosticDriverKinds.inc.h
 driver.o: Options.inc.h
 driver.po: DiagnosticCommonKinds.inc.h
+driver.po: DiagnosticDriverKinds.inc.h
 driver.po: Options.inc.h
 .endif
