@@ -4,7 +4,6 @@ SRCDIR=		${.CURDIR}/../../../../contrib/llvm/tools/clang
 
 .PATH: ${SRCDIR}
 
-NO_OBJ=
 
 FILESGROUPS=	TOP
 TOP=		LICENSE.TXT

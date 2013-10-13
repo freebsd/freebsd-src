@@ -30,7 +30,6 @@ ATF=		${.CURDIR}/../../../contrib/atf
 .PATH:		${ATF}/atf-report
 .PATH:		${ATF}/atf-run/sample
 
-NO_OBJ=
 
 FILESDIR=	${SHAREDIR}/examples/atf
 FILES=		atf-run.hooks \
