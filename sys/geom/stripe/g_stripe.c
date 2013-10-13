@@ -445,7 +445,6 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 
 	sc = bp->bio_to->geom->softc;
 
-	addr = bp->bio_data;
 	stripesize = sc->sc_stripesize;
 
 	cbp = g_clone_bio(bp);
@@ -457,10 +456,18 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 	/*
 	 * Fill in the component buf structure.
 	 */
-	cbp->bio_done = g_stripe_done;
+	if (bp->bio_length == length)
+		cbp->bio_done = g_std_done;	/* Optimized lockless case. */
+	else
+		cbp->bio_done = g_stripe_done;
 	cbp->bio_offset = offset;
-	cbp->bio_data = addr;
 	cbp->bio_length = length;
+	if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
+		bp->bio_ma_n = round_page(bp->bio_ma_offset +
+		    bp->bio_length) / PAGE_SIZE;
+		addr = NULL;
+	} else
+		addr = bp->bio_data;
 	cbp->bio_caller2 = sc->sc_disks[no];
 
 	/* offset -= offset % stripesize; */
@@ -484,12 +491,19 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 		 */
 		cbp->bio_done = g_stripe_done;
 		cbp->bio_offset = offset;
-		cbp->bio_data = addr;
 		/*
 		 * MIN() is in case when
 		 * (bp->bio_length % sc->sc_stripesize) != 0.
 		 */
 		cbp->bio_length = MIN(stripesize, length);
+		if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
+			cbp->bio_ma_offset += (uintptr_t)addr;
+			cbp->bio_ma += cbp->bio_ma_offset / PAGE_SIZE;
+			cbp->bio_ma_offset %= PAGE_SIZE;
+			cbp->bio_ma_n = round_page(cbp->bio_ma_offset +
+			    cbp->bio_length) / PAGE_SIZE;
+		} else
+			cbp->bio_data = addr;
 
 		cbp->bio_caller2 = sc->sc_disks[no];
 	}
@@ -616,9 +630,12 @@ g_stripe_start(struct bio *bp)
 	 * 3. Request size is bigger than stripesize * ndisks. If it isn't,
 	 *    there will be no need to send more than one I/O request to
 	 *    a provider, so there is nothing to optmize.
+	 * and
+	 * 4. Request is not unmapped.
 	 */
 	if (g_stripe_fast && bp->bio_length <= MAXPHYS &&
-	    bp->bio_length >= stripesize * sc->sc_ndisks) {
+	    bp->bio_length >= stripesize * sc->sc_ndisks &&
+	    (bp->bio_flags & BIO_UNMAPPED) == 0) {
 		fast = 1;
 	}
 	error = 0;
@@ -645,6 +662,7 @@ g_stripe_start(struct bio *bp)
 static void
 g_stripe_check_and_run(struct g_stripe_softc *sc)
 {
+	struct g_provider *dp;
 	off_t mediasize, ms;
 	u_int no, sectorsize = 0;
 
@@ -655,6 +673,8 @@ g_stripe_check_and_run(struct g_stripe_softc *sc)
 	sc->sc_provider = g_new_providerf(sc->sc_geom, "stripe/%s",
 	    sc->sc_name);
 	sc->sc_provider->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
+	if (g_stripe_fast == 0)
+		sc->sc_provider->flags |= G_PF_ACCEPT_UNMAPPED;
 	/*
 	 * Find the smallest disk.
 	 */
@@ -664,14 +684,21 @@ g_stripe_check_and_run(struct g_stripe_softc *sc)
 	mediasize -= mediasize % sc->sc_stripesize;
 	sectorsize = sc->sc_disks[0]->provider->sectorsize;
 	for (no = 1; no < sc->sc_ndisks; no++) {
-		ms = sc->sc_disks[no]->provider->mediasize;
+		dp = sc->sc_disks[no]->provider;
+		ms = dp->mediasize;
 		if (sc->sc_type == G_STRIPE_TYPE_AUTOMATIC)
-			ms -= sc->sc_disks[no]->provider->sectorsize;
+			ms -= dp->sectorsize;
 		ms -= ms % sc->sc_stripesize;
 		if (ms < mediasize)
 			mediasize = ms;
-		sectorsize = lcm(sectorsize,
-		    sc->sc_disks[no]->provider->sectorsize);
+		sectorsize = lcm(sectorsize, dp->sectorsize);
+
+		/* A provider underneath us doesn't support unmapped */
+		if ((dp->flags & G_PF_ACCEPT_UNMAPPED) == 0) {
+			G_STRIPE_DEBUG(1, "Cancelling unmapped "
+			    "because of %s.", dp->name);
+			sc->sc_provider->flags &= ~G_PF_ACCEPT_UNMAPPED;
+		}
 	}
 	sc->sc_provider->sectorsize = sectorsize;
 	sc->sc_provider->mediasize = mediasize * sc->sc_ndisks;
