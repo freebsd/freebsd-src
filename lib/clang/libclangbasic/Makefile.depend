@@ -9,6 +9,7 @@ DIRDEPS = \
 	include/xlocale \
 	lib/clang/include \
 	lib/msun \
+	usr.bin/clang/clang-tblgen.host \
 
 
 .include <dirdeps.mk>

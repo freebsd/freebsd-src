@@ -8,6 +8,7 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/msun \
+	usr.bin/clang/tblgen.host \
 
 
 .include <dirdeps.mk>
@@ -32,6 +33,8 @@ MipsELFObjectWriter.o: MipsGenSubtargetInfo.inc.h
 MipsELFObjectWriter.po: MipsGenInstrInfo.inc.h
 MipsELFObjectWriter.po: MipsGenRegisterInfo.inc.h
 MipsELFObjectWriter.po: MipsGenSubtargetInfo.inc.h
+MipsELFStreamer.o: MipsGenSubtargetInfo.inc.h
+MipsELFStreamer.po: MipsGenSubtargetInfo.inc.h
 MipsMCCodeEmitter.o: MipsGenInstrInfo.inc.h
 MipsMCCodeEmitter.o: MipsGenMCCodeEmitter.inc.h
 MipsMCCodeEmitter.o: MipsGenRegisterInfo.inc.h
@@ -46,4 +49,6 @@ MipsMCTargetDesc.o: MipsGenSubtargetInfo.inc.h
 MipsMCTargetDesc.po: MipsGenInstrInfo.inc.h
 MipsMCTargetDesc.po: MipsGenRegisterInfo.inc.h
 MipsMCTargetDesc.po: MipsGenSubtargetInfo.inc.h
+MipsReginfo.o: MipsGenSubtargetInfo.inc.h
+MipsReginfo.po: MipsGenSubtargetInfo.inc.h
 .endif

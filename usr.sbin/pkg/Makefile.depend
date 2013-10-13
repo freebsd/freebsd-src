@@ -9,12 +9,18 @@ DIRDEPS = \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libarchive \
+	lib/libbz2 \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libelf \
+	lib/libexpat \
 	lib/libfetch \
+	lib/liblzma \
 	lib/libsbuf \
 	lib/libyaml \
+	lib/libz \
+	secure/lib/libcrypto \
+	secure/lib/libssl \
 
 
 .include <dirdeps.mk>

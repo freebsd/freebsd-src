@@ -8,6 +8,7 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/msun \
+	usr.bin/clang/clang-tblgen.host \
 
 
 .include <dirdeps.mk>
@@ -17,6 +18,7 @@ DIRDEPS = \
 AnalysisBasedWarnings.o: AttrList.inc.h
 AnalysisBasedWarnings.o: AttrParsedAttrList.inc.h
 AnalysisBasedWarnings.o: Attrs.inc.h
+AnalysisBasedWarnings.o: CommentCommandList.inc.h
 AnalysisBasedWarnings.o: DeclNodes.inc.h
 AnalysisBasedWarnings.o: DiagnosticCommonKinds.inc.h
 AnalysisBasedWarnings.o: DiagnosticSemaKinds.inc.h
@@ -24,21 +26,22 @@ AnalysisBasedWarnings.o: StmtNodes.inc.h
 AnalysisBasedWarnings.po: AttrList.inc.h
 AnalysisBasedWarnings.po: AttrParsedAttrList.inc.h
 AnalysisBasedWarnings.po: Attrs.inc.h
+AnalysisBasedWarnings.po: CommentCommandList.inc.h
 AnalysisBasedWarnings.po: DeclNodes.inc.h
 AnalysisBasedWarnings.po: DiagnosticCommonKinds.inc.h
 AnalysisBasedWarnings.po: DiagnosticSemaKinds.inc.h
 AnalysisBasedWarnings.po: StmtNodes.inc.h
-AttributeList.o: AttrList.inc.h
 AttributeList.o: AttrParsedAttrKinds.inc.h
 AttributeList.o: AttrParsedAttrList.inc.h
-AttributeList.o: Attrs.inc.h
+AttributeList.o: AttrSpellingListIndex.inc.h
+AttributeList.o: CommentCommandList.inc.h
 AttributeList.o: DeclNodes.inc.h
 AttributeList.o: DiagnosticCommonKinds.inc.h
 AttributeList.o: StmtNodes.inc.h
-AttributeList.po: AttrList.inc.h
 AttributeList.po: AttrParsedAttrKinds.inc.h
 AttributeList.po: AttrParsedAttrList.inc.h
-AttributeList.po: Attrs.inc.h
+AttributeList.po: AttrSpellingListIndex.inc.h
+AttributeList.po: CommentCommandList.inc.h
 AttributeList.po: DeclNodes.inc.h
 AttributeList.po: DiagnosticCommonKinds.inc.h
 AttributeList.po: StmtNodes.inc.h
@@ -57,6 +60,7 @@ CodeCompleteConsumer.po: StmtNodes.inc.h
 DeclSpec.o: AttrList.inc.h
 DeclSpec.o: AttrParsedAttrList.inc.h
 DeclSpec.o: Attrs.inc.h
+DeclSpec.o: CommentCommandList.inc.h
 DeclSpec.o: DeclNodes.inc.h
 DeclSpec.o: DiagnosticCommonKinds.inc.h
 DeclSpec.o: DiagnosticParseKinds.inc.h
@@ -65,6 +69,7 @@ DeclSpec.o: StmtNodes.inc.h
 DeclSpec.po: AttrList.inc.h
 DeclSpec.po: AttrParsedAttrList.inc.h
 DeclSpec.po: Attrs.inc.h
+DeclSpec.po: CommentCommandList.inc.h
 DeclSpec.po: DeclNodes.inc.h
 DeclSpec.po: DiagnosticCommonKinds.inc.h
 DeclSpec.po: DiagnosticParseKinds.inc.h
@@ -82,17 +87,14 @@ DelayedDiagnostic.po: Attrs.inc.h
 DelayedDiagnostic.po: DeclNodes.inc.h
 DelayedDiagnostic.po: DiagnosticCommonKinds.inc.h
 DelayedDiagnostic.po: StmtNodes.inc.h
-IdentifierResolver.o: AttrList.inc.h
-IdentifierResolver.o: Attrs.inc.h
 IdentifierResolver.o: DeclNodes.inc.h
 IdentifierResolver.o: DiagnosticCommonKinds.inc.h
-IdentifierResolver.po: AttrList.inc.h
-IdentifierResolver.po: Attrs.inc.h
 IdentifierResolver.po: DeclNodes.inc.h
 IdentifierResolver.po: DiagnosticCommonKinds.inc.h
 JumpDiagnostics.o: AttrList.inc.h
 JumpDiagnostics.o: AttrParsedAttrList.inc.h
 JumpDiagnostics.o: Attrs.inc.h
+JumpDiagnostics.o: CommentCommandList.inc.h
 JumpDiagnostics.o: DeclNodes.inc.h
 JumpDiagnostics.o: DiagnosticCommonKinds.inc.h
 JumpDiagnostics.o: DiagnosticSemaKinds.inc.h
@@ -100,6 +102,7 @@ JumpDiagnostics.o: StmtNodes.inc.h
 JumpDiagnostics.po: AttrList.inc.h
 JumpDiagnostics.po: AttrParsedAttrList.inc.h
 JumpDiagnostics.po: Attrs.inc.h
+JumpDiagnostics.po: CommentCommandList.inc.h
 JumpDiagnostics.po: DeclNodes.inc.h
 JumpDiagnostics.po: DiagnosticCommonKinds.inc.h
 JumpDiagnostics.po: DiagnosticSemaKinds.inc.h
@@ -118,19 +121,16 @@ MultiplexExternalSemaSource.po: DiagnosticCommonKinds.inc.h
 MultiplexExternalSemaSource.po: StmtNodes.inc.h
 Scope.o: DiagnosticCommonKinds.inc.h
 Scope.po: DiagnosticCommonKinds.inc.h
-ScopeInfo.o: AttrList.inc.h
-ScopeInfo.o: Attrs.inc.h
 ScopeInfo.o: DeclNodes.inc.h
 ScopeInfo.o: DiagnosticCommonKinds.inc.h
 ScopeInfo.o: StmtNodes.inc.h
-ScopeInfo.po: AttrList.inc.h
-ScopeInfo.po: Attrs.inc.h
 ScopeInfo.po: DeclNodes.inc.h
 ScopeInfo.po: DiagnosticCommonKinds.inc.h
 ScopeInfo.po: StmtNodes.inc.h
 Sema.o: AttrList.inc.h
 Sema.o: AttrParsedAttrList.inc.h
 Sema.o: Attrs.inc.h
+Sema.o: CommentCommandList.inc.h
 Sema.o: DeclNodes.inc.h
 Sema.o: DiagnosticASTKinds.inc.h
 Sema.o: DiagnosticCommonKinds.inc.h
@@ -139,6 +139,7 @@ Sema.o: StmtNodes.inc.h
 Sema.po: AttrList.inc.h
 Sema.po: AttrParsedAttrList.inc.h
 Sema.po: Attrs.inc.h
+Sema.po: CommentCommandList.inc.h
 Sema.po: DeclNodes.inc.h
 Sema.po: DiagnosticASTKinds.inc.h
 Sema.po: DiagnosticCommonKinds.inc.h
@@ -147,6 +148,7 @@ Sema.po: StmtNodes.inc.h
 SemaAccess.o: AttrList.inc.h
 SemaAccess.o: AttrParsedAttrList.inc.h
 SemaAccess.o: Attrs.inc.h
+SemaAccess.o: CommentCommandList.inc.h
 SemaAccess.o: DeclNodes.inc.h
 SemaAccess.o: DiagnosticCommonKinds.inc.h
 SemaAccess.o: DiagnosticSemaKinds.inc.h
@@ -154,6 +156,7 @@ SemaAccess.o: StmtNodes.inc.h
 SemaAccess.po: AttrList.inc.h
 SemaAccess.po: AttrParsedAttrList.inc.h
 SemaAccess.po: Attrs.inc.h
+SemaAccess.po: CommentCommandList.inc.h
 SemaAccess.po: DeclNodes.inc.h
 SemaAccess.po: DiagnosticCommonKinds.inc.h
 SemaAccess.po: DiagnosticSemaKinds.inc.h
@@ -161,6 +164,7 @@ SemaAccess.po: StmtNodes.inc.h
 SemaAttr.o: AttrList.inc.h
 SemaAttr.o: AttrParsedAttrList.inc.h
 SemaAttr.o: Attrs.inc.h
+SemaAttr.o: CommentCommandList.inc.h
 SemaAttr.o: DeclNodes.inc.h
 SemaAttr.o: DiagnosticCommonKinds.inc.h
 SemaAttr.o: DiagnosticSemaKinds.inc.h
@@ -168,6 +172,7 @@ SemaAttr.o: StmtNodes.inc.h
 SemaAttr.po: AttrList.inc.h
 SemaAttr.po: AttrParsedAttrList.inc.h
 SemaAttr.po: Attrs.inc.h
+SemaAttr.po: CommentCommandList.inc.h
 SemaAttr.po: DeclNodes.inc.h
 SemaAttr.po: DiagnosticCommonKinds.inc.h
 SemaAttr.po: DiagnosticSemaKinds.inc.h
@@ -175,6 +180,7 @@ SemaAttr.po: StmtNodes.inc.h
 SemaCXXScopeSpec.o: AttrList.inc.h
 SemaCXXScopeSpec.o: AttrParsedAttrList.inc.h
 SemaCXXScopeSpec.o: Attrs.inc.h
+SemaCXXScopeSpec.o: CommentCommandList.inc.h
 SemaCXXScopeSpec.o: DeclNodes.inc.h
 SemaCXXScopeSpec.o: DiagnosticCommonKinds.inc.h
 SemaCXXScopeSpec.o: DiagnosticSemaKinds.inc.h
@@ -182,6 +188,7 @@ SemaCXXScopeSpec.o: StmtNodes.inc.h
 SemaCXXScopeSpec.po: AttrList.inc.h
 SemaCXXScopeSpec.po: AttrParsedAttrList.inc.h
 SemaCXXScopeSpec.po: Attrs.inc.h
+SemaCXXScopeSpec.po: CommentCommandList.inc.h
 SemaCXXScopeSpec.po: DeclNodes.inc.h
 SemaCXXScopeSpec.po: DiagnosticCommonKinds.inc.h
 SemaCXXScopeSpec.po: DiagnosticSemaKinds.inc.h
@@ -189,6 +196,7 @@ SemaCXXScopeSpec.po: StmtNodes.inc.h
 SemaCast.o: AttrList.inc.h
 SemaCast.o: AttrParsedAttrList.inc.h
 SemaCast.o: Attrs.inc.h
+SemaCast.o: CommentCommandList.inc.h
 SemaCast.o: DeclNodes.inc.h
 SemaCast.o: DiagnosticCommonKinds.inc.h
 SemaCast.o: DiagnosticSemaKinds.inc.h
@@ -196,6 +204,7 @@ SemaCast.o: StmtNodes.inc.h
 SemaCast.po: AttrList.inc.h
 SemaCast.po: AttrParsedAttrList.inc.h
 SemaCast.po: Attrs.inc.h
+SemaCast.po: CommentCommandList.inc.h
 SemaCast.po: DeclNodes.inc.h
 SemaCast.po: DiagnosticCommonKinds.inc.h
 SemaCast.po: DiagnosticSemaKinds.inc.h
@@ -203,6 +212,7 @@ SemaCast.po: StmtNodes.inc.h
 SemaChecking.o: AttrList.inc.h
 SemaChecking.o: AttrParsedAttrList.inc.h
 SemaChecking.o: Attrs.inc.h
+SemaChecking.o: CommentCommandList.inc.h
 SemaChecking.o: DeclNodes.inc.h
 SemaChecking.o: DiagnosticCommonKinds.inc.h
 SemaChecking.o: DiagnosticSemaKinds.inc.h
@@ -211,6 +221,7 @@ SemaChecking.o: arm_neon.inc.h
 SemaChecking.po: AttrList.inc.h
 SemaChecking.po: AttrParsedAttrList.inc.h
 SemaChecking.po: Attrs.inc.h
+SemaChecking.po: CommentCommandList.inc.h
 SemaChecking.po: DeclNodes.inc.h
 SemaChecking.po: DiagnosticCommonKinds.inc.h
 SemaChecking.po: DiagnosticSemaKinds.inc.h
@@ -219,6 +230,7 @@ SemaChecking.po: arm_neon.inc.h
 SemaCodeComplete.o: AttrList.inc.h
 SemaCodeComplete.o: AttrParsedAttrList.inc.h
 SemaCodeComplete.o: Attrs.inc.h
+SemaCodeComplete.o: CommentCommandList.inc.h
 SemaCodeComplete.o: DeclNodes.inc.h
 SemaCodeComplete.o: DiagnosticCommonKinds.inc.h
 SemaCodeComplete.o: DiagnosticSemaKinds.inc.h
@@ -226,6 +238,7 @@ SemaCodeComplete.o: StmtNodes.inc.h
 SemaCodeComplete.po: AttrList.inc.h
 SemaCodeComplete.po: AttrParsedAttrList.inc.h
 SemaCodeComplete.po: Attrs.inc.h
+SemaCodeComplete.po: CommentCommandList.inc.h
 SemaCodeComplete.po: DeclNodes.inc.h
 SemaCodeComplete.po: DiagnosticCommonKinds.inc.h
 SemaCodeComplete.po: DiagnosticSemaKinds.inc.h
@@ -233,6 +246,7 @@ SemaCodeComplete.po: StmtNodes.inc.h
 SemaDecl.o: AttrList.inc.h
 SemaDecl.o: AttrParsedAttrList.inc.h
 SemaDecl.o: Attrs.inc.h
+SemaDecl.o: CommentCommandList.inc.h
 SemaDecl.o: DeclNodes.inc.h
 SemaDecl.o: DiagnosticCommentKinds.inc.h
 SemaDecl.o: DiagnosticCommonKinds.inc.h
@@ -242,6 +256,7 @@ SemaDecl.o: StmtNodes.inc.h
 SemaDecl.po: AttrList.inc.h
 SemaDecl.po: AttrParsedAttrList.inc.h
 SemaDecl.po: Attrs.inc.h
+SemaDecl.po: CommentCommandList.inc.h
 SemaDecl.po: DeclNodes.inc.h
 SemaDecl.po: DiagnosticCommentKinds.inc.h
 SemaDecl.po: DiagnosticCommonKinds.inc.h
@@ -251,6 +266,7 @@ SemaDecl.po: StmtNodes.inc.h
 SemaDeclAttr.o: AttrList.inc.h
 SemaDeclAttr.o: AttrParsedAttrList.inc.h
 SemaDeclAttr.o: Attrs.inc.h
+SemaDeclAttr.o: CommentCommandList.inc.h
 SemaDeclAttr.o: DeclNodes.inc.h
 SemaDeclAttr.o: DiagnosticCommonKinds.inc.h
 SemaDeclAttr.o: DiagnosticSemaKinds.inc.h
@@ -258,6 +274,7 @@ SemaDeclAttr.o: StmtNodes.inc.h
 SemaDeclAttr.po: AttrList.inc.h
 SemaDeclAttr.po: AttrParsedAttrList.inc.h
 SemaDeclAttr.po: Attrs.inc.h
+SemaDeclAttr.po: CommentCommandList.inc.h
 SemaDeclAttr.po: DeclNodes.inc.h
 SemaDeclAttr.po: DiagnosticCommonKinds.inc.h
 SemaDeclAttr.po: DiagnosticSemaKinds.inc.h
@@ -265,6 +282,7 @@ SemaDeclAttr.po: StmtNodes.inc.h
 SemaDeclCXX.o: AttrList.inc.h
 SemaDeclCXX.o: AttrParsedAttrList.inc.h
 SemaDeclCXX.o: Attrs.inc.h
+SemaDeclCXX.o: CommentCommandList.inc.h
 SemaDeclCXX.o: DeclNodes.inc.h
 SemaDeclCXX.o: DiagnosticCommonKinds.inc.h
 SemaDeclCXX.o: DiagnosticSemaKinds.inc.h
@@ -272,6 +290,7 @@ SemaDeclCXX.o: StmtNodes.inc.h
 SemaDeclCXX.po: AttrList.inc.h
 SemaDeclCXX.po: AttrParsedAttrList.inc.h
 SemaDeclCXX.po: Attrs.inc.h
+SemaDeclCXX.po: CommentCommandList.inc.h
 SemaDeclCXX.po: DeclNodes.inc.h
 SemaDeclCXX.po: DiagnosticCommonKinds.inc.h
 SemaDeclCXX.po: DiagnosticSemaKinds.inc.h
@@ -279,6 +298,7 @@ SemaDeclCXX.po: StmtNodes.inc.h
 SemaDeclObjC.o: AttrList.inc.h
 SemaDeclObjC.o: AttrParsedAttrList.inc.h
 SemaDeclObjC.o: Attrs.inc.h
+SemaDeclObjC.o: CommentCommandList.inc.h
 SemaDeclObjC.o: DeclNodes.inc.h
 SemaDeclObjC.o: DiagnosticCommonKinds.inc.h
 SemaDeclObjC.o: DiagnosticSemaKinds.inc.h
@@ -286,6 +306,7 @@ SemaDeclObjC.o: StmtNodes.inc.h
 SemaDeclObjC.po: AttrList.inc.h
 SemaDeclObjC.po: AttrParsedAttrList.inc.h
 SemaDeclObjC.po: Attrs.inc.h
+SemaDeclObjC.po: CommentCommandList.inc.h
 SemaDeclObjC.po: DeclNodes.inc.h
 SemaDeclObjC.po: DiagnosticCommonKinds.inc.h
 SemaDeclObjC.po: DiagnosticSemaKinds.inc.h
@@ -293,6 +314,7 @@ SemaDeclObjC.po: StmtNodes.inc.h
 SemaExceptionSpec.o: AttrList.inc.h
 SemaExceptionSpec.o: AttrParsedAttrList.inc.h
 SemaExceptionSpec.o: Attrs.inc.h
+SemaExceptionSpec.o: CommentCommandList.inc.h
 SemaExceptionSpec.o: DeclNodes.inc.h
 SemaExceptionSpec.o: DiagnosticCommonKinds.inc.h
 SemaExceptionSpec.o: DiagnosticSemaKinds.inc.h
@@ -300,6 +322,7 @@ SemaExceptionSpec.o: StmtNodes.inc.h
 SemaExceptionSpec.po: AttrList.inc.h
 SemaExceptionSpec.po: AttrParsedAttrList.inc.h
 SemaExceptionSpec.po: Attrs.inc.h
+SemaExceptionSpec.po: CommentCommandList.inc.h
 SemaExceptionSpec.po: DeclNodes.inc.h
 SemaExceptionSpec.po: DiagnosticCommonKinds.inc.h
 SemaExceptionSpec.po: DiagnosticSemaKinds.inc.h
@@ -307,6 +330,7 @@ SemaExceptionSpec.po: StmtNodes.inc.h
 SemaExpr.o: AttrList.inc.h
 SemaExpr.o: AttrParsedAttrList.inc.h
 SemaExpr.o: Attrs.inc.h
+SemaExpr.o: CommentCommandList.inc.h
 SemaExpr.o: DeclNodes.inc.h
 SemaExpr.o: DiagnosticCommonKinds.inc.h
 SemaExpr.o: DiagnosticSemaKinds.inc.h
@@ -314,6 +338,7 @@ SemaExpr.o: StmtNodes.inc.h
 SemaExpr.po: AttrList.inc.h
 SemaExpr.po: AttrParsedAttrList.inc.h
 SemaExpr.po: Attrs.inc.h
+SemaExpr.po: CommentCommandList.inc.h
 SemaExpr.po: DeclNodes.inc.h
 SemaExpr.po: DiagnosticCommonKinds.inc.h
 SemaExpr.po: DiagnosticSemaKinds.inc.h
@@ -321,6 +346,7 @@ SemaExpr.po: StmtNodes.inc.h
 SemaExprCXX.o: AttrList.inc.h
 SemaExprCXX.o: AttrParsedAttrList.inc.h
 SemaExprCXX.o: Attrs.inc.h
+SemaExprCXX.o: CommentCommandList.inc.h
 SemaExprCXX.o: DeclNodes.inc.h
 SemaExprCXX.o: DiagnosticCommonKinds.inc.h
 SemaExprCXX.o: DiagnosticSemaKinds.inc.h
@@ -328,6 +354,7 @@ SemaExprCXX.o: StmtNodes.inc.h
 SemaExprCXX.po: AttrList.inc.h
 SemaExprCXX.po: AttrParsedAttrList.inc.h
 SemaExprCXX.po: Attrs.inc.h
+SemaExprCXX.po: CommentCommandList.inc.h
 SemaExprCXX.po: DeclNodes.inc.h
 SemaExprCXX.po: DiagnosticCommonKinds.inc.h
 SemaExprCXX.po: DiagnosticSemaKinds.inc.h
@@ -335,6 +362,7 @@ SemaExprCXX.po: StmtNodes.inc.h
 SemaExprMember.o: AttrList.inc.h
 SemaExprMember.o: AttrParsedAttrList.inc.h
 SemaExprMember.o: Attrs.inc.h
+SemaExprMember.o: CommentCommandList.inc.h
 SemaExprMember.o: DeclNodes.inc.h
 SemaExprMember.o: DiagnosticCommonKinds.inc.h
 SemaExprMember.o: DiagnosticSemaKinds.inc.h
@@ -342,6 +370,7 @@ SemaExprMember.o: StmtNodes.inc.h
 SemaExprMember.po: AttrList.inc.h
 SemaExprMember.po: AttrParsedAttrList.inc.h
 SemaExprMember.po: Attrs.inc.h
+SemaExprMember.po: CommentCommandList.inc.h
 SemaExprMember.po: DeclNodes.inc.h
 SemaExprMember.po: DiagnosticCommonKinds.inc.h
 SemaExprMember.po: DiagnosticSemaKinds.inc.h
@@ -349,6 +378,7 @@ SemaExprMember.po: StmtNodes.inc.h
 SemaExprObjC.o: AttrList.inc.h
 SemaExprObjC.o: AttrParsedAttrList.inc.h
 SemaExprObjC.o: Attrs.inc.h
+SemaExprObjC.o: CommentCommandList.inc.h
 SemaExprObjC.o: DeclNodes.inc.h
 SemaExprObjC.o: DiagnosticCommonKinds.inc.h
 SemaExprObjC.o: DiagnosticSemaKinds.inc.h
@@ -356,6 +386,7 @@ SemaExprObjC.o: StmtNodes.inc.h
 SemaExprObjC.po: AttrList.inc.h
 SemaExprObjC.po: AttrParsedAttrList.inc.h
 SemaExprObjC.po: Attrs.inc.h
+SemaExprObjC.po: CommentCommandList.inc.h
 SemaExprObjC.po: DeclNodes.inc.h
 SemaExprObjC.po: DiagnosticCommonKinds.inc.h
 SemaExprObjC.po: DiagnosticSemaKinds.inc.h
@@ -363,18 +394,21 @@ SemaExprObjC.po: StmtNodes.inc.h
 SemaFixItUtils.o: AttrList.inc.h
 SemaFixItUtils.o: AttrParsedAttrList.inc.h
 SemaFixItUtils.o: Attrs.inc.h
+SemaFixItUtils.o: CommentCommandList.inc.h
 SemaFixItUtils.o: DeclNodes.inc.h
 SemaFixItUtils.o: DiagnosticCommonKinds.inc.h
 SemaFixItUtils.o: StmtNodes.inc.h
 SemaFixItUtils.po: AttrList.inc.h
 SemaFixItUtils.po: AttrParsedAttrList.inc.h
 SemaFixItUtils.po: Attrs.inc.h
+SemaFixItUtils.po: CommentCommandList.inc.h
 SemaFixItUtils.po: DeclNodes.inc.h
 SemaFixItUtils.po: DiagnosticCommonKinds.inc.h
 SemaFixItUtils.po: StmtNodes.inc.h
 SemaInit.o: AttrList.inc.h
 SemaInit.o: AttrParsedAttrList.inc.h
 SemaInit.o: Attrs.inc.h
+SemaInit.o: CommentCommandList.inc.h
 SemaInit.o: DeclNodes.inc.h
 SemaInit.o: DiagnosticCommonKinds.inc.h
 SemaInit.o: DiagnosticSemaKinds.inc.h
@@ -382,6 +416,7 @@ SemaInit.o: StmtNodes.inc.h
 SemaInit.po: AttrList.inc.h
 SemaInit.po: AttrParsedAttrList.inc.h
 SemaInit.po: Attrs.inc.h
+SemaInit.po: CommentCommandList.inc.h
 SemaInit.po: DeclNodes.inc.h
 SemaInit.po: DiagnosticCommonKinds.inc.h
 SemaInit.po: DiagnosticSemaKinds.inc.h
@@ -389,6 +424,7 @@ SemaInit.po: StmtNodes.inc.h
 SemaLambda.o: AttrList.inc.h
 SemaLambda.o: AttrParsedAttrList.inc.h
 SemaLambda.o: Attrs.inc.h
+SemaLambda.o: CommentCommandList.inc.h
 SemaLambda.o: DeclNodes.inc.h
 SemaLambda.o: DiagnosticCommonKinds.inc.h
 SemaLambda.o: DiagnosticSemaKinds.inc.h
@@ -396,6 +432,7 @@ SemaLambda.o: StmtNodes.inc.h
 SemaLambda.po: AttrList.inc.h
 SemaLambda.po: AttrParsedAttrList.inc.h
 SemaLambda.po: Attrs.inc.h
+SemaLambda.po: CommentCommandList.inc.h
 SemaLambda.po: DeclNodes.inc.h
 SemaLambda.po: DiagnosticCommonKinds.inc.h
 SemaLambda.po: DiagnosticSemaKinds.inc.h
@@ -403,6 +440,7 @@ SemaLambda.po: StmtNodes.inc.h
 SemaLookup.o: AttrList.inc.h
 SemaLookup.o: AttrParsedAttrList.inc.h
 SemaLookup.o: Attrs.inc.h
+SemaLookup.o: CommentCommandList.inc.h
 SemaLookup.o: DeclNodes.inc.h
 SemaLookup.o: DiagnosticCommonKinds.inc.h
 SemaLookup.o: DiagnosticSemaKinds.inc.h
@@ -410,6 +448,7 @@ SemaLookup.o: StmtNodes.inc.h
 SemaLookup.po: AttrList.inc.h
 SemaLookup.po: AttrParsedAttrList.inc.h
 SemaLookup.po: Attrs.inc.h
+SemaLookup.po: CommentCommandList.inc.h
 SemaLookup.po: DeclNodes.inc.h
 SemaLookup.po: DiagnosticCommonKinds.inc.h
 SemaLookup.po: DiagnosticSemaKinds.inc.h
@@ -417,6 +456,7 @@ SemaLookup.po: StmtNodes.inc.h
 SemaObjCProperty.o: AttrList.inc.h
 SemaObjCProperty.o: AttrParsedAttrList.inc.h
 SemaObjCProperty.o: Attrs.inc.h
+SemaObjCProperty.o: CommentCommandList.inc.h
 SemaObjCProperty.o: DeclNodes.inc.h
 SemaObjCProperty.o: DiagnosticCommonKinds.inc.h
 SemaObjCProperty.o: DiagnosticSemaKinds.inc.h
@@ -424,13 +464,31 @@ SemaObjCProperty.o: StmtNodes.inc.h
 SemaObjCProperty.po: AttrList.inc.h
 SemaObjCProperty.po: AttrParsedAttrList.inc.h
 SemaObjCProperty.po: Attrs.inc.h
+SemaObjCProperty.po: CommentCommandList.inc.h
 SemaObjCProperty.po: DeclNodes.inc.h
 SemaObjCProperty.po: DiagnosticCommonKinds.inc.h
 SemaObjCProperty.po: DiagnosticSemaKinds.inc.h
 SemaObjCProperty.po: StmtNodes.inc.h
+SemaOpenMP.o: AttrList.inc.h
+SemaOpenMP.o: AttrParsedAttrList.inc.h
+SemaOpenMP.o: Attrs.inc.h
+SemaOpenMP.o: CommentCommandList.inc.h
+SemaOpenMP.o: DeclNodes.inc.h
+SemaOpenMP.o: DiagnosticCommonKinds.inc.h
+SemaOpenMP.o: DiagnosticSemaKinds.inc.h
+SemaOpenMP.o: StmtNodes.inc.h
+SemaOpenMP.po: AttrList.inc.h
+SemaOpenMP.po: AttrParsedAttrList.inc.h
+SemaOpenMP.po: Attrs.inc.h
+SemaOpenMP.po: CommentCommandList.inc.h
+SemaOpenMP.po: DeclNodes.inc.h
+SemaOpenMP.po: DiagnosticCommonKinds.inc.h
+SemaOpenMP.po: DiagnosticSemaKinds.inc.h
+SemaOpenMP.po: StmtNodes.inc.h
 SemaOverload.o: AttrList.inc.h
 SemaOverload.o: AttrParsedAttrList.inc.h
 SemaOverload.o: Attrs.inc.h
+SemaOverload.o: CommentCommandList.inc.h
 SemaOverload.o: DeclNodes.inc.h
 SemaOverload.o: DiagnosticCommonKinds.inc.h
 SemaOverload.o: DiagnosticSemaKinds.inc.h
@@ -438,6 +496,7 @@ SemaOverload.o: StmtNodes.inc.h
 SemaOverload.po: AttrList.inc.h
 SemaOverload.po: AttrParsedAttrList.inc.h
 SemaOverload.po: Attrs.inc.h
+SemaOverload.po: CommentCommandList.inc.h
 SemaOverload.po: DeclNodes.inc.h
 SemaOverload.po: DiagnosticCommonKinds.inc.h
 SemaOverload.po: DiagnosticSemaKinds.inc.h
@@ -445,6 +504,7 @@ SemaOverload.po: StmtNodes.inc.h
 SemaPseudoObject.o: AttrList.inc.h
 SemaPseudoObject.o: AttrParsedAttrList.inc.h
 SemaPseudoObject.o: Attrs.inc.h
+SemaPseudoObject.o: CommentCommandList.inc.h
 SemaPseudoObject.o: DeclNodes.inc.h
 SemaPseudoObject.o: DiagnosticCommonKinds.inc.h
 SemaPseudoObject.o: DiagnosticSemaKinds.inc.h
@@ -452,6 +512,7 @@ SemaPseudoObject.o: StmtNodes.inc.h
 SemaPseudoObject.po: AttrList.inc.h
 SemaPseudoObject.po: AttrParsedAttrList.inc.h
 SemaPseudoObject.po: Attrs.inc.h
+SemaPseudoObject.po: CommentCommandList.inc.h
 SemaPseudoObject.po: DeclNodes.inc.h
 SemaPseudoObject.po: DiagnosticCommonKinds.inc.h
 SemaPseudoObject.po: DiagnosticSemaKinds.inc.h
@@ -459,20 +520,25 @@ SemaPseudoObject.po: StmtNodes.inc.h
 SemaStmt.o: AttrList.inc.h
 SemaStmt.o: AttrParsedAttrList.inc.h
 SemaStmt.o: Attrs.inc.h
+SemaStmt.o: CommentCommandList.inc.h
 SemaStmt.o: DeclNodes.inc.h
+SemaStmt.o: DiagnosticASTKinds.inc.h
 SemaStmt.o: DiagnosticCommonKinds.inc.h
 SemaStmt.o: DiagnosticSemaKinds.inc.h
 SemaStmt.o: StmtNodes.inc.h
 SemaStmt.po: AttrList.inc.h
 SemaStmt.po: AttrParsedAttrList.inc.h
 SemaStmt.po: Attrs.inc.h
+SemaStmt.po: CommentCommandList.inc.h
 SemaStmt.po: DeclNodes.inc.h
+SemaStmt.po: DiagnosticASTKinds.inc.h
 SemaStmt.po: DiagnosticCommonKinds.inc.h
 SemaStmt.po: DiagnosticSemaKinds.inc.h
 SemaStmt.po: StmtNodes.inc.h
 SemaStmtAsm.o: AttrList.inc.h
 SemaStmtAsm.o: AttrParsedAttrList.inc.h
 SemaStmtAsm.o: Attrs.inc.h
+SemaStmtAsm.o: CommentCommandList.inc.h
 SemaStmtAsm.o: DeclNodes.inc.h
 SemaStmtAsm.o: DiagnosticCommonKinds.inc.h
 SemaStmtAsm.o: DiagnosticSemaKinds.inc.h
@@ -480,6 +546,7 @@ SemaStmtAsm.o: StmtNodes.inc.h
 SemaStmtAsm.po: AttrList.inc.h
 SemaStmtAsm.po: AttrParsedAttrList.inc.h
 SemaStmtAsm.po: Attrs.inc.h
+SemaStmtAsm.po: CommentCommandList.inc.h
 SemaStmtAsm.po: DeclNodes.inc.h
 SemaStmtAsm.po: DiagnosticCommonKinds.inc.h
 SemaStmtAsm.po: DiagnosticSemaKinds.inc.h
@@ -487,6 +554,7 @@ SemaStmtAsm.po: StmtNodes.inc.h
 SemaStmtAttr.o: AttrList.inc.h
 SemaStmtAttr.o: AttrParsedAttrList.inc.h
 SemaStmtAttr.o: Attrs.inc.h
+SemaStmtAttr.o: CommentCommandList.inc.h
 SemaStmtAttr.o: DeclNodes.inc.h
 SemaStmtAttr.o: DiagnosticCommonKinds.inc.h
 SemaStmtAttr.o: DiagnosticSemaKinds.inc.h
@@ -494,6 +562,7 @@ SemaStmtAttr.o: StmtNodes.inc.h
 SemaStmtAttr.po: AttrList.inc.h
 SemaStmtAttr.po: AttrParsedAttrList.inc.h
 SemaStmtAttr.po: Attrs.inc.h
+SemaStmtAttr.po: CommentCommandList.inc.h
 SemaStmtAttr.po: DeclNodes.inc.h
 SemaStmtAttr.po: DiagnosticCommonKinds.inc.h
 SemaStmtAttr.po: DiagnosticSemaKinds.inc.h
@@ -501,6 +570,7 @@ SemaStmtAttr.po: StmtNodes.inc.h
 SemaTemplate.o: AttrList.inc.h
 SemaTemplate.o: AttrParsedAttrList.inc.h
 SemaTemplate.o: Attrs.inc.h
+SemaTemplate.o: CommentCommandList.inc.h
 SemaTemplate.o: DeclNodes.inc.h
 SemaTemplate.o: DiagnosticCommonKinds.inc.h
 SemaTemplate.o: DiagnosticSemaKinds.inc.h
@@ -508,6 +578,7 @@ SemaTemplate.o: StmtNodes.inc.h
 SemaTemplate.po: AttrList.inc.h
 SemaTemplate.po: AttrParsedAttrList.inc.h
 SemaTemplate.po: Attrs.inc.h
+SemaTemplate.po: CommentCommandList.inc.h
 SemaTemplate.po: DeclNodes.inc.h
 SemaTemplate.po: DiagnosticCommonKinds.inc.h
 SemaTemplate.po: DiagnosticSemaKinds.inc.h
@@ -515,6 +586,7 @@ SemaTemplate.po: StmtNodes.inc.h
 SemaTemplateDeduction.o: AttrList.inc.h
 SemaTemplateDeduction.o: AttrParsedAttrList.inc.h
 SemaTemplateDeduction.o: Attrs.inc.h
+SemaTemplateDeduction.o: CommentCommandList.inc.h
 SemaTemplateDeduction.o: DeclNodes.inc.h
 SemaTemplateDeduction.o: DiagnosticCommonKinds.inc.h
 SemaTemplateDeduction.o: DiagnosticSemaKinds.inc.h
@@ -522,6 +594,7 @@ SemaTemplateDeduction.o: StmtNodes.inc.h
 SemaTemplateDeduction.po: AttrList.inc.h
 SemaTemplateDeduction.po: AttrParsedAttrList.inc.h
 SemaTemplateDeduction.po: Attrs.inc.h
+SemaTemplateDeduction.po: CommentCommandList.inc.h
 SemaTemplateDeduction.po: DeclNodes.inc.h
 SemaTemplateDeduction.po: DiagnosticCommonKinds.inc.h
 SemaTemplateDeduction.po: DiagnosticSemaKinds.inc.h
@@ -529,6 +602,7 @@ SemaTemplateDeduction.po: StmtNodes.inc.h
 SemaTemplateInstantiate.o: AttrList.inc.h
 SemaTemplateInstantiate.o: AttrParsedAttrList.inc.h
 SemaTemplateInstantiate.o: Attrs.inc.h
+SemaTemplateInstantiate.o: CommentCommandList.inc.h
 SemaTemplateInstantiate.o: DeclNodes.inc.h
 SemaTemplateInstantiate.o: DiagnosticCommonKinds.inc.h
 SemaTemplateInstantiate.o: DiagnosticSemaKinds.inc.h
@@ -536,6 +610,7 @@ SemaTemplateInstantiate.o: StmtNodes.inc.h
 SemaTemplateInstantiate.po: AttrList.inc.h
 SemaTemplateInstantiate.po: AttrParsedAttrList.inc.h
 SemaTemplateInstantiate.po: Attrs.inc.h
+SemaTemplateInstantiate.po: CommentCommandList.inc.h
 SemaTemplateInstantiate.po: DeclNodes.inc.h
 SemaTemplateInstantiate.po: DiagnosticCommonKinds.inc.h
 SemaTemplateInstantiate.po: DiagnosticSemaKinds.inc.h
@@ -544,6 +619,7 @@ SemaTemplateInstantiateDecl.o: AttrList.inc.h
 SemaTemplateInstantiateDecl.o: AttrParsedAttrList.inc.h
 SemaTemplateInstantiateDecl.o: AttrTemplateInstantiate.inc.h
 SemaTemplateInstantiateDecl.o: Attrs.inc.h
+SemaTemplateInstantiateDecl.o: CommentCommandList.inc.h
 SemaTemplateInstantiateDecl.o: DeclNodes.inc.h
 SemaTemplateInstantiateDecl.o: DiagnosticCommonKinds.inc.h
 SemaTemplateInstantiateDecl.o: DiagnosticSemaKinds.inc.h
@@ -552,6 +628,7 @@ SemaTemplateInstantiateDecl.po: AttrList.inc.h
 SemaTemplateInstantiateDecl.po: AttrParsedAttrList.inc.h
 SemaTemplateInstantiateDecl.po: AttrTemplateInstantiate.inc.h
 SemaTemplateInstantiateDecl.po: Attrs.inc.h
+SemaTemplateInstantiateDecl.po: CommentCommandList.inc.h
 SemaTemplateInstantiateDecl.po: DeclNodes.inc.h
 SemaTemplateInstantiateDecl.po: DiagnosticCommonKinds.inc.h
 SemaTemplateInstantiateDecl.po: DiagnosticSemaKinds.inc.h
@@ -559,6 +636,7 @@ SemaTemplateInstantiateDecl.po: StmtNodes.inc.h
 SemaTemplateVariadic.o: AttrList.inc.h
 SemaTemplateVariadic.o: AttrParsedAttrList.inc.h
 SemaTemplateVariadic.o: Attrs.inc.h
+SemaTemplateVariadic.o: CommentCommandList.inc.h
 SemaTemplateVariadic.o: DeclNodes.inc.h
 SemaTemplateVariadic.o: DiagnosticCommonKinds.inc.h
 SemaTemplateVariadic.o: DiagnosticSemaKinds.inc.h
@@ -566,6 +644,7 @@ SemaTemplateVariadic.o: StmtNodes.inc.h
 SemaTemplateVariadic.po: AttrList.inc.h
 SemaTemplateVariadic.po: AttrParsedAttrList.inc.h
 SemaTemplateVariadic.po: Attrs.inc.h
+SemaTemplateVariadic.po: CommentCommandList.inc.h
 SemaTemplateVariadic.po: DeclNodes.inc.h
 SemaTemplateVariadic.po: DiagnosticCommonKinds.inc.h
 SemaTemplateVariadic.po: DiagnosticSemaKinds.inc.h
@@ -573,6 +652,7 @@ SemaTemplateVariadic.po: StmtNodes.inc.h
 SemaType.o: AttrList.inc.h
 SemaType.o: AttrParsedAttrList.inc.h
 SemaType.o: Attrs.inc.h
+SemaType.o: CommentCommandList.inc.h
 SemaType.o: DeclNodes.inc.h
 SemaType.o: DiagnosticCommonKinds.inc.h
 SemaType.o: DiagnosticParseKinds.inc.h
@@ -581,6 +661,7 @@ SemaType.o: StmtNodes.inc.h
 SemaType.po: AttrList.inc.h
 SemaType.po: AttrParsedAttrList.inc.h
 SemaType.po: Attrs.inc.h
+SemaType.po: CommentCommandList.inc.h
 SemaType.po: DeclNodes.inc.h
 SemaType.po: DiagnosticCommonKinds.inc.h
 SemaType.po: DiagnosticParseKinds.inc.h
@@ -589,6 +670,7 @@ SemaType.po: StmtNodes.inc.h
 TargetAttributesSema.o: AttrList.inc.h
 TargetAttributesSema.o: AttrParsedAttrList.inc.h
 TargetAttributesSema.o: Attrs.inc.h
+TargetAttributesSema.o: CommentCommandList.inc.h
 TargetAttributesSema.o: DeclNodes.inc.h
 TargetAttributesSema.o: DiagnosticCommonKinds.inc.h
 TargetAttributesSema.o: DiagnosticSemaKinds.inc.h
@@ -596,6 +678,7 @@ TargetAttributesSema.o: StmtNodes.inc.h
 TargetAttributesSema.po: AttrList.inc.h
 TargetAttributesSema.po: AttrParsedAttrList.inc.h
 TargetAttributesSema.po: Attrs.inc.h
+TargetAttributesSema.po: CommentCommandList.inc.h
 TargetAttributesSema.po: DeclNodes.inc.h
 TargetAttributesSema.po: DiagnosticCommonKinds.inc.h
 TargetAttributesSema.po: DiagnosticSemaKinds.inc.h

@@ -8,6 +8,7 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/msun \
+	usr.bin/clang/tblgen.host \
 
 
 .include <dirdeps.mk>
@@ -114,4 +115,12 @@ PPCTargetMachine.o: PPCGenSubtargetInfo.inc.h
 PPCTargetMachine.po: PPCGenInstrInfo.inc.h
 PPCTargetMachine.po: PPCGenRegisterInfo.inc.h
 PPCTargetMachine.po: PPCGenSubtargetInfo.inc.h
+PPCTargetTransformInfo.o: Intrinsics.inc.h
+PPCTargetTransformInfo.o: PPCGenInstrInfo.inc.h
+PPCTargetTransformInfo.o: PPCGenRegisterInfo.inc.h
+PPCTargetTransformInfo.o: PPCGenSubtargetInfo.inc.h
+PPCTargetTransformInfo.po: Intrinsics.inc.h
+PPCTargetTransformInfo.po: PPCGenInstrInfo.inc.h
+PPCTargetTransformInfo.po: PPCGenRegisterInfo.inc.h
+PPCTargetTransformInfo.po: PPCGenSubtargetInfo.inc.h
 .endif

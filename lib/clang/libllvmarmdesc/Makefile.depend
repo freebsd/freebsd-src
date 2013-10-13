@@ -8,6 +8,7 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/msun \
+	usr.bin/clang/tblgen.host \
 
 
 .include <dirdeps.mk>
@@ -26,6 +27,12 @@ ARMELFObjectWriter.o: ARMGenSubtargetInfo.inc.h
 ARMELFObjectWriter.po: ARMGenInstrInfo.inc.h
 ARMELFObjectWriter.po: ARMGenRegisterInfo.inc.h
 ARMELFObjectWriter.po: ARMGenSubtargetInfo.inc.h
+ARMELFStreamer.o: ARMGenInstrInfo.inc.h
+ARMELFStreamer.o: ARMGenRegisterInfo.inc.h
+ARMELFStreamer.o: ARMGenSubtargetInfo.inc.h
+ARMELFStreamer.po: ARMGenInstrInfo.inc.h
+ARMELFStreamer.po: ARMGenRegisterInfo.inc.h
+ARMELFStreamer.po: ARMGenSubtargetInfo.inc.h
 ARMMCCodeEmitter.o: ARMGenInstrInfo.inc.h
 ARMMCCodeEmitter.o: ARMGenMCCodeEmitter.inc.h
 ARMMCCodeEmitter.o: ARMGenRegisterInfo.inc.h

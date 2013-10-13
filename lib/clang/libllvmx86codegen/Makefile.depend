@@ -8,6 +8,7 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/msun \
+	usr.bin/clang/tblgen.host \
 
 
 .include <dirdeps.mk>
@@ -38,6 +39,12 @@ X86FastISel.po: X86GenFastISel.inc.h
 X86FastISel.po: X86GenInstrInfo.inc.h
 X86FastISel.po: X86GenRegisterInfo.inc.h
 X86FastISel.po: X86GenSubtargetInfo.inc.h
+X86FixupLEAs.o: X86GenInstrInfo.inc.h
+X86FixupLEAs.o: X86GenRegisterInfo.inc.h
+X86FixupLEAs.o: X86GenSubtargetInfo.inc.h
+X86FixupLEAs.po: X86GenInstrInfo.inc.h
+X86FixupLEAs.po: X86GenRegisterInfo.inc.h
+X86FixupLEAs.po: X86GenSubtargetInfo.inc.h
 X86FloatingPoint.o: X86GenInstrInfo.inc.h
 X86FloatingPoint.o: X86GenRegisterInfo.inc.h
 X86FloatingPoint.o: X86GenSubtargetInfo.inc.h
@@ -88,6 +95,12 @@ X86MCInstLower.o: X86GenSubtargetInfo.inc.h
 X86MCInstLower.po: X86GenInstrInfo.inc.h
 X86MCInstLower.po: X86GenRegisterInfo.inc.h
 X86MCInstLower.po: X86GenSubtargetInfo.inc.h
+X86PadShortFunction.o: X86GenInstrInfo.inc.h
+X86PadShortFunction.o: X86GenRegisterInfo.inc.h
+X86PadShortFunction.o: X86GenSubtargetInfo.inc.h
+X86PadShortFunction.po: X86GenInstrInfo.inc.h
+X86PadShortFunction.po: X86GenRegisterInfo.inc.h
+X86PadShortFunction.po: X86GenSubtargetInfo.inc.h
 X86RegisterInfo.o: X86GenInstrInfo.inc.h
 X86RegisterInfo.o: X86GenRegisterInfo.inc.h
 X86RegisterInfo.o: X86GenSubtargetInfo.inc.h
@@ -112,12 +125,14 @@ X86TargetMachine.o: X86GenSubtargetInfo.inc.h
 X86TargetMachine.po: X86GenInstrInfo.inc.h
 X86TargetMachine.po: X86GenRegisterInfo.inc.h
 X86TargetMachine.po: X86GenSubtargetInfo.inc.h
-X86TargetObjectFile.o: X86GenInstrInfo.inc.h
-X86TargetObjectFile.o: X86GenRegisterInfo.inc.h
-X86TargetObjectFile.o: X86GenSubtargetInfo.inc.h
-X86TargetObjectFile.po: X86GenInstrInfo.inc.h
-X86TargetObjectFile.po: X86GenRegisterInfo.inc.h
-X86TargetObjectFile.po: X86GenSubtargetInfo.inc.h
+X86TargetTransformInfo.o: Intrinsics.inc.h
+X86TargetTransformInfo.o: X86GenInstrInfo.inc.h
+X86TargetTransformInfo.o: X86GenRegisterInfo.inc.h
+X86TargetTransformInfo.o: X86GenSubtargetInfo.inc.h
+X86TargetTransformInfo.po: Intrinsics.inc.h
+X86TargetTransformInfo.po: X86GenInstrInfo.inc.h
+X86TargetTransformInfo.po: X86GenRegisterInfo.inc.h
+X86TargetTransformInfo.po: X86GenSubtargetInfo.inc.h
 X86VZeroUpper.o: X86GenInstrInfo.inc.h
 X86VZeroUpper.o: X86GenRegisterInfo.inc.h
 X86VZeroUpper.o: X86GenSubtargetInfo.inc.h

@@ -8,12 +8,19 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/msun \
+	usr.bin/clang/tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
+A15SDOptimizer.o: ARMGenInstrInfo.inc.h
+A15SDOptimizer.o: ARMGenRegisterInfo.inc.h
+A15SDOptimizer.o: ARMGenSubtargetInfo.inc.h
+A15SDOptimizer.po: ARMGenInstrInfo.inc.h
+A15SDOptimizer.po: ARMGenRegisterInfo.inc.h
+A15SDOptimizer.po: ARMGenSubtargetInfo.inc.h
 ARMAsmPrinter.o: ARMGenInstrInfo.inc.h
 ARMAsmPrinter.o: ARMGenMCPseudoLowering.inc.h
 ARMAsmPrinter.o: ARMGenRegisterInfo.inc.h
@@ -158,6 +165,14 @@ ARMTargetObjectFile.o: ARMGenSubtargetInfo.inc.h
 ARMTargetObjectFile.po: ARMGenInstrInfo.inc.h
 ARMTargetObjectFile.po: ARMGenRegisterInfo.inc.h
 ARMTargetObjectFile.po: ARMGenSubtargetInfo.inc.h
+ARMTargetTransformInfo.o: ARMGenInstrInfo.inc.h
+ARMTargetTransformInfo.o: ARMGenRegisterInfo.inc.h
+ARMTargetTransformInfo.o: ARMGenSubtargetInfo.inc.h
+ARMTargetTransformInfo.o: Intrinsics.inc.h
+ARMTargetTransformInfo.po: ARMGenInstrInfo.inc.h
+ARMTargetTransformInfo.po: ARMGenRegisterInfo.inc.h
+ARMTargetTransformInfo.po: ARMGenSubtargetInfo.inc.h
+ARMTargetTransformInfo.po: Intrinsics.inc.h
 MLxExpansionPass.o: ARMGenInstrInfo.inc.h
 MLxExpansionPass.o: ARMGenRegisterInfo.inc.h
 MLxExpansionPass.o: ARMGenSubtargetInfo.inc.h

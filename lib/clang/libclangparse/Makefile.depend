@@ -8,6 +8,7 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/msun \
+	usr.bin/clang/clang-tblgen.host \
 
 
 .include <dirdeps.mk>
@@ -17,6 +18,7 @@ DIRDEPS = \
 ParseAST.o: AttrList.inc.h
 ParseAST.o: AttrParsedAttrList.inc.h
 ParseAST.o: Attrs.inc.h
+ParseAST.o: CommentCommandList.inc.h
 ParseAST.o: DeclNodes.inc.h
 ParseAST.o: DiagnosticCommonKinds.inc.h
 ParseAST.o: DiagnosticParseKinds.inc.h
@@ -24,6 +26,7 @@ ParseAST.o: StmtNodes.inc.h
 ParseAST.po: AttrList.inc.h
 ParseAST.po: AttrParsedAttrList.inc.h
 ParseAST.po: Attrs.inc.h
+ParseAST.po: CommentCommandList.inc.h
 ParseAST.po: DeclNodes.inc.h
 ParseAST.po: DiagnosticCommonKinds.inc.h
 ParseAST.po: DiagnosticParseKinds.inc.h
@@ -42,6 +45,7 @@ ParseCXXInlineMethods.po: DeclNodes.inc.h
 ParseCXXInlineMethods.po: DiagnosticCommonKinds.inc.h
 ParseCXXInlineMethods.po: DiagnosticParseKinds.inc.h
 ParseCXXInlineMethods.po: StmtNodes.inc.h
+ParseDecl.o: AttrExprArgs.inc.h
 ParseDecl.o: AttrLateParsed.inc.h
 ParseDecl.o: AttrList.inc.h
 ParseDecl.o: AttrParsedAttrList.inc.h
@@ -50,6 +54,7 @@ ParseDecl.o: DeclNodes.inc.h
 ParseDecl.o: DiagnosticCommonKinds.inc.h
 ParseDecl.o: DiagnosticParseKinds.inc.h
 ParseDecl.o: StmtNodes.inc.h
+ParseDecl.po: AttrExprArgs.inc.h
 ParseDecl.po: AttrLateParsed.inc.h
 ParseDecl.po: AttrList.inc.h
 ParseDecl.po: AttrParsedAttrList.inc.h
@@ -130,6 +135,20 @@ ParseObjc.po: DeclNodes.inc.h
 ParseObjc.po: DiagnosticCommonKinds.inc.h
 ParseObjc.po: DiagnosticParseKinds.inc.h
 ParseObjc.po: StmtNodes.inc.h
+ParseOpenMP.o: AttrList.inc.h
+ParseOpenMP.o: AttrParsedAttrList.inc.h
+ParseOpenMP.o: Attrs.inc.h
+ParseOpenMP.o: DeclNodes.inc.h
+ParseOpenMP.o: DiagnosticCommonKinds.inc.h
+ParseOpenMP.o: DiagnosticParseKinds.inc.h
+ParseOpenMP.o: StmtNodes.inc.h
+ParseOpenMP.po: AttrList.inc.h
+ParseOpenMP.po: AttrParsedAttrList.inc.h
+ParseOpenMP.po: Attrs.inc.h
+ParseOpenMP.po: DeclNodes.inc.h
+ParseOpenMP.po: DiagnosticCommonKinds.inc.h
+ParseOpenMP.po: DiagnosticParseKinds.inc.h
+ParseOpenMP.po: StmtNodes.inc.h
 ParsePragma.o: AttrList.inc.h
 ParsePragma.o: AttrParsedAttrList.inc.h
 ParsePragma.o: Attrs.inc.h
@@ -147,6 +166,7 @@ ParsePragma.po: StmtNodes.inc.h
 ParseStmt.o: AttrList.inc.h
 ParseStmt.o: AttrParsedAttrList.inc.h
 ParseStmt.o: Attrs.inc.h
+ParseStmt.o: CommentCommandList.inc.h
 ParseStmt.o: DeclNodes.inc.h
 ParseStmt.o: DiagnosticCommonKinds.inc.h
 ParseStmt.o: DiagnosticParseKinds.inc.h
@@ -154,6 +174,7 @@ ParseStmt.o: StmtNodes.inc.h
 ParseStmt.po: AttrList.inc.h
 ParseStmt.po: AttrParsedAttrList.inc.h
 ParseStmt.po: Attrs.inc.h
+ParseStmt.po: CommentCommandList.inc.h
 ParseStmt.po: DeclNodes.inc.h
 ParseStmt.po: DiagnosticCommonKinds.inc.h
 ParseStmt.po: DiagnosticParseKinds.inc.h

@@ -8,6 +8,7 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/msun \
+	usr.bin/clang/tblgen.host \
 
 
 .include <dirdeps.mk>
@@ -24,12 +25,12 @@ CodeMetrics.o: Intrinsics.inc.h
 CodeMetrics.po: Intrinsics.inc.h
 ConstantFolding.o: Intrinsics.inc.h
 ConstantFolding.po: Intrinsics.inc.h
-DbgInfoPrinter.o: Intrinsics.inc.h
-DbgInfoPrinter.po: Intrinsics.inc.h
-InlineCost.o: Intrinsics.inc.h
-InlineCost.po: Intrinsics.inc.h
+CostModel.o: Intrinsics.inc.h
+CostModel.po: Intrinsics.inc.h
 InstCount.o: Intrinsics.inc.h
 InstCount.po: Intrinsics.inc.h
+InstructionSimplify.o: Intrinsics.inc.h
+InstructionSimplify.po: Intrinsics.inc.h
 LazyValueInfo.o: Intrinsics.inc.h
 LazyValueInfo.po: Intrinsics.inc.h
 Lint.o: Intrinsics.inc.h
@@ -40,8 +41,12 @@ MemoryBuiltins.o: Intrinsics.inc.h
 MemoryBuiltins.po: Intrinsics.inc.h
 MemoryDependenceAnalysis.o: Intrinsics.inc.h
 MemoryDependenceAnalysis.po: Intrinsics.inc.h
+PtrUseVisitor.o: Intrinsics.inc.h
+PtrUseVisitor.po: Intrinsics.inc.h
 ScalarEvolutionExpander.o: Intrinsics.inc.h
 ScalarEvolutionExpander.po: Intrinsics.inc.h
+TargetTransformInfo.o: Intrinsics.inc.h
+TargetTransformInfo.po: Intrinsics.inc.h
 ValueTracking.o: Intrinsics.inc.h
 ValueTracking.po: Intrinsics.inc.h
 .endif

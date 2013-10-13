@@ -15,7 +15,11 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
+	lib/libexpat \
 	lib/libgeom \
+	lib/libmd \
+	lib/libsbuf \
+	lib/libthr \
 	lib/libutil \
 	lib/msun \
 

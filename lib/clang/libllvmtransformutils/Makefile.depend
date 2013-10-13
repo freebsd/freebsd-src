@@ -8,6 +8,7 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/msun \
+	usr.bin/clang/tblgen.host \
 
 
 .include <dirdeps.mk>
@@ -40,4 +41,6 @@ SSAUpdater.o: Intrinsics.inc.h
 SSAUpdater.po: Intrinsics.inc.h
 SimplifyCFG.o: Intrinsics.inc.h
 SimplifyCFG.po: Intrinsics.inc.h
+SimplifyLibCalls.o: Intrinsics.inc.h
+SimplifyLibCalls.po: Intrinsics.inc.h
 .endif

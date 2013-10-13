@@ -12,12 +12,14 @@ DIRDEPS = \
 	kerberos5/lib/libroken \
 	kerberos5/lib/libsl \
 	kerberos5/lib/libvers \
+	kerberos5/lib/libwind \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcom_err \
 	lib/libcompiler_rt \
 	lib/libcrypt \
 	lib/libedit \
+	lib/ncurses/ncurses \
 	secure/lib/libcrypto \
 
 

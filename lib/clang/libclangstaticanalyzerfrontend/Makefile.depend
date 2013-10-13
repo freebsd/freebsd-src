@@ -8,30 +8,27 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/msun \
+	usr.bin/clang/clang-tblgen.host \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-AnalysisConsumer.o: AttrList.inc.h
-AnalysisConsumer.o: Attrs.inc.h
+AnalysisConsumer.o: CommentCommandList.inc.h
 AnalysisConsumer.o: DeclNodes.inc.h
 AnalysisConsumer.o: DiagnosticCommonKinds.inc.h
 AnalysisConsumer.o: StmtNodes.inc.h
-AnalysisConsumer.po: AttrList.inc.h
-AnalysisConsumer.po: Attrs.inc.h
+AnalysisConsumer.po: CommentCommandList.inc.h
 AnalysisConsumer.po: DeclNodes.inc.h
 AnalysisConsumer.po: DiagnosticCommonKinds.inc.h
 AnalysisConsumer.po: StmtNodes.inc.h
-CheckerRegistration.o: AttrList.inc.h
-CheckerRegistration.o: Attrs.inc.h
+CheckerRegistration.o: CommentCommandList.inc.h
 CheckerRegistration.o: DeclNodes.inc.h
 CheckerRegistration.o: DiagnosticCommonKinds.inc.h
 CheckerRegistration.o: DiagnosticFrontendKinds.inc.h
 CheckerRegistration.o: StmtNodes.inc.h
-CheckerRegistration.po: AttrList.inc.h
-CheckerRegistration.po: Attrs.inc.h
+CheckerRegistration.po: CommentCommandList.inc.h
 CheckerRegistration.po: DeclNodes.inc.h
 CheckerRegistration.po: DiagnosticCommonKinds.inc.h
 CheckerRegistration.po: DiagnosticFrontendKinds.inc.h

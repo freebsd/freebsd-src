@@ -8,6 +8,7 @@ DIRDEPS = \
 	include \
 	include/xlocale \
 	lib/msun \
+	usr.bin/clang/tblgen.host \
 
 
 .include <dirdeps.mk>
@@ -18,6 +19,8 @@ AddressSanitizer.o: Intrinsics.inc.h
 AddressSanitizer.po: Intrinsics.inc.h
 BoundsChecking.o: Intrinsics.inc.h
 BoundsChecking.po: Intrinsics.inc.h
+MemorySanitizer.o: Intrinsics.inc.h
+MemorySanitizer.po: Intrinsics.inc.h
 ThreadSanitizer.o: Intrinsics.inc.h
 ThreadSanitizer.po: Intrinsics.inc.h
 .endif

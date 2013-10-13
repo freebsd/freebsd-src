@@ -2,12 +2,13 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/msun \
+	usr.bin/clang/tblgen.host \
 
 
 .include <dirdeps.mk>
@@ -16,6 +17,8 @@ DIRDEPS = \
 # local dependencies - needed for -jN in clean tree
 Execution.o: Intrinsics.inc.h
 Execution.po: Intrinsics.inc.h
+ExternalFunctions.o: Intrinsics.inc.h
+ExternalFunctions.po: Intrinsics.inc.h
 Interpreter.o: Intrinsics.inc.h
 Interpreter.po: Intrinsics.inc.h
 .endif

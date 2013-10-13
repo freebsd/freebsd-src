@@ -16,7 +16,6 @@ DIRDEPS = \
 	lib/libthr \
 	lib/libutil \
 	secure/lib/libcrypto \
-	usr.bin/lex/lib \
 
 
 .include <dirdeps.mk>
