@@ -629,14 +629,8 @@ adaclose(struct disk *dp)
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	cam_periph_lock(periph);
-	if (cam_periph_hold(periph, PRIBIO) != 0) {
-		cam_periph_unlock(periph);
-		cam_periph_release(periph);
-		return (0);
-	}
-
 	softc = (struct ada_softc *)periph->softc;
+	cam_periph_lock(periph);
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
 	    ("adaclose\n"));
@@ -644,7 +638,8 @@ adaclose(struct disk *dp)
 	/* We only sync the cache if the drive is capable of it. */
 	if ((softc->flags & ADA_FLAG_DIRTY) != 0 &&
 	    (softc->flags & ADA_FLAG_CAN_FLUSHCACHE) != 0 &&
-	    (periph->flags & CAM_PERIPH_INVALID) == 0) {
+	    (periph->flags & CAM_PERIPH_INVALID) == 0 &&
+	    cam_periph_hold(periph, PRIBIO) == 0) {
 
 		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 		cam_fill_ataio(&ccb->ataio,
@@ -668,10 +663,11 @@ adaclose(struct disk *dp)
 		else
 			softc->flags &= ~ADA_FLAG_DIRTY;
 		xpt_release_ccb(ccb);
+		cam_periph_unhold(periph);
 	}
 
 	softc->flags &= ~ADA_FLAG_OPEN;
-	cam_periph_unhold(periph);
+
 	while (softc->refcount != 0)
 		cam_periph_sleep(periph, &softc->refcount, PRIBIO, "adaclose", 1);
 	cam_periph_unlock(periph);
@@ -1033,8 +1029,10 @@ adaasync(void *callback_arg, u_int32_t code,
 			softc->state = ADA_STATE_WCACHE;
 		else
 		    break;
-		cam_periph_acquire(periph);
-		xpt_schedule(periph, CAM_PRIORITY_DEV);
+		if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+			softc->state = ADA_STATE_NORMAL;
+		else
+			xpt_schedule(periph, CAM_PRIORITY_DEV);
 	}
 	default:
 		cam_periph_async(periph, code, path, arg);
@@ -1341,8 +1339,8 @@ adaregister(struct cam_periph *periph, void *arg)
 	 * Create our sysctl variables, now that we know
 	 * we have successfully attached.
 	 */
-	cam_periph_acquire(periph);
-	taskqueue_enqueue(taskqueue_thread, &softc->sysctl_task);
+	if (cam_periph_acquire(periph) == CAM_REQ_CMP)
+		taskqueue_enqueue(taskqueue_thread, &softc->sysctl_task);
 
 	/*
 	 * Add async callbacks for bus reset and
@@ -1368,16 +1366,17 @@ adaregister(struct cam_periph *periph, void *arg)
 	if (ADA_RA >= 0 &&
 	    cgd->ident_data.support.command1 & ATA_SUPPORT_LOOKAHEAD) {
 		softc->state = ADA_STATE_RAHEAD;
-		cam_periph_acquire(periph);
-		xpt_schedule(periph, CAM_PRIORITY_DEV);
 	} else if (ADA_WC >= 0 &&
 	    cgd->ident_data.support.command1 & ATA_SUPPORT_WRITECACHE) {
 		softc->state = ADA_STATE_WCACHE;
-		cam_periph_acquire(periph);
-		xpt_schedule(periph, CAM_PRIORITY_DEV);
-	} else
+	} else {
 		softc->state = ADA_STATE_NORMAL;
-
+		return(CAM_REQ_CMP);
+	}
+	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+		softc->state = ADA_STATE_NORMAL;
+	else
+		xpt_schedule(periph, CAM_PRIORITY_DEV);
 	return(CAM_REQ_CMP);
 }
 
@@ -1655,13 +1654,6 @@ out:
 	case ADA_STATE_RAHEAD:
 	case ADA_STATE_WCACHE:
 	{
-		if ((periph->flags & CAM_PERIPH_INVALID) != 0) {
-			softc->state = ADA_STATE_NORMAL;
-			xpt_release_ccb(start_ccb);
-			cam_periph_release_locked(periph);
-			return;
-		}
-
 		cam_fill_ataio(ataio,
 		    1,
 		    adadone,

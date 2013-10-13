@@ -599,6 +599,8 @@ camperiphfree(struct cam_periph *periph)
 	struct periph_driver **p_drv;
 
 	cam_periph_assert(periph, MA_OWNED);
+	KASSERT(periph->periph_allocating == 0, ("%s%d: freed while allocating",
+	    periph->periph_name, periph->unit_number));
 	for (p_drv = periph_drivers; *p_drv != NULL; p_drv++) {
 		if (strcmp((*p_drv)->driver_name, periph->periph_name) == 0)
 			break;

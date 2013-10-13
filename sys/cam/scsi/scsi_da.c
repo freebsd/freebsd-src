@@ -1269,64 +1269,56 @@ daclose(struct disk *dp)
 {
 	struct	cam_periph *periph;
 	struct	da_softc *softc;
+	union	ccb *ccb;
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	cam_periph_lock(periph);
-	if (cam_periph_hold(periph, PRIBIO) != 0) {
-		cam_periph_unlock(periph);
-		cam_periph_release(periph);
-		return (0);
-	}
-
 	softc = (struct da_softc *)periph->softc;
-
+	cam_periph_lock(periph);
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
 	    ("daclose\n"));
 
-	if ((softc->flags & DA_FLAG_DIRTY) != 0 &&
-	    (softc->quirks & DA_Q_NO_SYNC_CACHE) == 0 &&
-	    (softc->flags & DA_FLAG_PACK_INVALID) == 0) {
-		union	ccb *ccb;
+	if (cam_periph_hold(periph, PRIBIO) == 0) {
 
-		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
+		/* Flush disk cache. */
+		if ((softc->flags & DA_FLAG_DIRTY) != 0 &&
+		    (softc->quirks & DA_Q_NO_SYNC_CACHE) == 0 &&
+		    (softc->flags & DA_FLAG_PACK_INVALID) == 0) {
+			ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
+			scsi_synchronize_cache(&ccb->csio, /*retries*/1,
+			    /*cbfcnp*/dadone, MSG_SIMPLE_Q_TAG,
+			    /*begin_lba*/0, /*lb_count*/0, SSD_FULL_SIZE,
+			    5 * 60 * 1000);
+			error = cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
+			    /*sense_flags*/SF_RETRY_UA | SF_QUIET_IR,
+			    softc->disk->d_devstat);
+			if (error == 0)
+				softc->flags &= ~DA_FLAG_DIRTY;
+			xpt_release_ccb(ccb);
+		}
 
-		scsi_synchronize_cache(&ccb->csio,
-				       /*retries*/1,
-				       /*cbfcnp*/dadone,
-				       MSG_SIMPLE_Q_TAG,
-				       /*begin_lba*/0,/* Cover the whole disk */
-				       /*lb_count*/0,
-				       SSD_FULL_SIZE,
-				       5 * 60 * 1000);
-
-		error = cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
-				  /*sense_flags*/SF_RETRY_UA | SF_QUIET_IR,
-				  softc->disk->d_devstat);
-		if (error == 0)
-			softc->flags &= ~DA_FLAG_DIRTY;
-		xpt_release_ccb(ccb);
-
-	}
-
-	if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0) {
-		if ((softc->quirks & DA_Q_NO_PREVENT) == 0)
+		/* Allow medium removal. */
+		if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0 &&
+		    (softc->quirks & DA_Q_NO_PREVENT) == 0)
 			daprevent(periph, PR_ALLOW);
-		/*
-		 * If we've got removeable media, mark the blocksize as
-		 * unavailable, since it could change when new media is
-		 * inserted.
-		 */
-		softc->disk->d_devstat->flags |= DEVSTAT_BS_UNAVAILABLE;
+
+		cam_periph_unhold(periph);
 	}
+
+	/*
+	 * If we've got removeable media, mark the blocksize as
+	 * unavailable, since it could change when new media is
+	 * inserted.
+	 */
+	if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0)
+		softc->disk->d_devstat->flags |= DEVSTAT_BS_UNAVAILABLE;
 
 	softc->flags &= ~DA_FLAG_OPEN;
-	cam_periph_unhold(periph);
 	while (softc->refcount != 0)
 		cam_periph_sleep(periph, &softc->refcount, PRIBIO, "daclose", 1);
 	cam_periph_unlock(periph);
 	cam_periph_release(periph);
-	return (0);	
+	return (0);
 }
 
 static void
