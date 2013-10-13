@@ -35,7 +35,13 @@ _stage_file_basename = $${f\#\#*/}
 _stage_target_dirname = $${t%/*}
 .endif
 
+_OBJROOT ?= ${OBJROOT:U${OBJTOP:H}}
+.if ${_OBJROOT:M*/} != ""
+_objroot ?= ${_OBJROOT:tA}/
+.else
 _objroot ?= ${_OBJROOT:tA}
+.endif
+
 # make sure this is global
 _STAGED_DIRS ?=
 .export _STAGED_DIRS
