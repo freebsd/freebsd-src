@@ -40,7 +40,6 @@ FILES=	\
 	sys.mk \
 	version_gen.awk
 
-NO_OBJ=
 FILESDIR=	${BINDIR}/mk
 
 .if ${MK_ATF} != "no"
