@@ -283,8 +283,9 @@ public:
 	/**
 	 * Interpret and perform any actions necessary to
 	 * consume the event.
+	 * \return True if this event should be queued for later reevaluation
 	 */
-	virtual void Process()			const;
+	virtual bool Process()			const;
 
 	/**
 	 * Get the time that the event was created
@@ -405,8 +406,9 @@ public:
 	/**
 	 * Interpret and perform any actions necessary to
 	 * consume the event.
+	 * \return True if this event should be queued for later reevaluation
 	 */
-	virtual void Process() const;
+	virtual bool Process() const;
 
 protected:
 	/**
@@ -479,8 +481,9 @@ public:
 	/**
 	 * Interpret and perform any actions necessary to
 	 * consume the event.
+	 * \return True if this event should be queued for later reevaluation
 	 */
-	virtual void Process()		const;
+	virtual bool Process()		const;
 
 	const string &PoolName()	const;
 	Guid	      PoolGUID()	const;

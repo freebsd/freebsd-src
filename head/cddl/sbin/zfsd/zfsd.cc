@@ -468,6 +468,12 @@ ZfsDaemon::ReplayUnconsumedEvents()
 	if (replayed_any)
 		syslog(LOG_INFO, "Started replaying unconsumed events");
 	while (event != s_unconsumedEvents.end()) {
+		/*
+		 * Even if the event is unconsumed the second time around, drop
+		 * it.  By now we should've gotten a config_sync so any events
+		 * that still can't be consumed are probably referring to vdevs
+		 * or pools that no longer exist.
+		 */
 		(*event)->Process();
 		delete *event;
 		s_unconsumedEvents.erase(event++);
@@ -494,7 +500,8 @@ ZfsDaemon::ProcessEvents(EventBuffer &eventBuffer)
 	while (eventBuffer.ExtractEvent(evString)) {
 		DevCtlEvent *event(DevCtlEvent::CreateEvent(evString));
 		if (event != NULL) {
-			event->Process();
+			if (event->Process())
+				SaveEvent(*event);
 			delete event;
 		}
 	}
@@ -597,7 +604,8 @@ ZfsDaemon::RescanSystem()
 				string evString(evStart + pp->lg_name + "\n");
 				event = DevCtlEvent::CreateEvent(evString);
 				if (event != NULL)
-					event->Process();
+					if (event->Process())
+						SaveEvent(*event);
 					delete event;
                         }
                 }
@@ -639,8 +647,12 @@ ZfsDaemon::EventLoop()
 		int	      result;
 
 		if (s_logCaseFiles == true) {
+			DevCtlEventList::iterator
+			    event(s_unconsumedEvents.begin());
 			s_logCaseFiles = false;
 			CaseFile::LogAll();
+			while (event != s_unconsumedEvents.end())
+				(*event++)->Log(LOG_INFO);
 		}
 
 		Callout::ExpireCallouts();
