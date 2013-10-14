@@ -92,6 +92,7 @@ static int hv_check_for_hyper_v(void);
 static int
 hv_ata_pci_probe(device_t dev)
 {
+	device_t parent = device_get_parent(dev);
 	int ata_disk_enable;
 
 	ata_disk_enable = 0;
@@ -102,22 +103,8 @@ hv_ata_pci_probe(device_t dev)
 	if (!hv_check_for_hyper_v())
 		return (ENXIO);
 
-	if (bootverbose)
-		device_printf(dev,
-		    "hv_ata_pci_probe dev_class/subslcass = %d, %d\n",
-			pci_get_class(dev), pci_get_subclass(dev));
-			
-	/* is this a storage class device ? */
-	if (pci_get_class(dev) != PCIC_STORAGE)
+	if (device_get_unit(parent) != 0 || device_get_ivars(dev) != 0)
 		return (ENXIO);
-
-	/* is this an IDE/ATA type device ? */
-	if (pci_get_subclass(dev) != PCIS_STORAGE_IDE)
-		return (ENXIO);
-
-	if(bootverbose)
-		device_printf(dev,
-		    "Hyper-V probe for disabling ATA-PCI, emulated driver\n");
 
 	/*
 	 * On Hyper-V the default is to use the enlightened driver for
@@ -126,15 +113,14 @@ hv_ata_pci_probe(device_t dev)
 	 * hw_ata.disk_enable must be explicitly set to 1.
 	 */
 	if (getenv_int("hw.ata.disk_enable", &ata_disk_enable)) {
-		if(bootverbose)
+		if (bootverbose)
 			device_printf(dev,
 			    "hw.ata.disk_enable flag is disabling Hyper-V"
 			    " ATA driver support\n");
 			return (ENXIO);
 	}
 
-	if (bootverbose)
-		device_printf(dev, "Hyper-V ATA storage driver enabled.\n");
+	device_set_desc(dev, "Hyper-V ATA storage disengage driver");
 
 	return (BUS_PROBE_VENDOR);
 }
@@ -193,12 +179,12 @@ static device_method_t hv_ata_pci_methods[] = {
 devclass_t hv_ata_pci_devclass;
 
 static driver_t hv_ata_pci_disengage_driver = {
-	"pciata-disable",
+	"ata",
 	hv_ata_pci_methods,
-	sizeof(struct ata_pci_controller),
+	0,
 };
 
-DRIVER_MODULE(atapci_dis, pci, hv_ata_pci_disengage_driver,
-		hv_ata_pci_devclass, NULL, NULL);
+DRIVER_MODULE(atapci_dis, atapci, hv_ata_pci_disengage_driver,
+    hv_ata_pci_devclass, NULL, NULL);
 MODULE_VERSION(atapci_dis, 1);
 MODULE_DEPEND(atapci_dis, ata, 1, 1, 1);
