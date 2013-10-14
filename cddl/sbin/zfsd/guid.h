@@ -46,11 +46,11 @@
  * \brief Object that represents guids.
  *
  * It can generally be manipulated as a uint64_t, but with a special
- * value "None" that does not equal any valid guid.
+ * value INVALID_GUID that does not equal any valid guid.
  * 
  * As of this writing, spa_generate_guid() in spa_misc.c explicitly
- * refuses to return a guid of 0.  So this class uses 0 as a flag
- * value for "None".  In the future, if 0 is allowed to be a valid
+ * refuses to return a guid of 0.  So this class uses 0 as the value
+ * for INVALID_GUID.  In the future, if 0 is allowed to be a valid
  * guid, the implementation of this class must change.
  */
 class Guid
@@ -59,6 +59,7 @@ public:
 	/* Constructors */
 	Guid();
 	Guid(uint64_t guid);
+	Guid(const std::string &guid);
 
 	/* Assignment */
 	Guid& operator=(const Guid& rhs);
@@ -74,16 +75,16 @@ public:
 	operator uint64_t()		 const;
 	operator bool()			 const;
 
-	static const uint64_t NONE_FLAG = 0;
+	static const uint64_t INVALID_GUID = 0;
 protected:
-	/* The stored value.  0 is a flag for "None" */
+	/* The integer value of the GUID. */
 	uint64_t  m_GUID;
 };
 
 //- Guid Inline Public Methods ------------------------------------------------
 inline
 Guid::Guid()
-  : m_GUID(NONE_FLAG)
+  : m_GUID(INVALID_GUID)
 {
 }
 
@@ -103,7 +104,7 @@ Guid::operator=(const Guid &rhs)
 inline bool
 Guid::IsValid() const
 {
-	return (m_GUID != NONE_FLAG);
+	return (m_GUID != INVALID_GUID);
 }
 
 inline bool
@@ -127,7 +128,7 @@ Guid::operator uint64_t() const
 inline
 Guid::operator bool() const
 {
-	return (m_GUID != NONE_FLAG);
+	return (m_GUID != INVALID_GUID);
 }
 
 /** Convert the GUID into its string representation */
