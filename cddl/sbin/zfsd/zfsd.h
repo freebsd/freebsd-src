@@ -272,19 +272,39 @@ private:
 	/** Characters found between successive "key=value" strings. */
 	static const char   s_keyPairSepTokens[];
 
-	/** Temporary space for event data during our parsing. */
+	/** Temporary space for event data during our parsing.  Laid out like
+	 * this:
+	 *         <--------------------------------------------------------->
+	 *         |         |    |           |                              |
+	 * m_buf---|         |    |           |                              |
+	 * m_nextEventOffset--    |           |                              |
+	 * m_parsedLen-------------           |                              |
+	 * m_validLen--------------------------                              |
+	 * EVENT_BUFSIZE------------------------------------------------------
+	 *
+	 * Data before m_nextEventOffset has already been processed.
+	 *
+	 * Data between m_nextEvenOffset and m_parsedLen has been parsed, but
+	 * not processed as a single event.
+	 *
+	 * Data between m_parsedLen and m_validLen has been read from the
+	 * source, but not yet parsed.
+	 *
+	 * Between m_validLen and EVENT_BUFSIZE is empty space.
+	 *
+	 * */
 	char		    m_buf[EVENT_BUFSIZE];
 
 	/** Reference to the reader linked to devd's domain socket. */
 	Reader&		    m_reader;
 
-	/** Valid bytes in m_buf. */
+	/** Offset within m_buf to the beginning of free space. */
 	size_t		    m_validLen;
 
-	/** The amount of data in m_buf we have looked at. */
+	/** Offset within m_buf to the beginning of data not yet parsed */
 	size_t		    m_parsedLen;
 
-	/** Offset to the start token of the next event. */
+	/** Offset within m_buf to the start token of the next event. */
 	size_t		    m_nextEventOffset;
 
 	/** The EventBuffer is aligned and tracking event records. */

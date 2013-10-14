@@ -47,7 +47,7 @@
  *
  * It can generally be manipulated as a uint64_t, but with a special
  * value INVALID_GUID that does not equal any valid guid.
- * 
+ *
  * As of this writing, spa_generate_guid() in spa_misc.c explicitly
  * refuses to return a guid of 0.  So this class uses 0 as the value
  * for INVALID_GUID.  In the future, if 0 is allowed to be a valid

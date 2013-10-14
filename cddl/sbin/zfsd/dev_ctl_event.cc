@@ -67,7 +67,7 @@ ParseException::ToString() const
 
 	result << "Parsing ";
 
-	switch(Type()) {
+	switch (Type()) {
 	case INVALID_FORMAT:
 		result << "invalid format ";
 		break;
@@ -131,7 +131,7 @@ DevCtlEvent::Init()
 	EventFactoryRecord *rec(s_factoryTable);
 	EventFactoryRecord *lastRec(s_factoryTable
 				  + NUM_ELEMENTS(s_factoryTable) - 1);
-		
+
 	for (; rec <= lastRec; rec++) {
 		EventFactoryKey key(rec->m_type, rec->m_subsystem);
 
@@ -434,10 +434,10 @@ DevfsEvent::IsWholeDev(const string &devName)
 	/* alpha prefix followed only by digits. */
 	for (; i < devName.end() && !isdigit(*i); i++)
 		;
- 
+
 	if (i == devName.end())
 		return (false);
-	
+
 	for (; i < devName.end() && isdigit(*i); i++)
 		;
 

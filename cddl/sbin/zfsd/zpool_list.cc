@@ -75,11 +75,10 @@ ZpoolList::LoadIterator(zpool_handle_t *pool, void *data)
 	ZpoolList *zpl(reinterpret_cast<ZpoolList *>(data));
 	nvlist_t  *poolConfig(zpool_get_config(pool, NULL));
 
-	if (zpl->m_filter(pool, poolConfig, zpl->m_filterArg)) {
+	if (zpl->m_filter(pool, poolConfig, zpl->m_filterArg))
 		zpl->push_back(pool);
-	} else {
+	else
 		zpool_close(pool);
-	}
 	return (0);
 }
 
