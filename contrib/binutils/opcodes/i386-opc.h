@@ -72,19 +72,23 @@ typedef struct template
 #define CpuSSE4_1    0x400000	/* SSE4.1 Instructions required */
 #define CpuSSE4_2    0x800000	/* SSE4.2 Instructions required */
 #define CpuXSAVE    0x1000000	/* XSAVE Instructions required */
-
-/* SSE4.1/4.2 Instructions required */
-#define CpuSSE4	     (CpuSSE4_1|CpuSSE4_2)
+#define CpuAES      0x2000000	/* AES Instructions required */
 
   /* These flags are set by gas depending on the flag_code.  */
 #define Cpu64	     0x4000000   /* 64bit support required  */
 #define CpuNo64      0x8000000   /* Not supported in the 64bit mode  */
 
+#define CpuPCLMUL   0x10000000	/* Carry-less Multiplication extensions */
+#define CpuRdRnd    0x20000000	/* Intel Random Number Generator extensions */
+
+/* SSE4.1/4.2 Instructions required */
+#define CpuSSE4	     (CpuSSE4_1|CpuSSE4_2)
+
   /* The default value for unknown CPUs - enable all features to avoid problems.  */
 #define CpuUnknownFlags (Cpu186|Cpu286|Cpu386|Cpu486|Cpu586|Cpu686 \
 	|CpuP4|CpuSledgehammer|CpuMMX|CpuMMX2|CpuSSE|CpuSSE2|CpuSSE3|CpuVMX \
 	|Cpu3dnow|Cpu3dnowA|CpuK6|CpuPadLock|CpuSVME|CpuSSSE3|CpuSSE4_1 \
-	|CpuSSE4_2|CpuABM|CpuSSE4a|CpuXSAVE)
+	|CpuSSE4_2|CpuABM|CpuSSE4a|CpuXSAVE|CpuAES|CpuPCLMUL|CpuRdRnd)
 
   /* the bits in opcode_modifier are used to generate the final opcode from
      the base_opcode.  These bits also are used to detect alternate forms of
@@ -125,6 +129,8 @@ typedef struct template
 #define NoRex64	     0x8000000  /* instruction don't need Rex64 prefix.  */
 #define Rex64	    0x10000000  /* instruction require Rex64 prefix.  */
 #define Ugh	    0x20000000	/* deprecated fp insn, gets a warning */
+
+#define NoSuf		(No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf)
 
   /* operand_types[i] describes the type of operand i.  This is made
      by OR'ing together all of the possible type masks.  (e.g.

@@ -3981,7 +3981,7 @@ output_insn (void)
 	 SSE4 instructions have 3 bytes.  We may use one more higher
 	 byte to specify a prefix the instruction requires.  Exclude
 	 instructions which are in both SSE4 and ABM.  */
-      if ((i.tm.cpu_flags & (CpuSSSE3 | CpuSSE4)) != 0
+      if ((i.tm.cpu_flags & (CpuSSSE3 | CpuSSE4 | CpuAES | CpuPCLMUL)) != 0
 	  && (i.tm.cpu_flags & CpuABM) == 0)
 	{
 	  if (i.tm.base_opcode & 0xff000000)
@@ -3990,7 +3990,8 @@ output_insn (void)
 	      goto check_prefix;
 	    }
 	}
-      else if (i.tm.base_opcode == 0x660f3880 || i.tm.base_opcode == 0x660f3881)
+      else if (i.tm.base_opcode == 0x660f3880 || i.tm.base_opcode == 0x660f3881
+	  || i.tm.base_opcode == 0x660f3882)
 	{
 	  /* invept and invvpid are 3 byte instructions with a
 	     mandatory prefix. */
@@ -4033,14 +4034,15 @@ output_insn (void)
 	}
       else
 	{
-	  if ((i.tm.cpu_flags & (CpuSSSE3 | CpuSSE4)) != 0
+	  if ((i.tm.cpu_flags & (CpuSSSE3 | CpuSSE4 | CpuAES | CpuPCLMUL)) != 0
 	      && (i.tm.cpu_flags & CpuABM) == 0)
 	    {
 	      p = frag_more (3);
 	      *p++ = (i.tm.base_opcode >> 16) & 0xff;
 	    }
 	  else if (i.tm.base_opcode == 0x660f3880 ||
-		   i.tm.base_opcode == 0x660f3881)
+		   i.tm.base_opcode == 0x660f3881 ||
+		   i.tm.base_opcode == 0x660f3882)
 	    {
 	      p = frag_more (3);
 	      *p++ = (i.tm.base_opcode >> 16) & 0xff;
