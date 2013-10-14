@@ -40,6 +40,7 @@
  * Header requirements:
  *
  *    #include <string>
+ *    #include <list>
  *
  *    #include <devctl/guid.h>
  */
@@ -103,6 +104,17 @@ public:
 	 */
 	Vdev(nvlist_t *vdevConfig);
 
+	/**
+	 * \brief No-op copy constructor for nonexistent vdevs.
+	 */
+	Vdev();
+	bool			DoesNotExist()	const;
+
+	/**
+	 * \brief Return a list of the vdev's children.
+	 */
+	std::list<Vdev>		 Children();
+
 	virtual DevCtl::Guid	 GUID()		const;
 	virtual DevCtl::Guid	 PoolGUID()	const;
 	virtual vdev_state	 State()	const;
@@ -111,13 +123,25 @@ public:
 	std::string		 GUIDString()	const;
 	nvlist_t		*PoolConfig()	const;
 	nvlist_t		*Config()	const;
+	Vdev			 Parent();
+	Vdev			 RootVdev();
+	std::string		 Name(zpool_handle_t *, bool verbose)	const;
+	bool			 IsSpare();
+	bool			 IsAvailableSpare()	const;
+	bool			 IsActiveSpare()	const;
+	bool			 IsResilvering()	const;
 
 private:
-	DevCtl::Guid m_poolGUID;
-	DevCtl::Guid m_vdevGUID;
-	nvlist_t    *m_poolConfig;
-	nvlist_t    *m_config;
+	void			 VdevLookupGuid();
+	bool			 VdevLookupPoolGuid();
+	DevCtl::Guid		 m_poolGUID;
+	DevCtl::Guid		 m_vdevGUID;
+	nvlist_t    		*m_poolConfig;
+	nvlist_t    		*m_config;
 };
+
+//- Special objects -----------------------------------------------------------
+extern Vdev NonexistentVdev;
 
 //- Vdev Inline Public Methods ------------------------------------------------
 inline DevCtl::Guid
@@ -142,6 +166,12 @@ inline nvlist_t *
 Vdev::Config() const
 {
 	return (m_config);
+}
+
+inline bool
+Vdev::DoesNotExist() const
+{
+	return (m_config == NULL);
 }
 
 #endif /* _VDEV_H_ */

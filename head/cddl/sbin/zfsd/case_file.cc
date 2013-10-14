@@ -233,27 +233,16 @@ bool
 CaseFile::RefreshVdevState()
 {
 	ZpoolList zpl(ZpoolList::ZpoolByGUID, &m_poolGUID);
-	if (zpl.empty()) {
-		stringstream msg;
-		msg << "CaseFile::RefreshVdevState: Unknown pool for Vdev(";
-		msg << m_poolGUID << "," << m_vdevGUID << ").";
-		syslog(LOG_INFO, "%s", msg.str().c_str());
-			return (false);
-	}
-
-	zpool_handle_t *casePool(zpl.front());
-	nvlist_t       *vdevConfig = VdevIterator(casePool).Find(VdevGUID());
-	if (vdevConfig == NULL) {
-		stringstream msg;
-		syslog(LOG_INFO,
-		       "CaseFile::RefreshVdevState: Unknown Vdev(%s,%s).\n",
-		       PoolGUIDString().c_str(), PoolGUIDString().c_str());
+	zpool_handle_t *casePool(zpl.empty() ? NULL : zpl.front());
+	if (casePool == NULL)
 		return (false);
-	}
-	Vdev caseVdev(casePool, vdevConfig);
 
-	m_vdevState    = caseVdev.State();
-	m_vdevPhysPath = caseVdev.PhysicalPath();
+	Vdev vd(casePool, CaseVdev(casePool));
+	if (vd.DoesNotExist())
+		return (false);
+
+	m_vdevState    = vd.State();
+	m_vdevPhysPath = vd.PhysicalPath();
 	return (true);
 }
 
@@ -261,8 +250,9 @@ bool
 CaseFile::ReEvaluate(const string &devPath, const string &physPath, Vdev *vdev)
 {
 	ZpoolList zpl(ZpoolList::ZpoolByGUID, &m_poolGUID);
+	zpool_handle_t *pool(zpl.empty() ? NULL : zpl.front());
 
-	if (zpl.empty() || !RefreshVdevState()) {
+	if (pool == NULL || !RefreshVdevState()) {
 		/*
 		 * The pool or vdev for this case file is no longer
 		 * part of the configuration.  This can happen
@@ -283,7 +273,6 @@ CaseFile::ReEvaluate(const string &devPath, const string &physPath, Vdev *vdev)
 		 */
 		return (/*consumed*/false);
 	}
-	zpool_handle_t *pool(zpl.front());
 
 	if (VdevState() > VDEV_STATE_CANT_OPEN) {
 		/*
@@ -292,6 +281,8 @@ CaseFile::ReEvaluate(const string &devPath, const string &physPath, Vdev *vdev)
 		 * use a newly inserted spare to replace a degraded
 		 * or faulted device.
 		 */
+		syslog(LOG_INFO, "CaseFile::ReEvaluate(%s,%s): Pool/Vdev ignored",
+		    PoolGUIDString().c_str(), VdevGUIDString().c_str());
 		return (/*consumed*/false);
 	}
 
@@ -360,7 +351,10 @@ CaseFile::ReEvaluate(const string &devPath, const string &physPath, Vdev *vdev)
 		return (/*consumed*/false);
 	}
 
-	return (Replace(VDEV_TYPE_DISK, devPath.c_str()));
+	syslog(LOG_INFO, "CaseFile::ReEvaluate(%s/%s): Replacing with %s",
+	    PoolGUIDString().c_str(), VdevGUIDString().c_str(),
+	    devPath.c_str());
+	return (Replace(VDEV_TYPE_DISK, devPath.c_str(), /*isspare*/false));
 }
 
 bool
@@ -378,6 +372,7 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 		return (/*consumed*/true);
 	}
 	else if (event.Value("type") == "misc.fs.zfs.config_sync") {
+		RefreshVdevState();
 		if (VdevState() < VDEV_STATE_HEALTHY)
 			consumed = ActivateSpare();
 	}
@@ -460,27 +455,22 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 }
 
 
-/*
- * TODO: ensure that we don't activate a spare for a vdev that is already being
- * replaced by another spare.
- */
 bool
 CaseFile::ActivateSpare() {
 	nvlist_t	*config, *nvroot;
 	nvlist_t       **spares;
-	zpool_handle_t	*zhp;
 	char		*devPath, *vdev_type;
 	const char	*poolname;
 	u_int		 nspares, i;
 	int		 error;
 
 	ZpoolList zpl(ZpoolList::ZpoolByGUID, &m_poolGUID);
-	if (zpl.empty()) {
+	zpool_handle_t	*zhp(zpl.empty() ? NULL : zpl.front());
+	if (zhp == NULL) {
 		syslog(LOG_ERR, "CaseFile::ActivateSpare: Could not find pool "
 		       "for pool_guid %"PRIu64".", (uint64_t)m_poolGUID);
 		return (false);
 	}
-	zhp = zpl.front();
 	poolname = zpool_get_name(zhp);
 	config = zpool_get_config(zhp, NULL);
 	if (config == NULL) {
@@ -545,7 +535,7 @@ CaseFile::ActivateSpare() {
 		return (false);
 	}
 
-	return (Replace(vdev_type, devPath));
+	return (Replace(vdev_type, devPath, /*isspare*/true));
 }
 
 void
@@ -909,13 +899,15 @@ CaseFile::OnGracePeriodEnded()
 {
 	bool should_fault, should_degrade;
 	ZpoolList zpl(ZpoolList::ZpoolByGUID, &m_poolGUID);
+	zpool_handle_t *zhp(zpl.empty() ? NULL : zpl.front());
+
 	m_events.splice(m_events.begin(), m_tentativeEvents);
 	should_fault = ShouldFault();
 	should_degrade = ShouldDegrade();
 
 	if (should_fault || should_degrade) {
-		if (zpl.empty()
-		 || (VdevIterator(zpl.front()).Find(m_vdevGUID)) == NULL) {
+		if (zhp == NULL
+		 || (VdevIterator(zhp).Find(m_vdevGUID)) == NULL) {
 			/*
 			 * Either the pool no longer exists
 			 * or this vdev is no longer a member of
@@ -930,7 +922,7 @@ CaseFile::OnGracePeriodEnded()
 	/* A fault condition has priority over a degrade condition */
 	if (ShouldFault()) {
 		/* Fault the vdev and close the case. */
-		if (zpool_vdev_fault(zpl.front(), (uint64_t)m_vdevGUID,
+		if (zpool_vdev_fault(zhp, (uint64_t)m_vdevGUID,
 				       VDEV_AUX_ERR_EXCEEDED) == 0) {
 			syslog(LOG_INFO, "Faulting vdev(%s/%s)",
 			       PoolGUIDString().c_str(),
@@ -948,7 +940,7 @@ CaseFile::OnGracePeriodEnded()
 	}
 	else if (ShouldDegrade()) {
 		/* Degrade the vdev and close the case. */
-		if (zpool_vdev_degrade(zpl.front(), (uint64_t)m_vdevGUID,
+		if (zpool_vdev_degrade(zhp, (uint64_t)m_vdevGUID,
 				       VDEV_AUX_ERR_EXCEEDED) == 0) {
 			syslog(LOG_INFO, "Degrading vdev(%s/%s)",
 			       PoolGUIDString().c_str(),
@@ -967,22 +959,86 @@ CaseFile::OnGracePeriodEnded()
 	Serialize();
 }
 
+Vdev
+CaseFile::BeingReplacedBy(zpool_handle_t *zhp) {
+	Vdev vd(zhp, CaseVdev(zhp));
+	std::list<Vdev> children;
+	std::list<Vdev>::iterator children_it;
+
+	Vdev parent(vd.Parent());
+	Vdev replacing(NonexistentVdev);
+
+	/*
+	 * To determine whether we are being replaced by another spare that
+	 * is still working, then make sure that it is currently spared and
+	 * that the spare is either resilvering or healthy.  If any of these
+	 * conditions fail, then we are not being replaced by a spare.
+	 *
+	 * If the spare is healthy, then the case file should be closed very
+	 * soon after this check.
+	 */
+	if (parent.DoesNotExist()
+	 || parent.Name(zhp, /*verbose*/false) != "spare")
+		return (NonexistentVdev);
+
+	children = parent.Children();
+	children_it = children.begin();
+	for (;children_it != children.end(); children_it++) {
+		Vdev child = *children_it;
+
+		/* Skip our vdev. */
+		if (child.GUID() == VdevGUID())
+			continue;
+		/*
+		 * Accept the first child that doesn't match our GUID, or
+		 * any resilvering/healthy device if one exists.
+		 */
+		if (replacing.DoesNotExist() || child.IsResilvering()
+		 || child.State() == VDEV_STATE_HEALTHY)
+			replacing = child;
+	}
+
+	return (replacing);
+}
+
 bool
-CaseFile::Replace(const char* vdev_type, const char* path) {
+CaseFile::Replace(const char* vdev_type, const char* path, bool isspare) {
 	nvlist_t *nvroot, *newvd;
-	zpool_handle_t *zhp;
-	const char* poolname;
+	const char *poolname;
+	string oldstr(VdevGUIDString());
 	bool retval = true;
 
 	/* Figure out what pool we're working on */
 	ZpoolList zpl(ZpoolList::ZpoolByGUID, &m_poolGUID);
-	if (zpl.empty()) {
+	zpool_handle_t *zhp(zpl.empty() ? NULL : zpl.front());
+	if (zhp == NULL) {
 		syslog(LOG_ERR, "CaseFile::Replace: could not find pool for "
 		       "pool_guid %"PRIu64".", (uint64_t)m_poolGUID);
 		return (false);
 	}
-	zhp = zpl.front();
 	poolname = zpool_get_name(zhp);
+	Vdev vd(zhp, CaseVdev(zhp));
+	Vdev replaced(BeingReplacedBy(zhp));
+
+	if (!vd.IsSpare() && !replaced.DoesNotExist()) {
+		/* If we are already being replaced by a working spare, pass. */
+		if (replaced.IsResilvering()
+		 || replaced.State() == VDEV_STATE_HEALTHY) {
+			syslog(LOG_INFO, "CaseFile::Replace(%s->%s): already "
+			    "replaced", VdevGUIDString().c_str(), path);
+			return (/*consumed*/false);
+		}
+		/*
+		 * If we have already been replaced by a spare, but that spare
+		 * is broken, we must spare the spare, not the original device.
+		 */
+		if (isspare) {
+			oldstr = replaced.GUIDString();
+			syslog(LOG_INFO, "CaseFile::Replace(%s->%s): sparing "
+			    "broken spare %s instead", VdevGUIDString().c_str(),
+			    path, oldstr.c_str());
+		}
+	}
 
 	/*
 	 * Build a root vdev/leaf vdev configuration suitable for
@@ -994,9 +1050,8 @@ CaseFile::Replace(const char* vdev_type, const char* path) {
 
 	if (nvlist_alloc(&nvroot, NV_UNIQUE_NAME, 0) != 0
 	 || nvlist_alloc(&newvd, NV_UNIQUE_NAME, 0) != 0) {
-		syslog(LOG_ERR, "Replace vdev(%s/%s): "
-		       "Unable to allocate configuration data.\n",
-		       poolname, VdevGUIDString().c_str());
+		syslog(LOG_ERR, "Replace vdev(%s/%s): Unable to allocate "
+		    "configuration data.", poolname, oldstr.c_str());
 		if (nvroot != NULL)
 			nvlist_free(nvroot);
 		return (false);
@@ -1006,9 +1061,8 @@ CaseFile::Replace(const char* vdev_type, const char* path) {
 	 || nvlist_add_string(nvroot, ZPOOL_CONFIG_TYPE, VDEV_TYPE_ROOT) != 0
 	 || nvlist_add_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
 				    &newvd, 1) != 0) {
-		syslog(LOG_ERR, "Replace vdev(%s/%s): "
-		       "Unable to initialize configuration data.\n",
-		       poolname, VdevGUIDString().c_str());
+		syslog(LOG_ERR, "Replace vdev(%s/%s): Unable to initialize "
+		    "configuration data.", poolname, oldstr.c_str());
 		nvlist_free(newvd);
 		nvlist_free(nvroot);
 		return (true);
@@ -1017,19 +1071,15 @@ CaseFile::Replace(const char* vdev_type, const char* path) {
 	/* Data was copied when added to the root vdev. */
 	nvlist_free(newvd);
 
-	if (zpool_vdev_attach(zhp, VdevGUIDString().c_str(),
-			      path, nvroot, /*replace*/B_TRUE) != 0) {
-		syslog(LOG_ERR,
-		       "Replace vdev(%s/%s): %s: %s\n",
-		       poolname, VdevGUIDString().c_str(),
-		       libzfs_error_action(g_zfsHandle),
-		       libzfs_error_description(g_zfsHandle));
-		retval = false;
-	} else {
+	retval = (zpool_vdev_attach(zhp, oldstr.c_str(), path, nvroot,
+	    /*replace*/B_TRUE) == 0);
+	if (retval)
 		syslog(LOG_INFO, "Replacing vdev(%s/%s) with %s\n",
-		       poolname, VdevGUIDString().c_str(),
-		       path);
-	}
+		    poolname, oldstr.c_str(), path);
+	else
+		syslog(LOG_ERR, "Replace vdev(%s/%s): %s: %s\n",
+		    poolname, oldstr.c_str(), libzfs_error_action(g_zfsHandle),
+		    libzfs_error_description(g_zfsHandle));
 	nvlist_free(nvroot);
 
 	return (retval);
@@ -1061,4 +1111,10 @@ CaseFile::ShouldFault() const
 {
 	return (std::count_if(m_events.begin(), m_events.end(),
 	    		      IsIOEvent) > ZFS_DEGRADE_IO_COUNT);
+}
+
+nvlist_t *
+CaseFile::CaseVdev(zpool_handle_t *zhp) const
+{
+	return (VdevIterator(zhp).Find(VdevGUID()));
 }
