@@ -972,6 +972,7 @@ CaseFile::Replace(const char* vdev_type, const char* path) {
 	nvlist_t *nvroot, *newvd;
 	zpool_handle_t *zhp;
 	const char* poolname;
+	bool retval = true;
 
 	/* Figure out what pool we're working on */
 	ZpoolList zpl(ZpoolList::ZpoolByGUID, &m_poolGUID);
@@ -1023,6 +1024,7 @@ CaseFile::Replace(const char* vdev_type, const char* path) {
 		       poolname, VdevGUIDString().c_str(),
 		       libzfs_error_action(g_zfsHandle),
 		       libzfs_error_description(g_zfsHandle));
+		retval = false;
 	} else {
 		syslog(LOG_INFO, "Replacing vdev(%s/%s) with %s\n",
 		       poolname, VdevGUIDString().c_str(),
@@ -1030,7 +1032,7 @@ CaseFile::Replace(const char* vdev_type, const char* path) {
 	}
 	nvlist_free(nvroot);
 
-	return (true);
+	return (retval);
 }
 
 /* Does the argument event refer to a checksum error? */
