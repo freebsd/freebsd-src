@@ -114,7 +114,7 @@ public:
 	 *
 	 * \param vdev  The vdev object for which to find/create a CaseFile.
 	 *
-	 * \return  A referenc eto a valid CaseFile object.
+	 * \return  A reference to a valid CaseFile object.
 	 */
 	static CaseFile &Create(Vdev &vdev);
 
@@ -173,7 +173,7 @@ public:
 	/**
 	 * \brief Register an itimer callout for the given event, if necessary
 	 */
-	void RegisterCallout(const DevCtlEvent &event);
+	virtual void RegisterCallout(const DevCtlEvent &event);
 
 	/**
 	 * \brief Close a case if it is no longer relevant.
@@ -191,6 +191,16 @@ public:
 	 * \brief Emit data about this CaseFile via syslog(3).
 	 */
 	void Log();
+
+	/**
+	 * \brief Whether we should degrade this vdev
+	 */
+	bool ShouldDegrade() const;
+
+	/**
+	 * \brief Whether we should fault this vdev
+	 */
+	bool ShouldFault() const;
 
 protected:
 	enum {
@@ -228,8 +238,11 @@ protected:
 	/** Constructor. */
 	CaseFile(const Vdev &vdev);
 
-	/** Destructor. */
-	~CaseFile();
+	/**
+	 * Destructor.
+	 * Must be virtual so it can be subclassed in the unit tests
+	 */
+	virtual ~CaseFile();
 
 	/**
 	 * \brief Reload state for the vdev associated with this CaseFile.
@@ -237,7 +250,7 @@ protected:
 	 * \return  True if the refresh was successful.  False if the system
 	 *          has no record of the pool or vdev for this CaseFile.
 	 */
-	bool RefreshVdevState();
+	virtual bool RefreshVdevState();
 
 	/**
 	 * \brief Free all events in the m_events list.

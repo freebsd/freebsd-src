@@ -96,11 +96,11 @@ public:
 	 */
 	Vdev(nvlist_t *vdevConfig);
 
-	Guid		 GUID()		const;
-	Guid		 PoolGUID()	const;
-	vdev_state	 State()	const;
-	std::string	 Path()		const;
-	std::string	 PhysicalPath()	const;
+	virtual Guid	 	GUID()		const;
+	virtual Guid	 	PoolGUID()	const;
+	virtual vdev_state	State()		const;
+	std::string	 	Path()		const;
+	virtual std::string	PhysicalPath()	const;
 	std::string	 GUIDString()	const;
 	nvlist_t	*PoolConfig()	const;
 	nvlist_t	*Config()	const;
