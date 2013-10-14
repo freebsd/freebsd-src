@@ -100,7 +100,7 @@ Consumer::ConnectToDevd()
 
 	if (m_devdSockFD != -1) {
 		/* Already connected. */
-		syslog(LOG_INFO, "%s: Already connected.", __func__);
+		syslog(LOG_DEBUG, "%s: Already connected.", __func__);
 		return (true);
 	}
 	syslog(LOG_INFO, "%s: Connecting to devd.", __func__);
