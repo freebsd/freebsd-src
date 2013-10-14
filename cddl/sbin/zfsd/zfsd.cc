@@ -526,9 +526,6 @@ ZfsDaemon::EventsPending()
 	if (result == -1)
 		err(1, "Polling for devd events failed");
 
-	if (result == 0)
-		errx(1, "Unexpected result of 0 from poll. Exiting");
-
 	if ((fds->revents & POLLERR) != 0)
 		throw ZfsdException("ZfsdDaemon:EventsPending(): "
 				    "POLLERR detected on devd socket.");
