@@ -38,15 +38,30 @@
  * Implementation of the Vdev class.
  */
 #include <sys/cdefs.h>
+#include <sys/fs/zfs.h>
 
+#include <libzfs.h>
+
+#include <list>
+#include <map>
+#include <string>
 #include <sstream>
 
+#include <devctl/guid.h>
+#include <devctl/event.h>
+#include <devctl/event_buffer.h>
+#include <devctl/event_factory.h>
+#include <devctl/exception.h>
+#include <devctl/consumer.h>
+
 #include "vdev.h"
+#include "vdev_iterator.h"
 #include "zfsd.h"
 #include "zfsd_exception.h"
 
 __FBSDID("$FreeBSD$");
 /*============================ Namespace Control =============================*/
+using std::string;
 using std::stringstream;
 
 /*=========================== Class Implementations ==========================*/

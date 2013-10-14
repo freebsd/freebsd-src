@@ -35,11 +35,14 @@
  *
  * Definition of the ZfsdException class hierarchy.  All exceptions
  * explicitly thrown by Zfsd are defined here.
+ *
+ * Header requirements:
+ *     #include <string>
+ *
+ *     #include <devctl/exception.h>
  */
 #ifndef	_ZFSD_EXCEPTION_H_
 #define	_ZFSD_EXCEPTION_H_
-
-#include <string>
 
 /*=========================== Forward Declarations ===========================*/
 struct zpool_handle;
@@ -53,7 +56,7 @@ typedef struct nvlist nvlist_t;
 /**
  * \brief Class allowing unified reporting/logging of exceptional events.
  */
-class ZfsdException
+class ZfsdException : public DevCtl::Exception
 {
 public:
 	/**
@@ -93,30 +96,12 @@ public:
 	ZfsdException(nvlist_t *poolConfig, const char *, ...);
 
 	/**
-	 * \brief Augment/Modify a ZfsdException's string data.
-	 */
-	std::string& GetString();
-
-	/**
 	 * \brief Emit exception data to syslog(3).
 	 */
-	void Log() const;
+	virtual void Log() const;
 private:
-	/**
-	 * \brief Convert exception string data and arguments provided
-	 *        in ZfsdException constructors into a linear string.
-	 */
-	void FormatLog(const char *fmt, va_list ap);
-
 	nvlist_t     *m_poolConfig;
 	nvlist_t     *m_vdevConfig;
-	std::string   m_log;
 };
-
-inline std::string &
-ZfsdException::GetString()
-{
-	return (m_log);
-}
 
 #endif /* _ZFSD_EXCEPTION_H_ */

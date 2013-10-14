@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Spectra Logic Corporation
+ * Copyright (c) 2012, 2013 Spectra Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@
 #include <limits.h>
 #include <inttypes.h>
 
-#include <sstream>
+#include <iostream>
 #include <string>
 
 #include "guid.h"
@@ -51,6 +51,8 @@
 __FBSDID("$FreeBSD$");
 /*============================ Namespace Control =============================*/
 using std::string;
+namespace DevCtl
+{
 
 /*=========================== Class Implementations ==========================*/
 /*----------------------------------- Guid -----------------------------------*/
@@ -76,3 +78,5 @@ operator<< (std::ostream& out, Guid g)
 		out << "None";
 	return (out);
 }
+
+} // namespace DevCtl

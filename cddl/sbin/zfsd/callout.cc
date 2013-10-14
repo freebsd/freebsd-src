@@ -37,10 +37,23 @@
  *        timer services built on top of the POSIX interval timer.
  */
 
+#include <sys/time.h>
+
 #include <signal.h>
 #include <syslog.h>
 
+#include <list>
+#include <map>
+#include <string>
+
+#include <devctl/guid.h>
+#include <devctl/event.h>
+#include <devctl/event_factory.h>
+#include <devctl/consumer.h>
+#include <devctl/exception.h>
+
 #include "callout.h"
+#include "vdev_iterator.h"
 #include "zfsd.h"
 #include "zfsd_exception.h"
 

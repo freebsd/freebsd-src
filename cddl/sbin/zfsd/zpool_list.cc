@@ -35,9 +35,30 @@
  *
  * Implementation of the ZpoolList class.
  */
+#include <sys/cdefs.h>
+#include <sys/fs/zfs.h>
+
+#include <stdint.h>
+
+#include <libzfs.h>
+
+#include <list>
+#include <map>
+#include <string>
+
+#include <devctl/guid.h>
+#include <devctl/event.h>
+#include <devctl/event_factory.h>
+#include <devctl/exception.h>
+#include <devctl/consumer.h>
+
 #include "vdev.h"
+#include "vdev_iterator.h"
 #include "zpool_list.h"
 #include "zfsd.h"
+
+/*============================ Namespace Control =============================*/
+using DevCtl::Guid;
 
 /*=========================== Class Implementations ==========================*/
 /*--------------------------------- ZpoolList --------------------------------*/

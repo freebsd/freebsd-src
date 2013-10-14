@@ -34,14 +34,16 @@
  * \file callout.h
  *
  * \brief Interface for timer based callback services.
+ *
+ * Header requirements:
+ *
+ *     #include <sys/time.h>
+ *
+ *     #include <list>
  */
 
 #ifndef _CALLOUT_H_
 #define _CALLOUT_H_
-
-#include <sys/time.h>
-
-#include <list>
 
 /**
  * \brief Type of the function callback from a Callout.

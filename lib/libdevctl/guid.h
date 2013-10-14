@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Spectra Logic Corporation
+ * Copyright (c) 2012, 2013 Spectra Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,22 +33,27 @@
  */
 
 /**
- * \file guid.h
+ * \file devctl_guid.h
  *
  * Definition of the Guid class.
  */
-#ifndef	_GUID_H_
-#define	_GUID_H_
+#ifndef	_DEVCTL_GUID_H_
+#define	_DEVCTL_GUID_H_
 
-#include <string>
+/*============================ Namespace Control =============================*/
+namespace DevCtl
+{
 
+/*============================= Class Definitions ============================*/
+/*----------------------------------- Guid -----------------------------------*/
 /**
  * \brief Object that represents guids.
  *
  * It can generally be manipulated as a uint64_t, but with a special
  * value INVALID_GUID that does not equal any valid guid.
  *
- * As of this writing, spa_generate_guid() in spa_misc.c explicitly
+ * As of this writing, this class is only used to to represent ZFS
+ * guids in events and spa_generate_guid() in spa_misc.c explicitly
  * refuses to return a guid of 0.  So this class uses 0 as the value
  * for INVALID_GUID.  In the future, if 0 is allowed to be a valid
  * guid, the implementation of this class must change.
@@ -134,4 +139,5 @@ Guid::operator bool() const
 /** Convert the GUID into its string representation */
 std::ostream& operator<< (std::ostream& out, Guid g);
 
-#endif /* _GUID_H_ */
+} // namespace DevCtl
+#endif /* _DEVCTL_GUID_H_ */
