@@ -90,7 +90,7 @@ EventFactory::Build(Event::Type type, NVPairMap &nvpairs,
 	if (buildMethod == NULL)
 		return (NULL);
 
-	return ((foundMethod->second)(type, nvpairs, eventString));
+	return (buildMethod(type, nvpairs, eventString));
 }
 
 } // namespace DevCtl

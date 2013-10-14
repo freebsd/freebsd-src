@@ -94,6 +94,9 @@ public:
 	 */
 	typedef Event* (BuildMethod)(Type, NVPairMap &, const std::string &);
 
+	/** Generic Event object factory. */
+	static BuildMethod EventBuilder;
+
 	static Event *CreateEvent(const EventFactory &factory,
 				  const std::string &eventString);
 
@@ -168,7 +171,7 @@ public:
 	 * Create and return a fully independent clone
 	 * of this event.
 	 */
-	virtual Event *DeepCopy()			 const = 0;
+	virtual Event *DeepCopy()			 const;
 
 	/** Destructor */
 	virtual ~Event();
