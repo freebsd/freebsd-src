@@ -117,6 +117,7 @@ Consumer::ConnectToDevd()
 			 sLen);
 	if (result == -1) {
 		syslog(LOG_INFO, "Unable to connect to devd");
+		DisconnectFromDevd();
 		return (false);
 	}
 
@@ -212,7 +213,7 @@ Consumer::FlushEvents()
 {
 	char discardBuf[256];
 
-	while (m_reader->in_avail())
+	while (m_reader->in_avail() > 0)
 		m_reader->read(discardBuf, sizeof(discardBuf));
 }
 
@@ -233,7 +234,7 @@ Consumer::EventsPending()
 		err(1, "Polling for devd events failed");
 
 	if ((fds->revents & POLLERR) != 0)
-		throw Exception("ZfsdDaemon:EventsPending(): "
+		throw Exception("Consumer::EventsPending(): "
 				"POLLERR detected on devd socket.");
 
 	if ((fds->revents & POLLHUP) != 0)
