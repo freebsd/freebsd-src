@@ -61,7 +61,7 @@ using std::stringstream;
 /*------------------------------ ParseException ------------------------------*/
 //- ParseException Public Methods ----------------------------------------------
 string
-ParseException::ToString(const string &parsedBuffer) const
+ParseException::ToString() const
 {
 	stringstream result;
 
@@ -82,9 +82,9 @@ ParseException::ToString(const string &parsedBuffer) const
 	}
 	result << "exception on buffer: \'";
 	if (GetOffset() == 0) {
-		result << parsedBuffer << '\'' << endl;
+		result << m_parsedBuffer << '\'' << endl;
 	} else {
-		string markedBuffer(parsedBuffer);
+		string markedBuffer(m_parsedBuffer);
 
 		markedBuffer.insert(GetOffset(), "<HERE-->");
 		result << markedBuffer << '\'' << endl;
@@ -94,14 +94,14 @@ ParseException::ToString(const string &parsedBuffer) const
 }
 
 void
-ParseException::Log(const string &parsedBuffer) const
+ParseException::Log() const
 {
 	int priority(LOG_ERR);
 
 	if (Type() == DISCARDED_EVENT_TYPE)
 		priority = LOG_INFO;
 
-	syslog(priority, "%s", ToString(parsedBuffer).c_str());
+	syslog(priority, "%s", ToString().c_str());
 }
 
 /*-------------------------------- DevCtlEvent -------------------------------*/
@@ -149,7 +149,7 @@ DevCtlEvent::CreateEvent(const string &eventString)
 		ParseEventString(type, eventString, nvpairs);
 	} catch (const ParseException &exp) {
 		if (exp.GetType() == ParseException::INVALID_FORMAT)
-			exp.Log(eventString);
+			exp.Log();
 		return (NULL);
 	}
 
@@ -312,14 +312,14 @@ DevCtlEvent::ParseEventString(DevCtlEvent::Type type,
 		end = eventString.find_first_of(" \t\n", start);
 		if (end == string::npos)
 			throw ParseException(ParseException::INVALID_FORMAT,
-					     start);
+					     eventString, start);
 
 		nvpairs["device-name"] = eventString.substr(start, end - start);
 
 		start = eventString.find(" on ", end);
 		if (end == string::npos)
 			throw ParseException(ParseException::INVALID_FORMAT,
-					     start);
+					     eventString, start);
 		start += 4;
 		end = eventString.find_first_of(" \t\n", start);
 		nvpairs["parent"] = eventString.substr(start, end);
@@ -327,9 +327,11 @@ DevCtlEvent::ParseEventString(DevCtlEvent::Type type,
 	case NOTIFY:
 		break;
 	case NOMATCH:
-		throw ParseException(ParseException::DISCARDED_EVENT_TYPE);
+		throw ParseException(ParseException::DISCARDED_EVENT_TYPE,
+				     eventString);
 	default:
-		throw ParseException(ParseException::UNKNOWN_EVENT_TYPE);
+		throw ParseException(ParseException::UNKNOWN_EVENT_TYPE,
+				     eventString);
 	}
 
 	/* Process common "key=value" format. */
@@ -349,7 +351,7 @@ DevCtlEvent::ParseEventString(DevCtlEvent::Type type,
 		start = eventString.find_last_of("! \t\n", end);
 		if (start == string::npos)
 			throw ParseException(ParseException::INVALID_FORMAT,
-					     end);
+					     eventString, end);
 		start++;
 		string key(eventString.substr(start, end - start));
 
@@ -360,7 +362,7 @@ DevCtlEvent::ParseEventString(DevCtlEvent::Type type,
 		start = end + 1;
 		if (start >= eventString.length())
 			throw ParseException(ParseException::INVALID_FORMAT,
-					     end);
+					     eventString, end);
 		end = eventString.find_first_of(" \t\n", start);
 		if (end == string::npos)
 			end = eventString.length() - 1;

@@ -649,7 +649,7 @@ CaseFile::DeSerializeFile(const char *fileName)
 		}
 	} catch (const ParseException &exp) {
 
-		exp.Log(evString);
+		exp.Log();
 		if (caseFile != existingCaseFile)
 			delete caseFile;
 

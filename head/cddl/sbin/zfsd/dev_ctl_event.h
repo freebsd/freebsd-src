@@ -80,18 +80,21 @@ public:
 	/**
 	 * Constructor
 	 *
-	 * \param type    The type of this exception.
-	 * \param offset  The location in the parse buffer where this
-	 *                exception occurred.
+	 * \param type          The type of this exception.
+	 * \param parsedBuffer  The parsing buffer active at the time of
+	 *                      the exception.
+	 * \param offset        The location in the parse buffer where this
+	 *                      exception occurred.
 	 */
-	ParseException(Type type, size_t offset = 0);
+	ParseException(Type type, const string &parsedBuffer,
+		       size_t offset = 0);
 
 	/**
 	 * Accessor
 	 *
 	 * \return  The classification for this exception.
 	 */
-	Type   GetType()			    const;
+	Type   GetType()   const;
 
 	/**
 	 * Accessor
@@ -99,37 +102,42 @@ public:
 	 * \return  The offset into the event string where this exception
 	 *          occurred.
 	 */
-	size_t GetOffset()			    const;
+	size_t GetOffset() const;
 
 	/**
 	 * Convert an exception into a human readable string.
 	 *
 	 * \param parsedBuffer  The event buffer that caused the failure.
 	 */
-	string ToString(const string &parsedBuffer) const;
+	string ToString()  const;
 
 	/**
 	 * Log exception data to syslog.
 	 *
 	 * \param parsedBuffer  The event buffer that caused the failure.
 	 */
-	void   Log(const string &parsedBuffer)      const;
+	void   Log()	   const;
 
 private:
 	/** The type of this exception. */
-	Type   m_type;
+	Type         m_type;
+
+	/** The parsing buffer that was active at the time of the exception. */
+	const string m_parsedBuffer;
 
 	/**
 	 * The offset into the event string buffer from where this
 	 * exception was triggered.
 	 */
-	size_t m_offset;
+	size_t       m_offset;
 };
 
 //- ParseException Inline Public Methods ---------------------------------------
 inline
-ParseException::ParseException(Type type, size_t offset)
+ParseException::ParseException(Type type, const string &parsedBuffer,
+			       size_t offset)
  : m_type(type),
+   m_parsedBuffer(parsedBuffer),
    m_offset(offset)
 {
 }
