@@ -345,6 +345,7 @@ ZfsDaemon::EventLoop()
 
 		if (s_systemRescanRequested == true) {
 			s_systemRescanRequested = false;
+			syslog(LOG_INFO, "System Rescan request processed.");
 			RescanSystem();
 		}
 
