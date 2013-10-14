@@ -94,7 +94,7 @@ extract_var()
 #
 parse_options()
 {
-	local _j
+	local _j _p
 	_j=$1
 
 	_confwarn=0
@@ -166,7 +166,7 @@ parse_options()
 			jail_handle_ips_option $_ip $_interface
 			alias=0
 			while : ; do
-				eval _x=\"\$jail_${_jail}_ip_multi${alias}\"
+				eval _x=\"\$jail_${_j}_ip_multi${alias}\"
 				[ -z "$_x" ] && break
 
 				jail_handle_ips_option $_x $_interface
@@ -208,6 +208,7 @@ parse_options()
 		eval : \${jail_${_j}_devfs_enable:=${jail_devfs_enable:-NO}}
 		if checkyesno jail_${_j}_devfs_enable; then
 			echo "	mount.devfs;"
+			eval _ruleset=\${jail_${_j}_devfs_ruleset:-${jail_devfs_ruleset}}
 			case $_ruleset in
 			"")	;;
 			[0-9]*) echo "	devfs_ruleset = \"$_ruleset\";" ;;
@@ -217,7 +218,7 @@ parse_options()
 				# mount(8) only accepts an integer. 
 				# This should accept a ruleset name.
 			;;
-			*)	warn "devfs_ruleset must be integer." ;;
+			*)	warn "devfs_ruleset must be an integer." ;;
 			esac
 			if [ -r $_fstab ]; then
 				echo "	mount.fstab = \"$_fstab\";"
@@ -234,8 +235,6 @@ parse_options()
 			    "\"procfs ${_rootdir%/}/proc procfs rw 0 0\";"
 		fi
 
-		echo "	${_parameters};"
-
 		eval : \${jail_${_j}_mount_enable:=${jail_mount_enable:-NO}}
 		if checkyesno jail_${_j}_mount_enable; then
 			echo "	allow.mount;" >> $_conf
@@ -243,6 +242,9 @@ parse_options()
 
 		extract_var $_j set_hostname_allow allow.set_hostname YN NO
 		extract_var $_j sysvipc_allow allow.sysvipc YN NO
+		for _p in $_parameters; do
+			echo "	${_p%\;};"
+		done
 		echo "}"
 	) >> $_conf
 
@@ -376,26 +378,32 @@ jail_handle_ips_option()
 
 jail_config()
 {
+	local _j
+
 	case $1 in
 	_ALL)	return ;;
 	esac
-	for _jail in $@; do
-		if parse_options $_jail; then 
-			echo "$_jail: parameters are in $_conf."
+	for _j in $@; do
+		_j=$(echo $_j | tr /. _)
+		if parse_options $_j; then 
+			echo "$_j: parameters are in $_conf."
 		fi
 	done
 }
 
 jail_console()
 {
+	local _j
+
 	# One argument that is not _ALL.
 	case $#:$1 in
 	1:_ALL)	err 3 "Specify a jail name." ;;
 	1:*)	;;
 	*)	err 3 "Specify a jail name." ;;
 	esac
-	eval _cmd=\${jail_$1_consolecmd:-$jail_consolecmd}
-	$jail_jexec $1 $_cmd
+	_j=$(echo $1 | tr /. _)
+	eval _cmd=\${jail_${_j}_consolecmd:-$jail_consolecmd}
+	$jail_jexec $_j $_cmd
 }
 
 jail_status()
@@ -406,6 +414,8 @@ jail_status()
 
 jail_start()
 {
+	local _j
+
 	if [ $# = 0 ]; then
 		return
 	fi
@@ -422,21 +432,22 @@ jail_start()
 	;;
 	esac
 	_tmp=`mktemp -t jail` || exit 3
-	for _jail in $@; do
-		parse_options $_jail || continue
+	for _j in $@; do
+		_j=$(echo $_j | tr /. _)
+		parse_options $_j || continue
 
 		eval rc_flags=\${jail_${_j}_flags:-$jail_flags}
 		eval command=\${jail_${_j}_program:-$jail_program}
 		if checkyesno jail_parallel_start; then
-			command_args="-i -f $_conf -c $_jail &"
+			command_args="-i -f $_conf -c $_j &"
 		else
-			command_args="-i -f $_conf -c $_jail"
+			command_args="-i -f $_conf -c $_j"
 		fi
 		if $command $rc_flags $command_args \
 		    >> $_tmp 2>&1 </dev/null; then
-			echo -n " ${_hostname:-${_jail}}"
+			echo -n " ${_hostname:-${_j}}"
 		else
-			echo " cannot start jail \"${_hostname:-${jail}}\": "
+			echo " cannot start jail \"${_hostname:-${_j}}\": "
 			cat $_tmp
 		fi
 		rm -f $_tmp
@@ -446,6 +457,8 @@ jail_start()
 
 jail_stop()
 {
+	local _j
+
 	if [ $# = 0 ]; then
 		return
 	fi
@@ -461,11 +474,12 @@ jail_stop()
 		return
 	;;
 	esac
-	for _jail in $@; do
-		parse_options $_jail || continue
+	for _j in $@; do
+		_j=$(echo $_j | tr /. _)
+		parse_options $_j || continue
 		eval command=\${jail_${_j}_program:-$jail_program}
-		if $command -q -f $_conf -r $_jail; then
-			echo -n " ${_hostname:-${_jail}}"
+		if $command -q -f $_conf -r $_j; then
+			echo -n " ${_hostname:-${_j}}"
 		fi
 	done
 	echo '.'
