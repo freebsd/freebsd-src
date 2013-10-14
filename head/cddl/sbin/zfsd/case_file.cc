@@ -202,7 +202,7 @@ CaseFile::ReEvaluate(const string &devPath, const string &physPath, Vdev *vdev)
 		 */
 		syslog(LOG_INFO,
 		       "CaseFile::ReEvaluate(%s,%s) Pool/Vdev unconfigured.  "
-		       "Closing\n", 
+		       "Closing\n",
 		       PoolGUIDString().c_str(),
 		       VdevGUIDString().c_str());
 		Close();
@@ -308,7 +308,7 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 		 */
 		syslog(LOG_INFO,
 		       "CaseFile::ReEvaluate(%s,%s) Pool/Vdev unconfigured.  "
-		       "Closing\n", 
+		       "Closing\n",
 		       PoolGUIDString().c_str(),
 		       VdevGUIDString().c_str());
 		Close();
@@ -349,7 +349,7 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 		 */
 		ZfsDaemon::RequestSystemRescan();
 
-		/* 
+		/*
 		 * Consume the event if we successfully activated a spare.
 		 * Otherwise, leave it in the unconsumed events list so that the
 		 * future addition of a spare to this pool might be able to
@@ -394,7 +394,8 @@ CaseFile::ActivateSpare() {
 		       "config for pool %s", poolname);
 		return (false);
 	}
-	if (nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE, &nvroot) != 0){
+	error = nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE, &nvroot);
+	if (error != 0){
 		syslog(LOG_ERR, "CaseFile::ActivateSpare: Could not find vdev "
 		       "tree for pool %s", poolname);
 		return (false);
@@ -453,7 +454,7 @@ CaseFile::ActivateSpare() {
 
 void
 CaseFile::RegisterCallout(const DevCtlEvent &event)
-{   
+{
 	timeval now, countdown, elapsed, timestamp, zero, remaining;
 
 	gettimeofday(&now, 0);
@@ -484,7 +485,7 @@ CaseFile::CloseIfSolved()
 	if (m_events.empty()
 	 && m_tentativeEvents.empty()) {
 
-		/* 
+		/*
 		 * We currently do not track or take actions on
 		 * devices in the degraded or faulted state.
 		 * Once we have support for spare pools, we'll
@@ -774,7 +775,7 @@ CaseFile::Close()
 	syslog(LOG_INFO, "CaseFile(%s,%s) closed - State %s\n",
 	       PoolGUIDString().c_str(), VdevGUIDString().c_str(),
 	       zpool_state_to_name(VdevState(), VDEV_AUX_NONE));
-	
+
 	/*
 	 * Serialization of a Case with no event data, clears the
 	 * Serialization data for that event.
@@ -809,7 +810,7 @@ CaseFile::OnGracePeriodEnded()
 				       VDEV_AUX_ERR_EXCEEDED) == 0) {
 			syslog(LOG_INFO, "Degrading vdev(%s/%s)",
 			       PoolGUIDString().c_str(),
-			       VdevGUIDString().c_str()); 
+			       VdevGUIDString().c_str());
 			Close();
 			return;
 		}

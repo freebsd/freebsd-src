@@ -143,7 +143,7 @@ ParseException::ParseException(Type type, const string &parsedBuffer,
 }
 
 //- ParseException Inline Const Public Methods ---------------------------------
-inline ParseException::Type  
+inline ParseException::Type
 ParseException::GetType() const
 {
 	return (m_type);
@@ -271,7 +271,7 @@ public:
 	 */
 	void Log(int priority)			const;
 
-	/** 
+	/**
 	 * Create and return a fully independent clone
 	 * of this event.
 	 */

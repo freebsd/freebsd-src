@@ -96,7 +96,7 @@ public:
 	 * \brief Augment/Modify a ZfsdException's string data.
 	 */
 	std::string& GetString();
-	
+
 	/**
 	 * \brief Emit exception data to syslog(3).
 	 */

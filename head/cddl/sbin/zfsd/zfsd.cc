@@ -35,7 +35,7 @@
  *
  * The ZFS daemon consumes kernel devctl(4) event data via devd(8)'s
  * unix domain socket in order to react to system changes that impact
- * the function of ZFS storage pools.  The goal of this daemon is to 
+ * the function of ZFS storage pools.  The goal of this daemon is to
  * provide similar functionality to the Solaris ZFS Diagnostic Engine
  * (zfs-diagnosis), the Solaris ZFS fault handler (zfs-retire), and
  * the Solaris ZFS vdev insertion agent (zfs-mod sysevent handler).
@@ -180,9 +180,9 @@ EventBuffer::ExtractEvent(string &eventString)
 				 */
 				continue;
 			}
-			syslog(LOG_WARNING,
-			       "Event exceeds event size limit of %d bytes.",
-			       MAX_EVENT_SIZE);
+			syslog(LOG_WARNING, "Overran event buffer\n\tm_nextEventOffset"
+			       "=%d\n\tm_parsedLen=%d\n\tm_validLen=%d",
+			       m_nextEventOffset, m_parsedLen, m_validLen);
 		} else {
 			/*
 			 * Include the normal terminator in the extracted
@@ -250,11 +250,10 @@ EventBuffer::Fill()
 		want = std::min(avail, MAX_READ_SIZE - m_validLen);
 		consumed = m_reader.read(m_buf + m_validLen, want);
 		if (consumed == -1) {
-			if (errno == EINTR) {
+			if (errno == EINTR)
 				return (false);
-			} else {
+			else
 				err(1, "EventBuffer::Fill(): Read failed");
-			}
 		}
 	}
 
@@ -430,7 +429,7 @@ ZfsDaemon::ConnectToDevd()
 	sLen = SUN_LEN(&devdAddr);
 
 	s_devdSockFD = socket(AF_UNIX, SOCK_STREAM, 0);
-	if (s_devdSockFD == -1) 
+	if (s_devdSockFD == -1)
 		err(1, "Unable to create socket");
 	result = connect(s_devdSockFD,
 			 reinterpret_cast<sockaddr *>(&devdAddr),
@@ -482,9 +481,9 @@ bool
 ZfsDaemon::SaveEvent(const DevCtlEvent &event)
 {
 	if (s_consumingEvents)
-		return false;
+		return (false);
 	s_unconsumedEvents.push_back(event.DeepCopy());
-	return true;
+	return (true);
 }
 
 /* Capture and process buffered events. */

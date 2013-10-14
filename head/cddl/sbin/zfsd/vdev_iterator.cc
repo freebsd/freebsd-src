@@ -69,7 +69,7 @@ VdevIterator::Reset()
 	result = nvlist_lookup_nvlist(m_poolConfig,
 				      ZPOOL_CONFIG_VDEV_TREE,
 				      &rootVdev);
-	if (result != 0) 
+	if (result != 0)
 		throw ZfsdException(m_poolConfig, "Unable to extract "
 				    "ZPOOL_CONFIG_VDEV_TREE from pool.");
 	m_vdevQueue.assign(1, rootVdev);
@@ -135,7 +135,7 @@ VdevIterator::Find(Guid vdevGUID)
 		Vdev vdev(m_poolConfig, vdevConfig);
 
 		if (vdev.GUID() == vdevGUID)
-			return vdevConfig;
+			return (vdevConfig);
 	}
 	return (NULL);
 }

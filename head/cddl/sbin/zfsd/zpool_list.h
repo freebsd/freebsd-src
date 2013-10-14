@@ -54,7 +54,7 @@ class Vdev;
 /*============================= Class Definitions ============================*/
 /*--------------------------------- ZpoolList --------------------------------*/
 class ZpoolList;
-typedef bool PoolFilter_t(zpool_handle_t *pool, nvlist_t *poolConfig, 
+typedef bool PoolFilter_t(zpool_handle_t *pool, nvlist_t *poolConfig,
 			  void *filterArg);
 
 /**
@@ -82,7 +82,7 @@ public:
 
 	/**
 	 * \brief Utility ZpoolList construction filter that causes only
-	 *        pools known to the system and having the specified name 
+	 *        pools known to the system and having the specified name
 	 *        to be included in the intantiated ZpoolList.
 	 */
 	static PoolFilter_t ZpoolByName;
@@ -103,9 +103,9 @@ public:
 private:
 	/**
 	 * \brief Helper routine used to populate the internal
-	 *        data store of ZFS pool objects using libzfs's 
+	 *        data store of ZFS pool objects using libzfs's
 	 *        zpool_iter() function.
-	 * 
+	 *
 	 * \param pool  The ZFS pool object to filter.
 	 * \param data  User argument passed through zpool_iter().
 	 */

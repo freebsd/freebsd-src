@@ -154,7 +154,7 @@ public:
 	 *                  the disk resource.
 	 * \param vdev      If the disk contains ZFS label information,
 	 *                  a pointer to the disk label's vdev object
-	 *                  data.  Otherwise NULL. 
+	 *                  data.  Otherwise NULL.
 	 *
 	 * \return  True if this event was consumed by this CaseFile.
 	 */
@@ -346,7 +346,7 @@ protected:
 	string		m_vdevPhysPath;
 
 	/**
-	 * \brief Callout activated when a grace period 
+	 * \brief Callout activated when a grace period
 	 */
 	Callout		m_tentativeTimer;
 };
