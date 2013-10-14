@@ -85,6 +85,13 @@ Event::EventTypeRecord Event::s_typeTable[] =
 
 //- Event Static Public Methods ------------------------------------------------
 Event *
+Event::EventBuilder(Event::Type type, NVPairMap &nvPairs,
+		    const string &eventString)
+{
+	return (new Event(type, nvPairs, eventString));
+}
+
+Event *
 Event::CreateEvent(const EventFactory &factory, const string &eventString)
 {
 	NVPairMap &nvpairs(*new NVPairMap);
@@ -184,6 +191,12 @@ Event::Log(int priority) const
 Event::~Event()
 {
 	delete &m_nvPairs;
+}
+
+Event *
+Event::DeepCopy() const
+{
+	return (new Event(*this));
 }
 
 bool

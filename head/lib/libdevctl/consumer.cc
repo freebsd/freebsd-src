@@ -98,11 +98,12 @@ Consumer::ConnectToDevd()
 	int		   sLen;
 	int		   result;
 
-	syslog(LOG_INFO, "Connecting to devd");
 	if (m_devdSockFD != -1) {
 		/* Already connected. */
+		syslog(LOG_INFO, "%s: Already connected.", __func__);
 		return (true);
 	}
+	syslog(LOG_INFO, "%s: Connecting to devd.", __func__);
 
 	memset(&devdAddr, 0, sizeof(devdAddr));
 	devdAddr.sun_family= AF_UNIX;
