@@ -181,7 +181,7 @@ EventBuffer::ExtractEvent(string &eventString)
 				continue;
 			}
 			syslog(LOG_WARNING, "Overran event buffer\n\tm_nextEventOffset"
-			       "=%d\n\tm_parsedLen=%d\n\tm_validLen=%d",
+			       "=%zd\n\tm_parsedLen=%zd\n\tm_validLen=%zd",
 			       m_nextEventOffset, m_parsedLen, m_validLen);
 		} else {
 			/*

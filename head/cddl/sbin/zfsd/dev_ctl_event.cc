@@ -619,7 +619,7 @@ ZfsEvent::Process() const
 
 	Log(LOG_INFO);
 
-	if (Value("subsystem").find("misc.fs.zfs.") == 0) {
+	if (Value("type").find("misc.fs.zfs.") == 0) {
 		/* Configuration changes, resilver events, etc. */
 		ProcessPoolEvent();
 		return;
@@ -721,8 +721,7 @@ ZfsEvent::ProcessPoolEvent() const
 		caseFile->ReEvaluate(*this);
 	}
 
-	/* XXX Needs to be changed. */
-	if (Value("type") == "ESC_ZFS_vdev_remove"
+	if (Value("type") == "misc.fs.zfs.vdev_remove"
 	 && degradedDevice == false) {
 		/* See if any other cases can make use of this device. */
 		ZfsDaemon::RequestSystemRescan();

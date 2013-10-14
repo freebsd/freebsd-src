@@ -493,7 +493,7 @@ protected:
 	/** Deep copy constructor. */
 	ZfsEvent(const ZfsEvent &src);
 
-	void ProcessPoolEvent()		const;
+	virtual void ProcessPoolEvent()		const;
 
 	Guid	 m_poolGUID;
 	Guid	 m_vdevGUID;
