@@ -109,6 +109,14 @@ public:
 	static CaseFile *Find(const string &physPath);
 
 	/**
+	 * \brief ReEvaluate all open cases whose pool guid matches the argument
+	 *
+	 * \param poolGUID	Only reevaluate cases for this pool
+	 * \param event		Try to consume this event with the casefile
+	 */
+	static void ReEvaluateByGuid(Guid poolGUID, const ZfsEvent &event);
+
+	/**
 	 * \brief Create or return an existing active CaseFile for the
 	 *        specified vdev.
 	 *
@@ -163,12 +171,13 @@ public:
 
 	/**
 	 * \brief Update this CaseFile in light of the provided ZfsEvent.
+	 * Must be virtual so it can be overridden in the unit tests
 	 *
 	 * \param event  The ZfsEvent to evaluate.
 	 *
 	 * \return  True if this event was consumed by this CaseFile.
 	 */
-	bool ReEvaluate(const ZfsEvent &event);
+	virtual bool ReEvaluate(const ZfsEvent &event);
 
 	/**
 	 * \brief Register an itimer callout for the given event, if necessary

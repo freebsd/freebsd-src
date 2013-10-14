@@ -248,9 +248,10 @@ DevCtlEvent::~DevCtlEvent()
 	delete &m_nvPairs;
 }
 
-void
+bool
 DevCtlEvent::Process() const
 {
+	return (false);
 }
 
 timeval
@@ -516,7 +517,7 @@ DevfsEvent::DeepCopy() const
 	return (new DevfsEvent(*this));
 }
 
-void
+bool
 DevfsEvent::Process() const
 {
 	/*
@@ -527,7 +528,7 @@ DevfsEvent::Process() const
 	if (Value("type") != "CREATE"
 	 || Value("subsystem") != "CDEV"
 	 || !IsDiskDev(devName))
-		return;
+		return (false);
 
 	/* Log the event since it is of interest. */
 	Log(LOG_INFO);
@@ -535,7 +536,7 @@ DevfsEvent::Process() const
 	string devPath(_PATH_DEV + devName);
 	int devFd(open(devPath.c_str(), O_RDONLY));
 	if (devFd == -1)
-		return;
+		return (false);
 
 	/* Normalize the device name in case the DEVFS event is for a link. */
 	devName = fdevname(devFd);
@@ -572,6 +573,7 @@ DevfsEvent::Process() const
 	}
 	if (devLabel != NULL)
 		nvlist_free(devLabel);
+	return (false);
 }
 
 //- DevfsEvent Protected Methods -----------------------------------------------
@@ -602,7 +604,7 @@ ZfsEvent::DeepCopy() const
 	return (new ZfsEvent(*this));
 }
 
-void
+bool
 ZfsEvent::Process() const
 {
 	string logstr("");
@@ -610,31 +612,33 @@ ZfsEvent::Process() const
 	if (!Contains("class") && !Contains("type")) {
 		syslog(LOG_ERR,
 		       "ZfsEvent::Process: Missing class or type data.");
-		return;
+		return (false);
 	}
 
 	/* On config syncs, replay any queued events first. */
-	if (Value("type").find("misc.fs.zfs.config_sync") == 0)
+	if (Value("type").find("misc.fs.zfs.config_sync") == 0) {
 		ZfsDaemon::ReplayUnconsumedEvents();
+		CaseFile::ReEvaluateByGuid(PoolGUID(), *this);
+	}
 
 	Log(LOG_INFO);
 
 	if (Value("type").find("misc.fs.zfs.") == 0) {
 		/* Configuration changes, resilver events, etc. */
 		ProcessPoolEvent();
-		return;
+		return (false);
 	}
 
 	if (!Contains("pool_guid") || !Contains("vdev_guid")) {
 		/* Only currently interested in Vdev related events. */
-		return;
+		return (false);
 	}
 
 	CaseFile *caseFile(CaseFile::Find(PoolGUID(), VdevGUID()));
 	if (caseFile != NULL) {
 		syslog(LOG_INFO, "Evaluating existing case file\n");
 		caseFile->ReEvaluate(*this);
-		return;
+		return (false);
 	}
 
 	/* Skip events that can't be handled. */
@@ -645,7 +649,7 @@ ZfsEvent::Process() const
 		msg << "No replicas available for pool "  << poolGUID;
 		msg << ", ignoring";
 		syslog(LOG_INFO, "%s", msg.str().c_str());
-		return;
+		return (false);
 	}
 
 	/*
@@ -655,40 +659,38 @@ ZfsEvent::Process() const
 	ZpoolList zpl(ZpoolList::ZpoolByGUID, &poolGUID);
 	if (zpl.empty()) {
 		stringstream msg;
-		bool queued = ZfsDaemon::SaveEvent(*this);
-		int priority = queued ? LOG_INFO : LOG_ERR;
+		int priority = LOG_INFO;
 		msg << "ZfsEvent::Process: Event for unknown pool ";
 		msg << poolGUID << " ";
-		msg << (queued ? "queued" : "dropped");
+		msg << "queued";
 		syslog(priority, "%s", msg.str().c_str());
-		return;
+		return (true);
 	}
 
 	nvlist_t *vdevConfig = VdevIterator(zpl.front()).Find(VdevGUID());
 	if (vdevConfig == NULL) {
 		stringstream msg;
-		bool queued = ZfsDaemon::SaveEvent(*this);
-		int priority = queued ? LOG_INFO : LOG_ERR;
+		int priority = LOG_INFO;
 		msg << "ZfsEvent::Process: Event for unknown vdev ";
 		msg << VdevGUID() << " ";
-		msg << (queued ? "queued" : "dropped");
+		msg << "queued";
 		syslog(priority, "%s", msg.str().c_str());
-		return;
+		return (true);
 	}
 
 	Vdev vdev(zpl.front(), vdevConfig);
 	caseFile = &CaseFile::Create(vdev);
 	if ( caseFile->ReEvaluate(*this) == false) {
 		stringstream msg;
-		bool queued = ZfsDaemon::SaveEvent(*this);
-		int priority = queued ? LOG_INFO : LOG_ERR;
+		int priority = LOG_INFO;
 		msg << "ZfsEvent::Process: Unconsumed event for vdev(";
 		msg << zpool_get_name(zpl.front()) << ",";
 		msg << vdev.GUID() << ") ";
-		msg << (queued ? "queued" : "dropped");
+		msg << "queued";
 		syslog(priority, "%s", msg.str().c_str());
-		return;
+		return (true);
 	}
+	return (false);
 }
 
 //- ZfsEvent Protected Methods -------------------------------------------------

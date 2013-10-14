@@ -41,6 +41,7 @@
 #include <dirent.h>
 #include <iomanip>
 #include <fstream>
+#include <functional>
 #include <sstream>
 #include <syslog.h>
 #include <unistd.h>
@@ -58,6 +59,27 @@ using std::ifstream;
 using std::stringstream;
 using std::setfill;
 using std::setw;
+
+/*-------------------------- File-scoped classes ----------------------------*/
+/**
+ * \brief Functor that operators on STL collections of CaseFiles
+ * Selectively calls ReEvaluate on the casefile, based on its pool GUID.
+ */
+class CaseFileReEvaluator : public std::unary_function<CaseFile, bool>
+{
+public:
+	CaseFileReEvaluator(Guid guid, const ZfsEvent &event) :
+		m_poolGUID(guid), m_event(event) {};
+	void operator() (CaseFile *casefile) {
+		if (m_poolGUID == casefile->PoolGUID())
+			casefile->ReEvaluate(m_event);
+	}
+private:
+	Guid		m_poolGUID;
+	const ZfsEvent	&m_event;
+};
+
+
 
 /*--------------------------------- CaseFile ---------------------------------*/
 //- CaseFile Static Data -------------------------------------------------------
@@ -97,6 +119,14 @@ CaseFile::Find(const string &physPath)
 		return (*curCase);
 	}
 	return (NULL);
+}
+
+
+void
+CaseFile::ReEvaluateByGuid(Guid poolGUID, const ZfsEvent &event)
+{
+	CaseFileReEvaluator reevaluator(poolGUID, event);
+	std::for_each(s_activeCases.begin(), s_activeCases.end(), reevaluator);
 }
 
 CaseFile &
@@ -307,6 +337,11 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 
 		return (/*consumed*/true);
 	}
+	else if (event.Value("type") == "misc.fs.zfs.config_sync") {
+		if (VdevState() < VDEV_STATE_HEALTHY)
+			consumed = ActivateSpare();
+	}
+
 
 	if (event.Value("class") == "resource.fs.zfs.removed") {
 		bool spare_activated;
@@ -361,15 +396,15 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 		 */
 		consumed = spare_activated;
 	} else if (event.Value("class") == "resource.fs.zfs.statechange") {
+		RefreshVdevState();
 		/*
 		 * If this vdev is DEGRADED or FAULTED, try to activate a
 		 * hotspare.  Otherwise, ignore the event
 		 */
 		if (VdevState() == VDEV_STATE_FAULTED ||
 		    VdevState() == VDEV_STATE_DEGRADED)
-			consumed = ActivateSpare();
-		else
-			consumed = true;
+			(void) ActivateSpare();
+		consumed = true;
 	}
 	else if (event.Value("class") == "ereport.fs.zfs.io" ||
 	         event.Value("class") == "ereport.fs.zfs.checksum") {
@@ -513,10 +548,31 @@ CaseFile::CloseIfSolved()
 		 * retain these cases so that any spares added in
 		 * the future can be applied to them.
 		 */
-		if (VdevState() > VDEV_STATE_CANT_OPEN
-		 && VdevState() <= VDEV_STATE_HEALTHY) {
+		switch (VdevState()) {
+		case VDEV_STATE_HEALTHY:
+			/* No need to keep cases for healthy vdevs */
 			Close();
 			return (true);
+		case VDEV_STATE_REMOVED:
+		case VDEV_STATE_CANT_OPEN:
+			/*
+			 * Keep open.  We may solve it with a newly inserted
+			 * device.
+			 */
+		case VDEV_STATE_FAULTED:
+		case VDEV_STATE_DEGRADED:
+			/*
+			 * Keep open.  We may solve it with the future
+			 * addition of a spare to the pool
+			 */
+		case VDEV_STATE_UNKNOWN:
+		case VDEV_STATE_CLOSED:
+		case VDEV_STATE_OFFLINE:
+			/*
+			 * Keep open?  This may not be the correct behavior,
+			 * but it's what we've always done
+			 */
+			;
 		}
 
 		/*
