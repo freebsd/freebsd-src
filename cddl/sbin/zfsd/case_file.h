@@ -296,7 +296,7 @@ protected:
 	/**
 	 * \brief Unconditionally close a CaseFile.
 	 */
-	void Close();
+	virtual void Close();
 
 	/**
 	 * \brief Callout callback invoked when the remove timer grace

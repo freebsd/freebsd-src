@@ -150,15 +150,23 @@ CaseFile::Find(Guid poolGUID, Guid vdevGUID)
 CaseFile *
 CaseFile::Find(const string &physPath)
 {
+	CaseFile *result = NULL;
+
 	for (CaseFileList::iterator curCase = s_activeCases.begin();
 	     curCase != s_activeCases.end(); curCase++) {
 
 		if ((*curCase)->PhysicalPath() != physPath)
 			continue;
 
-		return (*curCase);
+		if (result != NULL) {
+			syslog(LOG_WARNING, "Multiple casefiles found for "
+			    "physical path %s.  "
+			    "This is most likely a bug in zfsd",
+			    physPath.c_str());
+		}
+		result = *curCase;
 	}
-	return (NULL);
+	return (result);
 }
 
 
@@ -370,8 +378,12 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 		Close();
 
 		return (/*consumed*/true);
-	}
-	else if (event.Value("type") == "misc.fs.zfs.config_sync") {
+	} else if (event.Value("type") == "misc.fs.zfs.pool_destroy") {
+		/* This Pool has been destroyed.  Discard the case */
+		Close();
+
+		return (/*consumed*/true);
+	} else if (event.Value("type") == "misc.fs.zfs.config_sync") {
 		RefreshVdevState();
 		if (VdevState() < VDEV_STATE_HEALTHY)
 			consumed = ActivateSpare();
