@@ -66,6 +66,7 @@
 #include <devctl/reader.h>
 
 #include "callout.h"
+#include "vdev_iterator.h"
 #include "zfsd_event.h"
 #include "case_file.h"
 #include "vdev.h"

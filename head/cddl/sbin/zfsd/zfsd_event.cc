@@ -54,10 +54,10 @@
 #include <devctl/reader.h>
 
 #include "callout.h"
+#include "vdev_iterator.h"
 #include "zfsd_event.h"
 #include "case_file.h"
 #include "vdev.h"
-#include "vdev_iterator.h"
 #include "zfsd.h"
 #include "zfsd_exception.h"
 #include "zpool_list.h"
@@ -346,6 +346,26 @@ ZfsEvent::ZfsEvent(const ZfsEvent &src)
 {
 }
 
+/*
+ * Sometimes the kernel won't detach a spare when it is no longer needed.  This
+ * can happen for example if a drive is removed, then either the pool is
+ * exported or the machine is powered off, then the drive is reinserted, then
+ * the machine is powered on or the pool is imported.  ZFSD must detach these
+ * spares itself.
+ */
+void
+ZfsEvent::CleanupSpares() const
+{
+	Guid poolGUID(PoolGUID());
+	ZpoolList zpl(ZpoolList::ZpoolByGUID, &poolGUID);
+	if (!zpl.empty()) {
+		zpool_handle_t* hdl;
+
+		hdl = zpl.front();
+		VdevIterator(hdl).Each(TryDetach, (void*)hdl);
+	}
+}
+
 void
 ZfsEvent::ProcessPoolEvent() const
 {
@@ -359,10 +379,62 @@ ZfsEvent::ProcessPoolEvent() const
 
 		caseFile->ReEvaluate(*this);
 	}
+	else if (Value("type") == "misc.fs.zfs.resilver_finish")
+	{
+		/* 
+		 * It's possible to get a resilver_finish event with no
+		 * corresponding casefile.  For example, if a damaged pool were
+		 * exported, repaired, then reimported.
+		 */
+		CleanupSpares();
+	}
 
 	if (Value("type") == "misc.fs.zfs.vdev_remove"
 	 && degradedDevice == false) {
 		/* See if any other cases can make use of this device. */
 		ZfsDaemon::RequestSystemRescan();
 	}
+}
+
+bool
+ZfsEvent::TryDetach(Vdev &vdev, void *cbArg)
+{
+	/*
+	 * Outline:
+	 * if this device is a spare, and its parent includes one healthy,
+	 * non-spare child, then detach this device.
+	 */
+	zpool_handle_t *hdl(static_cast<zpool_handle_t*>(cbArg));
+
+	if (vdev.IsSpare()) {
+		std::list<Vdev> siblings;
+		std::list<Vdev>::iterator siblings_it;
+		boolean_t cleanup = B_FALSE;
+
+		Vdev parent = vdev.Parent();
+		siblings = parent.Children();
+
+		/* Determine whether the parent should be cleaned up */
+		for (siblings_it = siblings.begin();
+		     siblings_it != siblings.end();
+		     siblings_it++) {
+			Vdev sibling = *siblings_it;
+
+			if (!sibling.IsSpare() &&
+			     sibling.State() == VDEV_STATE_HEALTHY) {
+				cleanup = B_TRUE;
+				break;
+			}
+		}
+
+		if (cleanup) {
+			syslog(LOG_INFO, "Detaching spare vdev %s from pool %s",
+			       vdev.Path().c_str(), zpool_get_name(hdl));
+			zpool_vdev_detach(hdl, vdev.Path().c_str());
+		}
+
+	}
+
+	/* Always return false, because there may be other spares to detach */
+	return (false);
 }

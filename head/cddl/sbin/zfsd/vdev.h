@@ -116,6 +116,7 @@ public:
 	std::list<Vdev>		 Children();
 
 	virtual DevCtl::Guid	 GUID()		const;
+	bool			 IsSpare()	const;
 	virtual DevCtl::Guid	 PoolGUID()	const;
 	virtual vdev_state	 State()	const;
 	std::string	 	 Path()		const;
