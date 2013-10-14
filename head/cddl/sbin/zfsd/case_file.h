@@ -255,6 +255,13 @@ protected:
 	void Serialize();
 
 	/**
+	 * \brief Retrieve event data from a serialization stream.
+	 *
+	 * \param caseStream  The serializtion stream to parse.
+	 */
+	void DeSerialize(std::ifstream &caseStream);
+
+	/**
 	 * \brief Serializes the supplied event list and writes it to fd
 	 *
 	 * \param prefix  If not NULL, this prefix will be prepended to

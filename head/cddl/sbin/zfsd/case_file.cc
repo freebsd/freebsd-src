@@ -552,7 +552,6 @@ void
 CaseFile::DeSerializeFile(const char *fileName)
 {
 	string	  fullName(s_caseFilePath + '/' + fileName);
-	string	  evString;
 	CaseFile *existingCaseFile(NULL);
 	CaseFile *caseFile(NULL);
 
@@ -603,50 +602,11 @@ CaseFile::DeSerializeFile(const char *fileName)
 		}
 
 		ifstream caseStream(fullName.c_str());
-		if (!caseStream) {
+		if (!caseStream)
 			throw ZfsdException("CaseFile::DeSerialize: Unable to "
 					    "read %s.\n", fileName);
-			return;
-		}
-		stringstream fakeDevdSocket(stringstream::in|stringstream::out);
-		IstreamReader caseReader(&fakeDevdSocket);
 
-		/* Re-load EventData */
-		EventBuffer eventBuffer(caseReader);
-		caseStream >> std::noskipws >> std::ws;
-		while (!caseStream.eof()) {
-			/*
-			 * Outline:
-			 * read the beginning of a line and check it for
-			 * "tentative".  If found, discard "tentative".
-			 * Shove into fakeDevdSocket.
-			 * call ExtractEvent
-			 * continue
-			 */
-			DevCtlEventList* destEvents;
-			string tentFlag("tentative ");
-			string line;
-			std::stringbuf lineBuf;
-			caseStream.get(lineBuf);
-			caseStream.ignore();  /*discard the newline character*/
-			line = lineBuf.str();
-			if (line.compare(0, tentFlag.size(), tentFlag) == 0) {
-				line.erase(0, tentFlag.size());
-				destEvents = &caseFile->m_tentativeEvents;
-			} else {
-				destEvents = &caseFile->m_events;
-			}
-			fakeDevdSocket << line;
-			fakeDevdSocket << '\n';
-			while (eventBuffer.ExtractEvent(evString)) {
-				DevCtlEvent *event(DevCtlEvent::CreateEvent(
-							evString));
-				if (event != NULL) {
-					destEvents->push_back(event);
-					caseFile->RegisterCallout(*event);
-				}
-			}
-		}
+		caseFile->DeSerialize(caseStream);
 	} catch (const ParseException &exp) {
 
 		exp.Log();
@@ -756,6 +716,50 @@ CaseFile::Serialize()
 	SerializeEvList(m_events, fd);
 	SerializeEvList(m_tentativeEvents, fd, "tentative ");
 	close(fd);
+}
+
+void
+CaseFile::DeSerialize(ifstream &caseStream)
+{
+	stringstream  fakeDevdSocket(stringstream::in|stringstream::out);
+	IstreamReader caseReader(&fakeDevdSocket);
+	EventBuffer   eventBuffer(caseReader);
+	string	      evString;
+
+	caseStream >> std::noskipws >> std::ws;
+	while (!caseStream.eof()) {
+		/*
+		 * Outline:
+		 * read the beginning of a line and check it for
+		 * "tentative".  If found, discard "tentative".
+		 * Shove into fakeDevdSocket.
+		 * call ExtractEvent
+		 * continue
+		 */
+		DevCtlEventList* destEvents;
+		string tentFlag("tentative ");
+		string line;
+		std::stringbuf lineBuf;
+
+		caseStream.get(lineBuf);
+		caseStream.ignore();  /*discard the newline character*/
+		line = lineBuf.str();
+		if (line.compare(0, tentFlag.size(), tentFlag) == 0) {
+			line.erase(0, tentFlag.size());
+			destEvents = &m_tentativeEvents;
+		} else {
+			destEvents = &m_events;
+		}
+		fakeDevdSocket << line;
+		fakeDevdSocket << '\n';
+		while (eventBuffer.ExtractEvent(evString)) {
+			DevCtlEvent *event(DevCtlEvent::CreateEvent(evString));
+			if (event != NULL) {
+				destEvents->push_back(event);
+				RegisterCallout(*event);
+			}
+		}
+	}
 }
 
 void
