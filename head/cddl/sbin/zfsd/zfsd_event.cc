@@ -266,8 +266,6 @@ ZfsEvent::Process() const
 		CaseFile::ReEvaluateByGuid(PoolGUID(), *this);
 	}
 
-	Log(LOG_INFO);
-
 	if (Value("type").find("misc.fs.zfs.") == 0) {
 		/* Configuration changes, resilver events, etc. */
 		ProcessPoolEvent();
@@ -281,6 +279,7 @@ ZfsEvent::Process() const
 
 	CaseFile *caseFile(CaseFile::Find(PoolGUID(), VdevGUID()));
 	if (caseFile != NULL) {
+		Log(LOG_INFO);
 		syslog(LOG_INFO, "Evaluating existing case file\n");
 		caseFile->ReEvaluate(*this);
 		return (false);
@@ -293,6 +292,7 @@ ZfsEvent::Process() const
 		stringstream msg;
 		msg << "No replicas available for pool "  << poolGUID;
 		msg << ", ignoring";
+		Log(LOG_INFO);
 		syslog(LOG_INFO, "%s", msg.str().c_str());
 		return (false);
 	}
@@ -308,6 +308,7 @@ ZfsEvent::Process() const
 		msg << "ZfsEvent::Process: Event for unknown pool ";
 		msg << poolGUID << " ";
 		msg << "queued";
+		Log(LOG_INFO);
 		syslog(priority, "%s", msg.str().c_str());
 		return (true);
 	}
@@ -319,19 +320,21 @@ ZfsEvent::Process() const
 		msg << "ZfsEvent::Process: Event for unknown vdev ";
 		msg << VdevGUID() << " ";
 		msg << "queued";
+		Log(LOG_INFO);
 		syslog(priority, "%s", msg.str().c_str());
 		return (true);
 	}
 
 	Vdev vdev(zpl.front(), vdevConfig);
 	caseFile = &CaseFile::Create(vdev);
-	if ( caseFile->ReEvaluate(*this) == false) {
+	if (caseFile->ReEvaluate(*this) == false) {
 		stringstream msg;
 		int priority = LOG_INFO;
 		msg << "ZfsEvent::Process: Unconsumed event for vdev(";
 		msg << zpool_get_name(zpl.front()) << ",";
 		msg << vdev.GUID() << ") ";
 		msg << "queued";
+		Log(LOG_INFO);
 		syslog(priority, "%s", msg.str().c_str());
 		return (true);
 	}
@@ -377,6 +380,7 @@ ZfsEvent::ProcessPoolEvent() const
 
 	/* The pool is destroyed.  Discard any open cases */
 	if (Value("type") == "misc.fs.zfs.pool_destroy") {
+		Log(LOG_INFO);
 		CaseFile::ReEvaluateByGuid(PoolGUID(), *this);
 		return;
 	}
@@ -387,6 +391,7 @@ ZfsEvent::ProcessPoolEvent() const
 		 && caseFile->VdevState() < VDEV_STATE_HEALTHY)
 			degradedDevice = true;
 
+		Log(LOG_INFO);
 		caseFile->ReEvaluate(*this);
 	}
 	else if (Value("type") == "misc.fs.zfs.resilver_finish")
@@ -396,12 +401,15 @@ ZfsEvent::ProcessPoolEvent() const
 		 * corresponding casefile.  For example, if a damaged pool were
 		 * exported, repaired, then reimported.
 		 */
+		Log(LOG_INFO);
 		CleanupSpares();
 	}
 
 	if (Value("type") == "misc.fs.zfs.vdev_remove"
 	 && degradedDevice == false) {
+
 		/* See if any other cases can make use of this device. */
+		Log(LOG_INFO);
 		ZfsDaemon::RequestSystemRescan();
 	}
 }
