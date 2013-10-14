@@ -195,7 +195,6 @@ DevfsEvent::Process() const
 		       "as a replace by physical path candidate.\n",
 		       devName.c_str());
 	} else if (havePhysPath && IsWholeDev()) {
-		syslog(LOG_INFO, "Searching for CaseFile by Physical Path\n");
 		CaseFile *caseFile(CaseFile::Find(physPath));
 		if (caseFile != NULL) {
 			syslog(LOG_INFO,
