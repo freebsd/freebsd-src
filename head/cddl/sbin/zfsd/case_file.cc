@@ -952,7 +952,7 @@ CaseFile::Replace(const char* vdev_type, const char* path) {
 
 	if (nvlist_alloc(&nvroot, NV_UNIQUE_NAME, 0) != 0
 	 || nvlist_alloc(&newvd, NV_UNIQUE_NAME, 0) != 0) {
-		syslog(LOG_ERR, "Replace vdev(%s/%s) by physical path: "
+		syslog(LOG_ERR, "Replace vdev(%s/%s): "
 		       "Unable to allocate configuration data.\n",
 		       poolname, VdevGUIDString().c_str());
 		if (nvroot != NULL)
@@ -964,7 +964,7 @@ CaseFile::Replace(const char* vdev_type, const char* path) {
 	 || nvlist_add_string(nvroot, ZPOOL_CONFIG_TYPE, VDEV_TYPE_ROOT) != 0
 	 || nvlist_add_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
 				    &newvd, 1) != 0) {
-		syslog(LOG_ERR, "Replace vdev(%s/%s) by physical path: "
+		syslog(LOG_ERR, "Replace vdev(%s/%s): "
 		       "Unable to initialize configuration data.\n",
 		       poolname, VdevGUIDString().c_str());
 		nvlist_free(newvd);
@@ -978,7 +978,7 @@ CaseFile::Replace(const char* vdev_type, const char* path) {
 	if (zpool_vdev_attach(zhp, VdevGUIDString().c_str(),
 			      path, nvroot, /*replace*/B_TRUE) != 0) {
 		syslog(LOG_ERR,
-		       "Replace vdev(%s/%s) by physical path(attach): %s: %s\n",
+		       "Replace vdev(%s/%s): %s: %s\n",
 		       poolname, VdevGUIDString().c_str(),
 		       libzfs_error_action(g_zfsHandle),
 		       libzfs_error_description(g_zfsHandle));
