@@ -806,11 +806,13 @@ CaseFile::Close()
 void
 CaseFile::OnGracePeriodEnded()
 {
+	bool should_fault, should_degrade;
+	ZpoolList zpl(ZpoolList::ZpoolByGUID, &m_poolGUID);
 	m_events.splice(m_events.begin(), m_tentativeEvents);
+	should_fault = ShouldFault();
+	should_degrade = ShouldDegrade();
 
-	if (m_events.size() > ZFS_DEGRADE_IO_COUNT) {
-
-		ZpoolList zpl(ZpoolList::ZpoolByGUID, &m_poolGUID);
+	if (should_fault || should_degrade) {
 		if (zpl.empty()
 		 || (VdevIterator(zpl.front()).Find(m_vdevGUID)) == NULL) {
 			/*
@@ -822,6 +824,28 @@ CaseFile::OnGracePeriodEnded()
 			return;
 		}
 
+	}
+
+	/* A fault condition has priority over a degrade condition */
+	if (ShouldFault()) {
+		/* Fault the vdev and close the case. */
+		if (zpool_vdev_fault(zpl.front(), (uint64_t)m_vdevGUID,
+				       VDEV_AUX_ERR_EXCEEDED) == 0) {
+			syslog(LOG_INFO, "Faulting vdev(%s/%s)",
+			       PoolGUIDString().c_str(),
+			       VdevGUIDString().c_str());
+			Close();
+			return;
+		}
+		else {
+			syslog(LOG_ERR, "Fault vdev(%s/%s): %s: %s\n",
+			       PoolGUIDString().c_str(),
+			       VdevGUIDString().c_str(),
+			       libzfs_error_action(g_zfsHandle),
+			       libzfs_error_description(g_zfsHandle));
+		}
+	}
+	else if (ShouldDegrade()) {
 		/* Degrade the vdev and close the case. */
 		if (zpool_vdev_degrade(zpl.front(), (uint64_t)m_vdevGUID,
 				       VDEV_AUX_ERR_EXCEEDED) == 0) {
@@ -906,4 +930,26 @@ CaseFile::Replace(const char* vdev_type, const char* path) {
 	nvlist_free(nvroot);
 
 	return (true);
+}
+
+/* Does the argument event refer to a checksum error? */
+static bool IsChecksumEvent(const DevCtlEvent* const event){
+	return ("ereport.fs.zfs.checksum" == event->Value("type"));
+}
+
+/* Does the argument event refer to an IO error? */
+static bool IsIOEvent(const DevCtlEvent* const event){
+	return ("ereport.fs.zfs.io" == event->Value("type"));
+}
+
+bool
+CaseFile::ShouldDegrade() const {
+	return (std::count_if(m_events.begin(), m_events.end(),
+	    		      IsChecksumEvent) > ZFS_DEGRADE_IO_COUNT);
+}
+
+bool
+CaseFile::ShouldFault() const {
+	return (std::count_if(m_events.begin(), m_events.end(),
+	    		      IsIOEvent) > ZFS_DEGRADE_IO_COUNT);
 }
