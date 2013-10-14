@@ -324,6 +324,10 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 			       "unconfigured.  Closing\n",
 			       PoolGUIDString().c_str(),
 			       VdevGUIDString().c_str());
+			/* 
+			 * Close the case now so we won't waste cycles in the
+			 * system rescan
+			 */
 			Close();
 
 			/*
