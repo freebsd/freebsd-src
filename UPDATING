@@ -31,6 +31,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20131014:
+	libbsdyml has been renamed to libyaml and moved to /usr/lib/private.
+	This will break ports-mgmt/pkg. Rebuild the port, or upgrade to pkg
+	1.1.4_8 and verify bsdyml not linked in, before running "make
+	delete-old-libs":
+	  # make -C /usr/ports/ports-mgmt/pkg build deinstall install clean
+	  or
+	  # pkg install pkg; ldd /usr/local/sbin/pkg | grep bsdyml
+
 20131010:
 	The rc.d/jail script has been updated to support jail(8)
 	configuration file.  The "jail_<jname>_*" rc.conf(5) variables
