@@ -41,6 +41,7 @@
 #include <syslog.h>
 
 #include <string>
+#include <list>
 #include <sstream>
 
 #include <devctl/exception.h>

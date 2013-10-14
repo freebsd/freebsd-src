@@ -37,6 +37,7 @@
  *
  * Implementation of the Vdev class.
  */
+#include <syslog.h>
 #include <sys/cdefs.h>
 #include <sys/fs/zfs.h>
 
@@ -58,68 +59,76 @@
 #include "vdev_iterator.h"
 #include "zfsd.h"
 #include "zfsd_exception.h"
+#include "zpool_list.h"
 
 __FBSDID("$FreeBSD$");
 /*============================ Namespace Control =============================*/
 using std::string;
 using std::stringstream;
 
+//- Special objects -----------------------------------------------------------
+Vdev NonexistentVdev;
+
+//- Vdev Inline Public Methods ------------------------------------------------
 /*=========================== Class Implementations ==========================*/
 /*----------------------------------- Vdev -----------------------------------*/
+
+/* Special constructor for NonexistentVdev. */
+Vdev::Vdev()
+ : m_poolConfig(NULL),
+   m_config(NULL)
+{}
+
+bool
+Vdev::VdevLookupPoolGuid()
+{
+	uint64_t guid;
+	if (nvlist_lookup_uint64(m_poolConfig, ZPOOL_CONFIG_POOL_GUID, &guid))
+		return (false);
+	m_poolGUID = guid;
+	return (true);
+}
+
+void
+Vdev::VdevLookupGuid()
+{
+	uint64_t guid;
+	if (nvlist_lookup_uint64(m_config, ZPOOL_CONFIG_GUID, &guid) != 0)
+		throw ZfsdException("Unable to extract vdev GUID "
+				    "from vdev config data.");
+	m_vdevGUID = guid;
+}
+
 Vdev::Vdev(zpool_handle_t *pool, nvlist_t *config)
  : m_poolConfig(zpool_get_config(pool, NULL)),
    m_config(config)
 {
-	uint64_t raw_guid;
-	if (nvlist_lookup_uint64(m_poolConfig, ZPOOL_CONFIG_POOL_GUID,
-				 &raw_guid) != 0)
-		throw ZfsdException("Unable to extract pool GUID "
-				    "from pool handle.");
-	m_poolGUID = raw_guid;
-
-	if (nvlist_lookup_uint64(m_config, ZPOOL_CONFIG_GUID, &raw_guid) != 0)
-		throw ZfsdException("Unable to extract vdev GUID "
-				    "from vdev config data.");
-	m_vdevGUID = raw_guid;
+	if (!VdevLookupPoolGuid())
+		throw ZfsdException("Can't extract pool GUID from handle.");
+	VdevLookupGuid();
 }
 
 Vdev::Vdev(nvlist_t *poolConfig, nvlist_t *config)
  : m_poolConfig(poolConfig),
    m_config(config)
 {
-	uint64_t raw_guid;
-	if (nvlist_lookup_uint64(m_poolConfig, ZPOOL_CONFIG_POOL_GUID,
-				 &raw_guid) != 0)
-		throw ZfsdException("Unable to extract pool GUID "
-				    "from pool handle.");
-	m_poolGUID = raw_guid;
-
-	if (nvlist_lookup_uint64(m_config, ZPOOL_CONFIG_GUID, &raw_guid) != 0)
-		throw ZfsdException("Unable to extract vdev GUID "
-				    "from vdev config data.");
-	m_vdevGUID = raw_guid;
+	if (!VdevLookupPoolGuid())
+		throw ZfsdException("Can't extract pool GUID from config.");
+	VdevLookupGuid();
 }
 
 Vdev::Vdev(nvlist_t *labelConfig)
- : m_poolConfig(labelConfig)
+ : m_poolConfig(labelConfig),
+   m_config(labelConfig)
 {
-	uint64_t raw_guid;
-
 	/*
 	 * Spares do not have a Pool GUID.  Tolerate its absence.
 	 * Code accessing this Vdev in a context where the Pool GUID is
 	 * required will find it invalid (as it is upon Vdev construction)
 	 * and act accordingly.
 	 */
-	if (nvlist_lookup_uint64(labelConfig, ZPOOL_CONFIG_POOL_GUID,
-				 &raw_guid) == 0)
-		m_poolGUID = raw_guid;
-
-	if (nvlist_lookup_uint64(labelConfig, ZPOOL_CONFIG_GUID,
-				 &raw_guid) != 0)
-		throw ZfsdException("Unable to extract vdev GUID "
-				    "from vdev label data.");
-	m_vdevGUID = raw_guid;
+	(void) VdevLookupPoolGuid();
+	VdevLookupGuid();
 
 	try {
 		m_config = VdevIterator(labelConfig).Find(m_vdevGUID);
@@ -172,6 +181,125 @@ Vdev::State() const
 	return (VDEV_STATE_HEALTHY);
 }
 
+std::list<Vdev>
+Vdev::Children()
+{
+	nvlist_t **vdevChildren;
+	int result;
+	u_int numChildren;
+	std::list<Vdev> children;
+
+	if (m_poolConfig == NULL || m_config == NULL)
+		return (children);
+
+	result = nvlist_lookup_nvlist_array(m_config,
+	    ZPOOL_CONFIG_CHILDREN, &vdevChildren, &numChildren);
+	if (result != 0)
+		return (children);
+
+	for (u_int c = 0;c < numChildren; c++)
+		children.push_back(Vdev(m_poolConfig, vdevChildren[c]));
+
+	return (children);
+}
+
+Vdev
+Vdev::RootVdev()
+{
+	nvlist_t *rootVdev;
+
+	if (m_poolConfig == NULL)
+		return (NonexistentVdev);
+
+	if (nvlist_lookup_nvlist(m_poolConfig, ZPOOL_CONFIG_VDEV_TREE,
+	    &rootVdev) != 0)
+		return (NonexistentVdev);
+	return (Vdev(m_poolConfig, rootVdev));
+}
+
+/*
+ * Find our parent.  This requires doing a traversal of the config; we can't
+ * cache it as leaf vdevs may change their pool config location (spare,
+ * replacing, mirror, etc).
+ */
+Vdev
+Vdev::Parent()
+{
+	std::list<Vdev> to_examine;
+	std::list<Vdev> children;
+	std::list<Vdev>::iterator children_it;
+
+	to_examine.push_back(RootVdev());
+	for (;;) {
+		if (to_examine.empty())
+			return (NonexistentVdev);
+		Vdev vd = to_examine.front();
+		if (vd.DoesNotExist())
+			return (NonexistentVdev);
+		to_examine.pop_front();
+		children = vd.Children();
+		children_it = children.begin();
+		for (;children_it != children.end(); children_it++) {
+			Vdev child = *children_it;
+
+			if (child.GUID() == GUID())
+				return (vd);
+			to_examine.push_front(child);
+		}
+	}
+}
+
+bool
+Vdev::IsAvailableSpare() const
+{
+	/* If we have a pool guid, we cannot be an available spare. */
+	if (PoolGUID())
+		return (false);
+
+	return (true);
+}
+
+bool
+Vdev::IsSpare()
+{
+	uint64_t spare;
+	if (nvlist_lookup_uint64(m_config, ZPOOL_CONFIG_IS_SPARE, &spare) != 0)
+		return (false);
+	return (spare != 0);
+}
+
+bool
+Vdev::IsActiveSpare() const
+{
+	vdev_stat_t *vs;
+	uint_t c;
+
+	if (m_poolConfig == NULL)
+		return (false);
+
+	(void) nvlist_lookup_uint64_array(m_config, ZPOOL_CONFIG_VDEV_STATS,
+	    reinterpret_cast<uint64_t **>(&vs), &c);
+	if (vs == NULL || vs->vs_aux != VDEV_AUX_SPARED)
+		return (false);
+	return (true);
+}
+
+bool
+Vdev::IsResilvering() const
+{
+	pool_scan_stat_t *ps = NULL;
+	uint_t c;
+
+	if (State() != VDEV_STATE_HEALTHY)
+		return (false);
+
+	(void) nvlist_lookup_uint64_array(m_config, ZPOOL_CONFIG_SCAN_STATS,
+	    reinterpret_cast<uint64_t **>(&ps), &c);
+	if (ps == NULL || ps->pss_func != POOL_SCAN_RESILVER)
+		return (false);
+	return (true);
+}
+
 string
 Vdev::GUIDString() const
 {
@@ -179,6 +307,13 @@ Vdev::GUIDString() const
 
 	vdevGUIDString << GUID();
 	return (vdevGUIDString.str());
+}
+
+string
+Vdev::Name(zpool_handle_t *zhp, bool verbose) const
+{
+	return (zpool_vdev_name(g_zfsHandle, zhp, m_config,
+	    verbose ? B_TRUE : B_FALSE));
 }
 
 string

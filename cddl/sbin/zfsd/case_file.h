@@ -326,10 +326,21 @@ protected:
 	 * \param vdev_type   The type of the new vdev.  Usually either
 	 *                    VDEV_TYPE_DISK or VDEV_TYPE_FILE
 	 * \param path        The file system path to the new vdev
+	 * \param isspare     Whether the new vdev is a spare
 	 *
 	 * \return            true iff the replacement was successful
 	 */
-	bool Replace(const char* vdev_type, const char* path);
+	bool Replace(const char* vdev_type, const char* path, bool isspare);
+
+	/**
+	 * \brief Which vdev, if any, is replacing ours.
+	 *
+	 * \param zhp		Pool handle state from the caller context
+	 *
+	 * \return		the vdev that is currently replacing ours,
+	 *			or NonexistentVdev if there isn't one.
+	 */
+	Vdev BeingReplacedBy(zpool_handle_t *zhp);
 
 	/**
 	 * \brief All CaseFiles being tracked by ZFSD.
@@ -371,6 +382,9 @@ protected:
 	 * \brief Callout activated when a grace period
 	 */
 	Callout		  m_tentativeTimer;
+
+private:
+	nvlist_t	*CaseVdev(zpool_handle_t *zhp)	const;
 };
 
 inline DevCtl::Guid
