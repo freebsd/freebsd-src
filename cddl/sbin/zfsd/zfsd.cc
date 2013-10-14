@@ -450,6 +450,9 @@ ZfsDaemon::ConnectToDevd()
 void
 ZfsDaemon::DisconnectFromDevd()
 {
+	if (s_devdSockFD != -1)
+		syslog(LOG_INFO, "Disconnecting from devd.");
+
 	delete s_reader;
 	s_reader = NULL;
 	close(s_devdSockFD);
@@ -520,25 +523,19 @@ ZfsDaemon::EventsPending()
 		result = poll(fds, NUM_ELEMENTS(fds), /*timeout*/0);
 	} while (result == -1 && errno == EINTR);
 
-	if (result == -1) {
-		/* Unexpected error; try reconnecting the socket */
-		throw ZfsdException("ZfsdDaemon::EventsPending(): "
-				    "Unexpected error from poll()");
-	}
+	if (result == -1)
+		err(1, "Polling for devd events failed");
 
-	if ((fds->revents & POLLHUP) != 0) {
-		/*
-		 * The other end hung up the socket.  Throw an exception
-		 * so ZfsDaemon will try to reconnect
-		 */
-		throw ZfsdException("ZfsDaemon::EventsPending(): Got POLLHUP");
-	}
+	if (result == 0)
+		errx(1, "Unexpected result of 0 from poll. Exiting");
 
-	if ((fds->revents & POLLERR) != 0) {
-		/* Try reconnecting. */
-		throw ZfsdException("ZfsdDaemon:EventsPending(): Got POLLERR. "
-				    " Reconnecting.");
-	}
+	if ((fds->revents & POLLERR) != 0)
+		throw ZfsdException("ZfsdDaemon:EventsPending(): "
+				    "POLLERR detected on devd socket.");
+
+	if ((fds->revents & POLLHUP) != 0)
+		throw ZfsdException("ZfsDaemon::EventsPending(): "
+				    "POLLHUP detected on devd socket.");
 
 	return ((fds->revents & POLLIN) != 0);
 }
@@ -692,14 +689,12 @@ ZfsDaemon::EventLoop()
 		}
 
 		if ((fds[0].revents & POLLERR) != 0) {
-			/* Try reconnecting. */
-			syslog(LOG_INFO, "Error on socket. Disconnecting.");
+			syslog(LOG_INFO, "POLLERROR detected on devd socket.");
 			break;
 		}
 
 		if ((fds[0].revents & POLLHUP) != 0) {
-			/* Try reconnecting. */
-			syslog(LOG_INFO, "Hup on socket. Disconnecting.");
+			syslog(LOG_INFO, "POLLHUP detected on devd socket.");
 			break;
 		}
 	}
