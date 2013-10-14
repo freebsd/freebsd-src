@@ -356,8 +356,19 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 		 * close the case
 		 */
 		consumed = spare_activated;
-	} else if (event.Value("class") == "ereport.fs.zfs.io"
-		|| event.Value("class") == "ereport.fs.zfs.checksum") {
+	} else if (event.Value("class") == "resource.fs.zfs.statechange") {
+		/*
+		 * If this vdev is DEGRADED or FAULTED, try to activate a
+		 * hotspare.  Otherwise, ignore the event
+		 */
+		if (VdevState() == VDEV_STATE_FAULTED ||
+		    VdevState() == VDEV_STATE_DEGRADED)
+			consumed = ActivateSpare();
+		else
+			consumed = true;
+	}
+	else if (event.Value("class") == "ereport.fs.zfs.io" ||
+	         event.Value("class") == "ereport.fs.zfs.checksum") {
 
 		m_tentativeEvents.push_front(event.DeepCopy());
 		RegisterCallout(event);
@@ -370,6 +381,10 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 }
 
 
+/*
+ * TODO: ensure that we don't activate a spare for a vdev that is already being
+ * replaced by another spare.
+ */
 bool
 CaseFile::ActivateSpare() {
 	nvlist_t	*config, *nvroot;
@@ -405,6 +420,8 @@ CaseFile::ActivateSpare() {
 				   &nspares);
 	if (nspares == 0) {
 		/* The pool has no spares configured */
+		syslog(LOG_INFO, "CaseFile::ActivateSpare: "
+		       "No spares available for pool %s", poolname);
 		return (false);
 	}
 	for (i = 0; i < nspares; i++) {
