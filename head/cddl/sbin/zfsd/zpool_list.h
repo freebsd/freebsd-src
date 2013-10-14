@@ -35,20 +35,25 @@
  *
  * ZpoolList class definition.  ZpoolList is a standard container
  * allowing filtering and iteration of imported ZFS pool information.
+ *
+ * Header requirements:
+ *
+ *    #include <list>
+ *    #include <string>
  */
 #ifndef	_ZPOOL_LIST_H_
 #define	_ZPOOL_LIST_H_
-
-#include <list>
-#include <string>
-
-#include <sys/fs/zfs.h>
-#include <libzfs.h>
 
 /*============================ Namespace Control =============================*/
 using std::string;
 
 /*=========================== Forward Declarations ===========================*/
+struct zpool_handle;
+typedef struct zpool_handle zpool_handle_t;
+
+struct nvlist;
+typedef struct nvlist nvlist_t;
+
 class Vdev;
 
 /*============================= Class Definitions ============================*/

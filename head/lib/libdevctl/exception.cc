@@ -31,38 +31,38 @@
  */
 
 /**
- * \file zfsd_exception
- *
- * Implementation of the ZfsdException class.
+ * \file exception.cc
  */
 #include <sys/cdefs.h>
-#include <sys/fs/zfs.h>
 
 #include <syslog.h>
 
-#include <string>
 #include <sstream>
+#include <string>
 
-#include <devctl/exception.h>
-#include <devctl/guid.h>
-
-#include <libzfs.h>
-
-#include "vdev.h"
-#include "zfsd_exception.h"
+#include "exception.h"
 
 __FBSDID("$FreeBSD$");
+
 /*============================ Namespace Control =============================*/
-using std::endl;
 using std::string;
 using std::stringstream;
+using std::endl;
+namespace DevCtl
+{
 
 /*=========================== Class Implementations ==========================*/
-/*------------------------------- ZfsdException ------------------------------*/
-ZfsdException::ZfsdException(const char *fmt, ...)
- : DevCtl::Exception(),
-   m_poolConfig(NULL),
-   m_vdevConfig(NULL)
+/*--------------------------------- Exception --------------------------------*/
+void
+Exception::FormatLog(const char *fmt, va_list ap)
+{
+	char buf[256];
+
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	m_log = buf;
+}
+
+Exception::Exception(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -71,63 +71,53 @@ ZfsdException::ZfsdException(const char *fmt, ...)
 	va_end(ap);
 }
 
-ZfsdException::ZfsdException(zpool_handle_t *pool, const char *fmt, ...)
- : DevCtl::Exception(),
-   m_poolConfig(zpool_get_config(pool, NULL)),
-   m_vdevConfig(NULL)
+Exception::Exception()
 {
-	va_list ap;
-
-	va_start(ap, fmt);
-	FormatLog(fmt, ap);
-	va_end(ap);
-}
-
-ZfsdException::ZfsdException(nvlist_t *poolConfig, const char *fmt, ...)
- : DevCtl::Exception(),
-   m_poolConfig(poolConfig),
-   m_vdevConfig(NULL)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	FormatLog(fmt, ap);
-	va_end(ap);
 }
 
 void
-ZfsdException::Log() const
+Exception::Log() const
 {
-	stringstream output;
-
-	if (m_poolConfig != NULL) {
-
-		output << "Pool ";
-
-		char *poolName;
-		if (nvlist_lookup_string(m_poolConfig, ZPOOL_CONFIG_POOL_NAME,
-				     &poolName) == 0)
-			output << poolName;
-		else
-			output << "Unkown";
-		output << ": ";
-	}
-
-	if (m_vdevConfig != NULL) {
-
-		if (m_poolConfig != NULL) {
-			Vdev vdev(m_poolConfig, m_vdevConfig);
-
-			output << "Vdev " <<  vdev.GUID() << ": ";
-		} else {
-			Vdev vdev(m_vdevConfig);
-
-			output << "Pool " <<  vdev.PoolGUID() << ": ";
-			output << "Vdev " <<  vdev.GUID() << ": ";
-		}
-	}
-
-	output << m_log << endl;
-	syslog(LOG_ERR, "%s", output.str().c_str());
+	syslog(LOG_ERR, "%s", m_log.c_str());
 }
 
+/*------------------------------ ParseException ------------------------------*/
+//- ParseException Inline Public Methods ---------------------------------------
+ParseException::ParseException(Type type, const std::string &parsedBuffer,
+			       size_t offset)
+ : Exception(),
+   m_type(type),
+   m_parsedBuffer(parsedBuffer),
+   m_offset(offset)
+{
+        stringstream logstream;
+
+        logstream << "Parsing ";
+
+        switch (Type()) {
+        case INVALID_FORMAT:
+                logstream << "invalid format ";
+                break;
+        case DISCARDED_EVENT_TYPE:
+                logstream << "discarded event ";
+                break;
+        case UNKNOWN_EVENT_TYPE:
+                logstream << "unknown event ";
+                break;
+        default:
+                break;
+        }
+        logstream << "exception on buffer: \'";
+        if (GetOffset() == 0) {
+                logstream << m_parsedBuffer << '\'' << endl;
+        } else {
+                string markedBuffer(m_parsedBuffer);
+
+                markedBuffer.insert(GetOffset(), "<HERE-->");
+                logstream << markedBuffer << '\'' << endl;
+        }
+
+	GetString() = logstream.str();
+}
+
+} // namespace DevCtl

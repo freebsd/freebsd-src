@@ -34,16 +34,21 @@
  * \file vdev_iterator.h
  *
  * VdevIterator class definition.
+ *
+ * Header requirements:
+ *
+ *    #include <list>
  */
 #ifndef	_VDEV_ITERATOR_H_
 #define	_VDEV_ITERATOR_H_
 
-#include <list>
-
-#include <sys/fs/zfs.h>
-#include <libzfs.h>
-
 /*=========================== Forward Declarations ===========================*/
+struct zpool_handle;
+typedef struct zpool_handle zpool_handle_t;
+
+struct nvlist;
+typedef struct nvlist nvlist_t;
+
 class Vdev;
 
 /*============================= Class Definitions ============================*/
@@ -97,7 +102,7 @@ public:
 	 * Upon return, the VdevIterator's cursor points to the vdev just
 	 * past the returned vdev or end() if no matching vdev is found.
 	 */
-	nvlist_t *Find(Guid vdevGUID);
+	nvlist_t *Find(DevCtl::Guid vdevGUID);
 
 	/**
 	 * \brief Perform the specified operation on each leaf member of

@@ -69,6 +69,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libcalendar \
 	libcam \
 	libcompat \
+	libdevctl \
 	libdevinfo \
 	libdevstat \
 	libdwarf \

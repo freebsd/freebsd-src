@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Spectra Logic Corporation
+ * Copyright (c) 2011, 2012, 2013 Spectra Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,11 @@
  * across reboots.  For now, this is just a log of soft errors which we
  * accumulate in order to mark a device as degraded.
  */
+#include <sys/cdefs.h>
+#include <sys/time.h>
+
+#include <sys/fs/zfs.h>
+
 #include <dirent.h>
 #include <iomanip>
 #include <fstream>
@@ -46,11 +51,30 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include <libzfs.h>
+
+#include <list>
+#include <map>
+#include <string>
+
+#include <devctl/guid.h>
+#include <devctl/event.h>
+#include <devctl/event_buffer.h>
+#include <devctl/event_factory.h>
+#include <devctl/exception.h>
+#include <devctl/consumer.h>
+#include <devctl/reader.h>
+
+#include "callout.h"
+#include "zfsd_event.h"
 #include "case_file.h"
 #include "vdev.h"
+#include "vdev_iterator.h"
 #include "zfsd.h"
 #include "zfsd_exception.h"
 #include "zpool_list.h"
+
+__FBSDID("$FreeBSD$");
 
 /*============================ Namespace Control =============================*/
 using std::auto_ptr;
@@ -60,26 +84,43 @@ using std::stringstream;
 using std::setfill;
 using std::setw;
 
+using DevCtl::Event;
+using DevCtl::EventBuffer;
+using DevCtl::EventFactory;
+using DevCtl::EventList;
+using DevCtl::Guid;
+using DevCtl::IstreamReader;
+using DevCtl::ParseException;
+
 /*-------------------------- File-scoped classes ----------------------------*/
 /**
  * \brief Functor that operators on STL collections of CaseFiles
+ * 
  * Selectively calls ReEvaluate on the casefile, based on its pool GUID.
  */
 class CaseFileReEvaluator : public std::unary_function<CaseFile, bool>
 {
 public:
-	CaseFileReEvaluator(Guid guid, const ZfsEvent &event) :
-		m_poolGUID(guid), m_event(event) {};
-	void operator() (CaseFile *casefile) {
-		if (m_poolGUID == casefile->PoolGUID())
-			casefile->ReEvaluate(m_event);
-	}
+	CaseFileReEvaluator(Guid guid, const ZfsEvent &event);
+
+	void operator() (CaseFile *casefile);
+
 private:
 	Guid		m_poolGUID;
-	const ZfsEvent	&m_event;
+	const ZfsEvent &m_event;
 };
 
+CaseFileReEvaluator::CaseFileReEvaluator(Guid guid, const ZfsEvent &event)
+ : m_poolGUID(guid), m_event(event)
+{
+}
 
+void
+CaseFileReEvaluator::operator() (CaseFile *casefile)
+{
+	if (m_poolGUID == casefile->PoolGUID())
+		casefile->ReEvaluate(m_event);
+}
 
 /*--------------------------------- CaseFile ---------------------------------*/
 //- CaseFile Static Data -------------------------------------------------------
@@ -88,7 +129,6 @@ const string  CaseFile::s_caseFilePath = "/etc/zfs/cases";
 const timeval CaseFile::s_removeGracePeriod = { 60 /*sec*/, 0 /*usec*/};
 
 //- CaseFile Static Public Methods ---------------------------------------------
-
 CaseFile *
 CaseFile::Find(Guid poolGUID, Guid vdevGUID)
 {
@@ -509,7 +549,7 @@ CaseFile::ActivateSpare() {
 }
 
 void
-CaseFile::RegisterCallout(const DevCtlEvent &event)
+CaseFile::RegisterCallout(const Event &event)
 {
 	timeval now, countdown, elapsed, timestamp, zero, remaining;
 
@@ -594,13 +634,13 @@ CaseFile::Log()
 	       zpool_state_to_name(VdevState(), VDEV_AUX_NONE));
 	if (m_tentativeEvents.size() != 0) {
 		syslog(LOG_INFO, "\t=== Tentative Events ===\n");
-		for (DevCtlEventList::iterator event(m_tentativeEvents.begin());
+		for (EventList::iterator event(m_tentativeEvents.begin());
 		     event != m_tentativeEvents.end(); event++)
 			(*event)->Log(LOG_INFO);
 	}
 	if (m_events.size() != 0) {
 		syslog(LOG_INFO, "\t=== Events ===\n");
-		for (DevCtlEventList::iterator event(m_events.begin());
+		for (EventList::iterator event(m_events.begin());
 		     event != m_events.end(); event++)
 			(*event)->Log(LOG_INFO);
 	}
@@ -738,7 +778,7 @@ CaseFile::~CaseFile()
 void
 CaseFile::PurgeEvents()
 {
-	for (DevCtlEventList::iterator event(m_events.begin());
+	for (EventList::iterator event(m_events.begin());
 	     event != m_events.end(); event++)
 		delete *event;
 
@@ -748,7 +788,7 @@ CaseFile::PurgeEvents()
 void
 CaseFile::PurgeTentativeEvents()
 {
-	for (DevCtlEventList::iterator event(m_tentativeEvents.begin());
+	for (EventList::iterator event(m_tentativeEvents.begin());
 	     event != m_tentativeEvents.end(); event++)
 		delete *event;
 
@@ -756,12 +796,12 @@ CaseFile::PurgeTentativeEvents()
 }
 
 void
-CaseFile::SerializeEvList(const DevCtlEventList events, int fd,
+CaseFile::SerializeEvList(const EventList events, int fd,
 		const char* prefix) const
 {
 	if (events.empty())
 		return;
-	for (DevCtlEventList::const_iterator curEvent = events.begin();
+	for (EventList::const_iterator curEvent = events.begin();
 	     curEvent != events.end(); curEvent++) {
 		const string &eventString((*curEvent)->GetEventString());
 
@@ -816,7 +856,7 @@ CaseFile::DeSerialize(ifstream &caseStream)
 		 * call ExtractEvent
 		 * continue
 		 */
-		DevCtlEventList* destEvents;
+		EventList* destEvents;
 		string tentFlag("tentative ");
 		string line;
 		std::stringbuf lineBuf;
@@ -832,8 +872,9 @@ CaseFile::DeSerialize(ifstream &caseStream)
 		}
 		fakeDevdSocket << line;
 		fakeDevdSocket << '\n';
+		const EventFactory &factory(ZfsDaemon::Get().GetFactory());
 		while (eventBuffer.ExtractEvent(evString)) {
-			DevCtlEvent *event(DevCtlEvent::CreateEvent(evString));
+			Event *event(Event::CreateEvent(factory, evString));
 			if (event != NULL) {
 				destEvents->push_back(event);
 				RegisterCallout(*event);
@@ -993,23 +1034,29 @@ CaseFile::Replace(const char* vdev_type, const char* path) {
 }
 
 /* Does the argument event refer to a checksum error? */
-static bool IsChecksumEvent(const DevCtlEvent* const event){
+static bool
+IsChecksumEvent(const Event* const event)
+{
 	return ("ereport.fs.zfs.checksum" == event->Value("type"));
 }
 
 /* Does the argument event refer to an IO error? */
-static bool IsIOEvent(const DevCtlEvent* const event){
+static bool
+IsIOEvent(const Event* const event)
+{
 	return ("ereport.fs.zfs.io" == event->Value("type"));
 }
 
 bool
-CaseFile::ShouldDegrade() const {
+CaseFile::ShouldDegrade() const
+{
 	return (std::count_if(m_events.begin(), m_events.end(),
 	    		      IsChecksumEvent) > ZFS_DEGRADE_IO_COUNT);
 }
 
 bool
-CaseFile::ShouldFault() const {
+CaseFile::ShouldFault() const
+{
 	return (std::count_if(m_events.begin(), m_events.end(),
 	    		      IsIOEvent) > ZFS_DEGRADE_IO_COUNT);
 }

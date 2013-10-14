@@ -36,18 +36,25 @@
  * \file vdev.h
  *
  * Definition of the Vdev class.
+ *
+ * Header requirements:
+ *
+ *    #include <string>
+ *
+ *    #include <devctl/guid.h>
  */
 #ifndef	_VDEV_H_
 #define	_VDEV_H_
 
-#include <ostream>
-#include <string>
+/*=========================== Forward Declarations ===========================*/
+struct zpool_handle;
+typedef struct zpool_handle zpool_handle_t;
 
-#include <sys/fs/zfs.h>
-#include <libzfs.h>
+struct nvlist;
+typedef struct nvlist nvlist_t;
 
-#include "guid.h"
-
+/*============================= Class Definitions ============================*/
+/*----------------------------------- Vdev -----------------------------------*/
 /**
  * \brief Wrapper class for a vdev's name/value configuration list
  *        simplifying access to commonly used vdev attributes.
@@ -96,30 +103,30 @@ public:
 	 */
 	Vdev(nvlist_t *vdevConfig);
 
-	virtual Guid	 	GUID()		const;
-	virtual Guid	 	PoolGUID()	const;
-	virtual vdev_state	State()		const;
-	std::string	 	Path()		const;
-	virtual std::string	PhysicalPath()	const;
-	std::string	 GUIDString()	const;
-	nvlist_t	*PoolConfig()	const;
-	nvlist_t	*Config()	const;
+	virtual DevCtl::Guid	 GUID()		const;
+	virtual DevCtl::Guid	 PoolGUID()	const;
+	virtual vdev_state	 State()	const;
+	std::string	 	 Path()		const;
+	virtual std::string	 PhysicalPath()	const;
+	std::string		 GUIDString()	const;
+	nvlist_t		*PoolConfig()	const;
+	nvlist_t		*Config()	const;
 
 private:
-	Guid	  m_poolGUID;
-	Guid	  m_vdevGUID;
-	nvlist_t *m_poolConfig;
-	nvlist_t *m_config;
+	DevCtl::Guid m_poolGUID;
+	DevCtl::Guid m_vdevGUID;
+	nvlist_t    *m_poolConfig;
+	nvlist_t    *m_config;
 };
 
 //- Vdev Inline Public Methods ------------------------------------------------
-inline Guid
+inline DevCtl::Guid
 Vdev::PoolGUID() const
 {
 	return (m_poolGUID);
 }
 
-inline Guid
+inline DevCtl::Guid
 Vdev::GUID() const
 {
 	return (m_vdevGUID);

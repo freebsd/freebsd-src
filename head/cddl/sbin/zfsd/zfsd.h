@@ -37,304 +37,57 @@
  *
  * Class definitions and supporting data strutures for the ZFS fault
  * management daemon.
+ *
+ * Header requirements:
+ *
+ *    #include <sys/fs/zfs.h>
+ *
+ *    #include <libzfs.h>
+ *
+ *    #include <list>
+ *    #include <map>
+ *    #include <string>
+ *
+ *    #include <devctl/guid.h>
+ *    #include <devctl/event.h>
+ *    #include <devctl/event_factory.h>
+ *    #include <devctl/consumer.h>
+ *    #include <devctl/reader.h>
+ *
+ *    #include "vdev_iterator.h"
  */
 #ifndef	_ZFSD_H_
 #define	_ZFSD_H_
 
-#include <cstdarg>
-#include <iostream>
-#include <list>
-#include <map>
-#include <utility>
-
-#include <sys/fs/zfs.h>
-#include <libzfs.h>
-
-#include "case_file.h"
-#include "dev_ctl_event.h"
-#include "vdev_iterator.h"
-
-/*============================ Namespace Control =============================*/
-using std::auto_ptr;
-using std::map;
-using std::pair;
-using std::istream;
-using std::string;
-
-/*================================ Global Data ===============================*/
-extern const char       g_devdSock[];
-extern int              g_debug;
-extern libzfs_handle_t *g_zfsHandle;
-
 /*=========================== Forward Declarations ===========================*/
-struct EventFactoryRecord;
 struct pidfh;
+
+struct zpool_handle;
+typedef struct zpool_handle zpool_handle_t;
+
+struct zfs_handle;
+typedef struct libzfs_handle libzfs_handle_t;
+
+struct nvlist;
+typedef struct nvlist nvlist_t;
 
 typedef int LeafIterFunc(zpool_handle_t *, nvlist_t *, void *);
 
-/*================================== Macros ==================================*/
-#define NUM_ELEMENTS(x) (sizeof(x) / sizeof(*x))
+/*================================ Global Data ===============================*/
+extern int              g_debug;
+extern libzfs_handle_t *g_zfsHandle;
 
 /*============================= Class Definitions ============================*/
-
-/*-------------------------------- Reader  -------------------------------*/
-/**
- * \brief A class that presents a common interface to both file descriptors
- *        and istreams.
- *
- * Standard C++ provides no way to create an iostream from a file descriptor or
- * a FILE.  The GNU, Apache, HPUX, and Solaris C++ libraries all provide
- * non-standard ways to construct such a stream using similar semantics, but
- * FreeBSD's C++ library does not.  This class supports only the functionality
- * needed by ZFSD; it does not implement the iostream API.
- */
-class Reader
-{
-public:
-	/**
-	 * \brief Return the number of bytes immediately available for reading
-	 */
-	virtual size_t	in_avail() const = 0;
-
-	/**
-	 * \brief Reads up to count bytes
-	 *
-	 * Whether this call blocks depends on the underlying input source.
-	 * On error, -1 is returned, and errno will be set by the underlying
-	 * source.
-	 *
-	 * \param buf    Destination for the data
-	 * \param count  Maximum amount of data to read
-	 * \returns      Amount of data that was actually read
-	 */
-	virtual ssize_t read(char* buf, size_t count) = 0;
-
-	virtual ~Reader() = 0;
-};
-
-inline Reader::~Reader() {}
-
-
-/*-------------------------------- FDReader    -------------------------------*/
-/**
- * \brief Specialization of Reader that uses a file descriptor
- */
-class FDReader : public Reader
-{
-public:
-	/**
-	 * \brief Constructor
-	 *
-	 * \param fd  An open file descriptor.  It will not be garbage
-	 *            collected by the destructor.
-	 */
-	FDReader(int fd);
-
-	virtual size_t  in_avail() const;
-
-	virtual ssize_t read(char* buf, size_t count);
-
-protected:
-	/** Copy of the underlying file descriptor */
-	int	m_fd;
-};
-
-//- FDReader Inline Public Methods -----------------------------------------
-inline
-FDReader::FDReader(int fd)
- : m_fd(fd)
-{
-}
-
-inline ssize_t
-FDReader::read(char* buf, size_t count)
-{
-	return (::read(m_fd, buf, count));
-}
-
-/*-------------------------------- IstreamReader------------------------------*/
-/**
- * \brief Specialization of Reader that uses a std::istream
- */
-class IstreamReader : public Reader
-{
-public:
-	/**
-	 * Constructor
-	 *
-	 * \param stream  Pointer to an open istream.  It will not be
-	 *                garbage collected by the destructor.
-	 */
-	IstreamReader(istream* stream);
-
-	virtual size_t in_avail() const;
-
-	virtual ssize_t read(char* buf, size_t count);
-
-protected:
-	/** Copy of the underlying stream */
-	istream		*m_stream;
-};
-
-//- IstreamReader Inline Public Methods ----------------------------------------
-inline
-IstreamReader::IstreamReader(istream* stream)
- : m_stream(stream)
-{
-}
-
-inline size_t
-IstreamReader::in_avail() const
-{
-	return (m_stream->rdbuf()->in_avail());
-}
-
-
-/*-------------------------------- EventBuffer -------------------------------*/
-/**
- * \brief Class buffering event data from Devd or a similar source and
- *        splitting it into individual event strings.
- *
- * Users of this class initialize it with a Reader associated with the unix
- * domain socket connection with devd or a compatible source.  The lifetime of
- * an EventBuffer instance should match that of the Reader passed to it.  This
- * is required as data from partially received events is retained in the
- * EventBuffer in order to allow reconstruction of these events across multiple
- * reads of the stream.
- *
- * Once the program determines that the Reader is ready for reading, the
- * EventBuffer::ExtractEvent() should be called in a loop until the method
- * returns false.
- */
-class EventBuffer
-{
-public:
-	/**
-	 * Constructor
-	 *
-	 * \param reader  The data source on which to buffer/parse event data.
-	 */
-	EventBuffer(Reader& reader);
-
-	/**
-	 * Pull a single event string out of the event buffer.
-	 *
-	 * \param eventString  The extracted event data (if available).
-	 *
-	 * \return  true if event data is available and eventString has
-	 *          been populated.  Otherwise false.
-	 */
-	bool ExtractEvent(string &eventString);
-
-private:
-	enum {
-		/**
-		 * Size of an empty event (start and end token with
-		 * no data.  The EventBuffer parsing needs at least
-		 * this much data in the buffer for safe event extraction.
-		 */
-		MIN_EVENT_SIZE = 2,
-
-		/*
-		 * The maximum event size supported by ZFSD.
-		 * Events larger than this size (minus 1) are
-		 * truncated at the end of the last fully received
-		 * key/value pair.
-		 */
-		MAX_EVENT_SIZE = 8192,
-
-		/**
-		 * The maximum amount of buffer data to read at
-		 * a single time from the Devd file descriptor.
-		 */
-		MAX_READ_SIZE = MAX_EVENT_SIZE,
-
-		/**
-		 * The size of EventBuffer's buffer of Devd event data.
-		 * This is one larger than the maximum supported event
-		 * size, which alows us to always include a terminating
-		 * NUL without overwriting any received data.
-		 */
-		EVENT_BUFSIZE = MAX_EVENT_SIZE + /*NUL*/1
-	};
-
-	/** The amount of data in m_buf we have yet to look at. */
-	size_t UnParsed()        const;
-
-	/** The amount of data in m_buf available for the next event. */
-	size_t NextEventMaxLen() const;
-
-	/** Fill the event buffer with event data from Devd. */
-	bool Fill();
-
-	/** Characters we treat as beginning an event string. */
-	static const char   s_eventStartTokens[];
-
-	/** Characters we treat as ending an event string. */
-	static const char   s_eventEndTokens[];
-
-	/** Characters found between successive "key=value" strings. */
-	static const char   s_keyPairSepTokens[];
-
-	/** Temporary space for event data during our parsing.  Laid out like
-	 * this:
-	 *         <--------------------------------------------------------->
-	 *         |         |    |           |                              |
-	 * m_buf---|         |    |           |                              |
-	 * m_nextEventOffset--    |           |                              |
-	 * m_parsedLen-------------           |                              |
-	 * m_validLen--------------------------                              |
-	 * EVENT_BUFSIZE------------------------------------------------------
-	 *
-	 * Data before m_nextEventOffset has already been processed.
-	 *
-	 * Data between m_nextEvenOffset and m_parsedLen has been parsed, but
-	 * not processed as a single event.
-	 *
-	 * Data between m_parsedLen and m_validLen has been read from the
-	 * source, but not yet parsed.
-	 *
-	 * Between m_validLen and EVENT_BUFSIZE is empty space.
-	 *
-	 * */
-	char		    m_buf[EVENT_BUFSIZE];
-
-	/** Reference to the reader linked to devd's domain socket. */
-	Reader&		    m_reader;
-
-	/** Offset within m_buf to the beginning of free space. */
-	size_t		    m_validLen;
-
-	/** Offset within m_buf to the beginning of data not yet parsed */
-	size_t		    m_parsedLen;
-
-	/** Offset within m_buf to the start token of the next event. */
-	size_t		    m_nextEventOffset;
-
-	/** The EventBuffer is aligned and tracking event records. */
-	bool		    m_synchronized;
-};
-
-//- EventBuffer Inline Private Methods -----------------------------------------
-inline size_t
-EventBuffer::UnParsed() const
-{
-	return (m_validLen - m_parsedLen);
-}
-
-inline size_t
-EventBuffer::NextEventMaxLen() const
-{
-	return (m_validLen - m_nextEventOffset);
-}
-
 /*--------------------------------- ZfsDaemon --------------------------------*/
 /**
  * Static singleton orchestrating the operations of the ZFS daemon program.
  */
-class ZfsDaemon
+class ZfsDaemon : public DevCtl::Consumer
 {
 public:
+	/** Return the ZfsDaemon singleton. */
+	static ZfsDaemon &Get();
+
 	/**
 	 * Used by signal handlers to ensure, in a race free way, that
 	 * the event loop will perform at least one more full loop
@@ -349,68 +102,38 @@ public:
 	 */
 	static void RequestSystemRescan();
 
-	/**
-	 * Queue an event for replay after the next ZFS configuration
-	 * sync event is received.  This facility is used when an event
-	 * is received for a pool or vdev that is not visible in the
-	 * current ZFS configuration, but may "arrive" once the kernel
-	 * commits the configuration change that emitted the event.
-	 */
-	static bool SaveEvent(const DevCtlEvent &event);
-
-	/**
-	 * Reprocess any events saved via the SaveEvent() facility.
-	 */
-	static void ReplayUnconsumedEvents();
-
 	/** Daemonize and perform all functions of the ZFS daemon. */
 	static void Run();
 
 private:
-	/** Initialize the daemon. */
-	static void Init();
-
-	/** Perform any necessary cleanup at daemon shutdown. */
-	static void Fini();
-
-	/** Process incoming devctl events from devd. */
-	static void ProcessEvents(EventBuffer &eventBuffer);
-
-	/** Discard all data pending in s_devdSockFD. */
-	static void FlushEvents();
+	ZfsDaemon();
+	~ZfsDaemon();
 
 	static VdevCallback_t VdevAddCaseFile;
 
-	/**
-	 * Test for data pending in s_devdSockFD
-	 *
-	 * \return  True if data is pending.  Otherwise false.
-	 */
-	static bool EventsPending();
-
 	/** Purge our cache of outstanding ZFS issues in the system. */
-	static void PurgeCaseFiles();
+	void PurgeCaseFiles();
 
 	/** Build a cache of outstanding ZFS issues in the system. */
-	static void BuildCaseFiles();
+	void BuildCaseFiles();
 
 	/**
 	 * Iterate over all known issues and attempt to solve them
 	 * given resources currently available in the system.
 	 */
-	static void RescanSystem();
+	void RescanSystem();
 
 	/**
 	 * Interrogate the system looking for previously unknown
 	 * faults that occurred either before ZFSD was started,
 	 * or during a period of lost communication with Devd.
 	 */
-	static void DetectMissedEvents();
+	void DetectMissedEvents();
 
 	/**
 	 * Wait for and process event source activity.
 	 */
-	static void EventLoop();
+	void EventLoop();
 
 	/**
 	 * Signal handler for which our response is to
@@ -456,74 +179,51 @@ private:
 	 */
 	static void InitializeSyslog();
 
-	/**
-	 * Open a connection to devd's unix domain socket.
-	 *
-	 * \return  True if the connection attempt is successsful.  Otherwise
-	 *          false.
-	 */
-	static bool ConnectToDevd();
-
-	/**
-	 * Close a connection (if any) to devd's unix domain socket.
-	 */
-	static void DisconnectFromDevd();
+	static ZfsDaemon		       *s_theZfsDaemon;
 
 	/**
 	 * Set to true when our program is signaled to
 	 * gracefully exit.
 	 */
-	static bool   s_logCaseFiles;
+	static bool				s_logCaseFiles;
 
 	/**
 	 * Set to true when our program is signaled to
 	 * gracefully exit.
 	 */
-	static bool   s_terminateEventLoop;
+	static bool				s_terminateEventLoop;
 
 	/**
 	 * The canonical path and file name of zfsd's PID file.
 	 */
-	static char   s_pidFilePath[];
+	static char				s_pidFilePath[];
 
 	/**
 	 * Control structure for PIDFILE(3) API.
 	 */
-	static pidfh *s_pidFH;
-
-	/**
-	 * File descriptor representing the unix domain socket
-	 * connection with devd.
-	 */
-	static int    s_devdSockFD;
-
-	/**
-	 * Reader object used by the EventBuffer
-	 */
-	static FDReader* s_reader;
+	static pidfh			       *s_pidFH;
 
 	/**
 	 * Pipe file descriptors used to close races with our
 	 * signal handlers.
 	 */
-	static int    s_signalPipeFD[2];
-
-	/** Queued events for replay. */
-	static DevCtlEventList s_unconsumedEvents;
+	static int				s_signalPipeFD[2];
 
 	/**
 	 * Flag controlling a rescan from ZFSD's event loop of all
 	 * GEOM providers in the system to find candidates for solving
 	 * cases.
 	 */
-	static bool   s_systemRescanRequested;
+	static bool				s_systemRescanRequested;
 
 	/**
 	 * Flag controlling whether events can be queued.  This boolean
 	 * is set during event replay to ensure that events for pools or
 	 * devices no longer in the system are not retained forever.
 	 */
-	static bool   s_consumingEvents;
+	static bool				s_consumingEvents;
+
+	static DevCtl::EventFactory::Record	s_registryEntries[];
 };
 
 #endif	/* _ZFSD_H_ */

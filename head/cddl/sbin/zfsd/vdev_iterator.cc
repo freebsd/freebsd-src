@@ -35,16 +35,26 @@
  *
  * Implementation of the VdevIterator class.
  */
+#include <sys/cdefs.h>
+#include <sys/fs/zfs.h>
+
 #include <stdint.h>
 #include <syslog.h>
 
-#include <sys/fs/zfs.h>
 #include <libzfs.h>
+
+#include <list>
+#include <string>
+
+#include <devctl/exception.h>
+#include <devctl/guid.h>
 
 #include "vdev.h"
 #include "vdev_iterator.h"
-#include "zfsd.h"
 #include "zfsd_exception.h"
+
+/*============================ Namespace Control =============================*/
+using DevCtl::Guid;
 
 /*=========================== Class Implementations ==========================*/
 /*------------------------------- VdevIterator -------------------------------*/

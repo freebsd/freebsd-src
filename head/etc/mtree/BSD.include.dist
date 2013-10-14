@@ -159,6 +159,8 @@
         wi
         ..
     ..
+    devctl
+    ..
     edit
         readline
         ..

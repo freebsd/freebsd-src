@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Spectra Logic Corporation
+ * Copyright (c) 2011, 2012, 2013 Spectra Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,64 +27,73 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * Authors: Alan Somers     (Spectra Logic Corporation)
+ * Authors: Alan Somers         (Spectra Logic Corporation)
  */
 
 /**
- * \file zfsd_main.cc
- *
- * main function for the ZFS Daemon.  Separated to facilitate testing.
- *
+ * \file reader.cc
  */
 
 #include <sys/cdefs.h>
+#include <sys/ioctl.h>
 
-#include <cstdlib>
-#include <cstdio>
+#include <cstddef>
+#include <errno.h>
+#include <syslog.h>
 #include <unistd.h>
 
-#include <list>
-#include <map>
-#include <string>
+#include <iostream>
 
-#include <devctl/guid.h>
-#include <devctl/event.h>
-#include <devctl/event_factory.h>
-#include <devctl/exception.h>
-#include <devctl/consumer.h>
-
-#include "vdev_iterator.h"
-#include "zfsd.h"
+#include "reader.h"
 
 __FBSDID("$FreeBSD$");
 
-/*=============================== Program Main ===============================*/
-static void
-usage()
+/*============================ Namespace Control =============================*/
+namespace DevCtl
 {
-	fprintf(stderr, "usage: %s [-d]\n", getprogname());
-	exit(1);
+
+//- FDReader Public Methods ---------------------------------------------------
+FDReader::FDReader(int fd)
+ : m_fd(fd)
+{
 }
 
-/**
- * Program entry point.
- */
-int
-main(int argc, char **argv)
+ssize_t
+FDReader::read(char* buf, size_t count)
 {
-	int ch;
+	return (::read(m_fd, buf, count));
+}
 
-	while ((ch = getopt(argc, argv, "d")) != -1) {
-		switch (ch) {
-		case 'd':
-			g_debug++;
-			break;
-		default:
-			usage();
-		}
+ssize_t
+FDReader::in_avail() const
+{
+	int bytes;
+	if (ioctl(m_fd, FIONREAD, &bytes)) {
+		syslog(LOG_ERR, "ioctl FIONREAD: %s", strerror(errno));
+		return (-1);
 	}
-
-	ZfsDaemon::Run();
-
-	return (0);
+	return (bytes);
 }
+
+//- IstreamReader Inline Public Methods ----------------------------------------
+IstreamReader::IstreamReader(std::istream* stream)
+ : m_stream(stream)
+{
+}
+
+ssize_t
+IstreamReader::read(char* buf, size_t count)
+{
+	m_stream->read(buf, count);
+	if (m_stream->fail())
+		return (-1);
+	return (m_stream->gcount());
+}
+
+ssize_t
+IstreamReader::in_avail() const
+{
+	return (m_stream->rdbuf()->in_avail());
+}
+
+} // namespace DevCtl

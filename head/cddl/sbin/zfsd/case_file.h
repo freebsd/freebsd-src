@@ -37,17 +37,16 @@
  *
  * CaseFile objects aggregate vdev faults that may require ZFSD action
  * in order to maintain the health of a ZFS pool.
+ *
+ * Header requirements:
+ *
+ *    #include <list>
+ *
+ *    #include "callout.h"
+ *    #include "zfsd_event.h"
  */
 #ifndef _CASE_FILE_H_
 #define	_CASE_FILE_H_
-
-#include <list>
-#include <utility>
-
-#include <sys/fs/zfs.h>
-
-#include "callout.h"
-#include "dev_ctl_event.h"
 
 /*=========================== Forward Declarations ===========================*/
 class CaseFile;
@@ -95,7 +94,7 @@ public:
 	 * \return  If found, a pointer to a valid CaseFile object.
 	 *          Otherwise NULL.
 	 */
-	static CaseFile *Find(Guid poolGUID, Guid vdevGUID);
+	static CaseFile *Find(DevCtl::Guid poolGUID, DevCtl::Guid vdevGUID);
 
 	/**
 	 * \brief Find a CaseFile object by a vdev's current/last known
@@ -114,7 +113,8 @@ public:
 	 * \param poolGUID	Only reevaluate cases for this pool
 	 * \param event		Try to consume this event with the casefile
 	 */
-	static void ReEvaluateByGuid(Guid poolGUID, const ZfsEvent &event);
+	static void ReEvaluateByGuid(DevCtl::Guid poolGUID,
+				     const ZfsEvent &event);
 
 	/**
 	 * \brief Create or return an existing active CaseFile for the
@@ -145,8 +145,8 @@ public:
 	 */
 	static void      PurgeAll();
 
-	Guid	      PoolGUID()       const;
-	Guid	      VdevGUID()       const;
+	DevCtl::Guid  PoolGUID()       const;
+	DevCtl::Guid  VdevGUID()       const;
 	vdev_state    VdevState()      const;
 	const string &PoolGUIDString() const;
 	const string &VdevGUIDString() const;
@@ -171,6 +171,7 @@ public:
 
 	/**
 	 * \brief Update this CaseFile in light of the provided ZfsEvent.
+	 *
 	 * Must be virtual so it can be overridden in the unit tests
 	 *
 	 * \param event  The ZfsEvent to evaluate.
@@ -182,7 +183,7 @@ public:
 	/**
 	 * \brief Register an itimer callout for the given event, if necessary
 	 */
-	virtual void RegisterCallout(const DevCtlEvent &event);
+	virtual void RegisterCallout(const DevCtl::Event &event);
 
 	/**
 	 * \brief Close a case if it is no longer relevant.
@@ -289,7 +290,7 @@ protected:
 	 * \param prefix  If not NULL, this prefix will be prepended to
 	 *                every event in the file.
 	 */
-	void SerializeEvList(const DevCtlEventList events, int fd,
+	void SerializeEvList(const DevCtl::EventList events, int fd,
 			     const char* prefix=NULL) const;
 
 	/**
@@ -327,7 +328,6 @@ protected:
 	 * \param path        The file system path to the new vdev
 	 *
 	 * \return            true iff the replacement was successful
-	 *
 	 */
 	bool Replace(const char* vdev_type, const char* path);
 
@@ -351,35 +351,35 @@ protected:
 	 * \brief A list of soft error events counted against the health of
 	 *        a vdev.
 	 */
-	DevCtlEventList m_events;
+	DevCtl::EventList m_events;
 
 	/**
 	 * \brief A list of soft error events waiting for a grace period
 	 *        expiration before being counted against the health of
 	 *        a vdev.
 	 */
-	DevCtlEventList m_tentativeEvents;
+	DevCtl::EventList m_tentativeEvents;
 
-	Guid		m_poolGUID;
-	Guid		m_vdevGUID;
-	vdev_state	m_vdevState;
-	string		m_poolGUIDString;
-	string		m_vdevGUIDString;
-	string		m_vdevPhysPath;
+	DevCtl::Guid	  m_poolGUID;
+	DevCtl::Guid	  m_vdevGUID;
+	vdev_state	  m_vdevState;
+	string		  m_poolGUIDString;
+	string		  m_vdevGUIDString;
+	string		  m_vdevPhysPath;
 
 	/**
 	 * \brief Callout activated when a grace period
 	 */
-	Callout		m_tentativeTimer;
+	Callout		  m_tentativeTimer;
 };
 
-inline Guid
+inline DevCtl::Guid
 CaseFile::PoolGUID() const
 {
 	return (m_poolGUID);
 }
 
-inline Guid
+inline DevCtl::Guid
 CaseFile::VdevGUID() const
 {
 	return (m_vdevGUID);
