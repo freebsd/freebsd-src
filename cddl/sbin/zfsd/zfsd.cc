@@ -145,7 +145,7 @@ ZfsDaemon::Run()
 
 			daemon.EventLoop();
 
-		} catch (const ZfsdException &exp) {
+		} catch (const DevCtl::Exception &exp) {
 			exp.Log();
 		}
 	}
@@ -287,7 +287,7 @@ ZfsDaemon::DetectMissedEvents()
 		 * If the system state has changed durring our
 		 * interrogation, start over.
 		 */
-	} while (EventsPending());
+	} while (s_terminateEventLoop == false && EventsPending());
 
 	RescanSystem();
 }
