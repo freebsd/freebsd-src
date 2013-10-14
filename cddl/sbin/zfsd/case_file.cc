@@ -298,28 +298,6 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 {
 	bool consumed(false);
 
-	if (!RefreshVdevState()) {
-		/*
-		 * The pool or vdev for this case file is no longer
-		 * part of the configuration.  This can happen
-		 * if we process a device arrival notification
-		 * before seeing the ZFS configuration change
-		 * event.
-		 */
-		syslog(LOG_INFO,
-		       "CaseFile::ReEvaluate(%s,%s) Pool/Vdev unconfigured.  "
-		       "Closing\n",
-		       PoolGUIDString().c_str(),
-		       VdevGUIDString().c_str());
-		Close();
-
-		/*
-		 * Since this event was not used to close this
-		 * case, do not report it as consumed.
-		 */
-		return (/*consumed*/false);
-	}
-
 	if (event.Value("type") == "misc.fs.zfs.vdev_remove") {
 		/*
 		 * The Vdev we represent has been removed from the
@@ -332,6 +310,28 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 
 	if (event.Value("class") == "resource.fs.zfs.removed") {
 		bool spare_activated;
+
+		if (!RefreshVdevState()) {
+			/*
+			 * The pool or vdev for this case file is no longer
+			 * part of the configuration.  This can happen
+			 * if we process a device arrival notification
+			 * before seeing the ZFS configuration change
+			 * event.
+			 */
+			syslog(LOG_INFO,
+			       "CaseFile::ReEvaluate(%s,%s) Pool/Vdev "
+			       "unconfigured.  Closing\n",
+			       PoolGUIDString().c_str(),
+			       VdevGUIDString().c_str());
+			Close();
+
+			/*
+			 * Since this event was not used to close this
+			 * case, do not report it as consumed.
+			 */
+			return (/*consumed*/false);
+		}
 
 		/*
 		 * Discard any tentative I/O error events for
