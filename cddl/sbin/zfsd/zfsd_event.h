@@ -140,7 +140,13 @@ protected:
 	/** Constructor */
 	ZfsEvent(Type, DevCtl::NVPairMap &, const string &);
 
+	/** 
+	 * Detach any spares that are no longer needed, but were not
+	 * automatically detached by the kernel
+	 */
+	virtual void CleanupSpares()	  const;
 	virtual void ProcessPoolEvent()	  const;
+	static VdevCallback_t TryDetach;
 };
 
 #endif /*_ZFSD_EVENT_H_ */

@@ -141,6 +141,18 @@ Vdev::Vdev(nvlist_t *labelConfig)
 	}
 }
 
+bool
+Vdev::IsSpare() const
+{
+	uint64_t is_spare(0);
+
+	if (m_config == NULL)
+		return (false);
+
+	(void)nvlist_lookup_uint64(m_config, ZPOOL_CONFIG_IS_SPARE, &is_spare);
+	return (bool(is_spare));
+}
+
 vdev_state
 Vdev::State() const
 {

@@ -84,8 +84,8 @@ public:
 	void      Reset();
 
 	/**
-	 * \brief Report the vdev at this iterator's cursor and increment
-	 *        the cursor to the next pool member.
+	 * \brief Report the leaf vdev at this iterator's cursor and increment
+	 *        the cursor to the next leaf pool member.
 	 */
 	nvlist_t *Next();
 
