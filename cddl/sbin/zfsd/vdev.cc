@@ -120,6 +120,7 @@ Vdev::Vdev(nvlist_t *labelConfig)
 vdev_state
 Vdev::State() const
 {
+	uint64_t    *nvlist_array;
 	vdev_stat_t *vs;
 	uint_t       vsc;
 
@@ -136,8 +137,10 @@ Vdev::State() const
 	}
 
 	if (nvlist_lookup_uint64_array(m_config, ZPOOL_CONFIG_VDEV_STATS,
-					(uint64_t **)&vs, &vsc) == 0)
+				       &nvlist_array, &vsc) == 0) {
+		vs = reinterpret_cast<vdev_stat_t *>(nvlist_array);
 		return (static_cast<vdev_state>(vs->vs_state));
+	}
 
 	/*
 	 * Stats are not available.  This vdev was created from a label.
