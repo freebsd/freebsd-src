@@ -14,7 +14,7 @@ SRCS=		callout.cc		\
 
 NO_MAN=		YES
 
-WARNS?=		0
+WARNS?=		1
 
 INCFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzpool/common
 INCFLAGS+= -I${.CURDIR}/../../../cddl/compat/opensolaris/include
@@ -30,7 +30,7 @@ INCFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common
 INCFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/fs/zfs
 INCFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/sys
 
-CFLAGS= -g -DNEED_SOLARIS_BOOLEAN ${INCFLAGS}
+CFLAGS= -Wall -g -DNEED_SOLARIS_BOOLEAN ${INCFLAGS}
 
 DPADD=  ${LIBZFS} ${LIBUTIL} ${LIBGEOM} ${LIBBSDXML} ${LIBSBUF} \
 	${LIBNVPAIR} ${LIBUUTIL}

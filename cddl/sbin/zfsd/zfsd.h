@@ -108,7 +108,11 @@ public:
 	 * \returns      Amount of data that was actually read
 	 */
 	virtual ssize_t read(char* buf, size_t count) = 0;
+
+	virtual ~Reader() = 0;
 };
+
+inline Reader::~Reader() {}
 
 
 /*-------------------------------- FDReader    -------------------------------*/
