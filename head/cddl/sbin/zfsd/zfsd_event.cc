@@ -195,6 +195,10 @@ DevfsEvent::Process() const
 		       "as a replace by physical path candidate.\n",
 		       devName.c_str());
 	} else if (havePhysPath && IsWholeDev()) {
+		/* 
+		 * TODO: attempt to resolve events using every casefile
+		 * that matches this physpath
+		 */
 		CaseFile *caseFile(CaseFile::Find(physPath));
 		if (caseFile != NULL) {
 			syslog(LOG_INFO,
@@ -370,6 +374,12 @@ void
 ZfsEvent::ProcessPoolEvent() const
 {
 	bool degradedDevice(false);
+
+	/* The pool is destroyed.  Discard any open cases */
+	if (Value("type") == "misc.fs.zfs.pool_destroy") {
+		CaseFile::ReEvaluateByGuid(PoolGUID(), *this);
+		return;
+	}
 
 	CaseFile *caseFile(CaseFile::Find(PoolGUID(), VdevGUID()));
 	if (caseFile != NULL) {
