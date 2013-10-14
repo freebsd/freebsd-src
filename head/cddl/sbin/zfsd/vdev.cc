@@ -89,10 +89,15 @@ Vdev::Vdev(nvlist_t *labelConfig)
  : m_poolConfig(labelConfig)
 {
 	uint64_t raw_guid;
+
+	/*
+	 * Spares do not have a Pool GUID.  Tolerate its absence.
+	 * Code accessing this Vdev in a context where the Pool GUID is
+	 * required will find it invalid (as it is upon Vdev construction)
+	 * and act accordingly.
+	 */
 	if (nvlist_lookup_uint64(labelConfig, ZPOOL_CONFIG_POOL_GUID,
-				 &raw_guid) != 0)
-		m_vdevGUID = Guid();
-	else
+				 &raw_guid) == 0)
 		m_poolGUID = raw_guid;
 
 	if (nvlist_lookup_uint64(labelConfig, ZPOOL_CONFIG_GUID,

@@ -49,8 +49,24 @@
 #include "guid.h"
 
 __FBSDID("$FreeBSD$");
+/*============================ Namespace Control =============================*/
+using std::string;
+
 /*=========================== Class Implementations ==========================*/
 /*----------------------------------- Guid -----------------------------------*/
+Guid::Guid(const string &guidString)
+{
+	if (guidString.empty()) {
+		m_GUID = INVALID_GUID;
+	} else {
+		/*
+		 * strtoumax() returns zero on conversion failure
+		 * which nicely matches our choice for INVALID_GUID.
+		 */
+		m_GUID = (uint64_t)strtoumax(guidString.c_str(), NULL, 0);
+	}
+}
+
 std::ostream&
 operator<< (std::ostream& out, Guid g)
 {

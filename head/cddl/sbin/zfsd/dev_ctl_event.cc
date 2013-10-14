@@ -692,24 +692,10 @@ ZfsEvent::Process() const
 //- ZfsEvent Protected Methods -------------------------------------------------
 ZfsEvent::ZfsEvent(DevCtlEvent::Type type, NVPairMap &nvpairs,
 		   const string &eventString)
- : DevCtlEvent(type, nvpairs, eventString)
+ : DevCtlEvent(type, nvpairs, eventString),
+   m_poolGUID(Guid(Value("pool_guid"))),
+   m_vdevGUID(Guid(Value("vdev_guid")))
 {
-	/*
-	 * These are zero on conversion failure as will happen if
-	 * Value returns the empty string.
-	 */
-	if (Contains("pool_guid")) {
-		m_poolGUID = (uint64_t)strtoumax(Value("pool_guid").c_str(),
-		    NULL, 0);
-	}
-	else
-		m_poolGUID = Guid();
-	if (Contains("vdev_guid")) {
-		m_vdevGUID = (uint64_t)strtoumax(Value("vdev_guid").c_str(),
-		    NULL, 0);
-	}
-	else
-		m_vdevGUID = Guid();
 }
 
 ZfsEvent::ZfsEvent(const ZfsEvent &src)
