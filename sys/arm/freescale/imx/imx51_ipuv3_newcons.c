@@ -145,12 +145,12 @@ static uint32_t colors_24[16] = {
 
 static vd_init_t	vt_imx_init;
 static vd_blank_t	vt_imx_blank;
-static vd_bitblt_t	vt_imx_bitblt;
+static vd_bitbltchr_t	vt_imx_bitbltchr;
 
 static struct vt_driver vt_imx_driver = {
 	.vd_init = vt_imx_init,
 	.vd_blank = vt_imx_blank,
-	.vd_bitblt = vt_imx_bitblt,
+	.vd_bitbltchr = vt_imx_bitbltchr,
 };
 
 static const uint32_t colormap[] = {
@@ -452,7 +452,7 @@ vt_imx_blank(struct vt_device *vd, term_color_t color)
 }
 
 static void
-vt_imx_bitblt(struct vt_device *vd, const uint8_t *src,
+vt_imx_bitbltchr(struct vt_device *vd, const uint8_t *src,
     vt_axis_t top, vt_axis_t left, unsigned int width, unsigned int height,
     term_color_t fg, term_color_t bg)
 {
