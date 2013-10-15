@@ -530,7 +530,7 @@ VNET_DECLARE(u_long, in6_ifaddrhmask);
     (&V_in6_ifaddrhashtbl[IN6ADDR_HASHVAL(x) & V_in6_ifaddrhmask])
 
 static __inline uint32_t
-in6_addrhash(struct in6_addr *in6)
+in6_addrhash(const struct in6_addr *in6)
 {
 	uint32_t x;
 
