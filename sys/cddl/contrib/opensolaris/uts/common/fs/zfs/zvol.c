@@ -2261,14 +2261,14 @@ zvol_geom_start(struct bio *bp)
 	ASSERT(zv != NULL);
 	switch (bp->bio_cmd) {
 	case BIO_FLUSH:
-		if (g_is_geom_thread(curthread))
+		if (!THREAD_CAN_SLEEP())
 			goto enqueue;
 		zil_commit(zv->zv_zilog, ZVOL_OBJ);
 		g_io_deliver(bp, 0);
 		break;
 	case BIO_READ:
 	case BIO_WRITE:
-		if (g_is_geom_thread(curthread))
+		if (!THREAD_CAN_SLEEP())
 			goto enqueue;
 		zvol_strategy(bp);
 		break;
