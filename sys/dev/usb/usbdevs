@@ -1259,6 +1259,7 @@ product BELKIN F5D8055V2	0x825b	F5D8055 v2
 product BELKIN F5D9050V3	0x905b	F5D9050 ver 3 Wireless Adapter
 product BELKIN2 F5U002		0x0002	F5U002 Parallel printer
 product BELKIN F6D4050V1	0x935a	F6D4050 v1
+product BELKIN F6D4050V2	0x935b	F6D4050 v2
 
 /* Billionton products */
 product BILLIONTON USB100	0x0986	USB100N 10/100 FastEthernet
