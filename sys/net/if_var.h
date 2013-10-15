@@ -788,6 +788,7 @@ drbr_inuse(struct ifnet *ifp, struct buf_ring *br)
  * chunk of malloc'ed memory, where we store the three addresses
  * (ifa_addr, ifa_dstaddr and ifa_netmask) referenced here.
  */
+#if defined(_KERNEL) || defined(_WANT_IFADDR)
 struct ifaddr {
 	struct	sockaddr *ifa_addr;	/* address of interface */
 	struct	sockaddr *ifa_dstaddr;	/* other end of p-to-p link */
@@ -806,6 +807,8 @@ struct ifaddr {
 		(struct ifaddr *, struct sockaddr *);
 	struct mtx ifa_mtx;
 };
+#endif
+
 #define	IFA_ROUTE	RTF_UP		/* route installed */
 #define IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
 
