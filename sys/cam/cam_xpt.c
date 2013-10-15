@@ -1071,7 +1071,7 @@ xpt_denounce_periph(struct cam_periph *periph)
 {
 	struct	cam_path *path = periph->path;
 
-	mtx_assert(periph->sim->mtx, MA_OWNED);
+	cam_periph_assert(periph, MA_OWNED);
 	printf("%s%d at %s%d bus %d scbus%d target %d lun %d\n",
 	       periph->periph_name, periph->unit_number,
 	       path->bus->sim->sim_name,
