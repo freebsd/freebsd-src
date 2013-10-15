@@ -51,14 +51,16 @@ struct vt_kms_softc {
 
 static vd_init_t	vt_kms_init;
 static vd_blank_t	vt_kms_blank;
-static vd_bitblt_t	vt_kms_bitblt;
+static vd_bitbltchr_t	vt_kms_bitbltchr;
 static vd_postswitch_t	vt_kms_postswitch;
+#if 0
 static void vt_restore_fbdev_mode(void *, int);
+#endif
 
 static struct vt_driver vt_vt_kms_driver = {
 	.vd_init = vt_kms_init,
 	.vd_blank = vt_kms_blank,
-	.vd_bitblt = vt_kms_bitblt,
+	.vd_bitbltchr = vt_kms_bitbltchr,
 	.vd_postswitch = vt_kms_postswitch,
 };
 
@@ -112,7 +114,7 @@ vt_kms_blank(struct vt_device *vd, term_color_t color)
 }
 
 static void
-vt_kms_bitblt(struct vt_device *vd, const uint8_t *src,
+vt_kms_bitbltchr(struct vt_device *vd, const uint8_t *src,
     vt_axis_t top, vt_axis_t left, unsigned int width, unsigned int height,
     term_color_t fg, term_color_t bg)
 {
@@ -165,11 +167,14 @@ vt_kms_init(struct vt_device *vd)
 	/* Clear the screen. */
 	vt_kms_blank(vd, TC_BLACK);
 
+#if 0
 	TASK_INIT(&sc->fb_mode_task, 0, vt_restore_fbdev_mode, vd);
+#endif
 
 	return (CN_INTERNAL);
 }
 
+#if 0
 /* Call restore out of vt(9) locks. */
 static void
 vt_restore_fbdev_mode(void *arg, int pending)
@@ -181,6 +186,7 @@ vt_restore_fbdev_mode(void *arg, int pending)
 	sc = vd->vd_softc;
 	drm_fb_helper_restore_fbdev_mode(sc->fb_helper);
 }
+#endif
 
 static void
 vt_kms_postswitch(struct vt_device *vd)
@@ -188,7 +194,11 @@ vt_kms_postswitch(struct vt_device *vd)
 	struct vt_kms_softc *sc;
 
 	sc = vd->vd_softc;
+#if 0
 	taskqueue_enqueue_fast(taskqueue_thread, &sc->fb_mode_task);
+#else
+	drm_fb_helper_restore_fbdev_mode(sc->fb_helper);
+#endif
 }
 
 static DRM_LIST_HEAD(kernel_fb_helper_list);
