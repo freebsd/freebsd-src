@@ -199,16 +199,10 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		 * allocate a fresh one. 
 		 */
 		if (aa == NULL) {
-			aa = malloc(sizeof(struct at_ifaddr), M_IFADDR,
-			    M_NOWAIT | M_ZERO);
-			if (aa == NULL) {
-				error = ENOBUFS;
-				goto out;
-			}
-			callout_init(&aa->aa_callout, CALLOUT_MPSAFE);
+			ifa = ifa_alloc(sizeof(struct at_ifaddr), M_WAITOK);
+			aa = (struct at_ifaddr *)ifa;
 
-			ifa = (struct ifaddr *)aa;
-			ifa_init(ifa);
+			callout_init(&aa->aa_callout, CALLOUT_MPSAFE);
 
 			/*
 			 * As the at_ifaddr contains the actual sockaddrs,
