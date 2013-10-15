@@ -175,7 +175,7 @@ LEAF(savectx)
 	move	v0, zero
 END(savectx)
 
-NON_LEAF(cpu_throw, CALLFRAME_SIZ, ra)
+NESTED(cpu_throw, CALLFRAME_SIZ, ra)
 	mfc0	t0, MIPS_COP_0_STATUS		# t0 = saved status register
 	nop
 	nop
@@ -195,7 +195,7 @@ END(cpu_throw)
  *	a2 - mtx
  * Find the highest priority process and resume it.
  */
-NON_LEAF(cpu_switch, CALLFRAME_SIZ, ra)
+NESTED(cpu_switch, CALLFRAME_SIZ, ra)
 	mfc0	t0, MIPS_COP_0_STATUS		# t0 = saved status register
 	nop
 	nop
