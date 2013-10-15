@@ -241,7 +241,6 @@ pmponinvalidate(struct cam_periph *periph)
 		}
 	}
 	pmprelease(periph, -1);
-	xpt_print(periph->path, "lost device\n");
 }
 
 static void
@@ -251,7 +250,6 @@ pmpcleanup(struct cam_periph *periph)
 
 	softc = (struct pmp_softc *)periph->softc;
 
-	xpt_print(periph->path, "removing device entry\n");
 	cam_periph_unlock(periph);
 
 	/*
