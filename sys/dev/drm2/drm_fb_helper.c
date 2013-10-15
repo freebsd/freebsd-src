@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drm_crtc_helper.h>
 
 #include <dev/vt/vt.h>
+#include <dev/vt/colors/vt_termcolors.h>
 
 struct vt_kms_softc {
 	intptr_t	sc_paddr;
