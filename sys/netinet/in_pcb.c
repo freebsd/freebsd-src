@@ -448,7 +448,8 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 #ifdef INET6
 		if ((inp->inp_vflag & INP_IPV6) != 0)
 			tmpinp = in6_pcblookup_local(pcbinfo,
-			    &inp->in6p_laddr, lport, lookupflags, cred);
+			    &inp->in6p_laddr, inp->in6p_zoneid, lport,
+			    lookupflags, cred);
 #endif
 #if defined(INET) && defined(INET6)
 		else

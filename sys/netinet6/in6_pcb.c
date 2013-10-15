@@ -193,8 +193,8 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 			    priv_check_cred(inp->inp_cred,
 			    PRIV_NETINET_REUSEPORT, 0) != 0) {
 				t = in6_pcblookup_local(pcbinfo,
-				    &sin6->sin6_addr, lport,
-				    INPLOOKUP_WILDCARD, cred);
+				    &sin6->sin6_addr, sin6->sin6_scope_id,
+				    lport, INPLOOKUP_WILDCARD, cred);
 				if (t &&
 				    ((t->inp_flags & INP_TIMEWAIT) == 0) &&
 				    (so->so_type != SOCK_STREAM ||
@@ -227,7 +227,7 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 #endif
 			}
 			t = in6_pcblookup_local(pcbinfo, &sin6->sin6_addr,
-			    lport, lookupflags, cred);
+			    sin6->sin6_scope_id, lport, lookupflags, cred);
 			if (t && (t->inp_flags & INP_TIMEWAIT)) {
 				/*
 				 * XXXRW: If an incpb has had its timewait
@@ -269,6 +269,7 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 #endif
 		}
 		inp->in6p_laddr = sin6->sin6_addr;
+		inp->in6p_zoneid = sin6->sin6_scope_id;
 	}
 	if (lport == 0) {
 		if ((error = in6_pcbsetport(&inp->in6p_laddr, inp, cred)) != 0) {
@@ -676,7 +677,7 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
  */
 struct inpcb *
 in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
-    u_short lport, int lookupflags, struct ucred *cred)
+    uint32_t zoneid, u_short lport, int lookupflags, struct ucred *cred)
 {
 	register struct inpcb *inp;
 	int matchwild = 3, wildcard;
@@ -700,6 +701,7 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
 				continue;
 			if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) &&
 			    IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr) &&
+			    inp->in6p_zoneid == zoneid &&
 			    inp->inp_lport == lport) {
 				/* Found. */
 				if (cred == NULL ||
@@ -734,7 +736,6 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
 			 * fit.
 			 */
 			LIST_FOREACH(inp, &phd->phd_pcblist, inp_portlist) {
-				wildcard = 0;
 				if (cred != NULL &&
 				    !prison_equal_ip6(cred->cr_prison,
 					inp->inp_cred->cr_prison))
@@ -742,6 +743,7 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
 				/* XXX inp locking */
 				if ((inp->inp_vflag & INP_IPV6) == 0)
 					continue;
+				wildcard = 0;
 				if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr))
 					wildcard++;
 				if (!IN6_IS_ADDR_UNSPECIFIED(
@@ -750,6 +752,8 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
 						wildcard++;
 					else if (!IN6_ARE_ADDR_EQUAL(
 					    &inp->in6p_laddr, laddr))
+						continue;
+					else if (inp->in6p_zoneid != zoneid)
 						continue;
 				} else {
 					if (!IN6_IS_ADDR_UNSPECIFIED(laddr))

@@ -87,9 +87,8 @@ int	in6_pcbconnect_mbuf(struct inpcb *, struct sockaddr *,
 	    struct ucred *, struct mbuf *);
 void	in6_pcbdisconnect(struct inpcb *);
 struct	inpcb *
-	in6_pcblookup_local(struct inpcbinfo *,
-				 struct in6_addr *, u_short, int,
-				 struct ucred *);
+	in6_pcblookup_local(struct inpcbinfo *, struct in6_addr *, uint32_t,
+	    u_short, int, struct ucred *);
 struct	inpcb *
 	in6_pcblookup(struct inpcbinfo *, struct in6_addr *,
 			   u_int, struct in6_addr *, u_int, int,
