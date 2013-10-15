@@ -34,7 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
 
 #include <sys/param.h>
@@ -52,9 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/signalvar.h>
 #include <sys/vmmeter.h>
-#ifdef HWPMC_HOOKS
-#include <sys/pmckern.h>
-#endif
 
 #include <security/audit/audit.h>
 
@@ -195,14 +191,6 @@ trap(struct trapframe *frame)
 	CTR3(KTR_TRAP, "trap: %s type=%s (%s)", td->td_name,
 	    trapname(type), user ? "user" : "kernel");
 
-#ifdef HWPMC_HOOKS
-	if (type == EXC_PERF && (pmc_intr != NULL)) {
-		(*pmc_intr)(PCPU_GET(cpuid), frame);
-		if (user)
-			userret(td, frame);
-		return;
-	}
-#endif
 #ifdef KDTRACE_HOOKS
 	/*
 	 * A trap can occur while DTrace executes a probe. Before
@@ -292,7 +280,7 @@ trap(struct trapframe *frame)
 		case EXC_PGM:
 			/* Identify the trap reason */
 			if (frame->srr1 & EXC_PGM_TRAP)
-				sig = SIGTRAP;
+ 				sig = SIGTRAP;
 			else if (ppc_instr_emulate(frame) == 0)
 				frame->srr0 += 4;
 			else
