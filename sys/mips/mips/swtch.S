@@ -68,31 +68,6 @@
 
 	.set	noreorder			# Noreorder is default style!
 
-#define	SAVE_U_PCB_REG(reg, offs, base) \
-	REG_S	reg, U_PCB_REGS + (SZREG * offs) (base)
-
-#define	RESTORE_U_PCB_REG(reg, offs, base) \
-	REG_L	reg, U_PCB_REGS + (SZREG * offs) (base)
-
-#define	SAVE_U_PCB_FPREG(reg, offs, base) \
-	FP_S	reg, U_PCB_FPREGS + (SZFPREG * offs) (base)
-
-#define	RESTORE_U_PCB_FPREG(reg, offs, base) \
-	FP_L	reg, U_PCB_FPREGS + (SZFPREG * offs) (base)
-
-#define	SAVE_U_PCB_FPSR(reg, offs, base) \
-	REG_S	reg, U_PCB_FPREGS + (SZFPREG * offs) (base)
-
-#define	RESTORE_U_PCB_FPSR(reg, offs, base) \
-	REG_L	reg, U_PCB_FPREGS + (SZFPREG * offs) (base)
-
-#define	SAVE_U_PCB_CONTEXT(reg, offs, base) \
-	REG_S	reg, U_PCB_CONTEXT + (SZREG * offs) (base)
-
-#define	RESTORE_U_PCB_CONTEXT(reg, offs, base) \
-	REG_L	reg, U_PCB_CONTEXT + (SZREG * offs) (base)
-
-
 /*
  * Setup for and return to user.
  */
