@@ -83,6 +83,7 @@ struct	vnet;
 #include <sys/buf_ring.h>
 #include <net/vnet.h>
 #endif /* _KERNEL */
+#include <sys/counter.h>
 #include <sys/lock.h>		/* XXX */
 #include <sys/mutex.h>		/* XXX */
 #include <sys/rwlock.h>		/* XXX */
@@ -794,7 +795,6 @@ struct ifaddr {
 	struct	sockaddr *ifa_dstaddr;	/* other end of p-to-p link */
 #define	ifa_broadaddr	ifa_dstaddr	/* broadcast address interface */
 	struct	sockaddr *ifa_netmask;	/* used to determine subnet */
-	struct	if_data if_data;	/* not all members are meaningful */
 	struct	ifnet *ifa_ifp;		/* back-pointer to interface */
 	struct	carp_softc *ifa_carp;	/* pointer to CARP data */
 	TAILQ_ENTRY(ifaddr) ifa_link;	/* queue macro glue */
@@ -805,6 +805,11 @@ struct ifaddr {
 	int	ifa_metric;		/* cost of going out this interface */
 	int (*ifa_claim_addr)		/* check if an addr goes to this if */
 		(struct ifaddr *, struct sockaddr *);
+
+	counter_u64_t	ifa_ipackets;
+	counter_u64_t	ifa_opackets;	 
+	counter_u64_t	ifa_ibytes;
+	counter_u64_t	ifa_obytes;
 };
 #endif
 
