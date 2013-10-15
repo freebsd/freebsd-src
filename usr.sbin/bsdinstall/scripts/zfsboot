@@ -47,7 +47,7 @@ f_include $BSDCFG_SHARE/variable.subr
 #
 # Default name for the boot environment parent dataset
 #
-: ${ZFSBOOT_BEROOT_NAME:=bootenv}
+: ${ZFSBOOT_BEROOT_NAME:=ROOT}
 
 #
 # Default name for the primany boot environment
@@ -119,8 +119,6 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 	# Don't mount /usr so that 'base' files go to the BEROOT
 	/usr		mountpoint=/usr,canmount=off
 
-	/usr/local # local files (i.e. from packages) separate from base system
-
 	# Home directories separated so they are common to all BEs
 	/usr/home	setuid=off
 
@@ -137,7 +135,6 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 	/var		mountpoint=/var
 	/var/crash	compression=lz4,exec=off,setuid=off
 	/var/db		exec=off,setuid=off
-	/var/db/pkg	compression=lz4,exec=off,setuid=off
 	/var/empty	exec=off,setuid=off
 	/var/log	compression=lz4,exec=off,setuid=off
 	/var/mail	compression=lz4,exec=off,setuid=off
