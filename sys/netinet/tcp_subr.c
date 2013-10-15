@@ -1569,6 +1569,10 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 		inc.inc6_faddr = ((struct sockaddr_in6 *)sa)->sin6_addr;
 		inc.inc6_laddr = ip6cp->ip6c_src->sin6_addr;
 		inc.inc_flags |= INC_ISIPV6;
+		if (IN6_IS_ADDR_LINKLOCAL(&inc.inc6_laddr) ||
+		    IN6_IS_ADDR_LINKLOCAL(&inc.inc6_faddr))
+			inc.inc6_zoneid = in6_getscopezone(m->m_pkthdr.rcvif,
+			    IPV6_ADDR_SCOPE_LINKLOCAL);
 		INP_INFO_WLOCK(&V_tcbinfo);
 		syncache_unreach(&inc, &th);
 		INP_INFO_WUNLOCK(&V_tcbinfo);

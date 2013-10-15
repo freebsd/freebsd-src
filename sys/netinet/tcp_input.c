@@ -98,6 +98,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
+#include <netinet6/scope6_var.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -1060,6 +1061,11 @@ relocked:
 			inc.inc_flags |= INC_ISIPV6;
 			inc.inc6_faddr = ip6->ip6_src;
 			inc.inc6_laddr = ip6->ip6_dst;
+			if (IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_src) ||
+			    IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_dst))
+				inc.inc6_zoneid = in6_getscopezone(
+				    m->m_pkthdr.rcvif,
+				    IPV6_ADDR_SCOPE_LINKLOCAL);
 		} else
 #endif
 		{
