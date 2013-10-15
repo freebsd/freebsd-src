@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/pcpu.h>
 #include <sys/sysctl.h>
+#include <sys/counter.h>
 #include <kvm.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -319,7 +320,8 @@ kvm_read_zpcpu(kvm_t *kd, void *buf, u_long base, size_t size, int cpu)
 uint64_t
 kvm_counter_u64_fetch(kvm_t *kd, u_long base)
 {
-	uint64_t r, c;
+	counter_u64_t c;
+	uint64_t r;
 
 	if (mp_ncpus == 0)
 		if (_kvm_pcpu_init(kd) < 0)
