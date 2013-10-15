@@ -379,7 +379,7 @@ __END_DECLS
 
 #define	INADDR_LOOPBACK		(u_int32_t)0x7f000001
 #ifndef _KERNEL
-#define	INADDR_NONE		0xffffffff		/* -1 return */
+#define	INADDR_NONE		(uint32_t)0xffffffff	/* -1 return */
 #endif
 
 #define	INADDR_UNSPEC_GROUP	(u_int32_t)0xe0000000	/* 224.0.0.0 */
