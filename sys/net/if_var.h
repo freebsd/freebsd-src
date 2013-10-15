@@ -808,17 +808,17 @@ struct ifaddr {
 };
 #endif
 
+#ifdef _KERNEL
 #define	IFA_ROUTE	RTF_UP		/* route installed */
-#define IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
+#define	IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
 
-/* for compatibility with other BSDs */
+/* For compatibility with other BSDs. SCTP uses it. */
 #define	ifa_list	ifa_link
 
-#ifdef _KERNEL
 struct ifaddr *	ifa_alloc(size_t size, int flags);
 void	ifa_free(struct ifaddr *ifa);
 void	ifa_ref(struct ifaddr *ifa);
-#endif
+#endif /* _KERNEL */
 
 /*
  * Multicast address structure.  This is analogous to the ifaddr
