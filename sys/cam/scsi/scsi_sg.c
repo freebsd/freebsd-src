@@ -235,9 +235,6 @@ sgoninvalidate(struct cam_periph *periph)
 	 *     with XPT_ABORT_CCB.
 	 */
 
-	if (bootverbose) {
-		xpt_print(periph->path, "lost device\n");
-	}
 }
 
 static void
@@ -246,8 +243,6 @@ sgcleanup(struct cam_periph *periph)
 	struct sg_softc *softc;
 
 	softc = (struct sg_softc *)periph->softc;
-	if (bootverbose)
-		xpt_print(periph->path, "removing device entry\n");
 
 	devstat_remove_entry(softc->device_stats);
 

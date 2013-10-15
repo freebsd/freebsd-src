@@ -57,6 +57,12 @@ struct ar71xx_cpu_def {
 	 * each chip.
 	 */
 	void (* ar71xx_chip_init_usb_peripheral) (void);
+
+	void (* ar71xx_chip_reset_ethernet_switch) (void);
+
+	void (* ar71xx_chip_reset_wmac) (void);
+
+	void (* ar71xx_chip_init_gmac) (void);
 };
 
 extern struct ar71xx_cpu_def * ar71xx_cpu_ops;
@@ -111,6 +117,24 @@ static inline void ar71xx_init_usb_peripheral(void)
 	ar71xx_cpu_ops->ar71xx_chip_init_usb_peripheral();
 }
 
+static inline void ar71xx_reset_ethernet_switch(void)
+{
+	if (ar71xx_cpu_ops->ar71xx_chip_reset_ethernet_switch)
+		ar71xx_cpu_ops->ar71xx_chip_reset_ethernet_switch();
+}
+
+static inline void ar71xx_reset_wmac(void)
+{
+	if (ar71xx_cpu_ops->ar71xx_chip_reset_wmac)
+		ar71xx_cpu_ops->ar71xx_chip_reset_wmac();
+}
+
+static inline void ar71xx_init_gmac(void)
+{
+	if (ar71xx_cpu_ops->ar71xx_chip_init_gmac)
+		ar71xx_cpu_ops->ar71xx_chip_init_gmac();
+}
+
 static inline void ar71xx_device_ddr_flush_ip2(void)
 {
 	ar71xx_cpu_ops->ar71xx_chip_ddr_flush_ip2();
@@ -123,6 +147,7 @@ extern uint32_t u_ar71xx_ahb_freq;
 extern uint32_t u_ar71xx_ddr_freq;
 extern uint32_t u_ar71xx_uart_freq;
 extern uint32_t u_ar71xx_wdt_freq;
+extern uint32_t u_ar71xx_mdio_freq;
 
 static inline uint64_t ar71xx_refclk(void) { return u_ar71xx_refclk; }
 static inline uint64_t ar71xx_cpu_freq(void) { return u_ar71xx_cpu_freq; }
@@ -130,5 +155,6 @@ static inline uint64_t ar71xx_ahb_freq(void) { return u_ar71xx_ahb_freq; }
 static inline uint64_t ar71xx_ddr_freq(void) { return u_ar71xx_ddr_freq; }
 static inline uint64_t ar71xx_uart_freq(void) { return u_ar71xx_uart_freq; }
 static inline uint64_t ar71xx_wdt_freq(void) { return u_ar71xx_wdt_freq; }
+static inline uint64_t ar71xx_mdio_freq(void) { return u_ar71xx_mdio_freq; }
 
 #endif

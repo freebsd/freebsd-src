@@ -179,7 +179,7 @@ struct ufs1_dinode {
 	ufs1_daddr_t	di_db[NDADDR];	/*  40: Direct disk blocks. */
 	ufs1_daddr_t	di_ib[NIADDR];	/*  88: Indirect disk blocks. */
 	u_int32_t	di_flags;	/* 100: Status flags (chflags). */
-	int32_t		di_blocks;	/* 104: Blocks actually held. */
+	u_int32_t	di_blocks;	/* 104: Blocks actually held. */
 	u_int32_t	di_gen;		/* 108: Generation number. */
 	u_int32_t	di_uid;		/* 112: File owner. */
 	u_int32_t	di_gid;		/* 116: File group. */

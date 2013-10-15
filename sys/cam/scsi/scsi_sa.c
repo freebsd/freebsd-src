@@ -1400,9 +1400,6 @@ saoninvalidate(struct cam_periph *periph)
 	 */
 	bioq_flush(&softc->bio_queue, NULL, ENXIO);
 	softc->queue_count = 0;
-
-	xpt_print(periph->path, "lost device\n");
-
 }
 
 static void
@@ -1413,7 +1410,6 @@ sacleanup(struct cam_periph *periph)
 
 	softc = (struct sa_softc *)periph->softc;
 
-	xpt_print(periph->path, "removing device entry\n");
 	devstat_remove_entry(softc->device_stats);
 	cam_periph_unlock(periph);
 	destroy_dev(softc->devs.ctl_dev);

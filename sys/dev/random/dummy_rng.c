@@ -28,93 +28,92 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/time.h>
+#include <sys/fcntl.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/random.h>
 #include <sys/selinfo.h>
 #include <sys/systm.h>
+#include <sys/time.h>
 
 #include <dev/random/random_adaptors.h>
 #include <dev/random/randomdev.h>
 
-static struct mtx	pseudo_random_block_mtx;
+static struct mtx	dummy_random_mtx;
 
 /* Used to fake out unused random calls in random_adaptor */
-void
+static void
 random_null_func(void)
 {
 }
 
 static int
-pseudo_random_block_read(void *buf __unused, int c __unused)
+dummy_random_poll(int events __unused, struct thread *td __unused)
 {
-
-	mtx_lock(&pseudo_random_block_mtx);
-
-	printf("random(4) device is blocking.\n");
-	msleep(pseudo_random_block_read, &pseudo_random_block_mtx, 0,
-	    "block", 0);
-
-	mtx_unlock(&pseudo_random_block_mtx);
 
 	return (0);
 }
 
+static int
+dummy_random_block(int flag)
+{
+	int error = 0;
+
+	mtx_lock(&dummy_random_mtx);
+
+	/* Blocking logic */
+	while (!error) {
+		if (flag & O_NONBLOCK)
+			error = EWOULDBLOCK;
+		else {
+			printf("random: dummy device blocking on read.\n");
+			error = msleep(&dummy_random_block,
+			    &dummy_random_mtx,
+			    PUSER | PCATCH, "block", 0);
+		}
+	}
+	mtx_unlock(&dummy_random_mtx);
+
+	return (error);
+}
+
 static void
-pseudo_random_block_init(void)
+dummy_random_init(void)
 {
 
-	mtx_init(&pseudo_random_block_mtx, "sleep mtx for random_block",
+	mtx_init(&dummy_random_mtx, "sleep mtx for dummy_random",
 	    NULL, MTX_DEF);
 }
 
 static void
-pseudo_random_block_deinit(void)
+dummy_random_deinit(void)
 {
 
-	mtx_destroy(&pseudo_random_block_mtx);
+	mtx_destroy(&dummy_random_mtx);
 }
 
-struct random_adaptor pseudo_random_block = {
-	.ident = "pseudo-RNG that always blocks",
-	.init = pseudo_random_block_init,
-	.deinit = pseudo_random_block_deinit,
-	.read = pseudo_random_block_read,
-	.write = (random_write_func_t *)random_null_func,
+struct random_adaptor dummy_random = {
+	.ident = "Dummy entropy device that always blocks",
+	.init = dummy_random_init,
+	.deinit = dummy_random_deinit,
+	.block = dummy_random_block,
+	.poll = dummy_random_poll,
+	.read = (random_read_func_t *)random_null_func,
 	.reseed = (random_reseed_func_t *)random_null_func,
-	.seeded = 1,
+	.seeded = 0, /* This device can never be seeded */
+	.priority = 1, /* Bottom priority, so goes to last position */
 };
 
 static int
-pseudo_random_panic_read(void *buf, int c)
-{
-
-	panic("Insert a witty panic msg in here.");
-
-	return (0);
-}
-
-struct random_adaptor pseudo_random_panic = {
-	.ident = "pseudo-RNG that always panics on first read(2)",
-	.init = (random_init_func_t *)random_null_func,
-	.deinit = (random_deinit_func_t *)random_null_func,
-	.read = pseudo_random_panic_read,
-	.write = (random_write_func_t *)random_null_func,
-	.reseed = (random_reseed_func_t *)random_null_func,
-	.seeded = 1,
-};
-
-static int
-pseudo_random_modevent(module_t mod, int type, void *unused)
+dummy_random_modevent(module_t mod __unused, int type, void *unused __unused)
 {
 
 	switch (type) {
 	case MOD_LOAD:
-		random_adaptor_register("block", &pseudo_random_block);
+		random_adaptor_register("dummy", &dummy_random);
 		EVENTHANDLER_INVOKE(random_adaptor_attach,
-		    &pseudo_random_block);
-
-		random_adaptor_register("panic", &pseudo_random_panic);
+		    &dummy_random);
 
 		return (0);
 	}
@@ -122,4 +121,4 @@ pseudo_random_modevent(module_t mod, int type, void *unused)
 	return (EINVAL);
 }
 
-RANDOM_ADAPTOR_MODULE(pseudo, pseudo_random_modevent, 1);
+RANDOM_ADAPTOR_MODULE(dummy, dummy_random_modevent, 1);

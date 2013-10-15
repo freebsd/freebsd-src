@@ -329,7 +329,7 @@ TARGET_ABI=	gnueabi
 .else
 TARGET_ABI=	unknown
 .endif
-TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd10.0
+TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.0
 XFLAGS+=	-target ${TARGET_TRIPLE}
 .endif
 .endif

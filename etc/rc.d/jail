@@ -22,7 +22,7 @@ status_cmd="jail_status"
 extra_commands="config console status"
 : ${jail_conf:=/etc/jail.conf}
 : ${jail_program:=/usr/sbin/jail}
-: ${jail_consolecmd:=/bin/sh}
+: ${jail_consolecmd:=/usr/bin/login -f root}
 : ${jail_jexec:=/usr/sbin/jexec}
 : ${jail_jls:=/usr/sbin/jls}
 
@@ -94,7 +94,7 @@ extract_var()
 #
 parse_options()
 {
-	local _j
+	local _j _p
 	_j=$1
 
 	_confwarn=0
@@ -166,7 +166,7 @@ parse_options()
 			jail_handle_ips_option $_ip $_interface
 			alias=0
 			while : ; do
-				eval _x=\"\$jail_${_jail}_ip_multi${alias}\"
+				eval _x=\"\$jail_${_j}_ip_multi${alias}\"
 				[ -z "$_x" ] && break
 
 				jail_handle_ips_option $_x $_interface
@@ -208,6 +208,7 @@ parse_options()
 		eval : \${jail_${_j}_devfs_enable:=${jail_devfs_enable:-NO}}
 		if checkyesno jail_${_j}_devfs_enable; then
 			echo "	mount.devfs;"
+			eval _ruleset=\${jail_${_j}_devfs_ruleset:-${jail_devfs_ruleset}}
 			case $_ruleset in
 			"")	;;
 			[0-9]*) echo "	devfs_ruleset = \"$_ruleset\";" ;;
@@ -217,7 +218,7 @@ parse_options()
 				# mount(8) only accepts an integer. 
 				# This should accept a ruleset name.
 			;;
-			*)	warn "devfs_ruleset must be integer." ;;
+			*)	warn "devfs_ruleset must be an integer." ;;
 			esac
 			if [ -r $_fstab ]; then
 				echo "	mount.fstab = \"$_fstab\";"
@@ -226,16 +227,13 @@ parse_options()
 
 		eval : \${jail_${_j}_fdescfs_enable:=${jail_fdescfs_enable:-NO}}
 		if checkyesno jail_${_j}_fdescfs_enable; then
-			echo "	mount += " \
-			    "\"fdescfs ${_rootdir%/}/dev/fd fdescfs rw 0 0\";"
+			echo "	mount.fdescfs;"
 		fi
 		eval : \${jail_${_j}_procfs_enable:=${jail_procfs_enable:-NO}}
 		if checkyesno jail_${_j}_procfs_enable; then
 			echo "	mount += " \
 			    "\"procfs ${_rootdir%/}/proc procfs rw 0 0\";"
 		fi
-
-		echo "	${_parameters};"
 
 		eval : \${jail_${_j}_mount_enable:=${jail_mount_enable:-NO}}
 		if checkyesno jail_${_j}_mount_enable; then
@@ -244,6 +242,9 @@ parse_options()
 
 		extract_var $_j set_hostname_allow allow.set_hostname YN NO
 		extract_var $_j sysvipc_allow allow.sysvipc YN NO
+		for _p in $_parameters; do
+			echo "	${_p%\;};"
+		done
 		echo "}"
 	) >> $_conf
 
@@ -328,9 +329,9 @@ jail_extract_address()
 #
 jail_handle_ips_option()
 {
-	local _x _type _i _iface
+	local _x _type _i _defif
 	_x=$1
-	_iface=$2
+	_defif=$2
 
 	if [ -z "${_x}" ]; then
 		# No IP given. This can happen for the primary address
@@ -354,7 +355,8 @@ jail_handle_ips_option()
 		_type=""
 		_addr=""
 		_mask=""
-		jail_extract_address $_i $_iface
+		_iface=""
+		jail_extract_address $_i $_defif
 
 		# make sure we got an address.
 		case $_addr in
@@ -365,10 +367,10 @@ jail_handle_ips_option()
 		# Append address to list of addresses for the jail command.
 		case $_type in
 		inet)
-			echo "	ip4.addr += \"${_addr}${_mask}\";"
+			echo "	ip4.addr += \"${_iface}|${_addr}${_mask}\";"
 		;;
 		inet6)
-			echo "	ip6.addr += \"${_addr}${_mask}\";"
+			echo "	ip6.addr += \"${_iface}|${_addr}${_mask}\";"
 			need_dad_wait=1
 		;;
 		esac
@@ -377,26 +379,35 @@ jail_handle_ips_option()
 
 jail_config()
 {
+	local _j
+
 	case $1 in
 	_ALL)	return ;;
 	esac
-	for _jail in $@; do
-		if parse_options $_jail; then 
-			echo "$_jail: parameters are in $_conf."
+	for _j in $@; do
+		_j=$(echo $_j | tr /. _)
+		if parse_options $_j; then 
+			echo "$_j: parameters are in $_conf."
 		fi
 	done
 }
 
 jail_console()
 {
+	local _j _cmd
+
 	# One argument that is not _ALL.
 	case $#:$1 in
-	1:_ALL)	err 3 "Specify a jail name." ;;
-	1:*)	;;
-	*)	err 3 "Specify a jail name." ;;
+	0:*|1:_ALL)	err 3 "Specify a jail name." ;;
+	1:*)		;;
 	esac
-	eval _cmd=\${jail_$1_consolecmd:-$jail_consolecmd}
-	$jail_jexec $1 $_cmd
+	_j=$(echo $1 | tr /. _)
+	shift
+	case $# in
+	0)	eval _cmd=\${jail_${_j}_consolecmd:-$jail_consolecmd} ;;
+	*)	_cmd=$@ ;;
+	esac
+	$jail_jexec $_j $_cmd
 }
 
 jail_status()
@@ -407,6 +418,8 @@ jail_status()
 
 jail_start()
 {
+	local _j _jid _jn
+
 	if [ $# = 0 ]; then
 		return
 	fi
@@ -417,28 +430,40 @@ jail_start()
 		command=$jail_program
 		rc_flags=$jail_flags
 		command_args="-f $jail_conf -c"
-		$command $rc_flags $command_args "*"
+		$jail_jls -nq | while read IN; do
+			_jn=$(echo $IN | tr " " "\n" | grep name=)
+			_jid=$(echo $IN | tr " " "\n" | grep jid=)
+			if $command $rc_flags $command_args ${_jn#name=}; then
+				echo -n " ${_jn#name=}"
+				echo "${_jid#jid=}" \
+				    > /var/run/jail_${_jn#name=}.id
+			fi
+		done
 		echo '.'
 		return
 	;;
 	esac
 	_tmp=`mktemp -t jail` || exit 3
-	for _jail in $@; do
-		parse_options $_jail || continue
+	for _j in $@; do
+		_j=$(echo $_j | tr /. _)
+		parse_options $_j || continue
 
 		eval rc_flags=\${jail_${_j}_flags:-$jail_flags}
 		eval command=\${jail_${_j}_program:-$jail_program}
 		if checkyesno jail_parallel_start; then
-			command_args="-i -f $_conf -c $_jail &"
+			command_args="-i -f $_conf -c $_j &"
 		else
-			command_args="-i -f $_conf -c $_jail"
+			command_args="-i -f $_conf -c $_j"
 		fi
 		if $command $rc_flags $command_args \
 		    >> $_tmp 2>&1 </dev/null; then
-			echo -n " ${_hostname:-${_jail}}"
+			echo -n " ${_hostname:-${_j}}"
+			_jid=$($jail_jls -n -j $_j | tr " " "\n" | grep jid=)
+			echo "${_jid#jid=}" > /var/run/jail_${_j}.id
 		else
-			echo " cannot start jail \"${_hostname:-${jail}}\": "
-			tail +2 $_tmp
+			rm -f /var/run/jail_${_j}.id
+			echo " cannot start jail \"${_hostname:-${_j}}\": "
+			cat $_tmp
 		fi
 		rm -f $_tmp
 	done
@@ -447,6 +472,8 @@ jail_start()
 
 jail_stop()
 {
+	local _j _jn
+
 	if [ $# = 0 ]; then
 		return
 	fi
@@ -457,16 +484,29 @@ jail_stop()
 		command=$jail_program
 		rc_flags=$jail_flags
 		command_args="-f $jail_conf -r"
-		$command $rc_flags $command_args "*"
+		$jail_jls -nq | while read IN; do
+			_jn=$(echo $IN | tr " " "\n" | grep name=)
+			echo -n " ${_jn#name=}"
+			$command $rc_flags $command_args ${_jn#name=}
+			if ! $jail_jls -j ${_jn#name=} > /dev/null 2>&1; then
+				rm -f /var/run/jail_${_jn#name=}.id
+			fi
+		done
 		echo '.'
 		return
 	;;
 	esac
-	for _jail in $@; do
-		parse_options $_jail || continue
+	for _j in $@; do
+		_j=$(echo $_j | tr /. _)
+		parse_options $_j || continue
+		if ! $jail_jls -j $_j > /dev/null 2>&1; then
+			continue
+		fi
 		eval command=\${jail_${_j}_program:-$jail_program}
-		if $command -q -f $_conf -r $_jail; then
-			echo -n " ${_hostname:-${_jail}}"
+		echo -n " ${_hostname:-${_j}}"
+		$command -q -f $_conf -r $_j
+		if ! $jail_jls -j $_j > /dev/null 2>&1; then
+			rm -f /var/run/jail_${_j}.id
 		fi
 	done
 	echo '.'

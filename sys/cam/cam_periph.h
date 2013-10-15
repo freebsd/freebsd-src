@@ -122,6 +122,7 @@ struct cam_periph {
 #define CAM_PERIPH_RECOVERY_INPROG	0x20
 #define CAM_PERIPH_RUN_TASK		0x40
 #define CAM_PERIPH_FREE			0x80
+#define CAM_PERIPH_ANNOUNCED		0x100
 	uint32_t		 scheduled_priority;
 	uint32_t		 immediate_priority;
 	int			 periph_allocating;

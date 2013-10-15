@@ -49,6 +49,7 @@ f_struct_define DEVICE \
 	desc		\
 	devname		\
 	type		\
+	capacity	\
 	enabled		\
 	init		\
 	get		\
@@ -114,7 +115,7 @@ f_device_try()
 }
 
 # f_device_register $name $desc $devname $type $enabled $init_function \
-#                   $get_function $shutdown_function $private
+#                   $get_function $shutdown_function $private $capacity
 #
 # Register a device. A `structure' (see struct.subr) is created with the name
 # device_$name (so make sure $name contains only alpha-numeric characters or
@@ -128,6 +129,7 @@ f_device_register()
 {
 	local name="$1" desc="$2" devname="$3" type="$4" enabled="$5"
 	local init_func="$6" get_func="$7" shutdown_func="$8" private="$9"
+	local capacity="${10}"
 
 	f_struct_new DEVICE "device_$name" || return $FAILURE
 	device_$name set name     "$name"
@@ -139,6 +141,7 @@ f_device_register()
 	device_$name set get      "$get_func"
 	device_$name set shutdown "$shutdown_func"
 	device_$name set private  "$private"
+	device_$name set capacity "$capacity"
 
 	# Scan our global register to see if it needs ammending
 	local dev found=
@@ -196,7 +199,7 @@ f_device_get_all()
 		f_dprintf "Found a network device named %s" "$devname"
 		f_device_register $devname \
 			"$desc" "$devname" $DEVICE_TYPE_NETWORK 1 \
-			f_media_init_network "" f_media_shutdown_network ""
+			f_media_init_network "" f_media_shutdown_network "" -1
 	done
 
 	# Next, try to find all the types of devices one might use
@@ -208,6 +211,10 @@ f_device_get_all()
 		n=$(( $n + 1 ))
 		# Get the desc, type, and max (with debugging disabled)
 		# NOTE: Bypassing f_device_name_get() for efficiency
+		# ASIDE: This would be equivalent to the following:
+		# 	debug= f_device_name_get $dev desc
+		# 	debug= f_device_name_get $dev type
+		# 	debug= f_device_name_get $dev max
 		debug= f_getvar _device_desc$n desc
 		debug= f_getvar _device_type$n type
 		debug= f_getvar _device_max$n max
@@ -222,7 +229,8 @@ f_device_get_all()
 				f_device_register "${devname##*/}" "$desc" \
 					"$devname" $DEVICE_TYPE_CDROM 1 \
 					f_media_init_cdrom f_media_get_cdrom \
-					f_media_shutdown_cdrom ""
+					f_media_shutdown_cdrom "" \
+					"$( f_device_capacity "$devname" )"
 				f_dprintf "Found a CDROM device for %s" \
 				          "$devname"
 				;;
@@ -232,7 +240,8 @@ f_device_get_all()
 					"$devname" $DEVICE_TYPE_FLOPPY 1 \
 					f_media_init_floppy \
 					f_media_get_floppy \
-					f_media_shutdown_floppy ""
+					f_media_shutdown_floppy "" \
+					"$( f_device_capacity "$devname" )"
 				f_dprintf "Found a floppy device for %s" \
 				          "$devname"
 				;;
@@ -241,7 +250,8 @@ f_device_get_all()
 				f_device_register "${devname##*/}" "$desc" \
 					"$devname" $DEVICE_TYPE_USB 1 \
 					f_media_init_usb f_media_get_usb \
-					f_media_shutdown_usb ""
+					f_media_shutdown_usb "" \
+					"$( f_device_capacity "$devname" )"
 				f_dprintf "Found a USB disk for %s" "$devname"
 				;;
 			esac
@@ -254,7 +264,8 @@ f_device_get_all()
 		f_device_register "${devname##*/}" "ISO9660 file system" \
 			"$devname" $DEVICE_TYPE_CDROM 1 \
 			f_media_init_cdrom f_media_get_cdrom \
-			f_media_shutdown_cdrom ""
+			f_media_shutdown_cdrom "" \
+			"$( f_device_capacity "$devname" )"
 		f_dprintf "Found a CDROM device for %s" "$devname"
 	done
 
@@ -281,7 +292,8 @@ f_device_get_all()
 				"md(4) vnode file system" \
 				"$devname" $DEVICE_TYPE_CDROM 1 \
 				f_media_init_cdrom f_media_get_cdrom \
-				f_media_shutdown_cdrom ""
+				f_media_shutdown_cdrom "" \
+				"$( f_device_capacity "$devname" )"
 			f_dprintf "Found a CDROM device for %s" "$devname"
 			;;
 		esac
@@ -313,8 +325,13 @@ f_device_get_all()
 			continue
 		fi
 
-		f_device_register "$diskname" "" \
-		                  "/dev/$diskname" $DEVICE_TYPE_DISK 0
+		# Try and find its description
+		f_device_desc "$diskname" $DEVICE_TYPE_DISK desc
+
+		f_device_register "$diskname" "$desc" \
+		                  "/dev/$diskname" $DEVICE_TYPE_DISK 0 \
+		                  "" "" "" "" \
+		                  "$( f_device_capacity "$diskname" )"
 		f_dprintf "Found a disk device named %s" "$diskname"
 
 		# Look for existing partitions to register
@@ -327,7 +344,8 @@ f_device_get_all()
 				f_device_register "$slice" "" \
 					"/dev/$slice" $DEVICE_TYPE_DOS 1 \
 					f_media_init_dos f_media_get_dos \
-					f_media_shutdown_dos ""
+					f_media_shutdown_dos "" \
+					"$( f_device_capacity "/dev/$slice" )"
 				f_dprintf "Found a DOS partition %s" "$slice"
 				;;
 			0xa5) # FreeBSD partition
@@ -347,7 +365,9 @@ f_device_get_all()
 						$DEVICE_TYPE_UFS 1 \
 						f_media_init_ufs \
 						f_media_get_ufs \
-						f_media_shutdown_ufs ""
+						f_media_shutdown_ufs "" \
+						"$( f_device_capacity \
+							"$/dev/$part" )"
 					f_dprintf "Found a UFS partition %s" \
 					          "$part"
 				done # parts
@@ -379,10 +399,27 @@ f_device_name_get()
 	case "$__prop" in type|desc|max) : good ;;
 	*) return $FAILURE; esac
 
+	#
+	# Attempt to create an alternate-form of $__name that contains the
+	# first contiguous string of numbers replaced with `%d' for comparison
+	# against stored pattern names (see MAIN).
+	#
+	local __left="${__name%%[0-9]*}" __right="${__name#*[0-9]}" __dname=
+	if [ "$__left" != "$__name" ]; then
+		# Chop leading digits from right 'til we hit first non-digit
+		while :; do
+			case "$__right" in
+			[0-9]*) __right="${__right#[0-9]}" ;;
+			     *) break
+			esac
+		done
+		__dname="${__left}%d$__right"
+	fi
+
 	[ "$__type" = "$DEVICE_TYPE_ANY" ] && __type=
 	for __dev in $DEVICE_NAMES; do
 		__n=$(( $__n + 1 ))
-		[ "$__dev" = "$__name" ] || continue
+		[ "$__dev" = "$__name" -o "$__dev" = "$__dname" ] || continue
 		f_getvar _device_type$__n __devtype
 		[ "${__type:-$__devtype}" = "$__devtype" ] || continue
 		f_getvar _device_$__prop$__n $__var_to_set
@@ -463,6 +500,39 @@ f_device_desc()
 		fi
 	fi
 
+	#
+	# For disks, attempt to return camcontrol(8) descriptions.
+	# Otherwise fall through to below static list.
+	#
+	f_have camcontrol &&
+	[ "${__type:-$DEVICE_TYPE_DISK}" = "$DEVICE_TYPE_DISK" ] &&
+	__cp=$( camcontrol devlist 2> /dev/null | awk -v disk="$__name" '
+		$0~"(\\(|,)"disk"(,|\\))" {
+			if (!match($0, "<[^>]+>")) next
+			print substr($0, RSTART+1, RLENGTH-2)
+			found = 1
+			exit
+		}
+		END { exit ! found }
+	' ) && setvar "$__var_to_set" "$__cp" && return $SUCCESS
+
+	#
+	# Attempt to create an alternate-form of $__name that contains the
+	# first contiguous string of numbers replaced with `%d' for comparison
+	# against stored pattern names (see MAIN).
+	#
+	local __left="${__name%%[0-9]*}" __right="${__name#*[0-9]}" __dname=
+	if [ "$__left" != "$__name" ]; then
+		# Chop leading digits from right 'til we hit first non-digit
+		while :; do
+			case "$__right" in
+			[0-9]*) __right="${__right#[0-9]}" ;;
+			     *) break
+			esac
+		done
+		__dname="${__left}%d$__right"
+	fi
+
 	local __dev __devtype __n=0
 	for __dev in $DEVICE_NAMES; do
 		__n=$(( $__n + 1 ))
@@ -472,11 +542,8 @@ f_device_desc()
 			__devname=$( f_substr "$__name" 0 ${#__dev} )
 			[ "$__devname" = "$__dev" ] || continue
 		else
-			__devname="${__name%%[0-9]*}"
-			__devunit="${__name#$__devname}"
-			__devunit="${__devunit%%[!0-9]*}"
-			__devname=$( printf "$__dev" $__devunit )
-			[ "$__devname" = "$__name" ] || continue
+			[ "$__dev" = "$__name" -o "$__dev" = "$__dname" ] ||
+				continue
 		fi
 		debug= f_getvar _device_desc$__n $__var_to_set
 		return $?
@@ -655,6 +722,25 @@ f_device_menu()
 	return $retval
 }
 
+# f_device_capacity $device [$var_to_set]
+#
+# Return the capacity of $device in bytes.
+#
+f_device_capacity()
+{
+	local __dev="$1" __var_to_set="$2"
+	local __bytes
+
+	__bytes=$( diskinfo -v "$__dev" 2> /dev/null |
+		awk '/# mediasize in bytes/{print $1}' ) || __bytes=-1
+
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$__bytes"
+	else
+		echo "$__bytes"
+	fi
+}
+
 #
 # Short-hand
 #
@@ -680,6 +766,7 @@ f_disk   "ipsd%d" "IBM ServeRAID RAID array"          4
 f_disk   "mfid%d" "LSI MegaRAID SAS array"            4
 f_disk   "mlxd%d" "Mylex RAID disk"                   4
 f_disk   "twed%d" "3ware ATA RAID array"              4
+f_disk   "vtbd%d" "VirtIO Block Device"               16
 f_floppy "fd%d"   "Floppy Drive unit A"               4
 f_serial "cuau%d" "%s on device %s (COM%d)"           16
 f_usb    "da%da"  "USB Mass Storage Device"           16

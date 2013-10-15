@@ -427,7 +427,6 @@ cdoninvalidate(struct cam_periph *periph)
 		camq_remove(&softc->changer->devq, softc->pinfo.index);
 
 	disk_gone(softc->disk);
-	xpt_print(periph->path, "lost device, %d refs\n", periph->refcount);
 }
 
 static void
@@ -436,8 +435,6 @@ cdcleanup(struct cam_periph *periph)
 	struct cd_softc *softc;
 
 	softc = (struct cd_softc *)periph->softc;
-
-	xpt_print(periph->path, "removing device entry\n");
 
 	/*
 	 * In the queued, non-active case, the device in question

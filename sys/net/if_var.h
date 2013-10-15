@@ -83,6 +83,7 @@ struct	vnet;
 #include <sys/buf_ring.h>
 #include <net/vnet.h>
 #endif /* _KERNEL */
+#include <sys/counter.h>
 #include <sys/lock.h>		/* XXX */
 #include <sys/mutex.h>		/* XXX */
 #include <sys/rwlock.h>		/* XXX */
@@ -788,12 +789,12 @@ drbr_inuse(struct ifnet *ifp, struct buf_ring *br)
  * chunk of malloc'ed memory, where we store the three addresses
  * (ifa_addr, ifa_dstaddr and ifa_netmask) referenced here.
  */
+#if defined(_KERNEL) || defined(_WANT_IFADDR)
 struct ifaddr {
 	struct	sockaddr *ifa_addr;	/* address of interface */
 	struct	sockaddr *ifa_dstaddr;	/* other end of p-to-p link */
 #define	ifa_broadaddr	ifa_dstaddr	/* broadcast address interface */
 	struct	sockaddr *ifa_netmask;	/* used to determine subnet */
-	struct	if_data if_data;	/* not all members are meaningful */
 	struct	ifnet *ifa_ifp;		/* back-pointer to interface */
 	struct	carp_softc *ifa_carp;	/* pointer to CARP data */
 	TAILQ_ENTRY(ifaddr) ifa_link;	/* queue macro glue */
@@ -804,22 +805,25 @@ struct ifaddr {
 	int	ifa_metric;		/* cost of going out this interface */
 	int (*ifa_claim_addr)		/* check if an addr goes to this if */
 		(struct ifaddr *, struct sockaddr *);
-	struct mtx ifa_mtx;
-};
-#define	IFA_ROUTE	RTF_UP		/* route installed */
-#define IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
 
-/* for compatibility with other BSDs */
-#define	ifa_list	ifa_link
+	counter_u64_t	ifa_ipackets;
+	counter_u64_t	ifa_opackets;	 
+	counter_u64_t	ifa_ibytes;
+	counter_u64_t	ifa_obytes;
+};
+#endif
 
 #ifdef _KERNEL
-#define	IFA_LOCK(ifa)		mtx_lock(&(ifa)->ifa_mtx)
-#define	IFA_UNLOCK(ifa)		mtx_unlock(&(ifa)->ifa_mtx)
+#define	IFA_ROUTE	RTF_UP		/* route installed */
+#define	IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
 
+/* For compatibility with other BSDs. SCTP uses it. */
+#define	ifa_list	ifa_link
+
+struct ifaddr *	ifa_alloc(size_t size, int flags);
 void	ifa_free(struct ifaddr *ifa);
-void	ifa_init(struct ifaddr *ifa);
 void	ifa_ref(struct ifaddr *ifa);
-#endif
+#endif /* _KERNEL */
 
 /*
  * Multicast address structure.  This is analogous to the ifaddr
