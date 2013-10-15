@@ -814,11 +814,11 @@ zfs_create_boot()
 
 	# Some additional GELI requirements for loader.conf(5)
 	echo 'zpool_cache_load="YES"' \
-		>> $BSDINSTALL_TMPETC/loader.conf.zfs || return $FAILURE
+		>> $BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
 	echo 'zpool_cache_type="/boot/zfs/zpool.cache"' \
-		>> $BSDINSTALL_TMPETC/loader.conf.zfs || return $FAILURE
+		>> $BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
 	echo 'zpool_cache_name="/boot/zfs/zpool.cache"' \
-		>> $BSDINSTALL_TMPETC/loader.conf.zfs || return $FAILURE
+		>> $BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
 
 	#
 	# Configure geli(8)-based encryption
