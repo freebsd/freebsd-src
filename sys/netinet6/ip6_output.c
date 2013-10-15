@@ -2659,10 +2659,8 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
 		}
 
 		/* validate the interface index if specified. */
-		if (pktinfo->ipi6_ifindex > V_if_index ||
-		    pktinfo->ipi6_ifindex < 0) {
+		if (pktinfo->ipi6_ifindex > V_if_index)
 			 return (ENXIO);
-		}
 		if (pktinfo->ipi6_ifindex) {
 			ifp = ifnet_byindex(pktinfo->ipi6_ifindex);
 			if (ifp == NULL)
