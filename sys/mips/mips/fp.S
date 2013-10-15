@@ -94,7 +94,7 @@
  *
  *----------------------------------------------------------------------------
  */
-NON_LEAF(MipsEmulateFP, CALLFRAME_SIZ, ra)
+NESTED(MipsEmulateFP, CALLFRAME_SIZ, ra)
 	subu	sp, sp, CALLFRAME_SIZ
 	sw	ra, CALLFRAME_RA(sp)
 /*

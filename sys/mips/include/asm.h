@@ -261,12 +261,6 @@ _C_LABEL(x):
 	.asciiz str;			\
 	.align	3
 
-/*
- * XXX retain dialects XXX
- */
-#define	NON_LEAF(x, fsize, retpc)	NESTED(x, fsize, retpc)
-#define	NNON_LEAF(x, fsize, retpc)	NESTED_NOPROFILE(x, fsize, retpc)
-
 #if defined(__mips_o32)
 #define	SZREG	4
 #else

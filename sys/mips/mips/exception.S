@@ -377,7 +377,7 @@ SlowFault:
 #define	KERN_REG_SIZE		(NUMSAVEREGS * SZREG)
 #define	KERN_EXC_FRAME_SIZE	(CALLFRAME_SIZ + KERN_REG_SIZE + 16)
 
-NNON_LEAF(MipsKernGenException, KERN_EXC_FRAME_SIZE, ra)
+NESTED_NOPROFILE(MipsKernGenException, KERN_EXC_FRAME_SIZE, ra)
 	.set	noat
 	PTR_SUBU	sp, sp, KERN_EXC_FRAME_SIZE
 	.mask	0x80000000, (CALLFRAME_RA - KERN_EXC_FRAME_SIZE)
@@ -426,7 +426,7 @@ END(MipsKernGenException)
  *
  *----------------------------------------------------------------------------
  */
-NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
+NESTED_NOPROFILE(MipsUserGenException, CALLFRAME_SIZ, ra)
 	.set	noat
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 /*
@@ -573,7 +573,7 @@ END(MipsUserGenException)
 
 	.set	push
 	.set	noat
-NON_LEAF(mips_wait, CALLFRAME_SIZ, ra)
+NESTED(mips_wait, CALLFRAME_SIZ, ra)
 	PTR_SUBU        sp, sp, CALLFRAME_SIZ
 	.mask   0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	REG_S   ra, CALLFRAME_RA(sp)		# save RA
@@ -615,7 +615,7 @@ END(mips_wait)
  *----------------------------------------------------------------------------
  */
 
-NNON_LEAF(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
+NESTED_NOPROFILE(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
 	.set	noat
 	PTR_SUBU	sp, sp, KERN_EXC_FRAME_SIZE
 	.mask	0x80000000, (CALLFRAME_RA - KERN_EXC_FRAME_SIZE)
@@ -682,7 +682,7 @@ END(MipsKernIntr)
  *
  *----------------------------------------------------------------------------
  */
-NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
+NESTED_NOPROFILE(MipsUserIntr, CALLFRAME_SIZ, ra)
 	.set	noat
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 /*
@@ -1088,7 +1088,7 @@ END(MipsTLBMissException)
  *
  *----------------------------------------------------------------------------
  */
-NON_LEAF(MipsFPTrap, CALLFRAME_SIZ, ra)
+NESTED(MipsFPTrap, CALLFRAME_SIZ, ra)
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ
 	mfc0	t0, MIPS_COP_0_STATUS
 	REG_S	ra, CALLFRAME_RA(sp)
