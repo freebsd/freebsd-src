@@ -61,6 +61,7 @@
 #include <machine/regnum.h>
 #include <machine/cpuregs.h>
 #include <machine/pte.h>
+#include <machine/pcb.h>
 
 #include "assym.s"
 
@@ -410,12 +411,6 @@ NNON_LEAF(MipsKernGenException, KERN_EXC_FRAME_SIZE, ra)
 	.set	at
 END(MipsKernGenException)
 
-
-#define	SAVE_U_PCB_REG(reg, offs, base) \
-	REG_S	reg, U_PCB_REGS + (SZREG * offs) (base)
-
-#define	RESTORE_U_PCB_REG(reg, offs, base) \
-	REG_L	reg, U_PCB_REGS + (SZREG * offs) (base)
 
 /*----------------------------------------------------------------------------
  *
