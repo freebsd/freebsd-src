@@ -288,7 +288,7 @@ END(copyerr)
  */
 #ifdef __mips_n64
 LEAF(fuword64)
-ALEAF(fuword)
+XLEAF(fuword)
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
 	nop
@@ -303,7 +303,7 @@ END(fuword64)
 
 LEAF(fuword32)
 #ifndef __mips_n64
-ALEAF(fuword)
+XLEAF(fuword)
 #endif
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
@@ -553,7 +553,7 @@ END(memset)
  * bzero(s1, n)
  */
 LEAF(bzero)
-ALEAF(blkclr)
+XLEAF(blkclr)
 	.set	noreorder
 	blt	a1, 12, smallclr	# small amount to clear?
 	PTR_SUBU	a3, zero, a0		# compute # bytes to word align address
