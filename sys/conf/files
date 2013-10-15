@@ -2457,6 +2457,7 @@ dev/vge/if_vge.c		optional vge
 
 dev/vkbd/vkbd.c			optional vkbd
 dev/vr/if_vr.c			optional vr pci
+dev/vt/colors/vt_termcolors.c	optional vt
 dev/vt/font/font_default.c	optional vt
 dev/vt/hw/intel/intel.c		optional vt vt_intel
 dev/vt/hw/vga/vga.c		optional vt vt_vga
