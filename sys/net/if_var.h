@@ -819,8 +819,8 @@ struct ifaddr {
 #define	IFA_LOCK(ifa)		mtx_lock(&(ifa)->ifa_mtx)
 #define	IFA_UNLOCK(ifa)		mtx_unlock(&(ifa)->ifa_mtx)
 
+struct ifaddr *	ifa_alloc(size_t size, int flags);
 void	ifa_free(struct ifaddr *ifa);
-void	ifa_init(struct ifaddr *ifa);
 void	ifa_ref(struct ifaddr *ifa);
 #endif
 
