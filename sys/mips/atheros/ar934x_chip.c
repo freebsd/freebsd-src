@@ -92,6 +92,7 @@ ar934x_chip_detect_sys_frequency(void)
 	uint32_t pll, out_div, ref_div, nint, nfrac, frac, clk_ctrl, postdiv;
 	uint32_t cpu_pll, ddr_pll;
 	uint32_t bootstrap;
+	uint32_t reg;
 
 	bootstrap = ATH_READ_REG(AR934X_RESET_REG_BOOTSTRAP);
 	if (bootstrap & AR934X_BOOTSTRAP_REF_CLK_40)
@@ -187,6 +188,18 @@ ar934x_chip_detect_sys_frequency(void)
 
 	u_ar71xx_wdt_freq = u_ar71xx_refclk;
 	u_ar71xx_uart_freq = u_ar71xx_refclk;
+
+	/*
+	 * Next, fetch reference clock speed for MDIO bus.
+	 */
+	reg = ATH_READ_REG(AR934X_PLL_SWITCH_CLOCK_CONTROL_REG);
+	if (reg & AR934X_PLL_SWITCH_CLOCK_CONTROL_MDIO_CLK_SEL) {
+		printf("%s: mdio=100MHz\n", __func__);
+		u_ar71xx_mdio_freq = (100 * 1000 * 1000);
+	} else {
+		printf("%s: mdio=%d Hz\n", __func__, u_ar71xx_refclk);
+		u_ar71xx_mdio_freq = u_ar71xx_refclk;
+	}
 }
 
 static void
@@ -233,10 +246,10 @@ ar934x_chip_set_pll_ge(int unit, int speed, uint32_t pll)
 
 	switch (unit) {
 	case 0:
-		/* XXX TODO */
+		ATH_WRITE_REG(AR934X_PLL_ETH_XMII_CONTROL_REG, pll);
 		break;
 	case 1:
-		/* XXX TODO */
+		/* XXX nothing */
 		break;
 	default:
 		printf("%s: invalid PLL set for arge unit: %d\n",
@@ -273,26 +286,50 @@ ar934x_chip_ddr_flush_ip2(void)
 static uint32_t
 ar934x_chip_get_eth_pll(unsigned int mac, int speed)
 {
-#if 0
 	uint32_t pll;
 
 	switch (speed) {
 	case 10:
-		pll = AR933X_PLL_VAL_10;
+		pll = AR934X_PLL_VAL_10;
 		break;
 	case 100:
-		pll = AR933X_PLL_VAL_100;
+		pll = AR934X_PLL_VAL_100;
 		break;
 	case 1000:
-		pll = AR933X_PLL_VAL_1000;
+		pll = AR934X_PLL_VAL_1000;
 		break;
 	default:
 		printf("%s%d: invalid speed %d\n", __func__, mac, speed);
 		pll = 0;
 	}
 	return (pll);
-#endif
-	return (0);
+}
+
+static void
+ar934x_chip_reset_ethernet_switch(void)
+{
+
+	ar71xx_device_stop(AR934X_RESET_ETH_SWITCH);
+	DELAY(100);
+	ar71xx_device_start(AR934X_RESET_ETH_SWITCH);
+	DELAY(100);
+}
+
+static void
+ar934x_configure_gmac(uint32_t gmac_cfg)
+{
+	uint32_t reg;
+
+	reg = ATH_READ_REG(AR934X_GMAC_REG_ETH_CFG);
+	printf("%s: ETH_CFG=0x%08x\n", __func__, reg);
+
+	reg &= ~(AR934X_ETH_CFG_RGMII_GMAC0 | AR934X_ETH_CFG_MII_GMAC0 |
+	    AR934X_ETH_CFG_MII_GMAC0 | AR934X_ETH_CFG_SW_ONLY_MODE |
+	    AR934X_ETH_CFG_SW_PHY_SWAP);
+
+	reg |= gmac_cfg;
+
+	ATH_WRITE_REG(AR934X_GMAC_REG_ETH_CFG, reg);
 }
 
 static void
@@ -317,6 +354,43 @@ ar934x_chip_init_usb_peripheral(void)
 	DELAY(100);
 }
 
+static void
+ar934x_chip_set_mii_if(uint32_t unit, uint32_t mii_mode)
+{
+
+	/*
+	 * XXX !
+	 *
+	 * Nothing to see here; although gmac0 can have its
+	 * MII configuration changed, the register values
+	 * are slightly different.
+	 */
+}
+
+/*
+ * XXX TODO: fetch default MII divider configuration
+ */
+
+static void
+ar934x_chip_reset_wmac(void)
+{
+
+}
+
+static void
+ar934x_chip_init_gmac(void)
+{
+	long gmac_cfg;
+
+	if (resource_long_value("ar934x_gmac", 0, "gmac_cfg",
+	    &gmac_cfg) == 0) {
+		printf("%s: gmac_cfg=0x%08lx\n",
+		    __func__,
+		    (long) gmac_cfg);
+		ar934x_configure_gmac((uint32_t) gmac_cfg);
+	}
+}
+
 struct ar71xx_cpu_def ar934x_chip_def = {
 	&ar934x_chip_detect_mem_size,
 	&ar934x_chip_detect_sys_frequency,
@@ -325,9 +399,12 @@ struct ar71xx_cpu_def ar934x_chip_def = {
 	&ar934x_chip_device_stopped,
 	&ar934x_chip_set_pll_ge,
 	&ar934x_chip_set_mii_speed,
-	&ar71xx_chip_set_mii_if,
+	&ar934x_chip_set_mii_if,
 	&ar934x_chip_ddr_flush_ge,
 	&ar934x_chip_get_eth_pll,
 	&ar934x_chip_ddr_flush_ip2,
-	&ar934x_chip_init_usb_peripheral
+	&ar934x_chip_init_usb_peripheral,
+	&ar934x_chip_reset_ethernet_switch,
+	&ar934x_chip_reset_wmac,
+	&ar934x_chip_init_gmac,
 };
