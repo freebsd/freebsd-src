@@ -1553,6 +1553,7 @@ syncache_respond(struct syncache *sc)
 			return (error);
 		}
 #endif
+		/* XXX: scope zone id */
 		error = ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
 	}
 #endif
