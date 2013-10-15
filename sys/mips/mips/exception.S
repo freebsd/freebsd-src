@@ -838,7 +838,7 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
 	.set	at
 END(MipsUserIntr)
 
-NLEAF(MipsTLBInvalidException)
+LEAF_NOPROFILE(MipsTLBInvalidException)
 	.set push
 	.set noat
 	.set noreorder
@@ -1029,7 +1029,7 @@ END(MipsTLBInvalidException)
  *
  *----------------------------------------------------------------------------
  */
-NLEAF(MipsTLBMissException)
+LEAF_NOPROFILE(MipsTLBMissException)
 	.set	noat
 	MFC0		k0, MIPS_COP_0_BAD_VADDR	# k0=bad address
 	PTR_LI		k1, VM_MAX_KERNEL_ADDRESS	# check fault address against
