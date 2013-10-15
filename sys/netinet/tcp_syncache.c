@@ -776,7 +776,9 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		sin6.sin6_len = sizeof(sin6);
 		sin6.sin6_addr = sc->sc_inc.inc6_faddr;
 		sin6.sin6_port = sc->sc_inc.inc_fport;
-		sin6.sin6_flowinfo = sin6.sin6_scope_id = 0;
+		sin6.sin6_flowinfo = 0;
+		sin6.sin6_scope_id = IN6_IS_ADDR_LINKLOCAL(&sin6.sin6_addr) ?
+		    sc->sc_inc.inc6_zoneid: 0;
 		laddr6 = inp->in6p_laddr;
 		if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 			inp->in6p_laddr = sc->sc_inc.inc6_laddr;
