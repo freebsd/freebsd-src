@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/vt/vt.h>
+#include <dev/vt/colors/vt_termcolors.h>
 
 #include <arm/freescale/imx/imx51_ccmvar.h>
 
@@ -85,6 +86,7 @@ struct ipu3sc_softc {
 	int			sc_stride;
 	int			sc_width;
 	int			sc_height;
+	uint32_t		sc_cmap[16];
 
 	bus_space_tag_t		iot;
 	bus_space_handle_t	ioh;
@@ -101,48 +103,6 @@ struct ipu3sc_softc {
 
 static struct ipu3sc_softc *ipu3sc_softc;
 
-#if 0
-/* FIXME: not only 2 bytes color supported */
-static uint16_t colors[16] = {
-	0x0000,	/* black */
-	0x001f,	/* blue */
-	0x07e0,	/* green */
-	0x07ff,	/* cyan */
-	0xf800,	/* red */
-	0xf81f,	/* magenta */
-	0x3800,	/* brown */
-	0xc618,	/* light grey */
-	0xc618,	/* XXX: dark grey */
-	0x001f,	/* XXX: light blue */
-	0x07e0,	/* XXX: light green */
-	0x07ff,	/* XXX: light cyan */
-	0xf800,	/* XXX: light red */
-	0xf81f,	/* XXX: light magenta */
-	0xffe0,	/* yellow */
-	0xffff,	/* white */
-};
-static uint32_t colors_24[16] = {
-	0x000000,/* Black	*/
-	0x000080,/* Blue	*/
-	0x008000,/* Green 	*/
-	0x008080,/* Cyan 	*/
-	0x800000,/* Red 	*/
-	0x800080,/* Magenta	*/
-	0xcc6600,/* brown	*/
-	0xC0C0C0,/* Silver 	*/
-	0x808080,/* Gray 	*/
-	0x0000FF,/* Light Blue 	*/
-	0x00FF00,/* Light Green */
-	0x00FFFF,/* Light Cyan 	*/
-	0xFF0000,/* Light Red 	*/
-	0xFF00FF,/* Light Magenta */
-	0xFFFF00,/* Yellow 	*/
-	0xFFFFFF,/* White 	*/
-
-
-};
-#endif
-
 static vd_init_t	vt_imx_init;
 static vd_blank_t	vt_imx_blank;
 static vd_bitbltchr_t	vt_imx_bitbltchr;
@@ -151,25 +111,6 @@ static struct vt_driver vt_imx_driver = {
 	.vd_init = vt_imx_init,
 	.vd_blank = vt_imx_blank,
 	.vd_bitbltchr = vt_imx_bitbltchr,
-};
-
-static const uint32_t colormap[] = {
-	0x00000000,	/* Black */
-	0x00ff0000,	/* Red */
-	0x0000ff00,	/* Green */
-	0x00c0c000,	/* Brown */
-	0x000000ff,	/* Blue */
-	0x00c000c0,	/* Magenta */
-	0x0000c0c0,	/* Cyan */
-	0x00c0c0c0,	/* Light grey */
-	0x00808080,	/* Dark grey */
-	0x00ff8080,	/* Light red */
-	0x0080ff80,	/* Light green */
-	0x00ffff80,	/* Yellow */
-	0x008080ff,	/* Light blue */
-	0x00ff80ff,	/* Light magenta */
-	0x0080ffff,	/* Light cyan */
-	0x00ffffff, 	/* White */
 };
 
 #define	IPUV3_READ(ipuv3, module, reg)					\
@@ -365,6 +306,11 @@ ipu3_fb_attach(device_t dev)
 	 * Mailbox relies on it to get data from VideoCore
 	 */
 	ipu3_fb_init(sc);
+	err = vt_generate_vga_palette(sc->sc_cmap, COLOR_FORMAT_RGB, 0xff, 16,
+	    0xff, 8, 0xff, 0);
+	if (err)
+		goto fail_retarn_dctmpl;
+
 
 	vt_allocate(&vt_imx_driver, sc);
 
@@ -417,7 +363,7 @@ vt_imx_blank(struct vt_device *vd, term_color_t color)
 	u_int ofs;
 	uint32_t c;
 
-	c = colormap[color];
+	c = sc->sc_cmap[color];
 	switch (sc->sc_bpp) {
 	case 1:
 		for (ofs = 0; ofs < (sc->sc_stride * sc->sc_height); ofs++)
@@ -463,8 +409,8 @@ vt_imx_bitbltchr(struct vt_device *vd, const uint8_t *src,
 	uint8_t b = 0;
 
 	bpp = sc->sc_bpp;
-	fgc = colormap[fg];
-	bgc = colormap[bg];
+	fgc = sc->sc_cmap[fg];
+	bgc = sc->sc_cmap[bg];
 
 	line = sc->sc_vaddr + (sc->sc_stride * top) + (left * bpp);
 	for (l = 0; l < height; l++) {
