@@ -264,7 +264,6 @@ _C_LABEL(x):
 /*
  * XXX retain dialects XXX
  */
-#define	NLEAF(x)			LEAF_NOPROFILE(x)
 #define	NON_LEAF(x, fsize, retpc)	NESTED(x, fsize, retpc)
 #define	NNON_LEAF(x, fsize, retpc)	NESTED_NOPROFILE(x, fsize, retpc)
 
