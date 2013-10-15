@@ -71,7 +71,7 @@ vt_kms_blank(struct vt_device *vd, term_color_t color)
 	u_int ofs;
 	uint32_t c;
 
-	c = sc->sc_cmap[fg];
+	c = sc->sc_cmap[color];
 	/* TODO handle difference between depth and bpp. */
 	switch (sc->sc_depth) {
 	case 8:
@@ -169,7 +169,7 @@ vt_kms_init(struct vt_device *vd)
 	case 24:
 	case 32: /* Ignore alpha. */
 		err = vt_generate_vga_palette(sc->sc_cmap, COLOR_FORMAT_RGB,
-		    0xff, 16, 0xff, 8, 0xff, 0);
+		    0xff, 0, 0xff, 8, 0xff, 16);
 		if (err)
 			return (CN_DEAD);
 		break;
