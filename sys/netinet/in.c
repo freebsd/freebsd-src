@@ -404,16 +404,8 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			goto out;
 		}
 		if (ia == NULL) {
-			ia = (struct in_ifaddr *)
-				malloc(sizeof *ia, M_IFADDR, M_NOWAIT |
-				    M_ZERO);
-			if (ia == NULL) {
-				error = ENOBUFS;
-				goto out;
-			}
-
-			ifa = &ia->ia_ifa;
-			ifa_init(ifa);
+			ifa = ifa_alloc(sizeof(struct in_ifaddr), M_WAITOK);
+			ia = (struct in_ifaddr *)ifa;
 			ifa->ifa_addr = (struct sockaddr *)&ia->ia_addr;
 			ifa->ifa_dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
 			ifa->ifa_netmask = (struct sockaddr *)&ia->ia_sockmask;

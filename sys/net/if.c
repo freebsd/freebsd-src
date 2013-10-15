@@ -633,8 +633,7 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 			socksize = sizeof(*sdl);
 		socksize = roundup2(socksize, sizeof(long));
 		ifasize = sizeof(*ifa) + 2 * socksize;
-		ifa = malloc(ifasize, M_IFADDR, M_WAITOK | M_ZERO);
-		ifa_init(ifa);
+		ifa = ifa_alloc(ifasize, M_WAITOK);
 		sdl = (struct sockaddr_dl *)(ifa + 1);
 		sdl->sdl_len = socksize;
 		sdl->sdl_family = AF_LINK;
@@ -1417,13 +1416,23 @@ if_maddr_runlock(struct ifnet *ifp)
 /*
  * Initialization, destruction and refcounting functions for ifaddrs.
  */
-void
-ifa_init(struct ifaddr *ifa)
+struct ifaddr *
+ifa_alloc(size_t size, int flags)
 {
+	struct ifaddr *ifa;
+
+	KASSERT(size >= sizeof(struct ifaddr),
+	    ("%s: invalid size %zu", __func__, size));
+
+	ifa = malloc(size, M_IFADDR, M_ZERO | flags);
+	if (ifa == NULL)
+		return (NULL);
 
 	mtx_init(&ifa->ifa_mtx, "ifaddr", NULL, MTX_DEF);
 	refcount_init(&ifa->ifa_refcnt, 1);
 	ifa->if_data.ifi_datalen = sizeof(ifa->if_data);
+
+	return (ifa);
 }
 
 void
