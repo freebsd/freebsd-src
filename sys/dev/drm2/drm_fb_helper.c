@@ -47,6 +47,7 @@ struct vt_kms_softc {
 	int		sc_height;
 	struct drm_fb_helper *fb_helper;
 	struct task	fb_mode_task;
+	uint32_t	sc_cmap[16];
 };
 
 static vd_init_t	vt_kms_init;
@@ -62,25 +63,6 @@ static struct vt_driver vt_vt_kms_driver = {
 	.vd_postswitch = vt_kms_postswitch,
 };
 
-static const uint32_t colormap[] = {
-	0x00000000,	/* Black */
-	0x00ff0000,	/* Red */
-	0x0000ff00,	/* Green */
-	0x00c0c000,	/* Brown */
-	0x000000ff,	/* Blue */
-	0x00c000c0,	/* Magenta */
-	0x0000c0c0,	/* Cyan */
-	0x00c0c0c0,	/* Light grey */
-	0x00808080,	/* Dark grey */
-	0x00ff8080,	/* Light red */
-	0x0080ff80,	/* Light green */
-	0x00ffff80,	/* Yellow */
-	0x008080ff,	/* Light blue */
-	0x00ff80ff,	/* Light magenta */
-	0x0080ffff,	/* Light cyan */
-	0x00ffffff, 	/* White */
-};
-
 static void
 vt_kms_blank(struct vt_device *vd, term_color_t color)
 {
@@ -88,20 +70,21 @@ vt_kms_blank(struct vt_device *vd, term_color_t color)
 	u_int ofs;
 	uint32_t c;
 
-	/* TODO handle difference between  */
+	c = sc->sc_cmap[fg];
+	/* TODO handle difference between depth and bpp. */
 	switch (sc->sc_depth) {
 	case 8:
 		for (ofs = 0; ofs < (sc->sc_stride * vd->vd_height); ofs++)
-			*(uint8_t *)(sc->sc_vaddr + ofs) = color;
+			*(uint8_t *)(sc->sc_vaddr + ofs) = c & 0xff;
 		break;
 	case 16:
 		/* XXX must be 16bits colormap */
 		for (ofs = 0; ofs < (sc->sc_stride * vd->vd_height); ofs++)
-			*(uint16_t *)(sc->sc_vaddr + 2 * ofs) = color;
+			*(uint16_t *)(sc->sc_vaddr + 2 * ofs) = c & 0xffff;
 		break;
 	case 24: /*  */
 	case 32:
-		c = colormap[color];
+		c = sc->sc_cmap[color];
 		for (ofs = 0; ofs < (sc->sc_stride * vd->vd_height); ofs++)
 			*(uint32_t *)(sc->sc_vaddr + 4 * ofs) = c;
 		break;
@@ -122,8 +105,8 @@ vt_kms_bitbltchr(struct vt_device *vd, const uint8_t *src,
 	int c;
 	uint8_t b = 0;
 
-	fgc = colormap[fg];
-	bgc = colormap[bg];
+	fgc = sc->sc_cmap[fg];
+	bgc = sc->sc_cmap[bg];
 
 	line = (sc->sc_stride * top) + left * sc->sc_depth/8;
 	for (; height > 0; height--) {
@@ -135,7 +118,7 @@ vt_kms_bitbltchr(struct vt_device *vd, const uint8_t *src,
 			switch(sc->sc_depth) {
 			case 8:
 				*(uint8_t *)(sc->sc_vaddr + line + c) =
-				    b & 0x80 ? fg : bg;
+				    (b & 0x80 ? fgc : bgc) & 0xff;
 				break;
 			/* TODO 16 */
 			/* TODO 24 */
@@ -156,11 +139,42 @@ static int
 vt_kms_init(struct vt_device *vd)
 {
 	struct vt_kms_softc *sc;
+	int err;
 
 	sc = vd->vd_softc;
 
 	vd->vd_height = sc->sc_height;
 	vd->vd_width = sc->sc_width;
+
+	switch (sc->sc_depth) {
+	case 8:
+		err = vt_generate_vga_palette(sc->sc_cmap, COLOR_FORMAT_RGB,
+		    0x7, 5, 0x7, 2, 0x3, 0);
+		if (err)
+			return (CN_DEAD);
+		break;
+	case 15:
+		err = vt_generate_vga_palette(sc->sc_cmap, COLOR_FORMAT_RGB,
+		    0x1f, 10, 0x1f, 5, 0x1f, 0);
+		if (err)
+			return (CN_DEAD);
+		break;
+	case 16:
+		err = vt_generate_vga_palette(sc->sc_cmap, COLOR_FORMAT_RGB,
+		    0x1f, 11, 0x3f, 5, 0x1f, 0);
+		if (err)
+			return (CN_DEAD);
+		break;
+	case 24:
+	case 32: /* Ignore alpha. */
+		err = vt_generate_vga_palette(sc->sc_cmap, COLOR_FORMAT_RGB,
+		    0xff, 16, 0xff, 8, 0xff, 0);
+		if (err)
+			return (CN_DEAD);
+		break;
+	default:
+		return (CN_DEAD);
+	}
 
 	/* Clear the screen. */
 	vt_kms_blank(vd, TC_BLACK);
