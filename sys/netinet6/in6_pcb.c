@@ -110,21 +110,18 @@ static struct inpcb *in6_pcblookup_hash_locked(struct inpcbinfo *,
     struct in6_addr *, u_int, struct in6_addr *, u_int, int, struct ifnet *);
 
 int
-in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
-    struct ucred *cred)
+in6_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 {
 	struct socket *so = inp->inp_socket;
-	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)NULL;
+	struct sockaddr_in6 *sin6 = NULL;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
-	u_short	lport = 0;
 	int error, lookupflags = 0;
 	int reuseport = (so->so_options & SO_REUSEPORT);
+	u_short	lport = 0;
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
 
-	if (TAILQ_EMPTY(&V_in6_ifaddrhead))	/* XXX broken! */
-		return (EADDRNOTAVAIL);
 	if (inp->inp_lport || !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 		return (EINVAL);
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
@@ -137,14 +134,11 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 		sin6 = (struct sockaddr_in6 *)nam;
 		if (nam->sa_len != sizeof(*sin6))
 			return (EINVAL);
-		/*
-		 * family check.
-		 */
 		if (nam->sa_family != AF_INET6)
 			return (EAFNOSUPPORT);
-
-		if ((error = sa6_embedscope(sin6, V_ip6_use_defzone)) != 0)
-			return(error);
+		/* Check sin6_scope_id. The caller must set it properly. */
+		if ((error = sa6_checkzone(sin6)) != 0)
+			return (error);
 
 		if ((error = prison_local_ip6(cred, &sin6->sin6_addr,
 		    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
@@ -162,11 +156,11 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 			if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) != 0)
 				reuseport = SO_REUSEADDR|SO_REUSEPORT;
 		} else if (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
-			struct ifaddr *ifa;
+			struct in6_ifaddr *ifa;
 
-			sin6->sin6_port = 0;		/* yech... */
-			if ((ifa = ifa_ifwithaddr((struct sockaddr *)sin6)) ==
-			    NULL &&
+			ifa = in6ifa_ifwithaddr(&sin6->sin6_addr,
+			    sin6->sin6_scope_id);
+			if (ifa != NULL &&
 			    (inp->inp_flags & INP_BINDANY) == 0) {
 				return (EADDRNOTAVAIL);
 			}
@@ -177,14 +171,13 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 			 * We should allow to bind to a deprecated address, since
 			 * the application dares to use it.
 			 */
-			if (ifa != NULL &&
-			    ((struct in6_ifaddr *)ifa)->ia6_flags &
-			    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY|IN6_IFF_DETACHED)) {
-				ifa_free(ifa);
+			if (ifa != NULL && (ifa->ia6_flags & (IN6_IFF_ANYCAST |
+			    IN6_IFF_NOTREADY | IN6_IFF_DETACHED))) {
+				ifa_free(&ifa->ia_ifa);
 				return (EADDRNOTAVAIL);
 			}
 			if (ifa != NULL)
-				ifa_free(ifa);
+				ifa_free(&ifa->ia_ifa);
 		}
 		if (lport) {
 			struct inpcb *t;
