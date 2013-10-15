@@ -610,11 +610,12 @@ passout:
 		 */
 		if (!(flags & IP_FORWARDING) && ia) {
 			if (m->m_pkthdr.csum_flags & CSUM_TSO)
-				ia->ia_ifa.if_opackets +=
-				    m->m_pkthdr.len / m->m_pkthdr.tso_segsz;
+				counter_u64_add(ia->ia_ifa.ifa_opackets,
+				    m->m_pkthdr.len / m->m_pkthdr.tso_segsz);
 			else
-				ia->ia_ifa.if_opackets++;
-			ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+				counter_u64_add(ia->ia_ifa.ifa_opackets, 1);
+
+			counter_u64_add(ia->ia_ifa.ifa_obytes, m->m_pkthdr.len);
 		}
 #ifdef MBUF_STRESS_TEST
 		if (mbuf_frag_size && m->m_pkthdr.len > mbuf_frag_size)
@@ -651,8 +652,9 @@ passout:
 		if (error == 0) {
 			/* Record statistics for this interface address. */
 			if (ia != NULL) {
-				ia->ia_ifa.if_opackets++;
-				ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+				counter_u64_add(ia->ia_ifa.ifa_opackets, 1);
+				counter_u64_add(ia->ia_ifa.ifa_obytes,
+				    m->m_pkthdr.len);
 			}
 			/*
 			 * Reset layer specific mbuf flags

@@ -1428,10 +1428,28 @@ ifa_alloc(size_t size, int flags)
 	if (ifa == NULL)
 		return (NULL);
 
+	if ((ifa->ifa_opackets = counter_u64_alloc(flags)) == NULL)
+		goto fail;
+	if ((ifa->ifa_ipackets = counter_u64_alloc(flags)) == NULL)
+		goto fail;
+	if ((ifa->ifa_obytes = counter_u64_alloc(flags)) == NULL)
+		goto fail;
+	if ((ifa->ifa_ibytes = counter_u64_alloc(flags)) == NULL)
+		goto fail;
+
 	refcount_init(&ifa->ifa_refcnt, 1);
-	ifa->if_data.ifi_datalen = sizeof(ifa->if_data);
 
 	return (ifa);
+
+fail:
+	/* free(NULL) is okay */
+	counter_u64_free(ifa->ifa_opackets);
+	counter_u64_free(ifa->ifa_ipackets);
+	counter_u64_free(ifa->ifa_obytes);
+	counter_u64_free(ifa->ifa_ibytes);
+	free(ifa, M_IFADDR);
+
+	return (NULL);
 }
 
 void
@@ -1446,6 +1464,10 @@ ifa_free(struct ifaddr *ifa)
 {
 
 	if (refcount_release(&ifa->ifa_refcnt)) {
+		counter_u64_free(ifa->ifa_opackets);
+		counter_u64_free(ifa->ifa_ipackets);
+		counter_u64_free(ifa->ifa_obytes);
+		counter_u64_free(ifa->ifa_ibytes);
 		free(ifa, M_IFADDR);
 	}
 }
