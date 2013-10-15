@@ -61,12 +61,12 @@ struct xbox_softc {
 
 static vd_init_t	xbox_init;
 static vd_blank_t	xbox_blank;
-static vd_bitblt_t	xbox_bitblt;
+static vd_bitbltchr_t	xbox_bitbltchr;
 
 static const struct vt_driver vt_xbox_driver = {
 	.vd_init	= xbox_init,
 	.vd_blank	= xbox_blank,
-	.vd_bitblt	= xbox_bitblt,
+	.vd_bitbltchr	= xbox_bitbltchr,
 	.vd_priority	= VD_PRIORITY_GENERIC,
 };
 
@@ -106,7 +106,7 @@ xbox_blank(struct vt_device *vd, term_color_t color)
 }
 
 static void
-xbox_bitblt(struct vt_device *vd, const uint8_t *src,
+xbox_bitbltchr(struct vt_device *vd, const uint8_t *src,
     vt_axis_t top, vt_axis_t left, unsigned int width, unsigned int height,
     term_color_t fg, term_color_t bg)
 {

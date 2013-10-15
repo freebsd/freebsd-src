@@ -59,12 +59,12 @@ struct ofwfb_softc {
 
 static vd_init_t	ofwfb_init;
 static vd_blank_t	ofwfb_blank;
-static vd_bitblt_t	ofwfb_bitblt;
+static vd_bitbltchr_t	ofwfb_bitbltchr;
 
 static const struct vt_driver vt_ofwfb_driver = {
 	.vd_init	= ofwfb_init,
 	.vd_blank	= ofwfb_blank,
-	.vd_bitblt	= ofwfb_bitblt,
+	.vd_bitbltchr	= ofwfb_bitbltchr,
 	.vd_priority	= VD_PRIORITY_GENERIC,
 };
 
@@ -116,7 +116,7 @@ ofwfb_blank(struct vt_device *vd, term_color_t color)
 }
 
 static void
-ofwfb_bitblt(struct vt_device *vd, const uint8_t *src,
+ofwfb_bitbltchr(struct vt_device *vd, const uint8_t *src,
     vt_axis_t top, vt_axis_t left, unsigned int width, unsigned int height,
     term_color_t fg, term_color_t bg)
 {

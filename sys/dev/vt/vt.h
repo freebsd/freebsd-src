@@ -204,7 +204,7 @@ struct vt_window {
 /*
  * Per-device driver routines.
  *
- * vd_bitblt is used when the driver operates in graphics mode, while
+ * vd_bitbltchr is used when the driver operates in graphics mode, while
  * vd_putchar is used when the driver operates in text mode
  * (VDF_TEXTMODE).
  */
@@ -212,7 +212,7 @@ struct vt_window {
 typedef int vd_init_t(struct vt_device *vd);
 typedef void vd_postswitch_t(struct vt_device *vd);
 typedef void vd_blank_t(struct vt_device *vd, term_color_t color);
-typedef void vd_bitblt_t(struct vt_device *vd, const uint8_t *src,
+typedef void vd_bitbltchr_t(struct vt_device *vd, const uint8_t *src,
     vt_axis_t top, vt_axis_t left, unsigned int width, unsigned int height,
     term_color_t fg, term_color_t bg);
 typedef void vd_putchar_t(struct vt_device *vd, term_char_t,
@@ -224,7 +224,7 @@ struct vt_driver {
 
 	/* Drawing. */
 	vd_blank_t	*vd_blank;
-	vd_bitblt_t	*vd_bitblt;
+	vd_bitbltchr_t	*vd_bitbltchr;
 
 	/* Text mode operation. */
 	vd_putchar_t	*vd_putchar;

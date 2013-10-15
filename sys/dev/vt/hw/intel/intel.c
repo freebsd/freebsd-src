@@ -60,11 +60,11 @@ static device_method_t intel_methods[] = {
 };
 
 static vd_init_t	intel_vtinit;
-static vd_bitblt_t	intel_vtbitblt;
+static vd_bitbltchr_t	intel_vtbitbltchr;
 
 static struct vt_driver intel_vtops = {
 	.vd_init	= intel_vtinit,
-	.vd_bitblt	= intel_vtbitblt,
+	.vd_bitbltchr	= intel_vtbitbltchr,
 	/* Prefer to use KMS, so GENERIC - 10 */
 	.vd_priority	= VD_PRIORITY_GENERIC - 10,
 };
@@ -150,7 +150,7 @@ intel_vtinit(struct vt_device *vd)
 }
 
 static void
-intel_vtbitblt(struct vt_device *vd, const uint8_t *src,
+intel_vtbitbltchr(struct vt_device *vd, const uint8_t *src,
     vt_axis_t top, vt_axis_t left, unsigned int width, unsigned int height,
     term_color_t fg, term_color_t bg)
 {

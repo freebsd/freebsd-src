@@ -585,7 +585,7 @@ vt_bitblt_char(struct vt_device *vd, struct vt_font *vf, term_char_t c,
 		left = col * vf->vf_width +
 		    (vd->vd_width % vf->vf_width) / 2;
 
-		vd->vd_driver->vd_bitblt(vd, src, top, left,
+		vd->vd_driver->vd_bitbltchr(vd, src, top, left,
 		    vf->vf_width, vf->vf_height, fg, bg);
 	} else {
 		vd->vd_driver->vd_putchar(vd, TCHAR_CHARACTER(c),
@@ -692,7 +692,7 @@ vtterm_splash(struct vt_device *vd)
 		switch (vt_logo_depth) {
 		case 1:
 			/* XXX: Unhardcode colors! */
-			vd->vd_driver->vd_bitblt(vd, vt_logo_image, top, left,
+			vd->vd_driver->vd_bitbltchr(vd, vt_logo_image, top, left,
 			    vt_logo_width, vt_logo_height, 0xf, 0x0);
 		}
 		vd->vd_flags |= VDF_SPLASH;
@@ -1395,7 +1395,7 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	}
 	vd = main_vd;
 
-	/* Stop vd_flash periodic task. */
+	/* Stop vt_flush periodic task. */
 	if (vd->vd_curwindow != NULL)
 		callout_drain(&vd->vd_timer);
 

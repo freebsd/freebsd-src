@@ -73,13 +73,13 @@ struct vga_softc {
 
 static vd_init_t	vga_init;
 static vd_blank_t	vga_blank;
-static vd_bitblt_t	vga_bitblt;
+static vd_bitbltchr_t	vga_bitbltchr;
 static vd_putchar_t	vga_putchar;
 
 static const struct vt_driver vt_vga_driver = {
 	.vd_init	= vga_init,
 	.vd_blank	= vga_blank,
-	.vd_bitblt	= vga_bitblt,
+	.vd_bitbltchr	= vga_bitbltchr,
 	.vd_putchar	= vga_putchar,
 	.vd_priority	= VD_PRIORITY_GENERIC,
 };
@@ -169,7 +169,7 @@ vga_bitblt_draw(struct vt_device *vd, const uint8_t *src,
 }
 
 static void
-vga_bitblt(struct vt_device *vd, const uint8_t *src,
+vga_bitbltchr(struct vt_device *vd, const uint8_t *src,
     vt_axis_t top, vt_axis_t left, unsigned int width, unsigned int height,
     term_color_t fg, term_color_t bg)
 {
