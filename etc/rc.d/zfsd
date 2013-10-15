@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="zfsd"
-rcvar=`set_rcvar`
+rcvar="zfsd_enable"
 command="/sbin/${name}"
 
 load_rc_config $name
