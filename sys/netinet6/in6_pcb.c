@@ -445,19 +445,19 @@ in6_pcbdisconnect(struct inpcb *inp)
 }
 
 struct sockaddr *
-in6_sockaddr(in_port_t port, struct in6_addr *addr_p)
+in6_sockaddr(in_port_t port, const struct in6_addr *addr_p, uint32_t zoneid)
 {
 	struct sockaddr_in6 *sin6;
 
-	sin6 = malloc(sizeof *sin6, M_SONAME, M_WAITOK);
-	bzero(sin6, sizeof *sin6);
+	sin6 = malloc(sizeof *sin6, M_SONAME, M_WAITOK | M_ZERO);
 	sin6->sin6_family = AF_INET6;
 	sin6->sin6_len = sizeof(*sin6);
 	sin6->sin6_port = port;
 	sin6->sin6_addr = *addr_p;
-	(void)sa6_recoverscope(sin6); /* XXX: should catch errors */
-
-	return (struct sockaddr *)sin6;
+	if (IN6_IS_ADDR_LINKLOCAL(addr_p) ||
+	    IN6_IS_ADDR_MULTICAST(addr_p))
+		sin6->sin6_scope_id = zoneid;
+	return ((struct sockaddr *)sin6);
 }
 
 struct sockaddr *
@@ -482,8 +482,9 @@ in6_v4mapsin6_sockaddr(in_port_t port, struct in_addr *addr_p)
 int
 in6_getsockaddr(struct socket *so, struct sockaddr **nam)
 {
-	register struct inpcb *inp;
 	struct in6_addr addr;
+	struct inpcb *inp;
+	uint32_t zoneid;
 	in_port_t port;
 
 	inp = sotoinpcb(so);
@@ -492,17 +493,19 @@ in6_getsockaddr(struct socket *so, struct sockaddr **nam)
 	INP_RLOCK(inp);
 	port = inp->inp_lport;
 	addr = inp->in6p_laddr;
+	zoneid = inp->in6p_zoneid;
 	INP_RUNLOCK(inp);
 
-	*nam = in6_sockaddr(port, &addr);
-	return 0;
+	*nam = in6_sockaddr(port, &addr, zoneid);
+	return (0);
 }
 
 int
 in6_getpeeraddr(struct socket *so, struct sockaddr **nam)
 {
-	struct inpcb *inp;
 	struct in6_addr addr;
+	struct inpcb *inp;
+	uint32_t zoneid;
 	in_port_t port;
 
 	inp = sotoinpcb(so);
@@ -511,10 +514,11 @@ in6_getpeeraddr(struct socket *so, struct sockaddr **nam)
 	INP_RLOCK(inp);
 	port = inp->inp_fport;
 	addr = inp->in6p_faddr;
+	zoneid = inp->in6p_zoneid;
 	INP_RUNLOCK(inp);
 
-	*nam = in6_sockaddr(port, &addr);
-	return 0;
+	*nam = in6_sockaddr(port, &addr, zoneid);
+	return (0);
 }
 
 int

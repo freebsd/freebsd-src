@@ -663,12 +663,13 @@ out:
 static int
 tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 {
-	struct inpcb *inp = NULL;
-	int error = 0;
-	struct tcpcb *tp = NULL;
-	struct in_addr addr;
 	struct in6_addr addr6;
+	struct in_addr addr;
+	struct inpcb *inp = NULL;
+	struct tcpcb *tp = NULL;
+	uint32_t zoneid = 0;
 	in_port_t port = 0;
+	int error = 0;
 	int v4 = 0;
 	TCPDEBUG0;
 
@@ -698,6 +699,7 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 	} else {
 		port = inp->inp_fport;
 		addr6 = inp->in6p_faddr;
+		zoneid = inp->in6p_zoneid;
 	}
 
 out:
@@ -708,9 +710,9 @@ out:
 		if (v4)
 			*nam = in6_v4mapsin6_sockaddr(port, &addr);
 		else
-			*nam = in6_sockaddr(port, &addr6);
+			*nam = in6_sockaddr(port, &addr6, zoneid);
 	}
-	return error;
+	return (error);
 }
 #endif /* INET6 */
 

@@ -104,7 +104,7 @@ void	in6_pcbnotify(struct inpcbinfo *, struct sockaddr *,
 struct inpcb *
 	in6_rtchange(struct inpcb *, int);
 struct sockaddr *
-	in6_sockaddr(in_port_t port, struct in6_addr *addr_p);
+	in6_sockaddr(in_port_t, const struct in6_addr *, uint32_t);
 struct sockaddr *
 	in6_v4mapsin6_sockaddr(in_port_t port, struct in_addr *addr_p);
 int	in6_getpeeraddr(struct socket *so, struct sockaddr **nam);
