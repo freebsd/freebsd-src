@@ -2003,7 +2003,7 @@ in6ifa_ifwithaddr(const struct in6_addr *addr, uint32_t zoneid)
  * ifaddr is returned referenced.
  */
 struct in6_ifaddr *
-in6ifa_ifpwithaddr(struct ifnet *ifp, struct in6_addr *addr)
+in6ifa_ifpwithaddr(struct ifnet *ifp, const struct in6_addr *addr)
 {
 	struct ifaddr *ifa;
 
@@ -2155,7 +2155,7 @@ in6_localaddr(struct in6_addr *in6)
  * on one of its interfaces.
  */
 int
-in6_localip(struct in6_addr *in6)
+in6_localip(const struct in6_addr *in6)
 {
 	struct in6_ifaddr *ia;
 
