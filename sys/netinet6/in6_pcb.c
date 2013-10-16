@@ -289,82 +289,6 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 }
 
 /*
- *   Transform old in6_pcbconnect() into an inner subroutine for new
- *   in6_pcbconnect(): Do some validity-checking on the remote
- *   address (in mbuf 'nam') and then determine local host address
- *   (i.e., which interface) to use to access that remote host.
- *
- *   This preserves definition of in6_pcbconnect(), while supporting a
- *   slightly different version for T/TCP.  (This is more than
- *   a bit of a kludge, but cleaning up the internal interfaces would
- *   have forced minor changes in every protocol).
- */
-static int
-in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
-    struct in6_addr *plocal_addr6)
-{
-	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
-	int error = 0;
-	struct ifnet *ifp = NULL;
-	int scope_ambiguous = 0;
-	struct in6_addr in6a;
-
-	INP_WLOCK_ASSERT(inp);
-	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);	/* XXXRW: why? */
-
-	if (nam->sa_len != sizeof (*sin6))
-		return (EINVAL);
-	if (sin6->sin6_family != AF_INET6)
-		return (EAFNOSUPPORT);
-	if (sin6->sin6_port == 0)
-		return (EADDRNOTAVAIL);
-
-	if (sin6->sin6_scope_id == 0 && !V_ip6_use_defzone)
-		scope_ambiguous = 1;
-	if ((error = sa6_embedscope(sin6, V_ip6_use_defzone)) != 0)
-		return(error);
-
-	if (!TAILQ_EMPTY(&V_in6_ifaddrhead)) {
-		/*
-		 * If the destination address is UNSPECIFIED addr,
-		 * use the loopback addr, e.g ::1.
-		 */
-		if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
-			sin6->sin6_addr = in6addr_loopback;
-	}
-	if ((error = prison_remote_ip6(inp->inp_cred, &sin6->sin6_addr)) != 0)
-		return (error);
-
-	error = in6_selectsrc(sin6, inp->in6p_outputopts,
-	    inp, NULL, inp->inp_cred, &ifp, &in6a);
-	if (error)
-		return (error);
-
-	if (ifp && scope_ambiguous &&
-	    (error = in6_setscope(&sin6->sin6_addr, ifp, NULL)) != 0) {
-		return(error);
-	}
-
-	/*
-	 * Do not update this earlier, in case we return with an error.
-	 *
-	 * XXX: this in6_selectsrc result might replace the bound local
-	 * address with the address specified by setsockopt(IPV6_PKTINFO).
-	 * Is it the intended behavior?
-	 */
-	*plocal_addr6 = in6a;
-
-	/*
-	 * Don't do pcblookup call here; return interface in
-	 * plocal_addr6
-	 * and exit to caller, that will do the lookup.
-	 */
-
-	return (0);
-}
-
-/*
- * Outer subroutine:
  * Connect from a socket to a specified address.
  * Both address and port must be specified in argument sin.
  * If don't have a local address for this socket yet,
@@ -375,30 +299,49 @@ in6_pcbconnect_mbuf(register struct inpcb *inp, struct sockaddr *nam,
     struct ucred *cred, struct mbuf *m)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
-	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
+	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
+	struct ifnet *ifp = NULL;
 	struct in6_addr addr6;
 	int error;
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
 
+	if (nam->sa_len != sizeof(*sin6))
+		return (EINVAL);
+	if (sin6->sin6_family != AF_INET6)
+		return (EAFNOSUPPORT);
+	if (sin6->sin6_port == 0)
+		return (EADDRNOTAVAIL);
 	/*
-	 * Call inner routine, to assign local interface address.
-	 * in6_pcbladdr() may automatically fill in sin6_scope_id.
+	 * If the destination address is UNSPECIFIED addr, use the loopback
+	 * addr, e.g ::1.
 	 */
-	if ((error = in6_pcbladdr(inp, nam, &addr6)) != 0)
+	if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
+		sin6->sin6_addr = in6addr_loopback;
+	/*
+	 * Check sin6_scope_id and automatically fill it, if possible.
+	 */
+	error = sa6_checkzone(sin6);
+	if (error != 0)
+		return (error);
+	if ((error = prison_remote_ip6(inp->inp_cred, &sin6->sin6_addr)) != 0)
+		return (error);
+	/*
+	 * Determine source address and outgoing interface.
+	 */
+	error = in6_selectsrc(sin6, inp->in6p_outputopts, inp, NULL,
+	    inp->inp_cred, &ifp, &addr6);
+	if (error)
 		return (error);
 
 	if (in6_pcblookup_hash_locked(pcbinfo, &sin6->sin6_addr,
-			       sin6->sin6_port,
-			      IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)
-			      ? &addr6 : &inp->in6p_laddr,
-			      inp->inp_lport, 0, NULL) != NULL) {
+	    sin6->sin6_port, IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr) ?
+	    &addr6: &inp->in6p_laddr, inp->inp_lport, 0, ifp) != NULL)
 		return (EADDRINUSE);
-	}
 	if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
 		if (inp->inp_lport == 0) {
-			error = in6_pcbbind(inp, (struct sockaddr *)0, cred);
+			error = in6_pcbbind(inp, NULL, cred);
 			if (error)
 				return (error);
 		}
@@ -406,6 +349,10 @@ in6_pcbconnect_mbuf(register struct inpcb *inp, struct sockaddr *nam,
 	}
 	inp->in6p_faddr = sin6->sin6_addr;
 	inp->inp_fport = sin6->sin6_port;
+	if (IN6_IS_ADDR_LINKLOCAL(&inp->in6p_faddr) ||
+	    IN6_IS_ADDR_LINKLOCAL(&inp->in6p_laddr))
+		inp->in6p_zoneid = in6_getscopezone(ifp,
+		    IPV6_ADDR_SCOPE_LINKLOCAL);
 	/* update flowinfo - draft-itojun-ipv6-flowlabel-api-00 */
 	inp->inp_flow &= ~IPV6_FLOWLABEL_MASK;
 	if (inp->inp_flags & IN6P_AUTOFLOWLABEL)
