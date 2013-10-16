@@ -54,6 +54,8 @@ static const char sccsid[] = "@(#)uname.c	8.2 (Berkeley) 5/4/95";
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <osreldate.h>
+
 #define	MFLAG	0x01
 #define	NFLAG	0x02
 #define	PFLAG	0x04
@@ -61,10 +63,12 @@ static const char sccsid[] = "@(#)uname.c	8.2 (Berkeley) 5/4/95";
 #define	SFLAG	0x10
 #define	VFLAG	0x20
 #define	IFLAG	0x40
+#define	UFLAG	0x80
+#define	KFLAG	0x100
 
 typedef void (*get_t)(void);
 static get_t get_ident, get_platform, get_hostname, get_arch,
-    get_release, get_sysname, get_version;
+    get_release, get_sysname, get_kernvers, get_uservers, get_version;
 
 static void native_ident(void);
 static void native_platform(void);
@@ -73,11 +77,13 @@ static void native_arch(void);
 static void native_release(void);
 static void native_sysname(void);
 static void native_version(void);
+static void native_kernvers(void);
+static void native_uservers(void);
 static void print_uname(u_int);
 static void setup_get(void);
 static void usage(void);
 
-static char *ident, *platform, *hostname, *arch, *release, *sysname, *version;
+static char *ident, *platform, *hostname, *arch, *release, *sysname, *version, *kernvers, *uservers;
 static int space;
 
 int
@@ -89,13 +95,16 @@ main(int argc, char *argv[])
 	setup_get();
 	flags = 0;
 
-	while ((ch = getopt(argc, argv, "aimnoprsv")) != -1)
+	while ((ch = getopt(argc, argv, "aiKmnoprsUv")) != -1)
 		switch(ch) {
 		case 'a':
 			flags |= (MFLAG | NFLAG | RFLAG | SFLAG | VFLAG);
 			break;
 		case 'i':
 			flags |= IFLAG;
+			break;
+		case 'K':
+			flags |= KFLAG;
 			break;
 		case 'm':
 			flags |= MFLAG;
@@ -112,6 +121,9 @@ main(int argc, char *argv[])
 		case 's':
 		case 'o':
 			flags |= SFLAG;
+			break;
+		case 'U':
+			flags |= UFLAG;
 			break;
 		case 'v':
 			flags |= VFLAG;
@@ -153,6 +165,8 @@ setup_get(void)
 	CHECK_ENV("m", platform);
 	CHECK_ENV("p", arch);
 	CHECK_ENV("i", ident);
+	CHECK_ENV("K", kernvers);
+	CHECK_ENV("U", uservers);
 }
 
 #define	PRINT_FLAG(flags,flag,var)		\
@@ -176,6 +190,8 @@ print_uname(u_int flags)
 	PRINT_FLAG(flags, MFLAG, platform);
 	PRINT_FLAG(flags, PFLAG, arch);
 	PRINT_FLAG(flags, IFLAG, ident);
+	PRINT_FLAG(flags, KFLAG, kernvers);
+	PRINT_FLAG(flags, UFLAG, uservers);
 	printf("\n");
 }
 
@@ -244,8 +260,26 @@ NATIVE_SYSCTLNAME_GET(ident, "kern.ident") {
 } NATIVE_SET;
 
 static void
+native_uservers(void)
+{
+	static char buf[128];
+
+	snprintf(buf, sizeof(buf), "%d", __FreeBSD_version);
+	uservers = buf;
+}
+
+static void
+native_kernvers(void)
+{
+	static char buf[128];
+
+	snprintf(buf, sizeof(buf), "%d", getosreldate());
+	kernvers = buf;
+}
+
+static void
 usage(void)
 {
-	fprintf(stderr, "usage: uname [-aimnoprsv]\n");
+	fprintf(stderr, "usage: uname [-aiKmnoprsUv]\n");
 	exit(1);
 }

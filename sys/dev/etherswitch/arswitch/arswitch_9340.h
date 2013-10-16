@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2000 Doug Rabson
+ * Copyright (c) 2011-2012 Stefan Bethke.
+ * Copyright (c) 2031 Adrian Chadd <adrian@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,33 +26,10 @@
  *
  * $FreeBSD$
  */
+#ifndef	__ARSWITCH_9340_H__
+#define	__ARSWITCH_9340_H__
 
-#ifndef _SYS__TASK_H_
-#define _SYS__TASK_H_
+extern	int ar9340_probe(device_t dev);
+extern	void ar9340_attach(struct arswitch_softc *sc);
 
-#include <sys/queue.h>
-
-/*
- * Each task includes a function which is called from
- * taskqueue_run().  The first argument is taken from the 'ta_context'
- * field of struct task and the second argument is a count of how many
- * times the task was enqueued before the call to taskqueue_run().
- *
- * List of locks	 
- * (c)	const after init	 
- * (q)	taskqueue lock
- */
-typedef void task_fn_t(void *context, int pending);
-
-struct task {
-	STAILQ_ENTRY(task) ta_link;	/* (q) link for queue */
-	u_short	ta_pending;		/* (q) count times queued */
-	u_short	ta_priority;		/* (c) Priority */
-	task_fn_t *ta_func;		/* (c) task handler */
-	void	*ta_context;		/* (c) argument for handler */
-#ifdef VIMAGE
-	struct vnet *ta_vnet;		/* (c) vnet context */
-#endif
-};
-
-#endif /* !_SYS__TASK_H_ */
+#endif	/* __ARSWITCH_9340_H__ */
