@@ -134,7 +134,7 @@ static int in6_selectif(struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *ro, struct ifnet **,
 	struct ifnet *, u_int);
 
-static struct in6_addrpolicy *lookup_addrsel_policy(struct sockaddr_in6 *);
+static int lookup_policy_label(const struct in6_addr *, uint32_t);
 
 static void init_policy_queue(void);
 static int add_addrsel_policyent(struct in6_addrpolicy *);
@@ -949,21 +949,24 @@ addrsel_policy_init(void)
 	ADDRSEL_SXLOCK_INIT();
 }
 
-static struct in6_addrpolicy *
-lookup_addrsel_policy(struct sockaddr_in6 *key)
+static int
+lookup_policy_label(const struct in6_addr *addr, uint32_t zoneid)
 {
+	struct sockaddr_in6 sa6;
 	struct in6_addrpolicy *match = NULL;
 
-	ADDRSEL_LOCK();
-	match = match_addrsel_policy(key);
+	sa6.sin6_addr = *addr;
+	sa6.sin6_scope_id = zoneid;
 
+	ADDRSEL_LOCK();
+	match = match_addrsel_policy(&sa6);
 	if (match == NULL)
 		match = &V_defaultaddrpolicy;
 	else
 		match->use++;
 	ADDRSEL_UNLOCK();
 
-	return (match);
+	return (match->label);
 }
 
 /*
