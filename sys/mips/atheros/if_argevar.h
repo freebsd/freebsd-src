@@ -169,6 +169,7 @@ struct arge_softc {
 	int			arge_mac_unit;
 	int			arge_if_flags;
 	uint32_t		arge_debug;
+	uint32_t		arge_mdiofreq;
 	struct {
 		uint32_t	tx_pkts_unaligned;
 		uint32_t	tx_pkts_aligned;
