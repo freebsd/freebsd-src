@@ -74,7 +74,8 @@ in6_pcbgroup_bymbuf(struct inpcbinfo *pcbinfo, struct mbuf *m)
 
 struct inpcbgroup *
 in6_pcbgroup_bytuple(struct inpcbinfo *pcbinfo, const struct in6_addr *laddrp,
-    u_short lport, const struct in6_addr *faddrp, u_short fport)
+    u_short lport, const struct in6_addr *faddrp, u_short fport,
+    uint32_t zoneid)
 {
 	uint32_t hash;
 
@@ -99,5 +100,6 @@ in6_pcbgroup_byinpcb(struct inpcb *inp)
 {
 
 	return (in6_pcbgroup_bytuple(inp->inp_pcbinfo, &inp->in6p_laddr,
-	    inp->inp_lport, &inp->in6p_faddr, inp->inp_fport));
+	    inp->inp_lport, &inp->in6p_faddr, inp->inp_fport,
+	    inp->in6p_zoneid));
 }

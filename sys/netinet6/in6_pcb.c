@@ -630,8 +630,10 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
 		 * XXX: should we avoid to notify the value to TCP sockets?
 		 */
 		if (cmd == PRC_MSGSIZE && (inp->inp_flags & IN6P_MTU) != 0 &&
-		    (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) ||
-		     IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr, &sa6_dst->sin6_addr))) {
+		    (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) || (
+		     IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr,
+		     &sa6_dst->sin6_addr) && (sa6_dst->sin6_scope_id == 0 ||
+		     sa6_dst->sin6_scope_id == inp->in6p_zoneid)))) {
 			ip6_notify_pmtu(inp, (struct sockaddr_in6 *)dst,
 					(u_int32_t *)cmdarg);
 		}
@@ -647,7 +649,9 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
 		if (lport == 0 && fport == 0 && flowinfo &&
 		    inp->inp_socket != NULL &&
 		    flowinfo == (inp->inp_flow & IPV6_FLOWLABEL_MASK) &&
-		    IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, &sa6_src.sin6_addr))
+		    IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, &sa6_src.sin6_addr) &&
+		    (sa6_src.sin6_scope_id == 0 ||
+			sa6_src.sin6_scope_id == inp->in6p_zoneid))
 			goto do_notify;
 		else if (!IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr,
 					     &sa6_dst->sin6_addr) ||
@@ -657,6 +661,7 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
 			  !IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr,
 					      &sa6_src.sin6_addr)) ||
 			 (fport && inp->inp_fport != fport)) {
+			/* XXX: zoneid */
 			INP_WUNLOCK(inp);
 			continue;
 		}
@@ -852,6 +857,7 @@ in6_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
 {
 	struct inpcbhead *head;
 	struct inpcb *inp, *tmpinp;
+	uint32_t zoneid;
 	u_short fport = fport_arg, lport = lport_arg;
 	int faith;
 
@@ -860,6 +866,8 @@ in6_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
 	else
 		faith = 0;
 
+	zoneid = (ifp == NULL) ? 0:
+	    in6_getscopezone(ifp, IPV6_ADDR_SCOPE_LINKLOCAL);
 	/*
 	 * First look for an exact match.
 	 */
@@ -875,7 +883,8 @@ in6_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
 		if (IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr, faddr) &&
 		    IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr) &&
 		    inp->inp_fport == fport &&
-		    inp->inp_lport == lport) {
+		    inp->inp_lport == lport &&
+		    inp->in6p_zoneid == zoneid) {
 			/*
 			 * XXX We should be able to directly return
 			 * the inp here, without any checks.
@@ -933,7 +942,8 @@ in6_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
 					continue;
 			}
 
-			if (IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr)) {
+			if (IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr) &&
+			    inp->in6p_zoneid == zoneid) {
 				if (injail)
 					goto found;
 				else
@@ -986,6 +996,7 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 {
 	struct inpcbhead *head;
 	struct inpcb *inp, *tmpinp;
+	uint32_t zoneid;
 	u_short fport = fport_arg, lport = lport_arg;
 	int faith;
 
@@ -999,6 +1010,8 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 	else
 		faith = 0;
 
+	zoneid = (ifp == NULL) ? 0:
+	    in6_getscopezone(ifp, IPV6_ADDR_SCOPE_LINKLOCAL);
 	/*
 	 * First look for an exact match.
 	 */
@@ -1013,7 +1026,8 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 		if (IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr, faddr) &&
 		    IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr) &&
 		    inp->inp_fport == fport &&
-		    inp->inp_lport == lport) {
+		    inp->inp_lport == lport &&
+		    inp->in6p_zoneid == zoneid) {
 			/*
 			 * XXX We should be able to directly return
 			 * the inp here, without any checks.
@@ -1069,7 +1083,8 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 					continue;
 			}
 
-			if (IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr)) {
+			if (IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr) &&
+			    inp->in6p_zoneid == zoneid) {
 				if (injail)
 					return (inp);
 				else
@@ -1141,6 +1156,7 @@ in6_pcblookup(struct inpcbinfo *pcbinfo, struct in6_addr *faddr, u_int fport,
 {
 #if defined(PCBGROUP)
 	struct inpcbgroup *pcbgroup;
+	uint32_t zoneid;
 #endif
 
 	KASSERT((lookupflags & ~INPLOOKUP_MASK) == 0,
@@ -1150,8 +1166,10 @@ in6_pcblookup(struct inpcbinfo *pcbinfo, struct in6_addr *faddr, u_int fport,
 
 #if defined(PCBGROUP)
 	if (in_pcbgroup_enabled(pcbinfo)) {
+		zoneid = (ifp == NULL) ? 0:
+		    in6_getscopezone(ifp, IPV6_ADDR_SCOPE_LINKLOCAL);
 		pcbgroup = in6_pcbgroup_bytuple(pcbinfo, laddr, lport, faddr,
-		    fport);
+		    fport, zoneid);
 		return (in6_pcblookup_group(pcbinfo, pcbgroup, faddr, fport,
 		    laddr, lport, lookupflags, ifp));
 	}
@@ -1167,6 +1185,7 @@ in6_pcblookup_mbuf(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 {
 #ifdef PCBGROUP
 	struct inpcbgroup *pcbgroup;
+	uint32_t zoneid;
 #endif
 
 	KASSERT((lookupflags & ~INPLOOKUP_MASK) == 0,
@@ -1181,8 +1200,10 @@ in6_pcblookup_mbuf(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 		if (pcbgroup != NULL)
 			return (in6_pcblookup_group(pcbinfo, pcbgroup, faddr,
 			    fport, laddr, lport, lookupflags, ifp));
+		zoneid = (ifp == NULL) ? 0:
+		    in6_getscopezone(ifp, IPV6_ADDR_SCOPE_LINKLOCAL);
 		pcbgroup = in6_pcbgroup_bytuple(pcbinfo, laddr, lport, faddr,
-		    fport);
+		    fport, zoneid);
 		return (in6_pcblookup_group(pcbinfo, pcbgroup, faddr, fport,
 		    laddr, lport, lookupflags, ifp));
 	}

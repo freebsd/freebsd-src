@@ -77,7 +77,7 @@ struct inpcbgroup *
 	in6_pcbgroup_bymbuf(struct inpcbinfo *, struct mbuf *);
 struct	inpcbgroup *
 	in6_pcbgroup_bytuple(struct inpcbinfo *, const struct in6_addr *,
-	    u_short, const struct in6_addr *, u_short);
+	    u_short, const struct in6_addr *, u_short, uint32_t);
 
 void	in6_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);
 void	in6_losing(struct inpcb *);
