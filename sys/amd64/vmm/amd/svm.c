@@ -678,6 +678,8 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		case VMCB_EXIT_IO:
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_INOUT, 1);
 			user = svm_handle_io(svm_sc, vcpu, vmexit);
+			VMM_CTR1(svm_sc->vm, vcpu, "SVM:I/O VMEXIT RIP:0x%lx\n",
+				state->rip);
 			break;
 
 		case VMCB_EXIT_CPUID:
@@ -691,7 +693,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			user = 0;
 			break;
 
-			case VMCB_EXIT_HLT:
+		case VMCB_EXIT_HLT:
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_HLT, 1);
  			if (ctrl->v_irq) {
 				 /* Interrupt is pending, can't halt guest. */
@@ -709,7 +711,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			}
 			break;
 
-			case VMCB_EXIT_PAUSE:
+		case VMCB_EXIT_PAUSE:
 			VMM_CTR0(svm_sc->vm, vcpu, "SVM:VMEXIT pause");
 			vmexit->exitcode = VM_EXITCODE_PAUSE;
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_PAUSE, 1);
@@ -975,7 +977,19 @@ svm_vmrun(void *arg, int vcpu, register_t rip)
 	/* Update Guest RIP */
 	state->rip = rip;
 	
+	VMM_CTR1(svm_sc->vm, vcpu, "SVM:entered with RIP:0x%lx\n", 
+		state->rip);
 	do {
+		 /* We are asked to give the cpu by scheduler. */
+		if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED)) {
+			vmexit->exitcode = VM_EXITCODE_BOGUS;
+			vmexit->inst_length = 0;
+			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_ASTPENDING, 1);
+			VMM_CTR1(svm_sc->vm, vcpu, "SVM:gave up cpu, RIP:0x%lx\n", 
+				state->rip);
+			break;
+		}
+
 		lapic_timer_tick(svm_sc->vm, vcpu);
 		
 		(void)svm_set_vmcb(svm_get_vmcb(svm_sc, vcpu), svm_sc->asid);
@@ -1022,7 +1036,6 @@ svm_vmrun(void *arg, int vcpu, register_t rip)
 		wrmsr(MSR_GSBASE, (uint64_t)&__pcpu[vcpustate->lastcpu]);
 		wrmsr(MSR_KGSBASE, (uint64_t)&__pcpu[vcpustate->lastcpu]);
 		
-
 		/* vcpu exit with glbal interrupt disabled. */
 		enable_gintr();
 		
@@ -1031,16 +1044,13 @@ svm_vmrun(void *arg, int vcpu, register_t rip)
 		vcpustate->loop++;
 		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_COUNT, 1);
 
-		 /* We are asked to give the cpud by scheduler.*/
-		if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED)) {
-			vmexit->exitcode = VM_EXITCODE_BOGUS;
-			vmexit->inst_length = 0;
-			break;
-		}
-
 		/* Update RIP since we are continuing vcpu execution.*/
 		state->rip = vmexit->rip;
+
+		VMM_CTR1(svm_sc->vm, vcpu, "SVM:loop RIP:0x%lx\n", state->rip); 
 	} while (!user);
+	VMM_CTR1(svm_sc->vm, vcpu, "SVM:exited with RIP:0x%lx\n", 
+		state->rip);
 		
 	return (0);
 }
@@ -1260,7 +1270,7 @@ svm_setcap(void *arg, int vcpu, int type, int val)
 	ctrl = svm_get_vmcb_ctrl(svm_sc, vcpu);
 
 	switch (type) {
-	case VM_CAP_HALT_EXIT:
+		case VM_CAP_HALT_EXIT:
 			if (val)
 				ctrl->ctrl1 |= VMCB_INTCPT_HLT;
 			else
