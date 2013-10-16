@@ -5265,7 +5265,6 @@ xpt_done_td(void *arg)
 	STAILQ_HEAD(, ccb_hdr)	doneq;
 
 	STAILQ_INIT(&doneq);
-	THREAD_NO_SLEEPING();
 	mtx_lock(&queue->cam_doneq_mtx);
 	while (1) {
 		while (STAILQ_EMPTY(&queue->cam_doneq)) {
@@ -5277,11 +5276,13 @@ xpt_done_td(void *arg)
 		STAILQ_CONCAT(&doneq, &queue->cam_doneq);
 		mtx_unlock(&queue->cam_doneq_mtx);
 
+		THREAD_NO_SLEEPING();
 		while ((ccb_h = STAILQ_FIRST(&doneq)) != NULL) {
 			STAILQ_REMOVE_HEAD(&doneq, sim_links.stqe);
 			ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
 			xpt_done_process(ccb_h);
 		}
+		THREAD_SLEEPING_OK();
 
 		mtx_lock(&queue->cam_doneq_mtx);
 	}
