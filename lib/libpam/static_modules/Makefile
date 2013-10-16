@@ -37,6 +37,7 @@
 
 OPENPAM=	${.CURDIR:H:H:H}/contrib/openpam
 .PATH: ${OPENPAM}/lib
+.PATH: ${OPENPAM}/lib/libpam
 
 all:
 
