@@ -511,6 +511,7 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 void
 g_io_deliver(struct bio *bp, int error)
 {
+	struct bintime now;
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	int first;
@@ -564,11 +565,13 @@ g_io_deliver(struct bio *bp, int error)
 	 * can not update one instance of the statistics from more
 	 * than one thread at a time, so grab the lock first.
 	 */
+	if (g_collectstats)
+		binuptime(&now);
 	g_bioq_lock(&g_bio_run_up);
 	if (g_collectstats & 1)
-		devstat_end_transaction_bio(pp->stat, bp);
+		devstat_end_transaction_bio_bt(pp->stat, bp, &now);
 	if (g_collectstats & 2)
-		devstat_end_transaction_bio(cp->stat, bp);
+		devstat_end_transaction_bio_bt(cp->stat, bp, &now);
 
 	cp->nend++;
 	pp->nend++;
