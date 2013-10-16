@@ -1,4 +1,4 @@
-/*	$NetBSD: compare.c,v 1.55 2012/10/05 00:59:35 christos Exp $	*/
+/*	$NetBSD: compare.c,v 1.56 2013/09/09 23:27:43 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)compare.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: compare.c,v 1.55 2012/10/05 00:59:35 christos Exp $");
+__RCSID("$NetBSD: compare.c,v 1.56 2013/09/09 23:27:43 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -192,9 +192,9 @@ typeerr:		LABEL;
 	    (s->type == F_BLOCK || s->type == F_CHAR) &&
 	    s->st_rdev != p->fts_statp->st_rdev) {
 		LABEL;
-		printf("%sdevice (%#llx, %#llx",
-		    tab, (long long)s->st_rdev,
-		    (long long)p->fts_statp->st_rdev);
+		printf("%sdevice (%#jx, %#jx",
+		    tab, (uintmax_t)s->st_rdev,
+		    (uintmax_t)p->fts_statp->st_rdev);
 		if (uflag) {
 			if ((unlink(p->fts_accpath) == -1) ||
 			    (mknod(p->fts_accpath,
@@ -283,9 +283,9 @@ typeerr:		LABEL;
 	}
 	if (s->flags & F_SIZE && s->st_size != p->fts_statp->st_size) {
 		LABEL;
-		printf("%ssize (%lld, %lld)\n",
-		    tab, (long long)s->st_size,
-		    (long long)p->fts_statp->st_size);
+		printf("%ssize (%ju, %ju)\n",
+		    tab, (uintmax_t)s->st_size,
+		    (uintmax_t)p->fts_statp->st_size);
 		tab = "\t";
 	}
 	/*
