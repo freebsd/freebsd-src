@@ -3559,9 +3559,6 @@ biodone(struct bio *bp)
 	vm_offset_t start, end;
 	int transient;
 
-	mtxp = mtx_pool_find(mtxpool_sleep, bp);
-	mtx_lock(mtxp);
-	bp->bio_flags |= BIO_DONE;
 	if ((bp->bio_flags & BIO_TRANSIENT_MAPPING) != 0) {
 		start = trunc_page((vm_offset_t)bp->bio_data);
 		end = round_page((vm_offset_t)bp->bio_data + bp->bio_length);
@@ -3571,11 +3568,16 @@ biodone(struct bio *bp)
 		start = end = 0;
 	}
 	done = bp->bio_done;
-	if (done == NULL)
+	if (done == NULL) {
+		mtxp = mtx_pool_find(mtxpool_sleep, bp);
+		mtx_lock(mtxp);
+		bp->bio_flags |= BIO_DONE;
 		wakeup(bp);
-	mtx_unlock(mtxp);
-	if (done != NULL)
+		mtx_unlock(mtxp);
+	} else {
+		bp->bio_flags |= BIO_DONE;
 		done(bp);
+	}
 	if (transient) {
 		pmap_qremove(start, OFF_TO_IDX(end - start));
 		vmem_free(transient_arena, start, end - start);
@@ -3585,9 +3587,6 @@ biodone(struct bio *bp)
 
 /*
  * Wait for a BIO to finish.
- *
- * XXX: resort to a timeout for now.  The optimal locking (if any) for this
- * case is not yet clear.
  */
 int
 biowait(struct bio *bp, const char *wchan)
@@ -3597,7 +3596,7 @@ biowait(struct bio *bp, const char *wchan)
 	mtxp = mtx_pool_find(mtxpool_sleep, bp);
 	mtx_lock(mtxp);
 	while ((bp->bio_flags & BIO_DONE) == 0)
-		msleep(bp, mtxp, PRIBIO, wchan, hz / 10);
+		msleep(bp, mtxp, PRIBIO, wchan, 0);
 	mtx_unlock(mtxp);
 	if (bp->bio_error != 0)
 		return (bp->bio_error);
