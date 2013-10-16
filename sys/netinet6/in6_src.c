@@ -1242,35 +1242,41 @@ in6_selectroute_fib(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
  * 1. Hoplimit value specified via ioctl.
  * 2. (If the outgoing interface is detected) the current
  *     hop limit of the interface specified by router advertisement.
- * 3. The system default hoplimit.
+ * 3. If destination address is from link-local scope, use its zoneid
+ *    to determine outgoing interface and use its hop limit.
+ * 4. The system default hoplimit.
  */
 int
 in6_selecthlim(struct inpcb *in6p, struct ifnet *ifp)
 {
+	struct route_in6 ro6;
 
 	if (in6p && in6p->in6p_hops >= 0)
 		return (in6p->in6p_hops);
-	else if (ifp)
-		return (ND_IFINFO(ifp)->chlim);
-	else if (in6p && !IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr)) {
-		struct route_in6 ro6;
-		struct ifnet *lifp;
 
+	if (ifp != NULL)
+		return (ND_IFINFO(ifp)->chlim);
+
+	/* XXX: should we check for multicast here?*/
+	if (in6p && IN6_IS_ADDR_LINKLOCAL(&in6p->in6p_faddr)) {
+		if (in6p->in6p_zoneid != 0 &&
+		    (ifp = in6_getlinkifnet(in6p->in6p_zoneid)))
+			return (ND_IFINFO(ifp)->chlim);
+	} else if (in6p && !IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr)) {
 		bzero(&ro6, sizeof(ro6));
 		ro6.ro_dst.sin6_family = AF_INET6;
 		ro6.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
 		ro6.ro_dst.sin6_addr = in6p->in6p_faddr;
 		in6_rtalloc(&ro6, in6p->inp_inc.inc_fibnum);
 		if (ro6.ro_rt) {
-			lifp = ro6.ro_rt->rt_ifp;
+			ifp = ro6.ro_rt->rt_ifp;
 			RTFREE(ro6.ro_rt);
-			if (lifp)
-				return (ND_IFINFO(lifp)->chlim);
+			if (ifp)
+				return (ND_IFINFO(ifp)->chlim);
 		}
 	}
 	return (V_ip6_defhlim);
 }
-
 /*
  * XXX: this is borrowed from in6_pcbbind(). If possible, we should
  * share this function by all *bsd*...
