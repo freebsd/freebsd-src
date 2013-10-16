@@ -63,7 +63,20 @@ MACHINE_ARCH_LIST.$m?= ${TARGET_ARCHES_${m}:U$m}
 MACHINE_ARCH.$m?= ${MACHINE_ARCH_LIST.$m:[1]}
 BOOT_MACHINE_DIR.$m ?= boot/$m
 .endfor
-MACHINE_ARCH:= ${TARGET_ARCH:U${MACHINE_ARCH.${MACHINE}}}
+.ifndef _TARGET_SPEC
+.if empty(MACHINE_ARCH)
+.if !empty(TARGET_ARCH)
+MACHINE_ARCH= ${TARGET_ARCH}
+.else
+MACHINE_ARCH= ${MACHINE_ARCH.${MACHINE}}
+.endif
+.endif
+MACHINE_ARCH?= ${MACHINE_ARCH.${MACHINE}}
+MACHINE_ARCH:= ${MACHINE_ARCH}
+.else
+# we got here via dirdeps
+MACHINE_ARCH:= ${MACHINE_ARCH.${MACHINE}}
+.endif
 
 .if !defined(_TARGETS)
 # some things we do only once
@@ -206,9 +219,10 @@ CXXFLAGS_LAST += ${CFLAGS_LAST.${COMPILER_TYPE}}
 # if ld suppored sysroot, this would suffice
 CFLAGS_LAST+= --sysroot=${STAGE_OBJTOP}
 .endif
-.endif
 LDFLAGS_LAST+= -Wl,-rpath-link,${STAGE_LIBDIR}
 STAGED_INCLUDE_DIR= ${STAGE_OBJTOP}/usr/include
+.endif
+
 .if ${USE_META:Uyes} == "yes"
 .include "meta.sys.mk"
 .endif
