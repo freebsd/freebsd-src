@@ -107,24 +107,15 @@ struct radix_node_head {
 	struct	radix_node *rnh_treetop;
 	u_int	rnh_gen;		/* generation counter */
 	int	rnh_multipath;		/* multipath capable ? */
-	int	rnh_addrsize;		/* permit, but not require fixed keys */
-	int	rnh_pktsize;		/* permit, but not require fixed keys */
 	struct	radix_node *(*rnh_addaddr)	/* add based on sockaddr */
 		(void *v, void *mask,
 		     struct radix_node_head *head, struct radix_node nodes[]);
-	struct	radix_node *(*rnh_addpkt)	/* add based on packet hdr */
-		(void *v, void *mask,
-		     struct radix_node_head *head, struct radix_node nodes[]);
 	struct	radix_node *(*rnh_deladdr)	/* remove based on sockaddr */
-		(void *v, void *mask, struct radix_node_head *head);
-	struct	radix_node *(*rnh_delpkt)	/* remove based on packet hdr */
 		(void *v, void *mask, struct radix_node_head *head);
 	struct	radix_node *(*rnh_matchaddr)	/* locate based on sockaddr */
 		(void *v, struct radix_node_head *head);
 	struct	radix_node *(*rnh_lookup)	/* locate based on sockaddr */
 		(void *v, void *mask, struct radix_node_head *head);
-	struct	radix_node *(*rnh_matchpkt)	/* locate based on packet hdr */
-		(void *v, struct radix_node_head *head);
 	int	(*rnh_walktree)			/* traverse tree */
 		(struct radix_node_head *head, walktree_f_t *f, void *w);
 	int	(*rnh_walktree_from)		/* traverse tree below a */
