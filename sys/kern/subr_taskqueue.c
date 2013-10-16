@@ -70,7 +70,6 @@ struct taskqueue {
 
 #define	TQ_FLAGS_ACTIVE		(1 << 0)
 #define	TQ_FLAGS_BLOCKED	(1 << 1)
-#define	TQ_FLAGS_PENDING	(1 << 2)
 
 #define	DT_CALLOUT_ARMED	(1 << 0)
 
@@ -223,8 +222,6 @@ taskqueue_enqueue_locked(struct taskqueue *queue, struct task *task)
 	task->ta_pending = 1;
 	if ((queue->tq_flags & TQ_FLAGS_BLOCKED) == 0)
 		queue->tq_enqueue(queue->tq_context);
-	else
-		queue->tq_flags |= TQ_FLAGS_PENDING;
 
 	return (0);
 }
@@ -301,10 +298,8 @@ taskqueue_unblock(struct taskqueue *queue)
 
 	TQ_LOCK(queue);
 	queue->tq_flags &= ~TQ_FLAGS_BLOCKED;
-	if (queue->tq_flags & TQ_FLAGS_PENDING) {
-		queue->tq_flags &= ~TQ_FLAGS_PENDING;
+	if (!STAILQ_EMPTY(&queue->tq_queue))
 		queue->tq_enqueue(queue->tq_context);
-	}
 	TQ_UNLOCK(queue);
 }
 
