@@ -1261,6 +1261,10 @@ arge_init_locked(struct arge_softc *sc)
  * The TX engine requires each fragment to be aligned to a
  * 4 byte boundary and the size of each fragment except
  * the last to be a multiple of 4 bytes.
+ *
+ * XXX TODO: I believe this is only a bug on the AR71xx and
+ * AR913x MACs. The later MACs (AR724x and later) does not
+ * need this workaround.
  */
 static int
 arge_mbuf_chain_is_tx_aligned(struct mbuf *m0)
@@ -1294,6 +1298,10 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	/*
 	 * Fix mbuf chain, all fragments should be 4 bytes aligned and
 	 * even 4 bytes
+	 *
+	 * XXX TODO: I believe this is only a bug on the AR71xx and
+	 * AR913x MACs. The later MACs (AR724x and later) does not
+	 * need this workaround.
 	 */
 	m = *m_head;
 	if (! arge_mbuf_chain_is_tx_aligned(m)) {
