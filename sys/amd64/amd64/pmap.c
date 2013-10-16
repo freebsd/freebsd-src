@@ -371,6 +371,8 @@ int pmap_pcid_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_enabled, CTLFLAG_RDTUN, &pmap_pcid_enabled,
     0, "Is TLB Context ID enabled ?");
 int invpcid_works = 0;
+SYSCTL_INT(_vm_pmap, OID_AUTO, invpcid_works, CTLFLAG_RD, &invpcid_works, 0,
+    "Is the invpcid instruction available ?");
 
 static int
 pmap_pcid_save_cnt_proc(SYSCTL_HANDLER_ARGS)
