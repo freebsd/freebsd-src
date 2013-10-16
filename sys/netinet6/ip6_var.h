@@ -292,6 +292,7 @@ struct ip6aux {
 #define	IPV6_UNSPECSRC		0x01	/* allow :: as the source address */
 #define	IPV6_FORWARDING		0x02	/* most of IPv6 header exists */
 #define	IPV6_MINMTU		0x04	/* use minimum MTU (IPV6_USE_MIN_MTU) */
+#define	IPV6_USEROIF		0x08	/* use interface specified by user */
 
 /*
  * IPv6 protocol layer specific mbuf flags.

@@ -143,8 +143,8 @@ static int ip6_insertfraghdr(struct mbuf *, struct mbuf *, int,
 	struct ip6_frag **);
 static int ip6_insert_jumboopt(struct ip6_exthdrs *, u_int32_t);
 static int ip6_splithdr(struct mbuf *, struct ip6_exthdrs *);
-static int ip6_getpmtu(struct route_in6 *, struct route_in6 *,
-	struct ifnet *, struct in6_addr *, u_long *, int *, u_int);
+static int ip6_getpmtu(const struct in6_addr *, struct ifnet *,
+    struct route_in6 *, struct route_in6 *, u_int, u_long *, int *);
 static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
 
 
@@ -221,8 +221,6 @@ in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
  * type of "mtu": rt_rmx.rmx_mtu is u_long, ifnet.ifr_mtu is int, and
  * nd_ifinfo.linkmtu is u_int32_t.  so we use u_long to hold largest one,
  * which is rt_rmx.rmx_mtu.
- *
- * ifpp - XXX: just for statistics
  */
 int
 ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
@@ -230,13 +228,12 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
     struct ifnet **ifpp, struct inpcb *inp)
 {
 	struct ip6_hdr *ip6, *mhip6;
-	struct ifnet *ifp, *origifp;
+	struct ifnet *ifp = NULL, *origifp;
 	struct mbuf *m = m0;
 	struct mbuf *mprev = NULL;
 	int hlen, tlen, len, off;
 	struct route_in6 ip6route;
-	struct rtentry *rt = NULL;
-	struct sockaddr_in6 *dst, src_sa, dst_sa;
+	struct sockaddr_in6 *dst, dst_sa;
 	struct in6_addr odst;
 	int error = 0;
 	struct in6_ifaddr *ia = NULL;
@@ -244,8 +241,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	int alwaysfrag, dontfrag;
 	u_int32_t optlen = 0, plen = 0, unfragpartlen = 0;
 	struct ip6_exthdrs exthdrs;
-	struct in6_addr finaldst, src0, dst0;
-	u_int32_t zone;
+	struct in6_addr finaldst;
 	struct route_in6 *ro_pmtu = NULL;
 	int hdrsplit = 0;
 	int needipsec = 0;
@@ -258,6 +254,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	struct secpolicy *sp = NULL;
 #endif /* IPSEC */
 	struct m_tag *fwd_tag = NULL;
+	u_int fibnum;
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	if (ip6 == NULL) {
@@ -265,8 +262,11 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		goto bad;
 	}
 
-	if (inp != NULL)
+	if (inp != NULL) {
 		M_SETFIB(m, inp->inp_inc.inc_fibnum);
+		fibnum = inp->inp_inc.inc_fibnum;
+	} else
+		fibnum = M_GETFIB(m);
 
 	finaldst = ip6->ip6_dst;
 	bzero(&exthdrs, sizeof(exthdrs));
@@ -512,14 +512,22 @@ skip_ipsec2:;
 	/*
 	 * Route packet.
 	 */
-	if (ro == 0) {
-		ro = &ip6route;
-		bzero((caddr_t)ro, sizeof(*ro));
+	if (ro == NULL || ro->ro_rt == NULL) {
+		if (ro == NULL)
+			ro = &ip6route;
+		bzero(ro, sizeof(*ro));
+		ro->ro_dst.sin6_family = AF_INET6;
+		ro->ro_dst.sin6_len = sizeof(ro->ro_dst);
+		ro->ro_dst.sin6_addr = ip6->ip6_dst;
 	}
 	ro_pmtu = ro;
-	if (opt && opt->ip6po_rthdr)
-		ro = &opt->ip6po_route;
-	dst = (struct sockaddr_in6 *)&ro->ro_dst;
+	if (opt != NULL) {
+		if (opt->ip6po_nexthop != NULL)
+			ro = &opt->ip6po_nextroute;
+		else if (opt->ip6po_rthdr != NULL)
+			ro = &opt->ip6po_route;
+	}
+	dst = &ro->ro_dst;
 #ifdef FLOWTABLE
 	if (ro->ro_rt == NULL) {
 		struct flentry *fle;
@@ -636,102 +644,136 @@ again:
 	/* adjust pointer */
 	ip6 = mtod(m, struct ip6_hdr *);
 
-	if (ro->ro_rt && fwd_tag == NULL) {
-		rt = ro->ro_rt;
+	if (fwd_tag != NULL) {
+		/*
+		 * We have changed destination by packet filter.
+		 * Check that we have valid route and free it, if
+		 * new destination is different one.
+		 *
+		 * dst_sa contains the new destination.
+		 */
+		if (ro != &ip6route) {
+			/*
+			 * XXX: check that we do not leak route here.
+			 */
+			ro = &ip6route;
+			bzero(ro, sizeof(*ro));
+		} else if (ro->ro_rt != NULL && (
+		    (ro->ro_rt->rt_flags & RTF_UP) == 0 ||
+		    ro->ro_dst.sin6_family != AF_INET6 ||
+		    IN6_ARE_ADDR_EQUAL(&ro->ro_dst.sin6_addr,
+			&dst_sa.sin6_addr) == 0))
+			RO_RTFREE(ro);
+		/*
+		 * Copy new destination to prepare new route lookup.
+		 */
+		bcopy(&dst_sa, &ro->ro_dst, sizeof(dst_sa));
+		dst = &ro->ro_dst;
+	} else {
+		/*
+		 * fwd_tag is NULL.
+		 * Check that route exists and is valid.
+		 */
+		if (ro->ro_rt != NULL && (
+		    (ro->ro_rt->rt_flags & RTF_UP) == 0 ||
+		    ro->ro_dst.sin6_family != AF_INET6))
+			RO_RTFREE(ro);
+	}
+	if (ro->ro_rt != NULL) {
 		ifp = ro->ro_rt->rt_ifp;
 	} else {
-		if (fwd_tag == NULL) {
-			bzero(&dst_sa, sizeof(dst_sa));
-			dst_sa.sin6_family = AF_INET6;
-			dst_sa.sin6_len = sizeof(dst_sa);
-			dst_sa.sin6_addr = ip6->ip6_dst;
-		}
-		error = in6_selectroute_fib(&dst_sa, opt, im6o, ro, &ifp,
-		    &rt, inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m));
-		if (error != 0) {
-			if (ifp != NULL)
-				in6_ifstat_inc(ifp, ifs6_out_discard);
-			goto bad;
-		}
-	}
-	if (rt == NULL) {
 		/*
-		 * If in6_selectroute() does not return a route entry,
-		 * dst may not have been updated.
+		 * We can just use specified by user outgoing interface when
+		 * IPV6_USEROIF flag is set. But we should determine new
+		 * outgoing interface if PFIL has changed destination address,
+		 * or some packet options is set.
 		 */
-		*dst = dst_sa;	/* XXX */
+		if ((flags & IPV6_USEROIF) != 0 &&
+		    (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
+		    (fwd_tag == NULL && (opt == NULL ||
+		    (opt->ip6po_nexthop == NULL &&
+		    opt->ip6po_rthdr == NULL)))))
+			ifp = *ifpp;
+		else {
+			/*
+			 * We ignore next hop and routing header when
+			 * destination IP address is multicast. So, first
+			 * look into multicast options to determine outgoing
+			 * interface.
+			 */
+			if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+				if (im6o != NULL &&
+				    im6o->im6o_multicast_ifp != NULL) {
+					ifp = im6o->im6o_multicast_ifp;
+					goto oif_found;
+				}
+				/*
+				 * If address is from interface-local or
+				 * link-local scope, then we can not
+				 * disambiguate it without scope zone id.
+				 */
+				if (IN6_IS_ADDR_MC_LINKLOCAL(&ip6->ip6_dst) ||
+				    IN6_IS_ADDR_MC_INTFACELOCAL(
+				    &ip6->ip6_dst)) {
+					error = EHOSTUNREACH;
+					IP6STAT_INC(ip6s_noroute);
+					goto bad;
+				}
+			} else if (IN6_IS_ADDR_LINKLOCAL(&dst->sin6_addr) ||
+			    IN6_IS_ADDR_MC_INTFACELOCAL(&dst->sin6_addr) ||
+			    IN6_IS_ADDR_MC_LINKLOCAL(&dst->sin6_addr)) {
+				/*
+				 * Check that destination has correct zone id
+				 */
+				if (dst->sin6_scope_id == 0 || !(ifp =
+				    in6_getlinkifnet(dst->sin6_scope_id))) {
+					error = EHOSTUNREACH;
+					IP6STAT_INC(ip6s_noroute);
+					goto bad;
+				}
+				goto oif_found;
+			}
+			/*
+			 * Check that destination address is our own.
+			 */
+			ia = in6ifa_ifwithaddr(&dst->sin6_addr, 0);
+			if (ia != NULL) {
+				ifp = ia->ia_ifp;
+				ifa_free(&ia->ia_ifa);
+				goto oif_found;
+			}
+			/*
+			 * Destination address is not our, try to find a route.
+			 */
+			in6_rtalloc(ro, fibnum);
+			if (ro->ro_rt)
+				ifp = ro->ro_rt->rt_ifp;
+		}
 	}
-
-	/*
-	 * then rt (for unicast) and ifp must be non-NULL valid values.
-	 */
+	if (ifp == NULL) {
+		error = EHOSTUNREACH;
+		IP6STAT_INC(ip6s_noroute);
+		goto bad;
+	}
+oif_found:
 	if ((flags & IPV6_FORWARDING) == 0) {
 		/* XXX: the FORWARDING flag can be set for mrouting. */
 		in6_ifstat_inc(ifp, ifs6_out_request);
 	}
-	if (rt != NULL) {
-		ia = (struct in6_ifaddr *)(rt->rt_ifa);
-		rt->rt_use++;
-	}
-
-
 	/*
-	 * The outgoing interface must be in the zone of source and
+	 * XXX: The outgoing interface must be in the zone of source and
 	 * destination addresses.
 	 */
 	origifp = ifp;
-
-	src0 = ip6->ip6_src;
-	if (in6_setscope(&src0, origifp, &zone))
-		goto badscope;
-	bzero(&src_sa, sizeof(src_sa));
-	src_sa.sin6_family = AF_INET6;
-	src_sa.sin6_len = sizeof(src_sa);
-	src_sa.sin6_addr = ip6->ip6_src;
-	if (sa6_recoverscope(&src_sa) || zone != src_sa.sin6_scope_id)
-		goto badscope;
-
-	dst0 = ip6->ip6_dst;
-	if (in6_setscope(&dst0, origifp, &zone))
-		goto badscope;
-	/* re-initialize to be sure */
-	bzero(&dst_sa, sizeof(dst_sa));
-	dst_sa.sin6_family = AF_INET6;
-	dst_sa.sin6_len = sizeof(dst_sa);
-	dst_sa.sin6_addr = ip6->ip6_dst;
-	if (sa6_recoverscope(&dst_sa) || zone != dst_sa.sin6_scope_id) {
-		goto badscope;
-	}
-
-	/* We should use ia_ifp to support the case of
-	 * sending packets to an address of our own.
+	/*
+	 * If we have valid route and it is marked as gateway, then
+	 * use rt_gateway as dst. Otherwise dst will point to the destination
+	 * address (it can be ip6->ip6_dst, opt->ip6po_nexthop,
+	 * ip6route.ro_dst from fwd_tag or opt->ip6po_route.ro_dst).
 	 */
-	if (ia != NULL && ia->ia_ifp)
-		ifp = ia->ia_ifp;
-
-	/* scope check is done. */
-	goto routefound;
-
-  badscope:
-	IP6STAT_INC(ip6s_badscope);
-	in6_ifstat_inc(origifp, ifs6_out_discard);
-	if (error == 0)
-		error = EHOSTUNREACH; /* XXX */
-	goto bad;
-
-  routefound:
-	if (rt && !IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
-		if (opt && opt->ip6po_nextroute.ro_rt) {
-			/*
-			 * The nexthop is explicitly specified by the
-			 * application.  We assume the next hop is an IPv6
-			 * address.
-			 */
-			dst = (struct sockaddr_in6 *)opt->ip6po_nexthop;
-		}
-		else if ((rt->rt_flags & RTF_GATEWAY))
-			dst = (struct sockaddr_in6 *)rt->rt_gateway;
-	}
+	if (ro->ro_rt && !IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) &&
+	    (ro->ro_rt->rt_flags & RTF_GATEWAY) != 0)
+		dst = (struct sockaddr_in6 *)ro->ro_rt->rt_gateway;
 
 	if (!IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		m->m_flags &= ~(M_BCAST | M_MCAST); /* just in case */
@@ -806,8 +848,8 @@ again:
 		*ifpp = ifp;
 
 	/* Determine path MTU. */
-	if ((error = ip6_getpmtu(ro_pmtu, ro, ifp, &finaldst, &mtu,
-	    &alwaysfrag, inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m))) != 0)
+	if ((error = ip6_getpmtu(&finaldst, ifp, ro, ro_pmtu,
+	    fibnum, &mtu, &alwaysfrag)) != 0)
 		goto bad;
 
 	/*
@@ -927,7 +969,6 @@ again:
 	/* Or forward to some other address? */
 	if ((m->m_flags & M_IP6_NEXTHOP) &&
 	    (fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL)) != NULL) {
-		dst = (struct sockaddr_in6 *)&ro->ro_dst;
 		bcopy((fwd_tag+1), &dst_sa, sizeof(struct sockaddr_in6));
 		m->m_flags |= M_SKIP_FIREWALL;
 		m->m_flags &= ~M_IP6_NEXTHOP;
@@ -1367,9 +1408,8 @@ ip6_insertfraghdr(struct mbuf *m0, struct mbuf *m, int hlen,
 }
 
 static int
-ip6_getpmtu(struct route_in6 *ro_pmtu, struct route_in6 *ro,
-    struct ifnet *ifp, struct in6_addr *dst, u_long *mtup,
-    int *alwaysfragp, u_int fibnum)
+ip6_getpmtu(const struct in6_addr *dst, struct ifnet *ifp, struct route_in6 *ro,
+    struct route_in6 *ro_pmtu, u_int fibnum, u_long *mtup, int *alwaysfragp)
 {
 	u_int32_t mtu = 0;
 	int alwaysfrag = 0;
@@ -1377,20 +1417,17 @@ ip6_getpmtu(struct route_in6 *ro_pmtu, struct route_in6 *ro,
 
 	if (ro_pmtu != ro) {
 		/* The first hop and the final destination may differ. */
-		struct sockaddr_in6 *sa6_dst =
-		    (struct sockaddr_in6 *)&ro_pmtu->ro_dst;
 		if (ro_pmtu->ro_rt &&
 		    ((ro_pmtu->ro_rt->rt_flags & RTF_UP) == 0 ||
-		     !IN6_ARE_ADDR_EQUAL(&sa6_dst->sin6_addr, dst))) {
-			RTFREE(ro_pmtu->ro_rt);
-			ro_pmtu->ro_rt = (struct rtentry *)NULL;
-		}
-		if (ro_pmtu->ro_rt == NULL) {
-			bzero(sa6_dst, sizeof(*sa6_dst));
-			sa6_dst->sin6_family = AF_INET6;
-			sa6_dst->sin6_len = sizeof(struct sockaddr_in6);
-			sa6_dst->sin6_addr = *dst;
-
+		     !IN6_ARE_ADDR_EQUAL(&ro_pmtu->ro_dst.sin6_addr, dst)))
+			RO_RTFREE(ro_pmtu);
+		if (ro_pmtu->ro_rt == NULL &&
+		    !IN6_IS_ADDR_LINKLOCAL(dst) &&
+		    !IN6_IS_ADDR_MULTICAST(dst)) {
+			bzero(&ro_pmtu->ro_dst, sizeof(ro_pmtu->ro_dst));
+			ro_pmtu->ro_dst.sin6_family = AF_INET6;
+			ro_pmtu->ro_dst.sin6_len = sizeof(ro_pmtu->ro_dst);
+			ro_pmtu->ro_dst.sin6_addr = *dst;
 			in6_rtalloc(ro_pmtu, fibnum);
 		}
 	}
@@ -2031,9 +2068,8 @@ do { \
 				 * routing, or optional information to specify
 				 * the outgoing interface.
 				 */
-				error = ip6_getpmtu(&sro, NULL, NULL,
-				    &in6p->in6p_faddr, &pmtu, NULL,
-				    so->so_fibnum);
+				error = ip6_getpmtu(&in6p->in6p_faddr, NULL,
+				    NULL, &sro, so->so_fibnum, &pmtu, NULL);
 				if (sro.ro_rt)
 					RTFREE(sro.ro_rt);
 				if (error)
