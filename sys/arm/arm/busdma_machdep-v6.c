@@ -1282,7 +1282,12 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 			}
 			break;
 
+		case BUS_DMASYNC_POSTREAD:
+		case BUS_DMASYNC_POSTWRITE:
+		case BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE:
+			break;
 		default:
+			panic("unsupported combination of sync operations: 0x%08x\n", op);
 			break;
 		}
 	}
