@@ -168,7 +168,7 @@ MPPEOutput(void *v, struct ccp *ccp, struct link *l __unused, int pri __unused,
   dictinit = 0;
 
   log_Printf(LogDEBUG, "MPPE: Output: Proto %02x (%d bytes)\n", *proto, ilen);
-  if (*proto < 0x21 && *proto > 0xFA) {
+  if (*proto < 0x21 || *proto > 0xFA) {
     log_Printf(LogDEBUG, "MPPE: Output: Not encrypting\n");
     ccp->compout += ilen;
     ccp->uncompout += ilen;
