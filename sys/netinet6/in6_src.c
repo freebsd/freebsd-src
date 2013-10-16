@@ -129,6 +129,9 @@ VNET_DEFINE(int, ip6_prefer_tempaddr) = 0;
 
 static int cached_rtlookup(const struct sockaddr_in6 *dst,
     struct route_in6 *ro, u_int fibnum);
+static int check_scopezones(const struct sockaddr_in6 *dst,
+    struct route_in6 *ro, u_int fibnum, const struct ip6_moptions *mopts,
+    const struct in6_addr *src, const struct ifnet *ifp);
 
 static int selectroute(struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
@@ -321,6 +324,38 @@ cached_rtlookup(const struct sockaddr_in6 *dst, struct route_in6 *ro,
 	}
 	if (ro->ro_rt == NULL)
 		return (EHOSTUNREACH);
+	return (0);
+}
+
+static int
+check_scopezones(const struct sockaddr_in6 *dst, struct route_in6 *ro,
+    u_int fibnum, const struct ip6_moptions *mopts, const struct in6_addr *src,
+    const struct ifnet *ifp)
+{
+	struct ifnet *oifp;
+
+	oifp = NULL;
+	/* Determine zone index of destination address. */
+	if (IN6_IS_SCOPE_LINKLOCAL(&dst->sin6_addr) ||
+	    IN6_IS_ADDR_MC_INTFACELOCAL(&dst->sin6_addr)) {
+		if (dst->sin6_scope_id == 0)
+			return (EHOSTUNREACH);
+		oifp = in6_getlinkifnet(dst->sin6_scope_id);
+	} else if (IN6_IS_ADDR_MULTICAST(&dst->sin6_addr) &&
+	    mopts != NULL && mopts->im6o_multicast_ifp != NULL) {
+		oifp = mopts->im6o_multicast_ifp;
+	} else {
+		if (cached_rtlookup(dst, ro, fibnum) == 0)
+			oifp = ro->ro_rt->rt_ifp;
+	}
+	if (oifp == NULL)
+		return (EHOSTUNREACH);
+
+	if (oifp != ifp &&
+	    in6_getscopezone(ifp, in6_srcaddrscope(src)) !=
+	    in6_getscopezone(oifp, in6_srcaddrscope(&dst->sin6_addr)))
+	    return (EHOSTUNREACH);
+
 	return (0);
 }
 
