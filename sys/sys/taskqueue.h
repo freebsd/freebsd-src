@@ -36,6 +36,9 @@
 #include <sys/queue.h>
 #include <sys/_task.h>
 #include <sys/_callout.h>
+#ifdef VIMAGE
+#include <net/vnet.h>
+#endif
 
 struct taskqueue;
 struct thread;
@@ -105,12 +108,22 @@ void	taskqueue_thread_enqueue(void *context);
 /*
  * Initialise a task structure.
  */
+#ifdef VIMAGE
+#define TASK_INIT(task, priority, func, context) do {	\
+	(task)->ta_pending = 0;				\
+	(task)->ta_priority = (priority);		\
+	(task)->ta_func = (func);			\
+	(task)->ta_context = (context);			\
+	(task)->ta_vnet = curvnet;			\
+} while (0)
+#else	/* !VIMAGE */
 #define TASK_INIT(task, priority, func, context) do {	\
 	(task)->ta_pending = 0;				\
 	(task)->ta_priority = (priority);		\
 	(task)->ta_func = (func);			\
 	(task)->ta_context = (context);			\
 } while (0)
+#endif	/* !VIMAGE */
 
 void _timeout_task_init(struct taskqueue *queue,
 	    struct timeout_task *timeout_task, int priority, task_fn_t func,
