@@ -132,6 +132,8 @@ static int cached_rtlookup(const struct sockaddr_in6 *dst,
 static int check_scopezones(const struct sockaddr_in6 *dst,
     struct route_in6 *ro, u_int fibnum, const struct ip6_moptions *mopts,
     const struct in6_addr *src, const struct ifnet *ifp);
+static int handle_nexthop(struct ip6po_nhinfo *nh, u_int fibnum,
+    struct ifnet **ifpp);
 static int handle_pktinfo(const struct sockaddr_in6 *dst,
     const struct in6_pktinfo* pi, const struct ip6_moptions *mopts,
     struct route_in6 *ro, u_int fibnum, struct ifnet **ifpp,
@@ -484,6 +486,71 @@ handle_pktinfo(const struct sockaddr_in6 *dst,
 	*ifpp = ifp;
 	*srcp = pi->ipi6_addr;
 	*done = 1;
+	return (0);
+}
+
+/*
+ * nh - next hop destination and route;
+ * fibnum - FIB number.
+ * ifpp - pointer to outgoing interface.
+ *
+ * NOTE: we can keep this route, it will be freed in the socket
+ * option handling code (see ip6_output.c).
+ */
+static int
+handle_nexthop(struct ip6po_nhinfo *nh, u_int fibnum, struct ifnet **ifpp)
+{
+	struct sockaddr_in6 *sa;
+	struct in6_ifaddr *ia;
+	struct route_in6 *ro;
+	struct ifnet *ifp, *oifp;
+
+	sa = (struct sockaddr_in6 *)nh->ip6po_nhi_nexthop;
+	ro = &nh->ip6po_nhi_route;
+	if (sa->sin6_family != AF_INET6)
+		return (EAFNOSUPPORT);
+	/*
+	 * If *ifpp is not NULL, this means that outgoing interface
+	 * was determined in the PKTINFO handling code.
+	 */
+	oifp = *ifpp;
+
+	/*
+	 * Check that the next hop address is our own.
+	 */
+	ia = in6ifa_ifwithaddr(&sa->sin6_addr, sa->sin6_scope_id);
+	if (ia != NULL) {
+		/* Address is our own. */
+		ifp = ia->ia_ifp;
+		ifa_free(&ia->ia_ifa);
+	} else {
+		/*
+		 * Address is not our own.
+		 * Determine outgoing interface by zone index.
+		 */
+		if (IN6_IS_ADDR_LINKLOCAL(&sa->sin6_addr))
+			ifp = in6_getlinkifnet(sa->sin6_scope_id);
+		else {
+			if (cached_rtlookup(sa, ro, fibnum) != 0)
+				return (EHOSTUNREACH);
+			/*
+			 * The node identified by that address must be a
+			 * neighbor of the sending host.
+			 */
+			if (ro->ro_rt->rt_flags & RTF_GATEWAY)
+				return (EHOSTUNREACH);
+			ifp = ro->ro_rt->rt_ifp;
+		}
+	}
+	/*
+	 * When the outgoing interface is specified by IPV6_PKTINFO
+	 * as well, the next hop specified by this option must be
+	 * reachable via the specified interface.
+	 */
+	if (ifp == NULL || (oifp != NULL && oifp != ifp))
+		return (EHOSTUNREACH);
+
+	*ifpp = ifp;
 	return (0);
 }
 
