@@ -127,6 +127,9 @@ static VNET_DEFINE(struct in6_addrpolicy, defaultaddrpolicy);
 
 VNET_DEFINE(int, ip6_prefer_tempaddr) = 0;
 
+static int cached_rtlookup(const struct sockaddr_in6 *dst,
+    struct route_in6 *ro, u_int fibnum);
+
 static int selectroute(struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
 	struct rtentry **, int, u_int);
@@ -293,6 +296,33 @@ next:
 }
 #undef	REPLACE
 #undef	NEXT
+
+static int
+cached_rtlookup(const struct sockaddr_in6 *dst, struct route_in6 *ro,
+    u_int fibnum)
+{
+
+	/*
+	 * Use a cached route if it exists and is valid, else try to allocate
+	 * a new one. Note that we should check the address family of the
+	 * cached destination, in case of sharing the cache with IPv4.
+	 */
+	KASSERT(ro != NULL, ("%s: ro is NULL", __func__));
+	if (ro->ro_rt != NULL && (
+	    (ro->ro_rt->rt_flags & RTF_UP) == 0 ||
+	    ro->ro_dst.sin6_family != AF_INET6 ||
+	    !IN6_ARE_ADDR_EQUAL(&ro->ro_dst.sin6_addr, &dst->sin6_addr))) {
+		RO_RTFREE(ro);
+	}
+	if (ro->ro_rt == NULL) {
+		/* No route yet, so try to acquire one */
+		memcpy(&ro->ro_dst, dst, sizeof(*dst));
+		in6_rtalloc(ro, fibnum);
+	}
+	if (ro->ro_rt == NULL)
+		return (EHOSTUNREACH);
+	return (0);
+}
 
 int
 in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
