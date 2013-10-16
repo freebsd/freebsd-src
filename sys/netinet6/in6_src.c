@@ -132,6 +132,10 @@ static int cached_rtlookup(const struct sockaddr_in6 *dst,
 static int check_scopezones(const struct sockaddr_in6 *dst,
     struct route_in6 *ro, u_int fibnum, const struct ip6_moptions *mopts,
     const struct in6_addr *src, const struct ifnet *ifp);
+static int handle_pktinfo(const struct sockaddr_in6 *dst,
+    const struct in6_pktinfo* pi, const struct ip6_moptions *mopts,
+    struct route_in6 *ro, u_int fibnum, struct ifnet **ifpp,
+    struct in6_addr *srcp, int *done);
 
 static int selectroute(struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
@@ -356,6 +360,130 @@ check_scopezones(const struct sockaddr_in6 *dst, struct route_in6 *ro,
 	    in6_getscopezone(oifp, in6_srcaddrscope(&dst->sin6_addr)))
 	    return (EHOSTUNREACH);
 
+	return (0);
+}
+
+/*
+ * dst - original destination address;
+ * pi - options configured via IPV6_PKTINFO;
+ * mopts - options configured via IPV6_MULTICAST_IF;
+ * ro - route to destination;
+ * fibnum - FIB number
+ *
+ * These parameters are returned back to caller:
+ * ifpp - determined outgoing interface;
+ * srcp - determined source address;
+ * done - if set, this means that outgoing interface and
+ *        source address were determined.
+ *
+ * NOTE: don't forget to RTFREE(ro->ro_rt) after calling this function,
+ * if needed of course.
+ */
+static int
+handle_pktinfo(const struct sockaddr_in6 *dst,
+    const struct in6_pktinfo* pi, const struct ip6_moptions *mopts,
+    struct route_in6 *ro, u_int fibnum, struct ifnet **ifpp,
+    struct in6_addr *srcp, int *done)
+{
+	struct in6_ifaddr *ia;
+	struct ifnet *ifp;
+
+	ifp = NULL;
+	*done = 0;
+	if (pi->ipi6_ifindex != 0) {
+		ifp = ifnet_byindex(pi->ipi6_ifindex);
+		if (ifp == NULL)
+			return (ENXIO);
+		if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)
+			return (ENETDOWN);
+	}
+	if (ifp != NULL && IN6_IS_ADDR_UNSPECIFIED(&pi->ipi6_addr)) {
+		/*
+		 * If an interface is explicitly specified, use it.
+		 */
+		*ifpp = ifp;
+		return (0);
+	}
+	if (ifp != NULL && !IN6_IS_ADDR_UNSPECIFIED(&pi->ipi6_addr)) {
+		/*
+		 * If both, address and ifindex are specified via
+		 * IPV6_PKTINFO, then check that address is available
+		 * on this interface.
+		 */
+		ia = in6ifa_ifpwithaddr(ifp, &pi->ipi6_addr);
+	} else {
+		/*
+		 * If address is specified via IPV6_PKTINFO, but interface
+		 * isn't, we can determine interface for a global unicast
+		 * from the ifaddr hash.
+		 */
+		if (!IN6_IS_ADDR_LINKLOCAL(&pi->ipi6_addr)) {
+			/* ipi6_addr is global. */
+			ia = in6ifa_ifwithaddr(&pi->ipi6_addr, 0);
+		} else if (IN6_IS_ADDR_MULTICAST(&dst->sin6_addr)) {
+			/* ipi6_addr is link-local, dst is multicast. */
+			if (mopts != NULL &&
+			    mopts->im6o_multicast_ifp != NULL) {
+				/*
+				 * Outgoing interface is specified via
+				 * IPV6_MULTICAST_IF socket option.
+				 */
+				ia = in6ifa_ifpwithaddr(
+				    mopts->im6o_multicast_ifp, &pi->ipi6_addr);
+			} else if (dst->sin6_scope_id != 0 && ( /* XXX */
+			    IN6_IS_ADDR_MC_LINKLOCAL(&dst->sin6_addr) ||
+			    IN6_IS_ADDR_MC_INTFACELOCAL(&dst->sin6_addr))) {
+				/*
+				 * Destination multicast address is in the
+				 * link-local or interface-local scope.
+				 * Use its sin6_scope_id to determine
+				 * outgoing interface.
+				 */
+				ia = in6ifa_ifwithaddr(&pi->ipi6_addr,
+				    dst->sin6_scope_id);
+			} else {
+				/*
+				 * XXX: Try to lookup route for this multicast
+				 * destination address.
+				 */
+				if (cached_rtlookup(dst, ro, fibnum) != 0)
+					return (EHOSTUNREACH);
+				ia = in6ifa_ifpwithaddr(ro->ro_rt->rt_ifp,
+				    &pi->ipi6_addr);
+			}
+		} else if (IN6_IS_ADDR_LINKLOCAL(&dst->sin6_addr)) {
+			/* both are link-local. */
+			ia = in6ifa_ifwithaddr(&pi->ipi6_addr,
+			    dst->sin6_scope_id);
+		} else {
+			/* ipi6_addr is link-local, dst is global. */
+			if (cached_rtlookup(dst, ro, fibnum) != 0)
+				return (EHOSTUNREACH);
+			/* Check that address is available on interface. */
+			ia = in6ifa_ifpwithaddr(ro->ro_rt->rt_ifp,
+			    &pi->ipi6_addr);
+		}
+	}
+	if (ia == NULL || (
+	    ia->ia6_flags & (IN6_IFF_ANYCAST | IN6_IFF_NOTREADY))) {
+		RO_RTFREE(ro);
+		if (ia != NULL)
+			ifa_free(&ia->ia_ifa);
+		return (EADDRNOTAVAIL);
+	}
+	ifp = ia->ia_ifp;
+	ifa_free(&ia->ia_ifa);
+	/*
+	 * Source address can not break the destination zone.
+	 */
+	if (check_scopezones(dst, ro, fibnum, mopts, &pi->ipi6_addr,
+	    ifp) != 0) {
+		RO_RTFREE(ro);
+		return (EHOSTUNREACH);
+	}
+	*ifpp = ifp;
+	*srcp = pi->ipi6_addr;
+	*done = 1;
 	return (0);
 }
 
