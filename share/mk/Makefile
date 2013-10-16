@@ -46,4 +46,6 @@ FILESDIR=	${BINDIR}/mk
 FILES+=	atf.test.mk
 .endif
 
+UPDATE_DEPENDFILE= no
+
 .include <bsd.prog.mk>
