@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/interrupt.h>
+#include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/taskqueue.h>
@@ -5264,6 +5265,7 @@ xpt_done_td(void *arg)
 	STAILQ_HEAD(, ccb_hdr)	doneq;
 
 	STAILQ_INIT(&doneq);
+	THREAD_NO_SLEEPING();
 	mtx_lock(&queue->cam_doneq_mtx);
 	while (1) {
 		while (STAILQ_EMPTY(&queue->cam_doneq)) {
