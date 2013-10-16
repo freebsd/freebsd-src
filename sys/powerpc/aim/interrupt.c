@@ -101,17 +101,16 @@ powerpc_interrupt(struct trapframe *framep)
 		atomic_subtract_int(&td->td_intr_nesting_level, 1);
 		critical_exit();
 		break;
+#ifdef HWPMC_HOOKS
 	case EXC_PERF:
 		critical_enter();
 		KASSERT(pmc_intr != NULL, ("Performance exception, but no handler!"));
 		(*pmc_intr)(PCPU_GET(cpuid), framep);
-		critical_enter();
-#ifdef HWPMC_HOOKS
 		if (pmc_hook && (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
 			pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, framep);
-#endif
 		critical_exit();
 		break;
+#endif
 
 	default:
 		/* Re-enable interrupts if applicable. */
