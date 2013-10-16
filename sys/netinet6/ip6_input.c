@@ -427,19 +427,16 @@ out:
 void
 ip6_input(struct mbuf *m)
 {
-	struct ip6_hdr *ip6;
-	int off = sizeof(struct ip6_hdr), nest;
-	u_int32_t plen;
-	u_int32_t rtalert = ~0;
-	int nxt, ours = 0;
-	struct ifnet *deliverifp = NULL, *ifp = NULL;
 	struct in6_addr odst;
-	struct route_in6 rin6;
+	struct ip6_hdr *ip6;
+	struct in6_ifaddr *ia;
+	int32_t plen;
+	int32_t rtalert = ~0;
+	int off = sizeof(struct ip6_hdr), nest;
+	int srcscope, dstscope;
+	int nxt, ours = 0;
 	int srcrt = 0;
-	struct llentry *lle = NULL;
-	struct sockaddr_in6 dst6, *dst;
 
-	bzero(&rin6, sizeof(struct route_in6));
 #ifdef IPSEC
 	/*
 	 * should the inner packet be considered authentic?
@@ -452,18 +449,12 @@ ip6_input(struct mbuf *m)
 
 #endif /* IPSEC */
 
-	/*
-	 * make sure we don't have onion peering information into m_tag.
-	 */
-	ip6_delaux(m);
-
 	if (m->m_flags & M_FASTFWD_OURS) {
 		/*
 		 * Firewall changed destination to local.
 		 */
 		m->m_flags &= ~M_FASTFWD_OURS;
 		ours = 1;
-		deliverifp = m->m_pkthdr.rcvif;
 		ip6 = mtod(m, struct ip6_hdr *);
 		goto hbhcheck;
 	}
@@ -643,7 +634,6 @@ ip6_input(struct mbuf *m)
 	if (m->m_flags & M_FASTFWD_OURS) {
 		m->m_flags &= ~M_FASTFWD_OURS;
 		ours = 1;
-		deliverifp = m->m_pkthdr.rcvif;
 		goto hbhcheck;
 	}
 	if ((m->m_flags & M_IP6_NEXTHOP) &&
@@ -654,30 +644,22 @@ ip6_input(struct mbuf *m)
 		 * connected host.
 		 */
 		ip6_forward(m, 1);
-		goto out;
+		return;
 	}
 
 passin:
-	/*
-	 * Disambiguate address scope zones (if there is ambiguity).
-	 * We first make sure that the original source or destination address
-	 * is not in our internal form for scoped addresses.  Such addresses
-	 * are not necessarily invalid spec-wise, but we cannot accept them due
-	 * to the usage conflict.
-	 * in6_setscope() then also checks and rejects the cases where src or
-	 * dst are the loopback address and the receiving interface
-	 * is not loopback.
-	 */
-	if (in6_clearscope(&ip6->ip6_src) || in6_clearscope(&ip6->ip6_dst)) {
-		IP6STAT_INC(ip6s_badscope); /* XXX */
-		goto bad;
+	srcscope = in6_addrscope(&ip6->ip6_src);
+	if (srcscope == IPV6_ADDR_SCOPE_LINKLOCAL &&
+	    IN6_IS_ADDR_LOOPBACK(&ip6->ip6_src)) {
+		/*
+		 * Packets with the loopback source address must be
+		 * received on the loopback interface.
+		 */
+		if (m->m_pkthdr.rcvif != V_loif) {
+			IP6STAT_INC(ip6s_badscope);
+			goto bad;
+		}
 	}
-	if (in6_setscope(&ip6->ip6_src, m->m_pkthdr.rcvif, NULL) ||
-	    in6_setscope(&ip6->ip6_dst, m->m_pkthdr.rcvif, NULL)) {
-		IP6STAT_INC(ip6s_badscope);
-		goto bad;
-	}
-
 	/*
 	 * Multicast check. Assume packet is for us to avoid
 	 * prematurely taking locks.
@@ -685,55 +667,38 @@ passin:
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		ours = 1;
 		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_mcast);
-		deliverifp = m->m_pkthdr.rcvif;
 		goto hbhcheck;
 	}
 
 	/*
 	 *  Unicast check
 	 */
-
-	bzero(&dst6, sizeof(dst6));
-	dst6.sin6_family = AF_INET6;
-	dst6.sin6_len = sizeof(struct sockaddr_in6);
-	dst6.sin6_addr = ip6->ip6_dst;
-	ifp = m->m_pkthdr.rcvif;
-	IF_AFDATA_RLOCK(ifp);
-	lle = lla_lookup(LLTABLE6(ifp), 0,
-	     (struct sockaddr *)&dst6);
-	IF_AFDATA_RUNLOCK(ifp);
-	if ((lle != NULL) && (lle->la_flags & LLE_IFADDR)) {
-		struct ifaddr *ifa;
-		struct in6_ifaddr *ia6;
-		int bad;
-
-		bad = 1;
-#define	sa_equal(a1, a2)						\
-	(bcmp((a1), (a2), ((a1))->sin6_len) == 0)
-		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			if (ifa->ifa_addr->sa_family != dst6.sin6_family)
-				continue;
-			if (sa_equal(&dst6, ifa->ifa_addr))
-				break;
-		}
-		KASSERT(ifa != NULL, ("%s: ifa not found for lle %p",
-		    __func__, lle));
-#undef sa_equal
-
-		ia6 = (struct in6_ifaddr *)ifa;
-		if (!(ia6->ia6_flags & IN6_IFF_NOTREADY)) {
-			/* Count the packet in the ip address stats */
-			ia6->ia_ifa.if_ipackets++;
-			ia6->ia_ifa.if_ibytes += m->m_pkthdr.len;
-
+	dstscope = in6_addrscope(&ip6->ip6_dst);
+	ia = in6ifa_ifwithaddr(&ip6->ip6_dst,
+	    in6_getscopezone(m->m_pkthdr.rcvif, dstscope));
+	if (ia == NULL) {
+		/*
+		 * This means that the receiving interface doesn't have this
+		 * scoped (i.e. not global) address configured.
+		 */
+		if (IN6_IS_ADDR_LOOPBACK(&ip6->ip6_dst)) {
 			/*
-			 * record address information into m_tag.
+			 * Packets with the loopback destination address must
+			 * be received on the loopback interface.
 			 */
-			(void)ip6_setdstifaddr(m, ia6);
-
-			bad = 0;
-		} else {
+			IP6STAT_INC(ip6s_badscope);
+			goto bad;
+		}
+		/*
+		 * RFC 4007 p9:
+		 * If a router receives a packet with a link-local destination
+		 * address that is not one of the router's own link-local
+		 * addresses on the arrival link, the router is expected to
+		 * try to forward the packet to the destination on that link.
+		 */
+		/* FALLTHROUGH */
+	} else {
+		if (ia->ia6_flags & IN6_IFF_NOTREADY) {
 			char ip6bufs[INET6_ADDRSTRLEN];
 			char ip6bufd[INET6_ADDRSTRLEN];
 			/* address is not ready, so discard the packet. */
@@ -741,138 +706,16 @@ passin:
 			    "ip6_input: packet to an unready address %s->%s\n",
 			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
 			    ip6_sprintf(ip6bufd, &ip6->ip6_dst)));
-		}
-		IF_ADDR_RUNLOCK(ifp);
-		LLE_RUNLOCK(lle);
-		if (bad)
-			goto bad;
-		else {
-			ours = 1;
-			deliverifp = ifp;
-			goto hbhcheck;
-		}
-	}
-	if (lle != NULL)
-		LLE_RUNLOCK(lle);
-
-	dst = &rin6.ro_dst;
-	dst->sin6_len = sizeof(struct sockaddr_in6);
-	dst->sin6_family = AF_INET6;
-	dst->sin6_addr = ip6->ip6_dst;
-	rin6.ro_rt = in6_rtalloc1((struct sockaddr *)dst, 0, 0, M_GETFIB(m));
-	if (rin6.ro_rt)
-		RT_UNLOCK(rin6.ro_rt);
-
-#define rt6_key(r) ((struct sockaddr_in6 *)((r)->rt_nodes->rn_key))
-
-	/*
-	 * Accept the packet if the forwarding interface to the destination
-	 * according to the routing table is the loopback interface,
-	 * unless the associated route has a gateway.
-	 * Note that this approach causes to accept a packet if there is a
-	 * route to the loopback interface for the destination of the packet.
-	 * But we think it's even useful in some situations, e.g. when using
-	 * a special daemon which wants to intercept the packet.
-	 *
-	 * XXX: some OSes automatically make a cloned route for the destination
-	 * of an outgoing packet.  If the outgoing interface of the packet
-	 * is a loopback one, the kernel would consider the packet to be
-	 * accepted, even if we have no such address assinged on the interface.
-	 * We check the cloned flag of the route entry to reject such cases,
-	 * assuming that route entries for our own addresses are not made by
-	 * cloning (it should be true because in6_addloop explicitly installs
-	 * the host route).  However, we might have to do an explicit check
-	 * while it would be less efficient.  Or, should we rather install a
-	 * reject route for such a case?
-	 */
-	if (rin6.ro_rt &&
-	    (rin6.ro_rt->rt_flags &
-	     (RTF_HOST|RTF_GATEWAY)) == RTF_HOST &&
-#ifdef RTF_WASCLONED
-	    !(rin6.ro_rt->rt_flags & RTF_WASCLONED) &&
-#endif
-#ifdef RTF_CLONED
-	    !(rin6.ro_rt->rt_flags & RTF_CLONED) &&
-#endif
-#if 0
-	    /*
-	     * The check below is redundant since the comparison of
-	     * the destination and the key of the rtentry has
-	     * already done through looking up the routing table.
-	     */
-	    IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst,
-	    &rt6_key(rin6.ro_rt)->sin6_addr)
-#endif
-	    rin6.ro_rt->rt_ifp->if_type == IFT_LOOP) {
-		int free_ia6 = 0;
-		struct in6_ifaddr *ia6;
-
-		/*
-		 * found the loopback route to the interface address
-		 */
-		if (rin6.ro_rt->rt_gateway->sa_family == AF_LINK) {
-			struct sockaddr_in6 dest6;
-
-			bzero(&dest6, sizeof(dest6));
-			dest6.sin6_family = AF_INET6;
-			dest6.sin6_len = sizeof(dest6);
-			dest6.sin6_addr = ip6->ip6_dst;
-			ia6 = (struct in6_ifaddr *)
-			    ifa_ifwithaddr((struct sockaddr *)&dest6);
-			if (ia6 == NULL)
-				goto bad;
-			free_ia6 = 1;
-		}
-		else
-			ia6 = (struct in6_ifaddr *)rin6.ro_rt->rt_ifa;
-
-		/*
-		 * record address information into m_tag.
-		 */
-		(void)ip6_setdstifaddr(m, ia6);
-
-		/*
-		 * packets to a tentative, duplicated, or somehow invalid
-		 * address must not be accepted.
-		 */
-		if (!(ia6->ia6_flags & IN6_IFF_NOTREADY)) {
-			/* this address is ready */
-			ours = 1;
-			deliverifp = ia6->ia_ifp;	/* correct? */
-			/* Count the packet in the ip address stats */
-			ia6->ia_ifa.if_ipackets++;
-			ia6->ia_ifa.if_ibytes += m->m_pkthdr.len;
-			if (ia6 != NULL && free_ia6 != 0)
-				ifa_free(&ia6->ia_ifa);
-			goto hbhcheck;
-		} else {
-			char ip6bufs[INET6_ADDRSTRLEN];
-			char ip6bufd[INET6_ADDRSTRLEN];
-			/* address is not ready, so discard the packet. */
-			nd6log((LOG_INFO,
-			    "ip6_input: packet to an unready address %s->%s\n",
-			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
-			    ip6_sprintf(ip6bufd, &ip6->ip6_dst)));
-
-			if (ia6 != NULL && free_ia6 != 0)
-				ifa_free(&ia6->ia_ifa);
+			ifa_free(&ia->ia_ifa);
 			goto bad;
 		}
+		/* Count the packet in the ip address stats */
+		ia->ia_ifa.if_ipackets++;
+		ia->ia_ifa.if_ibytes += m->m_pkthdr.len;
+		ifa_free(&ia->ia_ifa);
+		ours = 1;
+		goto hbhcheck;
 	}
-
-	/*
-	 * FAITH (Firewall Aided Internet Translator)
-	 */
-	if (V_ip6_keepfaith) {
-		if (rin6.ro_rt && rin6.ro_rt->rt_ifp &&
-		    rin6.ro_rt->rt_ifp->if_type == IFT_FAITH) {
-			/* XXX do we need more sanity checks? */
-			ours = 1;
-			deliverifp = rin6.ro_rt->rt_ifp; /* faith */
-			goto hbhcheck;
-		}
-	}
-
 	/*
 	 * Now there is no reason to process the packet if it's not our own
 	 * and we're not a router.
@@ -885,32 +728,6 @@ passin:
 
   hbhcheck:
 	/*
-	 * record address information into m_tag, if we don't have one yet.
-	 * note that we are unable to record it, if the address is not listed
-	 * as our interface address (e.g. multicast addresses, addresses
-	 * within FAITH prefixes and such).
-	 */
-	if (deliverifp) {
-		struct in6_ifaddr *ia6;
-
- 		if ((ia6 = ip6_getdstifaddr(m)) != NULL) {
-			ifa_free(&ia6->ia_ifa);
-		} else {
-			ia6 = in6_ifawithifp(deliverifp, &ip6->ip6_dst);
-			if (ia6) {
-				if (!ip6_setdstifaddr(m, ia6)) {
-					/*
-					 * XXX maybe we should drop the packet here,
-					 * as we could not provide enough information
-					 * to the upper layers.
-					 */
-				}
-				ifa_free(&ia6->ia_ifa);
-			}
-		}
-	}
-
-	/*
 	 * Process Hop-by-Hop options header if it's contained.
 	 * m may be modified in ip6_hopopts_input().
 	 * If a JumboPayload option is included, plen will also be modified.
@@ -921,7 +738,7 @@ passin:
 
 		error = ip6_input_hbh(m, &plen, &rtalert, &off, &nxt, &ours);
 		if (error != 0)
-			goto out;
+			return;
 	} else
 		nxt = ip6->ip6_nxt;
 
@@ -968,7 +785,7 @@ passin:
 		}
 	} else if (!ours) {
 		ip6_forward(m, srcrt);
-		goto out;
+		return;
 	}
 
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -993,7 +810,7 @@ passin:
 	 * Tell launch routine the next header
 	 */
 	IP6STAT_INC(ip6s_delivered);
-	in6_ifstat_inc(deliverifp, ifs6_in_deliver);
+	in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_deliver);
 	nest = 0;
 
 	while (nxt != IPPROTO_DONE) {
@@ -1031,12 +848,9 @@ passin:
 
 		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
 	}
-	goto out;
+	return;
 bad:
 	m_freem(m);
-out:
-	if (rin6.ro_rt)
-		RTFREE(rin6.ro_rt);
 }
 
 /*
