@@ -143,6 +143,7 @@ static int walk_addrsel_policy(int (*)(struct in6_addrpolicy *, void *),
 	void *);
 static int dump_addrsel_policyent(struct in6_addrpolicy *, void *);
 static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
+static int in6_srcaddrscope(const struct in6_addr *);
 
 /*
  * Return an IPv6 address, which is the most appropriate for a given
@@ -1183,4 +1184,21 @@ match_addrsel_policy(struct sockaddr_in6 *key)
 	}
 
 	return (bestpol);
+}
+
+/*
+ * This function is similar to in6_addrscope, but has some difference,
+ * specific for the source address selection algorithm (RFC 6724).
+ */
+static int
+in6_srcaddrscope(const struct in6_addr *addr)
+{
+
+	/* 169.254/16 and 127/8 have link-local scope */
+	if (IN6_IS_ADDR_V4MAPPED(addr)) {
+		if (addr->s6_addr[12] == 127 || (
+		    addr->s6_addr[12] == 169 && addr->s6_addr[13] == 254))
+			return (IPV6_ADDR_SCOPE_LINKLOCAL);
+	}
+	return (in6_addrscope(addr));
 }
