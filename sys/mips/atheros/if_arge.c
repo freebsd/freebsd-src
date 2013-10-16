@@ -345,10 +345,101 @@ arge_reset_mac(struct arge_softc *sc)
 }
 
 /*
+ * These values map to the divisor values programmed into
+ * AR71XX_MAC_MII_CFG.
+ *
+ * The index of each value corresponds to the divisor section
+ * value in AR71XX_MAC_MII_CFG (ie, table[0] means '0' in
+ * AR71XX_MAC_MII_CFG, table[1] means '1', etc.)
+ */
+static const uint32_t ar71xx_mdio_div_table[] = {
+	4, 4, 6, 8, 10, 14, 20, 28,
+};
+
+static const uint32_t ar7240_mdio_div_table[] = {
+	2, 2, 4, 6, 8, 12, 18, 26, 32, 40, 48, 56, 62, 70, 78, 96,
+};
+
+static const uint32_t ar933x_mdio_div_table[] = {
+	4, 4, 6, 8, 10, 14, 20, 28, 34, 42, 50, 58, 66, 74, 82, 98,
+};
+
+/*
+ * Lookup the divisor to use based on the given frequency.
+ *
+ * Returns the divisor to use, or -ve on error.
+ */
+static int
+arge_mdio_get_divider(struct arge_softc *sc, unsigned long mdio_clock)
+{
+	unsigned long ref_clock, t;
+	const uint32_t *table;
+	int ndivs;
+	int i;
+
+	/*
+	 * This is the base MDIO frequency on the SoC.
+	 * The dividers .. well, divide. Duh.
+	 */
+	ref_clock = ar71xx_mdio_freq();
+
+	/*
+	 * If either clock is undefined, just tell the
+	 * caller to fall through to the defaults.
+	 */
+	if (ref_clock == 0 || mdio_clock == 0)
+		return (-EINVAL);
+
+	/*
+	 * Pick the correct table!
+	 */
+	switch (ar71xx_soc) {
+	case AR71XX_SOC_AR9330:
+	case AR71XX_SOC_AR9331:
+	case AR71XX_SOC_AR9341:
+	case AR71XX_SOC_AR9342:
+	case AR71XX_SOC_AR9344:
+		table = ar933x_mdio_div_table;
+		ndivs = nitems(ar933x_mdio_div_table);
+		break;
+
+	case AR71XX_SOC_AR7240:
+	case AR71XX_SOC_AR7241:
+	case AR71XX_SOC_AR7242:
+		table = ar7240_mdio_div_table;
+		ndivs = nitems(ar7240_mdio_div_table);
+		break;
+
+	default:
+		table = ar71xx_mdio_div_table;
+		ndivs = nitems(ar71xx_mdio_div_table);
+	}
+
+	/*
+	 * Now, walk through the list and find the first divisor
+	 * that falls under the target MDIO frequency.
+	 *
+	 * The divisors go up, but the corresponding frequencies
+	 * are actually decreasing.
+	 */
+	for (i = 0; i < ndivs; i++) {
+		t = ref_clock / table[i];
+		if (t <= mdio_clock) {
+			return (i);
+		}
+	}
+
+	ARGEDEBUG(sc, ARGE_DBG_RESET,
+	    "No divider found; MDIO=%lu Hz; target=%lu Hz\n",
+		ref_clock, mdio_clock);
+	return (-ENOENT);
+}
+
+/*
  * Fetch the MDIO bus clock rate.
  *
  * For now, the default is DIV_28 for everything
- * bar AR934x, which will be DIV_42.
+ * bar AR934x, which will be DIV_58.
  *
  * It will definitely need updating to take into account
  * the MDIO bus core clock rate and the target clock
@@ -357,12 +448,48 @@ arge_reset_mac(struct arge_softc *sc)
 static uint32_t
 arge_fetch_mdiobus_clock_rate(struct arge_softc *sc)
 {
+	int mdio_freq, div;
 
+	/*
+	 * Is the MDIO frequency defined? If so, find a divisor that
+	 * makes reasonable sense.  Don't overshoot the frequency.
+	 */
+	if (resource_int_value(device_get_name(sc->arge_dev),
+	    device_get_unit(sc->arge_dev),
+	    "mdio_freq",
+	    &mdio_freq) == 0) {
+		sc->arge_mdiofreq = mdio_freq;
+		div = arge_mdio_get_divider(sc, sc->arge_mdiofreq);
+		if (bootverbose)
+			device_printf(sc->arge_dev,
+			    "%s: mdio ref freq=%llu Hz, target freq=%llu Hz,"
+			    " divisor index=%d\n",
+			    __func__,
+			    (unsigned long long) ar71xx_mdio_freq(),
+			    (unsigned long long) mdio_freq,
+			    div);
+		if (div >= 0)
+			return (div);
+	}
+
+	/*
+	 * Default value(s).
+	 *
+	 * XXX obviously these need .. fixing.
+	 *
+	 * From Linux/OpenWRT:
+	 *
+	 * + 7240? DIV_6
+	 * + Builtin-switch port and not 934x? DIV_10
+	 * + Not built-in switch port and 934x? DIV_58
+	 * + .. else DIV_28.
+	 */
 	switch (ar71xx_soc) {
 	case AR71XX_SOC_AR9341:
 	case AR71XX_SOC_AR9342:
 	case AR71XX_SOC_AR9344:
-		return (MAC_MII_CFG_CLOCK_DIV_42);
+		return (MAC_MII_CFG_CLOCK_DIV_58);
+		break;
 	default:
 		return (MAC_MII_CFG_CLOCK_DIV_28);
 	}
