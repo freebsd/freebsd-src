@@ -2434,13 +2434,11 @@ ip6_clearpktopts(struct ip6_pktopts *pktopt, int optname)
 	if (optname == -1 || optname == IPV6_TCLASS)
 		pktopt->ip6po_tclass = -1;
 	if (optname == -1 || optname == IPV6_NEXTHOP) {
-		if (pktopt->ip6po_nextroute.ro_rt) {
+		if (pktopt->ip6po_nextroute.ro_rt)
 			RTFREE(pktopt->ip6po_nextroute.ro_rt);
-			pktopt->ip6po_nextroute.ro_rt = NULL;
-		}
 		if (pktopt->ip6po_nexthop)
 			free(pktopt->ip6po_nexthop, M_IP6OPT);
-		pktopt->ip6po_nexthop = NULL;
+		bzero(&pktopt->ip6po_nhinfo, sizeof(pktopt->ip6po_nhinfo));
 	}
 	if (optname == -1 || optname == IPV6_HOPOPTS) {
 		if (pktopt->ip6po_hbh)
@@ -2456,10 +2454,8 @@ ip6_clearpktopts(struct ip6_pktopts *pktopt, int optname)
 		if (pktopt->ip6po_rhinfo.ip6po_rhi_rthdr)
 			free(pktopt->ip6po_rhinfo.ip6po_rhi_rthdr, M_IP6OPT);
 		pktopt->ip6po_rhinfo.ip6po_rhi_rthdr = NULL;
-		if (pktopt->ip6po_route.ro_rt) {
+		if (pktopt->ip6po_route.ro_rt)
 			RTFREE(pktopt->ip6po_route.ro_rt);
-			pktopt->ip6po_route.ro_rt = NULL;
-		}
 	}
 	if (optname == -1 || optname == IPV6_DSTOPTS) {
 		if (pktopt->ip6po_dest2)
@@ -2822,6 +2818,7 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
 		if (opt->ip6po_nexthop == NULL)
 			return (ENOBUFS);
 		bcopy(buf, opt->ip6po_nexthop, *buf);
+		bcopy(buf, &opt->ip6po_nextroute.ro_dst, *buf);
 		break;
 
 	case IPV6_2292HOPOPTS:
