@@ -455,12 +455,6 @@ int	none_input(struct mbuf **, int *, int);
 int	in6_selectsrc(struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct inpcb *inp, struct route_in6 *, struct ucred *cred,
 	struct ifnet **, struct in6_addr *);
-int in6_selectroute(struct sockaddr_in6 *, struct ip6_pktopts *,
-	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
-	struct rtentry **);
-int	in6_selectroute_fib(struct sockaddr_in6 *, struct ip6_pktopts *,
-	    struct ip6_moptions *, struct route_in6 *, struct ifnet **,
-	    struct rtentry **, u_int);
 u_int32_t ip6_randomid(void);
 u_int32_t ip6_randomflowlabel(void);
 #endif /* _KERNEL */
