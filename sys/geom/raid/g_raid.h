@@ -376,6 +376,7 @@ struct g_raid_tr_class {
 	KOBJ_CLASS_FIELDS;
 	int		 trc_enable;
 	int		 trc_priority;
+	int		 trc_accept_unmapped;
 	LIST_ENTRY(g_raid_tr_class) trc_list;
 };
 
