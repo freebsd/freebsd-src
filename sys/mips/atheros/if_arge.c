@@ -90,6 +90,7 @@ MODULE_VERSION(arge, 1);
 #include "miibus_if.h"
 
 #include <mips/atheros/ar71xxreg.h>
+#include <mips/atheros/ar934xreg.h>	/* XXX tsk! */
 #include <mips/atheros/if_argevar.h>
 #include <mips/atheros/ar71xx_setup.h>
 #include <mips/atheros/ar71xx_cpudef.h>
@@ -298,17 +299,38 @@ static void
 arge_reset_mac(struct arge_softc *sc)
 {
 	uint32_t reg;
+	uint32_t reset_reg;
 
 	/* Step 1. Soft-reset MAC */
 	ARGE_SET_BITS(sc, AR71XX_MAC_CFG1, MAC_CFG1_SOFT_RESET);
 	DELAY(20);
 
 	/* Step 2. Punt the MAC core from the central reset register */
-	ar71xx_device_stop(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC :
-	    RST_RESET_GE1_MAC);
+	/*
+	 * XXX TODO: migrate this (and other) chip specific stuff into
+	 * a chipdef method.
+	 */
+	if (sc->arge_mac_unit == 0) {
+		reset_reg = RST_RESET_GE0_MAC;
+	} else {
+		reset_reg = RST_RESET_GE1_MAC;
+	}
+
+	/*
+	 * AR934x (and later) also needs the MDIO block reset.
+	 */
+	if (ar71xx_soc == AR71XX_SOC_AR9341 ||
+	   ar71xx_soc == AR71XX_SOC_AR9342 ||
+	   ar71xx_soc == AR71XX_SOC_AR9344) {
+		if (sc->arge_mac_unit == 0) {
+			reset_reg |= AR934X_RESET_GE0_MDIO;
+		} else {
+			reset_reg |= AR934X_RESET_GE1_MDIO;
+		}
+	}
+	ar71xx_device_stop(reset_reg);
 	DELAY(100);
-	ar71xx_device_start(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC :
-	    RST_RESET_GE1_MAC);
+	ar71xx_device_start(reset_reg);
 
 	/* Step 3. Reconfigure MAC block */
 	ARGE_WRITE(sc, AR71XX_MAC_CFG1,
@@ -322,14 +344,46 @@ arge_reset_mac(struct arge_softc *sc)
 	ARGE_WRITE(sc, AR71XX_MAC_MAX_FRAME_LEN, 1536);
 }
 
+/*
+ * Fetch the MDIO bus clock rate.
+ *
+ * For now, the default is DIV_28 for everything
+ * bar AR934x, which will be DIV_42.
+ *
+ * It will definitely need updating to take into account
+ * the MDIO bus core clock rate and the target clock
+ * rate for the chip.
+ */
+static uint32_t
+arge_fetch_mdiobus_clock_rate(struct arge_softc *sc)
+{
+
+	switch (ar71xx_soc) {
+	case AR71XX_SOC_AR9341:
+	case AR71XX_SOC_AR9342:
+	case AR71XX_SOC_AR9344:
+		return (MAC_MII_CFG_CLOCK_DIV_42);
+	default:
+		return (MAC_MII_CFG_CLOCK_DIV_28);
+	}
+}
+
 static void
 arge_reset_miibus(struct arge_softc *sc)
 {
+	uint32_t mdio_div;
 
-	/* Reset MII bus */
-	ARGE_WRITE(sc, AR71XX_MAC_MII_CFG, MAC_MII_CFG_RESET);
+	mdio_div = arge_fetch_mdiobus_clock_rate(sc);
+
+	/*
+	 * XXX AR934x and later; should we be also resetting the
+	 * MDIO block(s) using the reset register block?
+	 */
+
+	/* Reset MII bus; program in the default divisor */
+	ARGE_WRITE(sc, AR71XX_MAC_MII_CFG, MAC_MII_CFG_RESET | mdio_div);
 	DELAY(100);
-	ARGE_WRITE(sc, AR71XX_MAC_MII_CFG, MAC_MII_CFG_CLOCK_DIV_28);
+	ARGE_WRITE(sc, AR71XX_MAC_MII_CFG, mdio_div);
 	DELAY(100);
 }
 
@@ -588,9 +642,13 @@ arge_attach(device_t dev)
 		case AR71XX_SOC_AR7242:
 		case AR71XX_SOC_AR9330:
 		case AR71XX_SOC_AR9331:
+		case AR71XX_SOC_AR9341:
+		case AR71XX_SOC_AR9342:
+		case AR71XX_SOC_AR9344:
 			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG1, 0x0010ffff);
 			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG2, 0x015500aa);
 			break;
+		/* AR71xx, AR913x */
 		default:
 			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG1, 0x0fff0000);
 			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG2, 0x00001fff);
@@ -917,12 +975,16 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 		case AR71XX_SOC_AR7242:
 		case AR71XX_SOC_AR9330:
 		case AR71XX_SOC_AR9331:
+		case AR71XX_SOC_AR9341:
+		case AR71XX_SOC_AR9342:
+		case AR71XX_SOC_AR9344:
 			fifo_tx = 0x01f00140;
 			break;
 		case AR71XX_SOC_AR9130:
 		case AR71XX_SOC_AR9132:
 			fifo_tx = 0x00780fff;
 			break;
+		/* AR71xx */
 		default:
 			fifo_tx = 0x008001ff;
 	}
