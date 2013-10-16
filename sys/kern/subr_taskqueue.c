@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/unistd.h>
 #include <machine/stdarg.h>
+#include <net/vnet.h>
 
 static MALLOC_DEFINE(M_TASKQUEUE, "taskqueue", "Task Queues");
 static void	*taskqueue_giant_ih;
@@ -330,7 +331,9 @@ taskqueue_run_locked(struct taskqueue *queue)
 		tb.tb_running = task;
 		TQ_UNLOCK(queue);
 
+		CURVNET_SET(task->ta_vnet);
 		task->ta_func(task->ta_context, pending);
+		CURVNET_RESTORE();
 
 		TQ_LOCK(queue);
 		tb.tb_running = NULL;
