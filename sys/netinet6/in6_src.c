@@ -559,20 +559,23 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
     struct inpcb *inp, struct route_in6 *ro, struct ucred *cred,
     struct ifnet **ifpp, struct in6_addr *srcp)
 {
-	struct in6_addr dst, tmp;
-	struct ifnet *ifp = NULL, *oifp = NULL;
-	struct in6_ifaddr *ia = NULL, *ia_best = NULL;
-	struct in6_pktinfo *pi = NULL;
-	int dst_scope = -1, best_scope = -1, best_matchlen = -1;
-	struct in6_addrpolicy *dst_policy = NULL, *best_policy = NULL;
-	u_int32_t odstzone;
-	int prefer_tempaddr;
-	int error, rule;
+	struct route_in6 ro6;
+	struct dstaddr_props dstprops;
+	struct srcaddr_choice best;
 	struct ip6_moptions *mopts;
+	struct in6_pktinfo *pi;
+	struct in6_ifaddr *ia;
+	struct ifaddr *ifa;
+	struct ifnet *ifp, *oifp;
+	u_int fibnum;
+	int error, done;
 
 	KASSERT(srcp != NULL, ("%s: srcp is NULL", __func__));
+	KASSERT(ifpp != NULL, ("%s: ifpp is NULL", __func__));
+	KASSERT(sa6_checkzone(dst) == 0, ("%s: invalid zone information",
+	    __func__));
 
-	dst = dstsock->sin6_addr; /* make a copy for local operation */
+	ifp = oifp = NULL;
 	if (ifpp) {
 		/*
 		 * Save a possibly passed in ifp for in6_selectsrc. Only
@@ -589,82 +592,111 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	if (inp != NULL) {
 		INP_LOCK_ASSERT(inp);
 		mopts = inp->in6p_moptions;
+		fibnum = inp->inp_inc.inc_fibnum;
 	} else {
 		mopts = NULL;
+		fibnum = RT_DEFAULT_FIB;
+	}
+	if (ro == NULL) {
+		ro = &ro6;
+		bzero(ro, sizeof(*ro));
 	}
 
 	/*
-	 * If the source address is explicitly specified by the caller,
-	 * check if the requested source address is indeed a unicast address
-	 * assigned to the node, and can be used as the packet's source
-	 * address.  If everything is okay, use the address as source.
+	 * XXX: jail support MUST be added later!
 	 */
-	if (opts && (pi = opts->ip6po_pktinfo) &&
-	    !IN6_IS_ADDR_UNSPECIFIED(&pi->ipi6_addr)) {
-		struct sockaddr_in6 srcsock;
-		struct in6_ifaddr *ia6;
-
-		/* get the outgoing interface */
-		if ((error = in6_selectif(dstsock, opts, mopts, ro, &ifp, oifp,
-		    (inp != NULL) ? inp->inp_inc.inc_fibnum : RT_DEFAULT_FIB))
-		    != 0)
+	if (opts != NULL && (pi = opts->ip6po_pktinfo) != NULL) {
+		error = handle_pktinfo(dst, pi, mopts, ro, fibnum,
+		    &ifp, srcp, &done);
+		if (error != 0)
 			return (error);
-
+		if (done != 0) {
+			/*
+			 * When the outgoing interface is specified by
+			 * IPV6_PKTINFO as well, the next hop specified by
+			 * this option must be reachable via the specified
+			 * interface. Also, we ignore next hop for multicast
+			 * destinations.
+			 */
+			if (!IN6_IS_ADDR_MULTICAST(&dst->sin6_addr) &&
+			    opts->ip6po_nexthop != NULL)
+				error = handle_nexthop(&opts->ip6po_nhinfo,
+				    fibnum, &ifp);
+			if (error != 0 || ro == &ro6)
+				RO_RTFREE(ro);
+			if (error == 0)
+				*ifpp = ifp;
+			return (error);
+		}
+	} else if (IN6_IS_ADDR_MULTICAST(&dst->sin6_addr)) {
 		/*
-		 * determine the appropriate zone id of the source based on
-		 * the zone of the destination and the outgoing interface.
-		 * If the specified address is ambiguous wrt the scope zone,
-		 * the interface must be specified; otherwise, ifa_ifwithaddr()
-		 * will fail matching the address.
+		 * If the destination address is a multicast address and
+		 * the IPV6_MULTICAST_IF socket option is specified for the
+		 * socket, the interface is used.
 		 */
-		bzero(&srcsock, sizeof(srcsock));
-		srcsock.sin6_family = AF_INET6;
-		srcsock.sin6_len = sizeof(srcsock);
-		srcsock.sin6_addr = pi->ipi6_addr;
-		if (ifp) {
-			error = in6_setscope(&srcsock.sin6_addr, ifp, NULL);
-			if (error)
-				return (error);
+		if (mopts && mopts->im6o_multicast_ifp) {
+			ifp = mopts->im6o_multicast_ifp;
+		} else if (IN6_IS_ADDR_MC_LINKLOCAL(&dst->sin6_addr) ||
+		    IN6_IS_ADDR_MC_INTFACELOCAL(&dst->sin6_addr)) {
+			/*
+			 * Destination multicast address is in the link-local
+			 * or interface-local scope. Use its sin6_scope_id to
+			 * determine outgoing interface.
+			 */
+			ifp = in6_getlinkifnet(dst->sin6_scope_id);
+		} else {
+			/*
+			 * XXX: Try to lookup route for this multicast
+			 * destination address.
+			 */
+			if (cached_rtlookup(dst, ro, fibnum) != 0)
+				return (EHOSTUNREACH);
+			ifp = ro->ro_rt->rt_ifp;
 		}
-		if (cred != NULL && (error = prison_local_ip6(cred,
-		    &srcsock.sin6_addr, (inp != NULL &&
-		    (inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
+	} else if (opts != NULL && opts->ip6po_nexthop != NULL) {
+		error = handle_nexthop(&opts->ip6po_nhinfo, fibnum, &ifp);
+		if (error != 0)
 			return (error);
-
-		ia6 = (struct in6_ifaddr *)ifa_ifwithaddr(
-		    (struct sockaddr *)&srcsock);
-		if (ia6 == NULL ||
-		    (ia6->ia6_flags & (IN6_IFF_ANYCAST | IN6_IFF_NOTREADY))) {
-			if (ia6 != NULL)
-				ifa_free(&ia6->ia_ifa);
-			return (EADDRNOTAVAIL);
+	} else {
+		/*
+		 * We don't have any options and destination isn't multicast.
+		 * Use sin6_scope_id for link-local addresses.
+		 * Do a route lookup for global addresses.
+		 */
+		if (dst->sin6_scope_id != 0)
+			ifp = in6_getlinkifnet(dst->sin6_scope_id);
+		else {
+			if (cached_rtlookup(dst, ro, fibnum) != 0)
+				return (EHOSTUNREACH);
+			ifp = ro->ro_rt->rt_ifp;
 		}
-		pi->ipi6_addr = srcsock.sin6_addr; /* XXX: this overrides pi */
-		if (ifpp)
-			*ifpp = ifp;
-		bcopy(&ia6->ia_addr.sin6_addr, srcp, sizeof(*srcp));
-		ifa_free(&ia6->ia_ifa);
-		return (0);
 	}
 
 	/*
 	 * Otherwise, if the socket has already bound the source, just use it.
 	 */
 	if (inp != NULL && !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
+#if 0		/* XXX: Jail support. */
 		if (cred != NULL &&
 		    (error = prison_local_ip6(cred, &inp->in6p_laddr,
 		    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
 			return (error);
 		bcopy(&inp->in6p_laddr, srcp, sizeof(*srcp));
+#endif
+		if (ro == &ro6)
+			RO_RTFREE(ro);
+		*srcp = inp->in6p_laddr;
+		*ifpp = ifp;
 		return (0);
 	}
-
 	/*
-	 * Bypass source address selection and use the primary jail IP
+	 * XXX: Bypass source address selection and use the primary jail IP
 	 * if requested.
 	 */
+#if 0
 	if (cred != NULL && !prison_saddrsel_ip6(cred, srcp))
 		return (0);
+#endif
 
 	/*
 	 * If the address is not specified, choose the best one based on
