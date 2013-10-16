@@ -500,11 +500,19 @@ buildLINT:
 	${MAKE} -C ${.CURDIR}/sys/${_TARGET}/conf LINT
 
 .if defined(.PARSEDIR)
-# this makefile does not run in meta mode
+# This makefile does not run in meta mode
 .MAKE.MODE= normal
-# make sure things we run from here don't either
+# Normally the things we run from here don't either.
+# Using -DWITH_META_FILES -DWITHOUT_STAGING
+# we can buildworld with meta files created which are useful 
+# for debugging, but without any of the rest of a meta mode build.
+.ifndef WITH_META_FILES
 WITHOUT_META_MODE=
 .export WITHOUT_META_MODE
+.else
+UPDATE_DEPENDFILE=NO
+.export UPDATE_DEPENDFILE
+.endif
 
 .if make(universe)
 # we do not want a failure of one branch abort all.
