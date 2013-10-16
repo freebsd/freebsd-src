@@ -49,6 +49,12 @@
 #include "miibus_if.h"
 #include "etherswitch_if.h"
 
+/*
+ * XXX TODO: teach about the AR933x SoC switch
+ * XXX TODO: teach about the AR934x SoC switch
+ * XXX TODO: teach about the AR8327 external switch
+ */
+
 static int
 arswitch_vlan_op(struct arswitch_softc *sc, uint32_t op, uint32_t vid,
 	uint32_t data)
