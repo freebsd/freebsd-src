@@ -5,19 +5,13 @@ DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 DIRDEPS = \
 	gnu/lib/libgcc \
 	include \
-	include/arpa \
 	include/xlocale \
 	lib/${CSU_DIR} \
-	lib/bind/bind9 \
-	lib/bind/dns \
-	lib/bind/isc \
-	lib/bind/isccc \
-	lib/bind/isccfg \
-	lib/bind/lwres \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/libthr \
+	lib/libldns \
 	secure/lib/libcrypto \
+	secure/lib/libssl \
 
 
 .include <dirdeps.mk>
