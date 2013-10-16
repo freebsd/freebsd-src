@@ -485,16 +485,16 @@ g_dev_done(struct bio *bp2)
 	sc = cp->private;
 	bp = bp2->bio_parent;
 	bp->bio_error = bp2->bio_error;
-	if (bp->bio_error != 0) {
+	bp->bio_completed = bp2->bio_completed;
+	bp->bio_resid = bp2->bio_resid;
+	if (bp2->bio_error != 0) {
 		g_trace(G_T_BIO, "g_dev_done(%p) had error %d",
-		    bp2, bp->bio_error);
+		    bp2, bp2->bio_error);
 		bp->bio_flags |= BIO_ERROR;
 	} else {
 		g_trace(G_T_BIO, "g_dev_done(%p/%p) resid %ld completed %jd",
-		    bp2, bp, bp->bio_resid, (intmax_t)bp2->bio_completed);
+		    bp2, bp, bp2->bio_resid, (intmax_t)bp2->bio_completed);
 	}
-	bp->bio_resid = bp->bio_length - bp2->bio_completed;
-	bp->bio_completed = bp2->bio_completed;
 	g_destroy_bio(bp2);
 	destroy = 0;
 	mtx_lock(&sc->sc_mtx);
