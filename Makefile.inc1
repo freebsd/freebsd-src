@@ -1830,7 +1830,7 @@ NOFUN=-DNO_FSCHG -DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT \
 	CPUTYPE=${XDEV_CPUTYPE}
 
 XDDIR=${XDEV_ARCH}-freebsd
-XDTP=/usr/${XDDIR}
+XDTP=usr/${XDDIR}
 CDBENV=MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${XDDIR} \
 	INSTALL="sh ${.CURDIR}/tools/install.sh"
 CDENV= ${CDBENV} \
@@ -1843,8 +1843,8 @@ CD2ENV=${CDENV} CC="${CC} ${CD2CFLAGS}" \
 
 CDTMP=	${MAKEOBJDIRPREFIX}/${XDDIR}/${.CURDIR}/tmp
 CDMAKE=${CDENV} PATH=${CDTMP}/usr/bin:${PATH} ${MAKE} ${NOFUN}
-CD2MAKE=${CD2ENV} PATH=${CDTMP}/usr/bin:${XDTP}/usr/bin:${PATH} ${MAKE} ${NOFUN}
-XDDESTDIR=${DESTDIR}${XDTP}
+CD2MAKE=${CD2ENV} PATH=${CDTMP}/usr/bin:${XDDESTDIR}/usr/bin:${PATH} ${MAKE} ${NOFUN}
+XDDESTDIR=${DESTDIR}/${XDTP}
 .if !defined(OSREL)
 OSREL!= uname -r | sed -e 's/[-(].*//'
 .endif
@@ -1924,6 +1924,7 @@ _xi-libraries:
 
 _xi-links:
 	${_+_}cd ${XDDESTDIR}/usr/bin; \
+       mkdir -p ../../../../usr/bin; \
 		for i in *; do \
 			ln -sf ../../${XDTP}/usr/bin/$$i \
 			    ../../../../usr/bin/${XDDIR}-$$i; \
