@@ -124,6 +124,7 @@ struct radix_node_head {
 	void	(*rnh_close)	/* do something when the last ref drops */
 		(struct radix_node *rn, struct radix_node_head *head);
 	struct	radix_node rnh_nodes[3];	/* empty tree for common case */
+	struct	radix_node_head *rnh_masks;	/* Storage for our masks */
 #ifdef _KERNEL
 	struct	rwlock rnh_lock;		/* locks entire radix tree */
 #endif
@@ -152,12 +153,11 @@ struct radix_node_head {
 #define	RADIX_NODE_HEAD_WLOCK_ASSERT(rnh) rw_assert(&(rnh)->rnh_lock, RA_WLOCKED)
 #endif /* _KERNEL */
 
-void	 rn_init(int);
 int	 rn_inithead(void **, int);
 int	 rn_detachhead(void **);
 int	 rn_refines(void *, void *);
 struct radix_node
-	 *rn_addmask(void *, int, int),
+	 *rn_addmask(void *, struct radix_node_head *, int, int),
 	 *rn_addroute (void *, void *, struct radix_node_head *,
 			struct radix_node [2]),
 	 *rn_delete(void *, void *, struct radix_node_head *),
