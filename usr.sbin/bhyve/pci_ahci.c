@@ -1543,7 +1543,7 @@ pci_ahci_host_write(struct pci_ahci_softc *sc, uint64_t offset, uint64_t value)
 	case AHCI_PI:
 	case AHCI_VS:
 	case AHCI_CAP2:
-		WPRINTF("pci_ahci_host: read only registers 0x%"PRIx64"\n", offset);
+		DPRINTF("pci_ahci_host: read only registers 0x%"PRIx64"\n", offset);
 		break;
 	case AHCI_GHC:
 		if (value & AHCI_GHC_HR)
