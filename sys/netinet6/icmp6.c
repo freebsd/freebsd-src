@@ -1910,7 +1910,6 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 			/* copy the address itself */
 			bcopy(&ifa6->ia_addr.sin6_addr, cp,
 			    sizeof(struct in6_addr));
-			in6_clearscope((struct in6_addr *)cp); /* XXX */
 			cp += sizeof(struct in6_addr);
 
 			resid -= (sizeof(struct in6_addr) + sizeof(u_int32_t));
@@ -1957,20 +1956,12 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 		return (IPPROTO_DONE);
 	}
 #endif
-
-	/*
-	 * XXX: the address may have embedded scope zone ID, which should be
-	 * hidden from applications.
-	 */
 	bzero(&fromsa, sizeof(fromsa));
 	fromsa.sin6_family = AF_INET6;
 	fromsa.sin6_len = sizeof(struct sockaddr_in6);
 	fromsa.sin6_addr = ip6->ip6_src;
-	if (sa6_recoverscope(&fromsa)) {
-		m_freem(m);
-		return (IPPROTO_DONE);
-	}
-
+	fromsa.sin6_scope_id = in6_getscopezone(m->m_pkthdr.rcvif,
+	    in6_addrscope(&ip6->ip6_src));
 	INP_INFO_RLOCK(&V_ripcbinfo);
 	LIST_FOREACH(in6p, &V_ripcb, inp_list) {
 		if ((in6p->inp_vflag & INP_IPV6) == 0)
