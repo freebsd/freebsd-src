@@ -227,7 +227,6 @@ void
 icmp6_error2(struct mbuf *m, int type, int code, int param,
     struct ifnet *ifp)
 {
-	struct ip6_hdr *ip6;
 
 	if (ifp == NULL)
 		return;
@@ -2119,13 +2118,14 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 void
 icmp6_reflect(struct mbuf *m, size_t off)
 {
+	struct route_in6 *ro, ro6;
+	struct in6_addr src, *srcp = NULL;
 	struct ip6_hdr *ip6;
 	struct icmp6_hdr *icmp6;
 	struct in6_ifaddr *ia = NULL;
-	int plen;
-	int type, code;
 	struct ifnet *outif = NULL;
-	struct in6_addr origdst, src, *srcp = NULL;
+	uint32_t zoneid;
+	int type, code, plen, error;
 
 	/* too short to reflect */
 	if (off < sizeof(struct ip6_hdr)) {
@@ -2172,13 +2172,6 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	type = icmp6->icmp6_type; /* keep type for statistics */
 	code = icmp6->icmp6_code; /* ditto. */
 
-	origdst = ip6->ip6_dst;
-	/*
-	 * ip6_input() drops a packet if its src is multicast.
-	 * So, the src is never multicast.
-	 */
-	ip6->ip6_dst = ip6->ip6_src;
-
 	/*
 	 * If the incoming packet was addressed directly to us (i.e. unicast),
 	 * use dst as the src for the reply.
@@ -2186,56 +2179,59 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	 * (for example) when we encounter an error while forwarding procedure
 	 * destined to a duplicated address of ours.
 	 */
+	zoneid = in6_getscopezone(m->m_pkthdr.rcvif,
+	    in6_addrscope(&ip6->ip6_dst));
 	if (!IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
-		ia = in6ifa_ifwithaddr(&ip6->ip6_dst,
-		    in6_getscopezone(m->m_pkthdr.rcvif,
-		    in6_addrscope(&ip6->ip6_dst)));
+		ia = in6ifa_ifwithaddr(&ip6->ip6_dst, zoneid);
 		if (ia != NULL && !(ia->ia6_flags &
-		    (IN6_IFF_ANYCAST | IN6_IFF_NOTREADY)))
+		    (IN6_IFF_ANYCAST | IN6_IFF_NOTREADY))) {
 			srcp = &ia->ia_addr.sin6_addr;
+			outif = ia->ia_ifp; /* XXX: is it correct? */
+		}
 	}
+	ro = NULL;
 	if (srcp == NULL) {
-		int e;
 		struct sockaddr_in6 sin6;
-		struct route_in6 ro;
 
 		/*
 		 * This case matches to multicasts, our anycast, or unicasts
 		 * that we do not own.  Select a source address based on the
 		 * source address of the erroneous packet.
 		 */
+		ro = &ro6;
+		bzero(&ro6, sizeof(ro6));
+		outif = m->m_pkthdr.rcvif;
+
 		bzero(&sin6, sizeof(sin6));
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_len = sizeof(sin6);
-		sin6.sin6_addr = ip6->ip6_dst; /* zone ID should be embedded */
-
-		bzero(&ro, sizeof(ro));
-		e = in6_selectsrc(&sin6, NULL, NULL, &ro, NULL, &outif, &src);
-		if (ro.ro_rt)
-			RTFREE(ro.ro_rt); /* XXX: we could use this */
-		if (e) {
+		sin6.sin6_addr = ip6->ip6_src;
+		sin6.sin6_scope_id = zoneid;
+		error = in6_selectsrc(&sin6, NULL, NULL, ro, NULL,
+		    &outif, &src);
+		if (error != 0) {
 			char ip6buf[INET6_ADDRSTRLEN];
 			nd6log((LOG_DEBUG,
 			    "icmp6_reflect: source can't be determined: "
 			    "dst=%s, error=%d\n",
-			    ip6_sprintf(ip6buf, &sin6.sin6_addr), e));
+			    ip6_sprintf(ip6buf, &sin6.sin6_addr), error));
+			RO_RTFREE(ro);
 			goto bad;
 		}
 		srcp = &src;
 	}
-
+	KASSERT(outif != NULL, ("%s: outif is NULL", __func__));
+	/*
+	 * ip6_input() drops a packet if its src is multicast.
+	 * So, the src is never multicast.
+	 */
+	ip6->ip6_dst = ip6->ip6_src;
 	ip6->ip6_src = *srcp;
 	ip6->ip6_flow = 0;
 	ip6->ip6_vfc &= ~IPV6_VERSION_MASK;
 	ip6->ip6_vfc |= IPV6_VERSION;
 	ip6->ip6_nxt = IPPROTO_ICMPV6;
-	if (outif)
-		ip6->ip6_hlim = ND_IFINFO(outif)->chlim;
-	else if (m->m_pkthdr.rcvif) {
-		/* XXX: This may not be the outgoing interface */
-		ip6->ip6_hlim = ND_IFINFO(m->m_pkthdr.rcvif)->chlim;
-	} else
-		ip6->ip6_hlim = V_ip6_defhlim;
+	ip6->ip6_hlim = ND_IFINFO(outif)->chlim;
 
 	icmp6->icmp6_cksum = 0;
 	icmp6->icmp6_cksum = in6_cksum(m, IPPROTO_ICMPV6,
@@ -2247,12 +2243,12 @@ icmp6_reflect(struct mbuf *m, size_t off)
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
 
-	ip6_output(m, NULL, NULL, 0, NULL, &outif, NULL);
-	if (outif)
-		icmp6_ifoutstat_inc(outif, type, code);
-
+	ip6_output(m, NULL, ro, IPV6_USEROIF, NULL, &outif, NULL);
+	icmp6_ifoutstat_inc(outif, type, code);
 	if (ia != NULL)
 		ifa_free(&ia->ia_ifa);
+	if (ro != NULL)
+		RO_RTFREE(ro);
 	return;
 
  bad:
