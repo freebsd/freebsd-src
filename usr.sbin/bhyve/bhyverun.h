@@ -47,4 +47,5 @@ int  fbsdrun_muxed(void);
 int  fbsdrun_vmexit_on_hlt(void);
 int  fbsdrun_vmexit_on_pause(void);
 int  fbsdrun_disable_x2apic(void);
+int  fbsdrun_virtio_msix(void);
 #endif
