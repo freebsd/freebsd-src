@@ -1259,7 +1259,7 @@ typedef struct acpi_db_method_info
     char                            *Name;
     UINT32                          Flags;
     UINT32                          NumLoops;
-    char                            Pathname[128];
+    char                            Pathname[ACPI_DB_LINE_BUFFER_SIZE];
     char                            **Args;
     ACPI_OBJECT_TYPE                *Types;
 
@@ -1286,6 +1286,7 @@ typedef struct acpi_integrity_info
 } ACPI_INTEGRITY_INFO;
 
 
+#define ACPI_DB_DISABLE_OUTPUT          0x00
 #define ACPI_DB_REDIRECTABLE_OUTPUT     0x01
 #define ACPI_DB_CONSOLE_OUTPUT          0x02
 #define ACPI_DB_DUPLICATE_OUTPUT        0x03

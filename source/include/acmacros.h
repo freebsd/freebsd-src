@@ -415,32 +415,6 @@
 
 
 /*
- * Memory allocation tracking (DEBUG ONLY)
- */
-#define ACPI_MEM_PARAMETERS         _COMPONENT, _AcpiModuleName, __LINE__
-
-#ifndef ACPI_DBG_TRACK_ALLOCATIONS
-
-/* Memory allocation */
-
-#define ACPI_ALLOCATE(a)            AcpiUtAllocate((ACPI_SIZE) (a), ACPI_MEM_PARAMETERS)
-#define ACPI_ALLOCATE_ZEROED(a)     AcpiUtAllocateZeroed((ACPI_SIZE) (a), ACPI_MEM_PARAMETERS)
-#define ACPI_FREE(a)                AcpiOsFree(a)
-#define ACPI_MEM_TRACKING(a)
-
-#else
-
-/* Memory allocation */
-
-#define ACPI_ALLOCATE(a)            AcpiUtAllocateAndTrack((ACPI_SIZE) (a), ACPI_MEM_PARAMETERS)
-#define ACPI_ALLOCATE_ZEROED(a)     AcpiUtAllocateZeroedAndTrack((ACPI_SIZE) (a), ACPI_MEM_PARAMETERS)
-#define ACPI_FREE(a)                AcpiUtFreeAndTrack(a, ACPI_MEM_PARAMETERS)
-#define ACPI_MEM_TRACKING(a)        a
-
-#endif /* ACPI_DBG_TRACK_ALLOCATIONS */
-
-
-/*
  * Macros used for ACPICA utilities only
  */
 

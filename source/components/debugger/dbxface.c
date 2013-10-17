@@ -507,6 +507,10 @@ AcpiDbTerminate (
         AcpiOsFree (AcpiGbl_DbBuffer);
         AcpiGbl_DbBuffer = NULL;
     }
+
+    /* Ensure that debug output is now disabled */
+
+    AcpiGbl_DbOutputFlags = ACPI_DB_DISABLE_OUTPUT;
 }
 
 

@@ -635,7 +635,13 @@ AcpiDbGetLine (
     char                    *This;
 
 
-    ACPI_STRCPY (AcpiGbl_DbParsedBuf, InputBuffer);
+    if (AcpiUtSafeStrcpy (AcpiGbl_DbParsedBuf, sizeof (AcpiGbl_DbParsedBuf),
+        InputBuffer))
+    {
+        AcpiOsPrintf ("Buffer overflow while parsing input line (max %u characters)\n",
+            sizeof (AcpiGbl_DbParsedBuf));
+        return (0);
+    }
 
     This = AcpiGbl_DbParsedBuf;
     for (i = 0; i < ACPI_DEBUGGER_MAX_ARGS; i++)
@@ -739,6 +745,11 @@ AcpiDbCommandDispatch (
     {
         return (AE_CTRL_TERMINATE);
     }
+
+
+    /* Add all commands that come here to the history buffer */
+
+    AcpiDbAddToHistory (InputBuffer);
 
     ParamCount = AcpiDbGetLine (InputBuffer);
     CommandIndex = AcpiDbMatchCommand (AcpiGbl_DbArgs[0]);
@@ -1135,7 +1146,7 @@ AcpiDbCommandDispatch (
     case CMD_NOT_FOUND:
     default:
 
-        AcpiOsPrintf ("Unknown Command\n");
+        AcpiOsPrintf ("%s: unknown command\n", AcpiGbl_DbArgs[0]);
         return (AE_CTRL_TRUE);
     }
 
@@ -1144,9 +1155,6 @@ AcpiDbCommandDispatch (
         Status = AE_CTRL_TRUE;
     }
 
-    /* Add all commands that come here to the history buffer */
-
-    AcpiDbAddToHistory (InputBuffer);
     return (Status);
 }
 

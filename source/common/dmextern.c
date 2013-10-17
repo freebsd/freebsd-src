@@ -279,48 +279,41 @@ Cleanup:
 
 ACPI_STATUS
 AcpiDmAddToExternalFileList (
-    char                    *PathList)
+    char                    *Pathname)
 {
     ACPI_EXTERNAL_FILE      *ExternalFile;
-    char                    *Path;
-    char                    *TmpPath;
+    char                    *LocalPathname;
 
 
-    if (!PathList)
+    if (!Pathname)
     {
         return (AE_OK);
     }
 
-    Path = strtok (PathList, ",");
-
-    while (Path)
+    LocalPathname = ACPI_ALLOCATE (strlen (Pathname) + 1);
+    if (!LocalPathname)
     {
-        TmpPath = ACPI_ALLOCATE_ZEROED (ACPI_STRLEN (Path) + 1);
-        if (!TmpPath)
-        {
-            return (AE_NO_MEMORY);
-        }
-
-        ACPI_STRCPY (TmpPath, Path);
-
-        ExternalFile = ACPI_ALLOCATE_ZEROED (sizeof (ACPI_EXTERNAL_FILE));
-        if (!ExternalFile)
-        {
-            ACPI_FREE (TmpPath);
-            return (AE_NO_MEMORY);
-        }
-
-        ExternalFile->Path = TmpPath;
-
-        if (AcpiGbl_ExternalFileList)
-        {
-            ExternalFile->Next = AcpiGbl_ExternalFileList;
-        }
-
-        AcpiGbl_ExternalFileList = ExternalFile;
-        Path = strtok (NULL, ",");
+        return (AE_NO_MEMORY);
     }
 
+    ExternalFile = ACPI_ALLOCATE_ZEROED (sizeof (ACPI_EXTERNAL_FILE));
+    if (!ExternalFile)
+    {
+        ACPI_FREE (LocalPathname);
+        return (AE_NO_MEMORY);
+    }
+
+    /* Take a copy of the file pathname */
+
+    strcpy (LocalPathname, Pathname);
+    ExternalFile->Path = LocalPathname;
+
+    if (AcpiGbl_ExternalFileList)
+    {
+        ExternalFile->Next = AcpiGbl_ExternalFileList;
+    }
+
+    AcpiGbl_ExternalFileList = ExternalFile;
     return (AE_OK);
 }
 

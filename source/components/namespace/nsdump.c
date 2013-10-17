@@ -748,6 +748,13 @@ AcpiNsDumpOneObjectPath (
     }
 
     Node = AcpiNsValidateHandle (ObjHandle);
+    if (!Node)
+    {
+        /* Ignore bad node during namespace walk */
+
+        return (AE_OK);
+    }
+
     Pathname = AcpiNsGetExternalPathname (Node);
 
     PathIndent = 1;

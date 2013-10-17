@@ -114,7 +114,7 @@ AcpiTerminate (
     return_ACPI_STATUS (Status);
 }
 
-ACPI_EXPORT_SYMBOL (AcpiTerminate)
+ACPI_EXPORT_SYMBOL_INIT (AcpiTerminate)
 
 
 #ifndef ACPI_ASL_COMPILER

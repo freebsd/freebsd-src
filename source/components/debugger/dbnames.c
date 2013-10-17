@@ -171,8 +171,7 @@ AcpiDbSetScope (
             goto ErrorExit;
         }
 
-        ACPI_STRCPY (AcpiGbl_DbScopeBuf, Name);
-        ACPI_STRCAT (AcpiGbl_DbScopeBuf, "\\");
+        AcpiGbl_DbScopeBuf[0] = 0;
     }
     else
     {
@@ -184,9 +183,22 @@ AcpiDbSetScope (
         {
             goto ErrorExit;
         }
+    }
 
-        ACPI_STRCAT (AcpiGbl_DbScopeBuf, Name);
-        ACPI_STRCAT (AcpiGbl_DbScopeBuf, "\\");
+    /* Build the final pathname */
+
+    if (AcpiUtSafeStrcat (AcpiGbl_DbScopeBuf, sizeof (AcpiGbl_DbScopeBuf),
+        Name))
+    {
+        Status = AE_BUFFER_OVERFLOW;
+        goto ErrorExit;
+    }
+
+    if (AcpiUtSafeStrcat (AcpiGbl_DbScopeBuf, sizeof (AcpiGbl_DbScopeBuf),
+        "\\"))
+    {
+        Status = AE_BUFFER_OVERFLOW;
+        goto ErrorExit;
     }
 
     AcpiGbl_DbScopeNode = Node;

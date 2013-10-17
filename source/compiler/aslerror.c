@@ -611,7 +611,6 @@ AslCommonError (
     char                    *Filename,
     char                    *ExtraMessage)
 {
-    UINT32                  MessageSize;
     char                    *MessageBuffer = NULL;
     ASL_ERROR_MSG           *Enode;
 
@@ -622,8 +621,7 @@ AslCommonError (
     {
         /* Allocate a buffer for the message and a new error node */
 
-        MessageSize   = strlen (ExtraMessage) + 1;
-        MessageBuffer = UtLocalCalloc (MessageSize);
+        MessageBuffer = UtLocalCalloc (strlen (ExtraMessage) + 1);
 
         /* Keep a copy of the extra message */
 

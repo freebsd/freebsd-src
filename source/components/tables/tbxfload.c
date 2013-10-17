@@ -42,6 +42,7 @@
  */
 
 #define __TBXFLOAD_C__
+#define EXPORT_ACPI_INTERFACES
 
 #include "acpi.h"
 #include "accommon.h"
@@ -92,7 +93,7 @@ AcpiLoadTables (
     return_ACPI_STATUS (Status);
 }
 
-ACPI_EXPORT_SYMBOL (AcpiLoadTables)
+ACPI_EXPORT_SYMBOL_INIT (AcpiLoadTables)
 
 
 /*******************************************************************************

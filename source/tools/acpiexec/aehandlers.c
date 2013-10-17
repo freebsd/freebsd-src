@@ -214,6 +214,7 @@ AeCtrlCHandler (
         }
     }
 
+    (void) AcpiOsTerminate ();
     exit (0);
 }
 
