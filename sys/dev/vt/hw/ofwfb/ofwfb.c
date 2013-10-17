@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD: user/ed/newcons/sys/dev/vt/hw/ofwfb/ofwfb.c 219888 2011-03-2
 #include <sys/systm.h>
 
 #include <dev/vt/vt.h>
+#include <dev/vt/colors/vt_termcolors.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -52,7 +53,9 @@ struct ofwfb_softc {
 	int		sc_depth;
 	int		sc_stride;
 
-	bus_space_tag_t sc_memt; 
+	bus_space_tag_t	sc_memt; 
+
+	uint32_t	sc_colormap[16];
 };
 
 static vd_init_t	ofwfb_init;
@@ -71,25 +74,6 @@ VT_CONSDEV_DECLARE(vt_ofwfb_driver, PIXEL_WIDTH(1920), PIXEL_HEIGHT(1200),
     &ofwfb_conssoftc);
 /* XXX: hardcoded max size */
 
-static const uint32_t colormap[] = {
-	0x00000000,	/* Black */
-	0x00ff0000,	/* Red */
-	0x0000ff00,	/* Green */
-	0x00c0c000,	/* Brown */
-	0x000000ff,	/* Blue */
-	0x00c000c0,	/* Magenta */
-	0x0000c0c0,	/* Cyan */
-	0x00c0c0c0,	/* Light grey */
-	0x00808080,	/* Dark grey */
-	0x00ff8080,	/* Light red */
-	0x0080ff80,	/* Light green */
-	0x00ffff80,	/* Yellow */
-	0x008080ff,	/* Light blue */
-	0x00ff80ff,	/* Light magenta */
-	0x0080ffff,	/* Light cyan */
-	0x00ffffff, 	/* White */
-};
-
 static void
 ofwfb_blank(struct vt_device *vd, term_color_t color)
 {
@@ -103,7 +87,7 @@ ofwfb_blank(struct vt_device *vd, term_color_t color)
 			*(uint8_t *)(sc->sc_addr + ofs) = color;
 		break;
 	case 32:
-		c = colormap[color];
+		c = sc->sc_colormap[color];
 		for (ofs = 0; ofs < sc->sc_stride*vd->vd_height; ofs++)
 			*(uint32_t *)(sc->sc_addr + 4*ofs) = c;
 		break;
@@ -124,8 +108,8 @@ ofwfb_bitbltchr(struct vt_device *vd, const uint8_t *src,
 	int c;
 	uint8_t b = 0;
 
-	fgc = colormap[fg];
-	bgc = colormap[bg];
+	fgc = sc->sc_colormap[fg];
+	bgc = sc->sc_colormap[bg];
 
 	line = (sc->sc_stride * top) + left * sc->sc_depth/8;
 	for (; height > 0; height--) {
@@ -160,23 +144,53 @@ ofwfb_initialize(struct vt_device *vd)
 	ihandle_t ih;
 	int i;
 	cell_t retval;
+	uint32_t oldpix;
 
 	/* Open display device, thereby initializing it */
 	memset(name, 0, sizeof(name));
 	OF_package_to_path(sc->sc_node, name, sizeof(name));
 	ih = OF_open(name);
 
-	if (sc->sc_depth == 8) {
-		/*
-		 * Install the color map
-		 */
+	/*
+	 * Set up the color map
+	 */
+
+	switch (sc->sc_depth) {
+	case 8:
+		vt_generate_vga_palette(sc->sc_colormap, COLOR_FORMAT_RGB, 255,
+		    16, 255, 8, 255, 0);
+
 		for (i = 0; i < 16; i++) {
 			OF_call_method("color!", ih, 4, 1,
-			    (cell_t)((colormap[i] >> 16) & 0xff),
-			    (cell_t)((colormap[i] >> 8) & 0xff),
-			    (cell_t)((colormap[i] >> 0) & 0xff),
+			    (cell_t)((sc->sc_colormap[i] >> 16) & 0xff),
+			    (cell_t)((sc->sc_colormap[i] >> 8) & 0xff),
+			    (cell_t)((sc->sc_colormap[i] >> 0) & 0xff),
 			    (cell_t)i, &retval);
 		}
+		break;
+
+	case 32:
+		/*
+		 * We bypass the usual bus_space_() accessors here, mostly
+		 * for performance reasons. In particular, we don't want
+		 * any barrier operations that may be performed and handle
+		 * endianness slightly different. Figure out the host-view
+		 * endianness of the frame buffer.
+		 */
+		oldpix = bus_space_read_4(sc->sc_memt, sc->sc_addr, 0);
+		bus_space_write_4(sc->sc_memt, sc->sc_addr, 0, 0xff000000);
+		if (*(uint8_t *)(sc->sc_addr) == 0xff)
+			vt_generate_vga_palette(sc->sc_colormap,
+			    COLOR_FORMAT_RGB, 255, 16, 255, 8, 255, 0);
+		else
+			vt_generate_vga_palette(sc->sc_colormap,
+			    COLOR_FORMAT_RGB, 255, 0, 255, 8, 255, 16);
+		bus_space_write_4(sc->sc_memt, sc->sc_addr, 0, oldpix);
+		break;
+
+	default:
+		panic("Unknown color space depth %d", sc->sc_depth);
+		break;
         }
 
 	/* Clear the screen. */
@@ -258,11 +272,11 @@ ofwfb_init(struct vt_device *vd)
 	 * Grab the physical address of the framebuffer, and then map it
 	 * into our memory space. If the MMU is not yet up, it will be
 	 * remapped for us when relocation turns on.
-	 *
-	 * XXX We assume #address-cells is 1 at this point.
 	 */
 	if (OF_getproplen(node, "address") == sizeof(fb_phys)) {
+	 	/* XXX We assume #address-cells is 1 at this point. */
 		OF_getprop(node, "address", &fb_phys, sizeof(fb_phys));
+
 	#if defined(__powerpc__)
 		sc->sc_memt = &bs_be_tag;
 		bus_space_map(sc->sc_memt, fb_phys, height * sc->sc_stride,
