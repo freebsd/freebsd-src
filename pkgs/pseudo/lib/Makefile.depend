@@ -6,31 +6,8 @@ DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
 	lib/${CSU_DIR} \
-	lib/libc \
-	lib/libbsm \
-	lib/libauditd \
-	lib/libcompiler_rt \
-	lib/libcrypt \
-	lib/libelf \
-	lib/libkvm \
-	lib/msun \
-	lib/libmd \
-	lib/ncurses/ncurses \
-	lib/ncurses/form \
-	lib/ncurses/menu \
-	lib/ncurses/panel \
-	lib/ncurses/ncursesw \
-	lib/ncurses/formw \
-	lib/ncurses/menuw \
-	lib/ncurses/panelw \
-	lib/libnetgraph \
-	lib/libradius \
-	lib/librpcsvc \
-	lib/libsbuf \
-	lib/libtacplus \
-	lib/libutil \
-	lib/libypclnt \
-	lib/libcom_err/doc \
+	lib/atf/libatf-c \
+	lib/atf/libatf-c++ \
 	lib/libalias/libalias \
 	lib/libalias/modules/cuseeme \
 	lib/libalias/modules/dummy \
@@ -41,37 +18,73 @@ DIRDEPS = \
 	lib/libalias/modules/skinny \
 	lib/libalias/modules/smedia \
 	lib/libarchive \
+	lib/libauditd \
 	lib/libbegemot \
 	lib/libblocksruntime \
 	lib/libbluetooth \
+	lib/libbsm \
 	lib/libbsnmp/libbsnmp \
 	lib/libbz2 \
+	lib/libc \
+	lib/libc++ \
 	lib/libcalendar \
 	lib/libcam \
+	lib/libcom_err/doc \
 	lib/libcompat \
+	lib/libcompiler_rt \
+	lib/libcrypt \
+	lib/libcxxrt \
 	lib/libdevinfo \
 	lib/libdevstat \
-	lib/libdisk \
 	lib/libdwarf \
 	lib/libedit/edit/readline \
+	lib/libelf \
+	lib/libexecinfo \
 	lib/libexpat \
 	lib/libfetch \
 	lib/libgeom \
 	lib/libgpib \
 	lib/libgssapi \
-	lib/librpcsec_gss \
+	lib/libiconv_modules/BIG5 \
+	lib/libiconv_modules/DECHanyu \
+	lib/libiconv_modules/EUC \
+	lib/libiconv_modules/EUCTW \
+	lib/libiconv_modules/GBK2K \
+	lib/libiconv_modules/HZ \
+	lib/libiconv_modules/ISO2022 \
+	lib/libiconv_modules/JOHAB \
+	lib/libiconv_modules/MSKanji \
+	lib/libiconv_modules/UES \
+	lib/libiconv_modules/UTF1632 \
+	lib/libiconv_modules/UTF7 \
+	lib/libiconv_modules/UTF8 \
+	lib/libiconv_modules/VIQR \
+	lib/libiconv_modules/ZW \
+	lib/libiconv_modules/iconv_none \
+	lib/libiconv_modules/iconv_std \
+	lib/libiconv_modules/mapper_646 \
+	lib/libiconv_modules/mapper_none \
+	lib/libiconv_modules/mapper_parallel \
+	lib/libiconv_modules/mapper_serial \
+	lib/libiconv_modules/mapper_std \
+	lib/libiconv_modules/mapper_zone \
 	lib/libipsec \
 	lib/libipx \
 	lib/libjail \
 	lib/libkiconv \
+	lib/libkvm \
+	lib/libldns \
 	lib/liblzma \
 	lib/libmagic \
 	lib/libmandoc \
+	lib/libmd \
 	lib/libmemstat \
 	lib/libmilter \
 	lib/libmp \
+	lib/libnetgraph \
 	lib/libngatm \
 	lib/libopie \
+	lib/libpam/libpam \
 	lib/libpam/modules/pam_chroot \
 	lib/libpam/modules/pam_deny \
 	lib/libpam/modules/pam_echo \
@@ -96,40 +109,51 @@ DIRDEPS = \
 	lib/libpam/modules/pam_ssh \
 	lib/libpam/modules/pam_tacplus \
 	lib/libpam/modules/pam_unix \
-	lib/libpam/libpam \
 	lib/libpcap \
 	lib/libpmc \
 	lib/libproc \
-	lib/libprocstat/zfs \
+	lib/libprocstat \
+	lib/libradius \
+	lib/librpcsec_gss \
+	lib/librpcsvc \
 	lib/librt \
 	lib/librtld_db \
+	lib/libsbuf \
 	lib/libsdp \
 	lib/libsm \
+	lib/libsmb \
 	lib/libsmdb \
 	lib/libsmutil \
 	lib/libstand \
 	lib/libstdbuf \
 	lib/libstdthreads \
+	lib/libtacplus \
 	lib/libtelnet \
 	lib/libthr \
 	lib/libthread_db \
 	lib/libufs \
 	lib/libugidfw \
 	lib/libulog \
-	lib/libusbhid \
+	lib/libunbound \
 	lib/libusb \
+	lib/libusbhid \
+	lib/libutil \
 	lib/libvgl \
+	lib/libvmmapi \
 	lib/libwrap \
 	lib/liby \
+	lib/libyaml \
+	lib/libypclnt \
 	lib/libz \
-	lib/atf/libatf-c \
-	lib/atf/libatf-c++ \
-	lib/bind/isc \
-	lib/bind/isccc \
-	lib/bind/dns \
-	lib/bind/isccfg \
-	lib/bind/bind9 \
-	lib/bind/lwres \
+	lib/msun \
+	lib/ncurses/form \
+	lib/ncurses/formw \
+	lib/ncurses/menu \
+	lib/ncurses/menuw \
+	lib/ncurses/ncurses \
+	lib/ncurses/ncursesw \
+	lib/ncurses/panel \
+	lib/ncurses/panelw \
 
 
 .include <dirdeps.mk>

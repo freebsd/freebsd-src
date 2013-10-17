@@ -18,6 +18,7 @@ DIRDEPS = \
 	bin/echo \
 	bin/ed \
 	bin/expr \
+	bin/freebsd-version \
 	bin/getfacl \
 	bin/hostname \
 	bin/kenv \

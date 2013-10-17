@@ -10,5 +10,4 @@ DIRDEPS = \
 	pkgs/pseudo/toolchain.host \
 	pkgs/pseudo/userland \
 
-
 .include <dirdeps.mk>

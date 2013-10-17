@@ -13,6 +13,7 @@ DIRDEPS = \
 	cddl/lib/libumem \
 	cddl/lib/libuutil \
 	cddl/lib/libzfs \
+	cddl/lib/libzfs_core \
 	cddl/lib/libzpool \
 	cddl/sbin/zfs \
 	cddl/sbin/zpool \

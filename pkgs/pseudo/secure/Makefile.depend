@@ -5,6 +5,7 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
+	secure/lib/libcrypto \
 	secure/lib/libcrypto/engines/lib4758cca \
 	secure/lib/libcrypto/engines/libaep \
 	secure/lib/libcrypto/engines/libatalla \
@@ -14,8 +15,8 @@ DIRDEPS = \
 	secure/lib/libcrypto/engines/libnuron \
 	secure/lib/libcrypto/engines/libsureware \
 	secure/lib/libcrypto/engines/libubsec \
-	secure/lib/libssl \
 	secure/lib/libssh \
+	secure/lib/libssl \
 	secure/libexec/sftp-server \
 	secure/libexec/ssh-keysign \
 	secure/libexec/ssh-pkcs11-helper \

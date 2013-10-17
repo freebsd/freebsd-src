@@ -2,10 +2,8 @@
 
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
-DEP_MACHINE := ${.PARSEFILE:E}
-
 DIRDEPS = \
-	usr.bin/mkcsmapper_static \
+	usr.bin/mkcsmapper_static.host \
 
 
 .include <dirdeps.mk>
