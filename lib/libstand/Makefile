@@ -186,5 +186,6 @@ cleanmachine:
 	rm -f machine
 
 machine:
+	rm -f machine
 	ln -s ${.CURDIR}/../../sys/i386/include machine
 .endif
