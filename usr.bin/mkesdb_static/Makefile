@@ -7,6 +7,7 @@ SRCS=	citrus_bcs.c citrus_db_factory.c citrus_db_hash.c \
 	citrus_lookup_factory.c
 NO_MAN=	yes
 NO_SHARED= yes
+NO_WARNS= yes
 
 build-tools: mkesdb_static
 
