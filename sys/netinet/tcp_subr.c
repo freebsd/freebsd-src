@@ -1828,21 +1828,26 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 
 	KASSERT(inc != NULL, ("tcp_maxmtu6 with NULL in_conninfo pointer"));
 
-	bzero(&sro6, sizeof(sro6));
-	if (!IN6_IS_ADDR_UNSPECIFIED(&inc->inc6_faddr)) {
+	ifp = NULL;
+	if (inc->inc6_zoneid != 0) {
+		ifp = in6_getlinkifnet(inc->inc6_zoneid);
+	} else if (!IN6_IS_ADDR_UNSPECIFIED(&inc->inc6_faddr)) {
+		bzero(&sro6, sizeof(sro6));
 		sro6.ro_dst.sin6_family = AF_INET6;
 		sro6.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
 		sro6.ro_dst.sin6_addr = inc->inc6_faddr;
 		in6_rtalloc_ign(&sro6, 0, inc->inc_fibnum);
+		if (sro6.ro_rt != NULL) {
+			ifp = sro6.ro_rt->rt_ifp;
+			maxmtu = sro6.ro_rt->rt_rmx.rmx_mtu;
+			RTFREE(sro6.ro_rt);
+		}
 	}
-	if (sro6.ro_rt != NULL) {
-		ifp = sro6.ro_rt->rt_ifp;
-		if (sro6.ro_rt->rt_rmx.rmx_mtu == 0)
-			maxmtu = IN6_LINKMTU(sro6.ro_rt->rt_ifp);
+	if (ifp != NULL) {
+		if (maxmtu != 0)
+			maxmtu = min(maxmtu, IN6_LINKMTU(ifp));
 		else
-			maxmtu = min(sro6.ro_rt->rt_rmx.rmx_mtu,
-				     IN6_LINKMTU(sro6.ro_rt->rt_ifp));
-
+			maxmtu = IN6_LINKMTU(ifp);
 		/* Report additional interface capabilities. */
 		if (cap != NULL) {
 			if (ifp->if_capenable & IFCAP_TSO6 &&
@@ -1850,7 +1855,6 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 				cap->ifcap |= CSUM_TSO;
 				cap->tsomax = ifp->if_hw_tsomax;
 		}
-		RTFREE(sro6.ro_rt);
 	}
 
 	return (maxmtu);
