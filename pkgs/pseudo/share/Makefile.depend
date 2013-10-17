@@ -5,13 +5,11 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
-	share/info \
 	share/atf \
 	share/colldef \
 	share/dict \
 	share/doc/IPv6 \
 	share/doc/atf \
-	share/doc/bind9 \
 	share/doc/legal/intel_ipw \
 	share/doc/legal/intel_iwi \
 	share/doc/legal/intel_iwn \
@@ -32,8 +30,6 @@ DIRDEPS = \
 	share/doc/papers/relengr \
 	share/doc/papers/sysperf \
 	share/doc/papers/timecounter \
-	share/doc/psd/title \
-	share/doc/psd/contents \
 	share/doc/psd/01.cacm \
 	share/doc/psd/02.implement \
 	share/doc/psd/03.iosys \
@@ -55,9 +51,8 @@ DIRDEPS = \
 	share/doc/psd/25.xdrrfc \
 	share/doc/psd/26.rpcrfc \
 	share/doc/psd/27.nfsrpc \
-	share/doc/psd/28.cvs \
-	share/doc/smm/title \
-	share/doc/smm/contents \
+	share/doc/psd/contents \
+	share/doc/psd/title \
 	share/doc/smm/01.setup \
 	share/doc/smm/02.config \
 	share/doc/smm/03.fsck \
@@ -69,8 +64,8 @@ DIRDEPS = \
 	share/doc/smm/11.timedop \
 	share/doc/smm/12.timed \
 	share/doc/smm/18.net \
-	share/doc/usd/title \
-	share/doc/usd/contents \
+	share/doc/smm/contents \
+	share/doc/smm/title \
 	share/doc/usd/04.csh \
 	share/doc/usd/05.dc \
 	share/doc/usd/06.bc \
@@ -78,19 +73,57 @@ DIRDEPS = \
 	share/doc/usd/10.exref/exref \
 	share/doc/usd/10.exref/summary \
 	share/doc/usd/11.vitut \
+	share/doc/usd/12.vi/summary \
 	share/doc/usd/12.vi/vi \
 	share/doc/usd/12.vi/viapwh \
-	share/doc/usd/12.vi/summary \
 	share/doc/usd/13.viref \
 	share/doc/usd/18.msdiffs \
 	share/doc/usd/19.memacros \
 	share/doc/usd/20.meref \
 	share/doc/usd/21.troff \
 	share/doc/usd/22.trofftut \
+	share/doc/usd/contents \
+	share/doc/usd/title \
 	share/dtrace/toolkit \
 	share/examples/atf \
 	share/examples/ipfilter \
 	share/examples/pf \
+	share/i18n/csmapper \
+	share/i18n/csmapper/APPLE \
+	share/i18n/csmapper/AST \
+	share/i18n/csmapper/BIG5 \
+	share/i18n/csmapper/CNS \
+	share/i18n/csmapper/CP \
+	share/i18n/csmapper/EBCDIC \
+	share/i18n/csmapper/GB \
+	share/i18n/csmapper/GEORGIAN \
+	share/i18n/csmapper/ISO-8859 \
+	share/i18n/csmapper/ISO646 \
+	share/i18n/csmapper/JIS \
+	share/i18n/csmapper/KAZAKH \
+	share/i18n/csmapper/KOI \
+	share/i18n/csmapper/KS \
+	share/i18n/csmapper/MISC \
+	share/i18n/csmapper/TCVN \
+	share/i18n/esdb \
+	share/i18n/esdb/APPLE \
+	share/i18n/esdb/AST \
+	share/i18n/esdb/BIG5 \
+	share/i18n/esdb/CP \
+	share/i18n/esdb/DEC \
+	share/i18n/esdb/EBCDIC \
+	share/i18n/esdb/EUC \
+	share/i18n/esdb/GB \
+	share/i18n/esdb/GEORGIAN \
+	share/i18n/esdb/ISO-2022 \
+	share/i18n/esdb/ISO-8859 \
+	share/i18n/esdb/ISO646 \
+	share/i18n/esdb/KAZAKH \
+	share/i18n/esdb/KOI \
+	share/i18n/esdb/MISC \
+	share/i18n/esdb/TCVN \
+	share/i18n/esdb/UTF \
+	share/info \
 	share/man/man1 \
 	share/man/man3 \
 	share/man/man4 \
@@ -101,7 +134,6 @@ DIRDEPS = \
 	share/man/man9 \
 	share/me \
 	share/misc \
-	share/mk \
 	share/mklocale \
 	share/monetdef \
 	share/msgdef \
