@@ -1309,7 +1309,10 @@ ni6_input(struct mbuf *m, int off)
 			goto bad;
 		/* else it's a link-local multicast, fine */
 	} else {		/* unicast or anycast */
-		if ((ia6 = ip6_getdstifaddr(m)) == NULL)
+		ia6 = in6ifa_ifwithaddr(&ip6->ip6_dst,
+		   in6_getscopezone(m->m_pkthdr.rcvif,
+		   in6_addrscope(&ip6->ip6_dst)));
+		if (ia6 == NULL)
 			goto bad; /* XXX impossible */
 
 		if ((ia6->ia6_flags & IN6_IFF_TEMPORARY) &&
@@ -2198,32 +2201,15 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	 * The IN6_IFF_NOTREADY case should be VERY rare, but is possible
 	 * (for example) when we encounter an error while forwarding procedure
 	 * destined to a duplicated address of ours.
-	 * Note that ip6_getdstifaddr() may fail if we are in an error handling
-	 * procedure of an outgoing packet of our own, in which case we need
-	 * to search in the ifaddr list.
 	 */
-	if (!IN6_IS_ADDR_MULTICAST(&origdst)) {
-		if ((ia = ip6_getdstifaddr(m))) {
-			if (!(ia->ia6_flags &
-			    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY)))
-				srcp = &ia->ia_addr.sin6_addr;
-		} else {
-			struct sockaddr_in6 d;
-
-			bzero(&d, sizeof(d));
-			d.sin6_family = AF_INET6;
-			d.sin6_len = sizeof(d);
-			d.sin6_addr = origdst;
-			ia = (struct in6_ifaddr *)
-			    ifa_ifwithaddr((struct sockaddr *)&d);
-			if (ia &&
-			    !(ia->ia6_flags &
-			    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY))) {
-				srcp = &ia->ia_addr.sin6_addr;
-			}
-		}
+	if (!IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+		ia = in6ifa_ifwithaddr(&ip6->ip6_dst,
+		    in6_getscopezone(m->m_pkthdr.rcvif,
+		    in6_addrscope(&ip6->ip6_dst)));
+		if (ia != NULL && !(ia->ia6_flags &
+		    (IN6_IFF_ANYCAST | IN6_IFF_NOTREADY)))
+			srcp = &ia->ia_addr.sin6_addr;
 	}
-
 	if (srcp == NULL) {
 		int e;
 		struct sockaddr_in6 sin6;

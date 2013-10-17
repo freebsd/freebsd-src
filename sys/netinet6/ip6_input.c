@@ -154,10 +154,6 @@ struct rwlock in6_ifaddr_lock;
 RW_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");
 
 static void ip6_init2(void *);
-static struct ip6aux *ip6_setdstifaddr(struct mbuf *, struct in6_ifaddr *);
-static struct ip6aux *ip6_addaux(struct mbuf *);
-static struct ip6aux *ip6_findaux(struct mbuf *m);
-static void ip6_delaux (struct mbuf *);
 static int ip6_hopopts_input(u_int32_t *, u_int32_t *, struct mbuf **, int *);
 #ifdef PULLDOWN_TEST
 static struct mbuf *ip6_pullexthdr(struct mbuf *, size_t, int);
@@ -851,41 +847,6 @@ passin:
 	return;
 bad:
 	m_freem(m);
-}
-
-/*
- * set/grab in6_ifaddr correspond to IPv6 destination address.
- * XXX backward compatibility wrapper
- *
- * XXXRW: We should bump the refcount on ia6 before sticking it in the m_tag,
- * and then bump it when the tag is copied, and release it when the tag is
- * freed.  Unfortunately, m_tags don't support deep copies (yet), so instead
- * we just bump the ia refcount when we receive it.  This should be fixed.
- */
-static struct ip6aux *
-ip6_setdstifaddr(struct mbuf *m, struct in6_ifaddr *ia6)
-{
-	struct ip6aux *ip6a;
-
-	ip6a = ip6_addaux(m);
-	if (ip6a)
-		ip6a->ip6a_dstia6 = ia6;
-	return ip6a;	/* NULL if failed to set */
-}
-
-struct in6_ifaddr *
-ip6_getdstifaddr(struct mbuf *m)
-{
-	struct ip6aux *ip6a;
-	struct in6_ifaddr *ia;
-
-	ip6a = ip6_findaux(m);
-	if (ip6a) {
-		ia = ip6a->ip6a_dstia6;
-		ifa_ref(&ia->ia_ifa);
-		return ia;
-	} else
-		return NULL;
 }
 
 /*
@@ -1651,46 +1612,9 @@ ip6_lasthdr(struct mbuf *m, int off, int proto, int *nxtp)
 	}
 }
 
-static struct ip6aux *
-ip6_addaux(struct mbuf *m)
-{
-	struct m_tag *mtag;
-
-	mtag = m_tag_find(m, PACKET_TAG_IPV6_INPUT, NULL);
-	if (!mtag) {
-		mtag = m_tag_get(PACKET_TAG_IPV6_INPUT, sizeof(struct ip6aux),
-		    M_NOWAIT);
-		if (mtag) {
-			m_tag_prepend(m, mtag);
-			bzero(mtag + 1, sizeof(struct ip6aux));
-		}
-	}
-	return mtag ? (struct ip6aux *)(mtag + 1) : NULL;
-}
-
-static struct ip6aux *
-ip6_findaux(struct mbuf *m)
-{
-	struct m_tag *mtag;
-
-	mtag = m_tag_find(m, PACKET_TAG_IPV6_INPUT, NULL);
-	return mtag ? (struct ip6aux *)(mtag + 1) : NULL;
-}
-
-static void
-ip6_delaux(struct mbuf *m)
-{
-	struct m_tag *mtag;
-
-	mtag = m_tag_find(m, PACKET_TAG_IPV6_INPUT, NULL);
-	if (mtag)
-		m_tag_delete(m, mtag);
-}
-
 /*
  * System control for IP6
  */
-
 u_char	inet6ctlerrmap[PRC_NCMDS] = {
 	0,		0,		0,		0,
 	0,		EMSGSIZE,	EHOSTDOWN,	EHOSTUNREACH,

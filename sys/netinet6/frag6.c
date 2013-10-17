@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
 #include <netinet/icmp6.h>
 #include <netinet/in_systm.h>	/* for ECN definitions */
 #include <netinet/ip.h>		/* for ECN definitions */
@@ -184,7 +185,10 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	dstifp = NULL;
 #ifdef IN6_IFSTAT_STRICT
 	/* find the destination interface of the packet. */
-	if ((ia = ip6_getdstifaddr(m)) != NULL) {
+	ia = in6ifa_ifwithaddr(&ip6->ip6_dst,
+	    in6_getscopezone(m->m_pkthdr.rcvif,
+	    in6_addrscope(&ip6->ip6_dst)));
+	if (ia != NULL) {
 		dstifp = ia->ia_ifp;
 		ifa_free(&ia->ia_ifa);
 	}
