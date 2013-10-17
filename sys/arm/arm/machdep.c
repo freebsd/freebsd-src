@@ -1169,11 +1169,15 @@ physmap_init(struct mem_region *availmem_regions, int availmem_regions_sz)
 		 */
 		if (availmem_regions[i].mr_start > 0 ||
 		    availmem_regions[i].mr_size > PAGE_SIZE) {
+			vm_size_t size;
 			phys_avail[j] = availmem_regions[i].mr_start;
-			if (phys_avail[j] == 0)
+
+			size = availmem_regions[i].mr_size;
+			if (phys_avail[j] == 0) {
 				phys_avail[j] += PAGE_SIZE;
-			phys_avail[j + 1] = availmem_regions[i].mr_start +
-			    availmem_regions[i].mr_size;
+				size -= PAGE_SIZE;
+			}
+			phys_avail[j + 1] = availmem_regions[i].mr_start + size;
 		} else
 			j -= 2;
 	}
