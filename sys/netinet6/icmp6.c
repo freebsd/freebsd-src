@@ -1231,7 +1231,6 @@ ni6_input(struct mbuf *m, int off)
 	struct ni_reply_fqdn *fqdn;
 	int addrs;		/* for NI_QTYPE_NODEADDR */
 	struct ifnet *ifp = NULL; /* for NI_QTYPE_NODEADDR */
-	struct in6_addr in6_subj; /* subject address */
 	struct ip6_hdr *ip6;
 	int oldfqdn = 0;	/* if 1, return pascal string (03 draft) */
 	char *subj = NULL;
@@ -1283,8 +1282,7 @@ ni6_input(struct mbuf *m, int off)
 		   in6_getscopezone(m->m_pkthdr.rcvif,
 		   in6_addrscope(&ip6->ip6_dst)));
 		if (ia6 == NULL)
-			goto bad; /* XXX impossible */
-
+			goto bad;
 		if ((ia6->ia6_flags & IN6_IFF_TEMPORARY) &&
 		    !(V_icmp6_nodeinfo & ICMP6_NODEINFO_TMPADDROK)) {
 			ifa_free(&ia6->ia_ifa);
@@ -1345,14 +1343,10 @@ ni6_input(struct mbuf *m, int off)
 			 *
 			 * We do not do proxy at this moment.
 			 */
-			/* m_pulldown instead of copy? */
-			m_copydata(m, off + sizeof(struct icmp6_nodeinfo),
-			    subjlen, (caddr_t)&in6_subj);
-			if (in6_setscope(&in6_subj, m->m_pkthdr.rcvif, NULL))
-				goto bad;
-
-			subj = (char *)&in6_subj;
-			if (IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst, &in6_subj))
+			subj = (char *)m_pulldown(m, off +
+			    sizeof(struct icmp6_nodeinfo), subjlen, NULL);
+			if (IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst,
+			    (struct in6_addr *)subj))
 				break;
 
 			/*
