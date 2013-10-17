@@ -42,6 +42,7 @@
  */
 
 #define __TBXFACE_C__
+#define EXPORT_ACPI_INTERFACES
 
 #include "acpi.h"
 #include "accommon.h"
@@ -161,7 +162,7 @@ AcpiInitializeTables (
     return_ACPI_STATUS (Status);
 }
 
-ACPI_EXPORT_SYMBOL (AcpiInitializeTables)
+ACPI_EXPORT_SYMBOL_INIT (AcpiInitializeTables)
 
 
 /*******************************************************************************
@@ -204,7 +205,7 @@ AcpiReallocateRootTable (
     return_ACPI_STATUS (Status);
 }
 
-ACPI_EXPORT_SYMBOL (AcpiReallocateRootTable)
+ACPI_EXPORT_SYMBOL_INIT (AcpiReallocateRootTable)
 
 
 /*******************************************************************************

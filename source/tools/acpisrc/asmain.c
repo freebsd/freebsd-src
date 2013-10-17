@@ -97,9 +97,10 @@ BOOLEAN                 Gbl_WidenDeclarations = FALSE;
 BOOLEAN                 Gbl_IgnoreLoneLineFeeds = FALSE;
 BOOLEAN                 Gbl_HasLoneLineFeeds = FALSE;
 BOOLEAN                 Gbl_Cleanup = FALSE;
+BOOLEAN                 Gbl_IgnoreTranslationEscapes = FALSE;
 
 #define AS_UTILITY_NAME             "ACPI Source Code Conversion Utility"
-#define AS_SUPPORTED_OPTIONS        "cdhlqsuv^y"
+#define AS_SUPPORTED_OPTIONS        "cdhilqsuv^y"
 
 
 /******************************************************************************
@@ -292,6 +293,7 @@ AsDisplayUsage (
 
     ACPI_OPTION ("-c",          "Generate cleaned version of the source");
     ACPI_OPTION ("-h",          "Insert dual-license header into all modules");
+    ACPI_OPTION ("-i",          "Cleanup macro indentation");
     ACPI_OPTION ("-l",          "Generate Linux version of the source");
     ACPI_OPTION ("-u",          "Generate Custom source translation");
 
@@ -362,6 +364,16 @@ main (
 
         printf ("Inserting Dual-license header to all modules\n");
         ConversionTable = &LicenseConversionTable;
+        break;
+
+    case 'i':
+
+        /* Cleanup wrong indent result */
+
+        printf ("Cleaning up macro indentation\n");
+        ConversionTable = &IndentConversionTable;
+        Gbl_IgnoreLoneLineFeeds = TRUE;
+        Gbl_IgnoreTranslationEscapes = TRUE;
         break;
 
     case 's':

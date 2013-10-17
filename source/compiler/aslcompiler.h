@@ -123,11 +123,6 @@ ACPI_STATUS (*ASL_PATHNAME_CALLBACK) (
     char *);
 
 ACPI_STATUS
-AslDoOnePathname (
-    char                    *Pathname,
-    ASL_PATHNAME_CALLBACK   Callback);
-
-ACPI_STATUS
 AslDoOneFile (
     char                    *Filename);
 

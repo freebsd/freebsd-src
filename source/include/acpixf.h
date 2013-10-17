@@ -47,7 +47,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20130823
+#define ACPI_CA_VERSION                 0x20130927
 
 #include "acconfig.h"
 #include "actypes.h"
@@ -106,7 +106,7 @@ extern UINT8                AcpiGbl_DisableSsdtTableLoad;
     static ACPI_INLINE Prototype {return(AE_OK);}
 
 #define ACPI_HW_DEPENDENT_RETURN_VOID(Prototype) \
-    static ACPI_INLINE Prototype {}
+    static ACPI_INLINE Prototype {return;}
 
 #endif /* !ACPI_REDUCED_HARDWARE */
 
@@ -194,21 +194,6 @@ AcpiDecodePldBuffer (
     UINT8                   *InBuffer,
     ACPI_SIZE               Length,
     ACPI_PLD_INFO           **ReturnBuffer);
-
-/*
- * ACPI Memory management
- */
-void *
-AcpiAllocate (
-    UINT32                  Size);
-
-void *
-AcpiCallocate (
-    UINT32                  Size);
-
-void
-AcpiFree (
-    void                    *Address);
 
 
 /*
@@ -766,48 +751,54 @@ AcpiGetTimerDuration (
 /*
  * Error/Warning output
  */
+ACPI_PRINTF_LIKE(3)
 void ACPI_INTERNAL_VAR_XFACE
 AcpiError (
     const char              *ModuleName,
     UINT32                  LineNumber,
     const char              *Format,
-    ...) ACPI_PRINTF_LIKE(3);
+    ...);
 
+ACPI_PRINTF_LIKE(4)
 void  ACPI_INTERNAL_VAR_XFACE
 AcpiException (
     const char              *ModuleName,
     UINT32                  LineNumber,
     ACPI_STATUS             Status,
     const char              *Format,
-    ...) ACPI_PRINTF_LIKE(4);
+    ...);
 
+ACPI_PRINTF_LIKE(3)
 void ACPI_INTERNAL_VAR_XFACE
 AcpiWarning (
     const char              *ModuleName,
     UINT32                  LineNumber,
     const char              *Format,
-    ...) ACPI_PRINTF_LIKE(3);
+    ...);
 
+ACPI_PRINTF_LIKE(3)
 void ACPI_INTERNAL_VAR_XFACE
 AcpiInfo (
     const char              *ModuleName,
     UINT32                  LineNumber,
     const char              *Format,
-    ...) ACPI_PRINTF_LIKE(3);
+    ...);
 
+ACPI_PRINTF_LIKE(3)
 void ACPI_INTERNAL_VAR_XFACE
 AcpiBiosError (
     const char              *ModuleName,
     UINT32                  LineNumber,
     const char              *Format,
-    ...) ACPI_PRINTF_LIKE(3);
+    ...);
 
+ACPI_PRINTF_LIKE(3)
 void ACPI_INTERNAL_VAR_XFACE
 AcpiBiosWarning (
     const char              *ModuleName,
     UINT32                  LineNumber,
     const char              *Format,
-    ...) ACPI_PRINTF_LIKE(3);
+    ...);
 
 
 /*
@@ -815,6 +806,7 @@ AcpiBiosWarning (
  */
 #ifdef ACPI_DEBUG_OUTPUT
 
+ACPI_PRINTF_LIKE(6)
 void ACPI_INTERNAL_VAR_XFACE
 AcpiDebugPrint (
     UINT32                  RequestedDebugLevel,
@@ -823,8 +815,9 @@ AcpiDebugPrint (
     const char              *ModuleName,
     UINT32                  ComponentId,
     const char              *Format,
-    ...) ACPI_PRINTF_LIKE(6);
+    ...);
 
+ACPI_PRINTF_LIKE(6)
 void ACPI_INTERNAL_VAR_XFACE
 AcpiDebugPrintRaw (
     UINT32                  RequestedDebugLevel,
@@ -833,7 +826,7 @@ AcpiDebugPrintRaw (
     const char              *ModuleName,
     UINT32                  ComponentId,
     const char              *Format,
-    ...) ACPI_PRINTF_LIKE(6);
+    ...);
 #endif
 
 #endif /* __ACXFACE_H__ */

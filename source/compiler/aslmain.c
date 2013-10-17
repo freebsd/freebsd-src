@@ -51,6 +51,17 @@
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslmain")
 
+/*
+ * Main routine for the iASL compiler.
+ *
+ * Portability note: The compiler depends upon the host for command-line
+ * wildcard support - it is not implemented locally. For example:
+ *
+ * Linux/Unix systems: Shell expands wildcards automatically.
+ *
+ * Windows: The setargv.obj module must be linked in to automatically
+ * expand wildcards.
+ */
 
 /* Local prototypes */
 
@@ -131,13 +142,13 @@ Usage (
     ACPI_OPTION ("-vt",             "Create verbose template files (full disassembly)");
 
     printf ("\nAML Disassembler:\n");
-    ACPI_OPTION ("-d  <f1,f2>",     "Disassemble or decode binary ACPI tables to file (*.dsl)");
+    ACPI_OPTION ("-d  <f1 f2 ...>", "Disassemble or decode binary ACPI tables to file (*.dsl)");
     ACPI_OPTION ("",                "  (Optional, file type is automatically detected)");
-    ACPI_OPTION ("-da <f1,f2>",     "Disassemble multiple tables from single namespace");
+    ACPI_OPTION ("-da <f1 f2 ...>", "Disassemble multiple tables from single namespace");
     ACPI_OPTION ("-db",             "Do not translate Buffers to Resource Templates");
-    ACPI_OPTION ("-dc <f1,f2>",     "Disassemble AML and immediately compile it");
+    ACPI_OPTION ("-dc <f1 f2 ...>", "Disassemble AML and immediately compile it");
     ACPI_OPTION ("",                "  (Obtain DSDT from current system if no input file)");
-    ACPI_OPTION ("-e  <f1,f2>",     "Include ACPI table(s) for external symbol resolution");
+    ACPI_OPTION ("-e  <f1 f2 ...>", "Include ACPI table(s) for external symbol resolution");
     ACPI_OPTION ("-fe <file>",      "Specify external symbol declaration file");
     ACPI_OPTION ("-g",              "Get ACPI tables and write to files (*.dat)");
     ACPI_OPTION ("-in",             "Ignore NoOp opcodes");
@@ -321,7 +332,7 @@ main (
     {
         while (argv[Index1])
         {
-            Status = AslDoOnePathname (argv[Index1], AcpiDmAddToExternalFileList);
+            Status = AcpiDmAddToExternalFileList (argv[Index1]);
             if (ACPI_FAILURE (Status))
             {
                 return (-1);
@@ -335,7 +346,16 @@ main (
 
     while (argv[Index2])
     {
-        Status = AslDoOnePathname (argv[Index2], AslDoOneFile);
+        /*
+         * If -p not specified, we will use the input filename as the
+         * output filename prefix
+         */
+        if (Gbl_UseDefaultAmlFilename)
+        {
+            Gbl_OutputFilenamePrefix = argv[Index2];
+        }
+
+        Status = AslDoOneFile (argv[Index2]);
         if (ACPI_FAILURE (Status))
         {
             return (-1);

@@ -413,6 +413,8 @@ AeInstallTables (
     void)
 {
     ACPI_STATUS             Status;
+    ACPI_TABLE_HEADER       Header;
+    ACPI_TABLE_HEADER       *Table;
 
 
     Status = AcpiInitializeTables (Tables, ACPI_MAX_INIT_TABLES, TRUE);
@@ -441,6 +443,28 @@ AeInstallTables (
         AcpiOsPrintf ("%s, Could not install method\n",
             AcpiFormatException (Status));
     }
+
+    /* Test multiple table/UEFI support. First, get the headers */
+
+    Status = AcpiGetTableHeader (ACPI_SIG_UEFI, 1, &Header);
+    AE_CHECK_OK (AcpiGetTableHeader, Status);
+
+    Status = AcpiGetTableHeader (ACPI_SIG_UEFI, 2, &Header);
+    AE_CHECK_OK (AcpiGetTableHeader, Status);
+
+    Status = AcpiGetTableHeader (ACPI_SIG_UEFI, 3, &Header);
+    AE_CHECK_STATUS (AcpiGetTableHeader, Status, AE_NOT_FOUND);
+
+    /* Now get the actual tables */
+
+    Status = AcpiGetTable (ACPI_SIG_UEFI, 1, &Table);
+    AE_CHECK_OK (AcpiGetTable, Status);
+
+    Status = AcpiGetTable (ACPI_SIG_UEFI, 2, &Table);
+    AE_CHECK_OK (AcpiGetTable, Status);
+
+    Status = AcpiGetTable (ACPI_SIG_UEFI, 3, &Table);
+    AE_CHECK_STATUS (AcpiGetTable, Status, AE_NOT_FOUND);
 
     return (AE_OK);
 }

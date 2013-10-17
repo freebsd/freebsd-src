@@ -1,4 +1,103 @@
 ----------------------------------------
+27 September 2013. Summary of changes for version 20130927:
+
+This release is available at https://acpica.org/downloads
+
+
+1) ACPICA kernel-resident subsystem:
+
+Fixed a problem with store operations to reference objects. This change 
+fixes a problem where a Store operation to an ArgX object that contained a 
+reference to a field object did not complete the automatic dereference and 
+then write to the actual field object. Instead, the object type of the 
+field object was inadvertently changed to match the type of the source 
+operand. The new behavior will actually write to the field object (buffer 
+field or field unit), thus matching the correct ACPI-defined behavior.
+
+Implemented support to allow the host to redefine individual OSL 
+prototypes. This change enables the host to redefine OSL prototypes found 
+in the acpiosxf.h file. This allows the host to implement OSL interfaces 
+with a macro or inlined function. Further, it allows the host to add any 
+additional required modifiers such as __iomem, __init, __exit, etc., as 
+necessary on a per-interface basis. Enables maximum flexibility for the 
+OSL interfaces. Lv Zheng.
+
+Hardcoded the access width for the FADT-defined reset register. The ACPI 
+specification requires the reset register width to be 8 bits. ACPICA now 
+hardcodes the width to 8 and ignores the FADT width value. This provides 
+compatibility with other ACPI implementations that have allowed BIOS code 
+with bad register width values to go unnoticed. Matthew Garett, Bob Moore, 
+Lv Zheng.
+
+Changed the position/use of the ACPI_PRINTF_LIKE macro. This macro is used 
+in the OSL header (acpiosxf). The change modifies the position of this 
+macro in each instance where it is used (AcpiDebugPrint, etc.) to avoid 
+build issues if the OSL defines the implementation of the interface to be 
+an inline stub function. Lv Zheng.
+
+Deployed a new macro ACPI_EXPORT_SYMBOL_INIT for the main ACPICA 
+initialization interfaces. This change adds a new macro for the main init 
+and terminate external interfaces in order to support hosts that require 
+additional or different processing for these functions. Changed from 
+ACPI_EXPORT_SYMBOL to ACPI_EXPORT_SYMBOL_INIT for these functions. Lv 
+Zheng, Bob Moore.
+
+Cleaned up the memory allocation macros for configurability. In the common 
+case, the ACPI_ALLOCATE and related macros now resolve directly to their 
+respective AcpiOs* OSL interfaces. Two options:
+1) The ACPI_ALLOCATE_ZEROED macro uses a simple local implementation by 
+default, unless overridden by the USE_NATIVE_ALLOCATE_ZEROED define.
+2) For AcpiExec (and for debugging), the macros can optionally be resolved 
+to the local ACPICA interfaces that track each allocation (local tracking 
+is used to immediately detect memory leaks).
+Lv Zheng.
+
+Simplified the configuration for ACPI_REDUCED_HARDWARE. Allows the kernel 
+to predefine this macro to either TRUE or FALSE during the system build.
+
+Replaced __FUNCTION_ with __func__ in the gcc-specific header.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version:  95.8K Code, 27.0K Data, 122.8K Total
+    Debug Version:     185.2K Code, 77.2K Data, 262.4K Total
+  Previous Release:
+    Non-Debug Version:  96.7K Code, 27.1K Data, 123.9K Total
+    Debug Version:     184.4K Code, 76.8K Data, 261.2K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Implemented wildcard support for the -e option. This simplifies use 
+when there are many SSDTs that must be included to resolve external method 
+declarations. ACPICA BZ 1041. Example:
+    iasl -e ssdt*.dat -d dsdt.dat
+
+AcpiExec: Add history/line-editing for Unix/Linux systems. This change 
+adds a portable module that implements full history and limited line 
+editing for Unix and Linux systems. It does not use readline() due to 
+portability issues. Instead it uses the POSIX termio interface to put the 
+terminal in raw input mode so that the various special keys can be trapped 
+(such as up/down-arrow for history support and left/right-arrow for line 
+editing). Uses the existing debugger history mechanism. ACPICA BZ 1036.
+
+AcpiXtract: Add support to handle (ignore) "empty" lines containing only 
+one or more spaces. This provides compatible with early or different 
+versions of the AcpiDump utility. ACPICA BZ 1044.
+
+AcpiDump: Do not ignore tables that contain only an ACPI table header. 
+Apparently, some BIOSs create SSDTs that contain an ACPI table header but 
+no other data. This change adds support to dump these tables. Any tables 
+shorter than the length of an ACPI table header remain in error (an error 
+message is emitted). Reported by Yi Li.
+
+Debugger: Echo actual command along with the "unknown command" message.
+
+----------------------------------------
 23 August 2013. Summary of changes for version 20130823:
 
 1) ACPICA kernel-resident subsystem:

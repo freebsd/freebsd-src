@@ -42,6 +42,7 @@
  */
 
 #define __UTGLOBAL_C__
+#define EXPORT_ACPI_INTERFACES
 #define DEFINE_ACPI_GLOBALS
 
 #include "acpi.h"

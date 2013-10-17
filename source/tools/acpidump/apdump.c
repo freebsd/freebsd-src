@@ -82,7 +82,7 @@ ApIsValidHeader (
 
         /* Check for minimum table length */
 
-        if (Table->Length <= sizeof (ACPI_TABLE_HEADER))
+        if (Table->Length < sizeof (ACPI_TABLE_HEADER))
         {
             fprintf (stderr, "Table length (0x%8.8X) is invalid\n",
                 Table->Length);

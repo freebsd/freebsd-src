@@ -47,6 +47,20 @@
         ACPI_MODULE_NAME    ("aemain")
 
 
+/*
+ * Main routine for the ACPI user-space execution utility.
+ *
+ * Portability note: The utility depends upon the host for command-line
+ * wildcard support - it is not implemented locally. For example:
+ *
+ * Linux/Unix systems: Shell expands wildcards automatically.
+ *
+ * Windows: The setargv.obj module must be linked in to automatically
+ * expand wildcards.
+ */
+
+extern BOOLEAN              AcpiGbl_DebugTimeout;
+
 /* Local prototypes */
 
 static int
@@ -57,15 +71,6 @@ AeDoOptions (
 static ACPI_STATUS
 AcpiDbRunBatchMode (
     void);
-
-static char *
-FlStrdup (
-    char                    *String);
-
-static char **
-AsDoWildcard (
-    char                    *DirectoryPathname,
-    char                    *FileSpecifier);
 
 
 #define AE_BUFFER_SIZE              1024
@@ -83,12 +88,10 @@ AsDoWildcard (
 UINT8                       AcpiGbl_RegionFillValue = 0;
 BOOLEAN                     AcpiGbl_IgnoreErrors = FALSE;
 BOOLEAN                     AcpiGbl_DbOpt_NoRegionSupport = FALSE;
-BOOLEAN                     AcpiGbl_DebugTimeout = FALSE;
 UINT8                       AcpiGbl_UseHwReducedFadt = FALSE;
 BOOLEAN                     AcpiGbl_DoInterfaceTests = FALSE;
 static UINT8                AcpiGbl_ExecutionMode = AE_MODE_COMMAND_LOOP;
 static char                 BatchBuffer[AE_BUFFER_SIZE];    /* Batch command buffer */
-static char                 *FileList[ASL_MAX_FILES];
 static AE_TABLE_DESC        *AeTableListHead = NULL;
 
 #define ACPIEXEC_NAME               "AML Execution/Debug Utility"
@@ -364,10 +367,6 @@ main (
     ACPI_TABLE_HEADER       *Table = NULL;
     UINT32                  TableCount;
     AE_TABLE_DESC           *TableDesc;
-    char                    **WildcardList;
-    char                    *Filename;
-    char                    *Directory;
-    char                    *FullPathname;
 
 
     ACPI_DEBUG_INITIALIZE (); /* For debug version only */
@@ -392,158 +391,129 @@ main (
     AE_CHECK_OK (AcpiInitializeSubsystem, Status);
     if (ACPI_FAILURE (Status))
     {
-        return (-1);
+        goto ErrorExit;
     }
 
     /* Get the command line options */
 
     if (AeDoOptions (argc, argv))
     {
-        return (-1);
+        goto ErrorExit;
     }
 
     /* The remaining arguments are filenames for ACPI tables */
 
-    if (argv[AcpiGbl_Optind])
+    if (!argv[AcpiGbl_Optind])
     {
-        AcpiGbl_DbOpt_tables = TRUE;
-        TableCount = 0;
-
-        /* Get each of the ACPI table files on the command line */
-
-        while (argv[AcpiGbl_Optind])
-        {
-            /* Split incoming path into a directory/filename combo */
-
-            Status = FlSplitInputPathname (argv[AcpiGbl_Optind],
-                &Directory, &Filename);
-            if (ACPI_FAILURE (Status))
-            {
-                return (-1);
-            }
-
-            /* Expand wildcards (Windows only) */
-
-            WildcardList = AsDoWildcard (Directory, Filename);
-            if (!WildcardList)
-            {
-                return (-1);
-            }
-
-            while (*WildcardList)
-            {
-                FullPathname = AcpiOsAllocate (
-                    strlen (Directory) + strlen (*WildcardList) + 1);
-
-                /* Construct a full path to the file */
-
-                strcpy (FullPathname, Directory);
-                strcat (FullPathname, *WildcardList);
-
-                /* Get one table */
-
-                Status = AcpiDbReadTableFromFile (FullPathname, &Table);
-                if (ACPI_FAILURE (Status))
-                {
-                    printf ("**** Could not get input table %s, %s\n",
-                        FullPathname, AcpiFormatException (Status));
-                    goto EnterDebugger;
-                }
-
-                AcpiOsFree (FullPathname);
-                AcpiOsFree (*WildcardList);
-                *WildcardList = NULL;
-                WildcardList++;
-
-                /* Ignore non-AML tables, we can't use them. Except for an FADT */
-
-                if (!ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_FADT) &&
-                    !AcpiUtIsAmlTable (Table))
-                {
-                    ACPI_WARNING ((AE_INFO,
-                        "Table %4.4s is not an AML table, ignoring",
-                        Table->Signature));
-                    AcpiOsFree (Table);
-                    continue;
-                }
-
-                /* Allocate and link a table descriptor */
-
-                TableDesc = AcpiOsAllocate (sizeof (AE_TABLE_DESC));
-                TableDesc->Table = Table;
-                TableDesc->Next = AeTableListHead;
-                AeTableListHead = TableDesc;
-
-                TableCount++;
-            }
-
-            AcpiGbl_Optind++;
-        }
-
-        /* Build a local RSDT with all tables and let ACPICA process the RSDT */
-
-        Status = AeBuildLocalTables (TableCount, AeTableListHead);
-        if (ACPI_FAILURE (Status))
-        {
-            return (-1);
-        }
-
-        Status = AeInstallTables ();
-        if (ACPI_FAILURE (Status))
-        {
-            printf ("**** Could not load ACPI tables, %s\n",
-                AcpiFormatException (Status));
-            goto EnterDebugger;
-        }
-
-        /*
-         * Install most of the handlers.
-         * Override some default region handlers, especially SystemMemory
-         */
-        Status = AeInstallEarlyHandlers ();
-        if (ACPI_FAILURE (Status))
-        {
-            goto EnterDebugger;
-        }
-
-        /* Setup initialization flags for ACPICA */
-
-        InitFlags = (ACPI_NO_HANDLER_INIT | ACPI_NO_ACPI_ENABLE);
-        if (!AcpiGbl_DbOpt_ini_methods)
-        {
-            InitFlags |= (ACPI_NO_DEVICE_INIT | ACPI_NO_OBJECT_INIT);
-        }
-
-        /*
-         * Main initialization for ACPICA subsystem
-         * TBD: Need a way to call this after the ACPI table "LOAD" command
-         */
-        Status = AcpiEnableSubsystem (InitFlags);
-        if (ACPI_FAILURE (Status))
-        {
-            printf ("**** Could not EnableSubsystem, %s\n",
-                AcpiFormatException (Status));
-            goto EnterDebugger;
-        }
-
-        /*
-         * Install handlers for "device driver" space IDs (EC,SMBus, etc.)
-         * and fixed event handlers
-         */
-        AeInstallLateHandlers ();
-
-        /* Finish the ACPICA initialization */
-
-        Status = AcpiInitializeObjects (InitFlags);
-        if (ACPI_FAILURE (Status))
-        {
-            printf ("**** Could not InitializeObjects, %s\n",
-                AcpiFormatException (Status));
-            goto EnterDebugger;
-        }
-
-        AeMiscellaneousTests ();
+        goto EnterDebugger;
     }
+
+    AcpiGbl_DbOpt_tables = TRUE;
+    TableCount = 0;
+
+    /* Get each of the ACPI table files on the command line */
+
+    while (argv[AcpiGbl_Optind])
+    {
+        /* Get one entire table */
+
+        Status = AcpiDbReadTableFromFile (argv[AcpiGbl_Optind], &Table);
+        if (ACPI_FAILURE (Status))
+        {
+            printf ("**** Could not get table from file %s, %s\n",
+                argv[AcpiGbl_Optind], AcpiFormatException (Status));
+            goto ErrorExit;
+        }
+
+        /* Ignore non-AML tables, we can't use them. Except for an FADT */
+
+        if (!ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_FADT) &&
+            !AcpiUtIsAmlTable (Table))
+        {
+            ACPI_INFO ((AE_INFO,
+                "Table [%4.4s] is not an AML table, ignoring",
+                Table->Signature));
+            AcpiOsFree (Table);
+        }
+        else
+        {
+            /* Allocate and link a table descriptor */
+
+            TableDesc = AcpiOsAllocate (sizeof (AE_TABLE_DESC));
+            TableDesc->Table = Table;
+            TableDesc->Next = AeTableListHead;
+            AeTableListHead = TableDesc;
+
+            TableCount++;
+        }
+
+        AcpiGbl_Optind++;
+    }
+
+    /* Build a local RSDT with all tables and let ACPICA process the RSDT */
+
+    Status = AeBuildLocalTables (TableCount, AeTableListHead);
+    if (ACPI_FAILURE (Status))
+    {
+        goto ErrorExit;
+    }
+
+    Status = AeInstallTables ();
+    if (ACPI_FAILURE (Status))
+    {
+        printf ("**** Could not load ACPI tables, %s\n",
+            AcpiFormatException (Status));
+        goto EnterDebugger;
+    }
+
+    /*
+     * Install most of the handlers.
+     * Override some default region handlers, especially SystemMemory
+     */
+    Status = AeInstallEarlyHandlers ();
+    if (ACPI_FAILURE (Status))
+    {
+        goto EnterDebugger;
+    }
+
+    /* Setup initialization flags for ACPICA */
+
+    InitFlags = (ACPI_NO_HANDLER_INIT | ACPI_NO_ACPI_ENABLE);
+    if (!AcpiGbl_DbOpt_ini_methods)
+    {
+        InitFlags |= (ACPI_NO_DEVICE_INIT | ACPI_NO_OBJECT_INIT);
+    }
+
+    /*
+     * Main initialization for ACPICA subsystem
+     * TBD: Need a way to call this after the ACPI table "LOAD" command
+     */
+    Status = AcpiEnableSubsystem (InitFlags);
+    if (ACPI_FAILURE (Status))
+    {
+        printf ("**** Could not EnableSubsystem, %s\n",
+            AcpiFormatException (Status));
+        goto EnterDebugger;
+    }
+
+    /*
+     * Install handlers for "device driver" space IDs (EC,SMBus, etc.)
+     * and fixed event handlers
+     */
+    AeInstallLateHandlers ();
+
+    /* Finish the ACPICA initialization */
+
+    Status = AcpiInitializeObjects (InitFlags);
+    if (ACPI_FAILURE (Status))
+    {
+        printf ("**** Could not InitializeObjects, %s\n",
+            AcpiFormatException (Status));
+        goto EnterDebugger;
+    }
+
+    AeMiscellaneousTests ();
+
 
 EnterDebugger:
 
@@ -551,7 +521,7 @@ EnterDebugger:
 
     if (ACPI_FAILURE (Status) && (AcpiGbl_ExecutionMode > 0))
     {
-        return (-1);
+        goto ErrorExit;
     }
 
     /* Run a batch command or enter the command loop */
@@ -572,10 +542,17 @@ EnterDebugger:
     case AE_MODE_BATCH_SINGLE:
 
         AcpiDbExecute (BatchBuffer, NULL, NULL, EX_NO_SINGLE_STEP);
+        Status = AcpiTerminate ();
         break;
     }
 
     return (0);
+
+
+ErrorExit:
+
+    (void) AcpiOsTerminate ();
+    return (-1);
 }
 
 
@@ -632,194 +609,4 @@ AcpiDbRunBatchMode (
 
     Status = AcpiTerminate ();
     return (Status);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    FlStrdup
- *
- * DESCRIPTION: Local strdup function
- *
- *****************************************************************************/
-
-static char *
-FlStrdup (
-    char                    *String)
-{
-    char                    *NewString;
-
-
-    NewString = AcpiOsAllocate (strlen (String) + 1);
-    if (!NewString)
-    {
-        return (NULL);
-    }
-
-    strcpy (NewString, String);
-    return (NewString);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    FlSplitInputPathname
- *
- * PARAMETERS:  InputFilename       - The user-specified ASL source file to be
- *                                    compiled
- *              OutDirectoryPath    - Where the directory path prefix is
- *                                    returned
- *              OutFilename         - Where the filename part is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Split the input path into a directory and filename part
- *              1) Directory part used to open include files
- *              2) Filename part used to generate output filenames
- *
- *****************************************************************************/
-
-ACPI_STATUS
-FlSplitInputPathname (
-    char                    *InputPath,
-    char                    **OutDirectoryPath,
-    char                    **OutFilename)
-{
-    char                    *Substring;
-    char                    *DirectoryPath;
-    char                    *Filename;
-
-
-    *OutDirectoryPath = NULL;
-    *OutFilename = NULL;
-
-    if (!InputPath)
-    {
-        return (AE_OK);
-    }
-
-    /* Get the path to the input filename's directory */
-
-    DirectoryPath = FlStrdup (InputPath);
-    if (!DirectoryPath)
-    {
-        return (AE_NO_MEMORY);
-    }
-
-    /* Convert backslashes to slashes in the entire path */
-
-    UtConvertBackslashes (DirectoryPath);
-
-    /* Backup to last slash or colon */
-
-    Substring = strrchr (DirectoryPath, '/');
-    if (!Substring)
-    {
-        Substring = strrchr (DirectoryPath, ':');
-    }
-
-    /* Extract the simple filename */
-
-    if (!Substring)
-    {
-        DirectoryPath[0] = 0;
-        Filename = FlStrdup (InputPath);
-    }
-    else
-    {
-        Filename = FlStrdup (Substring + 1);
-        *(Substring + 1) = 0;
-    }
-
-    if (!Filename)
-    {
-        return (AE_NO_MEMORY);
-    }
-
-    *OutDirectoryPath = DirectoryPath;
-    *OutFilename = Filename;
-    return (AE_OK);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AsDoWildcard
- *
- * PARAMETERS:  DirectoryPathname   - Path to parent directory
- *              FileSpecifier       - the wildcard specification (*.c, etc.)
- *
- * RETURN:      Pointer to a list of filenames
- *
- * DESCRIPTION: Process files via wildcards. This function is for the Windows
- *              case only.
- *
- *****************************************************************************/
-
-static char **
-AsDoWildcard (
-    char                    *DirectoryPathname,
-    char                    *FileSpecifier)
-{
-#ifdef WIN32
-    void                    *DirInfo;
-    char                    *Filename;
-    int                     FileCount;
-
-
-    FileCount = 0;
-
-    /* Open parent directory */
-
-    DirInfo = AcpiOsOpenDirectory (DirectoryPathname, FileSpecifier,
-        REQUEST_FILE_ONLY);
-    if (!DirInfo)
-    {
-        /* Either the directory or file does not exist */
-
-        printf ("File or directory \"%s%s\" does not exist\n",
-            DirectoryPathname, FileSpecifier);
-        return (NULL);
-    }
-
-    /* Process each file that matches the wildcard specification */
-
-    while ((Filename = AcpiOsGetNextFilename (DirInfo)))
-    {
-        /* Add the filename to the file list */
-
-        FileList[FileCount] = AcpiOsAllocate (strlen (Filename) + 1);
-        strcpy (FileList[FileCount], Filename);
-        FileCount++;
-
-        if (FileCount >= ASL_MAX_FILES)
-        {
-            printf ("Max files reached\n");
-            FileList[0] = NULL;
-            return (FileList);
-        }
-    }
-
-    /* Cleanup */
-
-    AcpiOsCloseDirectory (DirInfo);
-    FileList[FileCount] = NULL;
-    return (FileList);
-
-#else
-    if (!FileSpecifier)
-    {
-        return (NULL);
-    }
-
-    /*
-     * Linux/Unix cases - Wildcards are expanded by the shell automatically.
-     * Just return the filename in a null terminated list
-     */
-    FileList[0] = AcpiOsAllocate (strlen (FileSpecifier) + 1);
-    strcpy (FileList[0], FileSpecifier);
-    FileList[1] = NULL;
-
-    return (FileList);
-#endif
 }

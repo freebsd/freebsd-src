@@ -67,6 +67,7 @@
 
 extern FILE                    *AcpiGbl_DebugFile;
 FILE                           *AcpiGbl_OutputFile;
+BOOLEAN                        AcpiGbl_DebugTimeout = FALSE;
 
 
 /* Upcalls to AcpiExec */
@@ -84,7 +85,101 @@ typedef void* (*PTHREAD_CALLBACK) (void *);
 
 /* Buffer used by AcpiOsVprintf */
 
-#define ACPI_VPRINTF_BUFFER_SIZE        512
+#define ACPI_VPRINTF_BUFFER_SIZE    512
+#define _ASCII_NEWLINE              '\n'
+
+/* Terminal support for AcpiExec only */
+
+#ifdef ACPI_EXEC_APP
+#include <termio.h>
+
+struct termios              OriginalTermAttributes;
+
+ACPI_STATUS
+AcpiUtReadLine (
+    char                    *Buffer,
+    UINT32                  BufferLength,
+    UINT32                  *BytesRead);
+
+static void
+OsEnterLineEditMode (
+    void);
+
+static void
+OsExitLineEditMode (
+    void);
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    OsEnterLineEditMode, OsExitLineEditMode
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Enter/Exit the raw character input mode for the terminal.
+ *
+ * Interactive line-editing support for the AML debugger. Used with the
+ * common/acgetline module.
+ *
+ * readline() is not used because of non-portability. It is not available
+ * on all systems, and if it is, often the package must be manually installed.
+ *
+ * Therefore, we use the POSIX tcgetattr/tcsetattr and do the minimal line
+ * editing that we need in AcpiOsGetLine.
+ *
+ * If the POSIX tcgetattr/tcsetattr interfaces are unavailable, these
+ * calls will also work:
+ *     For OsEnterLineEditMode: system ("stty cbreak -echo")
+ *     For OsExitLineEditMode:  system ("stty cooked echo")
+ *
+ *****************************************************************************/
+
+static void
+OsEnterLineEditMode (
+    void)
+{
+    struct termios          LocalTermAttributes;
+
+
+    /* Get and keep the original attributes */
+
+    if (tcgetattr (STDIN_FILENO, &OriginalTermAttributes))
+    {
+        fprintf (stderr, "Could not get/set terminal attributes!\n");
+        return;
+    }
+
+    /* Set the new attributes to enable raw character input */
+
+    memcpy (&LocalTermAttributes, &OriginalTermAttributes,
+        sizeof (struct termios));
+
+    LocalTermAttributes.c_lflag &= ~(ICANON | ECHO);
+    LocalTermAttributes.c_cc[VMIN] = 1;
+    LocalTermAttributes.c_cc[VTIME] = 0;
+
+    tcsetattr (STDIN_FILENO, TCSANOW, &LocalTermAttributes);
+}
+
+static void
+OsExitLineEditMode (
+    void)
+{
+    /* Set terminal attributes back to the original values */
+
+    tcsetattr (STDIN_FILENO, TCSANOW, &OriginalTermAttributes);
+}
+
+
+#else
+
+/* These functions are not needed for other ACPICA utilities */
+
+#define OsEnterLineEditMode()
+#define OsExitLineEditMode()
+#endif
 
 
 /******************************************************************************
@@ -95,7 +190,7 @@ typedef void* (*PTHREAD_CALLBACK) (void *);
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Init and terminate. Nothing to do.
+ * DESCRIPTION: Initialize and terminate this module.
  *
  *****************************************************************************/
 
@@ -105,15 +200,17 @@ AcpiOsInitialize (
 {
 
     AcpiGbl_OutputFile = stdout;
+
+    OsEnterLineEditMode ();
     return (AE_OK);
 }
-
 
 ACPI_STATUS
 AcpiOsTerminate (
     void)
 {
 
+    OsExitLineEditMode ();
     return (AE_OK);
 }
 
@@ -370,6 +467,7 @@ AcpiOsVprintf (
 }
 
 
+#ifndef ACPI_EXEC_APP
 /******************************************************************************
  *
  * FUNCTION:    AcpiOsGetLine
@@ -380,7 +478,9 @@ AcpiOsVprintf (
  *
  * RETURN:      Status and actual bytes read
  *
- * DESCRIPTION: Formatted input with argument list pointer
+ * DESCRIPTION: Get the next input line from the terminal. NOTE: For the
+ *              AcpiExec utility, we use the acgetline module instead to
+ *              provide line-editing and history support.
  *
  *****************************************************************************/
 
@@ -390,42 +490,46 @@ AcpiOsGetLine (
     UINT32                  BufferLength,
     UINT32                  *BytesRead)
 {
-    int                     Temp;
-    UINT32                  i;
+    int                     InputChar;
+    UINT32                  EndOfLine;
 
 
-    for (i = 0; ; i++)
+    /* Standard AcpiOsGetLine for all utilities except AcpiExec */
+
+    for (EndOfLine = 0; ; EndOfLine++)
     {
-        if (i >= BufferLength)
+        if (EndOfLine >= BufferLength)
         {
             return (AE_BUFFER_OVERFLOW);
         }
 
-        if ((Temp = getchar ()) == EOF)
+        if ((InputChar = getchar ()) == EOF)
         {
             return (AE_ERROR);
         }
 
-        if (!Temp || Temp == '\n')
+        if (!InputChar || InputChar == _ASCII_NEWLINE)
         {
             break;
         }
 
-        Buffer [i] = (char) Temp;
+        Buffer[EndOfLine] = (char) InputChar;
     }
 
     /* Null terminate the buffer */
 
-    Buffer [i] = 0;
+    Buffer[EndOfLine] = 0;
 
     /* Return the number of bytes in the string */
 
     if (BytesRead)
     {
-        *BytesRead = i;
+        *BytesRead = EndOfLine;
     }
+
     return (AE_OK);
 }
+#endif
 
 
 /******************************************************************************
