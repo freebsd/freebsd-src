@@ -36,6 +36,10 @@ CXXFLAGS+=	-fno-exceptions -fno-rtti
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
 
+.if ${MK_STAGING} == "yes"
+TBLGEN= ${STAGE_HOST_OBJTOP}/usr/bin/tblgen
+CLANG_TBLGEN= ${STAGE_HOST_OBJTOP}/usr/bin/clang-tblgen
+.endif
 TBLGEN?=	tblgen
 CLANG_TBLGEN?=	clang-tblgen
 
