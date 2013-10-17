@@ -1276,6 +1276,15 @@ m_length(struct mbuf *m0, struct mbuf **last)
 	return (len);
 }
 
+struct mbuf *
+m_last(struct mbuf *m)
+{
+
+	while (m->m_next)
+		m = m->m_next;
+	return (m);
+}
+
 /*
  * Defragment a mbuf chain, returning the shortest possible
  * chain of mbufs and clusters.  If allocation fails and
