@@ -256,8 +256,6 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	off_t size;	
 	int fd;
 	int sectsz;
-	int use_msix;
-	const char *env_msi;
 
 	if (opts == NULL) {
 		printf("virtio-block: backing device required\n");
@@ -336,12 +334,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_STORAGE);
 	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_BLOCK);
 
-	use_msix = 1;
-	if ((env_msi = getenv("BHYVE_USE_MSI"))) {
-		if (strcasecmp(env_msi, "yes") == 0)
-			use_msix = 0;
-	} 
-	if (vi_intr_init(&sc->vbsc_vs, 1, use_msix))
+	if (vi_intr_init(&sc->vbsc_vs, 1, fbsdrun_virtio_msix()))
 		return (1);
 	vi_set_io_bar(&sc->vbsc_vs, 0);
 	return (0);
