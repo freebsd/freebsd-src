@@ -38,6 +38,7 @@ guest inside a bhyve virtual machine
 .Op Fl m Ar mem-size
 .Op Fl d Ar disk-path
 .Op Fl h Ar host-path
+.Op Fl e Ar name=value
 .Ar vmname
 .Sh DESCRIPTION
 .Nm
@@ -91,6 +92,14 @@ is the pathname of the guest's boot disk image.
 The
 .Ar host-path
 is the directory at the top of the guest's boot filesystem.
+.It Fl e Ar name=value
+Set the FreeBSD loader environment variable
+.Ar name
+to
+.Ar value .
+.Pp
+The option may be used more than once to set more than one environment
+variable.
 .El
 .Sh EXAMPLES
 To create a virtual machine named
