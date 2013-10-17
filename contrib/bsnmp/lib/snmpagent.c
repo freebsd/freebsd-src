@@ -276,7 +276,12 @@ snmp_get(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 		}
 	}
 
-	return (snmp_fix_encoding(resp_b, resp));
+	if (snmp_fix_encoding(resp_b, resp) != SNMP_CODE_OK) {
+		snmp_debug("get: failed to encode PDU");
+		return (SNMP_RET_ERR);
+	}
+
+	return (SNMP_RET_OK);
 }
 
 static struct snmp_node *
@@ -438,7 +443,13 @@ snmp_getnext(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 			return (SNMP_RET_ERR);
 		}
 	}
-	return (snmp_fix_encoding(resp_b, resp));
+
+	if (snmp_fix_encoding(resp_b, resp) != SNMP_CODE_OK) {
+		snmp_debug("getnext: failed to encode PDU");
+		return (SNMP_RET_ERR);
+	}
+
+	return (SNMP_RET_OK);
 }
 
 enum snmp_ret
@@ -537,7 +548,12 @@ snmp_getbulk(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 	}
 
   done:
-	return (snmp_fix_encoding(resp_b, resp));
+	if (snmp_fix_encoding(resp_b, resp) != SNMP_CODE_OK) {
+		snmp_debug("getnext: failed to encode PDU");
+		return (SNMP_RET_ERR);
+	}
+
+	return (SNMP_RET_OK);
 }
 
 /*
