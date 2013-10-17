@@ -132,6 +132,7 @@ static g_dumpconf_t g_part_dumpconf;
 static g_orphan_t g_part_orphan;
 static g_spoiled_t g_part_spoiled;
 static g_start_t g_part_start;
+static g_resize_t g_part_resize;
 
 static struct g_class g_part_class = {
 	.name = "PART",
@@ -148,6 +149,7 @@ static struct g_class g_part_class = {
 	.orphan = g_part_orphan,
 	.spoiled = g_part_spoiled,
 	.start = g_part_start,
+	.resize = g_part_resize
 };
 
 DECLARE_GEOM_CLASS(g_part_class, g_part);
@@ -2039,6 +2041,30 @@ g_part_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sbuf_printf(sb, "%s<modified>%s</modified>\n", indent,
 		    table->gpt_opened ? "true": "false");
 		G_PART_DUMPCONF(table, NULL, sb, indent);
+	}
+}
+
+static void
+g_part_resize(struct g_consumer *cp)
+{
+	struct g_part_table *table;
+
+	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, cp->provider->name));
+	g_topology_assert();
+
+	table = cp->geom->softc;
+	if (table->gpt_opened == 0) {
+		if (g_access(cp, 1, 1, 1) != 0)
+			return;
+		table->gpt_opened = 1;
+	}
+	if (G_PART_RESIZE(table, NULL, NULL) == 0)
+		printf("GEOM_PART: %s was automatically resized\n",
+		    cp->geom->name);
+	if (g_part_check_integrity(table, cp) != 0) {
+		g_access(cp, -1, -1, -1);
+		table->gpt_opened = 0;
+		g_part_wither(table->gpt_gp, ENXIO);
 	}
 }
 
