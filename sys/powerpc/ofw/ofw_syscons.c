@@ -586,14 +586,22 @@ ofwfb_blank_display8(video_adapter_t *adp, int mode)
 {
 	struct ofwfb_softc *sc;
 	int i;
-	uint8_t *addr;
+	uint32_t *addr;
+	uint32_t color;
+	uint32_t end;
 
 	sc = (struct ofwfb_softc *)adp;
-	addr = (uint8_t *) sc->sc_addr;
+	addr = (uint32_t *) sc->sc_addr;
+	end = (sc->sc_stride/4) * sc->sc_height;
 
-	/* Could be done a lot faster e.g. 32-bits, or Altivec'd */
-	for (i = 0; i < sc->sc_stride*sc->sc_height; i++)
-		*(addr + i) = ofwfb_background(SC_NORM_ATTR);
+	/* Splat 4 pixels at once. */
+	color = (ofwfb_background(SC_NORM_ATTR) << 24) |
+	    (ofwfb_background(SC_NORM_ATTR) << 16) |
+	    (ofwfb_background(SC_NORM_ATTR) << 8) |
+	    (ofwfb_background(SC_NORM_ATTR));
+
+	for (i = 0; i < end; i++)
+		*(addr + i) = color;
 
 	return (0);
 }
