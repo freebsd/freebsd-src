@@ -576,6 +576,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		xpt_setup_ccb(&new_ccb->ccb_h, periph->path, /*priority*/ 1);
 		new_ccb->ccb_h.func_code = XPT_ACCEPT_TARGET_IO;
 		new_ccb->ccb_h.cbfcnp = ctlfedone;
+		new_ccb->ccb_h.flags |= CAM_UNLOCKED;
 		xpt_action(new_ccb);
 		softc->atios_sent++;
 		status = new_ccb->ccb_h.status;
@@ -611,6 +612,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		xpt_setup_ccb(&new_ccb->ccb_h, periph->path, /*priority*/ 1);
 		new_ccb->ccb_h.func_code = XPT_IMMEDIATE_NOTIFY;
 		new_ccb->ccb_h.cbfcnp = ctlfedone;
+		new_ccb->ccb_h.flags |= CAM_UNLOCKED;
 		xpt_action(new_ccb);
 		softc->inots_sent++;
 		status = new_ccb->ccb_h.status;
@@ -782,7 +784,6 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 				}
 				start_ccb->ccb_h.func_code = XPT_ABORT;
 				start_ccb->cab.abort_ccb = (union ccb *)atio;
-				start_ccb->ccb_h.cbfcnp = ctlfedone;
 
 				/* Tell the SIM that we've aborted this ATIO */
 				xpt_action(start_ccb);
@@ -995,6 +996,7 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 			      /*data_ptr*/ data_ptr,
 			      /*dxfer_len*/ dxfer_len,
 			      /*timeout*/ 5 * 1000);
+		start_ccb->ccb_h.flags |= CAM_UNLOCKED;
 		start_ccb->ccb_h.ccb_atio = atio;
 		if (((flags & CAM_SEND_STATUS) == 0)
 		 && (io != NULL))
@@ -1002,7 +1004,9 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 
 		softc->ctios_sent++;
 
+		cam_periph_unlock(periph);
 		xpt_action(start_ccb);
+		cam_periph_lock(periph);
 
 		if ((atio->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			cam_release_devq(periph->path,
@@ -1139,7 +1143,10 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 	struct ctlfe_softc *bus_softc;
 	struct ccb_accept_tio *atio = NULL;
 	union ctl_io *io = NULL;
+	struct mtx *mtx;
 
+	KASSERT((done_ccb->ccb_h.flags & CAM_UNLOCKED) != 0,
+	    ("CCB in ctlfedone() without CAM_UNLOCKED flag"));
 #ifdef CTLFE_DEBUG
 	printf("%s: entered, func_code = %#x, type = %#lx\n", __func__,
 	       done_ccb->ccb_h.func_code, done_ccb->ccb_h.ccb_type);
@@ -1147,6 +1154,8 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 
 	softc = (struct ctlfe_lun_softc *)periph->softc;
 	bus_softc = softc->parent_softc;
+	mtx = cam_periph_mtx(periph);
+	mtx_lock(mtx);
 
 	/*
 	 * If the peripheral is invalid, ATIOs and immediate notify CCBs
@@ -1162,7 +1171,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		case XPT_IMMEDIATE_NOTIFY:
 		case XPT_NOTIFY_ACKNOWLEDGE:
 			ctlfe_free_ccb(periph, done_ccb);
-			return;
+			goto out;
 		default:
 			break;
 		}
@@ -1200,6 +1209,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			xpt_schedule(periph, /*priority*/ 1);
 			break;
 		}
+		mtx_unlock(mtx);
 		ctl_zero_io(io);
 
 		/* Save pointers on both sides */
@@ -1256,7 +1266,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 #endif
 
 		ctl_queue(io);
-		break;
+		return;
 	}
 	case XPT_CONT_TARGET_IO: {
 		int srr = 0;
@@ -1318,7 +1328,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			TAILQ_INSERT_HEAD(&softc->work_queue, &atio->ccb_h,
 					  periph_links.tqe);
 			xpt_schedule(periph, /*priority*/ 1);
-			return;
+			break;
 		}
 
 		/*
@@ -1344,10 +1354,11 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 			if (periph->flags & CAM_PERIPH_INVALID) {
 				ctlfe_free_ccb(periph, (union ccb *)atio);
-				return;
 			} else {
-				xpt_action((union ccb *)atio);
 				softc->atios_sent++;
+				mtx_unlock(mtx);
+				xpt_action((union ccb *)atio);
+				return;
 			}
 		} else {
 			struct ctlfe_lun_cmd_info *cmd_info;
@@ -1463,10 +1474,12 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 					      /*dxfer_len*/ dxfer_len,
 					      /*timeout*/ 5 * 1000);
 
+				csio->ccb_h.flags |= CAM_UNLOCKED;
 				csio->resid = 0;
 				csio->ccb_h.ccb_atio = atio;
 				io->io_hdr.flags |= CTL_FLAG_DMA_INPROG;
 				softc->ctios_sent++;
+				mtx_unlock(mtx);
 				xpt_action((union ccb *)csio);
 			} else {
 				/*
@@ -1475,10 +1488,12 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 				 */
 				softc->ccbs_freed++;
 				xpt_release_ccb(done_ccb);
+				mtx_unlock(mtx);
 
 				/* Call the backend move done callback */
 				io->scsiio.be_move_done(io);
 			}
+			return;
 		}
 		break;
 	}
@@ -1599,7 +1614,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 				ctl_free_io(io);
 				ctlfe_free_ccb(periph, done_ccb);
 
-				return;
+				goto out;
 			}
 			if (send_ctl_io != 0) {
 				ctl_queue(io);
@@ -1636,12 +1651,6 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		xpt_action(done_ccb);
 		softc->inots_sent++;
 		break;
-	case XPT_ABORT:
-		/*
-		 * XPT_ABORT is an immediate CCB, we shouldn't get here.
-		 */
-		panic("%s: XPT_ABORT CCB returned!", __func__);
-		break;
 	case XPT_SET_SIM_KNOB:
 	case XPT_GET_SIM_KNOB:
 		break;
@@ -1650,6 +1659,9 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		      done_ccb->ccb_h.func_code);
 		break;
 	}
+
+out:
+	mtx_unlock(mtx);
 }
 
 static void
