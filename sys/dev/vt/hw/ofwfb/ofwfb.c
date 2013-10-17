@@ -52,9 +52,7 @@ struct ofwfb_softc {
 	int		sc_depth;
 	int		sc_stride;
 
-#ifdef __sparc64__
-	bus_space_tag_t	sc_memt;
-#endif
+	bus_space_tag_t sc_memt; 
 };
 
 static vd_init_t	ofwfb_init;
@@ -194,7 +192,10 @@ ofwfb_init(struct vt_device *vd)
 	ihandle_t stdout;
 	phandle_t node;
 	uint32_t depth, height, width;
+	struct ofw_pci_register pciaddrs[8];
+	int n_pciaddrs;
 	uint32_t fb_phys;
+	int i, len;
 #ifdef __sparc64__
 	static struct bus_space_tag ofwfb_memt[1];
 	bus_addr_t phys;
@@ -218,8 +219,17 @@ ofwfb_init(struct vt_device *vd)
 	/* Keep track of the OF node */
 	sc->sc_node = node;
 
+	/* Make sure we have needed properties */
+	if (OF_getproplen(node, "height") != sizeof(height) ||
+	    OF_getproplen(node, "width") != sizeof(width) ||
+	    OF_getproplen(node, "depth") != sizeof(depth) ||
+	    OF_getproplen(node, "linebytes") != sizeof(sc->sc_stride))
+		return (CN_DEAD);
+
 	/* Only support 8 and 32-bit framebuffers */
 	OF_getprop(node, "depth", &depth, sizeof(depth));
+	if (depth != 8 && depth != 32)
+		return (CN_DEAD);
 	sc->sc_depth = depth;
 
 	OF_getprop(node, "height", &height, sizeof(height));
@@ -230,24 +240,77 @@ ofwfb_init(struct vt_device *vd)
 	vd->vd_width = width;
 
 	/*
+	 * Get the PCI addresses of the adapter, if present. The node may be the
+	 * child of the PCI device: in that case, try the parent for
+	 * the assigned-addresses property.
+	 */
+	len = OF_getprop(node, "assigned-addresses", pciaddrs,
+	    sizeof(pciaddrs));
+	if (len == -1) {
+		len = OF_getprop(OF_parent(node), "assigned-addresses",
+		    pciaddrs, sizeof(pciaddrs));
+        }
+        if (len == -1)
+                len = 0;
+	n_pciaddrs = len / sizeof(struct ofw_pci_register);
+
+	/*
 	 * Grab the physical address of the framebuffer, and then map it
 	 * into our memory space. If the MMU is not yet up, it will be
 	 * remapped for us when relocation turns on.
+	 *
+	 * XXX We assume #address-cells is 1 at this point.
 	 */
+	if (OF_getproplen(node, "address") == sizeof(fb_phys)) {
+		OF_getprop(node, "address", &fb_phys, sizeof(fb_phys));
+	#if defined(__powerpc__)
+		sc->sc_memt = &bs_be_tag;
+		bus_space_map(sc->sc_memt, fb_phys, height * sc->sc_stride,
+		    BUS_SPACE_MAP_PREFETCHABLE, &sc->sc_addr);
+	#elif defined(__sparc64__)
+		OF_decode_addr(node, 0, &space, &phys);
+		sc->sc_memt = &ofwfb_memt[0];
+		sc->sc_addr = sparc64_fake_bustag(space, fb_phys, sc->sc_memt);
+	#else
+		#error Unsupported platform!
+	#endif
+	} else {
+		/*
+		 * Some IBM systems don't have an address property. Try to
+		 * guess the framebuffer region from the assigned addresses.
+		 * This is ugly, but there doesn't seem to be an alternative.
+		 * Linux does the same thing.
+		 */
 
-	 /* XXX We assume #address-cells is 1 at this point. */
-	OF_getprop(node, "address", &fb_phys, sizeof(fb_phys));
+		fb_phys = n_pciaddrs;
+		for (i = 0; i < n_pciaddrs; i++) {
+			/* If it is too small, not the framebuffer */
+			if (pciaddrs[i].size_lo < sc->sc_stride*height)
+				continue;
+			/* If it is not memory, it isn't either */
+			if (!(pciaddrs[i].phys_hi &
+			    OFW_PCI_PHYS_HI_SPACE_MEM32))
+				continue;
 
-#if defined(__powerpc__)
-	bus_space_map(&bs_be_tag, fb_phys, height * sc->sc_stride,
-	    BUS_SPACE_MAP_PREFETCHABLE, &sc->sc_addr);
-#elif defined(__sparc64__)
-	OF_decode_addr(node, 0, &space, &phys);
-	sc->sc_memt = &ofwfb_memt[0];
-	sc->sc_addr = sparc64_fake_bustag(space, fb_phys, sc->sc_memt);
-#else
-	#error Unsupported platform!
-#endif
+			/* This could be the framebuffer */
+			fb_phys = i;
+
+			/* If it is prefetchable, it certainly is */
+			if (pciaddrs[i].phys_hi & OFW_PCI_PHYS_HI_PREFETCHABLE)
+				break;
+		}
+
+		if (fb_phys == n_pciaddrs) /* No candidates found */
+			return (CN_DEAD);
+
+	#if defined(__powerpc__)
+		OF_decode_addr(node, fb_phys, &sc->sc_memt, &sc->sc_addr);
+	#elif defined(__sparc64__)
+		OF_decode_addr(node, fb_phys, &space, &phys);
+		sc->sc_memt = &ofwfb_memt[0];
+		sc->sc_addr = sparc64_fake_bustag(space, phys, sc->sc_memt);
+	#endif
+        }
 
 	ofwfb_initialize(vd);
 
