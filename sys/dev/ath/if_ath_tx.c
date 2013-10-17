@@ -2980,7 +2980,7 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an,
 	 * be reset or the completion code will get upset with you.
 	 */
 	if (bf->bf_state.bfs_aggr != 0 || bf->bf_state.bfs_nframes > 1) {
-		DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR
+		DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 		    "%s: bfs_aggr=%d, bfs_nframes=%d\n", __func__,
 		    bf->bf_state.bfs_aggr, bf->bf_state.bfs_nframes);
 		bf->bf_state.bfs_aggr = 0;
