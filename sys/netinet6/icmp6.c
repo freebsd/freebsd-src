@@ -232,23 +232,7 @@ icmp6_error2(struct mbuf *m, int type, int code, int param,
 	if (ifp == NULL)
 		return;
 
-#ifndef PULLDOWN_TEST
-	IP6_EXTHDR_CHECK(m, 0, sizeof(struct ip6_hdr), );
-#else
-	if (m->m_len < sizeof(struct ip6_hdr)) {
-		m = m_pullup(m, sizeof(struct ip6_hdr));
-		if (m == NULL)
-			return;
-	}
-#endif
-
-	ip6 = mtod(m, struct ip6_hdr *);
-
-	if (in6_setscope(&ip6->ip6_src, ifp, NULL) != 0)
-		return;
-	if (in6_setscope(&ip6->ip6_dst, ifp, NULL) != 0)
-		return;
-
+	m->m_pkthdr.rcvif = ifp;
 	icmp6_error(m, type, code, param);
 }
 
