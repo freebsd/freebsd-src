@@ -300,6 +300,15 @@ static void	mb_reclaim(void *);
 static void    *mbuf_jumbo_alloc(uma_zone_t, int, uint8_t *, int);
 
 /*
+ * Argument structure passed to UMA routines during mbuf and packet
+ * allocations.
+ */
+struct mb_args {
+	int	flags;	/* Flags for mbuf being allocated */
+	short	type;	/* Type of mbuf being allocated */
+};
+
+/*
  * Initialize FreeBSD Network buffer allocation.
  */
 static void

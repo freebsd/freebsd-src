@@ -75,15 +75,6 @@
  */
 #define	mtod(m, t)	((t)((m)->m_data))
 #define	mtodo(m, o)	((void *)(((m)->m_data) + (o)))
-
-/*
- * Argument structure passed to UMA routines during mbuf and packet
- * allocations.
- */
-struct mb_args {
-	int	flags;	/* Flags for mbuf being allocated */
-	short	type;	/* Type of mbuf being allocated */
-};
 #endif /* _KERNEL */
 
 /*
@@ -523,6 +514,14 @@ struct mbuf	*m_get2(int, int, short, int);
 struct mbuf	*m_getjcl(int, short, int, int);
 struct mbuf	*m_getm2(struct mbuf *, int, int, short, int);
 
+
+
+/*
+ * Change mbuf to new type.  This is a relatively expensive operation and
+ * should be avoided.
+ */
+#define	MCHTYPE(m, t)	m_chtype((m), (t))
+
 static __inline void
 m_chtype(struct mbuf *m, short new_type)
 {
@@ -535,15 +534,6 @@ m_clrprotoflags(struct mbuf *m)
 {
 
 	m->m_flags &= ~M_PROTOFLAGS;
-}
-
-static __inline struct mbuf *
-m_last(struct mbuf *m)
-{
-
-	while (m->m_next)
-		m = m->m_next;
-	return (m);
 }
 
 /*
@@ -613,12 +603,6 @@ int	_m_trailingspace(const struct mbuf *);
  */
 #define	M_PREPEND(m, plen, how)	(m = m_prepend(m, plen, how))
 
-/*
- * Change mbuf to new type.  This is a relatively expensive operation and
- * should be avoided.
- */
-#define	MCHTYPE(m, t)	m_chtype((m), (t))
-
 /* Length to m_copy to copy all. */
 #define	M_COPYALL	1000000000
 
@@ -660,6 +644,7 @@ int		 m_dup_pkthdr(struct mbuf *, struct mbuf *, int);
 u_int		 m_fixhdr(struct mbuf *);
 struct mbuf	*m_fragment(struct mbuf *, int, int);
 struct mbuf	*m_getptr(struct mbuf *, int, int *);
+struct mbuf	*m_last(struct mbuf *);
 u_int		 m_length(struct mbuf *, struct mbuf **);
 int		 m_mbuftouio(struct uio *, struct mbuf *, int);
 void		 m_move_pkthdr(struct mbuf *, struct mbuf *);
