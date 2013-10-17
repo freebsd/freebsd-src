@@ -562,7 +562,7 @@ extern int pmap_needs_pte_sync;
 #ifdef ARM_L2_PIPT
 #define _sync_l2(pte, size) 	cpu_l2cache_wb_range(vtophys(pte), size)
 #else
-#define _sync_l2(pte, size) 	cpu_l2_cache_wb_range(pte, size)
+#define _sync_l2(pte, size) 	cpu_l2cache_wb_range(pte, size)
 #endif
 
 #define	PTE_SYNC(pte)							\
