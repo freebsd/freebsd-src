@@ -81,6 +81,7 @@ int guest_ncpus;
 
 static int pincpu = -1;
 static int guest_vmexit_on_hlt, guest_vmexit_on_pause, disable_x2apic;
+static int virtio_msix = 1;
 
 static int foundcpus;
 
@@ -120,7 +121,7 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-aehAHIP][-g <gdb port>][-s <pci>][-S <pci>]"
+                "Usage: %s [-aehAHIPW][-g <gdb port>][-s <pci>][-S <pci>]"
 		"[-c vcpus][-p pincpu][-m mem]"
 		" <vmname>\n"
 		"       -a: local apic is in XAPIC mode (default is X2APIC)\n"
@@ -131,6 +132,7 @@ usage(int code)
 		"       -H: vmexit from the guest on hlt\n"
 		"       -I: present an ioapic to the guest\n"
 		"       -P: vmexit from the guest on pause\n"
+		"	-W: force virtio to use single-vector MSI\n"
 		"	-e: exit on unhandled i/o access\n"
 		"       -h: help\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
@@ -167,6 +169,13 @@ fbsdrun_vmexit_on_hlt(void)
 {
 
 	return (guest_vmexit_on_hlt);
+}
+
+int
+fbsdrun_virtio_msix(void)
+{
+
+	return (virtio_msix);
 }
 
 static void *
@@ -544,7 +553,7 @@ main(int argc, char *argv[])
 	ioapic = 0;
 	memsize = 256 * MB;
 
-	while ((c = getopt(argc, argv, "abehAHIPp:g:c:s:S:m:")) != -1) {
+	while ((c = getopt(argc, argv, "abehAHIPWp:g:c:s:S:m:")) != -1) {
 		switch (c) {
 		case 'a':
 			disable_x2apic = 1;
@@ -590,6 +599,9 @@ main(int argc, char *argv[])
 			break;
 		case 'e':
 			strictio = 1;
+			break;
+		case 'W':
+			virtio_msix = 0;
 			break;
 		case 'h':
 			usage(0);			
