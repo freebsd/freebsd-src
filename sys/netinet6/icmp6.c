@@ -1159,11 +1159,10 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len, int code)
 void
 icmp6_mtudisc_update(struct ip6ctlparam *ip6cp, int validated)
 {
+	struct in_conninfo inc;
 	struct in6_addr *dst = ip6cp->ip6c_finaldst;
 	struct icmp6_hdr *icmp6 = ip6cp->ip6c_icmp6;
-	struct mbuf *m = ip6cp->ip6c_m;	/* will be necessary for scope issue */
 	u_int mtu = ntohl(icmp6->icmp6_mtu);
-	struct in_conninfo inc;
 
 #if 0
 	/*
@@ -1198,11 +1197,11 @@ icmp6_mtudisc_update(struct ip6ctlparam *ip6cp, int validated)
 		mtu = IPV6_MMTU - 8;
 
 	bzero(&inc, sizeof(inc));
+	inc.inc_fibnum = M_GETFIB(ip6cp->ip6c_m);
 	inc.inc_flags |= INC_ISIPV6;
 	inc.inc6_faddr = *dst;
-	if (in6_setscope(&inc.inc6_faddr, m->m_pkthdr.rcvif, NULL))
-		return;
-
+	inc.inc6_zoneid = in6_getscopezone(ip6cp->ip6c_m->m_pkthdr.rcvif,
+	    in6_addrscope(dst));
 	if (mtu < tcp_maxmtu6(&inc, NULL)) {
 		tcp_hc_updatemtu(&inc, mtu);
 		ICMP6STAT_INC(icp6s_pmtuchg);
