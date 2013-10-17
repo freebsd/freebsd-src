@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/disk.h>
+#include <sys/queue.h>
 
 #include <machine/specialreg.h>
 #include <machine/vmm.h>
@@ -498,23 +499,37 @@ cb_getmem(void *arg, uint64_t *ret_lowmem, uint64_t *ret_highmem)
 	vm_get_memory_seg(ctx, 4 * GB, ret_highmem, NULL);
 }
 
+struct env {
+	const char *str;	/* name=value */
+	SLIST_ENTRY(env) next;
+};
+
+static SLIST_HEAD(envhead, env) envhead;
+
+static void
+addenv(const char *str)
+{
+	struct env *env;
+
+	env = malloc(sizeof(struct env));
+	env->str = str;
+	SLIST_INSERT_HEAD(&envhead, env, next);
+}
+
 static const char *
 cb_getenv(void *arg, int num)
 {
-	int max;
+	int i;
+	struct env *env;
 
-	static const char * var[] = {
-		"smbios.bios.vendor=BHYVE",
-		"boot_serial=1",
-		NULL
-	};
+	i = 0;
+	SLIST_FOREACH(env, &envhead, next) {
+		if (i == num)
+			return (env->str);
+		i++;
+	}
 
-	max = sizeof(var) / sizeof(var[0]);
-
-	if (num < max)
-		return (var[num]);
-	else
-		return (NULL);
+	return (NULL);
 }
 
 static struct loader_callbacks cb = {
@@ -553,8 +568,8 @@ usage(void)
 {
 
 	fprintf(stderr,
-		"usage: %s [-m mem-size][-d <disk-path>] [-h <host-path>] "
-		"<vmname>\n", progname);
+	    "usage: %s [-m mem-size][-d <disk-path>] [-h <host-path>] "
+	    "[-e <name=value>] <vmname>\n", progname);
 	exit(1);
 }
 
@@ -572,10 +587,14 @@ main(int argc, char** argv)
 	mem_size = 256 * MB;
 	disk_image = NULL;
 
-	while ((opt = getopt(argc, argv, "d:h:m:")) != -1) {
+	while ((opt = getopt(argc, argv, "d:e:h:m:")) != -1) {
 		switch (opt) {
 		case 'd':
 			disk_image = optarg;
+			break;
+
+		case 'e':
+			addenv(optarg);
 			break;
 
 		case 'h':
@@ -638,5 +657,9 @@ main(int argc, char** argv)
 	if (disk_image) {
 		disk_fd = open(disk_image, O_RDONLY);
 	}
+
+	addenv("smbios.bios.vendor=BHYVE");
+	addenv("boot_serial=1");
+
 	func(&cb, NULL, USERBOOT_VERSION_3, disk_fd >= 0);
 }
