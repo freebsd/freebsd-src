@@ -1,7 +1,11 @@
 /*-
+ * Copyright (c) 2013 The FreeBSD Foundation
  * Copyright (c) 2013 David E. O'Brien <obrien@NUXI.org>
  * Copyright (c) 2012 Konstantin Belousov <kib@FreeBSD.org>
  * All rights reserved.
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -58,26 +62,25 @@ static struct random_hardware_source random_ivy = {
 };
 
 static inline int
-ivy_rng_store(uint64_t *tmp)
+ivy_rng_store(long *buf)
 {
 #ifdef __GNUCLIKE_ASM
-	uint32_t count;
+	long tmp;
+	int retry;
 
+	retry = RETRY_COUNT;
 	__asm __volatile(
-#ifdef __amd64__
-	    "rdrand\t%%rax\n\t"
-	    "jnc\t1f\n\t"
-	    "movq\t%%rax,%1\n\t"
-	    "movl\t$8,%%eax\n"
-#else /* i386 */
-	    "rdrand\t%%eax\n\t"
-	    "jnc\t1f\n\t"
-	    "movl\t%%eax,%1\n\t"
-	    "movl\t$4,%%eax\n"
-#endif
-	    "1:\n"	/* %eax is cleared by processor on failure */
-	    : "=a" (count), "=g" (*tmp) : "a" (0) : "cc");
-	return (count);
+	    "1:\n\t"
+	    "rdrand	%2\n\t"	/* read randomness into tmp */
+	    "jb		2f\n\t" /* CF is set on success, exit retry loop */
+	    "dec	%0\n\t" /* otherwise, retry-- */
+	    "jne	1b\n\t" /* and loop if retries are not exhausted */
+	    "jmp	3f\n"	/* failure, retry is 0, used as return value */
+	    "2:\n\t"
+	    "mov	%2,%1\n\t" /* *buf = tmp */
+	    "3:"
+	    : "+q" (retry), "=m" (*buf), "=q" (tmp) : : "cc");
+	return (retry);
 #else /* __GNUCLIKE_ASM */
 	return (0);
 #endif
@@ -86,23 +89,13 @@ ivy_rng_store(uint64_t *tmp)
 static int
 random_ivy_read(void *buf, int c)
 {
-	uint8_t *b;
-	int count, ret, retry;
-	uint64_t tmp;
+	long *b;
+	int count;
 
-	b = buf;
-	for (count = c; count > 0; count -= ret) {
-		for (retry = 0; retry < RETRY_COUNT; retry++) {
-			ret = ivy_rng_store(&tmp);
-			if (ret != 0)
-				break;
-		}
-		if (ret == 0)
+	KASSERT(c % sizeof(long) == 0, ("partial read %d", c));
+	for (b = buf, count = c; count > 0; count -= sizeof(long), b++) {
+		if (ivy_rng_store(b) == 0)
 			break;
-		if (ret > count)
-			ret = count;
-		memcpy(b, &tmp, ret);
-		b += ret;
 	}
 	return (c - count);
 }

@@ -484,10 +484,54 @@ num_vcpus_allowed(struct vmctx *ctx)
 		return (1);
 }
 
+void
+fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
+{
+	int err, tmp;
+
+	if (fbsdrun_vmexit_on_hlt()) {
+		err = vm_get_capability(ctx, cpu, VM_CAP_HALT_EXIT, &tmp);
+		if (err < 0) {
+			fprintf(stderr, "VM exit on HLT not supported\n");
+			exit(1);
+		}
+		vm_set_capability(ctx, cpu, VM_CAP_HALT_EXIT, 1);
+		if (cpu == BSP)
+			handler[VM_EXITCODE_HLT] = vmexit_hlt;
+	}
+
+        if (fbsdrun_vmexit_on_pause()) {
+		/*
+		 * pause exit support required for this mode
+		 */
+		err = vm_get_capability(ctx, cpu, VM_CAP_PAUSE_EXIT, &tmp);
+		if (err < 0) {
+			fprintf(stderr,
+			    "SMP mux requested, no pause support\n");
+			exit(1);
+		}
+		vm_set_capability(ctx, cpu, VM_CAP_PAUSE_EXIT, 1);
+		if (cpu == BSP)
+			handler[VM_EXITCODE_PAUSE] = vmexit_pause;
+        }
+
+	if (fbsdrun_disable_x2apic())
+		err = vm_set_x2apic_state(ctx, cpu, X2APIC_DISABLED);
+	else
+		err = vm_set_x2apic_state(ctx, cpu, X2APIC_ENABLED);
+
+	if (err) {
+		fprintf(stderr, "Unable to set x2apic state (%d)\n", err);
+		exit(1);
+	}
+
+	vm_set_capability(ctx, cpu, VM_CAP_ENABLE_INVPCID, 1);
+}
+
 int
 main(int argc, char *argv[])
 {
-	int c, error, gdb_port, tmp, err, ioapic, bvmcons;
+	int c, error, gdb_port, err, ioapic, bvmcons;
 	int max_vcpus;
 	struct vmctx *ctx;
 	uint64_t rip;
@@ -574,39 +618,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (fbsdrun_vmexit_on_hlt()) {
-		err = vm_get_capability(ctx, BSP, VM_CAP_HALT_EXIT, &tmp);
-		if (err < 0) {
-			fprintf(stderr, "VM exit on HLT not supported\n");
-			exit(1);
-		}
-		vm_set_capability(ctx, BSP, VM_CAP_HALT_EXIT, 1);
-		handler[VM_EXITCODE_HLT] = vmexit_hlt;
-	}
-
-        if (fbsdrun_vmexit_on_pause()) {
-		/*
-		 * pause exit support required for this mode
-		 */
-		err = vm_get_capability(ctx, BSP, VM_CAP_PAUSE_EXIT, &tmp);
-		if (err < 0) {
-			fprintf(stderr,
-			    "SMP mux requested, no pause support\n");
-			exit(1);
-		}
-		vm_set_capability(ctx, BSP, VM_CAP_PAUSE_EXIT, 1);
-		handler[VM_EXITCODE_PAUSE] = vmexit_pause;
-        }
-
-	if (fbsdrun_disable_x2apic())
-		err = vm_set_x2apic_state(ctx, BSP, X2APIC_DISABLED);
-	else
-		err = vm_set_x2apic_state(ctx, BSP, X2APIC_ENABLED);
-
-	if (err) {
-		fprintf(stderr, "Unable to set x2apic state (%d)\n", err);
-		exit(1);
-	}
+	fbsdrun_set_capabilities(ctx, BSP);
 
 	err = vm_setup_memory(ctx, memsize, VM_MMAP_ALL);
 	if (err) {

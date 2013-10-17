@@ -39,11 +39,12 @@ DEFAULT_VIRTIO_DISK="./diskdev"
 DEFAULT_ISOFILE="./release.iso"
 
 usage() {
-	echo "Usage: vmrun.sh [-hai][-g <gdbport>][-m <memsize>][-d <disk file>][-I <location of installation iso>][-t <tapdev>] <vmname>"
+	echo "Usage: vmrun.sh [-hai][-g <gdbport>][-m <memsize>][-d <disk file>][-e <name=value>][-I <location of installation iso>][-t <tapdev>] <vmname>"
 	echo "       -h: display this help message"
 	echo "       -a: force memory mapped local apic access"
 	echo "       -c: number of virtual cpus (default is ${DEFAULT_CPUS})"
 	echo "       -d: virtio diskdev file (default is ${DEFAULT_VIRTIO_DISK})"
+	echo "       -e: set FreeBSD loader environment variable"
 	echo "       -g: listen for connection from kgdb at <gdbport>"
 	echo "       -i: force boot of the Installation CDROM image"
 	echo "       -I: Installation CDROM image location (default is ${DEFAULT_ISOFILE})"
@@ -73,8 +74,9 @@ virtio_diskdev=${DEFAULT_VIRTIO_DISK}
 tapdev=${DEFAULT_TAPDEV}
 apic_opt=""
 gdbport=0
+env_opt=""
 
-while getopts haic:g:I:m:d:t: c ; do
+while getopts haic:e:g:I:m:d:t: c ; do
 	case $c in
 	h)
 		usage
@@ -84,6 +86,9 @@ while getopts haic:g:I:m:d:t: c ; do
 		;;
 	d)
 		virtio_diskdev=${OPTARG}
+		;;
+	e)
+		env_opt="${env_opt} -e ${OPTARG}"
 		;;
 	g)	gdbport=${OPTARG}
 		;;
@@ -163,7 +168,7 @@ while [ 1 ]; do
 		installer_opt=""
 	fi
 
-	${LOADER} -m ${memsize} -d ${BOOTDISK} ${vmname}
+	${LOADER} -m ${memsize} -d ${BOOTDISK} ${env_opt} ${vmname}
 	if [ $? -ne 0 ]; then
 		break
 	fi
