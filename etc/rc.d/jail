@@ -426,24 +426,26 @@ jail_start()
 	echo -n 'Starting jails:'
 	case $1 in
 	_ALL)
-		echo -n ' '
 		command=$jail_program
 		rc_flags=$jail_flags
 		command_args="-f $jail_conf -c"
-		$jail_jls -nq | while read IN; do
-			_jn=$(echo $IN | tr " " "\n" | grep name=)
-			_jid=$(echo $IN | tr " " "\n" | grep jid=)
-			if $command $rc_flags $command_args ${_jn#name=}; then
+		_tmp=`mktemp -t jail` || exit 3
+		if $command $rc_flags $command_args >> $_tmp 2>&1; then
+			$jail_jls -nq | while read IN; do
+				_jn=$(echo $IN | tr " " "\n" | grep ^name=)
+				_jid=$(echo $IN | tr " " "\n" | grep ^jid=)
 				echo -n " ${_jn#name=}"
 				echo "${_jid#jid=}" \
 				    > /var/run/jail_${_jn#name=}.id
-			fi
-		done
+			done
+		else
+			tail -1 $_tmp
+		fi
+		rm -f $_tmp
 		echo '.'
 		return
 	;;
 	esac
-	_tmp=`mktemp -t jail` || exit 3
 	for _j in $@; do
 		_j=$(echo $_j | tr /. _)
 		parse_options $_j || continue
@@ -455,10 +457,11 @@ jail_start()
 		else
 			command_args="-i -f $_conf -c $_j"
 		fi
+		_tmp=`mktemp -t jail` || exit 3
 		if $command $rc_flags $command_args \
 		    >> $_tmp 2>&1 </dev/null; then
 			echo -n " ${_hostname:-${_j}}"
-			_jid=$($jail_jls -n -j $_j | tr " " "\n" | grep jid=)
+			_jid=$($jail_jls -n -j $_j | tr " " "\n" | grep ^jid=)
 			echo "${_jid#jid=}" > /var/run/jail_${_j}.id
 		else
 			rm -f /var/run/jail_${_j}.id
@@ -480,17 +483,21 @@ jail_stop()
 	echo -n 'Stopping jails:'
 	case $1 in
 	_ALL)
-		echo -n ' '
 		command=$jail_program
 		rc_flags=$jail_flags
 		command_args="-f $jail_conf -r"
 		$jail_jls -nq | while read IN; do
-			_jn=$(echo $IN | tr " " "\n" | grep name=)
+			_jn=$(echo $IN | tr " " "\n" | grep ^name=)
 			echo -n " ${_jn#name=}"
-			$command $rc_flags $command_args ${_jn#name=}
-			if ! $jail_jls -j ${_jn#name=} > /dev/null 2>&1; then
+			_tmp=`mktemp -t jail` || exit 3
+			$command $rc_flags $command_args ${_jn#name=} \
+			    >> $_tmp 2>&1
+			if $jail_jls -j ${_jn#name=} > /dev/null 2>&1; then
+				tail -1 $_tmp
+			else
 				rm -f /var/run/jail_${_jn#name=}.id
 			fi
+			rm -f $_tmp
 		done
 		echo '.'
 		return
@@ -504,10 +511,14 @@ jail_stop()
 		fi
 		eval command=\${jail_${_j}_program:-$jail_program}
 		echo -n " ${_hostname:-${_j}}"
-		$command -q -f $_conf -r $_j
-		if ! $jail_jls -j $_j > /dev/null 2>&1; then
+		_tmp=`mktemp -t jail` || exit 3
+		$command -q -f $_conf -r $_j >> $_tmp 2>&1
+		if $jail_jls -j $_j > /dev/null 2>&1; then
+			tail -1 $_tmp
+		else
 			rm -f /var/run/jail_${_j}.id
 		fi
+		rm -f $_tmp
 	done
 	echo '.'
 }
