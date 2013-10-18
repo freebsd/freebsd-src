@@ -35,6 +35,7 @@ MAN=	aac.4 \
 	alc.4 \
 	ale.4 \
 	alpm.4 \
+	altera_atse.4 \
 	altera_avgen.4 \
 	altera_jtag_uart.4 \
 	altera_sdcard.4 \
@@ -574,6 +575,7 @@ MLINKS+=age.4 if_age.4
 MLINKS+=agp.4 agpgart.4
 MLINKS+=alc.4 if_alc.4
 MLINKS+=ale.4 if_ale.4
+MLINKS+=altera_atse.4 atse.4
 MLINKS+=altera_sdcard.4 altera_sdcardc.4
 MLINKS+=altq.4 ALTQ.4
 MLINKS+=ath.4 if_ath.4
