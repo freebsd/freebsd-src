@@ -34,6 +34,7 @@
  * \file event_factory.cc
  */
 #include <sys/cdefs.h>
+#include <sys/time.h>
 
 #include <list>
 #include <map>

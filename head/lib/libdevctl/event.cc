@@ -44,6 +44,7 @@
 #include <fcntl.h>
 #include <paths.h>
 #include <syslog.h>
+#include <unistd.h>
 
 #include <iostream>
 #include <list>
