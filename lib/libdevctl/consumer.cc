@@ -37,11 +37,13 @@
 #include <sys/cdefs.h>
 #include <sys/poll.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <sys/un.h>
 
 #include <err.h>
 #include <errno.h>
 #include <syslog.h>
+#include <unistd.h>
 
 #include <list>
 #include <map>

@@ -42,6 +42,7 @@
 #include <signal.h>
 #include <syslog.h>
 
+#include <climits>
 #include <list>
 #include <map>
 #include <string>
