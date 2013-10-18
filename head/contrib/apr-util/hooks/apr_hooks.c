@@ -30,7 +30,7 @@
 #include "apr_want.h"
 
 #if 0
-#define apr_palloc(pool,size)	malloc(size)
+#define apr_palloc(pool,size)   malloc(size)
 #endif
 
 APU_DECLARE_DATA apr_pool_t *apr_hook_global_pool = NULL;
@@ -84,44 +84,44 @@ static TSort *prepare(apr_pool_t *p,TSortData *pItems,int nItems)
 {
     TSort *pData=apr_palloc(p,nItems*sizeof *pData);
     int n;
-    
+
     qsort(pItems,nItems,sizeof *pItems,crude_order);
     for(n=0 ; n < nItems ; ++n) {
-	pData[n].nPredecessors=0;
-	pData[n].ppPredecessors=apr_pcalloc(p,nItems*sizeof *pData[n].ppPredecessors);
-	pData[n].pNext=NULL;
-	pData[n].pData=&pItems[n];
+        pData[n].nPredecessors=0;
+        pData[n].ppPredecessors=apr_pcalloc(p,nItems*sizeof *pData[n].ppPredecessors);
+        pData[n].pNext=NULL;
+        pData[n].pData=&pItems[n];
     }
 
     for(n=0 ; n < nItems ; ++n) {
-	int i,k;
+        int i,k;
 
-	for(i=0 ; pItems[n].aszPredecessors && pItems[n].aszPredecessors[i] ; ++i)
-	    for(k=0 ; k < nItems ; ++k)
-		if(!strcmp(pItems[k].szName,pItems[n].aszPredecessors[i])) {
-		    int l;
+        for(i=0 ; pItems[n].aszPredecessors && pItems[n].aszPredecessors[i] ; ++i)
+            for(k=0 ; k < nItems ; ++k)
+                if(!strcmp(pItems[k].szName,pItems[n].aszPredecessors[i])) {
+                    int l;
 
-		    for(l=0 ; l < pData[n].nPredecessors ; ++l)
-			if(pData[n].ppPredecessors[l] == &pData[k])
-			    goto got_it;
-		    pData[n].ppPredecessors[pData[n].nPredecessors]=&pData[k];
-		    ++pData[n].nPredecessors;
-		got_it:
-		    break;
-		}
-	for(i=0 ; pItems[n].aszSuccessors && pItems[n].aszSuccessors[i] ; ++i)
-	    for(k=0 ; k < nItems ; ++k)
-		if(!strcmp(pItems[k].szName,pItems[n].aszSuccessors[i])) {
-		    int l;
+                    for(l=0 ; l < pData[n].nPredecessors ; ++l)
+                        if(pData[n].ppPredecessors[l] == &pData[k])
+                            goto got_it;
+                    pData[n].ppPredecessors[pData[n].nPredecessors]=&pData[k];
+                    ++pData[n].nPredecessors;
+                got_it:
+                    break;
+                }
+        for(i=0 ; pItems[n].aszSuccessors && pItems[n].aszSuccessors[i] ; ++i)
+            for(k=0 ; k < nItems ; ++k)
+                if(!strcmp(pItems[k].szName,pItems[n].aszSuccessors[i])) {
+                    int l;
 
-		    for(l=0 ; l < pData[k].nPredecessors ; ++l)
-			if(pData[k].ppPredecessors[l] == &pData[n])
-			    goto got_it2;
-		    pData[k].ppPredecessors[pData[k].nPredecessors]=&pData[n];
-		    ++pData[k].nPredecessors;
-		got_it2:
-		    break;
-		}
+                    for(l=0 ; l < pData[k].nPredecessors ; ++l)
+                        if(pData[k].ppPredecessors[l] == &pData[n])
+                            goto got_it2;
+                    pData[k].ppPredecessors[pData[k].nPredecessors]=&pData[n];
+                    ++pData[k].nPredecessors;
+                got_it2:
+                    break;
+                }
     }
 
     return pData;
@@ -143,49 +143,49 @@ static TSort *tsort(TSort *pData,int nItems)
     TSort *pTail=NULL;
 
     for(nTotal=0 ; nTotal < nItems ; ++nTotal) {
-	int n,i,k;
+        int n,i,k;
 
-	for(n=0 ; ; ++n) {
-	    if(n == nItems)
-		assert(0);      /* we have a loop... */
-	    if(!pData[n].pNext) {
-		if(pData[n].nPredecessors) {
-		    for(k=0 ; ; ++k) {
-			assert(k < nItems);
-			if(pData[n].ppPredecessors[k])
-			    break;
-		    }
-		    for(i=0 ; ; ++i) {
-			assert(i < nItems);
-			if(&pData[i] == pData[n].ppPredecessors[k]) {
-			    n=i-1;
-			    break;
-			}
-		    }
-		} else
-		    break;
-	    }
-	}
-	if(pTail)
-	    pTail->pNext=&pData[n];
-	else
-	    pHead=&pData[n];
-	pTail=&pData[n];
-	pTail->pNext=pTail;     /* fudge it so it looks linked */
-	for(i=0 ; i < nItems ; ++i)
-	    for(k=0 ; k < nItems ; ++k)
-		if(pData[i].ppPredecessors[k] == &pData[n]) {
-		    --pData[i].nPredecessors;
-		    pData[i].ppPredecessors[k]=NULL;
-		    break;
-		}
+        for(n=0 ; ; ++n) {
+            if(n == nItems)
+                assert(0);      /* we have a loop... */
+            if(!pData[n].pNext) {
+                if(pData[n].nPredecessors) {
+                    for(k=0 ; ; ++k) {
+                        assert(k < nItems);
+                        if(pData[n].ppPredecessors[k])
+                            break;
+                    }
+                    for(i=0 ; ; ++i) {
+                        assert(i < nItems);
+                        if(&pData[i] == pData[n].ppPredecessors[k]) {
+                            n=i-1;
+                            break;
+                        }
+                    }
+                } else
+                    break;
+            }
+        }
+        if(pTail)
+            pTail->pNext=&pData[n];
+        else
+            pHead=&pData[n];
+        pTail=&pData[n];
+        pTail->pNext=pTail;     /* fudge it so it looks linked */
+        for(i=0 ; i < nItems ; ++i)
+            for(k=0 ; k < nItems ; ++k)
+                if(pData[i].ppPredecessors[k] == &pData[n]) {
+                    --pData[i].nPredecessors;
+                    pData[i].ppPredecessors[k]=NULL;
+                    break;
+                }
     }
     pTail->pNext=NULL;  /* unfudge the tail */
     return pHead;
 }
 
 static apr_array_header_t *sort_hook(apr_array_header_t *pHooks,
-				     const char *szName)
+                                     const char *szName)
 {
     apr_pool_t *p;
     TSort *pSort;
@@ -197,17 +197,21 @@ static apr_array_header_t *sort_hook(apr_array_header_t *pHooks,
     pSort=tsort(pSort,pHooks->nelts);
     pNew=apr_array_make(apr_hook_global_pool,pHooks->nelts,sizeof(TSortData));
     if(apr_hook_debug_enabled)
-	printf("Sorting %s:",szName);
+        printf("Sorting %s:",szName);
     for(n=0 ; pSort ; pSort=pSort->pNext,++n) {
-	TSortData *pHook;
-	assert(n < pHooks->nelts);
-	pHook=apr_array_push(pNew);
-	memcpy(pHook,pSort->pData,sizeof *pHook);
-	if(apr_hook_debug_enabled)
-	    printf(" %s",pHook->szName);
+        TSortData *pHook;
+        assert(n < pHooks->nelts);
+        pHook=apr_array_push(pNew);
+        memcpy(pHook,pSort->pData,sizeof *pHook);
+        if(apr_hook_debug_enabled)
+            printf(" %s",pHook->szName);
     }
     if(apr_hook_debug_enabled)
-	fputc('\n',stdout);
+        fputc('\n',stdout);
+
+    /* destroy the pool - the sorted hooks were already copied */
+    apr_pool_destroy(p);
+
     return pNew;
 }
 
@@ -222,7 +226,7 @@ typedef struct
 } HookSortEntry;
 
 APU_DECLARE(void) apr_hook_sort_register(const char *szHookName,
-					apr_array_header_t **paHooks)
+                                        apr_array_header_t **paHooks)
 {
 #ifdef NETWARE
     get_apd
@@ -246,10 +250,10 @@ APU_DECLARE(void) apr_hook_sort_all(void)
     if (!s_aHooksToSort) {
         s_aHooksToSort = apr_array_make(apr_hook_global_pool, 1, sizeof(HookSortEntry));
     }
-        
+
     for(n=0 ; n < s_aHooksToSort->nelts ; ++n) {
-	HookSortEntry *pEntry=&((HookSortEntry *)s_aHooksToSort->elts)[n];
-	*pEntry->paHooks=sort_hook(*pEntry->paHooks,pEntry->szHookName);
+        HookSortEntry *pEntry=&((HookSortEntry *)s_aHooksToSort->elts)[n];
+        *pEntry->paHooks=sort_hook(*pEntry->paHooks,pEntry->szHookName);
     }
 }
 
@@ -263,7 +267,7 @@ APU_DECLARE(void) apr_hook_deregister_all(void)
 #ifdef NETWARE
     get_apd
 #endif
-    int n;    
+    int n;
 
     if (!s_aHooksToSort) {
         return;
@@ -280,34 +284,34 @@ APU_DECLARE(void) apr_hook_deregister_all(void)
 
 APU_DECLARE(void) apr_hook_debug_show(const char *szName,
                                       const char * const *aszPre,
-			              const char * const *aszSucc)
+                                      const char * const *aszSucc)
 {
     int nFirst;
 
     printf("  Hooked %s",szName);
     if(aszPre) {
-	fputs(" pre(",stdout);
-	nFirst=1;
-	while(*aszPre) {
-	    if(!nFirst)
-		fputc(',',stdout);
-	    nFirst=0;
-	    fputs(*aszPre,stdout);
-	    ++aszPre;
-	}
-	fputc(')',stdout);
+        fputs(" pre(",stdout);
+        nFirst=1;
+        while(*aszPre) {
+            if(!nFirst)
+                fputc(',',stdout);
+            nFirst=0;
+            fputs(*aszPre,stdout);
+            ++aszPre;
+        }
+        fputc(')',stdout);
     }
     if(aszSucc) {
-	fputs(" succ(",stdout);
-	nFirst=1;
-	while(*aszSucc) {
-	    if(!nFirst)
-		fputc(',',stdout);
-	    nFirst=0;
-	    fputs(*aszSucc,stdout);
-	    ++aszSucc;
-	}
-	fputc(')',stdout);
+        fputs(" succ(",stdout);
+        nFirst=1;
+        while(*aszSucc) {
+            if(!nFirst)
+                fputc(',',stdout);
+            nFirst=0;
+            fputs(*aszSucc,stdout);
+            ++aszSucc;
+        }
+        fputc(')',stdout);
     }
     fputc('\n',stdout);
 }
@@ -324,16 +328,16 @@ APU_DECLARE(apr_array_header_t *) apr_optional_hook_get(const char *szName)
     apr_array_header_t **ppArray;
 
     if(!s_phOptionalHooks)
-	return NULL;
+        return NULL;
     ppArray=apr_hash_get(s_phOptionalHooks,szName,strlen(szName));
     if(!ppArray)
-	return NULL;
+        return NULL;
     return *ppArray;
 }
 
 APU_DECLARE(void) apr_optional_hook_add(const char *szName,void (*pfn)(void),
-					const char * const *aszPre,
-					const char * const *aszSucc,int nOrder)
+                                        const char * const *aszPre,
+                                        const char * const *aszSucc,int nOrder)
 {
 #ifdef NETWARE
     get_apd
@@ -342,16 +346,16 @@ APU_DECLARE(void) apr_optional_hook_add(const char *szName,void (*pfn)(void),
     apr_LINK__optional_t *pHook;
 
     if(!pArray) {
-	apr_array_header_t **ppArray;
+        apr_array_header_t **ppArray;
 
-	pArray=apr_array_make(apr_hook_global_pool,1,
-			      sizeof(apr_LINK__optional_t));
-	if(!s_phOptionalHooks)
-	    s_phOptionalHooks=apr_hash_make(apr_hook_global_pool);
-	ppArray=apr_palloc(apr_hook_global_pool,sizeof *ppArray);
-	*ppArray=pArray;
-	apr_hash_set(s_phOptionalHooks,szName,strlen(szName),ppArray);
-	apr_hook_sort_register(szName,ppArray);
+        pArray=apr_array_make(apr_hook_global_pool,1,
+                              sizeof(apr_LINK__optional_t));
+        if(!s_phOptionalHooks)
+            s_phOptionalHooks=apr_hash_make(apr_hook_global_pool);
+        ppArray=apr_palloc(apr_hook_global_pool,sizeof *ppArray);
+        *ppArray=pArray;
+        apr_hash_set(s_phOptionalHooks,szName,strlen(szName),ppArray);
+        apr_hook_sort_register(szName,ppArray);
     }
     pHook=apr_array_push(pArray);
     pHook->pFunc=pfn;
@@ -360,7 +364,7 @@ APU_DECLARE(void) apr_optional_hook_add(const char *szName,void (*pfn)(void),
     pHook->nOrder=nOrder;
     pHook->szName=apr_hook_debug_current;
     if(apr_hook_debug_enabled)
-	apr_hook_debug_show(szName,aszPre,aszSucc);
+        apr_hook_debug_show(szName,aszPre,aszSucc);
 }
 
 /* optional function support */
@@ -371,7 +375,7 @@ APU_DECLARE(apr_opt_fn_t *) apr_dynamic_fn_retrieve(const char *szName)
     get_apd
 #endif
     if(!s_phOptionalFunctions)
-	return NULL;
+        return NULL;
     return (void(*)(void))apr_hash_get(s_phOptionalFunctions,szName,strlen(szName));
 }
 
@@ -383,7 +387,7 @@ APU_DECLARE_NONSTD(void) apr_dynamic_fn_register(const char *szName,
     get_apd
 #endif
     if(!s_phOptionalFunctions)
-	s_phOptionalFunctions=apr_hash_make(apr_hook_global_pool);
+        s_phOptionalFunctions=apr_hash_make(apr_hook_global_pool);
     apr_hash_set(s_phOptionalFunctions,szName,strlen(szName),(void *)pfn);
 }
 
@@ -395,9 +399,9 @@ void main()
     const char *aszCPost[]={"b",NULL};
     TSortData t1[]=
     {
-	{ "a",aszAPre,NULL },
-	{ "b",NULL,aszBPost },
-	{ "c",NULL,aszCPost }
+        { "a",aszAPre,NULL },
+        { "b",NULL,aszBPost },
+        { "c",NULL,aszCPost }
     };
     TSort *pResult;
 
@@ -405,6 +409,6 @@ void main()
     pResult=tsort(pResult,3);
 
     for( ; pResult ; pResult=pResult->pNext)
-	printf("%s\n",pResult->pData->szName);
+        printf("%s\n",pResult->pData->szName);
 }
 #endif

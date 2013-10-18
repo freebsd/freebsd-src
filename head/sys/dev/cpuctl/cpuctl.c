@@ -63,7 +63,7 @@ static d_ioctl_t cpuctl_ioctl;
 # define	DPRINTF(...)
 #endif
 
-#define	UCODE_SIZE_MAX	(10 * 1024)
+#define	UCODE_SIZE_MAX	(16 * 1024)
 
 static int cpuctl_do_msr(int cpu, cpuctl_msr_args_t *data, u_long cmd,
     struct thread *td);
@@ -295,10 +295,10 @@ cpuctl_do_update(int cpu, cpuctl_update_args_t *data, struct thread *td)
 static int
 update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 {
-	void *ptr = NULL;
+	void *ptr;
 	uint64_t rev0, rev1;
 	uint32_t tmp[4];
-	int is_bound = 0;
+	int is_bound;
 	int oldcpu;
 	int ret;
 
@@ -312,10 +312,11 @@ update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	}
 
 	/*
-	 * 16 byte alignment required.
+	 * 16 byte alignment required.  Rely on the fact that
+	 * malloc(9) always returns the pointer aligned at least on
+	 * the size of the allocation.
 	 */
 	ptr = malloc(args->size + 16, M_CPUCTL, M_WAITOK);
-	ptr = (void *)(16 + ((intptr_t)ptr & ~0xf));
 	if (copyin(args->data, ptr, args->size) != 0) {
 		DPRINTF("[cpuctl,%d]: copyin %p->%p of %zd bytes failed",
 		    __LINE__, args->data, ptr, args->size);
@@ -326,7 +327,7 @@ update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	is_bound = cpu_sched_is_bound(td);
 	set_cpu(cpu, td);
 	critical_enter();
-	rdmsr_safe(MSR_BIOS_SIGN, &rev0); /* Get current micorcode revision. */
+	rdmsr_safe(MSR_BIOS_SIGN, &rev0); /* Get current microcode revision. */
 
 	/*
 	 * Perform update.
@@ -339,15 +340,14 @@ update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	 */
 	do_cpuid(0, tmp);
 	critical_exit();
-	rdmsr_safe(MSR_BIOS_SIGN, &rev1); /* Get new micorcode revision. */
+	rdmsr_safe(MSR_BIOS_SIGN, &rev1); /* Get new microcode revision. */
 	restore_cpu(oldcpu, is_bound, td);
 	if (rev1 > rev0)
 		ret = 0;
 	else
 		ret = EEXIST;
 fail:
-	if (ptr != NULL)
-		contigfree(ptr, args->size, M_CPUCTL);
+	free(ptr, M_CPUCTL);
 	return (ret);
 }
 
@@ -409,10 +409,10 @@ fail:
 static int
 update_via(int cpu, cpuctl_update_args_t *args, struct thread *td)
 {
-	void *ptr = NULL;
+	void *ptr;
 	uint64_t rev0, rev1, res;
 	uint32_t tmp[4];
-	int is_bound = 0;
+	int is_bound;
 	int oldcpu;
 	int ret;
 
@@ -428,8 +428,7 @@ update_via(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	/*
 	 * 4 byte alignment required.
 	 */
-	ptr = malloc(args->size + 16, M_CPUCTL, M_WAITOK);
-	ptr = (void *)(16 + ((intptr_t)ptr & ~0xf));
+	ptr = malloc(args->size, M_CPUCTL, M_WAITOK);
 	if (copyin(args->data, ptr, args->size) != 0) {
 		DPRINTF("[cpuctl,%d]: copyin %p->%p of %zd bytes failed",
 		    __LINE__, args->data, ptr, args->size);
@@ -440,7 +439,7 @@ update_via(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	is_bound = cpu_sched_is_bound(td);
 	set_cpu(cpu, td);
 	critical_enter();
-	rdmsr_safe(MSR_BIOS_SIGN, &rev0); /* Get current micorcode revision. */
+	rdmsr_safe(MSR_BIOS_SIGN, &rev0); /* Get current microcode revision. */
 
 	/*
 	 * Perform update.
@@ -476,8 +475,7 @@ update_via(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	else
 		ret = 0;
 fail:
-	if (ptr != NULL)
-		contigfree(ptr, args->size, M_CPUCTL);
+	free(ptr, M_CPUCTL);
 	return (ret);
 }
 

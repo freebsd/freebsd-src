@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <camlib.h>
 
-#include <dev/iscsi/initiator/iscsi.h>
+#include <dev/iscsi_initiator/iscsi.h>
 #include "iscontrol.h"
 
 typedef enum {
@@ -199,6 +199,7 @@ tcpConnect(isess_t *sess)
      perror("connect");
      switch(sv_errno) {
      case ECONNREFUSED:
+     case EHOSTUNREACH:
      case ENETUNREACH:
      case ETIMEDOUT:
 	  if((sess->flags & SESS_REDIRECT) == 0) {

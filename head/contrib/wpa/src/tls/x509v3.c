@@ -1,15 +1,9 @@
 /*
  * X.509v3 certificate parsing and processing (RFC 3280 profile)
- * Copyright (c) 2006-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2006-2011, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -1834,7 +1828,7 @@ static int x509_valid_issuer(const struct x509_certificate *cert)
  */
 int x509_certificate_chain_validate(struct x509_certificate *trusted,
 				    struct x509_certificate *chain,
-				    int *reason)
+				    int *reason, int disable_time_checks)
 {
 	long unsigned idx;
 	int chain_trusted = 0;
@@ -1854,10 +1848,11 @@ int x509_certificate_chain_validate(struct x509_certificate *trusted,
 		if (chain_trusted)
 			continue;
 
-		if ((unsigned long) now.sec <
-		    (unsigned long) cert->not_before ||
-		    (unsigned long) now.sec >
-		    (unsigned long) cert->not_after) {
+		if (!disable_time_checks &&
+		    ((unsigned long) now.sec <
+		     (unsigned long) cert->not_before ||
+		     (unsigned long) now.sec >
+		     (unsigned long) cert->not_after)) {
 			wpa_printf(MSG_INFO, "X509: Certificate not valid "
 				   "(now=%lu not_before=%lu not_after=%lu)",
 				   now.sec, cert->not_before, cert->not_after);

@@ -30,6 +30,9 @@ MYSQL_INC = $(MYSQLSDK)/include
 MYSQL_IMP = libmysql.imp
 MYSQL_LIB = libmysqlclient_r.lib libz.lib
 MYSQL_NLM = libmysql
+ifneq "$(wildcard $(MYSQL_INC)/mysql.h)" "$(MYSQL_INC)/mysql.h"
+$(error MYSQLSDK does not point to a valid MySQL SDK) 
+endif
 
 #
 # These directories will be at the beginning of the include list, followed by

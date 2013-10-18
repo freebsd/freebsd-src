@@ -2951,9 +2951,16 @@ loop:
 		mtx_unlock(&np->n_mtx);
 	} else
 		BO_UNLOCK(bo);
-	if (NFSHASPNFS(nmp))
+	if (NFSHASPNFS(nmp)) {
 		nfscl_layoutcommit(vp, td);
-	mtx_lock(&np->n_mtx);
+		/*
+		 * Invalidate the attribute cache, since writes to a DS
+		 * won't update the size attribute.
+		 */
+		mtx_lock(&np->n_mtx);
+		np->n_attrstamp = 0;
+	} else
+		mtx_lock(&np->n_mtx);
 	if (np->n_flag & NWRITEERR) {
 		error = np->n_error;
 		np->n_flag &= ~NWRITEERR;

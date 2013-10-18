@@ -132,16 +132,30 @@ APU_DECLARE(apr_status_t) apr_md5(unsigned char digest[APR_MD5_DIGESTSIZE],
 /**
  * Encode a password using an MD5 algorithm
  * @param password The password to encode
- * @param salt The salt to use for the encoding
+ * @param salt The salt string to use for the encoding
  * @param result The string to store the encoded password in
  * @param nbytes The size of the result buffer
  */
 APU_DECLARE(apr_status_t) apr_md5_encode(const char *password, const char *salt,
                                          char *result, apr_size_t nbytes);
 
+/**
+ * Encode a password using the bcrypt algorithm
+ * @param password The password to encode
+ * @param count The cost of the encoding, possible values are 4 to 31
+ * @param salt Pointer to binary data to be used as salt for the encoding
+ * @param salt_len The size of the salt data (must be >= 16)
+ * @param out The string to store the encoded password in
+ * @param out_len The size of the result buffer (must be >= 61)
+ */
+APU_DECLARE(apr_status_t) apr_bcrypt_encode(const char *pw,
+                                            unsigned int count,
+                                            const unsigned char *salt,
+                                            apr_size_t salt_len,
+                                            char *out, apr_size_t out_len);
 
 /**
- * Validate hashes created by APR-supported algorithms: md5 and sha1.
+ * Validate hashes created by APR-supported algorithms: md5, bcrypt, and sha1.
  * hashes created by crypt are supported only on platforms that provide
  * crypt(3), so don't rely on that function unless you know that your
  * application will be run only on platforms that support it.  On platforms

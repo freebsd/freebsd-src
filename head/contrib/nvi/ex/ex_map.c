@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_map.c	10.9 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: ex_map.c,v 10.11 2001/06/25 15:19:17 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <ctype.h>
@@ -42,9 +43,7 @@ static const char sccsid[] = "@(#)ex_map.c	10.9 (Berkeley) 3/6/96";
  * PUBLIC: int ex_map __P((SCR *, EXCMD *));
  */
 int
-ex_map(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_map(SCR *sp, EXCMD *cmdp)
 {
 	seq_t stype;
 	CHAR_T *input, *p;
@@ -107,13 +106,11 @@ nofunc:	if (stype == SEQ_COMMAND && input[1] == '\0')
  * PUBLIC: int ex_unmap __P((SCR *, EXCMD *));
  */
 int
-ex_unmap(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_unmap(SCR *sp, EXCMD *cmdp)
 {
 	if (seq_delete(sp, cmdp->argv[0]->bp, cmdp->argv[0]->len,
 	    FL_ISSET(cmdp->iflags, E_C_FORCE) ? SEQ_INPUT : SEQ_COMMAND)) {
-		msgq_str(sp, M_INFO,
+		msgq_wstr(sp, M_INFO,
 		    cmdp->argv[0]->bp, "135|\"%s\" isn't currently mapped");
 		return (1);
 	}

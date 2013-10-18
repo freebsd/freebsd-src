@@ -189,4 +189,57 @@
 #define X_MBOWNER_FW			1
 #define X_MBOWNER_PL			2
 
+/*
+ * PCI-E definitions.
+ * ==================
+ */
+
+#define X_WINDOW_SHIFT			10
+#define X_PCIEOFST_SHIFT		10
+
+/*
+ * TP definitions.
+ * ===============
+ */
+
+/*
+ * TP_VLAN_PRI_MAP controls which subset of fields will be present in the
+ * Compressed Filter Tuple for LE filters.  Each bit set in TP_VLAN_PRI_MAP
+ * selects for a particular field being present.  These fields, when present
+ * in the Compressed Filter Tuple, have the following widths in bits.
+ */
+#define W_FT_FCOE			1
+#define W_FT_PORT			3
+#define W_FT_VNIC_ID			17
+#define W_FT_VLAN			17
+#define W_FT_TOS			8
+#define W_FT_PROTOCOL			8
+#define W_FT_ETHERTYPE			16
+#define W_FT_MACMATCH			9
+#define W_FT_MPSHITTYPE			3
+#define W_FT_FRAGMENTATION		1
+
+/*
+ * Some of the Compressed Filter Tuple fields have internal structure.  These
+ * bit shifts/masks describe those structures.  All shifts are relative to the
+ * base position of the fields within the Compressed Filter Tuple
+ */
+#define S_FT_VLAN_VLD			16
+#define V_FT_VLAN_VLD(x)		((x) << S_FT_VLAN_VLD)
+#define F_FT_VLAN_VLD			V_FT_VLAN_VLD(1U)
+
+#define S_FT_VNID_ID_VF			0
+#define M_FT_VNID_ID_VF			0x7fU
+#define V_FT_VNID_ID_VF(x)		((x) << S_FT_VNID_ID_VF)
+#define G_FT_VNID_ID_VF(x)		(((x) >> S_FT_VNID_ID_VF) & M_FT_VNID_ID_VF)
+
+#define S_FT_VNID_ID_PF			7
+#define M_FT_VNID_ID_PF			0x7U
+#define V_FT_VNID_ID_PF(x)		((x) << S_FT_VNID_ID_PF)
+#define G_FT_VNID_ID_PF(x)		(((x) >> S_FT_VNID_ID_PF) & M_FT_VNID_ID_PF)
+
+#define S_FT_VNID_ID_VLD		16
+#define V_FT_VNID_ID_VLD(x)		((x) << S_FT_VNID_ID_VLD)
+#define F_FT_VNID_ID_VLD(x)		V_FT_VNID_ID_VLD(1U)
+
 #endif /* __T4_REGS_VALUES_H__ */

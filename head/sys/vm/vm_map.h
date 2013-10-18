@@ -116,6 +116,7 @@ struct vm_map_entry {
 	int wired_count;		/* can be paged if = 0 */
 	vm_pindex_t next_read;		/* index of the next sequential read */
 	struct ucred *cred;		/* tmp storage for creator ref */
+	struct thread *wiring_thread;
 };
 
 #define MAP_ENTRY_NOSYNC		0x0001
@@ -338,14 +339,16 @@ long vmspace_resident_count(struct vmspace *vmspace);
 #define	VM_FAULT_READ_AHEAD_MAX		min(atop(MAXPHYS) - 1, UINT8_MAX)
 
 /*
- * The following "find_space" options are supported by vm_map_find()
+ * The following "find_space" options are supported by vm_map_find().
+ *
+ * For VMFS_ALIGNED_SPACE, the desired alignment is specified to
+ * the macro argument as log base 2 of the desired alignment.
  */
 #define	VMFS_NO_SPACE		0	/* don't find; use the given range */
 #define	VMFS_ANY_SPACE		1	/* find a range with any alignment */
-#define	VMFS_ALIGNED_SPACE	2	/* find a superpage-aligned range */
-#if defined(__mips__)
-#define	VMFS_TLB_ALIGNED_SPACE	3	/* find a TLB entry aligned range */
-#endif
+#define	VMFS_OPTIMAL_SPACE	2	/* find a range with optimal alignment*/
+#define	VMFS_SUPER_SPACE	3	/* find a superpage-aligned range */
+#define	VMFS_ALIGNED_SPACE(x)	((x) << 8) /* find a range with fixed alignment */
 
 /*
  * vm_map_wire and vm_map_unwire option flags
@@ -363,7 +366,7 @@ boolean_t vm_map_check_protection (vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t
 vm_map_t vm_map_create(pmap_t, vm_offset_t, vm_offset_t);
 int vm_map_delete(vm_map_t, vm_offset_t, vm_offset_t);
 int vm_map_find(vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t *, vm_size_t,
-    int, vm_prot_t, vm_prot_t, int);
+    vm_offset_t, int, vm_prot_t, vm_prot_t, int);
 int vm_map_fixed(vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t, vm_size_t,
     vm_prot_t, vm_prot_t, int);
 int vm_map_findspace (vm_map_t, vm_offset_t, vm_size_t, vm_offset_t *);
@@ -385,7 +388,6 @@ int vm_map_submap (vm_map_t, vm_offset_t, vm_offset_t, vm_map_t);
 int vm_map_sync(vm_map_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t);
 int vm_map_madvise (vm_map_t, vm_offset_t, vm_offset_t, int);
 void vm_map_simplify_entry (vm_map_t, vm_map_entry_t);
-void vm_init2 (void);
 int vm_map_stack (vm_map_t, vm_offset_t, vm_size_t, vm_prot_t, vm_prot_t, int);
 int vm_map_growstack (struct proc *p, vm_offset_t addr);
 int vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,

@@ -148,14 +148,12 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 			    dp->d_name, dp->d_unit);
 			dp->d_maxsize = DFLTPHYS;
 		}
-		if (dp->d_flags & DISKFLAG_CANDELETE) {
-			if (bootverbose && dp->d_delmaxsize == 0) {
-				printf("WARNING: Disk drive %s%d has no d_delmaxsize\n",
-				    dp->d_name, dp->d_unit);
-				dp->d_delmaxsize = dp->d_maxsize;
+		if (dp->d_delmaxsize == 0) {
+			if (bootverbose && dp->d_flags & DISKFLAG_CANDELETE) {
+				printf("WARNING: Disk drive %s%d has no "
+				    "d_delmaxsize\n", dp->d_name, dp->d_unit);
 			}
-		} else {
-			dp->d_delmaxsize = 0;
+			dp->d_delmaxsize = dp->d_maxsize;
 		}
 		pp->stripeoffset = dp->d_stripeoffset;
 		pp->stripesize = dp->d_stripesize;
@@ -231,6 +229,7 @@ g_disk_setstate(struct bio *bp, struct g_disk_softc *sc)
 static void
 g_disk_done(struct bio *bp)
 {
+	struct bintime now;
 	struct bio *bp2;
 	struct g_disk_softc *sc;
 
@@ -239,19 +238,21 @@ g_disk_done(struct bio *bp)
 	bp2 = bp->bio_parent;
 	sc = bp2->bio_to->private;
 	bp->bio_completed = bp->bio_length - bp->bio_resid;
+	binuptime(&now);
 	mtx_lock(&sc->done_mtx);
 	if (bp2->bio_error == 0)
 		bp2->bio_error = bp->bio_error;
 	bp2->bio_completed += bp->bio_completed;
 	if ((bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE)) != 0)
-		devstat_end_transaction_bio(sc->dp->d_devstat, bp);
-	g_destroy_bio(bp);
+		devstat_end_transaction_bio_bt(sc->dp->d_devstat, bp, &now);
 	bp2->bio_inbed++;
 	if (bp2->bio_children == bp2->bio_inbed) {
+		mtx_unlock(&sc->done_mtx);
 		bp2->bio_resid = bp2->bio_bcount - bp2->bio_completed;
 		g_io_deliver(bp2, bp2->bio_error);
-	}
-	mtx_unlock(&sc->done_mtx);
+	} else
+		mtx_unlock(&sc->done_mtx);
+	g_destroy_bio(bp);
 }
 
 static int
@@ -462,6 +463,12 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 			if (dp->d_getattr(bp) == 0)
 				sbuf_printf(sb, "%s<lunid>%s</lunid>\n",
 				    indent, buf);
+			bp->bio_attribute = "GEOM::lunname";
+			bp->bio_length = DISK_IDENT_SIZE;
+			bp->bio_data = buf;
+			if (dp->d_getattr(bp) == 0)
+				sbuf_printf(sb, "%s<lunname>%s</lunname>\n",
+				    indent, buf);
 			g_destroy_bio(bp);
 			g_free(buf);
 		} else
@@ -629,7 +636,7 @@ void
 disk_create(struct disk *dp, int version)
 {
 
-	if (version != DISK_VERSION_02) {
+	if (version != DISK_VERSION) {
 		printf("WARNING: Attempt to add disk %s%d %s",
 		    dp->d_name, dp->d_unit,
 		    " using incompatible ABI version of disk(9)\n");

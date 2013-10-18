@@ -51,18 +51,16 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 #include <sys/bus_dma.h>
 
-#include <machine/_inttypes.h>
-#include <machine/xen/xen-os.h>
-#include <machine/xen/xenvar.h>
-#include <machine/xen/xenfunc.h>
-
+#include <xen/xen-os.h>
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
-#include <xen/evtchn.h>
 #include <xen/gnttab.h>
 #include <xen/interface/grant_table.h>
 #include <xen/interface/io/protocols.h>
 #include <xen/xenbus/xenbusvar.h>
+
+#include <machine/_inttypes.h>
+#include <machine/xen/xenvar.h>
 
 #include <geom/geom_disk.h>
 
@@ -111,6 +109,26 @@ xbd_thaw(struct xbd_softc *sc, xbd_flag_t xbd_flag)
 	sc->xbd_qfrozen_cnt--;
 }
 
+static void
+xbd_cm_freeze(struct xbd_softc *sc, struct xbd_command *cm, xbdc_flag_t cm_flag)
+{
+	if ((cm->cm_flags & XBDCF_FROZEN) != 0)
+		return;
+
+	cm->cm_flags |= XBDCF_FROZEN|cm_flag;
+	xbd_freeze(sc, XBDF_NONE);
+}
+
+static void
+xbd_cm_thaw(struct xbd_softc *sc, struct xbd_command *cm)
+{
+	if ((cm->cm_flags & XBDCF_FROZEN) == 0)
+		return;
+
+	cm->cm_flags &= ~XBDCF_FROZEN;
+	xbd_thaw(sc, XBDF_NONE);
+}
+
 static inline void 
 xbd_flush_requests(struct xbd_softc *sc)
 {
@@ -119,7 +137,7 @@ xbd_flush_requests(struct xbd_softc *sc)
 	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&sc->xbd_ring, notify);
 
 	if (notify)
-		notify_remote_via_irq(sc->xbd_irq);
+		xen_intr_signal(sc->xen_intr_handle);
 }
 
 static void
@@ -263,8 +281,7 @@ xbd_queue_request(struct xbd_softc *sc, struct xbd_command *cm)
 		 * we just attempted to map, so we can't rely on bus dma
 		 * blocking for it too.
 		 */
-		xbd_freeze(sc, XBDF_NONE);
-		cm->cm_flags |= XBDCF_FROZEN|XBDCF_ASYNC_MAPPING;
+		xbd_cm_freeze(sc, cm, XBDCF_ASYNC_MAPPING);
 		return (0);
 	}
 
@@ -291,7 +308,7 @@ xbd_bio_command(struct xbd_softc *sc)
 	struct xbd_command *cm;
 	struct bio *bp;
 
-	if (unlikely(sc->xbd_state != XBD_STATE_CONNECTED))
+	if (__predict_false(sc->xbd_state != XBD_STATE_CONNECTED))
 		return (NULL);
 
 	bp = xbd_dequeue_bio(sc);
@@ -318,9 +335,45 @@ xbd_bio_command(struct xbd_softc *sc)
 	cm->cm_bp = bp;
 	cm->cm_data = bp->bio_data;
 	cm->cm_datalen = bp->bio_bcount;
-	cm->cm_operation = (bp->bio_cmd == BIO_READ) ?
-	    BLKIF_OP_READ : BLKIF_OP_WRITE;
 	cm->cm_sector_number = (blkif_sector_t)bp->bio_pblkno;
+
+	switch (bp->bio_cmd) {
+	case BIO_READ:
+		cm->cm_operation = BLKIF_OP_READ;
+		break;
+	case BIO_WRITE:
+		cm->cm_operation = BLKIF_OP_WRITE;
+		if ((bp->bio_flags & BIO_ORDERED) != 0) {
+			if ((sc->xbd_flags & XBDF_BARRIER) != 0) {
+				cm->cm_operation = BLKIF_OP_WRITE_BARRIER;
+			} else {
+				/*
+				 * Single step this command.
+				 */
+				cm->cm_flags |= XBDCF_Q_FREEZE;
+				if (xbd_queue_length(sc, XBD_Q_BUSY) != 0) {
+					/*
+					 * Wait for in-flight requests to
+					 * finish.
+					 */
+					xbd_freeze(sc, XBDF_WAIT_IDLE);
+					xbd_requeue_cm(cm, XBD_Q_READY);
+					return (NULL);
+				}
+			}
+		}
+		break;
+	case BIO_FLUSH:
+		if ((sc->xbd_flags & XBDF_FLUSH) != 0)
+			cm->cm_operation = BLKIF_OP_FLUSH_DISKCACHE;
+		else if ((sc->xbd_flags & XBDF_BARRIER) != 0)
+			cm->cm_operation = BLKIF_OP_WRITE_BARRIER;
+		else
+			panic("flush request, but no flush support available");
+		break;
+	default:
+		panic("unknown bio command %d", bp->bio_cmd);
+	}
 
 	return (cm);
 }
@@ -356,6 +409,14 @@ xbd_startio(struct xbd_softc *sc)
 		if (cm == NULL)
 			break;
 
+		if ((cm->cm_flags & XBDCF_Q_FREEZE) != 0) {
+			/*
+			 * Single step command.  Future work is
+			 * held off until this command completes.
+			 */
+			xbd_cm_freeze(sc, cm, XBDCF_Q_FREEZE);
+		}
+
 		if ((error = xbd_queue_request(sc, cm)) != 0) {
 			printf("xbd_queue_request returned %d\n", error);
 			break;
@@ -374,7 +435,7 @@ xbd_bio_complete(struct xbd_softc *sc, struct xbd_command *cm)
 
 	bp = cm->cm_bp;
 
-	if (unlikely(cm->cm_status != BLKIF_RSP_OKAY)) {
+	if (__predict_false(cm->cm_status != BLKIF_RSP_OKAY)) {
 		disk_err(bp, "disk error" , -1, 0);
 		printf(" status: %x\n", cm->cm_status);
 		bp->bio_flags |= BIO_ERROR;
@@ -407,7 +468,7 @@ xbd_int(void *xsc)
 
 	mtx_lock(&sc->xbd_io_lock);
 
-	if (unlikely(sc->xbd_state == XBD_STATE_DISCONNECTED)) {
+	if (__predict_false(sc->xbd_state == XBD_STATE_DISCONNECTED)) {
 		mtx_unlock(&sc->xbd_io_lock);
 		return;
 	}
@@ -425,7 +486,8 @@ xbd_int(void *xsc)
 
 		if (cm->cm_operation == BLKIF_OP_READ)
 			op = BUS_DMASYNC_POSTREAD;
-		else if (cm->cm_operation == BLKIF_OP_WRITE)
+		else if (cm->cm_operation == BLKIF_OP_WRITE ||
+		    cm->cm_operation == BLKIF_OP_WRITE_BARRIER)
 			op = BUS_DMASYNC_POSTWRITE;
 		else
 			op = 0;
@@ -436,10 +498,7 @@ xbd_int(void *xsc)
 		 * Release any hold this command has on future command
 		 * dispatch. 
 		 */
-		if ((cm->cm_flags & XBDCF_FROZEN) != 0) {
-			xbd_thaw(sc, XBDF_NONE);
-			cm->cm_flags &= ~XBDCF_FROZEN;
-		}
+		xbd_cm_thaw(sc, cm);
 
 		/*
 		 * Directly call the i/o complete routine to save an
@@ -465,9 +524,12 @@ xbd_int(void *xsc)
 		sc->xbd_ring.sring->rsp_event = i + 1;
 	}
 
+	if (xbd_queue_length(sc, XBD_Q_BUSY) == 0)
+		xbd_thaw(sc, XBDF_WAIT_IDLE);
+
 	xbd_startio(sc);
 
-	if (unlikely(sc->xbd_state == XBD_STATE_SUSPENDED))
+	if (__predict_false(sc->xbd_state == XBD_STATE_SUSPENDED))
 		wakeup(&sc->xbd_cm_q[XBD_Q_BUSY]);
 
 	mtx_unlock(&sc->xbd_io_lock);
@@ -483,13 +545,13 @@ xbd_quiesce(struct xbd_softc *sc)
 	int mtd;
 
 	// While there are outstanding requests
-	while (!TAILQ_EMPTY(&sc->xbd_cm_q[XBD_Q_BUSY].q_tailq)) {
+	while (xbd_queue_length(sc, XBD_Q_BUSY) != 0) {
 		RING_FINAL_CHECK_FOR_RESPONSES(&sc->xbd_ring, mtd);
 		if (mtd) {
 			/* Recieved request completions, update queue. */
 			xbd_int(sc);
 		}
-		if (!TAILQ_EMPTY(&sc->xbd_cm_q[XBD_Q_BUSY].q_tailq)) {
+		if (xbd_queue_length(sc, XBD_Q_BUSY) != 0) {
 			/*
 			 * Still pending requests, wait for the disk i/o
 			 * to complete.
@@ -718,13 +780,12 @@ xbd_alloc_ring(struct xbd_softc *sc)
 		}
 	}
 
-	error = bind_listening_port_to_irqhandler(
-	    xenbus_get_otherend_id(sc->xbd_dev),
-	    "xbd", (driver_intr_t *)xbd_int, sc,
-	    INTR_TYPE_BIO | INTR_MPSAFE, &sc->xbd_irq);
+	error = xen_intr_alloc_and_bind_local_port(sc->xbd_dev,
+	    xenbus_get_otherend_id(sc->xbd_dev), NULL, xbd_int, sc,
+	    INTR_TYPE_BIO | INTR_MPSAFE, &sc->xen_intr_handle);
 	if (error) {
 		xenbus_dev_fatal(sc->xbd_dev, error,
-		    "bind_evtchn_to_irqhandler failed");
+		    "xen_intr_alloc_and_bind_local_port failed");
 		return (error);
 	}
 
@@ -750,11 +811,55 @@ xbd_free_ring(struct xbd_softc *sc)
 }
 
 /*-------------------------- Initialization/Teardown -------------------------*/
+static int
+xbd_feature_string(struct xbd_softc *sc, char *features, size_t len)
+{
+	struct sbuf sb;
+	int feature_cnt;
+
+	sbuf_new(&sb, features, len, SBUF_FIXEDLEN);
+
+	feature_cnt = 0;
+	if ((sc->xbd_flags & XBDF_FLUSH) != 0) {
+		sbuf_printf(&sb, "flush");
+		feature_cnt++;
+	}
+
+	if ((sc->xbd_flags & XBDF_BARRIER) != 0) {
+		if (feature_cnt != 0)
+			sbuf_printf(&sb, ", ");
+		sbuf_printf(&sb, "write_barrier");
+		feature_cnt++;
+	}
+
+	(void) sbuf_finish(&sb);
+	return (sbuf_len(&sb));
+}
+
+static int
+xbd_sysctl_features(SYSCTL_HANDLER_ARGS)
+{
+	char features[80];
+	struct xbd_softc *sc = arg1;
+	int error;
+	int len;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+
+	len = xbd_feature_string(sc, features, sizeof(features));
+
+	/* len is -1 on error, which will make the SYSCTL_OUT a no-op. */
+	return (SYSCTL_OUT(req, features, len + 1/*NUL*/));
+}
+
 static void
 xbd_setup_sysctl(struct xbd_softc *xbd)
 {
 	struct sysctl_ctx_list *sysctl_ctx = NULL;
 	struct sysctl_oid *sysctl_tree = NULL;
+	struct sysctl_oid_list *children;
 	
 	sysctl_ctx = device_get_sysctl_ctx(xbd->xbd_dev);
 	if (sysctl_ctx == NULL)
@@ -764,22 +869,27 @@ xbd_setup_sysctl(struct xbd_softc *xbd)
 	if (sysctl_tree == NULL)
 		return;
 
-	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
+	children = SYSCTL_CHILDREN(sysctl_tree);
+	SYSCTL_ADD_UINT(sysctl_ctx, children, OID_AUTO,
 	    "max_requests", CTLFLAG_RD, &xbd->xbd_max_requests, -1,
 	    "maximum outstanding requests (negotiated)");
 
-	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
+	SYSCTL_ADD_UINT(sysctl_ctx, children, OID_AUTO,
 	    "max_request_segments", CTLFLAG_RD,
 	    &xbd->xbd_max_request_segments, 0,
 	    "maximum number of pages per requests (negotiated)");
 
-	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
+	SYSCTL_ADD_UINT(sysctl_ctx, children, OID_AUTO,
 	    "max_request_size", CTLFLAG_RD, &xbd->xbd_max_request_size, 0,
 	    "maximum size in bytes of a request (negotiated)");
 
-	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
+	SYSCTL_ADD_UINT(sysctl_ctx, children, OID_AUTO,
 	    "ring_pages", CTLFLAG_RD, &xbd->xbd_ring_pages, 0,
 	    "communication channel pages (negotiated)");
+
+	SYSCTL_ADD_PROC(sysctl_ctx, children, OID_AUTO,
+	    "features", CTLTYPE_STRING|CTLFLAG_RD, xbd, 0,
+	    xbd_sysctl_features, "A", "protocol features (negotiated)");
 }
 
 /*
@@ -854,6 +964,7 @@ int
 xbd_instance_create(struct xbd_softc *sc, blkif_sector_t sectors,
     int vdevice, uint16_t vdisk_info, unsigned long sector_size)
 {
+	char features[80];
 	int unit, error = 0;
 	const char *name;
 
@@ -861,8 +972,13 @@ xbd_instance_create(struct xbd_softc *sc, blkif_sector_t sectors,
 
 	sc->xbd_unit = unit;
 
-	if (strcmp(name, "xbd"))
+	if (strcmp(name, "xbd") != 0)
 		device_printf(sc->xbd_dev, "attaching as %s%d\n", name, unit);
+
+	if (xbd_feature_string(sc, features, sizeof(features)) > 0) {
+		device_printf(sc->xbd_dev, "features: %s\n",
+		    features);
+	}
 
 	sc->xbd_disk = disk_alloc();
 	sc->xbd_disk->d_unit = sc->xbd_unit;
@@ -878,6 +994,11 @@ xbd_instance_create(struct xbd_softc *sc, blkif_sector_t sectors,
 	sc->xbd_disk->d_mediasize = sectors * sector_size;
 	sc->xbd_disk->d_maxsize = sc->xbd_max_request_size;
 	sc->xbd_disk->d_flags = 0;
+	if ((sc->xbd_flags & (XBDF_FLUSH|XBDF_BARRIER)) != 0) {
+		sc->xbd_disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
+		device_printf(sc->xbd_dev,
+		    "synchronize cache commands enabled.\n");
+	}
 	disk_create(sc->xbd_disk, DISK_VERSION);
 
 	return error;
@@ -918,10 +1039,8 @@ xbd_free(struct xbd_softc *sc)
 		xbd_initq_cm(sc, XBD_Q_COMPLETE);
 	}
 		
-	if (sc->xbd_irq) {
-		unbind_from_irqhandler(sc->xbd_irq);
-		sc->xbd_irq = 0;
-	}
+	xen_intr_unbind(&sc->xen_intr_handle);
+
 }
 
 /*--------------------------- State Change Handlers --------------------------*/
@@ -1153,7 +1272,7 @@ xbd_initialize(struct xbd_softc *sc)
 	}
 
 	error = xs_printf(XST_NIL, node_path, "event-channel",
-	    "%u", irq_to_evtchn_port(sc->xbd_irq));
+	    "%u", xen_intr_port(sc->xen_intr_handle));
 	if (error) {
 		xenbus_dev_fatal(sc->xbd_dev, error,
 		    "writing %s/event-channel",
@@ -1183,7 +1302,7 @@ xbd_connect(struct xbd_softc *sc)
 	device_t dev = sc->xbd_dev;
 	unsigned long sectors, sector_size;
 	unsigned int binfo;
-	int err, feature_barrier;
+	int err, feature_barrier, feature_flush;
 
 	if (sc->xbd_state == XBD_STATE_CONNECTED || 
 	    sc->xbd_state == XBD_STATE_SUSPENDED)
@@ -1205,8 +1324,14 @@ xbd_connect(struct xbd_softc *sc)
 	err = xs_gather(XST_NIL, xenbus_get_otherend_path(dev),
 	     "feature-barrier", "%lu", &feature_barrier,
 	     NULL);
-	if (!err || feature_barrier)
+	if (err == 0 && feature_barrier != 0)
 		sc->xbd_flags |= XBDF_BARRIER;
+
+	err = xs_gather(XST_NIL, xenbus_get_otherend_path(dev),
+	     "feature-flush-cache", "%lu", &feature_flush,
+	     NULL);
+	if (err == 0 && feature_flush != 0)
+		sc->xbd_flags |= XBDF_FLUSH;
 
 	if (sc->xbd_disk == NULL) {
 		device_printf(dev, "%juMB <%s> at %s",
@@ -1256,14 +1381,42 @@ xbd_closing(device_t dev)
 static int
 xbd_probe(device_t dev)
 {
+	if (strcmp(xenbus_get_type(dev), "vbd") != 0)
+		return (ENXIO);
 
-	if (!strcmp(xenbus_get_type(dev), "vbd")) {
-		device_set_desc(dev, "Virtual Block Device");
-		device_quiet(dev);
-		return (0);
+	if (xen_hvm_domain()) {
+		int error;
+		char *type;
+
+		/*
+		 * When running in an HVM domain, IDE disk emulation is
+		 * disabled early in boot so that native drivers will
+		 * not see emulated hardware.  However, CDROM device
+		 * emulation cannot be disabled.
+		 *
+		 * Through use of FreeBSD's vm_guest and xen_hvm_domain()
+		 * APIs, we could modify the native CDROM driver to fail its
+		 * probe when running under Xen.  Unfortunatlely, the PV
+		 * CDROM support in XenServer (up through at least version
+		 * 6.2) isn't functional, so we instead rely on the emulated
+		 * CDROM instance, and fail to attach the PV one here in
+		 * the blkfront driver.
+		 */
+		error = xs_read(XST_NIL, xenbus_get_node(dev),
+		    "device-type", NULL, (void **) &type);
+		if (error)
+			return (ENXIO);
+
+		if (strncmp(type, "cdrom", 5) == 0) {
+			free(type, M_XENSTORE);
+			return (ENXIO);
+		}
+		free(type, M_XENSTORE);
 	}
 
-	return (ENXIO);
+	device_set_desc(dev, "Virtual Block Device");
+	device_quiet(dev);
+	return (0);
 }
 
 /*
@@ -1284,6 +1437,9 @@ xbd_attach(device_t dev)
 	/* FIXME: Use dynamic device id if this is not set. */
 	error = xs_scanf(XST_NIL, xenbus_get_node(dev),
 	    "virtual-device", NULL, "%" PRIu32, &vdevice);
+	if (error)
+		error = xs_scanf(XST_NIL, xenbus_get_node(dev),
+		    "virtual-device-ext", NULL, "%" PRIu32, &vdevice);
 	if (error) {
 		xenbus_dev_fatal(dev, error, "reading virtual-device");
 		device_printf(dev, "Couldn't determine virtual device.\n");
@@ -1339,7 +1495,7 @@ xbd_suspend(device_t dev)
 
 	/* Wait for outstanding I/O to drain. */
 	retval = 0;
-	while (TAILQ_EMPTY(&sc->xbd_cm_q[XBD_Q_BUSY].q_tailq) == 0) {
+	while (xbd_queue_length(sc, XBD_Q_BUSY) != 0) {
 		if (msleep(&sc->xbd_cm_q[XBD_Q_BUSY], &sc->xbd_io_lock,
 		    PRIBIO, "blkf_susp", 30 * hz) == EWOULDBLOCK) {
 			retval = EBUSY;

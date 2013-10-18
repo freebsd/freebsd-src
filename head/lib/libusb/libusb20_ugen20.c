@@ -46,6 +46,10 @@
 #include "libusb20_desc.h"
 #include "libusb20_int.h"
 
+#ifndef	IOUSB
+#define IOUSB(a) a
+#endif
+
 static libusb20_init_backend_t ugen20_init_backend;
 static libusb20_open_device_t ugen20_open_device;
 static libusb20_close_device_t ugen20_close_device;
@@ -145,14 +149,14 @@ ugen20_enumerate(struct libusb20_device *pdev, const char *id)
 	if (f < 0) {
 		return (LIBUSB20_ERROR_OTHER);
 	}
-	if (ioctl(f, USB_GET_PLUGTIME, &plugtime)) {
+	if (ioctl(f, IOUSB(USB_GET_PLUGTIME), &plugtime)) {
 		error = LIBUSB20_ERROR_OTHER;
 		goto done;
 	}
 	/* store when the device was plugged */
 	pdev->session_data.plugtime = plugtime;
 
-	if (ioctl(f, USB_GET_DEVICE_DESC, &ddesc)) {
+	if (ioctl(f, IOUSB(USB_GET_DEVICE_DESC), &ddesc)) {
 		error = LIBUSB20_ERROR_OTHER;
 		goto done;
 	}
@@ -167,7 +171,7 @@ ugen20_enumerate(struct libusb20_device *pdev, const char *id)
 		error = LIBUSB20_ERROR_OTHER;
 		goto done;
 	}
-	if (ioctl(f, USB_GET_DEVICEINFO, &devinfo)) {
+	if (ioctl(f, IOUSB(USB_GET_DEVICEINFO), &devinfo)) {
 		error = LIBUSB20_ERROR_OTHER;
 		goto done;
 	}
@@ -241,7 +245,7 @@ repeat:
 		st->urd.urd_maxlen = sizeof(st->buf);
 		st->nparsed = 0;
 
-		if (ioctl(st->f, USB_READ_DIR, &st->urd)) {
+		if (ioctl(st->f, IOUSB(USB_READ_DIR), &st->urd)) {
 			return (EINVAL);
 		}
 		st->ptr = st->buf;
@@ -313,7 +317,7 @@ ugen20_tr_release(struct libusb20_device *pdev)
 	/* release all pending USB transfers */
 	if (pdev->privBeData != NULL) {
 		memset(&fs_uninit, 0, sizeof(fs_uninit));
-		if (ioctl(pdev->file, USB_FS_UNINIT, &fs_uninit)) {
+		if (ioctl(pdev->file, IOUSB(USB_FS_UNINIT), &fs_uninit)) {
 			/* ignore any errors of this kind */
 		}
 	}
@@ -353,7 +357,7 @@ ugen20_tr_renew(struct libusb20_device *pdev)
 	fs_init.pEndpoints = libusb20_pass_ptr(pdev->privBeData);
 	fs_init.ep_index_max = nMaxTransfer;
 
-	if (ioctl(pdev->file, USB_FS_INIT, &fs_init)) {
+	if (ioctl(pdev->file, IOUSB(USB_FS_INIT), &fs_init)) {
 		error = LIBUSB20_ERROR_OTHER;
 		goto done;
 	}
@@ -387,7 +391,7 @@ ugen20_open_device(struct libusb20_device *pdev, uint16_t nMaxTransfer)
 		close(g);
 		return (LIBUSB20_ERROR_NO_DEVICE);
 	}
-	if (ioctl(f, USB_GET_PLUGTIME, &plugtime)) {
+	if (ioctl(f, IOUSB(USB_GET_PLUGTIME), &plugtime)) {
 		error = LIBUSB20_ERROR_OTHER;
 		goto done;
 	}
@@ -430,7 +434,7 @@ ugen20_close_device(struct libusb20_device *pdev)
 
 	if (pdev->privBeData) {
 		memset(&fs_uninit, 0, sizeof(fs_uninit));
-		if (ioctl(pdev->file, USB_FS_UNINIT, &fs_uninit)) {
+		if (ioctl(pdev->file, IOUSB(USB_FS_UNINIT), &fs_uninit)) {
 			/* ignore this error */
 		}
 		free(pdev->privBeData);
@@ -468,7 +472,7 @@ ugen20_get_config_desc_full(struct libusb20_device *pdev,
 	gen_desc.ugd_maxlen = sizeof(cdesc);
 	gen_desc.ugd_config_index = cfg_index;
 
-	error = ioctl(pdev->file_ctrl, USB_GET_FULL_DESC, &gen_desc);
+	error = ioctl(pdev->file_ctrl, IOUSB(USB_GET_FULL_DESC), &gen_desc);
 	if (error) {
 		return (LIBUSB20_ERROR_OTHER);
 	}
@@ -488,7 +492,7 @@ ugen20_get_config_desc_full(struct libusb20_device *pdev,
 	gen_desc.ugd_data = libusb20_pass_ptr(ptr);
 	gen_desc.ugd_maxlen = len;
 
-	error = ioctl(pdev->file_ctrl, USB_GET_FULL_DESC, &gen_desc);
+	error = ioctl(pdev->file_ctrl, IOUSB(USB_GET_FULL_DESC), &gen_desc);
 	if (error) {
 		free(ptr);
 		return (LIBUSB20_ERROR_OTHER);
@@ -507,7 +511,7 @@ ugen20_get_config_index(struct libusb20_device *pdev, uint8_t *pindex)
 {
 	int temp;
 
-	if (ioctl(pdev->file_ctrl, USB_GET_CONFIG, &temp)) {
+	if (ioctl(pdev->file_ctrl, IOUSB(USB_GET_CONFIG), &temp)) {
 		return (LIBUSB20_ERROR_OTHER);
 	}
 	*pindex = temp;
@@ -523,7 +527,7 @@ ugen20_set_config_index(struct libusb20_device *pdev, uint8_t cfg_index)
 	/* release all active USB transfers */
 	ugen20_tr_release(pdev);
 
-	if (ioctl(pdev->file_ctrl, USB_SET_CONFIG, &temp)) {
+	if (ioctl(pdev->file_ctrl, IOUSB(USB_SET_CONFIG), &temp)) {
 		return (LIBUSB20_ERROR_OTHER);
 	}
 	return (ugen20_tr_renew(pdev));
@@ -543,7 +547,7 @@ ugen20_set_alt_index(struct libusb20_device *pdev,
 	/* release all active USB transfers */
 	ugen20_tr_release(pdev);
 
-	if (ioctl(pdev->file_ctrl, USB_SET_ALTINTERFACE, &alt_iface)) {
+	if (ioctl(pdev->file_ctrl, IOUSB(USB_SET_ALTINTERFACE), &alt_iface)) {
 		return (LIBUSB20_ERROR_OTHER);
 	}
 	return (ugen20_tr_renew(pdev));
@@ -557,7 +561,7 @@ ugen20_reset_device(struct libusb20_device *pdev)
 	/* release all active USB transfers */
 	ugen20_tr_release(pdev);
 
-	if (ioctl(pdev->file_ctrl, USB_DEVICEENUMERATE, &temp)) {
+	if (ioctl(pdev->file_ctrl, IOUSB(USB_DEVICEENUMERATE), &temp)) {
 		return (LIBUSB20_ERROR_OTHER);
 	}
 	return (ugen20_tr_renew(pdev));
@@ -569,7 +573,7 @@ ugen20_check_connected(struct libusb20_device *pdev)
 	uint32_t plugtime;
 	int error = 0;
 
-	if (ioctl(pdev->file_ctrl, USB_GET_PLUGTIME, &plugtime)) {
+	if (ioctl(pdev->file_ctrl, IOUSB(USB_GET_PLUGTIME), &plugtime)) {
 		error = LIBUSB20_ERROR_NO_DEVICE;
 		goto done;
 	}
@@ -606,7 +610,7 @@ ugen20_set_power_mode(struct libusb20_device *pdev, uint8_t power_mode)
 	default:
 		return (LIBUSB20_ERROR_INVALID_PARAM);
 	}
-	if (ioctl(pdev->file_ctrl, USB_SET_POWER_MODE, &temp)) {
+	if (ioctl(pdev->file_ctrl, IOUSB(USB_SET_POWER_MODE), &temp)) {
 		return (LIBUSB20_ERROR_OTHER);
 	}
 	return (0);
@@ -617,7 +621,7 @@ ugen20_get_power_mode(struct libusb20_device *pdev, uint8_t *power_mode)
 {
 	int temp;
 
-	if (ioctl(pdev->file_ctrl, USB_GET_POWER_MODE, &temp)) {
+	if (ioctl(pdev->file_ctrl, IOUSB(USB_GET_POWER_MODE), &temp)) {
 		return (LIBUSB20_ERROR_OTHER);
 	}
 	switch (temp) {
@@ -649,7 +653,7 @@ ugen20_get_port_path(struct libusb20_device *pdev, uint8_t *buf, uint8_t bufsize
 {
 	struct usb_device_port_path udpp;
 
-	if (ioctl(pdev->file_ctrl, USB_GET_DEV_PORT_PATH, &udpp))
+	if (ioctl(pdev->file_ctrl, IOUSB(USB_GET_DEV_PORT_PATH), &udpp))
 		return (LIBUSB20_ERROR_OTHER);
 
 	if (udpp.udp_port_level > bufsize)
@@ -665,7 +669,7 @@ ugen20_get_power_usage(struct libusb20_device *pdev, uint16_t *power_usage)
 {
 	int temp;
 
-	if (ioctl(pdev->file_ctrl, USB_GET_POWER_USAGE, &temp)) {
+	if (ioctl(pdev->file_ctrl, IOUSB(USB_GET_POWER_USAGE), &temp)) {
 		return (LIBUSB20_ERROR_OTHER);
 	}
 	*power_usage = temp;
@@ -678,7 +682,7 @@ ugen20_kernel_driver_active(struct libusb20_device *pdev,
 {
 	int temp = iface_index;
 
-	if (ioctl(pdev->file_ctrl, USB_IFACE_DRIVER_ACTIVE, &temp)) {
+	if (ioctl(pdev->file_ctrl, IOUSB(USB_IFACE_DRIVER_ACTIVE), &temp)) {
 		return (LIBUSB20_ERROR_OTHER);
 	}
 	return (0);			/* kernel driver is active */
@@ -690,10 +694,10 @@ ugen20_detach_kernel_driver(struct libusb20_device *pdev,
 {
 	int temp = iface_index;
 
-	if (ioctl(pdev->file_ctrl, USB_IFACE_DRIVER_DETACH, &temp)) {
+	if (ioctl(pdev->file_ctrl, IOUSB(USB_IFACE_DRIVER_DETACH), &temp)) {
 		return (LIBUSB20_ERROR_OTHER);
 	}
-	return (0);			/* kernel driver is active */
+	return (0);			/* kernel driver is detached */
 }
 
 static int
@@ -713,14 +717,14 @@ ugen20_do_request_sync(struct libusb20_device *pdev,
 	    sizeof(req.ucr_request), setup)) {
 		/* ignore */
 	}
-	if (ioctl(pdev->file_ctrl, USB_DO_REQUEST, &req)) {
+	if (ioctl(pdev->file_ctrl, IOUSB(USB_DO_REQUEST), &req)) {
 		return (LIBUSB20_ERROR_OTHER);
 	}
 	if (pactlen) {
 		/* get actual length */
 		*pactlen = req.ucr_actlen;
 	}
-	return (0);			/* kernel driver is active */
+	return (0);			/* request was successful */
 }
 
 static int
@@ -732,7 +736,7 @@ ugen20_process(struct libusb20_device *pdev)
 
 	while (1) {
 
-		if (ioctl(pdev->file, USB_FS_COMPLETE, &temp)) {
+	  if (ioctl(pdev->file, IOUSB(USB_FS_COMPLETE), &temp)) {
 			if (errno == EBUSY) {
 				break;
 			} else {
@@ -800,10 +804,10 @@ ugen20_tr_open(struct libusb20_transfer *xfer, uint32_t MaxBufSize,
 	if (stream_id != 0) {
 		temp.fs_open_stream.stream_id = stream_id;
 
-		if (ioctl(xfer->pdev->file, USB_FS_OPEN_STREAM, &temp.fs_open_stream))
+		if (ioctl(xfer->pdev->file, IOUSB(USB_FS_OPEN_STREAM), &temp.fs_open_stream))
 			return (LIBUSB20_ERROR_INVALID_PARAM);
 	} else {
-		if (ioctl(xfer->pdev->file, USB_FS_OPEN, &temp.fs_open))
+		if (ioctl(xfer->pdev->file, IOUSB(USB_FS_OPEN), &temp.fs_open))
 			return (LIBUSB20_ERROR_INVALID_PARAM);
 	}
 	/* maximums might have changed - update */
@@ -829,7 +833,7 @@ ugen20_tr_close(struct libusb20_transfer *xfer)
 
 	temp.ep_index = xfer->trIndex;
 
-	if (ioctl(xfer->pdev->file, USB_FS_CLOSE, &temp)) {
+	if (ioctl(xfer->pdev->file, IOUSB(USB_FS_CLOSE), &temp)) {
 		return (LIBUSB20_ERROR_INVALID_PARAM);
 	}
 	return (0);			/* success */
@@ -846,7 +850,7 @@ ugen20_tr_clear_stall_sync(struct libusb20_transfer *xfer)
 
 	temp.ep_index = xfer->trIndex;
 
-	if (ioctl(xfer->pdev->file, USB_FS_CLEAR_STALL_SYNC, &temp)) {
+	if (ioctl(xfer->pdev->file, IOUSB(USB_FS_CLEAR_STALL_SYNC), &temp)) {
 		return (LIBUSB20_ERROR_INVALID_PARAM);
 	}
 	return (0);			/* success */
@@ -885,7 +889,7 @@ ugen20_tr_submit(struct libusb20_transfer *xfer)
 
 	temp.ep_index = xfer->trIndex;
 
-	if (ioctl(xfer->pdev->file, USB_FS_START, &temp)) {
+	if (ioctl(xfer->pdev->file, IOUSB(USB_FS_START), &temp)) {
 		/* ignore any errors - should never happen */
 	}
 	return;				/* success */
@@ -900,7 +904,7 @@ ugen20_tr_cancel_async(struct libusb20_transfer *xfer)
 
 	temp.ep_index = xfer->trIndex;
 
-	if (ioctl(xfer->pdev->file, USB_FS_STOP, &temp)) {
+	if (ioctl(xfer->pdev->file, IOUSB(USB_FS_STOP), &temp)) {
 		/* ignore any errors - should never happen */
 	}
 	return;
@@ -939,7 +943,7 @@ ugen20_dev_get_iface_desc(struct libusb20_device *pdev,
 	ugd.ugd_maxlen = len;
 	ugd.ugd_iface_index = iface_index;
 
-	if (ioctl(pdev->file, USB_GET_IFACE_DRIVER, &ugd)) {
+	if (ioctl(pdev->file, IOUSB(USB_GET_IFACE_DRIVER), &ugd)) {
 		return (LIBUSB20_ERROR_INVALID_PARAM);
 	}
 	return (0);
@@ -949,7 +953,7 @@ static int
 ugen20_dev_get_info(struct libusb20_device *pdev,
     struct usb_device_info *pinfo)
 {
-	if (ioctl(pdev->file, USB_GET_DEVICEINFO, pinfo)) {
+	if (ioctl(pdev->file, IOUSB(USB_GET_DEVICEINFO), pinfo)) {
 		return (LIBUSB20_ERROR_INVALID_PARAM);
 	}
 	return (0);
@@ -966,7 +970,7 @@ ugen20_root_get_dev_quirk(struct libusb20_backend *pbe,
 
 	q.index = quirk_index;
 
-	error = ugen20_be_ioctl(USB_DEV_QUIRK_GET, &q);
+	error = ugen20_be_ioctl(IOUSB(USB_DEV_QUIRK_GET), &q);
 
 	if (error) {
 		if (errno == EINVAL) {
@@ -993,7 +997,7 @@ ugen20_root_get_quirk_name(struct libusb20_backend *pbe, uint16_t quirk_index,
 
 	q.index = quirk_index;
 
-	error = ugen20_be_ioctl(USB_QUIRK_NAME_GET, &q);
+	error = ugen20_be_ioctl(IOUSB(USB_QUIRK_NAME_GET), &q);
 
 	if (error) {
 		if (errno == EINVAL) {
@@ -1020,7 +1024,7 @@ ugen20_root_add_dev_quirk(struct libusb20_backend *pbe,
 	q.bcdDeviceHigh = pq->bcdDeviceHigh;
 	strlcpy(q.quirkname, pq->quirkname, sizeof(q.quirkname));
 
-	error = ugen20_be_ioctl(USB_DEV_QUIRK_ADD, &q);
+	error = ugen20_be_ioctl(IOUSB(USB_DEV_QUIRK_ADD), &q);
 	if (error) {
 		if (errno == ENOMEM) {
 			return (LIBUSB20_ERROR_NO_MEM);
@@ -1044,7 +1048,7 @@ ugen20_root_remove_dev_quirk(struct libusb20_backend *pbe,
 	q.bcdDeviceHigh = pq->bcdDeviceHigh;
 	strlcpy(q.quirkname, pq->quirkname, sizeof(q.quirkname));
 
-	error = ugen20_be_ioctl(USB_DEV_QUIRK_REMOVE, &q);
+	error = ugen20_be_ioctl(IOUSB(USB_DEV_QUIRK_REMOVE), &q);
 	if (error) {
 		if (errno == EINVAL) {
 			return (LIBUSB20_ERROR_NOT_FOUND);
@@ -1056,11 +1060,11 @@ ugen20_root_remove_dev_quirk(struct libusb20_backend *pbe,
 static int
 ugen20_root_set_template(struct libusb20_backend *pbe, int temp)
 {
-	return (ugen20_be_ioctl(USB_SET_TEMPLATE, &temp));
+	return (ugen20_be_ioctl(IOUSB(USB_SET_TEMPLATE), &temp));
 }
 
 static int
 ugen20_root_get_template(struct libusb20_backend *pbe, int *ptemp)
 {
-	return (ugen20_be_ioctl(USB_GET_TEMPLATE, ptemp));
+	return (ugen20_be_ioctl(IOUSB(USB_GET_TEMPLATE), ptemp));
 }

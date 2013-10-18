@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2000-2004 Mark R V Murray
+ * Copyright (c) 2000-2013 Mark R V Murray
+ * Copyright (c) 2013 Arthur Mesh <arthurmesh@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/random.h>
 #include <sys/selinfo.h>
 #include <sys/uio.h>
 #include <sys/unistd.h>
@@ -51,10 +53,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 
 #include <dev/random/randomdev.h>
+#include <dev/random/randomdev_soft.h>
+#include <dev/random/random_adaptors.h>
+#include <dev/random/random_harvestq.h>
+#include <dev/random/live_entropy_sources.h>
 
 #define RANDOM_MINOR	0
 
-static d_close_t random_close;
 static d_read_t random_read;
 static d_write_t random_write;
 static d_ioctl_t random_ioctl;
@@ -62,7 +67,6 @@ static d_poll_t random_poll;
 
 static struct cdevsw random_cdevsw = {
 	.d_version = D_VERSION,
-	.d_close = random_close,
 	.d_read = random_read,
 	.d_write = random_write,
 	.d_ioctl = random_ioctl,
@@ -70,31 +74,8 @@ static struct cdevsw random_cdevsw = {
 	.d_name = "random",
 };
 
-struct random_systat random_systat;
-
 /* For use with make_dev(9)/destroy_dev(9). */
 static struct cdev *random_dev;
-
-/* Used to fake out unused random calls in random_systat */
-void
-random_null_func(void)
-{
-}
-
-/* ARGSUSED */
-static int
-random_close(struct cdev *dev __unused, int flags, int fmt __unused,
-    struct thread *td)
-{
-	if ((flags & FWRITE) && (priv_check(td, PRIV_RANDOM_RESEED) == 0)
-	    && (securelevel_gt(td->td_ucred, 0) == 0)) {
-		(*random_systat.reseed)();
-		random_systat.seeded = 1;
-		arc4rand(NULL, 0, 1);	/* Reseed arc4random as well. */
-	}
-
-	return (0);
-}
 
 /* ARGSUSED */
 static int
@@ -104,21 +85,24 @@ random_read(struct cdev *dev __unused, struct uio *uio, int flag)
 	void *random_buf;
 
 	/* Blocking logic */
-	if (!random_systat.seeded)
-		error = (*random_systat.block)(flag);
+	if (!random_adaptor->seeded)
+		error = (*random_adaptor->block)(flag);
 
 	/* The actual read */
 	if (!error) {
 
-		random_buf = (void *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+		random_buf = (void *)malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
 
 		while (uio->uio_resid > 0 && !error) {
 			c = MIN(uio->uio_resid, PAGE_SIZE);
-			c = (*random_systat.read)(random_buf, c);
+			c = (*random_adaptor->read)(random_buf, c);
 			error = uiomove(random_buf, c, uio);
 		}
+		/* Finished reading; let the source know so it can do some
+		 * optional housekeeping */
+		(*random_adaptor->read)(NULL, 0);
 
-		free(random_buf, M_TEMP);
+		free(random_buf, M_ENTROPY);
 
 	}
 
@@ -129,22 +113,16 @@ random_read(struct cdev *dev __unused, struct uio *uio, int flag)
 static int
 random_write(struct cdev *dev __unused, struct uio *uio, int flag __unused)
 {
-	int c, error = 0;
-	void *random_buf;
 
-	random_buf = (void *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
+	/* We used to allow this to insert userland entropy.
+	 * We don't any more because (1) this so-called entropy
+	 * is usually lousy and (b) its vaguely possible to
+	 * mess with entropy harvesting by overdoing a write.
+	 * Now we just ignore input like /dev/null does.
+	 */
+	uio->uio_resid = 0;
 
-	while (uio->uio_resid > 0) {
-		c = MIN((int)uio->uio_resid, PAGE_SIZE);
-		error = uiomove(random_buf, c, uio);
-		if (error)
-			break;
-		(*random_systat.write)(random_buf, c);
-	}
-
-	free(random_buf, M_TEMP);
-
-	return (error);
+	return (0);
 }
 
 /* ARGSUSED */
@@ -172,39 +150,71 @@ random_poll(struct cdev *dev __unused, int events, struct thread *td)
 	int revents = 0;
 
 	if (events & (POLLIN | POLLRDNORM)) {
-		if (random_systat.seeded)
+		if (random_adaptor->seeded)
 			revents = events & (POLLIN | POLLRDNORM);
 		else
-			revents = (*random_systat.poll) (events,td);
+			revents = (*random_adaptor->poll)(events, td);
 	}
 	return (revents);
+}
+
+static void
+random_initialize(void *p, struct random_adaptor *s)
+{
+	static int random_inited = 0;
+
+	if (random_inited) {
+		printf("random: <%s> already initialized\n",
+		    random_adaptor->ident);
+		return;
+	}
+
+	random_adaptor = s;
+
+	(s->init)();
+
+	printf("random: <%s> initialized\n", s->ident);
+
+	/* Use an appropriately evil mode for those who are concerned
+	 * with daemons */
+	random_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &random_cdevsw,
+	    RANDOM_MINOR, NULL, UID_ROOT, GID_WHEEL, 0666, "random");
+	make_dev_alias(random_dev, "urandom"); /* compatibility */
+
+	/* mark random(4) as initialized, to avoid being called again */
+	random_inited = 1;
 }
 
 /* ARGSUSED */
 static int
 random_modevent(module_t mod __unused, int type, void *data __unused)
 {
+	static eventhandler_tag attach_tag = NULL;
 	int error = 0;
 
 	switch (type) {
 	case MOD_LOAD:
-		random_ident_hardware(&random_systat);
-		(*random_systat.init)();
+		random_adaptor_choose(&random_adaptor);
 
-		if (bootverbose)
-			printf("random: <entropy source, %s>\n",
-			    random_systat.ident);
-
-		random_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &random_cdevsw,
-		    RANDOM_MINOR, NULL, UID_ROOT, GID_WHEEL, 0666, "random");
-		make_dev_alias(random_dev, "urandom");	/* XXX Deprecated */
+		if (random_adaptor == NULL) {
+			printf("random: No random adaptor attached, "
+			    "postponing initialization\n");
+			attach_tag = EVENTHANDLER_REGISTER(random_adaptor_attach,
+			    random_initialize, NULL, EVENTHANDLER_PRI_ANY);
+		} else
+			random_initialize(NULL, random_adaptor);
 
 		break;
 
 	case MOD_UNLOAD:
-		(*random_systat.deinit)();
-
-		destroy_dev(random_dev);
+		if (random_adaptor != NULL) {
+			(*random_adaptor->deinit)();
+			destroy_dev(random_dev);
+		}
+		/* Unregister the event handler */
+		if (attach_tag != NULL)
+			EVENTHANDLER_DEREGISTER(random_adaptor_attach,
+			    attach_tag);
 
 		break;
 

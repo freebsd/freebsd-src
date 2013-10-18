@@ -257,7 +257,7 @@ ffs_mount(struct mount *mp)
 				return (error);
 			for (;;) {
 				vn_finished_write(mp);
-				if ((error = vfs_write_suspend(mp)) != 0)
+				if ((error = vfs_write_suspend(mp, 0)) != 0)
 					return (error);
 				MNT_ILOCK(mp);
 				if (mp->mnt_kern_flag & MNTK_SUSPENDED) {
@@ -1255,7 +1255,7 @@ ffs_unmount(mp, mntflags)
 		 */
 		for (;;) {
 			vn_finished_write(mp);
-			if ((error = vfs_write_suspend(mp)) != 0)
+			if ((error = vfs_write_suspend(mp, 0)) != 0)
 				return (error);
 			MNT_ILOCK(mp);
 			if (mp->mnt_kern_flag & MNTK_SUSPENDED) {

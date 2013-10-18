@@ -29,32 +29,31 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/types.h>
-#include <sys/errno.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-
-#include <machine/param.h>
-#include <machine/cpufunc.h>
-#include <machine/pmap.h>
-#include <machine/vmparam.h>
+#include <vm/vm_extern.h>
 
 #include <machine/vmm.h>
+
 #include "vmx_cpufunc.h"
 #include "vmx_msr.h"
-#include "vmx.h"
 #include "ept.h"
 
+#define	EPT_SUPPORTS_EXEC_ONLY(cap)	((cap) & (1UL << 0))
 #define	EPT_PWL4(cap)			((cap) & (1UL << 6))
 #define	EPT_MEMORY_TYPE_WB(cap)		((cap) & (1UL << 14))
 #define	EPT_PDE_SUPERPAGE(cap)		((cap) & (1UL << 16))	/* 2MB pages */
 #define	EPT_PDPTE_SUPERPAGE(cap)	((cap) & (1UL << 17))	/* 1GB pages */
-#define	INVVPID_SUPPORTED(cap)		((cap) & (1UL << 32))
 #define	INVEPT_SUPPORTED(cap)		((cap) & (1UL << 20))
+#define	AD_BITS_SUPPORTED(cap)		((cap) & (1UL << 21))
+#define	INVVPID_SUPPORTED(cap)		((cap) & (1UL << 32))
 
 #define	INVVPID_ALL_TYPES_MASK		0xF0000000000UL
 #define	INVVPID_ALL_TYPES_SUPPORTED(cap)	\
@@ -64,23 +63,22 @@ __FBSDID("$FreeBSD$");
 #define	INVEPT_ALL_TYPES_SUPPORTED(cap)		\
 	(((cap) & INVEPT_ALL_TYPES_MASK) == INVEPT_ALL_TYPES_MASK)
 
-#define	EPT_PG_RD			(1 << 0)
-#define	EPT_PG_WR			(1 << 1)
-#define	EPT_PG_EX			(1 << 2)
-#define	EPT_PG_MEMORY_TYPE(x)		((x) << 3)
-#define	EPT_PG_IGNORE_PAT		(1 << 6)
-#define	EPT_PG_SUPERPAGE		(1 << 7)
+#define	EPT_PWLEVELS		4		/* page walk levels */
+#define	EPT_ENABLE_AD_BITS	(1 << 6)
 
-#define	EPT_ADDR_MASK			((uint64_t)-1 << 12)
+SYSCTL_DECL(_hw_vmm);
+SYSCTL_NODE(_hw_vmm, OID_AUTO, ept, CTLFLAG_RW, NULL, NULL);
 
-MALLOC_DECLARE(M_VMX);
+static int ept_enable_ad_bits;
 
-static uint64_t page_sizes_mask;
+static int ept_pmap_flags;
+SYSCTL_INT(_hw_vmm_ept, OID_AUTO, pmap_flags, CTLFLAG_RD,
+    &ept_pmap_flags, 0, NULL);
 
 int
 ept_init(void)
 {
-	int page_shift;
+	int use_hw_ad_bits, use_superpages, use_exec_only;
 	uint64_t cap;
 
 	cap = rdmsr(MSR_VMX_EPT_VPID_CAP);
@@ -100,17 +98,22 @@ ept_init(void)
 	    !INVEPT_ALL_TYPES_SUPPORTED(cap))
 		return (EINVAL);
 
-	/* Set bits in 'page_sizes_mask' for each valid page size */
-	page_shift = PAGE_SHIFT;
-	page_sizes_mask = 1UL << page_shift;		/* 4KB page */
+	use_superpages = 1;
+	TUNABLE_INT_FETCH("hw.vmm.ept.use_superpages", &use_superpages);
+	if (use_superpages && EPT_PDE_SUPERPAGE(cap))
+		ept_pmap_flags |= PMAP_PDE_SUPERPAGE;	/* 2MB superpage */
 
-	page_shift += 9;
-	if (EPT_PDE_SUPERPAGE(cap))
-		page_sizes_mask |= 1UL << page_shift;	/* 2MB superpage */
+	use_hw_ad_bits = 1;
+	TUNABLE_INT_FETCH("hw.vmm.ept.use_hw_ad_bits", &use_hw_ad_bits);
+	if (use_hw_ad_bits && AD_BITS_SUPPORTED(cap))
+		ept_enable_ad_bits = 1;
+	else
+		ept_pmap_flags |= PMAP_EMULATE_AD_BITS;
 
-	page_shift += 9;
-	if (EPT_PDPTE_SUPERPAGE(cap))
-		page_sizes_mask |= 1UL << page_shift;	/* 1GB superpage */
+	use_exec_only = 1;
+	TUNABLE_INT_FETCH("hw.vmm.ept.use_exec_only", &use_exec_only);
+	if (use_exec_only && EPT_SUPPORTS_EXEC_ONLY(cap))
+		ept_pmap_flags |= PMAP_SUPPORTS_EXEC_ONLY;
 
 	return (0);
 }
@@ -149,230 +152,6 @@ ept_dump(uint64_t *ptp, int nlevels)
 }
 #endif
 
-static size_t
-ept_create_mapping(uint64_t *ptp, vm_paddr_t gpa, vm_paddr_t hpa, size_t length,
-		   vm_memattr_t attr, vm_prot_t prot, boolean_t spok)
-{
-	int spshift, ptpshift, ptpindex, nlevels;
-
-	/*
-	 * Compute the size of the mapping that we can accomodate.
-	 *
-	 * This is based on three factors:
-	 * - super page sizes supported by the processor
-	 * - alignment of the region starting at 'gpa' and 'hpa'
-	 * - length of the region 'len'
-	 */
-	spshift = PAGE_SHIFT;
-	if (spok)
-		spshift += (EPT_PWLEVELS - 1) * 9;
-	while (spshift >= PAGE_SHIFT) {
-		uint64_t spsize = 1UL << spshift;
-		if ((page_sizes_mask & spsize) != 0 &&
-		    (gpa & (spsize - 1)) == 0 &&
-		    (hpa & (spsize - 1)) == 0 &&
-		    length >= spsize) {
-			break;
-		}
-		spshift -= 9;
-	}
-
-	if (spshift < PAGE_SHIFT) {
-		panic("Invalid spshift for gpa 0x%016lx, hpa 0x%016lx, "
-		      "length 0x%016lx, page_sizes_mask 0x%016lx",
-		      gpa, hpa, length, page_sizes_mask);
-	}
-
-	nlevels = EPT_PWLEVELS;
-	while (--nlevels >= 0) {
-		ptpshift = PAGE_SHIFT + nlevels * 9;
-		ptpindex = (gpa >> ptpshift) & 0x1FF;
-
-		/* We have reached the leaf mapping */
-		if (spshift >= ptpshift)
-			break;
-
-		/*
-		 * We are working on a non-leaf page table page.
-		 *
-		 * Create the next level page table page if necessary and point
-		 * to it from the current page table.
-		 */
-		if (ptp[ptpindex] == 0) {
-			void *nlp = malloc(PAGE_SIZE, M_VMX, M_WAITOK | M_ZERO);
-			ptp[ptpindex] = vtophys(nlp);
-			ptp[ptpindex] |= EPT_PG_RD | EPT_PG_WR | EPT_PG_EX;
-		}
-
-		/* Work our way down to the next level page table page */
-		ptp = (uint64_t *)PHYS_TO_DMAP(ptp[ptpindex] & EPT_ADDR_MASK);
-	}
-
-	if ((gpa & ((1UL << ptpshift) - 1)) != 0) {
-		panic("ept_create_mapping: gpa 0x%016lx and ptpshift %d "
-		      "mismatch\n", gpa, ptpshift);
-	}
-
-	if (prot != VM_PROT_NONE) {
-		/* Do the mapping */
-		ptp[ptpindex] = hpa;
-
-		/* Apply the access controls */
-		if (prot & VM_PROT_READ)
-			ptp[ptpindex] |= EPT_PG_RD;
-		if (prot & VM_PROT_WRITE)
-			ptp[ptpindex] |= EPT_PG_WR;
-		if (prot & VM_PROT_EXECUTE)
-			ptp[ptpindex] |= EPT_PG_EX;
-
-		/*
-		 * XXX should we enforce this memory type by setting the
-		 * ignore PAT bit to 1.
-		 */
-		ptp[ptpindex] |= EPT_PG_MEMORY_TYPE(attr);
-
-		if (nlevels > 0)
-			ptp[ptpindex] |= EPT_PG_SUPERPAGE;
-	} else {
-		/* Remove the mapping */
-		ptp[ptpindex] = 0;
-	}
-
-	return (1UL << ptpshift);
-}
-
-static vm_paddr_t
-ept_lookup_mapping(uint64_t *ptp, vm_paddr_t gpa)
-{
-	int nlevels, ptpshift, ptpindex;
-	uint64_t ptpval, hpabase, pgmask;
-
-	nlevels = EPT_PWLEVELS;
-	while (--nlevels >= 0) {
-		ptpshift = PAGE_SHIFT + nlevels * 9;
-		ptpindex = (gpa >> ptpshift) & 0x1FF;
-
-		ptpval = ptp[ptpindex];
-
-		/* Cannot make progress beyond this point */
-		if ((ptpval & (EPT_PG_RD | EPT_PG_WR | EPT_PG_EX)) == 0)
-			break;
-
-		if (nlevels == 0 || (ptpval & EPT_PG_SUPERPAGE)) {
-			pgmask = (1UL << ptpshift) - 1;
-			hpabase = ptpval & ~pgmask;
-			return (hpabase | (gpa & pgmask));
-		}
-
-		/* Work our way down to the next level page table page */
-		ptp = (uint64_t *)PHYS_TO_DMAP(ptpval & EPT_ADDR_MASK);
-	}
-
-	return ((vm_paddr_t)-1);
-}
-
-static void
-ept_free_pt_entry(pt_entry_t pte)
-{
-	if (pte == 0)
-		return;
-
-	/* sanity check */
-	if ((pte & EPT_PG_SUPERPAGE) != 0)
-		panic("ept_free_pt_entry: pte cannot have superpage bit");
-
-	return;
-}
-
-static void
-ept_free_pd_entry(pd_entry_t pde)
-{
-	pt_entry_t	*pt;
-	int		i;
-
-	if (pde == 0)
-		return;
-
-	if ((pde & EPT_PG_SUPERPAGE) == 0) {
-		pt = (pt_entry_t *)PHYS_TO_DMAP(pde & EPT_ADDR_MASK);
-		for (i = 0; i < NPTEPG; i++)
-			ept_free_pt_entry(pt[i]);
-		free(pt, M_VMX);	/* free the page table page */
-	}
-}
-
-static void
-ept_free_pdp_entry(pdp_entry_t pdpe)
-{
-	pd_entry_t 	*pd;
-	int		 i;
-
-	if (pdpe == 0)
-		return;
-
-	if ((pdpe & EPT_PG_SUPERPAGE) == 0) {
-		pd = (pd_entry_t *)PHYS_TO_DMAP(pdpe & EPT_ADDR_MASK);
-		for (i = 0; i < NPDEPG; i++)
-			ept_free_pd_entry(pd[i]);
-		free(pd, M_VMX);	/* free the page directory page */
-	}
-}
-
-static void
-ept_free_pml4_entry(pml4_entry_t pml4e)
-{
-	pdp_entry_t	*pdp;
-	int		i;
-
-	if (pml4e == 0)
-		return;
-
-	if ((pml4e & EPT_PG_SUPERPAGE) == 0) {
-		pdp = (pdp_entry_t *)PHYS_TO_DMAP(pml4e & EPT_ADDR_MASK);
-		for (i = 0; i < NPDPEPG; i++)
-			ept_free_pdp_entry(pdp[i]);
-		free(pdp, M_VMX);	/* free the page directory ptr page */
-	}
-}
-
-void
-ept_vmcleanup(struct vmx *vmx)
-{
-	int 		 i;
-
-	for (i = 0; i < NPML4EPG; i++)
-		ept_free_pml4_entry(vmx->pml4ept[i]);
-}
-
-int
-ept_vmmmap_set(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, size_t len,
-		vm_memattr_t attr, int prot, boolean_t spok)
-{
-	size_t n;
-	struct vmx *vmx = arg;
-
-	while (len > 0) {
-		n = ept_create_mapping(vmx->pml4ept, gpa, hpa, len, attr,
-				       prot, spok);
-		len -= n;
-		gpa += n;
-		hpa += n;
-	}
-
-	return (0);
-}
-
-vm_paddr_t
-ept_vmmmap_get(void *arg, vm_paddr_t gpa)
-{
-	vm_paddr_t hpa;
-	struct vmx *vmx;
-
-	vmx = arg;
-	hpa = ept_lookup_mapping(vmx->pml4ept, gpa);
-	return (hpa);
-}
-
 static void
 invept_single_context(void *arg)
 {
@@ -382,11 +161,44 @@ invept_single_context(void *arg)
 }
 
 void
-ept_invalidate_mappings(u_long pml4ept)
+ept_invalidate_mappings(u_long eptp)
 {
 	struct invept_desc invept_desc = { 0 };
 
-	invept_desc.eptp = EPTP(pml4ept);
+	invept_desc.eptp = eptp;
 
 	smp_rendezvous(NULL, invept_single_context, NULL, &invept_desc);
+}
+
+static int
+ept_pinit(pmap_t pmap)
+{
+
+	return (pmap_pinit_type(pmap, PT_EPT, ept_pmap_flags));
+}
+
+struct vmspace *
+ept_vmspace_alloc(vm_offset_t min, vm_offset_t max)
+{
+
+	return (vmspace_alloc(min, max, ept_pinit));
+}
+
+void
+ept_vmspace_free(struct vmspace *vmspace)
+{
+
+	vmspace_free(vmspace);
+}
+
+uint64_t
+eptp(uint64_t pml4)
+{
+	uint64_t eptp_val;
+
+	eptp_val = pml4 | (EPT_PWLEVELS - 1) << 3 | PAT_WRITE_BACK;
+	if (ept_enable_ad_bits)
+		eptp_val |= EPT_ENABLE_AD_BITS;
+
+	return (eptp_val);
 }

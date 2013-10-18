@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_kdtrace.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -63,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/proc.h>		/* for proc0 declaration */
 #include <sys/protosw.h>
+#include <sys/sdt.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -82,6 +84,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/cc.h>
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
@@ -240,67 +243,16 @@ static void inline	hhook_run_tcp_est_in(struct tcpcb *tp,
 			    struct tcphdr *th, struct tcpopt *to);
 
 /*
- * TCP statistics are stored in struct tcpstat_p, which is
- * an "array" of counter(9)s.  Although it isn't a real
- * array, we treat it as array to reduce code bloat.
+ * TCP statistics are stored in an "array" of counter(9)s.
  */
-VNET_DEFINE(struct tcpstat_p, tcpstatp);
-
-static void
-vnet_tcpstatp_init(const void *unused)
-{
-	counter_u64_t *c;
-	int i;
-
-	for (i = 0, c = (counter_u64_t *)&V_tcpstatp;
-	    i < sizeof(V_tcpstatp) / sizeof(counter_u64_t);
-	    i++, c++) {
-		*c = counter_u64_alloc(M_WAITOK);
-		counter_u64_zero(*c);
-	}
-}
-VNET_SYSINIT(vnet_tcpstatp_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
-	    vnet_tcpstatp_init, NULL);
+VNET_PCPUSTAT_DEFINE(struct tcpstat, tcpstat);
+VNET_PCPUSTAT_SYSINIT(tcpstat);
+SYSCTL_VNET_PCPUSTAT(_net_inet_tcp, TCPCTL_STATS, stats, struct tcpstat,
+    tcpstat, "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
 
 #ifdef VIMAGE
-static void
-vnet_tcpstatp_uninit(const void *unused)
-{
-	counter_u64_t *c;
-	int i;
-
-	for (i = 0, c = (counter_u64_t *)&V_tcpstatp;
-	    i < sizeof(V_tcpstatp) / sizeof(counter_u64_t);
-	    i++, c++)
-		counter_u64_free(*c);
-}
-VNET_SYSUNINIT(vnet_tcpstatp_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
-	    vnet_tcpstatp_uninit, NULL);
+VNET_PCPUSTAT_SYSUNINIT(tcpstat);
 #endif /* VIMAGE */
-
-static int
-tcpstat_sysctl(SYSCTL_HANDLER_ARGS)
-{
-	struct tcpstat tcpstat;
-	counter_u64_t *c;
-	uint64_t *v;
-	int i;
-
-	for (i = 0, c = (counter_u64_t *)&V_tcpstatp, v = (uint64_t *)&tcpstat;
-	    i < sizeof(V_tcpstatp) / sizeof(counter_u64_t);
-	    i++, c++, v++) {
-		*v = counter_u64_fetch(*c);
-		if (req->newptr)
-			counter_u64_zero(*c);
-	}
-
-	return (SYSCTL_OUT(req, &tcpstat, sizeof(tcpstat)));
-}
-
-SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_STATS, stats, CTLTYPE_OPAQUE |
-    CTLFLAG_RW, NULL, 0, tcpstat_sysctl, "I", 
-    "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
-
 /*
  * Kernel module interface for updating tcpstat.  The argument is an index
  * into tcpstat treated as an array.
@@ -309,7 +261,7 @@ void
 kmod_tcpstat_inc(int statnum)
 {
 
-	counter_u64_add((counter_u64_t )&V_tcpstatp + statnum, 1);
+	counter_u64_add(VNET(tcpstat)[statnum], 1);
 }
 
 /*
@@ -739,7 +691,10 @@ tcp_input(struct mbuf *m, int off0)
 			bzero(ipov->ih_x1, sizeof(ipov->ih_x1));
 			ipov->ih_len = htons(tlen);
 			th->th_sum = in_cksum(m, len);
+			/* Reset length for SDT probes. */
+			ip->ip_len = htons(tlen + off0);
 		}
+
 		if (th->th_sum) {
 			TCPSTAT_INC(tcps_rcvbadsum);
 			goto drop;
@@ -950,12 +905,12 @@ findpcb:
 #ifdef IPSEC
 #ifdef INET6
 	if (isipv6 && ipsec6_in_reject(m, inp)) {
-		V_ipsec6stat.in_polvio++;
+		IPSEC6STAT_INC(ips_in_polvio);
 		goto dropunlock;
 	} else
 #endif /* INET6 */
 	if (ipsec4_in_reject(m, inp) != 0) {
-		V_ipsec4stat.in_polvio++;
+		IPSECSTAT_INC(ips_in_polvio);
 		goto dropunlock;
 	}
 #endif /* IPSEC */
@@ -1435,6 +1390,8 @@ relocked:
 	}
 #endif
 
+	TCP_PROBE5(receive, NULL, tp, m->m_data, tp, th);
+
 	/*
 	 * Segment belongs to a connection in SYN_SENT, ESTABLISHED or later
 	 * state.  tcp_do_segment() always consumes the mbuf chain, unlocks
@@ -1445,6 +1402,8 @@ relocked:
 	return;
 
 dropwithreset:
+	TCP_PROBE5(receive, NULL, tp, m->m_data, tp, th);
+
 	if (ti_locked == TI_WLOCKED) {
 		INP_INFO_WUNLOCK(&V_tcbinfo);
 		ti_locked = TI_UNLOCKED;
@@ -1466,6 +1425,9 @@ dropwithreset:
 	goto drop;
 
 dropunlock:
+	if (m != NULL)
+		TCP_PROBE5(receive, NULL, tp, m->m_data, tp, th);
+
 	if (ti_locked == TI_WLOCKED) {
 		INP_INFO_WUNLOCK(&V_tcbinfo);
 		ti_locked = TI_UNLOCKED;
@@ -1497,6 +1459,9 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	int thflags, acked, ourfinisacked, needoutput = 0;
 	int rstreason, todrop, win;
 	u_long tiwin;
+	char *s;
+	struct in_conninfo *inc;
+	struct mbuf *mfree;
 	struct tcpopt to;
 
 #ifdef TCPDEBUG
@@ -1509,6 +1474,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	short ostate = 0;
 #endif
 	thflags = th->th_flags;
+	inc = &tp->t_inpcb->inp_inc;
 	tp->sackhint.last_sack_ack = 0;
 
 	/*
@@ -1596,6 +1562,24 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		to.to_tsecr -= tp->ts_offset;
 		if (TSTMP_GT(to.to_tsecr, tcp_ts_getticks()))
 			to.to_tsecr = 0;
+	}
+	/*
+	 * If timestamps were negotiated during SYN/ACK they should
+	 * appear on every segment during this session and vice versa.
+	 */
+	if ((tp->t_flags & TF_RCVD_TSTMP) && !(to.to_flags & TOF_TS)) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: Timestamp missing, "
+			    "no action\n", s, __func__);
+			free(s, M_TCPLOG);
+		}
+	}
+	if (!(tp->t_flags & TF_RCVD_TSTMP) && (to.to_flags & TOF_TS)) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: Timestamp not expected, "
+			    "no action\n", s, __func__);
+			free(s, M_TCPLOG);
+		}
 	}
 
 	/*
@@ -1940,8 +1924,11 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			rstreason = BANDLIM_UNLIMITED;
 			goto dropwithreset;
 		}
-		if ((thflags & (TH_ACK|TH_RST)) == (TH_ACK|TH_RST))
+		if ((thflags & (TH_ACK|TH_RST)) == (TH_ACK|TH_RST)) {
+			TCP_PROBE5(connect_refused, NULL, tp, m->m_data, tp,
+			    th);
 			tp = tcp_drop(tp, ECONNREFUSED);
+		}
 		if (thflags & TH_RST)
 			goto drop;
 		if (!(thflags & TH_SYN))
@@ -1986,11 +1973,13 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 */
 			tp->t_starttime = ticks;
 			if (tp->t_flags & TF_NEEDFIN) {
-				tp->t_state = TCPS_FIN_WAIT_1;
+				tcp_state_change(tp, TCPS_FIN_WAIT_1);
 				tp->t_flags &= ~TF_NEEDFIN;
 				thflags &= ~TH_SYN;
 			} else {
-				tp->t_state = TCPS_ESTABLISHED;
+				tcp_state_change(tp, TCPS_ESTABLISHED);
+				TCP_PROBE5(connect_established, NULL, tp,
+				    m->m_data, tp, th);
 				cc_conn_init(tp);
 				tcp_timer_activate(tp, TT_KEEP,
 				    TP_KEEPIDLE(tp));
@@ -2008,7 +1997,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 */
 			tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
 			tcp_timer_activate(tp, TT_REXMT, 0);
-			tp->t_state = TCPS_SYN_RECEIVED;
+			tcp_state_change(tp, TCPS_SYN_RECEIVED);
 		}
 
 		KASSERT(ti_locked == TI_WLOCKED, ("%s: trimthenstep6: "
@@ -2146,7 +2135,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				    ti_locked));
 				INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 
-				tp->t_state = TCPS_CLOSED;
+				tcp_state_change(tp, TCPS_CLOSED);
 				TCPSTAT_INC(tcps_drops);
 				tp = tcp_close(tp);
 				break;
@@ -2264,15 +2253,14 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((so->so_state & SS_NOFDREF) &&
 	    tp->t_state > TCPS_CLOSE_WAIT && tlen) {
-		char *s;
-
 		KASSERT(ti_locked == TI_WLOCKED, ("%s: SS_NOFDEREF && "
 		    "CLOSE_WAIT && tlen ti_locked %d", __func__, ti_locked));
 		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 
-		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
-			log(LOG_DEBUG, "%s; %s: %s: Received %d bytes of data after socket "
-			    "was closed, sending RST and removing tcpcb\n",
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: %s: Received %d bytes of data "
+			    "after socket was closed, "
+			    "sending RST and removing tcpcb\n",
 			    s, __func__, tcpstates[tp->t_state], tlen);
 			free(s, M_TCPLOG);
 		}
@@ -2392,10 +2380,12 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 */
 		tp->t_starttime = ticks;
 		if (tp->t_flags & TF_NEEDFIN) {
-			tp->t_state = TCPS_FIN_WAIT_1;
+			tcp_state_change(tp, TCPS_FIN_WAIT_1);
 			tp->t_flags &= ~TF_NEEDFIN;
 		} else {
-			tp->t_state = TCPS_ESTABLISHED;
+			tcp_state_change(tp, TCPS_ESTABLISHED);
+			TCP_PROBE5(accept_established, NULL, tp, m->m_data, tp,
+			    th);
 			cc_conn_init(tp);
 			tcp_timer_activate(tp, TT_KEEP, TP_KEEPIDLE(tp));
 		}
@@ -2729,15 +2719,17 @@ process_ACK:
 		SOCKBUF_LOCK(&so->so_snd);
 		if (acked > so->so_snd.sb_cc) {
 			tp->snd_wnd -= so->so_snd.sb_cc;
-			sbdrop_locked(&so->so_snd, (int)so->so_snd.sb_cc);
+			mfree = sbcut_locked(&so->so_snd,
+			    (int)so->so_snd.sb_cc);
 			ourfinisacked = 1;
 		} else {
-			sbdrop_locked(&so->so_snd, acked);
+			mfree = sbcut_locked(&so->so_snd, acked);
 			tp->snd_wnd -= acked;
 			ourfinisacked = 0;
 		}
 		/* NB: sowwakeup_locked() does an implicit unlock. */
 		sowwakeup_locked(so);
+		m_freem(mfree);
 		/* Detect una wraparound. */
 		if (!IN_RECOVERY(tp->t_flags) &&
 		    SEQ_GT(tp->snd_una, tp->snd_recover) &&
@@ -2783,7 +2775,7 @@ process_ACK:
 					    tcp_finwait2_timeout :
 					    TP_MAXIDLE(tp)));
 				}
-				tp->t_state = TCPS_FIN_WAIT_2;
+				tcp_state_change(tp, TCPS_FIN_WAIT_2);
 			}
 			break;
 
@@ -3009,7 +3001,7 @@ dodata:							/* XXX */
 			tp->t_starttime = ticks;
 			/* FALLTHROUGH */
 		case TCPS_ESTABLISHED:
-			tp->t_state = TCPS_CLOSE_WAIT;
+			tcp_state_change(tp, TCPS_CLOSE_WAIT);
 			break;
 
 		/*
@@ -3017,7 +3009,7 @@ dodata:							/* XXX */
 		 * enter the CLOSING state.
 		 */
 		case TCPS_FIN_WAIT_1:
-			tp->t_state = TCPS_CLOSING;
+			tcp_state_change(tp, TCPS_CLOSING);
 			break;
 
 		/*

@@ -56,6 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_enc.h>
 #include <cam/scsi/scsi_enc_internal.h>
 
+#include <opt_ses.h>
+
 MALLOC_DEFINE(M_SCSIENC, "SCSI ENC", "SCSI ENC buffers");
 
 /* Enclosure type independent driver */
@@ -176,8 +178,6 @@ enc_oninvalidate(struct cam_periph *periph)
 	callout_drain(&enc->status_updater);
 
 	destroy_dev_sched_cb(enc->enc_dev, enc_devgonecb, periph);
-
-	xpt_print(periph->path, "lost device\n");
 }
 
 static void
@@ -186,9 +186,6 @@ enc_dtor(struct cam_periph *periph)
 	struct enc_softc *enc;
 
 	enc = periph->softc;
-
-	xpt_print(periph->path, "removing device entry\n");
-
 
 	/* If the sub-driver has a cleanup routine, call it */
 	if (enc->enc_vec.softc_cleanup != NULL)
@@ -719,12 +716,12 @@ enc_type(struct ccb_getdev *cgd)
 		return (ENC_NONE);
 	}
 
-#ifdef	ENC_ENABLE_PASSTHROUGH
+#ifdef	SES_ENABLE_PASSTHROUGH
 	if ((iqd[6] & 0x40) && (iqd[2] & 0x7) >= 2) {
 		/*
 		 * PassThrough Device.
 		 */
-		return (ENC_ENC_PASSTHROUGH);
+		return (ENC_SES_PASSTHROUGH);
 	}
 #endif
 

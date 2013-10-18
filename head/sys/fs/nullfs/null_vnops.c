@@ -554,6 +554,7 @@ null_rename(struct vop_rename_args *ap)
 	struct vnode *fvp = ap->a_fvp;
 	struct vnode *fdvp = ap->a_fdvp;
 	struct vnode *tvp = ap->a_tvp;
+	struct null_node *tnn;
 
 	/* Check for cross-device rename. */
 	if ((fvp->v_mount != tdvp->v_mount) ||
@@ -568,7 +569,11 @@ null_rename(struct vop_rename_args *ap)
 		vrele(fvp);
 		return (EXDEV);
 	}
-	
+
+	if (tvp != NULL) {
+		tnn = VTONULL(tvp);
+		tnn->null_flags |= NULLV_DROP;
+	}
 	return (null_bypass((struct vop_generic_args *)ap));
 }
 
@@ -853,6 +858,15 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 	return (error);
 }
 
+static int
+null_link(struct vop_link_args *ap)
+{
+
+	if (ap->a_tdvp->v_mount != ap->a_vp->v_mount)
+		return (EXDEV);
+	return (null_bypass((struct vop_generic_args *)ap));
+}
+
 /*
  * Global vfs data structures
  */
@@ -866,6 +880,7 @@ struct vop_vector null_vnodeops = {
 	.vop_getwritemount =	null_getwritemount,
 	.vop_inactive =		null_inactive,
 	.vop_islocked =		vop_stdislocked,
+	.vop_link =		null_link,
 	.vop_lock1 =		null_lock,
 	.vop_lookup =		null_lookup,
 	.vop_open =		null_open,

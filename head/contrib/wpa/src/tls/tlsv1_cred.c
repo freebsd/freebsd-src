@@ -2,14 +2,8 @@
  * TLSv1 credentials
  * Copyright (c) 2006-2009, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -46,7 +40,7 @@ void tlsv1_cred_free(struct tlsv1_credentials *cred)
 static int tlsv1_add_cert_der(struct x509_certificate **chain,
 			      const u8 *buf, size_t len)
 {
-	struct x509_certificate *cert;
+	struct x509_certificate *cert, *p;
 	char name[128];
 
 	cert = x509_certificate_parse(buf, len);
@@ -56,8 +50,20 @@ static int tlsv1_add_cert_der(struct x509_certificate **chain,
 		return -1;
 	}
 
-	cert->next = *chain;
-	*chain = cert;
+	p = *chain;
+	while (p && p->next)
+		p = p->next;
+	if (p && x509_name_compare(&cert->subject, &p->issuer) == 0) {
+		/*
+		 * The new certificate is the issuer of the last certificate in
+		 * the chain - add the new certificate to the end.
+		 */
+		p->next = cert;
+	} else {
+		/* Add to the beginning of the chain */
+		cert->next = *chain;
+		*chain = cert;
+	}
 
 	x509_name_string(&cert->subject, name, sizeof(name));
 	wpa_printf(MSG_DEBUG, "TLSv1: Added certificate: %s", name);
@@ -232,10 +238,17 @@ static struct crypto_private_key * tlsv1_set_key_pem(const u8 *key, size_t len)
 		if (!end)
 			return NULL;
 	} else {
+		const u8 *pos2;
 		pos += os_strlen(pem_key_begin);
 		end = search_tag(pem_key_end, pos, key + len - pos);
 		if (!end)
 			return NULL;
+		pos2 = search_tag("Proc-Type: 4,ENCRYPTED", pos, end - pos);
+		if (pos2) {
+			wpa_printf(MSG_DEBUG, "TLSv1: Unsupported private key "
+				   "format (Proc-Type/DEK-Info)");
+			return NULL;
+		}
 	}
 
 	der = base64_decode(pos, end - pos, &der_len);

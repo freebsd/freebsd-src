@@ -38,7 +38,4 @@
 #define	BCM2835_MBOX_CHAN_TS		6
 #define	BCM2835_MBOX_CHANS		7
 
-int bcm_mbox_write(int chan, uint32_t data);
-int bcm_mbox_read(int chan, uint32_t *data);
-
 #endif /* _BCM2835_MBOX_H_ */

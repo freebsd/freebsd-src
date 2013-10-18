@@ -6,7 +6,7 @@
  *
  * See the LICENSE file for redistribution information.
  *
- *	@(#)screen.h	10.24 (Berkeley) 7/19/96
+ *	$Id: screen.h,v 10.26 2011/12/12 22:31:36 zy Exp $
  */
 
 /*
@@ -32,7 +32,7 @@
  */
 struct _scr {
 /* INITIALIZED AT SCREEN CREATE. */
-	CIRCLEQ_ENTRY(_scr) q;		/* Screens. */
+	TAILQ_ENTRY(_scr) q;		/* Screens. */
 
 	int	 id;			/* Screen id #. */
 	int	 refcnt;		/* Reference count. */
@@ -55,7 +55,8 @@ struct _scr {
 	size_t	 t_rows;		/* 1-N: cur number of text rows. */
 	size_t	 t_maxrows;		/* 1-N: max number of text rows. */
 	size_t	 t_minrows;		/* 1-N: min number of text rows. */
-	size_t	 woff;			/* 0-N: screen offset in frame. */
+	size_t	 coff;			/* 0-N: screen col offset in display. */
+	size_t	 roff;			/* 0-N: screen row offset in display. */
 
 					/* Cursor's: */
 	recno_t	 lno;			/* 1-N: file line. */
@@ -73,15 +74,16 @@ struct _scr {
 	recno_t	 rptlchange;		/* Ex/vi: last L_CHANGED lno. */
 	recno_t	 rptlines[L_YANKED + 1];/* Ex/vi: lines changed by last op. */
 
-	TEXTH	 tiq;			/* Ex/vi: text input queue. */
+	TEXTH	 tiq[1];		/* Ex/vi: text input queue. */
 
 	SCRIPT	*script;		/* Vi: script mode information .*/
 
 	recno_t	 defscroll;		/* Vi: ^D, ^U scroll information. */
 
 					/* Display character. */
-	CHAR_T	 cname[MAX_CHARACTER_COLUMNS + 1];
+	char	 cname[MAX_CHARACTER_COLUMNS + 1];
 	size_t	 clen;			/* Length of display character. */
+	ARG_CHAR_T lastc;		/* The last display character. */
 
 	enum {				/* Vi editor mode. */
 	    SM_APPEND = 0, SM_CHANGE, SM_COMMAND, SM_INSERT,
@@ -89,7 +91,10 @@ struct _scr {
 
 	void	*ex_private;		/* Ex private area. */
 	void	*vi_private;		/* Vi private area. */
-	void	*perl_private;		/* Perl private area. */
+	void	*cl_private;		/* Curses private area. */
+
+	CONV	 conv;			/* Conversion functions. */
+	CONVWIN	 cw;			/* Conversion buffer. */
 
 /* PARTIALLY OR COMPLETELY COPIED FROM PREVIOUS SCREEN. */
 	char	*alt_name;		/* Ex/vi: alternate file name. */
@@ -103,8 +108,10 @@ struct _scr {
 #define	RE_C_SUBST	0x0008		/* Compile substitute replacement. */
 #define	RE_C_TAG	0x0010		/* Compile ctag pattern. */
 
-#define	RE_WSTART	"[[:<:]]"	/* Ex/vi: not-in-word search pattern. */
-#define	RE_WSTOP	"[[:>:]]"
+#define	RE_WSTART	L("[[:<:]]")	/* Ex/vi: not-in-word search pattern. */
+#define	RE_WSTOP	L("[[:>:]]")
+#define RE_WSTART_LEN	(SIZE(RE_WSTART) - 1)
+#define RE_WSTOP_LEN	(SIZE(RE_WSTOP) - 1)
 					/* Ex/vi: flags to search routines. */
 #define	SEARCH_CSCOPE	0x0001		/* Search for a cscope pattern. */
 #define	SEARCH_EOL	0x0002		/* Offset past EOL is okay. */
@@ -119,12 +126,12 @@ struct _scr {
 					/* Ex/vi: RE information. */
 	dir_t	 searchdir;		/* Last file search direction. */
 	regex_t	 re_c;			/* Search RE: compiled form. */
-	char	*re;			/* Search RE: uncompiled form. */
+	CHAR_T	*re;			/* Search RE: uncompiled form. */
 	size_t	 re_len;		/* Search RE: uncompiled length. */
 	regex_t	 subre_c;		/* Substitute RE: compiled form. */
-	char	*subre;			/* Substitute RE: uncompiled form. */
+	CHAR_T	*subre;			/* Substitute RE: uncompiled form. */
 	size_t	 subre_len;		/* Substitute RE: uncompiled length). */
-	char	*repl;			/* Substitute replacement. */
+	CHAR_T	*repl;			/* Substitute replacement. */
 	size_t	 repl_len;		/* Substitute replacement length.*/
 	size_t	*newl;			/* Newline offset array. */
 	size_t	 newl_len;		/* Newline array size. */
@@ -199,5 +206,6 @@ struct _scr {
 #define	SC_STATUS_CNT	0x04000000	/* Welcome message plus file count. */
 #define	SC_TINPUT	0x08000000	/* Doing text input. */
 #define	SC_TINPUT_INFO	0x10000000	/* Doing text input on info line. */
+#define SC_CONV_ERROR	0x20000000	/* Met with a conversion error. */
 	u_int32_t flags;
 };

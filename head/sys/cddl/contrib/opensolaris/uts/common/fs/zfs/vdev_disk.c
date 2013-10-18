@@ -21,6 +21,8 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2013 Joyent, Inc.  All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -134,18 +136,34 @@ vdev_disk_get_space(vdev_t *vd, uint64_t capacity, uint_t blksz)
 	return (avail_space);
 }
 
+/*
+ * We want to be loud in DEBUG kernels when DKIOCGMEDIAINFOEXT fails, or when
+ * even a fallback to DKIOCGMEDIAINFO fails.
+ */
+#ifdef DEBUG
+#define	VDEV_DEBUG(...)	cmn_err(CE_NOTE, __VA_ARGS__)
+#else
+#define	VDEV_DEBUG(...)	/* Nothing... */
+#endif
+
 static int
 vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
     uint64_t *ashift)
 {
 	spa_t *spa = vd->vdev_spa;
 	vdev_disk_t *dvd;
-	struct dk_minfo_ext dkmext;
+	union {
+		struct dk_minfo_ext ude;
+		struct dk_minfo ud;
+	} dks;
+	struct dk_minfo_ext *dkmext = &dks.ude;
+	struct dk_minfo *dkm = &dks.ud;
 	int error;
 	dev_t dev;
 	int otyp;
 	boolean_t validate_devid = B_FALSE;
 	ddi_devid_t devid;
+	uint64_t capacity = 0, blksz = 0, pbsize;
 
 	/*
 	 * We must have a pathname, and it must be absolute.
@@ -330,33 +348,56 @@ skip_open:
 		return (SET_ERROR(EINVAL));
 	}
 
+	*max_psize = *psize;
+
 	/*
 	 * Determine the device's minimum transfer size.
 	 * If the ioctl isn't supported, assume DEV_BSIZE.
 	 */
-	if (ldi_ioctl(dvd->vd_lh, DKIOCGMEDIAINFOEXT, (intptr_t)&dkmext,
-	    FKIOCTL, kcred, NULL) != 0)
-		dkmext.dki_pbsize = DEV_BSIZE;
+	if ((error = ldi_ioctl(dvd->vd_lh, DKIOCGMEDIAINFOEXT,
+	    (intptr_t)dkmext, FKIOCTL, kcred, NULL)) == 0) {
+		capacity = dkmext->dki_capacity - 1;
+		blksz = dkmext->dki_lbsize;
+		pbsize = dkmext->dki_pbsize;
+	} else if ((error = ldi_ioctl(dvd->vd_lh, DKIOCGMEDIAINFO,
+	    (intptr_t)dkm, FKIOCTL, kcred, NULL)) == 0) {
+		VDEV_DEBUG(
+		    "vdev_disk_open(\"%s\"): fallback to DKIOCGMEDIAINFO\n",
+		    vd->vdev_path);
+		capacity = dkm->dki_capacity - 1;
+		blksz = dkm->dki_lbsize;
+		pbsize = blksz;
+	} else {
+		VDEV_DEBUG("vdev_disk_open(\"%s\"): "
+		    "both DKIOCGMEDIAINFO{,EXT} calls failed, %d\n",
+		    vd->vdev_path, error);
+		pbsize = DEV_BSIZE;
+	}
 
-	*ashift = highbit(MAX(dkmext.dki_pbsize, SPA_MINBLOCKSIZE)) - 1;
+	*ashift = highbit(MAX(pbsize, SPA_MINBLOCKSIZE)) - 1;
 
 	if (vd->vdev_wholedisk == 1) {
-		uint64_t capacity = dkmext.dki_capacity - 1;
-		uint64_t blksz = dkmext.dki_lbsize;
 		int wce = 1;
 
+		if (error == 0) {
+			/*
+			 * If we have the capability to expand, we'd have
+			 * found out via success from DKIOCGMEDIAINFO{,EXT}.
+			 * Adjust max_psize upward accordingly since we know
+			 * we own the whole disk now.
+			 */
+			*max_psize += vdev_disk_get_space(vd, capacity, blksz);
+			zfs_dbgmsg("capacity change: vdev %s, psize %llu, "
+			    "max_psize %llu", vd->vdev_path, *psize,
+			    *max_psize);
+		}
+
 		/*
-		 * If we own the whole disk, try to enable disk write caching.
-		 * We ignore errors because it's OK if we can't do it.
+		 * Since we own the whole disk, try to enable disk write
+		 * caching.  We ignore errors because it's OK if we can't do it.
 		 */
 		(void) ldi_ioctl(dvd->vd_lh, DKIOCSETWCE, (intptr_t)&wce,
 		    FKIOCTL, kcred, NULL);
-
-		*max_psize = *psize + vdev_disk_get_space(vd, capacity, blksz);
-		zfs_dbgmsg("capacity change: vdev %s, psize %llu, "
-		    "max_psize %llu", vd->vdev_path, *psize, *max_psize);
-	} else {
-		*max_psize = *psize;
 	}
 
 	/*
@@ -391,8 +432,29 @@ vdev_disk_close(vdev_t *vd)
 }
 
 int
-vdev_disk_physio(ldi_handle_t vd_lh, caddr_t data, size_t size,
-    uint64_t offset, int flags)
+vdev_disk_physio(vdev_t *vd, caddr_t data,
+    size_t size, uint64_t offset, int flags, boolean_t isdump)
+{
+	vdev_disk_t *dvd = vd->vdev_tsd;
+
+	ASSERT(vd->vdev_ops == &vdev_disk_ops);
+
+	/*
+	 * If in the context of an active crash dump, use the ldi_dump(9F)
+	 * call instead of ldi_strategy(9F) as usual.
+	 */
+	if (isdump) {
+		ASSERT3P(dvd, !=, NULL);
+		return (ldi_dump(dvd->vd_lh, data, lbtodb(offset),
+		    lbtodb(size)));
+	}
+
+	return (vdev_disk_ldi_physio(dvd->vd_lh, data, size, offset, flags));
+}
+
+int
+vdev_disk_ldi_physio(ldi_handle_t vd_lh, caddr_t data,
+    size_t size, uint64_t offset, int flags)
 {
 	buf_t *bp;
 	int error = 0;
@@ -640,7 +702,7 @@ vdev_disk_read_rootlabel(char *devpath, char *devid, nvlist_t **config)
 
 		/* read vdev label */
 		offset = vdev_label_offset(size, l, 0);
-		if (vdev_disk_physio(vd_lh, (caddr_t)label,
+		if (vdev_disk_ldi_physio(vd_lh, (caddr_t)label,
 		    VDEV_SKIP_SIZE + VDEV_PHYS_SIZE, offset, B_READ) != 0)
 			continue;
 

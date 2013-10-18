@@ -1589,7 +1589,9 @@ ieee80211_ioctl_setmlme(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	    mlme.im_op == IEEE80211_MLME_ASSOC)
 		return setmlme_assoc_sta(vap, mlme.im_macaddr,
 		    vap->iv_des_ssid[0].len, vap->iv_des_ssid[0].ssid);
-	else if (mlme.im_op == IEEE80211_MLME_ASSOC)
+	else if ((vap->iv_opmode == IEEE80211_M_IBSS || 
+	    vap->iv_opmode == IEEE80211_M_AHDEMO) && 
+	    mlme.im_op == IEEE80211_MLME_ASSOC)
 		return setmlme_assoc_adhoc(vap, mlme.im_macaddr,
 		    mlme.im_ssid_len, mlme.im_ssid);
 	else

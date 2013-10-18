@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/psl.h>
 #include <machine/smp.h>
 #include <machine/specialreg.h>
+#include <machine/cpu.h>
 
 #define WARMBOOT_TARGET		0
 #define WARMBOOT_OFF		(KERNBASE + 0x0467)
@@ -166,6 +167,11 @@ u_long *ipi_lazypmap_counts[MAXCPU];
 static u_long *ipi_hardclock_counts[MAXCPU];
 #endif
 
+/* Default cpu_ops implementation. */
+struct cpu_ops cpu_ops = {
+	.ipi_vectored = lapic_ipi_vectored
+};
+
 /*
  * Local data and functions.
  */
@@ -192,7 +198,7 @@ int cpu_apic_ids[MAXCPU];
 int apic_cpuids[MAX_APIC_ID + 1];
 
 /* Holds pending bitmap based IPIs per CPU */
-static volatile u_int cpu_ipi_pending[MAXCPU];
+volatile u_int cpu_ipi_pending[MAXCPU];
 
 static u_int boot_address;
 static int cpu_logical;			/* logical cpus per core */
@@ -747,6 +753,9 @@ init_secondary(void)
 	/* set up SSE registers */
 	enable_sse();
 
+	if (cpu_ops.cpu_init)
+		cpu_ops.cpu_init();
+
 #ifdef PAE
 	/* Enable the PTE no-execute bit. */
 	if ((amd_feature & AMDID_NX) != 0) {
@@ -959,8 +968,10 @@ start_all_aps(void)
 
 		/* allocate and set up a boot stack data page */
 		bootstacks[cpu] =
-		    (char *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
-		dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
+		    (char *)kmem_malloc(kernel_arena, KSTACK_PAGES * PAGE_SIZE,
+		    M_WAITOK | M_ZERO);
+		dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
+		    M_WAITOK | M_ZERO);
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
 		*((volatile u_short *) WARMBOOT_SEG) = (boot_address >> 4);
@@ -1198,7 +1209,7 @@ ipi_send_cpu(int cpu, u_int ipi)
 		if (old_pending)
 			return;
 	}
-	lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
+	cpu_ops.ipi_vectored(ipi, cpu_apic_ids[cpu]);
 }
 
 /*
@@ -1449,7 +1460,7 @@ ipi_all_but_self(u_int ipi)
 		CPU_OR_ATOMIC(&ipi_nmi_pending, &other_cpus);
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
+	cpu_ops.ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
 }
 
 int
@@ -1510,8 +1521,9 @@ cpususpend_handler(void)
 {
 	u_int cpu;
 
-	cpu = PCPU_GET(cpuid);
+	mtx_assert(&smp_ipi_mtx, MA_NOTOWNED);
 
+	cpu = PCPU_GET(cpuid);
 	if (savectx(susppcbs[cpu])) {
 		wbinvd();
 		CPU_SET_ATOMIC(cpu, &suspended_cpus);
@@ -1528,10 +1540,15 @@ cpususpend_handler(void)
 	while (!CPU_ISSET(cpu, &started_cpus))
 		ia32_pause();
 
+	if (cpu_ops.cpu_resume)
+		cpu_ops.cpu_resume();
+
 	/* Resume MCA and local APIC */
 	mca_resume();
 	lapic_setup(0);
 
+	/* Indicate that we are resumed */
+	CPU_CLR_ATOMIC(cpu, &suspended_cpus);
 	CPU_CLR_ATOMIC(cpu, &started_cpus);
 }
 /*

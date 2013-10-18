@@ -379,7 +379,7 @@ __END_DECLS
 
 #define	INADDR_LOOPBACK		(u_int32_t)0x7f000001
 #ifndef _KERNEL
-#define	INADDR_NONE		0xffffffff		/* -1 return */
+#define	INADDR_NONE		(uint32_t)0xffffffff	/* -1 return */
 #endif
 
 #define	INADDR_UNSPEC_GROUP	(u_int32_t)0xe0000000	/* 224.0.0.0 */
@@ -698,24 +698,6 @@ int	getsourcefilter(int, uint32_t, struct sockaddr *, socklen_t,
 #define	IPCTL_KEEPFAITH		15	/* FAITH IPv4->IPv6 translater ctl */
 #define	IPCTL_GIF_TTL		16	/* default TTL for gif encap packet */
 #define	IPCTL_MAXID		17
-
-#define	IPCTL_NAMES { \
-	{ 0, 0 }, \
-	{ "forwarding", CTLTYPE_INT }, \
-	{ "redirect", CTLTYPE_INT }, \
-	{ "ttl", CTLTYPE_INT }, \
-	{ "mtu", CTLTYPE_INT }, \
-	{ "rtexpire", CTLTYPE_INT }, \
-	{ "rtminexpire", CTLTYPE_INT }, \
-	{ "rtmaxcache", CTLTYPE_INT }, \
-	{ "sourceroute", CTLTYPE_INT }, \
-	{ "directed-broadcast", CTLTYPE_INT }, \
-	{ "intr-queue-maxlen", CTLTYPE_INT }, \
-	{ "intr-queue-drops", CTLTYPE_INT }, \
-	{ "stats", CTLTYPE_STRUCT }, \
-	{ "accept_sourceroute", CTLTYPE_INT }, \
-	{ "fastforwarding", CTLTYPE_INT }, \
-}
 
 #endif /* __BSD_VISIBLE */
 

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 27, 2012
+.Dd June 30, 2013
 .Dt KILLALL 1
 .Os
 .Sh NAME
@@ -110,6 +110,8 @@ the specified
 Limit potentially matching processes to those matching
 the specified
 .Ar procname .
+.It Fl q
+Suppress error message if no processes are matched.
 .It Fl z
 Do not skip zombies.
 This should not have any effect except to print a few error messages

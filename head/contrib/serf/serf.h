@@ -59,57 +59,55 @@ typedef struct serf_request_t serf_request_t;
  * Serf-specific error codes
  */
 #define SERF_ERROR_RANGE 100
+#define SERF_ERROR_START (APR_OS_START_USERERR + SERF_ERROR_RANGE)
 
 /* This code is for when this is the last response on this connection:
  * i.e. do not send any more requests on this connection or expect
  * any more responses.
  */
-#define SERF_ERROR_CLOSING (APR_OS_START_USERERR + SERF_ERROR_RANGE + 1)
+#define SERF_ERROR_CLOSING (SERF_ERROR_START + 1)
 /* This code is for when the connection terminated before the request
  * could be processed on the other side.
  */
-#define SERF_ERROR_REQUEST_LOST (APR_OS_START_USERERR + SERF_ERROR_RANGE + 2)
+#define SERF_ERROR_REQUEST_LOST (SERF_ERROR_START + 2)
 /* This code is for when the connection is blocked - we can not proceed
  * until something happens - generally due to SSL negotiation-like behavior
  * where a write() is blocked until a read() is processed.
  */
-#define SERF_ERROR_WAIT_CONN (APR_OS_START_USERERR + SERF_ERROR_RANGE + 3)
+#define SERF_ERROR_WAIT_CONN (SERF_ERROR_START + 3)
 /* This code is for when something went wrong during deflating compressed
  * data e.g. a CRC error. */
-#define SERF_ERROR_DECOMPRESSION_FAILED (APR_OS_START_USERERR + \
-                                             SERF_ERROR_RANGE + 4)
+#define SERF_ERROR_DECOMPRESSION_FAILED (SERF_ERROR_START + 4)
 /* This code is for when a response received from a http server is not in
  * http-compliant syntax. */
-#define SERF_ERROR_BAD_HTTP_RESPONSE (APR_OS_START_USERERR + \
-                                             SERF_ERROR_RANGE + 5)
+#define SERF_ERROR_BAD_HTTP_RESPONSE (SERF_ERROR_START + 5)
 /* The server sent less data than what was announced. */
-#define SERF_ERROR_TRUNCATED_HTTP_RESPONSE (APR_OS_START_USERERR + \
-                                            SERF_ERROR_RANGE + 6)
+#define SERF_ERROR_TRUNCATED_HTTP_RESPONSE (SERF_ERROR_START + 6)
 /* The proxy server returned an error while setting up the SSL tunnel. */
-#define SERF_ERROR_SSLTUNNEL_SETUP_FAILED (APR_OS_START_USERERR + \
-                                           SERF_ERROR_RANGE + 7)
+#define SERF_ERROR_SSLTUNNEL_SETUP_FAILED (SERF_ERROR_START + 7)
 /* The server unexpectedly closed the connection prematurely. */
-#define SERF_ERROR_ABORTED_CONNECTION (APR_OS_START_USERERR + \
-                                            SERF_ERROR_RANGE + 8)
+#define SERF_ERROR_ABORTED_CONNECTION (SERF_ERROR_START + 8)
 
 /* SSL certificates related errors */
-#define SERF_ERROR_SSL_CERT_FAILED (APR_OS_START_USERERR + SERF_ERROR_RANGE + 70)
+#define SERF_ERROR_SSL_CERT_FAILED (SERF_ERROR_START + 70)
 
 /* SSL communications related errors */
-#define SERF_ERROR_SSL_COMM_FAILED (APR_OS_START_USERERR + SERF_ERROR_RANGE + 71)
+#define SERF_ERROR_SSL_COMM_FAILED (SERF_ERROR_START + 71)
 
 /* General authentication related errors */
-#define SERF_ERROR_AUTHN_FAILED (APR_OS_START_USERERR + SERF_ERROR_RANGE + 90)
+#define SERF_ERROR_AUTHN_FAILED (SERF_ERROR_START + 90)
 
 /* None of the available authn mechanisms for the request are supported */
-#define SERF_ERROR_AUTHN_NOT_SUPPORTED (APR_OS_START_USERERR + SERF_ERROR_RANGE + 91)
+#define SERF_ERROR_AUTHN_NOT_SUPPORTED (SERF_ERROR_START + 91)
 
 /* Authn was requested by the server but the header lacked some attribute  */
-#define SERF_ERROR_AUTHN_MISSING_ATTRIBUTE (APR_OS_START_USERERR + SERF_ERROR_RANGE + 92)
+#define SERF_ERROR_AUTHN_MISSING_ATTRIBUTE (SERF_ERROR_START + 92)
 
 /* Authentication handler initialization related errors */
-#define SERF_ERROR_AUTHN_INITALIZATION_FAILED (APR_OS_START_USERERR +\
-    SERF_ERROR_RANGE + 93)
+#define SERF_ERROR_AUTHN_INITALIZATION_FAILED (SERF_ERROR_START + 93)
+
+/* Error code reserved for use in the test suite. */
+#define SERF_ERROR_ISSUE_IN_TESTSUITE (SERF_ERROR_START + 99)
 
 /* This macro groups errors potentially raised when reading a http response.  */
 #define SERF_BAD_RESPONSE_ERROR(status) ((status) \
@@ -497,6 +495,8 @@ apr_status_t serf_connection_close(
  * connection @a conn. Setting max_requests to 0 means unlimited (the default).
  * Ex.: setting max_requests to 1 means a request is sent when a response on the
  * previous request was received and handled.
+ *
+ * In general, serf tends to take around 16KB per outstanding request.
  */
 void serf_connection_set_max_outstanding_requests(
     serf_connection_t *conn,
@@ -1061,8 +1061,8 @@ void serf_debug__bucket_alloc_check(
 
 /* Version info */
 #define SERF_MAJOR_VERSION 1
-#define SERF_MINOR_VERSION 2
-#define SERF_PATCH_VERSION 1
+#define SERF_MINOR_VERSION 3
+#define SERF_PATCH_VERSION 0
 
 /* Version number string */
 #define SERF_VERSION_STRING APR_STRINGIFY(SERF_MAJOR_VERSION) "." \

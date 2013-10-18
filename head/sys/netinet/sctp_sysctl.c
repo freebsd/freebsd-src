@@ -81,6 +81,7 @@ sctp_init_sysctls()
 	SCTP_BASE_SYSCTL(sctp_path_rtx_max_default) = SCTPCTL_PATH_RTX_MAX_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_path_pf_threshold) = SCTPCTL_PATH_PF_THRESHOLD_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_add_more_threshold) = SCTPCTL_ADD_MORE_ON_OUTPUT_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_nr_incoming_streams_default) = SCTPCTL_INCOMING_STREAMS_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_nr_outgoing_streams_default) = SCTPCTL_OUTGOING_STREAMS_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_cmt_on_off) = SCTPCTL_CMT_ON_OFF_DEFAULT;
 	/* EY */
@@ -623,6 +624,7 @@ sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_path_rtx_max_default), SCTPCTL_PATH_RTX_MAX_MIN, SCTPCTL_PATH_RTX_MAX_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_path_pf_threshold), SCTPCTL_PATH_PF_THRESHOLD_MIN, SCTPCTL_PATH_PF_THRESHOLD_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_add_more_threshold), SCTPCTL_ADD_MORE_ON_OUTPUT_MIN, SCTPCTL_ADD_MORE_ON_OUTPUT_MAX);
+		RANGECHK(SCTP_BASE_SYSCTL(sctp_nr_incoming_streams_default), SCTPCTL_INCOMING_STREAMS_MIN, SCTPCTL_INCOMING_STREAMS_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_nr_outgoing_streams_default), SCTPCTL_OUTGOING_STREAMS_MIN, SCTPCTL_OUTGOING_STREAMS_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_cmt_on_off), SCTPCTL_CMT_ON_OFF_MIN, SCTPCTL_CMT_ON_OFF_MAX);
 		/* EY */
@@ -964,6 +966,10 @@ SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, path_pf_threshold, CTLTYPE_UINT | CTL
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, add_more_on_output, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_add_more_threshold), 0, sysctl_sctp_check, "IU",
     SCTPCTL_ADD_MORE_ON_OUTPUT_DESC);
+
+SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, incoming_streams, CTLTYPE_UINT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_nr_incoming_streams_default), 0, sysctl_sctp_check, "IU",
+    SCTPCTL_INCOMING_STREAMS_DESC);
 
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, outgoing_streams, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_nr_outgoing_streams_default), 0, sysctl_sctp_check, "IU",

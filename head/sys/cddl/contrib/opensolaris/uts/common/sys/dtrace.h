@@ -311,8 +311,9 @@ typedef enum dtrace_probespec {
 #define	DIF_SUBR_SX_SHARED_HELD		48
 #define	DIF_SUBR_SX_EXCLUSIVE_HELD	49
 #define	DIF_SUBR_SX_ISEXCLUSIVE		50
+#define	DIF_SUBR_MEMSTR			51
 
-#define	DIF_SUBR_MAX			50	/* max subroutine value */
+#define	DIF_SUBR_MAX			51	/* max subroutine value */
 
 typedef uint32_t dif_instr_t;
 
@@ -2312,8 +2313,10 @@ extern void dtrace_membar_producer(void);
 extern void dtrace_membar_consumer(void);
 
 extern void (*dtrace_cpu_init)(processorid_t);
+#if defined(sun)
 extern void (*dtrace_modload)(modctl_t *);
 extern void (*dtrace_modunload)(modctl_t *);
+#endif
 extern void (*dtrace_helpers_cleanup)(void);
 extern void (*dtrace_helpers_fork)(proc_t *parent, proc_t *child);
 extern void (*dtrace_cpustart_init)(void);

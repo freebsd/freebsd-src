@@ -311,6 +311,10 @@ static const dt_ident_t _dtrace_globals[] = {
 	&dt_idops_func, "void(@)" },
 { "memref", DT_IDENT_FUNC, 0, DIF_SUBR_MEMREF, DT_ATTR_STABCMN, DT_VERS_1_1,
 	&dt_idops_func, "uintptr_t *(void *, size_t)" },
+#if !defined(sun)
+{ "memstr", DT_IDENT_FUNC, 0, DIF_SUBR_MEMSTR, DT_ATTR_STABCMN, DT_VERS_1_0,
+	&dt_idops_func, "string(void *, char, size_t)" },
+#endif
 { "min", DT_IDENT_AGGFUNC, 0, DTRACEAGG_MIN, DT_ATTR_STABCMN, DT_VERS_1_0,
 	&dt_idops_func, "void(@)" },
 { "mod", DT_IDENT_ACTFUNC, 0, DT_ACT_MOD, DT_ATTR_STABCMN,
@@ -1086,7 +1090,17 @@ dt_vopen(int version, int flags, int *errp,
 
 	dtfd = open("/dev/dtrace/dtrace", O_RDWR);
 	err = errno; /* save errno from opening dtfd */
-
+#if defined(__FreeBSD__)
+	/*
+	 * Automatically load the 'dtraceall' module if we couldn't open the
+	 * char device.
+	 */
+	if (err == ENOENT && modfind("dtraceall") < 0) {
+		kldload("dtraceall"); /* ignore the error */
+		dtfd = open("/dev/dtrace/dtrace", O_RDWR);
+		err = errno;
+	}
+#endif
 #if defined(sun)
 	ftfd = open("/dev/dtrace/provider/fasttrap", O_RDWR);
 #else

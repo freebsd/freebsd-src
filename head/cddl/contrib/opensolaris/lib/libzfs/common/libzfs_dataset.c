@@ -21,9 +21,9 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012 Nexenta Systems, Inc. All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright (c) 2012 DEY Storage Systems, Inc.  All rights reserved.
+ * Copyright 2012 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2011-2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
  * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
@@ -1885,6 +1885,10 @@ get_numeric_property(zfs_handle_t *zhp, zfs_prop_t prop, zprop_source_t *src,
 		zcmd_free_nvlists(&zc);
 		break;
 
+	case ZFS_PROP_INCONSISTENT:
+		*val = zhp->zfs_dmustats.dds_inconsistent;
+		break;
+
 	default:
 		switch (zfs_prop_get_type(prop)) {
 		case PROP_TYPE_NUMBER:
@@ -3379,13 +3383,16 @@ zfs_snapshot_cb(zfs_handle_t *zhp, void *arg)
 	char name[ZFS_MAXNAMELEN];
 	int rv = 0;
 
-	(void) snprintf(name, sizeof (name),
-	    "%s@%s", zfs_get_name(zhp), sd->sd_snapname);
+	if (zfs_prop_get_int(zhp, ZFS_PROP_INCONSISTENT) == 0) {
+		(void) snprintf(name, sizeof (name),
+		    "%s@%s", zfs_get_name(zhp), sd->sd_snapname);
 
-	fnvlist_add_boolean(sd->sd_nvl, name);
+		fnvlist_add_boolean(sd->sd_nvl, name);
 
-	rv = zfs_iter_filesystems(zhp, zfs_snapshot_cb, sd);
+		rv = zfs_iter_filesystems(zhp, zfs_snapshot_cb, sd);
+	}
 	zfs_close(zhp);
+
 	return (rv);
 }
 
@@ -3565,7 +3572,6 @@ zfs_rollback(zfs_handle_t *zhp, zfs_handle_t *snap, boolean_t force)
 {
 	rollback_data_t cb = { 0 };
 	int err;
-	zfs_cmd_t zc = { 0 };
 	boolean_t restore_resv = 0;
 	uint64_t old_volsize, new_volsize;
 	zfs_prop_t resv_prop;
@@ -3597,22 +3603,15 @@ zfs_rollback(zfs_handle_t *zhp, zfs_handle_t *snap, boolean_t force)
 		    (old_volsize == zfs_prop_get_int(zhp, resv_prop));
 	}
 
-	(void) strlcpy(zc.zc_name, zhp->zfs_name, sizeof (zc.zc_name));
-
-	if (ZFS_IS_VOLUME(zhp))
-		zc.zc_objset_type = DMU_OST_ZVOL;
-	else
-		zc.zc_objset_type = DMU_OST_ZFS;
-
 	/*
 	 * We rely on zfs_iter_children() to verify that there are no
 	 * newer snapshots for the given dataset.  Therefore, we can
 	 * simply pass the name on to the ioctl() call.  There is still
 	 * an unlikely race condition where the user has taken a
 	 * snapshot since we verified that this was the most recent.
-	 *
 	 */
-	if ((err = zfs_ioctl(zhp->zfs_hdl, ZFS_IOC_ROLLBACK, &zc)) != 0) {
+	err = lzc_rollback(zhp->zfs_name, NULL, 0);
+	if (err != 0) {
 		(void) zfs_standard_error_fmt(zhp->zfs_hdl, errno,
 		    dgettext(TEXT_DOMAIN, "cannot rollback '%s'"),
 		    zhp->zfs_name);
@@ -4159,6 +4158,7 @@ struct holdarg {
 	const char *snapname;
 	const char *tag;
 	boolean_t recursive;
+	int error;
 };
 
 static int
@@ -4286,15 +4286,20 @@ zfs_release_one(zfs_handle_t *zhp, void *arg)
 	struct holdarg *ha = arg;
 	char name[ZFS_MAXNAMELEN];
 	int rv = 0;
+	nvlist_t *existing_holds;
 
 	(void) snprintf(name, sizeof (name),
 	    "%s@%s", zhp->zfs_name, ha->snapname);
 
-	if (lzc_exists(name)) {
-		nvlist_t *holds = fnvlist_alloc();
-		fnvlist_add_boolean(holds, ha->tag);
-		fnvlist_add_nvlist(ha->nvl, name, holds);
-		fnvlist_free(holds);
+	if (lzc_get_holds(name, &existing_holds) != 0) {
+		ha->error = ENOENT;
+	} else if (!nvlist_exists(existing_holds, ha->tag)) {
+		ha->error = ESRCH;
+	} else {
+		nvlist_t *torelease = fnvlist_alloc();
+		fnvlist_add_boolean(torelease, ha->tag);
+		fnvlist_add_nvlist(ha->nvl, name, torelease);
+		fnvlist_free(torelease);
 	}
 
 	if (ha->recursive)
@@ -4318,16 +4323,21 @@ zfs_release(zfs_handle_t *zhp, const char *snapname, const char *tag,
 	ha.snapname = snapname;
 	ha.tag = tag;
 	ha.recursive = recursive;
+	ha.error = 0;
 	(void) zfs_release_one(zfs_handle_dup(zhp), &ha);
 
 	if (nvlist_empty(ha.nvl)) {
 		fnvlist_free(ha.nvl);
-		ret = ENOENT;
+		ret = ha.error;
 		(void) snprintf(errbuf, sizeof (errbuf),
 		    dgettext(TEXT_DOMAIN,
 		    "cannot release hold from snapshot '%s@%s'"),
 		    zhp->zfs_name, snapname);
-		(void) zfs_standard_error(hdl, ret, errbuf);
+		if (ret == ESRCH) {
+			(void) zfs_error(hdl, EZFS_REFTAG_RELE, errbuf);
+		} else {
+			(void) zfs_standard_error(hdl, ret, errbuf);
+		}
 		return (ret);
 	}
 

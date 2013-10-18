@@ -105,14 +105,9 @@ static void serialize_data(serf_bucket_t *bucket)
     iov[3].iov_base = " HTTP/1.1\r\n";
     iov[3].iov_len = sizeof(" HTTP/1.1\r\n") - 1;
 
-    /* ### pool allocation! */
-    new_data = apr_pstrcatv(serf_bucket_allocator_get_pool(bucket->allocator),
-                            iov, 4, &nbytes);
-
-    /* Create a new bucket for this string. A free function isn't needed
-     * since the string is residing in a pool.
-     */
-    new_bucket = SERF_BUCKET_SIMPLE_STRING_LEN(new_data, nbytes,
+    /* Create a new bucket for this string with a flat string.  */
+    new_data = serf_bstrcatv(bucket->allocator, iov, 4, &nbytes);
+    new_bucket = serf_bucket_simple_own_create(new_data, nbytes,
                                                bucket->allocator);
 
     /* Build up the new bucket structure.

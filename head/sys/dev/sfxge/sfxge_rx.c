@@ -282,7 +282,6 @@ static void __sfxge_rx_deliver(struct sfxge_softc *sc, struct mbuf *m)
 	struct ifnet *ifp = sc->ifnet;
 
 	m->m_pkthdr.rcvif = ifp;
-	m->m_pkthdr.header = m->m_data;
 	m->m_pkthdr.csum_data = 0xffff;
 	ifp->if_input(ifp, m);
 }

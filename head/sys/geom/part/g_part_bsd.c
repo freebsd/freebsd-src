@@ -304,12 +304,40 @@ g_part_bsd_modify(struct g_part_table *basetable,
 	return (0);
 }
 
+static void
+bsd_set_rawsize(struct g_part_table *basetable, struct g_provider *pp)
+{
+	struct g_part_bsd_table *table;
+	struct g_part_bsd_entry *entry;
+	struct g_part_entry *baseentry;
+	uint32_t msize;
+
+	table = (struct g_part_bsd_table *)basetable;
+	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
+	le32enc(table->bbarea + pp->sectorsize + 60, msize); /* d_secperunit */
+	basetable->gpt_last = msize - 1;
+	LIST_FOREACH(baseentry, &basetable->gpt_entry, gpe_entry) {
+		if (baseentry->gpe_index != RAW_PART + 1)
+			continue;
+		baseentry->gpe_end = basetable->gpt_last;
+		entry = (struct g_part_bsd_entry *)baseentry;
+		entry->part.p_size = msize;
+		return;
+	}
+}
+
 static int
 g_part_bsd_resize(struct g_part_table *basetable,
     struct g_part_entry *baseentry, struct g_part_parms *gpp)
 {
 	struct g_part_bsd_entry *entry;
+	struct g_provider *pp;
 
+	if (baseentry == NULL) {
+		pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
+		bsd_set_rawsize(basetable, pp);
+		return (0);
+	}
 	entry = (struct g_part_bsd_entry *)baseentry;
 	baseentry->gpe_end = baseentry->gpe_start + gpp->gpp_size - 1;
 	entry->part.p_size = gpp->gpp_size;

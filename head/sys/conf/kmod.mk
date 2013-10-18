@@ -122,7 +122,7 @@ LDFLAGS+=	-d -warn-common
 
 CFLAGS+=	${DEBUG_FLAGS}
 .if ${MACHINE_CPUARCH} == amd64
-CFLAGS+=	-fno-omit-frame-pointer
+CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif
 
 .if ${MACHINE_CPUARCH} == powerpc
@@ -346,7 +346,7 @@ MFILES?= dev/acpica/acpi_if.m dev/acpi_support/acpi_wmi_if.m \
 	dev/mii/miibus_if.m dev/mvs/mvs_if.m dev/ofw/ofw_bus_if.m \
 	dev/pccard/card_if.m dev/pccard/power_if.m dev/pci/pci_if.m \
 	dev/pci/pcib_if.m dev/ppbus/ppbus_if.m \
-	dev/sdhci/sdhci_if.m dev/smbus/smbus_if.m \
+	dev/sdhci/sdhci_if.m dev/smbus/smbus_if.m dev/spibus/spibus_if.m \
 	dev/sound/pci/hda/hdac_if.m \
 	dev/sound/pcm/ac97_if.m dev/sound/pcm/channel_if.m \
 	dev/sound/pcm/feeder_if.m dev/sound/pcm/mixer_if.m \

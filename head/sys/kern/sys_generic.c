@@ -75,9 +75,13 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
-int iosize_max_clamp = 1;
+int iosize_max_clamp = 0;
 SYSCTL_INT(_debug, OID_AUTO, iosize_max_clamp, CTLFLAG_RW,
     &iosize_max_clamp, 0, "Clamp max i/o size to INT_MAX");
+int devfs_iosize_max_clamp = 1;
+SYSCTL_INT(_debug, OID_AUTO, devfs_iosize_max_clamp, CTLFLAG_RW,
+    &devfs_iosize_max_clamp, 0, "Clamp max i/o size to INT_MAX for devices");
+
 /*
  * Assert that the return value of read(2) and write(2) syscalls fits
  * into a register.  If not, an architecture will need to provide the
@@ -243,9 +247,10 @@ int
 kern_readv(struct thread *td, int fd, struct uio *auio)
 {
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
-	error = fget_read(td, fd, CAP_READ, &fp);
+	error = fget_read(td, fd, cap_rights_init(&rights, CAP_READ), &fp);
 	if (error)
 		return (error);
 	error = dofileread(td, fd, fp, auio, (off_t)-1, 0);
@@ -286,9 +291,10 @@ kern_preadv(td, fd, auio, offset)
 	off_t offset;
 {
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
-	error = fget_read(td, fd, CAP_PREAD, &fp);
+	error = fget_read(td, fd, cap_rights_init(&rights, CAP_PREAD), &fp);
 	if (error)
 		return (error);
 	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
@@ -452,9 +458,10 @@ int
 kern_writev(struct thread *td, int fd, struct uio *auio)
 {
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
-	error = fget_write(td, fd, CAP_WRITE, &fp);
+	error = fget_write(td, fd, cap_rights_init(&rights, CAP_WRITE), &fp);
 	if (error)
 		return (error);
 	error = dofilewrite(td, fd, fp, auio, (off_t)-1, 0);
@@ -495,9 +502,10 @@ kern_pwritev(td, fd, auio, offset)
 	off_t offset;
 {
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
-	error = fget_write(td, fd, CAP_PWRITE, &fp);
+	error = fget_write(td, fd, cap_rights_init(&rights, CAP_PWRITE), &fp);
 	if (error)
 		return (error);
 	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
@@ -575,12 +583,13 @@ kern_ftruncate(td, fd, length)
 	off_t length;
 {
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
 	AUDIT_ARG_FD(fd);
 	if (length < 0)
 		return (EINVAL);
-	error = fget(td, fd, CAP_FTRUNCATE, &fp);
+	error = fget(td, fd, cap_rights_init(&rights, CAP_FTRUNCATE), &fp);
 	if (error)
 		return (error);
 	AUDIT_ARG_FILE(td->td_proc, fp);
@@ -705,6 +714,9 @@ kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
 {
 	struct file *fp;
 	struct filedesc *fdp;
+#ifndef CAPABILITIES
+	cap_rights_t rights;
+#endif
 	int error, tmp, locked;
 
 	AUDIT_ARG_FD(fd);
@@ -743,7 +755,8 @@ kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
 		locked = LA_UNLOCKED;
 	}
 #else
-	if ((error = fget(td, fd, CAP_IOCTL, &fp)) != 0) {
+	error = fget(td, fd, cap_rights_init(&rights, CAP_IOCTL), &fp);
+	if (error != 0) {
 		fp = NULL;
 		goto out;
 	}
@@ -1180,8 +1193,10 @@ selsetbits(fd_mask **ibits, fd_mask **obits, int idx, fd_mask bit, int events)
 static __inline int
 getselfd_cap(struct filedesc *fdp, int fd, struct file **fpp)
 {
+	cap_rights_t rights;
 
-	return (fget_unlocked(fdp, fd, CAP_POLL_EVENT, 0, fpp, NULL));
+	return (fget_unlocked(fdp, fd, cap_rights_init(&rights, CAP_POLL_EVENT),
+	    0, fpp, NULL));
 }
 
 /*
@@ -1357,6 +1372,9 @@ pollrescan(struct thread *td)
 	struct filedesc *fdp;
 	struct file *fp;
 	struct pollfd *fd;
+#ifdef CAPABILITIES
+	cap_rights_t rights;
+#endif
 	int n;
 
 	n = 0;
@@ -1373,7 +1391,8 @@ pollrescan(struct thread *td)
 		fp = fdp->fd_ofiles[fd->fd].fde_file;
 #ifdef CAPABILITIES
 		if (fp == NULL ||
-		    cap_check(cap_rights(fdp, fd->fd), CAP_POLL_EVENT) != 0)
+		    cap_check(cap_rights(fdp, fd->fd),
+		    cap_rights_init(&rights, CAP_POLL_EVENT)) != 0)
 #else
 		if (fp == NULL)
 #endif
@@ -1431,6 +1450,9 @@ pollscan(td, fds, nfd)
 {
 	struct filedesc *fdp = td->td_proc->p_fd;
 	struct file *fp;
+#ifdef CAPABILITIES
+	cap_rights_t rights;
+#endif
 	int i, n = 0;
 
 	FILEDESC_SLOCK(fdp);
@@ -1445,7 +1467,7 @@ pollscan(td, fds, nfd)
 #ifdef CAPABILITIES
 			if (fp == NULL ||
 			    cap_check(cap_rights(fdp, fds->fd),
-			    CAP_POLL_EVENT) != 0)
+			    cap_rights_init(&rights, CAP_POLL_EVENT)) != 0)
 #else
 			if (fp == NULL)
 #endif
@@ -1495,6 +1517,62 @@ sys_openbsd_poll(td, uap)
 	register struct openbsd_poll_args *uap;
 {
 	return (sys_poll(td, (struct poll_args *)uap));
+}
+
+/*
+ * XXX This was created specifically to support netncp and netsmb.  This
+ * allows the caller to specify a socket to wait for events on.  It returns
+ * 0 if any events matched and an error otherwise.  There is no way to
+ * determine which events fired.
+ */
+int
+selsocket(struct socket *so, int events, struct timeval *tvp, struct thread *td)
+{
+	struct timeval rtv;
+	sbintime_t asbt, precision, rsbt;
+	int error;
+
+	precision = 0;	/* stupid gcc! */
+	if (tvp != NULL) {
+		rtv = *tvp;
+		if (rtv.tv_sec < 0 || rtv.tv_usec < 0 || 
+		    rtv.tv_usec >= 1000000)
+			return (EINVAL);
+		if (!timevalisset(&rtv))
+			asbt = 0;
+		else if (rtv.tv_sec <= INT32_MAX) {
+			rsbt = tvtosbt(rtv);
+			precision = rsbt;
+			precision >>= tc_precexp;
+			if (TIMESEL(&asbt, rsbt))
+				asbt += tc_tick_sbt;
+			if (asbt <= INT64_MAX - rsbt)
+				asbt += rsbt;
+			else
+				asbt = -1;
+		} else
+			asbt = -1;
+	} else
+		asbt = -1;
+	seltdinit(td);
+	/*
+	 * Iterate until the timeout expires or the socket becomes ready.
+	 */
+	for (;;) {
+		selfdalloc(td, NULL);
+		error = sopoll(so, events, NULL, td);
+		/* error here is actually the ready events. */
+		if (error)
+			return (0);
+		error = seltdwait(td, asbt, precision);
+		if (error)
+			break;
+	}
+	seltdclear(td);
+	/* XXX Duplicates ncp/smb behavior. */
+	if (error == ERESTART)
+		error = 0;
+	return (error);
 }
 
 /*

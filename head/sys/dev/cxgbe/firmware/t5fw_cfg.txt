@@ -1,0 +1,167 @@
+# Firmware configuration file.
+#
+# Global limits (some are hardware limits, others are due to the firmware).
+# nvi = 128		virtual interfaces
+# niqflint = 1023	ingress queues with freelists and/or interrupts
+# nethctrl = 64K	Ethernet or ctrl egress queues
+# neq = 64K		egress queues of all kinds, including freelists
+# nexactf = 336		MPS TCAM entries, can oversubscribe.
+#
+
+[global]
+	rss_glb_config_mode = basicvirtual
+	rss_glb_config_options = tnlmapen, hashtoeplitz, tnlalllkp
+
+	# PL_TIMEOUT register
+	pl_timeout_value = 200		# the timeout value in units of us
+
+	sge_timer_value = 1, 5, 10, 50, 100, 200	# usecs
+
+	# enable TP_OUT_CONFIG.IPIDSPLITMODE
+	reg[0x7d04] = 0x00010000/0x00010000
+
+	# TP_SHIFT_CNT
+	reg[0x7dc0] = 0x62f8849
+
+	# TP_GLOBAL_CONFIG
+	reg[0x7d08] = 0x00000800/0x00000800 # set IssFromCplEnable
+
+	# TP_PARA_REG0
+	reg[0x7d60] = 0x06000000/0x07000000 # set InitCWND to 6
+
+	filterMode = fragmentation, mpshittype, protocol, vlan, port, fcoe
+	filterMask = protocol, fcoe
+
+	# TP rx and tx channels (0 = auto).
+	tp_nrxch = 0
+	tp_ntxch = 0
+
+	# TP rx and tx payload memory (% of the total EDRAM + DDR3).
+	tp_pmrx = 38
+	tp_pmtx = 60
+	tp_pmrx_pagesize = 64K
+	tp_pmtx_pagesize = 64K
+
+	# TP OFLD MTUs
+	tp_mtus = 88, 256, 512, 576, 808, 1024, 1280, 1488, 1500, 2002, 2048, 4096, 4352, 8192, 9000, 9600
+
+	# MC configuration
+	mc_mode_brc[0] = 1		# mc0 - 1: enable BRC, 0: enable RBC
+	mc_mode_brc[1] = 1		# mc1 - 1: enable BRC, 0: enable RBC
+
+# PFs 0-3.  These get 8 MSI/8 MSI-X vectors each.  VFs are supported by
+# these 4 PFs only.  Not used here at all.
+[function "0"]
+	nvf = 16
+	nvi = 1
+[function "0/*"]
+	nvi = 1
+
+[function "1"]
+	nvf = 16
+	nvi = 1
+[function "1/*"]
+	nvi = 1
+
+[function "2"]
+	nvf = 16
+	nvi = 1
+[function "2/*"]
+	nvi = 1
+
+[function "3"]
+	nvf = 16
+	nvi = 1
+[function "3/*"]
+	nvi = 1
+
+# PF4 is the resource-rich PF that the bus/nexus driver attaches to.
+# It gets 32 MSI/128 MSI-X vectors.
+[function "4"]
+	wx_caps = all
+	r_caps = all
+	nvi = 32
+	niqflint = 256
+	nethctrl = 128
+	neq = 256
+	nexactf = 328
+	cmask = all
+	pmask = all
+
+	# driver will mask off features it won't use
+	protocol = ofld
+
+	tp_l2t = 4096
+	tp_ddp = 2
+
+	# TCAM has 8K cells; each region must start at a multiple of 128 cell.
+	# Each entry in these categories takes 4 cells each.  nhash will use the
+	# TCAM iff there is room left (that is, the rest don't add up to 2048).
+	nroute = 32
+	nclip = 32
+	nfilter = 1008
+	nserver = 512
+	nhash = 16384
+
+# PF5 is the SCSI Controller PF. It gets 32 MSI/40 MSI-X vectors.
+# Not used right now.
+[function "5"]
+	nvi = 1
+
+# PF6 is the FCoE Controller PF. It gets 32 MSI/40 MSI-X vectors.
+# Not used right now.
+[function "6"]
+	nvi = 1
+
+# The following function, 1023, is not an actual PCIE function but is used to
+# configure and reserve firmware internal resources that come from the global
+# resource pool.
+[function "1023"]
+	wx_caps = all
+	r_caps = all
+	nvi = 4
+	cmask = all
+	pmask = all
+	nexactf = 8
+	nfilter = 16
+
+# MPS has 192K buffer space for ingress packets from the wire as well as
+# loopback path of the L2 switch.
+[port "0"]
+	dcb = none
+	bg_mem = 25
+	lpbk_mem = 25
+	hwm = 30
+	lwm = 15
+	dwm = 30
+
+[port "1"]
+	dcb = none
+	bg_mem = 25
+	lpbk_mem = 25
+	hwm = 30
+	lwm = 15
+	dwm = 30
+
+[port "2"]
+	dcb = none
+	bg_mem = 25
+	lpbk_mem = 25
+	hwm = 30
+	lwm = 15
+	dwm = 30
+
+[port "3"]
+	dcb = none
+	bg_mem = 25
+	lpbk_mem = 25
+	hwm = 30
+	lwm = 15
+	dwm = 30
+
+[fini]
+	version = 0x1
+	checksum = 0x9f27febc
+#
+# $FreeBSD$
+#

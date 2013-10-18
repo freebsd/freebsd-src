@@ -2,20 +2,28 @@
  * Wi-Fi Protected Setup - message definitions
  * Copyright (c) 2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef WPS_DEFS_H
 #define WPS_DEFS_H
 
+#ifdef CONFIG_WPS_TESTING
+
+extern int wps_version_number;
+extern int wps_testing_dummy_cred;
+#define WPS_VERSION wps_version_number
+
+#else /* CONFIG_WPS_TESTING */
+
+#ifdef CONFIG_WPS2
+#define WPS_VERSION 0x20
+#else /* CONFIG_WPS2 */
 #define WPS_VERSION 0x10
+#endif /* CONFIG_WPS2 */
+
+#endif /* CONFIG_WPS_TESTING */
 
 /* Diffie-Hellman 1536-bit MODP Group; RFC 3526, Group 5 */
 #define WPS_DH_GROUP 5
@@ -33,7 +41,7 @@
 #define WPS_MGMTAUTHKEY_LEN 32
 #define WPS_MGMTENCKEY_LEN 16
 #define WPS_MGMT_KEY_ID_LEN 16
-#define WPS_OOB_DEVICE_PASSWORD_ATTR_LEN 54
+#define WPS_OOB_DEVICE_PASSWORD_MIN_LEN 16
 #define WPS_OOB_DEVICE_PASSWORD_LEN 32
 #define WPS_OOB_PUBKEY_HASH_LEN 20
 
@@ -124,7 +132,20 @@ enum wps_attribute {
 	ATTR_KEY_PROVIDED_AUTO = 0x1061,
 	ATTR_802_1X_ENABLED = 0x1062,
 	ATTR_APPSESSIONKEY = 0x1063,
-	ATTR_WEPTRANSMITKEY = 0x1064
+	ATTR_WEPTRANSMITKEY = 0x1064,
+	ATTR_REQUESTED_DEV_TYPE = 0x106a,
+	ATTR_EXTENSIBILITY_TEST = 0x10fa /* _NOT_ defined in the spec */
+};
+
+#define WPS_VENDOR_ID_WFA 14122
+
+/* WFA Vendor Extension subelements */
+enum {
+	WFA_ELEM_VERSION2 = 0x00,
+	WFA_ELEM_AUTHORIZEDMACS = 0x01,
+	WFA_ELEM_NETWORK_KEY_SHAREABLE = 0x02,
+	WFA_ELEM_REQUEST_TO_ENROLL = 0x03,
+	WFA_ELEM_SETTINGS_DELAY_TIME = 0x04
 };
 
 /* Device Password ID */
@@ -197,6 +218,14 @@ enum wps_config_error {
 	WPS_CFG_DEV_PASSWORD_AUTH_FAILURE = 18
 };
 
+/* Vendor specific Error Indication for WPS event messages */
+enum wps_error_indication {
+	WPS_EI_NO_ERROR,
+	WPS_EI_SECURITY_TKIP_ONLY_PROHIBITED,
+	WPS_EI_SECURITY_WEP_PROHIBITED,
+	NUM_WPS_EI_VALUES
+};
+
 /* RF Bands */
 #define WPS_RF_24GHZ 0x01
 #define WPS_RF_50GHZ 0x02
@@ -211,6 +240,12 @@ enum wps_config_error {
 #define WPS_CONFIG_NFC_INTERFACE 0x0040
 #define WPS_CONFIG_PUSHBUTTON 0x0080
 #define WPS_CONFIG_KEYPAD 0x0100
+#ifdef CONFIG_WPS2
+#define WPS_CONFIG_VIRT_PUSHBUTTON 0x0280
+#define WPS_CONFIG_PHY_PUSHBUTTON 0x0480
+#define WPS_CONFIG_VIRT_DISPLAY 0x2008
+#define WPS_CONFIG_PHY_DISPLAY 0x4008
+#endif /* CONFIG_WPS2 */
 
 /* Connection Type Flags */
 #define WPS_CONN_ESS 0x01
@@ -289,5 +324,7 @@ enum wps_response_type {
 
 /* Walk Time for push button configuration (in seconds) */
 #define WPS_PBC_WALK_TIME 120
+
+#define WPS_MAX_AUTHORIZED_MACS 5
 
 #endif /* WPS_DEFS_H */

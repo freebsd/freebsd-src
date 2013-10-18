@@ -86,9 +86,7 @@ ar9300_set_channel(struct ath_hal *ah, struct ieee80211_channel *chan)
     u_int8_t clk_25mhz = AH9300(ah)->clk_25mhz;
     CHAN_CENTERS centers;
     int load_synth_channel;
-#ifdef	AH_DEBUG_ALQ
     HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
-#endif
 
     /*
      * Put this behind AH_DEBUG_ALQ for now until the Hornet
@@ -106,12 +104,6 @@ ar9300_set_channel(struct ath_hal *ah, struct ieee80211_channel *chan)
         b_mode = 1; /* 2 GHz */
 
         if (AR_SREV_HORNET(ah)) {
-            /*
-             * XXX TODO: this should call ieee80211_mhz2ieee which will
-             * take care of the up/down conversion and GSM mapping.
-             * However, the HAL _can't_ call that, so we'll need to
-             * introduce it in ah_osdep or something.
-             */
 #if 0
             u_int32_t ichan =
               ieee80211_mhz2ieee(ah, chan->ic_freq, chan->ic_flags);
@@ -121,10 +113,16 @@ ar9300_set_channel(struct ath_hal *ah, struct ieee80211_channel *chan)
             } else {
                 channel_sel = ar9300_chansel_xtal_40M[ichan - 1];
             }
-#else
-            ath_hal_printf(ah, "%s: unimplemented, implement!\n", __func__);
-            return AH_FALSE;
 #endif
+            uint32_t i;
+
+            i = ath_hal_mhz2ieee_2ghz(ah, ichan);
+            HALASSERT(i > 0 && i <= 14);
+            if (clk_25mhz) {
+                channel_sel = ar9300_chansel_xtal_25M[i - 1];
+            } else {
+                channel_sel = ar9300_chansel_xtal_40M[i - 1];
+            }
         } else if (AR_SREV_POSEIDON(ah) || AR_SREV_APHRODITE(ah)) {
             u_int32_t channel_frac;
             /* 

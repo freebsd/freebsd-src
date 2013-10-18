@@ -248,10 +248,14 @@ static int
 uart_intr(void *arg)
 {
 	struct uart_softc *sc = arg;
-	int flag = 0, ipend;
+	int cnt, ipend;
 
-	while (!sc->sc_leaving && (ipend = UART_IPEND(sc)) != 0) {
-		flag = 1;
+	if (sc->sc_leaving)
+		return (FILTER_STRAY);
+
+	cnt = 0;
+	while (cnt < 20 && (ipend = UART_IPEND(sc)) != 0) {
+		cnt++;
 		if (ipend & SER_INT_OVERRUN)
 			uart_intr_overrun(sc);
 		if (ipend & SER_INT_BREAK)
@@ -269,7 +273,8 @@ uart_intr(void *arg)
 		    (timeout_t *)uart_intr, sc);
 	}
 
-	return((flag)?FILTER_HANDLED:FILTER_STRAY);
+	return ((cnt == 0) ? FILTER_STRAY :
+	    ((cnt == 20) ? FILTER_SCHEDULE_THREAD : FILTER_HANDLED));
 }
 
 serdev_intr_t *
@@ -390,7 +395,7 @@ uart_bus_attach(device_t dev)
 {
 	struct uart_softc *sc, *sc0;
 	const char *sep;
-	int error;
+	int error, filt;
 
 	/*
 	 * The sc_class field defines the type of UART we're going to work
@@ -430,33 +435,6 @@ uart_bus_attach(device_t dev)
 	sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
 	sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);
 
-	sc->sc_irid = 0;
-	sc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->sc_irid,
-	    RF_ACTIVE | RF_SHAREABLE);
-	if (sc->sc_ires != NULL) {
-		error = bus_setup_intr(dev,
-		    sc->sc_ires, INTR_TYPE_TTY, 
-		    uart_intr, NULL, sc, &sc->sc_icookie);		    
-		if (error)
-			error = bus_setup_intr(dev,
-			    sc->sc_ires, INTR_TYPE_TTY | INTR_MPSAFE,
-			    NULL, (driver_intr_t *)uart_intr, sc, &sc->sc_icookie);
-		else
-			sc->sc_fastintr = 1;
-
-		if (error) {
-			device_printf(dev, "could not activate interrupt\n");
-			bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irid,
-			    sc->sc_ires);
-			sc->sc_ires = NULL;
-		}
-	}
-	if (sc->sc_ires == NULL) {
-		/* No interrupt resource. Force polled mode. */
-		sc->sc_polled = 1;
-		callout_init(&sc->sc_timer, 1);
-	}
-
 	/*
 	 * Ensure there is room for at least three full FIFOs of data in the
 	 * receive buffer (handles the case of low-level drivers with huge
@@ -482,20 +460,6 @@ uart_bus_attach(device_t dev)
 		}
 		if (sc->sc_hwoflow) {
 			printf("%sCTS oflow", sep);
-			sep = ", ";
-		}
-		printf("\n");
-	}
-
-	if (bootverbose && (sc->sc_fastintr || sc->sc_polled)) {
-		sep = "";
-		device_print_prettyname(dev);
-		if (sc->sc_fastintr) {
-			printf("%sfast interrupt", sep);
-			sep = ", ";
-		}
-		if (sc->sc_polled) {
-			printf("%spolled mode", sep);
 			sep = ", ";
 		}
 		printf("\n");
@@ -529,6 +493,56 @@ uart_bus_attach(device_t dev)
 	sc->sc_pps.ppscap = PPS_CAPTUREBOTH;
 	pps_init(&sc->sc_pps);
 
+	sc->sc_leaving = 0;
+	filt = uart_intr(sc);
+
+	/*
+	 * Don't use interrupts if we couldn't clear any pending interrupt
+	 * conditions. We may have broken H/W and polling is probably the
+	 * safest thing to do.
+	 */
+	if (filt != FILTER_SCHEDULE_THREAD) {
+		sc->sc_irid = 0;
+		sc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+		    &sc->sc_irid, RF_ACTIVE | RF_SHAREABLE);
+	}
+	if (sc->sc_ires != NULL) {
+		error = bus_setup_intr(dev, sc->sc_ires, INTR_TYPE_TTY,
+		    uart_intr, NULL, sc, &sc->sc_icookie);
+		sc->sc_fastintr = (error == 0) ? 1 : 0;
+
+		if (!sc->sc_fastintr)
+			error = bus_setup_intr(dev, sc->sc_ires,
+			    INTR_TYPE_TTY | INTR_MPSAFE, NULL,
+			    (driver_intr_t *)uart_intr, sc, &sc->sc_icookie);
+
+		if (error) {
+			device_printf(dev, "could not activate interrupt\n");
+			bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irid,
+			    sc->sc_ires);
+			sc->sc_ires = NULL;
+		}
+	}
+	if (sc->sc_ires == NULL) {
+		/* No interrupt resource. Force polled mode. */
+		sc->sc_polled = 1;
+		callout_init(&sc->sc_timer, 1);
+	}
+
+	if (bootverbose && (sc->sc_fastintr || sc->sc_polled)) {
+		sep = "";
+		device_print_prettyname(dev);
+		if (sc->sc_fastintr) {
+			printf("%sfast interrupt", sep);
+			sep = ", ";
+		}
+		if (sc->sc_polled) {
+			printf("%spolled mode (%dHz)", sep, uart_poll_freq);
+			sep = ", ";
+		}
+		printf("\n");
+	}
+
 	error = (sc->sc_sysdev != NULL && sc->sc_sysdev->attach != NULL)
 	    ? (*sc->sc_sysdev->attach)(sc) : uart_tty_attach(sc);
 	if (error)
@@ -537,8 +551,6 @@ uart_bus_attach(device_t dev)
 	if (sc->sc_sysdev != NULL)
 		sc->sc_sysdev->hwmtx = sc->sc_hwmtx;
 
-	sc->sc_leaving = 0;
-	uart_intr(sc);
 	return (0);
 
  fail:

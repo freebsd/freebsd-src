@@ -1,7 +1,7 @@
 if [ ! "$_MEDIA_FLOPPY_SUBR" ]; then _MEDIA_FLOPPY_SUBR=1
 #
 # Copyright (c) 2012-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_MEDIA_FLOPPY_SUBR" ]; then _MEDIA_FLOPPY_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -31,11 +31,11 @@ if [ ! "$_MEDIA_FLOPPY_SUBR" ]; then _MEDIA_FLOPPY_SUBR=1
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." media/floppy.subr
-f_include $BSDCFG_SHARE/struct.subr
 f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/variable.subr
 f_include $BSDCFG_SHARE/media/common.subr
+f_include $BSDCFG_SHARE/struct.subr
+f_include $BSDCFG_SHARE/variable.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
@@ -60,7 +60,7 @@ f_media_set_floppy()
 	ndevs=$( set -- $devs; echo $# )
 
 	if [ ${ndevs:=0} -eq 0 ]; then
-		f_interactive && f_dialog_msgbox "$msg_no_floppy_devices_found"
+		f_interactive && f_show_msg "$msg_no_floppy_devices_found"
 		return $FAILURE
 	elif [ $ndevs -gt 1 ]; then
 		local title="$msg_choose_a_floppy_drive"
@@ -144,17 +144,19 @@ f_media_init_floppy()
 	return $SUCCESS
 }
 
-# f_media_get_floppy $device $file [$probe_only]
+# f_media_get_floppy $device $file [$probe_type]
 #
 # Returns data from $file on a mounted Floppy disk device. Similar to cat(1).
-# If $probe_only is present and non-null, limits retries to zero.
+# If $probe_type is present and non-NULL, limits retries to zero and returns
+# success if $file exists. If $probe_type is equal to $PROBE_SIZE, prints the
+# size of $file in bytes to standard-out.
 #
 f_media_get_floppy()
 {
-	local dev="$1" file="$2" probe_only="$3"
+	local dev="$1" file="$2" probe_type="$3"
 
-	f_dprintf "f_media_get_floppy: dev=[%s] file=[%s] probe_only=%s" \
-	          "$dev" "$file" "$probe_only"
+	f_dprintf "f_media_get_floppy: dev=[%s] file=[%s] probe_type=%s" \
+	          "$dev" "$file" "$probe_type"
 
 	#
 	# floppies don't use f_media_generic_get() because it's too expensive
@@ -166,11 +168,13 @@ f_media_get_floppy()
 	local fp="${mp:=$MOUNTPOINT}/$file"
 	if ! [ -f "$fp" -a -r "$fp" ]; then
 		local nretries=4
-		[ "$probe_only" ] && return $FAILURE
+		[ "$probe_type" = "$PROBE_SIZE" ] && echo "-1"
+		[ "$probe_type" ] && return $FAILURE
 		while ! [ -f "$fp" -a -r "$fp" ]; do
 			if [ $nretries -eq 0 ]; then
 				f_show_msg "$msg_failed_to_get_floppy_file" \
 				           "$fp"
+				[ "$probe_type" = "$PROBE_SIZE" ] && echo "-1"
 				return $FAILURE
 			fi
 			FLOPPY_DISTWANTED="$fp"
@@ -179,6 +183,16 @@ f_media_get_floppy()
 			nretries=$(( $nretries - 1 ))
 		done
 	fi
+	#
+	# If we reach here, $file exists
+	#
+	if [ "$probe_type" = "$PROBE_SIZE" ]; then
+		local size
+		size=$( stat -f %z "$fp" 2>&1 ) || f_dprintf "stat: %s" "$size"
+		f_isinteger "$size" || size=-1
+		echo "$size"
+	fi
+	[ "$probe_type" ] && return $SUCCESS
 	cat "$fp"
 }
 
@@ -191,7 +205,7 @@ f_media_shutdown_floppy()
 {
 	local dev="$1" err mp
 
-	[ "$FLOPPY_MOUNTED" ] || return
+	[ "$FLOPPY_MOUNTED" ] || return $FAILURE
 
 	device_$dev get private mp
 	if ! err=$( umount -f "${mp:=$MOUNTPOINT}" 2>&1 ); then

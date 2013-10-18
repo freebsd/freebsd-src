@@ -124,6 +124,7 @@ cam/ctl/ctl_cmd_table.c		optional ctl
 cam/ctl/ctl_frontend.c		optional ctl
 cam/ctl/ctl_frontend_cam_sim.c	optional ctl
 cam/ctl/ctl_frontend_internal.c	optional ctl
+cam/ctl/ctl_frontend_iscsi.c	optional ctl
 cam/ctl/ctl_mem_pool.c		optional ctl
 cam/ctl/ctl_scsi_all.c		optional ctl
 cam/ctl/ctl_error.c		optional ctl
@@ -275,6 +276,7 @@ cddl/contrib/opensolaris/uts/common/zmod/trees.c			optional zfs compile-with "${
 cddl/contrib/opensolaris/uts/common/zmod/zmod.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/zmod/zmod_subr.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/zmod/zutil.c			optional zfs compile-with "${ZFS_C}"
+compat/freebsd32/freebsd32_capability.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_ioctl.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_misc.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_syscalls.c	optional compat_freebsd32
@@ -482,6 +484,16 @@ contrib/ipfilter/netinet/ip_sync.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/mlfk_ipl.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/ipfilter/netinet/ip_nat6.c optional ipfilter inet \
+	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/ipfilter/netinet/ip_rules.c optional ipfilter inet \
+	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/ipfilter/netinet/ip_scan.c optional ipfilter inet \
+	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/ipfilter/netinet/ip_dstlist.c optional ipfilter inet \
+	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+contrib/ipfilter/netinet/radix_ipf.c optional ipfilter inet \
+	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/libfdt/fdt.c		optional fdt
 contrib/libfdt/fdt_ro.c		optional fdt
 contrib/libfdt/fdt_rw.c		optional fdt
@@ -536,8 +548,8 @@ crypto/blowfish/bf_ecb.c	optional ipsec
 crypto/blowfish/bf_skey.c	optional crypto | ipsec
 crypto/camellia/camellia.c	optional crypto | ipsec
 crypto/camellia/camellia-api.c	optional crypto | ipsec
-crypto/des/des_ecb.c		optional crypto | ipsec
-crypto/des/des_setkey.c		optional crypto | ipsec
+crypto/des/des_ecb.c		optional crypto | ipsec | netsmb
+crypto/des/des_setkey.c		optional crypto | ipsec | netsmb
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption | kgssapi
 crypto/rijndael/rijndael-alg-fst.c optional crypto | geom_bde | \
 					 ipsec | random | wlan_ccmp
@@ -547,6 +559,8 @@ crypto/sha1.c			optional carp | crypto | ipsec | \
 					 netgraph_mppc_encryption | sctp
 crypto/sha2/sha2.c		optional crypto | geom_bde | ipsec | random | \
 					 sctp | zfs
+crypto/siphash/siphash.c	optional inet | inet6
+crypto/siphash/siphash_test.c	optional inet | inet6
 ddb/db_access.c			optional ddb
 ddb/db_break.c			optional ddb
 ddb/db_capture.c		optional ddb
@@ -1102,8 +1116,6 @@ dev/bwi/if_bwi_pci.c		optional bwi pci
 # XXX Work around clang warning, until maintainer approves fix.
 dev/bwn/if_bwn.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
-dev/bxe/if_bxe.c		optional bxe
-dev/bxe/bxe_link.c		optional bxe
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
@@ -1153,6 +1165,8 @@ dev/cxgbe/t4_sge.c		optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/t4_l2t.c		optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
+dev/cxgbe/t4_tracer.c		optional cxgbe pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/common/t4_hw.c	optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 t4fw_cfg.c		optional cxgbe					\
@@ -1185,10 +1199,34 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.8.4.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.9.12.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
+t5fw_cfg.c		optional cxgbe					\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk t5fw_cfg.fw:t5fw_cfg t5fw.fw:t5fw -mt5fw_cfg -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"t5fw_cfg.c"
+t5fw_cfg.fwo		optional cxgbe					\
+	dependency	"t5fw_cfg.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"t5fw_cfg.fwo"
+t5fw_cfg.fw		optional cxgbe					\
+	dependency	"$S/dev/cxgbe/firmware/t5fw_cfg.txt"		\
+	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
+	no-obj no-implicit-rule						\
+	clean		"t5fw_cfg.fw"
+t5fw.fwo		optional cxgbe					\
+	dependency	"t5fw.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"t5fw.fwo"
+t5fw.fw			optional cxgbe					\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.9.12.0.bin.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"t5fw.fw"
 dev/cy/cy.c			optional cy
 dev/cy/cy_isa.c			optional cy isa
 dev/cy/cy_pci.c			optional cy pci
@@ -1342,6 +1380,8 @@ dev/etherswitch/arswitch/arswitch_8216.c	optional arswitch
 dev/etherswitch/arswitch/arswitch_8226.c	optional arswitch
 dev/etherswitch/arswitch/arswitch_8316.c	optional arswitch
 dev/etherswitch/arswitch/arswitch_7240.c	optional arswitch
+dev/etherswitch/arswitch/arswitch_9340.c	optional arswitch
+dev/etherswitch/arswitch/arswitch_vlans.c	optional arswitch
 dev/etherswitch/etherswitch.c		optional etherswitch
 dev/etherswitch/etherswitch_if.m	optional etherswitch
 dev/etherswitch/ip17x/ip17x.c		optional ip17x
@@ -1369,6 +1409,7 @@ dev/fdt/fdtbus.c		optional fdt
 dev/fdt/simplebus.c		optional fdt
 dev/fe/if_fe.c			optional fe
 dev/fe/if_fe_pccard.c		optional fe pccard
+dev/filemon/filemon.c		optional filemon
 dev/firewire/firewire.c		optional firewire
 dev/firewire/fwcrom.c		optional firewire
 dev/firewire/fwdev.c		optional firewire
@@ -1490,12 +1531,15 @@ ipw_monitor.fw			optional ipwmonitorfw | ipwfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"ipw_monitor.fw"
-dev/iscsi/initiator/iscsi.c	optional iscsi_initiator scbus
-dev/iscsi/initiator/iscsi_subr.c	optional iscsi_initiator scbus
-dev/iscsi/initiator/isc_cam.c	optional iscsi_initiator scbus
-dev/iscsi/initiator/isc_soc.c	optional iscsi_initiator scbus
-dev/iscsi/initiator/isc_sm.c	optional iscsi_initiator scbus
-dev/iscsi/initiator/isc_subr.c	optional iscsi_initiator scbus
+dev/iscsi/icl.c			optional iscsi | ctl 
+dev/iscsi/icl_proxy.c		optional iscsi | ctl
+dev/iscsi/iscsi.c		optional iscsi scbus
+dev/iscsi_initiator/iscsi.c	optional iscsi_initiator scbus
+dev/iscsi_initiator/iscsi_subr.c	optional iscsi_initiator scbus
+dev/iscsi_initiator/isc_cam.c	optional iscsi_initiator scbus
+dev/iscsi_initiator/isc_soc.c	optional iscsi_initiator scbus
+dev/iscsi_initiator/isc_sm.c	optional iscsi_initiator scbus
+dev/iscsi_initiator/isc_subr.c	optional iscsi_initiator scbus
 dev/isf/isf.c			optional isf
 dev/isf/isf_fdt.c		optional isf fdt
 dev/isf/isf_nexus.c		optional isf
@@ -2000,11 +2044,15 @@ rt2860.fw			optional rt2860fw | ralfw		\
 	no-obj no-implicit-rule						\
 	clean		"rt2860.fw"
 dev/random/harvest.c		standard
-dev/random/hash.c		optional random
-dev/random/probe.c		optional random
+dev/random/dummy_rng.c		standard
+dev/random/random_adaptors.c	standard
+dev/random/live_entropy_sources.c	optional random
+dev/random/random_harvestq.c	optional random
 dev/random/randomdev.c		optional random
 dev/random/randomdev_soft.c	optional random
 dev/random/yarrow.c		optional random
+dev/random/hash.c		optional random
+dev/random/rwfile.c		optional random
 dev/rc/rc.c			optional rc
 dev/re/if_re.c			optional re
 dev/rndtest/rndtest.c		optional rndtest
@@ -2281,27 +2329,71 @@ dev/usb/net/uhso.c		optional uhso
 #
 # USB WLAN drivers
 #
+dev/usb/wlan/if_rsu.c		optional rsu
+rsu-rtl8712fw.c			optional rsu-rtl8712fw | rsufw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rsu-rtl8712fw.fw:rsu-rtl8712fw:120 -mrsu-rtl8712fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"rsu-rtl8712fw.c"
+rsu-rtl8712fw.fwo		optional rsu-rtl8712fw | rsufw		\
+	dependency	"rsu-rtl8712fw.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"rsu-rtl8712fw.fwo"
+rsu-rtl8712fw.fw		optional rsu-rtl8712.fw | rsufw		\
+	dependency	"$S/contrib/dev/rsu/rsu-rtl8712fw.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"rsu-rtl8712fw.fw"
 dev/usb/wlan/if_rum.c		optional rum
 dev/usb/wlan/if_run.c		optional run
 runfw.c				optional runfw							\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk runfw:runfw -mrunfw -c${.TARGET}"	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk run.fw:runfw -mrunfw -c${.TARGET}"	\
 	no-implicit-rule before-depend local							\
 	clean		"runfw.c"
 runfw.fwo			optional runfw							\
-	dependency	"runfw"									\
+	dependency	"run.fw"								\
 	compile-with	"${NORMAL_FWO}"								\
 	no-implicit-rule									\
 	clean		"runfw.fwo"
-runfw				optional runfw							\
+run.fw				optional runfw							\
 	dependency	"$S/contrib/dev/run/rt2870.fw.uu"					\
 	compile-with	"${NORMAL_FW}"								\
 	no-obj no-implicit-rule									\
-	clean		"runfw"
+	clean		"run.fw"
 dev/usb/wlan/if_uath.c		optional uath
 dev/usb/wlan/if_upgt.c		optional upgt
 dev/usb/wlan/if_ural.c		optional ural
 dev/usb/wlan/if_urtw.c		optional urtw
 dev/usb/wlan/if_urtwn.c		optional urtwn
+urtwn-rtl8192cfwT.c		optional urtwn-rtl8192cfwT | urtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk urtwn-rtl8192cfwT.fw:urtwn-rtl8192cfwT:111 -murtwn-rtl8192cfwT -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"urtwn-rtl8192cfwT.c"
+urtwn-rtl8192cfwT.fwo		optional urtwn-rtl8192cfwT | urtwnfw	\
+	dependency	"urtwn-rtl8192cfwT.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"urtwn-rtl8192cfwT.fwo"
+urtwn-rtl8192cfwT.fw		optional urtwn-rtl8192cfwT | urtwnfw	\
+	dependency	"$S/contrib/dev/urtwn/urtwn-rtl8192cfwT.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"urtwn-rtl8192cfwT.fw"
+urtwn-rtl8192cfwU.c		optional urtwn-rtl8192cfwU | urtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk urtwn-rtl8192cfwU.fw:urtwn-rtl8192cfwU:111 -murtwn-rtl8192cfwU -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"urtwn-rtl8192cfwU.c"
+urtwn-rtl8192cfwU.fwo		optional urtwn-rtl8192cfwU | urtwnfw	\
+	dependency	"urtwn-rtl8192cfwU.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"urtwn-rtl8192cfwU.fwo"
+urtwn-rtl8192cfwU.fw		optional urtwn-rtl8192cfwU | urtwnfw	\
+	dependency	"$S/contrib/dev/urtwn/urtwn-rtl8192cfwU.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"urtwn-rtl8192cfwU.fw"
+
 dev/usb/wlan/if_zyd.c		optional zyd
 #
 # USB serial and parallel port drivers
@@ -2423,7 +2515,7 @@ dev/xen/control/control.c	optional xen | xenhvm
 dev/xen/netback/netback.c	optional xen | xenhvm
 dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
-dev/xen/xenpci/evtchn.c         optional xenpci
+dev/xen/timer/timer.c		optional xen | xenhvm
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
 fs/deadfs/dead_vnops.c		standard
@@ -2509,6 +2601,12 @@ fs/pseudofs/pseudofs.c		optional pseudofs
 fs/pseudofs/pseudofs_fileno.c	optional pseudofs
 fs/pseudofs/pseudofs_vncache.c	optional pseudofs
 fs/pseudofs/pseudofs_vnops.c	optional pseudofs
+fs/smbfs/smbfs_io.c		optional smbfs
+fs/smbfs/smbfs_node.c		optional smbfs
+fs/smbfs/smbfs_smb.c		optional smbfs
+fs/smbfs/smbfs_subr.c		optional smbfs
+fs/smbfs/smbfs_vfsops.c		optional smbfs
+fs/smbfs/smbfs_vnops.c		optional smbfs
 fs/udf/osta.c			optional udf
 fs/udf/udf_iconv.c		optional udf_iconv
 fs/udf/udf_vfsops.c		optional udf
@@ -2633,8 +2731,11 @@ geom/zero/g_zero.c		optional geom_zero
 fs/ext2fs/ext2_alloc.c		optional ext2fs
 fs/ext2fs/ext2_balloc.c		optional ext2fs
 fs/ext2fs/ext2_bmap.c		optional ext2fs
+fs/ext2fs/ext2_extents.c	optional ext2fs
 fs/ext2fs/ext2_inode.c		optional ext2fs
 fs/ext2fs/ext2_inode_cnv.c	optional ext2fs
+fs/ext2fs/ext2_hash.c		optional ext2fs
+fs/ext2fs/ext2_htree.c		optional ext2fs
 fs/ext2fs/ext2_lookup.c		optional ext2fs
 fs/ext2fs/ext2_subr.c		optional ext2fs
 fs/ext2fs/ext2_vfsops.c		optional ext2fs
@@ -2746,6 +2847,7 @@ kern/kern_uuid.c		standard
 kern/kern_xxx.c			standard
 kern/link_elf.c			standard
 kern/linker_if.m		standard
+kern/md4c.c			optional netsmb
 kern/md5c.c			standard
 kern/p1003_1b.c			standard
 kern/posix4_mib.c		standard
@@ -2761,6 +2863,7 @@ kern/subr_blist.c		standard
 kern/subr_bus.c			standard
 kern/subr_bus_dma.c		standard
 kern/subr_bufring.c		standard
+kern/subr_capability.c		standard
 kern/subr_clock.c		standard
 kern/subr_counter.c		standard
 kern/subr_devstat.c		standard
@@ -2797,6 +2900,7 @@ kern/subr_trap.c		standard
 kern/subr_turnstile.c		standard
 kern/subr_uio.c			standard
 kern/subr_unit.c		standard
+kern/subr_vmem.c		standard
 kern/subr_witness.c		optional witness
 kern/sys_capability.c		standard
 kern/sys_generic.c		standard
@@ -2818,7 +2922,6 @@ kern/tty_pts.c			standard
 kern/tty_tty.c			standard
 kern/tty_ttydisc.c		standard
 kern/uipc_accf.c		optional inet
-kern/uipc_cow.c			optional socket_send_cow
 kern/uipc_debug.c		optional ddb
 kern/uipc_domain.c		standard
 kern/uipc_mbuf.c		standard
@@ -2907,6 +3010,7 @@ libkern/arc4random.c		standard
 libkern/bcd.c			standard
 libkern/bsearch.c		standard
 libkern/crc32.c			standard
+libkern/flsll.c                 standard
 libkern/fnmatch.c		standard
 libkern/iconv.c			optional libiconv
 libkern/iconv_converter_if.m	optional libiconv
@@ -3140,6 +3244,7 @@ netinet/if_ether.c		optional inet ether
 netinet/igmp.c			optional inet
 netinet/in.c			optional inet
 netinet/in_debug.c		optional inet ddb
+netinet/in_kdtrace.c		optional inet | inet6
 netinet/ip_carp.c		optional inet carp | inet6 carp
 netinet/in_gif.c		optional gif inet | netgraph_gif inet
 netinet/ip_gre.c		optional gre inet
@@ -3278,6 +3383,15 @@ netpfil/pf/pf_osfp.c		optional pf inet
 netpfil/pf/pf_ruleset.c		optional pf inet
 netpfil/pf/pf_table.c		optional pf inet
 netpfil/pf/in4_cksum.c		optional pf inet
+netsmb/smb_conn.c		optional netsmb
+netsmb/smb_crypt.c		optional netsmb
+netsmb/smb_dev.c		optional netsmb
+netsmb/smb_iod.c		optional netsmb
+netsmb/smb_rq.c			optional netsmb
+netsmb/smb_smb.c		optional netsmb
+netsmb/smb_subr.c		optional netsmb
+netsmb/smb_trantcp.c		optional netsmb
+netsmb/smb_usr.c		optional netsmb
 nfs/bootp_subr.c		optional bootp nfsclient | bootp nfscl
 nfs/krpc_subr.c			optional bootp nfsclient | bootp nfscl
 nfs/nfs_common.c		optional nfsclient | nfsserver
@@ -3430,6 +3544,18 @@ ofed/drivers/infiniband/ulp/sdp/sdp_tx.c	optional sdp inet 	\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
 
+ofed/drivers/infiniband/hw/mlx4/alias_GUID.c    optional mlx4ib         \
+        no-depend obj-prefix "mlx4ib_"                                  \
+        compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
+ofed/drivers/infiniband/hw/mlx4/mcg.c           optional mlx4ib         \
+        no-depend obj-prefix "mlx4ib_"                                  \
+        compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
+ofed/drivers/infiniband/hw/mlx4/sysfs.c         optional mlx4ib         \
+        no-depend obj-prefix "mlx4ib_"                                  \
+        compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
+ofed/drivers/infiniband/hw/mlx4/cm.c            optional mlx4ib         \
+        no-depend obj-prefix "mlx4ib_"                                  \
+        compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
 ofed/drivers/infiniband/hw/mlx4/ah.c		optional mlx4ib		\
 	no-depend obj-prefix "mlx4ib_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
@@ -3512,7 +3638,10 @@ ofed/drivers/net/mlx4/sense.c			optional mlx4ib | mlxen	\
 ofed/drivers/net/mlx4/srq.c			optional mlx4ib | mlxen	\
 	no-depend obj-prefix "mlx4_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/xrcd.c			optional mlx4ib | mlxen	\
+ofed/drivers/net/mlx4/resource_tracker.c        optional mlx4ib | mlxen	\
+	no-depend obj-prefix "mlx4_"					\
+	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
+ofed/drivers/net/mlx4/sys_tune.c		optional mlx4ib | mlxen	\
 	no-depend obj-prefix "mlx4_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
 
@@ -3717,7 +3846,6 @@ vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
 xen/gnttab.c			optional xen | xenhvm
 xen/features.c			optional xen | xenhvm
-xen/evtchn/evtchn.c		optional xen
 xen/evtchn/evtchn_dev.c		optional xen | xenhvm
 xen/xenbus/xenbus_if.m		optional xen | xenhvm
 xen/xenbus/xenbus.c		optional xen | xenhvm

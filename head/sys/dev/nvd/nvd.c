@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Intel Corporation
+ * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom_disk.h>
 
 #include <dev/nvme/nvme.h>
+
+#define NVD_STR		"nvd"
 
 struct nvd_disk;
 
@@ -102,7 +104,7 @@ static int nvd_modevent(module_t mod, int type, void *arg)
 }
 
 moduledata_t nvd_mod = {
-	"nvd",
+	NVD_STR,
 	(modeventhand_t)nvd_modevent,
 	0
 };
@@ -185,17 +187,6 @@ nvd_done(void *arg, const struct nvme_completion *cpl)
 
 	atomic_add_int(&ndisk->cur_depth, -1);
 
-	/*
-	 * TODO: add more extensive translation of NVMe status codes
-	 *  to different bio error codes (i.e. EIO, EINVAL, etc.)
-	 */
-	if (nvme_completion_is_error(cpl)) {
-		bp->bio_error = EIO;
-		bp->bio_flags |= BIO_ERROR;
-		bp->bio_resid = bp->bio_bcount;
-	} else
-		bp->bio_resid = 0;
-
 	biodone(bp);
 }
 
@@ -271,6 +262,7 @@ nvd_new_controller(struct nvme_controller *ctrlr)
 static void *
 nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 {
+	uint8_t			descr[NVME_MODEL_NUMBER_LENGTH+1];
 	struct nvd_disk		*ndisk;
 	struct disk		*disk;
 	struct nvd_controller	*ctrlr = ctrlr_arg;
@@ -280,7 +272,7 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	disk = disk_alloc();
 	disk->d_strategy = nvd_strategy;
 	disk->d_ioctl = nvd_ioctl;
-	disk->d_name = "nvd";
+	disk->d_name = NVD_STR;
 	disk->d_drv1 = ndisk;
 
 	disk->d_maxsize = nvme_ns_get_max_io_xfer_size(ns);
@@ -306,15 +298,19 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	disk->d_flags |= DISKFLAG_UNMAPPED_BIO;
 #endif
 
-	strlcpy(disk->d_ident, nvme_ns_get_serial_number(ns),
-	    sizeof(disk->d_ident));
+	/*
+	 * d_ident and d_descr are both far bigger than the length of either
+	 *  the serial or model number strings.
+	 */
+	nvme_strvis(disk->d_ident, nvme_ns_get_serial_number(ns),
+	    sizeof(disk->d_ident), NVME_SERIAL_NUMBER_LENGTH);
+
+	nvme_strvis(descr, nvme_ns_get_model_number(ns), sizeof(descr),
+	    NVME_MODEL_NUMBER_LENGTH);
 
 #if __FreeBSD_version >= 900034
-	strlcpy(disk->d_descr, nvme_ns_get_model_number(ns),
-	    sizeof(disk->d_descr));
+	strlcpy(disk->d_descr, descr, sizeof(descr));
 #endif
-
-	disk_create(disk, DISK_VERSION);
 
 	ndisk->ns = ns;
 	ndisk->disk = disk;
@@ -331,15 +327,29 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	TAILQ_INSERT_TAIL(&disk_head, ndisk, global_tailq);
 	TAILQ_INSERT_TAIL(&ctrlr->disk_head, ndisk, ctrlr_tailq);
 
+	disk_create(disk, DISK_VERSION);
+
+	printf(NVD_STR"%u: <%s> NVMe namespace\n", disk->d_unit, descr);
+	printf(NVD_STR"%u: %juMB (%ju %u byte sectors)\n", disk->d_unit,
+		(uintmax_t)disk->d_mediasize / (1024*1024),
+		(uintmax_t)disk->d_mediasize / disk->d_sectorsize,
+		disk->d_sectorsize);
+
 	return (NULL);
 }
 
 static void
 destroy_geom_disk(struct nvd_disk *ndisk)
 {
-	struct bio *bp;
+	struct bio	*bp;
+	struct disk	*disk;
+	uint32_t	unit;
+	int		cnt = 0;
 
+	disk = ndisk->disk;
+	unit = disk->d_unit;
 	taskqueue_free(ndisk->tq);
+
 	disk_destroy(ndisk->disk);
 
 	mtx_lock(&ndisk->bioqlock);
@@ -350,9 +360,13 @@ destroy_geom_disk(struct nvd_disk *ndisk)
 		bp->bio_error = EIO;
 		bp->bio_flags |= BIO_ERROR;
 		bp->bio_resid = bp->bio_bcount;
-
+		cnt++;
 		biodone(bp);
 	}
+
+	printf(NVD_STR"%u: lost device - %d outstanding\n", unit, cnt);
+	printf(NVD_STR"%u: removing device entry\n", unit);
+
 	mtx_unlock(&ndisk->bioqlock);
 
 	mtx_destroy(&ndisk->bioqlock);

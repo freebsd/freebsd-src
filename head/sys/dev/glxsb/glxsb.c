@@ -476,7 +476,7 @@ glxsb_rnd(void *v)
 	if (status & SB_RNS_TRNG_VALID) {
 		value = bus_read_4(sc->sc_sr, SB_RANDOM_NUM);
 		/* feed with one uint32 */
-		random_harvest(&value, 4, 32, 0, RANDOM_PURE);
+		random_harvest(&value, 4, 32/2, RANDOM_PURE_GLXSB);
 	}
 
 	callout_reset(&sc->sc_rngco, sc->sc_rnghz, glxsb_rnd, sc);

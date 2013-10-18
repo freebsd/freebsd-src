@@ -1,11 +1,73 @@
                                                      -*- coding: utf-8 -*-
+Changes for APR 1.4.8
+
+  *) Fix compiltation with FreeBSD on ARM.  [Olli Hauer <ohauer gmx.de>]
+
+  *) Fix 1.4.7 regression in apr_mcast_hops() and apr_mcast_loopback()
+     for AF_INET (IPv4) sockets on most Unix platforms.  [Joe Orton]
+
+  *) Fix the return value of apr_threadattr_detach_get() on some
+     platforms like OS X and Solaris. [Rainer Jung, <dusanv gmail com>]
+
+Changes for APR 1.4.7
+
+  *) Fix apr_sockaddr_info_get() not returning an error in some cases.
+     PR 54779. [Jan Kaluža <jkaluza redhat com>]
+
+  *) Fix amd64 assembler version of apr_atomic_xchgptr(). PR 51851. [Mattias
+     Engdegård <mattiase acm org>]
+
+  *) Fix PPC atomics to work with gcc 4.0. PR 54840. [Mattias Engdegård
+     <mattiase acm org>]
+
+  *) configure: Fix detection of O_NONBLOCK inheritance on busy
+     systems.  [Rainer Jung]
+
+  *) Remove unused code, fix strict C compliance bug in SHA-256
+     implementation.  [Jan Kaluza <jkaluza redhat.com>]
+
+  *) Fix apr_ipsubnet_test() false positives when comparing IPv4
+     subnet representation against an IPv6 address.  PR 54047.  [Joe Orton]
+
+  *) apr_socket_accept_filter: Return success when trying to again set
+     the filter to the same value as before, avoiding an unhelpful
+     APR_EINVAL.  PR 37863.  [Jeff Trawick]
+
+  *) configure: Fix Linux 3.x detection. PR 54001. [Gilles Espinasse
+     <g esp free fr>]
+
+  *) apr_time_exp_*() on Windows: Fix error in the tm_yday field of
+     apr_time_exp_t for times within leap years.  PR 53175.
+     [Jeff Trawick]
+
+  *) Improve platform detection by updating config.guess and config.sub.
+     [Rainer Jung]
+
+  *) Add support for OSX Mountain Lion (10.8) [Jim Jagielski]
+
+  *) Add various gcc function attributes. [Stefan Fritsch]
+
+  *) Fix some problems in apr_sockaddr_info_get() when trying to resolve
+     the loopback addresses of a protocol family that is not otherwise
+     configured on the system. PR 52709. [Nirgal Vourgère
+     <jmv_deb nirgal com>, Stefan Fritsch]
+
+  *) Fix file not being unlocked if truncate call on a file fails.
+     [Mladen Turk]
+
+  *) apr_mcast_hops: Fix EINVAL for IPv6 sockets caused by using byte
+     instead integer for setsockopt. [Mladen Turk]
+
+  *) Windows: Fix compile-time checks for 64-bit builds, resolving a
+     crash in httpd's mod_rewrite.  PR 49155.  [<anindyabaruah gmail.com>]
+
 Changes for APR 1.4.6
 
   *) Flush write buffer before truncate call on a file.
      [Mladen Turk]
 
-  *) Security: oCERT-2011-003
-     Randomise hashes by providing a seed. 
+  *) Randomise hashes by providing a seed. 
+     Assigned CVE-2012-0840, oCERT-2011-003, but not known to be exploitable.
      [Bojan Smojver, Branko Čibej, Ruediger Pluem et al.]
 
   *) apr_random: Prevent segfault if pool used to initialize apr_random is

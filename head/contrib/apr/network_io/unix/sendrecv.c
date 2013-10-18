@@ -174,7 +174,14 @@ apr_status_t apr_socket_recvfrom(apr_sockaddr_t *from, apr_socket_t *sock,
         return errno;
     }
 
-    apr_sockaddr_vars_set(from, from->sa.sin.sin_family, ntohs(from->sa.sin.sin_port));
+    /*
+     * Check if we have a valid address. recvfrom() with MSG_PEEK may return
+     * success without filling in the address.
+     */
+    if (from->salen > APR_OFFSETOF(struct sockaddr_in, sin_port)) {
+        apr_sockaddr_vars_set(from, from->sa.sin.sin_family,
+                              ntohs(from->sa.sin.sin_port));
+    }
 
     (*len) = rv;
     if (rv == 0 && sock->type == SOCK_STREAM) {
@@ -245,7 +252,7 @@ do_select:
 /* Define a structure to pass in when we have a NULL header value */
 static apr_hdtr_t no_hdtr;
 
-#if defined(__linux__) && defined(HAVE_WRITEV)
+#if (defined(__linux__) || defined(__GNU__)) && defined(HAVE_WRITEV)
 
 apr_status_t apr_socket_sendfile(apr_socket_t *sock, apr_file_t *file,
                                  apr_hdtr_t *hdtr, apr_off_t *offset,
@@ -284,9 +291,6 @@ apr_status_t apr_socket_sendfile(apr_socket_t *sock, apr_file_t *file,
     if (!hdtr) {
         hdtr = &no_hdtr;
     }
-
-    /* Ignore flags for now. */
-    flags = 0;
 
     if (hdtr->numheaders > 0) {
         apr_size_t hdrbytes;

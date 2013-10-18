@@ -75,39 +75,45 @@ sysctl_handle_attr(SYSCTL_HANDLER_ARGS)
 	struct kobject *kobj;
 	struct attribute *attr;
 	const struct sysfs_ops *ops;
-	void *buf;
+	char *buf;
 	int error;
 	ssize_t len;
 
 	kobj = arg1;
 	attr = (struct attribute *)arg2;
-	buf = (void *)get_zeroed_page(GFP_KERNEL);
-	len = 1;	/* Copy out a NULL byte at least. */
 	if (kobj->ktype == NULL || kobj->ktype->sysfs_ops == NULL)
 		return (ENODEV);
-	ops = kobj->ktype->sysfs_ops;
+	buf = (char *)get_zeroed_page(GFP_KERNEL);
 	if (buf == NULL)
 		return (ENOMEM);
+	ops = kobj->ktype->sysfs_ops;
 	if (ops->show) {
 		len = ops->show(kobj, attr, buf);
 		/*
-		 * It's valid not to have a 'show' so we just return 1 byte
-		 * of NULL.
+		 * It's valid to not have a 'show' so just return an
+		 * empty string.
 	 	 */
 		if (len < 0) {
 			error = -len;
-			len = 1;
 			if (error != EIO)
 				goto out;
+			buf[0] = '\0';
+		} else if (len) {
+			len--;
+			if (len >= PAGE_SIZE)
+				len = PAGE_SIZE - 1;
+			/* Trim trailing newline. */
+			buf[len] = '\0';
 		}
 	}
-	error = SYSCTL_OUT(req, buf, len);
-	if (error || !req->newptr || ops->store == NULL)
+
+	/* Leave one trailing byte to append a newline. */
+	error = sysctl_handle_string(oidp, buf, PAGE_SIZE - 1, req);
+	if (error != 0 || req->newptr == NULL || ops->store == NULL)
 		goto out;
-	error = SYSCTL_IN(req, buf, PAGE_SIZE);
-	if (error)
-		goto out;
-	len = ops->store(kobj, attr, buf, req->newlen);
+	len = strlcat(buf, "\n", PAGE_SIZE);
+	KASSERT(len < PAGE_SIZE, ("new attribute truncated"));
+	len = ops->store(kobj, attr, buf, len);
 	if (len < 0)
 		error = -len;
 out:
@@ -178,5 +184,7 @@ sysfs_remove_dir(struct kobject *kobj)
 		return;
 	sysctl_remove_oid(kobj->oidp, 1, 1);
 }
+
+#define sysfs_attr_init(attr) do {} while(0)
 
 #endif	/* _LINUX_SYSFS_H_ */

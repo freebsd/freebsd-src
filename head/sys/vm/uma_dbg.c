@@ -231,6 +231,8 @@ uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
 	uma_keg_t keg;
 	int freei;
 
+	if (zone_first_keg(zone) == NULL)
+		return;
 	if (slab == NULL) {
 		slab = uma_dbg_getslab(zone, item);
 		if (slab == NULL) 
@@ -259,6 +261,8 @@ uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 	uma_keg_t keg;
 	int freei;
 
+	if (zone_first_keg(zone) == NULL)
+		return;
 	if (slab == NULL) {
 		slab = uma_dbg_getslab(zone, item);
 		if (slab == NULL) 

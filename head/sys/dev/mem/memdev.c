@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/memrange.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/systm.h>
@@ -67,8 +68,14 @@ memopen(struct cdev *dev __unused, int flags, int fmt __unused,
 {
 	int error = 0;
 
-	if (flags & FWRITE)
-		error = securelevel_gt(td->td_ucred, 0);
+	if (flags & FREAD)
+		error = priv_check(td, PRIV_KMEM_READ);
+	if (flags & FWRITE) {
+		if (error == 0)
+			error = priv_check(td, PRIV_KMEM_WRITE);
+		if (error == 0)
+			error = securelevel_gt(td->td_ucred, 0);
+	}
 
 	return (error);
 }

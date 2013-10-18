@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sf_buf.h>
 #include <sys/syscall.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/unistd.h>
 #include <machine/cpu.h>
@@ -74,21 +75,33 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 
 /*
- * struct switchframe must be a multiple of 8 for correct stack alignment
+ * struct switchframe and trapframe must both be a multiple of 8
+ * for correct stack alignment.
  */
 CTASSERT(sizeof(struct switchframe) == 24);
-CTASSERT(sizeof(struct trapframe) == 76);
+CTASSERT(sizeof(struct trapframe) == 80);
+
+#ifndef ARM_USE_SMALL_ALLOC
 
 #ifndef NSFBUFS
 #define NSFBUFS		(512 + maxusers * 16)
 #endif
 
-#ifndef ARM_USE_SMALL_ALLOC
+static int nsfbufs;
+static int nsfbufspeak;
+static int nsfbufsused;
+
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
+    "Maximum number of sendfile(2) sf_bufs available");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufspeak, CTLFLAG_RD, &nsfbufspeak, 0,
+    "Number of sendfile(2) sf_bufs at peak usage");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
+    "Number of sendfile(2) sf_bufs in use");
+
 static void     sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
 
 LIST_HEAD(sf_head, sf_buf);
-	
 
 /*
  * A hash table of active sendfile(2) buffers
@@ -105,7 +118,7 @@ static u_int    sf_buf_alloc_want;
  * A lock used to synchronize access to the hash table and free list
  */
 static struct mtx sf_buf_lock;
-#endif
+#endif /* !ARM_USE_SMALL_ALLOC */
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -209,7 +222,7 @@ sf_buf_init(void *arg)
 		
 	sf_buf_active = hashinit(nsfbufs, M_TEMP, &sf_buf_hashmask);
 	TAILQ_INIT(&sf_buf_freelist);
-	sf_base = kmem_alloc_nofault(kernel_map, nsfbufs * PAGE_SIZE);
+	sf_base = kva_alloc(nsfbufs * PAGE_SIZE);
 	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
 	    M_NOWAIT | M_ZERO);
 	for (i = 0; i < nsfbufs; i++) {
@@ -251,7 +264,7 @@ sf_buf_alloc(struct vm_page *m, int flags)
 		if (flags & SFB_NOWAIT)
 			goto done;
 		sf_buf_alloc_want++;
-		mbstat.sf_allocwait++;
+		SFSTAT_INC(sf_allocwait);
 		error = msleep(&sf_buf_freelist, &sf_buf_lock,
 		    (flags & SFB_CATCH) ? PCATCH | PVM : PVM, "sfbufa", 0);
 		sf_buf_alloc_want--;
@@ -666,7 +679,8 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		if (zone == l2zone &&
 		    pte_l1_s_cache_mode != pte_l1_s_cache_mode_pt) {
 			*flags = UMA_SLAB_KMEM;
-			ret = ((void *)kmem_malloc(kmem_map, bytes, M_NOWAIT));
+			ret = ((void *)kmem_malloc(kmem_arena, bytes,
+			    M_NOWAIT));
 			return (ret);
 		}
 		pflags = malloc2vm_flags(wait) | VM_ALLOC_WIRED;
@@ -700,7 +714,7 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 	pt_entry_t *pt;
 
 	if (flags & UMA_SLAB_KMEM)
-		kmem_free(kmem_map, (vm_offset_t)mem, size);
+		kmem_free(kmem_arena, (vm_offset_t)mem, size);
 	else {
 		struct arm_small_page *sp;
 

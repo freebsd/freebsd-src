@@ -123,6 +123,7 @@ struct t4_virt_res {                      /* virtualized HW resources */
 #ifdef TCP_OFFLOAD
 enum {
 	ULD_TOM = 1,
+	ULD_IWARP = 2,
 };
 
 struct adapter;
@@ -140,6 +141,7 @@ struct tom_tunables {
 	int ddp;
 	int indsz;
 	int ddp_thres;
+	int rx_coalesce;
 };
 
 int t4_register_uld(struct uld_info *);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Intel Corporation
+ * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ struct nvme_io_test_thread {
 	void			*buf;
 	uint32_t		size;
 	uint32_t		time;
-	uint32_t		io_completed;
+	uint64_t		io_completed;
 };
 
 struct nvme_io_test_internal {
@@ -66,7 +66,7 @@ struct nvme_io_test_internal {
 	uint32_t		td_active;
 	uint32_t		td_idx;
 	uint32_t		flags;
-	uint32_t		io_completed[NVME_TEST_MAX_THREADS];
+	uint64_t		io_completed[NVME_TEST_MAX_THREADS];
 };
 
 static void
@@ -90,8 +90,8 @@ nvme_ns_bio_test(void *arg)
 	struct cdev			*dev;
 	void				*buf;
 	struct timeval			t;
-	uint64_t			offset;
-	uint32_t			idx, io_completed = 0;
+	uint64_t			io_completed = 0, offset;
+	uint32_t			idx;
 #if __FreeBSD_version >= 900017
 	int				ref;
 #endif

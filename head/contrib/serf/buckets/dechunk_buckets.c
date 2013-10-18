@@ -162,6 +162,9 @@ static apr_status_t serf_dechunk_read(serf_bucket_t *bucket,
                 ctx->state = STATE_SIZE;
             }
 
+            /* Don't return the CR of CRLF to the caller! */
+            *len = 0;
+
             if (status)
                 return status;
 
@@ -169,6 +172,7 @@ static apr_status_t serf_dechunk_read(serf_bucket_t *bucket,
 
         case STATE_DONE:
             /* Just keep returning EOF */
+            *len = 0;
             return APR_EOF;
 
         default:

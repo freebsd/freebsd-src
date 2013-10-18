@@ -85,9 +85,6 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, no_same_prefix, CTLFLAG_RW,
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 #define	V_ripcbinfo			VNET(ripcbinfo)
 
-VNET_DECLARE(struct arpstat, arpstat);  /* ARP statistics, see if_arp.h */
-#define	V_arpstat		VNET(arpstat)
-
 /*
  * Return 1 if an internet address is for a ``local'' host
  * (one to which we have a connection).
@@ -407,16 +404,8 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			goto out;
 		}
 		if (ia == NULL) {
-			ia = (struct in_ifaddr *)
-				malloc(sizeof *ia, M_IFADDR, M_NOWAIT |
-				    M_ZERO);
-			if (ia == NULL) {
-				error = ENOBUFS;
-				goto out;
-			}
-
-			ifa = &ia->ia_ifa;
-			ifa_init(ifa);
+			ifa = ifa_alloc(sizeof(struct in_ifaddr), M_WAITOK);
+			ia = (struct in_ifaddr *)ifa;
 			ifa->ifa_addr = (struct sockaddr *)&ia->ia_addr;
 			ifa->ifa_dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
 			ifa->ifa_netmask = (struct sockaddr *)&ia->ia_sockmask;

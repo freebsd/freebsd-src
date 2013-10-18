@@ -655,7 +655,7 @@ sparc64_bus_mem_map(bus_space_tag_t tag, bus_addr_t addr, bus_size_t size,
 	if (vaddr != 0L)
 		sva = trunc_page(vaddr);
 	else {
-		if ((sva = kmem_alloc_nofault(kernel_map, size)) == 0)
+		if ((sva = kva_alloc(size)) == 0)
 			panic("%s: cannot allocate virtual memory", __func__);
 	}
 
@@ -701,7 +701,7 @@ sparc64_bus_mem_unmap(bus_space_tag_t tag, bus_space_handle_t handle,
 	for (va = sva; va < endva; va += PAGE_SIZE)
 		pmap_kremove_flags(va);
 	tlb_range_demap(kernel_pmap, sva, sva + size - 1);
-	kmem_free(kernel_map, sva, size);
+	kva_free(sva, size);
 	return (0);
 }
 

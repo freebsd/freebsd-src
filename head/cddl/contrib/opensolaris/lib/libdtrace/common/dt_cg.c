@@ -1387,6 +1387,162 @@ dt_cg_func_typeref(dtrace_hdl_t *dtp, dt_node_t *dnp)
 	typs->dn_value = ctf_type_size(dtt.dtt_ctfp, dtt.dtt_type);
 }
 
+typedef struct dt_xlmemb {
+	dt_ident_t *dtxl_idp;		/* translated ident */
+	dt_irlist_t *dtxl_dlp;		/* instruction list */
+	dt_regset_t *dtxl_drp;		/* register set */
+	int dtxl_sreg;			/* location of the translation input */
+	int dtxl_dreg;			/* location of our allocated buffer */
+} dt_xlmemb_t;
+
+/*ARGSUSED*/
+static int
+dt_cg_xlate_member(const char *name, ctf_id_t type, ulong_t off, void *arg)
+{
+	dt_xlmemb_t *dx = arg;
+	dt_ident_t *idp = dx->dtxl_idp;
+	dt_irlist_t *dlp = dx->dtxl_dlp;
+	dt_regset_t *drp = dx->dtxl_drp;
+
+	dt_node_t *mnp;
+	dt_xlator_t *dxp;
+
+	int reg, treg;
+	uint32_t instr;
+	size_t size;
+
+	/* Generate code for the translation. */
+	dxp = idp->di_data;
+	mnp = dt_xlator_member(dxp, name);
+
+	/* If there's no translator for the given member, skip it. */
+	if (mnp == NULL)
+		return (0);
+
+	dxp->dx_ident->di_flags |= DT_IDFLG_CGREG;
+	dxp->dx_ident->di_id = dx->dtxl_sreg;
+
+	dt_cg_node(mnp->dn_membexpr, dlp, drp);
+
+	dxp->dx_ident->di_flags &= ~DT_IDFLG_CGREG;
+	dxp->dx_ident->di_id = 0;
+
+	treg = mnp->dn_membexpr->dn_reg;
+
+	/* Compute the offset into our buffer and store the result there. */
+	reg = dt_regset_alloc(drp);
+
+	dt_cg_setx(dlp, reg, off / NBBY);
+	instr = DIF_INSTR_FMT(DIF_OP_ADD, dx->dtxl_dreg, reg, reg);
+	dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
+
+	size = ctf_type_size(mnp->dn_membexpr->dn_ctfp,
+	    mnp->dn_membexpr->dn_type);
+	if (dt_node_is_scalar(mnp->dn_membexpr)) {
+		/*
+		 * Copying scalars is simple.
+		 */
+		switch (size) {
+		case 1:
+			instr = DIF_INSTR_STORE(DIF_OP_STB, treg, reg);
+			break;
+		case 2:
+			instr = DIF_INSTR_STORE(DIF_OP_STH, treg, reg);
+			break;
+		case 4:
+			instr = DIF_INSTR_STORE(DIF_OP_STW, treg, reg);
+			break;
+		case 8:
+			instr = DIF_INSTR_STORE(DIF_OP_STX, treg, reg);
+			break;
+		default:
+			xyerror(D_UNKNOWN, "internal error -- unexpected "
+			    "size: %lu\n", (ulong_t)size);
+		}
+
+		dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
+
+	} else if (dt_node_is_string(mnp->dn_membexpr)) {
+		int szreg;
+
+		/*
+		 * Use the copys instruction for strings.
+		 */
+		szreg = dt_regset_alloc(drp);
+		dt_cg_setx(dlp, szreg, size);
+		instr = DIF_INSTR_COPYS(treg, szreg, reg);
+		dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
+		dt_regset_free(drp, szreg);
+	} else {
+		int szreg;
+
+		/*
+		 * If it's anything else then we'll just bcopy it.
+		 */
+		szreg = dt_regset_alloc(drp);
+		dt_cg_setx(dlp, szreg, size);
+		dt_irlist_append(dlp,
+		    dt_cg_node_alloc(DT_LBL_NONE, DIF_INSTR_FLUSHTS));
+		instr = DIF_INSTR_PUSHTS(DIF_OP_PUSHTV, DIF_TYPE_CTF,
+		    DIF_REG_R0, treg);
+		dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
+		instr = DIF_INSTR_PUSHTS(DIF_OP_PUSHTV, DIF_TYPE_CTF,
+		    DIF_REG_R0, reg);
+		dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
+		instr = DIF_INSTR_PUSHTS(DIF_OP_PUSHTV, DIF_TYPE_CTF,
+		    DIF_REG_R0, szreg);
+		dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
+		instr = DIF_INSTR_CALL(DIF_SUBR_BCOPY, szreg);
+		dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
+		dt_regset_free(drp, szreg);
+	}
+
+	dt_regset_free(drp, reg);
+	dt_regset_free(drp, treg);
+
+	return (0);
+}
+
+/*
+ * If we're expanding a translated type, we create an appropriately sized
+ * buffer with alloca() and then translate each member into it.
+ */
+static int
+dt_cg_xlate_expand(dt_node_t *dnp, dt_ident_t *idp, dt_irlist_t *dlp,
+    dt_regset_t *drp)
+{
+	dt_xlmemb_t dlm;
+	uint32_t instr;
+	int dreg;
+	size_t size;
+
+	dreg = dt_regset_alloc(drp);
+	size = ctf_type_size(dnp->dn_ident->di_ctfp, dnp->dn_ident->di_type);
+
+	/* Call alloca() to create the buffer. */
+	dt_cg_setx(dlp, dreg, size);
+
+	dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, DIF_INSTR_FLUSHTS));
+
+	instr = DIF_INSTR_PUSHTS(DIF_OP_PUSHTV, DIF_TYPE_CTF, DIF_REG_R0, dreg);
+	dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
+
+	instr = DIF_INSTR_CALL(DIF_SUBR_ALLOCA, dreg);
+	dt_irlist_append(dlp, dt_cg_node_alloc(DT_LBL_NONE, instr));
+
+	/* Generate the translation for each member. */
+	dlm.dtxl_idp = idp;
+	dlm.dtxl_dlp = dlp;
+	dlm.dtxl_drp = drp;
+	dlm.dtxl_sreg = dnp->dn_reg;
+	dlm.dtxl_dreg = dreg;
+	(void) ctf_member_iter(dnp->dn_ident->di_ctfp,
+	    dnp->dn_ident->di_type, dt_cg_xlate_member,
+	    &dlm);
+
+	return (dreg);
+}
+
 static void
 dt_cg_node(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 {
@@ -1600,7 +1756,16 @@ dt_cg_node(dt_node_t *dnp, dt_irlist_t *dlp, dt_regset_t *drp)
 		dt_cg_node(dnp->dn_child, dlp, drp);
 		dnp->dn_reg = dnp->dn_child->dn_reg;
 
-		if (!(dnp->dn_flags & DT_NF_REF)) {
+		if (dt_node_is_dynamic(dnp->dn_child)) {
+			int reg;
+			idp = dt_node_resolve(dnp->dn_child, DT_IDENT_XLPTR);
+			assert(idp != NULL);
+			reg = dt_cg_xlate_expand(dnp, idp, dlp, drp);
+
+			dt_regset_free(drp, dnp->dn_child->dn_reg);
+			dnp->dn_reg = reg;
+
+		} else if (!(dnp->dn_flags & DT_NF_REF)) {
 			uint_t ubit = dnp->dn_flags & DT_NF_USERLAND;
 
 			/*
@@ -1997,6 +2162,13 @@ dt_cg(dt_pcb_t *pcb, dt_node_t *dnp)
 	}
 
 	dt_cg_node(dnp, &pcb->pcb_ir, pcb->pcb_regs);
+
+	if ((idp = dt_node_resolve(dnp, DT_IDENT_XLSOU)) != NULL) {
+		int reg = dt_cg_xlate_expand(dnp, idp,
+		    &pcb->pcb_ir, pcb->pcb_regs);
+		dt_regset_free(pcb->pcb_regs, dnp->dn_reg);
+		dnp->dn_reg = reg;
+	}
 
 	instr = DIF_INSTR_RET(dnp->dn_reg);
 	dt_regset_free(pcb->pcb_regs, dnp->dn_reg);

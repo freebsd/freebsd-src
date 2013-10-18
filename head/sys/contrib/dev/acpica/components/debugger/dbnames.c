@@ -256,6 +256,37 @@ AcpiDbDumpNamespace (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiDbDumpNamespacePaths
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Dump entire namespace with full object pathnames and object
+ *              type information. Alternative to "namespace" command.
+ *
+ ******************************************************************************/
+
+void
+AcpiDbDumpNamespacePaths (
+    void)
+{
+
+    AcpiDbSetOutputDestination (ACPI_DB_DUPLICATE_OUTPUT);
+    AcpiOsPrintf ("ACPI Namespace (from root):\n");
+
+    /* Display the entire namespace */
+
+    AcpiDbSetOutputDestination (ACPI_DB_REDIRECTABLE_OUTPUT);
+    AcpiNsDumpObjectPaths (ACPI_TYPE_ANY, ACPI_DISPLAY_SUMMARY,
+        ACPI_UINT32_MAX, ACPI_OWNER_ID_MAX, AcpiGbl_RootNode);
+
+    AcpiDbSetOutputDestination (ACPI_DB_CONSOLE_OUTPUT);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiDbDumpNamespaceByOwner
  *
  * PARAMETERS:  OwnerArg        - Owner ID whose nodes will be displayed
@@ -783,11 +814,13 @@ AcpiDbFindReferences (
     char                    *ObjectArg)
 {
     ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_SIZE               Address;
 
 
     /* Convert string to object pointer */
 
-    ObjDesc = ACPI_TO_POINTER (ACPI_STRTOUL (ObjectArg, NULL, 16));
+    Address = ACPI_STRTOUL (ObjectArg, NULL, 16);
+    ObjDesc = ACPI_TO_POINTER (Address);
 
     /* Search all nodes in namespace */
 

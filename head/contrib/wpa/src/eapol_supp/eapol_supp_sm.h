@@ -1,15 +1,9 @@
 /*
  * EAPOL supplicant state machines
- * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2012, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef EAPOL_SUPP_SM_H
@@ -208,10 +202,10 @@ struct eapol_ctx {
 	/**
 	 * eap_param_needed - Notify that EAP parameter is needed
 	 * @ctx: Callback context (ctx)
-	 * @field: Field name (e.g., "IDENTITY")
+	 * @field: Field indicator (e.g., WPA_CTRL_REQ_EAP_IDENTITY)
 	 * @txt: User readable text describing the required parameter
 	 */
-	void (*eap_param_needed)(void *ctx, const char *field,
+	void (*eap_param_needed)(void *ctx, enum wpa_ctrl_req_type field,
 				 const char *txt);
 
 	/**
@@ -220,10 +214,44 @@ struct eapol_ctx {
 	 * @authorized: Whether the supplicant port is now in authorized state
 	 */
 	void (*port_cb)(void *ctx, int authorized);
+
+	/**
+	 * cert_cb - Notification of a peer certificate
+	 * @ctx: Callback context (ctx)
+	 * @depth: Depth in certificate chain (0 = server)
+	 * @subject: Subject of the peer certificate
+	 * @cert_hash: SHA-256 hash of the certificate
+	 * @cert: Peer certificate
+	 */
+	void (*cert_cb)(void *ctx, int depth, const char *subject,
+			const char *cert_hash, const struct wpabuf *cert);
+
+	/**
+	 * cert_in_cb - Include server certificates in callback
+	 */
+	int cert_in_cb;
+
+	/**
+	 * status_cb - Notification of a change in EAP status
+	 * @ctx: Callback context (ctx)
+	 * @status: Step in the process of EAP authentication
+	 * @parameter: Step-specific parameter, e.g., EAP method name
+	 */
+	void (*status_cb)(void *ctx, const char *status,
+			  const char *parameter);
+
+	/**
+	 * set_anon_id - Set or add anonymous identity
+	 * @ctx: eapol_ctx from eap_peer_sm_init() call
+	 * @id: Anonymous identity (e.g., EAP-SIM pseudonym)
+	 * @len: Length of anonymous identity in octets
+	 */
+	void (*set_anon_id)(void *ctx, const u8 *id, size_t len);
 };
 
 
 struct eap_peer_config;
+struct ext_password_data;
 
 #ifdef IEEE8021X_EAPOL
 struct eapol_sm *eapol_sm_init(struct eapol_ctx *ctx);
@@ -255,6 +283,10 @@ void eapol_sm_notify_ctrl_response(struct eapol_sm *sm);
 void eapol_sm_request_reauth(struct eapol_sm *sm);
 void eapol_sm_notify_lower_layer_success(struct eapol_sm *sm, int in_eapol_sm);
 void eapol_sm_invalidate_cached_session(struct eapol_sm *sm);
+const char * eapol_sm_get_method_name(struct eapol_sm *sm);
+void eapol_sm_set_ext_pw_ctx(struct eapol_sm *sm,
+			     struct ext_password_data *ext);
+int eapol_sm_failed(struct eapol_sm *sm);
 #else /* IEEE8021X_EAPOL */
 static inline struct eapol_sm *eapol_sm_init(struct eapol_ctx *ctx)
 {
@@ -341,6 +373,18 @@ static inline void eapol_sm_notify_lower_layer_success(struct eapol_sm *sm,
 }
 static inline void eapol_sm_invalidate_cached_session(struct eapol_sm *sm)
 {
+}
+static inline const char * eapol_sm_get_method_name(struct eapol_sm *sm)
+{
+	return NULL;
+}
+static inline void eapol_sm_set_ext_pw_ctx(struct eapol_sm *sm,
+					   struct ext_password_data *ext)
+{
+}
+static inline int eapol_sm_failed(struct eapol_sm *sm)
+{
+	return 0;
 }
 #endif /* IEEE8021X_EAPOL */
 

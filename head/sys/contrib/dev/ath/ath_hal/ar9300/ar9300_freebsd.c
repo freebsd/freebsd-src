@@ -652,3 +652,24 @@ ar9300SetMulticastFilterIndex(struct ath_hal *ah, uint32_t ix)
 	}
 	return (AH_TRUE);
 }
+
+/*
+ * RF attach stubs
+ */
+
+static HAL_BOOL
+rf9330_attach(struct ath_hal *ah, HAL_STATUS *status)
+{
+
+	(*status) = HAL_EINVAL;
+	return (AH_FALSE);
+}
+
+static HAL_BOOL
+rf9330_probe(struct ath_hal *ah)
+{
+	return (AH_FALSE);
+}
+
+AH_RF(RF9330, rf9330_probe, rf9330_attach);
+

@@ -176,7 +176,7 @@ intrcnt_add(const char *name, u_long **countp)
 static struct powerpc_intr *
 intr_lookup(u_int irq)
 {
-	char intrname[8];
+	char intrname[16];
 	struct powerpc_intr *i, *iscan;
 	int vector;
 

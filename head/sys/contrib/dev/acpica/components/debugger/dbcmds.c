@@ -105,13 +105,15 @@ AcpiDbConvertToNode (
     char                    *InString)
 {
     ACPI_NAMESPACE_NODE     *Node;
+    ACPI_SIZE               Address;
 
 
     if ((*InString >= 0x30) && (*InString <= 0x39))
     {
         /* Numeric argument, convert */
 
-        Node = ACPI_TO_POINTER (ACPI_STRTOUL (InString, NULL, 16));
+        Address = ACPI_STRTOUL (InString, NULL, 16);
+        Node = ACPI_TO_POINTER (Address);
         if (!AcpiOsReadable (Node, sizeof (ACPI_NAMESPACE_NODE)))
         {
             AcpiOsPrintf ("Address %p is invalid in this address space\n",
@@ -1209,6 +1211,14 @@ AcpiDbGenerateGpe (
 
     (void) AcpiEvGpeDispatch (NULL, GpeEventInfo, GpeNumber);
 }
+
+void
+AcpiDbGenerateSci (
+    void)
+{
+    AcpiEvSciDispatch ();
+}
+
 #endif /* !ACPI_REDUCED_HARDWARE */
 
 #endif /* ACPI_DEBUGGER */

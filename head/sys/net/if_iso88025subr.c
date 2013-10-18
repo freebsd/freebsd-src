@@ -476,7 +476,6 @@ iso88025_input(ifp, m)
 		goto dropanyway;
 	}
 	th = mtod(m, struct iso88025_header *);
-	m->m_pkthdr.header = (void *)th;
 
 	/*
 	 * Discard packet if interface is not up.

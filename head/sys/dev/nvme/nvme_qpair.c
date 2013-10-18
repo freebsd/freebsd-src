@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Intel Corporation
+ * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -460,7 +460,7 @@ nvme_qpair_msix_handler(void *arg)
 void
 nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
     uint16_t vector, uint32_t num_entries, uint32_t num_trackers,
-    uint32_t max_xfer_size, struct nvme_controller *ctrlr)
+    struct nvme_controller *ctrlr)
 {
 	struct nvme_tracker	*tr;
 	uint32_t		i;
@@ -478,7 +478,6 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 		num_trackers = min(num_trackers, 64);
 #endif
 	qpair->num_trackers = num_trackers;
-	qpair->max_xfer_size = max_xfer_size;
 	qpair->ctrlr = ctrlr;
 
 	if (ctrlr->msix_enabled) {
@@ -501,8 +500,8 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 
 	bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev),
 	    sizeof(uint64_t), PAGE_SIZE, BUS_SPACE_MAXADDR,
-	    BUS_SPACE_MAXADDR, NULL, NULL, qpair->max_xfer_size,
-	    (qpair->max_xfer_size/PAGE_SIZE)+1, PAGE_SIZE, 0,
+	    BUS_SPACE_MAXADDR, NULL, NULL, NVME_MAX_XFER_SIZE,
+	    (NVME_MAX_XFER_SIZE/PAGE_SIZE)+1, PAGE_SIZE, 0,
 	    NULL, NULL, &qpair->dma_tag);
 
 	qpair->num_cmds = 0;
@@ -736,14 +735,6 @@ nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 }
 
 static void
-nvme_payload_map_uio(void *arg, bus_dma_segment_t *seg, int nseg,
-    bus_size_t mapsize, int error)
-{
-
-	nvme_payload_map(arg, seg, nseg, error);
-}
-
-static void
 _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 {
 	struct nvme_tracker	*tr;
@@ -787,6 +778,9 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 
 	switch (req->type) {
 	case NVME_REQUEST_VADDR:
+		KASSERT(req->payload_size <= qpair->ctrlr->max_xfer_size,
+		    ("payload_size (%d) exceeds max_xfer_size (%d)\n",
+		    req->payload_size, qpair->ctrlr->max_xfer_size));
 		err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map,
 		    req->u.payload, req->payload_size, nvme_payload_map, tr, 0);
 		if (err != 0)
@@ -796,16 +790,12 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 	case NVME_REQUEST_NULL:
 		nvme_qpair_submit_tracker(tr->qpair, tr);
 		break;
-	case NVME_REQUEST_UIO:
-		err = bus_dmamap_load_uio(tr->qpair->dma_tag,
-		    tr->payload_dma_map, req->u.uio, nvme_payload_map_uio,
-		    tr, 0);
-		if (err != 0)
-			nvme_printf(qpair->ctrlr,
-			    "bus_dmamap_load_uio returned 0x%x!\n", err);
-		break;
 #ifdef NVME_UNMAPPED_BIO_SUPPORT
 	case NVME_REQUEST_BIO:
+		KASSERT(req->u.bio->bio_bcount <= qpair->ctrlr->max_xfer_size,
+		    ("bio->bio_bcount (%jd) exceeds max_xfer_size (%d)\n",
+		    (intmax_t)req->u.bio->bio_bcount,
+		    qpair->ctrlr->max_xfer_size));
 		err = bus_dmamap_load_bio(tr->qpair->dma_tag,
 		    tr->payload_dma_map, req->u.bio, nvme_payload_map, tr, 0);
 		if (err != 0)

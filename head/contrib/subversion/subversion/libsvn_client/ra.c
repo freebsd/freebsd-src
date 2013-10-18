@@ -862,55 +862,26 @@ svn_client__repos_locations(const char **start_url,
   return SVN_NO_ERROR;
 }
 
-
 svn_error_t *
-svn_client__get_youngest_common_ancestor(svn_client__pathrev_t **ancestor_p,
-                                         const svn_client__pathrev_t *loc1,
-                                         const svn_client__pathrev_t *loc2,
-                                         svn_ra_session_t *session,
-                                         svn_client_ctx_t *ctx,
-                                         apr_pool_t *result_pool,
-                                         apr_pool_t *scratch_pool)
+svn_client__calc_youngest_common_ancestor(svn_client__pathrev_t **ancestor_p,
+                                          const svn_client__pathrev_t *loc1,
+                                          apr_hash_t *history1,
+                                          svn_boolean_t has_rev_zero_history1,
+                                          const svn_client__pathrev_t *loc2,
+                                          apr_hash_t *history2,
+                                          svn_boolean_t has_rev_zero_history2,
+                                          apr_pool_t *result_pool,
+                                          apr_pool_t *scratch_pool)
 {
-  apr_pool_t *sesspool = NULL;
-  apr_hash_t *history1, *history2;
   apr_hash_index_t *hi;
   svn_revnum_t yc_revision = SVN_INVALID_REVNUM;
   const char *yc_relpath = NULL;
-  svn_boolean_t has_rev_zero_history1;
-  svn_boolean_t has_rev_zero_history2;
 
   if (strcmp(loc1->repos_root_url, loc2->repos_root_url) != 0)
     {
       *ancestor_p = NULL;
       return SVN_NO_ERROR;
     }
-
-  /* Open an RA session for the two locations. */
-  if (session == NULL)
-    {
-      sesspool = svn_pool_create(scratch_pool);
-      SVN_ERR(svn_client_open_ra_session2(&session, loc1->url, NULL, ctx,
-                                          sesspool, sesspool));
-    }
-
-  /* We're going to cheat and use history-as-mergeinfo because it
-     saves us a bunch of annoying custom data comparisons and such. */
-  SVN_ERR(svn_client__get_history_as_mergeinfo(&history1,
-                                               &has_rev_zero_history1,
-                                               loc1,
-                                               SVN_INVALID_REVNUM,
-                                               SVN_INVALID_REVNUM,
-                                               session, ctx, scratch_pool));
-  SVN_ERR(svn_client__get_history_as_mergeinfo(&history2,
-                                               &has_rev_zero_history2,
-                                               loc2,
-                                               SVN_INVALID_REVNUM,
-                                               SVN_INVALID_REVNUM,
-                                               session, ctx, scratch_pool));
-  /* Close the ra session if we opened one. */
-  if (sesspool)
-    svn_pool_destroy(sesspool);
 
   /* Loop through the first location's history, check for overlapping
      paths and ranges in the second location's history, and
@@ -961,6 +932,63 @@ svn_client__get_youngest_common_ancestor(svn_client__pathrev_t **ancestor_p,
     {
       *ancestor_p = NULL;
     }
+  return SVN_NO_ERROR;
+}
+
+svn_error_t *
+svn_client__get_youngest_common_ancestor(svn_client__pathrev_t **ancestor_p,
+                                         const svn_client__pathrev_t *loc1,
+                                         const svn_client__pathrev_t *loc2,
+                                         svn_ra_session_t *session,
+                                         svn_client_ctx_t *ctx,
+                                         apr_pool_t *result_pool,
+                                         apr_pool_t *scratch_pool)
+{
+  apr_pool_t *sesspool = NULL;
+  apr_hash_t *history1, *history2;
+  svn_boolean_t has_rev_zero_history1;
+  svn_boolean_t has_rev_zero_history2;
+
+  if (strcmp(loc1->repos_root_url, loc2->repos_root_url) != 0)
+    {
+      *ancestor_p = NULL;
+      return SVN_NO_ERROR;
+    }
+
+  /* Open an RA session for the two locations. */
+  if (session == NULL)
+    {
+      sesspool = svn_pool_create(scratch_pool);
+      SVN_ERR(svn_client_open_ra_session2(&session, loc1->url, NULL, ctx,
+                                          sesspool, sesspool));
+    }
+
+  /* We're going to cheat and use history-as-mergeinfo because it
+     saves us a bunch of annoying custom data comparisons and such. */
+  SVN_ERR(svn_client__get_history_as_mergeinfo(&history1,
+                                               &has_rev_zero_history1,
+                                               loc1,
+                                               SVN_INVALID_REVNUM,
+                                               SVN_INVALID_REVNUM,
+                                               session, ctx, scratch_pool));
+  SVN_ERR(svn_client__get_history_as_mergeinfo(&history2,
+                                               &has_rev_zero_history2,
+                                               loc2,
+                                               SVN_INVALID_REVNUM,
+                                               SVN_INVALID_REVNUM,
+                                               session, ctx, scratch_pool));
+  /* Close the ra session if we opened one. */
+  if (sesspool)
+    svn_pool_destroy(sesspool);
+
+  SVN_ERR(svn_client__calc_youngest_common_ancestor(ancestor_p,
+                                                    loc1, history1,
+                                                    has_rev_zero_history1,
+                                                    loc2, history2,
+                                                    has_rev_zero_history2,
+                                                    result_pool,
+                                                    scratch_pool));
+
   return SVN_NO_ERROR;
 }
 

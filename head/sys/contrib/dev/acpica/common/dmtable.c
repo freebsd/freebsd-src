@@ -100,6 +100,7 @@ static const char           *AcpiDmEinjActions[] =
     "Execute Operation",
     "Check Busy Status",
     "Get Command Status",
+    "Set Error Type With Address",
     "Unknown Action"
 };
 
@@ -110,6 +111,7 @@ static const char           *AcpiDmEinjInstructions[] =
     "Write Register",
     "Write Register Value",
     "Noop",
+    "Flush Cacheline",
     "Unknown Instruction"
 };
 
@@ -180,6 +182,8 @@ static const char           *AcpiDmHestNotifySubnames[] =
     "Local Interrupt",
     "SCI",
     "NMI",
+    "CMCI",                         /* ACPI 5.0 */
+    "MCE",                          /* ACPI 5.0 */
     "Unknown Notify Type"           /* Reserved */
 };
 
@@ -442,7 +446,7 @@ AcpiDmDumpDataTable (
         Length = Table->Length;
         AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoFacs);
     }
-    else if (ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_RSDP))
+    else if (ACPI_VALIDATE_RSDP_SIG (Table->Signature))
     {
         Length = AcpiDmDumpRsdp (Table);
     }
@@ -744,6 +748,11 @@ AcpiDmDumpTable (
             ByteLength = 8;
             break;
 
+        case ACPI_DMT_BUF10:
+
+            ByteLength = 10;
+            break;
+
         case ACPI_DMT_BUF16:
         case ACPI_DMT_UUID:
 
@@ -862,6 +871,7 @@ AcpiDmDumpTable (
             break;
 
         case ACPI_DMT_BUF7:
+        case ACPI_DMT_BUF10:
         case ACPI_DMT_BUF16:
         case ACPI_DMT_BUF128:
             /*

@@ -1,7 +1,5 @@
-/*	$OpenBSD: elf_abi.h,v 1.1 1998/01/28 11:14:41 pefo Exp $ */
-
-/*-
- * Copyright (c) 1996 Per Fogelstrom
+/*
+ * Copyright (c) 2013 M. Warner Losh. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -11,18 +9,12 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed under OpenBSD by
- *	Per Fogelstrom.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
- * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
@@ -30,190 +22,60 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	JNPR: elf.h,v 1.4 2006/12/02 09:53:40 katta
  * $FreeBSD$
- *
  */
 
-#ifndef _MACHINE_ELF_H_
-#define	_MACHINE_ELF_H_
+/*-
+ * Copyright (c) 2013 The NetBSD Foundation, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * See below starting with the line with $NetBSD...$ for code this applies to.
+ */
 
-/* Information taken from MIPS ABI supplemental */
+#ifndef	__MIPS_ELF_H
+#define	__MIPS_ELF_H
 
+/* FreeBSD specific bits - derived from FreeBSD specific files and changes to old elf.h */
+
+/*
+ * Define __ELF_WORD_SIZE based on the ABI, if not defined yet. This sets
+ * the proper defaults when we're not trying to do 32-bit on 64-bit systems.
+ * We include both 32 and 64 bit versions so we can support multiple ABIs.
+ */
 #ifndef __ELF_WORD_SIZE
 #if defined(__mips_n64)
-#define	__ELF_WORD_SIZE 64	/* Used by <sys/elf_generic.h> */
+#define __ELF_WORD_SIZE 64
 #else
-#define	__ELF_WORD_SIZE 32	/* Used by <sys/elf_generic.h> */
+#define __ELF_WORD_SIZE 32
 #endif
 #endif
-#include <sys/elf32.h>	/* Definitions common to all 32 bit architectures. */
-#include <sys/elf64.h>	/* Definitions common to all 64 bit architectures. */
+#include <sys/elf32.h>
+#include <sys/elf64.h>
 #include <sys/elf_generic.h>
 
-#define	ELF_ARCH	EM_MIPS
-#if __ELF_WORD_SIZE == 32
-#define	ELF_ARCH32	EM_MIPS
-#endif
-#define	ELF_MACHINE_OK(x) ((x) == EM_MIPS || (x) == EM_MIPS_RS4_BE)
-
-/* Architecture dependent Segment types - p_type */
-#define	PT_MIPS_REGINFO		0x70000000 /* Register usage information */
-
-/* Architecture dependent d_tag field for Elf32_Dyn.  */
-#define	DT_MIPS_RLD_VERSION	0x70000001 /* Runtime Linker Interface ID */
-#define	DT_MIPS_TIME_STAMP	0x70000002 /* Timestamp */
-#define	DT_MIPS_ICHECKSUM	0x70000003 /* Cksum of ext str and com sizes */
-#define	DT_MIPS_IVERSION	0x70000004 /* Version string (string tbl index) */
-#define	DT_MIPS_FLAGS		0x70000005 /* Flags */
-#define	DT_MIPS_BASE_ADDRESS	0x70000006 /* Segment base address */
-#define	DT_MIPS_CONFLICT	0x70000008 /* Adr of .conflict section */
-#define	DT_MIPS_LIBLIST		0x70000009 /* Address of .liblist section */
-#define	DT_MIPS_LOCAL_GOTNO	0x7000000a /* Number of local .GOT entries */
-#define	DT_MIPS_CONFLICTNO	0x7000000b /* Number of .conflict entries */
-#define	DT_MIPS_LIBLISTNO	0x70000010 /* Number of .liblist entries */
-#define	DT_MIPS_SYMTABNO	0x70000011 /* Number of .dynsym entries */
-#define	DT_MIPS_UNREFEXTNO	0x70000012 /* First external DYNSYM */
-#define	DT_MIPS_GOTSYM		0x70000013 /* First GOT entry in .dynsym */
-#define	DT_MIPS_HIPAGENO	0x70000014 /* Number of GOT page table entries */
-#define	DT_MIPS_RLD_MAP		0x70000016 /* Address of debug map pointer */
-
-#define	DT_PROCNUM (DT_MIPS_RLD_MAP - DT_LOPROC + 1)
-
-/*
- * Legal values for e_flags field of Elf32_Ehdr.
- */
-#define	EF_MIPS_NOREORDER	1		/* .noreorder was used */
-#define	EF_MIPS_PIC		2		/* Contains PIC code */
-#define	EF_MIPS_CPIC		4		/* Uses PIC calling sequence */
-#define	EF_MIPS_ARCH		0xf0000000	/* MIPS architecture level */
-
-/*
- * Mips special sections.
- */
-#define	SHN_MIPS_ACOMMON	0xff00		/* Allocated common symbols */
-#define	SHN_MIPS_SCOMMON	0xff03		/* Small common symbols */
-#define	SHN_MIPS_SUNDEFINED	0xff04		/* Small undefined symbols */
-
-/*
- * Legal values for sh_type field of Elf32_Shdr.
- */
-#define	SHT_MIPS_LIBLIST	0x70000000 /* Shared objects used in link */
-#define	SHT_MIPS_CONFLICT	0x70000002 /* Conflicting symbols */
-#define	SHT_MIPS_GPTAB		0x70000003 /* Global data area sizes */
-#define	SHT_MIPS_UCODE		0x70000004 /* Reserved for SGI/MIPS compilers */
-#define	SHT_MIPS_DEBUG		0x70000005 /* MIPS ECOFF debugging information */
-#define	SHT_MIPS_REGINFO	0x70000006 /* Register usage information */
-
-/*
- * Legal values for sh_flags field of Elf32_Shdr.
- */
-#define	SHF_MIPS_GPREL		0x10000000 /* Must be part of global data area */
-
-/*
- * Entries found in sections of type SHT_MIPS_GPTAB.
- */
-typedef union {
-	struct {
-		Elf32_Word gt_current_g_value;	/* -G val used in compilation */
-		Elf32_Word gt_unused;	/* Not used */
-	} gt_header;			/* First entry in section */
-	struct {
-		Elf32_Word gt_g_value;	/* If this val were used for -G */
-		Elf32_Word gt_bytes;	/* This many bytes would be used */
-	} gt_entry;			/* Subsequent entries in section */
-} Elf32_gptab;
-typedef union {
-	struct {
-		Elf64_Word gt_current_g_value;	/* -G val used in compilation */
-		Elf64_Word gt_unused;	/* Not used */
-	} gt_header;			/* First entry in section */
-	struct {
-		Elf64_Word gt_g_value;	/* If this val were used for -G */
-		Elf64_Word gt_bytes;	/* This many bytes would be used */
-	} gt_entry;			/* Subsequent entries in section */
-} Elf64_gptab;
-
-/*
- * Entry found in sections of type SHT_MIPS_REGINFO.
- */
-typedef struct {
-	Elf32_Word	ri_gprmask;	/* General registers used */
-	Elf32_Word	ri_cprmask[4];	/* Coprocessor registers used */
-	Elf32_Sword	ri_gp_value;	/* $gp register value */
-} Elf32_RegInfo;
-typedef struct {
-	Elf64_Word	ri_gprmask;	/* General registers used */
-	Elf64_Word	ri_cprmask[4];	/* Coprocessor registers used */
-	Elf64_Sword	ri_gp_value;	/* $gp register value */
-} Elf64_RegInfo;
-
-
-/*
- * Mips relocations.
- */
-
-#define	R_MIPS_NONE	0	/* No reloc */
-#define	R_MIPS_16	1	/* Direct 16 bit */
-#define	R_MIPS_32	2	/* Direct 32 bit */
-#define	R_MIPS_REL32	3	/* PC relative 32 bit */
-#define	R_MIPS_26	4	/* Direct 26 bit shifted */
-#define	R_MIPS_HI16	5	/* High 16 bit */
-#define	R_MIPS_LO16	6	/* Low 16 bit */
-#define	R_MIPS_GPREL16	7	/* GP relative 16 bit */
-#define	R_MIPS_LITERAL	8	/* 16 bit literal entry */
-#define	R_MIPS_GOT16	9	/* 16 bit GOT entry */
-#define	R_MIPS_PC16	10	/* PC relative 16 bit */
-#define	R_MIPS_CALL16	11	/* 16 bit GOT entry for function */
-#define	R_MIPS_GPREL32	12	/* GP relative 32 bit */
-#define	R_MIPS_GOTHI16	21	/* GOT HI 16 bit */
-#define	R_MIPS_GOTLO16	22	/* GOT LO 16 bit */
-#define	R_MIPS_CALLHI16 30	/* upper 16 bit GOT entry for function */
-#define	R_MIPS_CALLLO16 31	/* lower 16 bit GOT entry for function */
-
-/*
- * These are from the 64-bit Irix ELF ABI
- */
-#define	R_MIPS_SHIFT5	16
-#define	R_MIPS_SHIFT6	17
-#define	R_MIPS_64	18
-#define	R_MIPS_GOT_DISP	19
-#define	R_MIPS_GOT_PAGE	20
-#define	R_MIPS_GOT_OFST	21
-#define	R_MIPS_GOT_HI16	22
-#define	R_MIPS_GOT_LO16	23
-#define	R_MIPS_SUB	24
-#define	R_MIPS_INSERT_A	25
-#define	R_MIPS_INSERT_B	26
-#define	R_MIPS_DELETE	27
-#define	R_MIPS_HIGHER	28
-#define	R_MIPS_HIGHEST	29
-#define	R_MIPS_SCN_DISP	32
-#define	R_MIPS_REL16	33
-#define	R_MIPS_ADD_IMMEDIATE 34
-#define	R_MIPS_PJUMP	35
-#define	R_MIPS_RELGOT	36
-#define	R_MIPS_JALR	37
-
-/* 
- * TLS relocations 
- */
-#define	R_MIPS_TLS_DTPMOD32	38	/* Module number 32 bit */
-#define	R_MIPS_TLS_DTPREL32	39	/* Module-relative offset 32 bit */
-#define	R_MIPS_TLS_DTPMOD64	40	/* Module number 64 bit */
-#define	R_MIPS_TLS_DTPREL64	41	/* Module-relative offset 64 bit */
-#define	R_MIPS_TLS_GD		42	/* 16 bit GOT offset for GD */
-#define	R_MIPS_TLS_LDM		43	/* 16 bit GOT offset for LDM */
-#define	R_MIPS_TLS_DTPREL_HI16	44	/* Module-relative offset, high 16 bits */
-#define	R_MIPS_TLS_DTPREL_LO16	45	/* Module-relative offset, low 16 bits */
-#define	R_MIPS_TLS_GOTTPREL	46	/* 16 bit GOT offset for IE */
-#define	R_MIPS_TLS_TPREL32	47	/* TP-relative offset, 32 bit */
-#define	R_MIPS_TLS_TPREL64	48	/* TP-relative offset, 64 bit */
-#define	R_MIPS_TLS_TPREL_HI16	49	/* TP-relative offset, high 16 bits */
-#define	R_MIPS_TLS_TPREL_LO16	50	/* TP-relative offset, low 16 bits */
-
-#define	R_MIPS_max	51
-#define	R_TYPE(name)		__CONCAT(R_MIPS_,name)
+#define ELF_ARCH	EM_MIPS
+#define ELF_ARCH32	EM_MIPS
 
 /* Define "machine" characteristics */
 #if __ELF_WORD_SIZE == 32
@@ -290,4 +152,137 @@ __ElfType(Auxinfo);
  */
 #define	SYMTAB_MAGIC	0x64656267
 
-#endif /* !_MACHINE_ELF_H_ */
+/* from NetBSD's sys/mips/include/elf_machdep.h $NetBSD: elf_machdep.h,v 1.18 2013/05/23 21:39:49 christos Exp $ */
+
+/* mips relocs. */
+
+#define	R_MIPS_NONE		0
+#define	R_MIPS_16		1
+#define	R_MIPS_32		2
+#define	R_MIPS_REL32		3
+#define	R_MIPS_REL		R_MIPS_REL32
+#define	R_MIPS_26		4
+#define	R_MIPS_HI16		5	/* high 16 bits of symbol value */
+#define	R_MIPS_LO16		6	/* low 16 bits of symbol value */
+#define	R_MIPS_GPREL16		7	/* GP-relative reference  */
+#define	R_MIPS_LITERAL		8	/* Reference to literal section  */
+#define	R_MIPS_GOT16		9	/* Reference to global offset table */
+#define	R_MIPS_GOT		R_MIPS_GOT16
+#define	R_MIPS_PC16		10	/* 16 bit PC relative reference */
+#define	R_MIPS_CALL16 		11	/* 16 bit call thru glbl offset tbl */
+#define	R_MIPS_CALL		R_MIPS_CALL16
+#define	R_MIPS_GPREL32		12
+
+/* 13, 14, 15 are not defined at this point. */
+#define	R_MIPS_UNUSED1		13
+#define	R_MIPS_UNUSED2		14
+#define	R_MIPS_UNUSED3		15
+
+/*
+ * The remaining relocs are apparently part of the 64-bit Irix ELF ABI.
+ */
+#define	R_MIPS_SHIFT5		16
+#define	R_MIPS_SHIFT6		17
+
+#define	R_MIPS_64		18
+#define	R_MIPS_GOT_DISP		19
+#define	R_MIPS_GOT_PAGE		20
+#define	R_MIPS_GOT_OFST		21
+#define	R_MIPS_GOT_HI16		22
+#define	R_MIPS_GOT_LO16		23
+#define	R_MIPS_SUB		24
+#define	R_MIPS_INSERT_A		25
+#define	R_MIPS_INSERT_B		26
+#define	R_MIPS_DELETE		27
+#define	R_MIPS_HIGHER		28
+#define	R_MIPS_HIGHEST		29
+#define	R_MIPS_CALL_HI16	30
+#define	R_MIPS_CALL_LO16	31
+#define	R_MIPS_SCN_DISP		32
+#define	R_MIPS_REL16		33
+#define	R_MIPS_ADD_IMMEDIATE	34
+#define	R_MIPS_PJUMP		35
+#define	R_MIPS_RELGOT		36
+#define	R_MIPS_JALR		37
+/* TLS relocations */
+
+#define	R_MIPS_TLS_DTPMOD32	38	/* Module number 32 bit */
+#define	R_MIPS_TLS_DTPREL32	39	/* Module-relative offset 32 bit */
+#define	R_MIPS_TLS_DTPMOD64	40	/* Module number 64 bit */
+#define	R_MIPS_TLS_DTPREL64	41	/* Module-relative offset 64 bit */
+#define	R_MIPS_TLS_GD		42	/* 16 bit GOT offset for GD */
+#define	R_MIPS_TLS_LDM		43	/* 16 bit GOT offset for LDM */
+#define	R_MIPS_TLS_DTPREL_HI16	44	/* Module-relative offset, high 16 bits */
+#define	R_MIPS_TLS_DTPREL_LO16	45	/* Module-relative offset, low 16 bits */
+#define	R_MIPS_TLS_GOTTPREL	46	/* 16 bit GOT offset for IE */
+#define	R_MIPS_TLS_TPREL32	47	/* TP-relative offset, 32 bit */
+#define	R_MIPS_TLS_TPREL64	48	/* TP-relative offset, 64 bit */
+#define	R_MIPS_TLS_TPREL_HI16	49	/* TP-relative offset, high 16 bits */
+#define	R_MIPS_TLS_TPREL_LO16	50	/* TP-relative offset, low 16 bits */
+
+#define	R_MIPS_max		51
+
+#define	R_TYPE(name)		__CONCAT(R_MIPS_,name)
+
+#define	R_MIPS16_min		100
+#define	R_MIPS16_26		100
+#define	R_MIPS16_GPREL		101
+#define	R_MIPS16_GOT16		102
+#define	R_MIPS16_CALL16		103
+#define	R_MIPS16_HI16		104
+#define	R_MIPS16_LO16		105
+#define	R_MIPS16_max		106
+
+#define	R_MIPS_COPY		126
+#define	R_MIPS_JUMP_SLOT	127
+
+/* mips dynamic tags */
+
+#define	DT_MIPS_RLD_VERSION	0x70000001
+#define	DT_MIPS_TIME_STAMP	0x70000002
+#define	DT_MIPS_ICHECKSUM	0x70000003
+#define	DT_MIPS_IVERSION	0x70000004
+#define	DT_MIPS_FLAGS		0x70000005
+#define	DT_MIPS_BASE_ADDRESS	0x70000006
+#define	DT_MIPS_CONFLICT	0x70000008
+#define	DT_MIPS_LIBLIST		0x70000009
+#define	DT_MIPS_CONFLICTNO	0x7000000b
+#define	DT_MIPS_LOCAL_GOTNO	0x7000000a	/* number of local got ents */
+#define	DT_MIPS_LIBLISTNO	0x70000010
+#define	DT_MIPS_SYMTABNO	0x70000011	/* number of .dynsym entries */
+#define	DT_MIPS_UNREFEXTNO	0x70000012
+#define	DT_MIPS_GOTSYM		0x70000013	/* first dynamic sym in got */
+#define	DT_MIPS_HIPAGENO	0x70000014
+#define	DT_MIPS_RLD_MAP		0x70000016	/* address of loader map */
+#define	DT_MIPS_PLTGOT		0x70000032
+#define	DT_MIPS_RWPLT		0x70000034
+
+/*
+ * ELF Flags
+ */
+#define	EF_MIPS_PIC		0x00000002	/* Contains PIC code */
+#define	EF_MIPS_CPIC		0x00000004	/* STD PIC calling sequence */
+#define	EF_MIPS_ABI2		0x00000020	/* N32 */
+
+#define	EF_MIPS_ARCH_ASE	0x0f000000	/* Architectural extensions */
+#define	EF_MIPS_ARCH_MDMX	0x08000000	/* MDMX multimedia extension */
+#define	EF_MIPS_ARCH_M16	0x04000000	/* MIPS-16 ISA extensions */
+
+#define	EF_MIPS_ARCH		0xf0000000	/* Architecture field */
+#define	EF_MIPS_ARCH_1		0x00000000	/* -mips1 code */
+#define	EF_MIPS_ARCH_2		0x10000000	/* -mips2 code */
+#define	EF_MIPS_ARCH_3		0x20000000	/* -mips3 code */
+#define	EF_MIPS_ARCH_4		0x30000000	/* -mips4 code */
+#define	EF_MIPS_ARCH_5		0x40000000	/* -mips5 code */
+#define	EF_MIPS_ARCH_32		0x50000000	/* -mips32 code */
+#define	EF_MIPS_ARCH_64		0x60000000	/* -mips64 code */
+#define	EF_MIPS_ARCH_32R2	0x70000000	/* -mips32r2 code */
+#define	EF_MIPS_ARCH_64R2	0x80000000	/* -mips64r2 code */
+
+#define	EF_MIPS_ABI		0x0000f000
+#define	EF_MIPS_ABI_O32		0x00001000
+#define	EF_MIPS_ABI_O64		0x00002000
+#define	EF_MIPS_ABI_EABI32	0x00003000
+#define	EF_MIPS_ABI_EABI64	0x00004000
+
+#endif /* __MIPS_ELF_H */

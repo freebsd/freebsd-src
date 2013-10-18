@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Emulex
+ * Copyright (C) 2013 Emulex
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,8 +63,7 @@
 #define	MPU_EP_CONTROL			0
 #define	MPU_EP_SEMAPHORE_BE3		0xac
 #define	MPU_EP_SEMAPHORE_XE201		0x400
-#define MPU_EP_SEMAPHORE(sc) \
-	((IS_BE(sc)) ? MPU_EP_SEMAPHORE_BE3 : MPU_EP_SEMAPHORE_XE201)
+#define	MPU_EP_SEMAPHORE_SH		0x94
 #define	PCICFG_INTR_CTRL		0xfc
 #define	HOSTINTR_MASK			(1 << 29)
 #define	HOSTINTR_PFUNC_SHIFT		26
@@ -1998,6 +1997,79 @@ struct mbx_lowlevel_set_loopback_mode {
 		} rsp;
 	} params;
 };
+#define MAX_RESC_DESC				256
+#define RESC_DESC_SIZE				88
+#define ACTIVE_PROFILE				2
+#define NIC_RESC_DESC_TYPE_V0			0x41
+#define NIC_RESC_DESC_TYPE_V1			0x51
+/* OPCODE_COMMON_GET_FUNCTION_CONFIG */
+struct mbx_common_get_func_config {
+	struct mbx_hdr hdr;
+	union {
+		struct {
+			uint8_t rsvd;
+			uint8_t type;
+			uint16_t rsvd1;
+		} req;
+		struct {
+			uint32_t desc_count;
+			uint8_t resources[MAX_RESC_DESC * RESC_DESC_SIZE];
+		} rsp;
+	} params;
+};
+
+
+/* OPCODE_COMMON_GET_PROFILE_CONFIG */
+
+struct mbx_common_get_profile_config {
+	struct mbx_hdr hdr;
+	union {
+		struct {
+			uint8_t rsvd;
+			uint8_t type;
+			uint16_t rsvd1;
+		} req;
+		struct {
+			uint32_t desc_count;
+			uint8_t resources[MAX_RESC_DESC * RESC_DESC_SIZE];
+		} rsp;
+	} params;
+};
+
+struct oce_nic_resc_desc {
+	uint8_t desc_type;
+	uint8_t desc_len;
+	uint8_t rsvd1;
+	uint8_t flags;
+	uint8_t vf_num;
+	uint8_t rsvd2;
+	uint8_t pf_num;
+	uint8_t rsvd3;
+	uint16_t unicast_mac_count;
+	uint8_t rsvd4[6];
+	uint16_t mcc_count;
+	uint16_t vlan_count;
+	uint16_t mcast_mac_count;
+	uint16_t txq_count;
+	uint16_t rq_count;
+	uint16_t rssq_count;
+	uint16_t lro_count;
+	uint16_t cq_count;
+	uint16_t toe_conn_count;
+	uint16_t eq_count;
+	uint32_t rsvd5;
+	uint32_t cap_flags;
+	uint8_t link_param;
+	uint8_t rsvd6[3];
+	uint32_t bw_min;
+	uint32_t bw_max;
+	uint8_t acpi_params;
+	uint8_t wol_param;
+	uint16_t rsvd7;
+	uint32_t rsvd8[7];
+
+};
+
 
 struct flash_file_hdr {
 	uint8_t  sign[52];

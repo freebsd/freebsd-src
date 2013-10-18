@@ -1,6 +1,6 @@
 # Chelsio T4 Factory Default configuration file.
 #
-# Copyright (C) 2010-2012 Chelsio Communications.  All rights reserved.
+# Copyright (C) 2010-2013 Chelsio Communications.  All rights reserved.
 #
 #   DO NOT MODIFY THIS FILE UNDER ANY CIRCUMSTANCES.  MODIFICATION OF
 #   THIS FILE WILL RESULT IN A NON-FUNCTIONAL T4 ADAPTER AND MAY RESULT
@@ -109,27 +109,42 @@
 	reg[0x10a8] = 0x2000/0x2000	# SGE_DOORBELL_CONTROL
 	sge_timer_value = 5, 10, 20, 50, 100, 200 # SGE_TIMER_VALUE* in usecs
 
-	reg[0x7dc0] = 0x64f8849		# TP_SHIFT_CNT
+	# enable TP_OUT_CONFIG.IPIDSPLITMODE
+	reg[0x7d04] = 0x00010000/0x00010000
 
-	# Selection of tuples for LE filter lookup, fields (and widths which
-	# must sum to <= 36): { IP Fragment (1), MPS Match Type (3),
-	# IP Protocol (8), [Inner] VLAN (17), Port (3), FCoE (1) }
-	#
+	reg[0x7dc0] = 0x62f8849		# TP_SHIFT_CNT
+
+	# TP_VLAN_PRI_MAP to select filter tuples
+	# filter tuples : fragmentation, mpshittype, macmatch, ethertype,
+	#		  protocol, tos, vlan, vnic_id, port, fcoe
+	# valid filterModes are described the Terminator 4 Data Book
 	filterMode = fragmentation, mpshittype, protocol, vlan, port, fcoe
+
+	# filter tuples enforced in LE active region (equal to or subset of filterMode)
+	filterMask = protocol, fcoe
 
 	# Percentage of dynamic memory (in either the EDRAM or external MEM)
 	# to use for TP RX payload
-	tp_pmrx = 30
+	tp_pmrx = 34 
 
 	# TP RX payload page size
 	tp_pmrx_pagesize = 64K
 
+	# TP number of RX channels
+	tp_nrxch = 0		# 0 (auto) = 1
+
 	# Percentage of dynamic memory (in either the EDRAM or external MEM)
 	# to use for TP TX payload
-	tp_pmtx = 50
+	tp_pmtx = 32
 
 	# TP TX payload page size
 	tp_pmtx_pagesize = 64K
+
+	# TP number of TX channels
+	tp_ntxch = 0		# 0 (auto) = equal number of ports
+
+	# TP OFLD MTUs
+	tp_mtus = 88, 256, 512, 576, 808, 1024, 1280, 1488, 1500, 2002, 2048, 4096, 4352, 8192, 9000, 9600
 
 # Some "definitions" to make the rest of this a bit more readable.  We support
 # 4 ports, 3 functions (NIC, FCoE and iSCSI), scaling up to 8 "CPU Queue Sets"
@@ -355,11 +370,11 @@
 	nhash = 12288		# number of hash region entries
 	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu
 	tp_l2t = 3072
-	tp_ddp = 2
+	tp_ddp = 3
 	tp_ddp_iscsi = 2
-	tp_stag = 2
-	tp_pbl = 5
-	tp_rq = 7
+	tp_stag = 3
+	tp_pbl = 10
+	tp_rq = 13
 
 # We have FCoE and iSCSI storage functions on PF5 and PF6 each of which may
 # need to have Virtual Interfaces on each of the four ports with up to NCPUS
@@ -399,7 +414,7 @@
 	pmask = all		# access to all four ports ...
 	nhash = 2048
 	protocol = fcoe_initiator
-	tp_ddp = 2
+	tp_ddp = 1
 	fcoe_nfcf = 16
 	fcoe_nvnp = 32
 	fcoe_nssn = 1024
@@ -514,8 +529,8 @@
 	dwm = 30
 
 [fini]
-	version = 0x1425000b
-	checksum = 0x7690f7a5
+	version = 0x14250010
+	checksum = 0x5a5526c3
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104
