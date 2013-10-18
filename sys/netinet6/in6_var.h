@@ -793,7 +793,7 @@ int	ip6_setmoptions(struct inpcb *, struct sockopt *);
 
 /* Legacy KAME multicast KPIs. */
 struct in6_multi_mship *
-	in6_joingroup(struct ifnet *, struct in6_addr *, int *, int);
+	in6_joingroup(struct ifnet *, const struct in6_addr *, int *, int);
 int	in6_leavegroup(struct in6_multi_mship *);
 
 /* flags to in6_update_ifa */

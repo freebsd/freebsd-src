@@ -1080,7 +1080,7 @@ in6m_purge(struct in6_multi *inm)
  * SMPng: Assume no mc locks held by caller.
  */
 struct in6_multi_mship *
-in6_joingroup(struct ifnet *ifp, struct in6_addr *mcaddr,
+in6_joingroup(struct ifnet *ifp, const struct in6_addr *mcaddr,
     int *errorp, int delay)
 {
 	struct in6_multi_mship *imm;
