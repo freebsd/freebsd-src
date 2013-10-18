@@ -1010,25 +1010,11 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	 * zone identifier.
 	 */
 	dst6 = ifra->ifra_dstaddr;
-	if ((ifp->if_flags & (IFF_POINTOPOINT|IFF_LOOPBACK)) != 0 &&
-	    (dst6.sin6_family == AF_INET6)) {
-		struct in6_addr in6_tmp;
-		u_int32_t zoneid;
-
-		in6_tmp = dst6.sin6_addr;
-		if (in6_setscope(&in6_tmp, ifp, &zoneid))
-			return (EINVAL); /* XXX: should be impossible */
-
-		if (dst6.sin6_scope_id != 0) {
-			if (dst6.sin6_scope_id != zoneid)
-				return (EINVAL);
-		} else		/* user omit to specify the ID. */
-			dst6.sin6_scope_id = zoneid;
-
-		/* convert into the internal form */
-		if (sa6_embedscope(&dst6, 0))
-			return (EINVAL); /* XXX: should be impossible */
-	}
+	if ((ifp->if_flags & (IFF_POINTOPOINT | IFF_LOOPBACK)) != 0 &&
+	    dst6.sin6_family == AF_INET6 && dst6.sin6_scope_id != 0 &&
+	    dst6.sin6_scope_id != in6_getscopezone(ifp,
+		in6_addrscope(&dst6.sin6_addr)))
+		return (EINVAL);
 	/*
 	 * The destination address can be specified only for a p2p or a
 	 * loopback interface.  If specified, the corresponding prefix length
