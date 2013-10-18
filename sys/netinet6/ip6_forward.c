@@ -98,9 +98,9 @@ ip6_forward(struct mbuf *m, int srcrt)
 	struct route_in6 rin6;
 	int error, type = 0, code = 0;
 	struct mbuf *mcopy = NULL;
-	struct ifnet *origifp;	/* maybe unnecessary */
-	u_int32_t inzone, outzone;
-	struct in6_addr src_in6, dst_in6, odst;
+	struct ifnet *ifp, *origifp;	/* maybe unnecessary */
+	int srcscope, dstscope;
+	struct in6_addr odst;
 #ifdef IPSEC
 	struct secpolicy *sp = NULL;
 	int ipsecrt = 0;
@@ -344,6 +344,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 	/* adjust pointer */
 	dst = (struct sockaddr_in6 *)state.dst;
 	rt = state.ro ? state.ro->ro_rt : NULL;
+	ifp = rt ? rt->rt_ifp: NULL;
 	if (dst != NULL && rt != NULL)
 		ipsecrt = 1;
     }
@@ -357,53 +358,65 @@ again:
 	dst->sin6_len = sizeof(struct sockaddr_in6);
 	dst->sin6_family = AF_INET6;
 	dst->sin6_addr = ip6->ip6_dst;
+	dst->sin6_scope_id = in6_getscopezone(m->m_pkthdr.rcvif,
+	    in6_addrscope(&ip6->ip6_dst));
 again2:
-	rin6.ro_rt = in6_rtalloc1((struct sockaddr *)dst, 0, 0, M_GETFIB(m));
-	if (rin6.ro_rt != NULL)
-		RT_UNLOCK(rin6.ro_rt);
-	else {
-		IP6STAT_INC(ip6s_noroute);
-		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_noroute);
-		if (mcopy) {
-			icmp6_error(mcopy, ICMP6_DST_UNREACH,
-			ICMP6_DST_UNREACH_NOROUTE, 0);
+	/*
+	 * We don't need to do route lookup for link-local addresses.
+	 */
+	if (IN6_IS_ADDR_LINKLOCAL(&dst->sin6_addr)) {
+		/*
+		 * If a router receives a packet with a link-local destination
+		 * address that is not one of the router's own link-local
+		 * addresses on the arrival link, the router is expected to
+		 * try to forward the packet to the destination on that link.
+		 *
+		 * XXX: type = ND_REDIRECT;
+		 */
+		ifp = m->m_pkthdr.rcvif;
+		rt = NULL;
+		/*
+		 * XXX: Should we do lla_lookup here?
+		 */
+	} else {
+		in6_rtalloc(&rin6, M_GETFIB(m));
+		if (rin6.ro_rt == NULL) {
+			IP6STAT_INC(ip6s_noroute);
+			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_noroute);
+			if (mcopy)
+				icmp6_error(mcopy, ICMP6_DST_UNREACH,
+				    ICMP6_DST_UNREACH_NOROUTE, 0);
+			goto bad;
 		}
-		goto bad;
+		ifp = rin6.ro_rt->rt_ifp;
+		rt = rin6.ro_rt;
 	}
-	rt = rin6.ro_rt;
 #ifdef IPSEC
 skip_routing:
 #endif
 
 	/*
-	 * Source scope check: if a packet can't be delivered to its
-	 * destination for the reason that the destination is beyond the scope
-	 * of the source address, discard the packet and return an icmp6
-	 * destination unreachable error with Code 2 (beyond scope of source
-	 * address).  We use a local copy of ip6_src, since in6_setscope()
-	 * will possibly modify its first argument.
-	 * [draft-ietf-ipngwg-icmp-v3-04.txt, Section 3.1]
+	 * RFC 4007:
+	 * If transmitting the packet on the chosen next-hop interface
+	 * would cause the packet to leave the zone of the source address,
+	 * i.e., cross a zone boundary of the scope of the source address,
+	 * then the packet is discarded. Additionally, if the packet's
+	 * destination address is a unicast address, an ICMP destination
+	 * Unreachable message with Code 2 ("beyond scope of source address")
+	 * is sent to the source of the original packet.
 	 */
-	src_in6 = ip6->ip6_src;
-	if (in6_setscope(&src_in6, rt->rt_ifp, &outzone)) {
-		/* XXX: this should not happen */
-		IP6STAT_INC(ip6s_cantforward);
-		IP6STAT_INC(ip6s_badscope);
-		goto bad;
-	}
-	if (in6_setscope(&src_in6, m->m_pkthdr.rcvif, &inzone)) {
-		IP6STAT_INC(ip6s_cantforward);
-		IP6STAT_INC(ip6s_badscope);
-		goto bad;
-	}
-	if (inzone != outzone
+	srcscope = in6_addrscope(&ip6->ip6_src);
+	dstscope = in6_addrscope(&ip6->ip6_dst);
+	if (m->m_pkthdr.rcvif != ifp &&
+	    in6_getscopezone(m->m_pkthdr.rcvif, srcscope) !=
+	    in6_getscopezone(ifp, dstscope)
 #ifdef IPSEC
 	    && !ipsecrt
 #endif
 	    ) {
 		IP6STAT_INC(ip6s_cantforward);
 		IP6STAT_INC(ip6s_badscope);
-		in6_ifstat_inc(rt->rt_ifp, ifs6_in_discard);
+		in6_ifstat_inc(ifp, ifs6_in_discard);
 
 		if (V_ip6_log_time + V_ip6_log_interval < time_uptime) {
 			V_ip6_log_time = time_uptime;
@@ -413,7 +426,7 @@ skip_routing:
 			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
 			    ip6_sprintf(ip6bufd, &ip6->ip6_dst),
 			    ip6->ip6_nxt,
-			    if_name(m->m_pkthdr.rcvif), if_name(rt->rt_ifp));
+			    if_name(m->m_pkthdr.rcvif), if_name(ifp));
 		}
 		if (mcopy)
 			icmp6_error(mcopy, ICMP6_DST_UNREACH,
@@ -421,24 +434,8 @@ skip_routing:
 		goto bad;
 	}
 
-	/*
-	 * Destination scope check: if a packet is going to break the scope
-	 * zone of packet's destination address, discard it.  This case should
-	 * usually be prevented by appropriately-configured routing table, but
-	 * we need an explicit check because we may mistakenly forward the
-	 * packet to a different zone by (e.g.) a default route.
-	 */
-	dst_in6 = ip6->ip6_dst;
-	if (in6_setscope(&dst_in6, m->m_pkthdr.rcvif, &inzone) != 0 ||
-	    in6_setscope(&dst_in6, rt->rt_ifp, &outzone) != 0 ||
-	    inzone != outzone) {
-		IP6STAT_INC(ip6s_cantforward);
-		IP6STAT_INC(ip6s_badscope);
-		goto bad;
-	}
-
-	if (m->m_pkthdr.len > IN6_LINKMTU(rt->rt_ifp)) {
-		in6_ifstat_inc(rt->rt_ifp, ifs6_in_toobig);
+	if (m->m_pkthdr.len > IN6_LINKMTU(ifp)) {
+		in6_ifstat_inc(ifp, ifs6_in_toobig);
 		if (mcopy) {
 			u_long mtu;
 #ifdef IPSEC
@@ -447,7 +444,7 @@ skip_routing:
 			size_t ipsechdrsiz;
 #endif /* IPSEC */
 
-			mtu = IN6_LINKMTU(rt->rt_ifp);
+			mtu = IN6_LINKMTU(ifp);
 #ifdef IPSEC
 			/*
 			 * When we do IPsec tunnel ingress, we need to play
@@ -477,7 +474,7 @@ skip_routing:
 		goto bad;
 	}
 
-	if (rt->rt_flags & RTF_GATEWAY)
+	if (rt && (rt->rt_flags & RTF_GATEWAY))
 		dst = (struct sockaddr_in6 *)rt->rt_gateway;
 
 	/*
@@ -489,12 +486,13 @@ skip_routing:
 	 * Also, don't send redirect if forwarding using a route
 	 * modified by a redirect.
 	 */
-	if (V_ip6_sendredirects && rt->rt_ifp == m->m_pkthdr.rcvif && !srcrt &&
+	if (V_ip6_sendredirects && ifp == m->m_pkthdr.rcvif && !srcrt &&
 #ifdef IPSEC
 	    !ipsecrt &&
 #endif /* IPSEC */
-	    (rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0) {
-		if ((rt->rt_ifp->if_flags & IFF_POINTOPOINT) != 0) {
+	    rin6.ro_rt &&
+	    (rin6.ro_rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0) {
+		if ((ifp->if_flags & IFF_POINTOPOINT) != 0) {
 			/*
 			 * If the incoming interface is equal to the outgoing
 			 * one, and the link attached to the interface is
@@ -506,7 +504,7 @@ skip_routing:
 			 * not sure if it is the best pick.
 			 */
 			icmp6_error(mcopy, ICMP6_DST_UNREACH,
-				    ICMP6_DST_UNREACH_ADDR, 0);
+			    ICMP6_DST_UNREACH_ADDR, 0);
 			goto bad;
 		}
 		type = ND_REDIRECT;
@@ -520,7 +518,7 @@ skip_routing:
 	 * link identifiers, we can do this stuff after making a copy for
 	 * returning an error.
 	 */
-	if ((rt->rt_ifp->if_flags & IFF_LOOPBACK) != 0) {
+	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
 		/*
 		 * See corresponding comments in ip6_output.
 		 * XXX: but is it possible that ip6_forward() sends a packet
@@ -533,7 +531,8 @@ skip_routing:
 #if 1
 		if (0)
 #else
-		if ((rt->rt_flags & (RTF_BLACKHOLE|RTF_REJECT)) == 0)
+		if (rin6.ro_rt &&
+		    (rin6.ro_rt->rt_flags & (RTF_BLACKHOLE|RTF_REJECT)) == 0)
 #endif
 		{
 			printf("ip6_forward: outgoing interface is loopback. "
@@ -541,20 +540,14 @@ skip_routing:
 			       ip6_sprintf(ip6bufs, &ip6->ip6_src),
 			       ip6_sprintf(ip6bufd, &ip6->ip6_dst),
 			       ip6->ip6_nxt, if_name(m->m_pkthdr.rcvif),
-			       if_name(rt->rt_ifp));
+			       if_name(ifp));
 		}
 
 		/* we can just use rcvif in forwarding. */
 		origifp = m->m_pkthdr.rcvif;
 	}
 	else
-		origifp = rt->rt_ifp;
-	/*
-	 * clear embedded scope identifiers if necessary.
-	 * in6_clearscope will touch the addresses only when necessary.
-	 */
-	in6_clearscope(&ip6->ip6_src);
-	in6_clearscope(&ip6->ip6_dst);
+		origifp = ifp;
 
 	/* Jump over all PFIL processing if hooks are not active. */
 	if (!PFIL_HOOKED(&V_inet6_pfil_hook))
@@ -562,7 +555,7 @@ skip_routing:
 
 	odst = ip6->ip6_dst;
 	/* Run through list of hooks for output packets. */
-	error = pfil_run_hooks(&V_inet6_pfil_hook, &m, rt->rt_ifp, PFIL_OUT, NULL);
+	error = pfil_run_hooks(&V_inet6_pfil_hook, &m, ifp, PFIL_OUT, NULL);
 	if (error != 0)
 		goto senderr;
 	if (m == NULL)
@@ -612,6 +605,11 @@ skip_routing:
 	if ((m->m_flags & M_IP6_NEXTHOP) &&
 	    (fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL)) != NULL) {
 		dst = (struct sockaddr_in6 *)&rin6.ro_dst;
+		if (rin6.ro_rt != NULL && (
+		    (rin6.ro_rt->rt_flags & RTF_UP) == 0 ||
+		    !IN6_ARE_ADDR_EQUAL(&dst->sin6_addr,
+			&((struct sockaddr_in6*)(fwd_tag + 1))->sin6_addr)))
+			RO_RTFREE(&rin6);
 		bcopy((fwd_tag+1), dst, sizeof(struct sockaddr_in6));
 		m->m_flags |= M_SKIP_FIREWALL;
 		m->m_flags &= ~M_IP6_NEXTHOP;
@@ -620,13 +618,13 @@ skip_routing:
 	}
 
 pass:
-	error = nd6_output(rt->rt_ifp, origifp, m, dst, NULL);
+	error = nd6_output(ifp, origifp, m, dst, NULL);
 	if (error) {
-		in6_ifstat_inc(rt->rt_ifp, ifs6_out_discard);
+		in6_ifstat_inc(ifp, ifs6_out_discard);
 		IP6STAT_INC(ip6s_cantforward);
 	} else {
 		IP6STAT_INC(ip6s_forward);
-		in6_ifstat_inc(rt->rt_ifp, ifs6_out_forward);
+		in6_ifstat_inc(ifp, ifs6_out_forward);
 		if (type)
 			IP6STAT_INC(ip6s_redirectsent);
 		else {
