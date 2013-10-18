@@ -454,10 +454,10 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		break;
 	}
 	if (sa6 && sa6->sin6_family == AF_INET6) {
-		if (sa6->sin6_scope_id != 0)
-			error = sa6_embedscope(sa6, 0);
-		else
-			error = in6_setscope(&sa6->sin6_addr, ifp, NULL);
+		if (sa6->sin6_scope_id == 0)
+			sa6->sin6_scope_id = in6_getscopezone(ifp,
+			    in6_addrscope(&sa6->sin6_addr));
+		error = sa6_checkzone(sa6);
 		if (error != 0)
 			return (error);
 		if (td != NULL && (error = prison_check_ip6(td->td_ucred,
@@ -557,8 +557,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 	switch (cmd) {
 	case SIOCGIFADDR_IN6:
 		ifr->ifr_addr = ia->ia_addr;
-		if ((error = sa6_recoverscope(&ifr->ifr_addr)) != 0)
-			goto out;
 		break;
 
 	case SIOCGIFDSTADDR_IN6:
@@ -571,8 +569,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		 * an error?
 		 */
 		ifr->ifr_dstaddr = ia->ia_dstaddr;
-		if ((error = sa6_recoverscope(&ifr->ifr_dstaddr)) != 0)
-			goto out;
 		break;
 
 	case SIOCGIFNETMASK_IN6:
@@ -1818,26 +1814,11 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 		ia = ifa2ia6(ifa);
 
 		if (cmd == SIOCGLIFADDR) {
-			int error;
-
 			/* fill in the if_laddrreq structure */
 			bcopy(&ia->ia_addr, &iflr->addr, ia->ia_addr.sin6_len);
-			error = sa6_recoverscope(
-			    (struct sockaddr_in6 *)&iflr->addr);
-			if (error != 0) {
-				ifa_free(ifa);
-				return (error);
-			}
-
 			if ((ifp->if_flags & IFF_POINTOPOINT) != 0) {
 				bcopy(&ia->ia_dstaddr, &iflr->dstaddr,
 				    ia->ia_dstaddr.sin6_len);
-				error = sa6_recoverscope(
-				    (struct sockaddr_in6 *)&iflr->dstaddr);
-				if (error != 0) {
-					ifa_free(ifa);
-					return (error);
-				}
 			} else
 				bzero(&iflr->dstaddr, sizeof(iflr->dstaddr));
 
