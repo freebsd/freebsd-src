@@ -478,9 +478,7 @@ struct mbuf {
  * Mbuf network buffer allocation and construction functions API
  * as implemented in kern/kern_mbuf.c.
  */
-void		 mb_free_ext(struct mbuf *);
 int		 m_pkthdr_init(struct mbuf *, int);
-int		 m_gettype(int);
 int		 m_extadd(struct mbuf *, caddr_t, u_int,
 		    int (*)(struct mbuf *, void *, void *), void *, void *,
 		    int, int, int);

@@ -297,6 +297,7 @@ static int	mb_zinit_pack(void *, int, int);
 static void	mb_zfini_pack(void *, int);
 
 static void	mb_reclaim(void *);
+static void	mb_free_ext(struct mbuf *)
 static void    *mbuf_jumbo_alloc(uma_zone_t, int, uint8_t *, int);
 
 /*
@@ -1105,7 +1106,7 @@ m_extaddref(struct mbuf *m, caddr_t buf, u_int size, u_int *ref_cnt,
  * Non-directly-exported function to clean up after mbufs with M_EXT
  * storage attached to them if the reference count hits 1.
  */
-void
+static void
 mb_free_ext(struct mbuf *m)
 {
 	int skipmbuf;
