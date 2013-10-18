@@ -2300,11 +2300,6 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	redtgt6 = nd_rd->nd_rd_target;
 	reddst6 = nd_rd->nd_rd_dst;
 
-	if (in6_setscope(&redtgt6, m->m_pkthdr.rcvif, NULL) ||
-	    in6_setscope(&reddst6, m->m_pkthdr.rcvif, NULL)) {
-		goto freeit;
-	}
-
 	/* validation */
 	if (!IN6_IS_ADDR_LINKLOCAL(&src6)) {
 		nd6log((LOG_ERR,
@@ -2320,7 +2315,14 @@ icmp6_redirect_input(struct mbuf *m, int off)
 		    ip6_sprintf(ip6buf, &src6), ip6->ip6_hlim));
 		goto bad;
 	}
-    {
+	if (IN6_IS_ADDR_MULTICAST(&reddst6)) {
+		nd6log((LOG_ERR,
+		    "ICMP6 redirect rejected; "
+		    "redirect dst must be unicast: %s\n",
+		    icmp6_redirect_diag(&src6, &reddst6, &redtgt6)));
+		goto bad;
+	}
+	if (!IN6_IS_ADDR_LINKLOCAL(&reddst6)) {
 	/* ip6->ip6_src must be equal to gw for icmp6->icmp6_reddst */
 	struct sockaddr_in6 sin6;
 	struct in6_addr *gw6;
@@ -2362,13 +2364,6 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	RTFREE_LOCKED(rt);
 	rt = NULL;
     }
-	if (IN6_IS_ADDR_MULTICAST(&reddst6)) {
-		nd6log((LOG_ERR,
-		    "ICMP6 redirect rejected; "
-		    "redirect dst must be unicast: %s\n",
-		    icmp6_redirect_diag(&src6, &reddst6, &redtgt6)));
-		goto bad;
-	}
 
 	is_router = is_onlink = 0;
 	if (IN6_IS_ADDR_LINKLOCAL(&redtgt6))
@@ -2441,6 +2436,7 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	sdst.sin6_family = AF_INET6;
 	sdst.sin6_len = sizeof(struct sockaddr_in6);
 	bcopy(&reddst6, &sdst.sin6_addr, sizeof(struct in6_addr));
+	sdst.sin6_scope_id = in6_getscopezone(ifp, in6_addrscope(&reddst6));
 	pfctlinput(PRC_REDIRECT_HOST, (struct sockaddr *)&sdst);
 #ifdef IPSEC
 	key_sa_routechange((struct sockaddr *)&sdst);
