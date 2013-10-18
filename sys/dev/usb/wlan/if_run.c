@@ -4366,7 +4366,7 @@ static int
 run_rt3070_rf_init(struct run_softc *sc)
 {
 	uint32_t tmp;
-	uint8_t rf, target, bbp4;
+	uint8_t bbp4, mingain, rf, target;
 	int i;
 
 	run_rt3070_rf_read(sc, 30, &rf);
@@ -4473,7 +4473,8 @@ run_rt3070_rf_init(struct run_softc *sc)
 		     (sc->mac_ver == 0x3071 && sc->mac_rev >= 0x0211)) &&
 		    !sc->ext_2ghz_lna)
 			rf |= 0x20;	/* fix for long range Rx issue */
-		if (sc->txmixgain_2ghz >= 1)
+		mingain = (sc->mac_ver == 0x3070) ? 1 : 2;
+		if (sc->txmixgain_2ghz >= mingain)
 			rf = (rf & ~0x7) | sc->txmixgain_2ghz;
 		run_rt3070_rf_write(sc, 17, rf);
 	}
