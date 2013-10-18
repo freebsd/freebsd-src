@@ -3297,11 +3297,9 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 {
 	vm_paddr_t pa;
 
-	if (kernel_vm_end != 0)
-		PMAP_LOCK(pmap);
+	PMAP_LOCK(pmap);
 	pa = pmap_extract_locked(pmap, va);
-	if (kernel_vm_end != 0)
-		PMAP_UNLOCK(pmap);
+	PMAP_UNLOCK(pmap);
 	return (pa);
 }
 
