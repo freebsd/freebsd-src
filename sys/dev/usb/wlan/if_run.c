@@ -3647,7 +3647,12 @@ run_rt3070_set_chan(struct run_softc *sc, uint32_t chan)
 	txpow2 = sc->txpow2[i];
 
 	run_rt3070_rf_write(sc, 2, rt3070_freqs[i].n);
-	run_rt3070_rf_write(sc, 3, rt3070_freqs[i].k);
+
+	/* RT3370/RT3390: RF R3 [7:4] is not reserved bits. */
+	run_rt3070_rf_read(sc, 3, &rf);
+	rf = (rf & ~0x0f) | rt3070_freqs[i].k;
+	run_rt3070_rf_write(sc, 3, rf);
+
 	run_rt3070_rf_read(sc, 6, &rf);
 	rf = (rf & ~0x03) | rt3070_freqs[i].r;
 	run_rt3070_rf_write(sc, 6, rf);
