@@ -68,7 +68,7 @@ AslDoResponseFile (
 
 
 #define ASL_TOKEN_SEPARATORS    " \t\n"
-#define ASL_SUPPORTED_OPTIONS   "@:b|c|d^D:e:fgh^i|I:l^m:no|p:P^r:s|t|T:G^v^w|x:z"
+#define ASL_SUPPORTED_OPTIONS   "@:b|c|d^D:e:f^gh^i|I:l^m:no|p:P^r:s|t|T+G^v^w|x:z"
 
 
 /*******************************************************************************
@@ -136,8 +136,7 @@ AslCommandLine (
 
     if (BadCommandLine)
     {
-        printf ("\n");
-        Usage ();
+        printf ("Use -h option for help information\n");
         exit (1);
     }
 
@@ -276,9 +275,30 @@ AslDoOptions (
         }
         break;
 
-    case 'f':   /* Ignore errors and force creation of aml file */
+    case 'f':
 
-        Gbl_IgnoreErrors = TRUE;
+        switch (AcpiGbl_Optarg[0])
+        {
+        case '^':   /* Ignore errors and force creation of aml file */
+
+            Gbl_IgnoreErrors = TRUE;
+            break;
+
+        case 'e':   /* Disassembler: Get external declaration file */
+
+            if (AcpiGetoptArgument (argc, argv))
+            {
+                return (-1);
+            }
+
+            Gbl_ExternalRefFilename = AcpiGbl_Optarg;
+            break;
+
+        default:
+
+            printf ("Unknown option: -f%s\n", AcpiGbl_Optarg);
+            return (-1);
+        }
         break;
 
     case 'G':

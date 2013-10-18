@@ -10,19 +10,19 @@ CHROOTDIR="/scratch"
 SVNROOT="svn://svn.FreeBSD.org"
 
 ## Set the src/, ports/, and doc/ branches or tags.
-SRCBRANCH="base/head"
-DOCBRANCH="doc/head"
-PORTBRANCH="ports/head"
+SRCBRANCH="base/head@rHEAD"
+DOCBRANCH="doc/head@rHEAD"
+PORTBRANCH="ports/head@rHEAD"
 
-## Set the src/, ports/, and doc/ revisions.
-SRCREVISION="-rHEAD"
-DOCREVISION="-rHEAD"
-PORTREVISION="-rHEAD"
+## Run svn co --force for src checkout.
+#SRC_FORCE_CHECKOUT=yes
 
 ## Set to override the default target architecture.
 #TARGET="amd64"
 #TARGET_ARCH="amd64"
 #KERNEL="GENERIC"
+## Multiple kernels may be set.
+#KERNEL="GENERIC XENHVM"
 
 ## Set to specify a custom make.conf and/or src.conf
 #MAKE_CONF="/etc/local/make.conf"

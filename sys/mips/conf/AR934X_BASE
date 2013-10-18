@@ -1,0 +1,124 @@
+#
+# AR91XX -- Kernel configuration base file for the Atheros AR913x SoC.
+#
+# This file (and the hints file accompanying it) are not designed to be
+# used by themselves. Instead, users of this file should create a kernel
+# config file which includes this file (which gets the basic hints), then
+# override the default options (adding devices as needed) and adding
+# hints as needed (for example, the GPIO and LAN PHY.)
+#
+# $FreeBSD$
+#
+
+machine         mips mips
+ident		AR934X_BASE
+cpu		CPU_MIPS74KC
+makeoptions	KERNLOADADDR=0x80050000
+options		HZ=1000
+
+files		"../atheros/files.ar71xx"
+hints		"AR934X_BASE.hints"
+
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+# makeoptions	MODULES_OVERRIDE="random gpio ar71xx if_gif if_gre if_bridge bridgestp usb wlan wlan_xauth wlan_acl wlan_wep wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr ath ath_ahb hwpmc"
+makeoptions	MODULES_OVERRIDE=""
+
+options		DDB
+options		KDB
+options 	ALQ
+
+options		SCHED_4BSD		#4BSD scheduler
+options		INET			#InterNETworking
+#options		INET6			#InterNETworking
+#options		NFSCL			#Network Filesystem Client
+options		PSEUDOFS		#Pseudo-filesystem framework
+options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+
+# Don't include the SCSI/CAM strings in the default build
+options 	SCSI_NO_SENSE_STRINGS
+options 	SCSI_NO_OP_STRINGS
+
+# .. And no sysctl strings
+options 	NO_SYSCTL_DESCR
+
+# Limit IO size
+options		NBUF=128
+
+# Limit UMTX hash size
+# options		UMTX_NUM_CHAINS=64
+
+# PMC
+#options		HWPMC_HOOKS
+#device		hwpmc
+#device		hwpmc_mips24k
+
+# options		NFS_LEGACYRPC
+# Debugging for use in -current
+#options		INVARIANTS
+#options		INVARIANT_SUPPORT
+#options		WITNESS
+#options		WITNESS_SKIPSPIN
+options		FFS                     #Berkeley Fast Filesystem
+#options		SOFTUPDATES             #Enable FFS soft updates support
+#options		UFS_ACL                 #Support for access control lists
+#options		UFS_DIRHASH             #Improve performance on big directories
+options		NO_FFS_SNAPSHOT		# We don't require snapshot support
+
+# Wireless NIC cards
+options		IEEE80211_DEBUG
+options		IEEE80211_SUPPORT_MESH
+options		IEEE80211_SUPPORT_TDMA
+options		IEEE80211_SUPPORT_SUPERG
+options 	IEEE80211_ALQ	# 802.11 ALQ logging support
+device		wlan            # 802.11 support
+device		wlan_wep        # 802.11 WEP support
+device		wlan_ccmp       # 802.11 CCMP support
+device		wlan_tkip       # 802.11 TKIP support
+device		wlan_xauth	# 802.11 hostap support
+
+# ath(4)
+device		ath             # Atheros network device
+device		ath_rate_sample
+device		ath_ahb		# Atheros host bus glue
+options 	ATH_DEBUG
+options		ATH_DIAGAPI
+option		ATH_ENABLE_11N
+option 		AH_DEBUG_ALQ
+
+#device		ath_hal
+device		ath_ar9300		# AR9330 HAL; no need for the others
+option		AH_DEBUG
+option		AH_SUPPORT_AR5416	# 11n HAL support
+option		AH_SUPPORT_AR9340	# Chipset support
+option		AH_DEBUG_ALQ
+option		AH_AR5416_INTERRUPT_MITIGATION
+
+device		mii
+device		arge
+
+device		usb
+options		USB_EHCI_BIG_ENDIAN_DESC        # handle big-endian byte order
+options		USB_DEBUG
+options		USB_HOST_ALIGN=32		# AR71XX (MIPS in general?) requires this
+device		ehci
+
+device		scbus
+device		umass
+device		da
+
+device		spibus
+device		ar71xx_spi
+device		mx25l
+device		ar71xx_wdog
+
+device		uart
+device		uart_ar71xx
+
+device		loop
+device		ether
+device		md
+device		bpf
+device		random
+device		if_bridge
+device		gpio
+device		gpioled

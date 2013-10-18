@@ -38,6 +38,26 @@
 #include "svn_private_config.h"
 #include "private/svn_ra_private.h"
 
+static const char *
+get_path(const char *path_or_url,
+         svn_ra_session_t *ra_session,
+         apr_pool_t *pool)
+{
+  if (path_or_url == NULL)
+    {
+      svn_error_t *err = svn_ra_get_session_url(ra_session, &path_or_url,
+                                                pool);
+      if (err)
+        {
+          /* The SVN_ERR_UNSUPPORTED_FEATURE error in the caller is more
+             important, so dummy up the session's URL and chuck this error. */
+          svn_error_clear(err);
+          return _("<repository>");
+        }
+    }
+  return path_or_url;
+}
+
 svn_error_t *
 svn_ra__assert_mergeinfo_capable_server(svn_ra_session_t *ra_session,
                                         const char *path_or_url,
@@ -48,23 +68,41 @@ svn_ra__assert_mergeinfo_capable_server(svn_ra_session_t *ra_session,
                                 SVN_RA_CAPABILITY_MERGEINFO, pool));
   if (! mergeinfo_capable)
     {
-      if (path_or_url == NULL)
-        {
-          svn_error_t *err = svn_ra_get_session_url(ra_session, &path_or_url,
-                                                    pool);
-          if (err)
-            {
-              /* The SVN_ERR_UNSUPPORTED_FEATURE error is more important,
-                 so dummy up the session's URL and chuck this error. */
-              svn_error_clear(err);
-              path_or_url = "<repository>";
-            }
-        }
+      path_or_url = get_path(path_or_url, ra_session, pool);
       return svn_error_createf(SVN_ERR_UNSUPPORTED_FEATURE, NULL,
                                _("Retrieval of mergeinfo unsupported by '%s'"),
                                svn_path_is_url(path_or_url)
                                   ? path_or_url
                                   : svn_dirent_local_style(path_or_url, pool));
+    }
+  return SVN_NO_ERROR;
+}
+
+svn_error_t *
+svn_ra__assert_capable_server(svn_ra_session_t *ra_session,
+                              const char *capability,
+                              const char *path_or_url,
+                              apr_pool_t *pool)
+{
+  if (!strcmp(capability, SVN_RA_CAPABILITY_MERGEINFO))
+    return svn_ra__assert_mergeinfo_capable_server(ra_session, path_or_url,
+                                                   pool);
+
+  else
+    {
+      svn_boolean_t has;
+      SVN_ERR(svn_ra_has_capability(ra_session, &has, capability, pool));
+      if (! has)
+        {
+          path_or_url = get_path(path_or_url, ra_session, pool);
+          return svn_error_createf(SVN_ERR_UNSUPPORTED_FEATURE, NULL,
+                                 _("The '%s' feature is not supported by '%s'"),
+                                 capability,
+                                 svn_path_is_url(path_or_url)
+                                    ? path_or_url
+                                    : svn_dirent_local_style(path_or_url,
+                                                             pool));
+        }
     }
   return SVN_NO_ERROR;
 }

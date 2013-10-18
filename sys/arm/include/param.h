@@ -108,9 +108,10 @@
 
 #define PDR_SHIFT	20 /* log2(NBPDR) */
 #define NBPDR		(1 << PDR_SHIFT)
+#define PDRMASK		(NBPDR - 1)
 #define NPDEPG          (1 << (32 - PDR_SHIFT))
 
-#define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
+#define	MAXPAGESIZES	2		/* maximum number of supported page sizes */
 
 #ifndef KSTACK_PAGES
 #define KSTACK_PAGES    2
@@ -133,8 +134,8 @@
  */
 #define	trunc_page(x)		((x) & ~PAGE_MASK)
 #define	round_page(x)		(((x) + PAGE_MASK) & ~PAGE_MASK)
-#define	trunc_4mpage(x)		((unsigned)(x) & ~PDRMASK)
-#define	round_4mpage(x)		((((unsigned)(x)) + PDRMASK) & ~PDRMASK)
+#define	trunc_1mpage(x)		((unsigned)(x) & ~PDRMASK)
+#define	round_1mpage(x)		((((unsigned)(x)) + PDRMASK) & ~PDRMASK)
 
 #define	atop(x)			((unsigned)(x) >> PAGE_SHIFT)
 #define	ptoa(x)			((unsigned)(x) << PAGE_SHIFT)

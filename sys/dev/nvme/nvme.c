@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Intel Corporation
+ * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -157,30 +157,14 @@ nvme_shutdown(void)
 {
 	device_t		*devlist;
 	struct nvme_controller	*ctrlr;
-	union cc_register	cc;
-	union csts_register	csts;
 	int			dev, devcount;
 
 	if (devclass_get_devices(nvme_devclass, &devlist, &devcount))
 		return;
 
 	for (dev = 0; dev < devcount; dev++) {
-		/*
-		 * Only notify controller of shutdown when a real shutdown is
-		 *  in process, not when a module unload occurs.  It seems at
-		 *  least some controllers (Chatham at least) don't let you
-		 *  re-enable the controller after shutdown notification has
-		 *  been received.
-		 */
 		ctrlr = DEVICE2SOFTC(devlist[dev]);
-		cc.raw = nvme_mmio_read_4(ctrlr, cc);
-		cc.bits.shn = NVME_SHN_NORMAL;
-		nvme_mmio_write_4(ctrlr, cc, cc.raw);
-		csts.raw = nvme_mmio_read_4(ctrlr, csts);
-		while (csts.bits.shst != NVME_SHST_COMPLETE) {
-			DELAY(5);
-			csts.raw = nvme_mmio_read_4(ctrlr, csts);
-		}
+		nvme_ctrlr_shutdown(ctrlr);
 	}
 
 	free(devlist, M_TEMP);
@@ -237,8 +221,10 @@ nvme_attach(device_t dev)
 
 	status = nvme_ctrlr_construct(ctrlr, dev);
 
-	if (status != 0)
+	if (status != 0) {
+		nvme_ctrlr_destruct(ctrlr, dev);
 		return (status);
+	}
 
 	/*
 	 * Reset controller twice to ensure we do a transition from cc.en==1
@@ -246,14 +232,20 @@ nvme_attach(device_t dev)
 	 *  the controller was left in when boot handed off to OS.
 	 */
 	status = nvme_ctrlr_hw_reset(ctrlr);
-	if (status != 0)
+	if (status != 0) {
+		nvme_ctrlr_destruct(ctrlr, dev);
 		return (status);
+	}
 
 	status = nvme_ctrlr_hw_reset(ctrlr);
-	if (status != 0)
+	if (status != 0) {
+		nvme_ctrlr_destruct(ctrlr, dev);
 		return (status);
+	}
 
 	nvme_sysctl_initialize_ctrlr(ctrlr);
+
+	pci_enable_busmaster(dev);
 
 	ctrlr->config_hook.ich_func = nvme_ctrlr_start_config_hook;
 	ctrlr->config_hook.ich_arg = ctrlr;
@@ -269,6 +261,7 @@ nvme_detach (device_t dev)
 	struct nvme_controller	*ctrlr = DEVICE2SOFTC(dev);
 
 	nvme_ctrlr_destruct(ctrlr, dev);
+	pci_disable_busmaster(dev);
 	return (0);
 }
 
@@ -291,6 +284,15 @@ nvme_notify_consumer(struct nvme_consumer *cons)
 		else
 			ctrlr_cookie = NULL;
 		ctrlr->cons_cookie[cons->id] = ctrlr_cookie;
+		if (ctrlr->is_failed) {
+			if (cons->fail_fn != NULL)
+				(*cons->fail_fn)(ctrlr_cookie);
+			/*
+			 * Do not notify consumers about the namespaces of a
+			 *  failed controller.
+			 */
+			continue;
+		}
 		for (ns_idx = 0; ns_idx < ctrlr->cdata.nn; ns_idx++) {
 			ns = &ctrlr->ns[ns_idx];
 			if (cons->ns_fn != NULL)
@@ -380,4 +382,3 @@ nvme_completion_poll_cb(void *arg, const struct nvme_completion *cpl)
 	wmb();
 	status->done = TRUE;
 }
-

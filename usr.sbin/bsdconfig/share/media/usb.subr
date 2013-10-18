@@ -1,7 +1,7 @@
 if [ ! "$_MEDIA_USB_SUBR" ]; then _MEDIA_USB_SUBR=1
 #
 # Copyright (c) 2012-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_MEDIA_USB_SUBR" ]; then _MEDIA_USB_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -31,11 +31,11 @@ if [ ! "$_MEDIA_USB_SUBR" ]; then _MEDIA_USB_SUBR=1
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." media/usb.subr
-f_include $BSDCFG_SHARE/struct.subr
 f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/variable.subr
 f_include $BSDCFG_SHARE/media/common.subr
+f_include $BSDCFG_SHARE/struct.subr
+f_include $BSDCFG_SHARE/variable.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
@@ -60,7 +60,7 @@ f_media_set_usb()
 	ndevs=$( set -- $devs; echo $# )
 
 	if [ ${ndevs:=0} -eq 0 ]; then
-		f_dialog_msgbox "$msg_no_usb_devices_found"
+		f_show_msg "$msg_no_usb_devices_found"
 		return $FAILURE
 	elif [ $ndevs -gt 1 ]; then
 		local title="$msg_choose_a_usb_drive"
@@ -132,19 +132,21 @@ f_media_init_usb()
 	return $FAILURE
 }
 
-# f_media_get_usb $device $file [$probe_only]
+# f_media_get_usb $device $file [$probe_type]
 #
-# Returns data from $file on a mounted USB disk device. Similar to cat(1).
-# $probe_only is currently unused by this media type.
+# Returns data from $file on a mounted USB disk device. Similar to cat(1). If
+# $probe_type is present and non-NULL, returns success if $file exists. If
+# $probe_type is equal to $PROBE_SIZE, prints the size of $file in bytes to
+# standard-out.
 #
 f_media_get_usb()
 {
-	local dev="$1" file="$2" probe_only="$3"
+	local dev="$1" file="$2" probe_type="$3"
 
-	f_dprintf "f_media_get_usb: dev=[%s] file=[%s] probe_only=%s" \
-	          "$dev" "$file" "$probe_only"
+	f_dprintf "f_media_get_usb: dev=[%s] file=[%s] probe_type=%s" \
+	          "$dev" "$file" "$probe_type"
 
-	f_media_generic_get "$MOUNTPOINT" "$file"
+	f_media_generic_get "$MOUNTPOINT" "$file" "$probe_type"
 }
 
 # f_media_shutdown_usb $device
@@ -156,7 +158,7 @@ f_media_shutdown_usb()
 {
 	local dev="$1" err
 
-	[ "$USB_MOUNTED" ] || return
+	[ "$USB_MOUNTED" ] || return $FAILURE
 
 	if ! err=$( umount -f "$MOUNTPOINT" 2>&1 ); then
 		err="${err#umount: }"; err="${err#*: }"

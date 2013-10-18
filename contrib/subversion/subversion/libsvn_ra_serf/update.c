@@ -1268,7 +1268,7 @@ handle_stream(serf_request_t *request,
   /* ### new field. make sure we didn't miss some initialization.  */
   SVN_ERR_ASSERT(fetch_ctx->handler != NULL);
 
-  err = svn_ra_serf__error_on_status(fetch_ctx->handler->sline.code,
+  err = svn_ra_serf__error_on_status(fetch_ctx->handler->sline,
                                      fetch_ctx->info->name,
                                      fetch_ctx->handler->location);
   if (err)
@@ -2739,7 +2739,7 @@ setup_update_report_headers(serf_bucket_t *headers,
   if (report->sess->using_compression)
     {
       serf_bucket_headers_setn(headers, "Accept-Encoding",
-                               "gzip;svndiff1;q=0.9,svndiff;q=0.8");
+                               "gzip,svndiff1;q=0.9,svndiff;q=0.8");
     }
   else
     {
@@ -2891,7 +2891,7 @@ finish_report(void *report_baton,
         {
           return svn_error_trace(
                     svn_error_compose_create(
-                        svn_ra_serf__error_on_status(handler->sline.code,
+                        svn_ra_serf__error_on_status(handler->sline,
                                                      handler->path,
                                                      handler->location),
                         err));

@@ -199,7 +199,8 @@ mmcsd_attach(device_t dev)
 	sc->running = 1;
 	sc->suspend = 0;
 	sc->eblock = sc->eend = 0;
-	kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "task: mmc/sd card");
+	kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "%s: mmc/sd card", 
+	    device_get_nameunit(dev));
 
 	return (0);
 }
@@ -260,7 +261,8 @@ mmcsd_resume(device_t dev)
 	if (sc->running <= 0) {
 		sc->running = 1;
 		MMCSD_UNLOCK(sc);
-		kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "task: mmc/sd card");
+		kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "%s: mmc/sd card",
+		    device_get_nameunit(dev));
 	} else
 		MMCSD_UNLOCK(sc);
 	return (0);
@@ -326,6 +328,7 @@ mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp)
 		memset(&req, 0, sizeof(req));
     		memset(&cmd, 0, sizeof(cmd));
 		memset(&stop, 0, sizeof(stop));
+		memset(&data, 0, sizeof(data));
 		cmd.mrq = &req;
 		req.cmd = &cmd;
 		cmd.data = &data;

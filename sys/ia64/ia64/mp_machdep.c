@@ -304,7 +304,8 @@ cpu_mp_add(u_int acpi_id, u_int id, u_int eid)
 	if (cpuid != 0) {
 		pc = (struct pcpu *)malloc(sizeof(*pc), M_SMP, M_WAITOK);
 		pcpu_init(pc, cpuid, sizeof(*pc));
-		dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
+		dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
+		    M_WAITOK | M_ZERO);
 		dpcpu_init(dpcpu, cpuid);
 	} else
 		pc = pcpup;

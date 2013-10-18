@@ -55,11 +55,6 @@ __FBSDID("$FreeBSD$");
 u_int32_t	checksum(unsigned char *, unsigned, u_int32_t);
 u_int32_t	wrapsum(u_int32_t);
 
-void	assemble_ethernet_header(struct interface_info *, unsigned char *,
-	    int *, struct hardware *);
-ssize_t	decode_ethernet_header(struct interface_info *, unsigned char *,
-	    int bufix, struct hardware *);
-
 u_int32_t
 checksum(unsigned char *buf, unsigned nbytes, u_int32_t sum)
 {
@@ -95,14 +90,11 @@ wrapsum(u_int32_t sum)
 
 void
 assemble_hw_header(struct interface_info *interface, unsigned char *buf,
-    int *bufix, struct hardware *to)
+    int *bufix)
 {
 	struct ether_header eh;
 
-	if (to != NULL && to->hlen == 6) /* XXX */
-		memcpy(eh.ether_dhost, to->haddr, sizeof(eh.ether_dhost));
-	else
-		memset(eh.ether_dhost, 0xff, sizeof(eh.ether_dhost));
+	memset(eh.ether_dhost, 0xff, sizeof(eh.ether_dhost));
 	if (interface->hw_address.hlen == sizeof(eh.ether_shost))
 		memcpy(eh.ether_shost, interface->hw_address.haddr,
 		    sizeof(eh.ether_shost));

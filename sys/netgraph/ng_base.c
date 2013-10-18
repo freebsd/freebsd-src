@@ -74,7 +74,12 @@
 MODULE_VERSION(netgraph, NG_ABI_VERSION);
 
 /* Mutex to protect topology events. */
-static struct mtx	ng_topo_mtx;
+static struct rwlock	ng_topo_lock;
+#define	TOPOLOGY_RLOCK()	rw_rlock(&ng_topo_lock)
+#define	TOPOLOGY_RUNLOCK()	rw_runlock(&ng_topo_lock)
+#define	TOPOLOGY_WLOCK()	rw_wlock(&ng_topo_lock)
+#define	TOPOLOGY_WUNLOCK()	rw_wunlock(&ng_topo_lock)
+#define	TOPOLOGY_NOTOWNED()	rw_assert(&ng_topo_lock, RA_UNLOCKED)
 
 #ifdef	NETGRAPH_DEBUG
 static struct mtx	ng_nodelist_mtx; /* protects global node/hook lists */
@@ -789,6 +794,8 @@ ng_unref_node(node_p node)
 	if (node == &ng_deadnode)
 		return;
 
+	CURVNET_SET(node->nd_vnet);
+
 	if (refcount_release(&node->nd_refs)) { /* we were the last */
 
 		node->nd_type->refs--; /* XXX maybe should get types lock? */
@@ -807,6 +814,7 @@ ng_unref_node(node_p node)
 		mtx_destroy(&node->nd_input_queue.q_mtx);
 		NG_FREE_NODE(node);
 	}
+	CURVNET_RESTORE();
 }
 
 /************************************************************************
@@ -1159,7 +1167,7 @@ ng_destroy_hook(hook_p hook)
 	 * Protect divorce process with mutex, to avoid races on
 	 * simultaneous disconnect.
 	 */
-	mtx_lock(&ng_topo_mtx);
+	TOPOLOGY_WLOCK();
 
 	hook->hk_flags |= HK_INVALID;
 
@@ -1179,17 +1187,17 @@ ng_destroy_hook(hook_p hook)
 			 * If it's already divorced from a node,
 			 * just free it.
 			 */
-			mtx_unlock(&ng_topo_mtx);
+			TOPOLOGY_WUNLOCK();
 		} else {
-			mtx_unlock(&ng_topo_mtx);
+			TOPOLOGY_WUNLOCK();
 			ng_rmhook_self(peer); 	/* Send it a surprise */
 		}
 		NG_HOOK_UNREF(peer);		/* account for peer link */
 		NG_HOOK_UNREF(hook);		/* account for peer link */
 	} else
-		mtx_unlock(&ng_topo_mtx);
+		TOPOLOGY_WUNLOCK();
 
-	mtx_assert(&ng_topo_mtx, MA_NOTOWNED);
+	TOPOLOGY_NOTOWNED();
 
 	/*
 	 * Remove the hook from the node's list to avoid possible recursion
@@ -1230,9 +1238,9 @@ ng_bypass(hook_p hook1, hook_p hook2)
 		TRAP_ERROR();
 		return (EINVAL);
 	}
-	mtx_lock(&ng_topo_mtx);
+	TOPOLOGY_WLOCK();
 	if (NG_HOOK_NOT_VALID(hook1) || NG_HOOK_NOT_VALID(hook2)) {
-		mtx_unlock(&ng_topo_mtx);
+		TOPOLOGY_WUNLOCK();
 		return (EINVAL);
 	}
 	hook1->hk_peer->hk_peer = hook2->hk_peer;
@@ -1240,7 +1248,7 @@ ng_bypass(hook_p hook1, hook_p hook2)
 
 	hook1->hk_peer = &ng_deadhook;
 	hook2->hk_peer = &ng_deadhook;
-	mtx_unlock(&ng_topo_mtx);
+	TOPOLOGY_WUNLOCK();
 
 	NG_HOOK_UNREF(hook1);
 	NG_HOOK_UNREF(hook2);
@@ -1437,15 +1445,15 @@ ng_con_part2(node_p node, item_p item, hook_p hook)
 	/*
 	 * Acquire topo mutex to avoid race with ng_destroy_hook().
 	 */
-	mtx_lock(&ng_topo_mtx);
+	TOPOLOGY_RLOCK();
 	peer = hook->hk_peer;
 	if (peer == &ng_deadhook) {
-		mtx_unlock(&ng_topo_mtx);
+		TOPOLOGY_RUNLOCK();
 		printf("failed in ng_con_part2(B)\n");
 		ng_destroy_hook(hook);
 		ERROUT(ENOENT);
 	}
-	mtx_unlock(&ng_topo_mtx);
+	TOPOLOGY_RUNLOCK();
 
 	if ((error = ng_send_fn2(peer->hk_node, peer, item, &ng_con_part3,
 	    NULL, 0, NG_REUSE_ITEM))) {
@@ -1790,14 +1798,14 @@ ng_path2noderef(node_p here, const char *address, node_p *destp,
 		/* We have a segment, so look for a hook by that name */
 		hook = ng_findhook(node, segment);
 
-		mtx_lock(&ng_topo_mtx);
+		TOPOLOGY_WLOCK();
 		/* Can't get there from here... */
 		if (hook == NULL || NG_HOOK_PEER(hook) == NULL ||
 		    NG_HOOK_NOT_VALID(hook) ||
 		    NG_HOOK_NOT_VALID(NG_HOOK_PEER(hook))) {
 			TRAP_ERROR();
 			NG_NODE_UNREF(node);
-			mtx_unlock(&ng_topo_mtx);
+			TOPOLOGY_WUNLOCK();
 			return (ENOENT);
 		}
 
@@ -1814,7 +1822,7 @@ ng_path2noderef(node_p here, const char *address, node_p *destp,
 		NG_NODE_UNREF(oldnode);	/* XXX another race */
 		if (NG_NODE_NOT_VALID(node)) {
 			NG_NODE_UNREF(node);	/* XXX more races */
-			mtx_unlock(&ng_topo_mtx);
+			TOPOLOGY_WUNLOCK();
 			TRAP_ERROR();
 			return (ENXIO);
 		}
@@ -1827,11 +1835,11 @@ ng_path2noderef(node_p here, const char *address, node_p *destp,
 				} else
 					*lasthook = NULL;
 			}
-			mtx_unlock(&ng_topo_mtx);
+			TOPOLOGY_WUNLOCK();
 			*destp = node;
 			return (0);
 		}
-		mtx_unlock(&ng_topo_mtx);
+		TOPOLOGY_WUNLOCK();
 	}
 }
 
@@ -3199,8 +3207,7 @@ ngb_mod_event(module_t mod, int event, void *data)
 		rw_init(&ng_typelist_lock, "netgraph types");
 		rw_init(&ng_idhash_lock, "netgraph idhash");
 		rw_init(&ng_namehash_lock, "netgraph namehash");
-		mtx_init(&ng_topo_mtx, "netgraph topology mutex", NULL,
-		    MTX_DEF);
+		rw_init(&ng_topo_lock, "netgraph topology mutex");
 #ifdef	NETGRAPH_DEBUG
 		mtx_init(&ng_nodelist_mtx, "netgraph nodelist mutex", NULL,
 		    MTX_DEF);
@@ -3576,13 +3583,13 @@ ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr)
 	 * that the peer is still connected (even if invalid,) we know
 	 * that the peer node is present, though maybe invalid.
 	 */
-	mtx_lock(&ng_topo_mtx);
+	TOPOLOGY_RLOCK();
 	if ((hook == NULL) || NG_HOOK_NOT_VALID(hook) ||
 	    NG_HOOK_NOT_VALID(peer = NG_HOOK_PEER(hook)) ||
 	    NG_NODE_NOT_VALID(peernode = NG_PEER_NODE(hook))) {
 		NG_FREE_ITEM(item);
 		TRAP_ERROR();
-		mtx_unlock(&ng_topo_mtx);
+		TOPOLOGY_RUNLOCK();
 		return (ENETDOWN);
 	}
 
@@ -3595,7 +3602,7 @@ ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr)
 	NGI_SET_NODE(item, peernode);
 	SET_RETADDR(item, here, retaddr);
 
-	mtx_unlock(&ng_topo_mtx);
+	TOPOLOGY_RUNLOCK();
 
 	return (0);
 }

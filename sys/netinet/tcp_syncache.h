@@ -75,6 +75,7 @@ struct syncache {
 	struct label	*sc_label;		/* MAC label reference */
 	struct ucred	*sc_cred;		/* cred cache for jail checks */
 
+	void		*sc_pspare;		/* TCP_SIGNATURE */
 	u_int32_t	sc_spare[2];		/* UTO */
 };
 
@@ -90,20 +91,23 @@ struct syncache {
 #define SCF_SACK	0x80			/* send SACK option */
 #define SCF_ECN		0x100			/* send ECN setup packet */
 
-#define	SYNCOOKIE_SECRET_SIZE	8	/* dwords */
-#define	SYNCOOKIE_LIFETIME	16	/* seconds */
-
 struct syncache_head {
-	struct vnet	*sch_vnet;
 	struct mtx	sch_mtx;
 	TAILQ_HEAD(sch_head, syncache)	sch_bucket;
 	struct callout	sch_timer;
 	int		sch_nextc;
 	u_int		sch_length;
-	u_int		sch_oddeven;
-	u_int32_t	sch_secbits_odd[SYNCOOKIE_SECRET_SIZE];
-	u_int32_t	sch_secbits_even[SYNCOOKIE_SECRET_SIZE];
-	u_int		sch_reseed;		/* time_uptime, seconds */
+	struct tcp_syncache *sch_sc;
+};
+
+#define	SYNCOOKIE_SECRET_SIZE	16
+#define	SYNCOOKIE_LIFETIME	15		/* seconds */
+
+struct syncookie_secret {
+	volatile u_int oddeven;
+	uint8_t key[2][SYNCOOKIE_SECRET_SIZE];
+	struct callout reseed;
+	u_int lifetime;
 };
 
 struct tcp_syncache {
@@ -115,6 +119,19 @@ struct tcp_syncache {
 	u_int	cache_limit;
 	u_int	rexmt_limit;
 	u_int	hash_secret;
+	struct vnet *vnet;
+	struct syncookie_secret secret;
+};
+
+/* Internal use for the syncookie functions. */
+union syncookie {
+	uint8_t cookie;
+	struct {
+		uint8_t odd_even:1,
+			sack_ok:1,
+			wscale_idx:3,
+			mss_idx:3;
+	} flags;
 };
 
 #endif /* _KERNEL */

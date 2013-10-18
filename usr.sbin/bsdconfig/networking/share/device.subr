@@ -1,7 +1,7 @@
 if [ ! "$_NETWORKING_DEVICE_SUBR" ]; then _NETWORKING_DEVICE_SUBR=1
 #
 # Copyright (c) 2006-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_NETWORKING_DEVICE_SUBR" ]; then _NETWORKING_DEVICE_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -33,7 +33,6 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 f_dprintf "%s: loading includes..." networking/device.subr
 f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/sysrc.subr
 f_include $BSDCFG_SHARE/media/tcpip.subr
 f_include $BSDCFG_SHARE/networking/common.subr
 f_include $BSDCFG_SHARE/networking/ipaddr.subr
@@ -41,6 +40,7 @@ f_include $BSDCFG_SHARE/networking/media.subr
 f_include $BSDCFG_SHARE/networking/netmask.subr
 f_include $BSDCFG_SHARE/networking/resolv.subr
 f_include $BSDCFG_SHARE/networking/routing.subr
+f_include $BSDCFG_SHARE/sysrc.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
@@ -124,8 +124,8 @@ f_dialog_menu_netdev()
 		done
 	)
 	if [ ! "$interfaces" ]; then
-		f_dialog_msgbox "$msg_no_network_interfaces"
-		return $FAILURE
+		f_show_msg "$msg_no_network_interfaces"
+		return $DIALOG_CANCEL
 	fi
 
 	#
@@ -242,12 +242,10 @@ f_dialog_menu_netdev_edit()
 		local retval=$?
 		f_dialog_data_sanitize tag
 
-		if [ $retval -eq 2 ]; then
-			# The Help button was pressed
+		if [ $retval -eq $DIALOG_HELP ]; then
 			f_show_help "$TCP_HELPFILE"
 			continue
-		elif [ $retval -ne $SUCCESS ]; then
-			# "Cancel" was chosen (-1) or ESC was pressed (255)
+		elif [ $retval -ne $DIALOG_OK ]; then
 			return $retval
 		else
 			# Only update default-item on success
@@ -261,18 +259,17 @@ f_dialog_menu_netdev_edit()
 		# read and display in the summary dialog.
 		#
 		case "$tag" in
-		X\ *) break;;
+		X\ *) break ;;
 		2\ *) #
-		      # Do not proceed if/when there are NFS-mounts currently
-		      # active. If the network is changed while NFS-exported
-		      # directories are mounted, the system may hang (if any
-		      # NFS mounts are using that interface).
+		      # Proceed cautiously (confirm with the user) if/when NFS-
+		      # mounts are active. If the network on which these mounts
+		      # are made is changed parts of the system may hang.
 		      #
 		      if f_nfs_mounted && ! f_jailed; then
 		      	local setting="$( printf "$msg_current_dhcp_status" \
 		      	                         "$interface" "$dhcp_status" )"
-			f_show_msg "$msg_nfs_mounts_may_cause_hang" "$setting"
-		      	continue
+			f_noyes "$msg_nfs_mounts_may_cause_hang" "$setting" ||
+		      		continue
 		      fi
 
 		      #
@@ -299,7 +296,7 @@ f_dialog_menu_netdev_edit()
 		      	)
 		      	retval=$?
 		      	trap 'interrupt' SIGINT
-		      	if [ $retval -eq $SUCCESS ]; then
+		      	if [ $retval -eq $DIALOG_OK ]; then
 		      		dhcp=1
 		      		ipaddr=$( f_ifconfig_inet $interface )
 		      		netmask=$( f_ifconfig_netmask $interface )
@@ -313,11 +310,11 @@ f_dialog_menu_netdev_edit()
 		      fi
 		      ;;
 		3\ *) f_dialog_input_ipaddr "$interface" "$ipaddr"
-		      [ $? -eq $SUCCESS ] && dhcp=;;
+		      [ $? -eq $DIALOG_OK ] && dhcp= ;;
 		4\ *) f_dialog_input_netmask "$interface" "$netmask"
-		      [ $? -eq $SUCCESS -a "$_netmask" ] && dhcp=;;
+		      [ $? -eq $DIALOG_OK -a "$_netmask" ] && dhcp= ;;
 		5\ *) f_dialog_menu_media_options "$interface" "$options"
-		      [ $? -eq $SUCCESS ] && dhcp=;;
+		      [ $? -eq $DIALOG_OK ] && dhcp= ;;
 		esac
 	done
 
@@ -384,7 +381,7 @@ f_dialog_menu_netdev_edit()
 		fi
 	fi
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 ############################################################ MAIN

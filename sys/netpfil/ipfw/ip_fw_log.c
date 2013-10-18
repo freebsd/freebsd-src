@@ -255,11 +255,18 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 
 		if (args->eh) /* layer2, use orig hdr */
 			BPF_MTAP2(log_if, args->eh, ETHER_HDR_LEN, m);
-		else
+		else {
 			/* Add fake header. Later we will store
 			 * more info in the header.
 			 */
-			BPF_MTAP2(log_if, "DDDDDDSSSSSS\x08\x00", ETHER_HDR_LEN, m);
+			if (ip->ip_v == 4)
+				BPF_MTAP2(log_if, "DDDDDDSSSSSS\x08\x00", ETHER_HDR_LEN, m);
+			else if  (ip->ip_v == 6)
+				BPF_MTAP2(log_if, "DDDDDDSSSSSS\x86\xdd", ETHER_HDR_LEN, m);
+			else
+				/* Obviously bogus EtherType. */
+				BPF_MTAP2(log_if, "DDDDDDSSSSSS\xff\xff", ETHER_HDR_LEN, m);
+		}
 		LOGIF_RUNLOCK();
 #endif /* !WITHOUT_BPF */
 		return;

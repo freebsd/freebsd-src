@@ -635,7 +635,7 @@ svn_ra_serf__wait_for_props(svn_ra_serf__handler_t *handler,
 
   err = svn_ra_serf__context_run_one(handler, scratch_pool);
 
-  err2 = svn_ra_serf__error_on_status(handler->sline.code,
+  err2 = svn_ra_serf__error_on_status(handler->sline,
                                       handler->path,
                                       handler->location);
 

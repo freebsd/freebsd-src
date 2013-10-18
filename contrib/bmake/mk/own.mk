@@ -1,4 +1,4 @@
-# $Id: own.mk,v 1.26 2012/12/11 23:40:19 sjg Exp $
+# $Id: own.mk,v 1.27 2013/07/18 05:46:24 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -90,6 +90,7 @@ OPTIONS_DEFAULT_NO+= DPADD_MK
 # process options
 OPTIONS_DEFAULT_NO+= \
 	INSTALL_AS_USER \
+	GPROF \
 	LIBTOOL \
 	LINT \
 	META_MODE \

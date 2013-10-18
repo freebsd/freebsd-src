@@ -20,74 +20,53 @@ configtest_cmd="sshd_configtest"
 pidfile="/var/run/${name}.pid"
 extra_commands="configtest keygen reload"
 
-timeout=300
+: ${sshd_rsa1_enable:="yes"}
+: ${sshd_rsa_enable:="yes"}
+: ${sshd_dsa_enable:="yes"}
+: ${sshd_ecdsa_enable:="yes"}
 
-user_reseed()
+sshd_keygen_alg()
 {
-	(
-	seeded=`sysctl -n kern.random.sys.seeded 2>/dev/null`
-	if [ "x${seeded}" != "x" ] && [ ${seeded} -eq 0 ] ; then
-		warn "Setting entropy source to blocking mode."
-		echo "===================================================="
-		echo "Type a full screenful of random junk to unblock"
-		echo "it and remember to finish with <enter>. This will"
-		echo "timeout in ${timeout} seconds, but waiting for"
-		echo "the timeout without typing junk may make the"
-		echo "entropy source deliver predictable output."
-		echo ""
-		echo "Just hit <enter> for fast+insecure startup."
-		echo "===================================================="
-		sysctl kern.random.sys.seeded=0 2>/dev/null
-		read -t ${timeout} junk
-		echo "${junk}" `sysctl -a` `date` > /dev/random
+	local alg=$1
+	local ALG="$(echo $alg | tr a-z A-Z)"
+	local keyfile
+
+	if ! checkyesno "sshd_${alg}_enable" ; then
+		return 0
 	fi
-	)
+
+	case $alg in
+	rsa1)
+		keyfile="/etc/ssh/ssh_host_key"
+		;;
+	rsa|dsa|ecdsa)
+		keyfile="/etc/ssh/ssh_host_${alg}_key"
+		;;
+	*)
+		return 1
+		;;
+	esac
+
+	if [ ! -x /usr/bin/ssh-keygen ] ; then
+		warn "/usr/bin/ssh-keygen does not exist."
+		return 1
+	fi
+
+	if [ -f "${keyfile}" ] ; then
+		info "$ALG host key exists."
+	else
+		echo "Generating $ALG host key."
+		/usr/bin/ssh-keygen -q -t $alg -f "$keyfile" -N ""
+		/usr/bin/ssh-keygen -l -f "$keyfile.pub"
+	fi
 }
 
 sshd_keygen()
 {
-	(
-	umask 022
-
-	# Can't do anything if ssh is not installed
-	[ -x /usr/bin/ssh-keygen ] || {
-		warn "/usr/bin/ssh-keygen does not exist."
-		return 1
-	}
-
-	if [ -f /etc/ssh/ssh_host_key ]; then
-		echo "You already have an RSA host key" \
-		    "in /etc/ssh/ssh_host_key"
-		echo "Skipping protocol version 1 RSA Key Generation"
-	else
-		/usr/bin/ssh-keygen -t rsa1 -b 1024 \
-		    -f /etc/ssh/ssh_host_key -N ''
-	fi
-
-	if [ -f /etc/ssh/ssh_host_dsa_key ]; then
-		echo "You already have a DSA host key" \
-		    "in /etc/ssh/ssh_host_dsa_key"
-		echo "Skipping protocol version 2 DSA Key Generation"
-	else
-		/usr/bin/ssh-keygen -t dsa -f /etc/ssh/ssh_host_dsa_key -N ''
-	fi
-
-	if [ -f /etc/ssh/ssh_host_rsa_key ]; then
-		echo "You already have an RSA host key" \
-		    "in /etc/ssh/ssh_host_rsa_key"
-		echo "Skipping protocol version 2 RSA Key Generation"
-	else
-		/usr/bin/ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N ''
-	fi
-
-	if [ -f /etc/ssh/ssh_host_ecdsa_key ]; then
-		echo "You already have an ECDSA host key" \
-		    "in /etc/ssh/ssh_host_ecdsa_key"
-		echo "Skipping protocol version 2 ECDSA Key Generation"
-	else
-		/usr/bin/ssh-keygen -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key -N ''
-	fi
-	)
+	sshd_keygen_alg rsa1
+	sshd_keygen_alg rsa
+	sshd_keygen_alg dsa
+	sshd_keygen_alg ecdsa
 }
 
 sshd_configtest()
@@ -98,14 +77,8 @@ sshd_configtest()
 
 sshd_precmd()
 {
-	if [ ! -f /etc/ssh/ssh_host_key -o \
-	    ! -f /etc/ssh/ssh_host_dsa_key -o \
-	    ! -f /etc/ssh/ssh_host_ecdsa_key -o \
-	    ! -f /etc/ssh/ssh_host_rsa_key ]; then
-		user_reseed
-		run_rc_command keygen
-	fi
-	sshd_configtest
+	run_rc_command keygen
+	run_rc_command configtest
 }
 
 load_rc_config $name

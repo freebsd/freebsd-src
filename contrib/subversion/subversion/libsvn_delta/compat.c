@@ -218,6 +218,7 @@ locate_change(struct ev2_edit_baton *eb,
   change = apr_pcalloc(eb->edit_pool, sizeof(*change));
   change->changing = SVN_INVALID_REVNUM;
   change->deleting = SVN_INVALID_REVNUM;
+  change->kind = svn_node_unknown;
 
   svn_hash_sets(eb->changes, relpath, change);
 
@@ -1633,11 +1634,14 @@ apply_change(void **dir_baton,
                                                        change->copyfrom_path,
                                                        scratch_pool);
           else
-            copyfrom_url = change->copyfrom_path;
+            {
+              copyfrom_url = change->copyfrom_path;
 
-          /* Make this an FS path by prepending "/" */
-          if (copyfrom_url[0] != '/')
-            copyfrom_url = apr_pstrcat(scratch_pool, "/", copyfrom_url, NULL);
+              /* Make this an FS path by prepending "/" */
+              if (copyfrom_url[0] != '/')
+                copyfrom_url = apr_pstrcat(scratch_pool, "/",
+                                           copyfrom_url, NULL);
+            }
 
           copyfrom_rev = change->copyfrom_rev;
         }

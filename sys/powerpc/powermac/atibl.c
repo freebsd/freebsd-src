@@ -86,6 +86,8 @@ DRIVER_MODULE(atibl, vgapci, atibl_driver, atibl_devclass, 0, 0);
 static void
 atibl_identify(driver_t *driver, device_t parent)
 {
+	if (OF_finddevice("mac-io/backlight") == -1)
+		return;
 	if (device_find_child(parent, "backlight", -1) == NULL)
 		device_add_child(parent, "backlight", -1);
 }

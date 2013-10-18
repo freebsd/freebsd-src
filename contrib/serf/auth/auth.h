@@ -16,7 +16,7 @@
 #ifndef AUTH_H
 #define AUTH_H
 
-#include "auth_kerb.h"
+#include "auth_spnego.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,11 +26,19 @@ void serf__encode_auth_header(const char **header, const char *protocol,
                               const char *data, apr_size_t data_len,
                               apr_pool_t *pool);
 
+/* Prefixes the realm_name with a string containing scheme, hostname and port
+   of the connection, for providing it to the application. */
+const char *serf__construct_realm(peer_t peer,
+                                  serf_connection_t *conn,
+                                  const char *realm_name,
+                                  apr_pool_t *pool);
+
 /** Basic authentication **/
 apr_status_t serf__init_basic(int code,
                               serf_context_t *ctx,
                               apr_pool_t *pool);
-apr_status_t serf__init_basic_connection(int code,
+apr_status_t serf__init_basic_connection(const serf__authn_scheme_t *scheme,
+                                         int code,
                                          serf_connection_t *conn,
                                          apr_pool_t *pool);
 apr_status_t serf__handle_basic_auth(int code,
@@ -52,7 +60,8 @@ apr_status_t serf__setup_request_basic_auth(peer_t peer,
 apr_status_t serf__init_digest(int code,
                                serf_context_t *ctx,
                                apr_pool_t *pool);
-apr_status_t serf__init_digest_connection(int code,
+apr_status_t serf__init_digest_connection(const serf__authn_scheme_t *scheme,
+                                          int code,
                                           serf_connection_t *conn,
                                           apr_pool_t *pool);
 apr_status_t serf__handle_digest_auth(int code,
@@ -76,34 +85,35 @@ apr_status_t serf__validate_response_digest_auth(peer_t peer,
                                                  serf_bucket_t *response,
                                                  apr_pool_t *pool);
 
-#ifdef SERF_HAVE_KERB
+#ifdef SERF_HAVE_SPNEGO
 /** Kerberos authentication **/
-apr_status_t serf__init_kerb(int code,
-                             serf_context_t *ctx,
-                             apr_pool_t *pool);
-apr_status_t serf__init_kerb_connection(int code,
-                                        serf_connection_t *conn,
-                                        apr_pool_t *pool);
-apr_status_t serf__handle_kerb_auth(int code,
-                                    serf_request_t *request,
-                                    serf_bucket_t *response,
-                                    const char *auth_hdr,
-                                    const char *auth_attr,
-                                    void *baton,
-                                    apr_pool_t *pool);
-apr_status_t serf__setup_request_kerb_auth(peer_t peer,
-                                           int code,
-                                           serf_connection_t *conn,
-                                           serf_request_t *request,
-                                           const char *method,
-                                           const char *uri,
-                                           serf_bucket_t *hdrs_bkt);
-apr_status_t serf__validate_response_kerb_auth(peer_t peer,
-                                               int code,
-                                               serf_connection_t *conn,
-                                               serf_request_t *request,
-                                               serf_bucket_t *response,
-                                               apr_pool_t *pool);
+apr_status_t serf__init_spnego(int code,
+                               serf_context_t *ctx,
+                               apr_pool_t *pool);
+apr_status_t serf__init_spnego_connection(const serf__authn_scheme_t *scheme,
+                                          int code,
+                                          serf_connection_t *conn,
+                                          apr_pool_t *pool);
+apr_status_t serf__handle_spnego_auth(int code,
+                                     serf_request_t *request,
+                                     serf_bucket_t *response,
+                                     const char *auth_hdr,
+                                     const char *auth_attr,
+                                     void *baton,
+                                     apr_pool_t *pool);
+apr_status_t serf__setup_request_spnego_auth(peer_t peer,
+                                             int code,
+                                             serf_connection_t *conn,
+                                             serf_request_t *request,
+                                             const char *method,
+                                             const char *uri,
+                                             serf_bucket_t *hdrs_bkt);
+apr_status_t serf__validate_response_spnego_auth(peer_t peer,
+                                                 int code,
+                                                 serf_connection_t *conn,
+                                                 serf_request_t *request,
+                                                 serf_bucket_t *response,
+                                                 apr_pool_t *pool);
 #endif /* SERF_HAVE_SPNEGO */
 
 #ifdef __cplusplus

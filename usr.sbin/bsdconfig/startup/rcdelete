@@ -1,7 +1,7 @@
 #!/bin/sh
 #-
 # Copyright (c) 2012-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -232,7 +232,7 @@ dialog_menu_main()
 	f_dialog_menutag_store "$menu_choice"
 
 	# Only update default-item on success
-	[ $retval -eq 0 ] && f_dialog_default_store "$menu_choice"
+	[ $retval -eq $DIALOG_OK ] && f_dialog_default_store "$menu_choice"
 
 	return $retval
 }
@@ -249,7 +249,7 @@ dialog_menu_confirm_delete()
 	local menu_list # Calculated below
 	local hline="$hline_arrows_tab_enter"
 
-	[ $# -ge 1 ] || return $FAILURE
+	[ $# -ge 1 ] || return $DIALOG_CANCEL
 
 	# If asked to delete only one variable, simply ask and return
 	if [ $# -eq 1 ]; then
@@ -316,7 +316,7 @@ dialog_menu_confirm_delete()
 #
 while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
-	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
@@ -351,13 +351,13 @@ while :; do
 			f_dialog_input_view_details && dialog_create_main
 			continue
 		esac
-	elif [ $retval -eq 2 ]; then
+	elif [ $retval -eq $DIALOG_HELP ]; then
 		# The ``Help'' button (labeled "Details") was pressed
 		f_dialog_input_view_details && dialog_create_main
 		continue
 	fi
 
-	[ $retval -eq 0 ] || f_die
+	[ $retval -eq $DIALOG_OK ] || f_die
 
 	case "$mtag" in
 	"X $msg_exit_cancel") break ;;
@@ -367,19 +367,16 @@ while :; do
 			[ "$( eval echo \$_${var}_delete )" ] || continue
 			delete_vars="$delete_vars${delete_vars:+ }$var"
 		done
-		unset var # no longer needed
 		if dialog_menu_confirm_delete $delete_vars; then
 			f_dialog_title "$msg_info"
 			f_dialog_info "$msg_deleting_selected_directives"
 			f_dialog_title_restore
 			for var in $delete_vars; do
-				err=$( f_sysrc_delete $var 2>&1 )
-				if [ $? -ne $SUCCESS ]; then
+				if ! err=$( f_sysrc_delete $var 2>&1 ); then
 					f_dialog_msgbox "$err\n"
 					break
 				fi
 			done
-			unset var # no longer needed
 			dialog_create_main
 		fi
 		;;
@@ -388,7 +385,6 @@ while :; do
 			setvar _${var}_delete 1
 			export _${var}_delete
 		done
-		unset var # no longer needed
 		;;
 	"> $msg_none")
 		var_list=$( set | awk -F= "
@@ -398,7 +394,6 @@ while :; do
 			}"
 		)
 		[ "$var_list" ] && unset $var_list
-		unset var_list # no longer needed
 		;;
 	*) # Anything else is a variable to edit
 		var="${mtag# }"
@@ -410,7 +405,6 @@ while :; do
 			setvar _${var}_delete 1
 			export _${var}_delete
 		fi
-		unset var # no longer needed
 	esac
 done
 

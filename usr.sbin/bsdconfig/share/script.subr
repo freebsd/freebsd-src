@@ -1,7 +1,7 @@
 if [ ! "$_SCRIPT_SUBR" ]; then _SCRIPT_SUBR=1
 #
 # Copyright (c) 2012-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_SCRIPT_SUBR" ]; then _SCRIPT_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -32,10 +32,12 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." script.subr
 f_include $BSDCFG_SHARE/device.subr
-f_include $BSDCFG_SHARE/variable.subr
 f_include $BSDCFG_SHARE/media/any.subr
 f_include $BSDCFG_SHARE/media/tcpip.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/networking/services.subr
 f_include $BSDCFG_SHARE/packages/packages.subr
+f_include $BSDCFG_SHARE/variable.subr
 
 ############################################################ GLOBALS
 
@@ -159,10 +161,6 @@ f_resword_new loadConfig	f_script_load
 # device.subr
 f_resword_new deviceRescan	f_device_rescan
 
-# variable.subr
-f_resword_new installVarDefaults	f_variable_set_defaults
-f_resword_new dumpVariables		f_dump_variables
-
 # media/common.subr
 f_resword_new mediaOpen		f_media_open
 f_resword_new mediaClose	f_media_close
@@ -185,12 +183,24 @@ f_resword_new mediaSetFTPActive		f_media_set_ftp_active
 f_resword_new mediaSetFTPPassive	f_media_set_ftp_passive
 f_resword_new mediaSetFTPUserPass	f_media_set_ftp_userpass
 
+# media/http.subr
+f_resword_new mediaSetHTTP	f_media_set_http
+
 # media/httpproxy.subr
-f_resword_new mediaSetHTTP	f_media_set_http_proxy
 f_resword_new mediaSetHTTPProxy	f_media_set_http_proxy
+
+# networking/services.subr
+f_resword_new configPCNFSD	f_config_pcnfsd
 
 # packages/packages.subr
 f_resword_new configPackages	f_package_config
+f_resword_new packageAdd	f_package_add
+f_resword_new packageDelete	f_package_delete
+f_resword_new packageReinstall	f_package_reinstall
+
+# variable.subr
+f_resword_new installVarDefaults	f_variable_set_defaults
+f_resword_new dumpVariables		f_dump_variables
 
 f_dprintf "%s: Successfully loaded." script.subr
 

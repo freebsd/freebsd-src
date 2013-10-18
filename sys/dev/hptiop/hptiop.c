@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hptiop/hptiop.h>
 
 static const char driver_name[] = "hptiop";
-static const char driver_version[] = "v1.8";
+static const char driver_version[] = "v1.9";
 
 static devclass_t hptiop_devclass;
 
@@ -643,7 +643,7 @@ static void hptiop_request_callback_mvfrey(struct hpt_iop_hba * hba,
 
 		ccb = (union ccb *)srb->ccb;
 
-		untimeout(hptiop_reset_adapter, hba, ccb->ccb_h.timeout_ch);
+		untimeout(hptiop_reset_adapter, hba, srb->timeout_ch);
 
 		if (ccb->ccb_h.flags & CAM_CDB_POINTER)
 			cdb = ccb->csio.cdb_io.cdb_ptr;
@@ -1821,8 +1821,12 @@ static int hptiop_probe(device_t dev)
 
 	switch (id) {
 		case 0x4520:
+		case 0x4521:
 		case 0x4522:
 			sas = 1;
+		case 0x3620:
+		case 0x3622:
+		case 0x3640:
 			ops = &hptiop_mvfrey_ops;
 			break;
 		case 0x4210:
@@ -2625,7 +2629,7 @@ static void hptiop_post_req_mvfrey(struct hpt_iop_hba *hba,
 	BUS_SPACE_RD4_MVFREY2(inbound_write_ptr);
 
 	if (req->header.type == IOP_REQUEST_TYPE_SCSI_COMMAND) {
-		ccb->ccb_h.timeout_ch = timeout(hptiop_reset_adapter, hba, 20*hz);
+		srb->timeout_ch = timeout(hptiop_reset_adapter, hba, 20*hz);
 	}
 }
 
@@ -2737,6 +2741,7 @@ static void hptiop_map_srb(void *arg, bus_dma_segment_t *segs,
 				tmp_srb->phy_addr = phy_addr;
 			}
 
+			callout_handle_init(&tmp_srb->timeout_ch);
 			hptiop_free_srb(hba, tmp_srb);
 			hba->srb[i] = tmp_srb;
 			phy_addr += HPT_SRB_MAX_SIZE;

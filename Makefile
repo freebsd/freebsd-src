@@ -32,6 +32,12 @@
 # targets             - Print a list of supported TARGET/TARGET_ARCH pairs
 #                       for world and kernel targets.
 # toolchains          - Build a toolchain for all world and kernel targets.
+# 
+# "quick" way to test all kernel builds:
+# 	_jflag=`sysctl -n hw.ncpu`
+# 	_jflag=$(($_jflag * 2))
+# 	[ $_jflag -gt 12 ] && _jflag=12
+# 	make universe -DMAKE_JUST_KERNELS JFLAG=-j${_jflag}
 #
 # This makefile is simple by design. The FreeBSD make automatically reads
 # the /usr/share/mk/sys.mk unless the -m argument is specified on the
@@ -124,11 +130,34 @@ _MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} ${MAKE} \
 .error MAKEOBJDIRPREFIX can only be set in environment, not as a global\
 	(in make.conf(5)) or command-line variable.
 .endif
-MAKEPATH=	${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE}
-BINMAKE= \
-	`if [ -x ${MAKEPATH}/make ]; then echo ${MAKEPATH}/make; else echo ${MAKE}; fi` \
+
+# We often need to use the tree's version of make to build it.
+# Choices add to complexity though.
+# We cannot blindly use a make which may not be the one we want
+# so be exlicit - until all choice is removed.
+.if !defined(WITHOUT_BMAKE)
+WANT_MAKE=	bmake
+.else
+WANT_MAKE=	fmake
+.endif
+MYMAKE=		${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE}/${WANT_MAKE}
+.if defined(.PARSEDIR)
+HAVE_MAKE=	bmake
+.else
+HAVE_MAKE=	fmake
+.endif
+.if exists(${MYMAKE})
+SUB_MAKE:= ${MYMAKE} -m ${.CURDIR}/share/mk
+.elif ${WANT_MAKE} != ${HAVE_MAKE} || ${WANT_MAKE} != "bmake"
+# It may not exist yet but we may cause it to.
+# In the case of fmake, upgrade_checks may cause a newer version to be built.
+SUB_MAKE= `test -x ${MYMAKE} && echo ${MYMAKE} || echo ${MAKE}` \
 	-m ${.CURDIR}/share/mk
-_MAKE=	PATH=${PATH} ${BINMAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
+.else
+SUB_MAKE= ${MAKE} -m ${.CURDIR}/share/mk
+.endif
+
+_MAKE=	PATH=${PATH} ${SUB_MAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
 
 # Guess machine architecture from machine type, and vice versa.
 .if !defined(TARGET_ARCH) && defined(TARGET)
@@ -213,6 +242,7 @@ cleanworld:
 # skip this for -n to avoid changing previous behavior of 
 # 'make -n buildworld' etc.
 ${TGTS}: .MAKE
+tinderbox toolchains kernel-toolchains: .MAKE
 .endif
 
 ${TGTS}:
@@ -285,11 +315,13 @@ kernel: buildkernel installkernel
 # Perform a few tests to determine if the installed tools are adequate
 # for building the world.
 #
+# Note: if we ever need to care about the version of bmake, simply testing
+# MAKE_VERSION against a required version should suffice.
+#
 upgrade_checks:
-.if !defined(.PARSEDIR)
-.if !defined(WITHOUT_BMAKE)
-	(cd ${.CURDIR} && ${MAKE} bmake)
-.else
+.if ${HAVE_MAKE} != ${WANT_MAKE}
+	@(cd ${.CURDIR} && ${MAKE} ${WANT_MAKE:S,^f,,})
+.elif ${WANT_MAKE} == "fmake"
 	@if ! (cd ${.CURDIR}/tools/build/make_check && \
 	    PATH=${PATH} ${BINMAKE} obj >/dev/null 2>&1 && \
 	    PATH=${PATH} ${BINMAKE} >/dev/null 2>&1); \
@@ -297,20 +329,19 @@ upgrade_checks:
 	    (cd ${.CURDIR} && ${MAKE} make); \
 	fi
 .endif
-.endif
 
 #
 # Upgrade make(1) to the current version using the installed
 # headers, libraries and tools.  Also, allow the location of
 # the system bsdmake-like utility to be overridden.
 #
-MMAKEENV=	MAKEOBJDIRPREFIX=${MAKEPATH} \
+MMAKEENV=	MAKEOBJDIRPREFIX=${MYMAKE:H} \
 		DESTDIR= \
 		INSTALL="sh ${.CURDIR}/tools/install.sh"
 MMAKE=		${MMAKEENV} ${MAKE} \
 		-D_UPGRADING \
 		-DNOMAN -DNO_MAN -DNOSHARED -DNO_SHARED \
-		-DNO_CPU_CFLAGS -DNO_WERROR
+		-DNO_CPU_CFLAGS -DNO_WERROR DESTDIR= PROGNAME=${MYMAKE:T}
 
 make bmake: .PHONY
 	@echo
@@ -321,16 +352,18 @@ make bmake: .PHONY
 		${MMAKE} obj && \
 		${MMAKE} depend && \
 		${MMAKE} all && \
-		${MMAKE} install DESTDIR=${MAKEPATH} BINDIR=
+		${MMAKE} install DESTDIR=${MYMAKE:H} BINDIR=
+
+tinderbox toolchains kernel-toolchains: upgrade_checks
 
 tinderbox:
-	@cd ${.CURDIR} && ${MAKE} DOING_TINDERBOX=YES universe
+	@cd ${.CURDIR} && ${SUB_MAKE} DOING_TINDERBOX=YES universe
 
 toolchains:
-	@cd ${.CURDIR} && ${MAKE} UNIVERSE_TARGET=toolchain universe
+	@cd ${.CURDIR} && ${SUB_MAKE} UNIVERSE_TARGET=toolchain universe
 
 kernel-toolchains:
-	@cd ${.CURDIR} && ${MAKE} UNIVERSE_TARGET=kernel-toolchain universe
+	@cd ${.CURDIR} && ${SUB_MAKE} UNIVERSE_TARGET=kernel-toolchain universe
 
 #
 # universe
@@ -341,7 +374,7 @@ kernel-toolchains:
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
 TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64
-TARGET_ARCHES_arm?=	arm armeb armv6 armv6eb
+TARGET_ARCHES_arm?=	arm armeb armv6
 TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32
 TARGET_ARCHES_powerpc?=	powerpc powerpc64
 TARGET_ARCHES_pc98?=	i386
@@ -371,7 +404,8 @@ MAKEFAIL=tee -a ${FAILFILE}
 MAKEFAIL=cat
 .endif
 
-universe: universe_prologue upgrade_checks
+universe_prologue:  upgrade_checks
+universe: universe_prologue
 universe_prologue:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe started on ${STARTTIME}"
@@ -381,17 +415,17 @@ universe_prologue:
 .endif
 .for target in ${TARGETS}
 universe: universe_${target}
-.ORDER: universe_prologue upgrade_checks universe_${target} universe_epilogue
+universe_epilogue: universe_${target}
 universe_${target}: universe_${target}_prologue
-universe_${target}_prologue:
+universe_${target}_prologue: universe_prologue
 	@echo ">> ${target} started on `LC_ALL=C date`"
 .if !defined(MAKE_JUST_KERNELS)
 .for target_arch in ${TARGET_ARCHES_${target}}
 universe_${target}: universe_${target}_${target_arch}
-universe_${target}_${target_arch}: universe_${target}_prologue
+universe_${target}_${target_arch}: universe_${target}_prologue .MAKE
 	@echo ">> ${target}.${target_arch} ${UNIVERSE_TARGET} started on `LC_ALL=C date`"
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
-	    ${MAKE} ${JFLAG} ${UNIVERSE_TARGET} \
+	    ${SUB_MAKE} ${JFLAG} ${UNIVERSE_TARGET} \
 	    TARGET=${target} \
 	    TARGET_ARCH=${target_arch} \
 	    > _.${target}.${target_arch}.${UNIVERSE_TARGET} 2>&1 || \
@@ -409,14 +443,14 @@ universe_${target}_kernels: universe_${target}_${target_arch}
 .endfor
 .endif
 universe_${target}: universe_${target}_kernels
-universe_${target}_kernels: universe_${target}_prologue
+universe_${target}_kernels: universe_${target}_prologue .MAKE
 .if exists(${KERNSRCDIR}/${target}/conf/NOTES)
 	@(cd ${KERNSRCDIR}/${target}/conf && env __MAKE_CONF=/dev/null \
-	    ${MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
+	    ${SUB_MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
 	    (echo "${target} 'make LINT' failed," \
 	    "check _.${target}.makeLINT for details"| ${MAKEFAIL}))
 .endif
-	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} TARGET=${target} \
+	@cd ${.CURDIR} && ${SUB_MAKE} ${.MAKEFLAGS} TARGET=${target} \
 	    universe_kernels
 .endif
 	@echo ">> ${target} completed on `LC_ALL=C date`"
@@ -437,9 +471,9 @@ TARGET_ARCH_${kernel}!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 .error "Target architecture for ${TARGET}/conf/${kernel} unknown.  config(8) likely too old."
 .endif
 universe_kernconfs: universe_kernconf_${TARGET}_${kernel}
-universe_kernconf_${TARGET}_${kernel}:
+universe_kernconf_${TARGET}_${kernel}: .MAKE
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
-	    ${MAKE} ${JFLAG} buildkernel \
+	    ${SUB_MAKE} ${JFLAG} buildkernel \
 	    TARGET=${TARGET} \
 	    TARGET_ARCH=${TARGET_ARCH_${kernel}} \
 	    KERNCONF=${kernel} \
@@ -464,3 +498,11 @@ universe_epilogue:
 
 buildLINT:
 	${MAKE} -C ${.CURDIR}/sys/${_TARGET}/conf LINT
+
+.if defined(.PARSEDIR)
+.if make(universe)
+# we do not want a failure of one branch abort all.
+MAKE_JOB_ERROR_TOKEN= no
+.export MAKE_JOB_ERROR_TOKEN
+.endif
+.endif

@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Intel Corporation
+ * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,8 +60,6 @@ MALLOC_DECLARE(M_NVME);
 #define IDT32_PCI_ID		0x80d0111d /* 32 channel board */
 #define IDT8_PCI_ID		0x80d2111d /* 8 channel board */
 
-#define NVME_MAX_PRP_LIST_ENTRIES	(32)
-
 /*
  * For commands requiring more than 2 PRP entries, one PRP will be
  *  embedded in the command (prp1), and the rest of the PRP entries
@@ -69,7 +67,7 @@ MALLOC_DECLARE(M_NVME);
  *  that real max number of PRP entries we support is 32+1, which
  *  results in a max xfer size of 32*PAGE_SIZE.
  */
-#define NVME_MAX_XFER_SIZE	NVME_MAX_PRP_LIST_ENTRIES * PAGE_SIZE
+#define NVME_MAX_PRP_LIST_ENTRIES	(NVME_MAX_XFER_SIZE / PAGE_SIZE)
 
 #define NVME_ADMIN_TRACKERS	(16)
 #define NVME_ADMIN_ENTRIES	(128)
@@ -111,6 +109,10 @@ MALLOC_DECLARE(M_NVME);
 /* Maximum log page size to fetch for AERs. */
 #define NVME_MAX_AER_LOG_SIZE		(4096)
 
+/*
+ * Define CACHE_LINE_SIZE here for older FreeBSD versions that do not define
+ *  it.
+ */
 #ifndef CACHE_LINE_SIZE
 #define CACHE_LINE_SIZE		(64)
 #endif
@@ -147,7 +149,6 @@ struct nvme_request {
 	struct nvme_qpair		*qpair;
 	union {
 		void			*payload;
-		struct uio		*uio;
 		struct bio		*bio;
 	} u;
 	uint32_t			type;
@@ -194,7 +195,6 @@ struct nvme_qpair {
 	struct resource		*res;
 	void 			*tag;
 
-	uint32_t		max_xfer_size;
 	uint32_t		num_entries;
 	uint32_t		num_trackers;
 	uint32_t		sq_tdbl_off;
@@ -238,6 +238,7 @@ struct nvme_namespace {
 	uint16_t			flags;
 	struct cdev			*cdev;
 	void				*cons_cookie[NVME_MAX_CONSUMERS];
+	uint32_t			stripesize;
 	struct mtx			lock;
 };
 
@@ -320,6 +321,9 @@ struct nvme_controller {
 	struct nvme_namespace		ns[NVME_MAX_NAMESPACES];
 
 	struct cdev			*cdev;
+
+	/** bit mask of warning types currently enabled for async events */
+	union nvme_critical_warning_state	async_event_config;
 
 	uint32_t			num_aers;
 	struct nvme_async_event_request	aer[NVME_MAX_ASYNC_EVENTS];
@@ -433,6 +437,7 @@ void	nvme_completion_poll_cb(void *arg, const struct nvme_completion *cpl);
 
 int	nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev);
 void	nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev);
+void	nvme_ctrlr_shutdown(struct nvme_controller *ctrlr);
 int	nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr);
 void	nvme_ctrlr_reset(struct nvme_controller *ctrlr);
 /* ctrlr defined as void * to allow use with config_intrhook. */
@@ -446,7 +451,7 @@ void	nvme_ctrlr_post_failed_request(struct nvme_controller *ctrlr,
 
 void	nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 			     uint16_t vector, uint32_t num_entries,
-			     uint32_t num_trackers, uint32_t max_xfer_size,
+			     uint32_t num_trackers,
 			     struct nvme_controller *ctrlr);
 void	nvme_qpair_submit_tracker(struct nvme_qpair *qpair,
 				  struct nvme_tracker *tr);
@@ -471,8 +476,6 @@ void	nvme_io_qpair_destroy(struct nvme_qpair *qpair);
 int	nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 			  struct nvme_controller *ctrlr);
 void	nvme_ns_destruct(struct nvme_namespace *ns);
-
-int	nvme_ns_physio(struct cdev *dev, struct uio *uio, int ioflag);
 
 void	nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr);
 
@@ -524,19 +527,6 @@ nvme_allocate_request_null(nvme_cb_fn_t cb_fn, void *cb_arg)
 	req = _nvme_allocate_request(cb_fn, cb_arg);
 	if (req != NULL)
 		req->type = NVME_REQUEST_NULL;
-	return (req);
-}
-
-static __inline struct nvme_request *
-nvme_allocate_request_uio(struct uio *uio, nvme_cb_fn_t cb_fn, void *cb_arg)
-{
-	struct nvme_request *req;
-
-	req = _nvme_allocate_request(cb_fn, cb_arg);
-	if (req != NULL) {
-		req->type = NVME_REQUEST_UIO;
-		req->u.uio = uio;
-	}
 	return (req);
 }
 

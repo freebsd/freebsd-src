@@ -95,6 +95,8 @@ SYSCTL_INT(_hw_usb_musbotg, OID_AUTO, debug, CTLFLAG_RW,
     &musbotgdebug, 0, "Debug level");
 #endif
 
+#define	MAX_NAK_TO	16
+
 /* prototypes */
 
 struct usb_bus_methods musbotg_bus_methods;
@@ -103,17 +105,35 @@ struct usb_pipe_methods musbotg_device_ctrl_methods;
 struct usb_pipe_methods musbotg_device_intr_methods;
 struct usb_pipe_methods musbotg_device_isoc_methods;
 
-static musbotg_cmd_t musbotg_setup_rx;
-static musbotg_cmd_t musbotg_setup_data_rx;
-static musbotg_cmd_t musbotg_setup_data_tx;
-static musbotg_cmd_t musbotg_setup_status;
-static musbotg_cmd_t musbotg_data_rx;
-static musbotg_cmd_t musbotg_data_tx;
+/* Control transfers: Device mode */
+static musbotg_cmd_t musbotg_dev_ctrl_setup_rx;
+static musbotg_cmd_t musbotg_dev_ctrl_data_rx;
+static musbotg_cmd_t musbotg_dev_ctrl_data_tx;
+static musbotg_cmd_t musbotg_dev_ctrl_status;
+
+/* Control transfers: Host mode */
+static musbotg_cmd_t musbotg_host_ctrl_setup_tx;
+static musbotg_cmd_t musbotg_host_ctrl_data_rx;
+static musbotg_cmd_t musbotg_host_ctrl_data_tx;
+static musbotg_cmd_t musbotg_host_ctrl_status_rx;
+static musbotg_cmd_t musbotg_host_ctrl_status_tx;
+
+/* Bulk, Interrupt, Isochronous: Device mode */
+static musbotg_cmd_t musbotg_dev_data_rx;
+static musbotg_cmd_t musbotg_dev_data_tx;
+
+/* Bulk, Interrupt, Isochronous: Host mode */
+static musbotg_cmd_t musbotg_host_data_rx;
+static musbotg_cmd_t musbotg_host_data_tx;
+
 static void	musbotg_device_done(struct usb_xfer *, usb_error_t);
 static void	musbotg_do_poll(struct usb_bus *);
 static void	musbotg_standard_done(struct usb_xfer *);
 static void	musbotg_interrupt_poll(struct musbotg_softc *);
 static void	musbotg_root_intr(struct musbotg_softc *);
+static int	musbotg_channel_alloc(struct musbotg_softc *, struct musbotg_td *td);
+static void	musbotg_channel_free(struct musbotg_softc *, struct musbotg_td *td);
+static void	musbotg_ep_int_set(struct musbotg_softc *sc, int channel, int on);
 
 /*
  * Here is a configuration that the chip supports.
@@ -127,6 +147,64 @@ static const struct usb_hw_ep_profile musbotg_ep_profile[1] = {
 		.support_control = 1,
 	}
 };
+
+static int
+musbotg_channel_alloc(struct musbotg_softc *sc, struct musbotg_td *td)
+{
+	int ch;
+	int ep;
+
+	ep = td->ep_no;
+
+	/* In device mode each EP got its own channel */
+	if (sc->sc_mode == MUSB2_DEVICE_MODE) {
+		musbotg_ep_int_set(sc, ep, 1);
+		return (ep);
+	}
+
+	/*
+	 * All control transactions go through EP0
+	 */
+	if (ep == 0) {
+		if (sc->sc_channel_mask & (1 << 0))
+			return (-1);
+		sc->sc_channel_mask |= (1 << 0);
+		musbotg_ep_int_set(sc, ep, 1);
+		return (0);
+	}
+
+	for (ch = 1; ch < MUSB2_EP_MAX; ch++) {
+		if (!(sc->sc_channel_mask & (1 << ch))) {
+			sc->sc_channel_mask |= (1 << ch);
+			musbotg_ep_int_set(sc, ch, 1);
+			return (ch);
+		}
+	}
+
+	DPRINTFN(-1, "No available channels. Mask: %04x\n",  sc->sc_channel_mask);
+
+	return (-1);
+}
+
+static void	
+musbotg_channel_free(struct musbotg_softc *sc, struct musbotg_td *td)
+{
+
+	DPRINTFN(1, "ep_no=%d\n", td->channel);
+
+	if (sc->sc_mode == MUSB2_DEVICE_MODE)
+		return;
+
+	if (td == NULL)
+		return;
+	if (td->channel == -1)
+		return;
+
+	musbotg_ep_int_set(sc, td->channel, 0);
+	sc->sc_channel_mask &= ~(1 << td->channel);
+
+	td->channel = -1;
+}
 
 static void
 musbotg_get_hw_ep_profile(struct usb_device *udev,
@@ -218,6 +296,46 @@ musbotg_pull_down(struct musbotg_softc *sc)
 }
 
 static void
+musbotg_suspend_host(struct musbotg_softc *sc)
+{
+	uint8_t temp;
+
+	if (sc->sc_flags.status_suspend) {
+		return;
+	}
+
+	temp = MUSB2_READ_1(sc, MUSB2_REG_POWER);
+	temp |= MUSB2_MASK_SUSPMODE;
+	MUSB2_WRITE_1(sc, MUSB2_REG_POWER, temp);
+	sc->sc_flags.status_suspend = 1;
+}
+
+static void
+musbotg_wakeup_host(struct musbotg_softc *sc)
+{
+	uint8_t temp;
+
+	if (!(sc->sc_flags.status_suspend)) {
+		return;
+	}
+
+	temp = MUSB2_READ_1(sc, MUSB2_REG_POWER);
+	temp &= ~MUSB2_MASK_SUSPMODE;
+	temp |= MUSB2_MASK_RESUME;
+	MUSB2_WRITE_1(sc, MUSB2_REG_POWER, temp);
+
+	/* wait 20 milliseconds */
+	/* Wait for reset to complete. */
+	usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 50);
+
+	temp = MUSB2_READ_1(sc, MUSB2_REG_POWER);
+	temp &= ~MUSB2_MASK_RESUME;
+	MUSB2_WRITE_1(sc, MUSB2_REG_POWER, temp);
+
+	sc->sc_flags.status_suspend = 0;
+}
+
+static void
 musbotg_wakeup_peer(struct musbotg_softc *sc)
 {
 	uint8_t temp;
@@ -248,7 +366,7 @@ musbotg_set_address(struct musbotg_softc *sc, uint8_t addr)
 }
 
 static uint8_t
-musbotg_setup_rx(struct musbotg_td *td)
+musbotg_dev_ctrl_setup_rx(struct musbotg_td *td)
 {
 	struct musbotg_softc *sc;
 	struct usb_device_request req;
@@ -257,6 +375,15 @@ musbotg_setup_rx(struct musbotg_td *td)
 
 	/* get pointer to softc */
 	sc = MUSBOTG_PC2SC(td->pc);
+
+	if (td->channel == -1)
+		td->channel = musbotg_channel_alloc(sc, td);
+
+	/* EP0 is busy, wait */
+	if (td->channel == -1)
+		return (1);
+
+	DPRINTFN(1, "ep_no=%d\n", td->channel);
 
 	/* select endpoint 0 */
 	MUSB2_WRITE_1(sc, MUSB2_REG_EPINDEX, 0);
@@ -274,8 +401,10 @@ musbotg_setup_rx(struct musbotg_td *td)
 		/* do not stall at this point */
 		td->did_stall = 1;
 		/* wait for interrupt */
+		DPRINTFN(0, "CSR0 DATAEND\n");
 		goto not_complete;
 	}
+
 	if (csr & MUSB2_MASK_CSR0L_SENTSTALL) {
 		/* clear SENTSTALL */
 		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL, 0);
@@ -294,6 +423,7 @@ musbotg_setup_rx(struct musbotg_td *td)
 		sc->sc_ep0_busy = 0;
 	}
 	if (sc->sc_ep0_busy) {
+		DPRINTFN(0, "EP0 BUSY\n");
 		goto not_complete;
 	}
 	if (!(csr & MUSB2_MASK_CSR0L_RXPKTRDY)) {
@@ -342,6 +472,8 @@ musbotg_setup_rx(struct musbotg_td *td)
 	} else {
 		sc->sc_dv_addr = 0xFF;
 	}
+
+	musbotg_channel_free(sc, td);
 	return (0);			/* complete */
 
 not_complete:
@@ -355,10 +487,117 @@ not_complete:
 	return (1);			/* not complete */
 }
 
+static uint8_t
+musbotg_host_ctrl_setup_tx(struct musbotg_td *td)
+{
+	struct musbotg_softc *sc;
+	struct usb_device_request req;
+	uint8_t csr, csrh;
+
+	/* get pointer to softc */
+	sc = MUSBOTG_PC2SC(td->pc);
+
+	if (td->channel == -1)
+		td->channel = musbotg_channel_alloc(sc, td);
+
+	/* EP0 is busy, wait */
+	if (td->channel == -1)
+		return (1);
+
+	DPRINTFN(1, "ep_no=%d\n", td->channel);
+
+	/* select endpoint 0 */
+	MUSB2_WRITE_1(sc, MUSB2_REG_EPINDEX, 0);
+
+	/* read out FIFO status */
+	csr = MUSB2_READ_1(sc, MUSB2_REG_TXCSRL);
+	DPRINTFN(4, "csr=0x%02x\n", csr);
+
+	/* Not ready yet yet */
+	if (csr & MUSB2_MASK_CSR0L_TXPKTRDY)
+		return (1);
+
+	/* Failed */
+	if (csr & (MUSB2_MASK_CSR0L_RXSTALL |
+	    MUSB2_MASK_CSR0L_ERROR))
+	{
+		/* Clear status bit */
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL, 0);
+		DPRINTFN(1, "error bit set, csr=0x%02x\n", csr);
+		td->error = 1;
+	}
+
+	if (csr & MUSB2_MASK_CSR0L_NAKTIMO) {
+		DPRINTFN(1, "NAK timeout\n");
+
+		if (csr & MUSB2_MASK_CSR0L_TXFIFONEMPTY) {
+			csrh = MUSB2_READ_1(sc, MUSB2_REG_TXCSRH);
+			csrh |= MUSB2_MASK_CSR0H_FFLUSH;
+			MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRH, csrh);
+			csr = MUSB2_READ_1(sc, MUSB2_REG_TXCSRL);
+			if (csr & MUSB2_MASK_CSR0L_TXFIFONEMPTY) {
+				csrh = MUSB2_READ_1(sc, MUSB2_REG_TXCSRH);
+				csrh |= MUSB2_MASK_CSR0H_FFLUSH;
+				MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRH, csrh);
+				csr = MUSB2_READ_1(sc, MUSB2_REG_TXCSRL);
+			}
+		}
+
+		csr &= ~MUSB2_MASK_CSR0L_NAKTIMO;
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL, csr);
+
+		td->error = 1;
+	}
+
+	if (td->error) {
+		musbotg_channel_free(sc, td);
+		return (0);
+	}
+
+	/* Fifo is not empty and there is no NAK timeout */
+	if (csr & MUSB2_MASK_CSR0L_TXPKTRDY)
+		return (1);
+
+	/* check if we are complete */
+	if (td->remainder == 0) {
+		/* we are complete */
+		musbotg_channel_free(sc, td);
+		return (0);
+	}
+
+	/* copy data into real buffer */
+	usbd_copy_out(td->pc, 0, &req, sizeof(req));
+
+	/* send data */
+	bus_space_write_multi_1(sc->sc_io_tag, sc->sc_io_hdl,
+	    MUSB2_REG_EPFIFO(0), (void *)&req, sizeof(req));
+
+	/* update offset and remainder */
+	td->offset += sizeof(req);
+	td->remainder -= sizeof(req);
+
+
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXNAKLIMIT, MAX_NAK_TO);
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXFADDR(0), td->dev_addr);
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXHADDR(0), td->haddr);
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXHUBPORT(0), td->hport);
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXTI, td->transfer_type);
+
+	/* write command */
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
+	    MUSB2_MASK_CSR0L_TXPKTRDY | 
+	    MUSB2_MASK_CSR0L_SETUPPKT);
+
+	/* Just to be consistent, not used above */
+	td->transaction_started = 1;
+
+	return (1);			/* in progress */
+}
+
 /* Control endpoint only data handling functions (RX/TX/SYNC) */
 
 static uint8_t
-musbotg_setup_data_rx(struct musbotg_td *td)
+musbotg_dev_ctrl_data_rx(struct musbotg_td *td)
 {
 	struct usb_page_search buf_res;
 	struct musbotg_softc *sc;
@@ -501,7 +740,7 @@ musbotg_setup_data_rx(struct musbotg_td *td)
 }
 
 static uint8_t
-musbotg_setup_data_tx(struct musbotg_td *td)
+musbotg_dev_ctrl_data_tx(struct musbotg_td *td)
 {
 	struct usb_page_search buf_res;
 	struct musbotg_softc *sc;
@@ -619,7 +858,363 @@ musbotg_setup_data_tx(struct musbotg_td *td)
 }
 
 static uint8_t
-musbotg_setup_status(struct musbotg_td *td)
+musbotg_host_ctrl_data_rx(struct musbotg_td *td)
+{
+	struct usb_page_search buf_res;
+	struct musbotg_softc *sc;
+	uint16_t count;
+	uint8_t csr;
+	uint8_t got_short;
+
+	/* get pointer to softc */
+	sc = MUSBOTG_PC2SC(td->pc);
+
+	if (td->channel == -1)
+		td->channel = musbotg_channel_alloc(sc, td);
+
+	/* EP0 is busy, wait */
+	if (td->channel == -1)
+		return (1);
+
+	DPRINTFN(1, "ep_no=%d\n", td->channel);
+
+	/* select endpoint 0 */
+	MUSB2_WRITE_1(sc, MUSB2_REG_EPINDEX, 0);
+
+	/* read out FIFO status */
+	csr = MUSB2_READ_1(sc, MUSB2_REG_TXCSRL);
+
+	DPRINTFN(4, "csr=0x%02x\n", csr);
+
+	got_short = 0;
+	if (!td->transaction_started) {
+		td->transaction_started = 1;
+
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXNAKLIMIT, MAX_NAK_TO);
+
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXFADDR(0),
+		    td->dev_addr);
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXHADDR(0), td->haddr);
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXHUBPORT(0), td->hport);
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXTI, td->transfer_type);
+
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
+		    MUSB2_MASK_CSR0L_REQPKT);
+
+		return (1);
+	}
+
+	if (csr & MUSB2_MASK_CSR0L_NAKTIMO) {
+		csr &= ~MUSB2_MASK_CSR0L_REQPKT;
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL, csr);
+
+		csr &= ~MUSB2_MASK_CSR0L_NAKTIMO;
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL, csr);
+
+		td->error = 1;
+	}
+
+	/* Failed */
+	if (csr & (MUSB2_MASK_CSR0L_RXSTALL |
+	    MUSB2_MASK_CSR0L_ERROR))
+	{
+		/* Clear status bit */
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL, 0);
+		DPRINTFN(1, "error bit set, csr=0x%02x\n", csr);
+		td->error = 1;
+	}
+
+	if (td->error) {
+		musbotg_channel_free(sc, td);
+		return (0);	/* we are complete */
+	}
+
+	if (!(csr & MUSB2_MASK_CSR0L_RXPKTRDY))
+		return (1); /* not yet */
+
+	/* get the packet byte count */
+	count = MUSB2_READ_2(sc, MUSB2_REG_RXCOUNT);
+
+	/* verify the packet byte count */
+	if (count != td->max_frame_size) {
+		if (count < td->max_frame_size) {
+			/* we have a short packet */
+			td->short_pkt = 1;
+			got_short = 1;
+		} else {
+			/* invalid USB packet */
+			td->error = 1;
+			musbotg_channel_free(sc, td);
+			return (0);	/* we are complete */
+		}
+	}
+	/* verify the packet byte count */
+	if (count > td->remainder) {
+		/* invalid USB packet */
+		td->error = 1;
+		musbotg_channel_free(sc, td);
+		return (0);		/* we are complete */
+	}
+	while (count > 0) {
+		uint32_t temp;
+
+		usbd_get_page(td->pc, td->offset, &buf_res);
+
+		/* get correct length */
+		if (buf_res.length > count) {
+			buf_res.length = count;
+		}
+		/* check for unaligned memory address */
+		if (USB_P2U(buf_res.buffer) & 3) {
+
+			temp = count & ~3;
+
+			if (temp) {
+				/* receive data 4 bytes at a time */
+				bus_space_read_multi_4(sc->sc_io_tag, sc->sc_io_hdl,
+				    MUSB2_REG_EPFIFO(0), sc->sc_bounce_buf,
+				    temp / 4);
+			}
+			temp = count & 3;
+			if (temp) {
+				/* receive data 1 byte at a time */
+				bus_space_read_multi_1(sc->sc_io_tag, sc->sc_io_hdl,
+				    MUSB2_REG_EPFIFO(0),
+				    (void *)(&sc->sc_bounce_buf[count / 4]), temp);
+			}
+			usbd_copy_in(td->pc, td->offset,
+			    sc->sc_bounce_buf, count);
+
+			/* update offset and remainder */
+			td->offset += count;
+			td->remainder -= count;
+			break;
+		}
+		/* check if we can optimise */
+		if (buf_res.length >= 4) {
+
+			/* receive data 4 bytes at a time */
+			bus_space_read_multi_4(sc->sc_io_tag, sc->sc_io_hdl,
+			    MUSB2_REG_EPFIFO(0), buf_res.buffer,
+			    buf_res.length / 4);
+
+			temp = buf_res.length & ~3;
+
+			/* update counters */
+			count -= temp;
+			td->offset += temp;
+			td->remainder -= temp;
+			continue;
+		}
+		/* receive data */
+		bus_space_read_multi_1(sc->sc_io_tag, sc->sc_io_hdl,
+		    MUSB2_REG_EPFIFO(0), buf_res.buffer, buf_res.length);
+
+		/* update counters */
+		count -= buf_res.length;
+		td->offset += buf_res.length;
+		td->remainder -= buf_res.length;
+	}
+
+	csr &= ~MUSB2_MASK_CSR0L_RXPKTRDY;
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL, csr);
+
+	/* check if we are complete */
+	if ((td->remainder == 0) || got_short) {
+		if (td->short_pkt) {
+			/* we are complete */
+
+			musbotg_channel_free(sc, td);
+			return (0);
+		}
+		/* else need to receive a zero length packet */
+	}
+
+	td->transaction_started = 1;
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
+	    MUSB2_MASK_CSR0L_REQPKT);
+
+	return (1);			/* not complete */
+}
+
+static uint8_t
+musbotg_host_ctrl_data_tx(struct musbotg_td *td)
+{
+	struct usb_page_search buf_res;
+	struct musbotg_softc *sc;
+	uint16_t count;
+	uint8_t csr, csrh;
+
+	/* get pointer to softc */
+	sc = MUSBOTG_PC2SC(td->pc);
+
+	if (td->channel == -1)
+		td->channel = musbotg_channel_alloc(sc, td);
+
+	/* No free EPs */
+	if (td->channel == -1)
+		return (1);
+
+	DPRINTFN(1, "ep_no=%d\n", td->channel);
+
+	/* select endpoint */
+	MUSB2_WRITE_1(sc, MUSB2_REG_EPINDEX, 0);
+
+	/* read out FIFO status */
+	csr = MUSB2_READ_1(sc, MUSB2_REG_TXCSRL);
+	DPRINTFN(4, "csr=0x%02x\n", csr);
+
+	if (csr & (MUSB2_MASK_CSR0L_RXSTALL |
+	    MUSB2_MASK_CSR0L_ERROR)) {
+		/* clear status bits */
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL, 0);
+		td->error = 1;
+	}
+
+	if (csr & MUSB2_MASK_CSR0L_NAKTIMO ) {
+
+		if (csr & MUSB2_MASK_CSR0L_TXFIFONEMPTY) {
+			csrh = MUSB2_READ_1(sc, MUSB2_REG_TXCSRH);
+			csrh |= MUSB2_MASK_CSR0H_FFLUSH;
+			MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRH, csrh);
+			csr = MUSB2_READ_1(sc, MUSB2_REG_TXCSRL);
+			if (csr & MUSB2_MASK_CSR0L_TXFIFONEMPTY) {
+				csrh = MUSB2_READ_1(sc, MUSB2_REG_TXCSRH);
+				csrh |= MUSB2_MASK_CSR0H_FFLUSH;
+				MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRH, csrh);
+				csr = MUSB2_READ_1(sc, MUSB2_REG_TXCSRL);
+			}
+		}
+
+		csr &= ~MUSB2_MASK_CSR0L_NAKTIMO;
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL, csr);
+
+		td->error = 1;
+	}
+
+
+	if (td->error) {
+		musbotg_channel_free(sc, td);
+		return (0);	/* complete */
+	}
+
+	/*
+	 * Wait while FIFO is empty. 
+	 * Do not flush it because it will cause transactions
+	 * with size more then packet size. It might upset
+	 * some devices
+	 */
+	if (csr & MUSB2_MASK_CSR0L_TXFIFONEMPTY)
+		return (1);
+
+	/* Packet still being processed */
+	if (csr & MUSB2_MASK_CSR0L_TXPKTRDY)
+		return (1);
+
+	if (td->transaction_started) {
+		/* check remainder */
+		if (td->remainder == 0) {
+			if (td->short_pkt) {
+				musbotg_channel_free(sc, td);
+				return (0);	/* complete */
+			}
+			/* else we need to transmit a short packet */
+		}
+
+		/* We're not complete - more transactions required */
+		td->transaction_started = 0;
+	}
+
+	/* check for short packet */
+	count = td->max_frame_size;
+	if (td->remainder < count) {
+		/* we have a short packet */
+		td->short_pkt = 1;
+		count = td->remainder;
+	}
+
+	while (count > 0) {
+		uint32_t temp;
+
+		usbd_get_page(td->pc, td->offset, &buf_res);
+
+		/* get correct length */
+		if (buf_res.length > count) {
+			buf_res.length = count;
+		}
+		/* check for unaligned memory address */
+		if (USB_P2U(buf_res.buffer) & 3) {
+
+			usbd_copy_out(td->pc, td->offset,
+			    sc->sc_bounce_buf, count);
+
+			temp = count & ~3;
+
+			if (temp) {
+				/* transmit data 4 bytes at a time */
+				bus_space_write_multi_4(sc->sc_io_tag,
+				    sc->sc_io_hdl, MUSB2_REG_EPFIFO(0),
+				    sc->sc_bounce_buf, temp / 4);
+			}
+			temp = count & 3;
+			if (temp) {
+				/* receive data 1 byte at a time */
+				bus_space_write_multi_1(sc->sc_io_tag, sc->sc_io_hdl,
+				    MUSB2_REG_EPFIFO(0),
+				    ((void *)&sc->sc_bounce_buf[count / 4]), temp);
+			}
+			/* update offset and remainder */
+			td->offset += count;
+			td->remainder -= count;
+			break;
+		}
+		/* check if we can optimise */
+		if (buf_res.length >= 4) {
+
+			/* transmit data 4 bytes at a time */
+			bus_space_write_multi_4(sc->sc_io_tag, sc->sc_io_hdl,
+			    MUSB2_REG_EPFIFO(0), buf_res.buffer,
+			    buf_res.length / 4);
+
+			temp = buf_res.length & ~3;
+
+			/* update counters */
+			count -= temp;
+			td->offset += temp;
+			td->remainder -= temp;
+			continue;
+		}
+		/* transmit data */
+		bus_space_write_multi_1(sc->sc_io_tag, sc->sc_io_hdl,
+		    MUSB2_REG_EPFIFO(0), buf_res.buffer,
+		    buf_res.length);
+
+		/* update counters */
+		count -= buf_res.length;
+		td->offset += buf_res.length;
+		td->remainder -= buf_res.length;
+	}
+
+	/* Function address */
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXFADDR(0), td->dev_addr);
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXHADDR(0), td->haddr);
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXHUBPORT(0), td->hport);
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXTI, td->transfer_type);
+
+	/* TX NAK timeout */
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXNAKLIMIT, MAX_NAK_TO);
+
+	/* write command */
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
+	    MUSB2_MASK_CSR0L_TXPKTRDY);
+
+	td->transaction_started = 1;
+
+	return (1);			/* not complete */
+}
+
+static uint8_t
+musbotg_dev_ctrl_status(struct musbotg_td *td)
 {
 	struct musbotg_softc *sc;
 	uint8_t csr;
@@ -649,11 +1244,166 @@ musbotg_setup_status(struct musbotg_td *td)
 		/* write function address */
 		musbotg_set_address(sc, sc->sc_dv_addr);
 	}
+
+	musbotg_channel_free(sc, td);
 	return (0);			/* complete */
 }
 
 static uint8_t
-musbotg_data_rx(struct musbotg_td *td)
+musbotg_host_ctrl_status_rx(struct musbotg_td *td)
+{
+	struct musbotg_softc *sc;
+	uint8_t csr, csrh;
+
+	/* get pointer to softc */
+	sc = MUSBOTG_PC2SC(td->pc);
+
+	if (td->channel == -1)
+		td->channel = musbotg_channel_alloc(sc, td);
+
+	/* EP0 is busy, wait */
+	if (td->channel == -1)
+		return (1);
+
+	DPRINTFN(1, "ep_no=%d\n", td->channel);
+
+	/* select endpoint 0 */
+	MUSB2_WRITE_1(sc, MUSB2_REG_EPINDEX, 0);
+
+	if (!td->transaction_started) {
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXFADDR(0),
+		    td->dev_addr);
+
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXHADDR(0), td->haddr);
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXHUBPORT(0), td->hport);
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXTI, td->transfer_type);
+
+		/* RX NAK timeout */
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXNAKLIMIT, MAX_NAK_TO);
+
+		td->transaction_started = 1;
+
+		/* Disable PING */
+		csrh = MUSB2_READ_1(sc, MUSB2_REG_RXCSRH);
+		csrh |= MUSB2_MASK_CSR0H_PING_DIS;
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXCSRH, csrh);
+
+		/* write command */
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
+		    MUSB2_MASK_CSR0L_STATUSPKT | 
+		    MUSB2_MASK_CSR0L_REQPKT);
+
+		return (1); /* Just started */
+
+	}
+
+	csr = MUSB2_READ_1(sc, MUSB2_REG_TXCSRL);
+
+	DPRINTFN(4, "IN STATUS csr=0x%02x\n", csr);
+
+	if (csr & MUSB2_MASK_CSR0L_RXPKTRDY) {
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
+		    MUSB2_MASK_CSR0L_RXPKTRDY_CLR);
+		musbotg_channel_free(sc, td);
+		return (0); /* complete */
+	}
+
+	if (csr & MUSB2_MASK_CSR0L_NAKTIMO) {
+		csr &= ~ (MUSB2_MASK_CSR0L_STATUSPKT |
+		    MUSB2_MASK_CSR0L_REQPKT);
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL, csr);
+
+		csr &= ~MUSB2_MASK_CSR0L_NAKTIMO;
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL, csr);
+		td->error = 1;
+	}
+
+	/* Failed */
+	if (csr & (MUSB2_MASK_CSR0L_RXSTALL |
+	    MUSB2_MASK_CSR0L_ERROR))
+	{
+		/* Clear status bit */
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL, 0);
+		DPRINTFN(1, "error bit set, csr=0x%02x\n", csr);
+		td->error = 1;
+	}
+
+	if (td->error) {
+		musbotg_channel_free(sc, td);
+		return (0);
+	}
+
+	return (1);			/* Not ready yet */
+}
+
+static uint8_t
+musbotg_host_ctrl_status_tx(struct musbotg_td *td)
+{
+	struct musbotg_softc *sc;
+	uint8_t csr;
+
+	/* get pointer to softc */
+	sc = MUSBOTG_PC2SC(td->pc);
+
+	if (td->channel == -1)
+		td->channel = musbotg_channel_alloc(sc, td);
+
+	/* EP0 is busy, wait */
+	if (td->channel == -1)
+		return (1);
+
+	DPRINTFN(1, "ep_no=%d/%d [%d@%d.%d/%02x]\n", td->channel, td->transaction_started, 
+			td->dev_addr,td->haddr,td->hport, td->transfer_type);
+
+	/* select endpoint 0 */
+	MUSB2_WRITE_1(sc, MUSB2_REG_EPINDEX, 0);
+
+	csr = MUSB2_READ_1(sc, MUSB2_REG_TXCSRL);
+	DPRINTFN(4, "csr=0x%02x\n", csr);
+
+	/* Not yet */
+	if (csr & MUSB2_MASK_CSR0L_TXPKTRDY)
+		return (1);
+
+	/* Failed */
+	if (csr & (MUSB2_MASK_CSR0L_RXSTALL |
+	    MUSB2_MASK_CSR0L_ERROR))
+	{
+		/* Clear status bit */
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL, 0);
+		DPRINTFN(1, "error bit set, csr=0x%02x\n", csr);
+		td->error = 1;
+		musbotg_channel_free(sc, td);
+		return (0); /* complete */
+	}
+
+	if (td->transaction_started) {
+		musbotg_channel_free(sc, td);
+		return (0); /* complete */
+	} 
+
+	MUSB2_WRITE_1(sc, MUSB2_REG_RXCSRH, MUSB2_MASK_CSR0H_PING_DIS);
+
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXFADDR(0), td->dev_addr);
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXHADDR(0), td->haddr);
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXHUBPORT(0), td->hport);
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXTI, td->transfer_type);
+
+	/* TX NAK timeout */
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXNAKLIMIT, MAX_NAK_TO);
+
+	td->transaction_started = 1;
+
+	/* write command */
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
+	    MUSB2_MASK_CSR0L_STATUSPKT | 
+	    MUSB2_MASK_CSR0L_TXPKTRDY);
+
+	return (1);			/* wait for interrupt */
+}
+
+static uint8_t
+musbotg_dev_data_rx(struct musbotg_td *td)
 {
 	struct usb_page_search buf_res;
 	struct musbotg_softc *sc;
@@ -668,8 +1418,15 @@ musbotg_data_rx(struct musbotg_td *td)
 	/* get pointer to softc */
 	sc = MUSBOTG_PC2SC(td->pc);
 
+	if (td->channel == -1)
+		td->channel = musbotg_channel_alloc(sc, td);
+
+	/* EP0 is busy, wait */
+	if (td->channel == -1)
+		return (1);
+
 	/* select endpoint */
-	MUSB2_WRITE_1(sc, MUSB2_REG_EPINDEX, td->ep_no);
+	MUSB2_WRITE_1(sc, MUSB2_REG_EPINDEX, td->channel);
 
 repeat:
 	/* read out FIFO status */
@@ -683,10 +1440,11 @@ repeat:
 		MUSB2_WRITE_1(sc, MUSB2_REG_RXCSRL,
 		    MUSB2_MASK_CSRL_RXPKTRDY);
 	}
+
 	/* check status */
-	if (!(csr & MUSB2_MASK_CSRL_RXPKTRDY)) {
-		return (1);		/* not complete */
-	}
+	if (!(csr & MUSB2_MASK_CSRL_RXPKTRDY))
+		return (1); /* not complete */
+
 	/* get the packet byte count */
 	count = MUSB2_READ_2(sc, MUSB2_REG_RXCOUNT);
 
@@ -703,6 +1461,7 @@ repeat:
 		} else {
 			/* invalid USB packet */
 			td->error = 1;
+			musbotg_channel_free(sc, td);
 			return (0);	/* we are complete */
 		}
 	}
@@ -710,6 +1469,7 @@ repeat:
 	if (count > td->remainder) {
 		/* invalid USB packet */
 		td->error = 1;
+		musbotg_channel_free(sc, td);
 		return (0);		/* we are complete */
 	}
 	while (count > 0) {
@@ -729,14 +1489,14 @@ repeat:
 			if (temp) {
 				/* receive data 4 bytes at a time */
 				bus_space_read_multi_4(sc->sc_io_tag, sc->sc_io_hdl,
-				    MUSB2_REG_EPFIFO(td->ep_no), sc->sc_bounce_buf,
+				    MUSB2_REG_EPFIFO(td->channel), sc->sc_bounce_buf,
 				    temp / 4);
 			}
 			temp = count & 3;
 			if (temp) {
 				/* receive data 1 byte at a time */
 				bus_space_read_multi_1(sc->sc_io_tag,
-				    sc->sc_io_hdl, MUSB2_REG_EPFIFO(td->ep_no),
+				    sc->sc_io_hdl, MUSB2_REG_EPFIFO(td->channel),
 				    ((void *)&sc->sc_bounce_buf[count / 4]), temp);
 			}
 			usbd_copy_in(td->pc, td->offset,
@@ -752,7 +1512,7 @@ repeat:
 
 			/* receive data 4 bytes at a time */
 			bus_space_read_multi_4(sc->sc_io_tag, sc->sc_io_hdl,
-			    MUSB2_REG_EPFIFO(td->ep_no), buf_res.buffer,
+			    MUSB2_REG_EPFIFO(td->channel), buf_res.buffer,
 			    buf_res.length / 4);
 
 			temp = buf_res.length & ~3;
@@ -765,7 +1525,7 @@ repeat:
 		}
 		/* receive data */
 		bus_space_read_multi_1(sc->sc_io_tag, sc->sc_io_hdl,
-		    MUSB2_REG_EPFIFO(td->ep_no), buf_res.buffer,
+		    MUSB2_REG_EPFIFO(td->channel), buf_res.buffer,
 		    buf_res.length);
 
 		/* update counters */
@@ -781,6 +1541,7 @@ repeat:
 	if ((td->remainder == 0) || got_short) {
 		if (td->short_pkt) {
 			/* we are complete */
+			musbotg_channel_free(sc, td);
 			return (0);
 		}
 		/* else need to receive a zero length packet */
@@ -792,7 +1553,7 @@ repeat:
 }
 
 static uint8_t
-musbotg_data_tx(struct musbotg_td *td)
+musbotg_dev_data_tx(struct musbotg_td *td)
 {
 	struct usb_page_search buf_res;
 	struct musbotg_softc *sc;
@@ -805,8 +1566,15 @@ musbotg_data_tx(struct musbotg_td *td)
 	/* get pointer to softc */
 	sc = MUSBOTG_PC2SC(td->pc);
 
+	if (td->channel == -1)
+		td->channel = musbotg_channel_alloc(sc, td);
+
+	/* EP0 is busy, wait */
+	if (td->channel == -1)
+		return (1);
+
 	/* select endpoint */
-	MUSB2_WRITE_1(sc, MUSB2_REG_EPINDEX, td->ep_no);
+	MUSB2_WRITE_1(sc, MUSB2_REG_EPINDEX, td->channel);
 
 repeat:
 
@@ -850,14 +1618,14 @@ repeat:
 			if (temp) {
 				/* transmit data 4 bytes at a time */
 				bus_space_write_multi_4(sc->sc_io_tag,
-				    sc->sc_io_hdl, MUSB2_REG_EPFIFO(td->ep_no),
+				    sc->sc_io_hdl, MUSB2_REG_EPFIFO(td->channel),
 				    sc->sc_bounce_buf, temp / 4);
 			}
 			temp = count & 3;
 			if (temp) {
 				/* receive data 1 byte at a time */
 				bus_space_write_multi_1(sc->sc_io_tag, sc->sc_io_hdl,
-				    MUSB2_REG_EPFIFO(td->ep_no),
+				    MUSB2_REG_EPFIFO(td->channel),
 				    ((void *)&sc->sc_bounce_buf[count / 4]), temp);
 			}
 			/* update offset and remainder */
@@ -870,7 +1638,7 @@ repeat:
 
 			/* transmit data 4 bytes at a time */
 			bus_space_write_multi_4(sc->sc_io_tag, sc->sc_io_hdl,
-			    MUSB2_REG_EPFIFO(td->ep_no), buf_res.buffer,
+			    MUSB2_REG_EPFIFO(td->channel), buf_res.buffer,
 			    buf_res.length / 4);
 
 			temp = buf_res.length & ~3;
@@ -883,7 +1651,7 @@ repeat:
 		}
 		/* transmit data */
 		bus_space_write_multi_1(sc->sc_io_tag, sc->sc_io_hdl,
-		    MUSB2_REG_EPFIFO(td->ep_no), buf_res.buffer,
+		    MUSB2_REG_EPFIFO(td->channel), buf_res.buffer,
 		    buf_res.length);
 
 		/* update counters */
@@ -892,6 +1660,9 @@ repeat:
 		td->remainder -= buf_res.length;
 	}
 
+	/* Max packet size */
+	MUSB2_WRITE_2(sc, MUSB2_REG_TXMAXP, td->reg_max_packet);
+
 	/* write command */
 	MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
 	    MUSB2_MASK_CSRL_TXPKTRDY);
@@ -899,6 +1670,7 @@ repeat:
 	/* check remainder */
 	if (td->remainder == 0) {
 		if (td->short_pkt) {
+			musbotg_channel_free(sc, td);
 			return (0);	/* complete */
 		}
 		/* else we need to transmit a short packet */
@@ -910,19 +1682,449 @@ repeat:
 }
 
 static uint8_t
+musbotg_host_data_rx(struct musbotg_td *td)
+{
+	struct usb_page_search buf_res;
+	struct musbotg_softc *sc;
+	uint16_t count;
+	uint8_t csr, csrh;
+	uint8_t to;
+	uint8_t got_short;
+
+	/* get pointer to softc */
+	sc = MUSBOTG_PC2SC(td->pc);
+
+	if (td->channel == -1)
+		td->channel = musbotg_channel_alloc(sc, td);
+
+	/* No free EPs */
+	if (td->channel == -1)
+		return (1);
+
+	DPRINTFN(1, "ep_no=%d\n", td->channel);
+
+	to = 8;				/* don't loop forever! */
+	got_short = 0;
+
+	/* select endpoint */
+	MUSB2_WRITE_1(sc, MUSB2_REG_EPINDEX, td->channel);
+
+repeat:
+	/* read out FIFO status */
+	csr = MUSB2_READ_1(sc, MUSB2_REG_RXCSRL);
+	DPRINTFN(4, "csr=0x%02x\n", csr);
+
+	if (!td->transaction_started) {
+		/* Function address */
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXFADDR(td->channel),
+		    td->dev_addr);
+
+		/* SPLIT transaction */
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXHADDR(td->channel), 
+		    td->haddr);
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXHUBPORT(td->channel), 
+		    td->hport);
+
+		/* RX NAK timeout */
+		if (td->transfer_type & MUSB2_MASK_TI_PROTO_ISOC)
+			MUSB2_WRITE_1(sc, MUSB2_REG_RXNAKLIMIT, 0);
+		else
+			MUSB2_WRITE_1(sc, MUSB2_REG_RXNAKLIMIT, MAX_NAK_TO);
+
+		/* Protocol, speed, device endpoint */
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXTI, td->transfer_type);
+
+		/* Max packet size */
+		MUSB2_WRITE_2(sc, MUSB2_REG_RXMAXP, td->reg_max_packet);
+
+		/* Data Toggle */
+		csrh = MUSB2_READ_1(sc, MUSB2_REG_RXCSRH);
+		DPRINTFN(4, "csrh=0x%02x\n", csrh);
+
+		csrh |= MUSB2_MASK_CSRH_RXDT_WREN;
+		if (td->toggle)
+			csrh |= MUSB2_MASK_CSRH_RXDT_VAL;
+		else
+			csrh &= ~MUSB2_MASK_CSRH_RXDT_VAL;
+
+		/* Set data toggle */
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXCSRH, csrh);
+
+		/* write command */
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXCSRL,
+		    MUSB2_MASK_CSRL_RXREQPKT);
+
+		td->transaction_started = 1;
+		return (1);
+	}
+
+	/* clear NAK timeout */
+	if (csr & MUSB2_MASK_CSRL_RXNAKTO) {
+		DPRINTFN(4, "NAK Timeout\n");
+		if (csr & MUSB2_MASK_CSRL_RXREQPKT) {
+			csr &= ~MUSB2_MASK_CSRL_RXREQPKT;
+			MUSB2_WRITE_1(sc, MUSB2_REG_RXCSRL, csr);
+
+			csr &= ~MUSB2_MASK_CSRL_RXNAKTO;
+			MUSB2_WRITE_1(sc, MUSB2_REG_RXCSRL, csr);
+		}
+
+		td->error = 1;
+	}
+
+	if (csr & MUSB2_MASK_CSRL_RXERROR) {
+		DPRINTFN(4, "RXERROR\n");
+		td->error = 1;
+	}
+
+	if (csr & MUSB2_MASK_CSRL_RXSTALL) {
+		DPRINTFN(4, "RXSTALL\n");
+		td->error = 1;
+	}
+
+	if (td->error) {
+		musbotg_channel_free(sc, td);
+		return (0);	/* we are complete */
+	}
+
+	if (!(csr & MUSB2_MASK_CSRL_RXPKTRDY)) {
+		/* No data available yet */
+		return (1);
+	}
+
+	td->toggle ^= 1;
+	/* get the packet byte count */
+	count = MUSB2_READ_2(sc, MUSB2_REG_RXCOUNT);
+	DPRINTFN(4, "count=0x%04x\n", count);
+
+	/*
+	 * Check for short or invalid packet:
+	 */
+	if (count != td->max_frame_size) {
+		if (count < td->max_frame_size) {
+			/* we have a short packet */
+			td->short_pkt = 1;
+			got_short = 1;
+		} else {
+			/* invalid USB packet */
+			td->error = 1;
+			musbotg_channel_free(sc, td);
+			return (0);	/* we are complete */
+		}
+	}
+
+	/* verify the packet byte count */
+	if (count > td->remainder) {
+		/* invalid USB packet */
+		td->error = 1;
+		musbotg_channel_free(sc, td);
+		return (0);		/* we are complete */
+	}
+
+	while (count > 0) {
+		uint32_t temp;
+
+		usbd_get_page(td->pc, td->offset, &buf_res);
+
+		/* get correct length */
+		if (buf_res.length > count) {
+			buf_res.length = count;
+		}
+		/* check for unaligned memory address */
+		if (USB_P2U(buf_res.buffer) & 3) {
+
+			temp = count & ~3;
+
+			if (temp) {
+				/* receive data 4 bytes at a time */
+				bus_space_read_multi_4(sc->sc_io_tag, sc->sc_io_hdl,
+				    MUSB2_REG_EPFIFO(td->channel), sc->sc_bounce_buf,
+				    temp / 4);
+			}
+			temp = count & 3;
+			if (temp) {
+				/* receive data 1 byte at a time */
+				bus_space_read_multi_1(sc->sc_io_tag,
+				    sc->sc_io_hdl, MUSB2_REG_EPFIFO(td->channel),
+				    ((void *)&sc->sc_bounce_buf[count / 4]), temp);
+			}
+			usbd_copy_in(td->pc, td->offset,
+			    sc->sc_bounce_buf, count);
+
+			/* update offset and remainder */
+			td->offset += count;
+			td->remainder -= count;
+			break;
+		}
+		/* check if we can optimise */
+		if (buf_res.length >= 4) {
+
+			/* receive data 4 bytes at a time */
+			bus_space_read_multi_4(sc->sc_io_tag, sc->sc_io_hdl,
+			    MUSB2_REG_EPFIFO(td->channel), buf_res.buffer,
+			    buf_res.length / 4);
+
+			temp = buf_res.length & ~3;
+
+			/* update counters */
+			count -= temp;
+			td->offset += temp;
+			td->remainder -= temp;
+			continue;
+		}
+		/* receive data */
+		bus_space_read_multi_1(sc->sc_io_tag, sc->sc_io_hdl,
+		    MUSB2_REG_EPFIFO(td->channel), buf_res.buffer,
+		    buf_res.length);
+
+		/* update counters */
+		count -= buf_res.length;
+		td->offset += buf_res.length;
+		td->remainder -= buf_res.length;
+	}
+
+	/* clear status bits */
+	MUSB2_WRITE_1(sc, MUSB2_REG_RXCSRL, 0);
+
+	/* check if we are complete */
+	if ((td->remainder == 0) || got_short) {
+		if (td->short_pkt) {
+			/* we are complete */
+			musbotg_channel_free(sc, td);
+			return (0);
+		}
+		/* else need to receive a zero length packet */
+	}
+
+	/* Reset transaction state and restart */
+	td->transaction_started = 0;
+
+	if (--to)
+		goto repeat;
+
+	return (1);			/* not complete */
+}
+
+static uint8_t
+musbotg_host_data_tx(struct musbotg_td *td)
+{
+	struct usb_page_search buf_res;
+	struct musbotg_softc *sc;
+	uint16_t count;
+	uint8_t csr, csrh;
+
+	/* get pointer to softc */
+	sc = MUSBOTG_PC2SC(td->pc);
+
+	if (td->channel == -1)
+		td->channel = musbotg_channel_alloc(sc, td);
+
+	/* No free EPs */
+	if (td->channel == -1)
+		return (1);
+
+	DPRINTFN(1, "ep_no=%d\n", td->channel);
+
+	/* select endpoint */
+	MUSB2_WRITE_1(sc, MUSB2_REG_EPINDEX, td->channel);
+
+	/* read out FIFO status */
+	csr = MUSB2_READ_1(sc, MUSB2_REG_TXCSRL);
+	DPRINTFN(4, "csr=0x%02x\n", csr);
+
+	if (csr & (MUSB2_MASK_CSRL_TXSTALLED |
+	    MUSB2_MASK_CSRL_TXERROR)) {
+		/* clear status bits */
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL, 0);
+		td->error = 1;
+		musbotg_channel_free(sc, td);
+		return (0);	/* complete */
+	}
+
+	if (csr & MUSB2_MASK_CSRL_TXNAKTO) {
+		/* 
+		 * Flush TX FIFO before clearing NAK TO
+		 */
+		if (csr & MUSB2_MASK_CSRL_TXFIFONEMPTY) {
+			csr |= MUSB2_MASK_CSRL_TXFFLUSH;
+			MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL, csr);
+			csr = MUSB2_READ_1(sc, MUSB2_REG_TXCSRL);
+			if (csr & MUSB2_MASK_CSRL_TXFIFONEMPTY) {
+				csr |= MUSB2_MASK_CSRL_TXFFLUSH;
+				MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL, csr);
+				csr = MUSB2_READ_1(sc, MUSB2_REG_TXCSRL);
+			}
+		}
+
+		csr &= ~MUSB2_MASK_CSRL_TXNAKTO;
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL, csr);
+
+		td->error = 1;
+		musbotg_channel_free(sc, td);
+		return (0);	/* complete */
+	}
+
+	/*
+	 * Wait while FIFO is empty. 
+	 * Do not flush it because it will cause transactions
+	 * with size more then packet size. It might upset
+	 * some devices
+	 */
+	if (csr & MUSB2_MASK_CSRL_TXFIFONEMPTY)
+		return (1);
+
+	/* Packet still being processed */
+	if (csr & MUSB2_MASK_CSRL_TXPKTRDY)
+		return (1);
+
+	if (td->transaction_started) {
+		/* check remainder */
+		if (td->remainder == 0) {
+			if (td->short_pkt) {
+				musbotg_channel_free(sc, td);
+				return (0);	/* complete */
+			}
+			/* else we need to transmit a short packet */
+		}
+
+		/* We're not complete - more transactions required */
+		td->transaction_started = 0;
+	}
+
+	/* check for short packet */
+	count = td->max_frame_size;
+	if (td->remainder < count) {
+		/* we have a short packet */
+		td->short_pkt = 1;
+		count = td->remainder;
+	}
+
+	while (count > 0) {
+		uint32_t temp;
+
+		usbd_get_page(td->pc, td->offset, &buf_res);
+
+		/* get correct length */
+		if (buf_res.length > count) {
+			buf_res.length = count;
+		}
+		/* check for unaligned memory address */
+		if (USB_P2U(buf_res.buffer) & 3) {
+
+			usbd_copy_out(td->pc, td->offset,
+			    sc->sc_bounce_buf, count);
+
+			temp = count & ~3;
+
+			if (temp) {
+				/* transmit data 4 bytes at a time */
+				bus_space_write_multi_4(sc->sc_io_tag,
+				    sc->sc_io_hdl, MUSB2_REG_EPFIFO(td->channel),
+				    sc->sc_bounce_buf, temp / 4);
+			}
+			temp = count & 3;
+			if (temp) {
+				/* receive data 1 byte at a time */
+				bus_space_write_multi_1(sc->sc_io_tag, sc->sc_io_hdl,
+				    MUSB2_REG_EPFIFO(td->channel),
+				    ((void *)&sc->sc_bounce_buf[count / 4]), temp);
+			}
+			/* update offset and remainder */
+			td->offset += count;
+			td->remainder -= count;
+			break;
+		}
+		/* check if we can optimise */
+		if (buf_res.length >= 4) {
+
+			/* transmit data 4 bytes at a time */
+			bus_space_write_multi_4(sc->sc_io_tag, sc->sc_io_hdl,
+			    MUSB2_REG_EPFIFO(td->channel), buf_res.buffer,
+			    buf_res.length / 4);
+
+			temp = buf_res.length & ~3;
+
+			/* update counters */
+			count -= temp;
+			td->offset += temp;
+			td->remainder -= temp;
+			continue;
+		}
+		/* transmit data */
+		bus_space_write_multi_1(sc->sc_io_tag, sc->sc_io_hdl,
+		    MUSB2_REG_EPFIFO(td->channel), buf_res.buffer,
+		    buf_res.length);
+
+		/* update counters */
+		count -= buf_res.length;
+		td->offset += buf_res.length;
+		td->remainder -= buf_res.length;
+	}
+
+	/* Function address */
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXFADDR(td->channel),
+	    td->dev_addr);
+
+	/* SPLIT transaction */
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXHADDR(td->channel), 
+	    td->haddr);
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXHUBPORT(td->channel), 
+	    td->hport);
+
+	/* TX NAK timeout */
+	if (td->transfer_type & MUSB2_MASK_TI_PROTO_ISOC)
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXNAKLIMIT, 0);
+	else
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXNAKLIMIT, MAX_NAK_TO);
+
+	/* Protocol, speed, device endpoint */
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXTI, td->transfer_type);
+
+	/* Max packet size */
+	MUSB2_WRITE_2(sc, MUSB2_REG_TXMAXP, td->reg_max_packet);
+
+	if (!td->transaction_started) {
+		csrh = MUSB2_READ_1(sc, MUSB2_REG_TXCSRH);
+		DPRINTFN(4, "csrh=0x%02x\n", csrh);
+
+		csrh |= MUSB2_MASK_CSRH_TXDT_WREN;
+		if (td->toggle)
+			csrh |= MUSB2_MASK_CSRH_TXDT_VAL;
+		else
+			csrh &= ~MUSB2_MASK_CSRH_TXDT_VAL;
+
+		/* Set data toggle */
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRH, csrh);
+	}
+
+	/* write command */
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
+	    MUSB2_MASK_CSRL_TXPKTRDY);
+
+	/* Update Data Toggle */
+	td->toggle ^= 1;
+	td->transaction_started = 1;
+
+	return (1);			/* not complete */
+}
+
+static uint8_t
 musbotg_xfer_do_fifo(struct usb_xfer *xfer)
 {
 	struct musbotg_softc *sc;
 	struct musbotg_td *td;
 
 	DPRINTFN(8, "\n");
+	sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 
 	td = xfer->td_transfer_cache;
 	while (1) {
+
 		if ((td->func) (td)) {
 			/* operation in progress */
 			break;
 		}
+
 		if (((void *)td) == xfer->td_transfer_last) {
 			goto done;
 		}
@@ -944,13 +2146,10 @@ musbotg_xfer_do_fifo(struct usb_xfer *xfer)
 		td = td->obj_next;
 		xfer->td_transfer_cache = td;
 	}
+
 	return (1);			/* not complete */
-
 done:
-	sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
-
 	/* compute all actual lengths */
-
 	musbotg_standard_done(xfer);
 
 	return (0);			/* complete */
@@ -1000,7 +2199,19 @@ musbotg_vbus_interrupt(struct musbotg_softc *sc, uint8_t is_on)
 }
 
 void
-musbotg_interrupt(struct musbotg_softc *sc)
+musbotg_connect_interrupt(struct musbotg_softc *sc)
+{
+	USB_BUS_LOCK(&sc->sc_bus);
+	sc->sc_flags.change_connect = 1;
+
+	/* complete root HUB interrupt endpoint */
+	musbotg_root_intr(sc);
+	USB_BUS_UNLOCK(&sc->sc_bus);
+}
+
+void
+musbotg_interrupt(struct musbotg_softc *sc,
+    uint16_t rxstat, uint16_t txstat, uint8_t stat)
 {
 	uint16_t rx_status;
 	uint16_t tx_status;
@@ -1018,11 +2229,20 @@ repeat:
 	/* read all FIFO interrupts */
 	rx_status = MUSB2_READ_2(sc, MUSB2_REG_INTRX);
 	tx_status = MUSB2_READ_2(sc, MUSB2_REG_INTTX);
+	rx_status |= rxstat;
+	tx_status |= txstat;
+	usb_status |= stat;
+
+	/* Clear platform flags after first time */
+	rxstat = 0;
+	txstat = 0;
+	stat = 0;
 
 	/* check for any bus state change interrupts */
 
 	if (usb_status & (MUSB2_MASK_IRESET |
-	    MUSB2_MASK_IRESUME | MUSB2_MASK_ISUSP)) {
+	    MUSB2_MASK_IRESUME | MUSB2_MASK_ISUSP | 
+	    MUSB2_MASK_ICONN | MUSB2_MASK_IDISC)) {
 
 		DPRINTFN(4, "real bus interrupt 0x%08x\n", usb_status);
 
@@ -1085,6 +2305,21 @@ repeat:
 				MUSB2_WRITE_1(sc, MUSB2_REG_INTUSBE, temp);
 			}
 		}
+		if (usb_status & 
+		    (MUSB2_MASK_ICONN | MUSB2_MASK_IDISC))
+			sc->sc_flags.change_connect = 1;
+
+		/* 
+		 * Host Mode: There is no IRESET so assume bus is 
+		 * always in reset state once device is connected.
+		 */
+		if (sc->sc_mode == MUSB2_HOST_MODE) {
+		    if (usb_status & MUSB2_MASK_ICONN)
+			sc->sc_flags.status_bus_reset = 1;
+		    if (usb_status & MUSB2_MASK_IDISC)
+			sc->sc_flags.status_bus_reset = 0;
+		}
+
 		/* complete root HUB interrupt endpoint */
 		musbotg_root_intr(sc);
 	}
@@ -1122,9 +2357,15 @@ musbotg_setup_standard_chain_sub(struct musbotg_std_temp *temp)
 	td->offset = temp->offset;
 	td->remainder = temp->len;
 	td->error = 0;
+	td->transaction_started = 0;
 	td->did_stall = temp->did_stall;
 	td->short_pkt = temp->short_pkt;
 	td->alt_next = temp->setup_alt_next;
+	td->channel = temp->channel;
+	td->dev_addr = temp->dev_addr;
+	td->haddr = temp->haddr;
+	td->hport = temp->hport;
+	td->transfer_type = temp->transfer_type;
 }
 
 static void
@@ -1135,10 +2376,17 @@ musbotg_setup_standard_chain(struct usb_xfer *xfer)
 	struct musbotg_td *td;
 	uint32_t x;
 	uint8_t ep_no;
+	uint8_t xfer_type;
+	enum usb_dev_speed speed;
+	int tx;
+	int dev_addr;
 
 	DPRINTFN(8, "addr=%d endpt=%d sumlen=%d speed=%d\n",
 	    xfer->address, UE_GET_ADDR(xfer->endpointno),
 	    xfer->sumlen, usbd_get_speed(xfer->xroot->udev));
+
+	sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
+	ep_no = (xfer->endpointno & UE_ADDR);
 
 	temp.max_frame_size = xfer->max_frame_size;
 
@@ -1147,6 +2395,9 @@ musbotg_setup_standard_chain(struct usb_xfer *xfer)
 	xfer->td_transfer_cache = td;
 
 	/* setup temp */
+	dev_addr = xfer->address;
+
+	xfer_type = xfer->endpoint->edesc->bmAttributes & UE_XFERTYPE;
 
 	temp.pc = NULL;
 	temp.td = NULL;
@@ -1154,16 +2405,63 @@ musbotg_setup_standard_chain(struct usb_xfer *xfer)
 	temp.offset = 0;
 	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
 	temp.did_stall = !xfer->flags_int.control_stall;
+	temp.channel = -1;
+	temp.dev_addr = dev_addr;
+	temp.haddr = xfer->xroot->udev->hs_hub_addr;
+	temp.hport = xfer->xroot->udev->hs_port_no;
 
-	sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
-	ep_no = (xfer->endpointno & UE_ADDR);
+	if (xfer->flags_int.usb_mode == USB_MODE_HOST) {
+		speed =  usbd_get_speed(xfer->xroot->udev);
+
+		switch (speed) {
+			case USB_SPEED_LOW:
+				temp.transfer_type = MUSB2_MASK_TI_SPEED_LO;
+				break;
+			case USB_SPEED_FULL:
+				temp.transfer_type = MUSB2_MASK_TI_SPEED_FS;
+				break;
+			case USB_SPEED_HIGH:
+				temp.transfer_type = MUSB2_MASK_TI_SPEED_HS;
+				break;
+			default:
+				temp.transfer_type = 0;
+				DPRINTFN(-1, "Invalid USB speed: %d\n", speed);
+				break;
+		}
+
+		switch (xfer_type) {
+			case UE_CONTROL:
+				temp.transfer_type |= MUSB2_MASK_TI_PROTO_CTRL;
+				break;
+			case UE_ISOCHRONOUS:
+				temp.transfer_type |= MUSB2_MASK_TI_PROTO_ISOC;
+				break;
+			case UE_BULK:
+				temp.transfer_type |= MUSB2_MASK_TI_PROTO_BULK;
+				break;
+			case UE_INTERRUPT:
+				temp.transfer_type |= MUSB2_MASK_TI_PROTO_INTR;
+				break;
+			default:
+				DPRINTFN(-1, "Invalid USB transfer type: %d\n",
+						xfer_type);
+				break;
+		}
+
+		temp.transfer_type |= ep_no;
+		td->toggle = xfer->endpoint->toggle_next;
+	}
 
 	/* check if we should prepend a setup message */
 
 	if (xfer->flags_int.control_xfr) {
 		if (xfer->flags_int.control_hdr) {
 
-			temp.func = &musbotg_setup_rx;
+			if (xfer->flags_int.usb_mode == USB_MODE_DEVICE)
+				temp.func = &musbotg_dev_ctrl_setup_rx;
+			else
+				temp.func = &musbotg_host_ctrl_setup_tx;
+
 			temp.len = xfer->frlengths[0];
 			temp.pc = xfer->frbuffers + 0;
 			temp.short_pkt = temp.len ? 1 : 0;
@@ -1175,17 +2473,39 @@ musbotg_setup_standard_chain(struct usb_xfer *xfer)
 		x = 0;
 	}
 
+	tx = 0;
+
 	if (x != xfer->nframes) {
-		if (xfer->endpointno & UE_DIR_IN) {
-			if (xfer->flags_int.control_xfr)
-				temp.func = &musbotg_setup_data_tx;
-			else
-				temp.func = &musbotg_data_tx;
+		if (xfer->endpointno & UE_DIR_IN)
+		    	tx = 1;
+
+		if (xfer->flags_int.usb_mode == USB_MODE_HOST) {
+			tx = !tx;
+
+			if (tx) {
+				if (xfer->flags_int.control_xfr)
+					temp.func = &musbotg_host_ctrl_data_tx;
+				else
+					temp.func = &musbotg_host_data_tx;
+			} else {
+				if (xfer->flags_int.control_xfr)
+					temp.func = &musbotg_host_ctrl_data_rx;
+				else
+					temp.func = &musbotg_host_data_rx;
+			}
+
 		} else {
-			if (xfer->flags_int.control_xfr)
-				temp.func = &musbotg_setup_data_rx;
-			else
-				temp.func = &musbotg_data_rx;
+			if (tx) {
+				if (xfer->flags_int.control_xfr)
+					temp.func = &musbotg_dev_ctrl_data_tx;
+				else
+					temp.func = &musbotg_dev_data_tx;
+			} else {
+				if (xfer->flags_int.control_xfr)
+					temp.func = &musbotg_dev_ctrl_data_rx;
+				else
+					temp.func = &musbotg_dev_data_rx;
+			}
 		}
 
 		/* setup "pc" pointer */
@@ -1216,9 +2536,14 @@ musbotg_setup_standard_chain(struct usb_xfer *xfer)
 
 		} else {
 
-			/* regular data transfer */
-
-			temp.short_pkt = (xfer->flags.force_short_xfer) ? 0 : 1;
+			if (xfer->flags_int.isochronous_xfr) {
+				/* isochronous data transfer */
+				/* don't force short */
+				temp.short_pkt = 1;
+			} else {
+				/* regular data transfer */
+				temp.short_pkt = (xfer->flags.force_short_xfer ? 0 : 1);
+			}
 		}
 
 		musbotg_setup_standard_chain_sub(&temp);
@@ -1246,7 +2571,14 @@ musbotg_setup_standard_chain(struct usb_xfer *xfer)
 			 * Send a DATA1 message and invert the current
 			 * endpoint direction.
 			 */
-			temp.func = &musbotg_setup_status;
+			if (sc->sc_mode == MUSB2_DEVICE_MODE)
+				temp.func = &musbotg_dev_ctrl_status;
+			else {
+				if (xfer->endpointno & UE_DIR_IN)
+					temp.func = musbotg_host_ctrl_status_tx;
+				else
+					temp.func = musbotg_host_ctrl_status_rx;
+			}
 			musbotg_setup_standard_chain_sub(&temp);
 		}
 	}
@@ -1269,18 +2601,21 @@ musbotg_timeout(void *arg)
 }
 
 static void
-musbotg_ep_int_set(struct usb_xfer *xfer, uint8_t on)
+musbotg_ep_int_set(struct musbotg_softc *sc, int channel, int on)
 {
-	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
 	uint16_t temp;
-	uint8_t ep_no = xfer->endpointno & UE_ADDR;
 
 	/*
 	 * Only enable the endpoint interrupt when we are
 	 * actually waiting for data, hence we are dealing
 	 * with level triggered interrupts !
 	 */
-	if (ep_no == 0) {
+	DPRINTFN(1, "ep_no=%d, on=%d\n", channel, on);
+
+	if (channel == -1)
+		return;
+
+	if (channel == 0) {
 		temp = MUSB2_READ_2(sc, MUSB2_REG_INTTXE);
 		if (on)
 			temp |= MUSB2_MASK_EPINT(0);
@@ -1289,23 +2624,23 @@ musbotg_ep_int_set(struct usb_xfer *xfer, uint8_t on)
 
 		MUSB2_WRITE_2(sc, MUSB2_REG_INTTXE, temp);
 	} else {
-		if (USB_GET_DATA_ISREAD(xfer)) {
-			temp = MUSB2_READ_2(sc, MUSB2_REG_INTRXE);
-			if (on)
-				temp |= MUSB2_MASK_EPINT(ep_no);
-			else
-				temp &= ~MUSB2_MASK_EPINT(ep_no);
-			MUSB2_WRITE_2(sc, MUSB2_REG_INTRXE, temp);
+		temp = MUSB2_READ_2(sc, MUSB2_REG_INTRXE);
+		if (on)
+			temp |= MUSB2_MASK_EPINT(channel);
+		else
+			temp &= ~MUSB2_MASK_EPINT(channel);
+		MUSB2_WRITE_2(sc, MUSB2_REG_INTRXE, temp);
 
-		} else {
-			temp = MUSB2_READ_2(sc, MUSB2_REG_INTTXE);
-			if (on)
-				temp |= MUSB2_MASK_EPINT(ep_no);
-			else
-				temp &= ~MUSB2_MASK_EPINT(ep_no);
-			MUSB2_WRITE_2(sc, MUSB2_REG_INTTXE, temp);
-		}
+		temp = MUSB2_READ_2(sc, MUSB2_REG_INTTXE);
+		if (on)
+			temp |= MUSB2_MASK_EPINT(channel);
+		else
+			temp &= ~MUSB2_MASK_EPINT(channel);
+		MUSB2_WRITE_2(sc, MUSB2_REG_INTTXE, temp);
 	}
+
+	if (sc->sc_ep_int_set)
+		sc->sc_ep_int_set(sc, channel, on);
 }
 
 static void
@@ -1315,8 +2650,6 @@ musbotg_start_standard_chain(struct usb_xfer *xfer)
 
 	/* poll one time */
 	if (musbotg_xfer_do_fifo(xfer)) {
-
-		musbotg_ep_int_set(xfer, 1);
 
 		DPRINTFN(14, "enabled interrupts on endpoint\n");
 
@@ -1358,6 +2691,8 @@ musbotg_standard_done_sub(struct usb_xfer *xfer)
 
 	do {
 		len = td->remainder;
+
+		xfer->endpoint->toggle_next = td->toggle;
 
 		if (xfer->aframes != xfer->nframes) {
 			/*
@@ -1461,17 +2796,22 @@ done:
 static void
 musbotg_device_done(struct usb_xfer *xfer, usb_error_t error)
 {
+	struct musbotg_td *td;
+	struct musbotg_softc *sc;
+
 	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
-	DPRINTFN(2, "xfer=%p, endpoint=%p, error=%d\n",
+	DPRINTFN(1, "xfer=%p, endpoint=%p, error=%d\n",
 	    xfer, xfer->endpoint, error);
 
-	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
+	DPRINTFN(14, "disabled interrupts on endpoint\n");
 
-		musbotg_ep_int_set(xfer, 0);
+	sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
+	td = xfer->td_transfer_cache;
 
-		DPRINTFN(14, "disabled interrupts on endpoint\n");
-	}
+	if (td && (td->channel != -1))
+		musbotg_channel_free(sc, td);
+
 	/* dequeue transfer and start next transfer */
 	usbd_transfer_done(xfer, error);
 }
@@ -1716,10 +3056,14 @@ musbotg_init(struct musbotg_softc *sc)
 	if (sc->sc_clocks_on) {
 		(sc->sc_clocks_on) (sc->sc_clocks_arg);
 	}
+
 	/* wait a little for things to stabilise */
 	usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 1000);
 
 	/* disable all interrupts */
+
+	temp = MUSB2_READ_1(sc, MUSB2_REG_DEVCTL);
+	DPRINTF("pre-DEVCTL=0x%02x\n", temp);
 
 	MUSB2_WRITE_1(sc, MUSB2_REG_INTUSBE, 0);
 	MUSB2_WRITE_2(sc, MUSB2_REG_INTTXE, 0);
@@ -1732,6 +3076,7 @@ musbotg_init(struct musbotg_softc *sc)
 	/* wait a little bit (10ms) */
 	usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
 
+
 	/* disable double packet buffering */
 	MUSB2_WRITE_2(sc, MUSB2_REG_RXDBDIS, 0xFFFF);
 	MUSB2_WRITE_2(sc, MUSB2_REG_TXDBDIS, 0xFFFF);
@@ -1741,11 +3086,20 @@ musbotg_init(struct musbotg_softc *sc)
 	MUSB2_WRITE_1(sc, MUSB2_REG_POWER,
 	    MUSB2_MASK_HSENAB | MUSB2_MASK_ISOUPD);
 
-	/* clear Session bit, if set */
+	if (sc->sc_mode == MUSB2_DEVICE_MODE) {
+		/* clear Session bit, if set */
+		temp = MUSB2_READ_1(sc, MUSB2_REG_DEVCTL);
+		temp &= ~MUSB2_MASK_SESS;
+		MUSB2_WRITE_1(sc, MUSB2_REG_DEVCTL, temp);
+	} else {
+		/* Enter session for Host mode */
+		temp = MUSB2_READ_1(sc, MUSB2_REG_DEVCTL);
+		temp |= MUSB2_MASK_SESS;
+		MUSB2_WRITE_1(sc, MUSB2_REG_DEVCTL, temp);
+	}
 
-	temp = MUSB2_READ_1(sc, MUSB2_REG_DEVCTL);
-	temp &= ~MUSB2_MASK_SESS;
-	MUSB2_WRITE_1(sc, MUSB2_REG_DEVCTL, temp);
+	/* wait a little for things to stabilise */
+	usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 10);
 
 	DPRINTF("DEVCTL=0x%02x\n", temp);
 
@@ -1813,7 +3167,12 @@ musbotg_init(struct musbotg_softc *sc)
 
 		if (dynfifo) {
 			if (frx && (temp <= nrx)) {
-				if (temp < 8) {
+				if (temp == 1) {
+					frx = 12;	/* 4K */
+					MUSB2_WRITE_1(sc, MUSB2_REG_RXFIFOSZ, 
+					    MUSB2_VAL_FIFOSZ_4096 |
+					    MUSB2_MASK_FIFODB);
+				} else if (temp < 8) {
 					frx = 10;	/* 1K */
 					MUSB2_WRITE_1(sc, MUSB2_REG_RXFIFOSZ, 
 					    MUSB2_VAL_FIFOSZ_512 |
@@ -1830,7 +3189,12 @@ musbotg_init(struct musbotg_softc *sc)
 				offset += (1 << frx);
 			}
 			if (ftx && (temp <= ntx)) {
-				if (temp < 8) {
+				if (temp == 1) {
+					ftx = 12;	/* 4K */
+					MUSB2_WRITE_1(sc, MUSB2_REG_TXFIFOSZ,
+	 				    MUSB2_VAL_FIFOSZ_4096 |
+	 				    MUSB2_MASK_FIFODB);
+				} else if (temp < 8) {
 					ftx = 10;	/* 1K */
 					MUSB2_WRITE_1(sc, MUSB2_REG_TXFIFOSZ,
 	 				    MUSB2_VAL_FIFOSZ_512 |
@@ -1881,8 +3245,11 @@ musbotg_init(struct musbotg_softc *sc)
 
 	/* turn on default interrupts */
 
-	MUSB2_WRITE_1(sc, MUSB2_REG_INTUSBE,
-	    MUSB2_MASK_IRESET);
+	if (sc->sc_mode == MUSB2_HOST_MODE)
+		MUSB2_WRITE_1(sc, MUSB2_REG_INTUSBE, 0xff);
+	else
+		MUSB2_WRITE_1(sc, MUSB2_REG_INTUSBE,
+		    MUSB2_MASK_IRESET);
 
 	musbotg_clocks_off(sc);
 
@@ -2229,6 +3596,7 @@ musbotg_roothub_exec(struct usb_device *udev,
 	uint16_t len;
 	uint16_t value;
 	uint16_t index;
+	uint8_t reg;
 	usb_error_t err;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
@@ -2492,20 +3860,33 @@ tr_handle_clear_port_feature:
 
 	switch (value) {
 	case UHF_PORT_SUSPEND:
-		musbotg_wakeup_peer(sc);
+		if (sc->sc_mode == MUSB2_HOST_MODE)
+			musbotg_wakeup_host(sc);
+		else
+			musbotg_wakeup_peer(sc);
 		break;
 
 	case UHF_PORT_ENABLE:
 		sc->sc_flags.port_enabled = 0;
 		break;
 
+	case UHF_C_PORT_ENABLE:
+		sc->sc_flags.change_enabled = 0;
+		break;
+
+	case UHF_C_PORT_OVER_CURRENT:
+		sc->sc_flags.change_over_current = 0;
+		break;
+
+	case UHF_C_PORT_RESET:
+		sc->sc_flags.change_reset = 0;
+		break;
+
 	case UHF_PORT_TEST:
 	case UHF_PORT_INDICATOR:
-	case UHF_C_PORT_ENABLE:
-	case UHF_C_PORT_OVER_CURRENT:
-	case UHF_C_PORT_RESET:
 		/* nops */
 		break;
+
 	case UHF_PORT_POWER:
 		sc->sc_flags.port_powered = 0;
 		musbotg_pull_down(sc);
@@ -2534,7 +3915,35 @@ tr_handle_set_port_feature:
 		sc->sc_flags.port_enabled = 1;
 		break;
 	case UHF_PORT_SUSPEND:
+		if (sc->sc_mode == MUSB2_HOST_MODE)
+			musbotg_suspend_host(sc);
+		break;
+
 	case UHF_PORT_RESET:
+		if (sc->sc_mode == MUSB2_HOST_MODE) {
+			reg = MUSB2_READ_1(sc, MUSB2_REG_POWER);
+			reg |= MUSB2_MASK_RESET;
+			MUSB2_WRITE_1(sc, MUSB2_REG_POWER, reg);
+
+			/* Wait for 20 msec */
+			usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 5);
+
+			reg = MUSB2_READ_1(sc, MUSB2_REG_POWER);
+			reg &= ~MUSB2_MASK_RESET;
+			MUSB2_WRITE_1(sc, MUSB2_REG_POWER, reg);
+
+			/* determine line speed */
+			reg = MUSB2_READ_1(sc, MUSB2_REG_POWER);
+			if (reg & MUSB2_MASK_HSMODE)
+				sc->sc_flags.status_high_speed = 1;
+			else
+				sc->sc_flags.status_high_speed = 0;
+
+			sc->sc_flags.change_reset = 1;
+		} else
+			err = USB_ERR_IOERROR;
+		break;
+
 	case UHF_PORT_TEST:
 	case UHF_PORT_INDICATOR:
 		/* nops */
@@ -2564,7 +3973,10 @@ tr_handle_get_port_status:
 	}
 
 	/* Select Device Side Mode */
-	value = UPS_PORT_MODE_DEVICE;
+	if (sc->sc_mode == MUSB2_DEVICE_MODE)
+		value = UPS_PORT_MODE_DEVICE;
+	else
+		value = 0;
 
 	if (sc->sc_flags.status_high_speed) {
 		value |= UPS_HIGH_SPEED;
@@ -2575,6 +3987,10 @@ tr_handle_get_port_status:
 	if (sc->sc_flags.port_enabled) {
 		value |= UPS_PORT_ENABLED;
 	}
+
+	if (sc->sc_flags.port_over_current)
+		value |= UPS_OVERCURRENT_INDICATOR;
+
 	if (sc->sc_flags.status_vbus &&
 	    sc->sc_flags.status_bus_reset) {
 		value |= UPS_CURRENT_CONNECT_STATUS;
@@ -2589,16 +4005,22 @@ tr_handle_get_port_status:
 	if (sc->sc_flags.change_connect) {
 		value |= UPS_C_CONNECT_STATUS;
 
-		if (sc->sc_flags.status_vbus &&
-		    sc->sc_flags.status_bus_reset) {
-			/* reset EP0 state */
-			sc->sc_ep0_busy = 0;
-			sc->sc_ep0_cmd = 0;
+		if (sc->sc_mode == MUSB2_DEVICE_MODE) {
+			if (sc->sc_flags.status_vbus &&
+			    sc->sc_flags.status_bus_reset) {
+				/* reset EP0 state */
+				sc->sc_ep0_busy = 0;
+				sc->sc_ep0_cmd = 0;
+			}
 		}
 	}
-	if (sc->sc_flags.change_suspend) {
+	if (sc->sc_flags.change_suspend)
 		value |= UPS_C_SUSPEND;
-	}
+	if (sc->sc_flags.change_reset)
+		value |= UPS_C_PORT_RESET;
+	if (sc->sc_flags.change_over_current)
+		value |= UPS_C_OVERCURRENT_INDICATOR;
+
 	USETW(sc->sc_hub_temp.ps.wPortChange, value);
 	len = sizeof(sc->sc_hub_temp.ps);
 	goto tr_valid;
@@ -2623,7 +4045,6 @@ done:
 static void
 musbotg_xfer_setup(struct usb_setup_params *parm)
 {
-	const struct usb_hw_ep_profile *pf;
 	struct musbotg_softc *sc;
 	struct usb_xfer *xfer;
 	void *last_obj;
@@ -2640,7 +4061,7 @@ musbotg_xfer_setup(struct usb_setup_params *parm)
 	 * reasonable dummies:
 	 */
 	parm->hc_max_packet_size = 0x400;
-	parm->hc_max_frame_size = 0x400;
+	parm->hc_max_frame_size = 0xc00;
 
 	if ((parm->methods == &musbotg_device_isoc_methods) ||
 	    (parm->methods == &musbotg_device_intr_methods))
@@ -2685,12 +4106,14 @@ musbotg_xfer_setup(struct usb_setup_params *parm)
 	 */
 	last_obj = NULL;
 
-	/*
-	 * get profile stuff
-	 */
-	if (ntd) {
+	ep_no = xfer->endpointno & UE_ADDR;
 
-		ep_no = xfer->endpointno & UE_ADDR;
+	/*
+	 * Check for a valid endpoint profile in USB device mode:
+	 */
+	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
+		const struct usb_hw_ep_profile *pf;
+
 		musbotg_get_hw_ep_profile(parm->udev, &pf, ep_no);
 
 		if (pf == NULL) {
@@ -2698,9 +4121,6 @@ musbotg_xfer_setup(struct usb_setup_params *parm)
 			parm->err = USB_ERR_INVAL;
 			return;
 		}
-	} else {
-		ep_no = 0;
-		pf = NULL;
 	}
 
 	/* align data */
@@ -2716,6 +4136,8 @@ musbotg_xfer_setup(struct usb_setup_params *parm)
 
 			/* init TD */
 			td->max_frame_size = xfer->max_frame_size;
+			td->reg_max_packet = xfer->max_packet_size |
+			    ((xfer->max_packet_count - 1) << 11);
 			td->ep_no = ep_no;
 			td->obj_next = last_obj;
 
@@ -2734,6 +4156,17 @@ musbotg_xfer_unsetup(struct usb_xfer *xfer)
 }
 
 static void
+musbotg_get_dma_delay(struct usb_device *udev, uint32_t *pus)
+{
+	struct musbotg_softc *sc = MUSBOTG_BUS2SC(udev->bus);
+
+	if (sc->sc_mode == MUSB2_HOST_MODE)
+	        *pus = 2000;                   /* microseconds */
+	else
+		*pus = 0;
+}
+
+static void
 musbotg_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
     struct usb_endpoint *ep)
 {
@@ -2745,12 +4178,6 @@ musbotg_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 	    sc->sc_rt_addr);
 
 	if (udev->device_index != sc->sc_rt_addr) {
-
-		if ((udev->speed != USB_SPEED_FULL) &&
-		    (udev->speed != USB_SPEED_HIGH)) {
-			/* not supported */
-			return;
-		}
 		switch (edesc->bmAttributes & UE_XFERTYPE) {
 		case UE_CONTROL:
 			ep->methods = &musbotg_device_ctrl_methods;
@@ -2794,6 +4221,7 @@ musbotg_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
 struct usb_bus_methods musbotg_bus_methods =
 {
 	.endpoint_init = &musbotg_ep_init,
+	.get_dma_delay = &musbotg_get_dma_delay,
 	.xfer_setup = &musbotg_xfer_setup,
 	.xfer_unsetup = &musbotg_xfer_unsetup,
 	.get_hw_ep_profile = &musbotg_get_hw_ep_profile,

@@ -92,7 +92,7 @@ FEATURE(ata_cam, "ATA devices are accessed through the cam(4) driver");
 int
 ata_probe(device_t dev)
 {
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 int

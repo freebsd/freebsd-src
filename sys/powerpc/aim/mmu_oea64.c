@@ -263,7 +263,7 @@ uintptr_t	moea64_scratchpage_pte[2];
 struct	mtx	moea64_scratchpage_mtx;
 
 uint64_t 	moea64_large_page_mask = 0;
-int		moea64_large_page_size = 0;
+uint64_t	moea64_large_page_size = 0;
 int		moea64_large_page_shift = 0;
 
 /*
@@ -288,7 +288,6 @@ static void		moea64_syncicache(mmu_t, pmap_t pmap, vm_offset_t va,
  */
 void moea64_change_wiring(mmu_t, pmap_t, vm_offset_t, boolean_t);
 void moea64_clear_modify(mmu_t, vm_page_t);
-void moea64_clear_reference(mmu_t, vm_page_t);
 void moea64_copy_page(mmu_t, vm_page_t, vm_page_t);
 void moea64_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
     vm_page_t *mb, vm_offset_t b_offset, int xfersize);
@@ -334,7 +333,6 @@ static void moea64_sync_icache(mmu_t, pmap_t, vm_offset_t, vm_size_t);
 static mmu_method_t moea64_methods[] = {
 	MMUMETHOD(mmu_change_wiring,	moea64_change_wiring),
 	MMUMETHOD(mmu_clear_modify,	moea64_clear_modify),
-	MMUMETHOD(mmu_clear_reference,	moea64_clear_reference),
 	MMUMETHOD(mmu_copy_page,	moea64_copy_page),
 	MMUMETHOD(mmu_copy_pages,	moea64_copy_pages),
 	MMUMETHOD(mmu_enter,		moea64_enter),
@@ -546,12 +544,9 @@ moea64_probe_large_page(void)
 		powerpc_sync(); isync();
 		
 		/* FALLTHROUGH */
-	case IBMCELLBE:
+	default:
 		moea64_large_page_size = 0x1000000; /* 16 MB */
 		moea64_large_page_shift = 24;
-		break;
-	default:
-		moea64_large_page_size = 0;
 	}
 
 	moea64_large_page_mask = moea64_large_page_size - 1;
@@ -1260,7 +1255,7 @@ moea64_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pvo_flags = PVO_MANAGED;
 	}
 
-	if ((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) == 0)
+	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
 		VM_OBJECT_ASSERT_LOCKED(m->object);
 
 	/* XXX change the pvo head for fake pages */
@@ -1522,13 +1517,12 @@ moea64_is_modified(mmu_t mmu, vm_page_t m)
 	    ("moea64_is_modified: page %p is not managed", m));
 
 	/*
-	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be
+	 * If the page is not exclusive busied, then PGA_WRITEABLE cannot be
 	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no PTEs can have LPTE_CHG set.
 	 */
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->aflags & PGA_WRITEABLE) == 0)
+	VM_OBJECT_ASSERT_LOCKED(m->object);
+	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return (FALSE);
 	return (moea64_query_bit(mmu, m, LPTE_CHG));
 }
@@ -1547,28 +1541,19 @@ moea64_is_prefaultable(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 }
 
 void
-moea64_clear_reference(mmu_t mmu, vm_page_t m)
-{
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("moea64_clear_reference: page %p is not managed", m));
-	moea64_clear_bit(mmu, m, LPTE_REF);
-}
-
-void
 moea64_clear_modify(mmu_t mmu, vm_page_t m)
 {
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea64_clear_modify: page %p is not managed", m));
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	KASSERT((m->oflags & VPO_BUSY) == 0,
-	    ("moea64_clear_modify: page %p is busy", m));
+	KASSERT(!vm_page_xbusied(m),
+	    ("moea64_clear_modify: page %p is exclusive busied", m));
 
 	/*
 	 * If the page is not PGA_WRITEABLE, then no PTEs can have LPTE_CHG
 	 * set.  If the object containing the page is locked and the page is
-	 * not VPO_BUSY, then PGA_WRITEABLE cannot be concurrently set.
+	 * not exclusive busied, then PGA_WRITEABLE cannot be concurrently set.
 	 */
 	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
@@ -1590,13 +1575,12 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
 	    ("moea64_remove_write: page %p is not managed", m));
 
 	/*
-	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be set by
-	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
-	 * is clear, no page table entries need updating.
+	 * If the page is not exclusive busied, then PGA_WRITEABLE cannot be
+	 * set by another thread while the object is locked.  Thus,
+	 * if PGA_WRITEABLE is clear, no page table entries need updating.
 	 */
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->aflags & PGA_WRITEABLE) == 0)
+	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	powerpc_sync();
 	LOCK_TABLE_RD();
@@ -1881,7 +1865,7 @@ moea64_get_unique_vsid(void) {
 void
 moea64_pinit(mmu_t mmu, pmap_t pmap)
 {
-	PMAP_LOCK_INIT(pmap);
+
 	RB_INIT(&pmap->pmap_pvo);
 
 	pmap->pm_slb_tree_root = slb_alloc_tree();
@@ -1895,7 +1879,6 @@ moea64_pinit(mmu_t mmu, pmap_t pmap)
 	int	i;
 	uint32_t hash;
 
-	PMAP_LOCK_INIT(pmap);
 	RB_INIT(&pmap->pmap_pvo);
 
 	if (pmap_bootstrapped)
@@ -1922,6 +1905,8 @@ moea64_pinit(mmu_t mmu, pmap_t pmap)
 void
 moea64_pinit0(mmu_t mmu, pmap_t pm)
 {
+
+	PMAP_LOCK_INIT(pm);
 	moea64_pinit(mmu, pm);
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
 }
@@ -1978,7 +1963,7 @@ moea64_pvo_protect(mmu_t mmu,  pmap_t pm, struct pvo_entry *pvo, vm_prot_t prot)
 	 * removed write access.
 	 */
 	if ((pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED && 
-	    (oldlo & LPTE_PP) != LPTE_BR && !(prot && VM_PROT_WRITE)) {
+	    (oldlo & LPTE_PP) != LPTE_BR && !(prot & VM_PROT_WRITE)) {
 		if (pg != NULL) {
 			if (pvo->pvo_pte.lpte.pte_lo & LPTE_CHG)
 				vm_page_dirty(pg);
@@ -2076,8 +2061,6 @@ moea64_release(mmu_t mmu, pmap_t pmap)
 
 	moea64_release_vsid(VSID_TO_HASH(pmap->pm_sr[0]));
     #endif
-
-	PMAP_LOCK_DESTROY(pmap);
 }
 
 /*
@@ -2544,7 +2527,7 @@ moea64_mapdev_attr(mmu_t mmu, vm_offset_t pa, vm_size_t size, vm_memattr_t ma)
 	offset = pa & PAGE_MASK;
 	size = roundup2(offset + size, PAGE_SIZE);
 
-	va = kmem_alloc_nofault(kernel_map, size);
+	va = kva_alloc(size);
 
 	if (!va)
 		panic("moea64_mapdev: Couldn't alloc kernel virtual memory");
@@ -2575,7 +2558,7 @@ moea64_unmapdev(mmu_t mmu, vm_offset_t va, vm_size_t size)
 	offset = va & PAGE_MASK;
 	size = roundup2(offset + size, PAGE_SIZE);
 
-	kmem_free(kernel_map, base, size);
+	kva_free(base, size);
 }
 
 void

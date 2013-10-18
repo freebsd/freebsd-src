@@ -391,17 +391,30 @@ APU_DECLARE(apr_status_t) apr_brigade_vputstrs(apr_bucket_brigade *b,
                                                void *ctx,
                                                va_list va)
 {
+#define MAX_VECS    8
+    struct iovec vec[MAX_VECS];
+    apr_size_t i = 0;
+
     for (;;) {
-        const char *str = va_arg(va, const char *);
+        char *str = va_arg(va, char *);
         apr_status_t rv;
 
         if (str == NULL)
             break;
 
-        rv = apr_brigade_write(b, flush, ctx, str, strlen(str));
-        if (rv != APR_SUCCESS)
-            return rv;
+        vec[i].iov_base = str;
+        vec[i].iov_len = strlen(str);
+        i++;
+
+        if (i == MAX_VECS) {
+            rv = apr_brigade_writev(b, flush, ctx, vec, i);
+            if (rv != APR_SUCCESS)
+                return rv;
+            i = 0;
+        }
     }
+    if (i != 0)
+       return apr_brigade_writev(b, flush, ctx, vec, i);
 
     return APR_SUCCESS;
 }
@@ -422,7 +435,12 @@ APU_DECLARE(apr_status_t) apr_brigade_write(apr_bucket_brigade *b,
     apr_size_t remaining = APR_BUCKET_BUFF_SIZE;
     char *buf = NULL;
 
-    if (!APR_BRIGADE_EMPTY(b) && APR_BUCKET_IS_HEAP(e)) {
+    /*
+     * If the last bucket is a heap bucket and its buffer is not shared with
+     * another bucket, we may write into that bucket.
+     */
+    if (!APR_BRIGADE_EMPTY(b) && APR_BUCKET_IS_HEAP(e)
+        && ((apr_bucket_heap *)(e->data))->refcount.refcount == 1) {
         apr_bucket_heap *h = e->data;
 
         /* HEAP bucket start offsets are always in-memory, safe to cast */
@@ -512,10 +530,11 @@ APU_DECLARE(apr_status_t) apr_brigade_writev(apr_bucket_brigade *b,
     i = 0;
 
     /* If there is a heap bucket at the end of the brigade
-     * already, copy into the existing bucket.
+     * already, and its refcount is 1, copy into the existing bucket.
      */
     e = APR_BRIGADE_LAST(b);
-    if (!APR_BRIGADE_EMPTY(b) && APR_BUCKET_IS_HEAP(e)) {
+    if (!APR_BRIGADE_EMPTY(b) && APR_BUCKET_IS_HEAP(e)
+        && ((apr_bucket_heap *)(e->data))->refcount.refcount == 1) {
         apr_bucket_heap *h = e->data;
         apr_size_t remaining = h->alloc_len -
             (e->length + (apr_size_t)e->start);
@@ -591,29 +610,7 @@ APU_DECLARE(apr_status_t) apr_brigade_puts(apr_bucket_brigade *bb,
                                            apr_brigade_flush flush, void *ctx,
                                            const char *str)
 {
-    apr_size_t len = strlen(str);
-    apr_bucket *bkt = APR_BRIGADE_LAST(bb);
-    if (!APR_BRIGADE_EMPTY(bb) && APR_BUCKET_IS_HEAP(bkt)) {
-        /* If there is enough space available in a heap bucket
-         * at the end of the brigade, copy the string directly
-         * into the heap bucket
-         */
-        apr_bucket_heap *h = bkt->data;
-        apr_size_t bytes_avail = h->alloc_len - bkt->length;
-
-        if (bytes_avail >= len) {
-            char *buf = h->base + bkt->start + bkt->length;
-            memcpy(buf, str, len);
-            bkt->length += len;
-            return APR_SUCCESS;
-        }
-    }
-
-    /* If the string could not be copied into an existing heap
-     * bucket, delegate the work to apr_brigade_write(), which
-     * knows how to grow the brigade
-     */
-    return apr_brigade_write(bb, flush, ctx, str, len);
+    return apr_brigade_write(bb, flush, ctx, str, strlen(str));
 }
 
 APU_DECLARE_NONSTD(apr_status_t) apr_brigade_putstrs(apr_bucket_brigade *b, 

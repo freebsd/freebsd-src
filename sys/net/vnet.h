@@ -85,6 +85,56 @@ struct vnet {
 
 #ifdef _KERNEL
 
+#define	VNET_PCPUSTAT_DECLARE(type, name)	\
+    VNET_DECLARE(counter_u64_t, name[sizeof(type) / sizeof(uint64_t)])
+
+#define	VNET_PCPUSTAT_DEFINE(type, name)	\
+    VNET_DEFINE(counter_u64_t, name[sizeof(type) / sizeof(uint64_t)])
+
+#define	VNET_PCPUSTAT_ALLOC(name, wait)	\
+    COUNTER_ARRAY_ALLOC(VNET(name), \
+	sizeof(VNET(name)) / sizeof(counter_u64_t), (wait))
+
+#define	VNET_PCPUSTAT_FREE(name)	\
+    COUNTER_ARRAY_FREE(VNET(name), sizeof(VNET(name)) / sizeof(counter_u64_t))
+
+#define	VNET_PCPUSTAT_ADD(type, name, f, v)	\
+    counter_u64_add(VNET(name)[offsetof(type, f) / sizeof(uint64_t)], (v))
+
+#define	VNET_PCPUSTAT_SYSINIT(name)	\
+static void				\
+vnet_##name##_init(const void *unused)	\
+{					\
+	VNET_PCPUSTAT_ALLOC(name, M_WAITOK);	\
+}					\
+VNET_SYSINIT(vnet_ ## name ## _init, SI_SUB_PROTO_IFATTACHDOMAIN,	\
+    SI_ORDER_ANY, vnet_ ## name ## _init, NULL)
+
+#define	VNET_PCPUSTAT_SYSUNINIT(name)					\
+static void								\
+vnet_##name##_uninit(const void *unused)				\
+{									\
+	VNET_PCPUSTAT_FREE(name);					\
+}									\
+VNET_SYSUNINIT(vnet_ ## name ## _uninit, SI_SUB_PROTO_IFATTACHDOMAIN,	\
+    SI_ORDER_ANY, vnet_ ## name ## _uninit, NULL)
+
+#define	SYSCTL_VNET_PCPUSTAT(parent, nbr, name, type, array, desc)	\
+static int								\
+array##_sysctl(SYSCTL_HANDLER_ARGS)					\
+{									\
+	type s;								\
+	CTASSERT((sizeof(type) / sizeof(uint64_t)) ==			\
+	    (sizeof(VNET(array)) / sizeof(counter_u64_t)));		\
+	COUNTER_ARRAY_COPY(VNET(array), &s, sizeof(type) / sizeof(uint64_t));\
+	if (req->newptr)						\
+		COUNTER_ARRAY_ZERO(VNET(array),				\
+		    sizeof(type) / sizeof(uint64_t));			\
+	return (SYSCTL_OUT(req, &s, sizeof(type)));			\
+}									\
+SYSCTL_VNET_PROC(parent, nbr, name, CTLTYPE_OPAQUE | CTLFLAG_RW, NULL,	\
+    0, array ## _sysctl, "I", desc)
+
 #ifdef VIMAGE
 #include <sys/lock.h>
 #include <sys/proc.h>			/* for struct thread */

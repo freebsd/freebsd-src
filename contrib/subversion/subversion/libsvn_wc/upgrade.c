@@ -2196,13 +2196,15 @@ svn_wc_upgrade(svn_wc_context_t *wc_ctx,
   upgrade_working_copy_baton_t cb_baton;
   svn_error_t *err;
   int result_format;
+  svn_boolean_t bumped_format;
 
   /* Try upgrading a wc-ng-style working copy. */
   SVN_ERR(svn_wc__db_open(&db, NULL /* ### config */, TRUE, FALSE,
                           scratch_pool, scratch_pool));
 
 
-  err = svn_wc__db_bump_format(&result_format, local_abspath, db,
+  err = svn_wc__db_bump_format(&result_format, &bumped_format,
+                               db, local_abspath,
                                scratch_pool);
   if (err)
     {
@@ -2223,6 +2225,17 @@ svn_wc_upgrade(svn_wc_context_t *wc_ctx,
       SVN_ERR(svn_wc__db_close(db));
 
       SVN_ERR_ASSERT(result_format == SVN_WC__VERSION);
+
+      if (bumped_format && notify_func)
+        {
+          svn_wc_notify_t *notify;
+
+          notify = svn_wc_create_notify(local_abspath,
+                                        svn_wc_notify_upgraded_path,
+                                        scratch_pool);
+
+          notify_func(notify_baton, notify, scratch_pool);
+        }
 
       return SVN_NO_ERROR;
     }

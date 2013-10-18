@@ -656,7 +656,7 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 	 * variables will fit in our mp buffers, including the
 	 * terminating NUL.
 	 */
-	if (fstypelen >= MFSNAMELEN - 1 || fspathlen >= MNAMELEN - 1) {
+	if (fstypelen > MFSNAMELEN || fspathlen > MNAMELEN) {
 		error = ENAMETOOLONG;
 		goto bail;
 	}
@@ -861,8 +861,9 @@ vfs_domount_first(
 	vfs_event_signal(NULL, VQ_MOUNT, 0);
 	if (VFS_ROOT(mp, LK_EXCLUSIVE, &newdp))
 		panic("mount: lost mount");
-	VOP_UNLOCK(newdp, 0);
 	VOP_UNLOCK(vp, 0);
+	EVENTHANDLER_INVOKE(vfs_mounted, mp, newdp, td);
+	VOP_UNLOCK(newdp, 0);
 	mountcheckdirs(vp, newdp);
 	vrele(newdp);
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
@@ -1268,8 +1269,16 @@ dounmount(mp, flags, td)
 	}
 	mp->mnt_kern_flag |= MNTK_UNMOUNT | MNTK_NOINSMNTQ;
 	/* Allow filesystems to detect that a forced unmount is in progress. */
-	if (flags & MNT_FORCE)
+	if (flags & MNT_FORCE) {
 		mp->mnt_kern_flag |= MNTK_UNMOUNTF;
+		MNT_IUNLOCK(mp);
+		/*
+		 * Must be done after setting MNTK_UNMOUNTF and before
+		 * waiting for mnt_lockref to become 0.
+		 */
+		VFS_PURGE(mp);
+		MNT_ILOCK(mp);
+	}
 	error = 0;
 	if (mp->mnt_lockref) {
 		mp->mnt_kern_flag |= MNTK_DRAINING;
@@ -1355,6 +1364,7 @@ dounmount(mp, flags, td)
 	mtx_lock(&mountlist_mtx);
 	TAILQ_REMOVE(&mountlist, mp, mnt_list);
 	mtx_unlock(&mountlist_mtx);
+	EVENTHANDLER_INVOKE(vfs_unmounted, mp, td);
 	if (coveredvp != NULL) {
 		coveredvp->v_mountedhere = NULL;
 		vput(coveredvp);

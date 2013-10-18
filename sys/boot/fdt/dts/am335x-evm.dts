@@ -106,6 +106,9 @@
 				"GPMC_BEn0_CLE", "timer5", "output",
 				"GPMC_WEn", "timer6", "output",
 				"GPMC_OEn_REn", "timer7", "output",
+				/* USB0 and USB1 */
+				"USB0_DRVVBUS", "USB0_DRVVBUS", "output",
+				"USB1_DRVVBUS", "USB1_DRVVBUS", "output",
 				/* LCD */
 				"GPMC_AD8", "lcd_data23", "output",
 				"GPMC_AD9", "lcd_data22", "output",

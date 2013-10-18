@@ -3,14 +3,8 @@
  * Copyright (c) 2006, Dan Williams <dcbw@redhat.com> and Red Hat, Inc.
  * Copyright (c) 2009, Witold Sowa <witold.sowa@gmail.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -19,6 +13,8 @@
 #include "../config.h"
 #include "../wpa_supplicant_i.h"
 #include "../wps_supplicant.h"
+#include "../driver_i.h"
+#include "../ap.h"
 #include "dbus_new_helpers.h"
 #include "dbus_new.h"
 #include "dbus_new_handlers.h"
@@ -30,6 +26,7 @@ struct wps_start_params {
 	int type; /* 0 - not set, 1 - pin,      2 - pbc       */
 	u8 *bssid;
 	char *pin;
+	u8 *p2p_dev_addr;
 };
 
 
@@ -107,7 +104,7 @@ static int wpas_dbus_handler_wps_bssid(DBusMessage *message,
 	dbus_message_iter_recurse(entry_iter, &variant_iter);
 	if (dbus_message_iter_get_arg_type(&variant_iter) != DBUS_TYPE_ARRAY ||
 	    dbus_message_iter_get_element_type(&variant_iter) !=
-	    DBUS_TYPE_ARRAY) {
+	    DBUS_TYPE_BYTE) {
 		wpa_printf(MSG_DEBUG, "dbus: WPS.Start - Wrong Bssid type, "
 			   "byte array required");
 		*reply = wpas_dbus_error_invalid_args(
@@ -148,6 +145,41 @@ static int wpas_dbus_handler_wps_pin(DBusMessage *message,
 }
 
 
+#ifdef CONFIG_P2P
+static int wpas_dbus_handler_wps_p2p_dev_addr(DBusMessage *message,
+					      DBusMessageIter *entry_iter,
+					      struct wps_start_params *params,
+					      DBusMessage **reply)
+{
+	DBusMessageIter variant_iter, array_iter;
+	int len;
+
+	dbus_message_iter_recurse(entry_iter, &variant_iter);
+	if (dbus_message_iter_get_arg_type(&variant_iter) != DBUS_TYPE_ARRAY ||
+	    dbus_message_iter_get_element_type(&variant_iter) !=
+	    DBUS_TYPE_BYTE) {
+		wpa_printf(MSG_DEBUG, "dbus: WPS.Start - Wrong "
+			   "P2PDeviceAddress type, byte array required");
+		*reply = wpas_dbus_error_invalid_args(
+			message, "P2PDeviceAddress must be a byte array");
+		return -1;
+	}
+	dbus_message_iter_recurse(&variant_iter, &array_iter);
+	dbus_message_iter_get_fixed_array(&array_iter, &params->p2p_dev_addr,
+					  &len);
+	if (len != ETH_ALEN) {
+		wpa_printf(MSG_DEBUG, "dbus: WPS.Start - Wrong "
+			   "P2PDeviceAddress length %d", len);
+		*reply = wpas_dbus_error_invalid_args(message,
+						      "P2PDeviceAddress "
+						      "has wrong length");
+		return -1;
+	}
+	return 0;
+}
+#endif /* CONFIG_P2P */
+
+
 static int wpas_dbus_handler_wps_start_entry(DBusMessage *message, char *key,
 					     DBusMessageIter *entry_iter,
 					     struct wps_start_params *params,
@@ -165,6 +197,11 @@ static int wpas_dbus_handler_wps_start_entry(DBusMessage *message, char *key,
 	else if (os_strcmp(key, "Pin") == 0)
 		return wpas_dbus_handler_wps_pin(message, entry_iter,
 						 params, reply);
+#ifdef CONFIG_P2P
+	else if (os_strcmp(key, "P2PDeviceAddress") == 0)
+		return wpas_dbus_handler_wps_p2p_dev_addr(message, entry_iter,
+							  params, reply);
+#endif /* CONFIG_P2P */
 
 	wpa_printf(MSG_DEBUG, "dbus: WPS.Start - unknown key %s", key);
 	*reply = wpas_dbus_error_invalid_args(message, key);
@@ -231,11 +268,31 @@ DBusMessage * wpas_dbus_handler_wps_start(DBusMessage *message,
 		ret = wpas_wps_start_reg(wpa_s, params.bssid, params.pin,
 					 NULL);
 	else if (params.type == 1) {
-		ret = wpas_wps_start_pin(wpa_s, params.bssid, params.pin);
-		if (ret > 0)
-			os_snprintf(npin, sizeof(npin), "%08d", ret);
-	} else
-		ret = wpas_wps_start_pbc(wpa_s, params.bssid);
+#ifdef CONFIG_AP
+		if (wpa_s->ap_iface)
+			ret = wpa_supplicant_ap_wps_pin(wpa_s,
+							params.bssid,
+							params.pin,
+							npin, sizeof(npin), 0);
+		else
+#endif /* CONFIG_AP */
+		{
+			ret = wpas_wps_start_pin(wpa_s, params.bssid,
+						 params.pin, 0,
+						 DEV_PW_DEFAULT);
+			if (ret > 0)
+				os_snprintf(npin, sizeof(npin), "%08d", ret);
+		}
+	} else {
+#ifdef CONFIG_AP
+		if (wpa_s->ap_iface)
+			ret = wpa_supplicant_ap_wps_pbc(wpa_s,
+							params.bssid,
+							params.p2p_dev_addr);
+		else
+#endif /* CONFIG_AP */
+		ret = wpas_wps_start_pbc(wpa_s, params.bssid, 0);
+	}
 
 	if (ret < 0) {
 		wpa_printf(MSG_DEBUG, "dbus: WPS.Start wpas_wps_failed in "
@@ -283,40 +340,43 @@ DBusMessage * wpas_dbus_handler_wps_start(DBusMessage *message,
  * wpas_dbus_getter_process_credentials - Check if credentials are processed
  * @message: Pointer to incoming dbus message
  * @wpa_s: %wpa_supplicant data structure
- * Returns: DBus message with a boolean on success or DBus error on failure
+ * Returns: TRUE on success, FALSE on failure
  *
  * Getter for "ProcessCredentials" property. Returns returned boolean will be
  * true if wps_cred_processing configuration field is not equal to 1 or false
  * if otherwise.
  */
-DBusMessage * wpas_dbus_getter_process_credentials(
-	DBusMessage *message, struct wpa_supplicant *wpa_s)
+dbus_bool_t wpas_dbus_getter_process_credentials(DBusMessageIter *iter,
+						 DBusError *error,
+						 void *user_data)
 {
+	struct wpa_supplicant *wpa_s = user_data;
 	dbus_bool_t process = (wpa_s->conf->wps_cred_processing != 1);
-	return wpas_dbus_simple_property_getter(message, DBUS_TYPE_BOOLEAN,
-						&process);
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_BOOLEAN,
+						&process, error);
 }
 
 
 /**
  * wpas_dbus_setter_process_credentials - Set credentials_processed conf param
- * @message: Pointer to incoming dbus message
- * @wpa_s: %wpa_supplicant data structure
- * Returns: NULL on success or DBus error on failure
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
  *
  * Setter for "ProcessCredentials" property. Sets credentials_processed on 2
  * if boolean argument is true or on 1 if otherwise.
  */
-DBusMessage * wpas_dbus_setter_process_credentials(
-	DBusMessage *message, struct wpa_supplicant *wpa_s)
+dbus_bool_t wpas_dbus_setter_process_credentials(DBusMessageIter *iter,
+						 DBusError *error,
+						 void *user_data)
 {
-	DBusMessage *reply = NULL;
+	struct wpa_supplicant *wpa_s = user_data;
 	dbus_bool_t process_credentials, old_pc;
 
-	reply = wpas_dbus_simple_property_setter(message, DBUS_TYPE_BOOLEAN,
-						 &process_credentials);
-	if (reply)
-		return reply;
+	if (!wpas_dbus_simple_property_setter(iter, error, DBUS_TYPE_BOOLEAN,
+					      &process_credentials))
+		return FALSE;
 
 	old_pc = (wpa_s->conf->wps_cred_processing != 1);
 	wpa_s->conf->wps_cred_processing = (process_credentials ? 2 : 1);
@@ -327,5 +387,5 @@ DBusMessage * wpas_dbus_setter_process_credentials(
 					       WPAS_DBUS_NEW_IFACE_WPS,
 					       "ProcessCredentials");
 
-	return NULL;
+	return TRUE;
 }

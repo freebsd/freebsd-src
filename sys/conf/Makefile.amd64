@@ -34,15 +34,13 @@ S=	../../..
 INCLUDES+= -I$S/contrib/libfdt
 
 .if !empty(DDB_ENABLED) || !empty(DTR_ENABLED) || !empty(HWPMC_ENABLED)
-CFLAGS+=	-fno-omit-frame-pointer
+CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif
 
 MKMODULESENV+= MACHINE=amd64
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
 ASM_CFLAGS.acpi_wakecode.S=	${CLANG_NO_IAS}
-ASM_CFLAGS.ia32_sigtramp.S=	${CLANG_NO_IAS}
-ASM_CFLAGS.linux32_locore.s=	${CLANG_NO_IAS}
 ASM_CFLAGS.mpboot.S=		${CLANG_NO_IAS}
 ASM_CFLAGS+=			${ASM_CFLAGS.${.IMPSRC:T}}
 

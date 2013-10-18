@@ -57,6 +57,9 @@ begemotHast MODULE-IDENTITY
     REVISION     "201304130000Z"
     DESCRIPTION
 	    "Initial revision."
+    REVISION     "201307010000Z"
+    DESCRIPTION
+	    "Added hastResourceWorkerPid."
     ::= { begemot 220 }
 
 begemotHastObjects	OBJECT IDENTIFIER ::= { begemotHast 1 }
@@ -116,7 +119,8 @@ HastResourceEntry ::= SEQUENCE {
     hastResourceReadErrors		Counter64,
     hastResourceWriteErrors		Counter64,
     hastResourceDeleteErrors		Counter64,
-    hastResourceFlushErrors		Counter64
+    hastResourceFlushErrors		Counter64,
+    hastResourceWorkerPid		INTEGER
 }
 
 hastResourceIndex OBJECT-TYPE
@@ -294,5 +298,13 @@ hastResourceFlushErrors OBJECT-TYPE
     DESCRIPTION
 	"Count of resource local flush operations that failed."
     ::= { hastResourceEntry 21 }
+
+hastResourceWorkerPid OBJECT-TYPE
+    SYNTAX	INTEGER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Worker process ID."
+    ::= { hastResourceEntry 22 }
 
 END

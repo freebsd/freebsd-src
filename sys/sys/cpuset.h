@@ -55,6 +55,7 @@
 #define	CPU_NAND(d, s)			BIT_NAND(CPU_SETSIZE, d, s)
 #define	CPU_CLR_ATOMIC(n, p)		BIT_CLR_ATOMIC(CPU_SETSIZE, n, p)
 #define	CPU_SET_ATOMIC(n, p)		BIT_SET_ATOMIC(CPU_SETSIZE, n, p)
+#define	CPU_AND_ATOMIC(n, p)		BIT_AND_ATOMIC(CPU_SETSIZE, n, p)
 #define	CPU_OR_ATOMIC(d, s)		BIT_OR_ATOMIC(CPU_SETSIZE, d, s)
 #define	CPU_COPY_STORE_REL(f, t)	BIT_COPY_STORE_REL(CPU_SETSIZE, f, t)
 #define	CPU_FFS(p)			BIT_FFS(CPU_SETSIZE, p)
@@ -121,6 +122,9 @@ int	cpuset_create_root(struct prison *, struct cpuset **);
 int	cpuset_setproc_update_set(struct proc *, struct cpuset *);
 char	*cpusetobj_strprint(char *, const cpuset_t *);
 int	cpusetobj_strscan(cpuset_t *, const char *);
+#ifdef DDB
+void	ddb_display_cpuset(const cpuset_t *);
+#endif
 
 #else
 __BEGIN_DECLS

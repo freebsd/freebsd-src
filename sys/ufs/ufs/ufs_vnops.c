@@ -528,9 +528,11 @@ ufs_setattr(ap)
 		return (EINVAL);
 	}
 	if (vap->va_flags != VNOVAL) {
-		if ((vap->va_flags & ~(UF_NODUMP | UF_IMMUTABLE | UF_APPEND |
-		    UF_OPAQUE | UF_NOUNLINK | SF_ARCHIVED | SF_IMMUTABLE |
-		    SF_APPEND | SF_NOUNLINK | SF_SNAPSHOT)) != 0)
+		if ((vap->va_flags & ~(SF_APPEND | SF_ARCHIVED | SF_IMMUTABLE |
+		    SF_NOUNLINK | SF_SNAPSHOT | UF_APPEND | UF_ARCHIVE |
+		    UF_HIDDEN | UF_IMMUTABLE | UF_NODUMP | UF_NOUNLINK |
+		    UF_OFFLINE | UF_OPAQUE | UF_READONLY | UF_REPARSE |
+		    UF_SPARSE | UF_SYSTEM)) != 0)
 			return (EOPNOTSUPP);
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
@@ -1263,7 +1265,7 @@ relock:
 			error = VFS_VGET(mp, ino, LK_EXCLUSIVE, &nvp);
 			if (error != 0)
 				goto releout;
-			VOP_UNLOCK(nvp, 0);
+			vput(nvp);
 			atomic_add_int(&rename_restarts, 1);
 			goto relock;
 		}
@@ -2161,12 +2163,6 @@ ufs_symlink(ap)
 
 /*
  * Vnode op for reading directories.
- *
- * The routine below assumes that the on-disk format of a directory
- * is the same as that defined by <sys/dirent.h>. If the on-disk
- * format changes, then it will be necessary to do a conversion
- * from the on-disk format that read returns to the format defined
- * by <sys/dirent.h>.
  */
 int
 ufs_readdir(ap)
@@ -2179,103 +2175,123 @@ ufs_readdir(ap)
 		u_long **a_cookies;
 	} */ *ap;
 {
+	struct vnode *vp = ap->a_vp;
 	struct uio *uio = ap->a_uio;
+	struct buf *bp;
 	struct inode *ip;
+	struct direct *dp, *edp;
+	u_long *cookies;
+	struct dirent dstdp;
+	off_t offset, startoffset;
+	size_t readcnt, skipcnt;
+	ssize_t startresid;
+	int ncookies;
 	int error;
-	size_t count, lost;
-	off_t off;
 
-	if (ap->a_ncookies != NULL)
-		/*
-		 * Ensure that the block is aligned.  The caller can use
-		 * the cookies to determine where in the block to start.
-		 */
-		uio->uio_offset &= ~(DIRBLKSIZ - 1);
-	ip = VTOI(ap->a_vp);
+	if (uio->uio_offset < 0)
+		return (EINVAL);
+	ip = VTOI(vp);
 	if (ip->i_effnlink == 0)
 		return (0);
-	off = uio->uio_offset;
-	count = uio->uio_resid;
-	/* Make sure we don't return partial entries. */
-	if (count <= ((uio->uio_offset + count) & (DIRBLKSIZ -1)))
-		return (EINVAL);
-	count -= (uio->uio_offset + count) & (DIRBLKSIZ -1);
-	lost = uio->uio_resid - count;
-	uio->uio_resid = count;
-	uio->uio_iov->iov_len = count;
-#	if (BYTE_ORDER == LITTLE_ENDIAN)
-		if (ap->a_vp->v_mount->mnt_maxsymlinklen > 0) {
-			error = VOP_READ(ap->a_vp, uio, 0, ap->a_cred);
-		} else {
-			struct dirent *dp, *edp;
-			struct uio auio;
-			struct iovec aiov;
-			caddr_t dirbuf;
-			int readcnt;
-			u_char tmp;
-
-			auio = *uio;
-			auio.uio_iov = &aiov;
-			auio.uio_iovcnt = 1;
-			auio.uio_segflg = UIO_SYSSPACE;
-			aiov.iov_len = count;
-			dirbuf = malloc(count, M_TEMP, M_WAITOK);
-			aiov.iov_base = dirbuf;
-			error = VOP_READ(ap->a_vp, &auio, 0, ap->a_cred);
-			if (error == 0) {
-				readcnt = count - auio.uio_resid;
-				edp = (struct dirent *)&dirbuf[readcnt];
-				for (dp = (struct dirent *)dirbuf; dp < edp; ) {
-					tmp = dp->d_namlen;
-					dp->d_namlen = dp->d_type;
-					dp->d_type = tmp;
-					if (dp->d_reclen > 0) {
-						dp = (struct dirent *)
-						    ((char *)dp + dp->d_reclen);
-					} else {
-						error = EIO;
-						break;
-					}
-				}
-				if (dp >= edp)
-					error = uiomove(dirbuf, readcnt, uio);
-			}
-			free(dirbuf, M_TEMP);
-		}
-#	else
-		error = VOP_READ(ap->a_vp, uio, 0, ap->a_cred);
-#	endif
-	if (!error && ap->a_ncookies != NULL) {
-		struct dirent* dpStart;
-		struct dirent* dpEnd;
-		struct dirent* dp;
-		int ncookies;
-		u_long *cookies;
-		u_long *cookiep;
-
-		if (uio->uio_segflg != UIO_SYSSPACE || uio->uio_iovcnt != 1)
-			panic("ufs_readdir: unexpected uio from NFS server");
-		dpStart = (struct dirent *)
-		    ((char *)uio->uio_iov->iov_base - (uio->uio_offset - off));
-		dpEnd = (struct dirent *) uio->uio_iov->iov_base;
-		for (dp = dpStart, ncookies = 0;
-		     dp < dpEnd;
-		     dp = (struct dirent *)((caddr_t) dp + dp->d_reclen))
-			ncookies++;
-		cookies = malloc(ncookies * sizeof(u_long), M_TEMP,
-		    M_WAITOK);
-		for (dp = dpStart, cookiep = cookies;
-		     dp < dpEnd;
-		     dp = (struct dirent *)((caddr_t) dp + dp->d_reclen)) {
-			off += dp->d_reclen;
-			*cookiep++ = (u_long) off;
-		}
+	if (ap->a_ncookies != NULL) {
+		ncookies = uio->uio_resid;
+		if (uio->uio_offset >= ip->i_size)
+			ncookies = 0;
+		else if (ip->i_size - uio->uio_offset < ncookies)
+			ncookies = ip->i_size - uio->uio_offset;
+		ncookies = ncookies / (offsetof(struct direct, d_name) + 4) + 1;
+		cookies = malloc(ncookies * sizeof(*cookies), M_TEMP, M_WAITOK);
 		*ap->a_ncookies = ncookies;
 		*ap->a_cookies = cookies;
+	} else {
+		ncookies = 0;
+		cookies = NULL;
 	}
-	uio->uio_resid += lost;
-	if (ap->a_eofflag)
-	    *ap->a_eofflag = VTOI(ap->a_vp)->i_size <= uio->uio_offset;
+	offset = startoffset = uio->uio_offset;
+	startresid = uio->uio_resid;
+	error = 0;
+	while (error == 0 && uio->uio_resid > 0 &&
+	    uio->uio_offset < ip->i_size) {
+		error = ffs_blkatoff(vp, uio->uio_offset, NULL, &bp);
+		if (error)
+			break;
+		if (bp->b_offset + bp->b_bcount > ip->i_size)
+			readcnt = ip->i_size - bp->b_offset;
+		else
+			readcnt = bp->b_bcount;
+		skipcnt = (size_t)(uio->uio_offset - bp->b_offset) &
+		    ~(size_t)(DIRBLKSIZ - 1);
+		offset = bp->b_offset + skipcnt;
+		dp = (struct direct *)&bp->b_data[skipcnt];
+		edp = (struct direct *)&bp->b_data[readcnt];
+		while (error == 0 && uio->uio_resid > 0 && dp < edp) {
+			if (dp->d_reclen <= offsetof(struct direct, d_name) ||
+			    (caddr_t)dp + dp->d_reclen > (caddr_t)edp) {
+				error = EIO;
+				break;
+			}
+#if BYTE_ORDER == LITTLE_ENDIAN
+			/* Old filesystem format. */
+			if (vp->v_mount->mnt_maxsymlinklen <= 0) {
+				dstdp.d_namlen = dp->d_type;
+				dstdp.d_type = dp->d_namlen;
+			} else
+#endif
+			{
+				dstdp.d_namlen = dp->d_namlen;
+				dstdp.d_type = dp->d_type;
+			}
+			if (offsetof(struct direct, d_name) + dstdp.d_namlen >
+			    dp->d_reclen) {
+				error = EIO;
+				break;
+			}
+			if (offset < startoffset || dp->d_ino == 0)
+				goto nextentry;
+			dstdp.d_fileno = dp->d_ino;
+			dstdp.d_reclen = GENERIC_DIRSIZ(&dstdp);
+			bcopy(dp->d_name, dstdp.d_name, dstdp.d_namlen);
+			dstdp.d_name[dstdp.d_namlen] = '\0';
+			if (dstdp.d_reclen > uio->uio_resid) {
+				if (uio->uio_resid == startresid)
+					error = EINVAL;
+				else
+					error = EJUSTRETURN;
+				break;
+			}
+			/* Advance dp. */
+			error = uiomove((caddr_t)&dstdp, dstdp.d_reclen, uio);
+			if (error)
+				break;
+			if (cookies != NULL) {
+				KASSERT(ncookies > 0,
+				    ("ufs_readdir: cookies buffer too small"));
+				*cookies = offset + dp->d_reclen;
+				cookies++;
+				ncookies--;
+			}
+nextentry:
+			offset += dp->d_reclen;
+			dp = (struct direct *)((caddr_t)dp + dp->d_reclen);
+		}
+		bqrelse(bp);
+		uio->uio_offset = offset;
+	}
+	/* We need to correct uio_offset. */
+	uio->uio_offset = offset;
+	if (error == EJUSTRETURN)
+		error = 0;
+	if (ap->a_ncookies != NULL) {
+		if (error == 0) {
+			ap->a_ncookies -= ncookies;
+		} else {
+			free(*ap->a_cookies, M_TEMP);
+			*ap->a_ncookies = 0;
+			*ap->a_cookies = NULL;
+		}
+	}
+	if (error == 0 && ap->a_eofflag)
+		*ap->a_eofflag = ip->i_size <= uio->uio_offset;
 	return (error);
 }
 

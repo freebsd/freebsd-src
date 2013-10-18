@@ -456,6 +456,7 @@ pwrsave_flushq(struct ieee80211_node *ni)
 		while (parent_q != NULL) {
 			m = parent_q;
 			parent_q = m->m_nextpkt;
+			m->m_nextpkt = NULL;
 			/* must be encapsulated */
 			KASSERT((m->m_flags & M_ENCAP),
 			    ("%s: parentq with non-M_ENCAP frame!\n",
@@ -464,7 +465,7 @@ pwrsave_flushq(struct ieee80211_node *ni)
 			 * For encaped frames, we need to free the node
 			 * reference upon failure.
 			 */
-			if (ieee80211_parent_transmit(ic, m) != 0)
+			if (ieee80211_parent_xmitpkt(ic, m) != 0)
 				ieee80211_free_node(ni);
 		}
 	}
@@ -474,9 +475,10 @@ pwrsave_flushq(struct ieee80211_node *ni)
 		while (ifp_q != NULL) {
 			m = ifp_q;
 			ifp_q = m->m_nextpkt;
+			m->m_nextpkt = NULL;
 			KASSERT((!(m->m_flags & M_ENCAP)),
 			    ("%s: vapq with M_ENCAP frame!\n", __func__));
-			(void) ieee80211_vap_transmit(vap, m);
+			(void) ieee80211_vap_xmitpkt(vap, m);
 		}
 	}
 }

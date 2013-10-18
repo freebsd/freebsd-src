@@ -32,7 +32,7 @@
 .\"     @(#)fstab.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd October 11, 2012
+.Dd September 10, 2013
 .Dt FSTAB 5
 .Os
 .Sh NAME
@@ -185,6 +185,15 @@ variable must be used to extend the
 .Xr rc 8
 startup script's list of network file system types.
 .Pp
+If the option
+.Dq late
+is specified, the file system will be automatically mounted
+at a stage of system startup after remote mount points are mounted.
+For more detail about this option,
+see the
+.Xr mount 8
+manual page.
+.Pp
 The type of the mount is extracted from the
 .Fa fs_mntops
 field and stored separately in the
@@ -202,6 +211,7 @@ then the file system whose name is given in the
 .Fa fs_file
 field is normally mounted read-write or read-only on the
 specified special file.
+.Pp
 If
 .Fa fs_type
 is
@@ -210,6 +220,37 @@ then the special file is made available as a piece of swap
 space by the
 .Xr swapon 8
 command at the end of the system reboot procedure.
+For vnode-backed swap spaces,
+.Dq file
+is supported in the
+.Fa fs_mntops
+field.
+When
+.Fa fs_spec
+is an
+.Xr md 4
+device file
+.Pq Do md Dc or Do md[0-9]* Dc
+and
+.Dq file
+is specified in
+.Fa fs_mntopts ,
+an
+.Xr md 4
+device is created with the specified file used as backing store,
+and then the new device is used as swap space.
+Swap entries on
+.Pa .eli
+devices will cause automatic creation of encrypted devices.
+The
+.Dq ealgo ,
+.Dq aalgo ,
+.Dq keylength ,
+and
+.Dq sectorsize
+options may be passed to control those
+.Xr geli 8
+parameters.
 The fields other than
 .Fa fs_spec
 and
@@ -337,16 +378,52 @@ The file
 resides in
 .Pa /etc .
 .El
+.Sh EXAMPLES
+.Bd -literal
+# Device	Mountpoint	FStype	Options		Dump	Pass#
+#
+# UFS file system.
+/dev/da0p2	/		ufs	rw		1	1
+#
+# Swap space on a block device.
+/dev/da0p1	none		swap	sw		0	0
+#
+# Swap space using a block device with GBDE/GELI encyption.
+# aalgo, ealgo, keylen, sectorsize options are available
+# for .eli devices.
+/dev/da1p1.bde	none		swap	sw		0	0
+/dev/da1p2.eli	none		swap	sw		0	0
+#
+# tmpfs.
+tmpfs		/tmp		tmpfs	rw,size=1g,mode=1777	0 0
+#
+# UFS file system on a swap-backed md(4).  /dev/md10 is
+# automatically created.  If it is "md", a unit number
+# will be automatically selected.
+md10		/scratch	mfs	rw,-s1g		0	0
+#
+# Swap space on a vnode-backed md(4).
+md11		none		swap	sw,file=/swapfile	0 0
+#
+# CDROM.  "noauto" option is typically used because the
+# media is removable.
+/dev/cd0	/cdrom		cd9660	ro,noauto	0	0
+#
+# NFS-exported file system.  "serv" is an NFS server name
+# or IP address.
+serv:/export	/nfs		nfs	rw,noinet6	0	0
+.Ed
 .Sh SEE ALSO
 .Xr getfsent 3 ,
 .Xr getvfsbyname 3 ,
+.Xr strunvis 3 ,
 .Xr ccd 4 ,
 .Xr dump 8 ,
 .Xr fsck 8 ,
+.Xr geli 8 ,
 .Xr mount 8 ,
 .Xr quotacheck 8 ,
 .Xr quotaon 8 ,
-.Xr strunvis 3 ,
 .Xr swapon 8 ,
 .Xr umount 8
 .Sh HISTORY

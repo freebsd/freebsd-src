@@ -827,12 +827,13 @@ void SelectionDAGISel::PrepareEHLandingPad() {
     .addSym(Label);
 
   // Mark exception register as live in.
-  unsigned Reg = TLI.getExceptionPointerRegister();
-  if (Reg) MBB->addLiveIn(Reg);
+  const TargetRegisterClass *PtrRC = TLI.getRegClassFor(TLI.getPointerTy());
+  if (unsigned Reg = TLI.getExceptionPointerRegister())
+    FuncInfo->ExceptionPointerVirtReg = MBB->addLiveIn(Reg, PtrRC);
 
   // Mark exception selector register as live in.
-  Reg = TLI.getExceptionSelectorRegister();
-  if (Reg) MBB->addLiveIn(Reg);
+  if (unsigned Reg = TLI.getExceptionSelectorRegister())
+    FuncInfo->ExceptionSelectorVirtReg = MBB->addLiveIn(Reg, PtrRC);
 }
 
 /// isFoldedOrDeadInstruction - Return true if the specified instruction is
@@ -970,6 +971,8 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
     FuncInfo->InsertPt = FuncInfo->MBB->getFirstNonPHI();
 
     // Setup an EH landing-pad block.
+    FuncInfo->ExceptionPointerVirtReg = 0;
+    FuncInfo->ExceptionSelectorVirtReg = 0;
     if (FuncInfo->MBB->isLandingPad())
       PrepareEHLandingPad();
 
@@ -1733,15 +1736,15 @@ WalkChainUsers(const SDNode *ChainedNode,
 
     SDNode *User = *UI;
 
+    if (User->getOpcode() == ISD::HANDLENODE)  // Root of the graph.
+      continue;
+
     // If we see an already-selected machine node, then we've gone beyond the
     // pattern that we're selecting down into the already selected chunk of the
     // DAG.
-    if (User->isMachineOpcode() ||
-        User->getOpcode() == ISD::HANDLENODE)  // Root of the graph.
-      continue;
-
     unsigned UserOpcode = User->getOpcode();
-    if (UserOpcode == ISD::CopyToReg ||
+    if (User->isMachineOpcode() ||
+        UserOpcode == ISD::CopyToReg ||
         UserOpcode == ISD::CopyFromReg ||
         UserOpcode == ISD::INLINEASM ||
         UserOpcode == ISD::EH_LABEL ||

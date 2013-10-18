@@ -42,13 +42,13 @@
 #define _NETINET6_PIM6_VAR_H_
 
 struct pim6stat {
-	u_quad_t pim6s_rcv_total;	/* total PIM messages received	*/
-	u_quad_t pim6s_rcv_tooshort;	/* received with too few bytes	*/
-	u_quad_t pim6s_rcv_badsum;	/* received with bad checksum	*/
-	u_quad_t pim6s_rcv_badversion;	/* received bad PIM version	*/
-	u_quad_t pim6s_rcv_registers;	/* received registers		*/
-	u_quad_t pim6s_rcv_badregisters; /* received invalid registers	*/
-	u_quad_t pim6s_snd_registers;	/* sent registers		*/
+	uint64_t pim6s_rcv_total;	/* total PIM messages received	*/
+	uint64_t pim6s_rcv_tooshort;	/* received with too few bytes	*/
+	uint64_t pim6s_rcv_badsum;	/* received with bad checksum	*/
+	uint64_t pim6s_rcv_badversion;	/* received bad PIM version	*/
+	uint64_t pim6s_rcv_registers;	/* received registers		*/
+	uint64_t pim6s_rcv_badregisters; /* received invalid registers	*/
+	uint64_t pim6s_snd_registers;	/* sent registers		*/
 };
 
 #if (defined(KERNEL)) || (defined(_KERNEL))
@@ -61,8 +61,4 @@ int pim6_input(struct mbuf **, int*, int);
 #define PIM6CTL_STATS		1	/* statistics (read-only) */
 #define PIM6CTL_MAXID		2
 
-#define PIM6CTL_NAMES { \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-}
 #endif /* _NETINET6_PIM6_VAR_H_ */

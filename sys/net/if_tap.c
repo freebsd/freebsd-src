@@ -220,6 +220,7 @@ tap_destroy(struct tap_softc *tp)
 	CURVNET_SET(ifp->if_vnet);
 	destroy_dev(tp->tap_dev);
 	seldrain(&tp->tap_rsel);
+	knlist_clear(&tp->tap_rsel.si_note, 0);
 	knlist_destroy(&tp->tap_rsel.si_note);
 	ether_ifdetach(ifp);
 	if_free(ifp);
@@ -408,8 +409,6 @@ tapcreate(struct cdev *dev)
 	int			 unit;
 	const char		*name = NULL;
 	u_char			eaddr[6];
-
-	dev->si_flags &= ~SI_CHEAPCLONE;
 
 	/* allocate driver storage and create device */
 	tp = malloc(sizeof(*tp), M_TAP, M_WAITOK | M_ZERO);

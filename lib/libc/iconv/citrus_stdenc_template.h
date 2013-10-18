@@ -112,7 +112,7 @@ _FUNCNAME(stdenc_init_state)(struct _citrus_stdenc * __restrict ce,
 static int
 _FUNCNAME(stdenc_mbtocs)(struct _citrus_stdenc * __restrict ce,
     _citrus_csid_t * __restrict csid, _citrus_index_t * __restrict idx,
-    char ** __restrict s, size_t n, void * __restrict ps,
+    const char ** __restrict s, size_t n, void * __restrict ps,
     size_t * __restrict nresult, struct iconv_hooks *hooks)
 {
 	wchar_t wc;
@@ -151,7 +151,7 @@ _FUNCNAME(stdenc_cstomb)(struct _citrus_stdenc * __restrict ce,
 
 static int
 _FUNCNAME(stdenc_mbtowc)(struct _citrus_stdenc * __restrict ce,
-    _citrus_wc_t * __restrict wc, char ** __restrict s, size_t n,
+    _citrus_wc_t * __restrict wc, const char ** __restrict s, size_t n,
     void * __restrict ps, size_t * __restrict nresult,
     struct iconv_hooks *hooks)
 {

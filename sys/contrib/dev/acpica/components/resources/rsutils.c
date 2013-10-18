@@ -193,7 +193,7 @@ AcpiRsMoveData (
             break;
 
         case ACPI_RSC_MOVE32:
-            
+
             ACPI_MOVE_32_TO_32 (&ACPI_CAST_PTR (UINT32, Destination)[i],
                                 &ACPI_CAST_PTR (UINT32, Source)[i]);
             break;

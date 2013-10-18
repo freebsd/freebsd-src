@@ -152,7 +152,7 @@ static int dbd_sqlite_get_row(apr_pool_t * pool, apr_dbd_results_t * res,
 
     if (row->n >= res->ntuples) {
         *rowp = NULL;
-        apr_pool_cleanup_run(pool, res->res, free_table);
+        apr_pool_cleanup_run(res->pool, res->res, free_table);
         res->res = NULL;
         return -1;
     }

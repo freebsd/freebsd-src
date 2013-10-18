@@ -324,7 +324,7 @@ i81342_mem_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
 	endva = va + round_page(size);
 
 	/* Free the kernel virtual mapping. */
-	kmem_free(kernel_map, va, endva - va);
+	kva_free(va, endva - va);
 #endif
 }
 

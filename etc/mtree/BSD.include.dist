@@ -83,6 +83,8 @@
         v1
             ext
             ..
+            tr1
+            ..
         ..
     ..
     cam
@@ -176,6 +178,8 @@
         ..
         procfs
         ..
+        smbfs
+        ..
         udf
         ..
         unionfs
@@ -244,8 +248,6 @@
     krb5
     ..
     libmilter
-    ..
-    lwres
     ..
     lzma
     ..

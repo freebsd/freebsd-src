@@ -505,6 +505,7 @@ if_free(struct ifnet *ifp)
 
 	ifp->if_flags |= IFF_DYING;			/* XXX: Locking */
 
+	CURVNET_SET_QUIET(ifp->if_vnet);
 	IFNET_WLOCK();
 	KASSERT(ifp == ifnet_byindex_locked(ifp->if_index),
 	    ("%s: freeing unallocated ifnet", ifp->if_xname));
@@ -512,9 +513,9 @@ if_free(struct ifnet *ifp)
 	ifindex_free_locked(ifp->if_index);
 	IFNET_WUNLOCK();
 
-	if (!refcount_release(&ifp->if_refcount))
-		return;
-	if_free_internal(ifp);
+	if (refcount_release(&ifp->if_refcount))
+		if_free_internal(ifp);
+	CURVNET_RESTORE();
 }
 
 /*
@@ -632,8 +633,7 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 			socksize = sizeof(*sdl);
 		socksize = roundup2(socksize, sizeof(long));
 		ifasize = sizeof(*ifa) + 2 * socksize;
-		ifa = malloc(ifasize, M_IFADDR, M_WAITOK | M_ZERO);
-		ifa_init(ifa);
+		ifa = ifa_alloc(ifasize, M_WAITOK);
 		sdl = (struct sockaddr_dl *)(ifa + 1);
 		sdl->sdl_len = socksize;
 		sdl->sdl_family = AF_LINK;
@@ -803,7 +803,9 @@ void
 if_detach(struct ifnet *ifp)
 {
 
+	CURVNET_SET_QUIET(ifp->if_vnet);
 	if_detach_internal(ifp, 0);
+	CURVNET_RESTORE();
 }
 
 static void
@@ -1414,13 +1416,40 @@ if_maddr_runlock(struct ifnet *ifp)
 /*
  * Initialization, destruction and refcounting functions for ifaddrs.
  */
-void
-ifa_init(struct ifaddr *ifa)
+struct ifaddr *
+ifa_alloc(size_t size, int flags)
 {
+	struct ifaddr *ifa;
 
-	mtx_init(&ifa->ifa_mtx, "ifaddr", NULL, MTX_DEF);
+	KASSERT(size >= sizeof(struct ifaddr),
+	    ("%s: invalid size %zu", __func__, size));
+
+	ifa = malloc(size, M_IFADDR, M_ZERO | flags);
+	if (ifa == NULL)
+		return (NULL);
+
+	if ((ifa->ifa_opackets = counter_u64_alloc(flags)) == NULL)
+		goto fail;
+	if ((ifa->ifa_ipackets = counter_u64_alloc(flags)) == NULL)
+		goto fail;
+	if ((ifa->ifa_obytes = counter_u64_alloc(flags)) == NULL)
+		goto fail;
+	if ((ifa->ifa_ibytes = counter_u64_alloc(flags)) == NULL)
+		goto fail;
+
 	refcount_init(&ifa->ifa_refcnt, 1);
-	ifa->if_data.ifi_datalen = sizeof(ifa->if_data);
+
+	return (ifa);
+
+fail:
+	/* free(NULL) is okay */
+	counter_u64_free(ifa->ifa_opackets);
+	counter_u64_free(ifa->ifa_ipackets);
+	counter_u64_free(ifa->ifa_obytes);
+	counter_u64_free(ifa->ifa_ibytes);
+	free(ifa, M_IFADDR);
+
+	return (NULL);
 }
 
 void
@@ -1435,7 +1464,10 @@ ifa_free(struct ifaddr *ifa)
 {
 
 	if (refcount_release(&ifa->ifa_refcnt)) {
-		mtx_destroy(&ifa->ifa_mtx);
+		counter_u64_free(ifa->ifa_opackets);
+		counter_u64_free(ifa->ifa_ipackets);
+		counter_u64_free(ifa->ifa_obytes);
+		counter_u64_free(ifa->ifa_ibytes);
 		free(ifa, M_IFADDR);
 	}
 }
@@ -2232,9 +2264,9 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		log(LOG_INFO, "%s: changing name to '%s'\n",
 		    ifp->if_xname, new_name);
 
+		IF_ADDR_WLOCK(ifp);
 		strlcpy(ifp->if_xname, new_name, sizeof(ifp->if_xname));
 		ifa = ifp->if_addr;
-		IFA_LOCK(ifa);
 		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 		namelen = strlen(new_name);
 		onamelen = sdl->sdl_nlen;
@@ -2253,7 +2285,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		bzero(sdl->sdl_data, onamelen);
 		while (namelen != 0)
 			sdl->sdl_data[--namelen] = 0xff;
-		IFA_UNLOCK(ifa);
+		IF_ADDR_WUNLOCK(ifp);
 
 		EVENTHANDLER_INVOKE(ifnet_arrival_event, ifp);
 		/* Announce the return of the interface. */
@@ -2550,11 +2582,23 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		CURVNET_RESTORE();
 		return (EOPNOTSUPP);
 	}
+
+	/*
+	 * Pass the request on to the socket control method, and if the
+	 * latter returns EOPNOTSUPP, directly to the interface.
+	 *
+	 * Make an exception for the legacy SIOCSIF* requests.  Drivers
+	 * trust SIOCSIFADDR et al to come from an already privileged
+	 * layer, and do not perform any credentials checks or input
+	 * validation.
+	 */
 #ifndef COMPAT_43
 	error = ((*so->so_proto->pr_usrreqs->pru_control)(so, cmd,
 								 data,
 								 ifp, td));
-	if (error == EOPNOTSUPP && ifp != NULL && ifp->if_ioctl != NULL)
+	if (error == EOPNOTSUPP && ifp != NULL && ifp->if_ioctl != NULL &&
+	    cmd != SIOCSIFADDR && cmd != SIOCSIFBRDADDR &&
+	    cmd != SIOCSIFDSTADDR && cmd != SIOCSIFNETMASK)
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
 #else
 	{
@@ -2598,7 +2642,9 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 								   data,
 								   ifp, td));
 		if (error == EOPNOTSUPP && ifp != NULL &&
-		    ifp->if_ioctl != NULL)
+		    ifp->if_ioctl != NULL &&
+		    cmd != SIOCSIFADDR && cmd != SIOCSIFBRDADDR &&
+		    cmd != SIOCSIFDSTADDR && cmd != SIOCSIFNETMASK)
 			error = (*ifp->if_ioctl)(ifp, cmd, data);
 		switch (ocmd) {
 

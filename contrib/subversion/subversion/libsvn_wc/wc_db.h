@@ -702,6 +702,9 @@ svn_wc__db_base_add_not_present_node(svn_wc__db_t *db,
    (With KEEP_AS_WORKING TRUE, this is a no-op, as everything is
     automatically shadowed by the created copy)
 
+   If REMOVE_LOCKS is TRUE, all locks of this node and any subnodes
+   are also removed. This is to be done during commit of deleted nodes.
+
    If NOT_PRESENT_REVISION specifies a valid revision a not-present
    node is installed in BASE node with kind NOT_PRESENT_KIND after
    deleting.
@@ -715,6 +718,7 @@ svn_wc__db_base_remove(svn_wc__db_t *db,
                        const char *local_abspath,
                        svn_boolean_t keep_as_working,
                        svn_boolean_t queue_deletes,
+                       svn_boolean_t remove_locks,
                        svn_revnum_t not_present_revision,
                        svn_skel_t *conflict,
                        svn_skel_t *work_items,
@@ -2909,11 +2913,15 @@ svn_wc__db_upgrade_get_repos_id(apr_int64_t *repos_id,
  * Upgrading subdirectories of a working copy is not supported.
  * If WCROOT_ABSPATH is not a working copy root SVN_ERR_WC_INVALID_OP_ON_CWD
  * is returned.
+ *
+ * If BUMPED_FORMAT is not NULL, set *BUMPED_FORMAT to TRUE if the format
+ * was bumped or to FALSE if the wc was already at the resulting format.
  */
 svn_error_t *
 svn_wc__db_bump_format(int *result_format,
-                       const char *wcroot_abspath,
+                       svn_boolean_t *bumped_format,
                        svn_wc__db_t *db,
+                       const char *wcroot_abspath,
                        apr_pool_t *scratch_pool);
 
 /* @} */

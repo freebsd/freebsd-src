@@ -120,6 +120,7 @@ static vfs_root_t nfs_root;
 static vfs_statfs_t nfs_statfs;
 static vfs_sync_t nfs_sync;
 static vfs_sysctl_t nfs_sysctl;
+static vfs_purge_t nfs_purge;
 
 /*
  * nfs vfs operations.
@@ -134,6 +135,7 @@ static struct vfsops nfs_vfsops = {
 	.vfs_uninit =		ncl_uninit,
 	.vfs_unmount =		nfs_unmount,
 	.vfs_sysctl =		nfs_sysctl,
+	.vfs_purge =		nfs_purge,
 };
 VFS_SET(nfs_vfsops, nfs, VFCF_NETWORK | VFCF_SBDRY);
 
@@ -590,12 +592,6 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 	if ((argp->flags & (NFSMNT_NFSV3 | NFSMNT_NFSV4)) == 0) {
 		argp->flags &= ~NFSMNT_RDIRPLUS;
 		nmp->nm_flag &= ~NFSMNT_RDIRPLUS;
-	}
-
-	/* Clear NFSMNT_RESVPORT for NFSv4, since it is not required. */
-	if ((argp->flags & NFSMNT_NFSV4) != 0) {
-		argp->flags &= ~NFSMNT_RESVPORT;
-		nmp->nm_flag &= ~NFSMNT_RESVPORT;
 	}
 
 	/* Re-bind if rsrvd port requested and wasn't on one */
@@ -1452,6 +1448,8 @@ bad:
 		nfscl_clientrelease(clp);
 	newnfs_disconnect(&nmp->nm_sockreq);
 	crfree(nmp->nm_sockreq.nr_cred);
+	if (nmp->nm_sockreq.nr_auth != NULL)
+		AUTH_DESTROY(nmp->nm_sockreq.nr_auth);
 	mtx_destroy(&nmp->nm_sockreq.nr_mtx);
 	mtx_destroy(&nmp->nm_mtx);
 	if (nmp->nm_clp != NULL) {
@@ -1522,7 +1520,8 @@ nfs_unmount(struct mount *mp, int mntflags)
 	newnfs_disconnect(&nmp->nm_sockreq);
 	crfree(nmp->nm_sockreq.nr_cred);
 	FREE(nmp->nm_nam, M_SONAME);
-
+	if (nmp->nm_sockreq.nr_auth != NULL)
+		AUTH_DESTROY(nmp->nm_sockreq.nr_auth);
 	mtx_destroy(&nmp->nm_sockreq.nr_mtx);
 	mtx_destroy(&nmp->nm_mtx);
 	TAILQ_FOREACH_SAFE(dsp, &nmp->nm_sess, nfsclds_list, tdsp)
@@ -1676,6 +1675,19 @@ nfs_sysctl(struct mount *mp, fsctlop_t op, struct sysctl_req *req)
 		return (ENOTSUP);
 	}
 	return (0);
+}
+
+/*
+ * Purge any RPCs in progress, so that they will all return errors.
+ * This allows dounmount() to continue as far as VFS_UNMOUNT() for a
+ * forced dismount.
+ */
+static void
+nfs_purge(struct mount *mp)
+{
+	struct nfsmount *nmp = VFSTONFS(mp);
+
+	newnfs_nmcancelreqs(nmp);
 }
 
 /*

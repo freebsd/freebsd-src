@@ -390,7 +390,6 @@ fddi_input(ifp, m)
 		goto dropanyway;
 	}
 	fh = mtod(m, struct fddi_header *);
-	m->m_pkthdr.header = (void *)fh;
 
 	/*
 	 * Discard packet if interface is not up.

@@ -176,8 +176,8 @@ aml_simulate_prompt(char *msg, UINT64 def_val)
 	if (msg != NULL) {
 		printf("%s", msg);
 	}
-	printf("(default: 0x%jx ", val);
-	printf(" / %ju) >>", val);
+	printf("(default: 0x%jx ", (uintmax_t)val);
+	printf(" / %ju) >>", (uintmax_t)val);
 	fflush(stdout);
 
 	bzero(buf, sizeof buf);

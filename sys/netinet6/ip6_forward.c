@@ -120,7 +120,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 	 * before forwarding packet actually.
 	 */
 	if (ipsec6_in_reject(m, NULL)) {
-		V_ipsec6stat.in_polvio++;
+		IPSEC6STAT_INC(ips_in_polvio);
 		m_freem(m);
 		return;
 	}
@@ -137,8 +137,8 @@ ip6_forward(struct mbuf *m, int srcrt)
 	    IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src)) {
 		IP6STAT_INC(ip6s_cantforward);
 		/* XXX in6_ifstat_inc(rt->rt_ifp, ifs6_in_discard) */
-		if (V_ip6_log_time + V_ip6_log_interval < time_second) {
-			V_ip6_log_time = time_second;
+		if (V_ip6_log_time + V_ip6_log_interval < time_uptime) {
+			V_ip6_log_time = time_uptime;
 			log(LOG_DEBUG,
 			    "cannot forward "
 			    "from %s to %s nxt %d received on %s\n",
@@ -182,7 +182,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 	sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND,
 	    IP_FORWARDING, &error);
 	if (sp == NULL) {
-		V_ipsec6stat.out_inval++;
+		IPSEC6STAT_INC(ips_out_inval);
 		IP6STAT_INC(ip6s_cantforward);
 		if (mcopy) {
 #if 0
@@ -203,7 +203,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 		/*
 		 * This packet is just discarded.
 		 */
-		V_ipsec6stat.out_polvio++;
+		IPSEC6STAT_INC(ips_out_polvio);
 		IP6STAT_INC(ip6s_cantforward);
 		KEY_FREESP(&sp);
 		if (mcopy) {
@@ -405,8 +405,8 @@ skip_routing:
 		IP6STAT_INC(ip6s_badscope);
 		in6_ifstat_inc(rt->rt_ifp, ifs6_in_discard);
 
-		if (V_ip6_log_time + V_ip6_log_interval < time_second) {
-			V_ip6_log_time = time_second;
+		if (V_ip6_log_time + V_ip6_log_interval < time_uptime) {
+			V_ip6_log_time = time_uptime;
 			log(LOG_DEBUG,
 			    "cannot forward "
 			    "src %s, dst %s, nxt %d, rcvif %s, outif %s\n",

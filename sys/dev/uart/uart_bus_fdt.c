@@ -101,16 +101,20 @@ uart_fdt_probe(device_t dev)
 	int err;
 
 	sc = device_get_softc(dev);
-	if (ofw_bus_is_compatible(dev, "ns16550"))
-		sc->sc_class = &uart_ns8250_class;
-	else if (ofw_bus_is_compatible(dev, "lpc,uart"))
+	if (ofw_bus_is_compatible(dev, "lpc,uart"))
 		sc->sc_class = &uart_lpc_class;
 	else if (ofw_bus_is_compatible(dev, "fsl,imx-uart"))
 		sc->sc_class = &uart_imx_class;
 	else if (ofw_bus_is_compatible(dev, "arm,pl011"))
 		sc->sc_class = &uart_pl011_class;
+	else if (ofw_bus_is_compatible(dev, "exynos"))
+		sc->sc_class = &uart_s3c2410_class;
 	else if (ofw_bus_is_compatible(dev, "cadence,uart"))
 		sc->sc_class = &uart_cdnc_class;
+	else if (ofw_bus_is_compatible(dev, "ti,ns16550"))
+		sc->sc_class = &uart_ti8250_class;
+	else if (ofw_bus_is_compatible(dev, "ns16550"))
+		sc->sc_class = &uart_ns8250_class;
 	else
 		return (ENXIO);
 

@@ -223,7 +223,7 @@ return_response_err(svn_ra_serf__handler_t *handler)
   /* Try to return one of the standard errors for 301, 404, etc.,
      then look for an error embedded in the response.  */
   return svn_error_compose_create(svn_ra_serf__error_on_status(
-                                    handler->sline.code,
+                                    handler->sline,
                                     handler->path,
                                     handler->location),
                                   err);
@@ -2269,7 +2269,9 @@ abort_edit(void *edit_baton,
       && handler->sline.code != 404
       )
     {
-      SVN_ERR_MALFUNCTION();
+      return svn_error_createf(SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
+                               _("DELETE returned unexpected status: %d"),
+                               handler->sline.code);
     }
 
   return SVN_NO_ERROR;

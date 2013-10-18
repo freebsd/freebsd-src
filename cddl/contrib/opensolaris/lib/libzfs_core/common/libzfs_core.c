@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  */
 
@@ -302,11 +302,8 @@ lzc_snapshot(nvlist_t *snaps, nvlist_t *props, nvlist_t **errlist)
  * marked for deferred destruction, and will be destroyed when the last hold
  * or clone is removed/destroyed.
  *
- * The return value will be ENOENT if none of the snapshots existed.
- *
  * The return value will be 0 if all snapshots were destroyed (or marked for
- * later destruction if 'defer' is set) or didn't exist to begin with and
- * at least one snapshot was destroyed.
+ * later destruction if 'defer' is set) or didn't exist to begin with.
  *
  * Otherwise the return value will be the errno of a (unspecified) snapshot
  * that failed, no snapshots will be destroyed, and the errlist will have an
@@ -397,15 +394,10 @@ lzc_exists(const char *dataset)
  * or imported.
  *
  * Holds for snapshots which don't exist will be skipped and have an entry
- * added to errlist, but will not cause an overall failure, except in the
- * case that all holds where skipped.
+ * added to errlist, but will not cause an overall failure.
  *
- * The return value will be ENOENT if none of the snapshots for the requested
- * holds existed.
- *
- * The return value will be 0 if the nvl holds was empty or all holds, for
- * snapshots that existed, were succesfully created and at least one hold
- * was created.
+ * The return value will be 0 if all holds, for snapshots that existed,
+ * were succesfully created.
  *
  * Otherwise the return value will be the errno of a (unspecified) hold that
  * failed and no holds will be created.
@@ -449,13 +441,10 @@ lzc_hold(nvlist_t *holds, int cleanup_fd, nvlist_t **errlist)
  * The value is a nvlist whose keys are the holds to remove.
  *
  * Holds which failed to release because they didn't exist will have an entry
- * added to errlist, but will not cause an overall failure, except in the
- * case that all releases where skipped.
- *
- * The return value will be ENOENT if none of the specified holds existed.
+ * added to errlist, but will not cause an overall failure.
  *
  * The return value will be 0 if the nvl holds was empty or all holds that
- * existed, were successfully removed and at least one hold was removed.
+ * existed, were successfully removed.
  *
  * Otherwise the return value will be the errno of a (unspecified) hold that
  * failed to release and no holds will be released.
@@ -638,4 +627,28 @@ out:
 		fnvlist_pack_free(packed, size);
 	free((void*)(uintptr_t)zc.zc_nvlist_dst);
 	return (error);
+}
+
+/*
+ * Roll back this filesystem or volume to its most recent snapshot.
+ * If snapnamebuf is not NULL, it will be filled in with the name
+ * of the most recent snapshot.
+ *
+ * Return 0 on success or an errno on failure.
+ */
+int
+lzc_rollback(const char *fsname, char *snapnamebuf, int snapnamelen)
+{
+	nvlist_t *args;
+	nvlist_t *result;
+	int err;
+
+	args = fnvlist_alloc();
+	err = lzc_ioctl(ZFS_IOC_ROLLBACK, fsname, args, &result);
+	nvlist_free(args);
+	if (err == 0 && snapnamebuf != NULL) {
+		const char *snapname = fnvlist_lookup_string(result, "target");
+		(void) strlcpy(snapnamebuf, snapname, snapnamelen);
+	}
+	return (err);
 }

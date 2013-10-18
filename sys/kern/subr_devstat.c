@@ -374,6 +374,14 @@ devstat_end_transaction(struct devstat *ds, uint32_t bytes,
 void
 devstat_end_transaction_bio(struct devstat *ds, struct bio *bp)
 {
+
+	devstat_end_transaction_bio_bt(ds, bp, NULL);
+}
+
+void
+devstat_end_transaction_bio_bt(struct devstat *ds, struct bio *bp,
+    struct bintime *now)
+{
 	devstat_trans_flags flg;
 
 	/* sanity check */
@@ -390,7 +398,7 @@ devstat_end_transaction_bio(struct devstat *ds, struct bio *bp)
 		flg = DEVSTAT_NO_DATA;
 
 	devstat_end_transaction(ds, bp->bio_bcount - bp->bio_resid,
-				DEVSTAT_TAG_SIMPLE, flg, NULL, &bp->bio_t0);
+				DEVSTAT_TAG_SIMPLE, flg, now, &bp->bio_t0);
 	DTRACE_DEVSTAT_BIO_DONE();
 }
 

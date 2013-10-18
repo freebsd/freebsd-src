@@ -1,15 +1,9 @@
 /*
  * Base64 encoding/decoding (RFC1341)
- * Copyright (c) 2005, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2005-2011, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -103,8 +97,9 @@ unsigned char * base64_encode(const unsigned char *src, size_t len,
 unsigned char * base64_decode(const unsigned char *src, size_t len,
 			      size_t *out_len)
 {
-	unsigned char dtable[256], *out, *pos, in[4], block[4], tmp;
+	unsigned char dtable[256], *out, *pos, block[4], tmp;
 	size_t i, count, olen;
+	int pad = 0;
 
 	os_memset(dtable, 0x80, 256);
 	for (i = 0; i < sizeof(base64_table) - 1; i++)
@@ -131,7 +126,8 @@ unsigned char * base64_decode(const unsigned char *src, size_t len,
 		if (tmp == 0x80)
 			continue;
 
-		in[count] = src[i];
+		if (src[i] == '=')
+			pad++;
 		block[count] = tmp;
 		count++;
 		if (count == 4) {
@@ -139,14 +135,19 @@ unsigned char * base64_decode(const unsigned char *src, size_t len,
 			*pos++ = (block[1] << 4) | (block[2] >> 2);
 			*pos++ = (block[2] << 6) | block[3];
 			count = 0;
+			if (pad) {
+				if (pad == 1)
+					pos--;
+				else if (pad == 2)
+					pos -= 2;
+				else {
+					/* Invalid padding */
+					os_free(out);
+					return NULL;
+				}
+				break;
+			}
 		}
-	}
-
-	if (pos > out) {
-		if (in[2] == '=')
-			pos -= 2;
-		else if (in[3] == '=')
-			pos--;
 	}
 
 	*out_len = pos - out;

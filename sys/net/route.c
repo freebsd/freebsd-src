@@ -183,20 +183,12 @@ rt_tables_get_rnh(int table, int fam)
 static void
 route_init(void)
 {
-	struct domain *dom;
-	int max_keylen = 0;
 
 	/* whack the tunable ints into  line. */
 	if (rt_numfibs > RT_MAXFIBS)
 		rt_numfibs = RT_MAXFIBS;
 	if (rt_numfibs == 0)
 		rt_numfibs = 1;
-
-	for (dom = domains; dom; dom = dom->dom_next)
-		if (dom->dom_maxrtkey > max_keylen)
-			max_keylen = dom->dom_maxrtkey;
-
-	rn_init(max_keylen);	/* init all zeroes, all ones, mask table */
 }
 SYSINIT(route_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, route_init, 0);
 

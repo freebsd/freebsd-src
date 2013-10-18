@@ -1,7 +1,7 @@
 if [ ! "$_MUSTBEROOT_SUBR" ]; then _MUSTBEROOT_SUBR=1
 #
 # Copyright (c) 2006-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_MUSTBEROOT_SUBR" ]; then _MUSTBEROOT_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -176,9 +176,9 @@ f_become_root_via_sudo()
 				retval=$?
 
 				# Catch X11-related errors
-				if [ $retval -eq 255 ]; then
+				if [ $retval -eq $DIALOG_ESC ]; then
 					f_die $retval "$password"
-				elif [ $retval -ne 0 ]; then
+				elif [ $retval -ne $DIALOG_OK ]; then
 					# User cancelled
 					exit $retval
 				fi
@@ -316,10 +316,10 @@ f_authenticate_some_user()
 		retval=$?
 
 		# Catch X11-related errors
-		[ $retval -eq 255 ] && f_die $retval "$user_pass"
+		[ $retval -eq $DIALOG_ESC ] && f_die $retval "$user_pass"
 
 		# Exit if the user cancelled.
-		[ $retval -eq $SUCCESS ] || exit $retval
+		[ $retval -eq $DIALOG_OK ] || exit $retval
 
 		#
 		# Make sure the user exists and is non-root
@@ -330,7 +330,7 @@ f_authenticate_some_user()
 		unset user_pass # scrub memory
 		if [ ! "$user" ]; then
 			nfailures=$(( $nfailures + 1 ))
-			f_dialog_msgbox "$msg_no_username"
+			f_show_msg "$msg_no_username"
 			continue
 		fi
 		if [ ! "$SECURE_ALLOW_ROOT" ]; then

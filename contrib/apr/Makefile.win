@@ -25,7 +25,7 @@
 #
 # For example;
 #
-#   nmake -f Makefile.win PREFIX=C:\APR buildall checkall installall clean
+#   nmake -f Makefile.win PREFIX=C:\APR buildall checkall install clean
 #
 
 !IF EXIST("apr.sln") && ([devenv /help > NUL 2>&1] == 0) \

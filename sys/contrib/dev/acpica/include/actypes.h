@@ -488,6 +488,11 @@ typedef UINT64                          ACPI_INTEGER;
 #define ACPI_MOVE_NAME(dest,src)        (ACPI_STRNCPY (ACPI_CAST_PTR (char, (dest)), ACPI_CAST_PTR (char, (src)), ACPI_NAME_SIZE))
 #endif
 
+/* Support for the special RSDP signature (8 characters) */
+
+#define ACPI_VALIDATE_RSDP_SIG(a)       (!ACPI_STRNCMP (ACPI_CAST_PTR (char, (a)), ACPI_SIG_RSDP, 8))
+#define ACPI_MAKE_RSDP_SIG(dest)        (ACPI_MEMCPY (ACPI_CAST_PTR (char, (dest)), ACPI_SIG_RSDP, 8))
+
 
 /*******************************************************************************
  *
@@ -679,13 +684,6 @@ typedef UINT32                          ACPI_EVENT_STATUS;
 #define ACPI_EVENT_FLAG_ENABLED         (ACPI_EVENT_STATUS) 0x01
 #define ACPI_EVENT_FLAG_WAKE_ENABLED    (ACPI_EVENT_STATUS) 0x02
 #define ACPI_EVENT_FLAG_SET             (ACPI_EVENT_STATUS) 0x04
-
-/*
- * General Purpose Events (GPE)
- */
-#define ACPI_GPE_INVALID                0xFF
-#define ACPI_GPE_MAX                    0xFF
-#define ACPI_NUM_GPE                    256
 
 /* Actions for AcpiSetGpe, AcpiGpeWakeup, AcpiHwLowSetGpe */
 
@@ -1013,6 +1011,10 @@ typedef void
  * Various handlers and callback procedures
  */
 typedef
+UINT32 (*ACPI_SCI_HANDLER) (
+    void                            *Context);
+
+typedef
 void (*ACPI_GBL_EVENT_HANDLER) (
     UINT32                          EventType,
     ACPI_HANDLE                     Device,
@@ -1249,6 +1251,34 @@ typedef struct acpi_memory_list
 #endif
 
 } ACPI_MEMORY_LIST;
+
+
+/* Definitions of _OSI support */
+
+#define ACPI_VENDOR_STRINGS                 0x01
+#define ACPI_FEATURE_STRINGS                0x02
+#define ACPI_ENABLE_INTERFACES              0x00
+#define ACPI_DISABLE_INTERFACES             0x04
+
+#define ACPI_DISABLE_ALL_VENDOR_STRINGS     (ACPI_DISABLE_INTERFACES | ACPI_VENDOR_STRINGS)
+#define ACPI_DISABLE_ALL_FEATURE_STRINGS    (ACPI_DISABLE_INTERFACES | ACPI_FEATURE_STRINGS)
+#define ACPI_DISABLE_ALL_STRINGS            (ACPI_DISABLE_INTERFACES | ACPI_VENDOR_STRINGS | ACPI_FEATURE_STRINGS)
+#define ACPI_ENABLE_ALL_VENDOR_STRINGS      (ACPI_ENABLE_INTERFACES | ACPI_VENDOR_STRINGS)
+#define ACPI_ENABLE_ALL_FEATURE_STRINGS     (ACPI_ENABLE_INTERFACES | ACPI_FEATURE_STRINGS)
+#define ACPI_ENABLE_ALL_STRINGS             (ACPI_ENABLE_INTERFACES | ACPI_VENDOR_STRINGS | ACPI_FEATURE_STRINGS)
+
+#define ACPI_OSI_WIN_2000               0x01
+#define ACPI_OSI_WIN_XP                 0x02
+#define ACPI_OSI_WIN_XP_SP1             0x03
+#define ACPI_OSI_WINSRV_2003            0x04
+#define ACPI_OSI_WIN_XP_SP2             0x05
+#define ACPI_OSI_WINSRV_2003_SP1        0x06
+#define ACPI_OSI_WIN_VISTA              0x07
+#define ACPI_OSI_WINSRV_2008            0x08
+#define ACPI_OSI_WIN_VISTA_SP1          0x09
+#define ACPI_OSI_WIN_VISTA_SP2          0x0A
+#define ACPI_OSI_WIN_7                  0x0B
+#define ACPI_OSI_WIN_8                  0x0C
 
 
 #endif /* __ACTYPES_H__ */

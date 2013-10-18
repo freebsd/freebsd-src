@@ -222,6 +222,7 @@ static int finish_vt_acq(scr_stat *scp);
 static void exchange_scr(sc_softc_t *sc);
 static void update_cursor_image(scr_stat *scp);
 static void change_cursor_shape(scr_stat *scp, int flags, int base, int height);
+static void update_font(scr_stat *);
 static int save_kbd_state(scr_stat *scp);
 static int update_kbd_state(scr_stat *scp, int state, int mask);
 static int update_kbd_leds(scr_stat *scp, int which);
@@ -3142,7 +3143,7 @@ scresume(__unused void *arg)
 
 	suspend_in_progress = FALSE;
 	if (sc_susp_scr < 0) {
-		mark_all(sc_console->sc->cur_scp);
+		update_font(sc_console->sc->cur_scp);
 		return;
 	}
 	sc_switch_scr(sc_console->sc, sc_susp_scr);
@@ -3399,7 +3400,7 @@ next_code:
 	sc_touch_scrn_saver();
 
     if (!(flags & SCGETC_CN))
-	random_harvest(&c, sizeof(c), 1, 0, RANDOM_KEYBOARD);
+	random_harvest(&c, sizeof(c), 1, RANDOM_KEYBOARD);
 
     if (scp->kbd_mode != K_XLATE)
 	return KEYCHAR(c);
@@ -3647,6 +3648,37 @@ sctty_mmap(struct tty *tp, vm_ooffset_t offset, vm_paddr_t *paddr,
     return vidd_mmap(scp->sc->adp, offset, paddr, nprot, memattr);
 }
 
+static void
+update_font(scr_stat *scp)
+{
+#ifndef SC_NO_FONT_LOADING
+    /* load appropriate font */
+    if (!(scp->status & GRAPHICS_MODE)) {
+	if (!(scp->status & PIXEL_MODE) && ISFONTAVAIL(scp->sc->adp->va_flags)) {
+	    if (scp->font_size < 14) {
+		if (scp->sc->fonts_loaded & FONT_8)
+		    sc_load_font(scp, 0, 8, 8, scp->sc->font_8, 0, 256);
+	    } else if (scp->font_size >= 16) {
+		if (scp->sc->fonts_loaded & FONT_16)
+		    sc_load_font(scp, 0, 16, 8, scp->sc->font_16, 0, 256);
+	    } else {
+		if (scp->sc->fonts_loaded & FONT_14)
+		    sc_load_font(scp, 0, 14, 8, scp->sc->font_14, 0, 256);
+	    }
+	    /*
+	     * FONT KLUDGE:
+	     * This is an interim kludge to display correct font.
+	     * Always use the font page #0 on the video plane 2.
+	     * Somehow we cannot show the font in other font pages on
+	     * some video cards... XXX
+	     */ 
+	    sc_show_font(scp, 0);
+	}
+	mark_all(scp);
+    }
+#endif /* !SC_NO_FONT_LOADING */
+}
+
 static int
 save_kbd_state(scr_stat *scp)
 {
@@ -3719,32 +3751,7 @@ set_mode(scr_stat *scp)
 		(void *)scp->sc->adp->va_window, FALSE);
 #endif
 
-#ifndef SC_NO_FONT_LOADING
-    /* load appropriate font */
-    if (!(scp->status & GRAPHICS_MODE)) {
-	if (!(scp->status & PIXEL_MODE) && ISFONTAVAIL(scp->sc->adp->va_flags)) {
-	    if (scp->font_size < 14) {
-		if (scp->sc->fonts_loaded & FONT_8)
-		    sc_load_font(scp, 0, 8, 8, scp->sc->font_8, 0, 256);
-	    } else if (scp->font_size >= 16) {
-		if (scp->sc->fonts_loaded & FONT_16)
-		    sc_load_font(scp, 0, 16, 8, scp->sc->font_16, 0, 256);
-	    } else {
-		if (scp->sc->fonts_loaded & FONT_14)
-		    sc_load_font(scp, 0, 14, 8, scp->sc->font_14, 0, 256);
-	    }
-	    /*
-	     * FONT KLUDGE:
-	     * This is an interim kludge to display correct font.
-	     * Always use the font page #0 on the video plane 2.
-	     * Somehow we cannot show the font in other font pages on
-	     * some video cards... XXX
-	     */ 
-	    sc_show_font(scp, 0);
-	}
-	mark_all(scp);
-    }
-#endif /* !SC_NO_FONT_LOADING */
+    update_font(scp);
 
     sc_set_border(scp, scp->border);
     sc_set_cursor_image(scp);

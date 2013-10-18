@@ -593,10 +593,15 @@ CmDoCompile (
     AslCompilerparse();
     UtEndEvent (Event);
 
-    /* Flush out any remaining source after parse tree is complete */
+    /* Check for parse errors */
 
-    Event = UtBeginEvent ("Flush source input");
-    CmFlushSourceCode ();
+    Status = AslCheckForErrorExit ();
+    if (ACPI_FAILURE (Status))
+    {
+        fprintf (stderr, "Compiler aborting due to parser-detected syntax error(s)\n");
+        LsDumpParseTree ();
+        goto ErrorExit;
+    }
 
     /* Did the parse tree get successfully constructed? */
 
@@ -606,15 +611,17 @@ CmDoCompile (
          * If there are no errors, then we have some sort of
          * internal problem.
          */
-        Status = AslCheckForErrorExit ();
-        if (Status == AE_OK)
-        {
-            AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL,
-                NULL, "- Could not resolve parse tree root node");
-        }
+        AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL,
+            NULL, "- Could not resolve parse tree root node");
 
         goto ErrorExit;
     }
+
+
+    /* Flush out any remaining source after parse tree is complete */
+
+    Event = UtBeginEvent ("Flush source input");
+    CmFlushSourceCode ();
 
     /* Optional parse tree dump, compiler debug output only */
 
@@ -966,7 +973,19 @@ CmCleanupAndExit (
 
     /* Close all open files */
 
-    Gbl_Files[ASL_FILE_PREPROCESSOR].Handle = NULL; /* the .i file is same as source file */
+    /*
+     * Take care with the preprocessor file (.i), it might be the same
+     * as the "input" file, depending on where the compiler has terminated
+     * or aborted. Prevent attempt to close the same file twice in
+     * loop below.
+     */
+    if (Gbl_Files[ASL_FILE_PREPROCESSOR].Handle ==
+        Gbl_Files[ASL_FILE_INPUT].Handle)
+    {
+        Gbl_Files[ASL_FILE_PREPROCESSOR].Handle = NULL;
+    }
+
+    /* Close the standard I/O files */
 
     for (i = ASL_FILE_INPUT; i < ASL_MAX_FILE_TYPE; i++)
     {

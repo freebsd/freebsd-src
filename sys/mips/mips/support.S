@@ -175,7 +175,7 @@ END(copystr)
  *		u_int maxlength;
  *		u_int *lencopied;
  */
-NON_LEAF(copyinstr, CALLFRAME_SIZ, ra)
+NESTED(copyinstr, CALLFRAME_SIZ, ra)
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	PTR_LA	v0, copyerr
@@ -203,7 +203,7 @@ END(copyinstr)
  *		u_int maxlength;
  *		u_int *lencopied;
  */
-NON_LEAF(copyoutstr, CALLFRAME_SIZ, ra)
+NESTED(copyoutstr, CALLFRAME_SIZ, ra)
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	PTR_LA	v0, copyerr
@@ -228,7 +228,7 @@ END(copyoutstr)
  *		caddr_t *to;	(kernel destination address)
  *		unsigned len;
  */
-NON_LEAF(copyin, CALLFRAME_SIZ, ra)
+NESTED(copyin, CALLFRAME_SIZ, ra)
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	PTR_LA	v0, copyerr
@@ -254,7 +254,7 @@ END(copyin)
  *		caddr_t *to;	(user destination address)
  *		unsigned len;
  */
-NON_LEAF(copyout, CALLFRAME_SIZ, ra)
+NESTED(copyout, CALLFRAME_SIZ, ra)
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	PTR_LA	v0, copyerr
@@ -288,7 +288,7 @@ END(copyerr)
  */
 #ifdef __mips_n64
 LEAF(fuword64)
-ALEAF(fuword)
+XLEAF(fuword)
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
 	nop
@@ -303,7 +303,7 @@ END(fuword64)
 
 LEAF(fuword32)
 #ifndef __mips_n64
-ALEAF(fuword)
+XLEAF(fuword)
 #endif
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
@@ -507,98 +507,6 @@ LEAF(fswintrberr)
 END(fswintrberr)
 
 /*
- * memcpy(to, from, len)
- * {ov}bcopy(from, to, len)
- */
-LEAF(memcpy)
-	.set	noreorder
-	move	v0, a0			# swap from and to
-	move	a0, a1
-	move	a1, v0
-ALEAF(bcopy)
-ALEAF(ovbcopy)
-	.set	noreorder
-	PTR_ADDU	t0, a0, a2		# t0 = end of s1 region
-	sltu	t1, a1, t0
-	sltu	t2, a0, a1
-	and	t1, t1, t2		# t1 = true if from < to < (from+len)
-	beq	t1, zero, forward	# non overlapping, do forward copy
-	slt	t2, a2, 12		# check for small copy
-
-	ble	a2, zero, 2f
-	PTR_ADDU	t1, a1, a2		# t1 = end of to region
-1:
-	lb	v1, -1(t0)		# copy bytes backwards,
-	PTR_SUBU	t0, t0, 1		#   doesnt happen often so do slow way
-	PTR_SUBU	t1, t1, 1
-	bne	t0, a0, 1b
-	sb	v1, 0(t1)
-2:
-	j	ra
-	nop
-forward:
-	bne	t2, zero, smallcpy	# do a small bcopy
-	xor	v1, a0, a1		# compare low two bits of addresses
-	and	v1, v1, 3
-	PTR_SUBU	a3, zero, a1		# compute # bytes to word align address
-	beq	v1, zero, aligned	# addresses can be word aligned
-	and	a3, a3, 3
-
-	beq	a3, zero, 1f
-	PTR_SUBU	a2, a2, a3		# subtract from remaining count
-	LWHI	v1, 0(a0)		# get next 4 bytes (unaligned)
-	LWLO	v1, 3(a0)
-	PTR_ADDU	a0, a0, a3
-	SWHI	v1, 0(a1)		# store 1, 2, or 3 bytes to align a1
-	PTR_ADDU	a1, a1, a3
-1:
-	and	v1, a2, 3		# compute number of words left
-	PTR_SUBU	a3, a2, v1
-	move	a2, v1
-	PTR_ADDU	a3, a3, a0		# compute ending address
-2:
-	LWHI	v1, 0(a0)		# copy words a0 unaligned, a1 aligned
-	LWLO	v1, 3(a0)
-	PTR_ADDU	a0, a0, 4
-	sw	v1, 0(a1)
-	PTR_ADDU	a1, a1, 4
-	bne	a0, a3, 2b
-	nop				# We have to do this mmu-bug.
-	b	smallcpy
-	nop
-aligned:
-	beq	a3, zero, 1f
-	PTR_SUBU	a2, a2, a3		# subtract from remaining count
-	LWHI	v1, 0(a0)		# copy 1, 2, or 3 bytes to align
-	PTR_ADDU	a0, a0, a3
-	SWHI	v1, 0(a1)
-	PTR_ADDU	a1, a1, a3
-1:
-	and	v1, a2, 3		# compute number of whole words left
-	PTR_SUBU	a3, a2, v1
-	move	a2, v1
-	PTR_ADDU	a3, a3, a0		# compute ending address
-2:
-	lw	v1, 0(a0)		# copy words
-	PTR_ADDU	a0, a0, 4
-	sw	v1, 0(a1)
-	bne	a0, a3, 2b
-	PTR_ADDU	a1, a1, 4
-smallcpy:
-	ble	a2, zero, 2f
-	PTR_ADDU	a3, a2, a0		# compute ending address
-1:
-	lbu	v1, 0(a0)		# copy bytes
-	PTR_ADDU	a0, a0, 1
-	sb	v1, 0(a1)
-	bne	a0, a3, 1b
-	PTR_ADDU	a1, a1, 1	   # MMU BUG ? can not do -1(a1) at 0x80000000!!
-2:
-	j	ra
-	nop
-END(memcpy)
-
-/*
  * memset(void *s1, int c, int len)
  * NetBSD: memset.S,v 1.3 2001/10/16 15:40:53 uch Exp
  */
@@ -645,7 +553,7 @@ END(memset)
  * bzero(s1, n)
  */
 LEAF(bzero)
-ALEAF(blkclr)
+XLEAF(blkclr)
 	.set	noreorder
 	blt	a1, 12, smallclr	# small amount to clear?
 	PTR_SUBU	a3, zero, a0		# compute # bytes to word align address

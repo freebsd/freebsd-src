@@ -101,10 +101,10 @@ sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt,
     sctp_assoc_t * id)
 {
 	char *buf;
-	int i, ret, cnt, *aa;
+	int i, ret, *aa;
 	char *cpto;
 	const struct sockaddr *at;
-	size_t len = sizeof(int);
+	size_t len;
 
 	/* validate the address count and list */
 	if ((addrs == NULL) || (addrcnt <= 0)) {
@@ -115,8 +115,8 @@ sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt,
 		errno = E2BIG;
 		return (-1);
 	}
+	len = sizeof(int);
 	at = addrs;
-	cnt = 0;
 	cpto = buf + sizeof(int);
 	/* validate all the addresses and get the size */
 	for (i = 0; i < addrcnt; i++) {
@@ -161,6 +161,7 @@ sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt,
 	if ((ret == 0) && (id != NULL)) {
 		*id = *(sctp_assoc_t *) buf;
 	}
+	free(buf);
 	return (ret);
 }
 
@@ -274,6 +275,11 @@ sctp_opt_info(int sd, sctp_assoc_t id, int opt, void *arg, socklen_t * size)
 		errno = EINVAL;
 		return (-1);
 	}
+	if ((id == SCTP_CURRENT_ASSOC) ||
+	    (id == SCTP_ALL_ASSOC)) {
+		errno = EINVAL;
+		return (-1);
+	}
 	switch (opt) {
 	case SCTP_RTOINFO:
 		((struct sctp_rtoinfo *)arg)->srto_assoc_id = id;
@@ -336,6 +342,9 @@ sctp_opt_info(int sd, sctp_assoc_t id, int opt, void *arg, socklen_t * size)
 		((struct sctp_udpencaps *)arg)->sue_assoc_id = id;
 		break;
 	case SCTP_MAX_BURST:
+		((struct sctp_assoc_value *)arg)->assoc_id = id;
+		break;
+	case SCTP_ENABLE_STREAM_RESET:
 		((struct sctp_assoc_value *)arg)->assoc_id = id;
 		break;
 	default:

@@ -687,9 +687,10 @@ APU_DECLARE(apr_status_t) apr_brigade_cleanup(void *data);
  * @param b The brigade to split
  * @param e The first bucket to move
  * @param a The brigade which should be used for the result or NULL if
- *          a new brigade should be created.
- * @return The brigade supplied in @param a or a new one if @param a was NULL.
- * @warning Note that this function allocates a new brigade if @param a is
+ *          a new brigade should be created. The brigade @a a will be
+ *          cleared if it is not empty.
+ * @return The brigade supplied in @a a or a new one if @a a was NULL.
+ * @warning Note that this function allocates a new brigade if @a a is
  * NULL so memory consumption should be carefully considered.
  */
 APU_DECLARE(apr_bucket_brigade *) apr_brigade_split_ex(apr_bucket_brigade *b,
@@ -699,8 +700,8 @@ APU_DECLARE(apr_bucket_brigade *) apr_brigade_split_ex(apr_bucket_brigade *b,
 /**
  * Create a new bucket brigade and move the buckets from the tail end
  * of an existing brigade into the new brigade.  Buckets from 
- * @param e to the last bucket (inclusively) of brigade @param b
- * are moved from @param b to the returned brigade.
+ * @a e to the last bucket (inclusively) of brigade @a b
+ * are moved from @a b to the returned brigade.
  * @param b The brigade to split 
  * @param e The first bucket to move
  * @return The new brigade

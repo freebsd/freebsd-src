@@ -1204,6 +1204,9 @@ extern inthand_t
 #ifdef KDTRACE_HOOKS
 	IDTVEC(dtrace_ret),
 #endif
+#ifdef XENHVM
+	IDTVEC(xen_intr_upcall),
+#endif
 	IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
 
 #ifdef DDB
@@ -1227,6 +1230,36 @@ DB_SHOW_COMMAND(idt, db_show_idt)
 		}
 		ip++;
 	}
+}
+
+/* Show privileged registers. */
+DB_SHOW_COMMAND(sysregs, db_show_sysregs)
+{
+	struct {
+		uint16_t limit;
+		uint64_t base;
+	} __packed idtr, gdtr;
+	uint16_t ldt, tr;
+
+	__asm __volatile("sidt %0" : "=m" (idtr));
+	db_printf("idtr\t0x%016lx/%04x\n",
+	    (u_long)idtr.base, (u_int)idtr.limit);
+	__asm __volatile("sgdt %0" : "=m" (gdtr));
+	db_printf("gdtr\t0x%016lx/%04x\n",
+	    (u_long)gdtr.base, (u_int)gdtr.limit);
+	__asm __volatile("sldt %0" : "=r" (ldt));
+	db_printf("ldtr\t0x%04x\n", ldt);
+	__asm __volatile("str %0" : "=r" (tr));
+	db_printf("tr\t0x%04x\n", tr);
+	db_printf("cr0\t0x%016lx\n", rcr0());
+	db_printf("cr2\t0x%016lx\n", rcr2());
+	db_printf("cr3\t0x%016lx\n", rcr3());
+	db_printf("cr4\t0x%016lx\n", rcr4());
+	db_printf("EFER\t%016lx\n", rdmsr(MSR_EFER));
+	db_printf("FEATURES_CTL\t%016lx\n", rdmsr(MSR_IA32_FEATURE_CONTROL));
+	db_printf("DEBUG_CTL\t%016lx\n", rdmsr(MSR_DEBUGCTLMSR));
+	db_printf("PAT\t%016lx\n", rdmsr(MSR_PAT));
+	db_printf("GSBASE\t%016lx\n", rdmsr(MSR_GSBASE));
 }
 #endif
 
@@ -1541,7 +1574,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 			/*
 			 * map page into kernel: valid, read/write,non-cacheable
 			 */
-			*pte = pa | PG_V | PG_RW | PG_N;
+			*pte = pa | PG_V | PG_RW | PG_NC_PWT | PG_NC_PCD;
 			invltlb();
 
 			tmp = *(int *)ptr;
@@ -1757,6 +1790,9 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 #ifdef KDTRACE_HOOKS
 	setidt(IDT_DTRACE_RET, &IDTVEC(dtrace_ret), SDT_SYSIGT, SEL_UPL, 0);
 #endif
+#ifdef XENHVM
+	setidt(IDT_EVTCHN, &IDTVEC(xen_intr_upcall), SDT_SYSIGT, SEL_UPL, 0);
+#endif
 
 	r_idt.rd_limit = sizeof(idt0) - 1;
 	r_idt.rd_base = (long) idt;
@@ -1873,20 +1909,12 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0;
-	thread0.td_pcb->pcb_cr3 = KPML4phys;
+	thread0.td_pcb->pcb_cr3 = KPML4phys; /* PCID 0 is reserved for kernel */
 	thread0.td_frame = &proc0_tf;
 
         env = getenv("kernelname");
 	if (env != NULL)
 		strlcpy(kernelname, env, sizeof(kernelname));
-
-#ifdef XENHVM
-	if (inw(0x10) == 0x49d2) {
-		if (bootverbose)
-			printf("Xen detected: disabling emulated block and network devices\n");
-		outw(0x10, 3);
-	}
-#endif
 
 	cpu_probe_amdc1e();
 

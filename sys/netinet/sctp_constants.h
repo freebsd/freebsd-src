@@ -521,9 +521,6 @@ __FBSDID("$FreeBSD$");
 /* How long a cookie lives in milli-seconds */
 #define SCTP_DEFAULT_COOKIE_LIFE	60000
 
-/* resource limit of streams */
-#define MAX_SCTP_STREAMS	2048
-
 /* Maximum the mapping array will  grow to (TSN mapping array) */
 #define SCTP_MAPPING_ARRAY	512
 
@@ -658,6 +655,7 @@ __FBSDID("$FreeBSD$");
 
 /* How many streams I request initally by default */
 #define SCTP_OSTREAM_INITIAL 10
+#define SCTP_ISTREAM_INITIAL 2048
 
 /*
  * How many smallest_mtu's need to increase before a window update sack is
@@ -728,7 +726,6 @@ __FBSDID("$FreeBSD$");
 /* small chunk store for looking at chunk_list in auth */
 #define SCTP_SMALL_CHUNK_STORE 260
 
-#define SCTP_DEFAULT_MINSEGMENT 512	/* MTU size ... if no mtu disc */
 #define SCTP_HOW_MANY_SECRETS	2	/* how many secrets I keep */
 
 #define SCTP_NUMBER_OF_SECRETS	8	/* or 8 * 4 = 32 octets */

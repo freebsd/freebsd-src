@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/vmem.h>
 
 #include <vm/uma.h>
 #include <vm/vm.h>
@@ -60,8 +61,6 @@ typedef struct kmem_cache {
 	void		(*kc_destructor)(void *, void *);
 	void		*kc_private;
 } kmem_cache_t;
-
-#define vmem_t	void
 
 void *zfs_kmem_alloc(size_t size, int kmflags);
 void zfs_kmem_free(void *buf, size_t size);

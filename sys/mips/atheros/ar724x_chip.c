@@ -73,7 +73,7 @@ ar724x_chip_detect_sys_frequency(void)
 	uint32_t freq;
 	uint32_t div;
 
-	u_ar71xx_refclk = AR724X_BASE_FREQ;
+	u_ar71xx_mdio_freq = u_ar71xx_refclk = AR724X_BASE_FREQ;
 
 	pll = ATH_READ_REG(AR724X_PLL_REG_CPU_CONFIG);
 
@@ -90,6 +90,8 @@ ar724x_chip_detect_sys_frequency(void)
 
 	div = (((pll >> AR724X_AHB_DIV_SHIFT) & AR724X_AHB_DIV_MASK) + 1) * 2;
 	u_ar71xx_ahb_freq = u_ar71xx_cpu_freq / div;
+	u_ar71xx_wdt_freq = u_ar71xx_cpu_freq / div;
+	u_ar71xx_uart_freq = u_ar71xx_cpu_freq / div;
 }
 
 static void

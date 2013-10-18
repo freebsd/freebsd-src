@@ -98,7 +98,7 @@ APU_DECLARE(apr_status_t) apr_queue_trypush(apr_queue_t *queue, void *data);
  * @returns APR_EINTR the blocking operation was interrupted (try again)
  * @returns APR_EAGAIN the queue is empty
  * @returns APR_EOF the queue has been terminated
- * @returns APR_SUCCESS on a successful push
+ * @returns APR_SUCCESS on a successful pop
  */
 APU_DECLARE(apr_status_t) apr_queue_trypop(apr_queue_t *queue, void **data);
 

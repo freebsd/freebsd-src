@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2012
+.Dd October 1, 2013
 .Dt RECOVERDISK 1
 .Os
 .Sh NAME
@@ -104,11 +104,11 @@ Percent complete.
 .El
 .Sh EXAMPLES
 .Bd -literal
-# recover data from failing hard drive ad3
-recoverdisk /dev/ad3 /data/disk.img
+# recover data from failing hard drive ada3
+recoverdisk /dev/ada3 /data/disk.img
 
 # clone a hard disk
-recoverdisk /dev/ad3 /dev/ad4
+recoverdisk /dev/ada3 /dev/ada4
 
 # read an ISO image from a CD-ROM
 recoverdisk /dev/cd0 /data/cd.iso
@@ -120,14 +120,14 @@ recoverdisk -r worklist -w worklist /dev/cd0 /data/cd.iso
 recoverdisk /cdrom/file.avi file.avi
 
 # If the disk hangs the system on read-errors try:
-recoverdisk -b 0 /dev/ad3 /somewhere
+recoverdisk -b 0 /dev/ada3 /somewhere
 
 .Ed
 .Sh SEE ALSO
 .Xr dd 1 ,
-.Xr ada 4,
-.Xr cam 4,
-.Xr cd 4,
+.Xr ada 4 ,
+.Xr cam 4 ,
+.Xr cd 4 ,
 .Xr da 4
 .Sh HISTORY
 The

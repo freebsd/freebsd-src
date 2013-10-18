@@ -4811,6 +4811,13 @@ base_node_origin_rev(svn_revnum_t *revision,
      prev_location() does below will work. */
   path = svn_fs__canonicalize_abspath(path, pool);
 
+  /* Special-case the root node (for performance reasons) */
+  if (strcmp(path, "/") == 0)
+    {
+      *revision = 0;
+      return SVN_NO_ERROR;
+    }
+
   /* If we have support for the node-origins table, we'll try to use
      it. */
   if (bfd->format >= SVN_FS_BASE__MIN_NODE_ORIGINS_FORMAT)

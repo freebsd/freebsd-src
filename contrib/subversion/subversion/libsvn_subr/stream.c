@@ -56,6 +56,7 @@ struct svn_stream_t {
   svn_stream_mark_fn_t mark_fn;
   svn_stream_seek_fn_t seek_fn;
   svn_stream__is_buffered_fn_t is_buffered_fn;
+  apr_file_t *file; /* Maybe NULL */
 };
 
 
@@ -81,6 +82,7 @@ svn_stream_create(void *baton, apr_pool_t *pool)
   stream->mark_fn = NULL;
   stream->seek_fn = NULL;
   stream->is_buffered_fn = NULL;
+  stream->file = NULL;
   return stream;
 }
 
@@ -913,11 +915,18 @@ svn_stream_from_aprfile2(apr_file_t *file,
   svn_stream_set_mark(stream, mark_handler_apr);
   svn_stream_set_seek(stream, seek_handler_apr);
   svn_stream__set_is_buffered(stream, is_buffered_handler_apr);
+  stream->file = file;
 
   if (! disown)
     svn_stream_set_close(stream, close_handler_apr);
 
   return stream;
+}
+
+apr_file_t *
+svn_stream__aprfile(svn_stream_t *stream)
+{
+  return stream->file;
 }
 
 

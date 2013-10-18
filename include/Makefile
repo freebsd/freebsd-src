@@ -37,7 +37,7 @@ LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdatomic.h stdint.h \
 	syslog.h ucontext.h
 
 LDIRS=	bsm cam geom net net80211 netatalk netgraph netinet netinet6 \
-	netipsec ${_netipx} netnatm \
+	netipsec ${_netipx} netnatm netsmb \
 	nfs nfsclient nfsserver \
 	sys vm
 
@@ -48,7 +48,7 @@ LSUBDIRS=	cam/ata cam/scsi \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/smbus \
 	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/nullfs \
-	fs/procfs fs/udf fs/unionfs \
+	fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/mountver geom/multipath geom/nop \
 	geom/raid geom/raid3 geom/shsec geom/stripe geom/virstor \
@@ -72,17 +72,28 @@ _dev_ieee488=	dev/ieee488
 INCS+=	hesiod.h
 .endif
 
-.if ${MK_ICONV} != "no"
-INCS+=	iconv.h
-.endif
-
 .if ${MK_BLUETOOTH} != "no"
 LSUBSUBDIRS+=	netgraph/bluetooth/include
 .endif
 
+# XXX unconditionally needed by <netsmb/netbios.h>
 #.if ${MK_IPX} != "no"
 _netipx=	netipx
 #.endif
+
+# Handle the #define aliases for libiconv
+.if ${MK_ICONV} == "yes"
+CLEANFILES+=	_libiconv_compat.h
+INCS+=		_libiconv_compat.h iconv.h
+_libiconv_compat.h:	${.CURDIR}/Makefile
+	echo "/* Indicate whether libiconv symbols are present */" > _libiconv_compat.h
+.if ${MK_LIBICONV_COMPAT} == "yes"
+	echo "#define __LIBICONV_COMPAT" >> _libiconv_compat.h
+.else
+	echo "#undef __LIBICONV_COMPAT" >> _libiconv_compat.h
+.endif
+.endif
+	
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
@@ -93,19 +104,18 @@ SHARED?=	copies
 
 INCS+=	osreldate.h
 
-osreldate.h: ${.CURDIR}/../sys/conf/newvers.sh ${.CURDIR}/../sys/sys/param.h \
-    ${.CURDIR}/Makefile
-	@${ECHO} creating osreldate.h from newvers.sh
-	@MAKE=${MAKE}; \
-	PARAMFILE=${.CURDIR}/../sys/sys/param.h; \
-	. ${.CURDIR}/../sys/conf/newvers.sh; \
-	echo "$$COPYRIGHT" > osreldate.h; \
-	echo "#ifdef _KERNEL" >> osreldate.h; \
-	echo "#error \"<osreldate.h> cannot be used in the kernel, use <sys/param.h>\"" >> osreldate.h; \
-	echo "#else" >> osreldate.h; \
-	echo "#undef __FreeBSD_version" >> osreldate.h; \
-	echo "#define __FreeBSD_version $$RELDATE" >> osreldate.h; \
-	echo "#endif" >> osreldate.h
+SYSDIR=			${.CURDIR}/../sys
+NEWVERS_SH=		${SYSDIR}/conf/newvers.sh
+PARAM_H=		${SYSDIR}/sys/param.h
+MK_OSRELDATE_SH=	${.CURDIR}/mk-osreldate.sh
+
+osreldate.h vers.c: ${NEWVERS_SH} ${PARAM_H} ${MK_OSRELDATE_SH}
+	env ECHO="${ECHO}" \
+	    MAKE="${MAKE}" \
+	    NEWVERS_SH=${NEWVERS_SH} \
+	    PARAM_H=${PARAM_H} \
+	    SYSDIR=${SYSDIR} \
+	    sh ${MK_OSRELDATE_SH}
 
 .for i in ${LHDRS}
 INCSLINKS+=	sys/$i ${INCLUDEDIR}/$i
@@ -139,11 +149,6 @@ compat:
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}${INCLUDEDIR}
-.if ${MK_BIND_LIBS} != "no"
-	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
-	    -f ${.CURDIR}/../etc/mtree/BIND.include.dist \
-	    -p ${DESTDIR}${INCLUDEDIR}
-.endif
 
 copies:
 .for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} altq crypto machine machine/pc \

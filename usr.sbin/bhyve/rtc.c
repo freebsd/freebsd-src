@@ -33,16 +33,24 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 #include <assert.h>
 
+#include <machine/vmm.h>
+#include <vmmapi.h>
+
 #include "inout.h"
+#include "rtc.h"
 
 #define	IO_RTC	0x70
 
 #define RTC_SEC		0x00	/* seconds */
+#define	RTC_SEC_ALARM	0x01
 #define	RTC_MIN		0x02
+#define	RTC_MIN_ALARM	0x03
 #define	RTC_HRS		0x04
+#define	RTC_HRS_ALARM	0x05
 #define	RTC_WDAY	0x06
 #define	RTC_DAY		0x07
 #define	RTC_MONTH	0x08
@@ -64,16 +72,36 @@ __FBSDID("$FreeBSD$");
 #define RTC_STATUSD	0x0d	/* status register D (R) Lost Power */
 #define  RTCSD_PWR	 0x80	/* clock power OK */
 
+#define	RTC_NVRAM_START	0x0e
+#define	RTC_NVRAM_END	0x7f
+#define RTC_NVRAM_SZ	(128 - RTC_NVRAM_START)
+#define	nvoff(x)	((x) - RTC_NVRAM_START)
+
 #define	RTC_DIAG	0x0e
-
 #define RTC_RSTCODE	0x0f
-
 #define	RTC_EQUIPMENT	0x14
+#define	RTC_LMEM_LSB	0x34
+#define	RTC_LMEM_MSB	0x35
+#define	RTC_HMEM_LSB	0x5b
+#define	RTC_HMEM_SB	0x5c
+#define	RTC_HMEM_MSB	0x5d
+
+#define m_64KB		(64*1024)
+#define	m_16MB		(16*1024*1024)
+#define	m_4GB		(4ULL*1024*1024*1024)
 
 static int addr;
 
+static uint8_t rtc_nvram[RTC_NVRAM_SZ];
+
 /* XXX initialize these to default values as they would be from BIOS */
-static uint8_t status_a, status_b, rstcode;
+static uint8_t status_a, status_b;
+
+static struct {
+	uint8_t  hours;
+	uint8_t  mins;
+	uint8_t  secs;
+} rtc_alarm;
 
 static u_char const bin2bcd_data[] = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
@@ -129,20 +157,20 @@ rtc_addr_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 
 	switch (*eax & 0x7f) {
 	case RTC_SEC:
+	case RTC_SEC_ALARM:
 	case RTC_MIN:
+	case RTC_MIN_ALARM:
 	case RTC_HRS:
+	case RTC_HRS_ALARM:
 	case RTC_WDAY:
 	case RTC_DAY:
 	case RTC_MONTH:
 	case RTC_YEAR:
-	case RTC_CENTURY:
 	case RTC_STATUSA:
 	case RTC_STATUSB:
 	case RTC_INTR:
 	case RTC_STATUSD:
-	case RTC_DIAG:
-	case RTC_RSTCODE:
-	case RTC_EQUIPMENT:
+	case RTC_NVRAM_START ... RTC_NVRAM_END:
 		break;
 	default:
 		return (-1);
@@ -183,6 +211,15 @@ rtc_data_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 
 	if (in) {
 		switch (addr) {
+		case RTC_SEC_ALARM:
+			*eax = rtc_alarm.secs;
+			break;
+		case RTC_MIN_ALARM:
+			*eax = rtc_alarm.mins;
+			break;
+		case RTC_HRS_ALARM:
+			*eax = rtc_alarm.hours;
+			break;
 		case RTC_SEC:
 			*eax = rtcout(tm.tm_sec);
 			return (0);
@@ -217,9 +254,6 @@ rtc_data_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		case RTC_YEAR:
 			*eax = rtcout(tm.tm_year % 100);
 			return (0);
-		case RTC_CENTURY:
-			*eax = rtcout(tm.tm_year / 100);
-			break;
 		case RTC_STATUSA:
 			*eax = status_a;
 			return (0);
@@ -232,14 +266,8 @@ rtc_data_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		case RTC_STATUSD:
 			*eax = RTCSD_PWR;
 			return (0);
-		case RTC_DIAG:
-			*eax = 0;
-			return (0);
-		case RTC_RSTCODE:
-			*eax = rstcode;
-			return (0);
-		case RTC_EQUIPMENT:
-			*eax = 0;
+		case RTC_NVRAM_START ... RTC_NVRAM_END:
+			*eax = rtc_nvram[addr - RTC_NVRAM_START];
 			return (0);
 		default:
 			return (-1);
@@ -259,8 +287,14 @@ rtc_data_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	case RTC_STATUSD:
 		/* ignore write */
 		break;
-	case RTC_RSTCODE:
-		rstcode = *eax;
+	case RTC_SEC_ALARM:
+		rtc_alarm.secs = *eax;
+		break;
+	case RTC_MIN_ALARM:
+		rtc_alarm.mins = *eax;
+		break;
+	case RTC_HRS_ALARM:
+		rtc_alarm.hours = *eax;
 		break;
 	case RTC_SEC:
 	case RTC_MIN:
@@ -269,15 +303,57 @@ rtc_data_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	case RTC_DAY:
 	case RTC_MONTH:
 	case RTC_YEAR:
-	case RTC_CENTURY:
 		/*
 		 * Ignore writes to the time of day registers
 		 */
+		break;
+	case RTC_NVRAM_START ... RTC_NVRAM_END:
+		rtc_nvram[addr - RTC_NVRAM_START] = *eax;
 		break;
 	default:
 		return (-1);
 	}
 	return (0);
+}
+
+void
+rtc_init(struct vmctx *ctx)
+{	
+	struct timeval cur;
+	struct tm tm;
+	size_t himem;
+	size_t lomem;
+	int err;
+
+	err = gettimeofday(&cur, NULL);
+	assert(err == 0);
+	(void) localtime_r(&cur.tv_sec, &tm);
+
+	memset(rtc_nvram, 0, sizeof(rtc_nvram));
+
+	rtc_nvram[nvoff(RTC_CENTURY)] = bin2bcd((tm.tm_year + 1900) / 100);
+
+	/* XXX init diag/reset code/equipment/checksum ? */
+
+	/*
+	 * Report guest memory size in nvram cells as required by UEFI.
+	 * Little-endian encoding.
+	 * 0x34/0x35 - 64KB chunks above 16MB, below 4GB
+	 * 0x5b/0x5c/0x5d - 64KB chunks above 4GB
+	 */
+	err = vm_get_memory_seg(ctx, 0, &lomem, NULL);
+	assert(err == 0);
+
+	lomem = (lomem - m_16MB) / m_64KB;
+	rtc_nvram[nvoff(RTC_LMEM_LSB)] = lomem;
+	rtc_nvram[nvoff(RTC_LMEM_MSB)] = lomem >> 8;
+
+	if (vm_get_memory_seg(ctx, m_4GB, &himem, NULL) == 0) {	  
+		himem /= m_64KB;
+		rtc_nvram[nvoff(RTC_HMEM_LSB)] = himem;
+		rtc_nvram[nvoff(RTC_HMEM_SB)]  = himem >> 8;
+		rtc_nvram[nvoff(RTC_HMEM_MSB)] = himem >> 16;
+	}
 }
 
 INOUT_PORT(rtc, IO_RTC, IOPORT_F_INOUT, rtc_addr_handler);

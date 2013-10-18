@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_kdtrace.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -53,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
@@ -66,6 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/cc.h>
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
@@ -632,8 +635,8 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		ip6->ip6_flow = 0;
 		ip6->ip6_vfc = IPV6_VERSION;
 		ip6->ip6_nxt = IPPROTO_TCP;
-		ip6->ip6_plen = 0;		/* Set in ip6_output(). */
 		tlen += sizeof (struct ip6_hdr) + sizeof (struct tcphdr);
+		ip6->ip6_plen = htons(tlen - sizeof(*ip6));
 	}
 #endif
 #if defined(INET) && defined(INET6)
@@ -702,6 +705,10 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	if (tp == NULL || (inp->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_OUTPUT, 0, tp, mtod(m, void *), th, 0);
 #endif
+	if (flags & TH_RST)
+		TCP_PROBE5(accept_refused, NULL, NULL, m->m_data, tp, nth);
+
+	TCP_PROBE5(send, NULL, tp, m->m_data, tp, nth);
 #ifdef INET6
 	if (isipv6)
 		(void) ip6_output(m, NULL, NULL, ipflags, NULL, NULL, inp);
@@ -882,7 +889,7 @@ tcp_drop(struct tcpcb *tp, int errno)
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	if (TCPS_HAVERCVDSYN(tp->t_state)) {
-		tp->t_state = TCPS_CLOSED;
+		tcp_state_change(tp, TCPS_CLOSED);
 		(void) tcp_output(tp);
 		TCPSTAT_INC(tcps_drops);
 	} else
@@ -2375,4 +2382,20 @@ tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 	if (*(s + size - 1) != '\0')
 		panic("%s: string too long", __func__);
 	return (s);
+}
+
+/*
+ * A subroutine which makes it easy to track TCP state changes with DTrace.
+ * This function shouldn't be called for t_state initializations that don't
+ * correspond to actual TCP state transitions.
+ */
+void
+tcp_state_change(struct tcpcb *tp, int newstate)
+{
+#if defined(KDTRACE_HOOKS)
+	int pstate = tp->t_state;
+#endif
+
+	tp->t_state = newstate;
+	TCP_PROBE6(state_change, NULL, tp, NULL, tp, NULL, pstate);
 }

@@ -102,7 +102,7 @@ struct vm_object {
 	TAILQ_ENTRY(vm_object) object_list; /* list of all objects */
 	LIST_HEAD(, vm_object) shadow_head; /* objects that this is a shadow for */
 	LIST_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
-	TAILQ_HEAD(, vm_page) memq;	/* list of resident pages */
+	TAILQ_HEAD(respgs, vm_page) memq; /* list of resident pages */
 	struct vm_radix rtree;		/* root of the resident page radix trie*/
 	vm_pindex_t size;		/* Object size */
 	int generation;			/* generation ID */
@@ -205,6 +205,7 @@ struct vm_object {
  */
 #define	OBJPR_CLEANONLY	0x1		/* Don't remove dirty pages. */
 #define	OBJPR_NOTMAPPED	0x2		/* Don't unmap pages. */
+#define	OBJPR_NOTWIRED	0x4		/* Don't remove wired pages. */
 
 TAILQ_HEAD(object_q, vm_object);
 

@@ -35,7 +35,7 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.13 2013/05/11 05:16:26 sjg Exp $
+	$Id: meta2deps.py,v 1.15 2013/07/29 20:41:23 sjg Exp $
 
 	Copyright (c) 2011-2013, Juniper Networks, Inc.
 	All rights reserved.
@@ -77,7 +77,7 @@ def resolve(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     """
     if path.endswith('/.'):
         path = path[0:-2]
-    if path[0] == '/':
+    if len(path) > 0 and path[0] == '/':
         return path
     if path == '.':
         return cwd
@@ -107,10 +107,12 @@ def abspath(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     this gets called a lot, so we try to avoid calling realpath
     until we know we have something.
     """
-    path = resolve(path, cwd, last_dir, debug, debug_out)
-    if path and (path.find('./') > 0 or
-                 path.endswith('/..') or
-                 os.path.islink(path)):
+    rpath = resolve(path, cwd, last_dir, debug, debug_out)
+    if rpath:
+        path = rpath
+    if (path.find('./') > 0 or
+        path.endswith('/..') or
+        os.path.islink(path)):
         return os.path.realpath(path)
     return path
 
@@ -191,6 +193,7 @@ class MetaFile:
         self.curdir = getv(conf, 'CURDIR')
         self.reldir = getv(conf, 'RELDIR')
         self.dpdeps = getv(conf, 'DPDEPS')
+        self.line = 0
 
         if not self.conf:
             # some of the steps below we want to do only once
@@ -254,7 +257,7 @@ class MetaFile:
         self.cwd = os.getcwd()          # make sure this is initialized
 
         if name:
-            self.parse()
+            self.try_parse()
 
     def reset(self):
         """reset state if we are being passed meta files from multiple directories."""
@@ -333,6 +336,15 @@ class MetaFile:
 
         return ddep
 
+    def try_parse(self, name=None, file=None):
+        """give file and line number causing exception"""
+        try:
+            self.parse(name, file)
+        except:
+            # give a useful clue
+            print >> sys.stderr, '{}:{}: '.format(self.name, self.line),
+            raise
+        
     def parse(self, name=None, file=None):
         """A meta file looks like:
         
@@ -373,11 +385,13 @@ class MetaFile:
         pid_last_dir = {}
         last_pid = 0
 
+        self.line = 0
         if self.curdir:
             self.seenit(self.curdir)    # we ignore this
 
         interesting = 'CEFLRV'
         for line in f:
+            self.line += 1
             # ignore anything we don't care about
             if not line[0] in interesting:
                 continue
@@ -634,7 +648,13 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
             print >> debug_out, "%s=%s" % (k,v)
 
     for a in args:
-        m = klass(a, conf)
+        if a.endswith('.meta'):
+            m = klass(a, conf)
+        elif a.startswith('@'):
+            # there can actually multiple files per line
+            for line in open(a[1:]):
+                for f in line.strip().split():
+                    m = klass(f, conf)
 
     if output:
         print m.dirdeps()
