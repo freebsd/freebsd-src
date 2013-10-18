@@ -42,6 +42,7 @@
 #ifdef WITNESS
 #include <sys/lock.h>
 #endif
+struct uio;
 #endif
 
 /*
@@ -459,14 +460,6 @@ struct mbuf {
 				   a non-initialized mbuf */
 
 /*
- * Compatibility with historic mbuf allocator.
- */
-#define	MBTOM(how)	(how)
-#define	M_DONTWAIT	M_NOWAIT
-#define	M_TRYWAIT	M_WAITOK
-#define	M_WAIT		M_WAITOK
-
-/*
  * String names of mbuf-related UMA(9) and malloc(9) types.  Exposed to
  * !_KERNEL so that monitoring tools can look up the zones with
  * libmemstat(3).
@@ -481,23 +474,16 @@ struct mbuf {
 #define	MBUF_EXTREFCNT_MEM_NAME	"mbuf_ext_refcnt"
 
 #ifdef _KERNEL
-
-#ifdef WITNESS
-#define	MBUF_CHECKSLEEP(how) do {					\
-	if (how == M_WAITOK)						\
-		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,		\
-		    "Sleeping in \"%s\"", __func__);			\
-} while (0)
-#else
-#define	MBUF_CHECKSLEEP(how)
-#endif
-
 /*
- * Network buffer allocation API is defined in kern/kern_mbuf.c
+ * Mbuf network buffer allocation and construction functions API
+ * as implemented in kern/kern_mbuf.c.
  */
 void		 mb_free_ext(struct mbuf *);
 int		 m_pkthdr_init(struct mbuf *, int);
 int		 m_gettype(int);
+int		 m_extadd(struct mbuf *, caddr_t, u_int,
+		    int (*)(struct mbuf *, void *, void *), void *, void *,
+		    int, int, int);
 void		 m_extaddref(struct mbuf *, caddr_t, u_int, u_int *,
 		    int (*)(struct mbuf *, void *, void *), void *, void *);
 int		 m_init(struct mbuf *, int, int, short, int);
@@ -513,44 +499,33 @@ void		 m_freem(struct mbuf *);
 struct mbuf	*m_get2(int, int, short, int);
 struct mbuf	*m_getjcl(int, short, int, int);
 struct mbuf	*m_getm2(struct mbuf *, int, int, short, int);
-
-static __inline void
-m_clrprotoflags(struct mbuf *m)
-{
-
-	m->m_flags &= ~M_PROTOFLAGS;
-}
+struct mbuf	*m_uiotombuf(struct uio *, int, int, int, int);
 
 /*
- * mbuf, cluster, and external object allocation macros (for compatibility
- * purposes).
+ * Allocator (and compatibility) macros.
  */
-#define	M_MOVE_PKTHDR(to, from)	m_move_pkthdr((to), (from))
 #define	MGET(m, how, type)	((m) = m_get((how), (type)))
 #define	MGETHDR(m, how, type)	((m) = m_gethdr((how), (type)))
 #define	MCLGET(m, how)		m_clget((m), (how))
+#define	m_getm(m, len, how, type)					\
+    m_getm2((m), (len), (how), (type), M_PKTHDR)
 #define	MEXTADD(m, buf, size, free, arg1, arg2, flags, type)		\
     (void )m_extadd((m), (caddr_t)(buf), (size), (free), (arg1), (arg2),\
     (flags), (type), M_NOWAIT)
-#define	m_getm(m, len, how, type)					\
-    m_getm2((m), (len), (how), (type), M_PKTHDR)
+#define	MBTOM(how)	(how)
+#define	M_DONTWAIT	M_NOWAIT
+#define	M_TRYWAIT	M_WAITOK
+#define	M_WAIT		M_WAITOK
 
 /*
- * Evaluate TRUE if it's safe to write to the mbuf m's data region (this can
- * be both the local data payload, or an external buffer area, depending on
- * whether M_EXT is set).
+ * Assert that the supplied mbuf has a packet header, or else panic.
  */
-int	_m_writable(const struct mbuf *);
-#define	M_WRITABLE(m)	_m_writable(m)
-
-/* Check if the supplied mbuf has a packet header, or else panic. */
 #define	M_ASSERTPKTHDR(m)						\
 	KASSERT((m) != NULL && (m)->m_flags & M_PKTHDR,			\
 	    ("%s: no mbuf packet header!", __func__))
 
 /*
- * Ensure that the supplied mbuf is a valid, non-free mbuf.
- *
+ * Assert that the supplied mbuf is a valid, non-free mbuf.
  * XXX: Broken at the moment.  Need some UMA magic to make it work again.
  */
 #define	M_ASSERTVALID(m)						\
@@ -558,28 +533,49 @@ int	_m_writable(const struct mbuf *);
 	    ("%s: attempted use of a free mbuf!", __func__))
 
 /*
+ * Assert that the mbuf allocation attempt does not violate the
+ * sleeping rules.
+ */
+#ifdef WITNESS
+#define	MBUF_CHECKSLEEP(how) do {					\
+	if (how == M_WAITOK)						\
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,		\
+		    "Sleeping in \"%s\"", __func__);			\
+} while (0)
+#else
+#define MBUF_CHECKSLEEP(how)
+#endif
+
+/*
+ * Mbuf and data manipulation functions and macros:
+ *
+ * Evaluate TRUE if it's safe to write to the mbuf m's data region (this can
+ * be both the local data payload, or an external buffer area, depending on
+ * whether M_EXT is set).
+ */
+#define	M_WRITABLE(m)		_m_writable(m)
+
+/*
  * Set the m_data pointer of a newly-allocated mbuf (m_get/MGET) to place an
- * object of the specified size at the end of the mbuf, longword aligned.
- * As above, for mbufs allocated with m_gethdr/MGETHDR or initialized by
- * M_DUP/MOVE_PKTHDR.
- * As above, for mbuf with external storage.
+ * object of the specified size at the end of the mbuf of various types,
+ * longword aligned.
  */
 #define	M_ALIGN(m, len)		m_align(m, len)
 #define	MH_ALIGN(m, len)	m_align(m, len)
 #define	MEXT_ALIGN(m, len)	m_align(m, len)
 
 /*
- * Compute the amount of space available before the current start of data in
- * an mbuf.
+ * Compute the amount of space available before or after the current start
+ * of data in an mbuf.
  */
-int	_m_leadingspace(const struct mbuf *);
 #define	M_LEADINGSPACE(m)	_m_leadingspace(m)
+#define	M_TRAILINGSPACE(m)	_m_trailingspace(m)
 
 /*
- * Compute the amount of space available after the end of data in an mbuf.
+ * Move the mbuf packet header information from one mbuf to another one,
+ * including tags.
  */
-int	_m_trailingspace(const struct mbuf *);
-#define	M_TRAILINGSPACE(m)	_m_trailingspace(m)
+#define	M_MOVE_PKTHDR(to, from)	m_move_pkthdr((to), (from))
 
 /*
  * Arrange to prepend space of size plen to mbuf m.  If a new mbuf must be
@@ -588,19 +584,38 @@ int	_m_trailingspace(const struct mbuf *);
  */
 #define	M_PREPEND(m, plen, how)	(m = m_prepend(m, plen, how))
 
-/* Length to m_copy to copy all. */
-#define	M_COPYALL	1000000000
+/*
+ * Clear the protocol layer specific when passing a packet up or down the
+ * stack.
+ */
+static __inline void
+m_clrprotoflags(struct mbuf *m)
+{
 
-/* Compatibility with 4.3. */
-#define	m_copy(m, o, l)	m_copym((m), (o), (l), M_NOWAIT)
+	m->m_flags &= ~M_PROTOFLAGS;
+}
 
-extern int		max_datalen;	/* MHLEN - max_hdr */
-extern int		max_hdr;	/* Largest link + protocol header */
-extern int		max_linkhdr;	/* Largest link-level header */
-extern int		max_protohdr;	/* Largest protocol header */
-extern int		nmbclusters;	/* Maximum number of clusters */
+/*
+ * Accessor macros for getting and setting the associated FIB number of
+ * a packet.
+ */
+#define	M_GETFIB(m)	_m_getfib(m)
+static __inline uint16_t
+_m_getfib(const struct mbuf *m)
+{									\
+        KASSERT((m)->m_flags & M_PKTHDR,				\
+	    ("%s: Attempt to get FIB from non header mbuf", __func__));	\
+        return ((m)->m_pkthdr.fibnum);					\
+}
 
-struct uio;
+#define	M_SETFIB(m, fib) do {						\
+	KASSERT((m)->m_flags & M_PKTHDR,				\
+	    ("%s: Attempt to set FIB on non header mbuf", __func__));	\
+	((m)->m_pkthdr.fibnum) = (fib);					\
+} while (0)
+
+#define	M_COPYALL	1000000000	/* Length to m_copy to copy all. */
+#define	m_copy(m, o, l)	m_copym((m), (o), (l), M_NOWAIT) /* compat with 4.3 */
 
 void		 m_adj(struct mbuf *, int);
 void		 m_align(struct mbuf *, int);
@@ -624,9 +639,6 @@ struct mbuf	*m_devget(char *, int, int, struct ifnet *,
 		    void (*)(char *, caddr_t, u_int));
 struct mbuf	*m_dup(struct mbuf *, int);
 int		 m_dup_pkthdr(struct mbuf *, struct mbuf *, int);
-int		 m_extadd(struct mbuf *, caddr_t, u_int,
-		    int (*)(struct mbuf *, void *, void *), void *, void *,
-		    int, int, int);
 u_int		 m_fixhdr(struct mbuf *);
 struct mbuf	*m_fragment(struct mbuf *, int, int);
 struct mbuf	*m_getptr(struct mbuf *, int, int *);
@@ -640,8 +652,18 @@ struct mbuf	*m_pulldown(struct mbuf *, int, int, int *);
 struct mbuf	*m_pullup(struct mbuf *, int);
 int		 m_sanity(struct mbuf *, int);
 struct mbuf	*m_split(struct mbuf *, int, int);
-struct mbuf	*m_uiotombuf(struct uio *, int, int, int, int);
 struct mbuf	*m_unshare(struct mbuf *, int);
+
+/* Only to be used through macros. */
+int		_m_leadingspace(const struct mbuf *);
+int		_m_trailingspace(const struct mbuf *);
+int		_m_writable(const struct mbuf *);
+
+extern int	max_datalen;	/* MHLEN - max_hdr */
+extern int	max_hdr;	/* Largest link + protocol header */
+extern int	max_linkhdr;	/* Largest link-level header */
+extern int	max_protohdr;	/* Largest protocol header */
+extern int	nmbclusters;	/* Maximum number of clusters */
 
 /*-
  * Network packets may have annotations attached by affixing a list of
@@ -824,22 +846,6 @@ m_tag_find(struct mbuf *m, int type, struct m_tag *start)
 	    m_tag_locate(m, MTAG_ABI_COMPAT, type, start));
 }
 
-static int inline
-rt_m_getfib(struct mbuf *m)
-{
-	KASSERT(m->m_flags & M_PKTHDR , ("Attempt to get FIB from non header mbuf."));
-	return (m->m_pkthdr.fibnum);
-}
-
-#define M_GETFIB(_m)   rt_m_getfib(_m)
-
-#define M_SETFIB(_m, _fib) do {						\
-        KASSERT((_m)->m_flags & M_PKTHDR, ("Attempt to set FIB on non header mbuf."));	\
-	((_m)->m_pkthdr.fibnum) = (_fib);				\
-} while (0)
-
-#endif /* _KERNEL */
-
 #ifdef MBUF_PROFILING
  void m_profile(struct mbuf *m);
  #define M_PROFILE(m) m_profile(m)
@@ -847,5 +853,5 @@ rt_m_getfib(struct mbuf *m)
  #define M_PROFILE(m)
 #endif
 
-
+#endif /* _KERNEL */
 #endif /* !_SYS_MBUF_H_ */
