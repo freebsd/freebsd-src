@@ -71,7 +71,7 @@ extern int vm_guest;		/* Running as virtual machine guest? */
  * and/or add to the VM_GUEST_VM type if specific VM functionality is
  * ever implemented (e.g. vendor-specific paravirtualization features).
  */
-enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
+enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN, VM_GUEST_HV };
 
 #if defined(WITNESS) || defined(INVARIANTS)
 void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
