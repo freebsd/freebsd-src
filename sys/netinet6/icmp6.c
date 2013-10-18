@@ -2466,7 +2466,6 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 	struct llentry *ln = NULL;
 	size_t maxlen;
 	u_char *p;
-	struct ifnet *outif = NULL;
 	struct sockaddr_in6 src_sa;
 
 	icmp6_errcount(ND_REDIRECT, 0);
@@ -2704,15 +2703,7 @@ noredhdropt:;
 		m_freem(m0);
 		m0 = NULL;
 	}
-
-	/* XXX: clear embedded link IDs in the inner header */
-	in6_clearscope(&sip6->ip6_src);
-	in6_clearscope(&sip6->ip6_dst);
-	in6_clearscope(&nd_rd->nd_rd_target);
-	in6_clearscope(&nd_rd->nd_rd_dst);
-
 	ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(struct ip6_hdr));
-
 	nd_rd->nd_rd_cksum = 0;
 	nd_rd->nd_rd_cksum = in6_cksum(m, IPPROTO_ICMPV6,
 	    sizeof(*ip6), ntohs(ip6->ip6_plen));
@@ -2727,13 +2718,11 @@ noredhdropt:;
 	}
 
 	/* send the packet to outside... */
-	ip6_output(m, NULL, NULL, 0, NULL, &outif, NULL);
-	if (outif) {
-		icmp6_ifstat_inc(outif, ifs6_out_msg);
-		icmp6_ifstat_inc(outif, ifs6_out_redirect);
+	if (ip6_output(m, NULL, NULL, IPV6_USEROIF, NULL, &ifp, NULL) == 0) {
+		icmp6_ifstat_inc(ifp, ifs6_out_msg);
+		icmp6_ifstat_inc(ifp, ifs6_out_redirect);
 	}
 	ICMP6STAT_INC(icp6s_outhist[ND_REDIRECT]);
-
 	return;
 
 fail:
