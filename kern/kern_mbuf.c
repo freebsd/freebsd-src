@@ -460,13 +460,12 @@ static void
 mb_dtor_mbuf(void *mem, int size, void *arg)
 {
 	struct mbuf *m;
-	unsigned long flags;
 
 	m = (struct mbuf *)mem;
-	flags = (unsigned long)arg;
 
 	if ((m->m_flags & M_PKTHDR) && !SLIST_EMPTY(&m->m_pkthdr.tags))
 		m_tag_delete_chain(m, NULL);
+
 	KASSERT((m->m_flags & M_EXT) == 0, ("%s: M_EXT set", __func__));
 	KASSERT((m->m_flags & M_NOFREE) == 0, ("%s: M_NOFREE set", __func__));
 #ifdef INVARIANTS
@@ -492,8 +491,10 @@ mb_dtor_pack(void *mem, int size, void *arg)
 	KASSERT(m->m_ext.ext_free == NULL, ("%s: ext_free != NULL", __func__));
 	KASSERT(m->m_ext.ext_arg1 == NULL, ("%s: ext_arg1 != NULL", __func__));
 	KASSERT(m->m_ext.ext_arg2 == NULL, ("%s: ext_arg2 != NULL", __func__));
-	KASSERT(m->m_ext.ext_size == MCLBYTES, ("%s: ext_size != MCLBYTES", __func__));
-	KASSERT(m->m_ext.ext_type == EXT_PACKET, ("%s: ext_type != EXT_PACKET", __func__));
+	KASSERT(m->m_ext.ext_size == MCLBYTES,
+	    ("%s: ext_size != MCLBYTES", __func__));
+	KASSERT(m->m_ext.ext_type == EXT_PACKET,
+	    ("%s: ext_type != EXT_PACKET", __func__));
 	KASSERT(*m->m_ext.ref_cnt == 1, ("%s: ref_cnt != 1", __func__));
 #ifdef INVARIANTS
 	trash_dtor(m->m_ext.ext_buf, MCLBYTES, arg);
@@ -580,11 +581,11 @@ mb_dtor_clust(void *mem, int size, void *arg)
 {
 #ifdef INVARIANTS
 	uma_zone_t zone;
+	u_int refcnt;
 
 	zone = m_getzone(size);
-	KASSERT(*(uma_find_refcnt(zone, mem)) <= 1,
-		("%s: refcnt incorrect %u", __func__,
-		 *(uma_find_refcnt(zone, mem))) );
+	refcnt = *(uma_find_refcnt(zone, mem));
+	KASSERT(refcnt <= 1, ("%s: refcnt incorrect %u", __func__, refcnt));
 
 	trash_dtor(mem, size, arg);
 #endif
@@ -832,24 +833,28 @@ m_getjcl(int how, short type, int flags, int size)
 }
 
 /*
- * Allocate a 2K cluster and attach it to an mbuf.
+ * Allocate a 2K cluster and attach it to the supplied mbuf.
+ * The caller has to check for the M_EXT flag or m->m_ext.ext_buf
+ * to see if we were successful.
  */
 void
 m_clget(struct mbuf *m, int how)
 {
 
-	KASSERT((m->m_flags & M_EXT) == 0,
+	KASSERT((m->m_flags & M_EXT) == 0 && m->m_ext.ext_buf == NULL,
 	    ("%s: %p mbuf already has cluster", __func__, m));
 
-	m->m_ext.ext_buf = (char *)NULL;
-	uma_zalloc_arg(zone_clust, m, how);
-	/*
-	 * On a cluster allocation failure, drain the packet zone and retry,
-	 * we might be able to loosen a few clusters up on the drain.
-	 */
-	if ((how & M_NOWAIT) && (m->m_ext.ext_buf == NULL)) {
-		zone_drain(zone_pack);
-		uma_zalloc_arg(zone_clust, m, how);
+	if (uma_zalloc_arg(zone_clust, m, how) == NULL) {
+		/*
+		 * On a cluster allocation failure, drain the packet zone
+		 * and retry, we might be able to loosen a few clusters up
+		 * on the drain.
+		 */
+		m->m_ext.ext_buf = NULL;
+		if (how & M_NOWAIT) {
+			zone_drain(zone_pack);
+			uma_zalloc_arg(zone_clust, m, how);
+		}
 	}
 }
 
@@ -865,8 +870,9 @@ m_cljget(struct mbuf *m, int how, int size)
 {
 	uma_zone_t zone;
 
-	if (m && m->m_flags & M_EXT)
-		printf("%s: %p mbuf already has cluster\n", __func__, m);
+	KASSERT(m == NULL ||
+	    ((m->m_flags & M_EXT) == 0 && m->m_ext.ext_buf == NULL),
+	    ("%s: %p mbuf already has cluster", __func__, m));
 	if (m != NULL)
 		m->m_ext.ext_buf = NULL;
 
@@ -926,7 +932,7 @@ struct mbuf *
 m_get2(int size, int how, short type, int flags)
 {
 	struct mb_args args;
-	struct mbuf *m, *n;
+	struct mbuf *m;
 
 	args.flags = flags;
 	args.type = type;
@@ -939,12 +945,9 @@ m_get2(int size, int how, short type, int flags)
 	if (size > MJUMPAGESIZE)
 		return (NULL);
 
-	m = uma_zalloc_arg(zone_mbuf, &args, how);
-	if (m == NULL)
+	if ((m = uma_zalloc_arg(zone_mbuf, &args, how)) == NULL)
 		return (NULL);
-
-	n = uma_zalloc_arg(zone_jumbop, m, how);
-	if (n == NULL) {
+	if (uma_zalloc_arg(zone_jumbop, m, how) == NULL) {
 		uma_zfree(zone_mbuf, m);
 		return (NULL);
 	}
@@ -1120,6 +1123,7 @@ m_extaddref(struct mbuf *m, caddr_t buf, u_int size, u_int *ref_cnt,
 	m->m_ext.ext_free = freef;
 	m->m_ext.ext_arg1 = arg1;
 	m->m_ext.ext_arg2 = arg2;
+	m->m_ext.ext_flags = 0;
 	m->m_ext.ext_type = EXT_EXTREF;
 }
 
