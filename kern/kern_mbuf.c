@@ -998,6 +998,13 @@ m_getm2(struct mbuf *m, int len, int how, short type, int flags)
 	return (m);
 }
 
+void
+m_chtype(struct mbuf *m, short new_type)
+{
+
+	m->m_type = new_type;
+}
+
 struct mbuf *
 m_free(struct mbuf *m)
 {

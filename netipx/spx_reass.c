@@ -413,7 +413,7 @@ present:
 					}
 				}
 				if (sp->spx_cc & SPX_OB) {
-					MCHTYPE(mqsi, MT_OOBDATA);
+					m_chtype(mqsi, MT_OOBDATA);
 					spx_newchecks[1]++;
 					so->so_oobmark = 0;
 					so->so_rcv.sb_state &= ~SBS_RCVATMARK;

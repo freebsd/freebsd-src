@@ -514,21 +514,6 @@ struct mbuf	*m_get2(int, int, short, int);
 struct mbuf	*m_getjcl(int, short, int, int);
 struct mbuf	*m_getm2(struct mbuf *, int, int, short, int);
 
-
-
-/*
- * Change mbuf to new type.  This is a relatively expensive operation and
- * should be avoided.
- */
-#define	MCHTYPE(m, t)	m_chtype((m), (t))
-
-static __inline void
-m_chtype(struct mbuf *m, short new_type)
-{
-
-	m->m_type = new_type;
-}
-
 static __inline void
 m_clrprotoflags(struct mbuf *m)
 {
@@ -623,9 +608,7 @@ int		 m_apply(struct mbuf *, int, int,
 		    int (*)(void *, void *, u_int), void *);
 int		 m_append(struct mbuf *, int, c_caddr_t);
 void		 m_cat(struct mbuf *, struct mbuf *);
-int		 m_extadd(struct mbuf *, caddr_t, u_int,
-		    int (*)(struct mbuf *, void *, void *), void *, void *,
-		    int, int, int);
+void		 m_chtype(struct mbuf *, short);
 struct mbuf	*m_collapse(struct mbuf *, int, int);
 void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);
@@ -641,6 +624,9 @@ struct mbuf	*m_devget(char *, int, int, struct ifnet *,
 		    void (*)(char *, caddr_t, u_int));
 struct mbuf	*m_dup(struct mbuf *, int);
 int		 m_dup_pkthdr(struct mbuf *, struct mbuf *, int);
+int		 m_extadd(struct mbuf *, caddr_t, u_int,
+		    int (*)(struct mbuf *, void *, void *), void *, void *,
+		    int, int, int);
 u_int		 m_fixhdr(struct mbuf *);
 struct mbuf	*m_fragment(struct mbuf *, int, int);
 struct mbuf	*m_getptr(struct mbuf *, int, int *);
