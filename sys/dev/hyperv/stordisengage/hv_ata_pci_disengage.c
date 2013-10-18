@@ -75,16 +75,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-pci.h>
 #include <ata_if.h>
 
-#define HV_X64_MSR_GUEST_OS_ID	0x40000000
-#define HV_X64_CPUID_MIN	0x40000005
-#define HV_X64_CPUID_MAX	0x4000ffff
-
 /* prototypes */
 static int hv_ata_pci_probe(device_t dev);
 static int hv_ata_pci_attach(device_t dev);
 static int hv_ata_pci_detach(device_t dev);
-
-static int hv_check_for_hyper_v(void);
 
 /*
  * generic PCI ATA device probe
@@ -100,7 +94,7 @@ hv_ata_pci_probe(device_t dev)
 	/*
 	 * Don't probe if not running in a Hyper-V environment
 	 */
-	if (!hv_check_for_hyper_v())
+	if (vm_guest != VM_GUEST_HV)
 		return (ENXIO);
 
 	if (device_get_unit(parent) != 0 || device_get_ivars(dev) != 0)
@@ -137,33 +131,6 @@ hv_ata_pci_detach(device_t dev)
 {
 
 	return (0);
-}
-
-/**
-* Detect Hyper-V and enable fast IDE
-* via enlighted storage driver
-*/
-static int
-hv_check_for_hyper_v(void)
-{
-	u_int regs[4];
-	int hyper_v_detected;
-
-	hyper_v_detected = 0;
-	do_cpuid(1, regs);
-	if (regs[2] & 0x80000000) {
-		/*
-		 * if(a hypervisor is detected)
-		 *  make sure this really is Hyper-V
-		 */
-		do_cpuid(HV_X64_MSR_GUEST_OS_ID, regs);
-		hyper_v_detected =
-			regs[0] >= HV_X64_CPUID_MIN &&
-			regs[0] <= HV_X64_CPUID_MAX &&
-			!memcmp("Microsoft Hv", &regs[1], 12);
-	}
-
-	return (hyper_v_detected);
 }
 
 static device_method_t hv_ata_pci_methods[] = {
