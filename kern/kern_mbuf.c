@@ -297,7 +297,7 @@ static int	mb_zinit_pack(void *, int, int);
 static void	mb_zfini_pack(void *, int);
 
 static void	mb_reclaim(void *);
-static void	mb_free_ext(struct mbuf *)
+static void	mb_free_ext(struct mbuf *);
 static void    *mbuf_jumbo_alloc(uma_zone_t, int, uint8_t *, int);
 
 /*
@@ -310,15 +310,13 @@ struct mb_args {
 };
 
 /*
- * Initialize FreeBSD Network buffer allocation.
+ * Initialize FreeBSD network buffer allocation and
+ * configure UMA zones for mbufs, clusters, and packets.
  */
 static void
 mbuf_init(void *dummy)
 {
 
-	/*
-	 * Configure UMA zones for Mbufs, Clusters, and Packets.
-	 */
 	zone_mbuf = uma_zcreate(MBUF_MEM_NAME, MSIZE,
 	    mb_ctor_mbuf, mb_dtor_mbuf,
 #ifdef INVARIANTS
@@ -660,6 +658,9 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 	return (error);
 }
 
+/*
+ * Find the UMA zone based on the size of an cluster allocation.
+ */
 static uma_zone_t
 m_getzone(int size)
 {
@@ -689,14 +690,9 @@ m_getzone(int size)
 
 /*
  * Initialize an mbuf with linear storage.
- *
- * Inline because the consumer text overhead will be roughly the same to
- * initialize or call a function with this many parameters and M_PKTHDR
- * should go away with constant propagation for !MGETHDR.
  */
 int
-m_init(struct mbuf *m, int size, int how, short type,
-    int flags)
+m_init(struct mbuf *m, int size, int how, short type, int flags)
 {
 	int error;
 
@@ -714,6 +710,9 @@ m_init(struct mbuf *m, int size, int how, short type,
 	return (0);
 }
 
+/*
+ * Initialize the mh_pkthdr of an mbuf.
+ */
 int
 m_pkthdr_init(struct mbuf *m, int how)
 {
@@ -745,6 +744,9 @@ m_pkthdr_init(struct mbuf *m, int how)
 	return (0);
 }
 
+/*
+ * Allocate a stand-alone mbuf.
+ */
 struct mbuf *
 m_get(int how, short type)
 {
@@ -756,7 +758,8 @@ m_get(int how, short type)
 }
 
 /*
- * XXX This should be deprecated, very little use.
+ * Allocate a stand-alone mbuf with the data field zeroed.
+ * XXX: This should be deprecated, very little use.
  */
 struct mbuf *
 m_getclr(int how, short type)
@@ -772,6 +775,9 @@ m_getclr(int how, short type)
 	return (m);
 }
 
+/*
+ * Allocate a stand-alone packet header mbuf.
+ */
 struct mbuf *
 m_gethdr(int how, short type)
 {
@@ -782,6 +788,9 @@ m_gethdr(int how, short type)
 	return (uma_zalloc_arg(zone_mbuf, &args, how));
 }
 
+/*
+ * Allocate an mbuf+cluster package.
+ */
 struct mbuf *
 m_getcl(int how, short type, int flags)
 {
@@ -822,12 +831,16 @@ m_getjcl(int how, short type, int flags, int size)
 	return (m);
 }
 
+/*
+ * Allocate a 2K cluster and attach it to an mbuf.
+ */
 void
 m_clget(struct mbuf *m, int how)
 {
 
-	if (m->m_flags & M_EXT)
-		printf("%s: %p mbuf already has cluster\n", __func__, m);
+	KASSERT((m->m_flags & M_EXT) == 0,
+	    ("%s: %p mbuf already has cluster", __func__, m));
+
 	m->m_ext.ext_buf = (char *)NULL;
 	uma_zalloc_arg(zone_clust, m, how);
 	/*
@@ -861,6 +874,9 @@ m_cljget(struct mbuf *m, int how, int size)
 	return (uma_zalloc_arg(zone, m, how));
 }
 
+/*
+ * Attach a previously allocated cluster to an mbuf.
+ */
 void
 m_cljset(struct mbuf *m, void *cl, int type)
 {
@@ -902,7 +918,9 @@ m_cljset(struct mbuf *m, void *cl, int type)
 }
 
 /*
- * m_get2() allocates minimum mbuf that would fit "size" argument.
+ * m_get2() allocates the smallest single mbuf, with external storage if
+ * necessray, that fits "size" argument.  Returns NULL if the requested
+ * size exceeds the largest available size.
  */
 struct mbuf *
 m_get2(int size, int how, short type, int flags)
@@ -999,6 +1017,9 @@ m_getm2(struct mbuf *m, int len, int how, short type, int flags)
 	return (m);
 }
 
+/*
+ * Change the type of an mbuf.
+ */
 void
 m_chtype(struct mbuf *m, short new_type)
 {
@@ -1006,6 +1027,10 @@ m_chtype(struct mbuf *m, short new_type)
 	m->m_type = new_type;
 }
 
+/*
+ * Free a single mbuf or an entire chain of mbufs and associated external
+ * buffers, if applicable.
+ */
 struct mbuf *
 m_free(struct mbuf *m)
 {
@@ -1020,10 +1045,6 @@ m_free(struct mbuf *m)
 	return (n);
 }
 
-/*
- * Free an entire chain of mbufs and associated external buffers, if
- * applicable.
- */
 void
 m_freem(struct mbuf *mb)
 {
