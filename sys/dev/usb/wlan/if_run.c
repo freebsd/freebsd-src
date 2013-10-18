@@ -4388,8 +4388,12 @@ run_rt3070_rf_init(struct run_softc *sc)
 		}
 	}
 
-	if (sc->mac_ver == 0x3070) {
-		/* change voltage from 1.2V to 1.35V for RT3070 */
+	if (sc->mac_ver == 0x3070 && sc->mac_rev < 0x0201) {
+		/* 
+		 * Change voltage from 1.2V to 1.35V for RT3070.
+		 * The DAC issue (RT3070_LDO_CFG0) has been fixed
+		 * in RT3070(F).
+		 */
 		run_read(sc, RT3070_LDO_CFG0, &tmp);
 		tmp = (tmp & ~0x0f000000) | 0x0d000000;
 		run_write(sc, RT3070_LDO_CFG0, tmp);
@@ -4439,7 +4443,7 @@ run_rt3070_rf_init(struct run_softc *sc)
 
 	/* select 40MHz bandwidth */
 	run_bbp_read(sc, 4, &bbp4);
-	run_bbp_write(sc, 4, (bbp4 & ~0x08) | 0x10);
+	run_bbp_write(sc, 4, (bbp4 & ~0x18) | 0x10);
 	run_rt3070_rf_read(sc, 31, &rf);
 	run_rt3070_rf_write(sc, 31, rf | 0x20);
 
@@ -4456,7 +4460,7 @@ run_rt3070_rf_init(struct run_softc *sc)
 		/* save default BBP registers 25 and 26 values */
 		run_bbp_read(sc, 25, &sc->bbp25);
 		run_bbp_read(sc, 26, &sc->bbp26);
-	} else if (sc->mac_rev < 0x0211)
+	} else if (sc->mac_rev < 0x0201 || sc->mac_rev < 0x0211)
 		run_rt3070_rf_write(sc, 27, 0x03);
 
 	run_read(sc, RT3070_OPT_14, &tmp);
