@@ -17,19 +17,19 @@ WARNS?=		3
 # Ignore warnings about Solaris specific pragmas.
 IGNORE_PRAGMA=  YES
 
-INCFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzpool/common
-INCFLAGS+= -I${.CURDIR}/../../../cddl/compat/opensolaris/include
-INCFLAGS+= -I${.CURDIR}/../../../cddl/compat/opensolaris/lib/libumem
-INCFLAGS+= -I${.CURDIR}/../../../sys/cddl/compat/opensolaris
-INCFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/head
-INCFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libuutil/common
-INCFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libumem/common
-INCFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzfs/common
-INCFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libnvpair
-INCFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/zfs
-INCFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common
-INCFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/fs/zfs
-INCFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/sys
+INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/lib/libzpool/common
+INCFLAGS+= -I${SRCDIR}/cddl/compat/opensolaris/include
+INCFLAGS+= -I${SRCDIR}/cddl/compat/opensolaris/lib/libumem
+INCFLAGS+= -I${SRCDIR}/sys/cddl/compat/opensolaris
+INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/head
+INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/lib/libuutil/common
+INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/lib/libumem/common
+INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/lib/libzfs/common
+INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/lib/libnvpair
+INCFLAGS+= -I${SRCDIR}/sys/cddl/contrib/opensolaris/common/zfs
+INCFLAGS+= -I${SRCDIR}/sys/cddl/contrib/opensolaris/uts/common
+INCFLAGS+= -I${SRCDIR}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs
+INCFLAGS+= -I${SRCDIR}/sys/cddl/contrib/opensolaris/uts/common/sys
 
 CFLAGS= -g -DNEED_SOLARIS_BOOLEAN ${INCFLAGS}
 
