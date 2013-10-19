@@ -38,31 +38,37 @@ ATFFILE?= auto
 
 .if !empty(ATF_TESTS_C)
 PROGS+= ${ATF_TESTS_C}
+_TESTS+= ${ATF_TESTS_C}
 .for _T in ${ATF_TESTS_C}
 BINDIR.${_T}= ${TESTSDIR}
 MAN.${_T}?= # empty
 SRCS.${_T}?= ${_T}.c
 DPADD.${_T}+= ${LIBATF_C}
 LDADD.${_T}+= -latf-c
+TEST_INTERFACE.${_T}= atf
 .endfor
 .endif
 
 .if !empty(ATF_TESTS_CXX)
 PROGS_CXX+= ${ATF_TESTS_CXX}
 PROGS+= ${ATF_TESTS_CXX}
+_TESTS+= ${ATF_TESTS_CXX}
 .for _T in ${ATF_TESTS_CXX}
 BINDIR.${_T}= ${TESTSDIR}
 MAN.${_T}?= # empty
 SRCS.${_T}?= ${_T}${CXX_SUFFIX:U.cc}
 DPADD.${_T}+= ${LIBATF_CXX} ${LIBATF_C}
 LDADD.${_T}+= -latf-c++ -latf-c
+TEST_INTERFACE.${_T}= atf
 .endfor
 .endif
 
 .if !empty(ATF_TESTS_SH)
 SCRIPTS+= ${ATF_TESTS_SH}
+_TESTS+= ${ATF_TESTS_SH}
 .for _T in ${ATF_TESTS_SH}
 SCRIPTSDIR_${_T}= ${TESTSDIR}
+TEST_INTERFACE.${_T}= atf
 CLEANFILES+= ${_T} ${_T}.tmp
 ATF_TESTS_SH_SRC_${_T}?= ${_T}.sh
 ${_T}: ${ATF_TESTS_SH_SRC_${_T}}
