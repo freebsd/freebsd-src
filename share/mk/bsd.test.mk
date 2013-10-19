@@ -20,6 +20,10 @@ TESTSBASE?= /usr/tests
 # Makefiles have to override this to point to a subdirectory of TESTSBASE.
 TESTSDIR?= .
 
+# Name of the test suite these tests belong to.  Should rarely be changed for
+# Makefiles built into the FreeBSD src tree.
+TESTSUITE?= FreeBSD
+
 # List of subdirectories containing tests into which to recurse.  This has the
 # same semantics as SUBDIR at build-time.  However, the directories listed here
 # get registered into the run-time test suite definitions so that the test
@@ -82,6 +86,8 @@ test: aftertest
 
 .if !empty(PROGS) || !empty(PROGS_CXX) || !empty(SCRIPTS)
 .include <bsd.progs.mk>
+.elif !empty(FILES)
+.include <bsd.files.mk>
 .endif
 
 .include <bsd.obj.mk>
