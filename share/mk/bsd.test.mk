@@ -45,6 +45,18 @@ TESTS_SUBDIRS?=
 # If 'no', no Kyuafile is installed.
 KYUAFILE?= auto
 
+# List of variables to pass to the tests at run-time via the environment.
+TESTS_ENV?=
+
+# Ordered list of directories to construct the PATH for the tests.
+TESTS_PATH+= ${DESTDIR}/bin ${DESTDIR}/sbin \
+             ${DESTDIR}/usr/bin ${DESTDIR}/usr/sbin
+TESTS_ENV+= PATH=${TESTS_PATH:tW:C/ +/:/g}
+
+# Ordered list of directories to construct the LD_LIBRARY_PATH for the tests.
+TESTS_LD_LIBRARY_PATH+= ${DESTDIR}/lib ${DESTDIR}/usr/lib
+TESTS_ENV+= LD_LIBRARY_PATH=${TESTS_LD_LIBRARY_PATH:tW:C/ +/:/g}
+
 # List of all tests being built.  This variable is internal should not be
 # defined by the Makefile.  The various *.test.mk modules extend this variable
 # as needed.
