@@ -2883,6 +2883,9 @@ igb_setup_msix(struct adapter *adapter)
 	if (queues > maxqueues)
 		queues = maxqueues;
 
+	/* reflect correct sysctl value */
+	igb_num_queues = queues;
+
 	/*
 	** One vector (RX/TX pair) per queue
 	** plus an additional for Link interrupt
