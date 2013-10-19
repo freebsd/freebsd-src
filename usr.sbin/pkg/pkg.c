@@ -157,7 +157,7 @@ bootstrap_pkg(void)
 	config = NULL;
 	current = mirrors = NULL;
 
-	printf("Bootstrapping pkg please wait\n");
+	printf("Bootstrapping pkg, please wait...\n");
 
 	if (config_string(PACKAGESITE, &packagesite) != 0) {
 		warnx("No PACKAGESITE defined");
