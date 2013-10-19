@@ -169,12 +169,6 @@
             ..
             atm
             ..
-            bind9
-                arm
-                ..
-                misc
-                ..
-            ..
             legal
                 intel_ipw
                 ..
