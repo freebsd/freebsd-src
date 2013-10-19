@@ -62,6 +62,13 @@ TESTS_ENV+= LD_LIBRARY_PATH=${TESTS_LD_LIBRARY_PATH:tW:C/ +/:/g}
 # as needed.
 _TESTS?=
 
+# Path to the prefix of the installed Kyua CLI, if any.
+#
+# If kyua is installed from ports, we automatically define a realtest target
+# below to run the tests using this tool.  The tools are searched for in the
+# hierarchy specified by this variable.
+KYUA_PREFIX?= /usr/local
+
 .if !empty(TESTS_SUBDIRS)
 SUBDIR+= ${TESTS_SUBDIRS}
 .endif
@@ -101,6 +108,32 @@ Kyuafile: Makefile
 .endfor
 	@mv Kyuafile.tmp Kyuafile
 .endif
+.endif
+
+KYUA?= ${KYUA_PREFIX}/bin/kyua
+.if exists(${KYUA})
+# Definition of the "make test" target and supporting variables.
+#
+# This target, by necessity, can only work for native builds (i.e. a FreeBSD
+# host building a release for the same system).  The target runs Kyua, which is
+# not in the toolchain, and the tests execute code built for the target host.
+#
+# Due to the dependencies of the binaries built by the source tree and how they
+# are used by tests, it is highly possible for a execution of "make test" to
+# report bogus results unless the new binaries are put in place.
+realtest: .PHONY
+	@echo "*** WARNING: make test is experimental"
+	@echo "***"
+	@echo "*** Using this test does not preclude you from running the tests"
+	@echo "*** installed in ${TESTSBASE}.  This test run may raise false"
+	@echo "*** positives and/or false negatives."
+	@echo
+	@set -e; \
+	${KYUA} test -k ${DESTDIR}${TESTSDIR}/Kyuafile; \
+	result=0; \
+	echo; \
+	echo "*** Once again, note that "make test" is unsupported."; \
+	test $${result} -eq 0
 .endif
 
 beforetest: .PHONY
