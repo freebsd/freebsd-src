@@ -132,7 +132,7 @@ g_label_resize(struct g_consumer *cp)
 	    LIST_FIRST(&cp->geom->provider)->name);
 
 	g_slice_config(cp->geom, 0, G_SLICE_CONFIG_FORCE, (off_t)0,
-	    cp->provider->mediasize, cp->provider->sectorsize, NULL);
+	    cp->provider->mediasize, cp->provider->sectorsize, "notused");
 }
 
 static int
