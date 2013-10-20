@@ -49,3 +49,6 @@ dev/ofw/ofw_iicbus.c			optional fsliic
 # IPU - Image Processing Unit (frame buffer also)
 arm/freescale/imx/imx51_ipuv3.c		optional sc
 
+# Fast Ethernet Controller
+dev/ffec/if_ffec.c 			optional ffec
+
