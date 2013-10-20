@@ -656,6 +656,7 @@ int		 m_mbuftouio(struct uio *, struct mbuf *, int);
 void		 m_move_pkthdr(struct mbuf *, struct mbuf *);
 struct mbuf	*m_prepend(struct mbuf *, int, int);
 void		 m_print(const struct mbuf *, int);
+void		 m_printm(const struct mbuf *, int);
 struct mbuf	*m_pulldown(struct mbuf *, int, int, int *);
 struct mbuf	*m_pullup(struct mbuf *, int);
 int		 m_sanity(struct mbuf *, int);

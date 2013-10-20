@@ -1216,40 +1216,74 @@ m_getptr(struct mbuf *m, int loc, int *off)
 	return (NULL);
 }
 
+/*
+ * Print the mbuf header fields and contents.
+ * XXXAO: Add printing of interface name.
+ */
 void
 m_print(const struct mbuf *m, int maxlen)
 {
-	int len;
-	int pdata;
-	const struct mbuf *m2;
+	struct m_tag *mt;
+#define	P	printf
 
-	if (m == NULL) {
-		printf("mbuf: %p\n", m);
-		return;
+	P("mbuf: %p\n", m);
+	P("  m_next: %p, m_nextpkt: %p\n", m->m_next, m->m_nextpkt);
+	P("  m_data: %p, m_len: %i, m_type: %#2x\n", m->m_data, m->m_len,
+	    m->m_type);
+	P("  m_flags: %b\n", m->m_flags, M_FLAG_PRINTF);
+
+	if (m->m_flags & M_PKTHDR) {
+	P("  m_pkthdr:\n");
+	P("    rcvif: %p, len: %i, fibnum: %#4hx\n", m->m_pkthdr.rcvif,
+	    m->m_pkthdr.len, m->m_pkthdr.fibnum);
+	P("    flowid: %#x, rsstype: %#2hhx, cosqos: %#2hhx\n",
+	    m->m_pkthdr.flowid, m->m_pkthdr.rsstype, m->m_pkthdr.cosqos);
+	P("    csum_flags: %b\n", (int)m->m_pkthdr.csum_flags, CSUM_BITS);
+	P("    l2hlen: %hhu, l3hlen: %hhu, l4hlen: %hhu, l5hlen: %hhu\n",
+	    m->m_pkthdr.l2hlen, m->m_pkthdr.l3hlen, m->m_pkthdr.l4hlen,
+	    m->m_pkthdr.l5hlen);
+	P("    PH_per: %p, PH_loc: %p\n", m->m_pkthdr.PH_per.ptr,
+	    m->m_pkthdr.PH_loc.ptr);
+	P("    ether_vtag: %#4hx, tso_segsz: %i, csum_phsum: %#4hx\n",
+	    m->m_pkthdr.ether_vtag, m->m_pkthdr.tso_segsz,
+	    m->m_pkthdr.csum_phsum);
+	SLIST_FOREACH(mt, &m->m_pkthdr.tags, m_tag_link) {
+	P("  m_tag: %p\n", mt);
+	P("   m_tag_id: %#4hx, m_tag_len: %hu, m_tag_cookie: %#8x, m_tag_free: %p\n",
+	    mt->m_tag_id, mt->m_tag_len, mt->m_tag_cookie, mt->m_tag_free);
+	} /* SLIST_FOREACH */
+	} /* M_PKTHDR */
+
+	if (m->m_flags & M_EXT) {
+	P("  m_ext:\n");
+	P("    ext_buf: %p, ext_size: %i, ext_type: %#2x\n", m->m_ext.ext_buf,
+	    m->m_ext.ext_size, m->m_ext.ext_type);
+	P("    ext_flags: %b\n", m->m_ext.ext_flags, EXT_FLAG_BITS);
+	P("    ref_cnt: %p, *ref_cnt: %u\n", m->m_ext.ref_cnt,
+	    (m->m_ext.ref_cnt ? *(m->m_ext.ref_cnt) : 0));
+	P("    ext_free: %p, ext_arg1: %p, ext_arg2: %p\n", m->m_ext.ext_free,
+	    m->m_ext.ext_arg1, m->m_ext.ext_arg2);
+	} /* M_EXT */
+
+	maxlen = imin(maxlen, m->m_len);
+	if (maxlen > 0) {
+	P("\n  m_data:\n");
+	P("%*D\n", maxlen, (u_char *)m->m_data, "-");
 	}
 
-	if (m->m_flags & M_PKTHDR)
-		len = m->m_pkthdr.len;
-	else
-		len = -1;
-	m2 = m;
-	while (m2 != NULL && (len == -1 || len)) {
-		pdata = m2->m_len;
-		if (maxlen != -1 && pdata > maxlen)
-			pdata = maxlen;
-		printf("mbuf: %p len: %d, next: %p, %b%s", m2, m2->m_len,
-		    m2->m_next, m2->m_flags, "\20\20freelist\17skipfw"
-		    "\11proto5\10proto4\7proto3\6proto2\5proto1\4rdonly"
-		    "\3eor\2pkthdr\1ext", pdata ? "" : "\n");
-		if (pdata)
-			printf(", %*D\n", pdata, (u_char *)m2->m_data, "-");
-		if (len != -1)
-			len -= m2->m_len;
-		m2 = m2->m_next;
-	}
-	if (len > 0)
-		printf("%d bytes unaccounted for.\n", len);
-	return;
+	P("\n");
+#undef P
+}
+
+/*
+ * Print the mbuf header fields and contents for entire chain of mbufs.
+ */
+void
+m_printm(const struct mbuf *m, int maxlen)
+{
+
+	for (; m != NULL; maxlen -= m->m_len, m = m->m_next)
+		m_print(m, maxlen);
 }
 
 u_int
