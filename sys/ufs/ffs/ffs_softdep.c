@@ -13686,6 +13686,17 @@ DB_SHOW_COMMAND(mkdirs, db_show_mkdirs)
 	}
 }
 
+/* exported to ffs_vfsops.c */
+extern void db_print_ffs(struct ufsmount *ump);
+void
+db_print_ffs(struct ufsmount *ump)
+{
+	db_printf("mp %p %s devvp %p fs %p su_wl %d su_deps %d su_req %d\n",
+	    ump->um_mountp, ump->um_mountp->mnt_stat.f_mntonname,
+	    ump->um_devvp, ump->um_fs, ump->softdep_on_worklist,
+	    ump->softdep_deps, ump->softdep_req);
+}
+
 #endif /* DDB */
 
 #endif /* SOFTUPDATES */
