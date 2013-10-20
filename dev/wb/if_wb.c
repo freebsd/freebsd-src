@@ -142,7 +142,6 @@ static int wb_probe(device_t);
 static int wb_attach(device_t);
 static int wb_detach(device_t);
 
-static int wb_bfree(struct mbuf *, void *addr, void *args, int action);
 static int wb_newbuf(struct wb_softc *, struct wb_chain_onefrag *,
 		struct mbuf *);
 static int wb_encap(struct wb_softc *, struct wb_chain *, struct mbuf *);
@@ -822,13 +821,6 @@ wb_list_rx_init(sc)
 	return(0);
 }
 
-static int
-wb_bfree(struct mbuf *m, void *buf, void *args, int action)
-{
-
-	return (EXT_FREE_OK);
-}
-
 /*
  * Initialize an RX descriptor and attach an MBUF cluster.
  */
@@ -841,13 +833,10 @@ wb_newbuf(sc, c, m)
 	struct mbuf		*m_new = NULL;
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_NOWAIT, MT_DATA);
+		m_new = m_getcl(M_NOWAIT, MT_DATA, 0);
 		if (m_new == NULL)
 			return(ENOBUFS);
-		m_new->m_data = c->wb_buf;
 		m_new->m_pkthdr.len = m_new->m_len = WB_BUFBYTES;
-		MEXTADD(m_new, c->wb_buf, WB_BUFBYTES, wb_bfree, c->wb_buf,
-		    NULL, 0, EXT_NET_DRV);
 	} else {
 		m_new = m;
 		m_new->m_len = m_new->m_pkthdr.len = WB_BUFBYTES;
