@@ -381,15 +381,14 @@ llan_send_packet(void *xsc, bus_dma_segment_t *segs, int nsegs,
 		bufdescs[i] |= segs[i].ds_addr;
 	}
 
-	error = phyp_hcall(H_SEND_LOGICAL_LAN, sc->unit, bufdescs[0],
+	phyp_hcall(H_SEND_LOGICAL_LAN, sc->unit, bufdescs[0],
 	    bufdescs[1], bufdescs[2], bufdescs[3], bufdescs[4], bufdescs[5], 0);
-#if 0
-	if (error)
-		sc->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-
-	/* XXX: handle H_BUSY? */
-	/* H_SEND_LOGICAL_LAN returning 0 implies completion of the send op */
-#endif
+	/*
+	 * The hypercall returning implies completion -- or that the call will
+	 * not complete. In principle, we should try a few times if we get back
+	 * H_BUSY based on the continuation token in R4. For now, just drop
+	 * the packet in such cases.
+	 */
 }
 
 static void
@@ -425,9 +424,9 @@ llan_start_locked(struct ifnet *ifp)
 			}
 		}
 
-		bus_dmamap_load_mbuf(sc->tx_dma_tag, sc->tx_dma_map, //xfer->dmamap,
+		bus_dmamap_load_mbuf(sc->tx_dma_tag, sc->tx_dma_map,
 			mb_head, llan_send_packet, sc, 0);
-		bus_dmamap_unload(sc->tx_dma_tag, sc->tx_dma_map); // XXX
+		bus_dmamap_unload(sc->tx_dma_tag, sc->tx_dma_map);
 		m_freem(mb_head);
 	}
 }
