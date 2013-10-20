@@ -147,9 +147,6 @@ uart_pl011_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 		break;
 	}
 
-	/* TODO: Calculate divisors */
-	baud = (0x1 << 16) | 0x28;
-
 	if (stopbits == 2)
 		line |= LCR_H_STP2;
 	else
@@ -164,8 +161,11 @@ uart_pl011_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	line &=  ~LCR_H_FEN;
 	ctrl |= (CR_RXE | CR_TXE | CR_UARTEN);
 
-	__uart_setreg(bas, UART_IBRD, ((uint32_t)(baud >> 16)) & IBRD_BDIVINT);
-	__uart_setreg(bas, UART_FBRD, (uint32_t)(baud) & FBRD_BDIVFRAC);
+	if (bas->rclk != 0 && baudrate != 0) {
+		baud = bas->rclk * 4 / baudrate;
+		__uart_setreg(bas, UART_IBRD, ((uint32_t)(baud >> 6)) & IBRD_BDIVINT);
+		__uart_setreg(bas, UART_FBRD, (uint32_t)(baud & 0x3F) & FBRD_BDIVFRAC);
+	}
 
 	/* Add config. to line before reenabling UART */
 	__uart_setreg(bas, UART_LCR_H, (__uart_getreg(bas, UART_LCR_H) &
