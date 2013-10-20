@@ -178,46 +178,92 @@ m_sanity(struct mbuf *m0, int sanitize)
 		if ((caddr_t)m->m_data + m->m_len > b)
 			M_SANITY_ACTION("m_data + m_len exeeds mbuf space");
 
-		/* m->m_nextpkt may only be set on first mbuf in chain. */
-		if (m != m0 && m->m_nextpkt != NULL) {
-			if (sanitize) {
-				m_freem(m->m_nextpkt);
-				m->m_nextpkt = (struct mbuf *)0xDEADC0DE;
-			} else
-				M_SANITY_ACTION("m->m_nextpkt on in-chain mbuf");
+		/*
+		 * Empty mbufs should not appear in a chain.
+		 */
+		if (m->m_len == 0)
+			M_SANITY_ACTION("empty mbuf in chain");
+
+		/*
+		 * M_PKTHDR may only be set on first mbuf in chain.
+		 */
+		if (m != m0 && m->m_flags & M_PKTHDR)
+			M_SANITY_ACTION("M_PKTHDR on in-chain mbuf");
+
+		/*
+		 * m->m_nextpkt may only be set on first mbuf in chain.
+		 */
+		if (m != m0 && m->m_nextpkt != NULL)
+			M_SANITY_ACTION("m->m_nextpkt on in-chain mbuf");
+
+		/*
+		 * m_tags may only be attached to first mbuf in chain.
+		 */
+		if (m != m0 && m->m_flags & M_PKTHDR &&
+		    !SLIST_EMPTY(&m->m_pkthdr.tags))
+			M_SANITY_ACTION("m_tags on in-chain mbuf");
+
+		/*
+		 * Validate m_flags that require m_pkthdr.
+		 */
+		if ((m->m_flags & M_PKTHDR) == 0 &&
+		    (m->m_flags & (M_BCAST|M_MCAST|M_PROMISC|M_VLANTAG|M_FLOWID)))
+			M_SANITY_ACTION("m_flags that require M_PKTHDR");
+
+		/*
+		 * Sum of l[2-5]hlen) is an offset and must be inside this mbuf.
+		 */
+		if ((m->m_flags & M_PKTHDR) &&
+		    m->m_pkthdr.l2hlen + m->m_pkthdr.l3hlen +
+		    m->m_pkthdr.l4hlen + m->m_pkthdr.l5hlen > m->m_len)
+			M_SANITY_ACTION("l[2-5]hlen exceeds first mbuf");
+
+		/*
+		 * Close down on M_EXT.
+		 */
+		if (m->m_flags & M_EXT) {
+			/*
+			 * Unless normal type ext_free may not be empty.
+			 */
+			switch (m->m_ext.ext_type) {
+			case EXT_CLUSTER:
+			case EXT_JUMBOP:
+			case EXT_JUMBO9:
+			case EXT_JUMBO16:
+			case EXT_PACKET:
+				break;
+			default:
+				if (m->m_ext.ext_free == NULL)
+					M_SANITY_ACTION("ext_free not set");
+			}
+
+			/*
+			 * Ref_cnt may be not empty.
+			 */
+			if (m->m_ext.ref_cnt == NULL)
+				M_SANITY_ACTION("ext_free not set");
+
+			/*
+			 * Refcount must be >= 1.
+			 */
+			if (*(m->m_ext.ref_cnt) < 1)
+				M_SANITY_ACTION("ref_cnt is < 1");
+
+			/* ext_size must be >= 1. */
+			if (m->m_ext.ext_size < 1)
+				M_SANITY_ACTION("ext_size is < 1");
 		}
 
-		/* packet length (not mbuf length!) calculation */
+		/*
+		 * Packet length (not mbuf length!) calculation.
+		 */
 		if (m0->m_flags & M_PKTHDR)
 			pktlen += m->m_len;
-
-		/* m_tags may only be attached to first mbuf in chain. */
-		if (m != m0 && m->m_flags & M_PKTHDR &&
-		    !SLIST_EMPTY(&m->m_pkthdr.tags)) {
-			if (sanitize) {
-				m_tag_delete_chain(m, NULL);
-				/* put in 0xDEADC0DE perhaps? */
-			} else
-				M_SANITY_ACTION("m_tags on in-chain mbuf");
-		}
-
-		/* M_PKTHDR may only be set on first mbuf in chain */
-		if (m != m0 && m->m_flags & M_PKTHDR) {
-			if (sanitize) {
-				bzero(&m->m_pkthdr, sizeof(m->m_pkthdr));
-				m->m_flags &= ~M_PKTHDR;
-				/* put in 0xDEADCODE and leave hdr flag in */
-			} else
-				M_SANITY_ACTION("M_PKTHDR on in-chain mbuf");
-		}
 	}
 	m = m0;
-	if (pktlen && pktlen != m->m_pkthdr.len) {
-		if (sanitize)
-			m->m_pkthdr.len = 0;
-		else
-			M_SANITY_ACTION("m_pkthdr.len != mbuf chain length");
-	}
+	if (pktlen > 0 && pktlen != m->m_pkthdr.len)
+		M_SANITY_ACTION("m_pkthdr.len != mbuf chain length");
+
 	return 1;
 
 #undef	M_SANITY_ACTION
