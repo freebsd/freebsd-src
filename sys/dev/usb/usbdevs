@@ -569,6 +569,7 @@ vendor FALCOM		0x0f94	Falcom Wireless Communications GmbH
 vendor RIM		0x0fca	Research In Motion
 vendor DYNASTREAM	0x0fcf	Dynastream Innovations
 vendor LARSENBRUSGAARD	0x0fd8	Larsen and Brusgaard
+vendor OWL		0x0fde	OWL
 vendor KONTRON		0x0fe6	Kontron AG
 vendor QUALCOMM		0x1004	Qualcomm
 vendor APACER		0x1005	Apacer
@@ -695,6 +696,7 @@ vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
 vendor BAYER		0x1a79	Bayer
 vendor WCH2		0x1a86	QinHeng Electronics
 vendor STELERA		0x1a8d	Stelera Wireless
+vendor SEL		0x1adb	Schweitzer Engineering Laboratories
 vendor CORSAIR		0x1b1c	Corsair
 vendor MATRIXORBITAL	0x1b3d	Matrix Orbital
 vendor OVISLINK		0x1b75	OvisLink
@@ -715,6 +717,7 @@ vendor METAGEEK2	0x1dd5	MetaGeek
 vendor ALINK		0x1e0e  Alink
 vendor AIRTIES		0x1eda	AirTies
 vendor FESTO		0x1e29	Festo
+vendor LAKESHORE	0x1fb9	Lake Shore Cryotronics, Inc.
 vendor VERTEX		0x1fe7  Vertex Wireless Co., Ltd.
 vendor DLINK		0x2001	D-Link
 vendor PLANEX2		0x2019	Planex Communications
@@ -730,6 +733,7 @@ vendor VIALABS		0x2109	VIA Labs
 vendor ERICSSON		0x2282	Ericsson
 vendor MOTOROLA2	0x22b8	Motorola
 vendor WETELECOM	0x22de	WeTelecom
+vendor WESTMOUNTAIN	0x2405	West Mountain Radio
 vendor TRIPPLITE	0x2478	Tripp-Lite
 vendor HIROSE		0x2631	Hirose Electric
 vendor NHJ		0x2770	NHJ
@@ -2487,6 +2491,27 @@ product KYOCERA2 KPC680		0x180a	Qualcomm Kyocera CDMA Technologies MSM
 product LACIE HD		0xa601	Hard Disk
 product LACIE CDRW		0xa602	CD R/W
 
+/* Lake Shore Cryotronics products */
+product LAKESHORE 121		0x0100	121 Current Source
+product LAKESHORE 218A		0x0200	218A Temperature Monitor
+product LAKESHORE 219		0x0201	219 Temperature Monitor
+product LAKESHORE 233		0x0202	233 Temperature Transmitter
+product LAKESHORE 235		0x0203	235 Temperature Transmitter
+product LAKESHORE 335		0x0300	335 Temperature Controller
+product LAKESHORE 336		0x0301	336 Temperature Controller
+product LAKESHORE 350		0x0302	350 Temperature Controller
+product LAKESHORE 371		0x0303	371 AC Bridge
+product LAKESHORE 411		0x0400	411 Handheld Gaussmeter
+product LAKESHORE 425		0x0401	425 Gaussmeter
+product LAKESHORE 455A		0x0402	455A DSP Gaussmeter
+product LAKESHORE 475A		0x0403	475A DSP Gaussmeter
+product LAKESHORE 465		0x0404	465 Gaussmeter
+product LAKESHORE 625A		0x0600	625A Magnet PSU
+product LAKESHORE 642A		0x0601	642A Magnet PSU
+product LAKESHORE 648		0x0602	648 Magnet PSU
+product LAKESHORE 737		0x0700	737 VSM Controller
+product LAKESHORE 776		0x0701	776 Matrix Switch
+
 /* Larsen and Brusgaard products */
 product LARSENBRUSGAARD ALTITRACK	0x0001	FTDI compatible adapter
 
@@ -3086,6 +3111,7 @@ product NETGEAR EA101		0x1001	Ethernet
 product NETGEAR EA101X		0x1002	Ethernet
 product NETGEAR FA101		0x1020	Ethernet 10/100, USB1.1
 product NETGEAR FA120		0x1040	USB 2.0 Ethernet
+product NETGEAR M4100		0x1100	M4100/M5300/M7100 series switch
 product NETGEAR WG111V2_2	0x4240	PrismGT USB 2.0 WLAN
 product NETGEAR WG111V3		0x4260	WG111v3
 product NETGEAR WG111U		0x4300	WG111U
@@ -3249,6 +3275,9 @@ product OTI DKU5		0x6858	DKU-5 Serial
 
 /* Owen.ru products */
 product OWEN AC4		0x0004	AC4 USB-RS485 converter
+
+/* OWL producs */
+product OWL CM_160		0xca05	OWL CM-160 power monitor
 
 /* Palm Computing, Inc. product */
 product PALM SERIAL		0x0080	USB Serial
@@ -3696,6 +3725,9 @@ product SANYO SCP4900 		0x0701	Sanyo SCP-4900 USB Phone
 product SCANLOGIC SL11R		0x0002	SL11R IDE Adapter
 product SCANLOGIC 336CX		0x0300	Phantom 336CX - C3 scanner
 
+/* Schweitzer Engineering Laboratories products */
+product SEL C662		0x0001	C662 Cable
+
 /* Sealevel products */
 product SEALEVEL 2101		0x2101	FTDI compatible adapter
 product SEALEVEL 2102		0x2102	FTDI compatible adapter
@@ -3936,8 +3968,11 @@ product SILABS	BEI_VCP		0x846e	BEI USB Sensor (VCP)
 product SILABS	BALLUFF_RFID	0x8477	Balluff RFID reader
 product SILABS	AC_SERV_IBUS	0x85ea	AC-Services IBUS Interface
 product SILABS	AC_SERV_CIS	0x85eb	AC-Services CIS-IBUS
+product SILABS	V_PREON32	0x85f8	Virtenio Preon32
 product SILABS	AC_SERV_CAN	0x8664	AC-Services CAN Interface
 product SILABS	AC_SERV_OBD	0x8665	AC-Services OBD Interface
+product SILABS	MMB_ZIGBEE	0x88a4	MMB Networks ZigBee
+product SILABS	INGENI_ZIGBEE	0x88a5	Planet Innovation Ingeni ZigBee
 product SILABS	CP2102		0xea60	SILABS USB UART
 product SILABS	CP210X_2	0xea61	CP210x Serial
 product SILABS	CP210X_3	0xea70	CP210x Serial
@@ -4326,6 +4361,9 @@ product WCH2 DUMMY		0x0000	Dummy product
 product WCH2 CH341SER_2		0x5523	CH341/CH340 USB-Serial Bridge
 product WCH2 CH341SER		0x7523	CH341/CH340 USB-Serial Bridge
 product WCH2 U2M		0X752d	CH345 USB2.0-MIDI
+
+/* West Mountain Radio products */
+product WESTMOUNTAIN RIGBLASTER_ADVANTAGE	0x0003	RIGblaster Advantage
 
 /* Western Digital products */
 product WESTERN COMBO		0x0200	Firewire USB Combo
