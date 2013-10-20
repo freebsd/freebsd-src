@@ -101,7 +101,6 @@ powerpc/aim/swtch32.S		optional	aim powerpc
 powerpc/aim/swtch64.S		optional	aim powerpc64
 powerpc/aim/trap.c		optional	aim
 powerpc/aim/uma_machdep.c	optional	aim
-powerpc/aim/vm_machdep.c	optional	aim
 powerpc/booke/clock.c		optional	booke
 powerpc/booke/copyinout.c	optional	booke
 powerpc/booke/interrupt.c	optional	booke
@@ -113,7 +112,6 @@ powerpc/booke/platform_bare.c	optional	mpc85xx
 powerpc/booke/pmap.c		optional	booke
 powerpc/booke/swtch.S		optional	booke
 powerpc/booke/trap.c		optional	booke
-powerpc/booke/vm_machdep.c	optional	booke
 powerpc/cpufreq/dfs.c		optional	cpufreq
 powerpc/cpufreq/pcr.c		optional	cpufreq aim
 powerpc/fpu/fpu_add.c		optional	fpu_emu powerpc
@@ -214,6 +212,7 @@ powerpc/powerpc/suswintr.c	standard
 powerpc/powerpc/syncicache.c	standard
 powerpc/powerpc/sys_machdep.c	standard
 powerpc/powerpc/uio_machdep.c	standard
+powerpc/powerpc/vm_machdep.c	standard
 powerpc/ps3/ehci_ps3.c		optional	ps3 ehci
 powerpc/ps3/ohci_ps3.c		optional	ps3 ohci
 powerpc/ps3/if_glc.c		optional	ps3 glc
