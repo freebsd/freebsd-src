@@ -812,6 +812,8 @@ struct jextent {
  * Internal function prototypes.
  */
 static	void softdep_error(char *, int);
+static	int softdep_process_worklist(struct mount *, int);
+static	int softdep_waitidle(struct mount *);
 static	void drain_output(struct vnode *);
 static	struct buf *getdirtybuf(struct buf *, struct rwlock *, int);
 static	void clear_remove(void);
@@ -926,7 +928,7 @@ static	inline void setup_freeindir(struct freeblks *, struct inode *, int,
 static	inline struct freeblks *newfreeblks(struct mount *, struct inode *);
 static	void freeblks_free(struct ufsmount *, struct freeblks *, int);
 static	void indir_trunc(struct freework *, ufs2_daddr_t, ufs_lbn_t);
-ufs2_daddr_t blkcount(struct fs *, ufs2_daddr_t, off_t);
+static	ufs2_daddr_t blkcount(struct fs *, ufs2_daddr_t, off_t);
 static	int trunc_check_buf(struct buf *, int *, ufs_lbn_t, int, int);
 static	void trunc_dependencies(struct inode *, struct freeblks *, ufs_lbn_t,
 	    int, int);
@@ -1563,7 +1565,7 @@ wait_worklist(wk, wmesg)
  * ordering ensures that no new <vfsid, inum, lbn> triples will be generated
  * until all the old ones have been purged from the dependency lists.
  */
-int 
+static int 
 softdep_process_worklist(mp, full)
 	struct mount *mp;
 	int full;
@@ -1909,7 +1911,7 @@ softdep_flushworklist(oldmnt, countp, td)
 	return (error);
 }
 
-int
+static int
 softdep_waitidle(struct mount *mp)
 {
 	struct ufsmount *ump;
@@ -6225,7 +6227,7 @@ complete_trunc_indir(freework)
  * Calculate the number of blocks we are going to release where datablocks
  * is the current total and length is the new file size.
  */
-ufs2_daddr_t
+static ufs2_daddr_t
 blkcount(fs, datablocks, length)
 	struct fs *fs;
 	ufs2_daddr_t datablocks;
