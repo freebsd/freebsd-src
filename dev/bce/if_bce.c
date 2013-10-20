@@ -9798,72 +9798,6 @@ bce_dump_enet(struct bce_softc *sc, struct mbuf *m)
 
 
 /****************************************************************************/
-/* Prints out information about an mbuf.                                    */
-/*                                                                          */
-/* Returns:                                                                 */
-/*   Nothing.                                                               */
-/****************************************************************************/
-static __attribute__ ((noinline)) void
-bce_dump_mbuf(struct bce_softc *sc, struct mbuf *m)
-{
-	struct mbuf *mp = m;
-
-	if (m == NULL) {
-		BCE_PRINTF("mbuf: null pointer\n");
-		return;
-	}
-
-	while (mp) {
-		BCE_PRINTF("mbuf: %p, m_len = %d, m_flags = 0x%b, "
-		    "m_data = %p\n", mp, mp->m_len, mp->m_flags,
-		    "\20\1M_EXT\2M_PKTHDR\3M_EOR\4M_RDONLY", mp->m_data);
-
-		if (mp->m_flags & M_PKTHDR) {
-			BCE_PRINTF("- m_pkthdr: len = %d, flags = 0x%b, "
-			    "csum_flags = %b\n", mp->m_pkthdr.len,
-			    mp->m_flags, M_FLAG_PRINTF,
-			    mp->m_pkthdr.csum_flags,
-			    "\20\1CSUM_IP\2CSUM_TCP\3CSUM_UDP"
-			    "\5CSUM_FRAGMENT\6CSUM_TSO\11CSUM_IP_CHECKED"
-			    "\12CSUM_IP_VALID\13CSUM_DATA_VALID"
-			    "\14CSUM_PSEUDO_HDR");
-		}
-
-		if (mp->m_flags & M_EXT) {
-			BCE_PRINTF("- m_ext: %p, ext_size = %d, type = ",
-			    mp->m_ext.ext_buf, mp->m_ext.ext_size);
-			switch (mp->m_ext.ext_type) {
-			case EXT_CLUSTER:
-				printf("EXT_CLUSTER\n"); break;
-			case EXT_SFBUF:
-				printf("EXT_SFBUF\n"); break;
-			case EXT_JUMBO9:
-				printf("EXT_JUMBO9\n"); break;
-			case EXT_JUMBO16:
-				printf("EXT_JUMBO16\n"); break;
-			case EXT_PACKET:
-				printf("EXT_PACKET\n"); break;
-			case EXT_MBUF:
-				printf("EXT_MBUF\n"); break;
-			case EXT_NET_DRV:
-				printf("EXT_NET_DRV\n"); break;
-			case EXT_MOD_TYPE:
-				printf("EXT_MDD_TYPE\n"); break;
-			case EXT_DISPOSABLE:
-				printf("EXT_DISPOSABLE\n"); break;
-			case EXT_EXTREF:
-				printf("EXT_EXTREF\n"); break;
-			default:
-				printf("UNKNOWN\n");
-			}
-		}
-
-		mp = mp->m_next;
-	}
-}
-
-
-/****************************************************************************/
 /* Prints out the mbufs in the TX mbuf chain.                               */
 /*                                                                          */
 /* Returns:                                                                 */
@@ -9882,7 +9816,7 @@ bce_dump_tx_mbuf_chain(struct bce_softc *sc, u16 chain_prod, int count)
 	for (int i = 0; i < count; i++) {
 	 	m = sc->tx_mbuf_ptr[chain_prod];
 		BCE_PRINTF("txmbuf[0x%04X]\n", chain_prod);
-		bce_dump_mbuf(sc, m);
+		m_printm(m, 0);
 		chain_prod = TX_CHAIN_IDX(NEXT_TX_BD(chain_prod));
 	}
 
@@ -9912,7 +9846,7 @@ bce_dump_rx_mbuf_chain(struct bce_softc *sc, u16 chain_prod, int count)
 	for (int i = 0; i < count; i++) {
 	 	m = sc->rx_mbuf_ptr[chain_prod];
 		BCE_PRINTF("rxmbuf[0x%04X]\n", chain_prod);
-		bce_dump_mbuf(sc, m);
+		m_printm(m, 0);
 		chain_prod = RX_CHAIN_IDX(NEXT_RX_BD(chain_prod));
 	}
 
