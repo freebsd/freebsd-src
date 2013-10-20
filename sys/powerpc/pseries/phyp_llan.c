@@ -60,6 +60,11 @@ __FBSDID("$FreeBSD$");
 #define LLAN_MAX_TX_PACKETS	100
 #define LLAN_RX_BUF_LEN		8*PAGE_SIZE
 
+#define LLAN_BUFDESC_VALID	(1ULL << 63)
+#define LLAN_ADD_MULTICAST	0x1
+#define LLAN_DEL_MULTICAST	0x2
+#define LLAN_CLEAR_MULTICAST	0x3
+
 struct llan_xfer {
 	struct mbuf *rx_mbuf;
 	bus_dmamap_t rx_dmamap;
@@ -113,6 +118,7 @@ static int	llan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static void	llan_rx_load_cb(void *xsc, bus_dma_segment_t *segs, int nsegs,
 		    int err);
 static int	llan_add_rxbuf(struct llan_softc *sc, struct llan_xfer *rx);
+static int	llan_set_multicast(struct llan_softc *sc);
 
 static devclass_t       llan_devclass;
 static device_method_t  llan_methods[] = {
@@ -249,7 +255,7 @@ llan_init(void *xsc)
 	sc->rx_dma_slot = 0;
 	sc->rx_valid_val = 1;
 
-	rx_buf_desc = (1UL << 63); /* valid */
+	rx_buf_desc = LLAN_BUFDESC_VALID;
 	rx_buf_desc |= (sc->rx_buf_len << 32);
 	rx_buf_desc |= sc->rx_buf_phys;
 	memcpy(&macaddr, sc->mac_address, 8);
@@ -307,7 +313,7 @@ llan_add_rxbuf(struct llan_softc *sc, struct llan_xfer *rx)
 
 	bus_dmamap_sync(sc->rxbuf_dma_tag, rx->rx_dmamap, BUS_DMASYNC_PREREAD);
 
-	rx->rx_bufdesc = (1UL << 63); /* valid */
+	rx->rx_bufdesc = LLAN_BUFDESC_VALID;
 	rx->rx_bufdesc |= (((uint64_t)segs[0].ds_len) << 32);
 	rx->rx_bufdesc |= segs[0].ds_addr;
 	error = phyp_hcall(H_ADD_LOGICAL_LAN_BUFFER, sc->unit, rx->rx_bufdesc);
@@ -376,7 +382,7 @@ llan_send_packet(void *xsc, bus_dma_segment_t *segs, int nsegs,
 	bzero(bufdescs, sizeof(bufdescs));
 
 	for (i = 0; i < nsegs; i++) {
-		bufdescs[i] = (1UL << 63); /* valid */
+		bufdescs[i] = LLAN_BUFDESC_VALID;
 		bufdescs[i] |= (((uint64_t)segs[i].ds_len) << 32);
 		bufdescs[i] |= segs[i].ds_addr;
 	}
@@ -442,11 +448,50 @@ llan_start(struct ifnet *ifp)
 }
 
 static int
+llan_set_multicast(struct llan_softc *sc)
+{
+	struct ifnet *ifp = sc->ifp;
+	struct ifmultiaddr *inm;
+	uint64_t macaddr;
+
+	mtx_assert(&sc->io_lock, MA_OWNED);
+
+	phyp_hcall(H_MULTICAST_CTRL, sc->unit, LLAN_CLEAR_MULTICAST, 0);
+
+	if_maddr_rlock(ifp);
+	TAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
+		if (inm->ifma_addr->sa_family != AF_LINK)
+			continue;
+
+		memcpy((uint8_t *)&macaddr + 2,
+		    LLADDR((struct sockaddr_dl *)inm->ifma_addr), 6);
+		phyp_hcall(H_MULTICAST_CTRL, sc->unit, LLAN_ADD_MULTICAST,
+		    macaddr);
+	}
+	if_maddr_runlock(ifp);
+
+	return (0);
+}
+
+static int
 llan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	int err;
+	int err = 0;
+	struct llan_softc *sc = ifp->if_softc;
 
-	err = ether_ioctl(ifp, cmd, data);
+	switch (cmd) {
+	case SIOCADDMULTI:
+	case SIOCDELMULTI:
+		mtx_lock(&sc->io_lock);
+		if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			llan_set_multicast(sc);
+		mtx_unlock(&sc->io_lock);
+		break;
+	case SIOCSIFFLAGS:
+	default:
+		err = ether_ioctl(ifp, cmd, data);
+		break;
+	}
 
 	return (err);
 }
