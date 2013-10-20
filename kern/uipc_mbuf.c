@@ -95,7 +95,10 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
 	KASSERT(m->m_ext.ref_cnt != NULL, ("%s: ref_cnt not set", __func__));
 	KASSERT((n->m_flags & M_EXT) == 0, ("%s: M_EXT set", __func__));
 
-	if (*(m->m_ext.ref_cnt) == 1)
+	if (m->m_ext.ext_flags & EXT_FLAG_REFCNT)
+		(void)(*m->m_ext.ext_free)(m, m->m_ext.ext_arg1,
+		    m->m_ext.ext_arg2, EXT_FREE_REFINC);
+	else if (*(m->m_ext.ref_cnt) == 1)
 		*(m->m_ext.ref_cnt) += 1;
 	else
 		atomic_add_int(m->m_ext.ref_cnt, 1);
@@ -1777,6 +1780,10 @@ m_unshare(struct mbuf *m0, int how)
 	return (m0);
 }
 
+/*
+ * Check if the mbuf data section is writable or not.
+ * XXXAO: The non-atomic read of ref_cnt is safe enough for this purpose.
+ */
 int
 _m_writable(const struct mbuf *m)
 {

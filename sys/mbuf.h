@@ -76,6 +76,9 @@ struct uio;
  */
 #define	mtod(m, t)	((t)((m)->m_data))
 #define	mtodo(m, o)	((void *)(((m)->m_data) + (o)))
+
+struct mbuf;
+typedef	int		(*ext_free_t)(struct mbuf *, void *, void *, int);
 #endif /* _KERNEL */
 
 /*
@@ -166,8 +169,7 @@ struct mh_ext {
 	uint32_t	 ext_size;	/* size of buffer, for ext_free */
 	uint32_t	 ext_type:8,	/* type of external storage */
 			 ext_flags:24;	/* external storage mbuf flags */
-	int		(*ext_free)	/* free routine if not the usual */
-			    (struct mbuf *, void *, void *);
+	ext_free_t	 ext_free;
 	void		*ext_arg1;	/* optional argument pointer */
 	void		*ext_arg2;	/* optional argument pointer */
 };
@@ -337,15 +339,14 @@ struct mbuf {
 #define	EXT_NET_DRV	252	/* custom ext_buf provided by net driver(s) */
 #define	EXT_MOD_TYPE	253	/* custom module's ext_buf type */
 #define	EXT_DISPOSABLE	254	/* can throw this buffer away w/page flipping */
-#define	EXT_EXTREF	255	/* has externally maintained ref_cnt ptr */
 
 /*
  * Flags for external mbuf buffer types.
  * NB: limited to the lower 24 bits.
  */
-#define	EXT_FLAG_EMBREF		0x000001	/* embedded ref_cnt, notyet */
-#define	EXT_FLAG_EXTREF		0x000002	/* external ref_cnt, notyet */
-#define	EXT_FLAG_NOFREE		0x000010	/* don't free mbuf to pool, notyet */
+#define	EXT_FLAG_EMBREF		0x000001	/* embedded ref_cnt */
+#define	EXT_FLAG_EXTREF		0x000002	/* external alloc ref_cnt */
+#define	EXT_FLAG_REFCNT		0x000004	/* ref_cnt mgnt by ext_free */
 
 #define	EXT_FLAG_VENDOR1	0x010000	/* for vendor-internal use */
 #define	EXT_FLAG_VENDOR2	0x020000	/* for vendor-internal use */
@@ -361,15 +362,25 @@ struct mbuf {
  * EXT flag description for use with printf(9) %b identifier.
  */
 #define	EXT_FLAG_BITS \
-    "\20\1EXT_FLAG_EMBREF\2EXT_FLAG_EXTREF\5EXT_FLAG_NOFREE" \
+    "\20\1EXT_FLAG_EMBREF\2EXT_FLAG_EXTREF\5EXT_FLAG_REFCNT" \
     "\21EXT_FLAG_VENDOR1\22EXT_FLAG_VENDOR2\23EXT_FLAG_VENDOR3" \
     "\24EXT_FLAG_VENDOR4\25EXT_FLAG_EXP1\26EXT_FLAG_EXP2\27EXT_FLAG_EXP3" \
     "\30EXT_FLAG_EXP4"
 
 /*
+ * Flags used when calling (*ext_free).
+ */
+#define	EXT_FREE_DISPOSE 0	/* Free the external storage */
+#define	EXT_FREE_REFINC	1	/* Increment externally managed refcount */
+#define	EXT_FREE_REFDEC	2	/* Decrement externally managed refocunt */
+#define	EXT_FREE_REFDEL	3	/* Delete externally managed refcount */
+
+/*
  * Return values for (*ext_free).
  */
-#define	EXT_FREE_OK	0	/* Normal return */
+#define	EXT_FREE_DONE	0	/* Work done and mb_free_ext shall return */
+#define	EXT_FREE_CONT	1	/* Work done and mb_free_ext shall continue */
+#define	EXT_FREE_OK	EXT_FREE_CONT
 
 /*
  * Flags indicating checksum, segmentation and other offload work to be
@@ -479,11 +490,10 @@ struct mbuf {
  * as implemented in kern/kern_mbuf.c.
  */
 int		 m_pkthdr_init(struct mbuf *, int);
-int		 m_extadd(struct mbuf *, caddr_t, u_int,
-		    int (*)(struct mbuf *, void *, void *), void *, void *,
-		    int, int, int);
+int		 m_extadd(struct mbuf *, caddr_t, u_int, ext_free_t,
+		    void *, void *, int, int, u_int *, int, int);
 void		 m_extaddref(struct mbuf *, caddr_t, u_int, u_int *,
-		    int (*)(struct mbuf *, void *, void *), void *, void *);
+		    ext_free_t, void *, void *);
 int		 m_init(struct mbuf *, int, int, short, int);
 struct mbuf 	*m_get(int, short);
 struct mbuf	*m_getclr(int, short);
@@ -509,7 +519,7 @@ struct mbuf	*m_uiotombuf(struct uio *, int, int, int, int);
     m_getm2((m), (len), (how), (type), M_PKTHDR)
 #define	MEXTADD(m, buf, size, free, arg1, arg2, flags, type)		\
     (void )m_extadd((m), (caddr_t)(buf), (size), (free), (arg1), (arg2),\
-    (flags), (type), M_NOWAIT)
+    (flags), (type), NULL, 0, M_NOWAIT)
 #define	MBTOM(how)	(how)
 #define	M_DONTWAIT	M_NOWAIT
 #define	M_TRYWAIT	M_WAITOK

@@ -5052,7 +5052,6 @@ bxe_dump_mbuf(struct bxe_softc *sc,
             case EXT_NET_DRV:    type = "EXT_NET_DRV";    break;
             case EXT_MOD_TYPE:   type = "EXT_MOD_TYPE";   break;
             case EXT_DISPOSABLE: type = "EXT_DISPOSABLE"; break;
-            case EXT_EXTREF:     type = "EXT_EXTREF";     break;
             default:             type = "UNKNOWN";        break;
             }
 

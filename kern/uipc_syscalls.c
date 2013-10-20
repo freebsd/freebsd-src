@@ -1854,7 +1854,7 @@ struct sendfile_sync {
  * Detach mapped page and release resources back to the system.
  */
 int
-sf_buf_mext(struct mbuf *mb, void *addr, void *args)
+sf_buf_mext(struct mbuf *mb, void *addr, void *args, int flags)
 {
 	vm_page_t m;
 	struct sendfile_sync *sfs;
@@ -1879,7 +1879,7 @@ sf_buf_mext(struct mbuf *mb, void *addr, void *args)
 	if (--sfs->count == 0)
 		cv_signal(&sfs->cv);
 	mtx_unlock(&sfs->mtx);
-	return (EXT_FREE_OK);
+	return (EXT_FREE_CONT);
 }
 
 /*
@@ -2441,14 +2441,14 @@ retry_space:
 			m0 = m_get((mnw ? M_NOWAIT : M_WAITOK), MT_DATA);
 			if (m0 == NULL) {
 				error = (mnw ? EAGAIN : ENOBUFS);
-				(void)sf_buf_mext(NULL, NULL, sf);
+				(void)sf_buf_mext(NULL, NULL, sf, 0);
 				break;
 			}
 			if (m_extadd(m0, (caddr_t )sf_buf_kva(sf), PAGE_SIZE,
-			    sf_buf_mext, sfs, sf, M_RDONLY, EXT_SFBUF,
+			    sf_buf_mext, sfs, sf, M_RDONLY, EXT_SFBUF, NULL, 0,
 			    (mnw ? M_NOWAIT : M_WAITOK)) != 0) {
 				error = (mnw ? EAGAIN : ENOBUFS);
-				(void)sf_buf_mext(NULL, NULL, sf);
+				(void)sf_buf_mext(NULL, NULL, sf, 0);
 				m_freem(m0);
 				break;
 			}

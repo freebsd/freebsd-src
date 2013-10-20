@@ -482,7 +482,7 @@ mb_dtor_pack(void *mem, int size, void *arg)
 	struct mbuf *m;
 
 	m = (struct mbuf *)mem;
-	if ((m->m_flags & M_PKTHDR) != 0)
+	if ((m->m_flags & M_PKTHDR) && !SLIST_EMPTY(&m->m_pkthdr.tags))
 		m_tag_delete_chain(m, NULL);
 
 	/* Make sure we've got a clean cluster back. */
@@ -555,7 +555,7 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 	}
 
 	m = (struct mbuf *)arg;
-	refcnt = uma_find_refcnt(zone, mem);
+	refcnt = uma_find_refcnt(zone, mem);	/* XXX */
 	*refcnt = 1;
 	if (m != NULL) {
 		m->m_ext.ext_buf = (caddr_t)mem;
@@ -920,7 +920,6 @@ m_cljset(struct mbuf *m, void *cl, int type)
 	m->m_ext.ext_flags = 0;
 	m->m_ext.ref_cnt = uma_find_refcnt(zone, cl);
 	m->m_flags |= M_EXT;
-
 }
 
 /*
@@ -1039,12 +1038,11 @@ m_free(struct mbuf *m)
 {
 	struct mbuf *n = m->m_next;
 
-	if ((m->m_flags & (M_PKTHDR|M_NOFREE)) == (M_PKTHDR|M_NOFREE))
-		m_tag_delete_chain(m, NULL);
 	if (m->m_flags & M_EXT)
 		mb_free_ext(m);
-	else if ((m->m_flags & M_NOFREE) == 0)
-		uma_zfree(zone_mbuf, m);
+	else
+		uma_zfree(zone_mbuf, m);	/* free's tag chain */
+
 	return (n);
 }
 
@@ -1078,28 +1076,30 @@ m_freem(struct mbuf *mb)
  *    Nothing.
  */
 int
-m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
-    int (*freef)(struct mbuf *, void *, void *), void *arg1, void *arg2,
-    int flags, int type, int wait)
+m_extadd(struct mbuf *mb, caddr_t buf, u_int size, ext_free_t freef,
+    void *arg1, void *arg2, int flags, int type, u_int *refcnt, int ext_flags,
+    int wait)
 {
-	KASSERT(type != EXT_CLUSTER, ("%s: EXT_CLUSTER not allowed", __func__));
 
-	if (type != EXT_EXTREF)
+	if (refcnt == NULL) {
 		mb->m_ext.ref_cnt = uma_zalloc(zone_ext_refcnt, wait);
+		if (mb->m_ext.ref_cnt == NULL)
+			return (ENOMEM);
+		*(mb->m_ext.ref_cnt) = 1;
+	} else
+		mb->m_ext.ref_cnt = refcnt;
 
-	if (mb->m_ext.ref_cnt == NULL)
-		return (ENOMEM);
+	KASSERT(mb->m_ext.ref_cnt != NULL, ("%s: ref_cnt is NULL", __func__));
+	KASSERT(*(mb->m_ext.ref_cnt) >= 1, ("%s: refcount is <1", __func__));
 
-	*(mb->m_ext.ref_cnt) = 1;
 	mb->m_flags |= (M_EXT | flags);
-	mb->m_ext.ext_buf = buf;
-	mb->m_data = mb->m_ext.ext_buf;
+	mb->m_data = mb->m_ext.ext_buf = buf;
 	mb->m_ext.ext_size = size;
 	mb->m_ext.ext_free = freef;
 	mb->m_ext.ext_arg1 = arg1;
 	mb->m_ext.ext_arg2 = arg2;
 	mb->m_ext.ext_type = type;
-	mb->m_ext.ext_flags = 0;
+	mb->m_ext.ext_flags = ext_flags;
 
 	return (0);
 }
@@ -1109,7 +1109,7 @@ m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
  */
 void
 m_extaddref(struct mbuf *m, caddr_t buf, u_int size, u_int *ref_cnt,
-    int (*freef)(struct mbuf *, void *, void *), void *arg1, void *arg2)
+    ext_free_t freef, void *arg1, void *arg2)
 {
 
 	KASSERT(ref_cnt != NULL, ("%s: ref_cnt not provided", __func__));
@@ -1124,35 +1124,60 @@ m_extaddref(struct mbuf *m, caddr_t buf, u_int size, u_int *ref_cnt,
 	m->m_ext.ext_arg1 = arg1;
 	m->m_ext.ext_arg2 = arg2;
 	m->m_ext.ext_flags = 0;
-	m->m_ext.ext_type = EXT_EXTREF;
+	m->m_ext.ext_type = EXT_NET_DRV;
 }
 
 /*
  * Non-directly-exported function to clean up after mbufs with M_EXT
- * storage attached to them if the reference count hits 1.
+ * storage attached to them if the reference count is decremented or
+ * hits 1.
+ *
+ * The normal behavior for the built in types is to free the cluster
+ * to one of our cluster zones, free the refcount to the UMA external
+ * refcount zone, and to free the mbuf to the mbuf zone.  The exeption
+ * is the packet zone where the mbuf+cluster package is returned whole.
+ *
+ * To give advanced users of the mbuf system more latitude the behavior
+ * can be modified with these flags:
+ *
+ * With EXT_FLAG_EMBREF we don't call any refcount disposal function.
+ * With EXT_FLAG_REFCNT we call (*ext_free) on every decrement.
+ * With EXT_FLAG_EXTREF we call (*ext_free) on for refcount disposal.
+ *
+ * At ext_free (*ext_free) can return EXT_FREE_DONE letting us know
+ * that everthing has been handled and we can return immediately.
+ *
+ * NB: Two separate free/disposal steps are done here: 1) disposal of
+ * the external storage; 2) disposal of the refcount storage.
+ * NB: The ref_cnt pointer must be maintained and valid for reading at
+ * all times.
  */
 static void
 mb_free_ext(struct mbuf *m)
 {
-	int skipmbuf;
-	
+
 	KASSERT((m->m_flags & M_EXT) == M_EXT, ("%s: M_EXT not set", __func__));
-	KASSERT(m->m_ext.ref_cnt != NULL, ("%s: ref_cnt not set", __func__));
 
 	/*
-	 * check if the header is embedded in the cluster
+	 * If the (*ext_free) function does full refcount management,
+	 * allow it handle this mbuf at its discretion.
 	 */
-	skipmbuf = (m->m_flags & M_NOFREE);
+	if (m->m_ext.ext_flags & EXT_FLAG_REFCNT)
+		if ((*(m->m_ext.ext_free))(m, m->m_ext.ext_arg1,
+		    m->m_ext.ext_arg2, EXT_FREE_REFDEC) == EXT_FREE_DONE)
+			return;
 
-	/* Free attached storage if this mbuf is the only reference to it. */
+	/*
+	 * Free attached storage if this mbuf is the only reference to it.
+	 * Otherwise we only decrement the reference count, detach and free
+	 * this mbuf.
+	 */
 	if (*(m->m_ext.ref_cnt) == 1 ||
 	    atomic_fetchadd_int(m->m_ext.ref_cnt, -1) == 1) {
 		switch (m->m_ext.ext_type) {
 		case EXT_PACKET:	/* The packet zone is special. */
-			if (*(m->m_ext.ref_cnt) == 0)
-				*(m->m_ext.ref_cnt) = 1;
-			uma_zfree(zone_pack, m);
-			return;		/* Job done. */
+			uma_zfree(zone_pack, m);	/* frees tag chain */
+			return;
 		case EXT_CLUSTER:
 			uma_zfree(zone_clust, m->m_ext.ext_buf);
 			break;
@@ -1169,28 +1194,46 @@ mb_free_ext(struct mbuf *m)
 		case EXT_NET_DRV:
 		case EXT_MOD_TYPE:
 		case EXT_DISPOSABLE:
-			*(m->m_ext.ref_cnt) = 0;
-			uma_zfree(zone_ext_refcnt, __DEVOLATILE(u_int *,
-				m->m_ext.ref_cnt));
-			/* FALLTHROUGH */
-		case EXT_EXTREF:
-			KASSERT(m->m_ext.ext_free != NULL,
-				("%s: ext_free not set", __func__));
-			(void)(*(m->m_ext.ext_free))(m, m->m_ext.ext_arg1,
-			    m->m_ext.ext_arg2);
-			break;
+		case EXT_VENDOR1:
+		case EXT_VENDOR2:
+		case EXT_VENDOR3:
+		case EXT_VENDOR4:
+		case EXT_EXP1:
+		case EXT_EXP2:
+		case EXT_EXP3:
+		case EXT_EXP4:
 		default:
-			KASSERT(m->m_ext.ext_type == 0,
-				("%s: unknown ext_type", __func__));
+			if ((*(m->m_ext.ext_free))(m, m->m_ext.ext_arg1,
+			    m->m_ext.ext_arg2, EXT_FREE_DISPOSE) ==
+			    EXT_FREE_DONE)
+				return;
+			break;
+		}
+
+		/*
+		 * Free the reference count storage.
+		 */
+		if (m->m_ext.ext_flags & EXT_FLAG_EMBREF) {
+#ifdef INVARIANTS
+			*(m->m_ext.ref_cnt) = 0;
+#endif
+		} else if (m->m_ext.ext_flags & EXT_FLAG_EXTREF) {
+			if ((*(m->m_ext.ext_free))(m, m->m_ext.ext_arg1,
+			    m->m_ext.ext_arg2, EXT_FREE_REFDEL) ==
+			    EXT_FREE_DONE)
+				return;
+		} else if (m->m_ext.ref_cnt != NULL) {
+			*(m->m_ext.ref_cnt) = 0;
+			uma_zfree(zone_ext_refcnt,
+			    __DEVOLATILE(u_int *, m->m_ext.ref_cnt));
 		}
 	}
-	if (skipmbuf)
-		return;
-	
+
 	/*
-	 * Free this mbuf back to the mbuf zone with all m_ext
-	 * information purged.
+	 * Free this mbuf back to the mbuf zone with all m_ext information
+	 * purged.
 	 */
+#ifdef INVARIANTS
 	m->m_ext.ext_buf = NULL;
 	m->m_ext.ext_free = NULL;
 	m->m_ext.ext_arg1 = NULL;
@@ -1199,8 +1242,9 @@ mb_free_ext(struct mbuf *m)
 	m->m_ext.ext_size = 0;
 	m->m_ext.ext_type = 0;
 	m->m_ext.ext_flags = 0;
+#endif
 	m->m_flags &= ~M_EXT;
-	uma_zfree(zone_mbuf, m);
+	uma_zfree(zone_mbuf, m);	/* frees tag chain */
 }
 
 /*
