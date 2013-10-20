@@ -161,7 +161,7 @@ fdtbus_probe(device_t dev)
 	device_set_desc(dev, "FDT main bus");
 	if (!bootverbose)
 		device_quiet(dev);
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
