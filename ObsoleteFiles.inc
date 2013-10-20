@@ -271,6 +271,7 @@ OLD_FILES+=usr/share/man/man8/dnssec-keygen.8.gz
 OLD_FILES+=usr/share/man/man8/dnssec-revoke.8.gz
 OLD_FILES+=usr/share/man/man8/dnssec-settime.8.gz
 OLD_FILES+=usr/share/man/man8/dnssec-signzone.8.gz
+OLD_FILES+=usr/share/man/man8/dnssec-verify.8.gz
 OLD_FILES+=usr/share/man/man8/genrandom.8.gz
 OLD_FILES+=usr/share/man/man8/isc-hmac-fixup.8.gz
 OLD_FILES+=usr/share/man/man8/lwresd.8.gz
@@ -305,6 +306,8 @@ OLD_DIRS+=var/named/var/run
 OLD_DIRS+=var/named/var/run/named
 OLD_DIRS+=var/named/var/stats
 OLD_DIRS+=var/run/named
+# 20130923: example moved
+OLD_FILES+=usr/share/examples/bsdconfig/browse_packages.sh
 # 20130908: libssh becomes private
 OLD_FILES+=usr/lib/libssh.a
 OLD_FILES+=usr/lib/libssh.so
