@@ -1684,7 +1684,11 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	IF_ADDR_RUNLOCK(ifp);
 
 	ia->ia_addr = *sin6;
-
+	/*
+	 * Initialize sin6_scope_id using specified ifnet.
+	 */
+	ia->ia_addr.sin6_scope_id = in6_getscopezone(ifp,
+	    in6_addrscope(&sin6->sin6_addr));
 	if (ifacount <= 1 && ifp->if_ioctl) {
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
 		if (error)
@@ -1707,6 +1711,7 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	if (!(ia->ia_flags & IFA_ROUTE) && plen == 128 &&
 	    ia->ia_dstaddr.sin6_family == AF_INET6) {
 		int rtflags = RTF_UP | RTF_HOST;
+		/* XXX: link-local destinations */
 		error = rtinit(&ia->ia_ifa, RTM_ADD, ia->ia_flags | rtflags);
 		if (error)
 			return (error);
@@ -1721,7 +1726,8 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	/*
 	 * add a loopback route to self
 	 */
-	if (!(ia->ia_flags & IFA_RTSELF) && V_nd6_useloopback) {
+	if (!IN6_IS_ADDR_LINKLOCAL(&ia->ia_addr.sin6_addr) &&
+	    (ia->ia_flags & IFA_RTSELF) == 0 && V_nd6_useloopback) {
 		error = ifa_add_loopback_route((struct ifaddr *)ia,
 		    (struct sockaddr *)&ia->ia_addr);
 		if (error == 0)
