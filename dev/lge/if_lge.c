@@ -119,11 +119,6 @@ static int lge_probe(device_t);
 static int lge_attach(device_t);
 static int lge_detach(device_t);
 
-static int lge_alloc_jumbo_mem(struct lge_softc *);
-static void lge_free_jumbo_mem(struct lge_softc *);
-static void *lge_jalloc(struct lge_softc *);
-static int lge_jfree(struct mbuf *, void *, void *, int);
-
 static int lge_newbuf(struct lge_softc *, struct lge_rx_desc *, struct mbuf *);
 static int lge_encap(struct lge_softc *, struct mbuf *, u_int32_t *);
 static void lge_rxeof(struct lge_softc *, int);
@@ -521,13 +516,6 @@ lge_attach(dev)
 		goto fail;
 	}
 
-	/* Try to allocate memory for jumbo buffers. */
-	if (lge_alloc_jumbo_mem(sc)) {
-		device_printf(dev, "jumbo buffer allocation failed\n");
-		error = ENXIO;
-		goto fail;
-	}
-
 	ifp = sc->lge_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(dev, "can not if_alloc()\n");
@@ -575,10 +563,6 @@ lge_attach(dev)
 	return (0);
 
 fail:
-	lge_free_jumbo_mem(sc);
-	if (sc->lge_ldata)
-		contigfree(sc->lge_ldata,
-		    sizeof(struct lge_list_data), M_DEVBUF);
 	if (ifp)
 		if_free(ifp);
 	if (sc->lge_irq)
@@ -615,7 +599,6 @@ lge_detach(dev)
 
 	contigfree(sc->lge_ldata, sizeof(struct lge_list_data), M_DEVBUF);
 	if_free(ifp);
-	lge_free_jumbo_mem(sc);
 	mtx_destroy(&sc->lge_mtx);
 
 	return(0);
@@ -688,31 +671,14 @@ lge_newbuf(sc, c, m)
 	struct mbuf		*m;
 {
 	struct mbuf		*m_new = NULL;
-	caddr_t			*buf = NULL;
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_NOWAIT, MT_DATA);
+		m_new = m_getjcl(M_NOWAIT, MT_DATA, 0, MJUM9BYTES);
 		if (m_new == NULL) {
 			device_printf(sc->lge_dev, "no memory for rx list "
 			    "-- packet dropped!\n");
 			return(ENOBUFS);
 		}
-
-		/* Allocate the jumbo buffer */
-		buf = lge_jalloc(sc);
-		if (buf == NULL) {
-#ifdef LGE_VERBOSE
-			device_printf(sc->lge_dev, "jumbo allocation failed "
-			    "-- packet dropped!\n");
-#endif
-			m_freem(m_new);
-			return(ENOBUFS);
-		}
-		/* Attach the buffer to the mbuf */
-		m_new->m_data = (void *)buf;
-		m_new->m_len = m_new->m_pkthdr.len = LGE_JUMBO_FRAMELEN;
-		MEXTADD(m_new, buf, LGE_JUMBO_FRAMELEN, lge_jfree,
-		    buf, (struct lge_softc *)sc, 0, EXT_NET_DRV);
 	} else {
 		m_new = m;
 		m_new->m_len = m_new->m_pkthdr.len = LGE_JUMBO_FRAMELEN;
@@ -748,132 +714,6 @@ lge_newbuf(sc, c, m)
 	LGE_INC(sc->lge_cdata.lge_rx_prod, LGE_RX_LIST_CNT);
 
 	return(0);
-}
-
-static int
-lge_alloc_jumbo_mem(sc)
-	struct lge_softc	*sc;
-{
-	caddr_t			ptr;
-	register int		i;
-	struct lge_jpool_entry   *entry;
-
-	/* Grab a big chunk o' storage. */
-	sc->lge_cdata.lge_jumbo_buf = contigmalloc(LGE_JMEM, M_DEVBUF,
-	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
-
-	if (sc->lge_cdata.lge_jumbo_buf == NULL) {
-		device_printf(sc->lge_dev, "no memory for jumbo buffers!\n");
-		return(ENOBUFS);
-	}
-
-	SLIST_INIT(&sc->lge_jfree_listhead);
-	SLIST_INIT(&sc->lge_jinuse_listhead);
-
-	/*
-	 * Now divide it up into 9K pieces and save the addresses
-	 * in an array.
-	 */
-	ptr = sc->lge_cdata.lge_jumbo_buf;
-	for (i = 0; i < LGE_JSLOTS; i++) {
-		sc->lge_cdata.lge_jslots[i] = ptr;
-		ptr += LGE_JLEN;
-		entry = malloc(sizeof(struct lge_jpool_entry),
-		    M_DEVBUF, M_NOWAIT);
-		if (entry == NULL) {
-			device_printf(sc->lge_dev, "no memory for jumbo "
-			    "buffer queue!\n");
-			return(ENOBUFS);
-		}
-		entry->slot = i;
-		SLIST_INSERT_HEAD(&sc->lge_jfree_listhead,
-		    entry, jpool_entries);
-	}
-
-	return(0);
-}
-
-static void
-lge_free_jumbo_mem(sc)
-	struct lge_softc	*sc;
-{
-	struct lge_jpool_entry	*entry;
-
-	if (sc->lge_cdata.lge_jumbo_buf == NULL)
-		return;
-
-	while ((entry = SLIST_FIRST(&sc->lge_jinuse_listhead))) {
-		device_printf(sc->lge_dev,
-		    "asked to free buffer that is in use!\n");
-		SLIST_REMOVE_HEAD(&sc->lge_jinuse_listhead, jpool_entries);
-		SLIST_INSERT_HEAD(&sc->lge_jfree_listhead, entry,
-		    jpool_entries);
-	}
-	while (!SLIST_EMPTY(&sc->lge_jfree_listhead)) {
-		entry = SLIST_FIRST(&sc->lge_jfree_listhead);
-		SLIST_REMOVE_HEAD(&sc->lge_jfree_listhead, jpool_entries);
-		free(entry, M_DEVBUF);
-	}
-
-	contigfree(sc->lge_cdata.lge_jumbo_buf, LGE_JMEM, M_DEVBUF);
-
-	return;
-}
-
-/*
- * Allocate a jumbo buffer.
- */
-static void *
-lge_jalloc(sc)
-	struct lge_softc	*sc;
-{
-	struct lge_jpool_entry   *entry;
-	
-	entry = SLIST_FIRST(&sc->lge_jfree_listhead);
-	
-	if (entry == NULL) {
-#ifdef LGE_VERBOSE
-		device_printf(sc->lge_dev, "no free jumbo buffers\n");
-#endif
-		return(NULL);
-	}
-
-	SLIST_REMOVE_HEAD(&sc->lge_jfree_listhead, jpool_entries);
-	SLIST_INSERT_HEAD(&sc->lge_jinuse_listhead, entry, jpool_entries);
-	return(sc->lge_cdata.lge_jslots[entry->slot]);
-}
-
-/*
- * Release a jumbo buffer.
- */
-static int
-lge_jfree(struct mbuf *m, void *buf, void *args, int action)
-{
-	struct lge_softc	*sc;
-	int		        i;
-	struct lge_jpool_entry   *entry;
-
-	/* Extract the softc struct pointer. */
-	sc = args;
-
-	if (sc == NULL)
-		panic("lge_jfree: can't find softc pointer!");
-
-	/* calculate the slot this buffer belongs to */
-	i = ((vm_offset_t)buf
-	     - (vm_offset_t)sc->lge_cdata.lge_jumbo_buf) / LGE_JLEN;
-
-	if ((i < 0) || (i >= LGE_JSLOTS))
-		panic("lge_jfree: asked to free buffer that we don't manage!");
-
-	entry = SLIST_FIRST(&sc->lge_jinuse_listhead);
-	if (entry == NULL)
-		panic("lge_jfree: buffer not in use!");
-	entry->slot = i;
-	SLIST_REMOVE_HEAD(&sc->lge_jinuse_listhead, jpool_entries);
-	SLIST_INSERT_HEAD(&sc->lge_jfree_listhead, entry, jpool_entries);
-
-	return (EXT_FREE_OK);
 }
 
 /*

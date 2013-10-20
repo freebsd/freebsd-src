@@ -480,28 +480,15 @@ struct lge_type {
 
 #define LGE_JUMBO_FRAMELEN	9018
 #define LGE_JUMBO_MTU		(LGE_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
-#define LGE_JSLOTS		384
 
-#define LGE_JRAWLEN (LGE_JUMBO_FRAMELEN + ETHER_ALIGN)
-#define LGE_JLEN (LGE_JRAWLEN + (sizeof(u_int64_t) - \
-	(LGE_JRAWLEN % sizeof(u_int64_t))))
 #define LGE_JPAGESZ PAGE_SIZE
 #define LGE_RESID (LGE_JPAGESZ - (LGE_JLEN * LGE_JSLOTS) % LGE_JPAGESZ)
-#define LGE_JMEM ((LGE_JLEN * LGE_JSLOTS) + LGE_RESID)
-
-struct lge_jpool_entry {
-	int				slot;
-	SLIST_ENTRY(lge_jpool_entry)	jpool_entries;
-};
 
 struct lge_ring_data {
 	int			lge_rx_prod;
 	int			lge_rx_cons;
 	int			lge_tx_prod;
 	int			lge_tx_cons;
-	/* Stick the jumbo mem management stuff here too. */
-	caddr_t			lge_jslots[LGE_JSLOTS];
-	void			*lge_jumbo_buf;
 };
 
 struct lge_softc {
@@ -522,8 +509,6 @@ struct lge_softc {
 	struct lge_ring_data	lge_cdata;
 	struct callout		lge_stat_callout;
 	struct mtx		lge_mtx;
-	SLIST_HEAD(__lge_jfreehead, lge_jpool_entry)	lge_jfree_listhead;
-	SLIST_HEAD(__lge_jinusehead, lge_jpool_entry)	lge_jinuse_listhead;
 };
 
 /*
