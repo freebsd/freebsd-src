@@ -950,6 +950,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "Corsair Force 3*", "*" },
 		/*quirks*/DA_Q_4K
 	},
+        {
+		/*
+		 * Corsair Neutron GTX SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Corsair Neutron GTX*", "*" },
+		/*quirks*/DA_Q_4K
+	},
 	{
 		/*
 		 * Corsair Force GT SSDs
@@ -1561,9 +1569,6 @@ daoninvalidate(struct cam_periph *periph)
 	 * done cleaning up its resources.
 	 */
 	disk_gone(softc->disk);
-
-	xpt_print(periph->path, "lost device - %d outstanding, %d refs\n",
-		  softc->outstanding_cmds, periph->refcount);
 }
 
 static void
@@ -1573,7 +1578,6 @@ dacleanup(struct cam_periph *periph)
 
 	softc = (struct da_softc *)periph->softc;
 
-	xpt_print(periph->path, "removing device entry\n");
 	cam_periph_unlock(periph);
 
 	/*

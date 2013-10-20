@@ -63,7 +63,7 @@
 #endif
 #define PTE_CACHE	6
 #define PTE_DEVICE	2
-#define PTE_PAGETABLE	4
+#define PTE_PAGETABLE	6
 #else
 #define PTE_NOCACHE	1
 #define PTE_CACHE	2
@@ -489,7 +489,7 @@ extern int pmap_needs_pte_sync;
 #if (ARM_MMU_SA1 == 1) && (ARM_NMMUS == 1)
 #define	PMAP_NEEDS_PTE_SYNC	1
 #define	PMAP_INCLUDE_PTE_SYNC
-#elif defined(CPU_XSCALE_81342)
+#elif defined(CPU_XSCALE_81342) || defined(ARM_ARCH_7) || defined(ARM_ARCH_7A)
 #define PMAP_NEEDS_PTE_SYNC	1
 #define PMAP_INCLUDE_PTE_SYNC
 #elif (ARM_MMU_SA1 == 0)
@@ -559,11 +559,18 @@ extern int pmap_needs_pte_sync;
 #define	PMAP_INCLUDE_PTE_SYNC
 #endif
 
+#ifdef ARM_L2_PIPT
+#define _sync_l2(pte, size) 	cpu_l2cache_wb_range(vtophys(pte), size)
+#else
+#define _sync_l2(pte, size) 	cpu_l2cache_wb_range(pte, size)
+#endif
+
 #define	PTE_SYNC(pte)							\
 do {									\
 	if (PMAP_NEEDS_PTE_SYNC) {					\
 		cpu_dcache_wb_range((vm_offset_t)(pte), sizeof(pt_entry_t));\
-		cpu_l2cache_wb_range((vm_offset_t)(pte), sizeof(pt_entry_t));\
+		cpu_drain_writebuf();					\
+		_sync_l2((vm_offset_t)(pte), sizeof(pt_entry_t));\
 	} else								\
 		cpu_drain_writebuf();					\
 } while (/*CONSTCOND*/0)
@@ -573,7 +580,8 @@ do {									\
 	if (PMAP_NEEDS_PTE_SYNC) {					\
 		cpu_dcache_wb_range((vm_offset_t)(pte),			\
 		    (cnt) << 2); /* * sizeof(pt_entry_t) */		\
-		cpu_l2cache_wb_range((vm_offset_t)(pte), 		\
+		cpu_drain_writebuf();					\
+		_sync_l2((vm_offset_t)(pte),		 		\
 		    (cnt) << 2); /* * sizeof(pt_entry_t) */		\
 	} else								\
 		cpu_drain_writebuf();					\

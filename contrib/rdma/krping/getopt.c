@@ -5,9 +5,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/ctype.h>
-#include <sys/param.h>
-#include <sys/libkern.h>
+#include <sys/types.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
+
 #include "getopt.h"
 
 /**
@@ -49,29 +50,29 @@ int krping_getopt(const char *caller, char **options,
 				if (opts->has_arg & OPT_NOPARAM) {
 					return opts->val;
 				}
-				printf("%s: the %s option requires "
+				printk(KERN_INFO "%s: the %s option requires "
 				       "an argument\n", caller, token);
 				return -EINVAL;
 			}
 			if (opts->has_arg & OPT_INT) {
 				char* v;
 
-				*value = strtoul(val, &v, 0);
+				*value = simple_strtoul(val, &v, 0);
 				if (!*v) {
 					return opts->val;
 				}
-				printf("%s: invalid numeric value "
+				printk(KERN_INFO "%s: invalid numeric value "
 				       "in %s=%s\n", caller, token, val);
 				return -EDOM;
 			}
 			if (opts->has_arg & OPT_STRING) {
 				return opts->val;
 			}
-			printf("%s: unexpected argument %s to the "
+			printk(KERN_INFO "%s: unexpected argument %s to the "
 			       "%s option\n", caller, val, token);
 			return -EINVAL;
 		}
 	}
-	printf("%s: Unrecognized option %s\n", caller, token);
+	printk(KERN_INFO "%s: Unrecognized option %s\n", caller, token);
 	return -EOPNOTSUPP;
 }

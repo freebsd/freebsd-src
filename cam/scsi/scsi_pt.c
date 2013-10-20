@@ -333,8 +333,6 @@ ptoninvalidate(struct cam_periph *periph)
 	 *     with XPT_ABORT_CCB.
 	 */
 	bioq_flush(&softc->bio_queue, NULL, ENXIO);
-
-	xpt_print(periph->path, "lost device\n");
 }
 
 static void
@@ -344,7 +342,6 @@ ptdtor(struct cam_periph *periph)
 
 	softc = (struct pt_softc *)periph->softc;
 
-	xpt_print(periph->path, "removing device entry\n");
 	devstat_remove_entry(softc->device_stats);
 	cam_periph_unlock(periph);
 	destroy_dev(softc->dev);

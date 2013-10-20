@@ -207,11 +207,6 @@ passoninvalidate(struct cam_periph *periph)
 	 * XXX Handle any transactions queued to the card
 	 *     with XPT_ABORT_CCB.
 	 */
-
-	if (bootverbose) {
-		xpt_print(periph->path, "lost device\n");
-	}
-
 }
 
 static void
@@ -221,8 +216,6 @@ passcleanup(struct cam_periph *periph)
 
 	softc = (struct pass_softc *)periph->softc;
 
-	if (bootverbose)
-		xpt_print(periph->path, "removing device entry\n");
 	devstat_remove_entry(softc->device_stats);
 
 	cam_periph_unlock(periph);

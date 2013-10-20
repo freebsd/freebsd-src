@@ -512,3 +512,4 @@ MODULE_DEPEND(radeonkms, agp, 1, 1, 1);
 MODULE_DEPEND(radeonkms, iicbus, 1, 1, 1);
 MODULE_DEPEND(radeonkms, iic, 1, 1, 1);
 MODULE_DEPEND(radeonkms, iicbb, 1, 1, 1);
+MODULE_DEPEND(radeonkms, firmware, 1, 1, 1);

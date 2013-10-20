@@ -1,19 +1,20 @@
 /*
- * This code lifted from: 
+ * This code lifted from:
  * 	Simple `echo' pseudo-device KLD
  * 	Murray Stokely
  * 	Converted to 5.X by Søren (Xride) Straarup
  */
 
 /*
- * /bin/echo "server,port=9999,addr=192.168.69.142,validate" > /dev/krping  
- * /bin/echo "client,port=9999,addr=192.168.69.142,validate" > /dev/krping  
+ * /bin/echo "server,port=9999,addr=192.168.69.142,validate" > /dev/krping
+ * /bin/echo "client,port=9999,addr=192.168.69.142,validate" > /dev/krping
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/module.h>
 #include <sys/systm.h>  /* uprintf */
 #include <sys/errno.h>
 #include <sys/param.h>  /* defines used in kernel.h */
@@ -21,10 +22,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>   /* cdevsw struct */
 #include <sys/uio.h>    /* uio struct */
 #include <sys/malloc.h>
+#include <sys/proc.h>
+#include <sys/sysctl.h>
+#include <machine/stdarg.h>
 
 #include "krping.h"
 
 #define BUFFERSIZE 512
+
+SYSCTL_NODE(_dev, OID_AUTO, krping, CTLFLAG_RW, 0, "kernel rping module");
+
+int krping_debug = 0;
+SYSCTL_INT(_dev_krping, OID_AUTO, debug, CTLFLAG_RW, &krping_debug, 0 , "");
 
 /* Function prototypes */
 static d_open_t      krping_open;
@@ -47,11 +56,14 @@ typedef struct s_krping {
 	int len;
 } krping_t;
 
+struct stats_list_entry {
+	STAILQ_ENTRY(stats_list_entry) link;
+	struct krping_stats *stats;
+};
+STAILQ_HEAD(stats_list, stats_list_entry);
+
 /* vars */
 static struct cdev *krping_dev;
-
-#undef MODULE_VERSION
-#include <sys/module.h>
 
 static int
 krping_loader(struct module *m, int what, void *arg)
@@ -61,7 +73,7 @@ krping_loader(struct module *m, int what, void *arg)
 	switch (what) {
 	case MOD_LOAD:                /* kldload */
 		krping_init();
-		krping_dev = make_dev(&krping_cdevsw, 0, UID_ROOT, GID_WHEEL, 
+		krping_dev = make_dev(&krping_cdevsw, 0, UID_ROOT, GID_WHEEL,
 					0600, "krping");
 		printf("Krping device loaded.\n");
 		break;
@@ -73,61 +85,82 @@ krping_loader(struct module *m, int what, void *arg)
 		err = EOPNOTSUPP;
 		break;
 	}
-	return err;
+
+	return (err);
 }
 
 static int
 krping_open(struct cdev *dev, int oflags, int devtype, struct thread *p)
 {
-	int err = 0;
-	return err;
+
+	return (0);
 }
 
 static int
 krping_close(struct cdev *dev, int fflag, int devtype, struct thread *p)
 {
+
 	return 0;
+}
+
+static void
+krping_copy_stats(struct krping_stats *stats, void *arg)
+{
+	struct stats_list_entry *s;
+	struct stats_list *list = arg;
+
+	s = malloc(sizeof(*s), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (s == NULL)
+		return;
+	if (stats != NULL) {
+		s->stats = malloc(sizeof(*stats), M_DEVBUF, M_NOWAIT | M_ZERO);
+		if (s->stats == NULL) {
+			free(s, M_DEVBUF);
+			return;
+		}
+		*s->stats = *stats;
+	}
+	STAILQ_INSERT_TAIL(list, s, link);
 }
 
 static int
 krping_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	struct krping_cb *cb, *cb2;
-	int num=1;
-	struct krping_cb_list copy_cbs;
+	int num = 1;
+	struct stats_list list;
+	struct stats_list_entry *e;
+
+	STAILQ_INIT(&list);
+	krping_walk_cb_list(krping_copy_stats, &list);
+
+	if (STAILQ_EMPTY(&list))
+		return (0);
 
 	uprintf("krping: %4s %10s %10s %10s %10s %10s %10s %10s %10s %10s\n",
-		"num", "device", "snd bytes", "snd msgs", "rcv bytes", 
-		"rcv msgs", "wr bytes", "wr msgs", "rd bytes", "rd msgs");
-	TAILQ_INIT(&copy_cbs);
+	    "num", "device", "snd bytes", "snd msgs", "rcv bytes", "rcv msgs",
+	    "wr bytes", "wr msgs", "rd bytes", "rd msgs");
 
-	mtx_lock(&krping_mutex);
-	TAILQ_FOREACH(cb, &krping_cbs, list) {
-		cb2 = malloc(sizeof(*cb), M_DEVBUF, M_NOWAIT|M_ZERO);
-		if (!cb2)
-			break;
-		bcopy(cb, cb2, sizeof(*cb));
-		TAILQ_INSERT_TAIL(&copy_cbs, cb2, list);
-	}
-	mtx_unlock(&krping_mutex);
+	while (!STAILQ_EMPTY(&list)) {
+		e = STAILQ_FIRST(&list);
+		STAILQ_REMOVE_HEAD(&list, link);
+		if (e->stats == NULL)
+			uprintf("krping: %d listen\n", num);
+		else {
+			struct krping_stats *stats = e->stats;
 
-	while (!TAILQ_EMPTY(&copy_cbs)) {
-		cb = TAILQ_FIRST(&copy_cbs);
-		TAILQ_REMOVE(&copy_cbs, cb, list);
-		if (cb->pd) {
-			uprintf("krping: %4d %10s %10u %10u %10u %10u %10u %10u %10u %10u\n",
-			     num++, cb->name, cb->stats.send_bytes,
-			     cb->stats.send_msgs, cb->stats.recv_bytes,
-			     cb->stats.recv_msgs, cb->stats.write_bytes,
-			     cb->stats.write_msgs,
-			     cb->stats.read_bytes,
-			     cb->stats.read_msgs);
-		} else {
-			uprintf("krping: %d listen\n", num++);
+			uprintf("krping: %4d %10s %10llu %10llu %10llu %10llu "
+			    "%10llu %10llu %10llu %10llu\n", num, stats->name,
+			    stats->send_bytes, stats->send_msgs,
+			    stats->recv_bytes, stats->recv_msgs,
+			    stats->write_bytes, stats->write_msgs,
+			    stats->read_bytes, stats->read_msgs);
+			free(stats, M_DEVBUF);
 		}
-		free(cb, M_DEVBUF);
+		num++;
+		free(e, M_DEVBUF);
 	}
-	return 0;
+
+	return (0);
 }
 
 static int
@@ -171,9 +204,27 @@ krping_write(struct cdev *dev, struct uio *uio, int ioflag)
 	*cp = 0;
 	krpingmsg->len = (unsigned long)(cp - krpingmsg->msg);
 	uprintf("krping: write string = |%s|\n", krpingmsg->msg);
-	err = krping_doit(krpingmsg->msg);
+	err = krping_doit(krpingmsg->msg, curproc);
 	free(krpingmsg, M_DEVBUF);
 	return(err);
 }
 
-DEV_MODULE(krping,krping_loader,NULL);
+void
+krping_printf(void *cookie, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vtprintf(cookie, -1, fmt, ap);
+	va_end(ap);
+}
+
+int
+krping_sigpending(void)
+{
+
+	return (SIGPENDING(curthread));
+}
+
+DEV_MODULE(krping, krping_loader, NULL);
+MODULE_DEPEND(krping, ibcore, 1, 1, 1);

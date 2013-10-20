@@ -293,6 +293,14 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
+		 * Corsair Neutron GTX SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Corsair Neutron GTX*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
 		 * Corsair Force GT SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
 		 */
@@ -907,7 +915,6 @@ adaoninvalidate(struct cam_periph *periph)
 	bioq_flush(&softc->trim_queue, NULL, ENXIO);
 
 	disk_gone(softc->disk);
-	xpt_print(periph->path, "lost device\n");
 }
 
 static void
@@ -917,7 +924,6 @@ adacleanup(struct cam_periph *periph)
 
 	softc = (struct ada_softc *)periph->softc;
 
-	xpt_print(periph->path, "removing device entry\n");
 	cam_periph_unlock(periph);
 
 	/*

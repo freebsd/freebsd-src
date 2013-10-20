@@ -11,8 +11,9 @@ SRCS+=	nehemiah.c
 SRCS+=	ivy.c
 .endif
 SRCS+=	randomdev_soft.c yarrow.c hash.c
+SRCS+=	random_harvestq.c live_entropy_sources.c rwfile.c
 SRCS+=	rijndael-alg-fst.c rijndael-api-fst.c sha2.c
-SRCS+=	bus_if.h device_if.h vnode_if.h opt_cpu.h
+SRCS+=	bus_if.h device_if.h vnode_if.h opt_cpu.h opt_random.h
 
 CFLAGS+= -I${.CURDIR}/../..
 

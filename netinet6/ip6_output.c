@@ -1021,8 +1021,9 @@ passout:
 		ia6 = in6_ifawithifp(ifp, &ip6->ip6_src);
 		if (ia6) {
 			/* Record statistics for this interface address. */
-			ia6->ia_ifa.if_opackets++;
-			ia6->ia_ifa.if_obytes += m->m_pkthdr.len;
+			counter_u64_add(ia6->ia_ifa.ifa_opackets, 1);
+			counter_u64_add(ia6->ia_ifa.ifa_obytes,
+			    m->m_pkthdr.len);
 			ifa_free(&ia6->ia_ifa);
 		}
 		error = nd6_output(ifp, origifp, m, dst, ro->ro_rt);
@@ -1177,8 +1178,9 @@ sendorfree:
 		if (error == 0) {
 			/* Record statistics for this interface address. */
 			if (ia) {
-				ia->ia_ifa.if_opackets++;
-				ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+				counter_u64_add(ia->ia_ifa.ifa_opackets, 1);
+				counter_u64_add(ia->ia_ifa.ifa_obytes,
+				    m->m_pkthdr.len);
 			}
 			error = nd6_output(ifp, origifp, m, dst, ro->ro_rt);
 		} else
@@ -2659,10 +2661,8 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
 		}
 
 		/* validate the interface index if specified. */
-		if (pktinfo->ipi6_ifindex > V_if_index ||
-		    pktinfo->ipi6_ifindex < 0) {
+		if (pktinfo->ipi6_ifindex > V_if_index)
 			 return (ENXIO);
-		}
 		if (pktinfo->ipi6_ifindex) {
 			ifp = ifnet_byindex(pktinfo->ipi6_ifindex);
 			if (ifp == NULL)

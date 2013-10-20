@@ -53,7 +53,7 @@ int
 x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 		  uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx)
 {
-	int error;
+	int error, enable_invpcid;
 	unsigned int 	func, regs[4];
 	enum x2apic_state x2apic_state;
 
@@ -202,8 +202,22 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			regs[0] |= 0x04008000;
 			break;
 
-		case CPUID_0000_0006:
 		case CPUID_0000_0007:
+			regs[0] = 0;
+			regs[1] = 0;
+			regs[2] = 0;
+			regs[3] = 0;
+
+			/* leaf 0 */
+			if (*ecx == 0) {
+				error = vm_get_capability(vm, vcpu_id,
+				    VM_CAP_ENABLE_INVPCID, &enable_invpcid);
+				if (error == 0 && enable_invpcid)
+					regs[1] |= CPUID_STDEXT_INVPCID;
+			}
+			break;
+
+		case CPUID_0000_0006:
 		case CPUID_0000_000A:
 		case CPUID_0000_000D:
 			/*
