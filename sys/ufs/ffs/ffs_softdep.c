@@ -138,6 +138,7 @@ softdep_unmount(mp)
 	struct mount *mp;
 {
 
+	panic("softdep_unmount called");
 }
 
 void
@@ -146,6 +147,8 @@ softdep_setup_sbupdate(ump, fs, bp)
 	struct fs *fs;
 	struct buf *bp;
 {
+
+	panic("softdep_setup_sbupdate called");
 }
 
 void
@@ -433,8 +436,6 @@ softdep_prealloc(vp, waitok)
 {
 
 	panic("%s called", __FUNCTION__);
-
-	return (0);
 }
 
 int
@@ -503,14 +504,14 @@ int
 softdep_sync_metadata(struct vnode *vp)
 {
 
-	return (0);
+	panic("softdep_sync_metadata called");
 }
 
 int
 softdep_sync_buf(struct vnode *vp, struct buf *bp, int waitfor)
 {
 
-	return (0);
+	panic("softdep_sync_buf called");
 }
 
 int
@@ -1851,6 +1852,10 @@ softdep_move_dependencies(oldbp, newbp)
 	struct worklist *wk, *wktail;
 	int dirty;
 
+	if ((wk = LIST_FIRST(&oldbp->b_dep)) == NULL)
+		return (0);
+	KASSERT(MOUNTEDSOFTDEP(wk->wk_mp) != 0,
+	    ("softdep_move_dependencies called on non-softdep filesystem"));
 	dirty = 0;
 	wktail = NULL;
 	ACQUIRE_LOCK(&lk);
@@ -1946,6 +1951,8 @@ softdep_flushfiles(oldmnt, flags, td)
 	int error, early, depcount, loopcnt, retry_flush_count, retry;
 	int morework;
 
+	KASSERT(MOUNTEDSOFTDEP(oldmnt) != 0,
+	    ("softdep_flushfiles called on non-softdep filesystem"));
 	loopcnt = 10;
 	retry_flush_count = 3;
 retry_flush:
@@ -2497,6 +2504,8 @@ softdep_unmount(mp)
 	struct mount *mp;
 {
 
+	KASSERT(MOUNTEDSOFTDEP(mp) != 0,
+	    ("softdep_unmount called on non-softdep filesystem"));
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_SOFTDEP;
 	if (MOUNTEDSUJ(mp) == 0) {
@@ -2876,6 +2885,8 @@ softdep_prealloc(vp, waitok)
 {
 	struct ufsmount *ump;
 
+	KASSERT(MOUNTEDSOFTDEP(vp->v_mount) != 0,
+	    ("softdep_prealloc called on non-softdep filesystem"));
 	/*
 	 * Nothing to do if we are not running journaled soft updates.
 	 * If we currently hold the snapshot lock, we must avoid handling
@@ -4495,6 +4506,8 @@ softdep_setup_create(dp, ip)
 	struct jaddref *jaddref;
 	struct vnode *dvp;
 
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(dp->i_ump)) != 0,
+	    ("softdep_setup_create called on non-softdep filesystem"));
 	KASSERT(ip->i_nlink == 1,
 	    ("softdep_setup_create: Invalid link count."));
 	dvp = ITOV(dp);
@@ -4526,6 +4539,8 @@ softdep_setup_dotdot_link(dp, ip)
 	struct vnode *dvp;
 	struct vnode *vp;
 
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(dp->i_ump)) != 0,
+	    ("softdep_setup_dotdot_link called on non-softdep filesystem"));
 	dvp = ITOV(dp);
 	vp = ITOV(ip);
 	jaddref = NULL;
@@ -4560,6 +4575,8 @@ softdep_setup_link(dp, ip)
 	struct jaddref *jaddref;
 	struct vnode *dvp;
 
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(dp->i_ump)) != 0,
+	    ("softdep_setup_link called on non-softdep filesystem"));
 	dvp = ITOV(dp);
 	jaddref = NULL;
 	if (DOINGSUJ(dvp))
@@ -4591,6 +4608,8 @@ softdep_setup_mkdir(dp, ip)
 	struct jaddref *jaddref;
 	struct vnode *dvp;
 
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(dp->i_ump)) != 0,
+	    ("softdep_setup_mkdir called on non-softdep filesystem"));
 	dvp = ITOV(dp);
 	dotaddref = dotdotaddref = NULL;
 	if (DOINGSUJ(dvp)) {
@@ -4633,6 +4652,8 @@ softdep_setup_rmdir(dp, ip)
 {
 	struct vnode *dvp;
 
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(dp->i_ump)) != 0,
+	    ("softdep_setup_rmdir called on non-softdep filesystem"));
 	dvp = ITOV(dp);
 	ACQUIRE_LOCK(&lk);
 	(void) inodedep_lookup_ip(ip);
@@ -4652,6 +4673,8 @@ softdep_setup_unlink(dp, ip)
 {
 	struct vnode *dvp;
 
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(dp->i_ump)) != 0,
+	    ("softdep_setup_unlink called on non-softdep filesystem"));
 	dvp = ITOV(dp);
 	ACQUIRE_LOCK(&lk);
 	(void) inodedep_lookup_ip(ip);
@@ -4673,6 +4696,8 @@ softdep_revert_create(dp, ip)
 	struct jaddref *jaddref;
 	struct vnode *dvp;
 
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(dp->i_ump)) != 0,
+	    ("softdep_revert_create called on non-softdep filesystem"));
 	dvp = ITOV(dp);
 	ACQUIRE_LOCK(&lk);
 	inodedep = inodedep_lookup_ip(ip);
@@ -4699,6 +4724,8 @@ softdep_revert_link(dp, ip)
 	struct jaddref *jaddref;
 	struct vnode *dvp;
 
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(dp->i_ump)) != 0,
+	    ("softdep_revert_link called on non-softdep filesystem"));
 	dvp = ITOV(dp);
 	ACQUIRE_LOCK(&lk);
 	inodedep = inodedep_lookup_ip(ip);
@@ -4726,6 +4753,8 @@ softdep_revert_mkdir(dp, ip)
 	struct jaddref *dotaddref;
 	struct vnode *dvp;
 
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(dp->i_ump)) != 0,
+	    ("softdep_revert_mkdir called on non-softdep filesystem"));
 	dvp = ITOV(dp);
 
 	ACQUIRE_LOCK(&lk);
@@ -4762,6 +4791,8 @@ softdep_revert_rmdir(dp, ip)
 	struct inode *ip;
 {
 
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(dp->i_ump)) != 0,
+	    ("softdep_revert_rmdir called on non-softdep filesystem"));
 	ACQUIRE_LOCK(&lk);
 	(void) inodedep_lookup_ip(ip);
 	(void) inodedep_lookup_ip(dp);
@@ -4817,6 +4848,8 @@ softdep_setup_inomapdep(bp, ip, newinum, mode)
 	struct fs *fs;
 
 	mp = UFSTOVFS(ip->i_ump);
+	KASSERT(MOUNTEDSOFTDEP(mp) != 0,
+	    ("softdep_setup_inomapdep called on non-softdep filesystem"));
 	fs = ip->i_ump->um_fs;
 	jaddref = NULL;
 
@@ -4884,6 +4917,8 @@ softdep_setup_blkmapdep(bp, mp, newblkno, frags, oldfrags)
 	struct jnewblk *jnewblk;
 	struct fs *fs;
 
+	KASSERT(MOUNTEDSOFTDEP(mp) != 0,
+	    ("softdep_setup_blkmapdep called on non-softdep filesystem"));
 	fs = VFSTOUFS(mp)->um_fs;
 	jnewblk = NULL;
 	/*
@@ -5084,6 +5119,8 @@ softdep_setup_allocdirect(ip, off, newblkno, oldblkno, newsize, oldsize, bp)
 
 	lbn = bp->b_lblkno;
 	mp = UFSTOVFS(ip->i_ump);
+	KASSERT(MOUNTEDSOFTDEP(mp) != 0,
+	    ("softdep_setup_allocdirect called on non-softdep filesystem"));
 	if (oldblkno && oldblkno != newblkno)
 		freefrag = newfreefrag(ip, oldblkno, oldsize, lbn);
 	else
@@ -5460,12 +5497,13 @@ softdep_setup_allocext(ip, off, newblkno, oldblkno, newsize, oldsize, bp)
 	struct mount *mp;
 	ufs_lbn_t lbn;
 
-	if (off >= NXADDR)
-		panic("softdep_setup_allocext: lbn %lld > NXADDR",
-		    (long long)off);
+	mp = UFSTOVFS(ip->i_ump);
+	KASSERT(MOUNTEDSOFTDEP(mp) != 0,
+	    ("softdep_setup_allocext called on non-softdep filesystem"));
+	KASSERT(off < NXADDR, ("softdep_setup_allocext: lbn %lld > NXADDR",
+		    (long long)off));
 
 	lbn = bp->b_lblkno;
-	mp = UFSTOVFS(ip->i_ump);
 	if (oldblkno && oldblkno != newblkno)
 		freefrag = newfreefrag(ip, oldblkno, oldsize, lbn);
 	else
@@ -5626,14 +5664,16 @@ softdep_setup_allocindir_page(ip, lbn, bp, ptrno, newblkno, oldblkno, nbp)
 	struct mount *mp;
 	int dflags;
 
-	if (lbn != nbp->b_lblkno)
-		panic("softdep_setup_allocindir_page: lbn %jd != lblkno %jd",
-		    lbn, bp->b_lblkno);
+	mp = UFSTOVFS(ip->i_ump);
+	KASSERT(MOUNTEDSOFTDEP(mp) != 0,
+	    ("softdep_setup_allocindir_page called on non-softdep filesystem"));
+	KASSERT(lbn == nbp->b_lblkno,
+	    ("softdep_setup_allocindir_page: lbn %jd != lblkno %jd",
+	    lbn, bp->b_lblkno));
 	CTR4(KTR_SUJ,
 	    "softdep_setup_allocindir_page: ino %d blkno %jd oldblkno %jd "
 	    "lbn %jd", ip->i_number, newblkno, oldblkno, lbn);
 	ASSERT_VOP_LOCKED(ITOV(ip), "softdep_setup_allocindir_page");
-	mp = UFSTOVFS(ip->i_ump);
 	aip = newallocindir(ip, ptrno, newblkno, oldblkno, lbn);
 	dflags = DEPALLOC;
 	if (IS_SNAPSHOT(ip))
@@ -5670,6 +5710,8 @@ softdep_setup_allocindir_meta(nbp, ip, bp, ptrno, newblkno)
 	ufs_lbn_t lbn;
 	int dflags;
 
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(ip->i_ump)) != 0,
+	    ("softdep_setup_allocindir_meta called on non-softdep filesystem"));
 	CTR3(KTR_SUJ,
 	    "softdep_setup_allocindir_meta: ino %d blkno %jd ptrno %d",
 	    ip->i_number, newblkno, ptrno);
@@ -6281,6 +6323,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 	struct inodedep *inodedep;
 	struct jblkdep *jblkdep;
 	struct allocdirect *adp, *adpn;
+	struct ufsmount *ump;
 	struct fs *fs;
 	struct buf *bp;
 	struct vnode *vp;
@@ -6290,7 +6333,10 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 	int frags, lastoff, iboff, allocblock, needj, dflags, error, i;
 
 	fs = ip->i_fs;
-	mp = UFSTOVFS(ip->i_ump);
+	ump = ip->i_ump;
+	mp = UFSTOVFS(ump);
+	KASSERT(MOUNTEDSOFTDEP(mp) != 0,
+	    ("softdep_journal_freeblocks called on non-softdep filesystem"));
 	vp = ITOV(ip);
 	needj = 1;
 	iboff = -1;
@@ -6559,6 +6605,8 @@ softdep_journal_fsync(ip)
 {
 	struct jfsync *jfsync;
 
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(ip->i_ump)) != 0,
+	    ("softdep_journal_fsync called on non-softdep filesystem"));
 	if ((ip->i_flag & IN_TRUNCATED) == 0)
 		return;
 	ip->i_flag &= ~IN_TRUNCATED;
@@ -6612,6 +6660,7 @@ softdep_setup_freeblocks(ip, length, flags)
 	struct freeblks *freeblks;
 	struct inodedep *inodedep;
 	struct allocdirect *adp;
+	struct ufsmount *ump;
 	struct buf *bp;
 	struct fs *fs;
 	ufs2_daddr_t extblocks, datablocks;
@@ -6620,12 +6669,14 @@ softdep_setup_freeblocks(ip, length, flags)
 	ufs_lbn_t tmpval;
 	ufs_lbn_t lbn;
 
+	ump = ip->i_ump;
+	mp = UFSTOVFS(ump);
+	KASSERT(MOUNTEDSOFTDEP(mp) != 0,
+	    ("softdep_setup_freeblocks called on non-softdep filesystem"));
 	CTR2(KTR_SUJ, "softdep_setup_freeblks: ip %d length %ld",
 	    ip->i_number, length);
+	KASSERT(length == 0, ("softdep_setup_freeblocks: non-zero length"));
 	fs = ip->i_fs;
-	mp = UFSTOVFS(ip->i_ump);
-	if (length != 0)
-		panic("softdep_setup_freeblocks: non-zero length");
 	freeblks = newfreeblks(mp, ip);
 	extblocks = 0;
 	datablocks = 0;
@@ -7295,7 +7346,11 @@ softdep_freefile(pvp, ino, mode)
 	struct inodedep *inodedep;
 	struct freefile *freefile;
 	struct freeblks *freeblks;
+	struct ufsmount *ump;
 
+	ump = ip->i_ump;
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(ump)) != 0,
+	    ("softdep_freefile called on non-softdep filesystem"));
 	/*
 	 * This sets up the inode de-allocation dependency.
 	 */
@@ -7306,9 +7361,9 @@ softdep_freefile(pvp, ino, mode)
 	freefile->fx_oldinum = ino;
 	freefile->fx_devvp = ip->i_devvp;
 	LIST_INIT(&freefile->fx_jwork);
-	UFS_LOCK(ip->i_ump);
+	UFS_LOCK(ump);
 	ip->i_fs->fs_pendinginodes += 1;
-	UFS_UNLOCK(ip->i_ump);
+	UFS_UNLOCK(ump);
 
 	/*
 	 * If the inodedep does not exist, then the zero'ed inode has
@@ -8206,9 +8261,14 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 	struct newdirblk *newdirblk = 0;
 	struct mkdir *mkdir1, *mkdir2;
 	struct jaddref *jaddref;
+	struct ufsmount *ump;
 	struct mount *mp;
 	int isindir;
 
+	ump = dp->i_ump;
+	mp = UFSTOVFS(ump);
+	KASSERT(MOUNTEDSOFTDEP(mp) != 0,
+	    ("softdep_setup_directory_add called on non-softdep filesystem"));
 	/*
 	 * Whiteouts have no dependencies.
 	 */
@@ -8219,7 +8279,6 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 	}
 	jaddref = NULL;
 	mkdir1 = mkdir2 = NULL;
-	mp = UFSTOVFS(dp->i_ump);
 	fs = dp->i_fs;
 	lbn = lblkno(fs, diroffset);
 	offset = blkoff(fs, diroffset);
@@ -8376,6 +8435,9 @@ softdep_change_directoryentry_offset(bp, dp, base, oldloc, newloc, entrysize)
 	int flags;
 
 	mp = UFSTOVFS(dp->i_ump);
+	KASSERT(MOUNTEDSOFTDEP(mp) != 0,
+	    ("softdep_change_directoryentry_offset called on "
+	     "non-softdep filesystem"));
 	de = (struct direct *)oldloc;
 	jmvref = NULL;
 	flags = 0;
@@ -8653,6 +8715,8 @@ softdep_setup_remove(bp, dp, ip, isrmdir)
 	struct inodedep *inodedep;
 	int direct;
 
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(ip->i_ump)) != 0,
+	    ("softdep_setup_remove called on non-softdep filesystem"));
 	/*
 	 * Allocate a new dirrem if appropriate and ACQUIRE_LOCK.  We want
 	 * newdirrem() to setup the full directory remove which requires
@@ -9011,6 +9075,8 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 
 	offset = blkoff(dp->i_fs, dp->i_offset);
 	mp = UFSTOVFS(dp->i_ump);
+	KASSERT(MOUNTEDSOFTDEP(mp) != 0,
+	   ("softdep_setup_directory_change called on non-softdep filesystem"));
 
 	/*
 	 * Whiteouts do not need diradd dependencies.
@@ -9148,6 +9214,8 @@ softdep_change_linkcnt(ip)
 	struct inodedep *inodedep;
 	int dflags;
 
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(ip->i_ump)) != 0,
+	    ("softdep_change_linkcnt called on non-softdep filesystem"));
 	ACQUIRE_LOCK(&lk);
 	dflags = DEPALLOC;
 	if (IS_SNAPSHOT(ip))
@@ -9172,8 +9240,8 @@ softdep_setup_sbupdate(ump, fs, bp)
 	struct sbdep *sbdep;
 	struct worklist *wk;
 
-	if (MOUNTEDSUJ(UFSTOVFS(ump)) == 0)
-		return;
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(ump)) != 0,
+	    ("softdep_setup_sbupdate called on non-softdep filesystem"));
 	LIST_FOREACH(wk, &bp->b_dep, wk_list)
 		if (wk->wk_type == D_SBDEP)
 			break;
@@ -10377,6 +10445,8 @@ softdep_setup_inofree(mp, bp, ino, wkhd)
 	struct cg *cgp;
 	struct fs *fs;
 
+	KASSERT(MOUNTEDSOFTDEP(mp) != 0,
+	    ("softdep_setup_inofree called on non-softdep filesystem"));
 	ACQUIRE_LOCK(&lk);
 	fs = VFSTOUFS(mp)->um_fs;
 	cgp = (struct cg *)bp->b_data;
@@ -10422,6 +10492,7 @@ softdep_setup_blkfree(mp, bp, blkno, frags, wkhd)
 {
 	struct bmsafemap *bmsafemap;
 	struct jnewblk *jnewblk;
+	struct ufsmount *ump;
 	struct worklist *wk;
 	struct fs *fs;
 #ifdef SUJ_DEBUG
@@ -10438,9 +10509,12 @@ softdep_setup_blkfree(mp, bp, blkno, frags, wkhd)
 	    "softdep_setup_blkfree: blkno %jd frags %d wk head %p",
 	    blkno, frags, wkhd);
 
+	ump = VFSTOUFS(mp);
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(ump)) != 0,
+	    ("softdep_setup_blkfree called on non-softdep filesystem"));
 	ACQUIRE_LOCK(&lk);
 	/* Lookup the bmsafemap so we track when it is dirty. */
-	fs = VFSTOUFS(mp)->um_fs;
+	fs = ump->um_fs;
 	bmsafemap = bmsafemap_lookup(mp, bp, dtog(fs, blkno), NULL);
 	/*
 	 * Detach any jnewblks which have been canceled.  They must linger
@@ -11727,6 +11801,8 @@ softdep_load_inodeblock(ip)
 {
 	struct inodedep *inodedep;
 
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(ip->i_ump)) != 0,
+	    ("softdep_load_inodeblock called on non-softdep filesystem"));
 	/*
 	 * Check for alternate nlink count.
 	 */
@@ -11759,13 +11835,17 @@ softdep_update_inodeblock(ip, bp, waitfor)
 {
 	struct inodedep *inodedep;
 	struct inoref *inoref;
+	struct ufsmount *ump;
 	struct worklist *wk;
 	struct mount *mp;
 	struct buf *ibp;
 	struct fs *fs;
 	int error;
 
-	mp = UFSTOVFS(ip->i_ump);
+	ump = ip->i_ump;
+	mp = UFSTOVFS(ump);
+	KASSERT(MOUNTEDSOFTDEP(mp) != 0,
+	    ("softdep_update_inodeblock called on non-softdep filesystem"));
 	fs = ip->i_fs;
 	/*
 	 * Preserve the freelink that is on disk.  clear_unlinked_inodedep()
@@ -12201,8 +12281,12 @@ sync_cgs(mp, waitfor)
 int
 softdep_sync_metadata(struct vnode *vp)
 {
+	struct inode *ip;
 	int error;
 
+	ip = VTOI(vp);
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(ip->i_ump)) != 0,
+	    ("softdep_sync_metadata called on non-softdep filesystem"));
 	/*
 	 * Ensure that any direct block dependencies have been cleared,
 	 * truncations are started, and inode references are journaled.
@@ -12213,7 +12297,7 @@ softdep_sync_metadata(struct vnode *vp)
 	 */
 	if (vp->v_type == VCHR)
 		softdep_flushjournal(vp->v_mount);
-	error = flush_inodedep_deps(vp, vp->v_mount, VTOI(vp)->i_number);
+	error = flush_inodedep_deps(vp, vp->v_mount, ip->i_number);
 	/*
 	 * Ensure that all truncates are written so we won't find deps on
 	 * indirect blocks.
@@ -12242,6 +12326,8 @@ softdep_sync_buf(struct vnode *vp, struct buf *bp, int waitfor)
 	struct worklist *wk;
 	int i, error;
 
+	KASSERT(MOUNTEDSOFTDEP(vp->v_mount) != 0,
+	    ("softdep_sync_buf called on non-softdep filesystem"));
 	/*
 	 * For VCHR we just don't want to force flush any dependencies that
 	 * will cause rollbacks.
@@ -12730,6 +12816,8 @@ softdep_slowdown(vp)
 	int jlow;
 	int max_softdeps_hard;
 
+	KASSERT(MOUNTEDSOFTDEP(vp->v_mount) != 0,
+	    ("softdep_slowdown called on non-softdep filesystem"));
 	ACQUIRE_LOCK(&lk);
 	jlow = 0;
 	/*
@@ -13164,6 +13252,10 @@ softdep_buf_append(bp, wkhd)
 {
 	struct worklist *wk;
 
+	if ((wk = LIST_FIRST(wkhd)) == NULL)
+		return;
+	KASSERT(MOUNTEDSOFTDEP(wk->wk_mp) != 0,
+	    ("softdep_buf_append called on non-softdep filesystem"));
 	ACQUIRE_LOCK(&lk);
 	while ((wk = LIST_FIRST(wkhd)) != NULL) {
 		WORKLIST_REMOVE(wk);
@@ -13183,6 +13275,8 @@ softdep_inode_append(ip, cred, wkhd)
 	struct fs *fs;
 	int error;
 
+	KASSERT(MOUNTEDSOFTDEP(UFSTOVFS(ip->i_ump)) != 0,
+	    ("softdep_inode_append called on non-softdep filesystem"));
 	fs = ip->i_fs;
 	error = bread(ip->i_devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
 	    (int)fs->fs_bsize, cred, &bp);
@@ -13199,7 +13293,12 @@ void
 softdep_freework(wkhd)
 	struct workhead *wkhd;
 {
+	struct worklist *wk;
 
+	if ((wk = LIST_FIRST(wkhd)) == NULL)
+		return;
+	KASSERT(MOUNTEDSOFTDEP(wk->wk_mp) != 0,
+	    ("softdep_freework called on non-softdep filesystem"));
 	ACQUIRE_LOCK(&lk);
 	handle_jwork(wkhd);
 	FREE_LOCK(&lk);
