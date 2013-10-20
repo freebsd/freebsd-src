@@ -521,14 +521,6 @@ softdep_slowdown(vp)
 	panic("softdep_slowdown called");
 }
 
-void
-softdep_releasefile(ip)
-	struct inode *ip;	/* inode with the zero effective link count */
-{
-
-	panic("softdep_releasefile called");
-}
-
 int
 softdep_request_cleanup(fs, vp, cred, resource)
 	struct fs *fs;
@@ -4689,32 +4681,6 @@ softdep_revert_create(dp, ip)
 		    inoreflst);
 		KASSERT(jaddref->ja_parent == dp->i_number,
 		    ("softdep_revert_create: addref parent mismatch"));
-		cancel_jaddref(jaddref, inodedep, &inodedep->id_inowait);
-	}
-	FREE_LOCK(&lk);
-}
-
-/*
- * Called to release the journal structures created by a failed dotdot link
- * creation.  Adjusts nlinkdelta for non-journaling softdep.
- */
-void
-softdep_revert_dotdot_link(dp, ip)
-	struct inode *dp;
-	struct inode *ip;
-{
-	struct inodedep *inodedep;
-	struct jaddref *jaddref;
-	struct vnode *dvp;
-
-	dvp = ITOV(dp);
-	ACQUIRE_LOCK(&lk);
-	inodedep = inodedep_lookup_ip(dp);
-	if (DOINGSUJ(dvp)) {
-		jaddref = (struct jaddref *)TAILQ_LAST(&inodedep->id_inoreflst,
-		    inoreflst);
-		KASSERT(jaddref->ja_parent == ip->i_number,
-		    ("softdep_revert_dotdot_link: addref parent mismatch"));
 		cancel_jaddref(jaddref, inodedep, &inodedep->id_inowait);
 	}
 	FREE_LOCK(&lk);
