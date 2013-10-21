@@ -110,11 +110,6 @@ struct cam_sim {
 	struct callout		callout;
 	struct cam_devq 	*devq;	/* Device Queue to use for this SIM */
 	int			refcount; /* References to the SIM. */
-	int			sim_doneq_flags;
-#define	CAM_SIM_DQ_ONQ		0x04
-#define	CAM_SIM_DQ_POLLED	0x08
-#define	CAM_SIM_DQ_BATCH	0x10
-	struct mtx		sim_doneq_mtx;
 };
 
 #define CAM_SIM_LOCK(sim)	mtx_lock((sim)->mtx)

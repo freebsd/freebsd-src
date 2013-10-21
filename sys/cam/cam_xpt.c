@@ -258,7 +258,7 @@ static int	 xpt_schedule_dev(struct camq *queue, cam_pinfo *dev_pinfo,
 static xpt_devicefunc_t xptpassannouncefunc;
 static void	 xptaction(struct cam_sim *sim, union ccb *work_ccb);
 static void	 xptpoll(struct cam_sim *sim);
-static void	 camisr_runqueue(struct cam_sim *);
+static void	 camisr_runqueue(void);
 static void	 xpt_done_process(struct ccb_hdr *ccb_h);
 static void	 xpt_done_td(void *);
 static dev_match_ret	xptbusmatch(struct dev_match_pattern *patterns,
@@ -3012,11 +3012,6 @@ xpt_polled_action(union ccb *start_ccb)
 
 	mtx_unlock(&dev->device_mtx);
 
-	/* Don't use ISR for this SIM while polling. */
-	mtx_lock(&sim->sim_doneq_mtx);
-	sim->sim_doneq_flags |= CAM_SIM_DQ_POLLED;
-	mtx_unlock(&sim->sim_doneq_mtx);
-
 	/*
 	 * Steal an opening so that no other queued requests
 	 * can get it before us while we simulate interrupts.
@@ -3031,7 +3026,7 @@ xpt_polled_action(union ccb *start_ccb)
 		CAM_SIM_LOCK(sim);
 		(*(sim->sim_poll))(sim);
 		CAM_SIM_UNLOCK(sim);
-		camisr_runqueue(sim);
+		camisr_runqueue();
 		mtx_lock(&devq->send_mtx);
 	}
 	dev->ccbq.devq_openings++;
@@ -3044,7 +3039,7 @@ xpt_polled_action(union ccb *start_ccb)
 			CAM_SIM_LOCK(sim);
 			(*(sim->sim_poll))(sim);
 			CAM_SIM_UNLOCK(sim);
-			camisr_runqueue(sim);
+			camisr_runqueue();
 			if ((start_ccb->ccb_h.status  & CAM_STATUS_MASK)
 			    != CAM_REQ_INPROG)
 				break;
@@ -3063,11 +3058,6 @@ xpt_polled_action(union ccb *start_ccb)
 		start_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 	}
 
-	/* We will use CAM ISR for this SIM again. */
-	mtx_lock(&sim->sim_doneq_mtx);
-	sim->sim_doneq_flags &= ~CAM_SIM_DQ_POLLED;
-	mtx_unlock(&sim->sim_doneq_mtx);
-	camisr_runqueue(sim);
 	mtx_lock(&dev->device_mtx);
 }
 
@@ -5289,23 +5279,11 @@ xpt_done_td(void *arg)
 }
 
 static void
-camisr_runqueue(struct cam_sim *sim)
+camisr_runqueue(void)
 {
 	struct	ccb_hdr *ccb_h;
 	struct cam_doneq *queue;
 	int i;
-
-	/* Process per-SIM queue. */
-	mtx_lock(&sim->sim_doneq_mtx);
-	while ((ccb_h = TAILQ_FIRST(&sim->sim_doneq)) != NULL) {
-		TAILQ_REMOVE(&sim->sim_doneq, ccb_h, sim_links.tqe);
-		mtx_unlock(&sim->sim_doneq_mtx);
-		ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
-		xpt_done_process(ccb_h);
-		mtx_lock(&sim->sim_doneq_mtx);
-	}
-	sim->sim_doneq_flags &= ~CAM_SIM_DQ_ONQ;
-	mtx_unlock(&sim->sim_doneq_mtx);
 
 	/* Process global queues. */
 	for (i = 0; i < cam_num_doneqs; i++) {
