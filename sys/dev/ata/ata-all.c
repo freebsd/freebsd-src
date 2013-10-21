@@ -353,9 +353,7 @@ ata_interrupt(void *data)
     struct ata_channel *ch = (struct ata_channel *)data;
 
     mtx_lock(&ch->state_mtx);
-    xpt_batch_start(ch->sim);
     ata_interrupt_locked(data);
-    xpt_batch_done(ch->sim);
     mtx_unlock(&ch->state_mtx);
 }
 
