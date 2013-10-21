@@ -322,20 +322,9 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 	if (node == -1) {
 		/* Non-firmware enumerated child, use standard routing */
 	
-		/*
-		 * XXX: Right now we don't have anything sensible to do here,
-		 * since the ofw_imap stuff relies on nodes having a reg
-		 * property. There exist ways around this, so the ePAPR
-		 * spec will need to be studied.
-		 */
-
-		return (PCI_INVALID_IRQ);
-
-#ifdef NOTYET
 		intr = pci_get_intpin(child);
 		return (PCIB_ROUTE_INTERRUPT(device_get_parent(dev), child, 
 		    intr));
-#endif
 	}
 	
 	/*
