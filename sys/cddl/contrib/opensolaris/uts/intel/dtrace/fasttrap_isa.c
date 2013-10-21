@@ -272,7 +272,20 @@ fasttrap_anarg(struct reg *rp, int function_entry, int argno)
 		 * registers.
 		 */
 		if (argno < 6)
-			return ((&rp->r_rdi)[argno]);
+			switch (argno) {
+			case 0:
+				return (rp->r_rdi);
+			case 1:
+				return (rp->r_rsi);
+			case 2:
+				return (rp->r_rdx);
+			case 3:
+				return (rp->r_rcx);
+			case 4:
+				return (rp->r_r8);
+			case 5:
+				return (rp->r_r9);
+			}
 
 		stack = (uintptr_t *)rp->r_rsp;
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
