@@ -2221,6 +2221,7 @@ ffs_own_mount(const struct mount *mp)
 }
 
 #ifdef	DDB
+#ifdef SOFTUPDATES
 
 /* defined in ffs_softdep.c */
 extern void db_print_ffs(struct ufsmount *ump);
@@ -2242,4 +2243,5 @@ DB_SHOW_COMMAND(ffs, db_show_ffs)
 	}
 }
 
+#endif	/* SOFTUPDATES */
 #endif	/* DDB */
