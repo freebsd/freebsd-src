@@ -3845,7 +3845,6 @@ vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
 xen/gnttab.c			optional xen | xenhvm
 xen/features.c			optional xen | xenhvm
-xen/evtchn/evtchn_dev.c		optional xen | xenhvm
 xen/xenbus/xenbus_if.m		optional xen | xenhvm
 xen/xenbus/xenbus.c		optional xen | xenhvm
 xen/xenbus/xenbusb_if.m		optional xen | xenhvm
