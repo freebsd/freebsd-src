@@ -167,8 +167,8 @@ decr_init(void)
 	char buf[32];
 
 	/*
-	 * Check the BSP's timebase frequency. Sometimes we can't find the BSP, so fall
-	 * back to the first CPU in this case.
+	 * Check the BSP's timebase frequency. Sometimes we can't find the BSP,
+	 * so fall back to the first CPU in this case.
 	 */
 	if (platform_smp_get_bsp(&cpu) != 0)
 		platform_smp_first_cpu(&cpu);
