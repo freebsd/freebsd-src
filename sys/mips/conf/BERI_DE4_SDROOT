@@ -20,5 +20,4 @@ device		altera_sdcard
 device		terasic_de4led
 device		terasic_mtl
 
-device		isf
 device		sc
