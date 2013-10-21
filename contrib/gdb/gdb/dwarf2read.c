@@ -825,6 +825,8 @@ static void read_array_type (struct die_info *, struct dwarf2_cu *);
 
 static void read_tag_pointer_type (struct die_info *, struct dwarf2_cu *);
 
+static void read_tag_unspecified_type (struct die_info *, struct dwarf2_cu *);
+
 static void read_tag_ptr_to_member_type (struct die_info *,
 					 struct dwarf2_cu *);
 
@@ -3722,6 +3724,27 @@ read_tag_reference_type (struct die_info *die, struct dwarf2_cu *cu)
 }
 
 static void
+read_tag_unspecified_type (struct die_info *die, struct dwarf2_cu *cu)
+{
+  struct objfile *objfile = cu->objfile;
+  struct type *type;
+  struct attribute *attr;
+
+  if (die->type)
+    {
+      return;
+    }
+
+  type = alloc_type (objfile);
+  TYPE_LENGTH (type) = 0;
+  attr = dwarf2_attr (die, DW_AT_name, cu);
+  if (attr && DW_STRING (attr))
+      TYPE_NAME (type) = DW_STRING (attr);
+
+  die->type = type;
+}
+
+static void
 read_tag_const_type (struct die_info *die, struct dwarf2_cu *cu)
 {
   struct type *base_type;
@@ -6093,6 +6116,9 @@ read_type_die (struct die_info *die, struct dwarf2_cu *cu)
       break;
     case DW_TAG_pointer_type:
       read_tag_pointer_type (die, cu);
+      break;
+    case DW_TAG_unspecified_type:
+      read_tag_unspecified_type (die, cu);
       break;
     case DW_TAG_ptr_to_member_type:
       read_tag_ptr_to_member_type (die, cu);
