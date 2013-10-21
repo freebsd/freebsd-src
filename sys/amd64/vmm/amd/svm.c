@@ -955,8 +955,13 @@ svm_vmrun(void *arg, int vcpu, register_t rip)
 		/* Can't use any cached VMCB state by cpu.*/
 		ctrl->vmcb_clean = VMCB_CACHE_NONE;
 	} else {
-		/* Don't flush TLB since guest ASID is unchanged. */
-		ctrl->tlb_ctrl = VMCB_TLB_FLUSH_NOTHING;
+		/*
+		 * XXX: Using same ASID for all vcpus of a VM will cause TLB
+		 * corruption. This can easily be produced by muxing two vcpus
+		 * on same core.
+		 * For now, flush guest TLB for every vmrun.
+		 */
+		ctrl->tlb_ctrl = VMCB_TLB_FLUSH_GUEST;
 		
 		/* 
 		 * This is the same cpu on which vcpu last ran so don't
