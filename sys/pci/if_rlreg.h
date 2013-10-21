@@ -877,6 +877,7 @@ struct rl_softc {
 	bus_dma_tag_t		rl_parent_tag;
 	uint8_t			rl_type;
 	const struct rl_hwrev	*rl_hwrev;
+	uint32_t		rl_macrev;
 	int			rl_eecmd_read;
 	int			rl_eewidth;
 	int			rl_expcap;
