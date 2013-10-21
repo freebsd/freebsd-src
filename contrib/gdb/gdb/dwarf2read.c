@@ -1977,6 +1977,7 @@ process_die (struct die_info *die, struct dwarf2_cu *cu)
       read_tag_ptr_to_member_type (die, cu);
       break;
     case DW_TAG_reference_type:
+    case DW_TAG_rvalue_reference_type:
       read_tag_reference_type (die, cu);
       break;
     case DW_TAG_string_type:
@@ -6097,6 +6098,7 @@ read_type_die (struct die_info *die, struct dwarf2_cu *cu)
       read_tag_ptr_to_member_type (die, cu);
       break;
     case DW_TAG_reference_type:
+    case DW_TAG_rvalue_reference_type:
       read_tag_reference_type (die, cu);
       break;
     case DW_TAG_const_type:
@@ -6425,6 +6427,8 @@ dwarf_tag_name (unsigned tag)
       return "DW_TAG_pointer_type";
     case DW_TAG_reference_type:
       return "DW_TAG_reference_type";
+    case DW_TAG_rvalue_reference_type:
+      return "DW_TAG_rvalue_reference_type";
     case DW_TAG_compile_unit:
       return "DW_TAG_compile_unit";
     case DW_TAG_string_type:
