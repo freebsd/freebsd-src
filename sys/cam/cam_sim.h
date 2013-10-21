@@ -33,9 +33,6 @@
 
 #ifdef _KERNEL
 
-#include <sys/lock.h>
-#include <sys/mutex.h>
-
 /*
  * The sim driver creates a sim for each controller.  The sim device
  * queue is separately created in order to allow resource sharing between
