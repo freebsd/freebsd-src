@@ -103,7 +103,6 @@ typedef enum {
 	ADA_CCB_RAHEAD		= 0x01,
 	ADA_CCB_WCACHE		= 0x02,
 	ADA_CCB_BUFFER_IO	= 0x03,
-	ADA_CCB_WAITING		= 0x04,
 	ADA_CCB_DUMP		= 0x05,
 	ADA_CCB_TRIM		= 0x06,
 	ADA_CCB_TYPE_MASK	= 0x0F,
@@ -154,6 +153,7 @@ struct ada_softc {
 	struct sysctl_oid	*sysctl_tree;
 	struct callout		sendordered_c;
 	struct trim_request	trim_req;
+	int	refcount;
 };
 
 struct ada_quirk_entry {
@@ -637,14 +637,8 @@ adaclose(struct disk *dp)
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	cam_periph_lock(periph);
-	if (cam_periph_hold(periph, PRIBIO) != 0) {
-		cam_periph_unlock(periph);
-		cam_periph_release(periph);
-		return (0);
-	}
-
 	softc = (struct ada_softc *)periph->softc;
+	cam_periph_lock(periph);
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
 	    ("adaclose\n"));
@@ -652,7 +646,8 @@ adaclose(struct disk *dp)
 	/* We only sync the cache if the drive is capable of it. */
 	if ((softc->flags & ADA_FLAG_DIRTY) != 0 &&
 	    (softc->flags & ADA_FLAG_CAN_FLUSHCACHE) != 0 &&
-	    (periph->flags & CAM_PERIPH_INVALID) == 0) {
+	    (periph->flags & CAM_PERIPH_INVALID) == 0 &&
+	    cam_periph_hold(periph, PRIBIO) == 0) {
 
 		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 		cam_fill_ataio(&ccb->ataio,
@@ -676,10 +671,13 @@ adaclose(struct disk *dp)
 		else
 			softc->flags &= ~ADA_FLAG_DIRTY;
 		xpt_release_ccb(ccb);
+		cam_periph_unhold(periph);
 	}
 
 	softc->flags &= ~ADA_FLAG_OPEN;
-	cam_periph_unhold(periph);
+
+	while (softc->refcount != 0)
+		cam_periph_sleep(periph, &softc->refcount, PRIBIO, "adaclose", 1);
 	cam_periph_unlock(periph);
 	cam_periph_release(periph);
 	return (0);	
@@ -689,23 +687,15 @@ static void
 adaschedule(struct cam_periph *periph)
 {
 	struct ada_softc *softc = (struct ada_softc *)periph->softc;
-	uint32_t prio;
 
 	if (softc->state != ADA_STATE_NORMAL)
 		return;
 
-	/* Check if cam_periph_getccb() was called. */
-	prio = periph->immediate_priority;
-
 	/* Check if we have more work to do. */
 	if (bioq_first(&softc->bio_queue) ||
 	    (!softc->trim_running && bioq_first(&softc->trim_queue))) {
-		prio = CAM_PRIORITY_NORMAL;
+		xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 	}
-
-	/* Schedule CCB if any of above is true. */
-	if (prio != CAM_PRIORITY_NONE)
-		xpt_schedule(periph, prio);
 }
 
 /*
@@ -969,7 +959,7 @@ adaasync(void *callback_arg, u_int32_t code,
 		status = cam_periph_alloc(adaregister, adaoninvalidate,
 					  adacleanup, adastart,
 					  "ada", CAM_PERIPH_BIO,
-					  cgd->ccb_h.path, adaasync,
+					  path, adaasync,
 					  AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP
@@ -1045,8 +1035,10 @@ adaasync(void *callback_arg, u_int32_t code,
 			softc->state = ADA_STATE_WCACHE;
 		else
 		    break;
-		cam_periph_acquire(periph);
-		xpt_schedule(periph, CAM_PRIORITY_DEV);
+		if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+			softc->state = ADA_STATE_NORMAL;
+		else
+			xpt_schedule(periph, CAM_PRIORITY_DEV);
 	}
 	default:
 		cam_periph_async(periph, code, path, arg);
@@ -1353,8 +1345,8 @@ adaregister(struct cam_periph *periph, void *arg)
 	 * Create our sysctl variables, now that we know
 	 * we have successfully attached.
 	 */
-	cam_periph_acquire(periph);
-	taskqueue_enqueue(taskqueue_thread, &softc->sysctl_task);
+	if (cam_periph_acquire(periph) == CAM_REQ_CMP)
+		taskqueue_enqueue(taskqueue_thread, &softc->sysctl_task);
 
 	/*
 	 * Add async callbacks for bus reset and
@@ -1372,7 +1364,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	 * Schedule a periodic event to occasionally send an
 	 * ordered tag to a device.
 	 */
-	callout_init_mtx(&softc->sendordered_c, periph->sim->mtx, 0);
+	callout_init_mtx(&softc->sendordered_c, cam_periph_mtx(periph), 0);
 	callout_reset(&softc->sendordered_c,
 	    (ada_default_timeout * hz) / ADA_ORDEREDTAG_INTERVAL,
 	    adasendorderedtag, softc);
@@ -1380,16 +1372,17 @@ adaregister(struct cam_periph *periph, void *arg)
 	if (ADA_RA >= 0 &&
 	    cgd->ident_data.support.command1 & ATA_SUPPORT_LOOKAHEAD) {
 		softc->state = ADA_STATE_RAHEAD;
-		cam_periph_acquire(periph);
-		xpt_schedule(periph, CAM_PRIORITY_DEV);
 	} else if (ADA_WC >= 0 &&
 	    cgd->ident_data.support.command1 & ATA_SUPPORT_WRITECACHE) {
 		softc->state = ADA_STATE_WCACHE;
-		cam_periph_acquire(periph);
-		xpt_schedule(periph, CAM_PRIORITY_DEV);
-	} else
+	} else {
 		softc->state = ADA_STATE_NORMAL;
-
+		return(CAM_REQ_CMP);
+	}
+	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+		softc->state = ADA_STATE_NORMAL;
+	else
+		xpt_schedule(periph, CAM_PRIORITY_DEV);
 	return(CAM_REQ_CMP);
 }
 
@@ -1407,19 +1400,6 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 		struct bio *bp;
 		u_int8_t tag_code;
 
-		/* Execute immediate CCB if waiting. */
-		if (periph->immediate_priority <= periph->pinfo.priority) {
-			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-					("queuing for immediate ccb\n"));
-			start_ccb->ccb_h.ccb_state = ADA_CCB_WAITING;
-			SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-					  periph_links.sle);
-			periph->immediate_priority = CAM_PRIORITY_NONE;
-			wakeup(&periph->ccb_list);
-			/* Have more work to do, so ensure we stay scheduled */
-			adaschedule(periph);
-			break;
-		}
 		/* Run TRIM if not running yet. */
 		if (!softc->trim_running &&
 		    (bp = bioq_first(&softc->trim_queue)) != 0) {
@@ -1494,6 +1474,7 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 			    ATA_DSM_TRIM, 0, (ranges + ATA_DSM_BLK_RANGES -
 			    1) / ATA_DSM_BLK_RANGES);
 			start_ccb->ccb_h.ccb_state = ADA_CCB_TRIM;
+			start_ccb->ccb_h.flags |= CAM_UNLOCKED;
 			goto out;
 		}
 		/* Run regular command. */
@@ -1662,10 +1643,15 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 			break;
 		}
 		start_ccb->ccb_h.ccb_state = ADA_CCB_BUFFER_IO;
+		start_ccb->ccb_h.flags |= CAM_UNLOCKED;
 out:
 		start_ccb->ccb_h.ccb_bp = bp;
 		softc->outstanding_cmds++;
+		softc->refcount++;
+		cam_periph_unlock(periph);
 		xpt_action(start_ccb);
+		cam_periph_lock(periph);
+		softc->refcount--;
 
 		/* May have more work to do, so ensure we stay scheduled */
 		adaschedule(periph);
@@ -1674,13 +1660,6 @@ out:
 	case ADA_STATE_RAHEAD:
 	case ADA_STATE_WCACHE:
 	{
-		if ((periph->flags & CAM_PERIPH_INVALID) != 0) {
-			softc->state = ADA_STATE_NORMAL;
-			xpt_release_ccb(start_ccb);
-			cam_periph_release_locked(periph);
-			return;
-		}
-
 		cam_fill_ataio(ataio,
 		    1,
 		    adadone,
@@ -1729,10 +1708,12 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 		struct bio *bp;
 		int error;
 
+		cam_periph_lock(periph);
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			error = adaerror(done_ccb, 0, 0);
 			if (error == ERESTART) {
 				/* A retry was scheduled, so just return. */
+				cam_periph_unlock(periph);
 				return;
 			}
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
@@ -1762,6 +1743,7 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 		softc->outstanding_cmds--;
 		if (softc->outstanding_cmds == 0)
 			softc->flags |= ADA_FLAG_WENT_IDLE;
+		xpt_release_ccb(done_ccb);
 		if (state == ADA_CCB_TRIM) {
 			TAILQ_HEAD(, bio) queue;
 			struct bio *bp1;
@@ -1769,6 +1751,8 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 			TAILQ_INIT(&queue);
 			TAILQ_CONCAT(&queue, &softc->trim_req.bps, bio_queue);
 			softc->trim_running = 0;
+			adaschedule(periph);
+			cam_periph_unlock(periph);
 			while ((bp1 = TAILQ_FIRST(&queue)) != NULL) {
 				TAILQ_REMOVE(&queue, bp1, bio_queue);
 				bp1->bio_error = error;
@@ -1779,10 +1763,11 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 					bp1->bio_resid = 0;
 				biodone(bp1);
 			}
-			adaschedule(periph);
-		} else
+		} else {
+			cam_periph_unlock(periph);
 			biodone(bp);
-		break;
+		}
+		return;
 	}
 	case ADA_CCB_RAHEAD:
 	{
@@ -1856,12 +1841,6 @@ out:
 		cam_release_devq(path, 0, 0, 0, FALSE);
 		adaschedule(periph);
 		cam_periph_release_locked(periph);
-		return;
-	}
-	case ADA_CCB_WAITING:
-	{
-		/* Caller will release the CCB */
-		wakeup(&done_ccb->ccb_h.cbfcnp);
 		return;
 	}
 	case ADA_CCB_DUMP:
