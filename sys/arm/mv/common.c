@@ -153,8 +153,11 @@ struct fdt_pm_mask_entry fdt_pm_mask_table[] = {
 static __inline int
 pm_is_disabled(uint32_t mask)
 {
-
+#if defined(SOC_MV_KIRKWOOD)
+	return (soc_power_ctrl_get(mask) == mask);
+#else
 	return (soc_power_ctrl_get(mask) == mask ? 0 : 1);
+#endif
 }
 
 /*
@@ -221,7 +224,16 @@ fdt_pm(phandle_t node)
 			continue;
 
 		compat = fdt_is_compatible(node, fdt_pm_mask_table[i].compat);
-
+#if defined(SOC_MV_KIRKWOOD)
+		if (compat && (cpu_pm_ctrl & fdt_pm_mask_table[i].mask)) {
+			dev_mask |= (1 << i);
+			ena = 0;
+			break;
+		} else if (compat) {
+			dev_mask |= (1 << i);
+			break;
+		}
+#else
 		if (compat && (~cpu_pm_ctrl & fdt_pm_mask_table[i].mask)) {
 			dev_mask |= (1 << i);
 			ena = 0;
@@ -230,6 +242,7 @@ fdt_pm(phandle_t node)
 			dev_mask |= (1 << i);
 			break;
 		}
+#endif
 	}
 
 	return (ena);

@@ -68,6 +68,8 @@ TEXTDUMP_VERBOSE	opt_ddb.h
 # Miscellaneous options.
 ADAPTIVE_LOCKMGRS
 ALQ
+ALTERA_SDCARD_FAST_SIM	opt_altera_sdcard.h
+ATSE_CFI_HACK	opt_cfi.h
 AUDIT		opt_global.h
 BOOTHOWTO	opt_global.h
 BOOTVERBOSE	opt_global.h

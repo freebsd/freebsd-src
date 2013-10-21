@@ -3647,7 +3647,12 @@ run_rt3070_set_chan(struct run_softc *sc, uint32_t chan)
 	txpow2 = sc->txpow2[i];
 
 	run_rt3070_rf_write(sc, 2, rt3070_freqs[i].n);
-	run_rt3070_rf_write(sc, 3, rt3070_freqs[i].k);
+
+	/* RT3370/RT3390: RF R3 [7:4] is not reserved bits. */
+	run_rt3070_rf_read(sc, 3, &rf);
+	rf = (rf & ~0x0f) | rt3070_freqs[i].k;
+	run_rt3070_rf_write(sc, 3, rf);
+
 	run_rt3070_rf_read(sc, 6, &rf);
 	rf = (rf & ~0x03) | rt3070_freqs[i].r;
 	run_rt3070_rf_write(sc, 6, rf);
@@ -4361,7 +4366,7 @@ static int
 run_rt3070_rf_init(struct run_softc *sc)
 {
 	uint32_t tmp;
-	uint8_t rf, target, bbp4;
+	uint8_t bbp4, mingain, rf, target;
 	int i;
 
 	run_rt3070_rf_read(sc, 30, &rf);
@@ -4383,8 +4388,12 @@ run_rt3070_rf_init(struct run_softc *sc)
 		}
 	}
 
-	if (sc->mac_ver == 0x3070) {
-		/* change voltage from 1.2V to 1.35V for RT3070 */
+	if (sc->mac_ver == 0x3070 && sc->mac_rev < 0x0201) {
+		/* 
+		 * Change voltage from 1.2V to 1.35V for RT3070.
+		 * The DAC issue (RT3070_LDO_CFG0) has been fixed
+		 * in RT3070(F).
+		 */
 		run_read(sc, RT3070_LDO_CFG0, &tmp);
 		tmp = (tmp & ~0x0f000000) | 0x0d000000;
 		run_write(sc, RT3070_LDO_CFG0, tmp);
@@ -4434,7 +4443,7 @@ run_rt3070_rf_init(struct run_softc *sc)
 
 	/* select 40MHz bandwidth */
 	run_bbp_read(sc, 4, &bbp4);
-	run_bbp_write(sc, 4, (bbp4 & ~0x08) | 0x10);
+	run_bbp_write(sc, 4, (bbp4 & ~0x18) | 0x10);
 	run_rt3070_rf_read(sc, 31, &rf);
 	run_rt3070_rf_write(sc, 31, rf | 0x20);
 
@@ -4451,7 +4460,7 @@ run_rt3070_rf_init(struct run_softc *sc)
 		/* save default BBP registers 25 and 26 values */
 		run_bbp_read(sc, 25, &sc->bbp25);
 		run_bbp_read(sc, 26, &sc->bbp26);
-	} else if (sc->mac_rev < 0x0211)
+	} else if (sc->mac_rev < 0x0201 || sc->mac_rev < 0x0211)
 		run_rt3070_rf_write(sc, 27, 0x03);
 
 	run_read(sc, RT3070_OPT_14, &tmp);
@@ -4464,7 +4473,8 @@ run_rt3070_rf_init(struct run_softc *sc)
 		     (sc->mac_ver == 0x3071 && sc->mac_rev >= 0x0211)) &&
 		    !sc->ext_2ghz_lna)
 			rf |= 0x20;	/* fix for long range Rx issue */
-		if (sc->txmixgain_2ghz >= 1)
+		mingain = (sc->mac_ver == 0x3070) ? 1 : 2;
+		if (sc->txmixgain_2ghz >= mingain)
 			rf = (rf & ~0x7) | sc->txmixgain_2ghz;
 		run_rt3070_rf_write(sc, 17, rf);
 	}

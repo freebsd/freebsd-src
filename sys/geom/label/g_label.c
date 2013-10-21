@@ -124,6 +124,17 @@ g_label_spoiled(struct g_consumer *cp)
 	g_slice_spoiled(cp);
 }
 
+static void
+g_label_resize(struct g_consumer *cp)
+{
+
+	G_LABEL_DEBUG(1, "Label %s resized.",
+	    LIST_FIRST(&cp->geom->provider)->name);
+
+	g_slice_config(cp->geom, 0, G_SLICE_CONFIG_FORCE, (off_t)0,
+	    cp->provider->mediasize, cp->provider->sectorsize, "notused");
+}
+
 static int
 g_label_is_name_ok(const char *label)
 {
@@ -208,6 +219,7 @@ g_label_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	}
 	gp->orphan = g_label_orphan;
 	gp->spoiled = g_label_spoiled;
+	gp->resize = g_label_resize;
 	g_access(cp, -1, 0, 0);
 	g_slice_config(gp, 0, G_SLICE_CONFIG_SET, (off_t)0, mediasize,
 	    pp->sectorsize, "%s", name);

@@ -12660,14 +12660,14 @@ do_vfp_nsyn_cvt (enum neon_shape rs, int flavour)
       /* Conversions without bitshift.  */
       const char *enc[] =
         {
-          "ftosis",
-          "ftouis",
+          "ftosizs",
+          "ftouizs",
           "fsitos",
           "fuitos",
           "fcvtsd",
           "fcvtds",
-          "ftosid",
-          "ftouid",
+          "ftosizd",
+          "ftouizd",
           "fsitod",
           "fuitod"
         };

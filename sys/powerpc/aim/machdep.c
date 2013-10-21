@@ -646,14 +646,6 @@ cpu_flush_dcache(void *ptr, size_t len)
 	/* TBD */
 }
 
-void
-cpu_initclocks(void)
-{
-
-	decr_tc_init();
-	cpu_initclocks_bsp();
-}
-
 /*
  * Shutdown the CPU as much as possible.
  */
