@@ -1755,8 +1755,8 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 			cam_periph_unlock(periph);
 			while ((bp1 = TAILQ_FIRST(&queue)) != NULL) {
 				TAILQ_REMOVE(&queue, bp1, bio_queue);
-				bp1->bio_error = bp->bio_error;
-				if (bp->bio_flags & BIO_ERROR) {
+				bp1->bio_error = error;
+				if (error != 0) {
 					bp1->bio_flags |= BIO_ERROR;
 					bp1->bio_resid = bp1->bio_bcount;
 				} else
