@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
@@ -141,6 +142,13 @@ ofw_pcib_pci_route_interrupt(device_t bridge, device_t dev, int intpin)
 	ii = &sc->ops_iinfo;
 	if (ii->opi_imapsz > 0) {
 		pintr = intpin;
+
+		/* Fabricate imap information if this isn't an OFW device */
+		bzero(&reg, sizeof(reg));
+		reg.phys_hi = (pci_get_bus(dev) << OFW_PCI_PHYS_HI_BUSSHIFT) |
+		    (pci_get_slot(dev) << OFW_PCI_PHYS_HI_DEVICESHIFT) |
+		    (pci_get_function(dev) << OFW_PCI_PHYS_HI_FUNCTIONSHIFT);
+
 		if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), ii, &reg,
 		    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
 		    &iparent, maskbuf)) {
