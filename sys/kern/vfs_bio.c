@@ -3557,15 +3557,15 @@ biodone(struct bio *bp)
 	struct mtx *mtxp;
 	void (*done)(struct bio *);
 	vm_offset_t start, end;
-	int transient;
 
 	if ((bp->bio_flags & BIO_TRANSIENT_MAPPING) != 0) {
+		bp->bio_flags &= ~BIO_TRANSIENT_MAPPING;
+		bp->bio_flags |= BIO_UNMAPPED;
 		start = trunc_page((vm_offset_t)bp->bio_data);
 		end = round_page((vm_offset_t)bp->bio_data + bp->bio_length);
-		transient = 1;
-	} else {
-		transient = 0;
-		start = end = 0;
+		pmap_qremove(start, OFF_TO_IDX(end - start));
+		vmem_free(transient_arena, start, end - start);
+		atomic_add_int(&inflight_transient_maps, -1);
 	}
 	done = bp->bio_done;
 	if (done == NULL) {
@@ -3577,11 +3577,6 @@ biodone(struct bio *bp)
 	} else {
 		bp->bio_flags |= BIO_DONE;
 		done(bp);
-	}
-	if (transient) {
-		pmap_qremove(start, OFF_TO_IDX(end - start));
-		vmem_free(transient_arena, start, end - start);
-		atomic_add_int(&inflight_transient_maps, -1);
 	}
 }
 
