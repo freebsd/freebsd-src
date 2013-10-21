@@ -308,10 +308,10 @@ distribution:
 MTREE_CMD?=	mtree
 
 .if ${MK_INSTALL_AS_USER} != "no" && ${_uid} != 0
-MTREE_FILTER= sed -e 's,(uname=)[^ ]* ,\1${BINOWN},' \
-	-e 's,(gname=)[^ ]* ,\1${BINGRP},' \
-	-e 's,(uid=)[^ ]* ,\1${_uid},' \
-	-e 's,(gid=)[^ ]* ,\1${_gid},' 
+MTREE_FILTER= sed -e 's,\(uname=\)[^ ]* ,\1${BINOWN} ,' \
+	-e 's,\(gname=\)[^ ]* ,\1${BINGRP} ,' \
+	-e 's,\(uid=\)[^ ]* ,\1${_uid} ,' \
+	-e 's,\(gid=\)[^ ]* ,\1${_gid} ,' 
 .else
 MTREE_FILTER= cat
 .endif
