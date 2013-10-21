@@ -536,16 +536,16 @@ softdep_request_cleanup(fs, vp, cred, resource)
 int
 softdep_check_suspend(struct mount *mp,
 		      struct vnode *devvp,
-		      int softdep_deps,
-		      int softdep_accdeps,
+		      int softdep_depcnt,
+		      int softdep_accdepcnt,
 		      int secondary_writes,
 		      int secondary_accwrites)
 {
 	struct bufobj *bo;
 	int error;
 	
-	(void) softdep_deps,
-	(void) softdep_accdeps;
+	(void) softdep_depcnt,
+	(void) softdep_accdepcnt;
 
 	bo = &devvp->v_bufobj;
 	ASSERT_BO_WLOCKED(bo);
