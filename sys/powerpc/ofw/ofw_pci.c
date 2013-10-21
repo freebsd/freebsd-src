@@ -246,6 +246,13 @@ ofw_pci_route_interrupt(device_t bus, device_t dev, int pin)
 
 	sc = device_get_softc(bus);
 	pintr = pin;
+
+	/* Fabricate imap information in case this isn't an OFW device */
+	bzero(&reg, sizeof(reg));
+	reg.phys_hi = (pci_get_bus(dev) << OFW_PCI_PHYS_HI_BUSSHIFT) |
+	    (pci_get_slot(dev) << OFW_PCI_PHYS_HI_DEVICESHIFT) |
+	    (pci_get_function(dev) << OFW_PCI_PHYS_HI_FUNCTIONSHIFT);
+
 	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo, &reg,
 	    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
 	    &iparent, maskbuf))
