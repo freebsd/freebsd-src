@@ -663,8 +663,7 @@ atapi_read_capacity(struct ahci_port *p, int slot, uint8_t *cfis)
 	uint8_t buf[8];
 	uint64_t sectors;
 
-	sectors = blockif_size(p->bctx) / blockif_sectsz(p->bctx);
-	sectors >>= 2;
+	sectors = blockif_size(p->bctx) / 2048;
 	be32enc(buf, sectors - 1);
 	be32enc(buf + 4, 2048);
 	cfis[4] = (cfis[4] & ~7) | ATA_I_CMD | ATA_I_IN;
@@ -908,9 +907,9 @@ atapi_read(struct ahci_port *p, int slot, uint8_t *cfis,
 	/*
 	 * Build up the iovec based on the prdt
 	 */
-	for (i = 0; i < hdr->prdtl; i++) {
+	for (i = 0; i < iovcnt; i++) {
 		breq->br_iov[i].iov_base = paddr_guest2host(ahci_ctx(sc),
-				prdt->dba, prdt->dbc + 1);
+		    prdt->dba, prdt->dbc + 1);
 		breq->br_iov[i].iov_len = prdt->dbc + 1;
 		aior->done += (prdt->dbc + 1);
 		prdt++;
