@@ -110,7 +110,11 @@ ssize_t		OF_getencprop(phandle_t node, const char *prop, pcell_t *buf,
 int		OF_hasprop(phandle_t node, const char *propname);
 ssize_t		OF_searchprop(phandle_t node, const char *propname, void *buf,
 		    size_t len);
+ssize_t		OF_searchencprop(phandle_t node, const char *propname,
+		    void *buf, size_t len);
 ssize_t		OF_getprop_alloc(phandle_t node, const char *propname,
+		    int elsz, void **buf);
+ssize_t		OF_getencprop_alloc(phandle_t node, const char *propname,
 		    int elsz, void **buf);
 int		OF_nextprop(phandle_t node, const char *propname, char *buf,
 		    size_t len);
