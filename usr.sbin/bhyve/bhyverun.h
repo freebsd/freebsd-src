@@ -41,6 +41,7 @@ extern char *vmname;
 
 void *paddr_guest2host(struct vmctx *ctx, uintptr_t addr, size_t len);
 
+void fbsdrun_set_capabilities(struct vmctx *ctx, int cpu);
 void fbsdrun_addcpu(struct vmctx *ctx, int cpu, uint64_t rip);
 int  fbsdrun_muxed(void);
 int  fbsdrun_vmexit_on_hlt(void);
