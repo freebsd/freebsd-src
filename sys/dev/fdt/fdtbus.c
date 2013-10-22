@@ -158,9 +158,7 @@ fdtbus_probe(device_t dev)
 
 	debugf("%s(dev=%p); pass=%u\n", __func__, dev, bus_current_pass);
 
-	device_set_desc(dev, "FDT main bus");
-	if (!bootverbose)
-		device_quiet(dev);
+	device_set_desc(dev, "Flattened Device Tree");
 	return (BUS_PROBE_NOWILDCARD);
 }
 
@@ -182,7 +180,7 @@ fdtbus_attach(device_t dev)
 	 * IRQ rman.
 	 */
 	start = 0;
-	end = FDT_INTR_MAX - 1;
+	end = ~0;
 	sc->sc_irq.rm_start = start;
 	sc->sc_irq.rm_end = end;
 	sc->sc_irq.rm_type = RMAN_ARRAY;
