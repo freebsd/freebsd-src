@@ -237,6 +237,7 @@ taskqueue_enqueue_locked(struct taskqueue *queue, struct task *task)
 	if ((queue->tq_flags & TQ_FLAGS_UNLOCKED_ENQUEUE) == 0)
 		TQ_UNLOCK(queue);
 
+	/* Return with lock released. */
 	return (0);
 }
 int
@@ -246,6 +247,7 @@ taskqueue_enqueue(struct taskqueue *queue, struct task *task)
 
 	TQ_LOCK(queue);
 	res = taskqueue_enqueue_locked(queue, task);
+	/* The lock is released inside. */
 
 	return (res);
 }
@@ -262,6 +264,7 @@ taskqueue_timeout_func(void *arg)
 	timeout_task->f &= ~DT_CALLOUT_ARMED;
 	queue->tq_callouts--;
 	taskqueue_enqueue_locked(timeout_task->q, &timeout_task->t);
+	/* The lock is released inside. */
 }
 
 int
@@ -278,6 +281,7 @@ taskqueue_enqueue_timeout(struct taskqueue *queue,
 	res = timeout_task->t.ta_pending;
 	if (ticks == 0) {
 		taskqueue_enqueue_locked(queue, &timeout_task->t);
+		/* The lock is released inside. */
 	} else {
 		if ((timeout_task->f & DT_CALLOUT_ARMED) != 0) {
 			res++;

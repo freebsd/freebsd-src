@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventvar.h>
 #include <sys/poll.h>
 #include <sys/protosw.h>
+#include <sys/resourcevar.h>
 #include <sys/sigio.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
@@ -699,9 +700,23 @@ sys_kqueue(struct thread *td, struct kqueue_args *uap)
 	struct filedesc *fdp;
 	struct kqueue *kq;
 	struct file *fp;
+	struct proc *p;
+	struct ucred *cred;
 	int fd, error;
 
-	fdp = td->td_proc->p_fd;
+	p = td->td_proc;
+	cred = td->td_ucred;
+	crhold(cred);
+	PROC_LOCK(p);
+	if (!chgkqcnt(cred->cr_ruidinfo, 1, lim_cur(td->td_proc,
+	    RLIMIT_KQUEUES))) {
+		PROC_UNLOCK(p);
+		crfree(cred);
+		return (EMFILE);
+	}
+	PROC_UNLOCK(p);
+
+	fdp = p->p_fd;
 	error = falloc(td, &fp, &fd, 0);
 	if (error)
 		goto done2;
@@ -711,6 +726,7 @@ sys_kqueue(struct thread *td, struct kqueue_args *uap)
 	mtx_init(&kq->kq_lock, "kqueue", NULL, MTX_DEF|MTX_DUPOK);
 	TAILQ_INIT(&kq->kq_head);
 	kq->kq_fdp = fdp;
+	kq->kq_cred = cred;
 	knlist_init_mtx(&kq->kq_sel.si_note, &kq->kq_lock);
 	TASK_INIT(&kq->kq_task, 0, kqueue_task, kq);
 
@@ -723,6 +739,10 @@ sys_kqueue(struct thread *td, struct kqueue_args *uap)
 
 	td->td_retval[0] = fd;
 done2:
+	if (error != 0) {
+		chgkqcnt(cred->cr_ruidinfo, -1, 0);
+		crfree(cred);
+	}
 	return (error);
 }
 
@@ -1767,6 +1787,8 @@ kqueue_close(struct file *fp, struct thread *td)
 		free(kq->kq_knlist, M_KQUEUE);
 
 	funsetown(&kq->kq_sigio);
+	chgkqcnt(kq->kq_cred->cr_ruidinfo, -1, 0);
+	crfree(kq->kq_cred);
 	free(kq, M_KQUEUE);
 	fp->f_data = NULL;
 

@@ -2613,6 +2613,8 @@ mmu_booke_mapdev(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
 
 	va = (pa >= 0x80000000) ? pa : (0xe2000000 + pa);
 	res = (void *)va;
+	if (size < PAGE_SIZE)
+	    size = PAGE_SIZE;
 
 	do {
 		sz = 1 << (ilog2(size) & ~1);

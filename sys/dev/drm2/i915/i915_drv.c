@@ -685,7 +685,7 @@ gen6_do_reset(struct drm_device *dev, u8 flags)
 
 	/* Spin waiting for the device to ack the reset request */
 	ret = _intel_wait_for(dev,
-	    (I915_READ(GEN6_GDRST) & GEN6_GRDOM_FULL) == 0,
+	    (I915_READ_NOTRACE(GEN6_GDRST) & GEN6_GRDOM_FULL) == 0,
 	    500, 1, "915rst");
 
 	/* If reset with a user forcewake, try to restore, otherwise turn it off */

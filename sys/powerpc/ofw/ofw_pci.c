@@ -124,7 +124,7 @@ static device_method_t	ofw_pci_methods[] = {
 DEFINE_CLASS_0(ofw_pci, ofw_pci_driver, ofw_pci_methods, 0);
 
 int
-ofw_pci_attach(device_t dev)
+ofw_pci_init(device_t dev)
 {
 	struct		ofw_pci_softc *sc;
 	phandle_t	node;
@@ -134,6 +134,7 @@ ofw_pci_attach(device_t dev)
 
 	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
+	sc->sc_initialized = 1;
 
 	if (OF_getprop(node, "reg", &sc->sc_pcir, sizeof(sc->sc_pcir)) == -1)
 		return (ENXIO);
@@ -217,12 +218,27 @@ ofw_pci_attach(device_t dev)
 			    "error = %d\n", rp->pci_hi &
 			    OFW_PCI_PHYS_HI_SPACEMASK, rp->pci,
 			    rp->pci + rp->size - 1, error);
-			panic("AHOY");
 			return (error);
 		}
 	}
 
 	ofw_bus_setup_iinfo(node, &sc->sc_pci_iinfo, sizeof(cell_t));
+
+	return (error);
+}
+
+int
+ofw_pci_attach(device_t dev)
+{
+	struct ofw_pci_softc *sc;
+	int error;
+
+	sc = device_get_softc(dev);
+	if (!sc->sc_initialized) {
+		error = ofw_pci_init(dev);
+		if (error)
+			return (error);
+	}
 
 	device_add_child(dev, "pci", device_get_unit(dev));
 	return (bus_generic_attach(dev));
