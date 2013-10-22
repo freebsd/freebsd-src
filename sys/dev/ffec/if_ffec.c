@@ -883,7 +883,7 @@ ffec_get_hwaddr(struct ffec_softc *sc, uint8_t *hwaddr)
 	 * assigned bit set, and the broadcast/multicast bit clear.
 	 */
 	palr = RD4(sc, FEC_PALR_REG);
-	paur = RD4(sc, FEC_PAUR_REG);
+	paur = RD4(sc, FEC_PAUR_REG) & FEC_PAUR_PADDR2_MASK;
 	if ((palr | paur) != 0) {
 		hwaddr[0] = palr >> 24;
 		hwaddr[1] = palr >> 16;
@@ -891,7 +891,6 @@ ffec_get_hwaddr(struct ffec_softc *sc, uint8_t *hwaddr)
 		hwaddr[3] = palr >>  0;
 		hwaddr[4] = paur >> 24;
 		hwaddr[5] = paur >> 16;
-		return;
 	} else {
 		rnd = arc4random() & 0x00ffffff;
 		hwaddr[0] = 'b';
