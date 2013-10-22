@@ -188,7 +188,8 @@ terminal_maketty(struct terminal *tm, const char *fmt, ...)
 }
 
 void
-terminal_set_winsize(struct terminal *tm, const struct winsize *size)
+terminal_set_winsize_blank(struct terminal *tm, const struct winsize *size,
+    int blank)
 {
 	term_rect_t r;
 
@@ -201,12 +202,19 @@ terminal_set_winsize(struct terminal *tm, const struct winsize *size)
 	TERMINAL_LOCK(tm);
 	teken_set_winsize(&tm->tm_emulator, &r.tr_end);
 	TERMINAL_UNLOCK(tm);
-	
-	/* Blank screen. */
-	tm->tm_class->tc_fill(tm, &r,
-	    TCHAR_CREATE((teken_char_t)' ', &default_message));
+
+	if (blank)
+		tm->tm_class->tc_fill(tm, &r,
+		    TCHAR_CREATE((teken_char_t)' ', &default_message));
 
 	terminal_sync_ttysize(tm);
+}
+
+void
+terminal_set_winsize(struct terminal *tm, const struct winsize *size)
+{
+
+	terminal_set_winsize_blank(tm, size, 1);
 }
 
 /*

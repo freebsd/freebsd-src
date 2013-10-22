@@ -135,6 +135,8 @@ struct terminal {
 
 struct terminal *terminal_alloc(const struct terminal_class *tc, void *softc);
 void	terminal_maketty(struct terminal *tm, const char *fmt, ...);
+void	terminal_set_winsize_blank(struct terminal *tm,
+    const struct winsize *size, int blank);
 void	terminal_set_winsize(struct terminal *tm, const struct winsize *size);
 void	terminal_mute(struct terminal *tm, int yes);
 void	terminal_input_char(struct terminal *tm, term_char_t c);
