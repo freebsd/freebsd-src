@@ -1377,12 +1377,10 @@ _binutils=	gnu/usr.bin/binutils
 # If an full path to an external cross compiler is given, don't build
 # a cross compiler.
 .if ${XCC:M/*} == "" && ${MK_CROSS_COMPILER} != "no"
-.if ${MK_CLANG} != "no" && (${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang")
+.if (${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang") && ${TARGET} != "pc98"
 _clang=		usr.bin/clang
 _clang_libs=	lib/clang
-.endif
-
-.if ${MK_GCC} != "no" && (${MK_CLANG_IS_CC} == "no" || ${TARGET} == "pc98")
+.else
 _cc=		gnu/usr.bin/cc
 .endif
 .endif
