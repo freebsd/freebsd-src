@@ -88,6 +88,8 @@ void
 initarm_late_init(void)
 {
 
+	cpufunc_control(CPU_CONTROL_DC_ENABLE|CPU_CONTROL_IC_ENABLE,
+	    CPU_CONTROL_DC_ENABLE|CPU_CONTROL_IC_ENABLE);
 }
 
 #define FDT_DEVMAP_MAX	2
