@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 12, 2013
+.Dd October 19, 2013
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3629,6 +3629,23 @@ and if
 is set to
 .Dq Li YES ,
 this specifies a list of additional iBCS2 loaders to enable.
+.It Va firstboot_sentinel
+.Pq Vt str
+This variable specifies the full path to a
+.Dq first boot
+sentinel file.
+If a file exists with this path,
+.Pa rc.d
+scripts with the
+.Dq firstboot
+keyword will be run on startup and the sentinel file will be deleted
+after the boot process completes.
+The sentinel file must be located on a writable file system which is
+mounted no later than
+.Va early_late_divider
+to function properly.
+The default is
+.Pa /firstboot .
 .It Va linux_enable
 .Pq Vt bool
 Set to
