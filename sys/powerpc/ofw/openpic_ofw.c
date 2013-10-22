@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -55,15 +56,15 @@ __FBSDID("$FreeBSD$");
 #include "pic_if.h"
 
 /*
- * MacIO interface
+ * OFW interface
  */
-static int	openpic_macio_probe(device_t);
-static int	openpic_macio_attach(device_t);
+static int	openpic_ofw_probe(device_t);
+static int	openpic_ofw_attach(device_t);
 
-static device_method_t  openpic_macio_methods[] = {
+static device_method_t  openpic_ofw_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		openpic_macio_probe),
-	DEVMETHOD(device_attach,	openpic_macio_attach),
+	DEVMETHOD(device_probe,		openpic_ofw_probe),
+	DEVMETHOD(device_attach,	openpic_ofw_attach),
 
 	/* PIC interface */
 	DEVMETHOD(pic_bind,		openpic_bind),
@@ -75,26 +76,35 @@ static device_method_t  openpic_macio_methods[] = {
 	DEVMETHOD(pic_mask,		openpic_mask),
 	DEVMETHOD(pic_unmask,		openpic_unmask),
 
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
-static driver_t openpic_macio_driver = {
+static driver_t openpic_ofw_driver = {
 	"openpic",
-	openpic_macio_methods,
+	openpic_ofw_methods,
 	sizeof(struct openpic_softc),
 };
 
-DRIVER_MODULE(openpic, macio, openpic_macio_driver, openpic_devclass, 0, 0);
+DRIVER_MODULE(openpic, nexus, openpic_ofw_driver, openpic_devclass, 0, 0);
+DRIVER_MODULE(openpic, simplebus, openpic_ofw_driver, openpic_devclass, 0, 0);
+DRIVER_MODULE(openpic, macio, openpic_ofw_driver, openpic_devclass, 0, 0);
 
 static int
-openpic_macio_probe(device_t dev)
+openpic_ofw_probe(device_t dev)
 {
 	const char *type = ofw_bus_get_type(dev);
 
-	if (strcmp(type, "open-pic") != 0)
+	if (type == NULL)
                 return (ENXIO);
 
-	/* On some U4 systems, there is a phantom MPIC in the mac-io cell */
+	if (!ofw_bus_is_compatible(dev, "chrp,open-pic") &&
+	    strcmp(type, "open-pic") != 0)
+                return (ENXIO);
+
+	/*
+	 * On some U4 systems, there is a phantom MPIC in the mac-io cell.
+	 * The uninorth driver will pick up the real PIC, so ignore it here.
+	 */
 	if (OF_finddevice("/u4") != (phandle_t)-1)
 		return (ENXIO);
 
@@ -103,8 +113,17 @@ openpic_macio_probe(device_t dev)
 }
 
 static int
-openpic_macio_attach(device_t dev)
+openpic_ofw_attach(device_t dev)
 {
- 
-	return (openpic_common_attach(dev, ofw_bus_get_node(dev)));
+	phandle_t xref, node;
+
+	node = ofw_bus_get_node(dev);
+
+	if (OF_getprop(node, "phandle", &xref, sizeof(xref)) == -1 &&
+	    OF_getprop(node, "ibm,phandle", &xref, sizeof(xref)) == -1 &&
+	    OF_getprop(node, "linux,phandle", &xref, sizeof(xref)) == -1)
+		xref = node;
+
+	return (openpic_common_attach(dev, xref));
 }
+
