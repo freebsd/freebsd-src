@@ -11,7 +11,7 @@ arm/broadcom/bcm2835/bcm2835_systimer.c		standard
 arm/broadcom/bcm2835/bcm2835_wdog.c		standard
 arm/broadcom/bcm2835/bus_space.c		optional fdt
 arm/broadcom/bcm2835/common.c			optional fdt
-arm/broadcom/bcm2835/dwc_otg_brcm.c		optional dwcotg
+dev/usb/controller/dwc_otg_fdt.c		optional dwcotg
 
 arm/arm/bus_space_generic.c                     standard
 arm/arm/bus_space_asm_generic.S                 standard

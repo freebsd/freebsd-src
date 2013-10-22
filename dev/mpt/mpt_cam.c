@@ -3683,7 +3683,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		lun_id_t lun = ccb->ccb_h.target_lun;
 		ccb->ccb_h.sim_priv.entries[0].field = 0;
 		ccb->ccb_h.sim_priv.entries[1].ptr = mpt;
-		ccb->ccb_h.flags = 0;
 
 		if (lun == CAM_LUN_WILDCARD) {
 			if (ccb->ccb_h.target_id != CAM_TARGET_WILDCARD) {
@@ -5156,7 +5155,7 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	tgt->tag_id = atiop->tag_id;
 	if (tag_action) {
 		atiop->tag_action = tag_action;
-		atiop->ccb_h.flags = CAM_TAG_ACTION_VALID;
+		atiop->ccb_h.flags |= CAM_TAG_ACTION_VALID;
 	}
 	if (mpt->verbose >= MPT_PRT_DEBUG) {
 		int i;

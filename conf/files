@@ -1401,6 +1401,7 @@ dev/exca/exca.c			optional cbb
 dev/fatm/if_fatm.c		optional fatm pci
 dev/fb/splash.c			optional splash
 dev/fdt/fdt_common.c		optional fdt
+dev/fdt/fdt_ic_if.m		optional fdt
 dev/fdt/fdt_pci.c		optional fdt pci
 dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
@@ -1540,9 +1541,6 @@ dev/iscsi_initiator/isc_cam.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/isc_soc.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/isc_sm.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/isc_subr.c	optional iscsi_initiator scbus
-dev/isf/isf.c			optional isf
-dev/isf/isf_fdt.c		optional isf fdt
-dev/isf/isf_nexus.c		optional isf
 dev/isp/isp.c			optional isp
 dev/isp/isp_freebsd.c		optional isp
 dev/isp/isp_library.c		optional isp
@@ -3846,7 +3844,6 @@ vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
 xen/gnttab.c			optional xen | xenhvm
 xen/features.c			optional xen | xenhvm
-xen/evtchn/evtchn_dev.c		optional xen | xenhvm
 xen/xenbus/xenbus_if.m		optional xen | xenhvm
 xen/xenbus/xenbus.c		optional xen | xenhvm
 xen/xenbus/xenbusb_if.m		optional xen | xenhvm

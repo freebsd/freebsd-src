@@ -2191,8 +2191,8 @@ static int
 xnb_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct xnb_softc *xnb = ifp->if_softc;
-#ifdef INET
 	struct ifreq *ifr = (struct ifreq*) data;
+#ifdef INET
 	struct ifaddr *ifa = (struct ifaddr*)data;
 #endif
 	int error = 0;

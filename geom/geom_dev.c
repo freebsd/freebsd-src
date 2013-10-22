@@ -222,6 +222,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	mtx_init(&sc->sc_mtx, "g_dev", NULL, MTX_DEF);
 	cp = g_new_consumer(gp);
 	cp->private = sc;
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
 	KASSERT(error == 0,
 	    ("g_dev_taste(%s) failed to g_attach, err=%d", pp->name, error));

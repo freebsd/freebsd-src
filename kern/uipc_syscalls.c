@@ -2070,7 +2070,8 @@ free_page:
 	}
 	KASSERT(error != 0 || (m->wire_count > 0 &&
 	    vm_page_is_valid(m, off & PAGE_MASK, xfsize)),
-	    ("wrong page state m %p", m));
+	    ("wrong page state m %p off %#jx xfsize %d", m, (uintmax_t)off,
+	    xfsize));
 	VM_OBJECT_WUNLOCK(obj);
 	return (error);
 }

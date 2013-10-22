@@ -61,21 +61,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
-#include <sys/ktr.h>
 #include <sys/pcpu.h>
+#include <sys/sysctl.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 
+#include <dev/ofw/openfirm.h>
+
 #include <machine/clock.h>
-#include <machine/intr_machdep.h>
-#include <machine/platform.h>
-#include <machine/psl.h>
-#include <machine/spr.h>
 #include <machine/cpu.h>
+#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
+#include <machine/smp.h>
 
 /*
  * Initially we assume a processor with a bus frequency of 12.5 MHz.
@@ -85,12 +84,10 @@ static u_long		ns_per_tick = 80;
 static u_long		ticks_per_sec = 12500000;
 static u_long		*decr_counts[MAXCPU];
 
-#define	DIFF19041970	2082844800
-
 static int		decr_et_start(struct eventtimer *et,
     sbintime_t first, sbintime_t period);
 static int		decr_et_stop(struct eventtimer *et);
-static timecounter_get_t decr_get_timecount;
+static timecounter_get_t	decr_get_timecount;
 
 struct decr_state {
 	int	mode;	/* 0 - off, 1 - periodic, 2 - one-shot. */
@@ -99,7 +96,7 @@ struct decr_state {
 static DPCPU_DEFINE(struct decr_state, decr_state);
 
 static struct eventtimer	decr_et;
-static struct timecounter	decr_timecounter = {
+static struct timecounter	decr_tc = {
 	decr_get_timecount,	/* get_timecount */
 	0,			/* no poll_pps */
 	~0u,			/* counter_mask */
@@ -114,25 +111,42 @@ void
 decr_intr(struct trapframe *frame)
 {
 	struct decr_state *s = DPCPU_PTR(decr_state);
+	int		nticks = 0;
+	int32_t		val;
 
 	if (!initialized)
 		return;
 
 	(*decr_counts[curcpu])++;
 
+#ifdef BOOKE
 	/*
 	 * Interrupt handler must reset DIS to avoid getting another
 	 * interrupt once EE is enabled.
 	 */
 	mtspr(SPR_TSR, TSR_DIS);
+#endif
 
-	CTR1(KTR_INTR, "%s: DEC interrupt", __func__);
-
-	if (s->mode == 2)
+	if (s->mode == 1) {
+		/*
+		 * Based on the actual time delay since the last decrementer
+		 * reload, we arrange for earlier interrupt next time.
+		 */
+		__asm ("mfdec %0" : "=r"(val));
+		while (val < 0) {
+			val += s->div;
+			nticks++;
+		}
+		mtdec(val);
+	} else if (s->mode == 2) {
+		nticks = 1;
 		decr_et_stop(NULL);
+	}
 
-	if (decr_et.et_active)
-		decr_et.et_event_cb(&decr_et, decr_et.et_arg);
+	while (nticks-- > 0) {
+		if (decr_et.et_active)
+			decr_et.et_event_cb(&decr_et, decr_et.et_arg);
+	}
 }
 
 void
@@ -152,6 +166,10 @@ decr_init(void)
 	struct cpuref cpu;
 	char buf[32];
 
+	/*
+	 * Check the BSP's timebase frequency. Sometimes we can't find the BSP,
+	 * so fall back to the first CPU in this case.
+	 */
 	if (platform_smp_get_bsp(&cpu) != 0)
 		platform_smp_first_cpu(&cpu);
 	ticks_per_sec = platform_timebase_freq(&cpu);
@@ -186,15 +204,15 @@ void
 decr_tc_init(void)
 {
 
-	decr_timecounter.tc_frequency = ticks_per_sec;
-	tc_init(&decr_timecounter);
+	decr_tc.tc_frequency = ticks_per_sec;
+	tc_init(&decr_tc);
 	decr_et.et_name = "decrementer";
 	decr_et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT |
 	    ET_FLAGS_PERCPU;
 	decr_et.et_quality = 1000;
 	decr_et.et_frequency = ticks_per_sec;
 	decr_et.et_min_period = (0x00000002LLU << 32) / ticks_per_sec;
-	decr_et.et_max_period = (0xfffffffeLLU << 32) / ticks_per_sec;
+	decr_et.et_max_period = (0x7fffffffLLU << 32) / ticks_per_sec;
 	decr_et.et_start = decr_et_start;
 	decr_et.et_stop = decr_et_stop;
 	decr_et.et_priv = NULL;
@@ -208,7 +226,10 @@ static int
 decr_et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	struct decr_state *s = DPCPU_PTR(decr_state);
-	uint32_t fdiv, tcr;
+	uint32_t fdiv;
+#ifdef BOOKE
+	uint32_t tcr;
+#endif
 
 	if (period != 0) {
 		s->mode = 1;
@@ -222,6 +243,7 @@ decr_et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 	else
 		fdiv = s->div;
 
+#ifdef BOOKE
 	tcr = mfspr(SPR_TCR);
 	tcr |= TCR_DIE;
 	if (s->mode == 1) {
@@ -231,6 +253,10 @@ decr_et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		tcr &= ~TCR_ARE;
 	mtdec(fdiv);
 	mtspr(SPR_TCR, tcr);
+#else
+	mtdec(fdiv);
+#endif
+
 	return (0);
 }
 
@@ -241,13 +267,19 @@ static int
 decr_et_stop(struct eventtimer *et)
 {
 	struct decr_state *s = DPCPU_PTR(decr_state);
+#ifdef BOOKE
 	uint32_t tcr;
+#endif
 
 	s->mode = 0;
-	s->div = 0xffffffff;
+	s->div = 0x7fffffff;
+#ifdef BOOKE
 	tcr = mfspr(SPR_TCR);
 	tcr &= ~(TCR_DIE | TCR_ARE);
 	mtspr(SPR_TCR, tcr);
+#else
+	mtdec(s->div);
+#endif
 	return (0);
 }
 
@@ -257,10 +289,7 @@ decr_et_stop(struct eventtimer *et)
 static unsigned
 decr_get_timecount(struct timecounter *tc)
 {
-	quad_t tb;
-
-	tb = mftb();
-	return (tb);
+	return (mftb());
 }
 
 /*
@@ -269,12 +298,11 @@ decr_get_timecount(struct timecounter *tc)
 void
 DELAY(int n)
 {
-	u_quad_t start, end, now;
+	u_quad_t	tb, ttb;
 
-	start = mftb();
-	end = start + (u_quad_t)ticks_per_sec / (1000000ULL / n);
-	do {
-		now = mftb();
-	} while (now < end || (now > start && end < start));
+	tb = mftb();
+	ttb = tb + (n * 1000 + ns_per_tick - 1) / ns_per_tick;
+	while (tb < ttb)
+		tb = mftb();
 }
 

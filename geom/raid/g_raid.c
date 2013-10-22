@@ -792,6 +792,7 @@ g_raid_open_consumer(struct g_raid_softc *sc, const char *name)
 	if (pp == NULL)
 		return (NULL);
 	cp = g_new_consumer(sc->sc_geom);
+	cp->flags |= G_CF_DIRECT_RECEIVE;
 	if (g_attach(cp, pp) != 0) {
 		g_destroy_consumer(cp);
 		return (NULL);
@@ -1670,6 +1671,7 @@ g_raid_launch_provider(struct g_raid_volume *vol)
         }
 
 	pp = g_new_providerf(sc->sc_geom, "%s", name);
+	pp->flags |= G_PF_DIRECT_RECEIVE;
 	if (vol->v_tr->tro_class->trc_accept_unmapped) {
 		pp->flags |= G_PF_ACCEPT_UNMAPPED;
 		for (i = 0; i < vol->v_disks_count; i++) {
@@ -2255,6 +2257,7 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	 */
 	gp->orphan = g_raid_taste_orphan;
 	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_RECEIVE;
 	g_attach(cp, pp);
 
 	geom = NULL;

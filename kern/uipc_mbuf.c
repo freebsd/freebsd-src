@@ -1265,6 +1265,7 @@ m_getptr(struct mbuf *m, int loc, int *off)
 /*
  * Print the mbuf header fields and contents.
  * XXXAO: Add printing of interface name.
+ * XXXAO: Add protocol specific flags printer.
  */
 void
 m_print(const struct mbuf *m, int maxlen)
