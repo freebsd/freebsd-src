@@ -234,9 +234,9 @@ struct vt_driver {
 
 	/* Priority to know which one can override */
 	int		vd_priority;
-#define	VD_PRIORITY_DUMB	10000
-#define	VD_PRIORITY_GENERIC	1000
-#define	VD_PRIORITY_SPECIFIC	100
+#define	VD_PRIORITY_DUMB	10
+#define	VD_PRIORITY_GENERIC	100
+#define	VD_PRIORITY_SPECIFIC	1000
 };
 
 /*
