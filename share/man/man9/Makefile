@@ -118,6 +118,7 @@ MAN=	accept_filter.9 \
 	g_consumer.9 \
 	g_data.9 \
 	get_cyclecount.9 \
+	getenv.9 \
 	getnewvnode.9 \
 	g_event.9 \
 	g_geom.9 \
@@ -677,6 +678,14 @@ MLINKS+=g_consumer.9 g_destroy_consumer.9 \
 	g_consumer.9 g_new_consumer.9
 MLINKS+=g_data.9 g_read_data.9 \
 	g_data.9 g_write_data.9
+MLINKS+=getenv.9 freeenv.9 \
+	getenv.9 getenv_int.9 \
+	getenv.9 getenv_long.9 \
+	getenv.9 getenv_string.9 \
+	getenv.9 getenv_quad.9 \
+	getenv.9 getenv_uint.9 \
+	getenv.9 getenv_ulong.9 \
+	getenv.9 testenv.9
 MLINKS+=g_event.9 g_cancel_event.9 \
 	g_event.9 g_post_event.9 \
 	g_event.9 g_waitfor_event.9
