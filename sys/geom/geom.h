@@ -177,6 +177,8 @@ struct g_consumer {
 	int			flags;
 #define G_CF_SPOILED		0x1
 #define G_CF_ORPHAN		0x4
+#define G_CF_DIRECT_SEND	0x10
+#define G_CF_DIRECT_RECEIVE	0x20
 	struct devstat		*stat;
 	u_int			nstart, nend;
 
@@ -206,6 +208,8 @@ struct g_provider {
 #define G_PF_WITHER		0x2
 #define G_PF_ORPHAN		0x4
 #define	G_PF_ACCEPT_UNMAPPED	0x8
+#define G_PF_DIRECT_SEND	0x10
+#define G_PF_DIRECT_RECEIVE	0x20
 
 	/* Two fields for the implementing class to use */
 	void			*private;
@@ -392,6 +396,8 @@ g_free(void *ptr)
 		#name, g_modevent, &class			\
 	};							\
 	DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
+
+int g_is_geom_thread(struct thread *td);
 
 #endif /* _KERNEL */
 
