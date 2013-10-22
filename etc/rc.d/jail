@@ -132,7 +132,9 @@ parse_options()
 	#
 	_confwarn=1
 	if [ -r "$jail_conf" -o -r "$_jconf" ]; then
-		warn "$_conf is created and used for jail $_j."
+		if ! checkyesno jail_parallel_start; then
+			warn "$_conf is created and used for jail $_j."
+		fi
 	fi
 	/usr/bin/install -m 0644 -o root -g wheel /dev/null $_conf || return 1
 
@@ -367,10 +369,10 @@ jail_handle_ips_option()
 		# Append address to list of addresses for the jail command.
 		case $_type in
 		inet)
-			echo "	ip4.addr += \"${_iface}|${_addr}${_mask}\";"
+			echo "	ip4.addr += \"${_iface:+${_iface}|}${_addr}${_mask}\";"
 		;;
 		inet6)
-			echo "	ip6.addr += \"${_iface}|${_addr}${_mask}\";"
+			echo "	ip6.addr += \"${_iface:+${_iface}|}${_addr}${_mask}\";"
 			need_dad_wait=1
 		;;
 		esac
@@ -418,7 +420,7 @@ jail_status()
 
 jail_start()
 {
-	local _j _jid _jn
+	local _j _jid _jn _jl
 
 	if [ $# = 0 ]; then
 		return
@@ -426,47 +428,82 @@ jail_start()
 	echo -n 'Starting jails:'
 	case $1 in
 	_ALL)
-		echo -n ' '
 		command=$jail_program
 		rc_flags=$jail_flags
 		command_args="-f $jail_conf -c"
-		$jail_jls -nq | while read IN; do
-			_jn=$(echo $IN | tr " " "\n" | grep name=)
-			_jid=$(echo $IN | tr " " "\n" | grep jid=)
-			if $command $rc_flags $command_args ${_jn#name=}; then
+		_tmp=`mktemp -t jail` || exit 3
+		if $command $rc_flags $command_args >> $_tmp 2>&1; then
+			$jail_jls -nq | while read IN; do
+				_jn=$(echo $IN | tr " " "\n" | grep ^name=)
+				_jid=$(echo $IN | tr " " "\n" | grep ^jid=)
 				echo -n " ${_jn#name=}"
 				echo "${_jid#jid=}" \
 				    > /var/run/jail_${_jn#name=}.id
-			fi
-		done
+			done
+		else
+			tail -1 $_tmp
+		fi
+		rm -f $_tmp
 		echo '.'
 		return
 	;;
 	esac
-	_tmp=`mktemp -t jail` || exit 3
-	for _j in $@; do
-		_j=$(echo $_j | tr /. _)
-		parse_options $_j || continue
+	if checkyesno jail_parallel_start; then
+		#
+		# Start jails in parallel and then check jail id when
+		# jail_parallel_start is YES.
+		#
+		_jl=
+		for _j in $@; do
+			_j=$(echo $_j | tr /. _)
+			parse_options $_j || continue
 
-		eval rc_flags=\${jail_${_j}_flags:-$jail_flags}
-		eval command=\${jail_${_j}_program:-$jail_program}
-		if checkyesno jail_parallel_start; then
-			command_args="-i -f $_conf -c $_j &"
-		else
+			_jl="$_jl $_j"
+			eval rc_flags=\${jail_${_j}_flags:-$jail_flags}
+			eval command=\${jail_${_j}_program:-$jail_program}
 			command_args="-i -f $_conf -c $_j"
-		fi
-		if $command $rc_flags $command_args \
-		    >> $_tmp 2>&1 </dev/null; then
+			$command $rc_flags $command_args \
+			    >/dev/null 2>&1 </dev/null &
+		done
+		sleep 1
+		for _j in $_jl; do
 			echo -n " ${_hostname:-${_j}}"
-			_jid=$($jail_jls -n -j $_j | tr " " "\n" | grep jid=)
-			echo "${_jid#jid=}" > /var/run/jail_${_j}.id
-		else
-			rm -f /var/run/jail_${_j}.id
-			echo " cannot start jail \"${_hostname:-${_j}}\": "
-			cat $_tmp
-		fi
-		rm -f $_tmp
-	done
+			if _jid=$($jail_jls -n -j $_j | tr " " "\n" | \
+			    grep ^jid=); then
+				echo "${_jid#jid=}" > /var/run/jail_${_j}.id
+			else
+				rm -f /var/run/jail_${_j}.id
+				echo " cannot start jail " \
+				    "\"${_hostname:-${_j}}\": "
+			fi
+		done
+	else
+		#
+		# Start jails one-by-one when jail_parallel_start is NO.
+		#
+		for _j in $@; do
+			_j=$(echo $_j | tr /. _)
+			parse_options $_j || continue
+
+			eval rc_flags=\${jail_${_j}_flags:-$jail_flags}
+			eval command=\${jail_${_j}_program:-$jail_program}
+			command_args="-i -f $_conf -c $_j"
+			_tmp=`mktemp -t jail` || exit 3
+			if $command $rc_flags $command_args \
+			    >> $_tmp 2>&1 </dev/null; then
+				echo -n " ${_hostname:-${_j}}"
+				_jid=$($jail_jls -n -j $_j | \
+				    tr " " "\n" | grep ^jid=)
+				echo "${_jid#jid=}" > /var/run/jail_${_j}.id
+			else
+				rm -f /var/run/jail_${_j}.id
+				echo " cannot start jail " \
+				    "\"${_hostname:-${_j}}\": "
+				cat $_tmp
+			fi
+			rm -f $_tmp
+		done
+	fi
 	echo '.'
 }
 
@@ -480,17 +517,21 @@ jail_stop()
 	echo -n 'Stopping jails:'
 	case $1 in
 	_ALL)
-		echo -n ' '
 		command=$jail_program
 		rc_flags=$jail_flags
 		command_args="-f $jail_conf -r"
 		$jail_jls -nq | while read IN; do
-			_jn=$(echo $IN | tr " " "\n" | grep name=)
+			_jn=$(echo $IN | tr " " "\n" | grep ^name=)
 			echo -n " ${_jn#name=}"
-			$command $rc_flags $command_args ${_jn#name=}
-			if ! $jail_jls -j ${_jn#name=} > /dev/null 2>&1; then
+			_tmp=`mktemp -t jail` || exit 3
+			$command $rc_flags $command_args ${_jn#name=} \
+			    >> $_tmp 2>&1
+			if $jail_jls -j ${_jn#name=} > /dev/null 2>&1; then
+				tail -1 $_tmp
+			else
 				rm -f /var/run/jail_${_jn#name=}.id
 			fi
+			rm -f $_tmp
 		done
 		echo '.'
 		return
@@ -504,10 +545,14 @@ jail_stop()
 		fi
 		eval command=\${jail_${_j}_program:-$jail_program}
 		echo -n " ${_hostname:-${_j}}"
-		$command -q -f $_conf -r $_j
-		if ! $jail_jls -j $_j > /dev/null 2>&1; then
+		_tmp=`mktemp -t jail` || exit 3
+		$command -q -f $_conf -r $_j >> $_tmp 2>&1
+		if $jail_jls -j $_j > /dev/null 2>&1; then
+			tail -1 $_tmp
+		else
 			rm -f /var/run/jail_${_j}.id
 		fi
+		rm -f $_tmp
 	done
 	echo '.'
 }
