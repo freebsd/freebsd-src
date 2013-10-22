@@ -1398,6 +1398,7 @@ dev/ex/if_ex_isa.c		optional ex isa
 dev/ex/if_ex_pccard.c		optional ex pccard
 dev/exca/exca.c			optional cbb
 dev/fatm/if_fatm.c		optional fatm pci
+dev/fb/fbd.c			optional fbd | vt
 dev/fb/splash.c			optional splash
 dev/fdt/fdt_common.c		optional fdt
 dev/fdt/fdt_pci.c		optional fdt pci
@@ -2459,6 +2460,7 @@ dev/vkbd/vkbd.c			optional vkbd
 dev/vr/if_vr.c			optional vr pci
 dev/vt/colors/vt_termcolors.c	optional vt
 dev/vt/font/font_default.c	optional vt
+dev/vt/hw/fb/vt_fb.c		optional vt
 dev/vt/hw/intel/intel.c		optional vt vt_intel
 dev/vt/hw/vga/vga.c		optional vt vt_vga
 dev/vt/logo/logo_freebsd.c	optional vt
