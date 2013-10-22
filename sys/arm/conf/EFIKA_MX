@@ -169,11 +169,8 @@ makeoptions     FDT_DTS_FILE=efikamx.dts
 # NOTE: serial console will be disabled if syscons enabled
 # Uncomment following lines for framebuffer/syscons support
 device		vt
-#options		SC_OFWFB
 device		vkbd
 device		kbdmux
-#options         SC_DFLT_FONT    # compile font in
-#makeoptions     SC_DFLT_FONT=cp437
 device		ukbd		# Allow keyboard like HIDs to control console
 
 device		ums
