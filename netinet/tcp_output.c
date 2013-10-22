@@ -129,6 +129,14 @@ static void inline	hhook_run_tcp_est_out(struct tcpcb *tp,
 			    long len, int tso);
 static void inline	cc_after_idle(struct tcpcb *tp);
 
+#ifdef TCP_IFTRANSMIT
+static int	tcp_l2hdr(struct tcpcb *tp, struct in_conninfo *inc);
+static int	tcp_ifsend(struct tcpcb *tp, struct mbuf *m);
+
+#define	t_ifp	t_pspare2[0]
+#define	t_l2h	t_pspare2[1]
+#endif
+
 /*
  * Wrapper for the TCP established output helper hook.
  */
@@ -1228,6 +1236,13 @@ send:
 
 	TCP_PROBE5(send, NULL, tp, ip, tp, th);
 
+#ifdef TCP_IFTRANSMIT
+	if (tp->t_l2h == NULL)
+		(void)tcp_l2hdr(tp, &tp->t_inpcb->inp_inc);
+	if (tp->t_ifp != NULL) {
+		tcp_ifsend(tp, m);
+	} else
+#endif
 	error = ip_output(m, tp->t_inpcb->inp_options, &ro,
 	    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), 0,
 	    tp->t_inpcb);
@@ -1423,6 +1438,71 @@ tcp_setpersist(struct tcpcb *tp)
 	if (tp->t_rxtshift < TCP_MAXRXTSHIFT)
 		tp->t_rxtshift++;
 }
+
+#ifdef TCP_IFTRANSMIT
+#include <net/if_arp.h>
+#include <net/if_llc.h>
+#include <net/if_dl.h>
+#include <net/if_types.h>
+#include <net/ethernet.h>
+#include <net/if_llatbl.h>
+#include <netinet/in_var.h>
+#include <netinet/if_ether.h>
+
+static int
+tcp_l2hdr(struct tcpcb *tp, struct in_conninfo *inc)
+{
+	struct route sro;
+	struct sockaddr_in *dst;
+	struct ifnet *ifp;
+	struct llentry *lle = NULL;
+	struct ether_header *eh;
+
+	/* Look up destination interface. */
+	bzero(&sro, sizeof(sro));
+	if (inc->inc_faddr.s_addr == INADDR_ANY)
+		return (ENOBUFS);
+	dst = (struct sockaddr_in *)&sro.ro_dst;
+	dst->sin_family = AF_INET;
+	dst->sin_len = sizeof(*dst);
+	dst->sin_addr = inc->inc_faddr;
+	in_rtalloc_ign(&sro, 0, inc->inc_fibnum);
+	if (sro.ro_rt == NULL)
+		return (ENOBUFS);
+	ifp = sro.ro_rt->rt_ifp;
+	RO_RTFREE(&sro);
+
+	if ((tp->t_l2h = malloc(ETHER_HDR_LEN, M_TEMP, M_NOWAIT)) == NULL)
+		return (ENOBUFS);
+
+	eh = tp->t_l2h;
+	if (arpresolve(ifp, NULL, NULL, &sro.ro_dst, (u_char *)(&eh->ether_dhost),
+	    &lle) != 0)
+		return (ENOBUFS);	/* XXX leak */
+	(void)memcpy(eh->ether_shost, IF_LLADDR(ifp), sizeof(eh->ether_shost));
+	eh->ether_type = htons(ETHERTYPE_IP);
+	tp->t_ifp = ifp;
+
+	return (0);
+}
+
+static int
+tcp_ifsend(struct tcpcb *tp, struct mbuf *m)
+{
+	struct ether_header *eh;
+	struct ifnet *ifp;
+
+	M_PREPEND(m, ETHER_HDR_LEN, M_NOWAIT);
+	if (m == NULL)
+		return (ENOBUFS);
+
+	ifp = tp->t_ifp;
+	eh = mtod(m, struct ether_header *);
+	(void)memcpy(eh, tp->t_l2h, ETHER_HDR_LEN);
+
+	return ((ifp->if_transmit)(ifp, m));
+}
+#endif /* TCP_IFTRANSMIT */
 
 /*
  * Insert TCP options according to the supplied parameters to the place
