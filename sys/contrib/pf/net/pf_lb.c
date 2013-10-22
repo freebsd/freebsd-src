@@ -165,8 +165,8 @@ struct pf_rule		*pf_match_translation(struct pf_pdesc *, struct mbuf *,
 			    struct pf_addr *, u_int16_t, struct pf_addr *,
 			    u_int16_t, int);
 int			 pf_get_sport(sa_family_t, u_int8_t, struct pf_rule *,
-			    struct pf_addr *, struct pf_addr *, u_int16_t,
-			    struct pf_addr *, u_int16_t*, u_int16_t, u_int16_t,
+			    struct pf_addr *, uint16_t, struct pf_addr *, uint16_t,
+			    struct pf_addr *, uint16_t*, uint16_t, uint16_t,
 			    struct pf_src_node **);
 
 #define mix(a,b,c) \
@@ -318,13 +318,13 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 
 int
 pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
-    struct pf_addr *saddr, struct pf_addr *daddr, u_int16_t dport,
-    struct pf_addr *naddr, u_int16_t *nport, u_int16_t low, u_int16_t high,
-    struct pf_src_node **sn)
+    struct pf_addr *saddr, uint16_t sport, struct pf_addr *daddr,
+    uint16_t dport, struct pf_addr *naddr, uint16_t *nport, uint16_t low,
+    uint16_t high, struct pf_src_node **sn)
 {
 	struct pf_state_key_cmp	key;
 	struct pf_addr		init_addr;
-	u_int16_t		cut;
+	uint16_t		cut;
 
 	bzero(&init_addr, sizeof(init_addr));
 	if (pf_map_addr(af, r, saddr, naddr, &init_addr, sn))
@@ -335,34 +335,38 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 		high = 65535;
 	}
 
+	bzero(&key,sizeof(key));
+	key.af = af;
+	key.proto = proto;
+	key.port[0] = dport;
+	PF_ACPY(&key.addr[0], daddr, key.af);
+
 	do {
-		key.af = af;
-		key.proto = proto;
-		PF_ACPY(&key.addr[1], daddr, key.af);
-		PF_ACPY(&key.addr[0], naddr, key.af);
-		key.port[1] = dport;
+		PF_ACPY(&key.addr[1], naddr, key.af);
 
 		/*
 		 * port search; start random, step;
 		 * similar 2 portloop in in_pcbbind
 		 */
 		if (!(proto == IPPROTO_TCP || proto == IPPROTO_UDP ||
-		    proto == IPPROTO_ICMP)) {
-			key.port[0] = dport;
-			if (pf_find_state_all(&key, PF_IN, NULL) == NULL)
+		    proto == IPPROTO_ICMP) || (low == 0 && high == 0)) {
+			/*
+			* XXX bug: icmp state don't use the id on both sides.
+			* (traceroute -l through nat)
+			*/
+			key.port[1] = sport;
+			if (pf_find_state_all(&key, PF_IN, NULL) == NULL) {
+				*nport = sport;
 				return (0);
-		} else if (low == 0 && high == 0) {
-			key.port[0] = *nport;
-			if (pf_find_state_all(&key, PF_IN, NULL) == NULL)
-				return (0);
+			}
 		} else if (low == high) {
-			key.port[0] = htons(low);
+			key.port[1] = htons(low);
 			if (pf_find_state_all(&key, PF_IN, NULL) == NULL) {
 				*nport = htons(low);
 				return (0);
 			}
 		} else {
-			u_int16_t tmp;
+			uint16_t tmp;
 
 			if (low > high) {
 				tmp = low;
@@ -377,7 +381,7 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 #endif
 			/* low <= cut <= high */
 			for (tmp = cut; tmp <= high; ++(tmp)) {
-				key.port[0] = htons(tmp);
+				key.port[1] = htons(tmp);
 				if (pf_find_state_all(&key, PF_IN, NULL) ==
 #ifdef __FreeBSD__
 				    NULL) {
@@ -389,7 +393,7 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 				}
 			}
 			for (tmp = cut - 1; tmp >= low; --(tmp)) {
-				key.port[0] = htons(tmp);
+				key.port[1] = htons(tmp);
 				if (pf_find_state_all(&key, PF_IN, NULL) ==
 #ifdef __FreeBSD__
 				    NULL) {
@@ -655,8 +659,8 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 		case PF_NORDR:
 			return (NULL);
 		case PF_NAT:
-			if (pf_get_sport(pd->af, pd->proto, r, saddr,
-			    daddr, dport, naddr, nport, r->rpool.proxy_port[0],
+			if (pf_get_sport(pd->af, pd->proto, r, saddr, sport, daddr,
+			    dport, naddr, nport, r->rpool.proxy_port[0],
 			    r->rpool.proxy_port[1], sn)) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    ("pf: NAT proxy port allocation "
