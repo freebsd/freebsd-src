@@ -128,6 +128,9 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 #endif
 
 	/* L1 instruction cache. */
+#ifdef MIPS_DISABLE_L1_CACHE
+	cpuinfo->l1.ic_linesize = 0;
+#else
 	tmp = (cfg1 & MIPS_CONFIG1_IL_MASK) >> MIPS_CONFIG1_IL_SHIFT;
 	if (tmp != 0) {
 		cpuinfo->l1.ic_linesize = 1 << (tmp + 1);
@@ -135,8 +138,12 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 		cpuinfo->l1.ic_nsets = 
 	    		1 << (((cfg1 & MIPS_CONFIG1_IS_MASK) >> MIPS_CONFIG1_IS_SHIFT) + 6);
 	}
+#endif
 
 	/* L1 data cache. */
+#ifdef MIPS_DISABLE_L1_CACHE
+	cpuinfo->l1.dc_linesize = 0;
+#else
 #ifndef CPU_CNMIPS
 	tmp = (cfg1 & MIPS_CONFIG1_DL_MASK) >> MIPS_CONFIG1_DL_SHIFT;
 	if (tmp != 0) {
@@ -172,6 +179,7 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 
 	/* All Octeon models use 128 byte line size.  */
 	cpuinfo->l1.dc_linesize = 128;
+#endif
 #endif
 
 	cpuinfo->l1.ic_size = cpuinfo->l1.ic_linesize
