@@ -646,15 +646,9 @@ beripic_send_ipi(device_t ic, u_int tid)
 
 	KASSERT(tid < sc->bp_nsoft, ("tid (%d) too large\n", tid));
 
-	printf("sending ipi to %d soft intrs %jx\n", tid,
-	    bus_space_read_8(sc->bp_read_bst, sc->bp_read_bsh, 8));
-
 	bit = 1ULL << (tid % 64);
 	bus_space_write_8(sc->bp_set_bst, sc->bp_set_bsh, 
 	    (BP_FIRST_SOFT / 8) + (tid / 64), bit);
-
-	printf("sent ipi to %d soft intrs %jx\n", tid,
-	    bus_space_read_8(sc->bp_read_bst, sc->bp_read_bsh, 8));
 }
 
 static void
