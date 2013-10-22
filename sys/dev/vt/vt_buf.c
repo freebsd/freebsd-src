@@ -336,10 +336,10 @@ vtbuf_init(struct vt_buf *vb, const term_pos_t *p)
 
 	if ((vb->vb_flags & VBF_STATIC) == 0) {
 		sz = vb->vb_history_size * p->tp_col * sizeof(term_char_t);
-		vb->vb_buffer = malloc(sz, M_VTBUF, M_WAITOK);
+		vb->vb_buffer = malloc(sz, M_VTBUF, M_WAITOK | M_ZERO);
 
 		sz = vb->vb_history_size * sizeof(term_char_t *);
-		vb->vb_rows = malloc(sz, M_VTBUF, M_WAITOK);
+		vb->vb_rows = malloc(sz, M_VTBUF, M_WAITOK | M_ZERO);
 	}
 
 	vtbuf_init_early(vb);
@@ -369,9 +369,9 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, int history_size)
 	    vb->vb_scr_size.tp_col) {
 		/* Allocate new buffer. */
 		bufsize = history_size * p->tp_col * sizeof(term_char_t);
-		new = malloc(bufsize, M_VTBUF, M_WAITOK|M_ZERO);
+		new = malloc(bufsize, M_VTBUF, M_WAITOK | M_ZERO);
 		rowssize = history_size * sizeof(term_pos_t *);
-		rows = malloc(rowssize, M_VTBUF, M_WAITOK|M_ZERO);
+		rows = malloc(rowssize, M_VTBUF, M_WAITOK | M_ZERO);
 
 		/* Toggle it. */
 		VTBUF_LOCK(vb);
