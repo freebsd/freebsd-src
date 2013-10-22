@@ -3163,10 +3163,11 @@ restart:
 				ccb = xpt_get_ccb(periph);
 				goto restart;
 			}
-			if (periph->flags & CAM_PERIPH_RUN_TASK) {
+			if (periph->flags & CAM_PERIPH_RUN_TASK)
 				break;
-			}
-			cam_periph_acquire(periph);
+			xpt_lock_buses();
+			periph->refcount++;	/* Unconditionally acquire */
+			xpt_unlock_buses();
 			periph->flags |= CAM_PERIPH_RUN_TASK;
 			taskqueue_enqueue(xsoftc.xpt_taskq,
 			    &periph->periph_run_task);
