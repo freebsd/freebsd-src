@@ -312,6 +312,17 @@ OF_searchprop(phandle_t node, const char *propname, void *buf, size_t len)
 	return (-1);
 }
 
+ssize_t
+OF_searchencprop(phandle_t node, const char *propname, void *buf, size_t len)
+{
+	ssize_t rv;
+
+	for (; node != 0; node = OF_parent(node))
+		if ((rv = OF_getencprop(node, propname, buf, len)) != -1)
+			return (rv);
+	return (-1);
+}
+
 /*
  * Store the value of a property of a package into newly allocated memory
  * (using the M_OFWPROP malloc pool and M_WAITOK).  elsz is the size of a
@@ -334,6 +345,26 @@ OF_getprop_alloc(phandle_t package, const char *propname, int elsz, void **buf)
 		return (-1);
 	}
 	return (len / elsz);
+}
+
+ssize_t
+OF_getencprop_alloc(phandle_t package, const char *name, int elsz, void **buf)
+{
+	ssize_t retval;
+	pcell_t *cell;
+	int i;
+
+	KASSERT(elsz % 4 == 0, "Need a multiple of 4 bytes");
+
+	retval = OF_getprop_alloc(package, name, elsz, buf);
+	if (retval == -1)
+		return (retval);
+
+	cell = *buf;
+	for (i = 0; i < retval*elsz/4; i++)
+		cell[i] = be32toh(cell[i]);
+
+	return (retval);
 }
 
 /* Get the next property of a package. */
