@@ -415,6 +415,7 @@ static struct {
 	{ "mtrap_exit",		VM_CAP_MTRAP_EXIT },
 	{ "pause_exit",		VM_CAP_PAUSE_EXIT },
 	{ "unrestricted_guest",	VM_CAP_UNRESTRICTED_GUEST },
+	{ "enable_invpcid",	VM_CAP_ENABLE_INVPCID },
 	{ 0 }
 };
 
