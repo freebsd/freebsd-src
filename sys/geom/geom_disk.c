@@ -91,22 +91,6 @@ static SYSCTL_NODE(_kern_geom, OID_AUTO, disk, CTLFLAG_RW, 0,
 
 DECLARE_GEOM_CLASS(g_disk_class, g_disk);
 
-static void __inline
-g_disk_lock_giant(struct disk *dp)
-{
-
-	if (dp->d_flags & DISKFLAG_NEEDSGIANT)
-		mtx_lock(&Giant);
-}
-
-static void __inline
-g_disk_unlock_giant(struct disk *dp)
-{
-
-	if (dp->d_flags & DISKFLAG_NEEDSGIANT)
-		mtx_unlock(&Giant);
-}
-
 static int
 g_disk_access(struct g_provider *pp, int r, int w, int e)
 {
@@ -133,12 +117,10 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 	error = 0;
 	if ((pp->acr + pp->acw + pp->ace) == 0 && (r + w + e) > 0) {
 		if (dp->d_open != NULL) {
-			g_disk_lock_giant(dp);
 			error = dp->d_open(dp);
 			if (bootverbose && error != 0)
 				printf("Opened disk %s -> %d\n",
 				    pp->name, error);
-			g_disk_unlock_giant(dp);
 			if (error != 0)
 				return (error);
 		}
@@ -161,12 +143,10 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 		dp->d_flags |= DISKFLAG_OPEN;
 	} else if ((pp->acr + pp->acw + pp->ace) > 0 && (r + w + e) == 0) {
 		if (dp->d_close != NULL) {
-			g_disk_lock_giant(dp);
 			error = dp->d_close(dp);
 			if (error != 0)
 				printf("Closed disk %s -> %d\n",
 				    pp->name, error);
-			g_disk_unlock_giant(dp);
 		}
 		sc->state = G_STATE_ACTIVE;
 		if (sc->led[0] != 0)
@@ -287,9 +267,7 @@ g_disk_ioctl(struct g_provider *pp, u_long cmd, void * data, int fflag, struct t
 
 	if (dp->d_ioctl == NULL)
 		return (ENOIOCTL);
-	g_disk_lock_giant(dp);
 	error = dp->d_ioctl(dp, cmd, data, fflag, td);
-	g_disk_unlock_giant(dp);
 	return (error);
 }
 
@@ -328,9 +306,7 @@ g_disk_start(struct bio *bp)
 			mtx_lock(&sc->start_mtx);
 			devstat_start_transaction_bio(dp->d_devstat, bp);
 			mtx_unlock(&sc->start_mtx);
-			g_disk_lock_giant(dp);
 			dp->d_strategy(bp);
-			g_disk_unlock_giant(dp);
 			break;
 		}
 		off = 0;
@@ -384,9 +360,7 @@ g_disk_start(struct bio *bp)
 			mtx_lock(&sc->start_mtx); 
 			devstat_start_transaction_bio(dp->d_devstat, bp2);
 			mtx_unlock(&sc->start_mtx); 
-			g_disk_lock_giant(dp);
 			dp->d_strategy(bp2);
-			g_disk_unlock_giant(dp);
 			bp2 = bp3;
 			bp3 = NULL;
 		} while (bp2 != NULL);
@@ -442,9 +416,7 @@ g_disk_start(struct bio *bp)
 		bp->bio_disk = dp;
 		bp->bio_to = (void *)bp->bio_done;
 		bp->bio_done = g_disk_done_single;
-		g_disk_lock_giant(dp);
 		dp->d_strategy(bp);
-		g_disk_unlock_giant(dp);
 		break;
 	default:
 		error = EOPNOTSUPP;
