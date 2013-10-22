@@ -212,6 +212,8 @@ struct g_mirror_softc {
 	struct callout	sc_callout;
 
 	struct root_hold_token *sc_rootmount;
+
+	struct mtx	 sc_done_mtx;
 };
 #define	sc_name	sc_geom->name
 
