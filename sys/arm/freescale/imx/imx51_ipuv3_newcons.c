@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 #include <sys/fbio.h>
 #include <sys/consio.h>
+#include <sys/eventhandler.h>
 
 #include <sys/kdb.h>
 
@@ -76,17 +77,7 @@ __FBSDID("$FreeBSD$");
 
 struct ipu3sc_softc {
 	device_t		dev;
-
-	intptr_t		sc_paddr;
-	intptr_t		sc_vaddr;
-	size_t			sc_fb_size;
-	int			sc_depth;
-	/* Storage for one pixel maybe bigger than color depth. */
-	int			sc_bpp;
-	int			sc_stride;
-	int			sc_width;
-	int			sc_height;
-	uint32_t		sc_cmap[16];
+	struct fb_info		sc_info;
 
 	bus_space_tag_t		iot;
 	bus_space_handle_t	ioh;
@@ -102,16 +93,6 @@ struct ipu3sc_softc {
 };
 
 static struct ipu3sc_softc *ipu3sc_softc;
-
-static vd_init_t	vt_imx_init;
-static vd_blank_t	vt_imx_blank;
-static vd_bitbltchr_t	vt_imx_bitbltchr;
-
-static struct vt_driver vt_imx_driver = {
-	.vd_init = vt_imx_init,
-	.vd_blank = vt_imx_blank,
-	.vd_bitbltchr = vt_imx_bitbltchr,
-};
 
 #define	IPUV3_READ(ipuv3, module, reg)					\
 	bus_space_read_4((ipuv3)->iot, (ipuv3)->module##_ioh, (reg))
@@ -156,17 +137,6 @@ int ipuv3_debug = IPUV3_DEBUG;
 static int	ipu3_fb_probe(device_t);
 static int	ipu3_fb_attach(device_t);
 
-static int
-ipu3_fb_malloc(struct ipu3sc_softc *sc, size_t size)
-{
-
-	sc->sc_vaddr = (intptr_t)contigmalloc(size, M_DEVBUF, M_ZERO, 0, ~0,
-	    PAGE_SIZE, 0);
-	sc->sc_paddr = (intptr_t)vtophys(sc->sc_vaddr);
-
-	return (0);
-}
-
 static void
 ipu3_fb_init(struct ipu3sc_softc *sc)
 {
@@ -179,29 +149,56 @@ ipu3_fb_init(struct ipu3sc_softc *sc)
 	w0sh96 <<= 32;
 	w0sh96 |= IPUV3_READ(sc, cpmem, CPMEM_OFFSET(IMX_IPU_DP1, 23, 0, 12));
 
-	sc->sc_width = ((w0sh96 >> 29) & 0x1fff) + 1;
-	sc->sc_height = ((w0sh96 >> 42) & 0x0fff) + 1;
+	sc->sc_info.fb_width = ((w0sh96 >> 29) & 0x1fff) + 1;
+	sc->sc_info.fb_height = ((w0sh96 >> 42) & 0x0fff) + 1;
 
 	/* SLY W1[115:102] - 96 = [19:6] */
 	w1sh96 = IPUV3_READ(sc, cpmem, CPMEM_OFFSET(IMX_IPU_DP1, 23, 1, 12));
-	sc->sc_stride = ((w1sh96 >> 6) & 0x3fff) + 1;
+	sc->sc_info.fb_stride = ((w1sh96 >> 6) & 0x3fff) + 1;
 
-	printf("%dx%d [%d]\n", sc->sc_width, sc->sc_height, sc->sc_stride);
-	sc->sc_fb_size = sc->sc_height * sc->sc_stride;
+	printf("%dx%d [%d]\n", sc->sc_info.fb_width, sc->sc_info.fb_height,
+	    sc->sc_info.fb_stride);
+	sc->sc_info.fb_size = sc->sc_info.fb_height * sc->sc_info.fb_stride;
 
-	ipu3_fb_malloc(sc, sc->sc_fb_size);
+	sc->sc_info.fb_vbase = (intptr_t)contigmalloc(sc->sc_info.fb_size,
+	    M_DEVBUF, M_ZERO, 0, ~0, PAGE_SIZE, 0);
+	sc->sc_info.fb_pbase = (intptr_t)vtophys(sc->sc_info.fb_vbase);
 
 	/* DP1 + config_ch_23 + word_2 */
 	IPUV3_WRITE(sc, cpmem, CPMEM_OFFSET(IMX_IPU_DP1, 23, 1, 0),
-	    (((uint32_t)sc->sc_paddr >> 3) |
-	    (((uint32_t)sc->sc_paddr >> 3) << 29)) & 0xffffffff);
+	    (((uint32_t)sc->sc_info.fb_pbase >> 3) |
+	    (((uint32_t)sc->sc_info.fb_pbase >> 3) << 29)) & 0xffffffff);
 
 	IPUV3_WRITE(sc, cpmem, CPMEM_OFFSET(IMX_IPU_DP1, 23, 1, 4),
-	    (((uint32_t)sc->sc_paddr >> 3) >> 3) & 0xffffffff);
+	    (((uint32_t)sc->sc_info.fb_pbase >> 3) >> 3) & 0xffffffff);
 
 	/* XXX: fetch or set it from/to IPU. */
-	sc->sc_depth = sc->sc_stride / sc->sc_width * 8;
-	sc->sc_bpp = sc->sc_stride / sc->sc_width;
+	sc->sc_info.fb_bpp = sc->sc_info.fb_depth = sc->sc_info.fb_stride /
+	    sc->sc_info.fb_width * 8;
+}
+
+/* Use own color map, because of different RGB offset. */
+static int
+ipu3_fb_init_cmap(uint32_t *cmap, int bytespp)
+{
+
+	switch (bytespp) {
+	case 8:
+		return (vt_generate_vga_palette(cmap, COLOR_FORMAT_RGB,
+		    0x7, 5, 0x7, 2, 0x3, 0));
+	case 15:
+		return (vt_generate_vga_palette(cmap, COLOR_FORMAT_RGB,
+		    0x1f, 10, 0x1f, 5, 0x1f, 0));
+	case 16:
+		return (vt_generate_vga_palette(cmap, COLOR_FORMAT_RGB,
+		    0x1f, 11, 0x3f, 5, 0x1f, 0));
+	case 24:
+	case 32: /* Ignore alpha. */
+		return (vt_generate_vga_palette(cmap, COLOR_FORMAT_RGB,
+		    0xff, 16, 0xff, 8, 0xff, 0));
+	default:
+		return (1);
+	}
 }
 
 static int
@@ -306,13 +303,13 @@ ipu3_fb_attach(device_t dev)
 	 * Mailbox relies on it to get data from VideoCore
 	 */
 	ipu3_fb_init(sc);
-	err = vt_generate_vga_palette(sc->sc_cmap, COLOR_FORMAT_RGB, 0xff, 16,
-	    0xff, 8, 0xff, 0);
-	if (err)
-		goto fail_retarn_dctmpl;
 
+	sc->sc_info.fb_name = device_get_nameunit(dev);
 
-	vt_allocate(&vt_imx_driver, sc);
+	ipu3_fb_init_cmap(sc->sc_info.fb_cmap, sc->sc_info.fb_depth);
+	sc->sc_info.fb_cmsize = 16;
+
+	EVENTHANDLER_INVOKE(register_framebuffer, &sc->sc_info);
 
 	return (0);
 
@@ -355,111 +352,3 @@ static driver_t ipu3_fb_driver = {
 };
 
 DRIVER_MODULE(ipu3fb, simplebus, ipu3_fb_driver, ipu3_fb_devclass, 0, 0);
-
-static void
-vt_imx_blank(struct vt_device *vd, term_color_t color)
-{
-	struct ipu3sc_softc *sc = vd->vd_softc;
-	u_int ofs;
-	uint32_t c;
-
-	c = sc->sc_cmap[color];
-	switch (sc->sc_bpp) {
-	case 1:
-		for (ofs = 0; ofs < (sc->sc_stride * sc->sc_height); ofs++)
-			*(uint8_t *)(sc->sc_vaddr + ofs) = c & 0xff;
-		break;
-	case 2:
-		/* XXX must be 16bits colormap */
-		for (ofs = 0; ofs < (sc->sc_stride * sc->sc_height); ofs++)
-			*(uint16_t *)(sc->sc_vaddr + 2 * ofs) = c & 0xffff;
-		break;
-	case 3: /*  */
-		/* line 0 */
-		for (ofs = 0; ofs < sc->sc_stride; ofs++) {
-			*(uint8_t *)(sc->sc_vaddr + ofs + 0) = c >>  0& 0xff;
-			*(uint8_t *)(sc->sc_vaddr + ofs + 1) = c >>  8 & 0xff;
-			*(uint8_t *)(sc->sc_vaddr + ofs + 2) = c >> 16 & 0xff;
-		}
-		/* Copy line0 to all other lines. */
-		for (ofs = 1; ofs < sc->sc_height; ofs++) {
-			memmove((void *)(sc->sc_vaddr + ofs * sc->sc_stride),
-			    (void *)sc->sc_vaddr, sc->sc_stride);
-		}
-		break;
-	case 4:
-		for (ofs = 0; ofs < (sc->sc_stride * sc->sc_height); ofs++)
-			*(uint32_t *)(sc->sc_vaddr + 4 * ofs) = c;
-		break;
-	default:
-		/* panic? */
-		break;
-	}
-}
-
-static void
-vt_imx_bitbltchr(struct vt_device *vd, const uint8_t *src,
-    vt_axis_t top, vt_axis_t left, unsigned int width, unsigned int height,
-    term_color_t fg, term_color_t bg)
-{
-	struct ipu3sc_softc *sc = vd->vd_softc;
-	u_long line;
-	uint32_t fgc, bgc, cc, o;
-	int c, l, bpp;
-	uint8_t b = 0;
-
-	bpp = sc->sc_bpp;
-	fgc = sc->sc_cmap[fg];
-	bgc = sc->sc_cmap[bg];
-
-	line = sc->sc_vaddr + (sc->sc_stride * top) + (left * bpp);
-	for (l = 0; l < height; l++) {
-		for (c = 0; c < width; c++) {
-			if (c % 8 == 0)
-				b = *src++;
-			else
-				b <<= 1;
-			o = line + (c * bpp);
-			cc = b & 0x80 ? fgc : bgc;
-
-			switch(bpp) {
-			case 1:
-				*(uint8_t *)(o) = cc;
-				break;
-			case 2:
-				*(uint16_t *)(o) = cc;
-				break;
-			case 3:
-				/* Packed mode, so unaligned. Byte access. */
-				*(uint8_t *)(o + 0) = (cc >> 16) & 0xff;
-				*(uint8_t *)(o + 1) = (cc >>  8) & 0xff;
-				*(uint8_t *)(o + 2) = (cc >>  0) & 0xff;
-				break;
-			case 4:
-				/* Cover both: 32bits and aligned 24bits. */
-				*(uint32_t *)(o) = cc;
-				break;
-			default:
-				/* panic? */
-				break;
-			}
-		}
-		line += sc->sc_stride;
-	}
-}
-
-static int
-vt_imx_init(struct vt_device *vd)
-{
-	struct ipu3sc_softc *sc;
-
-	sc = vd->vd_softc;
-
-	vd->vd_height = sc->sc_height;
-	vd->vd_width = sc->sc_width;
-
-	/* Clear the screen. */
-	vt_imx_blank(vd, TC_BLACK);
-
-	return (CN_INTERNAL);
-}
