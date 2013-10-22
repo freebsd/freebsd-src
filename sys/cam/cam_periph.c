@@ -1768,9 +1768,11 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 				scan_ccb->ccb_h.func_code = XPT_SCAN_TGT;
 				scan_ccb->crcn.flags = 0;
 				xpt_rescan(scan_ccb);
-			} else
+			} else {
 				xpt_print(newpath,
 				    "Can't allocate CCB to rescan target\n");
+				xpt_free_path(newpath);
+			}
 		}
 	}
 
