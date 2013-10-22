@@ -65,8 +65,8 @@ static vd_bitbltchr_t	intel_vtbitbltchr;
 static struct vt_driver intel_vtops = {
 	.vd_init	= intel_vtinit,
 	.vd_bitbltchr	= intel_vtbitbltchr,
-	/* Prefer to use KMS, so GENERIC - 10 */
-	.vd_priority	= VD_PRIORITY_GENERIC - 10,
+	/* Prefer to use KMS, so GENERIC + 10 */
+	.vd_priority	= VD_PRIORITY_GENERIC + 10,
 };
 
 struct intel_softc {

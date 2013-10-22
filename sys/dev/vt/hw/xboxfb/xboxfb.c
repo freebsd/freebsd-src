@@ -67,7 +67,7 @@ static const struct vt_driver vt_xbox_driver = {
 	.vd_init	= xbox_init,
 	.vd_blank	= xbox_blank,
 	.vd_bitbltchr	= xbox_bitbltchr,
-	.vd_priority	= VD_PRIORITY_GENERIC,
+	.vd_priority	= VD_PRIORITY_GENERIC+1,
 };
 
 static struct xbox_softc xbox_conssoftc;
