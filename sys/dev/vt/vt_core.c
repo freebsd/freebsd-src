@@ -640,8 +640,7 @@ vt_flush(struct vt_device *vd)
 				continue;
 
 			vt_bitblt_char(vd, vf, r[col],
-			    VTBUF_ISCURSOR(&vw->vw_buf, row, col),
-			    row, col);
+			    VTBUF_ISCURSOR(&vw->vw_buf, row, col), row, col);
 		}
 	}
 }
@@ -900,7 +899,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 	/* Grow the screen buffer and terminal. */
 	terminal_mute(tm, 1);
 	vtbuf_grow(&vw->vw_buf, &size, vw->vw_buf.vb_history_size);
-	terminal_set_winsize(tm, &wsz);
+	terminal_set_winsize_blank(tm, &wsz, 0);
 	terminal_mute(tm, 0);
 
 	/* Actually apply the font to the current window. */
@@ -1381,17 +1380,23 @@ void
 vt_allocate(struct vt_driver *drv, void *softc)
 {
 	struct vt_device *vd;
+	struct winsize wsz;
 
 	if (main_vd == NULL) {
 		main_vd = malloc(sizeof *vd, M_VT, M_WAITOK|M_ZERO);
+		printf("%s: VT initialize with new VT driver.\n", __func__);
 	} else {
 		/*
 		 * Check if have rights to replace current driver. For example:
 		 * it is bad idea to replace KMS driver with generic VGA one.
 		 */
-		/* Lowest preferred. */
-		if (drv->vd_priority >= main_vd->vd_driver->vd_priority)
+		if (drv->vd_priority <= main_vd->vd_driver->vd_priority) {
+			printf("%s: Driver priority %d too low. Current %d\n ",
+			    __func__, drv->vd_priority,
+			    main_vd->vd_driver->vd_priority);
 			return;
+		}
+		printf("%s: Replace existing VT driver.\n", __func__);
 	}
 	vd = main_vd;
 
@@ -1415,4 +1420,8 @@ vt_allocate(struct vt_driver *drv, void *softc)
 		callout_schedule(&vd->vd_timer, hz / VT_TIMERFREQ);
 
 	termcn_cnregister(vd->vd_windows[VT_CONSWINDOW]->vw_terminal);
+
+	/* Update console window sizes to actual. */
+	vt_winsize(vd, vd->vd_windows[VT_CONSWINDOW]->vw_font, &wsz);
+	terminal_set_winsize(vd->vd_windows[VT_CONSWINDOW]->vw_terminal, &wsz);
 }
