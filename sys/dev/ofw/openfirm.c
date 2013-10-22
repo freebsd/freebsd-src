@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 
 #include <machine/stdarg.h>
 
@@ -278,6 +279,21 @@ OF_getprop(phandle_t package, const char *propname, void *buf, size_t buflen)
 		return (-1);
 
 	return (OFW_GETPROP(ofw_obj, package, propname, buf, buflen));
+}
+
+ssize_t
+OF_getencprop(phandle_t node, const char *propname, pcell_t *buf, size_t len)
+{
+	ssize_t retval;
+	int i;
+
+	KASSERT(len % 4 == 0, "Need a multiple of 4 bytes");
+
+	retval = OF_getprop(node, propname, buf, len);
+	for (i = 0; i < len/4; i++)
+		buf[i] = be32toh(buf[i]);
+
+	return (retval);
 }
 
 /*
