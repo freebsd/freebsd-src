@@ -79,19 +79,6 @@ struct drm_fb_helper_connector {
 	struct drm_connector *connector;
 };
 
-/* TODO: move it out as separate FrameBuffer interface. */
-struct fb_info {
-	vm_offset_t	fb_vbase;
-	vm_paddr_t	fb_pbase;
-	size_t		fb_size;
-	/* TODO fb_read method. */
-	/* TODO fb_write method. */
-	/* TODO fb_bitblt method. */
-	/* TODO fb_blank method. */
-	/* TODO H/W cursor methods. */
-	/* TODO H/W mouse cursor methods. */
-};
-
 struct drm_fb_helper {
 	struct drm_framebuffer *fb;
 	struct drm_framebuffer *saved_fb;

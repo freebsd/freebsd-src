@@ -89,7 +89,9 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 #else
 	info = malloc(sizeof(struct fb_info), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	info->fb_size = size;
-
+	info->fb_bpp = sizes->surface_bpp;
+	info->fb_width = sizes->fb_width;
+	info->fb_height = sizes->fb_height;
 	info->fb_pbase = dev->agp->base + obj->gtt_offset;
 	info->fb_vbase = (vm_offset_t)pmap_mapdev_attr(info->fb_pbase, size,
 	    PAT_WRITE_COMBINING);

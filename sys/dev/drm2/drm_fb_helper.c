@@ -36,175 +36,36 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drm_fb_helper.h>
 #include <dev/drm2/drm_crtc_helper.h>
 
-#include <dev/vt/vt.h>
-#include <dev/vt/colors/vt_termcolors.h>
-
+#if defined(__FreeBSD__)
 struct vt_kms_softc {
-	intptr_t	sc_paddr;
-	intptr_t	sc_vaddr;
-	int		sc_depth;
-	int		sc_stride;
-	int		sc_width;
-	int		sc_height;
 	struct drm_fb_helper *fb_helper;
 	struct task	fb_mode_task;
-	uint32_t	sc_cmap[16];
 };
 
-static vd_init_t	vt_kms_init;
-static vd_blank_t	vt_kms_blank;
-static vd_bitbltchr_t	vt_kms_bitbltchr;
-static vd_postswitch_t	vt_kms_postswitch;
+static fb_enter_t	vt_kms_postswitch;
 static void vt_restore_fbdev_mode(void *, int);
-
-static struct vt_driver vt_vt_kms_driver = {
-	.vd_init = vt_kms_init,
-	.vd_blank = vt_kms_blank,
-	.vd_bitbltchr = vt_kms_bitbltchr,
-	.vd_postswitch = vt_kms_postswitch,
-};
-
-static void
-vt_kms_blank(struct vt_device *vd, term_color_t color)
-{
-	struct vt_kms_softc *sc = vd->vd_softc;
-	u_int ofs;
-	uint32_t c;
-
-	c = sc->sc_cmap[color];
-	/* TODO handle difference between depth and bpp. */
-	switch (sc->sc_depth) {
-	case 8:
-		for (ofs = 0; ofs < (sc->sc_stride * vd->vd_height); ofs++)
-			*(uint8_t *)(sc->sc_vaddr + ofs) = c & 0xff;
-		break;
-	case 16:
-		/* XXX must be 16bits colormap */
-		for (ofs = 0; ofs < (sc->sc_stride * vd->vd_height); ofs++)
-			*(uint16_t *)(sc->sc_vaddr + 2 * ofs) = c & 0xffff;
-		break;
-	case 24: /*  */
-	case 32:
-		c = sc->sc_cmap[color];
-		for (ofs = 0; ofs < (sc->sc_stride * vd->vd_height); ofs++)
-			*(uint32_t *)(sc->sc_vaddr + 4 * ofs) = c;
-		break;
-	default:
-		/* panic? */
-		break;
-	}
-}
-
-static void
-vt_kms_bitbltchr(struct vt_device *vd, const uint8_t *src,
-    vt_axis_t top, vt_axis_t left, unsigned int width, unsigned int height,
-    term_color_t fg, term_color_t bg)
-{
-	struct vt_kms_softc *sc = vd->vd_softc;
-	u_long line;
-	uint32_t fgc, bgc;
-	int c;
-	uint8_t b = 0;
-
-	fgc = sc->sc_cmap[fg];
-	bgc = sc->sc_cmap[bg];
-
-	line = (sc->sc_stride * top) + left * sc->sc_depth/8;
-	for (; height > 0; height--) {
-		for (c = 0; c < width; c++) {
-			if (c % 8 == 0)
-				b = *src++;
-			else
-				b <<= 1;
-			switch(sc->sc_depth) {
-			case 8:
-				*(uint8_t *)(sc->sc_vaddr + line + c) =
-				    (b & 0x80 ? fgc : bgc) & 0xff;
-				break;
-			/* TODO 16 */
-			/* TODO 24 */
-			case 32:
-				*(uint32_t *)(sc->sc_vaddr + line + 4*c) = 
-				    (b & 0x80) ? fgc : bgc;
-				break;
-			default:
-				/* panic? */
-				break;
-			}
-		}
-		line += sc->sc_stride;
-	}
-}
-
-static int
-vt_kms_init(struct vt_device *vd)
-{
-	struct vt_kms_softc *sc;
-	int err;
-
-	sc = vd->vd_softc;
-
-	vd->vd_height = sc->sc_height;
-	vd->vd_width = sc->sc_width;
-
-	switch (sc->sc_depth) {
-	case 8:
-		err = vt_generate_vga_palette(sc->sc_cmap, COLOR_FORMAT_RGB,
-		    0x7, 5, 0x7, 2, 0x3, 0);
-		if (err)
-			return (CN_DEAD);
-		break;
-	case 15:
-		err = vt_generate_vga_palette(sc->sc_cmap, COLOR_FORMAT_RGB,
-		    0x1f, 10, 0x1f, 5, 0x1f, 0);
-		if (err)
-			return (CN_DEAD);
-		break;
-	case 16:
-		err = vt_generate_vga_palette(sc->sc_cmap, COLOR_FORMAT_RGB,
-		    0x1f, 11, 0x3f, 5, 0x1f, 0);
-		if (err)
-			return (CN_DEAD);
-		break;
-	case 24:
-	case 32: /* Ignore alpha. */
-		err = vt_generate_vga_palette(sc->sc_cmap, COLOR_FORMAT_RGB,
-		    0xff, 0, 0xff, 8, 0xff, 16);
-		if (err)
-			return (CN_DEAD);
-		break;
-	default:
-		return (CN_DEAD);
-	}
-
-	/* Clear the screen. */
-	vt_kms_blank(vd, TC_BLACK);
-
-	TASK_INIT(&sc->fb_mode_task, 0, vt_restore_fbdev_mode, vd);
-
-	return (CN_INTERNAL);
-}
 
 /* Call restore out of vt(9) locks. */
 static void
 vt_restore_fbdev_mode(void *arg, int pending)
 {
 	struct vt_kms_softc *sc;
-	struct vt_device *vd;
 
-	vd = (struct vt_device *)arg;
-	sc = vd->vd_softc;
+	sc = (struct vt_kms_softc *)arg;
 	drm_fb_helper_restore_fbdev_mode(sc->fb_helper);
 }
 
-static void
-vt_kms_postswitch(struct vt_device *vd)
+static int
+vt_kms_postswitch(void *arg)
 {
 	struct vt_kms_softc *sc;
 
-	sc = vd->vd_softc;
+	sc = (struct vt_kms_softc *)arg;
 	taskqueue_enqueue_fast(taskqueue_thread, &sc->fb_mode_task);
+
+	return (0);
 }
+#endif
 
 static DRM_LIST_HEAD(kernel_fb_helper_list);
 
@@ -1069,6 +930,9 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	struct fb_info *info;
 	struct drm_fb_helper_surface_size sizes;
 	int gamma_size = 0;
+#if defined(__FreeBSD__)
+	struct vt_kms_softc *sc;
+#endif
 
 	memset(&sizes, 0, sizeof(struct drm_fb_helper_surface_size));
 	sizes.surface_depth = 24;
@@ -1145,14 +1009,33 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	if (new_fb < 0)
 		return new_fb;
 
+#if defined(__FreeBSD__)
+	sc = malloc(sizeof(struct vt_kms_softc), DRM_MEM_KMS,
+	    M_WAITOK | M_ZERO);
+	sc->fb_helper = fb_helper;
+	TASK_INIT(&sc->fb_mode_task, 0, vt_restore_fbdev_mode, sc);
+
 	info = fb_helper->fbdev;
+
+	info->fb_name = device_get_nameunit(fb_helper->dev->device);
+	info->fb_depth = fb_helper->fb->bits_per_pixel;
+	info->fb_height = fb_helper->fb->height;
+	info->fb_width = fb_helper->fb->width;
+	info->fb_stride = fb_helper->fb->pitches[0];
+	info->fb_priv = sc;
+	info->enter = &vt_kms_postswitch;
+#endif
 
 	/* set the fb pointer */
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		fb_helper->crtc_info[i].mode_set.fb = fb_helper->fb;
 	}
 
-#if 0
+#if defined(__FreeBSD__)
+	if (new_fb) {
+		register_framebuffer(info);
+	}
+#else
 	if (new_fb) {
 		info->var.pixclock = 0;
 		if (register_framebuffer(info) < 0) {
@@ -1176,27 +1059,6 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	if (new_fb)
 		list_add(&fb_helper->kernel_fb_list, &kernel_fb_helper_list);
 #endif
-
-	struct vt_kms_softc *sc = (struct vt_kms_softc *)malloc(sizeof(struct vt_kms_softc), M_TEMP, M_WAITOK);
-	sc->sc_vaddr = info->fb_vbase;
-	sc->sc_paddr = info->fb_pbase;
-
-	sc->sc_depth = fb_helper->fb->bits_per_pixel; /* XXX: fix depth in VT, bpp is pix size, depth is meaning bits size */
-
-	sc->sc_height = fb_helper->fb->height;
-	sc->sc_stride = fb_helper->fb->pitches[0];
-	sc->sc_width = fb_helper->fb->width;
-	/* Save fb_helper (XXX Do we really need it?) */
-	sc->fb_helper = fb_helper;
-
-	drm_fb_helper_restore_fbdev_mode(fb_helper);
-
-	vt_allocate(&vt_vt_kms_driver, sc);
-
-	DRM_DEBUG("Attach VT to %dx%d fb: P %#lx V %#lx\n",
-	    fb_helper->fb->width, fb_helper->fb->height,
-	    info->fb_pbase, info->fb_vbase);
-
 	return 0;
 }
 

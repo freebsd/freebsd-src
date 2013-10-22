@@ -235,6 +235,9 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 
 	tmp = radeon_bo_gpu_offset(rbo) - rdev->mc.vram_start;
 	info->fb_size  = radeon_bo_size(rbo);
+	info->fb_bpp = sizes->surface_bpp;
+	info->fb_width = sizes->surface_width;
+	info->fb_height = sizes->surface_height;
 	info->fb_pbase = rdev->mc.aper_base + tmp;
 	info->fb_vbase = (vm_offset_t)rbo->kptr;
 
