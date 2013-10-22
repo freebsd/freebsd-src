@@ -567,6 +567,12 @@ nexus_setup_dinfo(device_t dev, phandle_t node)
 	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg == -1)
 		nreg = 0;
+	if (nreg % (sc->acells + sc->scells) != 0) {
+		if (bootverbose)
+			device_printf(dev, "Malformed reg property on <%s>\n",
+			    ndi->ndi_obdinfo.obd_name);
+		nreg = 0;
+	}
 
 	for (i = 0; i < nreg; i += sc->acells + sc->scells) {
 		phys = size = 0;
