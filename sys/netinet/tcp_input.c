@@ -508,10 +508,13 @@ do { \
  *	  the ack that opens up a 0-sized window and
  *		- delayed acks are enabled or
  *		- this is a half-synchronized T/TCP connection.
+ *	- the segment size is not larger than the MSS and LRO wasn't used
+ *	  for this segment.
  */
-#define DELAY_ACK(tp)							\
+#define DELAY_ACK(tp, tlen)						\
 	((!tcp_timer_active(tp, TT_DELACK) &&				\
 	    (tp->t_flags & TF_RXWIN0SENT) == 0) &&			\
+	    (tlen <= tp->t_maxopd) &&					\
 	    (V_tcp_delack_enabled || (tp->t_flags & TF_NEEDSYN)))
 
 /*
@@ -1863,7 +1866,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			}
 			/* NB: sorwakeup_locked() does an implicit unlock. */
 			sorwakeup_locked(so);
-			if (DELAY_ACK(tp)) {
+			if (DELAY_ACK(tp, tlen)) {
 				tp->t_flags |= TF_DELACK;
 			} else {
 				tp->t_flags |= TF_ACKNOW;
@@ -1954,7 +1957,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 * If there's data, delay ACK; if there's also a FIN
 			 * ACKNOW will be turned on later.
 			 */
-			if (DELAY_ACK(tp) && tlen != 0)
+			if (DELAY_ACK(tp, tlen) && tlen != 0)
 				tcp_timer_activate(tp, TT_DELACK,
 				    tcp_delacktime);
 			else
@@ -2926,7 +2929,7 @@ dodata:							/* XXX */
 		if (th->th_seq == tp->rcv_nxt &&
 		    LIST_EMPTY(&tp->t_segq) &&
 		    TCPS_HAVEESTABLISHED(tp->t_state)) {
-			if (DELAY_ACK(tp))
+			if (DELAY_ACK(tp, tlen))
 				tp->t_flags |= TF_DELACK;
 			else
 				tp->t_flags |= TF_ACKNOW;
