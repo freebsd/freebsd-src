@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 1998-2011 Dag-Erling Smørgrav
+.\" Copyright (c) 1998-2013 Dag-Erling Smørgrav
 .\" Copyright (c) 2013 Michael Gmelin <freebsd@grem.de>
 .\" All rights reserved.
 .\"
@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 25, 2013
+.Dd July 30, 2013
 .Dt FETCH 3
 .Os
 .Sh NAME
@@ -571,6 +571,15 @@ variable is set.
 Same as
 .Ev FTP_PROXY ,
 for compatibility.
+.It Ev HTTP_ACCEPT
+Specifies the value of the
+.Va Accept
+header for HTTP requests.
+If empty, no
+.Va Accept
+header is sent.
+The default is
+.Dq */* .
 .It Ev HTTP_AUTH
 Specifies HTTP authorization parameters as a colon-separated list of
 items.

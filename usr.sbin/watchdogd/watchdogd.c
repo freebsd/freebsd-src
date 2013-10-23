@@ -774,7 +774,7 @@ parseargs(int argc, char *argv[])
 		struct timespec ts;
 
 		pow2ns_to_ts(timeout, &ts);
-		if (pretimeout >= ts.tv_sec) {
+		if (pretimeout >= (uintmax_t)ts.tv_sec) {
 			errx(EX_USAGE,
 			    "pretimeout (%d) >= timeout (%d -> %ld)\n"
 			    "see manual section TIMEOUT RESOLUTION",
