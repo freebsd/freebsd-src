@@ -1358,21 +1358,23 @@ vc_migrate(int argc, char **argv)
 	
 		fprintf(stderr, "done\n");
 
-		if (f_onersync == 0) {
-
-			fprintf(stderr, "Performing first filesystem sync ... ");
-
-			/* Start a first filesystem sync while vps is still running. */
-			if (vc.fsroot_priv[0] != '\0') {
-				/* Create vps' private root directory. */
-				snprintf(cmd, sizeof(cmd), "mkdir -p %s\n", vc.fsroot_priv);
-				write(wfd, cmd, strlen(cmd));
-				//len = read(rfd, cmd, sizeof(cmd));
-			}
-			/* Create vps' mountpoint directory. */
-			snprintf(cmd, sizeof(cmd), "mkdir -p %s\n", vc.fsroot);
+		/* Always create directories. */
+		if (vc.fsroot_priv[0] != '\0') {
+			/* Create vps' private root directory. */
+			snprintf(cmd, sizeof(cmd), "mkdir -p %s\n", vc.fsroot_priv);
 			write(wfd, cmd, strlen(cmd));
 			//len = read(rfd, cmd, sizeof(cmd));
+		}
+		/* Create vps' mountpoint directory. */
+		snprintf(cmd, sizeof(cmd), "mkdir -p %s\n", vc.fsroot);
+		write(wfd, cmd, strlen(cmd));
+		//len = read(rfd, cmd, sizeof(cmd));
+
+		if (f_onersync == 0) {
+
+			/* Start a first filesystem sync while vps is still running. */
+
+			fprintf(stderr, "Performing first filesystem sync ... ");
 
 			snprintf(cmd, sizeof(cmd), "vpsctl rsyncserver %s/\n", fsroot);
 			write(wfd, cmd, strlen(cmd));
@@ -1608,16 +1610,20 @@ vc_sshtest(int argc, char **argv)
  * The rsync program that is used here is slightly adapted to allow
  * write/read from/to its stdin/stdout.
  */
+/*
+ * XXX Somehow rsync doesn't work properly with --numeric-ids specified.
+ */
 int
 vc_rsync(int mode, int rfd, int wfd, char *path)
 {
-	char *argv[7];
+	char *argv[8];
 	char str_rsync[] = "/usr/sbin/rsync_vps";
-	char str_flagscl[] = "-xae";
+	char str_flagscl[] = "-xaHAXe";
 	char str_dash[] = "-";
 	char str_server[] = "--server";
-	char str_flagssv[] = "-logDtprxe.iLf";
+	char str_flagssv[] = "-logDtprxHAXe.iLf";
 	char str_delete[] = "--delete";
+	//char str_numericids[] = "--numeric-ids";
 	char str_dot[] = ".";
 	int oflags_rfd;
 	int oflags_wfd;
@@ -1653,6 +1659,7 @@ vc_rsync(int mode, int rfd, int wfd, char *path)
 
 			argv[0] = str_rsync;
 			argv[1] = str_delete;
+			//argv[2] = str_numericids;
 			argv[2] = str_flagscl;
 			argv[3] = str_dash;
 			argv[4] = path;
@@ -1664,6 +1671,7 @@ vc_rsync(int mode, int rfd, int wfd, char *path)
 			argv[1] = str_server;
 			argv[2] = str_flagssv;
 			argv[3] = str_delete;
+			//argv[4] = str_numericids;
 			argv[4] = str_dot;
 			argv[5] = path;
 			argv[6] = NULL;
