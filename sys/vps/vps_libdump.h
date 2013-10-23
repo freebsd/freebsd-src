@@ -134,7 +134,6 @@ void vps_libdump_printheader(struct vps_dumpheader *h);
 #define VPS_DUMPH_32BIT			32
 #define VPS_DUMPH_64BIT			64
 
-//#if defined(CPU_X86)
 #if defined(VPS_ARCH_AMD64)
 /* AMD64 declarations */
 typedef unsigned char	uint8;
@@ -165,7 +164,6 @@ typedef unsigned long size_t;
 
 /* end amd64 declarations */
 
-//#elif defined(CPU_386)
 #elif defined(VPS_ARCH_I386)
 /* i386 declarations */
 typedef unsigned char	uint8;

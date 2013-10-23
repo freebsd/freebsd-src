@@ -75,35 +75,25 @@ static const char vpsid[] =
 
 #ifdef VPS
 
-/*__attribute__((inline))*/
 void
 vps_md_print_thread(struct thread *td)
 {
 
 	DBGCORE("%s: thread %p/%d kernel stack:\n"
-		/*
-		"td->td_pcb->rsp=%016lx\n"
-		"td->td_frame->tf_rax=%016lx\n"
-		"td->td_frame->tf_rsp=%016lx\n"
-		"td->td_frame->tf_rbp=%016lx\n"
-		"td->td_frame->tf_rip=%016lx\n"
+		"td->td_pcb->pcb_context[PCB_REG_SP]=%016lx\n"
+		"td->td_frame->tf_sp=%016lx\n"
+		"td->td_frame->tf_pc=%016lx\n"
 		"trace:\n",
-		*/
 		,
 		__func__,
 		td,
 		td->td_tid
-		/*
-		td->td_pcb->pcb_rsp,
-		td->td_frame->tf_rax,
-		td->td_frame->tf_rsp,
-		td->td_frame->tf_rbp,
-		td->td_frame->tf_rip
-		*/
+		td->td_pcb->pcb_context[PCB_REG_SP],
+		td->td_frame->sp,
+		td->td_frame->pc
 		);
 }
 
-/*__attribute__((inline))*/
 int
 vps_md_snapshot_thread(struct vps_dump_thread *vdtd, struct thread *td)
 {
@@ -113,7 +103,6 @@ vps_md_snapshot_thread(struct vps_dump_thread *vdtd, struct thread *td)
 	return (0);
 }
 
-/*__attribute__((inline))*/
 int
 vps_md_restore_thread(struct vps_dump_thread *vdtd, struct thread *ntd,
     struct proc *p)
@@ -158,7 +147,6 @@ vps_md_restore_thread(struct vps_dump_thread *vdtd, struct thread *ntd,
 	return (0);
 }
 
-/*__attribute__((inline))*/
 int
 vps_md_snapshot_sysentvec(struct sysentvec *sv, long *svtype)
 {
@@ -183,7 +171,6 @@ vps_md_snapshot_sysentvec(struct sysentvec *sv, long *svtype)
 	return (error);
 }
 
-/*__attribute__((inline))*/
 int
 vps_md_restore_sysentvec(long svtype, struct sysentvec **sv)
 {
@@ -192,6 +179,7 @@ vps_md_restore_sysentvec(long svtype, struct sysentvec **sv)
 	if (svtype == VPS_SYSENTVEC_ELF64)
 		*sv = &elf64_freebsd_sysvec;
 #ifdef COMPAT_FREEBSD32
+	/* XXX */
 	else if (svtype == VPS_SYSENTVEC_ELF32)
 		*sv = &ia32_freebsd_sysvec;
 #endif
@@ -206,7 +194,6 @@ vps_md_restore_sysentvec(long svtype, struct sysentvec **sv)
 	return (error);
 }
 
-/*__attribute__((inline))*/
 int
 vps_md_restore_checkarch(uint8 ptrsize, uint8 byteorder)
 {
@@ -220,7 +207,6 @@ vps_md_restore_checkarch(uint8 ptrsize, uint8 byteorder)
 	return (error);
 }
 
-/*__attribute__((inline))*/
 int
 vps_md_snapshot_thread_savefpu(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct thread *td)
@@ -258,7 +244,6 @@ XXX
 	return (0);
 }
 
-/*__attribute__((inline))*/
 int
 vps_md_restore_thread_savefpu(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct thread *td)
@@ -296,7 +281,6 @@ XXX
 	return (0);
 }
 
-/*__attribute__((inline))*/
 int
 vps_md_reboot_copyout(struct thread *td, struct execve_args *args)
 {
@@ -320,6 +304,7 @@ vps_md_reboot_copyout(struct thread *td, struct execve_args *args)
 		suword64((void *)(addr + 0x0), (addr + 0x40));
 		suword64((void *)(addr + 0x8), (vm_offset_t)NULL);
 #ifdef COMPAT_FREEBSD32
+	/* XXX */
 	} else if (p->p_sysent == &ia32_freebsd_sysvec) {
 		copyout("/sbin/init", (void *)(addr + 0x40), 11);
 		suword32((void *)(addr + 0x0), (addr + 0x40));
@@ -367,7 +352,6 @@ vps_md_reboot_copyout(struct thread *td, struct execve_args *args)
 	return (error);
 }
 
-/*__attribute__((noinline))*/
 int
 vps_md_syscall_fixup(struct vps *vps, struct thread *td,
     register_t *ret_code, register_t **ret_args, int *ret_narg)
@@ -407,6 +391,7 @@ vps_md_syscall_fixup(struct vps *vps, struct thread *td,
 		DBGCORE("%s: proc=%p/%u elf64_freebsd_sysvec\n",
 		    __func__, p, p->p_pid);
 #ifdef COMPAT_FREEBSD32
+	/* XXX */
 	} else if (sv == &ia32_freebsd_sysvec) {
 		DBGCORE("%s: proc=%p/%u ia32_freebsd_sysvec\n",
 		    __func__, p, p->p_pid);
@@ -511,7 +496,6 @@ vps_md_syscall_fixup_setup_inthread(struct vps *vps, struct thread *td,
 	return (0);
 }
 
-__attribute__((noinline))
 void
 vps_md_print_pcb(struct thread *td)
 {
@@ -519,49 +503,38 @@ vps_md_print_pcb(struct thread *td)
 
         p = td->td_pcb;
 
-#if 0
-// XXX
-        DBGCORE("%s: td=%p\n"
-                "pcb_cr3: 0x%08x\n"
-                "pcb_edi: 0x%08x\n"
-                "pcb_esi: 0x%08x\n"
-                "pcb_ebp: 0x%08x\n"
-                "pcb_esp: 0x%08x\n"
-                "pcb_ebx: 0x%08x\n"
-                "pcb_eip: 0x%08x\n"
-                "pcb_psl: 0x%08x\n"
-                "pcb_ext: 0x%08x\n"
+        DBGCORE("%s: td=%p PCB\n"
+                "s0: 0x%16lx\n"
+                "s1: 0x%16lx\n"
+                "s2: 0x%16lx\n"
+                "s3: 0x%16lx\n"
+                "s4: 0x%16lx\n"
+                "s5: 0x%16lx\n"
+                "s6: 0x%16lx\n"
+                "s7: 0x%16lx\n"
+                "sp: 0x%16lx\n"
+                "s8: 0x%16lx\n"
+                "ra: 0x%16lx\n"
+                "sr: 0x%16lx\n"
+                "gp: 0x%16lx\n"
+                "pc: 0x%16lx\n"
                 , __func__, td
-                , p->pcb_cr3
-                , p->pcb_edi
-                , p->pcb_esi
-                , p->pcb_ebp
-                , p->pcb_esp
-                , p->pcb_ebx
-                , p->pcb_eip
-                , p->pcb_psl
-                , (int)p->pcb_ext
+                , p->pcb_context[PCB_REG_S0]
+                , p->pcb_context[PCB_REG_S1]
+                , p->pcb_context[PCB_REG_S2]
+                , p->pcb_context[PCB_REG_S3]
+                , p->pcb_context[PCB_REG_S4]
+                , p->pcb_context[PCB_REG_S5]
+                , p->pcb_context[PCB_REG_S6]
+                , p->pcb_context[PCB_REG_S7]
+                , p->pcb_context[PCB_REG_SP]
+                , p->pcb_context[PCB_REG_S8]
+                , p->pcb_context[PCB_REG_RA]
+                , p->pcb_context[PCB_REG_SR]
+                , p->pcb_context[PCB_REG_GP]
+                , p->pcb_context[PCB_REG_PC]
                 );
-#endif
 }
-
-#if 0
-/* --------------------------- 8< --------------------------- */
-
-// vps_suspend():
-#if defined(CPU_X86)
-              DBGCORE("td->td_frame=%p tf_rax=%p tf_rsp=%p\n", td->td_frame,
-                 (void*)td->td_frame->tf_rax, (void*)td->td_frame->tf_rsp);
-#elif defined(CPU_386)
-              DBGCORE("td->td_frame=%p tf_eax=%p tf_esp=%p\n", td->td_frame,
-                 (void*)td->td_frame->tf_eax, (void*)td->td_frame->tf_esp);
-#else
-#error "unsupported architecture"
-#endif
-
-// 
-/* --------------------------- 8< --------------------------- */
-#endif /* 0 */
 
 #endif /* VPS */
 

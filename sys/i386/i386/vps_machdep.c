@@ -63,7 +63,6 @@ static const char vpsid[] =
 
 #ifdef VPS
 
-/*__attribute__((inline))*/
 void
 vps_md_print_thread(struct thread *td)
 {
@@ -85,7 +84,6 @@ vps_md_print_thread(struct thread *td)
 		td->td_frame->tf_eip);
 }
 
-/*__attribute__((inline))*/
 int
 vps_md_snapshot_thread(struct vps_dump_thread *vdtd, struct thread *td)
 {
@@ -93,7 +91,6 @@ vps_md_snapshot_thread(struct vps_dump_thread *vdtd, struct thread *td)
 	return (0);
 }
 
-/*__attribute__((inline))*/
 int
 vps_md_restore_thread(struct vps_dump_thread *vdtd, struct thread *ntd,
     struct proc *p)
@@ -121,14 +118,13 @@ vps_md_restore_thread(struct vps_dump_thread *vdtd, struct thread *ntd,
 	ntd->td_retval[0] = vdtd->td_retval[0];
 	ntd->td_retval[1] = vdtd->td_retval[1];
 
-	//db_trace_thread(ntd, 10);
+	/* db_trace_thread(ntd, 10); */
 	DBGCORE("%s: td_pcb = %p; td_frame = %p; pcb_esp = %08x\n",
 		__func__, ntd->td_pcb, ntd->td_frame, ntd->td_pcb->pcb_esp);
 
 	return (0);
 }
 
-/*__attribute__((inline))*/
 int
 vps_md_snapshot_sysentvec(struct sysentvec *sv, long *svtype)
 {
@@ -148,7 +144,6 @@ vps_md_snapshot_sysentvec(struct sysentvec *sv, long *svtype)
 	return (error);
 }
 
-/*__attribute__((inline))*/
 int
 vps_md_restore_sysentvec(long svtype, struct sysentvec **sv)
 {
@@ -167,7 +162,6 @@ vps_md_restore_sysentvec(long svtype, struct sysentvec **sv)
 	return (error);
 }
 
-/*__attribute__((inline))*/
 int
 vps_md_restore_checkarch(uint8 ptrsize, uint8 byteorder)
 {
@@ -181,7 +175,6 @@ vps_md_restore_checkarch(uint8 ptrsize, uint8 byteorder)
 	return (error);
 }
 
-/*__attribute__((inline))*/
 int
 vps_md_snapshot_thread_savefpu(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct thread *td)
@@ -190,7 +183,6 @@ vps_md_snapshot_thread_savefpu(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (0);
 }
 
-/*__attribute__((inline))*/
 int
 vps_md_restore_thread_savefpu(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct thread *td)
@@ -199,7 +191,6 @@ vps_md_restore_thread_savefpu(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (0);
 }
 
-/*__attribute__((inline))*/
 int
 vps_md_reboot_copyout(struct thread *td, struct execve_args *args)
 {
@@ -264,7 +255,6 @@ vps_md_reboot_copyout(struct thread *td, struct execve_args *args)
 	return (error);
 }
 
-/*__attribute__((noinline))*/
 int
 vps_md_syscall_fixup(struct vps *vps, struct thread *td,
     register_t *ret_code, register_t **ret_args, int *ret_narg)
@@ -380,7 +370,6 @@ vps_md_syscall_fixup_setup_inthread(struct vps *vps, struct thread *td,
 	return (0);
 }
 
-__attribute__((noinline))
 void
 vps_md_print_pcb(struct thread *td)
 {
@@ -410,24 +399,6 @@ vps_md_print_pcb(struct thread *td)
                 , (int)p->pcb_ext
                 );
 }
-
-#if 0
-/* --------------------------- 8< --------------------------- */
-
-// vps_suspend():
-#if defined(CPU_X86)
-              DBGCORE("td->td_frame=%p tf_rax=%p tf_rsp=%p\n", td->td_frame,
-                 (void*)td->td_frame->tf_rax, (void*)td->td_frame->tf_rsp);
-#elif defined(CPU_386)
-              DBGCORE("td->td_frame=%p tf_eax=%p tf_esp=%p\n", td->td_frame,
-                 (void*)td->td_frame->tf_eax, (void*)td->td_frame->tf_esp);
-#else
-#error "unsupported architecture"
-#endif
-
-// 
-/* --------------------------- 8< --------------------------- */
-#endif /* 0 */
 
 #endif /* VPS */
 

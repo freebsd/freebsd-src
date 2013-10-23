@@ -155,9 +155,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/xbox.h>
 #endif
 
-#include <vps/vps.h>
-#include <vps/vps_account.h>
-
 #if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
 #define CPU_ENABLE_SSE
 #endif
@@ -200,24 +197,6 @@ __FBSDID("$FreeBSD$");
 #define pmap_pte_set_w(pte, v)	((v) ? atomic_set_int((u_int *)(pte), PG_W) : \
     atomic_clear_int((u_int *)(pte), PG_W))
 #define pmap_pte_set_prot(pte, v) ((*(int *)pte &= ~PG_PROT), (*(int *)pte |= (v)))
-
-#if 0
-
-#ifdef VPS
-#define VPS_ACCOUNT_PMAP(_pmap, action, charge)                         \
-        do {                                                            \
-                if (_pmap == kernel_map->pmap ||                        \
-                    _pmap == kmem_map->pmap ||                          \
-                    _pmap == buffer_map->pmap)                          \
-                        break;                                          \
-                vps_account(curthread->td_vps, VPS_ACC_PHYS,            \
-                        action, charge << PAGE_SHIFT);                  \
-        } while (0)
-#endif /* VPS */
-
-#else
-#define VPS_ACCOUNT_PMAP(a, b, c)
-#endif
 
 struct pmap kernel_pmap_store;
 LIST_HEAD(pmaplist, pmap);
@@ -1687,7 +1666,6 @@ _pmap_unwire_ptp(pmap_t pmap, vm_page_t m, vm_page_t *free)
 	 */
 	pmap->pm_pdir[m->pindex] = 0;
 	--pmap->pm_stats.resident_count;
-	VPS_ACCOUNT_PMAP(pmap, VPS_ACC_FREE, 1);
 
 	/*
 	 * This is a release store so that the ordinary store unmapping
@@ -1871,7 +1849,6 @@ _pmap_allocpte(pmap_t pmap, u_int ptepindex, int flags)
 	 */
 
 	pmap->pm_stats.resident_count++;
-	VPS_ACCOUNT_PMAP(pmap, VPS_ACC_ALLOC, 1);
 
 	ptepa = VM_PAGE_TO_PHYS(m);
 	pmap->pm_pdir[ptepindex] =
@@ -2691,7 +2668,6 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 		}
 		if (va < VM_MAXUSER_ADDRESS) {
 			pmap->pm_stats.resident_count++;
-			VPS_ACCOUNT_PMAP(pmap, VPS_ACC_ALLOC, 1);
 		}
 	}
 	mptepa = VM_PAGE_TO_PHYS(mpte);
@@ -2822,7 +2798,6 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 	if (oldpde & PG_G)
 		pmap_invalidate_page(kernel_pmap, sva);
 	pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
-	VPS_ACCOUNT_PMAP(pmap, VPS_ACC_FREE, NBPDR / PAGE_SIZE);
 	if (oldpde & PG_MANAGED) {
 		pvh = pa_to_pvh(oldpde & PG_PS_FRAME);
 		pmap_pvh_free(pvh, pmap, sva);
@@ -2846,7 +2821,6 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 		if (mpte != NULL) {
 			pmap_remove_pt_page(pmap, mpte);
 			pmap->pm_stats.resident_count--;
-			VPS_ACCOUNT_PMAP(pmap, VPS_ACC_FREE, 1);
 			KASSERT(mpte->wire_count == NPTEPG,
 			    ("pmap_remove_pde: pte page wire count error"));
 			mpte->wire_count = 0;
@@ -2879,7 +2853,6 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, vm_page_t *free)
 	if (oldpte & PG_G)
 		pmap_invalidate_page(kernel_pmap, va);
 	pmap->pm_stats.resident_count -= 1;
-	VPS_ACCOUNT_PMAP(pmap, VPS_ACC_FREE, 1);
 	if (oldpte & PG_MANAGED) {
 		m = PHYS_TO_VM_PAGE(oldpte & PG_FRAME);
 		if ((oldpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
@@ -3070,7 +3043,6 @@ small_mappings:
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pmap->pm_stats.resident_count--;
-		VPS_ACCOUNT_PMAP(pmap, VPS_ACC_FREE, 1);
 		pde = pmap_pde(pmap, pv->pv_va);
 		KASSERT((*pde & PG_PS) == 0, ("pmap_remove_all: found"
 		    " a 4mpage in page %p's pv list", m));
@@ -3535,7 +3507,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		}
 	} else {
 		pmap->pm_stats.resident_count++;
-		VPS_ACCOUNT_PMAP(pmap, VPS_ACC_ALLOC, 1);
 	}
 
 	/*
@@ -3676,7 +3647,6 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 	 * Increment counters.
 	 */
 	pmap->pm_stats.resident_count += NBPDR / PAGE_SIZE;
-	VPS_ACCOUNT_PMAP(pmap, VPS_ACC_ALLOC, NBPDR / PAGE_SIZE);
 
 	/*
 	 * Map the superpage.
@@ -3842,7 +3812,6 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 * Increment counters
 	 */
 	pmap->pm_stats.resident_count++;
-	VPS_ACCOUNT_PMAP(pmap, VPS_ACC_ALLOC, 1);
 
 	pa = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(m->md.pat_mode, 0);
 #ifdef PAE
@@ -3939,7 +3908,6 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 				    PG_U | PG_RW | PG_V);
 				pmap->pm_stats.resident_count += NBPDR /
 				    PAGE_SIZE;
-				VPS_ACCOUNT_PMAP(pmap, VPS_ACC_ALLOC, NBPDR / PAGE_SIZE);
 				pmap_pde_mappings++;
 			}
 			/* Else continue on if the PDE is already valid. */
@@ -4062,7 +4030,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				    ~PG_W;
 				dst_pmap->pm_stats.resident_count +=
 				    NBPDR / PAGE_SIZE;
-				VPS_ACCOUNT_PMAP(dst_pmap, VPS_ACC_ALLOC, NBPDR / PAGE_SIZE);
 			}
 			continue;
 		}
@@ -4098,7 +4065,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 					*dst_pte = ptetemp & ~(PG_W | PG_M |
 					    PG_A);
 					dst_pmap->pm_stats.resident_count++;
-					VPS_ACCOUNT_PMAP(dst_pmap, VPS_ACC_ALLOC, 1);
 	 			} else {
 					free = NULL;
 					if (pmap_unwire_ptp(dst_pmap, dstmpte,
@@ -4495,7 +4461,6 @@ pmap_remove_pages(pmap_t pmap)
 				pc->pc_map[field] |= bitmask;
 				if ((tpte & PG_PS) != 0) {
 					pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
-					VPS_ACCOUNT_PMAP(pmap, VPS_ACC_FREE, NBPDR / PAGE_SIZE);
 					pvh = pa_to_pvh(tpte & PG_PS_FRAME);
 					TAILQ_REMOVE(&pvh->pv_list, pv, pv_next);
 					if (TAILQ_EMPTY(&pvh->pv_list)) {
@@ -4507,7 +4472,6 @@ pmap_remove_pages(pmap_t pmap)
 					if (mpte != NULL) {
 						pmap_remove_pt_page(pmap, mpte);
 						pmap->pm_stats.resident_count--;
-						VPS_ACCOUNT_PMAP(pmap, VPS_ACC_FREE, 1);
 						KASSERT(mpte->wire_count == NPTEPG,
 						    ("pmap_remove_pages: pte page wire count error"));
 						mpte->wire_count = 0;
@@ -4516,7 +4480,6 @@ pmap_remove_pages(pmap_t pmap)
 					}
 				} else {
 					pmap->pm_stats.resident_count--;
-					VPS_ACCOUNT_PMAP(pmap, VPS_ACC_FREE, 1);
 					TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 					if (TAILQ_EMPTY(&m->md.pv_list) &&
 					    (m->flags & PG_FICTITIOUS) == 0) {
