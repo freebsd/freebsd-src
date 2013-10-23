@@ -97,6 +97,7 @@ struct disk {
 	uint16_t		d_hba_device;
 	uint16_t		d_hba_subvendor;
 	uint16_t		d_hba_subdevice;
+	uint16_t		d_rotation_rate;
 
 	/* Fields private to the driver */
 	void			*d_drv1;
@@ -121,7 +122,8 @@ int disk_resize(struct disk *dp, int flag);
 #define DISK_VERSION_01		0x5856105a
 #define DISK_VERSION_02		0x5856105b
 #define DISK_VERSION_03		0x5856105c
-#define DISK_VERSION		DISK_VERSION_03
+#define DISK_VERSION_04		0x5856105d
+#define DISK_VERSION		DISK_VERSION_04
 
 #endif /* _KERNEL */
 #endif /* _GEOM_GEOM_DISK_H_ */
