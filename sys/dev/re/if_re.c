@@ -223,6 +223,7 @@ static const struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8402, RL_8169, "8402", RL_MTU },
 	{ RL_HWREV_8105E, RL_8169, "8105E", RL_MTU },
 	{ RL_HWREV_8105E_SPIN1, RL_8169, "8105E", RL_MTU },
+	{ RL_HWREV_8106E, RL_8169, "8106E", RL_MTU },
 	{ RL_HWREV_8168B_SPIN2, RL_8169, "8168", RL_JUMBO_MTU },
 	{ RL_HWREV_8168B_SPIN3, RL_8169, "8168", RL_JUMBO_MTU },
 	{ RL_HWREV_8168C, RL_8169, "8168C/8111C", RL_JUMBO_MTU_6K },
@@ -1367,10 +1368,11 @@ re_attach(device_t dev)
 		break;
 	default:
 		device_printf(dev, "Chip rev. 0x%08x\n", hwrev & 0x7c800000);
+		sc->rl_macrev = hwrev & 0x00700000;
 		hwrev &= RL_TXCFG_HWREV;
 		break;
 	}
-	device_printf(dev, "MAC rev. 0x%08x\n", hwrev & 0x00700000);
+	device_printf(dev, "MAC rev. 0x%08x\n", sc->rl_macrev);
 	while (hw_rev->rl_desc != NULL) {
 		if (hw_rev->rl_rev == hwrev) {
 			sc->rl_type = hw_rev->rl_type;
@@ -1408,6 +1410,7 @@ re_attach(device_t dev)
 	case RL_HWREV_8401E:
 	case RL_HWREV_8105E:
 	case RL_HWREV_8105E_SPIN1:
+	case RL_HWREV_8106E:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHYWAKE_PM |
 		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
 		    RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD;
@@ -1429,7 +1432,7 @@ re_attach(device_t dev)
 		sc->rl_flags |= RL_FLAG_MACSLEEP;
 		/* FALLTHROUGH */
 	case RL_HWREV_8168C:
-		if ((hwrev & 0x00700000) == 0x00200000)
+		if (sc->rl_macrev == 0x00200000)
 			sc->rl_flags |= RL_FLAG_MACSLEEP;
 		/* FALLTHROUGH */
 	case RL_HWREV_8168CP:

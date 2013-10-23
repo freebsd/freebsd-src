@@ -16,8 +16,8 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 head, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
-NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
-	FreeBSD 10.x has many debugging features turned on, in both the kernel
+NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
+	FreeBSD 11.x has many debugging features turned on, in both the kernel
 	and userland.  These features attempt to detect incorrect use of
 	system primitives, and encourage loud failure through extra sanity
 	checking and fail stop semantics.  They also substantially impact
@@ -31,9 +31,33 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
-20131006:
-	RCS has been removed from the base system.  If you need RCS
-	install either devel/rcs or devel/rcs57.
+20131014:
+	libbsdyml has been renamed to libyaml and moved to /usr/lib/private.
+	This will break ports-mgmt/pkg. Rebuild the port, or upgrade to pkg
+	1.1.4_8 and verify bsdyml not linked in, before running "make
+	delete-old-libs":
+	  # make -C /usr/ports/ports-mgmt/pkg build deinstall install clean
+	  or
+	  # pkg install pkg; ldd /usr/local/sbin/pkg | grep bsdyml
+
+20131010:
+	The rc.d/jail script has been updated to support jail(8)
+	configuration file.  The "jail_<jname>_*" rc.conf(5) variables
+	for per-jail configuration are automatically converted to
+	/var/run/jail.<jname>.conf before the jail(8) utility is invoked.
+	This is transparently backward compatible.  See below about some
+	incompatibilities and rc.conf(5) manual page for more details.
+
+	These variables are now deprecated in favor of jail(8) configuration
+	file.  One can use "rc.d/jail config <jname>" command to generate
+	a jail(8) configuration file in /var/run/jail.<jname>.conf without
+	running the jail(8) utility.   The default pathname of the
+	configuration file is /etc/jail.conf and can be specified by
+	using $jail_conf or $jail_<jname>_conf variables.
+
+	Please note that jail_devfs_ruleset accepts an integer at
+	this moment.  Please consider to rewrite the ruleset name
+	with an integer.
 
 20130930:
 	BIND has been removed from the base system.  If all you need
@@ -76,19 +100,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	AES-NI intrinsic support has been added to gcc.  The AES-NI module
 	has been updated to use this support.  A new gcc is required to build
 	the aesni module on both i386 and amd64.
-
-20130827:
-        Thomas Dickey (vendor author thereof) reports that dialog(1) since
-        2011/10/18 has a bug in handling --hline. Testers and I noticed the
-        --hline is not ignored but displayed as a NULL string, regardless of
-        value. This will cause confusion in some bsdconfig dialogs where the
-        --hline is used to inform users which keybindings to use. This will
-        likewise affect any other persons relying on --hline. It also looks
-        rather strange seeing "[]" at the bottom of dialog(1) widgets when
-        passing --hline "anything". Thomas said he will have a look in a few
-        weeks. NOTE: The "[]" brackets appear with the left-edge where it
-        would normally appear given the width of text to display, but the
-        displayed text is not there (part of the bug).
 
 20130821:
 	The PADLOCK_RNG and RDRAND_RNG kernel options are now devices.

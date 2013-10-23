@@ -49,7 +49,7 @@ struct proc_handle {
 };
 
 #ifdef DEBUG
-#define DPRINTF(fmt, ...) 	warn(fmt, __VA_ARGS__)
+#define DPRINTF(...) 	warn(__VA_ARGS__)
 #else
-#define DPRINTF(fmt, ...)
+#define DPRINTF(...)
 #endif

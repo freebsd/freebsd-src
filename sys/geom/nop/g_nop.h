@@ -65,6 +65,7 @@ struct g_nop_softc {
 	uintmax_t	sc_writes;
 	uintmax_t	sc_readbytes;
 	uintmax_t	sc_wrotebytes;
+	struct mtx	sc_lock;
 };
 #endif	/* _KERNEL */
 

@@ -1141,12 +1141,9 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		 * RA, it is called under an interrupt context.  So, we should
 		 * call malloc with M_NOWAIT.
 		 */
-		ia = (struct in6_ifaddr *) malloc(sizeof(*ia), M_IFADDR,
-		    M_NOWAIT);
+		ia = (struct in6_ifaddr *)ifa_alloc(sizeof(*ia), M_NOWAIT);
 		if (ia == NULL)
 			return (ENOBUFS);
-		bzero((caddr_t)ia, sizeof(*ia));
-		ifa_init(&ia->ia_ifa);
 		LIST_INIT(&ia->ia6_memberships);
 		/* Initialize the address and masks, and put time stamp */
 		ia->ia_ifa.ifa_addr = (struct sockaddr *)&ia->ia_addr;

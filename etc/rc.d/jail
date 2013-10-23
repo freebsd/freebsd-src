@@ -8,81 +8,140 @@
 # BEFORE: securelevel
 # KEYWORD: nojail shutdown
 
-# WARNING: This script deals with untrusted data (the data and
-# processes inside the jails) and care must be taken when changing the
-# code related to this!  If you have any doubt whether a change is
-# correct and have security impact, please get the patch reviewed by
-# the FreeBSD Security Team prior to commit.
-
 . /etc/rc.subr
 
 name="jail"
 rcvar="jail_enable"
 
-start_precmd="jail_prestart"
 start_cmd="jail_start"
+start_postcmd="jail_warn"
 stop_cmd="jail_stop"
+config_cmd="jail_config"
+console_cmd="jail_console"
+status_cmd="jail_status"
+extra_commands="config console status"
+: ${jail_conf:=/etc/jail.conf}
+: ${jail_program:=/usr/sbin/jail}
+: ${jail_consolecmd:=/usr/bin/login -f root}
+: ${jail_jexec:=/usr/sbin/jexec}
+: ${jail_jls:=/usr/sbin/jls}
 
-# init_variables _j
-#	Initialize the various jail variables for jail _j.
-#
-init_variables()
+need_dad_wait=
+
+# extact_var jail name param num defval
+#	Extract value from ${jail_$jail_$name} or ${jail_$name} and
+#	set it to $param.  If not defined, $defval is used.
+#	When $num is [0-9]*, ${jail_$jail_$name$num} are looked up and
+#	$param is set by using +=.
+#	When $num is YN or NY, the value is interpret as boolean.
+extract_var()
 {
-	_j="$1"
+	local i _j _name _param _num _def _name1 _name2
+	_j=$1
+	_name=$2
+	_param=$3
+	_num=$4
+	_def=$5
 
+	case $_num in
+	YN)
+		_name1=jail_${_j}_${_name}
+		_name2=jail_${_name}
+		eval $_name1=\"\${$_name1:-\${$_name2:-$_def}}\"
+		if checkyesno $_name1; then
+			echo "	$_param = 1;"
+		else
+			echo "	$_param = 0;"
+		fi
+	;;
+	NY)
+		_name1=jail_${_j}_${_name}
+		_name2=jail_${_name}
+		eval $_name1=\"\${$_name1:-\${$_name2:-$_def}}\"
+		if checkyesno $_name1; then
+			echo "	$_param = 0;"
+		else
+			echo "	$_param = 1;"
+		fi
+	;;
+	[0-9]*)
+		i=$_num
+		while : ; do
+			_name1=jail_${_j}_${_name}${i}
+			_name2=jail_${_name}${i}
+			eval _tmpargs=\"\${$_name1:-\${$_name2:-$_def}}\"
+			if [ -n "$_tmpargs" ]; then 
+				echo "	$_param += \"$_tmpargs\";"
+			else
+				break;
+			fi
+			i=$(($i + 1))
+		done
+	;;
+	*)
+		_name1=jail_${_j}_${_name}
+		_name2=jail_${_name}
+		eval _tmpargs=\"\${$_name1:-\${$_name2:-$_def}}\"
+		if [ -n "$_tmpargs" ]; then
+			echo "	$_param = \"$_tmpargs\";"
+		fi
+	;;
+	esac
+}
+
+# parse_options _j
+#	Parse options and create a temporary configuration file if necessary.
+#
+parse_options()
+{
+	local _j _p
+	_j=$1
+
+	_confwarn=0
 	if [ -z "$_j" ]; then
-		warn "init_variables: you must specify a jail"
+		warn "parse_options: you must specify a jail"
 		return
 	fi
-
+	eval _jconf=\"\${jail_${_j}_conf:-/etc/jail.${_j}.conf}\"
 	eval _rootdir=\"\$jail_${_j}_rootdir\"
-	_devdir="${_rootdir}/dev"
-	_fdescdir="${_devdir}/fd"
-	_procdir="${_rootdir}/proc"
 	eval _hostname=\"\$jail_${_j}_hostname\"
+	if [ -z "$_rootdir" -o \
+	     -z "$_hostname" ]; then
+		if [ -r "$_jconf" ]; then
+			_conf="$_jconf"
+			return 0
+		elif [ -r "$jail_conf" ]; then
+			_conf="$jail_conf"
+			return 0
+		else
+			warn "Invalid configuration for $_j " \
+			    "(no jail.conf, no hostname, or no path).  " \
+			    "Jail $_j was ignored."
+		fi
+		return 1
+	fi
 	eval _ip=\"\$jail_${_j}_ip\"
-	eval _interface=\"\${jail_${_j}_interface:-${jail_interface}}\"
+	if [ -z "$_ip" ] && ! check_kern_features vimage; then
+		warn "no ipaddress specified and no vimage support.  " \
+		    "Jail $_j was ignored."
+		return 1
+	fi
+	_conf=/var/run/jail.${_j}.conf
+	#
+	# To relieve confusion, show a warning message.
+	#
+	_confwarn=1
+	if [ -r "$jail_conf" -o -r "$_jconf" ]; then
+		if ! checkyesno jail_parallel_start; then
+			warn "$_conf is created and used for jail $_j."
+		fi
+	fi
+	/usr/bin/install -m 0644 -o root -g wheel /dev/null $_conf || return 1
+
+	eval : \${jail_${_j}_flags:=${jail_flags}}
 	eval _exec=\"\$jail_${_j}_exec\"
-
-	i=0
-	while : ; do
-		eval _exec_prestart${i}=\"\${jail_${_j}_exec_prestart${i}:-\${jail_exec_prestart${i}}}\"
-		[ -z "$(eval echo \"\$_exec_prestart${i}\")" ] && break
-		i=$((i + 1))
-	done
-
-	eval _exec_start=\"\${jail_${_j}_exec_start:-${jail_exec_start}}\"
-
-	i=1
-	while : ; do
-		eval _exec_afterstart${i}=\"\${jail_${_j}_exec_afterstart${i}:-\${jail_exec_afterstart${i}}}\"
-		[ -z "$(eval echo \"\$_exec_afterstart${i}\")" ] &&  break
-		i=$((i + 1))
-	done
-
-	i=0
-	while : ; do
-		eval _exec_poststart${i}=\"\${jail_${_j}_exec_poststart${i}:-\${jail_exec_poststart${i}}}\"
-		[ -z "$(eval echo \"\$_exec_poststart${i}\")" ] && break
-		i=$((i + 1))
-	done
-
-	i=0
-	while : ; do
-		eval _exec_prestop${i}=\"\${jail_${_j}_exec_prestop${i}:-\${jail_exec_prestop${i}}}\"
-		[ -z "$(eval echo \"\$_exec_prestop${i}\")" ] && break
-		i=$((i + 1))
-	done
-
-	eval _exec_stop=\"\${jail_${_j}_exec_stop:-${jail_exec_stop}}\"
-
-	i=0
-	while : ; do
-		eval _exec_poststop${i}=\"\${jail_${_j}_exec_poststop${i}:-\${jail_exec_poststop${i}}}\"
-		[ -z "$(eval echo \"\$_exec_poststop${i}\")" ] && break
-		i=$((i + 1))
-	done
-
+	eval _exec_start=\"\$jail_${_j}_exec_start\"
+	eval _exec_stop=\"\$jail_${_j}_exec_stop\"
 	if [ -n "${_exec}" ]; then
 		#   simple/backward-compatible execution
 		_exec_start="${_exec}"
@@ -96,285 +155,105 @@ init_variables()
 			fi
 		fi
 	fi
-
-	# The default jail ruleset will be used by rc.subr if none is specified.
-	eval _ruleset=\"\${jail_${_j}_devfs_ruleset:-${jail_devfs_ruleset}}\"
-	eval _devfs=\"\${jail_${_j}_devfs_enable:-${jail_devfs_enable}}\"
-	[ -z "${_devfs}" ] && _devfs="NO"
-	eval _fdescfs=\"\${jail_${_j}_fdescfs_enable:-${jail_fdescfs_enable}}\"
-	[ -z "${_fdescfs}" ] && _fdescfs="NO"
-	eval _procfs=\"\${jail_${_j}_procfs_enable:-${jail_procfs_enable}}\"
-	[ -z "${_procfs}" ] && _procfs="NO"
-
-	eval _mount=\"\${jail_${_j}_mount_enable:-${jail_mount_enable}}\"
-	[ -z "${_mount}" ] && _mount="NO"
-	# "/etc/fstab.${_j}" will be used for {,u}mount(8) if none is specified.
-	eval _fstab=\"\${jail_${_j}_fstab:-${jail_fstab}}\"
-	[ -z "${_fstab}" ] && _fstab="/etc/fstab.${_j}"
-	eval _flags=\"\${jail_${_j}_flags:-${jail_flags}}\"
-	[ -z "${_flags}" ] && _flags="-l -U root"
-	eval _consolelog=\"\${jail_${_j}_consolelog:-${jail_consolelog}}\"
-	[ -z "${_consolelog}" ] && _consolelog="/var/log/jail_${_j}_console.log"
+	eval _interface=\"\${jail_${_j}_interface:-${jail_interface}}\"
 	eval _parameters=\"\${jail_${_j}_parameters:-${jail_parameters}}\"
-	[ -z "${_parameters}" ] && _parameters=""
-	eval _fib=\"\${jail_${_j}_fib:-${jail_fib}}\"
+	eval _fstab=\"\${jail_${_j}_fstab:-${jail_fstab:-/etc/fstab.$_j}}\"
+	(
+		date +"# Generated by rc.d/jail at %Y-%m-%d %H:%M:%S"
+		echo "$_j {"
+		extract_var $_j hostname host.hostname - ""
+		extract_var $_j rootdir path - ""
+		if [ -n "$_ip" ]; then
+			extract_var $_j interface interface - ""
+			jail_handle_ips_option $_ip $_interface
+			alias=0
+			while : ; do
+				eval _x=\"\$jail_${_j}_ip_multi${alias}\"
+				[ -z "$_x" ] && break
 
-	# Debugging aid
-	#
-	debug "$_j devfs enable: $_devfs"
-	debug "$_j fdescfs enable: $_fdescfs"
-	debug "$_j procfs enable: $_procfs"
-	debug "$_j mount enable: $_mount"
-	debug "$_j hostname: $_hostname"
-	debug "$_j ip: $_ip"
-	jail_show_addresses ${_j}
-	debug "$_j interface: $_interface"
-	debug "$_j fib: $_fib"
-	debug "$_j root: $_rootdir"
-	debug "$_j devdir: $_devdir"
-	debug "$_j fdescdir: $_fdescdir"
-	debug "$_j procdir: $_procdir"
-	debug "$_j ruleset: $_ruleset"
-	debug "$_j fstab: $_fstab"
-
-	i=0
-	while : ; do
-		eval out=\"\${_exec_prestart${i}:-''}\"
-		if [ -z "$out" ]; then
-			break
-		fi
-		debug "$_j exec pre-start #${i}: ${out}"
-		i=$((i + 1))
-	done
-
-	debug "$_j exec start: $_exec_start"
-
-	i=1
-	while : ; do
-		eval out=\"\${_exec_afterstart${i}:-''}\"
-
-		if [ -z "$out" ]; then
-			break;
-		fi
-
-		debug "$_j exec after start #${i}: ${out}"
-		i=$((i + 1))
-	done
-
-	i=0
-	while : ; do
-		eval out=\"\${_exec_poststart${i}:-''}\"
-		if [ -z "$out" ]; then
-			break
-		fi
-		debug "$_j exec post-start #${i}: ${out}"
-		i=$((i + 1))
-	done
-
-	i=0
-	while : ; do
-		eval out=\"\${_exec_prestop${i}:-''}\"
-		if [ -z "$out" ]; then
-			break
-		fi
-		debug "$_j exec pre-stop #${i}: ${out}"
-		i=$((i + 1))
-	done
-
-	debug "$_j exec stop: $_exec_stop"
-
-	i=0
-	while : ; do
-		eval out=\"\${_exec_poststop${i}:-''}\"
-		if [ -z "$out" ]; then
-			break
-		fi
-		debug "$_j exec post-stop #${i}: ${out}"
-		i=$((i + 1))
-	done
-
-	debug "$_j flags: $_flags"
-	debug "$_j consolelog: $_consolelog"
-	debug "$_j parameters: $_parameters"
-
-	if [ -z "${_hostname}" ]; then
-		err 3 "$name: No hostname has been defined for ${_j}"
-	fi
-	if [ -z "${_rootdir}" ]; then
-		err 3 "$name: No root directory has been defined for ${_j}"
-	fi
-}
-
-# set_sysctl rc_knob mib msg
-#	If the mib sysctl is set according to what rc_knob
-#	specifies, this function does nothing. However if
-#	rc_knob is set differently than mib, then the mib
-#	is set accordingly and msg is displayed followed by
-#	an '=" sign and the word 'YES' or 'NO'.
-#
-set_sysctl()
-{
-	_knob="$1"
-	_mib="$2"
-	_msg="$3"
-
-	_current=`${SYSCTL} -n $_mib 2>/dev/null`
-	if checkyesno $_knob ; then
-		if [ "$_current" -ne 1 ]; then
-			echo -n " ${_msg}=YES"
-			${SYSCTL} 1>/dev/null ${_mib}=1
-		fi
-	else
-		if [ "$_current" -ne 0 ]; then
-			echo -n " ${_msg}=NO"
-			${SYSCTL} 1>/dev/null ${_mib}=0
-		fi
-	fi
-}
-
-# is_current_mountpoint()
-#	Is the directory mount point for a currently mounted file
-#	system?
-#
-is_current_mountpoint()
-{
-	local _dir _dir2
-
-	_dir=$1
-
-	_dir=`echo $_dir | sed -Ee 's#//+#/#g' -e 's#/$##'`
-	[ ! -d "${_dir}" ] && return 1
-	_dir2=`df ${_dir} | tail +2 | awk '{ print $6 }'`
-	[ "${_dir}" = "${_dir2}" ]
-	return $?
-}
-
-# is_symlinked_mountpoint()
-#	Is a mount point, or any of its parent directories, a symlink?
-#
-is_symlinked_mountpoint()
-{
-	local _dir
-
-	_dir=$1
-
-	[ -L "$_dir" ] && return 0
-	[ "$_dir" = "/" ] && return 1
-	is_symlinked_mountpoint `dirname $_dir`
-	return $?
-}
-
-# secure_umount
-#	Try to unmount a mount point without being vulnerable to
-#	symlink attacks.
-#
-secure_umount()
-{
-	local _dir
-
-	_dir=$1
-
-	if is_current_mountpoint ${_dir}; then
-		umount -f ${_dir} >/dev/null 2>&1
-	else
-		debug "Nothing mounted on ${_dir} - not unmounting"
-	fi
-}
-
-
-# jail_umount_fs
-#	This function unmounts certain special filesystems in the
-#	currently selected jail. The caller must call the init_variables()
-#	routine before calling this one.
-#
-jail_umount_fs()
-{
-	local _device _mountpt _rest
-
-	if checkyesno _fdescfs; then
-		if [ -d "${_fdescdir}" ] ; then
-			secure_umount ${_fdescdir}
-		fi
-	fi
-	if checkyesno _devfs; then
-		if [ -d "${_devdir}" ] ; then
-			secure_umount ${_devdir}
-		fi
-	fi
-	if checkyesno _procfs; then
-		if [ -d "${_procdir}" ] ; then
-			secure_umount ${_procdir}
-		fi
-	fi
-	if checkyesno _mount; then
-		[ -f "${_fstab}" ] || warn "${_fstab} does not exist"
-		tail -r ${_fstab} | while read _device _mountpt _rest; do
-			case ":${_device}" in
-			:#* | :)
-				continue
-				;;
-			esac
-			secure_umount ${_mountpt}
-		done
-	fi
-}
-
-# jail_mount_fstab()
-#	Mount file systems from a per jail fstab while trying to
-#	secure against symlink attacks at the mount points.
-#
-#	If we are certain we cannot secure against symlink attacks we
-#	do not mount all of the file systems (since we cannot just not
-#	mount the file system with the problematic mount point).
-#
-#	The caller must call the init_variables() routine before
-#	calling this one.
-#
-jail_mount_fstab()
-{
-	local _device _mountpt _rest
-
-	while read _device _mountpt _rest; do
-		case ":${_device}" in
-		:#* | :)
-			continue
+				jail_handle_ips_option $_x $_interface
+				alias=$(($alias + 1))
+			done
+			case $need_dad_wait in
+			1)
+				# Sleep to let DAD complete before
+				# starting services.
+				echo "	exec.start += \"sleep " \
+				$(($(${SYSCTL_N} net.inet6.ip6.dad_count) + 1)) \
+				"\";"
 			;;
-		esac
-		if is_symlinked_mountpoint ${_mountpt}; then
-			warn "${_mountpt} has symlink as parent - not mounting from ${_fstab}"
-			return
-		fi
-	done <${_fstab}
-	mount -a -F "${_fstab}"
-}
-
-# jail_show_addresses jail
-#	Debug print the input for the given _multi aliases
-#	for a jail for init_variables().
-#
-jail_show_addresses()
-{
-	local _j _type alias
-	_j="$1"
-	alias=0
-
-	if [ -z "${_j}" ]; then
-		warn "jail_show_addresses: you must specify a jail"
-		return
-	fi
-
-	while : ; do
-		eval _addr=\"\$jail_${_j}_ip_multi${alias}\"
-		if [ -n "${_addr}" ]; then
-			debug "${_j} ip_multi${alias}: $_addr"
-			alias=$((${alias} + 1))
+			esac
+			# These are applicable only to non-vimage jails. 
+			extract_var $_j fib exec.fib - ""
+			extract_var $_j socket_unixiproute_only \
+			    allow.raw_sockets NY YES
 		else
-			break
+			echo "	vnet;"
+			extract_var $_j vnet_interface vnet.interface - ""
 		fi
-	done
+
+		echo "	exec.clean;"
+		echo "	exec.system_user = \"root\";"
+		echo "	exec.jail_user = \"root\";"
+		extract_var $_j exec_prestart exec.prestart 0 ""
+		extract_var $_j exec_poststart exec.poststart 0 ""
+		extract_var $_j exec_prestop exec.prestop 0 ""
+		extract_var $_j exec_poststop exec.poststop 0 ""
+
+		echo "	exec.start += \"$_exec_start\";"
+		extract_var $_j exec_afterstart exec.start 1 ""
+		echo "	exec.stop = \"$_exec_stop\";"
+
+		extract_var $_j consolelog exec.consolelog - \
+		    /var/log/jail_${_j}_console.log
+
+		eval : \${jail_${_j}_devfs_enable:=${jail_devfs_enable:-NO}}
+		if checkyesno jail_${_j}_devfs_enable; then
+			echo "	mount.devfs;"
+			eval _ruleset=\${jail_${_j}_devfs_ruleset:-${jail_devfs_ruleset}}
+			case $_ruleset in
+			"")	;;
+			[0-9]*) echo "	devfs_ruleset = \"$_ruleset\";" ;;
+			devfsrules_jail)
+				# XXX: This is the default value,
+				# Let jail(8) to use the default because
+				# mount(8) only accepts an integer. 
+				# This should accept a ruleset name.
+			;;
+			*)	warn "devfs_ruleset must be an integer." ;;
+			esac
+			if [ -r $_fstab ]; then
+				echo "	mount.fstab = \"$_fstab\";"
+			fi
+		fi
+
+		eval : \${jail_${_j}_fdescfs_enable:=${jail_fdescfs_enable:-NO}}
+		if checkyesno jail_${_j}_fdescfs_enable; then
+			echo "	mount.fdescfs;"
+		fi
+		eval : \${jail_${_j}_procfs_enable:=${jail_procfs_enable:-NO}}
+		if checkyesno jail_${_j}_procfs_enable; then
+			echo "	mount += " \
+			    "\"procfs ${_rootdir%/}/proc procfs rw 0 0\";"
+		fi
+
+		eval : \${jail_${_j}_mount_enable:=${jail_mount_enable:-NO}}
+		if checkyesno jail_${_j}_mount_enable; then
+			echo "	allow.mount;" >> $_conf
+		fi
+
+		extract_var $_j set_hostname_allow allow.set_hostname YN NO
+		extract_var $_j sysvipc_allow allow.sysvipc YN NO
+		for _p in $_parameters; do
+			echo "	${_p%\;};"
+		done
+		echo "}"
+	) >> $_conf
+
+	return 0
 }
 
-# jail_extract_address argument
+# jail_extract_address argument iface
 #	The second argument is the string from one of the _ip
 #	or the _multi variables. In case of a comma separated list
 #	only one argument must be passed in at a time.
@@ -382,8 +261,9 @@ jail_show_addresses()
 #
 jail_extract_address()
 {
-	local _i
+	local _i _interface
 	_i=$1
+	_interface=$2
 
 	if [ -z "${_i}" ]; then
 		warn "jail_extract_address: called without input"
@@ -439,21 +319,21 @@ jail_extract_address()
 		_mask=${_mask:-/32}
 
 	elif [ "${_type}" = "inet6" ]; then
-		# In case _maske is not set for IPv6, use /128.
-		_mask=${_mask:-/128}
+		# In case _maske is not set for IPv6, use /64.
+		_mask=${_mask:-/64}
 	fi
 }
 
-# jail_handle_ips_option {add,del} input
+# jail_handle_ips_option input iface
 #	Handle a single argument imput which can be a comma separated
 #	list of addresses (theoretically with an option interface and
 #	prefix/netmask/prefixlen).
 #
 jail_handle_ips_option()
 {
-	local _x _action _type _i
-	_action=$1
-	_x=$2
+	local _x _type _i _defif
+	_x=$1
+	_defif=$2
 
 	if [ -z "${_x}" ]; then
 		# No IP given. This can happen for the primary address
@@ -468,294 +348,228 @@ jail_handle_ips_option()
 		*,*)	# Extract the first argument and strip it off the list.
 			_i=`expr "${_x}" : '^\([^,]*\)'`
 			_x=`expr "${_x}" : "^[^,]*,\(.*\)"`
-			;;
+		;;
 		*)	_i=${_x}
 			_x=""
-			;;
+		;;
 		esac
 
 		_type=""
-		_iface=""
 		_addr=""
 		_mask=""
-		jail_extract_address "${_i}"
+		_iface=""
+		jail_extract_address $_i $_defif
 
 		# make sure we got an address.
-		case "${_addr}" in
+		case $_addr in
 		"")	continue ;;
 		*)	;;
 		esac
 
 		# Append address to list of addresses for the jail command.
-		case "${_type}" in
+		case $_type in
 		inet)
-			case "${_addrl}" in
-			"")	_addrl="${_addr}" ;;
-			*)	_addrl="${_addrl},${_addr}" ;;
-			esac
-			;;
+			echo "	ip4.addr += \"${_iface:+${_iface}|}${_addr}${_mask}\";"
+		;;
 		inet6)
-			case "${_addr6l}" in
-			"")	_addr6l="${_addr}" ;;
-			*)	_addr6l="${_addr6l},${_addr}" ;;
-			esac
-			;;
-		esac
-
-		# Configure interface alias if requested by a given interface
-		# and if we could correctly parse everything.
-		case "${_iface}" in
-		"")	continue ;;
-		esac
-		case "${_type}" in
-		inet)	;;
-		inet6)	ipv6_address_count=$((ipv6_address_count + 1)) ;;
-		*)	warn "Could not determine address family.  Not going" \
-			    "to ${_action} address '${_addr}' for ${_jail}."
-			continue
-			;;
-		esac
-		case "${_action}" in
-		add)	ifconfig ${_iface} ${_type} ${_addr}${_mask} alias
-			;;
-		del)	# When removing the IP, ignore the _mask.
-			ifconfig ${_iface} ${_type} ${_addr} -alias
-			;;
+			echo "	ip6.addr += \"${_iface:+${_iface}|}${_addr}${_mask}\";"
+			need_dad_wait=1
+		;;
 		esac
 	done
 }
 
-# jail_ips {add,del}
-#	Extract the comma separated list of addresses and return them
-#	for the jail command.
-#	Handle more than one address via the _multi option as well.
-#	If an interface is given also add/remove an alias for the
-#	address with an optional netmask.
-#
-jail_ips()
+jail_config()
 {
-	local _action
-	_action=$1
+	local _j
 
-	case "${_action}" in
-	add)	;;
-	del)	;;
-	*)	warn "jail_ips: invalid action '${_action}'"
-		return
-		;;
+	case $1 in
+	_ALL)	return ;;
 	esac
-
-	# Handle addresses.
-	ipv6_address_count=0
-	jail_handle_ips_option ${_action} "${_ip}"
-	# Handle jail_xxx_ip_multi<N>
-	alias=0
-	while : ; do
-		eval _x=\"\$jail_${_jail}_ip_multi${alias}\"
-		case "${_x}" in
-		"")	break ;;
-		*)	jail_handle_ips_option ${_action} "${_x}"
-			alias=$((${alias} + 1))
-			;;
-		esac
+	for _j in $@; do
+		_j=$(echo $_j | tr /. _)
+		if parse_options $_j; then 
+			echo "$_j: parameters are in $_conf."
+		fi
 	done
-	case ${ipv6_address_count} in
-	0)	;;
-	*)	# Sleep 1 second to let DAD complete before starting services.
-		sleep 1
-		;;
-	esac
 }
 
-jail_prestart()
+jail_console()
 {
-	if checkyesno jail_parallel_start; then
-		command_args='&'
-	fi
+	local _j _cmd
+
+	# One argument that is not _ALL.
+	case $#:$1 in
+	0:*|1:_ALL)	err 3 "Specify a jail name." ;;
+	1:*)		;;
+	esac
+	_j=$(echo $1 | tr /. _)
+	shift
+	case $# in
+	0)	eval _cmd=\${jail_${_j}_consolecmd:-$jail_consolecmd} ;;
+	*)	_cmd=$@ ;;
+	esac
+	$jail_jexec $_j $_cmd
+}
+
+jail_status()
+{
+
+	$jail_jls -N
 }
 
 jail_start()
 {
-	echo -n 'Configuring jails:'
-	set_sysctl jail_set_hostname_allow security.jail.set_hostname_allowed \
-	    set_hostname_allow
-	set_sysctl jail_socket_unixiproute_only \
-	    security.jail.socket_unixiproute_only unixiproute_only
-	set_sysctl jail_sysvipc_allow security.jail.sysvipc_allowed \
-	    sysvipc_allow
-	echo '.'
+	local _j _jid _jn _jl
 
+	if [ $# = 0 ]; then
+		return
+	fi
 	echo -n 'Starting jails:'
-	_tmp_dir=`mktemp -d /tmp/jail.XXXXXXXX` || \
-	    err 3 "$name: Can't create temp dir, exiting..."
-	for _jail in ${jail_list}
-	do
-		init_variables $_jail
-		if [ -f /var/run/jail_${_jail}.id ]; then
-			echo -n " [${_hostname} already running (/var/run/jail_${_jail}.id exists)]"
-			continue;
-		fi
-		_addrl=""
-		_addr6l=""
-		jail_ips "add"
-		if [ -n "${_fib}" ]; then
-			_setfib="setfib -F '${_fib}'"
+	case $1 in
+	_ALL)
+		command=$jail_program
+		rc_flags=$jail_flags
+		command_args="-f $jail_conf -c"
+		_tmp=`mktemp -t jail` || exit 3
+		if $command $rc_flags $command_args >> $_tmp 2>&1; then
+			$jail_jls -nq | while read IN; do
+				_jn=$(echo $IN | tr " " "\n" | grep ^name=)
+				_jid=$(echo $IN | tr " " "\n" | grep ^jid=)
+				echo -n " ${_jn#name=}"
+				echo "${_jid#jid=}" \
+				    > /var/run/jail_${_jn#name=}.id
+			done
 		else
-			_setfib=""
+			tail -1 $_tmp
 		fi
-		if checkyesno _mount; then
-			info "Mounting fstab for jail ${_jail} (${_fstab})"
-			if [ ! -f "${_fstab}" ]; then
-				err 3 "$name: ${_fstab} does not exist"
-			fi
-			jail_mount_fstab
-		fi
-		if checkyesno _devfs; then
-			# If devfs is already mounted here, skip it.
-			df -t devfs "${_devdir}" >/dev/null
-			if [ $? -ne 0 ]; then
-				if is_symlinked_mountpoint ${_devdir}; then
-					warn "${_devdir} has symlink as parent - not starting jail ${_jail}"
-					continue
-				fi
-				info "Mounting devfs on ${_devdir}"
-				devfs_mount_jail "${_devdir}" ${_ruleset}
-				# Transitional symlink for old binaries
-				if [ ! -L "${_devdir}/log" ]; then
-					ln -sf ../var/run/log "${_devdir}/log"
-				fi
-			fi
+		rm -f $_tmp
+		echo '.'
+		return
+	;;
+	esac
+	if checkyesno jail_parallel_start; then
+		#
+		# Start jails in parallel and then check jail id when
+		# jail_parallel_start is YES.
+		#
+		_jl=
+		for _j in $@; do
+			_j=$(echo $_j | tr /. _)
+			parse_options $_j || continue
 
-			# XXX - It seems symlinks don't work when there
-			#	is a devfs(5) device of the same name.
-			# Jail console output
-			#	__pwd="`pwd`"
-			#	cd "${_devdir}"
-			#	ln -sf ../var/log/console console
-			#	cd "$__pwd"
-		fi
-		if checkyesno _fdescfs; then
-			if is_symlinked_mountpoint ${_fdescdir}; then
-				warn "${_fdescdir} has symlink as parent, not mounting"
-			else
-				info "Mounting fdescfs on ${_fdescdir}"
-				mount -t fdescfs fdesc "${_fdescdir}"
-			fi
-		fi
-		if checkyesno _procfs; then
-			if is_symlinked_mountpoint ${_procdir}; then
-				warn "${_procdir} has symlink as parent, not mounting"
-			else
-				info "Mounting procfs onto ${_procdir}"
-				if [ -d "${_procdir}" ] ; then
-					mount -t procfs proc "${_procdir}"
-				fi
-			fi
-		fi
-		_tmp_jail=${_tmp_dir}/jail.$$
-
-		i=0
-		while : ; do
-			eval out=\"\${_exec_prestart${i}:-''}\"
-			[ -z "$out" ] && break
-			${out}
-			i=$((i + 1))
+			_jl="$_jl $_j"
+			eval rc_flags=\${jail_${_j}_flags:-$jail_flags}
+			eval command=\${jail_${_j}_program:-$jail_program}
+			command_args="-i -f $_conf -c $_j"
+			$command $rc_flags $command_args \
+			    >/dev/null 2>&1 </dev/null &
 		done
+		sleep 1
+		for _j in $_jl; do
+			echo -n " ${_hostname:-${_j}}"
+			if _jid=$($jail_jls -n -j $_j | tr " " "\n" | \
+			    grep ^jid=); then
+				echo "${_jid#jid=}" > /var/run/jail_${_j}.id
+			else
+				rm -f /var/run/jail_${_j}.id
+				echo " cannot start jail " \
+				    "\"${_hostname:-${_j}}\": "
+			fi
+		done
+	else
+		#
+		# Start jails one-by-one when jail_parallel_start is NO.
+		#
+		for _j in $@; do
+			_j=$(echo $_j | tr /. _)
+			parse_options $_j || continue
 
-		eval ${_setfib} jail -n ${_jail} ${_flags} -i -c path=${_rootdir} host.hostname=${_hostname} \
-			${_addrl:+ip4.addr=\"${_addrl}\"} ${_addr6l:+ip6.addr=\"${_addr6l}\"} \
-			${_parameters} command=${_exec_start} > ${_tmp_jail} 2>&1 \
-			</dev/null
-
-		if [ "$?" -eq 0 ] ; then
-			_jail_id=$(head -1 ${_tmp_jail})
-			i=1
-			while : ; do
-				eval out=\"\${_exec_afterstart${i}:-''}\"
-
-				if [ -z "$out" ]; then
-					break;
-				fi
-
-				jexec "${_jail_id}" ${out}
-				i=$((i + 1))
-			done
-
-			echo -n " $_hostname"
-			tail +2 ${_tmp_jail} >${_consolelog}
-			echo ${_jail_id} > /var/run/jail_${_jail}.id
-
-			i=0
-			while : ; do
-				eval out=\"\${_exec_poststart${i}:-''}\"
-				[ -z "$out" ] && break
-				${out}
-				i=$((i + 1))
-			done
-		else
-			jail_umount_fs
-			jail_ips "del"
-			echo " cannot start jail \"${_jail}\": "
-			tail +2 ${_tmp_jail}
-		fi
-		rm -f ${_tmp_jail}
-	done
-	rmdir ${_tmp_dir}
+			eval rc_flags=\${jail_${_j}_flags:-$jail_flags}
+			eval command=\${jail_${_j}_program:-$jail_program}
+			command_args="-i -f $_conf -c $_j"
+			_tmp=`mktemp -t jail` || exit 3
+			if $command $rc_flags $command_args \
+			    >> $_tmp 2>&1 </dev/null; then
+				echo -n " ${_hostname:-${_j}}"
+				_jid=$($jail_jls -n -j $_j | \
+				    tr " " "\n" | grep ^jid=)
+				echo "${_jid#jid=}" > /var/run/jail_${_j}.id
+			else
+				rm -f /var/run/jail_${_j}.id
+				echo " cannot start jail " \
+				    "\"${_hostname:-${_j}}\": "
+				cat $_tmp
+			fi
+			rm -f $_tmp
+		done
+	fi
 	echo '.'
 }
 
 jail_stop()
 {
+	local _j _jn
+
+	if [ $# = 0 ]; then
+		return
+	fi
 	echo -n 'Stopping jails:'
-	for _jail in ${jail_list}
-	do
-		if [ -f "/var/run/jail_${_jail}.id" ]; then
-			_jail_id=$(cat /var/run/jail_${_jail}.id)
-			if [ ! -z "${_jail_id}" ]; then
-				init_variables $_jail
-
-				i=0
-				while : ; do
-					eval out=\"\${_exec_prestop${i}:-''}\"
-					[ -z "$out" ] && break
-					${out}
-					i=$((i + 1))
-				done
-
-				if [ -n "${_exec_stop}" ]; then
-					eval env -i /usr/sbin/jexec ${_jail_id} ${_exec_stop} \
-						>> ${_consolelog} 2>&1
-				fi
-				killall -j ${_jail_id} -TERM > /dev/null 2>&1
-				sleep 1
-				killall -j ${_jail_id} -KILL > /dev/null 2>&1
-				jail_umount_fs
-				echo -n " $_hostname"
-
-				i=0
-				while : ; do
-					eval out=\"\${_exec_poststop${i}:-''}\"
-					[ -z "$out" ] && break
-					${out}
-					i=$((i + 1))
-				done
+	case $1 in
+	_ALL)
+		command=$jail_program
+		rc_flags=$jail_flags
+		command_args="-f $jail_conf -r"
+		$jail_jls -nq | while read IN; do
+			_jn=$(echo $IN | tr " " "\n" | grep ^name=)
+			echo -n " ${_jn#name=}"
+			_tmp=`mktemp -t jail` || exit 3
+			$command $rc_flags $command_args ${_jn#name=} \
+			    >> $_tmp 2>&1
+			if $jail_jls -j ${_jn#name=} > /dev/null 2>&1; then
+				tail -1 $_tmp
+			else
+				rm -f /var/run/jail_${_jn#name=}.id
 			fi
-			jail_ips "del"
-			rm /var/run/jail_${_jail}.id
-		else
-			echo " cannot stop jail ${_jail}. No jail id in /var/run"
+			rm -f $_tmp
+		done
+		echo '.'
+		return
+	;;
+	esac
+	for _j in $@; do
+		_j=$(echo $_j | tr /. _)
+		parse_options $_j || continue
+		if ! $jail_jls -j $_j > /dev/null 2>&1; then
+			continue
 		fi
+		eval command=\${jail_${_j}_program:-$jail_program}
+		echo -n " ${_hostname:-${_j}}"
+		_tmp=`mktemp -t jail` || exit 3
+		$command -q -f $_conf -r $_j >> $_tmp 2>&1
+		if $jail_jls -j $_j > /dev/null 2>&1; then
+			tail -1 $_tmp
+		else
+			rm -f /var/run/jail_${_j}.id
+		fi
+		rm -f $_tmp
 	done
 	echo '.'
 }
 
-load_rc_config $name
-cmd="$1"
-if [ $# -gt 0 ]; then
-	shift
-fi
-if [ -n "$*" ]; then
-	jail_list="$*"
-fi
+jail_warn()
+{
 
-run_rc_command "${cmd}"
+	# To relieve confusion, show a warning message.
+	case $_confwarn in
+	1)	warn "Per-jail configuration via jail_* variables " \
+		    "is obsolete.  Please consider to migrate to $jail_conf."
+	;;
+	esac
+}
+
+load_rc_config $name
+case $# in
+1)	run_rc_command $@ ${jail_list:-_ALL} ;;
+*)	run_rc_command $@ ;;
+esac

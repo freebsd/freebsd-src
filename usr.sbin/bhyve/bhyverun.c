@@ -37,12 +37,14 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <err.h>
 #include <libgen.h>
 #include <unistd.h>
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
 #include <pthread_np.h>
+#include <sysexits.h>
 
 #include <machine/vmm.h>
 #include <vmmapi.h>
@@ -79,6 +81,7 @@ int guest_ncpus;
 
 static int pincpu = -1;
 static int guest_vmexit_on_hlt, guest_vmexit_on_pause, disable_x2apic;
+static int virtio_msix = 1;
 
 static int foundcpus;
 
@@ -118,23 +121,24 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-aehAHIP][-g <gdb port>][-s <pci>][-S <pci>]"
+                "Usage: %s [-aehAHIPW][-g <gdb port>][-s <pci>][-S <pci>]"
 		"[-c vcpus][-p pincpu][-m mem]"
 		" <vmname>\n"
 		"       -a: local apic is in XAPIC mode (default is X2APIC)\n"
 		"       -A: create an ACPI table\n"
-		"       -g: gdb port (default is %d and 0 means don't open)\n"
+		"       -g: gdb port\n"
 		"       -c: # cpus (default 1)\n"
 		"       -p: pin vcpu 'n' to host cpu 'pincpu + n'\n"
 		"       -H: vmexit from the guest on hlt\n"
 		"       -I: present an ioapic to the guest\n"
 		"       -P: vmexit from the guest on pause\n"
+		"	-W: force virtio to use single-vector MSI\n"
 		"	-e: exit on unhandled i/o access\n"
 		"       -h: help\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
 		"       -S: <slot,driver,configinfo> legacy PCI slot config\n"
 		"       -m: memory size in MB\n",
-		progname, DEFAULT_GDB_PORT);
+		progname);
 
 	exit(code);
 }
@@ -165,6 +169,13 @@ fbsdrun_vmexit_on_hlt(void)
 {
 
 	return (guest_vmexit_on_hlt);
+}
+
+int
+fbsdrun_virtio_msix(void)
+{
+
+	return (virtio_msix);
 }
 
 static void *
@@ -214,17 +225,6 @@ fbsdrun_addcpu(struct vmctx *ctx, int vcpu, uint64_t rip)
 	error = pthread_create(&mt_vmm_info[vcpu].mt_thr, NULL,
 	    fbsdrun_start_thread, &mt_vmm_info[vcpu]);
 	assert(error == 0);
-}
-
-static int
-fbsdrun_get_next_cpu(int curcpu)
-{
-
-	/*
-	 * Get the next available CPU. Assumes they arrive
-	 * in ascending order with no gaps.
-	 */
-	return ((curcpu + 1) % foundcpus);
 }
 
 static int
@@ -493,10 +493,54 @@ num_vcpus_allowed(struct vmctx *ctx)
 		return (1);
 }
 
+void
+fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
+{
+	int err, tmp;
+
+	if (fbsdrun_vmexit_on_hlt()) {
+		err = vm_get_capability(ctx, cpu, VM_CAP_HALT_EXIT, &tmp);
+		if (err < 0) {
+			fprintf(stderr, "VM exit on HLT not supported\n");
+			exit(1);
+		}
+		vm_set_capability(ctx, cpu, VM_CAP_HALT_EXIT, 1);
+		if (cpu == BSP)
+			handler[VM_EXITCODE_HLT] = vmexit_hlt;
+	}
+
+        if (fbsdrun_vmexit_on_pause()) {
+		/*
+		 * pause exit support required for this mode
+		 */
+		err = vm_get_capability(ctx, cpu, VM_CAP_PAUSE_EXIT, &tmp);
+		if (err < 0) {
+			fprintf(stderr,
+			    "SMP mux requested, no pause support\n");
+			exit(1);
+		}
+		vm_set_capability(ctx, cpu, VM_CAP_PAUSE_EXIT, 1);
+		if (cpu == BSP)
+			handler[VM_EXITCODE_PAUSE] = vmexit_pause;
+        }
+
+	if (fbsdrun_disable_x2apic())
+		err = vm_set_x2apic_state(ctx, cpu, X2APIC_DISABLED);
+	else
+		err = vm_set_x2apic_state(ctx, cpu, X2APIC_ENABLED);
+
+	if (err) {
+		fprintf(stderr, "Unable to set x2apic state (%d)\n", err);
+		exit(1);
+	}
+
+	vm_set_capability(ctx, cpu, VM_CAP_ENABLE_INVPCID, 1);
+}
+
 int
 main(int argc, char *argv[])
 {
-	int c, error, gdb_port, tmp, err, ioapic, bvmcons;
+	int c, error, gdb_port, err, ioapic, bvmcons;
 	int max_vcpus;
 	struct vmctx *ctx;
 	uint64_t rip;
@@ -504,12 +548,12 @@ main(int argc, char *argv[])
 
 	bvmcons = 0;
 	progname = basename(argv[0]);
-	gdb_port = DEFAULT_GDB_PORT;
+	gdb_port = 0;
 	guest_ncpus = 1;
 	ioapic = 0;
 	memsize = 256 * MB;
 
-	while ((c = getopt(argc, argv, "abehAHIPp:g:c:s:S:m:")) != -1) {
+	while ((c = getopt(argc, argv, "abehAHIPWp:g:c:s:S:m:")) != -1) {
 		switch (c) {
 		case 'a':
 			disable_x2apic = 1;
@@ -540,7 +584,9 @@ main(int argc, char *argv[])
 			else
 				break;
                 case 'm':
-			memsize = strtoul(optarg, NULL, 0) * MB;
+			error = vm_parse_memsize(optarg, &memsize);
+			if (error)
+				errx(EX_USAGE, "invalid memsize '%s'", optarg);
 			break;
 		case 'H':
 			guest_vmexit_on_hlt = 1;
@@ -553,6 +599,9 @@ main(int argc, char *argv[])
 			break;
 		case 'e':
 			strictio = 1;
+			break;
+		case 'W':
+			virtio_msix = 0;
 			break;
 		case 'h':
 			usage(0);			
@@ -581,39 +630,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (fbsdrun_vmexit_on_hlt()) {
-		err = vm_get_capability(ctx, BSP, VM_CAP_HALT_EXIT, &tmp);
-		if (err < 0) {
-			fprintf(stderr, "VM exit on HLT not supported\n");
-			exit(1);
-		}
-		vm_set_capability(ctx, BSP, VM_CAP_HALT_EXIT, 1);
-		handler[VM_EXITCODE_HLT] = vmexit_hlt;
-	}
-
-        if (fbsdrun_vmexit_on_pause()) {
-		/*
-		 * pause exit support required for this mode
-		 */
-		err = vm_get_capability(ctx, BSP, VM_CAP_PAUSE_EXIT, &tmp);
-		if (err < 0) {
-			fprintf(stderr,
-			    "SMP mux requested, no pause support\n");
-			exit(1);
-		}
-		vm_set_capability(ctx, BSP, VM_CAP_PAUSE_EXIT, 1);
-		handler[VM_EXITCODE_PAUSE] = vmexit_pause;
-        }
-
-	if (fbsdrun_disable_x2apic())
-		err = vm_set_x2apic_state(ctx, BSP, X2APIC_DISABLED);
-	else
-		err = vm_set_x2apic_state(ctx, BSP, X2APIC_ENABLED);
-
-	if (err) {
-		fprintf(stderr, "Unable to set x2apic state (%d)\n", err);
-		exit(1);
-	}
+	fbsdrun_set_capabilities(ctx, BSP);
 
 	err = vm_setup_memory(ctx, memsize, VM_MMAP_ALL);
 	if (err) {

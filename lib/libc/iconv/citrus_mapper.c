@@ -381,7 +381,9 @@ _citrus_mapper_close(struct _citrus_mapper *cm)
 			_CITRUS_HASH_REMOVE(cm, cm_entry);
 			free(cm->cm_key);
 		}
+		UNLOCK(&cm_lock);
 		mapper_close(cm);
+		return;
 quit:
 		UNLOCK(&cm_lock);
 	}

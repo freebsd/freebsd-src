@@ -1199,7 +1199,7 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.8.11.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.9.12.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
@@ -1223,7 +1223,7 @@ t5fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t5fw.fwo"
 t5fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t5fw-1.8.22.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.9.12.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t5fw.fw"
@@ -1380,6 +1380,7 @@ dev/etherswitch/arswitch/arswitch_8216.c	optional arswitch
 dev/etherswitch/arswitch/arswitch_8226.c	optional arswitch
 dev/etherswitch/arswitch/arswitch_8316.c	optional arswitch
 dev/etherswitch/arswitch/arswitch_7240.c	optional arswitch
+dev/etherswitch/arswitch/arswitch_9340.c	optional arswitch
 dev/etherswitch/arswitch/arswitch_vlans.c	optional arswitch
 dev/etherswitch/etherswitch.c		optional etherswitch
 dev/etherswitch/etherswitch_if.m	optional etherswitch
@@ -1401,6 +1402,7 @@ dev/fatm/if_fatm.c		optional fatm pci
 dev/fb/fbd.c			optional fbd | vt
 dev/fb/splash.c			optional splash
 dev/fdt/fdt_common.c		optional fdt
+dev/fdt/fdt_ic_if.m		optional fdt
 dev/fdt/fdt_pci.c		optional fdt pci
 dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
@@ -1540,9 +1542,6 @@ dev/iscsi_initiator/isc_cam.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/isc_soc.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/isc_sm.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/isc_subr.c	optional iscsi_initiator scbus
-dev/isf/isf.c			optional isf
-dev/isf/isf_fdt.c		optional isf fdt
-dev/isf/isf_nexus.c		optional isf
 dev/isp/isp.c			optional isp
 dev/isp/isp_freebsd.c		optional isp
 dev/isp/isp_library.c		optional isp
@@ -2044,13 +2043,15 @@ rt2860.fw			optional rt2860fw | ralfw		\
 	no-obj no-implicit-rule						\
 	clean		"rt2860.fw"
 dev/random/harvest.c		standard
-dev/random/hash.c		optional random
-dev/random/pseudo_rng.c		standard
+dev/random/dummy_rng.c		standard
 dev/random/random_adaptors.c	standard
-dev/random/random_harvestq.c	standard
+dev/random/live_entropy_sources.c	optional random
+dev/random/random_harvestq.c	optional random
 dev/random/randomdev.c		optional random
 dev/random/randomdev_soft.c	optional random
 dev/random/yarrow.c		optional random
+dev/random/hash.c		optional random
+dev/random/rwfile.c		optional random
 dev/rc/rc.c			optional rc
 dev/re/if_re.c			optional re
 dev/rndtest/rndtest.c		optional rndtest
@@ -3856,7 +3857,6 @@ vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
 xen/gnttab.c			optional xen | xenhvm
 xen/features.c			optional xen | xenhvm
-xen/evtchn/evtchn_dev.c		optional xen | xenhvm
 xen/xenbus/xenbus_if.m		optional xen | xenhvm
 xen/xenbus/xenbus.c		optional xen | xenhvm
 xen/xenbus/xenbusb_if.m		optional xen | xenhvm

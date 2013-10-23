@@ -72,8 +72,8 @@ LEAF(memcpy)
 	move	a0, a1
 	move	a1, v0
 
-ALEAF(bcopy)
-ALEAF(ovbcopy)
+XLEAF(bcopy)
+XLEAF(ovbcopy)
 	/*
 	 *	Make sure we can copy forwards.
 	 */

@@ -107,24 +107,15 @@ struct radix_node_head {
 	struct	radix_node *rnh_treetop;
 	u_int	rnh_gen;		/* generation counter */
 	int	rnh_multipath;		/* multipath capable ? */
-	int	rnh_addrsize;		/* permit, but not require fixed keys */
-	int	rnh_pktsize;		/* permit, but not require fixed keys */
 	struct	radix_node *(*rnh_addaddr)	/* add based on sockaddr */
 		(void *v, void *mask,
 		     struct radix_node_head *head, struct radix_node nodes[]);
-	struct	radix_node *(*rnh_addpkt)	/* add based on packet hdr */
-		(void *v, void *mask,
-		     struct radix_node_head *head, struct radix_node nodes[]);
 	struct	radix_node *(*rnh_deladdr)	/* remove based on sockaddr */
-		(void *v, void *mask, struct radix_node_head *head);
-	struct	radix_node *(*rnh_delpkt)	/* remove based on packet hdr */
 		(void *v, void *mask, struct radix_node_head *head);
 	struct	radix_node *(*rnh_matchaddr)	/* locate based on sockaddr */
 		(void *v, struct radix_node_head *head);
 	struct	radix_node *(*rnh_lookup)	/* locate based on sockaddr */
 		(void *v, void *mask, struct radix_node_head *head);
-	struct	radix_node *(*rnh_matchpkt)	/* locate based on packet hdr */
-		(void *v, struct radix_node_head *head);
 	int	(*rnh_walktree)			/* traverse tree */
 		(struct radix_node_head *head, walktree_f_t *f, void *w);
 	int	(*rnh_walktree_from)		/* traverse tree below a */
@@ -133,6 +124,7 @@ struct radix_node_head {
 	void	(*rnh_close)	/* do something when the last ref drops */
 		(struct radix_node *rn, struct radix_node_head *head);
 	struct	radix_node rnh_nodes[3];	/* empty tree for common case */
+	struct	radix_node_head *rnh_masks;	/* Storage for our masks */
 #ifdef _KERNEL
 	struct	rwlock rnh_lock;		/* locks entire radix tree */
 #endif
@@ -141,7 +133,7 @@ struct radix_node_head {
 #ifndef _KERNEL
 #define R_Malloc(p, t, n) (p = (t) malloc((unsigned int)(n)))
 #define R_Zalloc(p, t, n) (p = (t) calloc(1,(unsigned int)(n)))
-#define Free(p) free((char *)p);
+#define R_Free(p) free((char *)p);
 #else
 #define R_Malloc(p, t, n) (p = (t) malloc((unsigned long)(n), M_RTABLE, M_NOWAIT))
 #define R_Zalloc(p, t, n) (p = (t) malloc((unsigned long)(n), M_RTABLE, M_NOWAIT | M_ZERO))
@@ -161,12 +153,11 @@ struct radix_node_head {
 #define	RADIX_NODE_HEAD_WLOCK_ASSERT(rnh) rw_assert(&(rnh)->rnh_lock, RA_WLOCKED)
 #endif /* _KERNEL */
 
-void	 rn_init(int);
 int	 rn_inithead(void **, int);
 int	 rn_detachhead(void **);
 int	 rn_refines(void *, void *);
 struct radix_node
-	 *rn_addmask(void *, int, int),
+	 *rn_addmask(void *, struct radix_node_head *, int, int),
 	 *rn_addroute (void *, void *, struct radix_node_head *,
 			struct radix_node [2]),
 	 *rn_delete(void *, void *, struct radix_node_head *),

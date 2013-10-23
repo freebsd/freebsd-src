@@ -241,7 +241,6 @@ pmponinvalidate(struct cam_periph *periph)
 		}
 	}
 	pmprelease(periph, -1);
-	xpt_print(periph->path, "lost device\n");
 }
 
 static void
@@ -251,7 +250,6 @@ pmpcleanup(struct cam_periph *periph)
 
 	softc = (struct pmp_softc *)periph->softc;
 
-	xpt_print(periph->path, "removing device entry\n");
 	cam_periph_unlock(periph);
 
 	/*
@@ -295,7 +293,7 @@ pmpasync(void *callback_arg, u_int32_t code,
 		status = cam_periph_alloc(pmpregister, pmponinvalidate,
 					  pmpcleanup, pmpstart,
 					  "pmp", CAM_PERIPH_BIO,
-					  cgd->ccb_h.path, pmpasync,
+					  path, pmpasync,
 					  AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP
@@ -320,13 +318,17 @@ pmpasync(void *callback_arg, u_int32_t code,
 		if (code == AC_SENT_BDR || code == AC_BUS_RESET)
 			softc->found = 0; /* We have to reset everything. */
 		if (softc->state == PMP_STATE_NORMAL) {
-			if (softc->pm_pid == 0x37261095 ||
-			    softc->pm_pid == 0x38261095)
-				softc->state = PMP_STATE_PM_QUIRKS_1;
-			else
-				softc->state = PMP_STATE_PRECONFIG;
-			cam_periph_acquire(periph);
-			xpt_schedule(periph, CAM_PRIORITY_DEV);
+			if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
+				if (softc->pm_pid == 0x37261095 ||
+				    softc->pm_pid == 0x38261095)
+					softc->state = PMP_STATE_PM_QUIRKS_1;
+				else
+					softc->state = PMP_STATE_PRECONFIG;
+				xpt_schedule(periph, CAM_PRIORITY_DEV);
+			} else {
+				pmprelease(periph, softc->found);
+				xpt_release_boot();
+			}
 		} else
 			softc->restart = 1;
 		break;

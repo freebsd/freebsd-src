@@ -1463,28 +1463,6 @@ devfs_domount()
 	return 0
 }
 
-# devfs_mount_jail dir [ruleset]
-#	Mounts a devfs file system appropriate for jails
-#	on the directory dir. If ruleset is specified, the ruleset
-#	it names will be used instead.  If present, ruleset must
-#	be the name of a ruleset as defined in a devfs.rules(5) file.
-#	This function returns non-zero if an error occurs.
-#
-devfs_mount_jail()
-{
-	local jdev rs _me
-	jdev="$1"
-	[ -n "$2" ] && rs=$2 || rs="devfsrules_jail"
-	_me="devfs_mount_jail"
-
-	devfs_init_rulesets
-	if ! devfs_domount "$jdev" $rs; then
-		warn "$_me: devfs was not mounted on $jdev"
-		return 1
-	fi
-	return 0
-}
-
 # Provide a function for normalizing the mounting of memory
 # filesystems.  This should allow the rest of the code here to remain
 # as close as possible between 5-current and 4-stable.

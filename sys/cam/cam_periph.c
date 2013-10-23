@@ -196,12 +196,12 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	path_id = xpt_path_path_id(path);
 	target_id = xpt_path_target_id(path);
 	lun_id = xpt_path_lun_id(path);
-	cam_init_pinfo(&periph->pinfo);
 	periph->periph_start = periph_start;
 	periph->periph_dtor = periph_dtor;
 	periph->periph_oninval = periph_oninvalidate;
 	periph->type = type;
 	periph->periph_name = name;
+	periph->scheduled_priority = CAM_PRIORITY_NONE;
 	periph->immediate_priority = CAM_PRIORITY_NONE;
 	periph->refcount = 1;		/* Dropped by invalidation. */
 	periph->sim = sim;
@@ -298,7 +298,7 @@ cam_periph_find(struct cam_path *path, char *name)
 		TAILQ_FOREACH(periph, &(*p_drv)->units, unit_links) {
 			if (xpt_path_comp(periph->path, path) == 0) {
 				xpt_unlock_buses();
-				mtx_assert(periph->sim->mtx, MA_OWNED);
+				cam_periph_assert(periph, MA_OWNED);
 				return(periph);
 			}
 		}
@@ -379,7 +379,7 @@ void
 cam_periph_release_locked_buses(struct cam_periph *periph)
 {
 
-	mtx_assert(periph->sim->mtx, MA_OWNED);
+	cam_periph_assert(periph, MA_OWNED);
 	KASSERT(periph->refcount >= 1, ("periph->refcount >= 1"));
 	if (--periph->refcount == 0)
 		camperiphfree(periph);
@@ -400,16 +400,16 @@ cam_periph_release_locked(struct cam_periph *periph)
 void
 cam_periph_release(struct cam_periph *periph)
 {
-	struct cam_sim *sim;
+	struct mtx *mtx;
 
 	if (periph == NULL)
 		return;
 	
-	sim = periph->sim;
-	mtx_assert(sim->mtx, MA_NOTOWNED);
-	mtx_lock(sim->mtx);
+	cam_periph_assert(periph, MA_NOTOWNED);
+	mtx = cam_periph_mtx(periph);
+	mtx_lock(mtx);
 	cam_periph_release_locked(periph);
-	mtx_unlock(sim->mtx);
+	mtx_unlock(mtx);
 }
 
 int
@@ -427,10 +427,10 @@ cam_periph_hold(struct cam_periph *periph, int priority)
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
 		return (ENXIO);
 
-	mtx_assert(periph->sim->mtx, MA_OWNED);
+	cam_periph_assert(periph, MA_OWNED);
 	while ((periph->flags & CAM_PERIPH_LOCKED) != 0) {
 		periph->flags |= CAM_PERIPH_LOCK_WANTED;
-		if ((error = mtx_sleep(periph, periph->sim->mtx, priority,
+		if ((error = cam_periph_sleep(periph, periph, priority,
 		    "caplck", 0)) != 0) {
 			cam_periph_release_locked(periph);
 			return (error);
@@ -449,7 +449,7 @@ void
 cam_periph_unhold(struct cam_periph *periph)
 {
 
-	mtx_assert(periph->sim->mtx, MA_OWNED);
+	cam_periph_assert(periph, MA_OWNED);
 
 	periph->flags &= ~CAM_PERIPH_LOCKED;
 	if ((periph->flags & CAM_PERIPH_LOCK_WANTED) != 0) {
@@ -577,7 +577,7 @@ void
 cam_periph_invalidate(struct cam_periph *periph)
 {
 
-	mtx_assert(periph->sim->mtx, MA_OWNED);
+	cam_periph_assert(periph, MA_OWNED);
 	/*
 	 * We only call this routine the first time a peripheral is
 	 * invalidated.
@@ -586,6 +586,8 @@ cam_periph_invalidate(struct cam_periph *periph)
 		return;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph invalidated\n"));
+	if (periph->flags & CAM_PERIPH_ANNOUNCED)
+		xpt_denounce_periph(periph);
 	periph->flags |= CAM_PERIPH_INVALID;
 	periph->flags &= ~CAM_PERIPH_NEW_DEV_FOUND;
 	if (periph->periph_oninval != NULL)
@@ -598,7 +600,9 @@ camperiphfree(struct cam_periph *periph)
 {
 	struct periph_driver **p_drv;
 
-	mtx_assert(periph->sim->mtx, MA_OWNED);
+	cam_periph_assert(periph, MA_OWNED);
+	KASSERT(periph->periph_allocating == 0, ("%s%d: freed while allocating",
+	    periph->periph_name, periph->unit_number));
 	for (p_drv = periph_drivers; *p_drv != NULL; p_drv++) {
 		if (strcmp((*p_drv)->driver_name, periph->periph_name) == 0)
 			break;
@@ -648,7 +652,10 @@ camperiphfree(struct cam_periph *periph)
 	xpt_remove_periph(periph);
 
 	xpt_unlock_buses();
-	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph destroyed\n"));
+	if (periph->flags & CAM_PERIPH_ANNOUNCED) {
+		xpt_print(periph->path, "Periph destroyed\n");
+	} else
+		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph destroyed\n"));
 
 	if (periph->flags & CAM_PERIPH_NEW_DEV_FOUND) {
 		union ccb ccb;
@@ -942,40 +949,14 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	PRELE(curproc);
 }
 
-union ccb *
-cam_periph_getccb(struct cam_periph *periph, u_int32_t priority)
-{
-	struct ccb_hdr *ccb_h;
-
-	mtx_assert(periph->sim->mtx, MA_OWNED);
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("entering cdgetccb\n"));
-
-	while (SLIST_FIRST(&periph->ccb_list) == NULL) {
-		if (periph->immediate_priority > priority)
-			periph->immediate_priority = priority;
-		xpt_schedule(periph, priority);
-		if ((SLIST_FIRST(&periph->ccb_list) != NULL)
-		 && (SLIST_FIRST(&periph->ccb_list)->pinfo.priority == priority))
-			break;
-		mtx_assert(periph->sim->mtx, MA_OWNED);
-		mtx_sleep(&periph->ccb_list, periph->sim->mtx, PRIBIO, "cgticb",
-		    0);
-	}
-
-	ccb_h = SLIST_FIRST(&periph->ccb_list);
-	SLIST_REMOVE_HEAD(&periph->ccb_list, periph_links.sle);
-	return ((union ccb *)ccb_h);
-}
-
 void
 cam_periph_ccbwait(union ccb *ccb)
 {
-	struct cam_sim *sim;
 
-	sim = xpt_path_sim(ccb->ccb_h.path);
 	if ((ccb->ccb_h.pinfo.index != CAM_UNQUEUED_INDEX)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG))
-		mtx_sleep(&ccb->ccb_h.cbfcnp, sim->mtx, PRIBIO, "cbwait", 0);
+		xpt_path_sleep(ccb->ccb_h.path, &ccb->ccb_h.cbfcnp, PRIBIO,
+		    "cbwait", 0);
 }
 
 int
@@ -1040,6 +1021,14 @@ cam_periph_ioctl(struct cam_periph *periph, u_long cmd, caddr_t addr,
 	return(error);
 }
 
+static void
+cam_periph_done(struct cam_periph *periph, union ccb *done_ccb)
+{
+
+	/* Caller will release the CCB */
+	wakeup(&done_ccb->ccb_h.cbfcnp);
+}
+
 int
 cam_periph_runccb(union ccb *ccb,
 		  int (*error_routine)(union ccb *ccb,
@@ -1048,12 +1037,9 @@ cam_periph_runccb(union ccb *ccb,
 		  cam_flags camflags, u_int32_t sense_flags,
 		  struct devstat *ds)
 {
-	struct cam_sim *sim;
 	int error;
  
-	error = 0;
-	sim = xpt_path_sim(ccb->ccb_h.path);
-	mtx_assert(sim->mtx, MA_OWNED);
+	xpt_path_assert(ccb->ccb_h.path, MA_OWNED);
 
 	/*
 	 * If the user has supplied a stats structure, and if we understand
@@ -1063,6 +1049,7 @@ cam_periph_runccb(union ccb *ccb,
 	    ccb->ccb_h.func_code == XPT_ATA_IO))
 		devstat_start_transaction(ds, NULL);
 
+	ccb->ccb_h.cbfcnp = cam_periph_done;
 	xpt_action(ccb);
  
 	do {
@@ -1781,9 +1768,11 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 				scan_ccb->ccb_h.func_code = XPT_SCAN_TGT;
 				scan_ccb->crcn.flags = 0;
 				xpt_rescan(scan_ccb);
-			} else
+			} else {
 				xpt_print(newpath,
 				    "Can't allocate CCB to rescan target\n");
+				xpt_free_path(newpath);
+			}
 		}
 	}
 

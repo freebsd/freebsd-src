@@ -169,12 +169,6 @@
             ..
             atm
             ..
-            bind9
-                arm
-                ..
-                misc
-                ..
-            ..
             legal
                 intel_ipw
                 ..
@@ -298,8 +292,6 @@
             FreeBSD_version
             ..
             IPv6
-            ..
-            atf
             ..
             bhyve
             ..
@@ -1408,14 +1400,6 @@
         ..
         vi
             catalog
-            ..
-        ..
-        xml
-            atf
-            ..
-        ..
-        xsl
-            atf
             ..
         ..
         zoneinfo

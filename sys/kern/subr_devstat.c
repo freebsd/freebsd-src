@@ -131,6 +131,7 @@ devstat_new_entry(const void *dev_name,
 	ds = devstat_alloc();
 	mtx_lock(&devstat_mutex);
 	if (unit_number == -1) {
+		ds->unit_number = unit_number;
 		ds->id = dev_name;
 		binuptime(&ds->creation_time);
 		devstat_generation++;
@@ -242,7 +243,7 @@ devstat_remove_entry(struct devstat *ds)
 
 	/* Remove this entry from the devstat queue */
 	atomic_add_acq_int(&ds->sequence1, 1);
-	if (ds->id == NULL) {
+	if (ds->unit_number != -1) {
 		devstat_num_devs--;
 		STAILQ_REMOVE(devstat_head, ds, devstat, dev_links);
 	}
@@ -374,6 +375,14 @@ devstat_end_transaction(struct devstat *ds, uint32_t bytes,
 void
 devstat_end_transaction_bio(struct devstat *ds, struct bio *bp)
 {
+
+	devstat_end_transaction_bio_bt(ds, bp, NULL);
+}
+
+void
+devstat_end_transaction_bio_bt(struct devstat *ds, struct bio *bp,
+    struct bintime *now)
+{
 	devstat_trans_flags flg;
 
 	/* sanity check */
@@ -390,7 +399,7 @@ devstat_end_transaction_bio(struct devstat *ds, struct bio *bp)
 		flg = DEVSTAT_NO_DATA;
 
 	devstat_end_transaction(ds, bp->bio_bcount - bp->bio_resid,
-				DEVSTAT_TAG_SIMPLE, flg, NULL, &bp->bio_t0);
+				DEVSTAT_TAG_SIMPLE, flg, now, &bp->bio_t0);
 	DTRACE_DEVSTAT_BIO_DONE();
 }
 

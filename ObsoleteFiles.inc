@@ -38,29 +38,38 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20131015: removal of RCS from base
-OLD_FILES+=usr/bin/ci
-OLD_FILES+=usr/bin/co
-OLD_FILES+=usr/bin/ident
-OLD_FILES+=usr/bin/merge
-OLD_FILES+=usr/bin/rcs
-OLD_FILES+=usr/bin/rcsclean
-OLD_FILES+=usr/bin/rcsdiff
-OLD_FILES+=usr/bin/rcsfreeze
-OLD_FILES+=usr/bin/rcsmerge
-OLD_FILES+=usr/bin/rlog
-OLD_FILES+=usr/share/man/man1/ci.1.gz
-OLD_FILES+=usr/share/man/man1/co.1.gz
-OLD_FILES+=usr/share/man/man1/ident.1.gz
-OLD_FILES+=usr/share/man/man1/merge.1.gz
-OLD_FILES+=usr/share/man/man1/rcs.1.gz
-OLD_FILES+=usr/share/man/man1/rcsclean.1.gz
-OLD_FILES+=usr/share/man/man1/rcsdiff.1.gz
-OLD_FILES+=usr/share/man/man1/rcsfreeze.1.gz
-OLD_FILES+=usr/share/man/man1/rcsintro.1.gz
-OLD_FILES+=usr/share/man/man1/rcsmerge.1.gz
-OLD_FILES+=usr/share/man/man1/rlog.1.gz
-OLD_FILES+=usr/share/man/man5/rcsfile.5.gz
+# 20131014: libbsdyml becomes private
+OLD_FILES+=usr/lib/libbsdyml.a
+OLD_FILES+=usr/lib/libbsdyml.so
+OLD_LIBS+=usr/lib/libbsdyml.so.0
+OLD_FILES+=usr/lib/libbsdyml_p.a
+OLD_FILES+=usr/lib32/libbsdyml.a
+OLD_FILES+=usr/lib32/libbsdyml.so
+OLD_LIBS+=usr/lib32/libbsdyml.so.0
+OLD_FILES+=usr/lib32/libbsdyml_p.a
+OLD_FILES+=usr/share/man/man3/libbsdyml.3.gz
+OLD_FILES+=usr/include/bsdyml.h
+# 20131013: Removal of the ATF tools
+OLD_FILES+=etc/atf/FreeBSD.conf
+OLD_FILES+=etc/atf/atf-run.hooks
+OLD_FILES+=etc/atf/common.conf
+OLD_FILES+=usr/bin/atf-config
+OLD_FILES+=usr/bin/atf-report
+OLD_FILES+=usr/bin/atf-run
+OLD_FILES+=usr/bin/atf-version
+OLD_FILES+=usr/share/atf/atf-run.hooks
+OLD_FILES+=usr/share/examples/atf/atf-run.hooks
+OLD_FILES+=usr/share/examples/atf/tests-results.css
+OLD_FILES+=usr/share/man/man1/atf-config.1.gz
+OLD_FILES+=usr/share/man/man1/atf-report.1.gz
+OLD_FILES+=usr/share/man/man1/atf-run.1.gz
+OLD_FILES+=usr/share/man/man1/atf-version.1.gz
+OLD_FILES+=usr/share/man/man5/atf-formats.5.gz
+OLD_FILES+=usr/share/man/man7/atf.7.gz
+OLD_FILES+=usr/share/xml/atf/tests-results.dtd
+OLD_FILES+=usr/share/xsl/atf/tests-results.xsl
+# 20131009: freebsd-version moved from /libexec to /bin
+OLD_FILES+=libexec/freebsd-version
 # 20131001: ar and ranlib from binutils not used
 OLD_FILES+=usr/bin/gnu-ar
 OLD_FILES+=usr/bin/gnu-ranlib
@@ -88,7 +97,7 @@ OLD_FILES+=usr/include/lwres/result.h
 OLD_FILES+=usr/include/lwres/version.h
 OLD_FILES+=usr/lib/liblwres.a
 OLD_FILES+=usr/lib/liblwres.so
-OLD_LIBS+=usr/lib/liblwres.so.50
+OLD_LIBS+=usr/lib/liblwres.so.90
 OLD_FILES+=usr/lib/liblwres_p.a
 OLD_FILES+=usr/sbin/arpaname
 OLD_FILES+=usr/sbin/ddns-confgen
@@ -98,6 +107,7 @@ OLD_FILES+=usr/sbin/dnssec-keygen
 OLD_FILES+=usr/sbin/dnssec-revoke
 OLD_FILES+=usr/sbin/dnssec-settime
 OLD_FILES+=usr/sbin/dnssec-signzone
+OLD_FILES+=usr/sbin/dnssec-verify
 OLD_FILES+=usr/sbin/genrandom
 OLD_FILES+=usr/sbin/isc-hmac-fixup
 OLD_FILES+=usr/sbin/lwresd
@@ -261,6 +271,7 @@ OLD_FILES+=usr/share/man/man8/dnssec-keygen.8.gz
 OLD_FILES+=usr/share/man/man8/dnssec-revoke.8.gz
 OLD_FILES+=usr/share/man/man8/dnssec-settime.8.gz
 OLD_FILES+=usr/share/man/man8/dnssec-signzone.8.gz
+OLD_FILES+=usr/share/man/man8/dnssec-verify.8.gz
 OLD_FILES+=usr/share/man/man8/genrandom.8.gz
 OLD_FILES+=usr/share/man/man8/isc-hmac-fixup.8.gz
 OLD_FILES+=usr/share/man/man8/lwresd.8.gz
@@ -295,6 +306,8 @@ OLD_DIRS+=var/named/var/run
 OLD_DIRS+=var/named/var/run/named
 OLD_DIRS+=var/named/var/stats
 OLD_DIRS+=var/run/named
+# 20130923: example moved
+OLD_FILES+=usr/share/examples/bsdconfig/browse_packages.sh
 # 20130908: libssh becomes private
 OLD_FILES+=usr/lib/libssh.a
 OLD_FILES+=usr/lib/libssh.so
@@ -6114,6 +6127,13 @@ OLD_LIBS+=usr/lib/libkse.so.1
 OLD_LIBS+=usr/lib/liblwres.so.3
 OLD_LIBS+=usr/lib/pam_ftp.so.2
 
+# 20131013: Removal of the ATF tools
+OLD_DIRS+=etc/atf
+OLD_DIRS+=usr/share/examples/atf
+OLD_DIRS+=usr/share/xml/atf
+OLD_DIRS+=usr/share/xml
+OLD_DIRS+=usr/share/xsl/atf
+OLD_DIRS+=usr/share/xsl
 # 20040925: bind9 import
 OLD_DIRS+=usr/share/doc/bind/html
 OLD_DIRS+=usr/share/doc/bind/misc

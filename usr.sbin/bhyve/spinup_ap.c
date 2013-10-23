@@ -85,22 +85,7 @@ spinup_ap(struct vmctx *ctx, int vcpu, int newcpu, uint64_t rip)
 	error = vcpu_reset(ctx, newcpu);
 	assert(error == 0);
 
-	/* Set up capabilities */
-	if (fbsdrun_vmexit_on_hlt()) {
-		error = vm_set_capability(ctx, newcpu, VM_CAP_HALT_EXIT, 1);
-		assert(error == 0);
-	}
-
-	if (fbsdrun_vmexit_on_pause()) {
-		error = vm_set_capability(ctx, newcpu, VM_CAP_PAUSE_EXIT, 1);
-		assert(error == 0);
-	}
-
-	if (fbsdrun_disable_x2apic())
-		error = vm_set_x2apic_state(ctx, newcpu, X2APIC_DISABLED);
-	else
-		error = vm_set_x2apic_state(ctx, newcpu, X2APIC_ENABLED);
-	assert(error == 0);
+	fbsdrun_set_capabilities(ctx, newcpu);
 
 	/*
 	 * Enable the 'unrestricted guest' mode for 'newcpu'.

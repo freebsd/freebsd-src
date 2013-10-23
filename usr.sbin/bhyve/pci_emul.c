@@ -941,10 +941,19 @@ pci_emul_capwrite(struct pci_devinst *pi, int offset, int bytes, uint32_t val)
 	assert(offset >= capoff);
 
 	/*
-	 * Capability ID and Next Capability Pointer are readonly
+	 * Capability ID and Next Capability Pointer are readonly.
+	 * However, some o/s's do 4-byte writes that include these.
+	 * For this case, trim the write back to 2 bytes and adjust
+	 * the data.
 	 */
-	if (offset == capoff || offset == capoff + 1)
-		return;
+	if (offset == capoff || offset == capoff + 1) {
+		if (offset == capoff && bytes == 4) {
+			bytes = 2;
+			offset += 2;
+			val >>= 16;
+		} else
+			return;
+	}
 
 	switch (capid) {
 	case PCIY_MSI:
