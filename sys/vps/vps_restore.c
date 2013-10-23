@@ -4161,6 +4161,7 @@ static int
 vps_restore_mounts(struct vps_snapst_ctx *ctx, struct vps *vps,
     char *rootfspath)
 {
+	struct vps_dump_mount_opt *dvmopt;
 	struct vps_dump_mount *dvm;
 	struct vps_dumpobj *o1;
 	struct vps *savevps;
@@ -4171,6 +4172,7 @@ vps_restore_mounts(struct vps_snapst_ctx *ctx, struct vps *vps,
 	char *fspath;
 	char *errmsg;
 	int error = 0;
+	int i;
 
 	ncr = NULL;
 
@@ -4185,7 +4187,7 @@ vps_restore_mounts(struct vps_snapst_ctx *ctx, struct vps *vps,
 		save_rdir = save_cdir = NULL;
 	}
 
-	errmsg_len = 0x100;
+	errmsg_len = 0xf0;
 	errmsg = malloc(errmsg_len, M_TEMP, M_WAITOK);
 
 	while (vdo_typeofnext(ctx) == VPS_DUMPOBJT_MOUNT) {
@@ -4203,6 +4205,34 @@ vps_restore_mounts(struct vps_snapst_ctx *ctx, struct vps *vps,
 		/* Do all mounts now except root fs. */
 		if (vps != NULL && !strcmp(dvm->mnton, rootfspath))
 			continue;
+
+		ma = NULL;
+
+		if (dvm->optcnt * sizeof(*dvmopt) >
+		    (o1->size - sizeof(*dvm))) {
+			ERRMSG(ctx, "%s: dvm->optcnt=%d seems invalid !\n",
+			    __func__, dvm->optcnt);
+			error = EINVAL;
+			goto out;
+		}
+		dvmopt = (struct vps_dump_mount_opt *)(dvm+1);
+		for (i = 0; i < dvm->optcnt; i++) {
+			DBGR("%s: opt name=[%s] value=%p len=%u\n",
+			    __func__, dvmopt->name, dvmopt->value,
+			    dvmopt->len);
+
+			if (!strcmp(dvm->fstype, "nfs")) {
+				/*
+				if (!strcmp(dvmopt->name, "addr") ||
+				    !strcmp(dvmopt->name, "fh") ||
+				    !strcmp(dvmopt->name, "hostname"))
+				*/
+				if (1)
+					ma = mount_arg(ma, dvmopt->name,
+					    dvmopt->value, dvmopt->len);
+			}
+			dvmopt += 1;
+		}
 
 		if (vdo_typeofnext(ctx) == VPS_DUMPOBJT_UCRED) {
 			vdo_next(ctx);
@@ -4236,24 +4266,11 @@ vps_restore_mounts(struct vps_snapst_ctx *ctx, struct vps *vps,
 		if (dvm->vpsmount)
 			/* dvm->mnton is always absolute, so we have to
 			   strip it. */
-			fspath = dvm->mnton + strlen (rootfspath);
+			fspath = dvm->mnton + strlen(rootfspath);
 		else
 			fspath = dvm->mnton;
+		/*DBGR("%s: fspath=[%s]\n", __func__, fspath);*/
 
-#if 0
-		error = kernel_vmount(
-			dvm->flags,
-			"fstype", dvm->fstype,
-			/* "fspath", dvm->mnton, */
-			"fspath", fspath,
-			/* --> nullfs */
-			"target", dvm->mntfrom,
-			"from", dvm->mntfrom,
-			"errmsg", errmsg,
-			NULL
-		);
-#endif
-		ma = NULL;
 		ma = mount_arg(ma, "fstype", dvm->fstype, -1);
 		ma = mount_arg(ma, "fspath", fspath, -1);
 		if (!strcmp(dvm->fstype, "nullfs") ||
@@ -4262,11 +4279,11 @@ vps_restore_mounts(struct vps_snapst_ctx *ctx, struct vps *vps,
 		ma = mount_arg(ma, "from", dvm->mntfrom, -1);
 		ma = mount_arg(ma, "errmsg", errmsg, errmsg_len);
 		memset(errmsg, 0, errmsg_len);
-		error = kernel_mount(ma, dvm->flags);
 
+		error = kernel_mount(ma, dvm->flags);
 		if (error) {
 			ERRMSG(ctx, "%s: kernel_mount() error: %d [%s]\n",
-				__func__, error, errmsg);
+			    __func__, error, errmsg);
 			goto out;
 		}
 

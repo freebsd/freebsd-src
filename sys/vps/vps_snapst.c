@@ -677,6 +677,8 @@ vps_snapshot_vnodepath(struct vps_snapst_ctx *ctx, struct vps *vps,
 	if (error != 0) {
 		free(buf, M_TEMP);
 		vrele(vp);
+		ERRMSG(ctx, "%s: vn_fullpath1() failed for vp=%p\n",
+		    __func__, vp);
 		return (error);
 	}
 
@@ -907,8 +909,10 @@ static int
 vps_snapshot_mounts(struct vps_snapst_ctx *ctx, struct vps *vps)
 {
 	int error = 0;
-	struct vps_dumpobj *o1;
+	struct vps_dumpobj *o1, *o2;
 	struct vps_dump_mount *vdm;
+	struct vps_dump_mount_opt *vdmopt;
+	struct vfsopt *opt;
 	struct mount *mp;
 	char *mntfrom, *mnton, *fstype, *vpsroot;
 	int len;
@@ -924,7 +928,7 @@ vps_snapshot_mounts(struct vps_snapst_ctx *ctx, struct vps *vps)
 	 */
 
 	DBGS("%s: vps's rootpath=[%s] vnode=%p\n",
-			__func__, vps->_rootpath, vps->_rootvnode);
+	    __func__, vps->_rootpath, vps->_rootvnode);
 
 	vpsroot = strdup(vps->_rootpath, M_TEMP);
 	if (vpsroot[strlen(vpsroot) - 1] == '/')
@@ -932,7 +936,8 @@ vps_snapshot_mounts(struct vps_snapst_ctx *ctx, struct vps *vps)
 	len = strlen(vpsroot);
 
 	/* If we ran out of memory previously, we try again. */
- again:
+  again:
+	o1 = NULL;
 
 	mtx_lock(&mountlist_mtx);
 	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
@@ -958,11 +963,20 @@ vps_snapshot_mounts(struct vps_snapst_ctx *ctx, struct vps *vps)
 			return (EINVAL);
 		}
 #endif
-		o1 = vdo_create(ctx, VPS_DUMPOBJT_MOUNT, M_WAITOK);
+		if ((o2 = vdo_create(ctx, VPS_DUMPOBJT_MOUNT, M_NOWAIT))
+		    == NULL) {
+			mtx_unlock(&mountlist_mtx);
+			if (o1 != NULL)
+				vdo_discard(ctx, o1);
+			goto again;
+		}
+		/* Remember the dump object of the first mount. */
+		if (o1 == NULL)
+			o1 = o2;
 
 		vdm = vdo_space(ctx, sizeof(*vdm), M_NOWAIT);
-
 		if (vdm == NULL) {
+			mtx_unlock(&mountlist_mtx);
 			vdo_discard(ctx, o1);
 			goto again;
 		}
@@ -970,11 +984,34 @@ vps_snapshot_mounts(struct vps_snapst_ctx *ctx, struct vps *vps)
 		strlcpy(vdm->mnton, mnton, sizeof(vdm->mnton));
 		strlcpy(vdm->fstype, fstype, sizeof(vdm->fstype));
 		vdm->flags = mp->mnt_flag;
+		vdm->optcnt = 0;
 		/* Mounted from inside vps ? */
 		if (mp->mnt_cred->cr_vps == vps)
 			vdm->vpsmount = 1;
 		else
 			vdm->vpsmount = 0;
+
+		TAILQ_FOREACH(opt, mp->mnt_opt, link) {
+			vdmopt = vdo_space(ctx, sizeof(*vdmopt), M_NOWAIT);
+			if (vdmopt == NULL) {
+				mtx_unlock(&mountlist_mtx);
+				vdo_discard(ctx, o1);
+				goto again;
+			}
+			if (opt->len >= sizeof(vdmopt->value)) {
+				ERRMSG(ctx, "%s: opt->len=%d (name=[%s]) too big\n",
+				    __func__, opt->len, opt->name);
+				mtx_unlock(&mountlist_mtx);
+				free(vpsroot, M_TEMP);
+				return (EINVAL);
+			}
+			strlcpy(vdmopt->name, opt->name, sizeof(vdmopt->name));
+			memcpy(vdmopt->value, opt->value, opt->len);
+			vdmopt->len = opt->len;
+			vdm->optcnt += 1;
+			DBGS("%s: opt name=[%s] value=%p len=%d\n",
+			   __func__, opt->name, opt->value, opt->len);
+		}
 
 		if (vdm->vpsmount) {
 			vdm->mnt_cred = mp->mnt_cred;

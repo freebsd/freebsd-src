@@ -55,6 +55,7 @@
 #include <sys/priv.h>
 #include <sys/sysctl.h>
 #include <sys/param.h>
+#include <sys/mount.h>
 #include <signal.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -308,7 +309,7 @@ vc_usage(FILE *out)
 		"      snapshot <id> <file>                 \n"
 		"      abort    <id>                        \n"
 		"      restore  <id> <file>                 \n"
-		"      migrate  <id> <remote-host> [norsync|onersync]\n"
+		"      migrate  <id> <remote-host> [norsync|onersync|tworsync]\n"
 		"                                           \n"
 		"      argshow  <id>                        \n"
 		"      ipnet    <id> add <address/network, ...> \n"
@@ -1297,8 +1298,7 @@ vc_migrate(int argc, char **argv)
 	char *fsroot;
 	char cmd[0x100];
 	char file_n[MAXPATHLEN];
-	char f_norsync = 0;
-	char f_onersync = 0;
+	char cnt_rsync;
 	char str_suspend[] = "suspend";
 	char str_abort[] = "abort";
 	int pid, rfd, wfd;
@@ -1308,12 +1308,6 @@ vc_migrate(int argc, char **argv)
 	
 	if (argc < 2)
 		return (vc_usage(stderr));
-
-	if (argc > 2 && strcmp(argv[2], "norsync") == 0)
-		f_norsync = 1;
-
-	if (argc > 2 && strcmp(argv[2], "onersync") == 0)
-		f_onersync = 1;
 
 	mig_did_suspend = 0;
 	mig_did_revoke = 0;
@@ -1341,6 +1335,28 @@ vc_migrate(int argc, char **argv)
 	else
 		fsroot = vc.fsroot;
 
+	if (1) {
+		struct statfs stf;
+
+		if ((error = statfs(fsroot, &stf)) != 0) {
+			fprintf(stderr, "statfs([%s]): error: %s\n",
+			    fsroot, strerror(errno));
+			return (1);
+		}
+
+		if (stf.f_flags & MNT_LOCAL)
+			cnt_rsync = 2;
+		else
+			cnt_rsync = 0;
+	}
+
+	if (argc > 2 && strcmp(argv[2], "norsync") == 0)
+		cnt_rsync = 0;
+	else if (argc > 2 && strcmp(argv[2], "onersync") == 0)
+		cnt_rsync = 1;
+	else if (argc > 2 && strcmp(argv[2], "tworsync") == 0)
+		cnt_rsync = 2;
+
 	fprintf(stderr, "Opening ssh transport ... ");
 
 	if ((error = vc_get_ssh_transport(host, &pid, &rfd, &wfd)))
@@ -1348,43 +1364,44 @@ vc_migrate(int argc, char **argv)
 
 	fprintf(stderr, "done\n");
 
-	if (f_norsync == 0) {
-
-		fprintf(stderr, "Copying config file ... ");
-		snprintf(cmd, sizeof(cmd), "vpsctl rsyncserver %s/\n", _PATH_CONFDIR); 
-		write(wfd, cmd, strlen(cmd));
-		if ((error = vc_rsync(RSYNC_MODE_CLIENT, rfd, wfd, file_n)))
-			goto resume;
+	/* Always syncing config file. */
+#if 1
+	fprintf(stderr, "Copying config file ... ");
+	snprintf(cmd, sizeof(cmd), "vpsctl rsyncserver %s/\n", _PATH_CONFDIR); 
+	write(wfd, cmd, strlen(cmd));
+	if ((error = vc_rsync(RSYNC_MODE_CLIENT, rfd, wfd, file_n)))
+		goto resume;
 	
-		fprintf(stderr, "done\n");
+	fprintf(stderr, "done\n");
+#else
+	/* XXX transfer without using rsync */
+#endif
 
-		/* Always create directories. */
-		if (vc.fsroot_priv[0] != '\0') {
-			/* Create vps' private root directory. */
-			snprintf(cmd, sizeof(cmd), "mkdir -p %s\n", vc.fsroot_priv);
-			write(wfd, cmd, strlen(cmd));
-			//len = read(rfd, cmd, sizeof(cmd));
-		}
-		/* Create vps' mountpoint directory. */
-		snprintf(cmd, sizeof(cmd), "mkdir -p %s\n", vc.fsroot);
+	/* Always create directories. */
+	if (vc.fsroot_priv[0] != '\0') {
+		/* Create vps' private root directory. */
+		snprintf(cmd, sizeof(cmd), "mkdir -p %s\n", vc.fsroot_priv);
 		write(wfd, cmd, strlen(cmd));
 		//len = read(rfd, cmd, sizeof(cmd));
+	}
+	/* Create vps' mountpoint directory. */
+	snprintf(cmd, sizeof(cmd), "mkdir -p %s\n", vc.fsroot);
+	write(wfd, cmd, strlen(cmd));
+	//len = read(rfd, cmd, sizeof(cmd));
 
-		if (f_onersync == 0) {
+	if (cnt_rsync == 2) {
 
-			/* Start a first filesystem sync while vps is still running. */
+		/* Start a first filesystem sync while vps is still running. */
 
-			fprintf(stderr, "Performing first filesystem sync ... ");
+		fprintf(stderr, "Performing first filesystem sync ... ");
 
-			snprintf(cmd, sizeof(cmd), "vpsctl rsyncserver %s/\n", fsroot);
-			write(wfd, cmd, strlen(cmd));
-			snprintf(cmd, sizeof(cmd), "%s/", fsroot);
-			if ((error = vc_rsync(RSYNC_MODE_CLIENT, rfd, wfd, cmd)))
-				goto resume;
+		snprintf(cmd, sizeof(cmd), "vpsctl rsyncserver %s/\n", fsroot);
+		write(wfd, cmd, strlen(cmd));
+		snprintf(cmd, sizeof(cmd), "%s/", fsroot);
+		if ((error = vc_rsync(RSYNC_MODE_CLIENT, rfd, wfd, cmd)))
+			goto resume;
 
-			fprintf(stderr, "done\n");
-
-		}
+		fprintf(stderr, "done\n");
 
 	}
 
@@ -1401,18 +1418,18 @@ vc_migrate(int argc, char **argv)
 
 	fprintf(stderr, "done\n");
 
-	if (f_norsync == 0) {
+	if (cnt_rsync > 0) {
 
-	fprintf(stderr, "Performing final filesystem sync ... ");
+		fprintf(stderr, "Performing final filesystem sync ... ");
 
-	/* After suspending do the final filesystem sync. */
-	snprintf(cmd, sizeof(cmd), "vpsctl rsyncserver %s/\n", fsroot);
-	write(wfd, cmd, strlen(cmd));
-	snprintf(cmd, sizeof(cmd), "%s/", fsroot);
-	if ((error = vc_rsync(RSYNC_MODE_CLIENT, rfd, wfd, cmd)))
-		goto resume;
+		/* After suspending do the final filesystem sync. */
+		snprintf(cmd, sizeof(cmd), "vpsctl rsyncserver %s/\n", fsroot);
+		write(wfd, cmd, strlen(cmd));
+		snprintf(cmd, sizeof(cmd), "%s/", fsroot);
+		if ((error = vc_rsync(RSYNC_MODE_CLIENT, rfd, wfd, cmd)))
+			goto resume;
 
-	fprintf(stderr, "done\n");
+		fprintf(stderr, "done\n");
 
 	}
 

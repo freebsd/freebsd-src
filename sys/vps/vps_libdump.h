@@ -131,7 +131,7 @@ void vps_libdump_printheader(struct vps_dumpheader *h);
 #define VPS_DUMPOBJT_UCRED              120
 
 #define VPS_DUMPH_MAGIC			0xc0debabe
-#define VPS_DUMPH_VERSION		0x20130715
+#define VPS_DUMPH_VERSION		0x20130719
 #define VPS_DUMPH_MSB			12
 #define VPS_DUMPH_LSB			21
 #define VPS_DUMPH_32BIT			32
@@ -318,9 +318,17 @@ struct vps_dump_mount {
         char mnton[0x80];
         char fstype[0x10];
         uint8 vpsmount;
-        uint8 _pad0[7];
+	uint8 optcnt;
+        uint8 _pad0[6];
         uint64 flags;
         PTR(mnt_cred);
+};
+
+struct vps_dump_mount_opt {
+	char name[0x40];
+	char value[0x100];
+	uint16 len;
+	uint16 _pad0[3];
 };
 
 struct vps_dump_vnet {
