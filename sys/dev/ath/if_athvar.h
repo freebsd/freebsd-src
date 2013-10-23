@@ -630,6 +630,7 @@ struct ath_softc {
 				sc_rx_stbc  : 1,
 				sc_tx_stbc  : 1,
 				sc_hasenforcetxop : 1, /* support enforce TxOP */
+				sc_hasdivcomb : 1,     /* RX diversity combining */
 				sc_rx_lnamixer : 1;    /* RX using LNA mixing */
 
 	int			sc_cabq_enable;	/* Enable cabq transmission */
@@ -840,6 +841,10 @@ struct ath_softc {
 	/* Spectral related state */
 	void			*sc_spectral;
 	int			sc_dospectral;
+
+	/* LNA diversity related state */
+	void			*sc_lna_div;
+	int			sc_dolnadiv;
 
 	/* ALQ */
 #ifdef	ATH_DEBUG_ALQ
@@ -1272,6 +1277,9 @@ void	ath_intr(void *);
 #define	ath_hal_hasrxlnamixer(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_RX_LNA_MIXING, 0, NULL) == HAL_OK)
 
+#define	ath_hal_hasdivantcomb(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_ANT_DIV_COMB, 0, NULL) == HAL_OK)
+
 /* EDMA definitions */
 #define	ath_hal_hasedma(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_ENHANCED_DMA_SUPPORT,	\
@@ -1457,5 +1465,10 @@ void	ath_intr(void *);
 	((*(_ah)->ah_btCoexEnable)((_ah)))
 #define	ath_hal_btcoex_disable(_ah) \
 	((*(_ah)->ah_btCoexDisable)((_ah)))
+
+#define	ath_hal_div_comb_conf_get(_ah, _conf) \
+	((*(_ah)->ah_divLnaConfGet)((_ah), (_conf)))
+#define	ath_hal_div_comb_conf_set(_ah, _conf) \
+	((*(_ah)->ah_divLnaConfSet)((_ah), (_conf)))
 
 #endif /* _DEV_ATH_ATHVAR_H */

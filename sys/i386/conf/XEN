@@ -7,7 +7,7 @@ cpu		I686_CPU
 ident		XEN
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-makeoptions	WITHOUT_MODULES="aha ahb amd cxgb dpt drm drm2 hptmv ida malo mps mwl nve rdma sound sym trm xfs"
+makeoptions	WITHOUT_MODULES="aha ahb amd cxgb dpt drm drm2 hptnr hptmv ida malo mps mwl nve rdma sound sym trm xfs"
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
@@ -76,6 +76,7 @@ device		pci
 # Pseudo devices.
 device		loop		# Network loopback
 device		random		# Entropy device
+options 	YARROW_RNG	# Yarrow software RNG
 device		ether		# Ethernet support
 device		tun		# Packet tunnel.
 device		md		# Memory "disks"
@@ -90,4 +91,3 @@ options		AH_SUPPORT_AR5416
 # Be aware of the administrative consequences of enabling this!
 # Note that 'bpf' is required for DHCP.
 device		bpf		# Berkeley packet filter
-

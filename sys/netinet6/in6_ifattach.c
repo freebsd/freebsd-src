@@ -266,6 +266,7 @@ found:
 
 	/* get EUI64 */
 	switch (ifp->if_type) {
+	case IFT_BRIDGE:
 	case IFT_ETHER:
 	case IFT_L2VLAN:
 	case IFT_FDDI:
@@ -730,6 +731,8 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 	switch (ifp->if_type) {
 	case IFT_PFLOG:
 	case IFT_PFSYNC:
+		ND_IFINFO(ifp)->flags &= ~ND6_IFF_AUTO_LINKLOCAL;
+		ND_IFINFO(ifp)->flags |= ND6_IFF_IFDISABLED;
 		return;
 	}
 
@@ -737,7 +740,6 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 	 * quirks based on interface type
 	 */
 	switch (ifp->if_type) {
-#ifdef IFT_STF
 	case IFT_STF:
 		/*
 		 * 6to4 interface is a very special kind of beast.
@@ -745,8 +747,8 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 		 * linklocals for 6to4 interface, but there's no use and
 		 * it is rather harmful to have one.
 		 */
-		goto statinit;
-#endif
+		ND_IFINFO(ifp)->flags &= ~ND6_IFF_AUTO_LINKLOCAL;
+		break;
 	default:
 		break;
 	}
@@ -780,8 +782,7 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 	/*
 	 * assign a link-local address, if there's none.
 	 */
-	if (ifp->if_type != IFT_BRIDGE &&
-	    !(ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
+	if (!(ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
 	    ND_IFINFO(ifp)->flags & ND6_IFF_AUTO_LINKLOCAL) {
 		int error;
 
@@ -797,10 +798,6 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 		} else
 			ifa_free(&ia->ia_ifa);
 	}
-
-#ifdef IFT_STF			/* XXX */
-statinit:
-#endif
 
 	/* update dynamically. */
 	if (V_in6_maxmtu < ifp->if_mtu)

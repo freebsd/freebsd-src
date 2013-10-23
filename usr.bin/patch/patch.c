@@ -239,8 +239,10 @@ main(int argc, char *argv[])
 		if (!skip_rest_of_patch)
 			scan_input(filearg[0]);
 
-		/* from here on, open no standard i/o files, because malloc */
-		/* might misfire and we can't catch it easily */
+		/*
+		 * from here on, open no standard i/o files, because
+		 * malloc might misfire and we can't catch it easily
+		 */
 
 		/* apply each hunk of patch */
 		hunk = 0;

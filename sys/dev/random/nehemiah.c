@@ -28,19 +28,20 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_cpu.h"
-
-#ifdef PADLOCK_RNG
-
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/module.h>
 #include <sys/selinfo.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 
 #include <machine/pcb.h>
+#include <machine/md_var.h>
+#include <machine/specialreg.h>
 
+#include <dev/random/random_adaptors.h>
 #include <dev/random/randomdev.h>
 
 #define RANDOM_BLOCK_SIZE	256
@@ -50,7 +51,7 @@ static void random_nehemiah_init(void);
 static void random_nehemiah_deinit(void);
 static int random_nehemiah_read(void *, int);
 
-struct random_systat random_nehemiah = {
+struct random_adaptor random_nehemiah = {
 	.ident = "Hardware, VIA Nehemiah",
 	.init = random_nehemiah_init,
 	.deinit = random_nehemiah_deinit,
@@ -208,4 +209,33 @@ random_nehemiah_read(void *buf, int c)
 	return (c);
 }
 
+static int
+nehemiah_modevent(module_t mod, int type, void *unused)
+{
+
+	switch (type) {
+	case MOD_LOAD:
+		if (via_feature_rng & VIA_HAS_RNG) {
+			random_adaptor_register("nehemiah", &random_nehemiah);
+			EVENTHANDLER_INVOKE(random_adaptor_attach,
+			    &random_nehemiah);
+			return (0);
+		} else {
+#ifndef KLD_MODULE
+			if (bootverbose)
 #endif
+				printf(
+			    "%s: VIA RNG feature is not present on this CPU\n",
+				    random_nehemiah.ident);
+#ifdef KLD_MODULE
+			return (ENXIO);
+#else
+			return (0);
+#endif
+		}
+	}
+
+	return (EINVAL);
+}
+
+RANDOM_ADAPTOR_MODULE(nehemiah, nehemiah_modevent, 1);

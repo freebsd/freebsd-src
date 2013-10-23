@@ -102,7 +102,6 @@ struct iwn_node {
 	struct	ieee80211_node		ni;	/* must be the first */
 	uint16_t			disable_tid;
 	uint8_t				id;
-	uint32_t			ridx[256];
 	struct {
 		uint64_t		bitmap;
 		int			startidx;

@@ -302,6 +302,7 @@ namespace llvm {
     bool isCallOp         : 1;          // Is a function call operand.
     bool isTwoAddress     : 1;          // Is a two-address instruction.
     bool isCommutable     : 1;          // Is a commutable instruction.
+    bool hasPhysRegUses   : 1;          // Has physreg uses.
     bool hasPhysRegDefs   : 1;          // Has physreg defs that are being used.
     bool hasPhysRegClobbers : 1;        // Has any physreg defs, used or not.
     bool isPending        : 1;          // True once pending.
@@ -331,10 +332,10 @@ namespace llvm {
         NodeQueueId(0), NumPreds(0), NumSuccs(0), NumPredsLeft(0),
         NumSuccsLeft(0), WeakPredsLeft(0), WeakSuccsLeft(0), NumRegDefsLeft(0),
         Latency(0), isVRegCycle(false), isCall(false), isCallOp(false),
-        isTwoAddress(false), isCommutable(false), hasPhysRegDefs(false),
-        hasPhysRegClobbers(false), isPending(false), isAvailable(false),
-        isScheduled(false), isScheduleHigh(false), isScheduleLow(false),
-        isCloned(false), SchedulingPref(Sched::None),
+        isTwoAddress(false), isCommutable(false), hasPhysRegUses(false),
+        hasPhysRegDefs(false), hasPhysRegClobbers(false), isPending(false),
+        isAvailable(false), isScheduled(false), isScheduleHigh(false),
+        isScheduleLow(false), isCloned(false), SchedulingPref(Sched::None),
         isDepthCurrent(false), isHeightCurrent(false), Depth(0), Height(0),
         TopReadyCycle(0), BotReadyCycle(0), CopyDstRC(NULL), CopySrcRC(NULL) {}
 
@@ -345,10 +346,10 @@ namespace llvm {
         NodeQueueId(0), NumPreds(0), NumSuccs(0), NumPredsLeft(0),
         NumSuccsLeft(0), WeakPredsLeft(0), WeakSuccsLeft(0), NumRegDefsLeft(0),
         Latency(0), isVRegCycle(false), isCall(false), isCallOp(false),
-        isTwoAddress(false), isCommutable(false), hasPhysRegDefs(false),
-        hasPhysRegClobbers(false), isPending(false), isAvailable(false),
-        isScheduled(false), isScheduleHigh(false), isScheduleLow(false),
-        isCloned(false), SchedulingPref(Sched::None),
+        isTwoAddress(false), isCommutable(false), hasPhysRegUses(false),
+        hasPhysRegDefs(false), hasPhysRegClobbers(false), isPending(false),
+        isAvailable(false), isScheduled(false), isScheduleHigh(false),
+        isScheduleLow(false), isCloned(false), SchedulingPref(Sched::None),
         isDepthCurrent(false), isHeightCurrent(false), Depth(0), Height(0),
         TopReadyCycle(0), BotReadyCycle(0), CopyDstRC(NULL), CopySrcRC(NULL) {}
 
@@ -358,10 +359,10 @@ namespace llvm {
         NodeQueueId(0), NumPreds(0), NumSuccs(0), NumPredsLeft(0),
         NumSuccsLeft(0), WeakPredsLeft(0), WeakSuccsLeft(0), NumRegDefsLeft(0),
         Latency(0), isVRegCycle(false), isCall(false), isCallOp(false),
-        isTwoAddress(false), isCommutable(false), hasPhysRegDefs(false),
-        hasPhysRegClobbers(false), isPending(false), isAvailable(false),
-        isScheduled(false), isScheduleHigh(false), isScheduleLow(false),
-        isCloned(false), SchedulingPref(Sched::None),
+        isTwoAddress(false), isCommutable(false), hasPhysRegUses(false),
+        hasPhysRegDefs(false), hasPhysRegClobbers(false), isPending(false),
+        isAvailable(false), isScheduled(false), isScheduleHigh(false),
+        isScheduleLow(false), isCloned(false), SchedulingPref(Sched::None),
         isDepthCurrent(false), isHeightCurrent(false), Depth(0), Height(0),
         TopReadyCycle(0), BotReadyCycle(0), CopyDstRC(NULL), CopySrcRC(NULL) {}
 
@@ -726,9 +727,8 @@ namespace llvm {
     /// IsReachable - Checks if SU is reachable from TargetSU.
     bool IsReachable(const SUnit *SU, const SUnit *TargetSU);
 
-    /// WillCreateCycle - Returns true if adding an edge from SU to TargetSU
-    /// will create a cycle.
-    bool WillCreateCycle(SUnit *SU, SUnit *TargetSU);
+    /// WillCreateCycle - Return true if addPred(TargetSU, SU) creates a cycle.
+    bool WillCreateCycle(SUnit *TargetSU, SUnit *SU);
 
     /// AddPred - Updates the topological ordering to accommodate an edge
     /// to be added from SUnit X to SUnit Y.

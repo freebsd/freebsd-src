@@ -3,7 +3,7 @@
 NO_OBJ=
 
 FILESDIR=	${SHAREDIR}/examples/bsdconfig
-FILES=		bsdconfigrc
+FILES=		browse_packages.sh bsdconfigrc
 
 beforeinstall:
 	mkdir -p ${DESTDIR}${FILESDIR}

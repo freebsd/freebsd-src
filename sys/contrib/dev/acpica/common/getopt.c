@@ -197,6 +197,26 @@ AcpiGetopt(
         CurrentCharPtr = 1;
     }
 
+    /* Option has an optional argument? */
+
+    else if (*OptsPtr == '+')
+    {
+        if (argv[AcpiGbl_Optind][(int) (CurrentCharPtr+1)] != '\0')
+        {
+            AcpiGbl_Optarg = &argv[AcpiGbl_Optind++][(int) (CurrentCharPtr+1)];
+        }
+        else if (++AcpiGbl_Optind >= argc)
+        {
+            AcpiGbl_Optarg = NULL;
+        }
+        else
+        {
+            AcpiGbl_Optarg = argv[AcpiGbl_Optind++];
+        }
+
+        CurrentCharPtr = 1;
+    }
+
     /* Option has optional single-char arguments? */
 
     else if (*OptsPtr == '^')

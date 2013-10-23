@@ -13,15 +13,20 @@
 #define CONFIG_X86_PAE
 #endif
 
+#ifdef LOCORE
+#define __ASSEMBLY__
+#endif
+
 #if !defined(__XEN_INTERFACE_VERSION__)  
-/*  
- * Can update to a more recent version when we implement  
- * the hypercall page  
- */  
-#define  __XEN_INTERFACE_VERSION__ 0x00030204  
+#define  __XEN_INTERFACE_VERSION__ 0x00030208
 #endif  
 
+#define GRANT_REF_INVALID   0xffffffff
+
 #include <xen/interface/xen.h>
+
+/* Everything below this point is not included by assembler (.S) files. */
+#ifndef __ASSEMBLY__
 
 /* Force a proper event-channel callback from Xen. */
 void force_evtchn_callback(void);
@@ -42,10 +47,6 @@ static inline void rep_nop(void)
  */
 void *bootmem_alloc(unsigned int size);
 void bootmem_free(void *ptr, unsigned int size);
-
-
-/* Everything below this point is not included by assembler (.S) files. */
-#ifndef __ASSEMBLY__
 
 void printk(const char *fmt, ...);
 
@@ -128,14 +129,14 @@ do {                                                                    \
 #else
 #endif
 
-#ifndef mb
-#define mb() __asm__ __volatile__("mfence":::"memory")
+#ifndef xen_mb
+#define xen_mb() mb()
 #endif
-#ifndef rmb
-#define rmb() __asm__ __volatile__("lfence":::"memory");
+#ifndef xen_rmb
+#define xen_rmb() rmb()
 #endif
-#ifndef wmb
-#define wmb() barrier()
+#ifndef xen_wmb
+#define xen_wmb() wmb()
 #endif
 #ifdef SMP
 #define smp_mb() mb() 

@@ -82,6 +82,9 @@ protected:
   static void addExternCSystemInclude(const ArgList &DriverArgs,
                                       ArgStringList &CC1Args,
                                       const Twine &Path);
+  static void addExternCSystemIncludeIfExists(const ArgList &DriverArgs,
+                                              ArgStringList &CC1Args,
+                                              const Twine &Path);
   static void addSystemIncludes(const ArgList &DriverArgs,
                                 ArgStringList &CC1Args,
                                 ArrayRef<StringRef> Paths);
@@ -195,9 +198,13 @@ public:
   /// \brief Test whether this toolchain defaults to PIC.
   virtual bool isPICDefault() const = 0;
 
-  /// \brief Tests whether this toolchain forces its default for PIC or non-PIC.
-  /// If this returns true, any PIC related flags should be ignored and instead
-  /// the result of \c isPICDefault() is used exclusively.
+  /// \brief Test whether this toolchain defaults to PIE.
+  virtual bool isPIEDefault() const = 0;
+
+  /// \brief Tests whether this toolchain forces its default for PIC, PIE or
+  /// non-PIC.  If this returns true, any PIC related flags should be ignored
+  /// and instead the results of \c isPICDefault() and \c isPIEDefault() are
+  /// used exclusively.
   virtual bool isPICDefaultForced() const = 0;
 
   /// SupportsProfiling - Does this tool chain support -pg.

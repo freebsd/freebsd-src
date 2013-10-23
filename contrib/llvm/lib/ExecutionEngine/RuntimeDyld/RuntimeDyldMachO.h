@@ -16,7 +16,7 @@
 
 #include "RuntimeDyldImpl.h"
 #include "llvm/ADT/IndexedMap.h"
-#include "llvm/Object/MachOObject.h"
+#include "llvm/Object/MachO.h"
 #include "llvm/Support/Format.h"
 
 using namespace llvm;
@@ -25,7 +25,6 @@ using namespace llvm::object;
 
 namespace llvm {
 class RuntimeDyldMachO : public RuntimeDyldImpl {
-protected:
   bool resolveI386Relocation(uint8_t *LocalAddress,
                              uint64_t FinalAddress,
                              uint64_t Value,
@@ -48,22 +47,25 @@ protected:
                             unsigned Size,
                             int64_t Addend);
 
-  virtual void processRelocationRef(const ObjRelocationInfo &Rel,
+  void resolveRelocation(const SectionEntry &Section,
+                         uint64_t Offset,
+                         uint64_t Value,
+                         uint32_t Type,
+                         int64_t Addend,
+                         bool isPCRel,
+                         unsigned Size);
+public:
+  RuntimeDyldMachO(RTDyldMemoryManager *mm) : RuntimeDyldImpl(mm) {}
+
+  virtual void resolveRelocation(const RelocationEntry &RE, uint64_t Value);
+  virtual void processRelocationRef(unsigned SectionID,
+                                    RelocationRef RelI,
                                     ObjectImage &Obj,
                                     ObjSectionToIDMap &ObjSectionToID,
                                     const SymbolTableMap &Symbols,
                                     StubMap &Stubs);
-
-public:
-  virtual void resolveRelocation(const SectionEntry &Section,
-                                 uint64_t Offset,
-                                 uint64_t Value,
-                                 uint32_t Type,
-                                 int64_t Addend);
-
-  RuntimeDyldMachO(RTDyldMemoryManager *mm) : RuntimeDyldImpl(mm) {}
-
-  bool isCompatibleFormat(const ObjectBuffer *Buffer) const;
+  virtual bool isCompatibleFormat(const ObjectBuffer *Buffer) const;
+  virtual StringRef getEHFrameSection();
 };
 
 } // end namespace llvm

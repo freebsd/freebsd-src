@@ -36,6 +36,8 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include <algorithm>
+
 using namespace llvm;
 
 const char *XCoreTargetLowering::
@@ -120,9 +122,6 @@ XCoreTargetLowering::XCoreTargetLowering(XCoreTargetMachine &XTM)
   setOperationAction(ISD::GlobalAddress, MVT::i32,   Custom);
   setOperationAction(ISD::BlockAddress, MVT::i32 , Custom);
 
-  // Thread Local Storage
-  setOperationAction(ISD::GlobalTLSAddress, MVT::i32, Custom);
-
   // Conversion of i64 -> double produces constantpool nodes
   setOperationAction(ISD::ConstantPool, MVT::i32,   Custom);
 
@@ -172,7 +171,6 @@ LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   switch (Op.getOpcode())
   {
   case ISD::GlobalAddress:      return LowerGlobalAddress(Op, DAG);
-  case ISD::GlobalTLSAddress:   return LowerGlobalTLSAddress(Op, DAG);
   case ISD::BlockAddress:       return LowerBlockAddress(Op, DAG);
   case ISD::ConstantPool:       return LowerConstantPool(Op, DAG);
   case ISD::BR_JT:              return LowerBR_JT(Op, DAG);
@@ -245,52 +243,25 @@ getGlobalAddressWrapper(SDValue GA, const GlobalValue *GV,
 SDValue XCoreTargetLowering::
 LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const
 {
-  const GlobalValue *GV = cast<GlobalAddressSDNode>(Op)->getGlobal();
-  SDValue GA = DAG.getTargetGlobalAddress(GV, Op.getDebugLoc(), MVT::i32);
-  return getGlobalAddressWrapper(GA, GV, DAG);
+  DebugLoc DL = Op.getDebugLoc();
+  const GlobalAddressSDNode *GN = cast<GlobalAddressSDNode>(Op);
+  const GlobalValue *GV = GN->getGlobal();
+  int64_t Offset = GN->getOffset();
+  // We can only fold positive offsets that are a multiple of the word size.
+  int64_t FoldedOffset = std::max(Offset & ~3, (int64_t)0);
+  SDValue GA = DAG.getTargetGlobalAddress(GV, DL, MVT::i32, FoldedOffset);
+  GA = getGlobalAddressWrapper(GA, GV, DAG);
+  // Handle the rest of the offset.
+  if (Offset != FoldedOffset) {
+    SDValue Remaining = DAG.getConstant(Offset - FoldedOffset, MVT::i32);
+    GA = DAG.getNode(ISD::ADD, DL, MVT::i32, GA, Remaining);
+  }
+  return GA;
 }
 
 static inline SDValue BuildGetId(SelectionDAG &DAG, DebugLoc dl) {
   return DAG.getNode(ISD::INTRINSIC_WO_CHAIN, dl, MVT::i32,
                      DAG.getConstant(Intrinsic::xcore_getid, MVT::i32));
-}
-
-static inline bool isZeroLengthArray(Type *Ty) {
-  ArrayType *AT = dyn_cast_or_null<ArrayType>(Ty);
-  return AT && (AT->getNumElements() == 0);
-}
-
-SDValue XCoreTargetLowering::
-LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const
-{
-  // FIXME there isn't really debug info here
-  DebugLoc dl = Op.getDebugLoc();
-  // transform to label + getid() * size
-  const GlobalValue *GV = cast<GlobalAddressSDNode>(Op)->getGlobal();
-  SDValue GA = DAG.getTargetGlobalAddress(GV, dl, MVT::i32);
-  const GlobalVariable *GVar = dyn_cast<GlobalVariable>(GV);
-  if (!GVar) {
-    // If GV is an alias then use the aliasee to determine size
-    if (const GlobalAlias *GA = dyn_cast<GlobalAlias>(GV))
-      GVar = dyn_cast_or_null<GlobalVariable>(GA->resolveAliasedGlobal());
-  }
-  if (!GVar) {
-    llvm_unreachable("Thread local object not a GlobalVariable?");
-  }
-  Type *Ty = cast<PointerType>(GV->getType())->getElementType();
-  if (!Ty->isSized() || isZeroLengthArray(Ty)) {
-#ifndef NDEBUG
-    errs() << "Size of thread local object " << GVar->getName()
-           << " is unknown\n";
-#endif
-    llvm_unreachable(0);
-  }
-  SDValue base = getGlobalAddressWrapper(GA, GV, DAG);
-  const DataLayout *TD = TM.getDataLayout();
-  unsigned Size = TD->getTypeAllocSize(Ty);
-  SDValue offset = DAG.getNode(ISD::MUL, dl, MVT::i32, BuildGetId(DAG, dl),
-                       DAG.getConstant(Size, MVT::i32));
-  return DAG.getNode(ISD::ADD, dl, MVT::i32, base, offset);
 }
 
 SDValue XCoreTargetLowering::
@@ -350,55 +321,58 @@ LowerBR_JT(SDValue Op, SelectionDAG &DAG) const
                      ScaledIndex);
 }
 
-static bool
-IsWordAlignedBasePlusConstantOffset(SDValue Addr, SDValue &AlignedBase,
-                                    int64_t &Offset)
+SDValue XCoreTargetLowering::
+lowerLoadWordFromAlignedBasePlusOffset(DebugLoc DL, SDValue Chain, SDValue Base,
+                                       int64_t Offset, SelectionDAG &DAG) const
 {
-  if (Addr.getOpcode() != ISD::ADD) {
-    return false;
+  if ((Offset & 0x3) == 0) {
+    return DAG.getLoad(getPointerTy(), DL, Chain, Base, MachinePointerInfo(),
+                       false, false, false, 0);
   }
-  ConstantSDNode *CN = 0;
-  if (!(CN = dyn_cast<ConstantSDNode>(Addr.getOperand(1)))) {
-    return false;
+  // Lower to pair of consecutive word aligned loads plus some bit shifting.
+  int32_t HighOffset = RoundUpToAlignment(Offset, 4);
+  int32_t LowOffset = HighOffset - 4;
+  SDValue LowAddr, HighAddr;
+  if (GlobalAddressSDNode *GASD =
+        dyn_cast<GlobalAddressSDNode>(Base.getNode())) {
+    LowAddr = DAG.getGlobalAddress(GASD->getGlobal(), DL, Base.getValueType(),
+                                   LowOffset);
+    HighAddr = DAG.getGlobalAddress(GASD->getGlobal(), DL, Base.getValueType(),
+                                    HighOffset);
+  } else {
+    LowAddr = DAG.getNode(ISD::ADD, DL, MVT::i32, Base,
+                          DAG.getConstant(LowOffset, MVT::i32));
+    HighAddr = DAG.getNode(ISD::ADD, DL, MVT::i32, Base,
+                           DAG.getConstant(HighOffset, MVT::i32));
   }
-  int64_t off = CN->getSExtValue();
-  const SDValue &Base = Addr.getOperand(0);
-  const SDValue *Root = &Base;
-  if (Base.getOpcode() == ISD::ADD &&
-      Base.getOperand(1).getOpcode() == ISD::SHL) {
-    ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Base.getOperand(1)
-                                                      .getOperand(1));
-    if (CN && (CN->getSExtValue() >= 2)) {
-      Root = &Base.getOperand(0);
-    }
-  }
-  if (isa<FrameIndexSDNode>(*Root)) {
-    // All frame indicies are word aligned
-    AlignedBase = Base;
-    Offset = off;
-    return true;
-  }
-  if (Root->getOpcode() == XCoreISD::DPRelativeWrapper ||
-      Root->getOpcode() == XCoreISD::CPRelativeWrapper) {
-    // All dp / cp relative addresses are word aligned
-    AlignedBase = Base;
-    Offset = off;
-    return true;
-  }
-  // Check for an aligned global variable.
-  if (GlobalAddressSDNode *GA = dyn_cast<GlobalAddressSDNode>(*Root)) {
-    const GlobalValue *GV = GA->getGlobal();
-    if (GA->getOffset() == 0 && GV->getAlignment() >= 4) {
-      AlignedBase = Base;
-      Offset = off;
-      return true;
-    }
-  }
-  return false;
+  SDValue LowShift = DAG.getConstant((Offset - LowOffset) * 8, MVT::i32);
+  SDValue HighShift = DAG.getConstant((HighOffset - Offset) * 8, MVT::i32);
+
+  SDValue Low = DAG.getLoad(getPointerTy(), DL, Chain,
+                            LowAddr, MachinePointerInfo(),
+                            false, false, false, 0);
+  SDValue High = DAG.getLoad(getPointerTy(), DL, Chain,
+                             HighAddr, MachinePointerInfo(),
+                             false, false, false, 0);
+  SDValue LowShifted = DAG.getNode(ISD::SRL, DL, MVT::i32, Low, LowShift);
+  SDValue HighShifted = DAG.getNode(ISD::SHL, DL, MVT::i32, High, HighShift);
+  SDValue Result = DAG.getNode(ISD::OR, DL, MVT::i32, LowShifted, HighShifted);
+  Chain = DAG.getNode(ISD::TokenFactor, DL, MVT::Other, Low.getValue(1),
+                      High.getValue(1));
+  SDValue Ops[] = { Result, Chain };
+  return DAG.getMergeValues(Ops, 2, DL);
+}
+
+static bool isWordAligned(SDValue Value, SelectionDAG &DAG)
+{
+  APInt KnownZero, KnownOne;
+  DAG.ComputeMaskedBits(Value, KnownZero, KnownOne);
+  return KnownZero.countTrailingOnes() >= 2;
 }
 
 SDValue XCoreTargetLowering::
 LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
+  const TargetLowering &TLI = DAG.getTargetLoweringInfo();
   LoadSDNode *LD = cast<LoadSDNode>(Op);
   assert(LD->getExtensionType() == ISD::NON_EXTLOAD &&
          "Unexpected extension type");
@@ -416,45 +390,23 @@ LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
   SDValue BasePtr = LD->getBasePtr();
   DebugLoc DL = Op.getDebugLoc();
 
-  SDValue Base;
-  int64_t Offset;
-  if (!LD->isVolatile() &&
-      IsWordAlignedBasePlusConstantOffset(BasePtr, Base, Offset)) {
-    if (Offset % 4 == 0) {
-      // We've managed to infer better alignment information than the load
-      // already has. Use an aligned load.
-      //
-      return DAG.getLoad(getPointerTy(), DL, Chain, BasePtr,
-                         MachinePointerInfo(),
-                         false, false, false, 0);
+  if (!LD->isVolatile()) {
+    const GlobalValue *GV;
+    int64_t Offset = 0;
+    if (DAG.isBaseWithConstantOffset(BasePtr) &&
+        isWordAligned(BasePtr->getOperand(0), DAG)) {
+      SDValue NewBasePtr = BasePtr->getOperand(0);
+      Offset = cast<ConstantSDNode>(BasePtr->getOperand(1))->getSExtValue();
+      return lowerLoadWordFromAlignedBasePlusOffset(DL, Chain, NewBasePtr,
+                                                    Offset, DAG);
     }
-    // Lower to
-    // ldw low, base[offset >> 2]
-    // ldw high, base[(offset >> 2) + 1]
-    // shr low_shifted, low, (offset & 0x3) * 8
-    // shl high_shifted, high, 32 - (offset & 0x3) * 8
-    // or result, low_shifted, high_shifted
-    SDValue LowOffset = DAG.getConstant(Offset & ~0x3, MVT::i32);
-    SDValue HighOffset = DAG.getConstant((Offset & ~0x3) + 4, MVT::i32);
-    SDValue LowShift = DAG.getConstant((Offset & 0x3) * 8, MVT::i32);
-    SDValue HighShift = DAG.getConstant(32 - (Offset & 0x3) * 8, MVT::i32);
-
-    SDValue LowAddr = DAG.getNode(ISD::ADD, DL, MVT::i32, Base, LowOffset);
-    SDValue HighAddr = DAG.getNode(ISD::ADD, DL, MVT::i32, Base, HighOffset);
-
-    SDValue Low = DAG.getLoad(getPointerTy(), DL, Chain,
-                              LowAddr, MachinePointerInfo(),
-                              false, false, false, 0);
-    SDValue High = DAG.getLoad(getPointerTy(), DL, Chain,
-                               HighAddr, MachinePointerInfo(),
-                               false, false, false, 0);
-    SDValue LowShifted = DAG.getNode(ISD::SRL, DL, MVT::i32, Low, LowShift);
-    SDValue HighShifted = DAG.getNode(ISD::SHL, DL, MVT::i32, High, HighShift);
-    SDValue Result = DAG.getNode(ISD::OR, DL, MVT::i32, LowShifted, HighShifted);
-    Chain = DAG.getNode(ISD::TokenFactor, DL, MVT::Other, Low.getValue(1),
-                             High.getValue(1));
-    SDValue Ops[] = { Result, Chain };
-    return DAG.getMergeValues(Ops, 2, DL);
+    if (TLI.isGAPlusOffset(BasePtr.getNode(), GV, Offset) &&
+        MinAlign(GV->getAlignment(), 4) == 4) {
+      SDValue NewBasePtr = DAG.getGlobalAddress(GV, DL,
+                                                BasePtr->getValueType(0));
+      return lowerLoadWordFromAlignedBasePlusOffset(DL, Chain, NewBasePtr,
+                                                    Offset, DAG);
+    }
   }
 
   if (LD->getAlignment() == 2) {

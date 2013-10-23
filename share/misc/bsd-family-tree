@@ -638,6 +638,6 @@ Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
 
 --
 Copyright (c) 1997-2012 Wolfram Schneider <wosch@FreeBSD.ORG>
-URL: http://cvsweb.freebsd.org/src/share/misc/bsd-family-tree
+URL: http://svnweb.freebsd.org/base/head/share/misc/bsd-family-tree
 
 $FreeBSD$

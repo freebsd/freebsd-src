@@ -4378,11 +4378,17 @@ ciss_print_adapter(struct ciss_softc *sc)
 DB_COMMAND(ciss_prt, db_ciss_prt)
 {
     struct ciss_softc	*sc;
+    devclass_t dc;
+    int maxciss, i;
 
-    sc = devclass_get_softc(devclass_find("ciss"), 0);
-    if (sc == NULL) {
-	printf("no ciss controllers\n");
-    } else {
+    dc = devclass_find("ciss");
+    if ( dc == NULL ) {
+        printf("%s: can't find devclass!\n", __func__);
+        return;
+    }
+    maxciss = devclass_get_maxunit(dc);
+    for (i = 0; i < maxciss; i++) {
+        sc = devclass_get_softc(dc, i);
 	ciss_print_adapter(sc);
     }
 }

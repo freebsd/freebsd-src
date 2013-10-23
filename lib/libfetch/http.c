@@ -1408,7 +1408,7 @@ http_connect(struct url *URL, struct url *purl, const char *flags)
 		http_get_reply(conn);
 	}
 	if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0 &&
-	    fetch_ssl(conn, verbose) == -1) {
+	    fetch_ssl(conn, URL, verbose) == -1) {
 		fetch_close(conn);
 		/* grrr */
 		errno = EAUTH;
@@ -1581,7 +1581,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 		if (verbose)
 			fetch_info("requesting %s://%s%s",
 			    url->scheme, host, url->doc);
-		if (purl) {
+		if (purl && strcasecmp(URL->scheme, SCHEME_HTTPS) != 0) {
 			http_cmd(conn, "%s %s://%s%s HTTP/1.1",
 			    op, url->scheme, host, url->doc);
 		} else {

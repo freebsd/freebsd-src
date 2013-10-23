@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #define S_RESET 5		/* temporary - to reset a hard ignored sig */
 
 
-MKINIT char sigmode[NSIG];	/* current value of signal */
+static char sigmode[NSIG];	/* current value of signal */
 volatile sig_atomic_t pendingsig;	/* indicates some signal received */
 int in_dotrap;			/* do we execute in a trap handler? */
 static char *volatile trap[NSIG];	/* trap handler commands */

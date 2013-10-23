@@ -108,7 +108,7 @@ pkg_get_myabi(char *dest, size_t sz)
 	Elf_Note note;
 	Elf_Scn *scn;
 	char *src, *osname;
-	const char *abi;
+	const char *abi, *fpu;
 	GElf_Ehdr elfhdr;
 	GElf_Shdr shdr;
 	int fd, i, ret;
@@ -187,13 +187,25 @@ pkg_get_myabi(char *dest, size_t sz)
 
 	switch (elfhdr.e_machine) {
 	case EM_ARM:
+		/* FreeBSD doesn't support the hard-float ABI yet */
+		fpu = "softfp";
+		if ((elfhdr.e_flags & 0xFF000000) != 0) {
+			/* This is an EABI file, the conformance level is set */
+			abi = "eabi";
+		} else if (elfhdr.e_ident[EI_OSABI] != ELFOSABI_NONE) {
+			/*
+			 * EABI executables all have this field set to
+			 * ELFOSABI_NONE, therefore it must be an oabi file.
+			 */
+			abi = "oabi";
+		} else {
+			ret = 1;
+			goto cleanup;
+		}
 		snprintf(dest + strlen(dest), sz - strlen(dest),
 		    ":%s:%s:%s", elf_corres_to_string(endian_corres,
 		    (int)elfhdr.e_ident[EI_DATA]),
-		    (elfhdr.e_flags & EF_ARM_NEW_ABI) > 0 ?
-		    "eabi" : "oabi",
-		    (elfhdr.e_flags & EF_ARM_VFP_FLOAT) > 0 ?
-		    "softfp" : "vfp");
+		    abi, fpu);
 		break;
 	case EM_MIPS:
 		/*

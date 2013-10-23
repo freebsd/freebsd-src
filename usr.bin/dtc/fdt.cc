@@ -30,6 +30,8 @@
  * $FreeBSD$
  */
 
+#define __STDC_LIMIT_MACROS 1
+
 #include "fdt.hh"
 
 #include <algorithm>
@@ -278,6 +280,12 @@ property::parse_cells(input_buffer &input)
 			if (!input.consume_integer(val))
 			{
 				input.parse_error("Expected numbers in array of cells");
+				valid = false;
+				return;
+			}
+			if ((val < 0) || (val > UINT32_MAX))
+			{
+				input.parse_error("Value out of range");
 				valid = false;
 				return;
 			}

@@ -1,5 +1,5 @@
 /*
- *  $Id: dlg_colors.h,v 1.16 2011/01/17 00:20:32 tom Exp $
+ *  $Id: dlg_colors.h,v 1.17 2011/10/14 21:19:59 tom Exp $
  *
  *  colors.h -- color attribute definitions
  *
@@ -56,6 +56,10 @@
 #define DLGC_BG_BORDER                 COLOR_WHITE
 #define DLGC_HL_BORDER                 TRUE
 
+#define DLGC_FG_BORDER2                DLGC_FG_DIALOG
+#define DLGC_BG_BORDER2                DLGC_BG_DIALOG
+#define DLGC_HL_BORDER2                DLGC_HL_DIALOG
+
 #define DLGC_FG_BUTTON_ACTIVE          COLOR_WHITE
 #define DLGC_BG_BUTTON_ACTIVE          COLOR_BLUE
 #define DLGC_HL_BUTTON_ACTIVE          TRUE
@@ -92,6 +96,10 @@
 #define DLGC_BG_INPUTBOX_BORDER        COLOR_WHITE
 #define DLGC_HL_INPUTBOX_BORDER        FALSE
 
+#define DLGC_FG_INPUTBOX_BORDER2       DLGC_FG_INPUTBOX
+#define DLGC_BG_INPUTBOX_BORDER2       DLGC_BG_INPUTBOX
+#define DLGC_HL_INPUTBOX_BORDER2       DLGC_HL_INPUTBOX
+
 #define DLGC_FG_SEARCHBOX              COLOR_BLACK
 #define DLGC_BG_SEARCHBOX              COLOR_WHITE
 #define DLGC_HL_SEARCHBOX              FALSE
@@ -104,6 +112,10 @@
 #define DLGC_BG_SEARCHBOX_BORDER       COLOR_WHITE
 #define DLGC_HL_SEARCHBOX_BORDER       TRUE
 
+#define DLGC_FG_SEARCHBOX_BORDER2      DLGC_FG_SEARCHBOX
+#define DLGC_BG_SEARCHBOX_BORDER2      DLGC_BG_SEARCHBOX
+#define DLGC_HL_SEARCHBOX_BORDER2      DLGC_HL_SEARCHBOX
+
 #define DLGC_FG_POSITION_INDICATOR     COLOR_BLUE
 #define DLGC_BG_POSITION_INDICATOR     COLOR_WHITE
 #define DLGC_HL_POSITION_INDICATOR     TRUE
@@ -115,6 +127,10 @@
 #define DLGC_FG_MENUBOX_BORDER         COLOR_WHITE
 #define DLGC_BG_MENUBOX_BORDER         COLOR_WHITE
 #define DLGC_HL_MENUBOX_BORDER         TRUE
+
+#define DLGC_FG_MENUBOX_BORDER2        DLGC_FG_MENUBOX
+#define DLGC_BG_MENUBOX_BORDER2        DLGC_BG_MENUBOX
+#define DLGC_HL_MENUBOX_BORDER2        DLGC_HL_MENUBOX
 
 #define DLGC_FG_ITEM                   COLOR_BLACK
 #define DLGC_BG_ITEM                   COLOR_WHITE

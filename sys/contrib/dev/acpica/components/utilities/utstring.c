@@ -395,7 +395,8 @@ ErrorExit:
  * FUNCTION:    AcpiUtPrintString
  *
  * PARAMETERS:  String          - Null terminated ASCII string
- *              MaxLength       - Maximum output length
+ *              MaxLength       - Maximum output length. Used to constrain the
+ *                                length of strings during debug output only.
  *
  * RETURN:      None
  *
@@ -407,7 +408,7 @@ ErrorExit:
 void
 AcpiUtPrintString (
     char                    *String,
-    UINT8                   MaxLength)
+    UINT16                  MaxLength)
 {
     UINT32                  i;
 

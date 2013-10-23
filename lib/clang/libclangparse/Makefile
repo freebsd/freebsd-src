@@ -23,6 +23,7 @@ SRCS=	ParseAST.cpp \
 TGHDRS=	AttrLateParsed \
 	AttrList \
 	AttrParsedAttrList \
+	AttrExprArgs \
 	Attrs \
 	CommentCommandList \
 	CommentNodes \

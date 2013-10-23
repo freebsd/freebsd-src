@@ -618,7 +618,7 @@ AcpiNsDumpOneObject (
             break;
 
         case ACPI_TYPE_LOCAL_INDEX_FIELD:
-            
+
             ObjDesc = (void *) ObjDesc->IndexField.IndexObj;
             break;
 

@@ -110,6 +110,7 @@ device		md
 #options 	MD_ROOT_SIZE=7560
 
 device		random		# Entropy device
+options 	YARROW_RNG	# Yarrow software RNG
 
 # USB support
 device		usb

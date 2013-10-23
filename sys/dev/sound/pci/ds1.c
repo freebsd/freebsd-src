@@ -365,7 +365,7 @@ ds_allocpslot(struct sc_info *sc)
 }
 
 static int
-ds_initpbank(volatile struct pbank *pb, int ch, int b16, int stereo, u_int32_t rate, bus_addr_t base, u_int32_t len)
+ds_initpbank(volatile struct pbank *pb, int ch, int stereo, int b16, u_int32_t rate, bus_addr_t base, u_int32_t len)
 {
 	u_int32_t lv[] = {1, 1, 0, 0, 0};
 	u_int32_t rv[] = {1, 0, 1, 0, 0};

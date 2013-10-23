@@ -330,9 +330,12 @@ _libinstall:
 .if defined(SHLIB_LDSCRIPT) && !empty(SHLIB_LDSCRIPT) && exists(${.CURDIR}/${SHLIB_LDSCRIPT})
 	sed -e 's,@@SHLIB@@,${_LDSCRIPTROOT}${SHLIBDIR}/${SHLIB_NAME},g' \
 	    -e 's,@@LIBDIR@@,${_LDSCRIPTROOT}${LIBDIR},g' \
-	    ${.CURDIR}/${SHLIB_LDSCRIPT} > lib${LIB}.ld
+	    ${.CURDIR}/${SHLIB_LDSCRIPT} > ${DESTDIR}${LIBDIR}/${SHLIB_LINK:R}.ld
 	${INSTALL} -S -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}.ld ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
+	    ${_INSTALLFLAGS} ${DESTDIR}${LIBDIR}/${SHLIB_LINK:R}.ld \
+	    ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
+	rm -f ${DESTDIR}${LIBDIR}/${SHLIB_LINK:R}.ld
+
 .else
 .if ${SHLIBDIR} == ${LIBDIR}
 	${INSTALL_SYMLINK} ${SHLIB_NAME} ${DESTDIR}${LIBDIR}/${SHLIB_LINK}

@@ -3,6 +3,7 @@
 # This file is in the public domain.
 
 set -o errexit
+LC_ALL=C
 
 ident='$FreeBSD$'
 
@@ -240,7 +241,7 @@ EOF
 
 		# Work around BIND_UTILS=no being the default when every WITH_
 		# option is enabled.
-		if [ "$(cat $t/deps2)" == WITHOUT_BIND_UTILS ]; then
+		if [ "$(cat $t/deps2)" = WITHOUT_BIND_UTILS ]; then
 			sort $t/deps $t/deps2 > $t/_deps
 			mv $t/_deps $t/deps
 			:> $t/deps2

@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Intel Corporation
+ * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -222,7 +222,6 @@ nvme_ctrlr_construct_admin_qpair(struct nvme_controller *ctrlr)
 			     0, /* vector */
 			     num_entries,
 			     NVME_ADMIN_TRACKERS,
-			     16*1024, /* max xfer size */
 			     ctrlr);
 }
 
@@ -256,16 +255,6 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	 */
 	num_trackers = min(num_trackers, (num_entries-1));
 
-	ctrlr->max_xfer_size = NVME_MAX_XFER_SIZE;
-	TUNABLE_INT_FETCH("hw.nvme.max_xfer_size", &ctrlr->max_xfer_size);
-	/*
-	 * Check that tunable doesn't specify a size greater than what our
-	 *  driver supports, and is an even PAGE_SIZE multiple.
-	 */
-	if (ctrlr->max_xfer_size > NVME_MAX_XFER_SIZE ||
-	    ctrlr->max_xfer_size % PAGE_SIZE)
-		ctrlr->max_xfer_size = NVME_MAX_XFER_SIZE;
-
 	ctrlr->ioq = malloc(ctrlr->num_io_queues * sizeof(struct nvme_qpair),
 	    M_NVME, M_ZERO | M_WAITOK);
 
@@ -284,7 +273,6 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 				     ctrlr->msix_enabled ? i+1 : 0, /* vector */
 				     num_entries,
 				     num_trackers,
-				     ctrlr->max_xfer_size,
 				     ctrlr);
 
 		if (ctrlr->per_cpu_io_queues)
@@ -467,7 +455,7 @@ nvme_ctrlr_identify(struct nvme_controller *ctrlr)
 	nvme_ctrlr_cmd_identify_controller(ctrlr, &ctrlr->cdata,
 	    nvme_completion_poll_cb, &status);
 	while (status.done == FALSE)
-		DELAY(5);
+		pause("nvme", 1);
 	if (nvme_completion_is_error(&status.cpl)) {
 		nvme_printf(ctrlr, "nvme_identify_controller failed!\n");
 		return (ENXIO);
@@ -499,7 +487,7 @@ nvme_ctrlr_set_num_qpairs(struct nvme_controller *ctrlr)
 	nvme_ctrlr_cmd_set_num_queues(ctrlr, ctrlr->num_io_queues,
 	    nvme_completion_poll_cb, &status);
 	while (status.done == FALSE)
-		DELAY(5);
+		pause("nvme", 1);
 	if (nvme_completion_is_error(&status.cpl)) {
 		nvme_printf(ctrlr, "nvme_set_num_queues failed!\n");
 		return (ENXIO);
@@ -552,7 +540,7 @@ nvme_ctrlr_create_qpairs(struct nvme_controller *ctrlr)
 		nvme_ctrlr_cmd_create_io_cq(ctrlr, qpair, qpair->vector,
 		    nvme_completion_poll_cb, &status);
 		while (status.done == FALSE)
-			DELAY(5);
+			pause("nvme", 1);
 		if (nvme_completion_is_error(&status.cpl)) {
 			nvme_printf(ctrlr, "nvme_create_io_cq failed!\n");
 			return (ENXIO);
@@ -562,7 +550,7 @@ nvme_ctrlr_create_qpairs(struct nvme_controller *ctrlr)
 		nvme_ctrlr_cmd_create_io_sq(qpair->ctrlr, qpair,
 		    nvme_completion_poll_cb, &status);
 		while (status.done == FALSE)
-			DELAY(5);
+			pause("nvme", 1);
 		if (nvme_completion_is_error(&status.cpl)) {
 			nvme_printf(ctrlr, "nvme_create_io_sq failed!\n");
 			return (ENXIO);
@@ -661,12 +649,12 @@ nvme_ctrlr_async_event_cb(void *arg, const struct nvme_completion *cpl)
 {
 	struct nvme_async_event_request	*aer = arg;
 
-	if (cpl->status.sc == NVME_SC_ABORTED_SQ_DELETION) {
+	if (nvme_completion_is_error(cpl)) {
 		/*
-		 *  This is simulated when controller is being shut down, to
-		 *  effectively abort outstanding asynchronous event requests
-		 *  and make sure all memory is freed.  Do not repost the
-		 *  request in this case.
+		 *  Do not retry failed async event requests.  This avoids
+		 *  infinite loops where a new async event request is submitted
+		 *  to replace the one just failed, only to fail again and
+		 *  perpetuate the loop.
 		 */
 		return;
 	}
@@ -907,7 +895,13 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 	struct buf		*buf = NULL;
 	int			ret = 0;
 
-	if (pt->len > 0)
+	if (pt->len > 0) {
+		if (pt->len > ctrlr->max_xfer_size) {
+			nvme_printf(ctrlr, "pt->len (%d) "
+			    "exceeds max_xfer_size (%d)\n", pt->len,
+			    ctrlr->max_xfer_size);
+			return EIO;
+		}
 		if (is_user_buffer) {
 			/*
 			 * Ensure the user buffer is wired for the duration of
@@ -932,7 +926,7 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 		} else
 			req = nvme_allocate_request_vaddr(pt->buf, pt->len,
 			    nvme_pt_done, pt);
-	else
+	} else
 		req = nvme_allocate_request_null(nvme_pt_done, pt);
 
 	req->cmd.opc	= pt->cmd.opc;
@@ -1089,8 +1083,8 @@ intx:
 	if (!ctrlr->msix_enabled)
 		nvme_ctrlr_configure_intx(ctrlr);
 
+	ctrlr->max_xfer_size = NVME_MAX_XFER_SIZE;
 	nvme_ctrlr_construct_admin_qpair(ctrlr);
-
 	status = nvme_ctrlr_construct_io_qpairs(ctrlr);
 
 	if (status != 0)

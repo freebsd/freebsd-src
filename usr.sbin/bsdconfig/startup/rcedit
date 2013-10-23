@@ -51,7 +51,7 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
-	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
@@ -62,6 +62,9 @@ shift $(( $OPTIND - 1 ))
 f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
 
+#
+# Edit the rc.conf(5) variable(s) passed as argument(s)
+#
 f_dialog_rcedit "$@"
 
 ################################################################################

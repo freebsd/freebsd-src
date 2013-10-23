@@ -649,13 +649,10 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 		m = m->m_next;
 		np = &n->m_next;
 	}
-	if (top == NULL)
-		mbstat.m_mcfail++;	/* XXX: No consistency. */
 
 	return (top);
 nospace:
 	m_freem(top);
-	mbstat.m_mcfail++;	/* XXX: No consistency. */
 	return (NULL);
 }
 
@@ -860,7 +857,6 @@ m_copypacket(struct mbuf *m, int how)
 	return top;
 nospace:
 	m_freem(top);
-	mbstat.m_mcfail++;	/* XXX: No consistency. */ 
 	return (NULL);
 }
 
@@ -964,7 +960,6 @@ m_dup(struct mbuf *m, int how)
 
 nospace:
 	m_freem(top);
-	mbstat.m_mcfail++;	/* XXX: No consistency. */
 	return (NULL);
 }
 
@@ -1124,7 +1119,6 @@ m_pullup(struct mbuf *n, int len)
 	return (m);
 bad:
 	m_freem(n);
-	mbstat.m_mpfail++;	/* XXX: No consistency. */
 	return (NULL);
 }
 

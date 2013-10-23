@@ -173,7 +173,7 @@ zfs_sync(vfs_t *vfsp, int waitfor)
 	return (0);
 }
 
-#ifndef __FreeBSD__
+#ifndef __FreeBSD_kernel__
 static int
 zfs_create_unique_device(dev_t *dev)
 {
@@ -225,7 +225,7 @@ zfs_create_unique_device(dev_t *dev)
 
 	return (0);
 }
-#endif	/* !__FreeBSD__ */
+#endif	/* !__FreeBSD_kernel__ */
 
 static void
 atime_changed_cb(void *arg, uint64_t newval)

@@ -55,4 +55,5 @@ device		md
 device		ether
 device		loop
 device		random
+options 	YARROW_RNG		# Yarrow software RNG
 device		snp

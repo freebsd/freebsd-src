@@ -7,24 +7,21 @@ PROG=	route
 MAN=	route.8
 SRCS=	route.c keywords.h
 WARNS?=	3
-CLEANFILES+=keywords.h _keywords.tmp
+CLEANFILES+=keywords.h
 
 CFLAGS+= -DNS
-
+.if ${MK_INET_SUPPORT} != "no"
+CFLAGS+= -DINET
+.endif
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6
 .endif
-
 CFLAGS+= -I.
 
 keywords.h: keywords
-	sed -e '/^#/d' -e '/^$$/d' ${.CURDIR}/keywords > _keywords.tmp
-	LC_ALL=C tr 'a-z' 'A-Z' < _keywords.tmp | paste _keywords.tmp - | \
-	    awk '{ \
-		if (NF > 1) \
-			printf "#define\tK_%s\t%d\n\t{\"%s\", K_%s},\n", \
-			    $$2, NR, $$1, $$2 }' \
-	    > ${.TARGET}
-	rm -f _keywords.tmp
+	LC_ALL=C awk '!/^#|^$$/ { \
+		printf "#define\tK_%s\t%d\n\t{\"%s\", K_%s},\n", \
+		    toupper($$1), ++L, $$1, toupper($$1); \
+	}' < ${.CURDIR}/keywords > ${.TARGET} || (rm -f ${.TARGET}; false)
 
 .include <bsd.prog.mk>

@@ -192,14 +192,26 @@ static busdma_bufalloc_t standard_allocator;	/* Cache of standard buffers */
 static void
 busdma_init(void *dummy)
 {
+	int uma_flags;
+
+	uma_flags = 0;
 
 	/* Create a cache of buffers in standard (cacheable) memory. */
 	standard_allocator = busdma_bufalloc_create("buffer", 
 	    arm_dcache_align,	/* minimum_alignment */
 	    NULL,		/* uma_alloc func */ 
 	    NULL,		/* uma_free func */
-	    0);			/* uma_zcreate_flags */
+	    uma_flags);		/* uma_zcreate_flags */
 
+#ifdef INVARIANTS
+	/* 
+	 * Force UMA zone to allocate service structures like
+	 * slabs using own allocator. uma_debug code performs
+	 * atomic ops on uma_slab_t fields and safety of this
+	 * operation is not guaranteed for write-back caches
+	 */
+	uma_flags = UMA_ZONE_OFFPAGE;
+#endif
 	/*
 	 * Create a cache of buffers in uncacheable memory, to implement the
 	 * BUS_DMA_COHERENT (and potentially BUS_DMA_NOCACHE) flag.
@@ -208,7 +220,7 @@ busdma_init(void *dummy)
 	    arm_dcache_align,	/* minimum_alignment */
 	    busdma_bufalloc_alloc_uncacheable, 
 	    busdma_bufalloc_free_uncacheable, 
-	    0);			/* uma_zcreate_flags */
+	    uma_flags);	/* uma_zcreate_flags */
 }
 
 /*
@@ -1185,11 +1197,6 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		}
 
 		if (op & BUS_DMASYNC_POSTREAD) {
-			cpu_dcache_inv_range((vm_offset_t)bpage->vaddr,
-					bpage->datacount);
-			l2cache_inv_range((vm_offset_t)bpage->vaddr,
-			    (vm_offset_t)bpage->busaddr,
-			    bpage->datacount);
 			while (bpage != NULL) {
 				vm_offset_t startv;
 				vm_paddr_t startp;

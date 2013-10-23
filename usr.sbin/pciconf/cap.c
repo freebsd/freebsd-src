@@ -391,11 +391,27 @@ link_speed_string(uint8_t speed)
 	}
 }
 
+static const char *
+aspm_string(uint8_t aspm)
+{
+
+	switch (aspm) {
+	case 1:
+		return ("L0s");
+	case 2:
+		return ("L1");
+	case 3:
+		return ("L0s/L1");
+	default:
+		return ("disabled");
+	}
+}
+
 static void
 cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 {
-	uint32_t val;
-	uint16_t flags;
+	uint32_t cap;
+	uint16_t ctl, flags, sta;
 
 	flags = read_config(fd, &p->pc_sel, ptr + PCIER_FLAGS, 2);
 	printf("PCI-Express %d ", flags & PCIEM_FLAGS_VERSION);
@@ -435,26 +451,28 @@ cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 		printf(" slot");
 	if (flags & PCIEM_FLAGS_IRQ)
 		printf(" IRQ %d", (flags & PCIEM_FLAGS_IRQ) >> 9);
-	val = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CAP, 4);
-	flags = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CTL, 2);
+	cap = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CAP, 4);
+	ctl = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CTL, 2);
 	printf(" max data %d(%d)",
-	    MAX_PAYLOAD((flags & PCIEM_CTL_MAX_PAYLOAD) >> 5),
-	    MAX_PAYLOAD(val & PCIEM_CAP_MAX_PAYLOAD));
-	if (val & PCIEM_CAP_FLR)
+	    MAX_PAYLOAD((ctl & PCIEM_CTL_MAX_PAYLOAD) >> 5),
+	    MAX_PAYLOAD(cap & PCIEM_CAP_MAX_PAYLOAD));
+	if ((cap & PCIEM_CAP_FLR) != 0)
 		printf(" FLR");
-	val = read_config(fd, &p->pc_sel, ptr + PCIER_LINK_CAP, 4);
-	flags = read_config(fd, &p->pc_sel, ptr+ PCIER_LINK_STA, 2);
-	printf(" link x%d(x%d)", (flags & PCIEM_LINK_STA_WIDTH) >> 4,
-	    (val & PCIEM_LINK_CAP_MAX_WIDTH) >> 4);
-	/*
-	 * Only print link speed info if the link's max width is
-	 * greater than 0.
-	 */ 
-	if ((val & PCIEM_LINK_CAP_MAX_WIDTH) != 0) {
-		printf("\n                 speed");
-		printf(" %s(%s)", (flags & PCIEM_LINK_STA_WIDTH) == 0 ?
-		    "0.0" : link_speed_string(flags & PCIEM_LINK_STA_SPEED),
-	    	    link_speed_string(val & PCIEM_LINK_CAP_MAX_SPEED));
+	cap = read_config(fd, &p->pc_sel, ptr + PCIER_LINK_CAP, 4);
+	sta = read_config(fd, &p->pc_sel, ptr + PCIER_LINK_STA, 2);
+	printf(" link x%d(x%d)", (sta & PCIEM_LINK_STA_WIDTH) >> 4,
+	    (cap & PCIEM_LINK_CAP_MAX_WIDTH) >> 4);
+	if ((cap & (PCIEM_LINK_CAP_MAX_WIDTH | PCIEM_LINK_CAP_ASPM)) != 0)
+		printf("\n                ");
+	if ((cap & PCIEM_LINK_CAP_MAX_WIDTH) != 0) {
+		printf(" speed %s(%s)", (sta & PCIEM_LINK_STA_WIDTH) == 0 ?
+		    "0.0" : link_speed_string(sta & PCIEM_LINK_STA_SPEED),
+	    	    link_speed_string(cap & PCIEM_LINK_CAP_MAX_SPEED));
+	}
+	if ((cap & PCIEM_LINK_CAP_ASPM) != 0) {
+		ctl = read_config(fd, &p->pc_sel, ptr + PCIER_LINK_CTL, 2);
+		printf(" ASPM %s(%s)", aspm_string(ctl & PCIEM_LINK_CTL_ASPMC),
+		    aspm_string((cap & PCIEM_LINK_CAP_ASPM) >> 10));
 	}
 }
 

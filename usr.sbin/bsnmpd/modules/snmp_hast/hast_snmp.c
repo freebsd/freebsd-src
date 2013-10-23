@@ -78,6 +78,7 @@ struct hast_snmp_resource {
 	uint64_t	write_errors;
 	uint64_t	delete_errors;
 	uint64_t	flush_errors;
+	pid_t		workerpid;
 };
 
 static TAILQ_HEAD(, hast_snmp_resource) resources =
@@ -343,6 +344,7 @@ update_resources(void)
 		    nv_get_uint64(nvout, "stat_delete_error%u", i);
 		res->flush_errors =
 		    nv_get_uint64(nvout, "stat_flush_error%u", i);
+		res->workerpid = nv_get_int32(nvout, "workerpid%u", i);
 		TAILQ_INSERT_TAIL(&resources, res, link);
 	}
 	nv_free(nvout);
@@ -497,6 +499,9 @@ op_hastResourceTable(struct snmp_context *context __unused,
 		break;
 	case LEAF_hastResourceFlushErrors:
 		value->v.counter64 = res->flush_errors;
+		break;
+	case LEAF_hastResourceWorkerPid:
+		value->v.integer = res->workerpid;
 		break;
 	default:
 		ret = SNMP_ERR_RES_UNAVAIL;

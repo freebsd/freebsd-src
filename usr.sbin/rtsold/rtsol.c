@@ -237,7 +237,7 @@ sendpacket(struct ifinfo *ifi)
 void
 rtsol_input(int s)
 {
-	u_char ntopbuf[INET6_ADDRSTRLEN], ifnamebuf[IFNAMSIZ];
+	char ntopbuf[INET6_ADDRSTRLEN], ifnamebuf[IFNAMSIZ];
 	int l, ifindex = 0, *hlimp = NULL;
 	ssize_t msglen;
 	struct in6_pktinfo *pi = NULL;

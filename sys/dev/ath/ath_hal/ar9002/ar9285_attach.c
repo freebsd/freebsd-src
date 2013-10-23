@@ -180,6 +180,8 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 	ah->ah_setTxPower		= ar9285SetTransmitPower;
 	ah->ah_setBoardValues		= ar9285SetBoardValues;
 	ah->ah_btCoexSetParameter	= ar9285BTCoexSetParameter;
+	ah->ah_divLnaConfGet		= ar9285_antdiv_comb_conf_get;
+	ah->ah_divLnaConfSet		= ar9285_antdiv_comb_conf_set;
 
 	AH5416(ah)->ah_cal.iqCalData.calData = &ar9280_iq_cal;
 	AH5416(ah)->ah_cal.adcGainCalData.calData = &ar9280_adc_gain_cal;
@@ -341,7 +343,6 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 	/* Print out whether the EEPROM settings enable AR9285 diversity */
 	if (ar9285_check_div_comb(ah)) {
 		ath_hal_printf(ah, "[ath] Enabling diversity for Kite\n");
-		ah->ah_rxAntCombDiversity = ar9285_ant_comb_scan;
 	}
 
 	/* Disable 11n for the AR2427 */

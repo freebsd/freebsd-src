@@ -19,7 +19,7 @@
 
 ident		EFIKA_MX
 
-include 	"../freescale/imx/std.imx"
+include 	"../freescale/imx/std.imx51"
 
 makeoptions 	WITHOUT_MODULES="ahc"
 
@@ -96,6 +96,7 @@ device		bpf		# Berkeley packet filter
 # Pseudo devices.
 device		loop		# Network loopback
 device		random		# Entropy device
+options 	YARROW_RNG	# Yarrow software RNG
 device		ether		# Ethernet support
 #device		vlan		# 802.1Q VLAN support
 #device		tun		# Packet tunnel.

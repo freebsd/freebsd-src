@@ -190,6 +190,9 @@ struct lagg_softc {
 	struct rwlock			sc_mtx;
 	int				sc_proto;	/* lagg protocol */
 	u_int				sc_count;	/* number of ports */
+	u_int				sc_active;	/* active port count */
+	u_int				sc_flapping;	/* number of flapping
+							 * events */
 	struct lagg_port		*sc_primary;	/* primary port */
 	struct ifmedia			sc_media;	/* media config */
 	caddr_t				sc_psc;		/* protocol data */
@@ -225,6 +228,7 @@ struct lagg_softc {
 	eventhandler_tag vlan_detach;
 	struct callout			sc_callout;
 	struct sysctl_ctx_list		ctx;		/* sysctl variables */
+	struct sysctl_oid		*sc_oid;	/* sysctl tree oid */
 	int				use_flowid;	/* use M_FLOWID */
 };
 
@@ -265,6 +269,8 @@ extern void	(*lagg_linkstate_p)(struct ifnet *, int );
 
 int		lagg_enqueue(struct ifnet *, struct mbuf *);
 uint32_t	lagg_hashmbuf(struct lagg_softc *, struct mbuf *, uint32_t);
+
+SYSCTL_DECL(_net_link_lagg);
 
 #endif /* _KERNEL */
 

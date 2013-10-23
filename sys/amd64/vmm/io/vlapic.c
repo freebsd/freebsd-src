@@ -463,9 +463,12 @@ lapic_process_icr(struct vlapic *vlapic, uint64_t icrval)
 			dmask = vm_active_cpus(vlapic->vm);
 			CPU_CLR(vlapic->vcpuid, &dmask);
 			break;
+		default:
+			CPU_ZERO(&dmask);	/* satisfy gcc */
+			break;
 		}
 
-		while ((i = cpusetobj_ffs(&dmask)) != 0) {
+		while ((i = CPU_FFS(&dmask)) != 0) {
 			i--;
 			CPU_CLR(i, &dmask);
 			if (mode == APIC_DELMODE_FIXED) {

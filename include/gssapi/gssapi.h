@@ -44,6 +44,33 @@ typedef	__ssize_t	ssize_t;
 #define	_SSIZE_T_DECLARED
 #endif
 
+/* Compatibility with Heimdal 1.5.1 */
+#ifndef GSSAPI_CPP_START
+#ifdef __cplusplus
+#define GSSAPI_CPP_START	extern "C" {
+#define GSSAPI_CPP_END		}
+#else
+#define GSSAPI_CPP_START
+#define GSSAPI_CPP_END
+#endif
+#endif
+
+/* Compatibility with Heimdal 1.5.1 */
+#ifndef BUILD_GSSAPI_LIB
+#define GSSAPI_LIB_FUNCTION
+#define GSSAPI_LIB_CALL
+#define GSSAPI_LIB_VARIABLE
+#endif
+
+/* Compatibility with Heimdal 1.5.1 */
+#ifndef GSSAPI_DEPRECATED_FUNCTION
+#if defined(__GNUC__) && ((__GNUC__ > 3) || ((__GNUC__ == 3) && (__GNUC_MINOR__ >= 1 )))
+#define GSSAPI_DEPRECATED_FUNCTION(X) __attribute__((deprecated))
+#else
+#define GSSAPI_DEPRECATED_FUNCTION(X)
+#endif
+#endif
+
 #if 0
 /*
  * If the platform supports the xom.h header file, it should be

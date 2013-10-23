@@ -251,7 +251,7 @@ sf_buf_alloc(struct vm_page *m, int flags)
 		if (flags & SFB_NOWAIT)
 			goto done;
 		sf_buf_alloc_want++;
-		mbstat.sf_allocwait++;
+		SFSTAT_INC(sf_allocwait);
 		error = msleep(&sf_buf_freelist, &sf_buf_lock,
 		    (flags & SFB_CATCH) ? PCATCH | PVM : PVM, "sfbufa", 0);
 		sf_buf_alloc_want--;

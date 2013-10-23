@@ -115,7 +115,6 @@ AMDGPUPassConfig::addPreISel() {
 }
 
 bool AMDGPUPassConfig::addInstSelector() {
-  addPass(createAMDGPUPeepholeOpt(*TM));
   addPass(createAMDGPUISelDag(getAMDGPUTargetMachine()));
 
   const AMDGPUSubtarget &ST = TM->getSubtarget<AMDGPUSubtarget>();
@@ -153,8 +152,9 @@ bool AMDGPUPassConfig::addPreEmitPass() {
     addPass(createAMDGPUCFGStructurizerPass(*TM));
     addPass(createR600EmitClauseMarkers(*TM));
     addPass(createR600ExpandSpecialInstrsPass(*TM));
-    addPass(createR600ControlFlowFinalizer(*TM));
     addPass(&FinalizeMachineBundlesID);
+    addPass(createR600Packetizer(*TM));
+    addPass(createR600ControlFlowFinalizer(*TM));
   } else {
     addPass(createSILowerControlFlowPass(*TM));
   }

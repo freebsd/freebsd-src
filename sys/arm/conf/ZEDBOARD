@@ -66,6 +66,7 @@ options 	KDB
 
 device		loop
 device		random
+options 	YARROW_RNG		# Yarrow software RNG
 device		ether
 device		if_cgem			# Zynq-7000 gig ethernet device
 device		mii

@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/taskqueue.h>
+#include <sys/counter.h>
 
 #include <net/ethernet.h>
 #include <net/fddi.h>
@@ -209,9 +210,25 @@ SYSCTL_INT(_net_inet_carp, OID_AUTO, senderr_demotion_factor, CTLFLAG_RW,
 SYSCTL_INT(_net_inet_carp, OID_AUTO, ifdown_demotion_factor, CTLFLAG_RW,
     &carp_ifdown_adj, 0, "Interface down demotion factor adjustment");
 
-static struct carpstats carpstats;
-SYSCTL_STRUCT(_net_inet_carp, OID_AUTO, stats, CTLFLAG_RW, &carpstats,
-    carpstats, "CARP statistics (struct carpstats, netinet/ip_carp.h)");
+static counter_u64_t carpstats[sizeof(struct carpstats) / sizeof(uint64_t)];
+#define	CARPSTATS_ADD(name, val)	\
+    counter_u64_add(carpstats[offsetof(struct carpstats, name) / \
+	sizeof(uint64_t)], (val))
+#define	CARPSTATS_INC(name)		CARPSTATS_ADD(name, 1)
+
+static int
+carpstats_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct carpstats s;
+
+	COUNTER_ARRAY_COPY(carpstats, &s, sizeof(s) / sizeof(uint64_t));
+	if (req->newptr)
+		COUNTER_ARRAY_ZERO(carpstats, sizeof(s) / sizeof(uint64_t));
+	return (SYSCTL_OUT(req, &s, sizeof(s)));
+}
+SYSCTL_PROC(_net_inet_carp, OID_AUTO, stats, CTLTYPE_OPAQUE | CTLFLAG_RW,
+    NULL, 0, carpstats_sysctl, "I",
+    "CARP statistics (struct carpstats, netinet/ip_carp.h)");
 
 #define	CARP_LOCK_INIT(sc)	mtx_init(&(sc)->sc_mtx, "carp_softc",   \
 	NULL, MTX_DEF)
@@ -2084,6 +2101,8 @@ carp_mod_cleanup(void)
 	mtx_unlock(&carp_mtx);
 	taskqueue_drain(taskqueue_swi, &carp_sendall_task);
 	mtx_destroy(&carp_mtx);
+	COUNTER_ARRAY_FREE(carpstats,
+	    sizeof(struct carpstats) / sizeof(uint64_t));
 }
 
 static int
@@ -2093,6 +2112,8 @@ carp_mod_load(void)
 
 	mtx_init(&carp_mtx, "carp_mtx", NULL, MTX_DEF);
 	LIST_INIT(&carp_list);
+	COUNTER_ARRAY_ALLOC(carpstats,
+	    sizeof(struct carpstats) / sizeof(uint64_t), M_WAITOK);
 	carp_get_vhid_p = carp_get_vhid;
 	carp_forus_p = carp_forus;
 	carp_output_p = carp_output;

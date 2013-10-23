@@ -1402,9 +1402,6 @@ struct ath_hal {
 				const struct ieee80211_channel *);
 	void	  __ahdecl(*ah_procMibEvent)(struct ath_hal *,
 				const HAL_NODE_STATS *);
-	void	  __ahdecl(*ah_rxAntCombDiversity)(struct ath_hal *,
-				struct ath_rx_status *,
-				unsigned long, int);
 
 	/* Misc Functions */
 	HAL_STATUS __ahdecl(*ah_getCapability)(struct ath_hal *,
@@ -1585,6 +1582,12 @@ struct ath_hal {
 				uint32_t, uint32_t);
 	void	    __ahdecl(*ah_btCoexDisable)(struct ath_hal *);
 	int	    __ahdecl(*ah_btCoexEnable)(struct ath_hal *);
+
+	/* LNA diversity configuration */
+	void	    __ahdecl(*ah_divLnaConfGet)(struct ath_hal *,
+				HAL_ANT_COMB_CONFIG *);
+	void	    __ahdecl(*ah_divLnaConfSet)(struct ath_hal *,
+				HAL_ANT_COMB_CONFIG *);
 };
 
 /* 

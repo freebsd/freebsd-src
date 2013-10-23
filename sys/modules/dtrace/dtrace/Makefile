@@ -49,3 +49,6 @@ EXPORT_SYMS=	dtrace_register \
 dtrace_asm.o:  assym.s
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS+=	-Wno-parentheses
+CWARNFLAGS+=	-Wno-uninitialized

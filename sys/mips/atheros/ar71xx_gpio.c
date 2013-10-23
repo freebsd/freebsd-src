@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <mips/atheros/ar71xx_setup.h>
 #include <mips/atheros/ar71xx_gpiovar.h>
 #include <mips/atheros/ar933xreg.h>
+#include <mips/atheros/ar934xreg.h>
 
 #include "gpio_if.h"
 
@@ -90,13 +91,23 @@ static int ar71xx_gpio_pin_toggle(device_t dev, uint32_t pin);
 static void
 ar71xx_gpio_function_enable(struct ar71xx_gpio_softc *sc, uint32_t mask)
 {
-	GPIO_SET_BITS(sc, AR71XX_GPIO_FUNCTION, mask);
+	if (ar71xx_soc == AR71XX_SOC_AR9341 ||
+	    ar71xx_soc == AR71XX_SOC_AR9342 ||
+	    ar71xx_soc == AR71XX_SOC_AR9344)
+		GPIO_SET_BITS(sc, AR934X_GPIO_REG_FUNC, mask);
+	else
+		GPIO_SET_BITS(sc, AR71XX_GPIO_FUNCTION, mask);
 }
 
 static void
 ar71xx_gpio_function_disable(struct ar71xx_gpio_softc *sc, uint32_t mask)
 {
-	GPIO_CLEAR_BITS(sc, AR71XX_GPIO_FUNCTION, mask);
+	if (ar71xx_soc == AR71XX_SOC_AR9341 ||
+	    ar71xx_soc == AR71XX_SOC_AR9342 ||
+	    ar71xx_soc == AR71XX_SOC_AR9344)
+		GPIO_CLEAR_BITS(sc, AR934X_GPIO_REG_FUNC, mask);
+	else
+		GPIO_CLEAR_BITS(sc, AR71XX_GPIO_FUNCTION, mask);
 }
 
 static void
@@ -141,6 +152,10 @@ ar71xx_gpio_pin_max(device_t dev, int *maxpin)
 		case AR71XX_SOC_AR9331:
 			*maxpin = AR933X_GPIO_COUNT - 1;
 			break;
+		case AR71XX_SOC_AR9341:
+		case AR71XX_SOC_AR9342:
+		case AR71XX_SOC_AR9344:
+			*maxpin = AR934X_GPIO_COUNT - 1;
 		default:
 			*maxpin = AR71XX_GPIO_PINS - 1;
 	}

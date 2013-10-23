@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 25, 2012
+.Dd July 5, 2013
 .Dt HPTIOP 4
 .Os
 .Sh NAME
@@ -60,6 +60,8 @@ driver supports the following SAS and SATA RAID controllers:
 .It
 HighPoint RocketRAID 4522
 .It
+HighPoint RocketRAID 4521
+.It
 HighPoint RocketRAID 4520
 .It
 HighPoint RocketRAID 4322
@@ -71,6 +73,20 @@ HighPoint RocketRAID 4320
 HighPoint RocketRAID 4311
 .It
 HighPoint RocketRAID 4310
+.It
+HighPoint RocketRAID 3640
+.It
+HighPoint RocketRAID 3622
+.It
+HighPoint RocketRAID 3620
+.El
+.Pp
+The
+.Nm
+driver also supports the following SAS and SATA RAID controllers that
+are already End-of-Life:
+.Pp
+.Bl -bullet -compact
 .It
 HighPoint RocketRAID 4211
 .It

@@ -69,16 +69,12 @@ extern int	acpi_release_global_lock(uint32_t *lock);
 	(Acq) = acpi_release_global_lock(&((GLptr)->GlobalLock));	\
 } while (0)
  
-#endif /* _KERNEL */
-
-#define	ACPI_MACHINE_WIDTH             64
-#define	COMPILER_DEPENDENT_INT64       long
-#define	COMPILER_DEPENDENT_UINT64      unsigned long
-
 void	acpi_SetDefaultIntrModel(int model);
 void	acpi_cpu_c1(void);
 void	*acpi_map_table(vm_paddr_t pa, const char *sig);
 void	acpi_unmap_table(void *table);
 vm_paddr_t acpi_find_table(const char *sig);
+
+#endif /* _KERNEL */
 
 #endif /* __ACPICA_MACHDEP_H__ */

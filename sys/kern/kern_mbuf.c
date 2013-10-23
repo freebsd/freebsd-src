@@ -102,7 +102,11 @@ int nmbclusters;		/* limits number of mbuf clusters */
 int nmbjumbop;			/* limits number of page size jumbo clusters */
 int nmbjumbo9;			/* limits number of 9k jumbo clusters */
 int nmbjumbo16;			/* limits number of 16k jumbo clusters */
-struct mbstat mbstat;
+
+static quad_t maxmbufmem;	/* overall real memory limit for all mbufs */
+
+SYSCTL_QUAD(_kern_ipc, OID_AUTO, maxmbufmem, CTLFLAG_RDTUN, &maxmbufmem, 0,
+    "Maximum real memory allocateable to various mbuf types");
 
 /*
  * tunable_mbinit() has to be run before any mbuf allocations are done.
@@ -110,7 +114,7 @@ struct mbstat mbstat;
 static void
 tunable_mbinit(void *dummy)
 {
-	quad_t realmem, maxmbufmem;
+	quad_t realmem;
 
 	/*
 	 * The default limit for all mbuf related memory is 1/2 of all
@@ -120,7 +124,7 @@ tunable_mbinit(void *dummy)
 	realmem = qmin((quad_t)physmem * PAGE_SIZE,
 	    vm_map_max(kmem_map) - vm_map_min(kmem_map));
 	maxmbufmem = realmem / 2;
-	TUNABLE_QUAD_FETCH("kern.maxmbufmem", &maxmbufmem);
+	TUNABLE_QUAD_FETCH("kern.ipc.maxmbufmem", &maxmbufmem);
 	if (maxmbufmem > realmem / 4 * 3)
 		maxmbufmem = realmem / 4 * 3;
 
@@ -162,8 +166,7 @@ sysctl_nmbclusters(SYSCTL_HANDLER_ARGS)
 		if (newnmbclusters > nmbclusters &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbclusters = newnmbclusters;
-			uma_zone_set_max(zone_clust, nmbclusters);
-			nmbclusters = uma_zone_get_max(zone_clust);
+			nmbclusters = uma_zone_set_max(zone_clust, nmbclusters);
 			EVENTHANDLER_INVOKE(nmbclusters_change);
 		} else
 			error = EINVAL;
@@ -185,8 +188,7 @@ sysctl_nmbjumbop(SYSCTL_HANDLER_ARGS)
 		if (newnmbjumbop > nmbjumbop &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbjumbop = newnmbjumbop;
-			uma_zone_set_max(zone_jumbop, nmbjumbop);
-			nmbjumbop = uma_zone_get_max(zone_jumbop);
+			nmbjumbop = uma_zone_set_max(zone_jumbop, nmbjumbop);
 		} else
 			error = EINVAL;
 	}
@@ -204,11 +206,10 @@ sysctl_nmbjumbo9(SYSCTL_HANDLER_ARGS)
 	newnmbjumbo9 = nmbjumbo9;
 	error = sysctl_handle_int(oidp, &newnmbjumbo9, 0, req);
 	if (error == 0 && req->newptr) {
-		if (newnmbjumbo9 > nmbjumbo9&&
+		if (newnmbjumbo9 > nmbjumbo9 &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbjumbo9 = newnmbjumbo9;
-			uma_zone_set_max(zone_jumbo9, nmbjumbo9);
-			nmbjumbo9 = uma_zone_get_max(zone_jumbo9);
+			nmbjumbo9 = uma_zone_set_max(zone_jumbo9, nmbjumbo9);
 		} else
 			error = EINVAL;
 	}
@@ -229,8 +230,7 @@ sysctl_nmbjumbo16(SYSCTL_HANDLER_ARGS)
 		if (newnmbjumbo16 > nmbjumbo16 &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbjumbo16 = newnmbjumbo16;
-			uma_zone_set_max(zone_jumbo16, nmbjumbo16);
-			nmbjumbo16 = uma_zone_get_max(zone_jumbo16);
+			nmbjumbo16 = uma_zone_set_max(zone_jumbo16, nmbjumbo16);
 		} else
 			error = EINVAL;
 	}
@@ -250,20 +250,16 @@ sysctl_nmbufs(SYSCTL_HANDLER_ARGS)
 	if (error == 0 && req->newptr) {
 		if (newnmbufs > nmbufs) {
 			nmbufs = newnmbufs;
-			uma_zone_set_max(zone_mbuf, nmbufs);
-			nmbufs = uma_zone_get_max(zone_mbuf);
+			nmbufs = uma_zone_set_max(zone_mbuf, nmbufs);
 			EVENTHANDLER_INVOKE(nmbufs_change);
 		} else
 			error = EINVAL;
 	}
 	return (error);
 }
-SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbuf, CTLTYPE_INT|CTLFLAG_RW,
+SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbufs, CTLTYPE_INT|CTLFLAG_RW,
 &nmbufs, 0, sysctl_nmbufs, "IU",
     "Maximum number of mbufs allowed");
-
-SYSCTL_STRUCT(_kern_ipc, OID_AUTO, mbstat, CTLFLAG_RD, &mbstat, mbstat,
-    "Mbuf general information and statistics");
 
 /*
  * Zones from which we allocate.
@@ -384,25 +380,6 @@ mbuf_init(void *dummy)
 	 */
 	EVENTHANDLER_REGISTER(vm_lowmem, mb_reclaim, NULL,
 	    EVENTHANDLER_PRI_FIRST);
-
-	/*
-	 * [Re]set counters and local statistics knobs.
-	 * XXX Some of these should go and be replaced, but UMA stat
-	 * gathering needs to be revised.
-	 */
-	mbstat.m_mbufs = 0;
-	mbstat.m_mclusts = 0;
-	mbstat.m_drain = 0;
-	mbstat.m_msize = MSIZE;
-	mbstat.m_mclbytes = MCLBYTES;
-	mbstat.m_minclsize = MINCLSIZE;
-	mbstat.m_mlen = MLEN;
-	mbstat.m_mhlen = MHLEN;
-	mbstat.m_numtypes = MT_NTYPES;
-
-	mbstat.m_mcfail = mbstat.m_mpfail = 0;
-	mbstat.sf_iocnt = 0;
-	mbstat.sf_allocwait = mbstat.sf_allocfail = 0;
 }
 SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbuf_init, NULL);
 

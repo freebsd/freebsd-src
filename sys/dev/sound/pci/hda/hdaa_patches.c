@@ -368,6 +368,13 @@ hdac_pin_patch(struct hdaa_widget *w)
 			patch = "as=1 seq=15";
 			break;
 		}
+	} else if (id == HDA_CODEC_ALC269 &&
+	    subid == ASUS_UX31A_SUBVENDOR) {
+		switch (nid) {
+		case 33:
+			patch = "as=1 seq=15";
+			break;
+		}
 	}
 
 	if (patch != NULL)

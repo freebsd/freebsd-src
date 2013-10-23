@@ -29,6 +29,7 @@ class CXXConstructorDecl;
 class CXXDestructorDecl;
 class CXXMethodDecl;
 class CXXTemporary;
+class MSPropertyDecl;
 class TemplateArgumentListInfo;
 class UuidAttr;
 
@@ -560,6 +561,64 @@ public:
   }
 };
 
+/// A member reference to an MSPropertyDecl.  This expression always
+/// has pseudo-object type, and therefore it is typically not
+/// encountered in a fully-typechecked expression except within the
+/// syntactic form of a PseudoObjectExpr.
+class MSPropertyRefExpr : public Expr {
+  Expr *BaseExpr;
+  MSPropertyDecl *TheDecl;
+  SourceLocation MemberLoc;
+  bool IsArrow;
+  NestedNameSpecifierLoc QualifierLoc;
+
+public:
+  MSPropertyRefExpr(Expr *baseExpr, MSPropertyDecl *decl, bool isArrow,
+                    QualType ty, ExprValueKind VK,
+                    NestedNameSpecifierLoc qualifierLoc,
+                    SourceLocation nameLoc)
+  : Expr(MSPropertyRefExprClass, ty, VK, OK_Ordinary,
+         /*type-dependent*/ false, baseExpr->isValueDependent(),
+         baseExpr->isInstantiationDependent(),
+         baseExpr->containsUnexpandedParameterPack()),
+    BaseExpr(baseExpr), TheDecl(decl),
+    MemberLoc(nameLoc), IsArrow(isArrow),
+    QualifierLoc(qualifierLoc) {}
+
+  MSPropertyRefExpr(EmptyShell Empty) : Expr(MSPropertyRefExprClass, Empty) {}
+
+  SourceRange getSourceRange() const LLVM_READONLY {
+    return SourceRange(getLocStart(), getLocEnd());
+  }
+  bool isImplicitAccess() const {
+    return getBaseExpr() && getBaseExpr()->isImplicitCXXThis();
+  }
+  SourceLocation getLocStart() const {
+    if (!isImplicitAccess())
+      return BaseExpr->getLocStart();
+    else if (QualifierLoc)
+      return QualifierLoc.getBeginLoc();
+    else
+        return MemberLoc;
+  }
+  SourceLocation getLocEnd() const { return getMemberLoc(); }
+
+  child_range children() {
+    return child_range((Stmt**)&BaseExpr, (Stmt**)&BaseExpr + 1);
+  }
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == MSPropertyRefExprClass;
+  }
+
+  Expr *getBaseExpr() const { return BaseExpr; }
+  MSPropertyDecl *getPropertyDecl() const { return TheDecl; }
+  bool isArrow() const { return IsArrow; }
+  SourceLocation getMemberLoc() const { return MemberLoc; }
+  NestedNameSpecifierLoc getQualifierLoc() const { return QualifierLoc; }
+
+  friend class ASTStmtReader;
+};
+
 /// CXXUuidofExpr - A microsoft C++ @c __uuidof expression, which gets
 /// the _GUID that corresponds to the supplied type or expression.
 ///
@@ -823,6 +882,53 @@ public:
 
   friend class ASTStmtReader;
   friend class ASTStmtWriter;
+};
+
+/// \brief This wraps a use of a C++ default initializer (technically,
+/// a brace-or-equal-initializer for a non-static data member) when it
+/// is implicitly used in a mem-initializer-list in a constructor
+/// (C++11 [class.base.init]p8) or in aggregate initialization
+/// (C++1y [dcl.init.aggr]p7).
+class CXXDefaultInitExpr : public Expr {
+  /// \brief The field whose default is being used.
+  FieldDecl *Field;
+
+  /// \brief The location where the default initializer expression was used.
+  SourceLocation Loc;
+
+  CXXDefaultInitExpr(ASTContext &C, SourceLocation Loc, FieldDecl *Field,
+                     QualType T);
+
+  CXXDefaultInitExpr(EmptyShell Empty) : Expr(CXXDefaultInitExprClass, Empty) {}
+
+public:
+  // Field is the non-static data member whose default initializer is used
+  // by this expression.
+  static CXXDefaultInitExpr *Create(ASTContext &C, SourceLocation Loc,
+                                    FieldDecl *Field) {
+    return new (C) CXXDefaultInitExpr(C, Loc, Field, Field->getType());
+  }
+
+  // Get the field whose initializer will be used.
+  FieldDecl *getField() { return Field; }
+  const FieldDecl *getField() const { return Field; }
+
+  // Get the initialization expression that will be used.
+  const Expr *getExpr() const { return Field->getInClassInitializer(); }
+  Expr *getExpr() { return Field->getInClassInitializer(); }
+
+  SourceLocation getLocStart() const LLVM_READONLY { return Loc; }
+  SourceLocation getLocEnd() const LLVM_READONLY { return Loc; }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == CXXDefaultInitExprClass;
+  }
+
+  // Iterators
+  child_range children() { return child_range(); }
+
+  friend class ASTReader;
+  friend class ASTStmtReader;
 };
 
 /// CXXTemporary - Represents a C++ temporary.

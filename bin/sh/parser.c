@@ -96,9 +96,9 @@ static struct heredoc *heredoclist;	/* list of here documents to read */
 static int doprompt;		/* if set, prompt the user */
 static int needprompt;		/* true if interactive and at start of line */
 static int lasttoken;		/* last token read */
-MKINIT int tokpushback;		/* last token pushed back */
+int tokpushback;		/* last token pushed back */
 static char *wordtext;		/* text of last word returned by readtoken */
-MKINIT int checkkwd;            /* 1 == check for kwds, 2 == also eat newlines */
+static int checkkwd;
 static struct nodelist *backquotelist;
 static union node *redirnode;
 static struct heredoc *heredoc;
@@ -1819,13 +1819,13 @@ parsearith: {
 } /* end of readtoken */
 
 
-
-#ifdef mkinit
-RESET {
+void
+resetparser(void)
+{
 	tokpushback = 0;
 	checkkwd = 0;
 }
-#endif
+
 
 /*
  * Returns true if the text contains nothing to expand (no dollar signs

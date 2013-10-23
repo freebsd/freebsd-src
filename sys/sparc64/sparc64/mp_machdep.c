@@ -557,7 +557,7 @@ spitfire_ipi_selected(cpuset_t cpus, u_long d0, u_long d1, u_long d2)
 {
 	u_int cpu;
 
-	while ((cpu = cpusetobj_ffs(&cpus)) != 0) {
+	while ((cpu = CPU_FFS(&cpus)) != 0) {
 		cpu--;
 		CPU_CLR(cpu, &cpus);
 		spitfire_ipi_single(cpu, d0, d1, d2);

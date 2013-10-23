@@ -1196,7 +1196,8 @@ ffs_dirpref(pip)
 /*
  * Select the desired position for the next block in a file.  The file is
  * logically divided into sections. The first section is composed of the
- * direct blocks. Each additional section contains fs_maxbpg blocks.
+ * direct blocks and the next fs_maxbpg blocks. Each additional section
+ * contains fs_maxbpg blocks.
  *
  * If no blocks have been allocated in the first section, the policy is to
  * request a block in the same cylinder group as the inode that describes
@@ -1214,14 +1215,12 @@ ffs_dirpref(pip)
  * cylinder group from which the previous allocation was made. The sweep
  * continues until a cylinder group with greater than the average number
  * of free blocks is found. If the allocation is for the first block in an
- * indirect block, the information on the previous allocation is unavailable;
- * here a best guess is made based upon the logical block number being
- * allocated.
+ * indirect block or the previous block is a hole, then the information on
+ * the previous allocation is unavailable; here a best guess is made based
+ * on the logical block number being allocated.
  *
  * If a section is already partially allocated, the policy is to
- * contiguously allocate fs_maxcontig blocks. The end of one of these
- * contiguous blocks and the beginning of the next is laid out
- * contiguously if possible.
+ * allocate blocks contiguously within the section if possible.
  */
 ufs2_daddr_t
 ffs_blkpref_ufs1(ip, lbn, indx, bap)
@@ -1710,7 +1709,7 @@ ffs_alloccgblk(ip, bp, bpref, size)
 	cgp = (struct cg *)bp->b_data;
 	blksfree = cg_blksfree(cgp);
 	if (bpref == 0) {
-		bpref = cgp->cg_rotor;
+		bpref = cgbase(fs, cgp->cg_cgx) + cgp->cg_rotor + fs->fs_frag;
 	} else if ((cgbpref = dtog(fs, bpref)) != cgp->cg_cgx) {
 		/* map bpref to correct zone in this cg */
 		if (bpref < cgdata(fs, cgbpref))

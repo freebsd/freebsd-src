@@ -1372,9 +1372,16 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 			goto out;
 		error = vinvalbuf(vp, flags, 0, slptimeo);
 	}
-	if (NFSHASPNFS(nmp))
+	if (NFSHASPNFS(nmp)) {
 		nfscl_layoutcommit(vp, td);
-	mtx_lock(&np->n_mtx);
+		/*
+		 * Invalidate the attribute cache, since writes to a DS
+		 * won't update the size attribute.
+		 */
+		mtx_lock(&np->n_mtx);
+		np->n_attrstamp = 0;
+	} else
+		mtx_lock(&np->n_mtx);
 	if (np->n_directio_asyncwr == 0)
 		np->n_flag &= ~NMODIFIED;
 	mtx_unlock(&np->n_mtx);
@@ -1555,6 +1562,13 @@ ncl_doio_directwrite(struct buf *bp)
 	if ((bp->b_flags & B_DIRECT) && bp->b_iocmd == BIO_WRITE) {
 		struct nfsnode *np = VTONFS(bp->b_vp);
 		mtx_lock(&np->n_mtx);
+		if (NFSHASPNFS(VFSTONFS(vnode_mount(bp->b_vp)))) {
+			/*
+			 * Invalidate the attribute cache, since writes to a DS
+			 * won't update the size attribute.
+			 */
+			np->n_attrstamp = 0;
+		}
 		np->n_directio_asyncwr--;
 		if (np->n_directio_asyncwr == 0) {
 			np->n_flag &= ~NMODIFIED;

@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
 #include <cam/cam_sim.h>
+#include <cam/cam_compat.h>
 
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_pass.h>
@@ -87,6 +88,7 @@ struct pass_softc {
 static	d_open_t	passopen;
 static	d_close_t	passclose;
 static	d_ioctl_t	passioctl;
+static	d_ioctl_t	passdoioctl;
 
 static	periph_init_t	passinit;
 static	periph_ctor_t	passregister;
@@ -574,6 +576,19 @@ passdone(struct cam_periph *periph, union ccb *done_ccb)
 
 static int
 passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+{
+	int error;
+
+	if ((error = passdoioctl(dev, cmd, addr, flag, td)) == ENOTTY) {
+		error = cam_compat_ioctl(dev, &cmd, &addr, &flag, td);
+		if (error == EAGAIN)
+			return (passdoioctl(dev, cmd, addr, flag, td));
+	}
+	return (error);
+}
+
+static int
+passdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct	cam_periph *periph;
 	struct	pass_softc *softc;

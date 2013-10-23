@@ -29,6 +29,7 @@
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/IR/InlineAsm.h"
@@ -214,7 +215,8 @@ void PEI::calculateCalleeSavedRegisters(MachineFunction &F) {
   std::vector<CalleeSavedInfo> CSI;
   for (unsigned i = 0; CSRegs[i]; ++i) {
     unsigned Reg = CSRegs[i];
-    if (F.getRegInfo().isPhysRegUsed(Reg)) {
+    // Functions which call __builtin_unwind_init get all their registers saved.
+    if (F.getRegInfo().isPhysRegUsed(Reg) || F.getMMI().callsUnwindInit()) {
       // If the reg is modified, save it!
       CSI.push_back(CalleeSavedInfo(Reg));
     }
@@ -824,6 +826,12 @@ void PEI::scavengeFrameVirtualRegs(MachineFunction &Fn) {
     // The instruction stream may change in the loop, so check BB->end()
     // directly.
     for (MachineBasicBlock::iterator I = BB->begin(); I != BB->end(); ) {
+      // We might end up here again with a NULL iterator if we scavenged a
+      // register for which we inserted spill code for definition by what was
+      // originally the first instruction in BB.
+      if (I == MachineBasicBlock::iterator(NULL))
+        I = BB->begin();
+
       MachineInstr *MI = I;
       MachineBasicBlock::iterator J = llvm::next(I);
       MachineBasicBlock::iterator P = I == BB->begin() ?
@@ -883,8 +891,6 @@ void PEI::scavengeFrameVirtualRegs(MachineFunction &Fn) {
           "The register scavenger has an unexpected position");
         I = P;
         RS->unprocess(P);
-
-        // RS->skipTo(I == BB->begin() ? NULL : llvm::prior(I));
       } else
         ++I;
     }

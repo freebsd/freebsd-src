@@ -62,6 +62,7 @@ device		pass		# Passthrough device (direct ATA/SCSI access)
 # Pseudo devices.
 device		loop		# Network loopback
 device		random		# Entropy device
+options 	YARROW_RNG	# Yarrow software RNG
 device		ether		# Ethernet support
 #device		tun		# Packet tunnel.
 #device		md		# Memory "disks"

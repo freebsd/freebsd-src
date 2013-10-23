@@ -1202,27 +1202,13 @@ libusb20_be_alloc(const struct libusb20_backend_methods *methods)
 struct libusb20_backend *
 libusb20_be_alloc_linux(void)
 {
-	struct libusb20_backend *pbe;
-
-#ifdef __linux__
-	pbe = libusb20_be_alloc(&libusb20_linux_backend);
-#else
-	pbe = NULL;
-#endif
-	return (pbe);
+	return (NULL);
 }
 
 struct libusb20_backend *
 libusb20_be_alloc_ugen20(void)
 {
-	struct libusb20_backend *pbe;
-
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
-	pbe = libusb20_be_alloc(&libusb20_ugen20_backend);
-#else
-	pbe = NULL;
-#endif
-	return (pbe);
+	return (libusb20_be_alloc(&libusb20_ugen20_backend));
 }
 
 struct libusb20_backend *
@@ -1230,10 +1216,12 @@ libusb20_be_alloc_default(void)
 {
 	struct libusb20_backend *pbe;
 
+#ifdef __linux__
 	pbe = libusb20_be_alloc_linux();
 	if (pbe) {
 		return (pbe);
 	}
+#endif
 	pbe = libusb20_be_alloc_ugen20();
 	if (pbe) {
 		return (pbe);

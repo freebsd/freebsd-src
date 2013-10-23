@@ -68,6 +68,7 @@ options 	NO_FFS_SNAPSHOT
 options 	NO_SWAPPING
 device		loop
 device		random
+options 	YARROW_RNG		# Yarrow software RNG
 device		ether
 device		vlan
 device		uart

@@ -21,6 +21,7 @@
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/PointerUnion.h"
 #include <deque>
+#include <list>
 #include <iterator>
 #include <string>
 #include <vector>
@@ -93,7 +94,7 @@ public:
   
   void HandlePathDiagnostic(PathDiagnostic *D);
 
-  enum PathGenerationScheme { None, Minimal, Extensive };
+  enum PathGenerationScheme { None, Minimal, Extensive, AlternateExtensive };
   virtual PathGenerationScheme getGenerationScheme() const { return Minimal; }
   virtual bool supportsLogicalOpControlFlow() const { return false; }
   virtual bool supportsAllBlockEdges() const { return false; }
@@ -283,6 +284,13 @@ public:
   const SourceManager& getManager() const { assert(isValid()); return *SM; }
   
   void Profile(llvm::FoldingSetNodeID &ID) const;
+
+  /// \brief Given an exploded node, retrieve the statement that should be used 
+  /// for the diagnostic location.
+  static const Stmt *getStmt(const ExplodedNode *N);
+
+  /// \brief Retrieve the statement corresponding to the sucessor node.
+  static const Stmt *getNextStmt(const ExplodedNode *N);
 };
 
 class PathDiagnosticLocationPair {
@@ -295,6 +303,9 @@ public:
 
   const PathDiagnosticLocation &getStart() const { return Start; }
   const PathDiagnosticLocation &getEnd() const { return End; }
+
+  void setStart(const PathDiagnosticLocation &L) { Start = L; }
+  void setEnd(const PathDiagnosticLocation &L) { End = L; }
 
   void flatten() {
     Start.flatten();
@@ -381,7 +392,7 @@ public:
 };
   
   
-class PathPieces : public std::deque<IntrusiveRefCntPtr<PathDiagnosticPiece> > {
+class PathPieces : public std::list<IntrusiveRefCntPtr<PathDiagnosticPiece> > {
   void flattenTo(PathPieces &Primary, PathPieces &Current,
                  bool ShouldFlattenMacros) const;
 public:
@@ -606,6 +617,14 @@ public:
     assert(!LPairs.empty() &&
            "PathDiagnosticControlFlowPiece needs at least one location.");
     return LPairs[0].getEnd();
+  }
+
+  void setStartLocation(const PathDiagnosticLocation &L) {
+    LPairs[0].setStart(L);
+  }
+
+  void setEndLocation(const PathDiagnosticLocation &L) {
+    LPairs[0].setEnd(L);
   }
 
   void push_back(const PathDiagnosticLocationPair &X) { LPairs.push_back(X); }

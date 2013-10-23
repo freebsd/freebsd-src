@@ -55,7 +55,7 @@
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_scan.h>
 
-#define	IEEE80211_TXPOWER_MAX	100	/* .5 dbM (XXX units?) */
+#define	IEEE80211_TXPOWER_MAX	100	/* .5 dBm (XXX units?) */
 #define	IEEE80211_TXPOWER_MIN	0	/* kill radio */
 
 #define	IEEE80211_DTIM_DEFAULT	1	/* default DTIM period */

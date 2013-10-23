@@ -630,6 +630,32 @@ umtxq_count_pi(struct umtx_key *key, struct umtx_q **first)
 	return (0);
 }
 
+static int
+umtxq_check_susp(struct thread *td)
+{
+	struct proc *p;
+	int error;
+
+	/*
+	 * The check for TDF_NEEDSUSPCHK is racy, but it is enough to
+	 * eventually break the lockstep loop.
+	 */
+	if ((td->td_flags & TDF_NEEDSUSPCHK) == 0)
+		return (0);
+	error = 0;
+	p = td->td_proc;
+	PROC_LOCK(p);
+	if (P_SHOULDSTOP(p) ||
+	    ((p->p_flag & P_TRACED) && (td->td_dbgflags & TDB_SUSPEND))) {
+		if (p->p_flag & P_SINGLE_EXIT)
+			error = EINTR;
+		else
+			error = ERESTART;
+	}
+	PROC_UNLOCK(p);
+	return (error);
+}
+
 /*
  * Wake up threads waiting on an userland object.
  */
@@ -860,6 +886,10 @@ do_lock_umtx(struct thread *td, struct umtx *umtx, u_long id,
 			if (owner == -1)
 				return (EFAULT);
 
+			error = umtxq_check_susp(td);
+			if (error != 0)
+				break;
+
 			/* If this failed the lock has changed, restart. */
 			continue;
 		}
@@ -910,6 +940,9 @@ do_lock_umtx(struct thread *td, struct umtx *umtx, u_long id,
 		umtxq_remove(uq);
 		umtxq_unlock(&uq->uq_key);
 		umtx_key_release(&uq->uq_key);
+
+		if (error == 0)
+			error = umtxq_check_susp(td);
 	}
 
 	if (timeout == NULL) {
@@ -1034,6 +1067,10 @@ do_lock_umtx32(struct thread *td, uint32_t *m, uint32_t id,
 			if (owner == -1)
 				return (EFAULT);
 
+			error = umtxq_check_susp(td);
+			if (error != 0)
+				break;
+
 			/* If this failed the lock has changed, restart. */
 			continue;
 		}
@@ -1084,6 +1121,9 @@ do_lock_umtx32(struct thread *td, uint32_t *m, uint32_t id,
 		umtxq_remove(uq);
 		umtxq_unlock(&uq->uq_key);
 		umtx_key_release(&uq->uq_key);
+
+		if (error == 0)
+			error = umtxq_check_susp(td);
 	}
 
 	if (timeout == NULL) {
@@ -1274,6 +1314,10 @@ do_lock_normal(struct thread *td, struct umutex *m, uint32_t flags,
 				if (owner == -1)
 					return (EFAULT);
 
+				error = umtxq_check_susp(td);
+				if (error != 0)
+					return (error);
+
 				/* If this failed the lock has changed, restart. */
 				continue;
 			}
@@ -1333,6 +1377,9 @@ do_lock_normal(struct thread *td, struct umutex *m, uint32_t flags,
 		umtxq_remove(uq);
 		umtxq_unlock(&uq->uq_key);
 		umtx_key_release(&uq->uq_key);
+
+		if (error == 0)
+			error = umtxq_check_susp(td);
 	}
 
 	return (0);
@@ -1489,6 +1536,11 @@ do_wake2_umutex(struct thread *td, struct umutex *m, uint32_t flags)
 			if (old == owner)
 				break;
 			owner = old;
+			if (old == -1)
+				break;
+			error = umtxq_check_susp(td);
+			if (error != 0)
+				break;
 		}
 	} else if (count == 1) {
 		owner = fuword32(__DEVOLATILE(uint32_t *, &m->m_owner));
@@ -1499,6 +1551,11 @@ do_wake2_umutex(struct thread *td, struct umutex *m, uint32_t flags)
 			if (old == owner)
 				break;
 			owner = old;
+			if (old == -1)
+				break;
+			error = umtxq_check_susp(td);
+			if (error != 0)
+				break;
 		}
 	}
 	umtxq_lock(&key);
@@ -1963,6 +2020,10 @@ do_lock_pi(struct thread *td, struct umutex *m, uint32_t flags,
 				break;
 			}
 
+			error = umtxq_check_susp(td);
+			if (error != 0)
+				break;
+
 			/* If this failed the lock has changed, restart. */
 			continue;
 		}
@@ -2019,6 +2080,10 @@ do_lock_pi(struct thread *td, struct umutex *m, uint32_t flags,
 			umtxq_unbusy(&uq->uq_key);
 			umtxq_unlock(&uq->uq_key);
 		}
+
+		error = umtxq_check_susp(td);
+		if (error != 0)
+			break;
 	}
 
 	umtxq_lock(&uq->uq_key);
@@ -2665,10 +2730,17 @@ do_rw_rdlock(struct thread *td, struct urwlock *rwlock, long fflag, struct _umtx
 				return (EAGAIN);
 			}
 			oldstate = casuword32(&rwlock->rw_state, state, state + 1);
+			if (oldstate == -1) {
+				umtx_key_release(&uq->uq_key);
+				return (EFAULT);
+			}
 			if (oldstate == state) {
 				umtx_key_release(&uq->uq_key);
 				return (0);
 			}
+			error = umtxq_check_susp(td);
+			if (error != 0)
+				break;
 			state = oldstate;
 		}
 
@@ -2689,9 +2761,22 @@ do_rw_rdlock(struct thread *td, struct urwlock *rwlock, long fflag, struct _umtx
 		/* set read contention bit */
 		while ((state & wrflags) && !(state & URWLOCK_READ_WAITERS)) {
 			oldstate = casuword32(&rwlock->rw_state, state, state | URWLOCK_READ_WAITERS);
+			if (oldstate == -1) {
+				error = EFAULT;
+				break;
+			}
 			if (oldstate == state)
 				goto sleep;
 			state = oldstate;
+			error = umtxq_check_susp(td);
+			if (error != 0)
+				break;
+		}
+		if (error != 0) {
+			umtxq_lock(&uq->uq_key);
+			umtxq_unbusy(&uq->uq_key);
+			umtxq_unlock(&uq->uq_key);
+			break;
 		}
 
 		/* state is changed while setting flags, restart */
@@ -2699,6 +2784,9 @@ do_rw_rdlock(struct thread *td, struct urwlock *rwlock, long fflag, struct _umtx
 			umtxq_lock(&uq->uq_key);
 			umtxq_unbusy(&uq->uq_key);
 			umtxq_unlock(&uq->uq_key);
+			error = umtxq_check_susp(td);
+			if (error != 0)
+				break;
 			continue;
 		}
 
@@ -2731,15 +2819,24 @@ sleep:
 			for (;;) {
 				oldstate = casuword32(&rwlock->rw_state, state,
 					 state & ~URWLOCK_READ_WAITERS);
+				if (oldstate == -1) {
+					error = EFAULT;
+					break;
+				}
 				if (oldstate == state)
 					break;
 				state = oldstate;
+				error = umtxq_check_susp(td);
+				if (error != 0)
+					break;
 			}
 		}
 
 		umtxq_lock(&uq->uq_key);
 		umtxq_unbusy(&uq->uq_key);
 		umtxq_unlock(&uq->uq_key);
+		if (error != 0)
+			break;
 	}
 	umtx_key_release(&uq->uq_key);
 	if (error == ERESTART)
@@ -2772,11 +2869,18 @@ do_rw_wrlock(struct thread *td, struct urwlock *rwlock, struct _umtx_time *timeo
 		state = fuword32(__DEVOLATILE(int32_t *, &rwlock->rw_state));
 		while (!(state & URWLOCK_WRITE_OWNER) && URWLOCK_READER_COUNT(state) == 0) {
 			oldstate = casuword32(&rwlock->rw_state, state, state | URWLOCK_WRITE_OWNER);
+			if (oldstate == -1) {
+				umtx_key_release(&uq->uq_key);
+				return (EFAULT);
+			}
 			if (oldstate == state) {
 				umtx_key_release(&uq->uq_key);
 				return (0);
 			}
 			state = oldstate;
+			error = umtxq_check_susp(td);
+			if (error != 0)
+				break;
 		}
 
 		if (error) {
@@ -2806,15 +2910,31 @@ do_rw_wrlock(struct thread *td, struct urwlock *rwlock, struct _umtx_time *timeo
 		while (((state & URWLOCK_WRITE_OWNER) || URWLOCK_READER_COUNT(state) != 0) &&
 		       (state & URWLOCK_WRITE_WAITERS) == 0) {
 			oldstate = casuword32(&rwlock->rw_state, state, state | URWLOCK_WRITE_WAITERS);
+			if (oldstate == -1) {
+				error = EFAULT;
+				break;
+			}
 			if (oldstate == state)
 				goto sleep;
 			state = oldstate;
+			error = umtxq_check_susp(td);
+			if (error != 0)
+				break;
+		}
+		if (error != 0) {
+			umtxq_lock(&uq->uq_key);
+			umtxq_unbusy(&uq->uq_key);
+			umtxq_unlock(&uq->uq_key);
+			break;
 		}
 
 		if (!(state & URWLOCK_WRITE_OWNER) && URWLOCK_READER_COUNT(state) == 0) {
 			umtxq_lock(&uq->uq_key);
 			umtxq_unbusy(&uq->uq_key);
 			umtxq_unlock(&uq->uq_key);
+			error = umtxq_check_susp(td);
+			if (error != 0)
+				break;
 			continue;
 		}
 sleep:
@@ -2844,9 +2964,21 @@ sleep:
 			for (;;) {
 				oldstate = casuword32(&rwlock->rw_state, state,
 					 state & ~URWLOCK_WRITE_WAITERS);
+				if (oldstate == -1) {
+					error = EFAULT;
+					break;
+				}
 				if (oldstate == state)
 					break;
 				state = oldstate;
+				error = umtxq_check_susp(td);
+				/*
+				 * We are leaving the URWLOCK_WRITE_WAITERS
+				 * behind, but this should not harm the
+				 * correctness.
+				 */
+				if (error != 0)
+					break;
 			}
 			blocked_readers = fuword32(&rwlock->rw_blocked_readers);
 		} else
@@ -2882,12 +3014,19 @@ do_rw_unlock(struct thread *td, struct urwlock *rwlock)
 		for (;;) {
 			oldstate = casuword32(&rwlock->rw_state, state, 
 				state & ~URWLOCK_WRITE_OWNER);
+			if (oldstate == -1) {
+				error = EFAULT;
+				goto out;
+			}
 			if (oldstate != state) {
 				state = oldstate;
 				if (!(oldstate & URWLOCK_WRITE_OWNER)) {
 					error = EPERM;
 					goto out;
 				}
+				error = umtxq_check_susp(td);
+				if (error != 0)
+					goto out;
 			} else
 				break;
 		}
@@ -2895,14 +3034,20 @@ do_rw_unlock(struct thread *td, struct urwlock *rwlock)
 		for (;;) {
 			oldstate = casuword32(&rwlock->rw_state, state,
 				state - 1);
+			if (oldstate == -1) {
+				error = EFAULT;
+				goto out;
+			}
 			if (oldstate != state) {
 				state = oldstate;
 				if (URWLOCK_READER_COUNT(oldstate) == 0) {
 					error = EPERM;
 					goto out;
 				}
-			}
-			else
+				error = umtxq_check_susp(td);
+				if (error != 0)
+					goto out;
+			} else
 				break;
 		}
 	} else {

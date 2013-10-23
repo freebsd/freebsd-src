@@ -192,6 +192,17 @@ EVENTHANDLER_DECLARE(vm_lowmem, vm_lowmem_handler_t);
 typedef void (*mountroot_handler_t)(void *);
 EVENTHANDLER_DECLARE(mountroot, mountroot_handler_t);
 
+/* File system mount events */
+struct mount;
+struct vnode;
+struct thread;
+typedef void (*vfs_mounted_notify_fn)(void *, struct mount *, struct vnode *,
+    struct thread *);
+typedef void (*vfs_unmounted_notify_fn)(void *, struct mount *,
+    struct thread *);
+EVENTHANDLER_DECLARE(vfs_mounted, vfs_mounted_notify_fn);
+EVENTHANDLER_DECLARE(vfs_unmounted, vfs_unmounted_notify_fn);
+
 /* VLAN state change events */
 struct ifnet;
 typedef void (*vlan_config_fn)(void *, struct ifnet *, uint16_t);
@@ -231,7 +242,6 @@ EVENTHANDLER_DECLARE(process_exec, execlist_fn);
 /*
  * application dump event
  */
-struct thread;
 typedef void (*app_coredump_start_fn)(void *, struct thread *, char *name);
 typedef void (*app_coredump_progress_fn)(void *, struct thread *td, int byte_count);
 typedef void (*app_coredump_finish_fn)(void *, struct thread *td);

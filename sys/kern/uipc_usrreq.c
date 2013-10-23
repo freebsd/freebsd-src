@@ -1764,8 +1764,8 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 			}
 			for (i = 0; i < newfds; i++, fdp++) {
 				fde = &fdesc->fd_ofiles[*fdp];
-				fde->fde_file = fdep[0]->fde_file;
-				filecaps_move(&fdep[0]->fde_caps,
+				fde->fde_file = fdep[i]->fde_file;
+				filecaps_move(&fdep[i]->fde_caps,
 				    &fde->fde_caps);
 				if ((flags & MSG_CMSG_CLOEXEC) != 0)
 					fde->fde_flags |= UF_EXCLOSE;

@@ -3997,7 +3997,7 @@ print_dedup_stats(nvlist_t *config)
 
 	/*
 	 * If the pool was faulted then we may not have been able to
-	 * obtain the config. Otherwise, if have anything in the dedup
+	 * obtain the config. Otherwise, if we have anything in the dedup
 	 * table continue processing the stats.
 	 */
 	if (nvlist_lookup_uint64_array(config, ZPOOL_CONFIG_DDT_OBJ_STATS,
@@ -5344,10 +5344,9 @@ main(int argc, char **argv)
 		 * 'freeze' is a vile debugging abomination, so we treat
 		 * it as such.
 		 */
-		char buf[16384];
-		int fd = open(ZFS_DEV, O_RDWR);
-		(void) strcpy((void *)buf, argv[2]);
-		return (!!ioctl(fd, ZFS_IOC_POOL_FREEZE, buf));
+		zfs_cmd_t zc = { 0 };
+		(void) strlcpy(zc.zc_name, argv[2], sizeof (zc.zc_name));
+		return (!!zfs_ioctl(g_zfs, ZFS_IOC_POOL_FREEZE, &zc));
 	} else {
 		(void) fprintf(stderr, gettext("unrecognized "
 		    "command '%s'\n"), cmdname);

@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_xpt_internal.h>
 #include <cam/cam_debug.h>
+#include <cam/cam_compat.h>
 
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
@@ -180,6 +181,7 @@ PERIPHDRIVER_DECLARE(xpt, xpt_driver);
 static d_open_t xptopen;
 static d_close_t xptclose;
 static d_ioctl_t xptioctl;
+static d_ioctl_t xptdoioctl;
 
 static struct cdevsw xpt_cdevsw = {
 	.d_version =	D_VERSION,
@@ -392,6 +394,19 @@ xptclose(struct cdev *dev, int flag, int fmt, struct thread *td)
  */
 static int
 xptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+{
+	int error;
+
+	if ((error = xptdoioctl(dev, cmd, addr, flag, td)) == ENOTTY) {
+		error = cam_compat_ioctl(dev, &cmd, &addr, &flag, td);
+		if (error == EAGAIN)
+			return (xptdoioctl(dev, cmd, addr, flag, td));
+	}
+	return (error);
+}
+	
+static int
+xptdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	int error;
 
@@ -1096,8 +1111,9 @@ xpt_announce_quirks(struct cam_periph *periph, int quirks, char *bit_string)
 int
 xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 {
-	int ret = -1;
+	int ret = -1, l;
 	struct ccb_dev_advinfo cdai;
+	struct scsi_vpd_id_descriptor *idd;
 
 	mtx_assert(path->bus->sim->mtx, MA_OWNED);
 
@@ -1110,7 +1126,10 @@ xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 		cdai.buftype = CDAI_TYPE_SERIAL_NUM;
 	else if (!strcmp(attr, "GEOM::physpath"))
 		cdai.buftype = CDAI_TYPE_PHYS_PATH;
-	else
+	else if (!strcmp(attr, "GEOM::lunid")) {
+		cdai.buftype = CDAI_TYPE_SCSI_DEVID;
+		cdai.bufsiz = CAM_SCSI_DEVID_MAXLEN;
+	} else
 		goto out;
 
 	cdai.buf = malloc(cdai.bufsiz, M_CAMXPT, M_NOWAIT|M_ZERO);
@@ -1123,9 +1142,42 @@ xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 		cam_release_devq(cdai.ccb_h.path, 0, 0, 0, FALSE);
 	if (cdai.provsiz == 0)
 		goto out;
-	ret = 0;
-	if (strlcpy(buf, cdai.buf, len) >= len)
-		ret = EFAULT;
+	if (cdai.buftype == CDAI_TYPE_SCSI_DEVID) {
+		idd = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
+		    cdai.provsiz, scsi_devid_is_lun_naa);
+		if (idd == NULL)
+			idd = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
+			    cdai.provsiz, scsi_devid_is_lun_eui64);
+		if (idd == NULL)
+			idd = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
+			    cdai.provsiz, scsi_devid_is_lun_t10);
+		if (idd == NULL)
+			idd = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
+			    cdai.provsiz, scsi_devid_is_lun_name);
+		if (idd == NULL)
+			goto out;
+		ret = 0;
+		if ((idd->proto_codeset & SVPD_ID_CODESET_MASK) == SVPD_ID_CODESET_ASCII ||
+		    (idd->proto_codeset & SVPD_ID_CODESET_MASK) == SVPD_ID_CODESET_UTF8) {
+			l = strnlen(idd->identifier, idd->length);
+			if (l < len) {
+				bcopy(idd->identifier, buf, l);
+				buf[l] = 0;
+			} else
+				ret = EFAULT;
+		} else {
+			if (idd->length * 2 < len) {
+				for (l = 0; l < idd->length; l++)
+					sprintf(buf + l * 2, "%02x",
+					    idd->identifier[l]);
+			} else
+				ret = EFAULT;
+		}
+	} else {
+		ret = 0;
+		if (strlcpy(buf, cdai.buf, len) >= len)
+			ret = EFAULT;
+	}
 
 out:
 	if (cdai.buf != NULL)
@@ -3843,15 +3895,23 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 
 	/* Notify interested parties */
 	if (sim->path_id != CAM_XPT_PATH_ID) {
-		union	ccb *scan_ccb;
 
 		xpt_async(AC_PATH_REGISTERED, path, &cpi);
-		/* Initiate bus rescan. */
-		scan_ccb = xpt_alloc_ccb_nowait();
-		scan_ccb->ccb_h.path = path;
-		scan_ccb->ccb_h.func_code = XPT_SCAN_BUS;
-		scan_ccb->crcn.flags = 0;
-		xpt_rescan(scan_ccb);
+		if ((cpi.hba_misc & PIM_NOSCAN) == 0) {
+			union	ccb *scan_ccb;
+
+			/* Initiate bus rescan. */
+			scan_ccb = xpt_alloc_ccb_nowait();
+			if (scan_ccb != NULL) {
+				scan_ccb->ccb_h.path = path;
+				scan_ccb->ccb_h.func_code = XPT_SCAN_BUS;
+				scan_ccb->crcn.flags = 0;
+				xpt_rescan(scan_ccb);
+			} else
+				xpt_print(path,
+					  "Can't allocate CCB to scan bus\n");
+		} else
+			xpt_free_path(path);
 	} else
 		xpt_free_path(path);
 	return (CAM_SUCCESS);

@@ -829,7 +829,7 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_EVENT:
-        
+
         AcpiOsPrintf ("Event command not implemented\n");
         break;
 
@@ -888,7 +888,7 @@ AcpiDbCommandDispatch (
         return (Status);
 
     case CMD_HISTORY_LAST: /* !! command */
-        
+
         CommandLine = AcpiDbGetFromHistory (NULL);
         if (!CommandLine)
         {
@@ -899,12 +899,12 @@ AcpiDbCommandDispatch (
         return (Status);
 
     case CMD_INFORMATION:
-        
+
         AcpiDbDisplayMethodInfo (Op);
         break;
 
     case CMD_INTEGRITY:
-        
+
         AcpiDbCheckIntegrity ();
         break;
 
@@ -998,7 +998,7 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_OWNER:
-        
+
         AcpiDbDumpNamespaceByOwner (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);
         break;
 

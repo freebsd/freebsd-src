@@ -589,6 +589,8 @@ _GLIBCXX_BEGIN_NAMESPACE(std)
     { return ::__gnu_cxx::__capture_isunordered(__f1, __f2); }
 
 _GLIBCXX_END_NAMESPACE
+using std::isnan;
+using std::isinf;
 
 #endif /* _GLIBCXX_USE_C99_FP_MACROS_DYNAMIC */
 #endif

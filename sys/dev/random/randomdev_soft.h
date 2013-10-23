@@ -72,10 +72,10 @@ void random_process_event(struct harvest *event);
 void random_yarrow_reseed(void);
 void random_yarrow_unblock(void);
 
-void random_yarrow_init_alg(struct sysctl_ctx_list *, struct sysctl_oid *);
+void random_yarrow_init_alg(struct sysctl_ctx_list *);
 void random_yarrow_deinit_alg(void);
 
-extern struct random_systat random_yarrow;
+extern struct random_adaptor random_yarrow;
 extern struct mtx random_reseed_mtx;
 
 /* If this was c++, this would be a template */

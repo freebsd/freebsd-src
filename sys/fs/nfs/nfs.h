@@ -466,6 +466,7 @@ struct nfssockreq {
 	u_int32_t	nr_prog;
 	u_int32_t	nr_vers;
 	struct __rpc_client *nr_client;
+	AUTH		*nr_auth;
 };
 
 /*

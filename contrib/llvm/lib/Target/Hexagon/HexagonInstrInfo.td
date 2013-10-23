@@ -14,6 +14,8 @@
 include "HexagonInstrFormats.td"
 include "HexagonOperands.td"
 
+//===----------------------------------------------------------------------===//
+
 // Multi-class for logical operators.
 multiclass ALU32_rr_ri<string OpcStr, SDNode OpNode> {
   def rr : ALU32_rr<(outs IntRegs:$dst), (ins IntRegs:$b, IntRegs:$c),
@@ -33,12 +35,6 @@ multiclass CMP64_rr<string OpcStr, PatFrag OpNode> {
                  !strconcat("$dst = ", !strconcat(OpcStr, "($b, $c)")),
                  [(set (i1 PredRegs:$dst),
                        (OpNode (i64 DoubleRegs:$b), (i64 DoubleRegs:$c)))]>;
-}
-multiclass CMP32_rr<string OpcStr, PatFrag OpNode> {
-  def rr : ALU32_rr<(outs PredRegs:$dst), (ins IntRegs:$b, IntRegs:$c),
-                 !strconcat("$dst = ", !strconcat(OpcStr, "($b, $c)")),
-                 [(set (i1 PredRegs:$dst),
-                       (OpNode (i32 IntRegs:$b), (i32 IntRegs:$c)))]>;
 }
 
 multiclass CMP32_rr_ri_s10<string OpcStr, string CextOp, PatFrag OpNode> {
@@ -75,14 +71,6 @@ multiclass CMP32_rr_ri_u9<string OpcStr, string CextOp, PatFrag OpNode> {
   }
 }
 
-multiclass CMP32_ri_u8<string OpcStr, PatFrag OpNode> {
-let isExtendable = 1, opExtendable = 2, isExtentSigned = 0, opExtentBits = 8 in
-  def ri : ALU32_ri<(outs PredRegs:$dst), (ins IntRegs:$b, u8Ext:$c),
-                 !strconcat("$dst = ", !strconcat(OpcStr, "($b, #$c)")),
-                 [(set (i1 PredRegs:$dst), (OpNode (i32 IntRegs:$b),
-                                                   u8ExtPred:$c))]>;
-}
-
 multiclass CMP32_ri_s8<string OpcStr, PatFrag OpNode> {
 let isExtendable = 1, opExtendable = 2, isExtentSigned = 1, opExtentBits = 8 in
   def ri : ALU32_ri<(outs PredRegs:$dst), (ins IntRegs:$b, s8Ext:$c),
@@ -95,22 +83,30 @@ let isExtendable = 1, opExtendable = 2, isExtentSigned = 1, opExtentBits = 8 in
 //===----------------------------------------------------------------------===//
 // ALU32/ALU (Instructions with register-register form)
 //===----------------------------------------------------------------------===//
-multiclass ALU32_Pbase<string mnemonic, bit isNot,
-                       bit isPredNew> {
+def SDTHexagonI64I32I32 : SDTypeProfile<1, 2,
+  [SDTCisVT<0, i64>, SDTCisVT<1, i32>, SDTCisSameAs<1, 2>]>;
 
-  let PNewValue = !if(isPredNew, "new", "") in
-  def NAME : ALU32_rr<(outs IntRegs:$dst),
+def HexagonWrapperCombineII :
+  SDNode<"HexagonISD::WrapperCombineII", SDTHexagonI64I32I32>;
+
+def HexagonWrapperCombineRR :
+  SDNode<"HexagonISD::WrapperCombineRR", SDTHexagonI64I32I32>;
+
+multiclass ALU32_Pbase<string mnemonic, RegisterClass RC, bit isNot,
+                       bit isPredNew> {
+  let isPredicatedNew = isPredNew in
+  def NAME : ALU32_rr<(outs RC:$dst),
             (ins PredRegs:$src1, IntRegs:$src2, IntRegs: $src3),
             !if(isNot, "if (!$src1", "if ($src1")#!if(isPredNew,".new) $dst = ",
             ") $dst = ")#mnemonic#"($src2, $src3)",
             []>;
 }
 
-multiclass ALU32_Pred<string mnemonic, bit PredNot> {
-  let PredSense = !if(PredNot, "false", "true") in {
-    defm _c#NAME : ALU32_Pbase<mnemonic, PredNot, 0>;
+multiclass ALU32_Pred<string mnemonic, RegisterClass RC, bit PredNot> {
+  let isPredicatedFalse = PredNot in {
+    defm _c#NAME : ALU32_Pbase<mnemonic, RC, PredNot, 0>;
     // Predicate new
-    defm _cdn#NAME : ALU32_Pbase<mnemonic, PredNot, 1>;
+    defm _cdn#NAME : ALU32_Pbase<mnemonic, RC, PredNot, 1>;
   }
 }
 
@@ -125,8 +121,8 @@ multiclass ALU32_base<string mnemonic, string CextOp, SDNode OpNode> {
                                               (i32 IntRegs:$src2)))]>;
 
     let neverHasSideEffects = 1, isPredicated = 1 in {
-      defm Pt : ALU32_Pred<mnemonic, 0>;
-      defm NotPt : ALU32_Pred<mnemonic, 1>;
+      defm Pt : ALU32_Pred<mnemonic, IntRegs, 0>;
+      defm NotPt : ALU32_Pred<mnemonic, IntRegs, 1>;
     }
   }
 }
@@ -140,11 +136,42 @@ let isCommutable = 1 in {
 
 defm SUB_rr : ALU32_base<"sub", "SUB", sub>, ImmRegRel, PredNewRel;
 
+// Combines the two integer registers SRC1 and SRC2 into a double register.
+let isPredicable = 1 in
+class T_Combine : ALU32_rr<(outs DoubleRegs:$dst),
+                           (ins IntRegs:$src1, IntRegs:$src2),
+            "$dst = combine($src1, $src2)",
+            [(set (i64 DoubleRegs:$dst),
+              (i64 (HexagonWrapperCombineRR (i32 IntRegs:$src1),
+                                            (i32 IntRegs:$src2))))]>;
+
+multiclass Combine_base {
+  let BaseOpcode = "combine" in {
+    def NAME : T_Combine;
+    let neverHasSideEffects = 1, isPredicated = 1 in {
+      defm Pt : ALU32_Pred<"combine", DoubleRegs, 0>;
+      defm NotPt : ALU32_Pred<"combine", DoubleRegs, 1>;
+    }
+  }
+}
+
+defm COMBINE_rr : Combine_base, PredNewRel;
+
+// Combines the two immediates SRC1 and SRC2 into a double register.
+class COMBINE_imm<Operand imm1, Operand imm2, PatLeaf pat1, PatLeaf pat2> :
+  ALU32_ii<(outs DoubleRegs:$dst), (ins imm1:$src1, imm2:$src2),
+  "$dst = combine(#$src1, #$src2)",
+  [(set (i64 DoubleRegs:$dst),
+        (i64 (HexagonWrapperCombineII (i32 pat1:$src1), (i32 pat2:$src2))))]>;
+
+let isExtendable = 1, opExtendable = 1, isExtentSigned = 1, opExtentBits = 8 in
+def COMBINE_Ii : COMBINE_imm<s8Ext, s8Imm, s8ExtPred, s8ImmPred>;
+
 //===----------------------------------------------------------------------===//
 // ALU32/ALU (ADD with register-immediate form)
 //===----------------------------------------------------------------------===//
 multiclass ALU32ri_Pbase<string mnemonic, bit isNot, bit isPredNew> {
-  let PNewValue = !if(isPredNew, "new", "") in
+  let isPredicatedNew = isPredNew in
   def NAME : ALU32_ri<(outs IntRegs:$dst),
             (ins PredRegs:$src1, IntRegs:$src2, s8Ext: $src3),
             !if(isNot, "if (!$src1", "if ($src1")#!if(isPredNew,".new) $dst = ",
@@ -153,7 +180,7 @@ multiclass ALU32ri_Pbase<string mnemonic, bit isNot, bit isPredNew> {
 }
 
 multiclass ALU32ri_Pred<string mnemonic, bit PredNot> {
-  let PredSense = !if(PredNot, "false", "true") in {
+  let isPredicatedFalse = PredNot in {
     defm _c#NAME : ALU32ri_Pbase<mnemonic, PredNot, 0>;
     // Predicate new
     defm _cdn#NAME : ALU32ri_Pbase<mnemonic, PredNot, 1>;
@@ -189,11 +216,6 @@ def OR_ri : ALU32_ri<(outs IntRegs:$dst),
             [(set (i32 IntRegs:$dst), (or (i32 IntRegs:$src1),
                                           s10ExtPred:$src2))]>, ImmRegRel;
 
-def NOT_rr : ALU32_rr<(outs IntRegs:$dst),
-            (ins IntRegs:$src1),
-            "$dst = not($src1)",
-            [(set (i32 IntRegs:$dst), (not (i32 IntRegs:$src1)))]>;
-
 let isExtendable = 1, opExtendable = 2, isExtentSigned = 1, opExtentBits = 10,
 InputType = "imm", CextOpcode = "AND" in
 def AND_ri : ALU32_ri<(outs IntRegs:$dst),
@@ -201,10 +223,7 @@ def AND_ri : ALU32_ri<(outs IntRegs:$dst),
             "$dst = and($src1, #$src2)",
             [(set (i32 IntRegs:$dst), (and (i32 IntRegs:$src1),
                                            s10ExtPred:$src2))]>, ImmRegRel;
-// Negate.
-def NEG : ALU32_rr<(outs IntRegs:$dst), (ins IntRegs:$src1),
-          "$dst = neg($src1)",
-          [(set (i32 IntRegs:$dst), (ineg (i32 IntRegs:$src1)))]>;
+
 // Nop.
 let neverHasSideEffects = 1 in
 def NOP : ALU32_rr<(outs), (ins),
@@ -220,15 +239,21 @@ def SUB_ri : ALU32_ri<(outs IntRegs:$dst),
             [(set IntRegs:$dst, (sub s10ExtPred:$src1, IntRegs:$src2))]>,
             ImmRegRel;
 
+// Rd = not(Rs) gets mapped to Rd=sub(#-1, Rs).
+def : Pat<(not (i32 IntRegs:$src1)),
+          (SUB_ri -1, (i32 IntRegs:$src1))>;
+
+// Rd = neg(Rs) gets mapped to Rd=sub(#0, Rs).
+// Pattern definition for 'neg' was not necessary.
 
 multiclass TFR_Pred<bit PredNot> {
-  let PredSense = !if(PredNot, "false", "true") in {
+  let isPredicatedFalse = PredNot in {
     def _c#NAME : ALU32_rr<(outs IntRegs:$dst),
                            (ins PredRegs:$src1, IntRegs:$src2),
             !if(PredNot, "if (!$src1", "if ($src1")#") $dst = $src2",
             []>;
     // Predicate new
-    let PNewValue = "new" in
+    let isPredicatedNew = 1 in
     def _cdn#NAME : ALU32_rr<(outs IntRegs:$dst),
                              (ins PredRegs:$src1, IntRegs:$src2),
             !if(PredNot, "if (!$src1", "if ($src1")#".new) $dst = $src2",
@@ -274,10 +299,10 @@ class T_TFR64_Pred<bit PredNot, bit isPredNew>
 }
 
 multiclass TFR64_Pred<bit PredNot> {
-  let PredSense = !if(PredNot, "false", "true") in {
+  let isPredicatedFalse = PredNot in {
     def _c#NAME : T_TFR64_Pred<PredNot, 0>;
 
-    let PNewValue = "new" in
+    let isPredicatedNew = 1 in
     def _cdn#NAME : T_TFR64_Pred<PredNot, 1>; // Predicate new
   }
 }
@@ -309,14 +334,14 @@ multiclass TFR64_base<string BaseName> {
 }
 
 multiclass TFRI_Pred<bit PredNot> {
-  let isMoveImm = 1, PredSense = !if(PredNot, "false", "true") in {
+  let isMoveImm = 1, isPredicatedFalse = PredNot in {
     def _c#NAME : ALU32_ri<(outs IntRegs:$dst),
                            (ins PredRegs:$src1, s12Ext:$src2),
             !if(PredNot, "if (!$src1", "if ($src1")#") $dst = #$src2",
             []>;
 
     // Predicate new
-    let PNewValue = "new" in
+    let isPredicatedNew = 1 in
     def _cdn#NAME : ALU32_rr<(outs IntRegs:$dst),
                              (ins PredRegs:$src1, s12Ext:$src2),
             !if(PredNot, "if (!$src1", "if ($src1")#".new) $dst = #$src2",
@@ -358,52 +383,6 @@ def TFCR : CRInst<(outs CRRegs:$dst), (ins IntRegs:$src1),
 //===----------------------------------------------------------------------===//
 // ALU32/PERM +
 //===----------------------------------------------------------------------===//
-
-// Combine.
-
-def SDTHexagonI64I32I32 : SDTypeProfile<1, 2,
-  [SDTCisVT<0, i64>, SDTCisVT<1, i32>, SDTCisSameAs<1, 2>]>;
-
-def HexagonWrapperCombineII :
-  SDNode<"HexagonISD::WrapperCombineII", SDTHexagonI64I32I32>;
-def HexagonWrapperCombineRR :
-  SDNode<"HexagonISD::WrapperCombineRR", SDTHexagonI64I32I32>;
-
-// Combines the two integer registers SRC1 and SRC2 into a double register.
-let isPredicable = 1 in
-def COMBINE_rr : ALU32_rr<(outs DoubleRegs:$dst), (ins IntRegs:$src1,
-                                                       IntRegs:$src2),
-  "$dst = combine($src1, $src2)",
-  [(set (i64 DoubleRegs:$dst),
-        (i64 (HexagonWrapperCombineRR (i32 IntRegs:$src1),
-                                      (i32 IntRegs:$src2))))]>;
-
-// Rd=combine(Rt.[HL], Rs.[HL])
-class COMBINE_halves<string A, string B>: ALU32_rr<(outs IntRegs:$dst),
-                                                   (ins IntRegs:$src1,
-                                                        IntRegs:$src2),
-  "$dst = combine($src1."# A #", $src2."# B #")", []>;
-
-let isPredicable = 1 in {
-  def COMBINE_hh : COMBINE_halves<"H", "H">;
-  def COMBINE_hl : COMBINE_halves<"H", "L">;
-  def COMBINE_lh : COMBINE_halves<"L", "H">;
-  def COMBINE_ll : COMBINE_halves<"L", "L">;
-}
-
-def : Pat<(i32 (trunc (i64 (srl (i64 DoubleRegs:$a), (i32 16))))),
-  (COMBINE_lh (EXTRACT_SUBREG (i64 DoubleRegs:$a), subreg_hireg),
-              (EXTRACT_SUBREG (i64 DoubleRegs:$a), subreg_loreg))>;
-
-// Combines the two immediates SRC1 and SRC2 into a double register.
-class COMBINE_imm<Operand imm1, Operand imm2, PatLeaf pat1, PatLeaf pat2> :
-  ALU32_ii<(outs DoubleRegs:$dst), (ins imm1:$src1, imm2:$src2),
-  "$dst = combine(#$src1, #$src2)",
-  [(set (i64 DoubleRegs:$dst),
-        (i64 (HexagonWrapperCombineII (i32 pat1:$src1), (i32 pat2:$src2))))]>;
-
-let isExtendable = 1, opExtendable = 1, isExtentSigned = 1, opExtentBits = 8 in
-def COMBINE_Ii : COMBINE_imm<s8Ext, s8Imm, s8ExtPred, s8ImmPred>;
 
 // Mux.
 def VMUX_prr64 : ALU64_rr<(outs DoubleRegs:$dst), (ins PredRegs:$src1,
@@ -507,40 +486,24 @@ def : Pat <(sext_inreg (i32 IntRegs:$src1), i16),
 // ALU32/PRED +
 //===----------------------------------------------------------------------===//
 
-// Conditional combine.
-let neverHasSideEffects = 1, isPredicated = 1 in {
-def COMBINE_rr_cPt : ALU32_rr<(outs DoubleRegs:$dst),
-            (ins PredRegs:$src1, IntRegs:$src2, IntRegs:$src3),
-            "if ($src1) $dst = combine($src2, $src3)",
-            []>;
-
-let isPredicatedFalse = 1 in
-def COMBINE_rr_cNotPt : ALU32_rr<(outs DoubleRegs:$dst),
-            (ins PredRegs:$src1, IntRegs:$src2, IntRegs:$src3),
-            "if (!$src1) $dst = combine($src2, $src3)",
-            []>;
-
-let isPredicatedNew = 1 in
-def COMBINE_rr_cdnPt : ALU32_rr<(outs DoubleRegs:$dst),
-            (ins PredRegs:$src1, IntRegs:$src2, IntRegs:$src3),
-            "if ($src1.new) $dst = combine($src2, $src3)",
-            []>;
-
-let isPredicatedNew = 1, isPredicatedFalse = 1 in
-def COMBINE_rr_cdnNotPt : ALU32_rr<(outs DoubleRegs:$dst),
-            (ins PredRegs:$src1, IntRegs:$src2, IntRegs:$src3),
-            "if (!$src1.new) $dst = combine($src2, $src3)",
-            []>;
-}
-
 // Compare.
 defm CMPGTU : CMP32_rr_ri_u9<"cmp.gtu", "CMPGTU", setugt>, ImmRegRel;
 defm CMPGT : CMP32_rr_ri_s10<"cmp.gt", "CMPGT", setgt>, ImmRegRel;
-defm CMPLT : CMP32_rr<"cmp.lt", setlt>;
-defm CMPLTU : CMP32_rr<"cmp.ltu", setult>;
 defm CMPEQ : CMP32_rr_ri_s10<"cmp.eq", "CMPEQ", seteq>, ImmRegRel;
-defm CMPGE : CMP32_ri_s8<"cmp.ge", setge>;
-defm CMPGEU : CMP32_ri_u8<"cmp.geu", setuge>;
+
+// SDNode for converting immediate C to C-1.
+def DEC_CONST_SIGNED : SDNodeXForm<imm, [{
+   // Return the byte immediate const-1 as an SDNode.
+   int32_t imm = N->getSExtValue();
+   return XformSToSM1Imm(imm);
+}]>;
+
+// SDNode for converting immediate C to C-1.
+def DEC_CONST_UNSIGNED : SDNodeXForm<imm, [{
+   // Return the byte immediate const-1 as an SDNode.
+   uint32_t imm = N->getZExtValue();
+   return XformUToUM1Imm(imm);
+}]>;
 
 def CTLZ_rr : SInst<(outs IntRegs:$dst), (ins IntRegs:$src1),
     "$dst = cl0($src1)",
@@ -774,112 +737,153 @@ def XOR_pp : SInst<(outs PredRegs:$dst), (ins PredRegs:$src1, PredRegs:$src2),
 // CR -
 //===----------------------------------------------------------------------===//
 
-
-//===----------------------------------------------------------------------===//
-// J +
-//===----------------------------------------------------------------------===//
-// Jump to address.
-let isBranch = 1, isTerminator=1, isBarrier = 1, isPredicable = 1 in {
-  def JMP : JInst< (outs),
-            (ins brtarget:$offset),
-            "jump $offset",
-            [(br bb:$offset)]>;
-}
-
-// if (p0) jump
-let isBranch = 1, isTerminator=1, Defs = [PC],
-    isPredicated = 1 in {
-  def JMP_c : JInst< (outs),
-                 (ins PredRegs:$src, brtarget:$offset),
-                 "if ($src) jump $offset",
-                 [(brcond (i1 PredRegs:$src), bb:$offset)]>;
-}
-
-// if (!p0) jump
-let isBranch = 1, isTerminator=1, neverHasSideEffects = 1, Defs = [PC],
-    isPredicated = 1 in {
-  def JMP_cNot : JInst< (outs),
-                    (ins PredRegs:$src, brtarget:$offset),
-                    "if (!$src) jump $offset",
-                    []>;
-}
-
-let isTerminator = 1, isBranch = 1, neverHasSideEffects = 1, Defs = [PC],
-    isPredicated = 1 in {
-  def BRCOND : JInst < (outs), (ins PredRegs:$pred, brtarget:$dst),
-               "if ($pred) jump $dst",
-               []>;
-}
-
-// Jump to address conditioned on new predicate.
-// if (p0) jump:t
-let isBranch = 1, isTerminator=1, neverHasSideEffects = 1, Defs = [PC],
-    isPredicated = 1 in {
-  def JMP_cdnPt : JInst< (outs),
-                   (ins PredRegs:$src, brtarget:$offset),
-                   "if ($src.new) jump:t $offset",
-                   []>;
-}
-
-// if (!p0) jump:t
-let isBranch = 1, isTerminator=1, neverHasSideEffects = 1, Defs = [PC],
-    isPredicated = 1 in {
-  def JMP_cdnNotPt : JInst< (outs),
-                      (ins PredRegs:$src, brtarget:$offset),
-                      "if (!$src.new) jump:t $offset",
-                      []>;
-}
-
-// Not taken.
-let isBranch = 1, isTerminator=1, neverHasSideEffects = 1, Defs = [PC],
-    isPredicated = 1 in {
-  def JMP_cdnPnt : JInst< (outs),
-                    (ins PredRegs:$src, brtarget:$offset),
-                    "if ($src.new) jump:nt $offset",
-                    []>;
-}
-
-// Not taken.
-let isBranch = 1, isTerminator=1, neverHasSideEffects = 1, Defs = [PC],
-    isPredicated = 1 in {
-  def JMP_cdnNotPnt : JInst< (outs),
-                       (ins PredRegs:$src, brtarget:$offset),
-                       "if (!$src.new) jump:nt $offset",
-                       []>;
-}
-//===----------------------------------------------------------------------===//
-// J -
-//===----------------------------------------------------------------------===//
-
-//===----------------------------------------------------------------------===//
-// JR +
-//===----------------------------------------------------------------------===//
 def retflag : SDNode<"HexagonISD::RET_FLAG", SDTNone,
                                [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
+def eh_return: SDNode<"HexagonISD::EH_RETURN", SDTNone,
+                      [SDNPHasChain]>;
 
-// Jump to address from register.
-let isPredicable =1, isReturn = 1, isTerminator = 1, isBarrier = 1,
-  Defs = [PC], Uses = [R31] in {
-  def JMPR: JRInst<(outs), (ins),
-                   "jumpr r31",
-                   [(retflag)]>;
+def SDHexagonBR_JT: SDTypeProfile<0, 1, [SDTCisVT<0, i32>]>;
+def HexagonBR_JT: SDNode<"HexagonISD::BR_JT", SDHexagonBR_JT, [SDNPHasChain]>;
+
+let InputType = "imm", isBarrier = 1, isPredicable = 1,
+Defs = [PC], isExtendable = 1, opExtendable = 0, isExtentSigned = 1,
+opExtentBits = 24 in
+class T_JMP <dag InsDag, list<dag> JumpList = []>
+            : JInst<(outs), InsDag,
+            "jump $dst" , JumpList> {
+    bits<24> dst;
+
+    let IClass = 0b0101;
+
+    let Inst{27-25} = 0b100;
+    let Inst{24-16} = dst{23-15};
+    let Inst{13-1} = dst{14-2};
 }
 
-// Jump to address from register.
-let isReturn = 1, isTerminator = 1, isBarrier = 1, isPredicated = 1,
-  Defs = [PC], Uses = [R31] in {
-  def JMPR_cPt: JRInst<(outs), (ins PredRegs:$src1),
-                       "if ($src1) jumpr r31",
-                       []>;
+let InputType = "imm", isExtendable = 1, opExtendable = 1, isExtentSigned = 1,
+Defs = [PC], isPredicated = 1, opExtentBits = 17 in
+class T_JMP_c <bit PredNot, bit isPredNew, bit isTaken>:
+            JInst<(outs ), (ins PredRegs:$src, brtarget:$dst),
+            !if(PredNot, "if (!$src", "if ($src")#
+            !if(isPredNew, ".new) ", ") ")#"jump"#
+            !if(isPredNew, !if(isTaken, ":t ", ":nt "), " ")#"$dst"> {
+
+    let isBrTaken = !if(isPredNew, !if(isTaken, "true", "false"), "");
+    let isPredicatedFalse = PredNot;
+    let isPredicatedNew = isPredNew;
+    bits<2> src;
+    bits<17> dst;
+
+    let IClass = 0b0101;
+
+    let Inst{27-24} = 0b1100;
+    let Inst{21} = PredNot;
+    let Inst{12} = !if(isPredNew, isTaken, zero);
+    let Inst{11} = isPredNew;
+    let Inst{9-8} = src;
+    let Inst{23-22} = dst{16-15};
+    let Inst{20-16} = dst{14-10};
+    let Inst{13} = dst{9};
+    let Inst{7-1} = dst{8-2};
+  }
+
+let isBarrier = 1, Defs = [PC], isPredicable = 1, InputType = "reg" in
+class T_JMPr<dag InsDag = (ins IntRegs:$dst)>
+            : JRInst<(outs ), InsDag,
+            "jumpr $dst" ,
+            []> {
+    bits<5> dst;
+
+    let IClass = 0b0101;
+    let Inst{27-21} = 0b0010100;
+    let Inst{20-16} = dst;
 }
 
-// Jump to address from register.
-let isReturn = 1, isTerminator = 1, isBarrier = 1, isPredicated = 1,
-  Defs = [PC], Uses = [R31] in {
-  def JMPR_cNotPt: JRInst<(outs), (ins PredRegs:$src1),
-                          "if (!$src1) jumpr r31",
-                          []>;
+let Defs = [PC], isPredicated = 1, InputType = "reg" in
+class T_JMPr_c <bit PredNot, bit isPredNew, bit isTaken>:
+            JRInst <(outs ), (ins PredRegs:$src, IntRegs:$dst),
+            !if(PredNot, "if (!$src", "if ($src")#
+            !if(isPredNew, ".new) ", ") ")#"jumpr"#
+            !if(isPredNew, !if(isTaken, ":t ", ":nt "), " ")#"$dst"> {
+
+    let isBrTaken = !if(isPredNew, !if(isTaken, "true", "false"), "");
+    let isPredicatedFalse = PredNot;
+    let isPredicatedNew = isPredNew;
+    bits<2> src;
+    bits<5> dst;
+
+    let IClass = 0b0101;
+
+    let Inst{27-22} = 0b001101;
+    let Inst{21} = PredNot;
+    let Inst{20-16} = dst;
+    let Inst{12} = !if(isPredNew, isTaken, zero);
+    let Inst{11} = isPredNew;
+    let Inst{9-8} = src;
+    let Predicates = !if(isPredNew, [HasV3T], [HasV2T]);
+    let validSubTargets = !if(isPredNew, HasV3SubT, HasV2SubT);
 }
+
+multiclass JMP_Pred<bit PredNot> {
+  def _#NAME : T_JMP_c<PredNot, 0, 0>;
+  // Predicate new
+  def _#NAME#new_t  : T_JMP_c<PredNot, 1, 1>; // taken
+  def _#NAME#new_nt : T_JMP_c<PredNot, 1, 0>; // not taken
+}
+
+multiclass JMP_base<string BaseOp> {
+  let BaseOpcode = BaseOp in {
+    def NAME : T_JMP<(ins brtarget:$dst), [(br bb:$dst)]>;
+    defm t : JMP_Pred<0>;
+    defm f : JMP_Pred<1>;
+  }
+}
+
+multiclass JMPR_Pred<bit PredNot> {
+  def NAME: T_JMPr_c<PredNot, 0, 0>;
+  // Predicate new
+  def NAME#new_tV3  : T_JMPr_c<PredNot, 1, 1>; // taken
+  def NAME#new_ntV3 : T_JMPr_c<PredNot, 1, 0>; // not taken
+}
+
+multiclass JMPR_base<string BaseOp> {
+  let BaseOpcode = BaseOp in {
+    def NAME : T_JMPr;
+    defm _t : JMPR_Pred<0>;
+    defm _f : JMPR_Pred<1>;
+  }
+}
+
+let isTerminator = 1, neverHasSideEffects = 1 in {
+let isBranch = 1 in
+defm JMP : JMP_base<"JMP">, PredNewRel;
+
+let isBranch = 1, isIndirectBranch = 1 in
+defm JMPR : JMPR_base<"JMPr">, PredNewRel;
+
+let isReturn = 1, isCodeGenOnly = 1 in
+defm JMPret : JMPR_base<"JMPret">, PredNewRel;
+}
+
+def : Pat<(retflag),
+          (JMPret (i32 R31))>;
+
+def : Pat <(brcond (i1 PredRegs:$src1), bb:$offset),
+      (JMP_t (i1 PredRegs:$src1), bb:$offset)>;
+
+// A return through builtin_eh_return.
+let isReturn = 1, isTerminator = 1, isBarrier = 1, neverHasSideEffects = 1,
+isCodeGenOnly = 1, Defs = [PC], Uses = [R28], isPredicable = 0 in
+def EH_RETURN_JMPR : T_JMPr;
+
+def : Pat<(eh_return),
+          (EH_RETURN_JMPR (i32 R31))>;
+
+def : Pat<(HexagonBR_JT (i32 IntRegs:$dst)),
+          (JMPR (i32 IntRegs:$dst))>;
+
+def : Pat<(brind (i32 IntRegs:$dst)),
+          (JMPR (i32 IntRegs:$dst))>;
 
 //===----------------------------------------------------------------------===//
 // JR -
@@ -892,7 +896,7 @@ let isReturn = 1, isTerminator = 1, isBarrier = 1, isPredicated = 1,
 // Load -- MEMri operand
 multiclass LD_MEMri_Pbase<string mnemonic, RegisterClass RC,
                           bit isNot, bit isPredNew> {
-  let PNewValue = !if(isPredNew, "new", "") in
+  let isPredicatedNew = isPredNew in
   def NAME : LDInst2<(outs RC:$dst),
                        (ins PredRegs:$src1, MEMri:$addr),
             !if(isNot, "if (!$src1", "if ($src1")#!if(isPredNew, ".new) ",
@@ -901,7 +905,7 @@ multiclass LD_MEMri_Pbase<string mnemonic, RegisterClass RC,
 }
 
 multiclass LD_MEMri_Pred<string mnemonic, RegisterClass RC, bit PredNot> {
-  let PredSense = !if(PredNot, "false", "true") in {
+  let isPredicatedFalse = PredNot in {
     defm _c#NAME : LD_MEMri_Pbase<mnemonic, RC, PredNot, 0>;
     // Predicate new
     defm _cdn#NAME : LD_MEMri_Pbase<mnemonic, RC, PredNot, 1>;
@@ -958,7 +962,7 @@ def : Pat < (i64 (load ADDRriS11_3:$addr)),
 // Load - Base with Immediate offset addressing mode
 multiclass LD_Idxd_Pbase<string mnemonic, RegisterClass RC, Operand predImmOp,
                         bit isNot, bit isPredNew> {
-  let PNewValue = !if(isPredNew, "new", "") in
+  let isPredicatedNew = isPredNew in
   def NAME : LDInst2<(outs RC:$dst),
                      (ins PredRegs:$src1, IntRegs:$src2, predImmOp:$src3),
             !if(isNot, "if (!$src1", "if ($src1")#!if(isPredNew, ".new) ",
@@ -968,7 +972,7 @@ multiclass LD_Idxd_Pbase<string mnemonic, RegisterClass RC, Operand predImmOp,
 
 multiclass LD_Idxd_Pred<string mnemonic, RegisterClass RC, Operand predImmOp,
                         bit PredNot> {
-  let PredSense = !if(PredNot, "false", "true") in {
+  let isPredicatedFalse = PredNot in {
     defm _c#NAME : LD_Idxd_Pbase<mnemonic, RC, predImmOp, PredNot, 0>;
     // Predicate new
     defm _cdn#NAME : LD_Idxd_Pbase<mnemonic, RC, predImmOp, PredNot, 1>;
@@ -1038,7 +1042,7 @@ def : Pat < (i64 (load (add IntRegs:$src1, s11_3ExtPred:$offset))),
 
 multiclass LD_PostInc_Pbase<string mnemonic, RegisterClass RC, Operand ImmOp,
                             bit isNot, bit isPredNew> {
-  let PNewValue = !if(isPredNew, "new", "") in
+  let isPredicatedNew = isPredNew in
   def NAME : LDInst2PI<(outs RC:$dst, IntRegs:$dst2),
                        (ins PredRegs:$src1, IntRegs:$src2, ImmOp:$offset),
             !if(isNot, "if (!$src1", "if ($src1")#!if(isPredNew, ".new) ",
@@ -1049,7 +1053,7 @@ multiclass LD_PostInc_Pbase<string mnemonic, RegisterClass RC, Operand ImmOp,
 
 multiclass LD_PostInc_Pred<string mnemonic, RegisterClass RC,
                            Operand ImmOp, bit PredNot> {
-  let PredSense = !if(PredNot, "false", "true") in {
+  let isPredicatedFalse = PredNot in {
     defm _c#NAME : LD_PostInc_Pbase<mnemonic, RC, ImmOp, PredNot, 0>;
     // Predicate new
     let Predicates = [HasV4T], validSubTargets = HasV4SubT in
@@ -1366,7 +1370,7 @@ def SUBri_acc : MInst_acc<(outs IntRegs: $dst), (ins IntRegs:$src1,
 
 multiclass ST_PostInc_Pbase<string mnemonic, RegisterClass RC, Operand ImmOp,
                             bit isNot, bit isPredNew> {
-  let PNewValue = !if(isPredNew, "new", "") in
+  let isPredicatedNew = isPredNew in
   def NAME : STInst2PI<(outs IntRegs:$dst),
             (ins PredRegs:$src1, IntRegs:$src2, ImmOp:$offset, RC:$src3),
             !if(isNot, "if (!$src1", "if ($src1")#!if(isPredNew, ".new) ",
@@ -1377,7 +1381,7 @@ multiclass ST_PostInc_Pbase<string mnemonic, RegisterClass RC, Operand ImmOp,
 
 multiclass ST_PostInc_Pred<string mnemonic, RegisterClass RC,
                            Operand ImmOp, bit PredNot> {
-  let PredSense = !if(PredNot, "false", "true") in {
+  let isPredicatedFalse = PredNot in {
     defm _c#NAME# : ST_PostInc_Pbase<mnemonic, RC, ImmOp, PredNot, 0>;
     // Predicate new
     let Predicates = [HasV4T], validSubTargets = HasV4SubT in
@@ -1431,7 +1435,7 @@ def : Pat<(post_store (i64 DoubleRegs:$src1), IntRegs:$src2,
 //===----------------------------------------------------------------------===//
 multiclass ST_MEMri_Pbase<string mnemonic, RegisterClass RC, bit isNot,
                           bit isPredNew> {
-  let PNewValue = !if(isPredNew, "new", "") in
+  let isPredicatedNew = isPredNew in
   def NAME : STInst2<(outs),
             (ins PredRegs:$src1, MEMri:$addr, RC: $src2),
             !if(isNot, "if (!$src1", "if ($src1")#!if(isPredNew, ".new) ",
@@ -1440,7 +1444,7 @@ multiclass ST_MEMri_Pbase<string mnemonic, RegisterClass RC, bit isNot,
 }
 
 multiclass ST_MEMri_Pred<string mnemonic, RegisterClass RC, bit PredNot> {
-  let PredSense = !if(PredNot, "false", "true") in {
+  let isPredicatedFalse = PredNot in {
     defm _c#NAME : ST_MEMri_Pbase<mnemonic, RC, PredNot, 0>;
 
     // Predicate new
@@ -1497,7 +1501,7 @@ def : Pat<(store (i64 DoubleRegs:$src1), ADDRriS11_3:$addr),
 //===----------------------------------------------------------------------===//
 multiclass ST_Idxd_Pbase<string mnemonic, RegisterClass RC, Operand predImmOp,
                         bit isNot, bit isPredNew> {
-  let PNewValue = !if(isPredNew, "new", "") in
+  let isPredicatedNew = isPredNew in
   def NAME : STInst2<(outs),
             (ins PredRegs:$src1, IntRegs:$src2, predImmOp:$src3, RC: $src4),
             !if(isNot, "if (!$src1", "if ($src1")#!if(isPredNew, ".new) ",
@@ -1507,7 +1511,7 @@ multiclass ST_Idxd_Pbase<string mnemonic, RegisterClass RC, Operand predImmOp,
 
 multiclass ST_Idxd_Pred<string mnemonic, RegisterClass RC, Operand predImmOp,
                         bit PredNot> {
-  let PredSense = !if(PredNot, "false", "true"), isPredicated = 1 in {
+  let isPredicatedFalse = PredNot, isPredicated = 1 in {
     defm _c#NAME : ST_Idxd_Pbase<mnemonic, RC, predImmOp, PredNot, 0>;
 
     // Predicate new
@@ -2023,20 +2027,18 @@ let isCall = 1, neverHasSideEffects = 1,
               []>;
  }
 
-// Tail Calls.
-let isCall = 1, isBarrier = 1, isReturn = 1, isTerminator = 1 in {
-  def TCRETURNtg : JInst<(outs), (ins calltarget:$dst),
-             "jump $dst // TAILCALL", []>;
-}
-let isCall = 1, isBarrier = 1, isReturn = 1, isTerminator = 1 in {
-  def TCRETURNtext : JInst<(outs), (ins calltarget:$dst),
-             "jump $dst // TAILCALL", []>;
+
+// Indirect tail-call.
+let isCodeGenOnly = 1, isCall = 1, isReturn = 1  in
+def TCRETURNR : T_JMPr;
+
+// Direct tail-calls.
+let isCall = 1, isReturn = 1, isBarrier = 1, isPredicable = 0,
+isTerminator = 1, isCodeGenOnly = 1 in {
+  def TCRETURNtg   : T_JMP<(ins calltarget:$dst)>;
+  def TCRETURNtext : T_JMP<(ins calltarget:$dst)>;
 }
 
-let isCall = 1, isBarrier = 1, isReturn = 1, isTerminator = 1 in {
-  def TCRETURNR : JInst<(outs), (ins IntRegs:$dst),
-             "jumpr $dst // TAILCALL", []>;
-}
 // Map call instruction.
 def : Pat<(call (i32 IntRegs:$dst)),
       (CALLR (i32 IntRegs:$dst))>, Requires<[HasV2TOnly]>;
@@ -2133,10 +2135,11 @@ def : Pat <(add (i1 PredRegs:$src1), -1),
 
 // Map from p0 = setlt(r0, r1) r2 = mux(p0, r3, r4) =>
 //   p0 = cmp.lt(r0, r1), r0 = mux(p0, r2, r1).
+// cmp.lt(r0, r1) -> cmp.gt(r1, r0)
 def : Pat <(select (i1 (setlt (i32 IntRegs:$src1), (i32 IntRegs:$src2))),
                    (i32 IntRegs:$src3),
                    (i32 IntRegs:$src4)),
-      (i32 (TFR_condset_rr (CMPLTrr (i32 IntRegs:$src1), (i32 IntRegs:$src2)),
+      (i32 (TFR_condset_rr (CMPGTrr (i32 IntRegs:$src2), (i32 IntRegs:$src1)),
                            (i32 IntRegs:$src4), (i32 IntRegs:$src3)))>,
       Requires<[HasV2TOnly]>;
 
@@ -2154,17 +2157,24 @@ def : Pat <(select (not (i1 PredRegs:$src1)), s12ImmPred:$src2,
 
 // Map from p0 = pnot(p0); r0 = mux(p0, r1, #i)
 // => r0 = TFR_condset_ir(p0, #i, r1)
-def : Pat <(select (not PredRegs:$src1), IntRegs:$src2, s12ImmPred:$src3),
+def : Pat <(select (not (i1 PredRegs:$src1)), IntRegs:$src2, s12ImmPred:$src3),
       (i32 (TFR_condset_ir (i1 PredRegs:$src1), s12ImmPred:$src3,
                            (i32 IntRegs:$src2)))>;
 
 // Map from p0 = pnot(p0); if (p0) jump => if (!p0) jump.
-def : Pat <(brcond (not PredRegs:$src1), bb:$offset),
-      (JMP_cNot (i1 PredRegs:$src1), bb:$offset)>;
+def : Pat <(brcond (not (i1 PredRegs:$src1)), bb:$offset),
+      (JMP_f (i1 PredRegs:$src1), bb:$offset)>;
 
 // Map from p2 = pnot(p2); p1 = and(p0, p2) => p1 = and(p0, !p2).
-def : Pat <(and PredRegs:$src1, (not PredRegs:$src2)),
+def : Pat <(and (i1 PredRegs:$src1), (not (i1 PredRegs:$src2))),
       (i1 (AND_pnotp (i1 PredRegs:$src1), (i1 PredRegs:$src2)))>;
+
+
+let AddedComplexity = 100 in
+def : Pat <(i64 (zextloadi1 (HexagonCONST32 tglobaladdr:$global))),
+      (i64 (COMBINE_rr (TFRI 0),
+                       (LDriub_indexed (CONST32_set tglobaladdr:$global), 0)))>,
+      Requires<[NoV4T]>;
 
 // Map from i1 loads to 32 bits. This assumes that the i1* is byte aligned.
 let AddedComplexity = 10 in
@@ -2186,43 +2196,46 @@ def : Pat <(i64 (sext_inreg (i64 DoubleRegs:$src1), i8)),
                                                  subreg_loreg))))))>;
 
 // We want to prevent emitting pnot's as much as possible.
-// Map brcond with an unsupported setcc to a JMP_cNot.
+// Map brcond with an unsupported setcc to a JMP_f.
 def : Pat <(brcond (i1 (setne (i32 IntRegs:$src1), (i32 IntRegs:$src2))),
                         bb:$offset),
-      (JMP_cNot (CMPEQrr (i32 IntRegs:$src1), (i32 IntRegs:$src2)),
+      (JMP_f (CMPEQrr (i32 IntRegs:$src1), (i32 IntRegs:$src2)),
                 bb:$offset)>;
 
 def : Pat <(brcond (i1 (setne (i32 IntRegs:$src1), s10ImmPred:$src2)),
                         bb:$offset),
-      (JMP_cNot (CMPEQri (i32 IntRegs:$src1), s10ImmPred:$src2), bb:$offset)>;
+      (JMP_f (CMPEQri (i32 IntRegs:$src1), s10ImmPred:$src2), bb:$offset)>;
 
 def : Pat <(brcond (i1 (setne (i1 PredRegs:$src1), (i1 -1))), bb:$offset),
-      (JMP_cNot (i1 PredRegs:$src1), bb:$offset)>;
+      (JMP_f (i1 PredRegs:$src1), bb:$offset)>;
 
 def : Pat <(brcond (i1 (setne (i1 PredRegs:$src1), (i1 0))), bb:$offset),
-      (JMP_c (i1 PredRegs:$src1), bb:$offset)>;
+      (JMP_t (i1 PredRegs:$src1), bb:$offset)>;
 
+// cmp.lt(Rs, Imm) -> !cmp.ge(Rs, Imm) -> !cmp.gt(Rs, Imm-1)
 def : Pat <(brcond (i1 (setlt (i32 IntRegs:$src1), s8ImmPred:$src2)),
                         bb:$offset),
-      (JMP_cNot (CMPGEri (i32 IntRegs:$src1), s8ImmPred:$src2), bb:$offset)>;
+      (JMP_f (CMPGTri (i32 IntRegs:$src1),
+                (DEC_CONST_SIGNED s8ImmPred:$src2)), bb:$offset)>;
 
+// cmp.lt(r0, r1) -> cmp.gt(r1, r0)
 def : Pat <(brcond (i1 (setlt (i32 IntRegs:$src1), (i32 IntRegs:$src2))),
                         bb:$offset),
-      (JMP_c (CMPLTrr (i32 IntRegs:$src1), (i32 IntRegs:$src2)), bb:$offset)>;
+      (JMP_t (CMPGTrr (i32 IntRegs:$src2), (i32 IntRegs:$src1)), bb:$offset)>;
 
 def : Pat <(brcond (i1 (setuge (i64 DoubleRegs:$src1), (i64 DoubleRegs:$src2))),
                    bb:$offset),
-      (JMP_cNot (CMPGTU64rr (i64 DoubleRegs:$src2), (i64 DoubleRegs:$src1)),
+      (JMP_f (CMPGTU64rr (i64 DoubleRegs:$src2), (i64 DoubleRegs:$src1)),
                    bb:$offset)>;
 
 def : Pat <(brcond (i1 (setule (i32 IntRegs:$src1), (i32 IntRegs:$src2))),
                         bb:$offset),
-      (JMP_cNot (CMPGTUrr (i32 IntRegs:$src1), (i32 IntRegs:$src2)),
+      (JMP_f (CMPGTUrr (i32 IntRegs:$src1), (i32 IntRegs:$src2)),
                 bb:$offset)>;
 
 def : Pat <(brcond (i1 (setule (i64 DoubleRegs:$src1), (i64 DoubleRegs:$src2))),
                    bb:$offset),
-      (JMP_cNot (CMPGTU64rr (i64 DoubleRegs:$src1), (i64 DoubleRegs:$src2)),
+      (JMP_f (CMPGTU64rr (i64 DoubleRegs:$src1), (i64 DoubleRegs:$src2)),
                 bb:$offset)>;
 
 // Map from a 64-bit select to an emulated 64-bit mux.
@@ -2300,8 +2313,8 @@ def : Pat<(i64 (anyext (i32 IntRegs:$src1))),
 
 // Map cmple -> cmpgt.
 // rs <= rt -> !(rs > rt).
-def : Pat<(i1 (setle (i32 IntRegs:$src1), s10ImmPred:$src2)),
-      (i1 (NOT_p (CMPGTri (i32 IntRegs:$src1), s10ImmPred:$src2)))>;
+def : Pat<(i1 (setle (i32 IntRegs:$src1), s10ExtPred:$src2)),
+      (i1 (NOT_p (CMPGTri (i32 IntRegs:$src1), s10ExtPred:$src2)))>;
 
 // rs <= rt -> !(rs > rt).
 def : Pat<(i1 (setle (i32 IntRegs:$src1), (i32 IntRegs:$src2))),
@@ -2314,8 +2327,8 @@ def : Pat<(i1 (setle (i64 DoubleRegs:$src1), (i64 DoubleRegs:$src2))),
 // Map cmpne -> cmpeq.
 // Hexagon_TODO: We should improve on this.
 // rs != rt -> !(rs == rt).
-def : Pat <(i1 (setne (i32 IntRegs:$src1), s10ImmPred:$src2)),
-      (i1 (NOT_p(i1 (CMPEQri (i32 IntRegs:$src1), s10ImmPred:$src2))))>;
+def : Pat <(i1 (setne (i32 IntRegs:$src1), s10ExtPred:$src2)),
+      (i1 (NOT_p(i1 (CMPEQri (i32 IntRegs:$src1), s10ExtPred:$src2))))>;
 
 // Map cmpne(Rs) -> !cmpeqe(Rs).
 // rs != rt -> !(rs == rt).
@@ -2337,8 +2350,9 @@ def : Pat <(i1 (setne (i64 DoubleRegs:$src1), (i64 DoubleRegs:$src2))),
 def : Pat <(i1 (setge (i32 IntRegs:$src1), (i32 IntRegs:$src2))),
       (i1 (NOT_p (i1 (CMPGTrr (i32 IntRegs:$src2), (i32 IntRegs:$src1)))))>;
 
-def : Pat <(i1 (setge (i32 IntRegs:$src1), s8ImmPred:$src2)),
-      (i1 (CMPGEri (i32 IntRegs:$src1), s8ImmPred:$src2))>;
+// cmpge(Rs, Imm) -> cmpgt(Rs, Imm-1)
+def : Pat <(i1 (setge (i32 IntRegs:$src1), s8ExtPred:$src2)),
+      (i1 (CMPGTri (i32 IntRegs:$src1), (DEC_CONST_SIGNED s8ExtPred:$src2)))>;
 
 // Map cmpge(Rss, Rtt) -> !cmpgt(Rtt, Rss).
 // rss >= rtt -> !(rtt > rss).
@@ -2347,9 +2361,10 @@ def : Pat <(i1 (setge (i64 DoubleRegs:$src1), (i64 DoubleRegs:$src2))),
                                 (i64 DoubleRegs:$src1)))))>;
 
 // Map cmplt(Rs, Imm) -> !cmpge(Rs, Imm).
+// !cmpge(Rs, Imm) -> !cmpgt(Rs, Imm-1).
 // rs < rt -> !(rs >= rt).
-def : Pat <(i1 (setlt (i32 IntRegs:$src1), s8ImmPred:$src2)),
-      (i1 (NOT_p (CMPGEri (i32 IntRegs:$src1), s8ImmPred:$src2)))>;
+def : Pat <(i1 (setlt (i32 IntRegs:$src1), s8ExtPred:$src2)),
+      (i1 (NOT_p (CMPGTri (i32 IntRegs:$src1), (DEC_CONST_SIGNED s8ExtPred:$src2))))>;
 
 // Map cmplt(Rs, Rt) -> cmpgt(Rt, Rs).
 // rs < rt -> rt > rs.
@@ -2373,13 +2388,17 @@ def : Pat <(i1 (setult (i32 IntRegs:$src1), (i32 IntRegs:$src2))),
 def : Pat <(i1 (setult (i64 DoubleRegs:$src1), (i64 DoubleRegs:$src2))),
       (i1 (CMPGTU64rr (i64 DoubleRegs:$src2), (i64 DoubleRegs:$src1)))>;
 
-// Generate cmpgeu(Rs, #u8)
-def : Pat <(i1 (setuge (i32 IntRegs:$src1), u8ImmPred:$src2)),
-      (i1 (CMPGEUri (i32 IntRegs:$src1), u8ImmPred:$src2))>;
+// Generate cmpgeu(Rs, #0) -> cmpeq(Rs, Rs)
+def : Pat <(i1 (setuge (i32 IntRegs:$src1), 0)),
+      (i1 (CMPEQrr (i32 IntRegs:$src1), (i32 IntRegs:$src1)))>;
+
+// Generate cmpgeu(Rs, #u8) -> cmpgtu(Rs, #u8 -1)
+def : Pat <(i1 (setuge (i32 IntRegs:$src1), u8ExtPred:$src2)),
+      (i1 (CMPGTUri (i32 IntRegs:$src1), (DEC_CONST_UNSIGNED u8ExtPred:$src2)))>;
 
 // Generate cmpgtu(Rs, #u9)
-def : Pat <(i1 (setugt (i32 IntRegs:$src1), u9ImmPred:$src2)),
-      (i1 (CMPGTUri (i32 IntRegs:$src1), u9ImmPred:$src2))>;
+def : Pat <(i1 (setugt (i32 IntRegs:$src1), u9ExtPred:$src2)),
+      (i1 (CMPGTUri (i32 IntRegs:$src1), u9ExtPred:$src2))>;
 
 // Map from Rs >= Rt -> !(Rt > Rs).
 // rs >= rt -> !(rt > rs).
@@ -2391,7 +2410,7 @@ def : Pat <(i1 (setuge (i32 IntRegs:$src1), (i32 IntRegs:$src2))),
 def : Pat <(i1 (setuge (i64 DoubleRegs:$src1), (i64 DoubleRegs:$src2))),
       (i1 (NOT_p (CMPGTU64rr (i64 DoubleRegs:$src2), (i64 DoubleRegs:$src1))))>;
 
-// Map from cmpleu(Rs, Rs) -> !cmpgtu(Rs, Rs).
+// Map from cmpleu(Rs, Rt) -> !cmpgtu(Rs, Rt).
 // Map from (Rs <= Rt) -> !(Rs > Rt).
 def : Pat <(i1 (setule (i32 IntRegs:$src1), (i32 IntRegs:$src2))),
       (i1 (NOT_p (CMPGTUrr (i32 IntRegs:$src1), (i32 IntRegs:$src2))))>;
@@ -2487,6 +2506,13 @@ def:  Pat <(i64 (zextloadi32 ADDRriS11_2:$src1)),
       (i64 (COMBINE_rr (TFRI 0), (LDriw ADDRriS11_2:$src1)))>,
       Requires<[NoV4T]>;
 
+let AddedComplexity = 100 in
+def:  Pat <(i64 (zextloadi32 (i32 (add IntRegs:$src1, s11_2ExtPred:$offset)))),
+      (i64 (COMBINE_rr (TFRI 0), (LDriw_indexed IntRegs:$src1,
+                                  s11_2ExtPred:$offset)))>,
+      Requires<[NoV4T]>;
+
+let AddedComplexity = 10 in
 def:  Pat <(i32 (zextloadi1 ADDRriS11_0:$src1)),
       (i32 (LDriw ADDRriS11_0:$src1))>;
 
@@ -2502,6 +2528,48 @@ def : Pat <(i32 (anyext (i1 PredRegs:$src1))),
 def : Pat <(i64 (anyext (i1 PredRegs:$src1))),
       (i64 (SXTW (i32 (MUX_ii (i1 PredRegs:$src1), 1, 0))))>;
 
+
+let AddedComplexity = 100 in
+def: Pat<(i64 (or (i64 (shl (i64 DoubleRegs:$srcHigh),
+                           (i32 32))),
+               (i64 (zextloadi32 (i32 (add IntRegs:$src2,
+                                         s11_2ExtPred:$offset2)))))),
+        (i64 (COMBINE_rr (EXTRACT_SUBREG (i64 DoubleRegs:$srcHigh), subreg_loreg),
+                        (LDriw_indexed IntRegs:$src2,
+                                       s11_2ExtPred:$offset2)))>;
+
+def: Pat<(i64 (or (i64 (shl (i64 DoubleRegs:$srcHigh),
+                           (i32 32))),
+               (i64 (zextloadi32 ADDRriS11_2:$srcLow)))),
+        (i64 (COMBINE_rr (EXTRACT_SUBREG (i64 DoubleRegs:$srcHigh), subreg_loreg),
+                        (LDriw ADDRriS11_2:$srcLow)))>;
+
+def: Pat<(i64 (or (i64 (shl (i64 DoubleRegs:$srcHigh),
+                           (i32 32))),
+               (i64 (zext (i32 IntRegs:$srcLow))))),
+        (i64 (COMBINE_rr (EXTRACT_SUBREG (i64 DoubleRegs:$srcHigh), subreg_loreg),
+                        IntRegs:$srcLow))>;
+
+let AddedComplexity = 100 in
+def: Pat<(i64 (or (i64 (shl (i64 DoubleRegs:$srcHigh),
+                           (i32 32))),
+               (i64 (zextloadi32 (i32 (add IntRegs:$src2,
+                                         s11_2ExtPred:$offset2)))))),
+        (i64 (COMBINE_rr (EXTRACT_SUBREG (i64 DoubleRegs:$srcHigh), subreg_loreg),
+                        (LDriw_indexed IntRegs:$src2,
+                                       s11_2ExtPred:$offset2)))>;
+
+def: Pat<(i64 (or (i64 (shl (i64 DoubleRegs:$srcHigh),
+                           (i32 32))),
+               (i64 (zextloadi32 ADDRriS11_2:$srcLow)))),
+        (i64 (COMBINE_rr (EXTRACT_SUBREG (i64 DoubleRegs:$srcHigh), subreg_loreg),
+                        (LDriw ADDRriS11_2:$srcLow)))>;
+
+def: Pat<(i64 (or (i64 (shl (i64 DoubleRegs:$srcHigh),
+                           (i32 32))),
+               (i64 (zext (i32 IntRegs:$srcLow))))),
+        (i64 (COMBINE_rr (EXTRACT_SUBREG (i64 DoubleRegs:$srcHigh), subreg_loreg),
+                        IntRegs:$srcLow))>;
 
 // Any extended 64-bit load.
 // anyext i32 -> i64
@@ -2636,19 +2704,6 @@ def ARGEXTEND : ALU32_rr <(outs IntRegs:$dst), (ins IntRegs:$src1),
 let AddedComplexity = 100 in
 def : Pat<(i32 (sext_inreg (Hexagon_ARGEXTEND (i32 IntRegs:$src1)), i16)),
       (COPY (i32 IntRegs:$src1))>;
-
-def SDHexagonBR_JT: SDTypeProfile<0, 1, [SDTCisVT<0, i32>]>;
-def HexagonBR_JT: SDNode<"HexagonISD::BR_JT", SDHexagonBR_JT, [SDNPHasChain]>;
-
-let isBranch=1, isIndirectBranch=1, isTerminator=1, isBarrier = 1 in
-def BR_JT : JRInst<(outs), (ins IntRegs:$src),
-                   "jumpr $src",
-                   [(HexagonBR_JT (i32 IntRegs:$src))]>;
-
-let isBranch=1, isIndirectBranch=1, isTerminator=1 in
-def BRIND : JRInst<(outs), (ins IntRegs:$src),
-                   "jumpr $src",
-                   [(brind (i32 IntRegs:$src))]>;
 
 def HexagonWrapperJT: SDNode<"HexagonISD::WrapperJT", SDTIntUnaryOp>;
 

@@ -514,119 +514,15 @@ struct	tcpstat {
 };
 
 #ifdef _KERNEL
-
 #include <sys/counter.h>
 
-/* Should match 'struct tcpstat' above. */
-struct tcpstat_p {
-	counter_u64_t tcps_connattempt;
-	counter_u64_t tcps_accepts;
-	counter_u64_t tcps_connects;
-	counter_u64_t tcps_drops;
-	counter_u64_t tcps_conndrops;
-	counter_u64_t tcps_minmssdrops;
-	counter_u64_t tcps_closed;
-	counter_u64_t tcps_segstimed;
-	counter_u64_t tcps_rttupdated;
-	counter_u64_t tcps_delack;
-	counter_u64_t tcps_timeoutdrop;
-	counter_u64_t tcps_rexmttimeo;
-	counter_u64_t tcps_persisttimeo;
-	counter_u64_t tcps_keeptimeo;
-	counter_u64_t tcps_keepprobe;
-	counter_u64_t tcps_keepdrops;
-	counter_u64_t tcps_sndtotal;
-	counter_u64_t tcps_sndpack;
-	counter_u64_t tcps_sndbyte;
-	counter_u64_t tcps_sndrexmitpack;
-	counter_u64_t tcps_sndrexmitbyte;
-	counter_u64_t tcps_sndrexmitbad;
-	counter_u64_t tcps_sndacks;
-	counter_u64_t tcps_sndprobe;
-	counter_u64_t tcps_sndurg;
-	counter_u64_t tcps_sndwinup;
-	counter_u64_t tcps_sndctrl;
-	counter_u64_t tcps_rcvtotal;
-	counter_u64_t tcps_rcvpack;
-	counter_u64_t tcps_rcvbyte;
-	counter_u64_t tcps_rcvbadsum;
-	counter_u64_t tcps_rcvbadoff;
-	counter_u64_t tcps_rcvmemdrop;
-	counter_u64_t tcps_rcvshort;
-	counter_u64_t tcps_rcvduppack;
-	counter_u64_t tcps_rcvdupbyte;
-	counter_u64_t tcps_rcvpartduppack;
-	counter_u64_t tcps_rcvpartdupbyte;
-	counter_u64_t tcps_rcvoopack;
-	counter_u64_t tcps_rcvoobyte;
-	counter_u64_t tcps_rcvpackafterwin;
-	counter_u64_t tcps_rcvbyteafterwin;
-	counter_u64_t tcps_rcvafterclose;
-	counter_u64_t tcps_rcvwinprobe;
-	counter_u64_t tcps_rcvdupack;
-	counter_u64_t tcps_rcvacktoomuch;
-	counter_u64_t tcps_rcvackpack;
-	counter_u64_t tcps_rcvackbyte;
-	counter_u64_t tcps_rcvwinupd;
-	counter_u64_t tcps_pawsdrop;
-	counter_u64_t tcps_predack;
-	counter_u64_t tcps_preddat;
-	counter_u64_t tcps_pcbcachemiss;
-	counter_u64_t tcps_cachedrtt;
-	counter_u64_t tcps_cachedrttvar;
-	counter_u64_t tcps_cachedssthresh;
-	counter_u64_t tcps_usedrtt;
-	counter_u64_t tcps_usedrttvar;
-	counter_u64_t tcps_usedssthresh;
-	counter_u64_t tcps_persistdrop;
-	counter_u64_t tcps_badsyn;
-	counter_u64_t tcps_mturesent;
-	counter_u64_t tcps_listendrop;
-	counter_u64_t tcps_badrst;
-	counter_u64_t tcps_sc_added;
-	counter_u64_t tcps_sc_retransmitted;
-	counter_u64_t tcps_sc_dupsyn;
-	counter_u64_t tcps_sc_dropped;
-	counter_u64_t tcps_sc_completed;
-	counter_u64_t tcps_sc_bucketoverflow;
-	counter_u64_t tcps_sc_cacheoverflow;
-	counter_u64_t tcps_sc_reset;
-	counter_u64_t tcps_sc_stale;
-	counter_u64_t tcps_sc_aborted;
-	counter_u64_t tcps_sc_badack;
-	counter_u64_t tcps_sc_unreach;
-	counter_u64_t tcps_sc_zonefail;
-	counter_u64_t tcps_sc_sendcookie;
-	counter_u64_t tcps_sc_recvcookie;
-	counter_u64_t tcps_hc_added;
-	counter_u64_t tcps_hc_bucketoverflow;
-	counter_u64_t tcps_finwait2_drops;
-	counter_u64_t tcps_sack_recovery_episode;
-	counter_u64_t tcps_sack_rexmits;
-	counter_u64_t tcps_sack_rexmit_bytes;
-	counter_u64_t tcps_sack_rcv_blocks;
-	counter_u64_t tcps_sack_send_blocks;
-	counter_u64_t tcps_sack_sboverflow;
-	counter_u64_t tcps_ecn_ce;
-	counter_u64_t tcps_ecn_ect0;
-	counter_u64_t tcps_ecn_ect1;
-	counter_u64_t tcps_ecn_shs;
-	counter_u64_t tcps_ecn_rcwnd;
-	counter_u64_t tcps_sig_rcvgoodsig;
-	counter_u64_t tcps_sig_rcvbadsig;
-	counter_u64_t tcps_sig_err_buildsig;
-	counter_u64_t tcps_sig_err_sigopt;
-	counter_u64_t tcps_sig_err_nosigopt;
-};
-
-VNET_DECLARE(struct tcpstat_p, tcpstatp);	/* tcp statistics */
-#define	V_tcpstatp VNET(tcpstatp)
-
+VNET_PCPUSTAT_DECLARE(struct tcpstat, tcpstat);	/* tcp statistics */
 /*
  * In-kernel consumers can use these accessor macros directly to update
  * stats.
  */
-#define	TCPSTAT_ADD(name, val)	counter_u64_add(V_tcpstatp.name, (val))
+#define	TCPSTAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct tcpstat, tcpstat, name, (val))
 #define	TCPSTAT_INC(name)	TCPSTAT_ADD(name, 1)
 
 /*
@@ -634,8 +530,7 @@ VNET_DECLARE(struct tcpstat_p, tcpstatp);	/* tcp statistics */
  */
 void	kmod_tcpstat_inc(int statnum);
 #define	KMOD_TCPSTAT_INC(name)						\
-	kmod_tcpstat_inc(offsetof(struct tcpstat_p, name) /		\
-	sizeof(counter_u64_t))
+    kmod_tcpstat_inc(offsetof(struct tcpstat, name) / sizeof(uint64_t))
 
 /*
  * TCP specific helper hook point identifiers.

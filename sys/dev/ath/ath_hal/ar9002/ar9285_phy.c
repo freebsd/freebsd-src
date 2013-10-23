@@ -51,6 +51,7 @@ ar9285_antdiv_comb_conf_get(struct ath_hal *ah, HAL_ANT_COMB_CONFIG *antconf)
 				 AR_PHY_9285_ANT_DIV_ALT_LNACONF_S;
 	antconf->fast_div_bias = (regval & AR_PHY_9285_FAST_DIV_BIAS) >>
 				  AR_PHY_9285_FAST_DIV_BIAS_S;
+	antconf->antdiv_configgroup = DEFAULT_ANTDIV_CONFIG_GROUP;
 }
 
 void

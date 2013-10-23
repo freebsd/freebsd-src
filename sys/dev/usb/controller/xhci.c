@@ -1682,7 +1682,6 @@ restart:
 			/* fill out buffer pointers */
 
 			if (average == 0) {
-				npkt = 0;
 				memset(&buf_res, 0, sizeof(buf_res));
 			} else {
 				usbd_get_page(temp->pc, temp->offset +
@@ -1697,14 +1696,16 @@ restart:
 					buf_res.length = XHCI_TD_PAGE_SIZE;
 
 				npkt_off += buf_res.length;
-
-				/* setup npkt */
-				npkt = (len_old - npkt_off + temp->max_packet_size - 1) /
-				    temp->max_packet_size;
-
-				if (npkt > 31)
-					npkt = 31;
 			}
+
+			/* setup npkt */
+			npkt = (len_old - npkt_off + temp->max_packet_size - 1) /
+			    temp->max_packet_size;
+
+			if (npkt == 0)
+				npkt = 1;
+			else if (npkt > 31)
+				npkt = 31;
 
 			/* fill out TRB's */
 			td->td_trb[x].qwTrb0 =
@@ -1719,9 +1720,7 @@ restart:
 
 			switch (temp->trb_type) {
 			case XHCI_TRB_TYPE_ISOCH:
-				/* BEI: Interrupts are inhibited until EOT */
 				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
-				    XHCI_TRB_3_BEI_BIT |
 				    XHCI_TRB_3_TBC_SET(temp->tbc) |
 				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
 				if (td != td_first) {
@@ -1756,10 +1755,8 @@ restart:
 					dword |= XHCI_TRB_3_DIR_IN;
 				break;
 			default:	/* XHCI_TRB_TYPE_NORMAL */
-				/* BEI: Interrupts are inhibited until EOT */
 				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
 				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL) |
-				    XHCI_TRB_3_BEI_BIT |
 				    XHCI_TRB_3_TBC_SET(temp->tbc) |
 				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
 				if (temp->direction == UE_DIR_IN)
@@ -1838,6 +1835,7 @@ restart:
 		usb_pc_cpu_flush(td_first->page_cache);
 	}
 
+	/* clear TD SIZE to zero, hence this is the last TRB */
 	/* remove chain bit because this is the last TRB in the chain */
 	td->td_trb[td->ntrb - 1].dwTrb2 &= ~htole32(XHCI_TRB_2_TDSZ_SET(15));
 	td->td_trb[td->ntrb - 1].dwTrb3 &= ~htole32(XHCI_TRB_3_CHAIN_BIT);

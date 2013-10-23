@@ -365,8 +365,6 @@ init_pipe_control(struct intel_ring_buffer *ring)
 	if (pc->cpu_page == NULL)
 		goto err_unpin;
 	pmap_qenter((uintptr_t)pc->cpu_page, &obj->pages[0], 1);
-	pmap_invalidate_range(kernel_pmap, (vm_offset_t)pc->cpu_page,
-	    (vm_offset_t)pc->cpu_page + PAGE_SIZE);
 	pmap_invalidate_cache_range((vm_offset_t)pc->cpu_page,
 	    (vm_offset_t)pc->cpu_page + PAGE_SIZE);
 
@@ -394,8 +392,6 @@ cleanup_pipe_control(struct intel_ring_buffer *ring)
 
 	obj = pc->obj;
 	pmap_qremove((vm_offset_t)pc->cpu_page, 1);
-	pmap_invalidate_range(kernel_pmap, (vm_offset_t)pc->cpu_page,
-	    (vm_offset_t)pc->cpu_page + PAGE_SIZE);
 	kmem_free(kernel_map, (uintptr_t)pc->cpu_page, PAGE_SIZE);
 	i915_gem_object_unpin(obj);
 	drm_gem_object_unreference(&obj->base);
@@ -972,9 +968,6 @@ static void cleanup_status_page(struct intel_ring_buffer *ring)
 		return;
 
 	pmap_qremove((vm_offset_t)ring->status_page.page_addr, 1);
-	pmap_invalidate_range(kernel_pmap,
-	    (vm_offset_t)ring->status_page.page_addr,
-	    (vm_offset_t)ring->status_page.page_addr + PAGE_SIZE);
 	kmem_free(kernel_map, (vm_offset_t)ring->status_page.page_addr,
 	    PAGE_SIZE);
 	i915_gem_object_unpin(obj);
@@ -1014,9 +1007,6 @@ static int init_status_page(struct intel_ring_buffer *ring)
 	}
 	pmap_qenter((vm_offset_t)ring->status_page.page_addr, &obj->pages[0],
 	    1);
-	pmap_invalidate_range(kernel_pmap,
-	    (vm_offset_t)ring->status_page.page_addr,
-	    (vm_offset_t)ring->status_page.page_addr + PAGE_SIZE);
 	pmap_invalidate_cache_range((vm_offset_t)ring->status_page.page_addr,
 	    (vm_offset_t)ring->status_page.page_addr + PAGE_SIZE);
 	ring->status_page.obj = obj;

@@ -301,9 +301,12 @@ namespace {
     bool VerifyIntrinsicType(Type *Ty,
                              ArrayRef<Intrinsic::IITDescriptor> &Infos,
                              SmallVectorImpl<Type*> &ArgTys);
-    void VerifyParameterAttrs(AttributeSet Attrs, uint64_t Idx, Type *Ty,
+    bool VerifyAttributeCount(AttributeSet Attrs, unsigned Params);
+    void VerifyAttributeTypes(AttributeSet Attrs, unsigned Idx,
+                              bool isFunction, const Value *V);
+    void VerifyParameterAttrs(AttributeSet Attrs, unsigned Idx, Type *Ty,
                               bool isReturnValue, const Value *V);
-    void VerifyFunctionAttrs(FunctionType *FT, const AttributeSet &Attrs,
+    void VerifyFunctionAttrs(FunctionType *FT, AttributeSet Attrs,
                              const Value *V);
 
     void WriteValue(const Value *V) {
@@ -443,6 +446,30 @@ void Verifier::visitGlobalVariable(GlobalVariable &GV) {
               STy->getTypeAtIndex(0u)->isIntegerTy(32) &&
               STy->getTypeAtIndex(1) == FuncPtrTy,
               "wrong type for intrinsic global variable", &GV);
+    }
+  }
+
+  if (GV.hasName() && (GV.getName() == "llvm.used" ||
+                       GV.getName() == "llvm.compiler_used")) {
+    Assert1(!GV.hasInitializer() || GV.hasAppendingLinkage(),
+            "invalid linkage for intrinsic global variable", &GV);
+    Type *GVType = GV.getType()->getElementType();
+    if (ArrayType *ATy = dyn_cast<ArrayType>(GVType)) {
+      PointerType *PTy = dyn_cast<PointerType>(ATy->getElementType());
+      Assert1(PTy, "wrong type for intrinsic global variable", &GV);
+      if (GV.hasInitializer()) {
+        Constant *Init = GV.getInitializer();
+        ConstantArray *InitArray = dyn_cast<ConstantArray>(Init);
+        Assert1(InitArray, "wrong initalizer for intrinsic global variable",
+                Init);
+        for (unsigned i = 0, e = InitArray->getNumOperands(); i != e; ++i) {
+          Value *V = Init->getOperand(i)->stripPointerCasts();
+          // stripPointerCasts strips aliases, so we only need to check for
+          // variables and functions.
+          Assert1(isa<GlobalVariable>(V) || isa<Function>(V),
+                  "invalid llvm.used member", V);
+        }
+      }
     }
   }
 
@@ -626,44 +653,74 @@ void Verifier::visitModuleFlag(MDNode *Op, DenseMap<MDString*, MDNode*>&SeenIDs,
   }
 }
 
+void Verifier::VerifyAttributeTypes(AttributeSet Attrs, unsigned Idx,
+                                    bool isFunction, const Value* V) {
+  unsigned Slot = ~0U;
+  for (unsigned I = 0, E = Attrs.getNumSlots(); I != E; ++I)
+    if (Attrs.getSlotIndex(I) == Idx) {
+      Slot = I;
+      break;
+    }
+
+  assert(Slot != ~0U && "Attribute set inconsistency!");
+
+  for (AttributeSet::iterator I = Attrs.begin(Slot), E = Attrs.end(Slot);
+         I != E; ++I) {
+    if (I->isStringAttribute())
+      continue;
+
+    if (I->getKindAsEnum() == Attribute::NoReturn ||
+        I->getKindAsEnum() == Attribute::NoUnwind ||
+        I->getKindAsEnum() == Attribute::ReadNone ||
+        I->getKindAsEnum() == Attribute::ReadOnly ||
+        I->getKindAsEnum() == Attribute::NoInline ||
+        I->getKindAsEnum() == Attribute::AlwaysInline ||
+        I->getKindAsEnum() == Attribute::OptimizeForSize ||
+        I->getKindAsEnum() == Attribute::StackProtect ||
+        I->getKindAsEnum() == Attribute::StackProtectReq ||
+        I->getKindAsEnum() == Attribute::StackProtectStrong ||
+        I->getKindAsEnum() == Attribute::NoRedZone ||
+        I->getKindAsEnum() == Attribute::NoImplicitFloat ||
+        I->getKindAsEnum() == Attribute::Naked ||
+        I->getKindAsEnum() == Attribute::InlineHint ||
+        I->getKindAsEnum() == Attribute::StackAlignment ||
+        I->getKindAsEnum() == Attribute::UWTable ||
+        I->getKindAsEnum() == Attribute::NonLazyBind ||
+        I->getKindAsEnum() == Attribute::ReturnsTwice ||
+        I->getKindAsEnum() == Attribute::SanitizeAddress ||
+        I->getKindAsEnum() == Attribute::SanitizeThread ||
+        I->getKindAsEnum() == Attribute::SanitizeMemory ||
+        I->getKindAsEnum() == Attribute::MinSize ||
+        I->getKindAsEnum() == Attribute::NoDuplicate ||
+        I->getKindAsEnum() == Attribute::NoBuiltin) {
+      if (!isFunction)
+          CheckFailed("Attribute '" + I->getKindAsString() +
+                      "' only applies to functions!", V);
+          return;
+    } else if (isFunction) {
+        CheckFailed("Attribute '" + I->getKindAsString() +
+                    "' does not apply to functions!", V);
+        return;
+    }
+  }
+}
+
 // VerifyParameterAttrs - Check the given attributes for an argument or return
 // value of the specified type.  The value V is printed in error messages.
-void Verifier::VerifyParameterAttrs(AttributeSet Attrs, uint64_t Idx, Type *Ty,
+void Verifier::VerifyParameterAttrs(AttributeSet Attrs, unsigned Idx, Type *Ty,
                                     bool isReturnValue, const Value *V) {
   if (!Attrs.hasAttributes(Idx))
     return;
 
-  Assert1(!Attrs.hasAttribute(Idx, Attribute::NoReturn) &&
-          !Attrs.hasAttribute(Idx, Attribute::NoUnwind) &&
-          !Attrs.hasAttribute(Idx, Attribute::ReadNone) &&
-          !Attrs.hasAttribute(Idx, Attribute::ReadOnly) &&
-          !Attrs.hasAttribute(Idx, Attribute::NoInline) &&
-          !Attrs.hasAttribute(Idx, Attribute::AlwaysInline) &&
-          !Attrs.hasAttribute(Idx, Attribute::OptimizeForSize) &&
-          !Attrs.hasAttribute(Idx, Attribute::StackProtect) &&
-          !Attrs.hasAttribute(Idx, Attribute::StackProtectReq) &&
-          !Attrs.hasAttribute(Idx, Attribute::NoRedZone) &&
-          !Attrs.hasAttribute(Idx, Attribute::NoImplicitFloat) &&
-          !Attrs.hasAttribute(Idx, Attribute::Naked) &&
-          !Attrs.hasAttribute(Idx, Attribute::InlineHint) &&
-          !Attrs.hasAttribute(Idx, Attribute::StackAlignment) &&
-          !Attrs.hasAttribute(Idx, Attribute::UWTable) &&
-          !Attrs.hasAttribute(Idx, Attribute::NonLazyBind) &&
-          !Attrs.hasAttribute(Idx, Attribute::ReturnsTwice) &&
-          !Attrs.hasAttribute(Idx, Attribute::SanitizeAddress) &&
-          !Attrs.hasAttribute(Idx, Attribute::SanitizeThread) &&
-          !Attrs.hasAttribute(Idx, Attribute::SanitizeMemory) &&
-          !Attrs.hasAttribute(Idx, Attribute::MinSize) &&
-          !Attrs.hasAttribute(Idx, Attribute::NoBuiltin),
-          "Some attributes in '" + Attrs.getAsString(Idx) +
-          "' only apply to functions!", V);
+  VerifyAttributeTypes(Attrs, Idx, false, V);
 
   if (isReturnValue)
     Assert1(!Attrs.hasAttribute(Idx, Attribute::ByVal) &&
             !Attrs.hasAttribute(Idx, Attribute::Nest) &&
             !Attrs.hasAttribute(Idx, Attribute::StructRet) &&
-            !Attrs.hasAttribute(Idx, Attribute::NoCapture),
-            "Attribute 'byval', 'nest', 'sret', and 'nocapture' "
+            !Attrs.hasAttribute(Idx, Attribute::NoCapture) &&
+            !Attrs.hasAttribute(Idx, Attribute::Returned),
+            "Attribute 'byval', 'nest', 'sret', 'nocapture', and 'returned' "
             "do not apply to return values!", V);
 
   // Check for mutually incompatible attributes.
@@ -682,6 +739,10 @@ void Verifier::VerifyParameterAttrs(AttributeSet Attrs, uint64_t Idx, Type *Ty,
             (Attrs.hasAttribute(Idx, Attribute::Nest) &&
              Attrs.hasAttribute(Idx, Attribute::InReg))), "Attributes "
           "'byval, nest, and inreg' are incompatible!", V);
+
+  Assert1(!(Attrs.hasAttribute(Idx, Attribute::StructRet) &&
+            Attrs.hasAttribute(Idx, Attribute::Returned)), "Attributes "
+          "'sret and returned' are incompatible!", V);
 
   Assert1(!(Attrs.hasAttribute(Idx, Attribute::ZExt) &&
             Attrs.hasAttribute(Idx, Attribute::SExt)), "Attributes "
@@ -712,81 +773,51 @@ void Verifier::VerifyParameterAttrs(AttributeSet Attrs, uint64_t Idx, Type *Ty,
 
 // VerifyFunctionAttrs - Check parameter attributes against a function type.
 // The value V is printed in error messages.
-void Verifier::VerifyFunctionAttrs(FunctionType *FT,
-                                   const AttributeSet &Attrs,
+void Verifier::VerifyFunctionAttrs(FunctionType *FT, AttributeSet Attrs,
                                    const Value *V) {
   if (Attrs.isEmpty())
     return;
 
   bool SawNest = false;
+  bool SawReturned = false;
 
   for (unsigned i = 0, e = Attrs.getNumSlots(); i != e; ++i) {
-    unsigned Index = Attrs.getSlotIndex(i);
+    unsigned Idx = Attrs.getSlotIndex(i);
 
     Type *Ty;
-    if (Index == 0)
+    if (Idx == 0)
       Ty = FT->getReturnType();
-    else if (Index-1 < FT->getNumParams())
-      Ty = FT->getParamType(Index-1);
+    else if (Idx-1 < FT->getNumParams())
+      Ty = FT->getParamType(Idx-1);
     else
       break;  // VarArgs attributes, verified elsewhere.
 
-    VerifyParameterAttrs(Attrs, Index, Ty, Index == 0, V);
+    VerifyParameterAttrs(Attrs, Idx, Ty, Idx == 0, V);
 
-    if (Attrs.hasAttribute(i, Attribute::Nest)) {
+    if (Idx == 0)
+      continue;
+
+    if (Attrs.hasAttribute(Idx, Attribute::Nest)) {
       Assert1(!SawNest, "More than one parameter has attribute nest!", V);
       SawNest = true;
     }
 
-    if (Attrs.hasAttribute(Index, Attribute::StructRet))
-      Assert1(Index == 1, "Attribute sret is not on first parameter!", V);
+    if (Attrs.hasAttribute(Idx, Attribute::Returned)) {
+      Assert1(!SawReturned, "More than one parameter has attribute returned!",
+              V);
+      Assert1(Ty->canLosslesslyBitCastTo(FT->getReturnType()), "Incompatible "
+              "argument and return types for 'returned' attribute", V);
+      SawReturned = true;
+    }
+
+    if (Attrs.hasAttribute(Idx, Attribute::StructRet))
+      Assert1(Idx == 1, "Attribute sret is not on first parameter!", V);
   }
 
   if (!Attrs.hasAttributes(AttributeSet::FunctionIndex))
     return;
 
-  AttrBuilder NotFn(Attrs, AttributeSet::FunctionIndex);
-  NotFn.removeFunctionOnlyAttrs();
-  Assert1(NotFn.empty(), "Attributes '" +
-          AttributeSet::get(V->getContext(),
-                            AttributeSet::FunctionIndex,
-                            NotFn).getAsString(AttributeSet::FunctionIndex) +
-          "' do not apply to the function!", V);
-
-  // Check for mutually incompatible attributes.
-  Assert1(!((Attrs.hasAttribute(AttributeSet::FunctionIndex,
-                                Attribute::ByVal) &&
-             Attrs.hasAttribute(AttributeSet::FunctionIndex,
-                                Attribute::Nest)) ||
-            (Attrs.hasAttribute(AttributeSet::FunctionIndex,
-                                Attribute::ByVal) &&
-             Attrs.hasAttribute(AttributeSet::FunctionIndex,
-                                Attribute::StructRet)) ||
-            (Attrs.hasAttribute(AttributeSet::FunctionIndex,
-                                Attribute::Nest) &&
-             Attrs.hasAttribute(AttributeSet::FunctionIndex,
-                                Attribute::StructRet))),
-          "Attributes 'byval, nest, and sret' are incompatible!", V);
-
-  Assert1(!((Attrs.hasAttribute(AttributeSet::FunctionIndex,
-                                Attribute::ByVal) &&
-             Attrs.hasAttribute(AttributeSet::FunctionIndex,
-                                Attribute::Nest)) ||
-            (Attrs.hasAttribute(AttributeSet::FunctionIndex,
-                                Attribute::ByVal) &&
-             Attrs.hasAttribute(AttributeSet::FunctionIndex,
-                                Attribute::InReg)) ||
-            (Attrs.hasAttribute(AttributeSet::FunctionIndex,
-                                Attribute::Nest) &&
-             Attrs.hasAttribute(AttributeSet::FunctionIndex,
-                                Attribute::InReg))),
-          "Attributes 'byval, nest, and inreg' are incompatible!", V);
-
-  Assert1(!(Attrs.hasAttribute(AttributeSet::FunctionIndex,
-                               Attribute::ZExt) &&
-            Attrs.hasAttribute(AttributeSet::FunctionIndex,
-                               Attribute::SExt)),
-          "Attributes 'zeroext and signext' are incompatible!", V);
+  VerifyAttributeTypes(Attrs, AttributeSet::FunctionIndex, true, V);
 
   Assert1(!(Attrs.hasAttribute(AttributeSet::FunctionIndex,
                                Attribute::ReadNone) &&
@@ -801,7 +832,7 @@ void Verifier::VerifyFunctionAttrs(FunctionType *FT,
           "Attributes 'noinline and alwaysinline' are incompatible!", V);
 }
 
-static bool VerifyAttributeCount(const AttributeSet &Attrs, unsigned Params) {
+bool Verifier::VerifyAttributeCount(AttributeSet Attrs, unsigned Params) {
   if (Attrs.getNumSlots() == 0)
     return true;
 
@@ -837,7 +868,7 @@ void Verifier::visitFunction(Function &F) {
   Assert1(!F.hasStructRetAttr() || F.getReturnType()->isVoidTy(),
           "Invalid struct return type!", &F);
 
-  const AttributeSet &Attrs = F.getAttributes();
+  AttributeSet Attrs = F.getAttributes();
 
   Assert1(VerifyAttributeCount(Attrs, FT->getNumParams()),
           "Attribute after last parameter!", &F);
@@ -1350,7 +1381,7 @@ void Verifier::VerifyCallSite(CallSite CS) {
             "Call parameter type does not match function signature!",
             CS.getArgument(i), FTy->getParamType(i), I);
 
-  const AttributeSet &Attrs = CS.getAttributes();
+  AttributeSet Attrs = CS.getAttributes();
 
   Assert1(VerifyAttributeCount(Attrs, CS.arg_size()),
           "Attribute after last parameter!", I);
@@ -1358,15 +1389,41 @@ void Verifier::VerifyCallSite(CallSite CS) {
   // Verify call attributes.
   VerifyFunctionAttrs(FTy, Attrs, I);
 
-  if (FTy->isVarArg())
+  if (FTy->isVarArg()) {
+    // FIXME? is 'nest' even legal here?
+    bool SawNest = false;
+    bool SawReturned = false;
+
+    for (unsigned Idx = 1; Idx < 1 + FTy->getNumParams(); ++Idx) {
+      if (Attrs.hasAttribute(Idx, Attribute::Nest))
+        SawNest = true;
+      if (Attrs.hasAttribute(Idx, Attribute::Returned))
+        SawReturned = true;
+    }
+
     // Check attributes on the varargs part.
     for (unsigned Idx = 1 + FTy->getNumParams(); Idx <= CS.arg_size(); ++Idx) {
-      VerifyParameterAttrs(Attrs, Idx, CS.getArgument(Idx-1)->getType(),
-                           false, I);
+      Type *Ty = CS.getArgument(Idx-1)->getType(); 
+      VerifyParameterAttrs(Attrs, Idx, Ty, false, I);
+      
+      if (Attrs.hasAttribute(Idx, Attribute::Nest)) {
+        Assert1(!SawNest, "More than one parameter has attribute nest!", I);
+        SawNest = true;
+      }
+
+      if (Attrs.hasAttribute(Idx, Attribute::Returned)) {
+        Assert1(!SawReturned, "More than one parameter has attribute returned!",
+                I);
+        Assert1(Ty->canLosslesslyBitCastTo(FTy->getReturnType()),
+                "Incompatible argument and return types for 'returned' "
+                "attribute", I);
+        SawReturned = true;
+      }
 
       Assert1(!Attrs.hasAttribute(Idx, Attribute::StructRet),
               "Attribute 'sret' cannot be used for vararg call arguments!", I);
     }
+  }
 
   // Verify that there's no metadata unless it's a direct call to an intrinsic.
   if (CS.getCalledFunction() == 0 ||

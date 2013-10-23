@@ -248,7 +248,7 @@ typedef enum
     ASL_MSG_TOO_MANY_ARGUMENTS,
     ASL_MSG_UNKNOWN_DIRECTIVE,
     ASL_MSG_UNKNOWN_PRAGMA,
-
+    ASL_MSG_WARNING_DIRECTIVE,
 
     /* These messages are used by the data table compiler only */
 
@@ -433,6 +433,7 @@ char                        *AslMessages [] =
 /*    ASL_MSG_TOO_MANY_ARGUMENTS */         "Too many macro arguments",
 /*    ASL_MSG_UNKNOWN_DIRECTIVE */          "Unknown directive",
 /*    ASL_MSG_UNKNOWN_PRAGMA */             "Unknown pragma",
+/*    ASL_MSG_WARNING_DIRECTIVE */          "#warning",
 
 /* Table compiler */
 

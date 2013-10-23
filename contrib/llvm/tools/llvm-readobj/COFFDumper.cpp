@@ -680,11 +680,18 @@ void COFFDumper::printRelocation(section_iterator SecI,
   if (error(Symbol.getName(SymbolName))) return;
   if (error(SecI->getContents(Contents))) return;
 
-  raw_ostream& OS = W.startLine();
-  OS << W.hex(Offset)
-     << " " << RelocName
-     << " " << (SymbolName.size() > 0 ? SymbolName : "-")
-     << "\n";
+  if (opts::ExpandRelocs) {
+    DictScope Group(W, "Relocation");
+    W.printHex("Offset", Offset);
+    W.printNumber("Type", RelocName, RelocType);
+    W.printString("Symbol", SymbolName.size() > 0 ? SymbolName : "-");
+  } else {
+    raw_ostream& OS = W.startLine();
+    OS << W.hex(Offset)
+       << " " << RelocName
+       << " " << (SymbolName.size() > 0 ? SymbolName : "-")
+       << "\n";
+  }
 }
 
 void COFFDumper::printSymbols() {
@@ -719,9 +726,9 @@ void COFFDumper::printSymbol(symbol_iterator SymI) {
   if (Obj->getSymbolName(Symbol, SymbolName))
     SymbolName = "";
 
-  StringRef SectionName;
-  if (Section && Obj->getSectionName(Section, SectionName))
-    SectionName = "";
+  StringRef SectionName = "";
+  if (Section)
+    Obj->getSectionName(Section, SectionName);
 
   W.printString("Name", SymbolName);
   W.printNumber("Value", Symbol->Value);
@@ -778,7 +785,12 @@ void COFFDumper::printSymbol(symbol_iterator SymI) {
       if (error(getSymbolAuxData(Obj, Symbol + I, Aux)))
         break;
 
-    } else if (Symbol->StorageClass == COFF::IMAGE_SYM_CLASS_STATIC) {
+      DictScope AS(W, "AuxFileRecord");
+      W.printString("FileName", StringRef(Aux->FileName));
+
+    } else if (Symbol->StorageClass == COFF::IMAGE_SYM_CLASS_STATIC ||
+               (Symbol->StorageClass == COFF::IMAGE_SYM_CLASS_EXTERNAL &&
+                Symbol->SectionNumber != COFF::IMAGE_SYM_UNDEFINED)) {
       const coff_aux_section_definition *Aux;
       if (error(getSymbolAuxData(Obj, Symbol + I, Aux)))
         break;
@@ -792,7 +804,7 @@ void COFFDumper::printSymbol(symbol_iterator SymI) {
       W.printEnum("Selection", Aux->Selection, makeArrayRef(ImageCOMDATSelect));
       W.printBinary("Unused", makeArrayRef(Aux->Unused));
 
-      if (Section->Characteristics & COFF::IMAGE_SCN_LNK_COMDAT
+      if (Section && Section->Characteristics & COFF::IMAGE_SCN_LNK_COMDAT
           && Aux->Selection == COFF::IMAGE_COMDAT_SELECT_ASSOCIATIVE) {
         const coff_section *Assoc;
         StringRef AssocName;

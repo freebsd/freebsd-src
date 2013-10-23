@@ -2128,7 +2128,7 @@ Job_CatchChildren(Boolean block)
 	}
 
 	for (;;) {
-		pid = waitpid((pid_t)-1, &status,
+		pid = waitpid(-1, &status,
 		    (block ? 0 : WNOHANG) | WUNTRACED);
 		if (pid <= 0)
 			break;
@@ -2628,7 +2628,7 @@ Job_AbortAll(void)
 	/*
 	 * Catch as many children as want to report in at first, then give up
 	 */
-	while (waitpid((pid_t)-1, &foo, WNOHANG) > 0)
+	while (waitpid(-1, &foo, WNOHANG) > 0)
 		;
 }
 

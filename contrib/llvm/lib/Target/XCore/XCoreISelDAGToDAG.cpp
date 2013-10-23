@@ -68,8 +68,6 @@ namespace {
 
     // Complex Pattern Selectors.
     bool SelectADDRspii(SDValue Addr, SDValue &Base, SDValue &Offset);
-    bool SelectADDRdpii(SDValue Addr, SDValue &Base, SDValue &Offset);
-    bool SelectADDRcpii(SDValue Addr, SDValue &Base, SDValue &Offset);
     
     virtual const char *getPassName() const {
       return "XCore DAG->DAG Pattern Instruction Selection";
@@ -110,48 +108,6 @@ bool XCoreDAGToDAGISel::SelectADDRspii(SDValue Addr, SDValue &Base,
   return false;
 }
 
-bool XCoreDAGToDAGISel::SelectADDRdpii(SDValue Addr, SDValue &Base,
-                                       SDValue &Offset) {
-  if (Addr.getOpcode() == XCoreISD::DPRelativeWrapper) {
-    Base = Addr.getOperand(0);
-    Offset = CurDAG->getTargetConstant(0, MVT::i32);
-    return true;
-  }
-  if (Addr.getOpcode() == ISD::ADD) {
-    ConstantSDNode *CN = 0;
-    if ((Addr.getOperand(0).getOpcode() == XCoreISD::DPRelativeWrapper)
-      && (CN = dyn_cast<ConstantSDNode>(Addr.getOperand(1)))
-      && (CN->getSExtValue() % 4 == 0 && CN->getSExtValue() >= 0)) {
-      // Constant word offset from a object in the data region
-      Base = Addr.getOperand(0).getOperand(0);
-      Offset = CurDAG->getTargetConstant(CN->getSExtValue(), MVT::i32);
-      return true;
-    }
-  }
-  return false;
-}
-
-bool XCoreDAGToDAGISel::SelectADDRcpii(SDValue Addr, SDValue &Base,
-                                       SDValue &Offset) {
-  if (Addr.getOpcode() == XCoreISD::CPRelativeWrapper) {
-    Base = Addr.getOperand(0);
-    Offset = CurDAG->getTargetConstant(0, MVT::i32);
-    return true;
-  }
-  if (Addr.getOpcode() == ISD::ADD) {
-    ConstantSDNode *CN = 0;
-    if ((Addr.getOperand(0).getOpcode() == XCoreISD::CPRelativeWrapper)
-      && (CN = dyn_cast<ConstantSDNode>(Addr.getOperand(1)))
-      && (CN->getSExtValue() % 4 == 0 && CN->getSExtValue() >= 0)) {
-      // Constant word offset from a object in the data region
-      Base = Addr.getOperand(0).getOperand(0);
-      Offset = CurDAG->getTargetConstant(CN->getSExtValue(), MVT::i32);
-      return true;
-    }
-  }
-  return false;
-}
-
 SDNode *XCoreDAGToDAGISel::Select(SDNode *N) {
   DebugLoc dl = N->getDebugLoc();
   switch (N->getOpcode()) {
@@ -185,36 +141,36 @@ SDNode *XCoreDAGToDAGISel::Select(SDNode *N) {
     SDValue Ops[] = { N->getOperand(0), N->getOperand(1),
                         N->getOperand(2) };
     return CurDAG->getMachineNode(XCore::LADD_l5r, dl, MVT::i32, MVT::i32,
-                                  Ops, 3);
+                                  Ops);
   }
   case XCoreISD::LSUB: {
     SDValue Ops[] = { N->getOperand(0), N->getOperand(1),
                         N->getOperand(2) };
     return CurDAG->getMachineNode(XCore::LSUB_l5r, dl, MVT::i32, MVT::i32,
-                                  Ops, 3);
+                                  Ops);
   }
   case XCoreISD::MACCU: {
     SDValue Ops[] = { N->getOperand(0), N->getOperand(1),
                       N->getOperand(2), N->getOperand(3) };
     return CurDAG->getMachineNode(XCore::MACCU_l4r, dl, MVT::i32, MVT::i32,
-                                  Ops, 4);
+                                  Ops);
   }
   case XCoreISD::MACCS: {
     SDValue Ops[] = { N->getOperand(0), N->getOperand(1),
                       N->getOperand(2), N->getOperand(3) };
     return CurDAG->getMachineNode(XCore::MACCS_l4r, dl, MVT::i32, MVT::i32,
-                                  Ops, 4);
+                                  Ops);
   }
   case XCoreISD::LMUL: {
     SDValue Ops[] = { N->getOperand(0), N->getOperand(1),
                       N->getOperand(2), N->getOperand(3) };
     return CurDAG->getMachineNode(XCore::LMUL_l6r, dl, MVT::i32, MVT::i32,
-                                  Ops, 4);
+                                  Ops);
   }
   case XCoreISD::CRC8: {
     SDValue Ops[] = { N->getOperand(0), N->getOperand(1), N->getOperand(2) };
     return CurDAG->getMachineNode(XCore::CRC8_l4r, dl, MVT::i32, MVT::i32,
-                                  Ops, 3);
+                                  Ops);
   }
   case ISD::BRIND:
     if (SDNode *ResNode = SelectBRIND(N))

@@ -99,16 +99,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
 
-/*
- * System initialization
- *
- * THIS MUST BE THE LAST INITIALIZATION ITEM!!!
- *
- * Note: run scheduling should be divorced from the vm system.
- */
-static void scheduler(void *);
-SYSINIT(scheduler, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY, scheduler, NULL);
-
 #ifndef NO_SWAPPING
 static int swapout(struct proc *);
 static void swapclear(struct proc *);
@@ -698,10 +688,8 @@ faultin(p)
  *
  * Giant is held on entry.
  */
-/* ARGSUSED*/
-static void
-scheduler(dummy)
-	void *dummy;
+void
+swapper(void)
 {
 	struct proc *p;
 	struct thread *td;
@@ -713,9 +701,6 @@ scheduler(dummy)
 #ifdef VPS
 	struct vps *vps, *save_vps;
 #endif
-
-	mtx_assert(&Giant, MA_OWNED | MA_NOTRECURSED);
-	mtx_unlock(&Giant);
 
 loop:
 	if (vm_page_count_min()) {
@@ -778,7 +763,7 @@ loop:
 	 * Nothing to do, back to sleep.
 	 */
 	if ((p = pp) == NULL) {
-		tsleep(&proc0, PVM, "sched", MAXSLP * hz / 2);
+		tsleep(&proc0, PVM, "swapin", MAXSLP * hz / 2);
 		goto loop;
 	}
 	PROC_LOCK(p);

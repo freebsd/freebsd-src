@@ -20,6 +20,7 @@
 #include "X86MCTargetDesc.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/MC/MCInstrInfo.h"
 
 namespace llvm {
 
@@ -41,7 +42,6 @@ namespace X86 {
     AddrNumOperands = 5
   };
 } // end namespace X86;
- 
 
 /// X86II - This namespace holds all of the target specific flags that
 /// instruction info tracks.
@@ -274,11 +274,12 @@ namespace X86II {
 
     //// MRM_XX - A mod/rm byte of exactly 0xXX.
     MRM_C1 = 33, MRM_C2 = 34, MRM_C3 = 35, MRM_C4 = 36,
-    MRM_C8 = 37, MRM_C9 = 38, MRM_E8 = 39, MRM_F0 = 40,
-    MRM_F8 = 41, MRM_F9 = 42, MRM_D0 = 45, MRM_D1 = 46,
-    MRM_D4 = 47, MRM_D5 = 48, MRM_D6 = 49, MRM_D8 = 50,
-    MRM_D9 = 51, MRM_DA = 52, MRM_DB = 53, MRM_DC = 54,
-    MRM_DD = 55, MRM_DE = 56, MRM_DF = 57,
+    MRM_C8 = 37, MRM_C9 = 38, MRM_CA = 39, MRM_CB = 40,
+    MRM_E8 = 41, MRM_F0 = 42, MRM_F8 = 45, MRM_F9 = 46,
+    MRM_D0 = 47, MRM_D1 = 48, MRM_D4 = 49, MRM_D5 = 50,
+    MRM_D6 = 51, MRM_D8 = 52, MRM_D9 = 53, MRM_DA = 54,
+    MRM_DB = 55, MRM_DC = 56, MRM_DD = 57, MRM_DE = 58,
+    MRM_DF = 59,
 
     /// RawFrmImm8 - This is used for the ENTER instruction, which has two
     /// immediates, the first of which is a 16-bit immediate (specified by
@@ -521,6 +522,26 @@ namespace X86II {
     }
   }
 
+  /// getOperandBias - compute any additional adjustment needed to
+  ///                  the offset to the start of the memory operand
+  ///                  in this instruction.
+  /// If this is a two-address instruction,skip one of the register operands.
+  /// FIXME: This should be handled during MCInst lowering.
+  inline int getOperandBias(const MCInstrDesc& Desc)
+  {
+    unsigned NumOps = Desc.getNumOperands();
+    unsigned CurOp = 0;
+    if (NumOps > 1 && Desc.getOperandConstraint(1, MCOI::TIED_TO) == 0)
+      ++CurOp;
+    else if (NumOps > 3 && Desc.getOperandConstraint(2, MCOI::TIED_TO) == 0) {
+      assert(Desc.getOperandConstraint(NumOps - 1, MCOI::TIED_TO) == 1);
+      // Special case for GATHER with 2 TIED_TO operands
+      // Skip the first 2 operands: dst, mask_wb
+      CurOp += 2;
+    }
+    return CurOp;
+  }
+
   /// getMemoryOperandNo - The function returns the MCInst operand # for the
   /// first field of the memory operand.  If the instruction doesn't have a
   /// memory operand, this returns -1.
@@ -576,12 +597,13 @@ namespace X86II {
     }
     case X86II::MRM_C1: case X86II::MRM_C2: case X86II::MRM_C3:
     case X86II::MRM_C4: case X86II::MRM_C8: case X86II::MRM_C9:
-    case X86II::MRM_E8: case X86II::MRM_F0: case X86II::MRM_F8:
-    case X86II::MRM_F9: case X86II::MRM_D0: case X86II::MRM_D1:
-    case X86II::MRM_D4: case X86II::MRM_D5: case X86II::MRM_D6:
-    case X86II::MRM_D8: case X86II::MRM_D9: case X86II::MRM_DA:
-    case X86II::MRM_DB: case X86II::MRM_DC: case X86II::MRM_DD:
-    case X86II::MRM_DE: case X86II::MRM_DF:
+    case X86II::MRM_CA: case X86II::MRM_CB: case X86II::MRM_E8:
+    case X86II::MRM_F0: case X86II::MRM_F8: case X86II::MRM_F9:
+    case X86II::MRM_D0: case X86II::MRM_D1: case X86II::MRM_D4:
+    case X86II::MRM_D5: case X86II::MRM_D6: case X86II::MRM_D8:
+    case X86II::MRM_D9: case X86II::MRM_DA: case X86II::MRM_DB:
+    case X86II::MRM_DC: case X86II::MRM_DD: case X86II::MRM_DE:
+    case X86II::MRM_DF:
       return -1;
     }
   }

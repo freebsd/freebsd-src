@@ -1409,3 +1409,21 @@ ath_hal_EepromDataRead(struct ath_hal *ah, u_int off, uint16_t *data)
 	(*data) = ah->ah_eepromdata[off];
 	return AH_TRUE;
 }
+
+/*
+ * Do a 2GHz specific MHz->IEEE based on the hardware
+ * frequency.
+ *
+ * This is the unmapped frequency which is programmed into the hardware.
+ */
+int
+ath_hal_mhz2ieee_2ghz(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *ichan)
+{
+
+	if (ichan->channel == 2484)
+		return 14;
+	if (ichan->channel < 2484)
+		return ((int) ichan->channel - 2407) / 5;
+	else
+		return 15 + ((ichan->channel - 2512) / 20);
+}

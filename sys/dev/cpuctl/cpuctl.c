@@ -63,7 +63,7 @@ static d_ioctl_t cpuctl_ioctl;
 # define	DPRINTF(...)
 #endif
 
-#define	UCODE_SIZE_MAX	(10 * 1024)
+#define	UCODE_SIZE_MAX	(16 * 1024)
 
 static int cpuctl_do_msr(int cpu, cpuctl_msr_args_t *data, u_long cmd,
     struct thread *td);
@@ -326,7 +326,7 @@ update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	is_bound = cpu_sched_is_bound(td);
 	set_cpu(cpu, td);
 	critical_enter();
-	rdmsr_safe(MSR_BIOS_SIGN, &rev0); /* Get current micorcode revision. */
+	rdmsr_safe(MSR_BIOS_SIGN, &rev0); /* Get current microcode revision. */
 
 	/*
 	 * Perform update.
@@ -339,7 +339,7 @@ update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	 */
 	do_cpuid(0, tmp);
 	critical_exit();
-	rdmsr_safe(MSR_BIOS_SIGN, &rev1); /* Get new micorcode revision. */
+	rdmsr_safe(MSR_BIOS_SIGN, &rev1); /* Get new microcode revision. */
 	restore_cpu(oldcpu, is_bound, td);
 	if (rev1 > rev0)
 		ret = 0;
@@ -440,7 +440,7 @@ update_via(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	is_bound = cpu_sched_is_bound(td);
 	set_cpu(cpu, td);
 	critical_enter();
-	rdmsr_safe(MSR_BIOS_SIGN, &rev0); /* Get current micorcode revision. */
+	rdmsr_safe(MSR_BIOS_SIGN, &rev0); /* Get current microcode revision. */
 
 	/*
 	 * Perform update.

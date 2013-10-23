@@ -339,7 +339,7 @@ Decl *TemplateDeclInstantiator::VisitVarDecl(VarDecl *D) {
                                  D->getLocation(), D->getIdentifier(),
                                  DI->getType(), DI,
                                  D->getStorageClass());
-  Var->setThreadSpecified(D->isThreadSpecified());
+  Var->setTSCSpec(D->getTSCSpec());
   Var->setInitStyle(D->getInitStyle());
   Var->setCXXForRangeDecl(D->isCXXForRangeDecl());
   Var->setConstexpr(D->isConstexpr());
@@ -523,6 +523,53 @@ Decl *TemplateDeclInstantiator::VisitFieldDecl(FieldDecl *D) {
   Owner->addDecl(Field);
 
   return Field;
+}
+
+Decl *TemplateDeclInstantiator::VisitMSPropertyDecl(MSPropertyDecl *D) {
+  bool Invalid = false;
+  TypeSourceInfo *DI = D->getTypeSourceInfo();
+
+  if (DI->getType()->isVariablyModifiedType()) {
+    SemaRef.Diag(D->getLocation(), diag::err_property_is_variably_modified)
+    << D->getName();
+    Invalid = true;
+  } else if (DI->getType()->isInstantiationDependentType())  {
+    DI = SemaRef.SubstType(DI, TemplateArgs,
+                           D->getLocation(), D->getDeclName());
+    if (!DI) {
+      DI = D->getTypeSourceInfo();
+      Invalid = true;
+    } else if (DI->getType()->isFunctionType()) {
+      // C++ [temp.arg.type]p3:
+      //   If a declaration acquires a function type through a type
+      //   dependent on a template-parameter and this causes a
+      //   declaration that does not use the syntactic form of a
+      //   function declarator to have function type, the program is
+      //   ill-formed.
+      SemaRef.Diag(D->getLocation(), diag::err_field_instantiates_to_function)
+      << DI->getType();
+      Invalid = true;
+    }
+  } else {
+    SemaRef.MarkDeclarationsReferencedInType(D->getLocation(), DI->getType());
+  }
+
+  MSPropertyDecl *Property = new (SemaRef.Context)
+      MSPropertyDecl(Owner, D->getLocation(),
+                     D->getDeclName(), DI->getType(), DI,
+                     D->getLocStart(),
+                     D->getGetterId(), D->getSetterId());
+
+  SemaRef.InstantiateAttrs(TemplateArgs, D, Property, LateAttrs,
+                           StartingScope);
+
+  if (Invalid)
+    Property->setInvalidDecl();
+
+  Property->setAccess(D->getAccess());
+  Owner->addDecl(Property);
+
+  return Property;
 }
 
 Decl *TemplateDeclInstantiator::VisitIndirectFieldDecl(IndirectFieldDecl *D) {
@@ -754,7 +801,7 @@ void TemplateDeclInstantiator::InstantiateEnumDefinition(
   // FIXME: Fixup LBraceLoc
   SemaRef.ActOnEnumBody(Enum->getLocation(), SourceLocation(),
                         Enum->getRBraceLoc(), Enum,
-                        Enumerators.data(), Enumerators.size(),
+                        Enumerators,
                         0, 0);
 }
 
@@ -1105,12 +1152,11 @@ Decl *TemplateDeclInstantiator::VisitFunctionDecl(FunctionDecl *D,
   // this declaration.
   FunctionTemplateDecl *FunctionTemplate = D->getDescribedFunctionTemplate();
   if (FunctionTemplate && !TemplateParams) {
-    std::pair<const TemplateArgument *, unsigned> Innermost
-      = TemplateArgs.getInnermost();
+    ArrayRef<TemplateArgument> Innermost = TemplateArgs.getInnermost();
 
     void *InsertPos = 0;
     FunctionDecl *SpecFunc
-      = FunctionTemplate->findSpecialization(Innermost.first, Innermost.second,
+      = FunctionTemplate->findSpecialization(Innermost.begin(), Innermost.size(),
                                              InsertPos);
 
     // If we already have a function template specialization, return it.
@@ -1162,7 +1208,7 @@ Decl *TemplateDeclInstantiator::VisitFunctionDecl(FunctionDecl *D,
   FunctionDecl *Function =
       FunctionDecl::Create(SemaRef.Context, DC, D->getInnerLocStart(),
                            D->getNameInfo(), T, TInfo,
-                           D->getStorageClass(),
+                           D->getCanonicalDecl()->getStorageClass(),
                            D->isInlineSpecified(), D->hasWrittenPrototype(),
                            D->isConstexpr());
 
@@ -1235,12 +1281,11 @@ Decl *TemplateDeclInstantiator::VisitFunctionDecl(FunctionDecl *D,
     }
   } else if (FunctionTemplate) {
     // Record this function template specialization.
-    std::pair<const TemplateArgument *, unsigned> Innermost
-      = TemplateArgs.getInnermost();
+    ArrayRef<TemplateArgument> Innermost = TemplateArgs.getInnermost();
     Function->setFunctionTemplateSpecialization(FunctionTemplate,
                             TemplateArgumentList::CreateCopy(SemaRef.Context,
-                                                             Innermost.first,
-                                                             Innermost.second),
+                                                             Innermost.begin(),
+                                                             Innermost.size()),
                                                 /*InsertPos=*/0);
   } else if (isFriend) {
     // Note, we need this connection even if the friend doesn't have a body.
@@ -1413,12 +1458,12 @@ TemplateDeclInstantiator::VisitCXXMethodDecl(CXXMethodDecl *D,
     // We are creating a function template specialization from a function
     // template. Check whether there is already a function template
     // specialization for this particular set of template arguments.
-    std::pair<const TemplateArgument *, unsigned> Innermost
-      = TemplateArgs.getInnermost();
+    ArrayRef<TemplateArgument> Innermost = TemplateArgs.getInnermost();
 
     void *InsertPos = 0;
     FunctionDecl *SpecFunc
-      = FunctionTemplate->findSpecialization(Innermost.first, Innermost.second,
+      = FunctionTemplate->findSpecialization(Innermost.begin(), 
+                                             Innermost.size(),
                                              InsertPos);
 
     // If we already have a function template specialization, return it.
@@ -1513,6 +1558,36 @@ TemplateDeclInstantiator::VisitCXXMethodDecl(CXXMethodDecl *D,
                                         Constructor->isExplicit(),
                                         Constructor->isInlineSpecified(),
                                         false, Constructor->isConstexpr());
+
+    // Claim that the instantiation of a constructor or constructor template
+    // inherits the same constructor that the template does.
+    if (CXXConstructorDecl *Inh = const_cast<CXXConstructorDecl *>(
+            Constructor->getInheritedConstructor())) {
+      // If we're instantiating a specialization of a function template, our
+      // "inherited constructor" will actually itself be a function template.
+      // Instantiate a declaration of it, too.
+      if (FunctionTemplate) {
+        assert(!TemplateParams && Inh->getDescribedFunctionTemplate() &&
+               !Inh->getParent()->isDependentContext() &&
+               "inheriting constructor template in dependent context?");
+        Sema::InstantiatingTemplate Inst(SemaRef, Constructor->getLocation(),
+                                         Inh);
+        if (Inst)
+          return 0;
+        Sema::ContextRAII SavedContext(SemaRef, Inh->getDeclContext());
+        LocalInstantiationScope LocalScope(SemaRef);
+
+        // Use the same template arguments that we deduced for the inheriting
+        // constructor. There's no way they could be deduced differently.
+        MultiLevelTemplateArgumentList InheritedArgs;
+        InheritedArgs.addOuterTemplateArguments(TemplateArgs.getInnermost());
+        Inh = cast_or_null<CXXConstructorDecl>(
+            SemaRef.SubstDecl(Inh, Inh->getDeclContext(), InheritedArgs));
+        if (!Inh)
+          return 0;
+      }
+      cast<CXXConstructorDecl>(Method)->setInheritedConstructor(Inh);
+    }
   } else if (CXXDestructorDecl *Destructor = dyn_cast<CXXDestructorDecl>(D)) {
     Method = CXXDestructorDecl::Create(SemaRef.Context, Record,
                                        StartLoc, NameInfo, T, TInfo,
@@ -1526,10 +1601,10 @@ TemplateDeclInstantiator::VisitCXXMethodDecl(CXXMethodDecl *D,
                                        Conversion->isConstexpr(),
                                        Conversion->getLocEnd());
   } else {
+    StorageClass SC = D->isStatic() ? SC_Static : SC_None;
     Method = CXXMethodDecl::Create(SemaRef.Context, Record,
                                    StartLoc, NameInfo, T, TInfo,
-                                   D->getStorageClass(),
-                                   D->isInlineSpecified(),
+                                   SC, D->isInlineSpecified(),
                                    D->isConstexpr(), D->getLocEnd());
   }
 
@@ -1565,12 +1640,11 @@ TemplateDeclInstantiator::VisitCXXMethodDecl(CXXMethodDecl *D,
     Method->setDescribedFunctionTemplate(FunctionTemplate);
   } else if (FunctionTemplate) {
     // Record this function template specialization.
-    std::pair<const TemplateArgument *, unsigned> Innermost
-      = TemplateArgs.getInnermost();
+    ArrayRef<TemplateArgument> Innermost = TemplateArgs.getInnermost();
     Method->setFunctionTemplateSpecialization(FunctionTemplate,
                          TemplateArgumentList::CreateCopy(SemaRef.Context,
-                                                          Innermost.first,
-                                                          Innermost.second),
+                                                          Innermost.begin(),
+                                                          Innermost.size()),
                                               /*InsertPos=*/0);
   } else if (!isFriend) {
     // Record that this is an instantiation of a member function.
@@ -2688,15 +2762,16 @@ TemplateDeclInstantiator::InitFunctionInstantiation(FunctionDecl *New,
       FunctionDecl *ExceptionSpecTemplate = Tmpl;
       if (EPI.ExceptionSpecType == EST_Uninstantiated)
         ExceptionSpecTemplate = EPI.ExceptionSpecTemplate;
-      assert(EPI.ExceptionSpecType != EST_Unevaluated &&
-             "instantiating implicitly-declared special member");
+      ExceptionSpecificationType NewEST = EST_Uninstantiated;
+      if (EPI.ExceptionSpecType == EST_Unevaluated)
+        NewEST = EST_Unevaluated;
 
       // Mark the function has having an uninstantiated exception specification.
       const FunctionProtoType *NewProto
         = New->getType()->getAs<FunctionProtoType>();
       assert(NewProto && "Template instantiation without function prototype?");
       EPI = NewProto->getExtProtoInfo();
-      EPI.ExceptionSpecType = EST_Uninstantiated;
+      EPI.ExceptionSpecType = NewEST;
       EPI.ExceptionSpecDecl = New;
       EPI.ExceptionSpecTemplate = ExceptionSpecTemplate;
       New->setType(SemaRef.Context.getFunctionType(NewProto->getResultType(),
@@ -2733,7 +2808,6 @@ TemplateDeclInstantiator::InitMethodInstantiation(CXXMethodDecl *New,
   if (Tmpl->isVirtualAsWritten())
     New->setVirtualAsWritten(true);
 
-  // FIXME: attributes
   // FIXME: New needs a pointer to Tmpl
   return false;
 }
@@ -2820,13 +2894,15 @@ void Sema::InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
     return;
   }
 
-  // C++0x [temp.explicit]p9:
-  //   Except for inline functions, other explicit instantiation declarations
-  //   have the effect of suppressing the implicit instantiation of the entity
-  //   to which they refer.
+  // C++1y [temp.explicit]p10:
+  //   Except for inline functions, declarations with types deduced from their
+  //   initializer or return value, and class template specializations, other
+  //   explicit instantiation declarations have the effect of suppressing the
+  //   implicit instantiation of the entity to which they refer.
   if (Function->getTemplateSpecializationKind()
         == TSK_ExplicitInstantiationDeclaration &&
-      !PatternDecl->isInlined())
+      !PatternDecl->isInlined() &&
+      !PatternDecl->getResultType()->isUndeducedType())
     return;
 
   if (PatternDecl->isInlined())

@@ -74,8 +74,6 @@ __FBSDID("$FreeBSD$");
 
 #define	BCM_SDHCI_BUFFER_SIZE		512
 
-#define	DEBUG
-
 #ifdef DEBUG
 #define dprintf(fmt, args...) do { printf("%s(): ", __func__);   \
     printf(fmt,##args); } while (0)

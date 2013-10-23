@@ -232,7 +232,7 @@ FoldCmpLoadFromIndexedGlobal(GetElementPtrInst *GEP, GlobalVariable *GV,
   Constant *Init = GV->getInitializer();
   if (!isa<ConstantArray>(Init) && !isa<ConstantDataArray>(Init))
     return 0;
-  
+
   uint64_t ArrayElementCount = Init->getType()->getArrayNumElements();
   if (ArrayElementCount > 1024) return 0;  // Don't blow up on huge arrays.
 
@@ -2487,6 +2487,55 @@ Instruction *InstCombiner::visitICmpInst(ICmpInst &I) {
       return new ICmpInst(Pred, Y, Z);
     }
 
+    // icmp slt (X + -1), Y -> icmp sle X, Y
+    if (A && NoOp0WrapProblem && Pred == CmpInst::ICMP_SLT &&
+        match(B, m_AllOnes()))
+      return new ICmpInst(CmpInst::ICMP_SLE, A, Op1);
+
+    // icmp sge (X + -1), Y -> icmp sgt X, Y
+    if (A && NoOp0WrapProblem && Pred == CmpInst::ICMP_SGE &&
+        match(B, m_AllOnes()))
+      return new ICmpInst(CmpInst::ICMP_SGT, A, Op1);
+
+    // icmp sle (X + 1), Y -> icmp slt X, Y
+    if (A && NoOp0WrapProblem && Pred == CmpInst::ICMP_SLE &&
+        match(B, m_One()))
+      return new ICmpInst(CmpInst::ICMP_SLT, A, Op1);
+
+    // icmp sgt (X + 1), Y -> icmp sge X, Y
+    if (A && NoOp0WrapProblem && Pred == CmpInst::ICMP_SGT &&
+        match(B, m_One()))
+      return new ICmpInst(CmpInst::ICMP_SGE, A, Op1);
+
+    // if C1 has greater magnitude than C2:
+    //  icmp (X + C1), (Y + C2) -> icmp (X + C3), Y
+    //  s.t. C3 = C1 - C2
+    //
+    // if C2 has greater magnitude than C1:
+    //  icmp (X + C1), (Y + C2) -> icmp X, (Y + C3)
+    //  s.t. C3 = C2 - C1
+    if (A && C && NoOp0WrapProblem && NoOp1WrapProblem &&
+        (BO0->hasOneUse() || BO1->hasOneUse()) && !I.isUnsigned())
+      if (ConstantInt *C1 = dyn_cast<ConstantInt>(B))
+        if (ConstantInt *C2 = dyn_cast<ConstantInt>(D)) {
+          const APInt &AP1 = C1->getValue();
+          const APInt &AP2 = C2->getValue();
+          if (AP1.isNegative() == AP2.isNegative()) {
+            APInt AP1Abs = C1->getValue().abs();
+            APInt AP2Abs = C2->getValue().abs();
+            if (AP1Abs.uge(AP2Abs)) {
+              ConstantInt *C3 = Builder->getInt(AP1 - AP2);
+              Value *NewAdd = Builder->CreateNSWAdd(A, C3);
+              return new ICmpInst(Pred, NewAdd, C);
+            } else {
+              ConstantInt *C3 = Builder->getInt(AP2 - AP1);
+              Value *NewAdd = Builder->CreateNSWAdd(C, C3);
+              return new ICmpInst(Pred, A, NewAdd);
+            }
+          }
+        }
+
+
     // Analyze the case when either Op0 or Op1 is a sub instruction.
     // Op0 = A - B (or A and B are null); Op1 = C - D (or C and D are null).
     A = 0; B = 0; C = 0; D = 0;
@@ -2620,6 +2669,15 @@ Instruction *InstCombiner::visitICmpInst(ICmpInst &I) {
   }
 
   { Value *A, *B;
+    // Transform (A & ~B) == 0 --> (A & B) != 0
+    // and       (A & ~B) != 0 --> (A & B) == 0
+    // if A is a power of 2.
+    if (match(Op0, m_And(m_Value(A), m_Not(m_Value(B)))) &&
+        match(Op1, m_Zero()) && isKnownToBeAPowerOfTwo(A) && I.isEquality())
+      return new ICmpInst(I.getInversePredicate(),
+                          Builder->CreateAnd(A, B),
+                          Op1);
+
     // ~x < ~y --> y < x
     // ~x < cst --> ~cst < x
     if (match(Op0, m_Not(m_Value(A)))) {

@@ -299,6 +299,10 @@ retry:
 			continue;
 		}
 		UFS_LOCK(ump);
+		/*
+		 * If parent indirect has just been allocated, try to cluster
+		 * immediately following it.
+		 */
 		if (pref == 0)
 			pref = ffs_blkpref_ufs1(ip, lbn, i - num - 1,
 			    (ufs1_daddr_t *)0);
@@ -368,7 +372,14 @@ retry:
 	 */
 	if (nb == 0) {
 		UFS_LOCK(ump);
-		if (pref == 0)
+		/*
+		 * If allocating metadata at the front of the cylinder
+		 * group and parent indirect block has just been allocated,
+		 * then cluster next to it if it is the first indirect in
+		 * the file. Otherwise it has been allocated in the metadata
+		 * area, so we want to find our own place out in the data area.
+		 */
+		if (pref == 0 || (lbn > NDADDR && fs->fs_metaspace != 0))
 			pref = ffs_blkpref_ufs1(ip, lbn, indirs[i].in_off,
 			    &bap[0]);
 		error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
@@ -850,6 +861,10 @@ retry:
 			continue;
 		}
 		UFS_LOCK(ump);
+		/*
+		 * If parent indirect has just been allocated, try to cluster
+		 * immediately following it.
+		 */
 		if (pref == 0)
 			pref = ffs_blkpref_ufs2(ip, lbn, i - num - 1,
 			    (ufs2_daddr_t *)0);
@@ -920,7 +935,14 @@ retry:
 	 */
 	if (nb == 0) {
 		UFS_LOCK(ump);
-		if (pref == 0)
+		/*
+		 * If allocating metadata at the front of the cylinder
+		 * group and parent indirect block has just been allocated,
+		 * then cluster next to it if it is the first indirect in
+		 * the file. Otherwise it has been allocated in the metadata
+		 * area, so we want to find our own place out in the data area.
+		 */
+		if (pref == 0 || (lbn > NDADDR && fs->fs_metaspace != 0))
 			pref = ffs_blkpref_ufs2(ip, lbn, indirs[i].in_off,
 			    &bap[0]);
 		error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,

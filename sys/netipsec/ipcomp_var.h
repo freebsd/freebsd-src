@@ -41,34 +41,37 @@
  */
 #define	IPCOMP_ALG_MAX	8
 
-#define	IPCOMPSTAT_VERSION	1
+#define	IPCOMPSTAT_VERSION	2
 struct ipcompstat {
-	u_int32_t	ipcomps_hdrops;	/* Packet shorter than header shows */
-	u_int32_t	ipcomps_nopf;	/* Protocol family not supported */
-	u_int32_t	ipcomps_notdb;
-	u_int32_t	ipcomps_badkcr;
-	u_int32_t	ipcomps_qfull;
-	u_int32_t	ipcomps_noxform;
-	u_int32_t	ipcomps_wrap;
-	u_int32_t	ipcomps_input;	/* Input IPcomp packets */
-	u_int32_t	ipcomps_output;	/* Output IPcomp packets */
-	u_int32_t	ipcomps_invalid;/* Trying to use an invalid TDB */
-	u_int64_t	ipcomps_ibytes;	/* Input bytes */
-	u_int64_t	ipcomps_obytes;	/* Output bytes */
-	u_int32_t	ipcomps_toobig;	/* Packet got > IP_MAXPACKET */
-	u_int32_t	ipcomps_pdrops;	/* Packet blocked due to policy */
-	u_int32_t	ipcomps_crypto;	/* "Crypto" processing failure */
-	u_int32_t	ipcomps_hist[IPCOMP_ALG_MAX];/* Per-algorithm op count */
-	u_int32_t	version;	/* Version of this structure. */
-	u_int32_t	ipcomps_threshold; /* Packet < comp. algo. threshold. */
-	u_int32_t	ipcomps_uncompr; /* Compression was useles. */
+	uint64_t	ipcomps_hdrops;	/* Packet shorter than header shows */
+	uint64_t	ipcomps_nopf;	/* Protocol family not supported */
+	uint64_t	ipcomps_notdb;
+	uint64_t	ipcomps_badkcr;
+	uint64_t	ipcomps_qfull;
+	uint64_t	ipcomps_noxform;
+	uint64_t	ipcomps_wrap;
+	uint64_t	ipcomps_input;	/* Input IPcomp packets */
+	uint64_t	ipcomps_output;	/* Output IPcomp packets */
+	uint64_t	ipcomps_invalid;/* Trying to use an invalid TDB */
+	uint64_t	ipcomps_ibytes;	/* Input bytes */
+	uint64_t	ipcomps_obytes;	/* Output bytes */
+	uint64_t	ipcomps_toobig;	/* Packet got > IP_MAXPACKET */
+	uint64_t	ipcomps_pdrops;	/* Packet blocked due to policy */
+	uint64_t	ipcomps_crypto;	/* "Crypto" processing failure */
+	uint64_t	ipcomps_hist[IPCOMP_ALG_MAX];/* Per-algorithm op count */
+	uint64_t	ipcomps_threshold; /* Packet < comp. algo. threshold. */
+	uint64_t	ipcomps_uncompr; /* Compression was useles. */
 };
 
 #ifdef _KERNEL
-VNET_DECLARE(int, ipcomp_enable);
-VNET_DECLARE(struct ipcompstat, ipcompstat);
+#include <sys/counter.h>
 
+VNET_DECLARE(int, ipcomp_enable);
+VNET_PCPUSTAT_DECLARE(struct ipcompstat, ipcompstat);
+
+#define	IPCOMPSTAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct ipcompstat, ipcompstat, name, (val))
+#define	IPCOMPSTAT_INC(name)		IPCOMPSTAT_ADD(name, 1)
 #define	V_ipcomp_enable		VNET(ipcomp_enable)
-#define	V_ipcompstat		VNET(ipcompstat)
 #endif /* _KERNEL */
 #endif /*_NETIPSEC_IPCOMP_VAR_H_*/

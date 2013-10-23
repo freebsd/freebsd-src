@@ -188,12 +188,12 @@ _citrus_EUC_unpack_state(_EUCEncodingInfo *ei __unused, _EUCState *s,
 }
 
 static int
-_citrus_EUC_mbrtowc_priv(_EUCEncodingInfo *ei, wchar_t *pwc, char **s,
+_citrus_EUC_mbrtowc_priv(_EUCEncodingInfo *ei, wchar_t *pwc, const char **s,
     size_t n, _EUCState *psenc, size_t *nresult)
 {
 	wchar_t wchar;
 	int c, chlenbak, cs, len;
-	char *s0, *s1 = NULL;
+	const char *s0, *s1 = NULL;
 
 	s0 = *s;
 

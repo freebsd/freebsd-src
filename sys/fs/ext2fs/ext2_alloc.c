@@ -46,10 +46,10 @@
 #include <sys/syslog.h>
 #include <sys/buf.h>
 
+#include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2_mount.h>
 #include <fs/ext2fs/ext2fs.h>
-#include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/ext2_extern.h>
 
 static daddr_t	ext2_alloccg(struct inode *, int, daddr_t, int);
@@ -91,7 +91,7 @@ ext2_alloc(struct inode *ip, int32_t lbn, int32_t bpref, int size,
 	fs = ip->i_e2fs;
 	ump = ip->i_ump;
 	mtx_assert(EXT2_MTX(ump), MA_OWNED);
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if ((u_int)size > fs->e2fs_bsize || blkoff(fs, size) != 0) {
 		vn_printf(ip->i_devvp, "bsize = %lu, size = %d, fs = %s\n",
 		    (long unsigned int)fs->e2fs_bsize, size, fs->e2fs_fsmnt);
@@ -99,7 +99,7 @@ ext2_alloc(struct inode *ip, int32_t lbn, int32_t bpref, int size,
 	}
 	if (cred == NOCRED)
 		panic("ext2_alloc: missing credential");
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 	if (size == fs->e2fs_bsize && fs->e2fs->e2fs_fbcount == 0)
 		goto nospace;
 	if (cred->cr_uid != 0 && 
@@ -165,7 +165,8 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	struct ext2mount *ump;
 	struct cluster_save *buflist;
 	struct indir start_ap[NIADDR + 1], end_ap[NIADDR + 1], *idp;
-	int32_t start_lbn, end_lbn, soff, newblk, blkno;
+	e2fs_lbn_t start_lbn, end_lbn;
+	int32_t soff, newblk, blkno;
 	int i, len, start_lvl, end_lvl, pref, ssize;
 
 	if (doreallocblks == 0)
@@ -183,7 +184,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	len = buflist->bs_nchildren;
 	start_lbn = buflist->bs_children[0]->b_lblkno;
 	end_lbn = start_lbn + len - 1;
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	for (i = 1; i < len; i++)
 		if (buflist->bs_children[i]->b_lblkno != start_lbn + i)
 			panic("ext2_reallocblks: non-cluster");
@@ -223,7 +224,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 			brelse(sbp);
 			return (ENOSPC);
 		}
-		sbap = (int32_t *)sbp->b_data;
+		sbap = (u_int *)sbp->b_data;
 		soff = idp->in_off;
 	}
 	/*
@@ -232,14 +233,14 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	if (end_lvl == 0 || (idp = &end_ap[end_lvl - 1])->in_off + 1 >= len) {
 		ssize = len;
 	} else {
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (start_ap[start_lvl-1].in_lbn == idp->in_lbn)
 			panic("ext2_reallocblks: start == end");
 #endif
 		ssize = len - (idp->in_off + 1);
 		if (bread(vp, idp->in_lbn, (int)fs->e2fs_bsize, NOCRED, &ebp))
 			goto fail;
-		ebap = (int32_t *)ebp->b_data;
+		ebap = (u_int *)ebp->b_data;
 	}
 	/*
 	 * Find the preferred location for the cluster.
@@ -271,7 +272,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 			bap = ebap;
 			soff = -i;
 		}
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (buflist->bs_children[i]->b_blkno != fsbtodb(fs, *bap))
 			panic("ext2_reallocblks: alloc mismatch");
 #endif
@@ -442,10 +443,10 @@ ext2_dirpref(struct inode *pip)
 {
 	struct m_ext2fs *fs;
         int cg, prefcg, dirsize, cgsize;
-	int avgifree, avgbfree, avgndir, curdirsize;
-	int minifree, minbfree, maxndir;
-	int mincg, minndir;
-	int maxcontigdirs;
+	u_int avgifree, avgbfree, avgndir, curdirsize;
+	u_int minifree, minbfree, maxndir;
+	u_int mincg, minndir;
+	u_int maxcontigdirs;
 
 	mtx_assert(EXT2_MTX(pip->i_ump), MA_OWNED);
 	fs = pip->i_e2fs;
@@ -550,7 +551,7 @@ ext2_dirpref(struct inode *pip)
  * that will hold the pointer
  */
 int32_t
-ext2_blkpref(struct inode *ip, int32_t lbn, int indx, int32_t *bap,
+ext2_blkpref(struct inode *ip, e2fs_lbn_t lbn, int indx, int32_t *bap,
     int32_t blocknr)
 {
 	int	tmp;
@@ -748,7 +749,7 @@ retry:
 		return (0);
 	}
 gotit:
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if (isset(bbp, bno)) {
 		printf("ext2fs_alloccgblk: cg=%d bno=%jd fs=%s\n",
 			cg, (intmax_t)bno, fs->e2fs_fsmnt);

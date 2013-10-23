@@ -46,6 +46,7 @@ options 	KDB
 # Pseudo devices
 device		md
 device		random
+options 	YARROW_RNG		# Yarrow software RNG
 device		loop
 
 # Serial ports

@@ -1707,7 +1707,7 @@ pmap_lazyfix(pmap_t pmap)
 		spins = 50000000;
 
 		/* Find least significant set bit. */
-		lsb = cpusetobj_ffs(&mask);
+		lsb = CPU_FFS(&mask);
 		MPASS(lsb != 0);
 		lsb--;
 		CPU_SETOF(lsb, &mask);

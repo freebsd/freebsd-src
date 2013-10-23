@@ -95,7 +95,13 @@ ECHODIR		?=	true
 .endif
 .endif
 
-.if !empty(.MAKEFLAGS:M-n) && ${.MAKEFLAGS:M-n} == "-n"
+.if defined(.PARSEDIR)
+# _+_ appears to be a workaround for the special src .MAKE not working.
+# setting it to + interferes with -N
+_+_		?=
+.elif !empty(.MAKEFLAGS:M-n) && ${.MAKEFLAGS:M-n} == "-n"
+# the check above matches only a single -n, so -n -n will result
+# in _+_ = +
 _+_		?=
 .else
 _+_		?=	+
@@ -325,10 +331,6 @@ __MAKE_CONF?=/etc/make.conf
 SHELL=	${__MAKE_SHELL}
 .SHELL: path=${__MAKE_SHELL}
 .endif
-
-# Default executable format
-# XXX hint for bsd.port.mk
-OBJFORMAT?=	elf
 
 # Tell bmake to expand -V VAR by default
 .MAKE.EXPAND_VARIABLES= yes
