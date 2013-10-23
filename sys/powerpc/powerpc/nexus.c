@@ -96,6 +96,8 @@ static bus_get_resource_list_t nexus_get_resource_list;
 static bus_bind_intr_t nexus_bind_intr;
 #endif
 static bus_config_intr_t nexus_config_intr;
+static ofw_bus_map_intr_t nexus_ofw_map_intr;
+static ofw_bus_config_intr_t nexus_ofw_config_intr;
 static ofw_bus_get_devinfo_t nexus_get_devinfo;
 
 static int nexus_inlist(const char *, const char *const *);
@@ -141,6 +143,8 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
+	DEVMETHOD(ofw_bus_map_intr,	nexus_ofw_map_intr),
+	DEVMETHOD(ofw_bus_config_intr,	nexus_ofw_config_intr),
 
 	DEVMETHOD_END
 };
@@ -368,6 +372,21 @@ nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
 {
  
 	return (powerpc_config_intr(irq, trig, pol));
+} 
+
+static int
+nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int irq)
+{
+	return (MAP_IRQ(iparent, irq));
+}
+
+static int
+nexus_ofw_config_intr(device_t dev, device_t child, int irq, int sense)
+{
+ 
+	return (bus_generic_config_intr(child, irq, (sense & 1) ?
+	    INTR_TRIGGER_LEVEL : INTR_TRIGGER_EDGE,
+	    INTR_POLARITY_LOW));
 } 
 
 static struct resource *
@@ -600,14 +619,11 @@ nexus_setup_dinfo(device_t dev, phandle_t node)
 		OF_searchprop(iparent, "#interrupt-cells", &icells,
 		    sizeof(icells));
 		for (i = 0; i < nintr; i+= icells) {
-			intr[i] = MAP_IRQ(iparent, intr[i]);
+			intr[i] = ofw_bus_map_intr(dev, iparent, intr[i]);
 			resource_list_add(&ndi->ndi_rl, SYS_RES_IRQ, i, intr[i],
 			    intr[i], 1);
-			if (icells > 1) {
-				powerpc_config_intr(intr[i], (intr[i+1] & 1) ?
-				    INTR_TRIGGER_LEVEL : INTR_TRIGGER_EDGE,
-				    INTR_POLARITY_LOW);
-			}
+			if (icells > 1)
+				ofw_bus_config_intr(dev, intr[i], intr[i+1]);
 		}
 		free(intr, M_OFWPROP);
 	}
