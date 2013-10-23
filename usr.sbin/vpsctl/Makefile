@@ -16,11 +16,17 @@ clean:
 		vpsctl.8.ps vps.conf.5.ps vps.4.ps vps.9.ps mount_vpsfs.8.ps \
 		vpsctl.8.pdf vps.conf.5.pdf vps.4.pdf vps.9.pdf mount_vpsfs.8.pdf
 
+#mkprivlist:
+#	cc -Wall -g -o ./mkprivlist ${.CURDIR}/mkprivlist.c
+#
+#priv_ston.c priv_ntos.c: mkprivlist
+#	./mkprivlist ${.CURDIR}/../../sys/sys/priv.h
+
 mkprivlist:
-	cc -Wall -g -o ./mkprivlist ${.CURDIR}/mkprivlist.c
+	true
 
 priv_ston.c priv_ntos.c: mkprivlist
-	./mkprivlist ${.CURDIR}/../../sys/sys/priv.h
+	./mkprivlist.sh ${.CURDIR}/../../sys/sys/priv.h
 
 vpsctl: priv_ston.c priv_ntos.c
 	cc -Wall -g -I../../sys -I/usr/include -o vpsctl \
