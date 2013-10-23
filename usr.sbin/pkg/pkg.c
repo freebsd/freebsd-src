@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <archive_entry.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <fetch.h>
 #include <paths.h>
 #include <stdbool.h>
@@ -297,7 +298,9 @@ int
 main(__unused int argc, char *argv[])
 {
 	char pkgpath[MAXPATHLEN];
+	char pkgstatic[MAXPATHLEN];
 	bool yes = false;
+	int fd, ret;
 
 	snprintf(pkgpath, MAXPATHLEN, "%s/sbin/pkg",
 	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
@@ -311,6 +314,19 @@ main(__unused int argc, char *argv[])
 		if (argv[1] != NULL && strcmp(argv[1], "-N") == 0)
 			errx(EXIT_FAILURE, "pkg is not installed");
 
+		if (argc > 2 && strcmp(argv[1], "add") == 0 &&
+		    access(argv[2], R_OK) == 0) {
+			fd = open(argv[2], O_RDONLY);
+			if (fd == -1)
+				err(EXIT_FAILURE, "Unable to open %s", argv[2]);
+
+			if ((ret = extract_pkg_static(fd, pkgstatic, MAXPATHLEN)) == 0)
+				ret = install_pkg_static(pkgstatic, argv[2]);
+			close(fd);
+			if (ret != 0)
+				exit(EXIT_FAILURE);
+			exit(EXIT_SUCCESS);
+		}
 		/*
 		 * Do not ask for confirmation if either of stdin or stdout is
 		 * not tty. Check the environment to see if user has answer
