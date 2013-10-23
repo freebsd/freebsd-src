@@ -42,11 +42,11 @@ typedef union {
 static int
 srv_priority_cmp(const void *a, const void *b)
 {
+	const struct dns_srvinfo *da, *db;
 	unsigned int r, l;
-	struct dns_srvinfo *da, *db;
 
-       	da = *(struct dns_srvinfo **)a;
-	db = *(struct dns_srvinfo **)b;
+	da = *(struct dns_srvinfo * const *)a;
+	db = *(struct dns_srvinfo * const *)b;
 
 	l = da->priority;
 	r = db->priority;
@@ -57,12 +57,12 @@ srv_priority_cmp(const void *a, const void *b)
 static int
 srv_final_cmp(const void *a, const void *b)
 {
+	const struct dns_srvinfo *da, *db;
 	unsigned int r, l, wr, wl;
 	int res;
-	struct dns_srvinfo *da, *db;
 
-       	da = *(struct dns_srvinfo **)a;
-	db = *(struct dns_srvinfo **)b;
+	da = *(struct dns_srvinfo * const *)a;
+	db = *(struct dns_srvinfo * const *)b;
 
 	l = da->priority;
 	r = db->priority;
