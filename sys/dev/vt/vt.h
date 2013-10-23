@@ -120,6 +120,7 @@ struct vt_buf {
 #define	VBF_STATIC	0x2	/* Buffer is statically allocated. */
 #define	VBF_MTX_INIT	0x4	/* Mutex initialized. */
 #define	VBF_SCROLL	0x8	/* scroll locked mode. */
+#define	VBF_HISTORY_FULL 0x10	/* All rows filled. */
 	int			 vb_history_size;
 #define	VBF_DEFAULT_HISTORY_SIZE	200
 	int			 vb_roffset;	/* (b) History rows offset. */
