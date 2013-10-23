@@ -874,34 +874,20 @@ static int
 nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 {
 	struct nd_prefix *pr;
-	struct ifaddr *dstaddr;
+	struct in6_ifaddr *ia6;
 
 	/*
 	 * A link-local address is always a neighbor.
-	 * XXX: a link does not necessarily specify a single interface.
 	 */
-	if (IN6_IS_ADDR_LINKLOCAL(&addr->sin6_addr)) {
-		struct sockaddr_in6 sin6_copy;
-		u_int32_t zone;
-
-		/*
-		 * We need sin6_copy since sa6_recoverscope() may modify the
-		 * content (XXX).
-		 */
-		sin6_copy = *addr;
-		if (sa6_recoverscope(&sin6_copy))
-			return (0); /* XXX: should be impossible */
-		if (in6_setscope(&sin6_copy.sin6_addr, ifp, &zone))
-			return (0);
-		if (sin6_copy.sin6_scope_id == zone)
-			return (1);
-		else
-			return (0);
-	}
-
+	if (IN6_IS_ADDR_LINKLOCAL(&addr->sin6_addr))
+		return (1);
 	/*
 	 * If the address matches one of our addresses,
 	 * it should be a neighbor.
+	 */
+	if (in6_localip(&addr->sin6_addr))
+		return (1);
+	/*
 	 * If the address matches one of our on-link prefixes, it should be a
 	 * neighbor.
 	 */
@@ -944,13 +930,10 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 	 * If the address is assigned on the node of the other side of
 	 * a p2p interface, the address should be a neighbor.
 	 */
-	dstaddr = ifa_ifwithdstaddr((struct sockaddr *)addr);
-	if (dstaddr != NULL) {
-		if (dstaddr->ifa_ifp == ifp) {
-			ifa_free(dstaddr);
-			return (1);
-		}
-		ifa_free(dstaddr);
+	ia6 = in6ifa_ifpwithdstaddr(ifp, &addr->sin6_addr);
+	if (ia6 != NULL) {
+		ifa_free(&ia6->ia_ifa);
+		return (1);
 	}
 
 	/*
