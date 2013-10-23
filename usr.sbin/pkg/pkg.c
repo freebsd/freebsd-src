@@ -191,8 +191,10 @@ bootstrap_pkg(void)
 			}
 		}
 
-		if (mirrors != NULL)
+		if (mirrors != NULL) {
 			strlcpy(u->host, current->host, sizeof(u->host));
+			u->port = current->port;
+		}
 
 		remote = fetchXGet(u, &st, "");
 		if (remote == NULL) {
