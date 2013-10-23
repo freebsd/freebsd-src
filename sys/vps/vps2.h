@@ -54,8 +54,6 @@ struct vps_acc;
 #define TD_TO_VPS(x)	(x)->td_ucred->cr_vps
 #define P_TO_VPS(x)	(x)->p_ucred->cr_vps
 
-#define VPSYM(x)		curthread->td_vps->_##x
-
 LIST_HEAD(vps_list_head, vps);
 extern struct vps_list_head vps_head;
 
@@ -70,83 +68,91 @@ struct vps_ref {
 #endif
 
 #ifdef DIAGNOSTIC
+
+#define VPSFUNC __attribute__((noinline))
 #define DBGCORE if (vps_debug_core) printf
 extern int vps_debug_core;
-#else
+
+#else /* ! DIAGNOSTIC */
+
+#define VPSFUNC
 #define DBGCORE(x, ...)
+
 #endif /* ! DIAGNOSTIC */
 
 #ifdef VPS
 
 /* Keep in sync with ''struct vps2'' declared in vps/vps.h ! */
+
 struct vps {
-	struct vnet *vnet;
 
-        LIST_ENTRY(vps)	  vps_all;
-        LIST_ENTRY(vps)	  vps_sibling;
-        LIST_HEAD(, vps)  vps_child_head;
-        struct vps        *vps_parent;
+	struct vnet		*vnet;
 
-	struct sx vps_lock;
-	char	*vps_lock_name;
+        LIST_ENTRY(vps)		vps_all;
+        LIST_ENTRY(vps)		vps_sibling;
+        LIST_HEAD(, vps)	vps_child_head;
+        struct vps		*vps_parent;
 
-	u_int	vps_id;
-	char 	vps_name[MAXHOSTNAMELEN];
-	u_char 	vps_status;
+	struct sx		vps_lock;
+	char			*vps_lock_name;
 
-	u_int	vps_refcnt;
-	struct mtx vps_refcnt_lock;
+	u_int			vps_id;
+	char			vps_name[MAXHOSTNAMELEN];
+	u_char			vps_status;
+
+	u_int			vps_refcnt;
+	struct mtx		vps_refcnt_lock;
 #ifdef INVARIANTS
 	TAILQ_HEAD(, vps_ref)	vps_ref_head;
 #endif
-	/*
-	struct task vps_task;
-	*/
-	struct timeout_task vps_task;
+	struct timeout_task	vps_task;
 
-        u_char  priv_allow_set[PRIV_SET_SIZE];
-        u_char  priv_impl_set[PRIV_SET_SIZE];
+        u_char			priv_allow_set[PRIV_SET_SIZE];
+        u_char			priv_impl_set[PRIV_SET_SIZE];
 
-	struct vps_arg_ip4 *vps_ip4;
-	struct vps_arg_ip6 *vps_ip6;
-	u_int16_t vps_ip4_cnt;
-	u_int16_t vps_ip6_cnt;
+	struct vps_arg_ip4	*vps_ip4;
+	struct vps_arg_ip6	*vps_ip6;
+	u_int16_t		vps_ip4_cnt;
+	u_int16_t		vps_ip6_cnt;
 
-	u_int	vps_flags;
+	u_int			vps_flags;
 
-	int	restore_count;
+	int			restore_count;
 
-	int64_t suspend_time;
+	int64_t			suspend_time;
 
-	struct vps_acc *vps_acc;	/* XXX do inline */
+	struct vps_acc		*vps_acc;	/* XXX do inline */
 
-	struct vnode *consolelog;
-	int consolelog_refcnt;
-	struct tty *console_tty;
-	struct file *console_fp_ma;
-	int console_flags;
+	struct vnode		*consolelog;
+	struct tty		*console_tty;
+	struct file		*console_fp_ma;
+	int			consolelog_refcnt;
+	int			console_flags;
 
-	struct ucred *vps_ucred;
+	struct ucred		*vps_ucred;
 
-	struct devfs_rule *devfs_ruleset;
+	struct devfs_rule	*devfs_ruleset;
 
-        struct  vnode *_rootvnode;
-        char    _rootpath[MAXPATHLEN];
+        struct vnode		*_rootvnode;
+        char			_rootpath[MAXPATHLEN];
 };
-
-#define VPS_F_REBOOT	0x00000200
 
 struct vps_snapst_ctx;
 
 struct vps_dev_ctx {
-        LIST_ENTRY(vps_dev_ctx) list;
-        struct file *fp;
-	struct thread *td;
-	caddr_t data;
-	size_t length;
-	u_long cmd;
-	struct vps_snapst_ctx *snapst;
+        LIST_ENTRY(vps_dev_ctx)	list;
+        struct file		*fp;
+	struct thread		*td;
+	caddr_t			data;
+	size_t			length;
+	u_long			cmd;
+	struct vps_snapst_ctx	*snapst;
 };
+
+struct devfs_mount;
+struct cdev;
+struct cdev_priv;
+struct mount;
 
 struct vps *vps_by_name(struct vps *, char *);
 struct vps *vps_alloc(struct vps *, struct vps_param *, char *,
@@ -156,11 +162,7 @@ int vps_free_locked(struct vps *);
 int vps_destroy(struct vps *);
 void vps_ref(struct vps *, struct ucred *);
 void vps_deref(struct vps *, struct ucred *);
-struct devfs_mount;
-struct cdev;
-struct cdev_priv;
-struct mount;
-int vps_canseemount (struct ucred *, struct mount *);
+int vps_canseemount(struct ucred *, struct mount *);
 
 int vps_devfs_ruleset_create(struct vps *vps);
 int vps_devfs_ruleset_destroy(struct vps *vps);
@@ -214,15 +216,16 @@ int vps_ioc_fscalcpath(struct vps *, struct vps_dev_ctx *, u_long, caddr_t,
 int vps_ioc_getconsfd(struct vps *, struct vps_dev_ctx *, u_long, caddr_t,
     int, struct thread *);
 
-void vps_priv_setdefault(struct vps *, struct vps_param *);
-int vps_priv_check(struct ucred *, int);
+struct in_addr;
+struct in6_addr;
 struct vps_arg_item;
+
+void vps_priv_setdefault(struct vps *, struct vps_param *);
 int vps_priv_setitem(struct vps *, struct vps *, struct vps_arg_item *);
 int vps_priv_getitemall(struct vps *, struct vps *, caddr_t, size_t *);
 int vps_ip_setitem(struct vps *, struct vps *, struct vps_arg_item *);
 int vps_ip_getitemall(struct vps *, struct vps *, caddr_t, size_t *);
-struct in_addr;
-struct in6_addr;
+int vps_priv_check(struct ucred *, int);
 int vps_ip4_check(struct vps *, struct in_addr *, struct in_addr *);
 int vps_ip6_check(struct vps *, struct in6_addr *, u_int8_t);
 
@@ -235,22 +238,28 @@ int vps_console_getfd(struct vps *, struct thread *, int *);
 
 int vps_unmount_all(struct vps *vps);
 
+int vps_umtx_snapshot(struct thread *td);
+
 /* machdep stuff */
 struct vps_dump_thread;
 struct execve_args;
 void vps_md_print_thread(struct thread *td);
 void vps_md_print_pcb(struct thread *td);
 int vps_md_snapshot_thread(struct vps_dump_thread *vdtd, struct thread *td);
-int vps_md_restore_thread(struct vps_dump_thread *vdtd, struct thread *ntd, struct proc *p);
+int vps_md_restore_thread(struct vps_dump_thread *vdtd, struct thread *ntd,
+    struct proc *p);
 int vps_md_snapshot_sysentvec(struct sysentvec *sv, long *svtype);
 int vps_md_restore_sysentvec(long svtype, struct sysentvec **sv);
 int vps_md_restore_checkarch(u_int8_t ptrsize, u_int8_t byteorder);
-int vps_md_snapshot_thread_savefpu(struct vps_snapst_ctx *ctx, struct vps *vps, struct thread *td);
-int vps_md_restore_thread_savefpu(struct vps_snapst_ctx *ctx, struct vps *vps, struct thread *td);
+int vps_md_snapshot_thread_savefpu(struct vps_snapst_ctx *ctx,
+    struct vps *vps, struct thread *td);
+int vps_md_restore_thread_savefpu(struct vps_snapst_ctx *ctx,
+    struct vps *vps, struct thread *td);
 int vps_md_reboot_copyout(struct thread *td, struct execve_args *);
 int vps_md_syscall_fixup(struct vps *, struct thread *,
     register_t *ret_code, register_t **ret_args, int *narg);
-int vps_md_syscall_fixup_setup_inthread(struct vps *, struct thread *, register_t);
+int vps_md_syscall_fixup_setup_inthread(struct vps *, struct thread *,
+    register_t);
 
 
 extern struct sx vps_all_lock;

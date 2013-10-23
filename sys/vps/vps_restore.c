@@ -148,7 +148,6 @@ static const char vpsid[] =
 #ifdef DIAGNOSTIC
 
 #define DBGR if (debug_restore) printf
-//#define DBGR if (debug_restore) vps_printf
 
 static int debug_restore = 1;
 SYSCTL_INT(_debug, OID_AUTO, vps_restore_debug, CTLFLAG_RW,
@@ -172,7 +171,7 @@ MALLOC_DEFINE(M_VPS_RESTORE, "vps_restore",
 
 void vps_restore_return(struct thread *, struct trapframe *);
 static struct prison *vps_restore_prison_lookup(
-	struct vps_snapst_ctx *ctx, struct vps *vps, struct prison *old_pr);
+    struct vps_snapst_ctx *ctx, struct vps *vps, struct prison *old_pr);
 
 static int vps_restore_mod_refcnt;
 
@@ -181,9 +180,9 @@ static int vps_restore_mod_refcnt;
  */
 
 static struct ucred * vps_restore_ucred_lookup(struct vps_snapst_ctx *ctx,
-	struct vps *vps, void *orig_ptr);
+    struct vps *vps, void *orig_ptr);
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_ucred(struct vps_snapst_ctx *ctx, struct vps *vps)
 {
@@ -198,7 +197,7 @@ vps_restore_ucred(struct vps_snapst_ctx *ctx, struct vps *vps)
 
 	if (o1->type != VPS_DUMPOBJT_UCRED) {
 		ERRMSG(ctx, "%s: o1=%p type=%d != VPS_DUMPOBJT_UCRED\n",
-			__func__, o1, o1->type);
+		    __func__, o1, o1->type);
 		return (EINVAL);
 	}
 	vdcr = (struct vps_dump_ucred *)o1->data;
@@ -260,7 +259,7 @@ vps_restore_ucred(struct vps_snapst_ctx *ctx, struct vps *vps)
 	return (0);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_ucred_all(struct vps_snapst_ctx *ctx, struct vps *vps)
 {
@@ -293,7 +292,7 @@ vps_restore_ucred_all(struct vps_snapst_ctx *ctx, struct vps *vps)
 	return (error);
 }
 
-__attribute__((noinline, unused))
+VPSFUNC
 static int
 vps_restore_ucred_checkall(struct vps_snapst_ctx *ctx, struct vps *vps)
 {
@@ -337,7 +336,7 @@ vps_restore_ucred_checkall(struct vps_snapst_ctx *ctx, struct vps *vps)
 	return (0);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static struct ucred *
 vps_restore_ucred_lookup(struct vps_snapst_ctx *ctx, struct vps *vps,
     void *orig_ptr)
@@ -364,7 +363,7 @@ vps_restore_ucred_lookup(struct vps_snapst_ctx *ctx, struct vps *vps,
 	}
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_ucred_fixup(struct vps_snapst_ctx *ctx, struct vps *vps)
 {
@@ -392,7 +391,7 @@ vps_restore_ucred_fixup(struct vps_snapst_ctx *ctx, struct vps *vps)
 	return (0);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_vnet_route_one(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct vnet *vnet, struct vps_dumpobj *o1, struct radix_node_head *rnh,
@@ -402,6 +401,7 @@ vps_restore_vnet_route_one(struct vps_snapst_ctx *ctx, struct vps *vps,
 	struct vps_dump_vnet_sockaddr *vds;
 	struct rtentry *rt_entry;
 	struct sockaddr *dst, *gateway, *netmask;
+	size_t saddr_offset;
 	int flags;
 	int error = 0;
 
@@ -410,37 +410,54 @@ vps_restore_vnet_route_one(struct vps_snapst_ctx *ctx, struct vps *vps,
 
 	dst = netmask = gateway = NULL;
 
+	saddr_offset = offsetof(struct sockaddr, sa_data);
+
+	DBGR("%s: rt_have_mask=%d rt_have_gateway=%d rt_have_ifa=%d\n",
+	    __func__, vdr->rt_have_mask, vdr->rt_have_gateway,
+	    vdr->rt_have_ifa);
+
 	if (1) {
 		dst = malloc(sizeof(struct sockaddr_storage),
 		    M_TEMP, M_WAITOK|M_ZERO);
 		vds = (struct vps_dump_vnet_sockaddr *)(vdr + 1);
 		dst->sa_len = vds->sa_len;
 		dst->sa_family = vds->sa_family;
-		memcpy(dst->sa_data, vds->sa_data, vds->sa_len);
+		if (vds->sa_len - saddr_offset > 0 &&
+		    vds->sa_len - saddr_offset <=
+		    sizeof(struct sockaddr_storage))
+			memcpy(dst->sa_data, vds->sa_data,
+			    vds->sa_len - saddr_offset);
 	}
 
-	if (vdr->rt_have_mask==1) {
+	if (vdr->rt_have_mask == 1) {
 		netmask = malloc(sizeof(struct sockaddr_storage),
 		    M_TEMP, M_WAITOK|M_ZERO);
 		vds = (struct vps_dump_vnet_sockaddr *)(vds + 1);
 		netmask->sa_len = vds->sa_len;
 		netmask->sa_family = vds->sa_family;
-		memcpy(netmask->sa_data, vds->sa_data, vds->sa_len);
+		if (vds->sa_len - saddr_offset > 0 &&
+		    vds->sa_len - saddr_offset <=
+		    sizeof(struct sockaddr_storage))
+			memcpy(netmask->sa_data, vds->sa_data,
+			    vds->sa_len - saddr_offset);
 	}
 
-	if (vdr->rt_have_gateway==1 || vdr->rt_have_ifa==1) {
+	if (vdr->rt_have_gateway == 1 || vdr->rt_have_ifa == 1) {
 		gateway = malloc(sizeof(struct sockaddr_storage),
 		    M_TEMP, M_WAITOK|M_ZERO);
 		/* Either rt->rt_gateway or rt->rt_ifa->ifa_addr */
 		vds = (struct vps_dump_vnet_sockaddr *)(vds + 1);
 		gateway->sa_len = vds->sa_len;
 		gateway->sa_family = vds->sa_family;
-		memcpy(gateway->sa_data, vds->sa_data, vds->sa_len);
+		if (vds->sa_len - saddr_offset > 0 &&
+		    vds->sa_len - saddr_offset <=
+		    sizeof(struct sockaddr_storage))
+			memcpy(gateway->sa_data, vds->sa_data,
+			    vds->sa_len - saddr_offset);
 	}
 
 	CURVNET_SET_QUIET(vnet);
 
-	/* XXX Do these bits actually get copied ? */
 	error = rtrequest_fib(RTM_ADD, dst, gateway, netmask,
 	    flags, &rt_entry, vdr->rt_fibnum);
 	if (error)
@@ -459,7 +476,7 @@ vps_restore_vnet_route_one(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_vnet_route(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct vnet *vnet)
@@ -473,11 +490,6 @@ vps_restore_vnet_route(struct vps_snapst_ctx *ctx, struct vps *vps,
 	CURVNET_SET_QUIET(vnet);
 
 	/* Freeing and reinitalizing routing tables to have them clean. */
-	/*
-	rtable_idetach(NULL);
-	memset(V_rt_tables, 0, sizeof(V_rt_tables));
-	rtable_init(NULL);
-	*/
 	/* XXX We lose memory this way ... */
 	vnet_route_uninit(NULL);
 	vnet_route_init(NULL);
@@ -504,13 +516,13 @@ vps_restore_vnet_route(struct vps_snapst_ctx *ctx, struct vps *vps,
 		/* Next. */
 	}
 
+  out:
 	CURVNET_RESTORE();
 
- out:
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_iface_ifaddr(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct ifnet *ifp)
@@ -523,6 +535,7 @@ vps_restore_iface_ifaddr(struct vps_snapst_ctx *ctx, struct vps *vps,
 	struct vnet *savevnet;
 	struct in_aliasreq *in_alreq;
 	struct in6_aliasreq *in6_alreq;
+	size_t saddr_offset;
 	int error = 0;
 #ifdef DIAGNOSTIC
 	char ip6buf[INET6_ADDRSTRLEN];
@@ -555,29 +568,42 @@ vps_restore_iface_ifaddr(struct vps_snapst_ctx *ctx, struct vps *vps,
 		memcpy(in_alreq->ifra_name, ifp->if_xname,
 		    sizeof(in_alreq->ifra_name));
 
-		/* XXX check vdsaddr->sa_len */
+		saddr_offset = offsetof(struct sockaddr_in, sin_port);
 
-		if (vdifaddr->have_addr) {
+		DBGR("%s: ifa: have_addr=%d have_dstaddr=%d "
+		    "have_netmask=%d\n", __func__, vdifaddr->have_addr,
+		    vdifaddr->have_dstaddr, vdifaddr->have_netmask);
+
+		if (vdifaddr->have_addr &&
+		    vdsaddr->sa_len > saddr_offset &&
+		    vdsaddr->sa_len <= sizeof(struct sockaddr_in)) {
 			in_alreq->ifra_addr.sin_family = vdsaddr->sa_family;
 			in_alreq->ifra_addr.sin_len = vdsaddr->sa_len;
 			memcpy(&in_alreq->ifra_addr.sin_port,
-			    vdsaddr->sa_data, vdsaddr->sa_len);
+			    vdsaddr->sa_data,
+			    vdsaddr->sa_len - saddr_offset);
 			vdsaddr += 1;
 		}
-		if (vdifaddr->have_dstaddr) {
+		if (vdifaddr->have_dstaddr &&
+		    vdsaddr->sa_len > saddr_offset &&
+		    vdsaddr->sa_len <= sizeof(struct sockaddr_in)) {
 			in_alreq->ifra_dstaddr.sin_family =
 			    vdsaddr->sa_family;
 			in_alreq->ifra_dstaddr.sin_len =
 			    vdsaddr->sa_len;
 			memcpy(&in_alreq->ifra_dstaddr.sin_port,
-			    vdsaddr->sa_data, vdsaddr->sa_len);
+			    vdsaddr->sa_data,
+			    vdsaddr->sa_len - saddr_offset);
 			vdsaddr += 1;
 		}
-		if (vdifaddr->have_netmask) {
+		if (vdifaddr->have_netmask &&
+		    vdsaddr->sa_len > saddr_offset &&
+		    vdsaddr->sa_len <= sizeof(struct sockaddr_in)) {
 			in_alreq->ifra_mask.sin_family = vdsaddr->sa_family;
 			in_alreq->ifra_mask.sin_len = vdsaddr->sa_len;
 			memcpy(&in_alreq->ifra_mask.sin_port,
-			    vdsaddr->sa_data, vdsaddr->sa_len);
+			    vdsaddr->sa_data,
+			    vdsaddr->sa_len - saddr_offset);
 			vdsaddr += 1;
 		}
 
@@ -594,7 +620,6 @@ vps_restore_iface_ifaddr(struct vps_snapst_ctx *ctx, struct vps *vps,
 			    __func__, error);
 			free(in_alreq, M_TEMP);
 			curvnet = savevnet;
-			//goto next_ifaddr;
 			goto out;
 		}
 		if (ifp->if_pspare[2] != NULL)
@@ -608,18 +633,9 @@ vps_restore_iface_ifaddr(struct vps_snapst_ctx *ctx, struct vps *vps,
 		break;
 
 	case AF_INET6:
-		/*
-		if (difaddrp->ifa_addr) {
-			if (0&& ((struct sockaddr_in6 *)cpos)->sin6_scope_id
-			    < IPV6_ADDR_SCOPE_GLOBAL) {
-				DBGR("%s: AF_INET6: scopeid=%d, skipping\n",
-				    __func__, ((struct sockaddr_in6 *)
-				    cpos)->sin6_scope_id);
-				goto next_ifaddr;
-			}
-		}
-		*/
 		DBGR("%s: AF_INET6\n", __func__);
+
+		saddr_offset = offsetof(struct sockaddr_in6, sin6_port);
 
 		in6_alreq = (struct in6_aliasreq *)
 		    malloc(sizeof(*in6_alreq), M_TEMP, M_WAITOK | M_ZERO);
@@ -629,41 +645,45 @@ vps_restore_iface_ifaddr(struct vps_snapst_ctx *ctx, struct vps *vps,
 		DBGR("%s: in6_aliasreq @ %p\n\tifra_name=[%s]\n",
 		    __func__, in6_alreq, in6_alreq->ifra_name);
 
-		/* XXX check vdsaddr->sa_len */
-
-		if (vdifaddr->have_addr) {
+		if (vdifaddr->have_addr && vdsaddr->sa_len ==
+		    sizeof(struct sockaddr_in6)) {
 			in6_alreq->ifra_addr.sin6_family =
 			    vdsaddr->sa_family;
 			in6_alreq->ifra_addr.sin6_len =
 			    vdsaddr->sa_len;
 			memcpy(&in6_alreq->ifra_addr.sin6_port,
-			    vdsaddr->sa_data, vdsaddr->sa_len);
+			    vdsaddr->sa_data,
+			    vdsaddr->sa_len - saddr_offset);
 			vdsaddr += 1;
 
 			DBGR("\tifra_addr: %s\n",
 			    ip6_sprintf(ip6buf,
 			    &in6_alreq->ifra_addr.sin6_addr));
 		}
-		if (vdifaddr->have_dstaddr) {
+		if (vdifaddr->have_dstaddr && vdsaddr->sa_len ==
+		    sizeof(struct sockaddr_in6)) {
 			in6_alreq->ifra_dstaddr.sin6_family =
 			    vdsaddr->sa_family;
 			in6_alreq->ifra_dstaddr.sin6_len =
 			    vdsaddr->sa_len;
 			memcpy(&in6_alreq->ifra_dstaddr.sin6_port,
-			    vdsaddr->sa_data, vdsaddr->sa_len);
+			    vdsaddr->sa_data,
+			    vdsaddr->sa_len - saddr_offset);
 			vdsaddr += 1;
 
 			DBGR("\tifra_dstaddr: %s\n",
 			    ip6_sprintf(ip6buf,
 			    &in6_alreq->ifra_dstaddr.sin6_addr));
 		}
-		if (vdifaddr->have_netmask) {
+		if (vdifaddr->have_netmask && vdsaddr->sa_len ==
+		    sizeof(struct sockaddr_in6)) {
 			in6_alreq->ifra_prefixmask.sin6_family =
 			    vdsaddr->sa_family;
 			in6_alreq->ifra_prefixmask.sin6_len =
 			    vdsaddr->sa_len;
 			memcpy(&in6_alreq->ifra_prefixmask.sin6_port,
-			    vdsaddr->sa_data, vdsaddr->sa_len);
+			    vdsaddr->sa_data,
+			    vdsaddr->sa_len - saddr_offset);
 			vdsaddr += 1;
 
 			DBGR("\tifra_prefixmask: %s\n",
@@ -723,8 +743,7 @@ vps_restore_iface_ifaddr(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (error);
 }
 
-
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_vnet_iface(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct vnet *vnet)
@@ -851,7 +870,7 @@ vps_restore_vnet_iface(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_vnet(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct vnet **vnetp)
@@ -892,7 +911,7 @@ vps_restore_vnet(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_sysentvec(struct vps_snapst_ctx *ctx, struct vps *vps,
 			struct proc *p)
@@ -932,7 +951,7 @@ int
 kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td,
     int waitok);
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_kqueue(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct proc *p)
@@ -1040,7 +1059,7 @@ vps_restore_kqueue(struct vps_snapst_ctx *ctx, struct vps *vps,
  * This section is a little bit tricky because we have to deal
  * with pairs of pipes that have one end closed.
  */
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_pipe(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct proc *p)
@@ -1206,7 +1225,7 @@ vps_restore_pipe(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static void
 vps_restore_cleanup_pipe(struct vps_snapst_ctx *ctx, struct vps *vps,
 	struct _vps_restore_obj_list *obj_list)
@@ -1226,7 +1245,7 @@ vps_restore_cleanup_pipe(struct vps_snapst_ctx *ctx, struct vps *vps,
 	}
 }
 
-__attribute__((noinline))
+VPSFUNC
 static void
 vps_restore_cleanup_ucred(struct vps_snapst_ctx *ctx, struct vps *vps,
 	struct _vps_restore_obj_list *obj_list)
@@ -1248,7 +1267,8 @@ vps_restore_cleanup_ucred(struct vps_snapst_ctx *ctx, struct vps *vps,
  * Most socket options are not supported,
  */
 
-__attribute__((noinline, unused))
+VPSFUNC
+__attribute__((unused))
 static void
 vps_sbcheck(struct sockbuf *sb)
 {
@@ -1289,7 +1309,7 @@ vps_sbcheck(struct sockbuf *sb)
  * Since there *shouldn't* be any activity on the socket,
  * it *should* be safe to sleep for allocating mbufs.
  */
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_mbufchain(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct mbuf **mptrs)
@@ -1435,7 +1455,7 @@ vps_restore_mbufchain(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (i);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_sockbuf(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct sockbuf *nsb)
@@ -1509,7 +1529,7 @@ vps_restore_sockbuf(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_fixup_unixsockets(struct vps_snapst_ctx *ctx, struct vps *vps)
 {
@@ -1572,7 +1592,7 @@ vps_restore_fixup_unixsockets(struct vps_snapst_ctx *ctx, struct vps *vps)
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_socket(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct proc *p)
@@ -2117,7 +2137,7 @@ vps_restore_socket(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_pathtovnode(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct vnode **vnp)
@@ -2154,7 +2174,7 @@ vps_restore_pathtovnode(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (0);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_file_vnode(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct proc *p, struct thread *curtd, struct vps_dump_file *vdf)
@@ -2209,7 +2229,7 @@ vps_restore_file_vnode(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_file_pts(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct proc *p, struct thread *curtd, struct vps_dump_file *vdf)
@@ -2317,7 +2337,7 @@ vps_restore_file_pts(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_file_kqueue(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct proc *p, struct thread *curtd, struct vps_dump_file *vdf)
@@ -2368,7 +2388,7 @@ vps_restore_file_kqueue(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_file(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct proc *p)
@@ -2543,7 +2563,7 @@ vps_restore_file(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_fdset(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct proc *p, struct filedesc *orig_fdp)
@@ -2676,7 +2696,7 @@ vps_restore_fdset(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static void
 vps_restore_cleanup_fdset(struct vps_snapst_ctx *ctx, struct vps *vps,
 	struct _vps_restore_obj_list *obj_list)
@@ -2692,7 +2712,7 @@ vps_restore_cleanup_fdset(struct vps_snapst_ctx *ctx, struct vps *vps,
 	}
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_pargs(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct proc *p)
@@ -2718,7 +2738,7 @@ vps_restore_pargs(struct vps_snapst_ctx *ctx, struct vps *vps,
 /*
  * Return one logical memory page named by index, from the userspace dump.
  */
-__attribute__((noinline))
+VPSFUNC
 static struct vm_page *
 vps_restore_getuserpage(struct vps_snapst_ctx *ctx, int idx, int test)
 {
@@ -2799,7 +2819,7 @@ vps_restore_getuserpage(struct vps_snapst_ctx *ctx, int idx, int test)
 	return (m);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_vmobject(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct vm_object **nvo_out)
@@ -3040,7 +3060,7 @@ vps_restore_vmobject(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_vmspace(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct proc *p, struct vmspace *orig_vmspace)
@@ -3242,7 +3262,7 @@ vps_restore_vmspace(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static void
 vps_restore_cleanup_vmspace(struct vps_snapst_ctx *ctx, struct vps *vps,
 	struct _vps_restore_obj_list *obj_list)
@@ -3258,7 +3278,7 @@ vps_restore_cleanup_vmspace(struct vps_snapst_ctx *ctx, struct vps *vps,
 	}
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_thread_savefpu(struct vps_snapst_ctx *ctx, struct vps *vps,
 	struct thread *td)
@@ -3267,7 +3287,7 @@ vps_restore_thread_savefpu(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (vps_md_restore_thread_savefpu(ctx, vps, td));
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_thread(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct proc *p)
@@ -3376,7 +3396,7 @@ vps_restore_thread(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_proc_one(struct vps_snapst_ctx *ctx, struct vps *vps)
 {
@@ -3691,7 +3711,7 @@ vps_restore_proc_one(struct vps_snapst_ctx *ctx, struct vps *vps)
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_proc_session(struct vps_snapst_ctx *ctx, struct vps *vps)
 {
@@ -3784,7 +3804,7 @@ vps_restore_proc_session(struct vps_snapst_ctx *ctx, struct vps *vps)
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_proc(struct vps_snapst_ctx *ctx, struct vps *vps)
 {
@@ -4006,7 +4026,7 @@ vps_restore_proc(struct vps_snapst_ctx *ctx, struct vps *vps)
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_arg(struct vps_snapst_ctx *ctx, struct vps *vps)
 {
@@ -4109,7 +4129,7 @@ vps_restore_arg(struct vps_snapst_ctx *ctx, struct vps *vps)
 	return (0);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_mounts(struct vps_snapst_ctx *ctx, struct vps *vps,
     char *rootfspath)
@@ -4244,7 +4264,7 @@ vps_restore_mounts(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static void
 vps_restore_prison_fixup(struct vps_snapst_ctx *ctx, struct vps *vps)
 {
@@ -4265,7 +4285,7 @@ vps_restore_prison_fixup(struct vps_snapst_ctx *ctx, struct vps *vps)
 	}
 }
 
-__attribute__((noinline))
+VPSFUNC
 static struct prison *
 vps_restore_prison_lookup(struct vps_snapst_ctx *ctx, struct vps *vps,
     struct prison *old_pr)
@@ -4295,7 +4315,7 @@ vps_restore_prison_lookup(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (new_pr);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_prison_one(struct vps_snapst_ctx *ctx, struct vps *vps)
 {
@@ -4444,7 +4464,7 @@ vps_restore_prison_one(struct vps_snapst_ctx *ctx, struct vps *vps)
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_prison(struct vps_snapst_ctx *ctx, struct vps *vps)
 {
@@ -4465,7 +4485,7 @@ vps_restore_prison(struct vps_snapst_ctx *ctx, struct vps *vps)
  * Restore vps instance.
  */
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_vps(struct vps_snapst_ctx *ctx, const char *vps_name,
     struct vps **vps_in)
@@ -4643,7 +4663,7 @@ vps_restore_vps(struct vps_snapst_ctx *ctx, const char *vps_name,
  */
 
 #if 0
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_fixup_objlist(struct vps_snapst_ctx *ctx,
     struct vps_dumpheader *dumphdr, struct vps_dumpobj *o)
@@ -4699,7 +4719,7 @@ vps_restore_fixup_objlist(struct vps_snapst_ctx *ctx,
  * new processes vmspaces without copying.
  */
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_restore_copyin(struct vps_snapst_ctx *ctx, struct vps_arg_snapst *va)
 {
@@ -4969,7 +4989,7 @@ vps_restore_copyin(struct vps_snapst_ctx *ctx, struct vps_arg_snapst *va)
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 int
 vps_restore(struct vps_dev_ctx *dev_ctx, struct vps_arg_snapst *va)
 {

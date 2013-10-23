@@ -248,7 +248,8 @@ struct pts_softc {
 /*
  * * * * * Support functions. * * * *
  */
-__attribute__((noinline, unused))
+VPSFUNC
+__attribute__((unused))
 static u_int
 vps_cksum(char *ptr, int size)
 {

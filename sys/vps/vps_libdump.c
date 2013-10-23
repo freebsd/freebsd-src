@@ -199,7 +199,6 @@ struct vps_snapst_ctx;
 
 #include <vps/vps_libdump.h>
 
-/* XXX remove again from declarations */
 static void __vps_dumpobj_printtree(struct vps_snapst_ctx *ctx,
     struct vps_dumpobj *o);
 
@@ -208,7 +207,8 @@ static void __vps_dumpobj_printtree(struct vps_snapst_ctx *ctx,
 int test01(void);
 int checkfile(const char *);
 
-int main(int argc, char **argv, char **envv)
+int
+main(int argc, char **argv, char **envv)
 {
 	int error;
 
@@ -231,7 +231,8 @@ int main(int argc, char **argv, char **envv)
 		(sizeof(struct s) % 8) ? "NOT 64bit aligned" : "ok"	\
 	);
 
-int structsizes(void)
+int
+structsizes(void)
 {
 
 	PRINT_STRUCT_SIZE(vps_dump_sysinfo);
@@ -292,7 +293,8 @@ int structsizes(void)
 	return (0);
 }
 
-int checkfile(const char *path)
+int
+checkfile(const char *path)
 {
 	int fd;
 	int size;
@@ -334,7 +336,8 @@ int checkfile(const char *path)
 	return (0);
 }
 
-int test01(void)
+int
+test01(void)
 {
 	void *data;
 	long size;
@@ -439,7 +442,7 @@ int test01(void)
 
 	return (0);
 }
-#endif /*TEST*/
+#endif /* TEST */
 
 /* Create a new element. Is always a child of the current open element. */
 struct vps_dumpobj *
@@ -491,9 +494,6 @@ vps_dumpobj_create(struct vps_snapst_ctx *ctx, int type, __unused int how)
 		ctx->rootobj = o;
 	}
 
-	// insert list_children at o->parent
-	// insert list_all
-
 	ctx->curobj = o;
 	ctx->lastobj = o;
 
@@ -541,7 +541,7 @@ vps_dumpobj_discard(struct vps_snapst_ctx *ctx, struct vps_dumpobj *o)
 			break;
 		}
 		if (vps_dumpobj_checkptr(ctx, o2->next, 0)) {
-			//vps_dumpobj_printtree(ctx);
+			/*vps_dumpobj_printtree(ctx);*/
 			panic("%s: tree is invalid! ctx->rootobj=%p "
 			    "o=%p o2=%p cnt=%d\n",
 			    __func__, ctx->rootobj, o, o2, cnt);
@@ -844,7 +844,7 @@ vps_dumpobj_recurse(struct vps_snapst_ctx *ctx, struct vps_dumpobj *o,
 	if (o == ctx->rootobj)
 		recurse = 0;
 
-	//printf("%s: recurse=%d o=%p\n", __func__, recurse, o);
+	/*printf("%s: recurse=%d o=%p\n", __func__, recurse, o);*/
 
 	if (vps_dumpobj_checkptr(ctx, o, 0)) {
 		printf("%s: invalid #1\n", __func__);
@@ -866,7 +866,7 @@ vps_dumpobj_recurse(struct vps_snapst_ctx *ctx, struct vps_dumpobj *o,
 		func(ctx, o);
 
 	if (o2 == ctx->rootobj) {
-		//printf("%s: ret #1\n", __func__);
+		/*printf("%s: ret #1\n", __func__);*/
 		return (0);
 	}
 	if (vps_dumpobj_checkptr(ctx, o2, 0)) {
@@ -903,12 +903,12 @@ vps_dumpobj_recurse(struct vps_snapst_ctx *ctx, struct vps_dumpobj *o,
 		}
 
 		if (o2->level <= o->level) {
-			//printf("%s: ret #3\n", __func__);
+			/*printf("%s: ret #3\n", __func__);*/
 			return (0);
 		}
 
 		if (o3 == ctx->rootobj) {
-			//printf("%s: ret #2\n", __func__);
+			/*printf("%s: ret #2\n", __func__);*/
 			return (0);
 		}
 		if (vps_dumpobj_checkptr(ctx, o3, 0)) {
@@ -928,7 +928,7 @@ vps_dumpobj_recurse(struct vps_snapst_ctx *ctx, struct vps_dumpobj *o,
 		*/
 	}
 
-	//printf("%s: --recurse\n", __func__);
+	/*printf("%s: --recurse\n", __func__);*/
 
 	return (0);
 }

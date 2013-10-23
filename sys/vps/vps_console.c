@@ -76,18 +76,19 @@ static const char vpsid[] =
 
 MALLOC_DECLARE(M_VPS_CORE);
 
-static struct mtx vps_console_mtx;
-static struct proc *vps_console_kproc_p = NULL;
-static int vps_console_exit = 0;
-static void vps_console_kproc(void *);
-static void *vps_console_readbuf;
-static size_t vps_console_readbuf_len;
+static struct mtx		vps_console_mtx;
+static struct proc		*vps_console_kproc_p = NULL;
+static int			vps_console_exit = 0;
+static void			*vps_console_readbuf;
+static size_t			vps_console_readbuf_len;
 
-static th_getc_capture_t vps_console_getc_capture;
+static th_getc_capture_t	vps_console_getc_capture;
 
 static struct ttyhook vps_console_hook = {
 	.th_getc_capture = vps_console_getc_capture,
 };
+
+static void vps_console_kproc(void *);
 
 /*
  * VPS pseudo system console.
@@ -318,8 +319,8 @@ vps_console_alloc(struct vps *vps, struct thread *td)
 	struct file *fp_ma;
 	struct tty *tp;
 	int error;
-//#ifdef DIAGNOSTIC_2
 #if 1
+	/* Additional debugging. */
 	struct ucred *saveucred;
 	struct ucred *dbgucred;
 
@@ -392,7 +393,7 @@ vps_console_alloc(struct vps *vps, struct thread *td)
 	/* Will be deleted automatically on delete of parent device. */
 	make_dev_alias_cred(dev, vps_ucred, "ttyv0");
 
-	//DBGCORE("%s: tty=%p dev=%p (slave device)\n", __func__, tp, dev);
+	DBGCORE("%s: tty=%p dev=%p (slave device)\n", __func__, tp, dev);
 
 	dev_lock();
 	dev->si_usecount++;
@@ -413,8 +414,8 @@ vps_console_alloc(struct vps *vps, struct thread *td)
 	}
 	tty_unlock(tp);
 
-//#ifdef DIAGNOSTIC_2
 #if 1
+	/* Additional debugging. */
 	td->td_ucred = saveucred;
 	crfree(dbgucred);
 
@@ -488,6 +489,7 @@ vps_console_free(struct vps *vps, struct thread *td)
 int
 vps_console_getfd(struct vps *vps, struct thread *td, int *retfd)
 {
+	struct vps *vps2;
 	struct file *fp;
 	int fd;
 	int error;
@@ -495,14 +497,16 @@ vps_console_getfd(struct vps *vps, struct thread *td, int *retfd)
 	DBGCORE("%s: td=%p vps=%p\n", __func__, td, vps);
 
 	/*
-	 * XXX make sure vps is a child of td->td_vps !
-	 *
-	if (td->td_vps != vps) {
-		DBGCORE("%s: td->td_vps=%p vps=%p\n",
-			__func__, td->td_vps, vps);
+	 * Make sure vps is a child of td->td_vps.
+	 */
+	LIST_FOREACH(vps2, &td->td_vps->vps_child_head, vps_sibling)
+		if (vps == vps2)
+			break;
+	if (vps != vps2) {
+		DBGCORE("%s: vps=%p is not a child of td->td_vps=%p\n",
+		    __func__, vps, td->td_vps);
 		return (EPERM);
 	}
-	*/
 
 	fp = vps->console_fp_ma;
 

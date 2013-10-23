@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/umtx.h>
 
+#include <vps/vps2.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -3778,7 +3780,6 @@ umtx_thread_cleanup(struct thread *td)
  * VPS stuff
  */
 
-int vps_umtx_snapshot(struct thread *td);
 int
 vps_umtx_snapshot(struct thread *td)
 {

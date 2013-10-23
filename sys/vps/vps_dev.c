@@ -79,26 +79,24 @@ SYSCTL_INT(_debug, OID_AUTO, vps_dev_debug, CTLFLAG_RW, &debug_dev, 0, "");
 
 #endif /* DIAGNOSTIC */
 
-static int vps_dev_refcnt = 0;
-
-static caddr_t vps_dev_emptypage;
-
-static struct cdev *vps_dev_p;
-static d_fdopen_t  vps_dev_fdopen;
-static d_open_t  vps_dev_open;
-static d_close_t vps_dev_close;
-static d_ioctl_t vps_dev_ioctl;
-static d_mmap_t  vps_dev_mmap;
+static int		vps_dev_refcnt = 0;
+static caddr_t		vps_dev_emptypage;
+static struct cdev	*vps_dev_p;
+static d_fdopen_t	vps_dev_fdopen;
+static d_open_t		vps_dev_open;
+static d_close_t	vps_dev_close;
+static d_ioctl_t	vps_dev_ioctl;
+static d_mmap_t		vps_dev_mmap;
 
 static struct cdevsw vps_dev_cdevsw = {
-	.d_version = D_VERSION,
-	.d_name = "vps control device",
-	.d_fdopen = vps_dev_fdopen,
-	.d_open = vps_dev_open,
-	.d_close = vps_dev_close,
-	.d_ioctl = vps_dev_ioctl,
-	.d_mmap = vps_dev_mmap,
-	.d_flags = D_TRACKCLOSE,
+	.d_version =	D_VERSION,
+	.d_name =	"vps control device",
+	.d_fdopen =	vps_dev_fdopen,
+	.d_open =	vps_dev_open,
+	.d_close =	vps_dev_close,
+	.d_ioctl =	vps_dev_ioctl,
+	.d_mmap =	vps_dev_mmap,
+	.d_flags =	D_TRACKCLOSE,
 };
 
 LIST_HEAD(vps_dev_ctx_le, vps_dev_ctx) vps_dev_ctx_head;
@@ -173,7 +171,7 @@ vps_dev_get_ctx(struct thread *td)
 	struct vps_dev_ctx *ctx;
 
 	if (jailed(td->td_ucred)) {
-		printf("%s: td is jailed --> denying any vps-device "
+		DBGCORE("%s: td is jailed --> denying any vps-device "
 		    "action !\n", __func__);
 		return (NULL);
 	}
@@ -185,7 +183,7 @@ vps_dev_get_ctx(struct thread *td)
 			return (ctx);
 		}
 
-	printf("%s: ######## dev_ctx not found for td=%p td->td_fpop=%p "
+	DBGDEV("%s: ######## dev_ctx not found for td=%p td->td_fpop=%p "
 	    "pid=%d\n", __func__, td, td->td_fpop, td->td_proc->p_pid);
 
 	return (NULL);
@@ -198,7 +196,7 @@ vps_dev_fdopen(struct cdev *dev, int fflags, struct thread *td,
 	struct vps_dev_ctx *ctx;
 
 	if (jailed(td->td_ucred)) {
-		printf("%s: td is jailed --> denying any vps-device "
+		DBGDEV("%s: td is jailed --> denying any vps-device "
 		    "action !\n", __func__);
 		return (EPERM);
 	}
@@ -232,10 +230,8 @@ vps_dev_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	DBGDEV("%s: ctx=%p\n", __func__, ctx);
 
-	if (ctx == NULL) {
-		printf("%s: ctx == NULL !\n", __func__);
+	if (ctx == NULL)
 		return (0);
-	}
 
 	LIST_REMOVE(ctx, list);
 
@@ -264,10 +260,8 @@ vps_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	int error;
 
 	ctx = vps_dev_get_ctx(td);
-	if (ctx == NULL) {
-		printf("%s: ctx == NULL !\n", __func__);
+	if (ctx == NULL)
 		return (EBADF);
-	}
 
 	/* Needed for conext lookup in mmap pager function. */
 	ctx->td = td;
@@ -344,7 +338,7 @@ vps_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_dev_mmap(struct cdev *dev, vm_ooffset_t offset,
         vm_paddr_t *paddr, int nprot, vm_memattr_t *memattr)
@@ -352,10 +346,6 @@ vps_dev_mmap(struct cdev *dev, vm_ooffset_t offset,
 	struct vps_dev_ctx *ctx, *ctx2;
 	struct vps *vps;
 	int error;
-
-	/* td->td_fpop is not set here.
-	ctx = vps_dev_get_ctx(curthread);
-	*/
 
 	ctx = NULL;
 	LIST_FOREACH(ctx2, &vps_dev_ctx_head, list)
@@ -370,28 +360,26 @@ vps_dev_mmap(struct cdev *dev, vm_ooffset_t offset,
 		 * Better return an empty page than let the
 		 * user cause a kernel panic.
 		 */
-		printf("%s: ctx == NULL !\n", __func__);
+		DBGDEV("%s: ctx == NULL !\n", __func__);
 		goto invalid;
 	}
 
 	if (ctx->data == NULL && ctx->cmd != VPS_IOC_SNAPST) {
-		printf("%s: ctx->data == NULL !\n", __func__);
+		DBGDEV("%s: ctx->data == NULL !\n", __func__);
 		goto invalid;
 	}
 
 	error = 0;
 	vps = TD_TO_VPS(curthread);
 
-	/* XXX assert vps != NULL */
-
 	if (offset < 0) {
-		printf("%s: offset=%zu < 0\n",
+		DBGDEV("%s: offset=%zu < 0\n",
 		    __func__, (size_t)offset);
 		goto invalid;
 	}
 
 	if (nprot != PROT_READ) {
-		printf("%s: nprot=%d != PROT_READ\n",
+		DBGDEV("%s: nprot=%d != PROT_READ\n",
 		    __func__, nprot);
 		goto invalid;
 	}
@@ -400,7 +388,7 @@ vps_dev_mmap(struct cdev *dev, vm_ooffset_t offset,
 		/* VPS_IOC_LIST */
 
 		if (offset > ctx->length) {
-			printf("%s: offset=%zu > ctx->length=%zu\n",
+			DBGDEV("%s: offset=%zu > ctx->length=%zu\n",
 			    __func__, (size_t)offset, ctx->length);
 			goto invalid;
 		}

@@ -61,20 +61,27 @@ struct vps;
 struct mount;
 
 struct vps_acc_val {
+
 	/* Current accounting value (counter or rate). */
 	size_t cur;
+
 	/* For rate calculation. */
 	size_t cnt_cur;
+
 	/* Preconfigured soft limit (a warning is emitted when limit
 	    is hit). */
 	size_t soft;
+
 	/* Preconfigured hard limit (allocation is denied and error returned
 	    where possible). */
 	size_t hard;
+
 	/* Counter of exceeding the soft limit. */
 	u_int16_t hits_soft;
+
 	/* Counter of attempts exceeding the hard limit. */
 	u_int16_t hits_hard;
+
 	/* Last updated (ticks) */
 	int updated;
 };

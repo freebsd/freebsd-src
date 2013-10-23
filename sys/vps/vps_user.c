@@ -63,6 +63,10 @@ static const char vpsid[] =
 #include "vps.h"
 #include "vps2.h"
 
+/*
+#define INCLUDE_CURVPS 1
+*/
+
 #ifdef DIAGNOSTIC
 
 #define DBGUSER	if (debug_user) printf
@@ -79,10 +83,6 @@ SYSCTL_INT(_debug, OID_AUTO, vps_user_debug, CTLFLAG_RW,
 #endif /* DIAGNOSTIC */
 
 MALLOC_DECLARE(M_VPS_DEV);
-
-/* ----------------------- */
-
-//#define INCLUDE_CURVPS 1
 
 int
 vps_ioc_list(struct vps *vps, struct vps_dev_ctx *ctx, u_long cmd,
@@ -386,7 +386,6 @@ vps_ioc_snapshot(struct vps *vps, struct vps_dev_ctx *ctx, u_long cmd,
 	int error;
 
 	va_snapst = (struct vps_arg_snapst *)data;
-	/*va_snapst->vps_name[sizeof(va_snapst->vps_name) - 1] = '\0';*/
 	va_snapst->vps_name[MAXHOSTNAMELEN-1] = '\0';
 	if (strlen(va_snapst->vps_name) == 0)
 		return (EINVAL);
@@ -432,7 +431,6 @@ vps_ioc_restore(struct vps *vps, struct vps_dev_ctx *ctx, u_long cmd,
 	int error;
 
 	va_snapst = (struct vps_arg_snapst *)data;
-	/*va_snapst->vps_name[sizeof(va_snapst->vps_name) - 1] = '\0';*/
 	va_snapst->vps_name[MAXHOSTNAMELEN-1] = '\0';
 	if (strlen(va_snapst->vps_name) == 0)
 		return (EINVAL);
@@ -564,11 +562,6 @@ vps_ioc_argget(struct vps *vps, struct vps_dev_ctx *ctx, u_long cmd,
 	}
 	sx_xunlock(&vps_all_lock);
 
-	/* XXX
-	if (vps2)
-		vps_account_print_pctcpu(vps2);
-	*/
-
 	return (error);
 }
 
@@ -619,17 +612,12 @@ vps_ioc_getextinfo(struct vps *vps, struct vps_dev_ctx *ctx, u_long cmd,
 		    __func__, klenused, kdatalen));
 
 		if ((error = copyout(kdata, vx->data, klenused)))
-		    goto fail;
+			goto fail;
   fail:
 		vx->datalen = klenused;
 		free(kdata, M_TEMP);
 	}
 	sx_xunlock(&vps_all_lock);
-
-	/* XXX
-	if (vps2)
-		vps_account_print_pctcpu(vps2);
-	*/
 
 	return (error);
 }
@@ -655,10 +643,10 @@ vps_ioc_fscalcpath(struct vps *vps, struct vps_dev_ctx *ctx, u_long cmd,
 	va = (struct vps_arg_get *)data;
 	va->vps_name[sizeof (va->vps_name) - 1] = '\0';
 	if (strlen (va->vps_name) == 0)
-	   return (EINVAL);
+		return (EINVAL);
 
 	if (va->datalen < sizeof(*item) * 2)
-	   return (EINVAL);
+		return (EINVAL);
 
 	error = 0;
 	kdatalen = va->datalen;
@@ -673,7 +661,7 @@ vps_ioc_fscalcpath(struct vps *vps, struct vps_dev_ctx *ctx, u_long cmd,
 	goto fail;
 
 	if ((error = copyout(kdata, va->data, kdatalen)))
-	   goto fail;
+		goto fail;
 
  fail:
 	va->datalen = kdatalen;
@@ -693,14 +681,14 @@ vps_ioc_getconsfd(struct vps *vps, struct vps_dev_ctx *ctx, u_long cmd,
 	va = (struct vps_arg_getconsfd *)data;
 	va->vps_name[MAXHOSTNAMELEN-1] = '\0';
 	if (strlen(va->vps_name) == 0)
-	   return (EINVAL);
+		return (EINVAL);
 
 	sx_xlock(&vps_all_lock);
 	vps2 = vps_by_name(vps, va->vps_name);
 	if (vps2)
-	   error = vps_console_getfd(vps2, td, &va->consfd);
+		error = vps_console_getfd(vps2, td, &va->consfd);
 	else
-	   error = ESRCH;
+		error = ESRCH;
 	sx_xunlock(&vps_all_lock);
 
 	return (error);

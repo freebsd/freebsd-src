@@ -1610,14 +1610,6 @@ vps_reboot(struct thread *td, int howto)
 	}
 	sx_sunlock(&V_allproc_lock);
 
-#if 0
-	/* No effect. */
-	vps->vps_flags |= VPS_F_REBOOT;
-
-	/* Broadcast kill. */
-	vps_proc_signal(vps, -1, SIGKILL);
-#endif
-
 	while ((V_nprocs - V_nprocs_zomb) > 1) {
 		/* Sleep. */
 		pause("vpsbot", hz / 10);
@@ -1636,10 +1628,9 @@ vps_reboot(struct thread *td, int howto)
 	if ( ! reboot ) {
 		/*
 		 * When the last proc has exited,
-		 * exit1() calls vps_destroy().
+		 * exit1() schedules vps_destroy().
 		 * XXX not yet !
 		 */
-		//vps->f_destroy = 1;
 		return (error);
 	}
 

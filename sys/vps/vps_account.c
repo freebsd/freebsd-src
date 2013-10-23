@@ -106,45 +106,33 @@ SYSCTL_INT(_debug, OID_AUTO, vps_account_debug, CTLFLAG_RW,
 SYSCTL_NODE(, OID_AUTO, vps, CTLFLAG_RD, NULL, "Virtual Private Systems");
 SYSCTL_NODE(_vps, OID_AUTO, acc, CTLFLAG_RD, NULL, "Limits and Accounting");
 
-/*
-static VPS_DEFINE(size_t, acc_kmem) = 0;
-#define V_acc_kmem	VPS(acc_kmem)
-
-SYSCTL_VPS_UINT(_vps_acc, OID_AUTO, kmem, CTLFLAG_RD,
-    &VPS_NAME(acc_kmem), 0, "");
-*/
-
 /* Interval between calls to vps_account_threads() in microseconds. */
 /* XXX determine a good default value */
 static u_int vps_account_threads_interval = 100*1000;
 SYSCTL_UINT(_vps_acc, OID_AUTO, account_threads_interval, CTLFLAG_RW,
-	&vps_account_threads_interval, 0,
-	"Interval for thread accounting in microseconds");
+    &vps_account_threads_interval, 0,
+    "Interval for thread accounting in microseconds");
 
-struct mtx vps_pfault_mtx;
-struct rqhead vps_paused_threads_head;
+struct mtx		vps_pfault_mtx;
+struct rqhead		vps_paused_threads_head;
 
-static u_int vps_account_suspensions;
-static u_int vps_account_failedsuspensions;
-struct sx vps_account_threads_sx;
-struct mtx vps_account_pausedqueue_mtx;
-struct task vps_account_threads_task;
-static struct proc *vps_account_kproc_p;
-static int vps_account_exit;
+static u_int		vps_account_suspensions;
+static u_int		vps_account_failedsuspensions;
+struct sx		vps_account_threads_sx;
+struct mtx		vps_account_pausedqueue_mtx;
+struct task		vps_account_threads_task;
+static struct proc	*vps_account_kproc_p;
+static int		vps_account_exit;
 
-static fixpt_t vps_account_cpu_idlepct;
-static u_long vps_account_cpu_last;
-static long vps_account_cpu_updated;
+static fixpt_t		vps_account_cpu_idlepct;
+static u_long		vps_account_cpu_last;
+static long		vps_account_cpu_updated;
 
 static int _vps_account2(struct vps *, int, int, size_t);
 static void vps_account_check_threads(void);
 static void vps_account_thread_resume(struct thread *td);
 void vps_account_threads2(void *, int);
 void vps_account_kproc(void *);
-
-/*
-int (*vpsfs_calcusage_path_p)(const char *, struct vpsfs_limits *) = NULL;
-*/
 
 int
 vps_account_init(void)
@@ -179,11 +167,6 @@ vps_account_init(void)
 
 	return (0);
 }
-
-/*
-SYSINIT(vps_account, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY,
-    vps_account_init, NULL);
-*/
 
 int
 vps_account_uninit(void)
@@ -280,11 +263,7 @@ _vps_account2(struct vps *vps, int type, int action, size_t size)
 		case VPS_ACC_PROCS:
 			val = &vps->vps_acc->procs;
 			break;
-		/* not handled here
-		case VPS_ACC_PCTCPU:
-			val = &vps->vps_acc->pctcpu;
-			break;
-		*/
+		/* not handled here: VPS_ACC_PCTCPU: */
 		default:
 			printf("%s: unkown type %d\n", __func__, type);
 			return (ENOENT);
@@ -292,13 +271,6 @@ _vps_account2(struct vps *vps, int type, int action, size_t size)
 	}
 
 	mtx_lock_spin(&vps->vps_acc->lock);
-
-	/*
-	if (vps != vps0 && type==VPS_ACC_PHYS)
-		DBGACC("%s: pid=%d type=%d %zu %s %zu\n",
-			__func__, curthread->td_proc->p_pid, type,
-			val->cur, action==VPS_ACC_ALLOC ? "+" : "-", size);
-	*/
 
 	error = 0;
 
@@ -338,16 +310,6 @@ _vps_account2(struct vps *vps, int type, int action, size_t size)
 				__func__, type, action, size);
 			break;
 	}
-
-	/*
-	if (type == VPS_ACC_VIRT && vps != vps0) {
-		DBGACC("%s: VPS_ACC_VIRT: %s %lx  --> %lx\n",
-			__func__,
-			action == VPS_ACC_ALLOC ? "ALLOC" : "FREE",
-			size,
-			val->cur);
-	}
-	*/
 
 	if (error == 0)
 		val->updated = ticks;
@@ -628,8 +590,8 @@ vps_account_threads(void *dummy)
 			}
 			PROC_UNLOCK(p);
 		}
-		//sx_sunlock(&vps->_proctree_lock);
 		sx_sunlock(&VPS_VPS(vps, allproc_lock));
+		//sx_sunlock(&vps->_proctree_lock);
 
 		mtx_lock_spin(&vps->vps_acc->lock);
 
@@ -696,7 +658,7 @@ _vps_account_thread_pause(struct thread *td)
 					   by thread_lock */
 	TAILQ_INSERT_TAIL(&vps_paused_threads_head, td, td_runq);
 	mtx_unlock_spin(&vps_account_pausedqueue_mtx);
-	//DBGACC("%s: paused thread=%p/%d\n", __func__, td, td->td_tid);
+	/*DBGACC("%s: paused thread=%p/%d\n", __func__, td, td->td_tid);*/
 }
 
 static void
@@ -710,7 +672,7 @@ vps_account_thread_resume(struct thread *td)
 	mtx_unlock_spin(&vps_account_pausedqueue_mtx);
 
 	sched_add(td, SRQ_BORING);
-	//DBGACC("%s: resumed thread=%p/%d\n", __func__, td, td->td_tid);
+	/*DBGACC("%s: resumed thread=%p/%d\n", __func__, td, td->td_tid);*/
 
 }
 
@@ -827,14 +789,6 @@ _vps_account_stats(struct vps *vps)
 	printf("%s: vps=%p\n", __func__, vps);
 	printf("%s: virt=%zu\n", __func__, va->virt.cur);
 	printf("%s: phys=%zu\n", __func__, va->phys.cur);
-	/*
-	printf("%s: kmem=%zu (0-kmem=%zu)\n", __func__,
-	    va->kmem.cur, 0 - va->kmem.cur);
-	printf("%s: kernel=%zu (0-kernel=%zu)\n", __func__,
-	    va->kernel.cur, 0 - va->kernel.cur);
-	printf("%s: buffer=%zu (0-buffer=%zu)\n", __func__,
-	    va->buffer.cur, 0 - va->buffer.cur);
-	*/
 	printf("%s: pctcpu=%zu\n", __func__, va->pctcpu.cur);
 	printf("%s: blockio=%zu\n", __func__, va->blockio.cur);
 	printf("%s: threads=%zu\n", __func__, va->threads.cur);
@@ -920,26 +874,24 @@ _vps_limit_setitem(struct vps *vpsp, struct vps *vps,
 	(x)->u.limit.hits_hard = (y)->hits_hard;		\
 	} while (0);
 
+#define ACC_ITEM_CNT 6
+
 int
 _vps_limit_getitemall(struct vps *vpsp, struct vps *vps,
     caddr_t kdata, size_t *kdatalen)
 {
 	struct vps_arg_item *item;
-	int cnt;
 
 	if (vps->vps_acc == NULL) {
 		*kdatalen = 0;
 		return (0);
 	}
 
-	/* !!! */
-	cnt = 6;
-
-	if ((sizeof (*item) * cnt) > *kdatalen)
+	if ((sizeof(*item) * ACC_ITEM_CNT) > *kdatalen)
 		return (ENOSPC);
 
 	item = (struct vps_arg_item *)kdata;
-	memset(item, 0, sizeof (*item) * cnt);
+	memset(item, 0, sizeof (*item) * ACC_ITEM_CNT);
 
 	mtx_lock_spin(&vps->vps_acc->lock);
 
@@ -947,14 +899,6 @@ _vps_limit_getitemall(struct vps *vpsp, struct vps *vps,
 	item++;
 	FILL(item, &vps->vps_acc->phys, VPS_ACC_PHYS);
 	item++;
-	/*
-	FILL(item, &vps->vps_acc->kmem, VPS_ACC_KMEM);
-	item++;
-	FILL(item, &vps->vps_acc->kernel, VPS_ACC_KERNEL);
-	item++;
-	FILL(item, &vps->vps_acc->buffer, VPS_ACC_BUFFER);
-	item++;
-	*/
 	FILL(item, &vps->vps_acc->pctcpu, VPS_ACC_PCTCPU);
 	item++;
 	FILL(item, &vps->vps_acc->blockio, VPS_ACC_BLOCKIO);
@@ -966,7 +910,8 @@ _vps_limit_getitemall(struct vps *vpsp, struct vps *vps,
 
 	mtx_unlock_spin(&vps->vps_acc->lock);
 
-	*kdatalen = sizeof (*item) * cnt;
+	*kdatalen = sizeof (*item) * ACC_ITEM_CNT;
+
 	return (0);
 }
 
@@ -1000,8 +945,8 @@ vps_account_print_pctcpu(struct vps *vps)
 		}
 		PROC_UNLOCK(p);
 	}
-	//sx_sunlock(&vps->_proctree_lock);
 	sx_sunlock(&VPS_VPS(vps, allproc_lock));
+	//sx_sunlock(&vps->_proctree_lock);
 
 	printf("%s: vps=%p [%s] threads=%d vpstot=%u\n",
 		__func__, vps, vps->vps_name, threads, vpstot);

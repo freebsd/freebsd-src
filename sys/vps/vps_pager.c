@@ -103,6 +103,7 @@ struct pagerops vps_pager_ops = {
 
 /* list of vps pager objects */
 static struct pagerlst vps_pager_object_list;
+
 /* protect list manipulation */
 static struct mtx vps_pager_mtx;
 
@@ -612,13 +613,6 @@ vps_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		}
 		TAILQ_REMOVE(&object->un_pager.devp.devp_pglist, m1, pageq);
 		vm_page_remove(m1);
-#if 0
-		/* XXX This is rather dirty !!! */
-		/* XXX XXX and does not work at all */
-		m1->oflags &= ~VPO_UNMANAGED;
-		pmap_remove_all(m1);
-		m1->oflags |= VPO_UNMANAGED;
-#endif
 		vm_page_unlock(m1);
 		vm_page_putfake(m1);
 

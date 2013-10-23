@@ -46,8 +46,6 @@
 #define TD_TO_VPS(x)	(x)->td_ucred->cr_vps
 #define P_TO_VPS(x)	(x)->p_ucred->cr_vps
 
-#define VPSYM(x)		curthread->td_vps->_##x
-
 /*
  * At least for now, just use vnet's facility for virtualized
  * global variables.

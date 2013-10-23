@@ -39,7 +39,6 @@
 /*
  * Possible vps status values
  */
-//#define VPS_ST_INITISDYING               0x01
 #define VPS_ST_CREATING                  0x02
 #define VPS_ST_RUNNING                   0x04
 #define VPS_ST_SUSPENDED                 0x08
@@ -71,7 +70,6 @@ struct vps_info {
         int nifaces;
 	int restore_count;
 
-	/*struct vps_acc account;*/
 	struct {
 		unsigned long virt;
 		unsigned long phys;

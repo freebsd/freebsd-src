@@ -79,12 +79,14 @@ int vps_ip6_check2(struct vps *, struct in6_addr *, u_int8_t, int);
 
 MALLOC_DECLARE(M_VPS_CORE);
 
-#define BIT_SET(set, bit)       do {                            \
+#define BIT_SET(set, bit)					\
+	do {							\
             set[ bit >> 3 ] |= 1 << (bit - (bit >> 3 << 3 ));   \
         } while (0)
 
-#define BIT_UNSET(set, bit)     do {                            \
-            set[ bit >> 3 ] &= ~( 1 << (bit - (bit >> 3 << 3 )));   \
+#define BIT_UNSET(set, bit)					\
+	do {							\
+            set[ bit >> 3 ] &= ~( 1 << (bit - (bit >> 3 << 3 )));\
         } while (0)
 
 #define BIT_ISSET(set, bit)                                     \
@@ -119,9 +121,7 @@ vps_priv_check(struct ucred *cred, int priv)
 }
 
 /*
- * XXX
- * This are some defaults taken from jail's priv check.
- * In many cases these are very inappropriate for vps.
+ * Default privileges.
  */
 void
 vps_priv_setdefault(struct vps *vps, struct vps_param *vps_pr)
@@ -138,10 +138,7 @@ vps_priv_setdefault(struct vps *vps, struct vps_param *vps_pr)
 	BIT_SET(a_set, PRIV_VFS_MOUNT);
 	BIT_SET(a_set, PRIV_VFS_MOUNT_NONUSER);
 	BIT_SET(a_set, PRIV_VFS_UNMOUNT);
-
-	/* XXX ? */
         BIT_SET(a_set, PRIV_VFS_GENERATION);
-        /* ---------- */
 
         /* Will perform vps destruction if not the vps0. */
         BIT_SET(a_set, PRIV_REBOOT);
@@ -275,7 +272,7 @@ vps_devfs_ruleset_destroy(struct vps *vps)
 	return (0);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_devfs_ruleset_apply(struct vps *vps, struct devfs_mount *dm,
     int *ret_rsnum)
@@ -372,7 +369,7 @@ vps_devfs_ruleset_apply(struct vps *vps, struct devfs_mount *dm,
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_devfs_ruleset_free(struct vps *vps, struct devfs_mount *dm)
 {

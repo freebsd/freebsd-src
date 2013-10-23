@@ -115,7 +115,7 @@ int vps_abort(struct vps *vps, int flags);
 
 static int vps_syscall_fixup(struct vps *vps, struct thread *td);
 static int vps_access_vmspace(struct vmspace *vm, vm_offset_t vaddr,
-	size_t len, void *buf, int prot);
+    size_t len, void *buf, int prot);
 
 static int vps_resume_relinkvnodes(struct vps *vps);
 static int get_next_dirent(struct vnode *vp, struct dirent **dpp,
@@ -132,7 +132,7 @@ static int vps_suspend_mod_refcnt;
  */
 static int
 vps_suspend_relinkvnodes_one(struct vps *vps, struct vnode *vp,
-	const char *path, int fd)
+    const char *path, int fd)
 {
         struct nameidata nd;
         struct mount *mp;
@@ -327,7 +327,7 @@ vps_suspend(struct vps *vps, int flags)
 	LIST_FOREACH(p, &VPS_VPS(vps, allproc), p_list) {
 		DBGCORE("p=%p pid=%d comm=[%s]\n", p, p->p_pid, p->p_comm);
 		PROC_LOCK(p);
-		p->p_flag |= P_STOPPED_TRACE; /* XXX good ?! */
+		p->p_flag |= P_STOPPED_TRACE;
 	
 		/* Keep proc from being swapped out (kernel stacks). */
 		p->p_lock++;
@@ -341,7 +341,7 @@ vps_suspend(struct vps *vps, int flags)
 			thread_lock(td);
 			DBGCORE("td=%u/%p td->td_flags=%08x\n",
 			    td->td_tid, td, td->td_flags);
-			//db_trace_thread(td, 16);
+			/*db_trace_thread(td, 16);*/
 			td->td_flags |= TDF_NEEDSUSPCHK | TDF_VPSSUSPEND;
 			if (TD_ON_SLEEPQ(td)) {
 				if (td->td_flags & TDF_SINTR)
@@ -374,20 +374,6 @@ vps_suspend(struct vps *vps, int flags)
 				    __func__, td);
 			}
 	
-#if 0
-#if defined(CPU_X86)
-			DBGCORE("td->td_frame=%p tf_rax=%p tf_rsp=%p\n",
-			    td->td_frame, (void*)td->td_frame->tf_rax,
-			    (void*)td->td_frame->tf_rsp);
-#elif defined(CPU_386)
-			DBGCORE("td->td_frame=%p tf_eax=%p tf_esp=%p\n",
-			    td->td_frame, (void*)td->td_frame->tf_eax,
-			    (void*)td->td_frame->tf_esp);
-#else
-#error "unsupported architecture"
-#endif
-#endif /* 0 */
-
 			thread_unlock(td);
 		}
 		PROC_UNLOCK(p);
@@ -628,7 +614,7 @@ vps_abort(struct vps *vps, int flags)
  *  Access pages of a different vmspace.
  */
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_access_vmspace(struct vmspace *vm, vm_offset_t vaddr, size_t len,
     void *buf, int prot)
@@ -743,18 +729,19 @@ vps_access_vmspace(struct vmspace *vm, vm_offset_t vaddr, size_t len,
 	return (error);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static void
 vps_syscall_fixup_inthread(register_t code, struct trapframe *frame)
 {
-	//struct syscall_args sa;
+	/*struct syscall_args sa;*/
 	struct thread *td = curthread;
 	int error;
 
 	error = 0;
 
-	DBGCORE("%s: ####################### curthread=%p/%u code=%zu\n",
+	DBGCORE("%s: curthread=%p/%u code=%zu\n",
 		__func__, td, td->td_tid, (size_t)code);
+
 	KASSERT(frame == td->td_frame, ("%s: frame != td->td_frame\n",
 	    __func__));
 
@@ -803,14 +790,11 @@ vps_syscall_fixup_inthread(register_t code, struct trapframe *frame)
 		   	td->td_retval[1] = 0;
 		   	td->td_errno = 0;
 		}
-		/*
-		if ((td->td_flags & TDF_VPSSUSPEND) == 0)
-		   	cpu_set_syscall_retval(td, td->td_errno);
-		*/
 		break;
 	}
 	case SYS_nanosleep: {
 		/*
+		//not yet
 		struct timespec ts1, ts2;
 
 		if ((error = cpu_fetch_syscall_args(td, &sa))) {
@@ -887,14 +871,17 @@ vps_syscall_fixup_need_inthread(struct vps *vps, struct thread *td,
 			DBGCORE("%s: SYS_nanosleep: ts: sec=%zu nsec=%zu\n",
 			    __func__, (size_t)ts.tv_sec,
 			    (size_t)ts.tv_nsec);
-			//need_inthread = 1;
+			/*
+			//not yet
+			need_inthread = 1;
+			*/
 		}
 		td->td_errno = ERESTART;
 		break;
 	}
 	case SYS_vfork: {
-		DBGCORE("########################## SYS_VFORK: td=%p "
-		    "tid=%u\n", td, td->td_tid);
+		DBGCORE("%s: SYS_VFORK: td=%p tid=%u\n",
+		    __func__, td, td->td_tid);
 		if (td->td_errno != EINTR)
 			break;
 		need_inthread = 1;
@@ -908,7 +895,7 @@ vps_syscall_fixup_need_inthread(struct vps *vps, struct thread *td,
 	return (need_inthread);
 }
 
-__attribute__((noinline))
+VPSFUNC
 static int
 vps_syscall_fixup(struct vps *vps, struct thread *td)
 {
@@ -930,48 +917,6 @@ vps_syscall_fixup(struct vps *vps, struct thread *td)
   out:
 	return (error);
 }
-
-static int
-vps_suspend_modevent(module_t mod, int type, void *data)
-{
-        int error;
-
-        error = 0;
-
-        switch (type) {
-        case MOD_LOAD:
-		vps_suspend_mod_refcnt = 0;
-		vps_func->vps_suspend = vps_suspend;
-		vps_func->vps_resume = vps_resume;
-		vps_func->vps_abort = vps_abort;
-		vps_func->vps_access_vmspace = vps_access_vmspace;
-		vps_func->vps_syscall_fixup_inthread =
-		    vps_syscall_fixup_inthread;
-		break;
-        case MOD_UNLOAD:
-		if (vps_suspend_mod_refcnt > 0)
-			return (EBUSY);
-		vps_func->vps_suspend = NULL;
-		vps_func->vps_resume = NULL;
-		vps_func->vps_abort = NULL;
-		vps_func->vps_access_vmspace = NULL;
-		vps_func->vps_syscall_fixup_inthread = NULL;
-		break;
-        default:
-		error = EOPNOTSUPP;
-		break;
-        }
-
-        return (error);
-}
-
-static moduledata_t vps_suspend_mod = {
-        "vps_suspend",
-        vps_suspend_modevent,
-        0
-};
-
-DECLARE_MODULE(vps_suspend, vps_suspend_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 static int
 vps_suspend_relink_delete(struct vnode *vp)
@@ -1094,6 +1039,48 @@ get_next_dirent(struct vnode *vp, struct dirent **dpp, char *dirbuf,
 
         return (0);
 }
+
+static int
+vps_suspend_modevent(module_t mod, int type, void *data)
+{
+        int error;
+
+        error = 0;
+
+        switch (type) {
+        case MOD_LOAD:
+		vps_suspend_mod_refcnt = 0;
+		vps_func->vps_suspend = vps_suspend;
+		vps_func->vps_resume = vps_resume;
+		vps_func->vps_abort = vps_abort;
+		vps_func->vps_access_vmspace = vps_access_vmspace;
+		vps_func->vps_syscall_fixup_inthread =
+		    vps_syscall_fixup_inthread;
+		break;
+        case MOD_UNLOAD:
+		if (vps_suspend_mod_refcnt > 0)
+			return (EBUSY);
+		vps_func->vps_suspend = NULL;
+		vps_func->vps_resume = NULL;
+		vps_func->vps_abort = NULL;
+		vps_func->vps_access_vmspace = NULL;
+		vps_func->vps_syscall_fixup_inthread = NULL;
+		break;
+        default:
+		error = EOPNOTSUPP;
+		break;
+        }
+
+        return (error);
+}
+
+static moduledata_t vps_suspend_mod = {
+        "vps_suspend",
+        vps_suspend_modevent,
+        0
+};
+
+DECLARE_MODULE(vps_suspend, vps_suspend_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 #endif /* VPS */
 

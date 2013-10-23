@@ -73,10 +73,6 @@ static const char *
 vps_statusstr(int status)
 {
 	switch (status) {
-	/*
-	case VPS_ST_INITISDYING:
-		return ("init_is_dying");
-	*/
 	case VPS_ST_CREATING:
 		return ("creating");
 	case VPS_ST_RUNNING:

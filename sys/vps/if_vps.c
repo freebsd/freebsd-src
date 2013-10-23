@@ -126,12 +126,6 @@ static int vps_if_clone_match(struct if_clone *, const char *);
 static int vps_if_clone_create(struct if_clone *, char *, size_t, caddr_t);
 static int vps_if_clone_destroy(struct if_clone *, struct ifnet *);
 
-/*
-delete
-static struct if_clone vps_if_cloner = IFC_CLONE_INITIALIZER(
-    IFNAME, NULL, IF_MAXUNIT,
-    NULL, vps_if_clone_match, vps_if_clone_create, vps_if_clone_destroy);
-*/
 static struct if_clone *vps_if_cloner;
 #ifdef VIMAGE
 static VNET_DEFINE(struct if_clone *, vps_if_cloner);
@@ -400,11 +394,15 @@ static struct ifnet *
 vps_if_get_if_by_addr_v4(const struct sockaddr *dst, struct mbuf *m)
 {
 	struct vps_if_rtentry *vrt;
+	struct ifnet *ifp;
 
 	vrt = vps_if_lookup(dst);
 	if (vrt == NULL) {
                 /* Nothing found, so use the default (first) interface. */
-                return ((TAILQ_FIRST(&vps_if_head))->ifp);
+        	mtx_lock(&vps_if_mtx);
+		ifp = TAILQ_FIRST(&vps_if_head)->ifp;
+        	mtx_unlock(&vps_if_mtx);
+		return (ifp);
 	}
 
 	return (vrt->rt_ifp);
@@ -433,8 +431,6 @@ vps_if_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
         struct vps_if_softc *sc;
         int isr;
 
-	/* LOCK allvpsif read lock */
-
         switch (dst->sa_family) {
         case AF_INET:
                 oifp = vps_if_get_if_by_addr_v4(dst, m);
@@ -445,14 +441,12 @@ vps_if_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
         default:
                 DBGIF("%s: af=%d unexpected\n", __func__, dst->sa_family);
                 m_freem(m);
-		/* LOCK allvpsif read unlock */
                 return (EAFNOSUPPORT);
         }
 
         if (oifp == NULL) {
                 ifp->if_oerrors++;
                 m_freem(m);
-		/* LOCK allvpsif read unlock */
                 return (EHOSTUNREACH);
         }
         sc = ifp->if_softc;
@@ -465,7 +459,6 @@ vps_if_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
                 (oifp->if_flags & IFF_UP) == 0) {
                 ifp->if_oerrors++;
                 m_freem(m);
-		/* LOCK allvpsif read unlock */
                 return (EHOSTUNREACH);
         }
 
@@ -474,7 +467,6 @@ vps_if_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		DBGIF("%s: LOOP ! oifp == ifp == %p\n", __func__, ifp);
                 ifp->if_oerrors++;
                 m_freem(m);
-		/* LOCK allvpsif read unlock */
 		return (EHOSTUNREACH);
 	}
 
@@ -502,7 +494,6 @@ vps_if_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
         }
 
         refcount_acquire(&sc->refcount);
-	/* LOCK allvpsif read unlock */
         m->m_pkthdr.rcvif = oifp;
 	KASSERT(m->m_pkthdr.rcvif->if_dname[0] == 'v',
 	    ("%s: m->m_pkthdr.rcvif->if_dname = [%s]\n",
@@ -518,23 +509,6 @@ vps_if_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
         return (error);
 }
-
-#ifdef DISABLED__VIMAGE
-static void
-vps_if_reassign(struct ifnet *ifp, struct vnet *vnet, char *dname)
-{
-
-        if_detach(ifp);
-        ifp->if_bpf = NULL;
-        if_reassign_common(ifp, vnet, "eth");
-        if (dname)
-                snprintf(ifp->if_xname, IFNAMSIZ, "%s", dname);
-
-        CURVNET_SET_QUIET(vnet);
-        if_attach(ifp);
-        CURVNET_RESTORE();
-}
-#endif
 
 static void
 vps_if_ioctl2(u_long cmd, caddr_t data, struct ifnet *ifp,
@@ -774,14 +748,14 @@ vps_if_clone_create(struct if_clone *ifc, char *name, size_t len,
 	{
 		int tmpticks = ticks;
 
-		memcpy(&ll[0], &curthread->td_vps, 0);
+		memcpy(&ll[0], &curthread->td_vps, 4);
 		memcpy(&ll[4], &tmpticks, 4);
 	}
         ifa = ifp->if_addr;
         KASSERT(ifa != NULL, ("%s: no lladdr!\n", __func__));
         sdl = (struct sockaddr_dl *)ifa->ifa_addr;
         sdl->sdl_type = IFT_PROPVIRTUAL;
-        sdl->sdl_alen = sizeof (ll);
+        sdl->sdl_alen = sizeof(ll);
         bcopy(&ll, LLADDR(sdl), sdl->sdl_alen);
 
         mtx_lock(&vps_if_mtx);
@@ -851,10 +825,6 @@ vps_modevent(module_t mod, int type, void *data)
                 /* For now limit us to one global mutex and one inq. */
 		mtx_init(&vps_if_mtx, "if_vps", NULL, MTX_DEF);
 		vps_if_inithead();
-		/*
-		delete
-                if_clone_attach(&vps_if_cloner);
-		*/
 #ifndef VIMAGE
 		vps_if_cloner = if_clone_advanced(IFNAME, 0,
 		    vps_if_clone_match, vps_if_clone_create,
@@ -863,19 +833,10 @@ vps_modevent(module_t mod, int type, void *data)
 		refcount_init(&vps_if_refcnt, 0);
                 if (bootverbose)
                         printf("%s initialized.\n", IFNAME);
-#if 0
-		printf("%s: SIOCSIFADDR=%08lx\n", __func__, SIOCSIFADDR); 
-		printf("%s: SIOCDIFADDR=%08lx\n", __func__, SIOCDIFADDR); 
-		printf("%s: SIOCAIFADDR=%08lx\n", __func__, SIOCAIFADDR); 
-#endif
                 break;
         case MOD_UNLOAD:
 		if (vps_if_refcnt > 0)
 			return (EBUSY);
-		/*
-		delete
-                if_clone_detach(&vps_if_cloner);
-		*/
 #ifndef VIMAGE
                 if_clone_detach(vps_if_cloner);
 #endif
