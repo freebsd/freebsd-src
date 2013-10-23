@@ -287,7 +287,7 @@ OF_getencprop(phandle_t node, const char *propname, pcell_t *buf, size_t len)
 	ssize_t retval;
 	int i;
 
-	KASSERT(len % 4 == 0, "Need a multiple of 4 bytes");
+	KASSERT(len % 4 == 0, ("Need a multiple of 4 bytes"));
 
 	retval = OF_getprop(node, propname, buf, len);
 	for (i = 0; i < len/4; i++)
@@ -354,7 +354,7 @@ OF_getencprop_alloc(phandle_t package, const char *name, int elsz, void **buf)
 	pcell_t *cell;
 	int i;
 
-	KASSERT(elsz % 4 == 0, "Need a multiple of 4 bytes");
+	KASSERT(elsz % 4 == 0, ("Need a multiple of 4 bytes"));
 
 	retval = OF_getprop_alloc(package, name, elsz, buf);
 	if (retval == -1)
