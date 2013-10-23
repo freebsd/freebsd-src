@@ -523,7 +523,7 @@ fdt_intr_to_rl(phandle_t node, struct resource_list *rl,
 	/*
 	 * Find #interrupt-cells of the interrupt domain.
 	 */
-	if (OF_getprop(node, "interrupt-parent", &iph, sizeof(iph)) <= 0) {
+	if (OF_getencprop(node, "interrupt-parent", &iph, sizeof(iph)) <= 0) {
 		debugf("no intr-parent phandle\n");
 		intr_par = OF_parent(node);
 	} else {
@@ -583,7 +583,7 @@ fdt_get_phyaddr(phandle_t node, device_t dev, int *phy_addr, void **phy_sc)
 	uint32_t i;
 	device_t parent, child;
 
-	if (OF_getprop(node, "phy-handle", (void *)&phy_handle,
+	if (OF_getencprop(node, "phy-handle", (void *)&phy_handle,
 	    sizeof(phy_handle)) <= 0)
 		return (ENXIO);
 
