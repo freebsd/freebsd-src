@@ -232,6 +232,9 @@ deadlkres(void)
 				    __func__);
 			tryl++;
 			pause("allproc", sleepfreq * hz);
+#ifdef VPS
+			sx_slock(&vps_all_lock);
+#endif /* VPS */
 			continue;
 		}
 		tryl = 0;
