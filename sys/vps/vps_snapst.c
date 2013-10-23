@@ -652,7 +652,7 @@ vps_snapshot(struct vps_dev_ctx *dev_ctx, struct vps *vps,
 VPSFUNC
 static int
 vps_snapshot_vnodepath(struct vps_snapst_ctx *ctx, struct vps *vps,
-		struct vnode *vp, int howalloc)
+    struct vnode *vp, int howalloc)
 {
 	struct vps_dumpobj *o1;
 	struct vps_dump_filepath *vdfp;
@@ -667,10 +667,11 @@ vps_snapshot_vnodepath(struct vps_snapst_ctx *ctx, struct vps *vps,
 	if (vp == NULL)
 		return (0);
 
-	vref(vp);
 	howalloc &= (M_WAITOK|M_NOWAIT);
 	if (howalloc == 0)
 		return (EINVAL);
+
+	vref(vp);
 	buf = malloc(MAXPATHLEN, M_TEMP, howalloc|M_ZERO);
 	if (buf == NULL) {
 		vrele(vp);
@@ -732,6 +733,91 @@ vps_snapshot_vnodepath(struct vps_snapst_ctx *ctx, struct vps *vps,
 	vrele(vp);
 
 	return (0);
+}
+
+VPSFUNC
+static int
+vps_snapshot_vnodeinodenum(struct vps_snapst_ctx *ctx, struct vps *vps,
+    struct vnode *vp, int howalloc)
+{
+	struct vps_dump_fileinodenum *vdfi;
+	struct vps_dumpobj *o1;
+	struct vattr vattr;
+	int error;
+
+	if (vp == NULL)
+		return (0);
+
+	howalloc &= (M_WAITOK|M_NOWAIT);
+	if (howalloc == 0)
+		return (EINVAL);
+
+	vref(vp);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	error = VOP_GETATTR(vp, &vattr, curthread->td_ucred);
+	VOP_UNLOCK(vp, 0);
+
+	if (error != 0) {
+		DBGS("%s: vnode=%p VOP_GETATTR(): error=%d\n",
+		    __func__, vp, error);
+		vrele(vp);
+		return (error);
+	}
+
+	DBGS("%s: vnode=%p fsid=%u fileid=%ld error=%d\n",
+	    __func__, vp, vattr.va_fsid, vattr.va_fileid, error);
+
+	o1 = vdo_create(ctx, VPS_DUMPOBJT_FILE_INODENUM, howalloc);
+	if (o1 == NULL) {
+		vrele(vp);
+		return (ENOMEM);
+	}
+	if ((vdfi = vdo_space(ctx, sizeof(*vdfi), howalloc)) == NULL) {
+		vdo_discard(ctx, o1);
+		vrele(vp);
+		return (ENOMEM);
+	}
+
+	vdfi->fsid = vattr.va_fsid;
+	vdfi->fileid = vattr.va_fileid;
+
+	vdo_close(ctx);
+	vrele(vp);
+
+	return (0);
+}
+
+/*
+ * EXPERIMENTAL:
+ * Depending of kind of filesystem choose whether we snapshot
+ * a path to the vnode (unreliable and sometimes slow) or
+ * the inode number (aka file id).
+ */
+VPSFUNC
+static int
+vps_snapshot_vnode(struct vps_snapst_ctx *ctx, struct vps *vps,
+    struct vnode *vp, int howalloc)
+{
+	int error;
+
+	if (vp == NULL)
+		return (0);
+
+	vref(vp);
+
+	/*
+	nfs doesn't support vfs_vget()
+	if (!strcmp(vp->v_tag, "newnfs")) {
+	*/
+	if (0) {
+		error = vps_snapshot_vnodeinodenum(ctx, vps, vp, howalloc);
+	} else {
+		error = vps_snapshot_vnodepath(ctx, vps, vp, howalloc);
+	}
+
+	vrele(vp);
+
+	return (error);
 }
 
 /*
@@ -1602,9 +1688,9 @@ vps_snapshot_prison_one(struct vps_snapst_ctx *ctx, struct vps *vps,
 	pr->pr_ref++;
 	prison_unlock(pr);
 
-	if ((error = vps_snapshot_vnodepath(ctx, vps, rootvp, M_WAITOK))) {
+	if ((error = vps_snapshot_vnode(ctx, vps, rootvp, M_WAITOK))) {
 		vrele(rootvp);
-		DBGS("%s: vps_snapshot_vnodepath: %d\n", __func__, error);
+		DBGS("%s: vps_snapshot_vnode: %d\n", __func__, error);
 		goto out;
 	}
 	vrele(rootvp);
@@ -1726,7 +1812,7 @@ vps_snapshot_proc(struct vps_snapst_ctx *ctx, struct vps *vps)
 			    sizeof(sess->s_login));
 
 			if (sess->s_ttyvp)
-				vps_snapshot_vnodepath(ctx, vps,
+				vps_snapshot_vnode(ctx, vps,
 				    sess->s_ttyvp, M_WAITOK);
 
 			vdo_close(ctx);
@@ -2129,7 +2215,7 @@ vps_snapshot_socket_unix(struct vps_snapst_ctx *ctx, struct vps *vps,
 	if (un_pcb->unp_vnode != NULL) {
 		vdunpcb->unp_have_vnode = 1;
 		/*
-		if ((error = vps_snapshot_vnodepath(ctx, vps,
+		if ((error = vps_snapshot_vnode(ctx, vps,
 		    un_pcb->unp_vnode, M_NOWAIT)))
 			goto drop;
 		*/
@@ -2521,13 +2607,13 @@ vps_snapshot_fdset(struct vps_snapst_ctx *ctx, struct vps *vps,
 	vdo_space(ctx, sizeof(vdfd->fd_entries[0]) * vdfd->fd_nfiles,
 	    M_WAITOK);
 
-	if ((error = vps_snapshot_vnodepath(ctx, vps, fdp->fd_cdir,
+	if ((error = vps_snapshot_vnode(ctx, vps, fdp->fd_cdir,
 	    M_WAITOK)))
 		goto out;
-	if ((error = vps_snapshot_vnodepath(ctx, vps, fdp->fd_rdir,
+	if ((error = vps_snapshot_vnode(ctx, vps, fdp->fd_rdir,
 	    M_WAITOK)))
 		goto out;
-	if ((error = vps_snapshot_vnodepath(ctx, vps, fdp->fd_jdir,
+	if ((error = vps_snapshot_vnode(ctx, vps, fdp->fd_jdir,
 	    M_WAITOK)))
 		goto out;
 
@@ -2575,9 +2661,9 @@ vps_snapshot_fdset(struct vps_snapst_ctx *ctx, struct vps *vps,
 			       do refer to a vnode ? */
 			if (fp->f_vnode == NULL)
 				break;
-			if ((error = vps_snapshot_vnodepath(ctx, vps,
+			if ((error = vps_snapshot_vnode(ctx, vps,
 			    fp->f_vnode, M_WAITOK))) {
-				ERRMSG(ctx, "%s: vps_snapshot_vnodepath(): "
+				ERRMSG(ctx, "%s: vps_snapshot_vnode(): "
 				    "%d\n", __func__, error);
 				goto out;
 			}
@@ -2975,7 +3061,7 @@ vps_snapshot_vmobject(struct vps_snapst_ctx *ctx, struct vps *vps,
 				goto out;
 			}
 #endif
-			error = vps_snapshot_vnodepath(ctx, vps, vp,
+			error = vps_snapshot_vnode(ctx, vps, vp,
 			    M_WAITOK);
 			if (error != 0) {
 				vdo_discard(ctx, o1);
@@ -3438,7 +3524,7 @@ vps_snapshot_proc_one(struct vps_snapst_ctx *ctx, struct vps *vps,
 
 	/* ktrace */
 	if (p->p_tracevp != NULL) {
-		if ((error = vps_snapshot_vnodepath(ctx, vps, p->p_tracevp,
+		if ((error = vps_snapshot_vnode(ctx, vps, p->p_tracevp,
 		    M_WAITOK)))
 			goto out;
 		vdp->p_have_tracevp = 1;
@@ -3446,7 +3532,7 @@ vps_snapshot_proc_one(struct vps_snapst_ctx *ctx, struct vps *vps,
 
 	/* Executable vnode. */
 	if (p->p_textvp != NULL) {
-		if ((error = vps_snapshot_vnodepath(ctx, vps, p->p_textvp,
+		if ((error = vps_snapshot_vnode(ctx, vps, p->p_textvp,
 		    M_WAITOK)))
 			goto out;
 		vdp->p_have_textvp = 1;

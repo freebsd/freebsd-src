@@ -2153,6 +2153,94 @@ vps_restore_pathtovnode(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (0);
 }
 
+/* EXPERIMENTAL - nfs doesn't support vfs_vget() :-( */
+VPSFUNC
+static int
+vps_restore_inodenumtovnode(struct vps_snapst_ctx *ctx, struct vps *vps,
+    struct vnode **vnp)
+{
+	struct vps_dump_fileinodenum *vdfi;
+	struct vps_dumpobj *o1;
+	struct mount *mp;
+	struct vnode *vp;
+	char *vpsroot;
+	char *mnton;
+	int len;
+	int error;
+
+	o1 = vdo_next(ctx);
+
+	if (o1->type != VPS_DUMPOBJT_FILE_INODENUM)
+		return (EINVAL);
+
+	vdfi = (struct vps_dump_fileinodenum *)o1->data;
+
+	DBGR("%s: fsid=%lu fileid=%d\n", __func__, vdfi->fsid, vdfi->fileid);
+
+	DBGR("%s: vps's rootpath=[%s] vnode=%p\n",
+	     __func__, vps->_rootpath, vps->_rootvnode);
+
+	vpsroot = strdup(vps->_rootpath, M_TEMP);
+	if (vpsroot[strlen(vpsroot) - 1] == '/')
+		vpsroot[strlen(vpsroot) - 1] = '\0';
+	len = strlen(vpsroot);
+
+	mtx_lock(&mountlist_mtx);
+	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
+		mnton = mp->mnt_stat.f_mntonname;
+		if (!(strncmp(vpsroot, mnton, len) == 0 &&
+		    (mnton[len] == '\0' || mnton[len] == '/')))
+			continue;
+
+		if (mp->mnt_stat.f_fsid.val[0] == vdfi->fsid)
+			break;
+	}
+	mtx_unlock(&mountlist_mtx);
+
+	free(vpsroot, M_TEMP);
+
+	if (mp == NULL) {
+		ERRMSG(ctx, "%s: no mount found for fsid [%16x]\n",
+		    __func__, vdfi->fsid);
+		return (ENOENT);
+	} else
+		DBGR("%s: got mount=%p for fsid\n", __func__, mp);
+
+	error = VFS_VGET(mp, vdfi->fileid, LK_SHARED | LK_RETRY, &vp);
+	if (error != 0) {
+		ERRMSG(ctx, "%s: VFS_VGET() error=%d\n",
+		    __func__, error);
+		return (error);
+	}
+
+	*vnp = vp;
+
+	vref(vp);
+	VOP_UNLOCK(vp, 0);
+
+	return (0);
+}
+
+VPSFUNC
+static int
+vps_restore_vnode(struct vps_snapst_ctx *ctx, struct vps *vps,
+    struct vnode **vnp)
+{
+	int error;
+
+	if (vdo_typeofnext(ctx) == VPS_DUMPOBJT_FILE_INODENUM)
+		error = vps_restore_inodenumtovnode(ctx, vps, vnp);
+	else if (vdo_typeofnext(ctx) == VPS_DUMPOBJT_FILE_PATH)
+		error = vps_restore_pathtovnode(ctx, vps, vnp);
+	else {
+		ERRMSG(ctx, "%s: vdo_typeofnext(ctx)=%d\n",
+		    __func__, vdo_typeofnext(ctx));
+		return (EINVAL);
+	}
+
+	return (error);
+}
+
 VPSFUNC
 static int
 vps_restore_file_vnode(struct vps_snapst_ctx *ctx, struct vps *vps,
@@ -2650,17 +2738,17 @@ vps_restore_fdset(struct vps_snapst_ctx *ctx, struct vps *vps,
 	cfd = curthread->td_proc->p_fd;
 
 	if (vdfd->fd_have_cdir != 0) {
-		if ((error = vps_restore_pathtovnode(ctx, vps,
+		if ((error = vps_restore_vnode(ctx, vps,
 		    &p->p_fd->fd_cdir)))
 			return (error);
 	}
 	if (vdfd->fd_have_rdir != 0) {
-		if ((error = vps_restore_pathtovnode(ctx, vps,
+		if ((error = vps_restore_vnode(ctx, vps,
 		    &p->p_fd->fd_rdir)))
 			return (error);
 	}
 	if (vdfd->fd_have_jdir != 0) {
-		if ((error = vps_restore_pathtovnode(ctx, vps,
+		if ((error = vps_restore_vnode(ctx, vps,
 		    &p->p_fd->fd_jdir)))
 			return (error);
 	}
@@ -3589,7 +3677,7 @@ vps_restore_proc_one(struct vps_snapst_ctx *ctx, struct vps *vps)
 
 	/* ktrace */
 	if (vdp->p_have_tracevp) {
-		if ((error = vps_restore_pathtovnode(ctx, vps,
+		if ((error = vps_restore_vnode(ctx, vps,
 		    &np->p_tracevp)))
 			goto out;
 		/*
@@ -3608,7 +3696,7 @@ vps_restore_proc_one(struct vps_snapst_ctx *ctx, struct vps *vps)
 
 	/* textvp */
 	if (vdp->p_have_textvp) {
-		if ((error = vps_restore_pathtovnode(ctx, vps,
+		if ((error = vps_restore_vnode(ctx, vps,
 		    &np->p_textvp)))
 			goto out;
 		DBGR("%s: p_textvp: path [...] got vnode %p\n",
@@ -4387,7 +4475,7 @@ vps_restore_prison_one(struct vps_snapst_ctx *ctx, struct vps *vps)
 		 */
 		strlcpy(npr->pr_path, vdpr->pr_path, sizeof(vdpr->pr_path));
 
-		if ((error = vps_restore_pathtovnode(ctx, vps,
+		if ((error = vps_restore_vnode(ctx, vps,
 		    &npr->pr_root)))
 			return (error);
 

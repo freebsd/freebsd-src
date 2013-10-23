@@ -127,11 +127,12 @@ void vps_libdump_printheader(struct vps_dumpheader *h);
 #define VPS_DUMPOBJT_KNOTE              81
 #define VPS_DUMPOBJT_KEVENT             82
 #define VPS_DUMPOBJT_UMTX               90
+#define VPS_DUMPOBJT_FILE_INODENUM      95
 #define VPS_DUMPOBJT_PRISON             100
 #define VPS_DUMPOBJT_UCRED              120
 
 #define VPS_DUMPH_MAGIC			0xc0debabe
-#define VPS_DUMPH_VERSION		0x20130719
+#define VPS_DUMPH_VERSION		0x20130729
 #define VPS_DUMPH_MSB			12
 #define VPS_DUMPH_LSB			21
 #define VPS_DUMPH_32BIT			32
@@ -637,6 +638,12 @@ struct vps_dump_filepath {
 	uint32 _pad0;
 
 	char fp_path[0];	/* always padded to 64 bit alignment */
+};
+
+struct vps_dump_fileinodenum {
+	uint64 fsid;
+	sint32 fileid;
+	uint32 _pad0;
 };
 
 struct vps_dump_pts {
