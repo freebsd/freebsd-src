@@ -188,9 +188,24 @@ bare_timebase_freq(platform_t plat, struct cpuref *cpuref)
 	if ((child = OF_child(cpus)) == 0)
 		goto out;
 
-	if (OF_getprop(child, "timebase-frequency", (void *)&ticks,
-	    sizeof(ticks)) == sizeof(ticks))
-		goto out;
+	switch (OF_getproplen(child, "timebase-frequency")) {
+	case 4:
+	{
+		uint32_t tbase;
+		OF_getprop(child, "timebase-frequency", &tbase, sizeof(tbase));
+		ticks = tbase;
+		return (ticks);
+	}
+	case 8:
+	{
+		uint64_t tbase;
+		OF_getprop(child, "timebase-frequency", &tbase, sizeof(tbase));
+		ticks = tbase;
+		return (ticks);
+	}
+	default:
+		break;
+	}
 
 	freq = 0;
 	if (OF_getprop(child, "bus-frequency", (void *)&freq,
