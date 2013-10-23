@@ -214,14 +214,14 @@ ofw_bus_setup_iinfo(phandle_t node, struct ofw_bus_iinfo *ii, int intrsz)
 	pcell_t addrc;
 	int msksz;
 
-	if (OF_getprop(node, "#address-cells", &addrc, sizeof(addrc)) == -1)
+	if (OF_getencprop(node, "#address-cells", &addrc, sizeof(addrc)) == -1)
 		addrc = 2;
 	ii->opi_addrc = addrc * sizeof(pcell_t);
 
-	ii->opi_imapsz = OF_getprop_alloc(node, "interrupt-map", 1,
+	ii->opi_imapsz = OF_getencprop_alloc(node, "interrupt-map", 1,
 	    (void **)&ii->opi_imap);
 	if (ii->opi_imapsz > 0) {
-		msksz = OF_getprop_alloc(node, "interrupt-map-mask", 1,
+		msksz = OF_getencprop_alloc(node, "interrupt-map-mask", 1,
 		    (void **)&ii->opi_imapmsk);
 		/*
 		 * Failure to get the mask is ignored; a full mask is used
@@ -246,7 +246,7 @@ ofw_bus_lookup_imap(phandle_t node, struct ofw_bus_iinfo *ii, void *reg,
 	    ("ofw_bus_lookup_imap: register size too small: %d < %d",
 		regsz, ii->opi_addrc));
 	if (node != -1) {
-		rv = OF_getprop(node, "reg", reg, regsz);
+		rv = OF_getencprop(node, "reg", reg, regsz);
 		if (rv < regsz)
 			panic("ofw_bus_lookup_imap: cannot get reg property");
 	}
@@ -301,8 +301,8 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 	i = imapsz;
 	while (i > 0) {
 		bcopy(mptr + physsz + intrsz, &parent, sizeof(parent));
-		if (OF_searchprop(OF_xref_phandle(parent), "#interrupt-cells",
-		    &pintrsz, sizeof(pintrsz)) == -1)
+		if (OF_searchencprop(OF_xref_phandle(parent),
+		    "#interrupt-cells", &pintrsz, sizeof(pintrsz)) == -1)
 			pintrsz = 1;	/* default */
 		pintrsz *= sizeof(pcell_t);
 
