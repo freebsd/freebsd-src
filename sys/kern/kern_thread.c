@@ -322,7 +322,6 @@ thread_reap(void)
 	if (!TAILQ_EMPTY(&zombie_threads)) {
 		mtx_lock_spin(&zombie_lock);
 		td_first = TAILQ_FIRST(&zombie_threads);
-		/* XXX - KLAUS: ?! */
 		if (td_first)
 			TAILQ_INIT(&zombie_threads);
 		mtx_unlock_spin(&zombie_lock);
