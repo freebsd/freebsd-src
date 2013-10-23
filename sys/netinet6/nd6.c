@@ -2283,9 +2283,8 @@ nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 	 */
 	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
 		d.rtaddr.sin6_addr = dr->rtaddr;
-		error = sa6_recoverscope(&d.rtaddr);
-		if (error != 0)
-			return (error);
+		d.rtaddr.sin6_scope_id = in6_getscopezone(dr->ifp,
+		    in6_addrscope(&dr->rtaddr));
 		d.flags = dr->flags;
 		d.rtlifetime = dr->rtlifetime;
 		d.expire = dr->expire + (time_second - time_uptime);
@@ -2306,7 +2305,6 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 	struct nd_pfxrouter *pfr;
 	time_t maxexpire;
 	int error;
-	char ip6buf[INET6_ADDRSTRLEN];
 
 	if (req->newptr)
 		return (EPERM);
@@ -2322,11 +2320,8 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 	 */
 	LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
 		p.prefix = pr->ndpr_prefix;
-		if (sa6_recoverscope(&p.prefix)) {
-			log(LOG_ERR, "scope error in prefix list (%s)\n",
-			    ip6_sprintf(ip6buf, &p.prefix.sin6_addr));
-			/* XXX: press on... */
-		}
+		p.prefix.sin6_scope_id = in6_getscopezone(pr->ndpr_ifp,
+		    in6_addrscope(&pr->ndpr_prefix.sin6_addr));
 		p.raflags = pr->ndpr_raf;
 		p.prefixlen = pr->ndpr_plen;
 		p.vltime = pr->ndpr_vltime;
@@ -2355,10 +2350,8 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 			return (error);
 		LIST_FOREACH(pfr, &pr->ndpr_advrtrs, pfr_entry) {
 			s6.sin6_addr = pfr->router->rtaddr;
-			if (sa6_recoverscope(&s6))
-				log(LOG_ERR,
-				    "scope error in prefix list (%s)\n",
-				    ip6_sprintf(ip6buf, &pfr->router->rtaddr));
+			s6.sin6_scope_id = in6_getscopezone(pfr->router->ifp,
+			    in6_addrscope(&pfr->router->rtaddr));
 			error = SYSCTL_OUT(req, &s6, sizeof(s6));
 			if (error != 0)
 				return (error);
