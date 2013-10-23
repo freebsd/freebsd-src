@@ -2466,7 +2466,6 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 	struct llentry *ln = NULL;
 	size_t maxlen;
 	u_char *p;
-	struct sockaddr_in6 src_sa;
 
 	icmp6_errcount(ND_REDIRECT, 0);
 
@@ -2485,11 +2484,7 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 	 *  [RFC 2461, sec 8.2]
 	 */
 	sip6 = mtod(m0, struct ip6_hdr *);
-	bzero(&src_sa, sizeof(src_sa));
-	src_sa.sin6_family = AF_INET6;
-	src_sa.sin6_len = sizeof(src_sa);
-	src_sa.sin6_addr = sip6->ip6_src;
-	if (nd6_is_addr_neighbor(&src_sa, ifp) == 0)
+	if (nd6_is_addr_neighbor(&sip6->ip6_src, ifp) == 0)
 		goto fail;
 	if (IN6_IS_ADDR_MULTICAST(&sip6->ip6_dst))
 		goto fail;	/* what should we do here? */

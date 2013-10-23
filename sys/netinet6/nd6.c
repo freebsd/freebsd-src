@@ -125,8 +125,7 @@ VNET_DEFINE(int, nd6_recalc_reachtm_interval) = ND6_RECALC_REACHTM_INTERVAL;
 
 int	(*send_sendso_input_hook)(struct mbuf *, struct ifnet *, int, int);
 
-static int nd6_is_new_addr_neighbor(struct sockaddr_in6 *,
-	struct ifnet *);
+static int nd6_is_new_addr_neighbor(struct in6_addr *, struct ifnet *);
 static void nd6_setmtu0(struct ifnet *, struct nd_ifinfo *);
 static void nd6_slowtimo(void *);
 static int regen_tmpaddr(struct in6_ifaddr *);
@@ -871,7 +870,7 @@ nd6_lookup(struct in6_addr *addr6, int flags, struct ifnet *ifp)
  * to not reenter the routing code from within itself.
  */
 static int
-nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
+nd6_is_new_addr_neighbor(struct in6_addr *addr, struct ifnet *ifp)
 {
 	struct nd_prefix *pr;
 	struct in6_ifaddr *ia6;
@@ -879,13 +878,13 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 	/*
 	 * A link-local address is always a neighbor.
 	 */
-	if (IN6_IS_ADDR_LINKLOCAL(&addr->sin6_addr))
+	if (IN6_IS_ADDR_LINKLOCAL(addr))
 		return (1);
 	/*
 	 * If the address matches one of our addresses,
 	 * it should be a neighbor.
 	 */
-	if (in6_localip(&addr->sin6_addr))
+	if (in6_localip(addr))
 		return (1);
 	/*
 	 * If the address matches one of our on-link prefixes, it should be a
@@ -922,7 +921,7 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 		}
 
 		if (IN6_ARE_MASKED_ADDR_EQUAL(&pr->ndpr_prefix.sin6_addr,
-		    &addr->sin6_addr, &pr->ndpr_mask))
+		    addr, &pr->ndpr_mask))
 			return (1);
 	}
 
@@ -930,7 +929,7 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 	 * If the address is assigned on the node of the other side of
 	 * a p2p interface, the address should be a neighbor.
 	 */
-	ia6 = in6ifa_ifpwithdstaddr(ifp, &addr->sin6_addr);
+	ia6 = in6ifa_ifpwithdstaddr(ifp, addr);
 	if (ia6 != NULL) {
 		ifa_free(&ia6->ia_ifa);
 		return (1);
@@ -955,7 +954,7 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
  * XXX: should take care of the destination of a p2p link?
  */
 int
-nd6_is_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
+nd6_is_addr_neighbor(struct in6_addr *addr, struct ifnet *ifp)
 {
 	struct llentry *lle;
 	int rc = 0;
@@ -969,7 +968,7 @@ nd6_is_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 	 * in the neighbor cache.
 	 */
 	IF_AFDATA_RLOCK(ifp);
-	if ((lle = nd6_lookup(&addr->sin6_addr, 0, ifp)) != NULL) {
+	if ((lle = nd6_lookup(addr, 0, ifp)) != NULL) {
 		LLE_RUNLOCK(lle);
 		rc = 1;
 	}
@@ -1869,7 +1868,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 		IF_AFDATA_LOCK(ifp);
 		ln = lla_lookup(LLTABLE6(ifp), flags, (struct sockaddr *)dst);
 		IF_AFDATA_UNLOCK(ifp);
-		if ((ln == NULL) && nd6_is_addr_neighbor(dst, ifp))  {
+		if (ln == NULL &&nd6_is_addr_neighbor(&dst->sin6_addr, ifp)) {
 			/*
 			 * Since nd6_is_addr_neighbor() internally calls nd6_lookup(),
 			 * the condition below is not very efficient.  But we believe
