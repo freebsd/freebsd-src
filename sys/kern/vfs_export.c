@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <vps/vps.h>
+#include <vps/vps2.h>
 
 #include <net/radix.h>
 
@@ -129,6 +130,10 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 		    argp->ex_anon.cr_groups);
 		np->netc_anon->cr_prison = V_prison0;
 		prison_hold(np->netc_anon->cr_prison);
+#ifdef VPS
+		np->netc_anon->cr_vps = curthread->td_vps;
+		vps_ref(np->netc_anon->cr_vps, np->netc_anon);
+#endif
 		np->netc_numsecflavors = argp->ex_numsecflavors;
 		bcopy(argp->ex_secflavors, np->netc_secflavors,
 		    sizeof(np->netc_secflavors));
@@ -215,6 +220,10 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 	    argp->ex_anon.cr_groups);
 	np->netc_anon->cr_prison = V_prison0;
 	prison_hold(np->netc_anon->cr_prison);
+#ifdef VPS
+	np->netc_anon->cr_vps = curthread->td_vps;
+	vps_ref(np->netc_anon->cr_vps, np->netc_anon);
+#endif
 	np->netc_numsecflavors = argp->ex_numsecflavors;
 	bcopy(argp->ex_secflavors, np->netc_secflavors,
 	    sizeof(np->netc_secflavors));

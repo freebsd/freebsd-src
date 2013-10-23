@@ -1863,8 +1863,11 @@ crfree(struct ucred *cr)
 	struct vps *vps_save;
 
 	vps_save = curthread->td_vps;
-	KASSERT(cr->cr_vps != NULL, ("%s: cr->cr_vps == NULL", __func__));
-	KASSERT((cr->cr_ref & 0xffff0000) != 0xdead0000, ("dangling reference to ucred 2: cr=%p cr_ref=%08x", cr, cr->cr_ref));
+	KASSERT(cr->cr_vps != NULL,
+	    ("%s: cr->cr_vps == NULL, cr=%p", __func__, cr));
+	KASSERT((cr->cr_ref & 0xffff0000) != 0xdead0000,
+	    ("%s: dangling reference to ucred 2: cr=%p cr_ref=%08x",
+	    __func__, cr, cr->cr_ref));
 #endif
 
 	KASSERT(cr->cr_ref > 0, ("bad ucred refcount: %d", cr->cr_ref));
