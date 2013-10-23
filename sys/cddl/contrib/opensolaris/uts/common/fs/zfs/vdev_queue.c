@@ -155,6 +155,8 @@ vdev_queue_init(vdev_t *vd)
 
 	avl_create(&vq->vq_pending_tree, vdev_queue_offset_compare,
 	    sizeof (zio_t), offsetof(struct zio, io_offset_node));
+
+	vq->vq_lastoffset = 0;
 }
 
 void
@@ -445,4 +447,27 @@ vdev_queue_io_done(zio_t *zio)
 	}
 
 	mutex_exit(&vq->vq_lock);
+}
+
+/*
+ * As these three methods are only used for load calculations we're not concerned
+ * if we get an incorrect value on 32bit platforms due to lack of vq_lock mutex
+ * use here, instead we prefer to keep it lock free for performance.
+ */ 
+int
+vdev_queue_length(vdev_t *vd)
+{
+	return (avl_numnodes(&vd->vdev_queue.vq_pending_tree));
+}
+
+uint64_t
+vdev_queue_lastoffset(vdev_t *vd)
+{
+	return (vd->vdev_queue.vq_lastoffset);
+}
+
+void
+vdev_queue_register_lastoffset(vdev_t *vd, zio_t *zio)
+{
+	vd->vdev_queue.vq_lastoffset = zio->io_offset + zio->io_size;
 }
