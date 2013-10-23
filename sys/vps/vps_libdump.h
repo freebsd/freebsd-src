@@ -60,8 +60,11 @@ int vps_dumpobj_append(struct vps_snapst_ctx *ctx, const void *data,
 void vps_dumpobj_close(struct vps_snapst_ctx *ctx);
 void vps_dumpobj_discard(struct vps_snapst_ctx *ctx, struct vps_dumpobj *o);
 int vps_dumpobj_checkobj(struct vps_snapst_ctx *ctx, struct vps_dumpobj *o);
+void vps_dumpobj_setcur(struct vps_snapst_ctx *ctx, struct vps_dumpobj *o);
 struct vps_dumpobj *vps_dumpobj_next(struct vps_snapst_ctx *ctx);
 struct vps_dumpobj *vps_dumpobj_prev(struct vps_snapst_ctx *ctx);
+struct vps_dumpobj *vps_dumpobj_peek(struct vps_snapst_ctx *ctx);
+struct vps_dumpobj *vps_dumpobj_getcur(struct vps_snapst_ctx *ctx);
 int vps_dumpobj_typeofnext(struct vps_snapst_ctx *ctx);
 int vps_dumpobj_nextischild(struct vps_snapst_ctx *ctx,
     struct vps_dumpobj *op);
@@ -128,7 +131,7 @@ void vps_libdump_printheader(struct vps_dumpheader *h);
 #define VPS_DUMPOBJT_UCRED              120
 
 #define VPS_DUMPH_MAGIC			0xc0debabe
-#define VPS_DUMPH_VERSION		0x20130709
+#define VPS_DUMPH_VERSION		0x20130715
 #define VPS_DUMPH_MSB			12
 #define VPS_DUMPH_LSB			21
 #define VPS_DUMPH_32BIT			32
@@ -233,7 +236,8 @@ struct vps_dumpobj {
 	uint16 type;
 	uint16 level;	/* level this object is in */
 	uint32 size;	/* size of this object including it's header */
-	uint32 pad0;
+	sint16 prio;	/* priority; 0 == any */
+	uint16 pad0;
 	PTR(parent);	/* offset to parent object (from start of
 			   snapshot) */
 	PTR(next);	/* offset to next object (from start of

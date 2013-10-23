@@ -161,8 +161,11 @@ int vps_dumpobj_append(struct vps_snapst_ctx *ctx, const void *data,
 void vps_dumpobj_close(struct vps_snapst_ctx *ctx);
 void vps_dumpobj_discard(struct vps_snapst_ctx *ctx, struct vps_dumpobj *o);
 int vps_dumpobj_checkobj(struct vps_snapst_ctx *ctx, struct vps_dumpobj *o);
+void vps_dumpobj_setcur(struct vps_snapst_ctx *ctx, struct vps_dumpobj *o);
 struct vps_dumpobj *vps_dumpobj_next(struct vps_snapst_ctx *ctx);
 struct vps_dumpobj *vps_dumpobj_prev(struct vps_snapst_ctx *ctx);
+struct vps_dumpobj *vps_dumpobj_peek(struct vps_snapst_ctx *ctx);
+struct vps_dumpobj *vps_dumpobj_getcur(struct vps_snapst_ctx *ctx);
 int vps_dumpobj_typeofnext(struct vps_snapst_ctx *ctx);
 int vps_dumpobj_nextischild(struct vps_snapst_ctx *ctx,
     struct vps_dumpobj *op);
@@ -487,6 +490,7 @@ vps_dumpobj_create(struct vps_snapst_ctx *ctx, int type, __unused int how)
 	o->type = type;
 	o->level = ++ctx->level;
 	o->size = sizeof(*o);
+	o->prio = 0;
 	o->next = ctx->cpos;
 	o->parent = ctx->curobj;
 	if (ctx->elements == 0) {
@@ -701,6 +705,35 @@ vps_dumpobj_typeofnext(struct vps_snapst_ctx *ctx)
 	return (o->type);
 }
 
+struct vps_dumpobj *
+vps_dumpobj_peek(struct vps_snapst_ctx *ctx)
+{
+	struct vps_dumpobj *o;
+
+	if (ctx->relative)
+		return (0);
+
+	/* Assumes that the current object has been validated. */
+	o = ctx->curobj->next;
+	if (o == ctx->rootobj)
+		return (0);
+
+	if (vps_dumpobj_checkobj(ctx, o))
+		return (0);
+
+	return (o);
+}
+
+struct vps_dumpobj *
+vps_dumpobj_getcur(struct vps_snapst_ctx *ctx)
+{
+
+	if (ctx->relative)
+		return (NULL);
+
+	return (ctx->curobj);
+}
+
 int
 vps_dumpobj_nextischild(struct vps_snapst_ctx *ctx, struct vps_dumpobj *op)
 {
@@ -733,6 +766,7 @@ vps_dumpobj_nextischild(struct vps_snapst_ctx *ctx, struct vps_dumpobj *op)
 struct vps_dumpobj *
 vps_dumpobj_prev(struct vps_snapst_ctx *ctx)
 {
+
 	if (ctx->relative)
 		return (NULL);
 
@@ -743,6 +777,22 @@ vps_dumpobj_prev(struct vps_snapst_ctx *ctx)
 	ctx->curobj = ctx->lastobj;
 
 	return (ctx->curobj);
+}
+
+void
+vps_dumpobj_setcur(struct vps_snapst_ctx *ctx, struct vps_dumpobj *o)
+{
+
+	if (ctx->relative)
+		return;
+
+	/* XXX
+	if (vps_dumpobj_checkobj(ctx, o))
+	*/
+
+	ctx->curobj = o;
+
+	/* NOTE: ctx->lastobj is invalid now */
 }
 
 /* Check a single object for sanity. */
@@ -1217,10 +1267,16 @@ vps_libdump_modevent(module_t mod, int type, void *data)
 		    vps_dumpobj_discard;
 		vps_func->vps_dumpobj_checkobj =
 		    vps_dumpobj_checkobj;
+		vps_func->vps_dumpobj_setcur =
+		    vps_dumpobj_setcur;
 		vps_func->vps_dumpobj_next =
 		    vps_dumpobj_next;
 		vps_func->vps_dumpobj_prev =
 		    vps_dumpobj_prev;
+		vps_func->vps_dumpobj_peek =
+		    vps_dumpobj_peek;
+		vps_func->vps_dumpobj_getcur =
+		    vps_dumpobj_getcur;
 		vps_func->vps_dumpobj_typeofnext =
 		    vps_dumpobj_typeofnext;
 		vps_func->vps_dumpobj_nextischild =
@@ -1251,8 +1307,11 @@ vps_libdump_modevent(module_t mod, int type, void *data)
 		vps_func->vps_dumpobj_close = NULL;
 		vps_func->vps_dumpobj_discard = NULL;
 		vps_func->vps_dumpobj_checkobj = NULL;
+		vps_func->vps_dumpobj_setcur = NULL;
 		vps_func->vps_dumpobj_next = NULL;
 		vps_func->vps_dumpobj_prev = NULL;
+		vps_func->vps_dumpobj_peek = NULL;
+		vps_func->vps_dumpobj_getcur = NULL;
 		vps_func->vps_dumpobj_typeofnext = NULL;
 		vps_func->vps_dumpobj_nextischild = NULL;
 		vps_func->vps_dumpobj_recurse = NULL;

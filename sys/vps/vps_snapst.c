@@ -2336,33 +2336,21 @@ vps_snapshot_socket(struct vps_snapst_ctx *ctx, struct vps *vps,
 	return (error);
 }
 
-#define KQ_LOCK(kq) do {                                                \
-        mtx_lock(&(kq)->kq_lock);                                       \
-} while (0)
-
-#define KQ_UNLOCK(kq) do {                                                \
-        mtx_unlock(&(kq)->kq_lock);                                       \
-} while (0)
-
-#if 0
-struct kevent {
-        uintptr_t       ident;          /* identifier for this event */
-        short           filter;         /* filter for event */
-        u_short         flags;
-        u_int           fflags;
-        intptr_t        data;
-        void            *udata;         /* opaque user data identifier */
-};
-#endif
+/* XXX */
+int kqueue_register(struct kqueue *kq, struct kevent *kev,
+    struct thread *td, int waitok);
+int kqueue_acquire(struct file *fp, struct kqueue **kqp);
+void kqueue_release(struct kqueue *kq, int locked);
 
 VPSFUNC
 __attribute__((unused))
 static int
 vps_snapshot_kqueue(struct vps_snapst_ctx *ctx, struct vps *vps,
-    struct kqueue *kq)
+    struct file *fp)
 {
 	struct vps_dump_knote *vdkn;
 	struct kevent *kev;
+	struct kqueue *kq;
 	struct knote *kn;
 	int error;
 	int i;
@@ -2371,14 +2359,18 @@ vps_snapshot_kqueue(struct vps_snapst_ctx *ctx, struct vps *vps,
 
 	vdo_create(ctx, VPS_DUMPOBJT_KQUEUE, M_WAITOK);
 
-	KQ_LOCK(kq);
-	kq->kq_refcnt++;
+	kq = NULL;
+        if ((error = kqueue_acquire(fp, &kq)) != 0) {
+		ERRMSG(ctx, "%s: kqueue_acquire(): error=%d\n",
+		    __func__, error);
+		goto out;
+	}
 
 	for (i = 0; i < kq->kq_knlistsize; i++) {
 		/*DBGS("%s: kqueue=%p i=%d\n", __func__, kq, i);*/
 		SLIST_FOREACH(kn, &kq->kq_knlist[i], kn_link) {
 			DBGS("%s: knote=%p kn_status=%08x\n",
-				__func__, kn, kn->kn_status);
+			    __func__, kn, kn->kn_status);
 			if (kn != NULL && (kn->kn_status & KN_INFLUX) ==
 			    KN_INFLUX) {
 				DBGS("%s: kn->kn_status & KN_INFLUX\n",
@@ -2414,10 +2406,9 @@ vps_snapshot_kqueue(struct vps_snapst_ctx *ctx, struct vps *vps,
 		}
 	}
 
-        kq->kq_refcnt--;
-	if (kq->kq_refcnt == 1)
-		wakeup(&kq->kq_refcnt);
-	KQ_UNLOCK(kq);
+  out:
+	if (kq != NULL)
+		kqueue_release(kq, 0);
 
 	vdo_close(ctx);
 
@@ -2432,6 +2423,7 @@ vps_snapshot_fdset(struct vps_snapst_ctx *ctx, struct vps *vps,
 	struct vps_restore_obj *vbo;
 	struct vps_dump_filedesc *vdfd;
 	struct vps_dump_file *vdf;
+	struct vps_dumpobj *o1;
 	struct filedesc *fdp;
 	struct file *fp;
 	int error = 0;
@@ -2499,7 +2491,7 @@ vps_snapshot_fdset(struct vps_snapst_ctx *ctx, struct vps *vps,
 			continue;
 		}
 
-		vdo_create(ctx, VPS_DUMPOBJT_FILE, M_WAITOK);
+		o1 = vdo_create(ctx, VPS_DUMPOBJT_FILE, M_WAITOK);
 
 		vdf = vdo_space(ctx, sizeof(*vdf), M_WAITOK);
 
@@ -2558,9 +2550,10 @@ vps_snapshot_fdset(struct vps_snapst_ctx *ctx, struct vps *vps,
 				__func__, fp, fp->f_data);
 			if (fp->f_data == NULL)
 				break;
-			if ((error = vps_snapshot_kqueue(ctx, vps,
-			    fp->f_data)))
+			if ((error = vps_snapshot_kqueue(ctx, vps, fp)))
 				goto out;
+			/* kqueue has to be restored last */
+			o1->prio = -100;
 			break;
 
 		default:

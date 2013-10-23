@@ -93,8 +93,8 @@ static int	kevent_copyout(void *arg, struct kevent *kevp, int count);
 static int	kevent_copyin(void *arg, struct kevent *kevp, int count);
 /* XXX static*/ int	kqueue_register(struct kqueue *kq, struct kevent *kev,
 		    struct thread *td, int waitok);
-static int	kqueue_acquire(struct file *fp, struct kqueue **kqp);
-static void	kqueue_release(struct kqueue *kq, int locked);
+/* XXX static*/ int	kqueue_acquire(struct file *fp, struct kqueue **kqp);
+/* XXX static*/ void	kqueue_release(struct kqueue *kq, int locked);
 static int	kqueue_expand(struct kqueue *kq, struct filterops *fops,
 		    uintptr_t ident, int waitok);
 static void	kqueue_task(void *arg, int pending);
@@ -1155,7 +1155,7 @@ done:
 	return (error);
 }
 
-static int
+/* XXX static*/ int
 kqueue_acquire(struct file *fp, struct kqueue **kqp)
 {
 	int error;
@@ -1178,7 +1178,7 @@ kqueue_acquire(struct file *fp, struct kqueue **kqp)
 	return error;
 }
 
-static void
+/* XXX static*/ void
 kqueue_release(struct kqueue *kq, int locked)
 {
 	if (locked)

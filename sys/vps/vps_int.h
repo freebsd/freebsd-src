@@ -59,8 +59,12 @@ void			(*vps_dumpobj_discard)(struct vps_snapst_ctx *ctx,
 				struct vps_dumpobj *o);
 int			(*vps_dumpobj_checkobj)(struct vps_snapst_ctx *ctx,
 				struct vps_dumpobj *o);
+void			(*vps_dumpobj_setcur)(struct vps_snapst_ctx *ctx,
+				struct vps_dumpobj *o);
 struct vps_dumpobj *	(*vps_dumpobj_next)(struct vps_snapst_ctx *ctx);
 struct vps_dumpobj *	(*vps_dumpobj_prev)(struct vps_snapst_ctx *ctx);
+struct vps_dumpobj *	(*vps_dumpobj_peek)(struct vps_snapst_ctx *ctx);
+struct vps_dumpobj *	(*vps_dumpobj_getcur)(struct vps_snapst_ctx *ctx);
 int			(*vps_dumpobj_typeofnext)(struct vps_snapst_ctx
 				*ctx);
 int			(*vps_dumpobj_nextischild)(struct vps_snapst_ctx
@@ -168,8 +172,11 @@ extern struct vps_functions *vps_func;
 #define vdo_close		vps_func->vps_dumpobj_close
 #define vdo_discard		vps_func->vps_dumpobj_discard
 #define vdo_checkobj		vps_func->vps_dumpobj_checkobj
+#define vdo_setcur		vps_func->vps_dumpobj_setcur
 #define vdo_next		vps_func->vps_dumpobj_next
 #define vdo_prev		vps_func->vps_dumpobj_prev
+#define vdo_peek		vps_func->vps_dumpobj_peek
+#define vdo_getcur		vps_func->vps_dumpobj_getcur
 #define vdo_typeofnext		vps_func->vps_dumpobj_typeofnext
 #define vdo_nextischild		vps_func->vps_dumpobj_nextischild
 #define vdo_recurse		vps_func->vps_dumpobj_recurse
