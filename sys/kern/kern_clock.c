@@ -214,6 +214,7 @@ deadlkres(void)
 		save_vps = curthread->td_vps;
 		sx_slock(&vps_all_lock);
 		LIST_FOREACH_SAFE(vps, &vps_head, vps_all, vps_tmp) {
+		vps_ref(vps, (struct ucred *)&deadlkres);
 		sx_sunlock(&vps_all_lock);
 		curthread->td_vps = vps;
 #endif /* VPS */
@@ -233,6 +234,7 @@ deadlkres(void)
 			tryl++;
 			pause("allproc", sleepfreq * hz);
 #ifdef VPS
+			vps_deref(vps, (struct ucred *)&deadlkres);
 			sx_slock(&vps_all_lock);
 #endif /* VPS */
 			continue;
@@ -330,6 +332,7 @@ deadlkres(void)
 		}
 		sx_sunlock(&V_allproc_lock);
 #ifdef VPS
+		vps_deref(vps, (struct ucred *)&deadlkres);
 		sx_slock(&vps_all_lock);
 		}
 		sx_sunlock(&vps_all_lock);
