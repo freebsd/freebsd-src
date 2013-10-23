@@ -422,6 +422,15 @@ void	bintime(struct bintime *bt);
 void	nanotime(struct timespec *tsp);
 void	microtime(struct timeval *tvp);
 
+static __inline sbintime_t
+sbintime(void)
+{
+	struct bintime bt;
+
+	bintime(&bt);
+	return (bttosbt(bt));
+}
+
 void	getbinuptime(struct bintime *bt);
 void	getnanouptime(struct timespec *tsp);
 void	getmicrouptime(struct timeval *tvp);
@@ -438,6 +447,15 @@ getsbinuptime(void)
 void	getbintime(struct bintime *bt);
 void	getnanotime(struct timespec *tsp);
 void	getmicrotime(struct timeval *tvp);
+
+static __inline sbintime_t
+getsbintime(void)
+{
+	struct bintime bt;
+
+	getbintime(&bt);
+	return (bttosbt(bt));
+}
 
 /* Other functions */
 int	itimerdecr(struct itimerval *itp, int usec);
