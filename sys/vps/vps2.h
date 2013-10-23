@@ -162,7 +162,6 @@ int vps_free_locked(struct vps *);
 int vps_destroy(struct vps *);
 void vps_ref(struct vps *, struct ucred *);
 void vps_deref(struct vps *, struct ucred *);
-int vps_canseemount(struct ucred *, struct mount *);
 
 int vps_devfs_ruleset_create(struct vps *vps);
 int vps_devfs_ruleset_destroy(struct vps *vps);
@@ -219,6 +218,9 @@ int vps_ioc_getconsfd(struct vps *, struct vps_dev_ctx *, u_long, caddr_t,
 struct in_addr;
 struct in6_addr;
 struct vps_arg_item;
+struct ucred;
+struct mount;
+struct statfs;
 
 void vps_priv_setdefault(struct vps *, struct vps_param *);
 int vps_priv_setitem(struct vps *, struct vps *, struct vps_arg_item *);
@@ -228,6 +230,8 @@ int vps_ip_getitemall(struct vps *, struct vps *, caddr_t, size_t *);
 int vps_priv_check(struct ucred *, int);
 int vps_ip4_check(struct vps *, struct in_addr *, struct in_addr *);
 int vps_ip6_check(struct vps *, struct in6_addr *, u_int8_t);
+int vps_canseemount(struct ucred *, struct mount *);
+void vps_statfs(struct ucred *cred, struct mount *mp, struct statfs *sp);
 
 int vps_console_fdopen(struct cdev *, int, struct thread *, struct file *);
 int vps_console_init(void);

@@ -550,6 +550,37 @@ out:
 	return (error);
 }
 
+void
+vps_statfs(struct ucred *cred, struct mount *mp, struct statfs *sp)
+{
+	char buf[MAXPATHLEN];
+	struct vps *vps;
+	int len;
+
+	vps = cred->cr_vps;
+
+	if (vps == vps0)
+		return;
+
+	if (vps->_rootpath[0] == 0)
+		return;
+
+	memcpy(buf, sp->f_mntonname, sizeof(buf));
+	bzero(sp->f_mntonname, sizeof(sp->f_mntonname));
+	len = sizeof(buf) - strlen(vps->_rootpath);
+	if (len > sizeof(sp->f_mntonname))
+		len = sizeof(sp->f_mntonname);
+	memcpy(sp->f_mntonname, buf + strlen(vps->_rootpath), len);
+	sp->f_mntonname[sizeof(sp->f_mntonname) - 1] = '\0';
+
+	if (sp->f_mntonname[0] == '\0')
+		/* This is the case where for the root fs. */
+		strcpy(sp->f_mntonname, "/");
+
+	DBGCORE("%s: vps=%p [%s] --> [%s]\n",
+	    __func__, vps, buf, sp->f_mntonname);
+}
+
 int
 vps_priv_setitem(struct vps *vpsp, struct vps *vps,
     struct vps_arg_item *item)

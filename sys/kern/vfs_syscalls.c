@@ -339,8 +339,17 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	error = VFS_STATFS(mp, sp);
 	if (error)
 		goto out;
-	if (priv_check(td, PRIV_VFS_GENERATION)) {
+#ifdef VPS
+	if (td->td_ucred->cr_vps != vps0) {
 		bcopy(sp, &sb, sizeof(sb));
+		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
+		vps_statfs(td->td_ucred, mp, &sb);
+		sp = &sb;
+	}
+#endif
+	if (priv_check(td, PRIV_VFS_GENERATION)) {
+		if (sp != &sb)
+			bcopy(sp, &sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		prison_enforce_statfs(td->td_ucred, mp, &sb);
 		sp = &sb;
@@ -423,8 +432,17 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	error = VFS_STATFS(mp, sp);
 	if (error)
 		goto out;
-	if (priv_check(td, PRIV_VFS_GENERATION)) {
+#ifdef VPS
+	if (td->td_ucred->cr_vps != vps0) {
 		bcopy(sp, &sb, sizeof(sb));
+		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
+		vps_statfs(td->td_ucred, mp, &sb);
+		sp = &sb;
+	}
+#endif
+	if (priv_check(td, PRIV_VFS_GENERATION)) {
+		if (sp != &sb)
+			bcopy(sp, &sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		prison_enforce_statfs(td->td_ucred, mp, &sb);
 		sp = &sb;
@@ -536,8 +554,17 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 				vfs_unbusy(mp);
 				continue;
 			}
-			if (priv_check(td, PRIV_VFS_GENERATION)) {
+#ifdef VPS
+			if (td->td_ucred->cr_vps != vps0) {
 				bcopy(sp, &sb, sizeof(sb));
+				sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
+				vps_statfs(td->td_ucred, mp, &sb);
+				sp = &sb;
+			}
+#endif
+			if (priv_check(td, PRIV_VFS_GENERATION)) {
+				if (sp != &sb)
+					bcopy(sp, &sb, sizeof(sb));
 				sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 				prison_enforce_statfs(td->td_ucred, mp, &sb);
 				sp = &sb;
