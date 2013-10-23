@@ -848,6 +848,7 @@ vps_deref(struct vps *vps, struct ucred *ucred)
 #endif
 
 	if (last) {
+		sx_xlock(&vps->vps_lock);
 		KASSERT(vps->vps_status == VPS_ST_DEAD,
 		    ("%s: vps=%p; released last reference but "
 		    "vps_status = %d\n", __func__, vps, vps->vps_status));
@@ -875,6 +876,7 @@ vps_deref(struct vps *vps, struct ucred *ucred)
 		    vps_destroy_task, vps);
 		taskqueue_enqueue_timeout(taskqueue_thread, &vps->vps_task,
 		    1 * hz /* ticks */);
+		sx_xunlock(&vps->vps_lock);
 	}
 }
 

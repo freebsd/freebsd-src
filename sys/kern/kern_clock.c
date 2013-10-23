@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 
 #include <vps/vps.h>
 #include <vps/vps2.h>
+#define _VPS_USER_H__ONLY_FLAGS
+#include <vps/vps_user.h>
 
 #ifdef GPROF
 #include <sys/gmon.h>
@@ -214,6 +216,8 @@ deadlkres(void)
 		save_vps = curthread->td_vps;
 		sx_slock(&vps_all_lock);
 		LIST_FOREACH_SAFE(vps, &vps_head, vps_all, vps_tmp) {
+		if (vps->vps_status == VPS_ST_DEAD)
+			continue;
 		vps_ref(vps, (struct ucred *)&deadlkres);
 		sx_sunlock(&vps_all_lock);
 		curthread->td_vps = vps;
