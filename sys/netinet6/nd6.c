@@ -1242,8 +1242,6 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			if (i >= DRLSTSIZ)
 				break;
 			drl->defrouter[i].rtaddr = dr->rtaddr;
-			in6_clearscope(&drl->defrouter[i].rtaddr);
-
 			drl->defrouter[i].flags = dr->flags;
 			drl->defrouter[i].rtlifetime = dr->rtlifetime;
 			drl->defrouter[i].expire = dr->expire +
@@ -1300,10 +1298,8 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			j = 0;
 			LIST_FOREACH(pfr, &pr->ndpr_advrtrs, pfr_entry) {
 				if (j < DRLSTSIZ) {
-#define RTRADDR oprl->prefix[i].advrtr[j]
-					RTRADDR = pfr->router->rtaddr;
-					in6_clearscope(&RTRADDR);
-#undef RTRADDR
+					oprl->prefix[i].advrtr[j] =
+					    pfr->router->rtaddr;
 				}
 				j++;
 			}
@@ -1495,13 +1491,9 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 	case SIOCGNBRINFO_IN6:
 	{
 		struct llentry *ln;
-		struct in6_addr nb_addr = nbi->addr; /* make local for safety */
-
-		if ((error = in6_setscope(&nb_addr, ifp, NULL)) != 0)
-			return (error);
 
 		IF_AFDATA_RLOCK(ifp);
-		ln = nd6_lookup(&nb_addr, 0, ifp);
+		ln = nd6_lookup(&nbi->addr, 0, ifp);
 		IF_AFDATA_RUNLOCK(ifp);
 
 		if (ln == NULL) {
