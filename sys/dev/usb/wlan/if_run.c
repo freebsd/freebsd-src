@@ -4634,7 +4634,7 @@ run_rt3070_rf_setup(struct run_softc *sc)
 			run_bbp_write(sc, 31, bbp & ~0x03);
 		}
 
-		if (sc->mac_rev < 0x0211) {
+		if (sc->mac_rev < 0x0201) {
 			run_write(sc, RT2860_TX_SW_CFG1, 0);
 			run_write(sc, RT2860_TX_SW_CFG2, 0x2c);
 		} else
