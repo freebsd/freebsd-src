@@ -54,7 +54,7 @@ static MALLOC_DEFINE(M_VTBUF, "vtbuf", "vt buffer");
 int
 vthistory_seek(struct vt_buf *vb, int offset, int whence)
 {
-	int roffset;
+	int top, bottom, roffset;
 
 	/* No scrolling if not enabled. */
 	if ((vb->vb_flags & VBF_SCROLL) == 0) {
@@ -64,11 +64,15 @@ vthistory_seek(struct vt_buf *vb, int offset, int whence)
 		}
 		return (0); /* No changes */
 	}
+	top = (vb->vb_flags & VBF_HISTORY_FULL)?
+	    (vb->vb_curroffset + vb->vb_scr_size.tp_row):vb->vb_history_size;
+	bottom = vb->vb_curroffset + vb->vb_history_size;
+
 	/*
 	 * Operate on copy of offset value, since it temporary can be bigger
 	 * than amount of rows in buffer.
 	 */
-	roffset = vb->vb_roffset;
+	roffset = vb->vb_roffset + vb->vb_history_size;
 	switch (whence) {
 	case VHS_SET:
 		roffset = offset;
@@ -82,11 +86,10 @@ vthistory_seek(struct vt_buf *vb, int offset, int whence)
 		break;
 	}
 
-	if (roffset < 0)
-		roffset = 0;
-	if (roffset >= vb->vb_history_size)
-		/* Still have screen_height rows. */
-		roffset %= VTBUF_MAX_HEIGHT(vb);
+	roffset = (roffset < top)?top:roffset;
+	roffset = (roffset > bottom)?bottom:roffset;
+
+	roffset %= vb->vb_history_size;
 
 	if (vb->vb_roffset != roffset) {
 		vb->vb_roffset = roffset;
