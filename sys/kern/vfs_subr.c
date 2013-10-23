@@ -3201,9 +3201,9 @@ sysctl_vfs_conflist(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_vfs, OID_AUTO, conflist, CTLTYPE_OPAQUE | CTLFLAG_RD,
+_SYSCTL_PROC(_vfs, OID_AUTO, conflist, CTLTYPE_OPAQUE | CTLFLAG_RD,
     NULL, 0, sysctl_vfs_conflist,
-    "S,xvfsconf", "List of all configured filesystems");
+    "S,xvfsconf", "List of all configured filesystems", VPS_PUBLIC);
 
 #ifndef BURN_BRIDGES
 static int	sysctl_ovfs_conf(SYSCTL_HANDLER_ARGS);
