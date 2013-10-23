@@ -67,10 +67,6 @@ static int vpsfs_readdir(struct thread *td, struct vnode *vp,
     int dirbuflen, struct vpsfs_limits *,
     void (*cbfunc)(struct vnode *, struct vpsfs_limits *, struct thread *));
 
-static int get_next_dirent(struct vnode *vp, struct dirent **dpp,
-    char *dirbuf, int dirbuflen, off_t *off, char **cpos, int *len,
-    int *eofflag, struct thread *td);
-
 static void vpsfs_calcvnode(struct vnode *vp, struct vpsfs_limits *limits,
     struct thread *td);
 
@@ -608,63 +604,6 @@ vpsfs_readdir(struct thread *td, struct vnode *vp, int dirbuflen,
  out:
 	free(dirbuf, M_TEMP);
 	return (error);
-}
-
-/* copied from kern/vfs_default.c */
-static int
-get_next_dirent(struct vnode *vp, struct dirent **dpp, char *dirbuf,
-		int dirbuflen, off_t *off, char **cpos, int *len,
-		int *eofflag, struct thread *td)
-{
-	int error, reclen;
-	struct uio uio;
-	struct iovec iov;
-	struct dirent *dp;
-
-	KASSERT(VOP_ISLOCKED(vp), ("vp %p is not locked", vp));
-	KASSERT(vp->v_type == VDIR, ("vp %p is not a directory", vp));
-
-	if (*len == 0) {
-		iov.iov_base = dirbuf;
-		iov.iov_len = dirbuflen;
-
-		uio.uio_iov = &iov;
-		uio.uio_iovcnt = 1;
-		uio.uio_offset = *off;
-		uio.uio_resid = dirbuflen;
-		uio.uio_segflg = UIO_SYSSPACE;
-		uio.uio_rw = UIO_READ;
-		uio.uio_td = td;
-
-		*eofflag = 0;
-
-#ifdef MAC
-		error = mac_vnode_check_readdir(td->td_ucred, vp);
-		if (error == 0)
-#endif
-			error = VOP_READDIR(vp, &uio, td->td_ucred, eofflag,
-				NULL, NULL);
-		if (error)
-			return (error);
-
-		*off = uio.uio_offset;
-
-		*cpos = dirbuf;
-		*len = (dirbuflen - uio.uio_resid);
-	}
-
-	dp = (struct dirent *)(*cpos);
-	reclen = dp->d_reclen;
-	*dpp = dp;
-
-	/* check for malformed directory.. */
-	if (reclen < DIRENT_MINSIZE)
-		return (EINVAL);
-
-	*cpos += reclen;
-	*len -= reclen;
-
-	return (0);
 }
 
 #endif /* VPS */

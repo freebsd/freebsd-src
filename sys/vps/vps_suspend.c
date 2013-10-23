@@ -118,9 +118,6 @@ static int vps_access_vmspace(struct vmspace *vm, vm_offset_t vaddr,
     size_t len, void *buf, int prot);
 
 static int vps_resume_relinkvnodes(struct vps *vps);
-static int get_next_dirent(struct vnode *vp, struct dirent **dpp,
-    char *dirbuf, int dirbuflen, off_t *off, char **cpos,
-    int *len, int *eofflag, struct thread *td);
 static int vps_suspend_relink_delete(struct vnode *vp);
 
 static int vps_suspend_mod_refcnt;
@@ -979,65 +976,6 @@ vps_suspend_relink_delete(struct vnode *vp)
 	td->td_proc->p_fd->fd_cdir = save_cdir;
 	free(dirbuf, M_TEMP);
 	return (error);
-}
-
-#define DIRENT_MINSIZE (sizeof(struct dirent) - (MAXNAMLEN+1) + 4)
-
-/* copied from kern/vfs_default.c */
-static int
-get_next_dirent(struct vnode *vp, struct dirent **dpp, char *dirbuf,
-                int dirbuflen, off_t *off, char **cpos, int *len,
-                int *eofflag, struct thread *td)
-{
-        int error, reclen;
-        struct uio uio;
-        struct iovec iov;
-        struct dirent *dp;
-
-        KASSERT(VOP_ISLOCKED(vp), ("vp %p is not locked", vp));
-        KASSERT(vp->v_type == VDIR, ("vp %p is not a directory", vp));
-
-        if (*len == 0) {
-                iov.iov_base = dirbuf;
-                iov.iov_len = dirbuflen;
-
-                uio.uio_iov = &iov;
-                uio.uio_iovcnt = 1;
-                uio.uio_offset = *off;
-                uio.uio_resid = dirbuflen;
-                uio.uio_segflg = UIO_SYSSPACE;
-                uio.uio_rw = UIO_READ;
-                uio.uio_td = td;
-
-                *eofflag = 0;
-
-#ifdef MAC
-                error = mac_vnode_check_readdir(td->td_ucred, vp);
-                if (error == 0)
-#endif
-                        error = VOP_READDIR(vp, &uio, td->td_ucred, eofflag,
-                                NULL, NULL);
-                if (error)
-                        return (error);
-
-                *off = uio.uio_offset;
-
-                *cpos = dirbuf;
-                *len = (dirbuflen - uio.uio_resid);
-        }
-
-        dp = (struct dirent *)(*cpos);
-        reclen = dp->d_reclen;
-        *dpp = dp;
-
-        /* check for malformed directory.. */
-        if (reclen < DIRENT_MINSIZE)
-                return (EINVAL);
-
-        *cpos += reclen;
-        *len -= reclen;
-
-        return (0);
 }
 
 static int

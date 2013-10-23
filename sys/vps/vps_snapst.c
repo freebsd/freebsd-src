@@ -656,6 +656,11 @@ vps_snapshot_vnodepath(struct vps_snapst_ctx *ctx, struct vps *vps,
 {
 	struct vps_dumpobj *o1;
 	struct vps_dump_filepath *vdfp;
+	/*
+	struct ucred *save_ucred;
+	struct vps *save_vps;
+	struct thread *td;
+	*/
 	char *retbuf, *buf;
 	int error;
 
@@ -671,9 +676,29 @@ vps_snapshot_vnodepath(struct vps_snapst_ctx *ctx, struct vps *vps,
 		vrele(vp);
 		return (ENOMEM);
 	}
+
+#if 0
+// not yet ... for devfs lookups
+	td = curthread;
+	save_ucred = td->td_ucred;
+	save_vps = td->td_vps;
+	td->td_ucred = crdup(save_ucred);
+	vps_deref(td->td_ucred->cr_vps, td->td_ucred);
+	td->td_ucred->cr_vps = vps;
+	vps_ref(td->td_ucred->cr_vps, td->td_ucred);
+	td->td_vps = vps;
+#endif
+	
 	retbuf = "-";
-	error = vn_fullpath1(curthread, vp, vps->_rootvnode,
+	error = vn_fullpath1_failsafe(curthread, vp, vps->_rootvnode,
 				buf, &retbuf, MAXPATHLEN);
+
+#if 0
+	crfree(td->td_ucred);
+	td->td_ucred = save_ucred;
+	td->td_vps = save_vps;
+#endif
+
 	if (error != 0) {
 		free(buf, M_TEMP);
 		vrele(vp);

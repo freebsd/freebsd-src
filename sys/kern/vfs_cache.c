@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/dirent.h>
 #include <sys/filedesc.h>
 #include <sys/fnv_hash.h>
 #include <sys/kernel.h>
@@ -309,13 +310,8 @@ SYSCTL_OPAQUE(_vfs_cache, OID_AUTO, nchstats, CTLFLAG_RD | CTLFLAG_MPSAFE,
 static void cache_zap(struct namecache *ncp);
 static int vn_vptocnp_locked(struct vnode **vp, struct ucred *cred, char *buf,
     u_int *buflen);
-#ifdef VPS
-int vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
-    char *buf, char **retbuf, u_int buflen);
-#else
 static int vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
     char *buf, char **retbuf, u_int buflen);
-#endif
 
 static MALLOC_DEFINE(M_VFSCACHE, "vfscache", "VFS name cache entries");
 
@@ -1269,11 +1265,7 @@ vn_vptocnp_locked(struct vnode **vp, struct ucred *cred, char *buf,
 /*
  * The magic behind kern___getcwd() and vn_fullpath().
  */
-#ifdef VPS
-int
-#else
 static int
-#endif
 vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
     char *buf, char **retbuf, u_int buflen)
 {
@@ -1367,6 +1359,357 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	*retbuf = buf + buflen;
 	return (0);
 }
+
+
+/* ----------------------------------------------------------- */
+
+/*
+   XXX lookup for /dev/console doesn't work, altough td->td_vps and
+       td->td_ucred->cr_vps are right.
+   XXX for this failure no error is returned
+   XXX limit recursion depth !!!
+ */
+
+/*
+ * Search a directory for a given inode number, recursing into
+ * subdirectories.
+ */
+static int
+vn_fullpath1_findparentdir_recurse(struct vnode *dvp, struct ucred *cred,
+    int inodenum, struct vnode **retvp)
+{
+	struct componentname cnp;
+	struct dirent *dp;
+	struct vnode *vp;
+	char *dirbuf;
+	char *cpos;
+	off_t off;
+	int dirbuflen;
+	int eofflag;
+	int error;
+	int len;
+
+	dirbuflen = PATH_MAX;
+	dirbuf = malloc(dirbuflen, M_TEMP, M_WAITOK);
+
+	cpos = NULL;
+	off = 0;
+	len = 0;
+
+	do {
+		error = get_next_dirent(dvp, &dp, dirbuf, dirbuflen,
+		    &off, &cpos, &len, &eofflag, curthread);
+		if (error != 0)
+			goto out;
+
+		if (!strcmp(dp->d_name, ".") ||
+		    !strcmp(dp->d_name, "..") ||
+		    dp->d_fileno == 0)
+			continue;
+
+		cnp.cn_pnbuf = NULL;
+		cnp.cn_consume = 0;
+		cnp.cn_nameptr = dp->d_name;
+		cnp.cn_namelen = strlen(dp->d_name);
+		cnp.cn_lkflags = LK_SHARED | LK_RETRY;
+		cnp.cn_thread = curthread;
+		cnp.cn_cred = cred;
+		error = VOP_LOOKUP(dvp, &vp, &cnp);
+		if (error != 0)
+			goto out;
+
+		if (dp->d_fileno == inodenum) {
+			*retvp = dvp;
+			vunref(vp);
+			VOP_UNLOCK(vp, 0);
+			error = 0;
+			goto out;
+		}
+
+		if (vp->v_type == VDIR) {
+			error = vn_fullpath1_findparentdir_recurse(vp, cred,
+			    inodenum, retvp);
+			if (error != ENOENT) {
+				vunref(vp);
+				VOP_UNLOCK(vp, 0);
+				error = 0;
+				goto out;
+			}
+		}
+
+		vunref(vp);
+		VOP_UNLOCK(vp, 0);
+		
+	} while (len > 0 || !eofflag);
+
+	error = ENOENT;
+
+  out:
+	free(dirbuf, M_TEMP);
+
+	return (error);
+}
+
+/*
+ * Search through the filesystem that owns 'vp' for (one of) its
+ * parent directories.
+ */
+static int
+vn_fullpath1_findparentdir(struct vnode *vp, struct ucred *cred,
+    struct vnode **outvp)
+{
+	struct vattr vattr;
+	struct vnode *rootvp;
+	struct vnode *dvp;
+	int error;
+
+	if (VOP_ISLOCKED(vp) == 0)
+		vn_lock(vp, LK_SHARED | LK_RETRY);
+
+	/* Get inode number of file. */
+	error = VOP_GETATTR(vp, &vattr, cred);
+	VOP_UNLOCK(vp, 0);
+	if (error != 0)
+		return (error);
+
+	error = VFS_ROOT(vp->v_mount, LK_EXCLUSIVE | LK_RETRY, &rootvp);
+	if (error != 0)
+		return (error);
+
+	error = vn_fullpath1_findparentdir_recurse(rootvp, cred,
+	    vattr.va_fileid, &dvp);
+	if (error == 0)
+		*outvp = dvp;
+
+	vunref(rootvp);
+	VOP_UNLOCK(rootvp, 0);
+
+	return (error);
+}
+
+static int
+vn_fullpath1_fallback(struct thread *td, struct vnode *vp,
+    struct vnode *rdir, char *buf, char **retbuf, u_int buflen)
+{
+	struct componentname cnp;
+	struct vattr vattr;
+	struct vnode *dvp2;
+	struct vnode *dvp;
+	struct dirent *dp;
+	char *dirbuf;
+	char *cpos;
+	off_t off;
+	int dirbuflen;
+	int inodenum;
+	int eofflag;
+	int error;
+	int len;
+
+	dirbuflen = PATH_MAX;
+	dirbuf = malloc(dirbuflen, M_TEMP, M_WAITOK);
+
+	buflen -= 1;
+	buf[buflen] = 0;
+
+	if (vp->v_type == VDIR) {
+		dvp = vp;
+
+		if (VOP_ISLOCKED(dvp) == 0)
+			vn_lock(dvp, LK_SHARED | LK_RETRY);
+
+	} else {
+		char buf2[MAXPATHLEN];
+		int buflen2;
+
+		/* Get the parent directory. */
+
+		buflen2 = sizeof(buf2);
+		memset(buf2, 0, sizeof(buf2));
+
+		/*
+		 * Since this step is the most expensive one,
+		 * try the namecache for this one.
+		 */
+		vref(vp);
+		CACHE_RLOCK();
+		error = vn_vptocnp_locked(&vp, td->td_ucred, buf2, &buflen2);
+		if (error == 0)
+			CACHE_RUNLOCK();
+		vrele(vp);
+		dvp = vp;
+		/*
+		// debugging
+		dvp = NULL;
+		error = ENOENT;
+		*/
+
+		if (error == 0) {
+			buflen -= sizeof(buf2)-buflen2;
+			memcpy(buf+buflen, buf2+buflen2, sizeof(buf2)-buflen2);
+
+		} else {
+			/* Do it the *expensive* way. */
+
+			printf("%s: WARNING: looking up by "
+			    "vn_fullpath1_findparentdir(vp=%p, ...)\n",
+			    __func__, vp);
+			error = vn_fullpath1_findparentdir(vp, td->td_ucred, &dvp);
+			if (error != 0)
+				goto out;
+
+			vn_lock(dvp, LK_SHARED | LK_RETRY);
+
+			/* Get inode number of file. */
+			if (VOP_ISLOCKED(vp) == 0)
+				vn_lock(vp, LK_SHARED | LK_RETRY);
+			error = VOP_GETATTR(vp, &vattr, td->td_ucred);
+			VOP_UNLOCK(vp, 0);
+			if (error != 0) {
+				VOP_UNLOCK(dvp, 0);
+				goto out;
+			}
+			inodenum = vattr.va_fileid;
+
+			/* Now we know the parent directory so search it for the file. */
+			cpos = NULL;
+			off = 0;
+			len = 0;
+			error = ENOENT;
+
+			do {
+				error = get_next_dirent(dvp, &dp, dirbuf, dirbuflen,
+				    &off, &cpos, &len, &eofflag, td);	
+				if (error != 0) {
+					VOP_UNLOCK(dvp, 0);
+					goto out;
+				}
+	
+				if (dp->d_fileno == inodenum) {
+					/* Found it ! */
+					if (buflen < strlen(dp->d_name)) {
+						error = ENOMEM;
+						VOP_UNLOCK(dvp, 0);
+						goto out;
+					}
+					buflen -= strlen(dp->d_name);
+					memcpy(buf+buflen, dp->d_name, strlen(dp->d_name));
+					error = 0;
+					break;
+				}
+				error = ENOENT;
+			} while (len > 0 || !eofflag);
+
+			if (error != 0) {
+				printf("%s: line %d\n", __func__, __LINE__);
+				VOP_UNLOCK(dvp, 0);
+				goto out;
+			}
+		}
+
+	}
+
+	for (;;) {
+
+		/* Separate component names with '/'. */
+		if (buflen < 1) {
+			error = ENOMEM;
+			VOP_UNLOCK(dvp, 0);
+			goto out;
+		}
+		buflen -= 1;
+		memcpy(buf+buflen, "/", 1);
+		*retbuf = buf+buflen;
+
+		if (dvp == rdir) {
+			/* Reached (relative) root directory. */
+			VOP_UNLOCK(dvp, 0);
+			break;
+		}
+
+		if (dvp->v_vflag & VV_ROOT) {
+			/* Crossing filesystems. */
+			dvp2 = dvp->v_mount->mnt_vnodecovered;
+			VOP_UNLOCK(dvp, 0);
+			vn_lock(dvp2, LK_SHARED | LK_RETRY);
+			dvp = dvp2;
+		}
+
+		/* Get inode number of directory. */
+		error = VOP_GETATTR(dvp, &vattr, td->td_ucred);
+		if (error != 0) {
+			VOP_UNLOCK(dvp, 0);
+			goto out;
+		}
+		inodenum = vattr.va_fileid;
+
+		/* Lookup "..". */
+		cnp.cn_pnbuf = NULL;
+		cnp.cn_consume = 0;
+		cnp.cn_nameptr = "..";
+		cnp.cn_namelen = 2;
+		cnp.cn_lkflags = LK_SHARED;
+		cnp.cn_thread = curthread;
+		cnp.cn_cred = td->td_ucred;
+		error = VOP_LOOKUP(dvp, &dvp2, &cnp);
+		if (error != 0) {
+			VOP_UNLOCK(dvp, 0);
+			goto out;
+		}
+
+		vunref(dvp2);
+		VOP_UNLOCK(dvp, 0);
+		dvp = dvp2;
+
+		cpos = NULL;
+		off = 0;
+		len = 0;
+		error = ENOENT;
+
+		do {
+			error = get_next_dirent(dvp2, &dp, dirbuf, dirbuflen,
+			    &off, &cpos, &len, &eofflag, td);	
+			if (error != 0) {
+				VOP_UNLOCK(dvp2, 0);
+				goto out;
+			}
+
+			if (dp->d_fileno == inodenum) {
+				/* Found it ! */
+				if (buflen < strlen(dp->d_name)) {
+					error = ENOMEM;
+					VOP_UNLOCK(dvp2, 0);
+					goto out;
+				}
+				buflen -= strlen(dp->d_name);
+				memcpy(buf+buflen, dp->d_name, strlen(dp->d_name));
+				break;
+			}
+			error = ENOENT;
+		} while (len > 0 || !eofflag);
+	}
+
+  out:
+	free(dirbuf, M_TEMP);
+
+	return (error);
+}
+
+int
+vn_fullpath1_failsafe(struct thread *td, struct vnode *vp,
+     struct vnode *rdir, char *buf, char **retbuf, u_int buflen)
+{
+	int error;
+
+	error = vn_fullpath1(td, vp, rdir, buf, retbuf, buflen);
+	if (error != ENOENT)
+		return (error);
+
+	error = vn_fullpath1_fallback(td, vp, rdir, buf, retbuf, buflen);
+
+	return (error);
+}
+
+/* ----------------------------------------------------------- */
 
 struct vnode *
 vn_dir_dd_ino(struct vnode *vp)

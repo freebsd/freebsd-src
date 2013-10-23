@@ -69,10 +69,6 @@ __FBSDID("$FreeBSD$");
 static int	vop_nolookup(struct vop_lookup_args *);
 static int	vop_norename(struct vop_rename_args *);
 static int	vop_nostrategy(struct vop_strategy_args *);
-static int	get_next_dirent(struct vnode *vp, struct dirent **dpp,
-				char *dirbuf, int dirbuflen, off_t *off,
-				char **cpos, int *len, int *eofflag,
-				struct thread *td);
 static int	dirent_exists(struct vnode *vp, const char *dirname,
 			      struct thread *td);
 
@@ -261,7 +257,7 @@ vop_nostrategy (struct vop_strategy_args *ap)
 	return (EOPNOTSUPP);
 }
 
-static int
+int
 get_next_dirent(struct vnode *vp, struct dirent **dpp, char *dirbuf,
 		int dirbuflen, off_t *off, char **cpos, int *len,
 		int *eofflag, struct thread *td)

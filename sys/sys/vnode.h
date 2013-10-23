@@ -577,6 +577,7 @@ vn_canvmio(struct vnode *vp)
  * Public vnode manipulation functions.
  */
 struct componentname;
+struct dirent;
 struct file;
 struct mount;
 struct nameidata;
@@ -609,6 +610,10 @@ int	getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	    struct vnode **vpp);
 void	getnewvnode_reserve(u_int count);
 void	getnewvnode_drop_reserve(void);
+int	get_next_dirent(struct vnode *vp, struct dirent **dpp,
+	    char *dirbuf, int dirbuflen, off_t *off,
+	    char **cpos, int *len, int *eofflag,
+	    struct thread *td);
 int	insmntque1(struct vnode *vp, struct mount *mp,
 	    void (*dtr)(struct vnode *, void *), void *dtr_arg);
 int	insmntque(struct vnode *vp, struct mount *mp);
@@ -659,6 +664,8 @@ int	vn_close(struct vnode *vp,
 	    int flags, struct ucred *file_cred, struct thread *td);
 void	vn_finished_write(struct mount *mp);
 void	vn_finished_secondary_write(struct mount *mp);
+int	vn_fullpath1_failsafe(struct thread *td, struct vnode *vp,
+	    struct vnode *rdir, char *buf, char **retbuf, u_int buflen);
 int	vn_isdisk(struct vnode *vp, int *errp);
 int	_vn_lock(struct vnode *vp, int flags, char *file, int line);
 #define vn_lock(vp, flags) _vn_lock(vp, flags, __FILE__, __LINE__)
