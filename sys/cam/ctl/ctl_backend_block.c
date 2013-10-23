@@ -1605,18 +1605,6 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 }
 
 static int
-ctl_be_block_mem_ctor(void *mem, int size, void *arg, int flags)
-{
-	return (0);
-}
-
-static void
-ctl_be_block_mem_dtor(void *mem, int size, void *arg)
-{
-	bzero(mem, size);
-}
-
-static int
 ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 {
 	struct ctl_be_block_lun *be_lun;
@@ -1644,8 +1632,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	mtx_init(&be_lun->lock, be_lun->lunname, NULL, MTX_DEF);
 
 	be_lun->lun_zone = uma_zcreate(be_lun->lunname, MAXPHYS, 
-	    ctl_be_block_mem_ctor, ctl_be_block_mem_dtor, NULL, NULL,
-	    /*align*/ 0, /*flags*/0);
+	    NULL, NULL, NULL, NULL, /*align*/ 0, /*flags*/0);
 
 	if (be_lun->lun_zone == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
