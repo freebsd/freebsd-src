@@ -90,9 +90,8 @@ vt_fb_blank(struct vt_device *vd, term_color_t color)
 	}
 	/* Copy line0 to all other lines. */
 	/* XXX will copy with borders. */
-	for (o = 1; o < info->fb_height; o++) {
-		memmove((void *)(info->fb_vbase + o * info->fb_stride),
-		    (void *)info->fb_vbase, info->fb_stride);
+	for (o = info->fb_stride; o < info->fb_size; o += info->fb_stride) {
+		info->copy(info, o, 0, info->fb_stride);
 	}
 }
 

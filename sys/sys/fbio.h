@@ -119,6 +119,8 @@ typedef int fb_write_t(void *priv, int offset, void *data, int size);
 typedef int fb_read_t(void *priv, int offset, void *data, int size);
 
 /* XXX: should use priv instead of fb_info too. */
+typedef void fb_copy_t(struct fb_info *sc, uint32_t offset_to, uint32_t offset_from,
+    uint32_t size);
 typedef void fb_wr1_t(struct fb_info *sc, uint32_t offset, uint8_t value);
 typedef void fb_wr2_t(struct fb_info *sc, uint32_t offset, uint16_t value);
 typedef void fb_wr4_t(struct fb_info *sc, uint32_t offset, uint32_t value);
@@ -139,6 +141,7 @@ struct fb_info {
 	fb_wr1_t	*wr1;
 	fb_wr2_t	*wr2;
 	fb_wr4_t	*wr4;
+	fb_copy_t	*copy;
 	fb_enter_t	*enter;
 	fb_leave_t	*leave;
 
