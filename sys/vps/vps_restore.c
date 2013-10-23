@@ -954,13 +954,11 @@ vps_restore_kqueue(struct vps_snapst_ctx *ctx, struct vps *vps,
 {
 	struct vps_dumpobj *o1, *o2;
 	struct vps_dump_knote *vdkn;
-	//struct filedesc *cfd;
 	struct kevent *nkev;
 	struct kqueue *kq;
 	struct thread *td;
 	struct file *fp;
 	int error;
-	//int kq_fd;
 	int dfl;
 
 	o1 = vdo_next(ctx);
@@ -980,39 +978,6 @@ vps_restore_kqueue(struct vps_snapst_ctx *ctx, struct vps *vps,
 	fget(td, td->td_retval[0], 0, &fp);
 	DBGR("%s: kqueue installed at fd %ld\n",
 	    __func__, td->td_retval[0]);
-#if 0
-// rubbish ... delete
-	DBGR("%s: fp=%p fp->f_data=%p fp->f_type=%d\n",
-		__func__, fp, fp->f_data, fp->f_type);
-
-	KASSERT(td->td_retval[0] == 0, ("%s: fd != 0\n", __func__));
-
-	if (vdo_typeofnext(ctx) != VPS_DUMPOBJT_KNOTE)
-		return (0);
-
-	o2 = vdo_next(ctx);
-	vdkn = (struct vps_dump_knote *)o2->data;
-	kq_fd = vdkn->ke_ident;
-	vdo_prev(ctx);
-
-	/* Temporarily move kqueue fd to match vdkn->ke_ident. */
-	cfd = td->td_proc->p_fd;
-	FILEDESC_XLOCK(cfd);
-	/* fdisused() is static
-	KASSERT(fdisused(cfd, kq_fd) == 0,
-	    ("%s: fdisused(cfd, kq_fd) != 0\n", __func__));
-	*/
-	fdused(cfd, kq_fd);
-	cfd->fd_ofiles[kq_fd].fde_file = cfd->fd_ofiles[0].fde_file;
-	cfd->fd_ofiles[kq_fd].fde_flags = cfd->fd_ofiles[0].fde_flags;
-	cfd->fd_ofiles[kq_fd].fde_rights = cfd->fd_ofiles[0].fde_rights;
-	cfd->fd_ofiles[0].fde_file = NULL;
-	cfd->fd_ofiles[0].fde_flags = 0;
-	cfd->fd_ofiles[0].fde_rights = 0;
-	fdunused(cfd, 0);
-	FILEDESC_XUNLOCK(cfd);
-	td->td_retval[0] = kq_fd;
-#endif
 
 	kq = NULL;
 	if ((error = kqueue_acquire(fp, &kq)) != 0) {
@@ -2266,7 +2231,7 @@ vps_restore_file_pts(struct vps_snapst_ctx *ctx, struct vps *vps,
 	o1 = vdo_next(ctx);
 	if (o1->type != VPS_DUMPOBJT_PTS) {
 		ERRMSG(ctx, "%s: DTYPE_PTS without VPS_DUMPOBJT_PTS\n",
-				__func__);
+		    __func__);
 		error = EINVAL;
 		goto out;
 	}
@@ -2362,7 +2327,6 @@ vps_restore_file_kqueue(struct vps_snapst_ctx *ctx, struct vps *vps,
 	int idx;
 	int error = 0;
 
-	/* XXX kqueue has to be last (after all other fds) */
 	if ((error = vps_restore_kqueue(ctx, vps, p))) {
 		ERRMSG(ctx, "%s: vps_restore_kqueue() error: %d\n",
 			__func__, error);
@@ -2385,15 +2349,6 @@ vps_restore_file_kqueue(struct vps_snapst_ctx *ctx, struct vps *vps,
 	FILEDESC_XUNLOCK(nfd);
 
 	FILEDESC_XLOCK(cfd);
-#if 0
-//delete
-	/* XXX
-	idx = fd_first_free(cfd, 0, 100);
-	XXX
-	*/
-	idx = 10;
-	fdgrowtable(cfd, idx);
-#endif
 	/* fdalloc() calls fdused() for the new descriptor. */
 	if ((error = fdalloc(curtd, 0, &idx))) {
 		ERRMSG(ctx, "%s: fdalloc(): %d\n", __func__, error);
@@ -2721,6 +2676,8 @@ vps_restore_fdset(struct vps_snapst_ctx *ctx, struct vps *vps,
 	/* 
 	 * First only restore file objects with priority >= 0,
 	 * then the ones with priority < 0.
+	 * This is necessary because kqueue has to be restored
+	 * after all other file descriptors.
 	 */
 
 	o2 = vdo_getcur(ctx);
@@ -2935,7 +2892,7 @@ vps_restore_vmobject(struct vps_snapst_ctx *ctx, struct vps *vps,
 		o2 = vdo_next(ctx);
 		if (o2->type != VPS_DUMPOBJT_FILE_PATH) {
 			ERRMSG(ctx, "%s: wrong object, expected "
-				"VPS_DUMPOBJT_FILE_PATH\n", __func__);
+			    "VPS_DUMPOBJT_FILE_PATH\n", __func__);
 			error = EINVAL;
 			goto out;
 		}
@@ -2945,13 +2902,13 @@ vps_restore_vmobject(struct vps_snapst_ctx *ctx, struct vps *vps,
 			vdfp->fp_path, curthread);
 		if ((error = namei(&nd))) {
 			ERRMSG(ctx, "%s: namei([%s]): error = %d\n",
-				__func__, vdfp->fp_path, error);
+			    __func__, vdfp->fp_path, error);
 			goto out;
 		}
 		if ((error = VOP_OPEN(nd.ni_vp, FREAD, curthread->td_ucred,
 			curthread, NULL))) {
 			ERRMSG(ctx, "%s: VOP_OPEN(...): error = %d\n",
-				__func__, error);
+			    __func__, error);
 			VOP_UNLOCK(nd.ni_vp, 0);
 			NDFREE(&nd, NDF_ONLY_PNBUF);
 			goto out;
@@ -2963,11 +2920,11 @@ vps_restore_vmobject(struct vps_snapst_ctx *ctx, struct vps *vps,
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 
 		KASSERT(nvo->cred == NULL,
-			("%s: nvo=%p ->cred=%p\n",
-			__func__, nvo, nvo->cred));
+		    ("%s: nvo=%p ->cred=%p\n",
+		    __func__, nvo, nvo->cred));
 
 		DBGR("%s: path [%s] got vnode %p v_object %p\n",
-			__func__, vdfp->fp_path, nd.ni_vp, nvo);
+		    __func__, vdfp->fp_path, nd.ni_vp, nvo);
 
 	} else if (vdvmo->type == OBJT_DEFAULT ||
 	    vdvmo->type == OBJT_SWAP) {
@@ -2993,14 +2950,14 @@ vps_restore_vmobject(struct vps_snapst_ctx *ctx, struct vps *vps,
 		 */
 
 		ERRMSG(ctx, "%s: unsupported vm object: vdvmo=%p type=%d\n",
-			__func__, vdvmo, vdvmo->type);
+		    __func__, vdvmo, vdvmo->type);
 		/* XXX missing the sibling list here */
 		error = EINVAL;
 		goto out;
 	}
 
 	if (vdvmo->cred != NULL && vdo_typeofnext(ctx) ==
-			VPS_DUMPOBJT_UCRED) {
+	    VPS_DUMPOBJT_UCRED) {
 		vdo_next(ctx);
 	}
 	if (vdo_typeofnext(ctx) == VPS_DUMPOBJT_UCRED &&
@@ -3012,7 +2969,7 @@ vps_restore_vmobject(struct vps_snapst_ctx *ctx, struct vps *vps,
 		nvo->flags = vdvmo->flags;
 		nvo->charge = vdvmo->charge;
 		KASSERT(nvo->cred == NULL,
-			("%s: nvo->cred = %p\n", __func__, nvo->cred));
+		    ("%s: nvo->cred = %p\n", __func__, nvo->cred));
 		/*DBGR("%s: charge=%lu\n", __func__, nvo->charge);*/
 		if (vdvmo->cred != NULL) {
 			ncr = vps_restore_ucred_lookup(ctx, vps,
@@ -3031,7 +2988,7 @@ vps_restore_vmobject(struct vps_snapst_ctx *ctx, struct vps *vps,
 
 		/*
 		DBGR("%s: o2=%p: type=VMPAGE size=%d (pindex=%08x)\n",
-				__func__, o2, o2->size, *((int*)o2->data) );
+		    __func__, o2, o2->size, *((int*)o2->data) );
 		*/
 
 		o2 = vdo_next(ctx);
@@ -3055,13 +3012,13 @@ vps_restore_vmobject(struct vps_snapst_ctx *ctx, struct vps *vps,
 			pmap_remove_all(m);
 
 			KASSERT((m->oflags & VPO_SWAPINPROG) == 0,
-				("%s: m=%p oflags 0x%x & VPO_SWAPINPROG\n",
-				__func__, m, m->oflags));
+			    ("%s: m=%p oflags 0x%x & VPO_SWAPINPROG\n",
+			    __func__, m, m->oflags));
 
 			KASSERT(vdvmpr->pr_vmobject == vdvmo->orig_ptr,
-				("%s: object mismatch ! "
-				"(vdvmpr->pr_vmobject=%p)\n",
-				__func__, vdvmpr->pr_vmobject));
+			    ("%s: object mismatch ! "
+			    "(vdvmpr->pr_vmobject=%p)\n",
+			    __func__, vdvmpr->pr_vmobject));
 
 			vm_page_rename(m, nvo, vdvmpr->pr_pindex);
 
@@ -3262,10 +3219,10 @@ vps_restore_vmspace(struct vps_snapst_ctx *ctx, struct vps *vps,
 
 		vm_map_lock(&ns->vm_map);
 		if ((error = vm_map_insert(&ns->vm_map, nvo, vdvme->offset,
-				vdvme->start, vdvme->end, vdvme->protection,
-				vdvme->max_protection, cow))) {
+		    vdvme->start, vdvme->end, vdvme->protection,
+		    vdvme->max_protection, cow))) {
 			ERRMSG(ctx, "%s: vm_map_insert(): error %d\n",
-				__func__, error);
+			    __func__, error);
 			error = EINVAL;
 			if (nvo)
 				vm_object_deallocate(nvo);
@@ -3324,7 +3281,7 @@ vps_restore_vmspace(struct vps_snapst_ctx *ctx, struct vps *vps,
 	SLIST_INSERT_HEAD(&ctx->obj_list, ro, list);
 
 	DBGR("%s: restored vmspace orig=%p new=%p\n",
-		__func__, vdvms->vm_orig_ptr, ns);
+	    __func__, vdvms->vm_orig_ptr, ns);
 
 	p->p_vmspace = ns;
 
@@ -3405,7 +3362,7 @@ vps_restore_thread(struct vps_snapst_ctx *ctx, struct vps *vps,
 	tidhash_add(ntd);
 
 	memset(&ntd->td_startzero, 0,
-		__rangeof(struct thread, td_startzero, td_endzero));
+	    __rangeof(struct thread, td_startzero, td_endzero));
 	memset(&ntd->td_rux, 0, sizeof(ntd->td_rux));
 
 	ntd->td_rqindex = vdtd->td_rqindex;
@@ -3502,7 +3459,7 @@ vps_restore_proc_one(struct vps_snapst_ctx *ctx, struct vps *vps)
 
 	/*
 	DBGR("%s: dtd->td_tid=%d dtd->td_ucred=%p dp->p_ucred=%p\n",
-		__func__, dtd->td_tid, dtd->td_ucred, dp->p_ucred);
+	    __func__, dtd->td_tid, dtd->td_ucred, dp->p_ucred);
 	*/
 
 	/*
@@ -3522,7 +3479,7 @@ vps_restore_proc_one(struct vps_snapst_ctx *ctx, struct vps *vps)
 	}
 
 	bzero(&np->p_startzero, __rangeof(struct proc,
-		p_startzero, p_endzero));
+	    p_startzero, p_endzero));
 
 	/* assemble proc */
 	np->p_magic = P_MAGIC;
@@ -3667,8 +3624,6 @@ vps_restore_proc_one(struct vps_snapst_ctx *ctx, struct vps *vps)
 		if ((error = vps_restore_thread(ctx, vps, np)))
 			goto out;
 		vps_account(vps, VPS_ACC_THREADS, VPS_ACC_ALLOC, 1);
-		/* Next. */
-		;
 	}
 	/* XXX lookup by id */
 	/*
@@ -3779,7 +3734,7 @@ vps_restore_proc_one(struct vps_snapst_ctx *ctx, struct vps *vps)
 			    curthread);
 		} else
 			ERRMSG(ctx, "%s: ktrace / vn_open error: %d\n",
-				__func__, error1);
+			    __func__, error1);
 	}
 
   out:
@@ -4243,11 +4198,11 @@ vps_restore_mounts(struct vps_snapst_ctx *ctx, struct vps *vps,
 
 		/* Only do root fs mount now. */
 		if (vps == NULL && strcmp(dvm->mnton, rootfspath))
-			goto next;
+			continue;
 
 		/* Do all mounts now except root fs. */
 		if (vps != NULL && !strcmp(dvm->mnton, rootfspath))
-			goto next;
+			continue;
 
 		if (vdo_typeofnext(ctx) == VPS_DUMPOBJT_UCRED) {
 			vdo_next(ctx);
@@ -4324,10 +4279,6 @@ vps_restore_mounts(struct vps_snapst_ctx *ctx, struct vps *vps,
 			if (ncr != NULL)
 				crfree(ncr);
 		}
-
-		next:
-		/* Next. */
-		;
 	}
 
   out:
@@ -4365,11 +4316,6 @@ vps_restore_prison_lookup(struct vps_snapst_ctx *ctx, struct vps *vps,
 	struct vps_restore_obj *obj1;
 	struct prison *new_pr;
 
-	/*
-	if (old_pr == NULL)
-		return (VPS_VPS(vps, prison0));
-	*/
-
 	new_pr = NULL;
 	SLIST_FOREACH(obj1, &ctx->obj_list, list) {
 		if (obj1->type != VPS_DUMPOBJT_PRISON)
@@ -4377,12 +4323,12 @@ vps_restore_prison_lookup(struct vps_snapst_ctx *ctx, struct vps *vps,
 		if (obj1->orig_ptr == old_pr) {
 			new_pr = obj1->new_ptr;
 			DBGR("%s: found new prison ptr: orig=%p new=%p\n",
-				__func__, obj1->orig_ptr, obj1->new_ptr);
+			    __func__, obj1->orig_ptr, obj1->new_ptr);
 			break;
 		}
 	}
 	KASSERT(new_pr != NULL,
-		("%s: old_pr=%p new_pr==NULL\n", __func__, old_pr));
+	    ("%s: old_pr=%p new_pr==NULL\n", __func__, old_pr));
 
 	return (new_pr);
 }
@@ -4455,10 +4401,6 @@ vps_restore_prison_one(struct vps_snapst_ctx *ctx, struct vps *vps)
 		npr->pr_securelevel = vdpr->pr_securelevel;
 		npr->pr_childmax = vdpr->pr_childmax;
 
-		/*
-		npr->pr_allow = dpr->pr_allow;
-		npr->pr_enforce_statfs = dpr->pr_enforce_statfs;
-		*/
 		npr->pr_allow = vdpr->pr_allow;
 		npr->pr_enforce_statfs = vdpr->pr_enforce_statfs;
 
@@ -4576,7 +4518,7 @@ vps_restore_vps(struct vps_snapst_ctx *ctx, const char *vps_name,
 	o1 = vdo_next(ctx);
 	if (o1->type != VPS_DUMPOBJT_VPS) {
 		ERRMSG(ctx, "%s: wrong object type: %p type=%d\n",
-			__func__, o1, o1->type);
+		    __func__, o1, o1->type);
 		error = EINVAL;
 		goto out;
 	}
@@ -4823,7 +4765,7 @@ vps_restore_copyin(struct vps_snapst_ctx *ctx, struct vps_arg_snapst *va)
 		    __func__, cnt.v_free_min, cnt.v_free_count,
 		    cnt.v_cache_count);
 		ERRMSG(ctx, "%s: cnt.v_inactive_count=%u\n",
-			__func__, cnt.v_inactive_count);
+		    __func__, cnt.v_inactive_count);
 		error = ENOMEM;
 		goto fail;
 	}
@@ -4919,9 +4861,9 @@ vps_restore_copyin(struct vps_snapst_ctx *ctx, struct vps_arg_snapst *va)
 	}
 
 	if (vm_map_insert(kernel_map, ctx->vmobj,
-	     kvaddr - VM_MIN_KERNEL_ADDRESS,
-	     kvaddr, kvaddr + (ctx->vmobj->size << PAGE_SHIFT),
-	     VM_PROT_ALL, VM_PROT_ALL, 0) != KERN_SUCCESS) {
+	    kvaddr - VM_MIN_KERNEL_ADDRESS,
+	    kvaddr, kvaddr + (ctx->vmobj->size << PAGE_SHIFT),
+	    VM_PROT_ALL, VM_PROT_ALL, 0) != KERN_SUCCESS) {
 		vm_map_unlock(kernel_map);
 		vm_object_deallocate(ctx->vmobj);
 		ctx->vmobj = NULL;
@@ -4969,8 +4911,8 @@ vps_restore_copyin(struct vps_snapst_ctx *ctx, struct vps_arg_snapst *va)
 	checksum2 = vps_cksum(ctx->data, ctx->dsize);
 	if (checksum1 != checksum2) {
 		ERRMSG(ctx, "%s: CHECKSUM mismatch: snapshot info: "
-			"%08x calculated: %08x\n",
-			__func__, checksum1, checksum2);
+		    "%08x calculated: %08x\n",
+		    __func__, checksum1, checksum2);
 		error = EINVAL;
 		goto fail;
 	} else
@@ -4994,8 +4936,8 @@ vps_restore_copyin(struct vps_snapst_ctx *ctx, struct vps_arg_snapst *va)
 	/* XXX maybe link together wil lists/tailqs ... */
 
 	vm_map_protect(kernel_map, kvaddr, kvaddr +
-		(ctx->vmobj->size << PAGE_SHIFT),
-		VM_PROT_READ, 0);
+	    (ctx->vmobj->size << PAGE_SHIFT),
+	    VM_PROT_READ, 0);
 
 	DBGR("%s: set map entry to readonly\n", __func__);
 
