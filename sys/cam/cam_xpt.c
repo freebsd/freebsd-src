@@ -5293,7 +5293,6 @@ camisr_runqueue(void)
 		while ((ccb_h = STAILQ_FIRST(&queue->cam_doneq)) != NULL) {
 			STAILQ_REMOVE_HEAD(&queue->cam_doneq, sim_links.stqe);
 			mtx_unlock(&queue->cam_doneq_mtx);
-			ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
 			xpt_done_process(ccb_h);
 			mtx_lock(&queue->cam_doneq_mtx);
 		}
