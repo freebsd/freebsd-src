@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <libgen.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -568,8 +569,9 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-m mem-size][-d <disk-path>] [-h <host-path>] "
-	    "[-e <name=value>] <vmname>\n", progname);
+	    "usage: %s [-m mem-size] [-d <disk-path>] [-h <host-path>]\n"
+	    "       %*s [-e <name=value>] <vmname>\n", progname,
+	    (int)strlen(progname), "");
 	exit(1);
 }
 
@@ -582,7 +584,7 @@ main(int argc, char** argv)
 	int opt, error;
 	char *disk_image;
 
-	progname = argv[0];
+	progname = basename(argv[0]);
 
 	mem_size = 256 * MB;
 	disk_image = NULL;
