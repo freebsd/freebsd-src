@@ -26,7 +26,7 @@ mkprivlist:
 	true
 
 priv_ston.c priv_ntos.c: mkprivlist
-	./mkprivlist.sh ${.CURDIR}/../../sys/sys/priv.h
+	${.CURDIR}/mkprivlist.sh ${.CURDIR}/../../sys/sys/priv.h
 
 vpsctl: priv_ston.c priv_ntos.c
 	cc -Wall -g -I../../sys -I/usr/include -o vpsctl \
