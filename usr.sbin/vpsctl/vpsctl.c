@@ -147,6 +147,7 @@ int vc_arg_limit(int, char **);
 int vc_quota_recalc(int, char **);
 int vc_showdump(int, char **);
 int vc_console(int, char **);
+int vc_savefile(int, char **);
 static int vc_ttyloop(int ptsmfd, const char *esc_pattern);
 
 int
@@ -219,6 +220,9 @@ main(int argc, char **argv, char **envv)
 		if (argc < 2)
 			return (-1);
 		rc = vc_rsync(RSYNC_MODE_SERVER, 0, 1, argv[2]);
+	} else
+	if (strcmp(argv[1], "savefile") == 0) {
+		rc = vc_savefile(argc-2, &argv[2]);
 	} else
 	if (strcmp(argv[1], "argshow") == 0) {
 		rc = vc_arg_show(argc-2, &argv[2]);
@@ -1293,6 +1297,8 @@ int
 vc_migrate(int argc, char **argv)
 {
 	struct vps_conf vc;
+	struct statfs stf;
+	struct stat st;
 	char *argv2[5];
 	char *host, *vps;
 	char *fsroot;
@@ -1335,20 +1341,16 @@ vc_migrate(int argc, char **argv)
 	else
 		fsroot = vc.fsroot;
 
-	if (1) {
-		struct statfs stf;
-
-		if ((error = statfs(fsroot, &stf)) != 0) {
-			fprintf(stderr, "statfs([%s]): error: %s\n",
-			    fsroot, strerror(errno));
-			return (1);
-		}
-
-		if (stf.f_flags & MNT_LOCAL)
-			cnt_rsync = 2;
-		else
-			cnt_rsync = 0;
+	if ((error = statfs(fsroot, &stf)) != 0) {
+		fprintf(stderr, "statfs([%s]): error: %s\n",
+		    fsroot, strerror(errno));
+		return (1);
 	}
+
+	if (stf.f_flags & MNT_LOCAL)
+		cnt_rsync = 2;
+	else
+		cnt_rsync = 0;
 
 	if (argc > 2 && strcmp(argv[2], "norsync") == 0)
 		cnt_rsync = 0;
@@ -1365,7 +1367,8 @@ vc_migrate(int argc, char **argv)
 	fprintf(stderr, "done\n");
 
 	/* Always syncing config file. */
-#if 1
+#if 0
+/* Don't use rsync here ... */
 	fprintf(stderr, "Copying config file ... ");
 	snprintf(cmd, sizeof(cmd), "vpsctl rsyncserver %s/\n", _PATH_CONFDIR); 
 	write(wfd, cmd, strlen(cmd));
@@ -1374,7 +1377,36 @@ vc_migrate(int argc, char **argv)
 	
 	fprintf(stderr, "done\n");
 #else
-	/* XXX transfer without using rsync */
+	if ((error = stat(file_n, &st)) != 0) {
+		fprintf(stderr, "stat([%s]): error: %s\n",
+		    file_n, strerror(errno));
+		return (1);
+	}
+	snprintf(cmd, sizeof(cmd), "vpsctl savefile %s %ld %d\n",
+	    file_n, st.st_size, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+	write(wfd, cmd, strlen(cmd));
+	/* vc_savefile() sends '\n' when ready */
+	len = read(rfd, cmd, 1); 
+	{
+		char file_buf[0x1000];
+		int file_fd;
+
+		/*
+		 * Assume config file is no larger than buf and
+		 * can be written in one go.
+		 * XXX fix that
+		 */
+		
+		if ((file_fd = open(file_n, O_RDONLY)) == -1) {
+			fprintf(stderr, "stat([%s]): error: %s\n",
+			    file_n, strerror(errno));
+			return (1);
+		}
+		read(file_fd, file_buf, sizeof(file_buf));
+		close(file_fd);
+
+		write(wfd, file_buf, st.st_size);	
+	}
 #endif
 
 	/* Always create directories. */
@@ -1436,8 +1468,6 @@ vc_migrate(int argc, char **argv)
 	/* Take offline. */
 	vc_net_revoke(&vc);
 	mig_did_revoke = 1;
-
-	//fprintf(stderr, "Starting snapshot and remote restore ... ");
 
 	/* Start restore on other side ... */
 	snprintf(cmd, sizeof(cmd), "vpsctl restore %s - remote\n", vps);
@@ -2924,6 +2954,70 @@ vc_showdump(int argc, char **argv)
 	return (0);
 }
 
+int
+vc_savefile(int argc, char **argv)
+{
+	char buf[0x1000];
+	char *path;
+	long size;
+	long done;
+	int mode;
+	int fd;
+	int rc;
+
+	if (argc < 3)
+		return (1);
+
+	size = atoi(argv[1]);
+	if (size < 1)
+		return (1);
+
+	path = argv[0];
+	if (strlen(path) == 0)
+		return (1);
+
+	mode = atoi(argv[2]);
+
+	write(1, "\n", 1);
+
+	if ((fd = open(path, O_CREAT|O_TRUNC|O_WRONLY)) == -1) {
+		fprintf(stderr, "open([%s], O_CREAT|O_TRUNC): error: %s\n",
+		    path, strerror(errno));
+		return (1);
+	}
+
+	if (fchmod(fd, mode) == -1) {
+		fprintf(stderr, "fchmod(%d, %d): error: %s\n",
+		    fd, mode, strerror(errno));
+		close(fd);
+		return (1);
+	}
+
+	done = 0;
+	while (done < size) {
+		rc = size-done;
+		if (rc > sizeof(buf))
+			rc = sizeof(buf);
+		rc = read(0, buf, rc);
+		if (rc == -1) {
+			fprintf(stderr, "read(0, ...): error: %s\n",
+			    strerror(errno));
+			close(fd);
+			return (-1);
+		}
+		done += rc;
+		rc = write(fd, buf, rc);
+		if (rc == -1) {
+			fprintf(stderr, "write(%d, ...): error: %s\n",
+			    fd, strerror(errno));
+			close(fd);
+			return (-1);
+		}
+	}
+	close(fd);
+
+	return (0);
+}
 
 static int
 vc_ttyloop(int ptsmfd, const char *esc_pattern)
