@@ -301,6 +301,7 @@ vps_restore_ucred_all(struct vps_snapst_ctx *ctx, struct vps *vps)
 }
 
 VPSFUNC
+__attribute__((unused))
 static int
 vps_restore_ucred_checkall(struct vps_snapst_ctx *ctx, struct vps *vps)
 {
@@ -976,7 +977,7 @@ vps_restore_kqueue(struct vps_snapst_ctx *ctx, struct vps *vps,
 		return (error);
 	}
 	fget(td, td->td_retval[0], 0, &fp);
-	DBGR("%s: kqueue installed at fd %ld\n",
+	DBGR("%s: kqueue installed at fd %zd\n",
 	    __func__, td->td_retval[0]);
 
 	kq = NULL;
@@ -2175,7 +2176,8 @@ vps_restore_inodenumtovnode(struct vps_snapst_ctx *ctx, struct vps *vps,
 
 	vdfi = (struct vps_dump_fileinodenum *)o1->data;
 
-	DBGR("%s: fsid=%lu fileid=%d\n", __func__, vdfi->fsid, vdfi->fileid);
+	DBGR("%s: fsid=%llu fileid=%d\n",
+	     __func__, (unsigned long long)vdfi->fsid, vdfi->fileid);
 
 	DBGR("%s: vps's rootpath=[%s] vnode=%p\n",
 	     __func__, vps->_rootpath, vps->_rootvnode);

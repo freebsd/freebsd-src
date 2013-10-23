@@ -25,8 +25,10 @@ clean:
 mkprivlist:
 	true
 
-priv_ston.c priv_ntos.c: mkprivlist
+priv_generate:
 	${.CURDIR}/mkprivlist.sh ${.CURDIR}/../../sys/sys/priv.h
+
+priv_ston.c priv_ntos.c: mkprivlist priv_generate
 
 vpsctl: priv_ston.c priv_ntos.c
 	cc -Wall -g -I../../sys -I/usr/include -o vpsctl \
