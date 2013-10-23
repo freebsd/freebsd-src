@@ -87,6 +87,14 @@ vps_md_print_thread(struct thread *td)
 
 /*__attribute__((inline))*/
 int
+vps_md_snapshot_thread(struct vps_dump_thread *vdtd, struct thread *td)
+{
+
+	return (0);
+}
+
+/*__attribute__((inline))*/
+int
 vps_md_restore_thread(struct vps_dump_thread *vdtd, struct thread *ntd,
     struct proc *p)
 {

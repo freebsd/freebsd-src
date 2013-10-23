@@ -105,6 +105,16 @@ vps_md_print_thread(struct thread *td)
 
 /*__attribute__((inline))*/
 int
+vps_md_snapshot_thread(struct vps_dump_thread *vdtd, struct thread *td)
+{
+
+	vdtd->td_spare[0] = (uint64)td->td_md.md_tls;
+
+	return (0);
+}
+
+/*__attribute__((inline))*/
+int
 vps_md_restore_thread(struct vps_dump_thread *vdtd, struct thread *ntd,
     struct proc *p)
 {
@@ -116,17 +126,6 @@ vps_md_restore_thread(struct vps_dump_thread *vdtd, struct thread *ntd,
 		return (EOPNOTSUPP);
 	}
 
-	/*
-	ntd->td_pcb->pcb_cr3 =
-	    DMAP_TO_PHYS((vm_offset_t)vmspace_pmap(p->p_vmspace)->pm_pml4);
-	ntd->td_pcb->pcb_r12 = (uint64_t)vps_func->vps_restore_return;
-	ntd->td_pcb->pcb_rbp = 0;
-	ntd->td_pcb->pcb_rsp = (uint64_t)ntd->td_frame - sizeof(void *);
-	ntd->td_pcb->pcb_rbx = (uint64_t)ntd;
-	ntd->td_pcb->pcb_rip = (uint64_t)fork_trampoline;
-	ntd->td_md.md_spinlock_count = 1;
-	ntd->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
-	*/
 	ntd->td_pcb->pcb_context[PCB_REG_RA] = (register_t)(intptr_t)
 	    fork_trampoline;
 	/* Make sp 64-bit aligned */
@@ -139,11 +138,12 @@ vps_md_restore_thread(struct vps_dump_thread *vdtd, struct thread *ntd,
 	    ntd->td_frame;
 	ntd->td_pcb->pcb_context[PCB_REG_SR] = mips_rd_status() &
 	    (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_INT_MASK);
-	ntd->td_md.md_tls = curthread->td_md.md_tls;
 	ntd->td_md.md_saved_intr = MIPS_SR_INT_IE;
 	ntd->td_md.md_spinlock_count = 1;
 
-	/* XXX CPU_CNMIPS stuff ?! */
+	ntd->td_md.md_tls = (void *)vdtd->td_spare[0];
+
+	/* XXX CPU_CNMIPS stuff */
 
 	ntd->td_errno = vdtd->td_errno;
 	ntd->td_retval[0] = vdtd->td_retval[0];
@@ -279,7 +279,7 @@ XXX
 	 */
 	if (vdsf->sf_length != sizeof(struct savefpu)) {
 		DBGCORE("%s: vdsf->sf_length != sizeof(struct savefpu) "
-		    (%u != %lu)\n", __func__, vdsf->sf_length,
+		    "(%u != %lu)\n", __func__, vdsf->sf_length,
 		    sizeof(struct savefpu));
 		return (EINVAL);
 	}
@@ -499,15 +499,6 @@ vps_md_syscall_fixup_setup_inthread(struct vps *vps, struct thread *td,
 	if (vps_func->vps_syscall_fixup_inthread == NULL)
 		return (EOPNOTSUPP);
 
-	/*
-	td->td_pcb->pcb_r12 =
-	    (uint64_t)vps_func->vps_syscall_fixup_inthread;
-	td->td_pcb->pcb_rip = (uint64_t)fork_trampoline;
-	td->td_pcb->pcb_rsp = (uint64_t)td->td_frame -
-	    sizeof(void *);
-	td->td_pcb->pcb_rbx = (uint64_t)code;
-	td->td_pcb->pcb_rbp = 0;
-	*/
 	td->td_pcb->pcb_context[PCB_REG_RA] = (register_t)(intptr_t)
 	    fork_trampoline;
 	/* Make sp 64-bit aligned */

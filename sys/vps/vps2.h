@@ -240,6 +240,7 @@ struct vps_dump_thread;
 struct execve_args;
 void vps_md_print_thread(struct thread *td);
 void vps_md_print_pcb(struct thread *td);
+int vps_md_snapshot_thread(struct vps_dump_thread *vdtd, struct thread *td);
 int vps_md_restore_thread(struct vps_dump_thread *vdtd, struct thread *ntd, struct proc *p);
 int vps_md_snapshot_sysentvec(struct sysentvec *sv, long *svtype);
 int vps_md_restore_sysentvec(long svtype, struct sysentvec **sv);

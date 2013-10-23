@@ -3280,6 +3280,12 @@ vps_snapshot_thread(struct vps_snapst_ctx *ctx, struct vps *vps,
 		goto again;
 	}
 
+	if (vps_md_snapshot_thread(vdtd, td) != 0) {
+		thread_unlock(td);
+		vdo_discard(ctx, o1);
+		goto again;
+	}
+
 	if (vps_snapshot_thread_savefpu(ctx, vps, td) != 0) {
 		thread_unlock(td);
 		vdo_discard(ctx, o1);

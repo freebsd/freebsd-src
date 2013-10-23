@@ -755,7 +755,7 @@ vps_syscall_fixup_inthread(register_t code, struct trapframe *frame)
 
 	DBGCORE("%s: ####################### curthread=%p/%u code=%zu\n",
 		__func__, td, td->td_tid, (size_t)code);
-	KASSERT(frame == td->td_frame, ("%s: frame == td->td_frame\n",
+	KASSERT(frame == td->td_frame, ("%s: frame != td->td_frame\n",
 	    __func__));
 
 	switch(code) {

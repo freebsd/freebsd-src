@@ -128,7 +128,7 @@ void vps_libdump_printheader(struct vps_dumpheader *h);
 #define VPS_DUMPOBJT_UCRED              120
 
 #define VPS_DUMPH_MAGIC			0xc0debabe
-#define VPS_DUMPH_VERSION		0x20130512
+#define VPS_DUMPH_VERSION		0x20130709
 #define VPS_DUMPH_MSB			12
 #define VPS_DUMPH_LSB			21
 #define VPS_DUMPH_32BIT			32
@@ -572,6 +572,8 @@ struct vps_dump_thread {
 	uint64 td_retval[2];
 	sint32 td_errno;
 	uint32 _pad2;
+
+	uint64 td_spare[4];
 
 	sint32 td_tid;
 	uint32 td_kstack_pages;

@@ -383,7 +383,7 @@ vps_devfs_ruleset_free(struct vps *vps, struct devfs_mount *dm)
 	struct thread *td;
 	int ruleset_num;
 	devfs_rid rid;
-	int error;
+	int error = 0;
 
 	DBGCORE("%s: vps=%p dm=%p\n", __func__, vps, dm);
 

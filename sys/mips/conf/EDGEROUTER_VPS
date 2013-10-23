@@ -23,6 +23,7 @@ ident		EDGEROUTER_VPS
 options		VPS
 options		VPS_STATIC
 options		VIMAGE
+options		DIAGNOSTIC
 
 #options	MD_ROOT_SIZE=8192		# Reserve 8 MB for MD root image
 #makeoptions	MFS_IMAGE=/usr/src/edgerouter/mdroot.img
