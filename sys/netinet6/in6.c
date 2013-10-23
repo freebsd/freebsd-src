@@ -1814,6 +1814,25 @@ in6ifa_ifpwithaddr(struct ifnet *ifp, const struct in6_addr *addr)
 	return ((struct in6_ifaddr *)ifa);
 }
 
+struct in6_ifaddr *
+in6ifa_ifpwithdstaddr(struct ifnet *ifp, const struct in6_addr *addr)
+{
+	struct ifaddr *ifa;
+
+	IF_ADDR_RLOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != AF_INET6 ||
+		    ifa->ifa_dstaddr == NULL)
+			continue;
+		if (IN6_ARE_ADDR_EQUAL(addr, IFA_DSTIN6(ifa))) {
+			ifa_ref(ifa);
+			break;
+		}
+	}
+	IF_ADDR_RUNLOCK(ifp);
+	return ((struct in6_ifaddr *)ifa);
+}
+
 /*
  * Find a link-local scoped address on ifp and return it if any.
  */
