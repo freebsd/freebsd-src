@@ -57,6 +57,7 @@ stack_capture(struct stack *st, u_register_t pc, u_register_t sp)
 
 	stack_zero(st);
 
+	/* XXXRW: appears to be inadequately robust? */
 	for (;;) {
 		stacksize = 0;
 		if (pc <= (u_register_t)(intptr_t)btext)
@@ -137,6 +138,7 @@ stack_save_td(struct stack *st, struct thread *td)
 	if (TD_IS_RUNNING(td))
 		panic("stack_save_td: running");
 
+	/* XXXRW: Should be pcb_context? */
 	pc = td->td_pcb->pcb_regs.pc;
 	sp = td->td_pcb->pcb_regs.sp;
 	stack_capture(st, pc, sp);
@@ -150,6 +152,7 @@ stack_save(struct stack *st)
 	if (curthread == NULL)
 		panic("stack_save: curthread == NULL");
 
+	/* XXXRW: Should be pcb_context? */
 	pc = curthread->td_pcb->pcb_regs.pc;
 	sp = curthread->td_pcb->pcb_regs.sp;
 	stack_capture(st, pc, sp);
