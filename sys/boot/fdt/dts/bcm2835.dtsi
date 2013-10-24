@@ -412,6 +412,14 @@
 			interrupt-parent = <&intc>;
 		};
 
+		spi0 {
+			compatible = "broadcom,bcm2835-spi",
+				     "broadcom,bcm2708-spi";
+			reg = <0x204000 0x20>;
+			interrupts = <62>;
+			interrupt-parent = <&intc>;
+		};
+
 		dma: dma {
 			compatible = "broadcom,bcm2835-dma", 
 				     "broadcom,bcm2708-dma";
