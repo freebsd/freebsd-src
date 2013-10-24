@@ -102,6 +102,10 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, US
 #define OP_SH_IMMEDIATE		0
 #define OP_MASK_DELTA		0xffff
 #define OP_SH_DELTA		0
+#define OP_MASK_CDELTA		0x7ff
+#define OP_SH_CDELTA		0
+#define OP_MASK_CDELTA2		0xff
+#define OP_SH_CDELTA2		3
 #define OP_MASK_FUNCT		0x3f
 #define OP_SH_FUNCT		0
 #define OP_MASK_SPEC		0x3f
@@ -267,6 +271,7 @@ struct mips_opcode
    "j" 16 bit signed immediate (OP_*_DELTA)
    "k" 5 bit cache opcode in target register position (OP_*_CACHE)
        Also used for immediate operands in vr5400 vector insns.
+   "m" 5 bit target register (OP_*_FD)
    "o" 16 bit signed offset (OP_*_DELTA)
    "p" 16 bit PC relative branch target address (OP_*_DELTA)
    "q" 10 bit extra breakpoint code (OP_*_CODE2)
@@ -307,6 +312,11 @@ struct mips_opcode
    "+H" 5 bit "dextu" size, which becomes MSBD (OP_*_EXTMSBD).
 	Requires that "+A" or "+E" occur first to set position.
 	Enforces: 32 < (pos+size) <= 64.
+   "+O" 8 bit signed offset (OP_*_CDELTA2)
+   "+w" 5 bit source or destination capability register (OP_*_RT)
+   "+b" 5 bit source or target capability register (OP_*_RD)
+   "+v" 5 bit target capability register (OP_*_FD)
+   "+o" 11 bit signed offset (OP_*_CDELTA)
 
    Floating point instructions:
    "D" 5 bit destination register (OP_*_FD)
@@ -385,7 +395,7 @@ struct mips_opcode
    "234567890"
    "%[]<>(),+:'@!$*&^~"
    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-   "abcdefghijklopqrstuvwxyz"
+   "abcdefghijklmopqrstuvwxyz"
 
    Extension character sequences used so far ("+" followed by the
    following), for quick reference when adding more:

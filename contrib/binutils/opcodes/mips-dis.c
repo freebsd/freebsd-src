@@ -899,6 +899,40 @@ print_insn_args (const char *d,
 		break;
 	      }
 
+	    case 'w':
+	      (*info->fprintf_func) (info->stream, "c%d", (l >> OP_SH_RT) &
+                                     OP_MASK_RT);
+	      break;
+
+	    case 'b':
+	      (*info->fprintf_func) (info->stream, "c%d", (l >> OP_SH_RD) &
+                                     OP_MASK_RD);
+	      break;
+
+	    case 'v':
+	      (*info->fprintf_func) (info->stream, "c%d", (l >> OP_SH_FD) &
+                                     OP_MASK_FD);
+	      break;
+
+            case 'x':
+              (*info->fprintf_func) (info->stream, "c%d", (l >> OP_SH_RS) &
+                                     OP_MASK_RS);
+              break;
+
+	    case 'o':
+	      delta = ((l >> OP_SH_CDELTA) & OP_MASK_CDELTA);
+              if (delta > (OP_MASK_CDELTA >> 1))
+                delta -= (OP_MASK_CDELTA + 1);
+	      (*info->fprintf_func) (info->stream, "%d", delta);
+	      break;
+
+	    case 'O':
+              delta = ((l >> OP_SH_CDELTA2) & OP_MASK_CDELTA2);
+              if (delta > (OP_MASK_CDELTA2 >> 1))
+                delta -= (OP_MASK_CDELTA2 + 1);
+              (*info->fprintf_func) (info->stream, "%d", delta);
+	      break;
+
 	    default:
 	      /* xgettext:c-format */
 	      (*info->fprintf_func) (info->stream,
@@ -1012,6 +1046,11 @@ print_insn_args (const char *d,
 	case 'w':
 	  (*info->fprintf_func) (info->stream, "%s",
 				 mips_gpr_names[(l >> OP_SH_RT) & OP_MASK_RT]);
+	  break;
+
+	case 'm':
+	  (*info->fprintf_func) (info->stream, "%s",
+				 mips_gpr_names[(l >> OP_SH_FD) & OP_MASK_FD]);
 	  break;
 
 	case 'i':

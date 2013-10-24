@@ -188,6 +188,100 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"move",    "d,s",	0x0000002d, 0xfc1f07ff, WR_d|RD_s,		INSN2_ALIAS,	I3	},/* daddu */
 {"move",    "d,s",	0x00000021, 0xfc1f07ff, WR_d|RD_s,		INSN2_ALIAS,	I1	},/* addu */
 {"move",    "d,s",	0x00000025, 0xfc1f07ff,	WR_d|RD_s,		INSN2_ALIAS,	I1	},/* or */
+{"cgetperm", "t,+b",	    0x48000000, 0xffe007ff, 0, 0, I1},
+{"cgettype", "t,+b",	    0x48000001, 0xffe007ff, 0, 0, I1},
+{"cgetbase", "t,+b",	    0x48000002, 0xffe007ff, 0, 0, I1},
+{"cgetlen",  "t,+b",	    0x48000003, 0xffe007ff, 0, 0, I1},
+{"cgetcause", "t",          0x48000004, 0xffe0ffff, 0, 0, I1},
+{"cgettag",  "t,+b",        0x48000005, 0xffe007ff, 0, 0, I1},
+{"cgetunsealed", "t,+b",    0x48000006, 0xffe007ff, 0, 0, I1},
+{"cgetpcc",  "t(+b)",       0x48000007, 0xffe007ff, 0, 0, I1},
+{"candperm", "+w,+b,m",	    0x48800000, 0xffe0003f, 0, 0, I1},
+{"csettype", "+w,+b,m",	    0x48800001, 0xffe0003f, 0, 0, I1},
+{"cincbase", "+w,+b,m",	    0x48800002, 0xffe0003f, 0, 0, I1},
+{"cmove",    "+w,+b",	    0x48800002, 0xffe007ff, 0, 0, I1},
+{"csetlen",  "+w,+b,m",	    0x48800003, 0xffe0003f, 0, 0, I1},
+{"ccleartag", "+w",	    0x48800005, 0xffe0ffff, 0, 0, I1},
+{"csc",      "+x,d,+o(+w)", 0xf8000000, 0xfc000000, 0, 0, I1},
+{"clc",      "+x,d,+o(+w)", 0xd8000000, 0xfc000000, 0, 0, I1},
+{"cscr",     "+x,d(+w)",    0xf8000000, 0xfc0007ff, 0, 0, I1},
+{"clcr",     "+x,d(+w)",    0xd8000000, 0xfc0007ff, 0, 0, I1},
+{"csci",     "+x,+o(+w)",   0xf8000000, 0xfc00f800, 0, 0, I1},
+{"clci",     "+x,+o(+w)",   0xd8000000, 0xfc00f800, 0, 0, I1},
+
+{"clbu",     "v,d,+O(+w)",  0xc8000000, 0xfc000007, 0, 0, I1},
+{"clhu",     "v,d,+O(+w)",  0xc8000001, 0xfc000007, 0, 0, I1},
+{"clwu",     "v,d,+O(+w)",  0xc8000002, 0xfc000007, 0, 0, I1},
+/* there is no cldu */
+{"cld",      "v,d,+O(+w)",  0xc8000003, 0xfc000007, 0, 0, I1},
+{"clb",	     "v,d,+O(+w)",  0xc8000004, 0xfc000007, 0, 0, I1},
+{"clh",	     "v,d,+O(+w)",  0xc8000005, 0xfc000007, 0, 0, I1},
+{"clw",      "v,d,+O(+w)",  0xc8000006, 0xfc000007, 0, 0, I1},
+
+{"clbur",    "v,d(+w)",     0xc8000000, 0xfc0007ff, 0, 0, I1},
+{"clhur",    "v,d(+w)",     0xc8000001, 0xfc0007ff, 0, 0, I1},
+{"clwur",    "v,d(+w)",     0xc8000002, 0xfc0007ff, 0, 0, I1},
+/* there is no cldur */
+{"cldr",     "v,d(+w)",     0xc8000003, 0xfc0007ff, 0, 0, I1},
+{"clbr",     "v,d(+w)",     0xc8000004, 0xfc0007ff, 0, 0, I1},
+{"clhr",     "v,d(+w)",     0xc8000005, 0xfc0007ff, 0, 0, I1},
+{"clwr",     "v,d(+w)",     0xc8000006, 0xfc0007ff, 0, 0, I1},
+
+{"clbui",    "v,+O(+w)",    0xc8000000, 0xfc00f807, 0, 0, I1},
+{"clhui",    "v,+O(+w)",    0xc8000001, 0xfc00f807, 0, 0, I1},
+{"clwui",    "v,+O(+w)",    0xc8000002, 0xfc00f807, 0, 0, I1},
+/* There is no cldui. Call this opcode cldi as sign-extend and zero-extend
+ * are the same for double-words
+ */
+{"cldi",     "v,+O(+w)",    0xc8000003, 0xfc00f807, 0, 0, I1},
+{"clbi",     "v,+O(+w)",    0xc8000004, 0xfc00f807, 0, 0, I1},
+{"clhi",     "v,+O(+w)",    0xc8000005, 0xfc00f807, 0, 0, I1},
+{"clwi",     "v,+O(+w)",    0xc8000006, 0xfc00f807, 0, 0, I1},
+
+{"csb",	     "v,d,+O(+w)",  0xe8000000, 0xfc000007, 0, 0, I1},
+{"csh",	     "v,d,+O(+w)",  0xe8000001, 0xfc000007, 0, 0, I1},
+{"csw",      "v,d,+O(+w)",  0xe8000002, 0xfc000007, 0, 0, I1},
+{"csd",      "v,d,+O(+w)",  0xe8000003, 0xfc000007, 0, 0, I1},
+{"csbh",     "v,d,+O(+w)",  0xe8000004, 0xfc000007, 0, 0, I1},
+{"cshh",     "v,d,+O(+w)",  0xe8000005, 0xfc000007, 0, 0, I1},
+{"cswh",     "v,d,+O(+w)",  0xe8000006, 0xfc000007, 0, 0, I1},
+/* there is no csdh */
+
+{"csbr",     "v,d(+w)",     0xe8000000, 0xfc0007ff, 0, 0, I1},
+{"cshr",     "v,d(+w)",     0xe8000001, 0xfc0007ff, 0, 0, I1},
+{"cswr",     "v,d(+w)",     0xe8000002, 0xfc0007ff, 0, 0, I1},
+{"csdr",     "v,d(+w)",     0xe8000003, 0xfc0007ff, 0, 0, I1},
+{"csbhr",    "v,d(+w)",     0xe8000004, 0xfc0007ff, 0, 0, I1},
+{"cshhr",    "v,d(+w)",     0xe8000005, 0xfc0007ff, 0, 0, I1},
+{"cswhr",    "v,d(+w)",     0xe8000006, 0xfc0007ff, 0, 0, I1},
+/* there is no csdhr */
+
+{"csbi",      "v,+O(+w)",   0xe8000000, 0xfc00f807, 0, 0, I1},
+{"cshi",      "v,+O(+w)",   0xe8000001, 0xfc00f807, 0, 0, I1},
+{"cswi",      "v,+O(+w)",   0xe8000002, 0xfc00f807, 0, 0, I1},
+{"csdi",      "v,+O(+w)",   0xe8000003, 0xfc00f807, 0, 0, I1},
+{"csbhi",     "v,+O(+w)",   0xe8000004, 0xfc00f807, 0, 0, I1},
+{"cshhi",     "v,+O(+w)",   0xe8000005, 0xfc00f807, 0, 0, I1},
+{"cswhi",     "v,+O(+w)",   0xe8000006, 0xfc00f807, 0, 0, I1},
+/* there is no csdhi */
+
+{"clld",      "v,d,+O(+w)", 0xc8000007, 0xfc000007, 0, 0, I1},
+{"cscd",      "v,d,+O(+w)", 0xc8000007, 0xfc000007, 0, 0, I1},
+{"clldr",     "v,d(+w)",    0xc8000007, 0xfc0007ff, 0, 0, I1},
+{"cscdr",     "v,d(+w)",    0xe8000007, 0xfc0007ff, 0, 0, I1},
+{"clldi",     "v,+O(+w)",   0xc8000007, 0xfc00f807, 0, 0, I1},
+{"cscdi",     "v,+O(+w)",   0xe8000007, 0xfc00f807, 0, 0, I1},
+
+{"csealcode", "+w,+b",      0x48200000, 0xffe007ff, 0, 0, I1},
+{"csealdata", "+w,+b,+v",   0x48400000, 0xffe0003f, 0, 0, I1},
+{"cunseal",   "+w,+b,+v",   0x48600000, 0xffe0003f, 0, 0, I1},
+{"ccall",     "+w,+b",      0x48a00000, 0xffe007ff, 0, 0, I1},
+{"creturn", "",		    0x48c00000, 0xffffffff, 0, 0, I1},
+{"cjalr",     "m(+b)",      0x48e00000, 0xffff003f, 0, 0, I1},
+{"cjr",       "m(+b)",      0x49000000, 0xffff003f, 0, 0, I1},
+{"cbtu",      "+w,p",       0x49200000, 0xffe00000, 0, 0, I1},
+{"cbts",      "+w,p",       0x49400000, 0xffe00000, 0, 0, I1},
+
 {"b",       "p",	0x10000000, 0xffff0000,	UBD,			INSN2_ALIAS,	I1	},/* beq 0,0 */
 {"b",       "p",	0x04010000, 0xffff0000,	UBD,			INSN2_ALIAS,	I1	},/* bgez 0 */
 {"bal",     "p",	0x04110000, 0xffff0000,	UBD|WR_31,		INSN2_ALIAS,	I1	},/* bgezal 0*/

@@ -1483,6 +1483,7 @@ struct regname {
 #define RTYPE_PC	0x04000
 #define RTYPE_ACC	0x08000
 #define RTYPE_CCC	0x10000
+#define RTYPE_CAP	0x20000
 #define RNUM_MASK	0x000ff
 #define RWARN		0x80000
 
@@ -1573,6 +1574,42 @@ struct regname {
     {"$cc5",	RTYPE_FCC | RTYPE_CCC | 5}, \
     {"$cc6",	RTYPE_FCC | RTYPE_CCC | 6}, \
     {"$cc7",	RTYPE_FCC | RTYPE_CCC | 7}
+
+#define CAPABILITY_REGISTER_NUMBERS \
+    {"$c0",	RTYPE_CAP | 0},  \
+    {"$c1",	RTYPE_CAP | 1},  \
+    {"$c2",	RTYPE_CAP | 2},  \
+    {"$c3",	RTYPE_CAP | 3},  \
+    {"$c4",	RTYPE_CAP | 4},  \
+    {"$c5",	RTYPE_CAP | 5},  \
+    {"$c6",	RTYPE_CAP | 6},  \
+    {"$c7",	RTYPE_CAP | 7},  \
+    {"$c8",	RTYPE_CAP | 8},  \
+    {"$c9",	RTYPE_CAP | 9},  \
+    {"$c10",	RTYPE_CAP | 10}, \
+    {"$c11",	RTYPE_CAP | 11}, \
+    {"$c12",	RTYPE_CAP | 12}, \
+    {"$c13",	RTYPE_CAP | 13}, \
+    {"$c14",	RTYPE_CAP | 14}, \
+    {"$c15",	RTYPE_CAP | 15}, \
+    {"$c16",	RTYPE_CAP | 16}, \
+    {"$c17",	RTYPE_CAP | 17}, \
+    {"$c18",	RTYPE_CAP | 18}, \
+    {"$c19",	RTYPE_CAP | 19}, \
+    {"$c20",	RTYPE_CAP | 20}, \
+    {"$c21",	RTYPE_CAP | 21}, \
+    {"$c22",	RTYPE_CAP | 22}, \
+    {"$c23",	RTYPE_CAP | 23}, \
+    {"$c24",	RTYPE_CAP | 24}, \
+    {"$c25",	RTYPE_CAP | 25}, \
+    {"$c26",	RTYPE_CAP | 26}, \
+    {"$c27",	RTYPE_CAP | 27}, \
+    {"$c28",	RTYPE_CAP | 28}, \
+    {"$c29",	RTYPE_CAP | 29}, \
+    {"$c30",	RTYPE_CAP | 30}, \
+    {"$c31",	RTYPE_CAP | 31} 
+
+/* TODO: Add symbolic names */
 
 #define N32N64_SYMBOLIC_REGISTER_NAMES \
     {"$a4",	RTYPE_GP | 8},  \
@@ -1681,13 +1718,14 @@ static const struct regname reg_names[] = {
   FPU_REGISTER_NAMES,
   FPU_CONDITION_CODE_NAMES,
   COPROC_CONDITION_CODE_NAMES,
+  
 
   /* The $txx registers depends on the abi,
      these will be added later into the symbol table from
      one of the tables below once mips_abi is set after 
      parsing of arguments from the command line. */
   SYMBOLIC_REGISTER_NAMES,
-
+  CAPABILITY_REGISTER_NUMBERS,
   MIPS16_SPECIAL_REGISTER_NAMES,
   MDMX_VECTOR_REGISTER_NAMES,
   MIPS_DSP_ACCUMULATOR_NAMES,
@@ -8376,6 +8414,7 @@ validate_mips_insn (const struct mips_opcode *opc)
 	  case '4': USE_BITS (OP_MASK_UDI4,	OP_SH_UDI4); 	break;
 	  case 'A': USE_BITS (OP_MASK_SHAMT,	OP_SH_SHAMT);	break;
 	  case 'B': USE_BITS (OP_MASK_INSMSB,	OP_SH_INSMSB);	break;
+	  case 'b': USE_BITS (OP_MASK_RD,	OP_SH_RD);	break;
 	  case 'C': USE_BITS (OP_MASK_EXTMSBD,	OP_SH_EXTMSBD);	break;
 	  case 'D': USE_BITS (OP_MASK_RD,	OP_SH_RD);
 		    USE_BITS (OP_MASK_SEL,	OP_SH_SEL);	break;
@@ -8384,9 +8423,14 @@ validate_mips_insn (const struct mips_opcode *opc)
 	  case 'G': USE_BITS (OP_MASK_EXTMSBD,	OP_SH_EXTMSBD);	break;
 	  case 'H': USE_BITS (OP_MASK_EXTMSBD,	OP_SH_EXTMSBD);	break;
 	  case 'I': break;
+	  case 'o': USE_BITS (OP_MASK_CDELTA,	OP_SH_CDELTA);	break;
+	  case 'O': USE_BITS (OP_MASK_CDELTA2,  OP_SH_CDELTA2); break;
 	  case 't': USE_BITS (OP_MASK_RT,	OP_SH_RT);	break;
 	  case 'T': USE_BITS (OP_MASK_RT,	OP_SH_RT);
 		    USE_BITS (OP_MASK_SEL,	OP_SH_SEL);	break;
+	  case 'v': USE_BITS (OP_MASK_FD,	OP_SH_FD);	break;
+	  case 'w': USE_BITS (OP_MASK_RT,	OP_SH_RT);	break;
+          case 'x': USE_BITS (OP_MASK_RS,       OP_SH_RS);      break;
 	  default:
 	    as_bad (_("internal: bad mips opcode (unknown extension operand type `+%c'): %s %s"),
 		    c, opc->name, opc->args);
@@ -8430,6 +8474,7 @@ validate_mips_insn (const struct mips_opcode *opc)
       case 'j':	USE_BITS (OP_MASK_DELTA,	OP_SH_DELTA);	break;
       case 'k':	USE_BITS (OP_MASK_CACHE,	OP_SH_CACHE);	break;
       case 'l': break;
+      case 'm': USE_BITS (OP_MASK_FD,		OP_SH_FD);	break;
       case 'o': USE_BITS (OP_MASK_DELTA,	OP_SH_DELTA);	break;
       case 'p':	USE_BITS (OP_MASK_DELTA,	OP_SH_DELTA);	break;
       case 'q':	USE_BITS (OP_MASK_CODE2,	OP_SH_CODE2);	break;
@@ -8743,6 +8788,7 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	    }
 	}
 
+      /* Parse argument list */
       create_insn (ip, insn);
       insn_error = NULL;
       argnum = 1;
@@ -8752,6 +8798,8 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 
 	  s += strspn (s, " \t");
 	  is_mdmx = 0;
+	  /* Switch on first character of operand (+ options are handled by
+	     a nested case statement, inside this switch) */
 	  switch (*args)
 	    {
 	    case '\0':		/* end of args */
@@ -9011,7 +9059,9 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	      /* This is dependent on the next operand specifier
 		 is a base register specification.  */
 	      assert (args[1] == 'b' || args[1] == '5'
-		      || args[1] == '-' || args[1] == '4');
+		      || args[1] == '-' || args[1] == '4'
+		      || (args[1] == '+' && args[2] == 'b')
+                      || (args[1] == '+' && args[2] == 'w'));
 	      if (*s == '\0')
 		return;
 
@@ -9159,8 +9209,69 @@ do_msbd:
 		  s = expr_end;
 		  continue;
 
+                case 'o':
+	          my_getExpression (&imm_expr, s);
+	      	  check_absolute_expr (ip, &imm_expr);
+	      	  INSERT_OPERAND (CDELTA, *ip, imm_expr.X_add_number);
+	      	  imm_expr.X_op = O_absent;
+	      	  s = expr_end;
+	      	  continue;
+
+		case 'O':
+		  my_getExpression (&imm_expr, s);
+		  check_absolute_expr (ip, &imm_expr);
+		  INSERT_OPERAND (CDELTA2, *ip, imm_expr.X_add_number);
+		  imm_expr.X_op = O_absent;
+		  s = expr_end;
+		  continue;
+
 		case 'T': /* Coprocessor register.  */
 		  /* +T is for disassembly only; never match.  */
+		  break;
+
+                /* Capability register number.  */
+		case 'w':
+		case 'b':
+		case 'v':
+                case 'x':
+		  if (s[0] == '$' && s[1] == 'c' && ISDIGIT (s[2]))
+		    {
+                      c = *args;
+		      ++s;
+		      ++s;
+		      regno = 0;
+		      do
+		        {
+			  regno *= 10;
+			  regno += *s - '0';
+			  ++s;
+			}
+		      while (ISDIGIT (*s));
+		      if (regno > 31)
+			as_bad (_("Invalid register number (%d)"), regno);
+		      else if (c == 'w')
+			{
+			  INSERT_OPERAND (RT, *ip, regno);
+			  continue;
+			}
+		      else if (c == 'b')
+			{
+			  INSERT_OPERAND (RD, *ip, regno);
+			  continue;
+			}
+		      else if (c == 'v')
+			{
+			  INSERT_OPERAND (FD, *ip, regno);
+			  continue;
+			}
+                      else if (c == 'x')
+                        {
+                          INSERT_OPERAND (RS, *ip, regno);
+                          continue;
+                        }
+		    }
+		  else
+		    as_bad (_("Invalid capability register number"));
 		  break;
 
 		case 't': /* Coprocessor register number.  */
@@ -9377,6 +9488,7 @@ do_msbd:
 	    case 'd':		/* destination register */
 	    case 's':		/* source register */
 	    case 't':		/* target register */
+	    case 'm':		/* target register */
 	    case 'r':		/* both target and source */
 	    case 'v':		/* both dest and source */
 	    case 'w':		/* both dest and target */
@@ -9437,6 +9549,9 @@ do_msbd:
 		    case 't':
 		    case 'E':
 		      INSERT_OPERAND (RT, *ip, regno);
+		      break;
+		    case 'm':
+		      INSERT_OPERAND (FD, *ip, regno);
 		      break;
 		    case 'x':
 		      /* This case exists because on the r3000 trunc
