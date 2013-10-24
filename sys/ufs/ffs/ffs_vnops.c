@@ -531,7 +531,7 @@ ffs_read(ap)
 			 * arguments point to arrays of the size specified in
 			 * the 6th argument.
 			 */
-			int nextsize = blksize(fs, ip, nextlbn);
+			u_int nextsize = blksize(fs, ip, nextlbn);
 			error = breadn_flags(vp, lbn, size, &nextlbn,
 			    &nextsize, 1, NOCRED, GB_UNMAPPED, &bp);
 		} else {
@@ -956,7 +956,7 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 			 * arguments point to arrays of the size specified in
 			 * the 6th argument.
 			 */
-			int nextsize = sblksize(fs, dp->di_extsize, nextlbn);
+			u_int nextsize = sblksize(fs, dp->di_extsize, nextlbn);
 
 			nextlbn = -1 - nextlbn;
 			error = breadn(vp, -1 - lbn,
@@ -1218,7 +1218,8 @@ ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td, int extra)
 	struct fs *fs;
 	struct uio luio;
 	struct iovec liovec;
-	int easize, error;
+	u_int easize;
+	int error;
 	u_char *eae;
 
 	ip = VTOI(vp);
