@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Baptiste Daroussin <bapt@FreeBSD.org>
+ * Copyright (c) 2010 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -26,28 +26,15 @@
  * $FreeBSD$
  */
 
-#ifndef _PKG_CONFIG_H
-#define _PKG_CONFIG_H
+#ifndef _OFW_NEXUS_H_
+#define	_OFW_NEXUS_H_
 
-#define _LOCALBASE "/usr/local"
-#define URL_SCHEME_PREFIX "pkg+"
+struct ofw_nexus_softc {
+	uint32_t	acells, scells;
+	struct rman	sc_intr_rman;
+	struct rman	sc_mem_rman;
+};
 
-typedef enum {
-	PACKAGESITE = 0,
-	ABI,
-	MIRROR_TYPE,
-	ASSUME_ALWAYS_YES,
-	CONFIG_SIZE
-} pkg_config_key;
+DECLARE_CLASS(ofw_nexus_driver);
 
-typedef enum {
-	PKG_CONFIG_STRING=0,
-	PKG_CONFIG_BOOL,
-} pkg_config_t;
-
-int config_init(void);
-void config_finish(void);
-int config_string(pkg_config_key, const char **);
-int config_bool(pkg_config_key, bool *);
-
-#endif
+#endif /* _OFW_NEXUS_H_ */

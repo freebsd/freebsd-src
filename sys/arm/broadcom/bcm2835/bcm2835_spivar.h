@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2013 Baptiste Daroussin <bapt@FreeBSD.org>
+ * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
+ * Copyright (c) 2013 Luiz Otavio O Souza <loos@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +11,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -26,28 +27,46 @@
  * $FreeBSD$
  */
 
-#ifndef _PKG_CONFIG_H
-#define _PKG_CONFIG_H
+#ifndef	_BCM2835_SPIVAR_H_
+#define	_BCM2835_SPIVAR_H_
 
-#define _LOCALBASE "/usr/local"
-#define URL_SCHEME_PREFIX "pkg+"
+/*
+ * Only the available pins are listed here.
+ * i.e. CS2 isn't available.
+ */
+uint32_t bcm_spi_pins[] = {
+	7,	/* CS1 */
+	8,	/* CS0 */
+	9,	/* MISO */
+	10,	/* MOSI */
+	11	/* SCLK */
+};
 
-typedef enum {
-	PACKAGESITE = 0,
-	ABI,
-	MIRROR_TYPE,
-	ASSUME_ALWAYS_YES,
-	CONFIG_SIZE
-} pkg_config_key;
+struct bcm_spi_softc {
+	device_t		sc_dev;
+	struct mtx		sc_mtx;
+	struct resource *	sc_mem_res;
+	struct resource *	sc_irq_res;
+	struct spi_command	*sc_cmd;
+	bus_space_tag_t		sc_bst;
+	bus_space_handle_t	sc_bsh;
+	uint32_t		sc_len;
+	uint32_t		sc_read;
+	uint32_t		sc_flags;
+	uint32_t		sc_written;
+	void *			sc_intrhand;
+};
 
-typedef enum {
-	PKG_CONFIG_STRING=0,
-	PKG_CONFIG_BOOL,
-} pkg_config_t;
+#define	BCM_SPI_BUSY		0x1
 
-int config_init(void);
-void config_finish(void);
-int config_string(pkg_config_key, const char **);
-int config_bool(pkg_config_key, bool *);
+#define BCM_SPI_WRITE(_sc, _off, _val)		\
+    bus_space_write_4(_sc->sc_bst, _sc->sc_bsh, _off, _val)
+#define BCM_SPI_READ(_sc, _off)			\
+    bus_space_read_4(_sc->sc_bst, _sc->sc_bsh, _off)
 
-#endif
+#define BCM_SPI_LOCK(_sc)			\
+    mtx_lock(&(_sc)->sc_mtx)
+#define BCM_SPI_UNLOCK(_sc)			\
+    mtx_unlock(&(_sc)->sc_mtx)
+
+#endif	/* _BCM2835_SPIVAR_H_ */

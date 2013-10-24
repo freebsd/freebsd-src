@@ -2732,20 +2732,35 @@ ieee80211_alloc_cts(struct ieee80211com *ic,
 static void
 ieee80211_tx_mgt_timeout(void *arg)
 {
-	struct ieee80211_node *ni = arg;
-	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211vap *vap = arg;
 
+	IEEE80211_LOCK(vap->iv_ic);
 	if (vap->iv_state != IEEE80211_S_INIT &&
 	    (vap->iv_ic->ic_flags & IEEE80211_F_SCAN) == 0) {
 		/*
 		 * NB: it's safe to specify a timeout as the reason here;
 		 *     it'll only be used in the right state.
 		 */
-		ieee80211_new_state(vap, IEEE80211_S_SCAN,
+		ieee80211_new_state_locked(vap, IEEE80211_S_SCAN,
 			IEEE80211_SCAN_FAIL_TIMEOUT);
 	}
+	IEEE80211_UNLOCK(vap->iv_ic);
 }
 
+/*
+ * This is the callback set on net80211-sourced transmitted
+ * authentication request frames.
+ *
+ * This does a couple of things:
+ *
+ * + If the frame transmitted was a success, it schedules a future
+ *   event which will transition the interface to scan.
+ *   If a state transition _then_ occurs before that event occurs,
+ *   said state transition will cancel this callout.
+ *
+ * + If the frame transmit was a failure, it immediately schedules
+ *   the transition back to scan.
+ */
 static void
 ieee80211_tx_mgt_cb(struct ieee80211_node *ni, void *arg, int status)
 {
@@ -2763,10 +2778,11 @@ ieee80211_tx_mgt_cb(struct ieee80211_node *ni, void *arg, int status)
 	 *
 	 * XXX what happens if !acked but response shows up before callback?
 	 */
-	if (vap->iv_state == ostate)
+	if (vap->iv_state == ostate) {
 		callout_reset(&vap->iv_mgtsend,
 			status == 0 ? IEEE80211_TRANS_WAIT*hz : 0,
-			ieee80211_tx_mgt_timeout, ni);
+			ieee80211_tx_mgt_timeout, vap);
+	}
 }
 
 static void

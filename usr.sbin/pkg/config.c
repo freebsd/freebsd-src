@@ -62,7 +62,7 @@ static struct config_entry c[] = {
 	[PACKAGESITE] = {
 		PKG_CONFIG_STRING,
 		"PACKAGESITE",
-		"http://pkg.FreeBSD.org/${ABI}/latest",
+		URL_SCHEME_PREFIX "http://pkg.FreeBSD.org/${ABI}/latest",
 		NULL,
 		false,
 	},

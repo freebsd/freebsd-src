@@ -638,7 +638,7 @@ platform_gpio_init(void)
 				 * contain a ref. to a node defining GPIO
 				 * controller.
 				 */
-				ctrl = OF_xref_handle(fdt32_to_cpu(gpios[0]));
+				ctrl = OF_xref_phandle(fdt32_to_cpu(gpios[0]));
 
 				if (fdt_is_compatible(ctrl, e->compat))
 					/* Call a handler. */

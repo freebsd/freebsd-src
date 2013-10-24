@@ -58,6 +58,7 @@
 # use that new version.  And the new (dynamically-linked) /bin/sh
 # will expect to find appropriate libraries in /lib and /libexec.
 #
+SRCDIR?=	${.CURDIR}
 .if defined(SUBDIR_OVERRIDE)
 SUBDIR=	${SUBDIR_OVERRIDE}
 .else
@@ -128,10 +129,10 @@ OSRELDATE=	0
 .endif
 
 .if !defined(VERSION)
-REVISION!=	make -C ${.CURDIR}/release -V REVISION
-BRANCH!=	make -C ${.CURDIR}/release -V BRANCH
+REVISION!=	make -C ${SRCDIR}/release -V REVISION
+BRANCH!=	make -C ${SRCDIR}/release -V BRANCH
 SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
-		${.CURDIR}/sys/sys/param.h
+		${SRCDIR}/sys/sys/param.h
 VERSION=	FreeBSD ${REVISION}-${BRANCH} ${TARGET_ARCH} ${SRCRELDATE}
 .endif
 
