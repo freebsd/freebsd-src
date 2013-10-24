@@ -306,9 +306,6 @@ choninvalidate(struct cam_periph *periph)
 	 * when it has cleaned up its state.
 	 */
 	destroy_dev_sched_cb(softc->dev, chdevgonecb, periph);
-
-	xpt_print(periph->path, "lost device\n");
-
 }
 
 static void
@@ -317,8 +314,6 @@ chcleanup(struct cam_periph *periph)
 	struct ch_softc *softc;
 
 	softc = (struct ch_softc *)periph->softc;
-
-	xpt_print(periph->path, "removing device entry\n");
 
 	devstat_remove_entry(softc->device_stats);
 

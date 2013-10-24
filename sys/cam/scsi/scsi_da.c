@@ -1561,9 +1561,6 @@ daoninvalidate(struct cam_periph *periph)
 	 * done cleaning up its resources.
 	 */
 	disk_gone(softc->disk);
-
-	xpt_print(periph->path, "lost device - %d outstanding, %d refs\n",
-		  softc->outstanding_cmds, periph->refcount);
 }
 
 static void
@@ -1573,7 +1570,6 @@ dacleanup(struct cam_periph *periph)
 
 	softc = (struct da_softc *)periph->softc;
 
-	xpt_print(periph->path, "removing device entry\n");
 	cam_periph_unlock(periph);
 
 	/*

@@ -1025,6 +1025,7 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	struct	cam_path *path = periph->path;
 
 	mtx_assert(periph->sim->mtx, MA_OWNED);
+	periph->flags |= CAM_PERIPH_ANNOUNCED;
 
 	printf("%s%d at %s%d bus %d scbus%d target %d lun %d\n",
 	       periph->periph_name, periph->unit_number,
@@ -1072,6 +1073,37 @@ xpt_announce_quirks(struct cam_periph *periph, int quirks, char *bit_string)
 		    periph->unit_number, quirks, bit_string);
 	}
 }
+
+void
+xpt_denounce_periph(struct cam_periph *periph)
+{
+	struct	cam_path *path = periph->path;
+
+	mtx_assert(periph->sim->mtx, MA_OWNED);
+	printf("%s%d at %s%d bus %d scbus%d target %d lun %d\n",
+	       periph->periph_name, periph->unit_number,
+	       path->bus->sim->sim_name,
+	       path->bus->sim->unit_number,
+	       path->bus->sim->bus_id,
+	       path->bus->path_id,
+	       path->target->target_id,
+	       path->device->lun_id);
+	printf("%s%d: ", periph->periph_name, periph->unit_number);
+	if (path->device->protocol == PROTO_SCSI)
+		scsi_print_inquiry_short(&path->device->inq_data);
+	else if (path->device->protocol == PROTO_ATA ||
+	    path->device->protocol == PROTO_SATAPM)
+		ata_print_ident_short(&path->device->ident_data);
+	else if (path->device->protocol == PROTO_SEMB)
+		semb_print_ident_short(
+		    (struct sep_identify_data *)&path->device->ident_data);
+	else
+		printf("Unknown protocol device");
+	if (path->device->serial_num_len > 0)
+		printf(" s/n %.60s", path->device->serial_num);
+	printf(" detached\n");
+}
+
 
 int
 xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)

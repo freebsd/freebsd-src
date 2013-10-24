@@ -2312,6 +2312,7 @@ char *		scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string,
 				size_t len);
 
 void		scsi_print_inquiry(struct scsi_inquiry_data *inq_data);
+void		scsi_print_inquiry_short(struct scsi_inquiry_data *inq_data);
 
 u_int		scsi_calc_syncsrate(u_int period_factor);
 u_int		scsi_calc_syncparam(u_int period);
