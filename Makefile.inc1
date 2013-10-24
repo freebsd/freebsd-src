@@ -1722,6 +1722,13 @@ delete-old-libs:
 			chflags noschg "${DESTDIR}/$${file}" 2>/dev/null || true; \
 			rm ${RM_I} "${DESTDIR}/$${file}" <&3; \
 		fi; \
+		for ext in debug symbols; do \
+		  if ! [ -e "${DESTDIR}/$${file}" ] && [ -f \
+		      "${DESTDIR}${DEBUGDIR}/$${file}.$${ext}" ]; then \
+			  rm ${RM_I} "${DESTDIR}${DEBUGDIR}/$${file}.$${ext}" \
+			      <&3; \
+		  fi; \
+		done; \
 	done
 	@echo ">>> Old libraries removed"
 
@@ -1733,6 +1740,11 @@ check-old-libs:
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			echo "${DESTDIR}/$${file}"; \
 		fi; \
+		for ext in debug symbols; do \
+		  if [ -f "${DESTDIR}${DEBUGDIR}/$${file}.$${ext}" ]; then \
+			  echo "${DESTDIR}${DEBUGDIR}/$${file}.$${ext}"; \
+		  fi; \
+		done; \
 	done
 
 delete-old-dirs:
