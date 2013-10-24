@@ -875,14 +875,6 @@ oif_found:
 			mtu = IPV6_MMTU;
 		}
 	}
-
-	/*
-	 * clear embedded scope identifiers if necessary.
-	 * in6_clearscope will touch the addresses only when necessary.
-	 */
-	in6_clearscope(&ip6->ip6_src);
-	in6_clearscope(&ip6->ip6_dst);
-
 	/*
 	 * If the outgoing packet contains a hop-by-hop options header,
 	 * it must be examined and processed even by the source node.
@@ -2801,8 +2793,7 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
 			    IN6_IS_ADDR_MULTICAST(&sa6->sin6_addr)) {
 				return (EINVAL);
 			}
-			if ((error = sa6_embedscope(sa6, V_ip6_use_defzone))
-			    != 0) {
+			if ((error = sa6_checkzone(sa6)) != 0) {
 				return (error);
 			}
 			break;
@@ -3027,7 +3018,6 @@ void
 ip6_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in6 *dst)
 {
 	struct mbuf *copym;
-	struct ip6_hdr *ip6;
 
 	copym = m_copy(m, 0, M_COPYALL);
 	if (copym == NULL)
@@ -3046,20 +3036,11 @@ ip6_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in6 *dst)
 	}
 
 #ifdef DIAGNOSTIC
-	if (copym->m_len < sizeof(*ip6)) {
+	if (copym->m_len < sizeof(struct ip6_hdr)) {
 		m_freem(copym);
 		return;
 	}
 #endif
-
-	ip6 = mtod(copym, struct ip6_hdr *);
-	/*
-	 * clear embedded scope identifiers if necessary.
-	 * in6_clearscope will touch the addresses only when necessary.
-	 */
-	in6_clearscope(&ip6->ip6_src);
-	in6_clearscope(&ip6->ip6_dst);
-
 	(void)if_simloop(ifp, copym, dst->sin6_family, 0);
 }
 
