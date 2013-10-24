@@ -46,7 +46,7 @@
 ** contact me by email at the address above.
 **
 ** $Id: sysdep.h,v 1.6 2001-04-26 21:41:55-07 jsadler Exp jsadler $
-** $FreeBSD$
+** $FreeBSD: head/sys/boot/ficl/mips/sysdep.h 188824 2009-02-19 18:52:31Z imp $
 */
 
 #if !defined (__SYSDEP_H__)
@@ -105,11 +105,11 @@
 ** (11/2000: same for FICL_FLOAT)
 */
 #if !defined FICL_INT
-#define FICL_INT INT32
+#define FICL_INT long
 #endif
 
 #if !defined FICL_UNS
-#define FICL_UNS UNS32
+#define FICL_UNS unsigned long
 #endif
 
 #if !defined FICL_FLOAT
@@ -120,7 +120,7 @@
 ** Ficl presently supports values of 32 and 64 for BITS_PER_CELL
 */
 #if !defined BITS_PER_CELL
-#define BITS_PER_CELL 32
+#define BITS_PER_CELL 64
 #endif
 
 #if ((BITS_PER_CELL != 32) && (BITS_PER_CELL != 64))
@@ -366,7 +366,7 @@ typedef struct
 ** machine. 3 would be appropriate for a 64 bit machine.
 */
 #if !defined FICL_ALIGN
-#define FICL_ALIGN 2
+#define FICL_ALIGN 3
 #define FICL_ALIGN_ADD ((1 << FICL_ALIGN) - 1)
 #endif
 

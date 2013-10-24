@@ -27,6 +27,9 @@ CFLAGS+=	-msoft-float
 .if ${MACHINE} == "pc98"
 CFLAGS+=	-Os -DPC98
 .endif
+.if ${MACHINE_CPUARCH} == "mips"
+CFLAGS+=	-G0 -fno-pic -mno-abicalls
+.endif
 .if HAVE_PNP
 CFLAGS+=	-DHAVE_PNP
 .endif

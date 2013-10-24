@@ -125,7 +125,15 @@ printf(const char *fmt, ...)
 
 	va_start(ap, fmt);
 	while ((c = *fmt++) != '\0') {
-		if (c != '%') {
+		switch (c) {
+		case '%':
+			break;
+
+		case '\n':
+			putchar('\r');
+			/* FALLTHROUGH */
+
+		default:
 			putchar(c);
 			continue;
 		}
