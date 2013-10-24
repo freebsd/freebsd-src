@@ -28,6 +28,17 @@
 # If console is marked "insecure", then init will ask for the root password
 # when going to single-user mode.
 console	none				unknown	off secure
+#
+ttyv0	"/usr/libexec/getty Pc"		xterm	on  secure
+# Virtual terminals
+ttyv1	"/usr/libexec/getty Pc"		xterm	off secure
+ttyv2	"/usr/libexec/getty Pc"		xterm	off secure
+ttyv3	"/usr/libexec/getty Pc"		xterm	off secure
+ttyv4	"/usr/libexec/getty Pc"		xterm	off secure
+ttyv5	"/usr/libexec/getty Pc"		xterm	off secure
+ttyv6	"/usr/libexec/getty Pc"		xterm	off secure
+ttyv7	"/usr/libexec/getty Pc"		xterm	off secure
+ttyv8	"/usr/local/bin/xdm -nodaemon"	xterm	off secure
 # Serial terminals
 # The 'dialup' keyword identifies dialin lines to login, fingerd etc.
 ttyu0	"/usr/libexec/getty std.115200"	dialup	on  secure
