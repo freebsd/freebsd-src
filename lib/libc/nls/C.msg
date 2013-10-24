@@ -263,6 +263,10 @@ $ SIGUSR1
 30 User defined signal 1
 $ SIGUSR2
 31 User defined signal 2
+$ SIGTHR
+32 Thread interrupt
+$ SIGLIBRT
+33 Real-time library interrupt
 $
 $ gai_strerror() support catalog
 $
