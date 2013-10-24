@@ -451,7 +451,6 @@ success:
 static int
 in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 {
-	struct in6_ifaddr *ia;
 	struct in6_aliasreq ifra;
 	struct nd_prefixctl pr0;
 	int i, error;
@@ -470,10 +469,8 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 	ifra.ifra_addr.sin6_family = AF_INET6;
 	ifra.ifra_addr.sin6_len = sizeof(struct sockaddr_in6);
 	ifra.ifra_addr.sin6_addr.s6_addr32[0] = htonl(0xfe800000);
-	ifra.ifra_addr.sin6_addr.s6_addr32[1] = 0;
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
-		ifra.ifra_addr.sin6_addr.s6_addr32[2] = 0;
-		ifra.ifra_addr.sin6_addr.s6_addr32[3] = htonl(1);
+		ifra.ifra_addr.sin6_addr.s6_addr32[3] = IPV6_ADDR_INT32_ONE;
 	} else {
 		if (get_ifid(ifp, altifp, &ifra.ifra_addr.sin6_addr) != 0) {
 			nd6log((LOG_ERR,
@@ -481,9 +478,6 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 			return (-1);
 		}
 	}
-	if (in6_setscope(&ifra.ifra_addr.sin6_addr, ifp, NULL))
-		return (-1);
-
 	ifra.ifra_prefixmask.sin6_len = sizeof(struct sockaddr_in6);
 	ifra.ifra_prefixmask.sin6_family = AF_INET6;
 	ifra.ifra_prefixmask.sin6_addr = in6mask64;
@@ -512,12 +506,6 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 			    if_name(ifp), error));
 		return (-1);
 	}
-
-	ia = in6ifa_ifpforlinklocal(ifp, 0); /* ia must not be NULL */
-	KASSERT(ia != NULL, ("%s: ia == NULL, ifp=%p", __func__, ifp));
-
-	ifa_free(&ia->ia_ifa);
-
 	/*
 	 * Make the link-local prefix (fe80::%link/64) as on-link.
 	 * Since we'd like to manage prefixes separately from addresses,
