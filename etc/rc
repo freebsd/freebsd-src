@@ -90,7 +90,11 @@ fi
 # Do a first pass to get everything up to $early_late_divider so that
 # we can do a second pass that includes $local_startup directories
 #
-files=`rcorder ${skip} ${skip_firstboot} /etc/rc.d/* 2>/dev/null`
+if [ -r /etc/rcorder.start -a ! -r "${firstboot_sentinel}" ]; then
+	files=`read_fixed_rcorder /etc/rcorder.start`
+else
+	files=`rcorder ${skip} ${skip_firstboot} /etc/rc.d/* 2>/dev/null`
+fi
 
 _rc_elem_done=' '
 for _rc_elem in ${files}; do
@@ -118,7 +122,11 @@ if [ -e ${firstboot_sentinel} ]; then
 	skip_firstboot=""
 fi
 
-files=`rcorder ${skip} ${skip_firstboot} /etc/rc.d/* ${local_rc} 2>/dev/null`
+if [ -r /etc/rcorder.start -a ! -r ${firstboot_sentinel} ]; then
+	files=`read_fixed_rcorder /etc/rcorder.start`
+else
+	files=`rcorder ${skip} ${skip_firstboot} /etc/rc.d/* ${local_rc} 2>/dev/null`
+fi
 for _rc_elem in ${files}; do
 	case "$_rc_elem_done" in
 	*" $_rc_elem "*)	continue ;;

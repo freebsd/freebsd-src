@@ -1754,6 +1754,20 @@ _echoonce()
 	esac
 }
 
+read_fixed_rcorder()
+{
+	local _files _file
+
+	_files=""
+	while read _file; do
+		if [ -r ${_file} ]; then
+			_files="${_files} ${_file}"
+		fi
+	done < $1
+
+	echo ${_files}
+}
+
 fi # [ -z "${_rc_subr_loaded}" ]
 
 _rc_subr_loaded=:
