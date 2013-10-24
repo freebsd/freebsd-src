@@ -205,7 +205,7 @@ vmnet_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	i = clone_create(&tapclones, &tap_cdevsw, &unit, &dev, VMNET_DEV_MASK);
 	if (i) {
 		dev = make_dev(&tap_cdevsw, unit | VMNET_DEV_MASK, UID_ROOT,
-		    GID_WHEEL, 0600, "%s%d", tapname, unit);
+		    GID_WHEEL, 0600, "%s%d", vmnetname, unit);
 	}
 
 	tapcreate(dev);
