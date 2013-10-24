@@ -274,13 +274,119 @@ vt_winsize(struct vt_device *vd, struct vt_font *vf, struct winsize *size)
 	}
 }
 
+static void
+vt_scroll(struct vt_window *vw, int offset, int whence)
+{
+	int diff;
+	term_pos_t size;
+
+	if ((vw->vw_flags & VWF_SCROLL) == 0)
+		return;
+
+	vt_termsize(vw->vw_device, vw->vw_font, &size);
+
+	diff = vthistory_seek(&vw->vw_buf, offset, whence);
+	/*
+	 * Offset changed, please update Nth lines on sceen.
+	 * +N - Nth lines at top;
+	 * -N - Nth lines at bottom.
+	 */
+
+	if (diff < -size.tp_row || diff > size.tp_row) {
+		vw->vw_device->vd_flags |= VDF_INVALID;
+		return;
+	}
+	vw->vw_device->vd_flags |= VDF_INVALID; /*XXX*/
+}
+
+static int
+vt_machine_kbdevent(int c)
+{
+
+	switch (c) {
+	case SPCLKEY | DBG:
+		kdb_enter(KDB_WHY_BREAK, "manual escape to debugger");
+		return (1);
+	case SPCLKEY | RBT:
+		/* XXX: Make this configurable! */
+		shutdown_nice(0);
+		return (1);
+	case SPCLKEY | HALT:
+		shutdown_nice(RB_HALT);
+		return (1);
+	case SPCLKEY | PDWN:
+		shutdown_nice(RB_HALT|RB_POWEROFF);
+		return (1);
+	};
+
+	return (0);
+}
+
+static void
+vt_scrollmode_kbdevent(struct vt_window *vw, int c, int console)
+{
+	struct vt_device *vd;
+	term_pos_t size;
+
+	vd = vw->vw_device;
+	/* Only special keys handled in ScrollLock mode */
+	if ((c & SPCLKEY) == 0)
+		return;
+
+	c &= ~SPCLKEY;
+
+	if (console == 0) {
+		if (c >= F_SCR && c <= MIN(L_SCR, F_SCR + VT_MAXWINDOWS - 1)) {
+			vw = vd->vd_windows[c - F_SCR];
+			if (vw != NULL)
+				vt_proc_window_switch(vw);
+			return;
+		}
+		VT_LOCK(vd);
+	}
+
+	switch (c) {
+	case SLK: {
+		/* Turn scrolling off. */
+		vt_scroll(vw, 0, VHS_END);
+		VTBUF_SLCK_DISABLE(&vw->vw_buf);
+		vw->vw_flags &= ~VWF_SCROLL;
+		break;
+	}
+	case FKEY | F(49): /* Home key. */
+		vt_scroll(vw, 0, VHS_END);
+		break;
+	case FKEY | F(50): /* Arrow up. */
+		vt_scroll(vw, -1, VHS_CUR);
+		break;
+	case FKEY | F(51): /* Page up. */
+		vt_termsize(vd, vw->vw_font, &size);
+		vt_scroll(vw, -size.tp_row, VHS_CUR);
+		break;
+	case FKEY | F(57): /* End key. */
+		vt_scroll(vw, 0, VHS_SET);
+		break;
+	case FKEY | F(58): /* Arrow down. */
+		vt_scroll(vw, 1, VHS_CUR);
+		break;
+	case FKEY | F(59): /* Page down. */
+		vt_termsize(vd, vw->vw_font, &size);
+		vt_scroll(vw, size.tp_row, VHS_CUR);
+		break;
+	}
+
+	if (console == 0)
+		VT_UNLOCK(vd);
+}
+
 static int
 vt_kbdevent(keyboard_t *kbd, int event, void *arg)
 {
 	struct vt_device *vd = arg;
 	struct vt_window *vw = vd->vd_curwindow;
-	int c;
+	int c, state;
 
+	state = 0;
 	switch (event) {
 	case KBDIO_KEYINPUT:
 		break;
@@ -298,6 +404,15 @@ vt_kbdevent(keyboard_t *kbd, int event, void *arg)
 	if (c & RELKEY)
 		return (0);
 
+	if (vt_machine_kbdevent(c))
+		return (0);
+
+	if (vw->vw_flags & VWF_SCROLL) {
+		vt_scrollmode_kbdevent(vw, c, 0/* Not a console */);
+		/* Scroll mode keys handled, nothing to do more. */
+		return (0);
+	}
+
 	if (c & SPCLKEY) {
 		c &= ~SPCLKEY;
 
@@ -309,21 +424,7 @@ vt_kbdevent(keyboard_t *kbd, int event, void *arg)
 		}
 
 		switch (c) {
-		case DBG:
-			kdb_enter(KDB_WHY_BREAK, "manual escape to debugger");
-			break;
-		case RBT:
-			/* XXX: Make this configurable! */
-			shutdown_nice(0);
-			break;
-		case HALT:
-			shutdown_nice(RB_HALT);
-			break;
-		case PDWN:
-			shutdown_nice(RB_HALT|RB_POWEROFF);
-			break;
 		case SLK: {
-			int state = 0;
 
 			kbdd_ioctl(kbd, KDGKBSTATE, (caddr_t)&state);
 			VT_LOCK(vd);
@@ -335,8 +436,7 @@ vt_kbdevent(keyboard_t *kbd, int event, void *arg)
 				/* Turn scrolling off. */
 				vw->vw_flags &= ~VWF_SCROLL;
 				VTBUF_SLCK_DISABLE(&vw->vw_buf);
-				vthistory_seek(&vw->vw_buf, 0, VHS_END);
-				vd->vd_flags |= VDF_INVALID;
+				vt_scroll(vw, 0, VHS_END);
 			}
 			VT_UNLOCK(vd);
 			break;
@@ -350,40 +450,12 @@ vt_kbdevent(keyboard_t *kbd, int event, void *arg)
 			    TKEY_F1 + c - (FKEY | F(1)));
 			break;
 		case FKEY | F(49): /* Home key. */
-			VT_LOCK(vd);
-			if (vw->vw_flags & VWF_SCROLL) {
-				if (vthistory_seek(&vw->vw_buf, 0, VHS_END))
-					vd->vd_flags |= VDF_INVALID;
-				VT_UNLOCK(vd);
-				break;
-			}
-			VT_UNLOCK(vd);
 			terminal_input_special(vw->vw_terminal, TKEY_HOME);
 			break;
 		case FKEY | F(50): /* Arrow up. */
-			VT_LOCK(vd);
-			if (vw->vw_flags & VWF_SCROLL) {
-				if (vthistory_seek(&vw->vw_buf, -1, VHS_CUR))
-					vd->vd_flags |= VDF_INVALID;
-				VT_UNLOCK(vd);
-				break;
-			}
-			VT_UNLOCK(vd);
 			terminal_input_special(vw->vw_terminal, TKEY_UP);
 			break;
 		case FKEY | F(51): /* Page up. */
-			VT_LOCK(vd);
-			if (vw->vw_flags & VWF_SCROLL) {
-				term_pos_t size;
-
-				vt_termsize(vd, vw->vw_font, &size);
-				if (vthistory_seek(&vw->vw_buf, -size.tp_row,
-				    VHS_CUR))
-					vd->vd_flags |= VDF_INVALID;
-				VT_UNLOCK(vd);
-				break;
-			}
-			VT_UNLOCK(vd);
 			terminal_input_special(vw->vw_terminal, TKEY_PAGE_UP);
 			break;
 		case FKEY | F(53): /* Arrow left. */
@@ -393,40 +465,12 @@ vt_kbdevent(keyboard_t *kbd, int event, void *arg)
 			terminal_input_special(vw->vw_terminal, TKEY_RIGHT);
 			break;
 		case FKEY | F(57): /* End key. */
-			VT_LOCK(vd);
-			if (vw->vw_flags & VWF_SCROLL) {
-				if (vthistory_seek(&vw->vw_buf, 0, VHS_SET))
-					vd->vd_flags |= VDF_INVALID;
-				VT_UNLOCK(vd);
-				break;
-			}
-			VT_UNLOCK(vd);
 			terminal_input_special(vw->vw_terminal, TKEY_END);
 			break;
 		case FKEY | F(58): /* Arrow down. */
-			VT_LOCK(vd);
-			if (vw->vw_flags & VWF_SCROLL) {
-				if (vthistory_seek(&vw->vw_buf, 1, VHS_CUR))
-					vd->vd_flags |= VDF_INVALID;
-				VT_UNLOCK(vd);
-				break;
-			}
-			VT_UNLOCK(vd);
 			terminal_input_special(vw->vw_terminal, TKEY_DOWN);
 			break;
 		case FKEY | F(59): /* Page down. */
-			VT_LOCK(vd);
-			if (vw->vw_flags & VWF_SCROLL) {
-				term_pos_t size;
-
-				vt_termsize(vd, vw->vw_font, &size);
-				if (vthistory_seek(&vw->vw_buf, size.tp_row,
-				    VHS_CUR))
-					vd->vd_flags |= VDF_INVALID;
-				VT_UNLOCK(vd);
-				break;
-			}
-			VT_UNLOCK(vd);
 			terminal_input_special(vw->vw_terminal, TKEY_PAGE_DOWN);
 			break;
 		case FKEY | F(60): /* Insert key. */
@@ -741,8 +785,13 @@ vtterm_cngetc(struct terminal *tm)
 	struct vt_window *vw = tm->tm_softc;
 	struct vt_device *vd = vw->vw_device;
 	keyboard_t *kbd;
+	int state;
 	u_int c;
 
+	if (vw->vw_kbdsq && *vw->vw_kbdsq)
+		return (*vw->vw_kbdsq++);
+
+	state = 0;
 	/* Make sure the splash screen is not there. */
 	if (vd->vd_flags & VDF_SPLASH) {
 		/* Remove splash */
@@ -768,14 +817,16 @@ vtterm_cngetc(struct terminal *tm)
 	if (c & RELKEY)
 		return (-1);
 
+	if (vw->vw_flags & VWF_SCROLL) {
+		vt_scrollmode_kbdevent(vw, c, 1/* Console mode */);
+		vt_flush(vd);
+		return (-1);
+	}
+
 	/* Stripped down handling of vt_kbdevent(), without locking, etc. */
 	if (c & SPCLKEY) {
-		c &= ~SPCLKEY;
-
 		switch (c) {
-		case SLK: {
-			int state = 0;
-
+		case SPCLKEY | SLK:
 			kbdd_ioctl(kbd, KDGKBSTATE, (caddr_t)&state);
 			if (state & SLKED) {
 				/* Turn scrolling on. */
@@ -783,52 +834,23 @@ vtterm_cngetc(struct terminal *tm)
 				VTBUF_SLCK_ENABLE(&vw->vw_buf);
 			} else {
 				/* Turn scrolling off. */
+				vt_scroll(vw, 0, VHS_END);
 				vw->vw_flags &= ~VWF_SCROLL;
 				VTBUF_SLCK_DISABLE(&vw->vw_buf);
-				vthistory_seek(&vw->vw_buf, 0, VHS_END);
-				vd->vd_flags |= VDF_INVALID;
 			}
 			break;
-		}
-		case FKEY | F(49): /* Home key. */
-			if (vw->vw_flags & VWF_SCROLL)
-				if (vthistory_seek(&vw->vw_buf, 0, VHS_END))
-					vd->vd_flags |= VDF_INVALID;
+		/* XXX: KDB can handle history. */
+		case SPCLKEY | FKEY | F(50): /* Arrow up. */
+			vw->vw_kbdsq = "\x1b[A";
 			break;
-		case FKEY | F(50): /* Arrow up. */
-			if (vw->vw_flags & VWF_SCROLL)
-				if (vthistory_seek(&vw->vw_buf, -1, VHS_CUR))
-					vd->vd_flags |= VDF_INVALID;
+		case SPCLKEY | FKEY | F(58): /* Arrow down. */
+			vw->vw_kbdsq = "\x1b[B";
 			break;
-		case FKEY | F(51): /* Page up. */
-			if (vw->vw_flags & VWF_SCROLL) {
-				term_pos_t size;
-
-				vt_termsize(vd, vw->vw_font, &size);
-				if (vthistory_seek(&vw->vw_buf, -size.tp_row,
-				    VHS_CUR))
-					vd->vd_flags |= VDF_INVALID;
-			}
+		case SPCLKEY | FKEY | F(55): /* Arrow right. */
+			vw->vw_kbdsq = "\x1b[C";
 			break;
-		case FKEY | F(57): /* End key. */
-			if (vw->vw_flags & VWF_SCROLL)
-				if (vthistory_seek(&vw->vw_buf, 0, VHS_SET))
-					vd->vd_flags |= VDF_INVALID;
-			break;
-		case FKEY | F(58): /* Arrow down. */
-			if (vw->vw_flags & VWF_SCROLL)
-				if (vthistory_seek(&vw->vw_buf, 1, VHS_CUR))
-					vd->vd_flags |= VDF_INVALID;
-			break;
-		case FKEY | F(59): /* Page down. */
-			if (vw->vw_flags & VWF_SCROLL) {
-				term_pos_t size;
-
-				vt_termsize(vd, vw->vw_font, &size);
-				if (vthistory_seek(&vw->vw_buf, size.tp_row,
-				    VHS_CUR))
-					vd->vd_flags |= VDF_INVALID;
-			}
+		case SPCLKEY | FKEY | F(53): /* Arrow left. */
+			vw->vw_kbdsq = "\x1b[D";
 			break;
 		}
 
@@ -837,6 +859,10 @@ vtterm_cngetc(struct terminal *tm)
 	} else if (KEYFLAGS(c) == 0) {
 		return KEYCHAR(c);
 	}
+
+	if (vw->vw_kbdsq && *vw->vw_kbdsq)
+		return (*
+		vw->vw_kbdsq++);
 
 	return (-1);
 }

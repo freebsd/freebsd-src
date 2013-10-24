@@ -181,6 +181,7 @@ struct vt_window {
 	struct vt_font		*vw_font;	/* (d) Graphical font. */
 	unsigned int		 vw_number;	/* (c) Window number. */
 	int			 vw_kbdmode;	/* (?) Keyboard mode. */
+	char			*vw_kbdsq;	/* Escape sequence queue*/
 	unsigned int		 vw_flags;	/* (d) Per-window flags. */
 #define	VWF_BUSY	0x1	/* Busy reconfiguring device. */
 #define	VWF_OPENED	0x2	/* TTY in use. */
