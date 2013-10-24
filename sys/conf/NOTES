@@ -1281,8 +1281,7 @@ hint.sa.1.target="6"
 # to incoming commands that do not otherwise have a logical unit assigned
 # to them.
 #
-# The "unknown" device (uk? in pre-2.0.5) is now part of the base SCSI
-# configuration as the "pass" driver.
+# The pass driver provides a passthrough API to access the CAM subsystem.
 
 device		scbus		#base SCSI code
 device		ch		#SCSI media changers
