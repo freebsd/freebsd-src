@@ -71,7 +71,6 @@ FILE_RCSID("@(#)$File: magic.c,v 1.74 2011/05/26 01:27:59 christos Exp $")
 #endif
 #endif
 
-private void free_mlist(struct mlist *);
 #ifndef COMPILE_ONLY
 private void close_and_restore(const struct magic_set *, const char *, int,
     const struct stat *);
@@ -239,8 +238,8 @@ free:
 	return NULL;
 }
 
-private void
-free_mlist(struct mlist *mlist)
+protected void
+file_free_mlist(struct mlist *mlist)
 {
 	struct mlist *ml;
 
@@ -280,7 +279,7 @@ unreadable_info(struct magic_set *ms, mode_t md, const char *file)
 public void
 magic_close(struct magic_set *ms)
 {
-	free_mlist(ms->mlist);
+	file_free_mlist(ms->mlist);
 	free(ms->o.pbuf);
 	free(ms->o.buf);
 	free(ms->c.li);
@@ -295,18 +294,36 @@ magic_load(struct magic_set *ms, const char *magicfile)
 {
 	struct mlist *ml = file_apprentice(ms, magicfile, FILE_LOAD);
 	if (ml) {
-		free_mlist(ms->mlist);
+		file_free_mlist(ms->mlist);
 		ms->mlist = ml;
 		return 0;
 	}
 	return -1;
 }
 
+#ifndef COMPILE_ONLY
+/*
+ * Install a set of compiled magic buffers.
+ */
+public int
+magic_load_buffers(struct magic_set *ms, void **bufs, size_t *sizes, int nbufs)
+{
+	struct mlist *ml = file_buffer_apprentice(ms, (struct magic **)bufs,
+	    sizes, nbufs);
+	if (ml) {
+		file_free_mlist(ms->mlist);
+		ms->mlist = ml;
+		return 0;
+	}
+	return -1;
+}
+#endif
+
 public int
 magic_compile(struct magic_set *ms, const char *magicfile)
 {
 	struct mlist *ml = file_apprentice(ms, magicfile, FILE_COMPILE);
-	free_mlist(ml);
+	file_free_mlist(ml);
 	return ml ? 0 : -1;
 }
 
@@ -314,7 +331,7 @@ public int
 magic_check(struct magic_set *ms, const char *magicfile)
 {
 	struct mlist *ml = file_apprentice(ms, magicfile, FILE_CHECK);
-	free_mlist(ml);
+	file_free_mlist(ml);
 	return ml ? 0 : -1;
 }
 
@@ -322,7 +339,7 @@ public int
 magic_list(struct magic_set *ms, const char *magicfile)
 {
 	struct mlist *ml = file_apprentice(ms, magicfile, FILE_LIST);
-	free_mlist(ml);
+	file_free_mlist(ml);
 	return ml ? 0 : -1;
 }
 

@@ -92,6 +92,8 @@ const char *magic_error(magic_t);
 int magic_setflags(magic_t, int);
 
 int magic_load(magic_t, const char *);
+int magic_load_buffers(struct magic_set *, void **, size_t *, int);
+
 int magic_compile(magic_t, const char *);
 int magic_check(magic_t, const char *);
 int magic_list(magic_t, const char *);

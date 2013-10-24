@@ -106,8 +106,12 @@ private uint64_t swap8(uint64_t);
 #endif
 private char *mkdbname(struct magic_set *, const char *, int);
 #ifndef COMPILE_ONLY
+private int check_buffer(struct magic_set *, struct magic **, uint32_t *,
+    const char *);
 private int apprentice_map(struct magic_set *, struct magic **, uint32_t *,
     const char *);
+private int mlist_insert(struct magic_set *, struct mlist *, struct magic *,
+    uint32_t, int);
 #endif
 private int apprentice_compile(struct magic_set *, struct magic **, uint32_t *,
     const char *);
@@ -265,9 +269,6 @@ apprentice_1(struct magic_set *ms, const char *fn, int action,
 {
 	struct magic *magic = NULL;
 	uint32_t nmagic = 0;
-#ifndef COMPILE_ONLY
-	struct mlist *ml;
-#endif
 	int rv = -1;
 #ifndef COMPILE_ONLY
 	int mapped;
@@ -305,6 +306,26 @@ apprentice_1(struct magic_set *ms, const char *fn, int action,
 		return -1;
 	}
 
+	if (mlist_insert(ms, mlist, magic, nmagic, mapped) != 0)
+		return -1;
+
+	if (action == FILE_LIST) {
+		printf("Binary patterns:\n");
+		apprentice_list(mlist, BINTEST);
+		printf("Text patterns:\n");
+		apprentice_list(mlist, TEXTTEST);
+	}
+#endif /* COMPILE_ONLY */
+	return 0;
+}
+
+#ifndef COMPILE_ONLY
+private int
+mlist_insert(struct magic_set *ms, struct mlist *mlist, struct magic *magic,
+    uint32_t nmagic, int mapped)
+{
+	struct mlist *ml;
+
 	if ((ml = CAST(struct mlist *, malloc(sizeof(*ml)))) == NULL) {
 		file_delmagic(magic, mapped, nmagic);
 		file_oomem(ms, sizeof(*ml));
@@ -320,15 +341,9 @@ apprentice_1(struct magic_set *ms, const char *fn, int action,
 	ml->next = mlist;
 	mlist->prev = ml;
 
-	if (action == FILE_LIST) {
-		printf("Binary patterns:\n");
-		apprentice_list(mlist, BINTEST);
-		printf("Text patterns:\n");
-		apprentice_list(mlist, TEXTTEST);
-	}
-#endif /* COMPILE_ONLY */
 	return 0;
 }
+#endif
 
 protected void
 file_delmagic(struct magic *p, int type, size_t entries)
@@ -336,6 +351,8 @@ file_delmagic(struct magic *p, int type, size_t entries)
 	if (p == NULL)
 		return;
 	switch (type) {
+	case 3:
+		break;
 	case 2:
 #ifdef QUICK
 		p--;
@@ -356,6 +373,42 @@ file_delmagic(struct magic *p, int type, size_t entries)
 		abort();
 	}
 }
+
+#ifndef COMPILE_ONLY
+/* void **bufs: an array of compiled magic files */
+protected struct mlist *
+file_buffer_apprentice(struct magic_set *ms, struct magic **bufs,
+    size_t *sizes, int nbufs)
+{
+	int i, mapped;
+	uint32_t nmagic;
+	struct magic *magic;
+	struct mlist *mlist;
+
+	if (nbufs < 1)
+		return NULL;
+
+	if ((mlist = CAST(struct mlist *, malloc(sizeof(*mlist)))) == NULL) {
+		file_oomem(ms, sizeof(*mlist));
+		return NULL;
+	}
+	mlist->next = mlist->prev = mlist;
+
+	for (i = 0; i < nbufs; i++) {
+		magic = bufs[i];
+		nmagic = (uint32_t)(sizes[i] / sizeof(struct magic));
+		if (check_buffer(ms, &magic, &nmagic, "private buffer") != 0)
+			goto error;
+		if (mlist_insert(ms, mlist, magic, nmagic, mapped) != 0)
+			goto error;
+	}
+
+	return mlist;
+error:
+	file_free_mlist(mlist);
+	return NULL;
+}
+#endif
 
 /* const char *fn: list of magic files and directories */
 protected struct mlist *
@@ -2205,6 +2258,42 @@ eatsize(const char **p)
 }
 
 #ifndef COMPILE_ONLY
+private int
+check_buffer(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp,
+    const char *dbname)
+{
+	uint32_t *ptr;
+	uint32_t version;
+	int needsbyteswap;
+
+	ptr = (uint32_t *)(void *)*magicp;
+	if (*ptr != MAGICNO) {
+		if (swap4(*ptr) != MAGICNO) {
+			file_error(ms, 0, "bad magic in `%s'", dbname);
+			return -1;
+		}
+		needsbyteswap = 1;
+	} else
+		needsbyteswap = 0;
+	if (needsbyteswap)
+		version = swap4(ptr[1]);
+	else
+		version = ptr[1];
+	if (version != VERSIONNO) {
+		file_error(ms, 0, "File %s supports only version %d magic "
+		    "files. `%s' is version %d", VERSION,
+		    VERSIONNO, dbname, version);
+		return -1;
+	}
+	if (*nmagicp > 0)
+		(*nmagicp)--;
+	(*magicp)++;
+	if (needsbyteswap)
+		byteswap(*magicp, *nmagicp);
+
+	return 0;
+}
+
 /*
  * handle a compiled file.
  */
@@ -2214,9 +2303,6 @@ apprentice_map(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp,
 {
 	int fd;
 	struct stat st;
-	uint32_t *ptr;
-	uint32_t version;
-	int needsbyteswap;
 	char *dbname = NULL;
 	void *mm = NULL;
 
@@ -2254,34 +2340,14 @@ apprentice_map(struct magic_set *ms, struct magic **magicp, uint32_t *nmagicp,
 	}
 #define RET	1
 #endif
-	*magicp = CAST(struct magic *, mm);
 	(void)close(fd);
 	fd = -1;
-	ptr = (uint32_t *)(void *)*magicp;
-	if (*ptr != MAGICNO) {
-		if (swap4(*ptr) != MAGICNO) {
-			file_error(ms, 0, "bad magic in `%s'", dbname);
-			goto error1;
-		}
-		needsbyteswap = 1;
-	} else
-		needsbyteswap = 0;
-	if (needsbyteswap)
-		version = swap4(ptr[1]);
-	else
-		version = ptr[1];
-	if (version != VERSIONNO) {
-		file_error(ms, 0, "File %s supports only version %d magic "
-		    "files. `%s' is version %d", VERSION,
-		    VERSIONNO, dbname, version);
-		goto error1;
-	}
+	*magicp = CAST(struct magic *, mm);
 	*nmagicp = (uint32_t)(st.st_size / sizeof(struct magic));
-	if (*nmagicp > 0)
-		(*nmagicp)--;
-	(*magicp)++;
-	if (needsbyteswap)
-		byteswap(*magicp, *nmagicp);
+
+	if (check_buffer(ms, magicp, nmagicp, dbname) != 0)
+		goto error1;
+
 	free(dbname);
 	return RET;
 

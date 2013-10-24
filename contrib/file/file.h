@@ -331,7 +331,8 @@ struct mlist {
 	uint32_t nmagic;			/* number of entries in array */
 	int mapped;  /* allocation type: 0 => apprentice_file
 		      *                  1 => apprentice_map + malloc
-		      *                  2 => apprentice_map + mmap */
+		      *                  2 => apprentice_map + mmap
+		      *                  3 => caller owned */
 	struct mlist *next, *prev;
 };
 
@@ -415,7 +416,10 @@ protected int file_encoding(struct magic_set *, const unsigned char *, size_t,
 protected int file_is_tar(struct magic_set *, const unsigned char *, size_t);
 protected int file_softmagic(struct magic_set *, const unsigned char *, size_t,
     int, int);
+protected struct mlist *file_buffer_apprentice(struct magic_set *,
+    struct magic **, size_t *, int);
 protected struct mlist *file_apprentice(struct magic_set *, const char *, int);
+protected void file_free_mlist(struct mlist *);
 protected uint64_t file_signextend(struct magic_set *, struct magic *,
     uint64_t);
 protected void file_delmagic(struct magic *, int type, size_t entries);
