@@ -56,5 +56,6 @@ int	powerpc_setup_intr(const char *, u_int, driver_filter_t, driver_intr_t,
 int	powerpc_teardown_intr(void *);
 int	powerpc_bind_intr(u_int irq, u_char cpu);
 int	powerpc_config_intr(int, enum intr_trigger, enum intr_polarity);
+int	powerpc_fw_config_intr(int irq, int sense_code);
 
 #endif /* _MACHINE_INTR_MACHDEP_H_ */
