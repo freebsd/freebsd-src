@@ -1045,7 +1045,7 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 		    (struct sep_identify_data *)&path->device->ident_data);
 	else
 		printf("Unknown protocol device\n");
-	if (bootverbose && path->device->serial_num_len > 0) {
+	if (path->device->serial_num_len > 0) {
 		/* Don't wrap the screen  - print only the first 60 chars */
 		printf("%s%d: Serial Number %.60s\n", periph->periph_name,
 		       periph->unit_number, path->device->serial_num);
