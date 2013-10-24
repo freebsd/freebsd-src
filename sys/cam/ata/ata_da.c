@@ -80,7 +80,7 @@ typedef enum {
 	ADA_FLAG_CAN_NCQ	= 0x0008,
 	ADA_FLAG_CAN_DMA	= 0x0010,
 	ADA_FLAG_NEED_OTAG	= 0x0020,
-	ADA_FLAG_WENT_IDLE	= 0x0040,
+	ADA_FLAG_WAS_OTAG	= 0x0040,
 	ADA_FLAG_CAN_TRIM	= 0x0080,
 	ADA_FLAG_OPEN		= 0x0100,
 	ADA_FLAG_SCTX_INIT	= 0x0200,
@@ -130,12 +130,12 @@ struct trim_request {
 struct ada_softc {
 	struct	 bio_queue_head bio_queue;
 	struct	 bio_queue_head trim_queue;
+	int	 outstanding_cmds;	/* Number of active commands */
+	int	 refcount;		/* Active xpt_action() calls */
 	ada_state state;
-	ada_flags flags;	
+	ada_flags flags;
 	ada_quirks quirks;
 	int	 sort_io_queue;
-	int	 ordered_tag_count;
-	int	 outstanding_cmds;
 	int	 trim_max_ranges;
 	int	 trim_running;
 	int	 read_ahead;
@@ -153,7 +153,6 @@ struct ada_softc {
 	struct sysctl_oid	*sysctl_tree;
 	struct callout		sendordered_c;
 	struct trim_request	trim_req;
-	int	refcount;
 };
 
 struct ada_quirk_entry {
@@ -1489,7 +1488,7 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 		if ((bp->bio_flags & BIO_ORDERED) != 0
 		 || (softc->flags & ADA_FLAG_NEED_OTAG) != 0) {
 			softc->flags &= ~ADA_FLAG_NEED_OTAG;
-			softc->ordered_tag_count++;
+			softc->flags |= ADA_FLAG_WAS_OTAG;
 			tag_code = 0;
 		} else {
 			tag_code = 1;
@@ -1743,7 +1742,7 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 		softc->outstanding_cmds--;
 		if (softc->outstanding_cmds == 0)
-			softc->flags |= ADA_FLAG_WENT_IDLE;
+			softc->flags |= ADA_FLAG_WAS_OTAG;
 		xpt_release_ccb(done_ccb);
 		if (state == ADA_CCB_TRIM) {
 			TAILQ_HEAD(, bio) queue;
@@ -1905,14 +1904,11 @@ adasendorderedtag(void *arg)
 	struct ada_softc *softc = arg;
 
 	if (ada_send_ordered) {
-		if ((softc->ordered_tag_count == 0) 
-		 && ((softc->flags & ADA_FLAG_WENT_IDLE) == 0)) {
-			softc->flags |= ADA_FLAG_NEED_OTAG;
+		if (softc->outstanding_cmds > 0) {
+			if ((softc->flags & ADA_FLAG_WAS_OTAG) == 0)
+				softc->flags |= ADA_FLAG_NEED_OTAG;
+			softc->flags &= ~ADA_FLAG_WAS_OTAG;
 		}
-		if (softc->outstanding_cmds > 0)
-			softc->flags &= ~ADA_FLAG_WENT_IDLE;
-
-		softc->ordered_tag_count = 0;
 	}
 	/* Queue us up again */
 	callout_reset(&softc->sendordered_c,
