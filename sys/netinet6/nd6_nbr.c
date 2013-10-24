@@ -646,9 +646,6 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	is_override = ((flags & ND_NA_FLAG_OVERRIDE) != 0);
 
 	taddr6 = nd_na->nd_na_target;
-	if (in6_setscope(&taddr6, ifp, NULL))
-		goto bad;	/* XXX: impossible */
-
 	if (IN6_IS_ADDR_MULTICAST(&taddr6)) {
 		nd6log((LOG_ERR,
 		    "nd6_na_input: invalid target address %s\n",
@@ -1005,14 +1002,10 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	ip6->ip6_hlim = 255;
 	if (IN6_IS_ADDR_UNSPECIFIED(&daddr6)) {
 		/* reply to DAD */
-		daddr6.s6_addr16[0] = IPV6_ADDR_INT16_MLL;
-		daddr6.s6_addr16[1] = 0;
+		daddr6.s6_addr32[0] = IPV6_ADDR_INT32_MLL;
 		daddr6.s6_addr32[1] = 0;
 		daddr6.s6_addr32[2] = 0;
 		daddr6.s6_addr32[3] = IPV6_ADDR_INT32_ONE;
-		if (in6_setscope(&daddr6, ifp, NULL))
-			goto bad;
-
 		flags &= ~ND_NA_FLAG_SOLICITED;
 	}
 	ip6->ip6_dst = daddr6;
@@ -1020,11 +1013,10 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	dst_sa.sin6_family = AF_INET6;
 	dst_sa.sin6_len = sizeof(struct sockaddr_in6);
 	dst_sa.sin6_addr = daddr6;
-
+	dst_sa.sin6_scope_id = in6_getscopezone(ifp, in6_addrscope(&daddr6));
 	/*
 	 * Select a source whose scope is the same as that of the dest.
 	 */
-	bcopy(&dst_sa, &ro.ro_dst, sizeof(dst_sa));
 	oifp = ifp;
 	error = in6_selectsrc(&dst_sa, NULL, NULL, &ro, NULL, &oifp, &src);
 	if (error) {
@@ -1039,8 +1031,6 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	nd_na->nd_na_type = ND_NEIGHBOR_ADVERT;
 	nd_na->nd_na_code = 0;
 	nd_na->nd_na_target = *taddr6;
-	in6_clearscope(&nd_na->nd_na_target); /* XXX */
-
 	/*
 	 * "tlladdr" indicates NS's condition for adding tlladdr or not.
 	 * see nd6_ns_input() for details.
@@ -1097,7 +1087,7 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 		m_tag_prepend(m, mtag);
 	}
 
-	ip6_output(m, NULL, &ro, 0, &im6o, NULL, NULL);
+	ip6_output(m, NULL, &ro, IPV6_USEROIF, &im6o, &ifp, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
 	icmp6_ifstat_inc(ifp, ifs6_out_neighboradvert);
 	ICMP6STAT_INC(icp6s_outhist[ND_NEIGHBOR_ADVERT]);
