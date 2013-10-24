@@ -1390,20 +1390,6 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	ifa_free(&ia->ia_ifa);			/* in6_ifaddrhead */
 }
 
-void
-in6_purgeif(struct ifnet *ifp)
-{
-	struct ifaddr *ifa, *nifa;
-
-	TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, nifa) {
-		if (ifa->ifa_addr->sa_family != AF_INET6)
-			continue;
-		in6_purgeaddr(ifa);
-	}
-
-	in6_ifdetach(ifp);
-}
-
 /*
  * SIOC[GAD]LIFADDR.
  *	SIOCGLIFADDR: get first address. (?)
