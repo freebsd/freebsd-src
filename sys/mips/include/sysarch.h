@@ -37,6 +37,7 @@
 
 #define	MIPS_SET_TLS	1
 #define	MIPS_GET_TLS	2
+#define	MIPS_GET_COUNT	3
 
 #ifndef _KERNEL
 #include <sys/cdefs.h>

@@ -66,6 +66,9 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		tlsbase = td->td_md.md_tls;
 		error = copyout(&tlsbase, uap->parms, sizeof(tlsbase));
 		return (error);
+	case MIPS_GET_COUNT:
+		td->td_retval[0] = mips_rd_count();
+		return (0);
 	default:
 		break;
 	}
