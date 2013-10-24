@@ -178,8 +178,6 @@ enc_oninvalidate(struct cam_periph *periph)
 	callout_drain(&enc->status_updater);
 
 	destroy_dev_sched_cb(enc->enc_dev, enc_devgonecb, periph);
-
-	xpt_print(periph->path, "lost device\n");
 }
 
 static void
@@ -188,9 +186,6 @@ enc_dtor(struct cam_periph *periph)
 	struct enc_softc *enc;
 
 	enc = periph->softc;
-
-	xpt_print(periph->path, "removing device entry\n");
-
 
 	/* If the sub-driver has a cleanup routine, call it */
 	if (enc->enc_vec.softc_cleanup != NULL)
