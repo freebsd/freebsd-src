@@ -12,6 +12,7 @@ ident		BERI_TEMPLATE
 machine		mips mips64
 
 cpu		CPU_BERI
+options 	SMP
 
 options 	HZ=200
 
