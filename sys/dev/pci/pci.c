@@ -96,7 +96,6 @@ static void		pci_load_vendor_data(void);
 static int		pci_describe_parse_line(char **ptr, int *vendor,
 			    int *device, char **desc);
 static char		*pci_describe_device(device_t dev);
-static bus_dma_tag_t	pci_get_dma_tag(device_t bus, device_t dev);
 static int		pci_modevent(module_t mod, int what, void *arg);
 static void		pci_hdrtypedata(device_t pcib, int b, int s, int f,
 			    pcicfgregs *cfg);
