@@ -59,6 +59,13 @@ typedef enum device_state {
 
 /**
  * @brief Device information exported to userspace.
+ *
+ * New fields must be appended to the structure.  Each new field or set of
+ * fields should be paired with a bit in dv_fields_present.  When libdevinfo
+ * reads a structure from hw.bus.devices that is larger than sizeof(ou_device)
+ * it will use these bits to determine which fields the current kernel
+ * provides.  This allows never versions of libdevinfo to operate with older
+ * kernels.
  */
 struct u_device {
 	uintptr_t	dv_handle;
@@ -72,7 +79,30 @@ struct u_device {
 	uint32_t	dv_devflags;		/**< @brief API Flags for device */
 	uint16_t	dv_flags;		/**< @brief flags for dev date */
 	device_state_t	dv_state;		/**< @brief State of attachment */
-	/* XXX more driver info? */
+	uint64_t	dv_fields;		/**< @brief Further fields */
+#define	DV_FIELD_INTR_PARENT	0x1
+#define	DV_FIELDS		(DV_FIELD_INTR_PARENT)
+	uintptr_t	dv_intr_parent;		/**< @brief Interrupt-parent */
+};
+
+/**
+ * @brief Old, static set of device information exported to userspace.
+ * 
+ * This definition exists to portably provide size information to
+ * consumers of hw.bus.devices.
+ */
+struct ou_device {
+	uintptr_t	dv_handle;
+	uintptr_t	dv_parent;
+
+	char		dv_name[32];		/**< @brief Name of device in tree. */
+	char		dv_desc[32];		/**< @brief Driver description */
+	char		dv_drivername[32];	/**< @brief Driver name */
+	char		dv_pnpinfo[128];	/**< @brief Plug and play info */
+	char		dv_location[128];	/**< @brief Where is the device? */
+	uint32_t	dv_devflags;		/**< @brief API Flags for device */
+	uint16_t	dv_flags;		/**< @brief flags for dev date */
+	device_state_t	dv_state;		/**< @brief State of attachment */
 };
 
 #ifdef _KERNEL
@@ -437,6 +467,8 @@ devclass_t	device_get_devclass(device_t dev);
 driver_t	*device_get_driver(device_t dev);
 u_int32_t	device_get_flags(device_t dev);
 device_t	device_get_parent(device_t dev);
+device_t	device_get_intr_parent(device_t dev);
+void	device_set_intr_parent(device_t dev, device_t intr_parent);
 int	device_get_children(device_t dev, device_t **listp, int *countp);
 void	*device_get_ivars(device_t dev);
 void	device_set_ivars(device_t dev, void *ivars);

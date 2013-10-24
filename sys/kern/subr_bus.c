@@ -113,6 +113,7 @@ struct device {
 	TAILQ_ENTRY(device)	link;	/**< list of devices in parent */
 	TAILQ_ENTRY(device)	devlink; /**< global device list membership */
 	device_t	parent;		/**< parent of this device  */
+	device_t	intr_parent;	/**< interrupt parent of this device */
 	device_list_t	children;	/**< list of child devices */
 
 	/*
@@ -2164,6 +2165,24 @@ device_t
 device_get_parent(device_t dev)
 {
 	return (dev->parent);
+}
+
+/**
+ * @brief Return the interrupt parent of a device
+ */
+device_t
+device_get_intr_parent(device_t dev)
+{
+	return (dev->intr_parent);
+}
+
+/**
+ * @brief Set the interrupt parent of a device
+ */
+void
+device_set_intr_parent(device_t dev, device_t intr_parent)
+{
+	dev->intr_parent = intr_parent;
 }
 
 /**
@@ -4869,7 +4888,9 @@ sysctl_devices(SYSCTL_HANDLER_ARGS)
 	udev.dv_devflags = dev->devflags;
 	udev.dv_flags = dev->flags;
 	udev.dv_state = dev->state;
-	error = SYSCTL_OUT(req, &udev, sizeof(udev));
+	udev.dv_fields = DV_FIELDS;
+	udev.dv_intr_parent = (uintptr_t)dev->intr_parent;
+	error = SYSCTL_OUT(req, &udev, MIN(req->oldlen, sizeof(udev)));
 	return (error);
 }
 

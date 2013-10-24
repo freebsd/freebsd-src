@@ -51,6 +51,7 @@ struct devinfo_dev {
 	uint32_t		dd_devflags;	/* API flags */
 	uint16_t		dd_flags;	/* internal dev flags */
 	devinfo_state_t		dd_state;	/* attacement state of dev */
+	devinfo_handle_t	dd_intr_parent;	/* Interrupt parent */
 };
 
 struct devinfo_rman {
@@ -104,6 +105,15 @@ extern struct devinfo_rman
  */
 extern int
 	devinfo_foreach_device_child(struct devinfo_dev *parent, 
+	    int (* fn)(struct devinfo_dev *child, void *arg), 
+	    void *arg);
+
+/*
+ * Iterate over the interrupt children of a device, calling (fn) on each.  If
+ * If (fn) returns nonzero, abort the scan and return.
+ */
+extern int
+	devinfo_foreach_device_intr_child(struct devinfo_dev *parent, 
 	    int (* fn)(struct devinfo_dev *child, void *arg), 
 	    void *arg);
 

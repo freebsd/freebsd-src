@@ -36,9 +36,11 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include "devinfo.h"
 
+static int	iflag;
 static int	rflag;
 static int	vflag;
 
@@ -113,6 +115,10 @@ print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 	ia->indent = 0;
 	if (devinfo_foreach_rman_resource(rman,
 	    print_device_matching_resource, ia) != 0) {
+		/* XXX: Resources should have types... */
+		if (iflag && !rflag &&
+		    strncmp("Interrupt", rman->dm_desc, 9) != 0)
+			goto skip;
 
 		/* there are, print header */
 		for (i = 0; i < indent; i++)
@@ -124,12 +130,13 @@ print_device_rman_resources(struct devinfo_rman *rman, void *arg)
 		devinfo_foreach_rman_resource(rman,
 		    print_device_matching_resource, ia);
 	}
+skip:
 	ia->indent = indent;
 	return(0);
 }
 
 /*
- * Print information about a device.
+ * Print information about a device and its children.
  */
 int
 print_device(struct devinfo_dev *dev, void *arg)
@@ -147,7 +154,7 @@ print_device(struct devinfo_dev *dev, void *arg)
 		if (vflag && *dev->dd_location)
 			printf(" at %s", dev->dd_location);
 		printf("\n");
-		if (rflag) {
+		if (iflag || rflag) {
 			ia.indent = indent + 4;
 			ia.arg = dev;
 			devinfo_foreach_rman(print_device_rman_resources,
@@ -155,8 +162,12 @@ print_device(struct devinfo_dev *dev, void *arg)
 		}
 	}
 
-	return(devinfo_foreach_device_child(dev, print_device,
-	    (void *)((char *)arg + 2)));
+	if (iflag)
+		return(devinfo_foreach_device_intr_child(dev, print_device,
+		    (void *)((char *)arg + 2)));
+	else
+		return(devinfo_foreach_device_child(dev, print_device,
+		    (void *)((char *)arg + 2)));
 }
 
 /*
@@ -197,8 +208,11 @@ main(int argc, char *argv[])
 	int			c, uflag;
 
 	uflag = 0;
-	while ((c = getopt(argc, argv, "ruv")) != -1) {
+	while ((c = getopt(argc, argv, "iruv")) != -1) {
 		switch(c) {
+		case 'i':
+			iflag++;
+			break;
 		case 'r':
 			rflag++;
 			break;
@@ -210,7 +224,7 @@ main(int argc, char *argv[])
 			break;
 		default:
 			fprintf(stderr, "%s\n%s\n",
-			    "usage: devinfo [-rv]",
+			    "usage: devinfo [-irv]",
 			    "       devinfo -u");
 			exit(1);
 		}
@@ -227,7 +241,11 @@ main(int argc, char *argv[])
 		devinfo_foreach_rman(print_rman, NULL);
 	} else {
 		/* print device hierarchy */
-		devinfo_foreach_device_child(root, print_device, (void *)0);
+		if (iflag)
+			devinfo_foreach_device_intr_child(root, print_device,
+			    NULL);
+		else
+			devinfo_foreach_device_child(root, print_device, NULL);
 	}
 	return(0);
 }

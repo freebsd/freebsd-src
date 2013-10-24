@@ -341,7 +341,9 @@ simplebus_get_interrupt_parent(device_t dev)
 	device_t ip;
 	phandle_t ph, iph;
 
-	ip = NULL;
+	ip = device_get_intr_parent(dev);
+	if (ip != NULL)
+		return (ip);
 
 	di = device_get_ivars(dev);
 	if (di == NULL)
@@ -353,6 +355,7 @@ simplebus_get_interrupt_parent(device_t dev)
 		SLIST_FOREACH(ic, &fdt_ic_list_head, fdt_ics) {
 			if (ic->iph == ph) {
 				ip = ic->dev;
+				device_set_intr_parent(dev, ip);
 				break;
 			}
 		}

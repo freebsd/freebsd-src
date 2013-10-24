@@ -36,6 +36,7 @@
 .Nm devinfo_handle_to_resource ,
 .Nm devinfo_handle_to_rman ,
 .Nm devinfo_foreach_device_child ,
+.Nm devinfo_foreach_device_intr_child ,
 .Nm devinfo_foreach_device_resource ,
 .Nm devinfo_foreach_rman_resource ,
 .Nm devinfo_foreach_rman
@@ -56,6 +57,12 @@
 .Fn devinfo_handle_to_rman "devinfo_handle_t handle"
 .Ft int
 .Fo devinfo_foreach_device_child
+.Fa "struct devinfo_dev *parent"
+.Fa "int \*[lp]*fn\*[rp]\*[lp]struct devinfo_dev *child, void *arg\*[rp]"
+.Fa "void *arg"
+.Fc
+.Ft int
+.Fo devinfo_foreach_device_intr_child
 .Fa "struct devinfo_dev *parent"
 .Fa "int \*[lp]*fn\*[rp]\*[lp]struct devinfo_dev *child, void *arg\*[rp]"
 .Fa "void *arg"
@@ -163,9 +170,11 @@ is passed the constant
 it will return the handle to the root of the device tree.
 .Pp
 .Fn devinfo_foreach_device_child
-invokes its callback argument
+and
+.Fn devinfo_foreach_device_intr_child
+invoke its callback argument
 .Fa fn
-on every device which is an immediate child of
+on every device which is an immediate child or interrupt child of
 .Fa device .
 The
 .Fa fn

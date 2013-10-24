@@ -171,7 +171,7 @@ devinfo_init_devices(int generation)
 	int			dev_ptr;
 	int			name2oid[2];
 	int			oid[CTL_MAXNAME + 12];
-	size_t			oidlen, rlen;
+	size_t			newfields, oidlen, rlen;
 	char			*name;
 	int			error;
 
@@ -217,6 +217,12 @@ devinfo_init_devices(int generation)
 				warn("sysctl hw.bus.devices.%d", dev_idx);
 			return(errno);
 		}
+		if (rlen < sizeof(struct ou_device)) {
+			warnx("impossibly small u_device");
+			return(EINVAL);
+		}
+		if (rlen > sizeof(struct ou_device))
+			newfields = 1;
 		if ((dd = malloc(sizeof(*dd))) == NULL)
 			return(ENOMEM);
 		dd->dd_dev.dd_handle = udev.dv_handle;
@@ -237,6 +243,11 @@ devinfo_init_devices(int generation)
 		dd->dd_dev.dd_devflags = udev.dv_devflags;
 		dd->dd_dev.dd_flags = udev.dv_flags;
 		dd->dd_dev.dd_state = udev.dv_state;
+		if (newfields && (udev.dv_fields & DV_FIELD_INTR_PARENT) &&
+		    udev.dv_intr_parent != 0)
+			dd->dd_dev.dd_intr_parent = udev.dv_intr_parent;
+		else
+			dd->dd_dev.dd_intr_parent = udev.dv_parent;
 		TAILQ_INSERT_TAIL(&devinfo_dev, dd, dd_link);
 	}
 	debug("fetched %d devices", dev_idx);
@@ -442,6 +453,25 @@ devinfo_foreach_device_child(struct devinfo_dev *parent,
 
 	TAILQ_FOREACH(dd, &devinfo_dev, dd_link)
 	    if (dd->dd_dev.dd_parent == parent->dd_handle)
+		    if ((error = fn(&dd->dd_dev, arg)) != 0)
+			    return(error);
+	return(0);
+}
+
+/*
+ * Iterate over the interrupt children of a device, calling (fn) on each.
+ * If (fn) returns nonzero, abort the scan and return.
+ */
+int
+devinfo_foreach_device_intr_child(struct devinfo_dev *parent, 
+    int (* fn)(struct devinfo_dev *child, void *arg), 
+    void *arg)
+{
+	struct devinfo_i_dev	*dd;
+	int				error;
+
+	TAILQ_FOREACH(dd, &devinfo_dev, dd_link)
+	    if (dd->dd_dev.dd_intr_parent == parent->dd_handle)
 		    if ((error = fn(&dd->dd_dev, arg)) != 0)
 			    return(error);
 	return(0);
