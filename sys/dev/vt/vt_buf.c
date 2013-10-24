@@ -54,13 +54,13 @@ static MALLOC_DEFINE(M_VTBUF, "vtbuf", "vt buffer");
 int
 vthistory_seek(struct vt_buf *vb, int offset, int whence)
 {
-	int top, bottom, roffset;
+	int diff, top, bottom, roffset;
 
 	/* No scrolling if not enabled. */
 	if ((vb->vb_flags & VBF_SCROLL) == 0) {
 		if (vb->vb_roffset != vb->vb_curroffset) {
 			vb->vb_roffset = vb->vb_curroffset;
-			return (1);
+			return (0xffff);
 		}
 		return (0); /* No changes */
 	}
@@ -75,14 +75,14 @@ vthistory_seek(struct vt_buf *vb, int offset, int whence)
 	roffset = vb->vb_roffset + vb->vb_history_size;
 	switch (whence) {
 	case VHS_SET:
-		roffset = offset;
+		roffset = offset + vb->vb_history_size;
 		break;
 	case VHS_CUR:
 		roffset += offset;
 		break;
 	case VHS_END:
 		/* Go to current offset. */
-		roffset = vb->vb_curroffset;
+		roffset = vb->vb_curroffset + vb->vb_history_size;
 		break;
 	}
 
@@ -92,8 +92,14 @@ vthistory_seek(struct vt_buf *vb, int offset, int whence)
 	roffset %= vb->vb_history_size;
 
 	if (vb->vb_roffset != roffset) {
+		diff = vb->vb_roffset - roffset;
 		vb->vb_roffset = roffset;
-		return (1); /* Offset changed, please update sceen. */
+		/*
+		 * Offset changed, please update Nth lines on sceen.
+		 * +N - Nth lines at top;
+		 * -N - Nth lines at bottom.
+		 */
+		return (diff);
 	}
 	return (0); /* No changes */
 }
