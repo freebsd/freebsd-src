@@ -700,7 +700,7 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 	} else if ((targ_port == -1) && (port_type == CTL_PORT_NONE))
 		port_type = CTL_PORT_ALL;
 
-	bzero(&entry, sizeof(&entry));
+	bzero(&entry, sizeof(entry));
 
 	/*
 	 * These are needed for all but list/dump mode.
@@ -3442,7 +3442,7 @@ cctl_islist_start_element(void *user_data, const char *name, const char **attr)
 	islist = (struct cctl_islist_data *)user_data;
 	cur_conn = islist->cur_conn;
 	islist->level++;
-	if ((u_int)islist->level > (sizeof(islist->cur_sb) /
+	if ((u_int)islist->level >= (sizeof(islist->cur_sb) /
 	    sizeof(islist->cur_sb[0])))
 		errx(1, "%s: too many nesting levels, %zd max", __func__,
 		     sizeof(islist->cur_sb) / sizeof(islist->cur_sb[0]));
@@ -3848,7 +3848,7 @@ cctl_start_element(void *user_data, const char *name, const char **attr)
 	devlist = (struct cctl_devlist_data *)user_data;
 	cur_lun = devlist->cur_lun;
 	devlist->level++;
-	if ((u_int)devlist->level > (sizeof(devlist->cur_sb) /
+	if ((u_int)devlist->level >= (sizeof(devlist->cur_sb) /
 	    sizeof(devlist->cur_sb[0])))
 		errx(1, "%s: too many nesting levels, %zd max", __func__,
 		     sizeof(devlist->cur_sb) / sizeof(devlist->cur_sb[0]));

@@ -528,7 +528,8 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 		m->m_flags &= ~M_HASFCS;
 	}
 
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if (!(ifp->if_capenable & IFCAP_HWSTATS))
+		ifp->if_ibytes += m->m_pkthdr.len;
 
 	/* Allow monitor mode to claim this frame, after stats are updated. */
 	if (ifp->if_flags & IFF_MONITOR) {
@@ -639,7 +640,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 	}
 
 	if (harvest.ethernet)
-		random_harvest(&(m->m_data), 12, 3, 0, RANDOM_NET_ETHER);
+		random_harvest(&(m->m_data), 12, 2, RANDOM_NET_ETHER);
 
 	ether_demux(ifp, m);
 	CURVNET_RESTORE();

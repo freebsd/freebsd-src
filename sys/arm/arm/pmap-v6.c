@@ -2441,6 +2441,8 @@ vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
 
+	if (kernel_vm_end == 0)
+		return (0);
 	return (pmap_extract_locked(kernel_pmap, va));
 }
 
@@ -3310,7 +3312,7 @@ pmap_extract_locked(pmap_t pmap, vm_offset_t va)
 	vm_paddr_t pa;
 	u_int l1idx;
 
-	if (pmap != kernel_pmap)
+	if (kernel_vm_end != 0 && pmap != kernel_pmap)
 		PMAP_ASSERT_LOCKED(pmap);
 	l1idx = L1_IDX(va);
 	l1pd = pmap->pm_l1->l1_kva[l1idx];

@@ -92,7 +92,7 @@ FEATURE(ata_cam, "ATA devices are accessed through the cam(4) driver");
 int
 ata_probe(device_t dev)
 {
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 int
@@ -353,9 +353,7 @@ ata_interrupt(void *data)
     struct ata_channel *ch = (struct ata_channel *)data;
 
     mtx_lock(&ch->state_mtx);
-    xpt_batch_start(ch->sim);
     ata_interrupt_locked(data);
-    xpt_batch_done(ch->sim);
     mtx_unlock(&ch->state_mtx);
 }
 

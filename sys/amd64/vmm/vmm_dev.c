@@ -60,7 +60,10 @@ struct vmmdev_softc {
 	struct vm	*vm;		/* vm instance cookie */
 	struct cdev	*cdev;
 	SLIST_ENTRY(vmmdev_softc) link;
+	int		flags;
 };
+#define	VSC_LINKED		0x01
+
 static SLIST_HEAD(, vmmdev_softc) head;
 
 static struct mtx vmmdev_mtx;
@@ -104,7 +107,6 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 	static char zerobuf[PAGE_SIZE];
 
 	error = 0;
-	mtx_lock(&vmmdev_mtx);
 	sc = vmmdev_lookup2(cdev);
 	if (sc == NULL)
 		error = ENXIO;
@@ -134,8 +136,6 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 			vm_gpa_release(cookie);
 		}
 	}
-
-	mtx_unlock(&vmmdev_mtx);
 	return (error);
 }
 
@@ -379,34 +379,28 @@ vmmdev_mmap_single(struct cdev *cdev, vm_ooffset_t *offset,
 	int error;
 	struct vmmdev_softc *sc;
 
-	mtx_lock(&vmmdev_mtx);
-
 	sc = vmmdev_lookup2(cdev);
 	if (sc != NULL && (nprot & PROT_EXEC) == 0)
 		error = vm_get_memobj(sc->vm, *offset, size, offset, object);
 	else
 		error = EINVAL;
 
-	mtx_unlock(&vmmdev_mtx);
-
 	return (error);
 }
 
 static void
-vmmdev_destroy(struct vmmdev_softc *sc, boolean_t unlink)
+vmmdev_destroy(void *arg)
 {
 
-	/*
-	 * XXX must stop virtual machine instances that may be still
-	 * running and cleanup their state.
-	 */
-	if (sc->cdev)
+	struct vmmdev_softc *sc = arg;
+
+	if (sc->cdev != NULL)
 		destroy_dev(sc->cdev);
 
-	if (sc->vm)
+	if (sc->vm != NULL)
 		vm_destroy(sc->vm);
 
-	if (unlink) {
+	if ((sc->flags & VSC_LINKED) != 0) {
 		mtx_lock(&vmmdev_mtx);
 		SLIST_REMOVE(&head, sc, vmmdev_softc, link);
 		mtx_unlock(&vmmdev_mtx);
@@ -421,27 +415,38 @@ sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
 	int error;
 	char buf[VM_MAX_NAMELEN];
 	struct vmmdev_softc *sc;
+	struct cdev *cdev;
 
 	strlcpy(buf, "beavis", sizeof(buf));
 	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 
-	/*
-	 * XXX TODO if any process has this device open then fail
-	 */
-
 	mtx_lock(&vmmdev_mtx);
 	sc = vmmdev_lookup(buf);
-	if (sc == NULL) {
+	if (sc == NULL || sc->cdev == NULL) {
 		mtx_unlock(&vmmdev_mtx);
 		return (EINVAL);
 	}
 
-	sc->cdev->si_drv1 = NULL;
+	/*
+	 * The 'cdev' will be destroyed asynchronously when 'si_threadcount'
+	 * goes down to 0 so we should not do it again in the callback.
+	 */
+	cdev = sc->cdev;
+	sc->cdev = NULL;		
 	mtx_unlock(&vmmdev_mtx);
 
-	vmmdev_destroy(sc, TRUE);
+	/*
+	 * Schedule the 'cdev' to be destroyed:
+	 *
+	 * - any new operations on this 'cdev' will return an error (ENXIO).
+	 *
+	 * - when the 'si_threadcount' dwindles down to zero the 'cdev' will
+	 *   be destroyed and the callback will be invoked in a taskqueue
+	 *   context.
+	 */
+	destroy_dev_sched_cb(cdev, vmmdev_destroy, sc);
 
 	return (0);
 }
@@ -462,6 +467,7 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	struct vm *vm;
+	struct cdev *cdev;
 	struct vmmdev_softc *sc, *sc2;
 	char buf[VM_MAX_NAMELEN];
 
@@ -489,22 +495,28 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 	 */
 	mtx_lock(&vmmdev_mtx);
 	sc2 = vmmdev_lookup(buf);
-	if (sc2 == NULL)
+	if (sc2 == NULL) {
 		SLIST_INSERT_HEAD(&head, sc, link);
+		sc->flags |= VSC_LINKED;
+	}
 	mtx_unlock(&vmmdev_mtx);
 
 	if (sc2 != NULL) {
-		vmmdev_destroy(sc, FALSE);
+		vmmdev_destroy(sc);
 		return (EEXIST);
 	}
 
-	error = make_dev_p(MAKEDEV_CHECKNAME, &sc->cdev, &vmmdevsw, NULL,
+	error = make_dev_p(MAKEDEV_CHECKNAME, &cdev, &vmmdevsw, NULL,
 			   UID_ROOT, GID_WHEEL, 0600, "vmm/%s", buf);
 	if (error != 0) {
-		vmmdev_destroy(sc, TRUE);
+		vmmdev_destroy(sc);
 		return (error);
 	}
+
+	mtx_lock(&vmmdev_mtx);
+	sc->cdev = cdev;
 	sc->cdev->si_drv1 = sc;
+	mtx_unlock(&vmmdev_mtx);
 
 	return (0);
 }

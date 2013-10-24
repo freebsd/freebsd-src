@@ -166,7 +166,13 @@ create_includes_and_libraries2() { # opt_dir opt_target
     log "create_includes_and_libraries2() for ${SRC} $1"
     if [ ${OSVERSION} -ge 600000 ] ; then
 	no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R" # WITHOUT_CDDL=1"
-	no="$no -DWITHOUT_CLANG -DMALLOC_PRODUCTION"
+	#no="$no -DWITHOUT_CLANG -DMALLOC_PRODUCTION"
+	# XXX 20131001 see if clang fixes the build
+	export WITHOUT_CLANG=YES
+	export WITHOUT_ICONV=YES
+	export WITH_GCC=YES
+	export WITH_GNUCXX=YES
+	no="$no -DMALLOC_PRODUCTION"
     else
 	no="-DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R"
     fi
@@ -974,7 +980,13 @@ set_build_parameters() {
     if [ ${OSVERSION} -ge 500035 ] ; then
 	export MAKEOBJDIRPREFIX=${l_objtree}
 	export TARGET_ARCH=${o_arch} TARGET=${o_arch}
-	export WITHOUT_CLANG_IS_CC=1
+	# XXX 20131001 see if CLANG fixes the build
+	# XXX export WITHOUT_CLANG_IS_CC=1
+	export WITHOUT_CLANG=YES
+	export WITHOUT_ICONV=YES
+	export WITH_GCC=YES
+	export WITH_GNUCXX=YES
+
 	# XXX why change machine_arch ?
 	#-- export MACHINE_ARCH=`uname -m` MACHINE=`uname -m`
 	# export CWARNFLAGS="-Wextra -Wno-sign-compare -Wno-missing-field-initializers"

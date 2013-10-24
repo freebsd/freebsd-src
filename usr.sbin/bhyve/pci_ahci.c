@@ -119,8 +119,8 @@ struct ahci_ioreq {
 struct ahci_port {
 	struct blockif_ctxt *bctx;
 	struct pci_ahci_softc *pr_sc;
-	uint64_t cmd_lst;
-	uint64_t rfis;
+	uint8_t *cmd_lst;
+	uint8_t *rfis;
 	int atapi;
 	int reset;
 	int mult_sectors;
@@ -222,7 +222,7 @@ ahci_write_fis(struct ahci_port *p, enum sata_fis_type ft, uint8_t *fis)
 {
 	int offset, len, irq;
 
-	if (p->rfis == 0 || !(p->cmd & AHCI_P_CMD_FRE))
+	if (p->rfis == NULL || !(p->cmd & AHCI_P_CMD_FRE))
 		return;
 
 	switch (ft) {
@@ -396,7 +396,7 @@ ahci_handle_dma(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done,
 
 	sc = p->pr_sc;
 	prdt = (struct ahci_prdt_entry *)(cfis + 0x80);
-	hdr = p->cmd_lst + slot * AHCI_CL_SIZE;
+	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
 	ncq = 0;
 	readop = 1;
 
@@ -508,7 +508,7 @@ write_prdt(struct ahci_port *p, int slot, uint8_t *cfis,
 	void *from;
 	int i, len;
 
-	hdr = p->cmd_lst + slot * AHCI_CL_SIZE;
+	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
 	len = size;
 	from = buf;
 	prdt = (struct ahci_prdt_entry *)(cfis + 0x80);
@@ -528,7 +528,7 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 {
 	struct ahci_cmd_hdr *hdr;
 
-	hdr = p->cmd_lst + slot * AHCI_CL_SIZE;
+	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
 	if (p->atapi || hdr->prdtl == 0) {
 		p->tfd = (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR;
 		p->is |= AHCI_P_IX_TFE;
@@ -663,8 +663,7 @@ atapi_read_capacity(struct ahci_port *p, int slot, uint8_t *cfis)
 	uint8_t buf[8];
 	uint64_t sectors;
 
-	sectors = blockif_size(p->bctx) / blockif_sectsz(p->bctx);
-	sectors >>= 2;
+	sectors = blockif_size(p->bctx) / 2048;
 	be32enc(buf, sectors - 1);
 	be32enc(buf + 4, 2048);
 	cfis[4] = (cfis[4] & ~7) | ATA_I_CMD | ATA_I_IN;
@@ -869,7 +868,7 @@ atapi_read(struct ahci_port *p, int slot, uint8_t *cfis,
 
 	sc = p->pr_sc;
 	acmd = cfis + 0x40;
-	hdr = p->cmd_lst + slot * AHCI_CL_SIZE;
+	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
 	prdt = (struct ahci_prdt_entry *)(cfis + 0x80);
 
 	prdt += seek;
@@ -908,9 +907,9 @@ atapi_read(struct ahci_port *p, int slot, uint8_t *cfis,
 	/*
 	 * Build up the iovec based on the prdt
 	 */
-	for (i = 0; i < hdr->prdtl; i++) {
+	for (i = 0; i < iovcnt; i++) {
 		breq->br_iov[i].iov_base = paddr_guest2host(ahci_ctx(sc),
-				prdt->dba, prdt->dbc + 1);
+		    prdt->dba, prdt->dbc + 1);
 		breq->br_iov[i].iov_len = prdt->dbc + 1;
 		aior->done += (prdt->dbc + 1);
 		prdt++;
@@ -1178,7 +1177,7 @@ ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 	}
 	case ATA_SET_MULTI:
 		if (cfis[12] != 0 &&
-			(cfis[12] > 128 || (cfis[12] & cfis[12] - 1))) {
+			(cfis[12] > 128 || (cfis[12] & (cfis[12] - 1)))) {
 			p->tfd = ATA_S_ERROR | ATA_S_READY;
 			p->tfd |= (ATA_ERROR_ABORT << 8);
 		} else {
@@ -1241,7 +1240,7 @@ ahci_handle_slot(struct ahci_port *p, int slot)
 	int cfl;
 
 	sc = p->pr_sc;
-	hdr = p->cmd_lst + slot * AHCI_CL_SIZE;
+	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
 	cfl = (hdr->flags & 0x1f) * 4;
 	cfis = paddr_guest2host(ahci_ctx(sc), hdr->ctba,
 			0x80 + hdr->prdtl * sizeof(struct ahci_prdt_entry));
@@ -1318,7 +1317,7 @@ ata_ioreq_cb(struct blockif_req *br, int err)
 	slot = aior->slot;
 	pending = aior->prdtl;
 	sc = p->pr_sc;
-	hdr = p->cmd_lst + slot * AHCI_CL_SIZE;
+	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + slot * AHCI_CL_SIZE);
 
 	if (cfis[2] == ATA_WRITE_FPDMA_QUEUED ||
 			cfis[2] == ATA_READ_FPDMA_QUEUED)
@@ -1380,7 +1379,7 @@ atapi_ioreq_cb(struct blockif_req *br, int err)
 	slot = aior->slot;
 	pending = aior->prdtl;
 	sc = p->pr_sc;
-	hdr = p->cmd_lst + aior->slot * AHCI_CL_SIZE;
+	hdr = (struct ahci_cmd_hdr *)(p->cmd_lst + aior->slot * AHCI_CL_SIZE);
 
 	pthread_mutex_lock(&sc->mtx);
 
@@ -1543,7 +1542,7 @@ pci_ahci_host_write(struct pci_ahci_softc *sc, uint64_t offset, uint64_t value)
 	case AHCI_PI:
 	case AHCI_VS:
 	case AHCI_CAP2:
-		WPRINTF("pci_ahci_host: read only registers 0x%"PRIx64"\n", offset);
+		DPRINTF("pci_ahci_host: read only registers 0x%"PRIx64"\n", offset);
 		break;
 	case AHCI_GHC:
 		if (value & AHCI_GHC_HR)

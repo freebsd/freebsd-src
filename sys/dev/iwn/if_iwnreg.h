@@ -17,6 +17,8 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#ifndef	__IF_IWNREG_H__
+#define	__IF_IWNREG_H__
 
 #define	IWN_CT_KILL_THRESHOLD		114	/* in Celsius */
 #define	IWN_CT_KILL_EXIT_THRESHOLD	95	/* in Celsius */
@@ -2052,3 +2054,5 @@ static const char * const iwn_fw_errmsg[] = {
 #define IWN_BARRIER_READ_WRITE(sc)					\
 	bus_space_barrier((sc)->sc_st, (sc)->sc_sh, 0, (sc)->sc_sz,	\
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE)
+
+#endif	/* __IF_IWNREG_H__ */

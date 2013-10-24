@@ -60,7 +60,7 @@ do_extract() {
   local rev=$1
   # Clone.
   rm -rf ${work}
-  git clone git://canonware.com/jemalloc.git ${work}
+  git clone https://github.com/jemalloc/jemalloc.git ${work}
   (
     cd ${work}
     if [ "x${rev}" != "x" ] ; then

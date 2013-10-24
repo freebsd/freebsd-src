@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 11, 2008
+.Dd October 16, 2013
 .Dt RTENTRY 9
 .Os
 .Sh NAME
@@ -154,8 +154,7 @@ Protocol-specific.
 .It Dv RTF_PRCLONING
 This flag is obsolete and simply ignored by facility.
 .It Dv RTF_PINNED
-(Reserved for future use to indicate routes which are not to be
-modified by a routing protocol.)
+Indicates that this route is immutable to a routing protocol.
 .It Dv RTF_LOCAL
 Indicates that the destination of this route is an address configured
 as belonging to this system.

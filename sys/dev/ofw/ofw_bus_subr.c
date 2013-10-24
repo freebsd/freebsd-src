@@ -208,21 +208,20 @@ ofw_bus_has_prop(device_t dev, const char *propname)
 	return (OF_hasprop(node, propname));
 }
 
-#ifndef FDT
 void
 ofw_bus_setup_iinfo(phandle_t node, struct ofw_bus_iinfo *ii, int intrsz)
 {
 	pcell_t addrc;
 	int msksz;
 
-	if (OF_getprop(node, "#address-cells", &addrc, sizeof(addrc)) == -1)
+	if (OF_getencprop(node, "#address-cells", &addrc, sizeof(addrc)) == -1)
 		addrc = 2;
 	ii->opi_addrc = addrc * sizeof(pcell_t);
 
-	ii->opi_imapsz = OF_getprop_alloc(node, "interrupt-map", 1,
+	ii->opi_imapsz = OF_getencprop_alloc(node, "interrupt-map", 1,
 	    (void **)&ii->opi_imap);
 	if (ii->opi_imapsz > 0) {
-		msksz = OF_getprop_alloc(node, "interrupt-map-mask", 1,
+		msksz = OF_getencprop_alloc(node, "interrupt-map-mask", 1,
 		    (void **)&ii->opi_imapmsk);
 		/*
 		 * Failure to get the mask is ignored; a full mask is used
@@ -246,9 +245,11 @@ ofw_bus_lookup_imap(phandle_t node, struct ofw_bus_iinfo *ii, void *reg,
 	KASSERT(regsz >= ii->opi_addrc,
 	    ("ofw_bus_lookup_imap: register size too small: %d < %d",
 		regsz, ii->opi_addrc));
-	rv = OF_getprop(node, "reg", reg, regsz);
-	if (rv < regsz)
-		panic("ofw_bus_lookup_imap: could not get reg property");
+	if (node != -1) {
+		rv = OF_getencprop(node, "reg", reg, regsz);
+		if (rv < regsz)
+			panic("ofw_bus_lookup_imap: cannot get reg property");
+	}
 	return (ofw_bus_search_intrmap(pintr, pintrsz, reg, ii->opi_addrc,
 	    ii->opi_imap, ii->opi_imapsz, ii->opi_imapmsk, maskbuf, mintr,
 	    mintrsz, iparent));
@@ -300,8 +301,8 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 	i = imapsz;
 	while (i > 0) {
 		bcopy(mptr + physsz + intrsz, &parent, sizeof(parent));
-		if (OF_searchprop(OF_xref_phandle(parent), "#interrupt-cells",
-		    &pintrsz, sizeof(pintrsz)) == -1)
+		if (OF_searchencprop(OF_xref_phandle(parent),
+		    "#interrupt-cells", &pintrsz, sizeof(pintrsz)) == -1)
 			pintrsz = 1;	/* default */
 		pintrsz *= sizeof(pcell_t);
 
@@ -328,4 +329,4 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 	}
 	return (0);
 }
-#endif /* !FDT */
+

@@ -226,20 +226,8 @@ ofw_fdt_parent(ofw_t ofw, phandle_t node)
 static phandle_t
 ofw_fdt_instance_to_package(ofw_t ofw, ihandle_t instance)
 {
-	int offset;
 
-	/*
-	 * Note: FDT does not have the notion of instances, but we somewhat
-	 * abuse the semantics and let treat as 'instance' the internal
-	 * 'phandle' prop, so that ofw I/F consumers have a uniform way of
-	 * translation between internal representation (which appear in some
-	 * contexts as property values) and effective phandles.
-	 */
-	offset = fdt_node_offset_by_phandle(fdtp, instance);
-	if (offset < 0)
-		return (-1);
-
-	return (fdt_offset_phandle(offset));
+	return (-1);
 }
 
 /* Get the length of a property of a package. */
@@ -329,7 +317,7 @@ fdt_nextprop(int offset, char *buf, size_t size)
 			depth = -1;
 	} while (depth >= 0);
 
-	return (-1);
+	return (0);
 }
 
 /*

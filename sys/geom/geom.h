@@ -177,6 +177,8 @@ struct g_consumer {
 	int			flags;
 #define G_CF_SPOILED		0x1
 #define G_CF_ORPHAN		0x4
+#define G_CF_DIRECT_SEND	0x10
+#define G_CF_DIRECT_RECEIVE	0x20
 	struct devstat		*stat;
 	u_int			nstart, nend;
 
@@ -206,6 +208,8 @@ struct g_provider {
 #define G_PF_WITHER		0x2
 #define G_PF_ORPHAN		0x4
 #define	G_PF_ACCEPT_UNMAPPED	0x8
+#define G_PF_DIRECT_SEND	0x10
+#define G_PF_DIRECT_RECEIVE	0x20
 
 	/* Two fields for the implementing class to use */
 	void			*private;
@@ -270,6 +274,7 @@ int g_handleattr(struct bio *bp, const char *attribute, const void *val,
     int len);
 int g_handleattr_int(struct bio *bp, const char *attribute, int val);
 int g_handleattr_off_t(struct bio *bp, const char *attribute, off_t val);
+int g_handleattr_uint16_t(struct bio *bp, const char *attribute, uint16_t val);
 int g_handleattr_str(struct bio *bp, const char *attribute, const char *str);
 struct g_consumer * g_new_consumer(struct g_geom *gp);
 struct g_geom * g_new_geomf(struct g_class *mp, const char *fmt, ...)
@@ -392,6 +397,8 @@ g_free(void *ptr)
 		#name, g_modevent, &class			\
 	};							\
 	DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
+
+int g_is_geom_thread(struct thread *td);
 
 #endif /* _KERNEL */
 
