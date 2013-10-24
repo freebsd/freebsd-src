@@ -35,6 +35,7 @@ SUBDIR_ORDERED=	${_csu} \
 	libbsm \
 	libauditd \
 	libcompiler_rt \
+	libcheri \
 	libcrypt \
 	libelf \
 	${_libiconv_modules} \

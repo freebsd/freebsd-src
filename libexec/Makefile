@@ -6,6 +6,7 @@
 SUBDIR=	${_atf} \
 	${_atrun} \
 	bootpd \
+	cheritest-helper \
 	${_comsat} \
 	fingerd \
 	ftpd \

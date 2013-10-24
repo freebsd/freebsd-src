@@ -3,7 +3,9 @@
 
 .include <bsd.own.mk>
 
+# XXXRW: make cheritest conditionally built.
 SUBDIR= cat \
+	cheritest \
 	chflags \
 	chio \
 	chmod \
