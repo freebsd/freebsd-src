@@ -6,6 +6,11 @@ dev/altera/jtag_uart/altera_jtag_uart_cons.c	optional altera_jtag_uart
 dev/altera/jtag_uart/altera_jtag_uart_tty.c	optional altera_jtag_uart
 dev/altera/jtag_uart/altera_jtag_uart_fdt.c	optional altera_jtag_uart fdt
 dev/altera/jtag_uart/altera_jtag_uart_nexus.c	optional altera_jtag_uart
+dev/cheri/compositor/cheri_compositor.c	optional cheri_compositor
+dev/cheri/compositor/cheri_compositor_cfb.c	optional cheri_compositor
+dev/cheri/compositor/cheri_compositor_fdt.c	optional cheri_compositor fdt
+dev/cheri/compositor/cheri_compositor_nexus.c	optional cheri_compositor
+dev/cheri/compositor/cheri_compositor_reg.c	optional cheri_compositor
 dev/terasic/de4led/terasic_de4led.c	optional terasic_de4led
 dev/terasic/de4led/terasic_de4led_fdt.c	optional terasic_de4led fdt
 dev/terasic/de4led/terasic_de4led_nexus.c	optional terasic_de4led

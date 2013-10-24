@@ -11,3 +11,5 @@ ident		CHERI_DE4_MDROOT
 
 nocpu		CPU_BERI
 cpu		CPU_CHERI
+
+device		cheri_compositor
