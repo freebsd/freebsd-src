@@ -127,6 +127,37 @@ static char *c0_reg[32] = {
 	"c0r24","c0r25","ecc","cacheerr","taglo","taghi","errepc","c0r31"
 };
 
+#ifdef CPU_CHERI
+static const char *cheri_cap_load_opname[8] = {
+	"clbu", "clhu", "clwu", "cldu",
+	"clb", "clh", "clw", "clld"
+};
+static const char *cheri_cap_store_opname[8] = {
+	"csb", "csh", "csw", "csd",
+	"csb", "csh", "csw", "cscd"
+};
+static const char *cheri_flow_control_opname[16] = {
+	"invalid", "CSealCode", "CSealData", "CUnseal",
+	"invalid", "CCall", "CReturn", "cjalr",
+	"cjr", "invalid", "invalid", "invalid", 
+	"invalid", "invalid", "invalid", "invalid"
+};
+static const char *cheri_cap_inspect_opname[8] = {
+	"CGetPerm", "CGetType", "CGetBase", "CGetLen",
+	"invalid", "CGetTag", "CGetUnsealed", "CGetPCC"
+};
+static const char *cheri_cap_modify_name[8] = {
+	"CAndPerm", "CSetType", "CIncBase", "CSetLen",
+	"invalid", "CClearTag", "invalid", "invalid"
+};
+static const char *c2_reg[32] = {
+	"c0", "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9",
+	"c10", "c11", "c12", "c13", "c14", "c15", "c16", "c17", "c18", "c19",
+	"c20", "c21", "c22", "c23", "c24", "c25", "idc", "kr2c", "kr2c", "kcc",
+	"kdc", "epcc"
+};
+#endif /* CPU_CHERI */
+
 static int md_printins(int ins, int mdbdot);
 
 db_addr_t
@@ -257,6 +288,84 @@ md_printins(int ins, int mdbdot)
 		delay = 1;
 		db_printf("0x%08x", mdbdot + 4 + ((short)i.IType.imm << 2));
 		break;
+
+#ifdef CPU_CHERI
+	case OP_COP2: {
+		unsigned ops = 0;
+		const char *opcode = "invalid";
+		const char *operands[3] = { 0 };
+		switch (i.CType.fmt) {
+		case 0: 
+			ops = 2;
+			opcode = cheri_cap_inspect_opname[i.CType.fmt2];
+			operands[0] = reg_name[i.CType.r1];
+			operands[1] = c2_reg[i.CType.r2];
+			break;
+		case 4: 
+			ops = i.CType.fmt2 == 5 ? 0 : 3;
+			opcode = cheri_cap_modify_name[i.CType.fmt2];
+			operands[0] = reg_name[i.CType.r1];
+			operands[1] = c2_reg[i.CType.r2];
+			break;
+		case 1: 
+		case 5: 
+			ops = 2;
+			opcode = cheri_flow_control_opname[i.CType.fmt];
+			operands[0] = c2_reg[i.CType.r1];
+			operands[1] = c2_reg[i.CType.r2];
+			break;
+		case 2: 
+		case 3: 
+			ops = 3;
+			opcode = cheri_flow_control_opname[i.CType.fmt];
+			operands[0] = c2_reg[i.CType.r1];
+			operands[1] = c2_reg[i.CType.r2];
+			operands[2] = c2_reg[i.CType.r3];
+			break;
+		case 7: 
+		case 8: 
+			ops = 2;
+			opcode = cheri_flow_control_opname[i.CType.fmt];
+			operands[0] = c2_reg[i.CType.r2];
+			operands[1] = reg_name[i.CType.r3];
+			break;
+		case 6:
+			opcode = cheri_flow_control_opname[i.CType.fmt];
+		}
+
+		switch (ops) {
+		case 0:
+			db_printf("%s\n", opcode);
+			break;
+		case 1:
+			db_printf("%s\t%s\n", opcode, operands[0]);
+			break;
+		case 2:
+			db_printf("%s\t%s,%s\n", opcode, operands[0], operands[1]);
+			break;
+		case 3:
+			db_printf("%s\t%s,%s,%s\n", opcode, operands[0], operands[1],
+					operands[2]);
+		}
+	}
+		break;
+	case OP_LWC2:
+	case OP_SWC2: {
+		const char *opcode = i.JType.op == OP_LWC2 ?
+			cheri_cap_load_opname[i.CMType.fmt] :
+			cheri_cap_store_opname[i.CMType.fmt];
+		db_printf("%s\t%s, %s, %d(%s)\n", opcode, reg_name[i.CType.r1],
+				reg_name[i.CType.r3], i.CMType.offset, c2_reg[i.CType.r2]);
+		break;
+	}
+	case OP_LDC2:
+	case OP_SDC2: {
+		const char *opcode = i.JType.op == OP_LDC2 ? "clc" : "csc";
+		db_printf("%s\t%s, %s, %d(%s)\n", opcode, c2_reg[i.CType.r1],
+				reg_name[i.CType.r3], i.CMType.offset, c2_reg[i.CType.r2]);
+		break;
+	}
+#endif /* CPU_CHERI */
 
 	case OP_COP0:
 		switch (i.RType.rs) {

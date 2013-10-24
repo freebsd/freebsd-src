@@ -1,0 +1,12 @@
+#
+# CHERI -- Kernel for the SRI/Cambridge "CHERI" (Capability Hardware Enhanced
+# RISC Instructions) FPGA soft core, as configured for simulation.
+#
+# $FreeBSD$
+#
+
+include         BERI_SIM_SDROOT
+ident           CHERI_SIM_SDROOT
+
+nocpu           CPU_BERI
+cpu             CPU_CHERI

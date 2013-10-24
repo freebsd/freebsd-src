@@ -28,7 +28,7 @@
 .\"     @(#)signal.3	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd June 7, 2004
+.Dd November 5, 2012
 .Dt SIGNAL 3
 .Os
 .Sh NAME
@@ -133,6 +133,7 @@ is possible on a descriptor (see
 .It 31 Ta Dv SIGUSR2 Ta "terminate process" Ta "User defined signal 2"
 .It 32 Ta Dv SIGTHR Ta "terminate process" Ta "thread interrupt"
 .It 33 Ta Dv SIGLIBRT Ta "terminate process" Ta "real-time library interrupt"
+.It 34 Ta Dv SIGPROT Ta "terminate process" Ta "in-process protection exception"
 .El
 .Pp
 The

@@ -308,37 +308,61 @@ _C_LABEL(x):
  */
 #if _BYTE_ORDER == _LITTLE_ENDIAN
 # define LWHI lwr
+# define CLWHI clwr
 # define LWLO lwl
+# define CLWLO clwl
 # define SWHI swr
+# define CSWHI cswr
 # define SWLO swl
+# define CSWLO cswl
 # if SZREG == 4
 #  define REG_LHI   lwr
+#  define REG_CLHI  clwr
 #  define REG_LLO   lwl
+#  define REG_CLLO  clwl
 #  define REG_SHI   swr
+#  define REG_CSHI  cswr
 #  define REG_SLO   swl
+#  define REG_CSLO  cswl
 # else
 #  define REG_LHI   ldr
+#  define REG_CLHI  cldr
 #  define REG_LLO   ldl
+#  define REG_CLLO  cldl
 #  define REG_SHI   sdr
+#  define REG_CSHI  csdr
 #  define REG_SLO   sdl
+#  define REG_CSLO  csdl
 # endif
 #endif
 
 #if _BYTE_ORDER == _BIG_ENDIAN
 # define LWHI lwl
+# define CLWHI clwl
 # define LWLO lwr
+# define CLWLO clwr
 # define SWHI swl
+# define CSWHI cswl
 # define SWLO swr
+# define CSWLO cswr
 # if SZREG == 4
 #  define REG_LHI   lwl
+#  define REG_CLHI  clwl
 #  define REG_LLO   lwr
+#  define REG_CLLO  clwr
 #  define REG_SHI   swl
+#  define REG_CSHI  cswl
 #  define REG_SLO   swr
+#  define REG_CSLO  cswr
 # else
 #  define REG_LHI   ldl
+#  define REG_CLHI  cldl
 #  define REG_LLO   ldr
+#  define REG_CLLO  cldr
 #  define REG_SHI   sdl
+#  define REG_CSHI  csdl
 #  define REG_SLO   sdr
+#  define REG_CSLO  csdr
 # endif
 #endif
 

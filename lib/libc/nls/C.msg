@@ -267,6 +267,8 @@ $ SIGTHR
 32 Thread interrupt
 $ SIGLIBRT
 33 Real-time library interrupt
+$ SIGPROT
+34 In-process protection exception
 $
 $ gai_strerror() support catalog
 $

@@ -21,5 +21,8 @@ mips/beri/beri_asm.S			standard
 mips/beri/beri_machdep.c		standard
 mips/beri/beri_mp.c			optional smp
 mips/beri/beri_pic.c			optional fdt
+mips/cheri/ccall.S			optional cpu_cheri
+mips/cheri/cheri.c			optional cpu_cheri
+mips/cheri/cheri_stack.c		optional cpu_cheri
 mips/mips/intr_machdep.c		standard
 mips/mips/tick.c			standard

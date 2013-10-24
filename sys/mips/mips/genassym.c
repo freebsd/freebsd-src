@@ -105,6 +105,18 @@ ASSYM(MIPS_KSEG1_START, MIPS_KSEG1_START);
 ASSYM(MIPS_KSEG2_START, MIPS_KSEG2_START);
 ASSYM(MIPS_XKSEG_START, MIPS_XKSEG_START);
 
+#ifdef	CPU_CHERI
+ASSYM(CHERI_FRAME_SIZE, sizeof(struct cheri_stack_frame) * CHERI_STACK_DEPTH);
+ASSYM(CHERI_STACK_SIZE, sizeof(struct cheri_stack_frame));
+ASSYM(U_PCB_CHERIFRAME, offsetof(struct pcb, pcb_cheriframe));
+ASSYM(U_PCB_CHERISTACK_TSP, offsetof(struct pcb, pcb_cheristack.cs_tsp));
+ASSYM(U_PCB_CHERISTACK_FRAMES, offsetof(struct pcb, pcb_cheristack.cs_frames));
+ASSYM(CHERI_STACKFRAME_PC, offsetof(struct cheri_stack_frame, csf_pc));
+ASSYM(CHERI_STACKFRAME_SP, offsetof(struct cheri_stack_frame, csf_sp));
+ASSYM(CHERI_STACKFRAME_PCC, offsetof(struct cheri_stack_frame, csf_pcc));
+ASSYM(CHERI_STACKFRAME_IDC, offsetof(struct cheri_stack_frame, csf_idc));
+#endif
+
 #ifdef	CPU_CNMIPS
 ASSYM(TD_COP2OWNER, offsetof(struct thread, td_md.md_cop2owner));
 ASSYM(TD_COP2, offsetof(struct thread, td_md.md_cop2));

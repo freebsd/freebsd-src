@@ -82,6 +82,43 @@ typedef union {
 		unsigned fd: 5;
 		unsigned func: 6;
 	} FRType;
+
+#ifdef CPU_CHERI
+	/* Capability memory operations */
+	struct {
+		unsigned op: 6;
+		unsigned rd: 5;
+		unsigned cb: 5;
+		unsigned rt: 5;
+		unsigned offset: 8;
+		unsigned fmt: 3;
+	} CMType;
+	/* Capability atomic memory operations */
+	struct {
+		unsigned op: 6;
+		unsigned cs: 5;
+		unsigned cb: 5;
+		unsigned rt: 5;
+		int offset: 10;
+	} CCMType;
+	/* Most other capability instructions */
+	struct {
+		unsigned op: 6;
+		unsigned fmt: 5;
+		unsigned r1: 5;
+		unsigned r2: 5;
+		unsigned r3: 5;
+		unsigned unused: 3;
+		unsigned fmt2: 3;
+	} CType;
+	/* BC2F format */
+	struct {
+		unsigned op: 6;
+		unsigned fmt: 5;
+		unsigned cd: 5;
+		unsigned offset: 16;
+	} BC2FType;
+#endif /* CPU_CHERI */
 #endif
 #if BYTE_ORDER == LITTLE_ENDIAN
 	struct {

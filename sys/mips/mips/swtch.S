@@ -64,6 +64,11 @@
 #include <machine/pte.h>
 #include <machine/pcb.h>
 
+#ifdef CPU_CHERI
+#include <machine/cheriasm.h>
+#include <machine/cherireg.h>
+#endif
+
 #include "assym.s"
 
 	.set	noreorder			# Noreorder is default style!
@@ -92,6 +97,12 @@ LEAF(fork_trampoline)
 	GET_CPU_PCPU(k1)
 	PTR_L	k1, PC_CURPCB(k1)
 
+#ifdef CPU_CHERI
+	/*
+	 * Note: This restores EPCC, matching the explicit EPC restore below.
+	 */
+	RESTORE_CHERI_CONTEXT(k1, t0)
+#endif
 	RESTORE_U_PCB_REG(t0, MULLO, k1)
 	RESTORE_U_PCB_REG(t1, MULHI, k1)
 	mtlo	t0
@@ -137,6 +148,9 @@ LEAF(fork_trampoline)
 	mtc0	k0, MIPS_COP_0_STATUS	# switch to user mode (when eret...)
 	HAZARD_DELAY
 	sync
+#ifdef CPU_CHERI
+	CHERI_EXCEPTION_RETURN(k0)
+#endif
 	eret
 	.set	at
 END(fork_trampoline)
@@ -225,6 +239,10 @@ NESTED(cpu_switch, CALLFRAME_SIZ, ra)
 	nop
 getpc:
 	SAVE_U_PCB_CONTEXT(ra, PCB_REG_PC, a0)		# save return address
+
+#ifdef CPU_CHERI
+	/* XXXRW: CHERI state management here. */
+#endif
 
 #ifdef CPU_CNMIPS
 

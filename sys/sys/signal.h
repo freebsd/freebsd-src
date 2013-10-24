@@ -112,6 +112,7 @@
 #define	SIGTHR		32	/* reserved by thread library. */
 #define	SIGLWP		SIGTHR
 #define	SIGLIBRT	33	/* reserved by real-time library. */
+#define	SIGPROT		34	/* in-address space security exception. */
 #endif
 
 #define	SIGRTMIN	65

@@ -40,6 +40,7 @@
  */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+#define TRAP_DEBUG 1
 
 #include "opt_compat.h"
 #include "opt_ddb.h"
@@ -182,6 +183,9 @@ SYSCTL_INT(_machdep, OID_AUTO, trap_debug, CTLFLAG_RW,
 
 static void log_illegal_instruction(const char *, struct trapframe *);
 static void log_bad_page_fault(char *, struct trapframe *, int);
+#ifdef CPU_CHERI
+static void log_c2e_exception(const char *, struct trapframe *, int);
+#endif
 static void log_frame_dump(struct trapframe *frame);
 static void get_mapping_info(vm_offset_t, pd_entry_t **, pt_entry_t **);
 
@@ -281,7 +285,11 @@ char *trap_type[] = {
 	"floating point",
 	"reserved 16",
 	"reserved 17",
+#ifdef CPU_CHERI
+	"capability coprocessor exception",
+#else
 	"reserved 18",
+#endif
 	"reserved 19",
 	"reserved 20",
 	"reserved 21",
@@ -926,7 +934,19 @@ dofault:
 	case T_RES_INST + T_USER:
 		{
 			InstFmt inst;
+#ifdef CPU_CHERI
+
+			/*
+			 * XXXRW: We really need a cfuword(), and also to use
+			 * a frame-extracted EPCC rather than the live one, as
+			 * we may have taken a further exception if interrupts
+			 * are enabled.  However, this helps with debugging in
+			 * the mean time.
+			 */
+			CHERI_CLW(inst.word, trapframe->pc, 0, CHERI_CR_EPCC);
+#else
 			inst = *(InstFmt *)(intptr_t)trapframe->pc;
+#endif
 			switch (inst.RType.op) {
 			case OP_SPECIAL3:
 				switch (inst.RType.func) {
@@ -954,13 +974,32 @@ dofault:
 			addr = trapframe->pc;
 		}
 		break;
+#ifdef CPU_CHERI
+	case T_C2E:
+		goto err;
+		break;
+
+	case T_C2E + T_USER:
+		msg = "USER_CHERI_EXCEPTION";
+		log_c2e_exception(msg, trapframe, type);
+		i = SIGPROT;
+		addr = trapframe->pc;
+		break;
+
+#else
 	case T_C2E:
 	case T_C2E + T_USER:
 		goto err;
 		break;
+#endif
 	case T_COP_UNUSABLE:
-#ifdef	CPU_CNMIPS
 		cop = (trapframe->cause & MIPS_CR_COP_ERR) >> MIPS_CR_COP_ERR_SHIFT;
+#if defined(CPU_CHERI) && defined(DDB)
+		/* XXXRW: CP2 state management here. */
+		if (cop == 2)
+			kdb_enter(KDB_WHY_CHERI, "T_COP_UNUSABLE exception");
+#endif
+#ifdef	CPU_CNMIPS
 		/* Handle only COP2 exception */
 		if (cop != 2)
 			goto err;
@@ -998,6 +1037,12 @@ dofault:
 
 	case T_COP_UNUSABLE + T_USER:
 		cop = (trapframe->cause & MIPS_CR_COP_ERR) >> MIPS_CR_COP_ERR_SHIFT;
+#if defined(CPU_CHERI) && defined(DDB)
+		/* XXXRW: CP2 state management here. */
+		if (cop == 2)
+			kdb_enter(KDB_WHY_CHERI,
+			    "T_COP_UNUSABLE + T_USER exception");
+#endif
 		if (cop == 1) {
 #if !defined(CPU_HAVEFPU)
 		/* FP (COP1) instruction */
@@ -1575,6 +1620,29 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 	    (intmax_t)frame->badvaddr, (void *)(intptr_t)*pdep, (uintmax_t)(ptep ? *ptep : 0));
 }
 
+#ifdef CPU_CHERI
+/*
+ * XXXRW: Possibly this should actually be a CHERI-independent logging
+ * function, in which case only the CHERI-specific parts should be ifdef'd.
+ */
+static void
+log_c2e_exception(const char *msg, struct trapframe *frame, int trap_type)
+{
+
+#ifdef SMP
+	printf("cpuid = %d\n", PCPU_GET(cpuid));
+#endif
+	log(LOG_ERR, "%s: pid %d tid %ld (%s), uid %d: CP2 fault "
+	    "(type %#x)\n",
+	    msg, curproc->p_pid, (long)curthread->td_tid, curproc->p_comm,
+	    curproc->p_ucred ? curproc->p_ucred->cr_uid : -1,
+	    trap_type);
+
+	/* log registers in trap frame */
+	log_frame_dump(frame);
+	cheri_log_exception(frame, trap_type);
+}
+#endif
 
 /*
  * Unaligned load/store emulation

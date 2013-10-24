@@ -116,7 +116,11 @@ VECTOR(_locore, unknown)
 	 * t1: Bits to set explicitly:
 	 *	Enable FPU
 	 */
+#if defined(CPU_CHERI)
+	li	t1, MIPS_SR_COP_1_BIT | MIPS_SR_COP_2_BIT
+#else
 	li	t1, MIPS_SR_COP_1_BIT
+#endif
 #ifdef __mips_n64
 	or	t1, MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX
 #endif
@@ -136,6 +140,26 @@ VECTOR(_locore, unknown)
 	li	t0, MIPS_CCA_CACHED
 	mtc0	t0, MIPS_COP_0_CONFIG
 	COP0_SYNC
+
+#if defined(CPU_CHERI)
+	/*
+	 * On CHERI MIPS, preserve the kernel's data segment context for use
+	 * in exception handlers.
+	 *
+	 * XXXRW: Do we want to rely on default initialisation of all CP2
+	 * registers here?
+	 */
+	cmove	$c30, $c0		# Preserve $kdc
+	cmove	$c29, $c0		# Preserve $kcc	
+
+	/*
+	 * Initialise saved user $c0 so we can later restore it.
+	 *
+	 * XXXRW: This will be removed once we more explicitly manage user
+	 * thread capabilities.
+	 */
+	cmove	$c25, $c0		# Global $udc for now
+#endif
 
 	/*xxximp
 	 * now that we pass a0...a3 to the platform_init routine, do we need

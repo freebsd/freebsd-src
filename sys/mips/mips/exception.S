@@ -63,6 +63,11 @@
 #include <machine/pte.h>
 #include <machine/pcb.h>
 
+#ifdef CPU_CHERI
+#include <machine/cheriasm.h>
+#include <machine/cherireg.h>
+#endif
+
 #include "assym.s"
 
 	.set	noreorder		# Noreorder is default style!
@@ -109,6 +114,9 @@ dtrace_invop_calltrap_addr:
 VECTOR(MipsTLBMiss, unknown)
 	.set push
 	.set noat
+#ifdef CPU_CHERI
+	CHERI_EXCEPTION_ENTER(k0)
+#endif
 	j	MipsDoTLBMiss
 	MFC0	k0, MIPS_COP_0_BAD_VADDR	# get the fault address
 	.set pop
@@ -162,7 +170,11 @@ MipsDoTLBMiss:
 	COP0_SYNC
 	tlbwr						#1a: write to tlb
 	HAZARD_DELAY
+#ifdef CPU_CHERI
+	CHERI_EXCEPTION_RETURN(k0)
+#endif
 	eret						#1f: retUrn from exception
+
 1:	j		MipsTLBMissException		#20: kernel exception
 	nop						#21: branch delay slot
 2:	j		SlowFault			#22: no page table present
@@ -179,6 +191,9 @@ VECTOR(MipsException, unknown)
  * Find out what mode we came from and jump to the proper handler.
  */
 	.set	noat
+#ifdef CPU_CHERI
+	CHERI_EXCEPTION_ENTER(k0)
+#endif
 	mfc0	k0, MIPS_COP_0_STATUS		# Get the status register
 	mfc0	k1, MIPS_COP_0_CAUSE		# Get the cause register value.
 	and	k0, k0, MIPS_SR_KSU_USER	# test for user mode
@@ -266,7 +281,7 @@ SlowFault:
 #endif
 
 /*
- * Save CPU and CP0 register state.
+ * Save CPU and CP0 register state when taking an exception in kernel mode.
  *
  * This is straightforward except for saving the exception program
  * counter. The ddb backtrace code looks for the first instruction
@@ -407,6 +422,10 @@ NESTED_NOPROFILE(MipsKernGenException, KERN_EXC_FRAME_SIZE, ra)
 	SAVE_REG(a1, SR, sp)
 	RESTORE_CPU			# v0 contains the return address.
 	sync
+
+#ifdef CPU_CHERI
+	CHERI_EXCEPTION_RETURN(k0)
+#endif
 	eret
 	.set	at
 END(MipsKernGenException)
@@ -477,6 +496,12 @@ NESTED_NOPROFILE(MipsUserGenException, CALLFRAME_SIZ, ra)
 	SAVE_U_PCB_REG(a1, CAUSE, k1)
 	SAVE_U_PCB_REG(a2, BADVADDR, k1)
 	SAVE_U_PCB_REG(a3, PC, k1)
+#ifdef CPU_CHERI
+	/*
+	 * Note: This saves EPCC, matching the explicit EPC save above.
+	 */
+	SAVE_CHERI_CONTEXT(k1, t0)
+#endif
 	REG_S	a3, CALLFRAME_RA(sp)	# for debugging
 	PTR_LA	gp, _C_LABEL(_gp)	# switch to kernel GP
 # Turn off fpu and enter kernel mode
@@ -526,6 +551,12 @@ NESTED_NOPROFILE(MipsUserGenException, CALLFRAME_SIZ, ra)
 	or	a1, a1, a0
 	SAVE_U_PCB_REG(a1, SR, k1)
 
+#ifdef CPU_CHERI
+	/*
+	 * Note: This restores EPCC, matching the explicit EPC restore below.
+	 */
+	RESTORE_CHERI_CONTEXT(k1, t0)
+#endif
 	RESTORE_U_PCB_REG(t0, MULLO, k1)
 	RESTORE_U_PCB_REG(t1, MULHI, k1)
 	mtlo	t0
@@ -567,6 +598,9 @@ NESTED_NOPROFILE(MipsUserGenException, CALLFRAME_SIZ, ra)
 	mtc0	k0, MIPS_COP_0_STATUS	# still exception level
 	ITLBNOPFIX
 	sync
+#ifdef CPU_CHERI
+	CHERI_EXCEPTION_RETURN(k0)
+#endif
 	eret
 	.set	at
 END(MipsUserGenException)
@@ -622,6 +656,11 @@ NESTED_NOPROFILE(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
 
 /*
  * Check for getting interrupts just before wait
+ *
+ * XXXCHERI: Once we use variable CHERI PCC in the kernel, this check will
+ * also need to take that into account.  In the mean time, the fact that we're
+ * in the kernel ring is sufficient to imply that PCC matches the kernel
+ * address space.
  */
 	MFC0	k0, MIPS_COP_0_EXC_PC
 	ori	k0, 0xf
@@ -659,6 +698,9 @@ NESTED_NOPROFILE(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
 	REG_L	v0, CALLFRAME_RA + KERN_REG_SIZE(sp)
 	RESTORE_CPU			# v0 contains the return address.
 	sync
+#ifdef CPU_CHERI
+	CHERI_EXCEPTION_RETURN(k0)
+#endif
 	eret
 	.set	at
 END(MipsKernIntr)
@@ -735,6 +777,12 @@ NESTED_NOPROFILE(MipsUserIntr, CALLFRAME_SIZ, ra)
 	SAVE_U_PCB_REG(a0, SR, k1)
 	SAVE_U_PCB_REG(a1, CAUSE, k1)
 	SAVE_U_PCB_REG(a3, PC, k1)	# PC in a3, note used later!
+#ifdef CPU_CHERI
+	/*
+	 * Note: This saves EPCC, matching the explicit EPC save above.
+	 */
+	SAVE_CHERI_CONTEXT(k1, t0)
+#endif
 	PTR_SUBU	sp, k1, CALLFRAME_SIZ  # switch to kernel SP
 	PTR_LA	gp, _C_LABEL(_gp)	# switch to kernel GP
 
@@ -793,6 +841,12 @@ NESTED_NOPROFILE(MipsUserIntr, CALLFRAME_SIZ, ra)
 	or	a1, a1, a0
 	SAVE_U_PCB_REG(a1, SR, k1)
 
+#ifdef CPU_CHERI
+	/*
+	 * Note: This restores EPCC, matching the explicit EPC restore below.
+	 */
+	RESTORE_CHERI_CONTEXT(k1, t0)
+#endif
 	RESTORE_U_PCB_REG(s0, S0, k1)
 	RESTORE_U_PCB_REG(s1, S1, k1)
 	RESTORE_U_PCB_REG(s2, S2, k1)
@@ -834,6 +888,9 @@ NESTED_NOPROFILE(MipsUserIntr, CALLFRAME_SIZ, ra)
 	mtc0	k0, MIPS_COP_0_STATUS	# SR with EXL set. 
 	ITLBNOPFIX
 	sync
+#ifdef CPU_CHERI
+	CHERI_EXCEPTION_RETURN(k0)
+#endif
 	eret
 	.set	at
 END(MipsUserIntr)
@@ -929,11 +986,17 @@ tlb_insert_entry:
 	bltz		k0, tlb_insert_random
 	nop
 	tlbwi
+#ifdef CPU_CHERI
+	CHERI_EXCEPTION_RETURN(k0)
+#endif
 	eret
 	ssnop
 
 tlb_insert_random:
 	tlbwr
+#ifdef CPU_CHERI
+	CHERI_EXCEPTION_RETURN(k0)
+#endif
 	eret
 	ssnop
 
@@ -985,6 +1048,12 @@ tlb_insert_random:
 	REG_S	zero, CALLFRAME_SP(sp)
 	move	ra, k0
 
+	/*
+	 * XXXCHERI: This SAVE_CPU preserves a kernel register frame before
+	 * entering the kernel debugger on kernel stack overflow.  In the
+	 * future, we may want to do something with CHERI EPCC here (e.g.,
+	 * save it?).
+	 */
 	SAVE_CPU
 
 	/*
@@ -1065,6 +1134,9 @@ LEAF_NOPROFILE(MipsTLBMissException)
 	COP0_SYNC
 	tlbwr					# write to tlb
 	HAZARD_DELAY
+#ifdef CPU_CHERI
+	CHERI_EXCEPTION_RETURN(k0)
+#endif
 	eret					# return from exception
 	.set	at
 END(MipsTLBMissException)
@@ -1217,6 +1289,9 @@ sintrcnt:
  */
 	.text
 VECTOR(MipsCache, unknown)
+#ifdef CPU_CHERI
+	CHERI_EXCEPTION_ENTER(k0)
+#endif
 	PTR_LA	k0, _C_LABEL(MipsCacheException)
 	li	k1, MIPS_KSEG0_PHYS_MASK
 	and	k0, k1
@@ -1249,6 +1324,9 @@ NESTED_NOPROFILE(MipsCacheException, KERN_EXC_FRAME_SIZE, ra)
 	mtc0	k0, MIPS_COP_0_STATUS		# restore status
 	COP0_SYNC
 
+#ifdef CPU_CHERI
+	CHERI_EXCEPTION_RETURN(k0)
+#endif
 	eret
 
 	MSG("cache error @ EPC 0x%x CachErr 0x%x");

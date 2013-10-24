@@ -68,6 +68,10 @@ __FBSDID("$FreeBSD$");
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
+#ifdef CPU_CHERI
+#include <machine/cheri.h>
+#endif
+
 #define	UCONTEXT_MAGIC	0xACEDBADE
 
 /*
@@ -489,6 +493,11 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	td->td_frame->sr |= MIPS_SR_PX;
 #elif  defined(__mips_n64)
 	td->td_frame->sr |= MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX;
+#endif
+#if defined(CPU_CHERI)
+	td->td_frame->sr |= MIPS_SR_COP_2_BIT;
+	cheri_exec_setregs(td);
+	cheri_stack_init(td->td_pcb);
 #endif
 	/*
 	 * FREEBSD_DEVELOPERS_FIXME:

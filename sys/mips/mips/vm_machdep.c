@@ -58,6 +58,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 
 #include <machine/cache.h>
+#ifdef CPU_CHERI
+#include <machine/cheri.h>
+#endif
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/md_var.h>
@@ -154,6 +157,16 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	 */
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 
+#ifdef CPU_CHERI
+	/*
+	 * XXXRW: We're copying this memory twice -- once in the bcopy()
+	 * above, and once here using capabilities.  Once bcopy() is
+	 * capability-oblivious, we can lose this.
+	 */
+	cheri_context_copy(pcb2, td1->td_pcb);
+	cheri_stack_copy(pcb2, td1->td_pcb);
+#endif
+
 	/* Point mdproc and then copy over td1's contents
 	 * md_proc is empty for MIPS
 	 */
@@ -188,6 +201,14 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	td2->td_md.md_tls = td1->td_md.md_tls;
 	td2->td_md.md_saved_intr = MIPS_SR_INT_IE;
 	td2->td_md.md_spinlock_count = 1;
+#ifdef CPU_CHERI
+	/*
+	 * XXXRW: Ensure capability coprocessor is enabled for both kernel and
+	 * userspace in child.
+	 */
+	td2->td_frame->sr |= MIPS_SR_COP_2_BIT;
+	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_COP_2_BIT;
+#endif
 #ifdef CPU_CNMIPS
 	if (td1->td_md.md_flags & MDTD_COP2USED) {
 		if (td1->td_md.md_cop2owner == COP2_OWNER_USERLAND) {
@@ -417,6 +438,16 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
 
+#ifdef CPU_CHERI
+	/*
+	 * XXXRW: We're copying this memory twice -- once in the bcopy()
+	 * above, and once here using capabilities.  Once bcopy() is
+	 * capability-oblivious, we can lose this.
+	 */
+	cheri_context_copy(pcb2, td0->td_pcb);
+	cheri_stack_copy(pcb2, td0->td_pcb);
+#endif
+
 	/*
 	 * Set registers for trampoline to user mode.
 	 */
@@ -431,6 +462,16 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	/* Dont set IE bit in SR. sched lock release will take care of it */
 	pcb2->pcb_context[PCB_REG_SR] = mips_rd_status() &
 	    (MIPS_SR_PX | MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_INT_MASK);
+
+#ifdef CPU_CHERI
+	/*
+	 * XXXRW: Interesting that we just set pcb_context here and not also
+	 * the trap frame.
+	 *
+	 * XXXRW: With CPU_CNMIPS parts moved, does this still belong here?
+	 */
+	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_COP_2_BIT;
+#endif
 
 	/*
 	 * FREEBSD_DEVELOPERS_FIXME:
@@ -487,6 +528,9 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 
 	/*
 	 * Keep interrupt mask
+	 *
+	 * XXXRW: I'm a bit puzzled by the code below and feel that even if it
+	 * works, it can't really be right.
 	 */
 	td->td_frame->sr = MIPS_SR_KSU_USER | MIPS_SR_EXL | MIPS_SR_INT_IE |
 	    (mips_rd_status() & MIPS_SR_INT_MASK);
@@ -494,6 +538,11 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	td->td_frame->sr |= MIPS_SR_PX;
 #elif  defined(__mips_n64)
 	td->td_frame->sr |= MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX;
+#endif
+
+	/* XXXRW: With CNMIPS moved, does this still belong here? */
+#ifdef CPU_CHERI
+	tf->sr |= MIPS_SR_COP_2_BIT;
 #endif
 /*	tf->sr |= (ALL_INT_MASK & idle_mask) | SR_INT_ENAB; */
 	/**XXX the above may now be wrong -- mips2 implements this as panic */

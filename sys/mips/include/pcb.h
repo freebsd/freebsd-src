@@ -117,6 +117,9 @@
 
 #ifndef LOCORE
 #include <machine/frame.h>
+#ifdef CPU_CHERI
+#include <machine/cheri.h>
+#endif
 
 /*
  * MIPS process control block
@@ -124,6 +127,10 @@
 struct pcb
 {
 	struct trapframe pcb_regs;	/* saved CPU and registers */
+#ifdef CPU_CHERI
+	struct cheri_frame pcb_cheriframe;	/* Userspace capabilities. */
+	struct cheri_stack pcb_cheristack;	/* CCall/CReturn stack. */
+#endif
 	__register_t pcb_context[14];	/* kernel context for resume */
 	void *pcb_onfault;		/* for copyin/copyout faults */
 	register_t pcb_tpc;

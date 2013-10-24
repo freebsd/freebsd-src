@@ -40,6 +40,7 @@ CPU_CNMIPS	opt_global.h
 CPU_RMI		opt_global.h
 CPU_NLM		opt_global.h
 CPU_BERI	opt_global.h
+CPU_CHERI	opt_global.h
 
 # which MACHINE_ARCH architecture
 MIPS
@@ -86,7 +87,7 @@ OCTEON_VENDOR_GEFES		opt_cvmx.h
 OCTEON_BOARD_CAPK_0100ND	opt_cvmx.h
 
 #
-# Options specific to the BERI platform. 
+# Options specific to the BERI and CHERI platform. 
 #
 BERI_LARGE_TLB			opt_global.h
 PLATFORM_INIT_SECONDARY		opt_global.h

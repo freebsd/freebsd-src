@@ -1,0 +1,13 @@
+#
+# CHERI -- Kernel for the SRI/Cambridge "CHERI" (Capability Hardware Enhanced
+# RISC Instructions) FPGA soft core, as configured in its Terasic DE-4
+# reference configuration.
+#
+# $FreeBSD$
+#
+
+include		BERI_DE4_MDROOT
+ident		CHERI_DE4_MDROOT
+
+nocpu		CPU_BERI
+cpu		CPU_CHERI

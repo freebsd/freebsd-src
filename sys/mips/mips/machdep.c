@@ -81,6 +81,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/asm.h>
 #include <machine/bootinfo.h>
 #include <machine/cache.h>
+#ifdef CPU_CHERI
+#include <machine/cheri.h>
+#endif
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cpuregs.h>
@@ -165,6 +168,9 @@ extern char MipsCache[], MipsCacheEnd[];
 
 /* MIPS wait skip region */
 extern char MipsWaitStart[], MipsWaitEnd[];
+
+/* CHERI CCall/CReturn software path */
+extern char CHERICCallVector[], CHERICCallVectorEnd[];
 
 extern char edata[], end[];
 #ifdef DDB
@@ -351,7 +357,7 @@ mips_vector_init(void)
 	 * XXXRW: Why don't we install the XTLB handler for all 64-bit
 	 * architectures?
 	 */
-#if defined(__mips_n64) || defined(CPU_RMI) || defined(CPU_NLM) || defined (CPU_BERI)
+#if defined(__mips_n64) || defined(CPU_RMI) || defined(CPU_NLM) || defined(CPU_BERI) || defined(CPU_CHERI)
 /* Fake, but sufficient, for the 32-bit with 64-bit hardware addresses  */
 	bcopy(MipsTLBMiss, (void *)MIPS_XTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
@@ -362,6 +368,11 @@ mips_vector_init(void)
 
 	bcopy(MipsCache, (void *)MIPS_CACHE_ERR_EXC_VEC,
 	      MipsCacheEnd - MipsCache);
+
+#ifdef CPU_CHERI
+	bcopy(CHERICCallVector, (void *)CHERI_CCALL_EXC_VEC,
+	      CHERICCallVectorEnd - CHERICCallVector);
+#endif
 
 	/*
 	 * Clear out the I and D caches.
