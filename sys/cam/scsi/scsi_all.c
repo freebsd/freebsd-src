@@ -5249,6 +5249,21 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 	       dtype, rstr, qtype);
 }
 
+void
+scsi_print_inquiry_short(struct scsi_inquiry_data *inq_data)
+{
+	char vendor[16], product[48], revision[16];
+
+	cam_strvis(vendor, inq_data->vendor, sizeof(inq_data->vendor),
+		   sizeof(vendor));
+	cam_strvis(product, inq_data->product, sizeof(inq_data->product),
+		   sizeof(product));
+	cam_strvis(revision, inq_data->revision, sizeof(inq_data->revision),
+		   sizeof(revision));
+
+	printf("<%s %s %s>", vendor, product, revision);
+}
+
 /*
  * Table of syncrates that don't follow the "divisible by 4"
  * rule. This table will be expanded in future SCSI specs.
