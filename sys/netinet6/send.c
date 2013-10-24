@@ -259,7 +259,6 @@ send_close(struct socket *so)
 static int
 send_input(struct mbuf *m, struct ifnet *ifp, int direction, int msglen __unused)
 {
-	struct ip6_hdr *ip6;
 	struct sockaddr_send sendsrc;
 
 	SEND_LOCK();
@@ -267,15 +266,6 @@ send_input(struct mbuf *m, struct ifnet *ifp, int direction, int msglen __unused
 		SEND_UNLOCK();
 		return (-1);
 	}
-
-	/*
-	 * Make sure to clear any possible internally embedded scope before
-	 * passing the packet to user space for SeND cryptographic signature
-	 * validation to succeed.
-	 */
-	ip6 = mtod(m, struct ip6_hdr *);
-	in6_clearscope(&ip6->ip6_src);
-	in6_clearscope(&ip6->ip6_dst);
 
 	bzero(&sendsrc, sizeof(sendsrc));
 	sendsrc.send_len = sizeof(sendsrc);
