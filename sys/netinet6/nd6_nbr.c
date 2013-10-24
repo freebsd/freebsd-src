@@ -380,15 +380,15 @@ void
 nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6, 
     const struct in6_addr *taddr6, struct llentry *ln, int dad)
 {
+	struct route_in6 ro;
+	struct ip6_moptions im6o;
 	struct mbuf *m;
 	struct m_tag *mtag;
 	struct ip6_hdr *ip6;
 	struct nd_neighbor_solicit *nd_ns;
-	struct ip6_moptions im6o;
 	int icmp6len;
-	int maxlen;
+	int maxlen, flags;
 	caddr_t mac;
-	struct route_in6 ro;
 
 	if (IN6_IS_ADDR_MULTICAST(taddr6))
 		return;
@@ -412,7 +412,6 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 		return;
 
 	bzero(&ro, sizeof(ro));
-
 	if (daddr6 == NULL || IN6_IS_ADDR_MULTICAST(daddr6)) {
 		m->m_flags |= M_MCAST;
 		im6o.im6o_multicast_ifp = ifp;
@@ -435,14 +434,11 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 	if (daddr6)
 		ip6->ip6_dst = *daddr6;
 	else {
-		ip6->ip6_dst.s6_addr16[0] = IPV6_ADDR_INT16_MLL;
-		ip6->ip6_dst.s6_addr16[1] = 0;
+		ip6->ip6_dst.s6_addr32[0] = IPV6_ADDR_INT32_MLL;
 		ip6->ip6_dst.s6_addr32[1] = 0;
 		ip6->ip6_dst.s6_addr32[2] = IPV6_ADDR_INT32_ONE;
 		ip6->ip6_dst.s6_addr32[3] = taddr6->s6_addr32[3];
 		ip6->ip6_dst.s6_addr8[12] = 0xff;
-		if (in6_setscope(&ip6->ip6_dst, ifp, NULL) != 0)
-			goto bad;
 	}
 	if (!dad) {
 		struct ifaddr *ifa;
@@ -497,6 +493,8 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 			dst_sa.sin6_family = AF_INET6;
 			dst_sa.sin6_len = sizeof(dst_sa);
 			dst_sa.sin6_addr = ip6->ip6_dst;
+			dst_sa.sin6_scope_id = in6_getscopezone(ifp,
+			    in6_addrscope(&ip6->ip6_dst));
 
 			oifp = ifp;
 			error = in6_selectsrc(&dst_sa, NULL,
@@ -527,7 +525,6 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 	nd_ns->nd_ns_code = 0;
 	nd_ns->nd_ns_reserved = 0;
 	nd_ns->nd_ns_target = *taddr6;
-	in6_clearscope(&nd_ns->nd_ns_target); /* XXX */
 
 	/*
 	 * Add source link-layer address option.
@@ -570,7 +567,10 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 		m_tag_prepend(m, mtag);
 	}
 
-	ip6_output(m, NULL, &ro, dad ? IPV6_UNSPECSRC : 0, &im6o, NULL, NULL);
+	flags = IPV6_USEROIF;
+	if (dad)
+		flags |= IPV6_UNSPECSRC;
+	ip6_output(m, NULL, &ro, flags, &im6o, &ifp, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
 	icmp6_ifstat_inc(ifp, ifs6_out_neighborsolicit);
 	ICMP6STAT_INC(icp6s_outhist[ND_NEIGHBOR_SOLICIT]);
