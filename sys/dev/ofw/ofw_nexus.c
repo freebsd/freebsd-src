@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
 #include <machine/resource.h>
 
 /*
@@ -188,21 +187,17 @@ nexus_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if (strcmp(device_get_name(device_get_parent(dev)), "root") == 0) {
-		node = OF_peer(0);
+	node = OF_peer(0);
 
-		sc->sc_intr_rman.rm_type = RMAN_ARRAY;
-		sc->sc_intr_rman.rm_descr = "Interrupts";
-		sc->sc_mem_rman.rm_type = RMAN_ARRAY;
-		sc->sc_mem_rman.rm_descr = "Device Memory";
-		if (rman_init(&sc->sc_intr_rman) != 0 ||
-		    rman_init(&sc->sc_mem_rman) != 0 ||
-		    rman_manage_region(&sc->sc_intr_rman, 0, ~0) != 0 ||
-		    rman_manage_region(&sc->sc_mem_rman, 0, BUS_SPACE_MAXADDR)
-		     != 0)
-			panic("%s: failed to set up rmans.", __func__);
-	} else
-		node = ofw_bus_get_node(dev);
+	sc->sc_intr_rman.rm_type = RMAN_ARRAY;
+	sc->sc_intr_rman.rm_descr = "Interrupts";
+	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
+	sc->sc_mem_rman.rm_descr = "Device Memory";
+	if (rman_init(&sc->sc_intr_rman) != 0 ||
+	    rman_init(&sc->sc_mem_rman) != 0 ||
+	    rman_manage_region(&sc->sc_intr_rman, 0, ~0) != 0 ||
+	    rman_manage_region(&sc->sc_mem_rman, 0, BUS_SPACE_MAXADDR) != 0)
+		panic("%s: failed to set up rmans.", __func__);
 
 	/*
 	 * Allow devices to identify.
@@ -296,15 +291,11 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct rman *rm;
 	struct resource *rv;
 	struct resource_list_entry *rle;
-	device_t nexus;
 	int isdefault, passthrough;
 
 	isdefault = (start == 0UL && end == ~0UL);
 	passthrough = (device_get_parent(child) != bus);
-	nexus = bus;
-	while (strcmp(device_get_name(device_get_parent(nexus)), "root") != 0)
-		nexus = device_get_parent(nexus);
-	sc = device_get_softc(nexus);
+	sc = device_get_softc(bus);
 	rle = NULL;
 
 	if (!passthrough && isdefault) {
