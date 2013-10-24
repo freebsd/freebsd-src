@@ -2000,9 +2000,10 @@ typedef struct mips_args {
 #define EPILOGUE_USES(REGNO) ((REGNO) == 31)
 
 /* Treat LOC as a byte offset from the stack pointer and round it up
-   to the next fully-aligned offset.  */
-#define MIPS_STACK_ALIGN(LOC) \
-  (TARGET_NEWABI ? ((LOC) + 15) & -16 : ((LOC) + 7) & -8)
+   to the next fully-aligned offset.
+   For CHERI, this has to be 32 bytes to allow capabilities to be
+   stored on the stack.  */
+#define MIPS_STACK_ALIGN(LOC) (((LOC) + 31) & -32)
 
 
 /* Implement `va_start' for varargs and stdarg.  */
