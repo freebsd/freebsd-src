@@ -471,9 +471,9 @@ nexus_setup_dinfo(device_t dev, phandle_t node)
 	    (void **)&intr);
 	if (nintr > 0) {
 		iparent = 0;
-		OF_searchprop(node, "interrupt-parent", &iparent,
+		OF_searchencprop(node, "interrupt-parent", &iparent,
 		    sizeof(iparent));
-		OF_searchprop(iparent, "#interrupt-cells", &icells,
+		OF_searchencprop(iparent, "#interrupt-cells", &icells,
 		    sizeof(icells));
 		for (i = 0; i < nintr; i+= icells) {
 			intr[i] = ofw_bus_map_intr(dev, iparent, intr[i]);
