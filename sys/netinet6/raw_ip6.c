@@ -721,7 +721,7 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct inpcb *inp;
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)nam;
-	struct ifaddr *ifa = NULL;
+	struct in6_ifaddr *ifa = NULL;
 	int error = 0;
 
 	inp = sotoinpcb(so);
@@ -733,24 +733,24 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (error);
 	if (TAILQ_EMPTY(&V_ifnet) || addr->sin6_family != AF_INET6)
 		return (EADDRNOTAVAIL);
-	if ((error = sa6_embedscope(addr, V_ip6_use_defzone)) != 0)
+	if ((error = sa6_checkzone(addr)) != 0)
 		return (error);
-
-	if (!IN6_IS_ADDR_UNSPECIFIED(&addr->sin6_addr) &&
-	    (ifa = ifa_ifwithaddr((struct sockaddr *)addr)) == NULL)
-		return (EADDRNOTAVAIL);
-	if (ifa != NULL &&
-	    ((struct in6_ifaddr *)ifa)->ia6_flags &
-	    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY|
-	     IN6_IFF_DETACHED|IN6_IFF_DEPRECATED)) {
-		ifa_free(ifa);
+	if (!IN6_IS_ADDR_UNSPECIFIED(&addr->sin6_addr)) {
+		ifa = in6ifa_ifwithaddr(&addr->sin6_addr, addr->sin6_scope_id);
+		if (ifa == NULL)
+			return (EADDRNOTAVAIL);
+	}
+	if (ifa != NULL && ifa->ia6_flags & (IN6_IFF_ANYCAST |
+	    IN6_IFF_NOTREADY | IN6_IFF_DETACHED | IN6_IFF_DEPRECATED)) {
+		ifa_free(&ifa->ia_ifa);
 		return (EADDRNOTAVAIL);
 	}
 	if (ifa != NULL)
-		ifa_free(ifa);
+		ifa_free(&ifa->ia_ifa);
 	INP_INFO_WLOCK(&V_ripcbinfo);
 	INP_WLOCK(inp);
 	inp->in6p_laddr = addr->sin6_addr;
+	inp->in6p_zoneid = addr->sin6_scope_id;
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&V_ripcbinfo);
 	return (0);
