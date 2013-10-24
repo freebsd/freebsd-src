@@ -389,13 +389,7 @@ rip6_ctlinput(int cmd, struct sockaddr *sa, void *d)
  * may have setup with control call.
  */
 int
-#if __STDC__
 rip6_output(struct mbuf *m, ...)
-#else
-rip6_output(m, va_alist)
-	struct mbuf *m;
-	va_dcl
-#endif
 {
 	struct mbuf *control;
 	struct m_tag *mtag;
@@ -409,8 +403,6 @@ rip6_output(m, va_alist)
 	struct ip6_pktopts opt, *optp;
 	struct ifnet *oifp = NULL;
 	int type = 0, code = 0;		/* for ICMPv6 output statistics only */
-	int scope_ambiguous = 0;
-	int use_defzone = 0;
 	struct in6_addr in6a;
 	va_list ap;
 
@@ -433,21 +425,6 @@ rip6_output(m, va_alist)
 		optp = &opt;
 	} else
 		optp = in6p->in6p_outputopts;
-
-	/*
-	 * Check and convert scope zone ID into internal form.
-	 *
-	 * XXX: we may still need to determine the zone later.
-	 */
-	if (!(so->so_state & SS_ISCONNECTED)) {
-		if (!optp || !optp->ip6po_pktinfo ||
-		    !optp->ip6po_pktinfo->ipi6_ifindex)
-			use_defzone = V_ip6_use_defzone;
-		if (dstsock->sin6_scope_id == 0 && !use_defzone)
-			scope_ambiguous = 1;
-		if ((error = sa6_embedscope(dstsock, use_defzone)) != 0)
-			goto bad;
-	}
 
 	/*
 	 * For an ICMPv6 packet, we should know its type and code to update
@@ -483,20 +460,6 @@ rip6_output(m, va_alist)
 	if (error != 0)
 		goto bad;
 	ip6->ip6_src = in6a;
-
-	if (oifp && scope_ambiguous) {
-		/*
-		 * Application should provide a proper zone ID or the use of
-		 * default zone IDs should be enabled.  Unfortunately, some
-		 * applications do not behave as it should, so we need a
-		 * workaround.  Even if an appropriate ID is not determined
-		 * (when it's required), if we can determine the outgoing
-		 * interface. determine the zone ID based on the interface.
-		 */
-		error = in6_setscope(&dstsock->sin6_addr, oifp, NULL);
-		if (error != 0)
-			goto bad;
-	}
 	ip6->ip6_dst = dstsock->sin6_addr;
 
 	/*
@@ -559,10 +522,10 @@ rip6_output(m, va_alist)
 		}
 	}
 
-	error = ip6_output(m, optp, NULL, 0, in6p->in6p_moptions, &oifp, in6p);
+	error = ip6_output(m, optp, NULL, IPV6_USEROIF, in6p->in6p_moptions,
+	    &oifp, in6p);
 	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6) {
-		if (oifp)
-			icmp6_ifoutstat_inc(oifp, type, code);
+		icmp6_ifoutstat_inc(oifp, type, code);
 		ICMP6STAT_INC(icp6s_outhist[type]);
 	} else
 		RIP6STAT_INC(rip6s_opackets);
@@ -889,8 +852,9 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		tmp.sin6_family = AF_INET6;
 		tmp.sin6_len = sizeof(struct sockaddr_in6);
 		INP_RLOCK(inp);
-		bcopy(&inp->in6p_faddr, &tmp.sin6_addr,
-		    sizeof(struct in6_addr));
+		tmp.sin6_addr = inp->in6p_faddr;
+		if (IN6_IS_ADDR_LINKLOCAL(&tmp.sin6_addr))
+			tmp.sin6_scope_id = inp->in6p_zoneid;
 		INP_RUNLOCK(inp);
 		dst = &tmp;
 	} else {
@@ -917,6 +881,15 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		} else if (dst->sin6_family != AF_INET6) {
 			m_freem(m);
 			return(EAFNOSUPPORT);
+		}
+		/*
+		 * Application must provide a proper zone ID or the use of
+		 * default zone IDs should be enabled.
+		 */
+		ret = sa6_checkzone(dst);
+		if (ret != 0) {
+			m_freem(m);
+			return (ret);
 		}
 	}
 	ret = rip6_output(m, so, dst, control);
