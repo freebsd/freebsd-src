@@ -763,7 +763,7 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)nam;
 	struct in6_addr in6a;
 	struct ifnet *ifp = NULL;
-	int error = 0, scope_ambiguous = 0;
+	int error = 0;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip6_connect: inp == NULL"));
@@ -774,18 +774,8 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (EADDRNOTAVAIL);
 	if (addr->sin6_family != AF_INET6)
 		return (EAFNOSUPPORT);
-
-	/*
-	 * Application should provide a proper zone ID or the use of default
-	 * zone IDs should be enabled.  Unfortunately, some applications do
-	 * not behave as it should, so we need a workaround.  Even if an
-	 * appropriate ID is not determined, we'll see if we can determine
-	 * the outgoing interface.  If we can, determine the zone ID based on
-	 * the interface below.
-	 */
-	if (addr->sin6_scope_id == 0 && !V_ip6_use_defzone)
-		scope_ambiguous = 1;
-	if ((error = sa6_embedscope(addr, V_ip6_use_defzone)) != 0)
+	error = sa6_checkzone(addr);
+	if (error != 0)
 		return (error);
 
 	INP_INFO_WLOCK(&V_ripcbinfo);
@@ -798,16 +788,12 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		INP_INFO_WUNLOCK(&V_ripcbinfo);
 		return (error);
 	}
-
-	/* XXX: see above */
-	if (ifp && scope_ambiguous &&
-	    (error = in6_setscope(&addr->sin6_addr, ifp, NULL)) != 0) {
-		INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&V_ripcbinfo);
-		return (error);
-	}
 	inp->in6p_faddr = addr->sin6_addr;
 	inp->in6p_laddr = in6a;
+	if (IN6_IS_ADDR_LINKLOCAL(&inp->in6p_faddr) ||
+	    IN6_IS_ADDR_LINKLOCAL(&inp->in6p_laddr))
+		inp->in6p_zoneid = in6_getscopezone(ifp,
+		    IPV6_ADDR_SCOPE_LINKLOCAL);
 	soisconnected(so);
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&V_ripcbinfo);
