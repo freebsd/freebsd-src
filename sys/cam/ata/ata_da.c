@@ -907,7 +907,6 @@ adaoninvalidate(struct cam_periph *periph)
 	bioq_flush(&softc->trim_queue, NULL, ENXIO);
 
 	disk_gone(softc->disk);
-	xpt_print(periph->path, "lost device\n");
 }
 
 static void
@@ -917,7 +916,6 @@ adacleanup(struct cam_periph *periph)
 
 	softc = (struct ada_softc *)periph->softc;
 
-	xpt_print(periph->path, "removing device entry\n");
 	cam_periph_unlock(periph);
 
 	/*
