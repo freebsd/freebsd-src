@@ -687,6 +687,621 @@
 #define	SMALL_MAXCLASS	57344
 #endif
 
+#if (LG_TINY_MIN == 3 && LG_QUANTUM == 5 && LG_PAGE == 12)
+#define	SIZE_CLASSES_DEFINED
+/*  SIZE_CLASS(bin,	delta,	sz) */
+#define	SIZE_CLASSES							\
+    SIZE_CLASS(0,	8,	8)					\
+    SIZE_CLASS(1,	8,	16)					\
+    SIZE_CLASS(2,	16,	32)					\
+    SIZE_CLASS(3,	32,	64)					\
+    SIZE_CLASS(4,	32,	96)					\
+    SIZE_CLASS(5,	32,	128)					\
+    SIZE_CLASS(6,	32,	160)					\
+    SIZE_CLASS(7,	32,	192)					\
+    SIZE_CLASS(8,	32,	224)					\
+    SIZE_CLASS(9,	32,	256)					\
+    SIZE_CLASS(10,	64,	320)					\
+    SIZE_CLASS(11,	64,	384)					\
+    SIZE_CLASS(12,	64,	448)					\
+    SIZE_CLASS(13,	64,	512)					\
+    SIZE_CLASS(14,	128,	640)					\
+    SIZE_CLASS(15,	128,	768)					\
+    SIZE_CLASS(16,	128,	896)					\
+    SIZE_CLASS(17,	128,	1024)					\
+    SIZE_CLASS(18,	256,	1280)					\
+    SIZE_CLASS(19,	256,	1536)					\
+    SIZE_CLASS(20,	256,	1792)					\
+    SIZE_CLASS(21,	256,	2048)					\
+    SIZE_CLASS(22,	512,	2560)					\
+    SIZE_CLASS(23,	512,	3072)					\
+    SIZE_CLASS(24,	512,	3584)					\
+
+#define	NBINS		25
+#define	SMALL_MAXCLASS	3584
+#endif
+
+#if (LG_TINY_MIN == 3 && LG_QUANTUM == 5 && LG_PAGE == 13)
+#define	SIZE_CLASSES_DEFINED
+/*  SIZE_CLASS(bin,	delta,	sz) */
+#define	SIZE_CLASSES							\
+    SIZE_CLASS(0,	8,	8)					\
+    SIZE_CLASS(1,	8,	16)					\
+    SIZE_CLASS(2,	16,	32)					\
+    SIZE_CLASS(3,	32,	64)					\
+    SIZE_CLASS(4,	32,	96)					\
+    SIZE_CLASS(5,	32,	128)					\
+    SIZE_CLASS(6,	32,	160)					\
+    SIZE_CLASS(7,	32,	192)					\
+    SIZE_CLASS(8,	32,	224)					\
+    SIZE_CLASS(9,	32,	256)					\
+    SIZE_CLASS(10,	64,	320)					\
+    SIZE_CLASS(11,	64,	384)					\
+    SIZE_CLASS(12,	64,	448)					\
+    SIZE_CLASS(13,	64,	512)					\
+    SIZE_CLASS(14,	128,	640)					\
+    SIZE_CLASS(15,	128,	768)					\
+    SIZE_CLASS(16,	128,	896)					\
+    SIZE_CLASS(17,	128,	1024)					\
+    SIZE_CLASS(18,	256,	1280)					\
+    SIZE_CLASS(19,	256,	1536)					\
+    SIZE_CLASS(20,	256,	1792)					\
+    SIZE_CLASS(21,	256,	2048)					\
+    SIZE_CLASS(22,	512,	2560)					\
+    SIZE_CLASS(23,	512,	3072)					\
+    SIZE_CLASS(24,	512,	3584)					\
+    SIZE_CLASS(25,	512,	4096)					\
+    SIZE_CLASS(26,	1024,	5120)					\
+    SIZE_CLASS(27,	1024,	6144)					\
+    SIZE_CLASS(28,	1024,	7168)					\
+
+#define	NBINS		29
+#define	SMALL_MAXCLASS	7168
+#endif
+
+#if (LG_TINY_MIN == 3 && LG_QUANTUM == 5 && LG_PAGE == 14)
+#define	SIZE_CLASSES_DEFINED
+/*  SIZE_CLASS(bin,	delta,	sz) */
+#define	SIZE_CLASSES							\
+    SIZE_CLASS(0,	8,	8)					\
+    SIZE_CLASS(1,	8,	16)					\
+    SIZE_CLASS(2,	16,	32)					\
+    SIZE_CLASS(3,	32,	64)					\
+    SIZE_CLASS(4,	32,	96)					\
+    SIZE_CLASS(5,	32,	128)					\
+    SIZE_CLASS(6,	32,	160)					\
+    SIZE_CLASS(7,	32,	192)					\
+    SIZE_CLASS(8,	32,	224)					\
+    SIZE_CLASS(9,	32,	256)					\
+    SIZE_CLASS(10,	64,	320)					\
+    SIZE_CLASS(11,	64,	384)					\
+    SIZE_CLASS(12,	64,	448)					\
+    SIZE_CLASS(13,	64,	512)					\
+    SIZE_CLASS(14,	128,	640)					\
+    SIZE_CLASS(15,	128,	768)					\
+    SIZE_CLASS(16,	128,	896)					\
+    SIZE_CLASS(17,	128,	1024)					\
+    SIZE_CLASS(18,	256,	1280)					\
+    SIZE_CLASS(19,	256,	1536)					\
+    SIZE_CLASS(20,	256,	1792)					\
+    SIZE_CLASS(21,	256,	2048)					\
+    SIZE_CLASS(22,	512,	2560)					\
+    SIZE_CLASS(23,	512,	3072)					\
+    SIZE_CLASS(24,	512,	3584)					\
+    SIZE_CLASS(25,	512,	4096)					\
+    SIZE_CLASS(26,	1024,	5120)					\
+    SIZE_CLASS(27,	1024,	6144)					\
+    SIZE_CLASS(28,	1024,	7168)					\
+    SIZE_CLASS(29,	1024,	8192)					\
+    SIZE_CLASS(30,	2048,	10240)					\
+    SIZE_CLASS(31,	2048,	12288)					\
+    SIZE_CLASS(32,	2048,	14336)					\
+
+#define	NBINS		33
+#define	SMALL_MAXCLASS	14336
+#endif
+
+#if (LG_TINY_MIN == 3 && LG_QUANTUM == 5 && LG_PAGE == 15)
+#define	SIZE_CLASSES_DEFINED
+/*  SIZE_CLASS(bin,	delta,	sz) */
+#define	SIZE_CLASSES							\
+    SIZE_CLASS(0,	8,	8)					\
+    SIZE_CLASS(1,	8,	16)					\
+    SIZE_CLASS(2,	16,	32)					\
+    SIZE_CLASS(3,	32,	64)					\
+    SIZE_CLASS(4,	32,	96)					\
+    SIZE_CLASS(5,	32,	128)					\
+    SIZE_CLASS(6,	32,	160)					\
+    SIZE_CLASS(7,	32,	192)					\
+    SIZE_CLASS(8,	32,	224)					\
+    SIZE_CLASS(9,	32,	256)					\
+    SIZE_CLASS(10,	64,	320)					\
+    SIZE_CLASS(11,	64,	384)					\
+    SIZE_CLASS(12,	64,	448)					\
+    SIZE_CLASS(13,	64,	512)					\
+    SIZE_CLASS(14,	128,	640)					\
+    SIZE_CLASS(15,	128,	768)					\
+    SIZE_CLASS(16,	128,	896)					\
+    SIZE_CLASS(17,	128,	1024)					\
+    SIZE_CLASS(18,	256,	1280)					\
+    SIZE_CLASS(19,	256,	1536)					\
+    SIZE_CLASS(20,	256,	1792)					\
+    SIZE_CLASS(21,	256,	2048)					\
+    SIZE_CLASS(22,	512,	2560)					\
+    SIZE_CLASS(23,	512,	3072)					\
+    SIZE_CLASS(24,	512,	3584)					\
+    SIZE_CLASS(25,	512,	4096)					\
+    SIZE_CLASS(26,	1024,	5120)					\
+    SIZE_CLASS(27,	1024,	6144)					\
+    SIZE_CLASS(28,	1024,	7168)					\
+    SIZE_CLASS(29,	1024,	8192)					\
+    SIZE_CLASS(30,	2048,	10240)					\
+    SIZE_CLASS(31,	2048,	12288)					\
+    SIZE_CLASS(32,	2048,	14336)					\
+    SIZE_CLASS(33,	2048,	16384)					\
+    SIZE_CLASS(34,	4096,	20480)					\
+    SIZE_CLASS(35,	4096,	24576)					\
+    SIZE_CLASS(36,	4096,	28672)					\
+
+#define	NBINS		37
+#define	SMALL_MAXCLASS	28672
+#endif
+
+#if (LG_TINY_MIN == 3 && LG_QUANTUM == 5 && LG_PAGE == 16)
+#define	SIZE_CLASSES_DEFINED
+/*  SIZE_CLASS(bin,	delta,	sz) */
+#define	SIZE_CLASSES							\
+    SIZE_CLASS(0,	8,	8)					\
+    SIZE_CLASS(1,	8,	16)					\
+    SIZE_CLASS(2,	16,	32)					\
+    SIZE_CLASS(3,	32,	64)					\
+    SIZE_CLASS(4,	32,	96)					\
+    SIZE_CLASS(5,	32,	128)					\
+    SIZE_CLASS(6,	32,	160)					\
+    SIZE_CLASS(7,	32,	192)					\
+    SIZE_CLASS(8,	32,	224)					\
+    SIZE_CLASS(9,	32,	256)					\
+    SIZE_CLASS(10,	64,	320)					\
+    SIZE_CLASS(11,	64,	384)					\
+    SIZE_CLASS(12,	64,	448)					\
+    SIZE_CLASS(13,	64,	512)					\
+    SIZE_CLASS(14,	128,	640)					\
+    SIZE_CLASS(15,	128,	768)					\
+    SIZE_CLASS(16,	128,	896)					\
+    SIZE_CLASS(17,	128,	1024)					\
+    SIZE_CLASS(18,	256,	1280)					\
+    SIZE_CLASS(19,	256,	1536)					\
+    SIZE_CLASS(20,	256,	1792)					\
+    SIZE_CLASS(21,	256,	2048)					\
+    SIZE_CLASS(22,	512,	2560)					\
+    SIZE_CLASS(23,	512,	3072)					\
+    SIZE_CLASS(24,	512,	3584)					\
+    SIZE_CLASS(25,	512,	4096)					\
+    SIZE_CLASS(26,	1024,	5120)					\
+    SIZE_CLASS(27,	1024,	6144)					\
+    SIZE_CLASS(28,	1024,	7168)					\
+    SIZE_CLASS(29,	1024,	8192)					\
+    SIZE_CLASS(30,	2048,	10240)					\
+    SIZE_CLASS(31,	2048,	12288)					\
+    SIZE_CLASS(32,	2048,	14336)					\
+    SIZE_CLASS(33,	2048,	16384)					\
+    SIZE_CLASS(34,	4096,	20480)					\
+    SIZE_CLASS(35,	4096,	24576)					\
+    SIZE_CLASS(36,	4096,	28672)					\
+    SIZE_CLASS(37,	4096,	32768)					\
+    SIZE_CLASS(38,	8192,	40960)					\
+    SIZE_CLASS(39,	8192,	49152)					\
+    SIZE_CLASS(40,	8192,	57344)					\
+
+#define	NBINS		41
+#define	SMALL_MAXCLASS	57344
+#endif
+
+#if (LG_TINY_MIN == 4 && LG_QUANTUM == 5 && LG_PAGE == 12)
+#define	SIZE_CLASSES_DEFINED
+/*  SIZE_CLASS(bin,	delta,	sz) */
+#define	SIZE_CLASSES							\
+    SIZE_CLASS(0,	16,	16)					\
+    SIZE_CLASS(1,	16,	32)					\
+    SIZE_CLASS(2,	32,	64)					\
+    SIZE_CLASS(3,	32,	96)					\
+    SIZE_CLASS(4,	32,	128)					\
+    SIZE_CLASS(5,	32,	160)					\
+    SIZE_CLASS(6,	32,	192)					\
+    SIZE_CLASS(7,	32,	224)					\
+    SIZE_CLASS(8,	32,	256)					\
+    SIZE_CLASS(9,	64,	320)					\
+    SIZE_CLASS(10,	64,	384)					\
+    SIZE_CLASS(11,	64,	448)					\
+    SIZE_CLASS(12,	64,	512)					\
+    SIZE_CLASS(13,	128,	640)					\
+    SIZE_CLASS(14,	128,	768)					\
+    SIZE_CLASS(15,	128,	896)					\
+    SIZE_CLASS(16,	128,	1024)					\
+    SIZE_CLASS(17,	256,	1280)					\
+    SIZE_CLASS(18,	256,	1536)					\
+    SIZE_CLASS(19,	256,	1792)					\
+    SIZE_CLASS(20,	256,	2048)					\
+    SIZE_CLASS(21,	512,	2560)					\
+    SIZE_CLASS(22,	512,	3072)					\
+    SIZE_CLASS(23,	512,	3584)					\
+
+#define	NBINS		24
+#define	SMALL_MAXCLASS	3584
+#endif
+
+#if (LG_TINY_MIN == 4 && LG_QUANTUM == 5 && LG_PAGE == 13)
+#define	SIZE_CLASSES_DEFINED
+/*  SIZE_CLASS(bin,	delta,	sz) */
+#define	SIZE_CLASSES							\
+    SIZE_CLASS(0,	16,	16)					\
+    SIZE_CLASS(1,	16,	32)					\
+    SIZE_CLASS(2,	32,	64)					\
+    SIZE_CLASS(3,	32,	96)					\
+    SIZE_CLASS(4,	32,	128)					\
+    SIZE_CLASS(5,	32,	160)					\
+    SIZE_CLASS(6,	32,	192)					\
+    SIZE_CLASS(7,	32,	224)					\
+    SIZE_CLASS(8,	32,	256)					\
+    SIZE_CLASS(9,	64,	320)					\
+    SIZE_CLASS(10,	64,	384)					\
+    SIZE_CLASS(11,	64,	448)					\
+    SIZE_CLASS(12,	64,	512)					\
+    SIZE_CLASS(13,	128,	640)					\
+    SIZE_CLASS(14,	128,	768)					\
+    SIZE_CLASS(15,	128,	896)					\
+    SIZE_CLASS(16,	128,	1024)					\
+    SIZE_CLASS(17,	256,	1280)					\
+    SIZE_CLASS(18,	256,	1536)					\
+    SIZE_CLASS(19,	256,	1792)					\
+    SIZE_CLASS(20,	256,	2048)					\
+    SIZE_CLASS(21,	512,	2560)					\
+    SIZE_CLASS(22,	512,	3072)					\
+    SIZE_CLASS(23,	512,	3584)					\
+    SIZE_CLASS(24,	512,	4096)					\
+    SIZE_CLASS(25,	1024,	5120)					\
+    SIZE_CLASS(26,	1024,	6144)					\
+    SIZE_CLASS(27,	1024,	7168)					\
+
+#define	NBINS		28
+#define	SMALL_MAXCLASS	7168
+#endif
+
+#if (LG_TINY_MIN == 4 && LG_QUANTUM == 5 && LG_PAGE == 14)
+#define	SIZE_CLASSES_DEFINED
+/*  SIZE_CLASS(bin,	delta,	sz) */
+#define	SIZE_CLASSES							\
+    SIZE_CLASS(0,	16,	16)					\
+    SIZE_CLASS(1,	16,	32)					\
+    SIZE_CLASS(2,	32,	64)					\
+    SIZE_CLASS(3,	32,	96)					\
+    SIZE_CLASS(4,	32,	128)					\
+    SIZE_CLASS(5,	32,	160)					\
+    SIZE_CLASS(6,	32,	192)					\
+    SIZE_CLASS(7,	32,	224)					\
+    SIZE_CLASS(8,	32,	256)					\
+    SIZE_CLASS(9,	64,	320)					\
+    SIZE_CLASS(10,	64,	384)					\
+    SIZE_CLASS(11,	64,	448)					\
+    SIZE_CLASS(12,	64,	512)					\
+    SIZE_CLASS(13,	128,	640)					\
+    SIZE_CLASS(14,	128,	768)					\
+    SIZE_CLASS(15,	128,	896)					\
+    SIZE_CLASS(16,	128,	1024)					\
+    SIZE_CLASS(17,	256,	1280)					\
+    SIZE_CLASS(18,	256,	1536)					\
+    SIZE_CLASS(19,	256,	1792)					\
+    SIZE_CLASS(20,	256,	2048)					\
+    SIZE_CLASS(21,	512,	2560)					\
+    SIZE_CLASS(22,	512,	3072)					\
+    SIZE_CLASS(23,	512,	3584)					\
+    SIZE_CLASS(24,	512,	4096)					\
+    SIZE_CLASS(25,	1024,	5120)					\
+    SIZE_CLASS(26,	1024,	6144)					\
+    SIZE_CLASS(27,	1024,	7168)					\
+    SIZE_CLASS(28,	1024,	8192)					\
+    SIZE_CLASS(29,	2048,	10240)					\
+    SIZE_CLASS(30,	2048,	12288)					\
+    SIZE_CLASS(31,	2048,	14336)					\
+
+#define	NBINS		32
+#define	SMALL_MAXCLASS	14336
+#endif
+
+#if (LG_TINY_MIN == 4 && LG_QUANTUM == 5 && LG_PAGE == 15)
+#define	SIZE_CLASSES_DEFINED
+/*  SIZE_CLASS(bin,	delta,	sz) */
+#define	SIZE_CLASSES							\
+    SIZE_CLASS(0,	16,	16)					\
+    SIZE_CLASS(1,	16,	32)					\
+    SIZE_CLASS(2,	32,	64)					\
+    SIZE_CLASS(3,	32,	96)					\
+    SIZE_CLASS(4,	32,	128)					\
+    SIZE_CLASS(5,	32,	160)					\
+    SIZE_CLASS(6,	32,	192)					\
+    SIZE_CLASS(7,	32,	224)					\
+    SIZE_CLASS(8,	32,	256)					\
+    SIZE_CLASS(9,	64,	320)					\
+    SIZE_CLASS(10,	64,	384)					\
+    SIZE_CLASS(11,	64,	448)					\
+    SIZE_CLASS(12,	64,	512)					\
+    SIZE_CLASS(13,	128,	640)					\
+    SIZE_CLASS(14,	128,	768)					\
+    SIZE_CLASS(15,	128,	896)					\
+    SIZE_CLASS(16,	128,	1024)					\
+    SIZE_CLASS(17,	256,	1280)					\
+    SIZE_CLASS(18,	256,	1536)					\
+    SIZE_CLASS(19,	256,	1792)					\
+    SIZE_CLASS(20,	256,	2048)					\
+    SIZE_CLASS(21,	512,	2560)					\
+    SIZE_CLASS(22,	512,	3072)					\
+    SIZE_CLASS(23,	512,	3584)					\
+    SIZE_CLASS(24,	512,	4096)					\
+    SIZE_CLASS(25,	1024,	5120)					\
+    SIZE_CLASS(26,	1024,	6144)					\
+    SIZE_CLASS(27,	1024,	7168)					\
+    SIZE_CLASS(28,	1024,	8192)					\
+    SIZE_CLASS(29,	2048,	10240)					\
+    SIZE_CLASS(30,	2048,	12288)					\
+    SIZE_CLASS(31,	2048,	14336)					\
+    SIZE_CLASS(32,	2048,	16384)					\
+    SIZE_CLASS(33,	4096,	20480)					\
+    SIZE_CLASS(34,	4096,	24576)					\
+    SIZE_CLASS(35,	4096,	28672)					\
+
+#define	NBINS		36
+#define	SMALL_MAXCLASS	28672
+#endif
+
+#if (LG_TINY_MIN == 4 && LG_QUANTUM == 5 && LG_PAGE == 16)
+#define	SIZE_CLASSES_DEFINED
+/*  SIZE_CLASS(bin,	delta,	sz) */
+#define	SIZE_CLASSES							\
+    SIZE_CLASS(0,	16,	16)					\
+    SIZE_CLASS(1,	16,	32)					\
+    SIZE_CLASS(2,	32,	64)					\
+    SIZE_CLASS(3,	32,	96)					\
+    SIZE_CLASS(4,	32,	128)					\
+    SIZE_CLASS(5,	32,	160)					\
+    SIZE_CLASS(6,	32,	192)					\
+    SIZE_CLASS(7,	32,	224)					\
+    SIZE_CLASS(8,	32,	256)					\
+    SIZE_CLASS(9,	64,	320)					\
+    SIZE_CLASS(10,	64,	384)					\
+    SIZE_CLASS(11,	64,	448)					\
+    SIZE_CLASS(12,	64,	512)					\
+    SIZE_CLASS(13,	128,	640)					\
+    SIZE_CLASS(14,	128,	768)					\
+    SIZE_CLASS(15,	128,	896)					\
+    SIZE_CLASS(16,	128,	1024)					\
+    SIZE_CLASS(17,	256,	1280)					\
+    SIZE_CLASS(18,	256,	1536)					\
+    SIZE_CLASS(19,	256,	1792)					\
+    SIZE_CLASS(20,	256,	2048)					\
+    SIZE_CLASS(21,	512,	2560)					\
+    SIZE_CLASS(22,	512,	3072)					\
+    SIZE_CLASS(23,	512,	3584)					\
+    SIZE_CLASS(24,	512,	4096)					\
+    SIZE_CLASS(25,	1024,	5120)					\
+    SIZE_CLASS(26,	1024,	6144)					\
+    SIZE_CLASS(27,	1024,	7168)					\
+    SIZE_CLASS(28,	1024,	8192)					\
+    SIZE_CLASS(29,	2048,	10240)					\
+    SIZE_CLASS(30,	2048,	12288)					\
+    SIZE_CLASS(31,	2048,	14336)					\
+    SIZE_CLASS(32,	2048,	16384)					\
+    SIZE_CLASS(33,	4096,	20480)					\
+    SIZE_CLASS(34,	4096,	24576)					\
+    SIZE_CLASS(35,	4096,	28672)					\
+    SIZE_CLASS(36,	4096,	32768)					\
+    SIZE_CLASS(37,	8192,	40960)					\
+    SIZE_CLASS(38,	8192,	49152)					\
+    SIZE_CLASS(39,	8192,	57344)					\
+
+#define	NBINS		40
+#define	SMALL_MAXCLASS	57344
+#endif
+
+#if (LG_TINY_MIN == 5 && LG_QUANTUM == 5 && LG_PAGE == 12)
+#define	SIZE_CLASSES_DEFINED
+/*  SIZE_CLASS(bin,	delta,	sz) */
+#define	SIZE_CLASSES							\
+    SIZE_CLASS(0,	32,	32)					\
+    SIZE_CLASS(1,	32,	64)					\
+    SIZE_CLASS(2,	32,	96)					\
+    SIZE_CLASS(3,	32,	128)					\
+    SIZE_CLASS(4,	32,	160)					\
+    SIZE_CLASS(5,	32,	192)					\
+    SIZE_CLASS(6,	32,	224)					\
+    SIZE_CLASS(7,	32,	256)					\
+    SIZE_CLASS(8,	64,	320)					\
+    SIZE_CLASS(9,	64,	384)					\
+    SIZE_CLASS(10,	64,	448)					\
+    SIZE_CLASS(11,	64,	512)					\
+    SIZE_CLASS(12,	128,	640)					\
+    SIZE_CLASS(13,	128,	768)					\
+    SIZE_CLASS(14,	128,	896)					\
+    SIZE_CLASS(15,	128,	1024)					\
+    SIZE_CLASS(16,	256,	1280)					\
+    SIZE_CLASS(17,	256,	1536)					\
+    SIZE_CLASS(18,	256,	1792)					\
+    SIZE_CLASS(19,	256,	2048)					\
+    SIZE_CLASS(20,	512,	2560)					\
+    SIZE_CLASS(21,	512,	3072)					\
+    SIZE_CLASS(22,	512,	3584)					\
+
+#define	NBINS		23
+#define	SMALL_MAXCLASS	3584
+#endif
+
+#if (LG_TINY_MIN == 5 && LG_QUANTUM == 5 && LG_PAGE == 13)
+#define	SIZE_CLASSES_DEFINED
+/*  SIZE_CLASS(bin,	delta,	sz) */
+#define	SIZE_CLASSES							\
+    SIZE_CLASS(0,	32,	32)					\
+    SIZE_CLASS(1,	32,	64)					\
+    SIZE_CLASS(2,	32,	96)					\
+    SIZE_CLASS(3,	32,	128)					\
+    SIZE_CLASS(4,	32,	160)					\
+    SIZE_CLASS(5,	32,	192)					\
+    SIZE_CLASS(6,	32,	224)					\
+    SIZE_CLASS(7,	32,	256)					\
+    SIZE_CLASS(8,	64,	320)					\
+    SIZE_CLASS(9,	64,	384)					\
+    SIZE_CLASS(10,	64,	448)					\
+    SIZE_CLASS(11,	64,	512)					\
+    SIZE_CLASS(12,	128,	640)					\
+    SIZE_CLASS(13,	128,	768)					\
+    SIZE_CLASS(14,	128,	896)					\
+    SIZE_CLASS(15,	128,	1024)					\
+    SIZE_CLASS(16,	256,	1280)					\
+    SIZE_CLASS(17,	256,	1536)					\
+    SIZE_CLASS(18,	256,	1792)					\
+    SIZE_CLASS(19,	256,	2048)					\
+    SIZE_CLASS(20,	512,	2560)					\
+    SIZE_CLASS(21,	512,	3072)					\
+    SIZE_CLASS(22,	512,	3584)					\
+    SIZE_CLASS(23,	512,	4096)					\
+    SIZE_CLASS(24,	1024,	5120)					\
+    SIZE_CLASS(25,	1024,	6144)					\
+    SIZE_CLASS(26,	1024,	7168)					\
+
+#define	NBINS		27
+#define	SMALL_MAXCLASS	7168
+#endif
+
+#if (LG_TINY_MIN == 5 && LG_QUANTUM == 5 && LG_PAGE == 14)
+#define	SIZE_CLASSES_DEFINED
+/*  SIZE_CLASS(bin,	delta,	sz) */
+#define	SIZE_CLASSES							\
+    SIZE_CLASS(0,	32,	32)					\
+    SIZE_CLASS(1,	32,	64)					\
+    SIZE_CLASS(2,	32,	96)					\
+    SIZE_CLASS(3,	32,	128)					\
+    SIZE_CLASS(4,	32,	160)					\
+    SIZE_CLASS(5,	32,	192)					\
+    SIZE_CLASS(6,	32,	224)					\
+    SIZE_CLASS(7,	32,	256)					\
+    SIZE_CLASS(8,	64,	320)					\
+    SIZE_CLASS(9,	64,	384)					\
+    SIZE_CLASS(10,	64,	448)					\
+    SIZE_CLASS(11,	64,	512)					\
+    SIZE_CLASS(12,	128,	640)					\
+    SIZE_CLASS(13,	128,	768)					\
+    SIZE_CLASS(14,	128,	896)					\
+    SIZE_CLASS(15,	128,	1024)					\
+    SIZE_CLASS(16,	256,	1280)					\
+    SIZE_CLASS(17,	256,	1536)					\
+    SIZE_CLASS(18,	256,	1792)					\
+    SIZE_CLASS(19,	256,	2048)					\
+    SIZE_CLASS(20,	512,	2560)					\
+    SIZE_CLASS(21,	512,	3072)					\
+    SIZE_CLASS(22,	512,	3584)					\
+    SIZE_CLASS(23,	512,	4096)					\
+    SIZE_CLASS(24,	1024,	5120)					\
+    SIZE_CLASS(25,	1024,	6144)					\
+    SIZE_CLASS(26,	1024,	7168)					\
+    SIZE_CLASS(27,	1024,	8192)					\
+    SIZE_CLASS(28,	2048,	10240)					\
+    SIZE_CLASS(29,	2048,	12288)					\
+    SIZE_CLASS(30,	2048,	14336)					\
+
+#define	NBINS		31
+#define	SMALL_MAXCLASS	14336
+#endif
+
+#if (LG_TINY_MIN == 5 && LG_QUANTUM == 5 && LG_PAGE == 15)
+#define	SIZE_CLASSES_DEFINED
+/*  SIZE_CLASS(bin,	delta,	sz) */
+#define	SIZE_CLASSES							\
+    SIZE_CLASS(0,	32,	32)					\
+    SIZE_CLASS(1,	32,	64)					\
+    SIZE_CLASS(2,	32,	96)					\
+    SIZE_CLASS(3,	32,	128)					\
+    SIZE_CLASS(4,	32,	160)					\
+    SIZE_CLASS(5,	32,	192)					\
+    SIZE_CLASS(6,	32,	224)					\
+    SIZE_CLASS(7,	32,	256)					\
+    SIZE_CLASS(8,	64,	320)					\
+    SIZE_CLASS(9,	64,	384)					\
+    SIZE_CLASS(10,	64,	448)					\
+    SIZE_CLASS(11,	64,	512)					\
+    SIZE_CLASS(12,	128,	640)					\
+    SIZE_CLASS(13,	128,	768)					\
+    SIZE_CLASS(14,	128,	896)					\
+    SIZE_CLASS(15,	128,	1024)					\
+    SIZE_CLASS(16,	256,	1280)					\
+    SIZE_CLASS(17,	256,	1536)					\
+    SIZE_CLASS(18,	256,	1792)					\
+    SIZE_CLASS(19,	256,	2048)					\
+    SIZE_CLASS(20,	512,	2560)					\
+    SIZE_CLASS(21,	512,	3072)					\
+    SIZE_CLASS(22,	512,	3584)					\
+    SIZE_CLASS(23,	512,	4096)					\
+    SIZE_CLASS(24,	1024,	5120)					\
+    SIZE_CLASS(25,	1024,	6144)					\
+    SIZE_CLASS(26,	1024,	7168)					\
+    SIZE_CLASS(27,	1024,	8192)					\
+    SIZE_CLASS(28,	2048,	10240)					\
+    SIZE_CLASS(29,	2048,	12288)					\
+    SIZE_CLASS(30,	2048,	14336)					\
+    SIZE_CLASS(31,	2048,	16384)					\
+    SIZE_CLASS(32,	4096,	20480)					\
+    SIZE_CLASS(33,	4096,	24576)					\
+    SIZE_CLASS(34,	4096,	28672)					\
+
+#define	NBINS		35
+#define	SMALL_MAXCLASS	28672
+#endif
+
+#if (LG_TINY_MIN == 5 && LG_QUANTUM == 5 && LG_PAGE == 16)
+#define	SIZE_CLASSES_DEFINED
+/*  SIZE_CLASS(bin,	delta,	sz) */
+#define	SIZE_CLASSES							\
+    SIZE_CLASS(0,	32,	32)					\
+    SIZE_CLASS(1,	32,	64)					\
+    SIZE_CLASS(2,	32,	96)					\
+    SIZE_CLASS(3,	32,	128)					\
+    SIZE_CLASS(4,	32,	160)					\
+    SIZE_CLASS(5,	32,	192)					\
+    SIZE_CLASS(6,	32,	224)					\
+    SIZE_CLASS(7,	32,	256)					\
+    SIZE_CLASS(8,	64,	320)					\
+    SIZE_CLASS(9,	64,	384)					\
+    SIZE_CLASS(10,	64,	448)					\
+    SIZE_CLASS(11,	64,	512)					\
+    SIZE_CLASS(12,	128,	640)					\
+    SIZE_CLASS(13,	128,	768)					\
+    SIZE_CLASS(14,	128,	896)					\
+    SIZE_CLASS(15,	128,	1024)					\
+    SIZE_CLASS(16,	256,	1280)					\
+    SIZE_CLASS(17,	256,	1536)					\
+    SIZE_CLASS(18,	256,	1792)					\
+    SIZE_CLASS(19,	256,	2048)					\
+    SIZE_CLASS(20,	512,	2560)					\
+    SIZE_CLASS(21,	512,	3072)					\
+    SIZE_CLASS(22,	512,	3584)					\
+    SIZE_CLASS(23,	512,	4096)					\
+    SIZE_CLASS(24,	1024,	5120)					\
+    SIZE_CLASS(25,	1024,	6144)					\
+    SIZE_CLASS(26,	1024,	7168)					\
+    SIZE_CLASS(27,	1024,	8192)					\
+    SIZE_CLASS(28,	2048,	10240)					\
+    SIZE_CLASS(29,	2048,	12288)					\
+    SIZE_CLASS(30,	2048,	14336)					\
+    SIZE_CLASS(31,	2048,	16384)					\
+    SIZE_CLASS(32,	4096,	20480)					\
+    SIZE_CLASS(33,	4096,	24576)					\
+    SIZE_CLASS(34,	4096,	28672)					\
+    SIZE_CLASS(35,	4096,	32768)					\
+    SIZE_CLASS(36,	8192,	40960)					\
+    SIZE_CLASS(37,	8192,	49152)					\
+    SIZE_CLASS(38,	8192,	57344)					\
+
+#define	NBINS		39
+#define	SMALL_MAXCLASS	57344
+#endif
+
 #ifndef SIZE_CLASSES_DEFINED
 #  error "No size class definitions match configuration"
 #endif

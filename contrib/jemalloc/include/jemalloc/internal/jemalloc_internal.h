@@ -297,7 +297,12 @@ static const bool config_ivsalloc =
 #    define LG_QUANTUM		4
 #  endif
 #  ifdef __mips__
-#    define LG_QUANTUM		3
+#    ifdef CHERI
+/* CHERI requires 32-byte alignment as capabilities must be aligned. */
+#      define LG_QUANTUM	5
+#    else
+#      define LG_QUANTUM	3
+#    endif
 #  endif
 #  ifdef __powerpc__
 #    define LG_QUANTUM		4
