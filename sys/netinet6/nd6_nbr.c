@@ -134,9 +134,6 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 #endif
 	ip6 = mtod(m, struct ip6_hdr *); /* adjust pointer for safety */
 	taddr6 = nd_ns->nd_ns_target;
-	if (in6_setscope(&taddr6, ifp, NULL) != 0)
-		goto bad;
-
 	if (ip6->ip6_hlim != 255) {
 		nd6log((LOG_ERR,
 		    "nd6_ns_input: invalid hlim (%d) from %s to %s on %s\n",
@@ -147,8 +144,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 
 	if (IN6_IS_ADDR_UNSPECIFIED(&saddr6)) {
 		/* dst has to be a solicited node multicast address. */
-		if (daddr6.s6_addr16[0] == IPV6_ADDR_INT16_MLL &&
-		    /* don't check ifindex portion */
+		if (daddr6.s6_addr32[0] == IPV6_ADDR_INT32_MLL &&
 		    daddr6.s6_addr32[1] == 0 &&
 		    daddr6.s6_addr32[2] == IPV6_ADDR_INT32_ONE &&
 		    daddr6.s6_addr8[12] == 0xff) {
@@ -225,7 +221,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, &taddr6);
 
 	/* (2) check. */
-	if (ifa == NULL) {
+	if (ifa == NULL && !IN6_IS_ADDR_LINKLOCAL(&taddr6)) {
 		struct rtentry *rt;
 		struct sockaddr_in6 tsin6;
 		int need_proxy;
@@ -335,12 +331,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	 * S bit ("solicited") must be zero.
 	 */
 	if (IN6_IS_ADDR_UNSPECIFIED(&saddr6)) {
-		struct in6_addr in6_all;
-
-		in6_all = in6addr_linklocal_allnodes;
-		if (in6_setscope(&in6_all, ifp, NULL) != 0)
-			goto bad;
-		nd6_na_output_fib(ifp, &in6_all, &taddr6,
+		nd6_na_output_fib(ifp, &in6addr_linklocal_allnodes, &taddr6,
 		    ((anycast || proxy || !tlladdr) ? 0 : ND_NA_FLAG_OVERRIDE) |
 		    rflag, tlladdr, proxy ? (struct sockaddr *)&proxydl : NULL,
 		    M_GETFIB(m));
