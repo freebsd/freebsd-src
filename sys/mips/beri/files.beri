@@ -16,6 +16,7 @@ dev/terasic/mtl/terasic_mtl_pixel.c	optional terasic_mtl
 dev/terasic/mtl/terasic_mtl_reg.c	optional terasic_mtl
 dev/terasic/mtl/terasic_mtl_syscons.c	optional terasic_mtl
 dev/terasic/mtl/terasic_mtl_text.c	optional terasic_mtl
+dev/usb/controller/ehci_isp1761_fdt.c	optional ehci usb fdt
 mips/beri/beri_asm.S			standard
 mips/beri/beri_machdep.c		standard
 mips/beri/beri_mp.c			optional smp
