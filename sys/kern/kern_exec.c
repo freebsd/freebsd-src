@@ -122,6 +122,11 @@ u_long ps_arg_cache_limit = PAGE_SIZE / 16;
 SYSCTL_ULONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW, 
     &ps_arg_cache_limit, 0, "");
 
+static int disallow_high_osrel;
+SYSCTL_INT(_kern, OID_AUTO, disallow_high_osrel, CTLFLAG_RW,
+    &disallow_high_osrel, 0,
+    "Disallow execution of binaries built for higher version of the world");
+
 static int map_at_zero = 0;
 TUNABLE_INT("security.bsd.map_at_zero", &map_at_zero);
 SYSCTL_INT(_security_bsd, OID_AUTO, map_at_zero, CTLFLAG_RW, &map_at_zero, 0,
@@ -557,6 +562,15 @@ interpret:
 	    ((args->fname != NULL && args->fname[0] == '/') ||
 	     vn_fullpath(td, imgp->vp, &imgp->execpath, &imgp->freepath) != 0))
 		imgp->execpath = args->fname;
+
+	if (disallow_high_osrel &&
+	    P_OSREL_MAJOR(p->p_osrel) > P_OSREL_MAJOR(__FreeBSD_version)) {
+		error = ENOEXEC;
+		uprintf("Osrel %d for image %s too high\n", p->p_osrel,
+		    imgp->execpath != NULL ? imgp->execpath : "<unresolved>");
+		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
+		goto exec_fail_dealloc;
+	}
 
 	/*
 	 * Copy out strings (args and env) and initialize stack base

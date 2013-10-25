@@ -80,6 +80,8 @@
 #define	P_OSREL_SIGWAIT		700000
 #define	P_OSREL_SIGSEGV		700004
 #define	P_OSREL_MAP_ANON	800104
+
+#define	P_OSREL_MAJOR(x)	((x) / 100000)
 #endif
 
 #ifndef LOCORE
