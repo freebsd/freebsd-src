@@ -2381,16 +2381,17 @@ in6_lltable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
 }
 
 static int
-in6_lltable_rtcheck(struct ifnet *ifp,
-		    u_int flags,
-		    const struct sockaddr *l3addr)
+in6_lltable_rtcheck(struct ifnet *ifp, u_int flags,
+    const struct sockaddr_in6 *l3addr)
 {
 	struct rtentry *rt;
 	char ip6buf[INET6_ADDRSTRLEN];
 
-	KASSERT(l3addr->sa_family == AF_INET6,
-	    ("sin_family %d", l3addr->sa_family));
+	KASSERT(l3addr->sin6_family == AF_INET6,
+	    ("sin_family %d", l3addr->sin6_family));
 
+	if (IN6_IS_ADDR_LINKLOCAL(&l3addr->sin6_addr))
+		return (0);
 	/* Our local addresses are always only installed on the default FIB. */
 	/* XXX rtalloc1 should take a const param */
 	rt = in6_rtalloc1(__DECONST(struct sockaddr *, l3addr), 0, 0,
@@ -2410,7 +2411,7 @@ in6_lltable_rtcheck(struct ifnet *ifp,
 			return 0;
 		}
 		log(LOG_INFO, "IPv6 address: \"%s\" is not on the network\n",
-		    ip6_sprintf(ip6buf, &((const struct sockaddr_in6 *)l3addr)->sin6_addr));
+		    ip6_sprintf(ip6buf, &l3addr->sin6_addr));
 		if (rt != NULL)
 			RTFREE_LOCKED(rt);
 		return EINVAL;
@@ -2453,7 +2454,7 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 		 * verify this.
 		 */
 		if (!(flags & LLE_IFADDR) &&
-		    in6_lltable_rtcheck(ifp, flags, l3addr) != 0)
+		    in6_lltable_rtcheck(ifp, flags, sin6) != 0)
 			return NULL;
 
 		lle = in6_lltable_new(l3addr, flags);
