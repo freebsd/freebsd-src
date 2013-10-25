@@ -34,9 +34,6 @@ __FBSDID("$FreeBSD$");
 #include "api_public.h"
 #include "glue.h"
 
-#define DEBUG
-#undef DEBUG
-
 #ifdef DEBUG
 #define	debugf(fmt, args...) do { printf("%s(): ", __func__); printf(fmt,##args); } while (0)
 #else
