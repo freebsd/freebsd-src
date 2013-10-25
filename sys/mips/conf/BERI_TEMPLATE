@@ -42,7 +42,7 @@ options 	GEOM_PART_MBR
 
 options 	INET
 options 	INET6
-options 	KGSSAPI
+#options 	KGSSAPI
 options 	NFSCL
 options 	NFSLOCKD
 options 	NFS_ROOT
