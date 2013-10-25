@@ -66,11 +66,16 @@ __FBSDID("$FreeBSD$");
 
 #define	VTBLK_BLK_ID_BYTES	20
 
+/* Capability bits */
+#define	VTBLK_F_SEG_MAX		(1 << 2)	/* Maximum request segments */
+#define	VTBLK_F_BLK_SIZE       	(1 << 6)	/* cfg block size valid */
+
 /*
  * Host capabilities
  */
 #define VTBLK_S_HOSTCAPS      \
-  ( 0x00000004 |	/* host maximum request segments */ \
+  ( VTBLK_F_SEG_MAX  |						    \
+    VTBLK_F_BLK_SIZE |						    \
     VIRTIO_RING_F_INDIRECT_DESC )	/* indirect descriptors */
 
 /*
@@ -315,7 +320,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	    digest[0], digest[1], digest[2], digest[3], digest[4], digest[5]);
 
 	/* setup virtio block config space */
-	sc->vbsc_cfg.vbc_capacity = size / sectsz;
+	sc->vbsc_cfg.vbc_capacity = size / DEV_BSIZE; /* 512-byte units */
 	sc->vbsc_cfg.vbc_seg_max = VTBLK_MAXSEGS;
 	sc->vbsc_cfg.vbc_blk_size = sectsz;
 	sc->vbsc_cfg.vbc_size_max = 0;	/* not negotiated */
