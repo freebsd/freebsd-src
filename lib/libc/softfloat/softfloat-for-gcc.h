@@ -1,6 +1,7 @@
 /* $NetBSD: softfloat-for-gcc.h,v 1.8 2009/12/14 01:07:42 matt Exp $ */
 /* $FreeBSD$ */
 
+#ifdef SOFTFLOAT_FOR_GCC
 /*
  * Move private identifiers with external linkage into implementation
  * namespace.  -- Klaus Klein <kleink@NetBSD.org>, May 5, 1999
@@ -166,4 +167,5 @@
 #define float128_lt			__lttf2
 #define float128_le			__letf2
 #define float128_gt			__gttf2
+#endif
 #endif
