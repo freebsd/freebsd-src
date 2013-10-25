@@ -1329,7 +1329,9 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 {
 	struct xucred xuc;
 	struct sockaddr_in6 addrs[2];
+	struct ifnet *ifp;
 	struct inpcb *inp;
+	uint32_t zoneid;
 	int error;
 #ifdef INET
 	int mapped = 0;
@@ -1341,9 +1343,25 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_IN(req, addrs, sizeof(addrs));
 	if (error)
 		return (error);
-	if ((error = sa6_embedscope(&addrs[0], V_ip6_use_defzone)) != 0 ||
-	    (error = sa6_embedscope(&addrs[1], V_ip6_use_defzone)) != 0) {
+	error = sa6_checkzone(&addrs[0]);
+	if (error)
 		return (error);
+	error = sa6_checkzone(&addrs[1]);
+	if (error)
+		return (error);
+	ifp = NULL;
+	zoneid = 0;
+	if (addrs[0].sin6_scope_id != 0)
+		zoneid = addrs[0].sin6_scope_id;
+	if (addrs[1].sin6_scope_id != 0) {
+		if (zoneid != 0 && zoneid != addrs[1].sin6_scope_id)
+			return (EINVAL);
+		zoneid = addrs[1].sin6_scope_id;
+	}
+	if (zoneid != 0) {
+		ifp = in6_getlinkifnet(zoneid);
+		if (ifp == NULL)
+			return (ENOENT);
 	}
 	if (IN6_IS_ADDR_V4MAPPED(&addrs[0].sin6_addr)) {
 #ifdef INET
@@ -1366,7 +1384,7 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 		inp = in6_pcblookup(&V_tcbinfo,
 			&addrs[1].sin6_addr, addrs[1].sin6_port,
 			&addrs[0].sin6_addr, addrs[0].sin6_port,
-			INPLOOKUP_RLOCKPCB, NULL);
+			INPLOOKUP_RLOCKPCB, ifp);
 	if (inp != NULL) {
 		if (inp->inp_socket == NULL)
 			error = ENOENT;
