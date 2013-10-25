@@ -2189,7 +2189,9 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	struct tcptw *tw;
 	struct sockaddr_in *fin, *lin;
 #ifdef INET6
+	struct ifnet *ifp;
 	struct sockaddr_in6 *fin6, *lin6;
+	uint32_t zoneid;
 #endif
 	int error;
 
@@ -2227,12 +2229,26 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 			lin = (struct sockaddr_in *)&addrs[1];
 			break;
 		}
-		error = sa6_embedscope(fin6, V_ip6_use_defzone);
+		error = sa6_checkzone(fin6);
 		if (error)
 			return (error);
-		error = sa6_embedscope(lin6, V_ip6_use_defzone);
+		error = sa6_checkzone(lin6);
 		if (error)
 			return (error);
+		ifp = NULL;
+		zoneid = 0;
+		if (fin6->sin6_scope_id != 0)
+			zoneid = fin6->sin6_scope_id;
+		if (lin6->sin6_scope_id != 0) {
+			if (zoneid != 0 && zoneid != lin6->sin6_scope_id)
+				return (EINVAL);
+			zoneid = lin6->sin6_scope_id;
+		}
+		if (zoneid != 0) {
+			ifp = in6_getlinkifnet(zoneid);
+			if (ifp == NULL)
+				return (ENOENT);
+		}
 		break;
 #endif
 #ifdef INET
@@ -2253,7 +2269,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	case AF_INET6:
 		inp = in6_pcblookup(&V_tcbinfo, &fin6->sin6_addr,
 		    fin6->sin6_port, &lin6->sin6_addr, lin6->sin6_port,
-		    INPLOOKUP_WLOCKPCB, NULL);
+		    INPLOOKUP_WLOCKPCB, ifp);
 		break;
 #endif
 #ifdef INET
