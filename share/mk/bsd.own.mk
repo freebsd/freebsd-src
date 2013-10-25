@@ -350,6 +350,7 @@ __DEFAULT_YES_OPTIONS = \
     SYSINSTALL \
     TCSH \
     TELNET \
+    TESTS \
     TEXTPROC \
     TOOLCHAIN \
     UNBOUND \
