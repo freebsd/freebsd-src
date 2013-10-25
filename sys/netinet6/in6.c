@@ -1584,7 +1584,6 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			 * link-local address.
 			 */
 			bcopy(IFA_IN6(ifa), &candidate, sizeof(candidate));
-			in6_clearscope(&candidate);
 			candidate.s6_addr32[0] &= mask.s6_addr32[0];
 			candidate.s6_addr32[1] &= mask.s6_addr32[1];
 			candidate.s6_addr32[2] &= mask.s6_addr32[2];
