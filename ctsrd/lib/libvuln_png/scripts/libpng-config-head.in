@@ -1,0 +1,18 @@
+#! /bin/sh
+
+# libpng-config
+# provides configuration info for libpng.
+
+# Copyright (C) 2002 Glenn Randers-Pehrson
+# For conditions of distribution and use, see copyright notice in png.h
+
+# Modeled after libxml-config.
+
+version=1.2.4
+prefix=""
+cppflags=""
+cflags=""
+ldflags=""
+libs=""
+rpath=""
+

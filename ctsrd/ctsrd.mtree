@@ -1,0 +1,9 @@
+/set type=dir uname=bed22 gname=wheel mode=0755
+.              nochange
+    usr            nochange
+        share          nochange
+            images         
+            ..
+        ..
+    ..
+..
