@@ -1,0 +1,201 @@
+--- wayland-itc-buffer.c	2013-05-22 15:46:09.000000000 +0100
++++ wayland-itc-buffer_upstream.c	2013-05-22 15:48:09.000000000 +0100
+@@ -20,8 +20,6 @@
+  * OF THIS SOFTWARE.
+  */
+ 
+-#include "../config.h"
+-
+ #include <errno.h>
+ #include <stddef.h>
+ #include <stdio.h>
+@@ -29,9 +27,98 @@
+ #include <string.h>
+ #include <sys/param.h>
+ 
+-#include "wayland-capabilities.h"
+ #include "wayland-itc-buffer.h"
+-#include "wayland-util.h"
++
++
++/* Definitions to allow the ITC buffer code to be built outside of Wayland. */
++#define WL_EXPORT
++#define wl_malloc(A) malloc(A)
++#define wl_malloc_full(A, B) malloc(A)
++#define wl_free_full(A, B) free(A)
++
++/* Update a capability to drop the given mask of permissions (i.e. set the new
++ * permissions to be the old permissions bitwise-ANDed with the bitwise inverse
++ * of perms_mask).
++ *
++ * Note: cap must be 32-byte aligned.
++ *
++ * This assumes ambient authority for Permit_Load_Capability and
++ * Permit_Store_Capability on cap.
++ *
++ * This clobbers $c1. */
++WL_EXPORT void
++cheri_capability_drop_perms(struct chericap *cap, uint32_t perms_mask)
++{
++	register_t c_base;
++
++	CHERI_CGETBASE(c_base, 0);
++
++	/* Load the capability. */
++	CHERI_CLC(1, 0, (uintptr_t) cap - (uintptr_t) c_base, 0);
++
++	/* Drop permissions. */
++	CHERI_CANDPERM(1, 1, ~perms_mask);
++
++	/* Store the modified capability. */
++	CHERI_CSC(1, 0, (uintptr_t) cap - (uintptr_t) c_base, 0);
++}
++
++/* Note: cap_out must be 32-byte aligned. */
++static void
++construct_capability_for_allocation(void *base, size_t size, uint32_t perms,
++                                    struct chericap *cap_out)
++{
++	register_t c_base;
++
++	/* Retrieve our ambient authority and work out the offset of the
++	 * allocation from its base. */
++	CHERI_CGETBASE(c_base, 0);
++
++	/* Generate a capability for the allocation and store it in cap_out. */
++	CHERI_CINCBASE(1, 0, (uintptr_t) base - (uintptr_t) c_base); /* copy $c0 to $c1; inc. base */
++	CHERI_CSETLEN(1, 1, size); /* restrict length */
++	CHERI_CANDPERM(1, 1, perms); /* limit perms */
++	CHERI_CSC(1, 0, (uintptr_t) cap_out - (uintptr_t) c_base, 0); /* store the capability */
++}
++
++/* Allocate some memory as per normal malloc(), but also return a capability to
++ * that memory with the given permissions. This assumes that $c0 contains a
++ * capability with ambient authority for the current thread's arena and the
++ * Permit_Store_Capability permission for cap_out.
++ *
++ * Note: cap_out must be 32-byte aligned. This function will always return (at
++ * least) a 32-byte aligned allocation.
++ *
++ * This clobbers $c1 and $c2. */
++WL_EXPORT void *
++wl_malloc_with_capability(size_t size, uint32_t perms, struct chericap *cap_out)
++{
++	void *retval;
++
++	/* Sanity check. */
++	if (((uintptr_t) cap_out % CHERICAP_SIZE) != 0) {
++		fprintf(stderr,
++		        "Error: wl_malloc_with_capability(%lu, %u, %p) passed "
++			"mis-aligned capability.\n", size, perms, cap_out);
++		goto error;
++	}
++
++	retval = WL_MALLOC_ALIGNED(CHERICAP_SIZE, size);
++	if (retval == NULL)
++		goto error;
++
++	/* Generate a capability for the allocation and store it in cap_out. */
++	construct_capability_for_allocation(retval, size, perms, cap_out);
++
++	return retval;
++
++error:
++	/* Nuke the output capability. */
++	memset(cap_out, 0, sizeof *cap_out);
++	errno = EINVAL;
++
++	return NULL;
++}
+ 
+ 
+ /**
+@@ -84,11 +171,9 @@
+ };
+ 
+ struct wl_itc_buffer {
+-	struct wl_arena arena;
+ #ifdef CP2
+-	struct chericap arena_cap;
+ 	struct chericap full_ambient_cap; /* HACK! See note above. */
+-#endif /* CP2 */
++#endif
+ 	unsigned int ref_count;
+ 
+ 	pthread_cond_t cond;
+@@ -207,8 +292,7 @@
+ #endif /* !CP2 */
+ {
+ 	struct wl_itc_buffer *buf;
+-	size_t buf_size, arena_size;
+-	void *arena_base;
++	size_t buf_size;
+ 
+ 	if (slots == 0)
+ 		slots = WL_ITC_BUFFER_DEFAULT_SLOTS;
+@@ -245,23 +329,6 @@
+ 		goto error;
+ 	}
+ 
+-	/* Set up a buffer-local arena for the buffer. */
+-	arena_size = 4 * 1024 * 1024; /* arbitrary */
+-	arena_base =
+-		WL_MALLOC_WITH_CAPABILITY(arena_size,
+-		                          CHERI_PERM_STORE |
+-		                          CHERI_PERM_LOAD,
+-		                          &buf->arena.cap);
+-#ifndef CP2
+-	buf->arena.base = arena_base;
+-	buf->arena.size = arena_size;
+-#endif /* !CP2 */
+-
+-	if (WL_ARENA_BASE(&buf->arena) == NULL) {
+-		fprintf(stderr, "failed to allocate ITC buffer arena.\n");
+-		goto error;
+-	}
+-
+ #ifdef CP2
+ 	/* Restrict cap_out to no longer allow Permit_Store_Capability, now that
+ 	 * we've written out buf->arena_cap. */
+@@ -274,9 +341,6 @@
+ 	CHERI_CSC(0, 0, &buf->full_ambient_cap, 0);
+ #endif /* CP2 */
+ 
+-	/* Set up our buffer-local arena. */
+-	wl_malloc_setup(&buf->arena);
+-
+ 	return buf;
+ 
+ error:
+@@ -315,7 +379,6 @@
+ #endif /* !CP2 */
+ {
+ 	unsigned int i, buf_slots, buf_ref_count, buf_head, buf_tail;
+-	void *arena_base;
+ 
+ 	ITC_AMBIENT_BEGIN(cap);
+ 
+@@ -376,13 +439,8 @@
+ 	pthread_mutex_destroy(&buf->mutex);
+ 	PTHREADS_AMBIENT_END(buf);
+ 
+-	arena_base = WL_ARENA_BASE(&buf->arena);
+-
+ 	ITC_AMBIENT_END(cap);
+ 
+-	/* Free the buffer-local arena. */
+-	free(arena_base);
+-
+ 	free(buf);
+ 
+ 	return;
+--- wayland-itc-buffer.h	2013-03-19 17:58:04.000000000 +0000
++++ wayland-itc-buffer_upstream.h	2013-05-22 15:46:44.000000000 +0100
+@@ -28,7 +28,6 @@
+ #include <unistd.h>
+ 
+ #include "wayland-capabilities.h"
+-#include "wayland-util.h" /* TODO: just needed for malloc() */
+ 
+ 
+ struct wl_itc_buffer;
