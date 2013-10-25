@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <netinet/in.h>
 #include <netinet/ip6.h>
-#include <netinet6/scope6_var.h>
 
 /*
  * Checksum routine for Internet Protocol family headers (Portable Version).
@@ -84,7 +83,7 @@ static int
 _in6_cksum_pseudo(struct ip6_hdr *ip6, uint32_t len, uint8_t nxt, uint16_t csum)
 {
 	int sum;
-	uint16_t scope, *w;
+	uint16_t *w;
 	union {
 		u_int16_t phs[4];
 		struct {
@@ -108,20 +107,14 @@ _in6_cksum_pseudo(struct ip6_hdr *ip6, uint32_t len, uint8_t nxt, uint16_t csum)
 	sum += uph.phs[2];  sum += uph.phs[3];
 
 	/* IPv6 source address. */
-	scope = in6_getscope(&ip6->ip6_src);
 	w = (u_int16_t *)&ip6->ip6_src;
 	sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
 	sum += w[4]; sum += w[5]; sum += w[6]; sum += w[7];
-	if (scope != 0)
-		sum -= scope;
 
 	/* IPv6 destination address. */
-	scope = in6_getscope(&ip6->ip6_dst);
 	w = (u_int16_t *)&ip6->ip6_dst;
 	sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
 	sum += w[4]; sum += w[5]; sum += w[6]; sum += w[7];
-	if (scope != 0)
-		sum -= scope;
 
 	return (sum);
 }
@@ -150,7 +143,7 @@ int
 in6_cksum(struct mbuf *m, u_int8_t nxt, u_int32_t off, u_int32_t len)
 {
 	struct ip6_hdr *ip6;
-	u_int16_t *w, scope;
+	u_int16_t *w;
 	int byte_swapped, mlen;
 	int sum;
 	union {
@@ -188,20 +181,14 @@ in6_cksum(struct mbuf *m, u_int8_t nxt, u_int32_t off, u_int32_t len)
 	ip6 = mtod(m, struct ip6_hdr *);
 
 	/* IPv6 source address. */
-	scope = in6_getscope(&ip6->ip6_src);
 	w = (u_int16_t *)&ip6->ip6_src;
 	sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
 	sum += w[4]; sum += w[5]; sum += w[6]; sum += w[7];
-	if (scope != 0)
-		sum -= scope;
 
 	/* IPv6 destination address. */
-	scope = in6_getscope(&ip6->ip6_dst);
 	w = (u_int16_t *)&ip6->ip6_dst;
 	sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
 	sum += w[4]; sum += w[5]; sum += w[6]; sum += w[7];
-	if (scope != 0)
-		sum -= scope;
 
 	/*
 	 * Secondly calculate a summary of the first mbuf excluding offset.
