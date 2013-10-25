@@ -125,8 +125,8 @@ svn_version_extended(svn_boolean_t verbose,
 {
   svn_version_extended_t *info = apr_pcalloc(pool, sizeof(*info));
 
-  info->build_date = __DATE__;
-  info->build_time = __TIME__;
+  info->build_date = NULL;
+  info->build_time = NULL;
   info->build_host = SVN_BUILD_HOST;
   info->copyright = apr_pstrdup
     (pool, _("Copyright (C) 2013 The Apache Software Foundation.\n"
