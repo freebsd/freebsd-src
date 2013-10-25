@@ -705,6 +705,8 @@ iwn4965_attach(struct iwn_softc *sc, uint16_t pid)
 	/* Override chains masks, ROM is known to be broken. */
 	sc->txchainmask = IWN_ANT_AB;
 	sc->rxchainmask = IWN_ANT_ABC;
+	/* Enable normal btcoex */
+	sc->sc_flags |= IWN_FLAG_BTCOEX;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "%s: end\n",__func__);
 
@@ -752,23 +754,40 @@ iwn5000_attach(struct iwn_softc *sc, uint16_t pid)
 		/* Override chains masks, ROM is known to be broken. */
 		sc->txchainmask = IWN_ANT_B;
 		sc->rxchainmask = IWN_ANT_AB;
+		/* Enable normal btcoex */
+		sc->sc_flags |= IWN_FLAG_BTCOEX;
 		break;
 	case IWN_HW_REV_TYPE_5150:
 		sc->limits = &iwn5150_sensitivity_limits;
 		sc->fwname = "iwn5150fw";
+		/* Enable normal btcoex */
+		sc->sc_flags |= IWN_FLAG_BTCOEX;
 		break;
 	case IWN_HW_REV_TYPE_5300:
 	case IWN_HW_REV_TYPE_5350:
 		sc->limits = &iwn5000_sensitivity_limits;
 		sc->fwname = "iwn5000fw";
+		/* Enable normal btcoex */
+		sc->sc_flags |= IWN_FLAG_BTCOEX;
 		break;
 	case IWN_HW_REV_TYPE_1000:
 		sc->limits = &iwn1000_sensitivity_limits;
 		sc->fwname = "iwn1000fw";
+		/* Enable normal btcoex */
+		sc->sc_flags |= IWN_FLAG_BTCOEX;
 		break;
 	case IWN_HW_REV_TYPE_6000:
 		sc->limits = &iwn6000_sensitivity_limits;
 		sc->fwname = "iwn6000fw";
+		/*
+		 * Disable btcoex for 6200.
+		 * XXX TODO: disable for 6205; no btcoex as well
+		 * (6230/6235 - enable bluetooth)
+		 */
+		if (pid != 0x422c) {
+			/* Enable normal btcoex */
+			sc->sc_flags |= IWN_FLAG_BTCOEX;
+		}
 		if (pid == 0x422c || pid == 0x4239) {
 			sc->sc_flags |= IWN_FLAG_INTERNAL_PA;
 			/* Override chains masks, ROM is known to be broken. */
@@ -782,14 +801,20 @@ iwn5000_attach(struct iwn_softc *sc, uint16_t pid)
 		/* Override chains masks, ROM is known to be broken. */
 		sc->txchainmask = IWN_ANT_AB;
 		sc->rxchainmask = IWN_ANT_AB;
+		/* Enable normal btcoex */
+		sc->sc_flags |= IWN_FLAG_BTCOEX;
 		break;
 	case IWN_HW_REV_TYPE_6005:
 		sc->limits = &iwn6000_sensitivity_limits;
 		if (pid != 0x0082 && pid != 0x0085) {
 			sc->fwname = "iwn6000g2bfw";
 			sc->sc_flags |= IWN_FLAG_ADV_BTCOEX;
-		} else
+		} else {
 			sc->fwname = "iwn6000g2afw";
+			/*
+			 * 6250 - disable bluetooth coexistence.
+			 */
+		}
 		break;
 	default:
 		device_printf(sc->sc_dev, "adapter type %d not supported\n",
@@ -797,6 +822,15 @@ iwn5000_attach(struct iwn_softc *sc, uint16_t pid)
 		DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end in error\n",__func__);
 		return ENOTSUP;
 	}
+	if (sc->sc_flags & IWN_FLAG_BTCOEX)
+		device_printf(sc->sc_dev,
+		    "enable basic bluetooth coexistence\n");
+	else if (sc->sc_flags & IWN_FLAG_ADV_BTCOEX)
+		device_printf(sc->sc_dev,
+		    "enable advanced bluetooth coexistence\n");
+	else
+		device_printf(sc->sc_dev,
+		    "disable bluetooth coexistence\n");
 	return 0;
 }
 
@@ -5404,9 +5438,10 @@ iwn_config(struct iwn_softc *sc)
 	}
 
 	/* Configure bluetooth coexistence. */
+	error = 0;
 	if (sc->sc_flags & IWN_FLAG_ADV_BTCOEX)
 		error = iwn_send_advanced_btcoex(sc);
-	else
+	else if (sc->sc_flags & IWN_FLAG_BTCOEX)
 		error = iwn_send_btcoex(sc);
 	if (error != 0) {
 		device_printf(sc->sc_dev,

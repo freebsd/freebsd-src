@@ -249,6 +249,7 @@ struct iwn_softc {
 #define IWN_FLAG_ENH_SENS	(1 << 7)
 #define IWN_FLAG_ADV_BTCOEX	(1 << 8)
 #define IWN_FLAG_PAN_SUPPORT	(1 << 9)
+#define IWN_FLAG_BTCOEX		(1 << 10)
 
 	uint8_t 		hw_type;
 	/* subdevice_id used to adjust configuration */
