@@ -1036,7 +1036,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 		tf->srr0 = entry_desc[0];
 		tf->fixreg[2] = entry_desc[1];
 		tf->fixreg[11] = entry_desc[2];
-		tf->srr1 = PSL_SF | PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
+		tf->srr1 = PSL_SF | PSL_USERSET | PSL_FE_DFLT;
 	    #endif
 	}
 
