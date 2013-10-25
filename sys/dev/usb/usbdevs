@@ -3248,6 +3248,7 @@ product OPTION GMT382		0x7501	Globetrotter HSUPA
 product OPTION GE40X_1		0x7301	Globetrotter HSUPA
 product OPTION GE40X_2		0x7361	Globetrotter HSUPA
 product OPTION GE40X_3		0x7381	Globetrotter HSUPA
+product OPTION GTM661W		0x9000  GTM661W
 product OPTION ICONEDGE		0xc031	GlobeSurfer iCON EDGE
 product OPTION MODHSXPA		0xd013	Globetrotter HSUPA
 product OPTION ICON321		0xd031	Globetrotter HSUPA
