@@ -602,39 +602,17 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 	struct in6_addr *laddr, *faddr, in6a;
 	struct sockaddr_in6 *sin6 = NULL;
 	struct ifnet *oifp = NULL;
-	int scope_ambiguous = 0;
 	u_short fport;
 	int error = 0;
 	struct ip6_pktopts *optp, opt;
 	int af = AF_INET6, hlen = sizeof(struct ip6_hdr);
 	int flags;
-	struct sockaddr_in6 tmp;
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
 
-	if (addr6) {
-		/* addr6 has been validated in udp6_send(). */
-		sin6 = (struct sockaddr_in6 *)addr6;
-
-		/* protect *sin6 from overwrites */
-		tmp = *sin6;
-		sin6 = &tmp;
-
-		/*
-		 * Application should provide a proper zone ID or the use of
-		 * default zone IDs should be enabled.  Unfortunately, some
-		 * applications do not behave as it should, so we need a
-		 * workaround.  Even if an appropriate ID is not determined,
-		 * we'll see if we can determine the outgoing interface.  If we
-		 * can, determine the zone ID based on the interface below.
-		 */
-		if (sin6->sin6_scope_id == 0 && !V_ip6_use_defzone)
-			scope_ambiguous = 1;
-		if ((error = sa6_embedscope(sin6, V_ip6_use_defzone)) != 0)
-			return (error);
-	}
-
+	/* addr6 has been validated in udp6_send(). */
+	sin6 = (struct sockaddr_in6 *)addr6;
 	if (control) {
 		if ((error = ip6_setpktopts(control, &opt,
 		    inp->in6p_outputopts, td->td_ucred, IPPROTO_UDP)) != 0)
@@ -700,11 +678,6 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 			    td->td_ucred, &oifp, &in6a);
 			if (error)
 				goto release;
-			if (oifp && scope_ambiguous &&
-			    (error = in6_setscope(&sin6->sin6_addr,
-			    oifp, NULL))) {
-				goto release;
-			}
 			laddr = &in6a;
 		} else
 			laddr = &inp->in6p_laddr;	/* XXX */
@@ -743,6 +716,8 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 		laddr = &inp->in6p_laddr;
 		faddr = &inp->in6p_faddr;
 		fport = inp->inp_fport;
+		if (inp->in6p_zoneid != 0)
+			oifp = in6_getlinkifnet(inp->in6p_zoneid);
 	}
 
 	if (af == AF_INET)
@@ -786,12 +761,12 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 		m->m_pkthdr.csum_flags = CSUM_UDP_IPV6;
 		m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
 
-		flags = 0;
+		flags = oifp ? IPV6_USEROIF: 0;
 
 		UDP_PROBE(send, NULL, inp, ip6, inp, udp6);
 		UDPSTAT_INC(udps_opackets);
 		error = ip6_output(m, optp, NULL, flags, inp->in6p_moptions,
-		    NULL, inp);
+		    &oifp, inp);
 		break;
 	case AF_INET:
 		error = EAFNOSUPPORT;
@@ -1094,6 +1069,13 @@ udp6_send(struct socket *so, int flags, struct mbuf *m,
 			error = EAFNOSUPPORT;
 			goto bad;
 		}
+		/*
+		 * Application must provide a proper zone ID or the use of
+		 * default zone IDs should be enabled.
+		 */
+		error = sa6_checkzone((struct sockaddr_in6*)addr);
+		if (error != 0)
+			goto bad;
 	}
 
 #ifdef INET
