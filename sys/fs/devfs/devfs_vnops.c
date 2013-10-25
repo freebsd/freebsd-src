@@ -49,6 +49,7 @@
 #include <sys/filio.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -1178,6 +1179,8 @@ devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred,
 	struct cdevsw *dsw;
 	struct file *fpop;
 
+	if (uio->uio_resid > DEVFS_IOSIZE_MAX)
+		return (EINVAL);
 	fpop = td->td_fpop;
 	error = devfs_fp_check(fp, &dev, &dsw, &ref);
 	if (error)
@@ -1653,6 +1656,8 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred,
 	struct cdevsw *dsw;
 	struct file *fpop;
 
+	if (uio->uio_resid > DEVFS_IOSIZE_MAX)
+		return (EINVAL);
 	fpop = td->td_fpop;
 	error = devfs_fp_check(fp, &dev, &dsw, &ref);
 	if (error)
