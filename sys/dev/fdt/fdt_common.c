@@ -514,7 +514,7 @@ fdt_intr_to_rl(phandle_t node, struct resource_list *rl,
 	pcell_t *intr;
 	pcell_t intr_cells;
 	int interrupt, trig, pol;
-	int i, intr_num, irq, rv;
+	int i, intr_num, rv;
 
 	if (OF_getproplen(node, "interrupts") <= 0)
 		/* Node does not have 'interrupts' property. */
@@ -523,7 +523,7 @@ fdt_intr_to_rl(phandle_t node, struct resource_list *rl,
 	/*
 	 * Find #interrupt-cells of the interrupt domain.
 	 */
-	if (OF_getprop(node, "interrupt-parent", &iph, sizeof(iph)) <= 0) {
+	if (OF_getencprop(node, "interrupt-parent", &iph, sizeof(iph)) <= 0) {
 		debugf("no intr-parent phandle\n");
 		intr_par = OF_parent(node);
 	} else {
@@ -566,8 +566,7 @@ fdt_intr_to_rl(phandle_t node, struct resource_list *rl,
 		intr_sl[i].trig = trig;
 		intr_sl[i].pol = pol;
 
-		irq = FDT_MAP_IRQ(iph, interrupt);
-		resource_list_add(rl, SYS_RES_IRQ, i, irq, irq, 1);
+		resource_list_add(rl, SYS_RES_IRQ, i, interrupt, interrupt, 1);
 	}
 
 out:
@@ -583,7 +582,7 @@ fdt_get_phyaddr(phandle_t node, device_t dev, int *phy_addr, void **phy_sc)
 	uint32_t i;
 	device_t parent, child;
 
-	if (OF_getprop(node, "phy-handle", (void *)&phy_handle,
+	if (OF_getencprop(node, "phy-handle", (void *)&phy_handle,
 	    sizeof(phy_handle)) <= 0)
 		return (ENXIO);
 

@@ -339,8 +339,7 @@ simplebus_get_interrupt_parent(device_t dev)
 	struct simplebus_devinfo *di;
 	struct fdt_ic *ic;
 	device_t ip;
-	ihandle_t iph;
-	phandle_t ph;
+	phandle_t ph, iph;
 
 	ip = NULL;
 
@@ -348,10 +347,9 @@ simplebus_get_interrupt_parent(device_t dev)
 	if (di == NULL)
 		return (NULL);
 
-	if (OF_getprop(di->di_ofw.obd_node, "interrupt-parent", &iph,
+	if (OF_getencprop(di->di_ofw.obd_node, "interrupt-parent", &iph,
 	    sizeof(iph)) > 0) {
-		iph = fdt32_to_cpu(iph);
-		ph = OF_instance_to_package(iph);
+		ph = OF_xref_phandle(iph);
 		SLIST_FOREACH(ic, &fdt_ic_list_head, fdt_ics) {
 			if (ic->iph == ph) {
 				ip = ic->dev;

@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <err.h>
 #include <libgen.h>
 #include <unistd.h>
@@ -121,9 +122,8 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-aehAHIPW][-g <gdb port>][-s <pci>][-S <pci>]"
-		"[-c vcpus][-p pincpu][-m mem]"
-		" <vmname>\n"
+                "Usage: %s [-aehAHIPW] [-g <gdb port>] [-s <pci>] [-S <pci>]\n"
+		"       %*s [-c vcpus] [-p pincpu] [-m mem] <vmname>\n"
 		"       -a: local apic is in XAPIC mode (default is X2APIC)\n"
 		"       -A: create an ACPI table\n"
 		"       -g: gdb port\n"
@@ -132,13 +132,13 @@ usage(int code)
 		"       -H: vmexit from the guest on hlt\n"
 		"       -I: present an ioapic to the guest\n"
 		"       -P: vmexit from the guest on pause\n"
-		"	-W: force virtio to use single-vector MSI\n"
-		"	-e: exit on unhandled i/o access\n"
+		"       -W: force virtio to use single-vector MSI\n"
+		"       -e: exit on unhandled I/O access\n"
 		"       -h: help\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
 		"       -S: <slot,driver,configinfo> legacy PCI slot config\n"
 		"       -m: memory size in MB\n",
-		progname);
+		progname, (int)strlen(progname), "");
 
 	exit(code);
 }

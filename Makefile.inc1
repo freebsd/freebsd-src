@@ -58,6 +58,7 @@
 # use that new version.  And the new (dynamically-linked) /bin/sh
 # will expect to find appropriate libraries in /lib and /libexec.
 #
+SRCDIR?=	${.CURDIR}
 .if defined(SUBDIR_OVERRIDE)
 SUBDIR=	${SUBDIR_OVERRIDE}
 .else
@@ -84,6 +85,9 @@ SUBDIR+=secure
 SUBDIR+=share
 .endif
 SUBDIR+=sys usr.bin usr.sbin
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 .if ${MK_OFED} != "no"
 SUBDIR+=contrib/ofed
 .endif
@@ -128,10 +132,10 @@ OSRELDATE=	0
 .endif
 
 .if !defined(VERSION)
-REVISION!=	make -C ${.CURDIR}/release -V REVISION
-BRANCH!=	make -C ${.CURDIR}/release -V BRANCH
+REVISION!=	make -C ${SRCDIR}/release -V REVISION
+BRANCH!=	make -C ${SRCDIR}/release -V BRANCH
 SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
-		${.CURDIR}/sys/sys/param.h
+		${SRCDIR}/sys/sys/param.h
 VERSION=	FreeBSD ${REVISION}-${BRANCH} ${TARGET_ARCH} ${SRCRELDATE}
 .endif
 
@@ -487,6 +491,10 @@ _worldtmp:
 	    -p ${WORLDTMP}/legacy/usr/lib >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${WORLDTMP}/usr/lib >/dev/null
+.endif
+.if ${MK_TESTS} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
+	    -p ${WORLDTMP}${TESTSBASE} >/dev/null
 .endif
 .for _mtree in ${LOCAL_MTREE}
 	mtree -deU -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
