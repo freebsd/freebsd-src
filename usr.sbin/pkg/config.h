@@ -45,6 +45,11 @@ typedef enum {
 	PKG_CONFIG_BOOL,
 } pkg_config_t;
 
+typedef enum {
+	CONFFILE_PKG=0,
+	CONFFILE_REPO,
+} pkg_conf_file_t;
+
 int config_init(void);
 void config_finish(void);
 int config_string(pkg_config_key, const char **);
