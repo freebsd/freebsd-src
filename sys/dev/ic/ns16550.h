@@ -185,6 +185,7 @@
 #define DW_REG_USR	31	/* DesignWare derived Uart Status Reg */
 #define com_usr		39	/* Octeon 16750/16550 Uart Status Reg */
 #define REG_USR		com_usr
+#define USR_BUSY	1	/* Uart Busy. Serial transfer in progress */
 #define USR_TXFIFO_NOTFULL 2    /* Uart TX FIFO Not full */
 
 /* 16950 register #1.  Access enabled by ACR[7].  Also requires !LCR[7]. */
