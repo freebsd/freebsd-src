@@ -86,6 +86,7 @@
 #endif /* ALTQ3_COMPAT */
 
 #include <net/if.h>
+#include <net/if_var.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -94,7 +95,9 @@
 #include <netinet/ip6.h>
 #endif
 
-#include <net/pfvar.h>
+#include <net/pf.h>
+#include <net/pf_altq.h>
+#include <net/pf_mtag.h>
 #include <altq/altq.h>
 #include <altq/altq_red.h>
 #ifdef ALTQ3_COMPAT
