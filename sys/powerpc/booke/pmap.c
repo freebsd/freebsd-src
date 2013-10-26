@@ -113,7 +113,6 @@ extern uint32_t *bootinfo;
 extern uint32_t bp_ntlb1s;
 #endif
 
-vm_paddr_t ccsrbar_pa;
 vm_paddr_t kernload;
 vm_offset_t kernstart;
 vm_size_t kernsize;
@@ -2662,22 +2661,25 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 	void *res;
 	uintptr_t va;
 	vm_size_t sz;
+	int i;
 
 	/*
-	 * CCSR is premapped. Note that (pa + size - 1) is there to make sure
-	 * we don't wrap around. Devices on the local bus typically extend all
-	 * the way up to and including 0xffffffff. In that case (pa + size)
-	 * would be 0. This creates a false positive (i.e. we think it's
-	 * within the CCSR) and not create a mapping.
+	 * Check if this is premapped in TLB1. Note: this should probably also
+	 * check whether a sequence of TLB1 entries exist that match the
+	 * requirement, but now only checks the easy case.
 	 */
-	if (ma == VM_MEMATTR_DEFAULT && pa >= ccsrbar_pa &&
-	    (pa + size - 1) < (ccsrbar_pa + CCSRBAR_SIZE)) {
-		va = CCSRBAR_VA + (pa - ccsrbar_pa);
-		return ((void *)va);
+	if (ma == VM_MEMATTR_DEFAULT) {
+		for (i = 0; i < tlb1_idx; i++) {
+			if (!(tlb1[i].mas1 & MAS1_VALID))
+				continue;
+			if (pa >= tlb1[i].phys &&
+			    (pa + size) <= (tlb1[i].phys + tlb1[i].size))
+				return (void *)(tlb1[i].virt +
+				    (pa - tlb1[i].phys));
+		}
 	}
 
-	if (size < PAGE_SIZE)
-	    size = PAGE_SIZE;
+	size = roundup(size, PAGE_SIZE);
 
 	if (pa >= (VM_MAXUSER_ADDRESS + PAGE_SIZE) &&
 	    (pa + size - 1) < VM_MIN_KERNEL_ADDRESS) 
@@ -2899,9 +2901,8 @@ tlb0_print_tlbentries(void)
 /*
  * TLB1 mapping notes:
  *
- * TLB1[0]	CCSRBAR
- * TLB1[1]	Kernel text and data.
- * TLB1[2-15]	Additional kernel text and data mappings (if required), PCI
+ * TLB1[0]	Kernel text and data.
+ * TLB1[1-15]	Additional kernel text and data mappings (if required), PCI
  *		windows, other devices mappings.
  */
 
@@ -3094,13 +3095,11 @@ tlb1_mapin_region(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
  * assembler level setup done in locore.S.
  */
 void
-tlb1_init(vm_offset_t ccsrbar)
+tlb1_init()
 {
-	uint32_t mas0, mas1, mas3;
+	uint32_t mas0, mas1, mas2, mas3;
 	uint32_t tsz;
 	u_int i;
-
-	ccsrbar_pa = ccsrbar;
 
 	if (bootinfo != NULL && bootinfo[0] != 1) {
 		tlb1_idx = *((uint16_t *)(bootinfo + 8));
@@ -3117,21 +3116,22 @@ tlb1_init(vm_offset_t ccsrbar)
 		if ((mas1 & MAS1_VALID) == 0)
 			continue;
 
+		mas2 = mfspr(SPR_MAS2);
 		mas3 = mfspr(SPR_MAS3);
 
 		tlb1[i].mas1 = mas1;
 		tlb1[i].mas2 = mfspr(SPR_MAS2);
 		tlb1[i].mas3 = mas3;
+		tlb1[i].virt = mas2 & MAS2_EPN_MASK;
+		tlb1[i].phys = mas3 & MAS3_RPN;
 
 		if (i == 0)
 			kernload = mas3 & MAS3_RPN;
 
 		tsz = (mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
-		kernsize += (tsz > 0) ? tsize2size(tsz) : 0;
+		tlb1[i].size = (tsz > 0) ? tsize2size(tsz) : 0;
+		kernsize += tlb1[i].size;
 	}
-
-	/* Map in CCSRBAR. */
-	tlb1_set_entry(CCSRBAR_VA, ccsrbar, CCSRBAR_SIZE, _TLB_ENTRY_IO);
 
 #ifdef SMP
 	bp_ntlb1s = tlb1_idx;
@@ -3143,6 +3143,43 @@ tlb1_init(vm_offset_t ccsrbar)
 
 	/* Setup TLB miss defaults */
 	set_mas4_defaults();
+}
+
+vm_offset_t 
+pmap_early_io_map(vm_paddr_t pa, vm_size_t size)
+{
+	static vm_offset_t early_io_map_base = VM_MAX_KERNEL_ADDRESS;
+	vm_paddr_t pa_base;
+	vm_offset_t va, sz;
+	int i;
+
+	KASSERT(!pmap_bootstrapped, ("Do not use after PMAP is up!"));
+	
+	for (i = 0; i < tlb1_idx; i++) {
+		if (!(tlb1[i].mas1 & MAS1_VALID))
+			continue;
+		if (pa >= tlb1[i].phys && (pa + size) <=
+		    (tlb1[i].phys + tlb1[i].size))
+			return (tlb1[i].virt + (pa - tlb1[i].phys));
+	}
+
+	pa_base = trunc_page(pa);
+	size = roundup(size + (pa - pa_base), PAGE_SIZE);
+	va = early_io_map_base + (pa - pa_base);
+
+	do {
+		sz = 1 << (ilog2(size) & ~1);
+		tlb1_set_entry(early_io_map_base, pa_base, sz, _TLB_ENTRY_IO);
+		size -= sz;
+		pa_base += sz;
+		early_io_map_base += sz;
+	} while (size > 0);
+
+#ifdef SMP
+	bp_ntlb1s = tlb1_idx;
+#endif
+
+	return (va);
 }
 
 /*
