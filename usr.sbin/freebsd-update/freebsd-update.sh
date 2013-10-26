@@ -1200,7 +1200,7 @@ fetch_metadata_sanity () {
 	# Some aliases to save space later: ${P} is a character which can
 	# appear in a path; ${M} is the four numeric metadata fields; and
 	# ${H} is a sha256 hash.
-	P="[-+./:=%@_[[:alnum:]]"
+	P="[-+./:=%@_[~[:alnum:]]"
 	M="[0-9]+\|[0-9]+\|[0-9]+\|[0-9]+"
 	H="[0-9a-f]{64}"
 
@@ -2814,16 +2814,24 @@ Kernel updates have been installed.  Please reboot and run
 
 	# If we haven't already dealt with the world, deal with it.
 	if ! [ -f $1/worlddone ]; then
+		# Create any necessary directories first
+		grep -vE '^/boot/' $1/INDEX-NEW |
+		    grep -E '^[^|]+\|d\|' > INDEX-NEW
+		install_from_index INDEX-NEW || return 1
+
 		# Install new shared libraries next
 		grep -vE '^/boot/' $1/INDEX-NEW |
-		    grep -E '/lib/.*\.so\.[0-9]+\|' > INDEX-NEW
+		    grep -vE '^[^|]+\|d\|' |
+		    grep -E '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-NEW
 		install_from_index INDEX-NEW || return 1
 
 		# Deal with everything else
 		grep -vE '^/boot/' $1/INDEX-OLD |
-		    grep -vE '/lib/.*\.so\.[0-9]+\|' > INDEX-OLD
+		    grep -vE '^[^|]+\|d\|' |
+		    grep -vE '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-OLD
 		grep -vE '^/boot/' $1/INDEX-NEW |
-		    grep -vE '/lib/.*\.so\.[0-9]+\|' > INDEX-NEW
+		    grep -vE '^[^|]+\|d\|' |
+		    grep -vE '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-NEW
 		install_from_index INDEX-NEW || return 1
 		install_delete INDEX-OLD INDEX-NEW || return 1
 
@@ -2844,11 +2852,11 @@ Kernel updates have been installed.  Please reboot and run
 
 		# Do we need to ask the user to portupgrade now?
 		grep -vE '^/boot/' $1/INDEX-NEW |
-		    grep -E '/lib/.*\.so\.[0-9]+\|' |
+		    grep -E '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' |
 		    cut -f 1 -d '|' |
 		    sort > newfiles
 		if grep -vE '^/boot/' $1/INDEX-OLD |
-		    grep -E '/lib/.*\.so\.[0-9]+\|' |
+		    grep -E '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' |
 		    cut -f 1 -d '|' |
 		    sort |
 		    join -v 1 - newfiles |
@@ -2868,9 +2876,18 @@ again to finish installing updates.
 
 	# Remove old shared libraries
 	grep -vE '^/boot/' $1/INDEX-NEW |
-	    grep -E '/lib/.*\.so\.[0-9]+\|' > INDEX-NEW
+	    grep -vE '^[^|]+\|d\|' |
+	    grep -E '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-NEW
 	grep -vE '^/boot/' $1/INDEX-OLD |
-	    grep -E '/lib/.*\.so\.[0-9]+\|' > INDEX-OLD
+	    grep -vE '^[^|]+\|d\|' |
+	    grep -E '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-OLD
+	install_delete INDEX-OLD INDEX-NEW || return 1
+
+	# Remove old directories
+	grep -vE '^/boot/' $1/INDEX-OLD |
+	    grep -E '^[^|]+\|d\|' > INDEX-OLD
+	grep -vE '^/boot/' $1/INDEX-OLD |
+	    grep -E '^[^|]+\|d\|' > INDEX-OLD
 	install_delete INDEX-OLD INDEX-NEW || return 1
 
 	# Remove temporary files
