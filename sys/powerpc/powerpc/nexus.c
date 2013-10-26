@@ -166,9 +166,7 @@ static int
 nexus_ofw_config_intr(device_t dev, device_t child, int irq, int sense)
 {
  
-	return (bus_generic_config_intr(child, irq, (sense & 1) ?
-	    INTR_TRIGGER_LEVEL : INTR_TRIGGER_EDGE,
-	    INTR_POLARITY_LOW));
+	return (powerpc_fw_config_intr(irq, sense));
 } 
 
 static int

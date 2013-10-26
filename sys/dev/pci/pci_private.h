@@ -116,6 +116,7 @@ int		pci_child_pnpinfo_str_method(device_t cbdev, device_t child,
 int		pci_assign_interrupt_method(device_t dev, device_t child);
 int		pci_resume(device_t dev);
 int		pci_suspend(device_t dev);
+bus_dma_tag_t pci_get_dma_tag(device_t bus, device_t dev);
 
 /** Restore the config register state.  The state must be previously
  * saved with pci_cfg_save.  However, the pci bus driver takes care of

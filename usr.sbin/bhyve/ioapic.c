@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <pthread.h>
 
 #include <vmmapi.h>
 
@@ -46,34 +47,40 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 
+static uint64_t ioapic_clearpend, ioapic_togglepend, ioapic_setpend;
+
 #define	IOAPIC_PADDR	0xFEC00000
 
 #define	IOREGSEL	0x00
 #define	IOWIN		0x10
 
 #define	REDIR_ENTRIES	16
-#define	INTR_ASSERTED(ioapic, pin)	((ioapic)->pinstate[(pin)] == true)
+#define	INTR_ASSERTED(ioapic, pin)	\
+	((ioapic)->rtbl[(pin)].pinstate == true)
 
 struct ioapic {
 	int		inited;
 	uint32_t	id;
-	uint64_t	redtbl[REDIR_ENTRIES];
-	bool		pinstate[REDIR_ENTRIES];
+	struct {
+		uint64_t reg;
+		bool     pinstate;
+		bool     pending;
+	} rtbl[REDIR_ENTRIES];
 
 	uintptr_t	paddr;		/* gpa where the ioapic is mapped */
 	uint32_t	ioregsel;
 	struct memory_region *region;
+	pthread_mutex_t	mtx;
 };
 
 static struct ioapic ioapics[1];	/* only a single ioapic for now */
 
-static int ioapic_region_read(struct ioapic *ioapic, uintptr_t paddr,
-				int size, uint64_t *data);
-static int ioapic_region_write(struct ioapic *ioapic, uintptr_t paddr,
-				int size, uint64_t data);
+static int ioapic_region_read(struct vmctx *vm, struct ioapic *ioapic,
+    uintptr_t paddr, int size, uint64_t *data);
+static int ioapic_region_write(struct vmctx *vm, struct ioapic *ioapic,
+    uintptr_t paddr, int size, uint64_t data);
 static int ioapic_region_handler(struct vmctx *vm, int vcpu, int dir,
-				 uintptr_t paddr, int size, uint64_t *val,
-				 void *arg1, long arg2);
+    uintptr_t paddr, int size, uint64_t *val, void *arg1, long arg2);
 
 static void
 ioapic_set_pinstate(struct vmctx *ctx, int pin, bool newstate)
@@ -84,14 +91,11 @@ ioapic_set_pinstate(struct vmctx *ctx, int pin, bool newstate)
 	
 	ioapic = &ioapics[0];		/* assume a single ioapic */
 
-	if (pin < 0 || pin >= REDIR_ENTRIES)
-		return;
-
 	/* Nothing to do if interrupt pin has not changed state */
-	if (ioapic->pinstate[pin] == newstate)
+	if (ioapic->rtbl[pin].pinstate == newstate)
 		return;
 
-	ioapic->pinstate[pin] = newstate;	/* record it */
+	ioapic->rtbl[pin].pinstate = newstate;	/* record it */
 
 	/* Nothing to do if interrupt pin is deasserted */
 	if (!INTR_ASSERTED(ioapic, pin))
@@ -105,8 +109,8 @@ ioapic_set_pinstate(struct vmctx *ctx, int pin, bool newstate)
 	 *  Level-triggered sources will work so long as there is
 	 * no sharing.
 	 */
-	low = ioapic->redtbl[pin];
-	high = ioapic->redtbl[pin] >> 32;
+	low = ioapic->rtbl[pin].reg;
+	high = ioapic->rtbl[pin].reg >> 32;
 	if ((low & IOART_INTMASK) == IOART_INTMCLR &&
 	    (low & IOART_DESTMOD) == IOART_DESTPHY &&
 	    (low & IOART_DELMOD) == IOART_DELFIXED) {
@@ -124,19 +128,47 @@ ioapic_set_pinstate(struct vmctx *ctx, int pin, bool newstate)
 				vcpu++;
 			}
 		}
+	} else if ((low & IOART_INTMASK) != IOART_INTMCLR &&
+		   low & IOART_TRGRLVL) {
+		/*
+		 * For level-triggered interrupts that have been
+		 * masked, set the pending bit so that an interrupt
+		 * will be generated on unmask and if the level is
+		 * still asserted
+		 */
+		ioapic_setpend++;
+		ioapic->rtbl[pin].pending = true;
 	}
 }
 
+static void
+ioapic_set_pinstate_locked(struct vmctx *ctx, int pin, bool newstate)
+{
+	struct ioapic *ioapic;
+
+	if (pin < 0 || pin >= REDIR_ENTRIES)
+		return;
+
+	ioapic = &ioapics[0];
+
+	pthread_mutex_lock(&ioapic->mtx);
+	ioapic_set_pinstate(ctx, pin, newstate);
+	pthread_mutex_unlock(&ioapic->mtx);
+}
+
+/*
+ * External entry points require locking
+ */
 void
 ioapic_deassert_pin(struct vmctx *ctx, int pin)
 {
-	ioapic_set_pinstate(ctx, pin, false);
+	ioapic_set_pinstate_locked(ctx, pin, false);
 }
 
 void
 ioapic_assert_pin(struct vmctx *ctx, int pin)
 {
-	ioapic_set_pinstate(ctx, pin, true);
+	ioapic_set_pinstate_locked(ctx, pin, true);
 }
 
 void
@@ -154,9 +186,11 @@ ioapic_init(int which)
 
 	bzero(ioapic, sizeof(struct ioapic));
 
+	pthread_mutex_init(&ioapic->mtx, NULL);
+
 	/* Initialize all redirection entries to mask all interrupts */
 	for (i = 0; i < REDIR_ENTRIES; i++)
-		ioapic->redtbl[i] = 0x0001000000010000UL;
+		ioapic->rtbl[i].reg = 0x0001000000010000UL;
 
 	ioapic->paddr = IOAPIC_PADDR;
 
@@ -206,14 +240,15 @@ ioapic_read(struct ioapic *ioapic, uint32_t addr)
 		else
 			rshift = 0;
 
-		return (ioapic->redtbl[pin] >> rshift);
+		return (ioapic->rtbl[pin].reg >> rshift);
 	}
 
 	return (0);
 }
 
 static void
-ioapic_write(struct ioapic *ioapic, uint32_t addr, uint32_t data)
+ioapic_write(struct vmctx *vm, struct ioapic *ioapic, uint32_t addr,
+    uint32_t data)
 {
 	int regnum, pin, lshift;
 
@@ -241,14 +276,31 @@ ioapic_write(struct ioapic *ioapic, uint32_t addr, uint32_t data)
 		else
 			lshift = 0;
 
-		ioapic->redtbl[pin] &= ~((uint64_t)0xffffffff << lshift);
-		ioapic->redtbl[pin] |= ((uint64_t)data << lshift);
+		ioapic->rtbl[pin].reg &= ~((uint64_t)0xffffffff << lshift);
+		ioapic->rtbl[pin].reg |= ((uint64_t)data << lshift);
+	
+		if (ioapic->rtbl[pin].pending &&
+		    ((ioapic->rtbl[pin].reg & IOART_INTMASK) ==
+		         IOART_INTMCLR)) {
+			ioapic->rtbl[pin].pending = false;
+			ioapic_clearpend++;
+			/*
+			 * Inject the deferred level-triggered int if it is
+			 * still asserted. Simulate by toggling the pin
+			 * off and then on.
+			 */
+			if (ioapic->rtbl[pin].pinstate == true) {
+				ioapic_togglepend++;
+				ioapic_set_pinstate(vm, pin, false);
+				ioapic_set_pinstate(vm, pin, true);
+			}
+		}
 	}
 }
 
 static int
-ioapic_region_read(struct ioapic *ioapic, uintptr_t paddr, int size,
-		   uint64_t *data)
+ioapic_region_read(struct vmctx *vm, struct ioapic *ioapic, uintptr_t paddr,
+    int size, uint64_t *data)
 {
 	int offset;
 
@@ -276,8 +328,8 @@ ioapic_region_read(struct ioapic *ioapic, uintptr_t paddr, int size,
 }
 
 static int
-ioapic_region_write(struct ioapic *ioapic, uintptr_t paddr, int size,
-		    uint64_t data)
+ioapic_region_write(struct vmctx *vm, struct ioapic *ioapic, uintptr_t paddr,
+    int size, uint64_t data)
 {
 	int offset;
 
@@ -298,14 +350,14 @@ ioapic_region_write(struct ioapic *ioapic, uintptr_t paddr, int size,
 	if (offset == IOREGSEL)
 		ioapic->ioregsel = data;
 	else
-		ioapic_write(ioapic, ioapic->ioregsel, data);
+		ioapic_write(vm, ioapic, ioapic->ioregsel, data);
 
 	return (0);
 }
 
 static int
 ioapic_region_handler(struct vmctx *vm, int vcpu, int dir, uintptr_t paddr,
-		      int size, uint64_t *val, void *arg1, long arg2)
+    int size, uint64_t *val, void *arg1, long arg2)
 {
 	struct ioapic *ioapic;
 	int which;
@@ -315,10 +367,12 @@ ioapic_region_handler(struct vmctx *vm, int vcpu, int dir, uintptr_t paddr,
 
 	assert(ioapic == &ioapics[which]);
 
+	pthread_mutex_lock(&ioapic->mtx);
 	if (dir == MEM_F_READ)
-		ioapic_region_read(ioapic, paddr, size, val);
+		ioapic_region_read(vm, ioapic, paddr, size, val);
 	else
-		ioapic_region_write(ioapic, paddr, size, *val);
+		ioapic_region_write(vm, ioapic, paddr, size, *val);
+	pthread_mutex_unlock(&ioapic->mtx);
 
 	return (0);
 }

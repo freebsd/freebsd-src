@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_ioctl.h>

@@ -107,6 +107,10 @@ device		smcphy
 device		mii
 device		smsc
 
+# SPI
+device		spibus
+device		bcm2835_spi
+
 # Flattened Device Tree
 options         FDT
 # Note:  DTB is normally loaded and modified by RPi boot loader, then

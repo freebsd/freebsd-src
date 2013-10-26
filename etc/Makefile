@@ -139,6 +139,9 @@ BIN1+= regdomain.xml
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
 MTREE=	BSD.include.dist BSD.root.dist BSD.usr.dist BSD.var.dist
+.if ${MK_TESTS} != "no"
+MTREE+=	BSD.tests.dist
+.endif
 .if ${MK_SENDMAIL} != "no"
 MTREE+=	BSD.sendmail.dist
 .endif
@@ -221,7 +224,11 @@ distribution:
 	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install
 	${_+_}cd ${.CURDIR}/devd; ${MAKE} install
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
+	${_+_}cd ${.CURDIR}/keys; ${MAKE} install
 	${_+_}cd ${.CURDIR}/periodic; ${MAKE} install
+.if ${MK_PKGBOOTSTRAP} != "no"
+	${_+_}cd ${.CURDIR}/pkg; ${MAKE} install
+.endif
 	${_+_}cd ${.CURDIR}/rc.d; ${MAKE} install
 	${_+_}cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall
 	${_+_}cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap
@@ -313,6 +320,9 @@ MTREES+=	mtree/BSD.debug.dist		/usr/lib
 .endif
 .if ${MK_GROFF} != "no"
 MTREES+=	mtree/BSD.groff.dist		/usr
+.endif
+.if ${MK_TESTS} != "no"
+MTREES+=	mtree/BSD.tests.dist		${TESTSBASE}
 .endif
 .if ${MK_SENDMAIL} != "no"
 MTREES+=	mtree/BSD.sendmail.dist		/

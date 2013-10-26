@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -705,6 +706,8 @@ iwn4965_attach(struct iwn_softc *sc, uint16_t pid)
 	/* Override chains masks, ROM is known to be broken. */
 	sc->txchainmask = IWN_ANT_AB;
 	sc->rxchainmask = IWN_ANT_ABC;
+	/* Enable normal btcoex */
+	sc->sc_flags |= IWN_FLAG_BTCOEX;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "%s: end\n",__func__);
 
@@ -752,23 +755,40 @@ iwn5000_attach(struct iwn_softc *sc, uint16_t pid)
 		/* Override chains masks, ROM is known to be broken. */
 		sc->txchainmask = IWN_ANT_B;
 		sc->rxchainmask = IWN_ANT_AB;
+		/* Enable normal btcoex */
+		sc->sc_flags |= IWN_FLAG_BTCOEX;
 		break;
 	case IWN_HW_REV_TYPE_5150:
 		sc->limits = &iwn5150_sensitivity_limits;
 		sc->fwname = "iwn5150fw";
+		/* Enable normal btcoex */
+		sc->sc_flags |= IWN_FLAG_BTCOEX;
 		break;
 	case IWN_HW_REV_TYPE_5300:
 	case IWN_HW_REV_TYPE_5350:
 		sc->limits = &iwn5000_sensitivity_limits;
 		sc->fwname = "iwn5000fw";
+		/* Enable normal btcoex */
+		sc->sc_flags |= IWN_FLAG_BTCOEX;
 		break;
 	case IWN_HW_REV_TYPE_1000:
 		sc->limits = &iwn1000_sensitivity_limits;
 		sc->fwname = "iwn1000fw";
+		/* Enable normal btcoex */
+		sc->sc_flags |= IWN_FLAG_BTCOEX;
 		break;
 	case IWN_HW_REV_TYPE_6000:
 		sc->limits = &iwn6000_sensitivity_limits;
 		sc->fwname = "iwn6000fw";
+		/*
+		 * Disable btcoex for 6200.
+		 * XXX TODO: disable for 6205; no btcoex as well
+		 * (6230/6235 - enable bluetooth)
+		 */
+		if (pid != 0x422c) {
+			/* Enable normal btcoex */
+			sc->sc_flags |= IWN_FLAG_BTCOEX;
+		}
 		if (pid == 0x422c || pid == 0x4239) {
 			sc->sc_flags |= IWN_FLAG_INTERNAL_PA;
 			/* Override chains masks, ROM is known to be broken. */
@@ -782,14 +802,20 @@ iwn5000_attach(struct iwn_softc *sc, uint16_t pid)
 		/* Override chains masks, ROM is known to be broken. */
 		sc->txchainmask = IWN_ANT_AB;
 		sc->rxchainmask = IWN_ANT_AB;
+		/* Enable normal btcoex */
+		sc->sc_flags |= IWN_FLAG_BTCOEX;
 		break;
 	case IWN_HW_REV_TYPE_6005:
 		sc->limits = &iwn6000_sensitivity_limits;
 		if (pid != 0x0082 && pid != 0x0085) {
 			sc->fwname = "iwn6000g2bfw";
 			sc->sc_flags |= IWN_FLAG_ADV_BTCOEX;
-		} else
+		} else {
 			sc->fwname = "iwn6000g2afw";
+			/*
+			 * 6250 - disable bluetooth coexistence.
+			 */
+		}
 		break;
 	default:
 		device_printf(sc->sc_dev, "adapter type %d not supported\n",
@@ -797,6 +823,15 @@ iwn5000_attach(struct iwn_softc *sc, uint16_t pid)
 		DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end in error\n",__func__);
 		return ENOTSUP;
 	}
+	if (sc->sc_flags & IWN_FLAG_BTCOEX)
+		device_printf(sc->sc_dev,
+		    "enable basic bluetooth coexistence\n");
+	else if (sc->sc_flags & IWN_FLAG_ADV_BTCOEX)
+		device_printf(sc->sc_dev,
+		    "enable advanced bluetooth coexistence\n");
+	else
+		device_printf(sc->sc_dev,
+		    "disable bluetooth coexistence\n");
 	return 0;
 }
 
@@ -3476,6 +3511,53 @@ iwn5000_reset_sched(struct iwn_softc *sc, int qid, int idx)
 }
 #endif
 
+/*
+ * Check whether OFDM 11g protection will be enabled for the given rate.
+ *
+ * The original driver code only enabled protection for OFDM rates.
+ * It didn't check to see whether it was operating in 11a or 11bg mode.
+ */
+static int
+iwn_check_rate_needs_protection(struct iwn_softc *sc,
+    struct ieee80211vap *vap, uint8_t rate)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+
+	/*
+	 * Not in 2GHz mode? Then there's no need to enable OFDM
+	 * 11bg protection.
+	 */
+	if (! IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan)) {
+		return (0);
+	}
+
+	/*
+	 * 11bg protection not enabled? Then don't use it.
+	 */
+	if ((ic->ic_flags & IEEE80211_F_USEPROT) == 0)
+		return (0);
+
+	/*
+	 * If it's an 11n rate, then for now we enable
+	 * protection.
+	 */
+	if (rate & IEEE80211_RATE_MCS) {
+		return (1);
+	}
+
+	/*
+	 * Do a rate table lookup.  If the PHY is CCK,
+	 * don't do protection.
+	 */
+	if (ieee80211_rate2phytype(ic->ic_rt, rate) == IEEE80211_T_CCK)
+		return (0);
+
+	/*
+	 * Yup, enable protection.
+	 */
+	return (1);
+}
+
 static int
 iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 {
@@ -3496,7 +3578,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	uint16_t qos;
 	u_int hdrlen;
 	bus_dma_segment_t *seg, segs[IWN_MAX_SCATTER];
-	uint8_t tid, ridx, txant, type;
+	uint8_t tid, type;
 	int ac, i, totlen, error, pad, nsegs = 0, rate;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s begin\n", __func__);
@@ -3546,8 +3628,6 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
 		rate = ni->ni_txrate;
 	}
-	ridx = ieee80211_legacy_rate_lookup(ic->ic_rt,
-	    rate & IEEE80211_RATE_VAL);
 
 	/* Encrypt the frame if need be. */
 	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
@@ -3604,13 +3684,15 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		/* NB: Group frames are sent using CCK in 802.11b/g. */
 		if (totlen + IEEE80211_CRC_LEN > vap->iv_rtsthreshold) {
 			flags |= IWN_TX_NEED_RTS;
-		} else if ((ic->ic_flags & IEEE80211_F_USEPROT) &&
-		    ridx >= IWN_RIDX_OFDM6) {
+		} else if (iwn_check_rate_needs_protection(sc, vap, rate)) {
 			if (ic->ic_protmode == IEEE80211_PROT_CTSONLY)
 				flags |= IWN_TX_NEED_CTS;
 			else if (ic->ic_protmode == IEEE80211_PROT_RTSCTS)
 				flags |= IWN_TX_NEED_RTS;
 		}
+
+		/* XXX HT protection? */
+
 		if (flags & (IWN_TX_NEED_RTS | IWN_TX_NEED_CTS)) {
 			if (sc->hw_type != IWN_HW_REV_TYPE_4965) {
 				/* 5000 autoselects RTS/CTS or CTS-to-self. */
@@ -3654,6 +3736,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	tx->data_ntries = 15;
 	tx->lifetime = htole32(IWN_LIFETIME_INFINITE);
 	tx->rate = iwn_rate_to_plcp(sc, ni, rate);
+#if 0
 	if (tx->id == sc->broadcast_id) {
 		/* Group or management frame. */
 		tx->linkq = 0;
@@ -3661,9 +3744,21 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		txant = IWN_LSB(sc->txchainmask);
 		tx->rate |= htole32(IWN_RFLAG_ANT(txant));
 	} else {
+		/*
+		 * XXX This is no longer true.  ni_rates may actually
+		 * XXX need to be ni_htrates (for 11n rates) and thus
+		 * XXX ridx is totally bogus here.
+		 *
+		 * XXX So, break this out into a function and look up
+		 * XXX the correct place to start the MRR table rate
+		 * XXX attempt.
+		 */
 		tx->linkq = ni->ni_rates.rs_nrates - ridx - 1;
 		flags |= IWN_TX_LINKQ;	/* enable MRR */
 	}
+#else
+	tx->linkq = 0;	/* Don't enable MRR for now */
+#endif
 	/* Set physical address of "scratch area". */
 	tx->loaddr = htole32(IWN_LOADDR(data->scratch_paddr));
 	tx->hiaddr = IWN_HIADDR(data->scratch_paddr);
@@ -3756,9 +3851,9 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
     struct ieee80211_node *ni, const struct ieee80211_bpf_params *params)
 {
 	struct iwn_ops *ops = &sc->ops;
-	struct ifnet *ifp = sc->sc_ifp;
+//	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct ieee80211com *ic = ifp->if_l2com;
+//	struct ieee80211com *ic = ifp->if_l2com;
 	struct iwn_tx_cmd *cmd;
 	struct iwn_cmd_data *tx;
 	struct ieee80211_frame *wh;
@@ -3770,7 +3865,7 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	uint32_t flags;
 	u_int hdrlen;
 	int ac, totlen, error, pad, nsegs = 0, i, rate;
-	uint8_t ridx, type, txant;
+	uint8_t type;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s begin\n", __func__);
 
@@ -3786,16 +3881,8 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	desc = &ring->desc[ring->cur];
 	data = &ring->data[ring->cur];
 
-	/* Choose a TX rate index. */
+	/* Choose a TX rate. */
 	rate = params->ibp_rate0;
-	ridx = ieee80211_legacy_rate_lookup(ic->ic_rt,
-	    rate & IEEE80211_RATE_VAL);
-	if (ridx == (uint8_t)-1) {
-		/* XXX fall back to mcast/mgmt rate? */
-		m_freem(m);
-		return EINVAL;
-	}
-
 	totlen = m->m_pkthdr.len;
 
 	/* Prepare TX firmware command. */
@@ -3865,17 +3952,10 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	tx->rts_ntries = params->ibp_try1;
 	tx->data_ntries = params->ibp_try0;
 	tx->lifetime = htole32(IWN_LIFETIME_INFINITE);
-
-	/* XXX should just use  iwn_rate_to_plcp() */
-	tx->rate = htole32(rate2plcp(rate));
-	if (ridx < IWN_RIDX_OFDM6 &&
-	    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
-		tx->rate |= htole32(IWN_RFLAG_CCK);
+	tx->rate = iwn_rate_to_plcp(sc, ni, rate);
 
 	/* Group or management frame. */
 	tx->linkq = 0;
-	txant = IWN_LSB(sc->txchainmask);
-	tx->rate |= htole32(IWN_RFLAG_ANT(txant));
 
 	/* Set physical address of "scratch area". */
 	tx->loaddr = htole32(IWN_LOADDR(data->scratch_paddr));
@@ -5359,9 +5439,10 @@ iwn_config(struct iwn_softc *sc)
 	}
 
 	/* Configure bluetooth coexistence. */
+	error = 0;
 	if (sc->sc_flags & IWN_FLAG_ADV_BTCOEX)
 		error = iwn_send_advanced_btcoex(sc);
-	else
+	else if (sc->sc_flags & IWN_FLAG_BTCOEX)
 		error = iwn_send_btcoex(sc);
 	if (error != 0) {
 		device_printf(sc->sc_dev,

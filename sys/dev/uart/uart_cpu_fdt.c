@@ -35,6 +35,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <machine/bus.h>
 #include <machine/fdt.h>
 
@@ -86,7 +89,13 @@ int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {
 
-	return ((b1->bsh == b2->bsh && b1->bst == b2->bst) ? 1 : 0);
+	if (b1->bst != b2->bst)
+		return (0);
+	if (pmap_kextract(b1->bsh) == 0)
+		return (0);
+	if (pmap_kextract(b2->bsh) == 0)
+		return (0);
+	return ((pmap_kextract(b1->bsh) == pmap_kextract(b2->bsh)) ? 1 : 0);
 }
 
 int

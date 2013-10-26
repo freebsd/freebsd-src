@@ -1916,6 +1916,7 @@ dev/ofw/ofw_bus_subr.c		optional fdt
 dev/ofw/ofw_fdt.c		optional fdt
 dev/ofw/ofw_if.m		optional fdt
 dev/ofw/ofw_iicbus.c		optional fdt iicbus
+dev/ofw/ofw_nexus.c		optional fdt
 dev/ofw/openfirm.c		optional fdt
 dev/ofw/openfirmio.c		optional fdt
 dev/patm/if_patm.c		optional patm pci
@@ -2177,6 +2178,7 @@ dev/sound/midi/mpu_if.m		optional sound
 dev/sound/midi/mpufoi_if.m	optional sound
 dev/sound/midi/sequencer.c	optional sound
 dev/sound/midi/synth_if.m	optional sound
+dev/spibus/ofw_spibus.c		optional fdt spibus
 dev/spibus/spibus.c		optional spibus				\
 	dependency	"spibus_if.h"
 dev/spibus/spibus_if.m		optional spibus

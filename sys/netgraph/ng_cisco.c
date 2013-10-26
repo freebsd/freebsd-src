@@ -51,6 +51,7 @@
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/if_var.h>		/* XXXGL: ipx? */
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
