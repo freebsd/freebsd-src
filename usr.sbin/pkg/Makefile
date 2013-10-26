@@ -7,7 +7,7 @@ NO_MAN=	yes
 CFLAGS+=-I${.CURDIR}/../../contrib/libyaml/include
 .PATH:	${.CURDIR}/../../contrib/libyaml/include
 DPADD=	${LIBARCHIVE} ${LIBELF} ${LIBFETCH} ${LIBYAML} ${LIBSBUF}
-LDADD=	-larchive -lelf -lfetch -lyaml -lsbuf
+LDADD=	-larchive -lelf -lfetch -lyaml -lsbuf -lssl
 USEPRIVATELIB=	yaml
 
 .include <bsd.prog.mk>
