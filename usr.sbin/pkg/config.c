@@ -548,7 +548,8 @@ config_init(void)
 
 	if ((fp = fopen(confpath, "r")) == NULL) {
 		if (errno != ENOENT)
-			err(EXIT_FAILURE, "Unable to open configuration file %s", confpath);
+			err(EXIT_FAILURE, "Unable to open configuration "
+			    "file %s", confpath);
 		/* no configuration present */
 		goto finalize;
 	}
@@ -561,11 +562,13 @@ config_init(void)
 
 	if (node != NULL) {
 		if (node->type != YAML_MAPPING_NODE)
-			warnx("Invalid configuration format, ignoring the configuration file");
+			warnx("Invalid configuration format, ignoring the "
+			    "configuration file");
 		else
 			config_parse(&doc, node);
 	} else {
-		warnx("Invalid configuration format, ignoring the configuration file");
+		warnx("Invalid configuration format, ignoring the "
+		    "configuration file");
 	}
 
 	yaml_document_delete(&doc);
@@ -574,7 +577,8 @@ config_init(void)
 finalize:
 	if (c[ABI].val == NULL && c[ABI].value == NULL) {
 		if (pkg_get_myabi(abi, BUFSIZ) != 0)
-			errx(EXIT_FAILURE, "Failed to determine the system ABI");
+			errx(EXIT_FAILURE, "Failed to determine the system "
+			    "ABI");
 		c[ABI].val = abi;
 	}
 
