@@ -89,6 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/selinfo.h>
 #include <sys/sysctl.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/bpf.h>		/* BIOCIMMEDIATE */
 #include <net/vnet.h>
 #include <machine/bus.h>	/* bus_dmamap_* */
