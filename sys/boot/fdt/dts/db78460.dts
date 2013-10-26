@@ -283,6 +283,13 @@
 				};
 			};
 		};
+
+		sata@A0000 {
+			compatible = "mrvl,sata";
+			reg = <0xA0000 0x6000>;
+			interrupts = <55>;
+			interrupt-parent = <&MPIC>;
+		};
 	};
 
 	pci0: pcie@d0040000 {
