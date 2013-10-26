@@ -11,6 +11,10 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20131026:	p1	FreeBSD-EN-13:04.freebsd-update
+	Fix multiple freebsd-update bugs that break upgrading to
+	FreeBSD 10.0.
+
 20130705:
 	hastctl(8)'s `status' command output changed to terse one-liner format.
 	Scripts using this should switch to `list' command or be rewritten.
