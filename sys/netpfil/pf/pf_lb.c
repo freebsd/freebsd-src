@@ -42,10 +42,14 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mbuf.h>
+#include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/vnet.h>
 #include <net/pfvar.h>
 #include <net/if_pflog.h>
 #include <net/pf_mtag.h>

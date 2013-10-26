@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/in_cksum.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/pfil.h>

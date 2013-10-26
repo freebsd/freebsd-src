@@ -42,8 +42,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
+#include <sys/taskqueue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/ethernet.h>
 #include <net/if_media.h>
