@@ -315,9 +315,11 @@ static void		mmu_booke_activate(mmu_t, struct thread *);
 static void		mmu_booke_deactivate(mmu_t, struct thread *);
 static void		mmu_booke_bootstrap(mmu_t, vm_offset_t, vm_offset_t);
 static void		*mmu_booke_mapdev(mmu_t, vm_paddr_t, vm_size_t);
+static void		*mmu_booke_mapdev_attr(mmu_t, vm_paddr_t, vm_size_t, vm_memattr_t);
 static void		mmu_booke_unmapdev(mmu_t, vm_offset_t, vm_size_t);
 static vm_paddr_t	mmu_booke_kextract(mmu_t, vm_offset_t);
 static void		mmu_booke_kenter(mmu_t, vm_offset_t, vm_paddr_t);
+static void		mmu_booke_kenter_attr(mmu_t, vm_offset_t, vm_paddr_t, vm_memattr_t);
 static void		mmu_booke_kremove(mmu_t, vm_offset_t);
 static boolean_t	mmu_booke_dev_direct_mapped(mmu_t, vm_paddr_t, vm_size_t);
 static void		mmu_booke_sync_icache(mmu_t, pmap_t, vm_offset_t,
@@ -371,7 +373,9 @@ static mmu_method_t mmu_booke_methods[] = {
 	MMUMETHOD(mmu_bootstrap,	mmu_booke_bootstrap),
 	MMUMETHOD(mmu_dev_direct_mapped,mmu_booke_dev_direct_mapped),
 	MMUMETHOD(mmu_mapdev,		mmu_booke_mapdev),
+	MMUMETHOD(mmu_mapdev_attr,	mmu_booke_mapdev_attr),
 	MMUMETHOD(mmu_kenter,		mmu_booke_kenter),
+	MMUMETHOD(mmu_kenter_attr,	mmu_booke_kenter_attr),
 	MMUMETHOD(mmu_kextract,		mmu_booke_kextract),
 /*	MMUMETHOD(mmu_kremove,		mmu_booke_kremove),	*/
 	MMUMETHOD(mmu_unmapdev,		mmu_booke_unmapdev),
@@ -385,6 +389,42 @@ static mmu_method_t mmu_booke_methods[] = {
 };
 
 MMU_DEF(booke_mmu, MMU_TYPE_BOOKE, mmu_booke_methods, 0);
+
+static __inline uint32_t
+tlb_calc_wimg(vm_offset_t pa, vm_memattr_t ma)
+{
+	uint32_t attrib;
+	int i;
+
+	if (ma != VM_MEMATTR_DEFAULT) {
+		switch (ma) {
+		case VM_MEMATTR_UNCACHEABLE:
+			return (PTE_I | PTE_G);
+		case VM_MEMATTR_WRITE_COMBINING:
+		case VM_MEMATTR_WRITE_BACK:
+		case VM_MEMATTR_PREFETCHABLE:
+			return (PTE_I);
+		case VM_MEMATTR_WRITE_THROUGH:
+			return (PTE_W | PTE_M);
+		}
+	}
+
+	/*
+	 * Assume the page is cache inhibited and access is guarded unless
+	 * it's in our available memory array.
+	 */
+	attrib = _TLB_ENTRY_IO;
+	for (i = 0; i < physmem_regions_sz; i++) {
+		if ((pa >= physmem_regions[i].mr_start) &&
+		    (pa < (physmem_regions[i].mr_start +
+		     physmem_regions[i].mr_size))) {
+			attrib = _TLB_ENTRY_MEM;
+			break;
+		}
+	}
+
+	return (attrib);
+}
 
 static inline void
 tlb_miss_lock(void)
@@ -1392,6 +1432,13 @@ mmu_booke_qremove(mmu_t mmu, vm_offset_t sva, int count)
 static void
 mmu_booke_kenter(mmu_t mmu, vm_offset_t va, vm_paddr_t pa)
 {
+
+	mmu_booke_kenter_attr(mmu, va, pa, VM_MEMATTR_DEFAULT);
+}
+
+static void
+mmu_booke_kenter_attr(mmu_t mmu, vm_offset_t va, vm_paddr_t pa, vm_memattr_t ma)
+{
 	unsigned int pdir_idx = PDIR_IDX(va);
 	unsigned int ptbl_idx = PTBL_IDX(va);
 	uint32_t flags;
@@ -1400,7 +1447,8 @@ mmu_booke_kenter(mmu_t mmu, vm_offset_t va, vm_paddr_t pa)
 	KASSERT(((va >= VM_MIN_KERNEL_ADDRESS) &&
 	    (va <= VM_MAX_KERNEL_ADDRESS)), ("mmu_booke_kenter: invalid va"));
 
-	flags = PTE_M | PTE_SR | PTE_SW | PTE_SX | PTE_WIRED | PTE_VALID;
+	flags = PTE_SR | PTE_SW | PTE_SX | PTE_WIRED | PTE_VALID;
+	flags |= tlb_calc_wimg(pa, ma);
 
 	pte = &(kernel_pmap->pm_pdir[pdir_idx][ptbl_idx]);
 
@@ -2595,6 +2643,13 @@ mmu_booke_scan_md(mmu_t mmu, struct pmap_md *prev)
 static void *
 mmu_booke_mapdev(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
 {
+
+	return (mmu_booke_mapdev_attr(mmu, pa, size, VM_MEMATTR_DEFAULT));
+}
+
+static void *
+mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
+{
 	void *res;
 	uintptr_t va;
 	vm_size_t sz;
@@ -2606,22 +2661,28 @@ mmu_booke_mapdev(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
 	 * would be 0. This creates a false positive (i.e. we think it's
 	 * within the CCSR) and not create a mapping.
 	 */
-	if (pa >= ccsrbar_pa && (pa + size - 1) < (ccsrbar_pa + CCSRBAR_SIZE)) {
+	if (ma == VM_MEMATTR_DEFAULT && pa >= ccsrbar_pa &&
+	    (pa + size - 1) < (ccsrbar_pa + CCSRBAR_SIZE)) {
 		va = CCSRBAR_VA + (pa - ccsrbar_pa);
 		return ((void *)va);
 	}
 
-	va = (pa >= 0x80000000) ? pa : (0xe2000000 + pa);
-	res = (void *)va;
 	if (size < PAGE_SIZE)
 	    size = PAGE_SIZE;
+
+	if (pa >= (VM_MAXUSER_ADDRESS + PAGE_SIZE) &&
+	    (pa + size - 1) < VM_MIN_KERNEL_ADDRESS) 
+		va = pa;
+	else
+		va = kva_alloc(size);
+	res = (void *)va;
 
 	do {
 		sz = 1 << (ilog2(size) & ~1);
 		if (bootverbose)
 			printf("Wiring VA=%x to PA=%x (size=%x), "
 			    "using TLB1[%d]\n", va, pa, sz, tlb1_idx);
-		tlb1_set_entry(va, pa, sz, _TLB_ENTRY_IO);
+		tlb1_set_entry(va, pa, sz, tlb_calc_wimg(pa, ma));
 		size -= sz;
 		pa += sz;
 		va += sz;
