@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013 Baptiste Daroussin <bapt@FreeBSD.org>
+ * Copyright (c) 2013 Bryan Drewery <bdrewery@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,7 +87,21 @@ static struct config_entry c[] = {
 		"NO",
 		NULL,
 		false,
-	}
+	},
+	[SIGNATURE_TYPE] = {
+		PKG_CONFIG_STRING,
+		"SIGNATURE_TYPE",
+		NULL,
+		NULL,
+		false,
+	},
+	[FINGERPRINTS] = {
+		PKG_CONFIG_STRING,
+		"FINGERPRINTS",
+		NULL,
+		NULL,
+		false,
+	},
 };
 
 static const char *
@@ -509,6 +524,12 @@ config_parse(yaml_document_t *doc, yaml_node_t *node, pkg_conf_file_t conftype)
 			else if (strcasecmp(key->data.scalar.value,
 			    "mirror_type") == 0)
 				sbuf_cpy(buf, "MIRROR_TYPE");
+			else if (strcasecmp(key->data.scalar.value,
+			    "signature_type") == 0)
+				sbuf_cpy(buf, "SIGNATURE_TYPE");
+			else if (strcasecmp(key->data.scalar.value,
+			    "fingerprints") == 0)
+				sbuf_cpy(buf, "FINGERPRINTS");
 			else { /* Skip unknown entries for future use. */
 				++pair;
 				continue;
