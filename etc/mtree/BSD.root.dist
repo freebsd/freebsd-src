@@ -35,13 +35,13 @@
         gss
         ..
         keys
-	    pkg
+            pkg
                 revoked
                 ..
                 trusted
                 ..
-	    ..
-	..
+            ..
+        ..
         mail
         ..
         mtree
@@ -60,8 +60,8 @@
             weekly
             ..
         ..
-	pkg
-	..
+        pkg
+        ..
         ppp
         ..
         rc.d
