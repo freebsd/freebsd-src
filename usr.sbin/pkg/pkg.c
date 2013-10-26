@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include "config.h"
 
 struct sig_cert {
+	char *name;
 	unsigned char *sig;
 	int siglen;
 	unsigned char *cert;
@@ -72,6 +73,7 @@ typedef enum {
 
 struct fingerprint {
        hash_t type;
+       char *name;
        char hash[BUFSIZ];
        STAILQ_ENTRY(fingerprint) next;
 };
@@ -316,6 +318,19 @@ parse_fingerprint(yaml_document_t *doc, yaml_node_t *node)
 	return (f);
 }
 
+static void
+free_fingerprint_list(struct fingerprint_list* list)
+{
+	struct fingerprint* fingerprint;
+
+	STAILQ_FOREACH(fingerprint, list, next) {
+		if (fingerprint->name)
+			free(fingerprint->name);
+		free(fingerprint);
+	}
+	free(list);
+}
+
 static struct fingerprint *
 load_fingerprint(const char *dir, const char *filename)
 {
@@ -342,6 +357,7 @@ load_fingerprint(const char *dir, const char *filename)
 		goto out;
 
 	f = parse_fingerprint(&doc, node);
+	f->name = strdup(filename);
 
 out:
 	yaml_document_delete(&doc);
@@ -511,7 +527,6 @@ rsa_verify_cert(int fd, const unsigned char *key, int keylen,
 	}
 
 	/* Verify signature of the SHA256(pkg) is valid. */
-	printf("Verifying signature... ");
 	if ((mdctx = EVP_MD_CTX_create()) == NULL) {
 		warnx("%s", ERR_error_string(ERR_get_error(), errbuf));
 		goto error;
@@ -631,6 +646,7 @@ verify_signature(int fd_pkg, int fd_sig)
 	char path[MAXPATHLEN];
 	char hash[SHA256_DIGEST_LENGTH * 2 + 1];
 
+	sc = NULL;
 	trusted = revoked = NULL;
 	ret = false;
 
@@ -672,8 +688,9 @@ verify_signature(int fd_pkg, int fd_sig)
 	if (revoked != NULL) {
 		STAILQ_FOREACH(fingerprint, revoked, next) {
 			if (strcasecmp(fingerprint->hash, hash) == 0) {
-				fprintf(stderr, "The certificate has been "
-				    "revoked\n");
+				fprintf(stderr, "The package was signed with "
+				    "revoked certificate %s\n",
+				    fingerprint->name);
 				goto cleanup;
 			}
 		}
@@ -682,17 +699,19 @@ verify_signature(int fd_pkg, int fd_sig)
 	STAILQ_FOREACH(fingerprint, trusted, next) {
 		if (strcasecmp(fingerprint->hash, hash) == 0) {
 			sc->trusted = true;
+			sc->name = strdup(fingerprint->name);
 			break;
 		}
 	}
 
 	if (sc->trusted == false) {
-		fprintf(stderr, "No trusted certificate found matching "
+		fprintf(stderr, "No trusted fingerprint found matching "
 		    "package's certificate\n");
 		goto cleanup;
 	}
 
 	/* Verify the signature. */
+	printf("Verifying signature with trusted certificate %s... ", sc->name);
 	if (rsa_verify_cert(fd_pkg, sc->cert, sc->certlen, sc->sig,
 	    sc->siglen) == false) {
 		fprintf(stderr, "Signature is not valid\n");
@@ -702,21 +721,17 @@ verify_signature(int fd_pkg, int fd_sig)
 	ret = true;
 
 cleanup:
-	if (trusted) {
-		STAILQ_FOREACH(fingerprint, trusted, next)
-		    free(fingerprint);
-		free(trusted);
-	}
-	if (revoked) {
-		STAILQ_FOREACH(fingerprint, revoked, next)
-		    free(fingerprint);
-		free(revoked);
-	}
+	if (trusted)
+		free_fingerprint_list(trusted);
+	if (revoked)
+		free_fingerprint_list(revoked);
 	if (sc) {
 		if (sc->cert)
 			free(sc->cert);
 		if (sc->sig)
 			free(sc->sig);
+		if (sc->name)
+			free(sc->name);
 		free(sc);
 	}
 
