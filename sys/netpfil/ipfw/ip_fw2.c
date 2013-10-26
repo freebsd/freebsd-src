@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 #include <net/ethernet.h> /* for ETHERTYPE_IP */
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/pf_mtag.h>
 #include <net/pfil.h>

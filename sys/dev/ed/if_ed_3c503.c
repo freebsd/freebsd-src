@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>		/* XXX: ed_3c503_mediachg() */
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_mib.h>
