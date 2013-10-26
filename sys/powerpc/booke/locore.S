@@ -158,7 +158,7 @@ __start:
 	mtspr	SPR_MAS0, %r3
 	isync
 
-	li	%r3, (TLB_SIZE_16M << MAS1_TSIZE_SHIFT)@l
+	li	%r3, (TLB_SIZE_64M << MAS1_TSIZE_SHIFT)@l
 	oris	%r3, %r3, (MAS1_VALID | MAS1_IPROT)@h
 	mtspr	SPR_MAS1, %r3		/* note TS was not filled, so it's TS=0 */
 	isync
