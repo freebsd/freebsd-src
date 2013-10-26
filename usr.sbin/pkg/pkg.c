@@ -487,7 +487,7 @@ load_public_key_buf(const unsigned char *cert, int certlen)
 	BIO *bp;
 	char errbuf[1024];
 
-	bp = BIO_new_mem_buf((void *)cert, certlen);
+	bp = BIO_new_mem_buf(__DECONST(void *, cert), certlen);
 
 	if ((pkey = PEM_read_bio_PUBKEY(bp, NULL, NULL, NULL)) == NULL)
 		warnx("%s", ERR_error_string(ERR_get_error(), errbuf));
@@ -573,6 +573,7 @@ parse_cert(int fd) {
 	size_t linecap;
 	ssize_t linelen;
 
+	buf = NULL;
 	my_fd = -1;
 	sc = NULL;
 	line = NULL;
