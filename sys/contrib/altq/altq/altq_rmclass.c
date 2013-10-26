@@ -59,12 +59,14 @@
 #endif
 
 #include <net/if.h>
+#include <net/if_var.h>
 #ifdef ALTQ3_COMPAT
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #endif
 
+#include <altq/if_altq.h>
 #include <altq/altq.h>
 #include <altq/altq_rmclass.h>
 #include <altq/altq_rmclass_debug.h>
