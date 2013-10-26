@@ -116,6 +116,7 @@
 			reg-shift = <2>;
 			current-speed = <115200>;
 			clock-frequency = <0>;
+			busy-detect = <1>;
 			interrupts = <41>;
 			interrupt-parent = <&MPIC>;
 		};
@@ -126,6 +127,7 @@
 			reg-shift = <2>;
 			current-speed = <115200>;
 			clock-frequency = <0>;
+			busy-detect = <1>;
 			interrupts = <42>;
 			interrupt-parent = <&MPIC>;
 		};
@@ -136,6 +138,7 @@
 			reg-shift = <2>;
 			current-speed = <115200>;
 			clock-frequency = <0>;
+			busy-detect = <1>;
 			interrupts = <43>;
 			interrupt-parent = <&MPIC>;
 		};
@@ -146,6 +149,7 @@
 			reg-shift = <2>;
 			current-speed = <115200>;
 			clock-frequency = <0>;
+			busy-detect = <1>;
 			interrupts = <44>;
 			interrupt-parent = <&MPIC>;
 		};
