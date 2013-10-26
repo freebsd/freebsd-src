@@ -135,7 +135,7 @@ cleanup:
 }
 
 static int
-install_pkg_static(char *path, char *pkgpath)
+install_pkg_static(const char *path, const char *pkgpath)
 {
 	int pstat;
 	pid_t pid;
@@ -864,13 +864,54 @@ pkg_query_yes_no(void)
 	return (ret);
 }
 
+static int
+bootstrap_pkg_local(const char *pkgpath)
+{
+	char path[MAXPATHLEN];
+	char pkgstatic[MAXPATHLEN];
+	const char *signature_type;
+	int fd_pkg, fd_sig, ret;
+
+	fd_sig = -1;
+	ret = -1;
+
+	fd_pkg = open(pkgpath, O_RDONLY);
+	if (fd_pkg == -1)
+		err(EXIT_FAILURE, "Unable to open %s", pkgpath);
+
+	if (config_string(SIGNATURE_TYPE, &signature_type) != 0) {
+		warnx("Error looking up SIGNATURE_TYPE");
+		return (-1);
+	}
+	if (signature_type != NULL &&
+	    strcasecmp(signature_type, "FINGERPRINTS") == 0) {
+		snprintf(path, sizeof(path), "%s.sig", pkgpath);
+
+		if ((fd_sig = open(path, O_RDONLY)) == -1) {
+			fprintf(stderr, "Signature for pkg not available.\n");
+			goto cleanup;
+		}
+
+		if (verify_signature(fd_pkg, fd_sig) == false)
+			goto cleanup;
+	}
+
+	if ((ret = extract_pkg_static(fd_pkg, pkgstatic, MAXPATHLEN)) == 0)
+		ret = install_pkg_static(pkgstatic, pkgpath);
+
+cleanup:
+	close(fd_pkg);
+	if (fd_sig != -1)
+		close(fd_sig);
+
+	return (ret);
+}
+
 int
 main(__unused int argc, char *argv[])
 {
 	char pkgpath[MAXPATHLEN];
-	char pkgstatic[MAXPATHLEN];
 	bool yes = false;
-	int fd, ret;
 
 	snprintf(pkgpath, MAXPATHLEN, "%s/sbin/pkg",
 	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
@@ -884,16 +925,11 @@ main(__unused int argc, char *argv[])
 		if (argv[1] != NULL && strcmp(argv[1], "-N") == 0)
 			errx(EXIT_FAILURE, "pkg is not installed");
 
+		config_init();
+
 		if (argc > 2 && strcmp(argv[1], "add") == 0 &&
 		    access(argv[2], R_OK) == 0) {
-			fd = open(argv[2], O_RDONLY);
-			if (fd == -1)
-				err(EXIT_FAILURE, "Unable to open %s", argv[2]);
-
-			if ((ret = extract_pkg_static(fd, pkgstatic, MAXPATHLEN)) == 0)
-				ret = install_pkg_static(pkgstatic, argv[2]);
-			close(fd);
-			if (ret != 0)
+			if (bootstrap_pkg_local(argv[2]) != 0)
 				exit(EXIT_FAILURE);
 			exit(EXIT_SUCCESS);
 		}
@@ -902,7 +938,6 @@ main(__unused int argc, char *argv[])
 		 * not tty. Check the environment to see if user has answer
 		 * tucked in there already.
 		 */
-		config_init();
 		config_bool(ASSUME_ALWAYS_YES, &yes);
 		if (!yes) {
 			printf("%s", confirmation_message);
