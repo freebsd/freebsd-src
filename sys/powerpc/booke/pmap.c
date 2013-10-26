@@ -1355,6 +1355,15 @@ mmu_booke_extract(mmu_t mmu, pmap_t pmap, vm_offset_t va)
 static vm_paddr_t
 mmu_booke_kextract(mmu_t mmu, vm_offset_t va)
 {
+	int i;
+
+	/* Check TLB1 mappings */
+	for (i = 0; i < tlb1_idx; i++) {
+		if (!(tlb1[i].mas1 & MAS1_VALID))
+			continue;
+		if (va >= tlb1[i].virt && va < tlb1[i].virt + tlb1[i].size)
+			return (tlb1[i].phys + (va - tlb1[i].virt));
+	}
 
 	return (pte_vatopa(mmu, kernel_pmap, va));
 }
@@ -2697,6 +2706,7 @@ mmu_booke_mapdev_attr(mmu_t mmu, vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 static void
 mmu_booke_unmapdev(mmu_t mmu, vm_offset_t va, vm_size_t size)
 {
+#ifdef SUPPORTS_SHRINKING_TLB1
 	vm_offset_t base, offset;
 
 	/*
@@ -2708,6 +2718,7 @@ mmu_booke_unmapdev(mmu_t mmu, vm_offset_t va, vm_size_t size)
 		size = roundup(offset + size, PAGE_SIZE);
 		kva_free(base, size);
 	}
+#endif
 }
 
 /*
@@ -2974,9 +2985,10 @@ tlb1_set_entry(vm_offset_t va, vm_offset_t pa, vm_size_t size,
     uint32_t flags)
 {
 	uint32_t ts, tid;
-	int tsize;
-	
-	if (tlb1_idx >= TLB1_ENTRIES) {
+	int tsize, index;
+
+	index = atomic_fetchadd_int(&tlb1_idx, 1);
+	if (index >= TLB1_ENTRIES) {
 		printf("tlb1_set_entry: TLB1 full!\n");
 		return (-1);
 	}
@@ -2988,18 +3000,22 @@ tlb1_set_entry(vm_offset_t va, vm_offset_t pa, vm_size_t size,
 	/* XXX TS is hard coded to 0 for now as we only use single address space */
 	ts = (0 << MAS1_TS_SHIFT) & MAS1_TS_MASK;
 
-	/* XXX LOCK tlb1[] */
+	/*
+	 * Atomicity is preserved by the atomic increment above since nothing
+	 * is ever removed from tlb1.
+	 */
 
-	tlb1[tlb1_idx].mas1 = MAS1_VALID | MAS1_IPROT | ts | tid;
-	tlb1[tlb1_idx].mas1 |= ((tsize << MAS1_TSIZE_SHIFT) & MAS1_TSIZE_MASK);
-	tlb1[tlb1_idx].mas2 = (va & MAS2_EPN_MASK) | flags;
+	tlb1[index].phys = pa;
+	tlb1[index].virt = va;
+	tlb1[index].size = size;
+	tlb1[index].mas1 = MAS1_VALID | MAS1_IPROT | ts | tid;
+	tlb1[index].mas1 |= ((tsize << MAS1_TSIZE_SHIFT) & MAS1_TSIZE_MASK);
+	tlb1[index].mas2 = (va & MAS2_EPN_MASK) | flags;
 
 	/* Set supervisor RWX permission bits */
-	tlb1[tlb1_idx].mas3 = (pa & MAS3_RPN) | MAS3_SR | MAS3_SW | MAS3_SX;
+	tlb1[index].mas3 = (pa & MAS3_RPN) | MAS3_SR | MAS3_SW | MAS3_SX;
 
-	tlb1_write_entry(tlb1_idx++);
-
-	/* XXX UNLOCK tlb1[] */
+	tlb1_write_entry(index);
 
 	/*
 	 * XXX in general TLB1 updates should be propagated between CPUs,
