@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/rtas.h>
 #include <machine/smp.h>
 #include <machine/spr.h>
-#include <machine/trap_aim.h>
+#include <machine/trap.h>
 
 #include <dev/ofw/openfirm.h>
 #include <machine/ofw_machdep.h>
