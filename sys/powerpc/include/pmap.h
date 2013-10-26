@@ -254,6 +254,8 @@ extern void pmap_dumpsys_unmap(struct pmap_md *, vm_size_t, vm_offset_t);
 
 extern struct pmap_md *pmap_scan_md(struct pmap_md *);
 
+vm_offset_t pmap_early_io_map(vm_paddr_t pa, vm_size_t size);
+
 #endif
 
 #endif /* !_MACHINE_PMAP_H_ */
