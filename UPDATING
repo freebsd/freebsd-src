@@ -9,6 +9,10 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20131026:	p8	FreeBSD-EN-13:04.freebsd-update
+	Fix multiple freebsd-update bugs that break upgrading to
+	FreeBSD 10.0.
+
 20130910:	p7	FreeBSD-SA-13:12.ifioctl
 			FreeBSD-SA-13:13.nullfs
 
