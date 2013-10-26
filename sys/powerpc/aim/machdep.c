@@ -775,3 +775,11 @@ va_to_vsid(pmap_t pm, vm_offset_t va)
 }
 
 #endif
+
+vm_offset_t
+pmap_early_io_map(vm_paddr_t pa, vm_size_t size)
+{
+
+	return (pa);
+}
+
