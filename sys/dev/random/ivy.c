@@ -64,12 +64,12 @@ ivy_rng_store(long *tmp)
 
 	__asm __volatile(
 #ifdef __amd64__
-	    ".byte\t0x48,0x0f,0xc7,0xf0\n\t" /* rdrand %rax */
+	    "rdrand\t%%rax\n\t"
 	    "jnc\t1f\n\t"
 	    "movq\t%%rax,%1\n\t"
 	    "movl\t$8,%%eax\n"
 #else /* i386 */
-	    ".byte\t0x0f,0xc7,0xf0\n\t" /* rdrand %eax */
+	    "rdrand\t%%eax\n\t"
 	    "jnc\t1f\n\t"
 	    "movl\t%%eax,%1\n\t"
 	    "movl\t$4,%%eax\n"
