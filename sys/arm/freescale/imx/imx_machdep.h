@@ -22,49 +22,39 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include "opt_platform.h"
+#ifndef	IMX_MACHDEP_H
+#define	IMX_MACHDEP_H
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#include <sys/types.h>
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/bus.h>
-#include <sys/reboot.h>
+/* Common functions, implemented in imx_machdep.c. */
 
-#include <machine/machdep.h>
-#include <arm/freescale/imx/imx_machdep.h>
+void imx_devmap_addentry(vm_paddr_t _pa, vm_size_t _sz);
+void imx_wdog_cpu_reset(vm_offset_t _wdcr_phys)  __attribute__((__noreturn__));
 
 /*
- * Set up static device mappings.  This is hand-optimized platform-specific
- * config data which covers most of the common on-chip devices with a few 1MB
- * section mappings.
- *
- * Notably missing are entries for GPU, IPU, in general anything video related.
- *
- * Note that for imx this is called from initarm_lastaddr() so that the lowest
- * kva address used for static device mapping can be known at that point.
+ * SoC identity.
  */
-void
-imx_devmap_init(void)
-{
+#define	IMXSOC_51	0x05000100
+#define	IMXSOC_53	0x05000300
+#define	IMXSOC_6S	0x06000010
+#define	IMXSOC_6SL	0x06000011
+#define	IMXSOC_6D	0x06000020
+#define	IMXSOC_6DL	0x06000021
+#define	IMXSOC_6Q	0x06000040
+#define	IMXSOC_6QL	0x06000041
+#define	IMXSOC_FAMSHIFT	24
 
-	imx_devmap_addentry(0x70000000, 0x00100000);
-	imx_devmap_addentry(0x73f00000, 0x00100000);
-	imx_devmap_addentry(0x83f00000, 0x00100000);
-}
+u_int imx_soc_type(void);
+u_int imx_soc_family(void);
 
-void
-cpu_reset(void)
-{
+/* From here down, routines are implemented in imxNN_machdep.c. */
 
-	imx_wdog_cpu_reset(0x73F98000);
-}
+void imx_devmap_init(void);
 
-u_int imx_soc_type()
-{
-	return (IMXSOC_51);
-}
+#endif
 
