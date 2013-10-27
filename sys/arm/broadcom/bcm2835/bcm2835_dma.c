@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
-#include <machine/pmap.h>
 
 #include "bcm2835_dma.h"
 #include "bcm2835_vcbus.h"
