@@ -63,7 +63,7 @@ initarm_lastaddr(void)
 {
 
 	ti_cpu_reset = NULL;
-	return (DEVMAP_BOOTSTRAP_MAP_START - ARM_NOCACHE_KVA_SIZE);
+	return (DEVMAP_BOOTSTRAP_MAP_START);
 }
 
 void
