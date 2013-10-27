@@ -158,7 +158,7 @@ ofwfb_initialize(struct vt_device *vd)
 	switch (sc->sc_depth) {
 	case 8:
 		vt_generate_vga_palette(sc->sc_colormap, COLOR_FORMAT_RGB, 255,
-		    16, 255, 8, 255, 0);
+		    0, 255, 8, 255, 16);
 
 		for (i = 0; i < 16; i++) {
 			OF_call_method("color!", ih, 4, 1,
