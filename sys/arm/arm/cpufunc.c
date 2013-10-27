@@ -1721,7 +1721,7 @@ int
 early_abort_fixup(arg)
 	void *arg;
 {
-	trapframe_t *frame = arg;
+	struct trapframe *frame = arg;
 	u_int fault_pc;
 	u_int fault_instruction;
 	int saved_lr = 0;
@@ -1862,7 +1862,7 @@ int
 late_abort_fixup(arg)
 	void *arg;
 {
-	trapframe_t *frame = arg;
+	struct trapframe *frame = arg;
 	u_int fault_pc;
 	u_int fault_instruction;
 	int saved_lr = 0;
