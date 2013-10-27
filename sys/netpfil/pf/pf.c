@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <net/pfvar.h>
-#include <net/pf_mtag.h>
 #include <net/if_pflog.h>
 #include <net/if_pfsync.h>
 
