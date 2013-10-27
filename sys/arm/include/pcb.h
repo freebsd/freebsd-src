@@ -81,7 +81,11 @@ struct pcb {
 	struct	pcb_arm32 un_32;
 	struct vfp_state pcb_vfpstate;          /* VP/NEON state */
 	u_int pcb_vfpcpu;                       /* VP/NEON last cpu */
-};
+} __aligned(8); /* 
+		 * We need the PCB to be aligned on 8 bytes, as we may
+		 * access it using ldrd/strd, and some CPUs require it
+		 * to by aligned on 8 bytes.
+		 */
 
 /*
  * No additional data for core dumps.
