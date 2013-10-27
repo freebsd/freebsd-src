@@ -285,8 +285,13 @@ print_state(struct pfsync_state *s, int opts)
 		const char *states[] = PFUDPS_NAMES;
 
 		printf("   %s:%s\n", states[src->state], states[dst->state]);
+#ifndef INET6
 	} else if (s->proto != IPPROTO_ICMP && src->state < PFOTHERS_NSTATES &&
 	    dst->state < PFOTHERS_NSTATES) {
+#else
+	} else if (s->proto != IPPROTO_ICMP && s->proto != IPPROTO_ICMPV6 &&
+	    src->state < PFOTHERS_NSTATES && dst->state < PFOTHERS_NSTATES) {
+#endif
 		/* XXX ICMP doesn't really have state levels */
 		const char *states[] = PFOTHERS_NAMES;
 
