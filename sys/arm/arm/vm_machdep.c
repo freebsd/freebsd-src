@@ -295,7 +295,7 @@ done:
 void
 cpu_set_syscall_retval(struct thread *td, int error)
 {
-	trapframe_t *frame;
+	struct trapframe *frame;
 	int fixup;
 #ifdef __ARMEB__
 	uint32_t insn;
