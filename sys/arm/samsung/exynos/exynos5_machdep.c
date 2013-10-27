@@ -49,7 +49,7 @@ vm_offset_t
 initarm_lastaddr(void)
 {
 
-	return (DEVMAP_BOOTSTRAP_MAP_START - ARM_NOCACHE_KVA_SIZE);
+	return (DEVMAP_BOOTSTRAP_MAP_START);
 }
 
 void

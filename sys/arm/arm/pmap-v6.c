@@ -1951,7 +1951,6 @@ pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 	virtual_avail = round_page(virtual_avail);
 	virtual_end = vm_max_kernel_address;
 	kernel_vm_end = pmap_curmaxkvaddr;
-	arm_nocache_startaddr = vm_max_kernel_address;
 	mtx_init(&cmtx, "TMP mappings mtx", NULL, MTX_DEF);
 
 	pmap_set_pcb_pagedir(kernel_pmap, thread0.td_pcb);

@@ -735,11 +735,6 @@ struct arm_small_page {
 
 #endif
 
-#define ARM_NOCACHE_KVA_SIZE 0x1000000
-extern vm_offset_t arm_nocache_startaddr;
-void *arm_remap_nocache(void *, vm_size_t);
-void arm_unmap_nocache(void *, vm_size_t);
-
 extern vm_paddr_t dump_avail[];
 #endif	/* _KERNEL */
 
