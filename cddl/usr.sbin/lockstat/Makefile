@@ -3,7 +3,6 @@
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/cmd/lockstat
 
 PROG=		lockstat
-NO_MAN=
 SRCS=		lockstat.c sym.c
 BINDIR?=	/usr/sbin
 
