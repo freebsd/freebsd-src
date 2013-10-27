@@ -65,8 +65,8 @@
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 
-#include <net/pf.h>
-#include <net/pf_altq.h>
+#include <netpfil/pf/pf.h>
+#include <netpfil/pf/pf_altq.h>
 #include <altq/altq.h>
 #ifdef ALTQ3_COMPAT
 #include <altq/altq_conf.h>
