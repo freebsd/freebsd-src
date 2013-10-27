@@ -4994,7 +4994,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 				return (PF_DROP);
 			}
 
-			icmpid = iih.icmp_id;
+			pd2.hdr.icmp = &iih;
 			pf_icmp_mapping(&pd2, iih.icmp_type,
 			    &icmp_dir, &multi, &virtual_id, &virtual_type);
 
@@ -5049,6 +5049,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 				return (PF_DROP);
 			}
 
+			pd2.hdr.icmp6 = &iih;
 			pf_icmp_mapping(&pd2, iih.icmp6_type,
 			    &icmp_dir, &multi, &virtual_id, &virtual_type);
 			ret = pf_icmp_state_lookup(&key, &pd2, state, m,
