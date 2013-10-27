@@ -38,7 +38,6 @@
 #ifndef	_MACHINE_PCB_H_
 #define	_MACHINE_PCB_H_
 
-#include <machine/frame.h>
 #include <machine/fp.h>
 
 
