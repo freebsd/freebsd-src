@@ -100,6 +100,14 @@ or
 causes the
 .Fn fopen
 call to fail if the file already exists.
+An optional
+.Dq Li e
+following the above
+causes the
+.Fn fopen
+call to set the
+.Dv FD_CLOEXEC
+flag on the underlying file descriptor.
 .Pp
 The
 .Fa mode
@@ -149,6 +157,11 @@ of the stream must be compatible with the mode of the file descriptor.
 The
 .Dq Li x
 mode option is ignored.
+If the
+.Dq Li e
+mode option is present, the
+.Dv FD_CLOEXEC
+flag is set, otherwise it remains unchanged.
 When the stream is closed via
 .Xr fclose 3 ,
 .Fa fildes
@@ -312,6 +325,10 @@ The
 function
 conforms to
 .St -p1003.1-88 .
+The
+.Dq Li e
+mode option does not conform to any standard
+but is also supported by glibc.
 The
 .Fn fmemopen
 function
