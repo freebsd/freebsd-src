@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 
 #include <machine/resource.h>
 #include <machine/intr.h>

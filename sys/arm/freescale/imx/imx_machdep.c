@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/frame.h> /* For trapframe_t, used in <machine/machdep.h> */
 #include <machine/machdep.h>
-#include <machine/pmap.h>
 
 #include <arm/freescale/imx/imx_machdep.h>
 #include <arm/freescale/imx/imx_wdogreg.h>
