@@ -4554,7 +4554,7 @@ pf_icmp_state_lookup(struct pf_state_key_cmp *key, struct pf_pdesc *pd,
 	if ((*state)->rule.ptr->type &&
 	    (((*state)->direction == direction) ?
 	    PF_IN : PF_OUT) != icmp_dir) {
-		if (pf_status.debug >= PF_DEBUG_MISC) {
+		if (V_pf_status.debug >= PF_DEBUG_MISC) {
 			printf("pf: icmp type %d in wrong direction (%d): ",
 			    icmp_dir, direction);
 			pf_print_state(*state);
@@ -4593,6 +4593,8 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 
 		break;
 #endif /* INET6 */
+	default:
+		panic("%s: proto %d\n", __func__, pd->proto);
 	}
 
 	if (pf_icmp_mapping(pd, icmptype, &icmp_dir, &multi,
