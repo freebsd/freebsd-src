@@ -203,19 +203,6 @@ typedef void (*vfs_unmounted_notify_fn)(void *, struct mount *,
 EVENTHANDLER_DECLARE(vfs_mounted, vfs_mounted_notify_fn);
 EVENTHANDLER_DECLARE(vfs_unmounted, vfs_unmounted_notify_fn);
 
-/* VLAN state change events */
-struct ifnet;
-typedef void (*vlan_config_fn)(void *, struct ifnet *, uint16_t);
-typedef void (*vlan_unconfig_fn)(void *, struct ifnet *, uint16_t);
-EVENTHANDLER_DECLARE(vlan_config, vlan_config_fn);
-EVENTHANDLER_DECLARE(vlan_unconfig, vlan_unconfig_fn);
-
-/* BPF attach/detach events */
-struct ifnet;
-typedef void (*bpf_track_fn)(void *, struct ifnet *, int /* dlt */,
-    int /* 1 =>'s attach */);
-EVENTHANDLER_DECLARE(bpf_track, bpf_track_fn);
-
 /*
  * Process events
  * process_fork and exit handlers are called without Giant.
