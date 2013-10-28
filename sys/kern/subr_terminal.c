@@ -200,12 +200,19 @@ terminal_set_winsize_blank(struct terminal *tm, const struct winsize *size,
 	r.tr_end.tp_col = size->ws_col;
 
 	TERMINAL_LOCK(tm);
-	teken_set_winsize(&tm->tm_emulator, &r.tr_end);
+	if (blank == 0)
+		/*
+		 * Assigned directly, to avoid terminal reset in the
+		 * teken_set_winsize.
+		 */
+		tm->tm_emulator.t_winsize = r.tr_end;
+	else
+		teken_set_winsize(&tm->tm_emulator, &r.tr_end);
 	TERMINAL_UNLOCK(tm);
 
-	if (blank)
-		tm->tm_class->tc_fill(tm, &r,
-		    TCHAR_CREATE((teken_char_t)' ', &default_message));
+	if (blank != 0)
+		tm->tm_class->tc_fill(tm, &r, TCHAR_CREATE((teken_char_t)' ',
+		    &default_message));
 
 	terminal_sync_ttysize(tm);
 }
