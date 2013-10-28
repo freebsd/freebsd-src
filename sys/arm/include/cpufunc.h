@@ -188,7 +188,7 @@ extern u_int cputype;
 #else
 void tlb_broadcast(int);
 
-#ifdef CPU_CORTEXA
+#if defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B)
 #define TLB_BROADCAST	/* No need to explicitely send an IPI */
 #else
 #define TLB_BROADCAST	tlb_broadcast(7)
