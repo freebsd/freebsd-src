@@ -1402,9 +1402,8 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 	mifi_t mifi, iif;
 	struct mif6 *mifp;
 	int plen = m->m_pkthdr.len;
-	struct in6_addr src0, dst0; /* copies for local work */
-	u_int32_t iszone, idzone, oszone, odzone;
-	int error = 0;
+	uint32_t srczone, dstzone;
+	int srcscope, dstscope;
 
 /*
  * Macro to send packet on mif.  Since RSVP packets don't get counted on
@@ -1520,14 +1519,20 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 		return (0);
 	}			/* if wrong iif */
 
+	srcscope = in6_addrscope(&ip6->ip6_src);
+	dstscope = in6_addrscope(&ip6->ip6_dst);
 	/* If I sourced this packet, it counts as output, else it was input. */
 	if (m->m_pkthdr.rcvif == NULL) {
 		/* XXX: is rcvif really NULL when output?? */
 		mif6table[mifi].m6_pkt_out++;
 		mif6table[mifi].m6_bytes_out += plen;
+		srczone = in6_getscopezone(ifp, srcscope);
+		dstzone = in6_getscopezone(ifp, dstscope);
 	} else {
 		mif6table[mifi].m6_pkt_in++;
 		mif6table[mifi].m6_bytes_in += plen;
+		srczone = in6_getscopezone(m->m_pkthdr.rcvif, srcscope);
+		dstzone = in6_getscopezone(m->m_pkthdr.rcvif, dstscope);
 	}
 	rt->mf6c_pkt_cnt++;
 	rt->mf6c_byte_cnt += plen;
@@ -1536,13 +1541,6 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 	 * For each mif, forward a copy of the packet if there are group
 	 * members downstream on the interface.
 	 */
-	src0 = ip6->ip6_src;
-	dst0 = ip6->ip6_dst;
-	if ((error = in6_setscope(&src0, ifp, &iszone)) != 0 ||
-	    (error = in6_setscope(&dst0, ifp, &idzone)) != 0) {
-		IP6STAT_INC(ip6s_badscope);
-		return (error);
-	}
 	for (mifp = mif6table, mifi = 0; mifi < nummifs; mifp++, mifi++) {
 		if (IF_ISSET(mifi, &rt->mf6c_ifset)) {
 			/*
@@ -1554,12 +1552,10 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 			if (!(mif6table[rt->mf6c_parent].m6_flags &
 			      MIFF_REGISTER) &&
 			    !(mif6table[mifi].m6_flags & MIFF_REGISTER)) {
-				if (in6_setscope(&src0, mif6table[mifi].m6_ifp,
-				    &oszone) ||
-				    in6_setscope(&dst0, mif6table[mifi].m6_ifp,
-				    &odzone) ||
-				    iszone != oszone ||
-				    idzone != odzone) {
+				if (srczone != in6_getscopezone(
+				    mif6table[mifi].m6_ifp, srcscope) ||
+				    dstzone != in6_getscopezone(
+				    mif6table[mifi].m6_ifp, dstscope)) {
 					IP6STAT_INC(ip6s_badscope);
 					continue;
 				}
