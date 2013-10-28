@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <sys/param.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -53,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/netisr.h> 
 
 #include <netinet/in.h>

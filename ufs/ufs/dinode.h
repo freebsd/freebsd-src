@@ -141,7 +141,7 @@ struct ufs2_dinode {
 	u_int32_t	di_gen;		/*  80: Generation number. */
 	u_int32_t	di_kernflags;	/*  84: Kernel flags. */
 	u_int32_t	di_flags;	/*  88: Status flags (chflags). */
-	int32_t		di_extsize;	/*  92: External attributes block. */
+	u_int32_t	di_extsize;	/*  92: External attributes size. */
 	ufs2_daddr_t	di_extb[NXADDR];/*  96: External attributes block. */
 	ufs2_daddr_t	di_db[NDADDR];	/* 112: Direct disk blocks. */
 	ufs2_daddr_t	di_ib[NIADDR];	/* 208: Indirect disk blocks. */

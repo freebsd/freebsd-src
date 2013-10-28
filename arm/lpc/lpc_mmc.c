@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/resource.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -64,9 +63,6 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/lpc/lpcreg.h>
 #include <arm/lpc/lpcvar.h>
-
-#define	DEBUG
-#undef	DEBUG
 
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);   \
