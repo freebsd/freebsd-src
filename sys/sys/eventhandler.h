@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef SYS_EVENTHANDLER_H
-#define SYS_EVENTHANDLER_H
+#ifndef _SYS_EVENTHANDLER_H_
+#define _SYS_EVENTHANDLER_H_
 
 #include <sys/lock.h>
 #include <sys/ktr.h>
@@ -262,4 +262,4 @@ EVENTHANDLER_DECLARE(kld_load, kld_load_fn);
 EVENTHANDLER_DECLARE(kld_unload, kld_unload_fn);
 EVENTHANDLER_DECLARE(kld_unload_try, kld_unload_try_fn);
 
-#endif /* SYS_EVENTHANDLER_H */
+#endif /* _SYS_EVENTHANDLER_H_ */
