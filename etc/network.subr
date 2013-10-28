@@ -1520,54 +1520,6 @@ ng_create_one()
 	done
 }
 
-# ng_fec_create ifn
-#	Configure Fast EtherChannel for interface $ifn. Returns 0 if
-#	FEC arguments were found and configured; returns !0 otherwise.
-ng_fec_create()
-{
-	 local req_iface iface bogus
-	 req_iface="$1"
-
-	 ngctl shutdown ${req_iface}: > /dev/null 2>&1
-
-	 bogus=""
-	 while true; do
-		 iface=`ng_create_one fec dummy fec`
-		 if [ -z "${iface}" ]; then
-			 exit 2
-		 fi
-		 if [ "${iface}" = "${req_iface}" ]; then
-			 break
-		 fi
-		 bogus="${bogus} ${iface}"
-	 done
-
-	 for iface in ${bogus}; do
-		 ngctl shutdown ${iface}:
-	 done
-}
-
-# fec_up
-#	Create Fast EtherChannel interfaces.
-fec_up()
-{
-	local i j
-
-	for i in ${fec_interfaces}; do
-		ng_fec_create $i
-		for j in `get_if_var $i fecconfig_IF`; do
-			case ${j} in
-			'')
-				continue
-				;;
-			*)
-				ngctl msg ${i}: add_iface "\"${j}\""
-				;;
-			esac
-		done
-	done
-}
-
 # ipx_up ifn
 #	Configure any IPX addresses for interface $ifn. Returns 0 if
 #	IPX arguments were found and configured; returns 1 otherwise.

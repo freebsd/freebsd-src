@@ -62,9 +62,6 @@ network_start()
 
 		# disable SIGINT (Ctrl-c) when running at startup
 		trap : 2
-
-		# Create Fast EtherChannel interfaces
-		fec_up
 	fi
 
 	# Create cloned interfaces
