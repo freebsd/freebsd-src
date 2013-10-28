@@ -884,6 +884,7 @@ ext2_direnter(struct inode *ip, struct vnode *dvp, struct componentname *cnp)
 	bcopy(cnp->cn_nameptr, newdir.e2d_name, (unsigned)cnp->cn_namelen + 1);
 	newentrysize = EXT2_DIR_REC_LEN(newdir.e2d_namlen);
 
+#ifdef EXT2FS_HTREE
 	if (ext2_htree_has_idx(dp)) {
 		error = ext2_htree_add_entry(dvp, &newdir, cnp);
 		if (error) {
@@ -904,6 +905,7 @@ ext2_direnter(struct inode *ip, struct vnode *dvp, struct componentname *cnp)
 			return ext2_htree_create_index(dvp, cnp, &newdir);
 		}
 	}
+#endif	/* EXT2FS_HTREE */
 
 	if (dp->i_count == 0) {
 		/*
