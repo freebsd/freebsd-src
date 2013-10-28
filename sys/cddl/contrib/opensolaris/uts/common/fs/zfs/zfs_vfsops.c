@@ -1988,6 +1988,7 @@ zfs_umount(vfs_t *vfsp, int fflag)
 		return (ret);
 	}
 
+#ifdef sun
 	if (!(fflag & MS_FORCE)) {
 		/*
 		 * Check the number of active vnodes in the file system.
@@ -2008,6 +2009,7 @@ zfs_umount(vfs_t *vfsp, int fflag)
 				return (SET_ERROR(EBUSY));
 		}
 	}
+#endif
 
 	VERIFY(zfsvfs_teardown(zfsvfs, B_TRUE) == 0);
 	os = zfsvfs->z_os;
