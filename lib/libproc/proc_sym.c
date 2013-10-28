@@ -460,7 +460,6 @@ proc_name2sym(struct proc_handle *p, const char *object, const char *symbol,
 	 * Then look up the string name in STRTAB (.dynstr)
 	 */
 	if ((data = elf_getdata(dynsymscn, NULL))) {
-		DPRINTFX("ERROR: elf_getdata() failed: %s", elf_errmsg(-1));
 		i = 0;
 		while (gelf_getsym(data, i++, &sym) != NULL) {
 			s = elf_strptr(e, dynsymstridx, sym.st_name);
