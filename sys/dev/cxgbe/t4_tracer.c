@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <sys/param.h>
+#include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/types.h>
 #include <sys/mbuf.h>
