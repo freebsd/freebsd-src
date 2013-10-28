@@ -491,6 +491,7 @@ device		tdfx_linux		# Enable Linuxulator support
 
 device		acpi
 options 	ACPI_DEBUG
+options 	ACPI_DMAR
 
 # ACPI WMI Mapping driver
 device		acpi_wmi
