@@ -29,6 +29,9 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 
+#include <sys/param.h>
+#include <sys/eventhandler.h>
+
 #include "common.h"
 #include "t4_regs.h"
 #include "t4_regs_values.h"

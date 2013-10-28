@@ -32,6 +32,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
