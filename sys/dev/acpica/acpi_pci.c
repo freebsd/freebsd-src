@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_acpi.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -80,6 +82,7 @@ static ACPI_STATUS acpi_pci_save_handle(ACPI_HANDLE handle, UINT32 level,
 static int	acpi_pci_set_powerstate_method(device_t dev, device_t child,
 		    int state);
 static void	acpi_pci_update_device(ACPI_HANDLE handle, device_t pci_child);
+static bus_dma_tag_t acpi_pci_get_dma_tag(device_t bus, device_t child);
 
 static device_method_t acpi_pci_methods[] = {
 	/* Device interface */
@@ -90,6 +93,7 @@ static device_method_t acpi_pci_methods[] = {
 	DEVMETHOD(bus_read_ivar,	acpi_pci_read_ivar),
 	DEVMETHOD(bus_write_ivar,	acpi_pci_write_ivar),
 	DEVMETHOD(bus_child_location_str, acpi_pci_child_location_str_method),
+	DEVMETHOD(bus_get_dma_tag,	acpi_pci_get_dma_tag),
 
 	/* PCI interface */
 	DEVMETHOD(pci_set_powerstate,	acpi_pci_set_powerstate_method),
@@ -308,3 +312,28 @@ acpi_pci_attach(device_t dev)
 
 	return (bus_generic_attach(dev));
 }
+
+#ifdef ACPI_DMAR
+bus_dma_tag_t dmar_get_dma_tag(device_t dev, device_t child);
+static bus_dma_tag_t
+acpi_pci_get_dma_tag(device_t bus, device_t child)
+{
+	bus_dma_tag_t tag;
+
+	if (device_get_parent(child) == bus) {
+		/* try dmar and return if it works */
+		tag = dmar_get_dma_tag(bus, child);
+	} else
+		tag = NULL;
+	if (tag == NULL)
+		tag = pci_get_dma_tag(bus, child);
+	return (tag);
+}
+#else
+static bus_dma_tag_t
+acpi_pci_get_dma_tag(device_t bus, device_t child)
+{
+
+	return (pci_get_dma_tag(bus, child));
+}
+#endif
