@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2013 Ian Lepore <ian@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,81 +22,39 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include "opt_ddb.h"
-#include "opt_platform.h"
+#ifndef	IMX_MACHDEP_H
+#define	IMX_MACHDEP_H
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#include <sys/types.h>
 
-#define _ARM32_BUS_DMA_PRIVATE
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/bus.h>
+/* Common functions, implemented in imx_machdep.c. */
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
-
-#include <machine/bus.h>
-#include <machine/machdep.h>
-
-#include <dev/fdt/fdt_common.h>
-
-#define	DEVMAP_BOOTSTRAP_MAP_START 0xF0000000
-
-vm_offset_t
-initarm_lastaddr(void)
-{
-
-	return (DEVMAP_BOOTSTRAP_MAP_START);
-}
-
-void
-initarm_gpio_init(void)
-{
-}
-
-void
-initarm_late_init(void)
-{
-}
-
-#define FDT_DEVMAP_MAX	(1 + 2 + 1 + 1)	/* FIXME */
-static struct pmap_devmap fdt_devmap[FDT_DEVMAP_MAX] = {
-	{ 0, 0, 0, 0, 0, }
-};
+void imx_devmap_addentry(vm_paddr_t _pa, vm_size_t _sz);
+void imx_wdog_cpu_reset(vm_offset_t _wdcr_phys)  __attribute__((__noreturn__));
 
 /*
- * Construct pmap_devmap[] with DT-derived config data.
+ * SoC identity.
  */
-int
-platform_devmap_init(void)
-{
-	int i;
+#define	IMXSOC_51	0x05000100
+#define	IMXSOC_53	0x05000300
+#define	IMXSOC_6S	0x06000010
+#define	IMXSOC_6SL	0x06000011
+#define	IMXSOC_6D	0x06000020
+#define	IMXSOC_6DL	0x06000021
+#define	IMXSOC_6Q	0x06000040
+#define	IMXSOC_6QL	0x06000041
+#define	IMXSOC_FAMSHIFT	24
 
-	i = 0;
-	fdt_devmap[i].pd_va = 0xf2C00000;
-	fdt_devmap[i].pd_pa = 0x12C00000;
-	fdt_devmap[i].pd_size = 0x100000;
-	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[i].pd_cache = PTE_NOCACHE;
-	i++;
+u_int imx_soc_type(void);
+u_int imx_soc_family(void);
 
-	pmap_devmap_bootstrap_table = &fdt_devmap[0];
-	return (0);
-}
+/* From here down, routines are implemented in imxNN_machdep.c. */
 
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
+void imx_devmap_init(void);
 
-	return (NULL);
-}
+#endif
 
-int
-bus_dma_get_range_nb(void)
-{
-
-	return (0);
-}

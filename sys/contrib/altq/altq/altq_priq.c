@@ -54,9 +54,9 @@
 #include <net/if_var.h>
 #include <netinet/in.h>
 
-#include <net/pf.h>
-#include <net/pf_altq.h>
-#include <net/pf_mtag.h>
+#include <netpfil/pf/pf.h>
+#include <netpfil/pf/pf_altq.h>
+#include <netpfil/pf/pf_mtag.h>
 #include <altq/altq.h>
 #ifdef ALTQ3_COMPAT
 #include <altq/altq_conf.h>

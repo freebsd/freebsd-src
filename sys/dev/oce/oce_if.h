@@ -40,6 +40,7 @@
 
 #include <sys/param.h>
 #include <sys/endian.h>
+#include <sys/eventhandler.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>

@@ -90,8 +90,8 @@
 #include <netinet/ip6.h>
 #endif
 
-#include <net/pf.h>
-#include <net/pf_altq.h>
+#include <netpfil/pf/pf.h>
+#include <netpfil/pf/pf_altq.h>
 #include <altq/altq.h>
 #include <altq/altq_cdnr.h>
 #include <altq/altq_red.h>

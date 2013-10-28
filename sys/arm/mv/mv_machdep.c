@@ -50,9 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/frame.h> /* For trapframe_t, used in <machine/machdep.h> */
 #include <machine/machdep.h>
-#include <machine/pmap.h>
 
 #include <arm/mv/mvreg.h>	/* XXX */
 #include <arm/mv/mvvar.h>	/* XXX eventually this should be eliminated */
@@ -208,7 +206,7 @@ initarm_lastaddr(void)
 		while (1);
 
 	/* Platform-specific initialisation */
-	return (fdt_immr_va - ARM_NOCACHE_KVA_SIZE);
+	return (fdt_immr_va);
 }
 
 void
