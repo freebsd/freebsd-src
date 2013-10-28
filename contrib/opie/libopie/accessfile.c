@@ -28,6 +28,7 @@ License Agreement applies to this software.
 #include "opie_cfg.h"
 
 #include <stdio.h>
+#include <ctype.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
