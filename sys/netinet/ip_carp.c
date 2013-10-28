@@ -373,8 +373,6 @@ carp_hmac_prepare(struct carp_softc *sc)
 		memset(&cur6, 0xff, sizeof(cur6));
 		CARP_FOREACH_IFA(sc, ifa) {
 			in6 = ifatoia6(ifa)->ia_addr.sin6_addr;
-			if (IN6_IS_SCOPE_EMBED(&in6))
-				in6.s6_addr16[1] = 0;
 			if (ifa->ifa_addr->sa_family == AF_INET6 &&
 			    memcmp(&in6, &last6, sizeof(in6)) > 0 &&
 			    memcmp(&in6, &cur6, sizeof(in6)) < 0) {
@@ -893,12 +891,6 @@ carp_send_ad_locked(struct carp_softc *sc)
 		/* Set the multicast destination. */
 		ip6->ip6_dst.s6_addr16[0] = htons(0xff02);
 		ip6->ip6_dst.s6_addr8[15] = 0x12;
-		if (in6_setscope(&ip6->ip6_dst, sc->sc_carpdev, NULL) != 0) {
-			m_freem(m);
-			CARP_DEBUG("%s: in6_setscope failed\n", __func__);
-			goto resched;
-		}
-
 		ch_ptr = (struct carp_header *)(&ip6[1]);
 		bcopy(&ch, ch_ptr, sizeof(ch));
 		if (carp_prepare_ad(m, sc, ch_ptr))
@@ -1320,10 +1312,6 @@ carp_multicast_setup(struct carp_if *cif, sa_family_t sa)
 		bzero(&in6, sizeof(in6));
 		in6.s6_addr16[0] = htons(0xff02);
 		in6.s6_addr8[15] = 0x12;
-		if ((error = in6_setscope(&in6, ifp, NULL)) != 0) {
-			free(im6o->im6o_membership, M_CARP);
-			break;
-		}
 		in6m = NULL;
 		if ((error = in6_mc_join(ifp, &in6, NULL, &in6m, 0)) != 0) {
 			free(im6o->im6o_membership, M_CARP);
@@ -1339,11 +1327,6 @@ carp_multicast_setup(struct carp_if *cif, sa_family_t sa)
 		in6.s6_addr32[2] = htonl(1);
 		in6.s6_addr32[3] = 0;
 		in6.s6_addr8[12] = 0xff;
-		if ((error = in6_setscope(&in6, ifp, NULL)) != 0) {
-			in6_mc_leave(im6o->im6o_membership[0], NULL);
-			free(im6o->im6o_membership, M_CARP);
-			break;
-		}
 		in6m = NULL;
 		if ((error = in6_mc_join(ifp, &in6, NULL, &in6m, 0)) != 0) {
 			in6_mc_leave(im6o->im6o_membership[0], NULL);
