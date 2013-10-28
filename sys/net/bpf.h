@@ -1310,12 +1310,12 @@ bpf_peers_present(struct bpf_if *bpf)
  */
 #define BPF_MEMWORDS 16
 
-#ifdef SYS_EVENTHANDLER_H
+#ifdef _SYS_EVENTHANDLER_H_
 /* BPF attach/detach events */
 struct ifnet;
 typedef void (*bpf_track_fn)(void *, struct ifnet *, int /* dlt */,
     int /* 1 =>'s attach */);
 EVENTHANDLER_DECLARE(bpf_track, bpf_track_fn);
-#endif /* SYS_EVENTHANDLER_H */
+#endif /* _SYS_EVENTHANDLER_H_ */
 
 #endif /* _NET_BPF_H_ */
