@@ -285,7 +285,7 @@ proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
 		 * by rtld.
 		 */
 		rsym = map->pr_vaddr + sym.st_value;
-		if (addr >= rsym && addr <= (rsym + sym.st_size)) {
+		if (addr >= rsym && addr < rsym + sym.st_size) {
 			s = elf_strptr(e, dynsymstridx, sym.st_name);
 			if (s) {
 				if (s[0] == '_' && s[1] == 'Z' && s[2])
@@ -325,7 +325,7 @@ symtab:
 			rsym = map->pr_vaddr + sym.st_value;
 		else
 			rsym = sym.st_value;
-		if (addr >= rsym && addr <= (rsym + sym.st_size)) {
+		if (addr >= rsym && addr < rsym + sym.st_size) {
 			s = elf_strptr(e, symtabstridx, sym.st_name);
 			if (s) {
 				if (s[0] == '_' && s[1] == 'Z' && s[2])
