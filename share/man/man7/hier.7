@@ -32,7 +32,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2010
+.Dd October 23, 2010
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -705,6 +705,14 @@ directory containing output spool files
 .Pp
 .It Pa backups/
 miscellaneous backup files
+.It Pa cache/
+miscellaneous cached files
+.Bl -tag -width ".Pa pkg/" -compact
+.It Pa pkg/
+cached packages for
+.Xr pkg 8
+.El
+.Pp
 .It Pa crash/
 default directory to store kernel crash dumps; see
 .Xr crash 8
