@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef TCP_OFFLOAD
 #include <sys/param.h>
-#include <sys/types.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/module.h>
