@@ -1002,7 +1002,7 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 	int to_fd, const char *to_name __unused, size_t to_len,
 	char **dresp)
 {
-	char *p, *q;
+	unsigned char *p, *q;
 	int rv;
 	int done_compare;
 	DIGEST_CTX ctx;
@@ -1018,11 +1018,11 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 		if (trymmap(from_fd) && trymmap(to_fd)) {
 			p = mmap(NULL, from_len, PROT_READ, MAP_SHARED,
 			    from_fd, (off_t)0);
-			if (p == (char *)MAP_FAILED)
+			if (p == (unsigned char *)MAP_FAILED)
 				goto out;
 			q = mmap(NULL, from_len, PROT_READ, MAP_SHARED,
 			    to_fd, (off_t)0);
-			if (q == (char *)MAP_FAILED) {
+			if (q == (unsigned char *)MAP_FAILED) {
 				munmap(p, from_len);
 				goto out;
 			}
@@ -1036,7 +1036,7 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 		}
 	out:
 		if (!done_compare) {
-			char buf1[MAXBSIZE];
+			unsigned char buf1[MAXBSIZE];
 			char buf2[MAXBSIZE];
 			int n1, n2;
 
@@ -1146,7 +1146,8 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 {
 	int nr, nw;
 	int serrno;
-	char *p, buf[MAXBSIZE];
+	unsigned char *p;
+	unsigned char buf[MAXBSIZE];
 	int done_copy;
 	DIGEST_CTX ctx;
 
@@ -1166,7 +1167,7 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	done_copy = 0;
 	if (size <= 8 * 1048576 && trymmap(from_fd) &&
 	    (p = mmap(NULL, (size_t)size, PROT_READ, MAP_SHARED,
-		    from_fd, (off_t)0)) != (char *)MAP_FAILED) {
+		    from_fd, (off_t)0)) != (unsigned char *)MAP_FAILED) {
 		nw = write(to_fd, p, size);
 		if (nw != size) {
 			serrno = errno;
