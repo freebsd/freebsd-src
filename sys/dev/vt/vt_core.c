@@ -79,14 +79,14 @@ const struct terminal_class vt_termclass = {
 };
 
 /*
- * Use a constant timer of 50 Hz to redraw the screen.
+ * Use a constant timer of 25 Hz to redraw the screen.
  *
  * XXX: In theory we should only fire up the timer when there is really
  * activity. Unfortunately we cannot always start timers. We really
  * don't want to process kernel messages synchronously, because it
  * really slows down the system.
  */
-#define	VT_TIMERFREQ	50
+#define	VT_TIMERFREQ	25
 
 /* Bell pitch/duration. */
 #define VT_BELLDURATION	((5 * hz + 99) / 100)
