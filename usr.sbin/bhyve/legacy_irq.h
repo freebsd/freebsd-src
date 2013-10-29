@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 NetApp, Inc.
+ * Copyright (c) 2013 Neel Natu <neel@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,50 +26,16 @@
  * $FreeBSD$
  */
 
-#ifndef _INOUT_H_
-#define	_INOUT_H_
-
-#include <sys/linker_set.h>
-
-struct vmctx;
-
-typedef int (*inout_func_t)(struct vmctx *ctx, int vcpu, int in, int port,
-			    int bytes, uint32_t *eax, void *arg);
-
-struct inout_port {
-	const char 	*name;
-	int		port;
-	int		size;
-	int		flags;
-	inout_func_t	handler;
-	void		*arg;
-};
-#define	IOPORT_F_IN		0x1
-#define	IOPORT_F_OUT		0x2
-#define	IOPORT_F_INOUT		(IOPORT_F_IN | IOPORT_F_OUT)
+#ifndef _LEGACY_IRQ_H_
+#define	_LEGACY_IRQ_H_
 
 /*
- * The following flags are used internally and must not be used by
- * device models.
+ * Allocate a legacy irq. The argument 'irq' can be set to -1 to allocate any
+ * available irq.
+ *
+ * Returns -1 on failure or the allocated irq number on success.
  */
-#define	IOPORT_F_DEFAULT	0x80000000	/* claimed by default handler */
+int	legacy_irq_alloc(int irq);
+void	legacy_irq_init(void);
 
-#define	INOUT_PORT(name, port, flags, handler)				\
-	static struct inout_port __CONCAT(__inout_port, __LINE__) = {	\
-		#name,							\
-		(port),							\
-		1,							\
-		(flags),						\
-		(handler),						\
-		0							\
-	};								\
-	DATA_SET(inout_port_set, __CONCAT(__inout_port, __LINE__))
-	
-void	init_inout(void);
-int	emulate_inout(struct vmctx *, int vcpu, int in, int port, int bytes,
-		      uint32_t *eax, int strict);
-int	register_inout(struct inout_port *iop);
-int	unregister_inout(struct inout_port *iop);
-void	init_bvmcons(void);
-
-#endif	/* _INOUT_H_ */
+#endif

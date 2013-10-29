@@ -84,7 +84,7 @@ register_default_iohandler(int start, int size)
 	iop.name = "default";
 	iop.port = start;
 	iop.size = size;
-	iop.flags = IOPORT_F_INOUT;
+	iop.flags = IOPORT_F_INOUT | IOPORT_F_DEFAULT;
 	iop.handler = default_inout;
 
 	register_inout(&iop);
@@ -159,7 +159,18 @@ register_inout(struct inout_port *iop)
 	int i;
 
 	VERIFY_IOPORT(iop->port, iop->size);
-	
+
+	/*
+	 * Verify that the new registration is not overwriting an already
+	 * allocated i/o range.
+	 */
+	if ((iop->flags & IOPORT_F_DEFAULT) == 0) {
+		for (i = iop->port; i < iop->port + iop->size; i++) {
+			if ((inout_handlers[i].flags & IOPORT_F_DEFAULT) == 0)
+				return (-1);
+		}
+	}
+
 	for (i = iop->port; i < iop->port + iop->size; i++) {
 		inout_handlers[i].name = iop->name;
 		inout_handlers[i].flags = iop->flags;
