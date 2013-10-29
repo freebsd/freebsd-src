@@ -34,14 +34,6 @@
         ..
         gss
         ..
-        keys
-            pkg
-                revoked
-                ..
-                trusted
-                ..
-            ..
-        ..
         mail
         ..
         mtree
