@@ -105,8 +105,12 @@ device		ether		# Ethernet support
 #device		faith		# IPv6-to-IPv4 relaying (translation)
 #device		firmware	# firmware assist module
 
+# Ethernet
+device		ffec		# Freescale Fast Ethernet Controller
+device		miibus		# Standard mii bus
+
 # Serial (COM) ports
-#device		uart		# Multi-uart driver
+device		uart		# Multi-uart driver
 options 	ALT_BREAK_TO_DEBUGGER
 
 device		ata
