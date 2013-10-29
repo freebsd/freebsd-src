@@ -220,7 +220,6 @@ struct ifnet {
 #define	if_metric	if_data.ifi_metric
 #define	if_link_state	if_data.ifi_link_state
 #define	if_baudrate	if_data.ifi_baudrate
-#define	if_baudrate_pf	if_data.ifi_baudrate_pf
 #define	if_hwassist	if_data.ifi_hwassist
 #define	if_ipackets	if_data.ifi_ipackets
 #define	if_ierrors	if_data.ifi_ierrors
@@ -587,18 +586,6 @@ do {									\
 } while (0)
 
 #ifdef _KERNEL
-static __inline void
-if_initbaudrate(struct ifnet *ifp, uintmax_t baud)
-{
-
-	ifp->if_baudrate_pf = 0;
-	while (baud > (u_long)(~0UL)) {
-		baud /= 10;
-		ifp->if_baudrate_pf++;
-	}
-	ifp->if_baudrate = baud;
-}
-
 static __inline int
 drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
 {	

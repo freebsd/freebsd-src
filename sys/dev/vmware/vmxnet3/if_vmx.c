@@ -1471,11 +1471,7 @@ vmxnet3_setup_interface(struct vmxnet3_softc *sc)
 	}
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-#if __FreeBSD_version < 1000025
-	ifp->if_baudrate = 1000000000;
-#else
-	if_initbaudrate(ifp, IF_Gbps(10));
-#endif
+	ifp->if_baudrate = IF_Gbps(10);
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_init = vmxnet3_init;

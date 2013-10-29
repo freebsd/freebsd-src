@@ -736,13 +736,7 @@ qls_init_ifnet(device_t dev, qla_host_t *ha)
 		panic("%s: cannot if_alloc()\n", device_get_nameunit(dev));
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-
-#if __FreeBSD_version >= 1000000
-	if_initbaudrate(ifp, IF_Gbps(10));
-#else
-	ifp->if_baudrate = 1 * 1000 * 1000 * 1000;
-#endif /* #if (__FreeBSD_version > 1000000) */
-
+	ifp->if_baudrate = IF_Gbps(10);
 	ifp->if_init = qls_init;
 	ifp->if_softc = ha;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
