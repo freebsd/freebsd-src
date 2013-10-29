@@ -1388,10 +1388,15 @@ _binutils=	gnu/usr.bin/binutils
 # If an full path to an external cross compiler is given, don't build
 # a cross compiler.
 .if ${XCC:M/*} == "" && ${MK_CROSS_COMPILER} != "no"
-.if (${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang") && ${TARGET} != "pc98"
+.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
 _clang=		usr.bin/clang
 _clang_libs=	lib/clang
 .else
+_cc=		gnu/usr.bin/cc
+.endif
+
+# The boot2 for pc98 requires gcc.
+.if ${TARGET} == "pc98"
 _cc=		gnu/usr.bin/cc
 .endif
 .endif
