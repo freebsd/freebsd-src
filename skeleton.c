@@ -1,4 +1,4 @@
-/* $Id: skeleton.c,v 1.32 2013/03/04 23:19:39 tom Exp $ */
+/* $Id: skeleton.c,v 1.33 2013/09/25 22:44:22 tom Exp $ */
 
 #include "defs.h"
 
@@ -90,12 +90,12 @@ const char *const hdr_defs[] =
     "#ifdef YYMAXDEPTH",
     "#define YYSTACKSIZE YYMAXDEPTH",
     "#else",
-    "#define YYSTACKSIZE 500",
-    "#define YYMAXDEPTH  500",
+    "#define YYSTACKSIZE 10000",
+    "#define YYMAXDEPTH  10000",
     "#endif",
     "#endif",
     "",
-    "#define YYINITSTACKSIZE 500",
+    "#define YYINITSTACKSIZE 200",
     "",
     "typedef struct {",
     "    unsigned stacksize;",
