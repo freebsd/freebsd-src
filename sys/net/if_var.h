@@ -94,18 +94,6 @@ VNET_DECLARE(struct pfil_head, link_pfil_hook);	/* packet filter hooks */
 #endif /* _KERNEL */
 
 /*
- * Structure defining a queue for a network interface.
- */
-struct	ifqueue {
-	struct	mbuf *ifq_head;
-	struct	mbuf *ifq_tail;
-	int	ifq_len;
-	int	ifq_maxlen;
-	int	ifq_drops;
-	struct	mtx ifq_mtx;
-};
-
-/*
  * Structure defining a network interface.
  *
  * (Would like to call this struct ``if'', but C isn't PL/1.)
@@ -208,6 +196,8 @@ struct ifnet {
 	void	*if_pspare[8];		/* 1 netmap, 7 TDB */
 };
 
+#include <net/ifq.h>	/* XXXAO: temporary unconditional include */
+
 /*
  * XXX These aliases are terribly dangerous because they could apply
  * to anything.
@@ -261,96 +251,6 @@ void	if_addr_rlock(struct ifnet *ifp);	/* if_addrhead */
 void	if_addr_runlock(struct ifnet *ifp);	/* if_addrhead */
 void	if_maddr_rlock(struct ifnet *ifp);	/* if_multiaddrs */
 void	if_maddr_runlock(struct ifnet *ifp);	/* if_multiaddrs */
-
-/*
- * Output queues (ifp->if_snd) and slow device input queues (*ifp->if_slowq)
- * are queues of messages stored on ifqueue structures
- * (defined above).  Entries are added to and deleted from these structures
- * by these macros.
- */
-#define IF_LOCK(ifq)		mtx_lock(&(ifq)->ifq_mtx)
-#define IF_UNLOCK(ifq)		mtx_unlock(&(ifq)->ifq_mtx)
-#define	IF_LOCK_ASSERT(ifq)	mtx_assert(&(ifq)->ifq_mtx, MA_OWNED)
-#define	_IF_QFULL(ifq)		((ifq)->ifq_len >= (ifq)->ifq_maxlen)
-#define	_IF_DROP(ifq)		((ifq)->ifq_drops++)
-#define	_IF_QLEN(ifq)		((ifq)->ifq_len)
-
-#define	_IF_ENQUEUE(ifq, m) do { 				\
-	(m)->m_nextpkt = NULL;					\
-	if ((ifq)->ifq_tail == NULL) 				\
-		(ifq)->ifq_head = m; 				\
-	else 							\
-		(ifq)->ifq_tail->m_nextpkt = m; 		\
-	(ifq)->ifq_tail = m; 					\
-	(ifq)->ifq_len++; 					\
-} while (0)
-
-#define IF_ENQUEUE(ifq, m) do {					\
-	IF_LOCK(ifq); 						\
-	_IF_ENQUEUE(ifq, m); 					\
-	IF_UNLOCK(ifq); 					\
-} while (0)
-
-#define	_IF_PREPEND(ifq, m) do {				\
-	(m)->m_nextpkt = (ifq)->ifq_head; 			\
-	if ((ifq)->ifq_tail == NULL) 				\
-		(ifq)->ifq_tail = (m); 				\
-	(ifq)->ifq_head = (m); 					\
-	(ifq)->ifq_len++; 					\
-} while (0)
-
-#define IF_PREPEND(ifq, m) do {		 			\
-	IF_LOCK(ifq); 						\
-	_IF_PREPEND(ifq, m); 					\
-	IF_UNLOCK(ifq); 					\
-} while (0)
-
-#define	_IF_DEQUEUE(ifq, m) do { 				\
-	(m) = (ifq)->ifq_head; 					\
-	if (m) { 						\
-		if (((ifq)->ifq_head = (m)->m_nextpkt) == NULL)	\
-			(ifq)->ifq_tail = NULL; 		\
-		(m)->m_nextpkt = NULL; 				\
-		(ifq)->ifq_len--; 				\
-	} 							\
-} while (0)
-
-#define IF_DEQUEUE(ifq, m) do { 				\
-	IF_LOCK(ifq); 						\
-	_IF_DEQUEUE(ifq, m); 					\
-	IF_UNLOCK(ifq); 					\
-} while (0)
-
-#define	_IF_DEQUEUE_ALL(ifq, m) do {				\
-	(m) = (ifq)->ifq_head;					\
-	(ifq)->ifq_head = (ifq)->ifq_tail = NULL;		\
-	(ifq)->ifq_len = 0;					\
-} while (0)
-
-#define	IF_DEQUEUE_ALL(ifq, m) do {				\
-	IF_LOCK(ifq); 						\
-	_IF_DEQUEUE_ALL(ifq, m);				\
-	IF_UNLOCK(ifq); 					\
-} while (0)
-
-#define	_IF_POLL(ifq, m)	((m) = (ifq)->ifq_head)
-#define	IF_POLL(ifq, m)		_IF_POLL(ifq, m)
-
-#define _IF_DRAIN(ifq) do { 					\
-	struct mbuf *m; 					\
-	for (;;) { 						\
-		_IF_DEQUEUE(ifq, m); 				\
-		if (m == NULL) 					\
-			break; 					\
-		m_freem(m); 					\
-	} 							\
-} while (0)
-
-#define IF_DRAIN(ifq) do {					\
-	IF_LOCK(ifq);						\
-	_IF_DRAIN(ifq);						\
-	IF_UNLOCK(ifq);						\
-} while(0)
 
 #ifdef _KERNEL
 #ifdef _SYS_EVENTHANDLER_H_
@@ -421,172 +321,6 @@ EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
 #define	IF_AFDATA_WLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_WLOCKED)
 #define	IF_AFDATA_UNLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_UNLOCKED)
 
-int	if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp,
-	    int adjust);
-#define	IF_HANDOFF(ifq, m, ifp)			\
-	if_handoff((struct ifqueue *)ifq, m, ifp, 0)
-#define	IF_HANDOFF_ADJ(ifq, m, ifp, adj)	\
-	if_handoff((struct ifqueue *)ifq, m, ifp, adj)
-
-void	if_start(struct ifnet *);
-
-#define	IFQ_ENQUEUE(ifq, m, err)					\
-do {									\
-	IF_LOCK(ifq);							\
-	if (ALTQ_IS_ENABLED(ifq))					\
-		ALTQ_ENQUEUE(ifq, m, NULL, err);			\
-	else {								\
-		if (_IF_QFULL(ifq)) {					\
-			m_freem(m);					\
-			(err) = ENOBUFS;				\
-		} else {						\
-			_IF_ENQUEUE(ifq, m);				\
-			(err) = 0;					\
-		}							\
-	}								\
-	if (err)							\
-		(ifq)->ifq_drops++;					\
-	IF_UNLOCK(ifq);							\
-} while (0)
-
-#define	IFQ_DEQUEUE_NOLOCK(ifq, m)					\
-do {									\
-	if (TBR_IS_ENABLED(ifq))					\
-		(m) = tbr_dequeue_ptr(ifq, ALTDQ_REMOVE);		\
-	else if (ALTQ_IS_ENABLED(ifq))					\
-		ALTQ_DEQUEUE(ifq, m);					\
-	else								\
-		_IF_DEQUEUE(ifq, m);					\
-} while (0)
-
-#define	IFQ_DEQUEUE(ifq, m)						\
-do {									\
-	IF_LOCK(ifq);							\
-	IFQ_DEQUEUE_NOLOCK(ifq, m);					\
-	IF_UNLOCK(ifq);							\
-} while (0)
-
-#define	IFQ_POLL_NOLOCK(ifq, m)						\
-do {									\
-	if (TBR_IS_ENABLED(ifq))					\
-		(m) = tbr_dequeue_ptr(ifq, ALTDQ_POLL);			\
-	else if (ALTQ_IS_ENABLED(ifq))					\
-		ALTQ_POLL(ifq, m);					\
-	else								\
-		_IF_POLL(ifq, m);					\
-} while (0)
-
-#define	IFQ_POLL(ifq, m)						\
-do {									\
-	IF_LOCK(ifq);							\
-	IFQ_POLL_NOLOCK(ifq, m);					\
-	IF_UNLOCK(ifq);							\
-} while (0)
-
-#define	IFQ_PURGE_NOLOCK(ifq)						\
-do {									\
-	if (ALTQ_IS_ENABLED(ifq)) {					\
-		ALTQ_PURGE(ifq);					\
-	} else								\
-		_IF_DRAIN(ifq);						\
-} while (0)
-
-#define	IFQ_PURGE(ifq)							\
-do {									\
-	IF_LOCK(ifq);							\
-	IFQ_PURGE_NOLOCK(ifq);						\
-	IF_UNLOCK(ifq);							\
-} while (0)
-
-#define	IFQ_SET_READY(ifq)						\
-	do { ((ifq)->altq_flags |= ALTQF_READY); } while (0)
-
-#define	IFQ_LOCK(ifq)			IF_LOCK(ifq)
-#define	IFQ_UNLOCK(ifq)			IF_UNLOCK(ifq)
-#define	IFQ_LOCK_ASSERT(ifq)		IF_LOCK_ASSERT(ifq)
-#define	IFQ_IS_EMPTY(ifq)		((ifq)->ifq_len == 0)
-#define	IFQ_INC_LEN(ifq)		((ifq)->ifq_len++)
-#define	IFQ_DEC_LEN(ifq)		(--(ifq)->ifq_len)
-#define	IFQ_INC_DROPS(ifq)		((ifq)->ifq_drops++)
-#define	IFQ_SET_MAXLEN(ifq, len)	((ifq)->ifq_maxlen = (len))
-
-/*
- * The IFF_DRV_OACTIVE test should really occur in the device driver, not in
- * the handoff logic, as that flag is locked by the device driver.
- */
-#define	IFQ_HANDOFF_ADJ(ifp, m, adj, err)				\
-do {									\
-	int len;							\
-	short mflags;							\
-									\
-	len = (m)->m_pkthdr.len;					\
-	mflags = (m)->m_flags;						\
-	IFQ_ENQUEUE(&(ifp)->if_snd, m, err);				\
-	if ((err) == 0) {						\
-		(ifp)->if_obytes += len + (adj);			\
-		if (mflags & M_MCAST)					\
-			(ifp)->if_omcasts++;				\
-		if (((ifp)->if_drv_flags & IFF_DRV_OACTIVE) == 0)	\
-			if_start(ifp);					\
-	}								\
-} while (0)
-
-#define	IFQ_HANDOFF(ifp, m, err)					\
-	IFQ_HANDOFF_ADJ(ifp, m, 0, err)
-
-#define	IFQ_DRV_DEQUEUE(ifq, m)						\
-do {									\
-	(m) = (ifq)->ifq_drv_head;					\
-	if (m) {							\
-		if (((ifq)->ifq_drv_head = (m)->m_nextpkt) == NULL)	\
-			(ifq)->ifq_drv_tail = NULL;			\
-		(m)->m_nextpkt = NULL;					\
-		(ifq)->ifq_drv_len--;					\
-	} else {							\
-		IFQ_LOCK(ifq);						\
-		IFQ_DEQUEUE_NOLOCK(ifq, m);				\
-		while ((ifq)->ifq_drv_len < (ifq)->ifq_drv_maxlen) {	\
-			struct mbuf *m0;				\
-			IFQ_DEQUEUE_NOLOCK(ifq, m0);			\
-			if (m0 == NULL)					\
-				break;					\
-			m0->m_nextpkt = NULL;				\
-			if ((ifq)->ifq_drv_tail == NULL)		\
-				(ifq)->ifq_drv_head = m0;		\
-			else						\
-				(ifq)->ifq_drv_tail->m_nextpkt = m0;	\
-			(ifq)->ifq_drv_tail = m0;			\
-			(ifq)->ifq_drv_len++;				\
-		}							\
-		IFQ_UNLOCK(ifq);					\
-	}								\
-} while (0)
-
-#define	IFQ_DRV_PREPEND(ifq, m)						\
-do {									\
-	(m)->m_nextpkt = (ifq)->ifq_drv_head;				\
-	if ((ifq)->ifq_drv_tail == NULL)				\
-		(ifq)->ifq_drv_tail = (m);				\
-	(ifq)->ifq_drv_head = (m);					\
-	(ifq)->ifq_drv_len++;						\
-} while (0)
-
-#define	IFQ_DRV_IS_EMPTY(ifq)						\
-	(((ifq)->ifq_drv_len == 0) && ((ifq)->ifq_len == 0))
-
-#define	IFQ_DRV_PURGE(ifq)						\
-do {									\
-	struct mbuf *m, *n = (ifq)->ifq_drv_head;			\
-	while((m = n) != NULL) {					\
-		n = m->m_nextpkt;					\
-		m_freem(m);						\
-	}								\
-	(ifq)->ifq_drv_head = (ifq)->ifq_drv_tail = NULL;		\
-	(ifq)->ifq_drv_len = 0;						\
-	IFQ_PURGE(ifq);							\
-} while (0)
-
-#ifdef _KERNEL
 static __inline void
 if_initbaudrate(struct ifnet *ifp, uintmax_t baud)
 {
@@ -599,165 +333,6 @@ if_initbaudrate(struct ifnet *ifp, uintmax_t baud)
 	ifp->if_baudrate = baud;
 }
 
-static __inline int
-drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
-{	
-	int error = 0;
-
-#ifdef ALTQ
-	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
-		IFQ_ENQUEUE(&ifp->if_snd, m, error);
-		return (error);
-	}
-#endif
-	error = buf_ring_enqueue(br, m);
-	if (error)
-		m_freem(m);
-
-	return (error);
-}
-
-static __inline void
-drbr_putback(struct ifnet *ifp, struct buf_ring *br, struct mbuf *new)
-{
-	/*
-	 * The top of the list needs to be swapped 
-	 * for this one.
-	 */
-#ifdef ALTQ
-	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {
-		/* 
-		 * Peek in altq case dequeued it
-		 * so put it back.
-		 */
-		IFQ_DRV_PREPEND(&ifp->if_snd, new);
-		return;
-	}
-#endif
-	buf_ring_putback_sc(br, new);
-}
-
-static __inline struct mbuf *
-drbr_peek(struct ifnet *ifp, struct buf_ring *br)
-{
-#ifdef ALTQ
-	struct mbuf *m;
-	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {
-		/* 
-		 * Pull it off like a dequeue
-		 * since drbr_advance() does nothing
-		 * for altq and drbr_putback() will
-		 * use the old prepend function.
-		 */
-		IFQ_DEQUEUE(&ifp->if_snd, m);
-		return (m);
-	}
-#endif
-	return(buf_ring_peek(br));
-}
-
-static __inline void
-drbr_flush(struct ifnet *ifp, struct buf_ring *br)
-{
-	struct mbuf *m;
-
-#ifdef ALTQ
-	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd))
-		IFQ_PURGE(&ifp->if_snd);
-#endif	
-	while ((m = buf_ring_dequeue_sc(br)) != NULL)
-		m_freem(m);
-}
-
-static __inline void
-drbr_free(struct buf_ring *br, struct malloc_type *type)
-{
-
-	drbr_flush(NULL, br);
-	buf_ring_free(br, type);
-}
-
-static __inline struct mbuf *
-drbr_dequeue(struct ifnet *ifp, struct buf_ring *br)
-{
-#ifdef ALTQ
-	struct mbuf *m;
-
-	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {	
-		IFQ_DEQUEUE(&ifp->if_snd, m);
-		return (m);
-	}
-#endif
-	return (buf_ring_dequeue_sc(br));
-}
-
-static __inline void
-drbr_advance(struct ifnet *ifp, struct buf_ring *br)
-{
-#ifdef ALTQ
-	/* Nothing to do here since peek dequeues in altq case */
-	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd))
-		return;
-#endif
-	return (buf_ring_advance_sc(br));
-}
-
-
-static __inline struct mbuf *
-drbr_dequeue_cond(struct ifnet *ifp, struct buf_ring *br,
-    int (*func) (struct mbuf *, void *), void *arg) 
-{
-	struct mbuf *m;
-#ifdef ALTQ
-	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
-		IFQ_LOCK(&ifp->if_snd);
-		IFQ_POLL_NOLOCK(&ifp->if_snd, m);
-		if (m != NULL && func(m, arg) == 0) {
-			IFQ_UNLOCK(&ifp->if_snd);
-			return (NULL);
-		}
-		IFQ_DEQUEUE_NOLOCK(&ifp->if_snd, m);
-		IFQ_UNLOCK(&ifp->if_snd);
-		return (m);
-	}
-#endif
-	m = buf_ring_peek(br);
-	if (m == NULL || func(m, arg) == 0)
-		return (NULL);
-
-	return (buf_ring_dequeue_sc(br));
-}
-
-static __inline int
-drbr_empty(struct ifnet *ifp, struct buf_ring *br)
-{
-#ifdef ALTQ
-	if (ALTQ_IS_ENABLED(&ifp->if_snd))
-		return (IFQ_IS_EMPTY(&ifp->if_snd));
-#endif
-	return (buf_ring_empty(br));
-}
-
-static __inline int
-drbr_needs_enqueue(struct ifnet *ifp, struct buf_ring *br)
-{
-#ifdef ALTQ
-	if (ALTQ_IS_ENABLED(&ifp->if_snd))
-		return (1);
-#endif
-	return (!buf_ring_empty(br));
-}
-
-static __inline int
-drbr_inuse(struct ifnet *ifp, struct buf_ring *br)
-{
-#ifdef ALTQ
-	if (ALTQ_IS_ENABLED(&ifp->if_snd))
-		return (ifp->if_snd.ifq_len);
-#endif
-	return (buf_ring_count(br));
-}
-#endif
 /*
  * 72 was chosen below because it is the size of a TCP/IP
  * header (40) + the minimum mss (32).
@@ -893,8 +468,6 @@ VNET_DECLARE(int, useloopback);
 #define	V_loif		VNET(loif)
 #define	V_useloopback	VNET(useloopback)
 
-extern	int ifqmaxlen;
-
 int	if_addgroup(struct ifnet *, const char *);
 int	if_delgroup(struct ifnet *, const char *);
 int	if_addmulti(struct ifnet *, struct sockaddr *, struct ifmultiaddr **);
@@ -915,7 +488,6 @@ void	if_free(struct ifnet *);
 void	if_initname(struct ifnet *, const char *, int);
 void	if_link_state_change(struct ifnet *, int);
 int	if_printf(struct ifnet *, const char *, ...) __printflike(2, 3);
-void	if_qflush(struct ifnet *);
 void	if_ref(struct ifnet *);
 void	if_rele(struct ifnet *);
 int	if_setlladdr(struct ifnet *, const u_char *, int);
@@ -924,9 +496,6 @@ int	ifioctl(struct socket *, u_long, caddr_t, struct thread *);
 int	ifpromisc(struct ifnet *, int);
 struct	ifnet *ifunit(const char *);
 struct	ifnet *ifunit_ref(const char *);
-
-void	ifq_init(struct ifaltq *, struct ifnet *ifp);
-void	ifq_delete(struct ifaltq *);
 
 int	ifa_add_loopback_route(struct ifaddr *, struct sockaddr *);
 int	ifa_del_loopback_route(struct ifaddr *, struct sockaddr *);
@@ -950,14 +519,6 @@ void	if_deregister_com_alloc(u_char type);
 
 #define IF_LLADDR(ifp)							\
     LLADDR((struct sockaddr_dl *)((ifp)->if_addr->ifa_addr))
-
-#ifdef DEVICE_POLLING
-enum poll_cmd {	POLL_ONLY, POLL_AND_CHECK_STATUS };
-
-typedef	int poll_handler_t(struct ifnet *ifp, enum poll_cmd cmd, int count);
-int    ether_poll_register(poll_handler_t *h, struct ifnet *ifp);
-int    ether_poll_deregister(struct ifnet *ifp);
-#endif /* DEVICE_POLLING */
 
 #endif /* _KERNEL */
 
