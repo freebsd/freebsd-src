@@ -32,7 +32,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2010
+.Dd October 23, 2013
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -94,6 +94,15 @@ bluetooth configuration files
 gnats configuration files;
 see
 .Xr send-pr 1
+.It Pa keys/
+known trusted and revoked keys.
+.Pp
+.Bl -tag -width ".Pa keys/pkg/" -compact
+.It Pa keys/pkg/
+fingerprints for
+.Xr pkg 8
+.El
+.Pp
 .It Pa localtime
 local timezone information;
 see
