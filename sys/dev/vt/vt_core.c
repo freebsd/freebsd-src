@@ -79,14 +79,14 @@ const struct terminal_class vt_termclass = {
 };
 
 /*
- * Use a constant timer of 25 Hz to redraw the screen.
+ * Use a constant timer of 50 Hz to redraw the screen.
  *
  * XXX: In theory we should only fire up the timer when there is really
  * activity. Unfortunately we cannot always start timers. We really
  * don't want to process kernel messages synchronously, because it
  * really slows down the system.
  */
-#define	VT_TIMERFREQ	25
+#define	VT_TIMERFREQ	50
 
 /* Bell pitch/duration. */
 #define VT_BELLDURATION	((5 * hz + 99) / 100)
@@ -380,27 +380,11 @@ vt_scrollmode_kbdevent(struct vt_window *vw, int c, int console)
 }
 
 static int
-vt_kbdevent(keyboard_t *kbd, int event, void *arg)
+vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 {
-	struct vt_device *vd = arg;
 	struct vt_window *vw = vd->vd_curwindow;
-	int c, state;
+	int state = 0;
 
-	state = 0;
-	switch (event) {
-	case KBDIO_KEYINPUT:
-		break;
-	case KBDIO_UNLOADING:
-		mtx_lock(&Giant);
-		vd->vd_keyboard = -1;
-		kbd_release(kbd, (void *)&vd->vd_keyboard);
-		mtx_unlock(&Giant);
-		return (0);
-	default:
-		return (EINVAL);
-	}
-
-	c = kbdd_read_char(kbd, 0);
 	if (c & RELKEY)
 		return (0);
 
@@ -487,6 +471,31 @@ vt_kbdevent(keyboard_t *kbd, int event, void *arg)
 		else
 			terminal_input_raw(vw->vw_terminal, c);
 	}
+	return (0);
+}
+
+static int
+vt_kbdevent(keyboard_t *kbd, int event, void *arg)
+{
+	struct vt_device *vd = arg;
+	int c;
+
+	switch (event) {
+	case KBDIO_KEYINPUT:
+		break;
+	case KBDIO_UNLOADING:
+		mtx_lock(&Giant);
+		vd->vd_keyboard = -1;
+		kbd_release(kbd, (void *)&vd->vd_keyboard);
+		mtx_unlock(&Giant);
+		return (0);
+	default:
+		return (EINVAL);
+	}
+
+	while ((c = kbdd_read_char(kbd, 0)) != NOKEY)
+		vt_processkey(kbd, vd, c);
+
 	return (0);
 }
 
