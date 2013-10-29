@@ -130,7 +130,7 @@ atse_probe_nexus(device_t dev)
 
 	/* Success. */
 	device_set_desc(dev, "Altera Triple-Speed Ethernet MegaCore");
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
