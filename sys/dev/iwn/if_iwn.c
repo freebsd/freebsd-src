@@ -2210,7 +2210,7 @@ iwn_rate_to_plcp(struct iwn_softc *sc, struct ieee80211_node *ni,
 	 * If it's an MCS rate, let's set the plcp correctly
 	 * and set the relevant flags based on the node config.
 	 */
-	if (IEEE80211_IS_CHAN_HT(ni->ni_chan)) {
+	if (rate & IEEE80211_RATE_MCS) {
 		/*
 		 * Set the initial PLCP value to be between 0->31 for
 		 * MCS 0 -> MCS 31, then set the "I'm an MCS rate!"
