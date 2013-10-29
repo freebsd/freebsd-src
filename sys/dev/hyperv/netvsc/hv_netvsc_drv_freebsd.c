@@ -75,9 +75,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
-#include <net/if.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>

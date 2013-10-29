@@ -498,21 +498,21 @@ moea64_add_ofw_mappings(mmu_t mmup, phandle_t mmu, size_t sz)
 	qsort(translations, sz, sizeof (*translations), om_cmp);
 
 	for (i = 0; i < sz; i++) {
-		CTR3(KTR_PMAP, "translation: pa=%#x va=%#x len=%#x",
-		    (uint32_t)(translations[i].om_pa_lo), translations[i].om_va,
-		    translations[i].om_len);
-
-		if (translations[i].om_pa_lo % PAGE_SIZE)
-			panic("OFW translation not page-aligned!");
-
 		pa_base = translations[i].om_pa_lo;
-
 	      #ifdef __powerpc64__
 		pa_base += (vm_offset_t)translations[i].om_pa_hi << 32;
 	      #else
 		if (translations[i].om_pa_hi)
 			panic("OFW translations above 32-bit boundary!");
 	      #endif
+
+		if (pa_base % PAGE_SIZE)
+			panic("OFW translation not page-aligned (phys)!");
+		if (translations[i].om_va % PAGE_SIZE)
+			panic("OFW translation not page-aligned (virt)!");
+
+		CTR3(KTR_PMAP, "translation: pa=%#zx va=%#x len=%#x",
+		    pa_base, translations[i].om_va, translations[i].om_len);
 
 		/* Now enter the pages for this mapping */
 
@@ -690,9 +690,9 @@ moea64_early_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelen
 	hwphyssz = 0;
 	TUNABLE_ULONG_FETCH("hw.physmem", (u_long *) &hwphyssz);
 	for (i = 0, j = 0; i < regions_sz; i++, j += 2) {
-		CTR3(KTR_PMAP, "region: %#x - %#x (%#x)", regions[i].mr_start,
-		    regions[i].mr_start + regions[i].mr_size,
-		    regions[i].mr_size);
+		CTR3(KTR_PMAP, "region: %#zx - %#zx (%#zx)",
+		    regions[i].mr_start, regions[i].mr_start +
+		    regions[i].mr_size, regions[i].mr_size);
 		if (hwphyssz != 0 &&
 		    (physsz + regions[i].mr_size) >= hwphyssz) {
 			if (physsz < hwphyssz) {

@@ -1,0 +1,199 @@
+.\"	$FreeBSD$
+.\"	$NetBSD: tests.kyua.7,v 1.2 2013/07/20 21:39:59 wiz Exp $
+.\"
+.\" Copyright (c) 2010 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND
+.\" CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+.\" INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+.\" GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+.\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+.\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd October 19, 2013
+.Dt TESTS 7
+.Os
+.Sh NAME
+.Nm tests
+.Nd introduction to the FreeBSD test suite
+.Sh DESCRIPTION
+The
+.Fx
+test suite provides a collection of automated tests for two major purposes.
+On the one hand, the test suite aids
+.Em developers
+in catching bugs and regressions in the code when they performing modifications
+to the source tree.
+On the other hand, the test suite allows
+.Em end users
+(and, in particular, system administrators) to verify that fresh installations
+of the
+.Fx
+operating system behave correctly in their hardware platform and also to ensure
+that the system does not suffer from regressions during regular system
+operation and maintenance.
+.Pp
+The
+.Fx
+test suite is installed under the
+.Pa /usr/tests
+hierarchy.
+.Pp
+This manual page describes how to execute the test suite and how to configure
+some of its optional features.
+.Ss When to run the tests?
+Before diving into the details of how to run the test suite, here are some
+scenarios in which you should be running them:
+.Bl -bullet -offset indent
+.It
+After a fresh installation of
+.Fx
+to ensure that the system works correctly on your hardware platform.
+.It
+After an upgrade of
+.Fx
+to a different version to ensure that the new code works well on your
+hardware platform and that the upgrade did not introduce regressions in your
+configuration.
+.It
+After performing changes to the source tree to catch any bugs and/or regressions
+introduced by the modifications.
+.It
+Periodically, maybe from a
+.Xr cron 8
+job, to ensure that any changes to the system (such as the installation of
+third-party packages or manual modifications to configuration files) do not
+introduce unexpected failures.
+.El
+.Ss Running the tests
+First of all, you will need to install the
+.Sq ports/devel/kyua
+package.
+.Pp
+Use the following command to run the whole test suite:
+.Bd -literal -offset indent
+$ kyua test -k /usr/tests/Kyuafile
+.Ed
+.Pp
+The above will go through all test programs in
+.Pa /usr/tests
+recursively, execute them, store their results and debugging data in Kyua
+database (by default in
+.Pa ~/.kyua/store.db ) ,
+and print a summary of the results.
+This summary includes a brief count of all total tests run and how many of
+them failed.
+.Pp
+It is possible to restrict which tests to run by providing their names in
+the command line.
+For example, this would execute the tests for the
+.Xr cp 1
+and
+.Xr cut 1
+utilities:
+.Bd -literal -offset indent
+$ kyua test -k /usr/tests/Kyuafile bin/cp usr.bin/cut
+.Ed
+.Ss Obtaining reports of the tests execution
+Additional information of the results of the execution can be later extracted
+from the database by using the various reporting commands of Kyua.
+For example, the following would extract a plain-text report of the executed
+tests and show which ones failed:
+.Bd -literal -offset indent
+$ kyua report
+.Ed
+.Pp
+This other example would generate an HTML report ready to be published on a
+web server:
+.Bd -literal -offset indent
+$ kyua report-html --output ~/public_html/tests
+.Ed
+.Pp
+For further details on the command-line interface of Kyua, please refer
+to its manual page
+.Xr kyua 1 .
+.\".Ss Configuring the tests
+.\"Some test cases in the
+.\".Fx
+.\"test suite require the administrator to manually set up some configuration
+.\"properties before they can run.
+.\"Unless these properties are defined, the tests that require them will be marked
+.\"as skipped and thus they will not be really executed.
+.\".Pp
+.\"Test suites are configured by defining the values to their configuration
+.\"variables in
+.\".Pa /usr/local/etc/kyua/kyua.conf .
+.\"The format of this file is detailed in
+.\".Xr kyua.conf 5 .
+.\".Pp
+.\"The following configuration variables are available in the
+.\".Fx
+.\"test suite:
+.\".Bl -tag
+.\".It NONE REGISTERED YET
+.\"TBD.
+.Ss What to do if something fails?
+If there is
+.Em any failure
+during the execution of the test suite, please considering reporting it to the
+.Fx
+developers so that the failure can be analyzed and fixed.
+To do so, either send a message to the appropriate mailing list or file a
+problem report.
+For more details please refer to:
+.Bl -bullet -offset indent -compact
+.It
+.Lk http://lists.freebsd.org/ "FreeBSD Mailing Lists"
+.It
+.Lk http://www.freebsd.org/send-pr.html "Submit a FreeBSD Problem Report"
+.El
+.Sh FILES
+.Bl -tag -compact -width usrXlocalXetcXkyuaXkyuaXconfXX
+.It Pa /usr/local/etc/kyua/kyua.conf
+System-wide configuration file for
+.Xr kyua 1 .
+.It Pa ~/.kyua/kyua.conf
+User-specific configuration file for
+.Xr kyua 1 ;
+overrides the system file.
+.It Pa ~/.kyua/store.db
+Default database used by Kyua to maintain the data of the executed tests.
+.It Pa /usr/tests/
+Location of the
+.Fx
+test suite.
+.It Pa /usr/tests/Kyuafile
+Top-level test suite definition file.
+.El
+.Sh SEE ALSO
+.Xr kyua 1 .
+.Sh HISTORY
+The collection of test programs in
+.Pa /usr/tests
+first appeared in
+.Fx 11.0 .
+.Pp
+The
+.Nm
+manual page first appeared in
+.Nx 6.0
+and was later ported to
+.Fx 11.0 .
+.Sh AUTHORS
+.An Julio Merino Aq Mt jmmv@google.com

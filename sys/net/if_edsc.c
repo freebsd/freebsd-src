@@ -46,7 +46,8 @@
 
 #include <net/bpf.h>		/* bpf(9) */
 #include <net/ethernet.h>	/* Ethernet related constants and types */
-#include <net/if.h>		/* basic part of ifnet(9) */
+#include <net/if.h>
+#include <net/if_var.h>		/* basic part of ifnet(9) */
 #include <net/if_clone.h>	/* network interface cloning */
 #include <net/if_types.h>	/* IFT_ETHER and friends */
 #include <net/if_var.h>		/* kernel-only part of ifnet(9) */

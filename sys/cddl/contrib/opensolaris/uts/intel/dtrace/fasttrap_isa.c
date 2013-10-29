@@ -104,6 +104,7 @@ uwrite(proc_t *p, void *kaddr, size_t len, uintptr_t uaddr)
 #define	r_rip	r_eip
 #define	r_rflags r_eflags
 #define	r_rsp	r_esp
+#define	r_rbp	r_ebp
 #endif
 
 /*
@@ -1394,29 +1395,27 @@ fasttrap_pid_probe(struct reg *rp)
 	case FASTTRAP_T_PUSHL_EBP:
 	{
 		int ret = 0;
-		uintptr_t addr = 0;
 
 #ifdef __amd64
 		if (p->p_model == DATAMODEL_NATIVE) {
-			addr = rp->r_rsp - sizeof (uintptr_t);
-			ret = fasttrap_sulword((void *)addr, &rp->r_rsp);
+			rp->r_rsp -= sizeof (uintptr_t);
+			ret = fasttrap_sulword(&rp->r_rbp, (void *)rp->r_rsp);
 		} else {
 #endif
 #ifdef __i386__
-			addr = rp->r_rsp - sizeof (uint32_t);
-			ret = fasttrap_suword32((void *)addr, &rp->r_rsp);
+			rp->r_rsp -= sizeof (uint32_t);
+			ret = fasttrap_suword32(&rp->r_rbp, (void *)rp->r_rsp);
 #endif
 #ifdef __amd64
 		}
 #endif
 
 		if (ret == -1) {
-			fasttrap_sigsegv(p, curthread, addr);
+			fasttrap_sigsegv(p, curthread, rp->r_rsp);
 			new_pc = pc;
 			break;
 		}
 
-		rp->r_rsp = addr;
 		new_pc = pc + tp->ftt_size;
 		break;
 	}

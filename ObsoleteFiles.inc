@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20131028: ng_fec(4) removed
+OLD_FILES+=usr/include/netgraph/ng_fec.h
+OLD_FILES+=usr/share/man/man4/ng_fec.4.gz
 # 20131023: remove never used iscsi directory
 OLD_DIRS+=usr/share/examples/iscsi
 # 20131014: libbsdyml becomes private

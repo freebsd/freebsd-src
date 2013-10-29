@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 
 #include <machine/bus.h>
-#include <machine/pmap.h>
-#include <machine/frame.h>
 #include <machine/machdep.h>
 
 #include <arm/xilinx/zy7_reg.h>
@@ -61,7 +59,7 @@ vm_offset_t
 initarm_lastaddr(void)
 {
 
-	return (ZYNQ7_PSIO_VBASE - ARM_NOCACHE_KVA_SIZE);
+	return (ZYNQ7_PSIO_VBASE);
 }
 
 void

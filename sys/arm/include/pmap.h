@@ -489,7 +489,7 @@ extern int pmap_needs_pte_sync;
 #if (ARM_MMU_SA1 == 1) && (ARM_NMMUS == 1)
 #define	PMAP_NEEDS_PTE_SYNC	1
 #define	PMAP_INCLUDE_PTE_SYNC
-#elif defined(CPU_XSCALE_81342) || defined(ARM_ARCH_7) || defined(ARM_ARCH_7A)
+#elif defined(CPU_XSCALE_81342) || ARM_ARCH_6 || ARM_ARCH_7A
 #define PMAP_NEEDS_PTE_SYNC	1
 #define PMAP_INCLUDE_PTE_SYNC
 #elif (ARM_MMU_SA1 == 0)
@@ -734,11 +734,6 @@ struct arm_small_page {
 };
 
 #endif
-
-#define ARM_NOCACHE_KVA_SIZE 0x1000000
-extern vm_offset_t arm_nocache_startaddr;
-void *arm_remap_nocache(void *, vm_size_t);
-void arm_unmap_nocache(void *, vm_size_t);
 
 extern vm_paddr_t dump_avail[];
 #endif	/* _KERNEL */

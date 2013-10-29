@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -126,13 +127,6 @@ ip1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the interface is not up, don't do anything.
-		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0) {
-			break;
-		}
-
 		PHY_RESET(sc);
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
@@ -179,12 +173,6 @@ done:
 		break;
 
 	case MII_TICK:
-		/*
-		 * Is the interface even up?
-		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
-			return (0);
-
 		/*
 		 * Only used for autonegotiation.
 		 */

@@ -103,6 +103,7 @@ struct disk {
 	void			*d_drv1;
 };
 
+#define DISKFLAG_RESERVED	0x1	/* Was NEEDSGIANT */
 #define DISKFLAG_OPEN		0x2
 #define DISKFLAG_CANDELETE	0x4
 #define DISKFLAG_CANFLUSHCACHE	0x8

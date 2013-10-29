@@ -29,6 +29,10 @@ MAN=	adding_user.7 \
 	sticky.7 \
 	tuning.7
 
+.if ${MK_TESTS} != "no"
+MAN+=	tests.7
+.endif
+
 MLINKS=	intro.7 miscellaneous.7
 MLINKS+= security.7 securelevel.7
 MLINKS+= c99.7 c.7

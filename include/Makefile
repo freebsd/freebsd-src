@@ -288,6 +288,13 @@ symlinks:
 		    ${DESTDIR}${INCLUDEDIR}/netinet; \
 	done
 .endif
+.if ${MK_PF} != "no"
+	cd ${.CURDIR}/../sys/netpfil/pf; \
+	for h in *.h; do \
+		ln -fs ../../../../sys/netpfil/pf/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/netpfil/pf; \
+	done
+.endif
 	cd ${.CURDIR}/../sys/crypto; \
 	for h in rijndael/rijndael.h; do \
 		ln -fs ../../../sys/crypto/$$h \

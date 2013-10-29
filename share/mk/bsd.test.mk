@@ -12,10 +12,6 @@
 
 .include <bsd.init.mk>
 
-# Pointer to the top directory into which tests are installed.  Should not be
-# overriden by Makefiles, but the user may choose to set this in src.conf(5).
-TESTSBASE?= /usr/tests
-
 # Directory in which to install tests defined by the current Makefile.
 # Makefiles have to override this to point to a subdirectory of TESTSBASE.
 TESTSDIR?= .

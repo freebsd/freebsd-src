@@ -449,14 +449,12 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 	if (mcp->mc_vers != _MC_VERSION || mcp->mc_len != sizeof(*mcp))
 		return (EINVAL);
 
-#ifdef AIM
 	/*
 	 * Don't let the user set privileged MSR bits
 	 */
 	if ((mcp->mc_srr1 & PSL_USERSTATIC) != (tf->srr1 & PSL_USERSTATIC)) {
 		return (EINVAL);
 	}
-#endif
 
 	/* Copy trapframe, preserving TLS pointer across context change */
 	if (SV_PROC_FLAG(td->td_proc, SV_LP64))
@@ -594,7 +592,7 @@ ppc32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	tf->fixreg[8] = (register_t)imgp->ps_strings;	/* NetBSD extension */
 
 	tf->srr0 = imgp->entry_addr;
-	tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
+	tf->srr1 = PSL_USERSET | PSL_FE_DFLT;
 	tf->srr1 &= ~PSL_SF;
 	if (mfmsr() & PSL_HV)
 		tf->srr1 |= PSL_HV;
@@ -1024,7 +1022,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 		tf->srr0 = (register_t)entry;
 	    #ifdef AIM
-		tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
+		tf->srr1 = PSL_USERSET | PSL_FE_DFLT;
 		#ifdef __powerpc64__
 		tf->srr1 &= ~PSL_SF;
 		#endif
@@ -1038,7 +1036,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 		tf->srr0 = entry_desc[0];
 		tf->fixreg[2] = entry_desc[1];
 		tf->fixreg[11] = entry_desc[2];
-		tf->srr1 = PSL_SF | PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
+		tf->srr1 = PSL_SF | PSL_USERSET | PSL_FE_DFLT;
 	    #endif
 	}
 

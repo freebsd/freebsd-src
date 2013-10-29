@@ -320,6 +320,7 @@ __DEFAULT_YES_OPTIONS = \
     NIS \
     NLS \
     NLS_CATALOGS \
+    NMTREE \
     NS_CACHING \
     NTP \
     OPENSSH \
@@ -370,13 +371,13 @@ __DEFAULT_NO_OPTIONS = \
     LIBICONV_COMPAT \
     INSTALL_AS_USER \
     LLDB \
-    NMTREE \
     NAND \
     OFED \
     OPENSSH_NONE_CIPHER \
     PKGTOOLS \
     SHARED_TOOLCHAIN \
     SVN \
+    TESTS \
     USB_GADGET_EXAMPLES
 
 #
@@ -663,5 +664,9 @@ $xGRP=	${_gid}
 .endif
 
 .endif # !_WITHOUT_SRCCONF
+
+# Pointer to the top directory into which tests are installed.  Should not be
+# overriden by Makefiles, but the user may choose to set this in src.conf(5).
+TESTSBASE?= /usr/tests
 
 .endif	# !target(__<bsd.own.mk>__)

@@ -44,9 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/armreg.h>
 #include <machine/bus.h>
-#include <machine/frame.h> /* For trapframe_t, used in <machine/machdep.h> */
 #include <machine/machdep.h>
-#include <machine/pmap.h>
 
 #include <dev/fdt/fdt_common.h>
 
@@ -57,7 +55,7 @@ vm_offset_t
 initarm_lastaddr(void)
 {
 
-	return (DEVMAP_BOOTSTRAP_MAP_START - ARM_NOCACHE_KVA_SIZE);
+	return (DEVMAP_BOOTSTRAP_MAP_START);
 }
 
 void

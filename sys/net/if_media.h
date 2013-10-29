@@ -54,6 +54,8 @@
 
 #include <sys/queue.h>
 
+struct ifnet;
+
 /*
  * Driver callbacks for media status and change requests.
  */
