@@ -54,10 +54,12 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include "inout.h"
 #include "dbgport.h"
+#include "legacy_irq.h"
 #include "mem.h"
 #include "mevent.h"
 #include "mptbl.h"
 #include "pci_emul.h"
+#include "pci_lpc.h"
 #include "xmsr.h"
 #include "ioapic.h"
 #include "spinup_ap.h"
@@ -123,7 +125,7 @@ usage(int code)
 
         fprintf(stderr,
                 "Usage: %s [-aehAHIPW] [-g <gdb port>] [-s <pci>] [-S <pci>]\n"
-		"       %*s [-c vcpus] [-p pincpu] [-m mem] <vmname>\n"
+		"       %*s [-c vcpus] [-p pincpu] [-m mem] [-l <lpc>] <vm>\n"
 		"       -a: local apic is in XAPIC mode (default is X2APIC)\n"
 		"       -A: create an ACPI table\n"
 		"       -g: gdb port\n"
@@ -137,6 +139,7 @@ usage(int code)
 		"       -h: help\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
 		"       -S: <slot,driver,configinfo> legacy PCI slot config\n"
+		"       -l: LPC device configuration\n"
 		"       -m: memory size in MB\n",
 		progname, (int)strlen(progname), "");
 
@@ -553,7 +556,7 @@ main(int argc, char *argv[])
 	ioapic = 0;
 	memsize = 256 * MB;
 
-	while ((c = getopt(argc, argv, "abehAHIPWp:g:c:s:S:m:")) != -1) {
+	while ((c = getopt(argc, argv, "abehAHIPWp:g:c:s:S:m:l:")) != -1) {
 		switch (c) {
 		case 'a':
 			disable_x2apic = 1;
@@ -572,6 +575,12 @@ main(int argc, char *argv[])
 			break;
 		case 'g':
 			gdb_port = atoi(optarg);
+			break;
+		case 'l':
+			if (lpc_device_parse(optarg) != 0) {
+				errx(EX_USAGE, "invalid lpc device "
+				    "configuration '%s'", optarg);
+			}
 			break;
 		case 's':
 			if (pci_parse_slot(optarg, 0) != 0)
@@ -640,6 +649,7 @@ main(int argc, char *argv[])
 
 	init_mem();
 	init_inout();
+	legacy_irq_init();
 
 	rtc_init(ctx);
 

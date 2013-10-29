@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 NetApp, Inc.
+ * Copyright (c) 2013 Neel Natu <neel@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,50 +26,20 @@
  * $FreeBSD$
  */
 
-#ifndef _INOUT_H_
-#define	_INOUT_H_
+#ifndef _UART_EMUL_H_
+#define	_UART_EMUL_H_
 
-#include <sys/linker_set.h>
 
-struct vmctx;
+#define	UART_IO_BAR_SIZE	8
 
-typedef int (*inout_func_t)(struct vmctx *ctx, int vcpu, int in, int port,
-			    int bytes, uint32_t *eax, void *arg);
+struct uart_softc;
 
-struct inout_port {
-	const char 	*name;
-	int		port;
-	int		size;
-	int		flags;
-	inout_func_t	handler;
-	void		*arg;
-};
-#define	IOPORT_F_IN		0x1
-#define	IOPORT_F_OUT		0x2
-#define	IOPORT_F_INOUT		(IOPORT_F_IN | IOPORT_F_OUT)
+typedef void (*uart_intr_func_t)(void *arg);
+struct uart_softc *uart_init(uart_intr_func_t intr_assert,
+		uart_intr_func_t intr_deassert, void *arg);
 
-/*
- * The following flags are used internally and must not be used by
- * device models.
- */
-#define	IOPORT_F_DEFAULT	0x80000000	/* claimed by default handler */
-
-#define	INOUT_PORT(name, port, flags, handler)				\
-	static struct inout_port __CONCAT(__inout_port, __LINE__) = {	\
-		#name,							\
-		(port),							\
-		1,							\
-		(flags),						\
-		(handler),						\
-		0							\
-	};								\
-	DATA_SET(inout_port_set, __CONCAT(__inout_port, __LINE__))
-	
-void	init_inout(void);
-int	emulate_inout(struct vmctx *, int vcpu, int in, int port, int bytes,
-		      uint32_t *eax, int strict);
-int	register_inout(struct inout_port *iop);
-int	unregister_inout(struct inout_port *iop);
-void	init_bvmcons(void);
-
-#endif	/* _INOUT_H_ */
+int	uart_legacy_alloc(int unit, int *ioaddr, int *irq);
+uint8_t	uart_read(struct uart_softc *sc, int offset);
+void	uart_write(struct uart_softc *sc, int offset, uint8_t value);
+int	uart_set_backend(struct uart_softc *sc, const char *opt);
+#endif
