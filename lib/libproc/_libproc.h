@@ -52,6 +52,6 @@ struct proc_handle {
 #define	DPRINTF(...) 	warn(__VA_ARGS__)
 #define	DPRINTFX(...)	warnx(__VA_ARGS__)
 #else
-#define	DPRINTF(...)
-#define	DPRINTFX(...)
+#define	DPRINTF(...)    do { } while (0)
+#define	DPRINTFX(...)   do { } while (0)
 #endif
