@@ -383,8 +383,7 @@ xlp_pcib_probe(device_t dev)
 {
 
 	device_set_desc(dev, "XLP PCI bus");
-	xlp_pcib_init_resources();
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
@@ -523,6 +522,8 @@ static int
 xlp_pcib_attach(device_t dev)
 {
 	int node, link;
+
+	xlp_pcib_init_resources();
 
 	/* enable hardware swap on all nodes/links */
 	for (node = 0; node < XLP_MAX_NODES; node++)

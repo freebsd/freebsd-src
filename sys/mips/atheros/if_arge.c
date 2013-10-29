@@ -262,7 +262,7 @@ arge_probe(device_t dev)
 {
 
 	device_set_desc(dev, "Atheros AR71xx built-in ethernet interface");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static void
