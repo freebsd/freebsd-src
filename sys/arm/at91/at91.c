@@ -231,7 +231,7 @@ at91_probe(device_t dev)
 {
 
 	device_set_desc(dev, "AT91 device bus");
-	return (BUS_PROBE_NO_WILDCARD);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static void
