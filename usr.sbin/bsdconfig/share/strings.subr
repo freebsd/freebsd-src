@@ -26,6 +26,11 @@ if [ ! "$_STRINGS_SUBR" ]; then _STRINGS_SUBR=1
 #
 # $FreeBSD$
 #
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
 ############################################################ GLOBALS
 
 #
@@ -317,6 +322,122 @@ f_shell_unescape()
 {
 	local __string="$1" __var_to_set="$2"
 	f_replaceall "$__string" "'\\''" "'" "$__var_to_set"
+}
+
+# f_expand_number $string [$var_to_set]
+#
+# Unformat $string into a number, optionally to be stored in $var_to_set. This
+# function follows the SI power of two convention.
+#
+# The prefixes are:
+#
+# 	Prefix	Description	Multiplier
+# 	k	kilo		1024
+# 	M	mega		1048576
+# 	G	giga		1073741824
+# 	T	tera		1099511627776
+# 	P	peta		1125899906842624
+# 	E	exa		1152921504606846976
+#
+# NOTE: Prefixes are case-insensitive.
+#
+# Upon successful completion, success status is returned; otherwise the number
+# -1 is produced ($var_to_set set to -1 or if $var_to_set is NULL or missing)
+# on standard output. In the case of failure, the error status will be one of:
+#
+# 	Status	Reason
+# 	1	Given $string contains no digits
+# 	2	An unrecognized prefix was given
+# 	3	Result too large to calculate
+#
+f_expand_number()
+{
+	local __string="$1" __var_to_set="$2"
+	local __cp __num __bshift __maxinput
+
+	# Remove any leading non-digits
+	while :; do
+		__cp="$__string"
+		__string="${__cp#[!0-9]}"
+		[ "$__string" = "$__cp" ] && break
+	done
+
+	# Produce `-1' if string didn't contain any digits
+	if [ ! "$__string" ]; then
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" -1
+		else
+			echo -1
+		fi
+		return 1 # 1 = "Given $string contains no digits"
+	fi
+
+	# Store the numbers
+	__num="${__string%%[!0-9]*}"
+
+	# Shortcut
+	if [ $__num -eq 0 ]; then
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" 0
+		else
+			echo 0
+		fi
+		return $SUCCESS
+	fi
+
+	# Remove all the leading numbers from the string to get at the prefix
+	while :; do
+		__cp="$__string"
+		__string="${__cp#[0-9]}"
+		[ "$__string" = "$__cp" ] && break
+	done
+
+	#
+	# Test for invalid prefix (and determine bitshift length)
+	#
+	case "$__string" in
+	""|[[:space:]]*) # Shortcut
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" $__num
+		else
+			echo $__num
+		fi
+		return $SUCCESS ;;
+	[Kk]*) __bshift=10 ;;
+	[Mm]*) __bshift=20 ;;
+	[Gg]*) __bshift=30 ;;
+	[Tt]*) __bshift=40 ;;
+	[Pp]*) __bshift=50 ;;
+	[Ee]*) __bshift=60 ;;
+	*)
+		# Unknown prefix
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" -1
+		else
+			echo -1
+		fi
+		return 2 # 2 = "An unrecognized prefix was given"
+	esac
+
+	# Determine if the wheels fall off
+	__maxinput=$(( 0x7fffffffffffffff >> $__bshift ))
+	if [ $__num -gt $__maxinput ]; then
+		# Input (before expanding) would exceed 64-bit signed int
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" -1
+		else
+			echo -1
+		fi
+		return 3 # 3 = "Result too large to calculate"
+	fi
+
+	# Shift the number out and produce it
+	__num=$(( $__num << $__bshift ))
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" $__num
+	else
+		echo $__num
+	fi
 }
 
 ############################################################ MAIN

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2012
+.Dd October 1, 2013
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -285,11 +285,14 @@ Currently supported algorithms are:
 .Nm AES-XTS ,
 .Nm AES-CBC ,
 .Nm Blowfish-CBC ,
-.Nm Camellia-CBC
+.Nm Camellia-CBC ,
+.Nm 3DES-CBC ,
 and
-.Nm 3DES-CBC .
+.Nm NULL .
 The default and recommended algorithm is
 .Nm AES-XTS .
+.Nm NULL
+is unencrypted.
 .It Fl i Ar iterations
 Number of iterations to use with PKCS#5v2 when processing User Key
 passphrase component.
@@ -838,10 +841,10 @@ Create an encrypted provider for use by the user, but remember that users
 forget their passphrases, so backup the Master Key with your own random key:
 .Bd -literal -offset indent
 # dd if=/dev/random of=/mnt/pendrive/keys/`hostname` bs=64 count=1
-# geli init -P -K /mnt/pendrive/keys/`hostname` /dev/ad0s1e
-# geli backup /dev/ad0s1e /mnt/pendrive/backups/`hostname`
+# geli init -P -K /mnt/pendrive/keys/`hostname` /dev/ada0s1e
+# geli backup /dev/ada0s1e /mnt/pendrive/backups/`hostname`
 (use key number 0, so the encrypted Master Key will be re-encrypted by this)
-# geli setkey -n 0 -k /mnt/pendrive/keys/`hostname` /dev/ad0s1e
+# geli setkey -n 0 -k /mnt/pendrive/keys/`hostname` /dev/ada0s1e
 (allow the user to enter his passphrase)
 Enter new passphrase:
 Reenter new passphrase:
@@ -849,9 +852,9 @@ Reenter new passphrase:
 .Pp
 Encrypted swap partition setup:
 .Bd -literal -offset indent
-# dd if=/dev/random of=/dev/ad0s1b bs=1m
-# geli onetime -d -e 3des ad0s1b
-# swapon /dev/ad0s1b.eli
+# dd if=/dev/random of=/dev/ada0s1b bs=1m
+# geli onetime -d -e 3des ada0s1b
+# swapon /dev/ada0s1b.eli
 .Ed
 .Pp
 The example below shows how to configure two providers which will be attached

@@ -51,10 +51,11 @@ extern "C" {
  */
 
 /**
- * Given the length of an un-encrypted string, get the length of the 
- * encrypted string.
- * @param len the length of an unencrypted string.
- * @return the length of the string after it is encrypted
+ * Given the length of an un-encoded string, get the length of the
+ * encoded string.
+ * @param len the length of an unencoded string.
+ * @return the length of the string after it is encoded, including the
+ * trailing \0
  */ 
 APU_DECLARE(int) apr_base64_encode_len(int len);
 

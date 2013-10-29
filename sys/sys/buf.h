@@ -501,6 +501,7 @@ void	bufstrategy(struct bufobj *, struct buf *);
 void	brelse(struct buf *);
 void	bqrelse(struct buf *);
 int	vfs_bio_awrite(struct buf *);
+void	vfs_drain_busy_pages(struct buf *bp);
 struct buf *     getpbuf(int *);
 struct buf *incore(struct bufobj *, daddr_t);
 struct buf *gbincore(struct bufobj *, daddr_t);

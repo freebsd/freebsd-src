@@ -471,10 +471,10 @@ f_dialog_validate_tcpip()
 	     ! f_validate_gateway "$gateway" "$ipaddr" "$netmask"; then
 		f_show_msg "$msg_invalid_gateway_ipv4_address_specified"
 	else
-		return $SUCCESS
+		return $DIALOG_OK
 	fi
 
-	return $FAILURE
+	return $DIALOG_CANCEL
 }
 
 # f_ifconfig_inet $interface [$var_to_set]
@@ -1102,7 +1102,7 @@ f_device_dialog_tcp()
 	local use_dhcp="" use_rtsol=""
 	local _ipaddr _netmask _extras
 
-	[ "$dev" ] || return $FAILURE
+	[ "$dev" ] || return $DIALOG_CANCEL
 
 	# Initialize vars from previous device values
 	local private
@@ -1124,7 +1124,6 @@ f_device_dialog_tcp()
 			f_getvar $VAR_NONINTERACTIVE old_interactive
 			unset $VAR_NONINTERACTIVE
 		fi
-
 
 		#
 		# Try a RTSOL scan if such behavior is desired.
@@ -1321,7 +1320,7 @@ f_device_dialog_tcp()
 				if [ ! "$cp" ]; then
 					# User either chose "Cancel", pressed
 					# ESC, or blanked every form field
-					return $FAILURE
+					return $DIALOG_CANCEL
 				else
 					n=$( echo "$cp" | f_number_of_lines )
 					[ $n -eq 1 ] && case "$cp" in HELP*)
@@ -1404,14 +1403,12 @@ f_device_dialog_tcp()
 				f_dialog_data_sanitize cp
 				f_dprintf "retval=%u mtag=[%s]" $retval "$cp"
 
-				if [ $retval -eq 2 ]; then
-					# The Help button was pressed
+				if [ $retval -eq $DIALOG_HELP ]; then
 					f_show_help "$TCP_HELPFILE"
 					continue
-				elif [ $retval -ne 0 ]; then
-					# User chose "Cancel" or pressed ESC
+				elif [ $retval -ne $DIALOG_OK ]; then
 					f_dialog_title_restore
-					return $FAILURE
+					return $DIALOG_CANCEL
 				fi
 
 				case "$cp" in
@@ -1490,7 +1487,7 @@ f_device_dialog_tcp()
 	[ "$use_dhcp" ] ||
 		f_config_resolv # XXX this will do it on the MFS copy
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_device_scan_tcp [$var_to_set]
@@ -1586,15 +1583,15 @@ f_device_select_tcp()
 			if [ ${cnt:=0} -gt 0 ]; then
 				dev="${devs%%[$IFS]*}"
 				f_device_dialog_tcp $dev
-				if [ $? -eq $SUCCESS ]; then
+				if [ $? -eq $DIALOG_OK ]; then
 					setvar $VAR_NETWORK_DEVICE $dev
-					return $SUCCESS
+					return $DIALOG_OK
 				fi
 			fi
 		done
 
 		f_interactive && f_show_msg "$msg_no_network_devices"
-		return $FAILURE
+		return $DIALOG_CANCEL
 
 	fi # $network_dev
 
@@ -1610,18 +1607,18 @@ f_device_select_tcp()
 		if f_dialog_yesno "$msg_assume_network_is_already_configured"
 		then
 			setvar $VAR_NETWORK_DEVICE $dev
-			return $SUCCESS
+			return $DIALOG_OK
 		fi
 	fi
 
 	local retval=$SUCCESS
 	if [ ${cnt:=0} -eq 0 ]; then
 		f_show_msg "$msg_no_network_devices"
-		retval=$FAILURE
+		retval=$DIALOG_CANCEL
 	elif [ $cnt -eq 1 ]; then
 		f_device_dialog_tcp $dev
 		retval=$?
-		[ $retval -eq $SUCCESS ] && setvar $VAR_NETWORK_DEVICE $dev
+		[ $retval -eq $DIALOG_OK ] && setvar $VAR_NETWORK_DEVICE $dev
 	else
 		local title="$msg_network_interface_information_required"
 		local prompt="$msg_please_select_ethernet_device_to_configure"
@@ -1632,15 +1629,15 @@ f_device_select_tcp()
 			"$NETWORK_DEVICE_HELPFILE" \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD )
 		retval=$?
-		[ "$dev" ] || return $FAILURE
+		[ "$dev" ] || return $DIALOG_CANCEL
 
 		f_device_find "$dev" $DEVICE_TYPE_NETWORK devs
-		[ "$devs" ] || return $FAILURE
+		[ "$devs" ] || return $DIALOG_CANCEL
 		dev="${devs%%[$IFS]*}"
 
 		f_device_dialog_tcp $dev
 		retval=$?
-		if [ $retval -eq $SUCCESS ]; then
+		if [ $retval -eq $DIALOG_OK ]; then
 			f_struct_copy device_$dev device_network
 			setvar $VAR_NETWORK_DEVICE network
 		else
@@ -1675,7 +1672,7 @@ f_dialog_menu_select_tcp()
 			           "$name"
 		fi
 	fi
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 ############################################################ MAIN

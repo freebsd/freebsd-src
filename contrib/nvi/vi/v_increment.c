@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_increment.c	10.12 (Berkeley) 3/19/96";
+static const char sccsid[] = "$Id: v_increment.c,v 10.17 2011/12/02 01:17:53 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -28,17 +28,17 @@ static const char sccsid[] = "@(#)v_increment.c	10.12 (Berkeley) 3/19/96";
 #include "../common/common.h"
 #include "vi.h"
 
-static char * const fmt[] = {
+static CHAR_T * const fmt[] = {
 #define	DEC	0
-	"%ld",
+	L("%ld"),
 #define	SDEC	1
-	"%+ld",
+	L("%+ld"),
 #define	HEXC	2
-	"0X%0*lX",
+	L("0X%0*lX"),
 #define	HEXL	3
-	"0x%0*lx",
+	L("0x%0*lx"),
 #define	OCTAL	4
-	"%#0*lo",
+	L("%#0*lo"),
 };
 
 static void inc_err __P((SCR *, enum nresult));
@@ -50,16 +50,15 @@ static void inc_err __P((SCR *, enum nresult));
  * PUBLIC: int v_increment __P((SCR *, VICMD *));
  */
 int
-v_increment(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_increment(SCR *sp, VICMD *vp)
 {
 	enum nresult nret;
 	u_long ulval;
 	long change, ltmp, lval;
 	size_t beg, blen, end, len, nlen, wlen;
 	int base, isempty, rval;
-	char *bp, *ntype, *p, *t, nbuf[100];
+	CHAR_T *ntype, nbuf[100];
+	CHAR_T *bp, *p, *t;
 
 	/* Validate the operator. */
 	if (vp->character == '#')
@@ -91,7 +90,7 @@ v_increment(sp, vp)
 	 * implies moving the cursor to its beginning, if we moved, refresh
 	 * now.
 	 */
-	for (beg = vp->m_start.cno; beg < len && isspace(p[beg]); ++beg);
+	for (beg = vp->m_start.cno; beg < len && ISSPACE(p[beg]); ++beg);
 	if (beg >= len)
 		goto nonum;
 	if (beg != vp->m_start.cno) {
@@ -100,9 +99,9 @@ v_increment(sp, vp)
 	}
 
 #undef	ishex
-#define	ishex(c)	(isdigit(c) || strchr("abcdefABCDEF", c))
+#define	ishex(c)	(ISXDIGIT(c))
 #undef	isoctal
-#define	isoctal(c)	(isdigit(c) && (c) != '8' && (c) != '9')
+#define	isoctal(c)	((c) >= '0' && (c) <= '7')
 
 	/*
 	 * Look for 0[Xx], or leading + or - signs, guess at the base.
@@ -175,9 +174,9 @@ nonum:			msgq(sp, M_ERR, "181|Cursor not in a number");
 	 * buffer big enough to fit the line changes as well, and only
 	 * allocate once.
 	 */
-	GET_SPACE_RET(sp, bp, blen, len + 50);
+	GET_SPACE_RETW(sp, bp, blen, len + 50);
 	if (end == len) {
-		memmove(bp, &p[beg], wlen);
+		MEMMOVE(bp, &p[beg], wlen);
 		bp[wlen] = '\0';
 		t = bp;
 	} else
@@ -203,7 +202,7 @@ nonum:			msgq(sp, M_ERR, "181|Cursor not in a number");
 		/* If we cross 0, signed numbers lose their sign. */
 		if (lval == 0 && ntype == fmt[SDEC])
 			ntype = fmt[DEC];
-		nlen = snprintf(nbuf, sizeof(nbuf), ntype, lval);
+		nlen = SPRINTF(nbuf, sizeof(nbuf), ntype, lval);
 	} else {
 		if ((nret = nget_uslong(&ulval, t, NULL, base)) != NUM_OK)
 			goto err;
@@ -225,13 +224,13 @@ nonum:			msgq(sp, M_ERR, "181|Cursor not in a number");
 		if (base == 16)
 			wlen -= 2;
 
-		nlen = snprintf(nbuf, sizeof(nbuf), ntype, wlen, ulval);
+		nlen = SPRINTF(nbuf, sizeof(nbuf), ntype, wlen, ulval);
 	}
 
 	/* Build the new line. */
-	memmove(bp, p, beg);
-	memmove(bp + beg, nbuf, nlen);
-	memmove(bp + beg + nlen, p + end, len - beg - (end - beg));
+	MEMMOVE(bp, p, beg);
+	MEMMOVE(bp + beg, nbuf, nlen);
+	MEMMOVE(bp + beg + nlen, p + end, len - beg - (end - beg));
 	len = beg + nlen + (len - beg - (end - beg));
 
 	nret = NUM_OK;
@@ -242,14 +241,12 @@ err:		rval = 1;
 		inc_err(sp, nret);
 	}
 	if (bp != NULL)
-		FREE_SPACE(sp, bp, blen);
+		FREE_SPACEW(sp, bp, blen);
 	return (rval);
 }
 
 static void
-inc_err(sp, nret)
-	SCR *sp;
-	enum nresult nret;
+inc_err(SCR *sp, enum nresult nret)
 {
 	switch (nret) {
 	case NUM_ERR:

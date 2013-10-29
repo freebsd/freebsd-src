@@ -51,8 +51,8 @@
 #define	PMC_FN_CSW_IN			2
 #define	PMC_FN_CSW_OUT			3
 #define	PMC_FN_DO_SAMPLES		4
-#define	PMC_FN_KLD_LOAD			5
-#define	PMC_FN_KLD_UNLOAD		6
+#define	PMC_FN_UNUSED1			5
+#define	PMC_FN_UNUSED2			6
 #define	PMC_FN_MMAP			7
 #define	PMC_FN_MUNMAP			8
 #define	PMC_FN_USER_CALLCHAIN		9

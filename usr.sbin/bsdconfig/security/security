@@ -123,7 +123,7 @@ dialog_menu_main()
 	f_dialog_menutag_store "$menu_choice"
 
 	# Only update default-item on success
-	[ $retval -eq 0 ] && f_dialog_default_store "$menu_choice"
+	[ $retval -eq $DIALOG_OK ] && f_dialog_default_store "$menu_choice"
 
 	return $retval
 }

@@ -40,7 +40,7 @@ CFLAGS+=	-I${.CURDIR}/../../../cddl/compat/opensolaris \
 		-I${.CURDIR}/../../../cddl/contrib/opensolaris/uts/common \
 		-I${.CURDIR}/../../.. -DDIS_MEM
 
-CFLAGS+=	-DSMP -DDEBUG
+CFLAGS+=	-DSMP
 
 EXPORT_SYMS=	dtrace_register \
 		dtrace_unregister \
@@ -49,3 +49,10 @@ EXPORT_SYMS=	dtrace_register \
 dtrace_asm.o:  assym.s
 
 .include <bsd.kmod.mk>
+
+CFLAGS+=	-include ${.CURDIR}/../../../cddl/compat/opensolaris/sys/debug_compat.h
+
+CWARNFLAGS+=	-Wno-parentheses
+CWARNFLAGS+=	-Wno-uninitialized
+CWARNFLAGS+=	-Wno-cast-qual
+CWARNFLAGS+=	-Wno-unused

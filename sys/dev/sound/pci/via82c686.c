@@ -485,11 +485,7 @@ via_attach(device_t dev)
 	via->lock = snd_mtxcreate(device_get_nameunit(dev),
 	    "snd_via82c686 softc");
 
-	/* Get resources */
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
-	data |= (PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, data, 2);
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
+	pci_enable_busmaster(dev);
 
 	/* Wake up and reset AC97 if necessary */
 	data = pci_read_config(dev, VIA_AC97STATUS, 1);

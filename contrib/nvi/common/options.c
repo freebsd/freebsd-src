@@ -10,13 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)options.c	10.51 (Berkeley) 10/14/96";
+static const char sccsid[] = "$Id: options.c,v 10.73 2012/10/09 06:14:07 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 
 #include <bitstring.h>
 #include <ctype.h>
@@ -35,6 +34,12 @@ static int	 	 opts_abbcmp __P((const void *, const void *));
 static int	 	 opts_cmp __P((const void *, const void *));
 static int	 	 opts_print __P((SCR *, OPTLIST const *));
 
+#ifdef USE_WIDECHAR
+#define OPT_WC	    0
+#else
+#define OPT_WC	    (OPT_NOSAVE | OPT_NDISP)
+#endif
+
 /*
  * O'Reilly noted options and abbreviations are from "Learning the VI Editor",
  * Fifth Edition, May 1992.  There's no way of knowing what systems they are
@@ -45,77 +50,81 @@ static int	 	 opts_print __P((SCR *, OPTLIST const *));
  */
 OPTLIST const optlist[] = {
 /* O_ALTWERASE	  4.4BSD */
-	{"altwerase",	f_altwerase,	OPT_0BOOL,	0},
+	{L("altwerase"),	f_altwerase,	OPT_0BOOL,	0},
 /* O_AUTOINDENT	    4BSD */
-	{"autoindent",	NULL,		OPT_0BOOL,	0},
+	{L("autoindent"),	NULL,		OPT_0BOOL,	0},
 /* O_AUTOPRINT	    4BSD */
-	{"autoprint",	NULL,		OPT_1BOOL,	0},
+	{L("autoprint"),	NULL,		OPT_1BOOL,	0},
 /* O_AUTOWRITE	    4BSD */
-	{"autowrite",	NULL,		OPT_0BOOL,	0},
+	{L("autowrite"),	NULL,		OPT_0BOOL,	0},
 /* O_BACKUP	  4.4BSD */
-	{"backup",	NULL,		OPT_STR,	0},
+	{L("backup"),	NULL,		OPT_STR,	0},
 /* O_BEAUTIFY	    4BSD */
-	{"beautify",	NULL,		OPT_0BOOL,	0},
+	{L("beautify"),	NULL,		OPT_0BOOL,	0},
 /* O_CDPATH	  4.4BSD */
-	{"cdpath",	NULL,		OPT_STR,	0},
+	{L("cdpath"),	NULL,		OPT_STR,	0},
 /* O_CEDIT	  4.4BSD */
-	{"cedit",	NULL,		OPT_STR,	0},
+	{L("cedit"),	NULL,		OPT_STR,	0},
 /* O_COLUMNS	  4.4BSD */
-	{"columns",	f_columns,	OPT_NUM,	OPT_NOSAVE},
+	{L("columns"),	f_columns,	OPT_NUM,	OPT_NOSAVE},
+/* O_COMBINED */
+	{L("combined"),	NULL,		OPT_0BOOL,	OPT_NOSET|OPT_WC},
 /* O_COMMENT	  4.4BSD */
-	{"comment",	NULL,		OPT_0BOOL,	0},
-/* O_TMP_DIRECTORY  4BSD */
-	{"directory",	NULL,		OPT_STR,	0},
+	{L("comment"),	NULL,		OPT_0BOOL,	0},
+/* O_TMPDIR	    4BSD */
+	{L("directory"),	NULL,		OPT_STR,	0},
 /* O_EDCOMPATIBLE   4BSD */
-	{"edcompatible",NULL,		OPT_0BOOL,	0},
-/* O_ESCAPETIME	  4.4BSD */
-	{"escapetime",	NULL,		OPT_NUM,	0},
+	{L("edcompatible"),NULL,		OPT_0BOOL,	0},
 /* O_ERRORBELLS	    4BSD */
-	{"errorbells",	NULL,		OPT_0BOOL,	0},
+	{L("errorbells"),	NULL,		OPT_0BOOL,	0},
+/* O_ESCAPETIME	  4.4BSD */
+	{L("escapetime"),	NULL,		OPT_NUM,	0},
 /* O_EXRC	System V (undocumented) */
-	{"exrc",	NULL,		OPT_0BOOL,	0},
+	{L("exrc"),	NULL,		OPT_0BOOL,	0},
 /* O_EXTENDED	  4.4BSD */
-	{"extended",	f_recompile,	OPT_0BOOL,	0},
+	{L("extended"),	f_recompile,	OPT_0BOOL,	0},
 /* O_FILEC	  4.4BSD */
-	{"filec",	NULL,		OPT_STR,	0},
+	{L("filec"),	NULL,		OPT_STR,	0},
+/* O_FILEENCODING */
+	{L("fileencoding"),f_encoding,	OPT_STR,	OPT_WC},
 /* O_FLASH	    HPUX */
-	{"flash",	NULL,		OPT_1BOOL,	0},
-#ifdef GTAGS
-/* O_GTAGSMODE      FreeBSD2.2 */
-	{"gtagsmode",	NULL,		OPT_0BOOL,	0},
-#endif
+	{L("flash"),	NULL,		OPT_1BOOL,	0},
 /* O_HARDTABS	    4BSD */
-	{"hardtabs",	NULL,		OPT_NUM,	0},
+	{L("hardtabs"),	NULL,		OPT_NUM,	0},
 /* O_ICLOWER	  4.4BSD */
-	{"iclower",	f_recompile,	OPT_0BOOL,	0},
+	{L("iclower"),	f_recompile,	OPT_0BOOL,	0},
 /* O_IGNORECASE	    4BSD */
-	{"ignorecase",	f_recompile,	OPT_0BOOL,	0},
+	{L("ignorecase"),	f_recompile,	OPT_0BOOL,	0},
+/* O_INPUTENCODING */
+	{L("inputencoding"),f_encoding,	OPT_STR,	OPT_WC},
 /* O_KEYTIME	  4.4BSD */
-	{"keytime",	NULL,		OPT_NUM,	0},
+	{L("keytime"),	NULL,		OPT_NUM,	0},
 /* O_LEFTRIGHT	  4.4BSD */
-	{"leftright",	f_reformat,	OPT_0BOOL,	0},
+	{L("leftright"),	f_reformat,	OPT_0BOOL,	0},
 /* O_LINES	  4.4BSD */
-	{"lines",	f_lines,	OPT_NUM,	OPT_NOSAVE},
+	{L("lines"),	f_lines,	OPT_NUM,	OPT_NOSAVE},
 /* O_LISP	    4BSD
  *	XXX
  *	When the lisp option is implemented, delete the OPT_NOSAVE flag,
  *	so that :mkexrc dumps it.
  */
-	{"lisp",	f_lisp,		OPT_0BOOL,	OPT_NOSAVE},
+	{L("lisp"),	f_lisp,		OPT_0BOOL,	OPT_NOSAVE},
 /* O_LIST	    4BSD */
-	{"list",	f_reformat,	OPT_0BOOL,	0},
+	{L("list"),	f_reformat,	OPT_0BOOL,	0},
 /* O_LOCKFILES	  4.4BSD
  *	XXX
  *	Locking isn't reliable enough over NFS to require it, in addition,
  *	it's a serious startup performance problem over some remote links.
  */
-	{"lock",	NULL,		OPT_1BOOL,	0},
+	{L("lock"),	NULL,		OPT_1BOOL,	0},
 /* O_MAGIC	    4BSD */
-	{"magic",	NULL,		OPT_1BOOL,	0},
+	{L("magic"),	NULL,		OPT_1BOOL,	0},
+/* O_MATCHCHARS	  NetBSD 2.0 */
+	{L("matchchars"),	NULL,		OPT_STR,	OPT_PAIRS},
 /* O_MATCHTIME	  4.4BSD */
-	{"matchtime",	NULL,		OPT_NUM,	0},
+	{L("matchtime"),	NULL,		OPT_NUM,	0},
 /* O_MESG	    4BSD */
-	{"mesg",	NULL,		OPT_1BOOL,	0},
+	{L("mesg"),	NULL,		OPT_1BOOL,	0},
 /* O_MODELINE	    4BSD
  *	!!!
  *	This has been documented in historical systems as both "modeline"
@@ -124,61 +133,61 @@ OPTLIST const optlist[] = {
  *	example of what your intro CS professor referred to as the perils of
  *	mixing code and data.  Don't add it, or I will kill you.
  */
-	{"modeline",	NULL,		OPT_0BOOL,	OPT_NOSET},
+	{L("modeline"),	NULL,		OPT_0BOOL,	OPT_NOSET},
 /* O_MSGCAT	  4.4BSD */
-	{"msgcat",	f_msgcat,	OPT_STR,	0},
+	{L("msgcat"),	f_msgcat,	OPT_STR,	0},
 /* O_NOPRINT	  4.4BSD */
-	{"noprint",	f_print,	OPT_STR,	0},
+	{L("noprint"),	f_print,	OPT_STR,	0},
 /* O_NUMBER	    4BSD */
-	{"number",	f_reformat,	OPT_0BOOL,	0},
+	{L("number"),	f_reformat,	OPT_0BOOL,	0},
 /* O_OCTAL	  4.4BSD */
-	{"octal",	f_print,	OPT_0BOOL,	0},
+	{L("octal"),	f_print,	OPT_0BOOL,	0},
 /* O_OPEN	    4BSD */
-	{"open",	NULL,		OPT_1BOOL,	0},
+	{L("open"),	NULL,		OPT_1BOOL,	0},
 /* O_OPTIMIZE	    4BSD */
-	{"optimize",	NULL,		OPT_1BOOL,	0},
+	{L("optimize"),	NULL,		OPT_1BOOL,	0},
 /* O_PARAGRAPHS	    4BSD */
-	{"paragraphs",	f_paragraph,	OPT_STR,	0},
+	{L("paragraphs"),	NULL,		OPT_STR,	OPT_PAIRS},
 /* O_PATH	  4.4BSD */
-	{"path",	NULL,		OPT_STR,	0},
+	{L("path"),	NULL,		OPT_STR,	0},
 /* O_PRINT	  4.4BSD */
-	{"print",	f_print,	OPT_STR,	0},
+	{L("print"),	f_print,	OPT_STR,	0},
 /* O_PROMPT	    4BSD */
-	{"prompt",	NULL,		OPT_1BOOL,	0},
+	{L("prompt"),	NULL,		OPT_1BOOL,	0},
 /* O_READONLY	    4BSD (undocumented) */
-	{"readonly",	f_readonly,	OPT_0BOOL,	OPT_ALWAYS},
+	{L("readonly"),	f_readonly,	OPT_0BOOL,	OPT_ALWAYS},
 /* O_RECDIR	  4.4BSD */
-	{"recdir",	NULL,		OPT_STR,	0},
+	{L("recdir"),	NULL,		OPT_STR,	0},
 /* O_REDRAW	    4BSD */
-	{"redraw",	NULL,		OPT_0BOOL,	0},
+	{L("redraw"),	NULL,		OPT_0BOOL,	0},
 /* O_REMAP	    4BSD */
-	{"remap",	NULL,		OPT_1BOOL,	0},
+	{L("remap"),	NULL,		OPT_1BOOL,	0},
 /* O_REPORT	    4BSD */
-	{"report",	NULL,		OPT_NUM,	0},
+	{L("report"),	NULL,		OPT_NUM,	0},
 /* O_RULER	  4.4BSD */
-	{"ruler",	NULL,		OPT_0BOOL,	0},
+	{L("ruler"),	NULL,		OPT_0BOOL,	0},
 /* O_SCROLL	    4BSD */
-	{"scroll",	NULL,		OPT_NUM,	0},
+	{L("scroll"),	NULL,		OPT_NUM,	0},
 /* O_SEARCHINCR	  4.4BSD */
-	{"searchincr",	NULL,		OPT_0BOOL,	0},
+	{L("searchincr"),	NULL,		OPT_0BOOL,	0},
 /* O_SECTIONS	    4BSD */
-	{"sections",	f_section,	OPT_STR,	0},
+	{L("sections"),	NULL,		OPT_STR,	OPT_PAIRS},
 /* O_SECURE	  4.4BSD */
-	{"secure",	NULL,		OPT_0BOOL,	OPT_NOUNSET},
+	{L("secure"),	NULL,		OPT_0BOOL,	OPT_NOUNSET},
 /* O_SHELL	    4BSD */
-	{"shell",	NULL,		OPT_STR,	0},
+	{L("shell"),	NULL,		OPT_STR,	0},
 /* O_SHELLMETA	  4.4BSD */
-	{"shellmeta",	NULL,		OPT_STR,	0},
+	{L("shellmeta"),	NULL,		OPT_STR,	0},
 /* O_SHIFTWIDTH	    4BSD */
-	{"shiftwidth",	NULL,		OPT_NUM,	OPT_NOZERO},
+	{L("shiftwidth"),	NULL,		OPT_NUM,	OPT_NOZERO},
 /* O_SHOWMATCH	    4BSD */
-	{"showmatch",	NULL,		OPT_0BOOL,	0},
+	{L("showmatch"),	NULL,		OPT_0BOOL,	0},
 /* O_SHOWMODE	  4.4BSD */
-	{"showmode",	NULL,		OPT_0BOOL,	0},
+	{L("showmode"),	NULL,		OPT_0BOOL,	0},
 /* O_SIDESCROLL	  4.4BSD */
-	{"sidescroll",	NULL,		OPT_NUM,	OPT_NOZERO},
+	{L("sidescroll"),	NULL,		OPT_NUM,	OPT_NOZERO},
 /* O_SLOWOPEN	    4BSD  */
-	{"slowopen",	NULL,		OPT_0BOOL,	0},
+	{L("slowopen"),	NULL,		OPT_0BOOL,	0},
 /* O_SOURCEANY	    4BSD (undocumented)
  *	!!!
  *	Historic vi, on startup, source'd $HOME/.exrc and ./.exrc, if they
@@ -187,98 +196,97 @@ OPTLIST const optlist[] = {
  *	.exrc files the user didn't own.  This is an obvious security problem,
  *	and we ignore the option.
  */
-	{"sourceany",	NULL,		OPT_0BOOL,	OPT_NOSET},
+	{L("sourceany"),	NULL,		OPT_0BOOL,	OPT_NOSET},
 /* O_TABSTOP	    4BSD */
-	{"tabstop",	f_reformat,	OPT_NUM,	OPT_NOZERO},
+	{L("tabstop"),	f_reformat,	OPT_NUM,	OPT_NOZERO},
 /* O_TAGLENGTH	    4BSD */
-	{"taglength",	NULL,		OPT_NUM,	0},
+	{L("taglength"),	NULL,		OPT_NUM,	0},
 /* O_TAGS	    4BSD */
-	{"tags",	NULL,		OPT_STR,	0},
+	{L("tags"),	NULL,		OPT_STR,	0},
 /* O_TERM	    4BSD
  *	!!!
  *	By default, the historic vi always displayed information about two
  *	options, redraw and term.  Term seems sufficient.
  */
-	{"term",	NULL,		OPT_STR,	OPT_ADISP|OPT_NOSAVE},
+	{L("term"),	NULL,		OPT_STR,	OPT_ADISP|OPT_NOSAVE},
 /* O_TERSE	    4BSD */
-	{"terse",	NULL,		OPT_0BOOL,	0},
+	{L("terse"),	NULL,		OPT_0BOOL,	0},
 /* O_TILDEOP      4.4BSD */
-	{"tildeop",	NULL,		OPT_0BOOL,	0},
+	{L("tildeop"),	NULL,		OPT_0BOOL,	0},
 /* O_TIMEOUT	    4BSD (undocumented) */
-	{"timeout",	NULL,		OPT_1BOOL,	0},
+	{L("timeout"),	NULL,		OPT_1BOOL,	0},
 /* O_TTYWERASE	  4.4BSD */
-	{"ttywerase",	f_ttywerase,	OPT_0BOOL,	0},
+	{L("ttywerase"),	f_ttywerase,	OPT_0BOOL,	0},
 /* O_VERBOSE	  4.4BSD */
-	{"verbose",	NULL,		OPT_0BOOL,	0},
+	{L("verbose"),	NULL,		OPT_0BOOL,	0},
 /* O_W1200	    4BSD */
-	{"w1200",	f_w1200,	OPT_NUM,	OPT_NDISP|OPT_NOSAVE},
+	{L("w1200"),	f_w1200,	OPT_NUM,	OPT_NDISP|OPT_NOSAVE},
 /* O_W300	    4BSD */
-	{"w300",	f_w300,		OPT_NUM,	OPT_NDISP|OPT_NOSAVE},
+	{L("w300"),	f_w300,		OPT_NUM,	OPT_NDISP|OPT_NOSAVE},
 /* O_W9600	    4BSD */
-	{"w9600",	f_w9600,	OPT_NUM,	OPT_NDISP|OPT_NOSAVE},
+	{L("w9600"),	f_w9600,	OPT_NUM,	OPT_NDISP|OPT_NOSAVE},
 /* O_WARN	    4BSD */
-	{"warn",	NULL,		OPT_1BOOL,	0},
+	{L("warn"),	NULL,		OPT_1BOOL,	0},
 /* O_WINDOW	    4BSD */
-	{"window",	f_window,	OPT_NUM,	0},
+	{L("window"),	f_window,	OPT_NUM,	0},
 /* O_WINDOWNAME	    4BSD */
-	{"windowname",	NULL,		OPT_0BOOL,	0},
+	{L("windowname"),	NULL,		OPT_0BOOL,	0},
 /* O_WRAPLEN	  4.4BSD */
-	{"wraplen",	NULL,		OPT_NUM,	0},
+	{L("wraplen"),	NULL,		OPT_NUM,	0},
 /* O_WRAPMARGIN	    4BSD */
-	{"wrapmargin",	NULL,		OPT_NUM,	0},
+	{L("wrapmargin"),	NULL,		OPT_NUM,	0},
 /* O_WRAPSCAN	    4BSD */
-	{"wrapscan",	NULL,		OPT_1BOOL,	0},
+	{L("wrapscan"),	NULL,		OPT_1BOOL,	0},
 /* O_WRITEANY	    4BSD */
-	{"writeany",	NULL,		OPT_0BOOL,	0},
+	{L("writeany"),	NULL,		OPT_0BOOL,	0},
 	{NULL},
 };
 
 typedef struct abbrev {
-        char *name;
+        CHAR_T *name;
         int offset;
 } OABBREV;
 
 static OABBREV const abbrev[] = {
-	{"ai",		O_AUTOINDENT},		/*     4BSD */
-	{"ap",		O_AUTOPRINT},		/*     4BSD */
-	{"aw",		O_AUTOWRITE},		/*     4BSD */
-	{"bf",		O_BEAUTIFY},		/*     4BSD */
-	{"co",		O_COLUMNS},		/*   4.4BSD */
-	{"dir",		O_TMP_DIRECTORY},	/*     4BSD */
-	{"eb",		O_ERRORBELLS},		/*     4BSD */
-	{"ed",		O_EDCOMPATIBLE},	/*     4BSD */
-	{"ex",		O_EXRC},		/* System V (undocumented) */
-#ifdef GTAGS
-	{"gt",		O_GTAGSMODE},		/* FreeBSD2.2 */
-#endif
-	{"ht",		O_HARDTABS},		/*     4BSD */
-	{"ic",		O_IGNORECASE},		/*     4BSD */
-	{"li",		O_LINES},		/*   4.4BSD */
-	{"modelines",	O_MODELINE},		/*     HPUX */
-	{"nu",		O_NUMBER},		/*     4BSD */
-	{"opt",		O_OPTIMIZE},		/*     4BSD */
-	{"para",	O_PARAGRAPHS},		/*     4BSD */
-	{"re",		O_REDRAW},		/* O'Reilly */
-	{"ro",		O_READONLY},		/*     4BSD (undocumented) */
-	{"scr",		O_SCROLL},		/*     4BSD (undocumented) */
-	{"sect",	O_SECTIONS},		/* O'Reilly */
-	{"sh",		O_SHELL},		/*     4BSD */
-	{"slow",	O_SLOWOPEN},		/*     4BSD */
-	{"sm",		O_SHOWMATCH},		/*     4BSD */
-	{"smd",		O_SHOWMODE},		/*     4BSD */
-	{"sw",		O_SHIFTWIDTH},		/*     4BSD */
-	{"tag",		O_TAGS},		/*     4BSD (undocumented) */
-	{"tl",		O_TAGLENGTH},		/*     4BSD */
-	{"to",		O_TIMEOUT},		/*     4BSD (undocumented) */
-	{"ts",		O_TABSTOP},		/*     4BSD */
-	{"tty",		O_TERM},		/*     4BSD (undocumented) */
-	{"ttytype",	O_TERM},		/*     4BSD (undocumented) */
-	{"w",		O_WINDOW},		/* O'Reilly */
-	{"wa",		O_WRITEANY},		/*     4BSD */
-	{"wi",		O_WINDOW},		/*     4BSD (undocumented) */
-	{"wl",		O_WRAPLEN},		/*   4.4BSD */
-	{"wm",		O_WRAPMARGIN},		/*     4BSD */
-	{"ws",		O_WRAPSCAN},		/*     4BSD */
+	{L("ai"),	O_AUTOINDENT},		/*     4BSD */
+	{L("ap"),	O_AUTOPRINT},		/*     4BSD */
+	{L("aw"),	O_AUTOWRITE},		/*     4BSD */
+	{L("bf"),	O_BEAUTIFY},		/*     4BSD */
+	{L("co"),	O_COLUMNS},		/*   4.4BSD */
+	{L("dir"),	O_TMPDIR},		/*     4BSD */
+	{L("eb"),	O_ERRORBELLS},		/*     4BSD */
+	{L("ed"),	O_EDCOMPATIBLE},	/*     4BSD */
+	{L("ex"),	O_EXRC},		/* System V (undocumented) */
+	{L("fe"),	O_FILEENCODING},
+	{L("ht"),	O_HARDTABS},		/*     4BSD */
+	{L("ic"),	O_IGNORECASE},		/*     4BSD */
+	{L("ie"),	O_INPUTENCODING},
+	{L("li"),	O_LINES},		/*   4.4BSD */
+	{L("modelines"),	O_MODELINE},		/*     HPUX */
+	{L("nu"),	O_NUMBER},		/*     4BSD */
+	{L("opt"),	O_OPTIMIZE},		/*     4BSD */
+	{L("para"),	O_PARAGRAPHS},		/*     4BSD */
+	{L("re"),	O_REDRAW},		/* O'Reilly */
+	{L("ro"),	O_READONLY},		/*     4BSD (undocumented) */
+	{L("scr"),	O_SCROLL},		/*     4BSD (undocumented) */
+	{L("sect"),	O_SECTIONS},		/* O'Reilly */
+	{L("sh"),	O_SHELL},		/*     4BSD */
+	{L("slow"),	O_SLOWOPEN},		/*     4BSD */
+	{L("sm"),	O_SHOWMATCH},		/*     4BSD */
+	{L("smd"),	O_SHOWMODE},		/*     4BSD */
+	{L("sw"),	O_SHIFTWIDTH},		/*     4BSD */
+	{L("tag"),	O_TAGS},		/*     4BSD (undocumented) */
+	{L("tl"),	O_TAGLENGTH},		/*     4BSD */
+	{L("to"),	O_TIMEOUT},		/*     4BSD (undocumented) */
+	{L("ts"),	O_TABSTOP},		/*     4BSD */
+	{L("tty"),	O_TERM},		/*     4BSD (undocumented) */
+	{L("ttytype"),	O_TERM},		/*     4BSD (undocumented) */
+	{L("w"),	O_WINDOW},		/* O'Reilly */
+	{L("wa"),	O_WRITEANY},		/*     4BSD */
+	{L("wi"),	O_WINDOW},		/*     4BSD (undocumented) */
+	{L("wl"),	O_WRAPLEN},		/*   4.4BSD */
+	{L("wm"),	O_WRAPMARGIN},		/*     4BSD */
+	{L("ws"),	O_WRAPSCAN},		/*     4BSD */
 	{NULL},
 };
 
@@ -289,17 +297,18 @@ static OABBREV const abbrev[] = {
  * PUBLIC: int opts_init __P((SCR *, int *));
  */
 int
-opts_init(sp, oargs)
-	SCR *sp;
-	int *oargs;
+opts_init(
+	SCR *sp,
+	int *oargs)
 {
 	ARGS *argv[2], a, b;
 	OPTLIST const *op;
 	u_long v;
-	int cnt, optindx;
-	char *s, b1[1024];
+	int cnt, optindx = 0;
+	char *s;
+	CHAR_T b2[1024];
 
-	a.bp = b1;
+	a.bp = b2;
 	b.bp = NULL;
 	a.len = b.len = 0;
 	argv[0] = &a;
@@ -307,9 +316,9 @@ opts_init(sp, oargs)
 
 	/* Set numeric and string default values. */
 #define	OI(indx, str) {							\
-	if (str != b1)		/* GCC puts strings in text-space. */	\
-		(void)strcpy(b1, str);					\
-	a.len = strlen(b1);						\
+	a.len = STRLEN(str);						\
+	if ((CHAR_T*)str != b2)	  /* GCC puts strings in text-space. */	\
+		(void)MEMCPY(b2, str, a.len+1);				\
 	if (opts_set(sp, argv, NULL)) {					\
 		 optindx = indx;					\
 		goto err;						\
@@ -334,9 +343,10 @@ opts_init(sp, oargs)
 	F_SET(&sp->opts[O_SECURE], OPT_GLOBAL);
 
 	/* Initialize string values. */
-	(void)snprintf(b1, sizeof(b1),
-	    "cdpath=%s", (s = getenv("CDPATH")) == NULL ? ":" : s);
-	OI(O_CDPATH, b1);
+	(void)SPRINTF(b2, SIZE(b2),
+	    L("cdpath=%s"), (s = getenv("CDPATH")) == NULL ? ":" : s);
+	OI(O_CDPATH, b2);
+	OI(O_CEDIT, L("cedit=\033"));
 
 	/*
 	 * !!!
@@ -345,30 +355,32 @@ opts_init(sp, oargs)
 	 * are two ways to change this -- the user can set either the directory
 	 * option or the TMPDIR environmental variable.
 	 */
-	(void)snprintf(b1, sizeof(b1),
-	    "directory=%s", (s = getenv("TMPDIR")) == NULL ? _PATH_TMP : s);
-	OI(O_TMP_DIRECTORY, b1);
-	OI(O_ESCAPETIME, "escapetime=6");
-	OI(O_KEYTIME, "keytime=6");
-	OI(O_MATCHTIME, "matchtime=7");
-	(void)snprintf(b1, sizeof(b1), "msgcat=%s", _PATH_MSGCAT);
-	OI(O_MSGCAT, b1);
-	OI(O_REPORT, "report=5");
-	OI(O_PARAGRAPHS, "paragraphs=IPLPPPQPP LIpplpipbp");
-	(void)snprintf(b1, sizeof(b1), "path=%s", "");
-	OI(O_PATH, b1);
-	(void)snprintf(b1, sizeof(b1), "recdir=%s", _PATH_PRESERVE);
-	OI(O_RECDIR, b1);
-	OI(O_SECTIONS, "sections=NHSHH HUnhsh");
-	(void)snprintf(b1, sizeof(b1),
-	    "shell=%s", (s = getenv("SHELL")) == NULL ? _PATH_BSHELL : s);
-	OI(O_SHELL, b1);
-	OI(O_SHELLMETA, "shellmeta=~{[*?$`'\"\\");
-	OI(O_SHIFTWIDTH, "shiftwidth=8");
-	OI(O_SIDESCROLL, "sidescroll=16");
-	OI(O_TABSTOP, "tabstop=8");
-	(void)snprintf(b1, sizeof(b1), "tags=%s", _PATH_TAGS);
-	OI(O_TAGS, b1);
+	(void)SPRINTF(b2, SIZE(b2),
+	    L("directory=%s"), (s = getenv("TMPDIR")) == NULL ? _PATH_TMP : s);
+	OI(O_TMPDIR, b2);
+	OI(O_ESCAPETIME, L("escapetime=6"));
+	OI(O_FILEC, L("filec=\t"));
+	OI(O_KEYTIME, L("keytime=6"));
+	OI(O_MATCHCHARS, L("matchchars=()[]{}"));
+	OI(O_MATCHTIME, L("matchtime=7"));
+	(void)SPRINTF(b2, SIZE(b2), L("msgcat=%s"), _PATH_MSGCAT);
+	OI(O_MSGCAT, b2);
+	OI(O_REPORT, L("report=5"));
+	OI(O_PARAGRAPHS, L("paragraphs=IPLPPPQPP LIpplpipbp"));
+	(void)SPRINTF(b2, SIZE(b2), L("path=%s"), "");
+	OI(O_PATH, b2);
+	(void)SPRINTF(b2, SIZE(b2), L("recdir=%s"), _PATH_PRESERVE);
+	OI(O_RECDIR, b2);
+	OI(O_SECTIONS, L("sections=NHSHH HUnhsh"));
+	(void)SPRINTF(b2, SIZE(b2),
+	    L("shell=%s"), (s = getenv("SHELL")) == NULL ? _PATH_BSHELL : s);
+	OI(O_SHELL, b2);
+	OI(O_SHELLMETA, L("shellmeta=~{[*?$`'\"\\"));
+	OI(O_SHIFTWIDTH, L("shiftwidth=8"));
+	OI(O_SIDESCROLL, L("sidescroll=16"));
+	OI(O_TABSTOP, L("tabstop=8"));
+	(void)SPRINTF(b2, SIZE(b2), L("tags=%s"), _PATH_TAGS);
+	OI(O_TAGS, b2);
 
 	/*
 	 * XXX
@@ -377,8 +389,8 @@ opts_init(sp, oargs)
 	 */
 	if ((v = (O_VAL(sp, O_LINES) - 1) / 2) == 0)
 		v = 1;
-	(void)snprintf(b1, sizeof(b1), "scroll=%ld", v);
-	OI(O_SCROLL, b1);
+	(void)SPRINTF(b2, SIZE(b2), L("scroll=%ld"), v);
+	OI(O_SCROLL, b2);
 
 	/*
 	 * The default window option values are:
@@ -395,16 +407,19 @@ opts_init(sp, oargs)
 		v = 8;
 	else if (v <= 1200)
 		v = 16;
-	else
-		v = O_VAL(sp, O_LINES) - 1;
-	(void)snprintf(b1, sizeof(b1), "window=%lu", v);
-	OI(O_WINDOW, b1);
+	else if ((v = O_VAL(sp, O_LINES) - 1) == 0)
+		v = 1;
+
+	(void)SPRINTF(b2, SIZE(b2), L("window=%lu"), v);
+	OI(O_WINDOW, b2);
 
 	/*
 	 * Set boolean default values, and copy all settings into the default
 	 * information.  OS_NOFREE is set, we're copying, not replacing.
 	 */
-	for (op = optlist, cnt = 0; op->name != NULL; ++op, ++cnt)
+	for (op = optlist, cnt = 0; op->name != NULL; ++op, ++cnt) {
+		if (F_ISSET(op, OPT_GLOBAL))
+			continue;
 		switch (op->type) {
 		case OPT_0BOOL:
 			break;
@@ -423,6 +438,7 @@ opts_init(sp, oargs)
 		default:
 			abort();
 		}
+	}
 
 	/*
 	 * !!!
@@ -432,11 +448,11 @@ opts_init(sp, oargs)
 	 */
 	for (; *oargs != -1; ++oargs)
 		OI(*oargs, optlist[*oargs].name);
-	return (0);
 #undef OI
+	return (0);
 
-err:	msgq(sp, M_ERR,
-	    "031|Unable to set default %s option", optlist[optindx].name);
+err:	msgq_wstr(sp, M_ERR, optlist[optindx].name,
+	    "031|Unable to set default %s option");
 	return (1);
 }
 
@@ -447,18 +463,21 @@ err:	msgq(sp, M_ERR,
  * PUBLIC: int opts_set __P((SCR *, ARGS *[], char *));
  */
 int
-opts_set(sp, argv, usage)
-	SCR *sp;
-	ARGS *argv[];
-	char *usage;
+opts_set(
+	SCR *sp,
+	ARGS *argv[],
+	char *usage)
 {
 	enum optdisp disp;
 	enum nresult nret;
 	OPTLIST const *op;
 	OPTION *spo;
-	u_long value, turnoff;
+	u_long isset, turnoff, value;
 	int ch, equals, nf, nf2, offset, qmark, rval;
-	char *endp, *name, *p, *sep, *t;
+	CHAR_T *endp, *name, *p, *sep;
+	char *p2, *t2;
+	char *np;
+	size_t nlen;
 
 	disp = NO_DISPLAY;
 	for (rval = 0; argv[0]->len != 0; ++argv) {
@@ -466,7 +485,7 @@ opts_set(sp, argv, usage)
 		 * The historic vi dumped the options for each occurrence of
 		 * "all" in the set list.  Puhleeze.
 		 */
-		if (!strcmp(argv[0]->bp, "all")) {
+		if (!STRCMP(argv[0]->bp, L("all"))) {
 			disp = ALL_DISPLAY;
 			continue;
 		}
@@ -528,7 +547,7 @@ opts_set(sp, argv, usage)
 		case OPT_1BOOL:
 			/* Some options may not be reset. */
 			if (F_ISSET(op, OPT_NOUNSET) && turnoff) {
-				msgq_str(sp, M_ERR, name,
+				msgq_wstr(sp, M_ERR, name,
 			    "291|set: the %s option may not be turned off");
 				rval = 1;
 				break;
@@ -536,14 +555,14 @@ opts_set(sp, argv, usage)
 
 			/* Some options may not be set. */
 			if (F_ISSET(op, OPT_NOSET) && !turnoff) {
-				msgq_str(sp, M_ERR, name,
+				msgq_wstr(sp, M_ERR, name,
 			    "313|set: the %s option may never be turned on");
 				rval = 1;
 				break;
 			}
 
 			if (equals) {
-				msgq_str(sp, M_ERR, name,
+				msgq_wstr(sp, M_ERR, name,
 			    "034|set: [no]%s option doesn't take a value");
 				rval = 1;
 				break;
@@ -559,34 +578,34 @@ opts_set(sp, argv, usage)
 			 * Do nothing if the value is unchanged, the underlying
 			 * functions can be expensive.
 			 */
+			isset = !turnoff;
 			if (!F_ISSET(op, OPT_ALWAYS))
-				if (turnoff) {
-					if (!O_ISSET(sp, offset))
-						break;
-				} else {
+				if (isset) {
 					if (O_ISSET(sp, offset))
 						break;
-				}
+				} else
+					if (!O_ISSET(sp, offset))
+						break;
 
 			/* Report to subsystems. */
-			if (op->func != NULL &&
-			    op->func(sp, spo, NULL, &turnoff) ||
-			    ex_optchange(sp, offset, NULL, &turnoff) ||
-			    v_optchange(sp, offset, NULL, &turnoff) ||
-			    sp->gp->scr_optchange(sp, offset, NULL, &turnoff)) {
+			if ((op->func != NULL &&
+			    op->func(sp, spo, NULL, &isset)) ||
+			    ex_optchange(sp, offset, NULL, &isset) ||
+			    v_optchange(sp, offset, NULL, &isset) ||
+			    sp->gp->scr_optchange(sp, offset, NULL, &isset)) {
 				rval = 1;
 				break;
 			}
 
 			/* Set the value. */
-			if (turnoff)
-				O_CLR(sp, offset);
-			else
+			if (isset)
 				O_SET(sp, offset);
+			else
+				O_CLR(sp, offset);
 			break;
 		case OPT_NUM:
 			if (turnoff) {
-				msgq_str(sp, M_ERR, name,
+				msgq_wstr(sp, M_ERR, name,
 				    "035|set: %s option isn't a boolean");
 				rval = 1;
 				break;
@@ -598,48 +617,56 @@ opts_set(sp, argv, usage)
 				break;
 			}
 
-			if (!isdigit(sep[0]))
+			if (!ISDIGIT(sep[0]))
 				goto badnum;
 			if ((nret =
 			    nget_uslong(&value, sep, &endp, 10)) != NUM_OK) {
-				p = msg_print(sp, name, &nf);
-				t = msg_print(sp, sep, &nf2);
+				INT2CHAR(sp, name, STRLEN(name) + 1, 
+					     np, nlen);
+				p2 = msg_print(sp, np, &nf);
+				INT2CHAR(sp, sep, STRLEN(sep) + 1, 
+					     np, nlen);
+				t2 = msg_print(sp, np, &nf2);
 				switch (nret) {
 				case NUM_ERR:
 					msgq(sp, M_SYSERR,
-					    "036|set: %s option: %s", p, t);
+					    "036|set: %s option: %s", p2, t2);
 					break;
 				case NUM_OVER:
 					msgq(sp, M_ERR,
-			    "037|set: %s option: %s: value overflow", p, t);
+			    "037|set: %s option: %s: value overflow", p2, t2);
 					break;
 				case NUM_OK:
 				case NUM_UNDER:
 					abort();
 				}
 				if (nf)
-					FREE_SPACE(sp, p, 0);
+					FREE_SPACE(sp, p2, 0);
 				if (nf2)
-					FREE_SPACE(sp, t, 0);
+					FREE_SPACE(sp, t2, 0);
 				rval = 1;
 				break;
 			}
-			if (*endp && !isblank(*endp)) {
-badnum:				p = msg_print(sp, name, &nf);
-				t = msg_print(sp, sep, &nf2);
+			if (*endp && !cmdskip(*endp)) {
+badnum:				INT2CHAR(sp, name, STRLEN(name) + 1, 
+					     np, nlen);
+				p2 = msg_print(sp, np, &nf);
+				INT2CHAR(sp, sep, STRLEN(sep) + 1, 
+					     np, nlen);
+				t2 = msg_print(sp, np, &nf2);
 				msgq(sp, M_ERR,
-		    "038|set: %s option: %s is an illegal number", p, t);
+		    "038|set: %s option: %s is an illegal number", p2, t2);
 				if (nf)
-					FREE_SPACE(sp, p, 0);
+					FREE_SPACE(sp, p2, 0);
 				if (nf2)
-					FREE_SPACE(sp, t, 0);
+					FREE_SPACE(sp, t2, 0);
 				rval = 1;
 				break;
 			}
 
 			/* Some options may never be set to zero. */
 			if (F_ISSET(op, OPT_NOZERO) && value == 0) {
-				msgq_str(sp, M_ERR, name,
+				msgq_wstr(sp, M_ERR, name,
 			    "314|set: the %s option may never be set to 0");
 				rval = 1;
 				break;
@@ -654,11 +681,12 @@ badnum:				p = msg_print(sp, name, &nf);
 				break;
 
 			/* Report to subsystems. */
-			if (op->func != NULL &&
-			    op->func(sp, spo, sep, &value) ||
-			    ex_optchange(sp, offset, sep, &value) ||
-			    v_optchange(sp, offset, sep, &value) ||
-			    sp->gp->scr_optchange(sp, offset, sep, &value)) {
+			INT2CHAR(sp, sep, STRLEN(sep) + 1, np, nlen);
+			if ((op->func != NULL &&
+			    op->func(sp, spo, np, &value)) ||
+			    ex_optchange(sp, offset, np, &value) ||
+			    v_optchange(sp, offset, np, &value) ||
+			    sp->gp->scr_optchange(sp, offset, np, &value)) {
 				rval = 1;
 				break;
 			}
@@ -669,7 +697,7 @@ badnum:				p = msg_print(sp, name, &nf);
 			break;
 		case OPT_STR:
 			if (turnoff) {
-				msgq_str(sp, M_ERR, name,
+				msgq_wstr(sp, M_ERR, name,
 				    "039|set: %s option isn't a boolean");
 				rval = 1;
 				break;
@@ -681,27 +709,36 @@ badnum:				p = msg_print(sp, name, &nf);
 				break;
 			}
 
+			/* Check for strings that must have even length. */
+			if (F_ISSET(op, OPT_PAIRS) && STRLEN(sep) & 1) {
+				msgq_wstr(sp, M_ERR, name,
+				    "047|The %s option must be in two character groups");
+				rval = 1;
+				break;
+			}
+
 			/*
 			 * Do nothing if the value is unchanged, the underlying
 			 * functions can be expensive.
 			 */
+			INT2CHAR(sp, sep, STRLEN(sep) + 1, np, nlen);
 			if (!F_ISSET(op, OPT_ALWAYS) &&
 			    O_STR(sp, offset) != NULL &&
-			    !strcmp(O_STR(sp, offset), sep))
+			    !strcmp(O_STR(sp, offset), np))
 				break;
 
 			/* Report to subsystems. */
-			if (op->func != NULL &&
-			    op->func(sp, spo, sep, NULL) ||
-			    ex_optchange(sp, offset, sep, NULL) ||
-			    v_optchange(sp, offset, sep, NULL) ||
-			    sp->gp->scr_optchange(sp, offset, sep, NULL)) {
+			if ((op->func != NULL &&
+			    op->func(sp, spo, np, NULL)) ||
+			    ex_optchange(sp, offset, np, NULL) ||
+			    v_optchange(sp, offset, np, NULL) ||
+			    sp->gp->scr_optchange(sp, offset, np, NULL)) {
 				rval = 1;
 				break;
 			}
 
 			/* Set the value. */
-			if (o_set(sp, offset, OS_STRDUP, sep, 0))
+			if (o_set(sp, offset, OS_STRDUP, np, 0))
 				rval = 1;
 			break;
 		default:
@@ -720,12 +757,12 @@ badnum:				p = msg_print(sp, name, &nf);
  * PUBLIC: int o_set __P((SCR *, int, u_int, char *, u_long));
  */
 int
-o_set(sp, opt, flags, str, val)
-	SCR *sp;
-	int opt;
-	u_int flags;
-	char *str;
-	u_long val;
+o_set(
+	SCR *sp,
+	int opt,
+	u_int flags,
+	char *str,
+	u_long val)
 {
 	OPTION *op;
 
@@ -764,15 +801,16 @@ o_set(sp, opt, flags, str, val)
  * PUBLIC: int opts_empty __P((SCR *, int, int));
  */
 int
-opts_empty(sp, off, silent)
-	SCR *sp;
-	int off, silent;
+opts_empty(
+	SCR *sp,
+	int off,
+	int silent)
 {
 	char *p;
 
 	if ((p = O_STR(sp, off)) == NULL || p[0] == '\0') {
 		if (!silent)
-			msgq_str(sp, M_ERR, optlist[off].name,
+			msgq_wstr(sp, M_ERR, optlist[off].name,
 			    "305|No %s edit option specified");
 		return (1);
 	}
@@ -786,9 +824,9 @@ opts_empty(sp, off, silent)
  * PUBLIC: void opts_dump __P((SCR *, enum optdisp));
  */
 void
-opts_dump(sp, type)
-	SCR *sp;
-	enum optdisp type;
+opts_dump(
+	SCR *sp,
+	enum optdisp type)
 {
 	OPTLIST const *op;
 	int base, b_num, cnt, col, colwidth, curlen, s_num;
@@ -843,8 +881,8 @@ opts_dump(sp, type)
 				break;
 			case OPT_STR:
 				if (O_STR(sp, cnt) == O_D_STR(sp, cnt) ||
-				    O_D_STR(sp, cnt) != NULL &&
-				    !strcmp(O_STR(sp, cnt), O_D_STR(sp, cnt)))
+				    (O_D_STR(sp, cnt) != NULL &&
+				    !strcmp(O_STR(sp, cnt), O_D_STR(sp, cnt))))
 					continue;
 				break;
 			}
@@ -859,7 +897,7 @@ opts_dump(sp, type)
 		}
 		F_CLR(&sp->opts[cnt], OPT_SELECTED);
 
-		curlen = strlen(op->name);
+		curlen = STRLEN(op->name);
 		switch (op->type) {
 		case OPT_0BOOL:
 		case OPT_1BOOL:
@@ -920,9 +958,9 @@ opts_dump(sp, type)
  *	Print out an option.
  */
 static int
-opts_print(sp, op)
-	SCR *sp;
-	OPTLIST const *op;
+opts_print(
+	SCR *sp,
+	OPTLIST const *op)
 {
 	int curlen, offset;
 
@@ -932,13 +970,13 @@ opts_print(sp, op)
 	case OPT_0BOOL:
 	case OPT_1BOOL:
 		curlen += ex_printf(sp,
-		    "%s%s", O_ISSET(sp, offset) ? "" : "no", op->name);
+		    "%s"WS, O_ISSET(sp, offset) ? "" : "no", op->name);
 		break;
 	case OPT_NUM:
-		curlen += ex_printf(sp, "%s=%ld", op->name, O_VAL(sp, offset));
+		curlen += ex_printf(sp, WS"=%ld", op->name, O_VAL(sp, offset));
 		break;
 	case OPT_STR:
-		curlen += ex_printf(sp, "%s=\"%s\"", op->name,
+		curlen += ex_printf(sp, WS"=\"%s\"", op->name,
 		    O_STR(sp, offset) == NULL ? "" : O_STR(sp, offset));
 		break;
 	}
@@ -952,13 +990,14 @@ opts_print(sp, op)
  * PUBLIC: int opts_save __P((SCR *, FILE *));
  */
 int
-opts_save(sp, fp)
-	SCR *sp;
-	FILE *fp;
+opts_save(
+	SCR *sp,
+	FILE *fp)
 {
 	OPTLIST const *op;
-	int ch, cnt;
-	char *p;
+	CHAR_T ch, *p;
+	char nch, *np;
+	int cnt;
 
 	for (op = optlist; op->name != NULL; ++op) {
 		if (F_ISSET(op, OPT_NOSAVE))
@@ -968,28 +1007,28 @@ opts_save(sp, fp)
 		case OPT_0BOOL:
 		case OPT_1BOOL:
 			if (O_ISSET(sp, cnt))
-				(void)fprintf(fp, "set %s\n", op->name);
+				(void)fprintf(fp, "set "WS"\n", op->name);
 			else
-				(void)fprintf(fp, "set no%s\n", op->name);
+				(void)fprintf(fp, "set no"WS"\n", op->name);
 			break;
 		case OPT_NUM:
 			(void)fprintf(fp,
-			    "set %s=%-3ld\n", op->name, O_VAL(sp, cnt));
+			    "set "WS"=%-3ld\n", op->name, O_VAL(sp, cnt));
 			break;
 		case OPT_STR:
 			if (O_STR(sp, cnt) == NULL)
 				break;
 			(void)fprintf(fp, "set ");
 			for (p = op->name; (ch = *p) != '\0'; ++p) {
-				if (isblank(ch) || ch == '\\')
+				if (cmdskip(ch) || ch == '\\')
 					(void)putc('\\', fp);
-				(void)putc(ch, fp);
+				fprintf(fp, WC, ch);
 			}
 			(void)putc('=', fp);
-			for (p = O_STR(sp, cnt); (ch = *p) != '\0'; ++p) {
-				if (isblank(ch) || ch == '\\')
+			for (np = O_STR(sp, cnt); (nch = *np) != '\0'; ++np) {
+				if (cmdskip(nch) || nch == '\\')
 					(void)putc('\\', fp);
-				(void)putc(ch, fp);
+				(void)putc(nch, fp);
 			}
 			(void)putc('\n', fp);
 			break;
@@ -1006,11 +1045,10 @@ opts_save(sp, fp)
  * opts_search --
  *	Search for an option.
  *
- * PUBLIC: OPTLIST const *opts_search __P((char *));
+ * PUBLIC: OPTLIST const *opts_search __P((CHAR_T *));
  */
 OPTLIST const *
-opts_search(name)
-	char *name;
+opts_search(CHAR_T *name)
 {
 	OPTLIST const *op, *found;
 	OABBREV atmp, *ap;
@@ -1033,13 +1071,13 @@ opts_search(name)
 	 * Check to see if the name is the prefix of one (and only one)
 	 * option.  If so, return the option.
 	 */
-	len = strlen(name);
+	len = STRLEN(name);
 	for (found = NULL, op = optlist; op->name != NULL; ++op) {
 		if (op->name[0] < name[0])
 			continue;
 		if (op->name[0] > name[0])
 			break;
-		if (!memcmp(op->name, name, len)) {
+		if (!MEMCMP(op->name, name, len)) {
 			if (found != NULL)
 				return (NULL);
 			found = op;
@@ -1052,29 +1090,31 @@ opts_search(name)
  * opts_nomatch --
  *	Standard nomatch error message for options.
  *
- * PUBLIC: void opts_nomatch __P((SCR *, char *));
+ * PUBLIC: void opts_nomatch __P((SCR *, CHAR_T *));
  */
 void
-opts_nomatch(sp, name)
-	SCR *sp;
-	char *name;
+opts_nomatch(
+	SCR *sp,
+	CHAR_T *name)
 {
-	msgq_str(sp, M_ERR, name,
+	msgq_wstr(sp, M_ERR, name,
 	    "033|set: no %s option: 'set all' gives all option values");
 }
 
 static int
-opts_abbcmp(a, b)
-        const void *a, *b;
+opts_abbcmp(
+        const void *a,
+		const void *b)
 {
-        return(strcmp(((OABBREV *)a)->name, ((OABBREV *)b)->name));
+        return(STRCMP(((OABBREV *)a)->name, ((OABBREV *)b)->name));
 }
 
 static int
-opts_cmp(a, b)
-        const void *a, *b;
+opts_cmp(
+        const void *a,
+		const void *b)
 {
-        return(strcmp(((OPTLIST *)a)->name, ((OPTLIST *)b)->name));
+        return(STRCMP(((OPTLIST *)a)->name, ((OPTLIST *)b)->name));
 }
 
 /*
@@ -1084,8 +1124,9 @@ opts_cmp(a, b)
  * PUBLIC: int opts_copy __P((SCR *, SCR *));
  */
 int
-opts_copy(orig, sp)
-	SCR *orig, *sp;
+opts_copy(
+	SCR *orig,
+	SCR *sp)
 {
 	int cnt, rval;
 
@@ -1095,7 +1136,7 @@ opts_copy(orig, sp)
 	/* Copy the string edit options. */
 	for (cnt = rval = 0; cnt < O_OPTIONCOUNT; ++cnt) {
 		if (optlist[cnt].type != OPT_STR ||
-		    F_ISSET(&optlist[cnt], OPT_GLOBAL))
+		    F_ISSET(&sp->opts[cnt], OPT_GLOBAL))
 			continue;
 		/*
 		 * If never set, or already failed, NULL out the entries --
@@ -1131,14 +1172,13 @@ nomem:			msgq(orig, M_SYSERR, NULL);
  * PUBLIC: void opts_free __P((SCR *));
  */
 void
-opts_free(sp)
-	SCR *sp;
+opts_free(SCR *sp)
 {
 	int cnt;
 
 	for (cnt = 0; cnt < O_OPTIONCOUNT; ++cnt) {
 		if (optlist[cnt].type != OPT_STR ||
-		    F_ISSET(&optlist[cnt], OPT_GLOBAL))
+		    F_ISSET(&sp->opts[cnt], OPT_GLOBAL))
 			continue;
 		if (O_STR(sp, cnt) != NULL)
 			free(O_STR(sp, cnt));

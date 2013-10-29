@@ -194,8 +194,6 @@ fnmatch1(pattern, string, stringstart, flags, patmbs, strmbs)
 				    &patmbs);
 				if (pclen == (size_t)-1 || pclen == (size_t)-2)
 					return (FNM_NOMATCH);
-				if (pclen == 0)
-					pc = '\\';
 				pattern += pclen;
 			}
 			/* FALLTHROUGH */

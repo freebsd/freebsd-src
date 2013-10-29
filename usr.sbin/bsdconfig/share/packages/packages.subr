@@ -132,7 +132,7 @@ f_package_select()
 		package="$1"
 		shift 1 # package
 		for pkgsel in $SELECTED_PACKAGES; do
-			[ "$package" = "$pkgsel" ] && return
+			[ "$package" = "$pkgsel" ] && return $SUCCESS
 		done
 		SELECTED_PACKAGES="$SELECTED_PACKAGES $package"
 		f_dprintf "Added %s to selection list" "$package"
@@ -312,7 +312,7 @@ f_package_menu_categories()
 		# creates _{varcat}_ninstalled and _{varcat}_nselected
 
 	local category_list
-	debug= f_getvar "$var_to_get" category_list || return $FAILURE
+	debug= f_getvar "$var_to_get" category_list || return $DIALOG_CANCEL
 
 	# Accent the category menu list with ninstalled/nselected
 	eval f_package_accent_category_menu category_list $category_list
@@ -395,7 +395,7 @@ f_package_menu_select()
 	local defaultitem="$3"
 	local hline="$hline_arrows_tab_punc_enter"
 
-	f_isinteger "$page" || return $FAILURE
+	f_isinteger "$page" || return $DIALOG_CANCEL
 
 	local varcat
 	f_str2varname "$category" varcat
@@ -518,7 +518,7 @@ f_package_menu_select()
 	f_dialog_data_sanitize menu_choice
 	f_dialog_menutag_store "$menu_choice"
 
-	if [ $retval -eq $SUCCESS ]; then
+	if [ $retval -eq $DIALOG_OK ]; then
 		local item
 		item=$( eval f_dialog_menutag2item${SHOW_DESC:+_with_help} \
 		             	\"\$menu_choice\" $menu_list )
@@ -603,7 +603,7 @@ f_package_review()
 	done
 	if [ ! "$menu_list" ]; then
 		f_show_msg "$msg_no_packages_were_selected_for_extraction"
-		return $FAILURE # They might have selected this by accident
+		return $DIALOG_CANCEL # Might have selected this by accident
 	fi
 	menu_list=$( echo "$menu_list" | sort )
 
@@ -660,7 +660,7 @@ f_package_review()
 		f_package_deselect "$package"
 	done
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_package_config
@@ -693,7 +693,7 @@ f_package_config()
 		f_dprintf "retval=%u mtag=[%s]" $retval "$category"
 		category_defaultitem="$category"
 
-		[ $retval -eq $SUCCESS ] || break
+		[ $retval -eq $DIALOG_OK ] || break
 
 		# Maybe the user chose an action (like `Review')
 		case "$category" in
@@ -729,14 +729,14 @@ f_package_config()
 			# the Cancel button because stdout will be NULL.
 			# Alternatively, Xdialog(1) will terminate with 1
 			# if/when Cancel is chosen on any widget.
-			if [ $retval -eq 255 -o ! "$menu_choice" ]; then
-				# User pressed ESC or chose Cancel
+			if [ $retval -eq $DIALOG_ESC -o ! "$menu_choice" ]
+			then
 				break
-			elif [ $retval -eq 1 ]; then
+			elif [ $retval -eq $DIALOG_CANCEL ]; then
 				# Using X11, Xdialog(1) returned 1 for Cancel
 				f_show_msg "%s" "$menu_choice"
 				break
-			elif [ $retval -ne $SUCCESS ]; then
+			elif [ $retval -ne $DIALOG_OK ]; then
 				# X11-related error occurred using Xdialog(1)
 				f_show_msg "%s" "$menu_choice"
 				break

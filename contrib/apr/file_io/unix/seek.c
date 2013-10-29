@@ -117,10 +117,10 @@ apr_status_t apr_file_trunc(apr_file_t *fp, apr_off_t offset)
             /* Reset buffer positions for write mode */
             fp->bufpos = fp->direction = fp->dataRead = 0;
         }
+        file_unlock(fp);
         if (rc) {
             return rc;
         }
-        file_unlock(fp);
     }
     if (ftruncate(fp->filedes, offset) == -1) {
         return errno;

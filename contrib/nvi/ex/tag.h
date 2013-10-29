@@ -8,7 +8,7 @@
  *
  * See the LICENSE file for redistribution information.
  *
- *	@(#)tag.h	10.5 (Berkeley) 5/15/96
+ *	$Id: tag.h,v 10.9 2012/07/06 16:38:36 zy Exp $
  */
 
 /*
@@ -16,12 +16,12 @@
  * connection, linked from the EX_PRIVATE structure.
  */
 struct _csc {
-	LIST_ENTRY(_csc) q;	/* Linked list of cscope connections. */
+	SLIST_ENTRY(_csc) q;	/* Linked list of cscope connections. */
 
-	char	*dname;		/* Base directory of this cscope connection. */
-	size_t	 dlen;		/* Length of base directory. */
-	pid_t	 pid;		/* PID of the connected cscope process. */
-	time_t	 mtime;		/* Last modification time of cscope database. */
+	char		*dname;	/* Base directory of this cscope connection. */
+	size_t		 dlen;	/* Length of base directory. */
+	pid_t		 pid;	/* PID of the connected cscope process. */
+	struct timespec	 mtim;	/* Last modification time of cscope database. */
 
 	FILE	*from_fp;	/* from cscope: FILE. */
 	int	 from_fd;	/* from cscope: file descriptor. */
@@ -74,7 +74,7 @@ struct _tagf {			/* Tag files. */
  * tagtop:	discard all Q
  */
 struct _tag {			/* Tag list. */
-	CIRCLEQ_ENTRY(_tag) q;	/* Linked list of tags. */
+	TAILQ_ENTRY(_tag) q;	/* Linked list of tags. */
 
 				/* Tag pop/return information. */
 	FREF	*frp;		/* Saved file. */
@@ -84,16 +84,18 @@ struct _tag {			/* Tag list. */
 	char	*fname;		/* Filename. */
 	size_t	 fnlen;		/* Filename length. */
 	recno_t	 slno;		/* Search line number. */
-	char	*search;	/* Search string. */
+	CHAR_T	*search;	/* Search string. */
 	size_t	 slen;		/* Search string length. */
+	CHAR_T	*msg;		/* Message string. */
+	size_t	 mlen;		/* Message string length. */
 
-	char	 buf[1];	/* Variable length buffer. */
+	CHAR_T	 buf[1];	/* Variable length buffer. */
 };
 
 struct _tagq {			/* Tag queue. */
-	CIRCLEQ_ENTRY(_tagq) q;	/* Linked list of tag queues. */
+	TAILQ_ENTRY(_tagq) q;	/* Linked list of tag queues. */
 				/* This queue's tag list. */
-	CIRCLEQ_HEAD(_tagqh, _tag) tagq;
+	TAILQ_HEAD(_tagqh, _tag) tagq[1];
 
 	TAG	*current;	/* Current TAG within the queue. */
 

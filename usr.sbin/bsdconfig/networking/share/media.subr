@@ -118,7 +118,7 @@ f_dialog_input_options()
 		local setting="$( printf "$msg_current_options" \
 		                         "$interface" "$options" )"
 		f_noyes "$msg_nfs_mounts_may_cause_hang" "$setting" ||
-			return $FAILURE
+			return $DIALOG_CANCEL
 	fi
 
 	local msg="$( printf "$msg_please_enter_mediaopts" "$interface" )"
@@ -138,7 +138,7 @@ f_dialog_input_options()
 	local retval=$?
 	f_dialog_line_sanitize _options
 
-	[ $retval -eq $SUCCESS ] && options="$_options"
+	[ $retval -eq $DIALOG_OK ] && options="$_options"
 
 	return $retval
 }
@@ -165,7 +165,7 @@ f_dialog_menu_media_options()
 		local setting="$( printf "$msg_current_options" \
 		                         "$interface" "$_options" )"
 		f_noyes "$msg_nfs_mounts_may_cause_hang" "$setting" ||
-			return $FAILURE
+			return $DIALOG_CANCEL
 	fi
 
 	#
@@ -219,7 +219,7 @@ f_dialog_menu_media_options()
 	local retval=$?
 	f_dialog_data_sanitize tag
 
-	if [ $retval -eq $SUCCESS ]; then
+	if [ $retval -eq $DIALOG_OK ]; then
 		options=$( eval f_dialog_menutag2item \"\$tag\" \
 		                                      $supported_media )
 		case "$options" in

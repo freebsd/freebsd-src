@@ -1520,6 +1520,7 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 	printf("cpuid = %d\n", PCPU_GET(cpuid));
 #endif
 	switch (trap_type) {
+	case T_TLB_MOD:
 	case T_TLB_ST_MISS:
 	case T_ADDR_ERR_ST:
 		read_or_write = "write";

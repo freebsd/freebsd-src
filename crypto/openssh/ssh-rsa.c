@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-rsa.c,v 1.45 2010/08/31 09:58:37 djm Exp $ */
+/* $OpenBSD: ssh-rsa.c,v 1.46 2013/05/17 00:13:14 djm Exp $ */
 /*
  * Copyright (c) 2000, 2003 Markus Friedl <markus@openbsd.org>
  *
@@ -72,7 +72,7 @@ ssh_rsa_sign(const Key *key, u_char **sigp, u_int *lenp,
 
 		error("ssh_rsa_sign: RSA_sign failed: %s",
 		    ERR_error_string(ecode, NULL));
-		xfree(sig);
+		free(sig);
 		return -1;
 	}
 	if (len < slen) {
@@ -82,7 +82,7 @@ ssh_rsa_sign(const Key *key, u_char **sigp, u_int *lenp,
 		memset(sig, 0, diff);
 	} else if (len > slen) {
 		error("ssh_rsa_sign: slen %u slen2 %u", slen, len);
-		xfree(sig);
+		free(sig);
 		return -1;
 	}
 	/* encode signature */
@@ -98,7 +98,7 @@ ssh_rsa_sign(const Key *key, u_char **sigp, u_int *lenp,
 	}
 	buffer_free(&b);
 	memset(sig, 's', slen);
-	xfree(sig);
+	free(sig);
 
 	return 0;
 }
@@ -131,23 +131,23 @@ ssh_rsa_verify(const Key *key, const u_char *signature, u_int signaturelen,
 	if (strcmp("ssh-rsa", ktype) != 0) {
 		error("ssh_rsa_verify: cannot handle type %s", ktype);
 		buffer_free(&b);
-		xfree(ktype);
+		free(ktype);
 		return -1;
 	}
-	xfree(ktype);
+	free(ktype);
 	sigblob = buffer_get_string(&b, &len);
 	rlen = buffer_len(&b);
 	buffer_free(&b);
 	if (rlen != 0) {
 		error("ssh_rsa_verify: remaining bytes in signature %d", rlen);
-		xfree(sigblob);
+		free(sigblob);
 		return -1;
 	}
 	/* RSA_verify expects a signature of RSA_size */
 	modlen = RSA_size(key->rsa);
 	if (len > modlen) {
 		error("ssh_rsa_verify: len %u > modlen %u", len, modlen);
-		xfree(sigblob);
+		free(sigblob);
 		return -1;
 	} else if (len < modlen) {
 		u_int diff = modlen - len;
@@ -161,7 +161,7 @@ ssh_rsa_verify(const Key *key, const u_char *signature, u_int signaturelen,
 	nid = (datafellows & SSH_BUG_RSASIGMD5) ? NID_md5 : NID_sha1;
 	if ((evp_md = EVP_get_digestbynid(nid)) == NULL) {
 		error("ssh_rsa_verify: EVP_get_digestbynid %d failed", nid);
-		xfree(sigblob);
+		free(sigblob);
 		return -1;
 	}
 	EVP_DigestInit(&md, evp_md);
@@ -171,7 +171,7 @@ ssh_rsa_verify(const Key *key, const u_char *signature, u_int signaturelen,
 	ret = openssh_RSA_verify(nid, digest, dlen, sigblob, len, key->rsa);
 	memset(digest, 'd', sizeof(digest));
 	memset(sigblob, 's', len);
-	xfree(sigblob);
+	free(sigblob);
 	debug("ssh_rsa_verify: signature %scorrect", (ret==0) ? "in" : "");
 	return ret;
 }
@@ -262,7 +262,6 @@ openssh_RSA_verify(int type, u_char *hash, u_int hashlen,
 	}
 	ret = 1;
 done:
-	if (decrypted)
-		xfree(decrypted);
+	free(decrypted);
 	return ret;
 }

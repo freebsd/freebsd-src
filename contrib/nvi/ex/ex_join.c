@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_join.c	10.10 (Berkeley) 9/15/96";
+static const char sccsid[] = "$Id: ex_join.c,v 10.17 2004/03/16 14:14:04 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <ctype.h>
@@ -32,14 +33,13 @@ static const char sccsid[] = "@(#)ex_join.c	10.10 (Berkeley) 9/15/96";
  * PUBLIC: int ex_join __P((SCR *, EXCMD *));
  */
 int
-ex_join(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_join(SCR *sp, EXCMD *cmdp)
 {
 	recno_t from, to;
 	size_t blen, clen, len, tlen;
-	int echar, extra, first;
-	char *bp, *p, *tbp;
+	int echar = 0, extra, first;
+	CHAR_T *bp, *tbp = NULL;
+	CHAR_T *p;
 
 	NEEDFILE(sp, cmdp);
 
@@ -52,20 +52,13 @@ ex_join(sp, cmdp)
 		return (1);
 	}
 
-	GET_SPACE_RET(sp, bp, blen, 256);
+	GET_SPACE_RETW(sp, bp, blen, 256);
 
 	/*
 	 * The count for the join command was off-by-one,
 	 * historically, to other counts for other commands.
 	 */
-	if (FL_ISSET(cmdp->iflags, E_C_COUNT))
-		++cmdp->addr2.lno;
-
-	/*
-	 * If only a single address specified, or, the same address
-	 * specified twice, the from/two addresses will be the same.
-	 */
-	if (cmdp->addr1.lno == cmdp->addr2.lno)
+	if (F_ISSET(cmdp, E_ADDR_DEF) || cmdp->addrcnt == 1)
 		++cmdp->addr2.lno;
 
 	clen = tlen = 0;
@@ -90,7 +83,7 @@ ex_join(sp, cmdp)
 		 * tbp - bp is the length of the new line.
 		 */
 		tlen += len + 2;
-		ADD_SPACE_RET(sp, bp, blen, tlen);
+		ADD_SPACE_RETW(sp, bp, blen, tlen);
 		tbp = bp + clen;
 
 		/*
@@ -114,7 +107,7 @@ ex_join(sp, cmdp)
 			if (isblank(echar))
 				for (; len && isblank(*p); --len, ++p);
 			else if (p[0] != ')') {
-				if (strchr(".?!", echar)) {
+				if (STRCHR(L(".?!"), echar)) {
 					*tbp++ = ' ';
 					++clen;
 					extra = 1;
@@ -126,7 +119,7 @@ ex_join(sp, cmdp)
 		}
 
 		if (len != 0) {
-			memcpy(tbp, p, len);
+			MEMCPY(tbp, p, len);
 			tbp += len;
 			clen += len;
 			echar = p[len - 1];
@@ -167,10 +160,10 @@ ex_join(sp, cmdp)
 
 	/* If the original line changed, reset it. */
 	if (!first && db_set(sp, from, bp, tbp - bp)) {
-err:		FREE_SPACE(sp, bp, blen);
+err:		FREE_SPACEW(sp, bp, blen);
 		return (1);
 	}
-	FREE_SPACE(sp, bp, blen);
+	FREE_SPACEW(sp, bp, blen);
 
 	sp->rptlines[L_JOINED] += (cmdp->addr2.lno - cmdp->addr1.lno) + 1;
 	return (0);

@@ -4,7 +4,7 @@ NNAAMMEE
      bbmmaakkee -- maintain program dependencies
 
 SSYYNNOOPPSSIISS
-     bbmmaakkee [--BBeeiikkNNnnqqrrssttWWXX] [--CC _d_i_r_e_c_t_o_r_y] [--DD _v_a_r_i_a_b_l_e] [--dd _f_l_a_g_s]
+     bbmmaakkee [--BBeeiikkNNnnqqrrssttWWwwXX] [--CC _d_i_r_e_c_t_o_r_y] [--DD _v_a_r_i_a_b_l_e] [--dd _f_l_a_g_s]
            [--ff _m_a_k_e_f_i_l_e] [--II _d_i_r_e_c_t_o_r_y] [--JJ _p_r_i_v_a_t_e] [--jj _m_a_x___j_o_b_s]
            [--mm _d_i_r_e_c_t_o_r_y] [--TT _f_i_l_e] [--VV _v_a_r_i_a_b_l_e] [_v_a_r_i_a_b_l_e_=_v_a_l_u_e]
            [_t_a_r_g_e_t _._._.]
@@ -121,6 +121,9 @@ DDEESSCCRRIIPPTTIIOONN
              _V       Force the --VV option to print raw values of variables.
 
              _v       Print debugging information about variable assignment.
+
+             _w       Print entering and leaving directory messages, pre and
+                     post processing.
 
              _x       Run shell commands with --xx so the actual commands are
                      printed as they are executed.
@@ -469,7 +472,8 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
      _._M_A_K_E_._J_O_B_._P_R_E_F_I_X
                      If bbmmaakkee is run with _j then output for each target is
                      prefixed with a token `--- target ---' the first part of
-                     which can be controlled via _._M_A_K_E_._J_O_B_._P_R_E_F_I_X.
+                     which can be controlled via _._M_A_K_E_._J_O_B_._P_R_E_F_I_X.  If
+                     _._M_A_K_E_._J_O_B_._P_R_E_F_I_X is empty, no token is printed.
                      For example:
                      .MAKE.JOB.PREFIX=${.newline}---${.MAKE:T}[${.MAKE.PID}]
                      would produce tokens like `---make[1234] target ---' mak-
@@ -550,6 +554,12 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
                      meta files used (updated or not).  This list can be used
                      to process the meta files to extract dependency informa-
                      tion.
+
+     _._M_A_K_E_._M_E_T_A_._I_G_N_O_R_E___P_A_T_H_S
+                     Provides a list of path prefixes that should be ignored;
+                     because the contents are expected to change over time.
+                     The default list includes: `_/_d_e_v _/_e_t_c _/_p_r_o_c _/_t_m_p _/_v_a_r_/_r_u_n
+                     _/_v_a_r_/_t_m_p'
 
      _._M_A_K_E_._M_E_T_A_._P_R_E_F_I_X
                      Defines the message printed for each meta file updated in
@@ -818,7 +828,7 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
           period.  For example.
                 ${LINKS:@.LINK.@${LN} ${TARGET} ${.LINK.}@}
 
-          However a single character varaiable is often more readable:
+          However a single character variable is often more readable:
                 ${MAKE_PRINT_VAR_ON_ERROR:@v@$v='${$v}'${.newline}@}
 
      ::UU_n_e_w_v_a_l
@@ -1247,6 +1257,10 @@ SSPPEECCIIAALL TTAARRGGEETTSS
               source is the special ..DDOOTTLLAASSTT target, then the current working
               directory is searched last.
 
+     ..PPAATTHH.._s_u_f_f_i_x
+              Like ..PPAATTHH but applies only to files with a particular suffix.
+              The suffix must have been previously declared with ..SSUUFFFFIIXXEESS.
+
      ..PPHHOONNYY   Apply the ..PPHHOONNYY attribute to any specified sources.
 
      ..PPRREECCIIOOUUSS
@@ -1351,6 +1365,10 @@ HHIISSTTOORRYY
      Berkeley.  It was designed to be a parallel distributed make running jobs
      on different machines using a daemon called ``customs''.
 
+     Historically the target/dependency ``FRC'' has been used to FoRCe
+     rebuilding (since the target/dependency does not exist... unless someone
+     creates an ``FRC'' file).
+
 BBUUGGSS
      The make syntax is difficult to parse without actually acting of the
      data.  For instance finding the end of a variable use should involve
@@ -1360,4 +1378,4 @@ BBUUGGSS
 
      There is no way of escaping a space character in a filename.
 
-NetBSD 5.1                      March 30, 2013                      NetBSD 5.1
+NetBSD 5.1                      August 11, 2013                     NetBSD 5.1

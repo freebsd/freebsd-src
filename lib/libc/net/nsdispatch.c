@@ -361,7 +361,7 @@ nss_configure(void)
 	    if (result != 0)
 		    goto fin2;
 	}
-	_nsyyin = fopen(path, "r");
+	_nsyyin = fopen(path, "re");
 	if (_nsyyin == NULL)
 		goto fin;
 	VECTOR_FREE(_nsmap, &_nsmapsize, sizeof(*_nsmap),

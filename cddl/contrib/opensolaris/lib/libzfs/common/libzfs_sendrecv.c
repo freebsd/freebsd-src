@@ -1576,8 +1576,8 @@ zfs_send(zfs_handle_t *zhp, const char *fromsnap, const char *tosnap,
 	if (tid != 0) {
 		if (err != 0)
 			(void) pthread_cancel(tid);
-		(void) pthread_join(tid, NULL);
 		(void) close(pipefd[0]);
+		(void) pthread_join(tid, NULL);
 	}
 
 	if (sdd.cleanup_fd != -1) {
@@ -1613,8 +1613,8 @@ err_out:
 		VERIFY(0 == close(sdd.cleanup_fd));
 	if (tid != 0) {
 		(void) pthread_cancel(tid);
-		(void) pthread_join(tid, NULL);
 		(void) close(pipefd[0]);
+		(void) pthread_join(tid, NULL);
 	}
 	return (err);
 }

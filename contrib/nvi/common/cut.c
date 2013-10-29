@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)cut.c	10.10 (Berkeley) 9/15/96";
+static const char sccsid[] = "$Id: cut.c,v 10.12 2012/02/11 15:52:33 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -64,14 +64,15 @@ static void	cb_rotate __P((SCR *));
  * PUBLIC: int cut __P((SCR *, CHAR_T *, MARK *, MARK *, int));
  */
 int
-cut(sp, namep, fm, tm, flags)
-	SCR *sp;
-	CHAR_T *namep;
-	MARK *fm, *tm;
-	int flags;
+cut(
+	SCR *sp,
+	CHAR_T *namep,
+	MARK *fm,
+	MARK *tm,
+	int flags)
 {
 	CB *cbp;
-	CHAR_T name;
+	CHAR_T name = '\0';
 	recno_t lno;
 	int append, copy_one, copy_def;
 
@@ -100,19 +101,19 @@ cut(sp, namep, fm, tm, flags)
 	append = copy_one = copy_def = 0;
 	if (namep != NULL) {
 		name = *namep;
-		if (LF_ISSET(CUT_NUMREQ) || LF_ISSET(CUT_NUMOPT) &&
-		    (LF_ISSET(CUT_LINEMODE) || fm->lno != tm->lno)) {
+		if (LF_ISSET(CUT_NUMREQ) || (LF_ISSET(CUT_NUMOPT) &&
+		    (LF_ISSET(CUT_LINEMODE) || fm->lno != tm->lno))) {
 			copy_one = 1;
 			cb_rotate(sp);
 		}
-		if ((append = isupper(name)) == 1) {
+		if ((append = isupper(name))) {
 			if (!copy_one)
 				copy_def = 1;
 			name = tolower(name);
 		}
 namecb:		CBNAME(sp, cbp, name);
-	} else if (LF_ISSET(CUT_NUMREQ) || LF_ISSET(CUT_NUMOPT) &&
-	    (LF_ISSET(CUT_LINEMODE) || fm->lno != tm->lno)) {
+	} else if (LF_ISSET(CUT_NUMREQ) || (LF_ISSET(CUT_NUMOPT) &&
+	    (LF_ISSET(CUT_LINEMODE) || fm->lno != tm->lno))) {
 		name = '1';
 		cb_rotate(sp);
 		goto namecb;
@@ -127,26 +128,25 @@ copyloop:
 	if (cbp == NULL) {
 		CALLOC_RET(sp, cbp, CB *, 1, sizeof(CB));
 		cbp->name = name;
-		CIRCLEQ_INIT(&cbp->textq);
-		LIST_INSERT_HEAD(&sp->gp->cutq, cbp, q);
+		TAILQ_INIT(cbp->textq);
+		SLIST_INSERT_HEAD(sp->gp->cutq, cbp, q);
 	} else if (!append) {
-		text_lfree(&cbp->textq);
+		text_lfree(cbp->textq);
 		cbp->len = 0;
 		cbp->flags = 0;
 	}
 
 
-#define	ENTIRE_LINE	0
 	/* In line mode, it's pretty easy, just cut the lines. */
 	if (LF_ISSET(CUT_LINEMODE)) {
 		cbp->flags |= CB_LMODE;
 		for (lno = fm->lno; lno <= tm->lno; ++lno)
-			if (cut_line(sp, lno, 0, 0, cbp))
+			if (cut_line(sp, lno, 0, ENTIRE_LINE, cbp))
 				goto cut_line_err;
 	} else {
 		/*
-		 * Get the first line.  A length of 0 causes cut_line
-		 * to cut from the MARK to the end of the line.
+		 * Get the first line.  A length of ENTIRE_LINE causes
+		 * cut_line to cut from the MARK to the end of the line.
 		 */
 		if (cut_line(sp, fm->lno, fm->cno, fm->lno != tm->lno ?
 		    ENTIRE_LINE : (tm->cno - fm->cno) + 1, cbp))
@@ -180,7 +180,7 @@ copyloop:
 	return (0);
 
 cut_line_err:	
-	text_lfree(&cbp->textq);
+	text_lfree(cbp->textq);
 	cbp->len = 0;
 	cbp->flags = 0;
 	return (1);
@@ -191,45 +191,29 @@ cut_line_err:
  *	Rotate the numbered buffers up one.
  */
 static void
-cb_rotate(sp)
-	SCR *sp;
+cb_rotate(SCR *sp)
 {
-	CB *cbp, *del_cbp;
+	CB *cbp, *del_cbp = NULL, *pre_cbp = NULL;
 
-	del_cbp = NULL;
-	for (cbp = sp->gp->cutq.lh_first; cbp != NULL; cbp = cbp->q.le_next)
+	SLIST_FOREACH(cbp, sp->gp->cutq, q) {
 		switch(cbp->name) {
-		case '1':
-			cbp->name = '2';
-			break;
-		case '2':
-			cbp->name = '3';
-			break;
-		case '3':
-			cbp->name = '4';
-			break;
-		case '4':
-			cbp->name = '5';
-			break;
-		case '5':
-			cbp->name = '6';
-			break;
-		case '6':
-			cbp->name = '7';
-			break;
-		case '7':
-			cbp->name = '8';
-			break;
-		case '8':
-			cbp->name = '9';
+		case '1': case '2': case '3':
+		case '4': case '5': case '6':
+		case '7': case '8':
+			cbp->name += 1;
 			break;
 		case '9':
+			if (cbp == SLIST_FIRST(sp->gp->cutq))
+				SLIST_REMOVE_HEAD(sp->gp->cutq, q);
+			else
+				SLIST_REMOVE_AFTER(pre_cbp, q);
 			del_cbp = cbp;
 			break;
 		}
+		pre_cbp = cbp;
+	}
 	if (del_cbp != NULL) {
-		LIST_REMOVE(del_cbp, q);
-		text_lfree(&del_cbp->textq);
+		text_lfree(del_cbp->textq);
 		free(del_cbp);
 	}
 }
@@ -241,15 +225,16 @@ cb_rotate(sp)
  * PUBLIC: int cut_line __P((SCR *, recno_t, size_t, size_t, CB *));
  */
 int
-cut_line(sp, lno, fcno, clen, cbp)
-	SCR *sp;
-	recno_t lno;
-	size_t fcno, clen;
-	CB *cbp;
+cut_line(
+	SCR *sp,
+	recno_t lno,
+	size_t fcno,
+	size_t clen,
+	CB *cbp)
 {
 	TEXT *tp;
 	size_t len;
-	char *p;
+	CHAR_T *p;
 
 	/* Get the line. */
 	if (db_get(sp, lno, DBG_FATAL, &p, &len))
@@ -264,14 +249,14 @@ cut_line(sp, lno, fcno, clen, cbp)
 	 * copy the portion we want, and reset the TEXT length.
 	 */
 	if (len != 0) {
-		if (clen == 0)
+		if (clen == ENTIRE_LINE)
 			clen = len - fcno;
-		memcpy(tp->lb, p + fcno, clen);
+		MEMCPY(tp->lb, p + fcno, clen);
 		tp->len = clen;
 	}
 
 	/* Append to the end of the cut buffer. */
-	CIRCLEQ_INSERT_TAIL(&cbp->textq, tp, q);
+	TAILQ_INSERT_TAIL(cbp->textq, tp, q);
 	cbp->len += tp->len;
 
 	return (0);
@@ -284,36 +269,36 @@ cut_line(sp, lno, fcno, clen, cbp)
  * PUBLIC: void cut_close __P((GS *));
  */
 void
-cut_close(gp)
-	GS *gp;
+cut_close(GS *gp)
 {
 	CB *cbp;
 
 	/* Free cut buffer list. */
-	while ((cbp = gp->cutq.lh_first) != NULL) {
-		if (cbp->textq.cqh_first != (void *)&cbp->textq)
-			text_lfree(&cbp->textq);
-		LIST_REMOVE(cbp, q);
+	while ((cbp = SLIST_FIRST(gp->cutq)) != NULL) {
+		if (!TAILQ_EMPTY(cbp->textq))
+			text_lfree(cbp->textq);
+		SLIST_REMOVE_HEAD(gp->cutq, q);
 		free(cbp);
 	}
 
 	/* Free default cut storage. */
 	cbp = &gp->dcb_store;
-	if (cbp->textq.cqh_first != (void *)&cbp->textq)
-		text_lfree(&cbp->textq);
+	if (!TAILQ_EMPTY(cbp->textq))
+		text_lfree(cbp->textq);
 }
 
 /*
  * text_init --
  *	Allocate a new TEXT structure.
  *
- * PUBLIC: TEXT *text_init __P((SCR *, const char *, size_t, size_t));
+ * PUBLIC: TEXT *text_init __P((SCR *, const CHAR_T *, size_t, size_t));
  */
 TEXT *
-text_init(sp, p, len, total_len)
-	SCR *sp;
-	const char *p;
-	size_t len, total_len;
+text_init(
+	SCR *sp,
+	const CHAR_T *p,
+	size_t len,
+	size_t total_len)
 {
 	TEXT *tp;
 
@@ -321,14 +306,14 @@ text_init(sp, p, len, total_len)
 	if (tp == NULL)
 		return (NULL);
 	/* ANSI C doesn't define a call to malloc(3) for 0 bytes. */
-	if ((tp->lb_len = total_len) != 0) {
+	if ((tp->lb_len = total_len * sizeof(CHAR_T)) != 0) {
 		MALLOC(sp, tp->lb, CHAR_T *, tp->lb_len);
 		if (tp->lb == NULL) {
 			free(tp);
 			return (NULL);
 		}
 		if (p != NULL && len != 0)
-			memcpy(tp->lb, p, len);
+			MEMCPY(tp->lb, p, len);
 	}
 	tp->len = len;
 	return (tp);
@@ -341,13 +326,12 @@ text_init(sp, p, len, total_len)
  * PUBLIC: void text_lfree __P((TEXTH *));
  */
 void
-text_lfree(headp)
-	TEXTH *headp;
+text_lfree(TEXTH *headp)
 {
 	TEXT *tp;
 
-	while ((tp = headp->cqh_first) != (void *)headp) {
-		CIRCLEQ_REMOVE(headp, tp, q);
+	while ((tp = TAILQ_FIRST(headp)) != NULL) {
+		TAILQ_REMOVE(headp, tp, q);
 		text_free(tp);
 	}
 }
@@ -359,8 +343,7 @@ text_lfree(headp)
  * PUBLIC: void text_free __P((TEXT *));
  */
 void
-text_free(tp)
-	TEXT *tp;
+text_free(TEXT *tp)
 {
 	if (tp->lb != NULL)
 		free(tp->lb);

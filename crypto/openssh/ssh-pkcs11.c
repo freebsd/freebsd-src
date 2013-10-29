@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11.c,v 1.6 2010/06/08 21:32:19 markus Exp $ */
+/* $OpenBSD: ssh-pkcs11.c,v 1.8 2013/07/12 00:20:00 djm Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -120,9 +120,9 @@ pkcs11_provider_unref(struct pkcs11_provider *p)
 	if (--p->refcount <= 0) {
 		if (p->valid)
 			error("pkcs11_provider_unref: %p still valid", p);
-		xfree(p->slotlist);
-		xfree(p->slotinfo);
-		xfree(p);
+		free(p->slotlist);
+		free(p->slotinfo);
+		free(p);
 	}
 }
 
@@ -180,9 +180,8 @@ pkcs11_rsa_finish(RSA *rsa)
 			rv = k11->orig_finish(rsa);
 		if (k11->provider)
 			pkcs11_provider_unref(k11->provider);
-		if (k11->keyid)
-			xfree(k11->keyid);
-		xfree(k11);
+		free(k11->keyid);
+		free(k11);
 	}
 	return (rv);
 }
@@ -264,13 +263,13 @@ pkcs11_rsa_private_encrypt(int flen, const u_char *from, u_char *to, RSA *rsa,
 		pin = read_passphrase(prompt, RP_ALLOW_EOF);
 		if (pin == NULL)
 			return (-1);	/* bail out */
-		if ((rv = f->C_Login(si->session, CKU_USER, pin, strlen(pin)))
-		    != CKR_OK) {
-			xfree(pin);
+		if ((rv = f->C_Login(si->session, CKU_USER,
+		    (u_char *)pin, strlen(pin))) != CKR_OK) {
+			free(pin);
 			error("C_Login failed: %lu", rv);
 			return (-1);
 		}
-		xfree(pin);
+		free(pin);
 		si->logged_in = 1;
 	}
 	key_filter[1].pValue = k11->keyid;
@@ -329,7 +328,7 @@ pkcs11_rsa_wrap(struct pkcs11_provider *provider, CK_ULONG slotidx,
 
 /* remove trailing spaces */
 static void
-rmspace(char *buf, size_t len)
+rmspace(u_char *buf, size_t len)
 {
 	size_t i;
 
@@ -367,8 +366,8 @@ pkcs11_open_session(struct pkcs11_provider *p, CK_ULONG slotidx, char *pin)
 		return (-1);
 	}
 	if (login_required && pin) {
-		if ((rv = f->C_Login(session, CKU_USER, pin, strlen(pin)))
-		    != CKR_OK) {
+		if ((rv = f->C_Login(session, CKU_USER,
+		    (u_char *)pin, strlen(pin))) != CKR_OK) {
 			error("C_Login failed: %lu", rv);
 			if ((rv = f->C_CloseSession(session)) != CKR_OK)
 				error("C_CloseSession failed: %lu", rv);
@@ -470,7 +469,7 @@ pkcs11_fetch_keys(struct pkcs11_provider *p, CK_ULONG slotidx, Key ***keysp,
 			}
 		}
 		for (i = 0; i < 3; i++)
-			xfree(attribs[i].pValue);
+			free(attribs[i].pValue);
 	}
 	if ((rv = f->C_FindObjectsFinal(session)) != CKR_OK)
 		error("C_FindObjectsFinal failed: %lu", rv);
@@ -579,11 +578,9 @@ fail:
 	if (need_finalize && (rv = f->C_Finalize(NULL)) != CKR_OK)
 		error("C_Finalize failed: %lu", rv);
 	if (p) {
-		if (p->slotlist)
-			xfree(p->slotlist);
-		if (p->slotinfo)
-			xfree(p->slotinfo);
-		xfree(p);
+		free(p->slotlist);
+		free(p->slotinfo);
+		free(p);
 	}
 	if (handle)
 		dlclose(handle);

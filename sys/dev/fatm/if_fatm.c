@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/if_atm.h>
@@ -2829,21 +2830,13 @@ fatm_attach(device_t dev)
 	ifp->if_linkmiblen = sizeof(IFP2IFATM(sc->ifp)->mib);
 
 	/*
-	 * Enable memory and bustmaster
+	 * Enable busmaster
 	 */
-	cfg = pci_read_config(dev, PCIR_COMMAND, 2);
-	cfg |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, cfg, 2);
+	pci_enable_busmaster(dev);
 
 	/*
 	 * Map memory
 	 */
-	cfg = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (!(cfg & PCIM_CMD_MEMEN)) {
-		if_printf(ifp, "failed to enable memory mapping\n");
-		error = ENXIO;
-		goto fail;
-	}
 	sc->memid = 0x10;
 	sc->memres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->memid,
 	    RF_ACTIVE);

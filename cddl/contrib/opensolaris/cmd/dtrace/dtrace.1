@@ -2,7 +2,7 @@
 .\" CDDL HEADER START
 .\"
 .\" The contents of this file are subject to the terms of the
-.\" Common Development and Distribution License (the "License").  
+.\" Common Development and Distribution License (the "License").
 .\" You may not use this file except in compliance with the License.
 .\"
 .\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
@@ -18,653 +18,660 @@
 .\"
 .\" CDDL HEADER END
 .\" Copyright (c) 2006, Sun Microsystems, Inc. All Rights Reserved.
-.TH dtrace 1M "5 Sep 2006" "SunOS 5.11" "System Administration Commands"
-.SH NAME
-dtrace \- DTrace dynamic tracing compiler and tracing utility
-.SH SYNOPSIS
-.LP
-.nf
-\fBdtrace\fR [\fB-32\fR | \fB-64\fR] [\fB-aACeFGHhlqSvVwZ\fR] [\fB-b\fR \fIbufsz\fR] [\fB-c\fR \fIcmd\fR] 
-    [\fB-D\fR \fIname\fR [\fI=value\fR]] [\fB-I\fR \fIpath\fR] [\fB-L\fR \fIpath\fR] [\fB-o\fR \fIoutput\fR] 
-    [\fB-s\fR \fIscript\fR] [\fB-U\fR \fIname\fR] [\fB-x\fR \fIarg\fR [\fI=val\fR]] 
-    [\fB-X\fR a | c | s | t] [\fB-p\fR \fIpid\fR] 
-    [\fB-P\fR \fIprovider\fR [[\fIpredicate\fR] \fIaction\fR]] 
-    [\fB-m\fR [\fIprovider:\fR] \fImodule\fR [[\fIpredicate\fR] \fIaction\fR]] 
-    [\fB-f\fR [[\fIprovider:\fR] \fImodule:\fR] \fIfunction\fR [[\fIpredicate\fR] \fIaction\fR]] 
-    [\fB-n\fR [[[\fIprovider:\fR] \fImodule:\fR] \fIfunction:\fR] \fIname\fR [[\fIpredicate\fR] \fIaction\fR]] 
-    [\fB-i\fR \fIprobe-id\fR [[\fIpredicate\fR] \fIaction\fR]]
-.fi
-
-.SH DESCRIPTION
-.sp
-.LP
-DTrace is a comprehensive dynamic tracing framework for the Solaris Operating System. DTrace provides a powerful infrastructure that permits administrators, developers, and service personnel to concisely answer arbitrary questions about the behavior of the operating system and user programs. 
-.sp
-.LP
-The \fISolaris Dynamic Tracing Guide\fR describes how to use DTrace to observe, debug, and tune system behavior. Refer to this book for a detailed description of DTrace features, including the bundled DTrace observability
-tools, instrumentation providers, and the D programming language.
-.sp
-.LP
-The \fBdtrace\fR command provides a generic interface to the essential services provided by the DTrace facility, including:
-.RS +4
-.TP
-.ie t \(bu
-.el o
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 5, 2013
+.Dt DTRACE 1
+.Os
+.Sh NAME
+.Nm dtrace
+.Nd dynamic tracing compiler and tracing utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl 32 | Fl 64
+.Op Fl aACeFGhHlqSvVwZ
+.Op Fl b Ar bufsz
+.Op Fl c Ar cmd
+.Op Fl D Ar name Op Ns = Ns value
+.Op Fl I Ar path
+.Op Fl L Ar path
+.Op Fl o Ar output
+.Op Fl s Ar script
+.Op Fl U Ar name
+.Op Fl x Ar arg Op Ns = Ns value
+.Op Fl X Cm a | c | s | t
+.Op Fl p Ar pid
+.Op Fl P Ar provider Oo Oo Ar predicate Oc Ar action Oc
+.Op Fl m Oo Ar provider : Oc Ar module Oo Oo Ar predicate Oc Ar action Oc
+.Op Fl f Oo Oo Ar provider : Oc Ar module : Oc Ar function Oo Oo Ar predicate \
+    Oc Ar action Oc
+.Op Fl n Oo Oo Oo Ar provider : Oc Ar module : Oc Ar function : Oc Ar name \
+    Oo Oo Ar predicate Oc Ar action Oc
+.Op Fl i Ar probe-id Oo Oo Ar predicate Oc Ar action Oc
+.Sh DESCRIPTION
+DTrace is a comprehensive dynamic tracing framework ported from Solaris.
+DTrace provides a powerful infrastructure that permits administrators,
+developers, and service personnel to concisely answer arbitrary questions about
+the behavior of the operating system and user programs.
+.Pp
+The
+.Nm
+command provides a generic interface to the essential services provided by the
+DTrace facility, including:
+.Bl -bullet -offset indent
+.It
 Options that list the set of probes and providers currently published by DTrace
-.RE
-.RS +4
-.TP
-.ie t \(bu
-.el o
-Options that enable probes directly using any of the probe description specifiers (provider, module, function, name)
-.RE
-.RS +4
-.TP
-.ie t \(bu
-.el o
-Options that run the D compiler and compile one or more D program files or programs written directly on the command line
-.RE
-.RS +4
-.TP
-.ie t \(bu
-.el o
+.It
+Options that enable probes directly using any of the probe description
+specifiers (provider, module, function, name)
+.It
+Options that run the D compiler and compile one or more D program files or
+programs written directly on the command line
+.It
 Options that generate anonymous tracing programs
-.RE
-.RS +4
-.TP
-.ie t \(bu
-.el o
+.It
 Options that generate program stability reports
-.RE
-.RS +4
-.TP
-.ie t \(bu
-.el o
-Options that modify DTrace tracing and buffering behavior and enable additional D compiler features
-.RE
-.sp
-.LP
-You can use \fBdtrace\fR to create D scripts by using it in a \fB#!\fR declaration to create an interpreter file. You can also use \fBdtrace\fR to attempt to compile D programs and determine their properties without actually enabling tracing using the \fB-e\fR option. See \fBOPTIONS\fR. See the \fISolaris Dynamic Tracing Guide\fR for detailed examples of how to use the \fBdtrace\fR utility to perform these tasks.
-.SH OPTIONS
-.sp
-.LP
-The arguments accepted by the \fB-P\fR, \fB-m\fR, \fB-f\fR, \fB-n\fR, and \fB-i\fR options can include an optional D language \fIpredicate\fR enclosed in slashes \fB//\fR and optional D language \fIaction\fR statement list enclosed in braces \fB{}\fR. D program code specified on the command line must be appropriately quoted to avoid intepretation of meta-characters by the shell. 
-.sp
-.LP
+.It
+Options that modify DTrace tracing and buffering behavior and enable
+additional D compiler features
+.El
+.Pp
+You can use
+.Nm
+to create D scripts by using it in a shebang declaration to create an
+interpreter file.
+You can also use
+.Nm
+to attempt to compile D programs and determine their properties without
+actually enabling traces using the
+.Fl e
+option.
+.Sh OPTIONS
+The arguments accepted by the
+.Fl P ,
+.Fl m ,
+.Fl f ,
+.Fl n ,
+and
+.Fl i
+options can include an optional D language
+.Ar predicate
+enclosed in slashes and an optional D language
+.Ar action
+statement list enclosed in braces.
+D program code specified on the command line must be appropriately quoted to
+avoid interpretation of meta-characters by the shell.
+.Pp
 The following options are supported:
+.Bl -tag -width indent
+.It Fl 32 | Fl 64
+The D compiler produces programs using the native data model of the operating
+system kernel.
+If the
+.Fl 32
+option is specified,
+.Nm
+forces the D compiler to compile a D program using the 32-bit data model.
+If the
+.Fl 64
+option is specified,
+.Nm
+forces the D compiler to compile a D program using the 64-bit data model.
+These options are typically not required as
+.Nm
+selects the native data model as the default.
+The data model affects the sizes of integer types and other language properties.
+D programs compiled for either data model can be executed on both 32-bit and
+64-bit kernels.
+The
+.Fl 32
+and
+.Fl 64
+options also determine the
+.Xr elf 5
+file format (ELF32 or ELF64) produced by the
+.Fl G
+option.
+.It Fl a
+Claim anonymous tracing state and display the traced data.
+You can combine the
+.Fl a
+option with the
+.Fl e
+option to force
+.Nm
+to exit immediately after consuming the anonymous tracing state rather than
+continuing to wait for new data.
+.It Fl A
+Generate directives for anonymous tracing and write them to
+.Pa /boot/dtrace.dof .
+This option constructs a set of dtrace configuration file directives to enable
+the specified probes for anonymous tracing and then exits.
+By default,
+.Nm
+attempts to store the directives to the file
+.Pa /boot/dtrace.dof .
+This behavior can be modified using the
+.Fl o
+option to specify an alternate output file.
+.It Fl b Ar bufsz
+Set the principal trace buffer size to
+.Ar bufsz .
+The trace buffer size can include any of the size suffixes k, m, g, or t.
+If the buffer space cannot be allocated,
+.Nm dtrace
+attempts to reduce the buffer size or exit depending on the setting of the
+bufresize property.
+.It Fl c Ar cmd
+Run the specified command
+.Ar cmd
+and exit upon its completion.
+If more than one
+.Fl c
+option is present on the command line,
+.Nm dtrace
+exits when all commands have exited, reporting the exit status for each child
+process as it terminates.
+The process ID of the first command is made available to any D programs
+specified on the command line or using the
+.Fl s
+option through the
+.Li $target
+macro variable.
+.It Fl C
+Run the C preprocessor
+.Xr cpp 1
+over D programs before compiling them.
+You can pass options to the C preprocessor using the
+.Fl D ,
+.Fl U ,
+.Fl I ,
+and
+.Fl H
+options.
+You can select the degree of C standard conformance if you use the
+.Fl X
+option.
+For a description of the set of tokens defined by the D compiler when invoking
+the C preprocessor, see
+.Fl X .
+.It Fl D Ar name Op Ns = Ns value
+Define
+.Ar name
+when invoking
+.Xr cpp 1
+(enabled using the
+.Fl C
+option).
+If you specify an additional
+.Ar value ,
+the name is assigned the corresponding value.
+This option passes the
+.Fl D
+option to each
+.Xr cpp 1
+invocation.
+.It Fl e
+Exit after compiling any requests and consuming anonymous tracing state
+.Fl ( a
+option) but prior to enabling any probes.
+You can combine this option with the
+.Fl a
+option to print anonymous tracing data and exit.
+You can also combine this option with D compiler options.
+This combination verifies that the programs compile without actually executing
+them and enabling the corresponding instrumentation.
+.It Fl f Oo Oo Ar provider : Oc Ar module : Oc Ar function Oo Oo Ar predicate \
+    Oc Ar action Oc
+Specify function name to trace or list
+.Fl ( l
+option).
+The corresponding argument can include any of the probe description forms
+.Ar provider:module:function ,
+.Ar module:function ,
+or
+.Ar function .
+Unspecified probe description fields are left blank and match any probes
+regardless of the values in those fields.
+If no qualifiers other than
+.Ar function
+are specified in the description, all probes with the corresponding
+.Ar function
+are matched.
+The
+.Fl f
+argument can be suffixed with an optional D probe clause.
+You can specify more than one
+.Fl f
+option on the command line at a time.
+.It Fl F
+Coalesce trace output by identifying function entry and return.
+Function entry probe reports are indented and their output is prefixed with
+.Ql -> .
+Function return probe reports are unindented and their output is prefixed with
+.Ql <- .
+System call entry probe reports are indented and their output is prefixed with
+.Ql => .
+System call return probe reports are unindented and their output is prefixed
+with
+.Ql <= .
+.It Fl G
+Generate an ELF file containing an embedded DTrace program.
+The DTrace probes specified in the program are saved inside of a relocatable ELF
+object which can be linked into another program.
+If the
+.Fl o
+option is present, the ELF file is saved using the pathname specified as the
+argument for this operand.
+If the
+.Fl o
+option is not present and the DTrace program is contained with a file whose name
+is
+.Ar filename.d ,
+then the ELF file is saved using the name
+.Ar filename.o .
+Otherwise the ELF file is saved using the name d.out.
+.It Fl h
+Generate a header file containing macros that correspond to probes in the
+specified provider definitions.
+This option should be used to generate a header file that is included by other
+source files for later use with the
+.It Fl H
+Print the pathnames of included files when invoking
+.Xr cpp 1
+(enabled using the
+.Fl C
+option).
+This option passes the
+.Fl H
+option to each
+.Xr cpp 1
+invocation, causing it to display the list of pathnames, one for each line, to
+standard error.
+.Fl G
+option.
+If the
+.Fl o
+option
+is present, the header file is saved using the pathname specified as the
+argument for that option.
+If the
+.Fl o
+option is not present and the DTrace program is contained with a file whose
+name is
+.Ar filename.d ,
+then the header file is saved using the name
+.Ar filename.h .
+.It Fl i Ar probe-id Op Oo Ar predicate Oc Ar action
+Specify probe identifier
+.Ar ( probe-id )
+to trace or list
+.Ar ( l
+option).
+You can specify probe IDs using decimal integers as shown by `dtrace -l`.
+The
+.Fl i
+argument can be suffixed with an optional D probe clause.
+You can specify more than one
+.Fl i
+option at a time.
+.It Fl I Ar path
+Add the specified directory
+.Ar path
+to the search path for #include files when invoking
+.Xr cpp 1
+(enabled using the
+.Fl C
+option).
+This option passes the
+.Fl I
+option to each
+.Xr cpp 1
+invocation.
+The specified
+.Ar path
+is inserted into the search path ahead of the default directory list.
+.It Fl l
+List probes instead of enabling them.
+If the
+.Fl l
+option is specified,
+.Nm
+produces a report of the probes matching the descriptions given using the
+.Fl P , m , f , n , i ,
+and
+.Fl s
+options.
+If none of these options are specified, this option lists all probes.
+.It Fl L Ar path
+Add the specified directory
+.Ar path
+to the search path for DTrace libraries.
+DTrace libraries are used to contain common definitions that can be used when
+writing D programs.
+The specified
+.Ar path
+is added after the default library search path.
+.It Fl m Oo Ar provider : Oc Ar module Oo Oo Ar predicate Oc Ar action Oc
+Specify module name to trace or list
+.Fl ( l
+option).
+The corresponding argument can include any of the probe description forms
+.Ar provider:module
+or
+.Ar module .
+Unspecified probe description fields are left blank and match any probes
+regardless of the values in those fields.
+If no qualifiers other than
+.Ar module
+are specified in the description, all probes with a corresponding
+.Ar module
+are matched.
+The
+.Fl m
+argument can be suffixed with an optional D probe clause.
+More than one
+.Fl m
+option can be specified on the command line at a time.
+.It Fl n Oo Oo Oo Ar provider : Oc Ar module : Oc Ar function : Oc Ar name \
+    Oo Oo Ar predicate Oc Ar action Oc
+Specify probe name to trace or list
+.Fl ( l
+option).
+The corresponding argument can include any of the probe description forms
+.Ar provider:module:function:name , module:function:name , function:name ,
+or
+.Ar name .
+Unspecified probe description fields are left blank and match any probes
+regardless of the values in those fields.
+If no qualifiers other than
+.Ar name
+are specified in the description, all probes with a corresponding
+.Ar name
+are matched.
+The
+.Fl n
+argument can be suffixed with an optional D probe clause.
+More than one
+.Fl n
+option can be specified on the command line at a time.
+.It Fl o Ar output
+Specify the
+.Ar output
+file for the
+.Fl A , G ,
+and
+.Fl l
+options, or for the traced data itself.
+If the
+.Fl A
+option is present and
+.Fl o
+is not present, the default output file is
+.Pa /boot/dtrace.dof .
+If the
+.Fl G
+option is present and the
+.Fl s
+option's argument is of the form
+.Ar filename.d
+and
+.Fl o
+is not present, the default output file is
+.Ar filename.o .
+Otherwise the default output file is
+.Ar d.out .
+.It Fl p Ar pid
+Grab the specified process-ID
+.Ar pid ,
+cache its symbol tables, and exit upon its completion.
+If more than one
+.Fl p
+option is present on the command line,
+.Nm
+exits when all commands have exited, reporting the exit status for each process
+as it terminates.
+The first process-ID is made available to any D programs specified on the
+command line or using the
+.Fl s
+option through the
+.Li $target
+macro variable.
+.It Fl P Ar provider Oo Oo Ar predicate Oc Ar action Oc
+Specify provider name to trace or list
+.Fl ( l
+option).
+The remaining probe description fields module, function, and name are left
+blank and match any probes regardless of the values in those fields.
+The
+.Fl P
+argument can be suffixed with an optional D probe clause.
+You can specify more than one
+.Fl P
+option on the command line at a time.
+.It Fl q
+Set quiet mode.
+.Nm
+suppresses messages such as the number of probes matched by the specified
+options and D programs and does not print column headers, the CPU ID, the probe
+ID, or insert newlines into the output.
+Only data traced and formatted by D program statements such as
+.Ql dtrace()
+and
+.Ql printf()
+is displayed to standard output.
+.It Fl s Ar script
+Compile the specified D program source file.
+If the
+.Fl e
+option is present, the program is compiled but instrumentation is not enabled.
+If the
+.Fl l
+option is present, the program is compiled and the set of probes matched by it
+is listed, but instrumentation is not enabled.
+If none of
+.Fl e , l , G ,
+or
+.Fl A
+are present, the instrumentation specified by the D program is enabled and
+tracing begins.
+.It Fl S
+Show D compiler intermediate code.
+The D compiler produces a report of the intermediate code generated for each D
+program to standard error.
+.It Fl U Ar name
+Undefine the specified
+.Ar name
+when invoking
+.Xr cpp 1
+(enabled using the
+.Fl C
+option).
+This option passes the
+.Fl U
+option to each
+.Xr cpp 1
+invocation.
+.It Fl v
+Set verbose mode.
+If the
+.Fl v
+option is specified,
+.Nm
+produces a program stability report showing the minimum interface stability and
+dependency level for the specified D programs.
+.It Fl V
+Report the highest D programming interface version supported by
+.Nm .
+The version information is printed to standard output and the
+.Nm
+command exits.
+.It Fl w
+Permit destructive actions in D programs specified using the
+.Fl s , P , m , f , n ,
+or
+.Fl i
+options.
+If the
+.Fl w
+option is not specified,
+.Nm
+does not permit the compilation or enabling of a D program that contains
+destructive actions.
+.It Fl x Ar arg Op Ns = Ns value
+Enable or modify a DTrace runtime option or D compiler option.
+Boolean options are enabled by specifying their name.
+Options with values are set by separating the option name and value with an
+equals sign (=).
+.It Fl X Cm a | c | s | t
+Specify the degree of conformance to the ISO C standard that should be selected
+when invoking
+.Xr cpp 1
+(enabled using the
+.Fl C
+option).
+The
+.Fl X
+option argument affects the value and presence of the __STDC__ macro depending
+upon the value of the argument letter.
 .sp
-.ne 2
-.mk
-.na
-\fB\fB-32\fR | \fB-64\fR\fR
-.ad
-.sp .6
-.RS 4n
-The D compiler produces programs using the native data model of the operating system kernel. You can use the \fBisainfo\fR \fB-b\fR command to determine the current operating system data model.  If the \fB-32\fR option is specified, \fBdtrace\fR forces
-the D compiler to compile a D program using the 32-bit data model. If the \fB-64\fR option is specified, \fBdtrace\fR forces the D compiler to compile a D program using the 64-bit data model. These options are typically not required as \fBdtrace\fR selects the
-native data model as the default. The data model affects the sizes of integer types and other language properties. D programs compiled for either data model can be executed on both 32-bit and 64-bit kernels. The \fB-32\fR and \fB-64\fR options also determine the ELF file format
-(ELF32 or ELF64) produced by the \fB-G\fR option.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-a\fR\fR
-.ad
-.sp .6
-.RS 4n
-Claim anonymous tracing state and display the traced data. You can combine the \fB-a\fR option with the \fB-e\fR option to force \fBdtrace\fR to exit immediately after consuming the anonymous tracing state rather than continuing to wait for new
-data. See the \fISolaris Dynamic Tracing Guide\fR for more information about anonymous tracing.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-A\fR\fR
-.ad
-.sp .6
-.RS 4n
-Generate \fBdriver.conf\fR(4) directives for anonymous tracing. This option constructs a set of \fBdtrace\fR(7D) configuration file directives to enable the specified probes for anonymous tracing and then exits. By default, \fBdtrace\fR attempts to store the directives to the file \fB/kernel/drv/dtrace.conf\fR. You can modify this behavior if you use the \fB-o\fR option to specify an alternate output file.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-b\fR \fIbufsz\fR\fR
-.ad
-.sp .6
-.RS 4n
-Set principal trace buffer size (\fIbufsz\fR). The trace buffer size can include any of the size suffixes \fBk\fR, \fBm\fR, \fBg\fR, or \fBt\fR.  If the buffer space cannot be allocated, \fBdtrace\fR attempts
-to reduce the buffer size or exit depending on the setting of the \fBbufresize\fR property.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-c\fR \fIcmd\fR\fR
-.ad
-.sp .6
-.RS 4n
-Run the specified command \fIcmd\fR and exit upon its completion. If more than one \fB-c\fR option is present on the command line, \fBdtrace\fR exits when all commands have exited, reporting the exit status for each child process as it
-terminates. The process-ID of the first command is made available to any D programs specified on the command line or using the \fB-s\fR option through the \fB$target\fR macro variable. Refer to the \fISolaris Dynamic Tracing Guide\fR for more information
-on macro variables.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-C\fR\fR
-.ad
-.sp .6
-.RS 4n
-Run the C preprocessor \fBcpp\fR(1) over D programs before compiling them. You can pass options to the C preprocessor using the \fB-D\fR, \fB-U\fR, \fB-I\fR, and \fB-H\fR options. You can select the degree of C standard conformance if you use the \fB-X\fR option. For a description of the set of tokens defined by the D compiler when invoking the C preprocessor, see \fB-X\fR.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-D\fR \fIname\fR \fB[=\fR\fIvalue\fR\fB]\fR\fR
-.ad
-.sp .6
-.RS 4n
-Define \fIname\fR when invoking \fBcpp\fR(1) (enabled using the \fB-C\fR option). If you specify the equals sign (\fB=\fR)
-and additional \fIvalue\fR, the name is assigned the corresponding value. This option passes the \fB-D\fR option to each \fBcpp\fR invocation.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-e\fR\fR
-.ad
-.sp .6
-.RS 4n
-Exit after compiling any requests and consuming anonymous tracing state (\fB-a\fR option) but prior to enabling any probes. You can combine this option with the \fB-a\fR option to print anonymous tracing data and exit. You can also combine this option with D
-compiler options. This combination verifies that the programs compile without actually executing them and enabling the corresponding instrumentation.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-f\fR\fB[[\fR\fIprovider\fR\fB:]\fR\fImodule\fR\fB:]\fR\fIfunction\fR\fB[[\fR\fIpredicate\fR\fB]\fR\fIaction\fR\fB]]\fR\fR
-.ad
-.sp .6
-.RS 4n
-Specify function name to trace or list (\fB-l\fR option). The corresponding argument can include any of the probe description forms \fIprovider:module:function\fR, \fImodule:function\fR, or \fIfunction\fR.
-Unspecified probe description fields are left blank and match any probes regardless of the values in those fields. If no qualifiers other than \fIfunction\fR are specified in the description, all probes with the corresponding \fIfunction\fR are matched.
-The \fB-f\fR argument can be suffixed with an optional D probe clause. You can specify more than one \fB-f\fR option on the command line at a time.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-F\fR\fR
-.ad
-.sp .6
-.RS 4n
-Coalesce trace output by identifying function entry and return. Function entry probe reports are indented and their output is prefixed with \fB->\fR. Function return probe reports are unindented and their output is prefixed with \fB<-\fR\&. System call
-entry probe reports are indented and their output is prefixed with \fB=>\fR. System call return probe reports are unindented and their output is prefixed with \fB<=\fR\&.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-G\fR\fR
-.ad
-.sp .6
-.RS 4n
-Generate an ELF file containing an embedded DTrace program. The DTrace probes specified in the program are saved inside of a relocatable ELF object which can be linked into another program. If the \fB-o\fR option is present, the ELF file is saved using the pathname specified
-as the argument for this operand. If the \fB-o\fR option is not present and the DTrace program is contained with a file whose name is \fB\fIfilename\fR.d\fR, then the ELF file is saved using the name \fB\fIfilename\fR.o\fR.
-Otherwise the ELF file is saved using the name \fBd.out\fR.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-H\fR\fR
-.ad
-.sp .6
-.RS 4n
-Print the pathnames of included files when invoking \fBcpp\fR(1) (enabled using the \fB-C\fR option). This option passes the \fB-H\fR option
-to each \fBcpp\fR invocation, causing it to display the list of pathnames, one for each line, to \fBstderr\fR.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-h\fR\fR
-.ad
-.sp .6
-.RS 4n
-Generate a header file containing macros that correspond to probes in the specified provider definitions. This option should be used to generate a header file that is included by other source files for later use with the \fB-G\fR option. If the \fB-o\fR option
-is present, the header file is saved using the pathname specified as the argument for that option. If the \fB-o\fR option is not present and the DTrace program is contained with a file whose name is \fIfilename\fR\fB\&.d\fR, then the header file is saved
-using the name \fIfilename\fR\fB\&.h\fR.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-i\fR \fIprobe-id\fR\fB[[\fR\fIpredicate\fR] \fIaction\fR\fB]\fR\fR
-.ad
-.sp .6
-.RS 4n
-Specify probe identifier (\fIprobe-id\fR) to trace or list (\fB-l\fR option). You can specify probe IDs using decimal integers as shown by \fBdtrace\fR \fB-l\fR. The \fB-i\fR argument can be suffixed with an optional
-D probe clause. You can specify more than one \fB-i\fR option at a time.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-I\fR \fIpath\fR\fR
-.ad
-.sp .6
-.RS 4n
-Add the specified directory \fIpath\fR to the search path for \fB#include\fR files when invoking \fBcpp\fR(1) (enabled
-using the \fB-C\fR option). This option passes the \fB-I\fR option to each \fBcpp\fR invocation. The specified \fIpath\fR is inserted into the search path ahead of the default directory list.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-L\fR \fIpath\fR\fR
-.ad
-.sp .6
-.RS 4n
-Add the specified directory \fIpath\fR to the search path for DTrace libraries. DTrace libraries are used to contain common definitions that can be used when writing D programs. The specified \fIpath\fR is added after the default library
-search path.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-l\fR\fR
-.ad
-.sp .6
-.RS 4n
-List probes instead of enabling them. If the \fB-l\fR option is specified, \fBdtrace\fR produces a report of the probes matching the descriptions given using the \fB-P\fR, \fB-m\fR, \fB-f\fR, \fB-n\fR, \fB-i\fR,
-and \fB-s\fR options. If none of these options are specified, this option lists all probes.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-m\fR [[\fIprovider:\fR] \fImodule:\fR [[\fIpredicate\fR] \fIaction\fR]]\fR
-.ad
-.sp .6
-.RS 4n
-Specify module name to trace or list (\fB-l\fR option). The corresponding argument can include any of the probe description forms \fIprovider:module\fR or \fImodule\fR. Unspecified probe description fields are left blank and match
-any probes regardless of the values in those fields. If no qualifiers other than \fImodule\fR are specified in the description, all probes with a corresponding \fImodule\fR are matched. The \fB-m\fR argument can be suffixed with an optional D
-probe clause. More than one \fB-m\fR option can be specified on the command line at a time.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-n\fR [[[\fIprovider:\fR] \fImodule:\fR] \fIfunction:\fR] \fIname\fR [[\fIpredicate\fR] \fIaction\fR]\fR
-.ad
-.sp .6
-.RS 4n
-Specify probe name to trace or list (\fB-l\fR option). The corresponding argument can include any of the probe description forms \fIprovider:module:function:name\fR, \fImodule:function:name\fR, \fIfunction:name\fR,
-or \fIname\fR.  Unspecified probe description fields are left blank and match any probes regardless of the values in those fields. If no qualifiers other than \fIname\fR are specified in the description, all probes with a corresponding \fIname\fR are
-matched. The \fB-n\fR argument can be suffixed with an optional D probe clause. More than one \fB-n\fR option can be specified on the command line at a time.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-o\fR \fIoutput\fR\fR
-.ad
-.sp .6
-.RS 4n
-Specify the \fIoutput\fR file for the \fB-A\fR , \fB-G\fR, and \fB-l\fR options, or for the traced data itself. If the \fB-A\fR option is present and \fB-o\fR is not present, the default output file is \fB/kernel/drv/dtrace.conf\fR. If the \fB-G\fR option is present and the \fB-s\fR option's argument is of the form \fB\fIfilename\fR.d\fR and \fB-o\fR is not present, the default output file is \fB\fIfilename\fR.o\fR.
-Otherwise the default output file is \fBd.out\fR.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-p\fR \fIpid\fR\fR
-.ad
-.sp .6
-.RS 4n
-Grab the specified process-ID \fIpid\fR, cache its symbol tables, and exit upon its completion. If more than one \fB-p\fR option is present on the command line, \fBdtrace\fR exits when all commands have exited, reporting the exit status
-for each process as it terminates. The first process-ID is made available to any D programs specified on the command line or using the \fB-s\fR option through the \fB$target\fR macro variable. Refer to the \fISolaris Dynamic Tracing Guide\fR for
-more information on macro variables.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-P\fR \fIprovider\fR \fB[[\fR\fIpredicate\fR\fB]\fR \fIaction\fR]\fR
-.ad
-.sp .6
-.RS 4n
-Specify provider name to trace or list (\fB-l\fR option). The remaining probe description fields module, function, and name are left blank and match any probes regardless of the values in those fields. The \fB-P\fR argument can be suffixed with an optional D
-probe clause. You can specify more than one \fB-P\fR option on the command line at a time.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-q\fR\fR
-.ad
-.sp .6
-.RS 4n
-Set quiet mode. \fBdtrace\fR suppresses messages such as the number of probes matched by the specified options and D programs and does not print column headers, the CPU ID, the probe ID, or insert newlines into the output. Only data traced and formatted by D program
-statements such as \fBtrace()\fR and \fBprintf()\fR is displayed to \fBstdout\fR.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-s\fR\fR
-.ad
-.sp .6
-.RS 4n
-Compile the specified D program source file. If the \fB-e\fR option is present, the program is compiled but instrumentation is not enabled. If the \fB-l\fR option is present, the program is compiled and the set of probes matched by it is listed, but instrumentation
-is not enabled. If none of \fB-e\fR, \fB-l\fR, \fB-G\fR, or \fB-A\fR are present, the instrumentation specified by the D program is enabled and tracing begins.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-S\fR\fR
-.ad
-.sp .6
-.RS 4n
-Show D compiler intermediate code. The D compiler produces a report of the intermediate code generated for each D program to \fBstderr\fR.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-U\fR \fIname\fR\fR
-.ad
-.sp .6
-.RS 4n
-Undefine the specified \fIname\fR when invoking \fBcpp\fR(1) (enabled using the \fB-C\fR option). This option passes the \fB-U\fR option to each \fBcpp\fR invocation.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-v\fR\fR
-.ad
-.sp .6
-.RS 4n
-Set verbose mode. If the \fB-v\fR option is specified, \fBdtrace\fR produces a program stability report showing the minimum interface stability and dependency level for the specified D programs. DTrace stability levels are explained in further detail in the \fISolaris Dynamic Tracing Guide\fR.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-V\fR\fR
-.ad
-.sp .6
-.RS 4n
-Report the highest D programming interface version supported by \fBdtrace\fR. The version information is printed to \fBstdout\fR and the \fBdtrace\fR command exits. Refer to the \fISolaris Dynamic Tracing Guide\fR for
-more information about DTrace versioning features.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-w\fR\fR
-.ad
-.sp .6
-.RS 4n
-Permit destructive actions in D programs specified using the \fB-s\fR, \fB-P\fR, \fB-m\fR, \fB-f\fR, \fB-n\fR, or \fB-i\fR options. If the \fB-w\fR option is not specified, \fBdtrace\fR does not
-permit the compilation or enabling of a D program that contains destructive actions.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-x\fR \fIarg\fR [\fI=val\fR]\fR
-.ad
-.sp .6
-.RS 4n
-Enable or modify a DTrace runtime option or D compiler option. The list of options is found in the \fISolaris Dynamic Tracing Guide\fR.  Boolean options are enabled by specifying their name. Options with values are set by separating the option name and
-value with an equals sign (\fB=\fR).
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-X\fR \fBa | c | s | t\fR\fR
-.ad
-.sp .6
-.RS 4n
-Specify the degree of conformance to the ISO C standard that should be selected when invoking \fBcpp\fR(1) (enabled using the \fB-C\fR option).
-The \fB-X\fR option argument affects the value and presence of the \fB__STDC__\fR macro depending upon the value of the argument letter.
-.sp
-The \fB-X\fR option supports the following arguments:
-.sp
-.ne 2
-.mk
-.na
-\fB\fBa\fR\fR
-.ad
-.RS 5n
-.rt  
-Default. ISO C plus K&R compatibility extensions, with semantic changes required by ISO C. This is the default mode if \fB-X\fR is not specified. The predefined macro \fB__STDC__\fR has a value of 0 when \fBcpp\fR is invoked in conjunction
-with the \fB-Xa\fR option.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fBc\fR\fR
-.ad
-.RS 5n
-.rt  
-Conformance. Strictly conformant ISO C, without K&R C compatibility extensions. The predefined macro \fB__STDC__\fR has a value of 1 when \fBcpp\fR is invoked in conjunction with the \fB-Xc\fR option.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fBs\fR\fR
-.ad
-.RS 5n
-.rt  
-K&R C only. The macro \fB__STDC__\fR is not defined when \fBcpp\fR is invoked in conjunction with the \fB-Xs\fR option.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fBt\fR\fR
-.ad
-.RS 5n
-.rt  
-Transition. ISO C plus K&R C compatibility extensions, without semantic changes required by ISO C. The predefined macro \fB__STDC__\fR has a value of 0 when \fBcpp\fR is invoked in conjunction with the \fB-Xt\fR option.
-.RE
-
-As the \fB-X\fR option only affects how the D compiler invokes the C preprocessor, the \fB-Xa\fR and \fB-Xt\fR options are equivalent from the perspective of D and both are provided only to ease re-use of settings from a C build environment.
-.sp
-Regardless of the \fB-X\fR mode, the following additional C preprocessor definitions are always specified and valid in all modes:
-.RS +4
-.TP
-.ie t \(bu
-.el o
-\fB__sun\fR
-.RE
-.RS +4
-.TP
-.ie t \(bu
-.el o
-\fB__unix\fR
-.RE
-.RS +4
-.TP
-.ie t \(bu
-.el o
-\fB__SVR4\fR
-.RE
-.RS +4
-.TP
-.ie t \(bu
-.el o
-\fB__sparc\fR (on SPARC systems only)
-.RE
-.RS +4
-.TP
-.ie t \(bu
-.el o
-\fB__sparcv9\fR (on SPARC systems only when 64-bit programs are compiled)
-.RE
-.RS +4
-.TP
-.ie t \(bu
-.el o
-\fB__i386\fR (on x86 systems only when 32-bit programs are compiled)
-.RE
-.RS +4
-.TP
-.ie t \(bu
-.el o
-\fB__amd64\fR (on x86 systems only when 64-bit programs are compiled)
-.RE
-.RS +4
-.TP
-.ie t \(bu
-.el o
-\fB__\fI`uname -s`\fR_\fI`uname -r`\fR\fR (for example, \fB__SunOS_5_10\fR)
-.RE
-.RS +4
-.TP
-.ie t \(bu
-.el o
-\fB__SUNW_D=1\fR
-.RE
-.RS +4
-.TP
-.ie t \(bu
-.el o
-\fB__SUNW_D_VERSION=0x\fIMMmmmuuu\fR\fR
-.sp
-Where \fIMM\fR is the major release value in hexadecimal, \fImmm\fR is the minor release value in hexadecimal, and \fIuuu\fR is the
-micro release value in hexadecimal. Refer to the \fISolaris Dynamic Tracing Guide\fR for more information about DTrace versioning.
-.RE
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB-Z\fR\fR
-.ad
-.sp .6
-.RS 4n
-Permit probe descriptions that match zero probes. If the \fB-Z\fR option is not specified, \fBdtrace\fR reports an error and exits if any probe descriptions specified in D program files (\fB-s\fR option) or on the command line (\fB-P\fR, \fB-m\fR, \fB-f\fR, \fB-n\fR, or \fB-i\fR options) contain descriptions that do not match any known probes.
-.RE
-
-.SH OPERANDS
-.sp
-.LP
-You can specify zero or more additional arguments on the \fBdtrace\fR command line to define a set of macro variables (\fB$1\fR, \fB$2\fR, and so forth). The additional arguments can be used in D programs specified using the \fB-s\fR option
-or on the command line. The use of macro variables is described further in the \fISolaris Dynamic Tracing Guide\fR.
-.SH EXIT STATUS
-.sp
-.LP
-The following exit values are returned:
-.sp
-.ne 2
-.mk
-.na
-\fB0\fR
-.ad
-.RS 5n
-.rt  
-Successful completion. 
-.sp
-For D program requests, an exit status of \fB0\fR indicates that programs were successfully compiled, probes were successfully enabled, or anonymous state was successfully retrieved. \fBdtrace\fR returns \fB0\fR even if the specified tracing requests
-encountered errors or drops.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB1\fR\fR
-.ad
-.RS 5n
-.rt  
+The
+.Fl X
+option supports the following arguments:
+.Bl -tag -width indent
+.It a
+Default.
+ISO C plus K&R compatibility extensions, with semantic changes required by ISO
+C.
+This is the default mode if
+.Fl X
+is not specified.
+The predefined macro __STDC__ has a value of 0 when
+.Xr cpp 1
+is invoked in conjunction with the
+.Fl Xa
+option.
+.It c
+Conformance.
+Strictly conformant ISO C, without K&R C compatibility extensions.
+The predefined macro __STDC__ has a value of 1 when
+.Xr cpp 1
+is invoked in conjunction with the
+.Fl \&Xc
+option.
+.It s
+K&R C only.
+The macro __STDC__ is not defined when
+.Xr cpp 1
+is invoked in conjunction with the
+.Fl Xs
+option.
+.It t
+Transition.
+ISO C plus K&R C compatibility extensions, without semantic changes required by
+ISO C.
+The predefined macro __STDC__ has a value of 0 when
+.Xr cpp 1
+is invoked in conjunction with the
+.Fl Xt
+option.
+.El
+.Pp
+As the
+.Fl X
+option only affects how the D compiler invokes the C preprocessor, the
+.Fl Xa
+and
+.Fl Xt
+options are equivalent from the perspective of D and both are provided only to
+ease re-use of settings from a C build environment.
+.Pp
+Regardless of the
+.Fl X
+mode, the following additional C preprocessor definitions are always specified
+and valid in all modes:
+.Bl -bullet -offset indent
+.It
+__sun
+.It
+__unix
+.It
+__SVR4
+.It
+__sparc (on SPARC systems only)
+.It
+__sparcv9 (on SPARC systems only when 64-bit programs are compiled)
+.It
+__i386 (on x86 systems only when 32-bit programs are compiled)
+.It
+__amd64 (on x86 systems only when 64-bit programs are compiled)
+.It
+__`uname -s`_`uname -r` (for example,
+.Ql FreeBSD_9.2-RELEASE .
+.It
+__SUNW_D=1
+.It
+.No __SUNW_D_VERSION=0x Ns Ar MMmmmuuu
+.Pp
+Where
+.Ar MM
+is the major release value in hexadecimal,
+.Ar mmm
+is the minor release value in hexadecimal, and
+.Ar uuu
+is the micro release value in hexadecimal.
+.El
+.It Fl Z
+Permit probe descriptions that match zero probes.
+If the
+.Fl Z
+option is not specified,
+.Nm
+reports an error and exits if any probe descriptions specified in D program
+files
+.Fl ( s
+option) or on the command line
+.Fl ( P , m , f , n ,
+or
+.Fl i
+options) contain descriptions that do not match any known probes.
+.El
+.Sh OPERANDS
+You can specify zero or more additional arguments on the
+.Nm
+command line to define a set of macro variables and so forth).
+The additional arguments can be used in D programs specified using the
+.Fl s
+option or on the command line.
+.Sh FILES
+.Bl -tag -width /boot/dtrace.dof -compact
+.It Pa /boot/dtrace.dof
+File for anonymous tracing directives.
+.El
+.Sh EXIT STATUS
+The following exit statuses are returned:
+.Bl -tag -width indent
+.It 0
+Successful completion.
+.Pp
+For D program requests, an exit status of 0 indicates that programs were
+successfully compiled, probes were successfully enabled, or anonymous state
+was successfully retrieved.
+.Nm
+returns 0 even if the specified tracing requests encountered errors or drops.
+.It 1
 An error occurred.
-.sp
-For D program requests, an exit status of \fB1\fR indicates that program compilation failed or that the specified request could not be satisfied.
-.RE
-
-.sp
-.ne 2
-.mk
-.na
-\fB\fB2\fR\fR
-.ad
-.RS 5n
-.rt  
+.Pp
+For D program requests, an exit status of 1 indicates that program compilation
+failed or that the specified request could not be satisfied.
+.It 2
 Invalid command line options or arguments were specified.
-.RE
-
-.SH ATTRIBUTES
-.sp
-.LP
-See \fBattributes\fR(5) for descriptions of the following attributes:
-.sp
-
-.sp
-.TS
-tab() box;
-cw(2.75i) |cw(2.75i) 
-lw(2.75i) |lw(2.75i) 
-.
-ATTRIBUTE TYPEATTRIBUTE VALUE
-_
-AvailabilitySUNWdtrc
-_
-Interface StabilitySee below.
-.TE
-
-.sp
-.LP
-The command-line syntax is Committed. The human-readable output is Uncommitted.
-.SH SEE ALSO
-.sp
-.LP
-\fBcpp\fR(1), \fBisainfo\fR(1), \fBlibdtrace\fR(3LIB), \fBdriver.conf\fR(4), \fBattributes\fR(5), \fBdtrace\fR(7D)
-.sp
-.LP
-\fISolaris Dynamic Tracing Guide\fR
+.El
+.Sh SEE ALSO
+.Xr cpp 1 ,
+.Xr dtruss 1 ,
+.Xr elf 5
+.Rs
+.%T Solaris Dynamic Tracing Guide
+.Re

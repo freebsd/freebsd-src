@@ -10,17 +10,12 @@ CHROOTDIR="/scratch"
 SVNROOT="svn://svn.FreeBSD.org"
 
 ## Set the src/, ports/, and doc/ branches or tags.
-SRCBRANCH="base/head"
-DOCBRANCH="doc/head"
-PORTBRANCH="ports/head"
+SRCBRANCH="base/head@rHEAD"
+DOCBRANCH="doc/head@rHEAD"
+PORTBRANCH="ports/head@rHEAD"
 
 ## Run svn co --force for src checkout.
 #SRC_FORCE_CHECKOUT=yes
-
-## Set the src/, ports/, and doc/ revisions.
-SRCREVISION="-rHEAD"
-DOCREVISION="-rHEAD"
-PORTREVISION="-rHEAD"
 
 ## Set to override the default target architecture.
 #TARGET="amd64"

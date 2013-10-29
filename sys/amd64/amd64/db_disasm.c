@@ -127,7 +127,7 @@ struct finst {
 static const struct inst db_inst_0f388x[] = {
 /*80*/	{ "",	   TRUE,  SDEP,  op2(E, Rq),  "invept" },
 /*81*/	{ "",	   TRUE,  SDEP,  op2(E, Rq),  "invvpid" },
-/*82*/	{ "",	   FALSE, NONE,  0,	      0 },
+/*82*/	{ "",	   TRUE,  SDEP,  op2(E, Rq),  "invpcid" },
 /*83*/	{ "",	   FALSE, NONE,  0,	      0 },
 /*84*/	{ "",	   FALSE, NONE,  0,	      0 },
 /*85*/	{ "",	   FALSE, NONE,  0,	      0 },

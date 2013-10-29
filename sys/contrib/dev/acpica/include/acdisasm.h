@@ -694,6 +694,9 @@ void
 AcpiDmUnresolvedWarning (
     UINT8                   Type);
 
+void
+AcpiDmGetExternalsFromFile (
+    void);
 
 /*
  * dmresrc

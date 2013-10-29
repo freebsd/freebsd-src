@@ -550,6 +550,7 @@ fetch_data (struct disassemble_info *info, bfd_byte *addr)
 #define PREGRP104 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 104 } }
 #define PREGRP105 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 105 } }
 #define PREGRP106 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 106 } }
+#define PREGRP107 NULL, { { NULL, USE_PREFIX_USER_TABLE }, { NULL, 107 } }
 
 
 #define X86_64_0  NULL, { { NULL, X86_64_SPECIAL }, { NULL, 0 } }
@@ -2668,6 +2669,14 @@ static const struct dis386 prefix_user_table[][4] = {
     { "pclmulqdq", { XM, EXx, Ib } },
     { "(bad)",	{ XX } },
   },
+
+  /* PREGRP107 */
+  {
+    { "(bad)",	{ XX } },
+    { "(bad)",	{ XX } },
+    { "invpcid",{ Gm, Mo } },
+    { "(bad)",	{ XX } },
+  },
 };
 
 static const struct dis386 x86_64_table[][2] = {
@@ -2839,7 +2848,7 @@ static const struct dis386 three_byte_table[][256] = {
     /* 80 */
     { PREGRP98 },
     { PREGRP99 },
-    { "(bad)", { XX } },
+    { PREGRP107 },
     { "(bad)", { XX } },
     { "(bad)", { XX } },
     { "(bad)", { XX } },
@@ -6429,14 +6438,22 @@ VMX_Fixup (int extrachar ATTRIBUTE_UNUSED, int sizeflag)
 static void
 OP_VMX (int bytemode, int sizeflag)
 {
-  used_prefixes |= (prefixes & (PREFIX_DATA | PREFIX_REPZ));
-  if (prefixes & PREFIX_DATA)
-    strcpy (obuf, "vmclear");
-  else if (prefixes & PREFIX_REPZ)
-    strcpy (obuf, "vmxon");
+  if (modrm.mod == 3)
+    {
+      strcpy (obuf, "rdrand");
+      OP_E (v_mode, sizeflag);
+    }
   else
-    strcpy (obuf, "vmptrld");
-  OP_E (bytemode, sizeflag);
+    {
+      used_prefixes |= (prefixes & (PREFIX_DATA | PREFIX_REPZ));
+      if (prefixes & PREFIX_DATA)
+	strcpy (obuf, "vmclear");
+      else if (prefixes & PREFIX_REPZ)
+	strcpy (obuf, "vmxon");
+      else
+	strcpy (obuf, "vmptrld");
+      OP_E (bytemode, sizeflag);
+    }
 }
 
 static void

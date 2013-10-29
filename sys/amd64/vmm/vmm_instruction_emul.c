@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/pmap.h>
 #include <machine/vmparam.h>
 #include <machine/vmm.h>
 #else	/* !_KERNEL */
@@ -60,6 +59,7 @@ enum {
 	VIE_OP_TYPE_NONE = 0,
 	VIE_OP_TYPE_MOV,
 	VIE_OP_TYPE_AND,
+	VIE_OP_TYPE_OR,
 	VIE_OP_TYPE_LAST
 };
 
@@ -74,6 +74,10 @@ static const struct vie_op one_byte_opcodes[256] = {
 	},
 	[0x89] = {
 		.op_byte = 0x89,
+		.op_type = VIE_OP_TYPE_MOV,
+	},
+	[0x8A] = {
+		.op_byte = 0x8A,
 		.op_type = VIE_OP_TYPE_MOV,
 	},
 	[0x8B] = {
@@ -94,7 +98,13 @@ static const struct vie_op one_byte_opcodes[256] = {
 		.op_byte = 0x81,
 		.op_type = VIE_OP_TYPE_AND,
 		.op_flags = VIE_OP_F_IMM,
-	}
+	},
+	[0x83] = {
+		/* XXX Group 1 extended opcode - not just OR */
+		.op_byte = 0x83,
+		.op_type = VIE_OP_TYPE_OR,
+		.op_flags = VIE_OP_F_IMM8,
+	},
 };
 
 /* struct vie.mod */
@@ -261,13 +271,18 @@ emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 			error = memwrite(vm, vcpuid, gpa, val, size, arg);
 		}
 		break;
+	case 0x8A:
 	case 0x8B:
 		/*
 		 * MOV from mem (ModRM:r/m) to reg (ModRM:reg)
+		 * 8A/r:	mov r/m8, r8
+		 * REX + 8A/r:	mov r/m8, r8
 		 * 8B/r:	mov r32, r/m32
 		 * REX.W 8B/r:	mov r64, r/m64
 		 */
-		if (vie->rex_w)
+		if (vie->op.op_byte == 0x8A)
+			size = 1;
+		else if (vie->rex_w)
 			size = 8;
 		error = memread(vm, vcpuid, gpa, &val, size, arg);
 		if (error == 0) {
@@ -338,8 +353,8 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		break;
 	case 0x81:
 		/*
-		 * AND reg (ModRM:reg) with immediate and store the
-		 * result in reg
+		 * AND mem (ModRM:r/m) with immediate and store the
+		 * result in mem.
 		 *
 		 * 81/          and r/m32, imm32
 		 * REX.W + 81/  and r/m64, imm32 sign-extended to 64
@@ -371,6 +386,52 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	return (error);
 }
 
+static int
+emulate_or(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
+{
+	int error, size;
+	uint64_t val1;
+
+	size = 4;
+	error = EINVAL;
+
+	switch (vie->op.op_byte) {
+	case 0x83:
+		/*
+		 * OR mem (ModRM:r/m) with immediate and store the
+		 * result in mem.
+		 *
+		 * 83/          OR r/m32, imm8 sign-extended to 32
+		 * REX.W + 83/  OR r/m64, imm8 sign-extended to 64
+		 *
+		 * Currently, only the OR operation of the 0x83 opcode
+		 * is implemented (ModRM:reg = b001).
+		 */
+		if ((vie->reg & 7) != 1)
+			break;
+
+		if (vie->rex_w)
+			size = 8;
+		
+		/* get the first operand */
+                error = memread(vm, vcpuid, gpa, &val1, size, arg);
+                if (error)
+			break;
+
+                /*
+		 * perform the operation with the pre-fetched immediate
+		 * operand and write the result
+		 */
+                val1 |= vie->immediate;
+                error = memwrite(vm, vcpuid, gpa, val1, size, arg);
+		break;
+	default:
+		break;
+	}
+	return (error);
+}
+
 int
 vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 			mem_region_read_t memread, mem_region_write_t memwrite,
@@ -390,6 +451,10 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		error = emulate_and(vm, vcpuid, gpa, vie,
 				    memread, memwrite, memarg);
 		break;
+	case VIE_OP_TYPE_OR:
+		error = emulate_or(vm, vcpuid, gpa, vie,
+				    memread, memwrite, memarg);
+		break;
 	default:
 		error = EINVAL;
 		break;
@@ -399,7 +464,7 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 }
 
 #ifdef _KERNEL
-static void
+void
 vie_init(struct vie *vie)
 {
 
@@ -413,9 +478,9 @@ static int
 gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys,
 	uint64_t *gpa, uint64_t *gpaend)
 {
-	vm_paddr_t hpa;
 	int nlevels, ptpshift, ptpindex;
 	uint64_t *ptpbase, pte, pgsize;
+	void *cookie;
 
 	/*
 	 * XXX assumes 64-bit guest with 4 page walk levels
@@ -425,17 +490,18 @@ gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys,
 		/* Zero out the lower 12 bits and the upper 12 bits */
 		ptpphys >>= 12; ptpphys <<= 24; ptpphys >>= 12;
 
-		hpa = vm_gpa2hpa(vm, ptpphys, PAGE_SIZE);
-		if (hpa == -1)
+		ptpbase = vm_gpa_hold(vm, ptpphys, PAGE_SIZE, VM_PROT_READ,
+				      &cookie);
+		if (ptpbase == NULL)
 			goto error;
-
-		ptpbase = (uint64_t *)PHYS_TO_DMAP(hpa);
 
 		ptpshift = PAGE_SHIFT + nlevels * 9;
 		ptpindex = (gla >> ptpshift) & 0x1FF;
 		pgsize = 1UL << ptpshift;
 
 		pte = ptpbase[ptpindex];
+
+		vm_gpa_release(cookie);
 
 		if ((pte & PG_V) == 0)
 			goto error;
@@ -464,17 +530,17 @@ int
 vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
 		      uint64_t cr3, struct vie *vie)
 {
-	int n, err;
-	uint64_t hpa, gpa, gpaend, off;
+	int n, err, prot;
+	uint64_t gpa, gpaend, off;
+	void *hpa, *cookie;
 
 	/*
 	 * XXX cache previously fetched instructions using 'rip' as the tag
 	 */
 
+	prot = VM_PROT_READ | VM_PROT_EXECUTE;
 	if (inst_length > VIE_INST_SIZE)
 		panic("vmm_fetch_instruction: invalid length %d", inst_length);
-
-	vie_init(vie);
 
 	/* Copy the instruction into 'vie' */
 	while (vie->num_valid < inst_length) {
@@ -485,11 +551,12 @@ vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
 		off = gpa & PAGE_MASK;
 		n = min(inst_length - vie->num_valid, PAGE_SIZE - off);
 
-		hpa = vm_gpa2hpa(vm, gpa, n);
-		if (hpa == -1)
+		if ((hpa = vm_gpa_hold(vm, gpa, n, prot, &cookie)) == NULL)
 			break;
 
-		bcopy((void *)PHYS_TO_DMAP(hpa), &vie->inst[vie->num_valid], n);
+		bcopy(hpa, &vie->inst[vie->num_valid], n);
+
+		vm_gpa_release(cookie);
 
 		rip += n;
 		vie->num_valid += n;
@@ -631,16 +698,9 @@ decode_modrm(struct vie *vie)
 				vie->base_register = VM_REG_GUEST_RIP;
 			else
 				vie->base_register = VM_REG_LAST;
-				
 		}
 		break;
 	}
-
-	/* Figure out immediate operand size (if any) */
-	if (vie->op.op_flags & VIE_OP_F_IMM)
-		vie->imm_bytes = 4;
-	else if (vie->op.op_flags & VIE_OP_F_IMM8)
-		vie->imm_bytes = 1;
 
 done:
 	vie_advance(vie);
@@ -756,6 +816,12 @@ decode_immediate(struct vie *vie)
 		int8_t	signed8;
 		int32_t	signed32;
 	} u;
+
+	/* Figure out immediate operand size (if any) */
+	if (vie->op.op_flags & VIE_OP_F_IMM)
+		vie->imm_bytes = 4;
+	else if (vie->op.op_flags & VIE_OP_F_IMM8)
+		vie->imm_bytes = 1;
 
 	if ((n = vie->imm_bytes) == 0)
 		return (0);

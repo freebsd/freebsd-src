@@ -712,7 +712,17 @@ run_ra_get_log(apr_array_header_t *revision_ranges,
       matching_segment = bsearch(&younger_rev, log_segments->elts,
                                  log_segments->nelts, log_segments->elt_size,
                                  compare_rev_to_segment);
-      SVN_ERR_ASSERT(*matching_segment);
+      /* LOG_SEGMENTS is supposed to represent the history of PATHS from
+         the oldest to youngest revs in REVISION_RANGES.  This function's
+         current sole caller svn_client_log5 *should* be providing
+         LOG_SEGMENTS that span the oldest to youngest revs in
+         REVISION_RANGES, even if one or more of the svn_location_segment_t's
+         returned have NULL path members indicating a gap in the history. So
+         MATCHING_SEGMENT should never be NULL, but clearly sometimes it is,
+         see http://svn.haxx.se/dev/archive-2013-06/0522.shtml
+         So to be safe we handle that case. */
+      if (matching_segment == NULL)
+        continue;
       
       /* A segment with a NULL path means there is gap in the history.
          We'll just proceed and let svn_ra_get_log2 fail with a useful
@@ -850,13 +860,32 @@ svn_client_log5(const apr_array_header_t *targets,
   SVN_ERR(svn_client__ensure_ra_session_url(&old_session_url, ra_session,
                                             actual_loc->url, pool));
 
-  /* Get the svn_location_segment_t's representing the requested log ranges. */
-  SVN_ERR(svn_client__repos_location_segments(&log_segments, ra_session,
-                                              actual_loc->url,
-                                              actual_loc->rev, /* peg */
-                                              actual_loc->rev, /* start */
-                                              oldest_rev,      /* end */
-                                              ctx, pool));
+  /* Save us an RA layer round trip if we are on the repository root and
+     know the result in advance.  All the revision data has already been
+     validated.
+   */
+  if (strcmp(actual_loc->url, actual_loc->repos_root_url) == 0)
+    {
+      svn_location_segment_t *segment = apr_pcalloc(pool, sizeof(*segment));
+      log_segments = apr_array_make(pool, 1, sizeof(segment));
+
+      segment->range_start = oldest_rev;
+      segment->range_end = actual_loc->rev;
+      segment->path = "";
+      APR_ARRAY_PUSH(log_segments, svn_location_segment_t *) = segment;
+    }
+  else
+    {
+      /* Get the svn_location_segment_t's representing the requested log
+       * ranges. */
+      SVN_ERR(svn_client__repos_location_segments(&log_segments, ra_session,
+                                                  actual_loc->url,
+                                                  actual_loc->rev, /* peg */
+                                                  actual_loc->rev, /* start */
+                                                  oldest_rev,      /* end */
+                                                  ctx, pool));
+    }
+
 
   SVN_ERR(run_ra_get_log(revision_ranges, relative_targets, log_segments,
                          actual_loc, ra_session, targets, limit,

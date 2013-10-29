@@ -32,7 +32,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2010
+.Dd October 23, 2013
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -94,6 +94,15 @@ bluetooth configuration files
 gnats configuration files;
 see
 .Xr send-pr 1
+.It Pa keys/
+known trusted and revoked keys.
+.Pp
+.Bl -tag -width ".Pa keys/pkg/" -compact
+.It Pa keys/pkg/
+fingerprints for
+.Xr pkg 8
+.El
+.Pp
 .It Pa localtime
 local timezone information;
 see
@@ -692,6 +701,12 @@ source code for files in
 source code for files in
 .Pa /usr/sbin
 .El
+.Pp
+.It Pa tests/
+The
+.Fx
+test suite.
+See tests(7) for more details.
 .El
 .It Pa /var/
 multi-purpose log, temporary, transient, and spool files
@@ -720,6 +735,14 @@ directory containing output spool files
 .Pp
 .It Pa backups/
 miscellaneous backup files
+.It Pa cache/
+miscellaneous cached files
+.Bl -tag -width ".Pa pkg/" -compact
+.It Pa pkg/
+cached packages for
+.Xr pkg 8
+.El
+.Pp
 .It Pa crash/
 default directory to store kernel crash dumps; see
 .Xr crash 8

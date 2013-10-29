@@ -431,7 +431,7 @@ fdt_localbus_devmap(phandle_t dt_node, struct pmap_devmap *fdt_devmap,
 		bank = fdt_data_get((void *)rangesptr, 1);
 		rangesptr += 1;
 
-		if (bank < 0 || bank > MV_LOCALBUS_MAX_BANKS) {
+		if (bank > MV_LOCALBUS_MAX_BANKS) {
 			/* Bank out of range */
 			rangesptr += ((addr_cells - 1) + par_addr_cells +
 			    size_cells);

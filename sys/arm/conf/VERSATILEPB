@@ -53,7 +53,8 @@ options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
-options         ROOTDEVNAME=\"ufs:da0s2a\"
+options 	ROOTDEVNAME=\"ufs:da0s1a\"
+options 	VFP		# vfp/neon
 
 options 	PREEMPTION
 

@@ -172,6 +172,10 @@ svn_repos__validate_prop(const char *name,
 {
   svn_prop_kind_t kind = svn_property_kind2(name);
 
+  /* Allow deleting any property, even a property we don't allow to set. */
+  if (value == NULL)
+    return SVN_NO_ERROR;
+
   /* Disallow setting non-regular properties. */
   if (kind != svn_prop_regular_kind)
     return svn_error_createf

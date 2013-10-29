@@ -39,7 +39,8 @@ struct apr_crypto_driver_t {
      * @param params Optional init parameter string.
      * @param rc Driver-specific additional error code
      */
-    apr_status_t (*init)(apr_pool_t *pool, const char *params, int *rc);
+    apr_status_t (*init)(apr_pool_t *pool, const char *params,
+            const apu_err_t **result);
 
     /**
      * @brief Create a context for supporting encryption. Keys, certificates,

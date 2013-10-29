@@ -32,7 +32,7 @@
 .\"	@(#)chflags.1	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2006
+.Dd April 8, 2013
 .Dt CHFLAGS 1
 .Os
 .Sh NAME
@@ -101,20 +101,36 @@ The following keywords are currently defined:
 .Bl -tag -offset indent -width ".Cm opaque"
 .It Cm arch , archived
 set the archived flag (super-user only)
-.It Cm opaque
-set the opaque flag (owner or super-user only)
 .It Cm nodump
 set the nodump flag (owner or super-user only)
+.It Cm opaque
+set the opaque flag (owner or super-user only)
 .It Cm sappnd , sappend
 set the system append-only flag (super-user only)
 .It Cm schg , schange , simmutable
 set the system immutable flag (super-user only)
+.It Cm snapshot
+set the snapshot flag (filesystems do not allow changing this flag)
 .It Cm sunlnk , sunlink
 set the system undeletable flag (super-user only)
 .It Cm uappnd , uappend
 set the user append-only flag (owner or super-user only)
+.It Cm uarch , uarchive
+set the archive flag (owner or super-user only)
 .It Cm uchg , uchange , uimmutable
 set the user immutable flag (owner or super-user only)
+.It Cm uhidden , hidden
+set the hidden file attribute (owner or super-user only)
+.It Cm uoffline , offline
+set the offline file attribute (owner or super-user only)
+.It Cm urdonly , rdonly , readonly
+set the DOS, Windows and CIFS readonly flag (owner or super-user only)
+.It Cm usparse , sparse
+set the sparse file attribute (owner or super-user only)
+.It Cm usystem , system
+set the DOS, Windows and CIFS system flag (owner or super-user only)
+.It Cm ureparse , reparse
+set the Windows reparse point file attribute (owner or super-user only)
 .It Cm uunlnk , uunlink
 set the user undeletable flag (owner or super-user only)
 .El

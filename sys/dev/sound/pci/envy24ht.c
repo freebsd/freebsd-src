@@ -2450,7 +2450,6 @@ envy24ht_alloc_resource(struct sc_info *sc)
 static int
 envy24ht_pci_attach(device_t dev)
 {
-	u_int32_t		data;
 	struct sc_info 		*sc;
 	char 			status[SND_STATUSLEN];
 	int			err = 0;
@@ -2471,10 +2470,7 @@ envy24ht_pci_attach(device_t dev)
 	sc->dev = dev;
 
 	/* initialize PCI interface */
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
-	data |= (PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, data, 2);
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
+	pci_enable_busmaster(dev);
 
 	/* allocate resources */
 	err = envy24ht_alloc_resource(sc);

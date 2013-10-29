@@ -90,11 +90,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/armreg.h>
 #include <machine/atags.h>
 #include <machine/cpu.h>
+#include <machine/frame.h>
 #include <machine/machdep.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/pcb.h>
-#include <machine/pmap.h>
 #include <machine/reg.h>
 #include <machine/trap.h>
 #include <machine/undefined.h>
@@ -875,7 +875,7 @@ pcpu0_init(void)
 #endif
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 	PCPU_SET(cpu, 0);
 #endif
 }
@@ -1169,11 +1169,15 @@ physmap_init(struct mem_region *availmem_regions, int availmem_regions_sz)
 		 */
 		if (availmem_regions[i].mr_start > 0 ||
 		    availmem_regions[i].mr_size > PAGE_SIZE) {
+			vm_size_t size;
 			phys_avail[j] = availmem_regions[i].mr_start;
-			if (phys_avail[j] == 0)
+
+			size = availmem_regions[i].mr_size;
+			if (phys_avail[j] == 0) {
 				phys_avail[j] += PAGE_SIZE;
-			phys_avail[j + 1] = availmem_regions[i].mr_start +
-			    availmem_regions[i].mr_size;
+				size -= PAGE_SIZE;
+			}
+			phys_avail[j + 1] = availmem_regions[i].mr_start + size;
 		} else
 			j -= 2;
 	}
@@ -1263,7 +1267,7 @@ initarm(struct arm_boot_params *abp)
 				break;
 			/*
 			 * Restricted region includes memory region
-			 * skip availble region
+			 * skip available region
 			 */
 			if ((start >= rstart) && (rend >= end)) {
 				start = rend;

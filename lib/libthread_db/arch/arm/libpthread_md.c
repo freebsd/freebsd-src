@@ -90,7 +90,7 @@ pt_fpreg_to_ucontext(const struct fpreg *r __unused, ucontext_t *uc)
 	mcontext_t *mc = &uc->uc_mcontext;
 
 	/* XXX */
-	memset(&mc->__fpu.__fpregs, 0, sizeof(__fpregset_t));
+	memset(&mc->__fpu, 0, sizeof(mc->__fpu));
 }
 
 void

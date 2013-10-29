@@ -54,7 +54,7 @@ amdv_cleanup(void)
 }
 
 static void *
-amdv_vminit(struct vm *vm)
+amdv_vminit(struct vm *vm, struct pmap *pmap)
 {
 
 	printf("amdv_vminit: not implemented\n");
@@ -62,7 +62,7 @@ amdv_vminit(struct vm *vm)
 }
 
 static int
-amdv_vmrun(void *arg, int vcpu, register_t rip)
+amdv_vmrun(void *arg, int vcpu, register_t rip, struct pmap *pmap)
 {
 
 	printf("amdv_vmrun: not implemented\n");
@@ -75,23 +75,6 @@ amdv_vmcleanup(void *arg)
 
 	printf("amdv_vmcleanup: not implemented\n");
 	return;
-}
-
-static int
-amdv_vmmmap_set(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, size_t length,
-	    vm_memattr_t attr, int prot, boolean_t spok)
-{
-
-	printf("amdv_vmmmap_set: not implemented\n");
-	return (EINVAL);
-}
-
-static vm_paddr_t
-amdv_vmmmap_get(void *arg, vm_paddr_t gpa)
-{
-
-	printf("amdv_vmmmap_get: not implemented\n");
-	return (EINVAL);
 }
 
 static int
@@ -151,21 +134,37 @@ amdv_setcap(void *arg, int vcpu, int type, int val)
 	return (EINVAL);
 }
 
+static struct vmspace *
+amdv_vmspace_alloc(vm_offset_t min, vm_offset_t max)
+{
+
+	printf("amdv_vmspace_alloc: not implemented\n");
+	return (NULL);
+}
+
+static void
+amdv_vmspace_free(struct vmspace *vmspace)
+{
+
+	printf("amdv_vmspace_free: not implemented\n");
+	return;
+}
+
 struct vmm_ops vmm_ops_amd = {
 	amdv_init,
 	amdv_cleanup,
 	amdv_vminit,
 	amdv_vmrun,
 	amdv_vmcleanup,
-	amdv_vmmmap_set,
-	amdv_vmmmap_get,
 	amdv_getreg,
 	amdv_setreg,
 	amdv_getdesc,
 	amdv_setdesc,
 	amdv_inject_event,
 	amdv_getcap,
-	amdv_setcap
+	amdv_setcap,
+	amdv_vmspace_alloc,
+	amdv_vmspace_free,
 };
 
 static int

@@ -65,11 +65,13 @@
 
 /* Kernel memory management definitions. */
 extern vm_map_t kernel_map;
-extern vm_map_t kmem_map;
 extern vm_map_t exec_map;
 extern vm_map_t pipe_map;
+extern struct vmem *kernel_arena;
+extern struct vmem *kmem_arena;
 extern struct vmem *buffer_arena;
 extern struct vmem *transient_arena;
+extern struct vmem *memguard_arena;
 extern vm_offset_t swapbkva;
 extern u_long vm_kmem_size;
 

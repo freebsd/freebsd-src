@@ -117,8 +117,8 @@ AcpiNsWalkNamespace (
     ACPI_HANDLE             StartObject,
     UINT32                  MaxDepth,
     UINT32                  Flags,
-    ACPI_WALK_CALLBACK      PreOrderVisit,
-    ACPI_WALK_CALLBACK      PostOrderVisit,
+    ACPI_WALK_CALLBACK      DescendingCallback,
+    ACPI_WALK_CALLBACK      AscendingCallback,
     void                    *Context,
     void                    **ReturnValue);
 
@@ -266,6 +266,14 @@ AcpiNsDumpOneObject (
 
 void
 AcpiNsDumpObjects (
+    ACPI_OBJECT_TYPE        Type,
+    UINT8                   DisplayType,
+    UINT32                  MaxDepth,
+    ACPI_OWNER_ID           OwnerId,
+    ACPI_HANDLE             StartHandle);
+
+void
+AcpiNsDumpObjectPaths (
     ACPI_OBJECT_TYPE        Type,
     UINT8                   DisplayType,
     UINT32                  MaxDepth,

@@ -138,6 +138,25 @@ IDTVEC(errorint)
 	MEXITCOUNT
 	jmp	doreti
 
+#ifdef XENHVM
+/*
+ * Xen event channel upcall interrupt handler.
+ * Only used when the hypervisor supports direct vector callbacks.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(xen_intr_upcall)
+	PUSH_FRAME
+	SET_KERNEL_SREGS
+	cld
+	FAKE_MCOUNT(TF_EIP(%esp))
+	pushl	%esp
+	call	xen_intr_handle_upcall
+	add	$4, %esp
+	MEXITCOUNT
+	jmp	doreti
+#endif
+
 #ifdef SMP
 /*
  * Global address space TLB shootdown.

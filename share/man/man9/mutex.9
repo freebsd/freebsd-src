@@ -225,8 +225,10 @@ or
 lock, respectively, and also accept a
 .Fa flags
 argument.
-In both cases, the only flag presently available for lock acquires is
-.Dv MTX_QUIET .
+In both cases, the only flags presently available for lock acquires are
+.Dv MTX_QUIET
+and
+.Dv MTX_RECURSE .
 If the
 .Dv MTX_QUIET
 bit is turned on in the
@@ -235,6 +237,11 @@ argument, then if
 .Dv KTR_LOCK
 tracing is being done,
 it will be silenced during the lock acquire.
+If the
+.Dv MTX_RECURSE
+bit is turned on in the
+.Fa flags
+argument, then the mutex can be acquired recursively.
 .Pp
 The
 .Fn mtx_trylock

@@ -186,14 +186,10 @@ vkbd_dev_clone(void *arg, struct ucred *cred, char *name, int namelen,
 		return; /* don't recognize the name */
 
 	/* find any existing device, or allocate new unit number */
-	if (clone_create(&vkbd_dev_clones, &vkbd_dev_cdevsw, &unit, dev, 0)) {
-		*dev = make_dev(&vkbd_dev_cdevsw, unit,
-			UID_ROOT, GID_WHEEL, 0600, DEVICE_NAME "%d", unit);
-		if (*dev != NULL) {
-			dev_ref(*dev);
-			(*dev)->si_flags |= SI_CHEAPCLONE;
-		}
-	}
+	if (clone_create(&vkbd_dev_clones, &vkbd_dev_cdevsw, &unit, dev, 0))
+		*dev = make_dev_credf(MAKEDEV_REF, &vkbd_dev_cdevsw, unit,
+			cred, UID_ROOT, GID_WHEEL, 0600, DEVICE_NAME "%d",
+			unit);
 }
 
 /* Open device */

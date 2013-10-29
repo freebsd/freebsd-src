@@ -110,7 +110,7 @@ f_dialog_input_hostname()
 	#
 	while :; do
 		f_dialog_input hostname "$msg" "$hostname" \
-		               "$hline_alnum_punc_tab_enter" || return
+		               "$hline_alnum_punc_tab_enter" || return $?
 		# Taint-check the user's input
 		f_dialog_validate_hostname "$hostname" && break
 	done
@@ -150,7 +150,7 @@ f_dialog_input_hostname()
 		fi
 	fi
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 ############################################################ MAIN

@@ -176,9 +176,9 @@ f_become_root_via_sudo()
 				retval=$?
 
 				# Catch X11-related errors
-				if [ $retval -eq 255 ]; then
+				if [ $retval -eq $DIALOG_ESC ]; then
 					f_die $retval "$password"
-				elif [ $retval -ne 0 ]; then
+				elif [ $retval -ne $DIALOG_OK ]; then
 					# User cancelled
 					exit $retval
 				fi
@@ -316,10 +316,10 @@ f_authenticate_some_user()
 		retval=$?
 
 		# Catch X11-related errors
-		[ $retval -eq 255 ] && f_die $retval "$user_pass"
+		[ $retval -eq $DIALOG_ESC ] && f_die $retval "$user_pass"
 
 		# Exit if the user cancelled.
-		[ $retval -eq $SUCCESS ] || exit $retval
+		[ $retval -eq $DIALOG_OK ] || exit $retval
 
 		#
 		# Make sure the user exists and is non-root

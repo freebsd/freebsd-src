@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #define	BPF_INTERNAL
 #include <net/bpf.h>
 #include <net/bpf_buffer.h>

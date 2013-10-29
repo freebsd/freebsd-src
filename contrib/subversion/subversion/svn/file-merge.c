@@ -655,6 +655,8 @@ merge_chunks(apr_array_header_t **merged_chunk,
   svn_stringbuf_appendcstr(
     prompt,
     _("Select: (1) use their version, (2) use your version,\n"
+      "        (12) their version first, then yours,\n"
+      "        (21) your version first, then theirs,\n"
       "        (e1) edit their version and use the result,\n"
       "        (e2) edit your version and use the result,\n"
       "        (eb) edit both versions and use the result,\n"
@@ -677,6 +679,24 @@ merge_chunks(apr_array_header_t **merged_chunk,
       else if (strcmp(answer, "2") == 0)
         {
           *merged_chunk = chunk2;
+          break;
+        }
+      if (strcmp(answer, "12") == 0)
+        {
+          *merged_chunk = apr_array_make(result_pool,
+                                         chunk1->nelts + chunk2->nelts,
+                                         sizeof(svn_stringbuf_t *));
+          apr_array_cat(*merged_chunk, chunk1);
+          apr_array_cat(*merged_chunk, chunk2);
+          break;
+        }
+      if (strcmp(answer, "21") == 0)
+        {
+          *merged_chunk = apr_array_make(result_pool,
+                                         chunk1->nelts + chunk2->nelts,
+                                         sizeof(svn_stringbuf_t *));
+          apr_array_cat(*merged_chunk, chunk2);
+          apr_array_cat(*merged_chunk, chunk1);
           break;
         }
       else if (strcmp(answer, "p") == 0)

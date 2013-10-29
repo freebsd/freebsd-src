@@ -1,5 +1,4 @@
 # $FreeBSD$
-#
 
 .include <bsd.own.mk>
 
@@ -16,11 +15,19 @@ SRCS=	ssh.c readconf.c clientloop.c sshtty.c \
 # gss-genr.c really belongs in libssh; see src/secure/lib/libssh/Makefile
 SRCS+=	gss-genr.c
 
-DPADD=	${LIBSSH} ${LIBUTIL} ${LIBZ}
-LDADD=	-lssh -lutil -lz
+DPADD=	${LIBSSH} ${LIBUTIL}
+LDADD=	-lssh -lutil
+USEPRIVATELIB= ssh
+
+.if ${MK_LDNS} != "no"
+CFLAGS+=	-DHAVE_LDNS=1
+DPADD+=	${LIBLDNS}
+LDADD+=	-lldns
+USEPRIVATELIB+= ldns
+.endif
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
-CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_GSSAPI_H=1 -DKRB5 -DHEIMDAL
+CFLAGS+= -include krb5_config.h
 DPADD+=	 ${LIBGSSAPI}
 LDADD+=	 -lgssapi
 .endif
@@ -29,8 +36,8 @@ LDADD+=	 -lgssapi
 CFLAGS+= -DNONE_CIPHER_ENABLED
 .endif
 
-DPADD+=	${LIBCRYPT} ${LIBCRYPTO}
-LDADD+=	-lcrypt -lcrypto
+DPADD+= ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
+LDADD+= -lcrypt -lcrypto -lz
 
 .if defined(LOCALBASE)
 CFLAGS+= -DXAUTH_PATH=\"${LOCALBASE}/bin/xauth\"
@@ -41,3 +48,6 @@ CFLAGS+= -DXAUTH_PATH=\"${LOCALBASE}/bin/xauth\"
 .PATH:	${SSHDIR}
 
 ${OBJS} ${POBJS} ${SOBJS}: ssh_namespace.h
+.if ${MK_KERBEROS_SUPPORT} != "no"
+${OBJS} ${POBJS} ${SOBJS}: krb5_config.h
+.endif

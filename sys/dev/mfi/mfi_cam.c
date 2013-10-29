@@ -308,17 +308,16 @@ mfip_cam_rescan(struct mfi_softc *sc, uint32_t tid)
 		return;
 	}
 	camsc->state = MFIP_STATE_RESCAN;
-	mtx_unlock(&sc->mfi_io_lock);
 
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
+		mtx_unlock(&sc->mfi_io_lock);
 		device_printf(sc->mfi_dev,
 		    "Cannot allocate ccb for bus rescan.\n");
 		return;
 	}
 
 	sim = camsc->sim;
-	mtx_lock(&sc->mfi_io_lock);
 	if (xpt_create_path(&ccb->ccb_h.path, NULL, cam_sim_path(sim),
 	    tid, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_free_ccb(ccb);
@@ -327,11 +326,8 @@ mfip_cam_rescan(struct mfi_softc *sc, uint32_t tid)
 		    "Cannot create path for bus rescan.\n");
 		return;
 	}
-	mtx_unlock(&sc->mfi_io_lock);
-
 	xpt_rescan(ccb);
 
-	mtx_lock(&sc->mfi_io_lock);
 	camsc->state = MFIP_STATE_NONE;
 	mtx_unlock(&sc->mfi_io_lock);
 }

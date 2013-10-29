@@ -1,5 +1,6 @@
 .\"-
-.\" Copyright (c) 1998-2011 Dag-Erling Smørgrav
+.\" Copyright (c) 1998-2013 Dag-Erling Smørgrav
+.\" Copyright (c) 2013 Michael Gmelin <freebsd@grem.de>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2011
+.Dd July 30, 2013
 .Dt FETCH 3
 .Os
 .Sh NAME
@@ -392,6 +393,60 @@ method in a manner consistent with the rest of the
 library,
 .Fn fetchPutHTTP
 is currently unimplemented.
+.Sh HTTPS SCHEME
+Based on HTTP SCHEME.
+By default the peer is verified using the CA bundle located in
+.Pa /etc/ssl/cert.pem .
+The file may contain multiple CA certificates.
+A common source of a current CA bundle is
+.Pa \%security/ca_root_nss .
+.Pp
+The CA bundle used for peer verification can be changed by setting the
+environment variables
+.Ev SSL_CA_CERT_FILE
+to point to a concatenated bundle of trusted certificates and
+.Ev SSL_CA_CERT_PATH
+to point to a directory containing hashes of trusted CAs (see
+.Xr verify 1 ) .
+.Pp
+A certificate revocation list (CRL) can be used by setting the
+environment variable
+.Ev SSL_CRL_FILE
+(see
+.Xr crl 1 ) .
+.Pp
+Peer verification can be disabled by setting the environment variable
+.Ev SSL_NO_VERIFY_PEER .
+Note that this also disables CRL checking.
+.Pp
+By default the service identity is verified according to the rules
+detailed in RFC6125 (also known as hostname verification).
+This feature can be disabled by setting the environment variable
+.Ev SSL_NO_VERIFY_HOSTNAME .
+.Pp
+Client certificate based authentication is supported.
+The environment variable
+.Ev SSL_CLIENT_CERT_FILE
+should be set to point to a file containing key and client certificate
+to be used in PEM format. In case the key is stored in a separate
+file, the environment variable
+.Ev SSL_CLIENT_KEY_FILE
+can be set to point to the key in PEM format.
+In case the key uses a password, the user will be prompted on standard
+input (see
+.Xr PEM 3 ) .
+.Pp
+By default
+.Nm libfetch
+allows SSLv3 and TLSv1 when negotiating the connecting with the remote
+peer.
+You can change this behavior by setting the environment variable
+.Ev SSL_ALLOW_SSL2
+to allow SSLv2 (not recommended) and
+.Ev SSL_NO_SSL3
+or
+.Ev SSL_NO_TLS1
+to disable the respective methods.
 .Sh AUTHENTICATION
 Apart from setting the appropriate environment variables and
 specifying the user name and password in the URL or the
@@ -516,6 +571,15 @@ variable is set.
 Same as
 .Ev FTP_PROXY ,
 for compatibility.
+.It Ev HTTP_ACCEPT
+Specifies the value of the
+.Va Accept
+header for HTTP requests.
+If empty, no
+.Va Accept
+header is sent.
+The default is
+.Dq */* .
 .It Ev HTTP_AUTH
 Specifies HTTP authorization parameters as a colon-separated list of
 items.
@@ -579,6 +643,31 @@ which proxies should not be used.
 Same as
 .Ev NO_PROXY ,
 for compatibility.
+.It Ev SSL_ALLOW_SSL2
+Allow SSL version 2 when negotiating the connection (not recommended).
+.It Ev SSL_CA_CERT_FILE
+CA certificate bundle containing trusted CA certificates.
+Default value:
+.Pa /etc/ssl/cert.pem .
+.It Ev SSL_CA_CERT_PATH
+Path containing trusted CA hashes.
+.It Ev SSL_CLIENT_CERT_FILE
+PEM encoded client certificate/key which will be used in
+client certificate authentication.
+.It Ev SSL_CLIENT_KEY_FILE
+PEM encoded client key in case key and client certificate
+are stored separately.
+.It Ev SSL_CRL_FILE
+File containing certificate revocation list.
+.It Ev SSL_NO_SSL3
+Don't allow SSL version 3 when negotiating the connection.
+.It Ev SSL_NO_TLS1
+Don't allow TLV version 1 when negotiating the connection.
+.It Ev SSL_NO_VERIFY_HOSTNAME
+If set, do not verify that the hostname matches the subject of the
+certificate presented by the server.
+.It Ev SSL_NO_VERIFY_PEER
+If set, do not verify the peer certificate against trusted CAs.
 .El
 .Sh EXAMPLES
 To access a proxy server on
@@ -609,6 +698,19 @@ host, define
 as follows:
 .Bd -literal -offset indent
 NO_PROXY=localhost,127.0.0.1
+.Ed
+.Pp
+Access HTTPS website without any certificate verification whatsoever:
+.Bd -literal -offset indent
+SSL_NO_VERIFY_PEER=1
+SSL_NO_VERIFY_HOSTNAME=1
+.Ed
+.Pp
+Access HTTPS website using client certificate based authentication
+and a private CA:
+.Bd -literal -offset indent
+SSL_CLIENT_CERT_FILE=/path/to/client.pem
+SSL_CA_CERT_FILE=/path/to/myca.pem
 .Ed
 .Sh SEE ALSO
 .Xr fetch 1 ,
@@ -678,7 +780,8 @@ with numerous suggestions and contributions from
 .An Hajimu Umemoto Aq ume@FreeBSD.org ,
 .An Henry Whincup Aq henry@techiebod.com ,
 .An Jukka A. Ukkonen Aq jau@iki.fi ,
-.An Jean-Fran\(,cois Dockes Aq jf@dockes.org
+.An Jean-Fran\(,cois Dockes Aq jf@dockes.org ,
+.An Michael Gmelin Aq freebsd@grem.de
 and others.
 It replaces the older
 .Nm ftpio
@@ -688,7 +791,9 @@ and
 .An Jordan K. Hubbard Aq jkh@FreeBSD.org .
 .Pp
 This manual page was written by
-.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
+.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org
+and
+.An Michael Gmelin Aq freebsd@grem.de .
 .Sh BUGS
 Some parts of the library are not yet implemented.
 The most notable
@@ -716,6 +821,10 @@ implemented, superfluous at this site" in an FTP context and
 .Pp
 .Fn fetchStatFTP
 does not check that the result of an MDTM command is a valid date.
+.Pp
+In case password protected keys are used for client certificate based
+authentication the user is prompted for the password on each and every
+fetch operation.
 .Pp
 The man page is incomplete, poorly written and produces badly
 formatted text.

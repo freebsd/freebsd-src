@@ -89,7 +89,8 @@ static struct {
 	  { "  sbsize%-4s           %8s", " bytes\n", 1    },
 	  { "  vmemoryuse%-4s       %8s", " kB\n",    1024 },
 	  { "  pseudo-terminals%-4s %8s", "\n",       1    },
-	  { "  swapuse%-4s          %8s", " kB\n",    1024 }
+	  { "  swapuse%-4s          %8s", " kB\n",    1024 },
+	  { "  kqueues%-4s          %8s", "\n",       1    },
       }
     },
     { "sh", "unlimited", "", " -H", " -S", "",
@@ -106,7 +107,8 @@ static struct {
 	  { "ulimit%s -b %s", ";\n",  1    },
 	  { "ulimit%s -v %s", ";\n",  1024 },
 	  { "ulimit%s -p %s", ";\n",  1    },
-	  { "ulimit%s -w %s", ";\n",  1024 }
+	  { "ulimit%s -w %s", ";\n",  1024 },
+	  { "ulimit%s -k %s", ";\n",  1    },
       }
     },
     { "csh", "unlimited", "", " -h", "", NULL,
@@ -123,7 +125,8 @@ static struct {
 	  { "limit%s sbsize %s",          ";\n",  1    },
 	  { "limit%s vmemoryuse %s",      ";\n",  1024 },
 	  { "limit%s pseudoterminals %s", ";\n",  1    },
-	  { "limit%s swapuse %s",         ";\n",  1024 }
+	  { "limit%s swapuse %s",         ";\n",  1024 },
+	  { "limit%s kqueues %s",         ";\n",  1    },
       }
     },
     { "bash|bash2", "unlimited", "", " -H", " -S", "",
@@ -157,7 +160,8 @@ static struct {
 	  { "limit%s sbsize %s",          ";\n",  1    },
 	  { "limit%s vmemoryuse %s",      ";\n",  1024 },
 	  { "limit%s pseudoterminals %s", ";\n",  1    },
-	  { "limit%s swapuse %s",         ";\n",  1024 }
+	  { "limit%s swapuse %s",         ";\n",  1024 },
+	  { "limit%s kqueues %s",         ";\n",  1    },
       }
     },
     { "ksh|pdksh", "unlimited", "", " -H", " -S", "",
@@ -232,7 +236,8 @@ static struct {
     { "sbsize",		login_getcapsize },
     { "vmemoryuse",	login_getcapsize },
     { "pseudoterminals",login_getcapnum  },
-    { "swapuse",	login_getcapsize }
+    { "swapuse",	login_getcapsize },
+    { "kqueues",	login_getcapnum  },
 };
 
 /*
@@ -647,6 +652,7 @@ resource_num(int which, int ch, const char *str)
 	case RLIMIT_NPROC:
 	case RLIMIT_NOFILE:
 	case RLIMIT_NPTS:
+	case RLIMIT_KQUEUES:
 	    res = strtoq(s, &e, 0);
 	    s = e;
 	    break;

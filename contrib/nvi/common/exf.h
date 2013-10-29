@@ -6,7 +6,7 @@
  *
  * See the LICENSE file for redistribution information.
  *
- *	@(#)exf.h	10.7 (Berkeley) 7/9/96
+ *	$Id: exf.h,v 10.10 2012/07/06 16:03:37 zy Exp $
  */
 					/* Undo direction. */
 /*
@@ -18,8 +18,9 @@ struct _exf {
 
 					/* Underlying database state. */
 	DB	*db;			/* File db structure. */
-	char	*c_lp;			/* Cached line. */
+	CHAR_T	*c_lp;			/* Cached line. */
 	size_t	 c_len;			/* Cached line length. */
+	size_t	 c_blen;		/* Cached line buffer length. */
 	recno_t	 c_lno;			/* Cached line number. */
 	recno_t	 c_nlines;		/* Cached lines in the file. */
 
@@ -31,17 +32,12 @@ struct _exf {
 	MARK	 l_cursor;		/* Log cursor position. */
 	dir_t	 lundo;			/* Last undo direction. */
 
-	LIST_HEAD(_markh, _lmark) marks;/* Linked list of file MARK's. */
+					/* Linked list of file MARK's. */
+	SLIST_HEAD(_markh, _lmark) marks[1];
 
-	/*
-	 * XXX
-	 * Mtime should be a struct timespec, but time_t is more portable.
-	 */
-	dev_t	 mdev;			/* Device. */
-	ino_t	 minode;		/* Inode. */
-	time_t	 mtime;			/* Last modification time. */
-
-	int	 fcntl_fd;		/* Fcntl locking fd; see exf.c. */
+	dev_t		 mdev;		/* Device. */
+	ino_t		 minode;	/* Inode. */
+	struct timespec	 mtim;		/* Last modification time. */
 
 	/*
 	 * Recovery in general, and these fields specifically, are described

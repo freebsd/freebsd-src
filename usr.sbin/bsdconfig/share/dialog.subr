@@ -74,6 +74,18 @@ unset XDIALOG_FORCE_AUTOSIZE
 unset XDIALOG_INFOBOX_TIMEOUT
 
 #
+# Exit codes for [X]dialog(1)
+#
+DIALOG_OK=${SUCCESS:-0}
+DIALOG_CANCEL=${FAILURE:-1}
+DIALOG_HELP=2
+DIALOG_ITEM_HELP=2
+DIALOG_EXTRA=3
+DIALOG_ITEM_HELP=4
+export DIALOG_ERROR=254 # sh(1) can't handle the default of `-1'
+DIALOG_ESC=255
+
+#
 # Default behavior is to call f_dialog_init() automatically when loaded.
 #
 : ${DIALOG_SELF_INITIALIZE=1}
@@ -403,8 +415,8 @@ f_dialog_size_constrain()
 
 	if [ "$debug" ]; then
 		# Print final constrained values to debugging
-		f_quietly f_getvar "$__var_height"
-		f_quietly f_getvar "$__var_width"
+		[ "$__var_height" ] && f_quietly f_getvar "$__var_height"
+		[ "$__var_width"  ] && f_quietly f_getvar "$__var_width"
 	fi
 
 	return $__retval # success if no debug warnings were printed
@@ -520,10 +532,10 @@ f_dialog_menu_constrain()
 	fi
 
 	if [ "$debug" ]; then
-		# Print final constrained values to debuggin
-		f_quietly f_getvar "$__var_height"
-		f_quietly f_getvar "$__var_width"
-		f_quietly f_getvar "$__var_rows"
+		# Print final constrained values to debugging
+		[ "$__var_height" ] && f_quietly f_getvar "$__var_height"
+		[ "$__var_width"  ] && f_quietly f_getvar "$__var_width"
+		[ "$__var_rows"   ] && f_quietly f_getvar "$__var_rows"
 	fi
 
 	return $__retval # success if no debug warnings were printed
@@ -2032,6 +2044,7 @@ f_dialog_menutag2index_with_help()
 f_dialog_init()
 {
 	DIALOG_SELF_INITIALIZE=
+	USE_DIALOG=1
 
 	#
 	# Clone terminal stdout so we can redirect to it from within sub-shells
@@ -2075,7 +2088,7 @@ f_dialog_init()
 	#
 	# Process `-X' command-line option
 	#
-	[ "$USE_XDIALOG" ] && DIALOG=Xdialog
+	[ "$USE_XDIALOG" ] && DIALOG=Xdialog USE_DIALOG=
 
 	#
 	# Sanity check, or die gracefully

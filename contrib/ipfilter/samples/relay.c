@@ -29,7 +29,7 @@ char	ibuff[RELAY_BUFSZ];
 char	obuff[RELAY_BUFSZ];
 
 int relay(ifd, ofd, rfd)
-int ifd, ofd, rfd;
+	int ifd, ofd, rfd;
 {
 	fd_set	rfds, wfds;
 	char	*irh, *irt, *rrh, *rrt;
@@ -103,8 +103,8 @@ int ifd, ofd, rfd;
 }
 
 main(argc, argv)
-int argc;
-char *argv[];
+	int argc;
+	char *argv[];
 {
 	struct	sockaddr_in	sin;
 	ipfobj_t	obj;

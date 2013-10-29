@@ -669,6 +669,13 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 		error = ENXIO;
 		goto out;
 	}
+
+	if (mpssas_check_id(sassc, id) != 0) {
+		device_printf(sc->mps_dev, "Excluding target id %d\n", id);
+		error = ENXIO;
+		goto out;
+	}
+
 	mps_dprint(sc, MPS_MAPPING, "SAS Address from SAS device page0 = %jx\n",
 	    sas_address);
 	targ = &sassc->targets[id];
@@ -891,7 +898,9 @@ mpssas_volume_add(struct mps_softc *sc, u16 handle)
 		free(lun, M_MPT2);
 	}
 	SLIST_INIT(&targ->luns);
+#if __FreeBSD_version < 1000039
 	if ((sassc->flags & MPSSAS_IN_STARTUP) == 0)
+#endif
 		mpssas_rescan_target(sc, targ);
 	mps_dprint(sc, MPS_MAPPING, "RAID target id %d added (WWID = 0x%jx)\n",
 	    targ->tid, wwid);

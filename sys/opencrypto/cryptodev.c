@@ -304,6 +304,7 @@ static struct fileops cryptofops = {
     .fo_close = cryptof_close,
     .fo_chmod = invfo_chmod,
     .fo_chown = invfo_chown,
+    .fo_sendfile = invfo_sendfile,
 };
 
 static struct csession *csefind(struct fcrypt *, u_int);

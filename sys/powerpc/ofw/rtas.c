@@ -93,7 +93,7 @@ rtas_setup(void *junk)
 		return;
 	}
 
-	mtx_init(&rtas_mtx, "RTAS", MTX_DEF, 0);
+	mtx_init(&rtas_mtx, "RTAS", NULL, MTX_SPIN);
 
 	/* RTAS must be called with everything turned off in MSR */
 	rtasmsr = mfmsr();
@@ -208,7 +208,7 @@ rtas_call_method(cell_t token, int nargs, int nreturns, ...)
 	args.token = token;
 	va_start(ap, nreturns);
 
-	mtx_lock(&rtas_mtx);
+	mtx_lock_spin(&rtas_mtx);
 	rtas_bounce_offset = 0;
 
 	args.nargs = nargs;
@@ -232,7 +232,7 @@ rtas_call_method(cell_t token, int nargs, int nreturns, ...)
 	__asm __volatile ("sync");
 
 	rtas_real_unmap(argsptr, &args, sizeof(args));
-	mtx_unlock(&rtas_mtx);
+	mtx_unlock_spin(&rtas_mtx);
 
 	if (result < 0)
 		return (result);

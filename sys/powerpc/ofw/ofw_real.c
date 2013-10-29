@@ -210,12 +210,12 @@ ofw_real_bounce_alloc(void *junk)
 
 	mtx_lock(&of_bounce_mtx);
 
-	of_bounce_virt = contigmalloc(PAGE_SIZE, M_OFWREAL, 0, 0,
+	of_bounce_virt = contigmalloc(4 * PAGE_SIZE, M_OFWREAL, 0, 0,
 	    ulmin(platform_real_maxaddr(), BUS_SPACE_MAXADDR_32BIT), PAGE_SIZE,
-	    PAGE_SIZE);
+	    4 * PAGE_SIZE);
 
 	of_bounce_phys = vtophys(of_bounce_virt);
-	of_bounce_size = PAGE_SIZE;
+	of_bounce_size = 4 * PAGE_SIZE;
 
 	/*
 	 * For virtual-mode OF, direct map this physical address so that

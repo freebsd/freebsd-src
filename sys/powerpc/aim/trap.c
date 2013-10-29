@@ -34,7 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
 
 #include <sys/param.h>
@@ -52,9 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/signalvar.h>
 #include <sys/vmmeter.h>
-#ifdef HWPMC_HOOKS
-#include <sys/pmckern.h>
-#endif
 
 #include <security/audit/audit.h>
 
@@ -179,6 +175,9 @@ trap(struct trapframe *frame)
 {
 	struct thread	*td;
 	struct proc	*p;
+#ifdef KDTRACE_HOOKS
+	uint32_t inst;
+#endif
 	int		sig, type, user;
 	u_int		ucode;
 	ksiginfo_t	ksi;
@@ -195,16 +194,6 @@ trap(struct trapframe *frame)
 	CTR3(KTR_TRAP, "trap: %s type=%s (%s)", td->td_name,
 	    trapname(type), user ? "user" : "kernel");
 
-#ifdef HWPMC_HOOKS
-	if (type == EXC_PERF && (pmc_intr != NULL)) {
-#ifdef notyet
-	    (*pmc_intr)(PCPU_GET(cpuid), frame);
-	    if (!user)
-		return;
-#endif
-	}
-	else
-#endif
 #ifdef KDTRACE_HOOKS
 	/*
 	 * A trap can occur while DTrace executes a probe. Before
@@ -293,9 +282,18 @@ trap(struct trapframe *frame)
 
 		case EXC_PGM:
 			/* Identify the trap reason */
-			if (frame->srr1 & EXC_PGM_TRAP)
-				sig = SIGTRAP;
-			else if (ppc_instr_emulate(frame) == 0)
+			if (frame->srr1 & EXC_PGM_TRAP) {
+#ifdef KDTRACE_HOOKS
+				inst = fuword32((const void *)frame->srr0);
+				if (inst == 0x0FFFDDDD && dtrace_pid_probe_ptr != NULL) {
+					struct reg regs;
+					fill_regs(td, &regs);
+					(*dtrace_pid_probe_ptr)(&regs);
+					break;
+				}
+#endif
+ 				sig = SIGTRAP;
+			} else if (ppc_instr_emulate(frame) == 0)
 				frame->srr0 += 4;
 			else
 				sig = SIGILL;
@@ -316,9 +314,11 @@ trap(struct trapframe *frame)
 				if (*(uintptr_t *)frame->srr0 == 0x7c810808) {
 					if (dtrace_invop_jump_addr != NULL) {
 						dtrace_invop_jump_addr(frame);
+						return;
 					}
 				}
 			}
+			break;
 #endif
 #ifdef __powerpc64__
 		case EXC_DSE:

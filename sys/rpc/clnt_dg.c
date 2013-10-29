@@ -682,6 +682,7 @@ get_reply:
 			next_sendtime += retransmit_time;
 			goto send_again;
 		}
+		cu->cu_sent += CWNDSCALE;
 		TAILQ_INSERT_TAIL(&cs->cs_pending, cr, cr_link);
 	}
 
@@ -733,6 +734,7 @@ got_reply:
 					 */
 					XDR_DESTROY(&xdrs);
 					mtx_lock(&cs->cs_lock);
+					cu->cu_sent += CWNDSCALE;
 					TAILQ_INSERT_TAIL(&cs->cs_pending,
 					    cr, cr_link);
 					cr->cr_mrep = NULL;

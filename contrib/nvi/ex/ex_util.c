@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_util.c	10.23 (Berkeley) 6/19/96";
+static const char sccsid[] = "$Id: ex_util.c,v 10.32 2001/06/25 15:19:21 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -31,15 +31,10 @@ static const char sccsid[] = "@(#)ex_util.c	10.23 (Berkeley) 6/19/96";
  * ex_cinit --
  *	Create an EX command structure.
  *
- * PUBLIC: void ex_cinit __P((EXCMD *,
- * PUBLIC:    int, int, recno_t, recno_t, int, ARGS **));
+ * PUBLIC: void ex_cinit __P((SCR *, EXCMD *, int, int, recno_t, recno_t, int));
  */
 void
-ex_cinit(cmdp, cmd_id, naddr, lno1, lno2, force, ap)
-	EXCMD *cmdp;
-	int cmd_id, force, naddr;
-	recno_t lno1, lno2;
-	ARGS **ap;
+ex_cinit(SCR *sp, EXCMD *cmdp, int cmd_id, int naddr, recno_t lno1, recno_t lno2, int force)
 {
 	memset(cmdp, 0, sizeof(EXCMD));
 	cmdp->cmd = &cmds[cmd_id];
@@ -49,28 +44,7 @@ ex_cinit(cmdp, cmd_id, naddr, lno1, lno2, force, ap)
 	cmdp->addr1.cno = cmdp->addr2.cno = 1;
 	if (force)
 		cmdp->iflags |= E_C_FORCE;
-	cmdp->argc = 0;
-	if ((cmdp->argv = ap) != NULL)
-		cmdp->argv[0] = NULL;
-}
-
-/*
- * ex_cadd --
- *	Add an argument to an EX command structure.
- *
- * PUBLIC: void ex_cadd __P((EXCMD *, ARGS *, char *, size_t));
- */
-void
-ex_cadd(cmdp, ap, arg, len)
-	EXCMD *cmdp;
-	ARGS *ap;
-	char *arg;
-	size_t len;
-{
-	cmdp->argv[cmdp->argc] = ap;
-	ap->bp = arg;
-	ap->len = len;
-	cmdp->argv[++cmdp->argc] = NULL;
+	(void)argv_init(sp, cmdp);
 }
 
 /*
@@ -80,10 +54,7 @@ ex_cadd(cmdp, ap, arg, len)
  * PUBLIC: int ex_getline __P((SCR *, FILE *, size_t *));
  */
 int
-ex_getline(sp, fp, lenp)
-	SCR *sp;
-	FILE *fp;
-	size_t *lenp;
+ex_getline(SCR *sp, FILE *fp, size_t *lenp)
 {
 	EX_PRIVATE *exp;
 	size_t off;
@@ -93,7 +64,7 @@ ex_getline(sp, fp, lenp)
 	exp = EXP(sp);
 	for (errno = 0, off = 0, p = exp->ibp;;) {
 		if (off >= exp->ibp_len) {
-			BINC_RET(sp, exp->ibp, exp->ibp_len, off + 1);
+			BINC_RETC(sp, exp->ibp, exp->ibp_len, off + 1);
 			p = exp->ibp + off;
 		}
 		if ((ch = getc(fp)) == EOF && !feof(fp)) {
@@ -123,9 +94,7 @@ ex_getline(sp, fp, lenp)
  * PUBLIC: int ex_ncheck __P((SCR *, int));
  */
 int
-ex_ncheck(sp, force)
-	SCR *sp;
-	int force;
+ex_ncheck(SCR *sp, int force)
 {
 	char **ap;
 
@@ -140,7 +109,7 @@ ex_ncheck(sp, force)
 
 		for (ap = sp->cargv + 1; *ap != NULL; ++ap);
 		msgq(sp, M_ERR,
-		    "167|%d more files to edit", (ap - sp->cargv) - 1);
+		    "167|%d more files to edit", (int)(ap - sp->cargv) - 1);
 
 		return (1);
 	}
@@ -154,8 +123,7 @@ ex_ncheck(sp, force)
  * PUBLIC: int ex_init __P((SCR *));
  */
 int
-ex_init(sp)
-	SCR *sp;
+ex_init(SCR *sp)
 {
 	GS *gp;
 
@@ -177,13 +145,27 @@ ex_init(sp)
  * ex_emsg --
  *	Display a few common ex and vi error messages.
  *
+ * PUBLIC: void ex_wemsg __P((SCR *, CHAR_T *, exm_t));
+ */
+void
+ex_wemsg(SCR* sp, CHAR_T *p, exm_t which)
+{
+	char *np;
+	size_t nlen;
+
+	if (p) INT2CHAR(sp, p, STRLEN(p), np, nlen);
+	else np = NULL;
+	ex_emsg(sp, np, which);
+}
+
+/*
+ * ex_emsg --
+ *	Display a few common ex and vi error messages.
+ *
  * PUBLIC: void ex_emsg __P((SCR *, char *, exm_t));
  */
 void
-ex_emsg(sp, p, which)
-	SCR *sp;
-	char *p;
-	exm_t which;
+ex_emsg(SCR *sp, char *p, exm_t which)
 {
 	switch (which) {
 	case EXM_EMPTYBUF:

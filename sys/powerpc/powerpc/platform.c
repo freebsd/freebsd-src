@@ -141,6 +141,12 @@ platform_smp_start_cpu(struct pcpu *cpu)
 	return (PLATFORM_SMP_START_CPU(plat_obj, cpu));
 }
 
+void
+platform_smp_ap_init()
+{
+	PLATFORM_SMP_AP_INIT(plat_obj);
+}
+
 #ifdef SMP
 struct cpu_group *
 cpu_topo(void)

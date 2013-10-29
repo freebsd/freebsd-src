@@ -45,7 +45,7 @@ index abd5e6f..1d7491a 100644
 +  </refsect1>
  </refentry>
 diff --git a/include/jemalloc/internal/jemalloc_internal.h.in b/include/jemalloc/internal/jemalloc_internal.h.in
-index e46ac54..527449d 100644
+index 53c135c..c547339 100644
 --- a/include/jemalloc/internal/jemalloc_internal.h.in
 +++ b/include/jemalloc/internal/jemalloc_internal.h.in
 @@ -1,5 +1,8 @@
@@ -97,10 +97,10 @@ index de44e14..564d604 100644
  
  bool	malloc_mutex_init(malloc_mutex_t *mutex);
 diff --git a/include/jemalloc/internal/private_namespace.h b/include/jemalloc/internal/private_namespace.h
-index 65de316..366676b 100644
+index cdb0b0e..2a98d1f 100644
 --- a/include/jemalloc/internal/private_namespace.h
 +++ b/include/jemalloc/internal/private_namespace.h
-@@ -216,7 +216,6 @@
+@@ -218,7 +218,6 @@
  #define	iralloc JEMALLOC_N(iralloc)
  #define	irallocx JEMALLOC_N(irallocx)
  #define	isalloc JEMALLOC_N(isalloc)
@@ -244,7 +244,7 @@ index 0000000..e6c8407
 +#endif
 +
 diff --git a/src/jemalloc.c b/src/jemalloc.c
-index bc350ed..352c98e 100644
+index ae56db6..1412a5e 100644
 --- a/src/jemalloc.c
 +++ b/src/jemalloc.c
 @@ -8,6 +8,10 @@ malloc_tsd_data(, arenas, arena_t *, NULL)

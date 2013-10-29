@@ -42,13 +42,20 @@ AC_CANONICAL_SYSTEM
 
 AC_PROG_INSTALL
 
-# Use -no-install to link the test programs on all platforms
-# but Darwin, where it would cause the programs to be linked
-# against installed versions of libapr instead of those just
-# built.
+# Use -no-install or -no-fast-install to link the test 
+# programs on all platforms but Darwin, where it would cause
+# the programs to be linked against installed versions of
+# libapr instead of those just built.
 case $host in
-*-apple-darwin*) LT_NO_INSTALL="" ;;
-*) LT_NO_INSTALL="-no-install" ;;
+    *-apple-darwin*)
+        LT_NO_INSTALL=""
+        ;;
+    *-mingw*)
+        LT_NO_INSTALL="-no-fast-install"
+        ;;
+    *)
+        LT_NO_INSTALL="-no-install"
+        ;;
 esac
 AC_SUBST(LT_NO_INSTALL)
 
@@ -151,8 +158,6 @@ dnl Determine what DBM backend type to use.
 dnl Find Expat
 dnl Find an iconv library
 APU_CHECK_CRYPTO
-APU_CHECK_CRYPTO_OPENSSL
-APU_CHECK_CRYPTO_NSS
 APU_FIND_LDAP
 APU_CHECK_DBM
 APU_CHECK_DBD
@@ -224,7 +229,22 @@ dnl copy apr's rules.mk into our build directory.
 if test ! -d ./build; then
    $mkdir_p build
 fi
-cp $APR_BUILD_DIR/apr_rules.mk $abs_builddir/build/rules.mk
+dnl
+dnl MinGW: If APR is shared, APR_DECLARE_EXPORT will be defined in the
+dnl        internal CPPFLAGS, but APR-Util needs APU_DECLARE_EXPORT instead.
+dnl        If APR is static, APR_DECLARE_STATIC will be defined in the
+dnl        internal CPPFLAGS, but APR-Util needs APU_DECLARE_STATIC too.
+dnl
+case $host in
+    *-mingw*)
+        sed -e 's/-DAPR_DECLARE_EXPORT/-DAPU_DECLARE_EXPORT/' \
+            -e 's/-DAPR_DECLARE_STATIC/-DAPU_DECLARE_STATIC -DAPR_DECLARE_STATIC/' \
+            < $APR_BUILD_DIR/apr_rules.mk > $abs_builddir/build/rules.mk
+        ;;
+    *)
+        cp $APR_BUILD_DIR/apr_rules.mk $abs_builddir/build/rules.mk
+        ;;
+esac
 
 dnl
 dnl BSD/OS (BSDi) needs to use a different include syntax in the Makefiles

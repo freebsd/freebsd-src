@@ -61,8 +61,4 @@ int pim6_input(struct mbuf **, int*, int);
 #define PIM6CTL_STATS		1	/* statistics (read-only) */
 #define PIM6CTL_MAXID		2
 
-#define PIM6CTL_NAMES { \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-}
 #endif /* _NETINET6_PIM6_VAR_H_ */

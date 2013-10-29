@@ -84,11 +84,6 @@ void	smp_masked_invltlb(cpuset_t mask);
 
 #ifdef XEN
 void ipi_to_irq_init(void);
-
-#define RESCHEDULE_VECTOR	0
-#define CALL_FUNCTION_VECTOR	1
-#define NR_IPIS			2
-
 #endif
 #endif /* !LOCORE */
 #endif /* SMP */

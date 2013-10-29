@@ -152,7 +152,7 @@ apr_status_t serf_listener_create(
     rv = apr_socket_opt_set(l->skt, APR_SO_REUSEADDR, 1);
     if (rv)
         return rv;
-    
+
     rv = apr_socket_bind(l->skt, sa);
     if (rv)
         return rv;

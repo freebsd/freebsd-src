@@ -66,14 +66,13 @@ __FBSDID("$FreeBSD$");
 #define CLOSED -1		/* fd was not open before redir */
 
 
-MKINIT
 struct redirtab {
 	struct redirtab *next;
 	int renamed[10];
 };
 
 
-MKINIT struct redirtab *redirlist;
+static struct redirtab *redirlist;
 
 /*
  * We keep track of whether or not fd0 has been redirected.  This is for
@@ -319,21 +318,6 @@ popredir(void)
 	ckfree(rp);
 	INTON;
 }
-
-/*
- * Undo all redirections.  Called on error or interrupt.
- */
-
-#ifdef mkinit
-
-INCLUDE "redir.h"
-
-RESET {
-	while (redirlist)
-		popredir();
-}
-
-#endif
 
 /* Return true if fd 0 has already been redirected at least once.  */
 int

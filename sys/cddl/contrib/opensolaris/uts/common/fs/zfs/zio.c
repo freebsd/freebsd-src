@@ -770,7 +770,7 @@ zio_free(spa_t *spa, uint64_t txg, const blkptr_t *bp)
 	 * DEDUP), can be processed immediately.  Otherwise, put them on the
 	 * in-memory list for later processing.
 	 */
-	if (BP_IS_GANG(bp) || BP_GET_DEDUP(bp) ||
+	if (zfs_trim_enabled || BP_IS_GANG(bp) || BP_GET_DEDUP(bp) ||
 	    txg != spa->spa_syncing_txg ||
 	    spa_sync_pass(spa) >= zfs_sync_pass_deferred_free) {
 		bplist_append(&spa->spa_free_bplist[txg & TXG_MASK], bp);
@@ -797,12 +797,15 @@ zio_free_sync(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 	metaslab_check_free(spa, bp);
 	arc_freed(spa, bp);
 
+	if (zfs_trim_enabled)
+		stage |= ZIO_STAGE_ISSUE_ASYNC | ZIO_STAGE_VDEV_IO_START |
+		    ZIO_STAGE_VDEV_IO_ASSESS;
 	/*
 	 * GANG and DEDUP blocks can induce a read (for the gang block header,
 	 * or the DDT), so issue them asynchronously so that this thread is
 	 * not tied up.
 	 */
-	if (BP_IS_GANG(bp) || BP_GET_DEDUP(bp))
+	else if (BP_IS_GANG(bp) || BP_GET_DEDUP(bp))
 		stage |= ZIO_STAGE_ISSUE_ASYNC;
 
 	zio = zio_create(pio, spa, txg, bp, NULL, size,
@@ -1134,8 +1137,10 @@ zio_write_bp_init(zio_t *zio)
 	}
 
 	if (compress != ZIO_COMPRESS_OFF) {
+		metaslab_class_t *mc = spa_normal_class(spa);
 		void *cbuf = zio_buf_alloc(lsize);
-		psize = zio_compress_data(compress, zio->io_data, cbuf, lsize);
+		psize = zio_compress_data(compress, zio->io_data, cbuf, lsize,
+		    (size_t)metaslab_class_get_minblocksize(mc));
 		if (psize == 0 || psize == lsize) {
 			compress = ZIO_COMPRESS_OFF;
 			zio_buf_free(cbuf, lsize);

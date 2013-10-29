@@ -137,7 +137,7 @@ zbpci_attach(device_t dev)
 	/*
 	 * Allocate KVA for accessing PCI config space.
 	 */
-	va = kmem_alloc_nofault(kernel_map, PAGE_SIZE * mp_ncpus);
+	va = kva_alloc(PAGE_SIZE * mp_ncpus);
 	if (va == 0) {
 		device_printf(dev, "Cannot allocate virtual addresses for "
 				   "config space access.\n");

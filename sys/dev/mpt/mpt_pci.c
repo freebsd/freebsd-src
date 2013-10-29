@@ -389,16 +389,11 @@ mpt_pci_attach(device_t dev)
 		/* Print INFO level (if any) if bootverbose is set */
 		mpt->verbose += (bootverbose != 0)? 1 : 0;
 	}
-	/* Make sure memory access decoders are enabled */
-	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
-	if ((cmd & PCIM_CMD_MEMEN) == 0) {
-		device_printf(dev, "Memory accesses disabled");
-		return (ENXIO);
-	}
 
 	/*
 	 * Make sure that SERR, PERR, WRITE INVALIDATE and BUSMASTER are set.
 	 */
+	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
 	cmd |=
 	    PCIM_CMD_SERRESPEN | PCIM_CMD_PERRESPEN |
 	    PCIM_CMD_BUSMASTEREN | PCIM_CMD_MWRICEN;

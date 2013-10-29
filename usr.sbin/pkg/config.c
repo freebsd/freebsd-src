@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013 Baptiste Daroussin <bapt@FreeBSD.org>
+ * Copyright (c) 2013 Bryan Drewery <bdrewery@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/elf_common.h>
 #include <sys/endian.h>
 
-#include <bsdyml.h>
+#include <assert.h>
+#include <yaml.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -61,7 +63,7 @@ static struct config_entry c[] = {
 	[PACKAGESITE] = {
 		PKG_CONFIG_STRING,
 		"PACKAGESITE",
-		"http://pkg.FreeBSD.org/${ABI}/latest",
+		URL_SCHEME_PREFIX "http://pkg.FreeBSD.org/${ABI}/latest",
 		NULL,
 		false,
 	},
@@ -85,7 +87,21 @@ static struct config_entry c[] = {
 		"NO",
 		NULL,
 		false,
-	}
+	},
+	[SIGNATURE_TYPE] = {
+		PKG_CONFIG_STRING,
+		"SIGNATURE_TYPE",
+		NULL,
+		NULL,
+		false,
+	},
+	[FINGERPRINTS] = {
+		PKG_CONFIG_STRING,
+		"FINGERPRINTS",
+		NULL,
+		NULL,
+		false,
+	},
 };
 
 static const char *
@@ -100,6 +116,138 @@ elf_corres_to_string(struct _elf_corres *m, int e)
 	return ("unknown");
 }
 
+static const char *
+aeabi_parse_arm_attributes(void *data, size_t length) 
+{
+	uint32_t sect_len;
+	uint8_t *section = data;
+
+#define	MOVE(len) do {            \
+	assert(length >= (len));  \
+	section += (len);         \
+	length -= (len);          \
+} while (0)
+
+	if (length == 0 || *section != 'A')
+		return (NULL);
+
+	MOVE(1);
+
+	/* Read the section length */
+	if (length < sizeof(sect_len))
+		return (NULL);
+
+	memcpy(&sect_len, section, sizeof(sect_len));
+
+	/*
+	 * The section length should be no longer than the section it is within
+	 */
+	if (sect_len > length)
+		return (NULL);
+
+	MOVE(sizeof(sect_len));
+
+	/* Skip the vendor name */
+	while (length != 0) {
+		if (*section == '\0')
+			break;
+		MOVE(1);
+	}
+	if (length == 0)
+		return (NULL);
+	MOVE(1);
+
+	while (length != 0) {
+		uint32_t tag_length;
+
+	switch(*section) {
+	case 1: /* Tag_File */
+		MOVE(1);
+		if (length < sizeof(tag_length))
+			return (NULL);
+		memcpy(&tag_length, section, sizeof(tag_length));
+		break;
+	case 2: /* Tag_Section */
+	case 3: /* Tag_Symbol */
+	default:
+		return (NULL);
+	}
+	/* At least space for the tag and size */
+	if (tag_length <= 5)
+		return (NULL);
+	tag_length--;
+	/* Check the tag fits */
+	if (tag_length > length)
+		return (NULL);
+
+#define  MOVE_TAG(len) do {           \
+	assert(tag_length >= (len));  \
+	MOVE(len);                    \
+	tag_length -= (len);          \
+} while(0)
+
+		MOVE(sizeof(tag_length));
+		tag_length -= sizeof(tag_length);
+
+		while (tag_length != 0) {
+			uint8_t tag;
+
+			assert(tag_length >= length);
+
+			tag = *section;
+			MOVE_TAG(1);
+
+			/*
+			 * These tag values come from:
+			 * 
+			 * Addenda to, and Errata in, the ABI for the
+			 * ARM Architecture. Release 2.08, section 2.3.
+			 */
+			if (tag == 6) { /* == Tag_CPU_arch */
+				uint8_t val;
+
+				val = *section;
+				/*
+				 * We don't support values that require
+				 * more than one byte.
+				 */
+				if (val & (1 << 7))
+					return (NULL);
+
+				/* We have an ARMv4 or ARMv5 */
+				if (val <= 5)
+					return ("arm");
+				else /* We have an ARMv6+ */
+					return ("armv6");
+			} else if (tag == 4 || tag == 5 || tag == 32 ||
+			    tag == 65 || tag == 67) {
+				while (*section != '\0' && length != 0)
+					MOVE_TAG(1);
+				if (tag_length == 0)
+					return (NULL);
+				/* Skip the last byte */
+				MOVE_TAG(1);
+			} else if ((tag >= 7 && tag <= 31) || tag == 34 ||
+			    tag == 36 || tag == 38 || tag == 42 || tag == 44 ||
+			    tag == 64 || tag == 66 || tag == 68 || tag == 70) {
+				/* Skip the uleb128 data */
+				while (*section & (1 << 7) && length != 0)
+					MOVE_TAG(1);
+				if (tag_length == 0)
+					return (NULL);
+				/* Skip the last byte */
+				MOVE_TAG(1);
+			} else
+				return (NULL);
+#undef MOVE_TAG
+		}
+
+		break;
+	}
+	return (NULL);
+#undef MOVE
+}
+
 static int
 pkg_get_myabi(char *dest, size_t sz)
 {
@@ -108,7 +256,8 @@ pkg_get_myabi(char *dest, size_t sz)
 	Elf_Note note;
 	Elf_Scn *scn;
 	char *src, *osname;
-	const char *abi;
+	const char *arch, *abi, *fpu, *endian_corres_str;
+	const char *wordsize_corres_str;
 	GElf_Ehdr elfhdr;
 	GElf_Shdr shdr;
 	int fd, i, ret;
@@ -177,23 +326,86 @@ pkg_get_myabi(char *dest, size_t sz)
 	for (i = 0; osname[i] != '\0'; i++)
 		osname[i] = (char)tolower(osname[i]);
 
-	snprintf(dest, sz, "%s:%d:%s:%s",
-	    osname, version / 100000,
-	    elf_corres_to_string(mach_corres, (int)elfhdr.e_machine),
-	    elf_corres_to_string(wordsize_corres,
-	    (int)elfhdr.e_ident[EI_CLASS]));
+	wordsize_corres_str = elf_corres_to_string(wordsize_corres,
+	    (int)elfhdr.e_ident[EI_CLASS]);
+
+	arch = elf_corres_to_string(mach_corres, (int) elfhdr.e_machine);
+
+	snprintf(dest, sz, "%s:%d",
+	    osname, version / 100000);
 
 	ret = 0;
 
 	switch (elfhdr.e_machine) {
 	case EM_ARM:
+		endian_corres_str = elf_corres_to_string(endian_corres,
+		    (int)elfhdr.e_ident[EI_DATA]);
+
+		/* FreeBSD doesn't support the hard-float ABI yet */
+		fpu = "softfp";
+		if ((elfhdr.e_flags & 0xFF000000) != 0) {
+			const char *sh_name = NULL;
+			size_t shstrndx;
+
+			/* This is an EABI file, the conformance level is set */
+			abi = "eabi";
+			/* Find which TARGET_ARCH we are building for. */
+			elf_getshdrstrndx(elf, &shstrndx);
+			while ((scn = elf_nextscn(elf, scn)) != NULL) {
+				sh_name = NULL;
+				if (gelf_getshdr(scn, &shdr) != &shdr) {
+					scn = NULL;
+					break;
+				}
+
+				sh_name = elf_strptr(elf, shstrndx,
+				    shdr.sh_name);
+				if (sh_name == NULL)
+					continue;
+				if (strcmp(".ARM.attributes", sh_name) == 0)
+					break;
+			}
+			if (scn != NULL && sh_name != NULL) {
+				data = elf_getdata(scn, NULL);
+				/*
+				 * Prior to FreeBSD 10.0 libelf would return
+				 * NULL from elf_getdata on the .ARM.attributes
+				 * section. As this was the first release to
+				 * get armv6 support assume a NULL value means
+				 * arm.
+				 *
+				 * This assumption can be removed when 9.x
+				 * is unsupported.
+				 */
+				if (data != NULL) {
+					arch = aeabi_parse_arm_attributes(
+					    data->d_buf, data->d_size);
+					if (arch == NULL) {
+						ret = 1;
+						warn("unknown ARM ARCH");
+						goto cleanup;
+					}
+				}
+			} else {
+				ret = 1;
+				warn("Unable to find the .ARM.attributes "
+				    "section");
+				goto cleanup;
+			}
+		} else if (elfhdr.e_ident[EI_OSABI] != ELFOSABI_NONE) {
+			/*
+			 * EABI executables all have this field set to
+			 * ELFOSABI_NONE, therefore it must be an oabi file.
+			 */
+			abi = "oabi";
+		} else {
+			ret = 1;
+			warn("unknown ARM ABI");
+			goto cleanup;
+		}
 		snprintf(dest + strlen(dest), sz - strlen(dest),
-		    ":%s:%s:%s", elf_corres_to_string(endian_corres,
-		    (int)elfhdr.e_ident[EI_DATA]),
-		    (elfhdr.e_flags & EF_ARM_NEW_ABI) > 0 ?
-		    "eabi" : "oabi",
-		    (elfhdr.e_flags & EF_ARM_VFP_FLOAT) > 0 ?
-		    "softfp" : "vfp");
+		    ":%s:%s:%s:%s:%s", arch, wordsize_corres_str,
+		    endian_corres_str, abi, fpu);
 		break;
 	case EM_MIPS:
 		/*
@@ -218,10 +430,15 @@ pkg_get_myabi(char *dest, size_t sz)
 				abi = "n64";
 			break;
 		}
-		snprintf(dest + strlen(dest), sz - strlen(dest),
-		    ":%s:%s", elf_corres_to_string(endian_corres,
-		    (int)elfhdr.e_ident[EI_DATA]), abi);
+		endian_corres_str = elf_corres_to_string(endian_corres,
+		    (int)elfhdr.e_ident[EI_DATA]);
+
+		snprintf(dest + strlen(dest), sz - strlen(dest), ":%s:%s:%s:%s",
+		    arch, wordsize_corres_str, endian_corres_str, abi);
 		break;
+	default:
+		snprintf(dest + strlen(dest), sz - strlen(dest), ":%s:%s",
+		    arch, wordsize_corres_str);
 	}
 
 cleanup:
@@ -258,7 +475,7 @@ subst_packagesite(const char *abi)
 }
 
 static void
-config_parse(yaml_document_t *doc, yaml_node_t *node)
+config_parse(yaml_document_t *doc, yaml_node_t *node, pkg_conf_file_t conftype)
 {
 	yaml_node_pair_t *pair;
 	yaml_node_t *key, *val;
@@ -293,15 +510,39 @@ config_parse(yaml_document_t *doc, yaml_node_t *node)
 		}
 
 		sbuf_clear(buf);
-		for (j = 0; j < strlen(key->data.scalar.value); ++j)
-			sbuf_putc(buf, toupper(key->data.scalar.value[j]));
 
-		sbuf_finish(buf);
+		if (conftype == CONFFILE_PKG) {
+			for (j = 0; j < strlen(key->data.scalar.value); ++j)
+				sbuf_putc(buf,
+				    toupper(key->data.scalar.value[j]));
+			sbuf_finish(buf);
+		} else if (conftype == CONFFILE_REPO) {
+			/* The CONFFILE_REPO type is more restrictive. Only
+			   parse known elements. */
+			if (strcasecmp(key->data.scalar.value, "url") == 0)
+				sbuf_cpy(buf, "PACKAGESITE");
+			else if (strcasecmp(key->data.scalar.value,
+			    "mirror_type") == 0)
+				sbuf_cpy(buf, "MIRROR_TYPE");
+			else if (strcasecmp(key->data.scalar.value,
+			    "signature_type") == 0)
+				sbuf_cpy(buf, "SIGNATURE_TYPE");
+			else if (strcasecmp(key->data.scalar.value,
+			    "fingerprints") == 0)
+				sbuf_cpy(buf, "FINGERPRINTS");
+			else { /* Skip unknown entries for future use. */
+				++pair;
+				continue;
+			}
+			sbuf_finish(buf);
+		}
+
 		for (i = 0; i < CONFIG_SIZE; i++) {
 			if (strcmp(sbuf_data(buf), c[i].key) == 0)
 				break;
 		}
 
+		/* Silently skip unknown keys to be future compatible. */
 		if (i == CONFIG_SIZE) {
 			++pair;
 			continue;
@@ -320,13 +561,80 @@ config_parse(yaml_document_t *doc, yaml_node_t *node)
 	sbuf_delete(buf);
 }
 
-int
-config_init(void)
+/*-
+ * Parse new repo style configs in style:
+ * Name:
+ *   URL:
+ *   MIRROR_TYPE:
+ * etc...
+ */
+static void
+parse_repo_file(yaml_document_t *doc, yaml_node_t *node)
+{
+	yaml_node_pair_t *pair;
+
+	pair = node->data.mapping.pairs.start;
+	while (pair < node->data.mapping.pairs.top) {
+		yaml_node_t *key = yaml_document_get_node(doc, pair->key);
+		yaml_node_t *val = yaml_document_get_node(doc, pair->value);
+
+		if (key->data.scalar.length <= 0) {
+			++pair;
+			continue;
+		}
+
+		if (val->type != YAML_MAPPING_NODE) {
+			++pair;
+			continue;
+		}
+
+		config_parse(doc, val, CONFFILE_REPO);
+		++pair;
+	}
+}
+
+
+static int
+read_conf_file(const char *confpath, pkg_conf_file_t conftype)
 {
 	FILE *fp;
 	yaml_parser_t parser;
 	yaml_document_t doc;
 	yaml_node_t *node;
+
+	if ((fp = fopen(confpath, "r")) == NULL) {
+		if (errno != ENOENT)
+			err(EXIT_FAILURE, "Unable to open configuration "
+			    "file %s", confpath);
+		/* no configuration present */
+		return (1);
+	}
+
+	yaml_parser_initialize(&parser);
+	yaml_parser_set_input_file(&parser, fp);
+	yaml_parser_load(&parser, &doc);
+
+	node = yaml_document_get_root_node(&doc);
+
+	if (node == NULL || node->type != YAML_MAPPING_NODE)
+		warnx("Invalid configuration format, ignoring the "
+		    "configuration file %s", confpath);
+	else {
+		if (conftype == CONFFILE_PKG)
+			config_parse(&doc, node, conftype);
+		else if (conftype == CONFFILE_REPO)
+			parse_repo_file(&doc, node);
+	}
+
+	yaml_document_delete(&doc);
+	yaml_parser_delete(&parser);
+
+	return (0);
+}
+
+int
+config_init(void)
+{
 	const char *val;
 	int i;
 	const char *localbase;
@@ -342,37 +650,23 @@ config_init(void)
 	}
 
 	localbase = getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE;
-	snprintf(confpath, sizeof(confpath), "%s/etc/pkg.conf", localbase);
+	snprintf(confpath, sizeof(confpath), "%s/etc/pkg.conf",
+	    localbase);
 
-	if ((fp = fopen(confpath, "r")) == NULL) {
-		if (errno != ENOENT)
-			err(EXIT_FAILURE, "Unable to open configuration file %s", confpath);
-		/* no configuration present */
+	if (access(confpath, F_OK) == 0 && read_conf_file(confpath,
+	    CONFFILE_PKG))
 		goto finalize;
-	}
 
-	yaml_parser_initialize(&parser);
-	yaml_parser_set_input_file(&parser, fp);
-	yaml_parser_load(&parser, &doc);
-
-	node = yaml_document_get_root_node(&doc);
-
-	if (node != NULL) {
-		if (node->type != YAML_MAPPING_NODE)
-			warnx("Invalid configuration format, ignoring the configuration file");
-		else
-			config_parse(&doc, node);
-	} else {
-		warnx("Invalid configuration format, ignoring the configuration file");
-	}
-
-	yaml_document_delete(&doc);
-	yaml_parser_delete(&parser);
+	snprintf(confpath, sizeof(confpath), "/etc/pkg/FreeBSD.conf");
+	if (access(confpath, F_OK) == 0 && read_conf_file(confpath,
+	    CONFFILE_REPO))
+		goto finalize;
 
 finalize:
 	if (c[ABI].val == NULL && c[ABI].value == NULL) {
 		if (pkg_get_myabi(abi, BUFSIZ) != 0)
-			errx(EXIT_FAILURE, "Failed to determine the system ABI");
+			errx(EXIT_FAILURE, "Failed to determine the system "
+			    "ABI");
 		c[ABI].val = abi;
 	}
 

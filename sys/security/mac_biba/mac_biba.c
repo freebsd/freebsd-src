@@ -1759,6 +1759,24 @@ biba_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
 }
 
 static int
+biba_posixshm_check_read(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *vp, struct label *shmlabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled || !revocation_enabled)
+		return (0);
+
+	subj = SLOT(active_cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!biba_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
 biba_posixshm_check_setmode(struct ucred *cred, struct shmfd *shmfd,
     struct label *shmlabel, mode_t mode)
 {
@@ -1845,6 +1863,24 @@ biba_posixshm_check_unlink(struct ucred *cred, struct shmfd *shmfd,
 	if (!biba_dominate_effective(subj, obj))
 		return (EACCES);
     
+	return (0);
+}
+
+static int
+biba_posixshm_check_write(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *vp, struct label *shmlabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled || !revocation_enabled)
+		return (0);
+
+	subj = SLOT(active_cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!biba_dominate_effective(obj, subj))
+		return (EACCES);
+
 	return (0);
 }
 
@@ -3657,11 +3693,13 @@ static struct mac_policy_ops mac_biba_ops =
 
 	.mpo_posixshm_check_mmap = biba_posixshm_check_mmap,
 	.mpo_posixshm_check_open = biba_posixshm_check_open,
+	.mpo_posixshm_check_read = biba_posixshm_check_read,
 	.mpo_posixshm_check_setmode = biba_posixshm_check_setmode,
 	.mpo_posixshm_check_setowner = biba_posixshm_check_setowner,
 	.mpo_posixshm_check_stat = biba_posixshm_check_stat,
 	.mpo_posixshm_check_truncate = biba_posixshm_check_truncate,
 	.mpo_posixshm_check_unlink = biba_posixshm_check_unlink,
+	.mpo_posixshm_check_write = biba_posixshm_check_write,
 	.mpo_posixshm_create = biba_posixshm_create,
 	.mpo_posixshm_destroy_label = biba_destroy_label,
 	.mpo_posixshm_init_label = biba_init_label,

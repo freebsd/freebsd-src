@@ -100,7 +100,7 @@ main(int argc, char **argv)
 	clock_t c0 = clock();
 	class device_tree tree;
 	fdt::checking::check_manager checks;
-	const char *options = "hqI:O:o:V:d:R:S:p:b:fisvH:W:E:D";
+	const char *options = "hqI:O:o:V:d:R:S:p:b:fisvH:W:E:DP:";
 
 	// Don't forget to update the man page if any more options are added.
 	while ((ch = getopt(argc, argv, options)) != -1)
@@ -266,6 +266,13 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			tree.set_blob_padding(strtoll(optarg, 0, 10));
+			break;
+		case 'P':
+			if (!tree.parse_define(optarg))
+			{
+				fprintf(stderr, "Invalid predefine value %s\n",
+				        optarg);
+			}
 			break;
 		default:
 			fprintf(stderr, "Unknown option %c\n", ch);

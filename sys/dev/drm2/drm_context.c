@@ -182,7 +182,7 @@ bad:
 
 int drm_context_switch(struct drm_device *dev, int old, int new)
 {
-	if (test_and_set_bit(0, &dev->context_flag)) {
+	if (atomic_xchg(&dev->context_flag, 1) != 0) {
 		DRM_ERROR("Reentering -- FIXME\n");
 		return EBUSY;
 	}
@@ -190,7 +190,7 @@ int drm_context_switch(struct drm_device *dev, int old, int new)
 	DRM_DEBUG("Context switch from %d to %d\n", old, new);
 
 	if (new == dev->last_context) {
-		clear_bit(0, &dev->context_flag);
+		atomic_xchg(&dev->context_flag, 0);
 		return 0;
 	}
 
@@ -208,7 +208,7 @@ int drm_context_switch_complete(struct drm_device *dev, int new)
 	/* If a context switch is ever initiated
 	   when the kernel holds the lock, release
 	   that lock here. */
-	clear_bit(0, &dev->context_flag);
+	atomic_xchg(&dev->context_flag, 0);
 
 	return 0;
 }

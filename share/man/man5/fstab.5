@@ -32,7 +32,7 @@
 .\"     @(#)fstab.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd July 15, 2013
+.Dd September 10, 2013
 .Dt FSTAB 5
 .Os
 .Sh NAME
@@ -378,9 +378,45 @@ The file
 resides in
 .Pa /etc .
 .El
+.Sh EXAMPLES
+.Bd -literal
+# Device	Mountpoint	FStype	Options		Dump	Pass#
+#
+# UFS file system.
+/dev/da0p2	/		ufs	rw		1	1
+#
+# Swap space on a block device.
+/dev/da0p1	none		swap	sw		0	0
+#
+# Swap space using a block device with GBDE/GELI encyption.
+# aalgo, ealgo, keylen, sectorsize options are available
+# for .eli devices.
+/dev/da1p1.bde	none		swap	sw		0	0
+/dev/da1p2.eli	none		swap	sw		0	0
+#
+# tmpfs.
+tmpfs		/tmp		tmpfs	rw,size=1g,mode=1777	0 0
+#
+# UFS file system on a swap-backed md(4).  /dev/md10 is
+# automatically created.  If it is "md", a unit number
+# will be automatically selected.
+md10		/scratch	mfs	rw,-s1g		0	0
+#
+# Swap space on a vnode-backed md(4).
+md11		none		swap	sw,file=/swapfile	0 0
+#
+# CDROM.  "noauto" option is typically used because the
+# media is removable.
+/dev/cd0	/cdrom		cd9660	ro,noauto	0	0
+#
+# NFS-exported file system.  "serv" is an NFS server name
+# or IP address.
+serv:/export	/nfs		nfs	rw,noinet6	0	0
+.Ed
 .Sh SEE ALSO
 .Xr getfsent 3 ,
 .Xr getvfsbyname 3 ,
+.Xr strunvis 3 ,
 .Xr ccd 4 ,
 .Xr dump 8 ,
 .Xr fsck 8 ,
@@ -388,7 +424,6 @@ resides in
 .Xr mount 8 ,
 .Xr quotacheck 8 ,
 .Xr quotaon 8 ,
-.Xr strunvis 3 ,
 .Xr swapon 8 ,
 .Xr umount 8
 .Sh HISTORY

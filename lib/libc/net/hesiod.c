@@ -286,7 +286,7 @@ read_config_file(ctx, filename)
 	ctx->classes[1] = C_HS;
 
 		/* Try to open the configuration file. */
-	fp = fopen(filename, "r");
+	fp = fopen(filename, "re");
 	if (!fp) {
 		/* Use compiled in default domain names. */
 		ctx->lhs = strdup(DEF_LHS);

@@ -124,7 +124,7 @@ sg_pager_dealloc(vm_object_t object)
 	 * Free up our fake pages.
 	 */
 	while ((m = TAILQ_FIRST(&object->un_pager.sgp.sgp_pglist)) != 0) {
-		TAILQ_REMOVE(&object->un_pager.sgp.sgp_pglist, m, pageq);
+		TAILQ_REMOVE(&object->un_pager.sgp.sgp_pglist, m, plinks.q);
 		vm_page_putfake(m);
 	}
 	
@@ -182,15 +182,17 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	/* Construct a new fake page. */
 	page = vm_page_getfake(paddr, memattr);
 	VM_OBJECT_WLOCK(object);
-	TAILQ_INSERT_TAIL(&object->un_pager.sgp.sgp_pglist, page, pageq);
+	TAILQ_INSERT_TAIL(&object->un_pager.sgp.sgp_pglist, page, plinks.q);
 
 	/* Free the original pages and insert this fake page into the object. */
 	for (i = 0; i < count; i++) {
+		if (i == reqpage &&
+		    vm_page_replace(page, object, offset) != m[i])
+			panic("sg_pager_getpages: invalid place replacement");
 		vm_page_lock(m[i]);
 		vm_page_free(m[i]);
 		vm_page_unlock(m[i]);
 	}
-	vm_page_insert(page, object, offset);
 	m[reqpage] = page;
 	page->valid = VM_PAGE_BITS_ALL;
 

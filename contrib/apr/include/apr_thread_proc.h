@@ -315,7 +315,7 @@ APR_DECLARE(apr_status_t) apr_thread_once(apr_thread_once_t *control,
 APR_DECLARE(apr_status_t) apr_thread_detach(apr_thread_t *thd);
 
 /**
- * Return the pool associated with the current thread.
+ * Return user data associated with the current thread.
  * @param data The user data associated with the thread.
  * @param key The key to associate with the data
  * @param thread The currently open thread.
@@ -324,7 +324,7 @@ APR_DECLARE(apr_status_t) apr_thread_data_get(void **data, const char *key,
                                              apr_thread_t *thread);
 
 /**
- * Return the pool associated with the current thread.
+ * Set user data associated with the current thread.
  * @param data The user data to associate with the thread.
  * @param key The key to use for associating the data with the thread
  * @param cleanup The cleanup routine to use when the thread is destroyed.

@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #if defined(sun)
@@ -161,7 +162,7 @@ static int
 pfcheck_dint(dt_pfargv_t *pfv, dt_pfargd_t *pfd, dt_node_t *dnp)
 {
 	if (dnp->dn_flags & DT_NF_SIGNED)
-		pfd->pfd_flags |= DT_PFCONV_SIGNED;
+		pfd->pfd_fmt[strlen(pfd->pfd_fmt) - 1] = 'i';
 	else
 		pfd->pfd_fmt[strlen(pfd->pfd_fmt) - 1] = 'u';
 
@@ -664,7 +665,7 @@ static const dt_pfconv_t _dtrace_conversions[] = {
 { "hu", "u", "unsigned short", pfcheck_type, pfprint_uint },
 { "hx", "x", "short", pfcheck_xshort, pfprint_uint },
 { "hX", "X", "short", pfcheck_xshort, pfprint_uint },
-{ "i", "i", pfproto_xint, pfcheck_dint, pfprint_dint },
+{ "i", "i", pfproto_xint, pfcheck_xint, pfprint_sint },
 { "I", "s", pfproto_cstr, pfcheck_str, pfprint_inetaddr },
 { "k", "s", "stack", pfcheck_stack, pfprint_stack },
 { "lc", "lc", "int", pfcheck_type, pfprint_sint }, /* a.k.a. wint_t */

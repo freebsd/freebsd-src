@@ -119,9 +119,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/tlb.h>
 
-static void nexus_bus_barrier(bus_space_tag_t, bus_space_handle_t,
-    bus_size_t, bus_size_t, int);
-
 /* ASIs for bus access */
 const int bus_type_asi[] = {
 	ASI_PHYS_BYPASS_EC_WITH_EBIT,		/* nexus */
@@ -655,7 +652,7 @@ sparc64_bus_mem_map(bus_space_tag_t tag, bus_addr_t addr, bus_size_t size,
 	if (vaddr != 0L)
 		sva = trunc_page(vaddr);
 	else {
-		if ((sva = kmem_alloc_nofault(kernel_map, size)) == 0)
+		if ((sva = kva_alloc(size)) == 0)
 			panic("%s: cannot allocate virtual memory", __func__);
 	}
 
@@ -701,7 +698,7 @@ sparc64_bus_mem_unmap(bus_space_tag_t tag, bus_space_handle_t handle,
 	for (va = sva; va < endva; va += PAGE_SIZE)
 		pmap_kremove_flags(va);
 	tlb_range_demap(kernel_pmap, sva, sva + size - 1);
-	kmem_free(kernel_map, sva, size);
+	kva_free(sva, size);
 	return (0);
 }
 
@@ -715,18 +712,15 @@ sparc64_fake_bustag(int space, bus_addr_t addr, struct bus_space_tag *ptag)
 {
 
 	ptag->bst_cookie = NULL;
-	ptag->bst_parent = NULL;
 	ptag->bst_type = space;
-	ptag->bst_bus_barrier = nexus_bus_barrier;
 	return (addr);
 }
 
 /*
- * Allocate a bus tag.
+ * Allocate a bus tag
  */
 bus_space_tag_t
-sparc64_alloc_bus_tag(void *cookie, struct bus_space_tag *ptag, int type,
-    void *barrier)
+sparc64_alloc_bus_tag(void *cookie, int type)
 {
 	bus_space_tag_t bt;
 
@@ -734,42 +728,11 @@ sparc64_alloc_bus_tag(void *cookie, struct bus_space_tag *ptag, int type,
 	if (bt == NULL)
 		return (NULL);
 	bt->bst_cookie = cookie;
-	bt->bst_parent = ptag;
 	bt->bst_type = type;
-	bt->bst_bus_barrier = barrier;
 	return (bt);
-}
-
-/*
- * Base bus space handlers.
- */
-
-static void
-nexus_bus_barrier(bus_space_tag_t t, bus_space_handle_t h, bus_size_t offset,
-    bus_size_t size, int flags)
-{
-
-	/*
-	 * We have lots of alternatives depending on whether we're
-	 * synchronizing loads with loads, loads with stores, stores
-	 * with loads, or stores with stores.  The only ones that seem
-	 * generic are #Sync and #MemIssue.  I'll use #Sync for safety.
-	 */
-	switch(flags) {
-	case BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE:
-	case BUS_SPACE_BARRIER_READ:
-	case BUS_SPACE_BARRIER_WRITE:
-		membar(Sync);
-		break;
-	default:
-		panic("%s: unknown flags", __func__);
-	}
-	return;
 }
 
 struct bus_space_tag nexus_bustag = {
 	NULL,				/* cookie */
-	NULL,				/* parent bus tag */
-	NEXUS_BUS_SPACE,		/* type */
-	nexus_bus_barrier,		/* bus_space_barrier */
+	NEXUS_BUS_SPACE			/* type */
 };

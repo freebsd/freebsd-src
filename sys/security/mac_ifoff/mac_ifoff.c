@@ -49,11 +49,14 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
-#include <net/bpfdesc.h>
+#include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
+#include <net/bpfdesc.h>
 
 #include <security/mac/mac_policy.h>
 

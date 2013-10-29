@@ -16,7 +16,7 @@ draw-brand    \ draw the FreeBSD title (top-left; see `brand.4th')
 menu-init     \ initialize the menu area (see `menu.4th')
 
 \ Initialize main menu constructs (see `menu.4th')
-\ NOTE: To use the `ansi' variants, add `loader_color=1' to loader.conf(5)
+\ NOTE: To use `non-ansi' variants, add `loader_color=0' to loader.conf(5)
 
 \ 
 \ MAIN MENU

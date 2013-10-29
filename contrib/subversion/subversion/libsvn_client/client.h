@@ -20,7 +20,8 @@
  *    under the License.
  * ====================================================================
  */
-
+
+
 
 #ifndef SVN_LIBSVN_CLIENT_H
 #define SVN_LIBSVN_CLIENT_H
@@ -208,6 +209,9 @@ svn_client__repos_location_segments(apr_array_header_t **segments,
    Use the authentication baton cached in CTX to authenticate against
    the repository.  Use POOL for all allocations.
 
+   See also svn_client__calc_youngest_common_ancestor() to find youngest
+   common ancestor for already fetched history-as-mergeinfo information.
+
    See also svn_client__youngest_common_ancestor().
 */
 svn_error_t *
@@ -218,6 +222,34 @@ svn_client__get_youngest_common_ancestor(svn_client__pathrev_t **ancestor_p,
                                          svn_client_ctx_t *ctx,
                                          apr_pool_t *result_pool,
                                          apr_pool_t *scratch_pool);
+
+/* Find the common ancestor of two locations in a repository using already
+   fetched history-as-mergeinfo information.
+
+   Ancestry is determined by the 'copy-from' relationship and the normal
+   successor relationship.
+
+   Set *ANCESTOR_P to the location of the youngest common ancestor of
+   LOC1 and LOC2.  If the locations have no common ancestor (including if
+   they don't have the same repository root URL), set *ANCESTOR_P to NULL.
+
+   HISTORY1, HAS_REV_ZERO_HISTORY1, HISTORY2, HAS_REV_ZERO_HISTORY2 are
+   history-as-mergeinfo information as returned by
+   svn_client__get_history_as_mergeinfo() for LOC1 and LOC2 respectively.
+
+   See also svn_client__get_youngest_common_ancestor().
+
+*/
+svn_error_t *
+svn_client__calc_youngest_common_ancestor(svn_client__pathrev_t **ancestor_p,
+                                          const svn_client__pathrev_t *loc1,
+                                          apr_hash_t *history1,
+                                          svn_boolean_t has_rev_zero_history1,
+                                          const svn_client__pathrev_t *loc2,
+                                          apr_hash_t *history2,
+                                          svn_boolean_t has_rev_zero_history2,
+                                          apr_pool_t *result_pool,
+                                          apr_pool_t *scratch_pool);
 
 /* Ensure that RA_SESSION's session URL matches SESSION_URL,
    reparenting that session if necessary.
@@ -247,7 +279,8 @@ svn_client__ensure_ra_session_url(const char **old_session_url,
                                   apr_pool_t *pool);
 
 /* ---------------------------------------------------------------- */
-
+
+
 /*** RA callbacks ***/
 
 
@@ -329,7 +362,8 @@ svn_client__ra_make_cb_baton(svn_wc_context_t *wc_ctx,
                              apr_pool_t *result_pool);
 
 /* ---------------------------------------------------------------- */
-
+
+
 /*** Add/delete ***/
 
 /* If AUTOPROPS is not null: Then read automatic properties matching PATH
@@ -442,7 +476,8 @@ svn_client__make_local_parents(const char *path,
                                apr_pool_t *pool);
 
 /* ---------------------------------------------------------------- */
-
+
+
 /*** Checkout, update and switch ***/
 
 /* Update a working copy LOCAL_ABSPATH to REVISION, and (if not NULL) set
@@ -581,7 +616,8 @@ svn_client__switch_internal(svn_revnum_t *result_rev,
                             apr_pool_t *pool);
 
 /* ---------------------------------------------------------------- */
-
+
+
 /*** Inheritable Properties ***/
 
 /* Convert any svn_prop_inherited_item_t elements in INHERITED_PROPS which
@@ -626,7 +662,8 @@ svn_client__get_inheritable_props(apr_hash_t **wcroot_iprops,
                                   apr_pool_t *scratch_pool);
 
 /* ---------------------------------------------------------------- */
-
+
+
 /*** Editor for repository diff ***/
 
 /* Create an editor for a pure repository comparison, i.e. comparing one
@@ -666,7 +703,8 @@ svn_client__get_diff_editor2(const svn_delta_editor_t **editor,
                              apr_pool_t *result_pool);
 
 /* ---------------------------------------------------------------- */
-
+
+
 /*** Editor for diff summary ***/
 
 /* Set *CALLBACKS and *CALLBACK_BATON to a set of diff callbacks that will
@@ -689,7 +727,8 @@ svn_client__get_diff_summarize_callbacks(
                         apr_pool_t *pool);
 
 /* ---------------------------------------------------------------- */
-
+
+
 /*** Copy Stuff ***/
 
 /* This structure is used to associate a specific copy or move SRC with a
@@ -730,7 +769,8 @@ typedef struct svn_client__copy_pair_t
 } svn_client__copy_pair_t;
 
 /* ---------------------------------------------------------------- */
-
+
+
 /*** Commit Stuff ***/
 
 /* WARNING: This is all new, untested, un-peer-reviewed conceptual
@@ -944,7 +984,8 @@ svn_client__do_commit(const char *base_url,
                       apr_pool_t *scratch_pool);
 
 
-
+
+
 /*** Externals (Modules) ***/
 
 /* Handle changes to the svn:externals property described by EXTERNALS_NEW,
@@ -1116,7 +1157,8 @@ svn_client__resolve_conflicts(svn_boolean_t *conflicts_remain,
                               svn_client_ctx_t *ctx,
                               apr_pool_t *scratch_pool);
 
-
+
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

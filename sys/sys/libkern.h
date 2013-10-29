@@ -94,6 +94,10 @@ int	 fls(int);
 #ifndef	HAVE_INLINE_FLSL
 int	 flsl(long);
 #endif
+#ifndef	HAVE_INLINE_FLSLL
+int	 flsll(long long);
+#endif
+
 int	 fnmatch(const char *, const char *, int);
 int	 locc(int, char *, u_int);
 void	*memchr(const void *s, int c, size_t n);

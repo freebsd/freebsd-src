@@ -356,9 +356,27 @@ static apr_status_t call_resolver(apr_sockaddr_t **sa,
     }
     error = getaddrinfo(hostname, servname, &hints, &ai_list);
 #ifdef HAVE_GAI_ADDRCONFIG
-    if (error == EAI_BADFLAGS && family == APR_UNSPEC) {
-        /* Retry with no flags if AI_ADDRCONFIG was rejected. */
-        hints.ai_flags = 0;
+    /*
+     * Using AI_ADDRCONFIG involves some unfortunate guesswork because it
+     * does not consider loopback addresses when trying to determine if
+     * IPv4 or IPv6 is configured on a system (see RFC 3493).
+     * This is a problem if one actually wants to listen on or connect to
+     * the loopback address of a protocol family that is not otherwise
+     * configured on the system. See PR 52709.
+     * To work around some of the problems, retry without AI_ADDRCONFIG
+     * in case of EAI_ADDRFAMILY.
+     * XXX: apr_sockaddr_info_get() should really accept a flag to determine
+     * XXX: if AI_ADDRCONFIG's guesswork is wanted and if the address is
+     * XXX: to be used for listen() or connect().
+     *
+     * In case of EAI_BADFLAGS, AI_ADDRCONFIG is not supported.
+     */
+    if ((family == APR_UNSPEC) && (error == EAI_BADFLAGS
+#ifdef EAI_ADDRFAMILY
+                                   || error == EAI_ADDRFAMILY
+#endif
+                                                             )) {
+        hints.ai_flags &= ~AI_ADDRCONFIG;
         error = getaddrinfo(hostname, servname, &hints, &ai_list);
     }
 #endif
@@ -367,7 +385,7 @@ static apr_status_t call_resolver(apr_sockaddr_t **sa,
         return apr_get_netos_error();
 #else
         if (error == EAI_SYSTEM) {
-            return errno;
+            return errno ? errno : APR_EGENERAL;
         }
         else 
         {
@@ -422,6 +440,15 @@ static apr_status_t call_resolver(apr_sockaddr_t **sa,
         ai = ai->ai_next;
     }
     freeaddrinfo(ai_list);
+
+    if (prev_sa == NULL) {
+        /*
+         * getaddrinfo returned only useless entries and *sa is still empty.
+         * This should be treated as an error.
+         */
+        return APR_EGENERAL;
+    }
+
     return APR_SUCCESS;
 }
 
@@ -553,6 +580,11 @@ static apr_status_t find_addresses(apr_sockaddr_t **sa,
 
         prev_sa = new_sa;
         ++curaddr;
+    }
+
+    if (prev_sa == NULL) {
+        /* this should not happen but no result should be treated as error */
+        return APR_EGENERAL;
     }
 
     return APR_SUCCESS;
@@ -1010,7 +1042,7 @@ APR_DECLARE(int) apr_ipsubnet_test(apr_ipsubnet_t *ipsub, apr_sockaddr_t *sa)
     /* XXX This line will segv on Win32 build with APR_HAVE_IPV6,
      * but without the IPV6 drivers installed.
      */
-    if (sa->sa.sin.sin_family == AF_INET) {
+    if (sa->family == AF_INET) {
         if (ipsub->family == AF_INET &&
             ((sa->sa.sin.sin_addr.s_addr & ipsub->mask[0]) == ipsub->sub[0])) {
             return 1;
@@ -1022,7 +1054,7 @@ APR_DECLARE(int) apr_ipsubnet_test(apr_ipsubnet_t *ipsub, apr_sockaddr_t *sa)
             return 1;
         }
     }
-    else {
+    else if (sa->family == AF_INET6 && ipsub->family == AF_INET6) {
         apr_uint32_t *addr = (apr_uint32_t *)sa->ipaddr_ptr;
 
         if ((addr[0] & ipsub->mask[0]) == ipsub->sub[0] &&

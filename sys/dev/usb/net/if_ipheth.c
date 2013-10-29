@@ -44,12 +44,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/sx.h>
 #include <sys/unistd.h>
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+
+#include <net/if.h>
+#include <net/if_var.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -149,6 +153,7 @@ static const struct usb_ether_methods ipheth_ue_methods = {
     USB_IFACE_PROTOCOL(pt)
 
 static const STRUCT_USB_HOST_ID ipheth_devs[] = {
+#if 0
 	{IPHETH_ID(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_IPHONE,
 	    IPHETH_USBINTF_CLASS, IPHETH_USBINTF_SUBCLASS,
 	    IPHETH_USBINTF_PROTO)},
@@ -167,6 +172,13 @@ static const STRUCT_USB_HOST_ID ipheth_devs[] = {
 	{IPHETH_ID(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_IPHONE_5,
 	    IPHETH_USBINTF_CLASS, IPHETH_USBINTF_SUBCLASS,
 	    IPHETH_USBINTF_PROTO)},
+#else
+	/* product agnostic interface match */
+	{USB_VENDOR(USB_VENDOR_APPLE),
+	 USB_IFACE_CLASS(IPHETH_USBINTF_CLASS),
+	 USB_IFACE_SUBCLASS(IPHETH_USBINTF_SUBCLASS),
+	 USB_IFACE_PROTOCOL(IPHETH_USBINTF_PROTO)},
+#endif
 };
 
 static int

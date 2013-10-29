@@ -282,6 +282,8 @@ const char *
 int	 heapsort(void *, size_t, size_t, int (*)(const void *, const void *));
 int	 l64a_r(long, char *, int);
 int	 mergesort(void *, size_t, size_t, int (*)(const void *, const void *));
+int	 mkostemp(char *, int);
+int	 mkostemps(char *, int, int);
 void	 qsort_r(void *, size_t, size_t, void *,
 	    int (*)(void *, const void *, const void *));
 int	 radixsort(const unsigned char **, int, const unsigned char *,

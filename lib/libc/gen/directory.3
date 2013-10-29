@@ -28,7 +28,7 @@
 .\"     @(#)directory.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd July 5, 2012
+.Dd August 18, 2013
 .Dt DIRECTORY 3
 .Os
 .Sh NAME
@@ -40,6 +40,7 @@
 .Nm seekdir ,
 .Nm rewinddir ,
 .Nm closedir ,
+.Nm fdclosedir ,
 .Nm dirfd
 .Nd directory operations
 .Sh LIBRARY
@@ -63,6 +64,8 @@
 .Fn rewinddir "DIR *dirp"
 .Ft int
 .Fn closedir "DIR *dirp"
+.Ft int
+.Fn fdclosedir "DIR *dirp"
 .Ft int
 .Fn dirfd "DIR *dirp"
 .Sh DESCRIPTION
@@ -208,6 +211,13 @@ On failure, \-1 is returned and the global variable
 is set to indicate the error.
 .Pp
 The
+.Fn fdclosedir
+function is equivalent to the
+.Fn closedir
+function except that this function returns directory file descriptor instead of
+closing it.
+.Pp
+The
 .Fn dirfd
 function
 returns the integer file descriptor associated with the named
@@ -252,6 +262,9 @@ The
 .Fn fdopendir
 function appeared in
 .Fx 8.0 .
+.Fn fdclosedir
+function appeared in
+.Fx 10.0 .
 .Sh BUGS
 The invalidation of
 .Fn telldir

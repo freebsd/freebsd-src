@@ -127,7 +127,18 @@ static int
 ar8316_hw_global_setup(struct arswitch_softc *sc)
 {
 
-	arswitch_writereg(sc->sc_dev, 0x38, 0xc000050e);
+	arswitch_writereg(sc->sc_dev, 0x38, AR8X16_MAGIC);
+
+	/* Enable CPU port and disable mirror port. */
+	arswitch_writereg(sc->sc_dev, AR8X16_REG_CPU_PORT,
+	    AR8X16_CPU_PORT_EN | AR8X16_CPU_MIRROR_DIS);
+
+	/* Setup TAG priority mapping. */
+	arswitch_writereg(sc->sc_dev, AR8X16_REG_TAG_PRIO, 0xfa50);
+
+	/* Enable ARP frame acknowledge. */
+	arswitch_modifyreg(sc->sc_dev, AR8X16_REG_AT_CTRL, 0,
+	    AR8X16_AT_CTRL_ARP_EN);
 
 	/*
 	 * Flood address table misses to all ports, and enable forwarding of
@@ -136,8 +147,13 @@ ar8316_hw_global_setup(struct arswitch_softc *sc)
 	arswitch_writereg(sc->sc_dev, AR8X16_REG_FLOOD_MASK,
 	    AR8X16_FLOOD_MASK_BCAST_TO_CPU | 0x003f003f);
 
+	/* Enable jumbo frames. */
 	arswitch_modifyreg(sc->sc_dev, AR8X16_REG_GLOBAL_CTRL,
 	    AR8316_GLOBAL_CTRL_MTU_MASK, 9018 + 8 + 2);
+
+	/* Setup service TAG. */
+	arswitch_modifyreg(sc->sc_dev, AR8X16_REG_SERVICE_TAG,
+	    AR8X16_SERVICE_TAG_MASK, 0);
 
 	return (0);
 }
@@ -148,4 +164,9 @@ ar8316_attach(struct arswitch_softc *sc)
 
 	sc->hal.arswitch_hw_setup = ar8316_hw_setup;
 	sc->hal.arswitch_hw_global_setup = ar8316_hw_global_setup;
+
+	/* Set the switch vlan capabilities. */
+	sc->info.es_vlan_caps = ETHERSWITCH_VLAN_DOT1Q |
+	    ETHERSWITCH_VLAN_PORT | ETHERSWITCH_VLAN_DOUBLE_TAG;
+	sc->info.es_nvlangroups = AR8X16_MAX_VLANS;
 }

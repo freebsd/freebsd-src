@@ -148,6 +148,14 @@ char * serf_bstrdup(
     serf_bucket_alloc_t *allocator,
     const char *str);
 
+/**
+ * Analogous to apr_pstrcatv, using a bucket allocator instead.
+ */
+char * serf_bstrcatv(
+    serf_bucket_alloc_t *allocator,
+    struct iovec *vec,
+    int vecs,
+    apr_size_t *bytes_written);
 
 /**
  * Read data up to a newline.

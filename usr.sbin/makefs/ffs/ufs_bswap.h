@@ -40,6 +40,8 @@
 
 #include <sys/endian.h>
 
+#include "makefs.h"
+
 /* Macros to access UFS flags */
 #ifdef FFS_EI
 #define	UFS_MPNEEDSWAP(mp)	(VFSTOUFS(mp)->um_flags & UFS_NEEDSWAP)

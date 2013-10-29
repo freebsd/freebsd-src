@@ -3622,8 +3622,8 @@ ncr_attach (device_t dev)
 			pci_write_config(dev, PCIR_CACHELNSZ, cachelnsz, 1);
 		}
 
-		if (!(command & (1<<4))) {
-			command |= (1<<4);
+		if (!(command & PCIM_CMD_MWRICEN)) {
+			command |= PCIM_CMD_MWRICEN;
 			printf("%s: setting PCI command write and invalidate.\n",
 				ncr_name(np));
 			pci_write_config(dev, PCIR_COMMAND, command, 2);

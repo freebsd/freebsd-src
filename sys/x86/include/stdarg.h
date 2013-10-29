@@ -64,6 +64,8 @@ typedef	__va_list	va_list;
 	(((sizeof(type) + sizeof(long) - 1) / sizeof(long)) * sizeof(long))
 #define	va_start(ap, last) \
 	((ap) = (va_list)&(last) + __va_size(last))
+#define va_copy(dst, src) \
+	((dst) = (src))
 #define	va_arg(ap, type) \
 	(*(type *)((ap) += __va_size(type), (ap) - __va_size(type)))
 #define	va_end(ap)

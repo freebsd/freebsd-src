@@ -28,7 +28,7 @@
 .\"	@(#)su.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2011
+.Dd August 11, 2013
 .Dt SU 1
 .Os
 .Sh NAME
@@ -37,8 +37,8 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl
-.Op Fl flms
 .Op Fl c Ar class
+.Op Fl flms
 .Op Ar login Op Ar args
 .Sh DESCRIPTION
 The
@@ -85,6 +85,11 @@ are also normally retained unless the target login has a user ID of 0.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl c Ar class
+Use the settings of the specified login class.
+The login class must be defined in
+.Xr login.conf 5 .
+Only allowed for the super-user.
 .It Fl f
 If the invoked shell is
 .Xr csh 1 ,
@@ -139,9 +144,6 @@ is not sufficient to transition to the user's default MAC label.
 If the label cannot be set,
 .Nm
 will fail.
-.It Fl c Ar class
-Use the settings of the specified login class.
-Only allowed for the super-user.
 .El
 .Pp
 The

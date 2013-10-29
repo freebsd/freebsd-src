@@ -37,6 +37,7 @@ options 	MUTEX_NOINLINE
 options 	RWLOCK_NOINLINE
 options 	NO_FFS_SNAPSHOT
 options 	NO_SWAPPING
+options 	VFP
 
 options 	SMP
 
@@ -75,8 +76,7 @@ device		pass
 device		da
 
 # SATA
-device		ata
-#device		mvs
+device		mvs
 
 # Serial ports
 device		uart

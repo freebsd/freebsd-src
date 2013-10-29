@@ -280,15 +280,8 @@ nlm_setup_port_defaults(struct xlp_port_ivars *p)
  * 1         3     9          0
  */
 static void
-nlm_board_get_phyaddr(int block, int port, int *mdio, int *phyaddr)
+nlm_board_get_phyaddr(int block, int port, int *phyaddr)
 {
-
-	/* XXXJC: this is a board feature, check for chip not proper */
-	if (nlm_is_xlp3xx() || (nlm_is_xlp8xx() && block == 4))
-	    *mdio = 0;
-	else
-	    *mdio = 1;
-
 	switch (block) {
 	case 0: switch (port) {
 		case 0: *phyaddr = 4; break;
@@ -377,7 +370,7 @@ nlm_print_processor_info(void)
  * at run-time goes here
  */
 static int
-nlm_setup_xlp_board(void)
+nlm_setup_xlp_board(int node)
 {
 	struct xlp_board_info	*boardp;
 	struct xlp_node_info	*nodep;
@@ -385,17 +378,18 @@ nlm_setup_xlp_board(void)
 	struct xlp_block_ivars	*blockp;
 	struct xlp_port_ivars	*portp;
 	uint64_t cpldbase, nae_pcibase;
-	int	node, block, port, rv, dbtype, usecpld;
+	int	block, port, rv, dbtype, usecpld = 0, evp = 0, svp = 0;
 	uint8_t *b;
 
 	/* start with a clean slate */
 	boardp = &xlp_board_info;
-	memset(boardp, 0, sizeof(xlp_board_info));
-	boardp->nodemask = 0x1;	/* only node 0 */
+	if (boardp->nodemask == 0)
+		memset(boardp, 0, sizeof(xlp_board_info));
+	boardp->nodemask |= (1 << node);
 	nlm_print_processor_info();
 
 	b =  board_eeprom_buf;
-	rv = nlm_board_eeprom_read(0, EEPROM_I2CBUS, EEPROM_I2CADDR, 0, b,
+	rv = nlm_board_eeprom_read(node, EEPROM_I2CBUS, EEPROM_I2CADDR, 0, b,
 	    EEPROM_SIZE);
 	if (rv == 0) {
 		board_eeprom_set = 1;
@@ -409,88 +403,48 @@ nlm_setup_xlp_board(void)
 		printf("Board Info: Error on EEPROM read (i2c@%d %#X).\n",
 		    EEPROM_I2CBUS, EEPROM_I2CADDR);
 
+	nae_pcibase = nlm_get_nae_pcibase(node);
+	nodep = &boardp->nodes[node];
+	naep = &nodep->nae_ivars;
+	naep->node = node;
 
-	/* XXXJC: check for boards with right CPLD, for now
-	 *        4xx PCI cards don't have CPLD with daughter
-	 *        card info */
-	usecpld = !nlm_is_xlp4xx();
+	/* frequency at which network block runs */
+	naep->freq = 500;
 
-	for (node = 0; node < XLP_MAX_NODES; node++) {
-		if ((boardp->nodemask & (1 << node)) == 0)
-			continue;
-		nae_pcibase = nlm_get_nae_pcibase(node);
-		nodep = &boardp->nodes[node];
-		naep = &nodep->nae_ivars;
-		naep->node = node;
+	/* CRC16 polynomial used for flow table generation */
+	naep->flow_crc_poly = 0xffff;
+	naep->hw_parser_en = 1;
+	naep->prepad_en = 1;
+	naep->prepad_size = 3; /* size in 16 byte units */
+	naep->ieee_1588_en = 1;
 
-		naep->nblocks = nae_num_complex(nae_pcibase);
-		/* 3xx chips lie shamelessly about this */
-		if (nlm_is_xlp3xx())
-			naep->nblocks = naep->nblocks - 1;
-		naep->blockmask = (1 << naep->nblocks) - 1;	/* XXXJC: redundant */
-		naep->xauimask = 0x0;	/* set this based on daughter card */
-		naep->sgmiimask = 0x0;	/* set this based on daughter card */
-
-		/* frequency at which network block runs */
-		naep->freq = 500;
-
-		/* CRC16 polynomial used for flow table generation */
-		naep->flow_crc_poly = 0xffff;
-		naep->hw_parser_en = 1;
-		naep->prepad_en = 1;
-		naep->prepad_size = 3; /* size in 16 byte units */
-
-		naep->ieee_1588_en = 1;
-		cpldbase = nlm_board_cpld_base(node, XLP_EVB_CPLD_CHIPSELECT);
-
-		for (block = 0; block < naep->nblocks; block++) {
-			blockp = &naep->block_ivars[block];
-			blockp->block = block;
-			if (usecpld)
-				dbtype = nlm_board_cpld_dboard_type(cpldbase,
-				    block);
-			else
-				dbtype = DCARD_XAUI;  /* default XAUI */
-
-			if (block == 4) {
-				/* management block 4 on 8xx */
-				blockp->type = SGMIIC;
-				blockp->portmask = 0x3;
-				naep->sgmiimask |= (1 << block);
-			} else {
-				switch (dbtype) {
-				case DCARD_ILAKEN:
-					blockp->type = ILC;
-					blockp->portmask = 0x1;
-					naep->xauimask |= (1 << block);
-					break;
-				case DCARD_SGMII:
-					blockp->type = SGMIIC;
-					blockp->portmask = 0xf;
-					naep->sgmiimask |= (1 << block);
-					break;
-				case DCARD_XAUI:
-				default:
-					blockp->type = XAUIC;
-					blockp->portmask = 0x1;
-					naep->xauimask |= (1 << block);
-					break;
-				}
-			}
-			for (port = 0; port < PORTS_PER_CMPLX; port++) {
-				if ((blockp->portmask & (1 << port)) == 0)
-					continue;
-				portp = &blockp->port_ivars[port];
-				nlm_board_get_phyaddr(block, port,
-				    &portp->mdio_bus, &portp->phy_addr);
-				portp->port = port;
-				portp->block = block;
-				portp->node = node;
-				portp->type = blockp->type;
-				nlm_setup_port_defaults(portp);
-			}
-		}
+	naep->ilmask = 0x0;	/* set this based on daughter card */
+	naep->xauimask = 0x0;	/* set this based on daughter card */
+	naep->sgmiimask = 0x0;	/* set this based on daughter card */
+	naep->nblocks = nae_num_complex(nae_pcibase);
+	if (strncmp(&b[16], "PCIE", 4) == 0) {
+		usecpld = 0; /* XLP PCIe card */
+		/* Broadcom's XLP PCIe card has the following
+		 * blocks fixed.
+		 * blk 0-XAUI, 1-XAUI, 4-SGMII(one port) */
+		naep->blockmask = 0x13;
+	} else if (strncmp(&b[16], "MB-EVP", 6) == 0) {
+		usecpld = 1; /* XLP non-PCIe card which has CPLD */
+		evp = 1;
+		naep->blockmask = (1 << naep->nblocks) - 1;
+	} else if ((strncmp(&b[16], "MB-S", 4) == 0) ||
+	    (strncmp(&b[16], "MB_S", 4) == 0)) {
+		usecpld = 1; /* XLP non-PCIe card which has CPLD */
+		svp = 1;
+		/* 3xx chip reports one block extra which is a bug */
+		naep->nblocks = naep->nblocks - 1;
+		naep->blockmask = (1 << naep->nblocks) - 1;
+	} else {
+		printf("ERROR!!! Board type:%7s didn't match any board"
+		    " type we support\n", &b[16]);
+		return (-1);
 	}
+	cpldbase = nlm_board_cpld_base(node, XLP_EVB_CPLD_CHIPSELECT);
 
 	/* pretty print network config */
 	printf("Network config");
@@ -498,30 +452,86 @@ nlm_setup_xlp_board(void)
 		printf("(from CPLD@%d):\n", XLP_EVB_CPLD_CHIPSELECT);
 	else
 		printf("(defaults):\n");
-	for (node = 0; node < XLP_MAX_NODES; node++) {
-		if ((boardp->nodemask & (1 << node)) == 0)
-			continue;
-		nodep = &boardp->nodes[node];
-		naep = &nodep->nae_ivars;
-		printf("  NAE@%d Blocks: ", node);
-		for (block = 0; block < naep->nblocks; block++) {
-			char *s = "???";
+	printf("  NAE@%d Blocks: ", node);
+	for (block = 0; block < naep->nblocks; block++) {
+		char *s = "???";
 
-			blockp = &naep->block_ivars[block];
-			switch (blockp->type) {
-				case SGMIIC : s = "SGMII"; break;
-				case XAUIC  : s = "XAUI"; break;
-				case ILC    : s = "IL"; break;
+		if ((naep->blockmask & (1 << block)) == 0)
+			continue;
+		blockp = &naep->block_ivars[block];
+		blockp->block = block;
+		if (usecpld)
+			dbtype = nlm_board_cpld_dboard_type(cpldbase, block);
+		else
+			dbtype = DCARD_XAUI;  /* default XAUI */
+
+		/* XLP PCIe cards */
+		if ((!evp && !svp) && ((block == 2) || (block == 3)))
+			dbtype = DCARD_NOT_PRSNT;
+
+		if (block == 4) {
+			/* management block 4 on 8xx or XLP PCIe */
+			blockp->type = SGMIIC;
+			if (evp)
+				blockp->portmask = 0x3;
+			else
+				blockp->portmask = 0x1;
+			naep->sgmiimask |= (1 << block);
+		} else {
+			switch (dbtype) {
+			case DCARD_ILAKEN:
+				blockp->type = ILC;
+				blockp->portmask = 0x1;
+				naep->ilmask |= (1 << block);
+				break;
+			case DCARD_SGMII:
+				blockp->type = SGMIIC;
+				blockp->portmask = 0xf;
+				naep->sgmiimask |= (1 << block);
+				break;
+			case DCARD_XAUI:
+				blockp->type = XAUIC;
+				blockp->portmask = 0x1;
+				naep->xauimask |= (1 << block);
+				break;
+			default: /* DCARD_NOT_PRSNT */
+				blockp->type = UNKNOWN;
+				blockp->portmask = 0;
+				break;
 			}
-			printf(" [%d %s]", block, s);
 		}
-		printf("\n");
+		if (blockp->type != UNKNOWN) {
+			for (port = 0; port < PORTS_PER_CMPLX; port++) {
+				if ((blockp->portmask & (1 << port)) == 0)
+					continue;
+				portp = &blockp->port_ivars[port];
+				nlm_board_get_phyaddr(block, port,
+				    &portp->phy_addr);
+				if (svp || (block == 4))
+					portp->mdio_bus = 0;
+				else
+					portp->mdio_bus = 1;
+				portp->port = port;
+				portp->block = block;
+				portp->node = node;
+				portp->type = blockp->type;
+				nlm_setup_port_defaults(portp);
+			}
+		}
+		switch (blockp->type) {
+		case SGMIIC : s = "SGMII"; break;
+		case XAUIC  : s = "XAUI"; break;
+		case ILC    : s = "IL"; break;
+		}
+		printf(" [%d %s]", block, s);
 	}
+	printf("\n");
 	return (0);
 }
 
 int nlm_board_info_setup(void)
 {
-	nlm_setup_xlp_board();
+	if (nlm_setup_xlp_board(0) != 0)
+		return (-1);
 	return (0);
 }

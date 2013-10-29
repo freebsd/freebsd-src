@@ -62,6 +62,7 @@
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/route.h>
@@ -533,8 +534,6 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
-		break;
-	case SIOCSIFDSTADDR:
 		break;
 	case SIOCSIFFLAGS:
 		/*

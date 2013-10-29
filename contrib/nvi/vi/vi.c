@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)vi.c	10.57 (Berkeley) 10/13/96";
+static const char sccsid[] = "$Id: vi.c,v 10.61 2011/12/21 13:08:30 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -40,7 +40,6 @@ static int	v_count __P((SCR *, ARG_CHAR_T, u_long *));
 static void	v_dtoh __P((SCR *));
 static int	v_init __P((SCR *));
 static gcret_t	v_key __P((SCR *, int, EVENT *, u_int32_t));
-static int	v_keyword __P((SCR *));
 static int	v_motion __P((SCR *, VICMD *, VICMD *, int *));
 
 #if defined(DEBUG) && defined(COMLOG)
@@ -62,13 +61,12 @@ static void	v_comlog __P((SCR *, VICMD *));
  * PUBLIC: int vi __P((SCR **));
  */
 int
-vi(spp)
-	SCR **spp;
+vi(SCR **spp)
 {
 	GS *gp;
 	MARK abs;
 	SCR *next, *sp;
-	VICMD cmd, *vp;
+	VICMD cmd = { 0 }, *vp;
 	VI_PRIVATE *vip;
 	int comcount, mapped, rval;
 
@@ -76,9 +74,8 @@ vi(spp)
 	sp = *spp;
 	gp = sp->gp;
 
-	/* Initialize the command structure. */
+	/* Point to the command structure. */
 	vp = &cmd;
-	memset(vp, 0, sizeof(VICMD));
 
 	/* Reset strange attraction. */
 	F_SET(vp, VM_RCM_SET);
@@ -158,8 +155,6 @@ vi(spp)
 		case GC_ERR_NOFLUSH:
 			goto gc_err_noflush;
 		case GC_EVENT:
-			if (v_event_exec(sp, vp))
-				goto err;
 			goto gc_event;
 		case GC_FATAL:
 			goto ret;
@@ -347,9 +342,9 @@ gc_event:
 		 * command, since the tag may be moving to the same file.
 		 */
 		if ((F_ISSET(vp, V_ABS) ||
-		    F_ISSET(vp, V_ABS_L) && sp->lno != abs.lno ||
-		    F_ISSET(vp, V_ABS_C) &&
-		    (sp->lno != abs.lno || sp->cno != abs.cno)) &&
+		    (F_ISSET(vp, V_ABS_L) && sp->lno != abs.lno) ||
+		    (F_ISSET(vp, V_ABS_C) &&
+		    (sp->lno != abs.lno || sp->cno != abs.cno))) &&
 		    mark_set(sp, ABSMARK1, &abs, 1))
 			goto err;
 
@@ -405,6 +400,7 @@ intr:			CLR_INTERRUPT(sp);
 		if (F_ISSET(gp, G_SRESTART) || F_ISSET(sp, SC_EX)) {
 			*spp = sp;
 			v_dtoh(sp);
+			gp->scr_discard(sp, NULL);
 			break;
 		}
 	}
@@ -452,11 +448,13 @@ VIKEYS const tmotion = {
  *	[count] key [character]
  */
 static gcret_t
-v_cmd(sp, dp, vp, ismotion, comcountp, mappedp)
-	SCR *sp;
-	VICMD *dp, *vp;
-	VICMD *ismotion;	/* Previous key if getting motion component. */
-	int *comcountp, *mappedp;
+v_cmd(
+	SCR *sp,
+	VICMD *dp,
+	VICMD *vp,
+	VICMD *ismotion,	/* Previous key if getting motion component. */
+	int *comcountp,
+	int *mappedp)
 {
 	enum { COMMANDMODE, ISPARTIAL, NOTPARTIAL } cpart;
 	EVENT ev;
@@ -494,7 +492,7 @@ v_cmd(sp, dp, vp, ismotion, comcountp, mappedp)
 	if (ismotion == NULL)
 		cpart = NOTPARTIAL;
 
-	/* Pick up optional buffer. */
+	/* Pick up an optional buffer. */
 	if (key == '"') {
 		cpart = ISPARTIAL;
 		if (ismotion != NULL) {
@@ -508,10 +506,10 @@ v_cmd(sp, dp, vp, ismotion, comcountp, mappedp)
 	}
 
 	/*
-	 * Pick up optional count, where a leading 0 is not a count,
+	 * Pick up an optional count, where a leading 0 is not a count,
 	 * it's a command.
 	 */
-	if (isdigit(key) && key != '0') {
+	if (ISDIGIT(key) && key != '0') {
 		if (v_count(sp, key, &vp->count))
 			return (GC_ERR);
 		F_SET(vp, VC_C1SET);
@@ -650,7 +648,7 @@ v_cmd(sp, dp, vp, ismotion, comcountp, mappedp)
 		 * Don't set the EC_MAPCOMMAND flag, apparently ] is a popular
 		 * vi meta-character, and we don't want the user to wait while
 		 * we time out a possible mapping.  This *appears* to match
-		 * historic vi practice, but with mapping characters, you Just
+		 * historic vi practice, but with mapping characters, You Just
 		 * Never Know.
 		 */
 		KEY(key, 0);
@@ -669,7 +667,7 @@ usage:			if (ismotion == NULL)
 	/* Special case: 'z' command. */
 	if (vp->key == 'z') {
 		KEY(vp->character, 0);
-		if (isdigit(vp->character)) {
+		if (ISDIGIT(vp->character)) {
 			if (v_count(sp, vp->character, &vp->count2))
 				return (GC_ERR);
 			F_SET(vp, VC_C2SET);
@@ -678,8 +676,8 @@ usage:			if (ismotion == NULL)
 	}
 
 	/*
-	 * Commands that have motion components can be doubled to
-	 * imply the current line.
+	 * Commands that have motion components can be doubled to imply the
+	 * current line.
 	 */
 	if (ismotion != NULL && ismotion->key != key && !LF_ISSET(V_MOVE)) {
 		msgq(sp, M_ERR, "210|%s may not be used as a motion command",
@@ -687,12 +685,12 @@ usage:			if (ismotion == NULL)
 		return (GC_ERR);
 	}
 
-	/* Required character. */
+	/* Pick up required trailing character. */
 	if (LF_ISSET(V_CHAR))
 		KEY(vp->character, 0);
 
 	/* Get any associated cursor word. */
-	if (F_ISSET(kp, V_KEYW) && v_keyword(sp))
+	if (F_ISSET(kp, V_KEYW) && v_curword(sp))
 		return (GC_ERR);
 
 	return (GC_OK);
@@ -716,10 +714,11 @@ esc:	switch (cpart) {
  * Get resulting motion mark.
  */
 static int
-v_motion(sp, dm, vp, mappedp)
-	SCR *sp;
-	VICMD *dm, *vp;
-	int *mappedp;
+v_motion(
+	SCR *sp,
+	VICMD *dm,
+	VICMD *vp,
+	int *mappedp)
 {
 	VICMD motion;
 	size_t len;
@@ -785,7 +784,7 @@ v_motion(sp, dm, vp, mappedp)
 		vp->m_stop.lno = sp->lno + motion.count - 1;
 		if (db_get(sp, vp->m_stop.lno, 0, NULL, &len)) {
 			if (vp->m_stop.lno != 1 ||
-			   vp->key != 'c' && vp->key != '!') {
+			   (vp->key != 'c' && vp->key != '!')) {
 				v_emsg(sp, NULL, VIM_EMPTY);
 				return (1);
 			}
@@ -857,7 +856,7 @@ v_motion(sp, dm, vp, mappedp)
 		 */
 		if (!db_exist(sp, vp->m_stop.lno)) {
 			if (vp->m_stop.lno != 1 ||
-			   vp->key != 'c' && vp->key != '!') {
+			   (vp->key != 'c' && vp->key != '!')) {
 				v_emsg(sp, NULL, VIM_EMPTY);
 				return (1);
 			}
@@ -901,8 +900,8 @@ v_motion(sp, dm, vp, mappedp)
 		 * Motions are from the from MARK to the to MARK (inclusive).
 		 */
 		if (motion.m_start.lno > motion.m_stop.lno ||
-		    motion.m_start.lno == motion.m_stop.lno &&
-		    motion.m_start.cno > motion.m_stop.cno) {
+		    (motion.m_start.lno == motion.m_stop.lno &&
+		    motion.m_start.cno > motion.m_stop.cno)) {
 			vp->m_start = motion.m_stop;
 			vp->m_stop = motion.m_start;
 		} else {
@@ -929,8 +928,7 @@ v_motion(sp, dm, vp, mappedp)
  *	Initialize the vi screen.
  */
 static int
-v_init(sp)
-	SCR *sp;
+v_init(SCR *sp)
 {
 	GS *gp;
 	VI_PRIVATE *vip;
@@ -964,12 +962,12 @@ v_init(sp)
 			sp->t_minrows = sp->t_rows = sp->rows - 1;
 			msgq(sp, M_INFO,
 			    "214|Windows option value is too large, max is %u",
-			    sp->t_rows);
+			    (u_int)sp->t_rows);
 		}
 		sp->t_maxrows = sp->rows - 1;
 	} else
 		sp->t_maxrows = 1;
-	sp->woff = 0;
+	sp->roff = sp->coff = 0;
 
 	/* Create a screen map. */
 	CALLOC_RET(sp, HMAP, SMAP *, SIZE_HMAP(sp), sizeof(SMAP));
@@ -1000,8 +998,7 @@ v_init(sp)
  *	Move all but the current screen to the hidden queue.
  */
 static void
-v_dtoh(sp)
-	SCR *sp;
+v_dtoh(SCR *sp)
 {
 	GS *gp;
 	SCR *tsp;
@@ -1009,42 +1006,40 @@ v_dtoh(sp)
 
 	/* Move all screens to the hidden queue, tossing screen maps. */
 	for (hidden = 0, gp = sp->gp;
-	    (tsp = gp->dq.cqh_first) != (void *)&gp->dq; ++hidden) {
+	    (tsp = TAILQ_FIRST(gp->dq)) != NULL; ++hidden) {
 		if (_HMAP(tsp) != NULL) {
 			free(_HMAP(tsp));
 			_HMAP(tsp) = NULL;
 		}
-		CIRCLEQ_REMOVE(&gp->dq, tsp, q);
-		CIRCLEQ_INSERT_TAIL(&gp->hq, tsp, q);
+		TAILQ_REMOVE(gp->dq, tsp, q);
+		TAILQ_INSERT_TAIL(gp->hq, tsp, q);
+		/* XXXX Change if hidden screens per window */
+		gp->scr_discard(tsp, NULL);
 	}
 
 	/* Move current screen back to the display queue. */
-	CIRCLEQ_REMOVE(&gp->hq, sp, q);
-	CIRCLEQ_INSERT_TAIL(&gp->dq, sp, q);
+	TAILQ_REMOVE(gp->hq, sp, q);
+	TAILQ_INSERT_TAIL(gp->dq, sp, q);
 
-	/*
-	 * XXX
-	 * Don't bother internationalizing this message, it's going to
-	 * go away as soon as we have one-line screens.  --TK
-	 */
 	if (hidden > 1)
 		msgq(sp, M_INFO,
-		    "%d screens backgrounded; use :display to list them",
+		    "319|%d screens backgrounded; use :display to list them",
 		    hidden - 1);
 }
 
 /*
- * v_keyword --
- *	Get the word (or non-word) the cursor is on.
+ * v_curword --
+ *	Get the word (tagstring, actually) the cursor is on.
+ *
+ * PUBLIC: int v_curword __P((SCR *));
  */
-static int
-v_keyword(sp)
-	SCR *sp;
+int
+v_curword(SCR *sp)
 {
 	VI_PRIVATE *vip;
 	size_t beg, end, len;
-	int moved, state;
-	char *p;
+	int moved;
+	CHAR_T *p;
 
 	if (db_get(sp, sp->lno, DBG_FATAL, &p, &len))
 		return (1);
@@ -1065,7 +1060,7 @@ v_keyword(sp)
 	 * follow the same rule.
 	 */
 	for (moved = 0,
-	    beg = sp->cno; beg < len && isspace(p[beg]); moved = 1, ++beg);
+	    beg = sp->cno; beg < len && ISSPACE(p[beg]); moved = 1, ++beg);
 	if (beg >= len) {
 		msgq(sp, M_BERR, "212|Cursor not in a word");
 		return (1);
@@ -1075,14 +1070,19 @@ v_keyword(sp)
 		(void)vs_refresh(sp, 0);
 	}
 
-	/* Find the end of the word. */
-	for (state = inword(p[beg]),
-	    end = beg; ++end < len && state == inword(p[end]););
+	/*
+	 * Find the end of the word.
+	 *
+	 * !!!
+	 * Historically, vi accepted any non-blank as initial character
+	 * when building up a tagstring.  Required by IEEE 1003.1-2001.
+	 */
+	for (end = beg; ++end < len && inword(p[end]););
 
 	vip = VIP(sp);
-	len = (end - beg);
-	BINC_RET(sp, vip->keyw, vip->klen, len);
-	memmove(vip->keyw, p + beg, len);
+	vip->klen = len = (end - beg);
+	BINC_RETW(sp, vip->keyw, vip->keywlen, len+1);
+	MEMMOVE(vip->keyw, p + beg, len);
 	vip->keyw[len] = '\0';				/* XXX */
 	return (0);
 }
@@ -1092,10 +1092,10 @@ v_keyword(sp)
  *	Check for a command alias.
  */
 static VIKEYS const *
-v_alias(sp, vp, kp)
-	SCR *sp;
-	VICMD *vp;
-	VIKEYS const *kp;
+v_alias(
+	SCR *sp,
+	VICMD *vp,
+	VIKEYS const *kp)
 {
 	CHAR_T push;
 
@@ -1128,10 +1128,10 @@ v_alias(sp, vp, kp)
  *	Return the next count.
  */
 static int
-v_count(sp, fkey, countp)
-	SCR *sp;
-	ARG_CHAR_T fkey;
-	u_long *countp;
+v_count(
+	SCR *sp,
+	ARG_CHAR_T fkey,
+	u_long *countp)
 {
 	EVENT ev;
 	u_long count, tc;
@@ -1150,7 +1150,7 @@ v_count(sp, fkey, countp)
 				if (v_key(sp, 0, &ev,
 				    EC_MAPCOMMAND | EC_MAPNODIGIT) != GC_OK)
 					return (1);
-			} while (isdigit(ev.e_c));
+			} while (ISDIGIT(ev.e_c));
 			msgq(sp, M_ERR,
 			    "235|Number larger than %lu", ULONG_MAX);
 			return (1);
@@ -1158,7 +1158,7 @@ v_count(sp, fkey, countp)
 		count = tc;
 		if (v_key(sp, 0, &ev, EC_MAPCOMMAND | EC_MAPNODIGIT) != GC_OK)
 			return (1);
-	} while (isdigit(ev.e_c));
+	} while (ISDIGIT(ev.e_c));
 	*countp = count;
 	return (0);
 }
@@ -1168,11 +1168,11 @@ v_count(sp, fkey, countp)
  *	Return the next event.
  */
 static gcret_t
-v_key(sp, command_events, evp, ec_flags)
-	SCR *sp;
-	int command_events;
-	EVENT *evp;
-	u_int32_t ec_flags;
+v_key(
+	SCR *sp,
+	int command_events,
+	EVENT *evp,
+	u_int32_t ec_flags)
 {
 	u_int32_t quote;
 
@@ -1216,10 +1216,6 @@ v_key(sp, command_events, evp, ec_flags)
 			break;
 		case E_WRESIZE:
 			return (GC_ERR);
-		case E_QUIT:
-		case E_WRITE:
-			if (command_events)
-				return (GC_EVENT);
 			/* FALLTHROUGH */
 		default:
 			v_event_err(sp, evp);
@@ -1235,13 +1231,13 @@ v_key(sp, command_events, evp, ec_flags)
  *	Log the contents of the command structure.
  */
 static void
-v_comlog(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_comlog(
+	SCR *sp,
+	VICMD *vp)
 {
-	TRACE(sp, "vcmd: %c", vp->key);
+	TRACE(sp, "vcmd: "WC, vp->key);
 	if (F_ISSET(vp, VC_BUFFER))
-		TRACE(sp, " buffer: %c", vp->buffer);
+		TRACE(sp, " buffer: "WC, vp->buffer);
 	if (F_ISSET(vp, VC_C1SET))
 		TRACE(sp, " c1: %lu", vp->count);
 	if (F_ISSET(vp, VC_C2SET))

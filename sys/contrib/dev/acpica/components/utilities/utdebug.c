@@ -216,7 +216,7 @@ AcpiDebugPrint (
      * Display the module name, current line number, thread ID (if requested),
      * current procedure nesting level, and the current procedure name
      */
-    AcpiOsPrintf ("%8s-%04ld ", ModuleName, LineNumber);
+    AcpiOsPrintf ("%9s-%04ld ", ModuleName, LineNumber);
 
     if (ACPI_LV_THREADS & AcpiDbgLevel)
     {

@@ -43,6 +43,12 @@
 
 #include "assym.s"
 
+#ifdef SMP
+#define LK	lock ;
+#else
+#define LK
+#endif
+
 /*
  * I/O Interrupt Entry Point.  Rather than having one entry point for
  * each interrupt source, we use one entry point for each 32-bit word
@@ -128,11 +134,107 @@ IDTVEC(errorint)
 	MEXITCOUNT
 	jmp	doreti
 
+#ifdef XENHVM
+/*
+ * Xen event channel upcall interrupt handler.
+ * Only used when the hypervisor supports direct vector callbacks.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(xen_intr_upcall)
+	PUSH_FRAME
+	FAKE_MCOUNT(TF_RIP(%rsp))
+	movq	%rsp, %rdi
+	call	xen_intr_handle_upcall
+	MEXITCOUNT
+	jmp	doreti
+#endif
+
 #ifdef SMP
 /*
  * Global address space TLB shootdown.
  */
 	.text
+
+#define	NAKE_INTR_CS	24
+
+	SUPERALIGN_TEXT
+global_invltlb:
+	movq	%cr4,%rax
+	andq	$~0x80,%rax	/* PGE */
+	movq	%rax,%cr4
+	orq	$0x80,%rax
+	movq	%rax,%cr4
+invltlb_ret_clear_pm_save:
+	movq	smp_tlb_pmap,%rdx
+	testq	%rdx,%rdx
+	jz	invltlb_ret_rdx
+	testb	$SEL_RPL_MASK,NAKE_INTR_CS(%rsp)
+	jz	1f
+	swapgs
+1:
+	movl	PCPU(CPUID),%eax
+	jz	2f
+	swapgs
+2:
+	LK btcl	%eax,PM_SAVE(%rdx)
+	SUPERALIGN_TEXT
+invltlb_ret_rdx:
+	popq	%rdx
+invltlb_ret_rax:
+	movq	lapic, %rax
+	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
+	LK incl	smp_tlb_wait
+	popq	%rax
+	jmp	doreti_iret
+
+	SUPERALIGN_TEXT
+IDTVEC(invltlb_pcid)
+#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
+	PUSH_FRAME
+	movl	PCPU(CPUID), %eax
+#ifdef COUNT_XINVLTLB_HITS
+	incl	xhits_gbl(,%rax,4)
+#endif
+#ifdef COUNT_IPIS
+	movq	ipi_invltlb_counts(,%rax,8),%rax
+	incq	(%rax)
+#endif
+	POP_FRAME
+#endif
+
+	pushq	%rax
+	pushq	%rdx
+
+	movq	%cr3,%rax
+
+	movq	$smp_tlb_invpcid,%rdx
+	cmpl	$0,(%rdx)
+	je	global_invltlb
+	cmpl	$-1,(%rdx)
+	je	global_invltlb
+
+	/*
+	 * Only invalidate TLB for entries with current PCID.
+	 */
+	cmpl	$0,invpcid_works
+	je	1f
+	/* Use invpcid if available. */
+	movl	$1,%eax /* INVPCID_CTX */
+	/* invpcid (%rdx),%rax */
+	.byte 0x66,0x0f,0x38,0x82,0x02
+	jmp	invltlb_ret_clear_pm_save
+1:
+	/* Otherwise reload %cr3 twice. */
+	movq	pcid_cr3,%rdx
+	cmpq	%rax,%rdx
+	je	2f
+	movq	%rdx,%cr3	/* Invalidate, bit 63 is zero. */
+	btsq	$63,%rax
+2:
+	movq	%rax,%cr3
+	jmp	invltlb_ret_clear_pm_save
+
 	SUPERALIGN_TEXT
 IDTVEC(invltlb)
 #if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
@@ -149,23 +251,77 @@ IDTVEC(invltlb)
 #endif
 
 	pushq	%rax
-
 	movq	%cr3, %rax		/* invalidate the TLB */
 	movq	%rax, %cr3
-
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
-
-	lock
-	incl	smp_tlb_wait
-
-	popq	%rax
-	jmp	doreti_iret
+	jmp	invltlb_ret_rax
 
 /*
  * Single page TLB shootdown
  */
 	.text
+	SUPERALIGN_TEXT
+IDTVEC(invlpg_pcid)
+#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
+	PUSH_FRAME
+	movl	PCPU(CPUID), %eax
+#ifdef COUNT_XINVLTLB_HITS
+	incl	xhits_pg(,%rax,4)
+#endif
+#ifdef COUNT_IPIS
+	movq	ipi_invlpg_counts(,%rax,8),%rax
+	incq	(%rax)
+#endif
+	POP_FRAME
+#endif
+
+	pushq	%rax
+	pushq	%rdx
+	movq	$smp_tlb_invpcid,%rdx
+	cmpl	$0,invpcid_works
+	jne	2f
+
+	/* kernel pmap - use invlpg to invalidate global mapping */
+	cmpl	$0,(%rdx)
+	je	3f
+	cmpl	$-1,(%rdx)
+	je	global_invltlb
+
+	/*
+	 * PCID supported, but INVPCID is not.
+	 * Temporarily switch to the target address space and do INVLPG.
+	 */
+	pushq	%rcx
+	movq	%cr3,%rcx
+	movq	pcid_cr3,%rax
+	cmp	%rcx,%rax
+	je	1f
+	btsq	$63,%rax
+	movq	%rax,%cr3
+1:	movq	8(%rdx),%rax
+	invlpg	(%rax)
+	btsq	$63,%rcx
+	movq	%rcx,%cr3
+	popq	%rcx
+	jmp	invltlb_ret_rdx
+
+	/*
+	 * Invalidate the TLB entry using INVPCID_ADDR.
+	 */
+2:
+	xorl	%eax,%eax
+/*	invpcid	(%rdx),%rax */
+	.byte	0x66,0x0f,0x38,0x82,0x02
+	jmp	invltlb_ret_rdx
+
+	/*
+	 * PCID is not supported or kernel pmap.
+	 * Invalidate single page using INVLPG.
+	 */
+3:
+	movq	8(%rdx),%rax
+	invlpg	(%rax)
+	jmp	invltlb_ret_rdx
+
 	SUPERALIGN_TEXT
 IDTVEC(invlpg)
 #if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
@@ -182,18 +338,9 @@ IDTVEC(invlpg)
 #endif
 
 	pushq	%rax
-
-	movq	smp_tlb_addr1, %rax
+	movq	smp_tlb_invpcid+8,%rax
 	invlpg	(%rax)			/* invalidate single page */
-
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
-
-	lock
-	incl	smp_tlb_wait
-
-	popq	%rax
-	jmp	doreti_iret
+	jmp	invltlb_ret_rax
 
 /*
  * Page range TLB shootdown.
@@ -216,23 +363,66 @@ IDTVEC(invlrng)
 
 	pushq	%rax
 	pushq	%rdx
+	movq	$smp_tlb_invpcid,%rdx
+	cmpl	$0,pmap_pcid_enabled
+	je	invlrng_single_page
 
-	movq	smp_tlb_addr1, %rdx
-	movq	smp_tlb_addr2, %rax
+	/* kernel pmap - use invlpg to invalidate global mapping */
+	cmpl	$0,(%rdx)
+	je	invlrng_single_page
+	cmpl	$-1,(%rdx)
+	je	global_invltlb
+	cmpl	$0,invpcid_works
+	jne	invlrng_invpcid
+
+	pushq	%rcx
+	movq	%cr3,%rcx
+	movq	pcid_cr3,%rax
+	cmpq	%rcx,%rax
+	je	1f
+	btsq	$63,%rax
+	movq	%rax,%cr3
+1:
+	movq	8(%rdx),%rdx
+	movq	smp_tlb_addr2,%rax
+2:
+	invlpg	(%rdx)
+	addq	$PAGE_SIZE,%rdx
+	cmpq	%rax,%rdx
+	jb	2b
+	btsq	$63,%rcx
+	movq	%rcx,%cr3
+	popq	%rcx
+	jmp	invltlb_ret_rdx
+
+invlrng_invpcid:
+	pushq	%rcx
+	subq	$16,%rsp
+	movq	(%rdx),%rcx
+	movq	%rcx,(%rsp)
+	movq	8(%rdx),%rax
+	movq	%rax,8(%rsp)
+	movq	smp_tlb_addr2,%rcx
+	subq	%rax,%rcx
+	shrq	$PAGE_SHIFT,%rcx
+1:
+//	invpcid	(%rdx),%rax
+	.byte	0x66,0x0f,0x38,0x82,0x02
+	addq	$PAGE_SIZE,8(%rsp)
+	dec	%rcx
+	jne	1b
+	addq	$16,%rsp
+	popq	%rcx
+	jmp	invltlb_ret_rdx
+
+invlrng_single_page:
+	movq	8(%rdx),%rdx
+	movq	smp_tlb_addr2,%rax
 1:	invlpg	(%rdx)			/* invalidate single page */
-	addq	$PAGE_SIZE, %rdx
-	cmpq	%rax, %rdx
+	addq	$PAGE_SIZE,%rdx
+	cmpq	%rax,%rdx
 	jb	1b
-
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
-
-	lock
-	incl	smp_tlb_wait
-
-	popq	%rdx
-	popq	%rax
-	jmp	doreti_iret
+	jmp	invltlb_ret_rdx
 
 /*
  * Invalidate cache.
@@ -249,17 +439,8 @@ IDTVEC(invlcache)
 #endif
 
 	pushq	%rax
-
 	wbinvd
-
-	movq	lapic, %rax
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
-
-	lock
-	incl	smp_tlb_wait
-
-	popq	%rax
-	jmp	doreti_iret
+	jmp	invltlb_ret_rax
 
 /*
  * Handler for IPIs sent via the per-cpu IPI bitmap.

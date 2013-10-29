@@ -10,30 +10,24 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)msg.c	10.48 (Berkeley) 9/15/96";
+static const char sccsid[] = "$Id: msg.c,v 11.0 2012/10/17 06:34:37 zy Exp $";
 #endif /* not lint */
 
-#include <sys/param.h>
-#include <sys/types.h>		/* XXX: param.h may not have included types.h */
+#include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 
 #include <bitstring.h>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <locale.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #include "common.h"
 #include "../vi/vi.h"
@@ -45,15 +39,11 @@ static const char sccsid[] = "@(#)msg.c	10.48 (Berkeley) 9/15/96";
  * PUBLIC: void msgq __P((SCR *, mtype_t, const char *, ...));
  */
 void
-#ifdef __STDC__
-msgq(SCR *sp, mtype_t mt, const char *fmt, ...)
-#else
-msgq(sp, mt, fmt, va_alist)
-	SCR *sp;
-	mtype_t mt;
-        const char *fmt;
-        va_dcl
-#endif
+msgq(
+	SCR *sp,
+	mtype_t mt,
+	const char *fmt,
+	...)
 {
 #ifndef NL_ARGMAX
 #define	__NL_ARGMAX	20		/* Set to 9 by System V. */
@@ -66,12 +56,17 @@ msgq(sp, mt, fmt, va_alist)
 	} str[__NL_ARGMAX];
 #endif
 	static int reenter;		/* STATIC: Re-entrancy check. */
-	CHAR_T ch;
 	GS *gp;
-	size_t blen, cnt1, cnt2, len, mlen, nlen, soff;
-	const char *p, *t, *u;
-	char *bp, *mp, *rbp, *s_rbp;
+	size_t blen, len, mlen, nlen;
+	const char *p;
+	char *bp, *mp;
         va_list ap;
+#ifndef NL_ARGMAX
+	int ch;
+	char *rbp, *s_rbp;
+	const char *t, *u;
+	size_t cnt1, cnt2, soff;
+#endif
 
 	/*
 	 * !!!
@@ -130,7 +125,7 @@ retry:		FREE_SPACE(sp, bp, blen);
 	}
 	bp = NULL;
 	blen = 0;
-	GET_SPACE_GOTO(sp, bp, blen, nlen);
+	GET_SPACE_GOTOC(sp, bp, blen, nlen);
 
 	/*
 	 * Error prefix.
@@ -157,8 +152,12 @@ retry:		FREE_SPACE(sp, bp, blen);
 	 */
 	if ((mt == M_ERR || mt == M_SYSERR) &&
 	    sp != NULL && gp != NULL && gp->if_name != NULL) {
-		for (p = gp->if_name; *p != '\0'; ++p) {
-			len = snprintf(mp, REM, "%s", KEY_NAME(sp, *p));
+		CHAR_T *wp;
+		size_t wlen;
+
+		CHAR2INT(sp, gp->if_name, strlen(gp->if_name) + 1, wp, wlen);
+		for (; *wp != '\0'; ++wp) {
+			len = snprintf(mp, REM, "%s", KEY_NAME(sp, *wp));
 			mp += len;
 			if ((mlen += len) > blen)
 				goto retry;
@@ -272,12 +271,10 @@ retry:		FREE_SPACE(sp, bp, blen);
 	fmt = rbp;
 #endif
 
+#ifndef NL_ARGMAX
 format:	/* Format the arguments into the string. */
-#ifdef __STDC__
-        va_start(ap, fmt);
-#else
-        va_start(ap);
 #endif
+        va_start(ap, fmt);
 	len = vsnprintf(mp, REM, fmt, ap);
 	va_end(ap);
 	if (len >= nlen)
@@ -347,28 +344,56 @@ nofmt:	mp += len;
 		(void)fprintf(stderr, "%.*s", (int)mlen, bp);
 
 	/* Cleanup. */
-ret:	FREE_SPACE(sp, bp, blen);
+#ifndef NL_ARGMAX
+ret:
+#endif
+	FREE_SPACE(sp, bp, blen);
 alloc_err:
 	reenter = 0;
+}
+
+/*
+ * msgq_wstr --
+ *	Display a message with an embedded string.
+ *
+ * PUBLIC: void msgq_wstr __P((SCR *, mtype_t, const CHAR_T *, const char *));
+ */
+void
+msgq_wstr(
+	SCR *sp,
+	mtype_t mtype,
+	const CHAR_T *str,
+	const char *fmt)
+{
+	size_t nlen;
+	CONST char *nstr;
+
+	if (str == NULL) {
+		msgq(sp, mtype, "%s", fmt);
+		return;
+	}
+	INT2CHAR(sp, str, STRLEN(str) + 1, nstr, nlen);
+	msgq_str(sp, mtype, nstr, fmt);
 }
 
 /*
  * msgq_str --
  *	Display a message with an embedded string.
  *
- * PUBLIC: void msgq_str __P((SCR *, mtype_t, char *, char *));
+ * PUBLIC: void msgq_str __P((SCR *, mtype_t, const char *, const char *));
  */
 void
-msgq_str(sp, mtype, str, fmt)
-	SCR *sp;
-	mtype_t mtype;
-	char *str, *fmt;
+msgq_str(
+	SCR *sp,
+	mtype_t mtype,
+	const char *str,
+	const char *fmt)
 {
 	int nf, sv_errno;
 	char *p;
 
 	if (str == NULL) {
-		msgq(sp, mtype, fmt);
+		msgq(sp, mtype, "%s", fmt);
 		return;
 	}
 
@@ -401,8 +426,7 @@ msgq_str(sp, mtype, str, fmt)
  * PUBLIC: void mod_rpt __P((SCR *));
  */
 void
-mod_rpt(sp)
-	SCR *sp;
+mod_rpt(SCR *sp)
 {
 	static char * const action[] = {
 		"293|added",
@@ -461,7 +485,7 @@ mod_rpt(sp)
 	}
 
 	/* Build and display the message. */
-	GET_SPACE_GOTO(sp, bp, blen, sizeof(action) * MAXNUM + 1);
+	GET_SPACE_GOTOC(sp, bp, blen, sizeof(action) * MAXNUM + 1);
 	for (p = bp, first = 1, tlen = 0,
 	    ap = action, cnt = 0; cnt < ARSIZE(action); ++ap, ++cnt)
 		if (sp->rptlines[cnt] != 0) {
@@ -512,27 +536,32 @@ alloc_err:
  * PUBLIC: void msgq_status __P((SCR *, recno_t, u_int));
  */
 void
-msgq_status(sp, lno, flags)
-	SCR *sp;
-	recno_t lno;
-	u_int flags;
+msgq_status(
+	SCR *sp,
+	recno_t lno,
+	u_int flags)
 {
-	static int poisoned;
 	recno_t last;
 	size_t blen, len;
 	int cnt, needsep;
 	const char *t;
-	char **ap, *bp, *np, *p, *s;
+	char **ap, *bp, *np, *p, *s, *ep;
+	CHAR_T *wp;
+	size_t wlen;
 
 	/* Get sufficient memory. */
 	len = strlen(sp->frp->name);
-	GET_SPACE_GOTO(sp, bp, blen, len * MAX_CHARACTER_COLUMNS + 128);
+	GET_SPACE_GOTOC(sp, bp, blen, len * MAX_CHARACTER_COLUMNS + 128);
 	p = bp;
+	ep = bp + blen;
+
+	/* Convert the filename. */
+	CHAR2INT(sp, sp->frp->name, len + 1, wp, wlen);
 
 	/* Copy in the filename. */
-	for (p = bp, t = sp->frp->name; *t != '\0'; ++t) {
-		len = KEY_LEN(sp, *t);
-		memcpy(p, KEY_NAME(sp, *t), len);
+	for (; *wp != '\0'; ++wp) {
+		len = KEY_LEN(sp, *wp);
+		memcpy(p, KEY_NAME(sp, *wp), len);
 		p += len;
 	}
 	np = p;
@@ -543,7 +572,7 @@ msgq_status(sp, lno, flags)
 	if (F_ISSET(sp, SC_STATUS_CNT) && sp->argv != NULL) {
 		for (cnt = 0, ap = sp->argv; *ap != NULL; ++ap, ++cnt);
 		if (cnt > 1) {
-			(void)sprintf(p,
+			(void)snprintf(p, ep - p,
 			    msg_cat(sp, "317|%d files to edit", NULL), cnt);
 			p += strlen(p);
 			*p++ = ':';
@@ -617,18 +646,18 @@ msgq_status(sp, lno, flags)
 			memcpy(p, t, len);
 			p += len;
 		} else {
-			t = msg_cat(sp, "027|line %lu of %lu [%lu%%]", &len);
-			(void)sprintf(p, t, (u_long)lno, (u_long)last,
-			    (u_long)(lno * 100) / last);
+			t = msg_cat(sp, "027|line %lu of %lu [%ld%%]", &len);
+			(void)snprintf(p, ep - p, t, lno, last,
+			    ((u_long)lno * 100) / last);
 			p += strlen(p);
 		}
 	} else {
 		t = msg_cat(sp, "029|line %lu", &len);
-		(void)sprintf(p, t, (u_long)lno);
+		(void)snprintf(p, ep - p, t, (u_long)lno);
 		p += strlen(p);
 	}
 #ifdef DEBUG
-	(void)sprintf(p, " (pid %lu)", (u_long)getpid());
+	(void)snprintf(p, ep - p, " (pid %lu)", (u_long)getpid());
 	p += strlen(p);
 #endif
 	*p++ = '\n';
@@ -679,9 +708,9 @@ alloc_err:
  * PUBLIC: int msg_open __P((SCR *, char *));
  */
 int
-msg_open(sp, file)
-	SCR *sp;
-	char *file;
+msg_open(
+	SCR *sp,
+	char *file)
 {
 	/*
 	 * !!!
@@ -693,54 +722,50 @@ msg_open(sp, file)
 	 * message will be repeated every time nvi is started up.
 	 */
 	static int first = 1;
-	DB *db;
-	DBT data, key;
-	recno_t msgno;
-	char *p, *t, buf[MAXPATHLEN];
+	nl_catd catd;
+	char *p;
+	int rval = 0;
 
-	if ((p = strrchr(file, '/')) != NULL && p[1] == '\0' &&
-	    ((t = getenv("LC_MESSAGES")) != NULL && t[0] != '\0' ||
-	    (t = getenv("LANG")) != NULL && t[0] != '\0')) {
-		(void)snprintf(buf, sizeof(buf), "%s%s", file, t);
-		p = buf;
-	} else
-		p = file;
-	if ((db = dbopen(p,
-	    O_NONBLOCK | O_RDONLY, 0, DB_RECNO, NULL)) == NULL) {
-		if (first) {
-			first = 0;
+	if ((p = strrchr(file, '/')) != NULL && p[1] == '\0') {
+		/* Confirms to XPG4. */
+		if ((p = join(file, setlocale(LC_MESSAGES, NULL))) == NULL) {
+			msgq(sp, M_SYSERR, NULL);
 			return (1);
 		}
-		msgq_str(sp, M_SYSERR, p, "%s");
-		return (1);
+	} else {
+		/* Make sure it's recognized as a path by catopen(3). */
+		if ((p = join(".", file)) == NULL) {
+			msgq(sp, M_SYSERR, NULL);
+			return (1);
+		}
 	}
-
-	/*
-	 * Test record 1 for the magic string.  The msgq call is here so
-	 * the message catalog build finds it.
-	 */
-#define	VMC	"VI_MESSAGE_CATALOG"
-	key.data = &msgno;
-	key.size = sizeof(recno_t);
-	msgno = 1;
-	if (db->get(db, &key, &data, 0) != 0 ||
-	    data.size != sizeof(VMC) - 1 ||
-	    memcmp(data.data, VMC, sizeof(VMC) - 1)) {
-		(void)db->close(db);
+	errno = 0;
+	if ((catd = catopen(p, NL_CAT_LOCALE)) == (nl_catd)-1) {
 		if (first) {
 			first = 0;
-			return (1);
+			rval = 1;
+			goto ret;
 		}
-		msgq_str(sp, M_ERR, p,
-		    "030|The file %s is not a message catalog");
-		return (1);
+
+		/*
+		 * POSIX.1-2008 gives no instruction on how to report a
+		 * corrupt catalog file.  Errno == 0 is not rare; add
+		 * EFTYPE, which is seen on FreeBSD, for a good measure.
+		 */
+		if (errno == 0 || errno == EFTYPE)
+			msgq_str(sp, M_ERR, p,
+			    "030|The file %s is not a message catalog");
+		else
+			msgq_str(sp, M_SYSERR, p, "%s");
+		rval = 1;
+		goto ret;
 	}
 	first = 0;
 
-	if (sp->gp->msg != NULL)
-		(void)sp->gp->msg->close(sp->gp->msg);
-	sp->gp->msg = db;
-	return (0);
+	msg_close(sp->gp);
+	sp->gp->catd = catd;
+ret:	free(p);
+	return (rval);
 }
 
 /*
@@ -750,11 +775,10 @@ msg_open(sp, file)
  * PUBLIC: void msg_close __P((GS *));
  */
 void
-msg_close(gp)
-	GS *gp;
+msg_close(GS *gp)
 {
-	if (gp->msg != NULL)
-		(void)gp->msg->close(gp->msg);
+	if (gp->catd != (nl_catd)-1)
+		(void)catclose(gp->catd);
 }
 
 /*
@@ -764,10 +788,10 @@ msg_close(gp)
  * PUBLIC: const char *msg_cmsg __P((SCR *, cmsg_t, size_t *));
  */
 const char *
-msg_cmsg(sp, which, lenp)
-	SCR *sp;
-	cmsg_t which;
-	size_t *lenp;
+msg_cmsg(
+	SCR *sp,
+	cmsg_t which,
+	size_t *lenp)
 {
 	switch (which) {
 	case CMSG_CONF:
@@ -802,14 +826,14 @@ msg_cmsg(sp, which, lenp)
  * PUBLIC: const char *msg_cat __P((SCR *, const char *, size_t *));
  */
 const char *
-msg_cat(sp, str, lenp)
-	SCR *sp;
-	const char *str;
-	size_t *lenp;
+msg_cat(
+	SCR *sp,
+	const char *str,
+	size_t *lenp)
 {
 	GS *gp;
-	DBT data, key;
-	recno_t msgno;
+	char *p;
+	int msgno;
 
 	/*
 	 * If it's not a catalog message, i.e. has doesn't have a leading
@@ -817,28 +841,16 @@ msg_cat(sp, str, lenp)
 	 */
 	if (isdigit(str[0]) &&
 	    isdigit(str[1]) && isdigit(str[2]) && str[3] == '|') {
-		key.data = &msgno;
-		key.size = sizeof(recno_t);
 		msgno = atoi(str);
-
-		/*
-		 * XXX
-		 * Really sleazy hack -- we put an extra character on the
-		 * end of the format string, and then we change it to be
-		 * the nul termination of the string.  There ought to be
-		 * a better way.  Once we can allocate multiple temporary
-		 * memory buffers, maybe we can use one of them instead.
-		 */
-		gp = sp == NULL ? NULL : sp->gp;
-		if (gp != NULL && gp->msg != NULL &&
-		    gp->msg->get(gp->msg, &key, &data, 0) == 0 &&
-		    data.size != 0) {
-			if (lenp != NULL)
-				*lenp = data.size - 1;
-			((char *)data.data)[data.size - 1] = '\0';
-			return (data.data);
-		}
 		str = &str[4];
+
+		gp = sp == NULL ? NULL : sp->gp;
+		if (gp != NULL && gp->catd != (nl_catd)-1 &&
+		    (p = catgets(gp->catd, 1, msgno, str)) != NULL) {
+			if (lenp != NULL)
+				*lenp = strlen(p);
+			return (p);
+		}
 	}
 	if (lenp != NULL)
 		*lenp = strlen(str);
@@ -852,19 +864,22 @@ msg_cat(sp, str, lenp)
  * PUBLIC: char *msg_print __P((SCR *, const char *, int *));
  */
 char *
-msg_print(sp, s, needfree)
-	SCR *sp;
-	const char *s;
-	int *needfree;
+msg_print(
+	SCR *sp,
+	const char *s,
+	int *needfree)
 {
 	size_t blen, nlen;
-	const char *cp;
 	char *bp, *ep, *p, *t;
+	CHAR_T *wp, *cp;
+	size_t wlen;
 
 	*needfree = 0;
 
-	for (cp = s; *cp != '\0'; ++cp)
-		if (!isprint(*cp))
+	/* XXX Not good for debugging ex_read & ex_filter.*/
+	CHAR2INT5(sp, EXP(sp)->ibcw, (char *)s, strlen(s) + 1, wp, wlen);
+	for (cp = wp; *cp != '\0'; ++cp)
+		if (!ISPRINT(*cp))
 			break;
 	if (*cp == '\0')
 		return ((char *)s);	/* SAFE: needfree set to 0. */
@@ -875,21 +890,21 @@ retry:		if (sp == NULL)
 			free(bp);
 		else
 			FREE_SPACE(sp, bp, blen);
-		needfree = 0;
+		*needfree = 0;
 	}
 	nlen += 256;
 	if (sp == NULL) {
 		if ((bp = malloc(nlen)) == NULL)
 			goto alloc_err;
 	} else
-		GET_SPACE_GOTO(sp, bp, blen, nlen);
+		GET_SPACE_GOTOC(sp, bp, blen, nlen);
 	if (0) {
 alloc_err:	return ("");
 	}
 	*needfree = 1;
 
-	for (p = bp, ep = (bp + blen) - 1, cp = s; *cp != '\0' && p < ep; ++cp)
-		for (t = KEY_NAME(sp, *cp); *t != '\0' && p < ep; *p++ = *t++);
+	for (p = bp, ep = (bp + blen) - 1; *wp != '\0' && p < ep; ++wp)
+		for (t = KEY_NAME(sp, *wp); *t != '\0' && p < ep; *p++ = *t++);
 	if (p == ep)
 		goto retry;
 	*p = '\0';

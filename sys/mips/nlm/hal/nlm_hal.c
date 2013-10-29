@@ -75,7 +75,10 @@ nlm_get_device_frequency(uint64_t sysbase, int devtype)
 	dfsdiv = ((div_val >> (devtype << 2)) & 0xf) + 1;
 	spf = (pllctrl >> 3 & 0x7f) + 1;
 	spr = (pllctrl >> 1 & 0x03) + 1;
-	extra_div = nlm_is_xlp8xx_ax() ? 1 : 2;
+	if (devtype == DFS_DEVICE_NAE && !nlm_is_xlp8xx_ax())
+		extra_div = 2;
+	else
+		extra_div = 1;
 
 	return ((400 * spf) / (3 * extra_div * spr * dfsdiv));
 }

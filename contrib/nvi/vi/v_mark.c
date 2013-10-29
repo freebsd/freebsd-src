@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_mark.c	10.8 (Berkeley) 9/20/96";
+static const char sccsid[] = "$Id: v_mark.c,v 10.12 2001/06/25 15:19:32 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -25,6 +25,9 @@ static const char sccsid[] = "@(#)v_mark.c	10.8 (Berkeley) 9/20/96";
 #include "../common/common.h"
 #include "vi.h"
 
+enum which {BQMARK, FQMARK};
+static int mark __P((SCR *, VICMD *, int, enum which));
+
 /*
  * v_mark -- m[a-z]
  *	Set a mark.
@@ -32,16 +35,10 @@ static const char sccsid[] = "@(#)v_mark.c	10.8 (Berkeley) 9/20/96";
  * PUBLIC: int v_mark __P((SCR *, VICMD *));
  */
 int
-v_mark(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_mark(SCR *sp, VICMD *vp)
 {
 	return (mark_set(sp, vp->character, &vp->m_start, 1));
 }
-
-enum which {BQMARK, FQMARK};
-static int mark __P((SCR *, VICMD *, enum which));
-
 
 /*
  * v_bmark -- `['`a-z]
@@ -59,11 +56,9 @@ static int mark __P((SCR *, VICMD *, enum which));
  * PUBLIC: int v_bmark __P((SCR *, VICMD *));
  */
 int
-v_bmark(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_bmark(SCR *sp, VICMD *vp)
 {
-	return (mark(sp, vp, BQMARK));
+	return (mark(sp, vp, 1, BQMARK));
 }
 
 /*
@@ -75,11 +70,31 @@ v_bmark(sp, vp)
  * PUBLIC: int v_fmark __P((SCR *, VICMD *));
  */
 int
-v_fmark(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_fmark(SCR *sp, VICMD *vp)
 {
-	return (mark(sp, vp, FQMARK));
+	return (mark(sp, vp, 1, FQMARK));
+}
+
+/*
+ * v_emark -- <mouse click>
+ *	Mouse mark.
+ *
+ * PUBLIC: int v_emark __P((SCR *, VICMD *));
+ */
+int
+v_emark(SCR *sp, VICMD *vp)
+{
+	SMAP *smp;
+
+	smp = HMAP + vp->ev.e_lno;
+	if (smp > TMAP) {
+		msgq(sp, M_BERR, "320|Unknown cursor position.");
+		return (1);
+	}
+	vp->m_stop.lno = smp->lno;
+	vp->m_stop.cno =
+	    vs_colpos(sp, smp->lno, vp->ev.e_cno + (smp->soff - 1) * sp->cols);
+	return (mark(sp, vp, 0, BQMARK));
 }
 
 /*
@@ -87,16 +102,13 @@ v_fmark(sp, vp)
  *	Mark commands.
  */
 static int
-mark(sp, vp, cmd)
-	SCR *sp;
-	VICMD *vp;
-	enum which cmd;
+mark(SCR *sp, VICMD *vp, int getmark, enum which cmd)
 {
 	dir_t dir;
 	MARK m;
 	size_t len;
 
-	if (mark_get(sp, vp->character, &vp->m_stop, M_BERR))
+	if (getmark && mark_get(sp, vp->character, &vp->m_stop, M_BERR))
 		return (1);
 
 	/*
@@ -111,7 +123,7 @@ mark(sp, vp, cmd)
 		if (db_get(sp, vp->m_stop.lno, DBG_FATAL, NULL, &len))
 			return (1);
 		if (vp->m_stop.cno < len ||
-		    vp->m_stop.cno == len && len == 0)
+		    (vp->m_stop.cno == len && len == 0))
 			break;
 
 		if (ISMOTION(vp))
@@ -152,8 +164,8 @@ mark(sp, vp, cmd)
 	 * and backward motions can happen for any kind of search command.
 	 */
 	if (vp->m_start.lno > vp->m_stop.lno ||
-	    vp->m_start.lno == vp->m_stop.lno &&
-	    vp->m_start.cno > vp->m_stop.cno) {
+	    (vp->m_start.lno == vp->m_stop.lno &&
+	    vp->m_start.cno > vp->m_stop.cno)) {
 		m = vp->m_start;
 		vp->m_start = vp->m_stop;
 		vp->m_stop = m;
@@ -187,15 +199,15 @@ mark(sp, vp, cmd)
 #ifdef HISTORICAL_PRACTICE
 	if (ISCMD(vp->rkp, 'y')) {
 		if ((cmd == BQMARK ||
-		    cmd == FQMARK && vp->m_start.lno != vp->m_stop.lno) &&
+		    (cmd == FQMARK && vp->m_start.lno != vp->m_stop.lno)) &&
 		    (vp->m_start.lno > vp->m_stop.lno ||
-		    vp->m_start.lno == vp->m_stop.lno &&
-		    vp->m_start.cno > vp->m_stop.cno))
+		    (vp->m_start.lno == vp->m_stop.lno &&
+		    vp->m_start.cno > vp->m_stop.cno)))
 			vp->m_final = vp->m_stop;
 	} else if (ISCMD(vp->rkp, 'd'))
 		if (vp->m_start.lno > vp->m_stop.lno ||
-		    vp->m_start.lno == vp->m_stop.lno &&
-		    vp->m_start.cno > vp->m_stop.cno)
+		    (vp->m_start.lno == vp->m_stop.lno &&
+		    vp->m_start.cno > vp->m_stop.cno))
 			vp->m_final = vp->m_stop;
 #else
 	vp->m_final = vp->m_start;

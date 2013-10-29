@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_mkexrc.c	10.11 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: ex_mkexrc.c,v 10.13 2001/06/25 15:19:17 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -37,21 +37,21 @@ static const char sccsid[] = "@(#)ex_mkexrc.c	10.11 (Berkeley) 3/6/96";
  * PUBLIC: int ex_mkexrc __P((SCR *, EXCMD *));
  */
 int
-ex_mkexrc(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_mkexrc(SCR *sp, EXCMD *cmdp)
 {
 	struct stat sb;
 	FILE *fp;
 	int fd, sverrno;
 	char *fname;
+	size_t flen;
 
 	switch (cmdp->argc) {
 	case 0:
 		fname = _PATH_EXRC;
 		break;
 	case 1:
-		fname = cmdp->argv[0]->bp;
+		INT2CHAR(sp, cmdp->argv[0]->bp, cmdp->argv[0]->len + 1, 
+			    fname, flen);
 		set_alt_name(sp, fname);
 		break;
 	default:

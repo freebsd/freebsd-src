@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 16, 2011
+.Dd October 6, 2013
 .Dt LOCK 9
 .Os
 .Sh NAME
@@ -164,11 +164,17 @@ If an exclusive lock has been recursed, the system will
 .Xr panic 9 .
 .It Dv LK_UPGRADE
 Upgrade a shared lock to an exclusive lock.
-If this call fails, the shared lock is lost.
+If this call fails, the shared lock is lost, even if the
+.Dv LK_NOWAIT
+flag is specified.
 During the upgrade, the shared lock could
 be temporarily dropped.
 Attempts to upgrade an exclusive lock will cause a
 .Xr panic 9 .
+.It Dv LK_TRYUPGRADE
+Try to upgrade a shared lock to an exclusive lock.
+The failure to upgrade does not result in the dropping
+of the shared lock ownership.
 .It Dv LK_RELEASE
 Release the lock.
 Releasing a lock that is not held can cause a
@@ -333,7 +339,9 @@ fail if:
 was requested and another thread had already requested a lock upgrade.
 .It Bq Er EBUSY
 .Dv LK_NOWAIT
-was set, and a sleep would have been required.
+was set, and a sleep would have been required, or
+.Dv LK_TRYUPGRADE
+operation was not able to upgrade the lock.
 .It Bq Er ENOLCK
 .Dv LK_SLEEPFAIL
 was set and

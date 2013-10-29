@@ -65,12 +65,20 @@ APU_DECLARE_NONSTD(apr_bucket_alloc_t *) apr_bucket_alloc_create(apr_pool_t *p)
     /* may be NULL for debug mode. */
     if (allocator == NULL) {
         if (apr_allocator_create(&allocator) != APR_SUCCESS) {
+            apr_abortfunc_t fn = apr_pool_abort_get(p);
+            if (fn)
+                (fn)(APR_ENOMEM);
             abort();
         }
     }
 #endif
-
     list = apr_bucket_alloc_create_ex(allocator);
+    if (list == NULL) {
+            apr_abortfunc_t fn = apr_pool_abort_get(p);
+            if (fn)
+                (fn)(APR_ENOMEM);
+            abort();
+    }
     list->pool = p;
     apr_pool_cleanup_register(list->pool, list, alloc_cleanup,
                               apr_pool_cleanup_null);
@@ -131,6 +139,7 @@ APU_DECLARE_NONSTD(void *) apr_bucket_alloc(apr_size_t size,
             if (endp >= active->endp) {
                 list->blocks = apr_allocator_alloc(list->allocator, ALLOC_AMT);
                 if (!list->blocks) {
+                    list->blocks = active;
                     return NULL;
                 }
                 list->blocks->next = active;

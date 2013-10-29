@@ -574,7 +574,6 @@ static int
 fbt_ctfoff_init(modctl_t *lf, linker_ctf_t *lc)
 {
 	const Elf_Sym *symp = lc->symtab;;
-	const char *name;
 	const ctf_header_t *hp = (const ctf_header_t *) lc->ctftab;
 	const uint8_t *ctfdata = lc->ctftab + sizeof(ctf_header_t);
 	int i;
@@ -605,11 +604,6 @@ fbt_ctfoff_init(modctl_t *lf, linker_ctf_t *lc)
 			*ctfoff = 0xffffffff;
 			continue;
 		}
-
-		if (symp->st_name < lc->strcnt)
-			name = lc->strtab + symp->st_name;
-		else
-			name = "(?)";
 
 		switch (ELF_ST_TYPE(symp->st_info)) {
 		case STT_OBJECT:
@@ -1335,6 +1329,15 @@ fbt_getargdesc(void *arg __unused, dtrace_id_t id __unused, void *parg, dtrace_a
 	return;
 }
 
+static int
+fbt_linker_file_cb(linker_file_t lf, void *arg)
+{
+
+	fbt_provide_module(arg, lf);
+
+	return (0);
+}
+
 static void
 fbt_load(void *dummy)
 {
@@ -1359,8 +1362,10 @@ fbt_load(void *dummy)
 	if (dtrace_register("fbt", &fbt_attr, DTRACE_PRIV_USER,
 	    NULL, &fbt_pops, NULL, &fbt_id) != 0)
 		return;
-}
 
+	/* Create probes for the kernel and already-loaded modules. */
+	linker_file_foreach(fbt_linker_file_cb, NULL);
+}
 
 static int
 fbt_unload()

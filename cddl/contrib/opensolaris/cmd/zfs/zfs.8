@@ -19,16 +19,17 @@
 .\"
 .\" Copyright (c) 2010, Sun Microsystems, Inc. All Rights Reserved.
 .\" Copyright (c) 2012 by Delphix. All rights reserved.
-.\" Copyright (c) 2012, Joyent, Inc. All rights reserved.
 .\" Copyright (c) 2011, Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
 .\" Copyright (c) 2012, Bryan Drewery <bdrewery@FreeBSD.org>
 .\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
 .\" Copyright (c) 2013 Nexenta Systems, Inc. All Rights Reserved.
+.\" Copyright (c) 2013, Joyent, Inc. All rights reserved.
+.\" Copyright (c) 2013, Steven Hartland <smh@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 21, 2013
+.Dd October 23, 2013
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -61,7 +62,7 @@
 .Op , Ns ...
 .Sm on
 .Nm
-.Cm snapshot
+.Cm snapshot Ns | Ns Cm snap
 .Op Fl r
 .Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
 .Ar filesystem@snapname Ns | Ns Ar volume@snapname
@@ -157,7 +158,7 @@
 .Op Fl o Ar property Ns Oo , Ns Ar property Oc Ns ...
 .Fl a | Ar filesystem
 .Nm
-.Cm unmount
+.Cm unmount Ns | Ns Cm umount
 .Op Fl f
 .Fl a | Ar filesystem Ns | Ns Ar mountpoint
 .Nm
@@ -172,11 +173,11 @@
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Nm
-.Cm receive
+.Cm receive Ns | Ns Cm recv
 .Op Fl vnFu
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Nm
-.Cm receive
+.Cm receive Ns | Ns Cm recv
 .Op Fl vnFu
 .Op Fl d | e
 .Ar filesystem
@@ -891,14 +892,21 @@ command or unmounted by the
 command.
 .Pp
 This property is not inherited.
-.It Sy checksum Ns = Ns Cm on | off | fletcher2 | fletcher4 | sha256
+.It Sy checksum Ns = Ns Cm on | off | fletcher2 | fletcher4 | sha256 | noparity
 Controls the checksum used to verify data integrity. The default value is
 .Cm on ,
 which automatically selects an appropriate algorithm (currently,
 .Cm fletcher4 ,
 but this may change in future releases). The value
 .Cm off
-disables integrity checking on user data. Disabling checksums is
+disables integrity checking on user data.
+The value
+.Cm noparity
+not only
+disables integrity but also disables maintaining parity for user data.  This
+setting is used internally by a dump device residing on a RAID-Z pool and should
+not be used by any other dataset.
+Disabling checksums is
 .Em NOT
 a recommended practice.
 .It Sy compression Ns = Ns Cm on | off | lzjb | gzip | gzip- Ns Ar N | zle | Cm lz4
@@ -1646,7 +1654,7 @@ options, as they can destroy large portions of a pool and cause unexpected
 behavior for mounted file systems in use.
 .It Xo
 .Nm
-.Cm snapshot
+.Cm snapshot Ns | Ns Cm snap
 .Op Fl r
 .Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
 .Ar filesystem@snapname Ns | Ns volume@snapname
@@ -1858,7 +1866,7 @@ syntax.
 A comma-separated list of types to display, where
 .Ar type
 is one of
-.Sy filesystem , snapshot , volume , No or Sy all .
+.Sy filesystem , snapshot , snap,  volume , No or Sy all .
 For example, specifying
 .Fl t Cm snapshot
 displays only snapshots.
@@ -2187,7 +2195,7 @@ Mount the specified filesystem.
 .El
 .It Xo
 .Nm
-.Cm unmount
+.Cm unmount Ns | Ns Cm umount
 .Op Fl f
 .Fl a | Ar filesystem Ns | Ns Ar mountpoint
 .Xc
@@ -2370,13 +2378,13 @@ on future versions of
 .Tn ZFS .
 .It Xo
 .Nm
-.Cm receive
+.Cm receive Ns | Ns Cm recv
 .Op Fl vnFu
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Xc
 .It Xo
 .Nm
-.Cm receive
+.Cm receive Ns | Ns Cm recv
 .Op Fl vnFu
 .Op Fl d | e
 .Ar filesystem

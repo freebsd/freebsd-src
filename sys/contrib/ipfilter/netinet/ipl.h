@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001, 2003 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
@@ -13,8 +13,8 @@
 #ifndef	__IPL_H__
 #define	__IPL_H__
 
-#define	IPL_VERSION	"IP Filter: v4.1.28"
+#define	IPL_VERSION	"IP Filter: v5.1.2"
 
-#define	IPFILTER_VERSION	4012800
+#define	IPFILTER_VERSION	5010200
 
-#endif
+#endif	/* __IPL_H__ */

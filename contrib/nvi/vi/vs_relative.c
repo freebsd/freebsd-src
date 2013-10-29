@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)vs_relative.c	10.11 (Berkeley) 5/13/96";
+static const char sccsid[] = "$Id: vs_relative.c,v 10.19 2011/12/01 15:22:59 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -32,9 +32,7 @@ static const char sccsid[] = "@(#)vs_relative.c	10.11 (Berkeley) 5/13/96";
  * PUBLIC: int vs_column __P((SCR *, size_t *));
  */
 int
-vs_column(sp, colp)
-	SCR *sp;
-	size_t *colp;
+vs_column(SCR *sp, size_t *colp)
 {
 	VI_PRIVATE *vip;
 
@@ -55,10 +53,7 @@ vs_column(sp, colp)
  * PUBLIC: size_t vs_screens __P((SCR *, recno_t, size_t *));
  */
 size_t
-vs_screens(sp, lno, cnop)
-	SCR *sp;
-	recno_t lno;
-	size_t *cnop;
+vs_screens(SCR *sp, recno_t lno, size_t *cnop)
 {
 	size_t cols, screens;
 
@@ -98,18 +93,14 @@ vs_screens(sp, lno, cnop)
  *	Return the screen columns necessary to display the line, or,
  *	if specified, the physical character column within the line.
  *
- * PUBLIC: size_t vs_columns __P((SCR *, char *, recno_t, size_t *, size_t *));
+ * PUBLIC: size_t vs_columns __P((SCR *, CHAR_T *, recno_t, size_t *, size_t *));
  */
 size_t
-vs_columns(sp, lp, lno, cnop, diffp)
-	SCR *sp;
-	char *lp;
-	recno_t lno;
-	size_t *cnop, *diffp;
+vs_columns(SCR *sp, CHAR_T *lp, recno_t lno, size_t *cnop, size_t *diffp)
 {
-	size_t chlen, cno, curoff, last, len, scno;
+	size_t chlen, cno, curoff, last = 0, len, scno;
 	int ch, leftright, listset;
-	char *p;
+	CHAR_T *p;
 
 	/*
 	 * Initialize the screen offset.
@@ -142,11 +133,11 @@ done:		if (diffp != NULL)		/* XXX */
 	 * Initialize the pointer into the buffer and current offset.
 	 */
 	p = lp;
-	curoff = 0;
+	curoff = scno;
 
 	/* Macro to return the display length of any signal character. */
-#define	CHLEN(val) (ch = *(u_char *)p++) == '\t' &&			\
-	    !listset ? TAB_OFF(val) : KEY_LEN(sp, ch);
+#define	CHLEN(val) (ch = *(UCHAR_T *)p++) == '\t' &&			\
+	    !listset ? TAB_OFF(val) : KEY_COL(sp, ch);
 
 	/*
 	 * If folding screens (the historic vi screen format), past the end
@@ -204,10 +195,7 @@ done:		if (diffp != NULL)		/* XXX */
  * PUBLIC: size_t vs_rcm __P((SCR *, recno_t, int));
  */
 size_t
-vs_rcm(sp, lno, islast)
-	SCR *sp;
-	recno_t lno;
-	int islast;
+vs_rcm(SCR *sp, recno_t lno, int islast)
 {
 	size_t len;
 
@@ -233,14 +221,11 @@ vs_rcm(sp, lno, islast)
  * PUBLIC: size_t vs_colpos __P((SCR *, recno_t, size_t));
  */
 size_t
-vs_colpos(sp, lno, cno)
-	SCR *sp;
-	recno_t lno;
-	size_t cno;
+vs_colpos(SCR *sp, recno_t lno, size_t cno)
 {
 	size_t chlen, curoff, len, llen, off, scno;
-	int ch, leftright, listset;
-	char *lp, *p;
+	int ch = 0, leftright, listset;
+	CHAR_T *lp, *p;
 
 	/* Need the line to go any further. */
 	(void)db_get(sp, lno, 0, &lp, &llen);

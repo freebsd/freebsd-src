@@ -1837,11 +1837,13 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 	struct cdev *dev;
 	struct cdevsw *cdp;
 	struct filedesc *fdp;
+	cap_rights_t rights;
 	int error, ref;
 
 	/* Validate the file descriptor. */
 	fdp = p->p_fd;
-	error = fget_unlocked(fdp, fd, CAP_TTYHOOK, 0, &fp, NULL);
+	error = fget_unlocked(fdp, fd, cap_rights_init(&rights, CAP_TTYHOOK),
+	    0, &fp, NULL);
 	if (error != 0)
 		return (error);
 	if (fp->f_ops == &badfileops) {

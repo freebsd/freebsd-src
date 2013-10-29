@@ -6,10 +6,10 @@
 #   quite large.
 #
 
-WITHOUT_SSP=
 NO_MAN=
 
 .include <bsd.own.mk>
+MK_SSP=		no
 
 S=		${.CURDIR}/../../../../lib/libstand
 

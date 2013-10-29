@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_ex.c	10.42 (Berkeley) 6/28/96";
+static const char sccsid[] = "$Id: v_ex.c,v 10.61 2011/12/22 18:41:53 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -40,16 +40,12 @@ static int v_exec_ex __P((SCR *, VICMD *, EXCMD *));
  * PUBLIC: int v_again __P((SCR *, VICMD *));
  */
 int
-v_again(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_again(SCR *sp, VICMD *vp)
 {
-	ARGS *ap[2], a;
 	EXCMD cmd;
 
-	ex_cinit(&cmd, C_SUBAGAIN, 2, vp->m_start.lno, vp->m_start.lno, 1, ap);
-	ex_cadd(&cmd, &a, "", 1);
-
+	ex_cinit(sp, &cmd, C_SUBAGAIN, 2, vp->m_start.lno, vp->m_start.lno, 1);
+	argv_exp0(sp, &cmd, L(""), 1);
 	return (v_exec_ex(sp, vp, &cmd));
 }
 
@@ -60,9 +56,7 @@ v_again(sp, vp)
  * PUBLIC: int v_exmode __P((SCR *, VICMD *));
  */
 int
-v_exmode(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_exmode(SCR *sp, VICMD *vp)
 {
 	GS *gp;
 
@@ -98,9 +92,7 @@ v_exmode(sp, vp)
  * PUBLIC: int v_join __P((SCR *, VICMD *));
  */
 int
-v_join(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_join(SCR *sp, VICMD *vp)
 {
 	EXCMD cmd;
 	int lno;
@@ -118,7 +110,7 @@ v_join(sp, vp)
 	if (F_ISSET(vp, VC_C1SET) && vp->count > 2)
 		lno = vp->m_start.lno + (vp->count - 1);
 
-	ex_cinit(&cmd, C_JOIN, 2, vp->m_start.lno, lno, 0, NULL);
+	ex_cinit(sp, &cmd, C_JOIN, 2, vp->m_start.lno, lno, 0);
 	return (v_exec_ex(sp, vp, &cmd));
 }
 
@@ -129,15 +121,12 @@ v_join(sp, vp)
  * PUBLIC: int v_shiftl __P((SCR *, VICMD *));
  */
 int
-v_shiftl(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_shiftl(SCR *sp, VICMD *vp)
 {
-	ARGS *ap[2], a;
 	EXCMD cmd;
 
-	ex_cinit(&cmd, C_SHIFTL, 2, vp->m_start.lno, vp->m_stop.lno, 0, ap);
-	ex_cadd(&cmd, &a, "<", 1);
+	ex_cinit(sp, &cmd, C_SHIFTL, 2, vp->m_start.lno, vp->m_stop.lno, 0);
+	argv_exp0(sp, &cmd, L("<"), 2);
 	return (v_exec_ex(sp, vp, &cmd));
 }
 
@@ -148,15 +137,12 @@ v_shiftl(sp, vp)
  * PUBLIC: int v_shiftr __P((SCR *, VICMD *));
  */
 int
-v_shiftr(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_shiftr(SCR *sp, VICMD *vp)
 {
-	ARGS *ap[2], a;
 	EXCMD cmd;
 
-	ex_cinit(&cmd, C_SHIFTR, 2, vp->m_start.lno, vp->m_stop.lno, 0, ap);
-	ex_cadd(&cmd, &a, ">", 1);
+	ex_cinit(sp, &cmd, C_SHIFTR, 2, vp->m_start.lno, vp->m_stop.lno, 0);
+	argv_exp0(sp, &cmd, L(">"), 2);
 	return (v_exec_ex(sp, vp, &cmd));
 }
 
@@ -167,15 +153,12 @@ v_shiftr(sp, vp)
  * PUBLIC: int v_suspend __P((SCR *, VICMD *));
  */
 int
-v_suspend(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_suspend(SCR *sp, VICMD *vp)
 {
-	ARGS *ap[2], a;
 	EXCMD cmd;
 
-	ex_cinit(&cmd, C_STOP, 0, OOBLNO, OOBLNO, 0, ap);
-	ex_cadd(&cmd, &a, "suspend", sizeof("suspend") - 1);
+	ex_cinit(sp, &cmd, C_STOP, 0, OOBLNO, OOBLNO, 0);
+	argv_exp0(sp, &cmd, L("suspend"), SIZE(L("suspend")));
 	return (v_exec_ex(sp, vp, &cmd));
 }
 
@@ -186,13 +169,12 @@ v_suspend(sp, vp)
  * PUBLIC: int v_switch __P((SCR *, VICMD *));
  */
 int
-v_switch(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_switch(SCR *sp, VICMD *vp)
 {
-	ARGS *ap[2], a;
 	EXCMD cmd;
 	char *name;
+	CHAR_T *wp;
+	size_t wlen;
 
 	/*
 	 * Try the alternate file name, then the previous file
@@ -207,8 +189,9 @@ v_switch(sp, vp)
 	if (file_m1(sp, 0, FS_ALL))
 		return (1);
 
-	ex_cinit(&cmd, C_EDIT, 0, OOBLNO, OOBLNO, 0, ap);
-	ex_cadd(&cmd, &a, name, strlen(name));
+	ex_cinit(sp, &cmd, C_EDIT, 0, OOBLNO, OOBLNO, 0);
+	CHAR2INT(sp, name, strlen(name) + 1, wp, wlen);
+	argv_exp0(sp, &cmd, wp, wlen);
 	return (v_exec_ex(sp, vp, &cmd));
 }
 
@@ -219,20 +202,12 @@ v_switch(sp, vp)
  * PUBLIC: int v_tagpush __P((SCR *, VICMD *));
  */
 int
-v_tagpush(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_tagpush(SCR *sp, VICMD *vp)
 {
-	ARGS *ap[2], a;
 	EXCMD cmd;
 
-#ifdef GTAGS
-	if (O_ISSET(sp, O_GTAGSMODE) && vp->m_start.cno == 0)
-		ex_cinit(&cmd, C_RTAG, 0, OOBLNO, 0, 0, ap);
-	else
-#endif
-	ex_cinit(&cmd, C_TAG, 0, OOBLNO, 0, 0, ap);
-	ex_cadd(&cmd, &a, VIP(sp)->keyw, strlen(VIP(sp)->keyw));
+	ex_cinit(sp, &cmd, C_TAG, 0, OOBLNO, 0, 0);
+	argv_exp0(sp, &cmd, VIP(sp)->keyw, STRLEN(VIP(sp)->keyw) + 1);
 	return (v_exec_ex(sp, vp, &cmd));
 }
 
@@ -243,13 +218,11 @@ v_tagpush(sp, vp)
  * PUBLIC: int v_tagpop __P((SCR *, VICMD *));
  */
 int
-v_tagpop(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_tagpop(SCR *sp, VICMD *vp)
 {
 	EXCMD cmd;
 
-	ex_cinit(&cmd, C_TAGPOP, 0, OOBLNO, 0, 0, NULL);
+	ex_cinit(sp, &cmd, C_TAGPOP, 0, OOBLNO, 0, 0);
 	return (v_exec_ex(sp, vp, &cmd));
 }
 
@@ -260,9 +233,7 @@ v_tagpop(sp, vp)
  * PUBLIC: int v_filter __P((SCR *, VICMD *));
  */
 int
-v_filter(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_filter(SCR *sp, VICMD *vp)
 {
 	EXCMD cmd;
 	TEXT *tp;
@@ -288,11 +259,11 @@ v_filter(sp, vp)
 	 */
 	if (F_ISSET(vp, VC_ISDOT) ||
 	    ISCMD(vp->rkp, 'N') || ISCMD(vp->rkp, 'n')) {
-		ex_cinit(&cmd, C_BANG,
-		    2, vp->m_start.lno, vp->m_stop.lno, 0, NULL);
+		ex_cinit(sp,
+		    &cmd, C_BANG, 2, vp->m_start.lno, vp->m_stop.lno, 0);
 		EXP(sp)->argsoff = 0;			/* XXX */
 
-		if (argv_exp1(sp, &cmd, "!", 1, 1))
+		if (argv_exp1(sp, &cmd, L("!"), 1, 1))
 			return (1);
 		cmd.argc = EXP(sp)->argsoff;		/* XXX */
 		cmd.argv = EXP(sp)->args;		/* XXX */
@@ -311,7 +282,7 @@ v_filter(sp, vp)
 	 * Entering <escape> on an empty line was historically an error,
 	 * this implementation doesn't bother.
 	 */
-	tp = sp->tiq.cqh_first;
+	tp = TAILQ_FIRST(sp->tiq);
 	if (tp->term != TERM_OK) {
 		vp->m_final.lno = sp->lno;
 		vp->m_final.cno = sp->cno;
@@ -321,7 +292,7 @@ v_filter(sp, vp)
 	/* Home the cursor. */
 	vs_home(sp);
 
-	ex_cinit(&cmd, C_BANG, 2, vp->m_start.lno, vp->m_stop.lno, 0, NULL);
+	ex_cinit(sp, &cmd, C_BANG, 2, vp->m_start.lno, vp->m_stop.lno, 0);
 	EXP(sp)->argsoff = 0;			/* XXX */
 
 	if (argv_exp1(sp, &cmd, tp->lb + 1, tp->len - 1, 1))
@@ -332,40 +303,11 @@ v_filter(sp, vp)
 }
 
 /*
- * v_event_exec --
- *	Execute some command(s) based on an event.
- *
- * PUBLIC: int v_event_exec __P((SCR *, VICMD *));
- */
-int
-v_event_exec(sp, vp)
-	SCR *sp;
-	VICMD *vp;
-{
-	EXCMD cmd;
-
-	switch (vp->ev.e_event) {
-	case E_QUIT:
-		ex_cinit(&cmd, C_QUIT, 0, OOBLNO, OOBLNO, 0, NULL);
-		break;
-	case E_WRITE:
-		ex_cinit(&cmd, C_WRITE, 0, OOBLNO, OOBLNO, 0, NULL);
-		break;
-	default:
-		abort();
-	}
-	return (v_exec_ex(sp, vp, &cmd));
-}
-
-/*
  * v_exec_ex --
  *	Execute an ex command.
  */
 static int
-v_exec_ex(sp, vp, exp)
-	SCR *sp;
-	VICMD *vp;
-	EXCMD *exp;
+v_exec_ex(SCR *sp, VICMD *vp, EXCMD *exp)
 {
 	int rval;
 
@@ -380,9 +322,7 @@ v_exec_ex(sp, vp, exp)
  * PUBLIC: int v_ex __P((SCR *, VICMD *));
  */
 int
-v_ex(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_ex(SCR *sp, VICMD *vp)
 {
 	GS *gp;
 	TEXT *tp;
@@ -410,7 +350,7 @@ v_ex(sp, vp)
 			if (v_tcmd(sp, vp, ':',
 			    TXT_BS | TXT_CEDIT | TXT_FILEC | TXT_PROMPT))
 				return (1);
-			tp = sp->tiq.cqh_first;
+			tp = TAILQ_FIRST(sp->tiq);
 
 			/*
 			 * If the user entered a single <esc>, they want to
@@ -510,9 +450,7 @@ v_ex(sp, vp)
  *	Cleanup from an ex command.
  */
 static int
-v_ex_done(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_ex_done(SCR *sp, VICMD *vp)
 {
 	size_t len;
 
@@ -554,8 +492,7 @@ v_ex_done(sp, vp)
  *	Start an edit window on the colon command-line commands.
  */
 static int
-v_ecl(sp)
-	SCR *sp;
+v_ecl(SCR *sp)
 {
 	GS *gp;
 	SCR *new;
@@ -591,6 +528,11 @@ v_ecl(sp)
 	/* It's a special window. */
 	F_SET(new, SC_COMEDIT);
 
+#if defined(USE_WIDECHAR) && defined(USE_ICONV)
+	/* Bypass iconv on writing to DB. */
+	o_set(new, O_FILEENCODING, OS_STRDUP, codeset(), 0);
+#endif
+
 	/* Set up the switch. */
 	sp->nextdisp = new;
 	F_SET(sp, SC_SSWITCH);
@@ -604,11 +546,10 @@ v_ecl(sp)
  * PUBLIC: int v_ecl_exec __P((SCR *));
  */
 int
-v_ecl_exec(sp)
-	SCR *sp;
+v_ecl_exec(SCR *sp)
 {
 	size_t len;
-	char *p;
+	CHAR_T *p;
 
 	if (db_get(sp, sp->lno, 0, &p, &len) && sp->lno == 1) {
 		v_emsg(sp, NULL, VIM_EMPTY);
@@ -634,39 +575,43 @@ v_ecl_exec(sp)
  *	Log a command into the colon command-line log file.
  */
 static int
-v_ecl_log(sp, tp)
-	SCR *sp;
-	TEXT *tp;
+v_ecl_log(SCR *sp, TEXT *tp)
 {
-	EXF *save_ep;
 	recno_t lno;
 	int rval;
+	CHAR_T *p;
+	size_t len;
+	SCR *ccl_sp;
 
 	/* Initialize the screen, if necessary. */
 	if (sp->gp->ccl_sp == NULL && v_ecl_init(sp))
 		return (1);
 
+	ccl_sp = sp->gp->ccl_sp;
+
 	/*
 	 * Don't log colon command window commands into the colon command
 	 * window...
 	 */
-	if (sp->ep == sp->gp->ccl_sp->ep)
+	if (sp->ep == ccl_sp->ep)
 		return (0);
 
-	/*
-	 * XXX
-	 * Swap the current EXF with the colon command file EXF.  This
-	 * isn't pretty, but too many routines "know" that sp->ep points
-	 * to the current EXF.
-	 */
-	save_ep = sp->ep;
-	sp->ep = sp->gp->ccl_sp->ep;
-	if (db_last(sp, &lno)) {
-		sp->ep = save_ep;
+	if (db_last(ccl_sp, &lno)) {
 		return (1);
 	}
-	rval = db_append(sp, 0, lno, tp->lb, tp->len);
-	sp->ep = save_ep;
+	/* Don't log line that is identical to previous one */
+	if (lno > 0 &&
+	    !db_get(ccl_sp, lno, 0, &p, &len) &&
+	    len == tp->len &&
+	    !MEMCMP(tp->lb, p, len))
+		rval = 0;
+	else {
+		rval = db_append(ccl_sp, 0, lno, tp->lb, tp->len);
+		/* XXXX end "transaction" on ccl */
+		/* Is this still necessary now that we no longer hijack sp ? */
+		log_cursor(ccl_sp);
+	}
+
 	return (rval);
 }
 
@@ -675,8 +620,7 @@ v_ecl_log(sp, tp)
  *	Initialize the colon command-line log file.
  */
 static int
-v_ecl_init(sp)
-	SCR *sp;
+v_ecl_init(SCR *sp)
 {
 	FREF *frp;
 	GS *gp;
@@ -695,6 +639,7 @@ v_ecl_init(sp)
 		return (1);
 	if (file_init(gp->ccl_sp, frp, NULL, 0)) {
 		(void)screen_end(gp->ccl_sp);
+		gp->ccl_sp = NULL;
 		return (1);
 	}
 

@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)key.c	10.33 (Berkeley) 9/24/96";
+static const char sccsid[] = "$Id: key.c,v 10.53 2013/03/11 01:20:53 yamt Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -21,10 +21,10 @@ static const char sccsid[] = "@(#)key.c	10.33 (Berkeley) 9/24/96";
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
-#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 
 #include "common.h"
@@ -100,32 +100,15 @@ static int nkeylist =
  * PUBLIC: int v_key_init __P((SCR *));
  */
 int
-v_key_init(sp)
-	SCR *sp;
+v_key_init(SCR *sp)
 {
-	CHAR_T ch;
+	int ch;
 	GS *gp;
 	KEYLIST *kp;
 	int cnt;
 
 	gp = sp->gp;
 
-	/*
-	 * XXX
-	 * 8-bit only, for now.  Recompilation should get you any 8-bit
-	 * character set, as long as nul isn't a character.
-	 */
-	(void)setlocale(LC_ALL, "");
-#if __linux__
-	/*
-	 * In libc 4.5.26, setlocale(LC_ALL, ""), doesn't setup the table
-	 * for ctype(3c) correctly.  This bug is fixed in libc 4.6.x.
-	 *
-	 * This code works around this problem for libc 4.5.x users.
-	 * Note that this code is harmless if you're using libc 4.6.x.
-	 */
-	(void)setlocale(LC_CTYPE, "");
-#endif
 	v_key_ilookup(sp);
 
 	v_keyval(sp, K_CNTRLD, KEY_VEOF);
@@ -137,15 +120,11 @@ v_key_init(sp)
 	qsort(keylist, nkeylist, sizeof(keylist[0]), v_key_cmp);
 
 	/* Initialize the fast lookup table. */
-	for (gp->max_special = 0, kp = keylist, cnt = nkeylist; cnt--; ++kp) {
-		if (gp->max_special < kp->value)
-			gp->max_special = kp->value;
-		if (kp->ch <= MAX_FAST_KEY)
-			gp->special_key[kp->ch] = kp->value;
-	}
+	for (kp = keylist, cnt = nkeylist; cnt--; ++kp)
+		gp->special_key[kp->ch] = kp->value;
 
 	/* Find a non-printable character to use as a message separator. */
-	for (ch = 1; ch <= MAX_CHAR_T; ++ch)
+	for (ch = 1; ch <= UCHAR_MAX; ++ch)
 		if (!isprint(ch)) {
 			gp->noprint = ch;
 			break;
@@ -166,10 +145,10 @@ v_key_init(sp)
  * in the table, so we check for that first.
  */
 static void
-v_keyval(sp, val, name)
-	SCR *sp;
-	int val;
-	scr_keyval_t name;
+v_keyval(
+	SCR *sp,
+	int val,
+	scr_keyval_t name)
 {
 	KEYLIST *kp;
 	CHAR_T ch;
@@ -203,17 +182,20 @@ v_keyval(sp, val, name)
  * PUBLIC: void v_key_ilookup __P((SCR *));
  */
 void
-v_key_ilookup(sp)
-	SCR *sp;
+v_key_ilookup(SCR *sp)
 {
-	CHAR_T ch, *p, *t;
+	UCHAR_T ch;
+	char *p, *t;
 	GS *gp;
 	size_t len;
 
-	for (gp = sp->gp, ch = 0; ch <= MAX_FAST_KEY; ++ch)
+	for (gp = sp->gp, ch = 0;; ++ch) {
 		for (p = gp->cname[ch].name, t = v_key_name(sp, ch),
 		    len = gp->cname[ch].len = sp->clen; len--;)
 			*p++ = *t++;
+		if (ch == MAX_FAST_KEY)
+			break;
+	}
 }
 
 /*
@@ -224,9 +206,9 @@ v_key_ilookup(sp)
  * PUBLIC: size_t v_key_len __P((SCR *, ARG_CHAR_T));
  */
 size_t
-v_key_len(sp, ch)
-	SCR *sp;
-	ARG_CHAR_T ch;
+v_key_len(
+	SCR *sp,
+	ARG_CHAR_T ch)
 {
 	(void)v_key_name(sp, ch);
 	return (sp->clen);
@@ -237,30 +219,43 @@ v_key_len(sp, ch)
  *	Return the string that will display the key.  This routine
  *	is the backup for the KEY_NAME() macro.
  *
- * PUBLIC: CHAR_T *v_key_name __P((SCR *, ARG_CHAR_T));
+ * PUBLIC: char *v_key_name __P((SCR *, ARG_CHAR_T));
  */
-CHAR_T *
-v_key_name(sp, ach)
-	SCR *sp;
-	ARG_CHAR_T ach;
+char *
+v_key_name(
+	SCR *sp,
+	ARG_CHAR_T ach)
 {
-	static const CHAR_T hexdigit[] = "0123456789abcdef";
-	static const CHAR_T octdigit[] = "01234567";
-	CHAR_T ch, *chp, mask;
+	static const char hexdigit[] = "0123456789abcdef";
+	static const char octdigit[] = "01234567";
+	int ch;
 	size_t len;
-	int cnt, shift;
+	char *chp;
 
-	ch = ach;
+	/*
+	 * Cache the last checked character.  It won't be a problem
+	 * since nvi will rescan the mapping when settings changed.
+	 */
+	if (ach && sp->lastc == ach)
+		return (sp->cname);
+	sp->lastc = ach;
+
+#ifdef USE_WIDECHAR
+	len = wctomb(sp->cname, ach);
+	if (len > MB_CUR_MAX)
+#endif
+		sp->cname[(len = 1)-1] = (u_char)ach;
+
+	ch = (u_char)sp->cname[0];
+	sp->cname[len] = '\0';
 
 	/* See if the character was explicitly declared printable or not. */
 	if ((chp = O_STR(sp, O_PRINT)) != NULL)
-		for (; *chp != '\0'; ++chp)
-			if (*chp == ch)
-				goto pr;
+		if (strstr(chp, sp->cname) != NULL)
+			goto done;
 	if ((chp = O_STR(sp, O_NOPRINT)) != NULL)
-		for (; *chp != '\0'; ++chp)
-			if (*chp == ch)
-				goto nopr;
+		if (strstr(chp, sp->cname) != NULL)
+			goto nopr;
 
 	/*
 	 * Historical (ARPA standard) mappings.  Printable characters are left
@@ -274,41 +269,55 @@ v_key_name(sp, ach)
 	 * told that this is a reasonable assumption...
 	 *
 	 * XXX
-	 * This code will only work with CHAR_T's that are multiples of 8-bit
-	 * bytes.
-	 *
-	 * XXX
-	 * NB: There's an assumption here that all printable characters take
-	 * up a single column on the screen.  This is not always correct.
+	 * The code prints non-printable wide characters in 4 or 5 digits
+	 * Unicode escape sequences, so only supports plane 0 to 15.
 	 */
-	if (isprint(ch)) {
-pr:		sp->cname[0] = ch;
-		len = 1;
+	if (ISPRINT(ach))
 		goto done;
-	}
 nopr:	if (iscntrl(ch) && (ch < 0x20 || ch == 0x7f)) {
 		sp->cname[0] = '^';
 		sp->cname[1] = ch == 0x7f ? '?' : '@' + ch;
 		len = 2;
-	} else if (O_ISSET(sp, O_OCTAL)) {
-#define	BITS	(sizeof(CHAR_T) * 8)
-#define	SHIFT	(BITS - BITS % 3)
-#define	TOPMASK	(BITS % 3 == 2 ? 3 : 1) << (BITS - BITS % 3)
+		goto done;
+	}
+#ifdef USE_WIDECHAR
+	if (INTISWIDE(ach)) {
+		int uc = -1;
+
+		if (!strcmp(codeset(), "UTF-8"))
+			uc = decode_utf8(sp->cname);
+#ifdef USE_ICONV
+		else {
+			char buf[sizeof(sp->cname)] = "";
+			size_t left = sizeof(sp->cname);
+			char *in = sp->cname;
+			char *out = buf;
+			iconv(sp->conv.id[IC_IE_TO_UTF16],
+			    (iconv_src_t)&in, &len, &out, &left);
+			iconv(sp->conv.id[IC_IE_TO_UTF16],
+			    NULL, NULL, NULL, NULL);
+			uc = decode_utf16(buf, 1);
+		}
+#endif
+		if (uc >= 0) {
+			len = snprintf(sp->cname, sizeof(sp->cname),
+			    uc < 0x10000 ? "\\u%04x" : "\\U%05X", uc);
+			goto done;
+		}
+	}
+#endif
+	if (O_ISSET(sp, O_OCTAL)) {
 		sp->cname[0] = '\\';
-		sp->cname[1] = octdigit[(ch & TOPMASK) >> SHIFT];
-		shift = SHIFT - 3;
-		for (len = 2, mask = 7 << (SHIFT - 3),
-		    cnt = BITS / 3; cnt-- > 0; mask >>= 3, shift -= 3)
-			sp->cname[len++] = octdigit[(ch & mask) >> shift];
+		sp->cname[1] = octdigit[(ch & 0300) >> 6];
+		sp->cname[2] = octdigit[(ch &  070) >> 3];
+		sp->cname[3] = octdigit[ ch &   07      ];
 	} else {
 		sp->cname[0] = '\\';
 		sp->cname[1] = 'x';
-		for (len = 2, chp = (u_int8_t *)&ch,
-		    cnt = sizeof(CHAR_T); cnt-- > 0; ++chp) {
-			sp->cname[len++] = hexdigit[(*chp & 0xf0) >> 4];
-			sp->cname[len++] = hexdigit[*chp & 0x0f];
-		}
+		sp->cname[2] = hexdigit[(ch & 0xf0) >> 4];
+		sp->cname[3] = hexdigit[ ch & 0x0f      ];
 	}
+	len = 4;
 done:	sp->cname[sp->clen = len] = '\0';
 	return (sp->cname);
 }
@@ -318,12 +327,12 @@ done:	sp->cname[sp->clen = len] = '\0';
  *	Fill in the value for a key.  This routine is the backup
  *	for the KEY_VAL() macro.
  *
- * PUBLIC: int v_key_val __P((SCR *, ARG_CHAR_T));
+ * PUBLIC: e_key_t v_key_val __P((SCR *, ARG_CHAR_T));
  */
-int
-v_key_val(sp, ch)
-	SCR *sp;
-	ARG_CHAR_T ch;
+e_key_t
+v_key_val(
+	SCR *sp,
+	ARG_CHAR_T ch)
 {
 	KEYLIST k, *kp;
 
@@ -345,12 +354,12 @@ v_key_val(sp, ch)
  * PUBLIC: int v_event_push __P((SCR *, EVENT *, CHAR_T *, size_t, u_int));
  */
 int
-v_event_push(sp, p_evp, p_s, nitems, flags)
-	SCR *sp;
-	EVENT *p_evp;			/* Push event. */
-	CHAR_T *p_s;			/* Push characters. */
-	size_t nitems;			/* Number of items to push. */
-	u_int flags;			/* CH_* flags. */
+v_event_push(
+	SCR *sp,
+	EVENT *p_evp,			/* Push event. */
+	CHAR_T *p_s,			/* Push characters. */
+	size_t nitems,			/* Number of items to push. */
+	u_int flags)			/* CH_* flags. */
 {
 	EVENT *evp;
 	GS *gp;
@@ -375,8 +384,8 @@ v_event_push(sp, p_evp, p_s, nitems, flags)
 	if (total >= gp->i_nelem && v_event_grow(sp, MAX(total, 64)))
 		return (1);
 	if (gp->i_cnt)
-		MEMMOVE(gp->i_event + TERM_PUSH_SHIFT + nitems,
-		    gp->i_event + gp->i_next, gp->i_cnt);
+		BCOPY(gp->i_event + gp->i_next,
+		    gp->i_event + TERM_PUSH_SHIFT + nitems, gp->i_cnt);
 	gp->i_next = TERM_PUSH_SHIFT;
 
 	/* Put the new items into the queue. */
@@ -399,9 +408,9 @@ copy:	gp->i_cnt += nitems;
  *	Append events onto the tail of the buffer.
  */
 static int
-v_event_append(sp, argp)
-	SCR *sp;
-	EVENT *argp;
+v_event_append(
+	SCR *sp,
+	EVENT *argp)
 {
 	CHAR_T *s;			/* Characters. */
 	EVENT *evp;
@@ -526,11 +535,11 @@ v_event_append(sp, argp)
  * PUBLIC: int v_event_get __P((SCR *, EVENT *, int, u_int32_t));
  */
 int
-v_event_get(sp, argp, timeout, flags)
-	SCR *sp;
-	EVENT *argp;
-	int timeout;
-	u_int32_t flags;
+v_event_get(
+	SCR *sp,
+	EVENT *argp,
+	int timeout,
+	u_int32_t flags)
 {
 	EVENT *evp, ev;
 	GS *gp;
@@ -630,7 +639,8 @@ newmap:	evp = &gp->i_event[gp->i_next];
 	 */
 	if (istimeout || F_ISSET(&evp->e_ch, CH_NOMAP) ||
 	    !LF_ISSET(EC_MAPCOMMAND | EC_MAPINPUT) ||
-	    evp->e_c < MAX_BIT_SEQ && !bit_test(gp->seqb, evp->e_c))
+	    ((evp->e_c & ~MAX_BIT_SEQ) == 0 &&
+	    !bit_test(gp->seqb, evp->e_c)))
 		goto nomap;
 
 	/* Search the map. */
@@ -664,7 +674,7 @@ newmap:	evp = &gp->i_event[gp->i_next];
 
 	/* If no map, return the character. */
 	if (qp == NULL) {
-nomap:		if (!isdigit(evp->e_c) && LF_ISSET(EC_MAPNODIGIT))
+nomap:		if (!ISDIGIT(evp->e_c) && LF_ISSET(EC_MAPNODIGIT))
 			goto not_digit;
 		*argp = *evp;
 		QREM(1);
@@ -676,7 +686,7 @@ nomap:		if (!isdigit(evp->e_c) && LF_ISSET(EC_MAPNODIGIT))
 	 * of the map is it, pretend we haven't seen the character.
 	 */
 	if (LF_ISSET(EC_MAPNODIGIT) &&
-	    qp->output != NULL && !isdigit(qp->output[0])) {
+	    qp->output != NULL && !ISDIGIT(qp->output[0])) {
 not_digit:	argp->e_c = CH_NOT_DIGIT;
 		argp->e_value = K_NOTUSED;
 		argp->e_event = E_CHARACTER;
@@ -744,16 +754,16 @@ not_digit:	argp->e_c = CH_NOT_DIGIT;
  *	Walk the screen lists, sync'ing files to their backup copies.
  */
 static void
-v_sync(sp, flags)
-	SCR *sp;
-	int flags;
+v_sync(
+	SCR *sp,
+	int flags)
 {
 	GS *gp;
 
 	gp = sp->gp;
-	for (sp = gp->dq.cqh_first; sp != (void *)&gp->dq; sp = sp->q.cqe_next)
+	TAILQ_FOREACH(sp, gp->dq, q)
 		rcv_sync(sp, flags);
-	for (sp = gp->hq.cqh_first; sp != (void *)&gp->hq; sp = sp->q.cqe_next)
+	TAILQ_FOREACH(sp, gp->hq, q)
 		rcv_sync(sp, flags);
 }
 
@@ -764,9 +774,9 @@ v_sync(sp, flags)
  * PUBLIC: void v_event_err __P((SCR *, EVENT *));
  */
 void
-v_event_err(sp, evp)
-	SCR *sp;
-	EVENT *evp;
+v_event_err(
+	SCR *sp,
+	EVENT *evp)
 {
 	switch (evp->e_event) {
 	case E_CHARACTER:
@@ -777,9 +787,6 @@ v_event_err(sp, evp)
 		break;
 	case E_INTERRUPT:
 		msgq(sp, M_ERR, "279|Unexpected interrupt event");
-		break;
-	case E_QUIT:
-		msgq(sp, M_ERR, "280|Unexpected quit event");
 		break;
 	case E_REPAINT:
 		msgq(sp, M_ERR, "281|Unexpected repaint event");
@@ -792,9 +799,6 @@ v_event_err(sp, evp)
 		break;
 	case E_WRESIZE:
 		msgq(sp, M_ERR, "316|Unexpected resize event");
-		break;
-	case E_WRITE:
-		msgq(sp, M_ERR, "287|Unexpected write event");
 		break;
 
 	/*
@@ -820,9 +824,9 @@ v_event_err(sp, evp)
  * PUBLIC: int v_event_flush __P((SCR *, u_int));
  */
 int
-v_event_flush(sp, flags)
-	SCR *sp;
-	u_int flags;
+v_event_flush(
+	SCR *sp,
+	u_int flags)
 {
 	GS *gp;
 	int rval;
@@ -838,9 +842,9 @@ v_event_flush(sp, flags)
  *	Grow the terminal queue.
  */
 static int
-v_event_grow(sp, add)
-	SCR *sp;
-	int add;
+v_event_grow(
+	SCR *sp,
+	int add)
 {
 	GS *gp;
 	size_t new_nelem, olen;
@@ -848,7 +852,7 @@ v_event_grow(sp, add)
 	gp = sp->gp;
 	new_nelem = gp->i_nelem + add;
 	olen = gp->i_nelem * sizeof(gp->i_event[0]);
-	BINC_RET(sp, gp->i_event, olen, new_nelem * sizeof(gp->i_event[0]));
+	BINC_RET(sp, EVENT, gp->i_event, olen, new_nelem * sizeof(gp->i_event[0]));
 	gp->i_nelem = olen / sizeof(gp->i_event[0]);
 	return (0);
 }
@@ -858,8 +862,9 @@ v_event_grow(sp, add)
  *	Compare two keys for sorting.
  */
 static int
-v_key_cmp(ap, bp)
-	const void *ap, *bp;
+v_key_cmp(
+	const void *ap,
+	const void *bp)
 {
 	return (((KEYLIST *)ap)->ch - ((KEYLIST *)bp)->ch);
 }

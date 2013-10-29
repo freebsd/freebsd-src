@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.90 2013/02/25 01:57:14 dholland Exp $	*/
+/*	$NetBSD: make.h,v 1.92 2013/09/04 15:38:26 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -404,6 +404,10 @@ extern Boolean	varNoExportEnv;	/* TRUE if we should not export variables
 
 extern GNode    *DEFAULT;    	/* .DEFAULT rule */
 
+extern GNode	*VAR_INTERNAL;	/* Variables defined internally by make
+				 * which should not override those set by
+				 * makefiles.
+				 */
 extern GNode    *VAR_GLOBAL;   	/* Variables defined in a global context, e.g
 				 * in the Makefile itself */
 extern GNode    *VAR_CMD;    	/* Variables defined on the command line */
@@ -442,9 +446,8 @@ extern pid_t	myPid;
 #define MAKEFILE_PREFERENCE ".MAKE.MAKEFILE_PREFERENCE"
 #define MAKE_DEPENDFILE	".MAKE.DEPENDFILE" /* .depend */
 #define MAKE_MODE	".MAKE.MODE"
-
-#ifdef NEED_MAKE_LEVEL_SAFE
-# define MAKE_LEVEL_SAFE "_MAKE_LEVEL"	/* some shells will not pass .MAKE. */
+#ifndef MAKE_LEVEL_ENV
+# define MAKE_LEVEL_ENV	"MAKELEVEL"
 #endif
 
 /*

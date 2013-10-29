@@ -1684,6 +1684,14 @@ ix86_handle_option (size_t code, const char *arg ATTRIBUTE_UNUSED, int value)
 	}
       return true;
 
+    case OPT_maes:
+      if (!value)
+	{
+	  target_flags &= ~MASK_AES;
+	  target_flags_explicit |= MASK_AES;
+	}
+      return true;
+
     default:
       return true;
     }
@@ -2185,6 +2193,10 @@ override_options (void)
 
   /* Turn on SSE2 builtins for -msse3.  */
   if (TARGET_SSE3)
+    target_flags |= MASK_SSE2;
+
+  /* Turn on SSE2 builtins for -maes.  */
+  if (TARGET_AES)
     target_flags |= MASK_SSE2;
 
   /* Turn on SSE builtins for -msse2.  */

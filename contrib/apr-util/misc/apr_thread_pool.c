@@ -363,8 +363,7 @@ APU_DECLARE(apr_status_t) apr_thread_pool_create(apr_thread_pool_t ** me,
     rv = thread_pool_construct(tp, init_threads, max_threads);
     if (APR_SUCCESS != rv)
         return rv;
-    apr_pool_cleanup_register(tp->pool, tp, thread_pool_cleanup,
-                              apr_pool_cleanup_null);
+    apr_pool_pre_cleanup_register(tp->pool, tp, thread_pool_cleanup);
 
     while (init_threads) {
         /* Grab the mutex as apr_thread_create() and thread_pool_func() will 
@@ -393,7 +392,8 @@ APU_DECLARE(apr_status_t) apr_thread_pool_create(apr_thread_pool_t ** me,
 
 APU_DECLARE(apr_status_t) apr_thread_pool_destroy(apr_thread_pool_t * me)
 {
-    return apr_pool_cleanup_run(me->pool, me, thread_pool_cleanup);
+    apr_pool_destroy(me->pool);
+    return APR_SUCCESS;
 }
 
 /*

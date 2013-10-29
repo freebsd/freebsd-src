@@ -137,7 +137,7 @@ exec_gzip_imgact(imgp)
 	}
 
 	if (igz.inbuf)
-		kmem_free_wakeup(exec_map, (vm_offset_t)igz.inbuf, PAGE_SIZE);
+		kmap_free_wakeup(exec_map, (vm_offset_t)igz.inbuf, PAGE_SIZE);
 	if (igz.error || error) {
 		printf("Output=%lu ", igz.output);
 		printf("Inflate_error=%d igz.error=%d where=%d\n",
@@ -269,12 +269,9 @@ do_aout_hdr(struct imgact_gzip * gz)
 		 */
 		vmaddr = gz->virtual_offset + gz->a_out.a_text + 
 			gz->a_out.a_data;
-		error = vm_map_find(&vmspace->vm_map,
-				NULL,
-				0,
-				&vmaddr, 
-				gz->bss_size,
-				FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
+		error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr,
+		    gz->bss_size, 0, VMFS_NO_SPACE, VM_PROT_ALL, VM_PROT_ALL,
+		    0);
 		if (error) {
 			gz->where = __LINE__;
 			return (error);
@@ -310,7 +307,7 @@ NextByte(void *vp)
 		return igz->inbuf[(igz->idx++) - igz->offset];
 	}
 	if (igz->inbuf)
-		kmem_free_wakeup(exec_map, (vm_offset_t)igz->inbuf, PAGE_SIZE);
+		kmap_free_wakeup(exec_map, (vm_offset_t)igz->inbuf, PAGE_SIZE);
 	igz->offset = igz->idx & ~PAGE_MASK;
 
 	error = vm_mmap(exec_map,	/* map */

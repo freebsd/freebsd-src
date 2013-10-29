@@ -474,6 +474,20 @@ rebuild_drive(int ac, char **av)
 MFI_COMMAND(top, rebuild, rebuild_drive);
 
 static int
+syspd_drive(int ac, char **av)
+{
+
+	if (ac != 2) {
+		warnx("syspd: %s", ac > 2 ? "extra arguments" :
+		    "drive required");
+		return (EINVAL);
+	}
+
+	return (drive_set_state(av[1], MFI_PD_STATE_SYSTEM));
+}
+MFI_COMMAND(top, syspd, syspd_drive);
+
+static int
 start_rebuild(int ac, char **av)
 {
 	struct mfi_pd_info info;

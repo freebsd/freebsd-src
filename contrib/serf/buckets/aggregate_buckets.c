@@ -353,16 +353,104 @@ static apr_status_t serf_aggregate_readline(serf_bucket_t *bucket,
                                             int acceptable, int *found,
                                             const char **data, apr_size_t *len)
 {
-    /* Follow pattern from serf_aggregate_read. */
-    return APR_ENOTIMPL;
+    aggregate_context_t *ctx = bucket->data;
+    apr_status_t status;
+
+    cleanup_aggregate(ctx, bucket->allocator);
+
+    do {
+        serf_bucket_t *head;
+
+        *len = 0;
+
+        if (!ctx->list) {
+            if (ctx->hold_open) {
+                return ctx->hold_open(ctx->hold_open_baton, bucket);
+            }
+            else {
+                return APR_EOF;
+            }
+        }
+
+        head = ctx->list->bucket;
+
+        status = serf_bucket_readline(head, acceptable, found,
+                                      data, len);
+        if (SERF_BUCKET_READ_ERROR(status))
+            return status;
+
+        if (status == APR_EOF) {
+            bucket_list_t *next_list;
+
+            /* head bucket is empty, move to to-be-cleaned-up list. */
+            next_list = ctx->list->next;
+            ctx->list->next = ctx->done;
+            ctx->done = ctx->list;
+            ctx->list = next_list;
+
+            /* If we have no more in our list, return EOF. */
+            if (!ctx->list) {
+                if (ctx->hold_open) {
+                    return ctx->hold_open(ctx->hold_open_baton, bucket);
+                }
+                else {
+                    return APR_EOF;
+                }
+            }
+
+            /* we read something, so bail out and let the appl. read again. */
+            if (*len)
+                status = APR_SUCCESS;
+        }
+
+        /* continue with APR_SUCCESS or APR_EOF and no data read yet. */
+    } while (!*len && status != APR_EAGAIN);
+
+    return status;
 }
 
 static apr_status_t serf_aggregate_peek(serf_bucket_t *bucket,
                                         const char **data,
                                         apr_size_t *len)
 {
-    /* Follow pattern from serf_aggregate_read. */
-    return APR_ENOTIMPL;
+    aggregate_context_t *ctx = bucket->data;
+    serf_bucket_t *head;
+    apr_status_t status;
+
+    cleanup_aggregate(ctx, bucket->allocator);
+
+    /* Peek the first bucket in the list, if any. */
+    if (!ctx->list) {
+        *len = 0;
+        if (ctx->hold_open) {
+            status = ctx->hold_open(ctx->hold_open_baton, bucket);
+            if (status == APR_EAGAIN)
+                status = APR_SUCCESS;
+            return status;
+        }
+        else {
+            return APR_EOF;
+        }
+    }
+
+    head = ctx->list->bucket;
+
+    status = serf_bucket_peek(head, data, len);
+
+    if (status == APR_EOF) {
+        if (ctx->list->next) {
+            status = APR_SUCCESS;
+        } else {
+            if (ctx->hold_open) {
+                status = ctx->hold_open(ctx->hold_open_baton, bucket);
+                if (status == APR_EAGAIN)
+                    status = APR_SUCCESS;
+                return status;
+            }
+        }
+    }
+
+    return status;
 }
 
 static serf_bucket_t * serf_aggregate_read_bucket(

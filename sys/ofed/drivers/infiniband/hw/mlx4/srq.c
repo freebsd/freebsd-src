@@ -33,6 +33,7 @@
 
 #include <linux/mlx4/qp.h>
 #include <linux/mlx4/srq.h>
+#include <linux/slab.h>
 
 #include "mlx4_ib.h"
 #include "user.h"
@@ -58,7 +59,7 @@ static void mlx4_ib_srq_event(struct mlx4_srq *srq, enum mlx4_event type)
 			event.event = IB_EVENT_SRQ_ERR;
 			break;
 		default:
-			printk(KERN_WARNING "mlx4_ib: Unexpected event type %d "
+			pr_warn("Unexpected event type %d "
 			       "on SRQ %06x\n", type, srq->srqn);
 			return;
 		}
@@ -67,17 +68,16 @@ static void mlx4_ib_srq_event(struct mlx4_srq *srq, enum mlx4_event type)
 	}
 }
 
-struct ib_srq *mlx4_ib_create_xrc_srq(struct ib_pd *pd,
-				      struct ib_cq *xrc_cq,
-				      struct ib_xrcd *xrcd,
-				      struct ib_srq_init_attr *init_attr,
-				      struct ib_udata *udata)
+struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
+				  struct ib_srq_init_attr *init_attr,
+				  struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(pd->device);
 	struct mlx4_ib_srq *srq;
 	struct mlx4_wqe_srq_next_seg *next;
-	u32	cqn;
-	u16	xrcdn;
+	struct mlx4_wqe_data_seg *scatter;
+	u32 cqn;
+	u16 xrcdn;
 	int desc_size;
 	int buf_size;
 	int err;
@@ -85,14 +85,10 @@ struct ib_srq *mlx4_ib_create_xrc_srq(struct ib_pd *pd,
 
 	/* Sanity check SRQ size before proceeding */
 	if (init_attr->attr.max_wr  >= dev->dev->caps.max_srq_wqes ||
-	    init_attr->attr.max_sge >  dev->dev->caps.max_srq_sge) {
-		mlx4_ib_dbg("a size param is out of range. "
-			    "max_wr = 0x%x, max_sge = 0x%x",
-			    init_attr->attr.max_wr, init_attr->attr.max_sge);
+	    init_attr->attr.max_sge >  dev->dev->caps.max_srq_sge)
 		return ERR_PTR(-EINVAL);
-	}
 
-	srq = kzalloc(sizeof *srq, GFP_KERNEL);
+	srq = kmalloc(sizeof *srq, GFP_KERNEL);
 	if (!srq)
 		return ERR_PTR(-ENOMEM);
 
@@ -138,8 +134,6 @@ struct ib_srq *mlx4_ib_create_xrc_srq(struct ib_pd *pd,
 		if (err)
 			goto err_mtt;
 	} else {
-		struct mlx4_wqe_data_seg *scatter;
-
 		err = mlx4_db_alloc(dev->dev, &srq->db, 0);
 		if (err)
 			goto err_srq;
@@ -182,24 +176,24 @@ struct ib_srq *mlx4_ib_create_xrc_srq(struct ib_pd *pd,
 		}
 	}
 
-	cqn = xrc_cq ? (u32) (to_mcq(xrc_cq)->mcq.cqn) : 0;
-	xrcdn = xrcd ? (u16) (to_mxrcd(xrcd)->xrcdn) :
+	cqn = (init_attr->srq_type == IB_SRQT_XRC) ?
+		to_mcq(init_attr->ext.xrc.cq)->mcq.cqn : 0;
+	xrcdn = (init_attr->srq_type == IB_SRQT_XRC) ?
+		to_mxrcd(init_attr->ext.xrc.xrcd)->xrcdn :
 		(u16) dev->dev->caps.reserved_xrcds;
-
 	err = mlx4_srq_alloc(dev->dev, to_mpd(pd)->pdn, cqn, xrcdn, &srq->mtt,
 			     srq->db.dma, &srq->msrq);
 	if (err)
 		goto err_wrid;
 
 	srq->msrq.event = mlx4_ib_srq_event;
+	srq->ibsrq.ext.xrc.srq_num = srq->msrq.srqn;
 
-	if (pd->uobject) {
+	if (pd->uobject)
 		if (ib_copy_to_udata(udata, &srq->msrq.srqn, sizeof (__u32))) {
 			err = -EFAULT;
 			goto err_wrid;
 		}
-	} else
-		srq->ibsrq.xrc_srq_num = srq->msrq.srqn;
 
 	init_attr->attr.max_wr = srq->msrq.max - 1;
 
@@ -238,16 +232,12 @@ int mlx4_ib_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 	int ret;
 
 	/* We don't support resizing SRQs (yet?) */
-	if (attr_mask & IB_SRQ_MAX_WR) {
-		mlx4_ib_dbg("resize not yet supported");
+	if (attr_mask & IB_SRQ_MAX_WR)
 		return -EINVAL;
-	}
 
 	if (attr_mask & IB_SRQ_LIMIT) {
-		if (attr->srq_limit >= srq->msrq.max){
-			mlx4_ib_dbg("limit (0x%x) too high", attr->srq_limit);
+		if (attr->srq_limit >= srq->msrq.max)
 			return -EINVAL;
-		}
 
 		mutex_lock(&srq->mutex);
 		ret = mlx4_srq_arm(dev->dev, &srq->msrq, attr->srq_limit);
@@ -258,13 +248,6 @@ int mlx4_ib_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 	}
 
 	return 0;
-}
-
-struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
-				  struct ib_srq_init_attr *init_attr,
-				  struct ib_udata *udata)
-{
-	return mlx4_ib_create_xrc_srq(pd, NULL, NULL, init_attr, udata);
 }
 
 int mlx4_ib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
@@ -289,18 +272,6 @@ int mlx4_ib_destroy_srq(struct ib_srq *srq)
 {
 	struct mlx4_ib_dev *dev = to_mdev(srq->device);
 	struct mlx4_ib_srq *msrq = to_msrq(srq);
-	struct mlx4_ib_cq *cq;
-
-	mlx4_srq_invalidate(dev->dev, &msrq->msrq);
-
-	if (srq->xrc_cq && !srq->uobject) {
-		cq = to_mcq(srq->xrc_cq);
-		spin_lock_irq(&cq->lock);
-		__mlx4_ib_cq_clean(cq, -1, msrq);
-		mlx4_srq_remove(dev->dev, &msrq->msrq);
-		spin_unlock_irq(&cq->lock);
-	} else
-		mlx4_srq_remove(dev->dev, &msrq->msrq);
 
 	mlx4_srq_free(dev->dev, &msrq->msrq);
 	mlx4_mtt_cleanup(dev->dev, &msrq->mtt);
@@ -349,16 +320,12 @@ int mlx4_ib_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
 		if (unlikely(wr->num_sge > srq->msrq.max_gs)) {
-			mlx4_ib_dbg("srq num 0x%x: num s/g entries too large (%d)",
-				    srq->msrq.srqn, wr->num_sge);
 			err = -EINVAL;
 			*bad_wr = wr;
 			break;
 		}
 
 		if (unlikely(srq->head == srq->tail)) {
-			mlx4_ib_dbg("srq num 0x%x: No entries available to post.",
-				    srq->msrq.srqn);
 			err = -ENOMEM;
 			*bad_wr = wr;
 			break;

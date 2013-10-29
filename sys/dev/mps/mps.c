@@ -123,6 +123,9 @@ typedef union _reply_descriptor {
         } u;
 }reply_descriptor,address_descriptor;
 
+/* Rate limit chain-fail messages to 1 per minute */
+static struct timeval mps_chainfail_interval = { 60, 0 };
+
 /* 
  * sleep_flag can be either CAN_SLEEP or NO_SLEEP.
  * If this function is called from process context, it can sleep
@@ -1371,6 +1374,11 @@ mps_get_tunables(struct mps_softc *sc)
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mps.%d.max_chains",
 	    device_get_unit(sc->mps_dev));
 	TUNABLE_INT_FETCH(tmpstr, &sc->max_chains);
+
+	bzero(sc->exclude_ids, sizeof(sc->exclude_ids));
+	snprintf(tmpstr, sizeof(tmpstr), "dev.mps.%d.exclude_ids",
+	    device_get_unit(sc->mps_dev));
+	TUNABLE_STR_FETCH(tmpstr, sc->exclude_ids, sizeof(sc->exclude_ids));
 }
 
 static void
@@ -1462,6 +1470,7 @@ mps_attach(struct mps_softc *sc)
 	mtx_init(&sc->mps_mtx, "MPT2SAS lock", NULL, MTX_DEF);
 	callout_init_mtx(&sc->periodic, &sc->mps_mtx, 0);
 	TAILQ_INIT(&sc->event_list);
+	timevalclear(&sc->lastfail);
 
 	if ((error = mps_transition_ready(sc)) != 0) {
 		mps_printf(sc, "%s failed to transition ready\n", __func__);
@@ -2408,8 +2417,9 @@ mps_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		    sflags, nsegs - i);
 		if (error != 0) {
 			/* Resource shortage, roll back! */
-			mps_dprint(sc, MPS_INFO, "Out of chain frames, "
-			    "consider increasing hw.mps.max_chains.\n");
+			if (ratecheck(&sc->lastfail, &mps_chainfail_interval))
+				mps_dprint(sc, MPS_INFO, "Out of chain frames, "
+				    "consider increasing hw.mps.max_chains.\n");
 			cm->cm_flags |= MPS_CM_FLAGS_CHAIN_FAILED;
 			mps_complete_command(sc, cm);
 			return;

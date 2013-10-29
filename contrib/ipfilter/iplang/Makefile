@@ -3,21 +3,20 @@
 #
 #CC=gcc -Wuninitialized -Wstrict-prototypes -Werror -O
 CFLAGS=-I..
-CCARGS=$(DEBUG) -I. -I.. $(CFLAGS) -I$(DESTDIR) -I$(DESTDIR)/.. -I../ipsend
 
 all: $(DESTDIR)/iplang_y.o $(DESTDIR)/iplang_l.o
 
 $(DESTDIR)/iplang_y.o: $(DESTDIR)/iplang_y.c
-	$(CC) $(CCARGS) $(LINUX) -c $(DESTDIR)/iplang_y.c -o $@
+	$(CC) $(DEBUG) -I. -I.. -I$(DESTDIR) -I../ipsend $(CFLAGS) $(LINUX) -c $(DESTDIR)/iplang_y.c -o $@
 
 $(DESTDIR)/iplang_l.o: $(DESTDIR)/iplang_l.c
-	$(CC) $(CCARGS) $(LINUX) -c $(DESTDIR)/iplang_l.c -o $@
+	$(CC) $(DEBUG) -I. -I.. -I$(DESTDIR) -I../ipsend $(CFLAGS) $(LINUX) -c $(DESTDIR)/iplang_l.c -o $@
 
 iplang_y.o: iplang_y.c
-	$(CC) $(CCARGS) $< -o $@
+	$(CC) $(DEBUG) -I. -I.. -I../ipsend $(CFLAGS) $(LINUX) -c $< -o $@
 
 iplang_l.o: iplang_l.c
-	$(CC) $(CCARGS) $< -o $@
+	$(CC) $(DEBUG) -I. -I.. -I../ipsend $(CFLAGS) $(LINUX) -c $< -o $@
 
 $(DESTDIR)/iplang_l.c: iplang_l.l $(DESTDIR)/iplang_y.h
 	lex iplang_l.l

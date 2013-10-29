@@ -528,7 +528,8 @@ fdc_reset(struct fdc_data *fdc)
 		if (fdc_cmd(fdc, 4,
 		    I8207X_CONFIG,
 		    0,
-		    0x40 |			/* Enable Implied Seek */
+		    /* 0x40 | */		/* Enable Implied Seek -
+						 * breaks 2step! */
 		    0x10 |			/* Polling disabled */
 		    (fifo_threshold - 1),	/* Fifo threshold */
 		    0x00,			/* Precomp track */
@@ -760,9 +761,12 @@ fdc_worker(struct fdc_data *fdc)
 	int i, nsect;
 	int st0, st3, cyl, mfm, steptrac, cylinder, descyl, sec;
 	int head;
+	int override_error;
 	static int need_recal;
 	struct fdc_readid *idp;
 	struct fd_formb *finfo;
+
+	override_error = 0;
 
 	/* Have we exhausted our retries ? */
 	bp = fdc->bp;
@@ -922,14 +926,8 @@ fdc_worker(struct fdc_data *fdc)
 
 	/*
 	 * SEEK to where we want to be
-	 *
-	 * Enhanced controllers do implied seeks for read&write as long as
-	 * we do not need multiple steps per track.
 	 */
-	if (cylinder != fd->track && (
-	    fdc->fdct != FDC_ENHANCED ||
-	    descyl != cylinder ||
-	    (bp->bio_cmd & (BIO_RDID|BIO_FMT)))) {
+	if (cylinder != fd->track) {
 		retry_line = __LINE__;
 		if (fdc_cmd(fdc, 3, NE7CMD_SEEK, fd->fdsu, descyl, 0))
 			return (1);
@@ -1095,7 +1093,10 @@ fdc_worker(struct fdc_data *fdc)
 			    fdc->status[3], fdc->status[4], fdc->status[5]);
 		}
 		retry_line = __LINE__;
-		return (1);
+		if (fd->options & FDOPT_NOERROR)
+			override_error = 1;
+		else
+			return (1);
 	}
 	/* All OK */
 	switch(bp->bio_cmd) {
@@ -1116,10 +1117,16 @@ fdc_worker(struct fdc_data *fdc)
 		bp->bio_resid -= fd->fd_iosize;
 		bp->bio_completed += fd->fd_iosize;
 		fd->fd_ioptr += fd->fd_iosize;
-		/* Since we managed to get something done, reset the retry */
-		fdc->retry = 0;
-		if (bp->bio_resid > 0)
-			return (0);
+		if (override_error) {
+			if ((debugflags & 4))
+				printf("FDOPT_NOERROR: returning bad data\n");
+		} else {
+			/* Since we managed to get something done,
+			 * reset the retry */
+			fdc->retry = 0;
+			if (bp->bio_resid > 0)
+				return (0);
+		}
 		break;
 	case BIO_FMT:
 		break;
@@ -1411,6 +1418,7 @@ fd_access(struct g_provider *pp, int r, int w, int e)
 	ae = e + pp->ace;
 
 	if (ar == 0 && aw == 0 && ae == 0) {
+		fd->options &= ~(FDOPT_NORETRY | FDOPT_NOERRLOG | FDOPT_NOERROR);
 		device_unbusy(fd->dev);
 		return (0);
 	}

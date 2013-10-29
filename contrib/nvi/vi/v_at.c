@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_at.c	10.8 (Berkeley) 4/27/96";
+static const char sccsid[] = "$Id: v_at.c,v 10.11 2001/06/25 15:19:30 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -21,6 +21,7 @@ static const char sccsid[] = "@(#)v_at.c	10.8 (Berkeley) 4/27/96";
 #include <ctype.h>
 #include <limits.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "../common/common.h"
 #include "vi.h"
@@ -32,15 +33,16 @@ static const char sccsid[] = "@(#)v_at.c	10.8 (Berkeley) 4/27/96";
  * PUBLIC: int v_at __P((SCR *, VICMD *));
  */
 int
-v_at(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_at(SCR *sp, VICMD *vp)
 {
 	CB *cbp;
 	CHAR_T name;
 	TEXT *tp;
 	size_t len;
 	char nbuf[20];
+	CHAR_T wbuf[20];
+	CHAR_T *wp;
+	size_t wlen;
 
 	/*
 	 * !!!
@@ -87,13 +89,13 @@ v_at(sp, vp)
 	 * together.  We don't get this right; I'm waiting for the new DB
 	 * logging code to be available.
 	 */
-	for (tp = cbp->textq.cqh_last;
-	    tp != (void *)&cbp->textq; tp = tp->q.cqe_prev)
-		if ((F_ISSET(cbp, CB_LMODE) ||
-		    tp->q.cqe_next != (void *)&cbp->textq) &&
-		    v_event_push(sp, NULL, "\n", 1, 0) ||
+	TAILQ_FOREACH_REVERSE(tp, cbp->textq, _texth, q) {
+		if (((F_ISSET(cbp, CB_LMODE) ||
+		    TAILQ_NEXT(tp, q) != NULL) &&
+		    v_event_push(sp, NULL, L("\n"), 1, 0)) ||
 		    v_event_push(sp, NULL, tp->lb, tp->len, 0))
 			return (1);
+	}
 
 	/*
 	 * !!!
@@ -102,7 +104,9 @@ v_at(sp, vp)
 	 */
 	if (F_ISSET(vp, VC_C1SET)) {
 		len = snprintf(nbuf, sizeof(nbuf), "%lu", vp->count);
-		if (v_event_push(sp, NULL, nbuf, len, 0))
+		CHAR2INT(sp, nbuf, len, wp, wlen);
+		MEMCPY(wbuf, wp, wlen);
+		if (v_event_push(sp, NULL, wp, wlen, 0))
 			return (1);
 	}
 	return (0);

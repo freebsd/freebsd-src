@@ -1,4 +1,4 @@
-# $Id: libs.mk,v 1.2 2007/04/30 17:39:27 sjg Exp $
+# $Id: libs.mk,v 1.3 2013/08/02 18:28:48 sjg Exp $
 #
 #	@(#) Copyright (c) 2006, Simon J. Gerraty
 #
@@ -17,7 +17,15 @@
 
 .if defined(LIBS)
 
+# In meta mode, we can capture dependenices for _one_ of the progs.
+# if makefile doesn't nominate one, we use the first.
+.ifndef UPDATE_DEPENDFILE_LIB
+UPDATE_DEPENDFILE_LIB = ${LIBS:[1]}
+.export UPDATE_DEPENDFILE_LIB
+.endif
+
 .ifndef LIB
+# They may have asked us to build just one
 .for t in ${LIBS:R:T:S,^lib,,}
 .if make(lib$t)
 LIB?= $t
@@ -28,14 +36,41 @@ lib$t: all
 
 .if defined(LIB)
 # just one of many
-.for v in DPADD SRCS CFLAGS ${LIB_VARS}
-$v += ${${v}_lib${LIB}}
+LIB_VARS += \
+	LIBDIR \
+	CFLAGS \
+	COPTS \
+	CPPFLAGS \
+	CXXFLAGS \
+	DPADD \
+	DPLIBS \
+	LDADD \
+	LDFLAGS \
+	MAN \
+	SRCS
+
+.for v in ${LIB_VARS:O:u}
+.if defined(${v}.${LIB}) || defined(${v}_${LIB})
+$v += ${${v}_${LIB}:U${${v}.${LIB}}}
+.endif
 .endfor
+
+# for meta mode, there can be only one!
+.if ${LIB} == ${UPDATE_DEPENDFILE_LIB:Uno}
+UPDATE_DEPENDFILE ?= yes
+.endif
+UPDATE_DEPENDFILE ?= NO
+
 # ensure that we don't clobber each other's dependencies
 DEPENDFILE?= .depend.${LIB}
 # lib.mk will do the rest
 .else
 all: ${LIBS:S,^lib,,:@t@lib$t.a@} .MAKE
+
+# We cannot capture dependencies for meta mode here
+UPDATE_DEPENDFILE = NO
+# nor can we safely run in parallel.
+.NOTPARALLEL:
 .endif
 .endif
 
@@ -43,12 +78,16 @@ all: ${LIBS:S,^lib,,:@t@lib$t.a@} .MAKE
 .include <${.PARSEFILE:S,libs,lib,}>
 
 .ifndef LIB
-.for t in ${LIBS:R:T:S,^lib,,}
-lib$t.a: ${SRCS} ${DPADD} ${SRCS_lib$t} ${DPADD_lib$t} 
-	(cd ${.CURDIR} && ${.MAKE} -f ${MAKEFILE} LIB=$t)
+# tell libs.mk we might want to install things
+LIBS_TARGETS+= cleandepend cleandir cleanobj depend install
 
-clean: $t.clean
-$t.clean:
-	(cd ${.CURDIR} && ${.MAKE} -f ${MAKEFILE} LIB=$t ${@:E})
+.for b in ${LIBS:R:T:S,^lib,,}
+lib$b.a: ${SRCS} ${DPADD} ${SRCS_lib$b} ${DPADD_lib$b} 
+	(cd ${.CURDIR} && ${.MAKE} -f ${MAKEFILE} LIB=$b)
+
+.for t in ${LIBS_TARGETS:O:u}
+$b.$t: .PHONY .MAKE
+	(cd ${.CURDIR} && ${.MAKE} -f ${MAKEFILE} LIB=$b ${@:E})
+.endfor
 .endfor
 .endif

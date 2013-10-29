@@ -233,7 +233,7 @@ f_media_shutdown_nfs()
 {
 	local dev="$1" err
 
-	[ "$NFS_MOUNTED" ] || return
+	[ "$NFS_MOUNTED" ] || return $FAILURE
 
 	f_dprintf "Unmounting NFS partition on %s" "$MOUNTPOINT"
 	if ! err=$( umount -f "$MOUNTPOINT" 2>&1 ); then

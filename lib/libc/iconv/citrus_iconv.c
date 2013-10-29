@@ -116,7 +116,20 @@ open_shared(struct _citrus_iconv_shared * __restrict * __restrict rci,
 	size_t len_convname;
 	int ret;
 
+#ifdef INCOMPATIBLE_WITH_GNU_ICONV
+	/*
+	 * Sadly, the gnu tools expect iconv to actually parse the
+	 * byte stream and don't allow for a pass-through when
+	 * the (src,dest) encodings are the same.
+	 * See gettext-0.18.3+ NEWS:
+	 *   msgfmt now checks PO file headers more strictly with less
+	 *   false-positives.
+	 * NetBSD don't do this either.
+	 */
 	module = (strcmp(src, dst) != 0) ? "iconv_std" : "iconv_none";
+#else
+	module = "iconv_std";
+#endif
 
 	/* initialize iconv handle */
 	len_convname = strlen(convname);

@@ -131,6 +131,7 @@ struct mfi_ident {
 	{0x1000, 0x005b, 0x8086, 0x9265, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Intel (R) RAID Controller RS25DB080"},
 	{0x1000, 0x005b, 0x8086, 0x9285, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Intel (R) RAID Controller RS25NB008"},
 	{0x1000, 0x005b, 0xffff, 0xffff, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "ThunderBolt"},
+	{0x1000, 0x005d, 0xffff, 0xffff, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Invader"},
 	{0x1000, 0x0060, 0x1028, 0xffff, MFI_FLAGS_1078,  "Dell PERC 6"},
 	{0x1000, 0x0060, 0xffff, 0xffff, MFI_FLAGS_1078,  "LSI MegaSAS 1078"},
 	{0x1000, 0x0071, 0xffff, 0xffff, MFI_FLAGS_SKINNY, "Drake Skinny"},
@@ -187,7 +188,6 @@ mfi_pci_attach(device_t dev)
 {
 	struct mfi_softc *sc;
 	struct mfi_ident *m;
-	uint32_t command;
 	int count, error;
 
 	sc = device_get_softc(dev);
@@ -196,19 +196,8 @@ mfi_pci_attach(device_t dev)
 	m = mfi_find_ident(dev);
 	sc->mfi_flags = m->flags;
 
-	/* Verify that the adapter can be set up in PCI space */
-	command = pci_read_config(dev, PCIR_COMMAND, 2);
-	command |= PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, command, 2);
-	command = pci_read_config(dev, PCIR_COMMAND, 2);
-	if ((command & PCIM_CMD_BUSMASTEREN) == 0) {
-		device_printf(dev, "Can't enable PCI busmaster\n");
-		return (ENXIO);
-	}
-	if ((command & PCIM_CMD_MEMEN) == 0) {
-		device_printf(dev, "PCI memory window not available\n");
-		return (ENXIO);
-	}
+	/* Ensure busmastering is enabled */
+	pci_enable_busmaster(dev);
 
 	/* Allocate PCI registers */
 	if ((sc->mfi_flags & MFI_FLAGS_1064R) ||

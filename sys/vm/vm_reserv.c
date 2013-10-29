@@ -502,8 +502,7 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, vm_page_t mpred)
 	 * Look for an existing reservation.
 	 */
 	if (mpred != NULL) {
-		KASSERT(mpred->object == object ||
-		    (mpred->flags & PG_SLAB) != 0,
+		KASSERT(mpred->object == object,
 		    ("vm_reserv_alloc_page: object doesn't contain mpred"));
 		KASSERT(mpred->pindex < pindex,
 		    ("vm_reserv_alloc_page: mpred doesn't precede pindex"));

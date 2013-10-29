@@ -79,7 +79,7 @@ static struct cdevsw g_dev_cdevsw = {
 	.d_ioctl =	g_dev_ioctl,
 	.d_strategy =	g_dev_strategy,
 	.d_name =	"g_dev",
-	.d_flags =	D_DISK | D_TRACKCLOSE | D_UNMAPPED_IO,
+	.d_flags =	D_DISK | D_TRACKCLOSE,
 };
 
 static g_taste_t g_dev_taste;
@@ -222,6 +222,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	mtx_init(&sc->sc_mtx, "g_dev", NULL, MTX_DEF);
 	cp = g_new_consumer(gp);
 	cp->private = sc;
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
 	KASSERT(error == 0,
 	    ("g_dev_taste(%s) failed to g_attach, err=%d", pp->name, error));
@@ -237,6 +238,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		g_free(sc);
 		return (NULL);
 	}
+	dev->si_flags |= SI_UNMAPPED;
 	sc->sc_dev = dev;
 
 	/* Search for device alias name and create it if found. */
@@ -251,6 +253,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 			freeenv(val);
 			make_dev_alias_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK,
 			    &adev, dev, "%s", buf);
+			adev->si_flags |= SI_UNMAPPED;
 			break;
 		}
 	}
@@ -483,16 +486,16 @@ g_dev_done(struct bio *bp2)
 	sc = cp->private;
 	bp = bp2->bio_parent;
 	bp->bio_error = bp2->bio_error;
-	if (bp->bio_error != 0) {
+	bp->bio_completed = bp2->bio_completed;
+	bp->bio_resid = bp2->bio_resid;
+	if (bp2->bio_error != 0) {
 		g_trace(G_T_BIO, "g_dev_done(%p) had error %d",
-		    bp2, bp->bio_error);
+		    bp2, bp2->bio_error);
 		bp->bio_flags |= BIO_ERROR;
 	} else {
 		g_trace(G_T_BIO, "g_dev_done(%p/%p) resid %ld completed %jd",
-		    bp2, bp, bp->bio_resid, (intmax_t)bp2->bio_completed);
+		    bp2, bp, bp2->bio_resid, (intmax_t)bp2->bio_completed);
 	}
-	bp->bio_resid = bp->bio_length - bp2->bio_completed;
-	bp->bio_completed = bp2->bio_completed;
 	g_destroy_bio(bp2);
 	destroy = 0;
 	mtx_lock(&sc->sc_mtx);

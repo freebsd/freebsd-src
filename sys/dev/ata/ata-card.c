@@ -140,7 +140,7 @@ ata_pccard_attach(device_t dev)
         ch-> flags |= ATA_NO_SLAVE;
     ata_generic_hw(dev);
     err = ata_probe(dev);
-    if (err)
+    if (err > 0)
 	return (err);
     return (ata_attach(dev));
 }

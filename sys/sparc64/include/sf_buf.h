@@ -39,6 +39,9 @@ struct sf_buf {
 	vm_offset_t	kva;		/* va of mapping */
 };
 
+struct sf_buf * sf_buf_alloc(struct vm_page *m, int flags);
+void sf_buf_free(struct sf_buf *sf);
+
 static __inline vm_offset_t
 sf_buf_kva(struct sf_buf *sf)
 {

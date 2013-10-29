@@ -46,10 +46,7 @@ typedef struct dmu_snapshots_destroy_arg {
 	nvlist_t *dsda_errlist;
 } dmu_snapshots_destroy_arg_t;
 
-/*
- * ds must be owned.
- */
-static int
+int
 dsl_destroy_snapshot_check_impl(dsl_dataset_t *ds, boolean_t defer)
 {
 	if (!dsl_dataset_is_snapshot(ds))
@@ -899,7 +896,7 @@ dsl_destroy_head(const char *name)
 			for (uint64_t obj = 0; error == 0;
 			    error = dmu_object_next(os, &obj, FALSE,
 			    prev_snap_txg))
-				(void) dmu_free_object(os, obj);
+				(void) dmu_free_long_object(os, obj);
 			/* sync out all frees */
 			txg_wait_synced(dmu_objset_pool(os), 0);
 			dmu_objset_disown(os, FTAG);

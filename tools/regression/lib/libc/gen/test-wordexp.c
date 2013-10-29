@@ -195,6 +195,18 @@ main(int argc, char *argv[])
 	r = wordexp("test } test", &we, 0);
 	assert(r == WRDE_BADCHAR);
 
+	/* WRDE_SYNTAX */
+	r = wordexp("'", &we, 0);
+	assert(r == WRDE_SYNTAX);
+	r = wordexp("'", &we, WRDE_UNDEF);
+	assert(r == WRDE_SYNTAX);
+	r = wordexp("'\\'", &we, 0);
+	assert(r == 0);
+	assert(we.we_wordc == 1);
+	assert(strcmp(we.we_wordv[0], "\\") == 0);
+	assert(we.we_wordv[1] == NULL);
+	wordfree(&we);
+
 	/* With a SIGCHLD handler that reaps all zombies. */
 	sa.sa_flags = 0;
 	sigemptyset(&sa.sa_mask);

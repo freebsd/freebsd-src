@@ -697,7 +697,7 @@ ugen20_detach_kernel_driver(struct libusb20_device *pdev,
 	if (ioctl(pdev->file_ctrl, IOUSB(USB_IFACE_DRIVER_DETACH), &temp)) {
 		return (LIBUSB20_ERROR_OTHER);
 	}
-	return (0);			/* kernel driver is active */
+	return (0);			/* kernel driver is detached */
 }
 
 static int
@@ -724,7 +724,7 @@ ugen20_do_request_sync(struct libusb20_device *pdev,
 		/* get actual length */
 		*pactlen = req.ucr_actlen;
 	}
-	return (0);			/* kernel driver is active */
+	return (0);			/* request was successful */
 }
 
 static int

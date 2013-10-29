@@ -35,7 +35,7 @@
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2012
+.Dd October 19, 2013
 .Dt RC 8
 .Os
 .Sh NAME
@@ -129,6 +129,13 @@ and add
 (only allow vnet-enabled jails) to the list of KEYWORDS to skip in
 .Xr rcorder 8 .
 .It
+If the file
+.Va ${firstboot_sentinel}
+does not exist, add
+.Dq Li firstboot
+to the list of KEYWORDS to skip in
+.Xr rcorder 8 .
+.It
 Invoke
 .Xr rcorder 8
 to order the files in
@@ -156,6 +163,11 @@ Stop processing when the script that is the value of the
 .Va $early_late_divider
 has been run.
 .It
+Check again to see if the file
+.Va ${firstboot_sentinel}
+exists (in case it is located on a newly mounted file system)
+and adjust the list of KEYWORDs to skip appropriately.
+.It
 Re-run
 .Xr rcorder 8 ,
 this time including the scripts in the
@@ -164,6 +176,13 @@ directories.
 Ignore everything up to the
 .Va $early_late_divider ,
 then start executing the scripts as described above.
+.It
+If the file
+.Va ${firstboot_sentinel}
+exists, delete it.
+If the file
+.Va ${firstboot_sentinel}-reboot
+also exists (because it was created by a script), then delete it and reboot.
 .El
 .Ss Operation of Nm rc.shutdown
 .Bl -enum
@@ -312,6 +331,9 @@ Defaults to displaying the process ID of the program (if running).
 If the script starts a process (rather than performing a one-off
 operation), wait for the command to exit.
 Otherwise it is not necessary to support this argument.
+.It Cm enabled
+Return 0 if the service is enabled and 1 if it is not.
+This command does not print anything.
 .It Cm rcvar
 Display which
 .Xr rc.conf 5

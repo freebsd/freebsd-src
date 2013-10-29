@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_atm.h>
 #include <net/route.h>
@@ -260,8 +261,8 @@ hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group)
 /*
  * Free an mbuf and put it onto the free list.
  */
-static void
-hatm_mbuf0_free(void *buf, void *args)
+static int
+hatm_mbuf0_free(struct mbuf *m, void *buf, void *args)
 {
 	struct hatm_softc *sc = args;
 	struct mbuf0_chunk *c = buf;
@@ -270,9 +271,10 @@ hatm_mbuf0_free(void *buf, void *args)
 	    ("freeing unused mbuf %x", c->hdr.flags));
 	c->hdr.flags &= ~MBUF_USED;
 	hatm_ext_free(&sc->mbuf_list[0], (struct mbufx_free *)c);
+	return (EXT_FREE_OK);
 }
-static void
-hatm_mbuf1_free(void *buf, void *args)
+static int
+hatm_mbuf1_free(struct mbuf *m, void *buf, void *args)
 {
 	struct hatm_softc *sc = args;
 	struct mbuf1_chunk *c = buf;
@@ -281,6 +283,7 @@ hatm_mbuf1_free(void *buf, void *args)
 	    ("freeing unused mbuf %x", c->hdr.flags));
 	c->hdr.flags &= ~MBUF_USED;
 	hatm_ext_free(&sc->mbuf_list[1], (struct mbufx_free *)c);
+	return (EXT_FREE_OK);
 }
 
 static void
@@ -461,7 +464,7 @@ hatm_rx_buffer(struct hatm_softc *sc, u_int group, u_int handle)
 			    hatm_mbuf0_free, c0, sc, M_PKTHDR, EXT_EXTREF);
 			m->m_data += MBUF0_OFFSET;
 		} else
-			hatm_mbuf0_free(c0, sc);
+			(void)hatm_mbuf0_free(NULL, c0, sc);
 
 	} else {
 		struct mbuf1_chunk *c1;
@@ -485,7 +488,7 @@ hatm_rx_buffer(struct hatm_softc *sc, u_int group, u_int handle)
 			    hatm_mbuf1_free, c1, sc, M_PKTHDR, EXT_EXTREF);
 			m->m_data += MBUF1_OFFSET;
 		} else
-			hatm_mbuf1_free(c1, sc);
+			(void)hatm_mbuf1_free(NULL, c1, sc);
 	}
 
 	return (m);

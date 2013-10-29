@@ -46,6 +46,8 @@ struct backcmd {		/* result of evalbackcmd */
 	struct job *jp;		/* job structure for command */
 };
 
+void reseteval(void);
+
 /* flags in argument to evaltree/evalstring */
 #define EV_EXIT 01		/* exit after evaluating tree */
 #define EV_TESTED 02		/* exit status is checked; ignore -e flag */
@@ -65,5 +67,4 @@ extern int skipcount;
 /* reasons for skipping commands (see comment on breakcmd routine) */
 #define SKIPBREAK	1
 #define SKIPCONT	2
-#define SKIPFUNC	3
-#define SKIPFILE	4
+#define SKIPRETURN	3

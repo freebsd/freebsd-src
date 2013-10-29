@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2001-2006 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
@@ -16,12 +16,13 @@
 #endif
 #include "ipf.h"
 #include <fcntl.h>
+#include <ctype.h>
 #include <sys/ioctl.h>
 #include "netinet/ipl.h"
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipf.c	1.23 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipf.c,v 1.35.2.8 2007/05/10 06:12:01 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id$";
 #endif
 
 #if !defined(__SVR4) && defined(__GNUC__)
@@ -40,23 +41,30 @@ int	main __P((int, char *[]));
 int	opts = 0;
 int	outputc = 0;
 int	use_inet6 = 0;
+int	exitstatus = 0;
 
-static	void	procfile __P((char *, char *)), flushfilter __P((char *));
-static	void	set_state __P((u_int)), showstats __P((friostat_t *));
-static	void	packetlogon __P((char *)), swapactive __P((void));
+static	void	procfile __P((char *));
+static	void	flushfilter __P((char *, int *));
+static	void	set_state __P((u_int));
+static	void	showstats __P((friostat_t *));
+static	void	packetlogon __P((char *));
+static	void	swapactive __P((void));
 static	int	opendevice __P((char *, int));
 static	void	closedevice __P((void));
 static	char	*ipfname = IPL_NAME;
 static	void	usage __P((void));
 static	int	showversion __P((void));
 static	int	get_flags __P((void));
-static	void	ipf_interceptadd __P((int, ioctlfunc_t, void *));
+static	int	ipf_interceptadd __P((int, ioctlfunc_t, void *));
 
 static	int	fd = -1;
 static	ioctlfunc_t	iocfunctions[IPL_LOGSIZE] = { ioctl, ioctl, ioctl,
 						      ioctl, ioctl, ioctl,
 						      ioctl, ioctl };
 
+/* XXX	The following was added to satisfy a rescue/rescue/ build
+   XXX	requirement.  */
+int	nohdrfields;
 
 static void usage()
 {
@@ -68,25 +76,28 @@ static void usage()
 
 
 int main(argc,argv)
-int argc;
-char *argv[];
+	int argc;
+	char *argv[];
 {
-	int c;
+	int c, *filter = NULL;
 
 	if (argc < 2)
 		usage();
 
-	while ((c = getopt(argc, argv, "6Ac:dDEf:F:Il:noPrRsT:vVyzZ")) != -1) {
+	assigndefined(getenv("IPF_PREDEFINED"));
+
+	while ((c = getopt(argc, argv, "46Ac:dDEf:F:Il:m:noPrRsT:vVyzZ")) != -1) {
 		switch (c)
 		{
 		case '?' :
 			usage();
 			break;
-#ifdef	USE_INET6
+		case '4' :
+			use_inet6 = -1;
+			break;
 		case '6' :
 			use_inet6 = 1;
 			break;
-#endif
 		case 'A' :
 			opts &= ~OPT_INACTIVE;
 			break;
@@ -104,10 +115,10 @@ char *argv[];
 			opts ^= OPT_DEBUG;
 			break;
 		case 'f' :
-			procfile(argv[0], optarg);
+			procfile(optarg);
 			break;
 		case 'F' :
-			flushfilter(optarg);
+			flushfilter(optarg, filter);
 			break;
 		case 'I' :
 			opts ^= OPT_INACTIVE;
@@ -115,8 +126,11 @@ char *argv[];
 		case 'l' :
 			packetlogon(optarg);
 			break;
+		case 'm' :
+			filter = parseipfexpr(optarg, NULL);
+			break;
 		case 'n' :
-			opts ^= OPT_DONOTHING;
+			opts ^= OPT_DONOTHING|OPT_DONTOPEN;
 			break;
 		case 'o' :
 			break;
@@ -161,14 +175,14 @@ char *argv[];
 	if (fd != -1)
 		(void) close(fd);
 
-	return(0);
+	return(exitstatus);
 	/* NOTREACHED */
 }
 
 
 static int opendevice(ipfdev, check)
-char *ipfdev;
-int check;
+	char *ipfdev;
+	int check;
 {
 	if (opts & OPT_DONOTHING)
 		return -2;
@@ -184,7 +198,7 @@ int check;
 	if (fd == -1)
 		if ((fd = open(ipfdev, O_RDWR)) == -1)
 			if ((fd = open(ipfdev, O_RDONLY)) == -1)
-				perror("open device");
+				ipferror(fd, "open device");
 	return fd;
 }
 
@@ -202,7 +216,7 @@ static	int	get_flags()
 
 	if ((opendevice(ipfname, 1) != -2) &&
 	    (ioctl(fd, SIOCGETFF, &i) == -1)) {
-		perror("SIOCGETFF");
+		ipferror(fd, "SIOCGETFF");
 		return 0;
 	}
 	return i;
@@ -210,22 +224,24 @@ static	int	get_flags()
 
 
 static	void	set_state(enable)
-u_int	enable;
+	u_int	enable;
 {
-	if (opendevice(ipfname, 0) != -2)
+	if (opendevice(ipfname, 0) != -2) {
 		if (ioctl(fd, SIOCFRENB, &enable) == -1) {
-			if (errno == EBUSY)
+			if (errno == EBUSY) {
 				fprintf(stderr,
 					"IP FIlter: already initialized\n");
-			else
-				perror("SIOCFRENB");
+			} else {
+				ipferror(fd, "SIOCFRENB");
+			}
 		}
+	}
 	return;
 }
 
 
-static	void	procfile(name, file)
-char	*name, *file;
+static	void	procfile(file)
+	char	*file;
 {
 	(void) opendevice(ipfname, 1);
 
@@ -241,20 +257,22 @@ char	*name, *file;
 }
 
 
-static void ipf_interceptadd(fd, ioctlfunc, ptr)
-int fd;
-ioctlfunc_t ioctlfunc;
-void *ptr;
+static int ipf_interceptadd(fd, ioctlfunc, ptr)
+	int fd;
+	ioctlfunc_t ioctlfunc;
+	void *ptr;
 {
 	if (outputc)
 		printc(ptr);
 
-	ipf_addrule(fd, ioctlfunc, ptr);
+	if (ipf_addrule(fd, ioctlfunc, ptr) != 0)
+		exitstatus = 1;
+	return 0;
 }
 
 
 static void packetlogon(opt)
-char	*opt;
+	char	*opt;
 {
 	int	flag, xfd, logopt, change = 0;
 
@@ -293,7 +311,7 @@ char	*opt;
 	if (change == 1) {
 		if (opendevice(ipfname, 1) != -2 &&
 		    (ioctl(fd, SIOCSETFF, &flag) != 0))
-			perror("ioctl(SIOCSETFF)");
+			ipferror(fd, "ioctl(SIOCSETFF)");
 	}
 
 	if ((opts & (OPT_DONOTHING|OPT_VERBOSE)) == OPT_VERBOSE) {
@@ -308,11 +326,11 @@ char	*opt;
 		if (xfd >= 0) {
 			logopt = 0;
 			if (ioctl(xfd, SIOCGETLG, &logopt))
-				perror("ioctl(SIOCGETLG)");
+				ipferror(fd, "ioctl(SIOCGETLG)");
 			else {
 				logopt = 1 - logopt;
 				if (ioctl(xfd, SIOCSETLG, &logopt))
-					perror("ioctl(SIOCSETLG)");
+					ipferror(xfd, "ioctl(SIOCSETLG)");
 			}
 			close(xfd);
 		}
@@ -325,11 +343,11 @@ char	*opt;
 		if (xfd >= 0) {
 			logopt = 0;
 			if (ioctl(xfd, SIOCGETLG, &logopt))
-				perror("ioctl(SIOCGETLG)");
+				ipferror(xfd, "ioctl(SIOCGETLG)");
 			else {
 				logopt = 1 - logopt;
 				if (ioctl(xfd, SIOCSETLG, &logopt))
-					perror("ioctl(SIOCSETLG)");
+					ipferror(xfd, "ioctl(SIOCSETLG)");
 			}
 			close(xfd);
 		}
@@ -337,8 +355,9 @@ char	*opt;
 }
 
 
-static	void	flushfilter(arg)
-char	*arg;
+static void flushfilter(arg, filter)
+	char *arg;
+	int *filter;
 {
 	int	fl = 0, rem;
 
@@ -359,20 +378,33 @@ char	*arg;
 
 		if (!(opts & OPT_DONOTHING)) {
 			if (use_inet6) {
-				if (ioctl(fd, SIOCIPFL6, &fl) == -1) {
-					perror("ioctl(SIOCIPFL6)");
-					exit(1);
+				fprintf(stderr,
+					"IPv6 rules are no longer seperate\n");
+			} else if (filter != NULL) {
+				ipfobj_t obj;
+
+				obj.ipfo_rev = IPFILTER_VERSION;
+				obj.ipfo_size = filter[0] * sizeof(int);
+				obj.ipfo_type = IPFOBJ_IPFEXPR;
+				obj.ipfo_ptr = filter;
+				if (ioctl(fd, SIOCMATCHFLUSH, &obj) == -1) {
+					ipferror(fd, "ioctl(SIOCMATCHFLUSH)");
+					fl = -1;
+				} else {
+					fl = obj.ipfo_retval;
 				}
 			} else {
 				if (ioctl(fd, SIOCIPFFL, &fl) == -1) {
-					perror("ioctl(SIOCIPFFL)");
+					ipferror(fd, "ioctl(SIOCIPFFL)");
 					exit(1);
 				}
 			}
 		}
-		if ((opts & (OPT_DONOTHING|OPT_VERBOSE)) == OPT_VERBOSE) {
+		if ((opts & (OPT_DONOTHING|OPT_DEBUG)) == OPT_DEBUG) {
 			printf("remove flags %s (%d)\n", arg, rem);
-			printf("removed %d entries\n", fl);
+		}
+		if ((opts & (OPT_DONOTHING|OPT_VERBOSE)) == OPT_VERBOSE) {
+			printf("%d state entries removed\n", fl);
 		}
 		closedevice();
 		return;
@@ -388,7 +420,7 @@ char	*arg;
 			perror("open(IPL_AUTH)");
 		else {
 			if (ioctl(fd, SIOCIPFFA, &fl) == -1)
-				perror("ioctl(SIOCIPFFA)");
+				ipferror(fd, "ioctl(SIOCIPFFA)");
 		}
 		closedevice();
 		return;
@@ -411,21 +443,23 @@ char	*arg;
 	if (!(opts & OPT_DONOTHING)) {
 		if (use_inet6) {
 			if (ioctl(fd, SIOCIPFL6, &fl) == -1) {
-				perror("ioctl(SIOCIPFL6)");
+				ipferror(fd, "ioctl(SIOCIPFL6)");
 				exit(1);
 			}
 		} else {
 			if (ioctl(fd, SIOCIPFFL, &fl) == -1) {
-				perror("ioctl(SIOCIPFFL)");
+				ipferror(fd, "ioctl(SIOCIPFFL)");
 				exit(1);
 			}
 		}
 	}
 
-	if ((opts & (OPT_DONOTHING|OPT_VERBOSE)) == OPT_VERBOSE) {
+	if ((opts & (OPT_DONOTHING|OPT_DEBUG)) == OPT_DEBUG) {
 		printf("remove flags %s%s (%d)\n", (rem & FR_INQUE) ? "I" : "",
 			(rem & FR_OUTQUE) ? "O" : "", rem);
-		printf("removed %d filter rules\n", fl);
+	}
+	if ((opts & (OPT_DONOTHING|OPT_VERBOSE)) == OPT_VERBOSE) {
+		printf("%d filter rules removed\n", fl);
 	}
 	return;
 }
@@ -436,7 +470,7 @@ static void swapactive()
 	int in = 2;
 
 	if (opendevice(ipfname, 1) != -2 && ioctl(fd, SIOCSWAPA, &in) == -1)
-		perror("ioctl(SIOCSWAPA)");
+		ipferror(fd, "ioctl(SIOCSWAPA)");
 	else
 		printf("Set %d now inactive\n", in);
 }
@@ -447,7 +481,7 @@ void ipf_frsync()
 	int frsyn = 0;
 
 	if (opendevice(ipfname, 1) != -2 && ioctl(fd, SIOCFRSYN, &frsyn) == -1)
-		perror("SIOCFRSYN");
+		ipferror(fd, "SIOCFRSYN");
 	else
 		printf("filter sync'd\n");
 }
@@ -466,7 +500,7 @@ void zerostats()
 
 	if (opendevice(ipfname, 1) != -2) {
 		if (ioctl(fd, SIOCFRZST, &obj) == -1) {
-			perror("ioctl(SIOCFRZST)");
+			ipferror(fd, "ioctl(SIOCFRZST)");
 			exit(-1);
 		}
 		showstats(&fio);
@@ -479,7 +513,7 @@ void zerostats()
  * read the kernel stats for packets blocked and passed
  */
 static void showstats(fp)
-friostat_t	*fp;
+	friostat_t	*fp;
 {
 	printf("bad packets:\t\tin %lu\tout %lu\n",
 			fp->f_st[0].fr_bad, fp->f_st[1].fr_bad);
@@ -495,9 +529,6 @@ friostat_t	*fp;
 			fp->f_st[0].fr_bpkl, fp->f_st[0].fr_ppkl);
 	printf("output packets logged:\tblocked %lu passed %lu\n",
 			fp->f_st[1].fr_bpkl, fp->f_st[1].fr_ppkl);
-	printf(" packets logged:\tinput %lu-%lu output %lu-%lu\n",
-			fp->f_st[0].fr_pkl, fp->f_st[0].fr_skip,
-			fp->f_st[1].fr_pkl, fp->f_st[1].fr_skip);
 }
 
 
@@ -523,7 +554,7 @@ static int showversion()
 	}
 
 	if (ioctl(vfd, SIOCGETFS, &ipfo)) {
-		perror("ioctl(SIOCGETFS)");
+		ipferror(vfd, "ioctl(SIOCGETFS)");
 		close(vfd);
 		return 1;
 	}

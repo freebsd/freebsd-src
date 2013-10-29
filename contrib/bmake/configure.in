@@ -1,10 +1,10 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.48 2013/03/04 21:25:57 sjg Exp $
+dnl	$Id: configure.in,v 1.49 2013/07/06 18:25:19 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
-AC_INIT([bmake], [20130303], [sjg@NetBSD.org])
+AC_INIT([bmake], [20130706], [sjg@NetBSD.org])
 AC_CONFIG_HEADER(config.h)
 
 dnl make srcdir absolute
@@ -77,15 +77,6 @@ AC_PROG_GCC_TRADITIONAL
 AC_PROG_INSTALL
 dnl Executable suffix - normally empty; .exe on os2.
 AC_SUBST(ac_exe_suffix)dnl
-
-dnl
-dnl Check if /bin/sh will pass .MAKE.LEVEL
-echo $ECHO_N "checking if sh will pass .MAKE. variables... $ECHO_C" >&6
-ok=`env .MAKE.LEVEL=1 /bin/sh -c env | grep LEVEL=`
-case "$ok" in
-"") echo no >&6; CPPFLAGS="${CPPFLAGS} -DNEED_MAKE_LEVEL_SAFE";;
-*) echo yes >&6;;
-esac
 
 dnl
 dnl AC_C_CROSS

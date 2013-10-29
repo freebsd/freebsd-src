@@ -169,8 +169,8 @@ ia32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	 * Build the GDT and LDT.
 	 */
 	gdt = sv->sv_usrstack;
-	vm_map_find(&vmspace->vm_map, 0, 0, &gdt, IA32_PAGE_SIZE << 1, 0,
-	    VM_PROT_ALL, VM_PROT_ALL, 0);
+	vm_map_find(&vmspace->vm_map, NULL, 0, &gdt, IA32_PAGE_SIZE << 1, 0,
+	    VMFS_NO_SPACE, VM_PROT_ALL, VM_PROT_ALL, 0);
 	ldt = gdt + IA32_PAGE_SIZE;
 
 	desc.sd_lolimit = 8*NLDT-1;

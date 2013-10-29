@@ -16,7 +16,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 
 #include <machine/stdarg.h>
-#include <machine/xen/xen-os.h>
+
+#include <xen/xen-os.h>
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 #include <sys/cons.h>
@@ -30,9 +31,10 @@ __FBSDID("$FreeBSD$");
 #include <xen/interface/io/console.h>
 
 #define console_evtchn	console.domU.evtchn
-static unsigned int console_irq;
+xen_intr_handle_t console_handle;
 extern char *console_page;
 extern struct mtx              cn_mtx;
+extern device_t xencons_dev;
 
 static inline struct xencons_interface *
 xencons_interface(void)
@@ -74,7 +76,7 @@ xencons_ring_send(const char *data, unsigned len)
 	wmb();
 	intf->out_prod = prod;
 
-	notify_remote_via_evtchn(xen_start_info->console_evtchn);
+	xen_intr_signal(console_handle);
 
 	return sent;
 
@@ -106,7 +108,7 @@ xencons_handle_input(void *unused)
 	intf->in_cons = cons;
 
 	CN_LOCK(cn_mtx);
-	notify_remote_via_evtchn(xen_start_info->console_evtchn);
+	xen_intr_signal(console_handle);
 
 	xencons_tx();
 	CN_UNLOCK(cn_mtx);
@@ -126,9 +128,9 @@ xencons_ring_init(void)
 	if (!xen_start_info->console_evtchn)
 		return 0;
 
-	err = bind_caller_port_to_irqhandler(xen_start_info->console_evtchn,
-		"xencons", xencons_handle_input, NULL,
-		INTR_TYPE_MISC | INTR_MPSAFE, &console_irq);
+	err = xen_intr_bind_local_port(xencons_dev,
+	    xen_start_info->console_evtchn, NULL, xencons_handle_input, NULL,
+	    INTR_TYPE_MISC | INTR_MPSAFE, &console_handle);
 	if (err) {
 		return err;
 	}
@@ -146,7 +148,7 @@ xencons_suspend(void)
 	if (!xen_start_info->console_evtchn)
 		return;
 
-	unbind_from_irqhandler(console_irq);
+	xen_intr_unbind(&console_handle);
 }
 
 void 

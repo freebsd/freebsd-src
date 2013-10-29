@@ -304,8 +304,8 @@ deupdat(dep, waitfor)
 	if ((dep->de_flag & DE_MODIFIED) == 0 && waitfor == 0)
 		return (0);
 	dep->de_flag &= ~DE_MODIFIED;
-	if (dep->de_Attributes & ATTR_DIRECTORY)
-		return (0);
+	if (DETOV(dep)->v_vflag & VV_ROOT)
+		return (EINVAL);
 	if (dep->de_refcnt <= 0)
 		return (0);
 	error = readde(dep, &bp, &dirp);

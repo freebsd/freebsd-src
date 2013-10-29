@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_paragraph.c	10.7 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: v_paragraph.c,v 10.10 2001/06/25 15:19:32 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -64,15 +64,14 @@ static const char sccsid[] = "@(#)v_paragraph.c	10.7 (Berkeley) 3/6/96";
  * PUBLIC: int v_paragraphf __P((SCR *, VICMD *));
  */
 int
-v_paragraphf(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_paragraphf(SCR *sp, VICMD *vp)
 {
 	enum { P_INTEXT, P_INBLANK } pstate;
 	size_t lastlen, len;
 	recno_t cnt, lastlno, lno;
 	int isempty;
-	char *p, *lp;
+	CHAR_T *p;
+	char *lp;
 
 	/*
 	 * !!!
@@ -203,14 +202,13 @@ eof:	if (vp->m_start.lno == lno || vp->m_start.lno == lno - 1) {
  * PUBLIC: int v_paragraphb __P((SCR *, VICMD *));
  */
 int
-v_paragraphb(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_paragraphb(SCR *sp, VICMD *vp)
 {
 	enum { P_INTEXT, P_INBLANK } pstate;
 	size_t len;
 	recno_t cnt, lno;
-	char *p, *lp;
+	CHAR_T *p;
+	char *lp;
 
 	/*
 	 * !!!
@@ -311,9 +309,7 @@ found:	vp->m_stop.lno = lno;
  * PUBLIC: int v_buildps __P((SCR *, char *, char *));
  */
 int
-v_buildps(sp, p_p, s_p)
-	SCR *sp;
-	char *p_p, *s_p;
+v_buildps(SCR *sp, char *p_p, char *s_p)
 {
 	VI_PRIVATE *vip;
 	size_t p_len, s_len;

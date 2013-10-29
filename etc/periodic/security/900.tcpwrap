@@ -38,7 +38,10 @@ then
     source_periodic_confs
 fi
 
-LOG="${daily_status_security_logdir}"
+security_daily_compat_var security_status_logdir
+security_daily_compat_var security_status_tcpwrap_enable
+
+LOG="${security_status_logdir}"
 
 yesterday=`date -v-1d "+%b %e "`
 
@@ -55,14 +58,15 @@ catmsgs() {
 	[ -f ${LOG}/messages ] && cat $LOG/messages
 }
 
-case "$daily_status_security_tcpwrap_enable" in
-    [Yy][Ee][Ss])
+rc=0
+
+if check_yesno_period security_status_tcpwrap_enable
+then
 	echo ""
 	echo "${host} refused connections:"
 	n=$(catmsgs | grep -i "^$yesterday.*refused connect" |
 	    tee /dev/stderr | wc -l)
-	[ $n -gt 0 ] && rc=1 || rc=0;;
-    *)	rc=0;;
-esac
+	[ $n -gt 0 ] && rc=1 || rc=0
+fi
 
 exit $rc

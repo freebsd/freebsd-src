@@ -72,6 +72,9 @@ struct pci_device_id {
 #define	PCI_DEVICE_ID_MELLANOX_SINAI_OLD	0x5e8c
 #define	PCI_DEVICE_ID_MELLANOX_SINAI		0x6274
 
+#define PCI_DEVFN(slot, func)   ((((slot) & 0x1f) << 3) | ((func) & 0x07))
+#define PCI_SLOT(devfn)         (((devfn) >> 3) & 0x1f)
+#define PCI_FUNC(devfn)         ((devfn) & 0x07)
 
 #define PCI_VDEVICE(_vendor, _device)					\
 	    .vendor = PCI_VENDOR_ID_##_vendor, .device = (_device),	\
@@ -93,14 +96,18 @@ struct pci_device_id {
 
 struct pci_dev;
 
+
 struct pci_driver {
 	struct list_head		links;
 	char				*name;
 	struct pci_device_id		*id_table;
 	int  (*probe)(struct pci_dev *dev, const struct pci_device_id *id);
 	void (*remove)(struct pci_dev *dev);
+        int  (*suspend) (struct pci_dev *dev, pm_message_t state);      /* Device suspended */
+        int  (*resume) (struct pci_dev *dev);                   /* Device woken up */
 	driver_t			driver;
 	devclass_t			bsdclass;
+        struct pci_error_handlers       *err_handler;
 };
 
 extern struct list_head pci_drivers;
@@ -117,6 +124,9 @@ struct pci_dev {
 	uint16_t		device;
 	uint16_t		vendor;
 	unsigned int		irq;
+        unsigned int            devfn;
+        u8                      revision;
+        struct pci_devinfo      *bus; /* bus this device is on, equivalent to linux struct pci_bus */
 };
 
 static inline struct resource_list_entry *
@@ -296,6 +306,7 @@ pci_disable_msix(struct pci_dev *pdev)
 #define	PCI_CAP_ID_EXP	PCIY_EXPRESS
 #define	PCI_CAP_ID_PCIX	PCIY_PCIX
 
+
 static inline int
 pci_find_capability(struct pci_dev *pdev, int capid)
 {
@@ -305,6 +316,26 @@ pci_find_capability(struct pci_dev *pdev, int capid)
 		return (0);
 	return (reg);
 }
+
+
+
+
+/**
+ * pci_pcie_cap - get the saved PCIe capability offset
+ * @dev: PCI device
+ *
+ * PCIe capability offset is calculated at PCI device initialization
+ * time and saved in the data structure. This function returns saved
+ * PCIe capability offset. Using this instead of pci_find_capability()
+ * reduces unnecessary search in the PCI configuration space. If you
+ * need to calculate PCIe capability offset from raw device for some
+ * reasons, please use pci_find_capability() instead.
+ */
+static inline int pci_pcie_cap(struct pci_dev *dev)
+{
+        return pci_find_capability(dev, PCI_CAP_ID_EXP);
+}
+
 
 static inline int
 pci_read_config_byte(struct pci_dev *pdev, int where, u8 *val)
@@ -529,6 +560,30 @@ pci_enable_msix(struct pci_dev *pdev, struct msix_entry *entries, int nreq)
 	return (0);
 }
 
+static inline int pci_channel_offline(struct pci_dev *pdev)
+{
+        return false;
+}
+
+static inline int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn)
+{
+        return -ENODEV;
+}
+static inline void pci_disable_sriov(struct pci_dev *dev)
+{
+}
+
+/**
+ * DEFINE_PCI_DEVICE_TABLE - macro used to describe a pci device table
+ * @_table: device table name
+ *
+ * This macro is used to create a struct pci_device_id array (a device table)
+ * in a generic manner.
+ */
+#define DEFINE_PCI_DEVICE_TABLE(_table) \
+	const struct pci_device_id _table[] __devinitdata
+
+
 /* XXX This should not be necessary. */
 #define	pcix_set_mmrbc(d, v)	0
 #define	pcix_get_max_mmrbc(d)	0
@@ -577,6 +632,58 @@ pci_enable_msix(struct pci_dev *pdev, struct msix_entry *entries, int nreq)
 #define	pci_unmap_addr_set	dma_unmap_addr_set
 #define	pci_unmap_len		dma_unmap_len
 #define	pci_unmap_len_set	dma_unmap_len_set
+
+typedef unsigned int __bitwise pci_channel_state_t;
+typedef unsigned int __bitwise pci_ers_result_t;
+
+enum pci_channel_state {
+        /* I/O channel is in normal state */
+        pci_channel_io_normal = (__force pci_channel_state_t) 1,
+
+        /* I/O to channel is blocked */
+        pci_channel_io_frozen = (__force pci_channel_state_t) 2,
+
+        /* PCI card is dead */
+        pci_channel_io_perm_failure = (__force pci_channel_state_t) 3,
+};
+
+enum pci_ers_result {
+        /* no result/none/not supported in device driver */
+        PCI_ERS_RESULT_NONE = (__force pci_ers_result_t) 1,
+
+        /* Device driver can recover without slot reset */
+        PCI_ERS_RESULT_CAN_RECOVER = (__force pci_ers_result_t) 2,
+
+        /* Device driver wants slot to be reset. */
+        PCI_ERS_RESULT_NEED_RESET = (__force pci_ers_result_t) 3,
+
+        /* Device has completely failed, is unrecoverable */
+        PCI_ERS_RESULT_DISCONNECT = (__force pci_ers_result_t) 4,
+
+        /* Device driver is fully recovered and operational */
+        PCI_ERS_RESULT_RECOVERED = (__force pci_ers_result_t) 5,
+};
+
+
+/* PCI bus error event callbacks */
+struct pci_error_handlers {
+        /* PCI bus error detected on this device */
+        pci_ers_result_t (*error_detected)(struct pci_dev *dev,
+                        enum pci_channel_state error);
+
+        /* MMIO has been re-enabled, but not DMA */
+        pci_ers_result_t (*mmio_enabled)(struct pci_dev *dev);
+
+        /* PCI Express link has been reset */
+        pci_ers_result_t (*link_reset)(struct pci_dev *dev);
+
+        /* PCI slot has been reset */
+        pci_ers_result_t (*slot_reset)(struct pci_dev *dev);
+
+        /* Device driver may resume normal operations */
+        void (*resume)(struct pci_dev *dev);
+};
+
 
 
 #endif	/* _LINUX_PCI_H_ */

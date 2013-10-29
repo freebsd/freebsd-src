@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1998-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2013 Michael Gmelin <freebsd@grem.de>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+
+#ifdef WITH_SSL
+#include <openssl/x509v3.h>
+#endif
 
 #include "fetch.h"
 #include "common.h"
@@ -317,15 +322,488 @@ fetch_connect(const char *host, int port, int af, int verbose)
 	return (conn);
 }
 
+#ifdef WITH_SSL
+/*
+ * Convert characters A-Z to lowercase (intentionally avoid any locale
+ * specific conversions).
+ */
+static char
+fetch_ssl_tolower(char in)
+{
+	if (in >= 'A' && in <= 'Z')
+		return (in + 32);
+	else
+		return (in);
+}
+
+/*
+ * isalpha implementation that intentionally avoids any locale specific
+ * conversions.
+ */
+static int
+fetch_ssl_isalpha(char in)
+{
+	return ((in >= 'A' && in <= 'Z') || (in >= 'a' && in <= 'z'));
+}
+
+/*
+ * Check if passed hostnames a and b are equal.
+ */
+static int
+fetch_ssl_hname_equal(const char *a, size_t alen, const char *b,
+    size_t blen)
+{
+	size_t i;
+
+	if (alen != blen)
+		return (0);
+	for (i = 0; i < alen; ++i) {
+		if (fetch_ssl_tolower(a[i]) != fetch_ssl_tolower(b[i]))
+			return (0);
+	}
+	return (1);
+}
+
+/*
+ * Check if domain label is traditional, meaning that only A-Z, a-z, 0-9
+ * and '-' (hyphen) are allowed. Hyphens have to be surrounded by alpha-
+ * numeric characters. Double hyphens (like they're found in IDN a-labels
+ * 'xn--') are not allowed. Empty labels are invalid.
+ */
+static int
+fetch_ssl_is_trad_domain_label(const char *l, size_t len, int wcok)
+{
+	size_t i;
+
+	if (!len || l[0] == '-' || l[len-1] == '-')
+		return (0);
+	for (i = 0; i < len; ++i) {
+		if (!isdigit(l[i]) &&
+		    !fetch_ssl_isalpha(l[i]) &&
+		    !(l[i] == '*' && wcok) &&
+		    !(l[i] == '-' && l[i - 1] != '-'))
+			return (0);
+	}
+	return (1);
+}
+
+/*
+ * Check if host name consists only of numbers. This might indicate an IP
+ * address, which is not a good idea for CN wildcard comparison.
+ */
+static int
+fetch_ssl_hname_is_only_numbers(const char *hostname, size_t len)
+{
+	size_t i;
+
+	for (i = 0; i < len; ++i) {
+		if (!((hostname[i] >= '0' && hostname[i] <= '9') ||
+		    hostname[i] == '.'))
+			return (0);
+	}
+	return (1);
+}
+
+/*
+ * Check if the host name h passed matches the pattern passed in m which
+ * is usually part of subjectAltName or CN of a certificate presented to
+ * the client. This includes wildcard matching. The algorithm is based on
+ * RFC6125, sections 6.4.3 and 7.2, which clarifies RFC2818 and RFC3280.
+ */
+static int
+fetch_ssl_hname_match(const char *h, size_t hlen, const char *m,
+    size_t mlen)
+{
+	int delta, hdotidx, mdot1idx, wcidx;
+	const char *hdot, *mdot1, *mdot2;
+	const char *wc; /* wildcard */
+
+	if (!(h && *h && m && *m))
+		return (0);
+	if ((wc = strnstr(m, "*", mlen)) == NULL)
+		return (fetch_ssl_hname_equal(h, hlen, m, mlen));
+	wcidx = wc - m;
+	/* hostname should not be just dots and numbers */
+	if (fetch_ssl_hname_is_only_numbers(h, hlen))
+		return (0);
+	/* only one wildcard allowed in pattern */
+	if (strnstr(wc + 1, "*", mlen - wcidx - 1) != NULL)
+		return (0);
+	/*
+	 * there must be at least two more domain labels and
+	 * wildcard has to be in the leftmost label (RFC6125)
+	 */
+	mdot1 = strnstr(m, ".", mlen);
+	if (mdot1 == NULL || mdot1 < wc || (mlen - (mdot1 - m)) < 4)
+		return (0);
+	mdot1idx = mdot1 - m;
+	mdot2 = strnstr(mdot1 + 1, ".", mlen - mdot1idx - 1);
+	if (mdot2 == NULL || (mlen - (mdot2 - m)) < 2)
+		return (0);
+	/* hostname must contain a dot and not be the 1st char */
+	hdot = strnstr(h, ".", hlen);
+	if (hdot == NULL || hdot == h)
+		return (0);
+	hdotidx = hdot - h;
+	/*
+	 * host part of hostname must be at least as long as
+	 * pattern it's supposed to match
+	 */
+	if (hdotidx < mdot1idx)
+		return (0);
+	/*
+	 * don't allow wildcards in non-traditional domain names
+	 * (IDN, A-label, U-label...)
+	 */
+	if (!fetch_ssl_is_trad_domain_label(h, hdotidx, 0) ||
+	    !fetch_ssl_is_trad_domain_label(m, mdot1idx, 1))
+		return (0);
+	/* match domain part (part after first dot) */
+	if (!fetch_ssl_hname_equal(hdot, hlen - hdotidx, mdot1,
+	    mlen - mdot1idx))
+		return (0);
+	/* match part left of wildcard */
+	if (!fetch_ssl_hname_equal(h, wcidx, m, wcidx))
+		return (0);
+	/* match part right of wildcard */
+	delta = mdot1idx - wcidx - 1;
+	if (!fetch_ssl_hname_equal(hdot - delta, delta,
+	    mdot1 - delta, delta))
+		return (0);
+	/* all tests succeded, it's a match */
+	return (1);
+}
+
+/*
+ * Get numeric host address info - returns NULL if host was not an IP
+ * address. The caller is responsible for deallocation using
+ * freeaddrinfo(3).
+ */
+static struct addrinfo *
+fetch_ssl_get_numeric_addrinfo(const char *hostname, size_t len)
+{
+	struct addrinfo hints, *res;
+	char *host;
+
+	host = (char *)malloc(len + 1);
+	memcpy(host, hostname, len);
+	host[len] = '\0';
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = 0;
+	hints.ai_flags = AI_NUMERICHOST;
+	/* port is not relevant for this purpose */
+	getaddrinfo(host, "443", &hints, &res);
+	free(host);
+	return res;
+}
+
+/*
+ * Compare ip address in addrinfo with address passes.
+ */
+static int
+fetch_ssl_ipaddr_match_bin(const struct addrinfo *lhost, const char *rhost,
+    size_t rhostlen)
+{
+	const void *left;
+
+	if (lhost->ai_family == AF_INET && rhostlen == 4) {
+		left = (void *)&((struct sockaddr_in*)(void *)
+		    lhost->ai_addr)->sin_addr.s_addr;
+#ifdef INET6
+	} else if (lhost->ai_family == AF_INET6 && rhostlen == 16) {
+		left = (void *)&((struct sockaddr_in6 *)(void *)
+		    lhost->ai_addr)->sin6_addr;
+#endif
+	} else
+		return (0);
+	return (!memcmp(left, (const void *)rhost, rhostlen) ? 1 : 0);
+}
+
+/*
+ * Compare ip address in addrinfo with host passed. If host is not an IP
+ * address, comparison will fail.
+ */
+static int
+fetch_ssl_ipaddr_match(const struct addrinfo *laddr, const char *r,
+    size_t rlen)
+{
+	struct addrinfo *raddr;
+	int ret;
+	char *rip;
+
+	ret = 0;
+	if ((raddr = fetch_ssl_get_numeric_addrinfo(r, rlen)) == NULL)
+		return 0; /* not a numeric host */
+
+	if (laddr->ai_family == raddr->ai_family) {
+		if (laddr->ai_family == AF_INET) {
+			rip = (char *)&((struct sockaddr_in *)(void *)
+			    raddr->ai_addr)->sin_addr.s_addr;
+			ret = fetch_ssl_ipaddr_match_bin(laddr, rip, 4);
+#ifdef INET6
+		} else if (laddr->ai_family == AF_INET6) {
+			rip = (char *)&((struct sockaddr_in6 *)(void *)
+			    raddr->ai_addr)->sin6_addr;
+			ret = fetch_ssl_ipaddr_match_bin(laddr, rip, 16);
+#endif
+		}
+
+	}
+	freeaddrinfo(raddr);
+	return (ret);
+}
+
+/*
+ * Verify server certificate by subjectAltName.
+ */
+static int
+fetch_ssl_verify_altname(STACK_OF(GENERAL_NAME) *altnames,
+    const char *host, struct addrinfo *ip)
+{
+	const GENERAL_NAME *name;
+	size_t nslen;
+	int i;
+	const char *ns;
+
+	for (i = 0; i < sk_GENERAL_NAME_num(altnames); ++i) {
+#if OPENSSL_VERSION_NUMBER < 0x10000000L
+		/*
+		 * This is a workaround, since the following line causes
+		 * alignment issues in clang:
+		 * name = sk_GENERAL_NAME_value(altnames, i);
+		 * OpenSSL explicitly warns not to use those macros
+		 * directly, but there isn't much choice (and there
+		 * shouldn't be any ill side effects)
+		 */
+		name = (GENERAL_NAME *)SKM_sk_value(void, altnames, i);
+#else
+		name = sk_GENERAL_NAME_value(altnames, i);
+#endif
+		ns = (const char *)ASN1_STRING_data(name->d.ia5);
+		nslen = (size_t)ASN1_STRING_length(name->d.ia5);
+
+		if (name->type == GEN_DNS && ip == NULL &&
+		    fetch_ssl_hname_match(host, strlen(host), ns, nslen))
+			return (1);
+		else if (name->type == GEN_IPADD && ip != NULL &&
+		    fetch_ssl_ipaddr_match_bin(ip, ns, nslen))
+			return (1);
+	}
+	return (0);
+}
+
+/*
+ * Verify server certificate by CN.
+ */
+static int
+fetch_ssl_verify_cn(X509_NAME *subject, const char *host,
+    struct addrinfo *ip)
+{
+	ASN1_STRING *namedata;
+	X509_NAME_ENTRY *nameentry;
+	int cnlen, lastpos, loc, ret;
+	unsigned char *cn;
+
+	ret = 0;
+	lastpos = -1;
+	loc = -1;
+	cn = NULL;
+	/* get most specific CN (last entry in list) and compare */
+	while ((lastpos = X509_NAME_get_index_by_NID(subject,
+	    NID_commonName, lastpos)) != -1)
+		loc = lastpos;
+
+	if (loc > -1) {
+		nameentry = X509_NAME_get_entry(subject, loc);
+		namedata = X509_NAME_ENTRY_get_data(nameentry);
+		cnlen = ASN1_STRING_to_UTF8(&cn, namedata);
+		if (ip == NULL &&
+		    fetch_ssl_hname_match(host, strlen(host), cn, cnlen))
+			ret = 1;
+		else if (ip != NULL && fetch_ssl_ipaddr_match(ip, cn, cnlen))
+			ret = 1;
+		OPENSSL_free(cn);
+	}
+	return (ret);
+}
+
+/*
+ * Verify that server certificate subjectAltName/CN matches
+ * hostname. First check, if there are alternative subject names. If yes,
+ * those have to match. Only if those don't exist it falls back to
+ * checking the subject's CN.
+ */
+static int
+fetch_ssl_verify_hname(X509 *cert, const char *host)
+{
+	struct addrinfo *ip;
+	STACK_OF(GENERAL_NAME) *altnames;
+	X509_NAME *subject;
+	int ret;	
+
+	ret = 0;
+	ip = fetch_ssl_get_numeric_addrinfo(host, strlen(host));
+	altnames = X509_get_ext_d2i(cert, NID_subject_alt_name,
+	    NULL, NULL);
+
+	if (altnames != NULL) {
+		ret = fetch_ssl_verify_altname(altnames, host, ip);
+	} else {
+		subject = X509_get_subject_name(cert);
+		if (subject != NULL)
+			ret = fetch_ssl_verify_cn(subject, host, ip);
+	}
+
+	if (ip != NULL)
+		freeaddrinfo(ip);
+	if (altnames != NULL)
+		GENERAL_NAMES_free(altnames);
+	return (ret);
+}
+
+/*
+ * Configure transport security layer based on environment.
+ */
+static void
+fetch_ssl_setup_transport_layer(SSL_CTX *ctx, int verbose)
+{
+	long ssl_ctx_options;
+
+	ssl_ctx_options = SSL_OP_ALL | SSL_OP_NO_TICKET;
+	if (getenv("SSL_ALLOW_SSL2") == NULL)
+		ssl_ctx_options |= SSL_OP_NO_SSLv2;
+	if (getenv("SSL_NO_SSL3") != NULL)
+		ssl_ctx_options |= SSL_OP_NO_SSLv3;
+	if (getenv("SSL_NO_TLS1") != NULL)
+		ssl_ctx_options |= SSL_OP_NO_TLSv1;
+	if (verbose)
+		fetch_info("SSL options: %x", ssl_ctx_options);
+	SSL_CTX_set_options(ctx, ssl_ctx_options);
+}
+
+
+/*
+ * Configure peer verification based on environment.
+ */
+static int
+fetch_ssl_setup_peer_verification(SSL_CTX *ctx, int verbose)
+{
+	X509_LOOKUP *crl_lookup;
+	X509_STORE *crl_store;
+	const char *ca_cert_file, *ca_cert_path, *crl_file;
+
+	if (getenv("SSL_NO_VERIFY_PEER") == NULL) {
+		ca_cert_file = getenv("SSL_CA_CERT_FILE") != NULL ?
+		    getenv("SSL_CA_CERT_FILE") : "/etc/ssl/cert.pem";
+		ca_cert_path = getenv("SSL_CA_CERT_PATH");
+		if (verbose) {
+			fetch_info("Peer verification enabled");
+			if (ca_cert_file != NULL)
+				fetch_info("Using CA cert file: %s",
+				    ca_cert_file);
+			if (ca_cert_path != NULL)
+				fetch_info("Using CA cert path: %s",
+				    ca_cert_path);
+		}
+		SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER,
+		    fetch_ssl_cb_verify_crt);
+		SSL_CTX_load_verify_locations(ctx, ca_cert_file,
+		    ca_cert_path);
+		if ((crl_file = getenv("SSL_CRL_FILE")) != NULL) {
+			if (verbose)
+				fetch_info("Using CRL file: %s", crl_file);
+			crl_store = SSL_CTX_get_cert_store(ctx);
+			crl_lookup = X509_STORE_add_lookup(crl_store,
+			    X509_LOOKUP_file());
+			if (crl_lookup == NULL ||
+			    !X509_load_crl_file(crl_lookup, crl_file,
+				X509_FILETYPE_PEM)) {
+				fprintf(stderr,
+				    "Could not load CRL file %s\n",
+				    crl_file);
+				return (0);
+			}
+			X509_STORE_set_flags(crl_store,
+			    X509_V_FLAG_CRL_CHECK |
+			    X509_V_FLAG_CRL_CHECK_ALL);
+		}
+	}
+	return (1);
+}
+
+/*
+ * Configure client certificate based on environment.
+ */
+static int
+fetch_ssl_setup_client_certificate(SSL_CTX *ctx, int verbose)
+{
+	const char *client_cert_file, *client_key_file;
+
+	if ((client_cert_file = getenv("SSL_CLIENT_CERT_FILE")) != NULL) {
+		client_key_file = getenv("SSL_CLIENT_KEY_FILE") != NULL ?
+		    getenv("SSL_CLIENT_KEY_FILE") : client_cert_file;
+		if (verbose) {
+			fetch_info("Using client cert file: %s",
+			    client_cert_file);
+			fetch_info("Using client key file: %s",
+			    client_key_file);
+		}
+		if (SSL_CTX_use_certificate_chain_file(ctx,
+			client_cert_file) != 1) {
+			fprintf(stderr,
+			    "Could not load client certificate %s\n",
+			    client_cert_file);
+			return (0);
+		}
+		if (SSL_CTX_use_PrivateKey_file(ctx, client_key_file,
+			SSL_FILETYPE_PEM) != 1) {
+			fprintf(stderr,
+			    "Could not load client key %s\n",
+			    client_key_file);
+			return (0);
+		}
+	}
+	return (1);
+}
+
+/*
+ * Callback for SSL certificate verification, this is called on server
+ * cert verification. It takes no decision, but informs the user in case
+ * verification failed.
+ */
+int
+fetch_ssl_cb_verify_crt(int verified, X509_STORE_CTX *ctx)
+{
+	X509 *crt;
+	X509_NAME *name;
+	char *str;
+
+	str = NULL;
+	if (!verified) {
+		if ((crt = X509_STORE_CTX_get_current_cert(ctx)) != NULL &&
+		    (name = X509_get_subject_name(crt)) != NULL)
+			str = X509_NAME_oneline(name, 0, 0);
+		fprintf(stderr, "Certificate verification failed for %s\n",
+		    str != NULL ? str : "no relevant certificate");
+		OPENSSL_free(str);
+	}
+	return (verified);
+}
+
+#endif
 
 /*
  * Enable SSL on a connection.
  */
 int
-fetch_ssl(conn_t *conn, int verbose)
+fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 {
 #ifdef WITH_SSL
 	int ret, ssl_err;
+	X509_NAME *name;
+	char *str;
 
 	/* Init the SSL library and context */
 	if (!SSL_library_init()){
@@ -339,8 +817,14 @@ fetch_ssl(conn_t *conn, int verbose)
 	conn->ssl_ctx = SSL_CTX_new(conn->ssl_meth);
 	SSL_CTX_set_mode(conn->ssl_ctx, SSL_MODE_AUTO_RETRY);
 
+	fetch_ssl_setup_transport_layer(conn->ssl_ctx, verbose);
+	if (!fetch_ssl_setup_peer_verification(conn->ssl_ctx, verbose))
+		return (-1);
+	if (!fetch_ssl_setup_client_certificate(conn->ssl_ctx, verbose))
+		return (-1);
+
 	conn->ssl = SSL_new(conn->ssl_ctx);
-	if (conn->ssl == NULL){
+	if (conn->ssl == NULL) {
 		fprintf(stderr, "SSL context creation failed\n");
 		return (-1);
 	}
@@ -353,22 +837,35 @@ fetch_ssl(conn_t *conn, int verbose)
 			return (-1);
 		}
 	}
+	conn->ssl_cert = SSL_get_peer_certificate(conn->ssl);
+
+	if (conn->ssl_cert == NULL) {
+		fprintf(stderr, "No server SSL certificate\n");
+		return (-1);
+	}
+
+	if (getenv("SSL_NO_VERIFY_HOSTNAME") == NULL) {
+		if (verbose)
+			fetch_info("Verify hostname");
+		if (!fetch_ssl_verify_hname(conn->ssl_cert, URL->host)) {
+			fprintf(stderr,
+			    "SSL certificate subject doesn't match host %s\n",
+			    URL->host);
+			return (-1);
+		}
+	}
 
 	if (verbose) {
-		X509_NAME *name;
-		char *str;
-
-		fprintf(stderr, "SSL connection established using %s\n",
+		fetch_info("SSL connection established using %s",
 		    SSL_get_cipher(conn->ssl));
-		conn->ssl_cert = SSL_get_peer_certificate(conn->ssl);
 		name = X509_get_subject_name(conn->ssl_cert);
 		str = X509_NAME_oneline(name, 0, 0);
-		printf("Certificate subject: %s\n", str);
-		free(str);
+		fetch_info("Certificate subject: %s", str);
+		OPENSSL_free(str);
 		name = X509_get_issuer_name(conn->ssl_cert);
 		str = X509_NAME_oneline(name, 0, 0);
-		printf("Certificate issuer: %s\n", str);
-		free(str);
+		fetch_info("Certificate issuer: %s", str);
+		OPENSSL_free(str);
 	}
 
 	return (0);
@@ -726,6 +1223,22 @@ fetch_close(conn_t *conn)
 
 	if (--conn->ref > 0)
 		return (0);
+#ifdef WITH_SSL
+	if (conn->ssl) {
+		SSL_shutdown(conn->ssl);
+		SSL_set_connect_state(conn->ssl);
+		SSL_free(conn->ssl);
+		conn->ssl = NULL;
+	}
+	if (conn->ssl_ctx) {
+		SSL_CTX_free(conn->ssl_ctx);
+		conn->ssl_ctx = NULL;
+	}
+	if (conn->ssl_cert) {
+		X509_free(conn->ssl_cert);
+		conn->ssl_cert = NULL;
+	}
+#endif
 	ret = close(conn->sd);
 	free(conn->cache.buf);
 	free(conn->buf);

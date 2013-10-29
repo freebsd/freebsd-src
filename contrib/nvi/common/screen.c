@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)screen.c	10.15 (Berkeley) 9/15/96";
+static const char sccsid[] = "$Id: screen.c,v 10.25 2011/12/04 04:06:45 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -35,9 +35,10 @@ static const char sccsid[] = "@(#)screen.c	10.15 (Berkeley) 9/15/96";
  * PUBLIC: int screen_init __P((GS *, SCR *, SCR **));
  */
 int
-screen_init(gp, orig, spp)
-	GS *gp;
-	SCR *orig, **spp;
+screen_init(
+	GS *gp,
+	SCR *orig,
+	SCR **spp)
 {
 	SCR *sp;
 	size_t len;
@@ -50,9 +51,9 @@ screen_init(gp, orig, spp)
 	sp->id = ++gp->id;
 	sp->refcnt = 1;
 
-	sp->gp = gp;				/* All ref the GS structure. */
+	sp->gp = gp;			/* All ref the GS structure. */
 
-	sp->ccnt = 2;				/* Anything > 1 */
+	sp->ccnt = 2;			/* Anything > 1 */
 
 	/*
 	 * XXX
@@ -60,7 +61,7 @@ screen_init(gp, orig, spp)
 	 * we don't have the option information yet.
 	 */
 
-	CIRCLEQ_INIT(&sp->tiq);
+	TAILQ_INIT(sp->tiq);
 
 /* PARTIALLY OR COMPLETELY COPIED FROM PREVIOUS SCREEN. */
 	if (orig == NULL) {
@@ -80,15 +81,15 @@ screen_init(gp, orig, spp)
 		/* Retain searching/substitution information. */
 		sp->searchdir = orig->searchdir == NOTSET ? NOTSET : FORWARD;
 		if (orig->re != NULL && (sp->re =
-		    v_strdup(sp, orig->re, orig->re_len)) == NULL)
+		    v_wstrdup(sp, orig->re, orig->re_len)) == NULL)
 			goto mem;
 		sp->re_len = orig->re_len;
 		if (orig->subre != NULL && (sp->subre =
-		    v_strdup(sp, orig->subre, orig->subre_len)) == NULL)
+		    v_wstrdup(sp, orig->subre, orig->subre_len)) == NULL)
 			goto mem;
 		sp->subre_len = orig->subre_len;
 		if (orig->repl != NULL && (sp->repl =
-		    v_strdup(sp, orig->repl, orig->repl_len)) == NULL)
+		    v_wstrdup(sp, orig->repl, orig->repl_len)) == NULL)
 			goto mem;
 		sp->repl_len = orig->repl_len;
 		if (orig->newl_len) {
@@ -113,6 +114,8 @@ mem:				msgq(orig, M_SYSERR, NULL);
 		goto err;
 	if (v_screen_copy(orig, sp))		/* Vi. */
 		goto err;
+	sp->cl_private = 0;			/* XXX */
+	conv_init(orig, sp);			/* XXX */
 
 	*spp = sp;
 	return (0);
@@ -129,8 +132,7 @@ err:	screen_end(sp);
  * PUBLIC: int screen_end __P((SCR *));
  */
 int
-screen_end(sp)
-	SCR *sp;
+screen_end(SCR *sp)
 {
 	int rval;
 
@@ -144,17 +146,13 @@ screen_end(sp)
 	 * If a created screen failed during initialization, it may not
 	 * be linked into the chain.
 	 */
-	if (sp->q.cqe_next != NULL)
-		CIRCLEQ_REMOVE(&sp->gp->dq, sp, q);
+	if (TAILQ_ENTRY_ISVALID(sp, q))
+		TAILQ_REMOVE(sp->gp->dq, sp, q);
 
 	/* The screen is no longer real. */
 	F_CLR(sp, SC_SCR_EX | SC_SCR_VI);
 
 	rval = 0;
-#ifdef HAVE_PERL_INTERP
-	if (perl_screen_end(sp))		/* End perl. */
-		rval = 1;
-#endif
 	if (v_screen_end(sp))			/* End vi. */
 		rval = 1;
 	if (ex_screen_end(sp))			/* End ex. */
@@ -170,8 +168,8 @@ screen_end(sp)
 	}
 
 	/* Free any text input. */
-	if (sp->tiq.cqh_first != NULL)
-		text_lfree(&sp->tiq);
+	if (!TAILQ_EMPTY(sp->tiq))
+		text_lfree(sp->tiq);
 
 	/* Free alternate file name. */
 	if (sp->alt_name != NULL)
@@ -191,6 +189,9 @@ screen_end(sp)
 	if (sp->newl != NULL)
 		free(sp->newl);
 
+	/* Free the iconv environment */
+	conv_end(sp);
+
 	/* Free all the options */
 	opts_free(sp);
 
@@ -207,26 +208,24 @@ screen_end(sp)
  * PUBLIC: SCR *screen_next __P((SCR *));
  */
 SCR *
-screen_next(sp)
-	SCR *sp;
+screen_next(SCR *sp)
 {
 	GS *gp;
 	SCR *next;
 
 	/* Try the display queue, without returning the current screen. */
 	gp = sp->gp;
-	for (next = gp->dq.cqh_first;
-	    next != (void *)&gp->dq; next = next->q.cqe_next)
+	TAILQ_FOREACH(next, gp->dq, q)
 		if (next != sp)
 			break;
-	if (next != (void *)&gp->dq)
+	if (next != NULL)
 		return (next);
 
 	/* Try the hidden queue; if found, move screen to the display queue. */
-	if (gp->hq.cqh_first != (void *)&gp->hq) {
-		next = gp->hq.cqh_first;
-		CIRCLEQ_REMOVE(&gp->hq, next, q);
-		CIRCLEQ_INSERT_HEAD(&gp->dq, next, q);
+	if (!TAILQ_EMPTY(gp->hq)) {
+		next = TAILQ_FIRST(gp->hq);
+		TAILQ_REMOVE(gp->hq, next, q);
+		TAILQ_INSERT_HEAD(gp->dq, next, q);
 		return (next);
 	}
 	return (NULL);

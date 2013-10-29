@@ -6,8 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -27,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: t_openpam_readword.c 584 2012-04-07 22:47:16Z des $
+ * $Id: t_openpam_readword.c 648 2013-03-05 17:54:27Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -35,8 +34,6 @@
 #endif
 
 #include <err.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,54 +44,6 @@
 
 #include "t.h"
 
-static char filename[1024];
-static FILE *f;
-
-/*
- * Open the temp file and immediately unlink it so it doesn't leak in case
- * of premature exit.
- */
-static void
-orw_open(void)
-{
-	int fd;
-
-	if ((fd = open(filename, O_RDWR|O_CREAT|O_TRUNC, 0600)) < 0)
-		err(1, "%s(): %s", __func__, filename);
-	if ((f = fdopen(fd, "r+")) == NULL)
-		err(1, "%s(): %s", __func__, filename);
-	if (unlink(filename) < 0)
-		err(1, "%s(): %s", __func__, filename);
-}
-
-/*
- * Write text to the temp file.
- */
-static void
-orw_output(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	vfprintf(f, fmt, ap);
-	va_end(ap);
-	if (ferror(f))
-		err(1, "%s", filename);
-}
-
-/*
- * Rewind the temp file.
- */
-static void
-orw_rewind(void)
-{
-
-	errno = 0;
-	rewind(f);
-	if (errno != 0)
-		err(1, "%s(): %s", __func__, filename);
-}
-
 /*
  * Read a word from the temp file and verify that the result matches our
  * expectations: whether a word was read at all, how many lines were read
@@ -102,15 +51,15 @@ orw_rewind(void)
  * the file and whether we reached the end of the line.
  */
 static int
-orw_expect(const char *expected, int lines, int eof, int eol)
+orw_expect(struct t_file *tf, const char *expected, int lines, int eof, int eol)
 {
 	int ch, lineno = 0;
 	char *got;
 	size_t len;
 
-	got = openpam_readword(f, &lineno, &len);
-	if (ferror(f))
-		err(1, "%s(): %s", __func__, filename);
+	got = openpam_readword(tf->file, &lineno, &len);
+	if (t_ferror(tf))
+		err(1, "%s(): %s", __func__, tf->name);
 	if (expected != NULL && got == NULL) {
 		t_verbose("expected <<%s>>, got nothing\n", expected);
 		return (0);
@@ -128,17 +77,17 @@ orw_expect(const char *expected, int lines, int eof, int eol)
 		    lines, lineno);
 		return (0);
 	}
-	if (eof && !feof(f)) {
+	if (eof && !t_feof(tf)) {
 		t_verbose("expected EOF, but didn't get it\n");
 		return (0);
 	}
-	if (!eof && feof(f)) {
+	if (!eof && t_feof(tf)) {
 		t_verbose("didn't expect EOF, but got it anyway\n");
 		return (0);
 	}
-	ch = fgetc(f);
-	if (ferror(f))
-		err(1, "%s(): %s", __func__, filename);
+	ch = fgetc(tf->file);
+	if (t_ferror(tf))
+		err(1, "%s(): %s", __func__, tf->name);
 	if (eol && ch != '\n') {
 		t_verbose("expected EOL, but didn't get it\n");
 		return (0);
@@ -148,20 +97,8 @@ orw_expect(const char *expected, int lines, int eof, int eol)
 		return (0);
 	}
 	if (ch != EOF)
-		ungetc(ch, f);
+		ungetc(ch, tf->file);
 	return (1);
-}
-
-/*
- * Close the temp file.
- */
-void
-orw_close(void)
-{
-
-	if (fclose(f) != 0)
-		err(1, "%s(): %s", __func__, filename);
-	f = NULL;
 }
 
 
@@ -171,83 +108,90 @@ orw_close(void)
 
 T_FUNC(empty_input, "empty input")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	ret = orw_expect(NULL, 0 /*lines*/, 1 /*eof*/, 0 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	ret = orw_expect(tf, NULL, 0 /*lines*/, 1 /*eof*/, 0 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(empty_line, "empty line")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("\n");
-	orw_rewind();
-	ret = orw_expect(NULL, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, NULL, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(unterminated_line, "unterminated line")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output(" ");
-	orw_rewind();
-	ret = orw_expect(NULL, 0 /*lines*/, 1 /*eof*/, 0 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, " ");
+	t_frewind(tf);
+	ret = orw_expect(tf, NULL, 0 /*lines*/, 1 /*eof*/, 0 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(single_whitespace, "single whitespace")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output(" \n");
-	orw_rewind();
-	ret = orw_expect(NULL, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, " \n");
+	t_frewind(tf);
+	ret = orw_expect(tf, NULL, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(multiple_whitespace, "multiple whitespace")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output(" \t\r\n");
-	orw_rewind();
-	ret = orw_expect(NULL, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, " \t\r\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, NULL, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(comment, "comment")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("# comment\n");
-	orw_rewind();
-	ret = orw_expect(NULL, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "# comment\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, NULL, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(whitespace_before_comment, "whitespace before comment")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output(" # comment\n");
-	orw_rewind();
-	ret = orw_expect(NULL, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, " # comment\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, NULL, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
@@ -259,106 +203,114 @@ T_FUNC(whitespace_before_comment, "whitespace before comment")
 T_FUNC(single_word, "single word")
 {
 	const char *word = "hello";
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("%s\n", word);
-	orw_rewind();
-	ret = orw_expect(word, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "%s\n", word);
+	t_frewind(tf);
+	ret = orw_expect(tf, word, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(single_whitespace_before_word, "single whitespace before word")
 {
 	const char *word = "hello";
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output(" %s\n", word);
-	orw_rewind();
-	ret = orw_expect(word, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, " %s\n", word);
+	t_frewind(tf);
+	ret = orw_expect(tf, word, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(double_whitespace_before_word, "double whitespace before word")
 {
 	const char *word = "hello";
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("  %s\n", word);
-	orw_rewind();
-	ret = orw_expect(word, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "  %s\n", word);
+	t_frewind(tf);
+	ret = orw_expect(tf, word, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(single_whitespace_after_word, "single whitespace after word")
 {
 	const char *word = "hello";
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("%s \n", word);
-	orw_rewind();
-	ret = orw_expect(word, 0 /*lines*/, 0 /*eof*/, 0 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "%s \n", word);
+	t_frewind(tf);
+	ret = orw_expect(tf, word, 0 /*lines*/, 0 /*eof*/, 0 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(double_whitespace_after_word, "double whitespace after word")
 {
 	const char *word = "hello";
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("%s  \n", word);
-	orw_rewind();
-	ret = orw_expect(word, 0 /*lines*/, 0 /*eof*/, 0 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "%s  \n", word);
+	t_frewind(tf);
+	ret = orw_expect(tf, word, 0 /*lines*/, 0 /*eof*/, 0 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(comment_after_word, "comment after word")
 {
 	const char *word = "hello";
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("%s # comment\n", word);
-	orw_rewind();
-	ret = orw_expect(word, 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
-	    orw_expect(NULL, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "%s # comment\n", word);
+	t_frewind(tf);
+	ret = orw_expect(tf, word, 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
+	    orw_expect(tf, NULL, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(word_containing_hash, "word containing hash")
 {
 	const char *word = "hello#world";
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("%s\n", word);
-	orw_rewind();
-	ret = orw_expect(word, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "%s\n", word);
+	t_frewind(tf);
+	ret = orw_expect(tf, word, 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(two_words, "two words")
 {
 	const char *word[] = { "hello", "world" };
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("%s %s\n", word[0], word[1]);
-	orw_rewind();
-	ret = orw_expect(word[0], 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
-	    orw_expect(word[1], 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "%s %s\n", word[0], word[1]);
+	t_frewind(tf);
+	ret = orw_expect(tf, word[0], 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
+	    orw_expect(tf, word[1], 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
@@ -369,89 +321,96 @@ T_FUNC(two_words, "two words")
 
 T_FUNC(naked_escape, "naked escape")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("\\");
-	orw_rewind();
-	ret = orw_expect(NULL, 0 /*lines*/, 1 /*eof*/, 0 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\\");
+	t_frewind(tf);
+	ret = orw_expect(tf, NULL, 0 /*lines*/, 1 /*eof*/, 0 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(escaped_escape, "escaped escape")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("\\\\\n");
-	orw_rewind();
-	ret = orw_expect("\\", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\\\\\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "\\", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(escaped_whitespace, "escaped whitespace")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("\\  \\\t \\\r \\\n\n");
-	orw_rewind();
-	ret = orw_expect(" ", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
-	    orw_expect("\t", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
-	    orw_expect("\r", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\\  \\\t \\\r \\\n\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, " ", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
+	    orw_expect(tf, "\t", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
+	    orw_expect(tf, "\r", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
 	    /* this last one is a line continuation */
-	    orw_expect(NULL, 1 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	    orw_expect(tf, NULL, 1 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(escaped_newline_before_word, "escaped newline before word")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("\\\nhello world\n");
-	orw_rewind();
-	ret = orw_expect("hello", 1 /*lines*/, 0 /*eof*/, 0 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\\\nhello world\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "hello", 1 /*lines*/, 0 /*eof*/, 0 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(escaped_newline_within_word, "escaped newline within word")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("hello\\\nworld\n");
-	orw_rewind();
-	ret = orw_expect("helloworld", 1 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "hello\\\nworld\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "helloworld", 1 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(escaped_newline_after_word, "escaped newline after word")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("hello\\\n world\n");
-	orw_rewind();
-	ret = orw_expect("hello", 1 /*lines*/, 0 /*eof*/, 0 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "hello\\\n world\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "hello", 1 /*lines*/, 0 /*eof*/, 0 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(escaped_letter, "escaped letter")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("\\z\n");
-	orw_rewind();
-	ret = orw_expect("z", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\\z\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "z", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
@@ -462,127 +421,220 @@ T_FUNC(escaped_letter, "escaped letter")
 
 T_FUNC(naked_single_quote, "naked single quote")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("'");
-	orw_rewind();
-	ret = orw_expect(NULL, 0 /*lines*/, 1 /*eof*/, 0 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "'");
+	t_frewind(tf);
+	ret = orw_expect(tf, NULL, 0 /*lines*/, 1 /*eof*/, 0 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(naked_double_quote, "naked double quote")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("\"");
-	orw_rewind();
-	ret = orw_expect(NULL, 0 /*lines*/, 1 /*eof*/, 0 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\"");
+	t_frewind(tf);
+	ret = orw_expect(tf, NULL, 0 /*lines*/, 1 /*eof*/, 0 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(empty_single_quotes, "empty single quotes")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("''\n");
-	orw_rewind();
-	ret = orw_expect("", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "''\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(empty_double_quotes, "empty double quotes")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("\"\"\n");
-	orw_rewind();
-	ret = orw_expect("", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\"\"\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(single_quotes_within_double_quotes, "single quotes within double quotes")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("\"' '\"\n");
-	orw_rewind();
-	ret = orw_expect("' '", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\"' '\"\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "' '", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(double_quotes_within_single_quotes, "double quotes within single quotes")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("'\" \"'\n");
-	orw_rewind();
-	ret = orw_expect("\" \"", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "'\" \"'\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "\" \"", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(single_quoted_whitespace, "single-quoted whitespace")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("' ' '\t' '\r' '\n'\n");
-	orw_rewind();
-	ret = orw_expect(" ", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
-	    orw_expect("\t", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
-	    orw_expect("\r", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
-	    orw_expect("\n", 1 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "' ' '\t' '\r' '\n'\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, " ", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
+	    orw_expect(tf, "\t", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
+	    orw_expect(tf, "\r", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
+	    orw_expect(tf, "\n", 1 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(double_quoted_whitespace, "double-quoted whitespace")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("\" \" \"\t\" \"\r\" \"\n\"\n");
-	orw_rewind();
-	ret = orw_expect(" ", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
-	    orw_expect("\t", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
-	    orw_expect("\r", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
-	    orw_expect("\n", 1 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\" \" \"\t\" \"\r\" \"\n\"\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, " ", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
+	    orw_expect(tf, "\t", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
+	    orw_expect(tf, "\r", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
+	    orw_expect(tf, "\n", 1 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(single_quoted_words, "single-quoted words")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("'hello world'\n");
-	orw_rewind();
-	ret = orw_expect("hello world", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "'hello world'\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "hello world", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(double_quoted_words, "double-quoted words")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("\"hello world\"\n");
-	orw_rewind();
-	ret = orw_expect("hello world", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\"hello world\"\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "hello world", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
+	return (ret);
+}
+
+
+/***************************************************************************
+ * Combinations of quoted and unquoted text
+ */
+
+T_FUNC(single_quote_before_word, "single quote before word")
+{
+	struct t_file *tf;
+	int ret;
+
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "'hello 'world\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "hello world", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
+	return (ret);
+}
+
+T_FUNC(double_quote_before_word, "double quote before word")
+{
+	struct t_file *tf;
+	int ret;
+
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\"hello \"world\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "hello world", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
+	return (ret);
+}
+
+T_FUNC(single_quote_within_word, "single quote within word")
+{
+	struct t_file *tf;
+	int ret;
+
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "hello' 'world\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "hello world", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
+	return (ret);
+}
+
+T_FUNC(double_quote_within_word, "double quote within word")
+{
+	struct t_file *tf;
+	int ret;
+
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "hello\" \"world\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "hello world", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
+	return (ret);
+}
+
+T_FUNC(single_quote_after_word, "single quote after word")
+{
+	struct t_file *tf;
+	int ret;
+
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "hello' world'\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "hello world", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
+	return (ret);
+}
+
+T_FUNC(double_quote_after_word, "double quote after word")
+{
+	struct t_file *tf;
+	int ret;
+
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "hello\" world\"\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "hello world", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
@@ -594,163 +646,175 @@ T_FUNC(double_quoted_words, "double-quoted words")
 T_FUNC(escaped_single_quote,
     "escaped single quote")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("\\'\n");
-	orw_rewind();
-	ret = orw_expect("'", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\\'\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "'", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(escaped_double_quote,
     "escaped double quote")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("\\\"\n");
-	orw_rewind();
-	ret = orw_expect("\"", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\\\"\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "\"", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(escaped_whitespace_within_single_quotes,
     "escaped whitespace within single quotes")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("'\\ ' '\\\t' '\\\r' '\\\n'\n");
-	orw_rewind();
-	ret = orw_expect("\\ ", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
-	    orw_expect("\\\t", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
-	    orw_expect("\\\r", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
-	    orw_expect("\\\n", 1 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "'\\ ' '\\\t' '\\\r' '\\\n'\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "\\ ", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
+	    orw_expect(tf, "\\\t", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
+	    orw_expect(tf, "\\\r", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
+	    orw_expect(tf, "\\\n", 1 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(escaped_whitespace_within_double_quotes,
     "escaped whitespace within double quotes")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("\"\\ \" \"\\\t\" \"\\\r\" \"\\\n\"\n");
-	orw_rewind();
-	ret = orw_expect("\\ ", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
-	    orw_expect("\\\t", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
-	    orw_expect("\\\r", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\"\\ \" \"\\\t\" \"\\\r\" \"\\\n\"\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "\\ ", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
+	    orw_expect(tf, "\\\t", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
+	    orw_expect(tf, "\\\r", 0 /*lines*/, 0 /*eof*/, 0 /*eol*/) &&
 	    /* this last one is a line continuation */
-	    orw_expect("", 1 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	    orw_expect(tf, "", 1 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(escaped_letter_within_single_quotes,
     "escaped letter within single quotes")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("'\\z'\n");
-	orw_rewind();
-	ret = orw_expect("\\z", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "'\\z'\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "\\z", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(escaped_letter_within_double_quotes,
     "escaped letter within double quotes")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("\"\\z\"\n");
-	orw_rewind();
-	ret = orw_expect("\\z", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\"\\z\"\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "\\z", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(escaped_escape_within_single_quotes,
     "escaped escape within single quotes")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("'\\\\'\n");
-	orw_rewind();
-	ret = orw_expect("\\\\", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "'\\\\'\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "\\\\", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(escaped_escape_within_double_quotes,
     "escaped escape within double quotes")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("\"\\\\\"\n");
-	orw_rewind();
-	ret = orw_expect("\\", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\"\\\\\"\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "\\", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(escaped_single_quote_within_single_quotes,
     "escaped single quote within single quotes")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("'\\''\n");
-	orw_rewind();
-	ret = orw_expect(NULL, 1 /*lines*/, 1 /*eof*/, 0 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "'\\''\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, NULL, 1 /*lines*/, 1 /*eof*/, 0 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(escaped_double_quote_within_single_quotes,
     "escaped double quote within single quotes")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("'\\\"'\n");
-	orw_rewind();
-	ret = orw_expect("\\\"", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "'\\\"'\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "\\\"", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(escaped_single_quote_within_double_quotes,
     "escaped single quote within double quotes")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("\"\\'\"\n");
-	orw_rewind();
-	ret = orw_expect("\\'", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\"\\'\"\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "\\'", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(escaped_double_quote_within_double_quotes,
     "escaped double quote within double quotes")
 {
+	struct t_file *tf;
 	int ret;
 
-	orw_open();
-	orw_output("\"\\\"\"\n");
-	orw_rewind();
-	ret = orw_expect("\"", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
-	orw_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\"\\\"\"\n");
+	t_frewind(tf);
+	ret = orw_expect(tf, "\"", 0 /*lines*/, 0 /*eof*/, 1 /*eol*/);
+	t_fclose(tf);
 	return (ret);
 }
 
@@ -795,6 +859,13 @@ const struct t_test *t_plan[] = {
 	T(single_quoted_words),
 	T(double_quoted_words),
 
+	T(single_quote_before_word),
+	T(double_quote_before_word),
+	T(single_quote_within_word),
+	T(double_quote_within_word),
+	T(single_quote_after_word),
+	T(double_quote_after_word),
+
 	T(escaped_single_quote),
 	T(escaped_double_quote),
 	T(escaped_whitespace_within_single_quotes),
@@ -817,9 +888,6 @@ t_prepare(int argc, char *argv[])
 
 	(void)argc;
 	(void)argv;
-	snprintf(filename, sizeof filename, "%s.%d.tmp", t_progname, getpid());
-	if (filename == NULL)
-		err(1, "asprintf()");
 	return (t_plan);
 }
 

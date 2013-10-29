@@ -145,7 +145,7 @@ int
 main(int argc, char *argv[])
 {
 	int	error = 0, hunk, failed, i, fd;
-	bool	patch_seen;
+	bool	patch_seen, reverse_seen;
 	LINENUM	where = 0, newwhere, fuzz, mymaxfuzz;
 	const	char *tmpdir;
 	char	*v;
@@ -239,12 +239,15 @@ main(int argc, char *argv[])
 		if (!skip_rest_of_patch)
 			scan_input(filearg[0]);
 
-		/* from here on, open no standard i/o files, because malloc */
-		/* might misfire and we can't catch it easily */
+		/*
+		 * from here on, open no standard i/o files, because
+		 * malloc might misfire and we can't catch it easily
+		 */
 
 		/* apply each hunk of patch */
 		hunk = 0;
 		failed = 0;
+		reverse_seen = false;
 		out_of_mem = false;
 		while (another_hunk()) {
 			hunk++;
@@ -255,7 +258,7 @@ main(int argc, char *argv[])
 			if (!skip_rest_of_patch) {
 				do {
 					where = locate_hunk(fuzz);
-					if (hunk == 1 && where == 0 && !force) {
+					if (hunk == 1 && where == 0 && !force && !reverse_seen) {
 						/* dwim for reversed patch? */
 						if (!pch_swap()) {
 							if (fuzz == 0)
@@ -291,6 +294,8 @@ main(int argc, char *argv[])
 								ask("Apply anyway? [n] ");
 								if (*buf != 'y')
 									skip_rest_of_patch = true;
+								else
+									reverse_seen = true;
 								where = 0;
 								reverse = !reverse;
 								if (!pch_swap())
@@ -404,8 +409,8 @@ main(int argc, char *argv[])
 				say("%d out of %d hunks %s--saving rejects to %s\n",
 				    failed, hunk, skip_rest_of_patch ? "ignored" : "failed", rejname);
 			else
-				say("%d out of %d hunks %s\n",
-				    failed, hunk, skip_rest_of_patch ? "ignored" : "failed");
+				say("%d out of %d hunks %s while patching %s\n",
+				    failed, hunk, skip_rest_of_patch ? "ignored" : "failed", filearg[0]);
 			if (!check_only && move_file(TMPREJNAME, rejname) < 0)
 				trejkeep = true;
 		}

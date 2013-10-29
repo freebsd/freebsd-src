@@ -105,10 +105,16 @@ phandle_t	OF_parent(phandle_t node);
 ssize_t		OF_getproplen(phandle_t node, const char *propname);
 ssize_t		OF_getprop(phandle_t node, const char *propname, void *buf,
 		    size_t len);
+ssize_t		OF_getencprop(phandle_t node, const char *prop, pcell_t *buf,
+		    size_t len); /* Same as getprop, but maintains endianness */
 int		OF_hasprop(phandle_t node, const char *propname);
 ssize_t		OF_searchprop(phandle_t node, const char *propname, void *buf,
 		    size_t len);
+ssize_t		OF_searchencprop(phandle_t node, const char *propname,
+		    void *buf, size_t len);
 ssize_t		OF_getprop_alloc(phandle_t node, const char *propname,
+		    int elsz, void **buf);
+ssize_t		OF_getencprop_alloc(phandle_t node, const char *propname,
 		    int elsz, void **buf);
 int		OF_nextprop(phandle_t node, const char *propname, char *buf,
 		    size_t len);
@@ -117,6 +123,14 @@ int		OF_setprop(phandle_t node, const char *name, const void *buf,
 ssize_t		OF_canon(const char *path, char *buf, size_t len);
 phandle_t	OF_finddevice(const char *path);
 ssize_t		OF_package_to_path(phandle_t node, char *buf, size_t len);
+
+/*
+ * Some OF implementations (IBM, FDT) have a concept of effective phandles
+ * used for device-tree cross-references. Given one of these, returns the
+ * real phandle. If one can't be found (or running on OF implementations
+ * without this property), returns its input.
+ */
+phandle_t	OF_xref_phandle(phandle_t xref);
 
 /* Device I/O functions */
 ihandle_t	OF_open(const char *path);

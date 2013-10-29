@@ -35,10 +35,12 @@ then
     source_periodic_confs
 fi
 
+security_daily_compat_var security_status_neggrpperm_enable
+
 rc=0
 
-case "$daily_status_security_neggrpperm_enable" in
-    [Yy][Ee][Ss])
+if check_yesno_period security_status_neggrpperm_enable
+then
 	echo ""
 	echo 'Checking negative group permissions:'
 	MP=`mount -t ufs,zfs | awk '$0 !~ /no(suid|exec)/ { print $3 }'`
@@ -48,7 +50,6 @@ case "$daily_status_security_neggrpperm_enable" in
 	    \( ! -perm +040 -and -perm +004 \) \) \
 	    -exec ls -liTd \{\} \+ | tee /dev/stderr | wc -l)
 	[ $n -gt 0 ] && rc=1 || rc=0
-	;;
-esac
+fi
 
 exit $rc

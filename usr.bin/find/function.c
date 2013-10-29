@@ -442,7 +442,8 @@ f_delete(PLAN *plan __unused, FTSENT *entry)
 		errx(1, "-delete: forbidden when symlinks are followed");
 
 	/* Potentially unsafe - do not accept relative paths whatsoever */
-	if (strchr(entry->fts_accpath, '/') != NULL)
+	if (entry->fts_level > FTS_ROOTLEVEL &&
+	    strchr(entry->fts_accpath, '/') != NULL)
 		errx(1, "-delete: %s: relative path potentially not safe",
 			entry->fts_accpath);
 

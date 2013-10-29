@@ -707,7 +707,7 @@ case "${RERUN}" in
   # Build the mtree database in a temporary location.
   case "${PRE_WORLD}" in
   '') MTREENEW=`mktemp -t mergemaster.mtree`
-      mtree -ci -p ${TEMPROOT} -k size,md5digest > ${MTREENEW} 2>/dev/null
+      mtree -nci -p ${TEMPROOT} -k size,md5digest > ${MTREENEW} 2>/dev/null
       ;;
   *) # We don't want to mess with the mtree database on a pre-world run or
      # when re-scanning a previously-built tree.

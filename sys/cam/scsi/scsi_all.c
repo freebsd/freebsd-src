@@ -1118,7 +1118,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x04, 0x10, SS_RDEF,	/* XXX TBD */
 	    "Logical unit not ready, auxiliary memory not accessible") },
 	/* DT  WRO AEB VF */
-	{ SST(0x04, 0x11, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x11, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | EBUSY,
 	    "Logical unit not ready, notify (enable spinup) required") },
 	/*        M    V  */
 	{ SST(0x04, 0x12, SS_RDEF,	/* XXX TBD */
@@ -5247,6 +5247,21 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 	       vendor, product, revision,
 	       SID_IS_REMOVABLE(inq_data) ? "Removable" : "Fixed",
 	       dtype, rstr, qtype);
+}
+
+void
+scsi_print_inquiry_short(struct scsi_inquiry_data *inq_data)
+{
+	char vendor[16], product[48], revision[16];
+
+	cam_strvis(vendor, inq_data->vendor, sizeof(inq_data->vendor),
+		   sizeof(vendor));
+	cam_strvis(product, inq_data->product, sizeof(inq_data->product),
+		   sizeof(product));
+	cam_strvis(revision, inq_data->revision, sizeof(inq_data->revision),
+		   sizeof(revision));
+
+	printf("<%s %s %s>", vendor, product, revision);
 }
 
 /*

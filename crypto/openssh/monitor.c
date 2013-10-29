@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.120 2012/12/11 22:16:21 markus Exp $ */
+/* $OpenBSD: monitor.c,v 1.127 2013/07/19 07:37:48 markus Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -97,6 +97,7 @@
 #include "ssh2.h"
 #include "jpake.h"
 #include "roaming.h"
+#include "authfd.h"
 
 #ifdef GSSAPI
 static Gssctxt *gsscontext = NULL;
@@ -392,7 +393,7 @@ monitor_child_preauth(Authctxt *_authctxt, struct monitor *pmonitor)
 				    "with SSH protocol 1");
 			if (authenticated &&
 			    !auth2_update_methods_lists(authctxt,
-			    auth_method)) {
+			    auth_method, auth_submethod)) {
 				debug3("%s: method %s: partial", __func__,
 				    auth_method);
 				authenticated = 0;
@@ -422,8 +423,7 @@ monitor_child_preauth(Authctxt *_authctxt, struct monitor *pmonitor)
 		}
 		if (ent->flags & (MON_AUTHDECIDE|MON_ALOG)) {
 			auth_log(authctxt, authenticated, partial,
-			    auth_method, auth_submethod,
-			    compat20 ? " ssh2" : "");
+			    auth_method, auth_submethod);
 			if (!authenticated)
 				authctxt->failures++;
 		}
@@ -551,7 +551,7 @@ monitor_read_log(struct monitor *pmonitor)
 	do_log2(level, "%s [preauth]", msg);
 
 	buffer_free(&logmsg);
-	xfree(msg);
+	free(msg);
 
 	return 0;
 }
@@ -642,12 +642,9 @@ static void
 monitor_reset_key_state(void)
 {
 	/* reset state */
-	if (key_blob != NULL)
-		xfree(key_blob);
-	if (hostbased_cuser != NULL)
-		xfree(hostbased_cuser);
-	if (hostbased_chost != NULL)
-		xfree(hostbased_chost);
+	free(key_blob);
+	free(hostbased_cuser);
+	free(hostbased_chost);
 	key_blob = NULL;
 	key_bloblen = 0;
 	key_blobtype = MM_NOKEY;
@@ -690,6 +687,8 @@ mm_answer_moduli(int sock, Buffer *m)
 	return (0);
 }
 
+extern AuthenticationConnection *auth_conn;
+
 int
 mm_answer_sign(int sock, Buffer *m)
 {
@@ -718,18 +717,24 @@ mm_answer_sign(int sock, Buffer *m)
 		memcpy(session_id2, p, session_id2_len);
 	}
 
-	if ((key = get_hostkey_by_index(keyid)) == NULL)
+	if ((key = get_hostkey_by_index(keyid)) != NULL) {
+		if (key_sign(key, &signature, &siglen, p, datlen) < 0)
+			fatal("%s: key_sign failed", __func__);
+	} else if ((key = get_hostkey_public_by_index(keyid)) != NULL &&
+	    auth_conn != NULL) {
+		if (ssh_agent_sign(auth_conn, key, &signature, &siglen, p,
+		    datlen) < 0)
+			fatal("%s: ssh_agent_sign failed", __func__);
+	} else
 		fatal("%s: no hostkey from index %d", __func__, keyid);
-	if (key_sign(key, &signature, &siglen, p, datlen) < 0)
-		fatal("%s: key_sign failed", __func__);
 
 	debug3("%s: signature %p(%u)", __func__, signature, siglen);
 
 	buffer_clear(m);
 	buffer_put_string(m, signature, siglen);
 
-	xfree(p);
-	xfree(signature);
+	free(p);
+	free(signature);
 
 	mm_request_send(sock, MONITOR_ANS_SIGN, m);
 
@@ -760,7 +765,7 @@ mm_answer_pwnamallow(int sock, Buffer *m)
 
 	authctxt->user = xstrdup(username);
 	setproctitle("%s [priv]", pwent ? username : "unknown");
-	xfree(username);
+	free(username);
 
 	buffer_clear(m);
 
@@ -778,8 +783,10 @@ mm_answer_pwnamallow(int sock, Buffer *m)
 	buffer_put_string(m, pwent, sizeof(struct passwd));
 	buffer_put_cstring(m, pwent->pw_name);
 	buffer_put_cstring(m, "*");
+#ifdef HAVE_STRUCT_PASSWD_PW_GECOS
 	buffer_put_cstring(m, pwent->pw_gecos);
-#ifdef HAVE_PW_CLASS_IN_PASSWD
+#endif
+#ifdef HAVE_STRUCT_PASSWD_PW_CLASS
 	buffer_put_cstring(m, pwent->pw_class);
 #endif
 	buffer_put_cstring(m, pwent->pw_dir);
@@ -838,9 +845,7 @@ int mm_answer_auth2_read_banner(int sock, Buffer *m)
 	banner = auth2_read_banner();
 	buffer_put_cstring(m, banner != NULL ? banner : "");
 	mm_request_send(sock, MONITOR_ANS_AUTH2_READ_BANNER, m);
-
-	if (banner != NULL)
-		xfree(banner);
+	free(banner);
 
 	return (0);
 }
@@ -856,7 +861,7 @@ mm_answer_authserv(int sock, Buffer *m)
 	    __func__, authctxt->service, authctxt->style);
 
 	if (strlen(authctxt->style) == 0) {
-		xfree(authctxt->style);
+		free(authctxt->style);
 		authctxt->style = NULL;
 	}
 
@@ -876,7 +881,7 @@ mm_answer_authpassword(int sock, Buffer *m)
 	authenticated = options.password_authentication &&
 	    auth_password(authctxt, passwd);
 	memset(passwd, 0, strlen(passwd));
-	xfree(passwd);
+	free(passwd);
 
 	buffer_clear(m);
 	buffer_put_int(m, authenticated);
@@ -916,10 +921,10 @@ mm_answer_bsdauthquery(int sock, Buffer *m)
 	mm_request_send(sock, MONITOR_ANS_BSDAUTHQUERY, m);
 
 	if (success) {
-		xfree(name);
-		xfree(infotxt);
-		xfree(prompts);
-		xfree(echo_on);
+		free(name);
+		free(infotxt);
+		free(prompts);
+		free(echo_on);
 	}
 
 	return (0);
@@ -939,7 +944,7 @@ mm_answer_bsdauthrespond(int sock, Buffer *m)
 	    auth_userresponse(authctxt->as, response, 0);
 	authctxt->as = NULL;
 	debug3("%s: <%s> = <%d>", __func__, response, authok);
-	xfree(response);
+	free(response);
 
 	buffer_clear(m);
 	buffer_put_int(m, authok);
@@ -947,9 +952,10 @@ mm_answer_bsdauthrespond(int sock, Buffer *m)
 	debug3("%s: sending authenticated: %d", __func__, authok);
 	mm_request_send(sock, MONITOR_ANS_BSDAUTHRESPOND, m);
 
-	if (compat20)
-		auth_method = "keyboard-interactive"; /* XXX auth_submethod */
-	else
+	if (compat20) {
+		auth_method = "keyboard-interactive";
+		auth_submethod = "bsdauth";
+	} else
 		auth_method = "bsdauth";
 
 	return (authok != 0);
@@ -991,7 +997,7 @@ mm_answer_skeyrespond(int sock, Buffer *m)
 	    skey_haskey(authctxt->pw->pw_name) == 0 &&
 	    skey_passcheck(authctxt->pw->pw_name, response) != -1);
 
-	xfree(response);
+	free(response);
 
 	buffer_clear(m);
 	buffer_put_int(m, authok);
@@ -1076,19 +1082,17 @@ mm_answer_pam_query(int sock, Buffer *m)
 	buffer_clear(m);
 	buffer_put_int(m, ret);
 	buffer_put_cstring(m, name);
-	xfree(name);
+	free(name);
 	buffer_put_cstring(m, info);
-	xfree(info);
+	free(info);
 	buffer_put_int(m, num);
 	for (i = 0; i < num; ++i) {
 		buffer_put_cstring(m, prompts[i]);
-		xfree(prompts[i]);
+		free(prompts[i]);
 		buffer_put_int(m, echo_on[i]);
 	}
-	if (prompts != NULL)
-		xfree(prompts);
-	if (echo_on != NULL)
-		xfree(echo_on);
+	free(prompts);
+	free(echo_on);
 	auth_method = "keyboard-interactive";
 	auth_submethod = "pam";
 	mm_request_send(sock, MONITOR_ANS_PAM_QUERY, m);
@@ -1111,8 +1115,8 @@ mm_answer_pam_respond(int sock, Buffer *m)
 			resp[i] = buffer_get_string(m, NULL);
 		ret = (sshpam_device.respond)(sshpam_ctxt, num, resp);
 		for (i = 0; i < num; ++i)
-			xfree(resp[i]);
-		xfree(resp);
+			free(resp[i]);
+		free(resp);
 	} else {
 		ret = (sshpam_device.respond)(sshpam_ctxt, num, NULL);
 	}
@@ -1170,6 +1174,7 @@ mm_answer_keyallowed(int sock, Buffer *m)
 		case MM_USERKEY:
 			allowed = options.pubkey_authentication &&
 			    user_key_allowed(authctxt->pw, key);
+			pubkey_auth_info(authctxt, key, NULL);
 			auth_method = "publickey";
 			if (options.pubkey_authentication && allowed != 1)
 				auth_clear_options();
@@ -1178,6 +1183,9 @@ mm_answer_keyallowed(int sock, Buffer *m)
 			allowed = options.hostbased_authentication &&
 			    hostbased_key_allowed(authctxt->pw,
 			    cuser, chost, key);
+			pubkey_auth_info(authctxt, key,
+			    "client user \"%.100s\", client host \"%.100s\"",
+			    cuser, chost);
 			auth_method = "hostbased";
 			break;
 		case MM_RSAHOSTKEY:
@@ -1209,11 +1217,10 @@ mm_answer_keyallowed(int sock, Buffer *m)
 		hostbased_chost = chost;
 	} else {
 		/* Log failed attempt */
-		auth_log(authctxt, 0, 0, auth_method, NULL,
-		    compat20 ? " ssh2" : "");
-		xfree(blob);
-		xfree(cuser);
-		xfree(chost);
+		auth_log(authctxt, 0, 0, auth_method, NULL);
+		free(blob);
+		free(cuser);
+		free(chost);
 	}
 
 	debug3("%s: key %p is %s",
@@ -1235,7 +1242,7 @@ static int
 monitor_valid_userblob(u_char *data, u_int datalen)
 {
 	Buffer b;
-	char *p;
+	char *p, *userstyle;
 	u_int len;
 	int fail = 0;
 
@@ -1256,26 +1263,30 @@ monitor_valid_userblob(u_char *data, u_int datalen)
 		    (len != session_id2_len) ||
 		    (timingsafe_bcmp(p, session_id2, session_id2_len) != 0))
 			fail++;
-		xfree(p);
+		free(p);
 	}
 	if (buffer_get_char(&b) != SSH2_MSG_USERAUTH_REQUEST)
 		fail++;
-	p = buffer_get_string(&b, NULL);
-	if (strcmp(authctxt->user, p) != 0) {
+	p = buffer_get_cstring(&b, NULL);
+	xasprintf(&userstyle, "%s%s%s", authctxt->user,
+	    authctxt->style ? ":" : "",
+	    authctxt->style ? authctxt->style : "");
+	if (strcmp(userstyle, p) != 0) {
 		logit("wrong user name passed to monitor: expected %s != %.100s",
-		    authctxt->user, p);
+		    userstyle, p);
 		fail++;
 	}
-	xfree(p);
+	free(userstyle);
+	free(p);
 	buffer_skip_string(&b);
 	if (datafellows & SSH_BUG_PKAUTH) {
 		if (!buffer_get_char(&b))
 			fail++;
 	} else {
-		p = buffer_get_string(&b, NULL);
+		p = buffer_get_cstring(&b, NULL);
 		if (strcmp("publickey", p) != 0)
 			fail++;
-		xfree(p);
+		free(p);
 		if (!buffer_get_char(&b))
 			fail++;
 		buffer_skip_string(&b);
@@ -1292,7 +1303,7 @@ monitor_valid_hostbasedblob(u_char *data, u_int datalen, char *cuser,
     char *chost)
 {
 	Buffer b;
-	char *p;
+	char *p, *userstyle;
 	u_int len;
 	int fail = 0;
 
@@ -1304,22 +1315,26 @@ monitor_valid_hostbasedblob(u_char *data, u_int datalen, char *cuser,
 	    (len != session_id2_len) ||
 	    (timingsafe_bcmp(p, session_id2, session_id2_len) != 0))
 		fail++;
-	xfree(p);
+	free(p);
 
 	if (buffer_get_char(&b) != SSH2_MSG_USERAUTH_REQUEST)
 		fail++;
-	p = buffer_get_string(&b, NULL);
-	if (strcmp(authctxt->user, p) != 0) {
+	p = buffer_get_cstring(&b, NULL);
+	xasprintf(&userstyle, "%s%s%s", authctxt->user,
+	    authctxt->style ? ":" : "",
+	    authctxt->style ? authctxt->style : "");
+	if (strcmp(userstyle, p) != 0) {
 		logit("wrong user name passed to monitor: expected %s != %.100s",
-		    authctxt->user, p);
+		    userstyle, p);
 		fail++;
 	}
-	xfree(p);
+	free(userstyle);
+	free(p);
 	buffer_skip_string(&b);	/* service */
-	p = buffer_get_string(&b, NULL);
+	p = buffer_get_cstring(&b, NULL);
 	if (strcmp(p, "hostbased") != 0)
 		fail++;
-	xfree(p);
+	free(p);
 	buffer_skip_string(&b);	/* pkalg */
 	buffer_skip_string(&b);	/* pkblob */
 
@@ -1329,13 +1344,13 @@ monitor_valid_hostbasedblob(u_char *data, u_int datalen, char *cuser,
 		p[len - 1] = '\0';
 	if (strcmp(p, chost) != 0)
 		fail++;
-	xfree(p);
+	free(p);
 
 	/* verify client user */
 	p = buffer_get_string(&b, NULL);
 	if (strcmp(p, cuser) != 0)
 		fail++;
-	xfree(p);
+	free(p);
 
 	if (buffer_len(&b) != 0)
 		fail++;
@@ -1384,9 +1399,9 @@ mm_answer_keyverify(int sock, Buffer *m)
 	    __func__, key, (verified == 1) ? "verified" : "unverified");
 
 	key_free(key);
-	xfree(blob);
-	xfree(signature);
-	xfree(data);
+	free(blob);
+	free(signature);
+	free(data);
 
 	auth_method = key_blobtype == MM_USERKEY ? "publickey" : "hostbased";
 
@@ -1514,7 +1529,7 @@ mm_answer_pty_cleanup(int sock, Buffer *m)
 	if ((s = session_by_tty(tty)) != NULL)
 		mm_session_close(s);
 	buffer_clear(m);
-	xfree(tty);
+	free(tty);
 	return (0);
 }
 
@@ -1646,7 +1661,7 @@ mm_answer_rsa_challenge(int sock, Buffer *m)
 
 	monitor_permit(mon_dispatch, MONITOR_REQ_RSARESPONSE, 1);
 
-	xfree(blob);
+	free(blob);
 	key_free(key);
 	return (0);
 }
@@ -1678,9 +1693,9 @@ mm_answer_rsa_response(int sock, Buffer *m)
 		fatal("%s: received bad response to challenge", __func__);
 	success = auth_rsa_verify_response(key, ssh1_challenge, response);
 
-	xfree(blob);
+	free(blob);
 	key_free(key);
-	xfree(response);
+	free(response);
 
 	auth_method = key_blobtype == MM_RSAUSERKEY ? "rsa" : "rhosts-rsa";
 
@@ -1759,7 +1774,7 @@ mm_answer_audit_command(int socket, Buffer *m)
 	cmd = buffer_get_string(m, &len);
 	/* sanity check command, if so how? */
 	audit_run_command(cmd);
-	xfree(cmd);
+	free(cmd);
 	return (0);
 }
 #endif /* SSH_AUDIT_EVENTS */
@@ -1774,20 +1789,20 @@ monitor_apply_keystate(struct monitor *pmonitor)
 		packet_set_protocol_flags(child_state.ssh1protoflags);
 		packet_set_encryption_key(child_state.ssh1key,
 		    child_state.ssh1keylen, child_state.ssh1cipher);
-		xfree(child_state.ssh1key);
+		free(child_state.ssh1key);
 	}
 
 	/* for rc4 and other stateful ciphers */
 	packet_set_keycontext(MODE_OUT, child_state.keyout);
-	xfree(child_state.keyout);
+	free(child_state.keyout);
 	packet_set_keycontext(MODE_IN, child_state.keyin);
-	xfree(child_state.keyin);
+	free(child_state.keyin);
 
 	if (!compat20) {
 		packet_set_iv(MODE_OUT, child_state.ivout);
-		xfree(child_state.ivout);
+		free(child_state.ivout);
 		packet_set_iv(MODE_IN, child_state.ivin);
-		xfree(child_state.ivin);
+		free(child_state.ivin);
 	}
 
 	memcpy(&incoming_stream, &child_state.incoming,
@@ -1799,18 +1814,22 @@ monitor_apply_keystate(struct monitor *pmonitor)
 	if (options.compression)
 		mm_init_compression(pmonitor->m_zlib);
 
+	if (options.rekey_limit || options.rekey_interval)
+		packet_set_rekey_limits((u_int32_t)options.rekey_limit,
+		    (time_t)options.rekey_interval);
+
 	/* Network I/O buffers */
 	/* XXX inefficient for large buffers, need: buffer_init_from_string */
 	buffer_clear(packet_get_input());
 	buffer_append(packet_get_input(), child_state.input, child_state.ilen);
 	memset(child_state.input, 0, child_state.ilen);
-	xfree(child_state.input);
+	free(child_state.input);
 
 	buffer_clear(packet_get_output());
 	buffer_append(packet_get_output(), child_state.output,
 		      child_state.olen);
 	memset(child_state.output, 0, child_state.olen);
-	xfree(child_state.output);
+	free(child_state.output);
 
 	/* Roaming */
 	if (compat20)
@@ -1842,11 +1861,11 @@ mm_get_kex(Buffer *m)
 	blob = buffer_get_string(m, &bloblen);
 	buffer_init(&kex->my);
 	buffer_append(&kex->my, blob, bloblen);
-	xfree(blob);
+	free(blob);
 	blob = buffer_get_string(m, &bloblen);
 	buffer_init(&kex->peer);
 	buffer_append(&kex->peer, blob, bloblen);
-	xfree(blob);
+	free(blob);
 	kex->done = 1;
 	kex->flags = buffer_get_int(m);
 	kex->client_version_string = buffer_get_string(m, NULL);
@@ -1854,6 +1873,7 @@ mm_get_kex(Buffer *m)
 	kex->load_host_public_key=&get_hostkey_public_by_type;
 	kex->load_host_private_key=&get_hostkey_private_by_type;
 	kex->host_key_index=&get_hostkey_index;
+	kex->sign = sshd_hostkey_sign;
 
 	return (kex);
 }
@@ -1889,12 +1909,12 @@ mm_get_keystate(struct monitor *pmonitor)
 
 	blob = buffer_get_string(&m, &bloblen);
 	current_keys[MODE_OUT] = mm_newkeys_from_blob(blob, bloblen);
-	xfree(blob);
+	free(blob);
 
 	debug3("%s: Waiting for second key", __func__);
 	blob = buffer_get_string(&m, &bloblen);
 	current_keys[MODE_IN] = mm_newkeys_from_blob(blob, bloblen);
-	xfree(blob);
+	free(blob);
 
 	/* Now get sequence numbers for the packets */
 	seqnr = buffer_get_int(&m);
@@ -1919,13 +1939,13 @@ mm_get_keystate(struct monitor *pmonitor)
 	if (plen != sizeof(child_state.outgoing))
 		fatal("%s: bad request size", __func__);
 	memcpy(&child_state.outgoing, p, sizeof(child_state.outgoing));
-	xfree(p);
+	free(p);
 
 	p = buffer_get_string(&m, &plen);
 	if (plen != sizeof(child_state.incoming))
 		fatal("%s: bad request size", __func__);
 	memcpy(&child_state.incoming, p, sizeof(child_state.incoming));
-	xfree(p);
+	free(p);
 
 	/* Network I/O buffers */
 	debug3("%s: Getting Network I/O buffers", __func__);
@@ -2047,7 +2067,7 @@ mm_answer_gss_setup_ctx(int sock, Buffer *m)
 
 	major = ssh_gssapi_server_ctx(&gsscontext, &goid);
 
-	xfree(goid.elements);
+	free(goid.elements);
 
 	buffer_clear(m);
 	buffer_put_int(m, major);
@@ -2072,7 +2092,7 @@ mm_answer_gss_accept_ctx(int sock, Buffer *m)
 	in.value = buffer_get_string(m, &len);
 	in.length = len;
 	major = ssh_gssapi_accept_ctx(gsscontext, &in, &out, &flags);
-	xfree(in.value);
+	free(in.value);
 
 	buffer_clear(m);
 	buffer_put_int(m, major);
@@ -2104,8 +2124,8 @@ mm_answer_gss_checkmic(int sock, Buffer *m)
 
 	ret = ssh_gssapi_checkmic(gsscontext, &gssbuf, &mic);
 
-	xfree(gssbuf.value);
-	xfree(mic.value);
+	free(gssbuf.value);
+	free(mic.value);
 
 	buffer_clear(m);
 	buffer_put_int(m, ret);
@@ -2175,8 +2195,8 @@ mm_answer_jpake_step1(int sock, Buffer *m)
 
 	bzero(x3_proof, x3_proof_len);
 	bzero(x4_proof, x4_proof_len);
-	xfree(x3_proof);
-	xfree(x4_proof);
+	free(x3_proof);
+	free(x4_proof);
 
 	monitor_permit(mon_dispatch, MONITOR_REQ_JPAKE_GET_PWDATA, 1);
 	monitor_permit(mon_dispatch, MONITOR_REQ_JPAKE_STEP1, 0);
@@ -2205,8 +2225,8 @@ mm_answer_jpake_get_pwdata(int sock, Buffer *m)
 
 	bzero(hash_scheme, strlen(hash_scheme));
 	bzero(salt, strlen(salt));
-	xfree(hash_scheme);
-	xfree(salt);
+	free(hash_scheme);
+	free(salt);
 
 	monitor_permit(mon_dispatch, MONITOR_REQ_JPAKE_STEP2, 1);
 
@@ -2245,8 +2265,8 @@ mm_answer_jpake_step2(int sock, Buffer *m)
 
 	bzero(x1_proof, x1_proof_len);
 	bzero(x2_proof, x2_proof_len);
-	xfree(x1_proof);
-	xfree(x2_proof);
+	free(x1_proof);
+	free(x2_proof);
 
 	buffer_clear(m);
 
@@ -2257,7 +2277,7 @@ mm_answer_jpake_step2(int sock, Buffer *m)
 	mm_request_send(sock, MONITOR_ANS_JPAKE_STEP2, m);
 
 	bzero(x4_s_proof, x4_s_proof_len);
-	xfree(x4_s_proof);
+	free(x4_s_proof);
 
 	monitor_permit(mon_dispatch, MONITOR_REQ_JPAKE_KEY_CONFIRM, 1);
 
@@ -2325,7 +2345,7 @@ mm_answer_jpake_check_confirm(int sock, Buffer *m)
 	JPAKE_DEBUG_CTX((pctx, "check_confirm done in %s", __func__));
 
 	bzero(peer_confirm_hash, peer_confirm_hash_len);
-	xfree(peer_confirm_hash);
+	free(peer_confirm_hash);
 
 	buffer_clear(m);
 	buffer_put_int(m, authenticated);

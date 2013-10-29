@@ -479,11 +479,32 @@ tmpfs_alloc_vp(struct mount *mp, struct tmpfs_node *node, int lkflag,
 	error = 0;
 loop:
 	TMPFS_NODE_LOCK(node);
+loop1:
 	if ((vp = node->tn_vnode) != NULL) {
 		MPASS((node->tn_vpstate & TMPFS_VNODE_DOOMED) == 0);
 		VI_LOCK(vp);
+		if ((node->tn_type == VDIR && node->tn_dir.tn_parent == NULL) ||
+		    ((vp->v_iflag & VI_DOOMED) != 0 &&
+		    (lkflag & LK_NOWAIT) != 0)) {
+			VI_UNLOCK(vp);
+			TMPFS_NODE_UNLOCK(node);
+			error = ENOENT;
+			vp = NULL;
+			goto out;
+		}
+		if ((vp->v_iflag & VI_DOOMED) != 0) {
+			VI_UNLOCK(vp);
+			node->tn_vpstate |= TMPFS_VNODE_WRECLAIM;
+			while ((node->tn_vpstate & TMPFS_VNODE_WRECLAIM) != 0) {
+				msleep(&node->tn_vnode, TMPFS_NODE_MTX(node),
+				    0, "tmpfsE", 0);
+			}
+			goto loop1;
+		}
 		TMPFS_NODE_UNLOCK(node);
 		error = vget(vp, lkflag | LK_INTERLOCK, curthread);
+		if (error == ENOENT)
+			goto loop;
 		if (error != 0) {
 			vp = NULL;
 			goto out;
@@ -620,6 +641,9 @@ tmpfs_free_vp(struct vnode *vp)
 
 	mtx_assert(TMPFS_NODE_MTX(node), MA_OWNED);
 	node->tn_vnode = NULL;
+	if ((node->tn_vpstate & TMPFS_VNODE_WRECLAIM) != 0)
+		wakeup(&node->tn_vnode);
+	node->tn_vpstate &= ~TMPFS_VNODE_WRECLAIM;
 	vp->v_data = NULL;
 }
 
@@ -1331,11 +1355,8 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize, boolean_t ignerr)
 retry:
 			m = vm_page_lookup(uobj, idx);
 			if (m != NULL) {
-				if ((m->oflags & VPO_BUSY) != 0 ||
-				    m->busy != 0) {
-					vm_page_sleep(m, "tmfssz");
+				if (vm_page_sleep_if_busy(m, "tmfssz"))
 					goto retry;
-				}
 				MPASS(m->valid == VM_PAGE_BITS_ALL);
 			} else if (vm_pager_has_page(uobj, idx, NULL, NULL)) {
 				m = vm_page_alloc(uobj, idx, VM_ALLOC_NORMAL);
@@ -1355,7 +1376,7 @@ retry:
 				if (rv == VM_PAGER_OK) {
 					vm_page_deactivate(m);
 					vm_page_unlock(m);
-					vm_page_wakeup(m);
+					vm_page_xunbusy(m);
 				} else {
 					vm_page_free(m);
 					vm_page_unlock(m);
@@ -1412,9 +1433,10 @@ tmpfs_chflags(struct vnode *vp, u_long flags, struct ucred *cred,
 
 	node = VP_TO_TMPFS_NODE(vp);
 
-	if ((flags & ~(UF_NODUMP | UF_IMMUTABLE | UF_APPEND | UF_OPAQUE |
-	    UF_NOUNLINK | SF_ARCHIVED | SF_IMMUTABLE | SF_APPEND |
-	    SF_NOUNLINK)) != 0)
+	if ((flags & ~(SF_APPEND | SF_ARCHIVED | SF_IMMUTABLE | SF_NOUNLINK |
+	    UF_APPEND | UF_ARCHIVE | UF_HIDDEN | UF_IMMUTABLE | UF_NODUMP |
+	    UF_NOUNLINK | UF_OFFLINE | UF_OPAQUE | UF_READONLY | UF_REPARSE |
+	    UF_SPARSE | UF_SYSTEM)) != 0)
 		return (EOPNOTSUPP);
 
 	/* Disallow this operation if the file system is mounted read-only. */

@@ -87,7 +87,7 @@ static void flush_session(struct mlx4_en_priv *priv,
 			  u16 more)
 {
 	struct mbuf *mb = session->fragments;
-	struct ip *iph = mb->m_pkthdr.header;
+	struct ip *iph = mb->m_pkthdr.PH_loc.ptr;
 	struct net_device *dev = mb->m_pkthdr.rcvif;
 
 	/* Update IP length and checksum */
@@ -132,7 +132,7 @@ int mlx4_en_rx_frags(struct mlx4_en_priv *priv, struct mlx4_en_rx_ring *ring,
 	u16 offset;
 
 	iph = (struct ip *)(mtod(mb, char *) + ETHER_HDR_LEN);
-	mb->m_pkthdr.header = iph;
+	mb->m_pkthdr.PH_loc.ptr = iph;
 	ip_len = ntohs(iph->ip_len);
 	ip_hlen = iph->ip_hl * 4;
 	data_len = ip_len - ip_hlen;

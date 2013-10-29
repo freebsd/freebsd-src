@@ -25,7 +25,7 @@ For a list of options, run this script with the --help option.
 """
 
 # $HeadURL: http://svn.apache.org/repos/asf/subversion/branches/1.8.x/win-tests.py $
-# $LastChangedRevision: 1467191 $
+# $LastChangedRevision: 1492044 $
 
 import os, sys, subprocess
 import filecmp
@@ -600,6 +600,12 @@ class Httpd:
 
   def _create_dontdothat_file(self):
     "Create empty mime.types file"
+    # If the tests have not previously been run or were cleaned
+    # up, then 'svn-test-work' does not exist yet.
+    parent_dir = os.path.dirname(self.dontdothat_file)
+    if not os.path.exists(parent_dir):
+      os.makedirs(parent_dir)
+
     fp = open(self.dontdothat_file, 'w')
     fp.write('[recursive-actions]\n')
     fp.write('/ = deny\n')

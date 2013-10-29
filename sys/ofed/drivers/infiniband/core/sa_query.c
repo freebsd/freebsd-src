@@ -1105,6 +1105,27 @@ static void ib_sa_inform_release(struct ib_sa_query *sa_query)
 	kfree(container_of(sa_query, struct ib_sa_inform_query, sa_query));
 }
 
+int ib_sa_guid_info_rec_query(struct ib_sa_client *client,
+			      struct ib_device *device, u8 port_num,
+			      struct ib_sa_guidinfo_rec *rec,
+			      ib_sa_comp_mask comp_mask, u8 method,
+			      int timeout_ms, gfp_t gfp_mask,
+			      void (*callback)(int status,
+					       struct ib_sa_guidinfo_rec *resp,
+					       void *context),
+			      void *context,
+			      struct ib_sa_query **sa_query)
+{
+	// stub function - 
+        // called originally from mad.c under mlx4_ib_init_sriov()
+        // which calls mlx4_ib_init_alias_guid_service() in alias_GUID.c
+        // which goes down to this function
+
+        printk("ERROR: function should be called only in SRIOV flow!!!");
+
+	return 0;
+}
+
 /**
  * ib_sa_informinfo_query - Start an InformInfo registration.
  * @client:SA client

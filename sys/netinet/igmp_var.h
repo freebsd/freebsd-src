@@ -218,8 +218,4 @@ SYSCTL_DECL(_net_inet_igmp);
 #define IGMPCTL_STATS		1	/* statistics (read-only) */
 #define IGMPCTL_MAXID		2
 
-#define IGMPCTL_NAMES { \
-	{ 0, 0 }, \
-	{ "stats", CTLTYPE_STRUCT } \
-}
 #endif

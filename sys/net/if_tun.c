@@ -45,6 +45,7 @@
 #include <sys/random.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
@@ -258,6 +259,7 @@ tun_destroy(struct tun_softc *tp)
 	if_free(TUN2IFP(tp));
 	destroy_dev(dev);
 	seldrain(&tp->tun_rsel);
+	knlist_clear(&tp->tun_rsel.si_note, 0);
 	knlist_destroy(&tp->tun_rsel.si_note);
 	mtx_destroy(&tp->tun_mtx);
 	cv_destroy(&tp->tun_cv);
@@ -321,6 +323,7 @@ static moduledata_t tun_mod = {
 };
 
 DECLARE_MODULE(if_tun, tun_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(if_tun, 1);
 
 static void
 tunstart(struct ifnet *ifp)
@@ -359,8 +362,6 @@ tuncreate(const char *name, struct cdev *dev)
 {
 	struct tun_softc *sc;
 	struct ifnet *ifp;
-
-	dev->si_flags &= ~SI_CHEAPCLONE;
 
 	sc = malloc(sizeof(*sc), M_TUN, M_WAITOK | M_ZERO);
 	mtx_init(&sc->tun_mtx, "tun_mtx", NULL, MTX_DEF);
@@ -552,10 +553,6 @@ tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFADDR:
 		tuninit(ifp);
 		TUNDEBUG(ifp, "address set\n");
-		break;
-	case SIOCSIFDSTADDR:
-		tuninit(ifp);
-		TUNDEBUG(ifp, "destination address set\n");
 		break;
 	case SIOCSIFMTU:
 		ifp->if_mtu = ifr->ifr_mtu;
@@ -921,9 +918,8 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
-	/* First chunk of an mbuf contains good junk */
 	if (harvest.point_to_point)
-		random_harvest(m, 16, 3, 0, RANDOM_NET);
+		random_harvest(&(m->m_data), 12, 2, RANDOM_NET_TUN);
 	ifp->if_ibytes += m->m_pkthdr.len;
 	ifp->if_ipackets++;
 	CURVNET_SET(ifp->if_vnet);

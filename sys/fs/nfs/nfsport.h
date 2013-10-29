@@ -79,6 +79,7 @@
 #include <sys/kthread.h>
 #include <sys/syscallsubr.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/radix.h>
 #include <net/route.h>
 #include <net/if_dl.h>
@@ -603,11 +604,6 @@ void nfsrvd_rcv(struct socket *, void *, int);
 #define	NFSREQSPINLOCK		extern struct mtx nfs_req_mutex
 #define	NFSLOCKREQ()		mtx_lock(&nfs_req_mutex)
 #define	NFSUNLOCKREQ()		mtx_unlock(&nfs_req_mutex)
-#define	NFSCACHEMUTEX		extern struct mtx nfs_cache_mutex
-#define	NFSCACHEMUTEXPTR	(&nfs_cache_mutex)
-#define	NFSLOCKCACHE()		mtx_lock(&nfs_cache_mutex)
-#define	NFSUNLOCKCACHE()	mtx_unlock(&nfs_cache_mutex)
-#define	NFSCACHELOCKREQUIRED()	mtx_assert(&nfs_cache_mutex, MA_OWNED)
 #define	NFSSOCKMUTEX		extern struct mtx nfs_slock_mutex
 #define	NFSSOCKMUTEXPTR		(&nfs_slock_mutex)
 #define	NFSLOCKSOCK()		mtx_lock(&nfs_slock_mutex)

@@ -91,7 +91,7 @@
 #define	DBL_EXPBITS	11
 #define	DBL_FRACBITS	52
 
-#if defined(__VFP_FP__)
+#if defined(__VFP_FP__) || defined(__ARM_EABI__)
 #define	_IEEE_WORD_ORDER	_BYTE_ORDER
 #else
 #define	_IEEE_WORD_ORDER	_BIG_ENDIAN

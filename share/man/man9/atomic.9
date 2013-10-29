@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2005
+.Dd August 20, 2013
 .Dt ATOMIC 9
 .Os
 .Sh NAME
@@ -62,6 +62,10 @@
 .Fn atomic_subtract_[acq_|rel_]<type> "volatile <type> *p" "<type> v"
 .Ft void
 .Fn atomic_store_rel_<type> "volatile <type> *p" "<type> v"
+.Ft <type>
+.Fn atomic_swap_<type> "volatile <type> *p" "<type> v"
+.Ft int
+.Fn atomic_testandset_<type> "volatile <type> *p" "u_int v"
 .Sh DESCRIPTION
 Each of the atomic operations is guaranteed to be atomic in the presence of
 interrupts.
@@ -184,9 +188,9 @@ This section describes the semantics of each operation using a C like notation.
 .Bd -literal -compact
 if (*dst == old) {
 	*dst = new;
-	return 1;
+	return (1);
 } else
-	return 0;
+	return (0);
 .Ed
 .El
 .Pp
@@ -203,7 +207,7 @@ and
 .Bd -literal -compact
 tmp = *p;
 *p += v;
-return tmp;
+return (tmp);
 .Ed
 .El
 .Pp
@@ -216,9 +220,9 @@ and
 .Dq Li 32
 and do not have any variants with memory barriers at this time.
 .Bl -hang
-.It Fn atomic_load addr
+.It Fn atomic_load p
 .Bd -literal -compact
-return (*addr)
+return (*p);
 .Ed
 .El
 .Pp
@@ -226,11 +230,11 @@ The
 .Fn atomic_load
 functions are only provided with acquire memory barriers.
 .Bl -hang
-.It Fn atomic_readandclear addr
+.It Fn atomic_readandclear p
 .Bd -literal -compact
-temp = *addr;
-*addr = 0;
-return (temp);
+tmp = *p;
+*p = 0;
+return (tmp);
 .Ed
 .El
 .Pp
@@ -243,8 +247,7 @@ functions are not implemented for the types
 .Dq Li 8 ,
 and
 .Dq Li 16
-and do
-not have any variants with memory barriers at this time.
+and do not have any variants with memory barriers at this time.
 .Bl -hang
 .It Fn atomic_set p v
 .Bd -literal -compact
@@ -263,6 +266,43 @@ not have any variants with memory barriers at this time.
 The
 .Fn atomic_store
 functions are only provided with release memory barriers.
+.Bl -hang
+.It Fn atomic_swap p v
+.Bd -literal -compact
+tmp = *p;
+*p = v;
+return (tmp);
+.Ed
+.El
+.Pp
+The
+.Fn atomic_swap
+functions are not implemented for the types
+.Dq Li char ,
+.Dq Li short ,
+.Dq Li ptr ,
+.Dq Li 8 ,
+and
+.Dq Li 16
+and do not have any variants with memory barriers at this time.
+.Bl -hang
+.It Fn atomic_testandset p v
+.Bd -literal -compact
+bit = 1 << (v % (sizeof(*p) * NBBY));
+tmp = (*p & bit) != 0;
+*p |= bit;
+return (tmp);
+.Ed
+.El
+.Pp
+The
+.Fn atomic_testandset
+functions are only implemented for the types
+.Dq Li int ,
+.Dq Li long
+and
+.Dq Li 32
+and do not have any variants with memory barriers at this time.
 .Pp
 The type
 .Dq Li 64
@@ -275,15 +315,17 @@ architectures.
 .Sh RETURN VALUES
 The
 .Fn atomic_cmpset
-function
-returns the result of the compare operation.
+function returns the result of the compare operation.
 The
 .Fn atomic_fetchadd ,
 .Fn atomic_load ,
+.Fn atomic_readandclear ,
 and
-.Fn atomic_readandclear
-functions
-return the value at the specified address.
+.Fn atomic_swap
+functions return the value at the specified address.
+The
+.Fn atomic_testandset
+function returns the result of the test operation.
 .Sh EXAMPLES
 This example uses the
 .Fn atomic_cmpset_acq_ptr
@@ -354,3 +396,9 @@ The
 .Fn atomic_fetchadd
 operations were added in
 .Fx 6.0 .
+The
+.Fn atomic_swap
+and
+.Fn atomic_testandset
+operations were added in
+.Fx 10.0 .

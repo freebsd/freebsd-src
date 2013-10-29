@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_edit.c	10.10 (Berkeley) 4/27/96";
+static const char sccsid[] = "$Id: ex_edit.c,v 10.15 2011/12/22 23:26:50 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -46,12 +46,12 @@ static int ex_N_edit __P((SCR *, EXCMD *, FREF *, int));
  * PUBLIC: int ex_edit __P((SCR *, EXCMD *));
  */
 int
-ex_edit(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_edit(SCR *sp, EXCMD *cmdp)
 {
 	FREF *frp;
 	int attach, setalt;
+	char *np;
+	size_t nlen;
 
 	switch (cmdp->argc) {
 	case 0:
@@ -72,17 +72,19 @@ ex_edit(sp, cmdp)
 		setalt = 0;
 		break;
 	case 1:
-		if ((frp = file_add(sp, cmdp->argv[0]->bp)) == NULL)
+		INT2CHAR(sp, cmdp->argv[0]->bp, cmdp->argv[0]->len + 1, 
+			 np, nlen);
+		if ((frp = file_add(sp, np)) == NULL)
 			return (1);
 		attach = 0;
 		setalt = 1;
-		set_alt_name(sp, cmdp->argv[0]->bp);
+		set_alt_name(sp, np);
 		break;
 	default:
 		abort();
 	}
 
-	if (F_ISSET(cmdp, E_NEWSCREEN))
+	if (F_ISSET(cmdp, E_NEWSCREEN) || cmdp->cmd == &cmds[C_VSPLIT])
 		return (ex_N_edit(sp, cmdp, frp, attach));
 
 	/*
@@ -108,18 +110,15 @@ ex_edit(sp, cmdp)
  *	New screen version of ex_edit.
  */
 static int
-ex_N_edit(sp, cmdp, frp, attach)
-	SCR *sp;
-	EXCMD *cmdp;
-	FREF *frp;
-	int attach;
+ex_N_edit(SCR *sp, EXCMD *cmdp, FREF *frp, int attach)
 {
 	SCR *new;
 
 	/* Get a new screen. */
 	if (screen_init(sp->gp, sp, &new))
 		return (1);
-	if (vs_split(sp, new, 0)) {
+	if ((cmdp->cmd == &cmds[C_VSPLIT] && vs_vsplit(sp, new)) ||
+	    (cmdp->cmd != &cmds[C_VSPLIT] && vs_split(sp, new, 0))) {
 		(void)screen_end(new);
 		return (1);
 	}
@@ -135,6 +134,13 @@ ex_N_edit(sp, cmdp, frp, attach)
 
 		new->lno = sp->lno;
 		new->cno = sp->cno;
+
+#if defined(USE_WIDECHAR) && defined(USE_ICONV)
+		/* Synchronize the iconv environments. */
+		o_set(new, O_FILEENCODING, OS_STRDUP,
+		    O_STR(sp, O_FILEENCODING), 0);
+		conv_enc(new, O_FILEENCODING, 0);
+#endif
 	} else if (file_init(new, frp, NULL,
 	    (FL_ISSET(cmdp->iflags, E_C_FORCE) ? FS_FORCE : 0))) {
 		(void)vs_discard(new, NULL);

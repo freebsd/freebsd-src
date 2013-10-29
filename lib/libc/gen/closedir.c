@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
  * close a directory.
  */
 int
-closedir(DIR *dirp)
+fdclosedir(DIR *dirp)
 {
 	int fd;
 
@@ -65,5 +65,12 @@ closedir(DIR *dirp)
 		_pthread_mutex_destroy(&dirp->dd_lock);
 	}
 	free((void *)dirp);
-	return(_close(fd));
+	return (fd);
+}
+
+int
+closedir(DIR *dirp)
+{
+
+	return (_close(fdclosedir(dirp)));
 }

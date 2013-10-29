@@ -17,6 +17,8 @@ License Agreement applies to this software.
 	Modified by cmetz for OPIE 2.2. Use FUNCTION declaration et al.
         Created at NRL for OPIE 2.2 from opiesubr.c.
 */
+#include <stdio.h>
+#include <stdlib.h>
 #include "opie_cfg.h"
 #include "opie.h"
 

@@ -93,17 +93,12 @@ __FBSDID("$FreeBSD$");
 #define	ONSIG	32		/* NSIG for osig* syscalls.  XXX. */
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE(proc, kernel, , signal_send, signal-send);
-SDT_PROBE_ARGTYPE(proc, kernel, , signal_send, 0, "struct thread *");
-SDT_PROBE_ARGTYPE(proc, kernel, , signal_send, 1, "struct proc *");
-SDT_PROBE_ARGTYPE(proc, kernel, , signal_send, 2, "int");
-SDT_PROBE_DEFINE(proc, kernel, , signal_clear, signal-clear);
-SDT_PROBE_ARGTYPE(proc, kernel, , signal_clear, 0, "int");
-SDT_PROBE_ARGTYPE(proc, kernel, , signal_clear, 1, "ksiginfo_t *");
-SDT_PROBE_DEFINE(proc, kernel, , signal_discard, signal-discard);
-SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 0, "struct thread *");
-SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 1, "struct proc *");
-SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 2, "int");
+SDT_PROBE_DEFINE3(proc, kernel, , signal_send, signal-send, "struct thread *",
+    "struct proc *", "int");
+SDT_PROBE_DEFINE2(proc, kernel, , signal_clear, signal-clear, "int",
+    "ksiginfo_t *");
+SDT_PROBE_DEFINE3(proc, kernel, , signal_discard, signal-discard,
+    "struct thread *", "struct proc *", "int");
 
 static int	coredump(struct thread *);
 static int	killpg1(struct thread *td, int sig, int pgid, int all,
@@ -1731,6 +1726,7 @@ sys_pdkill(td, uap)
 {
 #ifdef PROCDESC
 	struct proc *p;
+	cap_rights_t rights;
 	int error;
 
 	AUDIT_ARG_SIGNUM(uap->signum);
@@ -1738,7 +1734,8 @@ sys_pdkill(td, uap)
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 
-	error = procdesc_find(td, uap->fd, CAP_PDKILL, &p);
+	error = procdesc_find(td, uap->fd,
+	    cap_rights_init(&rights, CAP_PDKILL), &p);
 	if (error)
 		return (error);
 	AUDIT_ARG_PROCESS(p);

@@ -75,7 +75,7 @@ while :; do
 	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 	defaultitem="$mtag"
 
-	[ $retval -eq 0 ] || f_die
+	[ $retval -eq $DIALOG_OK ] || f_die
 
 	[ "$mtag" = "X $msg_exit" ] && break
 

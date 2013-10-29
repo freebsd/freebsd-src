@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <sys/watchdog.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
 #include <vm/pmap.h>
@@ -126,8 +127,9 @@ report_progress(size_t progress, size_t dumpsize)
 	int sofar, i;
 
 	sofar = 100 - ((progress * 100) / dumpsize);
-	for (i = 0; i < 10; i++) {
-		if (sofar < progress_track[i].min_per || sofar > progress_track[i].max_per)
+	for (i = 0; i < nitems(progress_track); i++) {
+		if (sofar < progress_track[i].min_per ||
+		    sofar > progress_track[i].max_per)
 			continue;
 		if (progress_track[i].visited)
 			return;
@@ -156,8 +158,8 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 		printf("cant have both va and pa!\n");
 		return (EINVAL);
 	}
-	if (pa != 0 && (((uintptr_t)ptr) % PAGE_SIZE) != 0) {
-		printf("address not page aligned\n");
+	if ((((uintptr_t)pa) % PAGE_SIZE) != 0) {
+		printf("address not page aligned %p\n", ptr);
 		return (EINVAL);
 	}
 	if (ptr != NULL) {
@@ -220,8 +222,8 @@ minidumpsys(struct dumperinfo *di)
 	vm_offset_t va;
 	int error;
 	uint64_t bits;
-	uint64_t *pdp, *pd, *pt, pa;
-	int i, j, k, n, bit;
+	uint64_t *pml4, *pdp, *pd, *pt, pa;
+	int i, ii, j, k, n, bit;
 	int retry_count;
 	struct minidumphdr mdhdr;
 
@@ -229,9 +231,10 @@ minidumpsys(struct dumperinfo *di)
  retry:
 	retry_count++;
 	counter = 0;
+	for (i = 0; i < nitems(progress_track); i++)
+		progress_track[i].visited = 0;
 	/* Walk page table pages, set bits in vm_page_dump */
 	pmapsize = 0;
-	pdp = (uint64_t *)PHYS_TO_DMAP(KPDPphys);
 	for (va = VM_MIN_KERNEL_ADDRESS; va < MAX(KERNBASE + nkpt * NBPDR,
 	    kernel_vm_end); ) {
 		/*
@@ -239,6 +242,9 @@ minidumpsys(struct dumperinfo *di)
 		 * page written corresponds to 1GB of space
 		 */
 		pmapsize += PAGE_SIZE;
+		ii = (va >> PML4SHIFT) & ((1ul << NPML4EPGSHIFT) - 1);
+		pml4 = (uint64_t *)PHYS_TO_DMAP(KPML4phys) + ii;
+		pdp = (uint64_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
 		i = (va >> PDPSHIFT) & ((1ul << NPDPEPGSHIFT) - 1);
 		if ((pdp[i] & PG_V) == 0) {
 			va += NBPDP;
@@ -363,9 +369,11 @@ minidumpsys(struct dumperinfo *di)
 
 	/* Dump kernel page directory pages */
 	bzero(fakepd, sizeof(fakepd));
-	pdp = (uint64_t *)PHYS_TO_DMAP(KPDPphys);
 	for (va = VM_MIN_KERNEL_ADDRESS; va < MAX(KERNBASE + nkpt * NBPDR,
 	    kernel_vm_end); va += NBPDP) {
+		ii = (va >> PML4SHIFT) & ((1ul << NPML4EPGSHIFT) - 1);
+		pml4 = (uint64_t *)PHYS_TO_DMAP(KPML4phys) + ii;
+		pdp = (uint64_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
 		i = (va >> PDPSHIFT) & ((1ul << NPDPEPGSHIFT) - 1);
 
 		/* We always write a page, even if it is zero */

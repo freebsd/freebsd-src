@@ -58,37 +58,26 @@
  * interfaces.  These routines live in the files if.c and route.c
  */
 
-#ifdef __STDC__
-/*
- * Forward structure declarations for function prototypes [sic].
- */
-struct	mbuf;
-struct	thread;
-struct	rtentry;
-struct	rt_addrinfo;
+struct	rtentry;		/* ifa_rtrequest */
+struct	rt_addrinfo;		/* ifa_rtrequest */
 struct	socket;
-struct	ether_header;
 struct	carp_if;
 struct	carp_softc;
 struct  ifvlantrunk;
-struct	route;
+struct	route;			/* if_output */
 struct	vnet;
-#endif
-
-#include <sys/queue.h>		/* get TAILQ macros */
 
 #ifdef _KERNEL
-#include <sys/mbuf.h>
-#include <sys/eventhandler.h>
+#include <sys/mbuf.h>		/* ifqueue only? */
 #include <sys/buf_ring.h>
 #include <net/vnet.h>
 #endif /* _KERNEL */
+#include <sys/counter.h>
 #include <sys/lock.h>		/* XXX */
-#include <sys/mutex.h>		/* XXX */
+#include <sys/mutex.h>		/* struct ifqueue */
 #include <sys/rwlock.h>		/* XXX */
 #include <sys/sx.h>		/* XXX */
-#include <sys/event.h>		/* XXX */
-#include <sys/_task.h>
+#include <sys/_task.h>		/* if_link_task */
 
 #define	IF_DUNIT_NONE	-1
 
@@ -218,8 +207,6 @@ struct ifnet {
 	int	if_ispare[4];
 	void	*if_pspare[8];		/* 1 netmap, 7 TDB */
 };
-
-typedef void if_init_f_t(void *);
 
 /*
  * XXX These aliases are terribly dangerous because they could apply
@@ -366,6 +353,7 @@ void	if_maddr_runlock(struct ifnet *ifp);	/* if_multiaddrs */
 } while(0)
 
 #ifdef _KERNEL
+#ifdef _SYS_EVENTHANDLER_H_
 /* interface link layer address change event */
 typedef void (*iflladdr_event_handler_t)(void *, struct ifnet *);
 EVENTHANDLER_DECLARE(iflladdr_event, iflladdr_event_handler_t);
@@ -381,6 +369,7 @@ EVENTHANDLER_DECLARE(ifnet_departure_event, ifnet_departure_event_handler_t);
 /* Interface link state change event */
 typedef void (*ifnet_link_event_handler_t)(void *, struct ifnet *, int);
 EVENTHANDLER_DECLARE(ifnet_link_event, ifnet_link_event_handler_t);
+#endif /* _SYS_EVENTHANDLER_H_ */
 
 /*
  * interface groups
@@ -403,6 +392,7 @@ struct ifg_list {
 	TAILQ_ENTRY(ifg_list)	 ifgl_next;
 };
 
+#ifdef _SYS_EVENTHANDLER_H_
 /* group attach event */
 typedef void (*group_attach_event_handler_t)(void *, struct ifg_group *);
 EVENTHANDLER_DECLARE(group_attach_event, group_attach_event_handler_t);
@@ -412,6 +402,7 @@ EVENTHANDLER_DECLARE(group_detach_event, group_detach_event_handler_t);
 /* group change event */
 typedef void (*group_change_event_handler_t)(void *, const char *);
 EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
+#endif /* _SYS_EVENTHANDLER_H_ */
 
 #define	IF_AFDATA_LOCK_INIT(ifp)	\
 	rw_init(&(ifp)->if_afdata_lock, "if_afdata")
@@ -788,12 +779,12 @@ drbr_inuse(struct ifnet *ifp, struct buf_ring *br)
  * chunk of malloc'ed memory, where we store the three addresses
  * (ifa_addr, ifa_dstaddr and ifa_netmask) referenced here.
  */
+#if defined(_KERNEL) || defined(_WANT_IFADDR)
 struct ifaddr {
 	struct	sockaddr *ifa_addr;	/* address of interface */
 	struct	sockaddr *ifa_dstaddr;	/* other end of p-to-p link */
 #define	ifa_broadaddr	ifa_dstaddr	/* broadcast address interface */
 	struct	sockaddr *ifa_netmask;	/* used to determine subnet */
-	struct	if_data if_data;	/* not all members are meaningful */
 	struct	ifnet *ifa_ifp;		/* back-pointer to interface */
 	struct	carp_softc *ifa_carp;	/* pointer to CARP data */
 	TAILQ_ENTRY(ifaddr) ifa_link;	/* queue macro glue */
@@ -804,22 +795,25 @@ struct ifaddr {
 	int	ifa_metric;		/* cost of going out this interface */
 	int (*ifa_claim_addr)		/* check if an addr goes to this if */
 		(struct ifaddr *, struct sockaddr *);
-	struct mtx ifa_mtx;
-};
-#define	IFA_ROUTE	RTF_UP		/* route installed */
-#define IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
 
-/* for compatibility with other BSDs */
-#define	ifa_list	ifa_link
+	counter_u64_t	ifa_ipackets;
+	counter_u64_t	ifa_opackets;	 
+	counter_u64_t	ifa_ibytes;
+	counter_u64_t	ifa_obytes;
+};
+#endif
 
 #ifdef _KERNEL
-#define	IFA_LOCK(ifa)		mtx_lock(&(ifa)->ifa_mtx)
-#define	IFA_UNLOCK(ifa)		mtx_unlock(&(ifa)->ifa_mtx)
+#define	IFA_ROUTE	RTF_UP		/* route installed */
+#define	IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
 
+/* For compatibility with other BSDs. SCTP uses it. */
+#define	ifa_list	ifa_link
+
+struct ifaddr *	ifa_alloc(size_t size, int flags);
 void	ifa_free(struct ifaddr *ifa);
-void	ifa_init(struct ifaddr *ifa);
 void	ifa_ref(struct ifaddr *ifa);
-#endif
+#endif /* _KERNEL */
 
 /*
  * Multicast address structure.  This is analogous to the ifaddr

@@ -577,7 +577,7 @@ static struct cam_ed *
 				   lun_id_t lun_id);
 static void	 scsi_devise_transport(struct cam_path *path);
 static void	 scsi_set_transfer_settings(struct ccb_trans_settings *cts,
-					    struct cam_ed *device,
+					    struct cam_path *path,
 					    int async_update);
 static void	 scsi_toggle_tags(struct cam_path *path);
 static void	 scsi_dev_async(u_int32_t async_code,
@@ -639,6 +639,7 @@ proberegister(struct cam_periph *periph, void *arg)
 		return (status);
 	}
 	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe started\n"));
+	scsi_devise_transport(periph->path);
 
 	/*
 	 * Ensure we've waited at least a bus settle
@@ -1727,11 +1728,12 @@ probe_purge_old(struct cam_path *path, struct scsi_report_luns_data *new)
 	if (path->target == NULL) {
 		return;
 	}
-	if (path->target->luns == NULL) {
-		path->target->luns = new;
-		return;
-	}
+	mtx_lock(&path->target->luns_mtx);
 	old = path->target->luns;
+	path->target->luns = new;
+	mtx_unlock(&path->target->luns_mtx);
+	if (old == NULL)
+		return;
 	nlun_old = scsi_4btoul(old->length) / 8;
 	nlun_new = scsi_4btoul(new->length) / 8;
 
@@ -1773,7 +1775,6 @@ probe_purge_old(struct cam_path *path, struct scsi_report_luns_data *new)
 		}
 	}
 	free(old, M_CAMXPT);
-	path->target->luns = new;
 }
 
 static void
@@ -1835,6 +1836,8 @@ typedef struct {
 static void
 scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 {
+	struct mtx *mtx;
+
 	CAM_DEBUG(request_ccb->ccb_h.path, CAM_DEBUG_TRACE,
 		  ("scsi_scan_bus\n"));
 	switch (request_ccb->ccb_h.func_code) {
@@ -1902,6 +1905,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		    (work_ccb->cpi.max_target * sizeof (u_int)), M_CAMXPT, M_ZERO|M_NOWAIT);
 		if (scan_info == NULL) {
 			request_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+			xpt_free_ccb(work_ccb);
 			xpt_done(request_ccb);
 			return;
 		}
@@ -1932,6 +1936,8 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				scan_info->counter--;
 			}
 		}
+		mtx = xpt_path_mtx(scan_info->request_ccb->ccb_h.path);
+		mtx_unlock(mtx);
 
 		for (i = low_target; i <= max_target; i++) {
 			cam_status status;
@@ -1964,10 +1970,13 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				      request_ccb->ccb_h.pinfo.priority);
 			work_ccb->ccb_h.func_code = XPT_SCAN_LUN;
 			work_ccb->ccb_h.cbfcnp = scsi_scan_bus;
+			work_ccb->ccb_h.flags |= CAM_UNLOCKED;
 			work_ccb->ccb_h.ppriv_ptr0 = scan_info;
 			work_ccb->crcn.flags = request_ccb->crcn.flags;
 			xpt_action(work_ccb);
 		}
+
+		mtx_lock(mtx);
 		break;
 	}
 	case XPT_SCAN_LUN:
@@ -2000,6 +2009,9 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		target = request_ccb->ccb_h.path->target;
 		next_target = 1;
 
+		mtx = xpt_path_mtx(scan_info->request_ccb->ccb_h.path);
+		mtx_lock(mtx);
+		mtx_lock(&target->luns_mtx);
 		if (target->luns) {
 			uint32_t first;
 			u_int nluns = scsi_4btoul(target->luns->length) / 8;
@@ -2017,6 +2029,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			if (scan_info->lunindex[target_id] < nluns) {
 				CAM_GET_SIMPLE_LUN(target->luns,
 				    scan_info->lunindex[target_id], lun_id);
+				mtx_unlock(&target->luns_mtx);
 				next_target = 0;
 				CAM_DEBUG(request_ccb->ccb_h.path,
 				    CAM_DEBUG_PROBE,
@@ -2024,6 +2037,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				   scan_info->lunindex[target_id], lun_id));
 				scan_info->lunindex[target_id]++;
 			} else {
+				mtx_unlock(&target->luns_mtx);
 				/*
 				 * We're done with scanning all luns.
 				 *
@@ -2042,7 +2056,9 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 					}
 				}
 			}
-		} else if (request_ccb->ccb_h.status != CAM_REQ_CMP) {
+		} else {
+		    mtx_unlock(&target->luns_mtx);
+		    if (request_ccb->ccb_h.status != CAM_REQ_CMP) {
 			int phl;
 
 			/*
@@ -2074,7 +2090,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			if (lun_id == request_ccb->ccb_h.target_lun
 			    || lun_id > scan_info->cpi->max_lun)
 				next_target = 1;
-		} else {
+		    } else {
 
 			device = request_ccb->ccb_h.path->device;
 
@@ -2090,6 +2106,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			if (lun_id == request_ccb->ccb_h.target_lun
 			    || lun_id > scan_info->cpi->max_lun)
 				next_target = 1;
+		    }
 		}
 
 		/*
@@ -2123,6 +2140,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				}
 			}
 			if (done) {
+				mtx_unlock(mtx);
 				xpt_free_ccb(request_ccb);
 				xpt_free_ccb((union ccb *)scan_info->cpi);
 				request_ccb = scan_info->request_ccb;
@@ -2136,6 +2154,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			}
 
 			if ((scan_info->cpi->hba_misc & PIM_SEQSCAN) == 0) {
+				mtx_unlock(mtx);
 				xpt_free_ccb(request_ccb);
 				break;
 			}
@@ -2143,6 +2162,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			    scan_info->request_ccb->ccb_h.path_id,
 			    scan_info->counter, 0);
 			if (status != CAM_REQ_CMP) {
+				mtx_unlock(mtx);
 				printf("scsi_scan_bus: xpt_create_path failed"
 				    " with status %#x, bus scan halted\n",
 			       	    status);
@@ -2158,6 +2178,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			    request_ccb->ccb_h.pinfo.priority);
 			request_ccb->ccb_h.func_code = XPT_SCAN_LUN;
 			request_ccb->ccb_h.cbfcnp = scsi_scan_bus;
+			request_ccb->ccb_h.flags |= CAM_UNLOCKED;
 			request_ccb->ccb_h.ppriv_ptr0 = scan_info;
 			request_ccb->crcn.flags =
 			    scan_info->request_ccb->crcn.flags;
@@ -2181,10 +2202,12 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				      request_ccb->ccb_h.pinfo.priority);
 			request_ccb->ccb_h.func_code = XPT_SCAN_LUN;
 			request_ccb->ccb_h.cbfcnp = scsi_scan_bus;
+			request_ccb->ccb_h.flags |= CAM_UNLOCKED;
 			request_ccb->ccb_h.ppriv_ptr0 = scan_info;
 			request_ccb->crcn.flags =
 				scan_info->request_ccb->crcn.flags;
 		}
+		mtx_unlock(mtx);
 		xpt_action(request_ccb);
 		break;
 	}
@@ -2201,6 +2224,7 @@ scsi_scan_lun(struct cam_periph *periph, struct cam_path *path,
 	cam_status status;
 	struct cam_path *new_path;
 	struct cam_periph *old_periph;
+	int lock;
 
 	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("scsi_scan_lun\n"));
 
@@ -2248,9 +2272,13 @@ scsi_scan_lun(struct cam_periph *periph, struct cam_path *path,
 		xpt_setup_ccb(&request_ccb->ccb_h, new_path, CAM_PRIORITY_XPT);
 		request_ccb->ccb_h.cbfcnp = xptscandone;
 		request_ccb->ccb_h.func_code = XPT_SCAN_LUN;
+		request_ccb->ccb_h.flags |= CAM_UNLOCKED;
 		request_ccb->crcn.flags = flags;
 	}
 
+	lock = (xpt_path_owned(path) == 0);
+	if (lock)
+		xpt_path_lock(path);
 	if ((old_periph = cam_periph_find(path, "probe")) != NULL) {
 		if ((old_periph->flags & CAM_PERIPH_INVALID) == 0) {
 			probe_softc *softc;
@@ -2276,6 +2304,8 @@ scsi_scan_lun(struct cam_periph *periph, struct cam_path *path,
 			xpt_done(request_ccb);
 		}
 	}
+	if (lock)
+		xpt_path_unlock(path);
 }
 
 static void
@@ -2289,7 +2319,6 @@ xptscandone(struct cam_periph *periph, union ccb *done_ccb)
 static struct cam_ed *
 scsi_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 {
-	struct cam_path path;
 	struct scsi_quirk_entry *quirk;
 	struct cam_ed *device;
 
@@ -2314,22 +2343,6 @@ scsi_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	device->device_id_len = 0;
 	device->supported_vpds = NULL;
 	device->supported_vpds_len = 0;
-
-	/*
-	 * XXX should be limited by number of CCBs this bus can
-	 * do.
-	 */
-	bus->sim->max_ccbs += device->ccbq.devq_openings;
-	if (lun_id != CAM_LUN_WILDCARD) {
-		xpt_compile_path(&path,
-				 NULL,
-				 bus->path_id,
-				 target->target_id,
-				 lun_id);
-		scsi_devise_transport(&path);
-		xpt_release_path(&path);
-	}
-
 	return (device);
 }
 
@@ -2508,15 +2521,8 @@ scsi_dev_advinfo(union ccb *start_ccb)
 	start_ccb->ccb_h.status = CAM_REQ_CMP;
 
 	if (cdai->flags & CDAI_FLAG_STORE) {
-		int owned;
-
-		owned = mtx_owned(start_ccb->ccb_h.path->bus->sim->mtx);
-		if (owned == 0)
-			mtx_lock(start_ccb->ccb_h.path->bus->sim->mtx);
 		xpt_async(AC_ADVINFO_CHANGED, start_ccb->ccb_h.path,
 			  (void *)(uintptr_t)cdai->buftype);
-		if (owned == 0)
-			mtx_unlock(start_ccb->ccb_h.path->bus->sim->mtx);
 	}
 }
 
@@ -2528,7 +2534,7 @@ scsi_action(union ccb *start_ccb)
 	case XPT_SET_TRAN_SETTINGS:
 	{
 		scsi_set_transfer_settings(&start_ccb->cts,
-					   start_ccb->ccb_h.path->device,
+					   start_ccb->ccb_h.path,
 					   /*async_update*/FALSE);
 		break;
 	}
@@ -2541,14 +2547,6 @@ scsi_action(union ccb *start_ccb)
 			      start_ccb->ccb_h.path, start_ccb->crcn.flags,
 			      start_ccb);
 		break;
-	case XPT_GET_TRAN_SETTINGS:
-	{
-		struct cam_sim *sim;
-
-		sim = start_ccb->ccb_h.path->bus->sim;
-		(*(sim->sim_action))(sim, start_ccb);
-		break;
-	}
 	case XPT_DEV_ADVINFO:
 	{
 		scsi_dev_advinfo(start_ccb);
@@ -2561,17 +2559,17 @@ scsi_action(union ccb *start_ccb)
 }
 
 static void
-scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
+scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_path *path,
 			   int async_update)
 {
 	struct	ccb_pathinq cpi;
 	struct	ccb_trans_settings cur_cts;
 	struct	ccb_trans_settings_scsi *scsi;
 	struct	ccb_trans_settings_scsi *cur_scsi;
-	struct	cam_sim *sim;
 	struct	scsi_inquiry_data *inq_data;
+	struct	cam_ed *device;
 
-	if (device == NULL) {
+	if (path == NULL || (device = path->device) == NULL) {
 		cts->ccb_h.status = CAM_PATH_INVALID;
 		xpt_done((union ccb *)cts);
 		return;
@@ -2588,14 +2586,14 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 		cts->protocol_version = device->protocol_version;
 
 	if (cts->protocol != device->protocol) {
-		xpt_print(cts->ccb_h.path, "Uninitialized Protocol %x:%x?\n",
+		xpt_print(path, "Uninitialized Protocol %x:%x?\n",
 		       cts->protocol, device->protocol);
 		cts->protocol = device->protocol;
 	}
 
 	if (cts->protocol_version > device->protocol_version) {
 		if (bootverbose) {
-			xpt_print(cts->ccb_h.path, "Down reving Protocol "
+			xpt_print(path, "Down reving Protocol "
 			    "Version from %d to %d?\n", cts->protocol_version,
 			    device->protocol_version);
 		}
@@ -2613,21 +2611,19 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 		cts->transport_version = device->transport_version;
 
 	if (cts->transport != device->transport) {
-		xpt_print(cts->ccb_h.path, "Uninitialized Transport %x:%x?\n",
+		xpt_print(path, "Uninitialized Transport %x:%x?\n",
 		    cts->transport, device->transport);
 		cts->transport = device->transport;
 	}
 
 	if (cts->transport_version > device->transport_version) {
 		if (bootverbose) {
-			xpt_print(cts->ccb_h.path, "Down reving Transport "
+			xpt_print(path, "Down reving Transport "
 			    "Version from %d to %d?\n", cts->transport_version,
 			    device->transport_version);
 		}
 		cts->transport_version = device->transport_version;
 	}
-
-	sim = cts->ccb_h.path->bus->sim;
 
 	/*
 	 * Nothing more of interest to do unless
@@ -2636,13 +2632,13 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 	 */
 	if (cts->protocol != PROTO_SCSI) {
 		if (async_update == FALSE)
-			(*(sim->sim_action))(sim, (union ccb *)cts);
+			xpt_action_default((union ccb *)cts);
 		return;
 	}
 
 	inq_data = &device->inq_data;
 	scsi = &cts->proto_specific.scsi;
-	xpt_setup_ccb(&cpi.ccb_h, cts->ccb_h.path, CAM_PRIORITY_NONE);
+	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NONE);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 
@@ -2663,7 +2659,7 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 		 * Perform sanity checking against what the
 		 * controller and device can do.
 		 */
-		xpt_setup_ccb(&cur_cts.ccb_h, cts->ccb_h.path, CAM_PRIORITY_NONE);
+		xpt_setup_ccb(&cur_cts.ccb_h, path, CAM_PRIORITY_NONE);
 		cur_cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 		cur_cts.type = cts->type;
 		xpt_action((union ccb *)&cur_cts);
@@ -2784,7 +2780,7 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 		 && (spi->flags & (CTS_SPI_VALID_SYNC_RATE|
 				   CTS_SPI_VALID_SYNC_OFFSET|
 				   CTS_SPI_VALID_BUS_WIDTH)) != 0)
-			scsi_toggle_tags(cts->ccb_h.path);
+			scsi_toggle_tags(path);
 	}
 
 	if (cts->type == CTS_TYPE_CURRENT_SETTINGS
@@ -2821,12 +2817,12 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 				device->tag_delay_count = CAM_TAG_DELAY_COUNT;
 				device->flags |= CAM_DEV_TAG_AFTER_COUNT;
 			} else {
-				xpt_stop_tags(cts->ccb_h.path);
+				xpt_stop_tags(path);
 			}
 		}
 	}
 	if (async_update == FALSE)
-		(*(sim->sim_action))(sim, (union ccb *)cts);
+		xpt_action_default((union ccb *)cts);
 }
 
 static void
@@ -2854,10 +2850,10 @@ scsi_toggle_tags(struct cam_path *path)
 		cts.transport_version = XPORT_VERSION_UNSPECIFIED;
 		cts.proto_specific.scsi.flags = 0;
 		cts.proto_specific.scsi.valid = CTS_SCSI_VALID_TQ;
-		scsi_set_transfer_settings(&cts, path->device,
+		scsi_set_transfer_settings(&cts, path,
 					  /*async_update*/TRUE);
 		cts.proto_specific.scsi.flags = CTS_SCSI_FLAGS_TAG_ENB;
-		scsi_set_transfer_settings(&cts, path->device,
+		scsi_set_transfer_settings(&cts, path,
 					  /*async_update*/TRUE);
 	}
 }
@@ -2928,10 +2924,14 @@ scsi_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
 		xpt_release_device(device);
 	} else if (async_code == AC_TRANSFER_NEG) {
 		struct ccb_trans_settings *settings;
+		struct cam_path path;
 
 		settings = (struct ccb_trans_settings *)async_arg;
-		scsi_set_transfer_settings(settings, device,
+		xpt_compile_path(&path, NULL, bus->path_id, target->target_id,
+				 device->lun_id);
+		scsi_set_transfer_settings(settings, &path,
 					  /*async_update*/TRUE);
+		xpt_release_path(&path);
 	}
 }
 
@@ -2945,7 +2945,7 @@ scsi_announce_periph(struct cam_periph *periph)
 	u_int	freq;
 	u_int	mb;
 
-	mtx_assert(periph->sim->mtx, MA_OWNED);
+	cam_periph_assert(periph, MA_OWNED);
 
 	xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;

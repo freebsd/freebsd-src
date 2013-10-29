@@ -469,7 +469,7 @@ i8254_restore(void)
 	if (attimer_sc != NULL)
 		set_i8254_freq(attimer_sc->mode, attimer_sc->period);
 	else
-		set_i8254_freq(0, 0);
+		set_i8254_freq(MODE_STOP, 0);
 }
 
 #ifndef __amd64__
@@ -504,7 +504,7 @@ i8254_init(void)
 	if (pc98_machine_type & M_8M)
 		i8254_freq = 1996800L; /* 1.9968 MHz */
 #endif
-	set_i8254_freq(0, 0);
+	set_i8254_freq(MODE_STOP, 0);
 }
 
 void
@@ -539,7 +539,7 @@ sysctl_machdep_i8254_freq(SYSCTL_HANDLER_ARGS)
 			set_i8254_freq(attimer_sc->mode, attimer_sc->period);
 			attimer_sc->tc.tc_frequency = freq;
 		} else {
-			set_i8254_freq(0, 0);
+			set_i8254_freq(MODE_STOP, 0);
 		}
 	}
 	return (error);
@@ -715,7 +715,7 @@ attimer_attach(device_t dev)
 		i8254_pending = i8254_intsrc->is_pic->pic_source_pending;
 	resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "timecounter", &i8254_timecounter);
-	set_i8254_freq(0, 0);
+	set_i8254_freq(MODE_STOP, 0);
 	if (i8254_timecounter) {
 		sc->tc.tc_get_timecount = i8254_get_timecount;
 		sc->tc.tc_counter_mask = 0xffff;

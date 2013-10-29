@@ -39,8 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/segments.h>
-#include <machine/pmap.h>
-
 #include <machine/vmm.h>
 #include "vmm_host.h"
 #include "vmcs.h"
@@ -318,14 +316,14 @@ done:
 
 int
 vmcs_set_defaults(struct vmcs *vmcs,
-		  u_long host_rip, u_long host_rsp, u_long ept_pml4,
+		  u_long host_rip, u_long host_rsp, uint64_t eptp,
 		  uint32_t pinbased_ctls, uint32_t procbased_ctls,
 		  uint32_t procbased_ctls2, uint32_t exit_ctls,
 		  uint32_t entry_ctls, u_long msr_bitmap, uint16_t vpid)
 {
 	int error, codesel, datasel, tsssel;
 	u_long cr0, cr4, efer;
-	uint64_t eptp, pat, fsbase, idtrbase;
+	uint64_t pat, fsbase, idtrbase;
 	uint32_t exc_bitmap;
 
 	codesel = vmm_get_host_codesel();
@@ -432,7 +430,6 @@ vmcs_set_defaults(struct vmcs *vmcs,
 		goto done;
 
 	/* eptp */
-	eptp = EPTP(ept_pml4);
 	if ((error = vmwrite(VMCS_EPTP, eptp)) != 0)
 		goto done;
 

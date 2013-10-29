@@ -1,4 +1,20 @@
-Serf 1.2.1 [2013-06-03, from /tags/1.2.1]
+Serf 1.3.0 [2013-07-23, from /tags/1.3.0]
+  Fix issue 83: use PATH rather than URI within an ssltunnel (r1952)
+  Fix issue 108: improved error reporting from the underlying socket (r1951)
+  NEW: Switch to the SCons build system; retire serfmake, serf.mak, autotools
+  Improved Basic and Digest authentication:
+    - remember credentials on a per-server basis
+    - properly manage authentication realms
+    - continue functioning when a server sets KeepAlive: off
+  Windows: add support for NTLM authentication
+  Improved 2617 compliance: always use strongest authentication (r1968,1971)
+  Fixed bugs with proxy authentication and SSL tunneling through a proxy
+  Fixed bugs the response parser (r2032,r2036)
+  SSL connection performance improvements
+  Huge expansion of the test suite
+
+
+Serf 1.2.1 [2013-06-03, from /tags/1.2.1, r1906]
   Fix issue 95: add gssapi switches to configure (r1864, r1900)
   Fix issue 97: skip mmap bucket if APR_HAS_MMAP is undefined (r1877)
   Fix issue 100: building against an old Windows Platform SDK (r1881)
@@ -19,7 +35,7 @@ Serf 1.2.0 [2013-02-22, from /tags/1.2.0, r1726]
   Fixed issue 93: cleanup-after-fork interferes with parent (r1714)
   Fixed most of issue 89: Support REAL SPNEGO authentication
   Enable Negotiate/Kerberos support for proxy servers.
-  Return error when C-L, chunked, gzip encoded response bodies where
+  Return error when C-L, chunked, gzip encoded response bodies were
     truncated (due to aborted connection) (r1688)
   Add a logging mechanism that can be enabled at compile-time.
   Don't lookup server address if a proxy was configured. (r1706)

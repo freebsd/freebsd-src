@@ -326,6 +326,7 @@ ibcs2_getdents(td, uap)
 	register int len, reclen;	/* BSD-format */
 	register caddr_t outp;		/* iBCS2-format */
 	register int resid;		/* iBCS2-format */
+	cap_rights_t rights;
 	struct file *fp;
 	struct uio auio;
 	struct iovec aiov;
@@ -337,7 +338,9 @@ ibcs2_getdents(td, uap)
 #define	BSD_DIRENT(cp)		((struct dirent *)(cp))
 #define	IBCS2_RECLEN(reclen)	(reclen + sizeof(u_short))
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, CAP_READ, &fp)) != 0)
+	error = getvnode(td->td_proc->p_fd, uap->fd,
+	    cap_rights_init(&rights, CAP_READ), &fp);
+	if (error != 0)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0) {
 		fdrop(fp, td);
@@ -478,6 +481,7 @@ ibcs2_read(td, uap)
 	register int len, reclen;	/* BSD-format */
 	register caddr_t outp;		/* iBCS2-format */
 	register int resid;		/* iBCS2-format */
+	cap_rights_t rights;
 	struct file *fp;
 	struct uio auio;
 	struct iovec aiov;
@@ -490,8 +494,9 @@ ibcs2_read(td, uap)
 	u_long *cookies = NULL, *cookiep;
 	int ncookies;
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, CAP_READ,
-	    &fp)) != 0) {
+	error = getvnode(td->td_proc->p_fd, uap->fd,
+	    cap_rights_init(&rights, CAP_READ), &fp);
+	if (error != 0) {
 		if (error == EINVAL)
 			return sys_read(td, (struct read_args *)uap);
 		else

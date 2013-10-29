@@ -123,6 +123,66 @@ struct aup_test aup_tests[] =
         "file:../photos/image.jpg",
         0, "file", NULL, NULL, NULL, NULL, NULL, "../photos/image.jpg", NULL, NULL, 0
     },
+    {
+        "file+ssh-2:../photos/image.jpg",
+        0, "file+ssh-2", NULL, NULL, NULL, NULL, NULL, "../photos/image.jpg", NULL, NULL, 0
+    },
+    {
+        "script/foo.js",
+        0, NULL, NULL, NULL, NULL, NULL, NULL, "script/foo.js", NULL, NULL, 0
+    },
+    {
+        "../foo2.js",
+        0, NULL, NULL, NULL, NULL, NULL, NULL, "../foo2.js", NULL, NULL, 0
+    },
+    {
+        "foo3.js",
+        0, NULL, NULL, NULL, NULL, NULL, NULL, "foo3.js", NULL, NULL, 0
+    },
+    {
+        "_foo/bar",
+        0, NULL, NULL, NULL, NULL, NULL, NULL, "_foo/bar", NULL, NULL, 0
+    },
+    {
+        "_foo:/bar",
+        APR_EGENERAL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0
+    },
+    {
+        "2foo:/bar",
+        APR_EGENERAL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0
+    },
+    {
+        ".foo:/bar",
+        APR_EGENERAL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0
+    },
+    {
+        "-foo:/bar",
+        APR_EGENERAL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0
+    },
+    {
+        "+foo:/bar",
+        APR_EGENERAL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0
+    },
+    {
+        "::/bar",
+        APR_EGENERAL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0
+    },
+    {
+        ":/bar",
+        APR_EGENERAL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0
+    },
+    {
+        ":foo",
+        APR_EGENERAL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0
+    },
+    {
+        ":",
+        APR_EGENERAL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0
+    },
+    {
+        "@localhost::8080",
+        APR_EGENERAL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0
+    },
 };
 
 struct uph_test {

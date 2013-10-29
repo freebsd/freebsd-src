@@ -57,6 +57,7 @@
 #include "private/svn_diff_private.h"
 #include "private/svn_cmdline_private.h"
 #include "private/svn_fspath.h"
+#include "private/svn_io_private.h"
 
 #include "svn_private_config.h"
 
@@ -983,12 +984,21 @@ print_diff_tree(svn_stream_t *out_stream,
               SVN_ERR(generate_label(&new_label, root, path, pool));
 
               /* We deal in streams, but svn_io_run_diff2() deals in file
-                 handles, unfortunately, so we need to make these temporary
-                 files, and then copy the contents to our stream. */
-              SVN_ERR(svn_io_open_unique_file3(&outfile, &outfilename, NULL,
-                        svn_io_file_del_on_pool_cleanup, pool, pool));
-              SVN_ERR(svn_io_open_unique_file3(&errfile, &errfilename, NULL,
-                        svn_io_file_del_on_pool_cleanup, pool, pool));
+                 handles, so we may need to make temporary files and then
+                 copy the contents to our stream. */
+              outfile = svn_stream__aprfile(out_stream);
+              if (outfile)
+                outfilename = NULL;
+              else
+                SVN_ERR(svn_io_open_unique_file3(&outfile, &outfilename, NULL,
+                          svn_io_file_del_on_pool_cleanup, pool, pool));
+              SVN_ERR(svn_stream_for_stderr(&err_stream, pool));
+              errfile = svn_stream__aprfile(err_stream);
+              if (errfile)
+                errfilename = NULL;
+              else
+                SVN_ERR(svn_io_open_unique_file3(&errfile, &errfilename, NULL,
+                          svn_io_file_del_on_pool_cleanup, pool, pool));
 
               SVN_ERR(svn_io_run_diff2(".",
                                        diff_cmd_argv,
@@ -998,21 +1008,25 @@ print_diff_tree(svn_stream_t *out_stream,
                                        &exitcode, outfile, errfile,
                                        c->diff_cmd, pool));
 
-              SVN_ERR(svn_io_file_close(outfile, pool));
-              SVN_ERR(svn_io_file_close(errfile, pool));
-
               /* Now, open and copy our files to our output streams. */
-              SVN_ERR(svn_stream_for_stderr(&err_stream, pool));
-              SVN_ERR(svn_stream_open_readonly(&stream, outfilename,
-                                               pool, pool));
-              SVN_ERR(svn_stream_copy3(stream,
-                                       svn_stream_disown(out_stream, pool),
-                                       NULL, NULL, pool));
-              SVN_ERR(svn_stream_open_readonly(&stream, errfilename,
-                                               pool, pool));
-              SVN_ERR(svn_stream_copy3(stream,
-                                       svn_stream_disown(err_stream, pool),
-                                       NULL, NULL, pool));
+              if (outfilename)
+                {
+                  SVN_ERR(svn_io_file_close(outfile, pool));
+                  SVN_ERR(svn_stream_open_readonly(&stream, outfilename,
+                                                   pool, pool));
+                  SVN_ERR(svn_stream_copy3(stream,
+                                           svn_stream_disown(out_stream, pool),
+                                           NULL, NULL, pool));
+                }
+              if (errfilename)
+                {
+                  SVN_ERR(svn_io_file_close(errfile, pool));
+                  SVN_ERR(svn_stream_open_readonly(&stream, errfilename,
+                                                   pool, pool));
+                  SVN_ERR(svn_stream_copy3(stream,
+                                           svn_stream_disown(err_stream, pool),
+                                           NULL, NULL, pool));
+                }
 
               SVN_ERR(svn_stream_printf_from_utf8(out_stream, encoding, pool,
                                                   "\n"));

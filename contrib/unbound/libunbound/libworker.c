@@ -50,11 +50,13 @@
 #include "libunbound/libworker.h"
 #include "libunbound/context.h"
 #include "libunbound/unbound.h"
+#include "libunbound/worker.h"
 #include "services/outside_network.h"
 #include "services/mesh.h"
 #include "services/localzone.h"
 #include "services/cache/rrset.h"
 #include "services/outbound_list.h"
+#include "util/fptr_wlist.h"
 #include "util/module.h"
 #include "util/regional.h"
 #include "util/random.h"
@@ -862,7 +864,8 @@ struct outbound_entry* worker_send_query(uint8_t* ATTR_UNUSED(qname),
 	uint16_t ATTR_UNUSED(qclass), uint16_t ATTR_UNUSED(flags), 
 	int ATTR_UNUSED(dnssec), int ATTR_UNUSED(want_dnssec),
 	struct sockaddr_storage* ATTR_UNUSED(addr), 
-	socklen_t ATTR_UNUSED(addrlen), struct module_qstate* ATTR_UNUSED(q))
+	socklen_t ATTR_UNUSED(addrlen), uint8_t* ATTR_UNUSED(zone),
+	size_t ATTR_UNUSED(zonelen), struct module_qstate* ATTR_UNUSED(q))
 {
 	log_assert(0);
 	return 0;

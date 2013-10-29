@@ -1887,6 +1887,7 @@ scan_tags(sessp	sp, const struct pppoe_hdr* ph)
 		case	PTT_SRV_ERR:
 		case	PTT_SYS_ERR:
 		case	PTT_GEN_ERR:
+		case	PTT_MAX_PAYL:
 			break;
 		}
 		pt = (const struct pppoe_tag*)ptn;

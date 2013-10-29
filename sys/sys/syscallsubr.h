@@ -71,6 +71,8 @@ int	kern_adjtime(struct thread *td, struct timeval *delta,
 int	kern_alternate_path(struct thread *td, const char *prefix, const char *path,
 	    enum uio_seg pathseg, char **pathbuf, int create, int dirfd);
 int	kern_bind(struct thread *td, int fd, struct sockaddr *sa);
+int	kern_cap_ioctls_limit(struct thread *td, int fd, u_long *cmds,
+	    size_t ncmds);
 int	kern_chdir(struct thread *td, char *path, enum uio_seg pathseg);
 int	kern_chmod(struct thread *td, char *path, enum uio_seg pathseg,
 	    int mode);
@@ -165,6 +167,8 @@ int	kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
 	    int advice);
 int	kern_posix_fallocate(struct thread *td, int fd, off_t offset,
 	    off_t len);
+int	kern_procctl(struct thread *td, enum idtype idtype, id_t id, int com,
+	    void *data);
 int	kern_preadv(struct thread *td, int fd, struct uio *auio, off_t offset);
 int	kern_pselect(struct thread *td, int nd, fd_set *in, fd_set *ou,
 	    fd_set *ex, struct timeval *tvp, sigset_t *uset, int abi_nfdbits);

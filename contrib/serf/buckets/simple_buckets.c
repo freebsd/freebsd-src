@@ -71,6 +71,23 @@ serf_bucket_t *serf_bucket_simple_copy_create(
     return serf_bucket_create(&serf_bucket_type_simple, allocator, ctx);
 }
 
+serf_bucket_t *serf_bucket_simple_own_create(
+    const char *data, apr_size_t len,
+    serf_bucket_alloc_t *allocator)
+{
+    simple_context_t *ctx;
+
+    ctx = serf_bucket_mem_alloc(allocator, sizeof(*ctx));
+
+    ctx->original = ctx->current = data;
+
+    ctx->remaining = len;
+    ctx->freefunc = free_copied_data;
+    ctx->baton = allocator;
+
+    return serf_bucket_create(&serf_bucket_type_simple, allocator, ctx);
+}
+
 static apr_status_t serf_simple_read(serf_bucket_t *bucket,
                                      apr_size_t requested,
                                      const char **data, apr_size_t *len)

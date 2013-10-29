@@ -3968,7 +3968,6 @@ done:
 static void
 dwc_otg_xfer_setup(struct usb_setup_params *parm)
 {
-	const struct usb_hw_ep_profile *pf;
 	struct usb_xfer *xfer;
 	void *last_obj;
 	uint32_t ntd;
@@ -4011,16 +4010,21 @@ dwc_otg_xfer_setup(struct usb_setup_params *parm)
 	 */
 	last_obj = NULL;
 
-	/*
-	 * get profile stuff
-	 */
 	ep_no = xfer->endpointno & UE_ADDR;
-	dwc_otg_get_hw_ep_profile(parm->udev, &pf, ep_no);
 
-	if (pf == NULL) {
-		/* should not happen */
-		parm->err = USB_ERR_INVAL;
-		return;
+	/*
+	 * Check for a valid endpoint profile in USB device mode:
+	 */
+	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
+		const struct usb_hw_ep_profile *pf;
+
+		dwc_otg_get_hw_ep_profile(parm->udev, &pf, ep_no);
+
+		if (pf == NULL) {
+			/* should not happen */
+			parm->err = USB_ERR_INVAL;
+			return;
+		}
 	}
 
 	/* align data */

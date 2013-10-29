@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_atm.h>
 #include <net/netisr.h>
 
@@ -338,6 +339,21 @@ natm_usr_control(struct socket *so, u_long cmd, caddr_t arg,
 
 	npcb = (struct natmpcb *)so->so_pcb;
 	KASSERT(npcb != NULL, ("natm_usr_control: npcb == NULL"));
+
+	switch (cmd) {
+	case SIOCSIFADDR:
+	case SIOCSIFBRDADDR:
+	case SIOCSIFDSTADDR:
+	case SIOCSIFNETMASK:
+		/*
+		 * Although we should pass any non-ATM ioctl requests
+		 * down to driver, we filter some legacy INET requests.
+		 * Drivers trust SIOCSIFADDR et al to come from an already
+		 * privileged layer, and do not perform any credentials
+		 * checks or input validation.
+		 */
+		return (EINVAL);
+	}
 
 	if (ifp == NULL || ifp->if_ioctl == NULL)
 		return (EOPNOTSUPP);

@@ -394,6 +394,7 @@ SDNode *MSP430DAGToDAGISel::Select(SDNode *Node) {
     DEBUG(errs() << "== ";
           Node->dump(CurDAG);
           errs() << "\n");
+    Node->setNodeId(-1);
     return NULL;
   }
 

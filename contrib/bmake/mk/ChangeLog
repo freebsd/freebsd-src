@@ -1,3 +1,29 @@
+2013-09-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* gendirdeps.mk (_objtops): fix typo also
+	  while processing M2D_OBJROOTS to gather qualdir_list
+	  qualify $ql with loop iterator to ensure correct results.
+
+2013-08-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20130801
+	* libs.mk: update to match progs.mk
+	
+2013-07-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20130726
+	  some updates from Juniper and FreeBSD
+	  o meta2deps.py: indicate file and line number when we hit parse
+	    errors
+	    also allow @file to provide huge list of .meta files.
+	* meta2deps.py: add try_parse() to cleanup the above.
+	
+2013-07-16  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20130716
+	* own.mk: add GPROG as an option
+	* prog.mk: honor MK_GPROF==yes
+	
 2013-05-10  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20130505

@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <md5.h>
 #include <sha.h>
 
-#include <dev/iscsi/initiator/iscsi.h>
+#include <dev/iscsi_initiator/iscsi.h>
 #include "iscontrol.h"
 
 static int

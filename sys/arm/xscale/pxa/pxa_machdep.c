@@ -362,7 +362,7 @@ initarm(struct arm_boot_params *abp)
 	}
 	dump_avail[i] = 0;
 	dump_avail[i] = 0;
-	vm_max_kernel_address = 0xd0000000;
+	vm_max_kernel_address = 0xe0000000;
 	pmap_bootstrap(pmap_curmaxkvaddr, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);

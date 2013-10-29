@@ -1605,18 +1605,6 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 }
 
 static int
-ctl_be_block_mem_ctor(void *mem, int size, void *arg, int flags)
-{
-	return (0);
-}
-
-static void
-ctl_be_block_mem_dtor(void *mem, int size, void *arg)
-{
-	bzero(mem, size);
-}
-
-static int
 ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 {
 	struct ctl_be_block_lun *be_lun;
@@ -1639,12 +1627,12 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	STAILQ_INIT(&be_lun->input_queue);
 	STAILQ_INIT(&be_lun->config_write_queue);
 	STAILQ_INIT(&be_lun->datamove_queue);
+	STAILQ_INIT(&be_lun->ctl_be_lun.options);
 	sprintf(be_lun->lunname, "cblk%d", softc->num_luns);
 	mtx_init(&be_lun->lock, be_lun->lunname, NULL, MTX_DEF);
 
 	be_lun->lun_zone = uma_zcreate(be_lun->lunname, MAXPHYS, 
-	    ctl_be_block_mem_ctor, ctl_be_block_mem_dtor, NULL, NULL,
-	    /*align*/ 0, /*flags*/0);
+	    NULL, NULL, NULL, NULL, /*align*/ 0, /*flags*/0);
 
 	if (be_lun->lun_zone == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
@@ -1740,6 +1728,16 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 			}
 
 			num_threads = tmp_num_threads;
+		} else if (strcmp(req->kern_be_args[i].kname, "file") != 0 &&
+		    strcmp(req->kern_be_args[i].kname, "dev") != 0) {
+			struct ctl_be_lun_option *opt;
+
+			opt = malloc(sizeof(*opt), M_CTLBLK, M_WAITOK);
+			opt->name = malloc(strlen(req->kern_be_args[i].kname) + 1, M_CTLBLK, M_WAITOK);
+			strcpy(opt->name, req->kern_be_args[i].kname);
+			opt->value = malloc(strlen(req->kern_be_args[i].kvalue) + 1, M_CTLBLK, M_WAITOK);
+			strcpy(opt->value, req->kern_be_args[i].kvalue);
+			STAILQ_INSERT_TAIL(&be_lun->ctl_be_lun.options, opt, links);
 		}
 	}
 

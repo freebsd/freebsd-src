@@ -2086,6 +2086,7 @@ db_base_remove(svn_wc__db_wcroot_t *wcroot,
                svn_wc__db_t *db, /* For checking conflicts */
                svn_boolean_t keep_as_working,
                svn_boolean_t queue_deletes,
+               svn_boolean_t remove_locks,
                svn_revnum_t not_present_revision,
                svn_skel_t *conflict,
                svn_skel_t *work_items,
@@ -2105,6 +2106,16 @@ db_base_remove(svn_wc__db_wcroot_t *wcroot,
                                             NULL, NULL, NULL, NULL, NULL,
                                             wcroot, local_relpath,
                                             scratch_pool, scratch_pool));
+
+  if (remove_locks)
+    {
+      svn_sqlite__stmt_t *lock_stmt;
+
+      SVN_ERR(svn_sqlite__get_statement(&lock_stmt, wcroot->sdb,
+                                        STMT_DELETE_LOCK_RECURSIVELY));
+      SVN_ERR(svn_sqlite__bindf(lock_stmt, "is", repos_id, repos_relpath));
+      SVN_ERR(svn_sqlite__step_done(lock_stmt));
+    }
 
   if (status == svn_wc__db_status_normal
       && keep_as_working)
@@ -2333,6 +2344,7 @@ svn_wc__db_base_remove(svn_wc__db_t *db,
                        const char *local_abspath,
                        svn_boolean_t keep_as_working,
                        svn_boolean_t queue_deletes,
+                       svn_boolean_t remove_locks,
                        svn_revnum_t not_present_revision,
                        svn_skel_t *conflict,
                        svn_skel_t *work_items,
@@ -2349,7 +2361,7 @@ svn_wc__db_base_remove(svn_wc__db_t *db,
 
   SVN_WC__DB_WITH_TXN(db_base_remove(wcroot, local_relpath,
                                      db, keep_as_working, queue_deletes,
-                                     not_present_revision,
+                                     remove_locks, not_present_revision,
                                      conflict, work_items, scratch_pool),
                       wcroot);
 
@@ -10814,7 +10826,7 @@ commit_node(svn_wc__db_wcroot_t *wcroot,
       svn_sqlite__stmt_t *lock_stmt;
 
       SVN_ERR(svn_sqlite__get_statement(&lock_stmt, wcroot->sdb,
-                                        STMT_DELETE_LOCK));
+                                        STMT_DELETE_LOCK_RECURSIVELY));
       SVN_ERR(svn_sqlite__bindf(lock_stmt, "is", repos_id, repos_relpath));
       SVN_ERR(svn_sqlite__step_done(lock_stmt));
     }
@@ -11058,7 +11070,7 @@ bump_node_revision(svn_wc__db_wcroot_t *wcroot,
               revision != new_rev)))
     {
       return svn_error_trace(db_base_remove(wcroot, local_relpath,
-                                            db, FALSE, FALSE,
+                                            db, FALSE, FALSE, FALSE,
                                             SVN_INVALID_REVNUM,
                                             NULL, NULL, scratch_pool));
     }
@@ -14978,13 +14990,17 @@ svn_wc__db_verify(svn_wc__db_t *db,
 
 svn_error_t *
 svn_wc__db_bump_format(int *result_format,
-                       const char *wcroot_abspath,
+                       svn_boolean_t *bumped_format,
                        svn_wc__db_t *db,
+                       const char *wcroot_abspath,
                        apr_pool_t *scratch_pool)
 {
   svn_sqlite__db_t *sdb;
   svn_error_t *err;
   int format;
+
+  if (bumped_format)
+    *bumped_format = FALSE;
 
   /* Do not scan upwards for a working copy root here to prevent accidental
    * upgrades of any working copies the WCROOT might be nested in.
@@ -15020,7 +15036,10 @@ svn_wc__db_bump_format(int *result_format,
 
   SVN_ERR(svn_sqlite__read_schema_version(&format, sdb, scratch_pool));
   err = svn_wc__upgrade_sdb(result_format, wcroot_abspath,
-                                     sdb, format, scratch_pool);
+                            sdb, format, scratch_pool);
+
+  if (err == SVN_NO_ERROR && bumped_format)
+    *bumped_format = (*result_format > format);
 
   /* Make sure we return a different error than expected for upgrades from
      entries */

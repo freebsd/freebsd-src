@@ -53,6 +53,7 @@
 #include <machine/cpu.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
@@ -687,9 +688,6 @@ gif_ioctl(ifp, cmd, data)
 		ifp->if_flags |= IFF_UP;
 		break;
 		
-	case SIOCSIFDSTADDR:
-		break;
-
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		break;

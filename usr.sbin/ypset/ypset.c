@@ -75,7 +75,7 @@ bind_tohost(struct sockaddr_in *sin, char *dom, char *server)
 		bcopy (hp->h_addr_list[0],
 		       (u_long *)&ypsd.ypsetdom_binding.ypbind_binding_addr,
 		       sizeof (unsigned long));
-	} else if ((long)(server_addr = inet_addr (server)) == -1) {
+	} else if ((server_addr = inet_addr(server)) == INADDR_NONE) {
 		errx(1, "can't find address for %s", server);
 	} else
 		bcopy (&server_addr,
@@ -129,7 +129,8 @@ main(int argc, char *argv[])
 			domainname = optarg;
 			break;
 		case 'h':
-			if ((sin.sin_addr.s_addr = inet_addr(optarg)) == -1) {
+			if ((sin.sin_addr.s_addr = inet_addr(optarg)) ==
+			    INADDR_NONE) {
 				hent = gethostbyname(optarg);
 				if (hent == NULL)
 					errx(1, "host %s unknown", optarg);

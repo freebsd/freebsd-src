@@ -51,7 +51,6 @@
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
-#include <dev/usb/usb_ioctl.h>
 #include <dev/usb/usbhid.h>
 
 #define	USB_DEBUG_VAR usb_debug

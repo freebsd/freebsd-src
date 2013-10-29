@@ -63,6 +63,7 @@
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -205,7 +206,7 @@ vmnet_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	i = clone_create(&tapclones, &tap_cdevsw, &unit, &dev, VMNET_DEV_MASK);
 	if (i) {
 		dev = make_dev(&tap_cdevsw, unit | VMNET_DEV_MASK, UID_ROOT,
-		    GID_WHEEL, 0600, "%s%d", tapname, unit);
+		    GID_WHEEL, 0600, "%s%d", vmnetname, unit);
 	}
 
 	tapcreate(dev);
@@ -220,6 +221,7 @@ tap_destroy(struct tap_softc *tp)
 	CURVNET_SET(ifp->if_vnet);
 	destroy_dev(tp->tap_dev);
 	seldrain(&tp->tap_rsel);
+	knlist_clear(&tp->tap_rsel.si_note, 0);
 	knlist_destroy(&tp->tap_rsel.si_note);
 	ether_ifdetach(ifp);
 	if_free(ifp);
@@ -408,8 +410,6 @@ tapcreate(struct cdev *dev)
 	int			 unit;
 	const char		*name = NULL;
 	u_char			eaddr[6];
-
-	dev->si_flags &= ~SI_CHEAPCLONE;
 
 	/* allocate driver storage and create device */
 	tp = malloc(sizeof(*tp), M_TAP, M_WAITOK | M_ZERO);

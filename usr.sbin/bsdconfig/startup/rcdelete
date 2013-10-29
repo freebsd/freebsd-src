@@ -232,7 +232,7 @@ dialog_menu_main()
 	f_dialog_menutag_store "$menu_choice"
 
 	# Only update default-item on success
-	[ $retval -eq 0 ] && f_dialog_default_store "$menu_choice"
+	[ $retval -eq $DIALOG_OK ] && f_dialog_default_store "$menu_choice"
 
 	return $retval
 }
@@ -249,7 +249,7 @@ dialog_menu_confirm_delete()
 	local menu_list # Calculated below
 	local hline="$hline_arrows_tab_enter"
 
-	[ $# -ge 1 ] || return $FAILURE
+	[ $# -ge 1 ] || return $DIALOG_CANCEL
 
 	# If asked to delete only one variable, simply ask and return
 	if [ $# -eq 1 ]; then
@@ -351,13 +351,13 @@ while :; do
 			f_dialog_input_view_details && dialog_create_main
 			continue
 		esac
-	elif [ $retval -eq 2 ]; then
+	elif [ $retval -eq $DIALOG_HELP ]; then
 		# The ``Help'' button (labeled "Details") was pressed
 		f_dialog_input_view_details && dialog_create_main
 		continue
 	fi
 
-	[ $retval -eq 0 ] || f_die
+	[ $retval -eq $DIALOG_OK ] || f_die
 
 	case "$mtag" in
 	"X $msg_exit_cancel") break ;;

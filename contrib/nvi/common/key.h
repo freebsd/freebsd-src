@@ -6,27 +6,47 @@
  *
  * See the LICENSE file for redistribution information.
  *
- *	@(#)key.h	10.18 (Berkeley) 6/30/96
+ *	$Id: key.h,v 10.55 2012/10/07 01:31:17 zy Exp $
  */
 
-/*
- * Fundamental character types.
- *
- * CHAR_T	An integral type that can hold any character.
- * ARG_CHAR_T	The type of a CHAR_T when passed as an argument using
- *		traditional promotion rules.  It should also be able
- *		to be compared against any CHAR_T for equality without
- *		problems.
- * MAX_CHAR_T	The maximum value of any character.
- *
- * If no integral type can hold a character, don't even try the port.
- */
-typedef	u_char		CHAR_T;
-typedef	u_int		ARG_CHAR_T;
-#define	MAX_CHAR_T	0xff
+#include "multibyte.h"
+
+#ifdef USE_WIDECHAR
+#define FILE2INT5(sp,buf,n,nlen,w,wlen)					    \
+    sp->conv.file2int(sp, n, nlen, &buf, &wlen, &w)
+#define INT2FILE(sp,w,wlen,n,nlen) 					    \
+    sp->conv.int2file(sp, w, wlen, &sp->cw, &nlen, &n)
+#define CHAR2INT5(sp,buf,n,nlen,w,wlen)					    \
+    sp->conv.sys2int(sp, n, nlen, &buf, &wlen, &w)
+#define INT2CHAR(sp,w,wlen,n,nlen) 					    \
+    sp->conv.int2sys(sp, w, wlen, &sp->cw, &nlen, &n)
+#define INPUT2INT5(sp,cw,n,nlen,w,wlen)					    \
+    sp->conv.input2int(sp, n, nlen, &(cw), &wlen, &w)
+#define CONST
+#define CHAR_WIDTH(sp, ch)  wcwidth(ch)
+#define INTISWIDE(c)	(wctob(c) == EOF)
+#else
+#define FILE2INT5(sp,buf,n,nlen,w,wlen) \
+    (w = n, wlen = nlen, 0)
+#define INT2FILE(sp,w,wlen,n,nlen) \
+    (n = w, nlen = wlen, 0)
+#define CHAR2INT5(sp,buf,n,nlen,w,wlen) \
+    (w = n, wlen = nlen, 0)
+#define INT2CHAR(sp,w,wlen,n,nlen) \
+    (n = w, nlen = wlen, 0)
+#define INPUT2INT5(sp,buf,n,nlen,w,wlen) \
+    (w = n, wlen = nlen, 0)
+#define CONST const
+#define INTISWIDE(c)	    0
+#define CHAR_WIDTH(sp, ch)  1
+#endif
+#define FILE2INT(sp,n,nlen,w,wlen)					    \
+    FILE2INT5(sp,sp->cw,n,nlen,w,wlen)
+#define CHAR2INT(sp,n,nlen,w,wlen)					    \
+    CHAR2INT5(sp,sp->cw,n,nlen,w,wlen)
 
 /* The maximum number of columns any character can take up on a screen. */
-#define	MAX_CHARACTER_COLUMNS	4
+#define	MAX_CHARACTER_COLUMNS	7
 
 /*
  * Event types.
@@ -42,14 +62,12 @@ typedef enum {
 	E_EOF,				/* End of input (NOT ^D). */
 	E_ERR,				/* Input error. */
 	E_INTERRUPT,			/* Interrupt. */
-	E_QUIT,				/* Quit. */
 	E_REPAINT,			/* Repaint: e_flno, e_tlno set. */
 	E_SIGHUP,			/* SIGHUP. */
 	E_SIGTERM,			/* SIGTERM. */
 	E_STRING,			/* Input string: e_csp, e_len set. */
 	E_TIMEOUT,			/* Timeout. */
 	E_WRESIZE,			/* Window resize. */
-	E_WRITE				/* Write. */
 } e_event_t;
 
 /*
@@ -124,7 +142,7 @@ struct _event {
 
 typedef struct _keylist {
 	e_key_t value;			/* Special value. */
-	CHAR_T ch;			/* Key. */
+	int	ch;			/* Key. */
 } KEYLIST;
 extern KEYLIST keylist[];
 
@@ -137,15 +155,13 @@ extern KEYLIST keylist[];
 /*
  * Ex/vi commands are generally separated by whitespace characters.  We
  * can't use the standard isspace(3) macro because it returns true for
- * characters like ^K in the ASCII character set.  The 4.4BSD isblank(3)
- * macro does exactly what we want, but it's not portable yet.
+ * characters like ^K in the ASCII character set.  The POSIX isblank(3)
+ * has the same problem for non-ASCII locale, so we need a standalone one.
  *
  * XXX
  * Note side effect, ch is evaluated multiple times.
  */
-#ifndef isblank
-#define	isblank(ch)	((ch) == ' ' || (ch) == '\t')
-#endif
+#define	cmdskip(ch)	((ch) == ' ' || (ch) == '\t')
 
 /* The "standard" tab width, for displaying things to users. */
 #define	STANDARD_TAB	6

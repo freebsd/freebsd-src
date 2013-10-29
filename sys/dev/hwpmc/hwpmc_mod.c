@@ -132,7 +132,8 @@ static int		*pmc_pmcdisp;	 /* PMC row dispositions */
 
 
 /* various event handlers */
-static eventhandler_tag	pmc_exit_tag, pmc_fork_tag;
+static eventhandler_tag	pmc_exit_tag, pmc_fork_tag, pmc_kld_load_tag,
+    pmc_kld_unload_tag;
 
 /* Module statistics */
 struct pmc_op_getdriverstats pmc_stats;
@@ -1476,50 +1477,6 @@ pmc_process_csw_out(struct thread *td)
 }
 
 /*
- * Log a KLD operation.
- */
-
-static void
-pmc_process_kld_load(struct pmckern_map_in *pkm)
-{
-	struct pmc_owner *po;
-
-	sx_assert(&pmc_sx, SX_LOCKED);
-
-	/*
-	 * Notify owners of system sampling PMCs about KLD operations.
-	 */
-
-	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
-	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
-	    	pmclog_process_map_in(po, (pid_t) -1, pkm->pm_address,
-		    (char *) pkm->pm_file);
-
-	/*
-	 * TODO: Notify owners of (all) process-sampling PMCs too.
-	 */
-
-	return;
-}
-
-static void
-pmc_process_kld_unload(struct pmckern_map_out *pkm)
-{
-	struct pmc_owner *po;
-
-	sx_assert(&pmc_sx, SX_LOCKED);
-
-	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
-	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
-		pmclog_process_map_out(po, (pid_t) -1,
-		    pkm->pm_address, pkm->pm_address + pkm->pm_size);
-
-	/*
-	 * TODO: Notify owners of process-sampling PMCs.
-	 */
-}
-
-/*
  * A mapping change for a process.
  */
 
@@ -1833,8 +1790,8 @@ const char *pmc_hooknames[] = {
 	"CSW-IN",
 	"CSW-OUT",
 	"SAMPLE",
-	"KLDLOAD",
-	"KLDUNLOAD",
+	"UNUSED1",
+	"UNUSED2",
 	"MMAP",
 	"MUNMAP",
 	"CALLCHAIN-NMI",
@@ -2002,17 +1959,6 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		pmc_process_samples(PCPU_GET(cpuid), PMC_SR);
 		break;
 
-
-	case PMC_FN_KLD_LOAD:
-		sx_assert(&pmc_sx, SX_LOCKED);
-		pmc_process_kld_load((struct pmckern_map_in *) arg);
-		break;
-
-	case PMC_FN_KLD_UNLOAD:
-		sx_assert(&pmc_sx, SX_LOCKED);
-		pmc_process_kld_unload((struct pmckern_map_out *) arg);
-		break;
-
 	case PMC_FN_MMAP:
 		sx_assert(&pmc_sx, SX_LOCKED);
 		pmc_process_mmap(td, (struct pmckern_map_in *) arg);
@@ -2080,11 +2026,7 @@ pmc_allocate_owner_descriptor(struct proc *p)
 
 	/* allocate space for N pointers and one descriptor struct */
 	po = malloc(sizeof(struct pmc_owner), M_PMC, M_WAITOK|M_ZERO);
-	po->po_sscount = po->po_error = po->po_flags = po->po_logprocmaps = 0;
-	po->po_file  = NULL;
 	po->po_owner = p;
-	po->po_kthread = NULL;
-	LIST_INIT(&po->po_pmcs);
 	LIST_INSERT_HEAD(poh, po, po_next); /* insert into hash table */
 
 	TAILQ_INIT(&po->po_logbuffers);
@@ -2210,8 +2152,6 @@ pmc_allocate_pmc_descriptor(void)
 	struct pmc *pmc;
 
 	pmc = malloc(sizeof(struct pmc), M_PMC, M_WAITOK|M_ZERO);
-	pmc->pm_owner = NULL;
-	LIST_INIT(&pmc->pm_targets);
 
 	PMCDBG(PMC,ALL,1, "allocate-pmc -> pmc=%p", pmc);
 
@@ -4644,6 +4584,47 @@ pmc_process_fork(void *arg __unused, struct proc *p1, struct proc *newproc,
 	sx_xunlock(&pmc_sx);
 }
 
+static void
+pmc_kld_load(void *arg __unused, linker_file_t lf)
+{
+	struct pmc_owner *po;
+
+	sx_slock(&pmc_sx);
+
+	/*
+	 * Notify owners of system sampling PMCs about KLD operations.
+	 */
+	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+		if (po->po_flags & PMC_PO_OWNS_LOGFILE)
+			pmclog_process_map_in(po, (pid_t) -1,
+			    (uintfptr_t) lf->address, lf->filename);
+
+	/*
+	 * TODO: Notify owners of (all) process-sampling PMCs too.
+	 */
+
+	sx_sunlock(&pmc_sx);
+}
+
+static void
+pmc_kld_unload(void *arg __unused, const char *filename __unused,
+    caddr_t address, size_t size)
+{
+	struct pmc_owner *po;
+
+	sx_slock(&pmc_sx);
+
+	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+		if (po->po_flags & PMC_PO_OWNS_LOGFILE)
+			pmclog_process_map_out(po, (pid_t) -1,
+			    (uintfptr_t) address, (uintfptr_t) address + size);
+
+	/*
+	 * TODO: Notify owners of process-sampling PMCs.
+	 */
+
+	sx_sunlock(&pmc_sx);
+}
 
 /*
  * initialization
@@ -4913,6 +4894,12 @@ pmc_initialize(void)
 	pmc_fork_tag = EVENTHANDLER_REGISTER(process_fork,
 	    pmc_process_fork, NULL, EVENTHANDLER_PRI_ANY);
 
+	/* register kld event handlers */
+	pmc_kld_load_tag = EVENTHANDLER_REGISTER(kld_load, pmc_kld_load,
+	    NULL, EVENTHANDLER_PRI_ANY);
+	pmc_kld_unload_tag = EVENTHANDLER_REGISTER(kld_unload, pmc_kld_unload,
+	    NULL, EVENTHANDLER_PRI_ANY);
+
 	/* initialize logging */
 	pmclog_initialize();
 
@@ -4970,6 +4957,8 @@ pmc_cleanup(void)
 	/* deregister event handlers */
 	EVENTHANDLER_DEREGISTER(process_fork, pmc_fork_tag);
 	EVENTHANDLER_DEREGISTER(process_exit, pmc_exit_tag);
+	EVENTHANDLER_DEREGISTER(kld_load, pmc_kld_load_tag);
+	EVENTHANDLER_DEREGISTER(kld_unload, pmc_kld_unload_tag);
 
 	/* send SIGBUS to all owner threads, free up allocations */
 	if (pmc_ownerhash)

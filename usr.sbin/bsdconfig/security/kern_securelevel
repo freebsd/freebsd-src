@@ -131,11 +131,10 @@ while :; do
 	retval=$?
 	f_dialog_menutag_fetch mtag
 
-	if [ $retval -eq 2 ]; then
-		# The Help button was pressed
+	if [ $retval -eq $DIALOG_HELP ]; then
 		f_show_help "$SECURELEVEL_HELPFILE"
 		continue
-	elif [ $retval -ne 0 ]; then
+	elif [ $retval -ne $DIALOG_OK ]; then
 		f_die
 	fi
 

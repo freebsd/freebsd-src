@@ -33,6 +33,7 @@
 #ifndef _SYS_FILEDESC_H_
 #define	_SYS_FILEDESC_H_
 
+#include <sys/caprights.h>
 #include <sys/queue.h>
 #include <sys/event.h>
 #include <sys/lock.h>
@@ -43,9 +44,9 @@
 
 struct filecaps {
 	cap_rights_t	 fc_rights;	/* per-descriptor capability rights */
-	uint32_t	 fc_fcntls;	/* per-descriptor allowed fcntls */
 	u_long		*fc_ioctls;	/* per-descriptor allowed ioctls */
 	int16_t		 fc_nioctls;	/* fc_ioctls array size */
+	uint32_t	 fc_fcntls;	/* per-descriptor allowed fcntls */
 };
 
 struct filedescent {
@@ -108,10 +109,6 @@ struct filedesc_to_leader {
 
 #ifdef _KERNEL
 
-#include <sys/systm.h>	/* CTASSERT() */
-
-CTASSERT(sizeof(cap_rights_t) == sizeof(uint64_t));
-
 /* Flags for do_dup() */
 #define	DUP_FIXED	0x1	/* Force fixed allocation. */
 #define	DUP_FCNTL	0x2	/* fcntl()-style errors. */
@@ -163,13 +160,13 @@ struct	filedesc *fdshare(struct filedesc *fdp);
 struct filedesc_to_leader *
 	filedesc_to_leader_alloc(struct filedesc_to_leader *old,
 	    struct filedesc *fdp, struct proc *leader);
-int	getvnode(struct filedesc *fdp, int fd, cap_rights_t rights,
+int	getvnode(struct filedesc *fdp, int fd, cap_rights_t *rightsp,
 	    struct file **fpp);
 void	mountcheckdirs(struct vnode *olddp, struct vnode *newdp);
 void	setugidsafety(struct thread *td);
 
 /* Return a referenced file from an unlocked descriptor. */
-int	fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t needrights,
+int	fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	    int needfcntl, struct file **fpp, cap_rights_t *haverightsp);
 
 /* Requires a FILEDESC_{S,X}LOCK held and returns without a ref. */

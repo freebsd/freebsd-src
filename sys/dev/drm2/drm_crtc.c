@@ -170,6 +170,9 @@ static struct drm_prop_enum_list drm_encoder_enum_list[] =
 	{ DRM_MODE_ENCODER_TVDAC, "TV" },
 };
 
+static void drm_property_destroy_blob(struct drm_device *dev,
+			       struct drm_property_blob *blob);
+
 char *drm_get_encoder_name(struct drm_encoder *encoder)
 {
 	static char buf[32];
@@ -520,6 +523,8 @@ void drm_connector_cleanup(struct drm_connector *connector)
 		drm_mode_remove(connector, mode);
 
 	sx_xlock(&dev->mode_config.mutex);
+	if (connector->edid_blob_ptr)
+		drm_property_destroy_blob(dev, connector->edid_blob_ptr);
 	drm_mode_object_put(dev, &connector->base);
 	list_del(&connector->head);
 	dev->mode_config.num_connector--;

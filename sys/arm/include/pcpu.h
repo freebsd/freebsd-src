@@ -33,7 +33,6 @@
 #ifdef _KERNEL
 
 #include <machine/cpuconf.h>
-#include <machine/frame.h>
 
 #define	ALT_STACK_SIZE	128
 
@@ -41,7 +40,7 @@ struct vmspace;
 
 #endif	/* _KERNEL */
 
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 #define PCPU_MD_FIELDS							\
 	unsigned int pc_cpu;						\
 	unsigned int pc_vfpsid;						\

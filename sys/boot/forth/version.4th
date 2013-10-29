@@ -1,4 +1,4 @@
-\ Copyright (c) 2006-2011 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2006-2013 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,9 @@ marker task-version.4th
 variable versionX
 variable versionY
 
+\ Default $loader_version value if not overridden or using tribute screen
+: str_loader_version ( -- C-ADDR/U|-1 ) -1 ;
+
 \ Initialize text placement to defaults
 80 versionX !	\ NOTE: this is the ending column (text is right-justified)
 24 versionY !
@@ -43,9 +46,33 @@ variable versionY
 		?number drop versionY ! -1
 	then drop
 
-	\ Exit if a version was not set
+	\ Default version if none was set
 	s" loader_version" getenv dup -1 = if
-		drop exit
+		drop
+		\ Default version if no logo is requested
+		s" loader_logo" getenv dup -1 = if
+			drop str_loader_version
+		else
+			2dup s" tribute" compare-insensitive 0= if
+				2drop
+				s" tribute-logo" sfind if
+					drop exit \ see beastie tribute-text
+				else
+					drop str_loader_version
+				then
+			else 2dup s" tributebw" compare-insensitive 0= if
+				2drop
+				s" tributebw-logo" sfind if
+					drop exit \ see beastie tribute-text
+				else
+					drop str_loader_version
+				then
+			else
+				2drop str_loader_version
+			then then
+		then
+	then dup -1 = if
+		drop exit \ default version (above) is disabled
 	then
 
 	\ Right justify the text

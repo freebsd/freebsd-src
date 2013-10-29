@@ -39,6 +39,9 @@ LIST_HEAD(class_list_head, g_class);
 TAILQ_HEAD(g_tailq_head, g_geom);
 
 extern int g_collectstats;
+#define G_STATS_PROVIDERS	1	/* Collect I/O stats for providers */
+#define G_STATS_CONSUMERS	2	/* Collect I/O stats for consumers */
+
 extern int g_debugflags;
 /*
  * 1	G_T_TOPOLOGY
@@ -75,6 +78,7 @@ void g_io_schedule_up(struct thread *tp);
 /* geom_kern.c / geom_kernsim.c */
 void g_init(void);
 extern int g_shutdown;
+extern int g_notaste;
 
 /* geom_ctl.c */
 void g_ctl_init(void);

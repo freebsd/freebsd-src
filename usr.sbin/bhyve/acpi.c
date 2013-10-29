@@ -241,8 +241,9 @@ basl_fwrite_madt(FILE *fp)
 	for (i = 0; i < basl_ncpu; i++) {
 		EFPRINTF(fp, "[0001]\t\tSubtable Type : 00\n");
 		EFPRINTF(fp, "[0001]\t\tLength : 08\n");
-		EFPRINTF(fp, "[0001]\t\tProcessor ID : %02d\n", i);
-		EFPRINTF(fp, "[0001]\t\tLocal Apic ID : %02d\n", i);
+		/* iasl expects hex values for the proc and apic id's */
+		EFPRINTF(fp, "[0001]\t\tProcessor ID : %02x\n", i);
+		EFPRINTF(fp, "[0001]\t\tLocal Apic ID : %02x\n", i);
 		EFPRINTF(fp, "[0004]\t\tFlags (decoded below) : 00000001\n");
 		EFPRINTF(fp, "\t\t\tProcessor Enabled : 1\n");
 		EFPRINTF(fp, "\n");
@@ -251,7 +252,8 @@ basl_fwrite_madt(FILE *fp)
 	/* Always a single IOAPIC entry, with ID ncpu+1 */
 	EFPRINTF(fp, "[0001]\t\tSubtable Type : 01\n");
 	EFPRINTF(fp, "[0001]\t\tLength : 0C\n");
-	EFPRINTF(fp, "[0001]\t\tI/O Apic ID : %02d\n", basl_ncpu);
+	/* iasl expects a hex value for the i/o apic id */
+	EFPRINTF(fp, "[0001]\t\tI/O Apic ID : %02x\n", basl_ncpu);
 	EFPRINTF(fp, "[0001]\t\tReserved : 00\n");
 	EFPRINTF(fp, "[0004]\t\tAddress : fec00000\n");
 	EFPRINTF(fp, "[0004]\t\tInterrupt : 00000000\n");

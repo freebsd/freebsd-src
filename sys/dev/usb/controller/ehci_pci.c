@@ -165,7 +165,7 @@ ehci_pci_match(device_t self)
 	case 0x00e810de:
 		return "NVIDIA nForce3 250 USB 2.0 controller";
 	case 0x005b10de:
-		return "NVIDIA nForce4 USB 2.0 controller";
+		return "NVIDIA nForce CK804 USB 2.0 controller";
 	case 0x036d10de:
 		return "NVIDIA nForce MCP55 USB 2.0 controller";
 	case 0x03f210de:

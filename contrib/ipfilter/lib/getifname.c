@@ -1,12 +1,12 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2002-2004 by Darren Reed.
- * 
- * See the IPFILTER.LICENCE file for details on licencing.  
- *   
- * $Id: getifname.c,v 1.5.2.3 2006/07/14 06:12:24 darrenr Exp $ 
- */     
+ * Copyright (C) 2012 by Darren Reed.
+ *
+ * See the IPFILTER.LICENCE file for details on licencing.
+ *
+ * $Id$
+ */
 
 #include "ipf.h"
 
@@ -18,7 +18,7 @@
  */
 #if 0
 char *getifname(ptr)
-struct ifnet *ptr;
+	struct ifnet *ptr;
 {
 #if SOLARIS || defined(__hpux)
 # if SOLARIS
@@ -50,7 +50,7 @@ struct ifnet *ptr;
     defined(__OpenBSD__) || \
     (defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
 #else
-	char buf[32];
+	char buf[LIFNAMSIZ];
 	int len;
 # endif
 	struct ifnet netif;
@@ -85,8 +85,11 @@ struct ifnet *ptr;
 }
 #else
 char *getifname(ptr)
-struct ifnet *ptr;
+	struct ifnet *ptr;
 {
+#if 0
+	ptr = ptr;
+#endif
 	return "X";
 }
 #endif

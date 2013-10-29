@@ -332,12 +332,6 @@ SHELL=	${__MAKE_SHELL}
 .SHELL: path=${__MAKE_SHELL}
 .endif
 
-# Tell bmake to expand -V VAR by default
-.MAKE.EXPAND_VARIABLES= yes
-
-# Tell bmake the makefile preference
-.MAKE.MAKEFILE_PREFERENCE= BSDmakefile makefile Makefile
-
 .if !defined(.PARSEDIR)
 # We are not bmake, which is more aggressive about searching .PATH
 # It is sometime necessary to curb its enthusiasm with .NOPATH
@@ -347,6 +341,26 @@ SHELL=	${__MAKE_SHELL}
 
 # Toggle on warnings
 .WARN: dirsyntax
+.endif
+
+.endif
+
+.if defined(.PARSEDIR)
+# Tell bmake to expand -V VAR by default
+.MAKE.EXPAND_VARIABLES= yes
+
+# Tell bmake the makefile preference
+.MAKE.MAKEFILE_PREFERENCE= BSDmakefile makefile Makefile
+
+# By default bmake does *not* use set -e
+# when running target scripts, this is a problem for many makefiles here.
+# So define a shell that will do what FreeBSD expects.
+.ifndef WITHOUT_SHELL_ERRCTL
+.SHELL: name=sh \
+	quiet="set -" echo="set -v" filter="set -" \
+	hasErrCtl=yes check="set -e" ignore="set +e" \
+	echoFlag=v errFlag=e \
+	path=${__MAKE_SHELL:U/bin/sh}
 .endif
 
 .endif

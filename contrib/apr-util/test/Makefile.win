@@ -61,7 +61,8 @@ ALL_TESTS = $(INTDIR)\teststrmatch.obj $(INTDIR)\testuri.obj \
 	$(INTDIR)\testdbm.obj $(INTDIR)\testreslist.obj \
 	$(INTDIR)\testxml.obj $(INTDIR)\testqueue.obj \
 	$(INTDIR)\testrmm.obj $(INTDIR)\testxlate.obj \
-	$(INTDIR)\testdate.obj $(INTDIR)\testmemcache.obj
+	$(INTDIR)\testdate.obj $(INTDIR)\testmemcache.obj \
+	$(INTDIR)\testcrypto.obj
 
 CLEAN_DATA = manyfile.bin testfile.txt data\sqlite*.db
 

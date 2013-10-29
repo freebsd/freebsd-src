@@ -1363,6 +1363,9 @@ add_history(const char *line)
 	TYPE(HistEvent) ev;
 	const Char *wline;
 
+	if (line == NULL)
+		return 0;
+
 	if (h == NULL || e == NULL)
 		rl_initialize();
 

@@ -24,8 +24,6 @@
     etc
         X11
         ..
-        atf
-        ..
         bluetooth
         ..
         defaults
@@ -35,6 +33,14 @@
         gnats
         ..
         gss
+        ..
+        keys
+            pkg
+                revoked
+                ..
+                trusted
+                ..
+            ..
         ..
         mail
         ..
@@ -53,6 +59,8 @@
             ..
             weekly
             ..
+        ..
+        pkg
         ..
         ppp
         ..

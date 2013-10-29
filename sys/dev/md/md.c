@@ -189,6 +189,7 @@ struct md_s {
 	LIST_ENTRY(md_s) list;
 	struct bio_queue_head bio_queue;
 	struct mtx queue_mtx;
+	struct mtx stat_mtx;
 	struct cdev *dev;
 	enum md_types type;
 	off_t mediasize;
@@ -415,8 +416,11 @@ g_md_start(struct bio *bp)
 	struct md_s *sc;
 
 	sc = bp->bio_to->geom->softc;
-	if ((bp->bio_cmd == BIO_READ) || (bp->bio_cmd == BIO_WRITE))
+	if ((bp->bio_cmd == BIO_READ) || (bp->bio_cmd == BIO_WRITE)) {
+		mtx_lock(&sc->stat_mtx);
 		devstat_start_transaction_bio(sc->devstat, bp);
+		mtx_unlock(&sc->stat_mtx);
+	}
 	mtx_lock(&sc->queue_mtx);
 	bioq_disksort(&sc->bio_queue, bp);
 	mtx_unlock(&sc->queue_mtx);
@@ -826,15 +830,14 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 	vm_object_pip_add(sc->object, 1);
 	for (i = bp->bio_offset / PAGE_SIZE; i <= lastp; i++) {
 		len = ((i == lastp) ? lastend : PAGE_SIZE) - offs;
-		m = vm_page_grab(sc->object, i, VM_ALLOC_NORMAL |
-		    VM_ALLOC_RETRY);
+		m = vm_page_grab(sc->object, i, VM_ALLOC_SYSTEM);
 		if (bp->bio_cmd == BIO_READ) {
 			if (m->valid == VM_PAGE_BITS_ALL)
 				rv = VM_PAGER_OK;
 			else
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
 			if (rv == VM_PAGER_ERROR) {
-				vm_page_wakeup(m);
+				vm_page_xunbusy(m);
 				break;
 			} else if (rv == VM_PAGER_FAIL) {
 				/*
@@ -859,7 +862,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 			else
 				rv = VM_PAGER_OK;
 			if (rv == VM_PAGER_ERROR) {
-				vm_page_wakeup(m);
+				vm_page_xunbusy(m);
 				break;
 			}
 			if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
@@ -875,7 +878,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 			else
 				rv = VM_PAGER_OK;
 			if (rv == VM_PAGER_ERROR) {
-				vm_page_wakeup(m);
+				vm_page_xunbusy(m);
 				break;
 			}
 			if (len != PAGE_SIZE) {
@@ -885,7 +888,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 			} else
 				vm_pager_page_unswapped(m);
 		}
-		vm_page_wakeup(m);
+		vm_page_xunbusy(m);
 		vm_page_lock(m);
 		if (bp->bio_cmd == BIO_DELETE && len == PAGE_SIZE)
 			vm_page_free(m);
@@ -988,6 +991,7 @@ mdnew(int unit, int *errp, enum md_types type)
 	sc->type = type;
 	bioq_init(&sc->bio_queue);
 	mtx_init(&sc->queue_mtx, "md bio queue", NULL, MTX_DEF);
+	mtx_init(&sc->stat_mtx, "md stat", NULL, MTX_DEF);
 	sc->unit = unit;
 	sprintf(sc->name, "md%d", unit);
 	LIST_INSERT_HEAD(&md_softc_list, sc, list);
@@ -995,6 +999,7 @@ mdnew(int unit, int *errp, enum md_types type)
 	if (error == 0)
 		return (sc);
 	LIST_REMOVE(sc, list);
+	mtx_destroy(&sc->stat_mtx);
 	mtx_destroy(&sc->queue_mtx);
 	free_unr(md_uh, sc->unit);
 	free(sc, M_MD);
@@ -1012,6 +1017,7 @@ mdinit(struct md_s *sc)
 	gp = g_new_geomf(&g_md_class, "md%d", sc->unit);
 	gp->softc = sc;
 	pp = g_new_providerf(gp, "md%d", sc->unit);
+	pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 	pp->mediasize = sc->mediasize;
 	pp->sectorsize = sc->sectorsize;
 	switch (sc->type) {
@@ -1207,6 +1213,7 @@ mddestroy(struct md_s *sc, struct thread *td)
 	while (!(sc->flags & MD_EXITING))
 		msleep(sc->procp, &sc->queue_mtx, PRIBIO, "mddestroy", hz / 10);
 	mtx_unlock(&sc->queue_mtx);
+	mtx_destroy(&sc->stat_mtx);
 	mtx_destroy(&sc->queue_mtx);
 	if (sc->vnode != NULL) {
 		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY);

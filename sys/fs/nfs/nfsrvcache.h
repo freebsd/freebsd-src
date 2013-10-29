@@ -41,8 +41,9 @@
 #define	NFSRVCACHE_MAX_SIZE	2048
 #define	NFSRVCACHE_MIN_SIZE	  64
 
-#define	NFSRVCACHE_HASHSIZE	20
+#define	NFSRVCACHE_HASHSIZE	500
 
+/* Cache table entry. */
 struct nfsrvcache {
 	LIST_ENTRY(nfsrvcache) rc_hash;		/* Hash chain */
 	TAILQ_ENTRY(nfsrvcache)	rc_lru;		/* UDP lru chain */
@@ -103,5 +104,12 @@ struct nfsrvcache {
 #define	RC_SAMETCPCONN	0x1000
 
 LIST_HEAD(nfsrvhashhead, nfsrvcache);
+
+/* The fine-grained locked cache hash table for TCP. */
+struct nfsrchash_bucket {
+	struct mtx		mtx;
+	char			lock_name[16];
+	struct nfsrvhashhead	tbl;
+};
 
 #endif	/* _NFS_NFSRVCACHE_H_ */

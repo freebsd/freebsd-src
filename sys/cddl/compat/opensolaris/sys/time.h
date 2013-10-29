@@ -37,6 +37,9 @@
 #define NANOSEC		1000000000
 #define TIME_MAX	LLONG_MAX
 
+#define	MSEC2NSEC(m)	((hrtime_t)(m) * (NANOSEC / MILLISEC))
+#define	NSEC2MSEC(n)	((n) / (NANOSEC / MILLISEC))
+
 typedef longlong_t	hrtime_t;
 
 #if defined(__i386__) || defined(__powerpc__)

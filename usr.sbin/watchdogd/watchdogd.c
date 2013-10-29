@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rtprio.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/sysctl.h>
 #include <sys/watchdog.h>
 
 #include <err.h>
@@ -49,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -58,19 +60,25 @@ __FBSDID("$FreeBSD$");
 
 #include <getopt.h>
 
+static long	fetchtimeout(int opt,
+    const char *longopt, const char *myoptarg, int zero_ok);
 static void	parseargs(int, char *[]);
+static int	seconds_to_pow2ns(int);
 static void	sighandler(int);
 static void	watchdog_loop(void);
 static int	watchdog_init(void);
 static int	watchdog_onoff(int onoff);
 static int	watchdog_patpat(u_int timeout);
 static void	usage(void);
+static int	tstotv(struct timeval *tv, struct timespec *ts);
+static int	tvtohz(struct timeval *tv);
 
 static int debugging = 0;
 static int end_program = 0;
 static const char *pidfile = _PATH_VARRUN "watchdogd.pid";
 static u_int timeout = WD_TO_128SEC;
 static u_int pretimeout = 0;
+static u_int timeout_sec;
 static u_int passive = 0;
 static int is_daemon = 0;
 static int is_dry_run = 0;  /* do not arm the watchdog, only
@@ -181,6 +189,59 @@ main(int argc, char *argv[])
 			err(EX_OSERR, "patting the dog");
 		return (EX_OK);
 	}
+}
+
+static void
+pow2ns_to_ts(int pow2ns, struct timespec *ts)
+{
+	uint64_t ns;
+
+	ns = 1ULL << pow2ns;
+	ts->tv_sec = ns / 1000000000ULL;
+	ts->tv_nsec = ns % 1000000000ULL;
+}
+
+/*
+ * Convert a timeout in seconds to N where 2^N nanoseconds is close to
+ * "seconds".
+ *
+ * The kernel expects the timeouts for watchdogs in "2^N nanosecond format".
+ */
+static u_int
+parse_timeout_to_pow2ns(char opt, const char *longopt, const char *myoptarg)
+{
+	double a;
+	u_int rv;
+	struct timespec ts;
+	struct timeval tv;
+	int ticks;
+	char shortopt[] = "- ";
+
+	if (!longopt)
+		shortopt[1] = opt;
+
+	a = fetchtimeout(opt, longopt, myoptarg, 1);
+
+	if (a == 0)
+		rv = WD_TO_NEVER;
+	else
+		rv = seconds_to_pow2ns(a);
+	pow2ns_to_ts(rv, &ts);
+	tstotv(&tv, &ts);
+	ticks = tvtohz(&tv);
+	if (debugging) {
+		printf("Timeout for %s%s "
+		    "is 2^%d nanoseconds "
+		    "(in: %s sec -> out: %jd sec %ld ns -> %d ticks)\n",
+		    longopt ? "-" : "", longopt ? longopt : shortopt,
+		    rv,
+		    myoptarg, (intmax_t)ts.tv_sec, ts.tv_nsec, ticks);
+	}
+	if (ticks <= 0) {
+		errx(1, "Timeout for %s%s is too small, please choose a higher timeout.", longopt ? "-" : "", longopt ? longopt : shortopt);
+	}
+
+	return (rv);
 }
 
 /*
@@ -427,7 +488,7 @@ usage(void)
 }
 
 static long
-fetchtimeout(int opt, const char *longopt, const char *myoptarg)
+fetchtimeout(int opt, const char *longopt, const char *myoptarg, int zero_ok)
 {
 	const char *errstr;
 	char *p;
@@ -439,7 +500,7 @@ fetchtimeout(int opt, const char *longopt, const char *myoptarg)
 	rv = strtol(myoptarg, &p, 0);
 	if ((p != NULL && *p != '\0') || errno != 0)
 		errstr = "is not a number";
-	if (rv <= 0)
+	if (rv < 0 || (!zero_ok && rv == 0))
 		errstr = "must be greater than zero";
 	if (errstr) {
 		if (longopt) 
@@ -513,6 +574,110 @@ timeout_act_str2int(const char *lopt, const char *acts)
 	return rv;
 }
 
+int
+tstotv(struct timeval *tv, struct timespec *ts)
+{
+
+	tv->tv_sec = ts->tv_sec;
+	tv->tv_usec = ts->tv_nsec / 1000;
+	return 0;
+}
+
+/*
+ * Convert a timeval to a number of ticks.
+ * Mostly copied from the kernel.
+ */
+int
+tvtohz(struct timeval *tv)
+{
+	register unsigned long ticks;
+	register long sec, usec;
+	int hz;
+	size_t hzsize;
+	int error;
+	int tick;
+
+	hzsize = sizeof(hz);
+
+	error = sysctlbyname("kern.hz", &hz, &hzsize, NULL, 0);
+	if (error)
+		err(1, "sysctlbyname kern.hz");
+
+	tick = 1000000 / hz;
+
+	/*
+	 * If the number of usecs in the whole seconds part of the time
+	 * difference fits in a long, then the total number of usecs will
+	 * fit in an unsigned long.  Compute the total and convert it to
+	 * ticks, rounding up and adding 1 to allow for the current tick
+	 * to expire.  Rounding also depends on unsigned long arithmetic
+	 * to avoid overflow.
+	 *
+	 * Otherwise, if the number of ticks in the whole seconds part of
+	 * the time difference fits in a long, then convert the parts to
+	 * ticks separately and add, using similar rounding methods and
+	 * overflow avoidance.  This method would work in the previous
+	 * case but it is slightly slower and assumes that hz is integral.
+	 *
+	 * Otherwise, round the time difference down to the maximum
+	 * representable value.
+	 *
+	 * If ints have 32 bits, then the maximum value for any timeout in
+	 * 10ms ticks is 248 days.
+	 */
+	sec = tv->tv_sec;
+	usec = tv->tv_usec;
+	if (usec < 0) {
+		sec--;
+		usec += 1000000;
+	}
+	if (sec < 0) {
+#ifdef DIAGNOSTIC
+		if (usec > 0) {
+			sec++;
+			usec -= 1000000;
+		}
+		printf("tvotohz: negative time difference %ld sec %ld usec\n",
+		    sec, usec);
+#endif
+		ticks = 1;
+	} else if (sec <= LONG_MAX / 1000000)
+		ticks = (sec * 1000000 + (unsigned long)usec + (tick - 1))
+		    / tick + 1;
+	else if (sec <= LONG_MAX / hz)
+		ticks = sec * hz
+		    + ((unsigned long)usec + (tick - 1)) / tick + 1;
+	else
+		ticks = LONG_MAX;
+	if (ticks > INT_MAX)
+		ticks = INT_MAX;
+	return ((int)ticks);
+}
+
+static int
+seconds_to_pow2ns(int seconds)
+{
+	uint64_t power;
+	uint64_t ns;
+	uint64_t shifted;
+
+	if (seconds <= 0)
+		errx(1, "seconds %d < 0", seconds);
+	ns = ((uint64_t)seconds) * 1000000000ULL;
+	power = flsll(ns);
+	shifted = 1ULL << power;
+	if (shifted <= ns) {
+		power++;
+	}
+	if (debugging) {
+		printf("shifted %lld\n", (long long)shifted);
+		printf("seconds_to_pow2ns: seconds: %d, ns %lld, power %d\n",
+		    seconds, (long long)ns, (int)power);
+	}
+	return (power);
+}
+
+
 /*
  * Handle the few command line arguments supported.
  */
@@ -521,9 +686,7 @@ parseargs(int argc, char *argv[])
 {
 	int longindex;
 	int c;
-	char *p;
 	const char *lopt;
-	double a;
 
 	/*
 	 * if we end with a 'd' aka 'watchdogd' then we are the daemon program,
@@ -559,30 +722,21 @@ parseargs(int argc, char *argv[])
 			break;
 #endif
 		case 's':
-			nap = fetchtimeout(c, NULL, optarg);
+			nap = fetchtimeout(c, NULL, optarg, 0);
 			break;
 		case 'S':
 			do_syslog = 0;
 			break;
 		case 't':
-			p = NULL;
-			errno = 0;
-			a = strtod(optarg, &p);
-			if ((p != NULL && *p != '\0') || errno != 0)
-				errx(EX_USAGE, "-t argument is not a number");
-			if (a < 0)
-				errx(EX_USAGE, "-t argument must be positive");
-
-			if (a == 0)
-				timeout = WD_TO_NEVER;
-			else
-				timeout = flsll(a * 1e9);
-			if (debugging)
-				printf("Timeout is 2^%d nanoseconds\n",
-				    timeout);
+			timeout_sec = atoi(optarg);
+			timeout = parse_timeout_to_pow2ns(c, NULL, optarg);
+ 			if (debugging)
+ 				printf("Timeout is 2^%d nanoseconds\n",
+ 				    timeout);
 			break;
 		case 'T':
-			carp_thresh_seconds = fetchtimeout(c, "NULL", optarg);
+			carp_thresh_seconds =
+			    fetchtimeout(c, "NULL", optarg, 0);
 			break;
 		case 'w':
 			do_timedog = 1;
@@ -590,7 +744,7 @@ parseargs(int argc, char *argv[])
 		case 0:
 			lopt = longopts[longindex].name;
 			if (!strcmp(lopt, "pretimeout")) {
-				pretimeout = fetchtimeout(0, lopt, optarg);
+				pretimeout = fetchtimeout(0, lopt, optarg, 0);
 			} else if (!strcmp(lopt, "pretimeout-action")) {
 				pretimeout_act = timeout_act_str2int(lopt,
 				    optarg);
@@ -618,4 +772,15 @@ parseargs(int argc, char *argv[])
 		errx(EX_USAGE, "extra arguments.");
 	if (is_daemon && timeout < WD_TO_1SEC)
 		errx(EX_USAGE, "-t argument is less than one second.");
+	if (pretimeout_set) {
+		struct timespec ts;
+
+		pow2ns_to_ts(timeout, &ts);
+		if (pretimeout >= (uintmax_t)ts.tv_sec) {
+			errx(EX_USAGE,
+			    "pretimeout (%d) >= timeout (%d -> %ld)\n"
+			    "see manual section TIMEOUT RESOLUTION",
+			    pretimeout, timeout_sec, (long)ts.tv_sec);
+		}
+	}
 }

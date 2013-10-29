@@ -25,10 +25,6 @@
 #
 # $FreeBSD$
 
-SUBDIR=	atf-config \
-	atf-report \
-	atf-run \
-	atf-sh \
-	atf-version
+SUBDIR=	atf-sh
 
 .include <bsd.subdir.mk>

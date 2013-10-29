@@ -39,11 +39,11 @@ typedef	struct file	file_t;
 #include <sys/capability.h>
 
 static __inline file_t *
-getf(int fd, cap_rights_t rights)
+getf(int fd, cap_rights_t *rightsp)
 {
 	struct file *fp;
 
-	if (fget(curthread, fd, rights, &fp) == 0)
+	if (fget(curthread, fd, rightsp, &fp) == 0)
 		return (fp);
 	return (NULL);
 }
@@ -54,7 +54,7 @@ releasef(int fd)
 	struct file *fp;
 
 	/* No CAP_ rights required, as we're only releasing. */
-	if (fget(curthread, fd, 0, &fp) == 0) {
+	if (fget(curthread, fd, NULL, &fp) == 0) {
 		fdrop(fp, curthread);
 		fdrop(fp, curthread);
 	}

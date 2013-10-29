@@ -35,6 +35,7 @@ MAN=	aac.4 \
 	alc.4 \
 	ale.4 \
 	alpm.4 \
+	altera_atse.4 \
 	altera_avgen.4 \
 	altera_jtag_uart.4 \
 	altera_sdcard.4 \
@@ -154,6 +155,7 @@ MAN=	aac.4 \
 	geom_uzip.4 \
 	gif.4 \
 	gpib.4 \
+	gpio.4 \
 	gre.4 \
 	h_ertt.4 \
 	hatm.4 \
@@ -194,7 +196,6 @@ MAN=	aac.4 \
 	ipwfw.4 \
 	isci.4 \
 	iscsi_initiator.4 \
-	isf.4 \
 	isp.4 \
 	ispfw.4 \
 	iwi.4 \
@@ -294,7 +295,6 @@ MAN=	aac.4 \
 	ng_etf.4 \
 	ng_ether.4 \
 	ng_ether_echo.4 \
-	ng_fec.4 \
 	ng_frame_relay.4 \
 	ng_gif.4 \
 	ng_gif_demux.4 \
@@ -367,6 +367,7 @@ MAN=	aac.4 \
 	ppbus.4 \
 	ppc.4 \
 	ppi.4 \
+	procdesc.4 \
 	psm.4 \
 	pst.4 \
 	pt.4 \
@@ -385,6 +386,8 @@ MAN=	aac.4 \
 	rndtest.4 \
 	route.4 \
 	rp.4 \
+	rsu.4 \
+	rsufw.4 \
 	rue.4 \
 	rum.4 \
 	run.4 \
@@ -537,6 +540,7 @@ MAN=	aac.4 \
 	${_virtio_scsi.4} \
 	vkbd.4 \
 	vlan.4 \
+	${_vmx.4} \
 	vpo.4 \
 	vr.4 \
 	vte.4 \
@@ -569,6 +573,7 @@ MLINKS+=age.4 if_age.4
 MLINKS+=agp.4 agpgart.4
 MLINKS+=alc.4 if_alc.4
 MLINKS+=ale.4 if_ale.4
+MLINKS+=altera_atse.4 atse.4
 MLINKS+=altera_sdcard.4 altera_sdcardc.4
 MLINKS+=altq.4 ALTQ.4
 MLINKS+=ath.4 if_ath.4
@@ -704,6 +709,7 @@ MLINKS+=ural.4 if_ural.4
 MLINKS+=${_urtw.4} ${_if_urtw.4}
 MLINKS+=vge.4 if_vge.4
 MLINKS+=vlan.4 if_vlan.4
+MLINKS+=${_vmx.4} ${_if_vmx.4}
 MLINKS+=vpo.4 imm.4
 MLINKS+=vr.4 if_vr.4
 MLINKS+=vte.4 if_vte.4
@@ -756,6 +762,7 @@ _if_nfe.4=	if_nfe.4
 _if_nve.4=	if_nve.4
 _if_nxge.4=	if_nxge.4
 _if_urtw.4=	if_urtw.4
+_if_vmx.4=	if_vmx.4
 _if_vtnet.4=	if_vtnet.4
 _if_vxge.4=	if_vxge.4
 _if_wpi.4=	if_wpi.4
@@ -775,6 +782,7 @@ _virtio.4=	virtio.4
 _virtio_balloon.4=virtio_balloon.4
 _virtio_blk.4=	virtio_blk.4
 _virtio_scsi.4= virtio_scsi.4
+_vmx.4=		vmx.4
 _vtnet.4=	vtnet.4
 _vxge.4=	vxge.4
 _padlock.4=	padlock.4

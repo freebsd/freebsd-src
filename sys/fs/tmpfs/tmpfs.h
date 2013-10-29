@@ -307,6 +307,7 @@ LIST_HEAD(tmpfs_node_list, tmpfs_node);
 #define TMPFS_VNODE_ALLOCATING	1
 #define TMPFS_VNODE_WANT	2
 #define TMPFS_VNODE_DOOMED	4
+#define	TMPFS_VNODE_WRECLAIM	8
 /* --------------------------------------------------------------------- */
 
 /*

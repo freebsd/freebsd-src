@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -2390,7 +2391,7 @@ nfe_encap(struct nfe_softc *sc, struct mbuf **m_head)
 	bus_dmamap_t map;
 	bus_dma_segment_t segs[NFE_MAX_SCATTER];
 	int error, i, nsegs, prod, si;
-	uint32_t tso_segsz;
+	uint32_t tsosegsz;
 	uint16_t cflags, flags;
 	struct mbuf *m;
 
@@ -2429,9 +2430,9 @@ nfe_encap(struct nfe_softc *sc, struct mbuf **m_head)
 
 	m = *m_head;
 	cflags = flags = 0;
-	tso_segsz = 0;
+	tsosegsz = 0;
 	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
-		tso_segsz = (uint32_t)m->m_pkthdr.tso_segsz <<
+		tsosegsz = (uint32_t)m->m_pkthdr.tso_segsz <<
 		    NFE_TX_TSO_SHIFT;
 		cflags &= ~(NFE_TX_IP_CSUM | NFE_TX_TCP_UDP_CSUM);
 		cflags |= NFE_TX_TSO;
@@ -2482,14 +2483,14 @@ nfe_encap(struct nfe_softc *sc, struct mbuf **m_head)
 		if ((m->m_flags & M_VLANTAG) != 0)
 			desc64->vtag = htole32(NFE_TX_VTAG |
 			    m->m_pkthdr.ether_vtag);
-		if (tso_segsz != 0) {
+		if (tsosegsz != 0) {
 			/*
 			 * XXX
 			 * The following indicates the descriptor element
 			 * is a 32bit quantity.
 			 */
-			desc64->length |= htole16((uint16_t)tso_segsz);
-			desc64->flags |= htole16(tso_segsz >> 16);
+			desc64->length |= htole16((uint16_t)tsosegsz);
+			desc64->flags |= htole16(tsosegsz >> 16);
 		}
 		/*
 		 * finally, set the valid/checksum/TSO bit in the first
@@ -2502,14 +2503,14 @@ nfe_encap(struct nfe_softc *sc, struct mbuf **m_head)
 		else
 			desc32->flags |= htole16(NFE_TX_LASTFRAG_V1);
 		desc32 = &sc->txq.desc32[si];
-		if (tso_segsz != 0) {
+		if (tsosegsz != 0) {
 			/*
 			 * XXX
 			 * The following indicates the descriptor element
 			 * is a 32bit quantity.
 			 */
-			desc32->length |= htole16((uint16_t)tso_segsz);
-			desc32->flags |= htole16(tso_segsz >> 16);
+			desc32->length |= htole16((uint16_t)tsosegsz);
+			desc32->flags |= htole16(tsosegsz >> 16);
 		}
 		/*
 		 * finally, set the valid/checksum/TSO bit in the first
@@ -3205,8 +3206,8 @@ nfe_stats_clear(struct nfe_softc *sc)
 	else
 		return;
 
-	for (i = 0; i < mib_cnt; i += sizeof(uint32_t))
-		NFE_READ(sc, NFE_TX_OCTET + i);
+	for (i = 0; i < mib_cnt; i++)
+		NFE_READ(sc, NFE_TX_OCTET + i * sizeof(uint32_t));
 
 	if ((sc->nfe_flags & NFE_MIB_V3) != 0) {
 		NFE_READ(sc, NFE_TX_UNICAST);
@@ -3260,7 +3261,7 @@ nfe_stats_update(struct nfe_softc *sc)
 	if ((sc->nfe_flags & NFE_MIB_V3) != 0) {
 		stats->tx_unicast += NFE_READ(sc, NFE_TX_UNICAST);
 		stats->tx_multicast += NFE_READ(sc, NFE_TX_MULTICAST);
-		stats->rx_broadcast += NFE_READ(sc, NFE_TX_BROADCAST);
+		stats->tx_broadcast += NFE_READ(sc, NFE_TX_BROADCAST);
 	}
 }
 

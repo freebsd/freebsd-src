@@ -85,13 +85,6 @@ void	kmod_icmpstat_inc(int statnum);
 #define ICMPCTL_ICMPLIM		3
 #define ICMPCTL_MAXID		4
 
-#define ICMPCTL_NAMES { \
-	{ 0, 0 }, \
-	{ "maskrepl", CTLTYPE_INT }, \
-	{ "stats", CTLTYPE_STRUCT }, \
-	{ "icmplim", CTLTYPE_INT }, \
-}
-
 #ifdef _KERNEL
 SYSCTL_DECL(_net_inet_icmp);
 

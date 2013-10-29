@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_visual.c	10.13 (Berkeley) 6/28/96";
+static const char sccsid[] = "$Id: ex_visual.c,v 10.16 2001/08/29 11:04:13 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -34,14 +34,14 @@ static const char sccsid[] = "@(#)ex_visual.c	10.13 (Berkeley) 6/28/96";
  * PUBLIC: int ex_visual __P((SCR *, EXCMD *));
  */
 int
-ex_visual(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_visual(SCR *sp, EXCMD *cmdp)
 {
 	SCR *tsp;
 	size_t len;
 	int pos;
 	char buf[256];
+	size_t wlen;
+	CHAR_T *wp;
 
 	/* If open option off, disallow visual command. */
 	if (!O_ISSET(sp, O_OPEN)) {
@@ -83,9 +83,9 @@ ex_visual(sp, cmdp)
 		len = snprintf(buf, sizeof(buf),
 		     "%luz%c%lu", (u_long)sp->lno, pos, cmdp->count);
 	else
-		len = snprintf(buf, sizeof(buf), "%luz%c",
-		    (u_long)sp->lno, pos);
-	(void)v_event_push(sp, NULL, buf, len, CH_NOMAP | CH_QUOTED);
+		len = snprintf(buf, sizeof(buf), "%luz%c", (u_long)sp->lno, pos);
+	CHAR2INT(sp, buf, len, wp, wlen);
+	(void)v_event_push(sp, NULL, wp, wlen, CH_NOMAP | CH_QUOTED);
 
 	/*
 	 * !!!
@@ -130,6 +130,7 @@ nopush:	/*
 		 */
 		++sp->refcnt;
 		++sp->ep->refcnt;
+		/* XXXX where is this decremented ? */
 
 		/*
 		 * Fake up a screen pointer -- vi doesn't get to change our

@@ -54,8 +54,6 @@ MODULE_VERSION(ibcs2, 1);
 
 extern int bsd_to_ibcs2_errno[];
 extern struct sysent ibcs2_sysent[IBCS2_SYS_MAXSYSCALL];
-extern int szsigcode;
-extern char sigcode[];
 static int ibcs2_fixup(register_t **, struct image_params *);
 
 struct sysentvec ibcs2_svr3_sysvec = {

@@ -34,6 +34,7 @@ extern	void arswitch_writedbg(device_t dev, int phy, uint16_t dbg_addr,
 extern	int arswitch_readreg(device_t dev, int addr);
 extern	int arswitch_writereg(device_t dev, int addr, int value);
 extern	int arswitch_modifyreg(device_t dev, int addr, int mask, int set);
+extern	int arswitch_waitreg(device_t, int, int, int, int);
 
 extern	int arswitch_readreg_lsb(device_t dev, int addr);
 extern	int arswitch_readreg_msb(device_t dev, int addr);

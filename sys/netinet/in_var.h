@@ -50,6 +50,7 @@ struct in_ifinfo {
 	struct in_multi		*ii_allhosts;	/* 224.0.0.1 membership */
 };
 
+#if defined(_KERNEL) || defined(_WANT_IFADDR)
 /*
  * Interface address, Internet version.  One of these structures
  * is allocated for each Internet address on an interface.
@@ -70,6 +71,7 @@ struct in_ifaddr {
 #define	ia_broadaddr	ia_dstaddr
 	struct	sockaddr_in ia_sockmask; /* reserve space for general netmask */
 };
+#endif
 
 struct	in_aliasreq {
 	char	ifra_name[IFNAMSIZ];		/* if name, e.g. "en0" */

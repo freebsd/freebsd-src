@@ -3533,6 +3533,9 @@ svn_io_read_length_line(apr_file_t *file, char *buf, apr_size_t *limit,
       apr_size_t bytes_read = 0;
       char *eol;
 
+      if (to_read == 0)
+        break;
+
       /* read data block (or just a part of it) */
       SVN_ERR(svn_io_file_read_full2(file, buf, to_read,
                                      &bytes_read, &eof, pool));

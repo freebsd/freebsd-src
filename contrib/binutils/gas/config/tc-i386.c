@@ -3990,7 +3990,8 @@ output_insn (void)
 	      goto check_prefix;
 	    }
 	}
-      else if (i.tm.base_opcode == 0x660f3880 || i.tm.base_opcode == 0x660f3881)
+      else if (i.tm.base_opcode == 0x660f3880 || i.tm.base_opcode == 0x660f3881
+	  || i.tm.base_opcode == 0x660f3882)
 	{
 	  /* invept and invvpid are 3 byte instructions with a
 	     mandatory prefix. */
@@ -4040,7 +4041,8 @@ output_insn (void)
 	      *p++ = (i.tm.base_opcode >> 16) & 0xff;
 	    }
 	  else if (i.tm.base_opcode == 0x660f3880 ||
-		   i.tm.base_opcode == 0x660f3881)
+		   i.tm.base_opcode == 0x660f3881 ||
+		   i.tm.base_opcode == 0x660f3882)
 	    {
 	      p = frag_more (3);
 	      *p++ = (i.tm.base_opcode >> 16) & 0xff;

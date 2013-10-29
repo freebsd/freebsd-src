@@ -251,6 +251,7 @@ struct svn_atomic_namespace__t
  */
 static svn_mutex__t *thread_mutex = NULL;
 
+#if APR_HAS_MMAP
 /* Initialization flag for the above used by svn_atomic__init_once.
  */
 static volatile svn_atomic_t mutex_initialized = FALSE;
@@ -266,6 +267,7 @@ init_thread_mutex(void *baton, apr_pool_t *pool)
 
   return svn_mutex__init(&thread_mutex, USE_THREAD_MUTEX, global_pool);
 }
+#endif /* APR_HAS_MMAP */
 
 /* Utility that acquires our global mutex and converts error types.
  */
@@ -297,6 +299,7 @@ unlock(struct mutex_t *mutex, svn_error_t * outer_err)
                                                     unlock_err));
 }
 
+#if APR_HAS_MMAP
 /* The last user to close a particular namespace should also remove the
  * lock file.  Failure to do so, however, does not affect further uses
  * of the same namespace.
@@ -318,6 +321,7 @@ delete_lock_file(void *arg)
 
   return status;
 }
+#endif /* APR_HAS_MMAP */
 
 /* Validate the ATOMIC parameter, i.e it's address.  Correct code will
  * never need this but if someone should accidentally to use a NULL or
@@ -351,7 +355,11 @@ return_atomic(svn_named_atomic__t **atomic,
 svn_boolean_t
 svn_named_atomic__is_supported(void)
 {
-#ifdef _WIN32
+#if !APR_HAS_MMAP
+  return FALSE;
+#elif !defined(_WIN32)
+  return TRUE;
+#else
   static svn_tristate_t result = svn_tristate_unknown;
 
   if (result == svn_tristate_unknown)
@@ -373,9 +381,7 @@ svn_named_atomic__is_supported(void)
     }
 
   return result == svn_tristate_true;
-#else
-  return TRUE;
-#endif
+#endif /* _WIN32 */
 }
 
 svn_boolean_t
@@ -389,6 +395,9 @@ svn_atomic_namespace__create(svn_atomic_namespace__t **ns,
                              const char *name,
                              apr_pool_t *result_pool)
 {
+#if !APR_HAS_MMAP
+  return svn_error_create(APR_ENOTIMPL, NULL, NULL);
+#else
   apr_status_t apr_err;
   svn_error_t *err;
   apr_file_t *file;
@@ -489,6 +498,7 @@ svn_atomic_namespace__create(svn_atomic_namespace__t **ns,
   /* Unlock to allow other processes may access the shared memory as well.
    */
   return unlock(&new_ns->mutex, err);
+#endif /* APR_HAS_MMAP */
 }
 
 svn_error_t *

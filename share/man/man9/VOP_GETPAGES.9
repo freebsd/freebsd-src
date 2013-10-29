@@ -102,7 +102,7 @@ When the write completes, the completion callback should
 call
 .Xr vm_object_pip_wakeup 9
 and
-.Xr vm_page_io_finish 9
+.Xr vm_page_sunbusy 9
 to clear the busy flag and awaken any other threads waiting for this page,
 in addition to calling
 .Xr vm_page_undirty 9 .
@@ -139,7 +139,7 @@ For example,
 .Fn VOP_GETPAGES
 may either activate a page (if its wanted bit is set)
 or deactivate it (otherwise), and finally call
-.Xr vm_page_wakeup 9
+.Xr vm_page_xunbusy 9
 to arouse any threads currently waiting for the page to be faulted in.
 .Sh RETURN VALUES
 If it successfully reads
@@ -156,9 +156,9 @@ is
 .Sh SEE ALSO
 .Xr vm_object_pip_wakeup 9 ,
 .Xr vm_page_free 9 ,
-.Xr vm_page_io_finish 9 ,
+.Xr vm_pagge_sunbusy 9 ,
 .Xr vm_page_undirty 9 ,
-.Xr vm_page_wakeup 9 ,
+.Xr vm_page_xunbusy 9 ,
 .Xr vnode 9
 .Sh AUTHORS
 This manual page was written by

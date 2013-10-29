@@ -2,11 +2,11 @@
 
 %{
 /*
- * Copyright (C) 1997-1998 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: iplang_l.l,v 2.8 2003/07/28 01:15:31 darrenr Exp $
+ * $Id$
  */
 #include <stdio.h>
 #include <string.h>

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 20, 2013
+.Dd October 27, 2013
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -225,8 +225,6 @@ non-blocking
 direct I/O
 .It l
 lock held
-.It c
-descriptor is a capability
 .El
 .Pp
 If the
@@ -234,7 +232,7 @@ If the
 flag is specified, the vnode type, reference count, and offset fields will be
 omitted, and a new capabilities field will be included listing capabilities,
 as described in
-.Xr cap_new 2 ,
+.Xr cap_rights_limit 2 ,
 present for each capability descriptor.
 .Ss Signal Disposition Information
 Display signal pending and disposition for a process:
@@ -449,7 +447,7 @@ grows up (bottom-up stack)
 .Xr ps 1 ,
 .Xr sockstat 1 ,
 .Xr cap_enter 2 ,
-.Xr cap_new 2 ,
+.Xr cap_rights_limit 2 ,
 .Xr ddb 4 ,
 .Xr stack 9
 .Sh AUTHORS

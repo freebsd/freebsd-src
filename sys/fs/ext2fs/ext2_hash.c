@@ -27,6 +27,30 @@
  * $FreeBSD$
  */
 
+/*
+ * The following notice applies to the code in ext2_half_md4():
+ *
+ * Copyright (C) 1990-2, RSA Data Security, Inc. All rights reserved.
+ *
+ * License to copy and use this software is granted provided that it
+ * is identified as the "RSA Data Security, Inc. MD4 Message-Digest
+ * Algorithm" in all material mentioning or referencing this software
+ * or this function.
+ *
+ * License is also granted to make and use derivative works provided
+ * that such works are identified as "derived from the RSA Data
+ * Security, Inc. MD4 Message-Digest Algorithm" in all material
+ * mentioning or referencing the derived work.
+ *
+ * RSA Data Security, Inc. makes no representations concerning either
+ * the merchantability of this software or the suitability of this
+ * software for any particular purpose. It is provided "as is"
+ * without express or implied warranty of any kind.
+ *
+ * These notices must be retained in any copies of any part of this
+ * documentation and/or software.
+ */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -49,7 +73,7 @@
 
 /*
  * FF, GG, and HH are transformations for rounds 1, 2, and 3.
- * Rotation is separated from addition to prevent recompuatation
+ * Rotation is separated from addition to prevent recomputation.
  */
 #define FF(a, b, c, d, x, s) { \
 	(a) += F ((b), (c), (d)) + (x); \
@@ -69,13 +93,13 @@
 /*
  * MD4 basic transformation.  It transforms state based on block.
  *
- * This is a half md4 algorithm because in Linux it uses this algorithm in dir
- * index.  This function is copied from kern/md4c.c file and is modified as
- * necessary.
+ * This is a half md4 algorithm since Linux uses this algorithm for dir
+ * index.  This function is derived from the RSA Data Security, Inc. MD4
+ * Message-Digest Algorithm and was modified as necessary.
  *
  * The return value of this function is uint32_t in Linux, but actually we don't
- * need to check this value.  So in our version this function don't return any
- * values.
+ * need to check this value, so in our version this function doesn't return any
+ * value.
  */
 static void
 ext2_half_md4(uint32_t hash[4], uint32_t data[8])

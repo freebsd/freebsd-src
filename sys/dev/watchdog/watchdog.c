@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/watchdog.h>
 #include <sys/bus.h>
@@ -60,9 +61,55 @@ static int wd_softtimeout_act = WD_SOFT_LOG;	/* action for the software timeout 
 
 static struct cdev *wd_dev;
 static volatile u_int wd_last_u;    /* last timeout value set by kern_do_pat */
+static u_int wd_last_u_sysctl;    /* last timeout value set by kern_do_pat */
+static u_int wd_last_u_sysctl_secs;    /* wd_last_u in seconds */
+
+SYSCTL_NODE(_hw, OID_AUTO, watchdog, CTLFLAG_RD, 0, "Main watchdog device");
+SYSCTL_UINT(_hw_watchdog, OID_AUTO, wd_last_u, CTLFLAG_RD,
+    &wd_last_u_sysctl, 0, "Watchdog last update time");
+SYSCTL_UINT(_hw_watchdog, OID_AUTO, wd_last_u_secs, CTLFLAG_RD,
+    &wd_last_u_sysctl_secs, 0, "Watchdog last update time");
 
 static int wd_lastpat_valid = 0;
 static time_t wd_lastpat = 0;	/* when the watchdog was last patted */
+
+static void
+pow2ns_to_ts(int pow2ns, struct timespec *ts)
+{
+	uint64_t ns;
+
+	ns = 1ULL << pow2ns;
+	ts->tv_sec = ns / 1000000000ULL;
+	ts->tv_nsec = ns % 1000000000ULL;
+}
+
+static int
+pow2ns_to_ticks(int pow2ns)
+{
+	struct timeval tv;
+	struct timespec ts;
+
+	pow2ns_to_ts(pow2ns, &ts);
+	TIMESPEC_TO_TIMEVAL(&tv, &ts);
+	return (tvtohz(&tv));
+}
+
+static int
+seconds_to_pow2ns(int seconds)
+{
+	uint64_t power;
+	uint64_t ns;
+	uint64_t shifted;
+
+	ns = ((uint64_t)seconds) * 1000000000ULL;
+	power = flsll(ns);
+	shifted = 1ULL << power;
+	if (shifted <= ns) {
+		power++;
+	}
+	return (power);
+}
+
 
 int
 wdog_kern_pat(u_int utim)
@@ -86,6 +133,8 @@ wdog_kern_pat(u_int utim)
 		 * This can be zero (to disable the watchdog)
 		 */
 		wd_last_u = (utim & WD_INTERVAL);
+		wd_last_u_sysctl = wd_last_u;
+		wd_last_u_sysctl_secs = pow2ns_to_ticks(wd_last_u) / hz;
 	}
 	if ((utim & WD_INTERVAL) == WD_TO_NEVER) {
 		utim = 0;
@@ -101,7 +150,7 @@ wdog_kern_pat(u_int utim)
 			callout_stop(&wd_softtimeo_handle);
 		} else {
 			(void) callout_reset(&wd_softtimeo_handle,
-			    hz*utim, wd_timeout_cb, "soft");
+			    pow2ns_to_ticks(utim), wd_timeout_cb, "soft");
 		}
 		error = 0;
 	} else {
@@ -201,10 +250,13 @@ static int
 wd_set_pretimeout(int newtimeout, int disableiftoolong)
 {
 	u_int utime;
+	struct timespec utime_ts;
+	int timeout_ticks;
 
 	utime = wdog_kern_last_timeout();
+	pow2ns_to_ts(utime, &utime_ts);
 	/* do not permit a pre-timeout >= than the timeout. */
-	if (newtimeout >= utime) {
+	if (newtimeout >= utime_ts.tv_sec) {
 		/*
 		 * If 'disableiftoolong' then just fall through
 		 * so as to disable the pre-watchdog
@@ -222,8 +274,22 @@ wd_set_pretimeout(int newtimeout, int disableiftoolong)
 		return 0;
 	}
 
+	timeout_ticks = pow2ns_to_ticks(utime) - (hz*newtimeout);
+#if 0
+	printf("wd_set_pretimeout: "
+	    "newtimeout: %d, "
+	    "utime: %d -> utime_ticks: %d, "
+	    "hz*newtimeout: %d, "
+	    "timeout_ticks: %d -> sec: %d\n",
+	    newtimeout,
+	    utime, pow2ns_to_ticks(utime),
+	    hz*newtimeout,
+	    timeout_ticks, timeout_ticks / hz);
+#endif
+
 	/* We determined the value is sane, so reset the callout */
-	(void) callout_reset(&wd_pretimeo_handle, hz*(utime - newtimeout),
+	(void) callout_reset(&wd_pretimeo_handle,
+	    timeout_ticks,
 	    wd_timeout_cb, "pre-timeout");
 	wd_pretimeout = newtimeout;
 	return 0;
@@ -282,7 +348,7 @@ wd_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 		break;
 	case WDIOC_SETTIMEOUT:
 		u = *(u_int *)data;
-		error = wdog_kern_pat(u);
+		error = wdog_kern_pat(seconds_to_pow2ns(u));
 		break;
 	case WDIOC_GETTIMEOUT:
 		u = wdog_kern_last_timeout();

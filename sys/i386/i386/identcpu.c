@@ -1121,6 +1121,13 @@ finishidentcpu(void)
 		}
 	}
 
+	if (cpu_high >= 5 && (cpu_feature2 & CPUID2_MON) != 0) {
+		do_cpuid(5, regs);
+		cpu_mon_mwait_flags = regs[2];
+		cpu_mon_min_size = regs[0] &  CPUID5_MON_MIN_SIZE;
+		cpu_mon_max_size = regs[1] &  CPUID5_MON_MAX_SIZE;
+	}
+
 	/* Detect AMD features (PTE no-execute bit, 3dnow, 64 bit mode etc) */
 	if (cpu_vendor_id == CPU_VENDOR_INTEL ||
 	    cpu_vendor_id == CPU_VENDOR_AMD) {

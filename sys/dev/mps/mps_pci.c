@@ -183,7 +183,6 @@ mps_pci_attach(device_t dev)
 {
 	struct mps_softc *sc;
 	struct mps_ident *m;
-	uint16_t command;
 	int error;
 
 	sc = device_get_softc(dev);
@@ -193,18 +192,7 @@ mps_pci_attach(device_t dev)
 	sc->mps_flags = m->flags;
 
 	/* Twiddle basic PCI config bits for a sanity check */
-	command = pci_read_config(dev, PCIR_COMMAND, 2);
-	command |= PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, command, 2);
-	command = pci_read_config(dev, PCIR_COMMAND, 2);
-	if ((command & PCIM_CMD_BUSMASTEREN) == 0) {
-		mps_printf(sc, "Cannot enable PCI busmaster\n");
-		return (ENXIO);
-	}
-	if ((command & PCIM_CMD_MEMEN) == 0) {
-		mps_printf(sc, "PCI memory window not available\n");
-		return (ENXIO);
-	}
+	pci_enable_busmaster(dev);
 
 	/* Allocate the System Interface Register Set */
 	sc->mps_regs_rid = PCIR_BAR(1);

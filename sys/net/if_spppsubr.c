@@ -40,6 +40,7 @@
 #include <sys/md5.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/if_types.h>
 #include <net/route.h>
@@ -1200,7 +1201,6 @@ sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 	rv = 0;
 	switch (cmd) {
 	case SIOCAIFADDR:
-	case SIOCSIFDSTADDR:
 		break;
 
 	case SIOCSIFADDR:

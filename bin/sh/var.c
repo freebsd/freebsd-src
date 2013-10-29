@@ -710,6 +710,7 @@ localcmd(int argc __unused, char **argv __unused)
 {
 	char *name;
 
+	nextopt("");
 	if (! in_function())
 		error("Not in a function");
 	while ((name = *argptr++) != NULL) {

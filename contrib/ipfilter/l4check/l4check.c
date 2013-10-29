@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * (C)Copyright March, 2000 - Darren Reed.
+ * (C)Copyright (C) 2012 by Darren Reed.
  */
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -27,7 +27,6 @@
 #include "ip_compat.h"
 #include "ip_fil.h"
 #include "ip_nat.h"
-#include "ipl.h"
 
 #include "ipf.h"
 
@@ -68,7 +67,7 @@ int opts = 0;
 
 
 char *copystr(dst, src)
-char *dst, *src;
+	char *dst, *src;
 {
 	register char *s, *t, c;
 	register int esc = 0;
@@ -97,44 +96,29 @@ char *dst, *src;
 }
 
 void addnat(l4)
-l4cfg_t *l4;
+	l4cfg_t *l4;
 {
-
 	ipnat_t *ipn = &l4->l4_nat;
 
-	printf("Add NAT rule for %s/%#x,%u -> ", inet_ntoa(ipn->in_out[0].in4),
+	printf("Add NAT rule for %s/%#x,%u -> ", inet_ntoa(ipn->in_out[0]),
 		ipn->in_outmsk, ntohs(ipn->in_pmin));
-	printf("%s,%u\n", inet_ntoa(ipn->in_in[0].in4), ntohs(ipn->in_pnext));
+	printf("%s,%u\n", inet_ntoa(ipn->in_in[0]), ntohs(ipn->in_pnext));
 	if (!(opts & OPT_DONOTHING)) {
-		ipfobj_t obj;
-
-		bzero(&obj, sizeof(obj));
-		obj.ipfo_rev = IPFILTER_VERSION;
-		obj.ipfo_size = sizeof(*ipn);
-		obj.ipfo_ptr = ipn;
-
-		if (ioctl(natfd, SIOCADNAT, &obj) == -1)
+		if (ioctl(natfd, SIOCADNAT, &ipn) == -1)
 			perror("ioctl(SIOCADNAT)");
 	}
 }
 
 
 void delnat(l4)
-l4cfg_t *l4;
+	l4cfg_t *l4;
 {
 	ipnat_t *ipn = &l4->l4_nat;
 
 	printf("Remove NAT rule for %s/%#x,%u -> ",
-		inet_ntoa(ipn->in_out[0].in4), ipn->in_outmsk, ipn->in_pmin);
-	printf("%s,%u\n", inet_ntoa(ipn->in_in[0].in4), ipn->in_pnext);
+		inet_ntoa(ipn->in_out[0]), ipn->in_outmsk, ipn->in_pmin);
+	printf("%s,%u\n", inet_ntoa(ipn->in_in[0]), ipn->in_pnext);
 	if (!(opts & OPT_DONOTHING)) {
-		ipfobj_t obj;
-
-		bzero(&obj, sizeof(obj));
-		obj.ipfo_rev = IPFILTER_VERSION;
-		obj.ipfo_size = sizeof(*ipn);
-		obj.ipfo_ptr = ipn;
-
 		if (ioctl(natfd, SIOCRMNAT, &ipn) == -1)
 			perror("ioctl(SIOCRMNAT)");
 	}
@@ -142,7 +126,7 @@ l4cfg_t *l4;
 
 
 void connectl4(l4)
-l4cfg_t *l4;
+	l4cfg_t *l4;
 {
 	l4->l4_rw = 1;
 	l4->l4_rlen = 0;
@@ -156,8 +140,8 @@ l4cfg_t *l4;
 
 
 void closel4(l4, dead)
-l4cfg_t *l4;
-int dead;
+	l4cfg_t *l4;
+	int dead;
 {
 	close(l4->l4_fd);
 	l4->l4_fd = -1;
@@ -170,7 +154,7 @@ int dead;
 
 
 void connectfd(l4)
-l4cfg_t *l4;
+	l4cfg_t *l4;
 {
 	if (connect(l4->l4_fd, (struct sockaddr *)&l4->l4_sin,
 		    sizeof(l4->l4_sin)) == -1) {
@@ -192,8 +176,9 @@ l4cfg_t *l4;
 
 
 void writefd(l4)
-l4cfg_t *l4;
+	l4cfg_t *l4;
 {
+	char buf[80], *ptr;
 	int n, i, fd;
 
 	fd = l4->l4_fd;
@@ -223,7 +208,7 @@ l4cfg_t *l4;
 
 
 void readfd(l4)
-l4cfg_t *l4;
+	l4cfg_t *l4;
 {
 	char buf[80], *ptr;
 	int n, i, fd;
@@ -417,14 +402,15 @@ int runconfig()
 
 
 int gethostport(str, lnum, ipp, portp)
-char *str;
-int lnum;
-u_32_t *ipp;
-u_short *portp;
+	char *str;
+	int lnum;
+	u_32_t *ipp;
+	u_short *portp;
 {
 	struct servent *sp;
 	struct hostent *hp;
 	char *host, *port;
+	struct in_addr ip;
 
 	host = str;
 	port = strchr(host, ',');
@@ -467,8 +453,8 @@ u_short *portp;
 
 
 char *mapfile(file, sizep)
-char *file;
-size_t *sizep;
+	char *file;
+	size_t *sizep;
 {
 	struct stat sb;
 	caddr_t addr;
@@ -499,7 +485,7 @@ size_t *sizep;
 
 
 int readconfig(filename)
-char *filename;
+	char *filename;
 {
 	char c, buf[512], *s, *t, *errtxt = NULL, *line;
 	int num, err = 0;
@@ -569,8 +555,7 @@ char *filename;
 				break;
 			}
 
-			strncpy(ipn->in_ifnames[0], s, LIFNAMSIZ);
-			strncpy(ipn->in_ifnames[1], s, LIFNAMSIZ);
+			strncpy(ipn->in_ifname, s, sizeof(ipn->in_ifname));
 			if (!gethostport(t, num, &ipn->in_outip,
 					 &ipn->in_pmin)) {
 				errtxt = line;
@@ -582,11 +567,11 @@ char *filename;
 			if (opts & OPT_VERBOSE)
 				fprintf(stderr,
 					"Interface %s %s/%#x port %u\n",
-					ipn->in_ifnames[0],
-					inet_ntoa(ipn->in_out[0].in4),
+					ipn->in_ifname,
+					inet_ntoa(ipn->in_out[0]),
 					ipn->in_outmsk, ipn->in_pmin);
 		} else if (!strcasecmp(t, "remote")) {
-			if (!*ipn->in_ifnames[0]) {
+			if (!*ipn->in_ifname) {
 				fprintf(stderr,
 					"%d: ifname not set prior to remote\n",
 					num);
@@ -621,7 +606,7 @@ char *filename;
 				break;
 			}
 			bcopy((char *)&template, (char *)l4, sizeof(*l4));
-			l4->l4_sin.sin_addr = ipn->in_in[0].in4;
+			l4->l4_sin.sin_addr = ipn->in_in[0];
 			l4->l4_sin.sin_port = ipn->in_pnext;
 			l4->l4_next = l4list;
 			l4list = l4;
@@ -768,7 +753,7 @@ char *filename;
 
 
 void usage(prog)
-char *prog;
+	char *prog;
 {
 	fprintf(stderr, "Usage: %s -f <configfile>\n", prog);
 	exit(1);
@@ -776,8 +761,8 @@ char *prog;
 
 
 int main(argc, argv)
-int argc;
-char *argv[];
+	int argc;
+	char *argv[];
 {
 	char *config = NULL;
 	int c;
@@ -808,7 +793,7 @@ char *argv[];
 	}
 
 	if (!(opts & OPT_DONOTHING)) {
-		natfd = open(IPNAT_NAME, O_RDWR);
+		natfd = open(IPL_NAT, O_RDWR);
 		if (natfd == -1) {
 			perror("open(IPL_NAT)");
 			exit(1);
@@ -819,6 +804,4 @@ char *argv[];
 		fprintf(stderr, "Starting...\n");
 	while (runconfig() == 0)
 		;
-
-	exit(1);
 }

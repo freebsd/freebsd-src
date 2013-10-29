@@ -12,7 +12,8 @@
 name="bsnmpd"
 rcvar="bsnmpd_enable"
 command="/usr/sbin/${name}"
-pidfile="/var/run/snmpd.pid"
 
 load_rc_config $name
+pidfile="${bsnmpd_pidfile:-/var/run/snmpd.pid}"
+command_args="-p ${pidfile}"
 run_rc_command "$1"

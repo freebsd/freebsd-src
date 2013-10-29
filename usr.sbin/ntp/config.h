@@ -84,7 +84,7 @@
 #define CLOCK_LOCAL 1
 
 /* Meinberg clocks */
-/* #undef CLOCK_MEINBERG */
+#define CLOCK_MEINBERG 1
 
 /* Magnavox MX4200 GPS receiver */
 /* #undef CLOCK_MX4200 */

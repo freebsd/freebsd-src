@@ -287,6 +287,10 @@ ata_promise_chipinit(device_t dev)
 	    /* setup host packet controls */
 	    hpkt = malloc(sizeof(struct ata_promise_sx4),
 			  M_ATAPCI, M_NOWAIT | M_ZERO);
+	    if (hpkt == NULL) {
+		device_printf(dev, "Cannot allocate HPKT\n");
+		goto failnfree;
+	    }
 	    mtx_init(&hpkt->mtx, "ATA promise HPKT lock", NULL, MTX_DEF);
 	    TAILQ_INIT(&hpkt->queue);
 	    hpkt->busy = 0;

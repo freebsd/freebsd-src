@@ -195,7 +195,7 @@ f_dialog_resolv_conf_update()
 		# update with our new `domain' and `search' directives.
 		#
 		local tmpfile="$( mktemp -t "$pgm" )"
-		[ "$tmpfile" ] || return $FAILURE
+		[ "$tmpfile" ] || return $DIALOG_CANCEL
 
 		#
 		# Fixup permissions and ownership (mktemp(1) creates the
@@ -235,7 +235,8 @@ f_dialog_resolv_conf_update()
 		# Write the temporary file contents and move the temporary
 		# file into place.
 		#
-		echo "$new_contents" | tail -r > "$tmpfile" || return $FAILURE
+		echo "$new_contents" | tail -r > "$tmpfile" ||
+			return $DIALOG_CANCEL
 		f_quietly mv "$tmpfile" "$RESOLV_CONF"
 
 	fi
@@ -293,8 +294,8 @@ f_dialog_input_nameserver()
 	#
 	# Perform sanity checks
 	#
-	f_isinteger "$index" || return $FAILURE
-	[ $index -ge 0 ] || return $FAILURE
+	f_isinteger "$index" || return $DIALOG_CANCEL
+	[ $index -ge 0 ] || return $DIALOG_CANCEL
 
 	local msg
 	if [ $index -gt 0 ]; then
@@ -312,7 +313,7 @@ f_dialog_input_nameserver()
 	#
 	while :; do
 		f_dialog_input new_ns "$msg" "$ns" \
-		               "$hline_num_punc_tab_enter" || return
+		               "$hline_num_punc_tab_enter" || return $?
 
 		# Take only the first "word" of the user's input
 		new_ns="${new_ns%%[$IFS]*}"
@@ -331,7 +332,7 @@ f_dialog_input_nameserver()
 	if [ $index -eq "0" -a "$new_ns" ]; then
 		f_dialog_info "$msg_saving_nameserver"
 		printf "nameserver\t%s\n" "$new_ns" >> "$RESOLV_CONF"
-		return $SUCCESS
+		return $DIALOG_OK
 	elif [ $index -gt 0 -a "$old_ns" != "$new_ns" ]; then
 		if [ "$new_ns" ]; then
 			msg="$msg_saving_nameserver_existing"
@@ -344,7 +345,7 @@ f_dialog_input_nameserver()
 		# Create a new temporary file to write our new resolv.conf(5)
 		#
 		local tmpfile="$( mktemp -t "$pgm" )"
-		[ "$tmpfile" ] || return $FAILURE
+		[ "$tmpfile" ] || return $DIALOG_CANCEL
 
 		#
 		# Quietly fixup permissions and ownership
@@ -381,7 +382,7 @@ f_dialog_input_nameserver()
 		# Write the temporary file contents and move the temporary
 		# file into place.
 		#
-		echo "$new_contents" > "$tmpfile" || return $FAILURE
+		echo "$new_contents" > "$tmpfile" || return $DIALOG_CANCEL
 		f_quietly mv "$tmpfile" "$RESOLV_CONF"
 	fi
 }
@@ -452,7 +453,7 @@ f_dialog_menu_nameservers()
 		f_dialog_data_sanitize tag
 
 		# Return if "Cancel" was chosen (-1) or ESC was pressed (255)
-		if [ $retval -ne $SUCCESS ]; then
+		if [ $retval -ne $DIALOG_OK ]; then
 			return $retval
 		else
 			# Only update default-item on success

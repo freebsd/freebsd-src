@@ -1,15 +1,9 @@
-#	@(#)README	8.4 (Berkeley) 11/22/94
+#	$Id: README,v 9.0 2012/10/19 17:06:15 zy Exp $
 
 Generally, all non-system error and informational messages in nvi are
 catalog messages, i.e. they can be tailored to a specific langauge.
-Command strings, usage strings, system errors and other "known text"
-are not.  It would certainly be possible to internationalize all the
-text strings in nvi, but it's unclear that it's the right thing to do.
-
-First, there's no portable way to do message catalogs.  The System V
-scheme is a reasonable choice, but none of the 4BSD derived systems
-support it.  So, catalogs are completely implemented within nvi, and
-don't require any library support.
+Command strings, usage strings, system errors and other 'known text'
+are not.
 
 Message catalogs in nvi are fairly simple.  Every catalog message
 consists of two parts -- an initial number followed by a pipe (`|')
@@ -33,19 +27,7 @@ For example:
 
 	msgq(sp, M_ERR, "002|Error: %d %x", arg1, arg2);
 
-is a format string that displays two arguments.  It is possible, however,
-to reorder the arguments or to not display all of them.  The convention
-nvi uses is the System V printf(3) convention, i.e. "%[0-9]*$" is the name
-of a specific, numbered argument.  For example:
-
-	msgq(sp, M_ERR, "002|Error: %2$d %1$x", arg1, arg2);
-
-displays the arguments in reverse order.
-
-If the system supports this convention in its library printf routines
-(as specified by the test #define NL_ARGMAX), nvi uses those routines.
-Otherwise, there is some serious magic going on in common/msg.c to make
-this all work.
+is a format string that displays two arguments.
 
 Arguments to the msgq function are required to contain ONLY printable
 characters.  No further translation is done by the msgq routine before
@@ -54,14 +36,16 @@ displaying the message on the screen.  For example, in the msgq call:
 	msgq(sp, M_ERR, "003|File: %s", file_name);
 
 "file_name" must contain only printable characters.  The routine
-msg_print() returns a printable version of a string in allocated
-memory.  For example:
+msg_print() returns a printable version of a string; the third argument
+indicates whether the string needs to be freed.  For example:
 
 	char *p;
+	int nf;
 
-	p = msg_print(sp, file_name);
-	msgq(sp, M_ERR, M("003", "File: %s"), p);
-	FREE_SPACE(sp, p, 0);
+	p = msg_print(sp, file_name, &nf);
+	msgq(sp, M_ERR, "003|File: %s", p);
+	if (nf)
+		FREE_SPACE(sp, p, 0);
 
 makes sure that "file_name" is printable before calling the msgq
 routine.
@@ -71,63 +55,40 @@ routine.
 The message catalogs themselves are maintained in two files.  The first
 is the "base file" which contains two fields, a record number and the
 message itself.  All base files are named using the convention
-"vi_<language>.base", e.g. the English one is "vi_english.base".  For
+"<language>.base", e.g. the English one is "english.base".  For
 example:
 
-	002 "Unable to create temporary file"
-	003 "Warning: %s is not a regular file"
-	004 "%s already locked, session is read-only"
-	005 "%s: remove"
-	006 "%s: close"
-	007 "%s: remove"
-	008 "%s: remove"
-	009 "Read-only file, not written; use ! to override"
-	010 "Read-only file, not written"
+	002 "Line length overflow"
+	003 "unable to delete line %lu"
+	004 "unable to append to line %lu"
+	005 "unable to insert at line %lu"
+	006 "unable to store line %lu"
+	007 "unable to get last line"
 
-are the first few lines of the current vi_english.base file.  Note that
-message #1 is missing -- the first message of each catalog is a special
-one, so that nvi can recognize message catalog files.  It's added by the
-Makefile script that creates the second version of the message catalog.
+are the first few lines of the current english.base file.
 
-The second file is the file used by nvi to access messages, and is a list
-of the messages, one per line:
+Before this file being converted to the second file, the POSIX formatted
+message catalog file, by gencat(1), two lines:
 
-	VI_MESSAGE_CATALOG
-	Unable to create temporary fileX
-	Warning: %s is not a regular fileX
-	%s already locked, session is read-onlyX
-	%s: removeX
-	%s: closeX
-	%s: removeX
-	%s: removeX
-	Read-only file, not written; use ! to overrideX
-	Read-only file, not writtenX
+	$set 1
+	$quote "
 
-Note that all messages have had a trailing 'X' character appended.  This
-is to provide nvi a place to store a trailing nul for the message so that
-C library routines that expect one won't be disappointed.
+will be inserted before the base text to setup the set_id and the quote
+character.  So the double-quote needs to be escaped by a backslash to be
+included in a message; same as the backslash itself.
 
-These files are named for their language, e.g. "vi_english".  The second
-files are automatically created from the first files.
+These files are named for their language, e.g. "english".  However, a
+locale(1) name is also recommended.
 
 To create a new catalog for nvi:
 
-Copy the file vi_english.base to a file that you can modify , e.g.  "cp
-vi_english.base vi_german.base".  For each of the messages in the file,
-replace the message with the string that you want to use.  To find out
-what the arguments to a message are, I'm afraid you'll have to search
-the source code for the message number.  You can find them fairly quickly
-by doing:
+Copy the file english.base to a file that you can modify , e.g.  "cp
+english.base german.base".  For each of the messages in the file,
+replace the message with the string that you want to use.  If you have
+doubts about the meaning of a message, just email me.
 
-	cd ..; egrep '123\|' */*.[chys]
-
-I'm sorry that there's not an easier way, but I couldn't think of
-anything that wasn't a lot of work.
-
-If, for some reason, you don't have the file vi_english.base, or you
-have new sources for which you want to create a new base catalog, you
-can create it by running the command "make english" in the catalog
-directory.
+A latest english.base can be created from source by running the command
+"make english" in the catalog/ directory.
 
 Once you've translated all of the strings, then add your catalog to the
 "CAT=" line of the Makefile, and run the command "make catalog".  This
@@ -156,11 +117,11 @@ a single place.
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 To select a catalog when running nvi, set the "msgcat" option.  If the
 value of this option ends with a '/', it is treated as the name of a
-directory that contains a message catalog "vi_XXXX", where XXXX is the
-value of the LANG environmental variable, if it's set, or the value of
-the LC_MESSAGES environmental variable if it's not.  If neither of those
-environmental variables are set, or if the option doesn't end in a '/',
-the option is treated as the full path name of the message catalog to use.
+directory that contains a message catalog "$LC_MESSAGES", which is set
+through the LC_MESSAGES environment variable but returned by setlocale(3).
+Check the output of locale(1) to validate such a value.  If the option
+doesn't end in a '/', the option is treated as the full path name of the
+message catalog to use.
 
 If any messages are missing from the catalog, the backup text (English)
 is used instead.

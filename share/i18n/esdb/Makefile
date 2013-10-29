@@ -10,18 +10,20 @@ FILES+=	esdb.dir esdb.dir.db esdb.alias esdb.alias.db
 CLEANFILES= ${FILES}
 
 esdb.dir: ${SUBDIR}
-	> $@
-.for i in ${SUBDIR}
-	cat ${i}/esdb.dir.${i} >>${.TARGET}
-.endfor
+	newfile=$$(for i in ${SUBDIR}; do \
+		cat $$i/esdb.dir.$$i; \
+	done); \
+	[ "$$newfile" = "$$(cat ${.TARGET} 2>/dev/null)" ] || \
+		printf '%s\n' "$$newfile" >${.TARGET}
 esdb.dir.db: esdb.dir
 	${MKESDB} -m -o ${.TARGET} ${.ALLSRC}
 
 esdb.alias: ${SUBDIR}
-	> $@
-.for i in ${SUBDIR}
-	cat ${i}/esdb.alias.${i} >>${.TARGET}
-.endfor
+	newfile=$$(for i in ${SUBDIR}; do \
+		cat $$i/esdb.alias.$$i; \
+	done); \
+	[ "$$newfile" = "$$(cat ${.TARGET} 2>/dev/null)" ] || \
+		printf '%s\n' "$$newfile" >${.TARGET}
 esdb.alias.db: esdb.alias
 	${MKESDB} -m -o ${.TARGET} ${.ALLSRC}
 

@@ -28,7 +28,7 @@
 .\"     @(#)wait.2	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2012
+.Dd September 7, 2013
 .Dt WAIT 2
 .Os
 .Sh NAME
@@ -604,9 +604,23 @@ are not specified by POSIX.
 The
 .Fn WCOREDUMP
 macro
-and the ability to restart a pending
-.Fn wait
-call are extensions to the POSIX interface.
+is an extension to the POSIX interface.
+.Pp
+The ability to use the
+.Dv WNOWAIT
+flag with
+.Fn waitpid
+is an extension;
+.Tn POSIX
+only permits this flag with
+.Fn waitid .
+.Pp
+.Tn POSIX
+requires
+.Fn waitid
+to return the full 32 bits passed to
+.Xr _exit 2 ;
+this implementation only returns 8 bits like in the other calls.
 .Sh HISTORY
 The
 .Fn wait

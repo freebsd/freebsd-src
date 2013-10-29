@@ -1307,6 +1307,9 @@ record_tree_conflict(merge_cmd_baton_t *merge_b,
 {
   svn_wc_context_t *wc_ctx = merge_b->ctx->wc_ctx;
 
+  if (merge_b->record_only)
+    return SVN_NO_ERROR;
+
   if (merge_b->merge_source.ancestral
       || merge_b->reintegrate_merge)
     {
@@ -1316,8 +1319,7 @@ record_tree_conflict(merge_cmd_baton_t *merge_b,
   alloc_and_store_path(&merge_b->conflicted_paths, local_abspath,
                        merge_b->pool);
 
-
-  if (!merge_b->record_only && !merge_b->dry_run)
+  if (!merge_b->dry_run)
     {
        svn_wc_conflict_description2_t *conflict;
        const svn_wc_conflict_version_t *left;
@@ -12029,16 +12031,17 @@ operative_rev_receiver(void *baton,
   return svn_error_create(SVN_ERR_CEASE_INVOCATION, NULL, NULL);
 }
 
-/* Wrapper around svn_client_mergeinfo_log2. All arguments are as per
-   that API.  The discover_changed_paths, depth, and revprops args to
-   svn_client_mergeinfo_log2 are always TRUE, svn_depth_infinity_t,
-   and NULL respectively.
+/* Wrapper around svn_client__mergeinfo_log. All arguments are as per
+   that private API.  The discover_changed_paths, depth, and revprops args to
+   svn_client__mergeinfo_log are always TRUE, svn_depth_infinity_t,
+   and empty array respectively.
 
    If RECEIVER raises a SVN_ERR_CEASE_INVOCATION error, but still sets
    *REVISION to a valid revnum, then clear the error.  Otherwise return
    any error. */
 static svn_error_t*
-short_circuit_mergeinfo_log(svn_boolean_t finding_merged,
+short_circuit_mergeinfo_log(svn_mergeinfo_catalog_t *target_mergeinfo_cat,
+                            svn_boolean_t finding_merged,
                             const char *target_path_or_url,
                             const svn_opt_revision_t *target_peg_revision,
                             const char *source_path_or_url,
@@ -12048,18 +12051,25 @@ short_circuit_mergeinfo_log(svn_boolean_t finding_merged,
                             svn_log_entry_receiver_t receiver,
                             svn_revnum_t *revision,
                             svn_client_ctx_t *ctx,
+                            apr_pool_t *result_pool,
                             apr_pool_t *scratch_pool)
 {
-  svn_error_t *err = svn_client_mergeinfo_log2(finding_merged,
-                                               target_path_or_url,
-                                               target_peg_revision,
-                                               source_path_or_url,
-                                               source_peg_revision,
-                                               source_start_revision,
-                                               source_end_revision,
-                                               receiver, revision,
-                                               TRUE, svn_depth_infinity,
-                                               NULL, ctx, scratch_pool);
+  apr_array_header_t *revprops;
+  svn_error_t *err;
+
+  revprops = apr_array_make(scratch_pool, 0, sizeof(const char *));
+  err = svn_client__mergeinfo_log(finding_merged,
+                                  target_path_or_url,
+                                  target_peg_revision,
+                                  target_mergeinfo_cat,
+                                  source_path_or_url,
+                                  source_peg_revision,
+                                  source_start_revision,
+                                  source_end_revision,
+                                  receiver, revision,
+                                  TRUE, svn_depth_infinity,
+                                  revprops, ctx, result_pool,
+                                  scratch_pool);
 
   if (err)
     {
@@ -12129,6 +12139,7 @@ find_last_merged_location(svn_client__pathrev_t **base_p,
   svn_opt_revision_t source_peg_rev, source_start_rev, source_end_rev,
     target_opt_rev;
   svn_revnum_t youngest_merged_rev = SVN_INVALID_REVNUM;
+  svn_mergeinfo_catalog_t target_mergeinfo_cat = NULL;
 
   source_peg_rev.kind = svn_opt_revision_number;
   source_peg_rev.value.number = source_branch->tip->rev;
@@ -12141,14 +12152,15 @@ find_last_merged_location(svn_client__pathrev_t **base_p,
 
   /* Find the youngest revision fully merged from SOURCE_BRANCH to TARGET,
      if such a revision exists. */
-  SVN_ERR(short_circuit_mergeinfo_log(TRUE, /* Find merged */
+  SVN_ERR(short_circuit_mergeinfo_log(&target_mergeinfo_cat,
+                                      TRUE, /* Find merged */
                                       target->url, &target_opt_rev,
                                       source_branch->tip->url,
                                       &source_peg_rev,
                                       &source_end_rev, &source_start_rev,
                                       operative_rev_receiver,
                                       &youngest_merged_rev,
-                                      ctx, scratch_pool));
+                                      ctx, result_pool, scratch_pool));
 
   if (!SVN_IS_VALID_REVNUM(youngest_merged_rev))
     {
@@ -12175,14 +12187,15 @@ find_last_merged_location(svn_client__pathrev_t **base_p,
          (i.e. finding the youngest revision after the YCA where all revs have
          been merged) that doesn't matter. */
       source_end_rev.value.number = youngest_merged_rev;
-      SVN_ERR(short_circuit_mergeinfo_log(FALSE, /* Find eligible */
+      SVN_ERR(short_circuit_mergeinfo_log(&target_mergeinfo_cat,
+                                          FALSE, /* Find eligible */
                                           target->url, &target_opt_rev,
                                           source_branch->tip->url,
                                           &source_peg_rev,
                                           &source_start_rev, &source_end_rev,
                                           operative_rev_receiver,
                                           &oldest_eligible_rev,
-                                          ctx, scratch_pool));
+                                          ctx, scratch_pool, scratch_pool));
 
       /* If there are revisions eligible for merging, use the oldest one
          to calculate the base.  Otherwise there are no operative revisions
@@ -12298,9 +12311,13 @@ find_automatic_merge(svn_client__pathrev_t **base_p,
             &s_t->target->loc, SVN_INVALID_REVNUM, SVN_INVALID_REVNUM,
             s_t->target_ra_session, ctx, scratch_pool));
 
-  SVN_ERR(svn_client__get_youngest_common_ancestor(
-            &s_t->yca, s_t->source, &s_t->target->loc, s_t->source_ra_session,
-            ctx, result_pool, result_pool));
+  SVN_ERR(svn_client__calc_youngest_common_ancestor(
+            &s_t->yca, s_t->source, s_t->source_branch.history,
+            s_t->source_branch.has_r0_history,
+            &s_t->target->loc, s_t->target_branch.history,
+            s_t->target_branch.has_r0_history,
+            result_pool, scratch_pool));
+
   if (! s_t->yca)
     return svn_error_createf(SVN_ERR_CLIENT_NOT_READY_TO_MERGE, NULL,
                              _("'%s@%ld' must be ancestrally related to "

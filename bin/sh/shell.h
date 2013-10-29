@@ -63,7 +63,6 @@ typedef intmax_t arith_t;
 #define	ARITH_MAX INTMAX_MAX
 
 typedef void *pointer;
-#define MKINIT  /* empty */
 
 #include <sys/cdefs.h>
 

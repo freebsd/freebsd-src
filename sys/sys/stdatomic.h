@@ -288,8 +288,8 @@ typedef _Atomic(__uintmax_t)		atomic_uintmax_t;
 	__typeof__(expected) __ep = (expected);				\
 	__typeof__(*__ep) __e = *__ep;					\
 	(void)(success); (void)(failure);				\
-	(*__ep = __sync_val_compare_and_swap(&(object)->__val,		\
-	    __e, desired)) == __e;					\
+	(_Bool)((*__ep = __sync_val_compare_and_swap(&(object)->__val,	\
+	    __e, desired)) == __e);					\
 })
 #define	atomic_compare_exchange_weak_explicit(object, expected,		\
     desired, success, failure)						\
@@ -381,11 +381,7 @@ static __inline _Bool
 atomic_flag_test_and_set_explicit(volatile atomic_flag *__object,
     memory_order __order)
 {
-	_Bool __expected;
-
-	__expected = 0;
-	return (atomic_compare_exchange_strong_explicit(&__object->__flag,
-	    &__expected, 1, __order, __order));
+	return (atomic_exchange_explicit(&__object->__flag, 1, __order));
 }
 
 static __inline void

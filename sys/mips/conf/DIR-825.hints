@@ -6,20 +6,21 @@
 hint.arge.0.phymask=0x0
 hint.arge.0.media=1000
 hint.arge.0.fduplex=1
-
-# XXX grab these from uboot?
-# hint.arge.0.eeprommac=0x1f01fc00
+hint.arge.0.eeprommac=0x1f66ffa0
+hint.arge.0.readascii=1
 
 hint.arge.1.phymask=0x0
 hint.arge.1.media=1000
 hint.arge.1.fduplex=1
+hint.arge.1.eeprommac=0x1f66ffb4
+hint.arge.1.readascii=1
 
 # ath0 - slot 17
-hint.pcib.0.bus.0.17.0.ath_fixup_addr=0x1fff1000
+hint.pcib.0.bus.0.17.0.ath_fixup_addr=0x1f661000
 hint.pcib.0.bus.0.17.0.ath_fixup_size=4096
 
 # ath1 - slot 18
-hint.pcib.0.bus.0.18.0.ath_fixup_addr=0x1fff5000
+hint.pcib.0.bus.0.18.0.ath_fixup_addr=0x1f665000
 hint.pcib.0.bus.0.18.0.ath_fixup_size=4096
 
 # .. and now, telling each ath(4) NIC where to find the firmware

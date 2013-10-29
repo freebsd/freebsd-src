@@ -29,5 +29,8 @@
 #ifndef	_LINUX_COMPAT_H_
 #define	_LINUX_COMPAT_H_
 
+#define is_multicast_ether_addr(x) 0
+#define is_broadcast_ether_addr(x) 0
+
 
 #endif	/* _LINUX_COMPAT_H_ */

@@ -1970,7 +1970,7 @@ agp_i810_alloc_memory(device_t dev, int type, vm_size_t size)
 			 */
 			VM_OBJECT_WLOCK(mem->am_obj);
 			m = vm_page_grab(mem->am_obj, 0, VM_ALLOC_NOBUSY |
-			    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+			    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			VM_OBJECT_WUNLOCK(mem->am_obj);
 			mem->am_physical = VM_PAGE_TO_PHYS(m);
 		} else {

@@ -12,7 +12,6 @@ SUBDIR= ${_binutils} \
 	${_gperf} \
 	grep \
 	${_groff} \
-	patch \
 	${_rcs} \
 	sdiff \
 	send-pr \

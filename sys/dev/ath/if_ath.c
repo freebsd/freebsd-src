@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
@@ -2725,7 +2726,7 @@ ath_transmit(struct ifnet *ifp, struct mbuf *m)
 	 */
 	ATH_PCU_LOCK(sc);
 	if (sc->sc_inreset_cnt > 0) {
-		device_printf(sc->sc_dev,
+		DPRINTF(sc, ATH_DEBUG_XMIT,
 		    "%s: sc_inreset_cnt > 0; bailing\n", __func__);
 		ATH_PCU_UNLOCK(sc);
 		IF_LOCK(&ifp->if_snd);
@@ -4581,17 +4582,8 @@ ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf, int status)
 	/* Free the buffer, it's not needed any longer */
 	ath_freebuf(sc, bf);
 
-	if (ni != NULL) {
-		/*
-		 * Do any callback and reclaim the node reference.
-		 */
-		if (m0->m_flags & M_TXCB)
-			ieee80211_process_callback(ni, m0, status);
-		ieee80211_free_node(ni);
-	}
-
-	/* Finally, we don't need this mbuf any longer */
-	m_freem(m0);
+	/* Pass the buffer back to net80211 - completing it */
+	ieee80211_tx_complete(ni, m0, status);
 }
 
 static struct ath_buf *
@@ -6439,7 +6431,7 @@ ath_node_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m)
 	 * Immediately punt.
 	 */
 	if (! an->an_is_powersave) {
-		device_printf(sc->sc_dev,
+		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
 		    "%s: %6D: not in powersave?\n",
 		    __func__,
 		    ni->ni_macaddr,
@@ -6507,7 +6499,8 @@ ath_node_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m)
 	/*
 	 * XXX nothing in the TIDs at this point? Eek.
 	 */
-	device_printf(sc->sc_dev, "%s: %6D: TIDs empty, but ath_node showed traffic?!\n",
+	DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
+	    "%s: %6D: TIDs empty, but ath_node showed traffic?!\n",
 	    __func__,
 	    ni->ni_macaddr,
 	    ":");

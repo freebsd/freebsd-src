@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_xchar.c	10.9 (Berkeley) 10/23/96";
+static const char sccsid[] = "$Id: v_xchar.c,v 10.10 2001/06/25 15:19:36 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -31,9 +31,7 @@ static const char sccsid[] = "@(#)v_xchar.c	10.9 (Berkeley) 10/23/96";
  * PUBLIC: int v_xchar __P((SCR *, VICMD *));
  */
 int
-v_xchar(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_xchar(SCR *sp, VICMD *vp)
 {
 	size_t len;
 	int isempty;
@@ -80,9 +78,7 @@ nodel:		msgq(sp, M_BERR, "206|No characters to delete");
  * PUBLIC: int v_Xchar __P((SCR *, VICMD *));
  */
 int
-v_Xchar(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_Xchar(SCR *sp, VICMD *vp)
 {
 	u_long cnt;
 

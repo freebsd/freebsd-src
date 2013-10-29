@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
@@ -152,10 +153,12 @@ phys_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 		KASSERT(m[i]->dirty == 0,
 		    ("phys_pager_getpages: dirty page %p", m[i]));
 		/* The requested page must remain busy, the others not. */
-		if (i == reqpage)
+		if (i == reqpage) {
+			vm_page_lock(m[i]);
 			vm_page_flash(m[i]);
-		else
-			vm_page_wakeup(m[i]);
+			vm_page_unlock(m[i]);
+		} else
+			vm_page_xunbusy(m[i]);
 	}
 	return (VM_PAGER_OK);
 }

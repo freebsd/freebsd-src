@@ -103,7 +103,7 @@ rtsock_input(int s)
 
 	lim = msg + n;
 	for (next = msg; next < lim; next += len) {
-		rtm = (struct rt_msghdr *)next;
+		rtm = (struct rt_msghdr *)(void *)next;
 		if (lim - next < lenlim)
 			break;
 		len = rtm->rtm_msglen;
@@ -138,7 +138,7 @@ static int
 rtsock_input_ifannounce(int s __unused, struct rt_msghdr *rtm, char *lim)
 {
 	struct if_announcemsghdr *ifan;
-	struct ifinfo *ifinfo;
+	struct ifinfo *ifi;
 
 	ifan = (struct if_announcemsghdr *)rtm;
 	if ((char *)(ifan + 1) > lim)
@@ -158,14 +158,14 @@ rtsock_input_ifannounce(int s __unused, struct rt_msghdr *rtm, char *lim)
 	case IFAN_DEPARTURE:
 		warnmsg(LOG_WARNING, __func__,
 		    "interface %s removed", ifan->ifan_name);
-		ifinfo = find_ifinfo(ifan->ifan_index);
-		if (ifinfo) {
+		ifi = find_ifinfo(ifan->ifan_index);
+		if (ifi) {
 			if (dflag > 1) {
 				warnmsg(LOG_INFO, __func__,
 				    "bring interface %s to DOWN state",
 				    ifan->ifan_name);
 			}
-			ifinfo->state = IFS_DOWN;
+			ifi->state = IFS_DOWN;
 		}
 		break;
 	}

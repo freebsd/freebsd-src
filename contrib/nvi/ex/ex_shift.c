@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_shift.c	10.11 (Berkeley) 9/15/96";
+static const char sccsid[] = "$Id: ex_shift.c,v 10.17 2001/06/25 15:19:20 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <limits.h>
@@ -34,9 +35,7 @@ static int shift __P((SCR *, EXCMD *, enum which));
  * PUBLIC: int ex_shiftl __P((SCR *, EXCMD *));
  */
 int
-ex_shiftl(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_shiftl(SCR *sp, EXCMD *cmdp)
 {
 	return (shift(sp, cmdp, LEFT));
 }
@@ -47,9 +46,7 @@ ex_shiftl(sp, cmdp)
  * PUBLIC: int ex_shiftr __P((SCR *, EXCMD *));
  */
 int
-ex_shiftr(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_shiftr(SCR *sp, EXCMD *cmdp)
 {
 	return (shift(sp, cmdp, RIGHT));
 }
@@ -59,15 +56,13 @@ ex_shiftr(sp, cmdp)
  *	Ex shift support.
  */
 static int
-shift(sp, cmdp, rl)
-	SCR *sp;
-	EXCMD *cmdp;
-	enum which rl;
+shift(SCR *sp, EXCMD *cmdp, enum which rl)
 {
 	recno_t from, to;
 	size_t blen, len, newcol, newidx, oldcol, oldidx, sw;
 	int curset;
-	char *p, *bp, *tbp;
+	CHAR_T *p;
+	CHAR_T *bp, *tbp;
 
 	NEEDFILE(sp, cmdp);
 
@@ -93,7 +88,7 @@ shift(sp, cmdp, rl)
 	for (p = cmdp->argv[0]->bp, sw = 0; *p == '>' || *p == '<'; ++p)
 		sw += O_VAL(sp, O_SHIFTWIDTH);
 
-	GET_SPACE_RET(sp, bp, blen, 256);
+	GET_SPACE_RETW(sp, bp, blen, 256);
 
 	curset = 0;
 	for (from = cmdp->addr1.lno, to = cmdp->addr2.lno; from <= to; ++from) {
@@ -131,7 +126,7 @@ shift(sp, cmdp, rl)
 		}
 
 		/* Get a buffer that will hold the new line. */
-		ADD_SPACE_RET(sp, bp, blen, newcol + len);
+		ADD_SPACE_RETW(sp, bp, blen, newcol + len);
 
 		/*
 		 * Build a new indent string and count the number of
@@ -146,11 +141,11 @@ shift(sp, cmdp, rl)
 			*tbp++ = ' ';
 
 		/* Add the original line. */
-		memcpy(tbp, p + oldidx, len - oldidx);
+		MEMCPY(tbp, p + oldidx, len - oldidx);
 
 		/* Set the replacement line. */
 		if (db_set(sp, from, bp, (tbp + (len - oldidx)) - bp)) {
-err:			FREE_SPACE(sp, bp, blen);
+err:			FREE_SPACEW(sp, bp, blen);
 			return (1);
 		}
 
@@ -184,7 +179,7 @@ err:			FREE_SPACE(sp, bp, blen);
 		(void)nonblank(sp, to, &sp->cno);
 	}
 
-	FREE_SPACE(sp, bp, blen);
+	FREE_SPACEW(sp, bp, blen);
 
 	sp->rptlines[L_SHIFT] += cmdp->addr2.lno - cmdp->addr1.lno + 1;
 	return (0);

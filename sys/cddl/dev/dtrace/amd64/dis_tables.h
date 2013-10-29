@@ -17,24 +17,21 @@
  * information: Portions Copyright [yyyy] [name of copyright owner]
  *
  * CDDL HEADER END
- *
- * $FreeBSD$
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 /*	Copyright (c) 1988 AT&T	*/
 /*	  All Rights Reserved  	*/
 
+/*
+ * $FreeBSD$
+ */
 
 #ifndef _DIS_TABLES_H
 #define	_DIS_TABLES_H
-
-#if defined(sun)
-#pragma ident	"@(#)dis_tables.h	1.7	06/03/02 SMI"
-#endif
 
 /*
  * Constants and prototypes for the IA32 disassembler backend.  See dis_tables.c
@@ -57,7 +54,7 @@ extern "C" {
 
 #define	OPLEN	256
 #define	PFIXLEN	  8
-#define	NCPS	12	/* number of chars per symbol	*/
+#define	NCPS	20	/* number of chars per symbol	*/
 
 /*
  * data structures that must be provided to dtrace_dis86()
@@ -77,14 +74,14 @@ typedef struct dis86 {
 	int		d86_rmindex;		/* index of modrm byte or -1 */
 	uint_t		d86_memsize;		/* size of memory referenced */
 	char		d86_bytes[16];		/* bytes of instruction */
-	char		d86_mneu[OPLEN];
+	char		d86_mnem[OPLEN];
 	uint_t		d86_numopnds;
 	uint_t		d86_rex_prefix;		/* value of REX prefix if !0 */
 	char		*d86_seg_prefix;	/* segment prefix, if any */
 	uint_t		d86_opnd_size;
 	uint_t		d86_addr_size;
 	uint_t		d86_got_modrm;
-	struct d86opnd	d86_opnd[3];		/* up to 3 operands */
+	struct d86opnd	d86_opnd[4];		/* up to 4 operands */
 	int		(*d86_check_func)(void *);
 	int		(*d86_get_byte)(void *);
 #ifdef DIS_TEXT
@@ -98,10 +95,11 @@ typedef struct dis86 {
 
 extern int dtrace_disx86(dis86_t *x, uint_t cpu_mode);
 
-#define	DIS_OP_OCTAL	0x1	/* Print all numbers in octal */
+#define	DIS_F_OCTAL	0x1	/* Print all numbers in octal */
+#define	DIS_F_NOIMMSYM	0x2	/* Don't print symbols for immediates (.o) */
 
 #ifdef DIS_TEXT
-extern void dtrace_disx86_str(dis86_t *x, uint_t cpu_mode, uintptr_t pc,
+extern void dtrace_disx86_str(dis86_t *x, uint_t cpu_mode, uint64_t pc,
     char *buf, size_t len);
 #endif
 

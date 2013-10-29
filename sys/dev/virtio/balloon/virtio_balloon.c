@@ -334,7 +334,7 @@ vtballoon_inflate(struct vtballoon_softc *sc, int npages)
 
 		KASSERT(m->queue == PQ_NONE,
 		    ("%s: allocated page %p on queue", __func__, m));
-		TAILQ_INSERT_TAIL(&sc->vtballoon_pages, m, pageq);
+		TAILQ_INSERT_TAIL(&sc->vtballoon_pages, m, plinks.q);
 	}
 
 	if (i > 0)
@@ -362,8 +362,8 @@ vtballoon_deflate(struct vtballoon_softc *sc, int npages)
 		sc->vtballoon_page_frames[i] =
 		    VM_PAGE_TO_PHYS(m) >> VIRTIO_BALLOON_PFN_SHIFT;
 
-		TAILQ_REMOVE(&sc->vtballoon_pages, m, pageq);
-		TAILQ_INSERT_TAIL(&free_pages, m, pageq);
+		TAILQ_REMOVE(&sc->vtballoon_pages, m, plinks.q);
+		TAILQ_INSERT_TAIL(&free_pages, m, plinks.q);
 	}
 
 	if (i > 0) {
@@ -371,7 +371,7 @@ vtballoon_deflate(struct vtballoon_softc *sc, int npages)
 		vtballoon_send_page_frames(sc, vq, i);
 
 		while ((m = TAILQ_FIRST(&free_pages)) != NULL) {
-			TAILQ_REMOVE(&free_pages, m, pageq);
+			TAILQ_REMOVE(&free_pages, m, plinks.q);
 			vtballoon_free_page(sc, m);
 		}
 	}

@@ -227,7 +227,7 @@ eui64_ntohost(char *hostname, size_t len, const struct eui64 *id)
 	char eui64_a[24];
 	char *yp_domain;
 #endif
-	if ((fp = fopen(_PATH_EUI64, "r")) == NULL)
+	if ((fp = fopen(_PATH_EUI64, "re")) == NULL)
 		return (1);
 
 	while (fgets(buf,BUFSIZ,fp)) {
@@ -277,7 +277,7 @@ eui64_hostton(const char *hostname, struct eui64 *id)
 	int resultlen;
 	char *yp_domain;
 #endif
-	if ((fp = fopen(_PATH_EUI64, "r")) == NULL)
+	if ((fp = fopen(_PATH_EUI64, "re")) == NULL)
 		return (1);
 
 	while (fgets(buf,BUFSIZ,fp)) {

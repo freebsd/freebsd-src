@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\" $FreeBSD$
 .\"
-.Dd May 11, 2012
+.Dd August 1, 2013
 .Dt EVENTHANDLER 9
 .Os
 .Sh NAME
@@ -199,6 +199,14 @@ Callbacks invoked when a new network interface appears.
 Callbacks invoked when a network interface is taken down.
 .It Vt bpf_track
 Callbacks invoked when a BPF listener attaches to/detaches from network interface.
+.It Vt kld_load
+Callbacks invoked after a linker file has been loaded.
+.It Vt kld_unload
+Callbacks invoked after a linker file has been successfully unloaded.
+.It Vt kld_unload_try
+Callbacks invoked before a linker file is about to be unloaded.
+These callbacks may be used to return an error and prevent the unload from
+proceeding.
 .It Vt power_profile_change
 Callbacks invoked when the power profile of the system changes.
 .It Vt process_exec

@@ -88,7 +88,7 @@ EOF
 # tunables in our tunables.mdoc file and generate
 # the final 'inner circle' of our manual page.
 markup_create() {
-	sort  < _names |		\
+	sort -u  < _names |		\
 	xargs -n 1 /bin/sh ./sysctl.sh  \
 		> markup.file		\
 		2> tunables.TODO
@@ -238,9 +238,13 @@ if [ -z "$LOCATION" ] ;
     && for x in `find $LOCATION -name '*.kld'`  \
 	$LOCATION/kernel;			\
 	do nm $x |				\
-	grep ' sysctl___' | uniq |		\
-	sed 's/sysctl___//g' | sed 's/_/./g' |	\
-	awk {'print $3'} > _names;
+	sed -n '/sysctl___/ {
+		's/[\.a-z_]*sysctl___//g'
+		's/_/./g'
+		p
+	}' |					\
+	awk {'print $3'} |			\
+	sort -u > _names;
 	done;
 	markup_create
 	page_create

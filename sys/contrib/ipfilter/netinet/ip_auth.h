@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1997-2001 by Darren Reed & Guido Van Rooij.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
@@ -21,6 +21,7 @@ typedef struct  frauth {
 	u_32_t	fra_pass;
 	fr_info_t	fra_info;
 	char	*fra_buf;
+	u_32_t	fra_flx;
 #ifdef	MENTAT
 	queue_t	*fra_q;
 	mb_t	*fra_m;
@@ -35,7 +36,7 @@ typedef	struct	frauthent  {
 	int	fae_ref;
 } frauthent_t;
 
-typedef struct  fr_authstat {
+typedef struct  ipf_authstat {
 	U_QUAD_T	fas_hits;
 	U_QUAD_T	fas_miss;
 	u_long		fas_nospace;
@@ -46,26 +47,28 @@ typedef struct  fr_authstat {
 	u_long		fas_quefail;
 	u_long		fas_expire;
 	frauthent_t	*fas_faelist;
-} fr_authstat_t;
+} ipf_authstat_t;
 
 
-extern	frentry_t	*ipauth;
-extern	struct fr_authstat	fr_authstats;
-extern	int	fr_defaultauthage;
-extern	int	fr_authstart;
-extern	int	fr_authend;
-extern	int	fr_authsize;
-extern	int	fr_authused;
-extern	int	fr_auth_lock;
-extern	frentry_t *fr_checkauth __P((fr_info_t *, u_32_t *));
-extern	void	fr_authexpire __P((void));
-extern	int	fr_authinit __P((void));
-extern	void	fr_authunload __P((void));
-extern	int	fr_authflush __P((void));
-extern	mb_t	**fr_authpkts;
-extern	int	fr_newauth __P((mb_t *, fr_info_t *));
-extern	int	fr_preauthcmd __P((ioctlcmd_t, frentry_t *, frentry_t **));
-extern	int	fr_auth_ioctl __P((caddr_t, ioctlcmd_t, int, int, void *));
-extern	int	fr_auth_waiting __P((void));
+extern	frentry_t *ipf_auth_check __P((fr_info_t *, u_32_t *));
+extern	void	ipf_auth_expire __P((ipf_main_softc_t *));
+extern	int	ipf_auth_ioctl __P((ipf_main_softc_t *, caddr_t, ioctlcmd_t,
+				    int, int, void *));
+extern	int	ipf_auth_init __P((void));
+extern	int	ipf_auth_main_load __P((void));
+extern	int	ipf_auth_main_unload __P((void));
+extern	void	ipf_auth_soft_destroy __P((ipf_main_softc_t *, void *));
+extern	void	*ipf_auth_soft_create __P((ipf_main_softc_t *));
+extern	int	ipf_auth_new __P((mb_t *, fr_info_t *));
+extern	int	ipf_auth_precmd __P((ipf_main_softc_t *, ioctlcmd_t,
+				     frentry_t *, frentry_t **));
+extern	void	ipf_auth_unload __P((ipf_main_softc_t *));
+extern	int	ipf_auth_waiting __P((ipf_main_softc_t *));
+extern	void	ipf_auth_setlock __P((void *, int));
+extern	int	ipf_auth_soft_init __P((ipf_main_softc_t *, void *));
+extern	int	ipf_auth_soft_fini __P((ipf_main_softc_t *, void *));
+extern	u_32_t	ipf_auth_pre_scanlist __P((ipf_main_softc_t *, fr_info_t *,
+					   u_32_t));
+extern	frentry_t **ipf_auth_rulehead __P((ipf_main_softc_t *));
 
 #endif	/* __IP_AUTH_H__ */

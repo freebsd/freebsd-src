@@ -52,7 +52,7 @@ struct uath_rx_radiotap_header {
 	int8_t		wr_antsignal;
 	int8_t		wr_antnoise;
 	u_int8_t	wr_antenna;
-} __packed;
+} __packed __aligned(8);
 
 #define UATH_RX_RADIOTAP_PRESENT (		\
 	(1 << IEEE80211_RADIOTAP_TSFT)		| \
@@ -69,7 +69,7 @@ struct uath_tx_radiotap_header {
 	uint8_t		wt_flags;
 	uint16_t	wt_chan_freq;
 	uint16_t	wt_chan_flags;
-} __packed;
+} __packed __aligned(8);
 
 #define	UATH_TX_RADIOTAP_PRESENT					\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\

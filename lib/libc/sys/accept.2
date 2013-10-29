@@ -28,7 +28,7 @@
 .\"     @(#)accept.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd May 1, 2013
+.Dd October 1, 2013
 .Dt ACCEPT 2
 .Os
 .Sh NAME
@@ -155,13 +155,20 @@ For some applications, performance may be enhanced by using an
 .Xr accept_filter 9
 to pre-process incoming connections.
 .Pp
-Portable programs should not rely on the
+When using
+.Fn accept ,
+portable programs should not rely on the
 .Dv O_NONBLOCK
 and
 .Dv O_ASYNC
 properties and the signal destination being inherited,
 but should set them explicitly using
-.Xr fcntl 2 .
+.Xr fcntl 2 ;
+.Fn accept4
+sets these properties consistently,
+but may not be fully portable across
+.Ux
+platforms.
 .Sh RETURN VALUES
 These calls return \-1 on error.
 If they succeed, they return a non-negative

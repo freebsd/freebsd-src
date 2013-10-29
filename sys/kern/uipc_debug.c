@@ -411,7 +411,7 @@ db_print_sockbuf(struct sockbuf *sb, const char *sockbufname, int indent)
 	db_print_indent(indent);
 	db_printf("sb_ctl: %u   ", sb->sb_ctl);
 	db_printf("sb_lowat: %d   ", sb->sb_lowat);
-	db_printf("sb_timeo: %d\n", sb->sb_timeo);
+	db_printf("sb_timeo: %jd\n", sb->sb_timeo);
 
 	db_print_indent(indent);
 	db_printf("sb_flags: 0x%x (", sb->sb_flags);

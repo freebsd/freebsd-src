@@ -216,7 +216,8 @@ input_buffer::parse_error(const char *msg)
 	putc('\n', stderr);
 	for (int i=0 ; i<(cursor-line_start) ; ++i)
 	{
-		putc(' ', stderr);
+		char c = (buffer[i+line_start] == '\t') ? '\t' : ' ';
+		putc(c, stderr);
 	}
 	putc('^', stderr);
 	putc('\n', stderr);

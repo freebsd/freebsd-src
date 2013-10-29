@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2002-2005 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
@@ -9,75 +9,102 @@
 #include "ipf.h"
 #include "kmem.h"
 
-#define	PRINTF	(void)printf
-#define	FPRINTF	(void)fprintf
 
-ipstate_t *printstate(sp, opts, now)
-ipstate_t *sp;
-int opts;
-u_long now;
+ipstate_t *
+printstate(sp, opts, now)
+	ipstate_t *sp;
+	int opts;
+	u_long now;
 {
+	struct protoent *pr;
 	synclist_t ipsync;
 
-	if (sp->is_phnext == NULL)
-		PRINTF("ORPHAN ");
-	PRINTF("%s -> ", hostname(sp->is_v, &sp->is_src.in4));
-	PRINTF("%s pass %#x pr %d state %d/%d",
-		hostname(sp->is_v, &sp->is_dst.in4), sp->is_pass, sp->is_p,
-		sp->is_state[0], sp->is_state[1]);
-	if (opts & OPT_DEBUG)
-		PRINTF(" bkt %d ref %d", sp->is_hv, sp->is_ref);
-	PRINTF("\n\ttag %u ttl %lu", sp->is_tag, sp->is_die - now);
+	if ((opts & OPT_NORESOLVE) == 0)
+		pr = getprotobynumber(sp->is_p);
+	else
+		pr = NULL;
+
+	PRINTF("%d:", sp->is_v);
+	if (pr != NULL)
+		PRINTF("%s", pr->p_name);
+	else
+		PRINTF("%d", sp->is_p);
+
+	PRINTF(" src:%s", hostname(sp->is_family, &sp->is_src.in4));
+	if (sp->is_p == IPPROTO_UDP || sp->is_p == IPPROTO_TCP) {
+		if (sp->is_flags & IS_WSPORT)
+			PRINTF(",*");
+		else
+			PRINTF(",%d", ntohs(sp->is_sport));
+	}
+
+	PRINTF(" dst:%s", hostname(sp->is_family, &sp->is_dst.in4));
+	if (sp->is_p == IPPROTO_UDP || sp->is_p == IPPROTO_TCP) {
+		if (sp->is_flags & IS_WDPORT)
+			PRINTF(",*");
+		else
+			PRINTF(",%d", ntohs(sp->is_dport));
+	}
 
 	if (sp->is_p == IPPROTO_TCP) {
-		PRINTF("\n\t%hu -> %hu %x:%x %hu<<%d:%hu<<%d\n",
-			ntohs(sp->is_sport), ntohs(sp->is_dport),
+		PRINTF(" state:%d/%d", sp->is_state[0], sp->is_state[1]);
+	}
+
+	PRINTF(" %ld", sp->is_die - now);
+	if (sp->is_phnext == NULL)
+		PRINTF(" ORPHAN");
+	if (sp->is_flags & IS_CLONE)
+		PRINTF(" CLONE");
+	putchar('\n');
+
+	if (sp->is_p == IPPROTO_TCP) {
+		PRINTF("\t%x:%x %hu<<%d:%hu<<%d\n",
 			sp->is_send, sp->is_dend,
 			sp->is_maxswin, sp->is_swinscale,
 			sp->is_maxdwin, sp->is_dwinscale);
-		PRINTF("\tcmsk %04x smsk %04x s0 %08x/%08x\n",
-			sp->is_smsk[0], sp->is_smsk[1],
-			sp->is_s0[0], sp->is_s0[1]);
-		PRINTF("\tFWD:ISN inc %x sumd %x\n",
-			sp->is_isninc[0], sp->is_sumd[0]);
-		PRINTF("\tREV:ISN inc %x sumd %x\n",
-			sp->is_isninc[1], sp->is_sumd[1]);
+		if ((opts & OPT_VERBOSE) != 0) {
+			PRINTF("\tcmsk %04x smsk %04x isc %p s0 %08x/%08x\n",
+				sp->is_smsk[0], sp->is_smsk[1], sp->is_isc,
+				sp->is_s0[0], sp->is_s0[1]);
+			PRINTF("\tFWD: ISN inc %x sumd %x\n",
+				sp->is_isninc[0], sp->is_sumd[0]);
+			PRINTF("\tREV: ISN inc %x sumd %x\n",
+				sp->is_isninc[1], sp->is_sumd[1]);
 #ifdef	IPFILTER_SCAN
-		PRINTF("\tsbuf[0] [");
-		printsbuf(sp->is_sbuf[0]);
-		PRINTF("] sbuf[1] [");
-		printsbuf(sp->is_sbuf[1]);
-		PRINTF("]\n");
+			PRINTF("\tsbuf[0] [");
+			printsbuf(sp->is_sbuf[0]);
+			PRINTF("] sbuf[1] [");
+			printsbuf(sp->is_sbuf[1]);
+			PRINTF("]\n");
 #endif
-	} else if (sp->is_p == IPPROTO_UDP) {
-		PRINTF(" %hu -> %hu\n", ntohs(sp->is_sport),
-			ntohs(sp->is_dport));
+		}
 	} else if (sp->is_p == IPPROTO_GRE) {
-		PRINTF(" call %hx/%hx\n", ntohs(sp->is_gre.gs_call[0]),
+		PRINTF("\tcall %hx/%hx\n", ntohs(sp->is_gre.gs_call[0]),
 		       ntohs(sp->is_gre.gs_call[1]));
 	} else if (sp->is_p == IPPROTO_ICMP
 #ifdef	USE_INET6
 		 || sp->is_p == IPPROTO_ICMPV6
 #endif
-		)
-		PRINTF(" id %hu seq %hu type %d\n", sp->is_icmp.ici_id,
+		) {
+		PRINTF("\tid %hu seq %hu type %d\n", sp->is_icmp.ici_id,
 			sp->is_icmp.ici_seq, sp->is_icmp.ici_type);
+	}
 
 #ifdef        USE_QUAD_T
-	PRINTF("\tforward: pkts in %lld bytes in %lld pkts out %lld bytes out %lld\n\tbackward: pkts in %lld bytes in %lld pkts out %lld bytes out %lld\n",
+	PRINTF("\tFWD: IN pkts %"PRIu64" bytes %"PRIu64" OUT pkts %"PRIu64" bytes %"PRIu64"\n\tREV: IN pkts %"PRIu64" bytes %"PRIu64" OUT pkts %"PRIu64" bytes %"PRIu64"\n",
 		sp->is_pkts[0], sp->is_bytes[0],
 		sp->is_pkts[1], sp->is_bytes[1],
 		sp->is_pkts[2], sp->is_bytes[2],
 		sp->is_pkts[3], sp->is_bytes[3]);
 #else
-	PRINTF("\tforward: pkts in %ld bytes in %ld pkts out %ld bytes out %ld\n\tbackward: pkts in %ld bytes in %ld pkts out %ld bytes out %ld\n",
+	PRINTF("\tFWD: IN pkts %lu bytes %lu OUT pkts %lu bytes %lu\n\tREV: IN pkts %lu bytes %lu OUT pkts %lu bytes %lu\n",
 		sp->is_pkts[0], sp->is_bytes[0],
 		sp->is_pkts[1], sp->is_bytes[1],
 		sp->is_pkts[2], sp->is_bytes[2],
 		sp->is_pkts[3], sp->is_bytes[3]);
 #endif
 
-	PRINTF("\t");
+	PRINTF("\ttag %u pass %#x = ", sp->is_tag, sp->is_pass);
 
 	/*
 	 * Print out bits set in the result code for the state being
@@ -135,22 +162,31 @@ u_long now;
 	/* a given; no? */
 	if (sp->is_pass & FR_KEEPSTATE) {
 		PRINTF(" keep state");
-		if (sp->is_pass & FR_STATESYNC)	
-			PRINTF(" ( sync )");
+		if (sp->is_pass & (FR_STATESYNC|FR_STSTRICT|FR_STLOOSE)) {
+			PRINTF(" (");
+			if (sp->is_pass & FR_STATESYNC)
+				PRINTF(" sync");
+			if (sp->is_pass & FR_STSTRICT)
+				PRINTF(" strict");
+			if (sp->is_pass & FR_STLOOSE)
+				PRINTF(" loose");
+			PRINTF(" )");
+		}
 	}
-	PRINTF("\tIPv%d", sp->is_v);
 	PRINTF("\n");
 
-	PRINTF("\tpkt_flags & %x(%x) = %x,\t",
-		sp->is_flags & 0xf, sp->is_flags,
-		sp->is_flags >> 4);
-	PRINTF("\tpkt_options & %x = %x, %x = %x \n", sp->is_optmsk[0],
-		sp->is_opt[0], sp->is_optmsk[1], sp->is_opt[1]);
-	PRINTF("\tpkt_security & %x = %x, pkt_auth & %x = %x\n",
-		sp->is_secmsk, sp->is_sec, sp->is_authmsk,
-		sp->is_auth);
-	PRINTF("\tis_flx %#x %#x %#x %#x\n", sp->is_flx[0][0], sp->is_flx[0][1],
-	       sp->is_flx[1][0], sp->is_flx[1][1]);
+	if ((opts & OPT_VERBOSE) != 0) {
+		PRINTF("\tref %d", sp->is_ref);
+		PRINTF(" pkt_flags & %x(%x) = %x\n",
+			sp->is_flags & 0xf, sp->is_flags, sp->is_flags >> 4);
+		PRINTF("\tpkt_options & %x = %x, %x = %x \n", sp->is_optmsk[0],
+			sp->is_opt[0], sp->is_optmsk[1], sp->is_opt[1]);
+		PRINTF("\tpkt_security & %x = %x, pkt_auth & %x = %x\n",
+			sp->is_secmsk, sp->is_sec, sp->is_authmsk,
+			sp->is_auth);
+		PRINTF("\tis_flx %#x %#x %#x %#x\n", sp->is_flx[0][0],
+			sp->is_flx[0][1], sp->is_flx[1][0], sp->is_flx[1][1]);
+	}
 	PRINTF("\tinterfaces: in %s[%s", getifname(sp->is_ifp[0]),
 		sp->is_ifname[0]);
 	if (opts & OPT_DEBUG)
@@ -169,20 +205,19 @@ u_long now;
 		PRINTF("/%p", sp->is_ifp[3]);
 	PRINTF("]\n");
 
+	PRINTF("\tSync status: ");
 	if (sp->is_sync != NULL) {
-
-		if (kmemcpy((char *)&ipsync, (u_long)sp->is_sync, sizeof(ipsync))) {
-	
-			PRINTF("\tSync status: status could not be retrieved\n");
+		if (kmemcpy((char *)&ipsync, (u_long)sp->is_sync,
+			    sizeof(ipsync))) {
+			PRINTF("status could not be retrieved\n");
 			return NULL;
 		}
 
-		PRINTF("\tSync status: idx %d num %d v %d pr %d rev %d\n",
+		PRINTF("idx %d num %d v %d pr %d rev %d\n",
 			ipsync.sl_idx, ipsync.sl_num, ipsync.sl_v,
 			ipsync.sl_p, ipsync.sl_rev);
-		
 	} else {
-		PRINTF("\tSync status: not synchronized\n");
+		PRINTF("not synchronized\n");
 	}
 
 	return sp->is_next;

@@ -38,11 +38,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/socket.h>
  
-#include <net/bpf.h>
-#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_llc.h>
 #include <net/if_media.h>
+#include <net/bpf.h>
+#include <net/ethernet.h>
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_input.h>
@@ -330,43 +331,6 @@ ieee80211_ff_decap(struct ieee80211_node *ni, struct mbuf *m)
 }
 
 /*
- * Do Ethernet-LLC encapsulation for each payload in a fast frame
- * tunnel encapsulation.  The frame is assumed to have an Ethernet
- * header at the front that must be stripped before prepending the
- * LLC followed by the Ethernet header passed in (with an Ethernet
- * type that specifies the payload size).
- */
-static struct mbuf *
-ff_encap1(struct ieee80211vap *vap, struct mbuf *m,
-	const struct ether_header *eh)
-{
-	struct llc *llc;
-	uint16_t payload;
-
-	/* XXX optimize by combining m_adj+M_PREPEND */
-	m_adj(m, sizeof(struct ether_header) - sizeof(struct llc));
-	llc = mtod(m, struct llc *);
-	llc->llc_dsap = llc->llc_ssap = LLC_SNAP_LSAP;
-	llc->llc_control = LLC_UI;
-	llc->llc_snap.org_code[0] = 0;
-	llc->llc_snap.org_code[1] = 0;
-	llc->llc_snap.org_code[2] = 0;
-	llc->llc_snap.ether_type = eh->ether_type;
-	payload = m->m_pkthdr.len;		/* NB: w/o Ethernet header */
-
-	M_PREPEND(m, sizeof(struct ether_header), M_NOWAIT);
-	if (m == NULL) {		/* XXX cannot happen */
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG,
-			"%s: no space for ether_header\n", __func__);
-		vap->iv_stats.is_tx_nobuf++;
-		return NULL;
-	}
-	ETHER_HEADER_COPY(mtod(m, void *), eh);
-	mtod(m, struct ether_header *)->ether_type = htons(payload);
-	return m;
-}
-
-/*
  * Fast frame encapsulation.  There must be two packets
  * chained with m_nextpkt.  We do header adjustment for
  * each, add the tunnel encapsulation, and then concatenate
@@ -424,10 +388,10 @@ ieee80211_ff_encap(struct ieee80211vap *vap, struct mbuf *m1, int hdrspace,
 	 * Now do tunnel encapsulation.  First, each
 	 * frame gets a standard encapsulation.
 	 */
-	m1 = ff_encap1(vap, m1, &eh1);
+	m1 = ieee80211_ff_encap1(vap, m1, &eh1);
 	if (m1 == NULL)
 		goto bad;
-	m2 = ff_encap1(vap, m2, &eh2);
+	m2 = ieee80211_ff_encap1(vap, m2, &eh2);
 	if (m2 == NULL)
 		goto bad;
 
@@ -511,7 +475,7 @@ ff_transmit(struct ieee80211_node *ni, struct mbuf *m)
 	if (m != NULL) {
 		struct ifnet *ifp = vap->iv_ifp;
 
-		error = ieee80211_parent_transmit(ic, m);;
+		error = ieee80211_parent_xmitpkt(ic, m);;
 		if (error != 0) {
 			/* NB: IFQ_HANDOFF reclaims mbuf */
 			ieee80211_free_node(ni);

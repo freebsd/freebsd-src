@@ -1,9 +1,13 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1995-2003 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
+ *
+ * Copyright 2008 Sun Microsystems.
+ *
+ * $Id$
  */
 #if defined(KERNEL) || defined(_KERNEL)
 # undef KERNEL
@@ -15,14 +19,6 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/file.h>
-#if defined(__NetBSD__) && (NetBSD >= 199905) && !defined(IPFILTER_LKM) && \
-    defined(_KERNEL)
-# if (__NetBSD_Version__ < 399001400)
-#  include "opt_ipfilter_log.h"
-# else
-#  include "opt_ipfilter.h"
-# endif
-#endif
 #if defined(_KERNEL) && defined(__FreeBSD_version) && \
     (__FreeBSD_version >= 400000) && !defined(KLD_MODULE)
 #include "opt_inet6.h"
@@ -41,9 +37,6 @@ struct file;
 #if defined(_KERNEL) && (__FreeBSD_version >= 220000)
 # include <sys/filio.h>
 # include <sys/fcntl.h>
-# if (__FreeBSD_version >= 300000) && !defined(IPFILTER_LKM)
-#  include "opt_ipfilter.h"
-# endif
 #else
 # include <sys/ioctl.h>
 #endif
@@ -72,36 +65,31 @@ struct file;
 #ifdef sun
 # include <net/af.h>
 #endif
-#include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
-#if !defined(linux)
-# include <netinet/ip_var.h>
-#endif
 #if !defined(__hpux) && !defined(linux)
 # include <netinet/tcp_fsm.h>
 #endif
 #include <netinet/udp.h>
 #include <netinet/ip_icmp.h>
+#if !defined(_KERNEL)
+# include "ipf.h"
+#endif
 #include "netinet/ip_compat.h"
-#include <netinet/tcpip.h>
 #include "netinet/ip_fil.h"
 #include "netinet/ip_nat.h"
 #include "netinet/ip_frag.h"
 #include "netinet/ip_state.h"
 #include "netinet/ip_proxy.h"
-#ifdef	IPFILTER_SYNC
+#include "netinet/ip_lookup.h"
+#include "netinet/ip_dstlist.h"
 #include "netinet/ip_sync.h"
-#endif
-#ifdef	IPFILTER_SCAN
-#include "netinet/ip_scan.h"
-#endif
 #ifdef	USE_INET6
 #include <netinet/icmp6.h>
 #endif
-#if (__FreeBSD_version >= 300000)
+#if FREEBSD_GE_REV(300000)
 # include <sys/malloc.h>
 # if defined(_KERNEL) && !defined(IPFILTER_LKM)
 #  include <sys/libkern.h>
@@ -113,342 +101,501 @@ struct file;
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.186.2.80 2007/10/16 09:33:23 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id$";
 #endif
 
-static	ipstate_t **ips_table = NULL;
-static	u_long	*ips_seed = NULL;
-static	int	ips_num = 0;
-static	u_long ips_last_force_flush = 0;
-ips_stat_t ips_stats;
+
+static ipftuneable_t ipf_state_tuneables[] = {
+	{ { (void *)offsetof(ipf_state_softc_t, ipf_state_max) },
+		"state_max",		1,	0x7fffffff,
+		stsizeof(ipf_state_softc_t, ipf_state_max),
+		0,			NULL,	NULL },
+	{ { (void *)offsetof(ipf_state_softc_t, ipf_state_size) },
+		"state_size",		1,	0x7fffffff,
+		stsizeof(ipf_state_softc_t, ipf_state_size),
+		0,			NULL,	ipf_state_rehash },
+	{ { (void *)offsetof(ipf_state_softc_t, ipf_state_lock) },
+		"state_lock",		0,	1,
+		stsizeof(ipf_state_softc_t, ipf_state_lock),
+		IPFT_RDONLY,		NULL,	NULL },
+	{ { (void *)offsetof(ipf_state_softc_t, ipf_state_maxbucket) },
+		"state_maxbucket",	1,	0x7fffffff,
+		stsizeof(ipf_state_softc_t, ipf_state_maxbucket),
+		0,			NULL,	NULL },
+	{ { (void *)offsetof(ipf_state_softc_t, ipf_state_logging) },
+		"state_logging",0,	1,
+		stsizeof(ipf_state_softc_t, ipf_state_logging),
+		0,			NULL,	NULL },
+	{ { (void *)offsetof(ipf_state_softc_t, ipf_state_wm_high) },
+		"state_wm_high",2,	100,
+		stsizeof(ipf_state_softc_t, ipf_state_wm_high),
+		0,			NULL,	NULL },
+	{ { (void *)offsetof(ipf_state_softc_t, ipf_state_wm_low) },
+		"state_wm_low",	1,	99,
+		stsizeof(ipf_state_softc_t, ipf_state_wm_low),
+		0,			NULL,	NULL },
+	{ { (void *)offsetof(ipf_state_softc_t, ipf_state_wm_freq) },
+		"state_wm_freq",2,	999999,
+		stsizeof(ipf_state_softc_t, ipf_state_wm_freq),
+		0,			NULL,	NULL },
+	{ { NULL },
+		NULL,			0,	0,
+		0,
+		0,	NULL, NULL }
+};
+
+#define	SINCL(x)	ATOMIC_INCL(softs->x)
+#define	SBUMP(x)	(softs->x)++
+#define	SBUMPD(x, y)	do { (softs->x.y)++; DT(y); } while (0)
+#define	SBUMPDX(x, y, z)do { (softs->x.y)++; DT(z); } while (0)
 
 #ifdef	USE_INET6
-static ipstate_t *fr_checkicmp6matchingstate __P((fr_info_t *));
+static ipstate_t *ipf_checkicmp6matchingstate __P((fr_info_t *));
 #endif
-static ipstate_t *fr_matchsrcdst __P((fr_info_t *, ipstate_t *, i6addr_t *,
+static int ipf_allowstateicmp __P((fr_info_t *, ipstate_t *, i6addr_t *));
+static ipstate_t *ipf_matchsrcdst __P((fr_info_t *, ipstate_t *, i6addr_t *,
 				      i6addr_t *, tcphdr_t *, u_32_t));
-static ipstate_t *fr_checkicmpmatchingstate __P((fr_info_t *));
-static int fr_state_flush __P((int, int));
-static int fr_state_flush_entry __P((void *));
-static ips_stat_t *fr_statetstats __P((void));
-static int fr_delstate __P((ipstate_t *, int));
-static int fr_state_remove __P((caddr_t));
-static void fr_ipsmove __P((ipstate_t *, u_int));
-static int fr_tcpstate __P((fr_info_t *, tcphdr_t *, ipstate_t *));
-static int fr_tcpoptions __P((fr_info_t *, tcphdr_t *, tcpdata_t *));
-static ipstate_t *fr_stclone __P((fr_info_t *, tcphdr_t *, ipstate_t *));
-static void fr_fixinisn __P((fr_info_t *, ipstate_t *));
-static void fr_fixoutisn __P((fr_info_t *, ipstate_t *));
-static void fr_checknewisn __P((fr_info_t *, ipstate_t *));
-static int fr_stateiter __P((ipftoken_t *, ipfgeniter_t *));
-static int fr_stgettable __P((char *));
+static ipstate_t *ipf_checkicmpmatchingstate __P((fr_info_t *));
+static int ipf_state_flush_entry __P((ipf_main_softc_t *, void *));
+static ips_stat_t *ipf_state_stats __P((ipf_main_softc_t *));
+static int ipf_state_del __P((ipf_main_softc_t *, ipstate_t *, int));
+static int ipf_state_remove __P((ipf_main_softc_t *, caddr_t));
+static int ipf_state_match __P((ipstate_t *is1, ipstate_t *is2));
+static int ipf_state_matchaddresses __P((ipstate_t *is1, ipstate_t *is2));
+static int ipf_state_matchipv4addrs __P((ipstate_t *is1, ipstate_t *is2));
+static int ipf_state_matchipv6addrs __P((ipstate_t *is1, ipstate_t *is2));
+static int ipf_state_matchisps __P((ipstate_t *is1, ipstate_t *is2));
+static int ipf_state_matchports __P((udpinfo_t *is1, udpinfo_t *is2));
+static int ipf_state_matcharray __P((ipstate_t *, int *, u_long));
+static void ipf_ipsmove __P((ipf_state_softc_t *, ipstate_t *, u_int));
+static int ipf_state_tcp __P((ipf_main_softc_t *, ipf_state_softc_t *,
+			      fr_info_t *, tcphdr_t *, ipstate_t *));
+static int ipf_tcpoptions __P((ipf_state_softc_t *, fr_info_t *,
+			       tcphdr_t *, tcpdata_t *));
+static ipstate_t *ipf_state_clone __P((fr_info_t *, tcphdr_t *, ipstate_t *));
+static void ipf_fixinisn __P((fr_info_t *, ipstate_t *));
+static void ipf_fixoutisn __P((fr_info_t *, ipstate_t *));
+static void ipf_checknewisn __P((fr_info_t *, ipstate_t *));
+static int ipf_state_iter __P((ipf_main_softc_t *, ipftoken_t *,
+			       ipfgeniter_t *, ipfobj_t *));
+static int ipf_state_gettable __P((ipf_main_softc_t *, ipf_state_softc_t *,
+				   char *));
+static	int ipf_state_tcpinwindow __P((struct fr_info *, struct tcpdata *,
+				       struct tcpdata *, tcphdr_t *, int));
 
-int fr_stputent __P((caddr_t));
-int fr_stgetent __P((caddr_t));
+static int ipf_state_getent __P((ipf_main_softc_t *, ipf_state_softc_t *,
+				 caddr_t));
+static int ipf_state_putent __P((ipf_main_softc_t *, ipf_state_softc_t *,
+				 caddr_t));
 
 #define	ONE_DAY		IPF_TTLVAL(1 * 86400)	/* 1 day */
 #define	FIVE_DAYS	(5 * ONE_DAY)
-#define	DOUBLE_HASH(x)	(((x) + ips_seed[(x) % fr_statesize]) % fr_statesize)
-
-u_long	fr_tcpidletimeout = FIVE_DAYS,
-	fr_tcpclosewait = IPF_TTLVAL(2 * TCP_MSL),
-	fr_tcplastack = IPF_TTLVAL(30),
-	fr_tcptimeout = IPF_TTLVAL(2 * TCP_MSL),
-	fr_tcptimewait = IPF_TTLVAL(2 * TCP_MSL),
-	fr_tcpclosed = IPF_TTLVAL(30),
-	fr_tcphalfclosed = IPF_TTLVAL(2 * 3600),	/* 2 hours */
-	fr_udptimeout = IPF_TTLVAL(120),
-	fr_udpacktimeout = IPF_TTLVAL(12),
-	fr_icmptimeout = IPF_TTLVAL(60),
-	fr_icmpacktimeout = IPF_TTLVAL(6),
-	fr_iptimeout = IPF_TTLVAL(60);
-int	fr_statemax = IPSTATE_MAX,
-	fr_statesize = IPSTATE_SIZE;
-int	fr_state_doflush = 0,
-	fr_state_lock = 0,
-	fr_state_maxbucket = 0,
-	fr_state_maxbucket_reset = 1,
-	fr_state_init = 0;
-ipftq_t	ips_tqtqb[IPF_TCP_NSTATES],
-	ips_udptq,
-	ips_udpacktq,
-	ips_iptq,
-	ips_icmptq,
-	ips_icmpacktq,
-	ips_deletetq,
-	*ips_utqe = NULL;
-#ifdef	IPFILTER_LOG
-int	ipstate_logging = 1;
-#else
-int	ipstate_logging = 0;
-#endif
-ipstate_t *ips_list = NULL;
+#define	DOUBLE_HASH(x)	(((x) + softs->ipf_state_seed[(x) % \
+			 softs->ipf_state_size]) % softs->ipf_state_size)
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_stateinit                                                */
+/* Function:    ipf_state_main_load                                         */
 /* Returns:     int - 0 == success, -1 == failure                           */
 /* Parameters:  Nil                                                         */
 /*                                                                          */
-/* Initialise all the global variables used within the state code.          */
-/* This action also includes initiailising locks.                           */
+/* A null-op function that exists as a placeholder so that the flow in      */
+/* other functions is obvious.                                              */
 /* ------------------------------------------------------------------------ */
-int fr_stateinit()
+int
+ipf_state_main_load()
 {
-#if defined(NEED_LOCAL_RAND) || !defined(_KERNEL)
-	struct timeval tv;
-#endif
-	int i;
-
-	KMALLOCS(ips_table, ipstate_t **, fr_statesize * sizeof(ipstate_t *));
-	if (ips_table == NULL)
-		return -1;
-	bzero((char *)ips_table, fr_statesize * sizeof(ipstate_t *));
-
-	KMALLOCS(ips_seed, u_long *, fr_statesize * sizeof(*ips_seed));
-	if (ips_seed == NULL)
-		return -2;
-#if defined(NEED_LOCAL_RAND) || !defined(_KERNEL)
-	tv.tv_sec = 0;
-	GETKTIME(&tv);
-#endif
-	for (i = 0; i < fr_statesize; i++) {
-		/*
-		 * XXX - ips_seed[X] should be a random number of sorts.
-		 */
-#if !defined(NEED_LOCAL_RAND) && defined(_KERNEL)
-		ips_seed[i] = arc4random();
-#else
-		ips_seed[i] = ((u_long)ips_seed + i) * fr_statesize;
-		ips_seed[i] += tv.tv_sec;
-		ips_seed[i] *= (u_long)ips_seed;
-		ips_seed[i] ^= 0x5a5aa5a5;
-		ips_seed[i] *= fr_statemax;
-#endif
-	}
-#if defined(NEED_LOCAL_RAND) && defined(_KERNEL)
-	ipf_rand_push(ips_seed, fr_statesize * sizeof(*ips_seed));
-#endif
-
-	/* fill icmp reply type table */
-	for (i = 0; i <= ICMP_MAXTYPE; i++)
-		icmpreplytype4[i] = -1;
-	icmpreplytype4[ICMP_ECHO] = ICMP_ECHOREPLY;
-	icmpreplytype4[ICMP_TSTAMP] = ICMP_TSTAMPREPLY;
-	icmpreplytype4[ICMP_IREQ] = ICMP_IREQREPLY;
-	icmpreplytype4[ICMP_MASKREQ] = ICMP_MASKREPLY;
-#ifdef	USE_INET6
-	/* fill icmp reply type table */
-	for (i = 0; i <= ICMP6_MAXTYPE; i++)
-		icmpreplytype6[i] = -1;
-	icmpreplytype6[ICMP6_ECHO_REQUEST] = ICMP6_ECHO_REPLY;
-	icmpreplytype6[ICMP6_MEMBERSHIP_QUERY] = ICMP6_MEMBERSHIP_REPORT;
-	icmpreplytype6[ICMP6_NI_QUERY] = ICMP6_NI_REPLY;
-	icmpreplytype6[ND_ROUTER_SOLICIT] = ND_ROUTER_ADVERT;
-	icmpreplytype6[ND_NEIGHBOR_SOLICIT] = ND_NEIGHBOR_ADVERT;
-#endif
-
-	KMALLOCS(ips_stats.iss_bucketlen, u_long *,
-		 fr_statesize * sizeof(u_long));
-	if (ips_stats.iss_bucketlen == NULL)
-		return -1;
-	bzero((char *)ips_stats.iss_bucketlen, fr_statesize * sizeof(u_long));
-
-	if (fr_state_maxbucket == 0) {
-		for (i = fr_statesize; i > 0; i >>= 1)
-			fr_state_maxbucket++;
-		fr_state_maxbucket *= 2;
-	}
-
-	ips_stats.iss_tcptab = ips_tqtqb;
-	fr_sttab_init(ips_tqtqb);
-	ips_tqtqb[IPF_TCP_NSTATES - 1].ifq_next = &ips_udptq;
-	ips_udptq.ifq_ttl = (u_long)fr_udptimeout;
-	ips_udptq.ifq_ref = 1;
-	ips_udptq.ifq_head = NULL;
-	ips_udptq.ifq_tail = &ips_udptq.ifq_head;
-	MUTEX_INIT(&ips_udptq.ifq_lock, "ipftq udp tab");
-	ips_udptq.ifq_next = &ips_udpacktq;
-	ips_udpacktq.ifq_ttl = (u_long)fr_udpacktimeout;
-	ips_udpacktq.ifq_ref = 1;
-	ips_udpacktq.ifq_head = NULL;
-	ips_udpacktq.ifq_tail = &ips_udpacktq.ifq_head;
-	MUTEX_INIT(&ips_udpacktq.ifq_lock, "ipftq udpack tab");
-	ips_udpacktq.ifq_next = &ips_icmptq;
-	ips_icmptq.ifq_ttl = (u_long)fr_icmptimeout;
-	ips_icmptq.ifq_ref = 1;
-	ips_icmptq.ifq_head = NULL;
-	ips_icmptq.ifq_tail = &ips_icmptq.ifq_head;
-	MUTEX_INIT(&ips_icmptq.ifq_lock, "ipftq icmp tab");
-	ips_icmptq.ifq_next = &ips_icmpacktq;
-	ips_icmpacktq.ifq_ttl = (u_long)fr_icmpacktimeout;
-	ips_icmpacktq.ifq_ref = 1;
-	ips_icmpacktq.ifq_head = NULL;
-	ips_icmpacktq.ifq_tail = &ips_icmpacktq.ifq_head;
-	MUTEX_INIT(&ips_icmpacktq.ifq_lock, "ipftq icmpack tab");
-	ips_icmpacktq.ifq_next = &ips_iptq;
-	ips_iptq.ifq_ttl = (u_long)fr_iptimeout;
-	ips_iptq.ifq_ref = 1;
-	ips_iptq.ifq_head = NULL;
-	ips_iptq.ifq_tail = &ips_iptq.ifq_head;
-	MUTEX_INIT(&ips_iptq.ifq_lock, "ipftq ip tab");
-	ips_iptq.ifq_next = &ips_deletetq;
-	ips_deletetq.ifq_ttl = (u_long)1;
-	ips_deletetq.ifq_ref = 1;
-	ips_deletetq.ifq_head = NULL;
-	ips_deletetq.ifq_tail = &ips_deletetq.ifq_head;
-	MUTEX_INIT(&ips_deletetq.ifq_lock, "state delete queue");
-	ips_deletetq.ifq_next = NULL;
-
-	RWLOCK_INIT(&ipf_state, "ipf IP state rwlock");
-	MUTEX_INIT(&ipf_stinsert, "ipf state insert mutex");
-	fr_state_init = 1;
-
-	ips_last_force_flush = fr_ticks;
 	return 0;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_stateunload                                              */
-/* Returns:     Nil                                                         */
+/* Function:    ipf_state_main_unload                                       */
+/* Returns:     int - 0 == success, -1 == failure                           */
 /* Parameters:  Nil                                                         */
+/*                                                                          */
+/* A null-op function that exists as a placeholder so that the flow in      */
+/* other functions is obvious.                                              */
+/* ------------------------------------------------------------------------ */
+int
+ipf_state_main_unload()
+{
+	return 0;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_state_soft_create                                       */
+/* Returns:     void *   - NULL = failure, else pointer to soft context     */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
+/*                                                                          */
+/* Create a new state soft context structure and populate it with the list  */
+/* of tunables and other default settings.                                  */
+/* ------------------------------------------------------------------------ */
+void *
+ipf_state_soft_create(softc)
+	ipf_main_softc_t *softc;
+{
+	ipf_state_softc_t *softs;
+
+	KMALLOC(softs, ipf_state_softc_t *);
+	if (softs == NULL)
+		return NULL;
+
+	bzero((char *)softs, sizeof(*softs));
+
+	softs->ipf_state_tune = ipf_tune_array_copy(softs,
+						    sizeof(ipf_state_tuneables),
+						    ipf_state_tuneables);
+	if (softs->ipf_state_tune == NULL) {
+		ipf_state_soft_destroy(softc, softs);
+		return NULL;
+	}
+	if (ipf_tune_array_link(softc, softs->ipf_state_tune) == -1) {
+		ipf_state_soft_destroy(softc, softs);
+		return NULL;
+	}
+
+#ifdef	IPFILTER_LOG
+	softs->ipf_state_logging = 1;
+#else
+	softs->ipf_state_logging = 0;
+#endif
+	softs->ipf_state_size = IPSTATE_SIZE,
+	softs->ipf_state_maxbucket = 0;
+	softs->ipf_state_wm_freq = IPF_TTLVAL(10);
+	softs->ipf_state_max = IPSTATE_MAX;
+	softs->ipf_state_wm_last = 0;
+	softs->ipf_state_wm_high = 99;
+	softs->ipf_state_wm_low = 90;
+	softs->ipf_state_inited = 0;
+	softs->ipf_state_lock = 0;
+	softs->ipf_state_doflush = 0;
+
+	return softs;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_state_soft_destroy                                      */
+/* Returns:     Nil                                                         */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
+/*              arg(I)   - pointer to local context to use                  */
+/*                                                                          */
+/* Undo only what we did in soft create: unlink and free the tunables and   */
+/* free the soft context structure itself.                                  */
+/* ------------------------------------------------------------------------ */
+void
+ipf_state_soft_destroy(softc, arg)
+	ipf_main_softc_t *softc;
+	void *arg;
+{
+	ipf_state_softc_t *softs = arg;
+
+	if (softs->ipf_state_tune != NULL) {
+		ipf_tune_array_unlink(softc, softs->ipf_state_tune);
+		KFREES(softs->ipf_state_tune, sizeof(ipf_state_tuneables));
+		softs->ipf_state_tune = NULL;
+	}
+
+	KFREE(softs);
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_state_soft_init                                         */
+/* Returns:     int      - 0 == success, -1 == failure                      */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
+/*              arg(I)   - pointer to local context to use                  */
+/*                                                                          */
+/* Initialise the state soft context structure so it is ready for use.      */
+/* This involves:                                                           */
+/* - allocating a hash table and zero'ing it out                            */
+/* - building a secondary table of seeds for double hashing to make it more */
+/*   difficult to attempt to attack the hash table itself (for DoS)         */
+/* - initialise all of the timeout queues, including a table for TCP, some  */
+/*   pairs of query/response for UDP and other IP protocols (typically the  */
+/*   reply queue has a shorter timeout than the query)                      */
+/* ------------------------------------------------------------------------ */
+int
+ipf_state_soft_init(softc, arg)
+	ipf_main_softc_t *softc;
+	void *arg;
+{
+	ipf_state_softc_t *softs = arg;
+	int i;
+
+	KMALLOCS(softs->ipf_state_table,
+		 ipstate_t **, softs->ipf_state_size * sizeof(ipstate_t *));
+	if (softs->ipf_state_table == NULL)
+		return -1;
+
+	bzero((char *)softs->ipf_state_table,
+	      softs->ipf_state_size * sizeof(ipstate_t *));
+
+	KMALLOCS(softs->ipf_state_seed, u_long *,
+		 softs->ipf_state_size * sizeof(*softs->ipf_state_seed));
+	if (softs->ipf_state_seed == NULL)
+		return -2;
+
+	for (i = 0; i < softs->ipf_state_size; i++) {
+		/*
+		 * XXX - ipf_state_seed[X] should be a random number of sorts.
+		 */
+#if  FREEBSD_GE_REV(400000)
+		softs->ipf_state_seed[i] = arc4random();
+#else
+		softs->ipf_state_seed[i] = ((u_long)softs->ipf_state_seed + i) *
+				    softs->ipf_state_size;
+		softs->ipf_state_seed[i] ^= 0xa5a55a5a;
+		softs->ipf_state_seed[i] *= (u_long)softs->ipf_state_seed;
+		softs->ipf_state_seed[i] ^= 0x5a5aa5a5;
+		softs->ipf_state_seed[i] *= softs->ipf_state_max;
+#endif
+	}
+
+	KMALLOCS(softs->ipf_state_stats.iss_bucketlen, u_int *,
+		 softs->ipf_state_size * sizeof(u_int));
+	if (softs->ipf_state_stats.iss_bucketlen == NULL)
+		return -3;
+
+	bzero((char *)softs->ipf_state_stats.iss_bucketlen,
+	      softs->ipf_state_size * sizeof(u_int));
+
+	if (softs->ipf_state_maxbucket == 0) {
+		for (i = softs->ipf_state_size; i > 0; i >>= 1)
+			softs->ipf_state_maxbucket++;
+		softs->ipf_state_maxbucket *= 2;
+	}
+
+	ipf_sttab_init(softc, softs->ipf_state_tcptq);
+	softs->ipf_state_stats.iss_tcptab = softs->ipf_state_tcptq;
+	softs->ipf_state_tcptq[IPF_TCP_NSTATES - 1].ifq_next =
+						&softs->ipf_state_udptq;
+
+	IPFTQ_INIT(&softs->ipf_state_udptq, softc->ipf_udptimeout,
+		   "ipftq udp tab");
+	softs->ipf_state_udptq.ifq_next = &softs->ipf_state_udpacktq;
+
+	IPFTQ_INIT(&softs->ipf_state_udpacktq, softc->ipf_udpacktimeout,
+		   "ipftq udpack tab");
+	softs->ipf_state_udpacktq.ifq_next = &softs->ipf_state_icmptq;
+
+	IPFTQ_INIT(&softs->ipf_state_icmptq, softc->ipf_icmptimeout,
+		   "ipftq icmp tab");
+	softs->ipf_state_icmptq.ifq_next = &softs->ipf_state_icmpacktq;
+
+	IPFTQ_INIT(&softs->ipf_state_icmpacktq, softc->ipf_icmpacktimeout,
+		  "ipftq icmpack tab");
+	softs->ipf_state_icmpacktq.ifq_next = &softs->ipf_state_iptq;
+
+	IPFTQ_INIT(&softs->ipf_state_iptq, softc->ipf_iptimeout,
+		   "ipftq iptimeout tab");
+	softs->ipf_state_iptq.ifq_next = &softs->ipf_state_pending;
+
+	IPFTQ_INIT(&softs->ipf_state_pending, IPF_HZ_DIVIDE, "ipftq pending");
+	softs->ipf_state_pending.ifq_next = &softs->ipf_state_deletetq;
+
+	IPFTQ_INIT(&softs->ipf_state_deletetq, 1, "ipftq delete");
+	softs->ipf_state_deletetq.ifq_next = NULL;
+
+	MUTEX_INIT(&softs->ipf_stinsert, "ipf state insert mutex");
+
+
+	softs->ipf_state_wm_last = softc->ipf_ticks;
+	softs->ipf_state_inited = 1;
+
+	return 0;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_state_soft_fini                                         */
+/* Returns:     int      - 0 = success, -1 = failure                        */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
+/*              arg(I)   - pointer to local context to use                  */
 /*                                                                          */
 /* Release and destroy any resources acquired or initialised so that        */
 /* IPFilter can be unloaded or re-initialised.                              */
 /* ------------------------------------------------------------------------ */
-void fr_stateunload()
+int
+ipf_state_soft_fini(softc, arg)
+	ipf_main_softc_t *softc;
+	void *arg;
 {
+	ipf_state_softc_t *softs = arg;
 	ipftq_t *ifq, *ifqnext;
 	ipstate_t *is;
 
-	while ((is = ips_list) != NULL)
-		fr_delstate(is, ISL_UNLOAD);
+	while ((is = softs->ipf_state_list) != NULL)
+		ipf_state_del(softc, is, ISL_UNLOAD);
 
 	/*
 	 * Proxy timeout queues are not cleaned here because although they
-	 * exist on the state list, appr_unload is called after fr_stateunload
-	 * and the proxies actually are responsible for them being created.
-	 * Should the proxy timeouts have their own list?  There's no real
-	 * justification as this is the only complicationA
+	 * exist on the state list, appr_unload is called after
+	 * ipf_state_unload and the proxies actually are responsible for them
+	 * being created. Should the proxy timeouts have their own list?
+	 * There's no real justification as this is the only complication.
 	 */
-	for (ifq = ips_utqe; ifq != NULL; ifq = ifqnext) {
+	for (ifq = softs->ipf_state_usertq; ifq != NULL; ifq = ifqnext) {
 		ifqnext = ifq->ifq_next;
-		if (((ifq->ifq_flags & IFQF_PROXY) == 0) &&
-		    (fr_deletetimeoutqueue(ifq) == 0))
-			fr_freetimeoutqueue(ifq);
+
+		if (ipf_deletetimeoutqueue(ifq) == 0)
+			ipf_freetimeoutqueue(softc, ifq);
 	}
 
-	ips_stats.iss_inuse = 0;
-	ips_num = 0;
+	softs->ipf_state_stats.iss_inuse = 0;
+	softs->ipf_state_stats.iss_active = 0;
 
-	if (fr_state_init == 1) {
-		fr_sttab_destroy(ips_tqtqb);
-		MUTEX_DESTROY(&ips_udptq.ifq_lock);
-		MUTEX_DESTROY(&ips_icmptq.ifq_lock);
-		MUTEX_DESTROY(&ips_udpacktq.ifq_lock);
-		MUTEX_DESTROY(&ips_icmpacktq.ifq_lock);
-		MUTEX_DESTROY(&ips_iptq.ifq_lock);
-		MUTEX_DESTROY(&ips_deletetq.ifq_lock);
+	if (softs->ipf_state_inited == 1) {
+		softs->ipf_state_inited = 0;
+		ipf_sttab_destroy(softs->ipf_state_tcptq);
+		MUTEX_DESTROY(&softs->ipf_state_udptq.ifq_lock);
+		MUTEX_DESTROY(&softs->ipf_state_icmptq.ifq_lock);
+		MUTEX_DESTROY(&softs->ipf_state_udpacktq.ifq_lock);
+		MUTEX_DESTROY(&softs->ipf_state_icmpacktq.ifq_lock);
+		MUTEX_DESTROY(&softs->ipf_state_iptq.ifq_lock);
+		MUTEX_DESTROY(&softs->ipf_state_deletetq.ifq_lock);
+		MUTEX_DESTROY(&softs->ipf_state_pending.ifq_lock);
+		MUTEX_DESTROY(&softs->ipf_stinsert);
 	}
 
-	if (ips_table != NULL) {
-		KFREES(ips_table, fr_statesize * sizeof(*ips_table));
-		ips_table = NULL;
+	if (softs->ipf_state_table != NULL) {
+		KFREES(softs->ipf_state_table,
+		       softs->ipf_state_size * sizeof(*softs->ipf_state_table));
+		softs->ipf_state_table = NULL;
 	}
 
-	if (ips_seed != NULL) {
-		KFREES(ips_seed, fr_statesize * sizeof(*ips_seed));
-		ips_seed = NULL;
+	if (softs->ipf_state_seed != NULL) {
+		KFREES(softs->ipf_state_seed,
+		       softs->ipf_state_size * sizeof(*softs->ipf_state_seed));
+		softs->ipf_state_seed = NULL;
 	}
 
-	if (ips_stats.iss_bucketlen != NULL) {
-		KFREES(ips_stats.iss_bucketlen, fr_statesize * sizeof(u_long));
-		ips_stats.iss_bucketlen = NULL;
+	if (softs->ipf_state_stats.iss_bucketlen != NULL) {
+		KFREES(softs->ipf_state_stats.iss_bucketlen,
+		       softs->ipf_state_size * sizeof(u_int));
+		softs->ipf_state_stats.iss_bucketlen = NULL;
 	}
 
-	if (fr_state_maxbucket_reset == 1)
-		fr_state_maxbucket = 0;
-
-	if (fr_state_init == 1) {
-		fr_state_init = 0;
-		RW_DESTROY(&ipf_state);
-		MUTEX_DESTROY(&ipf_stinsert);
-	}
+	return 0;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_statetstats                                              */
+/* Function:    ipf_state_set_lock                                          */
+/* Returns:     Nil                                                         */
+/* Parameters:  arg(I) - pointer to local context to use                    */
+/*              tmp(I) - new value for lock                                 */
+/*                                                                          */
+/* Stub function that allows for external manipulation of ipf_state_lock    */
+/* ------------------------------------------------------------------------ */
+void
+ipf_state_setlock(arg, tmp)
+	void *arg;
+	int tmp;
+{
+	ipf_state_softc_t *softs = arg;
+
+	softs->ipf_state_lock = tmp;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_state_stats                                             */
 /* Returns:     ips_state_t* - pointer to state stats structure             */
-/* Parameters:  Nil                                                         */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
 /*                                                                          */
 /* Put all the current numbers and pointers into a single struct and return */
 /* a pointer to it.                                                         */
 /* ------------------------------------------------------------------------ */
-static ips_stat_t *fr_statetstats()
+static ips_stat_t *
+ipf_state_stats(softc)
+	ipf_main_softc_t *softc;
 {
-	ips_stats.iss_active = ips_num;
-	ips_stats.iss_statesize = fr_statesize;
-	ips_stats.iss_statemax = fr_statemax;
-	ips_stats.iss_table = ips_table;
-	ips_stats.iss_list = ips_list;
-	ips_stats.iss_ticks = fr_ticks;
-	return &ips_stats;
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
+	ips_stat_t *issp = &softs->ipf_state_stats;
+
+	issp->iss_state_size = softs->ipf_state_size;
+	issp->iss_state_max = softs->ipf_state_max;
+	issp->iss_table = softs->ipf_state_table;
+	issp->iss_list = softs->ipf_state_list;
+	issp->iss_ticks = softc->ipf_ticks;
+
+#ifdef IPFILTER_LOGGING
+	issp->iss_log_ok = ipf_log_logok(softc, IPF_LOGSTATE);
+	issp->iss_log_fail = ipf_log_failures(softc, IPF_LOGSTATE);
+#else
+	issp->iss_log_ok = 0;
+	issp->iss_log_fail = 0;
+#endif
+	return issp;
 }
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_state_remove                                             */
+/* Function:    ipf_state_remove                                            */
 /* Returns:     int - 0 == success, != 0 == failure                         */
-/* Parameters:  data(I) - pointer to state structure to delete from table   */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
+/*              data(I)  - pointer to state structure to delete from table  */
 /*                                                                          */
 /* Search for a state structure that matches the one passed, according to   */
 /* the IP addresses and other protocol specific information.                */
 /* ------------------------------------------------------------------------ */
-static int fr_state_remove(data)
-caddr_t data;
+static int
+ipf_state_remove(softc, data)
+	ipf_main_softc_t *softc;
+	caddr_t data;
 {
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
 	ipstate_t *sp, st;
 	int error;
 
 	sp = &st;
-	error = fr_inobj(data, &st, IPFOBJ_IPSTATE);
+	error = ipf_inobj(softc, data, NULL, &st, IPFOBJ_IPSTATE);
 	if (error)
 		return EFAULT;
 
-	WRITE_ENTER(&ipf_state);
-	for (sp = ips_list; sp; sp = sp->is_next)
+	WRITE_ENTER(&softc->ipf_state);
+	for (sp = softs->ipf_state_list; sp; sp = sp->is_next)
 		if ((sp->is_p == st.is_p) && (sp->is_v == st.is_v) &&
 		    !bcmp((caddr_t)&sp->is_src, (caddr_t)&st.is_src,
 			  sizeof(st.is_src)) &&
-		    !bcmp((caddr_t)&sp->is_dst, (caddr_t)&st.is_src,
+		    !bcmp((caddr_t)&sp->is_dst, (caddr_t)&st.is_dst,
 			  sizeof(st.is_dst)) &&
 		    !bcmp((caddr_t)&sp->is_ps, (caddr_t)&st.is_ps,
 			  sizeof(st.is_ps))) {
-			fr_delstate(sp, ISL_REMOVE);
-			RWLOCK_EXIT(&ipf_state);
+			ipf_state_del(softc, sp, ISL_REMOVE);
+			RWLOCK_EXIT(&softc->ipf_state);
 			return 0;
 		}
-	RWLOCK_EXIT(&ipf_state);
+	RWLOCK_EXIT(&softc->ipf_state);
+
+	IPFERROR(100001);
 	return ESRCH;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_state_ioctl                                              */
+/* Function:    ipf_state_ioctl                                             */
 /* Returns:     int - 0 == success, != 0 == failure                         */
-/* Parameters:  data(I) - pointer to ioctl data                             */
-/*              cmd(I)  - ioctl command integer                             */
-/*              mode(I) - file mode bits used with open                     */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
+/*              data(I)  - pointer to ioctl data                            */
+/*              cmd(I)   - ioctl command integer                            */
+/*              mode(I)  - file mode bits used with open                    */
+/*              uid(I)   - uid of process making the ioctl call             */
+/*              ctx(I)   - pointer specific to context of the call          */
 /*                                                                          */
 /* Processes an ioctl call made to operate on the IP Filter state device.   */
 /* ------------------------------------------------------------------------ */
-int fr_state_ioctl(data, cmd, mode, uid, ctx)
-caddr_t data;
-ioctlcmd_t cmd;
-int mode, uid;
-void *ctx;
+int
+ipf_state_ioctl(softc, data, cmd, mode, uid, ctx)
+	ipf_main_softc_t *softc;
+	caddr_t data;
+	ioctlcmd_t cmd;
+	int mode, uid;
+	void *ctx;
 {
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
 	int arg, ret, error = 0;
 	SPL_INT(s);
 
@@ -458,55 +605,75 @@ void *ctx;
 	 * Delete an entry from the state table.
 	 */
 	case SIOCDELST :
-		error = fr_state_remove(data);
+		error = ipf_state_remove(softc, data);
 		break;
 
 	/*
 	 * Flush the state table
 	 */
 	case SIOCIPFFL :
-		error = BCOPYIN(data, (char *)&arg, sizeof(arg));
+		error = BCOPYIN(data, &arg, sizeof(arg));
 		if (error != 0) {
+			IPFERROR(100002);
 			error = EFAULT;
+
 		} else {
-			WRITE_ENTER(&ipf_state);
-			ret = fr_state_flush(arg, 4);
-			RWLOCK_EXIT(&ipf_state);
-			error = BCOPYOUT((char *)&ret, data, sizeof(ret));
-			if (error != 0)
+			WRITE_ENTER(&softc->ipf_state);
+			ret = ipf_state_flush(softc, arg, 4);
+			RWLOCK_EXIT(&softc->ipf_state);
+
+			error = BCOPYOUT(&ret, data, sizeof(ret));
+			if (error != 0) {
+				IPFERROR(100003);
 				error = EFAULT;
+			}
 		}
 		break;
 
 #ifdef	USE_INET6
 	case SIOCIPFL6 :
-		error = BCOPYIN(data, (char *)&arg, sizeof(arg));
+		error = BCOPYIN(data, &arg, sizeof(arg));
 		if (error != 0) {
+			IPFERROR(100004);
 			error = EFAULT;
+
 		} else {
-			WRITE_ENTER(&ipf_state);
-			ret = fr_state_flush(arg, 6);
-			RWLOCK_EXIT(&ipf_state);
-			error = BCOPYOUT((char *)&ret, data, sizeof(ret));
-			if (error != 0)
+			WRITE_ENTER(&softc->ipf_state);
+			ret = ipf_state_flush(softc, arg, 6);
+			RWLOCK_EXIT(&softc->ipf_state);
+
+			error = BCOPYOUT(&ret, data, sizeof(ret));
+			if (error != 0) {
+				IPFERROR(100005);
 				error = EFAULT;
+			}
 		}
 		break;
 #endif
+
+	case SIOCMATCHFLUSH :
+		WRITE_ENTER(&softc->ipf_state);
+		error = ipf_state_matchflush(softc, data);
+		RWLOCK_EXIT(&softc->ipf_state);
+		break;
+
 #ifdef	IPFILTER_LOG
 	/*
 	 * Flush the state log.
 	 */
 	case SIOCIPFFB :
-		if (!(mode & FWRITE))
+		if (!(mode & FWRITE)) {
+			IPFERROR(100008);
 			error = EPERM;
-		else {
+		} else {
 			int tmp;
 
-			tmp = ipflog_clear(IPL_LOGSTATE);
-			error = BCOPYOUT((char *)&tmp, data, sizeof(tmp));
-			if (error != 0)
+			tmp = ipf_log_clear(softc, IPL_LOGSTATE);
+			error = BCOPYOUT(&tmp, data, sizeof(tmp));
+			if (error != 0) {
+				IPFERROR(100009);
 				error = EFAULT;
+			}
 		}
 		break;
 
@@ -514,13 +681,16 @@ void *ctx;
 	 * Turn logging of state information on/off.
 	 */
 	case SIOCSETLG :
-		if (!(mode & FWRITE))
+		if (!(mode & FWRITE)) {
+			IPFERROR(100010);
 			error = EPERM;
-		else {
-			error = BCOPYIN((char *)data, (char *)&ipstate_logging,
-					sizeof(ipstate_logging));
-			if (error != 0)
+		} else {
+			error = BCOPYIN(data, &softs->ipf_state_logging,
+					sizeof(softs->ipf_state_logging));
+			if (error != 0) {
+				IPFERROR(100011);
 				error = EFAULT;
+			}
 		}
 		break;
 
@@ -528,20 +698,24 @@ void *ctx;
 	 * Return the current state of logging.
 	 */
 	case SIOCGETLG :
-		error = BCOPYOUT((char *)&ipstate_logging, (char *)data,
-				 sizeof(ipstate_logging));
-		if (error != 0)
+		error = BCOPYOUT(&softs->ipf_state_logging, data,
+				 sizeof(softs->ipf_state_logging));
+		if (error != 0) {
+			IPFERROR(100012);
 			error = EFAULT;
+		}
 		break;
 
 	/*
 	 * Return the number of bytes currently waiting to be read.
 	 */
 	case FIONREAD :
-		arg = iplused[IPL_LOGSTATE];	/* returned in an int */
-		error = BCOPYOUT((char *)&arg, data, sizeof(arg));
-		if (error != 0)
+		arg = ipf_log_bytesused(softc, IPL_LOGSTATE);
+		error = BCOPYOUT(&arg, data, sizeof(arg));
+		if (error != 0) {
+			IPFERROR(100013);
 			error = EFAULT;
+		}
 		break;
 #endif
 
@@ -549,7 +723,8 @@ void *ctx;
 	 * Get the current state statistics.
 	 */
 	case SIOCGETFS :
-		error = fr_outobj(data, fr_statetstats(), IPFOBJ_STATESTAT);
+		error = ipf_outobj(softc, data, ipf_state_stats(softc),
+				   IPFOBJ_STATESTAT);
 		break;
 
 	/*
@@ -558,9 +733,10 @@ void *ctx;
 	 */
 	case SIOCSTLCK :
 		if (!(mode & FWRITE)) {
+			IPFERROR(100014);
 			error = EPERM;
 		} else {
-			error = fr_lock(data, &fr_state_lock);
+			error = ipf_lock(data, &softs->ipf_state_lock);
 		}
 		break;
 
@@ -568,74 +744,86 @@ void *ctx;
 	 * Add an entry to the current state table.
 	 */
 	case SIOCSTPUT :
-		if (!fr_state_lock || !(mode &FWRITE)) {
+		if (!softs->ipf_state_lock || !(mode &FWRITE)) {
+			IPFERROR(100015);
 			error = EACCES;
 			break;
 		}
-		error = fr_stputent(data);
+		error = ipf_state_putent(softc, softs, data);
 		break;
 
 	/*
 	 * Get a state table entry.
 	 */
 	case SIOCSTGET :
-		if (!fr_state_lock) {
+		if (!softs->ipf_state_lock) {
+			IPFERROR(100016);
 			error = EACCES;
 			break;
 		}
-		error = fr_stgetent(data);
+		error = ipf_state_getent(softc, softs, data);
 		break;
 
 	/*
 	 * Return a copy of the hash table bucket lengths
 	 */
 	case SIOCSTAT1 :
-		error = BCOPYOUT(ips_stats.iss_bucketlen, data,
-				 fr_statesize * sizeof(u_long));
-		if (error != 0)
+		error = BCOPYOUT(softs->ipf_state_stats.iss_bucketlen, data,
+				 softs->ipf_state_size * sizeof(u_int));
+		if (error != 0) {
+			IPFERROR(100017);
 			error = EFAULT;
+		}
 		break;
 
 	case SIOCGENITER :
 	    {
 		ipftoken_t *token;
 		ipfgeniter_t iter;
+		ipfobj_t obj;
 
-		error = fr_inobj(data, &iter, IPFOBJ_GENITER);
+		error = ipf_inobj(softc, data, &obj, &iter, IPFOBJ_GENITER);
 		if (error != 0)
 			break;
 
 		SPL_SCHED(s);
-		token = ipf_findtoken(IPFGENITER_STATE, uid, ctx);
-		if (token != NULL)
-			error = fr_stateiter(token, &iter);
-		else
+		token = ipf_token_find(softc, IPFGENITER_STATE, uid, ctx);
+		if (token != NULL) {
+			error = ipf_state_iter(softc, token, &iter, &obj);
+			WRITE_ENTER(&softc->ipf_tokens);
+			ipf_token_deref(softc, token);
+			RWLOCK_EXIT(&softc->ipf_tokens);
+		} else {
+			IPFERROR(100018);
 			error = ESRCH;
-		RWLOCK_EXIT(&ipf_tokens);
+		}
 		SPL_X(s);
 		break;
 	    }
 
 	case SIOCGTABL :
-		error = fr_stgettable(data);
+		error = ipf_state_gettable(softc, softs, data);
 		break;
 
 	case SIOCIPFDELTOK :
-		error = BCOPYIN(data, (char *)&arg, sizeof(arg));
+		error = BCOPYIN(data, &arg, sizeof(arg));
 		if (error != 0) {
+			IPFERROR(100019);
 			error = EFAULT;
 		} else {
 			SPL_SCHED(s);
-			error = ipf_deltoken(arg, uid, ctx);
+			error = ipf_token_del(softc, arg, uid, ctx);
 			SPL_X(s);
 		}
 		break;
 
 	case SIOCGTQTAB :
-		error = fr_outobj(data, ips_tqtqb, IPFOBJ_STATETQTAB);
+		error = ipf_outobj(softc, data, softs->ipf_state_tcptq,
+				   IPFOBJ_STATETQTAB);
 		break;
 
 	default :
+		IPFERROR(100020);
 		error = EINVAL;
 		break;
 	}
@@ -644,9 +832,11 @@ void *ctx;
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_stgetent                                                 */
+/* Function:    ipf_state_getent                                            */
 /* Returns:     int - 0 == success, != 0 == failure                         */
-/* Parameters:  data(I) - pointer to state structure to retrieve from table */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
+/*              softs(I) - pointer to state context structure               */
+/*              data(I)  - pointer to state structure to retrieve from table*/
 /*                                                                          */
 /* Copy out state information from the kernel to a user space process.  If  */
 /* there is a filter rule associated with the state entry, copy that out    */
@@ -654,25 +844,30 @@ void *ctx;
 /* the struct passed in and if not null and not found in the list of current*/
 /* state entries, the retrieval fails.                                      */
 /* ------------------------------------------------------------------------ */
-int fr_stgetent(data)
-caddr_t data;
+static int
+ipf_state_getent(softc, softs, data)
+	ipf_main_softc_t *softc;
+	ipf_state_softc_t *softs;
+	caddr_t data;
 {
 	ipstate_t *is, *isn;
 	ipstate_save_t ips;
 	int error;
 
-	error = fr_inobj(data, &ips, IPFOBJ_STATESAVE);
-	if (error != 0)
-		return error;
+	error = ipf_inobj(softc, data, NULL, &ips, IPFOBJ_STATESAVE);
+	if (error)
+		return EFAULT;
 
-	READ_ENTER(&ipf_state);
+	READ_ENTER(&softc->ipf_state);
 	isn = ips.ips_next;
 	if (isn == NULL) {
-		isn = ips_list;
+		isn = softs->ipf_state_list;
 		if (isn == NULL) {
-			RWLOCK_EXIT(&ipf_state);
-			if (ips.ips_next == NULL)
+			if (ips.ips_next == NULL) {
+				RWLOCK_EXIT(&softc->ipf_state);
+				IPFERROR(100021);
 				return ENOENT;
+			}
 			return 0;
 		}
 	} else {
@@ -681,11 +876,12 @@ caddr_t data;
 		 * current list of entries.  Security precaution to prevent
 		 * copying of random kernel data.
 		 */
-		for (is = ips_list; is; is = is->is_next)
+		for (is = softs->ipf_state_list; is; is = is->is_next)
 			if (is == isn)
 				break;
-		if (is == NULL) {
-			RWLOCK_EXIT(&ipf_state);
+		if (!is) {
+			RWLOCK_EXIT(&softc->ipf_state);
+			IPFERROR(100022);
 			return ESRCH;
 		}
 	}
@@ -695,24 +891,29 @@ caddr_t data;
 	if (isn->is_rule != NULL)
 		bcopy((char *)isn->is_rule, (char *)&ips.ips_fr,
 		      sizeof(ips.ips_fr));
-	RWLOCK_EXIT(&ipf_state);
-	error = fr_outobj(data, &ips, IPFOBJ_STATESAVE);
+	RWLOCK_EXIT(&softc->ipf_state);
+	error = ipf_outobj(softc, data, &ips, IPFOBJ_STATESAVE);
 	return error;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_stputent                                                 */
+/* Function:    ipf_state_putent                                            */
 /* Returns:     int - 0 == success, != 0 == failure                         */
-/* Parameters:  data(I) - pointer to state information struct               */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
+/*              softs(I) - pointer to state context structure               */
+/*              data(I)  - pointer to state information struct              */
 /*                                                                          */
 /* This function implements the SIOCSTPUT ioctl: insert a state entry into  */
 /* the state table.  If the state info. includes a pointer to a filter rule */
 /* then also add in an orphaned rule (will not show up in any "ipfstat -io" */
 /* output.                                                                  */
 /* ------------------------------------------------------------------------ */
-int fr_stputent(data)
-caddr_t data;
+int
+ipf_state_putent(softc, softs, data)
+	ipf_main_softc_t *softc;
+	ipf_state_softc_t *softs;
+	caddr_t data;
 {
 	ipstate_t *is, *isn;
 	ipstate_save_t ips;
@@ -720,13 +921,15 @@ caddr_t data;
 	frentry_t *fr;
 	char *name;
 
-	error = fr_inobj(data, &ips, IPFOBJ_STATESAVE);
-	if (error)
-		return EFAULT;
+	error = ipf_inobj(softc, data, NULL, &ips, IPFOBJ_STATESAVE);
+	if (error != 0)
+		return error;
 
 	KMALLOC(isn, ipstate_t *);
-	if (isn == NULL)
+	if (isn == NULL) {
+		IPFERROR(100023);
 		return ENOMEM;
+	}
 
 	bcopy((char *)&ips.ips_is, (char *)isn, sizeof(*isn));
 	bzero((char *)isn, offsetof(struct ipstate, is_pkts));
@@ -742,17 +945,21 @@ caddr_t data;
 	fr = ips.ips_rule;
 
 	if (fr == NULL) {
-		READ_ENTER(&ipf_state);
-		fr_stinsert(isn, 0);
+		int inserr;
+
+		READ_ENTER(&softc->ipf_state);
+		inserr = ipf_state_insert(softc, isn, 0);
 		MUTEX_EXIT(&isn->is_lock);
-		RWLOCK_EXIT(&ipf_state);
-		return 0;
+		RWLOCK_EXIT(&softc->ipf_state);
+
+		return inserr;
 	}
 
 	if (isn->is_flags & SI_NEWFR) {
 		KMALLOC(fr, frentry_t *);
 		if (fr == NULL) {
 			KFREE(isn);
+			IPFERROR(100024);
 			return ENOMEM;
 		}
 		bcopy((char *)&ips.ips_fr, (char *)fr, sizeof(*fr));
@@ -766,10 +973,19 @@ caddr_t data;
 		 * Look up all the interface names in the rule.
 		 */
 		for (i = 0; i < 4; i++) {
-			name = fr->fr_ifnames[i];
-			fr->fr_ifas[i] = fr_resolvenic(name, fr->fr_v);
+			if (fr->fr_ifnames[i] == -1) {
+				fr->fr_ifas[i] = NULL;
+				continue;
+			}
+			name = fr->fr_names + fr->fr_ifnames[i];
+			fr->fr_ifas[i] = ipf_resolvenic(softc, name,
+							fr->fr_family);
+		}
+
+		for (i = 0; i < 4; i++) {
 			name = isn->is_ifname[i];
-			isn->is_ifp[i] = fr_resolvenic(name, isn->is_v);
+			isn->is_ifp[i] = ipf_resolvenic(softc, name,
+							isn->is_v);
 		}
 
 		fr->fr_ref = 0;
@@ -777,31 +993,35 @@ caddr_t data;
 		fr->fr_data = NULL;
 		fr->fr_type = FR_T_NONE;
 
-		fr_resolvedest(&fr->fr_tifs[0], fr->fr_v);
-		fr_resolvedest(&fr->fr_tifs[1], fr->fr_v);
-		fr_resolvedest(&fr->fr_dif, fr->fr_v);
+		(void) ipf_resolvedest(softc, fr->fr_names, &fr->fr_tifs[0],
+				fr->fr_family);
+		(void) ipf_resolvedest(softc, fr->fr_names, &fr->fr_tifs[1],
+				fr->fr_family);
+		(void) ipf_resolvedest(softc, fr->fr_names, &fr->fr_dif,
+				fr->fr_family);
 
 		/*
 		 * send a copy back to userland of what we ended up
 		 * to allow for verification.
 		 */
-		error = fr_outobj(data, &ips, IPFOBJ_STATESAVE);
-		if (error) {
+		error = ipf_outobj(softc, data, &ips, IPFOBJ_STATESAVE);
+		if (error != 0) {
 			KFREE(isn);
 			MUTEX_DESTROY(&fr->fr_lock);
 			KFREE(fr);
+			IPFERROR(100025);
 			return EFAULT;
 		}
-		READ_ENTER(&ipf_state);
-		fr_stinsert(isn, 0);
+		READ_ENTER(&softc->ipf_state);
+		error = ipf_state_insert(softc, isn, 0);
 		MUTEX_EXIT(&isn->is_lock);
-		RWLOCK_EXIT(&ipf_state);
+		RWLOCK_EXIT(&softc->ipf_state);
 
 	} else {
-		READ_ENTER(&ipf_state);
-		for (is = ips_list; is; is = is->is_next)
+		READ_ENTER(&softc->ipf_state);
+		for (is = softs->ipf_state_list; is; is = is->is_next)
 			if (is->is_rule == fr) {
-				fr_stinsert(isn, 0);
+				error = ipf_state_insert(softc, isn, 0);
 				MUTEX_EXIT(&isn->is_lock);
 				break;
 			}
@@ -810,45 +1030,45 @@ caddr_t data;
 			KFREE(isn);
 			isn = NULL;
 		}
-		RWLOCK_EXIT(&ipf_state);
+		RWLOCK_EXIT(&softc->ipf_state);
 
-		return (isn == NULL) ? ESRCH : 0;
+		if (isn == NULL) {
+			IPFERROR(100033);
+			error = ESRCH;
+		}
 	}
 
-	return 0;
+	return error;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:   fr_stinsert                                                  */
-/* Returns:    Nil                                                          */
-/* Parameters: is(I)  - pointer to state structure                          */
-/*             rev(I) - flag indicating forward/reverse direction of packet */
+/* Function:    ipf_state_insert                                            */
+/* Returns:     int    - 0 == success, -1 == failure                        */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
+/* Parameters:  is(I)    - pointer to state structure                       */
+/*              rev(I) - flag indicating direction of packet                */
 /*                                                                          */
 /* Inserts a state structure into the hash table (for lookups) and the list */
 /* of state entries (for enumeration).  Resolves all of the interface names */
 /* to pointers and adjusts running stats for the hash table as appropriate. */
 /*                                                                          */
+/* This function can fail if the filter rule has had a population policy of */
+/* IP addresses used with stateful filteirng assigned to it.                */
+/*                                                                          */
 /* Locking: it is assumed that some kind of lock on ipf_state is held.      */
-/*          Exits with is_lock initialised and held.                        */
+/*          Exits with is_lock initialised and held - *EVEN IF ERROR*.      */
 /* ------------------------------------------------------------------------ */
-void fr_stinsert(is, rev)
-ipstate_t *is;
-int rev;
+int
+ipf_state_insert(softc, is, rev)
+	ipf_main_softc_t *softc;
+	ipstate_t *is;
+	int rev;
 {
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
 	frentry_t *fr;
 	u_int hv;
 	int i;
-
-	MUTEX_INIT(&is->is_lock, "ipf state entry");
-
-	fr = is->is_rule;
-	if (fr != NULL) {
-		MUTEX_ENTER(&fr->fr_lock);
-		fr->fr_ref++;
-		fr->fr_statecnt++;
-		MUTEX_EXIT(&fr->fr_lock);
-	}
 
 	/*
 	 * Look up all the interface names in the state entry.
@@ -856,14 +1076,16 @@ int rev;
 	for (i = 0; i < 4; i++) {
 		if (is->is_ifp[i] != NULL)
 			continue;
-		is->is_ifp[i] = fr_resolvenic(is->is_ifname[i], is->is_v);
+		is->is_ifp[i] = ipf_resolvenic(softc, is->is_ifname[i],
+					       is->is_v);
 	}
 
 	/*
-	 * If we could trust is_hv, then the modulous would not be needed, but
-	 * when running with IPFILTER_SYNC, this stops bad values.
+	 * If we could trust is_hv, then the modulous would not be needed,
+	 * but when running with IPFILTER_SYNC, this stops bad values.
 	 */
-	hv = is->is_hv % fr_statesize;
+	hv = is->is_hv % softs->ipf_state_size;
+	/* TRACE is, hv */
 	is->is_hv = hv;
 
 	/*
@@ -871,37 +1093,265 @@ int rev;
 	 * possible that once the insert is complete another packet might
 	 * come along, match the entry and want to update it.
 	 */
+	MUTEX_INIT(&is->is_lock, "ipf state entry");
 	MUTEX_ENTER(&is->is_lock);
-	MUTEX_ENTER(&ipf_stinsert);
+	MUTEX_ENTER(&softs->ipf_stinsert);
+
+	fr = is->is_rule;
+	if (fr != NULL) {
+		if ((fr->fr_srctrack.ht_max_nodes != 0) &&
+		    (ipf_ht_node_add(softc, &fr->fr_srctrack,
+				     is->is_family, &is->is_src) == -1)) {
+			SBUMPD(ipf_state_stats, iss_max_track);
+			MUTEX_EXIT(&softs->ipf_stinsert);
+			return -1;
+		}
+
+		MUTEX_ENTER(&fr->fr_lock);
+		fr->fr_ref++;
+		MUTEX_EXIT(&fr->fr_lock);
+		fr->fr_statecnt++;
+	}
+
+	if (is->is_flags & (SI_WILDP|SI_WILDA)) {
+		DT(iss_wild_plus_one);
+		SINCL(ipf_state_stats.iss_wild);
+	}
+
+	SBUMP(ipf_state_stats.iss_proto[is->is_p]);
+	SBUMP(ipf_state_stats.iss_active_proto[is->is_p]);
 
 	/*
 	 * add into list table.
 	 */
-	if (ips_list != NULL)
-		ips_list->is_pnext = &is->is_next;
-	is->is_pnext = &ips_list;
-	is->is_next = ips_list;
-	ips_list = is;
+	if (softs->ipf_state_list != NULL)
+		softs->ipf_state_list->is_pnext = &is->is_next;
+	is->is_pnext = &softs->ipf_state_list;
+	is->is_next = softs->ipf_state_list;
+	softs->ipf_state_list = is;
 
-	if (ips_table[hv] != NULL)
-		ips_table[hv]->is_phnext = &is->is_hnext;
+	if (softs->ipf_state_table[hv] != NULL)
+		softs->ipf_state_table[hv]->is_phnext = &is->is_hnext;
 	else
-		ips_stats.iss_inuse++;
-	is->is_phnext = ips_table + hv;
-	is->is_hnext = ips_table[hv];
-	ips_table[hv] = is;
-	ips_stats.iss_bucketlen[hv]++;
-	ips_num++;
-	MUTEX_EXIT(&ipf_stinsert);
+		softs->ipf_state_stats.iss_inuse++;
+	is->is_phnext = softs->ipf_state_table + hv;
+	is->is_hnext = softs->ipf_state_table[hv];
+	softs->ipf_state_table[hv] = is;
+	softs->ipf_state_stats.iss_bucketlen[hv]++;
+	softs->ipf_state_stats.iss_active++;
+	MUTEX_EXIT(&softs->ipf_stinsert);
 
-	fr_setstatequeue(is, rev);
+	ipf_state_setqueue(softc, is, rev);
+
+	return 0;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_addstate                                                 */
-/* Returns:     ipstate_t* - NULL == failure, else pointer to new state     */
-/* Parameters:  fin(I)    - pointer to packet information                   */
+/* Function:    ipf_state_matchipv4addrs                                    */
+/* Returns:     int - 2 addresses match (strong match), 1 reverse match,    */
+/*                    0 no match                                            */
+/* Parameters:  is1, is2 pointers to states we are checking                 */
+/*                                                                          */
+/* Function matches IPv4 addresses it returns strong match for ICMP proto   */
+/* even there is only reverse match                                         */
+/* ------------------------------------------------------------------------ */
+static int
+ipf_state_matchipv4addrs(is1, is2)
+	ipstate_t *is1, *is2;
+{
+	int	rv;
+
+	if (is1->is_saddr == is2->is_saddr && is1->is_daddr == is2->is_daddr)
+		rv = 2;
+	else if (is1->is_saddr == is2->is_daddr &&
+	    is1->is_daddr == is2->is_saddr) {
+		/* force strong match for ICMP protocol */
+		rv = (is1->is_p == IPPROTO_ICMP) ? 2 : 1;
+	}
+	else
+		rv = 0;
+
+	return (rv);
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_state_matchipv6addrs                                    */
+/* Returns:     int - 2 addresses match (strong match), 1 reverse match,    */
+/*                    0 no match                                            */
+/* Parameters:  is1, is2 pointers to states we are checking                 */
+/*                                                                          */
+/* Function matches IPv6 addresses it returns strong match for ICMP proto   */
+/* even there is only reverse match                                         */
+/* ------------------------------------------------------------------------ */
+static int
+ipf_state_matchipv6addrs(is1, is2)
+	ipstate_t *is1, *is2;
+{
+	int	rv;
+
+	if (IP6_EQ(&is1->is_src, &is2->is_src) &&
+	    IP6_EQ(&is1->is_dst, &is2->is_dst))
+		rv = 2;
+	else if (IP6_EQ(&is1->is_src, &is2->is_dst) &&
+	    IP6_EQ(&is1->is_dst, &is2->is_src)) {
+		/* force strong match for ICMPv6 protocol */
+		rv = (is1->is_p == IPPROTO_ICMPV6) ? 2 : 1;
+	}
+	else
+		rv = 0;
+
+	return (rv);
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_state_matchaddresses                                    */
+/* Returns:     int - 2 addresses match, 1 reverse match, zero no match     */
+/* Parameters:  is1, is2 pointers to states we are checking                 */
+/*                                                                          */
+/* function retruns true if two pairs of addresses belong to single         */
+/* connection. suppose there are two endpoints:                             */
+/*      endpoint1 1.1.1.1                                                   */
+/*      endpoint2 1.1.1.2                                                   */
+/*                                                                          */
+/* the state is established by packet flying from .1 to .2 so we see:       */
+/*      is1->src = 1.1.1.1                                                  */
+/*      is1->dst = 1.1.1.2                                                  */
+/* now endpoint 1.1.1.2 sends answer                                        */
+/* retreives is1 record created by first packat and compares it with is2    */
+/* temporal record, is2 is initialized as follows:                          */
+/*      is2->src = 1.1.1.2                                                  */
+/*      is2->dst = 1.1.1.1                                                  */
+/* in this case 1 will be returned                                          */
+/*                                                                          */
+/* the ipf_matchaddresses() assumes those two records to be same. of course */
+/* the ipf_matchaddresses() also assume records are same in case you pass   */
+/* identical arguments (i.e. ipf_matchaddress(is1, is1) would return 2      */
+/* ------------------------------------------------------------------------ */
+static int
+ipf_state_matchaddresses(is1, is2)
+	ipstate_t *is1, *is2;
+{
+	int	rv;
+
+	if (is1->is_v == 4) {
+		rv = ipf_state_matchipv4addrs(is1, is2);
+	}
+	else {
+		rv = ipf_state_matchipv6addrs(is1, is2);
+	}
+
+	return (rv);
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_matchports                                              */
+/* Returns:     int - 2 match, 1 rverse match, 0 no match                   */
+/* Parameters:  ppairs1, ppairs - src, dst ports we want to match           */
+/*                                                                          */
+/* performs the same match for isps members as for addresses                */
+/* ------------------------------------------------------------------------ */
+static int
+ipf_state_matchports(ppairs1, ppairs2)
+	udpinfo_t *ppairs1, *ppairs2;
+{
+	int	rv;
+
+	if (ppairs1->us_sport == ppairs2->us_sport &&
+	    ppairs1->us_dport == ppairs2->us_dport)
+		rv = 2;
+	else if (ppairs1->us_sport == ppairs2->us_dport &&
+		    ppairs1->us_dport == ppairs2->us_sport)
+		rv = 1;
+	else
+		rv = 0;
+
+	return (rv);
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_matchisps                                               */
+/* Returns:     int - nonzero if isps members match, 0 nomatch              */
+/* Parameters:  is1, is2 - states we want to match                          */
+/*                                                                          */
+/* performs the same match for isps members as for addresses                */
+/* ------------------------------------------------------------------------ */
+static int
+ipf_state_matchisps(is1, is2)
+	ipstate_t *is1, *is2;
+{
+	int	rv;
+
+	if (is1->is_p == is2->is_p) {
+		switch (is1->is_p)
+		{
+		case IPPROTO_TCP :
+		case IPPROTO_UDP :
+		case IPPROTO_GRE :
+			/* greinfo_t can be also interprted as port pair */
+			rv = ipf_state_matchports(&is1->is_ps.is_us,
+						  &is2->is_ps.is_us);
+			break;
+
+		case IPPROTO_ICMP :
+		case IPPROTO_ICMPV6 :
+			/* force strong match for ICMP datagram. */
+			if (bcmp(&is1->is_ps, &is2->is_ps,
+				 sizeof(icmpinfo_t)) == 0)  {
+				rv = 2;
+			} else {
+				rv = 0;
+			}
+			break;
+
+		default:
+			rv = 0;
+		}
+	} else {
+		rv = 0;
+	}
+
+	return (rv);
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_state_match                                             */
+/* Returns:     int - nonzero match, zero no match                          */
+/* Parameters:  is1, is2 - states we want to match                          */
+/*                                                                          */
+/* ------------------------------------------------------------------------ */
+static int
+ipf_state_match(is1, is2)
+	ipstate_t *is1, *is2;
+{
+	int	rv;
+	int	amatch;
+	int	pomatch;
+
+	if (bcmp(&is1->is_pass, &is2->is_pass,
+		 offsetof(struct ipstate, is_authmsk) -
+		 offsetof(struct ipstate, is_pass)) == 0) {
+
+		pomatch = ipf_state_matchisps(is1, is2);
+		amatch = ipf_state_matchaddresses(is1, is2);
+		rv = (amatch != 0) && (amatch == pomatch);
+	} else {
+		rv = 0;
+	}
+
+	return (rv);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_state_add                                               */
+/* Returns:     ipstate_t - 0 = success                                     */
+/* Parameters:  softc(I)  - pointer to soft context main structure          */
+/*              fin(I)    - pointer to packet information                   */
 /*              stsave(O) - pointer to place to save pointer to created     */
 /*                          state structure.                                */
 /*              flags(I)  - flags to use when creating the structure        */
@@ -916,25 +1366,49 @@ int rev;
 /*       either outlive this (not expired) or will deref the ip_state_t     */
 /*       when they are deleted.                                             */
 /* ------------------------------------------------------------------------ */
-ipstate_t *fr_addstate(fin, stsave, flags)
-fr_info_t *fin;
-ipstate_t **stsave;
-u_int flags;
+int
+ipf_state_add(softc, fin, stsave, flags)
+	ipf_main_softc_t *softc;
+	fr_info_t *fin;
+	ipstate_t **stsave;
+	u_int flags;
 {
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
 	ipstate_t *is, ips;
 	struct icmp *ic;
 	u_int pass, hv;
 	frentry_t *fr;
 	tcphdr_t *tcp;
-	grehdr_t *gre;
+	frdest_t *fdp;
 	int out;
 
-	if (fr_state_lock ||
-	    (fin->fin_flx & (FI_SHORT|FI_STATE|FI_FRAGBODY|FI_BAD)))
-		return NULL;
+	/*
+	 * If a packet that was created locally is trying to go out but we
+	 * do not match here here because of this lock, it is likely that
+	 * the policy will block it and return network unreachable back up
+	 * the stack. To mitigate this error, EAGAIN is returned instead,
+	 * telling the IP stack to try sending this packet again later.
+	 */
+	if (softs->ipf_state_lock) {
+		SBUMPD(ipf_state_stats, iss_add_locked);
+		fin->fin_error = EAGAIN;
+		return -1;
+	}
 
-	if ((fin->fin_flx & FI_OOW) && !(fin->fin_tcpf & TH_SYN))
-		return NULL;
+	if (fin->fin_flx & (FI_SHORT|FI_STATE|FI_FRAGBODY|FI_BAD)) {
+		SBUMPD(ipf_state_stats, iss_add_bad);
+		return -1;
+	}
+
+	if ((fin->fin_flx & FI_OOW) && !(fin->fin_tcpf & TH_SYN)) {
+		SBUMPD(ipf_state_stats, iss_add_oow);
+		return -1;
+	}
+
+	if ((softs->ipf_state_stats.iss_active * 100 / softs->ipf_state_max) >
+	    softs->ipf_state_wm_high) {
+		softs->ipf_state_doflush = 1;
+	}
 
 	/*
 	 * If a "keep state" rule has reached the maximum number of references
@@ -948,26 +1422,49 @@ u_int flags;
 	 */
 	fr = fin->fin_fr;
 	if (fr != NULL) {
-		if ((ips_num >= fr_statemax) && (fr->fr_statemax == 0)) {
-			ATOMIC_INCL(ips_stats.iss_max);
-			fr_state_doflush = 1;
-			return NULL;
+		if ((softs->ipf_state_stats.iss_active >=
+		     softs->ipf_state_max) && (fr->fr_statemax == 0)) {
+			SBUMPD(ipf_state_stats, iss_max);
+			return 1;
 		}
 		if ((fr->fr_statemax != 0) &&
 		    (fr->fr_statecnt >= fr->fr_statemax)) {
-			ATOMIC_INCL(ips_stats.iss_maxref);
-			return NULL;
+			SBUMPD(ipf_state_stats, iss_max_ref);
+			return 2;
 		}
 	}
 
-	pass = (fr == NULL) ? 0 : fr->fr_flags;
+	is = &ips;
+	if (fr == NULL) {
+		pass = softc->ipf_flags;
+		is->is_tag = FR_NOLOGTAG;
+	} else {
+		pass = fr->fr_flags;
+	}
 
 	ic = NULL;
 	tcp = NULL;
 	out = fin->fin_out;
-	is = &ips;
 	bzero((char *)is, sizeof(*is));
-	is->is_die = 1 + fr_ticks;
+	is->is_die = 1 + softc->ipf_ticks;
+	/*
+	 * We want to check everything that is a property of this packet,
+	 * but we don't (automatically) care about it's fragment status as
+	 * this may change.
+	 */
+	is->is_pass = pass;
+	is->is_v = fin->fin_v;
+	is->is_sec = fin->fin_secmsk;
+	is->is_secmsk = 0xffff;
+	is->is_auth = fin->fin_auth;
+	is->is_authmsk = 0xffff;
+	is->is_family = fin->fin_family;
+	is->is_opt[0] = fin->fin_optmsk;
+	is->is_optmsk[0] = 0xffffffff;
+	if (is->is_v == 6) {
+		is->is_opt[0] &= ~0x8;
+		is->is_optmsk[0] &= ~0x8;
+	}
 
 	/*
 	 * Copy and calculate...
@@ -1008,13 +1505,8 @@ u_int flags;
 #endif
 	if ((fin->fin_v == 4) &&
 	    (fin->fin_flx & (FI_MULTICAST|FI_BROADCAST|FI_MBCAST))) {
-		if (fin->fin_out == 0) {
-			flags |= SI_W_DADDR|SI_CLONE;
-			hv -= is->is_daddr;
-		} else {
-			flags |= SI_W_SADDR|SI_CLONE;
-			hv -= is->is_saddr;
-		}
+		flags |= SI_W_DADDR;
+		hv -= is->is_daddr;
 	}
 
 	switch (is->is_p)
@@ -1026,9 +1518,8 @@ u_int flags;
 		switch (ic->icmp_type)
 		{
 		case ICMP6_ECHO_REQUEST :
-			is->is_icmp.ici_type = ic->icmp_type;
 			hv += (is->is_icmp.ici_id = ic->icmp_id);
-			break;
+			/*FALLTHROUGH*/
 		case ICMP6_MEMBERSHIP_QUERY :
 		case ND_ROUTER_SOLICIT :
 		case ND_NEIGHBOR_SOLICIT :
@@ -1036,9 +1527,9 @@ u_int flags;
 			is->is_icmp.ici_type = ic->icmp_type;
 			break;
 		default :
-			return NULL;
+			SBUMPD(ipf_state_stats, iss_icmp6_notquery);
+			return -2;
 		}
-		ATOMIC_INCL(ips_stats.iss_icmp);
 		break;
 #endif
 	case IPPROTO_ICMP :
@@ -1054,11 +1545,12 @@ u_int flags;
 			hv += (is->is_icmp.ici_id = ic->icmp_id);
 			break;
 		default :
-			return NULL;
+			SBUMPD(ipf_state_stats, iss_icmp_notquery);
+			return -3;
 		}
-		ATOMIC_INCL(ips_stats.iss_icmp);
 		break;
 
+#if 0
 	case IPPROTO_GRE :
 		gre = fin->fin_dp;
 
@@ -1069,12 +1561,18 @@ u_int flags;
 			is->is_call[1] = fin->fin_data[1];
 		}
 		break;
+#endif
 
 	case IPPROTO_TCP :
 		tcp = fin->fin_dp;
 
-		if (tcp->th_flags & TH_RST)
-			return NULL;
+		if (tcp->th_flags & TH_RST) {
+			SBUMPD(ipf_state_stats, iss_tcp_rstadd);
+			return -4;
+		}
+
+		/* TRACE is, flags, hv */
+
 		/*
 		 * The endian of the ports doesn't matter, but the ack and
 		 * sequence numbers do as we do mathematics on them later.
@@ -1085,6 +1583,8 @@ u_int flags;
 			hv += is->is_sport;
 			hv += is->is_dport;
 		}
+
+		/* TRACE is, flags, hv */
 
 		/*
 		 * If this is a real packet then initialise fields in the
@@ -1110,15 +1610,14 @@ u_int flags;
 			if ((tcp->th_flags & ~(TH_FIN|TH_ACK|TH_ECNALL)) ==
 			    TH_SYN &&
 			    (TCP_OFF(tcp) > (sizeof(tcphdr_t) >> 2))) {
-				if (fr_tcpoptions(fin, tcp,
-					      &is->is_tcp.ts_data[0]) == -1) {
+				if (ipf_tcpoptions(softs, fin, tcp,
+					      &is->is_tcp.ts_data[0]) == -1)
 					fin->fin_flx |= FI_BAD;
-				}
 			}
 
 			if ((fin->fin_out != 0) && (pass & FR_NEWISN) != 0) {
-				fr_checknewisn(fin, is);
-				fr_fixoutisn(fin, is);
+				ipf_checknewisn(fin, is);
+				ipf_fixoutisn(fin, is);
 			}
 
 			if ((tcp->th_flags & TH_OPENING) == TH_SYN)
@@ -1132,11 +1631,10 @@ u_int flags;
 		}
 
 		/*
-		 * If we're creating state for a starting connection, start the
-		 * timer on it as we'll never see an error if it fails to
-		 * connect.
+		 * If we're creating state for a starting connection, start
+		 * the timer on it as we'll never see an error if it fails
+		 * to connect.
 		 */
-		ATOMIC_INCL(ips_stats.iss_tcp);
 		break;
 
 	case IPPROTO_UDP :
@@ -1148,7 +1646,6 @@ u_int flags;
 			hv += tcp->th_dport;
 			hv += tcp->th_sport;
 		}
-		ATOMIC_INCL(ips_stats.iss_udp);
 		break;
 
 	default :
@@ -1156,106 +1653,87 @@ u_int flags;
 	}
 	hv = DOUBLE_HASH(hv);
 	is->is_hv = hv;
-	is->is_rule = fr;
-	is->is_flags = flags & IS_INHERITED;
 
 	/*
 	 * Look for identical state.
 	 */
-	for (is = ips_table[is->is_hv % fr_statesize]; is != NULL;
-	     is = is->is_hnext) {
-		if (bcmp(&ips.is_src, &is->is_src,
-			 offsetof(struct ipstate, is_ps) -
-			 offsetof(struct ipstate, is_src)) == 0)
+	for (is = softs->ipf_state_table[hv % softs->ipf_state_size];
+	     is != NULL; is = is->is_hnext) {
+		if (ipf_state_match(&ips, is) == 1)
 			break;
 	}
-	if (is != NULL)
-		return NULL;
+	if (is != NULL) {
+		SBUMPD(ipf_state_stats, iss_add_dup);
+		return 3;
+	}
 
-	if (ips_stats.iss_bucketlen[hv] >= fr_state_maxbucket) {
-		ATOMIC_INCL(ips_stats.iss_bucketfull);
-		return NULL;
+	if (softs->ipf_state_stats.iss_bucketlen[hv] >=
+	    softs->ipf_state_maxbucket) {
+		SBUMPD(ipf_state_stats, iss_bucket_full);
+		return 4;
 	}
 	KMALLOC(is, ipstate_t *);
 	if (is == NULL) {
-		ATOMIC_INCL(ips_stats.iss_nomem);
-		return NULL;
+		SBUMPD(ipf_state_stats, iss_nomem);
+		return 5;
 	}
 	bcopy((char *)&ips, (char *)is, sizeof(*is));
+	is->is_flags = flags & IS_INHERITED;
+	is->is_rulen = fin->fin_rule;
+	is->is_rule = fr;
+
 	/*
-	 * Do not do the modulous here, it is done in fr_stinsert().
+	 * Do not do the modulous here, it is done in ipf_state_insert().
 	 */
 	if (fr != NULL) {
-		(void) strncpy(is->is_group, fr->fr_group, FR_GROUPLEN);
+		ipftq_t *tq;
+
+		(void) strncpy(is->is_group, FR_NAME(fr, fr_group),
+			       FR_GROUPLEN);
 		if (fr->fr_age[0] != 0) {
-			is->is_tqehead[0] = fr_addtimeoutqueue(&ips_utqe,
-							       fr->fr_age[0]);
+			tq = ipf_addtimeoutqueue(softc,
+						 &softs->ipf_state_usertq,
+						 fr->fr_age[0]);
+			is->is_tqehead[0] = tq;
 			is->is_sti.tqe_flags |= TQE_RULEBASED;
 		}
 		if (fr->fr_age[1] != 0) {
-			is->is_tqehead[1] = fr_addtimeoutqueue(&ips_utqe,
-							       fr->fr_age[1]);
+			tq = ipf_addtimeoutqueue(softc,
+						 &softs->ipf_state_usertq,
+						 fr->fr_age[1]);
+			is->is_tqehead[1] = tq;
 			is->is_sti.tqe_flags |= TQE_RULEBASED;
 		}
 
 		is->is_tag = fr->fr_logtag;
-
-		/*
-		 * The name '-' is special for network interfaces and causes
-		 * a NULL name to be present, always, allowing packets to
-		 * match it, regardless of their interface.
-		 */
-		if ((fin->fin_ifp == NULL) ||
-		    (fr->fr_ifnames[out << 1][0] == '-' &&
-		     fr->fr_ifnames[out << 1][1] == '\0')) {
-			is->is_ifp[out << 1] = fr->fr_ifas[0];
-			strncpy(is->is_ifname[out << 1], fr->fr_ifnames[0],
-				sizeof(fr->fr_ifnames[0]));
-		} else {
-			is->is_ifp[out << 1] = fin->fin_ifp;
-			COPYIFNAME(is->is_v, fin->fin_ifp,
-				   is->is_ifname[out << 1]);
-		}
-
-		is->is_ifp[(out << 1) + 1] = fr->fr_ifas[1];
-		strncpy(is->is_ifname[(out << 1) + 1], fr->fr_ifnames[1],
-			sizeof(fr->fr_ifnames[1]));
-
-		is->is_ifp[(1 - out) << 1] = fr->fr_ifas[2];
-		strncpy(is->is_ifname[((1 - out) << 1)], fr->fr_ifnames[2],
-			sizeof(fr->fr_ifnames[2]));
-
-		is->is_ifp[((1 - out) << 1) + 1] = fr->fr_ifas[3];
-		strncpy(is->is_ifname[((1 - out) << 1) + 1], fr->fr_ifnames[3],
-			sizeof(fr->fr_ifnames[3]));
-	} else {
-		pass = fr_flags;
-		is->is_tag = FR_NOLOGTAG;
-
-		if (fin->fin_ifp != NULL) {
-			is->is_ifp[out << 1] = fin->fin_ifp;
-			COPYIFNAME(is->is_v, fin->fin_ifp,
-				   is->is_ifname[out << 1]);
-		}
 	}
 
 	/*
-	 * It may seem strange to set is_ref to 2, but fr_check() will call
-	 * fr_statederef() after calling fr_addstate() and the idea is to
-	 * have it exist at the end of fr_check() with is_ref == 1.
+	 * It may seem strange to set is_ref to 2, but if stsave is not NULL
+	 * then a copy of the pointer is being stored somewhere else and in
+	 * the end, it will expect to be able to do osmething with it.
 	 */
-	is->is_ref = 2;
-	is->is_pass = pass;
+	is->is_me = stsave;
+	if (stsave != NULL) {
+		*stsave = is;
+		is->is_ref = 2;
+	} else {
+		is->is_ref = 1;
+	}
 	is->is_pkts[0] = 0, is->is_bytes[0] = 0;
 	is->is_pkts[1] = 0, is->is_bytes[1] = 0;
 	is->is_pkts[2] = 0, is->is_bytes[2] = 0;
 	is->is_pkts[3] = 0, is->is_bytes[3] = 0;
 	if ((fin->fin_flx & FI_IGNORE) == 0) {
 		is->is_pkts[out] = 1;
+		fin->fin_pktnum = 1;
 		is->is_bytes[out] = fin->fin_plen;
 		is->is_flx[out][0] = fin->fin_flx & FI_CMP;
 		is->is_flx[out][0] &= ~FI_OOW;
 	}
+
+	if (pass & FR_STLOOSE)
+		is->is_flags |= IS_LOOSE;
 
 	if (pass & FR_STSTRICT)
 		is->is_flags |= IS_STRICT;
@@ -1263,37 +1741,85 @@ u_int flags;
 	if (pass & FR_STATESYNC)
 		is->is_flags |= IS_STATESYNC;
 
-	/*
-	 * We want to check everything that is a property of this packet,
-	 * but we don't (automatically) care about it's fragment status as
-	 * this may change.
-	 */
-	is->is_v = fin->fin_v;
-	is->is_opt[0] = fin->fin_optmsk;
-	is->is_optmsk[0] = 0xffffffff;
-	is->is_optmsk[1] = 0xffffffff;
-	if (is->is_v == 6) {
-		is->is_opt[0] &= ~0x8;
-		is->is_optmsk[0] &= ~0x8;
-		is->is_optmsk[1] &= ~0x8;
-	}
-	is->is_me = stsave;
-	is->is_sec = fin->fin_secmsk;
-	is->is_secmsk = 0xffff;
-	is->is_auth = fin->fin_auth;
-	is->is_authmsk = 0xffff;
-	if (flags & (SI_WILDP|SI_WILDA)) {
-		ATOMIC_INCL(ips_stats.iss_wild);
-	}
-	is->is_rulen = fin->fin_rule;
-
-
 	if (pass & FR_LOGFIRST)
 		is->is_pass &= ~(FR_LOGFIRST|FR_LOG);
 
-	READ_ENTER(&ipf_state);
+	READ_ENTER(&softc->ipf_state);
 
-	fr_stinsert(is, fin->fin_rev);
+	if (ipf_state_insert(softc, is, fin->fin_rev) == -1) {
+		RWLOCK_EXIT(&softc->ipf_state);
+		/*
+		 * This is a bit more manual than it should be but
+		 * ipf_state_del cannot be called.
+		 */
+		MUTEX_EXIT(&is->is_lock);
+		MUTEX_DESTROY(&is->is_lock);
+		if (is->is_tqehead[0] != NULL) {
+			if (ipf_deletetimeoutqueue(is->is_tqehead[0]) == 0)
+				ipf_freetimeoutqueue(softc, is->is_tqehead[0]);
+			is->is_tqehead[0] = NULL;
+		}
+		if (is->is_tqehead[1] != NULL) {
+			if (ipf_deletetimeoutqueue(is->is_tqehead[1]) == 0)
+				ipf_freetimeoutqueue(softc, is->is_tqehead[1]);
+			is->is_tqehead[1] = NULL;
+		}
+		KFREE(is);
+		return -1;
+	}
+
+	/*
+	 * Filling in the interface name is after the insert so that an
+	 * event (such as add/delete) of an interface that is referenced
+	 * by this rule will see this state entry.
+	 */
+	if (fr != NULL) {
+		/*
+		 * The name '-' is special for network interfaces and causes
+		 * a NULL name to be present, always, allowing packets to
+		 * match it, regardless of their interface.
+		 */
+		if ((fin->fin_ifp == NULL) ||
+		    (fr->fr_ifnames[out << 1] != -1 &&
+		     fr->fr_names[fr->fr_ifnames[out << 1] + 0] == '-' &&
+		     fr->fr_names[fr->fr_ifnames[out << 1] + 1] == '\0')) {
+			is->is_ifp[out << 1] = fr->fr_ifas[0];
+			strncpy(is->is_ifname[out << 1],
+				fr->fr_names + fr->fr_ifnames[0],
+				sizeof(fr->fr_ifnames[0]));
+		} else {
+			is->is_ifp[out << 1] = fin->fin_ifp;
+			COPYIFNAME(fin->fin_v, fin->fin_ifp,
+				   is->is_ifname[out << 1]);
+		}
+
+		is->is_ifp[(out << 1) + 1] = fr->fr_ifas[1];
+		if (fr->fr_ifnames[1] != -1) {
+			strncpy(is->is_ifname[(out << 1) + 1],
+				fr->fr_names + fr->fr_ifnames[1],
+				sizeof(fr->fr_ifnames[1]));
+		}
+
+		is->is_ifp[(1 - out) << 1] = fr->fr_ifas[2];
+		if (fr->fr_ifnames[2] != -1) {
+			strncpy(is->is_ifname[((1 - out) << 1)],
+				fr->fr_names + fr->fr_ifnames[2],
+				sizeof(fr->fr_ifnames[2]));
+		}
+
+		is->is_ifp[((1 - out) << 1) + 1] = fr->fr_ifas[3];
+		if (fr->fr_ifnames[3] != -1) {
+			strncpy(is->is_ifname[((1 - out) << 1) + 1],
+				fr->fr_names + fr->fr_ifnames[3],
+				sizeof(fr->fr_ifnames[3]));
+		}
+	} else {
+		if (fin->fin_ifp != NULL) {
+			is->is_ifp[out << 1] = fin->fin_ifp;
+			COPYIFNAME(fin->fin_v, fin->fin_ifp,
+				   is->is_ifname[out << 1]);
+		}
+	}
 
 	if (fin->fin_p == IPPROTO_TCP) {
 		/*
@@ -1301,56 +1827,79 @@ u_int flags;
 		* timer on it as we'll never see an error if it fails to
 		* connect.
 		*/
-		(void) fr_tcp_age(&is->is_sti, fin, ips_tqtqb, is->is_flags);
-		MUTEX_EXIT(&is->is_lock);
-#ifdef	IPFILTER_SCAN
-		if ((is->is_flags & SI_CLONE) == 0)
-			(void) ipsc_attachis(is);
-#endif
-	} else {
-		MUTEX_EXIT(&is->is_lock);
+		(void) ipf_tcp_age(&is->is_sti, fin, softs->ipf_state_tcptq,
+				   is->is_flags, 2);
 	}
-#ifdef	IPFILTER_SYNC
+	MUTEX_EXIT(&is->is_lock);
 	if ((is->is_flags & IS_STATESYNC) && ((is->is_flags & SI_CLONE) == 0))
-		is->is_sync = ipfsync_new(SMC_STATE, fin, is);
-#endif
-	if (ipstate_logging)
-		ipstate_log(is, ISL_NEW);
+		is->is_sync = ipf_sync_new(softc, SMC_STATE, fin, is);
+	if (softs->ipf_state_logging)
+		ipf_state_log(softc, is, ISL_NEW);
 
-	RWLOCK_EXIT(&ipf_state);
-	fin->fin_state = is;
-	fin->fin_rev = IP6_NEQ(&is->is_dst, &fin->fin_daddr);
+	RWLOCK_EXIT(&softc->ipf_state);
+
 	fin->fin_flx |= FI_STATE;
 	if (fin->fin_flx & FI_FRAG)
-		(void) fr_newfrag(fin, pass ^ FR_KEEPSTATE);
+		(void) ipf_frag_new(softc, fin, pass);
 
-	return is;
+	fdp = &fr->fr_tifs[0];
+	if (fdp->fd_type == FRD_DSTLIST) {
+		ipf_dstlist_select_node(fin, fdp->fd_ptr, NULL,
+					&is->is_tifs[0]);
+	} else {
+		bcopy(fdp, &is->is_tifs[0], sizeof(*fdp));
+	}
+
+	fdp = &fr->fr_tifs[1];
+	if (fdp->fd_type == FRD_DSTLIST) {
+		ipf_dstlist_select_node(fin, fdp->fd_ptr, NULL,
+					&is->is_tifs[1]);
+	} else {
+		bcopy(fdp, &is->is_tifs[1], sizeof(*fdp));
+	}
+	fin->fin_tif = &is->is_tifs[fin->fin_rev];
+
+	fdp = &fr->fr_dif;
+	if (fdp->fd_type == FRD_DSTLIST) {
+		ipf_dstlist_select_node(fin, fdp->fd_ptr, NULL,
+					&is->is_dif);
+	} else {
+		bcopy(fdp, &is->is_dif, sizeof(*fdp));
+	}
+	fin->fin_dif = &is->is_dif;
+
+	return 0;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_tcpoptions                                               */
+/* Function:    ipf_tcpoptions                                              */
 /* Returns:     int - 1 == packet matches state entry, 0 == it does not,    */
 /*                   -1 == packet has bad TCP options data                  */
-/* Parameters:  fin(I) - pointer to packet information                      */
+/* Parameters:  softs(I) - pointer to state context structure               */
+/*              fin(I) - pointer to packet information                      */
 /*              tcp(I) - pointer to TCP packet header                       */
 /*              td(I)  - pointer to TCP data held as part of the state      */
 /*                                                                          */
 /* Look after the TCP header for any options and deal with those that are   */
 /* present.  Record details about those that we recogise.                   */
 /* ------------------------------------------------------------------------ */
-static int fr_tcpoptions(fin, tcp, td)
-fr_info_t *fin;
-tcphdr_t *tcp;
-tcpdata_t *td;
+static int
+ipf_tcpoptions(softs, fin, tcp, td)
+	ipf_state_softc_t *softs;
+	fr_info_t *fin;
+	tcphdr_t *tcp;
+	tcpdata_t *td;
 {
 	int off, mlen, ol, i, len, retval;
 	char buf[64], *s, opt;
 	mb_t *m = NULL;
 
 	len = (TCP_OFF(tcp) << 2);
-	if (fin->fin_dlen < len)
+	if (fin->fin_dlen < len) {
+		SBUMPD(ipf_state_stats, iss_tcp_toosmall);
 		return 0;
+	}
 	len -= sizeof(*tcp);
 
 	off = fin->fin_plen - fin->fin_dlen + sizeof(*tcp) + fin->fin_ipoff;
@@ -1422,14 +1971,19 @@ tcpdata_t *td;
 		len -= ol;
 		s += ol;
 	}
+	if (retval == -1) {
+		SBUMPD(ipf_state_stats, iss_tcp_badopt);
+	}
 	return retval;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_tcpstate                                                 */
+/* Function:    ipf_state_tcp                                               */
 /* Returns:     int - 1 == packet matches state entry, 0 == it does not     */
-/* Parameters:  fin(I)   - pointer to packet information                    */
+/* Parameters:  softc(I)  - pointer to soft context main structure          */
+/*              softs(I) - pointer to state context structure               */
+/*              fin(I)   - pointer to packet information                    */
 /*              tcp(I)   - pointer to TCP packet header                     */
 /*              is(I)  - pointer to master state structure                  */
 /*                                                                          */
@@ -1437,16 +1991,19 @@ tcpdata_t *td;
 /* Change timeout depending on whether new packet is a SYN-ACK returning    */
 /* for a SYN or a RST or FIN which indicate time to close up shop.          */
 /* ------------------------------------------------------------------------ */
-static int fr_tcpstate(fin, tcp, is)
-fr_info_t *fin;
-tcphdr_t *tcp;
-ipstate_t *is;
+static int
+ipf_state_tcp(softc, softs, fin, tcp, is)
+	ipf_main_softc_t *softc;
+	ipf_state_softc_t *softs;
+	fr_info_t *fin;
+	tcphdr_t *tcp;
+	ipstate_t *is;
 {
-	int source, ret = 0, flags;
 	tcpdata_t  *fdata, *tdata;
+	int source, ret, flags;
 
 	source = !fin->fin_rev;
-	if (((is->is_flags & IS_TCPFSM) != 0) && (source == 1) && 
+	if (((is->is_flags & IS_TCPFSM) != 0) && (source == 1) &&
 	    (ntohs(is->is_sport) != fin->fin_data[0]))
 		source = 0;
 	fdata = &is->is_tcp.ts_data[!source];
@@ -1462,33 +2019,36 @@ ipstate_t *is;
 		if ((is->is_state[0] > IPF_TCPS_ESTABLISHED) &&
 		    (is->is_state[1] > IPF_TCPS_ESTABLISHED)) {
 			is->is_state[!source] = IPF_TCPS_CLOSED;
-			fr_movequeue(&is->is_sti, is->is_sti.tqe_ifq,
-				     &ips_deletetq);
+			ipf_movequeue(softc->ipf_ticks, &is->is_sti,
+				      is->is_sti.tqe_ifq,
+				      &softs->ipf_state_deletetq);
 			MUTEX_EXIT(&is->is_lock);
+			DT1(iss_tcp_closing, ipstate_t *, is);
+			SBUMP(ipf_state_stats.iss_tcp_closing);
 			return 0;
 		}
 	}
 
-	ret = fr_tcpinwindow(fin, fdata, tdata, tcp, is->is_flags);
+	if (is->is_flags & IS_LOOSE)
+		ret = 1;
+	else
+		ret = ipf_state_tcpinwindow(fin, fdata, tdata, tcp,
+					    is->is_flags);
 	if (ret > 0) {
-#ifdef	IPFILTER_SCAN
-		if (is->is_flags & (IS_SC_CLIENT|IS_SC_SERVER)) {
-			ipsc_packet(fin, is);
-			if (FR_ISBLOCK(is->is_pass)) {
-				MUTEX_EXIT(&is->is_lock);
-				return 1;
-			}
-		}
-#endif
-
 		/*
 		 * Nearing end of connection, start timeout.
 		 */
-		ret = fr_tcp_age(&is->is_sti, fin, ips_tqtqb, is->is_flags);
+		ret = ipf_tcp_age(&is->is_sti, fin, softs->ipf_state_tcptq,
+				  is->is_flags, ret);
 		if (ret == 0) {
 			MUTEX_EXIT(&is->is_lock);
+			DT2(iss_tcp_fsm, fr_info_t *, fin, ipstate_t *, is);
+			SBUMP(ipf_state_stats.iss_tcp_fsm);
 			return 0;
 		}
+
+		if (softs->ipf_state_logging > 4)
+			ipf_state_log(softc, is, ISL_STATECHANGE);
 
 		/*
 		 * set s0's as appropriate.  Use syn-ack packet as it
@@ -1503,25 +2063,29 @@ ipstate_t *is;
 			is->is_s0[source] = ntohl(tcp->th_ack);
 			is->is_s0[!source] = ntohl(tcp->th_seq) + 1;
 			if ((TCP_OFF(tcp) > (sizeof(tcphdr_t) >> 2))) {
-				if (fr_tcpoptions(fin, tcp, fdata) == -1)
+				if (ipf_tcpoptions(softs, fin, tcp,
+						   fdata) == -1)
 					fin->fin_flx |= FI_BAD;
 			}
 			if ((fin->fin_out != 0) && (is->is_pass & FR_NEWISN))
-				fr_checknewisn(fin, is);
+				ipf_checknewisn(fin, is);
 		} else if (flags == TH_SYN) {
 			is->is_s0[source] = ntohl(tcp->th_seq) + 1;
 			if ((TCP_OFF(tcp) > (sizeof(tcphdr_t) >> 2))) {
-				if (fr_tcpoptions(fin, tcp, fdata) == -1)
+				if (ipf_tcpoptions(softs, fin, tcp,
+						   fdata) == -1)
 					fin->fin_flx |= FI_BAD;
 			}
 
 			if ((fin->fin_out != 0) && (is->is_pass & FR_NEWISN))
-				fr_checknewisn(fin, is);
+				ipf_checknewisn(fin, is);
 
 		}
 		ret = 1;
 	} else {
-		fin->fin_flx |= FI_OOW;
+		DT2(iss_tcp_oow, fr_info_t *, fin, ipstate_t *, is);
+		SBUMP(ipf_state_stats.iss_tcp_oow);
+		ret = 0;
 	}
 	MUTEX_EXIT(&is->is_lock);
 	return ret;
@@ -1529,7 +2093,7 @@ ipstate_t *is;
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_checknewisn                                              */
+/* Function:    ipf_checknewisn                                             */
 /* Returns:     Nil                                                         */
 /* Parameters:  fin(I)   - pointer to packet information                    */
 /*              is(I)  - pointer to master state structure                  */
@@ -1540,9 +2104,10 @@ ipstate_t *is;
 /* NOTE: This does not actually change the sequence numbers, only gets new  */
 /* one ready.                                                               */
 /* ------------------------------------------------------------------------ */
-static void fr_checknewisn(fin, is)
-fr_info_t *fin;
-ipstate_t *is;
+static void
+ipf_checknewisn(fin, is)
+	fr_info_t *fin;
+	ipstate_t *is;
 {
 	u_32_t sumd, old, new;
 	tcphdr_t *tcp;
@@ -1554,7 +2119,7 @@ ipstate_t *is;
 	if (((i == 0) && !(is->is_flags & IS_ISNSYN)) ||
 	    ((i == 1) && !(is->is_flags & IS_ISNACK))) {
 		old = ntohl(tcp->th_seq);
-		new = fr_newisn(fin);
+		new = ipf_newisn(fin);
 		is->is_isninc[i] = new - old;
 		CALC_SUMD(old, new, sumd);
 		is->is_sumd[i] = (sumd & 0xffff) + (sumd >> 16);
@@ -1565,9 +2130,8 @@ ipstate_t *is;
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_tcpinwindow                                              */
-/* Returns:     int - 1 == packet inside TCP "window", 0 == not inside,     */
-/*                    2 == packet seq number matches next expected          */
+/* Function:    ipf_state_tcpinwindow                                       */
+/* Returns:     int - 1 == packet inside TCP "window", 0 == not inside.     */
 /* Parameters:  fin(I)   - pointer to packet information                    */
 /*              fdata(I) - pointer to tcp state informatio (forward)        */
 /*              tdata(I) - pointer to tcp state informatio (reverse)        */
@@ -1577,12 +2141,15 @@ ipstate_t *is;
 /* within the TCP data window.  In a show of generosity, allow packets that */
 /* are within the window space behind the current sequence # as well.       */
 /* ------------------------------------------------------------------------ */
-int fr_tcpinwindow(fin, fdata, tdata, tcp, flags)
-fr_info_t *fin;
-tcpdata_t  *fdata, *tdata;
-tcphdr_t *tcp;
-int flags;
+static int
+ipf_state_tcpinwindow(fin, fdata, tdata, tcp, flags)
+	fr_info_t *fin;
+	tcpdata_t  *fdata, *tdata;
+	tcphdr_t *tcp;
+	int flags;
 {
+	ipf_main_softc_t *softc = fin->fin_main_soft;
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
 	tcp_seq seq, ack, end;
 	int ackskew, tcpflags;
 	u_32_t win, maxwin;
@@ -1651,12 +2218,17 @@ int flags;
 	/*
 	 * Strict sequencing only allows in-order delivery.
 	 */
-	if (seq != fdata->td_end) {
-		if ((flags & IS_STRICT) != 0) {
+	if ((flags & IS_STRICT) != 0) {
+		if (seq != fdata->td_end) {
+			DT2(iss_tcp_struct, tcpdata_t *, fdata, int, seq);
+			SBUMP(ipf_state_stats.iss_tcp_strict);
+			fin->fin_flx |= FI_OOW;
 			return 0;
 		}
 	}
 
+#define	SEQ_GE(a,b)	((int)((a) - (b)) >= 0)
+#define	SEQ_GT(a,b)	((int)((a) - (b)) > 0)
 	inseq = 0;
 	if ((SEQ_GE(fdata->td_maxend, end)) &&
 	    (SEQ_GE(seq, fdata->td_end - maxwin)) &&
@@ -1672,6 +2244,8 @@ int flags;
 	} else if ((seq == fdata->td_maxend) && (ackskew == 0) &&
 	    (fdata->td_winflags & TCP_SACK_PERMIT) &&
 	    (tdata->td_winflags & TCP_SACK_PERMIT)) {
+		DT2(iss_sinsack, tcpdata_t *, fdata, int, seq);
+		SBUMP(ipf_state_stats.iss_winsack);
 		inseq = 1;
 	/*
 	 * Sometimes a TCP RST will be generated with only the ACK field
@@ -1693,7 +2267,7 @@ int flags;
 			 * accepted, even if it appears out of sequence.
 			 */
 			inseq = 1;
-		} else 
+		} else
 #endif
 		if (!(fdata->td_winflags &
 			    (TCP_WSCALE_SEEN|TCP_WSCALE_FIRST))) {
@@ -1737,12 +2311,14 @@ int flags;
 			tdata->td_maxend = ack + win;
 		return 1;
 	}
+	SBUMP(ipf_state_stats.iss_oow);
+	fin->fin_flx |= FI_OOW;
 	return 0;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_stclone                                                  */
+/* Function:    ipf_state_clone                                             */
 /* Returns:     ipstate_t* - NULL == cloning failed,                        */
 /*                           else pointer to new state structure            */
 /* Parameters:  fin(I) - pointer to packet information                      */
@@ -1751,27 +2327,40 @@ int flags;
 /*                                                                          */
 /* Create a "duplcate" state table entry from the master.                   */
 /* ------------------------------------------------------------------------ */
-static ipstate_t *fr_stclone(fin, tcp, is)
-fr_info_t *fin;
-tcphdr_t *tcp;
-ipstate_t *is;
+static ipstate_t *
+ipf_state_clone(fin, tcp, is)
+	fr_info_t *fin;
+	tcphdr_t *tcp;
+	ipstate_t *is;
 {
+	ipf_main_softc_t *softc = fin->fin_main_soft;
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
 	ipstate_t *clone;
 	u_32_t send;
 
-	if (ips_num == fr_statemax) {
-		ATOMIC_INCL(ips_stats.iss_max);
-		fr_state_doflush = 1;
+	if (softs->ipf_state_stats.iss_active == softs->ipf_state_max) {
+		SBUMPD(ipf_state_stats, iss_max);
+		softs->ipf_state_doflush = 1;
 		return NULL;
 	}
 	KMALLOC(clone, ipstate_t *);
-	if (clone == NULL)
+	if (clone == NULL) {
+		SBUMPD(ipf_state_stats, iss_clone_nomem);
 		return NULL;
+	}
 	bcopy((char *)is, (char *)clone, sizeof(*clone));
 
 	MUTEX_NUKE(&clone->is_lock);
+	/*
+	 * It has not yet been placed on any timeout queue, so make sure
+	 * all of that data is zero'd out.
+	 */
+	clone->is_sti.tqe_pnext = NULL;
+	clone->is_sti.tqe_next = NULL;
+	clone->is_sti.tqe_ifq = NULL;
+	clone->is_sti.tqe_parent = clone;
 
-	clone->is_die = ONE_DAY + fr_ticks;
+	clone->is_die = ONE_DAY + softc->ipf_ticks;
 	clone->is_state[0] = 0;
 	clone->is_state[1] = 0;
 	send = ntohl(tcp->th_seq) + fin->fin_dlen - (TCP_OFF(tcp) << 2) +
@@ -1798,48 +2387,60 @@ ipstate_t *is;
 
 	clone->is_flags &= ~SI_CLONE;
 	clone->is_flags |= SI_CLONED;
-	fr_stinsert(clone, fin->fin_rev);
-	clone->is_ref = 2;
+	if (ipf_state_insert(softc, clone, fin->fin_rev) == -1) {
+		KFREE(clone);
+		return NULL;
+	}
+
+	clone->is_ref = 1;
 	if (clone->is_p == IPPROTO_TCP) {
-		(void) fr_tcp_age(&clone->is_sti, fin, ips_tqtqb,
-				  clone->is_flags);
+		(void) ipf_tcp_age(&clone->is_sti, fin, softs->ipf_state_tcptq,
+				   clone->is_flags, 2);
 	}
 	MUTEX_EXIT(&clone->is_lock);
-#ifdef	IPFILTER_SCAN
-	(void) ipsc_attachis(is);
-#endif
-#ifdef	IPFILTER_SYNC
 	if (is->is_flags & IS_STATESYNC)
-		clone->is_sync = ipfsync_new(SMC_STATE, fin, clone);
-#endif
+		clone->is_sync = ipf_sync_new(softc, SMC_STATE, fin, clone);
+	DT2(iss_clone, ipstate_t *, is, ipstate_t *, clone);
+	SBUMP(ipf_state_stats.iss_cloned);
 	return clone;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_matchsrcdst                                              */
+/* Function:    ipf_matchsrcdst                                             */
 /* Returns:     Nil                                                         */
-/* Parameters:  fin(I) - pointer to packet information                      */
-/*              is(I)  - pointer to state structure                         */
-/*              src(I) - pointer to source address                          */
-/*              dst(I) - pointer to destination address                     */
-/*              tcp(I) - pointer to TCP/UDP header                          */
+/* Parameters:  fin(I)   - pointer to packet information                    */
+/*              is(I)    - pointer to state structure                       */
+/*              src(I)   - pointer to source address                        */
+/*              dst(I)   - pointer to destination address                   */
+/*              tcp(I)   - pointer to TCP/UDP header                        */
+/*              cmask(I) - mask of FI_* bits to check                       */
 /*                                                                          */
 /* Match a state table entry against an IP packet.  The logic below is that */
 /* ret gets set to one if the match succeeds, else remains 0.  If it is     */
 /* still 0 after the test. no match.                                        */
 /* ------------------------------------------------------------------------ */
-static ipstate_t *fr_matchsrcdst(fin, is, src, dst, tcp, cmask)
-fr_info_t *fin;
-ipstate_t *is;
-i6addr_t *src, *dst;
-tcphdr_t *tcp;
-u_32_t cmask;
+static ipstate_t *
+ipf_matchsrcdst(fin, is, src, dst, tcp, cmask)
+	fr_info_t *fin;
+	ipstate_t *is;
+	i6addr_t *src, *dst;
+	tcphdr_t *tcp;
+	u_32_t cmask;
 {
+	ipf_main_softc_t *softc = fin->fin_main_soft;
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
 	int ret = 0, rev, out, flags, flx = 0, idx;
 	u_short sp, dp;
 	u_32_t cflx;
 	void *ifp;
+
+	/*
+	 * If a connection is about to be deleted, no packets
+	 * are allowed to match it.
+	 */
+	if (is->is_sti.tqe_ifq == &softs->ipf_state_deletetq)
+		return NULL;
 
 	rev = IP6_NEQ(&is->is_dst, dst);
 	ifp = fin->fin_ifp;
@@ -1872,8 +2473,12 @@ u_32_t cmask;
 	     *is->is_ifname[idx] == '*')))
 		ret = 1;
 
-	if (ret == 0)
+	if (ret == 0) {
+		DT2(iss_lookup_badifp, fr_info_t *, fin, ipstate_t *, is);
+		SBUMP(ipf_state_stats.iss_lookup_badifp);
+		/* TRACE is, out, rev, idx */
 		return NULL;
+	}
 	ret = 0;
 
 	/*
@@ -1883,7 +2488,8 @@ u_32_t cmask;
 		if ((IP6_EQ(&is->is_dst, dst) || (flags & SI_W_DADDR)) &&
 		    (IP6_EQ(&is->is_src, src) || (flags & SI_W_SADDR))) {
 			if (tcp) {
-				if ((sp == is->is_sport || flags & SI_W_SPORT)&&
+				if ((sp == is->is_sport || flags & SI_W_SPORT)
+				    &&
 				    (dp == is->is_dport || flags & SI_W_DPORT))
 					ret = 1;
 			} else {
@@ -1894,7 +2500,8 @@ u_32_t cmask;
 		if ((IP6_EQ(&is->is_dst, src) || (flags & SI_W_DADDR)) &&
 		    (IP6_EQ(&is->is_src, dst) || (flags & SI_W_SADDR))) {
 			if (tcp) {
-				if ((dp == is->is_sport || flags & SI_W_SPORT)&&
+				if ((dp == is->is_sport || flags & SI_W_SPORT)
+				    &&
 				    (sp == is->is_dport || flags & SI_W_DPORT))
 					ret = 1;
 			} else {
@@ -1903,8 +2510,12 @@ u_32_t cmask;
 		}
 	}
 
-	if (ret == 0)
+	if (ret == 0) {
+		SBUMP(ipf_state_stats.iss_lookup_badport);
+		DT2(iss_lookup_badport, fr_info_t *, fin, ipstate_t *, is);
+		/* TRACE rev, is, sp, dp, src, dst */
 		return NULL;
+	}
 
 	/*
 	 * Whether or not this should be here, is questionable, but the aim
@@ -1925,55 +2536,27 @@ u_32_t cmask;
 
 		if ((flags & SI_W_SADDR) != 0) {
 			if (rev == 0) {
-#ifdef USE_INET6
-				if (is->is_v == 6 &&
-				    IN6_IS_ADDR_MULTICAST(&fi->fi_src.in6))
-					/*EMPTY*/;
-				else
-#endif
-				{
-					is->is_src = fi->fi_src;
-					is->is_flags &= ~SI_W_SADDR;
-				}
+				is->is_src = fi->fi_src;
+				is->is_flags &= ~SI_W_SADDR;
 			} else {
-#ifdef USE_INET6
-				if (is->is_v == 6 &&
-				    IN6_IS_ADDR_MULTICAST(&fi->fi_dst.in6))
-					/*EMPTY*/;
-				else
-#endif
-				{
+				if (!(fin->fin_flx & (FI_MULTICAST|FI_MBCAST))){
 					is->is_src = fi->fi_dst;
 					is->is_flags &= ~SI_W_SADDR;
 				}
 			}
 		} else if ((flags & SI_W_DADDR) != 0) {
 			if (rev == 0) {
-#ifdef USE_INET6
-				if (is->is_v == 6 &&
-				    IN6_IS_ADDR_MULTICAST(&fi->fi_dst.in6))
-					/*EMPTY*/;
-				else
-#endif
-				{
+				if (!(fin->fin_flx & (FI_MULTICAST|FI_MBCAST))){
 					is->is_dst = fi->fi_dst;
 					is->is_flags &= ~SI_W_DADDR;
 				}
 			} else {
-#ifdef USE_INET6
-				if (is->is_v == 6 &&
-				    IN6_IS_ADDR_MULTICAST(&fi->fi_src.in6))
-					/*EMPTY*/;
-				else
-#endif
-				{
-					is->is_dst = fi->fi_src;
-					is->is_flags &= ~SI_W_DADDR;
-				}
+				is->is_dst = fi->fi_src;
+				is->is_flags &= ~SI_W_DADDR;
 			}
 		}
 		if ((is->is_flags & (SI_WILDA|SI_WILDP)) == 0) {
-			ATOMIC_DECL(ips_stats.iss_wild);
+			ATOMIC_DECL(softs->ipf_state_stats.iss_wild);
 		}
 	}
 
@@ -1986,29 +2569,31 @@ u_32_t cmask;
 	if ((cflx && (flx != (cflx & cmask))) ||
 	    ((fin->fin_optmsk & is->is_optmsk[rev]) != is->is_opt[rev]) ||
 	    ((fin->fin_secmsk & is->is_secmsk) != is->is_sec) ||
-	    ((fin->fin_auth & is->is_authmsk) != is->is_auth))
+	    ((fin->fin_auth & is->is_authmsk) != is->is_auth)) {
+		SBUMPD(ipf_state_stats, iss_miss_mask);
 		return NULL;
+	}
+
+	if ((fin->fin_flx & FI_IGNORE) != 0) {
+		fin->fin_rev = rev;
+		return is;
+	}
 
 	/*
 	 * Only one of the source or destination port can be flagged as a
 	 * wildcard.  When filling it in, fill in a copy of the matched entry
 	 * if it has the cloning flag set.
 	 */
-	if ((fin->fin_flx & FI_IGNORE) != 0) {
-		fin->fin_rev = rev;
-		return is;
-	}
-
 	if ((flags & (SI_W_SPORT|SI_W_DPORT))) {
 		if ((flags & SI_CLONE) != 0) {
 			ipstate_t *clone;
 
-			clone = fr_stclone(fin, tcp, is);
+			clone = ipf_state_clone(fin, tcp, is);
 			if (clone == NULL)
 				return NULL;
 			is = clone;
 		} else {
-			ATOMIC_DECL(ips_stats.iss_wild);
+			ATOMIC_DECL(softs->ipf_state_stats.iss_wild);
 		}
 
 		if ((flags & SI_W_SPORT) != 0) {
@@ -2031,18 +2616,21 @@ u_32_t cmask;
 			is->is_maxdend = is->is_dend + 1;
 		}
 		is->is_flags &= ~(SI_W_SPORT|SI_W_DPORT);
-		if ((flags & SI_CLONED) && ipstate_logging)
-			ipstate_log(is, ISL_CLONE);
+		if ((flags & SI_CLONED) && softs->ipf_state_logging)
+			ipf_state_log(softc, is, ISL_CLONE);
 	}
 
 	ret = -1;
 
 	if (is->is_flx[out][rev] == 0) {
 		is->is_flx[out][rev] = flx;
-		is->is_opt[rev] = fin->fin_optmsk;
-		if (is->is_v == 6) {
-			is->is_opt[rev] &= ~0x8;
-			is->is_optmsk[rev] &= ~0x8;
+		if (rev == 1 && is->is_optmsk[1] == 0) {
+			is->is_opt[1] = fin->fin_optmsk;
+			is->is_optmsk[1] = 0xffffffff;
+			if (is->is_v == 6) {
+				is->is_opt[1] &= ~0x8;
+				is->is_optmsk[1] &= ~0x8;
+			}
 		}
 	}
 
@@ -2053,7 +2641,7 @@ u_32_t cmask;
 	if (is->is_ifp[idx] == NULL &&
 	    (*is->is_ifname[idx] == '\0' || *is->is_ifname[idx] == '*')) {
 		is->is_ifp[idx] = ifp;
-		COPYIFNAME(is->is_v, ifp, is->is_ifname[idx]);
+		COPYIFNAME(fin->fin_v, ifp, is->is_ifname[idx]);
 	}
 	fin->fin_rev = rev;
 	return is;
@@ -2061,7 +2649,7 @@ u_32_t cmask;
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_checkicmpmatchingstate                                   */
+/* Function:    ipf_checkicmpmatchingstate                                  */
 /* Returns:     Nil                                                         */
 /* Parameters:  fin(I) - pointer to packet information                      */
 /*                                                                          */
@@ -2071,13 +2659,13 @@ u_32_t cmask;
 /* If we return NULL then no lock on ipf_state is held.                     */
 /* If we return non-null then a read-lock on ipf_state is held.             */
 /* ------------------------------------------------------------------------ */
-static ipstate_t *fr_checkicmpmatchingstate(fin)
-fr_info_t *fin;
+static ipstate_t *
+ipf_checkicmpmatchingstate(fin)
+	fr_info_t *fin;
 {
+	ipf_main_softc_t *softc = fin->fin_main_soft;
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
 	ipstate_t *is, **isp;
-	u_short sport, dport;
-	u_char	pr;
-	int backward, i, oi;
 	i6addr_t dst, src;
 	struct icmp *ic;
 	u_short savelen;
@@ -2085,6 +2673,7 @@ fr_info_t *fin;
 	fr_info_t ofin;
 	tcphdr_t *tcp;
 	int type, len;
+	u_char	pr;
 	ip_t *oip;
 	u_int hv;
 
@@ -2096,8 +2685,10 @@ fr_info_t *fin;
 	 */
 	if ((fin->fin_v != 4) || (fin->fin_hlen != sizeof(ip_t)) ||
 	    (fin->fin_plen < ICMPERR_MINPKTLEN) ||
-	    !(fin->fin_flx & FI_ICMPERR))
+	    !(fin->fin_flx & FI_ICMPERR)) {
+		SBUMPD(ipf_state_stats, iss_icmp_bad);
 		return NULL;
+	}
 	ic = fin->fin_dp;
 	type = ic->icmp_type;
 
@@ -2106,15 +2697,20 @@ fr_info_t *fin;
 	 * Check if the at least the old IP header (with options) and
 	 * 8 bytes of payload is present.
 	 */
-	if (fin->fin_plen < ICMPERR_MAXPKTLEN + ((IP_HL(oip) - 5) << 2))
+	if (fin->fin_plen < ICMPERR_MAXPKTLEN + ((IP_HL(oip) - 5) << 2)) {
+		SBUMPDX(ipf_state_stats, iss_icmp_short, iss_icmp_short_1);
 		return NULL;
+	}
 
 	/*
 	 * Sanity Checks.
 	 */
 	len = fin->fin_dlen - ICMPERR_ICMPHLEN;
-	if ((len <= 0) || ((IP_HL(oip) << 2) > len))
+	if ((len <= 0) || ((IP_HL(oip) << 2) > len)) {
+		DT2(iss_icmp_len, fr_info_t *, fin, struct ip*, oip);
+		SBUMPDX(ipf_state_stats, iss_icmp_short, iss_icmp_short_1);
 		return NULL;
+	}
 
 	/*
 	 * Is the buffer big enough for all of it ?  It's the size of the IP
@@ -2122,7 +2718,7 @@ fr_info_t *fin;
 	 * may be too big to be in this buffer but not so big that it's
 	 * outside the ICMP packet, leading to TCP deref's causing problems.
 	 * This is possible because we don't know how big oip_hl is when we
-	 * do the pullup early in fr_check() and thus can't guarantee it is
+	 * do the pullup early in ipf_check() and thus can't guarantee it is
 	 * all here now.
 	 */
 #ifdef  _KERNEL
@@ -2131,14 +2727,19 @@ fr_info_t *fin;
 
 	m = fin->fin_m;
 # if defined(MENTAT)
-	if ((char *)oip + len > (char *)m->b_wptr)
+	if ((char *)oip + len > (char *)m->b_wptr) {
+		SBUMPDX(ipf_state_stats, iss_icmp_short, iss_icmp_short_2);
 		return NULL;
+	}
 # else
-	if ((char *)oip + len > (char *)fin->fin_ip + m->m_len)
+	if ((char *)oip + len > (char *)fin->fin_ip + m->m_len) {
+		SBUMPDX(ipf_state_stats, iss_icmp_short, iss_icmp_short_3);
 		return NULL;
+	}
 # endif
 	}
 #endif
+
 	bcopy((char *)fin, (char *)&ofin, sizeof(*fin));
 
 	/*
@@ -2154,37 +2755,42 @@ fr_info_t *fin;
 	 * matchsrcdst note that not all fields are encessary
 	 * but this is the cleanest way. Note further we fill
 	 * in fin_mp such that if someone uses it we'll get
-	 * a kernel panic. fr_matchsrcdst does not use this.
+	 * a kernel panic. ipf_matchsrcdst does not use this.
 	 *
 	 * watch out here, as ip is in host order and oip in network
 	 * order. Any change we make must be undone afterwards, like
-	 * oip->ip_off - it is still in network byte order so fix it.
+	 * oip->ip_len.
 	 */
 	savelen = oip->ip_len;
-	oip->ip_len = len;
-	oip->ip_off = ntohs(oip->ip_off);
+	oip->ip_len = htons(len);
 
 	ofin.fin_flx = FI_NOCKSUM;
 	ofin.fin_v = 4;
 	ofin.fin_ip = oip;
 	ofin.fin_m = NULL;	/* if dereferenced, panic XXX */
 	ofin.fin_mp = NULL;	/* if dereferenced, panic XXX */
-	(void) fr_makefrip(IP_HL(oip) << 2, oip, &ofin);
+	(void) ipf_makefrip(IP_HL(oip) << 2, oip, &ofin);
 	ofin.fin_ifp = fin->fin_ifp;
 	ofin.fin_out = !fin->fin_out;
+
+	hv = (pr = oip->ip_p);
+	src.in4 = oip->ip_src;
+	hv += src.in4.s_addr;
+	dst.in4 = oip->ip_dst;
+	hv += dst.in4.s_addr;
+
 	/*
-	 * Reset the short and bad flag here because in fr_matchsrcdst()
+	 * Reset the short and bad flag here because in ipf_matchsrcdst()
 	 * the flags for the current packet (fin_flx) are compared against
 	 * those for the existing session.
 	 */
 	ofin.fin_flx &= ~(FI_BAD|FI_SHORT);
 
 	/*
-	 * Put old values of ip_len and ip_off back as we don't know
-	 * if we have to forward the packet (or process it again.
+	 * Put old values of ip_len back as we don't know
+	 * if we have to forward the packet or process it again.
 	 */
 	oip->ip_len = savelen;
-	oip->ip_off = htons(oip->ip_off);
 
 	switch (oip->ip_p)
 	{
@@ -2196,75 +2802,52 @@ fr_info_t *fin;
 		 * XXX theoretically ICMP_ECHOREP and the other reply's are
 		 * ICMP query's as well, but adding them here seems strange XXX
 		 */
-		if ((ofin.fin_flx & FI_ICMPERR) != 0)
+		if ((ofin.fin_flx & FI_ICMPERR) != 0) {
+			DT1(iss_icmp_icmperr, fr_info_t *, &ofin);
+			SBUMP(ipf_state_stats.iss_icmp_icmperr);
 		    	return NULL;
+		}
 
 		/*
 		 * perform a lookup of the ICMP packet in the state table
 		 */
 		icmp = (icmphdr_t *)((char *)oip + (IP_HL(oip) << 2));
-		hv = (pr = oip->ip_p);
-		src.in4 = oip->ip_src;
-		hv += src.in4.s_addr;
-		dst.in4 = oip->ip_dst;
-		hv += dst.in4.s_addr;
 		hv += icmp->icmp_id;
 		hv = DOUBLE_HASH(hv);
 
-		READ_ENTER(&ipf_state);
-		for (isp = &ips_table[hv]; ((is = *isp) != NULL); ) {
+		READ_ENTER(&softc->ipf_state);
+		for (isp = &softs->ipf_state_table[hv];
+		     ((is = *isp) != NULL); ) {
 			isp = &is->is_hnext;
 			if ((is->is_p != pr) || (is->is_v != 4))
 				continue;
 			if (is->is_pass & FR_NOICMPERR)
 				continue;
-			is = fr_matchsrcdst(&ofin, is, &src, &dst,
+
+			is = ipf_matchsrcdst(&ofin, is, &src, &dst,
 					    NULL, FI_ICMPCMP);
-			if (is != NULL) {
-				/*
-				 * i  : the index of this packet (the icmp
-				 *      unreachable)
-				 * oi : the index of the original packet found
-				 *      in the icmp header (i.e. the packet
-				 *      causing this icmp)
-				 * backward : original packet was backward
-				 *      compared to the state
-				 */
-				backward = IP6_NEQ(&is->is_src, &src);
-				fin->fin_rev = !backward;
-				i = (!backward << 1) + fin->fin_out;
-				oi = (backward << 1) + ofin.fin_out;
-				if (is->is_icmppkts[i] > is->is_pkts[oi])
-					continue;
-				ips_stats.iss_hits++;
-				is->is_icmppkts[i]++;
+			if ((is != NULL) && !ipf_allowstateicmp(fin, is, &src))
 				return is;
-			}
 		}
-		RWLOCK_EXIT(&ipf_state);
+		RWLOCK_EXIT(&softc->ipf_state);
+		SBUMPDX(ipf_state_stats, iss_icmp_miss, iss_icmp_miss_1);
 		return NULL;
 	case IPPROTO_TCP :
 	case IPPROTO_UDP :
 		break;
 	default :
+		SBUMPDX(ipf_state_stats, iss_icmp_miss, iss_icmp_miss_2);
 		return NULL;
 	}
 
 	tcp = (tcphdr_t *)((char *)oip + (IP_HL(oip) << 2));
-	dport = tcp->th_dport;
-	sport = tcp->th_sport;
 
-	hv = (pr = oip->ip_p);
-	src.in4 = oip->ip_src;
-	hv += src.in4.s_addr;
-	dst.in4 = oip->ip_dst;
-	hv += dst.in4.s_addr;
-	hv += dport;
-	hv += sport;
+	hv += tcp->th_dport;;
+	hv += tcp->th_sport;;
 	hv = DOUBLE_HASH(hv);
 
-	READ_ENTER(&ipf_state);
-	for (isp = &ips_table[hv]; ((is = *isp) != NULL); ) {
+	READ_ENTER(&softc->ipf_state);
+	for (isp = &softs->ipf_state_table[hv]; ((is = *isp) != NULL); ) {
 		isp = &is->is_hnext;
 		/*
 		 * Only allow this icmp though if the
@@ -2276,40 +2859,93 @@ fr_info_t *fin;
 		 * short flag is set.
 		 */
 		if ((is->is_p == pr) && (is->is_v == 4) &&
-		    (is = fr_matchsrcdst(&ofin, is, &src, &dst,
-					 tcp, FI_ICMPCMP))) {
-			/*
-			 * i  : the index of this packet (the icmp unreachable)
-			 * oi : the index of the original packet found in the
-			 *      icmp header (i.e. the packet causing this icmp)
-			 * backward : original packet was backward compared to
-			 *            the state
-			 */
-			backward = IP6_NEQ(&is->is_src, &src);
-			fin->fin_rev = !backward;
-			i = (!backward << 1) + fin->fin_out;
-			oi = (backward << 1) + ofin.fin_out;
-
-			if (((is->is_pass & FR_NOICMPERR) != 0) ||
-			    (is->is_icmppkts[i] > is->is_pkts[oi]))
-				break;
-			ips_stats.iss_hits++;
-			is->is_icmppkts[i]++;
-			/*
-			 * we deliberately do not touch the timeouts
-			 * for the accompanying state table entry.
-			 * It remains to be seen if that is correct. XXX
-			 */
-			return is;
+		    (is = ipf_matchsrcdst(&ofin, is, &src, &dst,
+					  tcp, FI_ICMPCMP))) {
+			if (ipf_allowstateicmp(fin, is, &src) == 0)
+				return is;
 		}
 	}
-	RWLOCK_EXIT(&ipf_state);
+	RWLOCK_EXIT(&softc->ipf_state);
+	SBUMPDX(ipf_state_stats, iss_icmp_miss, iss_icmp_miss_3);
 	return NULL;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_ipsmove                                                  */
+/* Function:    ipf_allowstateicmp                                          */
+/* Returns:     int - 1 = packet denied, 0 = packet allowed                 */
+/* Parameters:  fin(I) - pointer to packet information                      */
+/*              is(I)  - pointer to state table entry                       */
+/*              src(I) - source address to check permission for             */
+/*                                                                          */
+/* For an ICMP packet that has so far matched a state table entry, check if */
+/* there are any further refinements that might mean we want to block this  */
+/* packet.  This code isn't specific to either IPv4 or IPv6.                */
+/* ------------------------------------------------------------------------ */
+static int
+ipf_allowstateicmp(fin, is, src)
+	fr_info_t *fin;
+	ipstate_t *is;
+	i6addr_t *src;
+{
+	ipf_main_softc_t *softc = fin->fin_main_soft;
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
+	frentry_t *savefr;
+	frentry_t *fr;
+	u_32_t ipass;
+	int backward;
+	int oi;
+	int i;
+
+	fr = is->is_rule;
+	if (fr != NULL && fr->fr_icmpgrp != NULL) {
+		savefr = fin->fin_fr;
+		fin->fin_fr = fr->fr_icmpgrp->fg_start;
+
+		ipass = ipf_scanlist(fin, softc->ipf_pass);
+		fin->fin_fr = savefr;
+		if (FR_ISBLOCK(ipass)) {
+			SBUMPD(ipf_state_stats, iss_icmp_headblock);
+			return 1;
+		}
+	}
+
+	/*
+	 * i  : the index of this packet (the icmp unreachable)
+	 * oi : the index of the original packet found in the
+	 *      icmp header (i.e. the packet causing this icmp)
+	 * backward : original packet was backward compared to
+	 *            the state
+	 */
+	backward = IP6_NEQ(&is->is_src, src);
+	fin->fin_rev = !backward;
+	i = (!backward << 1) + fin->fin_out;
+	oi = (backward << 1) + !fin->fin_out;
+
+	if (is->is_pass & FR_NOICMPERR) {
+		SBUMPD(ipf_state_stats, iss_icmp_banned);
+		return 1;
+	}
+	if (is->is_icmppkts[i] > is->is_pkts[oi]) {
+		SBUMPD(ipf_state_stats, iss_icmp_toomany);
+		return 1;
+	}
+
+	DT2(iss_icmp_hits, fr_info_t *, fin, ipstate_t *, is);
+	SBUMP(ipf_state_stats.iss_icmp_hits);
+	is->is_icmppkts[i]++;
+
+	/*
+	 * we deliberately do not touch the timeouts
+	 * for the accompanying state table entry.
+	 * It remains to be seen if that is correct. XXX
+	 */
+	return 0;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_ipsmove                                                 */
 /* Returns:     Nil                                                         */
 /* Parameters:  is(I) - pointer to state table entry                        */
 /*              hv(I) - new hash value for state table entry                */
@@ -2317,14 +2953,19 @@ fr_info_t *fin;
 /*                                                                          */
 /* Move a state entry from one position in the hash table to another.       */
 /* ------------------------------------------------------------------------ */
-static void fr_ipsmove(is, hv)
-ipstate_t *is;
-u_int hv;
+static void
+ipf_ipsmove(softs, is, hv)
+	ipf_state_softc_t *softs;
+	ipstate_t *is;
+	u_int hv;
 {
 	ipstate_t **isp;
 	u_int hvm;
 
 	hvm = is->is_hv;
+
+	/* TRACE is, is_hv, hvm */
+
 	/*
 	 * Remove the hash from the old location...
 	 */
@@ -2332,21 +2973,24 @@ u_int hv;
 	if (is->is_hnext)
 		is->is_hnext->is_phnext = isp;
 	*isp = is->is_hnext;
-	if (ips_table[hvm] == NULL)
-		ips_stats.iss_inuse--;
-	ips_stats.iss_bucketlen[hvm]--;
+	if (softs->ipf_state_table[hvm] == NULL)
+		softs->ipf_state_stats.iss_inuse--;
+	softs->ipf_state_stats.iss_bucketlen[hvm]--;
 
 	/*
 	 * ...and put the hash in the new one.
 	 */
 	hvm = DOUBLE_HASH(hv);
 	is->is_hv = hvm;
-	isp = &ips_table[hvm];
+
+	/* TRACE is, hv, is_hv, hvm */
+
+	isp = &softs->ipf_state_table[hvm];
 	if (*isp)
 		(*isp)->is_phnext = &is->is_hnext;
 	else
-		ips_stats.iss_inuse++;
-	ips_stats.iss_bucketlen[hvm]++;
+		softs->ipf_state_stats.iss_inuse++;
+	softs->ipf_state_stats.iss_bucketlen[hvm]++;
 	is->is_phnext = isp;
 	is->is_hnext = *isp;
 	*isp = is;
@@ -2354,23 +2998,28 @@ u_int hv;
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_stlookup                                                 */
+/* Function:    ipf_state_lookup                                            */
 /* Returns:     ipstate_t* - NULL == no matching state found,               */
 /*                           else pointer to state information is returned  */
-/* Parameters:  fin(I) - pointer to packet information                      */
-/*              tcp(I) - pointer to TCP/UDP header.                         */
+/* Parameters:  fin(I)  - pointer to packet information                     */
+/*              tcp(I)  - pointer to TCP/UDP header.                        */
+/*              ifqp(O) - pointer for storing tailq timeout                 */
 /*                                                                          */
 /* Search the state table for a matching entry to the packet described by   */
-/* the contents of *fin.                                                    */
+/* the contents of *fin. For certain protocols, when a match is found the   */
+/* timeout queue is also selected and stored in ifpq if it is non-NULL.     */
 /*                                                                          */
 /* If we return NULL then no lock on ipf_state is held.                     */
 /* If we return non-null then a read-lock on ipf_state is held.             */
 /* ------------------------------------------------------------------------ */
-ipstate_t *fr_stlookup(fin, tcp, ifqp)
-fr_info_t *fin;
-tcphdr_t *tcp;
-ipftq_t **ifqp;
+ipstate_t *
+ipf_state_lookup(fin, tcp, ifqp)
+	fr_info_t *fin;
+	tcphdr_t *tcp;
+	ipftq_t **ifqp;
 {
+	ipf_main_softc_t *softc = fin->fin_main_soft;
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
 	u_int hv, hvm, pr, v, tryagain;
 	ipstate_t *is, **isp;
 	u_short dport, sport;
@@ -2415,6 +3064,8 @@ ipftq_t **ifqp;
 		}
 	}
 
+	/* TRACE fin_saddr, fin_daddr, hv */
+
 	/*
 	 * Search the hash table for matching packet header info.
 	 */
@@ -2429,28 +3080,22 @@ ipftq_t **ifqp;
 				hv += ic->icmp_id;
 			}
 		}
-		READ_ENTER(&ipf_state);
+		READ_ENTER(&softc->ipf_state);
 icmp6again:
 		hvm = DOUBLE_HASH(hv);
-		for (isp = &ips_table[hvm]; ((is = *isp) != NULL); ) {
+		for (isp = &softs->ipf_state_table[hvm];
+		     ((is = *isp) != NULL); ) {
 			isp = &is->is_hnext;
-			/*
-			 * If a connection is about to be deleted, no packets
-			 * are allowed to match it.
-			 */
-			if (is->is_sti.tqe_ifq == &ips_deletetq)
-				continue;
-
 			if ((is->is_p != pr) || (is->is_v != v))
 				continue;
-			is = fr_matchsrcdst(fin, is, &src, &dst, NULL, FI_CMP);
+			is = ipf_matchsrcdst(fin, is, &src, &dst, NULL, FI_CMP);
 			if (is != NULL &&
-			    fr_matchicmpqueryreply(v, &is->is_icmp,
+			    ipf_matchicmpqueryreply(v, &is->is_icmp,
 						   ic, fin->fin_rev)) {
 				if (fin->fin_rev)
-					ifq = &ips_icmpacktq;
+					ifq = &softs->ipf_state_icmpacktq;
 				else
-					ifq = &ips_icmptq;
+					ifq = &softs->ipf_state_icmptq;
 				break;
 			}
 		}
@@ -2461,12 +3106,12 @@ icmp6again:
 				hv += fin->fin_fi.fi_src.i6[1];
 				hv += fin->fin_fi.fi_src.i6[2];
 				hv += fin->fin_fi.fi_src.i6[3];
-				fr_ipsmove(is, hv);
-				MUTEX_DOWNGRADE(&ipf_state);
+				ipf_ipsmove(softs, is, hv);
+				MUTEX_DOWNGRADE(&softc->ipf_state);
 			}
 			break;
 		}
-		RWLOCK_EXIT(&ipf_state);
+		RWLOCK_EXIT(&softc->ipf_state);
 
 		/*
 		 * No matching icmp state entry. Perhaps this is a
@@ -2478,18 +3123,19 @@ icmp6again:
 		 * advantage of this requires some significant code changes
 		 * to handle the specific types where that is the case.
 		 */
-		if ((ips_stats.iss_wild != 0) && (v == 6) && (tryagain == 0) &&
-		    !IN6_IS_ADDR_MULTICAST(&fin->fin_fi.fi_src.in6)) {
+		if ((softs->ipf_state_stats.iss_wild != 0) &&
+		    ((fin->fin_flx & FI_NOWILD) == 0) &&
+		    (v == 6) && (tryagain == 0)) {
 			hv -= fin->fin_fi.fi_src.i6[0];
 			hv -= fin->fin_fi.fi_src.i6[1];
 			hv -= fin->fin_fi.fi_src.i6[2];
 			hv -= fin->fin_fi.fi_src.i6[3];
 			tryagain = 1;
-			WRITE_ENTER(&ipf_state);
+			WRITE_ENTER(&softc->ipf_state);
 			goto icmp6again;
 		}
 
-		is = fr_checkicmp6matchingstate(fin);
+		is = ipf_checkicmp6matchingstate(fin);
 		if (is != NULL)
 			return is;
 		break;
@@ -2500,25 +3146,26 @@ icmp6again:
 			hv += ic->icmp_id;
 		}
 		hv = DOUBLE_HASH(hv);
-		READ_ENTER(&ipf_state);
-		for (isp = &ips_table[hv]; ((is = *isp) != NULL); ) {
+		READ_ENTER(&softc->ipf_state);
+		for (isp = &softs->ipf_state_table[hv];
+		     ((is = *isp) != NULL); ) {
 			isp = &is->is_hnext;
 			if ((is->is_p != pr) || (is->is_v != v))
 				continue;
-			is = fr_matchsrcdst(fin, is, &src, &dst, NULL, FI_CMP);
+			is = ipf_matchsrcdst(fin, is, &src, &dst, NULL, FI_CMP);
 			if ((is != NULL) &&
 			    (ic->icmp_id == is->is_icmp.ici_id) &&
-			    fr_matchicmpqueryreply(v, &is->is_icmp,
+			    ipf_matchicmpqueryreply(v, &is->is_icmp,
 						   ic, fin->fin_rev)) {
 				if (fin->fin_rev)
-					ifq = &ips_icmpacktq;
+					ifq = &softs->ipf_state_icmpacktq;
 				else
-					ifq = &ips_icmptq;
+					ifq = &softs->ipf_state_icmptq;
 				break;
 			}
 		}
 		if (is == NULL) {
-			RWLOCK_EXIT(&ipf_state);
+			RWLOCK_EXIT(&softc->ipf_state);
 		}
 		break;
 
@@ -2531,18 +3178,23 @@ icmp6again:
 		hv += dport;
 		oow = 0;
 		tryagain = 0;
-		READ_ENTER(&ipf_state);
+		READ_ENTER(&softc->ipf_state);
 retry_tcpudp:
 		hvm = DOUBLE_HASH(hv);
-		for (isp = &ips_table[hvm]; ((is = *isp) != NULL); ) {
+
+		/* TRACE hv, hvm */
+
+		for (isp = &softs->ipf_state_table[hvm];
+		     ((is = *isp) != NULL); ) {
 			isp = &is->is_hnext;
 			if ((is->is_p != pr) || (is->is_v != v))
 				continue;
 			fin->fin_flx &= ~FI_OOW;
-			is = fr_matchsrcdst(fin, is, &src, &dst, tcp, FI_CMP);
+			is = ipf_matchsrcdst(fin, is, &src, &dst, tcp, FI_CMP);
 			if (is != NULL) {
 				if (pr == IPPROTO_TCP) {
-					if (!fr_tcpstate(fin, tcp, is)) {
+					if (!ipf_state_tcp(softc, softs, fin,
+							   tcp, is)) {
 						oow |= fin->fin_flx & FI_OOW;
 						continue;
 					}
@@ -2555,14 +3207,15 @@ retry_tcpudp:
 			    !(is->is_flags & (SI_CLONE|SI_WILDP|SI_WILDA))) {
 				hv += dport;
 				hv += sport;
-				fr_ipsmove(is, hv);
-				MUTEX_DOWNGRADE(&ipf_state);
+				ipf_ipsmove(softs, is, hv);
+				MUTEX_DOWNGRADE(&softc->ipf_state);
 			}
 			break;
 		}
-		RWLOCK_EXIT(&ipf_state);
+		RWLOCK_EXIT(&softc->ipf_state);
 
-		if (ips_stats.iss_wild) {
+		if ((softs->ipf_state_stats.iss_wild != 0) &&
+		    ((fin->fin_flx & FI_NOWILD) == 0)) {
 			if (tryagain == 0) {
 				hv -= dport;
 				hv -= sport;
@@ -2584,7 +3237,7 @@ retry_tcpudp:
 			}
 			tryagain++;
 			if (tryagain <= 2) {
-				WRITE_ENTER(&ipf_state);
+				WRITE_ENTER(&softc->ipf_state);
 				goto retry_tcpudp;
 			}
 		}
@@ -2602,19 +3255,20 @@ retry_tcpudp:
 	default :
 		ifqp = NULL;
 		hvm = DOUBLE_HASH(hv);
-		READ_ENTER(&ipf_state);
-		for (isp = &ips_table[hvm]; ((is = *isp) != NULL); ) {
+		READ_ENTER(&softc->ipf_state);
+		for (isp = &softs->ipf_state_table[hvm];
+		     ((is = *isp) != NULL); ) {
 			isp = &is->is_hnext;
 			if ((is->is_p != pr) || (is->is_v != v))
 				continue;
-			is = fr_matchsrcdst(fin, is, &src, &dst, NULL, FI_CMP);
+			is = ipf_matchsrcdst(fin, is, &src, &dst, NULL, FI_CMP);
 			if (is != NULL) {
-				ifq = &ips_iptq;
+				ifq = &softs->ipf_state_iptq;
 				break;
 			}
 		}
 		if (is == NULL) {
-			RWLOCK_EXIT(&ipf_state);
+			RWLOCK_EXIT(&softc->ipf_state);
 		}
 		break;
 	}
@@ -2625,90 +3279,45 @@ retry_tcpudp:
 			ifq = is->is_tqehead[fin->fin_rev];
 		if (ifq != NULL && ifqp != NULL)
 			*ifqp = ifq;
+	} else {
+		SBUMP(ipf_state_stats.iss_lookup_miss);
 	}
 	return is;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_updatestate                                              */
-/* Returns:     Nil                                                         */
-/* Parameters:  fin(I) - pointer to packet information                      */
-/*              is(I)  - pointer to state table entry                       */
-/* Read Locks:  ipf_state                                                   */
-/*                                                                          */
-/* Updates packet and byte counters for a newly received packet.  Seeds the */
-/* fragment cache with a new entry as required.                             */
-/* ------------------------------------------------------------------------ */
-void fr_updatestate(fin, is, ifq)
-fr_info_t *fin;
-ipstate_t *is;
-ipftq_t *ifq;
-{
-	ipftqent_t *tqe;
-	int i, pass;
-
-	i = (fin->fin_rev << 1) + fin->fin_out;
-
-	/*
-	 * For TCP packets, ifq == NULL.  For all others, check if this new
-	 * queue is different to the last one it was on and move it if so.
-	 */
-	tqe = &is->is_sti;
-	MUTEX_ENTER(&is->is_lock);
-	if ((tqe->tqe_flags & TQE_RULEBASED) != 0)
-		ifq = is->is_tqehead[fin->fin_rev];
-
-	if (ifq != NULL)
-		fr_movequeue(tqe, tqe->tqe_ifq, ifq);
-
-	is->is_pkts[i]++;
-	is->is_bytes[i] += fin->fin_plen;
-	MUTEX_EXIT(&is->is_lock);
-
-#ifdef	IPFILTER_SYNC
-	if (is->is_flags & IS_STATESYNC)
-		ipfsync_update(SMC_STATE, fin, is->is_sync);
-#endif
-
-	ATOMIC_INCL(ips_stats.iss_hits);
-
-	fin->fin_fr = is->is_rule;
-
-	/*
-	 * If this packet is a fragment and the rule says to track fragments,
-	 * then create a new fragment cache entry.
-	 */
-	pass = is->is_pass;
-	if ((fin->fin_flx & FI_FRAG) && FR_ISPASS(pass))
-		(void) fr_newfrag(fin, pass ^ FR_KEEPSTATE);
-}
-
-
-/* ------------------------------------------------------------------------ */
-/* Function:    fr_checkstate                                               */
+/* Function:    ipf_state_check                                             */
 /* Returns:     frentry_t* - NULL == search failed,                         */
 /*                           else pointer to rule for matching state        */
-/* Parameters:  ifp(I)   - pointer to interface                             */
+/* Parameters:  fin(I)   - pointer to packet information                    */
 /*              passp(I) - pointer to filtering result flags                */
 /*                                                                          */
 /* Check if a packet is associated with an entry in the state table.        */
 /* ------------------------------------------------------------------------ */
-frentry_t *fr_checkstate(fin, passp)
-fr_info_t *fin;
-u_32_t *passp;
+frentry_t *
+ipf_state_check(fin, passp)
+	fr_info_t *fin;
+	u_32_t *passp;
 {
+	ipf_main_softc_t *softc = fin->fin_main_soft;
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
+	ipftqent_t *tqe;
 	ipstate_t *is;
 	frentry_t *fr;
 	tcphdr_t *tcp;
 	ipftq_t *ifq;
 	u_int pass;
+	int inout;
 
-	if (fr_state_lock || (ips_list == NULL) ||
-	    (fin->fin_flx & (FI_SHORT|FI_STATE|FI_FRAGBODY|FI_BAD)))
+	if (softs->ipf_state_lock || (softs->ipf_state_list == NULL))
 		return NULL;
 
-	is = NULL;
+	if (fin->fin_flx & (FI_SHORT|FI_FRAGBODY|FI_BAD)) {
+		SBUMPD(ipf_state_stats, iss_check_bad);
+		return NULL;
+	}
+
 	if ((fin->fin_flx & FI_TCPUDP) ||
 	    (fin->fin_fi.fi_p == IPPROTO_ICMP)
 #ifdef	USE_INET6
@@ -2719,13 +3328,12 @@ u_32_t *passp;
 	else
 		tcp = NULL;
 
+	ifq = NULL;
 	/*
 	 * Search the hash table for matching packet header info.
 	 */
-	ifq = NULL;
-	is = fin->fin_state;
-	if (is == NULL)
-		is = fr_stlookup(fin, tcp, &ifq);
+	is = ipf_state_lookup(fin, tcp, &ifq);
+
 	switch (fin->fin_p)
 	{
 #ifdef	USE_INET6
@@ -2733,9 +3341,7 @@ u_32_t *passp;
 		if (is != NULL)
 			break;
 		if (fin->fin_v == 6) {
-			is = fr_checkicmp6matchingstate(fin);
-			if (is != NULL)
-				goto matched;
+			is = ipf_checkicmp6matchingstate(fin);
 		}
 		break;
 #endif
@@ -2746,56 +3352,92 @@ u_32_t *passp;
 		 * No matching icmp state entry. Perhaps this is a
 		 * response to another state entry.
 		 */
-		is = fr_checkicmpmatchingstate(fin);
-		if (is != NULL)
-			goto matched;
+		is = ipf_checkicmpmatchingstate(fin);
 		break;
+
 	case IPPROTO_TCP :
 		if (is == NULL)
 			break;
 
 		if (is->is_pass & FR_NEWISN) {
 			if (fin->fin_out == 0)
-				fr_fixinisn(fin, is);
+				ipf_fixinisn(fin, is);
 			else if (fin->fin_out == 1)
-				fr_fixoutisn(fin, is);
+				ipf_fixoutisn(fin, is);
 		}
 		break;
 	default :
 		if (fin->fin_rev)
-			ifq = &ips_udpacktq;
+			ifq = &softs->ipf_state_udpacktq;
 		else
-			ifq = &ips_udptq;
+			ifq = &softs->ipf_state_udptq;
 		break;
 	}
 	if (is == NULL) {
-		ATOMIC_INCL(ips_stats.iss_miss);
+		SBUMP(ipf_state_stats.iss_check_miss);
 		return NULL;
 	}
 
-matched:
 	fr = is->is_rule;
 	if (fr != NULL) {
 		if ((fin->fin_out == 0) && (fr->fr_nattag.ipt_num[0] != 0)) {
-			if (fin->fin_nattag == NULL)
+			if (fin->fin_nattag == NULL) {
+				RWLOCK_EXIT(&softc->ipf_state);
+				SBUMPD(ipf_state_stats, iss_check_notag);
 				return NULL;
-			if (fr_matchtag(&fr->fr_nattag, fin->fin_nattag) != 0)
+			}
+			if (ipf_matchtag(&fr->fr_nattag, fin->fin_nattag)!=0) {
+				RWLOCK_EXIT(&softc->ipf_state);
+				SBUMPD(ipf_state_stats, iss_check_nattag);
 				return NULL;
+			}
 		}
-		(void) strncpy(fin->fin_group, fr->fr_group, FR_GROUPLEN);
+		(void) strncpy(fin->fin_group, FR_NAME(fr, fr_group),
+			       FR_GROUPLEN);
 		fin->fin_icode = fr->fr_icode;
 	}
 
 	fin->fin_rule = is->is_rulen;
-	pass = is->is_pass;
-	fr_updatestate(fin, is, ifq);
+	fin->fin_fr = fr;
 
-	fin->fin_state = is;
-	is->is_touched = fr_ticks;
+	/*
+	 * If this packet is a fragment and the rule says to track fragments,
+	 * then create a new fragment cache entry.
+	 */
+	if ((fin->fin_flx & FI_FRAG) && FR_ISPASS(is->is_pass))
+		(void) ipf_frag_new(softc, fin, is->is_pass);
+
+	/*
+	 * For TCP packets, ifq == NULL.  For all others, check if this new
+	 * queue is different to the last one it was on and move it if so.
+	 */
+	tqe = &is->is_sti;
+	if ((tqe->tqe_flags & TQE_RULEBASED) != 0)
+		ifq = is->is_tqehead[fin->fin_rev];
+
 	MUTEX_ENTER(&is->is_lock);
-	is->is_ref++;
+
+	if (ifq != NULL)
+		ipf_movequeue(softc->ipf_ticks, tqe, tqe->tqe_ifq, ifq);
+
+	inout = (fin->fin_rev << 1) + fin->fin_out;
+	is->is_pkts[inout]++;
+	is->is_bytes[inout] += fin->fin_plen;
+	fin->fin_pktnum = is->is_pkts[inout] + is->is_icmppkts[inout];
+
 	MUTEX_EXIT(&is->is_lock);
-	RWLOCK_EXIT(&ipf_state);
+
+	pass = is->is_pass;
+
+	if (is->is_flags & IS_STATESYNC)
+		ipf_sync_update(softc, SMC_STATE, fin, is->is_sync);
+
+	RWLOCK_EXIT(&softc->ipf_state);
+
+	SBUMP(ipf_state_stats.iss_hits);
+
+	fin->fin_dif = &is->is_dif;
+	fin->fin_tif = &is->is_tifs[fin->fin_rev];
 	fin->fin_flx |= FI_STATE;
 	if ((pass & FR_LOGFIRST) != 0)
 		pass &= ~(FR_LOGFIRST|FR_LOG);
@@ -2805,17 +3447,18 @@ matched:
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_fixoutisn                                                */
+/* Function:    ipf_fixoutisn                                               */
 /* Returns:     Nil                                                         */
-/* Parameters:  fin(I)   - pointer to packet information                    */
+/* Parameters:  fin(I) - pointer to packet information                      */
 /*              is(I)  - pointer to master state structure                  */
 /*                                                                          */
 /* Called only for outbound packets, adjusts the sequence number and the    */
 /* TCP checksum to match that change.                                       */
 /* ------------------------------------------------------------------------ */
-static void fr_fixoutisn(fin, is)
-fr_info_t *fin;
-ipstate_t *is;
+static void
+ipf_fixoutisn(fin, is)
+	fr_info_t *fin;
+	ipstate_t *is;
 {
 	tcphdr_t *tcp;
 	int rev;
@@ -2824,26 +3467,26 @@ ipstate_t *is;
 	tcp = fin->fin_dp;
 	rev = fin->fin_rev;
 	if ((is->is_flags & IS_ISNSYN) != 0) {
-		if (rev == 0) {
+		if ((rev == 0) && (fin->fin_cksum < FI_CK_L4PART)) {
 			seq = ntohl(tcp->th_seq);
 			seq += is->is_isninc[0];
 			tcp->th_seq = htonl(seq);
-			fix_outcksum(fin, &tcp->th_sum, is->is_sumd[0]);
+			ipf_fix_outcksum(0, &tcp->th_sum, is->is_sumd[0], 0);
 		}
 	}
 	if ((is->is_flags & IS_ISNACK) != 0) {
-		if (rev == 1) {
+		if ((rev == 1) && (fin->fin_cksum < FI_CK_L4PART)) {
 			seq = ntohl(tcp->th_seq);
 			seq += is->is_isninc[1];
 			tcp->th_seq = htonl(seq);
-			fix_outcksum(fin, &tcp->th_sum, is->is_sumd[1]);
+			ipf_fix_outcksum(0, &tcp->th_sum, is->is_sumd[1], 0);
 		}
 	}
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_fixinisn                                                 */
+/* Function:    ipf_fixinisn                                                */
 /* Returns:     Nil                                                         */
 /* Parameters:  fin(I)   - pointer to packet information                    */
 /*              is(I)  - pointer to master state structure                  */
@@ -2851,9 +3494,10 @@ ipstate_t *is;
 /* Called only for inbound packets, adjusts the acknowledge number and the  */
 /* TCP checksum to match that change.                                       */
 /* ------------------------------------------------------------------------ */
-static void fr_fixinisn(fin, is)
-fr_info_t *fin;
-ipstate_t *is;
+static void
+ipf_fixinisn(fin, is)
+	fr_info_t *fin;
+	ipstate_t *is;
 {
 	tcphdr_t *tcp;
 	int rev;
@@ -2862,28 +3506,29 @@ ipstate_t *is;
 	tcp = fin->fin_dp;
 	rev = fin->fin_rev;
 	if ((is->is_flags & IS_ISNSYN) != 0) {
-		if (rev == 1) {
+		if ((rev == 1) && (fin->fin_cksum < FI_CK_L4PART)) {
 			ack = ntohl(tcp->th_ack);
 			ack -= is->is_isninc[0];
 			tcp->th_ack = htonl(ack);
-			fix_incksum(fin, &tcp->th_sum, is->is_sumd[0]);
+			ipf_fix_incksum(0, &tcp->th_sum, is->is_sumd[0], 0);
 		}
 	}
 	if ((is->is_flags & IS_ISNACK) != 0) {
-		if (rev == 0) {
+		if ((rev == 0) && (fin->fin_cksum < FI_CK_L4PART)) {
 			ack = ntohl(tcp->th_ack);
 			ack -= is->is_isninc[1];
 			tcp->th_ack = htonl(ack);
-			fix_incksum(fin, &tcp->th_sum, is->is_sumd[1]);
+			ipf_fix_incksum(0, &tcp->th_sum, is->is_sumd[1], 0);
 		}
 	}
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_statesync                                                */
+/* Function:    ipf_state_sync                                              */
 /* Returns:     Nil                                                         */
-/* Parameters:  ifp(I) - pointer to interface                               */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
+/*              ifp(I)   - pointer to interface                             */
 /*                                                                          */
 /* Walk through all state entries and if an interface pointer match is      */
 /* found then look it up again, based on its name in case the pointer has   */
@@ -2892,40 +3537,45 @@ ipstate_t *is;
 /* If ifp is passed in as being non-null then we are only doing updates for */
 /* existing, matching, uses of it.                                          */
 /* ------------------------------------------------------------------------ */
-void fr_statesync(ifp)
-void *ifp;
+void
+ipf_state_sync(softc, ifp)
+	ipf_main_softc_t *softc;
+	void *ifp;
 {
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
 	ipstate_t *is;
 	int i;
 
-	if (fr_running <= 0)
+	if (softc->ipf_running <= 0)
 		return;
 
-	WRITE_ENTER(&ipf_state);
+	WRITE_ENTER(&softc->ipf_state);
 
-	if (fr_running <= 0) {
-		RWLOCK_EXIT(&ipf_state);
+	if (softc->ipf_running <= 0) {
+		RWLOCK_EXIT(&softc->ipf_state);
 		return;
 	}
 
-	for (is = ips_list; is; is = is->is_next) {
+	for (is = softs->ipf_state_list; is; is = is->is_next) {
 		/*
 		 * Look up all the interface names in the state entry.
 		 */
 		for (i = 0; i < 4; i++) {
 			if (ifp == NULL || ifp == is->is_ifp[i])
-				is->is_ifp[i] = fr_resolvenic(is->is_ifname[i],
+				is->is_ifp[i] = ipf_resolvenic(softc,
+							      is->is_ifname[i],
 							      is->is_v);
 		}
 	}
-	RWLOCK_EXIT(&ipf_state);
+	RWLOCK_EXIT(&softc->ipf_state);
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_delstate                                                 */
-/* Returns:     int - 0 = entry deleted, else reference count on struct     */
-/* Parameters:  is(I)  - pointer to state structure to delete               */
+/* Function:    ipf_state_del                                               */
+/* Returns:     int    - 0 = deleted, else refernce count on active struct  */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
+/*              is(I)  - pointer to state structure to delete               */
 /*              why(I) - if not 0, log reason why it was deleted            */
 /* Write Locks: ipf_state                                                   */
 /*                                                                          */
@@ -2933,10 +3583,15 @@ void *ifp;
 /* and timeout queue lists.  Make adjustments to hash table statistics and  */
 /* global counters as required.                                             */
 /* ------------------------------------------------------------------------ */
-static int fr_delstate(is, why)
-ipstate_t *is;
-int why;
+static int
+ipf_state_del(softc, is, why)
+	ipf_main_softc_t *softc;
+	ipstate_t *is;
+	int why;
 {
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
+	int orphan = 1;
+	frentry_t *fr;
 
 	/*
 	 * Since we want to delete this, remove it from the state table,
@@ -2946,22 +3601,23 @@ int why;
 		*is->is_phnext = is->is_hnext;
 		if (is->is_hnext != NULL)
 			is->is_hnext->is_phnext = is->is_phnext;
-		if (ips_table[is->is_hv] == NULL)
-			ips_stats.iss_inuse--;
-		ips_stats.iss_bucketlen[is->is_hv]--;
+		if (softs->ipf_state_table[is->is_hv] == NULL)
+			softs->ipf_state_stats.iss_inuse--;
+		softs->ipf_state_stats.iss_bucketlen[is->is_hv]--;
 
 		is->is_phnext = NULL;
 		is->is_hnext = NULL;
+		orphan = 0;
 	}
 
 	/*
-	 * Because ips_stats.iss_wild is a count of entries in the state
+	 * Because ipf_state_stats.iss_wild is a count of entries in the state
 	 * table that have wildcard flags set, only decerement it once
 	 * and do it here.
 	 */
 	if (is->is_flags & (SI_WILDP|SI_WILDA)) {
 		if (!(is->is_flags & SI_CLONED)) {
-			ATOMIC_DECL(ips_stats.iss_wild);
+			ATOMIC_DECL(softs->ipf_state_stats.iss_wild);
 		}
 		is->is_flags &= ~(SI_WILDP|SI_WILDA);
 	}
@@ -2970,47 +3626,56 @@ int why;
 	 * Next, remove it from the timeout queue it is in.
 	 */
 	if (is->is_sti.tqe_ifq != NULL)
-		fr_deletequeueentry(&is->is_sti);
-
-	if (is->is_me != NULL) {
-		*is->is_me = NULL;
-		is->is_me = NULL;
-	}
+		ipf_deletequeueentry(&is->is_sti);
 
 	/*
 	 * If it is still in use by something else, do not go any further,
 	 * but note that at this point it is now an orphan.  How can this
-	 * be?  fr_state_flush() calls fr_delete() directly because it wants
+	 * be?  ipf_state_flush() calls ipf_delete() directly because it wants
 	 * to empty the table out and if something has a hold on a state
 	 * entry (such as ipfstat), it'll do the deref path that'll bring
 	 * us back here to do the real delete & free.
 	 */
 	MUTEX_ENTER(&is->is_lock);
-	if (is->is_ref > 1) {
+	if (is->is_me != NULL) {
+		*is->is_me = NULL;
+		is->is_me = NULL;
 		is->is_ref--;
+	}
+	if (is->is_ref > 1) {
+		int refs;
+
+		is->is_ref--;
+		refs = is->is_ref;
 		MUTEX_EXIT(&is->is_lock);
-		return is->is_ref;
+		if (!orphan)
+			softs->ipf_state_stats.iss_orphan++;
+		return refs;
 	}
 	MUTEX_EXIT(&is->is_lock);
+
+	fr = is->is_rule;
+	is->is_rule = NULL;
+	if (fr != NULL) {
+		if (fr->fr_srctrack.ht_max_nodes != 0) {
+			(void) ipf_ht_node_del(&fr->fr_srctrack,
+					       is->is_family, &is->is_src);
+		}
+	}
 
 	is->is_ref = 0;
 
 	if (is->is_tqehead[0] != NULL) {
-		if (fr_deletetimeoutqueue(is->is_tqehead[0]) == 0)
-			fr_freetimeoutqueue(is->is_tqehead[0]);
+		if (ipf_deletetimeoutqueue(is->is_tqehead[0]) == 0)
+			ipf_freetimeoutqueue(softc, is->is_tqehead[0]);
 	}
 	if (is->is_tqehead[1] != NULL) {
-		if (fr_deletetimeoutqueue(is->is_tqehead[1]) == 0)
-			fr_freetimeoutqueue(is->is_tqehead[1]);
+		if (ipf_deletetimeoutqueue(is->is_tqehead[1]) == 0)
+			ipf_freetimeoutqueue(softc, is->is_tqehead[1]);
 	}
 
-#ifdef	IPFILTER_SYNC
 	if (is->is_sync)
-		ipfsync_del(is->is_sync);
-#endif
-#ifdef	IPFILTER_SCAN
-	(void) ipsc_detachis(is);
-#endif
+		ipf_sync_del_state(softc->ipf_sync_soft, is->is_sync);
 
 	/*
 	 * Now remove it from the linked list of known states
@@ -3025,94 +3690,100 @@ int why;
 		is->is_next = NULL;
 	}
 
-	if (ipstate_logging != 0 && why != 0)
-		ipstate_log(is, why);
+	if (softs->ipf_state_logging != 0 && why != 0)
+		ipf_state_log(softc, is, why);
 
 	if (is->is_p == IPPROTO_TCP)
-		ips_stats.iss_fin++;
+		softs->ipf_state_stats.iss_fin++;
 	else
-		ips_stats.iss_expire++;
+		softs->ipf_state_stats.iss_expire++;
+	if (orphan)
+		softs->ipf_state_stats.iss_orphan--;
 
-	if (is->is_rule != NULL) {
-		is->is_rule->fr_statecnt--;
-		(void) fr_derefrule(&is->is_rule);
+	if (fr != NULL) {
+		fr->fr_statecnt--;
+		(void) ipf_derefrule(softc, &fr);
 	}
 
-#if defined(NEED_LOCAL_RAND) && defined(_KERNEL)
-	ipf_rand_push(is, sizeof(*is));
-#endif
+	softs->ipf_state_stats.iss_active_proto[is->is_p]--;
 
 	MUTEX_DESTROY(&is->is_lock);
 	KFREE(is);
-	ips_num--;
+	softs->ipf_state_stats.iss_active--;
 
 	return 0;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_timeoutstate                                             */
+/* Function:    ipf_state_expire                                            */
 /* Returns:     Nil                                                         */
-/* Parameters:  Nil                                                         */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
 /*                                                                          */
 /* Slowly expire held state for thingslike UDP and ICMP.  The algorithm     */
 /* used here is to keep the queue sorted with the oldest things at the top  */
 /* and the youngest at the bottom.  So if the top one doesn't need to be    */
 /* expired then neither will any under it.                                  */
 /* ------------------------------------------------------------------------ */
-void fr_timeoutstate()
+void
+ipf_state_expire(softc)
+	ipf_main_softc_t *softc;
 {
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
 	ipftq_t *ifq, *ifqnext;
 	ipftqent_t *tqe, *tqn;
 	ipstate_t *is;
 	SPL_INT(s);
 
 	SPL_NET(s);
-	WRITE_ENTER(&ipf_state);
-	for (ifq = ips_tqtqb; ifq != NULL; ifq = ifq->ifq_next)
+	WRITE_ENTER(&softc->ipf_state);
+	for (ifq = softs->ipf_state_tcptq; ifq != NULL; ifq = ifq->ifq_next)
 		for (tqn = ifq->ifq_head; ((tqe = tqn) != NULL); ) {
-			if (tqe->tqe_die > fr_ticks)
+			if (tqe->tqe_die > softc->ipf_ticks)
 				break;
 			tqn = tqe->tqe_next;
 			is = tqe->tqe_parent;
-			fr_delstate(is, ISL_EXPIRE);
+			ipf_state_del(softc, is, ISL_EXPIRE);
 		}
 
-	for (ifq = ips_utqe; ifq != NULL; ifq = ifqnext) {
+	for (ifq = softs->ipf_state_usertq; ifq != NULL; ifq = ifqnext) {
 		ifqnext = ifq->ifq_next;
 
 		for (tqn = ifq->ifq_head; ((tqe = tqn) != NULL); ) {
-			if (tqe->tqe_die > fr_ticks)
+			if (tqe->tqe_die > softc->ipf_ticks)
 				break;
 			tqn = tqe->tqe_next;
 			is = tqe->tqe_parent;
-			fr_delstate(is, ISL_EXPIRE);
+			ipf_state_del(softc, is, ISL_EXPIRE);
 		}
 	}
 
-	for (ifq = ips_utqe; ifq != NULL; ifq = ifqnext) {
+	for (ifq = softs->ipf_state_usertq; ifq != NULL; ifq = ifqnext) {
 		ifqnext = ifq->ifq_next;
 
 		if (((ifq->ifq_flags & IFQF_DELETE) != 0) &&
 		    (ifq->ifq_ref == 0)) {
-			fr_freetimeoutqueue(ifq);
+			ipf_freetimeoutqueue(softc, ifq);
 		}
 	}
 
-	if (fr_state_doflush) {
-		(void) fr_state_flush(2, 0);
-		fr_state_doflush = 0;
+	if (softs->ipf_state_doflush) {
+		(void) ipf_state_flush(softc, 2, 0);
+		softs->ipf_state_doflush = 0;
+		softs->ipf_state_wm_last = softc->ipf_ticks;
 	}
 
-	RWLOCK_EXIT(&ipf_state);
+	RWLOCK_EXIT(&softc->ipf_state);
 	SPL_X(s);
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_state_flush                                              */
+/* Function:    ipf_state_flush                                             */
 /* Returns:     int - 0 == success, -1 == failure                           */
-/* Parameters:  Nil                                                         */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
+/*              which(I) - which flush action to perform                    */
+/*              proto(I) - which protocol to flush (0 == ALL)               */
 /* Write Locks: ipf_state                                                   */
 /*                                                                          */
 /* Flush state tables.  Three actions currently defined:                    */
@@ -3126,12 +3797,15 @@ void fr_timeoutstate()
 /*            If that too fails, then work backwards in 30 second intervals */
 /*            for the last 30 minutes to at worst 30 seconds idle.          */
 /* ------------------------------------------------------------------------ */
-static int fr_state_flush(which, proto)
-int which, proto;
+int
+ipf_state_flush(softc, which, proto)
+	ipf_main_softc_t *softc;
+	int which, proto;
 {
-	ipftq_t *ifq, *ifqnext;
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
 	ipftqent_t *tqe, *tqn;
 	ipstate_t *is, **isp;
+	ipftq_t *ifq;
 	int removed;
 	SPL_INT(s);
 
@@ -3142,15 +3816,16 @@ int which, proto;
 	switch (which)
 	{
 	case 0 :
+		SBUMP(ipf_state_stats.iss_flush_all);
 		/*
 		 * Style 0 flush removes everything...
 		 */
-		for (isp = &ips_list; ((is = *isp) != NULL); ) {
+		for (isp = &softs->ipf_state_list; ((is = *isp) != NULL); ) {
 			if ((proto != 0) && (is->is_v != proto)) {
 				isp = &is->is_next;
 				continue;
 			}
-			if (fr_delstate(is, ISL_FLUSH) == 0)
+			if (ipf_state_del(softc, is, ISL_FLUSH) == 0)
 				removed++;
 			else
 				isp = &is->is_next;
@@ -3158,19 +3833,20 @@ int which, proto;
 		break;
 
 	case 1 :
+		SBUMP(ipf_state_stats.iss_flush_closing);
 		/*
 		 * Since we're only interested in things that are closing,
 		 * we can start with the appropriate timeout queue.
 		 */
-		for (ifq = ips_tqtqb + IPF_TCPS_CLOSE_WAIT; ifq != NULL;
-		     ifq = ifq->ifq_next) {
+		for (ifq = softs->ipf_state_tcptq + IPF_TCPS_CLOSE_WAIT;
+		     ifq != NULL; ifq = ifq->ifq_next) {
 
 			for (tqn = ifq->ifq_head; ((tqe = tqn) != NULL); ) {
 				tqn = tqe->tqe_next;
 				is = tqe->tqe_parent;
 				if (is->is_p != IPPROTO_TCP)
 					break;
-				if (fr_delstate(is, ISL_EXPIRE) == 0)
+				if (ipf_state_del(softc, is, ISL_FLUSH) == 0)
 					removed++;
 			}
 		}
@@ -3178,8 +3854,8 @@ int which, proto;
 		/*
 		 * Also need to look through the user defined queues.
 		 */
-		for (ifq = ips_utqe; ifq != NULL; ifq = ifqnext) {
-			ifqnext = ifq->ifq_next;
+		for (ifq = softs->ipf_state_usertq; ifq != NULL;
+		     ifq = ifq->ifq_next) {
 			for (tqn = ifq->ifq_head; ((tqe = tqn) != NULL); ) {
 				tqn = tqe->tqe_next;
 				is = tqe->tqe_parent;
@@ -3188,7 +3864,8 @@ int which, proto;
 
 				if ((is->is_state[0] > IPF_TCPS_ESTABLISHED) &&
 				    (is->is_state[1] > IPF_TCPS_ESTABLISHED)) {
-					if (fr_delstate(is, ISL_EXPIRE) == 0)
+					if (ipf_state_del(softc, is,
+							  ISL_FLUSH) == 0)
 						removed++;
 				}
 			}
@@ -3198,7 +3875,7 @@ int which, proto;
 	case 2 :
 		break;
 
-		/*  
+		/*
 		 * Args 5-11 correspond to flushing those particular states
 		 * for TCP connections.
 		 */
@@ -3209,12 +3886,13 @@ int which, proto;
 	case IPF_TCPS_FIN_WAIT_2 :
 	case IPF_TCPS_TIME_WAIT :
 	case IPF_TCPS_CLOSED :
-		tqn = ips_tqtqb[which].ifq_head;
+		SBUMP(ipf_state_stats.iss_flush_queue);
+		tqn = softs->ipf_state_tcptq[which].ifq_head;
 		while (tqn != NULL) {
 			tqe = tqn;
 			tqn = tqe->tqe_next;
 			is = tqe->tqe_parent;
-			if (fr_delstate(is, ISL_FLUSH) == 0)
+			if (ipf_state_del(softc, is, ISL_FLUSH) == 0)
 				removed++;
 		}
 		break;
@@ -3223,16 +3901,18 @@ int which, proto;
 		if (which < 30)
 			break;
 
-		/* 
+		SBUMP(ipf_state_stats.iss_flush_state);
+		/*
 		 * Take a large arbitrary number to mean the number of seconds
 		 * for which which consider to be the maximum value we'll allow
 		 * the expiration to be.
 		 */
 		which = IPF_TTLVAL(which);
-		for (isp = &ips_list; ((is = *isp) != NULL); ) {
+		for (isp = &softs->ipf_state_list; ((is = *isp) != NULL); ) {
 			if ((proto == 0) || (is->is_v == proto)) {
-				if (fr_ticks - is->is_touched > which) {
-					if (fr_delstate(is, ISL_FLUSH) == 0) {
+				if (softc->ipf_ticks - is->is_touched > which) {
+					if (ipf_state_del(softc, is,
+							  ISL_FLUSH) == 0) {
 						removed++;
 						continue;
 					}
@@ -3248,13 +3928,23 @@ int which, proto;
 		return removed;
 	}
 
+	SBUMP(ipf_state_stats.iss_flush_timeout);
 	/*
-	 * Asked to remove inactive entries because the table is full.
+	 * Asked to remove inactive entries because the table is full, try
+	 * again, 3 times, if first attempt failed with a different criteria
+	 * each time.  The order tried in must be in decreasing age.
+	 * Another alternative is to implement random drop and drop N entries
+	 * at random until N have been freed up.
 	 */
-	if (fr_ticks - ips_last_force_flush > IPF_TTLVAL(5)) {
-		ips_last_force_flush = fr_ticks;
-                removed = ipf_queueflush(fr_state_flush_entry, ips_tqtqb,
-					 ips_utqe);
+	if (softc->ipf_ticks - softs->ipf_state_wm_last >
+	    softs->ipf_state_wm_freq) {
+		removed = ipf_queueflush(softc, ipf_state_flush_entry,
+					 softs->ipf_state_tcptq,
+					 softs->ipf_state_usertq,
+					 &softs->ipf_state_stats.iss_active,
+					 softs->ipf_state_size,
+					 softs->ipf_state_wm_low);
+		softs->ipf_state_wm_last = softc->ipf_ticks;
 	}
 
 	SPL_X(s);
@@ -3263,29 +3953,33 @@ int which, proto;
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_state_flush_entry                                        */
+/* Function:    ipf_state_flush_entry                                       */
 /* Returns:     int - 0 = entry deleted, else not deleted                   */
-/* Parameters:  entry(I)  - pointer to state structure to delete            */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
+/*              entry(I)  - pointer to state structure to delete            */
 /* Write Locks: ipf_state                                                   */
 /*                                                                          */
 /* This function is a stepping stone between ipf_queueflush() and           */
-/* fr_delstate().  It is used so we can provide a uniform interface via the */
-/* ipf_queueflush() function.                                               */
+/* ipf_state_del().  It is used so we can provide a uniform interface via   */
+/* the ipf_queueflush() function.                                           */
 /* ------------------------------------------------------------------------ */
-static int fr_state_flush_entry(entry)
-void *entry;
+static int
+ipf_state_flush_entry(softc, entry)
+	ipf_main_softc_t *softc;
+	void *entry;
 {
-	return fr_delstate(entry, ISL_FLUSH);
-}     
+	return ipf_state_del(softc, entry, ISL_FLUSH);
+}
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_tcp_age                                                  */
+/* Function:    ipf_tcp_age                                                 */
 /* Returns:     int - 1 == state transition made, 0 == no change (rejected) */
-/* Parameters:  tq(I)    - pointer to timeout queue information             */
+/* Parameters:  tqe(I)   - pointer to timeout queue information             */
 /*              fin(I)   - pointer to packet information                    */
 /*              tqtab(I) - TCP timeout queue table this is in               */
 /*              flags(I) - flags from state/NAT entry                       */
+/*              ok(I)    - can we advance state                             */
 /*                                                                          */
 /* Rewritten by Arjan de Vet <Arjan.deVet@adv.iae.nl>, 2000-07-29:          */
 /*                                                                          */
@@ -3297,7 +3991,7 @@ void *entry;
 /*                                                                          */
 /* - store the state of the source in state[0] such that ipfstat            */
 /*   displays the state as source/dest instead of dest/source; the calls    */
-/*   to fr_tcp_age have been changed accordingly.                           */
+/*   to ipf_tcp_age have been changed accordingly.                          */
 /*                                                                          */
 /* Internal Parameters:                                                     */
 /*                                                                          */
@@ -3328,12 +4022,14 @@ void *entry;
 /*                                                                          */
 /* Locking: it is assumed that the parent of the tqe structure is locked.   */
 /* ------------------------------------------------------------------------ */
-int fr_tcp_age(tqe, fin, tqtab, flags)
-ipftqent_t *tqe;
-fr_info_t *fin;
-ipftq_t *tqtab;
-int flags;
+int
+ipf_tcp_age(tqe, fin, tqtab, flags, ok)
+	ipftqent_t *tqe;
+	fr_info_t *fin;
+	ipftq_t *tqtab;
+	int flags, ok;
 {
+	ipf_main_softc_t *softc = fin->fin_main_soft;
 	int dlen, ostate, nstate, rval, dir;
 	u_char tcpflags;
 	tcphdr_t *tcp;
@@ -3344,17 +4040,20 @@ int flags;
 	dir = fin->fin_rev;
 	tcpflags = tcp->th_flags;
 	dlen = fin->fin_dlen - (TCP_OFF(tcp) << 2);
+	ostate = tqe->tqe_state[1 - dir];
+	nstate = tqe->tqe_state[dir];
 
 	if (tcpflags & TH_RST) {
 		if (!(tcpflags & TH_PUSH) && !dlen)
 			nstate = IPF_TCPS_CLOSED;
 		else
 			nstate = IPF_TCPS_CLOSE_WAIT;
+
+		if (ostate <= IPF_TCPS_ESTABLISHED) {
+			tqe->tqe_state[1 - dir] = IPF_TCPS_CLOSE_WAIT;
+		}
 		rval = 1;
 	} else {
-		ostate = tqe->tqe_state[1 - dir];
-		nstate = tqe->tqe_state[dir];
-
 		switch (nstate)
 		{
 		case IPF_TCPS_LISTEN: /* 0 */
@@ -3410,7 +4109,7 @@ int flags;
 			if ((tcpflags & ~(TH_ECN|TH_CWR)) == TH_SYN) {
 				/*
 				 * A retransmitted SYN packet.  We do not reset
-				 * the timeout here to fr_tcptimeout because a
+				 * the timeout here to ipf_tcptimeout because a
 				 * connection connect timeout does not renew
 				 * after every packet that is sent.  We need to
 				 * set rval so as to indicate the packet has
@@ -3578,7 +4277,7 @@ int flags;
 				 * the FIN packet here? does the window code
 				 * guarantee that?
 				 */
-				nstate = IPF_TCPS_TIME_WAIT;
+				nstate = IPF_TCPS_LAST_ACK;
 			} else {
 				/*
 				 * we closed our side of the connection
@@ -3594,25 +4293,18 @@ int flags;
 			if ((tcpflags & (TH_FIN|TH_ACK)) == TH_ACK) {
 				nstate = IPF_TCPS_TIME_WAIT;
 			}
-			rval = 2;
+			rval = 1;
 			break;
 
 		case IPF_TCPS_LAST_ACK: /* 8 */
 			if (tcpflags & TH_ACK) {
-				if ((tcpflags & TH_PUSH) || dlen)
-					/*
-					 * there is still data to be delivered,
-					 * reset timeout
-					 */
-					rval = 1;
-				else
-					rval = 2;
+				rval = 1;
 			}
 			/*
-			 * we cannot detect when we go out of LAST_ACK state to
-			 * CLOSED because that is based on the reception of ACK
-			 * packets; ipfilter can only detect that a packet
-			 * has been sent by a host
+			 * we cannot detect when we go out of LAST_ACK state
+			 * to CLOSED because that is based on the reception
+			 * of ACK packets; ipfilter can only detect that a
+			 * packet has been sent by a host
 			 */
 			break;
 
@@ -3624,8 +4316,10 @@ int flags;
 			/* we're in 2MSL timeout now */
 			if (ostate == IPF_TCPS_LAST_ACK) {
 				nstate = IPF_TCPS_CLOSED;
+				rval = 1;
+			} else {
+				rval = 2;
 			}
-			rval = 1;
 			break;
 
 		case IPF_TCPS_CLOSED: /* 11 */
@@ -3633,18 +4327,7 @@ int flags;
 			break;
 
 		default :
-#if defined(_KERNEL)
-# if SOLARIS
-			cmn_err(CE_NOTE,
-				"tcp %lx flags %x si %lx nstate %d ostate %d\n",
-				(u_long)tcp, tcpflags, (u_long)tqe,
-				nstate, ostate);
-# else
-			printf("tcp %lx flags %x si %lx nstate %d ostate %d\n",
-				(u_long)tcp, tcpflags, (u_long)tqe,
-				nstate, ostate);
-# endif
-#else
+#if !defined(_KERNEL)
 			abort();
 #endif
 			break;
@@ -3658,9 +4341,11 @@ int flags;
 	if (rval == 2)
 		rval = 1;
 	else if (rval == 1) {
-		tqe->tqe_state[dir] = nstate;
+		if (ok)
+			tqe->tqe_state[dir] = nstate;
 		if ((tqe->tqe_flags & TQE_RULEBASED) == 0)
-			fr_movequeue(tqe, tqe->tqe_ifq, tqtab + nstate);
+			ipf_movequeue(softc->ipf_ticks, tqe, tqe->tqe_ifq,
+				      tqtab + nstate);
 	}
 
 	return rval;
@@ -3668,18 +4353,21 @@ int flags;
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    ipstate_log                                                 */
+/* Function:    ipf_state_log                                               */
 /* Returns:     Nil                                                         */
-/* Parameters:  is(I)   - pointer to state structure                        */
-/*              type(I) - type of log entry to create                       */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
+/*              is(I)    - pointer to state structure                       */
+/*              type(I)  - type of log entry to create                      */
 /*                                                                          */
 /* Creates a state table log entry using the state structure and type info. */
 /* passed in.  Log packet/byte counts, source/destination address and other */
 /* protocol specific information.                                           */
 /* ------------------------------------------------------------------------ */
-void ipstate_log(is, type)
-struct ipstate *is;
-u_int type;
+void
+ipf_state_log(softc, is, type)
+	ipf_main_softc_t *softc;
+	struct ipstate *is;
+	u_int type;
 {
 #ifdef	IPFILTER_LOG
 	struct	ipslog	ipsl;
@@ -3729,18 +4417,14 @@ u_int type;
 	sizes[0] = sizeof(ipsl);
 	types[0] = 0;
 
-	if (ipllog(IPL_LOGSTATE, NULL, items, sizes, types, 1)) {
-		ATOMIC_INCL(ips_stats.iss_logged);
-	} else {
-		ATOMIC_INCL(ips_stats.iss_logfail);
-	}
+	(void) ipf_log_items(softc, IPL_LOGSTATE, NULL, items, sizes, types, 1);
 #endif
 }
 
 
 #ifdef	USE_INET6
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_checkicmp6matchingstate                                  */
+/* Function:    ipf_checkicmp6matchingstate                                 */
 /* Returns:     ipstate_t* - NULL == no match found,                        */
 /*                           else  pointer to matching state entry          */
 /* Parameters:  fin(I) - pointer to packet information                      */
@@ -3749,11 +4433,13 @@ u_int type;
 /* If we've got an ICMPv6 error message, using the information stored in    */
 /* the ICMPv6 packet, look for a matching state table entry.                */
 /* ------------------------------------------------------------------------ */
-static ipstate_t *fr_checkicmp6matchingstate(fin)
-fr_info_t *fin;
+static ipstate_t *
+ipf_checkicmp6matchingstate(fin)
+	fr_info_t *fin;
 {
+	ipf_main_softc_t *softc = fin->fin_main_soft;
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
 	struct icmp6_hdr *ic6, *oic;
-	int type, backward, i;
 	ipstate_t *is, **isp;
 	u_short sport, dport;
 	i6addr_t dst, src;
@@ -3762,8 +4448,9 @@ fr_info_t *fin;
 	fr_info_t ofin;
 	tcphdr_t *tcp;
 	ip6_t *oip6;
-	u_char	pr;
+	u_char pr;
 	u_int hv;
+	int type;
 
 	/*
 	 * Does it at least have the return (basic) IP header ?
@@ -3772,15 +4459,19 @@ fr_info_t *fin;
 	 * an ICMP error header.
 	 */
 	if ((fin->fin_v != 6) || (fin->fin_plen < ICMP6ERR_MINPKTLEN) ||
-	    !(fin->fin_flx & FI_ICMPERR))
+	    !(fin->fin_flx & FI_ICMPERR)) {
+		SBUMPD(ipf_state_stats, iss_icmp_bad);
 		return NULL;
+	}
 
 	ic6 = fin->fin_dp;
 	type = ic6->icmp6_type;
 
 	oip6 = (ip6_t *)((char *)ic6 + ICMPERR_ICMPHLEN);
-	if (fin->fin_plen < sizeof(*oip6))
+	if (fin->fin_plen < sizeof(*oip6)) {
+		SBUMPD(ipf_state_stats, iss_icmp_short);
 		return NULL;
+	}
 
 	bcopy((char *)fin, (char *)&ofin, sizeof(*fin));
 	ofin.fin_v = 6;
@@ -3794,21 +4485,31 @@ fr_info_t *fin;
 	 * matchsrcdst. Note that not all fields are necessary
 	 * but this is the cleanest way. Note further we fill
 	 * in fin_mp such that if someone uses it we'll get
-	 * a kernel panic. fr_matchsrcdst does not use this.
+	 * a kernel panic. ipf_matchsrcdst does not use this.
 	 *
 	 * watch out here, as ip is in host order and oip6 in network
 	 * order. Any change we make must be undone afterwards.
 	 */
 	savelen = oip6->ip6_plen;
-	oip6->ip6_plen = fin->fin_dlen - ICMPERR_ICMPHLEN;
+	oip6->ip6_plen = htons(fin->fin_dlen - ICMPERR_ICMPHLEN);
 	ofin.fin_flx = FI_NOCKSUM;
 	ofin.fin_ip = (ip_t *)oip6;
-	(void) fr_makefrip(sizeof(*oip6), (ip_t *)oip6, &ofin);
+	(void) ipf_makefrip(sizeof(*oip6), (ip_t *)oip6, &ofin);
 	ofin.fin_flx &= ~(FI_BAD|FI_SHORT);
 	oip6->ip6_plen = savelen;
+	pr = ofin.fin_p;
+
+	/*
+	 * an ICMP error can never generate an ICMP error in response.
+	 */
+	if (ofin.fin_flx & FI_ICMPERR) {
+		DT1(iss_icmp6_icmperr, fr_info_t *, &ofin);
+		SBUMP(ipf_state_stats.iss_icmp6_icmperr);
+		return NULL;
+	}
 
 	if (oip6->ip6_nxt == IPPROTO_ICMPV6) {
-		oic = (struct icmp6_hdr *)(oip6 + 1);
+		oic = ofin.fin_dp;
 		/*
 		 * an ICMP error can only be generated as a result of an
 		 * ICMP query, not as the response on an ICMP error
@@ -3816,8 +4517,11 @@ fr_info_t *fin;
 		 * XXX theoretically ICMP_ECHOREP and the other reply's are
 		 * ICMP query's as well, but adding them here seems strange XXX
 		 */
-		 if (!(oic->icmp6_type & ICMP6_INFOMSG_MASK))
-		    	return NULL;
+		 if (!(oic->icmp6_type & ICMP6_INFOMSG_MASK)) {
+			DT1(iss_icmp6_notinfo, fr_info_t *, &ofin);
+			SBUMP(ipf_state_stats.iss_icmp6_notinfo);
+			return NULL;
+		}
 
 		/*
 		 * perform a lookup of the ICMP packet in the state table
@@ -3831,15 +4535,16 @@ fr_info_t *fin;
 		hv += oic->icmp6_seq;
 		hv = DOUBLE_HASH(hv);
 
-		READ_ENTER(&ipf_state);
-		for (isp = &ips_table[hv]; ((is = *isp) != NULL); ) {
+		READ_ENTER(&softc->ipf_state);
+		for (isp = &softs->ipf_state_table[hv];
+		     ((is = *isp) != NULL); ) {
 			ic = &is->is_icmp;
 			isp = &is->is_hnext;
 			if ((is->is_p == pr) &&
 			    !(is->is_pass & FR_NOICMPERR) &&
 			    (oic->icmp6_id == ic->ici_id) &&
 			    (oic->icmp6_seq == ic->ici_seq) &&
-			    (is = fr_matchsrcdst(&ofin, is, &src,
+			    (is = ipf_matchsrcdst(&ofin, is, &src,
 						 &dst, NULL, FI_ICMPCMP))) {
 			    	/*
 			    	 * in the state table ICMP query's are stored
@@ -3849,16 +4554,13 @@ fr_info_t *fin;
 				if (((ic->ici_type == ICMP6_ECHO_REPLY) &&
 				     (oic->icmp6_type == ICMP6_ECHO_REQUEST)) ||
 				     (ic->ici_type - 1 == oic->icmp6_type )) {
-				    	ips_stats.iss_hits++;
-					backward = IP6_NEQ(&is->is_dst, &src);
-					fin->fin_rev = !backward;
-					i = (backward << 1) + fin->fin_out;
-    					is->is_icmppkts[i]++;
-					return is;
+					if (!ipf_allowstateicmp(fin, is, &src))
+						return is;
 				}
 			}
 		}
-		RWLOCK_EXIT(&ipf_state);
+		RWLOCK_EXIT(&softc->ipf_state);
+		SBUMPD(ipf_state_stats, iss_icmp6_miss);
 		return NULL;
 	}
 
@@ -3874,18 +4576,33 @@ fr_info_t *fin;
 	hv += dst.i6[2];
 	hv += dst.i6[3];
 
-	if ((oip6->ip6_nxt == IPPROTO_TCP) || (oip6->ip6_nxt == IPPROTO_UDP)) {
+	tcp = NULL;
+
+	switch (oip6->ip6_nxt)
+	{
+	case IPPROTO_TCP :
+	case IPPROTO_UDP :
 		tcp = (tcphdr_t *)(oip6 + 1);
 		dport = tcp->th_dport;
 		sport = tcp->th_sport;
 		hv += dport;
 		hv += sport;
-	} else
-		tcp = NULL;
+		break;
+
+	case IPPROTO_ICMPV6 :
+		oic = (struct icmp6_hdr *)(oip6 + 1);
+		hv += oic->icmp6_id;
+		hv += oic->icmp6_seq;
+		break;
+
+	default :
+		break;
+	}
+
 	hv = DOUBLE_HASH(hv);
 
-	READ_ENTER(&ipf_state);
-	for (isp = &ips_table[hv]; ((is = *isp) != NULL); ) {
+	READ_ENTER(&softc->ipf_state);
+	for (isp = &softs->ipf_state_table[hv]; ((is = *isp) != NULL); ) {
 		isp = &is->is_hnext;
 		/*
 		 * Only allow this icmp though if the
@@ -3897,73 +4614,63 @@ fr_info_t *fin;
 		if ((is->is_p != pr) || (is->is_v != 6) ||
 		    (is->is_pass & FR_NOICMPERR))
 			continue;
-		is = fr_matchsrcdst(&ofin, is, &src, &dst, tcp, FI_ICMPCMP);
-		if (is != NULL) {
-			ips_stats.iss_hits++;
-			backward = IP6_NEQ(&is->is_dst, &src);
-			fin->fin_rev = !backward;
-			i = (backward << 1) + fin->fin_out;
-			is->is_icmppkts[i]++;
-			/*
-			 * we deliberately do not touch the timeouts
-			 * for the accompanying state table entry.
-			 * It remains to be seen if that is correct. XXX
-			 */
+		is = ipf_matchsrcdst(&ofin, is, &src, &dst, tcp, FI_ICMPCMP);
+		if ((is != NULL) && (ipf_allowstateicmp(fin, is, &src) == 0))
 			return is;
-		}
 	}
-	RWLOCK_EXIT(&ipf_state);
+	RWLOCK_EXIT(&softc->ipf_state);
+	SBUMPD(ipf_state_stats, iss_icmp_miss);
 	return NULL;
 }
 #endif
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_sttab_init                                               */
+/* Function:    ipf_sttab_init                                              */
 /* Returns:     Nil                                                         */
-/* Parameters:  tqp(I) - pointer to an array of timeout queues for TCP      */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
+/*              tqp(I)   - pointer to an array of timeout queues for TCP    */
 /*                                                                          */
 /* Initialise the array of timeout queues for TCP.                          */
 /* ------------------------------------------------------------------------ */
-void fr_sttab_init(tqp)
-ipftq_t *tqp;
+void
+ipf_sttab_init(softc, tqp)
+	ipf_main_softc_t *softc;
+	ipftq_t *tqp;
 {
 	int i;
 
 	for (i = IPF_TCP_NSTATES - 1; i >= 0; i--) {
-		tqp[i].ifq_ttl = 0;
-		tqp[i].ifq_ref = 1;
-		tqp[i].ifq_head = NULL;
-		tqp[i].ifq_tail = &tqp[i].ifq_head;
+		IPFTQ_INIT(&tqp[i], 0, "ipftq tcp tab");
 		tqp[i].ifq_next = tqp + i + 1;
-		MUTEX_INIT(&tqp[i].ifq_lock, "ipftq tcp tab");
 	}
 	tqp[IPF_TCP_NSTATES - 1].ifq_next = NULL;
-	tqp[IPF_TCPS_CLOSED].ifq_ttl = fr_tcpclosed;
-	tqp[IPF_TCPS_LISTEN].ifq_ttl = fr_tcptimeout;
-	tqp[IPF_TCPS_SYN_SENT].ifq_ttl = fr_tcptimeout;
-	tqp[IPF_TCPS_SYN_RECEIVED].ifq_ttl = fr_tcptimeout;
-	tqp[IPF_TCPS_ESTABLISHED].ifq_ttl = fr_tcpidletimeout;
-	tqp[IPF_TCPS_CLOSE_WAIT].ifq_ttl = fr_tcphalfclosed;
-	tqp[IPF_TCPS_FIN_WAIT_1].ifq_ttl = fr_tcphalfclosed;
-	tqp[IPF_TCPS_CLOSING].ifq_ttl = fr_tcptimeout;
-	tqp[IPF_TCPS_LAST_ACK].ifq_ttl = fr_tcplastack;
-	tqp[IPF_TCPS_FIN_WAIT_2].ifq_ttl = fr_tcpclosewait;
-	tqp[IPF_TCPS_TIME_WAIT].ifq_ttl = fr_tcptimewait;
-	tqp[IPF_TCPS_HALF_ESTAB].ifq_ttl = fr_tcptimeout;
+	tqp[IPF_TCPS_CLOSED].ifq_ttl = softc->ipf_tcpclosed;
+	tqp[IPF_TCPS_LISTEN].ifq_ttl = softc->ipf_tcptimeout;
+	tqp[IPF_TCPS_SYN_SENT].ifq_ttl = softc->ipf_tcpsynsent;
+	tqp[IPF_TCPS_SYN_RECEIVED].ifq_ttl = softc->ipf_tcpsynrecv;
+	tqp[IPF_TCPS_ESTABLISHED].ifq_ttl = softc->ipf_tcpidletimeout;
+	tqp[IPF_TCPS_CLOSE_WAIT].ifq_ttl = softc->ipf_tcphalfclosed;
+	tqp[IPF_TCPS_FIN_WAIT_1].ifq_ttl = softc->ipf_tcphalfclosed;
+	tqp[IPF_TCPS_CLOSING].ifq_ttl = softc->ipf_tcptimeout;
+	tqp[IPF_TCPS_LAST_ACK].ifq_ttl = softc->ipf_tcplastack;
+	tqp[IPF_TCPS_FIN_WAIT_2].ifq_ttl = softc->ipf_tcpclosewait;
+	tqp[IPF_TCPS_TIME_WAIT].ifq_ttl = softc->ipf_tcptimewait;
+	tqp[IPF_TCPS_HALF_ESTAB].ifq_ttl = softc->ipf_tcptimeout;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_sttab_destroy                                            */
+/* Function:    ipf_sttab_destroy                                           */
 /* Returns:     Nil                                                         */
 /* Parameters:  tqp(I) - pointer to an array of timeout queues for TCP      */
 /*                                                                          */
 /* Do whatever is necessary to "destroy" each of the entries in the array   */
 /* of timeout queues for TCP.                                               */
 /* ------------------------------------------------------------------------ */
-void fr_sttab_destroy(tqp)
-ipftq_t *tqp;
+void
+ipf_sttab_destroy(tqp)
+	ipftq_t *tqp;
 {
 	int i;
 
@@ -3973,9 +4680,10 @@ ipftq_t *tqp;
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_statederef                                               */
+/* Function:    ipf_state_deref                                             */
 /* Returns:     Nil                                                         */
-/* Parameters:  isp(I) - pointer to pointer to state table entry            */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
+/*              isp(I) - pointer to pointer to state table entry            */
 /*                                                                          */
 /* Decrement the reference counter for this state table entry and free it   */
 /* if there are no more things using it.                                    */
@@ -4003,10 +4711,12 @@ ipftq_t *tqp;
 /*    dir == 0 : a packet from source to dest                               */
 /*    dir == 1 : a packet from dest to source                               */
 /* ------------------------------------------------------------------------ */
-void fr_statederef(isp)
-ipstate_t **isp;
+void
+ipf_state_deref(softc, isp)
+	ipf_main_softc_t *softc;
+	ipstate_t **isp;
 {
-	ipstate_t *is;
+	ipstate_t *is = *isp;
 
 	is = *isp;
 	*isp = NULL;
@@ -4017,36 +4727,39 @@ ipstate_t **isp;
 		MUTEX_EXIT(&is->is_lock);
 #ifndef	_KERNEL
 		if ((is->is_sti.tqe_state[0] > IPF_TCPS_ESTABLISHED) ||
-		   (is->is_sti.tqe_state[1] > IPF_TCPS_ESTABLISHED)) {
-			fr_delstate(is, ISL_ORPHAN);
+		    (is->is_sti.tqe_state[1] > IPF_TCPS_ESTABLISHED)) {
+			ipf_state_del(softc, is, ISL_EXPIRE);
 		}
 #endif
 		return;
 	}
 	MUTEX_EXIT(&is->is_lock);
 
-	WRITE_ENTER(&ipf_state);
-	fr_delstate(is, ISL_EXPIRE);
-	RWLOCK_EXIT(&ipf_state);
+	WRITE_ENTER(&softc->ipf_state);
+	ipf_state_del(softc, is, ISL_ORPHAN);
+	RWLOCK_EXIT(&softc->ipf_state);
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_setstatequeue                                            */
+/* Function:    ipf_state_setqueue                                          */
 /* Returns:     Nil                                                         */
-/* Parameters:  is(I) - pointer to state structure                          */
-/*              rev(I) - forward(0) or reverse(1) direction                 */
+/* Parameters:  softc(I) - pointer to soft context main structure           */
+/*              is(I)    - pointer to state structure                       */
+/*              rev(I)   - forward(0) or reverse(1) direction               */
 /* Locks:       ipf_state (read or write)                                   */
 /*                                                                          */
 /* Put the state entry on its default queue entry, using rev as a helped in */
 /* determining which queue it should be placed on.                          */
 /* ------------------------------------------------------------------------ */
-void fr_setstatequeue(is, rev)
-ipstate_t *is;
-int rev;
+void
+ipf_state_setqueue(softc, is, rev)
+	ipf_main_softc_t *softc;
+	ipstate_t *is;
+	int rev;
 {
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
 	ipftq_t *oifq, *nifq;
-
 
 	if ((is->is_sti.tqe_flags & TQE_RULEBASED) != 0)
 		nifq = is->is_tqehead[rev];
@@ -4059,30 +4772,30 @@ int rev;
 #ifdef USE_INET6
 		case IPPROTO_ICMPV6 :
 			if (rev == 1)
-				nifq = &ips_icmpacktq;
+				nifq = &softs->ipf_state_icmpacktq;
 			else
-				nifq = &ips_icmptq;
+				nifq = &softs->ipf_state_icmptq;
 			break;
 #endif
 		case IPPROTO_ICMP :
 			if (rev == 1)
-				nifq = &ips_icmpacktq;
+				nifq = &softs->ipf_state_icmpacktq;
 			else
-				nifq = &ips_icmptq;
+				nifq = &softs->ipf_state_icmptq;
 			break;
 		case IPPROTO_TCP :
-			nifq = ips_tqtqb + is->is_state[rev];
+			nifq = softs->ipf_state_tcptq + is->is_state[rev];
 			break;
 
 		case IPPROTO_UDP :
 			if (rev == 1)
-				nifq = &ips_udpacktq;
+				nifq = &softs->ipf_state_udpacktq;
 			else
-				nifq = &ips_udptq;
+				nifq = &softs->ipf_state_udptq;
 			break;
 
 		default :
-			nifq = &ips_iptq;
+			nifq = &softs->ipf_state_iptq;
 			break;
 		}
 	}
@@ -4093,126 +4806,560 @@ int rev;
 	 * another, else put it on the end of the newly determined queue.
 	 */
 	if (oifq != NULL)
-		fr_movequeue(&is->is_sti, oifq, nifq);
+		ipf_movequeue(softc->ipf_ticks, &is->is_sti, oifq, nifq);
 	else
-		fr_queueappend(&is->is_sti, nifq, is);
+		ipf_queueappend(softc->ipf_ticks, &is->is_sti, nifq, is);
 	return;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_stateiter                                                */
+/* Function:    ipf_state_iter                                              */
 /* Returns:     int - 0 == success, else error                              */
-/* Parameters:  token(I) - pointer to ipftoken structure                    */
+/* Parameters:  softc(I) - pointer to main soft context                     */
+/*              token(I) - pointer to ipftoken structure                    */
 /*              itp(I)   - pointer to ipfgeniter structure                  */
+/*              obj(I)   - pointer to data description structure            */
 /*                                                                          */
 /* This function handles the SIOCGENITER ioctl for the state tables and     */
-/* walks through the list of entries in the state table list (ips_list.)    */
+/* walks through the list of entries in the state table list (softs->ipf_state_list.)    */
 /* ------------------------------------------------------------------------ */
-static int fr_stateiter(token, itp)
-ipftoken_t *token;
-ipfgeniter_t *itp;
+static int
+ipf_state_iter(softc, token, itp, obj)
+	ipf_main_softc_t *softc;
+	ipftoken_t *token;
+	ipfgeniter_t *itp;
+	ipfobj_t *obj;
 {
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
 	ipstate_t *is, *next, zero;
-	int error, count;
-	char *dst;
+	int error;
 
-	if (itp->igi_data == NULL)
+	if (itp->igi_data == NULL) {
+		IPFERROR(100026);
 		return EFAULT;
+	}
 
-	if (itp->igi_nitems < 1)
+	if (itp->igi_nitems < 1) {
+		IPFERROR(100027);
 		return ENOSPC;
+	}
 
-	if (itp->igi_type != IPFGENITER_STATE)
+	if (itp->igi_type != IPFGENITER_STATE) {
+		IPFERROR(100028);
 		return EINVAL;
+	}
 
 	is = token->ipt_data;
 	if (is == (void *)-1) {
-		ipf_freetoken(token);
+		IPFERROR(100029);
 		return ESRCH;
 	}
 
 	error = 0;
-	dst = itp->igi_data;
+	obj->ipfo_type = IPFOBJ_IPSTATE;
+	obj->ipfo_size = sizeof(ipstate_t);
 
-	READ_ENTER(&ipf_state);
+	READ_ENTER(&softc->ipf_state);
+
+	is = token->ipt_data;
 	if (is == NULL) {
-		next = ips_list;
+		next = softs->ipf_state_list;
 	} else {
 		next = is->is_next;
 	}
 
-	count = itp->igi_nitems;
-	for (;;) {
-		if (next != NULL) {
-			/*
-			 * If we find a state entry to use, bump its
-			 * reference count so that it can be used for
-			 * is_next when we come back.
-			 */
-			if (count == 1) {
-				MUTEX_ENTER(&next->is_lock);
-				next->is_ref++;
-				MUTEX_EXIT(&next->is_lock);
-				token->ipt_data = next;
-			}
-		} else {
-			bzero(&zero, sizeof(zero));
-			next = &zero;
-			count = 1;
-			token->ipt_data = NULL;
-		}
-		RWLOCK_EXIT(&ipf_state);
-
-		/*
-		 * This should arguably be via fr_outobj() so that the state
-		 * structure can (if required) be massaged going out.
-		 */
-		error = COPYOUT(next, dst, sizeof(*next));
-		if (error != 0)
-			error = EFAULT;
-		if ((count == 1) || (error != 0))
-			break;
-
-		dst += sizeof(*next);
-		count--;
-
-		READ_ENTER(&ipf_state);
-		next = next->is_next;
+	/*
+	 * If we find a state entry to use, bump its reference count so that
+	 * it can be used for is_next when we come back.
+	 */
+	if (next != NULL) {
+		MUTEX_ENTER(&next->is_lock);
+		next->is_ref++;
+		MUTEX_EXIT(&next->is_lock);
+		token->ipt_data = next;
+	} else {
+		bzero(&zero, sizeof(zero));
+		next = &zero;
+		token->ipt_data = NULL;
 	}
+	if (next->is_next == NULL)
+		ipf_token_mark_complete(token);
 
-	if (is != NULL) {
-		fr_statederef(&is);
-	}
+	RWLOCK_EXIT(&softc->ipf_state);
+
+	obj->ipfo_ptr = itp->igi_data;
+	error = ipf_outobjk(softc, obj, next);
+	if (is != NULL)
+		ipf_state_deref(softc, &is);
 
 	return error;
 }
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_stgettable                                               */
+/* Function:    ipf_state_gettable                                          */
 /* Returns:     int     - 0 = success, else error                           */
-/* Parameters:  data(I) - pointer to ioctl data                             */
+/* Parameters:  softc(I) - pointer to main soft context                     */
+/*              softs(I) - pointer to state context structure               */
+/*              data(I)  - pointer to ioctl data                             */
 /*                                                                          */
 /* This function handles ioctl requests for tables of state information.    */
 /* At present the only table it deals with is the hash bucket statistics.   */
 /* ------------------------------------------------------------------------ */
-static int fr_stgettable(data)
-char *data;
+static int
+ipf_state_gettable(softc, softs, data)
+	ipf_main_softc_t *softc;
+	ipf_state_softc_t *softs;
+	char *data;
 {
 	ipftable_t table;
 	int error;
 
-	error = fr_inobj(data, &table, IPFOBJ_GTABLE);
+	error = ipf_inobj(softc, data, NULL, &table, IPFOBJ_GTABLE);
 	if (error != 0)
 		return error;
 
-	if (table.ita_type != IPFTABLE_BUCKETS)
+	if (table.ita_type != IPFTABLE_BUCKETS) {
+		IPFERROR(100031);
 		return EINVAL;
+	}
 
-	error = COPYOUT(ips_stats.iss_bucketlen, table.ita_table, 
-			fr_statesize * sizeof(u_long));
-	if (error != 0)
+	error = COPYOUT(softs->ipf_state_stats.iss_bucketlen, table.ita_table,
+			softs->ipf_state_size * sizeof(u_int));
+	if (error != 0) {
+		IPFERROR(100032);
 		error = EFAULT;
+	}
 	return error;
 }
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_state_setpending                                        */
+/* Returns:     Nil                                                         */
+/* Parameters:  softc(I) - pointer to main soft context                     */
+/*              is(I)    - pointer to state structure                       */
+/* Locks:       ipf_state (read or write)                                   */
+/*                                                                          */
+/* Put the state entry on to the pending queue - this queue has a very      */
+/* short lifetime where items are put that can't be deleted straight away   */
+/* because of locking issues but we want to delete them ASAP, anyway.       */
+/* ------------------------------------------------------------------------ */
+void
+ipf_state_setpending(softc, is)
+	ipf_main_softc_t *softc;
+	ipstate_t *is;
+{
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
+	ipftq_t *oifq;
+
+	oifq = is->is_sti.tqe_ifq;
+	if (oifq != NULL)
+		ipf_movequeue(softc->ipf_ticks, &is->is_sti, oifq,
+			      &softs->ipf_state_pending);
+	else
+		ipf_queueappend(softc->ipf_ticks, &is->is_sti,
+				&softs->ipf_state_pending, is);
+
+	MUTEX_ENTER(&is->is_lock);
+	if (is->is_me != NULL) {
+		*is->is_me = NULL;
+		is->is_me = NULL;
+		is->is_ref--;
+	}
+	MUTEX_EXIT(&is->is_lock);
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_state_matchflush                                        */
+/* Returns:     Nil                                                         */
+/* Parameters:  softc(I) - pointer to main soft context                     */
+/*              data(I)  - pointer to state structure                       */
+/* Locks:       ipf_state (read or write)                                   */
+/*                                                                          */
+/* Flush all entries from the list of state entries that match the          */
+/* properties in the array loaded.                                          */
+/* ------------------------------------------------------------------------ */
+int
+ipf_state_matchflush(softc, data)
+	ipf_main_softc_t *softc;
+	caddr_t data;
+{
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
+	int *array, flushed, error;
+	ipstate_t *state, *statenext;
+	ipfobj_t obj;
+
+	error = ipf_matcharray_load(softc, data, &obj, &array);
+	if (error != 0)
+		return error;
+
+	flushed = 0;
+
+	for (state = softs->ipf_state_list; state != NULL; state = statenext) {
+		statenext = state->is_next;
+		if (ipf_state_matcharray(state, array, softc->ipf_ticks) == 0) {
+			ipf_state_del(softc, state, ISL_FLUSH);
+			flushed++;
+		}
+	}
+
+	obj.ipfo_retval = flushed;
+	error = BCOPYOUT(&obj, data, sizeof(obj));
+
+	KFREES(array, array[0] * sizeof(*array));
+
+	return error;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_state_matcharray                                        */
+/* Returns:     int   - 0 = no match, 1 = match                             */
+/* Parameters:  state(I) - pointer to state structure                       */
+/*              array(I) - pointer to ipf matching expression               */
+/*              ticks(I) - current value of ipfilter tick timer             */
+/* Locks:       ipf_state (read or write)                                   */
+/*                                                                          */
+/* Compare a state entry with the match array passed in and return a value  */
+/* to indicate whether or not the matching was successful.                  */
+/* ------------------------------------------------------------------------ */
+static int
+ipf_state_matcharray(state, array, ticks)
+	ipstate_t *state;
+	int *array;
+	u_long ticks;
+{
+	int i, n, *x, rv, p;
+	ipfexp_t *e;
+
+	rv = 0;
+	n = array[0];
+	x = array + 1;
+
+	for (; n > 0; x += 3 + x[3], rv = 0) {
+		e = (ipfexp_t *)x;
+		n -= e->ipfe_size;
+		if (x[0] == IPF_EXP_END)
+			break;
+
+		/*
+		 * If we need to match the protocol and that doesn't match,
+		 * don't even both with the instruction array.
+		 */
+		p = e->ipfe_cmd >> 16;
+		if ((p != 0) && (p != state->is_p))
+			break;
+
+		switch (e->ipfe_cmd)
+		{
+		case IPF_EXP_IP_PR :
+			for (i = 0; !rv && i < e->ipfe_narg; i++) {
+				rv |= (state->is_p == e->ipfe_arg0[i]);
+			}
+			break;
+
+		case IPF_EXP_IP_SRCADDR :
+			if (state->is_v != 4)
+				break;
+			for (i = 0; !rv && i < e->ipfe_narg; i++) {
+				rv |= ((state->is_saddr &
+					e->ipfe_arg0[i * 2 + 1]) ==
+				      e->ipfe_arg0[i * 2]);
+			}
+			break;
+
+		case IPF_EXP_IP_DSTADDR :
+			if (state->is_v != 4)
+				break;
+			for (i = 0; !rv && i < e->ipfe_narg; i++) {
+				rv |= ((state->is_daddr &
+					e->ipfe_arg0[i * 2 + 1]) ==
+				       e->ipfe_arg0[i * 2]);
+			}
+			break;
+
+		case IPF_EXP_IP_ADDR :
+			if (state->is_v != 4)
+				break;
+			for (i = 0; !rv && i < e->ipfe_narg; i++) {
+				rv |= ((state->is_saddr &
+					e->ipfe_arg0[i * 2 + 1]) ==
+				       e->ipfe_arg0[i * 2]) ||
+				       ((state->is_daddr &
+					e->ipfe_arg0[i * 2 + 1]) ==
+				       e->ipfe_arg0[i * 2]);
+			}
+			break;
+
+#ifdef USE_INET6
+		case IPF_EXP_IP6_SRCADDR :
+			if (state->is_v != 6)
+				break;
+			for (i = 0; !rv && i < x[3]; i++) {
+				rv |= IP6_MASKEQ(&state->is_src.in6,
+						 &e->ipfe_arg0[i * 8 + 4],
+						 &e->ipfe_arg0[i * 8]);
+			}
+			break;
+
+		case IPF_EXP_IP6_DSTADDR :
+			if (state->is_v != 6)
+				break;
+			for (i = 0; !rv && i < x[3]; i++) {
+				rv |= IP6_MASKEQ(&state->is_dst.in6,
+						 &e->ipfe_arg0[i * 8 + 4],
+						 &e->ipfe_arg0[i * 8]);
+			}
+			break;
+
+		case IPF_EXP_IP6_ADDR :
+			if (state->is_v != 6)
+				break;
+			for (i = 0; !rv && i < x[3]; i++) {
+				rv |= IP6_MASKEQ(&state->is_src.in6,
+						 &e->ipfe_arg0[i * 8 + 4],
+						 &e->ipfe_arg0[i * 8]) ||
+				      IP6_MASKEQ(&state->is_dst.in6,
+						 &e->ipfe_arg0[i * 8 + 4],
+						 &e->ipfe_arg0[i * 8]);
+			}
+			break;
+#endif
+
+		case IPF_EXP_UDP_PORT :
+		case IPF_EXP_TCP_PORT :
+			for (i = 0; !rv && i < e->ipfe_narg; i++) {
+				rv |= (state->is_sport == e->ipfe_arg0[i]) ||
+				      (state->is_dport == e->ipfe_arg0[i]);
+			}
+			break;
+
+		case IPF_EXP_UDP_SPORT :
+		case IPF_EXP_TCP_SPORT :
+			for (i = 0; !rv && i < e->ipfe_narg; i++) {
+				rv |= (state->is_sport == e->ipfe_arg0[i]);
+			}
+			break;
+
+		case IPF_EXP_UDP_DPORT :
+		case IPF_EXP_TCP_DPORT :
+			for (i = 0; !rv && i < e->ipfe_narg; i++) {
+				rv |= (state->is_dport == e->ipfe_arg0[i]);
+			}
+			break;
+
+		case IPF_EXP_TCP_STATE :
+			for (i = 0; !rv && i < e->ipfe_narg; i++) {
+				rv |= (state->is_state[0] == e->ipfe_arg0[i]) ||
+				      (state->is_state[1] == e->ipfe_arg0[i]);
+			}
+			break;
+
+		case IPF_EXP_IDLE_GT :
+			rv |= (ticks - state->is_touched > e->ipfe_arg0[0]);
+			break;
+		}
+
+		/*
+		 * Factor in doing a negative match.
+		 */
+		rv ^= e->ipfe_not;
+
+		if (rv == 0)
+			break;
+	}
+
+	return rv;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_state_settimeout                                        */
+/* Returns:     int 0 = success, else failure                               */
+/* Parameters:  softc(I)  - pointer to main soft context                    */
+/*              t(I)      - pointer to tuneable being changed               */
+/*              p(I)      - pointer to the new value                        */
+/*                                                                          */
+/* Sets a timeout value for one of the many timeout queues.  We find the    */
+/* correct queue using a somewhat manual process of comparing the timeout   */
+/* names for each specific value available and calling ipf_apply_timeout on */
+/* that queue so that all of the items on it are updated accordingly.       */
+/* ------------------------------------------------------------------------ */
+int
+ipf_state_settimeout(softc, t, p)
+	struct ipf_main_softc_s *softc;
+	ipftuneable_t *t;
+	ipftuneval_t *p;
+{
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
+
+	/*
+	 * In case there is nothing to do...
+	 */
+	if (*t->ipft_pint == p->ipftu_int)
+		return 0;
+
+	if (!strncmp(t->ipft_name, "tcp_", 4))
+		return ipf_settimeout_tcp(t, p, softs->ipf_state_tcptq);
+
+	if (!strcmp(t->ipft_name, "udp_timeout")) {
+		ipf_apply_timeout(&softs->ipf_state_udptq, p->ipftu_int);
+	} else if (!strcmp(t->ipft_name, "udp_ack_timeout")) {
+		ipf_apply_timeout(&softs->ipf_state_udpacktq, p->ipftu_int);
+	} else if (!strcmp(t->ipft_name, "icmp_timeout")) {
+		ipf_apply_timeout(&softs->ipf_state_icmptq, p->ipftu_int);
+	} else if (!strcmp(t->ipft_name, "icmp_ack_timeout")) {
+		ipf_apply_timeout(&softs->ipf_state_icmpacktq, p->ipftu_int);
+	} else if (!strcmp(t->ipft_name, "ip_timeout")) {
+		ipf_apply_timeout(&softs->ipf_state_iptq, p->ipftu_int);
+	} else {
+		IPFERROR(100034);
+		return ESRCH;
+	}
+
+	/*
+	 * Update the tuneable being set.
+	 */
+	*t->ipft_pint = p->ipftu_int;
+
+	return 0;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_state_rehash                                            */
+/* Returns:     int 0 = success, else failure                               */
+/* Parameters:  softc(I)  - pointer to main soft context                    */
+/*              t(I)      - pointer to tuneable being changed               */
+/*              p(I)      - pointer to the new value                        */
+/*                                                                          */
+/* To change the size of the state hash table at runtime, a new table has   */
+/* to be allocated and then all of the existing entries put in it, bumping  */
+/* up the bucketlength for it as we go along.                               */
+/* ------------------------------------------------------------------------ */
+int
+ipf_state_rehash(softc, t, p)
+	ipf_main_softc_t *softc;
+	ipftuneable_t *t;
+	ipftuneval_t *p;
+{
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
+	ipstate_t **newtab, *is;
+	u_int *bucketlens;
+	u_int maxbucket;
+	u_int newsize;
+	u_int hv;
+	int i;
+
+	newsize = p->ipftu_int;
+	/*
+	 * In case there is nothing to do...
+	 */
+	if (newsize == softs->ipf_state_size)
+		return 0;
+
+	KMALLOCS(newtab, ipstate_t **, newsize * sizeof(ipstate_t *));
+	if (newtab == NULL) {
+		IPFERROR(100035);
+		return ENOMEM;
+	}
+
+	KMALLOCS(bucketlens, u_int *, newsize * sizeof(u_int));
+	if (bucketlens == NULL) {
+		KFREES(newtab, newsize * sizeof(*softs->ipf_state_table));
+		IPFERROR(100036);
+		return ENOMEM;
+	}
+
+	for (maxbucket = 0, i = newsize; i > 0; i >>= 1)
+		maxbucket++;
+	maxbucket *= 2;
+
+	bzero((char *)newtab, newsize * sizeof(ipstate_t *));
+	bzero((char *)bucketlens, newsize * sizeof(u_int));
+
+	WRITE_ENTER(&softc->ipf_state);
+
+	if (softs->ipf_state_table != NULL) {
+		KFREES(softs->ipf_state_table,
+		       softs->ipf_state_size * sizeof(*softs->ipf_state_table));
+	}
+	softs->ipf_state_table = newtab;
+
+	if (softs->ipf_state_stats.iss_bucketlen != NULL) {
+		KFREES(softs->ipf_state_stats.iss_bucketlen,
+		       softs->ipf_state_size * sizeof(u_int));
+	}
+	softs->ipf_state_stats.iss_bucketlen = bucketlens;
+	softs->ipf_state_maxbucket = maxbucket;
+	softs->ipf_state_size = newsize;
+
+	/*
+	 * Walk through the entire list of state table entries and put them
+	 * in the new state table, somewhere.  Because we have a new table,
+	 * we need to restart the counter of how many chains are in use.
+	 */
+	softs->ipf_state_stats.iss_inuse = 0;
+	for (is = softs->ipf_state_list; is != NULL; is = is->is_next) {
+		is->is_hnext = NULL;
+		is->is_phnext = NULL;
+		hv = is->is_hv % softs->ipf_state_size;
+
+		if (softs->ipf_state_table[hv] != NULL)
+			softs->ipf_state_table[hv]->is_phnext = &is->is_hnext;
+		else
+			softs->ipf_state_stats.iss_inuse++;
+		is->is_phnext = softs->ipf_state_table + hv;
+		is->is_hnext = softs->ipf_state_table[hv];
+		softs->ipf_state_table[hv] = is;
+		softs->ipf_state_stats.iss_bucketlen[hv]++;
+	}
+	RWLOCK_EXIT(&softc->ipf_state);
+
+	return 0;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_state_add_tq                                            */
+/* Returns:     ipftq_t * - NULL = failure, else pointer to new timeout     */
+/*                          queue                                           */
+/* Parameters:  softc(I)  - pointer to main soft context                    */
+/*              ttl(I)    - pointer to the ttl for the new queue            */
+/*                                                                          */
+/* Request a pointer to a timeout queue that has a ttl as given by the      */
+/* value being passed in.  The timeout queue is added tot the list of those */
+/* used internally for stateful filtering.                                  */
+/* ------------------------------------------------------------------------ */
+ipftq_t *
+ipf_state_add_tq(softc, ttl)
+	ipf_main_softc_t *softc;
+	int ttl;
+{
+	ipf_state_softc_t *softs = softc->ipf_state_soft;
+
+        return ipf_addtimeoutqueue(softc, &softs->ipf_state_usertq, ttl);
+}
+
+
+#ifndef _KERNEL
+/*
+ * Display the built up state table rules and mapping entries.
+ */
+void
+ipf_state_dump(softc, arg)
+	ipf_main_softc_t *softc;
+	void *arg;
+{
+	ipf_state_softc_t *softs = arg;
+	ipstate_t *ips;
+
+	printf("List of active state sessions:\n");
+	for (ips = softs->ipf_state_list; ips != NULL; )
+		ips = printstate(ips, opts & (OPT_DEBUG|OPT_VERBOSE),
+				 softc->ipf_ticks);
+}
+#endif

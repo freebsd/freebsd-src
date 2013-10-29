@@ -40,7 +40,6 @@ struct vm_page;
 
 struct sf_buf;
 
-
 static __inline vm_offset_t
 sf_buf_kva(struct sf_buf *sf)
 {
@@ -80,4 +79,8 @@ sf_buf_page(struct sf_buf *sf)
 }
 
 #endif
+
+struct sf_buf *	sf_buf_alloc(struct vm_page *m, int flags);
+void sf_buf_free(struct sf_buf *sf);
+
 #endif /* !_MACHINE_SF_BUF_H_ */

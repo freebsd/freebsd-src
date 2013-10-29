@@ -205,7 +205,7 @@ f_media_shutdown_floppy()
 {
 	local dev="$1" err mp
 
-	[ "$FLOPPY_MOUNTED" ] || return
+	[ "$FLOPPY_MOUNTED" ] || return $FAILURE
 
 	device_$dev get private mp
 	if ! err=$( umount -f "${mp:=$MOUNTPOINT}" 2>&1 ); then

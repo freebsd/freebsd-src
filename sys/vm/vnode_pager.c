@@ -158,11 +158,6 @@ vnode_destroy_vobject(struct vnode *vp)
 	VM_OBJECT_WLOCK(obj);
 	if (obj->ref_count == 0) {
 		/*
-		 * vclean() may be called twice. The first time
-		 * removes the primary reference to the object,
-		 * the second time goes one further and is a
-		 * special-case to terminate the object.
-		 *
 		 * don't double-terminate the object
 		 */
 		if ((obj->flags & OBJ_DEAD) == 0)
@@ -1140,8 +1135,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 				 * pmap operation.
 				 */
 				m = ma[ncount - 1];
-				KASSERT(m->busy > 0,
-		("vnode_pager_generic_putpages: page %p is not busy", m));
+				vm_page_assert_sbusied(m);
 				KASSERT(!pmap_page_is_write_mapped(m),
 		("vnode_pager_generic_putpages: page %p is not read-only", m));
 				vm_page_clear_dirty(m, pgoff, PAGE_SIZE -

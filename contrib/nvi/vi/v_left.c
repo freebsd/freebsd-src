@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_left.c	10.7 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: v_left.c,v 10.9 2001/06/25 15:19:32 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -31,9 +31,7 @@ static const char sccsid[] = "@(#)v_left.c	10.7 (Berkeley) 3/6/96";
  * PUBLIC: int v_left __P((SCR *, VICMD *));
  */
 int
-v_left(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_left(SCR *sp, VICMD *vp)
 {
 	recno_t cnt;
 
@@ -71,9 +69,7 @@ v_left(sp, vp)
  * PUBLIC: int v_cfirst __P((SCR *, VICMD *));
  */
 int
-v_cfirst(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_cfirst(SCR *sp, VICMD *vp)
 {
 	recno_t cnt, lno;
 
@@ -140,9 +136,7 @@ v_cfirst(sp, vp)
  * PUBLIC: int v_first __P((SCR *, VICMD *));
  */
 int
-v_first(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_first(SCR *sp, VICMD *vp)
 {
 	/*
 	 * !!!
@@ -204,9 +198,7 @@ v_first(sp, vp)
  * PUBLIC: int v_ncol __P((SCR *, VICMD *));
  */
 int
-v_ncol(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_ncol(SCR *sp, VICMD *vp)
 {
 	if (F_ISSET(vp, VC_C1SET) && vp->count > 1) {
 		--vp->count;
@@ -266,9 +258,7 @@ v_ncol(sp, vp)
  * PUBLIC: int v_zero __P((SCR *, VICMD *));
  */
 int
-v_zero(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_zero(SCR *sp, VICMD *vp)
 {
 	/*
 	 * !!!

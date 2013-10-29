@@ -158,7 +158,7 @@ f_media_shutdown_usb()
 {
 	local dev="$1" err
 
-	[ "$USB_MOUNTED" ] || return
+	[ "$USB_MOUNTED" ] || return $FAILURE
 
 	if ! err=$( umount -f "$MOUNTPOINT" 2>&1 ); then
 		err="${err#umount: }"; err="${err#*: }"

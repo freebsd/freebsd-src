@@ -189,6 +189,7 @@
 #define	RL_HWREV_8105E		0x40800000
 #define	RL_HWREV_8105E_SPIN1	0x40C00000
 #define	RL_HWREV_8402		0x44000000
+#define	RL_HWREV_8106E		0x44800000
 #define	RL_HWREV_8168F		0x48000000
 #define	RL_HWREV_8411		0x48800000
 #define	RL_HWREV_8139		0x60000000
@@ -877,6 +878,7 @@ struct rl_softc {
 	bus_dma_tag_t		rl_parent_tag;
 	uint8_t			rl_type;
 	const struct rl_hwrev	*rl_hwrev;
+	uint32_t		rl_macrev;
 	int			rl_eecmd_read;
 	int			rl_eewidth;
 	int			rl_expcap;

@@ -373,10 +373,18 @@ AcpiDmDumpDescending (
     switch (Op->Common.AmlOpcode)
     {
     case AML_BYTE_OP:
+
+        AcpiOsPrintf ("%2.2X", (UINT32) Op->Common.Value.Integer);
+        break;
+
     case AML_WORD_OP:
+
+        AcpiOsPrintf ("%4.4X", (UINT32) Op->Common.Value.Integer);
+        break;
+
     case AML_DWORD_OP:
 
-        AcpiOsPrintf ("%X", (UINT32) Op->Common.Value.Integer);
+        AcpiOsPrintf ("%8.8X", (UINT32) Op->Common.Value.Integer);
         break;
 
     case AML_QWORD_OP:

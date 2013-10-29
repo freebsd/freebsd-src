@@ -1,6 +1,12 @@
 /*-
  * Copyright (c) 2007, Juniper Networks, Inc.
+ * Copyright (c) 2012-2013, SRI International
  * All rights reserved.
+ *
+ * Portions of this software were developed by SRI International and the
+ * University of Cambridge Computer Laboratory under DARPA/AFRL contract
+ * (FA8750-10-C-0237) ("CTSRD"), as part of the DARPA CRASH research
+ * programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,6 +38,12 @@
 #ifndef _DEV_CFI_VAR_H_
 #define	_DEV_CFI_VAR_H_
 
+enum cfi_wait_cmd {
+	CFI_TIMEOUT_ERASE,
+	CFI_TIMEOUT_WRITE,
+	CFI_TIMEOUT_BUFWRITE
+};
+
 struct cfi_region {
 	u_int		r_blocks;
 	u_int		r_blksz;
@@ -51,13 +63,18 @@ struct cfi_softc {
 	struct cfi_region *sc_region;	/* Array of region info. */
 
 	u_int		sc_cmdset;
-	u_int		sc_erase_timeout;
-	u_int		sc_write_timeout;
+	sbintime_t	sc_typical_timeouts[3];
+	sbintime_t	sc_max_timeouts[3];
+	u_int		sc_tto_counts[3];
+	u_int		sc_mto_counts[3];
+
+	u_int		sc_maxbuf;
 
 	struct cdev	*sc_nod;
 	struct proc	*sc_opened;	/* Process that has us opened. */
 
 	u_char		*sc_wrbuf;
+	u_char		*sc_wrbufcpy;
 	u_int		sc_wrbufsz;
 	u_int		sc_wrofs;
 	u_int		sc_writing;

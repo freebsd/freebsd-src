@@ -1,4 +1,4 @@
-#	@(#)README.signal	10.1 (Berkeley) 6/23/95
+#	$Id: README.signal,v 10.1 1995/06/23 10:28:17 bostic Exp $
 
 There are six (normally) asynchronous actions about which vi cares:
 SIGHUP, SIGINT, SIGQUIT, SIGTERM, SIGTSTP and SIGWINCH.

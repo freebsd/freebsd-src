@@ -1115,10 +1115,8 @@ svn_opt__print_version_info(const char *pgm_name,
     return svn_cmdline_printf(pool, "%s\n", SVN_VER_NUMBER);
 
   SVN_ERR(svn_cmdline_printf(pool, _("%s, version %s\n"
-                                     "   compiled %s, %s on %s\n\n"),
+                                     "   compiled on %s\n\n"),
                              pgm_name, SVN_VERSION,
-                             svn_version_ext_build_date(info),
-                             svn_version_ext_build_time(info),
                              svn_version_ext_build_host(info)));
   SVN_ERR(svn_cmdline_printf(pool, "%s\n", svn_version_ext_copyright(info)));
 

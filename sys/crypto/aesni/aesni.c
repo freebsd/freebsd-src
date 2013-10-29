@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/uio.h>
 #include <crypto/aesni/aesni.h>
-#include "cryptodev_if.h"
+#include <cryptodev_if.h>
 
 struct aesni_softc {
 	int32_t cid;
@@ -74,6 +74,12 @@ aesni_probe(device_t dev)
 		device_printf(dev, "No AESNI support.\n");
 		return (EINVAL);
 	}
+
+	if ((cpu_feature & CPUID_SSE2) == 0) {
+		device_printf(dev, "No SSE2 support but AESNI!?!\n");
+		return (EINVAL);
+	}
+
 	device_set_desc_copy(dev, "AES-CBC,AES-XTS");
 	return (0);
 }

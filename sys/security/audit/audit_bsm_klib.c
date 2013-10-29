@@ -496,7 +496,7 @@ audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 			vhold(cvnp);
 		} else {
 			/* XXX: fgetvp() that vhold()s vnode instead of vref()ing it would be better */
-			error = fgetvp(td, dirfd, 0, &cvnp);
+			error = fgetvp(td, dirfd, NULL, &cvnp);
 			if (error) {
 				cpath[0] = '\0';
 				if (rvnp != NULL)

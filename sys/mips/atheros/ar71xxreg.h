@@ -336,6 +336,7 @@ typedef enum {
 #define			MAC_MII_CFG_SCAN_AUTO_INC	(1 <<  5)
 #define			MAC_MII_CFG_PREAMBLE_SUP	(1 <<  4)
 #define			MAC_MII_CFG_CLOCK_SELECT_MASK	0x7
+#define			MAC_MII_CFG_CLOCK_SELECT_MASK_AR933X	0xf
 #define			MAC_MII_CFG_CLOCK_DIV_4		0
 #define			MAC_MII_CFG_CLOCK_DIV_6		2
 #define			MAC_MII_CFG_CLOCK_DIV_8		3
@@ -343,6 +344,17 @@ typedef enum {
 #define			MAC_MII_CFG_CLOCK_DIV_14	5
 #define			MAC_MII_CFG_CLOCK_DIV_20	6
 #define			MAC_MII_CFG_CLOCK_DIV_28	7
+
+/* .. and the AR933x/AR934x extensions */
+#define			MAC_MII_CFG_CLOCK_DIV_34	8
+#define			MAC_MII_CFG_CLOCK_DIV_42	9
+#define			MAC_MII_CFG_CLOCK_DIV_50	10
+#define			MAC_MII_CFG_CLOCK_DIV_58	11
+#define			MAC_MII_CFG_CLOCK_DIV_66	12
+#define			MAC_MII_CFG_CLOCK_DIV_74	13
+#define			MAC_MII_CFG_CLOCK_DIV_82	14
+#define			MAC_MII_CFG_CLOCK_DIV_98	15
+
 #define		AR71XX_MAC_MII_CMD		0x24
 #define			MAC_MII_CMD_SCAN_CYCLE		(1 << 1)
 #define			MAC_MII_CMD_READ		1

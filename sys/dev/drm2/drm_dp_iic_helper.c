@@ -216,22 +216,6 @@ iic_dp_aux_attach(device_t idev)
 	return (0);
 }
 
-static int
-iic_dp_aux_detach(device_t idev)
-{
-	struct iic_dp_aux_data *aux_data;
-	device_t port;
-
-	aux_data = device_get_softc(idev);
-
-	port = aux_data->port;
-	bus_generic_detach(idev);
-	if (port != NULL)
-		device_delete_child(idev, port);
-
-	return (0);
-}
-
 int
 iic_dp_aux_add_bus(device_t dev, const char *name,
     int (*ch)(device_t idev, int mode, uint8_t write_byte, uint8_t *read_byte),
@@ -277,7 +261,7 @@ iic_dp_aux_add_bus(device_t dev, const char *name,
 static device_method_t drm_iic_dp_aux_methods[] = {
 	DEVMETHOD(device_probe,		iic_dp_aux_probe),
 	DEVMETHOD(device_attach,	iic_dp_aux_attach),
-	DEVMETHOD(device_detach,	iic_dp_aux_detach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(iicbus_reset,		iic_dp_aux_reset),
 	DEVMETHOD(iicbus_transfer,	iic_dp_aux_xfer),
 	DEVMETHOD_END

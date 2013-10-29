@@ -37,7 +37,8 @@
 #define XPMAP   0x2
 extern int xendebug_flags;
 #ifndef NOXENDEBUG
-#define XENPRINTF printk
+/* Print directly to the Xen console during debugging. */
+#define XENPRINTF xc_printf
 #else
 #define XENPRINTF printf
 #endif
@@ -106,9 +107,7 @@ void  xen_destroy_contiguous_region(void * addr, int npages);
 
 #elif defined(XENHVM)
 
-#if !defined(PAE)
 #define	vtomach(va)	pmap_kextract((vm_offset_t) (va))
-#endif
 #define	PFNTOMFN(pa)	(pa)
 #define	MFNTOPFN(ma)	(ma)
 

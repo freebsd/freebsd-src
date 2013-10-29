@@ -122,7 +122,6 @@ struct bus_dma_tag {
 
 struct bounce_page {
 	vm_offset_t	vaddr;		/* kva of bounce buffer */
-	vm_offset_t	vaddr_nocache;	/* kva of bounce buffer uncached */
 	bus_addr_t	busaddr;	/* Physical address */
 	vm_offset_t	datavaddr;	/* kva of client data */
 	bus_addr_t	dataaddr;	/* client physical address */
@@ -752,10 +751,10 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddrp, int flags,
 		vaddr = uma_zalloc(bufzone->umazone, mflags);
 	} else if (dmat->nsegments >= btoc(dmat->maxsize) &&
 	    dmat->alignment <= PAGE_SIZE && dmat->boundary == 0) {
-		vaddr = (void *)kmem_alloc_attr(kernel_map, dmat->maxsize,
+		vaddr = (void *)kmem_alloc_attr(kernel_arena, dmat->maxsize,
 		    mflags, 0, dmat->lowaddr, memattr);
 	} else {
-		vaddr = (void *)kmem_alloc_contig(kernel_map, dmat->maxsize,
+		vaddr = (void *)kmem_alloc_contig(kernel_arena, dmat->maxsize,
 		    mflags, 0, dmat->lowaddr, dmat->alignment, dmat->boundary,
 		    memattr);
 	}
@@ -798,7 +797,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	    !_bus_dma_can_bounce(dmat->lowaddr, dmat->highaddr))
 		uma_zfree(bufzone->umazone, vaddr);
 	else
-		kmem_free(kernel_map, (vm_offset_t)vaddr, dmat->maxsize);
+		kmem_free(kernel_arena, (vm_offset_t)vaddr, dmat->maxsize);
 }
 
 static void
@@ -808,7 +807,7 @@ _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
 	bus_addr_t curaddr;
 	bus_size_t sgsize;
 
-	if ((map->pagesneeded == 0)) {
+	if (map->pagesneeded == 0) {
 		CTR3(KTR_BUSDMA, "lowaddr= %d, boundary= %d, alignment= %d",
 		    dmat->lowaddr, dmat->boundary, dmat->alignment);
 		CTR2(KTR_BUSDMA, "map= %p, pagesneeded= %d",
@@ -839,7 +838,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 	vm_offset_t vendaddr;
 	bus_addr_t paddr;
 
-	if ((map->pagesneeded == 0)) {
+	if (map->pagesneeded == 0) {
 		CTR3(KTR_BUSDMA, "lowaddr= %d, boundary= %d, alignment= %d",
 		    dmat->lowaddr, dmat->boundary, dmat->alignment);
 		CTR2(KTR_BUSDMA, "map= %p, pagesneeded= %d",
@@ -993,6 +992,17 @@ _bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
 	}
 	return (0);
 }
+
+int
+_bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map,
+    struct vm_page **ma, bus_size_t tlen, int ma_offs, int flags,
+    bus_dma_segment_t *segs, int *segp)
+{
+
+	return (bus_dmamap_load_ma_triv(dmat, map, ma, tlen, ma_offs, flags,
+	    segs, segp));
+}
+
 /*
  * Utility function to load a linear buffer.  segp contains
  * the starting segment on entrance, and the ending segment on exit.
@@ -1196,39 +1206,23 @@ _bus_dmamap_sync_bp(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 	STAILQ_FOREACH(bpage, &map->bpages, links) {
 		if (op & BUS_DMASYNC_PREWRITE) {
 			if (bpage->datavaddr != 0)
-				bcopy((void *)bpage->datavaddr,
-				    (void *)(bpage->vaddr_nocache != 0 ?
-					     bpage->vaddr_nocache :
-					     bpage->vaddr),
-				    bpage->datacount);
+				bcopy((void *)bpage->datavaddr, 
+				    (void *)bpage->vaddr, bpage->datacount);
 			else
 				physcopyout(bpage->dataaddr,
-				    (void *)(bpage->vaddr_nocache != 0 ?
-					     bpage->vaddr_nocache :
-					     bpage->vaddr),
-				    bpage->datacount);
-			if (bpage->vaddr_nocache == 0) {
-				cpu_dcache_wb_range(bpage->vaddr,
-				    bpage->datacount);
-				cpu_l2cache_wb_range(bpage->vaddr,
-				    bpage->datacount);
-			}
+				    (void *)bpage->vaddr,bpage->datacount);
+			cpu_dcache_wb_range(bpage->vaddr, bpage->datacount);
+			cpu_l2cache_wb_range(bpage->vaddr, bpage->datacount);
 			dmat->bounce_zone->total_bounced++;
 		}
 		if (op & BUS_DMASYNC_POSTREAD) {
-			if (bpage->vaddr_nocache == 0) {
-				cpu_dcache_inv_range(bpage->vaddr,
-				    bpage->datacount);
-				cpu_l2cache_inv_range(bpage->vaddr,
-				    bpage->datacount);
-			}
+			cpu_dcache_inv_range(bpage->vaddr, bpage->datacount);
+			cpu_l2cache_inv_range(bpage->vaddr, bpage->datacount);
 			if (bpage->datavaddr != 0)
-				bcopy((void *)(bpage->vaddr_nocache != 0 ?
-				    bpage->vaddr_nocache : bpage->vaddr),
+				bcopy((void *)bpage->vaddr,
 				    (void *)bpage->datavaddr, bpage->datacount);
 			else
-				physcopyin((void *)(bpage->vaddr_nocache != 0 ?
-				    bpage->vaddr_nocache : bpage->vaddr),
+				physcopyin((void *)bpage->vaddr,
 				    bpage->dataaddr, bpage->datacount);
 			dmat->bounce_zone->total_bounced++;
 		}
@@ -1385,8 +1379,6 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 			break;
 		}
 		bpage->busaddr = pmap_kextract(bpage->vaddr);
-		bpage->vaddr_nocache = (vm_offset_t)arm_remap_nocache(
-		    (void *)bpage->vaddr, PAGE_SIZE);
 		mtx_lock(&bounce_lock);
 		STAILQ_INSERT_TAIL(&bz->bounce_page_list, bpage, links);
 		total_bpages++;

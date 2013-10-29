@@ -45,16 +45,15 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/resource.h>
 #include <machine/fdt.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include "gpio_if.h"
+#include <arm/broadcom/bcm2835/bcm2835_gpio.h>
 
-#undef	DEBUG
+#include "gpio_if.h"
 
 #ifdef DEBUG
 #define dprintf(fmt, args...) do { printf("%s(): ", __func__);   \
@@ -85,17 +84,6 @@ struct bcm_gpio_softc {
 	int			sc_ro_pins[BCM_GPIO_PINS];
 	struct gpio_pin		sc_gpio_pins[BCM_GPIO_PINS];
 	struct bcm_gpio_sysctl	sc_sysctl[BCM_GPIO_PINS];
-};
-
-enum bcm_gpio_fsel {
-	BCM_GPIO_INPUT,
-	BCM_GPIO_OUTPUT,
-	BCM_GPIO_ALT5,
-	BCM_GPIO_ALT4,
-	BCM_GPIO_ALT0,
-	BCM_GPIO_ALT1,
-	BCM_GPIO_ALT2,
-	BCM_GPIO_ALT3,
 };
 
 enum bcm_gpio_pud {
@@ -255,6 +243,32 @@ bcm_gpio_set_pud(struct bcm_gpio_softc *sc, uint32_t pin, uint32_t state)
 	DELAY(10);
 	BCM_GPIO_WRITE(sc, BCM_GPIO_GPPUD(0), 0);
 	BCM_GPIO_WRITE(sc, BCM_GPIO_GPPUDCLK(bank), 0);
+}
+
+void
+bcm_gpio_set_alternate(device_t dev, uint32_t pin, uint32_t nfunc)
+{
+	struct bcm_gpio_softc *sc;
+	int i;
+
+	sc = device_get_softc(dev);
+	BCM_GPIO_LOCK(sc);
+
+	/* Disable pull-up or pull-down on pin. */
+	bcm_gpio_set_pud(sc, pin, BCM_GPIO_NONE);
+
+	/* And now set the pin function. */
+	bcm_gpio_set_function(sc, pin, nfunc);
+
+	/* Update the pin flags. */
+	for (i = 0; i < sc->sc_gpio_npins; i++) {
+		if (sc->sc_gpio_pins[i].gp_pin == pin)
+			break;
+	}
+	if (i < sc->sc_gpio_npins)
+		sc->sc_gpio_pins[i].gp_flags = bcm_gpio_func_flag(nfunc);
+
+        BCM_GPIO_UNLOCK(sc);
 }
 
 static void
@@ -535,7 +549,7 @@ bcm_gpio_func_proc(SYSCTL_HANDLER_ARGS)
 	struct bcm_gpio_softc *sc;
 	struct bcm_gpio_sysctl *sc_sysctl;
 	uint32_t nfunc;
-	int i, error;
+	int error;
 
 	sc_sysctl = arg1;
 	sc = sc_sysctl->sc;
@@ -552,23 +566,8 @@ bcm_gpio_func_proc(SYSCTL_HANDLER_ARGS)
 	if (bcm_gpio_str_func(buf, &nfunc) != 0)
 		return (EINVAL);
 
-	BCM_GPIO_LOCK(sc);
-
-	/* Disable pull-up or pull-down on pin. */
-	bcm_gpio_set_pud(sc, sc_sysctl->pin, BCM_GPIO_NONE);
-
-	/* And now set the pin function. */
-	bcm_gpio_set_function(sc, sc_sysctl->pin, nfunc);
-
-	/* Update the pin flags. */
-	for (i = 0; i < sc->sc_gpio_npins; i++) {
-		if (sc->sc_gpio_pins[i].gp_pin == sc_sysctl->pin)
-			break;
-	}
-	if (i < sc->sc_gpio_npins)
-		sc->sc_gpio_pins[i].gp_flags = bcm_gpio_func_flag(nfunc);
-
-	BCM_GPIO_UNLOCK(sc);
+	/* Update the pin alternate function. */
+	bcm_gpio_set_alternate(sc->sc_dev, sc_sysctl->pin, nfunc);
 
 	return (0);
 }
@@ -729,7 +728,7 @@ bcm_gpio_attach(device_t dev)
 		goto fail;
 
 	/* Initialize the software controlled pins. */
-	for (i = 0, j = 0; j < BCM_GPIO_PINS - 1; j++) {
+	for (i = 0, j = 0; j < BCM_GPIO_PINS; j++) {
 		if (bcm_gpio_pin_is_ro(sc, j))
 			continue;
 		snprintf(sc->sc_gpio_pins[i].gp_name, GPIOMAXNAME,

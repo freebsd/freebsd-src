@@ -3641,6 +3641,14 @@ const template i386_optab[] =
     Modrm|IgnoreSize|No_bSuf|No_wSuf|No_sSuf|No_qSuf|No_xSuf|NoRex64,
     { BaseIndex|Disp8|Disp16|Disp32|Disp32S,
       Reg64 } },
+  { "invpcid", 2, 0x660f3882, None, CpuNo64,
+    Modrm|IgnoreSize|No_bSuf|No_wSuf|No_sSuf|No_qSuf|No_xSuf|NoRex64,
+    { BaseIndex|Disp8|Disp16|Disp32|Disp32S,
+      Reg32 } },
+  { "invpcid", 2, 0x660f3882, None, Cpu64,
+    Modrm|IgnoreSize|No_bSuf|No_wSuf|No_sSuf|No_qSuf|No_xSuf|NoRex64,
+    { BaseIndex|Disp8|Disp16|Disp32|Disp32S,
+      Reg64 } },
   { "vmcall", 0, 0xf01, 0xc1, CpuVMX,
     No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf|ImmExt,
     { 0 } },
@@ -4366,6 +4374,11 @@ const template i386_optab[] =
     Modrm|IgnoreSize|NoSuf|ImmExt,
     { RegXMM|LLongMem,
       RegXMM } },
+
+  /* Intel Random Number Generator extensions */
+  {"rdrand", 1, 0x0fc7, 0x6, CpuRdRnd,
+    Modrm|NoSuf,
+    { Reg16|Reg32|Reg64 } },
   
   { NULL, 0, 0, 0, 0, 0, { 0 } }
 };

@@ -40,7 +40,7 @@ enum Argtype { None = 1, Hex, Octal, Int, Name, Ptr, Stat, Ioctl, Quad,
 	Fd_set, Sigaction, Fcntl, Mprot, Mmapflags, Whence, Readlinkres,
 	Umtx, Sigset, Sigprocmask, Kevent, Sockdomain, Socktype, Open,
 	Fcntlflag, Rusage, BinString, Shutdown, Resource, Rlimit, Timeval2,
-	Pathconf };
+	Pathconf, Rforkflags, ExitStatus, Waitoptions, Idtype, Procctl };
 
 #define	ARG_MASK	0xff
 #define	OUT	0x100

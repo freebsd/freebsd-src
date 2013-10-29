@@ -88,24 +88,26 @@ cn_drvinit(void *unused)
 
 	if (ofw_consdev.cn_pri != CN_DEAD &&
 	    ofw_consdev.cn_name[0] != '\0') {
-		if ((options = OF_finddevice("/options")) == -1 ||
-		    OF_getprop(options, "output-device", output,
-		    sizeof(output)) == -1)
-			return;
+		tp = tty_alloc(&ofw_ttydevsw, NULL);
+		tty_makedev(tp, NULL, "%s", "ofwcons");
+
 		/*
 		 * XXX: This is a hack and it may result in two /dev/ttya
 		 * XXX: devices on platforms where the sab driver works.
 		 */
-		tp = tty_alloc(&ofw_ttydevsw, NULL);
-		tty_makedev(tp, NULL, "%s", output);
-		tty_makealias(tp, "ofwcons");
+		if ((options = OF_finddevice("/options")) == -1 ||
+		    OF_getprop(options, "output-device", output,
+		    sizeof(output)) == -1)
+			return;
+		if (strlen(output) > 0)
+			tty_makealias(tp, output);
 	}
 }
 
 SYSINIT(cndev, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE, cn_drvinit, NULL);
 
-static int	stdin;
-static int	stdout;
+static pcell_t	stdin;
+static pcell_t	stdout;
 
 static int
 ofwtty_open(struct tty *tp)
@@ -168,12 +170,12 @@ ofw_cnprobe(struct consdev *cp)
 		return;
 	}
 
-	if (OF_getprop(chosen, "stdin", &stdin, sizeof(stdin)) == -1) {
+	if (OF_getencprop(chosen, "stdin", &stdin, sizeof(stdin)) == -1) {
 		cp->cn_pri = CN_DEAD;
 		return;
 	}
 
-	if (OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1) {
+	if (OF_getencprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1) {
 		cp->cn_pri = CN_DEAD;
 		return;
 	}

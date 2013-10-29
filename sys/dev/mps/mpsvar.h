@@ -414,6 +414,9 @@ struct mps_softc {
 	uint16_t			DD_block_exponent;
 	uint64_t			DD_max_lba;
 	struct mps_column_map		DD_column_map[MPS_MAX_DISKS_IN_VOL];
+
+	char				exclude_ids[80];
+	struct timeval			lastfail;
 };
 
 struct mps_config_params {

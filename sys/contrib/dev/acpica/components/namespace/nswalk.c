@@ -165,9 +165,9 @@ AcpiNsGetNextNodeTyped (
  *              MaxDepth            - Depth to which search is to reach
  *              Flags               - Whether to unlock the NS before invoking
  *                                    the callback routine
- *              PreOrderVisit       - Called during tree pre-order visit
+ *              DescendingCallback  - Called during tree descent
  *                                    when an object of "Type" is found
- *              PostOrderVisit      - Called during tree post-order visit
+ *              AscendingCallback   - Called during tree ascent
  *                                    when an object of "Type" is found
  *              Context             - Passed to user function(s) above
  *              ReturnValue         - from the UserFunction if terminated
@@ -195,8 +195,8 @@ AcpiNsWalkNamespace (
     ACPI_HANDLE             StartNode,
     UINT32                  MaxDepth,
     UINT32                  Flags,
-    ACPI_WALK_CALLBACK      PreOrderVisit,
-    ACPI_WALK_CALLBACK      PostOrderVisit,
+    ACPI_WALK_CALLBACK      DescendingCallback,
+    ACPI_WALK_CALLBACK      AscendingCallback,
     void                    *Context,
     void                    **ReturnValue)
 {
@@ -274,22 +274,22 @@ AcpiNsWalkNamespace (
             }
 
             /*
-             * Invoke the user function, either pre-order or post-order
+             * Invoke the user function, either descending, ascending,
              * or both.
              */
             if (!NodePreviouslyVisited)
             {
-                if (PreOrderVisit)
+                if (DescendingCallback)
                 {
-                    Status = PreOrderVisit (ChildNode, Level,
+                    Status = DescendingCallback (ChildNode, Level,
                                 Context, ReturnValue);
                 }
             }
             else
             {
-                if (PostOrderVisit)
+                if (AscendingCallback)
                 {
-                    Status = PostOrderVisit (ChildNode, Level,
+                    Status = AscendingCallback (ChildNode, Level,
                                 Context, ReturnValue);
                 }
             }

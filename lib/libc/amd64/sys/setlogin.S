@@ -48,12 +48,7 @@ ENTRY(__sys_setlogin)
 	mov	$SYS_setlogin,%rax
 	KERNCALL
 	jb	HIDENAME(cerror)
-#ifdef PIC
-	movq	PIC_GOT(CNAME(_logname_valid)),%rdx
-	movl	$0,(%rdx)
-#else
 	movl	$0,CNAME(_logname_valid)(%rip)
-#endif
 	ret				/* setlogin(name) */
 END(__sys_setlogin)
 

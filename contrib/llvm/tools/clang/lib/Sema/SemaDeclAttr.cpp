@@ -3961,6 +3961,16 @@ static void handleCallConvAttr(Sema &S, Decl *D, const AttributeList &Attr) {
                PascalAttr(Attr.getRange(), S.Context,
                           Attr.getAttributeSpellingListIndex()));
     return;
+  case AttributeList::AT_MSABI:
+    D->addAttr(::new (S.Context)
+               MSABIAttr(Attr.getRange(), S.Context,
+                         Attr.getAttributeSpellingListIndex()));
+    return;
+  case AttributeList::AT_SysVABI:
+    D->addAttr(::new (S.Context)
+               SysVABIAttr(Attr.getRange(), S.Context,
+                           Attr.getAttributeSpellingListIndex()));
+    return;
   case AttributeList::AT_Pcs: {
     PcsAttr::PCSType PCS;
     switch (CC) {
@@ -4036,6 +4046,14 @@ bool Sema::CheckCallingConvAttr(const AttributeList &attr, CallingConv &CC,
   case AttributeList::AT_StdCall: CC = CC_X86StdCall; break;
   case AttributeList::AT_ThisCall: CC = CC_X86ThisCall; break;
   case AttributeList::AT_Pascal: CC = CC_X86Pascal; break;
+  case AttributeList::AT_MSABI:
+    CC = Context.getTargetInfo().getTriple().isOSWindows() ? CC_C :
+                                                             CC_X86_64Win64;
+    break;
+  case AttributeList::AT_SysVABI:
+    CC = Context.getTargetInfo().getTriple().isOSWindows() ? CC_X86_64SysV :
+                                                             CC_C;
+    break;
   case AttributeList::AT_Pcs: {
     Expr *Arg = attr.getArg(0);
     StringLiteral *Str = dyn_cast<StringLiteral>(Arg);
@@ -4876,6 +4894,8 @@ static void ProcessInheritableDeclAttr(Sema &S, Scope *scope, Decl *D,
   case AttributeList::AT_FastCall:
   case AttributeList::AT_ThisCall:
   case AttributeList::AT_Pascal:
+  case AttributeList::AT_MSABI:
+  case AttributeList::AT_SysVABI:
   case AttributeList::AT_Pcs:
   case AttributeList::AT_PnaclCall:
   case AttributeList::AT_IntelOclBicc:

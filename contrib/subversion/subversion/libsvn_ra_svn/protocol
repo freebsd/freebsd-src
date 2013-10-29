@@ -294,8 +294,12 @@ second place for auth-request point as noted below.
     Upon receiving response, client switches to editor command set.
     Upon successful completion of edit, server sends auth-request.
     After auth exchange completes, server sends commit-info.
+    If rev-props is present, logmsg is ignored.  Only the svn:log entry in
+    rev-props (if any) will be used.
     commit-info: ( new-rev:number date:string author:string
                    ? ( post-commit-err:string ) )
+    NOTE: when revving this, make 'logmsg' optional, or delete that parameter
+          and have the log message specified in 'rev-props'.
 
   get-file
     params:   ( path:string [ rev:number ] want-props:bool want-contents:bool

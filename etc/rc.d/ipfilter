@@ -29,7 +29,7 @@ required_modules="ipl:ipfilter"
 ipfilter_start()
 {
 	echo "Enabling ipfilter."
-	if [ `sysctl -n net.inet.ipf.fr_running` -le 0 ]; then
+	if ! ${ipfilter_program:-/sbin/ipf} -V | grep -q 'Running: yes'; then
 		${ipfilter_program:-/sbin/ipf} -E
 	fi
 	${ipfilter_program:-/sbin/ipf} -Fa
@@ -37,7 +37,6 @@ ipfilter_start()
 		${ipfilter_program:-/sbin/ipf} \
 		    -f "${ipfilter_rules}" ${ipfilter_flags}
 	fi
-	${ipfilter_program:-/sbin/ipf} -6 -Fa
 	if [ -r "${ipv6_ipfilter_rules}" ]; then
 		${ipfilter_program:-/sbin/ipf} -6 \
 		    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}
@@ -46,8 +45,7 @@ ipfilter_start()
 
 ipfilter_stop()
 {
-	# XXX - The ipf -D command is not effective for 'lkm's
-	if [ `sysctl -n net.inet.ipf.fr_running` -eq 1 ]; then
+	if ${ipfilter_program:-/sbin/ipf} -V | grep -q 'Running: yes'; then
 		echo "Saving firewall state tables"
 		${ipfs_program:-/sbin/ipfs} -W ${ipfs_flags}
 		echo "Disabling ipfilter."

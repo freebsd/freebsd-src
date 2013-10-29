@@ -169,6 +169,7 @@ cat <<_EOF_
 #include <netinet/in.h>
 #include <sys/param.h>
 #include <sys/mount.h>
+#include <sys/procctl.h>
 #include <sys/ptrace.h>
 #include <sys/resource.h>
 #include <sys/reboot.h>
@@ -207,6 +208,18 @@ cat <<_EOF_
 	if ((i & flag) == flag)                    \\
 	print_or(#flag,orflag); }                  \\
 	while (0)
+
+/* MANUAL */
+void
+atfdname(int fd, int decimal)
+{
+	if (fd == AT_FDCWD)
+		printf("AT_FDCWD");
+	else if (decimal)
+		printf("%d", fd);
+	else
+		printf("%#x", fd);
+}
 
 /* MANUAL */
 extern char *signames[]; /* from kdump.c */
@@ -315,6 +328,68 @@ flagsandmodename(int flags, int mode, int decimal)
 	}
 }
 
+/* MANUAL */
+void
+idtypename(idtype_t idtype, int decimal)
+{
+	switch(idtype) {
+	case P_PID:
+		printf("P_PID");
+		break;
+	case P_PPID:
+		printf("P_PPID");
+		break;
+	case P_PGID:
+		printf("P_PGID");
+		break;
+	case P_SID:
+		printf("P_SID");
+		break;
+	case P_CID:
+		printf("P_CID");
+		break;
+	case P_UID:
+		printf("P_UID");
+		break;
+	case P_GID:
+		printf("P_GID");
+		break;
+	case P_ALL:
+		printf("P_ALL");
+		break;
+	case P_LWPID:
+		printf("P_LWPID");
+		break;
+	case P_TASKID:
+		printf("P_TASKID");
+		break;
+	case P_PROJID:
+		printf("P_PROJID");
+		break;
+	case P_POOLID:
+		printf("P_POOLID");
+		break;
+	case P_JAILID:
+		printf("P_JAILID");
+		break;
+	case P_CTID:
+		printf("P_CTID");
+		break;
+	case P_CPUID:
+		printf("P_CPUID");
+		break;
+	case P_PSETID:
+		printf("P_PSETID");
+		break;
+	default:
+		if (decimal) {
+			printf("%d", idtype);
+		} else {
+			printf("%#x", idtype);
+		}
+	}
+}
+
 /*
  * MANUAL
  *
@@ -356,11 +431,23 @@ vmprotname (int type)
 	if_print_or(type, VM_PROT_EXECUTE, or);
 	if_print_or(type, VM_PROT_COPY, or);
 }
+
+/*
+ * MANUAL
+ */
+void
+socktypenamewithflags(int type)
+{
+	if (type & SOCK_CLOEXEC)
+		printf("SOCK_CLOEXEC|"), type &= ~SOCK_CLOEXEC;
+	if (type & SOCK_NONBLOCK)
+		printf("SOCK_NONBLOCK|"), type &= ~SOCK_NONBLOCK;
+	socktypename(type);
+}
 _EOF_
 
 auto_or_type     "accessmodename"      "[A-Z]_OK[[:space:]]+0?x?[0-9A-Fa-f]+"         "sys/unistd.h"
 auto_switch_type "acltypename"         "ACL_TYPE_[A-Z4_]+[[:space:]]+0x[0-9]+"        "sys/acl.h"
-auto_or_type     "capname"             "CAP_[A-Z]+[[:space:]]+0x[01248]{16}ULL"       "sys/capability.h"
 auto_or_type     "capfcntlname"        "CAP_FCNTL_[A-Z]+[[:space:]]+\(1"              "sys/capability.h"
 auto_switch_type "extattrctlname"      "EXTATTR_NAMESPACE_[A-Z]+[[:space:]]+0x[0-9]+" "sys/extattr.h"
 auto_switch_type "fadvisebehavname"    "POSIX_FADV_[A-Z]+[[:space:]]+[0-9]+"          "sys/fcntl.h"
@@ -373,13 +460,13 @@ auto_switch_type "lio_listioname"      "LIO_(NO)?WAIT[[:space:]]+[0-9]+"        
 auto_switch_type "madvisebehavname"    "_?MADV_[A-Z]+[[:space:]]+[0-9]+"              "sys/mman.h"
 auto_switch_type "minheritname"        "INHERIT_[A-Z]+[[:space:]]+[0-9]+"             "sys/mman.h"
 auto_or_type     "mlockallname"        "MCL_[A-Z]+[[:space:]]+0x[0-9]+"               "sys/mman.h"
-auto_or_type     "mmapflagsname"       "MAP_[A-Z]+[[:space:]]+0x[0-9A-Fa-f]+"         "sys/mman.h"
 auto_or_type     "mmapprotname"        "PROT_[A-Z]+[[:space:]]+0x[0-9A-Fa-f]+"        "sys/mman.h"
 auto_or_type     "modename"            "S_[A-Z]+[[:space:]]+[0-6]{7}"                 "sys/stat.h"
 auto_or_type     "mountflagsname"      "MNT_[A-Z]+[[:space:]]+0x[0-9]+"               "sys/mount.h"
 auto_switch_type "msyncflagsname"      "MS_[A-Z]+[[:space:]]+0x[0-9]+"                "sys/mman.h"
 auto_or_type     "nfssvcname"          "NFSSVC_[A-Z0-9]+[[:space:]]+0x[0-9]+"            "nfs/nfssvc.h"
 auto_switch_type "prioname"            "PRIO_[A-Z]+[[:space:]]+[0-9]"                 "sys/resource.h"
+auto_switch_type "procctlcmdname"      "PROC_[A-Z]+[[:space:]]+[0-9]"                 "sys/procctl.h"
 auto_switch_type "ptraceopname"        "PT_[[:alnum:]_]+[[:space:]]+[0-9]+"           "sys/ptrace.h"
 auto_switch_type "quotactlname"        "Q_[A-Z]+[[:space:]]+0x[0-9]+"                 "ufs/ufs/quota.h"
 auto_or_type     "rebootoptname"       "RB_[A-Z]+[[:space:]]+0x[0-9]+"                "sys/reboot.h"
@@ -403,7 +490,7 @@ auto_switch_type "sockoptname"         "SO_[A-Z]+[[:space:]]+0x[0-9]+"          
 auto_switch_type "socktypename"        "SOCK_[A-Z]+[[:space:]]+[1-9]+[0-9]*"          "sys/socket.h"
 auto_or_type     "thrcreateflagsname"  "THR_[A-Z]+[[:space:]]+0x[0-9]+"               "sys/thr.h"
 auto_switch_type "vmresultname"        "KERN_[A-Z]+[[:space:]]+[0-9]+"                "vm/vm_param.h"
-auto_or_type     "wait4optname"        "W[A-Z]+[[:space:]]+[0-9]+"                    "sys/wait.h"
+auto_or_type     "wait6optname"        "W[A-Z]+[[:space:]]+[0-9]+"                    "sys/wait.h"
 auto_switch_type "whencename"          "SEEK_[A-Z]+[[:space:]]+[0-9]+"                "sys/unistd.h"
 
 cat <<_EOF_
@@ -452,6 +539,44 @@ cat <<_EOF_
 		else
 			printf("%#x", (unsigned int)arg);
 	}
+}
+
+/*
+ * AUTO - Special
+ *
+ * The MAP_ALIGNED flag requires special handling.
+ */
+void
+mmapflagsname(int flags)
+{
+	int align;
+	int or = 0;
+	printf("%#x<", flags);
+_EOF_
+egrep "^#[[:space:]]*define[[:space:]]+MAP_[A-Z_]+[[:space:]]+0x[0-9A-Fa-f]+[[:space:]]*" \
+	$include_dir/sys/mman.h | grep -v MAP_ALIGNED | \
+	awk '{ for (i = 1; i <= NF; i++) \
+		if ($i ~ /define/) \
+			break; \
+		++i; \
+		printf "\tif (!((flags > 0) ^ ((%s) > 0)))\n\t\tif_print_or(flags, %s, or);\n", $i, $i }'
+cat <<_EOF_
+#ifdef MAP_32BIT
+	if (!((flags > 0) ^ ((MAP_32BIT) > 0)))
+		if_print_or(flags, MAP_32BIT, or);
+#endif
+	align = flags & MAP_ALIGNMENT_MASK;
+	if (align != 0) {
+		if (align == MAP_ALIGNED_SUPER)
+			print_or("MAP_ALIGNED_SUPER", or);
+		else {
+			print_or("MAP_ALIGNED", or);
+			printf("(%d)", align >> MAP_ALIGNMENT_SHIFT);
+		}
+	}
+	printf(">");
+	if (or == 0)
+		printf("<invalid>%d", flags);
 }
 
 /*
@@ -551,3 +676,26 @@ cat <<_EOF_
 		}
 	}
 }
+
+_EOF_
+egrep '#define[[:space:]]+CAP_[A-Z_]+[[:space:]]+CAPRIGHT\([0-9],[[:space:]]+0x[0-9]{16}ULL\)' \
+	$include_dir/sys/capability.h | \
+	sed -E 's/[	]+/ /g' | \
+	awk -F '[   \(,\)]' '
+	BEGIN {
+		printf "void\n"
+		printf "capname(const cap_rights_t *rightsp)\n"
+		printf "{\n"
+		printf "\tint comma = 0;\n\n"
+		printf "\tprintf(\"<\");\n"
+	}
+	{
+		printf "\tif ((rightsp->cr_rights[%s] & %s) == %s) {\n", $4, $2, $2
+		printf "\t\tif (comma) printf(\",\"); else comma = 1;\n"
+		printf "\t\tprintf(\"%s\");\n", $2
+		printf "\t}\n"
+	}
+	END {
+		printf "\tprintf(\">\");\n"
+		printf "}\n"
+	}'

@@ -216,6 +216,7 @@ ctf_fdopen(int fd, int *errp)
 {
 	ctf_sect_t ctfsect, symsect, strsect;
 	ctf_file_t *fp = NULL;
+	size_t shstrndx, shnum;
 
 	struct stat64 st;
 	ssize_t nbytes;
@@ -278,11 +279,10 @@ ctf_fdopen(int fd, int *errp)
 #else
 		uchar_t order = ELFDATA2LSB;
 #endif
-		GElf_Half i, n;
 		GElf_Shdr *sp;
 
 		void *strs_map;
-		size_t strs_mapsz;
+		size_t strs_mapsz, i;
 		char *strs;
 
 		if (hdr.e32.e_ident[EI_DATA] != order)
@@ -298,11 +298,38 @@ ctf_fdopen(int fd, int *errp)
 			ehdr_to_gelf(&e32, &hdr.e64);
 		}
 
-		if (hdr.e64.e_shstrndx >= hdr.e64.e_shnum)
+		shnum = hdr.e64.e_shnum;
+		shstrndx = hdr.e64.e_shstrndx;
+
+		/* Extended ELF sections */
+		if ((shstrndx == SHN_XINDEX) || (shnum == 0)) {
+			if (hdr.e32.e_ident[EI_CLASS] == ELFCLASS32) {
+				Elf32_Shdr x32;
+
+				if (pread64(fd, &x32, sizeof (x32),
+				    hdr.e64.e_shoff) != sizeof (x32))
+					return (ctf_set_open_errno(errp,
+					    errno));
+
+				shnum = x32.sh_size;
+				shstrndx = x32.sh_link;
+			} else {
+				Elf64_Shdr x64;
+
+				if (pread64(fd, &x64, sizeof (x64),
+				    hdr.e64.e_shoff) != sizeof (x64))
+					return (ctf_set_open_errno(errp,
+					    errno));
+
+				shnum = x64.sh_size;
+				shstrndx = x64.sh_link;
+			}
+		}
+
+		if (shstrndx >= shnum)
 			return (ctf_set_open_errno(errp, ECTF_CORRUPT));
 
-		n = hdr.e64.e_shnum;
-		nbytes = sizeof (GElf_Shdr) * n;
+		nbytes = sizeof (GElf_Shdr) * shnum;
 
 		if ((sp = malloc(nbytes)) == NULL)
 			return (ctf_set_open_errno(errp, errno));
@@ -314,7 +341,7 @@ ctf_fdopen(int fd, int *errp)
 		if (hdr.e32.e_ident[EI_CLASS] == ELFCLASS32) {
 			Elf32_Shdr *sp32;
 
-			nbytes = sizeof (Elf32_Shdr) * n;
+			nbytes = sizeof (Elf32_Shdr) * shnum;
 
 			if ((sp32 = malloc(nbytes)) == NULL || pread64(fd,
 			    sp32, nbytes, hdr.e64.e_shoff) != nbytes) {
@@ -322,7 +349,7 @@ ctf_fdopen(int fd, int *errp)
 				return (ctf_set_open_errno(errp, errno));
 			}
 
-			for (i = 0; i < n; i++)
+			for (i = 0; i < shnum; i++)
 				shdr_to_gelf(&sp32[i], &sp[i]);
 
 			free(sp32);
@@ -336,14 +363,14 @@ ctf_fdopen(int fd, int *errp)
 		 * Now mmap the section header strings section so that we can
 		 * perform string comparison on the section names.
 		 */
-		strs_mapsz = sp[hdr.e64.e_shstrndx].sh_size +
-		    (sp[hdr.e64.e_shstrndx].sh_offset & ~_PAGEMASK);
+		strs_mapsz = sp[shstrndx].sh_size +
+		    (sp[shstrndx].sh_offset & ~_PAGEMASK);
 
 		strs_map = mmap64(NULL, strs_mapsz, PROT_READ, MAP_PRIVATE,
-		    fd, sp[hdr.e64.e_shstrndx].sh_offset & _PAGEMASK);
+		    fd, sp[shstrndx].sh_offset & _PAGEMASK);
 
 		strs = (char *)strs_map +
-		    (sp[hdr.e64.e_shstrndx].sh_offset & ~_PAGEMASK);
+		    (sp[shstrndx].sh_offset & ~_PAGEMASK);
 
 		if (strs_map == MAP_FAILED) {
 			free(sp);
@@ -354,15 +381,15 @@ ctf_fdopen(int fd, int *errp)
 		 * Iterate over the section header array looking for the CTF
 		 * section and symbol table.  The strtab is linked to symtab.
 		 */
-		for (i = 0; i < n; i++) {
+		for (i = 0; i < shnum; i++) {
 			const GElf_Shdr *shp = &sp[i];
 			const GElf_Shdr *lhp = &sp[shp->sh_link];
 
-			if (shp->sh_link >= hdr.e64.e_shnum)
+			if (shp->sh_link >= shnum)
 				continue; /* corrupt sh_link field */
 
-			if (shp->sh_name >= sp[hdr.e64.e_shstrndx].sh_size ||
-			    lhp->sh_name >= sp[hdr.e64.e_shstrndx].sh_size)
+			if (shp->sh_name >= sp[shstrndx].sh_size ||
+			    lhp->sh_name >= sp[shstrndx].sh_size)
 				continue; /* corrupt sh_name field */
 
 			if (shp->sh_type == SHT_PROGBITS &&

@@ -499,6 +499,15 @@ void	pci_restore_state(device_t dev);
 void	pci_save_state(device_t dev);
 int	pci_set_max_read_req(device_t dev, int size);
 
+
+#ifdef BUS_SPACE_MAXADDR
+#if (BUS_SPACE_MAXADDR > 0xFFFFFFFF)
+#define	PCI_DMA_BOUNDARY	0x100000000
+#else
+#define	PCI_DMA_BOUNDARY	0
+#endif
+#endif
+
 #endif	/* _SYS_BUS_H_ */
 
 /*
@@ -516,5 +525,12 @@ extern uint32_t	pci_generation;
 
 struct pci_map *pci_find_bar(device_t dev, int reg);
 int	pci_bar_enabled(device_t dev, struct pci_map *pm);
+
+#define	VGA_PCI_BIOS_SHADOW_ADDR	0xC0000
+#define	VGA_PCI_BIOS_SHADOW_SIZE	131072
+
+int	vga_pci_is_boot_display(device_t dev);
+void *	vga_pci_map_bios(device_t dev, size_t *size);
+void	vga_pci_unmap_bios(device_t dev, void *bios);
 
 #endif /* _PCIVAR_H_ */

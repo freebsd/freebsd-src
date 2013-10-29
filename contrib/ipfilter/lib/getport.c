@@ -1,28 +1,37 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2002-2005 by Darren Reed.
- * 
- * See the IPFILTER.LICENCE file for details on licencing.  
- *   
- * $Id: getport.c,v 1.1.4.6 2006/06/16 17:21:00 darrenr Exp $ 
- */     
+ * Copyright (C) 2012 by Darren Reed.
+ *
+ * See the IPFILTER.LICENCE file for details on licencing.
+ *
+ * $Id$
+ */
 
 #include "ipf.h"
+#include <ctype.h>
 
-int getport(fr, name, port)
-frentry_t *fr;
-char *name;
-u_short *port;
+int getport(fr, name, port, proto)
+	frentry_t *fr;
+	char *name, *proto;
+	u_short *port;
 {
 	struct protoent *p;
 	struct servent *s;
 	u_short p1;
 
 	if (fr == NULL || fr->fr_type != FR_T_IPF) {
-		s = getservbyname(name, NULL);
+		s = getservbyname(name, proto);
 		if (s != NULL) {
 			*port = s->s_port;
+			return 0;
+		}
+
+		if (ISDIGIT(*name)) {
+			int portval = atoi(name);
+			if (portval < 0 || portval > 65535)
+				return -1;
+			*port = htons((u_short)portval);
 			return 0;
 		}
 		return -1;

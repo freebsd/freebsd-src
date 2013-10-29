@@ -90,7 +90,7 @@ CFLAGS+=	-I.
 
 CLEANFILES+=	vers.c loader.help
 
-CFLAGS+=	-ffreestanding
+CFLAGS+=	-ffreestanding -msoft-float
 
 LDFLAGS=	-nostdlib -static
 LDFLAGS+=	-T ldscript.generated
@@ -134,7 +134,20 @@ ldscript.generated::
 		mv ldscript.generated.tmp ldscript.generated; \
 	fi
 
+.if !defined(LOADER_ONLY)
 .PATH: ${.CURDIR}/../../forth
-FILES=	loader.help
+FILES+=	loader.help loader.4th support.4th loader.conf
+FILES+=	screen.4th frames.4th beastie.4th
+FILES+=	brand.4th check-password.4th color.4th delay.4th
+FILES+=	menu.4th menu-commands.4th menusets.4th shortcuts.4th version.4th
+FILESDIR_loader.conf=	/boot/defaults
+
+# Put sample loader.rc and menu.rc on disk but don't enable them
+# by default.
+FILES+=	loader.rc
+FILESNAME_loader.rc=	loader.rc.sample
+FILES+=	menu.rc
+FILESNAME_menu.rc=	menu.rc.sample
+.endif
 
 .include <bsd.prog.mk>

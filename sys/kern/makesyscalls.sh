@@ -57,7 +57,7 @@ case $# in
 	;;
 esac
 
-if [ -n "$2" -a -f "$2" ]; then
+if [ -n "$2" ]; then
 	. $2
 fi
 
@@ -156,7 +156,8 @@ s/\$//g
 		printf "#include <sys/cpuset.h>\n" > sysarg
 		printf "#include <sys/_ffcounter.h>\n" > sysarg
 		printf "#include <sys/_semaphore.h>\n" > sysarg
-		printf "#include <sys/ucontext.h>\n\n" > sysarg
+		printf "#include <sys/ucontext.h>\n" > sysarg
+		printf "#include <sys/wait.h>\n\n" > sysarg
 		printf "#include <bsm/audit_kevents.h>\n\n" > sysarg
 		printf "struct proc;\n\n" > sysarg
 		printf "struct thread;\n\n" > sysarg
@@ -402,19 +403,21 @@ s/\$//g
 			printf("\t\tswitch(ndx) {\n") > systracetmp
 			printf("\t\tstruct %s *p = params;\n", argalias) > systrace
 			for (i = 1; i <= argc; i++) {
-				printf("\t\tcase %d:\n\t\t\tp = \"%s\";\n\t\t\tbreak;\n", i - 1, argtype[i]) > systracetmp
-				if (index(argtype[i], "*") > 0 || argtype[i] == "caddr_t")
+				arg = argtype[i]
+				sub("__restrict$", "", arg)
+				printf("\t\tcase %d:\n\t\t\tp = \"%s\";\n\t\t\tbreak;\n", i - 1, arg) > systracetmp
+				if (index(arg, "*") > 0 || arg == "caddr_t")
 					printf("\t\tuarg[%d] = (intptr_t) p->%s; /* %s */\n", \
 					     i - 1, \
-					     argname[i], argtype[i]) > systrace
-				else if (substr(argtype[i], 1, 1) == "u" || argtype[i] == "size_t")
+					     argname[i], arg) > systrace
+				else if (substr(arg, 1, 1) == "u" || arg == "size_t")
 					printf("\t\tuarg[%d] = p->%s; /* %s */\n", \
 					     i - 1, \
-					     argname[i], argtype[i]) > systrace
+					     argname[i], arg) > systrace
 				else
 					printf("\t\tiarg[%d] = p->%s; /* %s */\n", \
 					     i - 1, \
-					     argname[i], argtype[i]) > systrace
+					     argname[i], arg) > systrace
 			}
 			printf("\t\tdefault:\n\t\t\tbreak;\n\t\t};\n") > systracetmp
 

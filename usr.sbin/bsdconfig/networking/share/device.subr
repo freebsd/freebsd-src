@@ -125,7 +125,7 @@ f_dialog_menu_netdev()
 	)
 	if [ ! "$interfaces" ]; then
 		f_show_msg "$msg_no_network_interfaces"
-		return $FAILURE
+		return $DIALOG_CANCEL
 	fi
 
 	#
@@ -242,12 +242,10 @@ f_dialog_menu_netdev_edit()
 		local retval=$?
 		f_dialog_data_sanitize tag
 
-		if [ $retval -eq 2 ]; then
-			# The Help button was pressed
+		if [ $retval -eq $DIALOG_HELP ]; then
 			f_show_help "$TCP_HELPFILE"
 			continue
-		elif [ $retval -ne $SUCCESS ]; then
-			# "Cancel" was chosen (-1) or ESC was pressed (255)
+		elif [ $retval -ne $DIALOG_OK ]; then
 			return $retval
 		else
 			# Only update default-item on success
@@ -298,7 +296,7 @@ f_dialog_menu_netdev_edit()
 		      	)
 		      	retval=$?
 		      	trap 'interrupt' SIGINT
-		      	if [ $retval -eq $SUCCESS ]; then
+		      	if [ $retval -eq $DIALOG_OK ]; then
 		      		dhcp=1
 		      		ipaddr=$( f_ifconfig_inet $interface )
 		      		netmask=$( f_ifconfig_netmask $interface )
@@ -312,11 +310,11 @@ f_dialog_menu_netdev_edit()
 		      fi
 		      ;;
 		3\ *) f_dialog_input_ipaddr "$interface" "$ipaddr"
-		      [ $? -eq $SUCCESS ] && dhcp= ;;
+		      [ $? -eq $DIALOG_OK ] && dhcp= ;;
 		4\ *) f_dialog_input_netmask "$interface" "$netmask"
-		      [ $? -eq $SUCCESS -a "$_netmask" ] && dhcp= ;;
+		      [ $? -eq $DIALOG_OK -a "$_netmask" ] && dhcp= ;;
 		5\ *) f_dialog_menu_media_options "$interface" "$options"
-		      [ $? -eq $SUCCESS ] && dhcp= ;;
+		      [ $? -eq $DIALOG_OK ] && dhcp= ;;
 		esac
 	done
 
@@ -383,7 +381,7 @@ f_dialog_menu_netdev_edit()
 		fi
 	fi
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 ############################################################ MAIN

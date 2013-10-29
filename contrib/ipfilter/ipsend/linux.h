@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1995-1998 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * This code may be freely distributed as long as it retains this notice
  * and is not changed in any way.  The author accepts no responsibility

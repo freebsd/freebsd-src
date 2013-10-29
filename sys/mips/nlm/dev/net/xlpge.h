@@ -75,6 +75,9 @@ struct nlm_xlpnae_softc {
 	/* NetIOR configs */
 	u_int		cmplx_type[8];		/* XXXJC: redundant? */
 	struct nae_port_config *portcfg;
+	u_int		blockmask;
+	u_int		portmask[XLP_NAE_NBLOCKS];
+	u_int		ilmask;
 	u_int		xauimask;
 	u_int		sgmiimask;
 	u_int		hw_parser_en;

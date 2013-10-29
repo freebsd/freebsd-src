@@ -64,6 +64,13 @@
 				< 0x48240100 0x0100 >;	/* CPU Interface Registers */
 		};
 
+		omap4_prcm@4a306000 {
+	   		compatible = "ti,omap4_prcm";
+   			reg =<  0x4a306000 0x2000
+			    0x4a004000 0x1000
+			    0x4a008000 0x8000>;
+		};
+				     
 		pl310@48242000 {
 			compatible = "arm,pl310";
 			reg = < 0x48242000 0x1000 >;
@@ -72,7 +79,6 @@
 		};
 		mp_tmr@48240200 {
 			compatible = "arm,mpcore-timers";
-			clock-frequency = < 504000000 >;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg =	< 0x48240200 0x100 >, /* Global Timer Registers */
@@ -108,13 +114,6 @@
 				"ae16", "usbb1_ulpiphy_dat5", "input_pulldown",
 				"af16", "usbb1_ulpiphy_dat6", "input_pulldown",
 				"ag16", "usbb1_ulpiphy_dat7", "input_pulldown";
-		};
-
-		omap4_prcm@4a306000 {
-			compatible = "ti,omap4_prcm";
-			reg =<	0x4a306000 0x2000
-				0x4a004000 0x1000
-				0x4a008000 0x8000>;
 		};
 
 		GPIO: gpio {

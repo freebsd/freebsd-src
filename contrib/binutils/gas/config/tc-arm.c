@@ -7218,10 +7218,11 @@ do_mull (void)
   inst.instruction |= inst.operands[2].reg;
   inst.instruction |= inst.operands[3].reg << 8;
 
-  /* rdhi, rdlo and rm must all be different.  */
+  /* rdhi, rdlo and rm must all be different prior to ARMv6.  */
   if (inst.operands[0].reg == inst.operands[1].reg
-      || inst.operands[0].reg == inst.operands[2].reg
+      || ((inst.operands[0].reg == inst.operands[2].reg
       || inst.operands[1].reg == inst.operands[2].reg)
+      && !ARM_CPU_HAS_FEATURE (selected_cpu, arm_ext_v6)))
     as_tsktsk (_("rdhi, rdlo and rm must all be different"));
 }
 
@@ -12659,14 +12660,14 @@ do_vfp_nsyn_cvt (enum neon_shape rs, int flavour)
       /* Conversions without bitshift.  */
       const char *enc[] =
         {
-          "ftosis",
-          "ftouis",
+          "ftosizs",
+          "ftouizs",
           "fsitos",
           "fuitos",
           "fcvtsd",
           "fcvtds",
-          "ftosid",
-          "ftouid",
+          "ftosizd",
+          "ftouizd",
           "fsitod",
           "fuitod"
         };

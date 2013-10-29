@@ -3561,7 +3561,7 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 
 static struct sctp_tcb *
 sctp_findassociation_cmsgs(struct sctp_inpcb **inp_p,
-    in_port_t port,
+    uint16_t port,
     struct mbuf *control,
     struct sctp_nets **net_p,
     int *error)
@@ -5406,6 +5406,14 @@ do_a_abort:
 	}
 	SCTP_BUF_LEN(m) = sizeof(struct sctp_init_chunk);
 
+	/*
+	 * We might not overwrite the identification[] completely and on
+	 * some platforms time_entered will contain some padding. Therefore
+	 * zero out the cookie to avoid putting uninitialized memory on the
+	 * wire.
+	 */
+	memset(&stc, 0, sizeof(struct sctp_state_cookie));
+
 	/* the time I built cookie */
 	(void)SCTP_GETTIME_TIMEVAL(&stc.time_entered);
 
@@ -6059,7 +6067,6 @@ sctp_get_frag_point(struct sctp_tcb *stcb,
 static void
 sctp_set_prsctp_policy(struct sctp_stream_queue_pending *sp)
 {
-	sp->pr_sctp_on = 0;
 	/*
 	 * We assume that the user wants PR_SCTP_TTL if the user provides a
 	 * positive lifetime but does not specify any PR_SCTP policy. This
@@ -6069,7 +6076,6 @@ sctp_set_prsctp_policy(struct sctp_stream_queue_pending *sp)
 	 */
 	if (PR_SCTP_ENABLED(sp->sinfo_flags)) {
 		sp->act_flags |= PR_SCTP_POLICY(sp->sinfo_flags);
-		sp->pr_sctp_on = 1;
 	} else {
 		return;
 	}
@@ -6406,7 +6412,7 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 		/* TSNH */
 		return;
 	}
-	if ((ca->m) && ca->sndlen) {
+	if (ca->sndlen > 0) {
 		m = SCTP_M_COPYM(ca->m, 0, M_COPYALL, M_NOWAIT);
 		if (m == NULL) {
 			/* can't copy so we are done */
@@ -6435,38 +6441,40 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 	}
 	if (ca->sndrcv.sinfo_flags & SCTP_ABORT) {
 		/* Abort this assoc with m as the user defined reason */
-		if (m) {
+		if (m != NULL) {
+			SCTP_BUF_PREPEND(m, sizeof(struct sctp_paramhdr), M_NOWAIT);
+		} else {
+			m = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
+			    0, M_NOWAIT, 1, MT_DATA);
+			SCTP_BUF_LEN(m) = sizeof(struct sctp_paramhdr);
+		}
+		if (m != NULL) {
 			struct sctp_paramhdr *ph;
 
-			SCTP_BUF_PREPEND(m, sizeof(struct sctp_paramhdr), M_NOWAIT);
-			if (m) {
-				ph = mtod(m, struct sctp_paramhdr *);
-				ph->param_type = htons(SCTP_CAUSE_USER_INITIATED_ABT);
-				ph->param_length = htons(sizeof(struct sctp_paramhdr) + ca->sndlen);
-			}
-			/*
-			 * We add one here to keep the assoc from
-			 * dis-appearing on us.
-			 */
-			atomic_add_int(&stcb->asoc.refcnt, 1);
-			sctp_abort_an_association(inp, stcb, m, SCTP_SO_NOT_LOCKED);
-			/*
-			 * sctp_abort_an_association calls sctp_free_asoc()
-			 * free association will NOT free it since we
-			 * incremented the refcnt .. we do this to prevent
-			 * it being freed and things getting tricky since we
-			 * could end up (from free_asoc) calling inpcb_free
-			 * which would get a recursive lock call to the
-			 * iterator lock.. But as a consequence of that the
-			 * stcb will return to us un-locked.. since
-			 * free_asoc returns with either no TCB or the TCB
-			 * unlocked, we must relock.. to unlock in the
-			 * iterator timer :-0
-			 */
-			SCTP_TCB_LOCK(stcb);
-			atomic_add_int(&stcb->asoc.refcnt, -1);
-			goto no_chunk_output;
+			ph = mtod(m, struct sctp_paramhdr *);
+			ph->param_type = htons(SCTP_CAUSE_USER_INITIATED_ABT);
+			ph->param_length = htons(sizeof(struct sctp_paramhdr) + ca->sndlen);
 		}
+		/*
+		 * We add one here to keep the assoc from dis-appearing on
+		 * us.
+		 */
+		atomic_add_int(&stcb->asoc.refcnt, 1);
+		sctp_abort_an_association(inp, stcb, m, SCTP_SO_NOT_LOCKED);
+		/*
+		 * sctp_abort_an_association calls sctp_free_asoc() free
+		 * association will NOT free it since we incremented the
+		 * refcnt .. we do this to prevent it being freed and things
+		 * getting tricky since we could end up (from free_asoc)
+		 * calling inpcb_free which would get a recursive lock call
+		 * to the iterator lock.. But as a consequence of that the
+		 * stcb will return to us un-locked.. since free_asoc
+		 * returns with either no TCB or the TCB unlocked, we must
+		 * relock.. to unlock in the iterator timer :-0
+		 */
+		SCTP_TCB_LOCK(stcb);
+		atomic_add_int(&stcb->asoc.refcnt, -1);
+		goto no_chunk_output;
 	} else {
 		if (m) {
 			ret = sctp_msg_append(stcb, net, m,
@@ -6560,8 +6568,7 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 
 	if ((sctp_is_feature_off(inp, SCTP_PCB_FLAGS_NODELAY)) &&
 	    (stcb->asoc.total_flight > 0) &&
-	    (un_sent < (int)(stcb->asoc.smallest_mtu - SCTP_MIN_OVERHEAD))
-	    ) {
+	    (un_sent < (int)(stcb->asoc.smallest_mtu - SCTP_MIN_OVERHEAD))) {
 		do_chunk_output = 0;
 	}
 	if (do_chunk_output)
@@ -6690,13 +6697,10 @@ sctp_sendall(struct sctp_inpcb *inp, struct uio *uio, struct mbuf *m,
 		/* Gather the length of the send */
 		struct mbuf *mat;
 
-		mat = m;
 		ca->sndlen = 0;
-		while (m) {
-			ca->sndlen += SCTP_BUF_LEN(m);
-			m = SCTP_BUF_NEXT(m);
+		for (mat = m; mat; mat = SCTP_BUF_NEXT(mat)) {
+			ca->sndlen += SCTP_BUF_LEN(mat);
 		}
-		ca->m = mat;
 	}
 	ret = sctp_initiate_iterator(NULL, sctp_sendall_iterator, NULL,
 	    SCTP_PCB_ANY_FLAGS, SCTP_PCB_ANY_FEATURES,
@@ -7417,13 +7421,8 @@ dont_do_it:
 		}
 		chk->send_size += pads;
 	}
-	/* We only re-set the policy if it is on */
-	if (sp->pr_sctp_on) {
-		sctp_set_prsctp_policy(sp);
+	if (PR_SCTP_ENABLED(chk->flags)) {
 		asoc->pr_sctp_cnt++;
-		chk->pr_sctp_on = 1;
-	} else {
-		chk->pr_sctp_on = 0;
 	}
 	if (sp->msg_is_complete && (sp->length == 0) && (sp->sender_all_done)) {
 		/* All done pull and kill the message */
@@ -7613,7 +7612,7 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 #endif
 )
 {
-	/*
+	/**
 	 * Ok this is the generic chunk service queue. we must do the
 	 * following: - Service the stream queue that is next, moving any
 	 * message (note I must get a complete message i.e. FIRST/MIDDLE and

@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/kernel.h>
 #include <sys/pcpu.h>
@@ -182,7 +183,7 @@ start_ap(int cpuid)
 	int cpus, ms;
 
 	cpus = mp_naps;
-	dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
+	dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE, M_WAITOK | M_ZERO);
 
 	mips_sync();
 

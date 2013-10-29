@@ -148,7 +148,7 @@ while :; do
 		"$interface" "$_ipaddr" "$_netmask" "$_options" $dhcp
 
 	# Return to root menu if above returns success
-	[ $? -eq $SUCCESS ] && break
+	[ $? -eq $DIALOG_OK ] && break
 done
 
 exit $SUCCESS

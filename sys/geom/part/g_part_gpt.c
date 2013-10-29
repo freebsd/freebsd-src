@@ -731,8 +731,11 @@ g_part_gpt_resize(struct g_part_table *basetable,
     struct g_part_entry *baseentry, struct g_part_parms *gpp)
 {
 	struct g_part_gpt_entry *entry;
-	entry = (struct g_part_gpt_entry *)baseentry;
 
+	if (baseentry == NULL)
+		return (EOPNOTSUPP);
+
+	entry = (struct g_part_gpt_entry *)baseentry;
 	baseentry->gpe_end = baseentry->gpe_start + gpp->gpp_size - 1;
 	entry->ent.ent_lba_end = baseentry->gpe_end;
 
@@ -916,9 +919,10 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	basetable->gpt_first = table->hdr->hdr_lba_start;
 	basetable->gpt_last = table->hdr->hdr_lba_end;
-	basetable->gpt_entries = table->hdr->hdr_entries;
+	basetable->gpt_entries = (table->hdr->hdr_lba_start - 2) *
+	    pp->sectorsize / table->hdr->hdr_entsz;
 
-	for (index = basetable->gpt_entries - 1; index >= 0; index--) {
+	for (index = table->hdr->hdr_entries - 1; index >= 0; index--) {
 		if (EQUUID(&tbl[index].ent_type, &gpt_uuid_unused))
 			continue;
 		entry = (struct g_part_gpt_entry *)g_part_new_entry(
