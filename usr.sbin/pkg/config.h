@@ -30,6 +30,7 @@
 #define _PKG_CONFIG_H
 
 #define _LOCALBASE "/usr/local"
+#define URL_SCHEME_PREFIX "pkg+"
 
 typedef enum {
 	PACKAGESITE = 0,

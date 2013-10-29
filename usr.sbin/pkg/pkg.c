@@ -168,6 +168,13 @@ bootstrap_pkg(void)
 		warnx("No MIRROR_TYPE defined");
 		return (-1);
 	}
+
+	/* Support pkg+http:// for PACKAGESITE which is the new format
+	   in 1.2 to avoid confusion on why http://pkg.FreeBSD.org has
+	   no A record. */
+	if (strncmp(URL_SCHEME_PREFIX, packagesite,
+	    strlen(URL_SCHEME_PREFIX)) == 0)
+		packagesite += strlen(URL_SCHEME_PREFIX);
 	snprintf(url, MAXPATHLEN, "%s/Latest/pkg.txz", packagesite);
 
 	snprintf(tmppkg, MAXPATHLEN, "%s/pkg.txz.XXXXXX",
