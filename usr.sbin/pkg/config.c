@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013 Baptiste Daroussin <bapt@FreeBSD.org>
+ * Copyright (c) 2013 Bryan Drewery <bdrewery@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,7 +87,21 @@ static struct config_entry c[] = {
 		"NO",
 		NULL,
 		false,
-	}
+	},
+	[SIGNATURE_TYPE] = {
+		PKG_CONFIG_STRING,
+		"SIGNATURE_TYPE",
+		NULL,
+		NULL,
+		false,
+	},
+	[FINGERPRINTS] = {
+		PKG_CONFIG_STRING,
+		"FINGERPRINTS",
+		NULL,
+		NULL,
+		false,
+	},
 };
 
 static const char *
@@ -460,7 +475,7 @@ subst_packagesite(const char *abi)
 }
 
 static void
-config_parse(yaml_document_t *doc, yaml_node_t *node)
+config_parse(yaml_document_t *doc, yaml_node_t *node, pkg_conf_file_t conftype)
 {
 	yaml_node_pair_t *pair;
 	yaml_node_t *key, *val;
@@ -495,15 +510,39 @@ config_parse(yaml_document_t *doc, yaml_node_t *node)
 		}
 
 		sbuf_clear(buf);
-		for (j = 0; j < strlen(key->data.scalar.value); ++j)
-			sbuf_putc(buf, toupper(key->data.scalar.value[j]));
 
-		sbuf_finish(buf);
+		if (conftype == CONFFILE_PKG) {
+			for (j = 0; j < strlen(key->data.scalar.value); ++j)
+				sbuf_putc(buf,
+				    toupper(key->data.scalar.value[j]));
+			sbuf_finish(buf);
+		} else if (conftype == CONFFILE_REPO) {
+			/* The CONFFILE_REPO type is more restrictive. Only
+			   parse known elements. */
+			if (strcasecmp(key->data.scalar.value, "url") == 0)
+				sbuf_cpy(buf, "PACKAGESITE");
+			else if (strcasecmp(key->data.scalar.value,
+			    "mirror_type") == 0)
+				sbuf_cpy(buf, "MIRROR_TYPE");
+			else if (strcasecmp(key->data.scalar.value,
+			    "signature_type") == 0)
+				sbuf_cpy(buf, "SIGNATURE_TYPE");
+			else if (strcasecmp(key->data.scalar.value,
+			    "fingerprints") == 0)
+				sbuf_cpy(buf, "FINGERPRINTS");
+			else { /* Skip unknown entries for future use. */
+				++pair;
+				continue;
+			}
+			sbuf_finish(buf);
+		}
+
 		for (i = 0; i < CONFIG_SIZE; i++) {
 			if (strcmp(sbuf_data(buf), c[i].key) == 0)
 				break;
 		}
 
+		/* Silently skip unknown keys to be future compatible. */
 		if (i == CONFIG_SIZE) {
 			++pair;
 			continue;
@@ -522,13 +561,80 @@ config_parse(yaml_document_t *doc, yaml_node_t *node)
 	sbuf_delete(buf);
 }
 
-int
-config_init(void)
+/*-
+ * Parse new repo style configs in style:
+ * Name:
+ *   URL:
+ *   MIRROR_TYPE:
+ * etc...
+ */
+static void
+parse_repo_file(yaml_document_t *doc, yaml_node_t *node)
+{
+	yaml_node_pair_t *pair;
+
+	pair = node->data.mapping.pairs.start;
+	while (pair < node->data.mapping.pairs.top) {
+		yaml_node_t *key = yaml_document_get_node(doc, pair->key);
+		yaml_node_t *val = yaml_document_get_node(doc, pair->value);
+
+		if (key->data.scalar.length <= 0) {
+			++pair;
+			continue;
+		}
+
+		if (val->type != YAML_MAPPING_NODE) {
+			++pair;
+			continue;
+		}
+
+		config_parse(doc, val, CONFFILE_REPO);
+		++pair;
+	}
+}
+
+
+static int
+read_conf_file(const char *confpath, pkg_conf_file_t conftype)
 {
 	FILE *fp;
 	yaml_parser_t parser;
 	yaml_document_t doc;
 	yaml_node_t *node;
+
+	if ((fp = fopen(confpath, "r")) == NULL) {
+		if (errno != ENOENT)
+			err(EXIT_FAILURE, "Unable to open configuration "
+			    "file %s", confpath);
+		/* no configuration present */
+		return (1);
+	}
+
+	yaml_parser_initialize(&parser);
+	yaml_parser_set_input_file(&parser, fp);
+	yaml_parser_load(&parser, &doc);
+
+	node = yaml_document_get_root_node(&doc);
+
+	if (node == NULL || node->type != YAML_MAPPING_NODE)
+		warnx("Invalid configuration format, ignoring the "
+		    "configuration file %s", confpath);
+	else {
+		if (conftype == CONFFILE_PKG)
+			config_parse(&doc, node, conftype);
+		else if (conftype == CONFFILE_REPO)
+			parse_repo_file(&doc, node);
+	}
+
+	yaml_document_delete(&doc);
+	yaml_parser_delete(&parser);
+
+	return (0);
+}
+
+int
+config_init(void)
+{
 	const char *val;
 	int i;
 	const char *localbase;
@@ -544,37 +650,23 @@ config_init(void)
 	}
 
 	localbase = getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE;
-	snprintf(confpath, sizeof(confpath), "%s/etc/pkg.conf", localbase);
+	snprintf(confpath, sizeof(confpath), "%s/etc/pkg.conf",
+	    localbase);
 
-	if ((fp = fopen(confpath, "r")) == NULL) {
-		if (errno != ENOENT)
-			err(EXIT_FAILURE, "Unable to open configuration file %s", confpath);
-		/* no configuration present */
+	if (access(confpath, F_OK) == 0 && read_conf_file(confpath,
+	    CONFFILE_PKG))
 		goto finalize;
-	}
 
-	yaml_parser_initialize(&parser);
-	yaml_parser_set_input_file(&parser, fp);
-	yaml_parser_load(&parser, &doc);
-
-	node = yaml_document_get_root_node(&doc);
-
-	if (node != NULL) {
-		if (node->type != YAML_MAPPING_NODE)
-			warnx("Invalid configuration format, ignoring the configuration file");
-		else
-			config_parse(&doc, node);
-	} else {
-		warnx("Invalid configuration format, ignoring the configuration file");
-	}
-
-	yaml_document_delete(&doc);
-	yaml_parser_delete(&parser);
+	snprintf(confpath, sizeof(confpath), "/etc/pkg/FreeBSD.conf");
+	if (access(confpath, F_OK) == 0 && read_conf_file(confpath,
+	    CONFFILE_REPO))
+		goto finalize;
 
 finalize:
 	if (c[ABI].val == NULL && c[ABI].value == NULL) {
 		if (pkg_get_myabi(abi, BUFSIZ) != 0)
-			errx(EXIT_FAILURE, "Failed to determine the system ABI");
+			errx(EXIT_FAILURE, "Failed to determine the system "
+			    "ABI");
 		c[ABI].val = abi;
 	}
 
