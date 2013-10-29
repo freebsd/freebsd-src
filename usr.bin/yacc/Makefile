@@ -15,5 +15,6 @@ CFLAGS+=	-DMIXEDCASE_FILENAMES=1 \
 		
 LINKS=	${BINDIR}/yacc ${BINDIR}/byacc
 MLINKS=	yacc.1 byacc.1
+WARNS=	6
 
 .include <bsd.prog.mk>
