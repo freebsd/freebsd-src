@@ -38,8 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/pmap.h>
-
 #include <machine/vmm.h>
 #include "vmx.h"
 #include "vmx_cpufunc.h"

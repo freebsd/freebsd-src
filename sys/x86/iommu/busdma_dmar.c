@@ -163,18 +163,15 @@ dmar_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	    nsegments, maxsegsz, flags, lockfunc, lockfuncarg,
 	    sizeof(struct bus_dma_tag_dmar), (void **)&newtag);
 	if (error != 0)
-		return (error);
+		goto out;
 
 	oldtag = (struct bus_dma_tag_dmar *)parent;
 	newtag->common.impl = &bus_dma_dmar_impl;
 	newtag->ctx = oldtag->ctx;
 	newtag->owner = oldtag->owner;
-	error = 0;
 
-	if (error != 0)
-		free(newtag, M_DEVBUF);
-	else
-		*dmat = (bus_dma_tag_t)newtag;
+	*dmat = (bus_dma_tag_t)newtag;
+out:
 	CTR4(KTR_BUSDMA, "%s returned tag %p tag flags 0x%x error %d",
 	    __func__, newtag, (newtag != NULL ? newtag->common.flags : 0),
 	    error);

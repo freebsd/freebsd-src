@@ -145,9 +145,8 @@ proc_wstatus(struct proc_handle *phdl)
 	if (phdl == NULL)
 		return (-1);
 	if (waitpid(phdl->pid, &status, WUNTRACED) < 0) {
-		if (errno != EINTR) {
+		if (errno != EINTR)
 			DPRINTF("waitpid");
-		}
 		return (-1);
 	}
 	if (WIFSTOPPED(status))

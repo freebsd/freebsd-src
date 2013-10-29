@@ -353,7 +353,7 @@ void	if_maddr_runlock(struct ifnet *ifp);	/* if_multiaddrs */
 } while(0)
 
 #ifdef _KERNEL
-#ifdef SYS_EVENTHANDLER_H
+#ifdef _SYS_EVENTHANDLER_H_
 /* interface link layer address change event */
 typedef void (*iflladdr_event_handler_t)(void *, struct ifnet *);
 EVENTHANDLER_DECLARE(iflladdr_event, iflladdr_event_handler_t);
@@ -369,7 +369,7 @@ EVENTHANDLER_DECLARE(ifnet_departure_event, ifnet_departure_event_handler_t);
 /* Interface link state change event */
 typedef void (*ifnet_link_event_handler_t)(void *, struct ifnet *, int);
 EVENTHANDLER_DECLARE(ifnet_link_event, ifnet_link_event_handler_t);
-#endif /* SYS_EVENTHANDLER_H */
+#endif /* _SYS_EVENTHANDLER_H_ */
 
 /*
  * interface groups
@@ -392,7 +392,7 @@ struct ifg_list {
 	TAILQ_ENTRY(ifg_list)	 ifgl_next;
 };
 
-#ifdef SYS_EVENTHANDLER_H
+#ifdef _SYS_EVENTHANDLER_H_
 /* group attach event */
 typedef void (*group_attach_event_handler_t)(void *, struct ifg_group *);
 EVENTHANDLER_DECLARE(group_attach_event, group_attach_event_handler_t);
@@ -402,7 +402,7 @@ EVENTHANDLER_DECLARE(group_detach_event, group_detach_event_handler_t);
 /* group change event */
 typedef void (*group_change_event_handler_t)(void *, const char *);
 EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
-#endif /* SYS_EVENTHANDLER_H */
+#endif /* _SYS_EVENTHANDLER_H_ */
 
 #define	IF_AFDATA_LOCK_INIT(ifp)	\
 	rw_init(&(ifp)->if_afdata_lock, "if_afdata")

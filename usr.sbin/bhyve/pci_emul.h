@@ -103,7 +103,7 @@ struct pci_devinst {
 	struct pci_devemu *pi_d;
 	struct vmctx *pi_vmctx;
 	uint8_t	  pi_bus, pi_slot, pi_func;
-	uint8_t   pi_lintr_pin;
+	int8_t    pi_lintr_pin;
 	char	  pi_name[PI_NAMESZ];
 	int	  pi_bar_getsize;
 
