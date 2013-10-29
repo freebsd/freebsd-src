@@ -1,3 +1,44 @@
+2013-09-25  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* reader.c: fix two loop-limits found by clang 3.3 --analyze
+
+	* configure: regen
+
+	* aclocal.m4:
+	tweaks to CF_MIXEDCASE_FILENAMES and CF_XOPEN_SOURCE for msys from ncurses
+
+	* package/mingw-byacc.spec: RCS_BASE
+
+	* test/calc.tab.c, test/calc1.tab.c, test/calc2.tab.c, test/calc3.tab.c, test/code_calc.code.c, test/code_error.code.c, test/error.tab.c, test/ftp.tab.c, test/grammar.tab.c, test/pure_calc.tab.c, test/pure_error.tab.c, test/quote_calc-s.tab.c, test/quote_calc.tab.c, test/quote_calc2-s.tab.c, test/quote_calc2.tab.c, test/quote_calc3-s.tab.c, test/quote_calc3.tab.c, test/quote_calc4-s.tab.c, test/quote_calc4.tab.c:
+	regen
+
+	* skeleton.c:
+	Increase default stack-size to match FreeBSD version noted as from
+	"BSD 4.4 Lite Usr.bin Sources".  See
+
+		http://svnweb.freebsd.org/base/vendor/CSRG/dist/usr.bin/yacc/
+		http://svnweb.freebsd.org/base/head/usr.bin/yacc/
+		http://svnweb.freebsd.org/base/vendor/byacc/
+
+	The original 1.9 sources (on which I based development) used 500 for
+	stacksize; the BSD Lite sources (a year or two later) used 10000.
+
+	This is a change to default values; the YYMAXDEPTH and YYSTACKSIZE
+	symbols have "always" been overridable by applications, but rarely
+	needed to do this.  RedHat began using the FreeBSD source in 2000,
+	and switched to this source in 2007 using the 20050813 snapshot.
+
+	RedHat #743343 misattributed the change in default stacksize to
+	a regression in byacc, but did not report the issue upstream.
+
+	* package/debian/changelog, VERSION, package/byacc.spec: bump
+
+2013-09-07  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* config.sub: update to 2013-09-15
+
+	* config.guess: update to 2013-06-10
+
 2013-03-04  Thomas E. Dickey  <tom@invisible-island.net>
 
 	* package/debian/changelog, VERSION, package/byacc.spec: bump
@@ -30,7 +71,7 @@
 
 2013-02-10  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.sub, config.guess: 2013-02-04
+	* config.sub, config.guess: update to 2013-02-04
 
 2012-10-03  Thomas E. Dickey  <tom@invisible-island.net>
 
@@ -348,11 +389,11 @@
 
 2011-04-01  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.sub: 2011-04-01
+	* config.sub: update to 2011-04-01
 
 2011-02-02  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.guess: 2011-01-01
+	* config.guess: update to 2011-01-01
 
 2010-12-29  Thomas E. Dickey  <tom@invisible-island.net>
 
@@ -530,11 +571,11 @@
 
 2010-09-28  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.guess: 2010-09-24
+	* config.guess: update to 2010-09-24
 
 2010-09-10  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.sub: 2010-09-11
+	* config.sub: update to 2010-09-11
 
 2010-06-10  Thomas E. Dickey  <tom@invisible-island.net>
 
@@ -770,9 +811,9 @@
 
 2009-12-31  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.guess: 2009-12-30
+	* config.guess: update to 2009-12-30
 
-	* config.sub: 2009-12-31
+	* config.sub: update to 2009-12-31
 
 2009-10-27  Thomas E. Dickey  <tom@invisible-island.net>
 
@@ -798,7 +839,7 @@
 
 2009-08-25  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.guess, config.sub: 2009-08-19
+	* config.guess, config.sub: update to 2009-08-19
 
 2009-02-21  Thomas E. Dickey  <tom@invisible-island.net>
 
@@ -979,11 +1020,11 @@
 
 2006-12-22  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.guess: 2006/12/22
+	* config.guess: update to 2006/12/22
 
 2006-12-08  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.sub: 2006/12/08
+	* config.sub: update to 2006/12/08
 
 2005-08-13  Thomas E. Dickey  <tom@invisible-island.net>
 
@@ -1012,9 +1053,9 @@
 
 2005-06-25  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.sub: 2005/6/2
+	* config.sub: update to 2005/6/2
 
-	* config.guess: 2005/5/27
+	* config.guess: update to 2005/5/27
 
 2005-05-05  Thomas E. Dickey  <tom@invisible-island.net>
 
@@ -1108,9 +1149,9 @@
 
 2005-04-16  Thomas E. Dickey  <tom@invisible-island.net>
 
-	* config.sub: 2005/2/10
+	* config.sub: update to 2005/2/10
 
-	* config.guess: 2005/3/24
+	* config.guess: update to 2005/3/24
 
 2005-04-13  Thomas E. Dickey  <tom@invisible-island.net>
 
