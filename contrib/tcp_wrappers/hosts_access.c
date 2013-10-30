@@ -103,6 +103,11 @@ static int masked_match6();
 
 #define	BUFLEN 2048
 
+/* definition to be used from workarounds.c */
+#ifdef NETGROUP
+int     yp_get_default_domain(char  **);
+#endif
+
 /* hosts_access - host access control facility */
 
 int     hosts_access(request)
