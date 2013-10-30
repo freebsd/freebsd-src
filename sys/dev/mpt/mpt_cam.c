@@ -2203,8 +2203,8 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 			    "read" : "write",  csio->dxfer_len,
 			    (csio->dxfer_len == 1)? ")" : "s)");
 		}
-		mpt_prtc(mpt, "tgt %u lun %u req %p:%u\n", tgt,
-		    ccb->ccb_h.target_lun, req, req->serno);
+		mpt_prtc(mpt, "tgt %u lun %jx req %p:%u\n", tgt,
+		    (uintmax_t)ccb->ccb_h.target_lun, req, req->serno);
 	}
 
 	error = bus_dmamap_load_ccb(mpt->buffer_dmat, req->dmap, ccb, cb,
@@ -2978,8 +2978,8 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 			ccb = tgt->ccb;
 			if (ccb) {
 				mpt_prt(mpt,
-				    "CCB (%p): lun %u flags %x status %x\n",
-				    ccb, ccb->ccb_h.target_lun,
+				    "CCB (%p): lun %jx flags %x status %x\n",
+				    ccb, (uintmax_t)ccb->ccb_h.target_lun,
 				    ccb->ccb_h.flags, ccb->ccb_h.status);
 			}
 			mpt_prt(mpt, "target state 0x%x resid %u xfrd %u rpwrd "
@@ -3698,12 +3698,12 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		}
 		if (ccb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO) {
 			mpt_lprt(mpt, MPT_PRT_DEBUG1,
-			    "Put FREE ATIO %p lun %d\n", ccb, lun);
+			    "Put FREE ATIO %p lun %jx\n", ccb, (uintmax_t)lun);
 			STAILQ_INSERT_TAIL(&trtp->atios, &ccb->ccb_h,
 			    sim_links.stqe);
 		} else if (ccb->ccb_h.func_code == XPT_IMMEDIATE_NOTIFY) {
 			mpt_lprt(mpt, MPT_PRT_DEBUG1,
-			    "Put FREE INOT lun %d\n", lun);
+			    "Put FREE INOT lun %jx\n", (uintmax_t)lun);
 			STAILQ_INSERT_TAIL(&trtp->inots, &ccb->ccb_h,
 			    sim_links.stqe);
 		} else {
@@ -4866,7 +4866,8 @@ mpt_scsi_tgt_tsk_mgmt(struct mpt_softc *mpt, request_t *req, mpt_task_mgmt_t fc,
 	}
 	STAILQ_REMOVE_HEAD(&trtp->inots, sim_links.stqe);
 	mpt_lprt(mpt, MPT_PRT_DEBUG1,
-	    "Get FREE INOT %p lun %d\n", inot, inot->ccb_h.target_lun);
+	    "Get FREE INOT %p lun %jx\n", inot,
+	    (uintmax_t)inot->ccb_h.target_lun);
 
 	inot->initiator_id = init_id;	/* XXX */
 	/*
@@ -5093,8 +5094,8 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 				return;
 			default:
 				mpt_lprt(mpt, MPT_PRT_DEBUG,
-				    "CMD 0x%x to unmanaged lun %u\n",
-				    cdbp[0], lun);
+				    "CMD 0x%x to unmanaged lun %jx\n",
+				    cdbp[0], (uintmax_t)lun);
 				buf[12] = 0x25;
 				break;
 			}
@@ -5126,7 +5127,7 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	atiop = (struct ccb_accept_tio *) STAILQ_FIRST(&trtp->atios);
 	if (atiop == NULL) {
 		mpt_lprt(mpt, MPT_PRT_WARN,
-		    "no ATIOs for lun %u- sending back %s\n", lun,
+		    "no ATIOs for lun %jx- sending back %s\n", (uintmax_t)lun,
 		    mpt->tenabled? "QUEUE FULL" : "BUSY");
 		mpt_scsi_tgt_status(mpt, NULL, req,
 		    mpt->tenabled? SCSI_STATUS_QUEUE_FULL : SCSI_STATUS_BUSY,
@@ -5135,7 +5136,8 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	}
 	STAILQ_REMOVE_HEAD(&trtp->atios, sim_links.stqe);
 	mpt_lprt(mpt, MPT_PRT_DEBUG1,
-	    "Get FREE ATIO %p lun %d\n", atiop, atiop->ccb_h.target_lun);
+	    "Get FREE ATIO %p lun %jx\n", atiop,
+	    (uintmax_t)atiop->ccb_h.target_lun);
 	atiop->ccb_h.ccb_mpt_ptr = mpt;
 	atiop->ccb_h.status = CAM_CDB_RECVD;
 	atiop->ccb_h.target_lun = lun;
@@ -5159,8 +5161,8 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	}
 	if (mpt->verbose >= MPT_PRT_DEBUG) {
 		int i;
-		mpt_prt(mpt, "START_CCB %p for lun %u CDB=<", atiop,
-		    atiop->ccb_h.target_lun);
+		mpt_prt(mpt, "START_CCB %p for lun %jx CDB=<", atiop,
+		    (uintmax_t)atiop->ccb_h.target_lun);
 		for (i = 0; i < atiop->cdb_len; i++) {
 			mpt_prtc(mpt, "%02x%c", cdbp[i] & 0xff,
 			    (i == (atiop->cdb_len - 1))? '>' : ' ');
