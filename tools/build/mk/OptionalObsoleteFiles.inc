@@ -3610,6 +3610,7 @@ OLD_FILES+=usr/share/man/man8/tftp-proxy.8.gz
 
 .if ${MK_PKGBOOTSTRAP} == no
 OLD_FILES+=usr/sbin/pkg
+OLD_FILES+=usr/share/man/man7/pkg.7.gz
 .endif
 
 .if ${MK_PKGTOOLS} == no
