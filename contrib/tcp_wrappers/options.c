@@ -50,6 +50,8 @@ static char sccsid[] = "@(#) options.c 1.17 96/02/11 17:01:31";
 #include <ctype.h>
 #include <setjmp.h>
 #include <string.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 #ifndef MAXPATHNAMELEN
 #define MAXPATHNAMELEN  BUFSIZ
