@@ -29,7 +29,7 @@
 .Os
 .Sh NAME
 .Nm pkg
-.Nd a utility for manipulating packages.
+.Nd a utility for manipulating packages
 .Sh SYNOPSIS
 .Nm
 .Ao Ar command Ac
@@ -55,8 +55,7 @@ The first time invoked,
 will bootstrap the real
 .Xr pkg 8
 from a remote repository.
-.Pp
-.Bl -tag -width "pkg add <pkg.txz> xxxxxxx" -compact
+.Bl -tag -width "pkg add <pkg.txz> xxxxxxx"
 .It Nm Ao Ar command Ac
 If
 .Xr pkg 8
@@ -142,6 +141,7 @@ SIGNATURE_TYPE: "none",
 FINGERPRINTS: "/usr/share/keys/pkg",
 ASSUME_ALWAYS_YES: "yes"
 .Ed
+.Pp
 Reference
 .Sx ENVIRONMENT
 for each variable.
@@ -246,8 +246,8 @@ Check installed packages for checksum mismatches:
 Check for missing dependencies:
 .Dl # pkg check -d -a
 .Sh SEE ALSO
-.Xr pkg 8 ,
-.Xr ports 7
+.Xr ports 7 ,
+.Xr pkg 8
 .Sh HISTORY
 The
 .Nm
