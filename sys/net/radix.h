@@ -136,6 +136,7 @@ struct radix_node_head {
 #ifdef _KERNEL
 	struct	rwlock rnh_lock;		/* locks entire radix tree */
 #endif
+	struct	radix_node_head *rnh_masks;	/* Storage for our masks */
 };
 
 #ifndef _KERNEL
@@ -167,6 +168,7 @@ int	 rn_detachhead(void **);
 int	 rn_refines(void *, void *);
 struct radix_node
 	 *rn_addmask(void *, int, int),
+	 *rn_addmask_r(void *, struct radix_node_head *, int, int),
 	 *rn_addroute (void *, void *, struct radix_node_head *,
 			struct radix_node [2]),
 	 *rn_delete(void *, void *, struct radix_node_head *),
