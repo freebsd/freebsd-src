@@ -1020,14 +1020,14 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	cam_periph_assert(periph, MA_OWNED);
 	periph->flags |= CAM_PERIPH_ANNOUNCED;
 
-	printf("%s%d at %s%d bus %d scbus%d target %d lun %d\n",
+	printf("%s%d at %s%d bus %d scbus%d target %d lun %jx\n",
 	       periph->periph_name, periph->unit_number,
 	       path->bus->sim->sim_name,
 	       path->bus->sim->unit_number,
 	       path->bus->sim->bus_id,
 	       path->bus->path_id,
 	       path->target->target_id,
-	       path->device->lun_id);
+	       (uintmax_t)path->device->lun_id);
 	printf("%s%d: ", periph->periph_name, periph->unit_number);
 	if (path->device->protocol == PROTO_SCSI)
 		scsi_print_inquiry(&path->device->inq_data);
@@ -1073,14 +1073,14 @@ xpt_denounce_periph(struct cam_periph *periph)
 	struct	cam_path *path = periph->path;
 
 	cam_periph_assert(periph, MA_OWNED);
-	printf("%s%d at %s%d bus %d scbus%d target %d lun %d\n",
+	printf("%s%d at %s%d bus %d scbus%d target %d lun %jx\n",
 	       periph->periph_name, periph->unit_number,
 	       path->bus->sim->sim_name,
 	       path->bus->sim->unit_number,
 	       path->bus->sim->bus_id,
 	       path->bus->path_id,
 	       path->target->target_id,
-	       path->device->lun_id);
+	       (uintmax_t)path->device->lun_id);
 	printf("%s%d: ", periph->periph_name, periph->unit_number);
 	if (path->device->protocol == PROTO_SCSI)
 		scsi_print_inquiry_short(&path->device->inq_data);
@@ -3647,7 +3647,7 @@ xpt_print_path(struct cam_path *path)
 			printf("X:");
 
 		if (path->device != NULL)
-			printf("%d): ", path->device->lun_id);
+			printf("%jx): ", (uintmax_t)path->device->lun_id);
 		else
 			printf("X): ");
 	}
@@ -3660,11 +3660,11 @@ xpt_print_device(struct cam_ed *device)
 	if (device == NULL)
 		printf("(nopath): ");
 	else {
-		printf("(noperiph:%s%d:%d:%d:%d): ", device->sim->sim_name,
+		printf("(noperiph:%s%d:%d:%d:%jx): ", device->sim->sim_name,
 		       device->sim->unit_number,
 		       device->sim->bus_id,
 		       device->target->target_id,
-		       device->lun_id);
+		       (uintmax_t)device->lun_id);
 	}
 }
 
@@ -3707,7 +3707,8 @@ xpt_path_string(struct cam_path *path, char *str, size_t str_len)
 			sbuf_printf(&sb, "X:");
 
 		if (path->device != NULL)
-			sbuf_printf(&sb, "%d): ", path->device->lun_id);
+			sbuf_printf(&sb, "%jx): ",
+			    (uintmax_t)path->device->lun_id);
 		else
 			sbuf_printf(&sb, "X): ");
 	}
