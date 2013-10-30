@@ -312,7 +312,7 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 	INIT_LIST_HEAD(&ucontext->qp_list);
 	INIT_LIST_HEAD(&ucontext->srq_list);
 	INIT_LIST_HEAD(&ucontext->ah_list);
-	INIT_LIST_HEAD(&ucontext->xrc_domain_list);
+	INIT_LIST_HEAD(&ucontext->xrcd_list);
 	ucontext->closing = 0;
 
 	resp.num_comp_vectors = file->device->num_comp_vectors;
@@ -633,7 +633,7 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	}
 
 	mr = pd->device->reg_user_mr(pd, cmd.start, cmd.length, cmd.hca_va,
-				     cmd.access_flags, &udata);
+				     cmd.access_flags, &udata, 0);
 	if (IS_ERR(mr)) {
 		ret = PTR_ERR(mr);
 		goto err_put;
@@ -1087,7 +1087,7 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 	attr.srq           = srq;
 	attr.sq_sig_type   = cmd.sq_sig_all ? IB_SIGNAL_ALL_WR : IB_SIGNAL_REQ_WR;
 	attr.qp_type       = cmd.qp_type;
-	attr.xrc_domain    = xrcd;
+	attr.xrcd    = xrcd;
 	attr.create_flags  = 0;
 
 	attr.cap.max_send_wr     = cmd.max_send_wr;
@@ -1115,14 +1115,14 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 	qp->event_handler = attr.event_handler;
 	qp->qp_context    = attr.qp_context;
 	qp->qp_type	  = attr.qp_type;
-	qp->xrcd	  = attr.xrc_domain;
+	qp->xrcd	  = attr.xrcd;
 	atomic_inc(&pd->usecnt);
 	atomic_inc(&attr.send_cq->usecnt);
 	atomic_inc(&attr.recv_cq->usecnt);
 	if (attr.srq)
 		atomic_inc(&attr.srq->usecnt);
-	else if (attr.xrc_domain)
-		atomic_inc(&attr.xrc_domain->usecnt);
+	else if (attr.xrcd)
+		atomic_inc(&attr.xrcd->usecnt);
 
 	obj->uevent.uobject.object = qp;
 	ret = idr_add_uobj(&ib_uverbs_qp_idr, &obj->uevent.uobject);
@@ -2032,8 +2032,8 @@ ssize_t ib_uverbs_create_srq(struct ib_uverbs_file *file,
 	srq->uobject       = &obj->uobject;
 	srq->event_handler = attr.event_handler;
 	srq->srq_context   = attr.srq_context;
-	srq->xrc_cq = NULL;
-	srq->xrcd = NULL;
+	srq->ext.xrc.cq = NULL;
+	srq->ext.xrc.xrcd = NULL;
 	atomic_inc(&pd->usecnt);
 	atomic_set(&srq->usecnt, 0);
 
@@ -2083,7 +2083,7 @@ ssize_t ib_uverbs_create_xrc_srq(struct ib_uverbs_file *file,
 			     const char __user *buf, int in_len,
 			     int out_len)
 {
-	struct ib_uverbs_create_xrc_srq  cmd;
+	struct ib_uverbs_create_xsrq  cmd;
 	struct ib_uverbs_create_srq_resp resp;
 	struct ib_udata			 udata;
 	struct ib_uevent_object		*obj;
@@ -2119,7 +2119,7 @@ ssize_t ib_uverbs_create_xrc_srq(struct ib_uverbs_file *file,
 		goto err;
 	}
 
-	xrc_cq  = idr_read_cq(cmd.xrc_cq, file->ucontext, 0);
+	xrc_cq  = idr_read_cq(cmd.cq_handle, file->ucontext, 0);
 	if (!xrc_cq) {
 		ret = -EINVAL;
 		goto err_put_pd;
@@ -2152,8 +2152,8 @@ ssize_t ib_uverbs_create_xrc_srq(struct ib_uverbs_file *file,
 	srq->uobject	   = &obj->uobject;
 	srq->event_handler = attr.event_handler;
 	srq->srq_context   = attr.srq_context;
-	srq->xrc_cq	   = xrc_cq;
-	srq->xrcd	   = xrcd;
+	srq->ext.xrc.cq	   = xrc_cq;
+	srq->ext.xrc.xrcd	   = xrcd;
 	atomic_inc(&pd->usecnt);
 	atomic_inc(&xrc_cq->usecnt);
 	atomic_inc(&xrcd->usecnt);
@@ -2528,7 +2528,7 @@ ssize_t ib_uverbs_open_xrc_domain(struct ib_uverbs_file *file,
 	INIT_LIST_HEAD(&xrcd_uobj->xrc_reg_qp_list);
 
 	mutex_lock(&file->mutex);
-	list_add_tail(&uobj->list, &file->ucontext->xrc_domain_list);
+	list_add_tail(&uobj->list, &file->ucontext->xrcd_list);
 	mutex_unlock(&file->mutex);
 
 	uobj->live = 1;
@@ -2598,7 +2598,7 @@ ssize_t ib_uverbs_close_xrc_domain(struct ib_uverbs_file *file,
 	if (!ret) {
 		list_for_each_entry(t_uobj, &file->ucontext->srq_list, list) {
 			struct ib_srq *srq = t_uobj->object;
-			if (srq->xrcd && srq->xrcd == uobj->object) {
+			if (srq->ext.xrc.xrcd && srq->ext.xrc.xrcd == uobj->object) {
 				ret = -EBUSY;
 				break;
 			}
@@ -2702,7 +2702,7 @@ ssize_t ib_uverbs_create_xrc_rcv_qp(struct ib_uverbs_file *file,
 	init_attr.sq_sig_type	=
 		cmd.sq_sig_all ? IB_SIGNAL_ALL_WR : IB_SIGNAL_REQ_WR;
 	init_attr.qp_type	= IB_QPT_XRC;
-	init_attr.xrc_domain	= xrcd;
+	init_attr.xrcd	= xrcd;
 
 	init_attr.cap.max_send_wr	= 1;
 	init_attr.cap.max_recv_wr	= 0;

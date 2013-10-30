@@ -48,9 +48,11 @@ ifn_start()
 
 	ifscript_up ${ifn} && cfg=0
 	ifconfig_up ${ifn} && cfg=0
-	afexists inet && ipv4_up ${ifn} && cfg=0
-	afexists inet6 && ipv6_up ${ifn} && cfg=0
-	afexists ipx && ipx_up ${ifn} && cfg=0
+	if ! noafif $ifn; then
+		afexists inet && ipv4_up ${ifn} && cfg=0
+		afexists inet6 && ipv6_up ${ifn} && cfg=0
+		afexists ipx && ipx_up ${ifn} && cfg=0
+	fi
 	childif_create ${ifn} && cfg=0
 
 	return $cfg
@@ -68,9 +70,11 @@ ifn_stop()
 
 	[ -z "$ifn" ] && err 1 "ifn_stop called without an interface"
 
-	afexists ipx && ipx_down ${ifn} && cfg=0
-	afexists inet6 && ipv6_down ${ifn} && cfg=0
-	afexists inet && ipv4_down ${ifn} && cfg=0
+	if ! noafif $ifn; then
+		afexists ipx && ipx_down ${ifn} && cfg=0
+		afexists inet6 && ipv6_down ${ifn} && cfg=0
+		afexists inet && ipv4_down ${ifn} && cfg=0
+	fi
 	ifconfig_down ${ifn} && cfg=0
 	ifscript_down ${ifn} && cfg=0
 	childif_destroy ${ifn} && cfg=0
@@ -103,7 +107,7 @@ ifconfig_up()
 	fi
 
 	# inet6 specific
-	if afexists inet6; then
+	if ! noafif $1 && afexists inet6; then
 		if checkyesno ipv6_activate_all_interfaces; then
 			_ipv6_opts="-ifdisabled"
 		elif [ "$1" != "lo0" ]; then
@@ -463,6 +467,7 @@ noafif()
 	case $_if in
 	pflog[0-9]*|\
 	pfsync[0-9]*|\
+	usbus[0-9]*|\
 	an[0-9]*|\
 	ath[0-9]*|\
 	ipw[0-9]*|\
@@ -1198,8 +1203,7 @@ ifscript_down()
 #
 clone_up()
 {
-	local _prefix _list ifn ifopt _iflist _n tmpargs
-	_prefix=
+	local _list ifn ifopt _iflist _n tmpargs
 	_list=
 	_iflist=$*
 
@@ -1211,15 +1215,34 @@ clone_up()
 		""|$ifn|$ifn\ *|*\ $ifn\ *|*\ $ifn)	;;
 		*)	continue ;;
 		esac
-		# Skip if ifn already exists.
-		if ${IFCONFIG_CMD} $ifn > /dev/null 2>&1; then
-			continue
-		fi
-		${IFCONFIG_CMD} ${ifn} create `get_if_var ${ifn} create_args_IF`
-		if [ $? -eq 0 ]; then
-			_list="${_list}${_prefix}${ifn}"
-			[ -z "$_prefix" ] && _prefix=' '
-		fi
+		case $ifn in
+		epair[0-9]*)
+			# epair(4) uses epair[0-9] for creation and
+			# epair[0-9][ab] for configuration.
+			#
+			# Skip if ${ifn}a or ${ifn}b already exist.
+			if ${IFCONFIG_CMD} ${ifn}a > /dev/null 2>&1; then
+				continue
+			elif ${IFCONFIG_CMD} ${ifn}b > /dev/null 2>&1; then
+				continue
+			fi
+			${IFCONFIG_CMD} ${ifn} create \
+			    `get_if_var ${ifn} create_args_IF`
+			if [ $? -eq 0 ]; then
+				_list="$_list ${ifn}a ${ifn}b"
+			fi
+		;;
+		*)
+			# Skip if ${ifn} already exists.
+			if ${IFCONFIG_CMD} $ifn > /dev/null 2>&1; then
+				continue
+			fi
+			${IFCONFIG_CMD} ${ifn} create \
+			    `get_if_var ${ifn} create_args_IF`
+			if [ $? -eq 0 ]; then
+				_list="$_list $ifn"
+			fi
+		esac
 	done
 	if [ -n "$gif_interfaces" ]; then
 		warn "\$gif_interfaces is obsolete.  Use \$cloned_interfaces instead."
@@ -1245,16 +1268,15 @@ clone_up()
 		;;
 		esac
 		if [ $? -eq 0 ]; then
-			_list="${_list}${_prefix}${ifn}"
-			[ -z "$_prefix" ] && _prefix=' '
+			_list="$_list $ifn"
 		fi
 		tmpargs=$(get_if_var $ifn gifconfig_IF)
 		eval ifconfig_${ifn}=\"tunnel \$tmpargs\"
 	done
-	if [ -n "${_list}" ]; then
-		echo "Created clone interfaces: ${_list}."
+	if [ -n "${_list# }" ]; then
+		echo "Created clone interfaces: ${_list# }."
 	fi
-	debug "Cloned: ${_list}"
+	debug "Cloned: ${_list# }"
 }
 
 # clone_down
@@ -1263,8 +1285,7 @@ clone_up()
 #
 clone_down()
 {
-	local _prefix _list ifn ifopt _iflist _sticky
-	_prefix=
+	local _list ifn _difn ifopt _iflist _sticky
 	_list=
 	_iflist=$*
 
@@ -1286,20 +1307,40 @@ clone_down()
 		""|$ifn|$ifn\ *|*\ $ifn\ *|*\ $ifn)	;;
 		*)	continue ;;
 		esac
-		# Skip if ifn does not exist.
-		if ! ${IFCONFIG_CMD} $ifn > /dev/null 2>&1; then
-			continue
-		fi
-		${IFCONFIG_CMD} -n ${ifn} destroy
-		if [ $? -eq 0 ]; then
-			_list="${_list}${_prefix}${ifn}"
-			[ -z "$_prefix" ] && _prefix=' '
-		fi
+		case $ifn in
+		epair[0-9]*)
+			# Note: epair(4) uses epair[0-9] for removal and
+			# epair[0-9][ab] for configuration.
+			#
+			# Skip if both of ${ifn}a and ${ifn}b do not exist.
+			if ${IFCONFIG_CMD} ${ifn}a > /dev/null 2>&1; then
+				_difn=${ifn}a
+			elif ${IFCONFIG_CMD} ${ifn}b > /dev/null 2>&1; then
+				_difn=${ifn}b
+			else
+				continue
+			fi
+			${IFCONFIG_CMD} -n $_difn destroy
+			if [ $? -eq 0 ]; then
+				_list="$_list ${ifn}a ${ifn}b"
+			fi
+		;;
+		*)
+			# Skip if ifn does not exist.
+			if ! ${IFCONFIG_CMD} $ifn > /dev/null 2>&1; then
+				continue
+			fi
+			${IFCONFIG_CMD} -n ${ifn} destroy
+			if [ $? -eq 0 ]; then
+				_list="$_list $ifn"
+			fi
+		;;
+		esac
 	done
-	if [ -n "${_list}" ]; then
-		echo "Destroyed clone interfaces: ${_list}."
+	if [ -n "${_list# }" ]; then
+		echo "Destroyed clone interfaces: ${_list# }."
 	fi
-	debug "Destroyed clones: ${_list}"
+	debug "Destroyed clones: ${_list# }"
 }
 
 # childif_create
@@ -1574,17 +1615,33 @@ list_net_interfaces()
 			fi
 		done
 		_tmplist="${_lo}${_tmplist# }"
-		;;
+	;;
 	*)
-		_tmplist="${network_interfaces} ${cloned_interfaces}"
-
+		for _if in ${network_interfaces} ${cloned_interfaces}; do
+			# epair(4) uses epair[0-9] for creation and
+			# epair[0-9][ab] for configuration.
+			case $_if in
+			epair[0-9]*)
+				_tmplist="$_tmplist ${_if}a ${_if}b"
+			;;
+			*)
+				_tmplist="$_tmplist $_if"
+			;;
+			esac
+		done
+		#
 		# lo0 is effectively mandatory, so help prevent foot-shooting
 		#
 		case "$_tmplist" in
-		lo0|'lo0 '*|*' lo0'|*' lo0 '*) ;; # This is fine, do nothing
-		*)	_tmplist="lo0 ${_tmplist}" ;;
-		esac
+		lo0|'lo0 '*|*' lo0'|*' lo0 '*)
+			# This is fine, do nothing
+			_tmplist="${_tmplist# }"
 		;;
+		*)
+			_tmplist="lo0 ${_tmplist# }"
+		;;
+		esac
+	;;
 	esac
 
 	_list=
@@ -1596,14 +1653,14 @@ list_net_interfaces()
 				_list="${_list# } ${_if}"
 			fi
 		done
-		;;
+	;;
 	dhcp)
 		for _if in ${_tmplist} ; do
 			if dhcpif $_if; then
 				_list="${_list# } ${_if}"
 			fi
 		done
-		;;
+	;;
 	noautoconf)
 		for _if in ${_tmplist} ; do
 			if ! ipv6_autoconfif $_if && \
@@ -1611,17 +1668,17 @@ list_net_interfaces()
 				_list="${_list# } ${_if}"
 			fi
 		done
-		;;
+	;;
 	autoconf)
 		for _if in ${_tmplist} ; do
 			if ipv6_autoconfif $_if; then
 				_list="${_list# } ${_if}"
 			fi
 		done
-		;;
+	;;
 	*)
 		_list=${_tmplist}
-		;;
+	;;
 	esac
 
 	echo $_list

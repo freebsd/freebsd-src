@@ -228,7 +228,19 @@ ipf_setifpaddr(ifp, addr)
 
 			sin6 = (struct sockaddr_in6 *)&ifa->ifa_addr;
 			sin6->sin6_family = AF_INET6;
-			inet_pton(AF_INET6, addr, &sin6->sin6_addr);
+			/* Abort if bad address. */
+			switch (inet_pton(AF_INET6, addr, &sin6->sin6_addr))
+			{
+			case 1:
+				break;
+			case -1:
+				perror("inet_pton");
+				abort();
+				break;
+			default:
+				abort();
+				break;
+			}
 		} else
 #endif
 		{

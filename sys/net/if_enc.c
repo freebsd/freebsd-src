@@ -168,7 +168,7 @@ enc_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		mtx_init(&enc_mtx, "enc mtx", NULL, MTX_DEF);
 		enc_cloner = if_clone_simple(encname, enc_clone_create,
-		    enc_clone_destroy, 0);
+		    enc_clone_destroy, 1);
 		break;
 	case MOD_UNLOAD:
 		printf("enc module unload - not possible for this module\n");

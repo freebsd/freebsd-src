@@ -1,5 +1,5 @@
 '\" t
-.\" $Id: dialog.1,v 1.165 2013/03/15 09:07:30 tom Exp $
+.\" $Id: dialog.1,v 1.167 2013/09/02 17:38:36 tom Exp $
 .\" Copyright 2005-2012,2013  Thomas E. Dickey
 .\"
 .\" This program is free software; you can redistribute it and/or modify
@@ -41,7 +41,7 @@
 .IP \(bu 4
 ..
 .
-.TH \*D 1 "" "$Date: 2013/03/15 09:07:30 $"
+.TH \*D 1 "" "$Date: 2013/09/02 17:38:36 $"
 .SH NAME
 dialog \- display dialog boxes from shell scripts
 .SH SYNOPSIS
@@ -318,11 +318,19 @@ or if an unrecognized option is given.
 .IP "\fB--help-button"
 Show a help-button after "OK" and "Cancel" buttons,
 i.e., in checklist, radiolist and menu boxes.
-If "\fB--item-help\fR" is also given, on exit
-the return status will be the same as for the "OK" button,
-and the item-help text will be written to \fB\*p\fP's output after the token "HELP".
-Otherwise, the return status will indicate that the Help button was pressed,
-and no message printed.
+.IP
+On exit, the return status will indicate that the Help button was pressed.
+\fB\*L\fP will also write a message to its output after the token "HELP":
+.RS
+.bP
+If "\fB--item-help\fR" is also given, the item-help text will be written.
+.bP
+Otherwise, the item's tag (the first field) will be written.
+.RE
+.IP
+.IP
+You can use the \fB--help-tags\fP option and/or set the DIALOG_ITEM_HELP
+environment variable to modify these messages and exit-status.
 .
 .IP "\fB--help-label \fIstring"
 Override the label used for "Help" buttons.
@@ -333,6 +341,11 @@ writes the checklist, radiolist or form information
 after the item-help "HELP" information.
 This can be used to reconstruct the state of a checklist after processing
 the help request.
+.
+.IP "\fB--help-tags"
+Modify the messages written on exit for \fB--help-button\fP
+by making them always just the item's tag.
+This does not affect the exit status code.
 .
 .IP "\fB--hfile \fIfilename"
 Display the given file using a textbox when the user presses F1.
@@ -1411,9 +1424,7 @@ The default values and corresponding environment variables
 that can override them are:
 .TP 5
 0
-if
-.BR \*p " is exited by pressing the " Yes " or " OK
-button (DIALOG_OK).
+if the \fBYES\fP or \fBOK\fP button is pressed (DIALOG_OK).
 .TP 5
 1
 if the
@@ -1423,7 +1434,9 @@ button is pressed (DIALOG_CANCEL).
 2
 if the
 .BR Help
-button is pressed (DIALOG_HELP).
+button is pressed (DIALOG_HELP),
+.br
+except as noted below about DIALOG_ITEM_HELP.
 .TP 5
 3
 if the
@@ -1433,13 +1446,21 @@ button is pressed (DIALOG_EXTRA).
 4
 if the
 .BR Help
-button is pressed (DIALOG_HELP),
-or the \fB--item-help\fP option is set
-when the \fBHelp\fP button is pressed (DIALOG_ITEM_HELP),
+button is pressed,
+.br
+and the \fB--item-help\fP option is set
+.br
+and the DIALOG_ITEM_HELP environment variable is set to 4.
+.IP
+While any of the exit-codes can be overridden using environment variables,
+this special case was introduced in 2004 to simplify compatibility.
+\fB\*L\fP uses DIALOG_ITEM_HELP(4) internally,
+but unless the environment variable is also set,
+it changes that to DIALOG_HELP(2) on exit.
 .TP 5
 -1
 if errors occur inside \fB\*p\fP (DIALOG_ERROR)
-or \fB\*p\fP is exited by pressing the \fIESC\fP key (DIALOG_ESC).
+or \fB\*p\fP exits because the \fIESC\fP key (DIALOG_ESC) was pressed.
 .
 .\" ************************************************************************
 .SH PORTABILITY

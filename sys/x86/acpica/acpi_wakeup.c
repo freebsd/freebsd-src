@@ -266,7 +266,7 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 			restart_cpus(suspcpus);
 #endif
 		mca_resume();
-		intr_resume();
+		intr_resume(/*suspend_cancelled*/false);
 
 		AcpiSetFirmwareWakingVector(0);
 	} else {

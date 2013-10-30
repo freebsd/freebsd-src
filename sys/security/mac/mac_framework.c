@@ -95,7 +95,7 @@ SDT_PROVIDER_DEFINE(mac);
 SDT_PROVIDER_DEFINE(mac_framework);
 
 SDT_PROBE_DEFINE2(mac, kernel, policy, modevent, modevent, "int",
-    "struct mac_policy_conf *mpc");
+    "struct mac_policy_conf *");
 SDT_PROBE_DEFINE1(mac, kernel, policy, register, register,
     "struct mac_policy_conf *");
 SDT_PROBE_DEFINE1(mac, kernel, policy, unregister, unregister,
@@ -292,7 +292,8 @@ mac_init(void)
 	mac_labelzone_init();
 
 #ifndef MAC_STATIC
-	rm_init_flags(&mac_policy_rm, "mac_policy_rm", RM_NOWITNESS);
+	rm_init_flags(&mac_policy_rm, "mac_policy_rm", RM_NOWITNESS |
+	    RM_RECURSE);
 	sx_init_flags(&mac_policy_sx, "mac_policy_sx", SX_NOWITNESS);
 #endif
 }

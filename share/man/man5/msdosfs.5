@@ -2,7 +2,7 @@
 .\" Written by Tom Rhodes
 .\" This file is in the public domain.
 .\"
-.Dd August 22, 2007
+.Dd October 1, 2013
 .Dt MSDOSFS 5
 .Os
 .Sh NAME
@@ -21,7 +21,7 @@ based file systems.
 .Pp
 The most common usage follows:
 .Pp
-.Dl "mount -t msdosfs /dev/ad0sN /mnt"
+.Dl "mount -t msdosfs /dev/ada0sN /mnt"
 .Pp
 where
 .Ar N
@@ -40,7 +40,7 @@ It is possible to define an entry in
 .Pa /etc/fstab
 that looks similar to:
 .Bd -literal
-/dev/ad0sN		/dos	msdosfs		rw	0	0
+/dev/ada0sN		/dos	msdosfs		rw	0	0
 .Ed
 .Pp
 This will mount an

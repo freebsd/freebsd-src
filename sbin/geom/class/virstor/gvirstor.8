@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 3, 2012
+.Dd October 1, 2013
 .Dt GVIRSTOR 8
 .Os
 .Sh NAME
@@ -161,7 +161,7 @@ size
 .Pq 4 MiB ,
 with two physical devices for backing storage.
 .Bd -literal -offset indent
-.No gvirstor label -v Ar mydata Ar /dev/ad4 Ar /dev/ad6
+.No gvirstor label -v Ar mydata Ar /dev/ada4 Ar /dev/ada6
 .No newfs Ar /dev/virstor/mydata
 .Ed
 .Pp
@@ -170,11 +170,11 @@ From now on, the virtual device will be available via the
 device entry.
 To add a new physical device / component to an active virstor device:
 .Bd -literal -offset indent
-.No gvirstor add Ar mydata Ar ad8
+.No gvirstor add Ar mydata Ar ada8
 .Ed
 .Pp
 This will add physical storage of
-.Ar ad8
+.Ar ada8
 to
 .Pa /dev/virstor/mydata
 device.

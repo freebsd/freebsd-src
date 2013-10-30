@@ -1111,11 +1111,7 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 		break;
 
 	case DT_MIPS_RLD_MAP:
-#ifdef notyet
-		if (!early)
-			dbg("Filling in DT_DEBUG entry");
-		((Elf_Dyn*)dynp)->d_un.d_ptr = (Elf_Addr) &r_debug;
-#endif
+		*((Elf_Addr *)(dynp->d_un.d_ptr)) = (Elf_Addr) &r_debug;
 		break;
 #endif
 
@@ -2581,12 +2577,14 @@ rtld_exit(void)
     lock_release(rtld_bind_lock, &lockstate);
 }
 
+/*
+ * Iterate over a search path, translate each element, and invoke the
+ * callback on the result.
+ */
 static void *
 path_enumerate(const char *path, path_enum_proc callback, void *arg)
 {
-#ifdef COMPAT_32BIT
     const char *trans;
-#endif
     if (path == NULL)
 	return (NULL);
 
@@ -2596,13 +2594,11 @@ path_enumerate(const char *path, path_enum_proc callback, void *arg)
 	char  *res;
 
 	len = strcspn(path, ":;");
-#ifdef COMPAT_32BIT
 	trans = lm_findn(NULL, path, len);
 	if (trans)
 	    res = callback(trans, strlen(trans), arg);
 	else
-#endif
-	res = callback(path, len, arg);
+	    res = callback(path, len, arg);
 
 	if (res != NULL)
 	    return (res);

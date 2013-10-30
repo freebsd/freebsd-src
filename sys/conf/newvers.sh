@@ -32,13 +32,16 @@
 
 TYPE="FreeBSD"
 REVISION="10.0"
-BRANCH="ALPHA2"
+BRANCH="ALPHA4"
 if [ "X${BRANCH_OVERRIDE}" != "X" ]; then
 	BRANCH=${BRANCH_OVERRIDE}
 fi
 RELEASE="${REVISION}-${BRANCH}"
 VERSION="${TYPE} ${RELEASE}"
-SYSDIR=$(dirname $0)/..
+
+if [ "X${SYSDIR}" = "X" ]; then
+    SYSDIR=$(dirname $0)/..
+fi
 
 if [ "X${PARAMFILE}" != "X" ]; then
 	RELDATE=$(awk '/__FreeBSD_version.*propagated to newvers/ {print $3}' \
@@ -155,6 +158,10 @@ if [ -n "$git_cmd" ] ; then
 		else
 			git=" ${git}"
 		fi
+	fi
+	git_b=`$git_cmd rev-parse --abbrev-ref HEAD`
+	if [ -n "$git_b" ] ; then
+		git="${git}(${git_b})"
 	fi
 	if $git_cmd --work-tree=${SYSDIR}/.. diff-index \
 	    --name-only HEAD | read dummy; then

@@ -431,6 +431,8 @@ union xhci_hub_desc {
 	uint8_t				temp[128];
 };
 
+typedef int (xhci_port_route_t)(device_t, uint32_t, uint32_t);
+
 struct xhci_softc {
 	struct xhci_hw_softc	sc_hw;
 	/* base device */
@@ -439,6 +441,8 @@ struct xhci_softc {
 	struct usb_bus_msg	sc_config_msg[2];
 
 	struct usb_callout	sc_callout;
+
+	xhci_port_route_t	*sc_port_route;
 
 	union xhci_hub_desc	sc_hub_desc;
 
@@ -502,7 +506,6 @@ struct xhci_softc {
 
 /* prototypes */
 
-uint32_t	xhci_get_port_route(void);
 uint8_t 	xhci_use_polling(void);
 usb_error_t xhci_halt_controller(struct xhci_softc *);
 usb_error_t xhci_init(struct xhci_softc *, device_t);

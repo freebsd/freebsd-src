@@ -36,8 +36,6 @@
 #endif
 
 struct vmctx;
-extern int guest_hz;
-extern int guest_tslice;
 extern int guest_ncpus;
 extern char *vmname;
 

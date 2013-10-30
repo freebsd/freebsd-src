@@ -9169,6 +9169,8 @@ get_freebsd_note_type (unsigned e_type)
 	return _("NT_FREEBSD_ABI_TAG");
       case NT_FREEBSD_NOINIT_TAG:
 	return _("NT_FREEBSD_NOINIT_TAG");
+      case NT_FREEBSD_ARCH_TAG:
+	return _("NT_FREEBSD_ARCH_TAG");
       default:
 	break;
       }

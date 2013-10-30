@@ -1512,10 +1512,18 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	memcpy(nmap, omap, NDSLOTS(onfiles) * sizeof(*omap));
 
 	/* update the pointers and counters */
-	fdp->fd_nfiles = nnfiles;
 	memcpy(ntable, otable, onfiles * sizeof(ntable[0]));
 	fdp->fd_ofiles = ntable;
 	fdp->fd_map = nmap;
+
+	/*
+	 * In order to have a valid pattern for fget_unlocked()
+	 * fdp->fd_nfiles must be the last member to be updated, otherwise
+	 * fget_unlocked() consumers may reference a new, higher value for
+	 * fdp->fd_nfiles before to access the fdp->fd_ofiles array,
+	 * resulting in OOB accesses.
+	 */
+	atomic_store_rel_int(&fdp->fd_nfiles, nnfiles);
 
 	/*
 	 * Do not free the old file table, as some threads may still
@@ -2308,7 +2316,11 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	int error;
 #endif
 
-	if (fd < 0 || fd >= fdp->fd_nfiles)
+	/*
+	 * Avoid reads reordering and then a first access to the
+	 * fdp->fd_ofiles table which could result in OOB operation.
+	 */
+	if (fd < 0 || fd >= atomic_load_acq_int(&fdp->fd_nfiles))
 		return (EBADF);
 	/*
 	 * Fetch the descriptor locklessly.  We avoid fdrop() races by

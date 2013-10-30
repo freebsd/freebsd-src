@@ -80,10 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sf_buf.h>
 #endif
 
-#ifndef NSFBUFS
-#define	NSFBUFS		(512 + maxusers * 16)
-#endif
-
 /* Duplicated from asm.h */
 #if defined(__mips_o32)
 #define	SZREG	4
@@ -97,6 +93,22 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifndef __mips_n64
+
+#ifndef NSFBUFS
+#define	NSFBUFS		(512 + maxusers * 16)
+#endif
+
+static int nsfbufs;
+static int nsfbufspeak;
+static int nsfbufsused;
+
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
+    "Maximum number of sendfile(2) sf_bufs available");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufspeak, CTLFLAG_RD, &nsfbufspeak, 0,
+    "Number of sendfile(2) sf_bufs at peak usage");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
+    "Number of sendfile(2) sf_bufs in use");
+
 static void	sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
 
@@ -110,7 +122,7 @@ static struct {
 } sf_freelist;
 
 static u_int	sf_buf_alloc_want;
-#endif
+#endif /* !__mips_n64 */
 
 /*
  * Finish a fork operation, with process p2 nearly set up.

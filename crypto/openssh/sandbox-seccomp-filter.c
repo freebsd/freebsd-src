@@ -91,6 +91,7 @@ static const struct sock_filter preauth_insns[] = {
 	SC_DENY(open, EACCES),
 	SC_ALLOW(getpid),
 	SC_ALLOW(gettimeofday),
+	SC_ALLOW(clock_gettime),
 #ifdef __NR_time /* not defined on EABI ARM */
 	SC_ALLOW(time),
 #endif

@@ -6250,12 +6250,15 @@ zfs_freebsd_rename(ap)
 	ASSERT(ap->a_fcnp->cn_flags & (SAVENAME|SAVESTART));
 	ASSERT(ap->a_tcnp->cn_flags & (SAVENAME|SAVESTART));
 
-	if (fdvp->v_mount == tdvp->v_mount)
+	/*
+	 * Check for cross-device rename.
+	 */
+	if ((fdvp->v_mount != tdvp->v_mount) ||
+	    (tvp && (fdvp->v_mount != tvp->v_mount)))
+		error = EXDEV;
+	else
 		error = zfs_rename(fdvp, ap->a_fcnp->cn_nameptr, tdvp,
 		    ap->a_tcnp->cn_nameptr, ap->a_fcnp->cn_cred, NULL, 0);
-	else
-		error = EXDEV;
-
 	if (tdvp == tvp)
 		VN_RELE(tdvp);
 	else

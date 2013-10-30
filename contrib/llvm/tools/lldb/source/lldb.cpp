@@ -24,8 +24,6 @@
 
 #include "llvm/ADT/StringRef.h"
 
-#include "Plugins/ABI/MacOSX-i386/ABIMacOSX_i386.h"
-#include "Plugins/ABI/MacOSX-arm/ABIMacOSX_arm.h"
 #include "Plugins/ABI/SysV-x86_64/ABISysV_x86_64.h"
 #include "Plugins/Disassembler/llvm/DisassemblerLLVMC.h"
 #include "Plugins/Instruction/ARM/EmulateInstructionARM.h"
@@ -92,8 +90,6 @@ lldb_private::Initialize ()
         Timer::Initialize ();
         Timer scoped_timer (__PRETTY_FUNCTION__, __PRETTY_FUNCTION__);
         
-        ABIMacOSX_i386::Initialize();
-        ABIMacOSX_arm::Initialize();
         ABISysV_x86_64::Initialize();
         DisassemblerLLVMC::Initialize();
         ObjectContainerBSDArchive::Initialize();
@@ -172,8 +168,6 @@ lldb_private::Terminate ()
     // Terminate and unload and loaded system or user LLDB plug-ins
     PluginManager::Terminate();
 
-    ABIMacOSX_i386::Terminate();
-    ABIMacOSX_arm::Terminate();
     ABISysV_x86_64::Terminate();
     DisassemblerLLVMC::Terminate();
     ObjectContainerBSDArchive::Terminate();

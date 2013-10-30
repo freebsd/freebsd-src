@@ -150,6 +150,7 @@ uart_phyp_probe_node(struct uart_phyp_softc *sc)
 	OF_getprop(node, "reg", &reg, sizeof(reg));
 	if (reg == -1)
 		return (ENXIO);
+	sc->vtermid = reg;
 	sc->node = node;
 
 	if (OF_getprop(node, "compatible", buf, sizeof(buf)) <= 0)
@@ -251,12 +252,8 @@ uart_phyp_attach(device_t dev)
 	}
 
 	sc->irqrid = 0;
-#ifdef NOTYET
 	sc->irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqrid,
 	    RF_ACTIVE | RF_SHAREABLE);
-#else
-	sc->irqres = NULL;
-#endif
 	if (sc->irqres != NULL) {
 		bus_setup_intr(dev, sc->irqres, INTR_TYPE_TTY | INTR_MPSAFE,
 		    NULL, uart_phyp_intr, sc, &sc->sc_icookie);

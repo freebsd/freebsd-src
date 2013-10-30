@@ -271,7 +271,7 @@ g_retaste_event(void *arg, int flag)
 	g_topology_assert();
 	if (flag == EV_CANCEL)  /* XXX: can't happen ? */
 		return;
-	if (g_shutdown)
+	if (g_shutdown || g_notaste)
 		return;
 
 	hh = arg;
@@ -540,6 +540,8 @@ g_new_provider_event(void *arg, int flag)
 		    cp->geom->attrchanged != NULL)
 			cp->geom->attrchanged(cp, "GEOM::media");
 	}
+	if (g_notaste)
+		return;
 	LIST_FOREACH(mp, &g_classes, class) {
 		if (mp->taste == NULL)
 			continue;

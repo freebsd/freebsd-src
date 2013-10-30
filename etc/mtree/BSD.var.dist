@@ -63,13 +63,9 @@
     ..
     msgs            uname=daemon
     ..
-    named
-    ..
     preserve
     ..
     run
-        named           uname=bind gname=bind
-        ..
         ppp             gname=network mode=0770
         ..
         wpa_supplicant
@@ -97,7 +93,7 @@
         vi.recover      mode=01777
         ..
     ..
-    unbound		uname=unbound gname=unbound mode=0750
+    unbound         uname=unbound gname=unbound mode=0755
     ..
     yp
     ..

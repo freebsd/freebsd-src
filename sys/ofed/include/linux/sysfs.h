@@ -185,4 +185,6 @@ sysfs_remove_dir(struct kobject *kobj)
 	sysctl_remove_oid(kobj->oidp, 1, 1);
 }
 
+#define sysfs_attr_init(attr) do {} while(0)
+
 #endif	/* _LINUX_SYSFS_H_ */

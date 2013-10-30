@@ -69,7 +69,6 @@ static void	*fdt;
 int		ofw_real_mode;
 
 int		ofwcall(void *);
-static void	ofw_quiesce(void);
 static int	openfirmware(void *args);
 
 /*
@@ -472,12 +471,6 @@ OF_bootstrap()
 			return status;
 
 		OF_init(openfirmware);
-
-		/*
-		 * On some machines, we need to quiesce OF to turn off
-		 * background processes.
-		 */
-		ofw_quiesce();
 	} else if (fdt != NULL) {
 		status = OF_install(OFW_FDT, 0);
 
@@ -490,37 +483,21 @@ OF_bootstrap()
 	return (status);
 }
 
-static void
+void
 ofw_quiesce(void)
 {
-	phandle_t rootnode;
-	char model[32];
 	struct {
 		cell_t name;
 		cell_t nargs;
 		cell_t nreturns;
 	} args;
 
-	/*
-	 * Only quiesce Open Firmware on PowerMac11,2 and 12,1. It is
-	 * necessary there to shut down a background thread doing fan
-	 * management, and is harmful on other machines.
-	 *
-	 * Note: we don't need to worry about which OF module we are
-	 * using since this is called only from very early boot, within
-	 * OF's boot context.
-	 */
+	KASSERT(!pmap_bootstrapped, ("Cannot call ofw_quiesce after VM is up"));
 
-	rootnode = OF_finddevice("/");
-	if (OF_getprop(rootnode, "model", model, sizeof(model)) > 0) {
-		if (strcmp(model, "PowerMac11,2") == 0 ||
-		    strcmp(model, "PowerMac12,1") == 0) {
-			args.name = (cell_t)(uintptr_t)"quiesce";
-			args.nargs = 0;
-			args.nreturns = 0;
-			openfirmware(&args);
-		}
-	}
+	args.name = (cell_t)(uintptr_t)"quiesce";
+	args.nargs = 0;
+	args.nreturns = 0;
+	openfirmware(&args);
 }
 
 static int
@@ -680,7 +657,7 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	bus_size_t size, rsize;
 	uint32_t c, nbridge, naddr, nsize;
 	phandle_t bridge, parent;
-	u_int spc, rspc;
+	u_int spc, rspc, prefetch;
 	int pci, pcib, res;
 
 	/* Sanity checking. */
@@ -707,6 +684,7 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	if (regno + naddr + nsize > res)
 		return (EINVAL);
 	spc = (pci) ? cell[regno] & OFW_PCI_PHYS_HI_SPACEMASK : ~0;
+	prefetch = (pci) ? cell[regno] & OFW_PCI_PHYS_HI_PREFETCHABLE : 0;
 	addr = 0;
 	for (c = 0; c < naddr; c++)
 		addr = ((uint64_t)addr << 32) | cell[regno++];
@@ -763,6 +741,7 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	}
 
 	*tag = &bs_le_tag;
-	return (bus_space_map(*tag, addr, size, 0, handle));
+	return (bus_space_map(*tag, addr, size,
+	    prefetch ? BUS_SPACE_MAP_PREFETCHABLE : 0, handle));
 }
 

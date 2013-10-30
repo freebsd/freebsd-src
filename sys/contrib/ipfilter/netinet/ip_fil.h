@@ -1654,7 +1654,7 @@ typedef struct ipf_main_softc_s {
 	ipftoken_t	**ipf_token_tail;
 #if defined(__FreeBSD_version) && (__FreeBSD_version >= 300000) && \
     defined(_KERNEL)
-	struct callout_handle ipf_slow_ch;
+	struct callout ipf_slow_ch;
 #endif
 #if defined(linux) && defined(_KERNEL)
 	struct timer_list	ipf_timer;

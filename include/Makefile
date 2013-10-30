@@ -104,19 +104,18 @@ SHARED?=	copies
 
 INCS+=	osreldate.h
 
-osreldate.h: ${.CURDIR}/../sys/conf/newvers.sh ${.CURDIR}/../sys/sys/param.h \
-    ${.CURDIR}/Makefile
-	@${ECHO} creating osreldate.h from newvers.sh
-	@MAKE=${MAKE}; \
-	PARAMFILE=${.CURDIR}/../sys/sys/param.h; \
-	. ${.CURDIR}/../sys/conf/newvers.sh; \
-	echo "$$COPYRIGHT" > osreldate.h; \
-	echo "#ifdef _KERNEL" >> osreldate.h; \
-	echo "#error \"<osreldate.h> cannot be used in the kernel, use <sys/param.h>\"" >> osreldate.h; \
-	echo "#else" >> osreldate.h; \
-	echo "#undef __FreeBSD_version" >> osreldate.h; \
-	echo "#define __FreeBSD_version $$RELDATE" >> osreldate.h; \
-	echo "#endif" >> osreldate.h
+SYSDIR=			${.CURDIR}/../sys
+NEWVERS_SH=		${SYSDIR}/conf/newvers.sh
+PARAM_H=		${SYSDIR}/sys/param.h
+MK_OSRELDATE_SH=	${.CURDIR}/mk-osreldate.sh
+
+osreldate.h vers.c: ${NEWVERS_SH} ${PARAM_H} ${MK_OSRELDATE_SH}
+	env ECHO="${ECHO}" \
+	    MAKE="${MAKE}" \
+	    NEWVERS_SH=${NEWVERS_SH} \
+	    PARAM_H=${PARAM_H} \
+	    SYSDIR=${SYSDIR} \
+	    sh ${MK_OSRELDATE_SH}
 
 .for i in ${LHDRS}
 INCSLINKS+=	sys/$i ${INCLUDEDIR}/$i
@@ -150,11 +149,6 @@ compat:
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}${INCLUDEDIR}
-.if ${MK_BIND_LIBS} != "no"
-	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
-	    -f ${.CURDIR}/../etc/mtree/BIND.include.dist \
-	    -p ${DESTDIR}${INCLUDEDIR}
-.endif
 
 copies:
 .for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} altq crypto machine machine/pc \

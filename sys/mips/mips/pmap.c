@@ -3053,24 +3053,6 @@ pmap_is_referenced(vm_page_t m)
 }
 
 /*
- *	pmap_clear_reference:
- *
- *	Clear the reference bit on the specified physical page.
- */
-void
-pmap_clear_reference(vm_page_t m)
-{
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("pmap_clear_reference: page %p is not managed", m));
-	rw_wlock(&pvh_global_lock);
-	if (m->md.pv_flags & PV_TABLE_REF) {
-		m->md.pv_flags &= ~PV_TABLE_REF;
-	}
-	rw_wunlock(&pvh_global_lock);
-}
-
-/*
  * Miscellaneous support routines follow
  */
 

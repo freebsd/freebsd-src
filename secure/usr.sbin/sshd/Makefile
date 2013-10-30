@@ -42,8 +42,7 @@ LDADD+=  -lbsm
 .endif
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
-CFLAGS+= -DGSSAPI -DKRB5 -DHEIMDAL \
-	-DHAVE_GSSAPI_GSSAPI_H=1 -DHAVE_GSSAPI_GSSAPI_KRB5_H=1
+CFLAGS+= -include krb5_config.h
 DPADD+=	 ${LIBGSSAPI_KRB5} ${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBASN1} \
 	${LIBCOM_ERR} ${LIBROKEN} ${LIBWIND} ${LIBHEIMBASE} ${LIBHEIMIPCC}
 LDADD+=	 -lgssapi_krb5 -lgssapi -lkrb5 -lhx509 -lasn1 \
@@ -66,3 +65,6 @@ CFLAGS+= -DXAUTH_PATH=\"${LOCALBASE}/bin/xauth\"
 .PATH:	${SSHDIR}
 
 ${OBJS} ${POBJS} ${SOBJS}: ssh_namespace.h
+.if ${MK_KERBEROS_SUPPORT} != "no"
+${OBJS} ${POBJS} ${SOBJS}: krb5_config.h
+.endif

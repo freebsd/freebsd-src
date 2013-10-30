@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 11, 2009
+.Dd October 1, 2013
 .Dt NEWFS_NANDFS 8
 .Os
 .Sh NAME
@@ -58,9 +58,9 @@ Percentage of reserved blocks (5 if not specified).
 Exit status is 0 on success and 1 on error.
 .Sh EXAMPLES
 Create a file system, using default parameters, on
-.Pa /dev/ad0s1 :
+.Pa /dev/ada0s1 :
 .Bd -literal -offset indent
-newfs_nandfs /dev/ad0s1
+newfs_nandfs /dev/ada0s1
 .Ed
 .Sh SEE ALSO
 .Xr disktab 5 ,

@@ -71,4 +71,3 @@ int mlx4_wc_enabled(void)
 }
 
 #endif
-

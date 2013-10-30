@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2012
+.Dd September 23, 2012
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -379,6 +379,9 @@ Perform a
 then a
 .Cm start .
 Defaults to displaying the process ID of the program (if running).
+.It Cm enabled
+Return 0 if the service is enabled and 1 if it is not.
+This command does not print anything.
 .It Cm rcvar
 Display which
 .Xr rc.conf 5

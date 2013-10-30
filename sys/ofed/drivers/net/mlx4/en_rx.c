@@ -267,7 +267,6 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 	int err;
 	int stride = roundup_pow_of_two(sizeof(struct mlx4_en_rx_desc) +
 					DS_SIZE * priv->num_frags);
-
 	for (ring_ind = 0; ring_ind < priv->rx_ring_num; ring_ind++) {
 		ring = &priv->rx_ring[ring_ind];
 
@@ -673,7 +672,6 @@ static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv, int qpn,
 		en_err(priv, "Failed to allocate qp context\n");
 		return -ENOMEM;
 	}
-
 	err = mlx4_qp_alloc(mdev->dev, qpn, qp);
 	if (err) {
 		en_err(priv, "Failed to allocate qp #%x\n", qpn);
@@ -717,7 +715,7 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	en_dbg(DRV, priv, "Configuring rss steering\n");
 	err = mlx4_qp_reserve_range(mdev->dev, priv->rx_ring_num,
 				    roundup_pow_of_two(priv->rx_ring_num),
-				    &rss_map->base_qpn);
+				    &rss_map->base_qpn, 0);
 	if (err) {
 		en_err(priv, "Failed reserving %d qps\n", priv->rx_ring_num);
 		return err;
@@ -736,7 +734,7 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	}
 
 	/* Configure RSS indirection qp */
-	err = mlx4_qp_reserve_range(mdev->dev, 1, 1, &priv->base_qpn);
+	err = mlx4_qp_reserve_range(mdev->dev, 1, 1, &priv->base_qpn, 0);
 	if (err) {
 		en_err(priv, "Failed to reserve range for RSS "
 			     "indirection qp\n");

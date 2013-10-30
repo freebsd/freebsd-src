@@ -61,6 +61,8 @@
  * hypervisor environment.
  */
 struct cpu_ops {
+	void (*cpu_init)(void);
+	void (*cpu_resume)(void);
 	void (*ipi_vectored)(u_int, int);
 };
 

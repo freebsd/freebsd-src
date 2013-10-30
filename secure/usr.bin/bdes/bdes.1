@@ -35,12 +35,12 @@
 .\"	@(#)bdes.1	8.1 (Berkeley) 6/29/93
 .\" $FreeBSD$
 .\"
-.Dd June 29, 1993
+.Dd September 20, 2013
 .Dt BDES 1
 .Os
 .Sh NAME
 .Nm bdes
-.Nd "encrypt/decrypt using the Data Encryption Standard (DES)"
+.Nd "encrypt / decrypt using the Data Encryption Standard (DES)"
 .Sh SYNOPSIS
 .Nm
 .Op Fl abdp
@@ -51,6 +51,11 @@
 .Op Fl o Ar N
 .Op Fl v Ar vector
 .Sh DESCRIPTION
+.Bf -symbolic
+The DES cipher should no longer be considered secure.
+Please consider using a more modern alternative.
+.Ef
+.Pp
 The
 .Nm
 utility implements all
@@ -215,22 +220,6 @@ is given in binary or hex,
 and can be disabled for
 .Tn ASCII
 keys as well.
-.Pp
-The
-.Tn DES
-is considered a very strong cryptosystem,
-and other than table lookup attacks,
-key search attacks,
-and Hellman's time-memory tradeoff
-(all of which are very expensive and time-consuming),
-no cryptanalytic methods
-for breaking the
-.Tn DES
-are known in the open literature.
-No doubt the choice of keys
-and key security
-are the most vulnerable aspect of
-.Nm .
 .Sh IMPLEMENTATION NOTES
 For implementors wishing to write
 software compatible with this program,
@@ -347,16 +336,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 SUCH DAMAGE.
 .Ed
 .Sh BUGS
-There is a controversy raging over whether the
-.Tn DES
-will still be secure
-in a few years.
-The advent of special-purpose hardware
-could reduce the cost of any of the
-methods of attack named above
-so that they are no longer
-computationally infeasible.
-.Pp
 As the key or key schedule
 is stored in memory,
 the encryption can be

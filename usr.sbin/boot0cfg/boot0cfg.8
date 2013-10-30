@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 4, 2012
+.Dd October 1, 2013
 .Dt BOOT0CFG 8
 .Os
 .Sh NAME
@@ -173,17 +173,17 @@ Image for serial consoles (COM1,9600,8,N,1,MODEM)
 .Sh EXAMPLES
 To boot slice 2 on the next boot:
 .Pp
-.Dl "boot0cfg -s 2 ad0"
+.Dl "boot0cfg -s 2 ada0"
 .Pp
 To enable just slices 1 and 3 in the menu:
 .Pp
-.Dl "boot0cfg -m 0x5 ad0"
+.Dl "boot0cfg -m 0x5 ada0"
 .Pp
 To go back to non-interactive booting, use
 .Xr fdisk 8
 to install the default MBR:
 .Pp
-.Dl "fdisk -B ad0"
+.Dl "fdisk -B ada0"
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr boot 8 ,

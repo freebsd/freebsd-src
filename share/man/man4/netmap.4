@@ -28,7 +28,7 @@
 .\" $FreeBSD$
 .\" $Id: netmap.4 11563 2012-08-02 08:59:12Z luigi $: stable/8/share/man/man4/bpf.4 181694 2008-08-13 17:45:06Z ed $
 .\"
-.Dd February 27, 2012
+.Dd September 23, 2013
 .Dt NETMAP 4
 .Os
 .Sh NAME
@@ -267,14 +267,14 @@ The following code implements a traffic generator
 #include <net/netmap_user.h>
 struct netmap_if *nifp;
 struct netmap_ring *ring;
-struct netmap_request nmr;
+struct nmreq nmr;
 
 fd = open("/dev/netmap", O_RDWR);
 bzero(&nmr, sizeof(nmr));
-strcpy(nmr.nm_name, "ix0");
-nmr.nm_version = NETMAP_API;
+strcpy(nmr.nr_name, "ix0");
+nmr.nr_version = NETMAP_API;
 ioctl(fd, NIOCREG, &nmr);
-p = mmap(0, nmr.memsize, fd);
+p = mmap(0, nmr.nr_memsize, fd);
 nifp = NETMAP_IF(p, nmr.offset);
 ring = NETMAP_TXRING(nifp, 0);
 fds.fd = fd;
