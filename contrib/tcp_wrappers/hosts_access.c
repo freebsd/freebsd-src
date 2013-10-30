@@ -44,6 +44,7 @@ static char sccsid[] = "@(#) hosts_access.c 1.21 97/02/12 02:13:22";
 #ifdef INET6
 #include <netdb.h>
 #endif
+#include <stdlib.h>
 
 extern char *fgets();
 extern int errno;
