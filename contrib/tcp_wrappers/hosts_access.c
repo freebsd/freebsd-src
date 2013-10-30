@@ -270,7 +270,7 @@ struct request_info *request;
 
 static int hostfile_match(path, host)
 char   *path;
-struct hosts_info *host;
+struct host_info *host;
 {
     char    tok[BUFSIZ];
     int     match = NO;
