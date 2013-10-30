@@ -119,7 +119,7 @@ SDT_PROVIDER_DECLARE(mac_framework);	/* Entry points to MAC. */
 	SDT_PROBE_DEFINE3(mac_framework, kernel, name, mac_grant_err,	\
 	    mac-grant-err, "int", arg0, arg1);				\
 	SDT_PROBE_DEFINE3(mac_framework, kernel, name, mac_grant_ok,	\
-	    mac-grant-ok, "INT", arg0, arg1);
+	    mac-grant-ok, "int", arg0, arg1);
 
 #define	MAC_GRANT_PROBE2(name, error, arg0, arg1)	do {		\
 	if (error) {							\

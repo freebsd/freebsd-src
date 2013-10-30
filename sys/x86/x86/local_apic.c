@@ -161,7 +161,7 @@ static u_long lapic_timer_divisor;
 static struct eventtimer lapic_et;
 
 static void	lapic_enable(void);
-static void	lapic_resume(struct pic *pic);
+static void	lapic_resume(struct pic *pic, bool suspend_cancelled);
 static void	lapic_timer_oneshot(struct lapic *,
 		    u_int count, int enable_int);
 static void	lapic_timer_periodic(struct lapic *,
@@ -566,7 +566,7 @@ lapic_enable(void)
 
 /* Reset the local APIC on the BSP during resume. */
 static void
-lapic_resume(struct pic *pic)
+lapic_resume(struct pic *pic, bool suspend_cancelled)
 {
 
 	lapic_setup(0);

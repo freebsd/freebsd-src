@@ -471,7 +471,8 @@ ams_poll(struct cdev *dev, int events, struct thread *p)
 		mtx_lock(&sc->sc_mtx);
 		
 		if (sc->xdelta == 0 && sc->ydelta == 0 && 
-		   sc->buttons == sc->last_buttons) {
+		   sc->buttons == sc->last_buttons &&
+		   sc->packet_read_len == 0) {
 			selrecord(p, &sc->rsel);
 			events = 0;
 		} else {

@@ -1,0 +1,142 @@
+.\" Copyright (c) 2013 Advanced Computing Technologies LLC
+.\" Written by: John H. Baldwin <jhb@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 19, 2013
+.Dt PROCCTL 2
+.Os
+.Sh NAME
+.Nm procctl
+.Nd control processes
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/procctl.h
+.Ft int
+.Fn procctl "idtype_t idtype" "id_t id" "int cmd" "void *arg"
+.Sh DESCRIPTION
+The
+.Fn procctl
+system call provides for control over processes.
+The
+.Fa idtype
+and
+.Fa id
+arguments specify the set of processes to control.
+If multiple processes match the identifier,
+.Nm
+will make a
+.Dq best effort
+to control as many of the selected possibles as possible.
+An error is only returned if no selected processes successfully complete
+the request.
+The following identifier types are supported:
+.Bl -tag -width "Dv P_PGID"
+.It Dv P_PID
+Control the process with the process ID
+.Fa id .
+.It Dv P_PGID
+Control processes belonging to the process group with the ID
+.Fa id .
+.El
+.Pp
+The control request to perform is specified by the
+.Fa cmd
+argument.
+The following commands are supported:
+.Bl -tag -width "Dv PROC_SPROTECT"
+.It Dv PROC_SPROTECT
+Set process protection state.
+This is used to mark a process as protected from being killed if the system
+exhausts available memory and swap.
+The
+.Fa arg
+parameter must point to an integer containing an operation and zero or more
+optional flags.
+The following operations are supported:
+.Bl -tag -width "Dv PPROT_CLEAR"
+.It Dv PPROT_SET
+Mark the selected processes as protected.
+.It Dv PPROT_CLEAR
+Clear the protected state of selected processes.
+.El
+.Pp
+The following optional flags are supported:
+.Bl -tag -width "Dv PPROT_DESCE"
+.It Dv PPROT_DESCEND
+Apply the requested operation to all child processes of each selected process
+in addition to each selected process.
+.It Dv PPROT_INHERIT
+When used with
+.Dv PPROT_SET ,
+mark all future child processes of each selected process as protected.
+Future child processes will also mark all of their future child processes.
+.El
+.El
+.Sh RETURN VALUES
+If an error occurs, a value of -1 is returned and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn procctl
+system call
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The
+.Fa arg
+points outside the process's allocated address space.
+.It Bq Er EINVAL
+The
+.Fa cmd
+argument specifies an unsupported command.
+.Pp
+The
+.Fa idtype
+argument specifies an unsupported identifier type.
+.It Bq Er EPERM
+The calling process does not have permission to perform the requested
+operation on any of the selected processes.
+.It Bq Er ESRCH
+No processes matched the requested
+.Fa idtype
+and
+.Fa id .
+.It Bq Er EINVAL
+An invalid operation or flag was passed in
+.Fa arg
+for a
+.Dv PROC_SPROTECT
+command.
+.El
+.Sh SEE ALSO
+.Xr ptrace 2
+.Sh HISTORY
+The
+.Fn procctl
+function appeared in
+.Fx 10 .

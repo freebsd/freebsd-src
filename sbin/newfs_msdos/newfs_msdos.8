@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 25, 2010
+.Dd October 1, 2013
 .Dt NEWFS_MSDOS 8
 .Os
 .Sh NAME
@@ -209,9 +209,9 @@ The maximum file size is 4GB, even if the file system itself is bigger.
 Exit status is 0 on success and 1 on error.
 .Sh EXAMPLES
 Create a file system, using default parameters, on
-.Pa /dev/ad0s1 :
+.Pa /dev/ada0s1 :
 .Bd -literal -offset indent
-newfs_msdos /dev/ad0s1
+newfs_msdos /dev/ada0s1
 .Ed
 .Pp
 Create a standard 1.44M file system, with volume label

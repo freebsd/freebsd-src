@@ -132,7 +132,7 @@ VERSION!=	uname -srp
 VERSION+=	${OSRELDATE}
 .endif
 
-KNOWN_ARCHES?=	amd64 arm armeb/arm armv6/arm armv6eb/arm i386 i386/pc98 ia64 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
+KNOWN_ARCHES?=	amd64 arm armeb/arm armv6/arm i386 i386/pc98 ia64 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
 .else
@@ -395,7 +395,7 @@ LIB32WMAKEFLAGS+=	\
 		-DNO_LINT
 
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} ${LIB32WMAKEFLAGS} \
-		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_INFO -DWITHOUT_HTML
+		-DWITHOUT_MAN -DWITHOUT_INFO -DWITHOUT_HTML
 LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS \
 		${IMAKE_INSTALL}
 .endif
@@ -484,10 +484,6 @@ _worldtmp:
 	    -p ${WORLDTMP}/legacy/usr/lib >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${WORLDTMP}/usr/lib >/dev/null
-.endif
-.if ${MK_BIND_LIBS} != "no"
-	mtree -deU -f ${.CURDIR}/etc/mtree/BIND.include.dist \
-	    -p ${WORLDTMP}/usr/include >/dev/null
 .endif
 .for _mtree in ${LOCAL_MTREE}
 	mtree -deU -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
@@ -1089,9 +1085,11 @@ distributekernel distributekernel.debug:
 	    KERNEL=${INSTKERNNAME}.${_kernel} \
 	    DESTDIR=${INSTALL_DDIR}/kernel.${_kernel} \
 	    ${.TARGET:S/distributekernel/install/}
+.if defined(NO_ROOT)
 	sed -e 's|^./kernel|.|' \
 	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta > \
 	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
+.endif
 .endfor
 
 packagekernel:
@@ -1740,7 +1738,7 @@ check-old-libs:
 delete-old-dirs:
 	@echo ">>> Removing old directories"
 	@${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_DIRS | xargs -n1 | \
+	    -V OLD_DIRS | xargs -n1 | sort -r | \
 	while read dir; do \
 		if [ -d "${DESTDIR}/$${dir}" ]; then \
 			rmdir -v "${DESTDIR}/$${dir}" || true; \

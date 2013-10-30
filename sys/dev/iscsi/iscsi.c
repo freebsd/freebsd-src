@@ -558,7 +558,11 @@ iscsi_callout(void *context)
 	if (is->is_timeout < 2)
 		return;
 
-	request = icl_pdu_new_bhs(is->is_conn, M_WAITOK);
+	request = icl_pdu_new_bhs(is->is_conn, M_NOWAIT);
+	if (request == NULL) {
+		ISCSI_SESSION_WARN(is, "failed to allocate PDU");
+		return;
+	}
 	bhsno = (struct iscsi_bhs_nop_out *)request->ip_bhs;
 	bhsno->bhsno_opcode = ISCSI_BHS_OPCODE_NOP_OUT |
 	    ISCSI_BHS_OPCODE_IMMEDIATE;
@@ -2026,16 +2030,12 @@ iscsi_load(void)
 
 	iscsi_outstanding_zone = uma_zcreate("iscsi_outstanding",
 	    sizeof(struct iscsi_outstanding), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    UMA_ALIGN_PTR, 0);
 
 	error = make_dev_p(MAKEDEV_CHECKNAME, &sc->sc_cdev, &iscsi_cdevsw,
 	    NULL, UID_ROOT, GID_WHEEL, 0600, "iscsi");
 	if (error != 0) {
 		ISCSI_WARN("failed to create device node, error %d", error);
-		sx_destroy(&sc->sc_lock);
-		cv_destroy(&sc->sc_cv);
-		uma_zdestroy(iscsi_outstanding_zone);
-		free(sc, M_ISCSI);
 		return (error);
 	}
 	sc->sc_cdev->si_drv1 = sc;
@@ -2052,16 +2052,16 @@ iscsi_load(void)
 static int
 iscsi_unload(void)
 {
-	/*
-	 * XXX: kldunload hangs on "devdrn".
-	 */
 	struct iscsi_session *is, *tmp;
 
-	ISCSI_DEBUG("removing device node");
-	destroy_dev(sc->sc_cdev);
-	ISCSI_DEBUG("device node removed");
+	if (sc->sc_cdev != NULL) {
+		ISCSI_DEBUG("removing device node");
+		destroy_dev(sc->sc_cdev);
+		ISCSI_DEBUG("device node removed");
+	}
 
-	EVENTHANDLER_DEREGISTER(shutdown_post_sync, sc->sc_shutdown_eh);
+	if (sc->sc_shutdown_eh != NULL)
+		EVENTHANDLER_DEREGISTER(shutdown_post_sync, sc->sc_shutdown_eh);
 
 	sx_slock(&sc->sc_lock);
 	TAILQ_FOREACH_SAFE(is, &sc->sc_sessions, is_next, tmp)

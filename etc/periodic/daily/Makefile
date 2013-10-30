@@ -24,10 +24,6 @@ FILES=	100.clean-disks \
 FILES+=	310.accounting
 .endif
 
-.if ${MK_BIND_NAMED} != "no"
-FILES+=	470.status-named
-.endif
-
 .if ${MK_CALENDAR} != "no"
 FILES+=	300.calendar
 .endif

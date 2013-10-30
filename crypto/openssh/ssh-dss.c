@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-dss.c,v 1.27 2010/08/31 09:58:37 djm Exp $ */
+/* $OpenBSD: ssh-dss.c,v 1.28 2013/05/17 00:13:14 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -137,17 +137,17 @@ ssh_dss_verify(const Key *key, const u_char *signature, u_int signaturelen,
 		if (strcmp("ssh-dss", ktype) != 0) {
 			error("ssh_dss_verify: cannot handle type %s", ktype);
 			buffer_free(&b);
-			xfree(ktype);
+			free(ktype);
 			return -1;
 		}
-		xfree(ktype);
+		free(ktype);
 		sigblob = buffer_get_string(&b, &len);
 		rlen = buffer_len(&b);
 		buffer_free(&b);
 		if (rlen != 0) {
 			error("ssh_dss_verify: "
 			    "remaining bytes in signature %d", rlen);
-			xfree(sigblob);
+			free(sigblob);
 			return -1;
 		}
 	}
@@ -169,7 +169,7 @@ ssh_dss_verify(const Key *key, const u_char *signature, u_int signaturelen,
 
 	/* clean up */
 	memset(sigblob, 0, len);
-	xfree(sigblob);
+	free(sigblob);
 
 	/* sha1 the data */
 	EVP_DigestInit(&md, evp_md);

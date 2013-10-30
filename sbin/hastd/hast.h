@@ -226,8 +226,10 @@ struct hast_resource {
 
 	/* Activemap structure. */
 	struct activemap *hr_amp;
-	/* Locked used to synchronize access to hr_amp. */
+	/* Lock used to synchronize access to hr_amp. */
 	pthread_mutex_t hr_amp_lock;
+	/* Lock used to synchronize access to hr_amp diskmap. */
+	pthread_mutex_t hr_amp_diskmap_lock;
 
 	/* Number of BIO_READ requests. */
 	uint64_t	hr_stat_read;

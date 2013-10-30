@@ -153,7 +153,7 @@
 #define SVN_FS_WANT_DB_PATCH 14
 
 /* Define if compiler provides atomic builtins */
-#define SVN_HAS_ATOMIC_BUILTINS 1
+#define SVN_HAS_ATOMIC_BUILTINS 0
 
 /* Is GNOME Keyring support enabled? */
 /* #undef SVN_HAVE_GNOME_KEYRING */

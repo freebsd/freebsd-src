@@ -35,7 +35,7 @@
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2012
+.Dd September 23, 2013
 .Dt RC 8
 .Os
 .Sh NAME
@@ -312,6 +312,9 @@ Defaults to displaying the process ID of the program (if running).
 If the script starts a process (rather than performing a one-off
 operation), wait for the command to exit.
 Otherwise it is not necessary to support this argument.
+.It Cm enabled
+Return 0 if the service is enabled and 1 if it is not.
+This command does not print anything.
 .It Cm rcvar
 Display which
 .Xr rc.conf 5

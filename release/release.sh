@@ -71,7 +71,6 @@ KERNEL="GENERIC"
 # ports/ checkout also forces NODOC to be set.
 NODOC=
 NOPORTS=
-MAKE_FLAGS="${MAKE_FLAGS}"
 
 usage() {
 	echo "Usage: $0 [-c release.conf]"

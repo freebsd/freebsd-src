@@ -119,7 +119,7 @@ static int	ioapic_vector(struct intsrc *isrc);
 static int	ioapic_source_pending(struct intsrc *isrc);
 static int	ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 		    enum intr_polarity pol);
-static void	ioapic_resume(struct pic *pic);
+static void	ioapic_resume(struct pic *pic, bool suspend_cancelled);
 static int	ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id);
 static void	ioapic_program_intpin(struct ioapic_intsrc *intpin);
 
@@ -486,7 +486,7 @@ ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 }
 
 static void
-ioapic_resume(struct pic *pic)
+ioapic_resume(struct pic *pic, bool suspend_cancelled)
 {
 	struct ioapic *io = (struct ioapic *)pic;
 	int i;

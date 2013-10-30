@@ -1,4 +1,7 @@
 #!/bin/sh
+#
+# $FreeBSD$
+#
 
 set -e
 
@@ -21,9 +24,11 @@ ldnsobj=$(realpath $(make -C$ldnsbld -V.OBJDIR))
 [ -f $ldnsobj/libldns.a ] || error "can't find LDNS object directory"
 export LDFLAGS="-L$ldnsobj"
 
+autoconf
+autoheader
 ./configure \
 	--prefix= --exec-prefix=/usr \
-	--with-conf-file=/etc/unbound/unbound.conf \
+	--with-conf-file=/var/unbound/unbound.conf \
 	--with-run-dir=/var/unbound \
 	--with-username=unbound
 
@@ -36,4 +41,4 @@ EOF
 /usr/bin/flex -L -t util/configlexer.lex
 } >util/configlexer.c
 
-/usr/bin/yacc -o util/configparser.c util/configparser.y
+/usr/bin/yacc -d -o util/configparser.c util/configparser.y

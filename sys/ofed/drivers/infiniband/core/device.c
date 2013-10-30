@@ -273,7 +273,9 @@ out:
  * callback for each device that is added. @device must be allocated
  * with ib_alloc_device().
  */
-int ib_register_device(struct ib_device *device)
+int ib_register_device(struct ib_device *device,
+		       int (*port_callback)(struct ib_device *,
+					    u8, struct kobject *))
 {
 	int ret;
 
@@ -304,7 +306,7 @@ int ib_register_device(struct ib_device *device)
 		goto out;
 	}
 
-	ret = ib_device_register_sysfs(device);
+	ret = ib_device_register_sysfs(device, port_callback);
 	if (ret) {
 		printk(KERN_WARNING "Couldn't register device %s with driver model\n",
 		       device->name);
@@ -752,3 +754,19 @@ static void __exit ib_core_cleanup(void)
 
 module_init(ib_core_init);
 module_exit(ib_core_cleanup);
+
+#undef MODULE_VERSION
+#include <sys/module.h>
+static int
+ibcore_evhand(module_t mod, int event, void *arg)
+{
+	return (0);
+}
+
+static moduledata_t ibcore_mod = {
+	.name = "ibcore",
+	.evhand = ibcore_evhand,
+};
+
+MODULE_VERSION(ibcore, 1);
+DECLARE_MODULE(ibcore, ibcore_mod, SI_SUB_SMP, SI_ORDER_ANY);

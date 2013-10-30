@@ -27,7 +27,7 @@ USEPRIVATELIB+= ldns
 .endif
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
-CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_GSSAPI_H=1 -DKRB5 -DHEIMDAL
+CFLAGS+= -include krb5_config.h
 DPADD+=	 ${LIBGSSAPI}
 LDADD+=	 -lgssapi
 .endif
@@ -48,3 +48,6 @@ CFLAGS+= -DXAUTH_PATH=\"${LOCALBASE}/bin/xauth\"
 .PATH:	${SSHDIR}
 
 ${OBJS} ${POBJS} ${SOBJS}: ssh_namespace.h
+.if ${MK_KERBEROS_SUPPORT} != "no"
+${OBJS} ${POBJS} ${SOBJS}: krb5_config.h
+.endif

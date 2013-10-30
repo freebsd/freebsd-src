@@ -481,7 +481,6 @@ main(int argc, char **argv)
 			 * We skip P_SYSTEM processes to match ps(1) output.
 			 */
 			if ((kp->ki_flag & P_SYSTEM) == 0 &&
-			    kp->ki_loginclass != NULL &&
 			    strcmp(kp->ki_loginclass, li->li_name) == 0)
 				break;
 		}

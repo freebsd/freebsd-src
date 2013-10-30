@@ -2394,37 +2394,6 @@ pmap_clear_modify(vm_page_t m)
 }
 
 /*
- *	pmap_clear_reference:
- *
- *	Clear the reference bit on the specified physical page.
- */
-void
-pmap_clear_reference(vm_page_t m)
-{
-	struct ia64_lpte *pte;
-	pmap_t oldpmap, pmap;
-	pv_entry_t pv;
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("pmap_clear_reference: page %p is not managed", m));
-	rw_wlock(&pvh_global_lock);
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
-		pmap = PV_PMAP(pv);
-		PMAP_LOCK(pmap);
-		oldpmap = pmap_switch(pmap);
-		pte = pmap_find_vhpt(pv->pv_va);
-		KASSERT(pte != NULL, ("pte"));
-		if (pmap_accessed(pte)) {
-			pmap_clear_accessed(pte);
-			pmap_invalidate_page(pv->pv_va);
-		}
-		pmap_switch(oldpmap);
-		PMAP_UNLOCK(pmap);
-	}
-	rw_wunlock(&pvh_global_lock);
-}
-
-/*
  * Clear the write and modified bits in each of the given page's mappings.
  */
 void

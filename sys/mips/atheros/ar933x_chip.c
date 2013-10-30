@@ -115,8 +115,14 @@ ar933x_chip_detect_sys_frequency(void)
 		u_ar71xx_ahb_freq = freq / t;
 	}
 
-	/* XXX uart should be the refclk, no? */
-	u_ar71xx_uart_freq = u_ar71xx_ahb_freq;
+	/* On the AR933x, the UART frequency is the reference clock,
+	 * not the AHB bus clock.
+	 */
+	u_ar71xx_uart_freq = u_ar71xx_refclk;
+
+	/*
+	 * XXX check what the watchdog frequency should be?
+	 */
 	u_ar71xx_wdt_freq = u_ar71xx_ahb_freq;
 }
 

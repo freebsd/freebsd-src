@@ -1,5 +1,5 @@
 /*
- * $Id: dialog.c,v 1.230 2013/03/15 09:07:30 tom Exp $
+ * $Id: dialog.c,v 1.231 2013/09/02 17:20:09 tom Exp $
  *
  *  cdialog - Display simple dialog boxes from shell scripts
  *
@@ -71,6 +71,7 @@ typedef enum {
     ,o_help_label
     ,o_help_line
     ,o_help_status
+    ,o_help_tags
     ,o_icon
     ,o_ignore
     ,o_infobox
@@ -229,6 +230,7 @@ static const Options options[] = {
     { "help-button",	o_help_button,		1, "" },
     { "help-label",	o_help_label,		1, "<str>" },
     { "help-status",	o_help_status,		1, "" },
+    { "help-tags",	o_help_tags,		1, "" },
     { "hfile",		o_help_file,		1, "<str>" },
     { "hline",		o_help_line,		1, "<str>" },
     { "icon",		o_icon,			1, NULL },
@@ -1461,6 +1463,9 @@ process_common_options(int argc, char **argv, int offset, bool output)
 	    break;
 	case o_help_status:
 	    dialog_vars.help_status = TRUE;
+	    break;
+	case o_help_tags:
+	    dialog_vars.help_tags = TRUE;
 	    break;
 	case o_extra_button:
 	    dialog_vars.extra_button = TRUE;

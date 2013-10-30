@@ -396,7 +396,6 @@ lm_find (const char *p, const char *f)
 
 /* Given a libmap translation list and a library name, return the
    replacement library, or NULL */
-#ifdef COMPAT_32BIT
 char *
 lm_findn (const char *p, const char *f, const int n)
 {
@@ -413,7 +412,6 @@ lm_findn (const char *p, const char *f, const int n)
 		free(s);
 	return (t);
 }
-#endif
 
 static char *
 lml_find (struct lm_list *lmh, const char *f)

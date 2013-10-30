@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keysign.c,v 1.36 2011/02/16 00:31:14 djm Exp $ */
+/* $OpenBSD: ssh-keysign.c,v 1.37 2013/05/17 00:13:14 djm Exp $ */
 /*
  * Copyright (c) 2002 Markus Friedl.  All rights reserved.
  *
@@ -78,7 +78,7 @@ valid_request(struct passwd *pw, char *host, Key **ret, u_char *data,
 	p = buffer_get_string(&b, &len);
 	if (len != 20 && len != 32)
 		fail++;
-	xfree(p);
+	free(p);
 
 	if (buffer_get_char(&b) != SSH2_MSG_USERAUTH_REQUEST)
 		fail++;
@@ -90,13 +90,13 @@ valid_request(struct passwd *pw, char *host, Key **ret, u_char *data,
 	p = buffer_get_string(&b, NULL);
 	if (strcmp("ssh-connection", p) != 0)
 		fail++;
-	xfree(p);
+	free(p);
 
 	/* method */
 	p = buffer_get_string(&b, NULL);
 	if (strcmp("hostbased", p) != 0)
 		fail++;
-	xfree(p);
+	free(p);
 
 	/* pubkey */
 	pkalg = buffer_get_string(&b, NULL);
@@ -109,8 +109,8 @@ valid_request(struct passwd *pw, char *host, Key **ret, u_char *data,
 		fail++;
 	else if (key->type != pktype)
 		fail++;
-	xfree(pkalg);
-	xfree(pkblob);
+	free(pkalg);
+	free(pkblob);
 
 	/* client host name, handle trailing dot */
 	p = buffer_get_string(&b, &len);
@@ -121,14 +121,14 @@ valid_request(struct passwd *pw, char *host, Key **ret, u_char *data,
 		fail++;
 	else if (strncasecmp(host, p, len - 1) != 0)
 		fail++;
-	xfree(p);
+	free(p);
 
 	/* local user */
 	p = buffer_get_string(&b, NULL);
 
 	if (strcmp(pw->pw_name, p) != 0)
 		fail++;
-	xfree(p);
+	free(p);
 
 	/* end of message */
 	if (buffer_len(&b) != 0)
@@ -233,7 +233,7 @@ main(int argc, char **argv)
 	data = buffer_get_string(&b, &dlen);
 	if (valid_request(pw, host, &key, data, dlen) < 0)
 		fatal("not a valid request");
-	xfree(host);
+	free(host);
 
 	found = 0;
 	for (i = 0; i < NUM_KEYTYPES; i++) {
@@ -248,7 +248,7 @@ main(int argc, char **argv)
 
 	if (key_sign(keys[i], &signature, &slen, data, dlen) != 0)
 		fatal("key_sign failed");
-	xfree(data);
+	free(data);
 
 	/* send reply */
 	buffer_clear(&b);

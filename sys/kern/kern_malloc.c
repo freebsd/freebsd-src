@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/vmmeter.h>
 #include <sys/proc.h>
@@ -699,10 +698,10 @@ kmeminit(void)
 	 * VM_KMEM_SIZE_MAX is dependent on the maximum KVA space
 	 * available.
 	 *
-	 * Note that the kmem_map is also used by the zone allocator,
+	 * Note that the kmem arena is also used by the zone allocator,
 	 * so make sure that there is enough space.
 	 */
-	vm_kmem_size = VM_KMEM_SIZE + nmbclusters * PAGE_SIZE;
+	vm_kmem_size = VM_KMEM_SIZE;
 	mem_size = cnt.v_page_count;
 
 #if defined(VM_KMEM_SIZE_SCALE)

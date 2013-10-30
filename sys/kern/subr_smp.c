@@ -225,6 +225,18 @@ generic_stop_cpus(cpuset_t map, u_int type)
 	CTR2(KTR_SMP, "stop_cpus(%s) with %u type",
 	    cpusetobj_strprint(cpusetbuf, &map), type);
 
+#if defined(__amd64__) || defined(__i386__)
+	/*
+	 * When suspending, ensure there are are no IPIs in progress.
+	 * IPIs that have been issued, but not yet delivered (e.g.
+	 * not pending on a vCPU when running under virtualization)
+	 * will be lost, violating FreeBSD's assumption of reliable
+	 * IPI delivery.
+	 */
+	if (type == IPI_SUSPEND)
+		mtx_lock_spin(&smp_ipi_mtx);
+#endif
+
 	if (stopping_cpu != PCPU_GET(cpuid))
 		while (atomic_cmpset_int(&stopping_cpu, NOCPU,
 		    PCPU_GET(cpuid)) == 0)
@@ -251,6 +263,11 @@ generic_stop_cpus(cpuset_t map, u_int type)
 			break;
 		}
 	}
+
+#if defined(__amd64__) || defined(__i386__)
+	if (type == IPI_SUSPEND)
+		mtx_unlock_spin(&smp_ipi_mtx);
+#endif
 
 	stopping_cpu = NOCPU;
 	return (1);
@@ -292,27 +309,59 @@ suspend_cpus(cpuset_t map)
  *   0: NA
  *   1: ok
  */
-int
-restart_cpus(cpuset_t map)
+static int
+generic_restart_cpus(cpuset_t map, u_int type)
 {
 #ifdef KTR
 	char cpusetbuf[CPUSETBUFSIZ];
 #endif
+	volatile cpuset_t *cpus;
+
+	KASSERT(
+#if defined(__amd64__) || defined(__i386__)
+	    type == IPI_STOP || type == IPI_STOP_HARD || type == IPI_SUSPEND,
+#else
+	    type == IPI_STOP || type == IPI_STOP_HARD,
+#endif
+	    ("%s: invalid stop type", __func__));
 
 	if (!smp_started)
 		return 0;
 
 	CTR1(KTR_SMP, "restart_cpus(%s)", cpusetobj_strprint(cpusetbuf, &map));
 
+#if defined(__amd64__) || defined(__i386__)
+	if (type == IPI_SUSPEND)
+		cpus = &suspended_cpus;
+	else
+#endif
+		cpus = &stopped_cpus;
+
 	/* signal other cpus to restart */
 	CPU_COPY_STORE_REL(&map, &started_cpus);
 
 	/* wait for each to clear its bit */
-	while (CPU_OVERLAP(&stopped_cpus, &map))
+	while (CPU_OVERLAP(cpus, &map))
 		cpu_spinwait();
 
 	return 1;
 }
+
+int
+restart_cpus(cpuset_t map)
+{
+
+	return (generic_restart_cpus(map, IPI_STOP));
+}
+
+#if defined(__amd64__) || defined(__i386__)
+int
+resume_cpus(cpuset_t map)
+{
+
+	return (generic_restart_cpus(map, IPI_SUSPEND));
+}
+#endif
 
 /*
  * All-CPU rendezvous.  CPUs are signalled, all execute the setup function 

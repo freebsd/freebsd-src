@@ -666,6 +666,30 @@ EMIT_FETCH_AND_OP_4(fetch_and_or, "orr")
 EMIT_FETCH_AND_OP_4(fetch_and_sub, "sub")
 EMIT_FETCH_AND_OP_4(fetch_and_xor, "eor")
 
+#ifndef __clang__
+__strong_reference(__sync_lock_test_and_set_1_c, __sync_lock_test_and_set_1);
+__strong_reference(__sync_lock_test_and_set_2_c, __sync_lock_test_and_set_2);
+__strong_reference(__sync_lock_test_and_set_4_c, __sync_lock_test_and_set_4);
+__strong_reference(__sync_val_compare_and_swap_1_c, __sync_val_compare_and_swap_1);
+__strong_reference(__sync_val_compare_and_swap_2_c, __sync_val_compare_and_swap_2);
+__strong_reference(__sync_val_compare_and_swap_4_c, __sync_val_compare_and_swap_4);
+__strong_reference(__sync_fetch_and_add_1_c, __sync_fetch_and_add_1);
+__strong_reference(__sync_fetch_and_add_2_c, __sync_fetch_and_add_2);
+__strong_reference(__sync_fetch_and_add_4_c, __sync_fetch_and_add_4);
+__strong_reference(__sync_fetch_and_and_1_c, __sync_fetch_and_and_1);
+__strong_reference(__sync_fetch_and_and_2_c, __sync_fetch_and_and_2);
+__strong_reference(__sync_fetch_and_and_4_c, __sync_fetch_and_and_4);
+__strong_reference(__sync_fetch_and_sub_1_c, __sync_fetch_and_sub_1);
+__strong_reference(__sync_fetch_and_sub_2_c, __sync_fetch_and_sub_2);
+__strong_reference(__sync_fetch_and_sub_4_c, __sync_fetch_and_sub_4);
+__strong_reference(__sync_fetch_and_or_1_c, __sync_fetch_and_or_1);
+__strong_reference(__sync_fetch_and_or_2_c, __sync_fetch_and_or_2);
+__strong_reference(__sync_fetch_and_or_4_c, __sync_fetch_and_or_4);
+__strong_reference(__sync_fetch_and_xor_1_c, __sync_fetch_and_xor_1);
+__strong_reference(__sync_fetch_and_xor_2_c, __sync_fetch_and_xor_2);
+__strong_reference(__sync_fetch_and_xor_4_c, __sync_fetch_and_xor_4);
+#endif
+
 #else /* __ARM_ARCH_5__ */
 
 #ifdef _KERNEL
@@ -834,10 +858,6 @@ EMIT_ALL_OPS_N(1, uint8_t, "ldrb", "strb", "streqb")
 EMIT_ALL_OPS_N(2, uint16_t, "ldrh", "strh", "streqh")
 EMIT_ALL_OPS_N(4, uint32_t, "ldr", "str", "streq")
 
-#endif /* _KERNEL */
-
-#endif
-
 #ifndef __clang__
 __strong_reference(__sync_lock_test_and_set_1_c, __sync_lock_test_and_set_1);
 __strong_reference(__sync_lock_test_and_set_2_c, __sync_lock_test_and_set_2);
@@ -860,6 +880,10 @@ __strong_reference(__sync_fetch_and_or_4_c, __sync_fetch_and_or_4);
 __strong_reference(__sync_fetch_and_xor_1_c, __sync_fetch_and_xor_1);
 __strong_reference(__sync_fetch_and_xor_2_c, __sync_fetch_and_xor_2);
 __strong_reference(__sync_fetch_and_xor_4_c, __sync_fetch_and_xor_4);
+#endif
+
+#endif /* _KERNEL */
+
 #endif
 
 #endif /* __SYNC_ATOMICS */

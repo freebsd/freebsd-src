@@ -1116,8 +1116,6 @@ dev/bwi/if_bwi_pci.c		optional bwi pci
 # XXX Work around clang warning, until maintainer approves fix.
 dev/bwn/if_bwn.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
-dev/bxe/if_bxe.c		optional bxe
-dev/bxe/bxe_link.c		optional bxe
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
@@ -3544,6 +3542,18 @@ ofed/drivers/infiniband/ulp/sdp/sdp_tx.c	optional sdp inet 	\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/sdp/"
 
+ofed/drivers/infiniband/hw/mlx4/alias_GUID.c    optional mlx4ib         \
+        no-depend obj-prefix "mlx4ib_"                                  \
+        compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
+ofed/drivers/infiniband/hw/mlx4/mcg.c           optional mlx4ib         \
+        no-depend obj-prefix "mlx4ib_"                                  \
+        compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
+ofed/drivers/infiniband/hw/mlx4/sysfs.c         optional mlx4ib         \
+        no-depend obj-prefix "mlx4ib_"                                  \
+        compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
+ofed/drivers/infiniband/hw/mlx4/cm.c            optional mlx4ib         \
+        no-depend obj-prefix "mlx4ib_"                                  \
+        compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
 ofed/drivers/infiniband/hw/mlx4/ah.c		optional mlx4ib		\
 	no-depend obj-prefix "mlx4ib_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
@@ -3626,7 +3636,10 @@ ofed/drivers/net/mlx4/sense.c			optional mlx4ib | mlxen	\
 ofed/drivers/net/mlx4/srq.c			optional mlx4ib | mlxen	\
 	no-depend obj-prefix "mlx4_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/xrcd.c			optional mlx4ib | mlxen	\
+ofed/drivers/net/mlx4/resource_tracker.c        optional mlx4ib | mlxen	\
+	no-depend obj-prefix "mlx4_"					\
+	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
+ofed/drivers/net/mlx4/sys_tune.c		optional mlx4ib | mlxen	\
 	no-depend obj-prefix "mlx4_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
 

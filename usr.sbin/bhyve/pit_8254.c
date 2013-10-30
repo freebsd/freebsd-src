@@ -153,10 +153,10 @@ pit_update_counter(struct counter *c, int latch)
 		 * of the program.
 		 *
 		 * If the counter's initial value is not programmed we
-		 * assume a value that would be set to generate 'guest_hz'
+		 * assume a value that would be set to generate 100
 		 * interrupts per second.
 		 */
-		c->initial = TIMER_DIV(PIT_8254_FREQ, guest_hz);
+		c->initial = TIMER_DIV(PIT_8254_FREQ, 100);
 		gettimeofday(&c->tv, NULL);
 	}
 	

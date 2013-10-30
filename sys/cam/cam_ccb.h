@@ -107,6 +107,10 @@ typedef enum {
 	CAM_SEND_STATUS		= 0x40000000 /* Send status after data phase  */
 } ccb_flags;
 
+typedef enum {
+	CAM_EXTLUN_VALID	= 0x00000001,/* 64bit lun field is valid      */
+} ccb_xflags;
+
 /* XPT Opcodes for xpt_action */
 typedef enum {
 /* Function code flags are bits greater than 0xff */
@@ -258,6 +262,7 @@ typedef enum {
 	XPORT_SAS,	/* Serial Attached SCSI */
 	XPORT_SATA,	/* Serial AT Attachment */
 	XPORT_ISCSI,	/* iSCSI */
+	XPORT_SRP,	/* SCSI RDMA Protocol */
 } cam_xport;
 
 #define XPORT_IS_ATA(t)		((t) == XPORT_ATA || (t) == XPORT_SATA)
@@ -296,6 +301,12 @@ typedef union {
 	u_int8_t	bytes[CCB_SIM_PRIV_SIZE * sizeof(ccb_priv_entry)];
 } ccb_spriv_area;
 
+typedef struct {
+	struct timeval	*etime;
+	uintptr_t	sim_data;
+	uintptr_t	periph_data;
+} ccb_qos_area;
+
 struct ccb_hdr {
 	cam_pinfo	pinfo;		/* Info for priority scheduling */
 	camq_entry	xpt_links;	/* For chaining in the XPT layer */	
@@ -310,16 +321,14 @@ struct ccb_hdr {
 	path_id_t	path_id;	/* Path ID for the request */
 	target_id_t	target_id;	/* Target device ID */
 	lun_id_t	target_lun;	/* Target LUN number */
+	lun64_id_t	ext_lun;	/* 64bit extended/multi-level LUNs */
 	u_int32_t	flags;		/* ccb_flags */
+	u_int32_t	xflags;		/* Extended flags */
 	ccb_ppriv_area	periph_priv;
 	ccb_spriv_area	sim_priv;
-	u_int32_t	timeout;	/* Timeout value */
-
-	/*
-	 * Deprecated, only for use by non-MPSAFE SIMs.  All others must
-	 * allocate and initialize their own callout storage.
-	 */
-	struct		callout_handle timeout_ch;
+	ccb_qos_area	qos;
+	u_int32_t	timeout;	/* Hard timeout value in mseconds */
+	struct timeval	softtimeout;	/* Soft timeout value in sec + usec */
 };
 
 /* Get Device Information CCB */
@@ -541,7 +550,7 @@ struct ccb_dev_match {
 /*
  * Definitions for the path inquiry CCB fields.
  */
-#define CAM_VERSION	0x17	/* Hex value for current version */
+#define CAM_VERSION	0x18	/* Hex value for current version */
 
 typedef enum {
 	PI_MDP_ABLE	= 0x80,	/* Supports MDP message */
@@ -564,6 +573,7 @@ typedef enum {
 } pi_tmflag;
 
 typedef enum {
+	PIM_EXTLUNS	= 0x100,/* 64bit extended LUNs supported */
 	PIM_SCANHILO	= 0x80,	/* Bus scans from high ID to low ID */
 	PIM_NOREMOVE	= 0x40,	/* Removeable devices not included in scan */
 	PIM_NOINITIATOR	= 0x20,	/* Initiator role not supported. */
@@ -595,8 +605,8 @@ struct ccb_pathinq {
 	struct 	    ccb_hdr ccb_h;
 	u_int8_t    version_num;	/* Version number for the SIM/HBA */
 	u_int8_t    hba_inquiry;	/* Mimic of INQ byte 7 for the HBA */
-	u_int8_t    target_sprt;	/* Flags for target mode support */
-	u_int8_t    hba_misc;		/* Misc HBA features */
+	u_int16_t   target_sprt;	/* Flags for target mode support */
+	u_int32_t   hba_misc;		/* Misc HBA features */
 	u_int16_t   hba_eng_cnt;	/* HBA engine count */
 					/* Vendor Unique capabilities */
 	u_int8_t    vuhba_flags[VUHBALEN];
@@ -1224,6 +1234,7 @@ cam_fill_csio(struct ccb_scsiio *csio, u_int32_t retries,
 {
 	csio->ccb_h.func_code = XPT_SCSI_IO;
 	csio->ccb_h.flags = flags;
+	csio->ccb_h.xflags = 0;
 	csio->ccb_h.retry_count = retries;	
 	csio->ccb_h.cbfcnp = cbfcnp;
 	csio->ccb_h.timeout = timeout;
@@ -1243,6 +1254,7 @@ cam_fill_ctio(struct ccb_scsiio *csio, u_int32_t retries,
 {
 	csio->ccb_h.func_code = XPT_CONT_TARGET_IO;
 	csio->ccb_h.flags = flags;
+	csio->ccb_h.xflags = 0;
 	csio->ccb_h.retry_count = retries;	
 	csio->ccb_h.cbfcnp = cbfcnp;
 	csio->ccb_h.timeout = timeout;

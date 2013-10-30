@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2013
+.Dd September 17, 2013
 .Dt CAPSICUM 4
 .Os
 .Sh NAME
@@ -62,7 +62,7 @@ File descriptors that wrap other file descriptors, masking operations that can
 be called on them; for example, a file descriptor returned by
 .Xr open 2
 may be refined using
-.Xr cap_new 2
+.Xr cap_rights_limit 2
 so that only
 .Xr read 2
 and
@@ -89,8 +89,8 @@ associated with file descriptors; described in greater detail in
 .Sh SEE ALSO
 .Xr cap_enter 2 ,
 .Xr cap_getmode 2 ,
-.Xr cap_getrights 2 ,
-.Xr cap_new 2 ,
+.Xr cap_rights_get 2 ,
+.Xr cap_rights_limit 2 ,
 .Xr fchmod 2 ,
 .Xr open 2 ,
 .Xr pdfork 2 ,

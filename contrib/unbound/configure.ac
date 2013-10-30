@@ -69,19 +69,6 @@ AC_SUBST(LIBUNBOUND_CURRENT)
 AC_SUBST(LIBUNBOUND_REVISION)
 AC_SUBST(LIBUNBOUND_AGE)
 
-pretty_cmdline() {
-	cmdline=""
-	while test -n "$1"; do
-		cmdline="$cmdline '"`echo $1 | sed -e 's/\\\\/\\\\\\\\/g' | sed -e 's/"/\\\\"/g' `"'"
-		shift
-	done
-}
-pretty_cmdline $@
-AC_DEFINE_UNQUOTED(CONFIGURE_BUILD_WITH, ["$cmdline"], [configure flags])
-AC_CANONICAL_TARGET
-AC_DEFINE_UNQUOTED(CONFIGURE_TARGET, ["$target"], [configure target system])
-AC_DEFINE_UNQUOTED(CONFIGURE_DATE, ["`date`"], [configure date])
-
 CFLAGS="$CFLAGS"
 AC_AIX
 

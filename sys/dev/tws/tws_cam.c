@@ -341,7 +341,7 @@ tws_scsi_complete(struct tws_request *req)
     tws_q_remove_request(sc, req, TWS_BUSY_Q);
     mtx_unlock(&sc->q_lock);
 
-    untimeout(tws_timeout, req, req->ccb_ptr->ccb_h.timeout_ch);
+    untimeout(tws_timeout, req, req->thandle);
     tws_unmap_request(req->sc, req);
 
 
@@ -454,7 +454,7 @@ tws_cmd_complete(struct tws_request *req)
 {
     struct tws_softc *sc = req->sc;
 
-    untimeout(tws_timeout, req, req->ccb_ptr->ccb_h.timeout_ch);
+    untimeout(tws_timeout, req, req->thandle);
     tws_unmap_request(sc, req);
 }
                                    
@@ -561,7 +561,7 @@ tws_scsi_err_complete(struct tws_request *req, struct tws_command_header *hdr)
     xpt_done(ccb);
     mtx_unlock(&sc->sim_lock);
 
-    untimeout(tws_timeout, req, req->ccb_ptr->ccb_h.timeout_ch);
+    untimeout(tws_timeout, req, req->thandle);
     tws_unmap_request(req->sc, req);
     mtx_lock(&sc->q_lock);
     tws_q_remove_request(sc, req, TWS_BUSY_Q);
@@ -591,7 +591,7 @@ tws_drain_busy_queue(struct tws_softc *sc)
     mtx_unlock(&sc->q_lock);
     while ( req ) {
         TWS_TRACE_DEBUG(sc, "moved to TWS_COMPLETE_Q", 0, req->request_id);
-        untimeout(tws_timeout, req, req->ccb_ptr->ccb_h.timeout_ch);
+        untimeout(tws_timeout, req, req->thandle);
 
         req->error_code = TWS_REQ_RET_RESET;
         ccb = (union ccb *)(req->ccb_ptr);
@@ -747,7 +747,7 @@ tws_execute_scsi(struct tws_softc *sc, union ccb *ccb)
      * and submit the I/O.
      */
     sc->stats.scsi_ios++;
-    ccb_h->timeout_ch = timeout(tws_timeout, req, (ccb_h->timeout * hz)/1000);
+    req->thandle = timeout(tws_timeout, req, (ccb_h->timeout * hz)/1000);
     error = tws_map_request(sc, req);
     return(error);
 }

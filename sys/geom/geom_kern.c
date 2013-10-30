@@ -66,6 +66,7 @@ static struct thread *g_event_td;
 int g_debugflags;
 int g_collectstats = 1;
 int g_shutdown;
+int g_notaste;
 
 /*
  * G_UP and G_DOWN are the two threads which push I/O through the
@@ -207,6 +208,9 @@ SYSCTL_PROC(_kern_geom, OID_AUTO, conftxt, CTLTYPE_STRING|CTLFLAG_RD,
 TUNABLE_INT("kern.geom.debugflags", &g_debugflags);
 SYSCTL_INT(_kern_geom, OID_AUTO, debugflags, CTLFLAG_RW,
 	&g_debugflags, 0, "Set various trace levels for GEOM debugging");
+
+SYSCTL_INT(_kern_geom, OID_AUTO, notaste, CTLFLAG_RW,
+	&g_notaste, 0, "Prevent GEOM tasting");
 
 SYSCTL_INT(_kern_geom, OID_AUTO, collectstats, CTLFLAG_RW,
 	&g_collectstats, 0,

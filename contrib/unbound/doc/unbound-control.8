@@ -33,7 +33,7 @@ Show the version and commandline option help.
 .TP
 .B \-c \fIcfgfile
 The config file to read with settings.  If not given the default
-config file /etc/unbound/unbound.conf is used.
+config file /var/unbound/unbound.conf is used.
 .TP
 .B \-s \fIserver[@port]
 IPv4 or IPv6 address of the server to contact.  If not given, the
@@ -445,7 +445,7 @@ Some low level of late answers and delayed duplicates are to be expected
 with the UDP protocol.  Very high values could indicate a threat (spoofing).
 .SH "FILES"
 .TP
-.I /etc/unbound/unbound.conf
+.I /var/unbound/unbound.conf
 unbound configuration file.
 .TP
 .I /var/unbound

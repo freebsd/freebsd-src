@@ -1334,8 +1334,10 @@ SDNode *HexagonDAGToDAGISel::SelectAdd(SDNode *N) {
 
 
 SDNode *HexagonDAGToDAGISel::Select(SDNode *N) {
-  if (N->isMachineOpcode())
+  if (N->isMachineOpcode()) {
+    N->setNodeId(-1);
     return NULL;   // Already selected.
+  }
 
 
   switch (N->getOpcode()) {

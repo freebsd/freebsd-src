@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-common.c,v 1.23 2010/01/15 09:24:23 markus Exp $ */
+/* $OpenBSD: sftp-common.c,v 1.24 2013/05/17 00:13:14 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2001 Damien Miller.  All rights reserved.
@@ -128,8 +128,8 @@ decode_attrib(Buffer *b)
 			type = buffer_get_string(b, NULL);
 			data = buffer_get_string(b, NULL);
 			debug3("Got file attribute \"%s\"", type);
-			xfree(type);
-			xfree(data);
+			free(type);
+			free(data);
 		}
 	}
 	return &a;
@@ -191,7 +191,7 @@ ls_file(const char *name, const struct stat *st, int remote, int si_units)
 {
 	int ulen, glen, sz = 0;
 	struct tm *ltime = localtime(&st->st_mtime);
-	char *user, *group;
+	const char *user, *group;
 	char buf[1024], mode[11+1], tbuf[12+1], ubuf[11+1], gbuf[11+1];
 	char sbuf[FMT_SCALED_STRSIZE];
 
