@@ -38,6 +38,12 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20131030: /etc/keys moved to /usr/share/keys
+OLD_DIRS+=etc/keys
+OLD_DIRS+=etc/keys/pkg
+OLD_DIRS+=etc/keys/pkg/revoked
+OLD_DIRS+=etc/keys/pkg/trusted
+OLD_FILES+=etc/keys/pkg/trusted/pkg.freebsd.org.2013102301
 # 20131028: ng_fec(4) removed
 OLD_FILES+=usr/include/netgraph/ng_fec.h
 OLD_FILES+=usr/share/man/man4/ng_fec.4.gz
