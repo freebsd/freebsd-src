@@ -701,14 +701,12 @@ vt_flush(struct vt_device *vd)
 static void
 vt_timer(void *arg)
 {
-	struct vt_device *vd = arg;
-	unsigned int i;
+	struct vt_device *vd;
 
+	vd = arg;
+	/* Update screen if required. */
 	vt_flush(vd);
-
-	for (i = 0; i < VT_MAXWINDOWS; i++)
-		vt_proc_alive(vd->vd_windows[i]);
-
+	/* Schedule for next update. */
 	callout_schedule(&vd->vd_timer, hz / VT_TIMERFREQ);
 }
 
