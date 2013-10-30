@@ -37,7 +37,8 @@ arm/freescale/imx/imx51_ccm.c		standard
 # i.MX5xx PATA controller
 dev/ata/chipsets/ata-fsl.c		optional imxata
 
-# USB join controller (1 OTG, 3 EHCI)
+# USB OH3 controller (1 OTG, 3 EHCI)
+arm/freescale/imx/imx_nop_usbphy.c	optional ehci
 dev/usb/controller/ehci_imx.c		optional ehci
 
 # Watchdog
