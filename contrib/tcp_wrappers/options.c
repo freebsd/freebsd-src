@@ -443,16 +443,21 @@ struct request_info *request;
 /* severity_map - lookup facility or severity value */
 
 static int severity_map(table, name)
-CODE   *table;
+const CODE   *table;
 char   *name;
 {
-    CODE *t;
+    const CODE *t;
+    int ret = -1;
 
     for (t = table; t->c_name; t++)
-	if (STR_EQ(t->c_name, name))
-	    return (t->c_val);
-    tcpd_jump("bad syslog facility or severity: \"%s\"", name);
-    /* NOTREACHED */
+	if (STR_EQ(t->c_name, name)) {
+	    ret = t->c_val;
+	    break;
+	}
+    if (ret == -1)
+    	tcpd_jump("bad syslog facility or severity: \"%s\"", name);
+
+    return (ret);
 }
 
 /* severity_option - change logging severity for this event (Dave Mitchell) */
