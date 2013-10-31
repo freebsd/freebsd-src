@@ -63,6 +63,8 @@ vm_paddr_t fdt_immr_pa;
 vm_offset_t fdt_immr_va;
 vm_offset_t fdt_immr_size;
 
+struct fdt_ic_list fdt_ic_list_head = SLIST_HEAD_INITIALIZER(fdt_ic_list_head);
+
 int
 fdt_get_range(phandle_t node, int range_id, u_long *base, u_long *size)
 {
