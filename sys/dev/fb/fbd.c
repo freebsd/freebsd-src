@@ -38,12 +38,19 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/queue.h>
 #include <sys/fbio.h>
+
+#include <machine/bus.h>
+
 #include <dev/vt/hw/fb/vt_fb.h>
+
+#include "fb_if.h"
 
 LIST_HEAD(fb_list_head_t, fb_list_entry) fb_list_head =
     LIST_HEAD_INITIALIZER(fb_list_head);
@@ -51,6 +58,11 @@ struct fb_list_entry {
 	struct fb_info	*fb_info;
 	struct cdev	*fb_si;
 	LIST_ENTRY(fb_list_entry) fb_list;
+};
+
+struct fbd_softc {
+	device_t	sc_dev;
+	struct fb_info	*sc_info;
 };
 
 static void fbd_evh_init(void *);
@@ -341,3 +353,65 @@ fbd_evh_init(void *ctx)
 	EVENTHANDLER_REGISTER(unregister_framebuffer, unregister_fb_wrap, NULL,
 	    EVENTHANDLER_PRI_ANY);
 }
+
+/* Newbus methods. */
+static int
+fbd_probe(device_t dev)
+{
+
+	return (BUS_PROBE_NOWILDCARD);
+}
+
+static int
+fbd_attach(device_t dev)
+{
+	struct fbd_softc *sc;
+	int err;
+
+	sc = device_get_softc(dev);
+
+	sc->sc_dev = dev;
+	sc->sc_info = FB_GETINFO(device_get_parent(dev));
+	err = fbd_register(sc->sc_info);
+
+	return (err);
+}
+
+static int
+fbd_detach(device_t dev)
+{
+	struct fbd_softc *sc;
+	int err;
+
+	sc = device_get_softc(dev);
+
+	err = fbd_unregister(sc->sc_info);
+
+	return (err);
+}
+
+
+static device_method_t fbd_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		fbd_probe),
+	DEVMETHOD(device_attach,	fbd_attach),
+	DEVMETHOD(device_detach,	fbd_detach),
+
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+
+	{ 0, 0 }
+};
+
+driver_t fbd_driver = {
+	"fbd",
+	fbd_methods,
+	sizeof(struct fbd_softc)
+};
+
+devclass_t	fbd_devclass;
+
+DRIVER_MODULE(fbd, fb, fbd_driver, fbd_devclass, 0, 0);
+MODULE_VERSION(fbd, 1);
+
