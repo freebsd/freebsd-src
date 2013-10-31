@@ -4601,9 +4601,14 @@ run_rt3070_rf_setup(struct run_softc *sc)
 		run_rt3070_rf_write(sc, 16, rf);
 
 	} else if (sc->mac_ver == 0x3071) {
-		/* enable DC filter */
-		if (sc->mac_rev >= 0x0201)
+		if (sc->mac_rev >= 0x0211) {
+			/* enable DC filter */
 			run_bbp_write(sc, 103, 0xc0);
+
+			/* improve power consumption */
+			run_bbp_read(sc, 31, &bbp);
+			run_bbp_write(sc, 31, bbp & ~0x03);
+		}
 
 		run_bbp_read(sc, 138, &bbp);
 		if (sc->ntxchains == 1)
@@ -4611,12 +4616,6 @@ run_rt3070_rf_setup(struct run_softc *sc)
 		if (sc->nrxchains == 1)
 			bbp &= ~0x02;	/* turn off ADC1 */
 		run_bbp_write(sc, 138, bbp);
-
-		if (sc->mac_rev >= 0x0211) {
-			/* improve power consumption */
-			run_bbp_read(sc, 31, &bbp);
-			run_bbp_write(sc, 31, bbp & ~0x03);
-		}
 
 		run_write(sc, RT2860_TX_SW_CFG1, 0);
 		if (sc->mac_rev < 0x0211) {
