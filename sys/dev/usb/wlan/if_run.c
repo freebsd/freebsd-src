@@ -320,7 +320,7 @@ static usb_callback_t	run_bulk_tx_callback4;
 static usb_callback_t	run_bulk_tx_callback5;
 
 static void	run_bulk_tx_callbackN(struct usb_xfer *xfer,
-		    usb_error_t error, unsigned int index);
+		    usb_error_t error, u_int index);
 static struct ieee80211vap *run_vap_create(struct ieee80211com *,
 		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
 		    const uint8_t [IEEE80211_ADDR_LEN],
@@ -426,7 +426,7 @@ static int	run_txrx_enable(struct run_softc *);
 static void	run_init(void *);
 static void	run_init_locked(struct run_softc *);
 static void	run_stop(void *);
-static void	run_delay(struct run_softc *, unsigned int);
+static void	run_delay(struct run_softc *, u_int);
 
 static const struct {
 	uint16_t	reg;
@@ -2724,7 +2724,7 @@ run_tx_free(struct run_endpoint_queue *pq,
 }
 
 static void
-run_bulk_tx_callbackN(struct usb_xfer *xfer, usb_error_t error, unsigned int index)
+run_bulk_tx_callbackN(struct usb_xfer *xfer, usb_error_t error, u_int index)
 {
 	struct run_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
@@ -3576,7 +3576,7 @@ run_select_chan_group(struct run_softc *sc, int group)
 }
 
 static void
-run_rt2870_set_chan(struct run_softc *sc, uint32_t chan)
+run_rt2870_set_chan(struct run_softc *sc, u_int chan)
 {
 	const struct rfprog *rfprog = rt2860_rf2850;
 	uint32_t r2, r3, r4;
@@ -3631,7 +3631,7 @@ run_rt2870_set_chan(struct run_softc *sc, uint32_t chan)
 }
 
 static void
-run_rt3070_set_chan(struct run_softc *sc, uint32_t chan)
+run_rt3070_set_chan(struct run_softc *sc, u_int chan)
 {
 	int8_t txpow1, txpow2;
 	uint8_t rf;
@@ -3868,7 +3868,7 @@ static int
 run_set_chan(struct run_softc *sc, struct ieee80211_channel *c)
 {
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
-	uint32_t chan, group;
+	u_int chan, group;
 
 	chan = ieee80211_chan2ieee(ic, c);
 	if (chan == 0 || chan == IEEE80211_CHAN_ANY)
@@ -4310,7 +4310,7 @@ run_rssi2dbm(struct run_softc *sc, uint8_t rssi, uint8_t rxchain)
 	int delta;
 
 	if (IEEE80211_IS_CHAN_5GHZ(c)) {
-		uint32_t chan = ieee80211_chan2ieee(ic, c);
+		u_int chan = ieee80211_chan2ieee(ic, c);
 		delta = sc->rssi_5ghz[rxchain];
 
 		/* determine channel group */
@@ -4974,7 +4974,7 @@ run_stop(void *arg)
 }
 
 static void
-run_delay(struct run_softc *sc, unsigned int ms)
+run_delay(struct run_softc *sc, u_int ms)
 {
 	usb_pause_mtx(mtx_owned(&sc->sc_mtx) ? 
 	    &sc->sc_mtx : NULL, USB_MS_TO_TICKS(ms));
