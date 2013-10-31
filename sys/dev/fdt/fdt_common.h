@@ -70,6 +70,13 @@ struct fdt_fixup_entry {
 };
 extern struct fdt_fixup_entry fdt_fixup_table[];
 
+extern SLIST_HEAD(fdt_ic_list, fdt_ic) fdt_ic_list_head;
+struct fdt_ic {
+	SLIST_ENTRY(fdt_ic)	fdt_ics;
+	ihandle_t		iph;
+	device_t		dev;
+};
+
 extern vm_paddr_t fdt_immr_pa;
 extern vm_offset_t fdt_immr_va;
 extern vm_offset_t fdt_immr_size;
