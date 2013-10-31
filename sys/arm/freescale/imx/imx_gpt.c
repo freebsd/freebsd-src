@@ -277,14 +277,9 @@ imx_gpt_timer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		WRITE4(sc, IMX_GPT_OCR2, READ4(sc, IMX_GPT_CNT) + sc->sc_period);
 		/* Enable compare register 2 Interrupt */
 		SET4(sc, IMX_GPT_IR, GPT_IR_OF2);
+		return (0);
 	} else if (first != 0) {
 		ticks = ((uint32_t)et->et_frequency * first) >> 32;
-
-		/*
-		 * TODO: setupt second compare reg with time which will save
-		 * us in case correct one lost, f.e. if period to short and
-		 * setup done later than counter reach target value.
-		 */
 		/* Do not disturb, otherwise event will be lost */
 		spinlock_enter();
 		/* Set expected value */
@@ -293,7 +288,6 @@ imx_gpt_timer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		SET4(sc, IMX_GPT_IR, GPT_IR_OF1);
 		/* Now everybody can relax */
 		spinlock_exit();
-
 		return (0);
 	}
 
@@ -341,26 +335,31 @@ imx_gpt_intr(void *arg)
 
 	sc = (struct imx_gpt_softc *)arg;
 
-	/* Sometime we not get staus bit when interrupt arrive.  Cache? */
-	while (!(status = READ4(sc, IMX_GPT_SR)))
-		;
+	status = READ4(sc, IMX_GPT_SR);
 
+	/*
+	* Clear interrupt status before invoking event callbacks.  The callback
+	* often sets up a new one-shot timer event and if the interval is short
+	* enough it can fire before we get out of this function.  If we cleared
+	* at the bottom we'd miss the interrupt and hang until the clock wraps.
+	*/
+	WRITE4(sc, IMX_GPT_SR, status);
+
+	/* Handle one-shot timer events. */
 	if (status & GPT_IR_OF1) {
 		if (sc->et.et_active) {
 			sc->et.et_event_cb(&sc->et, sc->et.et_arg);
 		}
 	}
+
+	/* Handle periodic timer events. */
 	if (status & GPT_IR_OF2) {
-		if (sc->et.et_active) {
+		if (sc->et.et_active)
 			sc->et.et_event_cb(&sc->et, sc->et.et_arg);
-			/* Set expected value */
+		if (sc->sc_period != 0)
 			WRITE4(sc, IMX_GPT_OCR2, READ4(sc, IMX_GPT_CNT) +
 			    sc->sc_period);
-		}
 	}
-
-	/* ACK */
-	WRITE4(sc, IMX_GPT_SR, status);
 
 	return (FILTER_HANDLED);
 }
