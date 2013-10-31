@@ -781,6 +781,7 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 			free(map);
 			goto close;
 		}
+		mtx_lock(&res->hr_amp_lock);
 		/*
 		 * Merge local and remote bitmaps.
 		 */
@@ -790,7 +791,6 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		 * Now that we merged bitmaps from both nodes, flush it to the
 		 * disk before we start to synchronize.
 		 */
-		mtx_lock(&res->hr_amp_lock);
 		(void)hast_activemap_flush(res);
 	}
 	nv_free(nvin);
