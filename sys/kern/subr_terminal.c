@@ -201,11 +201,7 @@ terminal_set_winsize_blank(struct terminal *tm, const struct winsize *size,
 
 	TERMINAL_LOCK(tm);
 	if (blank == 0)
-		/*
-		 * Assigned directly, to avoid terminal reset in the
-		 * teken_set_winsize.
-		 */
-		tm->tm_emulator.t_winsize = r.tr_end;
+		teken_set_winsize_noreset(&tm->tm_emulator, &r.tr_end);
 	else
 		teken_set_winsize(&tm->tm_emulator, &r.tr_end);
 	TERMINAL_UNLOCK(tm);
