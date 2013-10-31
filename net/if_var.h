@@ -118,7 +118,7 @@ struct ifnet {
 	char	if_xname[IFNAMSIZ];	/* external name (name + unit) */
 	char	*if_description;	/* interface description */
 
-	/* Variable fields that are touched by the drivers. */
+	/* Variable fields that are touched by the stack and drivers. */
 	int	if_flags;		/* up/down, broadcast, etc. */
 	int	if_capabilities;	/* interface features & capabilities */
 	int	if_capenable;		/* enabled features & capabilities */
@@ -127,11 +127,11 @@ struct ifnet {
 	int	if_drv_flags;		/* driver-managed status flags */
 	u_int	if_refcount;		/* reference count */
 	struct  ifaltq if_snd;		/* output queue (includes altq) */
-	struct	if_data if_data;
+	struct	if_data if_data;	/* type information and statistics */
 	struct	task if_linktask;	/* task for link change events */
 
 	/* Addresses of different protocol families assigned to this if. */
-	struct	ifaddrhead if_addrhead;	/* linked list of addresses per if */
+	struct	rwlock if_addr_lock;	/* lock to protect address lists */
 		/*
 		 * if_addrhead is the list of all addresses associated to
 		 * an interface.
@@ -142,26 +142,26 @@ struct ifnet {
 		 * However, access to the AF_LINK address through this
 		 * field is deprecated. Use if_addr or ifaddr_byindex() instead.
 		 */
+	struct	ifaddrhead if_addrhead;	/* linked list of addresses per if */
 	struct	ifmultihead if_multiaddrs; /* multicast addresses configured */
 	int	if_amcount;		/* number of all-multicast requests */
 	struct	ifaddr	*if_addr;	/* pointer to link-level address */
 	const u_int8_t *if_broadcastaddr; /* linklevel broadcast bytestring */
-	struct	rwlock if_addr_lock;	/* lock to protect address lists */
+	struct	rwlock if_afdata_lock;
 	void	*if_afdata[AF_MAX];
 	int	if_afdata_initialized;
-	struct	rwlock if_afdata_lock;
 
-	/* Additional interface features. */
+	/* Additional features hung off the interface. */
+	u_int	if_fib;			/* interface FIB */
+	struct	vnet *if_vnet;		/* pointer to network stack instance */
+	struct	vnet *if_home_vnet;	/* where this ifnet originates from */
+	struct  ifvlantrunk *if_vlantrunk; /* pointer to 802.1q data */
 	struct	bpf_if *if_bpf;		/* packet filter structure */
 	int	if_pcount;		/* number of promiscuous listeners */
 	void	*if_bridge;		/* bridge glue */
 	void	*if_lagg;		/* lagg glue */
 	void	*if_pf_kif;		/* pf glue */
 	struct	carp_if *if_carp;	/* carp interface structure */
-	struct  ifvlantrunk *if_vlantrunk; /* pointer to 802.1q data */
-	struct	vnet *if_vnet;		/* pointer to network stack instance */
-	struct	vnet *if_home_vnet;	/* where this ifnet originates from */
-	u_int	if_fib;			/* interface FIB */
 	struct	label *if_label;	/* interface MAC label */
 
 	/* Various procedures of the layer2 encapsulation and drivers. */

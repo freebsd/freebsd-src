@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
 
 extern uint64_t bdata[];
 
+extern int smp_disabled;
+
 MALLOC_DEFINE(M_SMP, "SMP", "SMP related allocations");
 
 void ia64_ap_startup(void);
@@ -238,6 +240,8 @@ ia64_ap_startup(void)
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	PCPU_SET(curthread, PCPU_GET(idlethread));
 
+	pmap_invalidate_all();
+
 	atomic_add_int(&ia64_ap_state.as_awake, 1);
 	while (!smp_started)
 		cpu_spinwait();
@@ -293,6 +297,9 @@ cpu_mp_add(u_int acpi_id, u_int id, u_int eid)
 	struct pcpu *pc;
 	void *dpcpu;
 	u_int cpuid, sapic_id;
+
+	if (smp_disabled)
+		return;
 
 	sapic_id = SAPIC_ID_SET(id, eid);
 	cpuid = (IA64_LID_GET_SAPIC_ID(ia64_get_lid()) == sapic_id)
