@@ -918,8 +918,8 @@ vm_handle_paging(struct vm *vm, int vcpuid, boolean_t *retu)
 	map = &vm->vmspace->vm_map;
 	rv = vm_fault(map, vme->u.paging.gpa, ftype, VM_FAULT_NORMAL);
 
-	VMM_CTR3(vm, vcpuid, "vm_handle_paging rv = %d, gpa = %#lx, ftype = %d",
-		 rv, vme->u.paging.gpa, ftype);
+	VCPU_CTR3(vm, vcpuid, "vm_handle_paging rv = %d, gpa = %#lx, "
+	    "ftype = %d", rv, vme->u.paging.gpa, ftype);
 
 	if (rv != KERN_SUCCESS)
 		return (EFAULT);
