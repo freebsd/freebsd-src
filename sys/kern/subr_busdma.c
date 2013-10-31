@@ -938,7 +938,7 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 		seg->mds_busaddr = ~0UL;
 		seg->mds_paddr = ~0UL;
 		seg->mds_size = MIN(maxsz, mtag.dmt_maxsz);
-		seg->mds_vaddr = kmem_alloc_contig(kernel_map, seg->mds_size,
+		seg->mds_vaddr = kmem_alloc_contig(kernel_arena, seg->mds_size,
 		    mflags, mtag.dmt_minaddr, mtag.dmt_maxaddr, mtag.dmt_align,
 		    mtag.dmt_bndry, VM_MEMATTR_DEFAULT);
 		if (seg->mds_vaddr == 0) {
@@ -960,7 +960,7 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
  fail:
 	while ((seg = TAILQ_FIRST(&md->md_seg)) != NULL) {
 		if (seg->mds_paddr != ~0UL)
-			kmem_free(kernel_map, seg->mds_vaddr, seg->mds_size);
+			kmem_free(kernel_arena, seg->mds_vaddr, seg->mds_size);
 		TAILQ_REMOVE(&md->md_seg, seg, mds_chain);
 		uma_zfree(busdma_md_seg_zone, seg);
 	}
@@ -986,7 +986,7 @@ busdma_mem_free(struct busdma_md *md)
 		return (error);
 
 	while ((seg = TAILQ_FIRST(&md->md_seg)) != NULL) {
-		kmem_free(kernel_map, seg->mds_vaddr, seg->mds_size);
+		kmem_free(kernel_arena, seg->mds_vaddr, seg->mds_size);
 		TAILQ_REMOVE(&md->md_seg, seg, mds_chain);
 		uma_zfree(busdma_md_seg_zone, seg);
 	}
