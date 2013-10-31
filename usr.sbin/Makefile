@@ -251,10 +251,6 @@ SUBDIR+=	ftp-proxy
 SUBDIR+=	pkg
 .endif
 
-.if ${MK_PKGTOOLS} != "no"
-SUBDIR+=	pkg_install
-.endif
-
 # XXX MK_TOOLCHAIN?
 .if ${MK_PMC} != "no"
 SUBDIR+=	pmcannotate

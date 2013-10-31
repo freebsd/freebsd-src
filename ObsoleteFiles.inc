@@ -38,6 +38,23 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20131031: pkg_install has been removed
+OLD_FILES+=etc/periodic/daily/220.backup-pkgdb
+OLD_FILES+=etc/periodic/daily/490.status-pkg-changes
+OLD_FILES+=etc/periodic/security/460.chkportsum
+OLD_FILES+=etc/periodic/weekly/400.status-pkg
+OLD_FILES+=usr/sbin/pkg_add
+OLD_FILES+=usr/sbin/pkg_create
+OLD_FILES+=usr/sbin/pkg_delete
+OLD_FILES+=usr/sbin/pkg_info
+OLD_FILES+=usr/sbin/pkg_updating
+OLD_FILES+=usr/sbin/pkg_version
+OLD_FILES+=usr/share/man/man1/pkg_add.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_create.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_delete.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_info.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_updating.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_version.1.gz
 # 20131030: /etc/keys moved to /usr/share/keys
 OLD_DIRS+=etc/keys
 OLD_DIRS+=etc/keys/pkg
