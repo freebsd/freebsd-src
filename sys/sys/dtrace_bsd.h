@@ -70,8 +70,6 @@ extern	dtrace_invop_func_t	dtrace_invop_func;
 extern	dtrace_doubletrap_func_t	dtrace_doubletrap_func;
 
 /* Pid provider hooks */
-typedef int (*dtrace_fasttrap_probe_ptr_t)(struct reg *);
-extern	dtrace_fasttrap_probe_ptr_t	dtrace_fasttrap_probe_ptr;
 typedef int (*dtrace_pid_probe_ptr_t)(struct reg *);
 extern	dtrace_pid_probe_ptr_t	dtrace_pid_probe_ptr;
 typedef int (*dtrace_return_probe_ptr_t)(struct reg *);
