@@ -2676,6 +2676,7 @@ tr_setup:
 			m->m_data += 4;
 			m->m_pkthdr.len = m->m_len -= 4;
 			run_rx_frame(sc, m, dmalen);
+			m = NULL;	/* don't free source buffer */
 			break;
 		}
 
@@ -2696,6 +2697,9 @@ tr_setup:
 		m->m_data += dmalen + 8;
 		m->m_pkthdr.len = m->m_len -= dmalen + 8;
 	}
+
+	/* make sure we free the source buffer, if any */
+	m_freem(m);
 
 	RUN_LOCK(sc);
 }
