@@ -132,7 +132,6 @@ usage(int code)
 		"       -c: # cpus (default 1)\n"
 		"       -p: pin vcpu 'n' to host cpu 'pincpu + n'\n"
 		"       -H: vmexit from the guest on hlt\n"
-		"       -I: present an ioapic to the guest\n"
 		"       -P: vmexit from the guest on pause\n"
 		"       -W: force virtio to use single-vector MSI\n"
 		"       -e: exit on unhandled I/O access\n"
@@ -543,7 +542,7 @@ fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
 int
 main(int argc, char *argv[])
 {
-	int c, error, gdb_port, err, ioapic, bvmcons;
+	int c, error, gdb_port, err, bvmcons;
 	int max_vcpus;
 	struct vmctx *ctx;
 	uint64_t rip;
@@ -553,7 +552,6 @@ main(int argc, char *argv[])
 	progname = basename(argv[0]);
 	gdb_port = 0;
 	guest_ncpus = 1;
-	ioapic = 0;
 	memsize = 256 * MB;
 
 	while ((c = getopt(argc, argv, "abehAHIPWp:g:c:s:S:m:l:")) != -1) {
@@ -601,7 +599,13 @@ main(int argc, char *argv[])
 			guest_vmexit_on_hlt = 1;
 			break;
 		case 'I':
-			ioapic = 1;
+			/*
+			 * The "-I" option was used to add an ioapic to the
+			 * virtual machine.
+			 *
+			 * An ioapic is now provided unconditionally for each
+			 * virtual machine and this option is now deprecated.
+			 */
 			break;
 		case 'P':
 			guest_vmexit_on_pause = 1;
@@ -659,8 +663,7 @@ main(int argc, char *argv[])
 	if (init_pci(ctx) != 0)
 		exit(1);
 
-	if (ioapic)
-		ioapic_init(0);
+	ioapic_init(0);
 
 	if (gdb_port != 0)
 		init_dbgport(gdb_port);
@@ -674,10 +677,10 @@ main(int argc, char *argv[])
 	/*
 	 * build the guest tables, MP etc.
 	 */
-	mptable_build(ctx, guest_ncpus, ioapic);
+	mptable_build(ctx, guest_ncpus);
 
 	if (acpi) {
-		error = acpi_build(ctx, guest_ncpus, ioapic);
+		error = acpi_build(ctx, guest_ncpus);
 		assert(error == 0);
 	}
 
