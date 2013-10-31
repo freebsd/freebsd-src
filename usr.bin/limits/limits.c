@@ -287,7 +287,8 @@ main(int argc, char *argv[])
 
     pid = -1;
     optarg = NULL;
-    while ((ch = getopt(argc, argv, ":EeC:U:BSHP:ab:c:d:f:l:m:n:s:t:u:v:p:w:k:")) != -1) {
+    while ((ch = getopt(argc, argv,
+      ":EeC:U:BSHP:ab:c:d:f:l:m:n:s:t:u:v:p:w:k:")) != -1) {
 	switch(ch) {
 	case 'a':
 	    doall = 1;
