@@ -72,11 +72,14 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/freescale/imx/imx51_ipuv3reg.h>
 
+#include "fb_if.h"
+
 #define	IMX51_IPU_HSP_CLOCK	665000000
 #define	IPU3FB_FONT_HEIGHT	16
 
 struct ipu3sc_softc {
 	device_t		dev;
+	device_t		sc_fbd;		/* fbd child */
 	struct fb_info		sc_info;
 
 	bus_space_tag_t		iot;
@@ -309,9 +312,20 @@ ipu3_fb_attach(device_t dev)
 	ipu3_fb_init_cmap(sc->sc_info.fb_cmap, sc->sc_info.fb_depth);
 	sc->sc_info.fb_cmsize = 16;
 
+	/* XXX: Should be moved into man page. */
+#ifdef USE_EVENTHANDLER_TO_ATTACH_FB
 	EVENTHANDLER_INVOKE(register_framebuffer, &sc->sc_info);
+#endif
 
-	return (0);
+#ifdef USE_DIRECT_CALL_TO_ATTACH_FB
+	fbd_register(&sc->sc_info)
+#endif
+	/* Ask newbus to attach framebuffer device to me. */
+	sc->sc_fbd = device_add_child(dev, "fbd", device_get_unit(dev));
+	if (sc->sc_fbd == NULL)
+		device_printf(dev, "Can't attach fbd device\n");
+
+	return (bus_generic_attach(dev));
 
 fail_retarn_dctmpl:
 	bus_space_unmap(sc->iot, sc->cpmem_ioh, IPU_CPMEM_SIZE);
@@ -335,11 +349,21 @@ fail_retarn_cm:
 	return (err);
 }
 
+static struct fb_info *
+ipu3_fb_getinfo(device_t dev)
+{
+	struct ipu3sc_softc *sc = device_get_softc(dev);
+
+	return (&sc->sc_info);
+}
+
 static device_method_t ipu3_fb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ipu3_fb_probe),
 	DEVMETHOD(device_attach,	ipu3_fb_attach),
 
+	/* Framebuffer service methods */
+	DEVMETHOD(fb_getinfo,		ipu3_fb_getinfo),
 	{ 0, 0 }
 };
 
@@ -351,4 +375,4 @@ static driver_t ipu3_fb_driver = {
 	sizeof(struct ipu3sc_softc),
 };
 
-DRIVER_MODULE(ipu3fb, simplebus, ipu3_fb_driver, ipu3_fb_devclass, 0, 0);
+DRIVER_MODULE(fb, simplebus, ipu3_fb_driver, ipu3_fb_devclass, 0, 0);
