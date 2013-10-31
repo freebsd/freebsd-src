@@ -248,7 +248,7 @@ static struct {
  * to be modified accordingly!
  */
 
-#define RCS_STRING  "tfdscmlunbvpw"
+#define RCS_STRING  "tfdscmlunbvpwk"
 
 static rlim_t resource_num(int which, int ch, const char *str);
 static void usage(void);
@@ -287,7 +287,7 @@ main(int argc, char *argv[])
 
     pid = -1;
     optarg = NULL;
-    while ((ch = getopt(argc, argv, ":EeC:U:BSHP:ab:c:d:f:l:m:n:s:t:u:v:p:w:")) != -1) {
+    while ((ch = getopt(argc, argv, ":EeC:U:BSHP:ab:c:d:f:l:m:n:s:t:u:v:p:w:k:")) != -1) {
 	switch(ch) {
 	case 'a':
 	    doall = 1;
@@ -544,7 +544,7 @@ usage(void)
 {
     (void)fprintf(stderr,
 	"usage: limits [-C class|-P pid|-U user] [-eaSHBE] "
-	"[-bcdflmnstuvpw [val]] [[name=val ...] cmd]\n");
+	"[-bcdflmnstuvpwk [val]] [[name=val ...] cmd]\n");
     exit(EXIT_FAILURE);
 }
 
