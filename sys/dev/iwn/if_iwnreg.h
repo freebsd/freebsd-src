@@ -17,6 +17,8 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#ifndef	__IF_IWNREG_H__
+#define	__IF_IWNREG_H__
 
 #define	IWN_CT_KILL_THRESHOLD		114	/* in Celsius */
 #define	IWN_CT_KILL_EXIT_THRESHOLD	95	/* in Celsius */
@@ -1232,6 +1234,7 @@ struct iwn_ucode_info {
 #define IWN_TX_FAIL_FIFO_UNDERRRUN	0x84	/* tx fifo not kept running */
 #define IWN_TX_FAIL_DEST_IN_PS		0x88	/* sta found in power save */
 #define IWN_TX_FAIL_TX_LOCKED		0x90	/* waiting to see traffic */
+#define IWN_TX_FAIL_STA_INVALID		0x8b	/* XXX STA invalid (???) */
 
 struct iwn4965_tx_stat {
 	uint8_t		nframes;
@@ -2052,3 +2055,5 @@ static const char * const iwn_fw_errmsg[] = {
 #define IWN_BARRIER_READ_WRITE(sc)					\
 	bus_space_barrier((sc)->sc_st, (sc)->sc_sh, 0, (sc)->sc_sz,	\
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE)
+
+#endif	/* __IF_IWNREG_H__ */

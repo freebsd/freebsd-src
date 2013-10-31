@@ -66,7 +66,6 @@ typedef enum {
 
 typedef enum {
 	PT_CCB_BUFFER_IO	= 0x01,
-	PT_CCB_WAITING		= 0x02,
 	PT_CCB_RETRY_UA		= 0x04,
 	PT_CCB_BUFFER_IO_UA	= PT_CCB_BUFFER_IO|PT_CCB_RETRY_UA
 } pt_ccb_state;
@@ -378,7 +377,7 @@ ptasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 		 */
 		status = cam_periph_alloc(ptctor, ptoninvalidate, ptdtor,
 					  ptstart, "pt", CAM_PERIPH_BIO,
-					  cgd->ccb_h.path, ptasync,
+					  path, ptasync,
 					  AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP
@@ -423,15 +422,7 @@ ptstart(struct cam_periph *periph, union ccb *start_ccb)
 	 * See if there is a buf with work for us to do..
 	 */
 	bp = bioq_first(&softc->bio_queue);
-	if (periph->immediate_priority <= periph->pinfo.priority) {
-		CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-				("queuing for immediate ccb\n"));
-		start_ccb->ccb_h.ccb_state = PT_CCB_WAITING;
-		SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-				  periph_links.sle);
-		periph->immediate_priority = CAM_PRIORITY_NONE;
-		wakeup(&periph->ccb_list);
-	} else if (bp == NULL) {
+	if (bp == NULL) {
 		xpt_release_ccb(start_ccb);
 	} else {
 		bioq_remove(&softc->bio_queue, bp);
@@ -554,10 +545,6 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 		biofinish(bp, softc->device_stats, 0);
 		break;
 	}
-	case PT_CCB_WAITING:
-		/* Caller will release the CCB */
-		wakeup(&done_ccb->ccb_h.cbfcnp);
-		return;
 	}
 	xpt_release_ccb(done_ccb);
 }

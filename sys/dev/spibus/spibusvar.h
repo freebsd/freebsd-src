@@ -26,3 +26,6 @@ spibus_get_ ## A(device_t dev, T *t)					\
 }
 	
 SPIBUS_ACCESSOR(cs,		CS,		uint32_t)
+
+extern driver_t spibus_driver;
+extern devclass_t spibus_devclass;

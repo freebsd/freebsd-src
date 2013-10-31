@@ -192,7 +192,6 @@ struct ses_mgmt_mode_page {
 /* Enclosure core interface for sub-drivers */
 int  enc_runcmd(struct enc_softc *, char *, int, char *, int *);
 void enc_log(struct enc_softc *, const char *, ...);
-void enc_done(struct cam_periph *, union ccb *);
 int  enc_error(union ccb *, uint32_t, uint32_t);
 void enc_update_request(enc_softc_t *, uint32_t);
 

@@ -48,10 +48,10 @@ __FBSDID("$FreeBSD$");
 #include "vlapic.h"
 
 #define	VLAPIC_CTR0(vlapic, format)					\
-	VMM_CTR0((vlapic)->vm, (vlapic)->vcpuid, format)
+	VCPU_CTR0((vlapic)->vm, (vlapic)->vcpuid, format)
 
 #define	VLAPIC_CTR1(vlapic, format, p1)					\
-	VMM_CTR1((vlapic)->vm, (vlapic)->vcpuid, format, p1)
+	VCPU_CTR1((vlapic)->vm, (vlapic)->vcpuid, format, p1)
 
 #define	VLAPIC_CTR_IRR(vlapic, msg)					\
 do {									\

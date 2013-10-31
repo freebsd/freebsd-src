@@ -70,8 +70,8 @@ ENTRY(casuword)
 #ifdef _ARM_ARCH_6
 1:    
 	cmp     r0, #KERNBASE
-	mvnge   r0, #0
-	bge     2f
+	mvnhs   r0, #0
+	bhs     2f
 	
 	ldrex   r5, [r0]
 	cmp     r5, r1

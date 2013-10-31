@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -51,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 
 #include <net/if_types.h>
-#include <net/if.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -165,7 +165,6 @@ static int  xn_configure_features(struct netfront_info *np);
 static void xn_watchdog(struct ifnet *);
 #endif
 
-static void show_device(struct netfront_info *sc);
 #ifdef notyet
 static void netfront_closing(device_t dev);
 #endif
@@ -644,8 +643,6 @@ setup_device(device_t dev, struct netfront_info *info)
 		goto fail;
 	}
 
-	show_device(info);
-	
 	return (0);
 	
  fail:
@@ -1967,25 +1964,6 @@ network_connect(struct netfront_info *np)
 	network_alloc_rx_buffers(np);
 
 	return (0);
-}
-
-static void 
-show_device(struct netfront_info *sc)
-{
-#ifdef DEBUG
-	if (sc) {
-		IPRINTK("<vif handle=%u %s(%s) evtchn=%u irq=%u tx=%p rx=%p>\n",
-			sc->xn_ifno,
-			be_state_name[sc->xn_backend_state],
-			sc->xn_user_state ? "open" : "closed",
-			sc->xn_evtchn,
-			sc->xn_irq,
-			sc->xn_tx_if,
-			sc->xn_rx_if);
-	} else {
-		IPRINTK("<vif NULL>\n");
-	}
-#endif
 }
 
 static void

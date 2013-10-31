@@ -888,7 +888,6 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	struct device_match_result  *device_match;
 	struct device_match_pattern *device_pattern;
 	ses_path_iter_args_t	    *args;
-	struct cam_sim		    *sim;
 
 	args = (ses_path_iter_args_t *)arg;
 	match_pattern.type = DEV_MATCH_DEVICE;
@@ -901,10 +900,10 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	       device_pattern->data.devid_pat.id_len);
 
 	memset(&cdm, 0, sizeof(cdm));
-	if (xpt_create_path_unlocked(&cdm.ccb_h.path, /*periph*/NULL,
-				     CAM_XPT_PATH_ID,
-				     CAM_TARGET_WILDCARD,
-				     CAM_LUN_WILDCARD) != CAM_REQ_CMP)
+	if (xpt_create_path(&cdm.ccb_h.path, /*periph*/NULL,
+			     CAM_XPT_PATH_ID,
+			     CAM_TARGET_WILDCARD,
+			     CAM_LUN_WILDCARD) != CAM_REQ_CMP)
 		return;
 
 	cdm.ccb_h.func_code = XPT_DEV_MATCH;
@@ -914,11 +913,8 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	cdm.match_buf_len   = sizeof(match_result);
 	cdm.matches         = &match_result;
 
-	sim = xpt_path_sim(cdm.ccb_h.path);
-	CAM_SIM_LOCK(sim);
 	xpt_action((union ccb *)&cdm);
 	xpt_free_path(cdm.ccb_h.path);
-	CAM_SIM_UNLOCK(sim);
 
 	if ((cdm.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP
 	 || (cdm.status != CAM_DEV_MATCH_LAST
@@ -927,18 +923,15 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 		return;
 
 	device_match = &match_result.result.device_result;
-	if (xpt_create_path_unlocked(&cdm.ccb_h.path, /*periph*/NULL,
-				     device_match->path_id,
-				     device_match->target_id,
-				     device_match->target_lun) != CAM_REQ_CMP)
+	if (xpt_create_path(&cdm.ccb_h.path, /*periph*/NULL,
+			     device_match->path_id,
+			     device_match->target_id,
+			     device_match->target_lun) != CAM_REQ_CMP)
 		return;
 
 	args->callback(enc, elem, cdm.ccb_h.path, args->callback_arg);
 
-	sim = xpt_path_sim(cdm.ccb_h.path);
-	CAM_SIM_LOCK(sim);
 	xpt_free_path(cdm.ccb_h.path);
-	CAM_SIM_UNLOCK(sim);
 }
 
 /**
@@ -1186,7 +1179,7 @@ ses_set_timed_completion(enc_softc_t *enc, uint8_t tc_en)
 	if (mode_buf == NULL)
 		goto out;
 
-	scsi_mode_sense(&ccb->csio, /*retries*/4, enc_done, MSG_SIMPLE_Q_TAG,
+	scsi_mode_sense(&ccb->csio, /*retries*/4, NULL, MSG_SIMPLE_Q_TAG,
 	    /*dbd*/FALSE, SMS_PAGE_CTRL_CURRENT, SES_MGMT_MODE_PAGE_CODE,
 	    mode_buf, mode_buf_len, SSD_FULL_SIZE, /*timeout*/60 * 1000);
 
@@ -1214,7 +1207,7 @@ ses_set_timed_completion(enc_softc_t *enc, uint8_t tc_en)
 	/* SES2r20: a completion time of zero means as long as possible */
 	bzero(&mgmt->max_comp_time, sizeof(mgmt->max_comp_time));
 
-	scsi_mode_select(&ccb->csio, 5, enc_done, MSG_SIMPLE_Q_TAG,
+	scsi_mode_select(&ccb->csio, 5, NULL, MSG_SIMPLE_Q_TAG,
 	    /*page_fmt*/FALSE, /*save_pages*/TRUE, mode_buf, mode_buf_len,
 	    SSD_FULL_SIZE, /*timeout*/60 * 1000);
 
@@ -2030,12 +2023,12 @@ ses_fill_rcv_diag_io(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	if (enc->enc_type == ENC_SEMB_SES) {
 		semb_receive_diagnostic_results(&ccb->ataio, /*retries*/5,
-					enc_done, MSG_SIMPLE_Q_TAG, /*pcv*/1,
+					NULL, MSG_SIMPLE_Q_TAG, /*pcv*/1,
 					state->page_code, buf, state->buf_size,
 					state->timeout);
 	} else {
 		scsi_receive_diagnostic_results(&ccb->csio, /*retries*/5,
-					enc_done, MSG_SIMPLE_Q_TAG, /*pcv*/1,
+					NULL, MSG_SIMPLE_Q_TAG, /*pcv*/1,
 					state->page_code, buf, state->buf_size,
 					SSD_FULL_SIZE, state->timeout);
 	}
@@ -2153,12 +2146,12 @@ ses_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	/* Fill out the ccb */
 	if (enc->enc_type == ENC_SEMB_SES) {
-		semb_send_diagnostic(&ccb->ataio, /*retries*/5, enc_done,
+		semb_send_diagnostic(&ccb->ataio, /*retries*/5, NULL,
 			     MSG_SIMPLE_Q_TAG,
 			     buf, ses_page_length(&ses_cache->status_page->hdr),
 			     state->timeout);
 	} else {
-		scsi_send_diagnostic(&ccb->csio, /*retries*/5, enc_done,
+		scsi_send_diagnostic(&ccb->csio, /*retries*/5, NULL,
 			     MSG_SIMPLE_Q_TAG, /*unit_offline*/0,
 			     /*device_offline*/0, /*self_test*/0,
 			     /*page_format*/1, /*self_test_code*/0,

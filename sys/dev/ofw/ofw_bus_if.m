@@ -56,6 +56,8 @@ CODE {
 	static ofw_bus_get_name_t ofw_bus_default_get_name;
 	static ofw_bus_get_node_t ofw_bus_default_get_node;
 	static ofw_bus_get_type_t ofw_bus_default_get_type;
+	static ofw_bus_map_intr_t ofw_bus_default_map_intr;
+	static ofw_bus_config_intr_t ofw_bus_default_config_intr;
 
 	static const struct ofw_bus_devinfo *
 	ofw_bus_default_get_devinfo(device_t bus, device_t dev)
@@ -97,6 +99,31 @@ CODE {
 	{
 
 		return (NULL);
+	}
+
+	int
+	ofw_bus_default_map_intr(device_t bus, device_t dev, phandle_t iparent,
+	    int irq)
+	{
+		/* Propagate up the bus hierarchy until someone handles it. */	
+		if (device_get_parent(bus) != NULL)
+			return OFW_BUS_MAP_INTR(device_get_parent(bus), dev,
+			    iparent, irq);
+
+		/* If that fails, then assume a one-domain system */
+		return (irq);
+	}
+
+	int
+	ofw_bus_default_config_intr(device_t bus, device_t dev, int irq,
+	    int sense)
+	{
+		/* Propagate up the bus hierarchy until someone handles it. */	
+		if (device_get_parent(bus) != NULL)
+			return OFW_BUS_CONFIG_INTR(device_get_parent(bus), dev,
+			    irq, sense);
+
+		return (ENXIO);
 	}
 };
 
@@ -143,3 +170,22 @@ METHOD const char * get_type {
 	device_t bus;
 	device_t dev;
 } DEFAULT ofw_bus_default_get_type;
+
+# Map an (interrupt parent, IRQ) pair to a unique system-wide interrupt number.
+METHOD int map_intr {
+	device_t bus;
+	device_t dev;
+	phandle_t iparent;
+	int irq;
+} DEFAULT ofw_bus_default_map_intr;
+
+# Configure an interrupt using the device-tree encoded sense key (the second
+# value in the interrupts property if interrupt-cells is 2). IRQ should be
+# encoded as from ofw_bus_map_intr().
+METHOD int config_intr {
+	device_t bus;
+	device_t dev;
+	int irq;
+	int sense;
+} DEFAULT ofw_bus_default_config_intr;
+

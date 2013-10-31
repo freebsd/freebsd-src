@@ -313,7 +313,7 @@ vmbus_probe(device_t dev) {
 
 	device_set_desc(dev, "Vmbus Devices");
 
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 /**

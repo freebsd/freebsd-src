@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/freescale/imx/imx51_ccmvar.h>
 #include <arm/freescale/imx/imx51_ccmreg.h>
 #include <arm/freescale/imx/imx51_dpllreg.h>
+#include <arm/freescale/imx/imx_machdep.h>
 
 #define	IMXCCMDEBUG
 #undef	IMXCCMDEBUG
@@ -278,8 +279,8 @@ imx51_get_clock(enum imx51_clock clk)
 	case IMX51CLK_MAIN_BUS_CLK:
 		freq = imx51_get_clock(IMX51CLK_MAIN_BUS_CLK_SRC);
 		cdcr = bus_read_4(ccm_softc->res[0], CCMC_CDCR);
-		return freq / (cdcr & CDCR_PERIPH_CLK_DVFS_PODF_MASK) >>
-			CDCR_PERIPH_CLK_DVFS_PODF_SHIFT;
+		return freq / (1 + ((cdcr & CDCR_PERIPH_CLK_DVFS_PODF_MASK) >>
+			CDCR_PERIPH_CLK_DVFS_PODF_SHIFT));
 	case IMX51CLK_AHB_CLK_ROOT:
 		freq = imx51_get_clock(IMX51CLK_MAIN_BUS_CLK);
 		cbcdr = bus_read_4(ccm_softc->res[0], CCMC_CBCDR);
@@ -471,5 +472,80 @@ imx51_get_clk_gating(int clk_src)
 	reg = bus_read_4(ccm_softc->res[0],
 	    CCMC_CCGR(CCMR_CCGR_MODULE(clk_src)));
 	return ((reg >> (clk_src % CCMR_CCGR_NSOURCE) * 2) & 0x03);
+}
+
+/*
+ * Code from here down is temporary, in lieu of a SoC-independent clock API.
+ */
+
+void
+imx_ccm_usb_enable(device_t dev)
+{
+	uint32_t regval;
+
+	/*
+	 * Select PLL2 as the source for the USB clock.
+	 * The default is PLL3, but U-boot changes it to PLL2.
+	 */
+	regval = bus_read_4(ccm_softc->res[0], CCMC_CSCMR1);
+	regval &= ~CSCMR1_USBOH3_CLK_SEL_MASK;
+	regval |= 1 << CSCMR1_USBOH3_CLK_SEL_SHIFT;
+	bus_write_4(ccm_softc->res[0], CCMC_CSCMR1, regval);
+
+	/*
+	 * Set the USB clock pre-divider to div-by-5, post-divider to div-by-2.
+	 */
+	regval = bus_read_4(ccm_softc->res[0], CCMC_CSCDR1);
+	regval &= ~CSCDR1_USBOH3_CLK_PODF_MASK;
+	regval &= ~CSCDR1_USBOH3_CLK_PRED_MASK;
+	regval |= 4 << CSCDR1_USBOH3_CLK_PRED_SHIFT;
+	regval |= 1 << CSCDR1_USBOH3_CLK_PODF_SHIFT;
+	bus_write_4(ccm_softc->res[0], CCMC_CSCDR1, regval);
+
+	/*
+	 * The same two clocks gates are used on imx51 and imx53.
+	 */
+	imx51_clk_gating(CCGR_USBOH3_IPG_AHB_CLK, CCGR_CLK_MODE_ALWAYS);
+	imx51_clk_gating(CCGR_USBOH3_60M_CLK, CCGR_CLK_MODE_ALWAYS);
+}
+
+void
+imx_ccm_usbphy_enable(device_t dev)
+{
+	uint32_t regval;
+
+	/*
+	 * Select PLL3 as the source for the USBPHY clock.  U-boot does this 
+	 * only for imx53, but the bit exists on imx51.  That seems a bit
+	 * strange, but we'll go with it until more is known.
+	 */
+	if (imx_soc_type() == IMXSOC_53) {
+		regval = bus_read_4(ccm_softc->res[0], CCMC_CSCMR1);
+		regval |= 1 << CSCMR1_USBPHY_CLK_SEL_SHIFT;
+		bus_write_4(ccm_softc->res[0], CCMC_CSCMR1, regval);
+	}
+
+	/*
+	 * For the imx51 there's just one phy gate control, enable it.
+	 */
+	if (imx_soc_type() == IMXSOC_51) {
+		imx51_clk_gating(CCGR_USB_PHY_CLK, CCGR_CLK_MODE_ALWAYS);
+		return;
+	}
+
+	/*
+	 * For imx53 we don't have a full set of clock defines yet, but the
+	 * datasheet says:
+	 *   gate reg 4, bits 13-12 usb ph2 clock (usb_phy2_clk_enable)
+	 *   gate reg 4, bits 11-10 usb ph1 clock (usb_phy1_clk_enable)
+	 *
+	 * We should use the fdt data for the device to figure out which of
+	 * the two we're working on, but for now just turn them both on.
+	 */
+	if (imx_soc_type() == IMXSOC_53) {
+		imx51_clk_gating(__CCGR_NUM(4, 5), CCGR_CLK_MODE_ALWAYS);
+		imx51_clk_gating(__CCGR_NUM(4, 6), CCGR_CLK_MODE_ALWAYS);
+		return;
+	}
 }
 

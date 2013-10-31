@@ -1144,6 +1144,25 @@ xhci_do_command(struct xhci_softc *sc, struct xhci_trb *trb,
 	}
 	if (err != 0) {
 		DPRINTFN(0, "Command timeout!\n");
+
+		/*
+		 * Try to abort the last command as per section
+		 * 4.6.1.2 "Aborting a Command" of the XHCI
+		 * specification:
+		 */
+		temp = XREAD4(sc, oper, XHCI_CRCR_LO);
+		XWRITE4(sc, oper, XHCI_CRCR_LO, temp | XHCI_CRCR_LO_CA);
+
+		/* wait for abort event, if any */
+		err = cv_timedwait(&sc->sc_cmd_cv, &sc->sc_bus.bus_mtx, hz / 16);
+
+		if (err != 0 && xhci_interrupt_poll(sc) != 0) {
+			DPRINTF("Command was completed when polling\n");
+			err = 0;
+		}
+		if (err != 0) {
+			DPRINTF("Command abort timeout!\n");
+		}
 		err = USB_ERR_TIMEOUT;
 		trb->dwTrb2 = 0;
 		trb->dwTrb3 = 0;

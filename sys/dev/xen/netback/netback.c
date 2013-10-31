@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -2191,8 +2192,8 @@ static int
 xnb_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct xnb_softc *xnb = ifp->if_softc;
-#ifdef INET
 	struct ifreq *ifr = (struct ifreq*) data;
+#ifdef INET
 	struct ifaddr *ifa = (struct ifaddr*)data;
 #endif
 	int error = 0;

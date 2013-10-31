@@ -76,8 +76,7 @@ device		pass
 device		da
 
 # SATA
-device		ata
-#device		mvs
+device		mvs
 
 # Serial ports
 device		uart

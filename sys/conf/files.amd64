@@ -531,6 +531,14 @@ x86/cpufreq/powernow.c		optional	cpufreq
 x86/cpufreq/est.c		optional	cpufreq
 x86/cpufreq/hwpstate.c		optional	cpufreq
 x86/cpufreq/p4tcc.c		optional	cpufreq
+x86/iommu/busdma_dmar.c		optional	acpi acpi_dmar pci
+x86/iommu/intel_ctx.c		optional	acpi acpi_dmar pci
+x86/iommu/intel_drv.c		optional	acpi acpi_dmar pci
+x86/iommu/intel_fault.c		optional	acpi acpi_dmar pci
+x86/iommu/intel_gas.c		optional	acpi acpi_dmar pci
+x86/iommu/intel_idpgtbl.c	optional	acpi acpi_dmar pci
+x86/iommu/intel_quirks.c	optional	acpi acpi_dmar pci
+x86/iommu/intel_utils.c		optional	acpi acpi_dmar pci
 x86/isa/atpic.c			optional	atpic isa
 x86/isa/atrtc.c			standard
 x86/isa/clock.c			standard
@@ -541,6 +549,7 @@ x86/isa/nmi.c			standard
 x86/isa/orm.c			optional	isa
 x86/pci/pci_bus.c		optional	pci
 x86/pci/qpi.c			optional	pci
+x86/x86/busdma_bounce.c		standard
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
 x86/x86/fdt_machdep.c		optional	fdt

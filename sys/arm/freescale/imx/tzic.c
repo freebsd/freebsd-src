@@ -163,7 +163,7 @@ arm_get_next_irq(int last_irq)
 
 	for (i = 0; i < 4; i++) {
 		pending = tzic_read_4(TZIC_PND(i));
-		for (b = 0; b < 32; b++)
+		for (b = 0; pending != 0 && b < 32; b++)
 			if (pending & (1 << b)) {
 				return (i * 32 + b);
 			}

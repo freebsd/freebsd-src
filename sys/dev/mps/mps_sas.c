@@ -1063,8 +1063,8 @@ mpssas_announce_reset(struct mps_softc *sc, uint32_t ac_code,
 	path_id_t path_id = cam_sim_path(sc->sassc->sim);
 	struct cam_path *path;
 
-	mps_dprint(sc, MPS_XINFO, "%s code %x target %d lun %d\n", __func__,
-	    ac_code, target_id, lun_id);
+	mps_dprint(sc, MPS_XINFO, "%s code %x target %d lun %jx\n", __func__,
+	    ac_code, target_id, (uintmax_t)lun_id);
 
 	if (xpt_create_path(&path, NULL, 
 		path_id, target_id, lun_id) != CAM_REQ_CMP) {

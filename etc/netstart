@@ -59,6 +59,7 @@ _start=quietstart
 /etc/rc.d/route6d ${_start}
 /etc/rc.d/mrouted ${_start}
 /etc/rc.d/routed ${_start}
+/etc/rc.d/rtsold ${_start}
 /etc/rc.d/nisdomain ${_start}
 
 exit 0

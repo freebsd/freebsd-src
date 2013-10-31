@@ -124,6 +124,13 @@ g_event_procbody(void *arg)
 	/* NOTREACHED */
 }
 
+int
+g_is_geom_thread(struct thread *td)
+{
+
+	return (td == g_up_td || td == g_down_td || td == g_event_td);
+}
+
 static void
 geom_shutdown(void *foo __unused)
 {
