@@ -16,6 +16,13 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20131031:
+	The default version of mtree is nmtree which is obtained from
+	NetBSD.  The output is generally the same, but may vary
+	slightly.  If you found you need identical output adding
+	"-F freebsd9" to the command line should do the trick.  For the
+	time being, the old mtree is available as fmtree.
+
 20131014:
 	libbsdyml has been renamed to libyaml and moved to /usr/lib/private.
 	This will break ports-mgmt/pkg. Rebuild the port, or upgrade to pkg
