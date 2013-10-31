@@ -125,7 +125,7 @@ static struct {
 	  { "limit%s sbsize %s",          ";\n",  1    },
 	  { "limit%s vmemoryuse %s",      ";\n",  1024 },
 	  { "limit%s pseudoterminals %s", ";\n",  1    },
-	  { "limit%s swapuse %s",         ";\n",  1024 },
+	  { "limit%s swapsize %s",        ";\n",  1024 },
 	  { "limit%s kqueues %s",         ";\n",  1    },
       }
     },
@@ -160,7 +160,7 @@ static struct {
 	  { "limit%s sbsize %s",          ";\n",  1    },
 	  { "limit%s vmemoryuse %s",      ";\n",  1024 },
 	  { "limit%s pseudoterminals %s", ";\n",  1    },
-	  { "limit%s swapuse %s",         ";\n",  1024 },
+	  { "limit%s swapsize %s",        ";\n",  1024 },
 	  { "limit%s kqueues %s",         ";\n",  1    },
       }
     },
