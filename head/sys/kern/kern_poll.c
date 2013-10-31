@@ -42,7 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 
-#include <net/if.h>			/* for IFF_* flags		*/
+#include <net/if.h>
+#include <net/if_var.h>
 #include <net/netisr.h>			/* for NETISR_POLL		*/
 #include <net/vnet.h>
 
@@ -267,7 +268,7 @@ init_device_poll(void)
 	EVENTHANDLER_REGISTER(shutdown_post_sync, poll_shutdown, NULL,
 	    SHUTDOWN_PRI_LAST);
 }
-SYSINIT(device_poll, SI_SUB_CLOCKS, SI_ORDER_MIDDLE, init_device_poll, NULL);
+SYSINIT(device_poll, SI_SUB_SOFTINTR, SI_ORDER_MIDDLE, init_device_poll, NULL);
 
 
 /*

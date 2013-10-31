@@ -71,8 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvvar.h>
 #include "cesa.h"
 
-#undef DEBUG
-
 static int	cesa_probe(device_t);
 static int	cesa_attach(device_t);
 static int	cesa_detach(device_t);
@@ -997,11 +995,17 @@ cesa_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	/* Check if CESA peripheral device has power turned on */
+#if defined(SOC_MV_KIRKWOOD)
+	if (soc_power_ctrl_get(CPU_PM_CTRL_CRYPTO) == CPU_PM_CTRL_CRYPTO) {
+		device_printf(dev, "not powered on\n");
+		return (ENXIO);
+	}
+#else
 	if (soc_power_ctrl_get(CPU_PM_CTRL_CRYPTO) != CPU_PM_CTRL_CRYPTO) {
 		device_printf(dev, "not powered on\n");
 		return (ENXIO);
 	}
-
+#endif
 	soc_id(&d, &r);
 
 	switch (d) {

@@ -49,9 +49,6 @@ struct task {
 	u_short	ta_priority;		/* (c) Priority */
 	task_fn_t *ta_func;		/* (c) task handler */
 	void	*ta_context;		/* (c) argument for handler */
-#ifdef VIMAGE
-	struct vnet *ta_vnet;		/* (c) vnet context */
-#endif
 };
 
 #endif /* !_SYS__TASK_H_ */

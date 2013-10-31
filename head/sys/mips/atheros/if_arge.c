@@ -41,8 +41,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
+#include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
@@ -50,10 +52,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
-#include <net/if_arp.h>
-#include <net/ethernet.h>
-#include <net/if_dl.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
+#include <net/ethernet.h>
 #include <net/if_types.h>
 
 #include <net/bpf.h>
@@ -261,7 +262,7 @@ arge_probe(device_t dev)
 {
 
 	device_set_desc(dev, "Atheros AR71xx built-in ethernet interface");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static void

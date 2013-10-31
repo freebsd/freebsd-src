@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>

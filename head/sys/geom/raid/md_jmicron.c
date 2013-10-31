@@ -923,6 +923,7 @@ search:
 	}
 
 	rcp = g_new_consumer(geom);
+	rcp->flags |= G_CF_DIRECT_RECEIVE;
 	g_attach(rcp, pp);
 	if (g_access(rcp, 1, 1, 1) != 0)
 		; //goto fail1;

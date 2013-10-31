@@ -957,9 +957,9 @@ static void arcmsr_iop_reset(struct AdapterControlBlock *acb)
 				srb->srb_state = ARCMSR_SRB_ABORTED;
 				srb->pccb->ccb_h.status |= CAM_REQ_ABORTED;
 				arcmsr_srb_complete(srb, 1);
-				printf("arcmsr%d: scsi id=%d lun=%d srb='%p' aborted\n"
+				printf("arcmsr%d: scsi id=%d lun=%jx srb='%p' aborted\n"
 						, acb->pci_unit, srb->pccb->ccb_h.target_id
-						, srb->pccb->ccb_h.target_lun, srb);
+						, (uintmax_t)srb->pccb->ccb_h.target_lun, srb);
 			}
 		}
 		/* enable all outbound interrupt */
@@ -2736,10 +2736,10 @@ static u_int8_t arcmsr_seek_cmd2abort(union ccb *abortccb)
 			if(srb->srb_state == ARCMSR_SRB_START) {
 				if(srb->pccb == abortccb) {
 					srb->srb_state = ARCMSR_SRB_ABORTED;
-					printf("arcmsr%d:scsi id=%d lun=%d abort srb '%p'"
+					printf("arcmsr%d:scsi id=%d lun=%jx abort srb '%p'"
 						"outstanding command \n"
 						, acb->pci_unit, abortccb->ccb_h.target_id
-						, abortccb->ccb_h.target_lun, srb);
+						, (uintmax_t)abortccb->ccb_h.target_lun, srb);
 					arcmsr_polling_srbdone(acb, srb);
 					/* enable outbound Post Queue, outbound doorbell Interrupt */
 					arcmsr_enable_allintr(acb, intmask_org);
@@ -3176,11 +3176,11 @@ polling_ccb_retry:
 		poll_srb_done = (srb == poll_srb) ? 1:0;
 		if((srb->acb != acb) || (srb->srb_state != ARCMSR_SRB_START)) {
 			if(srb->srb_state == ARCMSR_SRB_ABORTED) {
-				printf("arcmsr%d: scsi id=%d lun=%d srb='%p'"
+				printf("arcmsr%d: scsi id=%d lun=%jx srb='%p'"
 					"poll command abort successfully \n"
 					, acb->pci_unit
 					, srb->pccb->ccb_h.target_id
-					, srb->pccb->ccb_h.target_lun, srb);
+					, (uintmax_t)srb->pccb->ccb_h.target_lun, srb);
 				srb->pccb->ccb_h.status |= CAM_REQ_ABORTED;
 				arcmsr_srb_complete(srb, 1);
 				continue;
@@ -3236,11 +3236,11 @@ polling_ccb_retry:
 		poll_srb_done = (srb == poll_srb) ? 1:0;
 		if((srb->acb != acb) || (srb->srb_state != ARCMSR_SRB_START)) {
 			if(srb->srb_state == ARCMSR_SRB_ABORTED) {
-				printf("arcmsr%d: scsi id=%d lun=%d srb='%p'"
+				printf("arcmsr%d: scsi id=%d lun=%jx srb='%p'"
 					"poll command abort successfully \n"
 					, acb->pci_unit
 					, srb->pccb->ccb_h.target_id
-					, srb->pccb->ccb_h.target_lun, srb);
+					, (uintmax_t)srb->pccb->ccb_h.target_lun, srb);
 				srb->pccb->ccb_h.status |= CAM_REQ_ABORTED;
 				arcmsr_srb_complete(srb, 1);		
 				continue;
@@ -3291,8 +3291,8 @@ polling_ccb_retry:
 			poll_srb_done = (srb == poll_srb) ? 1:0;
 		if((srb->acb != acb) || (srb->srb_state != ARCMSR_SRB_START)) {
 			if(srb->srb_state == ARCMSR_SRB_ABORTED) {
-				printf("arcmsr%d: scsi id=%d lun=%d srb='%p'poll command abort successfully \n"
-						, acb->pci_unit, srb->pccb->ccb_h.target_id, srb->pccb->ccb_h.target_lun, srb);
+				printf("arcmsr%d: scsi id=%d lun=%jx srb='%p'poll command abort successfully \n"
+						, acb->pci_unit, srb->pccb->ccb_h.target_id, (uintmax_t)srb->pccb->ccb_h.target_lun, srb);
 				srb->pccb->ccb_h.status |= CAM_REQ_ABORTED;
 				arcmsr_srb_complete(srb, 1);
 				continue;
@@ -3347,8 +3347,8 @@ polling_ccb_retry:
 			poll_srb_done = (srb == poll_srb) ? 1:0;
 		if((srb->acb != acb) || (srb->srb_state != ARCMSR_SRB_START)) {
 			if(srb->srb_state == ARCMSR_SRB_ABORTED) {
-				printf("arcmsr%d: scsi id=%d lun=%d srb='%p'poll command abort successfully \n"
-						, acb->pci_unit, srb->pccb->ccb_h.target_id, srb->pccb->ccb_h.target_lun, srb);
+				printf("arcmsr%d: scsi id=%d lun=%jx srb='%p'poll command abort successfully \n"
+						, acb->pci_unit, srb->pccb->ccb_h.target_id, (uintmax_t)srb->pccb->ccb_h.target_lun, srb);
 				srb->pccb->ccb_h.status |= CAM_REQ_ABORTED;
 				arcmsr_srb_complete(srb, 1);
 				continue;

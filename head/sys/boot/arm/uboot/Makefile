@@ -90,7 +90,7 @@ CFLAGS+=	-I.
 
 CLEANFILES+=	vers.c loader.help
 
-CFLAGS+=	-ffreestanding
+CFLAGS+=	-ffreestanding -msoft-float
 
 LDFLAGS=	-nostdlib -static
 LDFLAGS+=	-T ldscript.generated

@@ -23,7 +23,7 @@ static int
 spibus_probe(device_t dev)
 {
 	device_set_desc(dev, "spibus bus");
-	return (0);
+	return (BUS_PROBE_GENERIC);
 }
 
 static int
@@ -185,7 +185,7 @@ static device_method_t spibus_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t spibus_driver = {
+driver_t spibus_driver = {
 	"spibus",
 	spibus_methods,
 	sizeof(struct spibus_softc)

@@ -31,12 +31,13 @@
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/errno.h>
+#include <sys/lock.h>
 #include <sys/kernel.h>
+#include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
 
 #include <net/if.h>
-
 #include <dev/mii/mii.h>
 
 #include <dev/etherswitch/etherswitch.h>

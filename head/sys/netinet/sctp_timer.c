@@ -552,7 +552,7 @@ start_again:
 	TAILQ_FOREACH_SAFE(chk, &stcb->asoc.sent_queue, sctp_next, nchk) {
 		if (SCTP_TSN_GE(stcb->asoc.last_acked_seq, chk->rec.data.TSN_seq)) {
 			/* Strange case our list got out of order? */
-			SCTP_PRINTF("Our list is out of order? last_acked:%x chk:%x",
+			SCTP_PRINTF("Our list is out of order? last_acked:%x chk:%x\n",
 			    (unsigned int)stcb->asoc.last_acked_seq, (unsigned int)chk->rec.data.TSN_seq);
 			recovery_cnt++;
 #ifdef INVARIANTS

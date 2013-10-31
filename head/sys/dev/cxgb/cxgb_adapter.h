@@ -41,9 +41,11 @@ $FreeBSD$
 #include <sys/sockio.h>
 #include <sys/condvar.h>
 #include <sys/buf_ring.h>
+#include <sys/taskqueue.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>

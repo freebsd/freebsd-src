@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd January 10, 2013
+.Dd October 21, 2013
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2690,7 +2690,7 @@ as a synonym for the canonical form of the option
 .Pp
 Configure a single CARP redundant address on igb0, and then switch it
 to be master:
-.Dl # ifconfig igb0 vhid 1 10.0.0.1/24 pass foobar
+.Dl # ifconfig igb0 vhid 1 10.0.0.1/24 pass foobar up
 .Dl # ifconfig igb0 vhid 1 state master
 .Pp
 Configure the interface

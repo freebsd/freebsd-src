@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/un.h>
 
 #include <net/if.h>
+#include <net/vnet.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -60,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/in6_var.h>
 #endif
 
 #ifdef COMPAT_LINUX32

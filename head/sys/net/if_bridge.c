@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <sys/param.h>
+#include <sys/eventhandler.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/protosw.h>

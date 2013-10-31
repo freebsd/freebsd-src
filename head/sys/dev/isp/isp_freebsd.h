@@ -504,7 +504,7 @@ default:							\
 #define	XS_ISP(ccb)		cam_sim_softc(xpt_path_sim((ccb)->ccb_h.path))
 #define	XS_CHANNEL(ccb)		cam_sim_bus(xpt_path_sim((ccb)->ccb_h.path))
 #define	XS_TGT(ccb)		(ccb)->ccb_h.target_id
-#define	XS_LUN(ccb)		(ccb)->ccb_h.target_lun
+#define	XS_LUN(ccb)		(uint32_t)((ccb)->ccb_h.target_lun)
 
 #define	XS_CDBP(ccb)	\
 	(((ccb)->ccb_h.flags & CAM_CDB_POINTER)? \

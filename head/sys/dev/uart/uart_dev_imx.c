@@ -189,7 +189,7 @@ imx_uart_bus_attach(struct uart_softc *sc)
 
 	(void)imx_uart_bus_getsig(sc);
 
-	/* XXX workaround to have working console on manut prompt */
+	/* XXX workaround to have working console on mount prompt */
 	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE){
 		DIS(bas, UCR4, DREN);
 	} else {

@@ -3281,7 +3281,7 @@ flags_out:
 				}
 			}
 			if (error == 0) {
-				*optsize = sizeof(struct sctp_paddrparams);
+				*optsize = sizeof(struct sctp_udpencaps);
 			}
 			break;
 		}

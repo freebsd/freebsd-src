@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 
-#include <machine/pmap.h>
 #include <machine/vmparam.h>
 #include <contrib/dev/acpica/include/acpi.h>
 

@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/devicestat.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
@@ -46,57 +47,21 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/atomic.h>
 
-#ifdef KDTRACE_HOOKS
-#include <sys/dtrace_bsd.h>
+SDT_PROVIDER_DEFINE(io);
 
-dtrace_io_start_probe_func_t dtrace_io_start_probe;
-dtrace_io_done_probe_func_t dtrace_io_done_probe;
-dtrace_io_wait_start_probe_func_t dtrace_io_wait_start_probe;
-dtrace_io_wait_done_probe_func_t dtrace_io_wait_done_probe;
+SDT_PROBE_DEFINE2(io, , , start, start, "struct bio *", "struct devstat *");
+SDT_PROBE_DEFINE2(io, , , done, done, "struct bio *", "struct devstat *");
+SDT_PROBE_DEFINE2(io, , , wait_start, wait-start, "struct bio *",
+    "struct devstat *");
+SDT_PROBE_DEFINE2(io, , , wait_done, wait-done, "struct bio *",
+    "struct devstat *");
 
-uint32_t	dtio_start_id;
-uint32_t	dtio_done_id;
-uint32_t	dtio_wait_start_id;
-uint32_t	dtio_wait_done_id;
-
-#define DTRACE_DEVSTAT_START() \
-	if (dtrace_io_start_probe != NULL) \
-		(*dtrace_io_start_probe)(dtio_start_id, NULL, ds);
-
-#define DTRACE_DEVSTAT_BIO_START() \
-	if (dtrace_io_start_probe != NULL) \
-		(*dtrace_io_start_probe)(dtio_start_id, bp, ds);
-
-#define DTRACE_DEVSTAT_DONE() \
-	if (dtrace_io_done_probe != NULL) \
-		(*dtrace_io_done_probe)(dtio_done_id, NULL, ds);
-
-#define DTRACE_DEVSTAT_BIO_DONE() \
-	if (dtrace_io_done_probe != NULL) \
-		(*dtrace_io_done_probe)(dtio_done_id, bp, ds);
-
-#define DTRACE_DEVSTAT_WAIT_START() \
-	if (dtrace_io_wait_start_probe != NULL) \
-		(*dtrace_io_wait_start_probe)(dtio_wait_start_id, NULL, ds);
-
-#define DTRACE_DEVSTAT_WAIT_DONE() \
-	if (dtrace_io_wait_done_probe != NULL) \
-		(*dtrace_io_wait_done_probe)(dtio_wait_done_id, NULL, ds);
-
-#else /* ! KDTRACE_HOOKS */
-
-#define DTRACE_DEVSTAT_START()
-
-#define DTRACE_DEVSTAT_BIO_START()
-
-#define DTRACE_DEVSTAT_DONE()
-
-#define DTRACE_DEVSTAT_BIO_DONE()
-
-#define DTRACE_DEVSTAT_WAIT_START()
-
-#define DTRACE_DEVSTAT_WAIT_DONE()
-#endif /* KDTRACE_HOOKS */
+#define	DTRACE_DEVSTAT_START()		SDT_PROBE2(io, , , start, NULL, ds)
+#define	DTRACE_DEVSTAT_BIO_START()	SDT_PROBE2(io, , , start, bp, ds)
+#define	DTRACE_DEVSTAT_DONE()		SDT_PROBE2(io, , , done, NULL, ds)
+#define	DTRACE_DEVSTAT_BIO_DONE()	SDT_PROBE2(io, , , done, bp, ds)
+#define	DTRACE_DEVSTAT_WAIT_START()	SDT_PROBE2(io, , , wait_start, NULL, ds)
+#define	DTRACE_DEVSTAT_WAIT_DONE()	SDT_PROBE2(io, , , wait_done, NULL, ds)
 
 static int devstat_num_devs;
 static long devstat_generation = 1;
@@ -131,6 +96,7 @@ devstat_new_entry(const void *dev_name,
 	ds = devstat_alloc();
 	mtx_lock(&devstat_mutex);
 	if (unit_number == -1) {
+		ds->unit_number = unit_number;
 		ds->id = dev_name;
 		binuptime(&ds->creation_time);
 		devstat_generation++;
@@ -242,7 +208,7 @@ devstat_remove_entry(struct devstat *ds)
 
 	/* Remove this entry from the devstat queue */
 	atomic_add_acq_int(&ds->sequence1, 1);
-	if (ds->id == NULL) {
+	if (ds->unit_number != -1) {
 		devstat_num_devs--;
 		STAILQ_REMOVE(devstat_head, ds, devstat, dev_links);
 	}

@@ -29,6 +29,8 @@
 #ifndef _CAM_CAM_XPT_INTERNAL_H
 #define _CAM_CAM_XPT_INTERNAL_H 1
 
+#include <sys/taskqueue.h>
+
 /* Forward Declarations */
 struct cam_eb;
 struct cam_et;
@@ -55,30 +57,16 @@ struct xpt_xport {
 };
 
 /*
- * Structure for queueing a device in a run queue.
- * There is one run queue for allocating new ccbs,
- * and another for sending ccbs to the controller.
- */
-struct cam_ed_qinfo {
-	cam_pinfo pinfo;
-	struct	  cam_ed *device;
-};
-
-/*
  * The CAM EDT (Existing Device Table) contains the device information for
  * all devices for all busses in the system.  The table contains a
  * cam_ed structure for each device on the bus.
  */
 struct cam_ed {
+	cam_pinfo	 devq_entry;
 	TAILQ_ENTRY(cam_ed) links;
-	struct	cam_ed_qinfo devq_entry;
 	struct	cam_et	 *target;
 	struct	cam_sim  *sim;
 	lun_id_t	 lun_id;
-	struct	camq drvq;		/*
-					 * Queue of type drivers wanting to do
-					 * work on this device.
-					 */
 	struct	cam_ccbq ccbq;		/* Queue of pending ccbs */
 	struct	async_list asyncs;	/* Async callback info for this B/T/L */
 	struct	periph_list periphs;	/* All attached devices */
@@ -125,6 +113,8 @@ struct cam_ed {
 	u_int32_t	 refcount;
 	struct callout	 callout;
 	STAILQ_ENTRY(cam_ed) highpowerq_entry;
+	struct mtx	 device_mtx;
+	struct task	 device_destroy_task;
 };
 
 /*
@@ -143,6 +133,7 @@ struct cam_et {
 	struct		timeval last_reset;
 	u_int		rpl_size;
 	struct scsi_report_luns_data *luns;
+	struct mtx	luns_mtx;	/* Protection for luns field. */
 };
 
 /*
@@ -162,6 +153,7 @@ struct cam_eb {
 	u_int		     generation;
 	device_t	     parent_dev;
 	struct xpt_xport     *xport;
+	struct mtx	     eb_mtx;	/* Bus topology mutex. */
 };
 
 struct cam_path {
@@ -179,8 +171,6 @@ struct cam_ed *		xpt_alloc_device(struct cam_eb *bus,
 					 lun_id_t lun_id);
 void			xpt_acquire_device(struct cam_ed *device);
 void			xpt_release_device(struct cam_ed *device);
-int			xpt_schedule_dev(struct camq *queue, cam_pinfo *dev_pinfo,
-					 u_int32_t new_priority);
 u_int32_t		xpt_dev_ccbq_resize(struct cam_path *path, int newopenings);
 void			xpt_start_tags(struct cam_path *path);
 void			xpt_stop_tags(struct cam_path *path);

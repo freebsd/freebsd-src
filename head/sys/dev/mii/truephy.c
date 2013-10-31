@@ -44,6 +44,7 @@
 #include <sys/bus.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
@@ -180,12 +181,6 @@ truephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the interface is not up, don't do anything.
-		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
-			break;
-
 		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
 			bmcr = PHY_READ(sc, MII_BMCR) & ~BMCR_AUTOEN;
 			PHY_WRITE(sc, MII_BMCR, bmcr);
