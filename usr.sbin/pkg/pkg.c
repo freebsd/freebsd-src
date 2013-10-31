@@ -951,6 +951,15 @@ main(__unused int argc, char *argv[])
 		if (bootstrap_pkg() != 0)
 			exit(EXIT_FAILURE);
 		config_finish();
+
+		if (argv[1] != NULL && strcmp(argv[1], "bootstrap") == 0)
+			exit(EXIT_SUCCESS);
+	} else {
+		if (argv[1] != NULL && strcmp(argv[1], "bootstrap") == 0) {
+			printf("pkg already bootstrapped at %s\n",
+			    pkgpath);
+			exit(EXIT_SUCCESS);
+		}
 	}
 
 	execv(pkgpath, argv);

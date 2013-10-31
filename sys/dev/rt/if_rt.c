@@ -149,7 +149,7 @@ static int
 rt_probe(device_t dev)
 {
 	device_set_desc(dev, "Ralink RT305XF onChip Ethernet MAC");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 /*

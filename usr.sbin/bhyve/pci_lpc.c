@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013 Neel Natu <neel@freebsd.org>
+ * Copyright (c) 2013 Tycho Nightingale <tycho.nightingale@pluribusnetworks.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

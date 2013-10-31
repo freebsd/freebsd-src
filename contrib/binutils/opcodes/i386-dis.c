@@ -3474,7 +3474,7 @@ static bfd_vma start_pc;
  * The function returns the length of this instruction in bytes.
  */
 
-static char intel_syntax;
+static int intel_syntax;
 static char open_char;
 static char close_char;
 static char separator_char;
@@ -3547,7 +3547,7 @@ print_insn (bfd_vma pc, disassemble_info *info)
   else
     address_mode = mode_32bit;
 
-  if (intel_syntax == (char) -1)
+  if (intel_syntax == -1)
     intel_syntax = (info->mach == bfd_mach_i386_i386_intel_syntax
 		    || info->mach == bfd_mach_x86_64_intel_syntax);
 
@@ -4326,7 +4326,7 @@ dofloat (int sizeflag)
 static void
 OP_ST (int bytemode ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
 {
-  oappend ("%st" + intel_syntax);
+  oappend (&"%st"[intel_syntax]);
 }
 
 static void
@@ -4677,32 +4677,32 @@ append_seg (void)
   if (prefixes & PREFIX_CS)
     {
       used_prefixes |= PREFIX_CS;
-      oappend ("%cs:" + intel_syntax);
+      oappend (&"%cs:"[intel_syntax]);
     }
   if (prefixes & PREFIX_DS)
     {
       used_prefixes |= PREFIX_DS;
-      oappend ("%ds:" + intel_syntax);
+      oappend (&"%ds:"[intel_syntax]);
     }
   if (prefixes & PREFIX_SS)
     {
       used_prefixes |= PREFIX_SS;
-      oappend ("%ss:" + intel_syntax);
+      oappend (&"%ss:"[intel_syntax]);
     }
   if (prefixes & PREFIX_ES)
     {
       used_prefixes |= PREFIX_ES;
-      oappend ("%es:" + intel_syntax);
+      oappend (&"%es:"[intel_syntax]);
     }
   if (prefixes & PREFIX_FS)
     {
       used_prefixes |= PREFIX_FS;
-      oappend ("%fs:" + intel_syntax);
+      oappend (&"%fs:"[intel_syntax]);
     }
   if (prefixes & PREFIX_GS)
     {
       used_prefixes |= PREFIX_GS;
-      oappend ("%gs:" + intel_syntax);
+      oappend (&"%gs:"[intel_syntax]);
     }
 }
 
@@ -5474,7 +5474,7 @@ OP_I (int bytemode, int sizeflag)
   op &= mask;
   scratchbuf[0] = '$';
   print_operand_value (scratchbuf + 1, 1, op);
-  oappend (scratchbuf + intel_syntax);
+  oappend (&scratchbuf[intel_syntax]);
   scratchbuf[0] = '\0';
 }
 
@@ -5525,7 +5525,7 @@ OP_I64 (int bytemode, int sizeflag)
   op &= mask;
   scratchbuf[0] = '$';
   print_operand_value (scratchbuf + 1, 1, op);
-  oappend (scratchbuf + intel_syntax);
+  oappend (&scratchbuf[intel_syntax]);
   scratchbuf[0] = '\0';
 }
 
@@ -5575,7 +5575,7 @@ OP_sI (int bytemode, int sizeflag)
 
   scratchbuf[0] = '$';
   print_operand_value (scratchbuf + 1, 1, op);
-  oappend (scratchbuf + intel_syntax);
+  oappend (&scratchbuf[intel_syntax]);
 }
 
 static void
@@ -5755,7 +5755,7 @@ OP_ESreg (int code, int sizeflag)
 	  intel_operand_size (b_mode, sizeflag);
 	}
     }
-  oappend ("%es:" + intel_syntax);
+  oappend (&"%es:"[intel_syntax]);
   ptr_reg (code, sizeflag);
 }
 
@@ -5805,7 +5805,7 @@ OP_C (int dummy ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
       add = 8;
     }
   sprintf (scratchbuf, "%%cr%d", modrm.reg + add);
-  oappend (scratchbuf + intel_syntax);
+  oappend (&scratchbuf[intel_syntax]);
 }
 
 static void
@@ -5826,7 +5826,7 @@ static void
 OP_T (int dummy ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
 {
   sprintf (scratchbuf, "%%tr%d", modrm.reg);
-  oappend (scratchbuf + intel_syntax);
+  oappend (&scratchbuf[intel_syntax]);
 }
 
 static void
@@ -5852,7 +5852,7 @@ OP_MMX (int bytemode ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
     }
   else
     sprintf (scratchbuf, "%%mm%d", modrm.reg);
-  oappend (scratchbuf + intel_syntax);
+  oappend (&scratchbuf[intel_syntax]);
 }
 
 static void
@@ -5863,7 +5863,7 @@ OP_XMM (int bytemode ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
   if (rex & REX_R)
     add = 8;
   sprintf (scratchbuf, "%%xmm%d", modrm.reg + add);
-  oappend (scratchbuf + intel_syntax);
+  oappend (&scratchbuf[intel_syntax]);
 }
 
 static void
@@ -5895,7 +5895,7 @@ OP_EM (int bytemode, int sizeflag)
     }
   else
     sprintf (scratchbuf, "%%mm%d", modrm.rm);
-  oappend (scratchbuf + intel_syntax);
+  oappend (&scratchbuf[intel_syntax]);
 }
 
 /* cvt* are the only instructions in sse2 which have
@@ -5922,7 +5922,7 @@ OP_EMC (int bytemode, int sizeflag)
   codep++;
   used_prefixes |= (prefixes & PREFIX_DATA);
   sprintf (scratchbuf, "%%mm%d", modrm.rm);
-  oappend (scratchbuf + intel_syntax);
+  oappend (&scratchbuf[intel_syntax]);
 }
 
 static void
@@ -5930,7 +5930,7 @@ OP_MXC (int bytemode ATTRIBUTE_UNUSED, int sizeflag ATTRIBUTE_UNUSED)
 {
   used_prefixes |= (prefixes & PREFIX_DATA);
   sprintf (scratchbuf, "%%mm%d", modrm.reg);
-  oappend (scratchbuf + intel_syntax);
+  oappend (&scratchbuf[intel_syntax]);
 }
 
 static void
@@ -5950,7 +5950,7 @@ OP_EX (int bytemode, int sizeflag)
   MODRM_CHECK;
   codep++;
   sprintf (scratchbuf, "%%xmm%d", modrm.rm + add);
-  oappend (scratchbuf + intel_syntax);
+  oappend (&scratchbuf[intel_syntax]);
 }
 
 static void
@@ -6547,7 +6547,7 @@ static void
 XMM_Fixup (int reg, int sizeflag ATTRIBUTE_UNUSED)
 {
   sprintf (scratchbuf, "%%xmm%d", reg);
-  oappend (scratchbuf + intel_syntax);
+  oappend (&scratchbuf[intel_syntax]);
 }
 
 static void
