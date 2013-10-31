@@ -240,6 +240,8 @@ ia64_ap_startup(void)
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	PCPU_SET(curthread, PCPU_GET(idlethread));
 
+	pmap_invalidate_all();
+
 	atomic_add_int(&ia64_ap_state.as_awake, 1);
 	while (!smp_started)
 		cpu_spinwait();
