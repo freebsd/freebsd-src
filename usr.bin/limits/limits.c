@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/user.h>
 #include <sys/param.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -705,27 +706,32 @@ getshelltype(void)
     pid_t ppid = getppid();
 
     if (ppid != 1) {
-	FILE * fp;
+	struct kinfo_proc kp;
 	struct stat st;
-	char procdir[MAXPATHLEN], buf[128];
-	int l = sprintf(procdir, "/proc/%ld/", (long)ppid);
+	char path[MAXPATHLEN];
 	char * shell = getenv("SHELL");
+	int mib[4];
+	size_t len;
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[3] = ppid;
 
 	if (shell != NULL && stat(shell, &st) != -1) {
 	    struct stat st1;
 
-	    strcpy(procdir+l, "file");
-	    /* $SHELL is actual shell? */
-	    if (stat(procdir, &st1) != -1 && memcmp(&st, &st1, sizeof st) == 0)
-		return getshellbyname(shell);
+	    mib[2] = KERN_PROC_PATHNAME;
+	    len = sizeof(path);
+	    if (sysctl(mib, 4, path, &len, NULL, 0) != -1) {
+		/* $SHELL is actual shell? */
+		if (stat(path, &st1) != -1 && memcmp(&st, &st1, sizeof st) == 0)
+		    return getshellbyname(shell);
+	    }
 	}
-	strcpy(procdir+l, "status");
-	if (stat(procdir, &st) == 0 && (fp = fopen(procdir, "r")) != NULL) {
-	    char * p = fgets(buf, sizeof buf, fp)==NULL ? NULL : strtok(buf, " \t");
-	    fclose(fp);
-	    if (p != NULL)
-		return getshellbyname(p);
-	}
+	mib[2] = KERN_PROC_PID;
+	len = sizeof(kp);
+	if (sysctl(mib, 4, &kp, &len, NULL, 0) != -1)
+	    return getshellbyname(kp.ki_comm);
     }
     return SH_SH;
 }
