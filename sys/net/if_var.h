@@ -96,19 +96,42 @@ VNET_DECLARE(struct pfil_head, link_pfil_hook);	/* packet filter hooks */
 /*
  * Structure defining a network interface.
  *
- * (Would like to call this struct ``if'', but C isn't PL/1.)
+ * Size ILP32:  592 (approx)
+ *	 LP64: 1048 (approx)
  */
-
 struct ifnet {
-	void	*if_softc;		/* pointer to driver state */
-	void	*if_l2com;		/* pointer to protocol bits */
-	struct vnet *if_vnet;		/* pointer to network stack instance */
+	/* General book keeping of interface lists. */
 	TAILQ_ENTRY(ifnet) if_link; 	/* all struct ifnets are chained */
-	char	if_xname[IFNAMSIZ];	/* external name (name + unit) */
+	LIST_ENTRY(ifnet) if_clones;	/* interfaces of a cloner */
+	TAILQ_HEAD(, ifg_list) if_groups; /* linked list of groups per if */
+					/* protected by if_addr_lock */
+	u_char	if_alloctype;		/* if_type at time of allocation */
+
+	/* Driver and protocol specific information that remains stable. */
+	void	*if_softc;		/* pointer to driver state */
+	void	*if_llsoftc;		/* link layer softc */
+	void	*if_l2com;		/* pointer to protocol bits */
 	const char *if_dname;		/* driver name */
 	int	if_dunit;		/* unit or IF_DUNIT_NONE */
+	u_short	if_index;		/* numeric abbreviation for this if  */
+	short	if_index_reserved;	/* spare space to grow if_index */
+	char	if_xname[IFNAMSIZ];	/* external name (name + unit) */
+	char	*if_description;	/* interface description */
+
+	/* Variable fields that are touched by the stack and drivers. */
+	int	if_flags;		/* up/down, broadcast, etc. */
+	int	if_capabilities;	/* interface features & capabilities */
+	int	if_capenable;		/* enabled features & capabilities */
+	void	*if_linkmib;		/* link-type-specific MIB data */
+	size_t	if_linkmiblen;		/* length of above data */
+	int	if_drv_flags;		/* driver-managed status flags */
 	u_int	if_refcount;		/* reference count */
-	struct	ifaddrhead if_addrhead;	/* linked list of addresses per if */
+	struct  ifaltq if_snd;		/* output queue (includes altq) */
+	struct	if_data if_data;	/* type information and statistics */
+	struct	task if_linktask;	/* task for link change events */
+
+	/* Addresses of different protocol families assigned to this if. */
+	struct	rwlock if_addr_lock;	/* lock to protect address lists */
 		/*
 		 * if_addrhead is the list of all addresses associated to
 		 * an interface.
@@ -119,21 +142,29 @@ struct ifnet {
 		 * However, access to the AF_LINK address through this
 		 * field is deprecated. Use if_addr or ifaddr_byindex() instead.
 		 */
-	int	if_pcount;		/* number of promiscuous listeners */
-	struct	carp_if *if_carp;	/* carp interface structure */
-	struct	bpf_if *if_bpf;		/* packet filter structure */
-	u_short	if_index;		/* numeric abbreviation for this if  */
-	short	if_index_reserved;	/* spare space to grow if_index */
-	struct  ifvlantrunk *if_vlantrunk; /* pointer to 802.1q data */
-	int	if_flags;		/* up/down, broadcast, etc. */
-	int	if_capabilities;	/* interface features & capabilities */
-	int	if_capenable;		/* enabled features & capabilities */
-	void	*if_linkmib;		/* link-type-specific MIB data */
-	size_t	if_linkmiblen;		/* length of above data */
-	struct	if_data if_data;
+	struct	ifaddrhead if_addrhead;	/* linked list of addresses per if */
 	struct	ifmultihead if_multiaddrs; /* multicast addresses configured */
 	int	if_amcount;		/* number of all-multicast requests */
-/* procedure handles */
+	struct	ifaddr	*if_addr;	/* pointer to link-level address */
+	const u_int8_t *if_broadcastaddr; /* linklevel broadcast bytestring */
+	struct	rwlock if_afdata_lock;
+	void	*if_afdata[AF_MAX];
+	int	if_afdata_initialized;
+
+	/* Additional features hung off the interface. */
+	u_int	if_fib;			/* interface FIB */
+	struct	vnet *if_vnet;		/* pointer to network stack instance */
+	struct	vnet *if_home_vnet;	/* where this ifnet originates from */
+	struct  ifvlantrunk *if_vlantrunk; /* pointer to 802.1q data */
+	struct	bpf_if *if_bpf;		/* packet filter structure */
+	int	if_pcount;		/* number of promiscuous listeners */
+	void	*if_bridge;		/* bridge glue */
+	void	*if_lagg;		/* lagg glue */
+	void	*if_pf_kif;		/* pf glue */
+	struct	carp_if *if_carp;	/* carp interface structure */
+	struct	label *if_label;	/* interface MAC label */
+
+	/* Various procedures of the layer2 encapsulation and drivers. */
 	int	(*if_output)		/* output routine (enqueue) */
 		(struct ifnet *, struct mbuf *, const struct sockaddr *,
 		     struct route *);
@@ -153,39 +184,12 @@ struct ifnet {
 		(struct ifnet *, struct mbuf *);
 	void	(*if_reassign)		/* reassign to vnet routine */
 		(struct ifnet *, struct vnet *, char *);
-	struct	vnet *if_home_vnet;	/* where this ifnet originates from */
-	struct	ifaddr	*if_addr;	/* pointer to link-level address */
-	void	*if_llsoftc;		/* link layer softc */
-	int	if_drv_flags;		/* driver-managed status flags */
-	struct  ifaltq if_snd;		/* output queue (includes altq) */
-	const u_int8_t *if_broadcastaddr; /* linklevel broadcast bytestring */
 
-	void	*if_bridge;		/* bridge glue */
-
-	struct	label *if_label;	/* interface MAC label */
-
-	/* these are only used by IPv6 */
-	void	*if_unused[2];
-	void	*if_afdata[AF_MAX];
-	int	if_afdata_initialized;
-	struct	rwlock if_afdata_lock;
-	struct	task if_linktask;	/* task for link change events */
-	struct	rwlock if_addr_lock;	/* lock to protect address lists */
-
-	LIST_ENTRY(ifnet) if_clones;	/* interfaces of a cloner */
-	TAILQ_HEAD(, ifg_list) if_groups; /* linked list of groups per if */
-					/* protected by if_addr_lock */
-	void	*if_pf_kif;
-	void	*if_lagg;		/* lagg glue */
-	char	*if_description;	/* interface description */
-	u_int	if_fib;			/* interface FIB */
-	u_char	if_alloctype;		/* if_type at time of allocation */
-
+	/* Stuff that's only temporary and doesn't belong here. */
 	u_int	if_hw_tsomax;		/* tso burst length limit, the minimum
 					 * is (IP_MAXPACKET / 8).
 					 * XXXAO: Have to find a better place
 					 * for it eventually. */
-
 	/*
 	 * Spare fields are added so that we can modify sensitive data
 	 * structures without changing the kernel binary interface, and must
@@ -193,6 +197,7 @@ struct ifnet {
 	 */
 	char	if_cspare[3];
 	int	if_ispare[4];
+	void	*if_unused[2];
 	void	*if_pspare[8];		/* 1 netmap, 7 TDB */
 };
 
@@ -521,5 +526,4 @@ void	if_deregister_com_alloc(u_char type);
     LLADDR((struct sockaddr_dl *)((ifp)->if_addr->ifa_addr))
 
 #endif /* _KERNEL */
-
 #endif /* !_NET_IF_VAR_H_ */
