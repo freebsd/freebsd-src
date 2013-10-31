@@ -4312,6 +4312,7 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 	struct iwn_cmd_link_quality linkq;
 	uint8_t txant;
 	int i, rate, txrate;
+	int is_11n;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s begin\n", __func__);
 
@@ -4326,15 +4327,25 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 	linkq.ampdu_threshold = 3;
 	linkq.ampdu_limit = htole16(4000);	/* 4ms */
 
+	/*
+	 * Are we using 11n rates? Ensure the channel is
+	 * 11n _and_ we have some 11n rates, or don't
+	 * try.
+	 */
+	if (IEEE80211_IS_CHAN_HT(ni->ni_chan) && ni->ni_htrates.rs_nrates > 0)
+		is_11n = 1;
+	else
+		is_11n = 0;
+
 	/* Start at highest available bit-rate. */
-	if (IEEE80211_IS_CHAN_HT(ni->ni_chan))
+	if (is_11n)
 		txrate = ni->ni_htrates.rs_nrates - 1;
 	else
 		txrate = rs->rs_nrates - 1;
 	for (i = 0; i < IWN_MAX_TX_RETRIES; i++) {
 		uint32_t plcp;
 
-		if (IEEE80211_IS_CHAN_HT(ni->ni_chan))
+		if (is_11n)
 			rate = IEEE80211_RATE_MCS | txrate;
 		else
 			rate = RV(rs->rs_rates[txrate]);
