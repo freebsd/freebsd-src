@@ -1027,6 +1027,7 @@ static const struct rt2860_rate {
 #define RT2860_DEF_BBP	\
 	{  65, 0x2c },	\
 	{  66, 0x38 },	\
+	{  68, 0x0b },	\
 	{  69, 0x12 },	\
 	{  70, 0x0a },	\
 	{  73, 0x10 },	\
