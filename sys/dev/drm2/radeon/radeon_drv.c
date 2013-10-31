@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/drm2/drm_pciids.h>
 
+#include "fb_if.h"
 
 /*
  * KMS wrapper.
@@ -488,6 +489,28 @@ radeon_resume(device_t kdev)
 	return (-ret);
 }
 
+static struct fb_info *
+radeon_fb_helper_getinfo(device_t kdev)
+{
+#if 0 /* XXX */
+	struct drm_device *dev;
+	struct radeon_mode_info *mode_info;
+	struct radeon_fbdev *rfbdev;
+	struct radeon_device *rdev;
+	struct fb_info *info;
+
+
+	dev = device_get_softc(kdev);
+	rdev = dev->dev_private;
+	mode_info = &rdev->mode_info;
+	rfbdev = mode_info->rfbdev;
+	info = rfbdev->helper.fbdev;
+	return (info);
+#else
+	return (NULL);
+#endif
+}
+
 static device_method_t radeon_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		radeon_probe),
@@ -495,6 +518,10 @@ static device_method_t radeon_methods[] = {
 	DEVMETHOD(device_suspend,	radeon_suspend),
 	DEVMETHOD(device_resume,	radeon_resume),
 	DEVMETHOD(device_detach,	drm_detach),
+
+	/* Framebuffer service methods */
+	DEVMETHOD(fb_getinfo,		radeon_fb_helper_getinfo),
+
 	DEVMETHOD_END
 };
 

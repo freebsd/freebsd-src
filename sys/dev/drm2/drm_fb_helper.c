@@ -932,6 +932,7 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	int gamma_size = 0;
 #if defined(__FreeBSD__)
 	struct vt_kms_softc *sc;
+	device_t kdev;
 #endif
 
 	memset(&sizes, 0, sizeof(struct drm_fb_helper_surface_size));
@@ -1033,7 +1034,9 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 
 #if defined(__FreeBSD__)
 	if (new_fb) {
-		register_framebuffer(info);
+		kdev = fb_helper->dev->device;
+		device_add_child(kdev, "fbd", device_get_unit(kdev));
+		bus_generic_attach(kdev);
 	}
 #else
 	if (new_fb) {
