@@ -554,7 +554,6 @@ MK_GDB:=	no
 .if ${MK_CLANG} == "no"
 MK_CLANG_EXTRAS:= no
 MK_CLANG_FULL:= no
-MK_CLANG_IS_CC:= no
 .endif
 
 .if ${MK_CLANG_IS_CC} == "no"
