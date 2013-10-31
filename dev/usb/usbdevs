@@ -655,6 +655,7 @@ vendor OWEN		0x1555	Owen
 vendor OQO		0x1557	OQO
 vendor UMEDIA		0x157e	U-MEDIA Communications
 vendor FIBERLINE	0x1582	Fiberline
+vendor FREESCALE	0x15a2  Freescale Semiconductor, Inc.
 vendor AFATECH		0x15a4	Afatech Technologies, Inc.
 vendor SPARKLAN		0x15a9	SparkLAN
 vendor OLIMEX		0x15ba	Olimex

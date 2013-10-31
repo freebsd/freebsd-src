@@ -92,7 +92,7 @@ static int
 ar71xx_spi_probe(device_t dev)
 {
 	device_set_desc(dev, "AR71XX SPI");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int

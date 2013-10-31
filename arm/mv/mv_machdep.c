@@ -324,6 +324,19 @@ platform_devmap_init(void)
 	i = 0;
 	pmap_devmap_bootstrap_table = &fdt_devmap[0];
 
+#ifdef SOC_MV_ARMADAXP
+	vm_paddr_t cur_immr_pa;
+
+	/*
+	 * Acquire SoC registers' base passed by u-boot and fill devmap
+	 * accordingly. DTB is going to be modified basing on this data
+	 * later.
+	 */
+	__asm __volatile("mrc p15, 4, %0, c15, c0, 0" : "=r" (cur_immr_pa));
+	cur_immr_pa = (cur_immr_pa << 13) & 0xff000000;
+	if (cur_immr_pa != 0)
+		fdt_immr_pa = cur_immr_pa;
+#endif
 	/*
 	 * IMMR range.
 	 */

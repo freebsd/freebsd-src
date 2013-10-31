@@ -5112,9 +5112,11 @@ bce_reset(struct bce_softc *sc, u32 reset_code)
 
 bce_reset_exit:
 	/* Restore EMAC Mode bits needed to keep ASF/IPMI running. */
-	val = REG_RD(sc, BCE_EMAC_MODE);
-	val = (val & ~emac_mode_mask) | emac_mode_save;
-	REG_WR(sc, BCE_EMAC_MODE, val);
+	if (reset_code == BCE_DRV_MSG_CODE_RESET) {
+		val = REG_RD(sc, BCE_EMAC_MODE);
+		val = (val & ~emac_mode_mask) | emac_mode_save;
+		REG_WR(sc, BCE_EMAC_MODE, val);
+	}
 
 	DBEXIT(BCE_VERBOSE_RESET);
 	return (rc);

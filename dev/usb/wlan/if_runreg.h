@@ -958,39 +958,9 @@ static const struct rt2860_rate {
 /*
  * Default values for MAC registers; values taken from the reference driver.
  */
-#define RT2860_DEF_MAC					\
-	{ RT2860_BCN_OFFSET0,		0xf8f0e8e0 },	\
-	{ RT2860_LEGACY_BASIC_RATE,	0x0000013f },	\
-	{ RT2860_HT_BASIC_RATE,		0x00008003 },	\
-	{ RT2860_MAC_SYS_CTRL,		0x00000000 },	\
-	{ RT2860_BKOFF_SLOT_CFG,	0x00000209 },	\
-	{ RT2860_TX_SW_CFG0,		0x00000000 },	\
-	{ RT2860_TX_SW_CFG1,		0x00080606 },	\
-	{ RT2860_TX_LINK_CFG,		0x00001020 },	\
-	{ RT2860_TX_TIMEOUT_CFG,	0x000a2090 },	\
-	{ RT2860_LED_CFG,		0x7f031e46 },	\
-	{ RT2860_WMM_AIFSN_CFG,		0x00002273 },	\
-	{ RT2860_WMM_CWMIN_CFG,		0x00002344 },	\
-	{ RT2860_WMM_CWMAX_CFG,		0x000034aa },	\
-	{ RT2860_MAX_PCNT,		0x1f3fbf9f },	\
-	{ RT2860_TX_RTY_CFG,		0x47d01f0f },	\
-	{ RT2860_AUTO_RSP_CFG,		0x00000013 },	\
-	{ RT2860_CCK_PROT_CFG,		0x05740003 },	\
-	{ RT2860_OFDM_PROT_CFG,		0x05740003 },	\
-	{ RT2860_GF20_PROT_CFG,		0x01744004 },	\
-	{ RT2860_GF40_PROT_CFG,		0x03f44084 },	\
-	{ RT2860_MM20_PROT_CFG,		0x01744004 },	\
-	{ RT2860_MM40_PROT_CFG,		0x03f54084 },	\
-	{ RT2860_TXOP_CTRL_CFG,		0x0000583f },	\
-	{ RT2860_TXOP_HLDR_ET,		0x00000002 },	\
-	{ RT2860_TX_RTS_CFG,		0x00092b20 },	\
-	{ RT2860_EXP_ACK_TIME,		0x002400ca },	\
-	{ RT2860_XIFS_TIME_CFG,		0x33a41010 },	\
-	{ RT2860_PWR_PIN_CFG,		0x00000003 }
-
-/* XXX only a few registers differ from above, try to merge? */
 #define RT2870_DEF_MAC					\
 	{ RT2860_BCN_OFFSET0,		0xf8f0e8e0 },	\
+	{ RT2860_BCN_OFFSET1,		0x6f77d0c8 },	\
 	{ RT2860_LEGACY_BASIC_RATE,	0x0000013f },	\
 	{ RT2860_HT_BASIC_RATE,		0x00008003 },	\
 	{ RT2860_MAC_SYS_CTRL,		0x00000000 },	\
@@ -999,6 +969,7 @@ static const struct rt2860_rate {
 	{ RT2860_TX_SW_CFG1,		0x00080606 },	\
 	{ RT2860_TX_LINK_CFG,		0x00001020 },	\
 	{ RT2860_TX_TIMEOUT_CFG,	0x000a2090 },	\
+	{ RT2860_MAX_LEN_CFG,		0x00001f00 },	\
 	{ RT2860_LED_CFG,		0x7f031e46 },	\
 	{ RT2860_WMM_AIFSN_CFG,		0x00002273 },	\
 	{ RT2860_WMM_CWMIN_CFG,		0x00002344 },	\
@@ -1027,6 +998,7 @@ static const struct rt2860_rate {
 #define RT2860_DEF_BBP	\
 	{  65, 0x2c },	\
 	{  66, 0x38 },	\
+	{  68, 0x0b },	\
 	{  69, 0x12 },	\
 	{  70, 0x0a },	\
 	{  73, 0x10 },	\

@@ -489,7 +489,7 @@ extern int pmap_needs_pte_sync;
 #if (ARM_MMU_SA1 == 1) && (ARM_NMMUS == 1)
 #define	PMAP_NEEDS_PTE_SYNC	1
 #define	PMAP_INCLUDE_PTE_SYNC
-#elif defined(CPU_XSCALE_81342) || defined(ARM_ARCH_7) || defined(ARM_ARCH_7A)
+#elif defined(CPU_XSCALE_81342) || ARM_ARCH_6 || ARM_ARCH_7A
 #define PMAP_NEEDS_PTE_SYNC	1
 #define PMAP_INCLUDE_PTE_SYNC
 #elif (ARM_MMU_SA1 == 0)
