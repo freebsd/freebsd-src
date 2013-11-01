@@ -135,7 +135,7 @@ static void prison_racct_modify(struct prison *pr);
 static void prison_racct_detach(struct prison *pr);
 #endif
 #ifdef INET
-static int _prison_check_ip4(struct prison *pr, struct in_addr *ia);
+static int _prison_check_ip4(const struct prison *, const struct in_addr *);
 static int prison_restrict_ip4(struct prison *pr, struct in_addr *newip4);
 #endif
 #ifdef INET6
@@ -2930,7 +2930,7 @@ prison_remote_ip4(struct ucred *cred, struct in_addr *ia)
  * doesn't allow IPv4.  Address passed in in NBO.
  */
 static int
-_prison_check_ip4(struct prison *pr, struct in_addr *ia)
+_prison_check_ip4(const struct prison *pr, const struct in_addr *ia)
 {
 	int i, a, z, d;
 
@@ -2960,7 +2960,7 @@ _prison_check_ip4(struct prison *pr, struct in_addr *ia)
 }
 
 int
-prison_check_ip4(struct ucred *cred, struct in_addr *ia)
+prison_check_ip4(const struct ucred *cred, const struct in_addr *ia)
 {
 	struct prison *pr;
 	int error;
