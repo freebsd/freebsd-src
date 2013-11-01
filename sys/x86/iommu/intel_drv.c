@@ -217,7 +217,7 @@ dmar_probe(device_t dev)
 	if (acpi_get_handle(dev) != NULL)
 		return (ENXIO);
 	device_set_desc(dev, "DMA remap");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static void
