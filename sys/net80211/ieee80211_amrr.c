@@ -131,6 +131,12 @@ amrr_deinit(struct ieee80211vap *vap)
 	free(vap->iv_rs, M_80211_RATECTL);
 }
 
+/*
+ * Return whether 11n rates are possible.
+ *
+ * Some 11n devices may return HT information but no HT rates.
+ * Thus, we shouldn't treat them as an 11n node.
+ */
 static int
 amrr_node_is_11n(struct ieee80211_node *ni)
 {
@@ -138,6 +144,8 @@ amrr_node_is_11n(struct ieee80211_node *ni)
 	if (ni->ni_chan == NULL)
 		return (0);
 	if (ni->ni_chan == IEEE80211_CHAN_ANYC)
+		return (0);
+	if (IEEE80211_IS_CHAN_HT(ni->ni_chan) && ni->ni_htrates.rs_nrates == 0)
 		return (0);
 	return (IEEE80211_IS_CHAN_HT(ni->ni_chan));
 }

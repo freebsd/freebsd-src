@@ -1285,7 +1285,7 @@ struct bpf_insn {
 
 #if __STDC__ || defined(__cplusplus)
 extern int bpf_validate(const struct bpf_insn *, int);
-extern u_int bpf_filter(struct bpf_insn *, u_char *, u_int, u_int);
+extern u_int bpf_filter(const struct bpf_insn *, const u_char *, u_int, u_int);
 #else
 extern int bpf_validate();
 extern u_int bpf_filter();

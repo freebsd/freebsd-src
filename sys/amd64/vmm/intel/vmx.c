@@ -307,8 +307,8 @@ vmx_setjmp_rc2str(int rc)
 	}
 }
 
-#define	SETJMP_TRACE(vmx, vcpu, vmxctx, regname)			  \
-	VMM_CTR1((vmx)->vm, (vcpu), "setjmp trace " #regname " 0x%016lx", \
+#define	SETJMP_TRACE(vmx, vcpu, vmxctx, regname)			    \
+	VCPU_CTR1((vmx)->vm, (vcpu), "setjmp trace " #regname " 0x%016lx",  \
 		 (vmxctx)->regname)
 
 static void
@@ -320,14 +320,14 @@ vmx_setjmp_trace(struct vmx *vmx, int vcpu, struct vmxctx *vmxctx, int rc)
 		panic("vmx_setjmp_trace: invalid vmxctx %p; should be %p",
 			vmxctx, &vmx->ctx[vcpu]);
 
-	VMM_CTR1((vmx)->vm, (vcpu), "vmxctx = %p", vmxctx);
-	VMM_CTR2((vmx)->vm, (vcpu), "setjmp return code %s(%d)",
+	VCPU_CTR1((vmx)->vm, (vcpu), "vmxctx = %p", vmxctx);
+	VCPU_CTR2((vmx)->vm, (vcpu), "setjmp return code %s(%d)",
 		 vmx_setjmp_rc2str(rc), rc);
 
 	host_rsp = host_rip = ~0;
 	vmread(VMCS_HOST_RIP, &host_rip);
 	vmread(VMCS_HOST_RSP, &host_rsp);
-	VMM_CTR2((vmx)->vm, (vcpu), "vmcs host_rip 0x%016lx, host_rsp 0x%016lx",
+	VCPU_CTR2((vmx)->vm, (vcpu), "vmcs host_rip 0x%016lx, host_rsp %#lx",
 		 host_rip, host_rsp);
 
 	SETJMP_TRACE(vmx, vcpu, vmxctx, host_r15);
@@ -886,7 +886,7 @@ static __inline void
 vmx_run_trace(struct vmx *vmx, int vcpu)
 {
 #ifdef KTR
-	VMM_CTR1(vmx->vm, vcpu, "Resume execution at 0x%0lx", vmcs_guest_rip());
+	VCPU_CTR1(vmx->vm, vcpu, "Resume execution at %#lx", vmcs_guest_rip());
 #endif
 }
 
@@ -895,7 +895,7 @@ vmx_exit_trace(struct vmx *vmx, int vcpu, uint64_t rip, uint32_t exit_reason,
 	       int handled)
 {
 #ifdef KTR
-	VMM_CTR3(vmx->vm, vcpu, "%s %s vmexit at 0x%0lx",
+	VCPU_CTR3(vmx->vm, vcpu, "%s %s vmexit at 0x%0lx",
 		 handled ? "handled" : "unhandled",
 		 exit_reason_to_str(exit_reason), rip);
 #endif
@@ -905,7 +905,7 @@ static __inline void
 vmx_astpending_trace(struct vmx *vmx, int vcpu, uint64_t rip)
 {
 #ifdef KTR
-	VMM_CTR1(vmx->vm, vcpu, "astpending vmexit at 0x%0lx", rip);
+	VCPU_CTR1(vmx->vm, vcpu, "astpending vmexit at 0x%0lx", rip);
 #endif
 }
 
@@ -1054,7 +1054,7 @@ vmx_inject_nmi(struct vmx *vmx, int vcpu)
 	if (error)
 		panic("vmx_inject_nmi: vmwrite(intrinfo) %d", error);
 
-	VMM_CTR0(vmx->vm, vcpu, "Injecting vNMI");
+	VCPU_CTR0(vmx->vm, vcpu, "Injecting vNMI");
 
 	/* Clear the request */
 	vm_nmi_clear(vmx->vm, vcpu);
@@ -1067,7 +1067,7 @@ nmiblocked:
 	 */
 	vmx_set_nmi_window_exiting(vmx, vcpu);
 
-	VMM_CTR0(vmx->vm, vcpu, "Enabling NMI window exiting");
+	VCPU_CTR0(vmx->vm, vcpu, "Enabling NMI window exiting");
 	return (1);
 }
 
@@ -1133,7 +1133,7 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu)
 	/* Update the Local APIC ISR */
 	lapic_intr_accepted(vmx->vm, vcpu, vector);
 
-	VMM_CTR1(vmx->vm, vcpu, "Injecting hwintr at vector %d", vector);
+	VCPU_CTR1(vmx->vm, vcpu, "Injecting hwintr at vector %d", vector);
 
 	return;
 
@@ -1144,7 +1144,7 @@ cantinject:
 	 */
 	vmx_set_int_window_exiting(vmx, vcpu);
 
-	VMM_CTR0(vmx->vm, vcpu, "Enabling interrupt window exiting");
+	VCPU_CTR0(vmx->vm, vcpu, "Enabling interrupt window exiting");
 }
 
 static int
@@ -1434,7 +1434,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	case EXIT_REASON_INTR_WINDOW:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_INTR_WINDOW, 1);
 		vmx_clear_int_window_exiting(vmx, vcpu);
-		VMM_CTR0(vmx->vm, vcpu, "Disabling interrupt window exiting");
+		VCPU_CTR0(vmx->vm, vcpu, "Disabling interrupt window exiting");
 		return (1);
 	case EXIT_REASON_EXT_INTR:
 		/*
@@ -1457,7 +1457,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		/* Exit to allow the pending virtual NMI to be injected */
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_NMI_WINDOW, 1);
 		vmx_clear_nmi_window_exiting(vmx, vcpu);
-		VMM_CTR0(vmx->vm, vcpu, "Disabling NMI window exiting");
+		VCPU_CTR0(vmx->vm, vcpu, "Disabling NMI window exiting");
 		return (1);
 	case EXIT_REASON_INOUT:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_INOUT, 1);
@@ -1658,7 +1658,7 @@ vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap)
 	if (!handled)
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_USERSPACE, 1);
 
-	VMM_CTR1(vmx->vm, vcpu, "goto userland: exitcode %d",vmexit->exitcode);
+	VCPU_CTR1(vmx->vm, vcpu, "goto userland: exitcode %d",vmexit->exitcode);
 
 	/*
 	 * XXX

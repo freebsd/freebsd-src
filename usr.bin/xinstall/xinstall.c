@@ -72,11 +72,6 @@ __FBSDID("$FreeBSD$");
 
 #include "mtree.h"
 
-/* Bootstrap aid - this doesn't exist in most older releases */
-#ifndef MAP_FAILED
-#define MAP_FAILED ((void *)-1)	/* from <sys/mman.h> */
-#endif
-
 #define MAX_CMP_SIZE	(16 * 1024 * 1024)
 
 #define	LN_ABSOLUTE	0x01
@@ -126,7 +121,7 @@ static int	create_tempfile(const char *, char *, size_t);
 static char	*quiet_mktemp(char *template);
 static char	*digest_file(const char *);
 static void	digest_init(DIGEST_CTX *);
-static void	digest_update(DIGEST_CTX *, const unsigned char *, size_t);
+static void	digest_update(DIGEST_CTX *, const char *, size_t);
 static char	*digest_end(DIGEST_CTX *, char *);
 static int	do_link(const char *, const char *, const struct stat *);
 static void	do_symlink(const char *, const char *, const struct stat *);
@@ -431,7 +426,7 @@ digest_init(DIGEST_CTX *c)
 }
 
 static void
-digest_update(DIGEST_CTX *c, const unsigned char *data, size_t len)
+digest_update(DIGEST_CTX *c, const char *data, size_t len)
 {
 
 	switch (digesttype) {
@@ -1018,11 +1013,11 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 		if (trymmap(from_fd) && trymmap(to_fd)) {
 			p = mmap(NULL, from_len, PROT_READ, MAP_SHARED,
 			    from_fd, (off_t)0);
-			if (p == (char *)MAP_FAILED)
+			if (p == MAP_FAILED)
 				goto out;
 			q = mmap(NULL, from_len, PROT_READ, MAP_SHARED,
 			    to_fd, (off_t)0);
-			if (q == (char *)MAP_FAILED) {
+			if (q == MAP_FAILED) {
 				munmap(p, from_len);
 				goto out;
 			}
@@ -1146,7 +1141,8 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 {
 	int nr, nw;
 	int serrno;
-	char *p, buf[MAXBSIZE];
+	char *p;
+	char buf[MAXBSIZE];
 	int done_copy;
 	DIGEST_CTX ctx;
 
@@ -1166,7 +1162,7 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	done_copy = 0;
 	if (size <= 8 * 1048576 && trymmap(from_fd) &&
 	    (p = mmap(NULL, (size_t)size, PROT_READ, MAP_SHARED,
-		    from_fd, (off_t)0)) != (char *)MAP_FAILED) {
+		    from_fd, (off_t)0)) != MAP_FAILED) {
 		nw = write(to_fd, p, size);
 		if (nw != size) {
 			serrno = errno;

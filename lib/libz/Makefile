@@ -1,5 +1,5 @@
 #
-# $FreeBSD: projects/altix2/lib/libz/Makefile 232524 2012-03-04 22:46:11Z marcel $
+# $FreeBSD$
 #
 
 LIB=		z
