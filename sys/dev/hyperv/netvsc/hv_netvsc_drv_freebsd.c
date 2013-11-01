@@ -621,13 +621,15 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet)
 {
 	hn_softc_t *sc = (hn_softc_t *)device_get_softc(device_ctx->device);
 	struct mbuf *m_new;
-	struct ifnet *ifp = sc->hn_ifp;
+	struct ifnet *ifp;
 	int size;
 	int i;
 
 	if (sc == NULL) {
 		return (0); /* TODO: KYS how can this be! */
 	}
+
+	ifp = sc->hn_ifp;
 	
 	ifp = sc->arpcom.ac_ifp;
 
