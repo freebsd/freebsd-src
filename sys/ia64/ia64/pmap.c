@@ -195,12 +195,12 @@ extern struct ia64_lpte ***ia64_kptdir;
 
 vm_offset_t kernel_vm_end;
 
-/* Values for ptc.e. XXX values for SKI. */
-static uint64_t pmap_ptc_e_base = 0x100000000;
-static uint64_t pmap_ptc_e_count1 = 3;
-static uint64_t pmap_ptc_e_count2 = 2;
-static uint64_t pmap_ptc_e_stride1 = 0x2000;
-static uint64_t pmap_ptc_e_stride2 = 0x100000000;
+/* Defaults for ptc.e. */
+static uint64_t pmap_ptc_e_base = 0;
+static uint32_t pmap_ptc_e_count1 = 1;
+static uint32_t pmap_ptc_e_count2 = 1;
+static uint32_t pmap_ptc_e_stride1 = 0;
+static uint32_t pmap_ptc_e_stride2 = 0;
 
 struct mtx pmap_ptc_mutex;
 
@@ -324,12 +324,12 @@ pmap_bootstrap()
 		panic("Can't configure ptc.e parameters");
 	pmap_ptc_e_base = res.pal_result[0];
 	pmap_ptc_e_count1 = res.pal_result[1] >> 32;
-	pmap_ptc_e_count2 = res.pal_result[1] & ((1L<<32) - 1);
+	pmap_ptc_e_count2 = res.pal_result[1];
 	pmap_ptc_e_stride1 = res.pal_result[2] >> 32;
-	pmap_ptc_e_stride2 = res.pal_result[2] & ((1L<<32) - 1);
+	pmap_ptc_e_stride2 = res.pal_result[2];
 	if (bootverbose)
-		printf("ptc.e base=0x%lx, count1=%ld, count2=%ld, "
-		       "stride1=0x%lx, stride2=0x%lx\n",
+		printf("ptc.e base=0x%lx, count1=%u, count2=%u, "
+		       "stride1=0x%x, stride2=0x%x\n",
 		       pmap_ptc_e_base,
 		       pmap_ptc_e_count1,
 		       pmap_ptc_e_count2,
