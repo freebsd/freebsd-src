@@ -86,7 +86,7 @@ randomdev_deinit_harvester(void)
  * read which can be quite expensive.
  */
 void
-random_harvest(void *entropy, u_int count, u_int bits, enum esource origin)
+random_harvest(const void *entropy, u_int count, u_int bits, enum esource origin)
 {
 	if (reap_func)
 		(*reap_func)(get_cyclecount(), entropy, count, bits, origin);
