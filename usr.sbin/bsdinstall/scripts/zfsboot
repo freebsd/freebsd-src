@@ -802,7 +802,7 @@ zfs_create_boot()
 	zpool set cachefile=$BSDINSTALL_CHROOT/boot/zfs/zpool.cache \
 		"$poolname" || return $FAILURE
 
-	# Last, but not least... add required lines to rc.conf(5)
+	# Last, but not least... required lines for rc.conf(5)/loader.conf(5)
 	# NOTE: We later concatenate these into their destination
 	echo 'zfs_enable="YES"' > $BSDINSTALL_TMPETC/rc.conf.zfs ||
 		return $FAILURE
@@ -811,6 +811,14 @@ zfs_create_boot()
 
 	# We're all done unless we should go on to do encryption
 	[ "$ZFSBOOT_GELI_ENCRYPTION" ] || return $SUCCESS
+
+	# Some additional GELI requirements for loader.conf(5)
+	echo 'zpool_cache_load="YES"' \
+		>> $BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
+	echo 'zpool_cache_type="/boot/zfs/zpool.cache"' \
+		>> $BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
+	echo 'zpool_cache_name="/boot/zfs/zpool.cache"' \
+		>> $BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
 
 	#
 	# Configure geli(8)-based encryption
