@@ -736,9 +736,9 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 				ifa_ref(&ia->ia_ifa);
 				IN_IFADDR_RUNLOCK();
 				/*
-				 * in_ifscrub kills the interface route.
+				 * in_scrubprefix() kills the interface route.
 				 */
-				in_ifscrub(ia->ia_ifp, ia, 0);
+				in_scrubprefix(ia, 0);
 				/*
 				 * in_ifadown gets rid of all the rest of the
 				 * routes.  This is not quite the right thing

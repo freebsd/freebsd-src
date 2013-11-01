@@ -142,7 +142,7 @@ static const struct netisr_handler arp_nh = {
 
 #ifdef AF_INET
 /*
- * called by in_ifscrub to remove entry from the table when
+ * called by in_scrubprefix() to remove entry from the table when
  * the interface goes away
  */
 void
