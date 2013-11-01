@@ -922,3 +922,99 @@ DEFINE_CLASS_0(apic, apic_driver, apic_methods, 0);
 
 static devclass_t apic_devclass;
 DRIVER_MODULE(apic, nexus, apic_driver, apic_devclass, 0, 0);
+
+#include "opt_ddb.h"
+
+#ifdef DDB
+#include <ddb/ddb.h>
+
+static const char *
+ioapic_delivery_mode(uint32_t mode)
+{
+
+	switch (mode) {
+	case IOART_DELFIXED:
+		return ("fixed");
+	case IOART_DELLOPRI:
+		return ("lowestpri");
+	case IOART_DELSMI:
+		return ("SMI");
+	case IOART_DELRSV1:
+		return ("rsrvd1");
+	case IOART_DELNMI:
+		return ("NMI");
+	case IOART_DELINIT:
+		return ("INIT");
+	case IOART_DELRSV2:
+		return ("rsrvd2");
+	case IOART_DELEXINT:
+		return ("ExtINT");
+	default:
+		return ("");
+	}
+}
+
+static u_int
+db_ioapic_read(volatile ioapic_t *apic, int reg)
+{
+
+	apic->ioregsel = reg;
+	return (apic->iowin);
+}
+
+static void
+db_show_ioapic_one(volatile ioapic_t *io_addr)
+{
+	uint32_t r, lo, hi;
+	int mre, i;
+
+	r = db_ioapic_read(io_addr, IOAPIC_VER);
+	mre = (r & IOART_VER_MAXREDIR) >> MAXREDIRSHIFT;
+	db_printf("Id 0x%08x Ver 0x%02x MRE %d\n",
+	    db_ioapic_read(io_addr, IOAPIC_ID), r & IOART_VER_VERSION, mre);
+	for (i = 0; i < mre; i++) {
+		lo = db_ioapic_read(io_addr, IOAPIC_REDTBL_LO(i));
+		hi = db_ioapic_read(io_addr, IOAPIC_REDTBL_HI(i));
+		db_printf("  pin %d Dest %s/%x %smasked Trig %s RemoteIRR %d "
+		    "Polarity %s Status %s DeliveryMode %s Vec %d\n", i,
+		    (lo & IOART_DESTMOD) == IOART_DESTLOG ? "log" : "phy",
+		    (hi & IOART_DEST) >> 24,
+		    (lo & IOART_INTMASK) == IOART_INTMSET ? "" : "not",
+		    (lo & IOART_TRGRMOD) == IOART_TRGRLVL ? "lvl" : "edge",
+		    (lo & IOART_REM_IRR) == IOART_REM_IRR ? 1 : 0,
+		    (lo & IOART_INTPOL) == IOART_INTALO ? "low" : "high",
+		    (lo & IOART_DELIVS) == IOART_DELIVS ? "pend" : "idle",
+		    ioapic_delivery_mode(lo & IOART_DELMOD),
+		    (lo & IOART_INTVEC));
+	  }
+}
+
+DB_SHOW_COMMAND(ioapic, db_show_ioapic)
+{
+	struct ioapic *ioapic;
+	int idx, i;
+
+	if (!have_addr) {
+		db_printf("usage: show ioapic index\n");
+		return;
+	}
+
+	idx = (int)addr;
+	i = 0;
+	STAILQ_FOREACH(ioapic, &ioapic_list, io_next) {
+		if (idx == i) {
+			db_show_ioapic_one(ioapic->io_addr);
+			break;
+		}
+		i++;
+	}
+}
+
+DB_SHOW_ALL_COMMAND(ioapics, db_show_all_ioapics)
+{
+	struct ioapic *ioapic;
+
+	STAILQ_FOREACH(ioapic, &ioapic_list, io_next)
+		db_show_ioapic_one(ioapic->io_addr);
+}
+#endif
