@@ -642,7 +642,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 	}
 
 	if (harvest.ethernet)
-		random_harvest(&(m->m_data), 12, 2, RANDOM_NET_ETHER);
+		random_harvest(mtod(m, const void *), 12, 2, RANDOM_NET_ETHER);
 
 	ether_demux(ifp, m);
 	CURVNET_RESTORE();
