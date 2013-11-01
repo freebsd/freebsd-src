@@ -417,8 +417,7 @@ sgisn_shub_attach(device_t dev)
 	    sc->sc_nasid_mask;
 
 	sc->sc_mmraddr = (sc->sc_nasid << sc->sc_nasid_shft) |
-	    (1UL << (sc->sc_nasid_shft - 3)) |
-	    (((sc->sc_hubtype == 0) ? 1UL : 0UL) << 32);
+	    (((sc->sc_hubtype == 0) ? 9UL : 3UL) << 32);
 	sc->sc_tag = IA64_BUS_SPACE_MEM;
 	bus_space_map(sc->sc_tag, sc->sc_mmraddr, 1UL << 32, 0, &sc->sc_hndl);
 
