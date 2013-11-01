@@ -118,16 +118,16 @@ NFROMTO nfile			# fd<> fname
 NAPPEND nfile			# fd>> fname
 NCLOBBER nfile			# fd>| fname
 	type	  int
-	next	  nodeptr		# next redirection in list
 	fd	  int			# file descriptor being redirected
+	next	  nodeptr		# next redirection in list
 	fname	  nodeptr		# file name, in a NARG node
 	expfname  temp	char *expfname	# actual file name
 
 NTOFD ndup			# fd<&dupfd
 NFROMFD ndup			# fd>&dupfd
 	type	  int
-	next	  nodeptr		# next redirection in list
 	fd	  int			# file descriptor being redirected
+	next	  nodeptr		# next redirection in list
 	dupfd	  int			# file descriptor to duplicate
 	vname	  nodeptr		# file name if fd>&$var
 
@@ -135,8 +135,8 @@ NFROMFD ndup			# fd>&dupfd
 NHERE nhere			# fd<<\!
 NXHERE nhere			# fd<<!
 	type	  int
-	next	  nodeptr		# next redirection in list
 	fd	  int			# file descriptor being redirected
+	next	  nodeptr		# next redirection in list
 	doc	  nodeptr		# input to command (NARG node)
 	expdoc    temp	char *expdoc	# actual document (for NXHERE)
 
