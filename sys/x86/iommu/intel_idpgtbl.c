@@ -67,8 +67,6 @@ __FBSDID("$FreeBSD$");
 
 static int ctx_unmap_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base,
     dmar_gaddr_t size, int flags);
-static void ctx_flush_iotlb(struct dmar_ctx *ctx, dmar_gaddr_t base,
-    dmar_gaddr_t size, int flags);
 
 /*
  * The cache of the identity mapping page tables for the DMARs.  Using
@@ -412,7 +410,6 @@ static int
 ctx_map_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
     vm_page_t *ma, uint64_t pflags, int flags)
 {
-	struct dmar_unit *unit;
 	dmar_pte_t *pte;
 	struct sf_buf *sf;
 	dmar_gaddr_t pg_sz, base1, size1;
@@ -482,17 +479,6 @@ ctx_map_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
 	}
 	if (sf != NULL)
 		dmar_unmap_pgtbl(sf, DMAR_IS_COHERENT(ctx->dmar));
-	DMAR_CTX_PGUNLOCK(ctx);
-	unit = ctx->dmar;
-	if ((unit->hw_cap & DMAR_CAP_CM) != 0)
-		ctx_flush_iotlb(ctx, base1, size1, flags);
-	else if ((unit->hw_cap & DMAR_CAP_RWBF) != 0) {
-		/* See 11.1 Write Buffer Flushing. */
-		DMAR_LOCK(unit);
-		dmar_flush_write_bufs(unit);
-		DMAR_UNLOCK(unit);
-	}
-
 	TD_PINNED_ASSERT;
 	return (0);
 }
@@ -501,6 +487,10 @@ int
 ctx_map_buf(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
     vm_page_t *ma, uint64_t pflags, int flags)
 {
+	struct dmar_unit *unit;
+	int error;
+
+	unit = ctx->dmar;
 
 	KASSERT((ctx->flags & DMAR_CTX_IDMAP) == 0,
 	    ("modifying idmap pagetable ctx %p", ctx));
@@ -527,17 +517,30 @@ ctx_map_buf(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
 	    DMAR_PTE_TM)) == 0,
 	    ("invalid pte flags %jx", (uintmax_t)pflags));
 	KASSERT((pflags & DMAR_PTE_SNP) == 0 ||
-	    (ctx->dmar->hw_ecap & DMAR_ECAP_SC) != 0,
+	    (unit->hw_ecap & DMAR_ECAP_SC) != 0,
 	    ("PTE_SNP for dmar without snoop control %p %jx",
 	    ctx, (uintmax_t)pflags));
 	KASSERT((pflags & DMAR_PTE_TM) == 0 ||
-	    (ctx->dmar->hw_ecap & DMAR_ECAP_DI) != 0,
+	    (unit->hw_ecap & DMAR_ECAP_DI) != 0,
 	    ("PTE_TM for dmar without DIOTLB %p %jx",
 	    ctx, (uintmax_t)pflags));
 	KASSERT((flags & ~DMAR_PGF_WAITOK) == 0, ("invalid flags %x", flags));
 
 	DMAR_CTX_PGLOCK(ctx);
-	return (ctx_map_buf_locked(ctx, base, size, ma, pflags, flags));
+	error = ctx_map_buf_locked(ctx, base, size, ma, pflags, flags);
+	DMAR_CTX_PGUNLOCK(ctx);
+	if (error != 0)
+		return (error);
+
+	if ((unit->hw_cap & DMAR_CAP_CM) != 0)
+		ctx_flush_iotlb_sync(ctx, base, size);
+	else if ((unit->hw_cap & DMAR_CAP_RWBF) != 0) {
+		/* See 11.1 Write Buffer Flushing. */
+		DMAR_LOCK(unit);
+		dmar_flush_write_bufs(unit);
+		DMAR_UNLOCK(unit);
+	}
+	return (0);
 }
 
 static void ctx_unmap_clear_pte(struct dmar_ctx *ctx, dmar_gaddr_t base,
@@ -646,8 +649,6 @@ ctx_unmap_buf_locked(struct dmar_ctx *ctx, dmar_gaddr_t base,
 	}
 	if (sf != NULL)
 		dmar_unmap_pgtbl(sf, DMAR_IS_COHERENT(ctx->dmar));
-	DMAR_CTX_PGUNLOCK(ctx);
-	ctx_flush_iotlb(ctx, base1, size1, flags);
 	/*
 	 * See 11.1 Write Buffer Flushing for an explanation why RWBF
 	 * can be ignored there.
@@ -661,9 +662,12 @@ int
 ctx_unmap_buf(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
     int flags)
 {
+	int error;
 
 	DMAR_CTX_PGLOCK(ctx);
-	return (ctx_unmap_buf_locked(ctx, base, size, flags));
+	error = ctx_unmap_buf_locked(ctx, base, size, flags);
+	DMAR_CTX_PGUNLOCK(ctx);
+	return (error);
 }
 
 int
@@ -730,13 +734,8 @@ ctx_wait_iotlb_flush(struct dmar_unit *unit, uint64_t wt, int iro)
 	return (iotlbr);
 }
 
-/*
- * flags is only intended for PGF_WAITOK, to disallow queued
- * invalidation.
- */
-static void
-ctx_flush_iotlb(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
-    int flags)
+void
+ctx_flush_iotlb_sync(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size)
 {
 	struct dmar_unit *unit;
 	dmar_gaddr_t isize;
@@ -744,20 +743,8 @@ ctx_flush_iotlb(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
 	int am, iro;
 
 	unit = ctx->dmar;
-#if 0
-	if ((unit->hw_ecap & DMAR_ECAP_QI) != 0 &&
-	    (flags & DMAR_PGF_WAITOK) != 0) {
-		/*
-		 * XXXKIB: There, a queued invalidation interface
-		 * could be used.  But since queued and registered
-		 * interfaces cannot be used simultaneously, and we
-		 * must use sleep-less (i.e. register) interface when
-		 * DMAR_PGF_WAITOK is not specified, only register
-		 * interface is suitable.
-		 */
-		return;
-	}
-#endif
+	KASSERT(!unit->qi_enabled, ("dmar%d: sync iotlb flush call",
+	    unit->unit));
 	iro = DMAR_ECAP_IRO(unit->hw_ecap) * 16;
 	DMAR_LOCK(unit);
 	if ((unit->hw_cap & DMAR_CAP_PSI) == 0 || size > 2 * 1024 * 1024) {
@@ -769,13 +756,7 @@ ctx_flush_iotlb(struct dmar_ctx *ctx, dmar_gaddr_t base, dmar_gaddr_t size,
 		    (uintmax_t)iotlbr));
 	} else {
 		for (; size > 0; base += isize, size -= isize) {
-			for (am = DMAR_CAP_MAMV(unit->hw_cap);; am--) {
-				isize = 1ULL << (am + DMAR_PAGE_SHIFT);
-				if ((base & (isize - 1)) == 0 && size >= isize)
-					break;
-				if (am == 0)
-					break;
-			}
+			am = calc_am(unit, base, size, &isize);
 			dmar_write8(unit, iro, base | am);
 			iotlbr = ctx_wait_iotlb_flush(unit,
 			    DMAR_IOTLB_IIRG_PAGE | DMAR_IOTLB_DID(ctx->domain),

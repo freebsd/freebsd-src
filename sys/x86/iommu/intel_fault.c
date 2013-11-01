@@ -85,7 +85,7 @@ dmar_fault_next(struct dmar_unit *unit, int faultp)
 }
 
 static void
-dmar_intr_clear(struct dmar_unit *unit, uint32_t fsts)
+dmar_fault_intr_clear(struct dmar_unit *unit, uint32_t fsts)
 {
 	uint32_t clear;
 
@@ -117,7 +117,7 @@ dmar_intr_clear(struct dmar_unit *unit, uint32_t fsts)
 }
 
 int
-dmar_intr(void *arg)
+dmar_fault_intr(void *arg)
 {
 	struct dmar_unit *unit;
 	uint64_t fault_rec[2];
@@ -128,7 +128,7 @@ dmar_intr(void *arg)
 	unit = arg;
 	enqueue = false;
 	fsts = dmar_read4(unit, DMAR_FSTS_REG);
-	dmar_intr_clear(unit, fsts);
+	dmar_fault_intr_clear(unit, fsts);
 
 	if ((fsts & DMAR_FSTS_PPF) == 0)
 		goto done;
@@ -263,9 +263,11 @@ dmar_init_fault_log(struct dmar_unit *unit)
 	taskqueue_start_threads(&unit->fault_taskqueue, 1, PI_AV,
 	    "dmar%d fault taskq", unit->unit);
 
-	dmar_disable_intr(unit);
+	DMAR_LOCK(unit);
+	dmar_disable_fault_intr(unit);
 	dmar_clear_faults(unit);
-	dmar_enable_intr(unit);
+	dmar_enable_fault_intr(unit);
+	DMAR_UNLOCK(unit);
 
 	return (0);
 }
@@ -274,16 +276,40 @@ void
 dmar_fini_fault_log(struct dmar_unit *unit)
 {
 
-	dmar_disable_intr(unit);
+	DMAR_LOCK(unit);
+	dmar_disable_fault_intr(unit);
+	DMAR_UNLOCK(unit);
 
 	if (unit->fault_taskqueue == NULL)
 		return;
 
 	taskqueue_drain(unit->fault_taskqueue, &unit->fault_task);
 	taskqueue_free(unit->fault_taskqueue);
+	unit->fault_taskqueue = NULL;
 	mtx_destroy(&unit->fault_lock);
 
 	free(unit->fault_log, M_DEVBUF);
 	unit->fault_log = NULL;
 	unit->fault_log_head = unit->fault_log_tail = 0;
+}
+
+void
+dmar_enable_fault_intr(struct dmar_unit *unit)
+{
+	uint32_t fectl;
+
+	DMAR_ASSERT_LOCKED(unit);
+	fectl = dmar_read4(unit, DMAR_FECTL_REG);
+	fectl &= ~DMAR_FECTL_IM;
+	dmar_write4(unit, DMAR_FECTL_REG, fectl);
+}
+
+void
+dmar_disable_fault_intr(struct dmar_unit *unit)
+{
+	uint32_t fectl;
+
+	DMAR_ASSERT_LOCKED(unit);
+	fectl = dmar_read4(unit, DMAR_FECTL_REG);
+	dmar_write4(unit, DMAR_FECTL_REG, fectl | DMAR_FECTL_IM);
 }
