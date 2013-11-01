@@ -412,7 +412,6 @@ int	in_addprefix(struct in_ifaddr *, int);
 int	in_scrubprefix(struct in_ifaddr *, u_int);
 void	ip_input(struct mbuf *);
 int	in_ifadown(struct ifaddr *ifa, int);
-void	in_ifscrub(struct ifnet *, struct in_ifaddr *, u_int);
 struct	mbuf	*ip_fastforward(struct mbuf *);
 void	*in_domifattach(struct ifnet *);
 void	in_domifdetach(struct ifnet *, void *);
