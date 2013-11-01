@@ -3962,8 +3962,7 @@ igb_txeof(struct tx_ring *txr)
 	mtx_assert(&txr->tx_mtx, MA_OWNED);
 
 #ifdef DEV_NETMAP
-	if (netmap_tx_irq(ifp, txr->me |
-	    (NETMAP_LOCKED_ENTER|NETMAP_LOCKED_EXIT)))
+	if (netmap_tx_irq(ifp, txr->me))
 		return (FALSE);
 #endif /* DEV_NETMAP */
 
@@ -4829,8 +4828,10 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 #ifdef DEV_NETMAP
-	if (netmap_rx_irq(ifp, rxr->me | NETMAP_LOCKED_ENTER, &processed))
+	if (netmap_rx_irq(ifp, rxr->me, &processed)) {
+		IGB_RX_UNLOCK(rxr);
 		return (FALSE);
+	}
 #endif /* DEV_NETMAP */
 
 	/* Main clean loop */

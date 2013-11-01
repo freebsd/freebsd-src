@@ -3836,8 +3836,7 @@ em_txeof(struct tx_ring *txr)
 
 	EM_TX_LOCK_ASSERT(txr);
 #ifdef DEV_NETMAP
-	if (netmap_tx_irq(ifp, txr->me |
-	    (NETMAP_LOCKED_ENTER | NETMAP_LOCKED_EXIT)))
+	if (netmap_tx_irq(ifp, txr->me))
 		return;
 #endif /* DEV_NETMAP */
 
@@ -4101,7 +4100,7 @@ em_setup_receive_ring(struct rx_ring *rxr)
 	    sizeof(struct e1000_rx_desc), EM_DBA_ALIGN);
 	bzero((void *)rxr->rx_base, rsize);
 #ifdef DEV_NETMAP
-	slot = netmap_reset(na, NR_RX, 0, 0);
+	slot = netmap_reset(na, NR_RX, rxr->me, 0);
 #endif
 
 	/*
@@ -4433,8 +4432,10 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 	EM_RX_LOCK(rxr);
 
 #ifdef DEV_NETMAP
-	if (netmap_rx_irq(ifp, rxr->me | NETMAP_LOCKED_ENTER, &processed))
+	if (netmap_rx_irq(ifp, rxr->me, &processed)) {
+		EM_RX_UNLOCK(rxr);
 		return (FALSE);
+	}
 #endif /* DEV_NETMAP */
 
 	for (i = rxr->next_to_check, processed = 0; count != 0;) {
