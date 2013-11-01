@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2013
+.Dd November 1, 2013
 .Dt PKG 7
 .Os
 .Sh NAME
@@ -35,11 +35,13 @@
 .Ao Ar command Ac
 .Nm
 add
+.Op Fl f
 .Ao Pa pkg.txz Ac
 .Nm
 .Fl N
 .Nm
 bootstrap
+.Op Fl f
 .Sh DESCRIPTION
 .Nm
 is the package management tool.
@@ -55,7 +57,7 @@ The first time invoked,
 will bootstrap the real
 .Xr pkg 8
 from a remote repository.
-.Bl -tag -width "pkg add <pkg.txz> xxxxxxx"
+.Bl -tag -width "pkg bootstrap"
 .It Nm Ao Ar command Ac
 If
 .Xr pkg 8
@@ -63,7 +65,7 @@ is not installed yet, it will be fetched, have its signature verified,
 installed, and then have the original command forwarded to it.
 If already installed, the command requested will be forwarded to the real
 .Xr pkg 8 .
-.It Nm Li add Ao Pa pkg.txz Ac
+.It Nm Li add Oo Fl f Oc Ao Pa pkg.txz Ac
 Install
 .Xr pkg 8
 from a local package instead of fetching from remote.
@@ -72,16 +74,26 @@ If a
 file exists and
 signature checking is enabled, then the signature will be verified
 before installing the package.
+If the
+.Fl f
+flag is specified, then
+.Xr pkg 8
+will be installed regardless if it is already installed.
 .It Nm Fl N
 Do not bootstrap, just determine if
 .Xr pkg 8
 is actually installed or not.
 Returns 0 and the number of packages installed
 if it is, otherwise 1.
-.It Nm Li bootstrap
+.It Nm Li bootstrap Op Fl f
 Attempt to bootstrap and do not forward anything to
 .Xr pkg 8
 after it is installed.
+If the
+.Fl f
+flag is specified, then
+.Xr pkg 8
+will be fetched and installed regardless if it is already installed.
 .El
 .Sh CONFIGURATION
 Configuration varies in whether it is in a repository configuration file
