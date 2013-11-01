@@ -2200,7 +2200,7 @@ xptperiphtraverse(struct cam_ed *device, struct cam_periph *start_periph,
 	for (; periph != NULL; periph = next_periph) {
 		retval = tr_func(periph, arg);
 		if (retval == 0) {
-			cam_periph_release(periph);
+			cam_periph_release_locked(periph);
 			break;
 		}
 		xpt_lock_buses();
