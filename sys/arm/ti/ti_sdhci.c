@@ -546,16 +546,17 @@ ti_sdhci_attach(device_t dev)
 		sc->slot.host.caps &= ~(MMC_CAP_4_BIT_DATA | 
 		    MMC_CAP_8_BIT_DATA);
 		switch (prop) {
-		case 1:
-			break;
+		case 8:
+			sc->slot.host.caps |= MMC_CAP_8_BIT_DATA;
+			/* FALLTHROUGH */
 		case 4:
 			sc->slot.host.caps |= MMC_CAP_4_BIT_DATA;
 			break;
-		case 8:
-			sc->slot.host.caps |= MMC_CAP_8_BIT_DATA;
+		case 1:
 			break;
 		default:
 			device_printf(dev, "Bad bus-width value %u\n", prop);
+			break;
 		}
 	}
 
