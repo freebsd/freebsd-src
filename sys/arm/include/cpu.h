@@ -41,6 +41,7 @@ struct arm_boot_params {
 	register_t	abp_r1;		/* r1 from the boot loader */
 	register_t	abp_r2;		/* r2 from the boot loader */
 	register_t	abp_r3;		/* r3 from the boot loader */
+	register_t	apb_physaddr;	/* The kernel physical address */
 };
 
 void	arm_vector_init(vm_offset_t, int);

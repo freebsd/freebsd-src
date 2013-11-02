@@ -898,7 +898,7 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 
 	board_id = abp->abp_r1;
 	walker = (struct arm_lbabi_tag *)
-	    (abp->abp_r2 + KERNVIRTADDR - KERNPHYSADDR);
+	    (abp->abp_r2 + KERNVIRTADDR - abp->apb_physaddr);
 
 	/* xxx - Need to also look for binary device tree */
 	if (ATAG_TAG(walker) != ATAG_CORE)
@@ -976,7 +976,7 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
 #endif
-	preload_addr_relocate = KERNVIRTADDR - KERNPHYSADDR;
+	preload_addr_relocate = KERNVIRTADDR - abp->apb_physaddr;
 	return lastaddr;
 }
 #endif
@@ -986,6 +986,7 @@ default_parse_boot_param(struct arm_boot_params *abp)
 {
 	vm_offset_t lastaddr;
 
+#if 0
 #if defined(LINUX_BOOT_ABI)
 	if ((lastaddr = linux_parse_boot_param(abp)) != 0)
 		return lastaddr;
@@ -993,6 +994,7 @@ default_parse_boot_param(struct arm_boot_params *abp)
 #if defined(FREEBSD_BOOT_LOADER)
 	if ((lastaddr = freebsd_parse_boot_param(abp)) != 0)
 		return lastaddr;
+#endif
 #endif
 	/* Fall back to hardcoded metadata. */
 	lastaddr = fake_preload_metadata(abp);
@@ -1078,15 +1080,15 @@ print_kenv(void)
 }
 
 static void
-physmap_init(struct mem_region *availmem_regions, int availmem_regions_sz)
+physmap_init(struct mem_region *availmem_regions, int availmem_regions_sz,
+    vm_offset_t kernload)
 {
 	int i, j, cnt;
-	vm_offset_t phys_kernelend, kernload;
+	vm_offset_t phys_kernelend;
 	uint32_t s, e, sz;
 	struct mem_region *mp, *mp1;
 
-	phys_kernelend = KERNPHYSADDR + (virtual_avail - KERNVIRTADDR);
-	kernload = KERNPHYSADDR;
+	phys_kernelend = kernload + (virtual_avail - KERNVIRTADDR);
 
 	/*
 	 * Remove kernel physical address range from avail
@@ -1328,7 +1330,7 @@ initarm(struct arm_boot_params *abp)
 	/* Define a macro to simplify memory allocation */
 #define valloc_pages(var, np)						\
 	alloc_pages((var).pv_va, (np));					\
-	(var).pv_pa = (var).pv_va + (KERNPHYSADDR - KERNVIRTADDR);
+	(var).pv_pa = (var).pv_va + (abp->apb_physaddr - KERNVIRTADDR);
 
 #define alloc_pages(var, np)						\
 	(var) = freemempos;						\
@@ -1349,7 +1351,7 @@ initarm(struct arm_boot_params *abp)
 			    L2_TABLE_SIZE_REAL * (i - j);
 			kernel_pt_table[i].pv_pa =
 			    kernel_pt_table[i].pv_va - KERNVIRTADDR +
-			    KERNPHYSADDR;
+			    abp->apb_physaddr;
 
 		}
 	}
@@ -1394,7 +1396,7 @@ initarm(struct arm_boot_params *abp)
 	pmap_curmaxkvaddr = l2_start + (l2size - 1) * L1_S_SIZE;
 
 	/* Map kernel code and data */
-	pmap_map_chunk(l1pagetable, KERNVIRTADDR, KERNPHYSADDR,
+	pmap_map_chunk(l1pagetable, KERNVIRTADDR, abp->apb_physaddr,
 	   (((uint32_t)(lastaddr) - KERNVIRTADDR) + PAGE_MASK) & ~PAGE_MASK,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
@@ -1500,7 +1502,7 @@ initarm(struct arm_boot_params *abp)
 	/*
 	 * Prepare map of physical memory regions available to vm subsystem.
 	 */
-	physmap_init(availmem_regions, availmem_regions_sz);
+	physmap_init(availmem_regions, availmem_regions_sz, abp->apb_physaddr);
 
 	init_param2(physmem);
 	kdb_init();

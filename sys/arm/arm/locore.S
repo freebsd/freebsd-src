@@ -240,6 +240,7 @@ virt_done:
 	str	r8, [r0, #8]		/* Store r1 from boot loader */
 	str	ip, [r0, #12]		/* store r2 from boot loader */
 	str	fp, [r0, #16]		/* store r3 from boot loader */
+	str	r5, [r0, #20]		/* store the physical address */
 	mov	fp, #0			/* trace back starts here */
 	bl	_C_LABEL(initarm)	/* Off we go */
 
