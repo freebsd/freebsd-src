@@ -776,7 +776,7 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 		return (EAFNOSUPPORT);
 	}
 	if (harvest.point_to_point)
-		random_harvest(mtod(m, const void *), 12, 2, RANDOM_NET_NG);
+		random_harvest(&(m->m_data), 12, 2, RANDOM_NET_NG);
 	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 	return (0);

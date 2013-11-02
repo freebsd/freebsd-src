@@ -919,7 +919,7 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		return (EAFNOSUPPORT);
 	}
 	if (harvest.point_to_point)
-		random_harvest(mtod(m, const void *), 12, 2, RANDOM_NET_TUN);
+		random_harvest(&(m->m_data), 12, 2, RANDOM_NET_TUN);
 	ifp->if_ibytes += m->m_pkthdr.len;
 	ifp->if_ipackets++;
 	CURVNET_SET(ifp->if_vnet);
