@@ -372,6 +372,8 @@ fbd_attach(device_t dev)
 
 	sc->sc_dev = dev;
 	sc->sc_info = FB_GETINFO(device_get_parent(dev));
+	if (sc->sc_info == NULL)
+		return (ENXIO);
 	err = fbd_register(sc->sc_info);
 
 	return (err);
