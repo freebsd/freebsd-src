@@ -477,7 +477,7 @@ sgisn_shub_attach(device_t dev)
 
 			fwbus = (void *)IA64_PHYS_TO_RR7(addr);
 			if (((fwbus->bus_base >> sc->sc_nasid_shft) &
-			    sc->sc_nasid_mask) != sc->sc_nasid)
+			    (sc->sc_nasid_mask - 1)) != sc->sc_nasid)
 				continue;
 
 			child = device_add_child(dev, "pcib", -1);
