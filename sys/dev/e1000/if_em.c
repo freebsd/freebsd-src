@@ -4059,8 +4059,7 @@ em_allocate_receive_buffers(struct rx_ring *rxr)
 	rxbuf = rxr->rx_buffers;
 	for (int i = 0; i < adapter->num_rx_desc; i++, rxbuf++) {
 		rxbuf = &rxr->rx_buffers[i];
-		error = bus_dmamap_create(rxr->rxtag, BUS_DMA_NOWAIT,
-		    &rxbuf->map);
+		error = bus_dmamap_create(rxr->rxtag, 0, &rxbuf->map);
 		if (error) {
 			device_printf(dev, "%s: bus_dmamap_create failed: %d\n",
 			    __func__, error);
@@ -4467,6 +4466,7 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 			em_rx_discard(rxr, i);
 			goto next_desc;
 		}
+		bus_dmamap_unload(rxr->rxtag, rxr->rx_buffers[i].map);
 
 		/* Assign correct length to the current fragment */
 		mp = rxr->rx_buffers[i].m_head;
@@ -4553,6 +4553,8 @@ em_rx_discard(struct rx_ring *rxr, int i)
 	struct em_buffer	*rbuf;
 
 	rbuf = &rxr->rx_buffers[i];
+	bus_dmamap_unload(rxr->rxtag, rbuf->map);
+
 	/* Free any previous pieces */
 	if (rxr->fmp != NULL) {
 		rxr->fmp->m_flags |= M_PKTHDR;
