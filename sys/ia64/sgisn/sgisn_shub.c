@@ -385,7 +385,8 @@ sgisn_shub_attach(device_t dev)
 	sc->sc_dev = dev;
 	sc->sc_domain = device_get_unit(dev);
 
-	shub_dev = dev;
+	if (sc->sc_domain == 0)
+		shub_dev = dev;
 
 	/*
 	 * Get the physical memory region that is connected to the MD I/F
@@ -416,7 +417,7 @@ sgisn_shub_attach(device_t dev)
 	sc->sc_nasid = (sc->sc_membase >> sc->sc_nasid_shft) &
 	    sc->sc_nasid_mask;
 
-	sc->sc_mmraddr = (sc->sc_nasid << sc->sc_nasid_shft) |
+	sc->sc_mmraddr = ((vm_paddr_t)sc->sc_nasid << sc->sc_nasid_shft) |
 	    (((sc->sc_hubtype == 0) ? 9UL : 3UL) << 32);
 	sc->sc_tag = IA64_BUS_SPACE_MEM;
 	bus_space_map(sc->sc_tag, sc->sc_mmraddr, 1UL << 32, 0, &sc->sc_hndl);
@@ -447,14 +448,12 @@ sgisn_shub_attach(device_t dev)
 	for (wdgt = 0; wdgt < SGISN_HUB_NWIDGETS; wdgt++)
 		sc->sc_fwhub->hub_widget[wdgt].wgt_hub = sc->sc_fwhub;
 
-	/* Create a child for the SAL-based console. */
+	/* Create a child for the SAL-based console and the RTC. */
 	r = ia64_sal_entry(SAL_SGISN_MASTER_NASID, 0, 0, 0, 0, 0, 0, 0);
 	if (r.sal_status == 0 && r.sal_result[0] == sc->sc_nasid) {
 		child = device_add_child(dev, "sncon", -1);
 		device_set_ivars(child, (void *)(uintptr_t)~0UL);
-	}
 
-	if (sc->sc_nasid == 0) {
 		/* Use the SHub's RTC as a time counter. */
 		r = ia64_sal_entry(SAL_FREQ_BASE, 2, 0, 0, 0, 0, 0, 0);
 		if (r.sal_status == 0) {
