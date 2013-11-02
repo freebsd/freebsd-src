@@ -1034,9 +1034,14 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 
 #if defined(__FreeBSD__)
 	if (new_fb) {
+		device_t fbd;
+		int ret;
+
 		kdev = fb_helper->dev->device;
-		device_add_child(kdev, "fbd", device_get_unit(kdev));
-		bus_generic_attach(kdev);
+		fbd = device_add_child(kdev, "fbd", device_get_unit(kdev));
+		ret = device_probe_and_attach(fbd);
+		if (ret != 0)
+			DRM_ERROR("Failed to attach fbd device: %d\n", ret);
 	}
 #else
 	if (new_fb) {
