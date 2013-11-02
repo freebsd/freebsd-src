@@ -3996,7 +3996,6 @@ igb_txeof(struct tx_ring *txr)
 			    buf->map);
 			m_freem(buf->m_head);
 			buf->m_head = NULL;
-			buf->map = NULL;
 		}
 		buf->eop = NULL;
 		++txr->tx_avail;
@@ -4022,7 +4021,6 @@ igb_txeof(struct tx_ring *txr)
 				    buf->map);
 				m_freem(buf->m_head);
 				buf->m_head = NULL;
-				buf->map = NULL;
 			}
 			++txr->tx_avail;
 			buf->eop = NULL;
@@ -4230,15 +4228,13 @@ igb_allocate_receive_buffers(struct rx_ring *rxr)
 
 	for (i = 0; i < adapter->num_rx_desc; i++) {
 		rxbuf = &rxr->rx_buffers[i];
-		error = bus_dmamap_create(rxr->htag,
-		    BUS_DMA_NOWAIT, &rxbuf->hmap);
+		error = bus_dmamap_create(rxr->htag, 0, &rxbuf->hmap);
 		if (error) {
 			device_printf(dev,
 			    "Unable to create RX head DMA maps\n");
 			goto fail;
 		}
-		error = bus_dmamap_create(rxr->ptag,
-		    BUS_DMA_NOWAIT, &rxbuf->pmap);
+		error = bus_dmamap_create(rxr->ptag, 0, &rxbuf->pmap);
 		if (error) {
 			device_printf(dev,
 			    "Unable to create RX packet DMA maps\n");
@@ -4758,11 +4754,13 @@ igb_rx_discard(struct rx_ring *rxr, int i)
 	if (rbuf->m_head) {
 		m_free(rbuf->m_head);
 		rbuf->m_head = NULL;
+		bus_dmamap_unload(rxr->htag, rbuf->hmap);
 	}
 
 	if (rbuf->m_pack) {
 		m_free(rbuf->m_pack);
 		rbuf->m_pack = NULL;
+		bus_dmamap_unload(rxr->ptag, rbuf->pmap);
 	}
 
 	return;
@@ -4887,6 +4885,7 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 		** case only the first header is valid.
 		*/
 		if (rxr->hdr_split && rxr->fmp == NULL) {
+			bus_dmamap_unload(rxr->htag, rxbuf->hmap);
 			hlen = (hdr & E1000_RXDADV_HDRBUFLEN_MASK) >>
 			    E1000_RXDADV_HDRBUFLEN_SHIFT;
 			if (hlen > IGB_HDR_BUF)
@@ -4919,6 +4918,7 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 			/* clear buf info for refresh */
 			rxbuf->m_pack = NULL;
 		}
+		bus_dmamap_unload(rxr->ptag, rxbuf->pmap);
 
 		++processed; /* So we know when to refresh */
 
