@@ -26,6 +26,9 @@ License Agreement applies to this software.
         Created at NRL for OPIE 2.2 from opiesubr2.c
 */
 
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #include "opie_cfg.h"
 #include "opie.h"
 

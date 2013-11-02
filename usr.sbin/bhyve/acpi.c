@@ -806,18 +806,13 @@ static struct {
 };
 
 int
-acpi_build(struct vmctx *ctx, int ncpu, int ioapic)
+acpi_build(struct vmctx *ctx, int ncpu)
 {
 	int err;
 	int i;
 
 	err = 0;
 	basl_ncpu = ncpu;
-
-	if (!ioapic) {
-		fprintf(stderr, "ACPI tables require an ioapic\n");
-		return (EINVAL);
-	}
 
 	/*
 	 * For debug, allow the user to have iasl compiler output sent

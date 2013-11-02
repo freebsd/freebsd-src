@@ -78,8 +78,8 @@ proc_bkptset(struct proc_handle *phdl, uintptr_t address,
 	piod.piod_addr = &paddr;
 	piod.piod_len  = BREAKPOINT_INSTR_SZ;
 	if (ptrace(PT_IO, proc_getpid(phdl), (caddr_t)&piod, 0) < 0) {
-		DPRINTF("ERROR: couldn't read instruction at address 0x%" PRIuPTR,
-		    address);
+		DPRINTF("ERROR: couldn't read instruction at address 0x%"
+		    PRIuPTR, address);
 		return (-1);
 	}
 	*saved = paddr;
@@ -93,8 +93,8 @@ proc_bkptset(struct proc_handle *phdl, uintptr_t address,
 	piod.piod_addr = &paddr;
 	piod.piod_len  = BREAKPOINT_INSTR_SZ;
 	if (ptrace(PT_IO, proc_getpid(phdl), (caddr_t)&piod, 0) < 0) {
-		warn("ERROR: couldn't write instruction at address 0x%" PRIuPTR,
-		    address);
+		DPRINTF("ERROR: couldn't write instruction at address 0x%"
+		    PRIuPTR, address);
 		return (-1);
 	}
 
@@ -113,7 +113,7 @@ proc_bkptdel(struct proc_handle *phdl, uintptr_t address,
 		errno = ENOENT;
 		return (-1);
 	}
-	DPRINTF("removing breakpoint at 0x%lx\n", address);
+	DPRINTFX("removing breakpoint at 0x%lx\n", address);
 	/*
 	 * Overwrite the breakpoint instruction that we setup previously.
 	 */
@@ -124,8 +124,8 @@ proc_bkptdel(struct proc_handle *phdl, uintptr_t address,
 	piod.piod_addr = &paddr;
 	piod.piod_len  = BREAKPOINT_INSTR_SZ;
 	if (ptrace(PT_IO, proc_getpid(phdl), (caddr_t)&piod, 0) < 0) {
-		DPRINTF("ERROR: couldn't write instruction at address 0x%" PRIuPTR,
-		    address);
+		DPRINTF("ERROR: couldn't write instruction at address 0x%"
+		    PRIuPTR, address);
 		return (-1);
 	}
  
@@ -153,12 +153,12 @@ proc_bkptexec(struct proc_handle *phdl, unsigned long saved)
 	int status;
 
 	if (proc_regget(phdl, REG_PC, &pc) < 0) {
-		warn("ERROR: couldn't get PC register");
+		DPRINTFX("ERROR: couldn't get PC register");
 		return (-1);
 	}
 	proc_bkptregadj(&pc);
 	if (proc_bkptdel(phdl, pc, saved) < 0) {
-		warn("ERROR: couldn't delete breakpoint");
+		DPRINTFX("ERROR: couldn't delete breakpoint");
 		return (-1);
 	}
 	/*
@@ -167,13 +167,13 @@ proc_bkptexec(struct proc_handle *phdl, unsigned long saved)
 	 */
 	proc_regset(phdl, REG_PC, pc);
 	if (ptrace(PT_STEP, proc_getpid(phdl), (caddr_t)1, 0) < 0) {
-		warn("ERROR: ptrace step failed");
+		DPRINTFX("ERROR: ptrace step failed");
 		return (-1);
 	}
 	proc_wstatus(phdl);
 	status = proc_getwstat(phdl);
 	if (!WIFSTOPPED(status)) {
-		warn("ERROR: don't know why process stopped");
+		DPRINTFX("ERROR: don't know why process stopped");
 		return (-1);
 	}
 	/*
@@ -181,7 +181,7 @@ proc_bkptexec(struct proc_handle *phdl, unsigned long saved)
 	 * the same as the one that we were passed in.
 	 */
 	if (proc_bkptset(phdl, pc, &samesaved) < 0) {
-		warn("ERROR: couldn't restore breakpoint");
+		DPRINTFX("ERROR: couldn't restore breakpoint");
 		return (-1);
 	}
 	assert(samesaved == saved);

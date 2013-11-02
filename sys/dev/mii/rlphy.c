@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/bus.h>
+#include <sys/taskqueue.h>	/* XXXGL: if_rlreg.h contamination */
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -141,22 +142,10 @@ rlphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the interface is not up, don't do anything.
-		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
-			break;
-
 		mii_phy_setmedia(sc);
 		break;
 
 	case MII_TICK:
-		/*
-		 * Is the interface even up?
-		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
-			return (0);
-
 		/*
 		 * The RealTek PHY's autonegotiation doesn't need to be
 		 * kicked; it continues in the background.

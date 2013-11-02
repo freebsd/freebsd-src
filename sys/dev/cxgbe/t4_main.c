@@ -332,6 +332,7 @@ static int map_bars_0_and_4(struct adapter *);
 static int map_bar_2(struct adapter *);
 static void setup_memwin(struct adapter *);
 static int validate_mem_range(struct adapter *, uint32_t, int);
+static int fwmtype_to_hwmtype(int);
 static int validate_mt_off_len(struct adapter *, int, uint32_t, int,
     uint32_t *);
 static void memwin_info(struct adapter *, int, uint32_t *, uint32_t *);
@@ -1576,6 +1577,24 @@ validate_mem_range(struct adapter *sc, uint32_t addr, int len)
 	return (EFAULT);
 }
 
+static int
+fwmtype_to_hwmtype(int mtype)
+{
+
+	switch (mtype) {
+	case FW_MEMTYPE_EDC0:
+		return (MEM_EDC0);
+	case FW_MEMTYPE_EDC1:
+		return (MEM_EDC1);
+	case FW_MEMTYPE_EXTMEM:
+		return (MEM_MC0);
+	case FW_MEMTYPE_EXTMEM1:
+		return (MEM_MC1);
+	default:
+		panic("%s: cannot translate fw mtype %d.", __func__, mtype);
+	}
+}
+
 /*
  * Verify that the memory range specified by the memtype/offset/len pair is
  * valid and lies entirely within the memtype specified.  The global address of
@@ -1592,7 +1611,7 @@ validate_mt_off_len(struct adapter *sc, int mtype, uint32_t off, int len,
 		return (EINVAL);
 
 	em = t4_read_reg(sc, A_MA_TARGET_MEM_ENABLE);
-	switch (mtype) {
+	switch (fwmtype_to_hwmtype(mtype)) {
 	case MEM_EDC0:
 		if (!(em & F_EDRAM0_ENABLE))
 			return (EINVAL);
@@ -2293,7 +2312,7 @@ partition_resources(struct adapter *sc, const struct firmware *default_cfg,
 		}
 	} else {
 use_config_on_flash:
-		mtype = FW_MEMTYPE_CF_FLASH;
+		mtype = FW_MEMTYPE_FLASH;
 		moff = t4_flash_cfg_addr(sc);
 	}
 
@@ -5306,12 +5325,12 @@ sysctl_devlog(SYSCTL_HANDLER_ARGS)
 	struct adapter *sc = arg1;
 	struct devlog_params *dparams = &sc->params.devlog;
 	struct fw_devlog_e *buf, *e;
-	int i, j, rc, nentries, first = 0;
+	int i, j, rc, nentries, first = 0, m;
 	struct sbuf *sb;
 	uint64_t ftstamp = UINT64_MAX;
 
 	if (dparams->start == 0) {
-		dparams->memtype = 0;
+		dparams->memtype = FW_MEMTYPE_EDC0;
 		dparams->start = 0x84000;
 		dparams->size = 32768;
 	}
@@ -5322,8 +5341,8 @@ sysctl_devlog(SYSCTL_HANDLER_ARGS)
 	if (buf == NULL)
 		return (ENOMEM);
 
-	rc = -t4_mem_read(sc, dparams->memtype, dparams->start, dparams->size,
-	    (void *)buf);
+	m = fwmtype_to_hwmtype(dparams->memtype);
+	rc = -t4_mem_read(sc, m, dparams->start, dparams->size, (void *)buf);
 	if (rc != 0)
 		goto done;
 

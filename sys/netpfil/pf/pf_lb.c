@@ -42,13 +42,25 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mbuf.h>
+#include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/vnet.h>
 #include <net/pfvar.h>
 #include <net/if_pflog.h>
-#include <net/pf_mtag.h>
+
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
+
+#ifdef INET6
+#include <netinet/ip6.h>
+#include <netinet/icmp6.h>
+#endif
 
 #define DPFPRINTF(n, x)	if (V_pf_status.debug >= (n)) printf x
 
@@ -221,9 +233,23 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 	if (pf_map_addr(af, r, saddr, naddr, &init_addr, sn))
 		return (1);
 
-	if (proto == IPPROTO_ICMP) {
+	switch (proto) {
+	case IPPROTO_ICMP:
+		if (dport != ICMP_ECHO)
+			return (0);
 		low = 1;
 		high = 65535;
+		break;
+#ifdef INET6
+	case IPPROTO_ICMPV6:
+		if (dport != ICMP_ECHO)
+			return (0);
+		low = 1;
+		high = 65535;
+		break;
+#endif
+	default:
+		return (0); /* Don't try to modify non-echo ICMP */
 	}
 
 	bzero(&key, sizeof(key));

@@ -46,22 +46,23 @@ DAEMONS=$(dialog --backtitle "FreeBSD Installer" \
 	moused	"PS/2 mouse pointer on console" ${moused_enable:-off} \
 	ntpd	"Synchronize system and network time" ${ntpd_enable:-off} \
 	powerd	"Adjust CPU frequency dynamically if supported" ${powerd_enable:-off} \
+	dumpdev "Enable kernel crash dumps to /var/crash" ${dumpdev:-on} \
 2>&1 1>&3)
 exec 3>&-
 
+local havedump=
 for daemon in $DAEMONS; do
+	if [ "$daemon" == "dumpdev" ]; then
+		havedump=1
+		echo \# Set dumpdev to \"AUTO\" to enable crash dumps, \
+			\"NO\" to disable >> \ 
+			$BSDINSTALL_TMPETC/rc.conf.services
+		echo dumpdev=\"AUTO\" >> $BSDINSTALL_TMPETC/rc.conf.services
+		continue
+	fi
 	echo ${daemon}_enable=\"YES\" >> $BSDINSTALL_TMPETC/rc.conf.services
 done
 
-echo \# Set dumpdev to \"AUTO\" to enable crash dumps, \"NO\" to disable >> \
-	$BSDINSTALL_TMPETC/rc.conf.services
-
-dialog --backtitle "FreeBSD Installer" --title "Dumpdev Configuration" \
-	--nocancel --yesno \
-	"Would you like to enable crash dumps?  If you start having problems with the system it can help the FreeBSD developers debug the problem.  But the crash dumps can take up a lot of disk space in /var." 0 0
-
-if [ $? -eq $DIALOG_OK ]; then
-	echo dumpdev=\"AUTO\" >> $BSDINSTALL_TMPETC/rc.conf.services
-else
+if [ ! "$havedump" ]; then
 	echo dumpdev=\"NO\" >> $BSDINSTALL_TMPETC/rc.conf.services
 fi

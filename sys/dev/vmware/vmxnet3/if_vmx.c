@@ -24,6 +24,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/endian.h>
 #include <sys/sockio.h>
@@ -37,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
@@ -1317,7 +1319,7 @@ vmxnet3_init_shared_data(struct vmxnet3_softc *sc)
 
 	/* DriverInfo */
 	ds->version = VMXNET3_DRIVER_VERSION;
-	ds->guest = VMXNET3_GOS_FREEBSD | VMXNET3_GUEST_OS_VERSION |
+	ds->guest = VMXNET3_GOS_FREEBSD |
 #ifdef __LP64__
 	    VMXNET3_GOS_64BIT;
 #else

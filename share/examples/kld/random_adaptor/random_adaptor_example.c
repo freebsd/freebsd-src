@@ -30,32 +30,29 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
-#include <sys/selinfo.h>
+#include <sys/random.h>
 #include <sys/systm.h>
 
+#include <dev/random/live_entropy_sources.h>
 #include <dev/random/random_adaptors.h>
 #include <dev/random/randomdev.h>
-
-#define RNG_NAME "example"
 
 static int random_example_read(void *, int);
 
 struct random_adaptor random_example = {
 	.ident = "Example RNG",
-	.init = (random_init_func_t *)random_null_func,
-	.deinit = (random_deinit_func_t *)random_null_func,
+	.source = RANDOM_PURE_BOGUS,	/* Make sure this is in
+					 * sys/random.h and is unique */
 	.read = random_example_read,
-	.write = (random_write_func_t *)random_null_func,
-	.reseed = (random_reseed_func_t *)random_null_func,
-	.seeded = 1,
 };
 
 /*
  * Used under the license provided @ http://xkcd.com/221/
  * http://creativecommons.org/licenses/by-nc/2.5/
  */
-static u_char
+static uint8_t
 getRandomNumber(void)
 {
 	return 4;   /* chosen by fair dice roll, guaranteed to be random */
@@ -64,14 +61,13 @@ getRandomNumber(void)
 static int
 random_example_read(void *buf, int c)
 {
-	u_char *b;
+	uint8_t *b;
 	int count;
 
 	b = buf;
 
-	for (count = 0; count < c; count++) {
+	for (count = 0; count < c; count++)
 		b[count] = getRandomNumber();
-	}
 
 	printf("returning %d bytes of pure randomness\n", c);
 	return (c);
@@ -80,15 +76,26 @@ random_example_read(void *buf, int c)
 static int
 random_example_modevent(module_t mod, int type, void *unused)
 {
+	int error = 0;
 
 	switch (type) {
 	case MOD_LOAD:
-		random_adaptor_register(RNG_NAME, &random_example);
-		EVENTHANDLER_INVOKE(random_adaptor_attach, &random_example);
-		return (0);
+		live_entropy_source_register(&random_example);
+		break;
+
+	case MOD_UNLOAD:
+		live_entropy_source_deregister(&random_example);
+		break;
+
+	case MOD_SHUTDOWN:
+		break;
+
+	default:
+		error = EOPNOTSUPP;
+		break;
 	}
 
-	return (EINVAL);
+	return (error);
 }
 
-RANDOM_ADAPTOR_MODULE(random_example, random_example_modevent, 1);
+LIVE_ENTROPY_SRC_MODULE(live_entropy_source_example, random_example_modevent, 1);

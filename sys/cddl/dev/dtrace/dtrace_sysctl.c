@@ -80,3 +80,5 @@ sysctl_dtrace_providers(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_debug_dtrace, OID_AUTO, providers, CTLTYPE_STRING | CTLFLAG_RD,
     0, 0, sysctl_dtrace_providers, "A", "");
 
+SYSCTL_INT(_debug_dtrace, OID_AUTO, memstr_max, CTLFLAG_RW, &dtrace_memstr_max,
+    0, "largest allowed argument to memstr(), 0 indicates no limit");

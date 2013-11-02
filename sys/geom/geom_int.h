@@ -39,6 +39,9 @@ LIST_HEAD(class_list_head, g_class);
 TAILQ_HEAD(g_tailq_head, g_geom);
 
 extern int g_collectstats;
+#define G_STATS_PROVIDERS	1	/* Collect I/O stats for providers */
+#define G_STATS_CONSUMERS	2	/* Collect I/O stats for consumers */
+
 extern int g_debugflags;
 /*
  * 1	G_T_TOPOLOGY

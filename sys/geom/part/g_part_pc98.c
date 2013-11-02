@@ -343,8 +343,15 @@ g_part_pc98_resize(struct g_part_table *basetable,
     struct g_part_entry *baseentry, struct g_part_parms *gpp)
 {
 	struct g_part_pc98_entry *entry;
+	struct g_provider *pp;
 	uint32_t size, cyl;
 
+	if (baseentry == NULL) {
+		pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
+		basetable->gpt_last = MIN(pp->mediasize / SECSIZE,
+		    UINT32_MAX) - 1;
+		return (0);
+	}
 	cyl = basetable->gpt_heads * basetable->gpt_sectors;
 	size = gpp->gpp_size;
 

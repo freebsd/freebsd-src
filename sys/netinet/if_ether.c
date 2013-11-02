@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
@@ -141,7 +142,7 @@ static const struct netisr_handler arp_nh = {
 
 #ifdef AF_INET
 /*
- * called by in_ifscrub to remove entry from the table when
+ * called by in_scrubprefix() to remove entry from the table when
  * the interface goes away
  */
 void

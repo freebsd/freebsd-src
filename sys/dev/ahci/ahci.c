@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 static int ahci_setup_interrupt(device_t dev);
 static void ahci_intr(void *data);
 static void ahci_intr_one(void *data);
+static void ahci_intr_one_edge(void *data);
 static int ahci_suspend(device_t dev);
 static int ahci_resume(device_t dev);
 static int ahci_ch_init(device_t dev);
@@ -62,8 +63,9 @@ static int ahci_ch_deinit(device_t dev);
 static int ahci_ch_suspend(device_t dev);
 static int ahci_ch_resume(device_t dev);
 static void ahci_ch_pm(void *arg);
-static void ahci_ch_intr_locked(void *data);
-static void ahci_ch_intr(void *data);
+static void ahci_ch_intr(void *arg);
+static void ahci_ch_intr_direct(void *arg);
+static void ahci_ch_intr_main(struct ahci_channel *ch, uint32_t istatus);
 static int ahci_ctlr_reset(device_t dev);
 static int ahci_ctlr_setup(device_t dev);
 static void ahci_begin_transaction(device_t dev, union ccb *ccb);
@@ -397,6 +399,7 @@ ahci_attach(device_t dev)
 	struct ahci_controller *ctlr = device_get_softc(dev);
 	device_t child;
 	int	error, unit, speed, i;
+	u_int	u;
 	uint32_t devid = pci_get_devid(dev);
 	uint8_t revid = pci_get_revid(dev);
 	u_int32_t version;
@@ -496,6 +499,12 @@ ahci_attach(device_t dev)
 		rman_fini(&ctlr->sc_iomem);
 		return ENXIO;
 	}
+	i = 0;
+	for (u = ctlr->ichannels; u != 0; u >>= 1)
+		i += (u & 1);
+	ctlr->direct = (ctlr->msi && (ctlr->numirqs > 1 || i <= 3));
+	resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "direct", &ctlr->direct);
 	/* Announce HW capabilities. */
 	speed = (ctlr->caps & AHCI_CAP_ISS) >> AHCI_CAP_ISS_SHIFT;
 	device_printf(dev,
@@ -677,24 +686,26 @@ static int
 ahci_setup_interrupt(device_t dev)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
-	int i, msi = 1;
+	int i;
 
+	ctlr->msi = 2;
 	/* Process hints. */
 	if (ctlr->quirks & AHCI_Q_NOMSI)
-		msi = 0;
+		ctlr->msi = 0;
 	resource_int_value(device_get_name(dev),
-	    device_get_unit(dev), "msi", &msi);
-	if (msi < 0)
-		msi = 0;
-	else if (msi == 1)
-		msi = min(1, pci_msi_count(dev));
-	else if (msi > 1)
-		msi = pci_msi_count(dev);
+	    device_get_unit(dev), "msi", &ctlr->msi);
+	ctlr->numirqs = 1;
+	if (ctlr->msi < 0)
+		ctlr->msi = 0;
+	else if (ctlr->msi == 1)
+		ctlr->msi = min(1, pci_msi_count(dev));
+	else if (ctlr->msi > 1) {
+		ctlr->msi = 2;
+		ctlr->numirqs = pci_msi_count(dev);
+	}
 	/* Allocate MSI if needed/present. */
-	if (msi && pci_alloc_msi(dev, &msi) == 0) {
-		ctlr->numirqs = msi;
-	} else {
-		msi = 0;
+	if (ctlr->msi && pci_alloc_msi(dev, &ctlr->numirqs) != 0) {
+		ctlr->msi = 0;
 		ctlr->numirqs = 1;
 	}
 	/* Check for single MSI vector fallback. */
@@ -706,7 +717,7 @@ ahci_setup_interrupt(device_t dev)
 	/* Allocate all IRQs. */
 	for (i = 0; i < ctlr->numirqs; i++) {
 		ctlr->irqs[i].ctlr = ctlr;
-		ctlr->irqs[i].r_irq_rid = i + (msi ? 1 : 0);
+		ctlr->irqs[i].r_irq_rid = i + (ctlr->msi ? 1 : 0);
 		if (ctlr->numirqs == 1 || i >= ctlr->channels ||
 		    (ctlr->ccc && i == ctlr->cccv))
 			ctlr->irqs[i].mode = AHCI_IRQ_MODE_ALL;
@@ -720,7 +731,9 @@ ahci_setup_interrupt(device_t dev)
 			return ENXIO;
 		}
 		if ((bus_setup_intr(dev, ctlr->irqs[i].r_irq, ATA_INTR_FLAGS, NULL,
-		    (ctlr->irqs[i].mode == AHCI_IRQ_MODE_ONE) ? ahci_intr_one : ahci_intr,
+		    (ctlr->irqs[i].mode != AHCI_IRQ_MODE_ONE) ? ahci_intr :
+		     ((ctlr->quirks & AHCI_Q_EDGEIS) ? ahci_intr_one_edge :
+		      ahci_intr_one),
 		    &ctlr->irqs[i], &ctlr->irqs[i].handle))) {
 			/* SOS XXX release r_irq */
 			device_printf(dev, "unable to setup interrupt\n");
@@ -789,14 +802,25 @@ ahci_intr_one(void *data)
 	int unit;
 
 	unit = irq->r_irq_rid - 1;
-	/* Some controllers have edge triggered IS. */
-	if (ctlr->quirks & AHCI_Q_EDGEIS)
-		ATA_OUTL(ctlr->r_mem, AHCI_IS, 1 << unit);
 	if ((arg = ctlr->interrupt[unit].argument))
 	    ctlr->interrupt[unit].function(arg);
 	/* AHCI declares level triggered IS. */
-	if (!(ctlr->quirks & AHCI_Q_EDGEIS))
-		ATA_OUTL(ctlr->r_mem, AHCI_IS, 1 << unit);
+	ATA_OUTL(ctlr->r_mem, AHCI_IS, 1 << unit);
+}
+
+static void
+ahci_intr_one_edge(void *data)
+{
+	struct ahci_controller_irq *irq = data;
+	struct ahci_controller *ctlr = irq->ctlr;
+	void *arg;
+	int unit;
+
+	unit = irq->r_irq_rid - 1;
+	/* Some controllers have edge triggered IS. */
+	ATA_OUTL(ctlr->r_mem, AHCI_IS, 1 << unit);
+	if ((arg = ctlr->interrupt[unit].argument))
+		ctlr->interrupt[unit].function(arg);
 }
 
 static struct resource *
@@ -1000,6 +1024,7 @@ ahci_ch_attach(device_t dev)
 	mtx_init(&ch->mtx, "AHCI channel lock", NULL, MTX_DEF);
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "pm_level", &ch->pm_level);
+	STAILQ_INIT(&ch->doneq);
 	if (ch->pm_level > 3)
 		callout_init_mtx(&ch->pm_timer, &ch->mtx, 0);
 	callout_init_mtx(&ch->reset_timer, &ch->mtx, 0);
@@ -1045,7 +1070,8 @@ ahci_ch_attach(device_t dev)
 		goto err0;
 	}
 	if ((bus_setup_intr(dev, ch->r_irq, ATA_INTR_FLAGS, NULL,
-	    ahci_ch_intr_locked, dev, &ch->ih))) {
+	    ctlr->direct ? ahci_ch_intr_direct : ahci_ch_intr,
+	    dev, &ch->ih))) {
 		device_printf(dev, "Unable to setup interrupt\n");
 		error = ENXIO;
 		goto err1;
@@ -1465,16 +1491,58 @@ ahci_notify_events(device_t dev, u_int32_t status)
 }
 
 static void
-ahci_ch_intr_locked(void *data)
+ahci_done(struct ahci_channel *ch, union ccb *ccb)
 {
-	device_t dev = (device_t)data;
+
+	mtx_assert(&ch->mtx, MA_OWNED);
+	if ((ccb->ccb_h.func_code & XPT_FC_QUEUED) == 0 ||
+	    ch->batch == 0) {
+		xpt_done(ccb);
+		return;
+	}
+
+	STAILQ_INSERT_TAIL(&ch->doneq, &ccb->ccb_h, sim_links.stqe);
+}
+
+static void
+ahci_ch_intr(void *arg)
+{
+	device_t dev = (device_t)arg;
 	struct ahci_channel *ch = device_get_softc(dev);
+	uint32_t istatus;
+
+	/* Read interrupt statuses. */
+	istatus = ATA_INL(ch->r_mem, AHCI_P_IS);
+	if (istatus == 0)
+		return;
 
 	mtx_lock(&ch->mtx);
-	xpt_batch_start(ch->sim);
-	ahci_ch_intr(data);
-	xpt_batch_done(ch->sim);
+	ahci_ch_intr_main(ch, istatus);
 	mtx_unlock(&ch->mtx);
+}
+
+static void
+ahci_ch_intr_direct(void *arg)
+{
+	device_t dev = (device_t)arg;
+	struct ahci_channel *ch = device_get_softc(dev);
+	struct ccb_hdr *ccb_h;
+	uint32_t istatus;
+
+	/* Read interrupt statuses. */
+	istatus = ATA_INL(ch->r_mem, AHCI_P_IS);
+	if (istatus == 0)
+		return;
+
+	mtx_lock(&ch->mtx);
+	ch->batch = 1;
+	ahci_ch_intr_main(ch, istatus);
+	ch->batch = 0;
+	mtx_unlock(&ch->mtx);
+	while ((ccb_h = STAILQ_FIRST(&ch->doneq)) != NULL) {
+		STAILQ_REMOVE_HEAD(&ch->doneq, sim_links.stqe);
+		xpt_done_direct((union ccb *)ccb_h);
+	}
 }
 
 static void
@@ -1495,18 +1563,14 @@ ahci_ch_pm(void *arg)
 }
 
 static void
-ahci_ch_intr(void *data)
+ahci_ch_intr_main(struct ahci_channel *ch, uint32_t istatus)
 {
-	device_t dev = (device_t)data;
-	struct ahci_channel *ch = device_get_softc(dev);
-	uint32_t istatus, cstatus, serr = 0, sntf = 0, ok, err;
+	device_t dev = ch->dev;
+	uint32_t cstatus, serr = 0, sntf = 0, ok, err;
 	enum ahci_err_type et;
 	int i, ccs, port, reset = 0;
 
-	/* Read and clear interrupt statuses. */
-	istatus = ATA_INL(ch->r_mem, AHCI_P_IS);
-	if (istatus == 0)
-		return;
+	/* Clear interrupt statuses. */
 	ATA_OUTL(ch->r_mem, AHCI_P_IS, istatus);
 	/* Read command statuses. */
 	if (ch->numtslots != 0)
@@ -1598,7 +1662,7 @@ ahci_ch_intr(void *data)
 				xpt_freeze_devq(fccb->ccb_h.path, 1);
 				fccb->ccb_h.status |= CAM_DEV_QFRZN;
 			}
-			xpt_done(fccb);
+			ahci_done(ch, fccb);
 		}
 		for (i = 0; i < ch->numslots; i++) {
 			/* XXX: reqests in loading state. */
@@ -2007,7 +2071,7 @@ ahci_timeout(struct ahci_slot *slot)
 			xpt_freeze_devq(fccb->ccb_h.path, 1);
 			fccb->ccb_h.status |= CAM_DEV_QFRZN;
 		}
-		xpt_done(fccb);
+		ahci_done(ch, fccb);
 	}
 	if (!ch->fbs_enabled && !ch->wrongccs) {
 		/* Without FBS we know real timeout source. */
@@ -2213,7 +2277,7 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 		ch->hold[slot->slot] = ccb;
 		ch->numhslots++;
 	} else
-		xpt_done(ccb);
+		ahci_done(ch, ccb);
 	/* If we have no other active commands, ... */
 	if (ch->rslots == 0) {
 		/* if there was fatal error - reset port. */
@@ -2273,7 +2337,7 @@ completeall:
 				continue;
 			ch->hold[i]->ccb_h.status &= ~CAM_STATUS_MASK;
 			ch->hold[i]->ccb_h.status |= CAM_RESRC_UNAVAIL;
-			xpt_done(ch->hold[i]);
+			ahci_done(ch, ch->hold[i]);
 			ch->hold[i] = NULL;
 			ch->numhslots--;
 		}
@@ -2361,7 +2425,7 @@ ahci_process_read_log(device_t dev, union ccb *ccb)
 				ch->hold[i]->ccb_h.status &= ~CAM_STATUS_MASK;
 				ch->hold[i]->ccb_h.status |= CAM_REQUEUE_REQ;
 			}
-			xpt_done(ch->hold[i]);
+			ahci_done(ch, ch->hold[i]);
 			ch->hold[i] = NULL;
 			ch->numhslots--;
 		}
@@ -2376,7 +2440,7 @@ ahci_process_read_log(device_t dev, union ccb *ccb)
 				continue;
 			if (ch->hold[i]->ccb_h.func_code != XPT_ATA_IO)
 				continue;
-			xpt_done(ch->hold[i]);
+			ahci_done(ch, ch->hold[i]);
 			ch->hold[i] = NULL;
 			ch->numhslots--;
 		}
@@ -2401,7 +2465,7 @@ ahci_process_request_sense(device_t dev, union ccb *ccb)
 		ch->hold[i]->ccb_h.status &= ~CAM_STATUS_MASK;
 		ch->hold[i]->ccb_h.status |= CAM_AUTOSENSE_FAIL;
 	}
-	xpt_done(ch->hold[i]);
+	ahci_done(ch, ch->hold[i]);
 	ch->hold[i] = NULL;
 	ch->numhslots--;
 	xpt_free_ccb(ccb);
@@ -2585,7 +2649,7 @@ ahci_reset(device_t dev)
 			xpt_freeze_devq(fccb->ccb_h.path, 1);
 			fccb->ccb_h.status |= CAM_DEV_QFRZN;
 		}
-		xpt_done(fccb);
+		ahci_done(ch, fccb);
 	}
 	/* Kill the engine and requeue all running commands. */
 	ahci_stop(dev);
@@ -2599,7 +2663,7 @@ ahci_reset(device_t dev)
 	for (i = 0; i < ch->numslots; i++) {
 		if (!ch->hold[i])
 			continue;
-		xpt_done(ch->hold[i]);
+		ahci_done(ch, ch->hold[i]);
 		ch->hold[i] = NULL;
 		ch->numhslots--;
 	}
@@ -2795,12 +2859,12 @@ ahci_check_ids(device_t dev, union ccb *ccb)
 
 	if (ccb->ccb_h.target_id > ((ch->caps & AHCI_CAP_SPM) ? 15 : 0)) {
 		ccb->ccb_h.status = CAM_TID_INVALID;
-		xpt_done(ccb);
+		ahci_done(ch, ccb);
 		return (-1);
 	}
 	if (ccb->ccb_h.target_lun != 0) {
 		ccb->ccb_h.status = CAM_LUN_INVALID;
-		xpt_done(ccb);
+		ahci_done(ch, ccb);
 		return (-1);
 	}
 	return (0);
@@ -2992,15 +3056,19 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		ccb->ccb_h.status = CAM_REQ_INVALID;
 		break;
 	}
-	xpt_done(ccb);
+	ahci_done(ch, ccb);
 }
 
 static void
 ahcipoll(struct cam_sim *sim)
 {
 	struct ahci_channel *ch = (struct ahci_channel *)cam_sim_softc(sim);
+	uint32_t istatus;
 
-	ahci_ch_intr(ch->dev);
+	/* Read interrupt statuses and process if any. */
+	istatus = ATA_INL(ch->r_mem, AHCI_P_IS);
+	if (istatus != 0)
+		ahci_ch_intr_main(ch, istatus);
 	if (ch->resetting != 0 &&
 	    (--ch->resetpolldiv <= 0 || !callout_pending(&ch->reset_timer))) {
 		ch->resetpolldiv = 1000;

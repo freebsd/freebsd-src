@@ -5,6 +5,7 @@
 #define MACHINE_CPU_H
 
 #include <machine/armreg.h>
+#include <machine/frame.h>
 
 void	cpu_halt(void);
 void	swi_vm(void *);

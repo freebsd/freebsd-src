@@ -633,8 +633,8 @@ int mlx4_en_start_port(struct net_device *dev)
 	en_dbg(DRV, priv, "Setting mac for port %d\n", priv->port);
 	err = mlx4_register_mac(mdev->dev, priv->port,
 				mlx4_en_mac_to_u64(IF_LLADDR(dev)));
-	if (err) {
-		en_err(priv, "Failed setting port mac\n");
+	if (err < 0) {
+		en_err(priv, "Failed setting port mac err=%d\n", err);
 		goto tx_err;
 	}
 	mdev->mac_removed[priv->port] = 0;
@@ -927,9 +927,6 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	if (priv->allocated)
 		mlx4_free_hwq_res(mdev->dev, &priv->res, MLX4_EN_PAGE_SIZE);
 
-	if (priv->sysctl)
-		sysctl_ctx_free(&priv->conf_ctx);
-
 	mutex_lock(&mdev->state_lock);
 	mlx4_en_stop_port(dev);
 	mutex_unlock(&mdev->state_lock);
@@ -945,6 +942,9 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	mutex_unlock(&mdev->state_lock);
 
 	mlx4_en_free_resources(priv);
+
+	if (priv->sysctl)
+		sysctl_ctx_free(&priv->conf_ctx);
 
 	mtx_destroy(&priv->stats_lock.m);
 	mtx_destroy(&priv->vlan_lock.m);

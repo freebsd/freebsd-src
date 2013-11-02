@@ -26,7 +26,12 @@
  * $FreeBSD$
  */
 
+#ifndef SYS_DEV_RANDOM_YARROW_H_INCLUDED
+#define SYS_DEV_RANDOM_YARROW_H_INCLUDED
+
 void random_yarrow_init_alg(struct sysctl_ctx_list *);
 void random_yarrow_deinit_alg(void);
 int random_yarrow_read(void *, int);
 void random_yarrow_reseed(void);
+
+#endif

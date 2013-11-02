@@ -110,5 +110,7 @@ bsdinstall config  || error
 cp /etc/resolv.conf $1/etc
 cp /etc/localtime $1/etc
 
+bsdinstall entropy
+
 echo "Installation Completed at $(date)" >> $BSDINSTALL_LOG
 

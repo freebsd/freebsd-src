@@ -1271,6 +1271,7 @@ out_debug_line (segT line_seg)
   symbolS *line_end;
   struct line_seg *s;
   enum dwarf2_format d2f;
+  int sizeof_initial_length;
   int sizeof_offset;
 
   subseg_set (line_seg, 0);
@@ -1287,27 +1288,24 @@ out_debug_line (segT line_seg)
   d2f = DWARF2_FORMAT ();
   if (d2f == dwarf2_format_32bit)
     {
-      expr.X_add_number = -4;
-      emit_expr (&expr, 4);
-      sizeof_offset = 4;
+      sizeof_initial_length = sizeof_offset = 4;
     }
   else if (d2f == dwarf2_format_64bit)
     {
-      expr.X_add_number = -12;
-      out_four (-1);
-      emit_expr (&expr, 8);
+      sizeof_initial_length = 12;
       sizeof_offset = 8;
+      out_four (-1);
     }
   else if (d2f == dwarf2_format_64bit_irix)
     {
-      expr.X_add_number = -8;
-      emit_expr (&expr, 8);
-      sizeof_offset = 8;
+      sizeof_initial_length = sizeof_offset = 8;
     }
   else
     {
       as_fatal (_("internal error: unknown dwarf2 format"));
     }
+  expr.X_add_number = -sizeof_initial_length;
+  emit_expr (&expr, sizeof_offset);
 
   /* Version.  */
   out_two (2);
@@ -1316,7 +1314,7 @@ out_debug_line (segT line_seg)
   expr.X_op = O_subtract;
   expr.X_add_symbol = prologue_end;
   expr.X_op_symbol = line_start;
-  expr.X_add_number = - (4 + 2 + 4);
+  expr.X_add_number = - (sizeof_initial_length + 2 + sizeof_offset);
   emit_expr (&expr, sizeof_offset);
 
   /* Parameters of the state machine.  */

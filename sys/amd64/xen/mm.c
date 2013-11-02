@@ -65,6 +65,7 @@ static int xpq_idx = 0;
 #define	XPQ_IDX xpq_idx
 #define	SET_VCPU()
 #endif /* !SMP */
+extern int gdtset;
 
 static __inline void
 _xen_flush_queue(void)

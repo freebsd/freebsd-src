@@ -215,6 +215,7 @@ static void (*ptmb_mappedfree)(uintptr_t) = NULL;
 static uintptr_t (*ptmb_ptov)(vm_paddr_t) = NULL;
 static vm_paddr_t (*ptmb_vtop)(uintptr_t) = NULL;
 
+extern int gdtset;
 extern uint64_t xenstack; /* The stack Xen gives us at boot */
 extern char *console_page; /* The shared ring for console i/o */
 extern struct xenstore_domain_interface *xen_store; /* xenstore page */

@@ -1,5 +1,5 @@
 #
-# $FreeBSD: projects/amd64_xen_pv/lib/libz/Makefile 232263 2012-02-28 18:30:18Z dim $
+# $FreeBSD$
 #
 
 LIB=		z

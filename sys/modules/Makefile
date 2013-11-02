@@ -532,7 +532,9 @@ _opensolaris=	opensolaris
 _pccard=	pccard
 _pcfclock=	pcfclock
 _pst=		pst
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _rdma=		rdma
+.endif
 _safe=		safe
 _sbni=		sbni
 _scsi_low=	scsi_low
@@ -743,7 +745,9 @@ _pccard=	pccard
 _qlxge=		qlxge
 _qlxgb=		qlxgb
 _qlxgbe=	qlxgbe
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _rdma=		rdma
+.endif
 _s3=		s3
 _safe=		safe
 _scsi_low=	scsi_low

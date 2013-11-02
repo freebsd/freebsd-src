@@ -134,7 +134,7 @@ SET_DECLARE(sdt_argtypes_set, struct sdt_argtype);
 
 #define SDT_PROVIDER_DEFINE(prov)						\
 	struct sdt_provider sdt_provider_##prov[1] = {				\
-		{ #prov, { NULL, NULL }, { NULL, NULL }, 0, 0 }			\
+		{ #prov, { NULL, NULL }, 0, 0 }					\
 	};									\
 	DATA_SET(sdt_providers_set, sdt_provider_##prov);
 
@@ -358,7 +358,6 @@ struct sdt_provider {
 	char *name;			/* Provider name. */
 	TAILQ_ENTRY(sdt_provider)
 			prov_entry;	/* SDT provider list entry. */
-	TAILQ_HEAD(probe_list_head, sdt_probe) probe_list;
 	uintptr_t	id;		/* DTrace provider ID. */
 	int		sdt_refs;	/* Number of module references. */
 };

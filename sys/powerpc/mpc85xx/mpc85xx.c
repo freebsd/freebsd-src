@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/pio.h>
 #include <machine/spr.h>
 
+#include <dev/fdt/fdt_common.h>
+
 #include <powerpc/mpc85xx/mpc85xx.h>
 
 /*

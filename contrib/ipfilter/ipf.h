@@ -42,9 +42,10 @@ struct file;
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <net/if.h>
-#if __FreeBSD_version >= 300000
-# include <net/if_var.h>
-#endif
+
+#define	_WANT_IFADDR
+#include <net/if_var.h>
+
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>

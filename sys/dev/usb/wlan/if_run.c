@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -147,6 +148,7 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(BELKIN,		F5D8055),
     RUN_DEV(BELKIN,		F5D8055V2),
     RUN_DEV(BELKIN,		F6D4050V1),
+    RUN_DEV(BELKIN,		F6D4050V2),
     RUN_DEV(BELKIN,		RT2870_1),
     RUN_DEV(BELKIN,		RT2870_2),
     RUN_DEV(CISCOLINKSYS,	AE1000),
@@ -318,7 +320,7 @@ static usb_callback_t	run_bulk_tx_callback4;
 static usb_callback_t	run_bulk_tx_callback5;
 
 static void	run_bulk_tx_callbackN(struct usb_xfer *xfer,
-		    usb_error_t error, unsigned int index);
+		    usb_error_t error, u_int index);
 static struct ieee80211vap *run_vap_create(struct ieee80211com *,
 		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
 		    const uint8_t [IEEE80211_ADDR_LEN],
@@ -424,7 +426,7 @@ static int	run_txrx_enable(struct run_softc *);
 static void	run_init(void *);
 static void	run_init_locked(struct run_softc *);
 static void	run_stop(void *);
-static void	run_delay(struct run_softc *, unsigned int);
+static void	run_delay(struct run_softc *, u_int);
 
 static const struct {
 	uint16_t	reg;
@@ -2674,6 +2676,7 @@ tr_setup:
 			m->m_data += 4;
 			m->m_pkthdr.len = m->m_len -= 4;
 			run_rx_frame(sc, m, dmalen);
+			m = NULL;	/* don't free source buffer */
 			break;
 		}
 
@@ -2694,6 +2697,9 @@ tr_setup:
 		m->m_data += dmalen + 8;
 		m->m_pkthdr.len = m->m_len -= dmalen + 8;
 	}
+
+	/* make sure we free the source buffer, if any */
+	m_freem(m);
 
 	RUN_LOCK(sc);
 }
@@ -2722,7 +2728,7 @@ run_tx_free(struct run_endpoint_queue *pq,
 }
 
 static void
-run_bulk_tx_callbackN(struct usb_xfer *xfer, usb_error_t error, unsigned int index)
+run_bulk_tx_callbackN(struct usb_xfer *xfer, usb_error_t error, u_int index)
 {
 	struct run_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
@@ -3574,7 +3580,7 @@ run_select_chan_group(struct run_softc *sc, int group)
 }
 
 static void
-run_rt2870_set_chan(struct run_softc *sc, uint32_t chan)
+run_rt2870_set_chan(struct run_softc *sc, u_int chan)
 {
 	const struct rfprog *rfprog = rt2860_rf2850;
 	uint32_t r2, r3, r4;
@@ -3629,7 +3635,7 @@ run_rt2870_set_chan(struct run_softc *sc, uint32_t chan)
 }
 
 static void
-run_rt3070_set_chan(struct run_softc *sc, uint32_t chan)
+run_rt3070_set_chan(struct run_softc *sc, u_int chan)
 {
 	int8_t txpow1, txpow2;
 	uint8_t rf;
@@ -3646,7 +3652,12 @@ run_rt3070_set_chan(struct run_softc *sc, uint32_t chan)
 	txpow2 = sc->txpow2[i];
 
 	run_rt3070_rf_write(sc, 2, rt3070_freqs[i].n);
-	run_rt3070_rf_write(sc, 3, rt3070_freqs[i].k);
+
+	/* RT3370/RT3390: RF R3 [7:4] is not reserved bits. */
+	run_rt3070_rf_read(sc, 3, &rf);
+	rf = (rf & ~0x0f) | rt3070_freqs[i].k;
+	run_rt3070_rf_write(sc, 3, rf);
+
 	run_rt3070_rf_read(sc, 6, &rf);
 	rf = (rf & ~0x03) | rt3070_freqs[i].r;
 	run_rt3070_rf_write(sc, 6, rf);
@@ -3861,7 +3872,7 @@ static int
 run_set_chan(struct run_softc *sc, struct ieee80211_channel *c)
 {
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
-	uint32_t chan, group;
+	u_int chan, group;
 
 	chan = ieee80211_chan2ieee(ic, c);
 	if (chan == 0 || chan == IEEE80211_CHAN_ANY)
@@ -4303,7 +4314,7 @@ run_rssi2dbm(struct run_softc *sc, uint8_t rssi, uint8_t rxchain)
 	int delta;
 
 	if (IEEE80211_IS_CHAN_5GHZ(c)) {
-		uint32_t chan = ieee80211_chan2ieee(ic, c);
+		u_int chan = ieee80211_chan2ieee(ic, c);
 		delta = sc->rssi_5ghz[rxchain];
 
 		/* determine channel group */
@@ -4360,7 +4371,7 @@ static int
 run_rt3070_rf_init(struct run_softc *sc)
 {
 	uint32_t tmp;
-	uint8_t rf, target, bbp4;
+	uint8_t bbp4, mingain, rf, target;
 	int i;
 
 	run_rt3070_rf_read(sc, 30, &rf);
@@ -4382,8 +4393,12 @@ run_rt3070_rf_init(struct run_softc *sc)
 		}
 	}
 
-	if (sc->mac_ver == 0x3070) {
-		/* change voltage from 1.2V to 1.35V for RT3070 */
+	if (sc->mac_ver == 0x3070 && sc->mac_rev < 0x0201) {
+		/* 
+		 * Change voltage from 1.2V to 1.35V for RT3070.
+		 * The DAC issue (RT3070_LDO_CFG0) has been fixed
+		 * in RT3070(F).
+		 */
 		run_read(sc, RT3070_LDO_CFG0, &tmp);
 		tmp = (tmp & ~0x0f000000) | 0x0d000000;
 		run_write(sc, RT3070_LDO_CFG0, tmp);
@@ -4433,7 +4448,7 @@ run_rt3070_rf_init(struct run_softc *sc)
 
 	/* select 40MHz bandwidth */
 	run_bbp_read(sc, 4, &bbp4);
-	run_bbp_write(sc, 4, (bbp4 & ~0x08) | 0x10);
+	run_bbp_write(sc, 4, (bbp4 & ~0x18) | 0x10);
 	run_rt3070_rf_read(sc, 31, &rf);
 	run_rt3070_rf_write(sc, 31, rf | 0x20);
 
@@ -4450,7 +4465,7 @@ run_rt3070_rf_init(struct run_softc *sc)
 		/* save default BBP registers 25 and 26 values */
 		run_bbp_read(sc, 25, &sc->bbp25);
 		run_bbp_read(sc, 26, &sc->bbp26);
-	} else if (sc->mac_rev < 0x0211)
+	} else if (sc->mac_rev < 0x0201 || sc->mac_rev < 0x0211)
 		run_rt3070_rf_write(sc, 27, 0x03);
 
 	run_read(sc, RT3070_OPT_14, &tmp);
@@ -4463,7 +4478,8 @@ run_rt3070_rf_init(struct run_softc *sc)
 		     (sc->mac_ver == 0x3071 && sc->mac_rev >= 0x0211)) &&
 		    !sc->ext_2ghz_lna)
 			rf |= 0x20;	/* fix for long range Rx issue */
-		if (sc->txmixgain_2ghz >= 1)
+		mingain = (sc->mac_ver == 0x3070) ? 1 : 2;
+		if (sc->txmixgain_2ghz >= mingain)
 			rf = (rf & ~0x7) | sc->txmixgain_2ghz;
 		run_rt3070_rf_write(sc, 17, rf);
 	}
@@ -4589,9 +4605,14 @@ run_rt3070_rf_setup(struct run_softc *sc)
 		run_rt3070_rf_write(sc, 16, rf);
 
 	} else if (sc->mac_ver == 0x3071) {
-		/* enable DC filter */
-		if (sc->mac_rev >= 0x0201)
+		if (sc->mac_rev >= 0x0211) {
+			/* enable DC filter */
 			run_bbp_write(sc, 103, 0xc0);
+
+			/* improve power consumption */
+			run_bbp_read(sc, 31, &bbp);
+			run_bbp_write(sc, 31, bbp & ~0x03);
+		}
 
 		run_bbp_read(sc, 138, &bbp);
 		if (sc->ntxchains == 1)
@@ -4599,12 +4620,6 @@ run_rt3070_rf_setup(struct run_softc *sc)
 		if (sc->nrxchains == 1)
 			bbp &= ~0x02;	/* turn off ADC1 */
 		run_bbp_write(sc, 138, bbp);
-
-		if (sc->mac_rev >= 0x0211) {
-			/* improve power consumption */
-			run_bbp_read(sc, 31, &bbp);
-			run_bbp_write(sc, 31, bbp & ~0x03);
-		}
 
 		run_write(sc, RT2860_TX_SW_CFG1, 0);
 		if (sc->mac_rev < 0x0211) {
@@ -4623,7 +4638,7 @@ run_rt3070_rf_setup(struct run_softc *sc)
 			run_bbp_write(sc, 31, bbp & ~0x03);
 		}
 
-		if (sc->mac_rev < 0x0211) {
+		if (sc->mac_rev < 0x0201) {
 			run_write(sc, RT2860_TX_SW_CFG1, 0);
 			run_write(sc, RT2860_TX_SW_CFG2, 0x2c);
 		} else
@@ -4963,7 +4978,7 @@ run_stop(void *arg)
 }
 
 static void
-run_delay(struct run_softc *sc, unsigned int ms)
+run_delay(struct run_softc *sc, u_int ms)
 {
 	usb_pause_mtx(mtx_owned(&sc->sc_mtx) ? 
 	    &sc->sc_mtx : NULL, USB_MS_TO_TICKS(ms));

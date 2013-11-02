@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -138,6 +139,7 @@ static const STRUCT_USB_HOST_ID urtwn_devs[] = {
 	URTWN_DEV(REALTEK,	RTL8191CU),
 	URTWN_DEV(REALTEK,	RTL8192CE),
 	URTWN_DEV(REALTEK,	RTL8192CU),
+	URTWN_DEV(REALTEK, 	RTL8188CU_0),
 	URTWN_DEV(SITECOMEU,	RTL8188CU_1),
 	URTWN_DEV(SITECOMEU,	RTL8188CU_2),
 	URTWN_DEV(SITECOMEU,	RTL8192CU),

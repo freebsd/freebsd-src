@@ -51,6 +51,7 @@
 #include <sys/uuid.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/netisr.h>
 #include <net/route.h>
@@ -62,9 +63,10 @@
 #include <net/if_bridgevar.h>
 #include <net/if_vlan_var.h>
 #include <net/if_llatbl.h>
-#include <net/pf_mtag.h>
 #include <net/pfil.h>
 #include <net/vnet.h>
+
+#include <netpfil/pf/pf_mtag.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
@@ -640,7 +642,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 	}
 
 	if (harvest.ethernet)
-		random_harvest(&(m->m_data), 12, 3, 0, RANDOM_NET_ETHER);
+		random_harvest(mtod(m, const void *), 12, 2, RANDOM_NET_ETHER);
 
 	ether_demux(ifp, m);
 	CURVNET_RESTORE();

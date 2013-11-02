@@ -135,13 +135,20 @@
 					# function of number of egress queues
 					# used 
 
+	# enable TP_OUT_CONFIG.IPIDSPLITMODE
+	reg[0x7d04] = 0x00010000/0x00010000
+
 	reg[0x7dc0] = 0x062f8849	# TP_SHIFT_CNT
 
-	# Selection of tuples for LE filter lookup, fields (and widths which
-	# must sum to <= 36): { IP Fragment (1), MPS Match Type (3),
-	# IP Protocol (8), [Inner] VLAN (17), Port (3), FCoE (1) }
-	#
+	# TP_VLAN_PRI_MAP to select filter tuples and enable ServerSram
+	# filter control: compact, fcoemask
+	# server sram   : srvrsram
+	# filter tuples : fragmentation, mpshittype, macmatch, ethertype,
+	#		  protocol, tos, vlan, vnic_id, port, fcoe
+	# valid filterModes are described the Terminator 5 Data Book
 	filterMode = srvrsram, fragmentation, mpshittype, protocol, vlan, port, fcoe
+
+	# filter tuples enforced in LE active region (equal to or subset of filterMode)
 	filterMask = protocol, fcoe
 
 	# Percentage of dynamic memory (in either the EDRAM or external MEM)
@@ -164,11 +171,21 @@
 	# TP number of TX channels
 	tp_ntxch = 0		# 0 (auto) = equal number of ports
 
+	# TP OFLD MTUs
+	tp_mtus = 88, 256, 512, 576, 808, 1024, 1280, 1488, 1500, 2002, 2048, 4096, 4352, 8192, 9000, 9600
+
 	# TP_GLOBAL_CONFIG
 	reg[0x7d08] = 0x00000800/0x00000800 # set IssFromCplEnable
 
+	# TP_PARA_REG0
+	reg[0x7d60] = 0x06000000/0x07000000 # set InitCWND to 6
+
 	# LE_DB_CONFIG
 	reg[0x19c04] = 0x00400000/0x00400000 # LE Server SRAM Enable
+
+	# MC configuration
+	mc_mode_brc[0] = 1		# mc0 - 1: enable BRC, 0: enable RBC
+	mc_mode_brc[1] = 1		# mc1 - 1: enable BRC, 0: enable RBC
 
 # Some "definitions" to make the rest of this a bit more readable.  We support
 # 4 ports, 3 functions (NIC, FCoE and iSCSI), scaling up to 8 "CPU Queue Sets"
@@ -553,8 +570,8 @@
 	dwm = 30
 
 [fini]
-	version = 0x1425000f
-	checksum = 0x23a2d850
+	version = 0x14250013
+	checksum = 0xd66f5b23
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104

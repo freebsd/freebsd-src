@@ -65,8 +65,7 @@ typedef enum {
 } targbh_flags;
 
 typedef enum {
-	TARGBH_CCB_WORKQ,
-	TARGBH_CCB_WAITING
+	TARGBH_CCB_WORKQ
 } targbh_ccb_types;
 
 #define MAX_ACCEPT	8
@@ -431,7 +430,7 @@ targbhdtor(struct cam_periph *periph)
 		/* FALLTHROUGH */
 	default:
 		/* XXX Wait for callback of targbhdislun() */
-		msleep(softc, periph->sim->mtx, PRIBIO, "targbh", hz/2);
+		cam_periph_sleep(periph, softc, PRIBIO, "targbh", hz/2);
 		free(softc, M_SCSIBH);
 		break;
 	}
@@ -450,13 +449,7 @@ targbhstart(struct cam_periph *periph, union ccb *start_ccb)
 	softc = (struct targbh_softc *)periph->softc;
 	
 	ccbh = TAILQ_FIRST(&softc->work_queue);
-	if (periph->immediate_priority <= periph->pinfo.priority) {
-		start_ccb->ccb_h.ccb_type = TARGBH_CCB_WAITING;			
-		SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-				  periph_links.sle);
-		periph->immediate_priority = CAM_PRIORITY_NONE;
-		wakeup(&periph->ccb_list);
-	} else if (ccbh == NULL) {
+	if (ccbh == NULL) {
 		xpt_release_ccb(start_ccb);	
 	} else {
 		TAILQ_REMOVE(&softc->work_queue, ccbh, periph_links.tqe);
@@ -534,12 +527,6 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 	struct targbh_softc *softc;
 
 	softc = (struct targbh_softc *)periph->softc;
-
-	if (done_ccb->ccb_h.ccb_type == TARGBH_CCB_WAITING) {
-		/* Caller will release the CCB */
-		wakeup(&done_ccb->ccb_h.cbfcnp);
-		return;
-	}
 
 	switch (done_ccb->ccb_h.func_code) {
 	case XPT_ACCEPT_TARGET_IO:

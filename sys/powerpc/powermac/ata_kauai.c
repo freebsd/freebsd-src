@@ -194,12 +194,11 @@ static const u_int udma_timing_shasta[] = {
 static int
 ata_kauai_probe(device_t dev)
 {
-	struct ata_channel *ch;
 	struct ata_kauai_softc *sc;
 	u_int32_t devid;
 	phandle_t node;
 	const char *compatstring = NULL;
-	int i, found, rid;
+	int i, found;
 
 	found = 0;
 	devid = pci_get_devid(dev);
@@ -216,7 +215,6 @@ ata_kauai_probe(device_t dev)
 	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(struct ata_kauai_softc));
-	ch = &sc->sc_ch.sc_ch;
 
 	compatstring = ofw_bus_get_compat(dev);
 	if (compatstring != NULL && strcmp(compatstring,"shasta-ata") == 0)
@@ -226,6 +224,35 @@ ata_kauai_probe(device_t dev)
 	if (!sc->shasta &&
 	    (compatstring == NULL || strcmp(compatstring, "K2-UATA") != 0))
 		bus_set_resource(dev, SYS_RES_IRQ, 0, 39, 1);
+
+        return (ata_probe(dev));
+}
+
+#if USE_DBDMA_IRQ
+static int
+ata_kauai_dma_interrupt(struct ata_kauai_softc *sc)
+{
+	/* Clear the DMA interrupt bits */
+
+	bus_write_4(sc->sc_memr, DMA_IRQ_REG, 0x80000000);
+
+	return ata_interrupt(sc);
+}
+#endif
+
+static int
+ata_kauai_attach(device_t dev)
+{
+	struct ata_kauai_softc *sc = device_get_softc(dev);
+	struct ata_channel *ch;
+	int i, rid;
+#if USE_DBDMA_IRQ
+	int dbdma_irq_rid = 1;
+	struct resource *dbdma_irq;
+	void *cookie;
+#endif
+
+	ch = &sc->sc_ch.sc_ch;
 
         rid = PCIR_BARS;
 	sc->sc_memr = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 
@@ -248,35 +275,10 @@ ata_kauai_probe(device_t dev)
 
 	ch->unit = 0;
 	ch->flags |= ATA_USE_16BIT;
-	
+
 	/* XXX: ATAPI DMA is unreliable. We should find out why. */
 	ch->flags |= ATA_NO_ATAPI_DMA;
 	ata_generic_hw(dev);
-
-        return (ata_probe(dev));
-}
-
-#if USE_DBDMA_IRQ
-static int
-ata_kauai_dma_interrupt(struct ata_kauai_softc *sc)
-{
-	/* Clear the DMA interrupt bits */
-
-	bus_write_4(sc->sc_memr, DMA_IRQ_REG, 0x80000000);
-
-	return ata_interrupt(sc);
-}
-#endif
-
-static int
-ata_kauai_attach(device_t dev)
-{
-	struct ata_kauai_softc *sc = device_get_softc(dev);
-#if USE_DBDMA_IRQ
-	int dbdma_irq_rid = 1;
-	struct resource *dbdma_irq;
-	void *cookie;
-#endif
 
 	pci_enable_busmaster(dev);
 

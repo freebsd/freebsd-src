@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_random.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -67,8 +69,6 @@ static struct random_state {
 	struct pool {
 		struct source {
 			u_int bits;	/* estimated bits of entropy */
-			u_int frac;	/* fractional bits of entropy
-					   (given as 1024/n) */
 		} source[ENTROPYSOURCE];
 		u_int thresh;	/* pool reseed threshhold */
 		struct randomdev_hash hash;	/* accumulated entropy */
@@ -99,6 +99,7 @@ clear_counter(void)
 
 /* 128-bit C = C + 1 */
 /* Nothing to see here, folks, just an ugly mess. */
+/* TODO: Make a Galois counter instead? */
 static void
 increment_counter(void)
 {
@@ -115,16 +116,26 @@ random_process_event(struct harvest *event)
 	struct source *source;
 	enum esource src;
 
-	/* Unpack the event into the appropriate source accumulator */
+#if 0
+	/* Do this better with DTrace */
+	{
+		int i;
+
+		printf("Harvest:%16jX ", event->somecounter);
+		for (i = 0; i < event->size; i++)
+			printf("%02X", event->entropy[i]);
+		for (; i < 16; i++)
+			printf("  ");
+		printf(" %2d %2d %02X\n", event->size, event->bits, event->source);
+	}
+#endif
+
+	/* Accumulate the event into the appropriate pool */
 	pl = random_state.which;
 	source = &random_state.pool[pl].source[event->source];
-	randomdev_hash_iterate(&random_state.pool[pl].hash, event->entropy,
-		sizeof(event->entropy));
-	randomdev_hash_iterate(&random_state.pool[pl].hash, &event->somecounter,
-		sizeof(event->somecounter));
-	source->frac += event->frac;
-	source->bits += event->bits + (source->frac >> 12); /* bits + frac/0x1000 */
-	source->frac &= 0xFFF; /* Keep the fractional bits */
+	randomdev_hash_iterate(&random_state.pool[pl].hash, event,
+		sizeof(*event));
+	source->bits += event->bits;
 
 	/* Count the over-threshold sources in each pool */
 	for (pl = 0; pl < 2; pl++) {
@@ -234,6 +245,10 @@ reseed(u_int fastslow)
 	u_int i;
 	enum esource j;
 
+#if 0
+	printf("Yarrow: %s reseed\n", fastslow == FAST ? "fast" : "slow");
+#endif
+
 	/* The reseed task must not be jumped on */
 	mtx_lock(&random_reseed_mtx);
 
@@ -286,12 +301,9 @@ reseed(u_int fastslow)
 
 	/* 5. Reset entropy estimate accumulators to zero */
 
-	for (i = 0; i <= fastslow; i++) {
-		for (j = RANDOM_START; j < ENTROPYSOURCE; j++) {
+	for (i = 0; i <= fastslow; i++)
+		for (j = RANDOM_START; j < ENTROPYSOURCE; j++)
 			random_state.pool[i].source[j].bits = 0;
-			random_state.pool[i].source[j].frac = 0;
-		}
-	}
 
 	/* 6. Wipe memory of intermediate values */
 
@@ -319,6 +331,10 @@ random_yarrow_read(void *buf, int count)
 	size_t tomove;
 	int i;
 	int retval;
+
+	/* Check for final read request */
+	if (buf == NULL && count == 0)
+		return (0);
 
 	/* The reseed task must not be jumped on */
 	mtx_lock(&random_reseed_mtx);
@@ -362,7 +378,7 @@ random_yarrow_read(void *buf, int count)
 		}
 	}
 	mtx_unlock(&random_reseed_mtx);
-	return retval;
+	return (retval);
 }
 
 static void
@@ -384,5 +400,17 @@ generator_gate(void)
 void
 random_yarrow_reseed(void)
 {
+#ifdef RANDOM_DEBUG
+	int i;
+
+	printf("%s(): fast:", __func__);
+	for (i = RANDOM_START; i < ENTROPYSOURCE; ++i)
+		printf(" %d", random_state.pool[FAST].source[i].bits);
+	printf("\n");
+	printf("%s(): slow:", __func__);
+	for (i = RANDOM_START; i < ENTROPYSOURCE; ++i)
+		printf(" %d", random_state.pool[SLOW].source[i].bits);
+	printf("\n");
+#endif
 	reseed(SLOW);
 }

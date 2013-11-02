@@ -1951,7 +1951,6 @@ pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 	virtual_avail = round_page(virtual_avail);
 	virtual_end = vm_max_kernel_address;
 	kernel_vm_end = pmap_curmaxkvaddr;
-	arm_nocache_startaddr = vm_max_kernel_address;
 	mtx_init(&cmtx, "TMP mappings mtx", NULL, MTX_DEF);
 
 	pmap_set_pcb_pagedir(kernel_pmap, thread0.td_pcb);
@@ -2441,6 +2440,8 @@ vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
 
+	if (kernel_vm_end == 0)
+		return (0);
 	return (pmap_extract_locked(kernel_pmap, va));
 }
 
@@ -3310,7 +3311,7 @@ pmap_extract_locked(pmap_t pmap, vm_offset_t va)
 	vm_paddr_t pa;
 	u_int l1idx;
 
-	if (pmap != kernel_pmap)
+	if (kernel_vm_end != 0 && pmap != kernel_pmap)
 		PMAP_ASSERT_LOCKED(pmap);
 	l1idx = L1_IDX(va);
 	l1pd = pmap->pm_l1->l1_kva[l1idx];

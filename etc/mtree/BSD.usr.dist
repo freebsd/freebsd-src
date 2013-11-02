@@ -169,12 +169,6 @@
             ..
             atm
             ..
-            bind9
-                arm
-                ..
-                misc
-                ..
-            ..
             legal
                 intel_ipw
                 ..
@@ -299,8 +293,6 @@
             ..
             IPv6
             ..
-            atf
-            ..
             bhyve
             ..
             bootforth
@@ -332,8 +324,6 @@
             ipfilter
             ..
             ipfw
-            ..
-            iscsi
             ..
             jails
             ..
@@ -368,8 +358,6 @@
             mdoc
             ..
             netgraph
-                bluetooth
-                ..
             ..
             pc-sysinstall
             ..
@@ -489,6 +477,14 @@
             ..
         ..
         info
+        ..
+        keys
+            pkg
+                revoked
+                ..
+                trusted
+                ..
+            ..
         ..
         locale
             UTF-8
@@ -1408,14 +1404,6 @@
         ..
         vi
             catalog
-            ..
-        ..
-        xml
-            atf
-            ..
-        ..
-        xsl
-            atf
             ..
         ..
         zoneinfo

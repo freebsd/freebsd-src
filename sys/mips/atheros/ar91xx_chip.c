@@ -71,7 +71,7 @@ ar91xx_chip_detect_sys_frequency(void)
 	uint32_t freq;
 	uint32_t div;
 
-	u_ar71xx_refclk = AR91XX_BASE_FREQ;
+	u_ar71xx_mdio_freq = u_ar71xx_refclk = AR91XX_BASE_FREQ;
 
 	pll = ATH_READ_REG(AR91XX_PLL_REG_CPU_CONFIG);
 

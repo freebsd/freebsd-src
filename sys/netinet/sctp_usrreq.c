@@ -3281,7 +3281,7 @@ flags_out:
 				}
 			}
 			if (error == 0) {
-				*optsize = sizeof(struct sctp_paddrparams);
+				*optsize = sizeof(struct sctp_udpencaps);
 			}
 			break;
 		}
@@ -4796,11 +4796,9 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 							    SCTP_FROM_SCTP_USRREQ + SCTP_LOC_10);
 						}
 						net->dest_state |= SCTP_ADDR_NO_PMTUD;
-						if (paddrp->spp_pathmtu > SCTP_DEFAULT_MINSEGMENT) {
-							net->mtu = paddrp->spp_pathmtu + ovh;
-							if (net->mtu < stcb->asoc.smallest_mtu) {
-								sctp_pathmtu_adjustment(stcb, net->mtu);
-							}
+						net->mtu = paddrp->spp_pathmtu + ovh;
+						if (net->mtu < stcb->asoc.smallest_mtu) {
+							sctp_pathmtu_adjustment(stcb, net->mtu);
 						}
 					}
 					if (paddrp->spp_flags & SPP_PMTUD_ENABLE) {
@@ -4920,11 +4918,9 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 								    SCTP_FROM_SCTP_USRREQ + SCTP_LOC_10);
 							}
 							net->dest_state |= SCTP_ADDR_NO_PMTUD;
-							if (paddrp->spp_pathmtu > SCTP_DEFAULT_MINSEGMENT) {
-								net->mtu = paddrp->spp_pathmtu + ovh;
-								if (net->mtu < stcb->asoc.smallest_mtu) {
-									sctp_pathmtu_adjustment(stcb, net->mtu);
-								}
+							net->mtu = paddrp->spp_pathmtu + ovh;
+							if (net->mtu < stcb->asoc.smallest_mtu) {
+								sctp_pathmtu_adjustment(stcb, net->mtu);
 							}
 						}
 						sctp_stcb_feature_on(inp, stcb, SCTP_PCB_FLAGS_DO_NOT_PMTUD);
