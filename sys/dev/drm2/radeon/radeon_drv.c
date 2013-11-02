@@ -489,27 +489,7 @@ radeon_resume(device_t kdev)
 	return (-ret);
 }
 
-static struct fb_info *
-radeon_fb_helper_getinfo(device_t kdev)
-{
-#if 0 /* XXX */
-	struct drm_device *dev;
-	struct radeon_mode_info *mode_info;
-	struct radeon_fbdev *rfbdev;
-	struct radeon_device *rdev;
-	struct fb_info *info;
-
-
-	dev = device_get_softc(kdev);
-	rdev = dev->dev_private;
-	mode_info = &rdev->mode_info;
-	rfbdev = mode_info->rfbdev;
-	info = rfbdev->helper.fbdev;
-	return (info);
-#else
-	return (NULL);
-#endif
-}
+extern struct fb_info *	radeon_fb_helper_getinfo(device_t kdev);
 
 static device_method_t radeon_methods[] = {
 	/* Device interface */

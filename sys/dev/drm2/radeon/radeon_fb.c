@@ -375,3 +375,22 @@ bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj)
 		return true;
 	return false;
 }
+
+struct fb_info *
+radeon_fb_helper_getinfo(device_t kdev)
+{
+	struct drm_device *dev;
+	struct radeon_device *rdev;
+	struct radeon_fbdev *rfbdev;
+	struct fb_info *info;
+
+	dev = device_get_softc(kdev);
+	rdev = dev->dev_private;
+	rfbdev = rdev->mode_info.rfbdev;
+	if (rfbdev == NULL)
+		return (NULL);
+
+	info = rfbdev->helper.fbdev;
+
+	return (info);
+}
