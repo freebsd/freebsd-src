@@ -3183,8 +3183,7 @@ lem_allocate_receive_structures(struct adapter *adapter)
 	}
 
 	/* Create the spare map (used by getbuf) */
-	error = bus_dmamap_create(adapter->rxtag, BUS_DMA_NOWAIT,
-	     &adapter->rx_sparemap);
+	error = bus_dmamap_create(adapter->rxtag, 0, &adapter->rx_sparemap);
 	if (error) {
 		device_printf(dev, "%s: bus_dmamap_create failed: %d\n",
 		    __func__, error);
@@ -3193,8 +3192,7 @@ lem_allocate_receive_structures(struct adapter *adapter)
 
 	rx_buffer = adapter->rx_buffer_area;
 	for (i = 0; i < adapter->num_rx_desc; i++, rx_buffer++) {
-		error = bus_dmamap_create(adapter->rxtag, BUS_DMA_NOWAIT,
-		    &rx_buffer->map);
+		error = bus_dmamap_create(adapter->rxtag, 0, &rx_buffer->map);
 		if (error) {
 			device_printf(dev, "%s: bus_dmamap_create failed: %d\n",
 			    __func__, error);
