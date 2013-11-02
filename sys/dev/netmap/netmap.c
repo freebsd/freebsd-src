@@ -2547,7 +2547,7 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 			}
 			if (memflags & NETMAP_MEM_PRIVATE) {
 				nmr->nr_ringid |= NETMAP_PRIV_MEM;
-				*(uint32_t *)&nifp->ni_flags |= NI_PRIV_MEM;
+				*(uint32_t *)(uintptr_t)&nifp->ni_flags |= NI_PRIV_MEM;
 			}
 			nmr->nr_offset = netmap_mem_if_offset(na->nm_mem, nifp);
 		} while (0);
@@ -3216,7 +3216,7 @@ nm_bdg_preflush(struct netmap_adapter *na, u_int ring_nr,
 		/* this slot goes into a list so initialize the link field */
 		ft[ft_i].ft_next = NM_FT_NULL;
 		buf = ft[ft_i].ft_buf = (slot->flags & NS_INDIRECT) ?
-			(void *)slot->ptr : BDG_NMB(na->nm_mem, slot);
+			(void *)(uintptr_t)slot->ptr : BDG_NMB(na->nm_mem, slot);
 		prefetch(buf);
 		++ft_i;
 		if (slot->flags & NS_MOREFRAG) {
