@@ -30,6 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -84,6 +86,9 @@ static struct ofw_compat_data compat_data[] = {
 	{"ns16550",		(uintptr_t)&uart_ns8250_class},
 	{NULL,			(uintptr_t)NULL},
 };
+
+/* Export the compat_data table for use by the uart_cpu_fdt.c probe routine. */
+const struct ofw_compat_data *uart_fdt_compat_data = compat_data;
 
 static int
 uart_fdt_get_clock(phandle_t node, pcell_t *cell)
