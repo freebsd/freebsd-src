@@ -147,22 +147,25 @@ Lunmapped:
 #ifdef STARTUP_PAGETABLE_ADDR
 	/* build page table from scratch */
 	ldr	r0, Lstartup_pagetable
-	adr	r4, mmu_init_table
-	b	3f
 
-2:
-	str	r3, [r0, r2]
-	add	r2, r2, #4
-	add	r3, r3, #(L1_S_SIZE)
-	adds	r1, r1, #-1
-	bhi	2b
-3:
-	ldmia	r4!, {r1,r2,r3}   /* # of sections, VA, PA|attr */
-	cmp	r1, #0
-	adrne	r5, 2b
-	bicne	r5, r5, #0xf0000000
-	orrne	r5, r5, #PHYSADDR
-	movne	pc, r5
+	/*
+	 * Map PA == VA
+	 */
+	/* Find the start kernels load address */
+	adr	r5, _start
+	ldr	r2, =(L1_S_OFFSET)
+	bic	r5, r2
+	mov	r1, r5
+	/* Use it as the physical and virtual address */
+	mov	r2, r5
+	/* Map 64MiB */
+	ldr	r3, =64
+
+	bl	build_pagetables
+
+	mov	r1, r5
+	ldr	r2, =(KERNVIRTADDR)
+	bl	build_pagetables
 
 #if defined(SMP)
 	orr 	r0, r0, #2		/* Set TTB shared memory flag */
@@ -231,6 +234,38 @@ virt_done:
 	adr	r0, .Lmainreturned
 	b	_C_LABEL(panic)
 	/* NOTREACHED */
+
+/*
+ * Builds the page table
+ * r0 - The table base address
+ * r1 - The physical address (trashed)
+ * r2 - The virtual address (trashed)
+ * r3 - The number of 1MiB sections
+ * r4 - Trashed
+ *
+ * Addresses must be 1MiB aligned
+ */
+build_pagetables:
+	/* Set the required page attributed */
+	ldr	r4, =(L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
+#if defined(SMP)
+	orr	r4, #(L1_SHARED)
+#endif
+	orr	r1, r4
+
+	/* Move the virtual address to the correct bit location */
+	lsr	r2, #(L1_S_SHIFT - 2)
+
+	mov	r4, r3
+1:
+	str	r1, [r0, r2]
+	add	r2, r2, #4
+	add	r1, r1, #(L1_S_SIZE)
+	adds	r4, r4, #-1
+	bhi	1b
+
+	RET
+
 #ifdef STARTUP_PAGETABLE_ADDR
 #define MMU_INIT(va,pa,n_sec,attr) \
 	.word	n_sec					    ; \
@@ -254,20 +289,6 @@ Lstartup_pagetable_secondary:
 END(btext)
 END(_start)
 
-mmu_init_table:
-	/* fill all table VA==PA */
-	/* map SDRAM VA==PA, WT cacheable */
-#if !defined(SMP)
-	MMU_INIT(PHYSADDR, PHYSADDR , 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
-	/* map VA 0xc0000000..0xc3ffffff to PA */
-	MMU_INIT(KERNBASE, PHYSADDR, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
-#else
-	MMU_INIT(PHYSADDR, PHYSADDR , 64, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
-	/* map VA 0xc0000000..0xc3ffffff to PA */
-	MMU_INIT(KERNBASE, PHYSADDR, 64, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
-	MMU_INIT(0x48000000, 0x48000000, 1, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
-#endif /* SMP */
-	.word 0	/* end of table */
 #endif
 .Lstart:
 	.word	_edata
