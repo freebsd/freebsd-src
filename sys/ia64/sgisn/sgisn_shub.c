@@ -454,16 +454,18 @@ sgisn_shub_attach(device_t dev)
 		device_set_ivars(child, (void *)(uintptr_t)~0UL);
 	}
 
-	/* Use the SHub's RTC as a time counter. */
-	r = ia64_sal_entry(SAL_FREQ_BASE, 2, 0, 0, 0, 0, 0, 0);
-	if (r.sal_status == 0) {
-		sc->sc_rtc.tc_get_timecount = sgisn_shub_get_rtc;
-		sc->sc_rtc.tc_counter_mask = ~0U;
-		sc->sc_rtc.tc_frequency = r.sal_result[0];
-		sc->sc_rtc.tc_name = "SHub RTC";
-		sc->sc_rtc.tc_quality = (r.sal_result[0]) ? 1200 : 950;
-		sc->sc_rtc.tc_priv = sc;
-		tc_init(&sc->sc_rtc);
+	if (sc->sc_nasid == 0) {
+		/* Use the SHub's RTC as a time counter. */
+		r = ia64_sal_entry(SAL_FREQ_BASE, 2, 0, 0, 0, 0, 0, 0);
+		if (r.sal_status == 0) {
+			sc->sc_rtc.tc_get_timecount = sgisn_shub_get_rtc;
+			sc->sc_rtc.tc_counter_mask = ~0U;
+			sc->sc_rtc.tc_frequency = r.sal_result[0];
+			sc->sc_rtc.tc_name = "SHub RTC";
+			sc->sc_rtc.tc_quality = (r.sal_result[0]) ? 1200 : 950;
+			sc->sc_rtc.tc_priv = sc;
+			tc_init(&sc->sc_rtc);
+		}
 	}
 
 	for (seg = 0; seg <= sc->sc_fwhub->hub_pci_maxseg; seg++) {
