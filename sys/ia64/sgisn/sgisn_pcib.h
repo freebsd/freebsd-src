@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Marcel Moolenaar
+ * Copyright (c) 2011-2013 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,52 +29,56 @@
 #ifndef _IA64_SGISN_PCIB_H_
 #define	_IA64_SGISN_PCIB_H_
 
-#define	PIC_REG_SIZE		(512 * 1024)
+/* Supported ASIC types. */
+#define	SGISN_PCIB_PIC		2
+#define	SGISN_PCIB_TIOCP	3
 
-#define	PIC_REG_WGT_ID		0x00000
-#define	PIC_REG_WGT_STAT	0x00008
-#define	PIC_REG_WGT_ERR_H	0x00010
-#define	PIC_REG_WGT_ERR		0x00018
-#define	PIC_REG_WGT_CTRL	0x00020
-#define	PIC_REG_WGT_REQ_TOUT	0x00028
-#define	PIC_REG_WGT_INT_H	0x00030
-#define	PIC_REG_WGT_INT		0x00038
-#define	PIC_REG_WGT_ERRCMD	0x00040
-#define	PIC_REG_WGT_LLP		0x00048
-#define	PIC_REG_WGT_TFLUSH	0x00050
-#define	PIC_REG_WGT_AUX_ERR	0x00058
-#define	PIC_REG_WGT_RSP_H	0x00060
-#define	PIC_REG_WGT_RSP		0x00068
-#define	PIC_REG_WGT_TSTPIN_CTL	0x00070
-#define	PIC_REG_WGT_ADDR_LKERR	0x00078
+#define	PCIB_REG_SIZE		(512 * 1024)
 
-#define	PIC_REG_DIR_MAP		0x00080
-#define	PIC_REG_MAP_FAULT	0x00090
-#define	PIC_REG_ARBITRATION	0x000a0
-#define	PIC_REG_ATE_PARERR	0x000b0
-#define	PIC_REG_BUS_TOUT	0x000c0
-#define	PIC_REG_PCI_CFG		0x000c8
-#define	PIC_REG_PCI_ERR_H	0x000d0
-#define	PIC_REG_PCI_ERR		0x000d8
+#define	PCIB_REG_WGT_ID		0x00000
+#define	PCIB_REG_WGT_STAT	0x00008
+#define	PCIB_REG_WGT_ERR_H	0x00010
+#define	PCIB_REG_WGT_ERR	0x00018
+#define	PCIB_REG_WGT_CTRL	0x00020
+#define	PCIB_REG_WGT_REQ_TOUT	0x00028
+#define	PCIB_REG_WGT_INT_H	0x00030
+#define	PCIB_REG_WGT_INT	0x00038
+#define	PCIB_REG_WGT_ERRCMD	0x00040
+#define	PCIB_REG_WGT_LLP	0x00048
+#define	PCIB_REG_WGT_TFLUSH	0x00050
+#define	PCIB_REG_WGT_AUX_ERR	0x00058
+#define	PCIB_REG_WGT_RSP_H	0x00060
+#define	PCIB_REG_WGT_RSP	0x00068
+#define	PCIB_REG_WGT_TSTPIN_CTL	0x00070
+#define	PCIB_REG_WGT_ADDR_LKERR	0x00078
 
-#define	PIC_REG_INT_STATUS	0x00100
-#define	PIC_REG_INT_ENABLE	0x00108
-#define	PIC_REG_INT_RSTSTAT	0x00110
-#define	PIC_REG_INT_MODE	0x00118
-#define	PIC_REG_INT_DEVICE	0x00120
-#define	PIC_REG_INT_HOSTERR	0x00128
-#define	PIC_REG_INT_ADDR(x)	(0x00130 + ((x) << 3))
-#define	PIC_REG_INT_ERRVIEW	0x00170
-#define	PIC_REG_INT_MULTI	0x00178
-#define	PIC_REG_INT_FORCE(x)	(0x00180 + ((x) << 3))
-#define	PIC_REG_INT_PIN(x)	(0x001c0 + ((x) << 3))
+#define	PCIB_REG_DIR_MAP	0x00080
+#define	PCIB_REG_MAP_FAULT	0x00090
+#define	PCIB_REG_ARBITRATION	0x000a0
+#define	PCIB_REG_ATE_PARERR	0x000b0
+#define	PCIB_REG_BUS_TOUT	0x000c0
+#define	PCIB_REG_PCI_CFG	0x000c8
+#define	PCIB_REG_PCI_ERR_H	0x000d0
+#define	PCIB_REG_PCI_ERR	0x000d8
 
-#define	PIC_REG_DEVICE(x)	(0x00200 + ((x) << 3))
-#define	PIC_REG_WR_REQ(x)	(0x00240 + ((x) << 3))
-#define	PIC_REG_RRB_MAP(x)	(0x00280 + ((x) << 3))
+#define	PCIB_REG_INT_STATUS	0x00100
+#define	PCIB_REG_INT_ENABLE	0x00108
+#define	PCIB_REG_INT_RSTSTAT	0x00110
+#define	PCIB_REG_INT_MODE	0x00118
+#define	PCIB_REG_INT_DEVICE	0x00120
+#define	PCIB_REG_INT_HOSTERR	0x00128
+#define	PCIB_REG_INT_ADDR(x)	(0x00130 + ((x) << 3))
+#define	PCIB_REG_INT_ERRVIEW	0x00170
+#define	PCIB_REG_INT_MULTI	0x00178
+#define	PCIB_REG_INT_FORCE(x)	(0x00180 + ((x) << 3))
+#define	PCIB_REG_INT_PIN(x)	(0x001c0 + ((x) << 3))
 
-#define	PIC_REG_ATE(x)		(0x10000 + ((x) << 3))
-#define	PIC_REG_ATE_SIZE	1024
+#define	PCIB_REG_DEVICE(x)	(0x00200 + ((x) << 3))
+#define	PCIB_REG_WR_REQ(x)	(0x00240 + ((x) << 3))
+#define	PCIB_REG_RRB_MAP(x)	(0x00280 + ((x) << 3))
+
+#define	PCIB_REG_ATE(x)		(0x10000 + ((x) << 3))
+#define	PCIB_REG_ATE_SIZE	1024
 
 struct sgisn_fwpcib {
 	struct sgisn_fwbus	fw_common;

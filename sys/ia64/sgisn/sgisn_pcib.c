@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Marcel Moolenaar
+ * Copyright (c) 2010-2013 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,7 +77,7 @@ struct sgisn_pcib_softc {
 	struct rman	sc_iomem;
 	uint32_t	*sc_flush_intr[PCI_SLOTMAX + 1];
 	uint64_t	*sc_flush_addr[PCI_SLOTMAX + 1];
-	uint64_t	sc_ate[PIC_REG_ATE_SIZE / 64];
+	uint64_t	sc_ate[PCIB_REG_ATE_SIZE / 64];
 	struct mtx	sc_ate_mtx;
 };
 
@@ -377,7 +377,7 @@ sgisn_pcib_setup_intr(device_t dev, device_t child, struct resource *irq,
 	//     rman_get_start(irq), flags, ifltr, ihdlr, arg, cookiep);
 
 	sc = device_get_softc(dev);
-	ie = bus_space_read_8(sc->sc_tag, sc->sc_hndl, PIC_REG_INT_ENABLE);
+	ie = bus_space_read_8(sc->sc_tag, sc->sc_hndl, PCIB_REG_INT_ENABLE);
 	// device_printf(dev, "INT_ENABLE=%#lx\n", ie);
 
 	error = bus_generic_setup_intr(dev, child, irq, flags, ifltr, ihdlr,
@@ -388,8 +388,12 @@ sgisn_pcib_setup_intr(device_t dev, device_t child, struct resource *irq,
 static int
 sgisn_pcib_probe(device_t dev)
 {
+	struct ia64_sal_result r;
+	struct sgisn_fwpcib *fwbus;
 	device_t parent;
 	uintptr_t bus, seg;
+	u_long addr;
+	int res;
 
 	parent = device_get_parent(dev);
 	if (parent == NULL)
@@ -399,8 +403,22 @@ sgisn_pcib_probe(device_t dev)
 	    BUS_READ_IVAR(parent, dev, SHUB_IVAR_PCIBUS, &bus))
 		return (ENXIO);
 
-	device_set_desc(dev, "SGI PCI-X host controller");
-	return (BUS_PROBE_DEFAULT);
+	r = ia64_sal_entry(SAL_SGISN_IOBUS_INFO, seg, bus,
+	    ia64_tpa((uintptr_t)&addr), 0, 0, 0, 0);
+	if (r.sal_status != 0 || addr == 0)
+		return (ENXIO);
+	fwbus = (void *)IA64_PHYS_TO_RR7(addr);
+	switch (fwbus->fw_common.bus_asic) {
+	case SGISN_PCIB_PIC:
+	case SGISN_PCIB_TIOCP:
+		device_set_desc(dev, "SGI PCI/PCI-X host controller");
+		res = BUS_PROBE_DEFAULT;
+		break;
+	default:
+		res = ENXIO;
+		break;
+	}
+	return (res);
 }
 
 static int
@@ -463,7 +481,7 @@ sgisn_pcib_attach(device_t dev)
 	sc->sc_fwbus = (void *)IA64_PHYS_TO_RR7(addr);
 	sc->sc_ioaddr = IA64_RR_MASK(sc->sc_fwbus->fw_common.bus_base);
 	sc->sc_tag = IA64_BUS_SPACE_MEM;
-	bus_space_map(sc->sc_tag, sc->sc_ioaddr, PIC_REG_SIZE, 0,
+	bus_space_map(sc->sc_tag, sc->sc_ioaddr, PCIB_REG_SIZE, 0,
 	    &sc->sc_hndl);
 
 	if (bootverbose)
@@ -473,13 +491,13 @@ sgisn_pcib_attach(device_t dev)
 		    sc->sc_fwbus->fw_type, sc->sc_fwbus->fw_mode);
 
 	/* Set the preferred I/O MMU page size -- 4KB or 16KB. */
-	ctrl = bus_space_read_8(sc->sc_tag, sc->sc_hndl, PIC_REG_WGT_CTRL);
+	ctrl = bus_space_read_8(sc->sc_tag, sc->sc_hndl, PCIB_REG_WGT_CTRL);
 #if SGISN_PCIB_PAGE_SHIFT == 12
 	ctrl &= ~(1UL << 21);
 #else
 	ctrl |= 1UL << 21;
 #endif
-	bus_space_write_8(sc->sc_tag, sc->sc_hndl, PIC_REG_WGT_CTRL, ctrl);
+	bus_space_write_8(sc->sc_tag, sc->sc_hndl, PCIB_REG_WGT_CTRL, ctrl);
 
 	mtx_init(&sc->sc_ate_mtx, device_get_nameunit(dev), NULL, MTX_SPIN);
 
@@ -620,7 +638,7 @@ sgisn_pcib_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 
 	ate = 0;
 	entry = ~0;
-	while (ate < (PIC_REG_ATE_SIZE / 64) && entry == ~0) {
+	while (ate < (PCIB_REG_ATE_SIZE / 64) && entry == ~0) {
 		bits = sc->sc_ate[ate];
 		/* Move to the next long if this one is full. */
 		if (bits == ~0UL) {
@@ -657,7 +675,7 @@ sgisn_pcib_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 			ate++;
 	}
 	if (entry != ~0) {
-		KASSERT(ate < (PIC_REG_ATE_SIZE / 64), ("foo: ate"));
+		KASSERT(ate < (PCIB_REG_ATE_SIZE / 64), ("foo: ate"));
 		KASSERT(bitshft <= (64 - count), ("foo: bitshft"));
 		KASSERT(entry == (ate * 64 + bitshft), ("foo: math"));
 		bits = (count < 64) ? ((1UL << count) - 1UL) << bitshft : ~0UL;
@@ -682,7 +700,7 @@ sgisn_pcib_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 	ba |= (u_long)sc->sc_fwbus->fw_hub_xid << 8;
 	while (count > 0) {
 		bus_space_write_8(sc->sc_tag, sc->sc_hndl,
-		    PIC_REG_ATE(entry), ba);
+		    PCIB_REG_ATE(entry), ba);
 		ba += SGISN_PCIB_PAGE_SIZE;
 		entry++;
 		count--;
@@ -712,7 +730,7 @@ sgisn_pcib_iommu_unmap(device_t bus, device_t dev, busdma_md_t md, u_int idx)
 	entry = (ba >> SGISN_PCIB_PAGE_SHIFT);
 
 	KASSERT(count <= 64, ("foo: count"));
-	KASSERT((entry + count) <= PIC_REG_ATE_SIZE, ("foo"));
+	KASSERT((entry + count) <= PCIB_REG_ATE_SIZE, ("foo"));
 	bitshft = entry & 64;
 	KASSERT(bitshft <= (64 - count), ("foo: bitshft"));
 	bits = (count < 64) ? ((1UL << count) - 1UL) << bitshft : ~0UL;
@@ -720,7 +738,7 @@ sgisn_pcib_iommu_unmap(device_t bus, device_t dev, busdma_md_t md, u_int idx)
 
 	while (count > 0) {
 		bus_space_write_8(sc->sc_tag, sc->sc_hndl,
-		    PIC_REG_ATE(entry), 0);
+		    PCIB_REG_ATE(entry), 0);
 		entry++;
 		count--;
 	}
