@@ -144,9 +144,27 @@ disable_mmu:
 	nop
 	mov	pc, r7
 Lunmapped:
-#ifdef STARTUP_PAGETABLE_ADDR
-	/* build page table from scratch */
-	ldr	r0, Lstartup_pagetable
+	/*
+	 * Build page table from scratch.
+	 */
+
+	/* Find the delta between VA and PA */
+	adr	r0, Lpagetable
+	ldr	r1, [r0]
+	sub	r2, r1, r0
+	/* At this point: r2 = VA - PA */
+
+	/*
+	 * Find the physical address of the table. After these two
+	 * instructions:
+	 * r1 = va(pagetable)
+	 *
+	 * r0 = va(pagetable) - (VA - PA)
+	 *    = va(pagetable) - VA + PA
+	 *    = pa(pagetable)
+	 */
+	ldr	r1, [r0, #4]
+	sub	r0, r1, r2
 
 	/*
 	 * Map PA == VA
@@ -200,7 +218,6 @@ Lunmapped:
 	nop
 	CPWAIT(r0)
 
-#endif
 mmu_done:
 	nop
 	adr	r1, .Lstart
@@ -234,6 +251,8 @@ virt_done:
 	adr	r0, .Lmainreturned
 	b	_C_LABEL(panic)
 	/* NOTREACHED */
+END(btext)
+END(_start)
 
 /*
  * Builds the page table
@@ -266,30 +285,27 @@ build_pagetables:
 
 	RET
 
-#ifdef STARTUP_PAGETABLE_ADDR
-#define MMU_INIT(va,pa,n_sec,attr) \
-	.word	n_sec					    ; \
-	.word	4*((va)>>L1_S_SHIFT)			    ; \
-	.word	(pa)|(attr)				    ;
+Lpagetable:
+	.word	.
+	.word	pagetable
 
 Lvirtaddr:
 	.word	KERNVIRTADDR
 Lphysaddr:
 	.word	KERNPHYSADDR
+
+#if defined (FLASHADDR) && defined(LOADERRAMADDR)
 Lreal_start:
 	.word	_start
-Lend:	
+Lend:
 	.word	_edata
-Lstartup_pagetable:
-	.word	STARTUP_PAGETABLE_ADDR
+#endif
+
 #ifdef SMP
 Lstartup_pagetable_secondary:
 	.word	temp_pagetable
 #endif
-END(btext)
-END(_start)
 
-#endif
 .Lstart:
 	.word	_edata
 	.word	_end
@@ -309,6 +325,15 @@ END(_start)
 	.bss
 svcstk:
 	.space	INIT_ARM_STACK_SIZE
+
+/*
+ * Memory for the initial pagetable. We are unable to place this in
+ * the bss as this will be cleared after the table is loaded.
+ */
+	.section ".init_pagetable"
+	.align	14 /* 16KiB aligned */
+pagetable:
+	.space	L1_TABLE_SIZE
 
 	.text
 	.align	0
