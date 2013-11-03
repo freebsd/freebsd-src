@@ -125,8 +125,9 @@ report_progress(size_t progress, size_t dumpsize)
 	int sofar, i;
 
 	sofar = 100 - ((progress * 100) / dumpsize);
-	for (i = 0; i < 10; i++) {
-		if (sofar < progress_track[i].min_per || sofar > progress_track[i].max_per)
+	for (i = 0; i < nitems(progress_track); i++) {
+		if (sofar < progress_track[i].min_per ||
+		    sofar > progress_track[i].max_per)
 			continue;
 		if (progress_track[i].visited)
 			return;
@@ -155,8 +156,8 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 		printf("cant have both va and pa!\n");
 		return (EINVAL);
 	}
-	if (pa != 0 && (((uintptr_t)ptr) % PAGE_SIZE) != 0) {
-		printf("address not page aligned\n");
+	if ((((uintptr_t)pa) % PAGE_SIZE) != 0) {
+		printf("address not page aligned %p\n", ptr);
 		return (EINVAL);
 	}
 	if (ptr != NULL) {
@@ -228,6 +229,8 @@ minidumpsys(struct dumperinfo *di)
  retry:
 	retry_count++;
 	counter = 0;
+	for (i = 0; i < nitems(progress_track); i++)
+		progress_track[i].visited = 0;
 	/* Walk page table pages, set bits in vm_page_dump */
 	pmapsize = 0;
 	pdp = (uint64_t *)PHYS_TO_DMAP(KPDPphys);
