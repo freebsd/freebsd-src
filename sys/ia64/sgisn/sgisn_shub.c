@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Marcel Moolenaar
+ * Copyright (c) 2011-2013 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -474,6 +474,14 @@ sgisn_shub_attach(device_t dev)
 			if (r.sal_status != 0 || addr == 0)
 				continue;
 
+			/*
+			 * Filter PCI bridges not connected to the SHub
+			 * instance in question. We use the NASID to match
+			 * bridges to SHubs.
+			 * Note that the TIOCP bridge has bit 0 of the
+			 * NASID set, which is why we want to ignore bit 0.
+			 * Subtracting 1 from the mask does the trick.
+			 */
 			fwbus = (void *)IA64_PHYS_TO_RR7(addr);
 			if (((fwbus->bus_base >> sc->sc_nasid_shft) &
 			    (sc->sc_nasid_mask - 1)) != sc->sc_nasid)
