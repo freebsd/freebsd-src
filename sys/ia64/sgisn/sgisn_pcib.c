@@ -204,10 +204,12 @@ sgisn_pcib_activate_resource(device_t dev, device_t child, int type, int rid,
 {
 	int error;
 
-	// device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u, res=%p"
-	//     "[%#lx-%#lx])\n", __func__, device_get_nameunit(dev),
-	//     device_get_nameunit(child), type, rid, res, rman_get_start(res),
-	//     rman_get_end(res));
+#ifdef SGISN_PCIB_DEBUG
+	device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u, res=%p"
+	    "[%#lx-%#lx])\n", __func__, device_get_nameunit(dev),
+	    device_get_nameunit(child), type, rid, res, rman_get_start(res),
+	    rman_get_end(res));
+#endif
 
 	error = rman_activate_resource(res);
 	return (error);
@@ -227,10 +229,12 @@ sgisn_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	uintptr_t func, slot;
 	int bar, error;
 
-	// device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u, "
-	//     "start=%#lx, end=%#lx, count=%#lx, flags=%x)\n", __func__,
-	//     device_get_nameunit(dev), device_get_nameunit(child), type,
-	//     *rid, start, end, count, flags);
+#ifdef SGISN_PCIB_DEBUG
+	device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u, "
+	    "start=%#lx, end=%#lx, count=%#lx, flags=%x)\n", __func__,
+	    device_get_nameunit(dev), device_get_nameunit(child), type,
+	    *rid, start, end, count, flags);
+#endif
 
 	if (type == SYS_RES_IRQ)
 		return (bus_generic_alloc_resource(dev, child, type, rid,
@@ -265,14 +269,16 @@ sgisn_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		device_printf(dev, "PCI bus address %#lx mapped to CPU "
 		    "address %#lx\n", start, base);
 
-	// device_printf(child, "nas=%#x, slice=%#x, cpuid=%#x, nr=%#x, "
-	//     "pin=%#x, xtaddr=%#lx, br_type=%#x, bridge=%p, dev=%p, "
-	//     "last=%#x, cookie=%#x, flags=%#x, refcnt=%#x\n",
-	//     sgisn_irq.irq_nasid, sgisn_irq.irq_slice, sgisn_irq.irq_cpuid,
-	//     sgisn_irq.irq_nr, sgisn_irq.irq_pin, sgisn_irq.irq_xtaddr,
-	//     sgisn_irq.irq_br_type, sgisn_irq.irq_bridge, sgisn_irq.irq_dev,
-	//     sgisn_irq.irq_last, sgisn_irq.irq_cookie, sgisn_irq.irq_flags,
-	//     sgisn_irq.irq_refcnt);
+#ifdef SGISN_PCIB_DEBUG
+	device_printf(child, "nas=%#x, slice=%#x, cpuid=%#x, nr=%#x, "
+	    "pin=%#x, xtaddr=%#lx, br_type=%#x, bridge=%p, dev=%p, "
+	    "last=%#x, cookie=%#x, flags=%#x, refcnt=%#x\n",
+	    sgisn_irq.irq_nasid, sgisn_irq.irq_slice, sgisn_irq.irq_cpuid,
+	    sgisn_irq.irq_nr, sgisn_irq.irq_pin, sgisn_irq.irq_xtaddr,
+	    sgisn_irq.irq_br_type, sgisn_irq.irq_bridge, sgisn_irq.irq_dev,
+	    sgisn_irq.irq_last, sgisn_irq.irq_cookie, sgisn_irq.irq_flags,
+	    sgisn_irq.irq_refcnt);
+#endif
 
 	/* I/O port space is presented as memory mapped I/O. */
 	rman_set_bustag(rv, IA64_BUS_SPACE_MEM);
@@ -293,10 +299,12 @@ sgisn_pcib_deactivate_resource(device_t dev, device_t child, int type, int rid,
 {
 	int error;
 
-	// device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u, res=%p"
-	//     "[%#lx-%#lx])\n", __func__, device_get_nameunit(dev),
-	//     device_get_nameunit(child), type, rid, res, rman_get_start(res),
-	//     rman_get_end(res));
+#ifdef SGISN_PCIB_DEBUG
+	device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u, res=%p"
+	    "[%#lx-%#lx])\n", __func__, device_get_nameunit(dev),
+	    device_get_nameunit(child), type, rid, res, rman_get_start(res),
+	    rman_get_end(res));
+#endif
 
 	error = rman_deactivate_resource(res);
 	return (error);
@@ -306,9 +314,11 @@ static void
 sgisn_pcib_delete_resource(device_t dev, device_t child, int type, int rid)
 {
 
-	// device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u)\n",
-	//     __func__, device_get_nameunit(dev), device_get_nameunit(child),
-	//     type, rid);
+#ifdef SGISN_PCIB_DEBUG
+	device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u)\n",
+	    __func__, device_get_nameunit(dev), device_get_nameunit(child),
+	    type, rid);
+#endif
 }
 
 static int
@@ -316,9 +326,11 @@ sgisn_pcib_get_resource(device_t dev, device_t child, int type, int rid,
     u_long *startp, u_long *countp)
 {
 
-	// device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u, "
-	//     "startp=%p, countp=%p)\n", __func__, device_get_nameunit(dev),
-	//     device_get_nameunit(child), type, rid, startp, countp);
+#ifdef SGISN_PCIB_DEBUG
+	device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u, "
+	    "startp=%p, countp=%p)\n", __func__, device_get_nameunit(dev),
+	    device_get_nameunit(child), type, rid, startp, countp);
+#endif
 	return (ENOENT);
 }
 
@@ -326,8 +338,10 @@ static struct resource_list *
 sgisn_pcib_get_resource_list(device_t dev, device_t child)
 {
 
-	// device_printf(dev, "%s(dev=%s, child=%s)\n", __func__,
-	//     device_get_nameunit(dev), device_get_nameunit(child));
+#ifdef SGISN_PCIB_DEBUG
+	device_printf(dev, "%s(dev=%s, child=%s)\n", __func__,
+	    device_get_nameunit(dev), device_get_nameunit(child));
+#endif
 	return (NULL);
 }
 
@@ -337,10 +351,12 @@ sgisn_pcib_release_resource(device_t dev, device_t child, int type, int rid,
 {
 	int error;
 
-	// device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u, res=%p"
-	//     "[%#lx-%#lx])\n", __func__, device_get_nameunit(dev),
-	//     device_get_nameunit(child), type, rid, res, rman_get_start(res),
-	//     rman_get_end(res));
+#ifdef SGISN_PCIB_DEBUG
+	device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u, res=%p"
+	    "[%#lx-%#lx])\n", __func__, device_get_nameunit(dev),
+	    device_get_nameunit(child), type, rid, res, rman_get_start(res),
+	    rman_get_end(res));
+#endif
 
 	if (rman_get_flags(res) & RF_ACTIVE) {
 		error = rman_deactivate_resource(res);
@@ -356,9 +372,12 @@ sgisn_pcib_set_resource(device_t dev, device_t child, int type, int rid,
     u_long start, u_long count)
 {
 
-	// device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u, "
-	//     "start=%#lx, count=%#lx)\n", __func__, device_get_nameunit(dev),
-	//     device_get_nameunit(child), type, rid, start, count);
+#ifdef SGISN_PCIB_DEBUG
+	device_printf(dev, "%s(dev=%s, child=%s, type=%u, rid=%u, "
+	    "start=%#lx, count=%#lx)\n", __func__, device_get_nameunit(dev),
+	    device_get_nameunit(child), type, rid, start, count);
+#endif
+
 	return (ENXIO);
 }
 
@@ -371,14 +390,19 @@ sgisn_pcib_setup_intr(device_t dev, device_t child, struct resource *irq,
 	uint64_t ie;
 	int error;
 
-	// device_printf(dev, "%s(dev=%s, child=%s, irq=%lu, flags=%#x, "
-	//     "ifltr=%p, ihdlr=%p, arg=%p, cookiep=%p)\n", __func__,
-	//     device_get_nameunit(dev), device_get_nameunit(child),
-	//     rman_get_start(irq), flags, ifltr, ihdlr, arg, cookiep);
+#ifdef SGISN_PCIB_DEBUG
+	device_printf(dev, "%s(dev=%s, child=%s, irq=%lu, flags=%#x, "
+	    "ifltr=%p, ihdlr=%p, arg=%p, cookiep=%p)\n", __func__,
+	    device_get_nameunit(dev), device_get_nameunit(child),
+	    rman_get_start(irq), flags, ifltr, ihdlr, arg, cookiep);
+#endif
 
 	sc = device_get_softc(dev);
 	ie = bus_space_read_8(sc->sc_tag, sc->sc_hndl, PCIB_REG_INT_ENABLE);
-	// device_printf(dev, "INT_ENABLE=%#lx\n", ie);
+
+#ifdef SGISN_PCIB_DEBUG
+	device_printf(dev, "INT_ENABLE=%#lx\n", ie);
+#endif
 
 	error = bus_generic_setup_intr(dev, child, irq, flags, ifltr, ihdlr,
 	    arg, cookiep);
@@ -446,14 +470,46 @@ sgisn_pcib_rm_init(struct sgisn_pcib_softc *sc, struct rman *rm,
 	return (error);
 }
 
+static void
+sgisn_pcib_setup_flush(struct sgisn_pcib_softc *sc)
+{
+	struct ia64_sal_result r;
+	struct sgisn_fwflush *fwflush;
+	device_t parent;
+	uintptr_t nasid;
+	size_t fwflushsz;
+	u_int i, slot;
+
+	fwflushsz = (PCI_SLOTMAX + 1) * sizeof(struct sgisn_fwflush);
+	fwflush = contigmalloc(fwflushsz, M_TEMP, M_ZERO, 0UL, ~0UL, 16, 0);
+	parent = device_get_parent(sc->sc_dev);
+	BUS_READ_IVAR(parent, sc->sc_dev, SHUB_IVAR_NASID, &nasid);
+	r = ia64_sal_entry(SAL_SGISN_IOBUS_FLUSH, nasid,
+	    sc->sc_fwbus->fw_common.bus_xid, ia64_tpa((uintptr_t)fwflush),
+	    0, 0, 0, 0);
+	if (r.sal_status == 0) {
+		for (i = 0; i <= PCI_SLOTMAX; i++) {
+			if (fwflush[i].fld_pci_segment != sc->sc_domain ||
+			    fwflush[i].fld_pci_bus != sc->sc_busnr)
+				continue;
+			slot = fwflush[i].fld_slot;
+			if (slot > PCI_SLOTMAX)
+				continue;
+			sc->sc_flush_intr[slot] = fwflush[i].fld_intr;
+			sc->sc_flush_addr[slot] = fwflush[i].fld_addr;
+			device_printf(sc->sc_dev, "slot=%d: flush addr=%p, "
+			    "intr=%p\n", slot, fwflush[i].fld_addr,
+			    fwflush[i].fld_intr);
+		}
+	}
+	contigfree(fwflush, fwflushsz, M_TEMP);
+}
+
 static int
 sgisn_pcib_attach(device_t dev)
 {
-	struct ia64_sal_result r;
 	struct sgisn_pcib_softc *sc;
-	struct sgisn_fwflush *fwflush;
 	device_t parent;
-	size_t fwflushsz;
 	uintptr_t addr, ivar;
 	uint64_t ctrl;
 	int error;
@@ -501,27 +557,8 @@ sgisn_pcib_attach(device_t dev)
 
 	mtx_init(&sc->sc_ate_mtx, device_get_nameunit(dev), NULL, MTX_SPIN);
 
-	fwflushsz = (PCI_SLOTMAX + 1) * sizeof(struct sgisn_fwflush);
-	fwflush = contigmalloc(fwflushsz, M_TEMP, M_ZERO, 0UL, ~0UL, 16, 0);
-	BUS_READ_IVAR(parent, dev, SHUB_IVAR_NASID, &ivar);
-	r = ia64_sal_entry(SAL_SGISN_IOBUS_FLUSH, ivar,
-	    sc->sc_fwbus->fw_common.bus_xid, ia64_tpa((uintptr_t)fwflush),
-	    0, 0, 0, 0);
-	if (r.sal_status == 0) {
-		int i, slot;
-
-		for (i = 0; i <= PCI_SLOTMAX; i++) {
-			if (fwflush[i].fld_pci_segment != sc->sc_domain ||
-			    fwflush[i].fld_pci_bus != sc->sc_busnr)
-				continue;
-			slot = fwflush[i].fld_slot;
-			sc->sc_flush_intr[slot] = fwflush[i].fld_intr;
-			sc->sc_flush_addr[slot] = fwflush[i].fld_addr;
-			device_printf(dev, "slot=%d: flush addr=%p, intr=%p\n",
-			    slot, fwflush[i].fld_addr, fwflush[i].fld_intr);
-		}
-	}
-	contigfree(fwflush, fwflushsz, M_TEMP);
+	if (sc->sc_fwbus->fw_common.bus_asic == SGISN_PCIB_PIC)
+		sgisn_pcib_setup_flush(sc);
 
 	device_add_child(dev, "pci", -1);
 	error = bus_generic_attach(dev);
