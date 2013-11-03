@@ -6,15 +6,7 @@ FBSD_1.2 {
 	__iconv;
 	__iconv_free_list;
 	__iconv_get_list;
-	_libiconv_version;
 	iconv_canonicalize;
-	libiconv;
-	libiconv_close;
-	libiconv_open;
-	libiconv_open_into;
-	libiconv_set_relocation_prefix;
-	libiconvctl;
-	libiconvlist;
 };
 
 FBSD_1.3 {

@@ -47,18 +47,6 @@
 #include "citrus_hash.h"
 #include "citrus_iconv.h"
 
-#include <_libiconv_compat.h>
-#ifdef __LIBICONV_COMPAT
-__weak_reference(iconv, libiconv);
-__weak_reference(iconv_open, libiconv_open);
-__weak_reference(iconv_open_into, libiconv_open_into);
-__weak_reference(iconv_close, libiconv_close);
-__weak_reference(iconvlist, libiconvlist);
-__weak_reference(iconvctl, libiconvctl);
-__weak_reference(iconv_set_relocation_prefix, libiconv_set_relocation_prefix);
-__weak_reference(_iconv_version, _libiconv_version);
-#endif
-
 #define ISBADF(_h_)	(!(_h_) || (_h_) == (iconv_t)-1)
 
 int _iconv_version = _ICONV_VERSION;
