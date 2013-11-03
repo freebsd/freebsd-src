@@ -60,8 +60,6 @@ __FBSDID("$FreeBSD$");
 	.align	0
 .globl kernbase
 .set kernbase,KERNBASE
-.globl physaddr
-.set physaddr,PHYSADDR
 
 /*
  * On entry for FreeBSD boot ABI:
@@ -125,25 +123,7 @@ Lram_offset:	.word from_ram-_C_LABEL(_start)
 from_ram:
 	nop
 #endif
-	adr	r7, Lunmapped
-	bic     r7, r7, #0xf0000000
-	orr     r7, r7, #PHYSADDR
 
-
-disable_mmu:
-	/* Disable MMU for a while */
-	mrc     p15, 0, r2, c1, c0, 0
-	bic	r2, r2, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
-	    CPU_CONTROL_WBUF_ENABLE)
-	bic	r2, r2, #(CPU_CONTROL_IC_ENABLE)
-	bic	r2, r2, #(CPU_CONTROL_BPRD_ENABLE)
-	mcr     p15, 0, r2, c1, c0, 0
-
-	nop
-	nop
-	nop
-	mov	pc, r7
-Lunmapped:
 	/*
 	 * Build page table from scratch.
 	 */
@@ -292,8 +272,6 @@ Lpagetable:
 
 Lvirtaddr:
 	.word	KERNVIRTADDR
-Lphysaddr:
-	.word	KERNPHYSADDR
 
 #if defined (FLASHADDR) && defined(LOADERRAMADDR)
 Lreal_start:
