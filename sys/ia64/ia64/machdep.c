@@ -529,16 +529,25 @@ void
 cpu_pcpu_setup(struct pcpu *pc, u_int acpi_id, u_int sapic_id)
 {
 	struct ia64_sal_result r;
+	uint64_t mmr;
+	u_int shft, shub;
 
 	pc->pc_acpi_id = acpi_id;
 	pc->pc_md.lid = IA64_LID_SET_SAPIC_ID(sapic_id);
 
 	r = ia64_sal_entry(SAL_SGISN_SAPIC_INFO, sapic_id, 0, 0, 0, 0, 0, 0);
-	if (r.sal_status == 0) {
-		pc->pc_md.sgisn_nasid = r.sal_result[0];
-		pc->pc_md.sgisn_subnode = r.sal_result[1];
-		pc->pc_md.sgisn_slice = r.sal_result[2];
-	}
+	if (r.sal_status != 0)
+		return;
+	pc->pc_md.sgisn_nasid = r.sal_result[0];
+
+	r = ia64_sal_entry(SAL_SGISN_SN_INFO, 0, 0, 0, 0, 0, 0, 0);
+	if (r.sal_status != 0)
+		return;
+	shub = r.sal_result[0] & 0xff;
+	shft = (r.sal_result[1] >> 16) & 0xff;
+	mmr = ((u_long)pc->pc_md.sgisn_nasid << shft) |
+	    (((shub == 0) ? 9UL : 3UL) << 32);
+	pc->pc_md.sgisn_ipip = IA64_PHYS_TO_RR6(mmr + 0x10000380UL);
 }
  
 void
