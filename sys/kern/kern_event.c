@@ -712,7 +712,7 @@ sys_kqueue(struct thread *td, struct kqueue_args *uap)
 	    RLIMIT_KQUEUES))) {
 		PROC_UNLOCK(p);
 		crfree(cred);
-		return (EMFILE);
+		return (ENOMEM);
 	}
 	PROC_UNLOCK(p);
 
