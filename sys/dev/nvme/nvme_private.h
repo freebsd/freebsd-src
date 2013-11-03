@@ -238,6 +238,7 @@ struct nvme_namespace {
 	uint16_t			flags;
 	struct cdev			*cdev;
 	void				*cons_cookie[NVME_MAX_CONSUMERS];
+	uint32_t			stripesize;
 	struct mtx			lock;
 };
 
