@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20131103: removal of utxrm(8), use 'utx rm' instead.
+OLD_FILES+=usr/sbin/utxrm
+OLD_FILES+=usr/share/man/man8/utxrm.8.gz
 # 20131031: pkg_install has been removed
 OLD_FILES+=etc/periodic/daily/220.backup-pkgdb
 OLD_FILES+=etc/periodic/daily/490.status-pkg-changes
