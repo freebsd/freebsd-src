@@ -38,6 +38,12 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20131030: /etc/keys moved to /usr/share/keys
+OLD_DIRS+=etc/keys
+OLD_DIRS+=etc/keys/pkg
+OLD_DIRS+=etc/keys/pkg/revoked
+OLD_DIRS+=etc/keys/pkg/trusted
+OLD_FILES+=etc/keys/pkg/trusted/pkg.freebsd.org.2013102301
 # 20131014: libbsdyml becomes private
 OLD_FILES+=usr/lib/libbsdyml.a
 OLD_FILES+=usr/lib/libbsdyml.so
