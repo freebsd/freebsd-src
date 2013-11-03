@@ -171,7 +171,7 @@ from_ram:
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B)
+#ifdef _ARM_ARCH_6
 	mov	r0, #0
 	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
 #endif
