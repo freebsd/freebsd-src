@@ -776,6 +776,7 @@ makectx(struct trapframe *tf, struct pcb *pcb)
 	pcb->un_32.pcb32_sp = tf->tf_usr_sp;
 }
 
+#ifndef FDT
 /*
  * Make a standard dump_avail array.  Can't make the phys_avail
  * since we need to do that after we call pmap_bootstrap, but this
@@ -816,6 +817,7 @@ arm_dump_avail_init(vm_offset_t ramsize, size_t max)
 	dump_avail[2] = 0;
 	dump_avail[3] = 0;
 }
+#endif
 
 /*
  * Fake up a boot descriptor table
@@ -1244,7 +1246,18 @@ initarm(struct arm_boot_params *abp)
 	/* Grab physical memory regions information from device tree. */
 	if (fdt_get_reserved_regions(reserved_regions, &reserved_regions_sz) != 0)
 		reserved_regions_sz = 0;
-		
+
+	/*
+	 * Build the dump_avail table
+	 */
+	start = memory_regions[i].mr_start;
+	end = start + memory_regions[i].mr_size;
+
+	dump_avail[0] = round_page(start);
+	dump_avail[1] = trunc_page(end);
+	dump_avail[2] = 0;
+	dump_avail[3] = 0;
+
 	/*
 	 * Now exclude all the reserved regions
 	 */
@@ -1493,7 +1506,6 @@ initarm(struct arm_boot_params *abp)
 
 	arm_intrnames_init();
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
-	arm_dump_avail_init(memsize, sizeof(dump_avail) / sizeof(dump_avail[0]));
 	pmap_bootstrap(freemempos, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
