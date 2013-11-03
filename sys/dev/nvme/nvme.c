@@ -237,8 +237,10 @@ nvme_attach(device_t dev)
 
 	status = nvme_ctrlr_construct(ctrlr, dev);
 
-	if (status != 0)
+	if (status != 0) {
+		nvme_ctrlr_destruct(ctrlr, dev);
 		return (status);
+	}
 
 	/*
 	 * Reset controller twice to ensure we do a transition from cc.en==1
@@ -246,12 +248,16 @@ nvme_attach(device_t dev)
 	 *  the controller was left in when boot handed off to OS.
 	 */
 	status = nvme_ctrlr_hw_reset(ctrlr);
-	if (status != 0)
+	if (status != 0) {
+		nvme_ctrlr_destruct(ctrlr, dev);
 		return (status);
+	}
 
 	status = nvme_ctrlr_hw_reset(ctrlr);
-	if (status != 0)
+	if (status != 0) {
+		nvme_ctrlr_destruct(ctrlr, dev);
 		return (status);
+	}
 
 	nvme_sysctl_initialize_ctrlr(ctrlr);
 
