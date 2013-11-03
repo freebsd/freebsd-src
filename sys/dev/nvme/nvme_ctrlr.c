@@ -708,12 +708,26 @@ nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
 static void
 nvme_ctrlr_configure_aer(struct nvme_controller *ctrlr)
 {
+	struct nvme_completion_poll_status	status;
 	union nvme_critical_warning_state	state;
 	struct nvme_async_event_request		*aer;
 	uint32_t				i;
 
 	state.raw = 0xFF;
 	state.bits.reserved = 0;
+
+	status.done = FALSE;
+	nvme_ctrlr_cmd_get_feature(ctrlr, NVME_FEAT_TEMPERATURE_THRESHOLD,
+	    0, NULL, 0, nvme_completion_poll_cb, &status);
+	while (status.done == FALSE)
+		pause("nvme", 1);
+	if (nvme_completion_is_error(&status.cpl) ||
+	    (status.cpl.cdw0 & 0xFFFF) == 0xFFFF ||
+	    (status.cpl.cdw0 & 0xFFFF) == 0x0000) {
+		nvme_printf(ctrlr, "temperature threshold not supported\n");
+		state.bits.temperature = 0;
+	}
+
 	nvme_ctrlr_cmd_set_async_event_config(ctrlr, state, NULL, NULL);
 
 	/* aerl is a zero-based value, so we need to add 1 here. */
