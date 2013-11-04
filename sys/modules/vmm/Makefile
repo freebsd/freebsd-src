@@ -27,7 +27,6 @@ SRCS+=	vmm.c		\
 .PATH: ${.CURDIR}/../../amd64/vmm/io
 SRCS+=	iommu.c		\
 	ppt.c           \
-	vdev.c		\
 	vlapic.c
 
 # intel-specific files
