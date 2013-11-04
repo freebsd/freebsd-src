@@ -167,6 +167,10 @@ mount -t devfs devfs ${CHROOTDIR}/dev
 trap "umount ${CHROOTDIR}/dev" EXIT # Clean up devfs mount on exit
 
 build_doc_ports() {
+	# Run ldconfig(8) in the chroot directory so /var/run/ld-elf*.so.hints
+	# is created.  This is needed by ports-mgmt/pkg.
+	chroot ${CHROOTDIR} /etc/rc.d/ldconfig forcerestart
+
 	## Trick the ports 'run-autotools-fixup' target to do the right thing.
 	_OSVERSION=$(sysctl -n kern.osreldate)
 	if [ -d ${CHROOTDIR}/usr/doc ] && [ "x${NODOC}" = "x" ]; then
