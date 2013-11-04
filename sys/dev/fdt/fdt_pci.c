@@ -42,6 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 
 #include <machine/fdt.h>
+#if defined(__arm__)
+#include <machine/devmap.h>
+#endif
 
 #include "ofw_bus_if.h"
 #include "pcib_if.h"
