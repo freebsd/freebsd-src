@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 
 #include <machine/bus.h>
+#include <machine/devmap.h>
 #include <machine/machdep.h>
 
 #include <arm/xilinx/zy7_reg.h>
@@ -73,7 +74,7 @@ initarm_late_init(void)
 }
 
 #define FDT_DEVMAP_SIZE 3
-static struct pmap_devmap fdt_devmap[FDT_DEVMAP_SIZE];
+static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_SIZE];
 
 /*
  * Construct pmap_devmap[] with DT-derived config data.
@@ -104,7 +105,7 @@ platform_devmap_init(void)
 	fdt_devmap[i].pd_prot = 0;
 	fdt_devmap[i].pd_cache = 0;
 
-	pmap_devmap_bootstrap_table = &fdt_devmap[0];
+	arm_devmap_register_table(&fdt_devmap[0]);
 	return (0);
 }
 

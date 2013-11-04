@@ -696,20 +696,6 @@ void	pmap_use_minicache(vm_offset_t, vm_size_t);
 
 void vector_page_setprot(int);
 
-/*
- * This structure is used by machine-dependent code to describe
- * static mappings of devices, created at bootstrap time.
- */
-struct pmap_devmap {
-	vm_offset_t	pd_va;		/* virtual address */
-	vm_paddr_t	pd_pa;		/* physical address */
-	vm_size_t	pd_size;	/* size of region */
-	vm_prot_t	pd_prot;	/* protection code */
-	int		pd_cache;	/* cache attributes */
-};
-
-void	pmap_devmap_bootstrap(vm_offset_t, const struct pmap_devmap *);
-
 #define SECTION_CACHE	0x1
 #define SECTION_PT	0x2
 void	pmap_kenter_section(vm_offset_t, vm_paddr_t, int flags);

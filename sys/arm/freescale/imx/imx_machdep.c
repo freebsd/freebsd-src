@@ -47,14 +47,14 @@ __FBSDID("$FreeBSD$");
 
 #define	IMX_MAX_DEVMAP_ENTRIES	8
 
-static struct pmap_devmap devmap_entries[IMX_MAX_DEVMAP_ENTRIES];
+static struct arm_devmap_entry devmap_entries[IMX_MAX_DEVMAP_ENTRIES];
 static u_int		  devmap_idx;
 static vm_offset_t	  devmap_vaddr = ARM_VECTORS_HIGH;
 
 void
 imx_devmap_addentry(vm_paddr_t pa, vm_size_t sz) 
 {
-	struct pmap_devmap *m;
+	struct arm_devmap_entry *m;
 
 	/*
 	 * The last table entry is the all-zeroes end-of-table marker.  If we're
@@ -103,7 +103,7 @@ initarm_lastaddr(void)
 	 */
 	imx_devmap_init();
 
-	pmap_devmap_bootstrap_table = devmap_entries;
+	arm_devmap_register_table(devmap_entries);
 
 	return (devmap_vaddr);
 }
@@ -128,7 +128,7 @@ initarm_gpio_init(void)
 void
 initarm_late_init(void)
 {
-	struct pmap_devmap *m;
+	struct arm_devmap_entry *m;
 
 	/*
 	 * We did the static devmap setup earlier, during initarm_lastaddr(),

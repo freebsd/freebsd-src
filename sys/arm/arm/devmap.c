@@ -38,18 +38,42 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <machine/devmap.h>
 
-static const struct pmap_devmap *devmap_table;
+static const struct arm_devmap_entry *devmap_table;
 
 /*
- * Map all of the static regions in the devmap table, and remember
- * the devmap table so other parts of the kernel can do lookups later.
+ * Register the given table as the one to use in arm_devmap_bootstrap().
  */
 void
-pmap_devmap_bootstrap(vm_offset_t l1pt, const struct pmap_devmap *table)
+arm_devmap_register_table(const struct arm_devmap_entry *table)
 {
-	const struct pmap_devmap *pd;
 
 	devmap_table = table;
+}
+
+/*
+ * Map all of the static regions in the devmap table, and remember the devmap
+ * table so the mapdev, ptov, and vtop functions can do lookups later.
+ *
+ * If a non-NULL table pointer is given it is used unconditionally, otherwise
+ * the previously-registered table is used.  This smooths transition from legacy
+ * code that fills in a local table then calls this function passing that table,
+ * and newer code that uses arm_devmap_register_table() in platform-specific
+ * code, then lets the common initarm() call this function with a NULL pointer.
+ */
+void
+arm_devmap_bootstrap(vm_offset_t l1pt, const struct arm_devmap_entry *table)
+{
+	const struct arm_devmap_entry *pd;
+
+	/*
+	 * If given a table pointer, use it, else ensure a table was previously
+	 * registered.  This happens early in boot, and there's a good chance
+	 * the panic message won't be seen, but there's not much we can do.
+	 */
+	if (table != NULL)
+		devmap_table = table;
+	else if (devmap_table == NULL)
+		panic("arm_devmap_bootstrap: No devmap table registered.");
 
 	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
 		pmap_map_chunk(l1pt, pd->pd_va, pd->pd_pa, pd->pd_size,
@@ -64,7 +88,7 @@ pmap_devmap_bootstrap(vm_offset_t l1pt, const struct pmap_devmap *table)
 void *
 arm_devmap_ptov(vm_paddr_t pa, vm_size_t size)
 {
-	const struct pmap_devmap *pd;
+	const struct arm_devmap_entry *pd;
 
 	if (devmap_table == NULL)
 		return (NULL);
@@ -84,7 +108,7 @@ arm_devmap_ptov(vm_paddr_t pa, vm_size_t size)
 vm_paddr_t
 arm_devmap_vtop(void * vpva, vm_size_t size)
 {
-	const struct pmap_devmap *pd;
+	const struct arm_devmap_entry *pd;
 	vm_offset_t va;
 
 	if (devmap_table == NULL)
