@@ -1367,10 +1367,11 @@ re_attach(device_t dev)
 		break;
 	default:
 		device_printf(dev, "Chip rev. 0x%08x\n", hwrev & 0x7c800000);
+		sc->rl_macrev = hwrev & 0x00700000;
 		hwrev &= RL_TXCFG_HWREV;
 		break;
 	}
-	device_printf(dev, "MAC rev. 0x%08x\n", hwrev & 0x00700000);
+	device_printf(dev, "MAC rev. 0x%08x\n", sc->rl_macrev);
 	while (hw_rev->rl_desc != NULL) {
 		if (hw_rev->rl_rev == hwrev) {
 			sc->rl_type = hw_rev->rl_type;
@@ -1429,7 +1430,7 @@ re_attach(device_t dev)
 		sc->rl_flags |= RL_FLAG_MACSLEEP;
 		/* FALLTHROUGH */
 	case RL_HWREV_8168C:
-		if ((hwrev & 0x00700000) == 0x00200000)
+		if (sc->rl_macrev == 0x00200000)
 			sc->rl_flags |= RL_FLAG_MACSLEEP;
 		/* FALLTHROUGH */
 	case RL_HWREV_8168CP:
