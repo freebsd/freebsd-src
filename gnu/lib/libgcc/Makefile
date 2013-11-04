@@ -27,6 +27,17 @@ CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 		-I${GCCDIR}/config -I${GCCDIR} -I. \
 		-I${.CURDIR}/../../usr.bin/cc/cc_tools
 
+# Added to quiesce warning around gcc_assert() for an inline macro that uses
+# a static variable.  This code has been moved around in gcc, but is still in
+# use in the latest trunk version of the compiler.
+#
+# gnu/lib/libgcc/../../../contrib/gcc/unwind-dw2.c:208:36:
+#      warning: static variable 'dwarf_reg_size_table' is used in an inline
+#               function with external linkage [-Wstatic-in-inline]
+# gcc_assert (index < (int) sizeof(dwarf_reg_size_table));
+#                                  ^
+CFLAGS+=	-Wno-static-in-inline
+
 LDFLAGS+=	-nodefaultlibs
 LDADD+=		-lc
 
