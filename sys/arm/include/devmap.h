@@ -1,9 +1,6 @@
 /*-
- * Copyright (c) 2010 The FreeBSD Foundation
+ * Copyright (c) 2013 Ian Lepore <ian@freebsd.org>
  * All rights reserved.
- *
- * This software was developed by Semihalf under sponsorship from
- * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -17,7 +14,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -29,37 +26,21 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_FDT_H_
-#define _MACHINE_FDT_H_
-
-#include <dev/ofw/openfirm.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
-
-#include <machine/bus.h>
-#include <machine/intr.h>
-
-/* Max interrupt number */
-#define FDT_INTR_MAX	NIRQ
-
-/* Map phandle/intpin pair to global IRQ number */
-#define	FDT_MAP_IRQ(node, pin)	(pin)
+#ifndef	_MACHINE_DEVMAP_H_
+#define	_MACHINE_DEVMAP_H_
 
 /*
- * Bus space tag. XXX endianess info needs to be derived from the blob.
+ * Routines to translate between virtual and physical addresses within a region
+ * that is static-mapped by the devmap code.  If the given address range isn't
+ * static-mapped, then ptov returns NULL and vtop returns DEVMAP_PADDR_NOTFOUND.
+ * The latter implies that you can't vtop just the last byte of physical address
+ * space.  This is not as limiting as it might sound, because even if a device
+ * occupies the end of the physical address space, you're only prevented from
+ * doing vtop for that single byte.  If you vtop a size bigger than 1 it works.
  */
-extern bus_space_tag_t fdtbus_bs_tag;
+#define	DEVMAP_PADDR_NOTFOUND	((vm_paddr_t)(-1))
 
-struct mem_region {
-	vm_offset_t	mr_start;
-	vm_size_t	mr_size;
-};
+void *     arm_devmap_ptov(vm_paddr_t _pa, vm_size_t _sz);
+vm_paddr_t arm_devmap_vtop(void * _va, vm_size_t _sz);
 
-struct pmap_devmap;
-
-int fdt_localbus_devmap(phandle_t, struct pmap_devmap *, int, int *);
-int fdt_pci_devmap(phandle_t, struct pmap_devmap *devmap, vm_offset_t,
-    vm_offset_t);
-
-#endif /* _MACHINE_FDT_H_ */
+#endif
