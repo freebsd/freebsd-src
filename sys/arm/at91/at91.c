@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #define	_ARM32_BUS_DMA_PRIVATE
 #include <machine/bus.h>
+#include <machine/devmap.h>
 #include <machine/intr.h>
 
 #include <arm/at91/at91var.h>
@@ -52,7 +53,7 @@ static struct at91_softc *at91_softc;
 
 static void at91_eoi(void *);
 
-extern const struct pmap_devmap at91_devmap[];
+extern const struct arm_devmap_entry at91_devmap[];
 
 uint32_t at91_master_clock;
 
@@ -257,7 +258,7 @@ static int
 at91_attach(device_t dev)
 {
 	struct at91_softc *sc = device_get_softc(dev);
-	const struct pmap_devmap *pdevmap;
+	const struct arm_devmap_entry *pdevmap;
 	int i;
 
 	arm_post_filter = at91_eoi;

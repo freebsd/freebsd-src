@@ -335,7 +335,7 @@ next:
 
 #if defined(__arm__)
 int
-fdt_pci_devmap(phandle_t node, struct pmap_devmap *devmap, vm_offset_t io_va,
+fdt_pci_devmap(phandle_t node, struct arm_devmap_entry *devmap, vm_offset_t io_va,
     vm_offset_t mem_va)
 {
 	struct fdt_pci_range io_space, mem_space;

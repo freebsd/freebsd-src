@@ -43,9 +43,6 @@ int platform_devmap_init(void);
 void board_set_serial(uint64_t);
 void board_set_revision(uint32_t);
 
-/* Needs to be initialised by platform_devmap_init */
-extern const struct pmap_devmap *pmap_devmap_bootstrap_table;
-
 /* Setup standard arrays */
 void arm_dump_avail_init( vm_offset_t memsize, size_t max);
 
