@@ -1760,8 +1760,8 @@ static const uint8_t iwn_bss_ac_to_queue[] = {
 static const uint8_t iwn_pan_ac_to_queue[] = {
 	5, 4, 6, 7,
 };
-#define IWN1000_OTP_NBLOCKS	3 
-#define IWN6000_OTP_NBLOCKS	4 
+#define IWN1000_OTP_NBLOCKS	3
+#define IWN6000_OTP_NBLOCKS	4
 #define IWN6050_OTP_NBLOCKS	7
 
 /* HW rate indices. */
