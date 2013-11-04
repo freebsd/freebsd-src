@@ -860,8 +860,8 @@ send:
 			goto out;
 		}
 
-		m->m_data += max_linkhdr;
-		m->m_len = hdrlen;
+		m_reserv_data_head(m, max_linkhdr);
+		m_len_set_abs(m, hdrlen);
 
 		/*
 		 * Start the m_copy functions from the closest mbuf
@@ -916,8 +916,8 @@ send:
 			MH_ALIGN(m, hdrlen);
 		} else
 #endif
-		m->m_data += max_linkhdr;
-		m->m_len = hdrlen;
+		m_reserv_data_head(m, max_linkhdr);
+		m_len_set_abs(m, hdrlen);
 	}
 	SOCKBUF_UNLOCK_ASSERT(&so->so_snd);
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
@@ -1080,7 +1080,7 @@ send:
 	 * Put TCP length in extended header, and then
 	 * checksum extended header and data.
 	 */
-	m->m_pkthdr.len = hdrlen + len; /* in6_cksum() need this */
+	m_adj_pktlen_head_abs(m, hdrlen + len); /* in6_cksum() need this */
 	m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 #ifdef INET6
 	if (isipv6) {

@@ -806,7 +806,7 @@ smart_frag_failure:
 			mhip->ip_v = IPVERSION;
 			mhip->ip_hl = mhlen >> 2;
 		}
-		m->m_len = mhlen;
+		m_len_set_abs(m, mhlen);
 		/* XXX do we need to add ip_off below ? */
 		mhip->ip_off = ((off - hlen) >> 3) + ip_off;
 		if (off + len >= ip_len)

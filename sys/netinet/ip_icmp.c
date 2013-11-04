@@ -337,9 +337,8 @@ stdreply:	icmpelen = max(8, min(V_icmp_quotelen, ntohs(oip->ip_len) - oiphlen));
 	 * reply should bypass as well.
 	 */
 	m->m_flags |= n->m_flags & M_SKIP_FIREWALL;
-	m->m_data -= sizeof(struct ip);
-	m->m_len += sizeof(struct ip);
-	m->m_pkthdr.len = m->m_len;
+	m_adj_data_head_rel(m, - ((int) sizeof(struct ip)));
+	m_adj_pktlen_head_abs(m, m_get_len(m));
 	m->m_pkthdr.rcvif = n->m_pkthdr.rcvif;
 	nip = mtod(m, struct ip *);
 	bcopy((caddr_t)oip, (caddr_t)nip, sizeof(struct ip));
@@ -392,15 +391,13 @@ icmp_input(struct mbuf *m, int off)
 		return;
 	}
 	ip = mtod(m, struct ip *);
-	m->m_len -= hlen;
-	m->m_data += hlen;
+	m_adj_data_head_rel(m, hlen);
 	icp = mtod(m, struct icmp *);
 	if (in_cksum(m, icmplen)) {
 		ICMPSTAT_INC(icps_checksum);
 		goto freeit;
 	}
-	m->m_len += hlen;
-	m->m_data -= hlen;
+	m_adj_data_head_rel(m, -hlen);
 
 	if (m->m_pkthdr.rcvif && m->m_pkthdr.rcvif->if_type == IFT_FAITH) {
 		/*
@@ -885,13 +882,11 @@ icmp_send(struct mbuf *m, struct mbuf *opts)
 	register struct icmp *icp;
 
 	hlen = ip->ip_hl << 2;
-	m->m_data += hlen;
-	m->m_len -= hlen;
+	m_adj_data_head_rel(m, hlen);
 	icp = mtod(m, struct icmp *);
 	icp->icmp_cksum = 0;
 	icp->icmp_cksum = in_cksum(m, ntohs(ip->ip_len) - hlen);
-	m->m_data -= hlen;
-	m->m_len += hlen;
+	m_adj_data_head_rel(m, -hlen);
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
 #ifdef ICMPPRINTFS
 	if (icmpprintfs) {

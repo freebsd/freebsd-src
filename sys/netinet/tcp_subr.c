@@ -582,7 +582,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		if (m == NULL)
 			return;
 		tlen = 0;
-		m->m_data += max_linkhdr;
+		m_reserv_data_head(m, max_linkhdr);
 #ifdef INET6
 		if (isipv6) {
 			bcopy((caddr_t)ip6, mtod(m, caddr_t),

@@ -934,8 +934,7 @@ found:
 	 * Presence of header sizes in mbufs
 	 * would confuse code below.
 	 */
-	m->m_data += hlen;
-	m->m_len -= hlen;
+	m_adj_data_head_rel(m, hlen);
 
 	/*
 	 * If first fragment to arrive, create a reassembly queue.
@@ -1125,8 +1124,7 @@ found:
 	TAILQ_REMOVE(head, fp, ipq_list);
 	V_nipq--;
 	uma_zfree(V_ipq_zone, fp);
-	m->m_len += (ip->ip_hl << 2);
-	m->m_data -= (ip->ip_hl << 2);
+	m_adj_data_head_rel(m, -(ip->ip_hl << 2));
 	/* some debugging cruft by sklower, below, will go away soon */
 	if (m->m_flags & M_PKTHDR)	/* XXX this should be done elsewhere */
 		m_fixhdr(m);

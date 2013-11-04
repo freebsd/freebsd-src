@@ -1424,9 +1424,9 @@ syncache_respond(struct syncache *sc)
 #ifdef MAC
 	mac_syncache_create_mbuf(sc->sc_label, m);
 #endif
-	m->m_data += max_linkhdr;
-	m->m_len = tlen;
-	m->m_pkthdr.len = tlen;
+	m_reserv_data_head(m, max_linkhdr);
+	m_len_set_abs(m, tlen);
+	m_adj_pktlen_head_abs(m, tlen);
 	m->m_pkthdr.rcvif = NULL;
 
 #ifdef INET6

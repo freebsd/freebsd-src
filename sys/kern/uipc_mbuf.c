@@ -2180,3 +2180,59 @@ SYSCTL_PROC(_kern_ipc, OID_AUTO, mbufprofileclr, CTLTYPE_INT|CTLFLAG_RW,
 	    NULL, 0, mbprof_clr_handler, "I", "clear mbuf profiling statistics");
 #endif
 
+int
+m_adj_data_head_rel(struct mbuf *m, int adj)
+{
+
+	m->m_data += adj;
+	m->m_len -= adj;
+	return (0);
+}
+
+int
+m_adj_data_head_abs(struct mbuf *m, unsigned int val)
+{
+
+	panic("%s: not yet implemented!\n", __func__);
+	return (0);
+}
+
+int
+m_adj_pktlen_head_rel(struct mbuf *m, int adj)
+{
+
+	m->m_pkthdr.len += adj;
+	return (0);
+}
+
+int
+m_adj_pktlen_head_abs(struct mbuf *m, unsigned int val)
+{
+
+	m->m_pkthdr.len = val;
+	return (0);
+}
+
+int
+m_reserv_data_head(struct mbuf *m, unsigned int adj)
+{
+
+	m->m_data += adj;
+	return (0);
+}
+
+int
+m_len_set_abs(struct mbuf *m, unsigned int len)
+{
+
+	m->m_len = len;
+	return (0);
+}
+
+int
+m_len_set_rel(struct mbuf *m, int adj)
+{
+
+	m->m_len += adj;
+	return (0);
+}

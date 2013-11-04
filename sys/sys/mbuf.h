@@ -1171,5 +1171,51 @@ rt_m_getfib(struct mbuf *m)
  #define M_PROFILE(m)
 #endif
 
+/*
+ * Bump the leading part of m_data by the given amount.
+ * This is relative to what m_data is currently set to.
+ * The value can be positive or negative.
+ *
+ * This will update m_data and m_len, but not m_pktlen.
+ */
+extern int m_adj_data_head_rel(struct mbuf *, int);
+extern int m_adj_data_head_abs(struct mbuf *, unsigned int);
+
+/*
+ * Bump the trailer part of m_len by the given amount.
+ * This is relative to what m_len is currently set to.
+ * The value can be positive or negative.
+ *
+ * This will update m_len but not m_pktlen.
+ */
+extern int m_adj_pktlen_head_rel(struct mbuf *, int);
+extern int m_adj_pktlen_head_abs(struct mbuf *, unsigned int);
+
+/*
+ * Get the m_len field.
+ */
+static inline int m_get_len(struct mbuf *m)
+{
+	return (m->m_len);
+
+}
+
+/*
+ * Reserve the given amount of data in the front of the mbuf.
+ * This doesn't update m_len, because reserving header data
+ * doesn't necessarily imply changing the length of the
+ * payload.
+ */
+extern int m_reserv_data_head(struct mbuf *, unsigned int);
+
+/*
+ * Set the mbuf length to the given value.
+ */
+extern int m_len_set_abs(struct mbuf *, unsigned int);
+
+/*
+ * Adjust the mbuf length by the given value.
+ */
+extern int m_len_set_rel(struct mbuf *, int);
 
 #endif /* !_SYS_MBUF_H_ */
