@@ -1019,20 +1019,7 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.3: build tools"
 	@echo "--------------------------------------------------------------"
-	cd ${KRNLOBJDIR}/${_kernel}; \
-	    PATH=${BPATH}:${PATH} \
-	    MAKESRCPATH=${KERNSRCDIR}/dev/aic7xxx/aicasm \
-	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF -DEARLY_BUILD \
-	    -f ${KERNSRCDIR}/dev/aic7xxx/aicasm/Makefile
-# XXX - Gratuitously builds aicasm in the ``makeoptions NO_MODULES'' case.
-.if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KERNSRCDIR}/modules)
-.for target in obj depend all
-	cd ${KERNSRCDIR}/modules/aic7xxx/aicasm; \
-	    PATH=${BPATH}:${PATH} \
-	    MAKEOBJDIRPREFIX=${KRNLOBJDIR}/${_kernel}/modules \
-	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF -DEARLY_BUILD ${target}
-.endfor
-.endif
+	@# Currently no special kernel tools to build.
 .if !defined(NO_KERNELDEPEND)
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -1319,10 +1306,6 @@ bootstrap-tools: .MAKE
 #
 # build-tools: Build special purpose build tools
 #
-.if defined(MODULES_WITH_WORLD) && exists(${KERNSRCDIR}/modules)
-_aicasm= sys/modules/aic7xxx/aicasm
-.endif
-
 .if !defined(NO_SHARE)
 _share=	share/syscons/scrnmaps
 .endif
@@ -1344,7 +1327,6 @@ build-tools: .MAKE
     lib/ncurses/ncurses \
     lib/ncurses/ncursesw \
     ${_share} \
-    ${_aicasm} \
     usr.bin/awk \
     lib/libmagic \
     usr.bin/mkesdb_static \
@@ -1410,7 +1392,8 @@ cross-tools: .MAKE
     usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
     ${_btxld} \
     ${_crunchide} \
-    ${_kgzip}
+    ${_kgzip} \
+    sys/dev/aic7xxx/aicasm
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
 		${MAKE} DIRPRFX=${_tool}/ obj && \
