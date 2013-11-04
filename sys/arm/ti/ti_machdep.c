@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
+#include <machine/devmap.h>
 #include <machine/machdep.h>
 
 #include <arm/ti/omap4/omap4_reg.h>
@@ -77,7 +78,7 @@ initarm_late_init(void)
 }
 
 #define FDT_DEVMAP_MAX	(2)		// FIXME
-static struct pmap_devmap fdt_devmap[FDT_DEVMAP_MAX] = {
+static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
 	{ 0, 0, 0, 0, 0, }
 };
 
@@ -107,7 +108,7 @@ platform_devmap_init(void)
 #error "Unknown SoC"
 #endif
 
-	pmap_devmap_bootstrap_table = &fdt_devmap[0];
+	arm_devmap_register_table(&fdt_devmap[0]);
 	return (0);
 }
 

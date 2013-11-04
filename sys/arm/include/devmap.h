@@ -30,6 +30,33 @@
 #define	_MACHINE_DEVMAP_H_
 
 /*
+ * This structure is used by MD code to describe static mappings of devices
+ * which are established as part of bringing up the MMU early in the boot.
+ */
+struct arm_devmap_entry {
+	vm_offset_t	pd_va;		/* virtual address */
+	vm_paddr_t	pd_pa;		/* physical address */
+	vm_size_t	pd_size;	/* size of region */
+	vm_prot_t	pd_prot;	/* protection code */
+	int		pd_cache;	/* cache attributes */
+};
+
+/*
+ * Register a platform-local table to be bootstrapped by the generic
+ * initarm() in arm/machdep.c.  This is used by newer code that allocates and
+ * fills in its own local table but does not have its own initarm() routine.
+ */
+void arm_devmap_register_table(const struct arm_devmap_entry * _table);
+
+/*
+ * Directly process a table; called from initarm() of older platforms that don't
+ * use the generic initarm() in arm/machdep.c.  If the table pointer is NULL,
+ * this will use the table installed previously by arm_devmap_register_table().
+ */
+void arm_devmap_bootstrap(vm_offset_t _l1pt, 
+    const struct arm_devmap_entry *_table);
+
+/*
  * Routines to translate between virtual and physical addresses within a region
  * that is static-mapped by the devmap code.  If the given address range isn't
  * static-mapped, then ptov returns NULL and vtop returns DEVMAP_PADDR_NOTFOUND.
