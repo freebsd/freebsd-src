@@ -724,6 +724,8 @@ vtterm_done(struct terminal *tm)
 		if (vd->vd_curwindow != vw) {
 			vd->vd_curwindow = vw;
 			vd->vd_flags |= VDF_INVALID;
+			if (vd->vd_driver->vd_postswitch)
+				vd->vd_driver->vd_postswitch(vd);
 		}
 		vd->vd_flags &= ~VDF_SPLASH;
 		vt_flush(vd);
