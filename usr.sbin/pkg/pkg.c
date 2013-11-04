@@ -135,7 +135,7 @@ cleanup:
 }
 
 static int
-install_pkg_static(const char *path, const char *pkgpath)
+install_pkg_static(const char *path, const char *pkgpath, bool force)
 {
 	int pstat;
 	pid_t pid;
@@ -144,7 +144,12 @@ install_pkg_static(const char *path, const char *pkgpath)
 	case -1:
 		return (-1);
 	case 0:
-		execl(path, "pkg-static", "add", pkgpath, (char *)NULL);
+		if (force)
+			execl(path, "pkg-static", "add", "-f", pkgpath,
+			    (char *)NULL);
+		else
+			execl(path, "pkg-static", "add", pkgpath,
+			    (char *)NULL);
 		_exit(1);
 	default:
 		break;
@@ -740,7 +745,7 @@ cleanup:
 }
 
 static int
-bootstrap_pkg(void)
+bootstrap_pkg(bool force)
 {
 	FILE *config;
 	int fd_pkg, fd_sig;
@@ -801,7 +806,7 @@ bootstrap_pkg(void)
 	}
 
 	if ((ret = extract_pkg_static(fd_pkg, pkgstatic, MAXPATHLEN)) == 0)
-		ret = install_pkg_static(pkgstatic, tmppkg);
+		ret = install_pkg_static(pkgstatic, tmppkg, force);
 
 	snprintf(conf, MAXPATHLEN, "%s/etc/pkg.conf",
 	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
@@ -866,7 +871,7 @@ pkg_query_yes_no(void)
 }
 
 static int
-bootstrap_pkg_local(const char *pkgpath)
+bootstrap_pkg_local(const char *pkgpath, bool force)
 {
 	char path[MAXPATHLEN];
 	char pkgstatic[MAXPATHLEN];
@@ -898,7 +903,7 @@ bootstrap_pkg_local(const char *pkgpath)
 	}
 
 	if ((ret = extract_pkg_static(fd_pkg, pkgstatic, MAXPATHLEN)) == 0)
-		ret = install_pkg_static(pkgstatic, pkgpath);
+		ret = install_pkg_static(pkgstatic, pkgpath, force);
 
 cleanup:
 	close(fd_pkg);
@@ -912,12 +917,24 @@ int
 main(__unused int argc, char *argv[])
 {
 	char pkgpath[MAXPATHLEN];
-	bool yes = false;
+	const char *pkgarg;
+	bool bootstrap_only, force, yes;
+
+	bootstrap_only = false;
+	force = false;
+	pkgarg = NULL;
+	yes = false;
 
 	snprintf(pkgpath, MAXPATHLEN, "%s/sbin/pkg",
 	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
 
-	if (access(pkgpath, X_OK) == -1) {
+	if (argc > 1 && strcmp(argv[1], "bootstrap") == 0) {
+		bootstrap_only = true;
+		if (argc == 3 && strcmp(argv[2], "-f") == 0)
+			force = true;
+	}
+
+	if ((bootstrap_only && force) || access(pkgpath, X_OK) == -1) {
 		/* 
 		 * To allow 'pkg -N' to be used as a reliable test for whether
 		 * a system is configured to use pkg, don't bootstrap pkg
@@ -928,9 +945,21 @@ main(__unused int argc, char *argv[])
 
 		config_init();
 
-		if (argc > 2 && strcmp(argv[1], "add") == 0 &&
-		    access(argv[2], R_OK) == 0) {
-			if (bootstrap_pkg_local(argv[2]) != 0)
+		if (argc > 1 && strcmp(argv[1], "add") == 0) {
+			if (argc > 2 && strcmp(argv[2], "-f") == 0) {
+				force = true;
+				pkgarg = argv[3];
+			} else
+				pkgarg = argv[2];
+			if (pkgarg == NULL) {
+				fprintf(stderr, "Path to pkg.txz required\n");
+				exit(EXIT_FAILURE);
+			}
+			if (access(pkgarg, R_OK) == -1) {
+				fprintf(stderr, "No such file: %s\n", pkgarg);
+				exit(EXIT_FAILURE);
+			}
+			if (bootstrap_pkg_local(pkgarg, force) != 0)
 				exit(EXIT_FAILURE);
 			exit(EXIT_SUCCESS);
 		}
@@ -948,18 +977,15 @@ main(__unused int argc, char *argv[])
 			if (pkg_query_yes_no() == 0)
 				exit(EXIT_FAILURE);
 		}
-		if (bootstrap_pkg() != 0)
+		if (bootstrap_pkg(force) != 0)
 			exit(EXIT_FAILURE);
 		config_finish();
 
-		if (argv[1] != NULL && strcmp(argv[1], "bootstrap") == 0)
+		if (bootstrap_only)
 			exit(EXIT_SUCCESS);
-	} else {
-		if (argv[1] != NULL && strcmp(argv[1], "bootstrap") == 0) {
-			printf("pkg already bootstrapped at %s\n",
-			    pkgpath);
-			exit(EXIT_SUCCESS);
-		}
+	} else if (bootstrap_only) {
+		printf("pkg already bootstrapped at %s\n", pkgpath);
+		exit(EXIT_SUCCESS);
 	}
 
 	execv(pkgpath, argv);
