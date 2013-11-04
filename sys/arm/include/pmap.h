@@ -254,6 +254,7 @@ void	pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa);
+void	pmap_kenter_device(vm_offset_t va, vm_paddr_t pa);
 void	*pmap_kenter_temp(vm_paddr_t pa, int i);
 void 	pmap_kenter_user(vm_offset_t va, vm_paddr_t pa);
 vm_paddr_t pmap_kextract(vm_offset_t va);
@@ -707,11 +708,7 @@ struct pmap_devmap {
 	int		pd_cache;	/* cache attributes */
 };
 
-const struct pmap_devmap *pmap_devmap_find_pa(vm_paddr_t, vm_size_t);
-const struct pmap_devmap *pmap_devmap_find_va(vm_offset_t, vm_size_t);
-
 void	pmap_devmap_bootstrap(vm_offset_t, const struct pmap_devmap *);
-void	pmap_devmap_register(const struct pmap_devmap *);
 
 #define SECTION_CACHE	0x1
 #define SECTION_PT	0x2
