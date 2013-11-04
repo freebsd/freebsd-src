@@ -1,0 +1,319 @@
+FreeBSD Driver for Intel(R) Ethernet 10 Gigabit PCI Express Server Adapters
+============================================================================
+/*$FreeBSD$*/
+
+Jun 18, 2013
+
+
+Contents
+========
+
+- Overview
+- Supported Adapters
+- Building and Installation
+- Additional Configurations and Tuning
+- Known Limitations
+
+
+Overview
+========
+
+This file describes the FreeBSD* driver for the
+Intel(R) Ethernet 10 Gigabit Family of Adapters.
+
+For questions related to hardware requirements, refer to the documentation
+supplied with your Intel 10GbE adapter.  All hardware requirements listed
+apply to use with FreeBSD.
+
+
+Supported Adapters
+==================
+
+The driver in this release is compatible with 82598 and 82599-based Intel 
+Network Connections.
+              
+SFP+ Devices with Pluggable Optics
+----------------------------------
+
+82599-BASED ADAPTERS  
+
+NOTE: If your 82599-based Intel(R) Ethernet Network Adapter came with Intel 
+optics, or is an Intel(R) Ethernet Server Adapter X520-2, then it only supports
+Intel optics and/or the direct attach cables listed below.
+
+When 82599-based SFP+ devices are connected back to back, they should be set to
+the same Speed setting. Results may vary if you mix speed settings. 
+ 
+Supplier    Type                                             Part Numbers
+
+SR Modules			
+Intel 	    DUAL RATE 1G/10G SFP+ SR (bailed)                FTLX8571D3BCV-IT	
+Intel	    DUAL RATE 1G/10G SFP+ SR (bailed)                AFBR-703SDZ-IN2
+Intel      DUAL RATE 1G/10G SFP+ SR (bailed)                 AFBR-703SDDZ-IN1	
+LR Modules			
+Intel 	    DUAL RATE 1G/10G SFP+ LR (bailed)                FTLX1471D3BCV-IT	
+Intel	    DUAL RATE 1G/10G SFP+ LR (bailed)                AFCT-701SDZ-IN2	
+Intel       DUAL RATE 1G/10G SFP+ LR (bailed)                AFCT-701SDDZ-IN1
+
+The following is a list of 3rd party SFP+ modules and direct attach cables that
+have received some testing. Not all modules are applicable to all devices.
+
+Supplier   Type                                              Part Numbers
+
+Finisar    SFP+ SR bailed, 10g single rate                   FTLX8571D3BCL
+Avago      SFP+ SR bailed, 10g single rate                   AFBR-700SDZ
+Finisar    SFP+ LR bailed, 10g single rate                   FTLX8571D3BCV-IT
+		
+Finisar    DUAL RATE 1G/10G SFP+ SR (No Bail)	             FTLX8571D3QCV-IT
+Avago	   DUAL RATE 1G/10G SFP+ SR (No Bail)	             AFBR-703SDZ-IN1	
+Finisar	   DUAL RATE 1G/10G SFP+ LR (No Bail)	             FTLX1471D3QCV-IT
+Avago	   DUAL RATE 1G/10G SFP+ LR (No Bail)	             AFCT-701SDZ-IN1
+Finistar   1000BASE-T SFP                                    FCLF8522P2BTL
+Avago      1000BASE-T SFP                                    ABCU-5710RZ
+
+NOTE: As of driver version 2.5.13 it is possible to allow the operation
+of unsupported modules by setting the static variable 'allow_unsupported_sfp'
+to TRUE and rebuilding the driver. If problems occur please assure that they
+can be reproduced with fully supported optics first.
+
+82599-based adapters support all passive and active limiting direct attach 
+cables that comply with SFF-8431 v4.1 and SFF-8472 v10.4 specifications.
+
+Laser turns off for SFP+ when ifconfig down
+--------------------------------------------------------
+"ifconfig down" turns off the laser for 82599-based SFP+ fiber adapters.
+"ifconfig up" turns on the later.
+
+82598-BASED ADAPTERS
+
+NOTES for 82598-Based Adapters: 
+- Intel(R) Ethernet Network Adapters that support removable optical modules 
+  only support their original module type (i.e., the Intel(R) 10 Gigabit SR 
+  Dual Port Express Module only supports SR optical modules). If you plug 
+  in a different type of module, the driver will not load.
+- Hot Swapping/hot plugging optical modules is not supported.  
+- Only single speed, 10 gigabit modules are supported.  
+- LAN on Motherboard (LOMs) may support DA, SR, or LR modules. Other module 
+  types are not supported. Please see your system documentation for details.  
+
+The following is a list of 3rd party SFP+ modules and direct attach cables that have 
+received some testing. Not all modules are applicable to all devices.
+
+Supplier   Type                                              Part Numbers
+
+Finisar    SFP+ SR bailed, 10g single rate                   FTLX8571D3BCL
+Avago      SFP+ SR bailed, 10g single rate                   AFBR-700SDZ
+Finisar    SFP+ LR bailed, 10g single rate                   FTLX1471D3BCL
+	
+82598-based adapters support all passive direct attach cables that comply 
+with SFF-8431 v4.1 and SFF-8472 v10.4 specifications. Active direct attach 
+cables are not supported.
+
+Third party optic modules and cables referred to above are listed only for the 
+purpose of highlighting third party specifications and potential compatibility, 
+and are not recommendations or endorsements or sponsorship of any third party's
+product by Intel. Intel is not endorsing or promoting products made by any 
+third party and the third party reference is provided only to share information
+regarding certain optic modules and cables with the above specifications. There
+may be other manufacturers or suppliers, producing or supplying optic modules 
+and cables with similar or matching descriptions. Customers must use their own 
+discretion and diligence to purchase optic modules and cables from any third 
+party of their choice. Customer are solely responsible for assessing the 
+suitability of the product and/or devices and for the selection of the vendor 
+for purchasing any product. INTEL ASSUMES NO LIABILITY WHATSOEVER, AND INTEL
+DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTY, RELATING TO SALE AND/OR USE OF 
+SUCH THIRD PARTY PRODUCTS OR SELECTION OF VENDOR BY CUSTOMERS.
+
+Configuration and Tuning
+========================
+
+The driver supports Transmit/Receive Checksum Offload and Jumbo Frames on
+all 10 Gigabit adapters. 
+
+  Jumbo Frames
+  ------------
+  To enable Jumbo Frames, use the ifconfig utility to increase the MTU
+  beyond 1500 bytes.
+
+  NOTES:
+
+       - The Jumbo Frames setting on the switch must be set to at least
+         22 bytes larger than that of the adapter.
+
+       - There are known performance issues with this driver when running 
+         UDP traffic with Jumbo Frames. 
+
+  The Jumbo Frames MTU range for Intel Adapters is 1500 to 16114. The default
+  MTU range is 1500. To modify the setting, enter the following:
+
+        ifconfig ix<interface_num> <hostname or IP address> mtu 9000
+
+  To confirm an interface's MTU value, use the ifconfig command. To confirm
+  the MTU used between two specific devices, use:
+
+        route get <destination_IP_address>
+
+  VLANs
+  -----
+  To create a new VLAN pseudo-interface:
+
+        ifconfig <vlan_name> create
+
+  To associate the VLAN pseudo-interface with a physical interface and
+  assign a VLAN ID, IP address, and netmask:
+
+        ifconfig <vlan_name> <ip_address> netmask <subnet_mask> vlan
+           <vlan_id> vlandev <physical_interface>
+
+  Example:
+
+        ifconfig vlan10 10.0.0.1 netmask 255.255.255.0 vlan 10 vlandev ixgbe0
+
+  In this example, all packets will be marked on egress with 802.1Q VLAN 
+  tags, specifying a VLAN ID of 10.
+
+  To remove a VLAN pseudo-interface:
+
+        ifconfig <vlan_name> destroy
+
+
+  Checksum Offload
+  ----------------
+  
+  Checksum offloading supports both TCP and UDP packets and is 
+  supported for both transmit and receive. 
+
+  Checksum offloading can be enabled or disabled using ifconfig. 
+  Both transmit and receive offloading will be either enabled or 
+  disabled together. You cannot enable/disable one without the other.
+
+  To enable checksum offloading:
+
+         ifconfig <interface_num> rxcsum 
+
+  To disable checksum offloading:
+
+         ifconfig <interface_num> -rxcsum 
+
+  To confirm the current setting:
+
+         ifconfig <interface_num>
+
+  
+  TSO
+  ---
+
+  TSO is enabled by default.
+
+  To disable:
+
+         ifconfig <interface_num> -tso 
+
+  To re-enable:
+
+         ifconfig <interface_num> tso
+
+  LRO
+  ---
+  
+  Large Receive Offload is available in the driver; it is on by default. 
+  It can be disabled by using:
+         ifconfig <interface_num> -lro
+  To enable:
+         ifconfig <interface_num> lro
+
+
+  Important system configuration changes:
+  ---------------------------------------
+
+  When there is a choice run on a 64bit OS rather than 32, it makes a 
+  significant difference in improvement.
+  
+  The interface can generate a high number of interrupts. To avoid running 
+  into the limit set by the kernel, adjust hw.intr_storm_threshold 
+  setting using sysctl:
+ 
+       sysctl hw.intr_storm_threshold=9000 (the default is 1000)
+
+  For this change to take effect on boot, edit /etc/sysctl.conf and add the 
+  line:  
+       hw.intr_storm_threshold=9000
+
+  If you still see Interrupt Storm detected messages, increase the limit to a
+  higher number, or the detection can be disabled by setting it to 0.
+
+  The default number of descriptors is 2048, increasing or descreasing
+  may improve performance in some workloads, but change carefully.
+
+
+Known Limitations
+=================
+
+For known hardware and troubleshooting issues, refer to the following website.
+
+    http://support.intel.com/support/go/network/adapter/home.htm
+
+Either select the link for your adapter or perform a search for the adapter 
+number. The adapter's page lists many issues. For a complete list of hardware
+issues download your adapter's user guide and read the Release Notes. 
+
+  UDP stress test with 10GbE driver
+  ---------------------------------  
+  Under small packets UDP stress test with 10GbE driver, the FreeBSD system 
+  will drop UDP packets due to the fullness of socket buffers. You may want 
+  to change the driver's Flow Control variables to the minimum value for 
+  controlling packet reception.
+
+  Attempting to configure larger MTUs with a large numbers of processors may 
+  generate the error message "ix0:could not setup receive structures"
+  --------------------------------------------------------------------------
+  When using the ixgbe driver with RSS autoconfigured based on the number of 
+  cores (the default setting) and that number is larger than 4, increase the 
+  memory resources allocated for the mbuf pool as follows:
+
+  Add to the sysctl.conf file for the system:
+
+  kern.ipc.nmbclusters=262144
+  kern.ipc.nmbjumbop=262144
+
+  Lower than expected performance on dual port 10GbE devices
+  ----------------------------------------------------------
+  Some PCI-E x8 slots are actually configured as x4 slots. These slots have 
+  insufficient bandwidth for full 10Gbe line rate with dual port 10GbE devices.
+  The driver will detect this situation and will write the following message in
+  the system log: "PCI-Express bandwidth available for this card is not 
+  sufficient for optimal performance. For optimal performance a x8 PCI-Express 
+  slot is required."
+
+  If this error occurs, moving your adapter to a true x8 slot will resolve the 
+  issue.
+
+
+
+Support
+=======
+
+For general information and support, go to the Intel support website at:
+
+        www.intel.com/support/
+
+If an issue is identified with the released source code on the supported
+kernel with a supported adapter, email the specific information related to 
+the issue to freebsd@intel.com
+
+
+
+License
+=======
+
+This software program is released under the terms of a license agreement 
+between you ('Licensee') and Intel. Do not use or load this software or any 
+associated materials (collectively, the 'Software') until you have carefully 
+read the full terms and conditions of the LICENSE located in this software 
+package. By loading or using the Software, you agree to the terms of this 
+Agreement. If you do not agree with the terms of this Agreement, do not 
+install or use the Software.
+
+* Other names and brands may be claimed as the property of others.
+
+
