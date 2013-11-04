@@ -11,6 +11,7 @@ device		bge
 device		bpf
 device		cd
 device		da
+device		ehci
 device		ether
 device		firmware
 device		ioc4
@@ -18,12 +19,16 @@ device		isp
 device		loop
 device		md
 device		miibus
+device		mpt
+device		ohci
 device		pass
 device		pci
 device		random
 device		scbus
 device		tun
 device		uart
+device		umass
+device		usb
 device		vlan
 
 options 	ALT_BREAK_TO_DEBUGGER
