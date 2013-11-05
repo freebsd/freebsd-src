@@ -1150,8 +1150,8 @@ intx:
 	if (status != 0)
 		return (status);
 
-	ctrlr->cdev = make_dev(&nvme_ctrlr_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    "nvme%d", device_get_unit(dev));
+	ctrlr->cdev = make_dev(&nvme_ctrlr_cdevsw, device_get_unit(dev),
+	    UID_ROOT, GID_WHEEL, 0600, "nvme%d", device_get_unit(dev));
 
 	if (ctrlr->cdev == NULL)
 		return (ENXIO);
