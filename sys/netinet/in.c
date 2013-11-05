@@ -856,7 +856,7 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	/*
 	 * add a loopback route to self
 	 */
-	if (V_useloopback && !vhid && !(ifp->if_flags & IFF_LOOPBACK)) {
+	if (!vhid && !(ifp->if_flags & IFF_LOOPBACK)) {
 		struct route ia_ro;
 
 		bzero(&ia_ro, sizeof(ia_ro));
