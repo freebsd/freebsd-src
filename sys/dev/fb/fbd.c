@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
+#include <dev/vt/vt.h>
 #include <dev/vt/hw/fb/vt_fb.h>
 
 #include "fb_if.h"
@@ -206,7 +207,7 @@ vt_fb_indir_copy(struct fb_info *sc, uint32_t offset_to, uint32_t offset_from,
 	sc->copy(sc->fb_priv, offset_to, offset_from, size);
 }
 
-static int
+int
 fb_probe(struct fb_info *info)
 {
 
