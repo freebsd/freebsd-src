@@ -60,6 +60,12 @@ initarm_lastaddr(void)
 }
 
 void
+initarm_early_init(void)
+{
+
+}
+
+void
 initarm_gpio_init(void)
 {
 }
@@ -82,7 +88,7 @@ static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
  * Construct pmap_devmap[] with DT-derived config data.
  */
 int
-platform_devmap_init(void)
+initarm_devmap_init(void)
 {
 	int i = 0;
 

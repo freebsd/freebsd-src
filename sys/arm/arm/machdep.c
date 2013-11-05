@@ -1303,7 +1303,7 @@ initarm(struct arm_boot_params *abp)
 	availmem_regions_sz = curr;
 
 	/* Platform-specific initialisation */
-	vm_max_kernel_address = initarm_lastaddr();
+	initarm_early_init();
 
 	pcpu0_init();
 
@@ -1419,9 +1419,10 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE, PTE_CACHE);
 
-	/* Map pmap_devmap[] entries */
-	err_devmap = platform_devmap_init();
+	/* Establish static device mappings. */
+	err_devmap = initarm_devmap_init();
 	arm_devmap_bootstrap(l1pagetable, NULL);
+	vm_max_kernel_address = initarm_lastaddr();
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
 	pmap_pa = kernel_l1pt.pv_pa;
