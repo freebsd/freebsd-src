@@ -3136,13 +3136,6 @@ OLD_FILES+=usr/share/man/man1/host.1.gz
 # to be filled in
 #.endif
 
-.if ${MK_LIBICONV_COMPAT} == no
-OLD_FILES+=usr/lib/libiconv.a
-OLD_FILES+=usr/lib/libiconv.so
-OLD_FILES+=usr/lib/libiconv.so.3
-OLD_FILES+=usr/lib/libiconv_p.a
-.endif
-
 .if ${MK_LIBCPLUSPLUS} == no
 OLD_LIBS+=lib/libcxxrt.so.1
 OLD_FILES+=usr/lib/libc++.a
@@ -4147,14 +4140,12 @@ OLD_FILES+=usr/bin/who
 OLD_FILES+=usr/sbin/ac
 OLD_FILES+=usr/sbin/lastlogin
 OLD_FILES+=usr/sbin/utx
-OLD_FILES+=usr/sbin/utxrm
 OLD_FILES+=usr/share/man/man1/last.1.gz
 OLD_FILES+=usr/share/man/man1/users.1.gz
 OLD_FILES+=usr/share/man/man1/who.1.gz
 OLD_FILES+=usr/share/man/man8/ac.8.gz
 OLD_FILES+=usr/share/man/man8/lastlogin.8.gz
 OLD_FILES+=usr/share/man/man8/utx.8.gz
-OLD_FILES+=usr/share/man/man8/utxrm.8.gz
 .endif
 
 .if ${MK_WIRELESS} == no

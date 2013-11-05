@@ -50,25 +50,25 @@
 #define	SIOCGETSGCNT	_IOWR('r', 16, struct sioc_sg_req) /* get s,g pkt cnt */
 
 #define	SIOCSIFADDR	 _IOW('i', 12, struct ifreq)	/* set ifnet address */
-#define	OSIOCGIFADDR	_IOWR('i', 13, struct ifreq)	/* get ifnet address */
+/*	OSIOCGIFADDR	_IOWR('i', 13, struct ifreq)	4.3BSD */
 #define	SIOCGIFADDR	_IOWR('i', 33, struct ifreq)	/* get ifnet address */
 #define	SIOCSIFDSTADDR	 _IOW('i', 14, struct ifreq)	/* set p-p address */
-#define	OSIOCGIFDSTADDR	_IOWR('i', 15, struct ifreq)	/* get p-p address */
+/*	OSIOCGIFDSTADDR	_IOWR('i', 15, struct ifreq)	4.3BSD */
 #define	SIOCGIFDSTADDR	_IOWR('i', 34, struct ifreq)	/* get p-p address */
 #define	SIOCSIFFLAGS	 _IOW('i', 16, struct ifreq)	/* set ifnet flags */
 #define	SIOCGIFFLAGS	_IOWR('i', 17, struct ifreq)	/* get ifnet flags */
-#define	OSIOCGIFBRDADDR	_IOWR('i', 18, struct ifreq)	/* get broadcast addr */
+/*	OSIOCGIFBRDADDR	_IOWR('i', 18, struct ifreq)	4.3BSD */
 #define	SIOCGIFBRDADDR	_IOWR('i', 35, struct ifreq)	/* get broadcast addr */
 #define	SIOCSIFBRDADDR	 _IOW('i', 19, struct ifreq)	/* set broadcast addr */
-#define	OSIOCGIFCONF	_IOWR('i', 20, struct ifconf)	/* get ifnet list */
+/*	OSIOCGIFCONF	_IOWR('i', 20, struct ifconf)	4.3BSD */
 #define	SIOCGIFCONF	_IOWR('i', 36, struct ifconf)	/* get ifnet list */
-#define	OSIOCGIFNETMASK	_IOWR('i', 21, struct ifreq)	/* get net addr mask */
+/*	OSIOCGIFNETMASK	_IOWR('i', 21, struct ifreq)	4.3BSD */
 #define	SIOCGIFNETMASK	_IOWR('i', 37, struct ifreq)	/* get net addr mask */
 #define	SIOCSIFNETMASK	 _IOW('i', 22, struct ifreq)	/* set net addr mask */
 #define	SIOCGIFMETRIC	_IOWR('i', 23, struct ifreq)	/* get IF metric */
 #define	SIOCSIFMETRIC	 _IOW('i', 24, struct ifreq)	/* set IF metric */
 #define	SIOCDIFADDR	 _IOW('i', 25, struct ifreq)	/* delete IF addr */
-#define	OSIOCAIFADDR	 _IOW('i', 26, struct oifaliasreq)/* add/chg IF alias */
+/*	OSIOCAIFADDR	 _IOW('i', 26, struct oifaliasreq) FreeBSD 9.x */
 #define	SIOCALIFADDR	 _IOW('i', 27, struct if_laddrreq) /* add IF addr */
 #define	SIOCGLIFADDR	_IOWR('i', 28, struct if_laddrreq) /* get IF addr */
 #define	SIOCDLIFADDR	 _IOW('i', 29, struct if_laddrreq) /* delete IF addr */

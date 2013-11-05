@@ -163,16 +163,17 @@
 		};
 
 		mmchs0@48060000 {
-			compatible = "ti,mmchs";
+			compatible = "ti,omap3-hsmmc", "ti,mmchs";
 			reg =<0x48060000 0x1000 >;
 			interrupts = <64>;
 			interrupt-parent = <&AINTC>;
 			mmchs-device-id = <0>;
 			mmchs-wp-gpio-pin = <0xffffffff>;
+			ti,dual-volt;
 		};
 
 		mmchs1@481D8000 {
-			compatible = "ti,mmchs";
+			compatible = "ti,omap3-hsmmc", "ti,mmchs";
 			reg =<0x481D8000 0x1000 >;
 			interrupts = <28>;
 			interrupt-parent = <&AINTC>;

@@ -260,14 +260,50 @@ typedef struct dmar_pte {
 /* Protected High-Memory Limit register */
 #define	DMAR_PHMLIMIT_REG	0x78
 
+/* Queued Invalidation Descriptors */
+#define	DMAR_IQ_DESCR_SZ_SHIFT	4	/* Shift for descriptor count
+					   to ring offset */
+#define	DMAR_IQ_DESCR_SZ	(1 << DMAR_IQ_DESCR_SZ_SHIFT)
+					/* Descriptor size */
+
+#define	DMAR_IQ_DESCR_CTX_INV	0x1	/* Context-cache Invalidate
+					   Descriptor */
+#define	DMAR_IQ_DESCR_CTX_GLOB	(0x1 << 4)	/* Granularity: Global */
+#define	DMAR_IQ_DESCR_CTX_DOM	(0x2 << 4)	/* Granularity: Domain */
+#define	DMAR_IQ_DESCR_CTX_DEV	(0x3 << 4)	/* Granularity: Device */
+#define	DMAR_IQ_DESCR_CTX_DID(x) (((uint32_t)(x)) << 16) /* Domain Id */
+#define	DMAR_IQ_DESCR_CTX_SRC(x) (((uint64_t)(x)) << 32) /* Source Id */
+#define	DMAR_IQ_DESCR_CTX_FM(x)  (((uint64_t)(x)) << 48) /* Function Mask */
+
+#define	DMAR_IQ_DESCR_IOTLB_INV	0x2	/* IOTLB Invalidate Descriptor */
+#define	DMAR_IQ_DESCR_IOTLB_GLOB (0x1 << 4)	/* Granularity: Global */
+#define	DMAR_IQ_DESCR_IOTLB_DOM	 (0x2 << 4)	/* Granularity: Domain */
+#define	DMAR_IQ_DESCR_IOTLB_PAGE (0x3 << 4)	/* Granularity: Page */
+#define	DMAR_IQ_DESCR_IOTLB_DW	(1 << 6)	/* Drain Writes */
+#define	DMAR_IQ_DESCR_IOTLB_DR	(1 << 7)	/* Drain Reads */
+#define	DMAR_IQ_DESCR_IOTLB_DID(x) (((uint32_t)(x)) << 16) /* Domain Id */
+
+#define	DMAR_IQ_DESCR_WAIT_ID	0x5	/* Invalidation Wait Descriptor */
+#define	DMAR_IQ_DESCR_WAIT_IF	(1 << 4)	/* Interrupt Flag */
+#define	DMAR_IQ_DESCR_WAIT_SW	(1 << 5)	/* Status Write */
+#define	DMAR_IQ_DESCR_WAIT_FN	(1 << 6)	/* Fence */
+#define	DMAR_IQ_DESCR_WAIT_SD(x) (((uint64_t)(x)) << 32) /* Status Data */
+
 /* Invalidation Queue Head register */
 #define	DMAR_IQH_REG		0x80
+#define	DMAR_IQH_MASK		0x7fff0		/* Next cmd index mask */
 
 /* Invalidation Queue Tail register */
 #define	DMAR_IQT_REG		0x88
+#define	DMAR_IQT_MASK		0x7fff0
 
 /* Invalidation Queue Address register */
 #define	DMAR_IQA_REG		0x90
+#define	DMAR_IQA_IQA_MASK	0xfffffffffffff000 /* Invalidation Queue
+						      Base Address mask */
+#define	DMAR_IQA_QS_MASK	0x7		/* Queue Size in pages */
+#define	DMAR_IQA_QS_MAX		0x7		/* Max Queue size */
+#define	DMAR_IQA_QS_DEF		3
 
  /* Invalidation Completion Status register */
 #define	DMAR_ICS_REG		0x9c

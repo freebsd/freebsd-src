@@ -137,7 +137,9 @@
 /*
  * Special compilation symbols
  * PMAP_DEBUG           - Build in pmap_debug_level code
- */
+ *
+ * Note that pmap_mapdev() and pmap_unmapdev() are implemented in arm/devmap.c
+*/
 /* Include header files */
 
 #include "opt_vm.h"
@@ -2420,6 +2422,17 @@ void
 pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa)
 {
 
+	pmap_kenter_internal(va, pa, 0);
+}
+
+void
+pmap_kenter_device(vm_offset_t va, vm_paddr_t pa)
+{
+
+	/*
+	 * XXX - Need a way for kenter_internal to handle PTE_DEVICE mapping as
+	 * a potentially different thing than PTE_NOCACHE.
+	 */
 	pmap_kenter_internal(va, pa, 0);
 }
 
@@ -5010,36 +5023,6 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 {
 }
 
-
-/*
- * Map a set of physical memory pages into the kernel virtual
- * address space. Return a pointer to where it is mapped. This
- * routine is intended to be used for mapping device memory,
- * NOT real memory.
- */
-void *
-pmap_mapdev(vm_offset_t pa, vm_size_t size)
-{
-	vm_offset_t va, tmpva, offset;
-
-	offset = pa & PAGE_MASK;
-	size = roundup(size, PAGE_SIZE);
-
-	GIANT_REQUIRED;
-
-	va = kva_alloc(size);
-	if (!va)
-		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
-	for (tmpva = va; size > 0;) {
-		pmap_kenter_internal(tmpva, pa, 0);
-		size -= PAGE_SIZE;
-		tmpva += PAGE_SIZE;
-		pa += PAGE_SIZE;
-	}
-
-	return ((void *)(va + offset));
-}
-
 /*
  * pmap_map_section:
  *
@@ -5220,86 +5203,6 @@ pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
 #endif
 	return (size);
 
-}
-
-/********************** Static device map routines ***************************/
-
-static const struct pmap_devmap *pmap_devmap_table;
-
-/*
- * Register the devmap table.  This is provided in case early console
- * initialization needs to register mappings created by bootstrap code
- * before pmap_devmap_bootstrap() is called.
- */
-void
-pmap_devmap_register(const struct pmap_devmap *table)
-{
-
-	pmap_devmap_table = table;
-}
-
-/*
- * Map all of the static regions in the devmap table, and remember
- * the devmap table so other parts of the kernel can look up entries
- * later.
- */
-void
-pmap_devmap_bootstrap(vm_offset_t l1pt, const struct pmap_devmap *table)
-{
-	int i;
-
-	pmap_devmap_table = table;
-
-	for (i = 0; pmap_devmap_table[i].pd_size != 0; i++) {
-#ifdef VERBOSE_INIT_ARM
-		printf("devmap: %08x -> %08x @ %08x\n",
-		    pmap_devmap_table[i].pd_pa,
-		    pmap_devmap_table[i].pd_pa +
-			pmap_devmap_table[i].pd_size - 1,
-		    pmap_devmap_table[i].pd_va);
-#endif
-		pmap_map_chunk(l1pt, pmap_devmap_table[i].pd_va,
-		    pmap_devmap_table[i].pd_pa,
-		    pmap_devmap_table[i].pd_size,
-		    pmap_devmap_table[i].pd_prot,
-		    pmap_devmap_table[i].pd_cache);
-	}
-}
-
-const struct pmap_devmap *
-pmap_devmap_find_pa(vm_paddr_t pa, vm_size_t size)
-{
-	int i;
-
-	if (pmap_devmap_table == NULL)
-		return (NULL);
-
-	for (i = 0; pmap_devmap_table[i].pd_size != 0; i++) {
-		if (pa >= pmap_devmap_table[i].pd_pa &&
-		    pa + size <= pmap_devmap_table[i].pd_pa +
-				 pmap_devmap_table[i].pd_size)
-			return (&pmap_devmap_table[i]);
-	}
-
-	return (NULL);
-}
-
-const struct pmap_devmap *
-pmap_devmap_find_va(vm_offset_t va, vm_size_t size)
-{
-	int i;
-
-	if (pmap_devmap_table == NULL)
-		return (NULL);
-
-	for (i = 0; pmap_devmap_table[i].pd_size != 0; i++) {
-		if (va >= pmap_devmap_table[i].pd_va &&
-		    va + size <= pmap_devmap_table[i].pd_va +
-				 pmap_devmap_table[i].pd_size)
-			return (&pmap_devmap_table[i]);
-	}
-
-	return (NULL);
 }
 
 int

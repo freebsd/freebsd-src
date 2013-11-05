@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 31, 2013
+.Dd November 1, 2013
 .Dt LIMITS 1
 .Os
 .Sh NAME
@@ -30,11 +30,11 @@
 .Op Fl C Ar class | Fl P Ar pid | Fl U Ar user
 .Op Fl SHB
 .Op Fl ea
-.Op Fl bcdflmnstuvpw Op Ar val
+.Op Fl bcdfklmnstuvpw Op Ar val
 .Nm
 .Op Fl C Ar class | Fl U Ar user
 .Op Fl SHB
-.Op Fl bcdflmnstuvpw Op Ar val
+.Op Fl bcdfklmnstuvpw Op Ar val
 .Op Fl E
 .Oo
 .Op Ar name Ns = Ns Ar value ...
@@ -206,6 +206,10 @@ resource limit.
 .It Fl f Op Ar val
 Select or set the
 .Va filesize
+resource limit.
+.It Fl k Op Ar val
+Select or set the
+.Va kqueues
 resource limit.
 .It Fl l Op Ar val
 Select or set the

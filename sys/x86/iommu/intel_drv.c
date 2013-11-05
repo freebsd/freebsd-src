@@ -71,8 +71,9 @@ __FBSDID("$FreeBSD$");
 #include "pcib_if.h"
 #endif
 
-#define	DMAR_REG_RID	1
-#define	DMAR_IRQ_RID	0
+#define	DMAR_FAULT_IRQ_RID	0
+#define	DMAR_QI_IRQ_RID		1
+#define	DMAR_REG_RID		2
 
 static devclass_t dmar_devclass;
 static device_t *dmar_devs;
@@ -217,24 +218,35 @@ dmar_probe(device_t dev)
 	if (acpi_get_handle(dev) != NULL)
 		return (ENXIO);
 	device_set_desc(dev, "DMA remap");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
+}
+
+static void
+dmar_release_intr(device_t dev, struct dmar_unit *unit, int idx)
+{
+	struct dmar_msi_data *dmd;
+
+	dmd = &unit->intrs[idx];
+	if (dmd->irq == -1)
+		return;
+	bus_teardown_intr(dev, dmd->irq_res, dmd->intr_handle);
+	bus_release_resource(dev, SYS_RES_IRQ, dmd->irq_rid, dmd->irq_res);
+	bus_delete_resource(dev, SYS_RES_IRQ, dmd->irq_rid);
+	PCIB_RELEASE_MSIX(device_get_parent(device_get_parent(dev)),
+	    dev, dmd->irq);
+	dmd->irq = -1;
 }
 
 static void
 dmar_release_resources(device_t dev, struct dmar_unit *unit)
 {
+	int i;
 
 	dmar_fini_busdma(unit);
+	dmar_fini_qi(unit);
 	dmar_fini_fault_log(unit);
-	if (unit->irq != -1) {
-		bus_teardown_intr(dev, unit->irq_res, unit->intr_handle);
-		bus_release_resource(dev, SYS_RES_IRQ, unit->irq_rid,
-		    unit->irq_res);
-		bus_delete_resource(dev, SYS_RES_IRQ, unit->irq_rid);
-		PCIB_RELEASE_MSIX(device_get_parent(device_get_parent(dev)),
-		    dev, unit->irq);
-		unit->irq = -1;
-	}
+	for (i = 0; i < DMAR_INTR_TOTAL; i++)
+		dmar_release_intr(dev, unit, i);
 	if (unit->regs != NULL) {
 		bus_deactivate_resource(dev, SYS_RES_MEMORY, unit->reg_rid,
 		    unit->regs);
@@ -253,62 +265,66 @@ dmar_release_resources(device_t dev, struct dmar_unit *unit)
 }
 
 static int
-dmar_alloc_irq(device_t dev, struct dmar_unit *unit)
+dmar_alloc_irq(device_t dev, struct dmar_unit *unit, int idx)
 {
 	device_t pcib;
+	struct dmar_msi_data *dmd;
 	uint64_t msi_addr;
 	uint32_t msi_data;
 	int error;
 
+	dmd = &unit->intrs[idx];
 	pcib = device_get_parent(device_get_parent(dev)); /* Really not pcib */
-	error = PCIB_ALLOC_MSIX(pcib, dev, &unit->irq);
+	error = PCIB_ALLOC_MSIX(pcib, dev, &dmd->irq);
 	if (error != 0) {
-		device_printf(dev, "cannot allocate fault interrupt, %d\n",
-		    error);
+		device_printf(dev, "cannot allocate %s interrupt, %d\n",
+		    dmd->name, error);
 		goto err1;
 	}
-	unit->irq_rid = DMAR_IRQ_RID;
-	error = bus_set_resource(dev, SYS_RES_IRQ, unit->irq_rid, unit->irq,
-	    1);
+	error = bus_set_resource(dev, SYS_RES_IRQ, dmd->irq_rid,
+	    dmd->irq, 1);
 	if (error != 0) {
-		device_printf(dev, "cannot set interrupt resource, %d\n",
-		    error);
+		device_printf(dev, "cannot set %s interrupt resource, %d\n",
+		    dmd->name, error);
 		goto err2;
 	}
-	unit->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-	    &unit->irq_rid, RF_ACTIVE);
-	if (unit->irq_res == NULL) {
-		device_printf(dev, "cannot map fault interrupt\n");
+	dmd->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+	    &dmd->irq_rid, RF_ACTIVE);
+	if (dmd->irq_res == NULL) {
+		device_printf(dev,
+		    "cannot allocate resource for %s interrupt\n", dmd->name);
 		error = ENXIO;
 		goto err3;
 	}
-	error = bus_setup_intr(dev, unit->irq_res, INTR_TYPE_MISC,
-	    dmar_intr, NULL, unit, &unit->intr_handle);
+	error = bus_setup_intr(dev, dmd->irq_res, INTR_TYPE_MISC,
+	    dmd->handler, NULL, unit, &dmd->intr_handle);
 	if (error != 0) {
-		device_printf(dev, "cannot setup fault interrupt, %d\n", error);
+		device_printf(dev, "cannot setup %s interrupt, %d\n",
+		    dmd->name, error);
 		goto err4;
 	}
-	bus_describe_intr(dev, unit->irq_res, unit->intr_handle, "fault");
-	error = PCIB_MAP_MSI(pcib, dev, unit->irq, &msi_addr, &msi_data);
+	bus_describe_intr(dev, dmd->irq_res, dmd->intr_handle, dmd->name);
+	error = PCIB_MAP_MSI(pcib, dev, dmd->irq, &msi_addr, &msi_data);
 	if (error != 0) {
-		device_printf(dev, "cannot map interrupt, %d\n", error);
+		device_printf(dev, "cannot map %s interrupt, %d\n",
+		    dmd->name, error);
 		goto err5;
 	}
-	dmar_write4(unit, DMAR_FEDATA_REG, msi_data);
-	dmar_write4(unit, DMAR_FEADDR_REG, msi_addr);
+	dmar_write4(unit, dmd->msi_data_reg, msi_data);
+	dmar_write4(unit, dmd->msi_addr_reg, msi_addr);
 	/* Only for xAPIC mode */
-	dmar_write4(unit, DMAR_FEUADDR_REG, msi_addr >> 32);
+	dmar_write4(unit, dmd->msi_uaddr_reg, msi_addr >> 32);
 	return (0);
 
 err5:
-	bus_teardown_intr(dev, unit->irq_res, unit->intr_handle);
+	bus_teardown_intr(dev, dmd->irq_res, dmd->intr_handle);
 err4:
-	bus_release_resource(dev, SYS_RES_IRQ, unit->irq_rid, unit->irq_res);
+	bus_release_resource(dev, SYS_RES_IRQ, dmd->irq_rid, dmd->irq_res);
 err3:
-	bus_delete_resource(dev, SYS_RES_IRQ, unit->irq_rid);
+	bus_delete_resource(dev, SYS_RES_IRQ, dmd->irq_rid);
 err2:
-	PCIB_RELEASE_MSIX(pcib, dev, unit->irq);
-	unit->irq = -1;
+	PCIB_RELEASE_MSIX(pcib, dev, dmd->irq);
+	dmd->irq = -1;
 err1:
 	return (error);
 }
@@ -318,23 +334,31 @@ static int
 dmar_remap_intr(device_t dev, device_t child, u_int irq)
 {
 	struct dmar_unit *unit;
+	struct dmar_msi_data *dmd;
 	uint64_t msi_addr;
 	uint32_t msi_data;
-	int error;
+	int i, error;
 
 	unit = device_get_softc(dev);
-	if (irq != unit->irq)
-		return (ENOENT);
-	error = PCIB_MAP_MSI(device_get_parent(device_get_parent(dev)), dev,
-	    irq, &msi_addr, &msi_data);
-	if (error != 0)
-		return (error);
-	dmar_disable_intr(unit);
-	dmar_write4(unit, DMAR_FEDATA_REG, msi_data);
-	dmar_write4(unit, DMAR_FEADDR_REG, msi_addr);
-	dmar_write4(unit, DMAR_FEUADDR_REG, msi_addr >> 32);
-	dmar_enable_intr(unit);
-	return (0);
+	for (i = 0; i < DMAR_INTR_TOTAL; i++) {
+		dmd = &unit->intrs[i];
+		if (irq == dmd->irq) {
+			error = PCIB_MAP_MSI(device_get_parent(
+			    device_get_parent(dev)),
+			    dev, irq, &msi_addr, &msi_data);
+			if (error != 0)
+				return (error);
+			DMAR_LOCK(unit);
+			(dmd->disable_intr)(unit);
+			dmar_write4(unit, dmd->msi_data_reg, msi_data);
+			dmar_write4(unit, dmd->msi_addr_reg, msi_addr);
+			dmar_write4(unit, dmd->msi_uaddr_reg, msi_addr >> 32);
+			(dmd->enable_intr)(unit);
+			DMAR_UNLOCK(unit);
+			return (0);
+		}
+	}
+	return (ENOENT);
 }
 #endif
 
@@ -372,7 +396,7 @@ dmar_attach(device_t dev)
 {
 	struct dmar_unit *unit;
 	ACPI_DMAR_HARDWARE_UNIT *dmaru;
-	int error;
+	int i, error;
 
 	unit = device_get_softc(dev);
 	unit->dev = dev;
@@ -380,7 +404,6 @@ dmar_attach(device_t dev)
 	dmaru = dmar_find_by_index(unit->unit);
 	if (dmaru == NULL)
 		return (EINVAL);
-	unit->irq = -1;
 	unit->segment = dmaru->Segment;
 	unit->base = dmaru->Address;
 	unit->reg_rid = DMAR_REG_RID;
@@ -397,11 +420,38 @@ dmar_attach(device_t dev)
 		dmar_print_caps(dev, unit, dmaru);
 	dmar_quirks_post_ident(unit);
 
-	error = dmar_alloc_irq(dev, unit);
+	for (i = 0; i < DMAR_INTR_TOTAL; i++)
+		unit->intrs[i].irq = -1;
+
+	unit->intrs[DMAR_INTR_FAULT].name = "fault";
+	unit->intrs[DMAR_INTR_FAULT].irq_rid = DMAR_FAULT_IRQ_RID;
+	unit->intrs[DMAR_INTR_FAULT].handler = dmar_fault_intr;
+	unit->intrs[DMAR_INTR_FAULT].msi_data_reg = DMAR_FEDATA_REG;
+	unit->intrs[DMAR_INTR_FAULT].msi_addr_reg = DMAR_FEADDR_REG;
+	unit->intrs[DMAR_INTR_FAULT].msi_uaddr_reg = DMAR_FEUADDR_REG;
+	unit->intrs[DMAR_INTR_FAULT].enable_intr = dmar_enable_fault_intr;
+	unit->intrs[DMAR_INTR_FAULT].disable_intr = dmar_disable_fault_intr;
+	error = dmar_alloc_irq(dev, unit, DMAR_INTR_FAULT);
 	if (error != 0) {
 		dmar_release_resources(dev, unit);
 		return (error);
 	}
+	if (DMAR_HAS_QI(unit)) {
+		unit->intrs[DMAR_INTR_QI].name = "qi";
+		unit->intrs[DMAR_INTR_QI].irq_rid = DMAR_QI_IRQ_RID;
+		unit->intrs[DMAR_INTR_QI].handler = dmar_qi_intr;
+		unit->intrs[DMAR_INTR_QI].msi_data_reg = DMAR_IEDATA_REG;
+		unit->intrs[DMAR_INTR_QI].msi_addr_reg = DMAR_IEADDR_REG;
+		unit->intrs[DMAR_INTR_QI].msi_uaddr_reg = DMAR_IEUADDR_REG;
+		unit->intrs[DMAR_INTR_QI].enable_intr = dmar_enable_qi_intr;
+		unit->intrs[DMAR_INTR_QI].disable_intr = dmar_disable_qi_intr;
+		error = dmar_alloc_irq(dev, unit, DMAR_INTR_QI);
+		if (error != 0) {
+			dmar_release_resources(dev, unit);
+			return (error);
+		}
+	}
+
 	mtx_init(&unit->lock, "dmarhw", NULL, MTX_DEF);
 	unit->domids = new_unrhdr(0, dmar_nd2mask(DMAR_CAP_ND(unit->hw_cap)),
 	    &unit->lock);
@@ -449,6 +499,11 @@ dmar_attach(device_t dev)
 
 	DMAR_UNLOCK(unit);
 	error = dmar_init_fault_log(unit);
+	if (error != 0) {
+		dmar_release_resources(dev, unit);
+		return (error);
+	}
+	error = dmar_init_qi(unit);
 	if (error != 0) {
 		dmar_release_resources(dev, unit);
 		return (error);
@@ -1057,6 +1112,33 @@ dmar_print_one(int idx, bool show_ctxs, bool show_mappings)
 		db_printf("  %d at 0x%x: %jx %jx\n", i, frir,
 		    (uintmax_t)dmar_read8(unit, frir),
 		    (uintmax_t)dmar_read8(unit, frir + 8));
+	}
+	if (DMAR_HAS_QI(unit)) {
+		db_printf("ied 0x%x iea 0x%x ieua 0x%x\n",
+		    dmar_read4(unit, DMAR_IEDATA_REG),
+		    dmar_read4(unit, DMAR_IEADDR_REG),
+		    dmar_read4(unit, DMAR_IEUADDR_REG));
+		if (unit->qi_enabled) {
+			db_printf("qi is enabled: queue @0x%jx (IQA 0x%jx) "
+			    "size 0x%jx\n"
+		    "  head 0x%x tail 0x%x avail 0x%x status 0x%x ctrl 0x%x\n"
+		    "  hw compl 0x%x@%p/phys@%jx next seq 0x%x gen 0x%x\n",
+			    (uintmax_t)unit->inv_queue,
+			    (uintmax_t)dmar_read8(unit, DMAR_IQA_REG),
+			    (uintmax_t)unit->inv_queue_size,
+			    dmar_read4(unit, DMAR_IQH_REG),
+			    dmar_read4(unit, DMAR_IQT_REG),
+			    unit->inv_queue_avail,
+			    dmar_read4(unit, DMAR_ICS_REG),
+			    dmar_read4(unit, DMAR_IECTL_REG),
+			    unit->inv_waitd_seq_hw,
+			    &unit->inv_waitd_seq_hw,
+			    (uintmax_t)unit->inv_waitd_seq_hw_phys,
+			    unit->inv_waitd_seq,
+			    unit->inv_waitd_gen);
+		} else {
+			db_printf("qi is disabled\n");
+		}
 	}
 	if (show_ctxs) {
 		db_printf("contexts:\n");

@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include "vmm_stat.h"
 #include "vmm_lapic.h"
 #include "vmm_ktr.h"
-#include "vdev.h"
 #include "vlapic.h"
 
 #define	VLAPIC_CTR0(vlapic, format)					\
@@ -100,8 +99,6 @@ struct vlapic {
 	struct vm		*vm;
 	int			vcpuid;
 
-	struct io_region	*mmio;
-	struct vdev_ops		*ops;
 	struct LAPIC		 apic;
 
 	int			 esr_update;
@@ -195,9 +192,8 @@ vlapic_init_ipi(struct vlapic *vlapic)
 }
 
 static int
-vlapic_op_reset(void* dev)
+vlapic_reset(struct vlapic *vlapic)
 {
-	struct vlapic 	*vlapic = (struct vlapic*)dev;
 	struct LAPIC	*lapic = &vlapic->apic;
 
 	memset(lapic, 0, sizeof(*lapic));
@@ -210,23 +206,6 @@ vlapic_op_reset(void* dev)
 	else
 		vlapic->boot_state = BS_INIT;		/* AP */
 	
-	return 0;
-
-}
-
-static int
-vlapic_op_init(void* dev)
-{
-	struct vlapic *vlapic = (struct vlapic*)dev;
-	vdev_register_region(vlapic->ops, vlapic, vlapic->mmio);
-	return vlapic_op_reset(dev);
-}
-
-static int
-vlapic_op_halt(void* dev)
-{
-	struct vlapic *vlapic = (struct vlapic*)dev;
-	vdev_unregister_region(vlapic, vlapic->mmio);
 	return 0;
 
 }
@@ -594,11 +573,9 @@ vlapic_intr_accepted(struct vlapic *vlapic, int vector)
 }
 
 int
-vlapic_op_mem_read(void* dev, uint64_t gpa, opsize_t size, uint64_t *data)
+vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data)
 {
-	struct vlapic 	*vlapic = (struct vlapic*)dev;
 	struct LAPIC	*lapic = &vlapic->apic;
-	uint64_t	 offset = gpa & ~(PAGE_SIZE);
 	uint32_t	*reg;
 	int		 i;
 
@@ -686,11 +663,9 @@ vlapic_op_mem_read(void* dev, uint64_t gpa, opsize_t size, uint64_t *data)
 }
 
 int
-vlapic_op_mem_write(void* dev, uint64_t gpa, opsize_t size, uint64_t data)
+vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data)
 {
-	struct vlapic 	*vlapic = (struct vlapic*)dev;
 	struct LAPIC	*lapic = &vlapic->apic;
-	uint64_t	 offset = gpa & ~(PAGE_SIZE);
 	uint32_t	*reg;
 	int		retval;
 
@@ -832,16 +807,6 @@ restart:
 		return (0);
 }
 
-struct vdev_ops vlapic_dev_ops = {
-	.name = "vlapic",
-	.init = vlapic_op_init,
-	.reset = vlapic_op_reset,
-	.halt = vlapic_op_halt,
-	.memread = vlapic_op_mem_read,
-	.memwrite = vlapic_op_mem_write,
-};
-static struct io_region vlapic_mmio[VM_MAXCPU];
-
 struct vlapic *
 vlapic_init(struct vm *vm, int vcpuid)
 {
@@ -856,17 +821,7 @@ vlapic_init(struct vm *vm, int vcpuid)
 	if (vcpuid == 0)
 		vlapic->msr_apicbase |= APICBASE_BSP;
 
-	vlapic->ops = &vlapic_dev_ops;
-
-	vlapic->mmio = vlapic_mmio + vcpuid;
-	vlapic->mmio->base = DEFAULT_APIC_BASE;
-	vlapic->mmio->len = PAGE_SIZE;
-	vlapic->mmio->attr = MMIO_READ|MMIO_WRITE;
-	vlapic->mmio->vcpu = vcpuid;
-
-	vdev_register(&vlapic_dev_ops, vlapic);
-
-	vlapic_op_init(vlapic);
+	vlapic_reset(vlapic);
 
 	return (vlapic);
 }
@@ -874,8 +829,7 @@ vlapic_init(struct vm *vm, int vcpuid)
 void
 vlapic_cleanup(struct vlapic *vlapic)
 {
-	vlapic_op_halt(vlapic);
-	vdev_unregister(vlapic);
+
 	free(vlapic, M_VLAPIC);
 }
 

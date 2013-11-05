@@ -36,19 +36,18 @@
 .Dt CAP_RIGHTS_LIMIT 2
 .Os
 .Sh NAME
-.Nm cap_rights_limit ,
-.Nm cap_rights_get
-.Nd manage capability rights
+.Nm cap_rights_limit
+.Nd limit capability rights
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In sys/capability.h
 .Ft int
-.Fn cap_rights_limit "int fd" "cap_rights_t rights"
-.Ft int
-.Fn cap_rights_get "int fd" "cap_rights_t *rightsp"
+.Fn cap_rights_limit "int fd" "const cap_rights_t *rights"
 .Sh DESCRIPTION
 When a file descriptor is created by a function such as
+.Xr accept 2 ,
+.Xr accept4 2 ,
 .Xr fhopen 2 ,
 .Xr kqueue 2 ,
 .Xr mq_open 2 ,
@@ -57,7 +56,7 @@ When a file descriptor is created by a function such as
 .Xr pdfork 2 ,
 .Xr pipe 2 ,
 .Xr shm_open 2 ,
-.Xr socket 2 ,
+.Xr socket 2
 or
 .Xr socketpair 2 ,
 it is assigned all capability rights.
@@ -68,429 +67,48 @@ Once capability rights are reduced, operations on the file descriptor will be
 limited to those permitted by
 .Fa rights .
 .Pp
-A bitmask of capability rights assigned to a file descriptor can be obtained with
-the
-.Fn cap_rights_get
-system call.
-.Sh RIGHTS
-The following rights may be specified in a rights mask:
-.Bl -tag -width CAP_EXTATTR_DELETE
-.It Dv CAP_ACCEPT
-Permit
-.Xr accept 2
-and
-.Xr accept4 2 .
-.It Dv CAP_ACL_CHECK
-Permit checking of an ACL on a file descriptor; there is no cross-reference
-for this system call.
-.It Dv CAP_ACL_DELETE
-Permit
-.Xr acl_delete_fd_np 3 .
-.It Dv CAP_ACL_GET
-Permit
-.Xr acl_get_fd 3
-and
-.Xr acl_get_fd_np 3 .
-.It Dv CAP_ACL_SET
-Permit
-.Xr acl_set_fd 3
-and
-.Xr acl_set_fd_np 3 .
-.It Dv CAP_BIND
-Permit
-.Xr bind 2 .
-Note that sockets can also become bound implicitly as a result of
-.Xr connect 2
-or
-.Xr send 2 ,
-and that socket options set with
-.Xr setsockopt 2
-may also affect binding behavior.
-.It Dv CAP_BINDAT
-Permit
-.Xr bindat 2 .
-This right has to be present on the directory descriptor.
-.It Dv CAP_CONNECT
-Permit
-.Xr connect 2 ;
-also required for
-.Xr sendto 2
-with a non-NULL destination address.
-.It Dv CAP_CONNECTAT
-Permit
-.Xr connectat 2 .
-This right has to be present on the directory descriptor.
-.It Dv CAP_CREATE
-Permit
-.Xr openat 2
-with the
-.Dv O_CREAT
-flag.
-.\" XXXPJD: Doesn't exist anymore.
-.It Dv CAP_EVENT
-Permit
-.Xr select 2 ,
-.Xr poll 2 ,
-and
-.Xr kevent 2
-to be used in monitoring the file descriptor for events.
-.It Dv CAP_FEXECVE
-Permit
-.Xr fexecve 2
-and
-.Xr openat 2
-with the
-.Dv O_EXEC
-flag;
-.Dv CAP_READ
-will also be required.
-.It Dv CAP_EXTATTR_DELETE
-Permit
-.Xr extattr_delete_fd 2 .
-.It Dv CAP_EXTATTR_GET
-Permit
-.Xr extattr_get_fd 2 .
-.It Dv CAP_EXTATTR_LIST
-Permit
-.Xr extattr_list_fd 2 .
-.It Dv CAP_EXTATTR_SET
-Permit
-.Xr extattr_set_fd 2 .
-.It Dv CAP_FCHDIR
-Permit
-.Xr fchdir 2 .
-.It Dv CAP_FCHFLAGS
-Permit
-.Xr fchflags 2
-and
-.Xr chflagsat 2 .
-.It Dv CAP_CHFLAGSAT
-An alias to
-.Dv CAP_FCHFLAGS .
-.It Dv CAP_FCHMOD
-Permit
-.Xr fchmod 2
-and
-.Xr fchmodat 2 .
-.It Dv CAP_FCHMODAT
-An alias to
-.Dv CAP_FCHMOD .
-.It Dv CAP_FCHOWN
-Permit
-.Xr fchown 2
-and
-.Xr fchownat 2 .
-.It Dv CAP_FCHOWNAT
-An alias to
-.Dv CAP_FCHOWN .
-.It Dv CAP_FCNTL
-Permit
-.Xr fcntl 2 .
-Note that only the
-.Dv F_GETFL ,
-.Dv F_SETFL ,
-.Dv F_GETOWN
-and
-.Dv F_SETOWN
-commands require this capability right.
-Also note that the list of permitted commands can be further limited with the
-.Xr cap_fcntls_limit 2
-system call.
-.It Dv CAP_FLOCK
-Permit
-.Xr flock 2 ,
-.Xr fcntl 2
-(with
-.Dv F_GETLK ,
-.Dv F_SETLK
-or
-.Dv F_SETLKW
-flag) and
-.Xr openat 2
-(with
-.Dv O_EXLOCK
-or
-.Dv O_SHLOCK
-flag).
-.It Dv CAP_FPATHCONF
-Permit
-.Xr fpathconf 2 .
-.It Dv CAP_FSCK
-Permit UFS background-fsck operations on the descriptor.
-.It Dv CAP_FSTAT
-Permit
-.Xr fstat 2
-and
-.Xr fstatat 2 .
-.It Dv CAP_FSTATAT
-An alias to
-.Dv CAP_FSTAT .
-.It Dv CAP_FSTATFS
-Permit
-.Xr fstatfs 2 .
-.It Dv CAP_FSYNC
-Permit
-.Xr aio_fsync 2 ,
-.Xr fsync 2
-and
-.Xr openat 2
-with
-.Dv O_FSYNC
-or
-.Dv O_SYNC
-flag.
-.It Dv CAP_FTRUNCATE
-Permit
-.Xr ftruncate 2
-and
-.Xr openat 2
-with the
-.Dv O_TRUNC
-flag.
-.It Dv CAP_FUTIMES
-Permit
-.Xr futimes 2
-and
-.Xr futimesat 2 .
-.It Dv CAP_FUTIMESAT
-An alias to
-.Dv CAP_FUTIMES .
-.It Dv CAP_GETPEERNAME
-Permit
-.Xr getpeername 2 .
-.It Dv CAP_GETSOCKNAME
-Permit
-.Xr getsockname 2 .
-.It Dv CAP_GETSOCKOPT
-Permit
-.Xr getsockopt 2 .
-.It Dv CAP_IOCTL
-Permit
-.Xr ioctl 2 .
-Be aware that this system call has enormous scope, including potentially
-global scope for some objects.
-The list of permitted ioctl commands can be further limited with the
-.Xr cap_ioctls_limit 2
-system call.
-.\" XXXPJD: Doesn't exist anymore.
-.It Dv CAP_KEVENT
-Permit
-.Xr kevent 2 ;
-.Dv CAP_EVENT
-is also required on file descriptors that will be monitored using
-.Xr kevent 2 .
-.It Dv CAP_LINKAT
-Permit
-.Xr linkat 2
-and
-.Xr renameat 2 .
-This right is required for the destination directory descriptor.
-.It Dv CAP_LISTEN
-Permit
-.Xr listen 2 ;
-not much use (generally) without
-.Dv CAP_BIND .
-.It Dv CAP_LOOKUP
-Permit the file descriptor to be used as a starting directory for calls such as
-.Xr linkat 2 ,
-.Xr openat 2 ,
-and
-.Xr unlinkat 2 .
-.It Dv CAP_MAC_GET
-Permit
-.Xr mac_get_fd 3 .
-.It Dv CAP_MAC_SET
-Permit
-.Xr mac_set_fd 3 .
-.It Dv CAP_MKDIRAT
-Permit
-.Xr mkdirat 2 .
-.It Dv CAP_MKFIFOAT
-Permit
-.Xr mkfifoat 2 .
-.It Dv CAP_MKNODAT
-Permit
-.Xr mknodat 2 .
-.It Dv CAP_MMAP
-Permit
-.Xr mmap 2
-with the
-.Dv PROT_NONE
-protection.
-.It Dv CAP_MMAP_R
-Permit
-.Xr mmap 2
-with the
-.Dv PROT_READ
-protection.
-This also implies
-.Dv CAP_READ
-and
-.Dv CAP_SEEK
-rights.
-.It Dv CAP_MMAP_W
-Permit
-.Xr mmap 2
-with the
-.Dv PROT_WRITE
-protection.
-This also implies
-.Dv CAP_WRITE
-and
-.Dv CAP_SEEK
-rights.
-.It Dv CAP_MMAP_X
-Permit
-.Xr mmap 2
-with the
-.Dv PROT_EXEC
-protection.
-This also implies
-.Dv CAP_SEEK
-right.
-.It Dv CAP_MMAP_RW
-Implies
-.Dv CAP_MMAP_R
-and
-.Dv CAP_MMAP_W .
-.It Dv CAP_MMAP_RX
-Implies
-.Dv CAP_MMAP_R
-and
-.Dv CAP_MMAP_X .
-.It Dv CAP_MMAP_WX
-Implies
-.Dv CAP_MMAP_W
-and
-.Dv CAP_MMAP_X .
-.It Dv CAP_MMAP_RWX
-Implies
-.Dv CAP_MMAP_R ,
-.Dv CAP_MMAP_W
-and
-.Dv CAP_MMAP_X .
-.It Dv CAP_PDGETPID
-Permit
-.Xr pdgetpid 2 .
-.It Dv CAP_PDKILL
-Permit
-.Xr pdkill 2 .
-.It Dv CAP_PDWAIT
-Permit
-.Xr pdwait4 2 .
-.It Dv CAP_PEELOFF
-Permit
-.Xr sctp_peeloff 2 .
-.\" XXXPJD: Not documented.
-.It Dv CAP_POLL_EVENT
-.\" XXXPJD: Not documented.
-.It Dv CAP_POST_EVENT
-.It Dv CAP_PREAD
-Implies
-.Dv CAP_SEEK
-and
-.Dv CAP_READ .
-.It Dv CAP_PWRITE
-Implies
-.Dv CAP_SEEK
-and
-.Dv CAP_WRITE .
-.It Dv CAP_READ
-Allow
-.Xr aio_read 2 ,
-.Xr openat
-with the
-.Dv O_RDONLY flag,
-.Xr read 2 ,
-.Xr recv 2 ,
-.Xr recvfrom 2 ,
-.Xr recvmsg 2
-and related system calls.
-.It Dv CAP_RECV
-An alias to
-.Dv CAP_READ .
-.It Dv CAP_RENAMEAT
-Permit
-.Xr renameat 2 .
-This right is required for the source directory descriptor.
-.It Dv CAP_SEEK
-Permit operations that seek on the file descriptor, such as
-.Xr lseek 2 ,
-but also required for I/O system calls that can read or write at any position
-in the file, such as
-.Xr pread 2
-and
-.Xr pwrite 2 .
-.It Dv CAP_SEM_GETVALUE
-Permit
-.Xr sem_getvalue 3 .
-.It Dv CAP_SEM_POST
-Permit
-.Xr sem_post 3 .
-.It Dv CAP_SEM_WAIT
-Permit
-.Xr sem_wait 3
-and
-.Xr sem_trywait 3 .
-.It Dv CAP_SEND
-An alias to
-.Dv CAP_WRITE .
-.It Dv CAP_SETSOCKOPT
-Permit
-.Xr setsockopt 2 ;
-this controls various aspects of socket behavior and may affect binding,
-connecting, and other behaviors with global scope.
-.It Dv CAP_SHUTDOWN
-Permit explicit
-.Xr shutdown 2 ;
-closing the socket will also generally shut down any connections on it.
-.It Dv CAP_SYMLINKAT
-Permit
-.Xr symlinkat 2 .
-.It Dv CAP_TTYHOOK
-Allow configuration of TTY hooks, such as
-.Xr snp 4 ,
-on the file descriptor.
-.It Dv CAP_UNLINKAT
-Permit
-.Xr unlinkat 2
-and
-.Xr renameat 2 .
-This right is only required for
-.Xr renameat 2
-on the destination directory descriptor if the destination object already
-exists and will be removed by the rename.
-.It Dv CAP_WRITE
-Allow
-.Xr aio_write 2 ,
-.Xr openat 2
-with
-.Dv O_WRONLY
-and
-.Dv O_APPEND
-flags,
-.Xr send 2 ,
-.Xr sendmsg 2 ,
-.Xr sendto 2 ,
-.Xr write 2 ,
-and related system calls.
-For
-.Xr sendto 2
-with a non-NULL connection address,
-.Dv CAP_CONNECT
-is also required.
-For
-.Xr openat 2
-with the
-.Dv O_WRONLY
-flag, but without the
-.Dv O_APPEND
-flag,
-.Dv CAP_SEEK
-is also required.
-.El
+The
+.Fa rights
+argument should be prepared using
+.Xr cap_rights_init 3
+family of functions.
+.Pp
+Capability rights assigned to a file descriptor can be obtained with the
+.Xr cap_rights_get 3
+function.
+.Pp
+The complete list of the capability rights can be found in the
+.Xr rights 4
+manual page.
 .Sh RETURN VALUES
 .Rv -std
+.Sh EXAMPLES
+The following example demonstrates how to limit file descriptor capability
+rights to allow reading only.
+.Bd -literal
+cap_rights_t rights;
+char buf[1];
+int fd;
+
+fd = open("/tmp/foo", O_RDWR);
+if (fd < 0)
+	err(1, "open() failed");
+
+if (cap_enter() < 0)
+	err(1, "cap_enter() failed");
+
+cap_rights_init(&setrights, CAP_READ);
+if (cap_rights_limit(fd, &setrights) < 0)
+	err(1, "cap_rights_limit() failed");
+
+buf[0] = 'X';
+
+if (write(fd, buf, sizeof(buf)) > 0)
+	errx(1, "write() succeeded!");
+
+if (read(fd, buf, sizeof(buf)) < 0)
+	err(1, "read() failed");
+.Ed
 .Sh ERRORS
 .Fn cap_rights_limit
 succeeds unless:
@@ -503,106 +121,32 @@ argument is not a valid active descriptor.
 An invalid right has been requested in
 .Fa rights .
 .It Bq Er ENOTCAPABLE
+The
 .Fa rights
-contains requested rights not present in the current rights mask associated
-with the given file descriptor.
-.El
-.Pp
-.Fn cap_rights_get
-succeeds unless:
-.Bl -tag -width Er
-.It Bq Er EBADF
-The
-.Fa fd
-argument is not a valid active descriptor.
-.It Bq Er EFAULT
-The
-.Fa rightsp
-argument points at an invalid address.
+argument contains capability rights not present for the given file descriptor.
+Capability rights list can only be reduced, never expanded.
 .El
 .Sh SEE ALSO
 .Xr accept 2 ,
-.Xr aio_fsync 2 ,
-.Xr aio_read 2 ,
-.Xr aio_write 2 ,
-.Xr bind 2 ,
-.Xr bindat 2 ,
+.Xr accept4 2 ,
 .Xr cap_enter 2 ,
-.Xr cap_fcntls_limit 2 ,
-.Xr cap_ioctls_limit 2 ,
-.Xr cap_rights_limit 2 ,
-.Xr connect 2 ,
-.Xr connectat 2 ,
-.Xr dup 2 ,
-.Xr dup2 2 ,
-.Xr extattr_delete_fd 2 ,
-.Xr extattr_get_fd 2 ,
-.Xr extattr_list_fd 2 ,
-.Xr extattr_set_fd 2 ,
-.Xr fchflags 2 ,
-.Xr fchown 2 ,
-.Xr fcntl 2 ,
-.Xr fexecve 2 ,
 .Xr fhopen 2 ,
-.Xr flock 2 ,
-.Xr fpathconf 2 ,
-.Xr fstat 2 ,
-.Xr fstatfs 2 ,
-.Xr fsync 2 ,
-.Xr ftruncate 2 ,
-.Xr futimes 2 ,
-.Xr getpeername 2 ,
-.Xr getsockname 2 ,
-.Xr getsockopt 2 ,
-.Xr ioctl 2 ,
-.Xr kevent 2 ,
 .Xr kqueue 2 ,
-.Xr linkat 2 ,
-.Xr listen 2 ,
-.Xr mmap 2 ,
 .Xr mq_open 2 ,
 .Xr open 2 ,
 .Xr openat 2 ,
 .Xr pdfork 2 ,
-.Xr pdgetpid 2 ,
-.Xr pdkill 2 ,
-.Xr pdwait4 2 ,
 .Xr pipe 2 ,
-.Xr poll 2 ,
-.Xr pread 2 ,
-.Xr pwrite 2 ,
 .Xr read 2 ,
-.Xr recv 2 ,
-.Xr recvfrom 2 ,
-.Xr recvmsg 2 ,
-.Xr renameat 2 ,
-.Xr sctp_peeloff 2 ,
-.Xr select 2 ,
-.Xr send 2 ,
-.Xr sendmsg 2 ,
-.Xr sendto 2 ,
-.Xr setsockopt 2 ,
 .Xr shm_open 2 ,
-.Xr shutdown 2 ,
 .Xr socket 2 ,
 .Xr socketpair 2 ,
-.Xr symlinkat 2 ,
-.Xr unlinkat 2 ,
 .Xr write 2 ,
-.Xr acl_delete_fd_np 3 ,
-.Xr acl_get_fd 3 ,
-.Xr acl_get_fd_np 3 ,
-.Xr acl_set_fd_np 3 ,
-.Xr cap_limitfd 3 ,
-.Xr libcapsicum 3 ,
-.Xr mac_get_fd 3 ,
-.Xr mac_set_fd 3 ,
-.Xr sem_getvalue 3 ,
-.Xr sem_post 3 ,
-.Xr sem_trywait 3 ,
-.Xr sem_wait 3 ,
+.Xr cap_rights_get 3 ,
+.Xr cap_rights_init 3 ,
+.Xr err 3 ,
 .Xr capsicum 4 ,
-.Xr snp 4
+.Xr rights 4
 .Sh HISTORY
 Support for capabilities and capabilities mode was developed as part of the
 .Tn TrustedBSD
@@ -611,9 +155,3 @@ Project.
 This function was created by
 .An Pawel Jakub Dawidek Aq pawel@dawidek.net
 under sponsorship of the FreeBSD Foundation.
-.Sh BUGS
-This man page should list the set of permitted system calls more specifically
-for each capability right.
-.Pp
-Capability rights sometimes have unclear indirect impacts, which should be
-documented, or at least hinted at.

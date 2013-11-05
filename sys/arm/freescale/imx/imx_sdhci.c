@@ -558,13 +558,9 @@ imx_sdhci_attach(device_t dev)
 
 	sc->dev = dev;
 
-	if (ofw_bus_is_compatible(dev, "fsl,imx51-esdhc")) {
-		sc->hwtype = HWTYPE_ESDHC;
-	} else if (ofw_bus_is_compatible(dev, "fsl,imx-usdhc")) {
-		sc->hwtype = HWTYPE_USDHC;
-	} else {
+	sc->hwtype = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	if (sc->hwtype == HWTYPE_NONE)
 		panic("Impossible: not compatible in imx_sdhci_attach()");
-	}
 
 	rid = 0;
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
