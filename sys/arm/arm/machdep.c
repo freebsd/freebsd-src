@@ -90,11 +90,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/armreg.h>
 #include <machine/atags.h>
 #include <machine/cpu.h>
+#include <machine/devmap.h>
+#include <machine/frame.h>
 #include <machine/machdep.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/pcb.h>
-#include <machine/pmap.h>
 #include <machine/reg.h>
 #include <machine/trap.h>
 #include <machine/undefined.h>
@@ -158,7 +159,6 @@ struct pv_addr undstack;
 struct pv_addr abtstack;
 static struct pv_addr kernelstack;
 
-const struct pmap_devmap *pmap_devmap_bootstrap_table;
 #endif
 
 #if defined(LINUX_BOOT_ABI)
@@ -1303,7 +1303,7 @@ initarm(struct arm_boot_params *abp)
 	availmem_regions_sz = curr;
 
 	/* Platform-specific initialisation */
-	vm_max_kernel_address = initarm_lastaddr();
+	initarm_early_init();
 
 	pcpu0_init();
 
@@ -1419,9 +1419,10 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE, PTE_CACHE);
 
-	/* Map pmap_devmap[] entries */
-	err_devmap = platform_devmap_init();
-	pmap_devmap_bootstrap(l1pagetable, pmap_devmap_bootstrap_table);
+	/* Establish static device mappings. */
+	err_devmap = initarm_devmap_init();
+	arm_devmap_bootstrap(l1pagetable, NULL);
+	vm_max_kernel_address = initarm_lastaddr();
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
 	pmap_pa = kernel_l1pt.pv_pa;

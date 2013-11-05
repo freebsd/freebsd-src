@@ -1019,20 +1019,7 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.3: build tools"
 	@echo "--------------------------------------------------------------"
-	cd ${KRNLOBJDIR}/${_kernel}; \
-	    PATH=${BPATH}:${PATH} \
-	    MAKESRCPATH=${KERNSRCDIR}/dev/aic7xxx/aicasm \
-	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF -DEARLY_BUILD \
-	    -f ${KERNSRCDIR}/dev/aic7xxx/aicasm/Makefile
-# XXX - Gratuitously builds aicasm in the ``makeoptions NO_MODULES'' case.
-.if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KERNSRCDIR}/modules)
-.for target in obj depend all
-	cd ${KERNSRCDIR}/modules/aic7xxx/aicasm; \
-	    PATH=${BPATH}:${PATH} \
-	    MAKEOBJDIRPREFIX=${KRNLOBJDIR}/${_kernel}/modules \
-	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF -DEARLY_BUILD ${target}
-.endfor
-.endif
+	@# Currently no special kernel tools to build.
 .if !defined(NO_KERNELDEPEND)
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -1319,10 +1306,6 @@ bootstrap-tools: .MAKE
 #
 # build-tools: Build special purpose build tools
 #
-.if defined(MODULES_WITH_WORLD) && exists(${KERNSRCDIR}/modules)
-_aicasm= sys/modules/aic7xxx/aicasm
-.endif
-
 .if !defined(NO_SHARE)
 _share=	share/syscons/scrnmaps
 .endif
@@ -1344,7 +1327,6 @@ build-tools: .MAKE
     lib/ncurses/ncurses \
     lib/ncurses/ncursesw \
     ${_share} \
-    ${_aicasm} \
     usr.bin/awk \
     lib/libmagic \
     usr.bin/mkesdb_static \
@@ -1388,10 +1370,15 @@ _binutils=	gnu/usr.bin/binutils
 # If an full path to an external cross compiler is given, don't build
 # a cross compiler.
 .if ${XCC:M/*} == "" && ${MK_CROSS_COMPILER} != "no"
-.if (${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang") && ${TARGET} != "pc98"
+.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
 _clang=		usr.bin/clang
 _clang_libs=	lib/clang
 .else
+_cc=		gnu/usr.bin/cc
+.endif
+
+# The boot2 for pc98 requires gcc.
+.if ${TARGET} == "pc98"
 _cc=		gnu/usr.bin/cc
 .endif
 .endif
@@ -1405,7 +1392,8 @@ cross-tools: .MAKE
     usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
     ${_btxld} \
     ${_crunchide} \
-    ${_kgzip}
+    ${_kgzip} \
+    sys/dev/aic7xxx/aicasm
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
 		${MAKE} DIRPRFX=${_tool}/ obj && \
@@ -1681,6 +1669,7 @@ delete-old-files:
 # argument list will get too long. Using .for/.endfor make "loops" will make
 # the Makefile parser segfault.
 	@exec 3<&0; \
+	cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
 	    -V OLD_FILES -V "OLD_FILES:Musr/share/*.gz:R" | xargs -n1 | \
 	while read file; do \
@@ -1703,7 +1692,8 @@ delete-old-files:
 
 check-old-files:
 	@echo ">>> Checking for old files"
-	@${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	@cd ${.CURDIR}; \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
 	    -V OLD_FILES -V "OLD_FILES:Musr/share/*.gz:R" | xargs -n1 | \
 	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
@@ -1724,6 +1714,7 @@ delete-old-libs:
 	@echo ">>> Removing old libraries"
 	@echo "${OLD_LIBS_MESSAGE}" | fmt
 	@exec 3<&0; \
+	cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
 	    -V OLD_LIBS | xargs -n1 | \
 	while read file; do \
@@ -1743,7 +1734,8 @@ delete-old-libs:
 
 check-old-libs:
 	@echo ">>> Checking for old libraries"
-	@${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	@cd ${.CURDIR}; \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
 	    -V OLD_LIBS | xargs -n1 | \
 	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
@@ -1758,7 +1750,8 @@ check-old-libs:
 
 delete-old-dirs:
 	@echo ">>> Removing old directories"
-	@${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	@cd ${.CURDIR}; \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
 	    -V OLD_DIRS | xargs -n1 | sort -r | \
 	while read dir; do \
 		if [ -d "${DESTDIR}/$${dir}" ]; then \
@@ -1771,7 +1764,8 @@ delete-old-dirs:
 
 check-old-dirs:
 	@echo ">>> Checking for old directories"
-	@${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	@cd ${.CURDIR}; \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
 	    -V OLD_DIRS | xargs -n1 | \
 	while read dir; do \
 		if [ -d "${DESTDIR}/$${dir}" ]; then \

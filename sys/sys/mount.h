@@ -806,8 +806,6 @@ vfs_statfs_t	__vfs_statfs;
 	};							\
 	DECLARE_MODULE(fsname, fsname ## _mod, SI_SUB_VFS, SI_ORDER_MIDDLE)
 
-extern	char *mountrootfsname;
-
 /*
  * exported vnode operations
  */

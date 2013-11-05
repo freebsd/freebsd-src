@@ -35,7 +35,12 @@
 #include <sys/bus.h>
 #include <sys/rman.h>
 #include <sys/types.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/rwlock.h>
+#include <sys/sx.h>
+#include <vm/uma.h>
+
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <machine/bus.h>
@@ -43,6 +48,7 @@
 #include <sys/sysctl.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <netinet/in.h>
 #include <netinet/tcp_lro.h>

@@ -320,6 +320,7 @@ __DEFAULT_YES_OPTIONS = \
     NIS \
     NLS \
     NLS_CATALOGS \
+    NMTREE \
     NS_CACHING \
     NTP \
     OPENSSH \
@@ -367,10 +368,8 @@ __DEFAULT_NO_OPTIONS = \
     DEBUG_FILES \
     GPL_DTC \
     HESIOD \
-    LIBICONV_COMPAT \
     INSTALL_AS_USER \
     LLDB \
-    NMTREE \
     NAND \
     OFED \
     OPENSSH_NONE_CIPHER \
@@ -490,10 +489,6 @@ MK_${var}:=	no
 #
 .if ${MK_LIBPTHREAD} == "no"
 MK_LIBTHR:=	no
-.endif
-
-.if ${MK_ICONV} == "no"
-MK_LIBICONV_COMPAT:=	no
 .endif
 
 .if ${MK_LDNS} == "no"

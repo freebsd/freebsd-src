@@ -295,7 +295,6 @@ MAN=	aac.4 \
 	ng_etf.4 \
 	ng_ether.4 \
 	ng_ether_echo.4 \
-	ng_fec.4 \
 	ng_frame_relay.4 \
 	ng_gif.4 \
 	ng_gif_demux.4 \
@@ -383,6 +382,7 @@ MAN=	aac.4 \
 	rc.4 \
 	re.4 \
 	rgephy.4 \
+	rights.4 \
 	rl.4 \
 	rndtest.4 \
 	route.4 \
@@ -524,6 +524,7 @@ MAN=	aac.4 \
 	urio.4 \
 	${_urtw.4} \
 	urtwn.4 \
+	urtwnfw.4 \
 	usb.4 \
 	usb_quirk.4 \
 	uslcom.4 \

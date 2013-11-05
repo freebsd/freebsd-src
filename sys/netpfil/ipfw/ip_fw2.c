@@ -59,10 +59,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 #include <net/ethernet.h> /* for ETHERTYPE_IP */
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
-#include <net/pf_mtag.h>
 #include <net/pfil.h>
 #include <net/vnet.h>
+
+#include <netpfil/pf/pf_mtag.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -432,7 +434,7 @@ verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 	 * If ifp is provided, check for equality with rtentry.
 	 * We should use rt->rt_ifa->ifa_ifp, instead of rt->rt_ifp,
 	 * in order to pass packets injected back by if_simloop():
-	 * if useloopback == 1 routing entry (via lo0) for our own address
+	 * routing entry (via lo0) for our own address
 	 * may exist, so we need to handle routing assymetry.
 	 */
 	if (ifp != NULL && ro.ro_rt->rt_ifa->ifa_ifp != ifp) {

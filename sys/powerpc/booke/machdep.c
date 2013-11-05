@@ -137,6 +137,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/reboot.h>
 
+#include <contrib/libfdt/libfdt.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
@@ -276,6 +277,23 @@ print_kernel_section_addr(void)
 	debugf(" _end           = 0x%08x\n", (uint32_t)_end);
 }
 
+static int
+booke_check_for_fdt(uint32_t arg1, vm_offset_t *dtbp)
+{
+	void *ptr;
+
+	if (arg1 % 8 != 0)
+		return (-1);
+
+	ptr = (void *)pmap_early_io_map(arg1, PAGE_SIZE);
+	if (fdt_check_header(ptr) != 0)
+		return (-1);
+
+	*dtbp = (vm_offset_t)ptr;
+
+	return (0);
+}
+
 u_int
 booke_init(uint32_t arg1, uint32_t arg2)
 {
@@ -287,6 +305,10 @@ booke_init(uint32_t arg1, uint32_t arg2)
 
 	end = (uintptr_t)_end;
 	dtbp = (vm_offset_t)NULL;
+
+	/* Set up TLB initially */
+	bootinfo = NULL;
+	tlb1_init();
 
 	/*
 	 * Handle the various ways we can get loaded and started:
@@ -302,11 +324,21 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	 *	in arg1 and arg2 (resp). arg1 is between 1 and some
 	 *	relatively small number, such as 64K. arg2 is the
 	 *	physical address of the argv vector.
+	 *  -   ePAPR loaders pass an FDT blob in r3 (arg1) and the magic hex
+	 *      string 0x45504150 ('ePAP') in r6 (which has been lost by now).
+	 *      r4 (arg2) is supposed to be set to zero, but is not always.
 	 */
-	if (arg1 > (uintptr_t)kernel_text)	/* FreeBSD loader */
-		mdp = (void *)arg1;
-	else if (arg1 == 0)			/* Juniper loader */
+	
+	if (arg1 == 0)				/* Juniper loader */
 		mdp = (void *)arg2;
+	else if (booke_check_for_fdt(arg1, &dtbp) == 0) { /* ePAPR */
+		end = roundup(end, 8);
+		memmove((void *)end, (void *)dtbp, fdt_totalsize((void *)dtbp));
+		dtbp = end;
+		end += fdt_totalsize((void *)dtbp);
+		mdp = NULL;
+	} else if (arg1 > (uintptr_t)kernel_text)	/* FreeBSD loader */
+		mdp = (void *)arg1;
 	else					/* U-Boot */
 		mdp = NULL;
 
@@ -350,13 +382,18 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	if (OF_init((void *)dtbp) != 0)
 		while (1);
 
-	if (fdt_immr_addr(CCSRBAR_VA) != 0)
-		while (1);
-
 	OF_interpret("perform-fixup", 0);
 	
-	/* Set up TLB initially */
-	booke_init_tlb(fdt_immr_pa);
+	/* Reset TLB1 to get rid of temporary mappings */
+	tlb1_init();
+
+	/* Set up IMMR */
+	if (fdt_immr_addr(0) == 0) {
+		fdt_immr_va = pmap_early_io_map(fdt_immr_pa, fdt_immr_size);
+	} else {
+		printf("Warning: SOC base registers could not be found!\n");
+		fdt_immr_va = 0;
+	}
 
 	/* Reset Time Base */
 	mttb(0);

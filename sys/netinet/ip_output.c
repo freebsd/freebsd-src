@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_llatbl.h>
 #include <net/netisr.h>
 #include <net/pfil.h>

@@ -82,15 +82,21 @@
 #define	VM_PHYSSEG_DENSE
 
 /*
- * Create three free page pools: VM_FREEPOOL_DEFAULT is the default pool
- * from which physical pages are allocated and VM_FREEPOOL_DIRECT is
- * the pool from which physical pages for small UMA objects are
- * allocated.
+ * Create two or three free page pools depending on the existence of a direct
+ * map: VM_FREEPOOL_DEFAULT is the default pool from which physical pages are
+ * allocated, and VM_FREEPOOL_DIRECT is the pool from which physical pages for
+ * small UMA objects are allocated.
  */
+#ifdef ARM_USE_SMALL_ALLOC
 #define	VM_NFREEPOOL		3
 #define	VM_FREEPOOL_CACHE	2
-#define	VM_FREEPOOL_DEFAULT	0
 #define	VM_FREEPOOL_DIRECT	1
+#else
+#define	VM_NFREEPOOL		2
+#define	VM_FREEPOOL_CACHE	1
+#define	VM_FREEPOOL_DIRECT	0
+#endif
+#define	VM_FREEPOOL_DEFAULT	0
 
 /*
  * we support 2 free lists:

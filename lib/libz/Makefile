@@ -1,5 +1,5 @@
 #
-# $FreeBSD: user/ed/newcons/lib/libz/Makefile 234200 2012-04-13 04:21:54Z marcel $
+# $FreeBSD$
 #
 
 LIB=		z

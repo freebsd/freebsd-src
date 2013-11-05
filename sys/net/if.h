@@ -35,10 +35,6 @@
 
 #include <sys/cdefs.h>
 
-#ifdef _KERNEL
-#include <sys/queue.h>
-#endif
-
 #if __BSD_VISIBLE
 /*
  * <net/if.h> does not depend on <sys/time.h> on most other systems.  This
@@ -49,8 +45,6 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #endif
-
-struct ifnet;
 #endif
 
 /*
@@ -418,14 +412,6 @@ struct ifaliasreq {
 	int	ifra_vhid;
 };
 
-/* Compat with pre-10.x */
-struct oifaliasreq {
-	char	ifra_name[IFNAMSIZ];
-	struct	sockaddr ifra_addr;
-	struct	sockaddr ifra_broadaddr;
-	struct	sockaddr ifra_mask;
-};
-
 struct ifmediareq {
 	char	ifm_name[IFNAMSIZ];	/* if name, e.g. "en0" */
 	int	ifm_current;		/* current media options */
@@ -537,10 +523,4 @@ struct if_nameindex	*if_nameindex(void);
 unsigned int		 if_nametoindex(const char *);
 __END_DECLS
 #endif
-
-#ifdef _KERNEL
-/* XXX - this should go away soon. */
-#include <net/if_var.h>
-#endif
-
 #endif /* !_NET_IF_H_ */

@@ -69,14 +69,14 @@ struct dma_window {
 };
 
 int
-phyp_iommu_set_dma_tag(device_t dev, device_t child, bus_dma_tag_t tag)
+phyp_iommu_set_dma_tag(device_t bus, device_t dev, bus_dma_tag_t tag)
 {
 	device_t p;
 	phandle_t node;
 	cell_t dma_acells, dma_scells, dmawindow[5];
 	struct iommu_map *i;
 
-	for (p = child; p != NULL; p = device_get_parent(p)) {
+	for (p = dev; device_get_parent(p) != NULL; p = device_get_parent(p)) {
 		if (ofw_bus_has_prop(p, "ibm,my-dma-window"))
 			break;
 		if (ofw_bus_has_prop(p, "ibm,dma-window"))
@@ -145,7 +145,7 @@ phyp_iommu_set_dma_tag(device_t dev, device_t child, bus_dma_tag_t tag)
 		papr_supports_stuff_tce = !(phyp_hcall(H_STUFF_TCE,
 		    window->map->iobn, 0, 0, 0) == H_FUNCTION);
 
-	bus_dma_tag_set_iommu(tag, dev, window);
+	bus_dma_tag_set_iommu(tag, bus, window);
 
 	return (0);
 }

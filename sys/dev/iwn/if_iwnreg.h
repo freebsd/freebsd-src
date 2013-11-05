@@ -1234,6 +1234,7 @@ struct iwn_ucode_info {
 #define IWN_TX_FAIL_FIFO_UNDERRRUN	0x84	/* tx fifo not kept running */
 #define IWN_TX_FAIL_DEST_IN_PS		0x88	/* sta found in power save */
 #define IWN_TX_FAIL_TX_LOCKED		0x90	/* waiting to see traffic */
+#define IWN_TX_FAIL_STA_INVALID		0x8b	/* XXX STA invalid (???) */
 
 struct iwn4965_tx_stat {
 	uint8_t		nframes;
@@ -1759,8 +1760,8 @@ static const uint8_t iwn_bss_ac_to_queue[] = {
 static const uint8_t iwn_pan_ac_to_queue[] = {
 	5, 4, 6, 7,
 };
-#define IWN1000_OTP_NBLOCKS	3 
-#define IWN6000_OTP_NBLOCKS	4 
+#define IWN1000_OTP_NBLOCKS	3
+#define IWN6000_OTP_NBLOCKS	4
 #define IWN6050_OTP_NBLOCKS	7
 
 /* HW rate indices. */

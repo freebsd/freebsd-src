@@ -54,10 +54,12 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include "inout.h"
 #include "dbgport.h"
+#include "legacy_irq.h"
 #include "mem.h"
 #include "mevent.h"
 #include "mptbl.h"
 #include "pci_emul.h"
+#include "pci_lpc.h"
 #include "xmsr.h"
 #include "ioapic.h"
 #include "spinup_ap.h"
@@ -123,20 +125,20 @@ usage(int code)
 
         fprintf(stderr,
                 "Usage: %s [-aehAHIPW] [-g <gdb port>] [-s <pci>] [-S <pci>]\n"
-		"       %*s [-c vcpus] [-p pincpu] [-m mem] <vmname>\n"
+		"       %*s [-c vcpus] [-p pincpu] [-m mem] [-l <lpc>] <vm>\n"
 		"       -a: local apic is in XAPIC mode (default is X2APIC)\n"
 		"       -A: create an ACPI table\n"
 		"       -g: gdb port\n"
 		"       -c: # cpus (default 1)\n"
 		"       -p: pin vcpu 'n' to host cpu 'pincpu + n'\n"
 		"       -H: vmexit from the guest on hlt\n"
-		"       -I: present an ioapic to the guest\n"
 		"       -P: vmexit from the guest on pause\n"
 		"       -W: force virtio to use single-vector MSI\n"
 		"       -e: exit on unhandled I/O access\n"
 		"       -h: help\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
 		"       -S: <slot,driver,configinfo> legacy PCI slot config\n"
+		"       -l: LPC device configuration\n"
 		"       -m: memory size in MB\n",
 		progname, (int)strlen(progname), "");
 
@@ -540,7 +542,7 @@ fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
 int
 main(int argc, char *argv[])
 {
-	int c, error, gdb_port, err, ioapic, bvmcons;
+	int c, error, gdb_port, err, bvmcons;
 	int max_vcpus;
 	struct vmctx *ctx;
 	uint64_t rip;
@@ -550,10 +552,9 @@ main(int argc, char *argv[])
 	progname = basename(argv[0]);
 	gdb_port = 0;
 	guest_ncpus = 1;
-	ioapic = 0;
 	memsize = 256 * MB;
 
-	while ((c = getopt(argc, argv, "abehAHIPWp:g:c:s:S:m:")) != -1) {
+	while ((c = getopt(argc, argv, "abehAHIPWp:g:c:s:S:m:l:")) != -1) {
 		switch (c) {
 		case 'a':
 			disable_x2apic = 1;
@@ -572,6 +573,12 @@ main(int argc, char *argv[])
 			break;
 		case 'g':
 			gdb_port = atoi(optarg);
+			break;
+		case 'l':
+			if (lpc_device_parse(optarg) != 0) {
+				errx(EX_USAGE, "invalid lpc device "
+				    "configuration '%s'", optarg);
+			}
 			break;
 		case 's':
 			if (pci_parse_slot(optarg, 0) != 0)
@@ -592,7 +599,13 @@ main(int argc, char *argv[])
 			guest_vmexit_on_hlt = 1;
 			break;
 		case 'I':
-			ioapic = 1;
+			/*
+			 * The "-I" option was used to add an ioapic to the
+			 * virtual machine.
+			 *
+			 * An ioapic is now provided unconditionally for each
+			 * virtual machine and this option is now deprecated.
+			 */
 			break;
 		case 'P':
 			guest_vmexit_on_pause = 1;
@@ -640,6 +653,7 @@ main(int argc, char *argv[])
 
 	init_mem();
 	init_inout();
+	legacy_irq_init();
 
 	rtc_init(ctx);
 
@@ -649,8 +663,7 @@ main(int argc, char *argv[])
 	if (init_pci(ctx) != 0)
 		exit(1);
 
-	if (ioapic)
-		ioapic_init(0);
+	ioapic_init(0);
 
 	if (gdb_port != 0)
 		init_dbgport(gdb_port);
@@ -664,10 +677,10 @@ main(int argc, char *argv[])
 	/*
 	 * build the guest tables, MP etc.
 	 */
-	mptable_build(ctx, guest_ncpus, ioapic);
+	mptable_build(ctx, guest_ncpus);
 
 	if (acpi) {
-		error = acpi_build(ctx, guest_ncpus, ioapic);
+		error = acpi_build(ctx, guest_ncpus);
 		assert(error == 0);
 	}
 

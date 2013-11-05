@@ -197,6 +197,21 @@ ofw_bus_is_compatible_strict(device_t dev, const char *compatible)
 	return (0);
 }
 
+const struct ofw_compat_data *
+ofw_bus_search_compatible(device_t dev, const struct ofw_compat_data *compat)
+{
+
+	if (compat == NULL)
+		return NULL;
+
+	for (; compat->ocd_str != NULL; ++compat) {
+		if (ofw_bus_is_compatible(dev, compat->ocd_str))
+			break;
+	}
+
+	return (compat);
+}
+
 int
 ofw_bus_has_prop(device_t dev, const char *propname)
 {

@@ -657,6 +657,13 @@ disk_create(struct disk *dp, int version)
 		    dp->d_name, dp->d_unit);
 		return;
 	}
+	if (dp->d_flags & DISKFLAG_RESERVED) {
+		printf("WARNING: Attempt to add non-MPSAFE disk %s%d\n",
+		    dp->d_name, dp->d_unit);
+		printf("WARNING: Ignoring disk %s%d\n",
+		    dp->d_name, dp->d_unit);
+		return;
+	}
 	KASSERT(dp->d_strategy != NULL, ("disk_create need d_strategy"));
 	KASSERT(dp->d_name != NULL, ("disk_create need d_name"));
 	KASSERT(*dp->d_name != 0, ("disk_create need d_name"));

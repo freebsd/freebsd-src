@@ -3136,13 +3136,6 @@ OLD_FILES+=usr/share/man/man1/host.1.gz
 # to be filled in
 #.endif
 
-.if ${MK_LIBICONV_COMPAT} == no
-OLD_FILES+=usr/lib/libiconv.a
-OLD_FILES+=usr/lib/libiconv.so
-OLD_FILES+=usr/lib/libiconv.so.3
-OLD_FILES+=usr/lib/libiconv_p.a
-.endif
-
 .if ${MK_LIBCPLUSPLUS} == no
 OLD_LIBS+=lib/libcxxrt.so.1
 OLD_FILES+=usr/lib/libc++.a
@@ -3610,29 +3603,7 @@ OLD_FILES+=usr/share/man/man8/tftp-proxy.8.gz
 
 .if ${MK_PKGBOOTSTRAP} == no
 OLD_FILES+=usr/sbin/pkg
-.endif
-
-.if ${MK_PKGTOOLS} == no
-OLD_FILES+=etc/periodic/daily/220.backup-pkgdb
-OLD_FILES+=etc/periodic/daily/490.status-pkg-changes
-OLD_FILES+=etc/periodic/security/460.chkportsum
-OLD_FILES+=etc/periodic/weekly/400.status-pkg
-OLD_FILES+=usr/include/pkg.h
-OLD_FILES+=usr/lib/libpkg.a
-OLD_FILES+=usr/lib/libpkg.so
-OLD_LIBS+=usr/lib/libpkg.so.0
-OLD_FILES+=usr/sbin/pkg_add
-OLD_FILES+=usr/sbin/pkg_create
-OLD_FILES+=usr/sbin/pkg_delete
-OLD_FILES+=usr/sbin/pkg_info
-OLD_FILES+=usr/sbin/pkg_updating
-OLD_FILES+=usr/sbin/pkg_version
-OLD_FILES+=usr/share/man/man1/pkg_add.1.gz
-OLD_FILES+=usr/share/man/man1/pkg_create.1.gz
-OLD_FILES+=usr/share/man/man1/pkg_delete.1.gz
-OLD_FILES+=usr/share/man/man1/pkg_info.1.gz
-OLD_FILES+=usr/share/man/man1/pkg_updating.1.gz
-OLD_FILES+=usr/share/man/man1/pkg_version.1.gz
+OLD_FILES+=usr/share/man/man7/pkg.7.gz
 .endif
 
 .if ${MK_PORTSNAP} == no
@@ -4169,14 +4140,12 @@ OLD_FILES+=usr/bin/who
 OLD_FILES+=usr/sbin/ac
 OLD_FILES+=usr/sbin/lastlogin
 OLD_FILES+=usr/sbin/utx
-OLD_FILES+=usr/sbin/utxrm
 OLD_FILES+=usr/share/man/man1/last.1.gz
 OLD_FILES+=usr/share/man/man1/users.1.gz
 OLD_FILES+=usr/share/man/man1/who.1.gz
 OLD_FILES+=usr/share/man/man8/ac.8.gz
 OLD_FILES+=usr/share/man/man8/lastlogin.8.gz
 OLD_FILES+=usr/share/man/man8/utx.8.gz
-OLD_FILES+=usr/share/man/man8/utxrm.8.gz
 .endif
 
 .if ${MK_WIRELESS} == no

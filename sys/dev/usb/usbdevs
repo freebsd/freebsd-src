@@ -655,6 +655,7 @@ vendor OWEN		0x1555	Owen
 vendor OQO		0x1557	OQO
 vendor UMEDIA		0x157e	U-MEDIA Communications
 vendor FIBERLINE	0x1582	Fiberline
+vendor FREESCALE	0x15a2  Freescale Semiconductor, Inc.
 vendor AFATECH		0x15a4	Afatech Technologies, Inc.
 vendor SPARKLAN		0x15a9	SparkLAN
 vendor OLIMEX		0x15ba	Olimex
@@ -3248,6 +3249,7 @@ product OPTION GMT382		0x7501	Globetrotter HSUPA
 product OPTION GE40X_1		0x7301	Globetrotter HSUPA
 product OPTION GE40X_2		0x7361	Globetrotter HSUPA
 product OPTION GE40X_3		0x7381	Globetrotter HSUPA
+product OPTION GTM661W		0x9000  GTM661W
 product OPTION ICONEDGE		0xc031	GlobeSurfer iCON EDGE
 product OPTION MODHSXPA		0xd013	Globetrotter HSUPA
 product OPTION ICON321		0xd031	Globetrotter HSUPA

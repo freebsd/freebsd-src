@@ -162,7 +162,7 @@ while [ 1 ]; do
 			exit 1
 		fi
 		BOOTDISK=${isofile}
-		installer_opt="-s 3:0,virtio-blk,${BOOTDISK}"
+		installer_opt="-s 31:0,virtio-blk,${BOOTDISK}"
 	else
 		BOOTDISK=${virtio_diskdev}
 		installer_opt=""
@@ -173,13 +173,14 @@ while [ 1 ]; do
 		break
 	fi
 
-	${FBSDRUN} -c ${cpus} -m ${memsize} ${apic_opt} -AI -H -P	\
+	${FBSDRUN} -c ${cpus} -m ${memsize} ${apic_opt} -A -H -P	\
 		-g ${gdbport}						\
 		-s 0:0,hostbridge					\
-		-s 1:0,virtio-net,${tapdev}				\
-		-s 2:0,virtio-blk,${virtio_diskdev}			\
+		-s 1:0,lpc						\
+		-s 2:0,virtio-net,${tapdev}				\
+		-s 3:0,virtio-blk,${virtio_diskdev}			\
+		-l com1,stdio						\
 		${installer_opt}					\
-		-S 31,uart,stdio					\
 		${vmname}
 	if [ $? -ne 0 ]; then
 		break
