@@ -410,7 +410,7 @@ static u_int
 ia64_ih_invalid(struct thread *td, u_int xiv, struct trapframe *tf)
 {
 
-	panic("invalid XIV: %u", xiv);
+	printf("invalid XIV: %u", xiv);
 	return (0);
 }
 
