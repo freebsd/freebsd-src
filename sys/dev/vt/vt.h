@@ -256,6 +256,13 @@ void vt_upgrade(struct vt_device *vd);
 #define	PIXEL_WIDTH(w)	((w) / 8)
 #define	PIXEL_HEIGHT(h)	((h) / 16)
 
+#ifndef VT_FB_DEFAULT_WIDTH
+#define	VT_FB_DEFAULT_WIDTH	640
+#endif
+#ifndef VT_FB_DEFAULT_HEIGHT
+#define	VT_FB_DEFAULT_HEIGHT	480
+#endif
+
 #define	VT_CONSDEV_DECLARE(driver, width, height, softc)		\
 static struct terminal	driver ## _consterm;				\
 static struct vt_window	driver ## _conswindow;				\
