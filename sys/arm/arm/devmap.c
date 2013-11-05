@@ -62,7 +62,7 @@ vm_offset_t
 arm_devmap_lastaddr()
 {
 	const struct arm_devmap_entry *pd;
-	vm_offset_t lowaddr = ARM_VECTORS_HIGH;
+	vm_offset_t lowaddr;
 
 	if (akva_devmap_idx > 0)
 		return (akva_devmap_vaddr);
@@ -70,6 +70,7 @@ arm_devmap_lastaddr()
 	if (devmap_table == NULL)
 		panic("arm_devmap_lastaddr(): No devmap table registered.");
 
+	lowaddr = ARM_VECTORS_HIGH;
 	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
 		if (lowaddr > pd->pd_va)
 			lowaddr = pd->pd_va;
@@ -95,7 +96,7 @@ arm_devmap_add_entry(vm_paddr_t pa, vm_size_t sz)
 		panic("arm_devmap_add_entry() after arm_devmap_bootstrap()");
 
 	if (akva_devmap_idx == (AKVA_DEVMAP_MAX_ENTRIES - 1))
-		panic("AKVA_DEVMAP_MAX_ENTRIES is too small!\n");
+		panic("AKVA_DEVMAP_MAX_ENTRIES is too small");
 
 	if (akva_devmap_idx == 0)
 		arm_devmap_register_table(akva_devmap_entries);
@@ -152,7 +153,7 @@ arm_devmap_bootstrap(vm_offset_t l1pt, const struct arm_devmap_entry *table)
 	if (table != NULL)
 		devmap_table = table;
 	else if (devmap_table == NULL)
-		panic("arm_devmap_bootstrap(): No devmap table registered.");
+		panic("arm_devmap_bootstrap(): No devmap table registered");
 
 	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
 		pmap_map_chunk(l1pt, pd->pd_va, pd->pd_pa, pd->pd_size,
