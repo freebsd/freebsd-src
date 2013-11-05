@@ -156,7 +156,7 @@ static struct localbus_bank localbus_banks[MV_LOCALBUS_MAX_BANKS];
 
 devclass_t localbus_devclass;
 
-DRIVER_MODULE(localbus, fdtbus, localbus_driver, localbus_devclass, 0, 0);
+DRIVER_MODULE(localbus, nexus, localbus_driver, localbus_devclass, 0, 0);
 
 static int
 fdt_localbus_reg_decode(phandle_t node, struct localbus_softc *sc,
