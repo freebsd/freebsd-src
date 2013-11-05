@@ -34,4 +34,12 @@
 /* Generic framebuffer interface call vt_fb_attach to init VT(9) */
 int vt_fb_attach(struct fb_info *info);
 
+int fb_probe(struct fb_info *info);
+
+vd_init_t	vt_fb_init;
+vd_blank_t	vt_fb_blank;
+vd_bitbltchr_t	vt_fb_bitbltchr;
+vd_postswitch_t	vt_fb_postswitch;
+
+
 #endif /* _DEV_VT_HW_FB_VT_FB_H_ */

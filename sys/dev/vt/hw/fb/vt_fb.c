@@ -41,11 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/vt/hw/fb/vt_fb.h>
 #include <dev/vt/colors/vt_termcolors.h>
 
-static vd_init_t	vt_fb_init;
-static vd_blank_t	vt_fb_blank;
-static vd_bitbltchr_t	vt_fb_bitbltchr;
-static vd_postswitch_t	vt_fb_postswitch;
-
 static struct vt_driver vt_fb_driver = {
 	.vd_init = vt_fb_init,
 	.vd_blank = vt_fb_blank,
@@ -54,7 +49,7 @@ static struct vt_driver vt_fb_driver = {
 	.vd_priority = VD_PRIORITY_GENERIC+10,
 };
 
-static void
+void
 vt_fb_blank(struct vt_device *vd, term_color_t color)
 {
 	struct fb_info *info;
@@ -63,6 +58,7 @@ vt_fb_blank(struct vt_device *vd, term_color_t color)
 
 	info = vd->vd_softc;
 	c = info->fb_cmap[color];
+
 	switch (FBTYPE_GET_BYTESPP(info)) {
 	case 1:
 		for (o = 0; o < info->fb_stride; o++)
@@ -95,7 +91,7 @@ vt_fb_blank(struct vt_device *vd, term_color_t color)
 	}
 }
 
-static void
+void
 vt_fb_bitbltchr(struct vt_device *vd, const uint8_t *src,
     vt_axis_t top, vt_axis_t left, unsigned int width, unsigned int height,
     term_color_t fg, term_color_t bg)
@@ -147,7 +143,7 @@ vt_fb_bitbltchr(struct vt_device *vd, const uint8_t *src,
 	}
 }
 
-static void
+void
 vt_fb_postswitch(struct vt_device *vd)
 {
 	struct fb_info *info;
@@ -181,7 +177,7 @@ vt_fb_init_cmap(uint32_t *cmap, int depth)
 	}
 }
 
-static int
+int
 vt_fb_init(struct vt_device *vd)
 {
 	struct fb_info *info;
@@ -212,5 +208,6 @@ vt_fb_attach(struct fb_info *info)
 {
 
 	vt_allocate(&vt_fb_driver, info);
+
 	return (0);
 }
