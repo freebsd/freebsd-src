@@ -88,31 +88,24 @@ vm_offset_t
 initarm_lastaddr(void)
 {
 
-	/* XXX - Get rid of this stuff soon. */
-	boothowto |= RB_VERBOSE|RB_MULTIPLE;
-	bootverbose = 1;
-
-	/*
-	 * Normally initarm() calls platform_devmap_init() much later in the
-	 * init process to set up static device mappings.  To calculate the
-	 * highest available kva address we have to do that setup first.  It
-	 * maps downwards from ARM_VECTORS_HIGH and the last usable kva address
-	 * is the point right before the virtual address of the first static
-	 * mapping.  So go set up the static mapping table now, then we can
-	 * return the lowest static devmap vaddr as the end of usable kva.
-	 */
-	imx_devmap_init();
-
-	arm_devmap_register_table(devmap_entries);
-
 	return (devmap_vaddr);
 }
 
-int
-platform_devmap_init(void)
+void
+initarm_early_init(void)
 {
 
-	/* On imx this work is done during initarm_lastaddr(). */
+	/* XXX - Get rid of this stuff soon. */
+	boothowto |= RB_VERBOSE|RB_MULTIPLE;
+	bootverbose = 1;
+}
+
+int
+initarm_devmap_init(void)
+{
+
+	imx_devmap_init();
+	arm_devmap_register_table(devmap_entries);
 	return (0);
 }
 
