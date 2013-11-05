@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2013
+.Dd November 5, 2013
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -583,14 +583,6 @@ The interface is a loopback device.
 The interface is point-to-point;
 .Dq broadcast
 address is actually the address of the other end.
-.It Dv IFF_SMART
-.Aq S*
-The interface manages its own routes, rather than using the generic
-code in
-.Fn if_up
-and
-.Fn if_down .
-This is probably useful for serial lines.
 .It Dv IFF_DRV_RUNNING
 .Aq D*
 The interface has been configured and dynamic resources were
