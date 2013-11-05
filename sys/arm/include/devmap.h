@@ -42,18 +42,18 @@ struct arm_devmap_entry {
 };
 
 /*
- * Returns the lowest KVA address used in any entry in the registered devmap
+ * Return the lowest KVA address used in any entry in the registered devmap
  * table.  This works with whatever table is registered, including the internal
- * table used by arm_devmap_add_entry() if that routinue was used. Platforms can
+ * table used by arm_devmap_add_entry() if that routine was used. Platforms can
  * implement initarm_lastaddr() by calling this if static device mappings are
  * their only use of high KVA space.
  */
 vm_offset_t arm_devmap_lastaddr(void);
 
 /*
- * Routine to automatically allocate KVA (from the top of the address space
- * downwards) and make static device mapping entries in an internal table.  The
- * internal table is automatically registered on the first call to this.
+ * Automatically allocate KVA (from the top of the address space downwards) and
+ * make static device mapping entries in an internal table.  The internal table
+ * is automatically registered on the first call to this.
  */
 void arm_devmap_add_entry(vm_paddr_t pa, vm_size_t sz);
 
@@ -74,8 +74,8 @@ void arm_devmap_bootstrap(vm_offset_t _l1pt,
     const struct arm_devmap_entry *_table);
 
 /*
- * Routines to translate between virtual and physical addresses within a region
- * that is static-mapped by the devmap code.  If the given address range isn't
+ * Translate between virtual and physical addresses within a region that is
+ * static-mapped by the devmap code.  If the given address range isn't
  * static-mapped, then ptov returns NULL and vtop returns DEVMAP_PADDR_NOTFOUND.
  * The latter implies that you can't vtop just the last byte of physical address
  * space.  This is not as limiting as it might sound, because even if a device
