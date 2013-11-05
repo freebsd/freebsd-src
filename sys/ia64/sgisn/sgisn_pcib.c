@@ -637,7 +637,7 @@ sgisn_pcib_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 	struct sgisn_pcib_softc *sc = device_get_softc(bus);
 	busdma_tag_t tag;
 	bus_addr_t maxaddr = 0x80000000UL;
-	bus_addr_t ba, size;
+	bus_addr_t addr, ba, size;
 	uint64_t bits;
 	u_int ate, bitshft, count, entry, flags;
 
@@ -645,15 +645,24 @@ sgisn_pcib_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 
 	flags = busdma_md_get_flags(md);
 	if ((flags & BUSDMA_MD_IA64_DIRECT32) && ba < maxaddr) {
-		*ba_p = ba | maxaddr;
+		addr = ba | maxaddr;
+		*ba_p = addr;
 		return (0);
 	}
 
 	tag = busdma_md_get_tag(md);
 	maxaddr = busdma_tag_get_maxaddr(tag);
 	if (maxaddr == BUS_SPACE_MAXADDR) {
-		*ba_p = ba | ((u_long)sc->sc_fwbus->fw_hub_xid << 60) |
-		    (1UL << ((flags & BUSDMA_ALLOC_CONSISTENT) ? 56 : 59));
+		addr = ba;
+		if (flags & BUSDMA_ALLOC_CONSISTENT)
+			addr |= 1UL << 56;	/* bar */
+		if ((sc->sc_fwbus->fw_mode & 1) == 0)
+			addr |= 1UL << 59;	/* prefetch */
+		if (sc->sc_fwbus->fw_common.bus_asic == SGISN_PCIB_PIC)
+			addr |= (u_long)sc->sc_fwbus->fw_hub_xid << 60;
+		else
+			addr |= 1UL << 60;	/* memory */
+		*ba_p = addr;
 		return (0);
 	}
 
@@ -732,9 +741,13 @@ sgisn_pcib_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 	    (SGISN_PCIB_PAGE_SIZE * entry);
 
 	ba &= ~SGISN_PCIB_PAGE_MASK;
-	ba |= 1 << 0; /* valid */
-	ba |= 1 << ((flags & BUSDMA_ALLOC_CONSISTENT) ? 4 : 3);
-	ba |= (u_long)sc->sc_fwbus->fw_hub_xid << 8;
+	ba |= 1 << 0;		/* valid */
+	if ((sc->sc_fwbus->fw_mode & 1) == 0)
+		ba |= 1 << 3;	/* prefetch */
+	if (flags & BUSDMA_ALLOC_CONSISTENT)
+		ba |= 1 << 4;	/* bar */
+	if (sc->sc_fwbus->fw_common.bus_asic == SGISN_PCIB_PIC)
+		ba |= (u_long)sc->sc_fwbus->fw_hub_xid << 8;
 	while (count > 0) {
 		bus_space_write_8(sc->sc_tag, sc->sc_hndl,
 		    PCIB_REG_ATE(entry), ba);

@@ -557,7 +557,7 @@ sgisn_shub_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
     bus_addr_t *ba_p)
 {
 	struct sgisn_shub_softc *sc;
-	bus_addr_t ba, mask;
+	bus_addr_t addr, ba, mask;
 	u_int flags;
 
 	sc = device_get_softc(bus);
@@ -579,8 +579,17 @@ sgisn_shub_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 	 * For all other memory addresses, map to a fully qualified bus
 	 * address.
 	 */
-	mask = (1UL << (sc->sc_nasid_shft - 2)) - 1;
-	*ba_p = ((ba >> 2) & ~mask) | (ba & mask);
+	if (sc->sc_hubtype == 0) {
+		/* XXX assumes a PIC bridge. */
+		mask = (1UL << (sc->sc_nasid_shft - 2)) - 1;
+		addr = ((ba >> 2) & ~mask) | (ba & mask);
+	} else {
+		/* XXX assumes TIOCP bridge. */
+		addr = (ba >> sc->sc_nasid_shft) << 40;
+		addr |= ((ba >> (sc->sc_nasid_shft - 4)) & 0x3UL) << 36;
+		addr |= ba & ((1UL << (sc->sc_nasid_shft - 4)) - 1);
+	}
+	*ba_p = addr;
 	return (0);
 }
 
