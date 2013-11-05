@@ -2684,7 +2684,7 @@ netmap_poll(struct cdev *dev, int events, struct thread *td)
 	struct netmap_adapter *na;
 	struct ifnet *ifp;
 	struct netmap_kring *kring;
-	u_int i, check_all, want_tx, want_rx, revents = 0;
+	u_int i, check_all_tx, check_all_rx, want_tx, want_rx, revents = 0;
 	u_int lim_tx, lim_rx, host_forwarded = 0;
 	struct mbq q = { NULL, NULL, 0 };
 	void *pwait = dev;	/* linux compatibility */
@@ -2759,7 +2759,8 @@ netmap_poll(struct cdev *dev, int events, struct thread *td)
 	 * there are pending packets to send. The latter can be disabled
 	 * passing NETMAP_NO_TX_POLL in the NIOCREG call.
 	 */
-	check_all = (priv->np_qlast == NETMAP_HW_RING) && (lim_tx > 1 || lim_rx > 1);
+	check_all_tx = (priv->np_qlast == NETMAP_HW_RING) && (lim_tx > 1);
+	check_all_rx = (priv->np_qlast == NETMAP_HW_RING) && (lim_rx > 1);
 
 	if (priv->np_qlast != NETMAP_HW_RING) {
 		lim_tx = lim_rx = priv->np_qlast;
@@ -2833,7 +2834,7 @@ flush_tx:
 			nm_kr_put(kring);
 		}
 		if (want_tx && retry_tx) {
-			selrecord(td, check_all ?
+			selrecord(td, check_all_tx ?
 			    &na->tx_si : &na->tx_rings[priv->np_qfirst].si);
 			retry_tx = 0;
 			goto flush_tx;
@@ -2879,7 +2880,7 @@ do_retry_rx:
 		}
 		if (retry_rx) {
 			retry_rx = 0;
-			selrecord(td, check_all ?
+			selrecord(td, check_all_rx ?
 			    &na->rx_si : &na->rx_rings[priv->np_qfirst].si);
 			goto do_retry_rx;
 		}
