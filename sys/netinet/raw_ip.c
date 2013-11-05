@@ -774,16 +774,12 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 			flags |= RTF_HOST;
 
 		err = ifa_del_loopback_route((struct ifaddr *)ia, sa);
-		if (err == 0)
-			ia->ia_flags &= ~IFA_RTSELF;
 
 		err = rtinit(&ia->ia_ifa, RTM_ADD, flags);
 		if (err == 0)
 			ia->ia_flags |= IFA_ROUTE;
 
 		err = ifa_add_loopback_route((struct ifaddr *)ia, sa);
-		if (err == 0)
-			ia->ia_flags |= IFA_RTSELF;
 
 		ifa_free(&ia->ia_ifa);
 		break;
