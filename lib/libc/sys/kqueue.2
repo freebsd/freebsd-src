@@ -388,20 +388,25 @@ The process has called
 .It NOTE_EXEC
 The process has executed a new process via
 .Xr execve 2
-or similar call.
+or a similar call.
 .It NOTE_TRACK
 Follow a process across
 .Fn fork
 calls.
-The parent process will return with NOTE_TRACK set in the
+The parent process registers a new kevent to monitor the child process
+using the same
 .Va fflags
-field, while the child process will return with NOTE_CHILD set in
+as the original event.
+The child process will signal an event with NOTE_CHILD set in
 .Va fflags
 and the parent PID in
 .Va data .
-.It NOTE_TRACKERR
-This flag is returned if the system was unable to attach an event to
-the child process, usually due to resource limitations.
+.Pp
+If the parent process fails to register a new kevent
+.Pq usually due to resource limitations ,
+it will signal an event with NOTE_TRACKERR set in
+.Va fflags ,
+and the child process will not signal a NOTE_CHILD event.
 .El
 .Pp
 On return,
