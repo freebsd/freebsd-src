@@ -63,8 +63,14 @@ vm_offset_t
 initarm_lastaddr(void)
 {
 
-	ti_cpu_reset = NULL;
 	return (DEVMAP_BOOTSTRAP_MAP_START);
+}
+
+void
+initarm_early_init(void)
+{
+
+	ti_cpu_reset = NULL;
 }
 
 void
@@ -87,7 +93,7 @@ static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
  * Construct pmap_devmap[] with DT-derived config data.
  */
 int
-platform_devmap_init(void)
+initarm_devmap_init(void)
 {
 	int i = 0;
 #if defined(SOC_OMAP4)

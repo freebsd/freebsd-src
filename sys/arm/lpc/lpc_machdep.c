@@ -63,11 +63,15 @@ vm_offset_t
 initarm_lastaddr(void)
 {
 
+	return (fdt_immr_va);
+}
+
+void
+initarm_early_init(void)
+{
+
 	if (fdt_immr_addr(LPC_DEV_BASE) != 0)
 		while (1);
-
-	/* Platform-specific initialisation */
-	return (fdt_immr_va);
 }
 
 void
@@ -94,7 +98,7 @@ static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
  * Construct pmap_devmap[] with DT-derived config data.
  */
 int
-platform_devmap_init(void)
+initarm_devmap_init(void)
 {
 
 	/*

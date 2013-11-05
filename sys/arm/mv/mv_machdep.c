@@ -203,11 +203,15 @@ vm_offset_t
 initarm_lastaddr(void)
 {
 
+	return (fdt_immr_va);
+}
+
+void
+initarm_early_init(void)
+{
+
 	if (fdt_immr_addr(MV_BASE) != 0)
 		while (1);
-
-	/* Platform-specific initialisation */
-	return (fdt_immr_va);
 }
 
 void
@@ -316,7 +320,7 @@ __weak_reference(mv_default_fdt_pci_devmap, fdt_pci_devmap);
  * Construct pmap_devmap[] with DT-derived config data.
  */
 int
-platform_devmap_init(void)
+initarm_devmap_init(void)
 {
 	phandle_t root, child;
 	pcell_t bank_count;

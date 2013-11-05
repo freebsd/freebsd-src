@@ -107,10 +107,15 @@ vm_offset_t
 initarm_lastaddr(void)
 {
 
+	return (fdt_immr_va);
+}
+
+void
+initarm_early_init(void)
+{
+
 	if (fdt_immr_addr(TEGRA2_BASE) != 0)				/* FIXME ???? */
 		while (1);
-
-	return (fdt_immr_va);
 }
 
 void
@@ -132,7 +137,7 @@ static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
  * Construct pmap_devmap[] with DT-derived config data.
  */
 int
-platform_devmap_init(void)
+initarm_devmap_init(void)
 {
 	int i = 0;
 	fdt_devmap[i].pd_va = 0xe0000000;
