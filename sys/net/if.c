@@ -1525,6 +1525,25 @@ ifa_del_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 	return (error);
 }
 
+int
+ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *sa)
+{
+	struct rtentry *rt;
+
+	rt = rtalloc1_fib(sa, 0, 0, 0);
+	if (rt == NULL) {
+		log(LOG_DEBUG, "%s: fail", __func__);
+		return (EHOSTUNREACH);
+	}
+	((struct sockaddr_dl *)rt->rt_gateway)->sdl_type =
+	    ifa->ifa_ifp->if_type;
+	((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
+	    ifa->ifa_ifp->if_index;
+	RTFREE_LOCKED(rt);
+
+	return (0);
+}
+
 /*
  * XXX: Because sockaddr_dl has deeper structure than the sockaddr
  * structs used to represent other address families, it is necessary
