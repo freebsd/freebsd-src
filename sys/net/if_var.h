@@ -502,6 +502,7 @@ struct	ifnet *ifunit_ref(const char *);
 
 int	ifa_add_loopback_route(struct ifaddr *, struct sockaddr *);
 int	ifa_del_loopback_route(struct ifaddr *, struct sockaddr *);
+int	ifa_switch_loopback_route(struct ifaddr *, struct sockaddr *);
 
 struct	ifaddr *ifa_ifwithaddr(struct sockaddr *);
 int		ifa_ifwithaddr_check(struct sockaddr *);
