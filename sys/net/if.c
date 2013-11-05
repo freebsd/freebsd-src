@@ -2210,9 +2210,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		 */
 		new_flags = (ifr->ifr_flags & 0xffff) |
 		    (ifr->ifr_flagshigh << 16);
-		if (ifp->if_flags & IFF_SMART) {
-			/* Smart drivers twiddle their own routes */
-		} else if (ifp->if_flags & IFF_UP &&
+		if (ifp->if_flags & IFF_UP &&
 		    (new_flags & IFF_UP) == 0) {
 			if_down(ifp);
 		} else if (new_flags & IFF_UP &&
