@@ -1253,9 +1253,6 @@ ixgbe_init_locked(struct adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_RDT(i), adapter->num_rx_desc - 1);
 	}
 
-	/* Set up VLAN support and filter */
-	ixgbe_setup_vlan_hw_support(adapter);
-
 	/* Enable Receive engine */
 	rxctrl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
 	if (hw->mac.type == ixgbe_mac_82598EB)
@@ -1338,6 +1335,9 @@ ixgbe_init_locked(struct adapter *adapter)
 	}
 	/* Initialize the FC settings */
 	ixgbe_start_hw(hw);
+
+	/* Set up VLAN support and filter */
+	ixgbe_setup_vlan_hw_support(adapter);
 
 	/* And now turn on interrupts */
 	ixgbe_enable_intr(adapter);
@@ -4688,7 +4688,7 @@ ixgbe_register_vlan(void *arg, struct ifnet *ifp, u16 vtag)
 	bit = vtag & 0x1F;
 	adapter->shadow_vfta[index] |= (1 << bit);
 	++adapter->num_vlans;
-	ixgbe_init_locked(adapter);
+	ixgbe_setup_vlan_hw_support(adapter);
 	IXGBE_CORE_UNLOCK(adapter);
 }
 
@@ -4715,7 +4715,7 @@ ixgbe_unregister_vlan(void *arg, struct ifnet *ifp, u16 vtag)
 	adapter->shadow_vfta[index] &= ~(1 << bit);
 	--adapter->num_vlans;
 	/* Re-init to load the changes */
-	ixgbe_init_locked(adapter);
+	ixgbe_setup_vlan_hw_support(adapter);
 	IXGBE_CORE_UNLOCK(adapter);
 }
 
@@ -4737,6 +4737,20 @@ ixgbe_setup_vlan_hw_support(struct adapter *adapter)
 	if (adapter->num_vlans == 0)
 		return;
 
+	/* Setup the queues for vlans */
+	for (int i = 0; i < adapter->num_queues; i++) {
+		rxr = &adapter->rx_rings[i];
+		/* On 82599 the VLAN enable is per/queue in RXDCTL */
+		if (hw->mac.type != ixgbe_mac_82598EB) {
+			ctrl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(i));
+			ctrl |= IXGBE_RXDCTL_VME;
+			IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(i), ctrl);
+		}
+		rxr->vtag_strip = TRUE;
+	}
+
+	if ((ifp->if_capenable & IFCAP_VLAN_HWFILTER) == 0)
+		return;
 	/*
 	** A soft reset zero's out the VFTA, so
 	** we need to repopulate it now.
@@ -4755,18 +4769,6 @@ ixgbe_setup_vlan_hw_support(struct adapter *adapter)
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		ctrl |= IXGBE_VLNCTRL_VME;
 	IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, ctrl);
-
-	/* Setup the queues for vlans */
-	for (int i = 0; i < adapter->num_queues; i++) {
-		rxr = &adapter->rx_rings[i];
-		/* On 82599 the VLAN enable is per/queue in RXDCTL */
-		if (hw->mac.type != ixgbe_mac_82598EB) {
-			ctrl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(i));
-			ctrl |= IXGBE_RXDCTL_VME;
-			IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(i), ctrl);
-		}
-		rxr->vtag_strip = TRUE;
-	}
 }
 
 static void
