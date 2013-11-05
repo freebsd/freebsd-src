@@ -740,7 +740,7 @@ vtterm_splash(struct vt_device *vd)
 	vt_axis_t top, left;
 
 	/* Display a nice boot splash. */
-	if (!(vd->vd_flags & VDF_TEXTMODE)) {
+	if (!(vd->vd_flags & VDF_TEXTMODE) && (boothowto & RB_MUTE)) {
 
 		top = (vd->vd_height - vt_logo_height) / 2;
 		left = (vd->vd_width - vt_logo_width) / 2;
