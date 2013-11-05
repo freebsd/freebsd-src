@@ -36,7 +36,9 @@ CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 #               function with external linkage [-Wstatic-in-inline]
 # gcc_assert (index < (int) sizeof(dwarf_reg_size_table));
 #                                  ^
+.if ${COMPILER_TYPE} == "clang"
 CFLAGS+=	-Wno-static-in-inline
+.endif
 
 LDFLAGS+=	-nodefaultlibs
 LDADD+=		-lc
