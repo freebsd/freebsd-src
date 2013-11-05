@@ -24,10 +24,6 @@
  */
 
 
-#ifdef __FreeBSD__
-#define TEST_STUFF	// test code, does not compile yet on linux
-#endif /* __FreeBSD__ */
-
 /*
  * This module supports memory mapped access to network devices,
  * see netmap(4).
@@ -699,112 +695,6 @@ pkt_copy(void *_src, void *_dst, int l)
         }
 }
 
-
-#ifdef TEST_STUFF
-struct xxx {
-	char *name;
-	void (*fn)(uint32_t);
-};
-
-
-static void
-nm_test_defmtx(uint32_t n)
-{
-	uint32_t i;
-	struct mtx m;
-	mtx_init(&m, "test", NULL, MTX_DEF);
-	for (i = 0; i < n; i++) { mtx_lock(&m); mtx_unlock(&m); }
-	mtx_destroy(&m);
-	return;
-}
-
-static void
-nm_test_spinmtx(uint32_t n)
-{
-	uint32_t i;
-	struct mtx m;
-	mtx_init(&m, "test", NULL, MTX_SPIN);
-	for (i = 0; i < n; i++) { mtx_lock(&m); mtx_unlock(&m); }
-	mtx_destroy(&m);
-	return;
-}
-
-static void
-nm_test_rlock(uint32_t n)
-{
-	uint32_t i;
-	struct rwlock m;
-	rw_init(&m, "test");
-	for (i = 0; i < n; i++) { rw_rlock(&m); rw_runlock(&m); }
-	rw_destroy(&m);
-	return;
-}
-
-static void
-nm_test_wlock(uint32_t n)
-{
-	uint32_t i;
-	struct rwlock m;
-	rw_init(&m, "test");
-	for (i = 0; i < n; i++) { rw_wlock(&m); rw_wunlock(&m); }
-	rw_destroy(&m);
-	return;
-}
-
-static void
-nm_test_slock(uint32_t n)
-{
-	uint32_t i;
-	struct sx m;
-	sx_init(&m, "test");
-	for (i = 0; i < n; i++) { sx_slock(&m); sx_sunlock(&m); }
-	sx_destroy(&m);
-	return;
-}
-
-static void
-nm_test_xlock(uint32_t n)
-{
-	uint32_t i;
-	struct sx m;
-	sx_init(&m, "test");
-	for (i = 0; i < n; i++) { sx_xlock(&m); sx_xunlock(&m); }
-	sx_destroy(&m);
-	return;
-}
-
-
-struct xxx nm_tests[] = {
-	{ "defmtx", nm_test_defmtx },
-	{ "spinmtx", nm_test_spinmtx },
-	{ "rlock", nm_test_rlock },
-	{ "wlock", nm_test_wlock },
-	{ "slock", nm_test_slock },
-	{ "xlock", nm_test_xlock },
-};
-
-static int
-nm_test(struct nmreq *nmr)
-{
-	uint32_t scale, n, test;
-	static int old_test = -1;
-
-	test = nmr->nr_cmd;
-	scale = nmr->nr_offset;
-	n = sizeof(nm_tests) / sizeof(struct xxx) - 1;
-	if (test > n) {
-		D("test index too high, max %d", n);
-		return 0;
-	}
-
-	if (old_test != test) {
-		D("test %s scale %d", nm_tests[test].name, scale);
-		old_test = test;
-	}
-	nm_tests[test].fn(scale);
-	return 0;
-}
-#endif /* TEST_STUFF */
 
 /*
  * locate a bridge among the existing ones.
@@ -2444,13 +2334,6 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	switch (cmd) {
 	case NIOCGINFO:		/* return capabilities etc */
 		if (nmr->nr_version != NETMAP_API) {
-#ifdef TEST_STUFF
-			/* some test code for locks etc */
-			if (nmr->nr_version == 666) {
-				error = nm_test(nmr);
-				break;
-			}
-#endif /* TEST_STUFF */
 			D("API mismatch got %d have %d",
 				nmr->nr_version, NETMAP_API);
 			nmr->nr_version = NETMAP_API;
