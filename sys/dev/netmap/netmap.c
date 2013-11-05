@@ -535,7 +535,7 @@ BDG_NMB(struct netmap_mem_d *nmd, struct netmap_slot *slot)
 	return (unlikely(i >= nmd->pools[NETMAP_BUF_POOL].objtotal)) ?  lut[0].vaddr : lut[i].vaddr;
 }
 
-static void bdg_netmap_attach(struct netmap_adapter *);
+static int bdg_netmap_attach(struct netmap_adapter *);
 static int bdg_netmap_reg(struct ifnet *ifp, int onoff);
 int kern_netmap_regif(struct nmreq *nmr);
 
@@ -1854,6 +1854,7 @@ get_ifp(struct nmreq *nmr, struct ifnet **ifp, int create)
 		 * and attach it to the ifp
 		 */
 		struct netmap_adapter tmp_na;
+		int error;
 
 		if (nmr->nr_cmd) {
 			/* nr_cmd must be 0 for a virtual port */
@@ -1884,7 +1885,12 @@ get_ifp(struct nmreq *nmr, struct ifnet **ifp, int create)
 		strcpy(iter->if_xname, name);
 		tmp_na.ifp = iter;
 		/* bdg_netmap_attach creates a struct netmap_adapter */
-		bdg_netmap_attach(&tmp_na);
+		error = bdg_netmap_attach(&tmp_na);
+		if (error) {
+			D("error %d", error);
+			free(iter, M_DEVBUF);
+			return error;
+		}
 		cand2 = -1;	/* only need one port */
 	} else if (NETMAP_CAPABLE(iter)) { /* this is a NIC */
 		/* make sure the NIC is not already in use */
@@ -4075,7 +4081,7 @@ done:
 }
 
 
-static void
+static int
 bdg_netmap_attach(struct netmap_adapter *arg)
 {
 	struct netmap_adapter na;
@@ -4095,7 +4101,7 @@ bdg_netmap_attach(struct netmap_adapter *arg)
 	na.nm_mem = netmap_mem_private_new(arg->ifp->if_xname,
 			na.num_tx_rings, na.num_tx_desc,
 			na.num_rx_rings, na.num_rx_desc);
-	netmap_attach(&na, na.num_tx_rings);
+	return netmap_attach(&na, na.num_tx_rings);
 }
 
 
