@@ -13,7 +13,7 @@
 #include "SymbolFileDWARF.h"
 #include <string>
 #include <vector>
-#if __cplusplus >= 201103L
+#if __cplusplus >= 201103L || defined(_MSC_VER)
 #include <unordered_map>
 #else
 #include <ext/hash_map>
@@ -70,7 +70,7 @@ public:
     uint32_t    NumDescriptors() const { return m_descriptors.size(); }
     void        AddDescriptor(dw_offset_t cu_rel_offset, const char* name);
     void        Clear();
-    bool        Extract(const lldb_private::DataExtractor& debug_pubnames_data, lldb::offset_t *offset_ptr);
+    bool        Extract(const lldb_private::DWARFDataExtractor& debug_pubnames_data, lldb::offset_t *offset_ptr);
     void        Dump(lldb_private::Log *s) const;
     void        InitNameIndexes() const;
     void        Find(const char* name, bool ignore_case, std::vector<dw_offset_t>& die_offset_coll) const;
@@ -87,7 +87,7 @@ protected:
 
     dw_offset_t     m_offset;
     Header          m_header;
-#if __cplusplus >= 201103L
+#if __cplusplus >= 201103L || defined(_MSC_VER)
     typedef std::unordered_multimap<const char*, uint32_t, std::hash<const char*>, CStringEqualBinaryPredicate> cstr_to_index_mmap;
 #else
     typedef __gnu_cxx::hash_multimap<const char*, uint32_t, __gnu_cxx::hash<const char*>, CStringEqualBinaryPredicate> cstr_to_index_mmap;

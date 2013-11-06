@@ -338,9 +338,9 @@ ProcessElfCore::GetImageInfoAddress()
 {
     Target *target = &GetTarget();
     ObjectFile *obj_file = target->GetExecutableModule()->GetObjectFile();
-    Address addr = obj_file->GetImageInfoAddress();
+    Address addr = obj_file->GetImageInfoAddress(target);
 
-    if (addr.IsValid()) 
+    if (addr.IsValid())
         return addr.GetLoadAddress(target);
     return LLDB_INVALID_ADDRESS;
 }
@@ -362,13 +362,6 @@ enum {
     NT_FREEBSD_THRMISC       = 7,
     NT_FREEBSD_PROCSTAT_AUXV = 16
 };
-
-/// Align the given value to next boundary specified by the alignment bytes
-static uint32_t
-AlignToNext(uint32_t value, int alignment_bytes)
-{
-    return (value + alignment_bytes - 1) & ~(alignment_bytes - 1);
-}
 
 /// Note Structure found in ELF core dumps.
 /// This is PT_NOTE type program/segments in the core file.
@@ -421,7 +414,7 @@ struct ELFNote
             }
         }
 
-        const char *cstr = data.GetCStr(offset, AlignToNext(n_namesz, 4));
+        const char *cstr = data.GetCStr(offset, llvm::RoundUpToAlignment(n_namesz, 4));
         if (cstr == NULL)
         {
             Log *log (ProcessPOSIXLog::GetLogIfAllCategoriesSet (POSIX_LOG_PROCESS));
@@ -441,7 +434,8 @@ ParseFreeBSDPrStatus(ThreadData *thread_data, DataExtractor &data,
                      ArchSpec &arch)
 {
     lldb::offset_t offset = 0;
-    bool have_padding = (arch.GetMachine() == llvm::Triple::x86_64);
+    bool have_padding = (arch.GetMachine() == llvm::Triple::mips64 ||
+                         arch.GetMachine() == llvm::Triple::x86_64);
     int pr_version = data.GetU32(&offset);
 
     Log *log (ProcessPOSIXLog::GetLogIfAllCategoriesSet (POSIX_LOG_PROCESS));
@@ -525,7 +519,7 @@ ProcessElfCore::ParseThreadContextsFromNoteSegment(const elf::ELFProgramHeader *
 
         size_t note_start, note_size;
         note_start = offset;
-        note_size = AlignToNext(note.n_descsz, 4);
+        note_size = llvm::RoundUpToAlignment(note.n_descsz, 4);
 
         // Store the NOTE information in the current thread
         DataExtractor note_data (segment_data, note_start, note_size);
