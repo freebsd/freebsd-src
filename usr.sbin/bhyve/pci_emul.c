@@ -1252,7 +1252,7 @@ pci_emul_cmdwrite(struct pci_devinst *pi, uint32_t new, int bytes)
 	 * If the MMIO or I/O address space decoding has changed then
 	 * register/unregister all BARs that decode that address space.
 	 */
-	for (i = 0; i < PCI_BARMAX; i++) {
+	for (i = 0; i <= PCI_BARMAX; i++) {
 		switch (pi->pi_bar[i].type) {
 			case PCIBAR_NONE:
 			case PCIBAR_MEMHI64:
