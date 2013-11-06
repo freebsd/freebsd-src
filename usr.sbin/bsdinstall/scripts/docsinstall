@@ -59,7 +59,7 @@ NB: This requires a working, configured network connection." 0 0 0 \
 test $? -eq 0 || exit 0
 exec 3>&-
 
-# Let pkg_add be able to use name servers
+# Let pkg(8) be able to use name servers
 cp ${BSDINSTALL_TMPETC}/resolv.conf ${BSDINSTALL_CHROOT}/etc
 
 error() {
@@ -74,6 +74,13 @@ echo "FreeBSD Installer"
 echo "========================"
 echo
 
+echo "Please wait while the repository metadata is fetched."
+echo "This may take a few moments."
+
+env ASSUME_ALWAYS_YES=1 pkg -c ${BSDINSTALL_CHROOT} install pkg \
+	|| error pkg
+
 for i in $DOCS; do
-    pkg_add -C ${BSDINSTALL_CHROOT} -r ${i}-freebsd-doc || error $i-freebsd-doc
+    env ASSUME_ALWAYS_YES=1 pkg -c ${BSDINSTALL_CHROOT} install ${i}-freebsd-doc \
+	|| error $i-freebsd-doc
 done
