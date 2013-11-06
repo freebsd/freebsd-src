@@ -27,25 +27,28 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <math.h>
+#include "math.h"
+#include "math_private.h"
 
 float
 roundf(float x)
 {
 	float t;
+	uint32_t hx;
 
-	if (!isfinite(x))
-		return (x);
+	GET_FLOAT_WORD(hx, x);
+	if ((hx & 0x7fffffff) == 0x7f800000)
+		return (x + x);
 
-	if (x >= 0.0) {
+	if (!(hx & 0x80000000)) {
 		t = floorf(x);
-		if (t - x <= -0.5)
-			t += 1.0;
+		if (t - x <= -0.5F)
+			t += 1;
 		return (t);
 	} else {
 		t = floorf(-x);
-		if (t + x <= -0.5)
-			t += 1.0;
+		if (t + x <= -0.5F)
+			t += 1;
 		return (-t);
 	}
 }
