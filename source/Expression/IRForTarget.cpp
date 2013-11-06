@@ -361,8 +361,8 @@ IRForTarget::ResolveFunctionPointers(llvm::Module &llvm_module)
         // be called with the builtin attribute on call sites. Remove any such
         // attributes since it's illegal to have a builtin call to something
         // other than a nobuiltin function.
-        if (fun->hasFnAttribute(Attribute::NoBuiltin)) {
-            Attribute builtin = Attribute::get(fun->getContext(), Attribute::Builtin);
+        if (fun->hasFnAttribute(llvm::Attribute::NoBuiltin)) {
+            llvm::Attribute builtin = llvm::Attribute::get(fun->getContext(), llvm::Attribute::Builtin);
 
             for (auto u = fun->use_begin(), e = fun->use_end(); u != e; ++u) {
                 if (auto call = dyn_cast<CallInst>(*u)) {
@@ -2028,7 +2028,7 @@ IRForTarget::ReplaceStaticLiterals (llvm::BasicBlock &basic_block)
                 }
                 ss.flush();
                 
-                log->Printf("Found ConstantFP with size %lu and raw data %s", operand_data_size, s.c_str());
+                log->Printf("Found ConstantFP with size %zu and raw data %s", operand_data_size, s.c_str());
             }
             
             lldb_private::DataBufferHeap data(operand_data_size, 0);
@@ -2491,7 +2491,7 @@ IRForTarget::ReplaceVariables (Function &llvm_function)
     }
     
     if (log)
-        log->Printf("Total structure [align %" PRId64 ", size %lu]", alignment, size);
+        log->Printf("Total structure [align %" PRId64 ", size %zu]", alignment, size);
     
     return true;
 }

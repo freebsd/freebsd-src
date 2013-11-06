@@ -20,6 +20,7 @@
 #include "lldb/Core/Stream.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
+#include "lldb/Target/SystemRuntime.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Symbol/SymbolContext.h"
@@ -507,6 +508,34 @@ SBThread::GetQueueName () const
     return name;
 }
 
+lldb::queue_id_t
+SBThread::GetQueueID () const
+{
+    queue_id_t id = LLDB_INVALID_QUEUE_ID;
+    Mutex::Locker api_locker;
+    ExecutionContext exe_ctx (m_opaque_sp.get(), api_locker);
+
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
+    if (exe_ctx.HasThreadScope())
+    {
+        Process::StopLocker stop_locker;
+        if (stop_locker.TryLock(&exe_ctx.GetProcessPtr()->GetRunLock()))
+        {
+            id = exe_ctx.GetThreadPtr()->GetQueueID();
+        }
+        else
+        {
+            if (log)
+                log->Printf ("SBThread(%p)::GetQueueID() => error: process is running", exe_ctx.GetThreadPtr());
+        }
+    }
+    
+    if (log)
+        log->Printf ("SBThread(%p)::GetQueueID () => 0x%" PRIx64, exe_ctx.GetThreadPtr(), id);
+
+    return id;
+}
+
 SBError
 SBThread::ResumeNewPlan (ExecutionContext &exe_ctx, ThreadPlan *new_plan)
 {
@@ -910,6 +939,31 @@ SBThread::StepOverUntil (lldb::SBFrame &sb_frame,
 }
 
 SBError
+SBThread::JumpToLine (lldb::SBFileSpec &file_spec, uint32_t line)
+{
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
+    SBError sb_error;
+
+    Mutex::Locker api_locker;
+    ExecutionContext exe_ctx (m_opaque_sp.get(), api_locker);
+
+    if (log)
+        log->Printf ("SBThread(%p)::JumpToLine (file+line = %s:%u)", exe_ctx.GetThreadPtr(), file_spec->GetPath().c_str(), line);
+
+    if (!exe_ctx.HasThreadScope())
+    {
+        sb_error.SetErrorString("this SBThread object is invalid");
+        return sb_error;
+    }
+
+    Thread *thread = exe_ctx.GetThreadPtr();
+
+    Error err = thread->JumpToLine (file_spec.get(), line, true);
+    sb_error.SetError (err);
+    return sb_error;
+}
+
+SBError
 SBThread::ReturnFromFrame (SBFrame &frame, SBValue &return_value)
 {
     SBError sb_error;
@@ -1226,4 +1280,39 @@ SBThread::GetDescription (SBStream &description) const
         strm.PutCString ("No value");
     
     return true;
+}
+
+SBThread
+SBThread::GetExtendedBacktrace (const char *type)
+{
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
+    Mutex::Locker api_locker;
+    ExecutionContext exe_ctx (m_opaque_sp.get(), api_locker);
+    SBThread sb_origin_thread;
+
+    if (exe_ctx.HasThreadScope())
+    {
+        Process::StopLocker stop_locker;
+        if (stop_locker.TryLock(&exe_ctx.GetProcessPtr()->GetRunLock()))
+        {
+            ThreadSP real_thread(exe_ctx.GetThreadPtr());
+            if (real_thread)
+            {
+                ConstString type_const (type);
+                SystemRuntime *runtime = exe_ctx.GetProcessPtr()->GetSystemRuntime();
+                if (runtime)
+                {
+                    ThreadSP origin_thread = runtime->GetExtendedBacktrace (real_thread, type_const);
+                    sb_origin_thread.SetThread (origin_thread);
+                }
+            }
+        }
+        else
+        {
+            if (log)
+                log->Printf ("SBThread(%p)::GetExtendedBacktrace() => error: process is running", exe_ctx.GetThreadPtr());
+        }
+    }
+
+    return sb_origin_thread;
 }

@@ -13,6 +13,15 @@
 #include <algorithm>
 #include <memory>
 
+// Microsoft Visual C++ currently does not enable std::atomic to work
+// in CLR mode - as such we need to "hack around it" for MSVC++ builds only
+// using Windows specific instrinsics instead of the C++11 atomic support
+#ifdef _MSC_VER
+#include <intrin.h>
+#else
+#include <atomic>
+#endif
+
 //#define ENABLE_SP_LOGGING 1 // DON'T CHECK THIS LINE IN UNLESS COMMENTED OUT
 #if defined (ENABLE_SP_LOGGING)
 
@@ -24,27 +33,17 @@ namespace lldb_private {
 
 namespace imp {
     
-template <class T>
-inline T
-increment(T& t)
-{
-    return __sync_add_and_fetch(&t, 1);
-}
-
-template <class T>
-inline T
-decrement(T& t)
-{
-    return __sync_add_and_fetch(&t, -1);
-}
-
 class shared_count
 {
     shared_count(const shared_count&);
     shared_count& operator=(const shared_count&);
 
 protected:
+#ifdef _MSC_VER
     long shared_owners_;
+#else
+    std::atomic<long> shared_owners_;
+#endif
     virtual ~shared_count();
 private:
     virtual void on_zero_shared() = 0;
@@ -592,14 +591,22 @@ private:
     void
     lldb_private::ReferenceCountedBase<T>::add_shared()
     {
-        imp::increment(shared_owners_);
+#ifdef _MSC_VER
+        _InterlockedIncrement(&shared_owners_);
+#else
+        ++shared_owners_;
+#endif
     }
     
     template <class T>
     void
     lldb_private::ReferenceCountedBase<T>::release_shared()
     {
-        if (imp::decrement(shared_owners_) == -1)
+#ifdef _MSC_VER
+        if (_InterlockedDecrement(&shared_owners_) == -1)
+#else
+        if (--shared_owners_ == -1)
+#endif
             delete static_cast<T*>(this);
     }
 
@@ -713,7 +720,7 @@ public:
         return ptr_; 
     }
     
-    operator bool() const
+    explicit operator bool() const
     {
         return ptr_ != 0;
     }

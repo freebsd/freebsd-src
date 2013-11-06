@@ -480,7 +480,7 @@ SBDebugger::GetScriptingLanguage (const char *script_language_name)
 const char *
 SBDebugger::GetVersionString ()
 {
-    return GetVersion();
+    return lldb_private::GetVersion();
 }
 
 const char *
@@ -711,7 +711,7 @@ SBDebugger::GetIndexOfTarget (lldb::SBTarget target)
 }
 
 SBTarget
-SBDebugger::FindTargetWithProcessID (pid_t pid)
+SBDebugger::FindTargetWithProcessID (lldb::pid_t pid)
 {
     SBTarget sb_target;
     if (m_opaque_sp)
