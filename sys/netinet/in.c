@@ -72,7 +72,7 @@ static int in_mask2len(struct in_addr *);
 static void in_len2mask(struct in_addr *, int);
 static int in_lifaddr_ioctl(struct socket *, u_long, caddr_t,
 	struct ifnet *, struct thread *);
-static int in_aifaddr_ioctl(caddr_t, struct ifnet *, struct thread *);
+static int in_aifaddr_ioctl(u_long, caddr_t, struct ifnet *, struct thread *);
 static int in_difaddr_ioctl(caddr_t, struct ifnet *, struct thread *);
 
 static void	in_socktrim(struct sockaddr_in *);
@@ -259,9 +259,10 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		error = in_difaddr_ioctl(data, ifp, td);
 		sx_xunlock(&in_control_sx);
 		return (error);
+	case OSIOCAIFADDR:	/* 9.x compat */
 	case SIOCAIFADDR:
 		sx_xlock(&in_control_sx);
-		error = in_aifaddr_ioctl(data, ifp, td);
+		error = in_aifaddr_ioctl(cmd, data, ifp, td);
 		sx_xunlock(&in_control_sx);
 		return (error);
 	case SIOCALIFADDR:
@@ -335,14 +336,14 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 }
 
 static int
-in_aifaddr_ioctl(caddr_t data, struct ifnet *ifp, struct thread *td)
+in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 {
 	const struct in_aliasreq *ifra = (struct in_aliasreq *)data;
 	const struct sockaddr_in *addr = &ifra->ifra_addr;
 	const struct sockaddr_in *broadaddr = &ifra->ifra_broadaddr;
 	const struct sockaddr_in *mask = &ifra->ifra_mask;
 	const struct sockaddr_in *dstaddr = &ifra->ifra_dstaddr;
-	const int vhid = ifra->ifra_vhid;
+	const int vhid = (cmd == SIOCAIFADDR) ? ifra->ifra_vhid : 0;
 	struct ifaddr *ifa;
 	struct in_ifaddr *ia;
 	bool iaIsFirst;
