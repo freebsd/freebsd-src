@@ -13,7 +13,7 @@
 #define MY_PCAP
 #include "nm_util.h"
 
-char *version = "$Id: pcap.c 11463 2012-07-30 15:26:02Z luigi $";
+char *version = "$Id$";
 int verbose = 0;
 
 /*
@@ -445,7 +445,6 @@ pcap_close(pcap_t *p)
 	if (me->mem)
 		munmap(me->mem, me->memsize);
 	/* restore original flags ? */
-	ioctl(me->fd, NIOCUNREGIF, NULL);
 	close(me->fd);
 	bzero(me, sizeof(*me));
 	free(me);
