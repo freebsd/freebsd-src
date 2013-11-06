@@ -2985,7 +2985,7 @@ lem_txeof(struct adapter *adapter)
 	EM_TX_LOCK_ASSERT(adapter);
 
 #ifdef DEV_NETMAP
-	if (netmap_tx_irq(ifp, 0 | (NETMAP_LOCKED_ENTER|NETMAP_LOCKED_EXIT)))
+	if (netmap_tx_irq(ifp, 0))
 		return;
 #endif /* DEV_NETMAP */
         if (adapter->num_tx_desc_avail == adapter->num_tx_desc)
@@ -3454,8 +3454,10 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 	    BUS_DMASYNC_POSTREAD);
 
 #ifdef DEV_NETMAP
-	if (netmap_rx_irq(ifp, 0 | NETMAP_LOCKED_ENTER, &rx_sent))
+	if (netmap_rx_irq(ifp, 0, &rx_sent)) {
+		EM_RX_UNLOCK(adapter);
 		return (FALSE);
+	}
 #endif /* DEV_NETMAP */
 
 	if (!((current_desc->status) & E1000_RXD_STAT_DD)) {

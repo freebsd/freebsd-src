@@ -51,8 +51,8 @@
  *	ring->slot[i] gives us the i-th slot (we can access
  *		directly plen, flags, bufindex)
  *
- *	char *buf = NETMAP_BUF(ring, index) returns a pointer to
- *		the i-th buffer
+ *	char *buf = NETMAP_BUF(ring, x) returns a pointer to
+ *		the buffer numbered x
  *
  * Since rings are circular, we have macros to compute the next index
  *	i = NETMAP_RING_NEXT(ring, i);
