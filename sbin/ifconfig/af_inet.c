@@ -104,8 +104,7 @@ in_getaddr(const char *s, int which)
 	struct netent *np;
 
 	sin->sin_len = sizeof(*sin);
-	if (which != MASK)
-		sin->sin_family = AF_INET;
+	sin->sin_family = AF_INET;
 
 	if (which == ADDR) {
 		char *p = NULL;
@@ -124,6 +123,7 @@ in_getaddr(const char *s, int which)
 				*p = '/';
 				errx(1, "%s: bad value (width %s)", s, errstr);
 			}
+			min->sin_family = AF_INET;
 			min->sin_len = sizeof(*min);
 			min->sin_addr.s_addr = htonl(~((1LL << (32 - masklen)) - 1) & 
 				              0xffffffff);
