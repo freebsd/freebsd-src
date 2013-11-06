@@ -700,7 +700,7 @@ run_attach(device_t self)
 
 	TASK_INIT(&sc->cmdq_task, 0, run_cmdq_cb, sc);
 	TASK_INIT(&sc->ratectl_task, 0, run_ratectl_cb, sc);
-	callout_init((struct callout *)&sc->ratectl_ch, 1);
+	usb_callout_init_mtx(&sc->ratectl_ch, &sc->sc_mtx, 0);
 
 	if (bootverbose)
 		ieee80211_announce(ic);
@@ -1010,13 +1010,12 @@ run_load_microcode(struct run_softc *sc)
 	/* cheap sanity check */
 	temp = fw->data;
 	bytes = *temp;
-	if (bytes != be64toh(0xffffff0210280210)) {
+	if (bytes != be64toh(0xffffff0210280210ULL)) {
 		device_printf(sc->sc_dev, "firmware checksum failed\n");
 		error = EINVAL;
 		goto fail;
 	}
 
-	run_read(sc, RT2860_ASIC_VER_ID, &tmp);
 	/* write microcode image */
 	run_write_region_1(sc, RT2870_FW_BASE, base, 4096);
 	run_write(sc, RT2860_H2M_MAILBOX_CID, 0xffffffff);
@@ -2237,8 +2236,10 @@ run_ratectl_cb(void *arg, int pending)
 		ieee80211_iterate_nodes(&ic->ic_sta, run_iter_func, sc);
 	}
 
+	RUN_LOCK(sc);
 	if(sc->ratectl_run != RUN_RATECTL_OFF)
 		usb_callout_reset(&sc->ratectl_ch, hz, run_ratectl_to, sc);
+	RUN_UNLOCK(sc);
 }
 
 static void

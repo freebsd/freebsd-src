@@ -237,6 +237,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 {
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct sockaddr_in *addr = (struct sockaddr_in *)&ifr->ifr_addr;
+	struct ifaddr *ifa;
 	struct in_ifaddr *ia;
 	int error;
 
@@ -279,19 +280,25 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		return ((*ifp->if_ioctl)(ifp, cmd, data));
 	}
 
+	if (addr->sin_addr.s_addr != INADDR_ANY &&
+	    prison_check_ip4(td->td_ucred, &addr->sin_addr) != 0)
+		return (EADDRNOTAVAIL);
+
 	/*
-	 * Find address for this interface, if it exists.
+	 * For SIOCGIFADDR, pick the first address.  For the rest of
+	 * ioctls, try to find specified address.
 	 */
-	IN_IFADDR_RLOCK();
-	LIST_FOREACH(ia, INADDR_HASH(addr->sin_addr.s_addr), ia_hash) {
-		if (ia->ia_ifp == ifp &&
-		    ia->ia_addr.sin_addr.s_addr == addr->sin_addr.s_addr &&
-		    prison_check_ip4(td->td_ucred, &addr->sin_addr) == 0)
+	IF_ADDR_RLOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		ia = (struct in_ifaddr *)ifa;
+		if (cmd == SIOCGIFADDR || addr->sin_addr.s_addr == INADDR_ANY)
+			break;
+		if (ia->ia_addr.sin_addr.s_addr == addr->sin_addr.s_addr)
 			break;
 	}
 
-	if (ia == NULL) {
-		IN_IFADDR_RUNLOCK();
+	if (ifa == NULL) {
+		IF_ADDR_RUNLOCK(ifp);
 		return (EADDRNOTAVAIL);
 	}
 
@@ -322,7 +329,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		break;
 	}
 
-	IN_IFADDR_RUNLOCK();
+	IF_ADDR_RUNLOCK(ifp);
 
 	return (error);
 }
@@ -541,7 +548,8 @@ static int
 in_difaddr_ioctl(caddr_t data, struct ifnet *ifp, struct thread *td)
 {
 	const struct ifreq *ifr = (struct ifreq *)data;
-	const struct sockaddr_in *addr = (struct sockaddr_in *)&ifr->ifr_addr;
+	const struct sockaddr_in *addr = (const struct sockaddr_in *)
+	    &ifr->ifr_addr;
 	struct ifaddr *ifa;
 	struct in_ifaddr *ia;
 	bool deleteAny, iaIsLast;

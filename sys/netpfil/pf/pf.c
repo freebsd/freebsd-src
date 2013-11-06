@@ -4607,6 +4607,8 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 		if (ret >= 0) {
 			if (ret == PF_DROP && pd->af == AF_INET6 &&
 			    icmp_dir == PF_OUT) {
+				if (*state)
+					PF_STATE_UNLOCK(*state);
 				ret = pf_icmp_state_lookup(&key, pd, state, m,
 				    direction, kif, virtual_id, virtual_type,
 				    icmp_dir, &iidx, multi);
@@ -5058,6 +5060,8 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 			if (ret >= 0) {
 				if (ret == PF_DROP && pd->af == AF_INET6 &&
 				    icmp_dir == PF_OUT) {
+					if (*state)
+						PF_STATE_UNLOCK(*state);
 					ret = pf_icmp_state_lookup(&key, pd,
 					    state, m, direction, kif,
 					    virtual_id, virtual_type,
