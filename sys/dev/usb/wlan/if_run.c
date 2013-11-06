@@ -804,7 +804,13 @@ run_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	if (rvp == NULL)
 		return (NULL);
 	vap = &rvp->vap;
-	ieee80211_vap_setup(ic, vap, name, unit, opmode, flags, bssid, mac);
+
+	if (ieee80211_vap_setup(ic, vap, name, unit,
+	    opmode, flags, bssid, mac) != 0) {
+		/* out of memory */
+		free(rvp, M_80211_VAP);
+		return (NULL);
+	}
 
 	vap->iv_key_update_begin = run_key_update_begin;
 	vap->iv_key_update_end = run_key_update_end;
