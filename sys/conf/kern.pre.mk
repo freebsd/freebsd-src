@@ -80,16 +80,17 @@ INCLUDES+= -I$S/dev/cxgb -I$S/dev/cxgbe
 
 CFLAGS=	${COPTFLAGS} ${C_DIALECT} ${DEBUG} ${CWARNFLAGS}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
+CFLAGS_PARAM_INLINE_UNIT_GROWTH?=100
+CFLAGS_PARAM_LARGE_FUNCTION_GROWTH?=1000
+.if ${MACHINE_CPUARCH} == "mips"
+CFLAGS_ARCH_PARAMS?=--param max-inline-insns-single=1000
+.endif
 .if ${COMPILER_TYPE} != "clang"
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
-.if ${MACHINE_CPUARCH} != "mips"
-CFLAGS+= --param inline-unit-growth=100
-CFLAGS+= --param large-function-growth=1000
-.else
-# XXX Actually a gross hack just for Octeon because of the Simple Executive.
-CFLAGS+= --param inline-unit-growth=10000
-CFLAGS+= --param large-function-growth=100000
-CFLAGS+= --param max-inline-insns-single=10000
+CFLAGS+= --param inline-unit-growth=${CFLAGS_PARAM_INLINE_UNIT_GROWTH}
+CFLAGS+= --param large-function-growth=${CFLAGS_PARAM_LARGE_FUNCTION_GROWTH}
+.if defined(CFLAGS_ARCH_PARAMS)
+CFLAGS+=${CFLAGS_ARCH_PARAMS}
 .endif
 .endif
 WERROR?= -Werror
@@ -193,7 +194,7 @@ MKMODULESENV+=	WITHOUT_MODULES="${WITHOUT_MODULES}"
 MKMODULESENV+=	DEBUG_FLAGS="${DEBUG}"
 .endif
 
-# Are various things configured?
+# Detect knerel config options that force stack frames to be turned on.
 DDB_ENABLED!=	grep DDB opt_ddb.h || true ; echo
 DTR_ENABLED!=	grep KDTRACE_FRAME opt_kdtrace.h || true ; echo
 HWPMC_ENABLED!=	grep HWPMC opt_hwpmc_hooks.h || true ; echo
