@@ -1016,7 +1016,6 @@ run_load_microcode(struct run_softc *sc)
 		goto fail;
 	}
 
-	run_read(sc, RT2860_ASIC_VER_ID, &tmp);
 	/* write microcode image */
 	run_write_region_1(sc, RT2870_FW_BASE, base, 4096);
 	run_write(sc, RT2860_H2M_MAILBOX_CID, 0xffffffff);
