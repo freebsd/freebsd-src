@@ -68,7 +68,7 @@
 #define	SIOCGIFMETRIC	_IOWR('i', 23, struct ifreq)	/* get IF metric */
 #define	SIOCSIFMETRIC	 _IOW('i', 24, struct ifreq)	/* set IF metric */
 #define	SIOCDIFADDR	 _IOW('i', 25, struct ifreq)	/* delete IF addr */
-/*	OSIOCAIFADDR	 _IOW('i', 26, struct oifaliasreq) FreeBSD 9.x */
+#define	OSIOCAIFADDR	 _IOW('i', 26, struct oifaliasreq) /* FreeBSD 9.x */
 #define	SIOCALIFADDR	 _IOW('i', 27, struct if_laddrreq) /* add IF addr */
 #define	SIOCGLIFADDR	_IOWR('i', 28, struct if_laddrreq) /* get IF addr */
 #define	SIOCDLIFADDR	 _IOW('i', 29, struct if_laddrreq) /* delete IF addr */
