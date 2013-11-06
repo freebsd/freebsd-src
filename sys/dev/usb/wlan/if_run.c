@@ -1170,13 +1170,32 @@ run_write_region_1(struct run_softc *sc, uint16_t reg, const uint8_t *buf,
 	return (error);
 #else
 	usb_device_request_t req;
+	int error = 0;
 
-	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
-	req.bRequest = RT2870_WRITE_REGION_1;
-	USETW(req.wValue, 0);
-	USETW(req.wIndex, reg);
-	USETW(req.wLength, len);
-	return (run_do_request(sc, &req, buf));
+	/*
+	 * NOTE: It appears the WRITE_REGION_1 command cannot be
+	 * passed a huge amount of data, which will crash the
+	 * firmware. Limit amount of data passed to 64-bytes at a
+	 * time:
+	 */
+	while (len > 0) {
+		int delta = 64;
+		if (delta > len)
+			delta = len;
+
+		req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+		req.bRequest = RT2870_WRITE_REGION_1;
+		USETW(req.wValue, 0);
+		USETW(req.wIndex, reg);
+		USETW(req.wLength, delta);
+		error = run_do_request(sc, &req, __DECONST(uint8_t *, buf));
+		if (error != 0)
+			break;
+		reg += delta;
+		buf += delta;
+		len -= delta;
+	}
+	return (error);
 #endif
 }
 
