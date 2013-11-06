@@ -7,6 +7,8 @@
 #
 #	picobsd [options] image_type [site_name]
 #
+# CWARNFLAGS can be used to pass -Wall or similar options
+#
 # Where image_type is a directory with the picobsd config info,
 # and ${image_type}/floppy.tree.${site_name} contains
 # optional site-specific configuration.
@@ -164,7 +166,7 @@ create_includes_and_libraries2() { # opt_dir opt_target
     log "create_includes_and_libraries2() for ${SRC} $1"
     if [ ${OSVERSION} -ge 600000 ] ; then
 	no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R" # WITHOUT_CDDL=1"
-	no="$no -DWITHOUT_CLANG"
+	no="$no -DMALLOC_PRODUCTION"
     else
 	no="-DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R"
     fi
@@ -435,7 +437,7 @@ do_kernel() {		# OK
 	[ "${o_do_modules}" = "yes" ] && export MODULES=""
 	# kernel build not parallelizable yet
 	${BINMAKE} KERNCONF=${l_kernconf}	\
-		-v -f ${PICO_TREE}/build/Makefile.conf ) || \
+		-f ${PICO_TREE}/build/Makefile.conf ) || \
 	    fail $? missing_kernel
 }
 
@@ -675,7 +677,7 @@ populate_mfs_tree() {
     a=${BUILDDIR}/crunch1.conf
     ( export BUILDDIR SRC MY_TREE PICO_OBJ ;
 	${BINMAKE} \
-		-v -f ${PICO_TREE}/build/Makefile.conf ${BUILDDIR}/crunch.mk )
+		-f ${PICO_TREE}/build/Makefile.conf ${BUILDDIR}/crunch.mk )
     log "Libs are ${LIBS} "
     export SRC # used by crunch.mk
     # export LIBS CFLAGS
@@ -691,17 +693,22 @@ populate_mfs_tree() {
     # rm $a # do not remove!
     ) || fail $? crunch
 
-    if [ -f ${dst}/stand/sshd ] ; then
-	log "Setting up host key for sshd:"
-	if [ -f ${BUILDDIR}/floppy.tree/etc/ssh_host_key.gz ] ; then
-	    log "Using existing host key"
+    log "Setting up host key for sshd:"
+    for K in rsa1 rsa dsa ; do
+	if [ $K = rsa1 ] ; then
+	    i=ssh_host_key
 	else
-	    log "Generating new host key" 
-	    ssh-keygen -t rsa1 -f ${BUILDDIR}/floppy.tree/etc/ssh_host_key \
-		 -N "" -C "root@picobsd"
-	    gzip -9 ${BUILDDIR}/floppy.tree/etc/ssh_host_key* || true
+	    i=ssh_host_${K}_key
 	fi
-    fi
+	if [ -f ${BUILDDIR}/floppy.tree/etc/$i.gz ] ; then
+	    log "Using existing host key $i"
+	else
+	    log "Generating new host key $i" 
+	    ssh-keygen -t $K -f ${BUILDDIR}/floppy.tree/etc/$i \
+		     -N "" -C "root@picobsd"
+	    gzip -9 ${BUILDDIR}/floppy.tree/etc/${i}* || true
+	fi
+    done
 
     log "Copy generic and site-specific MFS tree..."
     for MFS_TREE in ${PICO_TREE}/mfs_tree ${MY_TREE}/mfs_tree ; do
@@ -877,10 +884,12 @@ fill_floppy_image() {
     log "Compress with kgzip and copy to floppy image"
 
     mkdir -p  ${dst}/boot/kernel
-    # XXX update loader.conf
-    echo "hint.acpi.0.disabled=\"1\"" > ${dst}/boot/loader.conf
-    echo "console=\"comconsole\"" >> ${dst}/boot/loader.conf
-    cp -p /boot/loader ${dst}/boot/loader || fail $? no_space "copying bootloader"
+    # XXX loader.conf does not work unless we also load the .4th files
+    # echo "hint.acpi.0.disabled=\"1\"" > ${dst}/boot/loader.conf
+    # echo "console=\"comconsole\"" >> ${dst}/boot/loader.conf
+    local blf="loader* *.4th" # loader.rc loader.4th support.4th"
+    (cd /boot; cp -p loader ${dst}/boot) || fail $? no_space "copying bootloader"
+    cp ${MY_TREE}/floppy.tree/boot/loader.conf ${dst}/boot || true
     gzip -c kernel > ${dst}/boot/kernel/kernel.gz || fail $? no_space "copying kernel"
 
     # now transfer the floppy tree. If it is already in mfs, dont bother.
@@ -965,11 +974,20 @@ set_build_parameters() {
     if [ ${OSVERSION} -ge 500035 ] ; then
 	export MAKEOBJDIRPREFIX=${l_objtree}
 	export TARGET_ARCH=${o_arch} TARGET=${o_arch}
-	export WITHOUT_CLANG_IS_CC=1
+	# XXX 20131001 see if CLANG fixes the build
+	export WITHOUT_CLANG_IS_CC=yes
+	export WITH_GCC=yes
+	export WITH_GNUCXX=yes
+	export WITHOUT_CLANG=yes
+	export WITHOUT_ICONV=yes
+
 	# XXX why change machine_arch ?
 	#-- export MACHINE_ARCH=`uname -m` MACHINE=`uname -m`
 	# export CWARNFLAGS="-Wextra -Wno-sign-compare -Wno-missing-field-initializers"
+	# XXX BINMAKE does not really exist anymore
 	eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V BINMAKE`\""
+	[ "$BINMAKE" = "" ] && \
+	   eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V SUB_MAKE`\""
     fi
 
     if [ "${o_init_src}" != "" ] ; then
