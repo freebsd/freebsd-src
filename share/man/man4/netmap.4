@@ -346,13 +346,12 @@ indicates that the packet continues with subsequent buffers;
 the last buffer in a packet must have the flag clear.
 The maximum length of a chain is 64 buffers.
 .Em This is only supported on virtual ports
-.It ns_ctr
-on receive rings, contains the number of remaining buffers
+.It NS_RFRAGS(slot)
+on receive rings, returns the number of remaining buffers
 in a packet, including this one.
 Slots with a value greater than 1 also have NS_MOREFRAG set.
 The length refers to the individual buffer, there is no
-field for the total length
-XXX maybe put it in the ptr field ?
+field for the total length.
 .Pp
 On transmit rings, if NS_DST is set, it is passed to the lookup
 function, which can use it e.g. as the index of the destination
