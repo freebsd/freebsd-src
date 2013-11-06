@@ -11,7 +11,7 @@ kern/kern_clocksource.c			standard
 arm/freescale/imx/imx_machdep.c		standard
 arm/freescale/imx/imx53_machdep.c	standard
 arm/freescale/imx/common.c		standard
-arm/freescale/imx/bus_space.c		standard
+arm/arm/bus_space-v6.c			standard
 
 # Special serial console for debuging early boot code
 #arm/freescale/imx/console.c		standard

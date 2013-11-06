@@ -16,7 +16,7 @@ kern/kern_clocksource.c			standard
 #
 arm/arm/gic.c				standard
 arm/arm/pl310.c				standard
-arm/freescale/imx/bus_space.c		standard
+arm/arm/bus_space-v6.c			standard
 arm/freescale/imx/common.c		standard
 arm/freescale/imx/imx6_anatop.c		standard
 arm/freescale/imx/imx6_ccm.c		standard
