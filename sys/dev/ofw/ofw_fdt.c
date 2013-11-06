@@ -283,6 +283,8 @@ ofw_fdt_nextprop(ofw_t ofw, phandle_t package, const char *previous, char *buf,
 
 	/* Find the first prop in the node */
 	offset = fdt_first_property_offset(fdtp, offset);
+	if (offset < 0)
+		return (0); /* No properties */
 
 	if (previous != NULL) {
 		while (offset >= 0) {
