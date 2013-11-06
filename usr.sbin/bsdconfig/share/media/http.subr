@@ -321,7 +321,7 @@ f_media_set_http()
 	device_http set type     $DEVICE_TYPE_HTTP
 	device_http set init     f_media_init_http
 	device_http set get      f_media_get_http
-	device_http set shutdown f_media_shutdown_http
+	device_http set shutdown :
 	device_http set private  network
 	f_struct_copy device_http device_media
 	f_struct_free device_http
