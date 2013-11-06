@@ -588,7 +588,7 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	 */
 	if (!mac_provided) {
 		snprintf(nstr, sizeof(nstr), "%d-%d-%s", pi->pi_slot,
-	            pi->pi_func, vmname);
+		    pi->pi_func, vmname);
 
 		MD5Init(&mdctx);
 		MD5Update(&mdctx, nstr, strlen(nstr));
@@ -632,7 +632,8 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pthread_mutex_init(&sc->tx_mtx, NULL);
 	pthread_cond_init(&sc->tx_cond, NULL);
 	pthread_create(&sc->tx_tid, NULL, pci_vtnet_tx_thread, (void *)sc);
-        snprintf(tname, sizeof(tname), "%s vtnet%d tx", vmname, pi->pi_slot);
+	snprintf(tname, sizeof(tname), "vtnet-%d:%d tx", pi->pi_slot,
+	    pi->pi_func);
         pthread_set_name_np(sc->tx_tid, tname);
 
 	return (0);
