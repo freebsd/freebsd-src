@@ -70,10 +70,13 @@ Show default value(s) only (this is the same as setting RC_CONFS to NULL or
 passing `-f' with a NULL file-argument).
 .It Fl e
 Print query results as
-.Ql var=value
-.Pq useful for producing output to be fed back in .
-Ignored if
-.Fl n
+.Xr sh 1
+compatible syntax
+.Pq for example, Ql var=value .
+Ignored if either
+.Ql Fl n
+or
+.Ql Fl F
 is specified.
 .It Fl f Ar file
 Operate on the specified file(s) instead of the files obtained by reading the
