@@ -171,7 +171,7 @@ disc1.iso: system
 bootonly.iso: bootonly
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} bootonly
 
-memstick: memstick.img mini-memstick.img
+memstick: memstick.img
 memstick.img: system
 	sh ${.CURDIR}/${TARGET}/make-memstick.sh release ${.TARGET}
 
