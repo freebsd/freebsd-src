@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
 ]>
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+<info><title>&os; &release.current; Release Notes</title>
+  
 
-<article>
-<articleinfo>
-  <title>&os; &release.current; Release Notes</title>
-
-  <corpauthor>The &os; Project</corpauthor>
+  <author><orgname>The &os; Project</orgname></author>
 
   <pubdate>$FreeBSD$</pubdate>
 
@@ -31,7 +30,7 @@
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
-  <legalnotice id="trademarks" role="trademarks">
+  <legalnotice xml:id="trademarks" role="trademarks">
     &tm-attrib.freebsd;
     &tm-attrib.ibm;
     &tm-attrib.ieee;
@@ -49,9 +48,9 @@
       kernel and userland.
       Some brief remarks on upgrading are also presented.</para>
   </abstract>
-</articleinfo>
+</info>
 
-<sect1 id="intro">
+<sect1 xml:id="intro">
   <title>Introduction</title>
 
   <para>This document contains the release notes for &os;
@@ -64,24 +63,21 @@
     apply represents the latest point along the &release.branch; development
     branch since &release.branch; was created.  Information regarding pre-built, binary
     &release.type; distributions along this branch
-    can be found at <ulink url="&release.url;"></ulink>.</para>
+    can be found at <uri xlink:href="&release.url;">&release.url;</uri>.</para>
 
   <para releasetype="snapshot">The &release.type; distribution to which these release notes
     apply represents a point along the &release.branch; development
     branch between &release.prev; and the future &release.next;.
     Information regarding
     pre-built, binary &release.type; distributions along this branch
-    can be found at <ulink url="&release.url;"></ulink>.</para>
+    can be found at <uri xlink:href="&release.url;">&release.url;</uri>.</para>
 
   <para releasetype="release">This distribution of &os; &release.current; is a
-    &release.type; distribution.  It can be found at <ulink
-    url="&release.url;"></ulink> or any of its mirrors.  More
+    &release.type; distribution.  It can be found at <uri xlink:href="&release.url;">&release.url;</uri> or any of its mirrors.  More
     information on obtaining this (or other) &release.type;
-    distributions of &os; can be found in the <ulink
-    url="&url.books.handbook;/mirrors.html"><quote>Obtaining
-    &os;</quote> appendix</ulink> to the <ulink
-    url="&url.books.handbook;/">&os;
-    Handbook</ulink>.</para>
+    distributions of &os; can be found in the <link xlink:href="&url.books.handbook;/mirrors.html"><quote>Obtaining
+    &os;</quote> appendix</link> to the <link xlink:href="&url.books.handbook;/">&os;
+    Handbook</link>.</para>
 
   <para>All users are encouraged to consult the release errata before
     installing &os;.  The errata document is updated with
@@ -93,7 +89,7 @@
 
 </sect1>
 
-<sect1 id="new">
+<sect1 xml:id="new">
   <title>What's New</title>
 
   <para>This section describes
@@ -114,14 +110,14 @@
     primarily on security advisories, user-visible changes, and major
     architectural improvements.</para>
 
-  <sect2 id="security">
+  <sect2 xml:id="security">
     <title>Security Advisories</title>
 
-    <para></para>
+    <para/>
 
   </sect2>
 
-  <sect2 id="kernel">
+  <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
     <para>A new &man.cpuset.2; API has been added
@@ -173,7 +169,7 @@
       scheduler is now the default process scheduler
       in <filename>GENERIC</filename> kernels.</para>
 
-    <sect3 id="boot">
+    <sect3 xml:id="boot">
       <title>Boot Loader Changes</title>
 
       <para arch="amd64,i386" role="merged">The BTX kernel used by the boot
@@ -190,7 +186,7 @@
 
     </sect3>
 
-    <sect3 id="proc">
+    <sect3 xml:id="proc">
       <title>Hardware Support</title>
 
       <para role="merged">The &man.cmx.4; driver, a driver for Omnikey CardMan 4040
@@ -202,14 +198,14 @@
         Laboratories CP2101/CP2102-based USB serial adapters, has been
         imported from OpenBSD.</para>
 
-      <sect4 id="mm">
+      <sect4 xml:id="mm">
 	<title>Multimedia Support</title>
 
-	<para></para>
+	<para/>
 
       </sect4>
 
-      <sect4 id="net-if">
+      <sect4 xml:id="net-if">
 	<title>Network Interface Support</title>
 
 	<para>The &man.ale.4; driver has been added to provide support
@@ -250,7 +246,7 @@
       </sect4>
     </sect3>
 
-    <sect3 id="net-proto">
+    <sect3 xml:id="net-proto">
       <title>Network Protocols</title>
 
       <para>The &man.bpf.4; packet filter and capture facility now
@@ -276,7 +272,7 @@
 
     </sect3>
 
-    <sect3 id="disks">
+    <sect3 xml:id="disks">
       <title>Disks and Storage</title>
 
       <para role="merged">The &man.aac.4; driver now supports volumes larger than
@@ -294,7 +290,7 @@
 
     </sect3>
 
-    <sect3 id="fs">
+    <sect3 xml:id="fs">
       <title>File Systems</title>
 
       <para>A problem with using &man.mmap.2; on ZFS filesystems has
@@ -312,7 +308,7 @@
     </sect3>
   </sect2>
 
-  <sect2 id="userland">
+  <sect2 xml:id="userland">
     <title>Userland Changes</title>
 
     <para role="merged">The &man.adduser.8; utility now supports
@@ -427,15 +423,15 @@
       to send probe packets with no upper-layer protocol, rather than
       the usual UDP probe packets.</para>
 
-    <sect3 id="rc-scripts">
+    <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
-      <para></para>
+      <para/>
 
     </sect3>
   </sect2>
 
-  <sect2 id="contrib">
+  <sect2 xml:id="contrib">
     <title>Contributed Software</title>
 
     <para role="merged"><application>AMD</application> has been updated from 6.0.10
@@ -493,7 +489,7 @@
 
   </sect2>
 
-  <sect2 id="ports">
+  <sect2 xml:id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
     <para>The &man.pkg.create.1; utility now supports
@@ -511,25 +507,25 @@
 
   </sect2>
 
-  <sect2 id="releng">
+  <sect2 xml:id="releng">
     <title>Release Engineering and Integration</title>
 
     <para role="merged">The supported version of
       the <application>GNOME</application> desktop environment
-      (<filename role="package">x11/gnome2</filename>) has been
+      (<package>x11/gnome2</package>) has been
       updated from 2.20.1 to 2.22.</para>
 
   </sect2>
 
-  <sect2 id="doc">
+  <sect2 xml:id="doc">
     <title>Documentation</title>
 
-    <para></para>
+    <para/>
 
   </sect2>
 </sect1>
 
-<sect1 id="upgrade">
+<sect1 xml:id="upgrade">
   <title>Upgrading from previous releases of &os;</title>
 
   <para arch="amd64,i386">Beginning with &os; 6.2-RELEASE,

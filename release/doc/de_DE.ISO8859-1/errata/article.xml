@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
 ]>
-
 <!--
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
 	files, this file should remain as a single SGML file, so that
@@ -18,14 +17,13 @@
 	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.xml,v 1.39 2003/05/24 13:23:46 ue Exp $
 	basiert auf: 1.38
 -->
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:lang="de">
+  <info><title>&os; &release; Errata</title>
 
-<article lang="de">
-  <articleinfo>
-
-    <title>&os; &release; Errata</title>
+    
 
     <authorgroup>
-      <corpauthor>Das &os; Projekt</corpauthor>
+      <author><orgname>Das &os; Projekt</orgname></author>
     </authorgroup>
 
     <pubdate>$FreeBSD$</pubdate>
@@ -44,7 +42,6 @@
       <year>2003</year>
       <holder role="mailto:de-bsd-translators@de.FreeBSD.org">The FreeBSD German Documentation Project</holder>
     </copyright>
-  </articleinfo>
 
   <abstract>
     <para>Dieses Dokument enth&auml;lt die Errata f&uuml;r &os; &release;,
@@ -61,8 +58,9 @@
       Erscheinen von &os; 5.1-RELEASE weiter aktualisiert
       werden.</para>
   </abstract>
+  </info>
 
-  <sect1 id="intro">
+  <sect1 xml:id="intro">
     <title>Einleitung</title>
 
     <para>Diese Errata enthalten <quote>brandhei&szlig;e</quote>
@@ -78,7 +76,7 @@
       CDROM) ist per Definition veraltet.  Allerdings sind im Internet
       aktualisierte Versionen verf&uuml;gbar, die die <quote>aktuellen
       Errata</quote> f&uuml;r diese Version sind.  Diese Versionen
-      sind bei <ulink url="http://www.FreeBSD.org/releases/"></ulink>
+      sind bei <uri xlink:href="http://www.FreeBSD.org/releases/">http://www.FreeBSD.org/releases/</uri>
       und allen aktuellen Mirrors dieser Webseite
       verf&uuml;gbar.</para>
 
@@ -89,19 +87,17 @@
       Dokumentes.</para>
 
     <para>Die Liste der &os; CERT security advisories finden Sie bei
-      <ulink url="http://www.FreeBSD.org/security/"></ulink> oder
-      <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+      <uri xlink:href="http://www.FreeBSD.org/security/">http://www.FreeBSD.org/security/</uri> oder
+      <uri xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/">ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/</uri>.</para>
   </sect1>
 
-  <sect1 id="security">
+  <sect1 xml:id="security">
     <title>Sicherheitshinweise</title>
 
     <para>Ein &uuml;ber das Netzwerk nutzbarer Fehler in
       <application>CVS</application> k&ouml;nnte dazu f&uuml;hren,
       da&szlig; ein Angreifer beliebige Programme auf dem CVS Server
-      ausf&uuml;hren kann.  Weitere Informationen finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>.</para>
+      ausf&uuml;hren kann.  Weitere Informationen finden Sie in <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</link>.</para>
 
     <para>Durch Auswertung der Antwortzeiten von
       <application>OpenSSL</application> w&auml;re es einem Angreifer
@@ -113,8 +109,7 @@
       den f&uuml;r Sicherheitsprobleme unterst&uuml;tzten
       Entwicklungszweigen wurde der Fehler durch die neue
       <application>OpenSSL</application> Version 0.9.6i behoben.
-      Weitere Informationen finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</ulink></para>
+      Weitere Informationen finden Sie in <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</link></para>
 
     <para>Es ist theoretisch m&ouml;glich, da&szlig; ein Angreifer den
       geheimen Schl&uuml;ssel ermittelt, der von der Erweiterung
@@ -122,8 +117,7 @@
       Effektivit&auml;t beim Schutz vor TCP SYN Flood
       Denial-of-Service Angriffen.  Hinweise, wie sie das Problem
       umgehen k&ouml;nnen und weitere Informationen finden Sie in
-      <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>.</para>
+      <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</link>.</para>
 
     <para>Durch diverse Puffer-&Uuml;berl&auml;ufe in den von
       <application>sendmail</application> genutzten Routinen zum
@@ -132,26 +126,22 @@
       und so beliebige Programme ausf&uuml;hren zu lassen.  Diese
       Programme verf&uuml;gten &uuml;ber die Rechte des Benutzers,
       unter dessen Kennung &man.sendmail.8; lief, also typischerweise
-      <username>root</username>.  Weitere Informationen und Verweise
-      auf Patches finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>
-      und <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:07.sendmail.asc">FreeBSD-SA-03:07</ulink>.</para>
+      <systemitem class="username">root</systemitem>.  Weitere Informationen und Verweise
+      auf Patches finden Sie in <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</link>
+      und <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:07.sendmail.asc">FreeBSD-SA-03:07</link>.</para>
 
     <para>Durch einen Puffer-&Uuml;berlauf im XDR Kodierer/Dekodierer
       war es einem Angreifer m&ouml;glich, den Service zum Absturz zu
       bringen.  Informationen, wie Sie den Fehler beheben, finden Sie
-      in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>.</para>
+      in <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</link>.</para>
 
     <para><application>OpenSSL</application> enth&auml;lt zwei
       Schwachstellen, die erst vor kurzer Zeit bekannt gemacht wurden.
       Informationen, wie Sie die Probleme umgehen k&ouml;nnen und
-      weitere Informationen finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</ulink>.</para>
+      weitere Informationen finden Sie in <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</link>.</para>
   </sect1>
 
-  <sect1 id="late-news">
+  <sect1 xml:id="late-news">
     <title>Aktuelle Informationen</title>
 
     <bridgehead renderas="sect3">GEOM</bridgehead>
@@ -294,11 +284,11 @@
     <para>&os; &release.prev; enth&auml;lt einen kleinen Fehler im
       Bereich der Berechtigungen von <filename>/dev/tty</filename>.
       Dieser Fehler tritt auf, wenn sich ein Benutzer einloggt, der
-      weder <username>root</username> noch Mitglied der Gruppe
-      <groupname>tty</groupname> ist.  Wechselt dieser Benutzer nun mit
+      weder <systemitem class="username">root</systemitem> noch Mitglied der Gruppe
+      <systemitem class="groupname">tty</systemitem> ist.  Wechselt dieser Benutzer nun mit
       &man.su.1; zu einer anderen Benutzerkennung, die ebenfalls
-      weder <username>root</username> noch Mitglied der Gruppe
-      <groupname>tty</groupname> ist, kann er &man.ssh.1; nicht
+      weder <systemitem class="username">root</systemitem> noch Mitglied der Gruppe
+      <systemitem class="groupname">tty</systemitem> ist, kann er &man.ssh.1; nicht
       nutzen, da es <filename>/dev/tty</filename> nicht &ouml;ffnen
       kann.  Dieser Fehler wurde in &release.current; bereits
       behoben.</para>
@@ -364,8 +354,7 @@
 
     <para>Die &os; Mailinglisten werden jetzt mit Mailman und nicht
       mehr mit Majordomo verwaltet.  Weitere Informationen finden sie
-      auf der <ulink
-      url="http://www.FreeBSD.org/mailman/listinfo/">FreeBSD Mailman
-      Info Page</ulink>.</para>
+      auf der <link xlink:href="http://www.FreeBSD.org/mailman/listinfo/">FreeBSD Mailman
+      Info Page</link>.</para>
   </sect1>
 </article>
