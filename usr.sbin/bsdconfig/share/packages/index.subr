@@ -196,7 +196,7 @@ f_index_initialize()
 			printf "local _%s_categories=\"%s\";\n", package, cats
 		}
 	}' )"; then
-		f_show_err "$msg_unable_to_pkg_rquery_package_dependeices"
+		f_show_err "$msg_unable_to_pkg_rquery_package_dependencies"
 		f_device_shutdown media
 		return $FAILURE
 	fi
@@ -213,7 +213,7 @@ f_index_initialize()
 			printf "local _%s_rundeps=\"%s\";\n", package, deps
 		}
 	}' )"; then
-		f_show_err "$msg_unable_to_pkg_rquery_package_dependeices"
+		f_show_err "$msg_unable_to_pkg_rquery_package_dependencies"
 		f_device_shutdown media
 		return $FAILURE
 	fi
