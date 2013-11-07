@@ -185,7 +185,7 @@ be called repeatedly).
 .Sh ENVIRONMENT
 The following environment variables are referenced by
 .Nm :
-.Bl -tag -width ".Ev RC_DEFAULTS"
+.Bl -tag -width ".Ev SYSRC_VERBOSE"
 .It Ev RC_CONFS
 Override default
 .Ql rc_conf_files
@@ -194,6 +194,9 @@ Override default
 Location of
 .Ql /etc/defaults/rc.conf
 file.
+.It Ev SYSRC_VERBOSE
+Default verbosity.
+Set to non-NULL to enable.
 .El
 .Sh DEPENDENCIES
 The following standard commands are required by
