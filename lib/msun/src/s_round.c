@@ -52,3 +52,7 @@ round(double x)
 		return (-t);
 	}
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(round, roundl);
+#endif

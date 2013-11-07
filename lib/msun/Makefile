@@ -71,7 +71,7 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	s_lround.c s_lroundf.c s_lroundl.c s_modff.c \
 	s_nan.c s_nearbyint.c s_nextafter.c s_nextafterf.c \
 	s_nexttowardf.c s_remquo.c s_remquof.c \
-	s_rint.c s_rintf.c s_round.c s_roundf.c s_roundl.c \
+	s_rint.c s_rintf.c s_round.c s_roundf.c \
 	s_scalbln.c s_scalbn.c s_scalbnf.c s_signbit.c \
 	s_signgam.c s_significand.c s_significandf.c s_sin.c s_sinf.c \
 	s_tan.c s_tanf.c s_tanh.c s_tanhf.c s_tgammaf.c s_trunc.c s_truncf.c \
@@ -101,7 +101,7 @@ COMMON_SRCS+=	e_acoshl.c e_acosl.c e_asinl.c e_atan2l.c e_atanhl.c \
 	s_asinhl.c s_atanl.c s_cbrtl.c s_ceill.c s_cosl.c s_cprojl.c \
 	s_csqrtl.c s_exp2l.c s_expl.c s_floorl.c s_fmal.c \
 	s_frexpl.c s_logbl.c s_logl.c s_nanl.c s_nextafterl.c \
-	s_nexttoward.c s_remquol.c s_rintl.c s_scalbnl.c \
+	s_nexttoward.c s_remquol.c s_rintl.c  s_roundl.c s_scalbnl.c \
 	s_sinl.c s_tanl.c s_truncl.c w_cabsl.c
 .endif
 
