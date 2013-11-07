@@ -481,7 +481,7 @@ f_media_init_http()
 
 		case "$rel" in
 		__RELEASE|any)
-			setvar $VAR_HTTP_PATH "$VAR_HTTP_DIR"
+			f_getvar $VAR_HTTP_DIR $VAR_HTTP_PATH
 			f_http_check_access
 			http_found=$?
 			;;
