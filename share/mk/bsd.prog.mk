@@ -168,7 +168,7 @@ _EXTRADEPEND:
 .endif
 .else
 	echo ${PROG}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
-.if defined(PROG_CXX)
+.if defined(PROG_CXX) && !defined(EARLY_BUILD)
 .if !empty(CXXFLAGS:M-stdlib=libc++)
 	echo ${PROG}: ${LIBCPLUSPLUS} >> ${DEPENDFILE}
 .else
