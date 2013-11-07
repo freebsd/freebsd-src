@@ -6,7 +6,7 @@
      $FreeBSD$
      Original revision: 1.3
 -->
-<sect1>
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
   <title>Processeurs et carte m&egrave;res support&eacute;es</title>
 
   <para>&os;/i386 fonctionne sur une large vari&eacute;t&eacute; de machines

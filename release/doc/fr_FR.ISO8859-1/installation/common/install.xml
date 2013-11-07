@@ -11,30 +11,26 @@
 from {alpha,i386}/INSTALL.TXT.
 
 -->
-
-<sect1>
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
   <title>Installation de &os;</title>
 
   <para>Cette sections documente le processus pour l'installation 
   d'une nouvelle version de &os;. Ces instructions mettent un accent
   particulier sur la fa&ccedil;on d'obtenir la distribution &os;
   &release.current; de commencer la proc&eacute;dure d'installation. Le
-  chapitre <ulink
-  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/install.html">
-  <quote>Installation de &os;</quote></ulink> du 
-  <ulink
-  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">
-  guide de r&eacute;f&eacute;rence de &os;</ulink> vous fournit plus
+  chapitre <link xlink:href="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/install.html">
+  <quote>Installation de &os;</quote></link> du 
+  <link xlink:href="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">
+  guide de r&eacute;f&eacute;rence de &os;</link> vous fournit plus
   d'informations sur le programme d'installation lui m&ecirc;me, et
   une explication pas &agrave; pas de l'installation ponctu&eacute;e
   de copies d'&eacute;crans</para>
 
 
   <para>Si vous effectuez une mise &agrave; jour depuis une version
-  pr&eacute;cedente de &os;, r&eacute;f&eacute;rez vous aux, <xref
-  linkend="upgrading"/>, instructions sur la mise &agrave; jour.</para>
+  pr&eacute;cedente de &os;, r&eacute;f&eacute;rez vous aux, <xref linkend="upgrading"/>, instructions sur la mise &agrave; jour.</para>
 
-  <sect2 id="getting-started">
+  <sect2 xml:id="getting-started">
     <title>Pour commencer</title>
 
     <para>Probablement l'&eacute;tape la plus importante avant
@@ -47,12 +43,9 @@ from {alpha,i386}/INSTALL.TXT.
     sont aussi accessible dans le menu Documentation du programme
     d'installation. </para>
 
-    <para>Notez que les versions en ligne de &os; <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/">FAQ</ulink> 
-    et <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">Handbook</ulink>
-     sont aussi disponibles sur le <ulink
-     url="http://www.FreeBSD.org/">site Web du projet FreeBSD</ulink>,
+    <para>Notez que les versions en ligne de &os; <link xlink:href="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/">FAQ</link> 
+    et <link xlink:href="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">Handbook</link>
+     sont aussi disponibles sur le <link xlink:href="http://www.FreeBSD.org/">site Web du projet FreeBSD</link>,
      si vous disposez d'une connection Internet.</para>
 
     <para>Cette liste de documents peut vous para&icirc;tre &eacute;norme,
@@ -61,8 +54,7 @@ from {alpha,i386}/INSTALL.TXT.
     peut &ecirc;tre interessant lors de probl&egrave;mes au moment de
     l'installation.</para>
 
-    <para>Si vous avez des probl&egrave;mes, voyez la <xref
-    linkend="trouble"/>, qui contient certaines informations
+    <para>Si vous avez des probl&egrave;mes, voyez la <xref linkend="trouble"/>, qui contient certaines informations
     interessantes. Vous pouvez aussi lire une copie &agrave; jour du
     fichier <filename>ERRATA.TXT</filename> avant l'installation, qui
     vous alertera sur les probl&egrave;mes rencontr&eacute;s depuis la mise
@@ -116,7 +108,7 @@ from {alpha,i386}/INSTALL.TXT.
     informations sur le mat&eacute;riel support&eacute; par &os;.</para>
   </sect2>
 
-  <sect2 id="floppies">
+  <sect2 xml:id="floppies">
   <title>Installation depuis une disquette image</title>
 
   <para>Suivant la fa&ccedil;on choisie pour l'installation de &os; vous
@@ -139,12 +131,10 @@ from {alpha,i386}/INSTALL.TXT.
   <replaceable>release</replaceable><filename>/floppies/kern.flp</filename>
   et
   <replaceable>release</replaceable><filename>/floppies/mfsroot.flp</filename>
-  fichiers depuis <ulink
-  url="&release.url;"></ulink>
-  ou un des sites mirroirs list&eacute; &agrave; la section  <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors-ftp.html">sites FTP
-    </ulink> du guide de r&eacute;gerence ou depuis les pages Web 
-    <ulink url="http://www.freebsdmirrors.org/"></ulink>.
+  fichiers depuis <uri xlink:href="&release.url;">&release.url;</uri>
+  ou un des sites mirroirs list&eacute; &agrave; la section  <link xlink:href="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors-ftp.html">sites FTP
+    </link> du guide de r&eacute;gerence ou depuis les pages Web 
+    <uri xlink:href="http://www.freebsdmirrors.org/">http://www.freebsdmirrors.org/</uri>.
   </para>
 
   <para>Obtenez des disquette vierges formatt&eacute;es et copiez l'
@@ -161,7 +151,7 @@ from {alpha,i386}/INSTALL.TXT.
   <para>Par exemple, pour cr&eacute;er la disquette image du noyau depuis
   DOS, vous devrez taper quelque chose comme:</para>
 
-  <screen><prompt>C></prompt> <userinput>fdimage kern.flp a:</userinput></screen>
+  <screen><prompt>C&gt;</prompt> <userinput>fdimage kern.flp a:</userinput></screen>
 
   <para>En assumant que vous avez copi&eacute;
   <filename>fdimage.exe</filename> et <filename>kern.flp</filename>
@@ -195,7 +185,7 @@ from {alpha,i386}/INSTALL.TXT.
 
   </sect2>
 
-  <sect2 id="start-installation">
+  <sect2 xml:id="start-installation">
       <title>Installation de &os; depuis un CDROM ou Internet</title>
 
       <para arch="i386">La fa&ccedil;on la plus simple d'effectuer
@@ -238,8 +228,7 @@ from {alpha,i386}/INSTALL.TXT.
       <xref linkend="floppies"/>. Red&eacute;marrez votre ordinateur en utilisant
       la disquette <filename>kern.flp</filename> et lorsqu'on vous le
       demande, inserez alors la disquette
-      <filename>mfsroot.flp</filename>. Allez &agrave; la <xref
-      linkend="ftpnfs"/> pour plus d'information sur l'installation
+      <filename>mfsroot.flp</filename>. Allez &agrave; la <xref linkend="ftpnfs"/> pour plus d'information sur l'installation
       via FTP ou NFS.</para>
 
       <para arch="alpha">La fa&ccedil;on la plus simple d'effectuer
@@ -257,8 +246,7 @@ from {alpha,i386}/INSTALL.TXT.
       l'installation en cr&eacute;eant un jeu de disquette de d&eacute;marrage
       de &os; depuis les fichiers <filename>floppies/kern.flp</filename> et
       <filename>floppies/mfsroot.flp</filename> en suivant les
-      instructions que vous trouverez &agrave; la  <xref
-      linkend="floppies"/>. Depuis l'invite de console SRM
+      instructions que vous trouverez &agrave; la  <xref linkend="floppies"/>. Depuis l'invite de console SRM
       (<literal>&gt;&gt;&gt;</literal>), inserez la disquette
       <filename>kern.flp</filename> et tapez la commande suivante pour
       d&eacute;marrer l'installation:</para>
@@ -327,9 +315,9 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
     <para arch="alpha">Cet exemple est extrait d'une Digital Personal
     Workstation 433au et montre trois disques attach&eacute;s &agrave; cette
     machine. Le premier est un CDROM appel&eacute;
-    <devicename>dka0</devicename> et les deux autres sont des disques
-    appel&eacute;s respectivement <devicename>dkc0</devicename> et
-    <devicename>dkc100</devicename>.</para>
+    <filename>dka0</filename> et les deux autres sont des disques
+    appel&eacute;s respectivement <filename>dkc0</filename> et
+    <filename>dkc100</filename>.</para>
 
     <para arch="alpha">Vous pouvez sp&eacute;cifier le noyau &agrave; charger
     et quelles options de d&eacute;marrage utiliser via les options
@@ -368,7 +356,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
           le menu Options et mettez le Release Name &agrave;
           <literal>any</literal>. Vous pouvez alors choisir comme type
           de m&eacute;dia  <literal>FTP</literal> et taper
-          <filename>ftp://<replaceable>machine</replaceable></filename>
+          <filename>ftp://machine</filename>
           apr&egrave;s avoir choisi <quote>URL</quote> dans le menu des
           sites ftp.</para>
 
@@ -386,7 +374,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
           premier ajouter une ligne au fichier
           <filename>/etc/exports</filename> (sur la machine disposant
           du lecteur de CDROM). L'exemple ci-dessous autorise la
-          machine <hostid role="hostname">ziggy.foo.com</hostid> &agrave;
+          machine <systemitem class="fqdomainname">ziggy.foo.com</systemitem> &agrave;
           monter le CDROM via NFS lors de l'installation:</para>
 
 	  <screen>/cdrom          -ro             ziggy.foo.com</screen>
@@ -397,7 +385,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
           choix, sauf si vous voulez lire &man.rc.conf.5; et
           configurer les choses correctement. En assumant que cette
           partie se passe bien, vous devriez &ecirc;tre capable d'entrer:
-          <filename><replaceable>cdrom-host</replaceable>:/cdrom</filename> 
+          <filename>cdrom-host:/cdrom</filename> 
           comme r&eacute;pertoire d'installation NFS pour la machine &agrave;
           installer, e.g. <filename>wiggy:/cdrom</filename>.</para>
 	</listitem>
@@ -485,15 +473,15 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       <para>Pour pr&eacute;parer une installation depuis une partition
       MS-DOS, vous devez simplement copier les fichiers de la
       distribution dans le r&eacute;pertoire <filename>FREEBSD</filename>
-      sur la partition DOS primaire (<devicename>C:</devicename>). Par
+      sur la partition DOS primaire (<filename>C:</filename>). Par
       exemple, pour installation une distribution minimal de &os;
       sous DOS depuis les fichiers se trouvant sur le CDROM, vous
       devriez taper les commandes suivantes :</para>
 
-      <screen><prompt>C:\></prompt> <userinput>MD C:\FREEBSD</userinput>
-<prompt>C:\></prompt> <userinput>XCOPY /S E:\BIN C:\FREEBSD\BIN</userinput></screen>
+      <screen><prompt>C:\&gt;</prompt> <userinput>MD C:\FREEBSD</userinput>
+<prompt>C:\&gt;</prompt> <userinput>XCOPY /S E:\BIN C:\FREEBSD\BIN</userinput></screen>
 
-      <para>En assumant que <devicename>E:</devicename> est le nom du
+      <para>En assumant que <filename>E:</filename> est le nom du
       lecteur CDROM.</para>
 
       <para>Pour toutes les distributions n&eacute;cessaires &agrave;
@@ -518,8 +506,8 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       n&eacute;cessaires, utilisez simplement la commande &man.tar.1; pour
       les mettre sur la bande, comme cela :</para>
 
-      <screen>&prompt.root; <userinput>cd <replaceable>/where/you/have/your/dists</replaceable></userinput>
-&prompt.root; <userinput>tar cvf /dev/rsa0 <replaceable>dist1</replaceable> .. <replaceable>dist2</replaceable></userinput></screen>
+      <screen>&prompt.root; <userinput>cd /where/you/have/your/dists</userinput>
+&prompt.root; <userinput>tar cvf /dev/rsa0 dist1 .. dist2</userinput></screen>
 
       <para>Lorsque vous d&eacute;butez l'installation, assurez vous
       d'avoir assez de place dans un r&eacute;pertoire temporaire (que
@@ -543,7 +531,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       &agrave; l'installation.</para>
     </sect3>
 
-    <sect3 id="ftpnfs">
+    <sect3 xml:id="ftpnfs">
       <title>Installation via le r&eacute;seau en utilisant FTP ou NFS</title>
 
       <para>Apr&egrave;s avoir cr&eacute;er les disquettes de d&eacute;marrage
@@ -590,9 +578,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
         l'utilisation d'un cable parall&egrave;le pour une installation
         point &agrave; point, car vous pouvez utiliser g&eacute;n&eacute;ralement
         des adresses de style RFC1918 pour les extr&eacute;mit&eacute;s du
-        lien (e.g. <hostid
-        role="ipaddr">10.0.0.1</hostid>, <hostid
-        role="ipaddr">10.0.0.2</hostid>,etc).</para>
+        lien (e.g. <systemitem class="ipaddress">10.0.0.1</systemitem>, <systemitem class="ipaddress">10.0.0.2</systemitem>,etc).</para>
 
         <important>
 	  <para>Si vous utilisez une machine Linux plutôt qu'une
@@ -670,7 +656,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
         sous-r&eacute;pertoires</quote>, e.g. si votre r&eacute;pertoire de la
         distribution de &os; r&eacute;side dans
         <filename>wiggy:/usr/archive/stuff/FreeBSD</filename>, alors
-        <hostid role="hostname">wiggy</hostid> doit autoriser le
+        <systemitem class="fqdomainname">wiggy</systemitem> doit autoriser le
         montage direct de
         <filename>/usr/archive/stuff/FreeBSD</filename> et non pas
         seulement <filename>/usr</filename> ou
@@ -735,7 +721,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
               d'un proxy FTP, mais qui ne supporte pas les requ&egrave;tes
               HTTP, vous pouvez sp&eacute;cifier l'URL comme ceci:</para>
 
-              <screen><userinput>ftp://foo.bar.com:<replaceable>port</replaceable>/pub/FreeBSD</userinput></screen>
+              <screen><userinput>ftp://foo.bar.com:port/pub/FreeBSD</userinput></screen>
 
               <para>Dans l'URL ci-dessus, <replaceable>port</replaceable>
               correspond au num&eacute;ro du port du serveur FTP proxy.</para>
@@ -756,7 +742,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	<step>
 	  <para>Connectez un terminal compatible ANSI (vt100) ou un
           programme d'&eacute;mulation de terminal sur le port
-          <devicename>COM1</devicename> du PC sur lequel vous d&eacute;sirez
+          <filename>COM1</filename> du PC sur lequel vous d&eacute;sirez
           installer &os;.</para>
 	</step>
 	<step>
@@ -768,8 +754,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	<step>
 	  <para>Si vous n'obtenez aucun caract&egrave;re sur votre console
           s&eacute;rie, branchez le clavier et attendez des sonneries. Si
-          vous d&eacute;marrez depuis le CDROM, allez &agrave; <xref
-	  linkend="hitspace"/> aussi vite que possible.</para>
+          vous d&eacute;marrez depuis le CDROM, allez &agrave; <xref linkend="hitspace"/> aussi vite que possible.</para>
 	</step>
 	<step>
 	  <para>Pour une installation via des disquettes, la premi&egrave;re
@@ -778,7 +763,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
           <filename>mfsroot.flp</filename> puis appuyez sur la touche
           <keycap>Enter</keycap> et attendez une autre sonnerie.</para>
 	</step>
-	<step id="hitspace">
+	<step xml:id="hitspace">
 	  <para>Appuyez sur la barre d'espace et entrez</para>
 
 	  <screen><userinput>boot -h</userinput></screen>
@@ -874,9 +859,9 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	<answer>
 	  <para>Oui. Les partitions DOS étendues sont mappées à la fin
           des autres <quote>slices</quote> dans &os;, e.g. votre
-          disque <devicename>D:</devicename> peut être
+          disque <filename>D:</filename> peut être
           <filename>/dev/da0s5</filename>, votre disque
-          <devicename>E:</devicename> <filename>/dev/da0s6</filename>,
+          <filename>E:</filename> <filename>/dev/da0s6</filename>,
           etc... Cet exemple assume que votre partition étendue se
           trouve sur le disque SCSI 0. Pour les disques IDE,
           substituez <literal>da</literal> par
@@ -898,8 +883,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
           dessus, envoyez un mail à la liste &a.emulation; et indiquez
           votre intérêt à joindre l'effort d'émulation DOS!</para>
 
-	  <para>La pacquetage/port <filename
-          role="package">emulators/pcemu</filename> de la collection
+	  <para>La pacquetage/port <package>emulators/pcemu</package> de la collection
           des ports de &os; qui émule un 8088 et pas mal de services
           du BIOS permet de faire fonctionner les applications DOS en
           mode texte. Il nécessite le système X Windows (Xfree86) pour
@@ -949,7 +933,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	<answer>
 	  <para>&os; peut faire tourner les applications Tru64 en
           utilisant le port/pacquetage
-	  <filename role="package">emulators/osf1_base</filename>.</para>
+	  <package>emulators/osf1_base</package>.</para>
 	</answer>
       </qandaentry>
 
@@ -960,8 +944,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
 	<answer>
 	  <para>&os; peut faire fonctionner les binaires AlphaLinux en
-          utilisant le pacquetage/port <filename
-          role="package">emulators/linux_base</filename>.</para>
+          utilisant le pacquetage/port <package>emulators/linux_base</package>.</para>
 	</answer>
       </qandaentry>
 
