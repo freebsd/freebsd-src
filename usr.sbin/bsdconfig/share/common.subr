@@ -106,7 +106,7 @@ GETOPTS_ALLFLAGS="${GETOPTS_ALLFLAGS}0123456789"
 
 ############################################################ FUNCTIONS
 
-# f_dprintf $fmt [ $opts ... ]
+# f_dprintf $format [$arguments ...]
 #
 # Sensible debug function. Override in ~/.bsdconfigrc if desired.
 # See /usr/share/examples/bsdconfig/bsdconfigrc for example.
@@ -174,8 +174,7 @@ f_debug_init()
 		if ( umask 022 && :> "$_debug_file" ); then
 			f_dprintf "Successfully initialized debugFile \`%s'" \
 			          "$_debug_file"
-			[ "${debug+set}" ] ||
-				debug=1 # turn debugging on if not set
+			f_isset debug || debug=1 # turn debugging on if not set
 		else
 			unset debugFile
 			f_dprintf "Unable to initialize debugFile \`%s'" \
@@ -184,7 +183,7 @@ f_debug_init()
 	fi
 }
 
-# f_err $fmt [ $opts ... ]
+# f_err $format [$arguments ...]
 #
 # Print a message to stderr (fd=2).
 #
@@ -193,7 +192,7 @@ f_err()
 	printf "$@" >&${TERMINAL_STDERR_PASSTHRU:-2}
 }
 
-# f_quietly $command [ $arguments ... ]
+# f_quietly $command [$arguments ...]
 #
 # Run a command quietly (quell any output to stdout or stderr)
 #
@@ -275,7 +274,7 @@ f_isset()
 	eval [ \"\${${1%%[$IFS]*}+set}\" ]
 }
 
-# f_die [ $status [ $fmt [ $opts ... ]]]
+# f_die [$status [$format [$arguments ...]]]
 #
 # Abruptly terminate due to an error optionally displaying a message in a
 # dialog box using printf(1) syntax.
@@ -309,7 +308,7 @@ f_interrupt()
 	f_die
 }
 
-# f_show_info $fmt [ $opts ... ]
+# f_show_info $format [$arguments ...]
 #
 # Display a message in a dialog infobox using printf(1) syntax.
 #
@@ -330,7 +329,7 @@ f_show_info()
 	fi
 }
 
-# f_show_msg $fmt [ $opts ... ]
+# f_show_msg $format [$arguments ...]
 #
 # Display a message in a dialog box using printf(1) syntax.
 #
@@ -352,7 +351,7 @@ f_show_msg()
 }
 
 
-# f_yesno $fmt [ $opts ... ]
+# f_yesno $format [$arguments ...]
 #
 # Display a message in a dialog yes/no box using printf(1) syntax.
 #
@@ -373,7 +372,7 @@ f_yesno()
 	fi
 }
 
-# f_noyes $fmt [ $opts ... ]
+# f_noyes $format [$arguments ...]
 #
 # Display a message in a dialog yes/no box using printf(1) syntax.
 # NOTE: THis is just like the f_yesno function except "No" is default.
@@ -466,7 +465,7 @@ f_include_lang()
 	fi
 }
 
-# f_usage $file [ $key1 $value1 ... ]
+# f_usage $file [$key1 $value1 ...]
 #
 # Display USAGE file with optional pre-processor macro definitions. The first
 # argument is the template file containing the usage text to be displayed. If
