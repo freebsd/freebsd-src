@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
 %release;
 ]>
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+  <info><title>&os; &release.current; Installation Instructions</title>
+    
 
-<article>
-  <articleinfo>
-    <title>&os; &release.current; Installation Instructions</title>
-
-    <corpauthor>The &os; Project</corpauthor>
+    <author><orgname>The &os; Project</orgname></author>
 
     <pubdate>$FreeBSD$</pubdate>
 
@@ -19,31 +18,31 @@
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
-    <legalnotice id="trademarks" role="trademarks">
+    <legalnotice xml:id="trademarks" role="trademarks">
       &tm-attrib.freebsd;
       &tm-attrib.intel;
       &tm-attrib.sparc;
       &tm-attrib.general;
     </legalnotice>
-  </articleinfo>
 
-  <abstract>
-    <para>This article gives some brief instructions on installing
-      &os; &release.current; and upgrading the systems running earlier
-      releases.</para>
-  </abstract>
+    <abstract>
+      <para>This article gives some brief instructions on installing
+        &os; &release.current; and upgrading the systems running earlier
+        releases.</para>
+    </abstract>
+  </info>
 
-  <sect1 id="install">
+  <sect1 xml:id="install">
     <title>Installing &os;</title>
 
     <para>For instructions on installing FreeBSD, please see Chapter 2
       of The FreeBSD Handbook.  It provides a complete installation
       walk-through for users new to FreeBSD, and can be found online
-      at: <ulink
-	url="&url.books.handbook;/install.html"></ulink></para>
+      at: <link
+	xlink:href="&url.books.handbook;/install.html"></link></para>
   </sect1>
 
-  <sect1 id="upgrade">
+  <sect1 xml:id="upgrade">
     <title>Upgrading &os;</title>
 
     <sect2>
@@ -51,8 +50,8 @@
 
       <para>The procedure for doing a source code based update is
 	described in
-	<ulink url="&url.books.handbook;/synching.html"></ulink> and
-	<ulink url="&url.books.handbook;//makeworld.html"></ulink>.</para>
+	<uri xlink:href="&url.books.handbook;/synching.html">&url.books.handbook;/synching.html</uri> and
+	<uri xlink:href="&url.books.handbook;/makeworld.html">&url.books.handbook;/makeworld.html</uri>.</para>
 
       <para>The branch tag to use for updating the source is
 	<literal>RELENG_8_3</literal> for CVS.  For SVN use
@@ -78,8 +77,8 @@
 
       <screen>&prompt.root; freebsd-update install</screen>
 
-      <para>The system must be rebooted with the newly installed
-	kernel before continuing.</para>
+      <para>The system must now be rebooted with the newly installed
+	kernel before the non-kernel components are updated.</para>
 
       <screen>&prompt.root; shutdown -r now</screen>
 
