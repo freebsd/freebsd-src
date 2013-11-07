@@ -114,7 +114,7 @@ cb_dumpdata(struct pmap_md *md, int seqnr, void *arg)
 {
 	struct dumperinfo *di = (struct dumperinfo*)arg;
 	vm_offset_t va;
-	size_t counter, ofs, resid, sz;
+	size_t counter, ofs, resid, sz, maxsz;
 	int c, error, twiddle;
 
 	error = 0;
@@ -123,11 +123,12 @@ cb_dumpdata(struct pmap_md *md, int seqnr, void *arg)
 
 	ofs = 0;	/* Logical offset within the chunk */
 	resid = md->md_size;
+	maxsz = min(DFLTPHYS, di->maxiosize);
 
 	printf("  chunk %d: %lu bytes ", seqnr, (u_long)resid);
 
 	while (resid) {
-		sz = (resid > DFLTPHYS) ? DFLTPHYS : resid;
+		sz = min(resid, maxsz);
 		va = pmap_dumpsys_map(md, ofs, &sz);
 		counter += sz;
 		if (counter >> 24) {
