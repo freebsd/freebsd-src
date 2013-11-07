@@ -68,6 +68,14 @@ export UNAME_R="$(uname -r)" # Release Level (i.e. X.Y-RELEASE)
 : ${DEBUG_SELF_INITIALIZE=1}
 
 #
+# Default behavior of f_debug_init() is to truncate $debugFile (set to NULL to
+# disable truncating the debug file when initializing). To get child processes
+# to append to the same log file, export this variarable (with a NULL value)
+# and also export debugFile with the desired value.
+# 
+: ${DEBUG_INITIALIZE_FILE=1}
+
+#
 # Define standard optstring arguments that should be supported by all programs
 # using this include (unless DEBUG_SELF_INITIALIZE is set to NULL to prevent
 # f_debug_init() from autamatically processing "$@" for the below arguments):
@@ -164,13 +172,13 @@ f_debug_init()
 	[ "$debugFile" ] && export debugFile
 
 	#
-	# Truncate the debug file upon. Note that we will trim a leading plus
-	# (`+') from the value of debugFile to support persistant meaning that
-	# f_dprintf() should print both to standard output and $debugFile
-	# (minus the leading plus, of course).
+	# Truncate debug file unless requested otherwise. Note that we will
+	# trim a leading plus (`+') from the value of debugFile to support
+	# persistant meaning that f_dprintf() should print both to standard
+	# output and $debugFile (minus the leading plus, of course).
 	#
 	local _debug_file="${debugFile#+}"
-	if [ "$_debug_file" ]; then
+	if [ "$_debug_file" -a "$DEBUG_INITIALIZE_FILE" ]; then
 		if ( umask 022 && :> "$_debug_file" ); then
 			f_dprintf "Successfully initialized debugFile \`%s'" \
 			          "$_debug_file"
