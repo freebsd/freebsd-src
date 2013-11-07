@@ -215,7 +215,7 @@ jail_depend()
 			echo "$SYSRC_VERSION"
 			exit 1 ;;
 		-[fRj]) # These flags take an argument
-			shift 1;;
+			shift 1 ;;
 		esac
 		shift 1
 	done
@@ -537,9 +537,10 @@ while [ $# -gt 0 ]; do
 	*=*)
 		#
 		# Like sysctl(8), if both `-d' AND "name=value" is passed,
-		# first describe, then attempt to set
+		# first describe (done above), then attempt to set
 		#
 
+		# If verbose, prefix line with where the directive lives
 		if [ "$SYSRC_VERBOSE" -a ! "$CHECK_ONLY" ]; then
 			file=$( f_sysrc_find "$NAME" )
 			[ "$file" = "$RC_DEFAULTS" -o ! "$file" ] && \
@@ -613,8 +614,8 @@ while [ $# -gt 0 ]; do
 		fi
 
 		#
-		# Like sysctl(8), when `-d' is passed,
-		# desribe it rather than expanding it
+		# Like sysctl(8), when `-d' is passed, desribe it
+		# (already done above) rather than expanding it
 		#
 
 		if [ "$DESCRIBE" ]; then
@@ -658,3 +659,7 @@ while [ $# -gt 0 ]; do
 done
 
 [ ! "$CHECK_ONLY" ] || exit $costatus
+
+################################################################################
+# END
+################################################################################
