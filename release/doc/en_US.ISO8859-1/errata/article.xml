@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
 %release;
 ]>
-
 <!--
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
 	files, this file should remain as a single SGML file, so that
@@ -16,14 +15,13 @@
 	not be the one that received the last change in the document.)
 
 -->
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+  <info><title>&os; &release.current; Errata</title>
+    
 
-<article>
-  <articleinfo>
-    <title>&os; &release.current; Errata</title>
-
-    <corpauthor>
+    <author><orgname>
     The &os; Project
-    </corpauthor>
+    </orgname></author>
 
     <pubdate>$FreeBSD$</pubdate>
 
@@ -32,30 +30,30 @@
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
-    <legalnotice id="trademarks" role="trademarks">
+    <legalnotice xml:id="trademarks" role="trademarks">
       &tm-attrib.freebsd;
       &tm-attrib.intel;
       &tm-attrib.sparc;
       &tm-attrib.general;
     </legalnotice>
-  </articleinfo>
 
-  <abstract>
-    <para>This document lists errata items for &os; &release.current;,
-      containing significant information discovered after the release
-      or too late in the release cycle to be otherwise included in the
-      release documentation.
-      This information includes security advisories, as well as news
-      relating to the software or documentation that could affect its
-      operation or usability.  An up-to-date version of this document
-      should always be consulted before installing this version of
-      &os;.</para>
+    <abstract>
+      <para>This document lists errata items for &os; &release.current;,
+        containing significant information discovered after the release
+        or too late in the release cycle to be otherwise included in the
+        release documentation.
+        This information includes security advisories, as well as news
+        relating to the software or documentation that could affect its
+        operation or usability.  An up-to-date version of this document
+        should always be consulted before installing this version of
+        &os;.</para>
 
-    <para>This errata document for &os; &release.current;
-      will be maintained until the release of &os; &release.next;.</para>
-  </abstract>
+      <para>This errata document for &os; &release.current;
+        will be maintained until the release of &os; &release.next;.</para>
+    </abstract>
+  </info>
 
-  <sect1 id="intro">
+  <sect1 xml:id="intro">
     <title>Introduction</title>
 
     <para>This errata document contains <quote>late-breaking news</quote>
@@ -69,33 +67,30 @@
       out of date by definition, but other copies are kept updated on
       the Internet and should be consulted as the <quote>current
       errata</quote> for this release.  These other copies of the
-      errata are located at <ulink
-      url="http://www.FreeBSD.org/releases/"></ulink>, plus any sites
+      errata are located at <uri xlink:href="http://www.FreeBSD.org/releases/">http://www.FreeBSD.org/releases/</uri>, plus any sites
       which keep up-to-date mirrors of this location.</para>
 
     <para>Source and binary snapshots of &os; &release.branch; also
       contain up-to-date copies of this document (as of the time of
       the snapshot).</para>
 
-    <para>For a list of all &os; CERT security advisories, see <ulink
-      url="http://www.FreeBSD.org/security/"></ulink> or <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+    <para>For a list of all &os; CERT security advisories, see <uri xlink:href="http://www.FreeBSD.org/security/">http://www.FreeBSD.org/security/</uri> or <uri xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/">ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/</uri>.</para>
 
   </sect1>
 
-  <sect1 id="security">
+  <sect1 xml:id="security">
     <title>Security Advisories</title>
 
     <para>Problems described in the following security advisories have
       been fixed in &release.current;. For more information, consult
       the individual advisories available from
-      <ulink url="http://security.FreeBSD.org/" />.</para>
+      <uri xlink:href="http://security.FreeBSD.org/">http://security.FreeBSD.org/</uri>.</para>
 
     <informaltable frame="none" pgwide="1">
       <tgroup cols="3">
-	<colspec colwidth="1*" />
-	<colspec colwidth="1*" />
-	<colspec colwidth="3*" />
+	<colspec colwidth="1*"/>
+	<colspec colwidth="1*"/>
+	<colspec colwidth="3*"/>
 	<thead>
 	  <row>
 	    <entry>Advisory</entry>
@@ -106,57 +101,49 @@
 
 	<tbody>
 	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:01.openssl.asc"
-		>SA-12:01.openssl</ulink></entry>
+	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:01.openssl.asc">SA-12:01.openssl</link></entry>
 	    <entry>3&nbsp;May&nbsp;2012</entry>
 	    <entry><para>OpenSSL multiple vulnerabilities</para></entry>
 	  </row>
 
 	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:02.crypt.asc"
-		>SA-12:02.crypt</ulink></entry>
+	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:02.crypt.asc">SA-12:02.crypt</link></entry>
 	    <entry>30&nbsp;May&nbsp;2012</entry>
 	    <entry><para>Incorrect <function>crypt()</function> hashing</para></entry>
 	  </row>
 
 	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:03.bind.asc"
-		>SA-12:03.bind</ulink></entry>
+	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:03.bind.asc">SA-12:03.bind</link></entry>
 	    <entry>12&nbsp;June&nbsp;2012</entry>
 	    <entry><para>Incorrect handling of zero-length RDATA fields in &man.named.8;</para></entry>
 	  </row>
 
 	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:04.sysret.asc"
-		>SA-12:04.sysret</ulink></entry>
+	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:04.sysret.asc">SA-12:04.sysret</link></entry>
 	    <entry>12&nbsp;June&nbsp;2012</entry>
 	    <entry><para>Privilege escalation when returning from kernel</para></entry>
 	  </row>
 
 	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:05.bind.asc"
-		>SA-12:05.bind</ulink></entry>
+	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:05.bind.asc">SA-12:05.bind</link></entry>
 	    <entry>6&nbsp;August&nbsp;2012</entry>
 	    <entry><para>&man.named.8; DNSSEC validation Denial of Service</para></entry>
 	  </row>
 
 	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:06.bind.asc"
-		>SA-12:06.bind</ulink></entry>
+	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:06.bind.asc">SA-12:06.bind</link></entry>
 	    <entry>22&nbsp;November&nbsp;2012</entry>
 	    <entry><para>Multiple Denial of Service vulnerabilities with &man.named.8;</para></entry>
 	  </row>
 
 	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:07.hostapd.asc"
-		>SA-12:07.hostapd</ulink></entry>
+	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:07.hostapd.asc">SA-12:07.hostapd</link></entry>
 	    <entry>22&nbsp;November&nbsp;2012</entry>
 	    <entry><para>Insufficient message length validation for EAP-TLS messages</para></entry>
 	  </row>
 
 	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:08.linux.asc"
-		>SA-12:08.linux</ulink></entry>
+	    <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:08.linux.asc">SA-12:08.linux</link></entry>
 	    <entry>22&nbsp;November&nbsp;2012</entry>
 	    <entry><para>Linux compatibility layer input validation error</para></entry>
 	  </row>
@@ -165,7 +152,7 @@
     </informaltable>
   </sect1>
 
-  <sect1 id="late-news">
+  <sect1 xml:id="late-news">
     <title>Late-Breaking News</title>
 
     <para>[November 2, 2012] The current &man.mfi.4; driver has an
