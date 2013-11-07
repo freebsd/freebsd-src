@@ -211,3 +211,17 @@ vt_fb_attach(struct fb_info *info)
 
 	return (0);
 }
+
+void
+vt_fb_resume(void)
+{
+
+	vt_resume();
+}
+
+void
+vt_fb_suspend(void)
+{
+
+	vt_suspend();
+}

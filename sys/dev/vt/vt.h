@@ -61,6 +61,8 @@ TUNABLE_INT("kern.vt." #_name, &vt_##_name);
 struct vt_driver;
 
 void vt_allocate(struct vt_driver *, void *);
+void vt_resume(void);
+void vt_suspend(void);
 
 typedef unsigned int 	vt_axis_t;
 
@@ -81,6 +83,7 @@ typedef unsigned int 	vt_axis_t;
 struct vt_device {
 	struct vt_window	*vd_windows[VT_MAXWINDOWS]; /* (c) Windows. */
 	struct vt_window	*vd_curwindow;	/* (d) Current window. */
+	struct vt_window	*vd_savedwindow;/* (?) Saved for suspend. */
 	const struct vt_driver	*vd_driver;	/* (c) Graphics driver. */
 	void			*vd_softc;	/* (u) Driver data. */
 	vt_axis_t		 vd_width;	/* (?) Screen width. */

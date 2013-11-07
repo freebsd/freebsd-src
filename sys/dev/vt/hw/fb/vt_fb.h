@@ -33,6 +33,8 @@
 #define	_DEV_VT_HW_FB_VT_FB_H_
 /* Generic framebuffer interface call vt_fb_attach to init VT(9) */
 int vt_fb_attach(struct fb_info *info);
+void vt_fb_resume(void);
+void vt_fb_suspend(void);
 
 int fb_probe(struct fb_info *info);
 

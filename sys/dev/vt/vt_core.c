@@ -977,6 +977,7 @@ vt_proc_alive(struct vt_window *vw)
 static int
 signal_vt_rel(struct vt_window *vw)
 {
+
 	if (vw->vw_smode.mode != VT_PROCESS)
 		return FALSE;
 	if (vw->vw_proc == NULL || vt_proc_alive(vw) == FALSE) {
@@ -995,6 +996,7 @@ signal_vt_rel(struct vt_window *vw)
 static int
 signal_vt_acq(struct vt_window *vw)
 {
+
 	if (vw->vw_smode.mode != VT_PROCESS)
 		return FALSE;
 	if (vw == vw->vw_device->vd_windows[VT_CONSWINDOW])
@@ -1015,6 +1017,7 @@ signal_vt_acq(struct vt_window *vw)
 static int
 finish_vt_rel(struct vt_window *vw, int release, int *s)
 {
+
 	if (vw->vw_flags & VWF_SWWAIT_REL) {
 		vw->vw_flags &= ~VWF_SWWAIT_REL;
 		if (release) {
@@ -1029,6 +1032,7 @@ finish_vt_rel(struct vt_window *vw, int release, int *s)
 static int
 finish_vt_acq(struct vt_window *vw)
 {
+
 	if (vw->vw_flags & VWF_SWWAIT_ACQ) {
 		vw->vw_flags &= ~VWF_SWWAIT_ACQ;
 		return 0;
@@ -1462,4 +1466,24 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	/* Update console window sizes to actual. */
 	vt_winsize(vd, vd->vd_windows[VT_CONSWINDOW]->vw_font, &wsz);
 	terminal_set_winsize(vd->vd_windows[VT_CONSWINDOW]->vw_terminal, &wsz);
+}
+
+void
+vt_suspend()
+{
+
+	/* Save current window. */
+	main_vd->vd_savedwindow = main_vd->vd_curwindow;
+	/* Ask holding process to free window and switch to console window */
+	vt_proc_window_switch(main_vd->vd_windows[VT_CONSWINDOW]);
+}
+
+void
+vt_resume()
+{
+
+	/* Switch back to saved window */
+	if (main_vd->vd_savedwindow != NULL)
+		vt_proc_window_switch(main_vd->vd_savedwindow);
+	main_vd->vd_savedwindow = NULL;
 }
