@@ -777,6 +777,88 @@ f_mounted()
 	mount | grep -Eq " on $dir \([^)]+\)$"
 }
 
+# f_eval_catch [-d] $funcname $utility $format [$arguments ...]
+#
+# Silently evaluate a command in a sub-shell and test for error. If debugging
+# is enabled a copy of the command and its output is sent to debug (either
+# stdout or file depending on environment). If an error occurs, output of the
+# command is displayed in a dialog(1) msgbox using the [above] f_show_err()
+# function (unless optional `-d' flag is the first argument, then no dialog).
+# The $funcname argument is sent to debugging while the $utility argument is
+# used in the title of the dialog box. The command that is sent to debugging
+# along with $funcname is the product of the printf(1) syntax produced by
+# $format with optional $arguments.
+#
+# Example 1:
+#
+# 	debug=1
+# 	f_eval_catch myfunc cat 'contents=$( cat "%s" )' /some/file
+# 	# Error displayed ``cat: /some/file: No such file or directory''
+#
+# 	Produces the following debug output:
+#
+# 		DEBUG: myfunc: cat "/some/file"
+# 		DEBUG: myfunc: retval=1 <output below>
+# 		cat: /some/file: No such file or directory
+#
+# Example 2:
+#
+# 	debug=1
+# 	f_eval_catch myfunc echo 'echo "%s"' "Hello, World!"
+# 	# No error displayed
+#
+# 	Produces the following debug output:
+#
+# 		DEBUG: myfunc: echo "Hello, World!"
+# 		DEBUG: myfunc: retval=0 <output below>
+# 		Hello, World!
+#
+# Example 3:
+#
+# 	debug=1
+# 	echo 123 | f_eval_catch myfunc rev rev
+# 	# No error displayed
+#
+# 	Produces the following debug output:
+#
+# 		DEBUG: myfunc: rev
+# 		DEBUG: myfunc: retval=0 <output below>
+# 		321
+#
+# Example 4:
+#
+# 	debug=1
+# 	f_eval_catch myfunc true true
+# 	# No error displayed
+#
+# 	Produces the following debug output:
+#
+# 		DEBUG: myfunc: true
+# 		DEBUG: myfunc: retval=0 <no output>
+#
+f_eval_catch()
+{
+	local no_dialog=
+	[ "$1" = "-d" ] && no_dialog=1 && shift 1
+	local funcname="$1" utility="$2"; shift 2
+	local cmd output retval
+	cmd=$( printf -- "$@" )
+	f_dprintf "%s: %s" "$funcname" "$cmd" # Log command *before* eval
+	output=$( exec 2>&1; eval "$cmd" )
+	retval=$?
+	if [ "$output" ]; then
+		f_dprintf "%s: retval=%i <output below>\n%s" "$funcname" \
+		          $retval "$output"
+	else
+		f_dprintf "%s: retval=%i <no output>" "$funcname" $retval
+	fi
+	! [ "$no_dialog" -o "$nonInteractive" -o $retval -eq $SUCCESS ] &&
+		msg_error="${msg_error:-Error}${utility:+: $utility}" \
+			f_show_err "%s" "$output"
+		# NB: f_show_err will handle NULL output appropriately
+	return $retval
+}
+
 ############################################################ MAIN
 
 #
