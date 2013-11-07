@@ -358,6 +358,30 @@ f_show_msg()
 	fi
 }
 
+# f_show_err $format [$arguments ...]
+#
+# Display a message in a dialog box with ``Error'' i18n title (overridden by
+# setting msg_error) using printf(1) syntax. If running non-interactively,
+# the process will terminate (using [above] f_die()).
+#
+f_show_err()
+{
+	[ "$nonInteractive" ] && f_die
+
+	local msg
+	msg=$( printf "$@" )
+
+	: ${msg:=${msg_an_unknown_error_occurred:-An unknown error occurred}}
+
+	if [ "$_DIALOG_SUBR" ]; then
+		f_dialog_title "${msg_error:-Error}"
+		f_dialog_msgbox "$msg"
+		f_dialog_title_restore
+	else
+		dialog --title "${msg_error:-Error}" --msgbox "$msg" 0 0
+	fi
+	return $SUCCESS
+}
 
 # f_yesno $format [$arguments ...]
 #
