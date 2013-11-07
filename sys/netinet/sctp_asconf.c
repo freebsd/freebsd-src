@@ -2737,7 +2737,7 @@ sctp_compose_asconf(struct sctp_tcb *stcb, int *retlen, int addr_locked)
 	/* chain it all together */
 	SCTP_BUF_NEXT(m_asconf_chk) = m_asconf;
 	*retlen = SCTP_BUF_LEN(m_asconf_chk) + SCTP_BUF_LEN(m_asconf);
-	acp->ch.chunk_length = ntohs(*retlen);
+	acp->ch.chunk_length = htons(*retlen);
 
 	return (m_asconf_chk);
 }
