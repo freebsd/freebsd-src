@@ -1134,8 +1134,8 @@ f_package_delete()
 	# Chase dependencies that are marked for uninstallation
 	#
 	for pkgsel in $udeps; do
-		f_dprintf "%s: Uninstalling dependecy %s (marked for delete)" \
-		          $fname "$pkgsel"
+		f_dprintf "%s: Uninstalling dependency %s (%s)" \
+		          $fname "$pkgsel" "marked for delete"
 		f_package_delete "$pkgsel"
 	done
 
