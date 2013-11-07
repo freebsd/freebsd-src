@@ -3,8 +3,7 @@
     $FreeBSD$
     Original revision: 1.7
 -->
-
-<sect1 id="intro">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="intro">
   <title>はじめに</title>
 
   <para>この文書は &arch.print; プラットフォーム版 &os; &release.current;
@@ -22,7 +21,7 @@
   </note>
 
   <para arch="ia64">&os;/&arch; についての詳細は
-    <ulink url="&url.base;/platforms/ia64/index.html">&os;/&arch;
-      プロジェクト</ulink>ページをご覧ください。</para>
+    <link xlink:href="&url.base;/platforms/ia64/index.html">&os;/&arch;
+      プロジェクト</link>ページをご覧ください。</para>
 
 </sect1>
