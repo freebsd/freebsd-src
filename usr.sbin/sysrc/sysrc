@@ -38,6 +38,11 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 ############################################################ GLOBALS
 
 #
+# Version information
+#
+SYSRC_VERSION="6.0 Nov-07,2013"
+
+#
 # Options
 #
 DELETE=
@@ -133,6 +138,8 @@ help()
 	      "Verbose. Print the pathname of the specific rc.conf(5)"
 	f_err "$optfmt" "" \
 	      "file where the directive was found."
+	f_err "$optfmt" "--version" \
+	      "Print version information to stdout and exit."
 	f_err "$optfmt" "-x" \
 	      "Remove variable(s) from specified file(s)."
 	f_err "\n"
@@ -195,19 +202,22 @@ jail_depend()
 [ $# -gt 0 ] || usage
 
 #
-# Check for `--help' command-line option
+# Check for `--help' and `--version' command-line option
 #
 ( # Operate in sub-shell to protect $@ in parent
 	while [ $# -gt 0 ]; do
 		case "$1" in
-		--help) exit 1;;
+		--help) help ;;
+		--version) # see GLOBALS
+			echo "$SYSRC_VERSION"
+			exit 1 ;;
 		-[fRj]) # These flags take an argument
 			shift 1;;
 		esac
 		shift 1
 	done
 	exit 0
-) || help
+) || die
 
 #
 # Process command-line flags
