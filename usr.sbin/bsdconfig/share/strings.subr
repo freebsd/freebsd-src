@@ -66,7 +66,8 @@ f_snprintf()
 {
 	local __var_to_set="$1" __size="$2"
 	shift 2 # var_to_set size
-	eval "$__var_to_set"=\$\( printf \"\$@\" \| awk -v max=\"\$__size\" \''
+	eval "$__var_to_set"=\$\( printf -- \"\$@\" \| \
+		awk -v max=\"\$__size\" \''
 	{
 		len = length($0)
 		max -= len
