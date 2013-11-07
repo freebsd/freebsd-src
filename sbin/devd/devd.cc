@@ -1111,7 +1111,7 @@ siginfohand(int)
 }
 
 /*
- * Local logging function.  Prints to syslog if we're daemonized; syslog
+ * Local logging function.  Prints to syslog if we're daemonized; stderr
  * otherwise.
  */
 static void
