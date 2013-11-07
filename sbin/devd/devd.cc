@@ -248,7 +248,7 @@ bool
 action::do_action(config &c)
 {
 	string s = c.expand_string(_cmd.c_str());
-	devdlog(LOG_NOTICE, "Executing '%s'\n", s.c_str());
+	devdlog(LOG_INFO, "Executing '%s'\n", s.c_str());
 	my_system(s.c_str());
 	return (true);
 }
