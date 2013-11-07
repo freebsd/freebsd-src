@@ -439,6 +439,16 @@ IMAKE_MTREE=	MTREE_CMD="nmtree ${MTREEFLAGS}"
 KMAKEENV=	${WMAKEENV}
 KMAKE=		${KMAKEENV} ${MAKE} ${.MAKEFLAGS} ${KERNEL_FLAGS} KERNEL=${INSTKERNNAME}
 
+# kernel build-tools stage
+KTMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
+		${WMAKEENV} ${MAKE} -f Makefile.inc1 \
+		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		DESTDIR= \
+		BOOTSTRAPPING=${OSRELDATE} \
+		SSP_CFLAGS= \
+		-DNO_LINT \
+		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD
+
 #
 # buildworld
 #
@@ -1019,7 +1029,7 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.3: build tools"
 	@echo "--------------------------------------------------------------"
-	@# Currently no special kernel tools to build.
+	${_+_}cd ${.CURDIR}; ${KTMAKE} kernel-tools
 .if !defined(NO_KERNELDEPEND)
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -1347,6 +1357,23 @@ build-tools: .MAKE
 .endfor
 
 #
+# kernel-tools: Build kernel-building tools
+#
+kernel-tools: .MAKE
+	mkdir -p ${WORLDTMP}/usr
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	    -p ${WORLDTMP}/usr >/dev/null
+.for _tool in \
+    sys/dev/aic7xxx/aicasm
+	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
+		cd ${.CURDIR}/${_tool} && \
+		${MAKE} DIRPRFX=${_tool}/ obj && \
+		${MAKE} DIRPRFX=${_tool}/ depend && \
+		${MAKE} DIRPRFX=${_tool}/ all && \
+		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${WORLDTMP} install
+.endfor
+
+#
 # cross-tools: Build cross-building tools
 #
 .if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${BOOTSTRAPPING} < 800035
@@ -1392,8 +1419,7 @@ cross-tools: .MAKE
     usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
     ${_btxld} \
     ${_crunchide} \
-    ${_kgzip} \
-    sys/dev/aic7xxx/aicasm
+    ${_kgzip}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
 		${MAKE} DIRPRFX=${_tool}/ obj && \
