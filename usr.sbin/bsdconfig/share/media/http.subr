@@ -595,6 +595,7 @@ f_media_get_http()
 
 	local url="$http_path/$file" rx
 	f_dprintf "sending http request for: %s" "$url"
+	f_dprintf "using nc to connect to: %s:%s" "$host" "$http_port"
 	printf "GET %s HTTP/1.0\r\n\r\n" "$url" | nc -n "$host" "$http_port" |
 	(
 		#
