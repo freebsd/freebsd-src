@@ -11,5 +11,4 @@
 #include <stdint.h>
 #include <libusb20.h>
 
-const char *usb_error(enum libusb20_error r);
 void print_formatted(uint8_t *buf, uint32_t len);
