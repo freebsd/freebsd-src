@@ -527,7 +527,7 @@ f_dialog_menu_constrain()
 			: ${__min_rows:=0}
 		fi
 
-		local __max_rows=$(( $__max_height_menu_constrain - 8 ))
+		local __max_rows=$(( $__max_height_menu_constrain - 7 ))
 		# If prompt_len is zero (no prompt), bump the max-rows by 1
 		# Default assumption is (if no argument) that there's no prompt
 		[ ${__prompt_len:-0} -gt 0 ] ||
