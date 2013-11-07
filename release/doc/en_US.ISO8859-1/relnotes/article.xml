@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
 ]>
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+  <info><title>&os; &release.current; Release Notes</title>
+    
 
-<article>
-  <articleinfo>
-    <title>&os; &release.current; Release Notes</title>
-
-    <corpauthor>The &os; Project</corpauthor>
+    <author><orgname>The &os; Project</orgname></author>
 
     <pubdate>$FreeBSD$</pubdate>
 
@@ -18,7 +17,7 @@
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
-    <legalnotice id="trademarks" role="trademarks">
+    <legalnotice xml:id="trademarks" role="trademarks">
       &tm-attrib.freebsd;
       &tm-attrib.ibm;
       &tm-attrib.ieee;
@@ -36,9 +35,9 @@
 	kernel and userland.
 	Some brief remarks on upgrading are also presented.</para>
     </abstract>
-  </articleinfo>
+  </info>
 
-  <sect1 id="intro">
+  <sect1 xml:id="intro">
     <title>Introduction</title>
 
     <para>This document contains the release notes for &os;
@@ -47,13 +46,10 @@
       upgrading from previous versions of &os;.</para>
 
     <para>This distribution of &os; &release.current; is a
-      &release.type; distribution.  It can be found at <ulink
-      url="&release.url;"></ulink> or any of its mirrors.  More
+      &release.type; distribution.  It can be found at <uri xlink:href="&release.url;">&release.url;</uri> or any of its mirrors.  More
       information on obtaining this (or other) &release.type;
-      distributions of &os; can be found in the <ulink
-      url="&url.books.handbook;/mirrors.html"><quote>Obtaining
-      &os;</quote> appendix</ulink> to the <ulink
-      url="&url.books.handbook;/">&os; Handbook</ulink>.</para>
+      distributions of &os; can be found in the <link xlink:href="&url.books.handbook;/mirrors.html"><quote>Obtaining
+      &os;</quote> appendix</link> to the <link xlink:href="&url.books.handbook;/">&os; Handbook</link>.</para>
 
     <para>All users are encouraged to consult the release errata before
       installing &os;.  The errata document is updated with
@@ -64,7 +60,7 @@
       &release.current; can be found on the &os; Web site.</para>
   </sect1>
 
-  <sect1 id="new">
+  <sect1 xml:id="new">
     <title>What's New</title>
 
     <para>This section describes the most user-visible new or changed
@@ -80,19 +76,19 @@
       advisories, user-visible changes, and major architectural
       improvements.</para>
 
-    <sect2 id="security">
+    <sect2 xml:id="security">
       <title>Security Advisories</title>
 
       <para>Problems described in the following security advisories have
 	been fixed.  For more information, consult the individual
 	advisories available from
-	<ulink url="http://security.FreeBSD.org/"></ulink>.</para>
+	<uri xlink:href="http://security.FreeBSD.org/">http://security.FreeBSD.org/</uri>.</para>
 
       <informaltable frame="none" pgwide="1">
 	<tgroup cols="3">
-	  <colspec colwidth="1*" />
-	  <colspec colwidth="1*" />
-	  <colspec colwidth="3*" />
+	  <colspec colwidth="1*"/>
+	  <colspec colwidth="1*"/>
+	  <colspec colwidth="3*"/>
 	  <thead>
 	    <row>
 	      <entry>Advisory</entry>
@@ -103,57 +99,49 @@
 
 	  <tbody>
 	    <row>
-	      <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:01.openssl.asc"
-		  >SA-12:01.openssl</ulink></entry>
+	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:01.openssl.asc">SA-12:01.openssl</link></entry>
 	      <entry>3&nbsp;May&nbsp;2012</entry>
 	      <entry><para>OpenSSL multiple vulnerabilities</para></entry>
 	    </row>
 
 	    <row>
-	      <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:02.crypt.asc"
-		  >SA-12:02.crypt</ulink></entry>
+	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:02.crypt.asc">SA-12:02.crypt</link></entry>
 	      <entry>30&nbsp;May&nbsp;2012</entry>
 	      <entry><para>Incorrect <function>crypt()</function> hashing</para></entry>
 	    </row>
 
 	    <row>
-	      <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:03.bind.asc"
-		  >SA-12:03.bind</ulink></entry>
+	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:03.bind.asc">SA-12:03.bind</link></entry>
 	      <entry>12&nbsp;June&nbsp;2012</entry>
 	      <entry><para>Incorrect handling of zero-length RDATA fields in &man.named.8;</para></entry>
 	    </row>
 
 	    <row>
-	      <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:04.sysret.asc"
-		  >SA-12:04.sysret</ulink></entry>
+	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:04.sysret.asc">SA-12:04.sysret</link></entry>
 	      <entry>12&nbsp;June&nbsp;2012</entry>
 	      <entry><para>Privilege escalation when returning from kernel</para></entry>
 	    </row>
 
 	    <row>
-	      <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:05.bind.asc"
-		  >SA-12:05.bind</ulink></entry>
+	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:05.bind.asc">SA-12:05.bind</link></entry>
 	      <entry>6&nbsp;August&nbsp;2012</entry>
 	      <entry><para>&man.named.8; DNSSEC validation Denial of Service</para></entry>
 	    </row>
 
 	    <row>
-	      <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:06.bind.asc"
-		  >SA-12:06.bind</ulink></entry>
+	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:06.bind.asc">SA-12:06.bind</link></entry>
 	      <entry>22&nbsp;November&nbsp;2012</entry>
 	      <entry><para>Multiple Denial of Service vulnerabilities with &man.named.8;</para></entry>
 	    </row>
 
 	    <row>
-	      <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:07.hostapd.asc"
-		  >SA-12:07.hostapd</ulink></entry>
+	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:07.hostapd.asc">SA-12:07.hostapd</link></entry>
 	      <entry>22&nbsp;November&nbsp;2012</entry>
 	      <entry><para>Insufficient message length validation for EAP-TLS messages</para></entry>
 	    </row>
 
 	    <row>
-	      <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:08.linux.asc"
-		  >SA-12:08.linux</ulink></entry>
+	      <entry><link xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-12:08.linux.asc">SA-12:08.linux</link></entry>
 	      <entry>22&nbsp;November&nbsp;2012</entry>
 	      <entry><para>Linux compatibility layer input validation error</para></entry>
 	    </row>
@@ -162,7 +150,7 @@
       </informaltable>
     </sect2>
 
-    <sect2 id="kernel">
+    <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
       <para revision="232728">The &os; Jail subsystem now supports
@@ -223,8 +211,7 @@
 	when the number of threads is lesser than the number of
 	logical CPUs.</para>
 
-      <para revision="235992"
-	arch="sparc64">The <literal>PREEMPTION</literal> kernel option is
+      <para revision="235992" arch="sparc64">The <literal>PREEMPTION</literal> kernel option is
 	now enabled in the <filename>GENERIC</filename> kernel.</para>
 
       <para revision="230039">A new &man.sysctl.8; variable
@@ -236,7 +223,7 @@
 	supports ASCII art in <application>TheDraw</application>
 	format.</para>
 
-      <sect3 id="boot">
+      <sect3 xml:id="boot">
 	<title>Boot Loader Changes</title>
 
 	<para revision="230065">The &man.boot0cfg.8; utility now
@@ -263,14 +250,14 @@
 	  block and <filename>zfsloader</filename> support
 	  filesystems within a ZFS storage pool.  In
 	  <filename>zfsloader</filename>, the ZFS device name format is now
-	  <literal>zfs:<replaceable>pool</replaceable>/<replaceable>fs</replaceable></literal>
+	  <literal>zfs:pool/fs</literal>
 	  and the fully qualified file path format is
-	  <literal>zfs:<replaceable>pool</replaceable>/<replaceable>fs</replaceable>:/<replaceable>path/to/file</replaceable></literal>.
+	  <literal>zfs:pool/fs:/path/to/file</literal>.
 	  The <filename>zfsboot</filename> boot block accepts the
 	  kernel/loader name in the format
-	  <literal><replaceable>pool</replaceable>:<replaceable>fs</replaceable>:<replaceable>path/to/file</replaceable></literal>
+	  <literal>pool:fs:path/to/file</literal>
 	  or, as before,
-	  <literal><replaceable>pool</replaceable>:<replaceable>path/to/file</replaceable></literal>.
+	  <literal>pool:path/to/file</literal>.
 	  In the latter case a default filesystem is used (the pool
 	  root or a filesystem with the <literal>bootfs</literal> property).  The
 	  <filename>zfsboot</filename> boot block passes
@@ -301,7 +288,7 @@
 &prompt.root; zfs set mountpoint=/ rpool</screen>
       </sect3>
 
-      <sect3 id="proc">
+      <sect3 xml:id="proc">
 	<title>Hardware Support</title>
 
 	<para revision="230751" arch="powerpc">The &man.abtn.4;
@@ -378,7 +365,7 @@
 	  supports the watchdog timer found in Winbond Super I/O chips,
 	  has been added.</para>
 
-	<sect4 id="mm">
+	<sect4 xml:id="mm">
 	  <title>Multimedia Support</title>
 
 	  <para revision="236926,236927,239965">The drm2(4) Intel GPU driver,
@@ -407,7 +394,7 @@
 	    kernel on &os;/amd64 and &os;/i386.</para>
 	</sect4>
 
-	<sect4 id="net-if">
+	<sect4 xml:id="net-if">
 	  <title>Network Interface Support</title>
 
 	  <para revision="229520">A bug in the &man.ae.4; driver which could
@@ -568,7 +555,7 @@
 	</sect4>
       </sect3>
 
-      <sect3 id="net-proto">
+      <sect3 xml:id="net-proto">
 	<title>Network Protocols</title>
 
 	<para revision="236051">The &man.if.bridge.4; pseudo-interface
@@ -583,8 +570,7 @@
 	<programlisting>skipto tablearg ip from any to any via table(42) in</programlisting>
 
 	<para>The &os; &man.ip6.4; protocol stack has been improved in terms
-	  of its performance.  Benchmarking can be found at <ulink
-	  url="http://people.freebsd.org/~bz/bench/"></ulink>.</para>
+	  of its performance.  Benchmarking can be found at <uri xlink:href="http://people.freebsd.org/~bz/bench/">http://people.freebsd.org/~bz/bench/</uri>.</para>
 
 	<para revision="232292">The &os; &man.ip6.4; protocol stack now
 	  supports multiple FIBs.</para>
@@ -608,8 +594,7 @@
 	<para revision="231650,235527">The &man.netmap.4; fast packet
 	  I/O framework has been added.  The &man.em.4;, lem(4),
 	  &man.igb.4;, and &man.re.4; drivers now support this
-	  framework.  The technical details can be found at <ulink
-	  url="http://info.iet.unipi.it/~luigi/netmap/"></ulink>.</para>
+	  framework.  The technical details can be found at <uri xlink:href="http://info.iet.unipi.it/~luigi/netmap/">http://info.iet.unipi.it/~luigi/netmap/</uri>.</para>
 
 	<para revision="231045">The &os; &man.sctp.4; protocol stack now
 	  supports a new &man.sysctl.8; variable
@@ -643,7 +628,7 @@
 	  basis.</para>
       </sect3>
 
-      <sect3 id="disks">
+      <sect3 xml:id="disks">
 	<title>Disks and Storage</title>
 
 	<para revision="240758">The &man.arcmsr.4; driver has been
@@ -686,8 +671,7 @@
 	  Audio CDs in the same way as &man.acd.4; did.  It will
 	  report a 2352-byte sector size to the &man.geom.4; subsystem and use
 	  the <literal>READ CD</literal> command for reading the data.
-	  This fixes an interoperability issue with <filename
-	  role="package">multimedia/vlc</filename>.</para>
+	  This fixes an interoperability issue with <package>multimedia/vlc</package>.</para>
 
 	<para revision="236677">The &man.da.4; driver now supports
 	  <literal>BIO_DELETE</literal>.  To select the method, a new
@@ -836,7 +820,7 @@
 	  now enables power save mode by default.</para>
       </sect3>
 
-      <sect3 id="fs">
+      <sect3 xml:id="fs">
 	<title>File Systems</title>
 
 	<para>The &os; NFS filesystem has been improved:</para>
@@ -939,7 +923,7 @@
       </sect3>
     </sect2>
 
-    <sect2 id="userland">
+    <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
       <para revision="238481">&man.auth.conf.5; has been removed
@@ -993,7 +977,7 @@
 	support has been fixed.</para>
 
       <para revision="232486">The &man.ifconfig.8; utility now
-	supports a <literal>carp state <replaceable>state</replaceable></literal>
+	supports a <literal>carp state state</literal>
 	parameter to set
 	the state to <literal>backup</literal> or
 	<literal>master</literal> forcibly.</para>
@@ -1110,7 +1094,7 @@
 	supports several extensions for compatibility with Apple
 	<application>Darwin</application>.</para>
 
-      <sect3 id="periodic-scripts">
+      <sect3 xml:id="periodic-scripts">
 	<title>&man.periodic.8; Scripts</title>
 
 	<para revision="231721">A new variable
@@ -1125,7 +1109,7 @@
 	  to 35 days.</para>
       </sect3>
 
-      <sect3 id="rc-scripts">
+      <sect3 xml:id="rc-scripts">
 	<title>&man.rc.8; Scripts</title>
 
 	<para revision="227607">The <filename>rc.d/nfsd</filename> script
@@ -1141,7 +1125,7 @@
       </sect3>
     </sect2>
 
-    <sect2 id="contrib">
+    <sect2 xml:id="contrib">
       <title>Contributed Software</title>
 
       <para revision="241417"><application>ISC BIND</application> has
@@ -1201,12 +1185,11 @@
 	library has been updated to version 1.2.7.</para>
     </sect2>
 
-    <sect2 id="releng">
+    <sect2 xml:id="releng">
       <title>Release Engineering and Integration</title>
 
       <para>The supported version of the
-	<application>KDE</application> desktop environment (<filename
-	role="package">x11/kde4</filename>) has been updated to
+	<application>KDE</application> desktop environment (<package>x11/kde4</package>) has been updated to
 	4.8.4.</para>
 
       <para revision="234055" arch="powerpc">Issues where the &os;
@@ -1216,7 +1199,7 @@
     </sect2>
   </sect1>
 
-  <sect1 id="upgrade">
+  <sect1 xml:id="upgrade">
     <title>Upgrading from previous releases of &os;</title>
 
     <sect2>
@@ -1239,8 +1222,7 @@
 	<filename>/usr/src/UPDATING</filename>.</para>
 
       <para>For more specific information about upgrading
-	instructions, see <ulink
-	url="http://www.FreeBSD.org/releases/9.1R/installation.html"></ulink>.</para>
+	instructions, see <uri xlink:href="http://www.FreeBSD.org/releases/9.1R/installation.html">http://www.FreeBSD.org/releases/9.1R/installation.html</uri>.</para>
 
       <important>
 	<para>Upgrading &os; should, of course, only be attempted
@@ -1250,14 +1232,13 @@
     </sect2>
 
     <sect2>
-      <title id="upgrade-pitfalls">User-visible incompatibilities</title>
+      <title xml:id="upgrade-pitfalls">User-visible incompatibilities</title>
 
       <para>FreeBSD 9.0 and later have several incompatibilities in
 	system configuration which you might want to know before
 	upgrading your system.  <emphasis>Please read this section and
-	the <ulink
-	url="http://www.freebsd.org/releases/9.0R/relnotes-detailed.html#UPGRADE">Upgrading
-	Section in 9.0-RELEASE Release Notes</ulink> carefully before
+	the <link xlink:href="http://www.freebsd.org/releases/9.0R/relnotes-detailed.html#UPGRADE">Upgrading
+	Section in 9.0-RELEASE Release Notes</link> carefully before
 	submitting a problem report and/or posting a question to the
 	FreeBSD mailing lists.</emphasis></para>
     </sect2>

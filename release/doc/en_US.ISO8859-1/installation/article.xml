@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
 %release;
 ]>
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+  <info><title>&os; &release.current; Installation Instructions</title>
+    
 
-<article>
-  <articleinfo>
-    <title>&os; &release.current; Installation Instructions</title>
-
-    <corpauthor>The &os; Project</corpauthor>
+    <author><orgname>The &os; Project</orgname></author>
 
     <pubdate>$FreeBSD$</pubdate>
 
@@ -19,40 +18,37 @@
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
-    <legalnotice id="trademarks" role="trademarks">
+    <legalnotice xml:id="trademarks" role="trademarks">
       &tm-attrib.freebsd;
       &tm-attrib.intel;
       &tm-attrib.sparc;
       &tm-attrib.general;
     </legalnotice>
-  </articleinfo>
 
-  <abstract>
-    <para>This article gives some brief instructions on installing
-      &os; &release.current; and upgrading the systems running earlier
-      releases.</para>
-  </abstract>
+    <abstract>
+      <para>This article gives some brief instructions on installing
+        &os; &release.current; and upgrading the systems running earlier
+        releases.</para>
+    </abstract>
+  </info>
 
-  <sect1 id="install">
+  <sect1 xml:id="install">
     <title>Installing &os;</title>
 
-    <para>The <ulink
-	url="&url.books.handbook;/bsdinstall.html"><quote>Installing
-	  &os;</quote></ulink>
-      chapter of the <ulink
-	url="&url.books.handbook;/">&os;
-	Handbook</ulink> provides more in-depth information about the
+    <para>The <link xlink:href="&url.books.handbook;/bsdinstall.html"><quote>Installing
+	  &os;</quote></link>
+      chapter of the <link xlink:href="&url.books.handbook;/">&os;
+	Handbook</link> provides more in-depth information about the
       installation program itself, including a guided walk-through with
       screenshots.</para>
   </sect1>
 
-  <sect1 id="upgrade">
+  <sect1 xml:id="upgrade">
     <title>Upgrading &os;</title>
 
     <para>If you are upgrading from a previous release of &os;, please
-      read <ulink
-      url="http://www.FreeBSD.org/releases/9.1R/relnotes-detailed.html#upgrade">upgrading
-      section in the Release Notes</ulink> for notable
+      read <link xlink:href="http://www.FreeBSD.org/releases/9.1R/relnotes-detailed.html#upgrade">upgrading
+      section in the Release Notes</link> for notable
       incompatibilities carefully.</para>
 
     <sect2>
@@ -60,8 +56,8 @@
 
       <para>The procedure for doing a source code based update is
 	described in
-	<ulink url="&url.books.handbook;/synching.html"></ulink> and
-	<ulink url="&url.books.handbook;/makeworld.html"></ulink>.</para>
+	<uri xlink:href="&url.books.handbook;/synching.html">&url.books.handbook;/synching.html</uri> and
+	<uri xlink:href="&url.books.handbook;/makeworld.html">&url.books.handbook;/makeworld.html</uri>.</para>
 
       <para>For SVN use the <filename>releng/9.1</filename> branch
 	which will be where any upcoming Security Advisories or Errata
@@ -83,8 +79,7 @@
 
       <para>First, ensure that your current system is up to date; a
 	change was recently made to &man.freebsd-update.8; (Errata
-	Notice <ulink
-	  url="http://security.FreeBSD.org/advisories/FreeBSD-EN-12:01.freebsd-update.asc">FreeBSD-EN-12:01.freebsd-update</ulink>)
+	Notice <link xlink:href="http://security.FreeBSD.org/advisories/FreeBSD-EN-12:01.freebsd-update.asc">FreeBSD-EN-12:01.freebsd-update</link>)
 	which is needed in order to upgrade to &os;
 	&release.current;.</para>
 
