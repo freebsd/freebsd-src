@@ -62,12 +62,10 @@ export UNAME_S="$(uname -s)" # Operating System (i.e. FreeBSD)
 export UNAME_P="$(uname -p)" # Processor Architecture (i.e. i386)
 export UNAME_M="$(uname -m)" # Machine platform (i.e. i386)
 export UNAME_R="$(uname -r)" # Release Level (i.e. X.Y-RELEASE)
-if [ ! "$UNAME_PKG" ]; then
-	case "$UNAME_M:$UNAME_P" in
-	  i386:i386) UNAME_PKG="x86:32" ;;
-	amd64:amd64) UNAME_PKG="x86:64" ;;
-	          *) UNAME_PKG="$UNAME_M:$UNAME_P"
-	esac
+if [ ! "${PKG_ABI+set}" ]; then
+	export PKG_ABI="$(
+		pkg -vv | awk '$1=="ABI:"{print $2;exit}' 2> /dev/null
+	)"
 fi
 
 #
