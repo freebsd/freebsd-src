@@ -28,6 +28,9 @@
 #
 ############################################################ INCLUDES
 
+# Prevent `-d' from being interpreted as a debug flag by common.subr
+DEBUG_SELF_INITIALIZE=
+
 BSDCFG_SHARE="/usr/share/bsdconfig"
 [ "$_COMMON_SUBR" ] || . $BSDCFG_SHARE/common.subr || exit 1
 [ "$_SYSRC_SUBR"  ] || f_include $BSDCFG_SHARE/sysrc.subr
@@ -179,6 +182,7 @@ jail_depend()
 	#
 	# Print include dependencies
 	#
+	echo DEBUG_SELF_INITIALIZE=
 	cat $BSDCFG_SHARE/common.subr
 	cat $BSDCFG_SHARE/sysrc.subr
 }
