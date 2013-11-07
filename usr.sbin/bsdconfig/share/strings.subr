@@ -77,6 +77,18 @@ f_snprintf()
 	}'\' \)
 }
 
+# f_sprintf $var_to_set $format [$arguments ...]
+#
+# Similar to sprintf(3), write a string into $var_to_set using printf(1) syntax
+# (`$format [$arguments ...]').
+#
+f_sprintf()
+{
+	local __var_to_set="$1"
+	shift 1 # var_to_set
+	eval "$__var_to_set"=\$\( printf -- \"\$@\" \)
+}
+
 # f_vsnprintf $var_to_set $size $format $format_args
 #
 # Similar to vsnprintf(3), write at most $size number of bytes into $var_to_set
@@ -110,6 +122,16 @@ f_snprintf()
 f_vsnprintf()
 {
 	eval f_snprintf \"\$1\" \"\$2\" \"\$3\" $4
+}
+
+# f_vsprintf $var_to_set $format $format_args
+#
+# Similar to vsprintf(3), write a string into $var_to_set using printf(1)
+# syntax (`$format $format_args').
+#
+f_vsprintf()
+{
+	eval f_sprintf \"\$1\" \"\$2\" $3
 }
 
 # f_longest_line_length
