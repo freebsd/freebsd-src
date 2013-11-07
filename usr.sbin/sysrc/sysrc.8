@@ -32,13 +32,13 @@
 .Nd safely edit system rc files
 .Sh SYNOPSIS
 .Nm
-.Op Fl dDeFhinNqvx
+.Op Fl cdDeFhinNqvx
 .Op Fl f Ar file
 .Op Fl j Ar jail | Fl R Ar dir
 .Ar name Ns Op = Ns Ar value
 .Ar ...
 .Nm
-.Op Fl dDeFhinNqvx
+.Op Fl cdDeFhinNqvx
 .Op Fl f Ar file
 .Op Fl j Ar jail | Fl R Ar dir
 .Fl a | A
@@ -57,6 +57,12 @@ Dump a list of all non-default configuration variables.
 .It Fl A
 Dump a list of all configuration variables
 .Pq incl. defaults .
+.It Fl c
+Check if the value will change when assigning a new value.
+If verbose
+.Pq see Dq Fl v
+prints a message stating whether a change would occur.
+Exits with success if no change is necessary, else returns error status.
 .It Fl d
 Print a description of the given variable.
 .It Fl D
