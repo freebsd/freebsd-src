@@ -300,13 +300,14 @@ fi
 # Process `-e', `-n', and `-N' command-line options
 #
 SEP=': '
-[ "$SHOW_EQUALS" ] && SEP='="'
+[ "$SHOW_FILE" ] && SHOW_EQUALS=
 [ "$SHOW_NAME" ] || SHOW_EQUALS=
 [ "$SYSRC_VERBOSE" = "0" ] && SYSRC_VERBOSE=
 if [ ! "$SHOW_VALUE" ]; then
 	SHOW_NAME=1
 	SHOW_EQUALS=
 fi
+[ "$SHOW_EQUALS" ] && SEP='="'
 
 #
 # Process `-j jail' and `-R dir' command-line options
@@ -545,7 +546,11 @@ while [ $# -gt 0 ]; do
 			file=$( f_sysrc_find "$NAME" )
 			[ "$file" = "$RC_DEFAULTS" -o ! "$file" ] && \
 				file=$( f_sysrc_get 'rc_conf_files%%[$IFS]*' )
-			echo -n "$file: "
+			if [ "$SHOW_EQUALS" ]; then
+				echo -n ": $file; "
+			else
+				echo -n "$file: "
+			fi
 		fi
 
 		#
@@ -587,14 +592,13 @@ while [ $# -gt 0 ]; do
 			if f_sysrc_set "$NAME" "${1#*=}"; then
 				if [ "$SHOW_FILE" ]; then
 					after=$( f_sysrc_find "$NAME" )
-					echo -n "${SHOW_NAME:+$NAME$SEP}"
-					echo -n "$before${SHOW_EQUALS:+\"}"
-					echo " -> $after"
 				else
 					after=$( f_sysrc_get "$NAME" )
-					echo -n "${SHOW_NAME:+$NAME$SEP}"
-					echo "$before -> $after"
 				fi
+				echo -n "${SHOW_NAME:+$NAME$SEP}"
+				echo -n "$before${SHOW_EQUALS:+\" #}"
+				echo -n " -> ${SHOW_EQUALS:+\"}$after"
+				echo "${SHOW_EQUALS:+\"}"
 			fi
 		fi
 		;;
@@ -642,8 +646,13 @@ while [ $# -gt 0 ]; do
 			continue
 		fi
 
-		[ "$SYSRC_VERBOSE" ] && \
-			echo -n "$( f_sysrc_find "$NAME" ): "
+		if [ "$SYSRC_VERBOSE" ]; then
+			if [ "$SHOW_EQUALS" ]; then
+				echo -n ": $( f_sysrc_find "$NAME" ); "
+			else
+				echo -n "$( f_sysrc_find "$NAME" ): "
+			fi
+		fi
 
 		#
 		# If `-N' is passed, simplify the output
