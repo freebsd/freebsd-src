@@ -2393,9 +2393,6 @@ pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 	 * Reserve some special page table entries/VA space for temporary
 	 * mapping of pages.
 	 */
-#define SYSMAP(c, p, v, n)						\
-    v = (c)va; va += ((n)*PAGE_SIZE); p = pte; pte += (n);
-
 	pmap_alloc_specials(&virtual_avail, 1, &csrcp, &csrc_pte);
 	pmap_set_pt_cache_mode(kernel_l1pt, (vm_offset_t)csrc_pte);
 	pmap_alloc_specials(&virtual_avail, 1, &cdstp, &cdst_pte);
