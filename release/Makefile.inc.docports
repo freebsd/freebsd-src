@@ -71,18 +71,3 @@ MINIMALDOCPORTS+=	ports/textproc/openjade \
 .else
 MINIMALDOCPORTS+=	ports/textproc/jade
 .endif
-
-.if ${OSVERSION} < 500000
-MINIMALDOCPORTS+= \
-	ports/converters/p5-MIME-Base64 \
-	ports/devel/p5-File-Spec \
-	ports/devel/p5-File-Temp \
-	ports/devel/p5-Test-Harness \
-	ports/devel/p5-Test-Simple \
-	ports/security/p5-Digest \
-	ports/security/p5-Digest-MD5 \
-	ports/textproc/p5-PodParser
-.else
-MINIMALDOCPORTS+= \
-	ports/lang/perl5.10
-.endif
