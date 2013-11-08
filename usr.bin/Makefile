@@ -160,6 +160,7 @@ SUBDIR=	alias \
 	tar \
 	tcopy \
 	tee \
+	${_tests} \
 	tftp \
 	time \
 	tip \
@@ -330,6 +331,7 @@ SUBDIR+=	telnet
 
 .if ${MK_TESTS} != "no"
 _atf=		atf
+_tests=		tests
 .endif
 
 .if ${MK_TEXTPROC} != "no"
