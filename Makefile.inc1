@@ -1602,10 +1602,12 @@ ${_lib}__PL: .PHONY .MAKE
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_lib} && \
-		${MAKE} DIRPRFX=${_lib}/ obj && \
-		${MAKE} DIRPRFX=${_lib}/ depend && \
-		${MAKE} -DNO_PROFILE -DNO_PIC DIRPRFX=${_lib}/ all && \
-		${MAKE} -DNO_PROFILE -DNO_PIC DIRPRFX=${_lib}/ install
+		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ obj && \
+		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ depend && \
+		${MAKE} -DNO_TESTS -DNO_PROFILE -DNO_PIC \
+		    DIRPRFX=${_lib}/ all && \
+		${MAKE} -DNO_TESTS -DNO_PROFILE -DNO_PIC \
+		    DIRPRFX=${_lib}/ install
 .endif
 .endfor
 
@@ -1614,10 +1616,10 @@ ${_lib}__L: .PHONY .MAKE
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_lib} && \
-		${MAKE} DIRPRFX=${_lib}/ obj && \
-		${MAKE} DIRPRFX=${_lib}/ depend && \
-		${MAKE} DIRPRFX=${_lib}/ all && \
-		${MAKE} DIRPRFX=${_lib}/ install
+		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ obj && \
+		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ depend && \
+		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ all && \
+		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ install
 .endif
 .endfor
 
@@ -1627,10 +1629,12 @@ ${_lib}__L: .PHONY .MAKE
 lib/libpam__L: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> lib/libpam (obj,depend,all,install)"; \
 		cd ${.CURDIR}/lib/libpam && \
-		${MAKE} DIRPRFX=lib/libpam/ obj && \
-		${MAKE} DIRPRFX=lib/libpam/ depend && \
-		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET all && \
-		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET install
+		${MAKE} -DNO_TESTS DIRPRFX=lib/libpam/ obj && \
+		${MAKE} -DNO_TESTS DIRPRFX=lib/libpam/ depend && \
+		${MAKE} -DNO_TESTS DIRPRFX=lib/libpam/ \
+		    -D_NO_LIBPAM_SO_YET all && \
+		${MAKE} -DNO_TESTS DIRPRFX=lib/libpam/ \
+		    -D_NO_LIBPAM_SO_YET install
 
 _prereq_libs: ${_prereq_libs:S/$/__PL/}
 _startup_libs: ${_startup_libs:S/$/__L/}
