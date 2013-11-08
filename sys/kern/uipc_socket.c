@@ -479,7 +479,7 @@ SYSCTL_INT(_regression, OID_AUTO, sonewconn_earlytest, CTLFLAG_RW,
  * connections, sonewconn is called.  If the connection is possible (subject
  * to space constraints, etc.) then we allocate a new structure, propoerly
  * linked into the data structure of the original socket, and return this.
- * Connstatus may be 0, or SO_ISCONFIRMING, or SO_ISCONNECTED.
+ * Connstatus may be 0, or SS_ISCONFIRMING, or SS_ISCONNECTED.
  *
  * Note: the ref count on the socket is 0 on return.
  */
