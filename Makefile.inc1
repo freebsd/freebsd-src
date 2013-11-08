@@ -540,6 +540,7 @@ _cross-tools:
 	@echo ">>> stage 3: cross tools"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${XMAKE} cross-tools
+	${_+_}cd ${.CURDIR}; ${XMAKE} kernel-tools
 _includes:
 	@echo
 	@echo "--------------------------------------------------------------"
