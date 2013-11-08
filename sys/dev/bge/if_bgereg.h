@@ -2899,28 +2899,28 @@ struct bge_ring_data {
  * not the other way around.
  */
 struct bge_chain_data {
-	bus_dma_tag_t		bge_parent_tag;
-	bus_dma_tag_t		bge_buffer_tag;
-	bus_dma_tag_t		bge_rx_std_ring_tag;
-	bus_dma_tag_t		bge_rx_jumbo_ring_tag;
-	bus_dma_tag_t		bge_rx_return_ring_tag;
-	bus_dma_tag_t		bge_tx_ring_tag;
-	bus_dma_tag_t		bge_status_tag;
-	bus_dma_tag_t		bge_stats_tag;
-	bus_dma_tag_t		bge_rx_mtag;	/* Rx mbuf mapping tag */
-	bus_dma_tag_t		bge_tx_mtag;	/* Tx mbuf mapping tag */
-	bus_dma_tag_t		bge_mtag_jumbo;	/* Jumbo mbuf mapping tag */
-	bus_dmamap_t		bge_tx_dmamap[BGE_TX_RING_CNT];
-	bus_dmamap_t		bge_rx_std_sparemap;
-	bus_dmamap_t		bge_rx_std_dmamap[BGE_STD_RX_RING_CNT];
-	bus_dmamap_t		bge_rx_jumbo_sparemap;
-	bus_dmamap_t		bge_rx_jumbo_dmamap[BGE_JUMBO_RX_RING_CNT];
-	bus_dmamap_t		bge_rx_std_ring_map;
-	bus_dmamap_t		bge_rx_jumbo_ring_map;
-	bus_dmamap_t		bge_tx_ring_map;
-	bus_dmamap_t		bge_rx_return_ring_map;
-	bus_dmamap_t		bge_status_map;
-	bus_dmamap_t		bge_stats_map;
+	busdma_tag_t		bge_parent_tag;
+	busdma_tag_t		bge_buffer_tag;
+	busdma_tag_t		bge_rx_std_ring_tag;
+	busdma_tag_t		bge_rx_jumbo_ring_tag;
+	busdma_tag_t		bge_rx_return_ring_tag;
+	busdma_tag_t		bge_tx_ring_tag;
+	busdma_tag_t		bge_status_tag;
+	busdma_tag_t		bge_stats_tag;
+	busdma_tag_t		bge_rx_mtag;	/* Rx mbuf mapping tag */
+	busdma_tag_t		bge_tx_mtag;	/* Tx mbuf mapping tag */
+	busdma_tag_t		bge_mtag_jumbo;	/* Jumbo mbuf mapping tag */
+	busdma_md_t		bge_tx_dmamap[BGE_TX_RING_CNT];
+	busdma_md_t		bge_rx_std_sparemap;
+	busdma_md_t		bge_rx_std_dmamap[BGE_STD_RX_RING_CNT];
+	busdma_md_t		bge_rx_jumbo_sparemap;
+	busdma_md_t		bge_rx_jumbo_dmamap[BGE_JUMBO_RX_RING_CNT];
+	busdma_md_t		bge_rx_std_ring_map;
+	busdma_md_t		bge_rx_jumbo_ring_map;
+	busdma_md_t		bge_tx_ring_map;
+	busdma_md_t		bge_rx_return_ring_map;
+	busdma_md_t		bge_status_map;
+	busdma_md_t		bge_stats_map;
 	struct mbuf		*bge_tx_chain[BGE_TX_RING_CNT];
 	struct mbuf		*bge_rx_std_chain[BGE_STD_RX_RING_CNT];
 	struct mbuf		*bge_rx_jumbo_chain[BGE_JUMBO_RX_RING_CNT];

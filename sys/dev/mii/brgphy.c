@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/bus.h>
+#include <sys/busdma.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
