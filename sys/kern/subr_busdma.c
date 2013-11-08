@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/busdma.h>
 #include <sys/ktr.h>
+#include <sys/mbuf.h>
 #include <sys/queue.h>
 #include <machine/stdarg.h>
 #include <cam/cam.h>
@@ -251,12 +252,20 @@ _busdma_data_dump(const char *func, struct busdma_md *md, bus_addr_t addr,
 static u_int
 _busdma_flags(const char *func, device_t dev, u_int flags)
 {
+	int res;
 
-	if (flags & BUSDMA_MD_PLATFORM_FLAGS)
+	if (flags & BUSDMA_MD_PLATFORM_FLAGS) {
 		device_printf(dev, "called %s() with invalid flags %#x\n",
 		    func, flags);
+		flags &= ~BUSDMA_MD_PLATFORM_FLAGS;
+	}
 
-	return (flags & ~BUSDMA_MD_PLATFORM_FLAGS);
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "busdma", &res) != 0)
+		res = 0;
+	flags |= res;
+
+	return (flags);
 }
 
 static struct busdma_md_seg *
@@ -760,7 +769,8 @@ busdma_md_load_ccb(busdma_md_t md, union ccb *ccb, busdma_callback_f cb,
 
 	ccb_h = &ccb->ccb_h;
 	if ((ccb_h->flags & CAM_DIR_MASK) == CAM_DIR_NONE) {
-		(*cb)(arg, NULL, 0);
+		if (cb != NULL)
+			(*cb)(arg, NULL, 0);
 		return (0);
 	}
 
@@ -801,8 +811,9 @@ busdma_md_load_ccb(busdma_md_t md, union ccb *ccb, busdma_callback_f cb,
 		if (error)
 			printf("_busdma_iommu_map: error=%d\n", error);
 	}
-	(*cb)(arg, md, error);
-	return (0);
+	if (cb != NULL)
+		(*cb)(arg, md, error);
+	return (error);
 }
 
 int
@@ -825,8 +836,41 @@ busdma_md_load_linear(struct busdma_md *md, void *buf, size_t len,
 		if (error)
 			printf("_busdma_iommu_map: error=%d\n", error);
 	}
-	(*cb)(arg, md, error);
-	return (0);
+	if (cb != NULL)
+		(*cb)(arg, md, error);
+	return (error);
+}
+
+int
+busdma_md_load_mbuf(struct busdma_md *md, struct mbuf *m0,
+    busdma_callback_f cb, void *arg, u_int flags)
+{
+	struct mbuf *m;
+	int error;
+
+	CTR6(KTR_BUSDMA, "%s: md=%p, m0=%p, cb=%p, arg=%p, flags=%#x",
+	    __func__, md, m0, cb, arg, flags);
+
+	flags = _busdma_flags(__func__, md->md_tag->dt_device, flags);
+
+	if (md == NULL || m0 == NULL)
+		return (EINVAL);
+
+	error = 0;
+	for (m = m0; m != NULL && error == 0; m = m->m_next) {
+		if (m->m_len == 0)
+			continue;
+		error = _busdma_md_load(md, NULL, (uintptr_t)(m->m_data),
+		    m->m_len);
+	}
+	if (!error) {
+		error = _busdma_iommu_map(md->md_tag->dt_device, md);
+		if (error)
+			printf("_busdma_iommu_map: error=%d\n", error);
+	}
+	if (cb != NULL)
+		(*cb)(arg, md, error);
+	return (error);
 }
 
 int
@@ -841,8 +885,9 @@ busdma_md_load_phys(struct busdma_md *md, vm_paddr_t buf, size_t len,
 	flags = _busdma_flags(__func__, md->md_tag->dt_device, flags);
 
 	panic(__func__);
-	(*cb)(arg, md, ENOSYS);
-	return (0);
+	if (cb != NULL)
+		(*cb)(arg, md, ENOSYS);
+	return (ENOSYS);
 }
 
 int
@@ -856,8 +901,9 @@ busdma_md_load_uio(struct busdma_md *md, struct uio *uio,
 	flags = _busdma_flags(__func__, md->md_tag->dt_device, flags);
 
 	panic(__func__);
-	(*cb)(arg, md, ENOSYS);
-	return (0);
+	if (cb != NULL)
+		(*cb)(arg, md, ENOSYS);
+	return (ENOSYS);
 }
 
 int
