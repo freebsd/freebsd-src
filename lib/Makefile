@@ -126,7 +126,8 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libyaml \
 	libz \
 	${_atf} \
-	${_clang}
+	${_clang} \
+	${_tests}
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
 _csu=csu/${MACHINE_ARCH}-elf
@@ -251,6 +252,7 @@ _libtelnet=	libtelnet
 
 .if ${MK_TESTS} != "no"
 _atf=		atf
+_tests=		tests
 .endif
 
 .if ${MK_UNBOUND} != "no"
