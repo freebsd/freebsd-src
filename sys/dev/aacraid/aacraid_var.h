@@ -46,8 +46,8 @@
 #define	AAC_TYPE_RELEASE		4
 
 #define	AAC_DRIVER_MAJOR_VERSION	3
-#define	AAC_DRIVER_MINOR_VERSION	1
-#define	AAC_DRIVER_BUGFIX_LEVEL		1
+#define	AAC_DRIVER_MINOR_VERSION	2
+#define	AAC_DRIVER_BUGFIX_LEVEL		5
 #define	AAC_DRIVER_TYPE			AAC_TYPE_RELEASE
 
 #ifndef AAC_DRIVER_BUILD
@@ -114,14 +114,20 @@
 #define AAC_BOOT_TIMEOUT	(3 * 60)
 
 /*
- * Timeout for immediate commands.
+ * We wait this many seconds for the adapter to come ready  
+ * after flash update
  */
-#define AAC_IMMEDIATE_TIMEOUT	30		/* seconds */
+#define AAC_FWUPD_TIMEOUT	(5 * 60)
+
+/*
+ * Timeout for sync. commands.
+ */
+#define AAC_SYNC_TIMEOUT	180		/* seconds */
 
 /*
  * Timeout for normal commands
  */
-#define AAC_CMD_TIMEOUT		120		/* seconds */
+#define AAC_CMD_TIMEOUT		180		/* seconds */
 
 /*
  * Rate at which we periodically check for timed out commands and kick the
@@ -271,7 +277,7 @@ struct aac_interface
 				   u_int32_t arg0, u_int32_t arg1,
 				   u_int32_t arg2, u_int32_t arg3);
 	int	(*aif_get_mailbox)(struct aac_softc *sc, int mb);
-	void	(*aif_set_interrupts)(struct aac_softc *sc, int enable);
+	void	(*aif_access_devreg)(struct aac_softc *sc, int enable);
 	int (*aif_send_command)(struct aac_softc *sc, struct aac_command *cm);
 	int (*aif_get_outb_queue)(struct aac_softc *sc);
 	void (*aif_set_outb_queue)(struct aac_softc *sc, int index);
@@ -289,10 +295,8 @@ extern struct aac_interface	aacraid_srcv_interface;
 	(arg3)))
 #define AAC_GET_MAILBOX(sc, mb)		((sc)->aac_if.aif_get_mailbox((sc), \
 					(mb)))
-#define	AAC_MASK_INTERRUPTS(sc)		((sc)->aac_if.aif_set_interrupts((sc), \
-					0))
-#define AAC_UNMASK_INTERRUPTS(sc)	((sc)->aac_if.aif_set_interrupts((sc), \
-					1))
+#define	AAC_ACCESS_DEVREG(sc, mode)	((sc)->aac_if.aif_access_devreg((sc), \
+					mode))
 #define AAC_SEND_COMMAND(sc, cm)	((sc)->aac_if.aif_send_command((sc), (cm)))
 #define AAC_GET_OUTB_QUEUE(sc)		((sc)->aac_if.aif_get_outb_queue((sc)))
 #define AAC_SET_OUTB_QUEUE(sc, idx)	((sc)->aac_if.aif_set_outb_queue((sc), (idx)))
@@ -331,6 +335,12 @@ struct aac_fib_context {
 	struct aac_fib_context *next, *prev;
 };
 
+/* MSIX context */
+struct aac_msix_ctx {
+	int			vector_no;	
+	struct aac_softc  	*sc;
+};
+
 /*
  * Per-controller structure.
  */
@@ -345,9 +355,10 @@ struct aac_softc
 	bus_dma_tag_t		aac_parent_dmat;	/* parent DMA tag */
 	bus_dma_tag_t		aac_buffer_dmat;	/* data buffer/command
 							 * DMA tag */
-	struct resource		*aac_irq;		/* interrupt */
-	int			aac_irq_rid;
-	void			*aac_intr;		/* interrupt handle */
+	struct resource		*aac_irq[AAC_MAX_MSIX];	 /* interrupt */
+	int			aac_irq_rid[AAC_MAX_MSIX];
+	void			*aac_intr[AAC_MAX_MSIX]; /* interrupt handle */
+	struct aac_msix_ctx	aac_msix[AAC_MAX_MSIX]; /* context */
 	eventhandler_tag	eh;
 #if __FreeBSD_version >= 800000
 	struct callout	aac_daemontime;		/* clock daemon callout */
@@ -375,7 +386,9 @@ struct aac_softc
 							 * DMA map */
 	struct aac_common	*aac_common;
 	u_int32_t		aac_common_busaddr;
-	u_int32_t		aac_host_rrq_idx;
+	u_int32_t		aac_host_rrq_idx[AAC_MAX_MSIX];
+	u_int32_t		aac_rrq_outstanding[AAC_MAX_MSIX];
+	u_int32_t		aac_fibs_pushed_no;
 	struct aac_interface	aac_if;
 
 	/* command/fib resources */
@@ -466,6 +479,9 @@ struct aac_softc
 	u_int32_t	aac_feature_bits;		/* feature bits from suppl. info */
 	u_int32_t	aac_support_opt2;		/* supp. options from suppl. info */
 	u_int32_t	aac_max_aif;			/* max. AIF count */
+	u_int32_t	aac_max_msix;			/* max. MSI-X vectors */
+	u_int32_t	aac_vector_cap;			/* MSI-X vector capab.*/
+	int		msi_enabled;			/* MSI/MSI-X enabled */
 #define AAC_CAM_TARGET_WILDCARD ~0
 	void			(*cam_rescan_cb)(struct aac_softc *, uint32_t,
 				    uint32_t);
@@ -514,8 +530,6 @@ extern void		aacraid_add_event(struct aac_softc *sc, struct aac_event
 extern void		aacraid_map_command_sg(void *arg, bus_dma_segment_t *segs,
 				int nseg, int error);
 extern int		aacraid_wait_command(struct aac_command *cmp);
-
-/* #define AACRAID_DEBUG */
 
 #ifdef AACRAID_DEBUG
 # define fwprintf(sc, flags, fmt, args...)				\
