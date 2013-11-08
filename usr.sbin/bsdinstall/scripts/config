@@ -27,81 +27,6 @@
 #
 # $FreeBSD$
 #
-############################################################ CONFIGURATION
-
-#
-# Location of ttys(5)
-#
-ETC_TTYS=/etc/ttys
-
-############################################################ FUNCTIONS
-
-# ttus_set_type $serterm
-#
-# Set terminal type of `ttyu*' and entries in ttys(5) to $serterm.
-#
-ttus_set_type()
-{
-	local serterm="$1" err
-
-	#
-	# Create new temporary file to write our ttys(5) update with new types.
-	#
-	local tmpfile="$( mktemp -t "pgm" )"
-	[ "$tmpfile" ] || return $FAILURE
-
-	#
-	# Fixup permissions and ownership (mktemp(1) creates the temporary file
-	# with 0600 permissions -- change the permissions and ownership to
-	# match ttys(5) before we write it out and mv(1) it into place).
-	#
-	local mode="$( stat -f '%#Lp' "$ETC_TTYS" 2> /dev/null )"
-	local owner="$( stat -f '%u:%g' "$ETC_TTYS" 2> /dev/null )"
-	f_quietly chmod "${mode:-0644}" "$tmpfile"
-	f_quietly chown "${owner:-root:wheel}" "$tmpfile"
-
-	#
-	# Operate on ttys(5), replacing only the types of `ttyu*' terminals
-	# with the new type.
-	#
-	if ! err=$( awk -v serterm="$serterm" '
-	BEGIN {
-	}
-	{
-		# "Skip" blank-lines, lines containing only whitespace, and
-		# lines containing only a comment or whitespace-then-comment.
-		#
-		if ( $0 ~ /^[[:space:]]*(#|$)/ ) { print; next }
-
-		# "Skip" terminal types other than those supported
-		#
-		if ( $1 !~ /^ttyu.*$/ ) { print; next }
-
-		# Change the terminal type to the new value and enable it
-		#
-		match($0,
-		  /[[:alnum:]\.\+-_]+[[:space:]]+(on|off)([[:space:]]|$).*$/)
-		if ( ! RSTART ) { print; next }
-		start = RSTART
-		left=substr($0, 0, RSTART - 1)
-		right=substr($0, start)
-		match(right,
-		  /[[:alnum:]\.\+-_]+[[:space:]]+(on|off)([[:space:]]+|$)/)
-		right=substr(right, RSTART + RLENGTH)
-		printf "%s%s on %s\n", left, serterm, right
-	}
-	' "$ETC_TTYS" > "$tmpfile" 2>&1 ); then
-		f_show_err "%s" "$err"
-		return $FAILURE
-	fi
-	if ! err=$( mv -f "$tmpfile" "$ETC_TTYS" 2>&1 ); then
-		f_show_err "%s" "$err"
-		return $FAILURE
-	fi
-
-	return $SUCCESS
-}
-
 ############################################################ MAIN
 
 cat $BSDINSTALL_TMPETC/rc.conf.* >> $BSDINSTALL_TMPETC/rc.conf
@@ -116,8 +41,6 @@ cp $BSDINSTALL_TMPBOOT/* $BSDINSTALL_CHROOT/boot
 
 # Set up other things from installed config
 chroot $BSDINSTALL_CHROOT /usr/bin/newaliases
-
-kbdcontrol -d || ttus_set_type vt100
 
 ################################################################################
 # END
