@@ -6,7 +6,7 @@
 # ports/textproc/docproj/Makefile as much as feasible.
 #
 # Note that they are <category>/<port> names relative to
-# ${PORTSDIR}.
+# ${PORTSDIR}/../ .
 #
 # This list of ports should be checked with the output of :
 # make all-depends-list | sed -e 's|^/usr/||' | sed -e 's|$| \\|'
