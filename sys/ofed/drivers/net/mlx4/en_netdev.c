@@ -919,6 +919,7 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 
 	mtx_destroy(&priv->stats_lock.m);
 	mtx_destroy(&priv->vlan_lock.m);
+	mtx_destroy(&priv->ioctl_lock.m);
 	kfree(priv);
 	if_free(dev);
 }
@@ -1087,9 +1088,9 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		mutex_lock(&mdev->state_lock);
+                spin_lock(&priv->ioctl_lock);
 		mlx4_en_set_multicast(dev);
-		mutex_unlock(&mdev->state_lock);
+                spin_unlock(&priv->ioctl_lock);
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
@@ -1510,6 +1511,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->msg_enable = MLX4_EN_MSG_LEVEL;
 	priv->ip_reasm = priv->mdev->profile.ip_reasm;
 	mtx_init(&priv->stats_lock.m, "mlx4 stats", NULL, MTX_DEF);
+	mtx_init(&priv->ioctl_lock.m, "mlx4 ioctl", NULL, MTX_DEF);
 	mtx_init(&priv->vlan_lock.m, "mlx4 vlan", NULL, MTX_DEF);
 	INIT_WORK(&priv->mcast_task, mlx4_en_do_set_multicast);
 	INIT_WORK(&priv->watchdog_task, mlx4_en_restart);

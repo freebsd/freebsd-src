@@ -493,6 +493,7 @@ struct mlx4_en_priv {
 	spinlock_t vlan_lock;
 	struct mlx4_en_port_state port_state;
 	spinlock_t stats_lock;
+	spinlock_t ioctl_lock;
 
 	unsigned long last_moder_packets[MAX_RX_RINGS];
 	unsigned long last_moder_tx_packets;
