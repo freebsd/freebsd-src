@@ -28,6 +28,7 @@ SUBDIR=	${_atf} \
 	talkd \
 	tcpd \
 	${_telnetd} \
+	${_tests} \
 	tftpd \
 	${_tftp-proxy} \
 	ulog-helper \
@@ -74,6 +75,7 @@ _telnetd=	telnetd
 
 .if ${MK_TESTS} != "no"
 _atf=		atf
+_tests=		tests
 .endif
 
 .include <bsd.subdir.mk>
