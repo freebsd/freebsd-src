@@ -318,6 +318,9 @@ static void mlx4_en_set_default_moderation(struct mlx4_en_priv *priv)
 		cq = &priv->rx_cq[i];
 		cq->moder_cnt = priv->rx_frames;
 		cq->moder_time = priv->rx_usecs;
+		priv->last_moder_time[i] = MLX4_EN_AUTO_CONF;
+		priv->last_moder_packets[i] = 0;
+		priv->last_moder_bytes[i] = 0;
 	}
 
 	for (i = 0; i < priv->tx_ring_num; i++) {
@@ -333,11 +336,8 @@ static void mlx4_en_set_default_moderation(struct mlx4_en_priv *priv)
 	priv->rx_usecs_high = MLX4_EN_RX_COAL_TIME_HIGH;
 	priv->sample_interval = MLX4_EN_SAMPLE_INTERVAL;
 	priv->adaptive_rx_coal = 1;
-	priv->last_moder_time = MLX4_EN_AUTO_CONF;
 	priv->last_moder_jiffies = 0;
-	priv->last_moder_packets = 0;
 	priv->last_moder_tx_packets = 0;
-	priv->last_moder_bytes = 0;
 }
 
 static void mlx4_en_auto_moderation(struct mlx4_en_priv *priv)
@@ -349,43 +349,29 @@ static void mlx4_en_auto_moderation(struct mlx4_en_priv *priv)
 	unsigned long avg_pkt_size;
 	unsigned long rx_packets;
 	unsigned long rx_bytes;
-	unsigned long tx_packets;
-	unsigned long tx_pkt_diff;
 	unsigned long rx_pkt_diff;
 	int moder_time;
-	int i, err;
+	int ring, err;
 
 	if (!priv->adaptive_rx_coal || period < priv->sample_interval * HZ)
 		return;
+	for (ring = 0; ring < priv->rx_ring_num; ring++) {
+		spin_lock(&priv->stats_lock);
+		rx_packets = priv->rx_ring[ring].packets;
+		rx_bytes = priv->rx_ring[ring].bytes;
+		spin_unlock(&priv->stats_lock);
 
-	spin_lock(&priv->stats_lock);
-	rx_packets = priv->dev->if_ipackets;
-	rx_bytes = priv->dev->if_ibytes;
-	tx_packets = priv->dev->if_opackets;
-	spin_unlock(&priv->stats_lock);
+		rx_pkt_diff = ((unsigned long) (rx_packets -
+				priv->last_moder_packets[ring]));
+		packets = rx_pkt_diff;
+		rate = packets * HZ / period;
+		avg_pkt_size = packets ? ((unsigned long) (rx_bytes -
+				priv->last_moder_bytes[ring])) / packets : 0;
 
-	if (!priv->last_moder_jiffies || !period)
-		goto out;
-
-	tx_pkt_diff = ((unsigned long) (tx_packets -
-					priv->last_moder_tx_packets));
-	rx_pkt_diff = ((unsigned long) (rx_packets -
-					priv->last_moder_packets));
-	packets = max(tx_pkt_diff, rx_pkt_diff);
-	rate = packets * HZ / period;
-	avg_pkt_size = packets ? ((unsigned long) (rx_bytes -
-				 priv->last_moder_bytes)) / packets : 0;
-
-	/* Apply auto-moderation only when packet rate exceeds a rate that
-	 * it matters */
-	if (rate > MLX4_EN_RX_RATE_THRESH) {
-		/* If tx and rx packet rates are not balanced, assume that
-		 * traffic is mainly BW bound and apply maximum moderation.
-		 * Otherwise, moderate according to packet rate */
-		if (2 * tx_pkt_diff > 3 * rx_pkt_diff ||
-		    2 * rx_pkt_diff > 3 * tx_pkt_diff) {
-			moder_time = priv->rx_usecs_high;
-		} else {
+		/* Apply auto-moderation only when packet rate
+		* exceeds a rate that it matters */
+		if (rate > (MLX4_EN_RX_RATE_THRESH / priv->rx_ring_num) &&
+				avg_pkt_size > MLX4_EN_AVG_PKT_SMALL) {
 			if (rate < priv->pkt_rate_low ||
 			    avg_pkt_size < MLX4_EN_AVG_PKT_SMALL)
 				moder_time = priv->rx_usecs_low;
@@ -396,38 +382,23 @@ static void mlx4_en_auto_moderation(struct mlx4_en_priv *priv)
 					(priv->rx_usecs_high - priv->rx_usecs_low) /
 					(priv->pkt_rate_high - priv->pkt_rate_low) +
 					priv->rx_usecs_low;
+		} else {
+			moder_time = priv->rx_usecs_low;
 		}
-	} else {
-		/* When packet rate is low, use default moderation rather than
-		 * 0 to prevent interrupt storms if traffic suddenly increases */
-		moder_time = priv->rx_usecs;
-	}
 
-	en_dbg(INTR, priv, "tx rate:%lu rx_rate:%lu\n",
-	       tx_pkt_diff * HZ / period, rx_pkt_diff * HZ / period);
-
-	en_dbg(INTR, priv, "Rx moder_time changed from:%d to %d period:%lu "
-	       "[jiff] packets:%lu avg_pkt_size:%lu rate:%lu [p/s])\n",
-		 priv->last_moder_time, moder_time, period, packets,
-		 avg_pkt_size, rate);
-
-	if (moder_time != priv->last_moder_time) {
-		priv->last_moder_time = moder_time;
-		for (i = 0; i < priv->rx_ring_num; i++) {
-			cq = &priv->rx_cq[i];
+		if (moder_time != priv->last_moder_time[ring]) {
+			priv->last_moder_time[ring] = moder_time;
+			cq = &priv->rx_cq[ring];
 			cq->moder_time = moder_time;
 			err = mlx4_en_set_cq_moder(priv, cq);
-			if (err) {
-				en_err(priv, "Failed modifying moderation for cq:%d\n", i);
-				break;
-			}
+			if (err)
+				en_err(priv, "Failed modifying moderation "
+					"for cq:%d\n", ring);
 		}
+		priv->last_moder_packets[ring] = rx_packets;
+		priv->last_moder_bytes[ring] = rx_bytes;
 	}
 
-out:
-	priv->last_moder_packets = rx_packets;
-	priv->last_moder_tx_packets = tx_packets;
-	priv->last_moder_bytes = rx_bytes;
 	priv->last_moder_jiffies = jiffies;
 }
 
@@ -948,6 +919,7 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 
 	mtx_destroy(&priv->stats_lock.m);
 	mtx_destroy(&priv->vlan_lock.m);
+	mtx_destroy(&priv->ioctl_lock.m);
 	kfree(priv);
 	if_free(dev);
 }
@@ -1116,9 +1088,9 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		mutex_lock(&mdev->state_lock);
+                spin_lock(&priv->ioctl_lock);
 		mlx4_en_set_multicast(dev);
-		mutex_unlock(&mdev->state_lock);
+                spin_unlock(&priv->ioctl_lock);
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
@@ -1539,6 +1511,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->msg_enable = MLX4_EN_MSG_LEVEL;
 	priv->ip_reasm = priv->mdev->profile.ip_reasm;
 	mtx_init(&priv->stats_lock.m, "mlx4 stats", NULL, MTX_DEF);
+	mtx_init(&priv->ioctl_lock.m, "mlx4 ioctl", NULL, MTX_DEF);
 	mtx_init(&priv->vlan_lock.m, "mlx4 vlan", NULL, MTX_DEF);
 	INIT_WORK(&priv->mcast_task, mlx4_en_do_set_multicast);
 	INIT_WORK(&priv->watchdog_task, mlx4_en_restart);
