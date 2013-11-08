@@ -1,13 +1,12 @@
 # $FreeBSD$
 #
 # List of (dependent) ports that are minimally required to be
-# checked out from CVS in order to get ${DOCPORTS} built and
+# checked out from SVN in order to get ${DOCPORTS} built and
 # installed.  It should follow the dependency list in
 # ports/textproc/docproj/Makefile as much as feasible.
 #
-# Note that these names are /not/ CVS module names but path
-# names, so the required part of the ports infrastructure will
-# be cvs co'ed accordingly.
+# Note that they are <category>/<port> names relative to
+# ${PORTSDIR}.
 #
 # This list of ports should be checked with the output of :
 # make all-depends-list | sed -e 's|^/usr/||' | sed -e 's|$| \\|'
