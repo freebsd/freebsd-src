@@ -33,10 +33,6 @@ SUBDIR=	${_atf} \
 	ulog-helper \
 	${_ypxfr}
 
-.if ${MK_ATF} != "no"
-_atf=		atf
-.endif
-
 .if ${MK_AT} != "no"
 _atrun=		atrun
 .endif
@@ -74,6 +70,10 @@ _smrsh=		smrsh
 
 .if ${MK_TELNET} != "no"
 _telnetd=	telnetd
+.endif
+
+.if ${MK_TESTS} != "no"
+_atf=		atf
 .endif
 
 .include <bsd.subdir.mk>

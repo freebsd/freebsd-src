@@ -140,10 +140,6 @@ _csu=csu
 
 # NB: keep these sorted by MK_* knobs
 
-.if ${MK_ATF} != "no"
-_atf=		atf
-.endif
-
 .if ${MK_ATM} != "no"
 _libngatm=	libngatm
 .endif
@@ -251,6 +247,10 @@ _libsmutil=	libsmutil
 
 .if ${MK_TELNET} != "no"
 _libtelnet=	libtelnet
+.endif
+
+.if ${MK_TESTS} != "no"
+_atf=		atf
 .endif
 
 .if ${MK_UNBOUND} != "no"

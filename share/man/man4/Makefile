@@ -829,7 +829,7 @@ _nvram2env.4=	nvram2env.4
 SUBDIR=	man4.${MACHINE_CPUARCH}
 .endif
 
-.if ${MK_ATF} != "no"
+.if ${MK_TESTS} != "no"
 ATF=            ${.CURDIR}/../../../contrib/atf
 .PATH:          ${ATF}/doc
 _atf_test_case.4=	atf-test-case.4
