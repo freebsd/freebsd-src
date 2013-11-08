@@ -165,17 +165,22 @@
 #define	VM_MAX_KERNEL_ADDRESS	(vm_max_kernel_address)
 
 /*
- * Virtual size (bytes) for various kernel submaps.
+ * How many physical pages per kmem arena virtual page.
  */
-#ifndef VM_KMEM_SIZE
-#define VM_KMEM_SIZE		(12*1024*1024)
-#endif
 #ifndef VM_KMEM_SIZE_SCALE
-#define VM_KMEM_SIZE_SCALE	(3)
+#define	VM_KMEM_SIZE_SCALE	(3)
 #endif
 
 /*
- * Ceiling on the size of the kmem submap: 40% of the kernel map.
+ * Optional floor (in bytes) on the size of the kmem arena.
+ */
+#ifndef VM_KMEM_SIZE_MIN
+#define	VM_KMEM_SIZE_MIN	(12 * 1024 * 1024)
+#endif
+
+/*
+ * Optional ceiling (in bytes) on the size of the kmem arena: 40% of the
+ * kernel map.
  */
 #ifndef VM_KMEM_SIZE_MAX
 #define	VM_KMEM_SIZE_MAX	((vm_max_kernel_address - \
