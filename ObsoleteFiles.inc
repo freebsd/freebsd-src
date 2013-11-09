@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20131109: extattr(2) mlinks fixed
+OLD_FILES+=usr/share/man/man2/extattr_delete_list.2.gz
+OLD_FILES+=usr/share/man/man2/extattr_get_list.2.gz
 # 20131107: example files removed
 OLD_FILES+=usr/share/examples/libusb20/aux.c
 OLD_FILES+=usr/share/examples/libusb20/aux.h
