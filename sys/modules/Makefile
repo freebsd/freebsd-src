@@ -154,6 +154,11 @@ SUBDIR=	\
 	${_ipdivert} \
 	${_ipfilter} \
 	${_ipfw} \
+	ifq_bge \
+	ifq_fxp \
+	ifq_igb \
+	ifq_ixgbe \
+	ifq_re \
 	ipfw_nat \
 	${_ipmi} \
 	ip6_mroute_mod \
