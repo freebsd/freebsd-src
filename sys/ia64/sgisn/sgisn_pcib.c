@@ -58,7 +58,11 @@ __FBSDID("$FreeBSD$");
 
 #include <ia64/sgisn/sgisn_pcib.h>
 
-#define	SGISN_PCIB_PAGE_SHIFT	14	/* 16KB; Use 12 for 4KB */
+#if PAGE_SIZE < 16384
+#define	SGISN_PCIB_PAGE_SHIFT	12	/* 4KB */
+#else
+#define	SGISN_PCIB_PAGE_SHIFT	14	/* 16KB */
+#endif
 #define	SGISN_PCIB_PAGE_SIZE	(1UL << SGISN_PCIB_PAGE_SHIFT)
 #define	SGISN_PCIB_PAGE_MASK	(SGISN_PCIB_PAGE_SIZE - 1UL)
 
