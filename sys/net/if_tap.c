@@ -829,8 +829,7 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 			mtx_unlock(&tp->tap_mtx);
 			break;
 
-		case OSIOCGIFADDR:	/* get MAC address of the remote side */
-		case SIOCGIFADDR:
+		case SIOCGIFADDR:	/* get MAC address of the remote side */
 			mtx_lock(&tp->tap_mtx);
 			bcopy(tp->ether_addr, data, sizeof(tp->ether_addr));
 			mtx_unlock(&tp->tap_mtx);

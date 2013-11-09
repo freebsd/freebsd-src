@@ -43,7 +43,7 @@ FILES=	\
 NO_OBJ=
 FILESDIR=	${BINDIR}/mk
 
-.if ${MK_ATF} != "no"
+.if ${MK_TESTS} != "no"
 FILES+=	atf.test.mk
 .endif
 

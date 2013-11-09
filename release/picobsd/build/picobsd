@@ -437,7 +437,7 @@ do_kernel() {		# OK
 	[ "${o_do_modules}" = "yes" ] && export MODULES=""
 	# kernel build not parallelizable yet
 	${BINMAKE} KERNCONF=${l_kernconf}	\
-		-v -f ${PICO_TREE}/build/Makefile.conf ) || \
+		-f ${PICO_TREE}/build/Makefile.conf ) || \
 	    fail $? missing_kernel
 }
 
@@ -677,7 +677,7 @@ populate_mfs_tree() {
     a=${BUILDDIR}/crunch1.conf
     ( export BUILDDIR SRC MY_TREE PICO_OBJ ;
 	${BINMAKE} \
-		-v -f ${PICO_TREE}/build/Makefile.conf ${BUILDDIR}/crunch.mk )
+		-f ${PICO_TREE}/build/Makefile.conf ${BUILDDIR}/crunch.mk )
     log "Libs are ${LIBS} "
     export SRC # used by crunch.mk
     # export LIBS CFLAGS

@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd August 6, 2013
+.Dd October 18, 2013
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -209,6 +209,9 @@ replacing it with
 character (useful for embedded products and such).
 .It Va kernel
 .Pq Dq kernel
+.It Va kernels
+.Pq Dq kernel kernel.old
+Space or comma separated list of kernels to present in the boot menu.
 .It Va loader_conf_files
 .Pq Dq Pa /boot/loader.conf /boot/loader.conf.local
 .It Va splash_bmp_load

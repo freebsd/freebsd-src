@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
 <!ENTITY % sections SYSTEM "../common/hw.ent"> %sections;
@@ -10,14 +10,12 @@
 <!ENTITY arch "alpha">
 <!ENTITY arch.print "Alpha/AXP">
 ]>
-
 <!--
   $FreeBSD$
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/article.xml,v 1.5 2002/10/12 18:02:21 ue Exp $
   basiert auf: 1.4
 -->
-
-<article lang="de">
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:lang="de">
   &artheader;
   &sect.intro;
   &sect.proc.alpha;

@@ -60,12 +60,26 @@ FAILURE=1
 #
 export UNAME_S="$(uname -s)" # Operating System (i.e. FreeBSD)
 export UNAME_P="$(uname -p)" # Processor Architecture (i.e. i386)
+export UNAME_M="$(uname -m)" # Machine platform (i.e. i386)
 export UNAME_R="$(uname -r)" # Release Level (i.e. X.Y-RELEASE)
+if [ ! "${PKG_ABI+set}" ]; then
+	export PKG_ABI="$(
+		pkg -vv | awk '$1=="ABI:"{print $2;exit}' 2> /dev/null
+	)"
+fi
 
 #
 # Default behavior is to call f_debug_init() automatically when loaded.
 #
 : ${DEBUG_SELF_INITIALIZE=1}
+
+#
+# Default behavior of f_debug_init() is to truncate $debugFile (set to NULL to
+# disable truncating the debug file when initializing). To get child processes
+# to append to the same log file, export this variarable (with a NULL value)
+# and also export debugFile with the desired value.
+# 
+: ${DEBUG_INITIALIZE_FILE=1}
 
 #
 # Define standard optstring arguments that should be supported by all programs
@@ -106,7 +120,7 @@ GETOPTS_ALLFLAGS="${GETOPTS_ALLFLAGS}0123456789"
 
 ############################################################ FUNCTIONS
 
-# f_dprintf $fmt [ $opts ... ]
+# f_dprintf $format [$arguments ...]
 #
 # Sensible debug function. Override in ~/.bsdconfigrc if desired.
 # See /usr/share/examples/bsdconfig/bsdconfigrc for example.
@@ -164,18 +178,17 @@ f_debug_init()
 	[ "$debugFile" ] && export debugFile
 
 	#
-	# Truncate the debug file upon. Note that we will trim a leading plus
-	# (`+') from the value of debugFile to support persistant meaning that
-	# f_dprintf() should print both to standard output and $debugFile
-	# (minus the leading plus, of course).
+	# Truncate debug file unless requested otherwise. Note that we will
+	# trim a leading plus (`+') from the value of debugFile to support
+	# persistant meaning that f_dprintf() should print both to standard
+	# output and $debugFile (minus the leading plus, of course).
 	#
 	local _debug_file="${debugFile#+}"
-	if [ "$_debug_file" ]; then
+	if [ "$_debug_file" -a "$DEBUG_INITIALIZE_FILE" ]; then
 		if ( umask 022 && :> "$_debug_file" ); then
 			f_dprintf "Successfully initialized debugFile \`%s'" \
 			          "$_debug_file"
-			[ "${debug+set}" ] ||
-				debug=1 # turn debugging on if not set
+			f_isset debug || debug=1 # turn debugging on if not set
 		else
 			unset debugFile
 			f_dprintf "Unable to initialize debugFile \`%s'" \
@@ -184,7 +197,7 @@ f_debug_init()
 	fi
 }
 
-# f_err $fmt [ $opts ... ]
+# f_err $format [$arguments ...]
 #
 # Print a message to stderr (fd=2).
 #
@@ -193,7 +206,7 @@ f_err()
 	printf "$@" >&${TERMINAL_STDERR_PASSTHRU:-2}
 }
 
-# f_quietly $command [ $arguments ... ]
+# f_quietly $command [$arguments ...]
 #
 # Run a command quietly (quell any output to stdout or stderr)
 #
@@ -275,7 +288,7 @@ f_isset()
 	eval [ \"\${${1%%[$IFS]*}+set}\" ]
 }
 
-# f_die [ $status [ $fmt [ $opts ... ]]]
+# f_die [$status [$format [$arguments ...]]]
 #
 # Abruptly terminate due to an error optionally displaying a message in a
 # dialog box using printf(1) syntax.
@@ -309,7 +322,7 @@ f_interrupt()
 	f_die
 }
 
-# f_show_info $fmt [ $opts ... ]
+# f_show_info $format [$arguments ...]
 #
 # Display a message in a dialog infobox using printf(1) syntax.
 #
@@ -330,7 +343,7 @@ f_show_info()
 	fi
 }
 
-# f_show_msg $fmt [ $opts ... ]
+# f_show_msg $format [$arguments ...]
 #
 # Display a message in a dialog box using printf(1) syntax.
 #
@@ -351,8 +364,32 @@ f_show_msg()
 	fi
 }
 
+# f_show_err $format [$arguments ...]
+#
+# Display a message in a dialog box with ``Error'' i18n title (overridden by
+# setting msg_error) using printf(1) syntax. If running non-interactively,
+# the process will terminate (using [above] f_die()).
+#
+f_show_err()
+{
+	[ "$nonInteractive" ] && f_die
 
-# f_yesno $fmt [ $opts ... ]
+	local msg
+	msg=$( printf "$@" )
+
+	: ${msg:=${msg_an_unknown_error_occurred:-An unknown error occurred}}
+
+	if [ "$_DIALOG_SUBR" ]; then
+		f_dialog_title "${msg_error:-Error}"
+		f_dialog_msgbox "$msg"
+		f_dialog_title_restore
+	else
+		dialog --title "${msg_error:-Error}" --msgbox "$msg" 0 0
+	fi
+	return $SUCCESS
+}
+
+# f_yesno $format [$arguments ...]
 #
 # Display a message in a dialog yes/no box using printf(1) syntax.
 #
@@ -373,7 +410,7 @@ f_yesno()
 	fi
 }
 
-# f_noyes $fmt [ $opts ... ]
+# f_noyes $format [$arguments ...]
 #
 # Display a message in a dialog yes/no box using printf(1) syntax.
 # NOTE: THis is just like the f_yesno function except "No" is default.
@@ -466,7 +503,7 @@ f_include_lang()
 	fi
 }
 
-# f_usage $file [ $key1 $value1 ... ]
+# f_usage $file [$key1 $value1 ...]
 #
 # Display USAGE file with optional pre-processor macro definitions. The first
 # argument is the template file containing the usage text to be displayed. If
@@ -744,6 +781,88 @@ f_mounted()
 	local dir="$1"
 	[ -d "$dir" ] || return $FAILURE
 	mount | grep -Eq " on $dir \([^)]+\)$"
+}
+
+# f_eval_catch [-d] $funcname $utility $format [$arguments ...]
+#
+# Silently evaluate a command in a sub-shell and test for error. If debugging
+# is enabled a copy of the command and its output is sent to debug (either
+# stdout or file depending on environment). If an error occurs, output of the
+# command is displayed in a dialog(1) msgbox using the [above] f_show_err()
+# function (unless optional `-d' flag is the first argument, then no dialog).
+# The $funcname argument is sent to debugging while the $utility argument is
+# used in the title of the dialog box. The command that is sent to debugging
+# along with $funcname is the product of the printf(1) syntax produced by
+# $format with optional $arguments.
+#
+# Example 1:
+#
+# 	debug=1
+# 	f_eval_catch myfunc cat 'contents=$( cat "%s" )' /some/file
+# 	# Error displayed ``cat: /some/file: No such file or directory''
+#
+# 	Produces the following debug output:
+#
+# 		DEBUG: myfunc: cat "/some/file"
+# 		DEBUG: myfunc: retval=1 <output below>
+# 		cat: /some/file: No such file or directory
+#
+# Example 2:
+#
+# 	debug=1
+# 	f_eval_catch myfunc echo 'echo "%s"' "Hello, World!"
+# 	# No error displayed
+#
+# 	Produces the following debug output:
+#
+# 		DEBUG: myfunc: echo "Hello, World!"
+# 		DEBUG: myfunc: retval=0 <output below>
+# 		Hello, World!
+#
+# Example 3:
+#
+# 	debug=1
+# 	echo 123 | f_eval_catch myfunc rev rev
+# 	# No error displayed
+#
+# 	Produces the following debug output:
+#
+# 		DEBUG: myfunc: rev
+# 		DEBUG: myfunc: retval=0 <output below>
+# 		321
+#
+# Example 4:
+#
+# 	debug=1
+# 	f_eval_catch myfunc true true
+# 	# No error displayed
+#
+# 	Produces the following debug output:
+#
+# 		DEBUG: myfunc: true
+# 		DEBUG: myfunc: retval=0 <no output>
+#
+f_eval_catch()
+{
+	local no_dialog=
+	[ "$1" = "-d" ] && no_dialog=1 && shift 1
+	local funcname="$1" utility="$2"; shift 2
+	local cmd output retval
+	cmd=$( printf -- "$@" )
+	f_dprintf "%s: %s" "$funcname" "$cmd" # Log command *before* eval
+	output=$( exec 2>&1; eval "$cmd" )
+	retval=$?
+	if [ "$output" ]; then
+		f_dprintf "%s: retval=%i <output below>\n%s" "$funcname" \
+		          $retval "$output"
+	else
+		f_dprintf "%s: retval=%i <no output>" "$funcname" $retval
+	fi
+	! [ "$no_dialog" -o "$nonInteractive" -o $retval -eq $SUCCESS ] &&
+		msg_error="${msg_error:-Error}${utility:+: $utility}" \
+			f_show_err "%s" "$output"
+		# NB: f_show_err will handle NULL output appropriately
+	return $retval
 }
 
 ############################################################ MAIN
