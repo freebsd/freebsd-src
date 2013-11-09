@@ -341,8 +341,12 @@ onfi_read_parameter(struct nand_chip *chip, struct onfi_params *params)
 
 	NANDBUS_READ_BUFFER(nandbus, params, sizeof(struct onfi_params));
 
+	if (memcmp(params->signature, "ONFI", sizeof(params->signature))) {
+		device_printf(chip->dev, "Error: bad signature\n");
+		return (ENXIO);
+	}
+
 	/* TODO */
-	/* Check for signature */
 	/* Check CRC */
 	/* Use redundant page if necessary */
 
