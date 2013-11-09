@@ -1408,7 +1408,7 @@ bge_newbuf_jumbo(struct bge_softc *sc, int i)
 	r->bge_flags = BGE_RXBDFLAG_JUMBO_RING | BGE_RXBDFLAG_END;
 	r->bge_idx = i;
 	r->bge_len3 = r->bge_len2 = r->bge_len1 = 0;
-	map = sc->bge_cdata.bge_rx_jumbo_sparemap;
+	map = sc->bge_cdata.bge_rx_jumbo_dmamap[i];
 	nsegs = busdma_md_get_nsegs(map);
 	switch (nsegs) {
 	case 4:
@@ -1444,7 +1444,7 @@ bge_newbuf_jumbo(struct bge_softc *sc, int i)
 		panic("%s: %d segments\n", __func__, nsegs);
 	}
 
-	busdma_sync(sc->bge_cdata.bge_rx_jumbo_dmamap[i], BUSDMA_SYNC_PREREAD);
+	busdma_sync(map, BUSDMA_SYNC_PREREAD);
 
 	return (0);
 }
