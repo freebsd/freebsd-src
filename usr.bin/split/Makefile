@@ -2,5 +2,6 @@
 # $FreeBSD$
 
 PROG=	split
+LDADD=	-lutil
 
 .include <bsd.prog.mk>
