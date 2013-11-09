@@ -360,8 +360,8 @@ vn_close(vp, flags, file_cred, td)
 	struct mount *mp;
 	int error, lock_flags;
 
-	if (vp->v_type != VFIFO && !(flags & FWRITE) && vp->v_mount != NULL &&
-	    vp->v_mount->mnt_kern_flag & MNTK_EXTENDED_SHARED)
+	if (vp->v_type != VFIFO && (flags & FWRITE) == 0 &&
+	    MNT_EXTENDED_SHARED(vp->v_mount))
 		lock_flags = LK_SHARED;
 	else
 		lock_flags = LK_EXCLUSIVE;
