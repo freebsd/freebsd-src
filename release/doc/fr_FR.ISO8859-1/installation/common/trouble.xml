@@ -8,10 +8,10 @@
 
 	This file contains the comments of the old TROUBLE.TXT file.
 -->
-<sect1 id="trouble">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="trouble">
   <title>***Non traduit***Troubleshooting</title>
 
-  <sect2 id="repairing">
+  <sect2 xml:id="repairing">
     <title>Repairing an Existing &os; Installation</title>
 
     <para>&os; features a
@@ -68,8 +68,8 @@
           each configured as the master on their respective IDE
           busses, and wish to boot &os; from the second disk.  The
           BIOS sees these as disk 0 and disk 1, while &os; sees
-          them as <devicename>wd0</devicename> and
-          <devicename>wd2</devicename>.</para>
+          them as <filename>wd0</filename> and
+          <filename>wd2</filename>.</para>
 
           <para>&os; is on BIOS disk 1, of type
           <literal>wd</literal> and the &os; disk number is 2, so
@@ -158,8 +158,8 @@
 	<answer>
 	  <para>Use the UserConfig utility (see
           <filename>HARDWARE.TXT</filename>) and disable the probing
-          of the <devicename>mcd0</devicename> and
-          <devicename>mcd1</devicename> devices.  Generally speaking,
+          of the <filename>mcd0</filename> and
+          <filename>mcd1</filename> devices.  Generally speaking,
           you should only leave the devices that you will be using
           enabled in your kernel.</para>
 	</answer>
@@ -297,7 +297,7 @@
           <para>As soon as you see this message, hit the space bar,
 	  and you will see the prompt:</para>
 
-<screen>>> FreeBSD/i386 BOOT
+<screen>&gt;&gt; FreeBSD/i386 BOOT
 Default: x:xx(x,x)/boot/loader 
 boot:</screen>
 

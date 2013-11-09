@@ -147,6 +147,7 @@
 #define CPU_ID_ARM1136JS	0x4107b360
 #define CPU_ID_ARM1136JSR1	0x4117b360
 #define CPU_ID_ARM1176JZS	0x410fb760
+#define CPU_ID_CORTEXA5 	0x410fc050
 #define CPU_ID_CORTEXA7 	0x410fc070
 #define CPU_ID_CORTEXA8R1	0x411fc080
 #define CPU_ID_CORTEXA8R2	0x412fc080
@@ -172,14 +173,10 @@
 #define CPU_ID_MV88FR571_41	0x41159260 /* Marvell Feroceon 88FR571-VD Core (actual ID from CPU reg) */
 #endif
 
-#define CPU_ID_MV88SV581X_V6		0x560F5810 /* Marvell Sheeva 88SV581x v6 Core */
 #define CPU_ID_MV88SV581X_V7		0x561F5810 /* Marvell Sheeva 88SV581x v7 Core */
-#define CPU_ID_MV88SV584X_V6		0x561F5840 /* Marvell Sheeva 88SV584x v6 Core */
 #define CPU_ID_MV88SV584X_V7		0x562F5840 /* Marvell Sheeva 88SV584x v7 Core */
 /* Marvell's CPUIDs with ARM ID in implementor field */
-#define CPU_ID_ARM_88SV581X_V6		0x410fb760 /* Marvell Sheeva 88SV581x v6 Core */
 #define CPU_ID_ARM_88SV581X_V7		0x413FC080 /* Marvell Sheeva 88SV581x v7 Core */
-#define CPU_ID_ARM_88SV584X_V6		0x410FB020 /* Marvell Sheeva 88SV584x v6 Core */
 
 #define	CPU_ID_FA526		0x66015260
 #define	CPU_ID_FA626TE		0x66056260

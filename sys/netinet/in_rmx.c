@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -432,15 +433,15 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 	return 0;
 }
 
-int
+void
 in_ifadown(struct ifaddr *ifa, int delete)
 {
 	struct in_ifadown_arg arg;
 	struct radix_node_head *rnh;
 	int	fibnum;
 
-	if (ifa->ifa_addr->sa_family != AF_INET)
-		return 1;
+	KASSERT(ifa->ifa_addr->sa_family == AF_INET,
+	    ("%s: wrong family", __func__));
 
 	for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
 		rnh = rt_tables_get_rnh(fibnum, AF_INET);
@@ -451,7 +452,6 @@ in_ifadown(struct ifaddr *ifa, int delete)
 		RADIX_NODE_HEAD_UNLOCK(rnh);
 		ifa->ifa_flags &= ~IFA_ROUTE;		/* XXXlocking? */
 	}
-	return 0;
 }
 
 /*

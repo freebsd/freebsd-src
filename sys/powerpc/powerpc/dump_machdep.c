@@ -114,7 +114,7 @@ cb_dumpdata(struct pmap_md *md, int seqnr, void *arg)
 {
 	struct dumperinfo *di = (struct dumperinfo*)arg;
 	vm_offset_t va;
-	size_t counter, ofs, resid, sz;
+	size_t counter, ofs, resid, sz, maxsz;
 	int c, error, twiddle;
 
 	error = 0;
@@ -123,11 +123,12 @@ cb_dumpdata(struct pmap_md *md, int seqnr, void *arg)
 
 	ofs = 0;	/* Logical offset within the chunk */
 	resid = md->md_size;
+	maxsz = min(DFLTPHYS, di->maxiosize);
 
 	printf("  chunk %d: %lu bytes ", seqnr, (u_long)resid);
 
 	while (resid) {
-		sz = (resid > DFLTPHYS) ? DFLTPHYS : resid;
+		sz = min(resid, maxsz);
 		va = pmap_dumpsys_map(md, ofs, &sz);
 		counter += sz;
 		if (counter >> 24) {
@@ -260,7 +261,7 @@ dumpsys(struct dumperinfo *di)
 	    ehdr.e_phnum);
 
 	/* Dump leader */
-	error = di->dumper(di->priv, &kdh, 0, dumplo, sizeof(kdh));
+	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
 	if (error)
 		goto fail;
 	dumplo += sizeof(kdh);
@@ -291,12 +292,12 @@ dumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump trailer */
-	error = di->dumper(di->priv, &kdh, 0, dumplo, sizeof(kdh));
+	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
 	if (error)
 		goto fail;
 
 	/* Signal completion, signoff and exit stage left. */
-	di->dumper(di->priv, NULL, 0, 0, 0);
+	dump_write(di, NULL, 0, 0, 0);
 	printf("\nDump complete\n");
 	return;
 
@@ -306,6 +307,8 @@ dumpsys(struct dumperinfo *di)
 
 	if (error == ECANCELED)
 		printf("\nDump aborted\n");
+	else if (error == ENOSPC)
+		printf("\nDump failed. Partition too small.\n");
 	else
 		printf("\n** DUMP FAILED (ERROR %d) **\n", error);
 }

@@ -28,7 +28,7 @@
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
 .\" $FreeBSD$
 .\"
-.Dd November 17, 2012
+.Dd October 17, 2013
 .Dt ROUTE 8
 .Os
 .Sh NAME
@@ -301,6 +301,7 @@ by indicating the following corresponding modifiers:
 -blackhole RTF_BLACKHOLE  - silently discard pkts (during updates)
 -proto1    RTF_PROTO1     - set protocol specific routing flag #1
 -proto2    RTF_PROTO2     - set protocol specific routing flag #2
+-proto3    RTF_PROTO3     - set protocol specific routing flag #3
 .Ed
 .Pp
 The optional modifiers
@@ -323,6 +324,17 @@ meta-modifier, or one can
 specify that all ensuing metrics may be locked by the
 .Fl lockrest
 meta-modifier.
+.Pp
+Note that
+.Fl expire
+accepts expiration time of the route as the number of seconds since the
+Epoch
+.Pq see Xr time 3 .
+When the first character of the number is
+.Dq +
+or
+.Dq - ,
+it is interpreted as a value relative to the current time.
 .Pp
 The optional modifier
 .Fl fib Ar number

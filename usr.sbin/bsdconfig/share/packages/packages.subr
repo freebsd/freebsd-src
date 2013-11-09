@@ -53,7 +53,7 @@ f_include_lang $BSDCFG_LIBE/include/messages.subr
 #
 # Package extensions to try
 #
-PACKAGE_EXTENSIONS=".tbz .tbz2 .tgz"
+PACKAGE_EXTENSIONS=".txz .tbz .tbz2 .tgz"
 
 #
 # Variables used to track runtime states
@@ -164,24 +164,13 @@ f_package_deselect()
 
 # f_package_detect_installed
 #
-# Detect installed packages. Currently this searches /var/db/pkg for directory
+# Detect installed packages. Currently this uses pkg-query(8) for querying
 # entries and marks each entry as an installed/selected package.
 #
 f_package_detect_installed()
 {
-	local installed package varpkg
-	#
-	# XXX KLUDGE ALERT! This makes evil assumptions about how XXX
-	# packages register themselves and should *really* be done with
-	# `pkg_info -e <name>' except that this is too slow for an
-	# item check routine.. :-(
-	#
-	# NOTE: When transitioning to pkgng, make a single fork to `pkg' to
-	#       produce a list of all installed packages and parse _that_
-	#
-	installed=$( find -s /var/db/pkg -mindepth 1 -maxdepth 1 -type d |
-			sed -e 's:/var/db/pkg/::' )
-	for package in $installed; do
+	local package varpkg
+	for package in $( pkg query "%n-%v" ); do
 		f_str2varname $package varpkg
 		export _mark_$varpkg=X # exported for awk(1) ENVIRON[]
 		f_package_select $package
@@ -985,14 +974,10 @@ f_package_extract()
 	local path
 	case "$name" in
 	*/*) path="$name" ;;
-	*)
-		case "$name" in
-		*-*|*_*) path="packages/All/$name" ;;
-		      *) path="packages/Latest/$name"
-		esac
+	*) path="All/$name" ;;
 	esac
 
-	# We have a path, call the device strategy routine to get the file
+	# We have a path, call the device strategy routine to check the file
 	local pkg_ext found=
 	for pkg_ext in "" $PACKAGE_EXTENSIONS; do
 		if f_device_get $device "$path$pkg_ext" $PROBE_EXIST; then
@@ -1017,7 +1002,7 @@ f_package_extract()
 		return $FAILURE
 	fi
 
-	local devname=
+	local orphan devname=
 	f_struct device_$device get name devname
 	if [ "$depended" ]; then
 		f_show_info "$msg_adding_package_as_a_dependency_from_media" \
@@ -1026,27 +1011,14 @@ f_package_extract()
 		f_show_info "$msg_adding_package_from_media" "$name" "$devname"
 	fi
 
-	# Get package data and pipe into pkg_add(1) while providing feedback
-	{
-		if ! f_device_get $device "$path"; then
-			$alert "$msg_io_error_while_reading_in_the_package" \
-			       "$name" \
-			       >&$DIALOG_TERMINAL_PASSTHRU_FD 2> /dev/null
-			[ "$no_confirm" ] && sleep 2
-		else
-			f_show_info \
-			 "$msg_package_read_successfully_waiting_for_pkg_add" \
-			 "$name" >&$DIALOG_TERMINAL_PASSTHRU_FD 2> /dev/null
-		fi
-	} | {
-		if f_debugging; then
-			/usr/sbin/pkg_add -v -
-		else
-			f_quietly /usr/sbin/pkg_add -
-		fi
-	}
+	# Request the package be added via pkg-install(8)
+	if f_debugging; then
+		pkg -d install -y $orphan "$name"
+	else
+		f_quietly pkg install -y "$name"
+	fi
 	if [ $? -ne $SUCCESS ]; then
-		$alert "$msg_pkg_add_apparently_did_not_like_the_package" \
+		$alert "$msg_pkg_install_apparently_did_not_like_the_package" \
 		       "$name"
 		[ "$no_confirm" ] && sleep 2
 	else
@@ -1162,8 +1134,8 @@ f_package_delete()
 	# Chase dependencies that are marked for uninstallation
 	#
 	for pkgsel in $udeps; do
-		f_dprintf "%s: Uninstalling dependecy %s (marked for delete)" \
-		          $fname "$pkgsel"
+		f_dprintf "%s: Uninstalling dependency %s (%s)" \
+		          $fname "$pkgsel" "marked for delete"
 		f_package_delete "$pkgsel"
 	done
 
@@ -1172,15 +1144,15 @@ f_package_delete()
 	#
 	f_show_info "$msg_uninstalling_package_waiting_for_pkg_delete" "$name"
 	if f_debugging; then
-		pkg_delete -v "$name"
+		pkg -d delete -y "$name"
 	else
-		f_quietly pkg_delete "$name"
+		f_quietly pkg delete -y "$name"
 	fi
 	if [ $? -ne $SUCCESS ]; then
 		f_show_msg "$msg_pkg_delete_failed" "$name"
 		return $FAILURE
 	else
-		f_dprintf "%s: pkg_delete(1) of %s successful" $fname "$name"
+		f_dprintf "%s: pkg-delete(8) of %s successful" $fname "$name"
 		f_str2varname "$name" varpkg
 		setvar _mark_$varpkg ""
 	fi

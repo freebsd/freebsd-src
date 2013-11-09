@@ -70,7 +70,7 @@
  * The ifaddr structure contains the protocol-independent part
  * of the structure and is assumed to be first.
  */
-
+#ifdef _KERNEL
 struct ipx_ifaddr {
 	struct	ifaddr ia_ifa;		/* protocol-independent info */
 #define	ia_ifp		ia_ifa.ifa_ifp
@@ -81,6 +81,7 @@ struct ipx_ifaddr {
 #define ia_broadaddr	ia_dstaddr
 	struct	sockaddr_ipx ia_netmask;	/* space for my network mask */
 };
+#endif /* _KERNEL */
 
 struct	ipx_aliasreq {
 	char	ifra_name[IFNAMSIZ];		/* if name, e.g. "en0" */

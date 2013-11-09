@@ -131,13 +131,9 @@ nehemiah_modevent(module_t mod, int type, void *unused)
 	case MOD_LOAD:
 		if (via_feature_rng & VIA_HAS_RNG) {
 			live_entropy_source_register(&random_nehemiah);
+			printf("random: live provider: %s\n", random_nehemiah.ident);
 			random_nehemiah_init();
-		} else
-#ifndef KLD_MODULE
-			if (bootverbose)
-#endif
-				printf("%s: VIA Padlock RNG not present\n",
-				    random_nehemiah.ident);
+		}
 		break;
 
 	case MOD_UNLOAD:

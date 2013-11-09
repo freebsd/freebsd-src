@@ -98,7 +98,7 @@ check(const char *path)
 {
 	struct stat sb;
 	long complen, namemax, pathmax, svnamemax;
-	int badch, last;
+	int last;
 	char *end, *p, *pathd;
 
 	if ((pathd = strdup(path)) == NULL)
@@ -142,9 +142,9 @@ check(const char *path)
 			goto bad;
 		}
 
-		if (pflag && (badch = portable(p)) >= 0) {
+		if (pflag && !portable(p)) {
 			warnx("%s: %s: component contains non-portable "
-			    "character `%c'", path, p, badch);
+			    "character", path, p);
 			goto bad;
 		}
 
@@ -183,8 +183,7 @@ bad:	free(pathd);
 }
 
 /*
- * Check whether a path component contains only portable characters. Return
- * the first non-portable character found.
+ * Check whether a path component contains only portable characters.
  */
 static int
 portable(const char *path)
@@ -197,7 +196,7 @@ portable(const char *path)
 
 	s = strspn(path, charset);
 	if (path[s] != '\0')
-		return (path[s]);
+		return (0);
 
-	return (-1);
+	return (1);
 }

@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: random
-# REQUIRE: initrandom FILESYSTEMS
+# REQUIRE: FILESYSTEMS
 # BEFORE: netif
 # KEYWORD: nojail shutdown
 
@@ -17,41 +17,39 @@ stop_cmd="random_stop"
 extra_commands="saveseed"
 saveseed_cmd="${name}_stop"
 
-feed_dev_random()
-{
-	if [ -f "${1}" -a -r "${1}" -a -s "${1}" ]; then
-		cat "${1}" | dd of=/dev/random bs=8k 2>/dev/null
-	fi
-}
-
 random_start()
 {
-	# Reseed /dev/random with previously stored entropy.
-	case ${entropy_dir} in
-	[Nn][Oo])
-		;;
-	*)
-		entropy_dir=${entropy_dir:-/var/db/entropy}
-		if [ -d "${entropy_dir}" ]; then
-			if [ -w /dev/random ]; then
-				for seedfile in ${entropy_dir}/*; do
-					feed_dev_random "${seedfile}"
-				done
-			fi
-		fi
-		;;
-	esac
+	echo -n 'Entropy harvesting:'
 
-	case ${entropy_file} in
-	[Nn][Oo] | '')
-		;;
-	*)
-		if [ -w /dev/random ]; then
-			feed_dev_random "${entropy_file}"
-			feed_dev_random /var/db/entropy-file
-		fi
-		;;
-	esac
+	if checkyesno harvest_interrupt; then
+		${SYSCTL} kern.random.sys.harvest.interrupt=1 >/dev/null
+		echo -n ' interrupts'
+	else
+		${SYSCTL} kern.random.sys.harvest.interrupt=0 >/dev/null
+	fi
+
+	if checkyesno harvest_ethernet; then
+		${SYSCTL} kern.random.sys.harvest.ethernet=1 >/dev/null
+		echo -n ' ethernet'
+	else
+		${SYSCTL} kern.random.sys.harvest.ethernet=0 >/dev/null
+	fi
+
+	if checkyesno harvest_p_to_p; then
+		${SYSCTL} kern.random.sys.harvest.point_to_point=1 >/dev/null
+		echo -n ' point_to_point'
+	else
+		${SYSCTL} kern.random.sys.harvest.point_to_point=0 >/dev/null
+	fi
+
+	if checkyesno harvest_swi; then
+		${SYSCTL} kern.random.sys.harvest.swi=1 >/dev/null
+		echo -n ' swi'
+	else
+		${SYSCTL} kern.random.sys.harvest.swi=0 >/dev/null
+	fi
+
+	echo '.'
 }
 
 random_stop()

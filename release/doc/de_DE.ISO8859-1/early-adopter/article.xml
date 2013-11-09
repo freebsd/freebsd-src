@@ -1,13 +1,12 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
 
-<!ENTITY release.4x "4.<replaceable>X</replaceable>">
-<!ENTITY release.5x "5.<replaceable>X</replaceable>">
+<!ENTITY release.4x "4.<replaceable xmlns='http://docbook.org/ns/docbook'>X</replaceable>">
+<!ENTITY release.5x "5.<replaceable xmlns='http://docbook.org/ns/docbook'>X</replaceable>">
 ]>
-
 <!--
   The FreeBSD Documentation Project
   The FreeBSD German Documentation Project
@@ -15,14 +14,13 @@
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/early-adopter/article.xml,v 1.24 2003/05/25 12:44:41 mheinen Exp $
   basiert auf: 1.15
 -->
-
-<article lang="de">
-  <articleinfo>
-    <title>Hinweise f&uuml;r die ersten Anwender von &os;
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:lang="de">
+  <info><title>Hinweise f&uuml;r die ersten Anwender von &os;
       &release.current;</title>
+    
 
     <authorgroup>
-      <corpauthor>The &os; Release Engineering Team</corpauthor>
+      <author><orgname>The &os; Release Engineering Team</orgname></author>
     </authorgroup>
 
     <pubdate>$FreeBSD$</pubdate>
@@ -48,9 +46,9 @@
 	ein paar Hinweise f&uuml;r die Aktualisierung bestehender
 	Systeme.</para>
     </abstract>
-  </articleinfo>
+  </info>
 
-  <sect1 id="intro">
+  <sect1 xml:id="intro">
     <title>Einf&uuml;hrung</title>
 
     <para>Nach &uuml;ber zwei Jahren steht mit &os; &release.5x;
@@ -101,7 +99,7 @@
       &release.4x; Systems auf 5.0 beachtet werden mu&szlig;.</para>
   </sect1>
 
-  <sect1 id="release-overview">
+  <sect1 xml:id="release-overview">
     <title>Ver&ouml;ffentlichung neuer &os;-Versionen</title>
 
     <para>Das Prinzip der &os;-Entwicklung ist die Verwendung mehrerer
@@ -157,17 +155,14 @@
 
     <para>Weitere Informationen &uuml;ber den Ablauf bei der
       Ver&ouml;ffentlichung einer neuen &os; Version finden Sie auf
-      den <ulink
-      url="http://www.FreeBSD.org/releng/index.html">Release
-      Engineering Web pages</ulink> und im Artikel <ulink
-      url="http://www.freebsd.org/doc/en_US.ISO8859-1/articles/releng/index.html">&os;
-      Release Engineering</ulink>.  Informationen &uuml;ber den
-      geplanten Entwicklungszweig 5-STABLE finden Sie auf der <ulink
-      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/5-roadmap/index.html"><quote>The
-      Roadmap for 5-STABLE</quote></ulink>.</para>
+      den <link xlink:href="http://www.FreeBSD.org/releng/index.html">Release
+      Engineering Web pages</link> und im Artikel <link xlink:href="http://www.freebsd.org/doc/en_US.ISO8859-1/articles/releng/index.html">&os;
+      Release Engineering</link>.  Informationen &uuml;ber den
+      geplanten Entwicklungszweig 5-STABLE finden Sie auf der <link xlink:href="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/5-roadmap/index.html"><quote>The
+      Roadmap for 5-STABLE</quote></link>.</para>
   </sect1>
 
-  <sect1 id="new">
+  <sect1 xml:id="new">
     <title>Neuerungen</title>
 
     <para>Die Glanzpunkte von &os; &release.5x; sind die vielen Neuerungen.
@@ -252,7 +247,7 @@
       f&uuml;r &os; &release.prev; und &release.current;.</para>
   </sect1>
 
-  <sect1 id="drawbacks">
+  <sect1 xml:id="drawbacks">
     <title>Nachteile f&uuml;r fr&uuml;he Anwender</title>
 
     <para>Ein Nachteil der Neuerungen in &os; &release.5x; ist,
@@ -334,10 +329,8 @@
       </listitem>
 
       <listitem>
-	<para>Die Dokumentation (wie z.B. das &os; <ulink
-	  url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/index.html">Handbuch</ulink>
-	  und der <ulink
-	  url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/faq/index.html">FAQ</ulink>)
+	<para>Die Dokumentation (wie z.B. das &os; <link xlink:href="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/index.html">Handbuch</link>
+	  und der <link xlink:href="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/faq/index.html">FAQ</link>)
 	  ist teilweise noch nicht auf dem Stand von
 	  &os; &release.5x;.</para>
       </listitem>
@@ -351,7 +344,7 @@
       geworden sind.</para>
   </sect1>
 
-  <sect1 id="plans-stable">
+  <sect1 xml:id="plans-stable">
     <title>Die Zukunft des Entwicklungszweiges 4-STABLE</title>
 
     <para>Die Ver&ouml;ffentlichung von &os; 5.0 bedeutete nicht das
@@ -380,9 +373,8 @@
     <para>Neue Versionen auf Basis des Entwicklungszweiges 4-STABLE
       werden vom &a.security-officer; im &uuml;blichen Rahmen
       unterst&uuml;tzt werden, genauere Informationen dazu finden Sie
-      auf der <ulink
-      url="http://www.FreeBSD.org/security/index.html">Security
-      page</ulink> auf der &os; Webseite.  In der Regel werden die
+      auf der <link xlink:href="http://www.FreeBSD.org/security/index.html">Security
+      page</link> auf der &os; Webseite.  In der Regel werden die
       letzten beiden Versionen jedes Entwicklungszweiges durch die
       Ver&ouml;ffentlichung von Sicherheitshinweisen und Patches
       unterst&uuml;tzt; dem Team ist es allerdings freigestellt, diese
@@ -390,7 +382,7 @@
       auszudehnen.</para>
   </sect1>
 
-  <sect1 id="upgrade">
+  <sect1 xml:id="upgrade">
     <title>Hinweise f&uuml;r die Aktualisierung von &os; &release.4x;</title>
 
     <para>Dieses Kapitel enth&auml;lt Hinweise f&uuml;r Anwender, die
@@ -498,7 +490,7 @@
 	<filename>/usr/include</filename> zu l&ouml;schen.  Im
 	allgemeinen ist es ausreichend, dieses Verzeichnis vor der
 	Installation bzw. vor dem
-	<maketarget>installworld</maketarget> zu entfernen.  Wird das
+	<buildtarget>installworld</buildtarget> zu entfernen.  Wird das
 	Verzeichnis nicht entfernt, kann es zu Problemen kommen
 	(speziell mit C++-Programmen), da der Compiler dann einen Mix
 	aus alten und neuen Headerdateien verwendet.</para>
@@ -527,7 +519,7 @@
     </sect2>
   </sect1>
 
-  <sect1 id="summary">
+  <sect1 xml:id="summary">
     <title>Zusammenfassung</title>
 
     <para>&os; &release.current; enth&auml;lt zwar viele interessante

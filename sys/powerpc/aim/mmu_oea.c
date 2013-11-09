@@ -148,7 +148,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/sr.h>
 #include <machine/mmuvar.h>
-#include <machine/trap_aim.h>
+#include <machine/trap.h>
 
 #include "mmu_if.h"
 

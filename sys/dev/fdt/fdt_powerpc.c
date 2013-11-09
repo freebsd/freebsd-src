@@ -123,7 +123,8 @@ fdt_pic_decode_openpic(phandle_t node, pcell_t *intr, int *interrupt,
     int *trig, int *pol)
 {
 
-	if (!fdt_is_compatible(node, "chrp,open-pic"))
+	if (!fdt_is_compatible(node, "chrp,open-pic") &&
+	    !fdt_is_type(node, "open-pic"))
 		return (ENXIO);
 
 	/*

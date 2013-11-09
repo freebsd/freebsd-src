@@ -3,22 +3,19 @@
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/ia64/proc-ia64.xml,v 1.5 2003/05/24 22:16:24 ue Exp $
   basiert auf: 1.7
 -->
-<sect1 id="proc-ia64">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="proc-ia64">
   <title>Unterst&uuml;tzte Prozessoren und Mainboards</title>
 
-  <para>Zur Zeit werden die <ulink
-    url="http://www.intel.com/design/itanium/itanium/index.htm">Itanium</ulink>
-    und <ulink
-    url="http://www.intel.com/design/itanium2/index.htm">Itanium
-    2</ulink> Prozessoren unterst&uuml;tzt.  Die folgenden
+  <para>Zur Zeit werden die <link xlink:href="http://www.intel.com/design/itanium/itanium/index.htm">Itanium</link>
+    und <link xlink:href="http://www.intel.com/design/itanium2/index.htm">Itanium
+    2</link> Prozessoren unterst&uuml;tzt.  Die folgenden
     Mainboard-Chips&auml;tze werden unterst&uuml;tzt:</para>
 
   <itemizedlist>
     <listitem>
       <para>HP zx1 (nur auf dem Entwicklungszweig, weitere
-        Informationen finden Sie im <ulink
-        url="http://perforce.freebsd.org/">Perforce
-        repository</ulink>) </para>
+        Informationen finden Sie im <link xlink:href="http://perforce.freebsd.org/">Perforce
+        repository</link>) </para>
     </listitem>
 
     <listitem>

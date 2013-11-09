@@ -28,7 +28,7 @@
 #
 
 # PROVIDE: disks
-# REQUIRE: initrandom
+# REQUIRE: random
 # KEYWORD: nojail
 
 . /etc/rc.subr

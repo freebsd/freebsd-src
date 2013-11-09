@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/unistd.h>
 #include <machine/cpu.h>
+#include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/sysarch.h>
 #include <sys/lock.h>
@@ -294,7 +295,7 @@ done:
 void
 cpu_set_syscall_retval(struct thread *td, int error)
 {
-	trapframe_t *frame;
+	struct trapframe *frame;
 	int fixup;
 #ifdef __ARMEB__
 	uint32_t insn;
@@ -479,80 +480,6 @@ swi_vm(void *dummy)
 void
 cpu_exit(struct thread *td)
 {
-}
-
-#define BITS_PER_INT	(8 * sizeof(int))
-vm_offset_t arm_nocache_startaddr;
-static int arm_nocache_allocated[ARM_NOCACHE_KVA_SIZE / (PAGE_SIZE *
-    BITS_PER_INT)];
-
-/*
- * Functions to map and unmap memory non-cached into KVA the kernel won't try
- * to allocate. The goal is to provide uncached memory to busdma, to honor
- * BUS_DMA_COHERENT.
- * We can allocate at most ARM_NOCACHE_KVA_SIZE bytes.
- * The allocator is rather dummy, each page is represented by a bit in
- * a bitfield, 0 meaning the page is not allocated, 1 meaning it is.
- * As soon as it finds enough contiguous pages to satisfy the request,
- * it returns the address.
- */
-void *
-arm_remap_nocache(void *addr, vm_size_t size)
-{
-	int i, j;
-
-	size = round_page(size);
-	for (i = 0; i < ARM_NOCACHE_KVA_SIZE / PAGE_SIZE; i++) {
-		if (!(arm_nocache_allocated[i / BITS_PER_INT] & (1 << (i %
-		    BITS_PER_INT)))) {
-			for (j = i; j < i + (size / (PAGE_SIZE)); j++)
-				if (arm_nocache_allocated[j / BITS_PER_INT] &
-				    (1 << (j % BITS_PER_INT)))
-					break;
-			if (j == i + (size / (PAGE_SIZE)))
-				break;
-		}
-	}
-	if (i < ARM_NOCACHE_KVA_SIZE / PAGE_SIZE) {
-		vm_offset_t tomap = arm_nocache_startaddr + i * PAGE_SIZE;
-		void *ret = (void *)tomap;
-		vm_paddr_t physaddr = vtophys((vm_offset_t)addr);
-		vm_offset_t vaddr = (vm_offset_t) addr;
-		
-		vaddr = vaddr & ~PAGE_MASK;
-		for (; tomap < (vm_offset_t)ret + size; tomap += PAGE_SIZE,
-		    vaddr += PAGE_SIZE, physaddr += PAGE_SIZE, i++) {
-			cpu_idcache_wbinv_range(vaddr, PAGE_SIZE);
-#ifdef ARM_L2_PIPT
-			cpu_l2cache_wbinv_range(physaddr, PAGE_SIZE);
-#else
-			cpu_l2cache_wbinv_range(vaddr, PAGE_SIZE);
-#endif
-			pmap_kenter_nocache(tomap, physaddr);
-			cpu_tlb_flushID_SE(vaddr);
-			arm_nocache_allocated[i / BITS_PER_INT] |= 1 << (i %
-			    BITS_PER_INT);
-		}
-		return (ret);
-	}
-
-	return (NULL);
-}
-
-void
-arm_unmap_nocache(void *addr, vm_size_t size)
-{
-	vm_offset_t raddr = (vm_offset_t)addr;
-	int i;
-
-	size = round_page(size);
-	i = (raddr - arm_nocache_startaddr) / (PAGE_SIZE);
-	for (; size > 0; size -= PAGE_SIZE, i++) {
-		arm_nocache_allocated[i / BITS_PER_INT] &= ~(1 << (i %
-		    BITS_PER_INT));
-		pmap_kremove(raddr);
-		raddr += PAGE_SIZE;
-	}
 }
 
 #ifdef ARM_USE_SMALL_ALLOC

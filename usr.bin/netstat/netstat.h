@@ -119,7 +119,7 @@ void	netisr_stats(void *);
 void	hostpr(u_long, u_long);
 void	impstats(u_long, u_long);
 
-void	intpr(int, u_long, void (*)(char *));
+void	intpr(int, void (*)(char *));
 
 void	pr_rthdr(int);
 void	pr_family(int);
@@ -130,7 +130,7 @@ char	*ns_phost(struct sockaddr *);
 void	upHex(char *);
 
 char	*routename(in_addr_t);
-char	*netname(in_addr_t, u_long);
+char	*netname(in_addr_t, in_addr_t);
 char	*atalk_print(struct sockaddr *, int);
 char	*atalk_print2(struct sockaddr *, struct sockaddr *, int);
 char	*ipx_print(struct sockaddr *);

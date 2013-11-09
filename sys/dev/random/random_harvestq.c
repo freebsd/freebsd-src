@@ -82,9 +82,20 @@ int random_kthread_control = 0;
 static struct proc *random_kthread_proc;
 
 #ifdef RANDOM_RWFILE
-static const char *entropy_files[] = {
-	"/entropy",
-	NULL
+static struct entropy_cache {
+	const char *filename;
+	int already_read;
+} entropy_files[] = {
+	{ "/entropy", 0 },
+	{ "/var/db/entropy/saved-entropy.1", 0 },
+	{ "/var/db/entropy/saved-entropy.2", 0 },
+	{ "/var/db/entropy/saved-entropy.3", 0 },
+	{ "/var/db/entropy/saved-entropy.4", 0 },
+	{ "/var/db/entropy/saved-entropy.5", 0 },
+	{ "/var/db/entropy/saved-entropy.6", 0 },
+	{ "/var/db/entropy/saved-entropy.7", 0 },
+	{ "/var/db/entropy/saved-entropy.8", 0 },
+	{ NULL, 0 }
 };
 #endif
 
@@ -93,29 +104,36 @@ static const char *entropy_files[] = {
  * Called after / is mounted.
  */
 static void
-random_harvestq_cache(void *arg __unused)
+random_harvestq_cache(void *arg1 __unused, struct mount *arg2 __unused,
+    struct vnode *arg3 __unused, struct thread *arg4 __unused)
 {
+	static int boot_cache_read = 0;
 	uint8_t *keyfile, *data;
 	size_t size, i;
 #ifdef RANDOM_RWFILE
-	const char **entropy_file;
+	static int caches_read = 0;
+	struct entropy_cache *entropy_file;
 	uint8_t *zbuf;
 	int error;
 #endif
 
 	/* Get stuff that may have been preloaded by loader(8) */
-	keyfile = preload_search_by_type("/boot/entropy");
-	if (keyfile != NULL) {
-		data = preload_fetch_addr(keyfile);
-		size = preload_fetch_size(keyfile);
-		if (data != NULL && size != 0) {
-			for (i = 0; i < size; i += 16)
-				random_harvestq_internal(get_cyclecount(), data + i, 16, 16, RANDOM_CACHED);
-			printf("random: read %zu bytes from preloaded cache\n", size);
-			bzero(data, size);
+	if (!boot_cache_read) {
+		boot_cache_read = 1;
+		keyfile = preload_search_by_type("/boot/entropy");
+		if (keyfile != NULL) {
+			data = preload_fetch_addr(keyfile);
+			size = preload_fetch_size(keyfile);
+			if (data != NULL && size != 0) {
+				for (i = 0; i < size; i += 16)
+					random_harvestq_internal(get_cyclecount(), data + i, 16, 16, RANDOM_CACHED);
+				printf("random: read %zu bytes from preloaded cache\n", size);
+				bzero(data, size);
+			}
+			else
+				if (bootverbose)
+					printf("random: no preloaded entropy cache\n");
 		}
-		else
-			printf("random: no preloaded entropy cache available\n");
 	}
 
 #ifdef RANDOM_RWFILE
@@ -126,27 +144,39 @@ random_harvestq_cache(void *arg __unused)
 	 */
 	data = malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
 	zbuf = __DECONST(void *, zero_region);
-	for (entropy_file = entropy_files; *entropy_file; entropy_file++) {
-		error = randomdev_read_file(*entropy_file, data, PAGE_SIZE);
+	for (entropy_file = entropy_files; entropy_file->filename; entropy_file++) {
+		if (entropy_file->already_read)
+			break;
+		error = randomdev_read_file(entropy_file->filename, data, PAGE_SIZE);
 		if (error == 0) {
-			printf("random: entropy cache '%s' provides %ld bytes\n", *entropy_file, (long)PAGE_SIZE);
-			error = randomdev_write_file(*entropy_file, zbuf, PAGE_SIZE);
+			printf("random: entropy cache '%s' provides %ld bytes\n", entropy_file->filename, (long)PAGE_SIZE);
+#ifdef RANDOM_RWFILE_WRITE_OK /* Not defined so writes disabled for now */
+			error = randomdev_write_file(entropy_file->filename, zbuf, PAGE_SIZE);
 			if (error == 0) {
-				printf("random: entropy cache '%s' contents used and successfully overwritten\n", *entropy_file);
+				printf("random: entropy cache '%s' contents used and successfully overwritten\n", entropy_file->filename);
+#endif
 				for (i = 0; i < PAGE_SIZE; i += 16)
 					random_harvestq_internal(get_cyclecount(), data + i, 16, 16, RANDOM_CACHED);
+				entropy_file->already_read = 1;
+				caches_read++;
+#ifdef RANDOM_RWFILE_WRITE_OK /* Not defined so writes disabled for now */
 			}
 			else
-				printf("random: entropy cache '%s' not overwritten and therefore not used; error = %d\n", *entropy_file, error);
+				printf("random: entropy cache '%s' not overwritten and therefore not used; error = %d\n", entropy_file->filename, error);
+#endif
 		}
 		else
-			printf("random: entropy cache '%s' not present or unreadable; error = %d\n", *entropy_file, error);
+			if (bootverbose)
+				printf("random: entropy cache '%s' not present or unreadable; error = %d\n", entropy_file->filename, error);
 	}
 	bzero(data, PAGE_SIZE);
 	free(data, M_ENTROPY);
+
+	if (bootverbose)
+		printf("random: total entropy cache files read = %d\n", caches_read);
 #endif
 }
-EVENTHANDLER_DEFINE(mountroot, random_harvestq_cache, NULL, 0);
+EVENTHANDLER_DEFINE(vfs_mounted, random_harvestq_cache, NULL, 0);
 
 static void
 random_kthread(void *arg)

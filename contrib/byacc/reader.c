@@ -1,4 +1,4 @@
-/* $Id: reader.c,v 1.36 2012/05/26 16:05:41 tom Exp $ */
+/* $Id: reader.c,v 1.37 2013/09/25 23:46:18 tom Exp $ */
 
 #include "defs.h"
 
@@ -701,7 +701,7 @@ copy_param(int k)
 	goto out;
 
     buf[i--] = '\0';
-    while (i >= 0 && isspace(UCH(buf[i])))
+    while (i > 0 && isspace(UCH(buf[i])))
 	buf[i--] = '\0';
 
     if (buf[i] == ']')
@@ -724,8 +724,8 @@ copy_param(int k)
 	type2 = i + 1;
     }
 
-    while (i >= 0 && (isalnum(UCH(buf[i])) ||
-		      UCH(buf[i]) == '_'))
+    while (i > 0 && (isalnum(UCH(buf[i])) ||
+		     UCH(buf[i]) == '_'))
 	i--;
 
     if (!isspace(UCH(buf[i])) && buf[i] != '*')

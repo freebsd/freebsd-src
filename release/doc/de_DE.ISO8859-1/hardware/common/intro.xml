@@ -3,8 +3,7 @@
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/intro.xml,v 1.6 2003/05/24 21:35:15 ue Exp $
   basiert auf: 1.6
 -->
-
-<sect1 id="intro">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="intro">
   <title>Einf&uuml;hrung</title>
 
   <para>Dieses Dokument enth&auml;lt die Liste der unterst&uuml;tzen
@@ -24,7 +23,6 @@
   </note>
 
   <para arch="ia64">Weitergehende Informationen &uuml;ber &os;/&arch;
-    finden Sie auf den Webseiten des <ulink
-    url="http://www.FreeBSD.org/platforms/ia64/index.html">&os;/&arch;
-    Project</ulink>.</para>
+    finden Sie auf den Webseiten des <link xlink:href="http://www.FreeBSD.org/platforms/ia64/index.html">&os;/&arch;
+    Project</link>.</para>
 </sect1>

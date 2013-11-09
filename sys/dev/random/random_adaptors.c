@@ -104,7 +104,7 @@ void
 random_adaptor_choose(struct random_adaptor **adaptor)
 {
 	char			 rngs[128], *token, *cp;
-	struct random_adaptors	*rppi, *ramax;
+	struct random_adaptors	*rppi;
 	unsigned		 primax;
 
 	KASSERT(adaptor != NULL, ("pre-conditions failed"));
@@ -121,7 +121,6 @@ random_adaptor_choose(struct random_adaptor **adaptor)
 				    " skipping\n", token);
 	}
 
-	primax = 0U;
 	if (*adaptor == NULL) {
 		/*
 		 * Fall back to the highest priority item on the available
@@ -129,15 +128,13 @@ random_adaptor_choose(struct random_adaptor **adaptor)
 		 */
 		sx_slock(&adaptors_lock);
 
-		ramax = NULL;
+		primax = 0U;
 		LIST_FOREACH(rppi, &adaptors, entries) {
 			if (rppi->rsp->priority >= primax) {
-				ramax = rppi;
 				primax = rppi->rsp->priority;
+				*adaptor = rppi->rsp;
 			}
 		}
-		if (ramax != NULL)
-			*adaptor = ramax->rsp;
 
 		sx_sunlock(&adaptors_lock);
 
@@ -247,5 +244,5 @@ random_adaptors_reseed(void *unused)
 		(*random_adaptor->reseed)();
 	arc4rand(NULL, 0, 1);
 }
-SYSINIT(random_reseed, SI_SUB_INTRINSIC_POST, SI_ORDER_SECOND,
+SYSINIT(random_reseed, SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST,
     random_adaptors_reseed, NULL);

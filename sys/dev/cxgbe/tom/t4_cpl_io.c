@@ -452,7 +452,7 @@ write_tx_wr(void *dst, struct toepcb *toep, unsigned int immdlen,
 	    V_FW_WR_IMMDLEN(immdlen));
 	txwr->flowid_len16 = htobe32(V_FW_WR_FLOWID(toep->tid) |
 	    V_FW_WR_LEN16(credits));
-	txwr->tunnel_to_proxy =
+	txwr->lsodisable_to_proxy =
 	    htobe32(V_FW_OFLD_TX_DATA_WR_ULPMODE(toep->ulp_mode) |
 		V_FW_OFLD_TX_DATA_WR_URGENT(0) |	/* XXX */
 		V_FW_OFLD_TX_DATA_WR_SHOVE(shove));

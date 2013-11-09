@@ -50,6 +50,7 @@ struct in_ifinfo {
 	struct in_multi		*ii_allhosts;	/* 224.0.0.1 membership */
 };
 
+#if defined(_KERNEL) || defined(_WANT_IFADDR)
 /*
  * Interface address, Internet version.  One of these structures
  * is allocated for each Internet address on an interface.
@@ -70,6 +71,7 @@ struct in_ifaddr {
 #define	ia_broadaddr	ia_dstaddr
 	struct	sockaddr_in ia_sockmask; /* reserve space for general netmask */
 };
+#endif
 
 struct	in_aliasreq {
 	char	ifra_name[IFNAMSIZ];		/* if name, e.g. "en0" */
@@ -361,49 +363,6 @@ extern struct mtx in_multi_mtx;
 #define	IN_MULTI_LOCK_ASSERT()	mtx_assert(&in_multi_mtx, MA_OWNED)
 #define	IN_MULTI_UNLOCK_ASSERT() mtx_assert(&in_multi_mtx, MA_NOTOWNED)
 
-/*
- * Function for looking up an in_multi record for an IPv4 multicast address
- * on a given interface. ifp must be valid. If no record found, return NULL.
- * The IN_MULTI_LOCK and IF_ADDR_LOCK on ifp must be held.
- */
-static __inline struct in_multi *
-inm_lookup_locked(struct ifnet *ifp, const struct in_addr ina)
-{
-	struct ifmultiaddr *ifma;
-	struct in_multi *inm;
-
-	IN_MULTI_LOCK_ASSERT();
-	IF_ADDR_LOCK_ASSERT(ifp);
-
-	inm = NULL;
-	TAILQ_FOREACH(ifma, &((ifp)->if_multiaddrs), ifma_link) {
-		if (ifma->ifma_addr->sa_family == AF_INET) {
-			inm = (struct in_multi *)ifma->ifma_protospec;
-			if (inm->inm_addr.s_addr == ina.s_addr)
-				break;
-			inm = NULL;
-		}
-	}
-	return (inm);
-}
-
-/*
- * Wrapper for inm_lookup_locked().
- * The IF_ADDR_LOCK will be taken on ifp and released on return.
- */
-static __inline struct in_multi *
-inm_lookup(struct ifnet *ifp, const struct in_addr ina)
-{
-	struct in_multi *inm;
-
-	IN_MULTI_LOCK_ASSERT();
-	IF_ADDR_RLOCK(ifp);
-	inm = inm_lookup_locked(ifp, ina);
-	IF_ADDR_RUNLOCK(ifp);
-
-	return (inm);
-}
-
 /* Acquire an in_multi record. */
 static __inline void
 inm_acquire_locked(struct in_multi *inm)
@@ -426,6 +385,8 @@ struct	route;
 struct	ip_moptions;
 struct radix_node_head;
 
+struct in_multi *inm_lookup_locked(struct ifnet *, const struct in_addr);
+struct in_multi *inm_lookup(struct ifnet *, const struct in_addr);
 int	imo_multi_filter(const struct ip_moptions *, const struct ifnet *,
 	    const struct sockaddr *, const struct sockaddr *);
 void	inm_commit(struct in_multi *);
@@ -450,8 +411,7 @@ void	in_rtqdrain(void);
 int	in_addprefix(struct in_ifaddr *, int);
 int	in_scrubprefix(struct in_ifaddr *, u_int);
 void	ip_input(struct mbuf *);
-int	in_ifadown(struct ifaddr *ifa, int);
-void	in_ifscrub(struct ifnet *, struct in_ifaddr *, u_int);
+void	in_ifadown(struct ifaddr *ifa, int);
 struct	mbuf	*ip_fastforward(struct mbuf *);
 void	*in_domifattach(struct ifnet *);
 void	in_domifdetach(struct ifnet *, void *);

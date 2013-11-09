@@ -67,6 +67,7 @@ randomdev_read_file(const char *filename, void *buf, size_t length)
 	return (error);
 }
 
+#ifdef RANDOM_RWFILE_WRITE_OK /* Not defined so writes disabled for now */
 int
 randomdev_write_file(const char *filename, void *buf, size_t length)
 {
@@ -87,10 +88,11 @@ randomdev_write_file(const char *filename, void *buf, size_t length)
 			error = vn_rdwr(UIO_WRITE, nd.ni_vp, buf, length, 0, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, &resid, td);
 
 		VOP_UNLOCK(nd.ni_vp, 0);
-		vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
+		vn_close(nd.ni_vp, FWRITE, td->td_ucred, td);
 	}
 
 	return (error);
 }
+#endif
 
 #endif

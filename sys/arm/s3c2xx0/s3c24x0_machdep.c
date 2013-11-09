@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#include <machine/devmap.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
@@ -126,7 +127,7 @@ struct pv_addr kernelstack;
 #define	_S(s)	(((s) + L1_S_SIZE - 1) & ~(L1_S_SIZE-1))
 
 /* Static device mappings. */
-static const struct pmap_devmap s3c24x0_devmap[] = {
+static const struct arm_devmap_entry s3c24x0_devmap[] = {
 	/*
 	 * Map the devices we need early on.
 	 */
@@ -324,7 +325,7 @@ initarm(struct arm_boot_params *abp)
 		    VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 	}
 
-	pmap_devmap_bootstrap(l1pagetable, s3c24x0_devmap);
+	arm_devmap_bootstrap(l1pagetable, s3c24x0_devmap);
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT);
 	setttb(kernel_l1pt.pv_pa);

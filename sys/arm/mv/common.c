@@ -153,8 +153,11 @@ struct fdt_pm_mask_entry fdt_pm_mask_table[] = {
 static __inline int
 pm_is_disabled(uint32_t mask)
 {
-
+#if defined(SOC_MV_KIRKWOOD)
+	return (soc_power_ctrl_get(mask) == mask);
+#else
 	return (soc_power_ctrl_get(mask) == mask ? 0 : 1);
+#endif
 }
 
 /*
@@ -221,7 +224,16 @@ fdt_pm(phandle_t node)
 			continue;
 
 		compat = fdt_is_compatible(node, fdt_pm_mask_table[i].compat);
-
+#if defined(SOC_MV_KIRKWOOD)
+		if (compat && (cpu_pm_ctrl & fdt_pm_mask_table[i].mask)) {
+			dev_mask |= (1 << i);
+			ena = 0;
+			break;
+		} else if (compat) {
+			dev_mask |= (1 << i);
+			break;
+		}
+#else
 		if (compat && (~cpu_pm_ctrl & fdt_pm_mask_table[i].mask)) {
 			dev_mask |= (1 << i);
 			ena = 0;
@@ -230,6 +242,7 @@ fdt_pm(phandle_t node)
 			dev_mask |= (1 << i);
 			break;
 		}
+#endif
 	}
 
 	return (ena);
@@ -2078,9 +2091,79 @@ fdt_fixup_busfreq(phandle_t root)
 		OF_setprop(sb, "bus-frequency", (void *)&freq, sizeof(freq));
 }
 
+static void
+fdt_fixup_ranges(phandle_t root)
+{
+	phandle_t node;
+	pcell_t par_addr_cells, addr_cells, size_cells;
+	pcell_t ranges[3], reg[2], *rangesptr;
+	int len, tuple_size, tuples_count;
+	uint32_t base;
+
+	/* Fix-up SoC ranges according to real fdt_immr_pa */
+	if ((node = fdt_find_compatible(root, "simple-bus", 1)) != 0) {
+		if (fdt_addrsize_cells(node, &addr_cells, &size_cells) == 0 &&
+		    (par_addr_cells = fdt_parent_addr_cells(node) <= 2)) {
+			tuple_size = sizeof(pcell_t) * (par_addr_cells +
+			   addr_cells + size_cells);
+			len = OF_getprop(node, "ranges", ranges,
+			    sizeof(ranges));
+			tuples_count = len / tuple_size;
+			/* Unexpected settings are not supported */
+			if (tuples_count != 1)
+				goto fixup_failed;
+
+			rangesptr = &ranges[0];
+			rangesptr += par_addr_cells;
+			base = fdt_data_get((void *)rangesptr, addr_cells);
+			*rangesptr = cpu_to_fdt32(fdt_immr_pa);
+			if (OF_setprop(node, "ranges", (void *)&ranges[0],
+			    sizeof(ranges)) < 0)
+				goto fixup_failed;
+		}
+	}
+
+	/* Fix-up PCIe reg according to real PCIe registers' PA */
+	if ((node = fdt_find_compatible(root, "mrvl,pcie", 1)) != 0) {
+		if (fdt_addrsize_cells(OF_parent(node), &par_addr_cells,
+		    &size_cells) == 0) {
+			tuple_size = sizeof(pcell_t) * (par_addr_cells +
+			    size_cells);
+			len = OF_getprop(node, "reg", reg, sizeof(reg));
+			tuples_count = len / tuple_size;
+			/* Unexpected settings are not supported */
+			if (tuples_count != 1)
+				goto fixup_failed;
+
+			base = fdt_data_get((void *)&reg[0], par_addr_cells);
+			base &= ~0xFF000000;
+			base |= fdt_immr_pa;
+			reg[0] = cpu_to_fdt32(base);
+			if (OF_setprop(node, "reg", (void *)&reg[0],
+			    sizeof(reg)) < 0)
+				goto fixup_failed;
+		}
+	}
+	/* Fix-up succeeded. May return and continue */
+	return;
+
+fixup_failed:
+	while (1) {
+		/*
+		 * In case of any error while fixing ranges just hang.
+		 *	1. No message can be displayed yet since console
+		 *	   is not initialized.
+		 *	2. Going further will cause failure on bus_space_map()
+		 *	   relying on the wrong ranges or data abort when
+		 *	   accessing PCIe registers.
+		 */
+	}
+}
+
 struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ "mrvl,DB-88F6281", &fdt_fixup_busfreq },
 	{ "mrvl,DB-78460", &fdt_fixup_busfreq },
+	{ "mrvl,DB-78460", &fdt_fixup_ranges },
 	{ NULL, NULL }
 };
 

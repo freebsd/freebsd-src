@@ -1401,7 +1401,7 @@ fle_free(struct flentry *fle, struct flowtable *ft)
 static void
 flowtable_free_stale(struct flowtable *ft, struct rtentry *rt)
 {
-	int curbit = 0, count;
+	int curbit = 0, count, tmpsize;
 	struct flentry *fle,  **flehead, *fleprev;
 	struct flentry *flefreehead, *flefreetail, *fletmp;
 	bitstr_t *mask, *tmpmask;
@@ -1410,6 +1410,7 @@ flowtable_free_stale(struct flowtable *ft, struct rtentry *rt)
 	flefreehead = flefreetail = NULL;
 	mask = flowtable_mask(ft);
 	tmpmask = ft->ft_tmpmask;
+	tmpsize = ft->ft_size;
 	memcpy(tmpmask, mask, ft->ft_size/8);
 	/*
 	 * XXX Note to self, bit_ffs operates at the byte level
@@ -1479,7 +1480,9 @@ flowtable_free_stale(struct flowtable *ft, struct rtentry *rt)
 			bit_clear(mask, curbit);
 		FL_ENTRY_UNLOCK(ft, curbit);
 		bit_clear(tmpmask, curbit);
-		bit_ffs(tmpmask, ft->ft_size, &curbit);
+		tmpmask += (curbit / 8);
+		tmpsize -= (curbit / 8) * 8;
+		bit_ffs(tmpmask, tmpsize, &curbit);
 	}
 	count = 0;
 	while ((fle = flefreehead) != NULL) {

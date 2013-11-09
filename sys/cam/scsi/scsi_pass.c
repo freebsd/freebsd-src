@@ -65,8 +65,7 @@ typedef enum {
 } pass_state;
 
 typedef enum {
-	PASS_CCB_BUFFER_IO,
-	PASS_CCB_WAITING
+	PASS_CCB_BUFFER_IO
 } pass_ccb_types;
 
 #define ccb_type	ppriv_field0
@@ -94,12 +93,9 @@ static	periph_init_t	passinit;
 static	periph_ctor_t	passregister;
 static	periph_oninv_t	passoninvalidate;
 static	periph_dtor_t	passcleanup;
-static	periph_start_t	passstart;
 static void		pass_add_physpath(void *context, int pending);
 static	void		passasync(void *callback_arg, u_int32_t code,
 				  struct cam_path *path, void *arg);
-static	void		passdone(struct cam_periph *periph, 
-				 union ccb *done_ccb);
 static	int		passerror(union ccb *ccb, u_int32_t cam_flags, 
 				  u_int32_t sense_flags);
 static 	int		passsendccb(struct cam_periph *periph, union ccb *ccb,
@@ -143,19 +139,18 @@ passinit(void)
 static void
 passdevgonecb(void *arg)
 {
-	struct cam_sim    *sim;
 	struct cam_periph *periph;
+	struct mtx *mtx;
 	struct pass_softc *softc;
 	int i;
 
 	periph = (struct cam_periph *)arg;
-	sim = periph->sim;
-	softc = (struct pass_softc *)periph->softc;
+	mtx = cam_periph_mtx(periph);
+	mtx_lock(mtx);
 
+	softc = (struct pass_softc *)periph->softc;
 	KASSERT(softc->open_count >= 0, ("Negative open count %d",
 		softc->open_count));
-
-	mtx_lock(sim->mtx);
 
 	/*
 	 * When we get this callback, we will get no more close calls from
@@ -173,13 +168,13 @@ passdevgonecb(void *arg)
 	cam_periph_release_locked(periph);
 
 	/*
-	 * We reference the SIM lock directly here, instead of using
+	 * We reference the lock directly here, instead of using
 	 * cam_periph_unlock().  The reason is that the final call to
 	 * cam_periph_release_locked() above could result in the periph
 	 * getting freed.  If that is the case, dereferencing the periph
 	 * with a cam_periph_unlock() call would cause a page fault.
 	 */
-	mtx_unlock(sim->mtx);
+	mtx_unlock(mtx);
 }
 
 static void
@@ -207,11 +202,6 @@ passoninvalidate(struct cam_periph *periph)
 	 * XXX Handle any transactions queued to the card
 	 *     with XPT_ABORT_CCB.
 	 */
-
-	if (bootverbose) {
-		xpt_print(periph->path, "lost device\n");
-	}
-
 }
 
 static void
@@ -221,8 +211,6 @@ passcleanup(struct cam_periph *periph)
 
 	softc = (struct pass_softc *)periph->softc;
 
-	if (bootverbose)
-		xpt_print(periph->path, "removing device entry\n");
 	devstat_remove_entry(softc->device_stats);
 
 	cam_periph_unlock(periph);
@@ -302,8 +290,8 @@ passasync(void *callback_arg, u_int32_t code,
 		 * process.
 		 */
 		status = cam_periph_alloc(passregister, passoninvalidate,
-					  passcleanup, passstart, "pass",
-					  CAM_PERIPH_BIO, cgd->ccb_h.path,
+					  passcleanup, NULL, "pass",
+					  CAM_PERIPH_BIO, path,
 					  passasync, AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP
@@ -505,25 +493,23 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 static int
 passclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
-	struct  cam_sim    *sim;
 	struct 	cam_periph *periph;
 	struct  pass_softc *softc;
+	struct mtx *mtx;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);	
+	mtx = cam_periph_mtx(periph);
+	mtx_lock(mtx);
 
-	sim = periph->sim;
 	softc = periph->softc;
-
-	mtx_lock(sim->mtx);
-
 	softc->open_count--;
 
 	cam_periph_release_locked(periph);
 
 	/*
-	 * We reference the SIM lock directly here, instead of using
+	 * We reference the lock directly here, instead of using
 	 * cam_periph_unlock().  The reason is that the call to
 	 * cam_periph_release_locked() above could result in the periph
 	 * getting freed.  If that is the case, dereferencing the periph
@@ -534,44 +520,9 @@ passclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	 * protect the open count and avoid another lock acquisition and
 	 * release.
 	 */
-	mtx_unlock(sim->mtx);
+	mtx_unlock(mtx);
 
 	return (0);
-}
-
-static void
-passstart(struct cam_periph *periph, union ccb *start_ccb)
-{
-	struct pass_softc *softc;
-
-	softc = (struct pass_softc *)periph->softc;
-
-	switch (softc->state) {
-	case PASS_STATE_NORMAL:
-		start_ccb->ccb_h.ccb_type = PASS_CCB_WAITING;			
-		SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-				  periph_links.sle);
-		periph->immediate_priority = CAM_PRIORITY_NONE;
-		wakeup(&periph->ccb_list);
-		break;
-	}
-}
-
-static void
-passdone(struct cam_periph *periph, union ccb *done_ccb)
-{ 
-	struct pass_softc *softc;
-	struct ccb_scsiio *csio;
-
-	softc = (struct pass_softc *)periph->softc;
-	csio = &done_ccb->csio;
-	switch (csio->ccb_h.ccb_type) {
-	case PASS_CCB_WAITING:
-		/* Caller will release the CCB */
-		wakeup(&done_ccb->ccb_h.cbfcnp);
-		return;
-	}
-	xpt_release_ccb(done_ccb);
 }
 
 static int
@@ -691,12 +642,6 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	 * preserved, the rest we get from the user.
 	 */
 	xpt_merge_ccb(ccb, inccb);
-
-	/*
-	 * There's no way for the user to have a completion
-	 * function, so we put our own completion function in here.
-	 */
-	ccb->ccb_h.cbfcnp = passdone;
 
 	/*
 	 * Let cam_periph_mapmem do a sanity check on the data pointer format.

@@ -54,7 +54,6 @@ FILES=	DAEMON \
 	hostid_save \
 	hostname \
 	inetd \
-	initrandom \
 	ip6addrctl \
 	ipfilter \
 	ipfs \
@@ -90,7 +89,6 @@ FILES=	DAEMON \
 	mroute6d \
 	mrouted \
 	msgs \
-	named \
 	natd \
 	netif \
 	netoptions \

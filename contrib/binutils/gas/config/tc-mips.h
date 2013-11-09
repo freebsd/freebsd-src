@@ -155,10 +155,6 @@ extern void mips_emit_delays (void);
 extern void mips_enable_auto_align (void);
 #define md_elf_section_change_hook()	mips_enable_auto_align()
 
-enum dwarf2_format;
-extern enum dwarf2_format mips_dwarf2_format (void);
-#define DWARF2_FORMAT() mips_dwarf2_format ()
-
 extern int mips_dwarf2_addr_size (void);
 #define DWARF2_ADDR_SIZE(bfd) mips_dwarf2_addr_size ()
 

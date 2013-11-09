@@ -839,16 +839,18 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	uint32_t vrf_id;
 	int error = 0;
 	struct sctp_inpcb *inp;
-	struct in6pcb *inp6;
 	struct sctp_tcb *stcb;
 
 #ifdef INET
+	struct in6pcb *inp6;
 	struct sockaddr_in6 *sin6;
 	struct sockaddr_storage ss;
 
 #endif
 
+#ifdef INET
 	inp6 = (struct in6pcb *)so->so_pcb;
+#endif
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ECONNRESET);
