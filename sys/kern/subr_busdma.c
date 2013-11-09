@@ -445,10 +445,15 @@ _busdma_iommu_unmap(device_t dev, struct busdma_md *md)
 	device_t bus;
 	int error;
 
-	bus = device_get_parent(dev);
 	error = 0;
 	TAILQ_FOREACH(seg, &md->md_seg, mds_chain) {
-		error = BUSDMA_IOMMU_UNMAP(bus, dev, md, seg->mds_idx);
+		bus = device_get_parent(dev);
+		while (bus != root_bus) {
+			error = BUSDMA_IOMMU_UNMAP(bus, dev, md, seg->mds_idx);
+			if (error)
+				break;
+			bus = device_get_parent(bus);
+		}
 		if (error)
 			break;
 	}
