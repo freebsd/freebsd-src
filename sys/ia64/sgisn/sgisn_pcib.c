@@ -781,7 +781,7 @@ sgisn_pcib_iommu_unmap(device_t bus, device_t dev, busdma_md_t md, u_int idx)
 
 	KASSERT(count <= 64, ("foo: count"));
 	KASSERT((entry + count) <= PCIB_REG_ATE_SIZE, ("foo"));
-	bitshft = entry & 64;
+	bitshft = entry % 64;
 	KASSERT(bitshft <= (64 - count), ("foo: bitshft"));
 	bits = (count < 64) ? ((1UL << count) - 1UL) << bitshft : ~0UL;
 	ate = entry / 64;
