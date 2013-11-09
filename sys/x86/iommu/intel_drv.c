@@ -900,12 +900,12 @@ dmar_inst_rmrr_iter(ACPI_DMAR_HEADER *dmarh, void *arg)
 		    (uintmax_t)resmem->EndAddress);
 	}
 
-	ptr = (char *)resmem + sizeof(*resmem);
-	ptrend = (char *)resmem + resmem->Header.Length;
+	ptr = (const char *)resmem + sizeof(*resmem);
+	ptrend = (const char *)resmem + resmem->Header.Length;
 	for (;;) {
 		if (ptr >= ptrend)
 			break;
-		devscope = (ACPI_DMAR_DEVICE_SCOPE *)ptr;
+		devscope = (const ACPI_DMAR_DEVICE_SCOPE *)ptr;
 		ptr += devscope->Length;
 		/* XXXKIB bridge */
 		if (devscope->EntryType != ACPI_DMAR_SCOPE_TYPE_ENDPOINT)
@@ -914,11 +914,11 @@ dmar_inst_rmrr_iter(ACPI_DMAR_HEADER *dmarh, void *arg)
 			dmar_print_path(iria->dmar->dev, "RMRR scope",
 			    devscope->Bus, (devscope->Length -
 			    sizeof(ACPI_DMAR_DEVICE_SCOPE)) / 2,
-			    (ACPI_DMAR_PCI_PATH *)(devscope + 1));
+			    (const ACPI_DMAR_PCI_PATH *)(devscope + 1));
 		}
 		dev = dmar_path_dev(resmem->Segment, (devscope->Length -
 		    sizeof(ACPI_DMAR_DEVICE_SCOPE)) / 2, devscope->Bus,
-		    (ACPI_DMAR_PCI_PATH *)(devscope + 1));
+		    (const ACPI_DMAR_PCI_PATH *)(devscope + 1));
 		if (dev == NULL) {
 			if (dmar_match_verbose)
 				printf("null dev\n");
