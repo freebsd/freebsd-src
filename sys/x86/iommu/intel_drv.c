@@ -1049,6 +1049,8 @@ DB_FUNC(dmar_ctx, db_dmar_print_ctx, db_show_table, CS_OWN, NULL)
 		}
 		show_mappings = strchr(db_tok_string, 'm') != NULL;
 		t = db_read_token();
+	} else {
+		show_mappings = false;
 	}
 	if (t == tNUMBER) {
 		domain = db_tok_number;
