@@ -263,6 +263,21 @@ XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		-DWITHOUT_GDB
 
+# kernel-tools stage
+KTMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
+		PATH=${BPATH}:${PATH} \
+		WORLDTMP=${WORLDTMP} \
+		VERSION="${VERSION}" \
+		COMPILER_TYPE=${COMPILER_TYPE}
+KTMAKE=		TOOLS_PREFIX=${WORLDTMP} MAKEOBJDIRPREFIX=${WORLDTMP} \
+		${KTMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
+		DESTDIR= \
+		BOOTSTRAPPING=${OSRELDATE} \
+		SSP_CFLAGS= \
+		-DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT -DWITHOUT_MAN \
+		-DNO_PIC -DNO_PROFILE -DNO_SHARED \
+		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD
+
 # world stage
 WMAKEENV=	${CROSSENV} \
 		_SHLIBDIRPREFIX=${WORLDTMP} \
@@ -1020,7 +1035,7 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.3: build tools"
 	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${XMAKE} kernel-tools
+	${_+_}cd ${.CURDIR}; ${KTMAKE} kernel-tools
 .if !defined(NO_KERNELDEPEND)
 	@echo
 	@echo "--------------------------------------------------------------"
