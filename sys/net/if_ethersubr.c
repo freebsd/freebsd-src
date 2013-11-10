@@ -1265,8 +1265,7 @@ ether_vlan_mtap(struct bpf_if *bp, struct mbuf *m, void *data, u_int dlen)
 	vlan.evl_proto = vlan.evl_encap_proto;
 	vlan.evl_encap_proto = htons(ETHERTYPE_VLAN);
 	vlan.evl_tag = htons(m->m_pkthdr.ether_vtag);
-	m->m_len -= sizeof(struct ether_header);
-	m->m_data += sizeof(struct ether_header);
+	m_adj_data_head_rel(m, sizeof(struct ether_header));
 	/*
 	 * If a data link has been supplied by the caller, then we will need to
 	 * re-create a stack allocated mbuf chain with the following structure:
@@ -1287,8 +1286,7 @@ ether_vlan_mtap(struct bpf_if *bp, struct mbuf *m, void *data, u_int dlen)
 		bpf_mtap(bp, &mb);
 	} else
 		bpf_mtap2(bp, &vlan, sizeof(vlan), m);
-	m->m_len += sizeof(struct ether_header);
-	m->m_data -= sizeof(struct ether_header);
+	m_adj_data_head_rel(m, -((int) sizeof(struct ether_header)));
 }
 
 struct mbuf *
