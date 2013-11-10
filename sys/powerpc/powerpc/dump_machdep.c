@@ -161,7 +161,7 @@ static int
 cb_dumphdr(struct pmap_md *md, int seqnr, void *arg)
 {
 	struct dumperinfo *di = (struct dumperinfo*)arg;
-	Elf32_Phdr phdr;
+	Elf_Phdr phdr;
 	int error;
 
 	bzero(&phdr, sizeof(phdr));
@@ -208,7 +208,7 @@ foreach_chunk(callback_t cb, void *arg)
 void
 dumpsys(struct dumperinfo *di)
 {
-	Elf32_Ehdr ehdr;
+	Elf_Ehdr ehdr;
 	uint32_t dumpsize;
 	off_t hdrgap;
 	size_t hdrsz;
@@ -219,7 +219,7 @@ dumpsys(struct dumperinfo *di)
 	ehdr.e_ident[EI_MAG1] = ELFMAG1;
 	ehdr.e_ident[EI_MAG2] = ELFMAG2;
 	ehdr.e_ident[EI_MAG3] = ELFMAG3;
-	ehdr.e_ident[EI_CLASS] = ELFCLASS32;
+	ehdr.e_ident[EI_CLASS] = ELF_TARG_CLASS;
 #if BYTE_ORDER == LITTLE_ENDIAN
 	ehdr.e_ident[EI_DATA] = ELFDATA2LSB;
 #else
@@ -228,11 +228,11 @@ dumpsys(struct dumperinfo *di)
 	ehdr.e_ident[EI_VERSION] = EV_CURRENT;
 	ehdr.e_ident[EI_OSABI] = ELFOSABI_STANDALONE;	/* XXX big picture? */
 	ehdr.e_type = ET_CORE;
-	ehdr.e_machine = EM_PPC;
+	ehdr.e_machine = ELF_ARCH;      /* Defined in powerpc/include/elf.h */
 	ehdr.e_phoff = sizeof(ehdr);
 	ehdr.e_ehsize = sizeof(ehdr);
-	ehdr.e_phentsize = sizeof(Elf32_Phdr);
-	ehdr.e_shentsize = sizeof(Elf32_Shdr);
+	ehdr.e_phentsize = sizeof(Elf_Phdr);
+	ehdr.e_shentsize = sizeof(Elf_Shdr);
 
 	/* Calculate dump size. */
 	dumpsize = 0L;
