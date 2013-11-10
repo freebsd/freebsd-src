@@ -660,7 +660,7 @@ sgisn_pcib_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 		addr = ba;
 		if (flags & BUSDMA_ALLOC_CONSISTENT)
 			addr |= 1UL << 56;	/* bar */
-		if ((sc->sc_fwbus->fw_mode & 1) == 0)
+		else if ((sc->sc_fwbus->fw_mode & 1) == 0)
 			addr |= 1UL << 59;	/* prefetch */
 		if (sc->sc_fwbus->fw_common.bus_asic == SGISN_PCIB_PIC)
 			addr |= (u_long)sc->sc_fwbus->fw_hub_xid << 60;
@@ -746,10 +746,10 @@ sgisn_pcib_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 
 	ba &= ~SGISN_PCIB_PAGE_MASK;
 	ba |= 1 << 0;		/* valid */
-	if ((sc->sc_fwbus->fw_mode & 1) == 0)
-		ba |= 1 << 3;	/* prefetch */
 	if (flags & BUSDMA_ALLOC_CONSISTENT)
 		ba |= 1 << 4;	/* bar */
+	else if ((sc->sc_fwbus->fw_mode & 1) == 0)
+		ba |= 1 << 3;	/* prefetch */
 	if (sc->sc_fwbus->fw_common.bus_asic == SGISN_PCIB_PIC)
 		ba |= (u_long)sc->sc_fwbus->fw_hub_xid << 8;
 	while (count > 0) {
