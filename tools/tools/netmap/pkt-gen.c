@@ -277,11 +277,11 @@ system_ncpus(void)
 /*
  * parse the vale configuration in conf and put it in nmr.
  * The configuration may consist of 0 to 4 numbers separated
- * by commas: #tx-slots,#rx-slots,#tx-rinzgs,#rx-rings.
+ * by commas: #tx-slots,#rx-slots,#tx-rings,#rx-rings.
  * Missing numbers or zeroes stand for default values.
  * As an additional convenience, if exactly one number
- * is specified, then this is assigned to bot #tx-slots and #rx-slots.
- * If there is no 4th number, then the 3rd is assigned to bot #tx-rings 
+ * is specified, then this is assigned to both #tx-slots and #rx-slots.
+ * If there is no 4th number, then the 3rd is assigned to both #tx-rings
  * and #rx-rings.
  */
 void parse_nmr_config(const char* conf, struct nmreq *nmr)
