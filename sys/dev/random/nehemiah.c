@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013 Mark R V Murray
+ * Copyright (c) 2013 David E. O'Brien <obrien@NUXI.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/conf.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -52,13 +54,13 @@ static void random_nehemiah_init(void);
 static void random_nehemiah_deinit(void);
 static int random_nehemiah_read(void *, int);
 
-static struct random_hardware_source random_nehemiah = {
+static struct live_entropy_source random_nehemiah = {
 	.ident = "Hardware, VIA Nehemiah Padlock RNG",
 	.source = RANDOM_PURE_NEHEMIAH,
 	.read = random_nehemiah_read
 };
 
-/* TODO: now that the Davies-Meyer hash is gone and we only use
+/* XXX: FIX? TODO? now that the Davies-Meyer hash is gone and we only use
  * the 'xstore' instruction, do we still need to preserve the
  * FPU state with fpu_kern_(enter|leave)() ?
  */
@@ -75,7 +77,7 @@ VIA_RNG_store(void *buf)
 #ifdef __GNUCLIKE_ASM
 	__asm __volatile(
 		"movl	$0,%%edx\n\t"
-		".byte	0x0f, 0xa7, 0xc0" /* xstore */
+		"xstore"
 			: "=a" (retval), "+d" (rate), "+D" (buf)
 			:
 			: "memory"
@@ -154,4 +156,6 @@ nehemiah_modevent(module_t mod, int type, void *unused)
 	return (error);
 }
 
-LIVE_ENTROPY_SRC_MODULE(nehemiah, nehemiah_modevent, 1);
+DEV_MODULE(nehemiah, nehemiah_modevent, NULL);
+MODULE_VERSION(nehemiah, 1);
+MODULE_DEPEND(nehemiah, randomdev, 1, 1, 1);

@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/conf.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -55,7 +56,7 @@ __FBSDID("$FreeBSD$");
 
 static int random_ivy_read(void *, int);
 
-static struct random_hardware_source random_ivy = {
+static struct live_entropy_source random_ivy = {
 	.ident = "Hardware, Intel IvyBridge+ RNG",
 	.source = RANDOM_PURE_RDRAND,
 	.read = random_ivy_read
@@ -130,4 +131,6 @@ rdrand_modevent(module_t mod, int type, void *unused)
 	return (error);
 }
 
-LIVE_ENTROPY_SRC_MODULE(random_rdrand, rdrand_modevent, 1);
+DEV_MODULE(rdrand, rdrand_modevent, NULL);
+MODULE_VERSION(rdrand, 1);
+MODULE_DEPEND(rdrand, randomdev, 1, 1, 1);

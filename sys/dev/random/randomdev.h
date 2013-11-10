@@ -40,23 +40,16 @@ typedef int random_read_func_t(void *, int);
 typedef int random_poll_func_t(int, struct thread *);
 typedef void random_reseed_func_t(void);
 
-struct random_adaptor {
-	struct selinfo		rsel;
-	const char		*ident;
-	int			seeded;
-	unsigned		priority;
-	random_init_func_t	*init;
-	random_deinit_func_t	*deinit;
-	random_block_func_t	*block;
-	random_read_func_t	*read;
-	random_poll_func_t	*poll;
-	random_reseed_func_t	*reseed;
-};
+void randomdev_init_harvester(void (*)(const void *, u_int, u_int, enum esource),
+    int (*)(void *, int));
+void randomdev_deinit_harvester(void);
 
-struct random_hardware_source {
-	const char		*ident;
-	enum esource		source;
-	random_read_func_t	*read;
-};
+/* Dummy "always-block" device */
+extern struct random_adaptor dummy_random;
+
+/* kern.random sysctls */
+#ifdef SYSCTL_DECL	/* from sysctl.h */
+SYSCTL_DECL(_kern_random);
+#endif /* SYSCTL_DECL */
 
 #endif

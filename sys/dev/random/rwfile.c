@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/namei.h>
 #include <sys/fcntl.h>
@@ -67,9 +66,8 @@ randomdev_read_file(const char *filename, void *buf, size_t length)
 	return (error);
 }
 
-#ifdef RANDOM_RWFILE_WRITE_OK /* Not defined so writes disabled for now */
 int
-randomdev_write_file(const char *filename, void *buf, size_t length)
+randomdev_write_file(const char *filename, const void *buf, size_t length)
 {
 	struct nameidata nd;
 	struct thread* td = curthread;
@@ -85,7 +83,7 @@ randomdev_write_file(const char *filename, void *buf, size_t length)
 		if (nd.ni_vp->v_type != VREG)
 			error = ENOEXEC;
 		else
-			error = vn_rdwr(UIO_WRITE, nd.ni_vp, buf, length, 0, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, &resid, td);
+			error = vn_rdwr(UIO_WRITE, nd.ni_vp, __DECONST(void *,buf), length, 0, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, &resid, td);
 
 		VOP_UNLOCK(nd.ni_vp, 0);
 		vn_close(nd.ni_vp, FWRITE, td->td_ucred, td);
@@ -93,6 +91,5 @@ randomdev_write_file(const char *filename, void *buf, size_t length)
 
 	return (error);
 }
-#endif
 
 #endif

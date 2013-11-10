@@ -29,12 +29,28 @@
 #ifndef SYS_DEV_RANDOM_RANDOM_HARVESTQ_H_INCLUDED
 #define SYS_DEV_RANDOM_RANDOM_HARVESTQ_H_INCLUDED
 
-typedef void (*event_proc_f)(struct harvest *event);
+#define HARVESTSIZE	16	/* max size of each harvested entropy unit */
 
-void random_harvestq_init(event_proc_f);
+/* These are used to queue harvested packets of entropy. The entropy
+ * buffer size is pretty arbitrary.
+ */
+struct harvest {
+	uintmax_t somecounter;		/* fast counter for clock jitter */
+	uint8_t entropy[HARVESTSIZE];	/* the harvested entropy */
+	u_int size, bits;		/* stats about the entropy */
+	u_int destination;		/* destination pool of this entropy */
+	enum esource source;		/* origin of the entropy */
+	STAILQ_ENTRY(harvest) next;	/* next item on the list */
+};
+
+void random_harvestq_init(void (*)(struct harvest *));
 void random_harvestq_deinit(void);
-void random_harvestq_internal(u_int64_t, const void *,
-    u_int, u_int, enum esource);
+void random_harvestq_internal(const void *, u_int, u_int, enum esource);
+
+/* This is in randomdev.c as it needs to be fixed in the kernel */
+void randomdev_set_wakeup_exit(void *);
+
+extern void (*harvest_process_event)(struct harvest *);
 
 extern int random_kthread_control;
 extern struct mtx harvest_mtx;

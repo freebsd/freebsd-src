@@ -26,6 +26,16 @@
  *
  */
 
+/*
+ * This is the loadable infrastructure base file for software CSPRNG
+ * drivers such as Yarrow or Fortuna.
+ *
+ * It is anticipated that one instance of this file will be used
+ * for _each_ invocation of a CSPRNG, but with different #defines
+ * set. See below.
+ *
+ */
+
 #include "opt_random.h"
 
 #if !defined(RANDOM_YARROW) && !defined(RANDOM_FORTUNA)
@@ -42,6 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -55,9 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/unistd.h>
 
-#include <machine/bus.h>
-#include <machine/cpu.h>
-
 #include <dev/random/randomdev.h>
 #include <dev/random/randomdev_soft.h>
 #include <dev/random/random_harvestq.h>
@@ -68,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #if defined(RANDOM_FORTUNA)
 #include <dev/random/fortuna.h>
 #endif
-
 
 static int randomdev_poll(int event, struct thread *td);
 static int randomdev_block(int flag);
@@ -169,7 +176,13 @@ randomdev_init(void)
 	    &harvest.swi, 1, random_check_boolean, "I",
 	    "Harvest SWI entropy");
 
-	random_harvestq_init(random_process_event);
+	/* Register the randomness processing routine */
+#if defined(RANDOM_YARROW)
+	random_harvestq_init(random_yarrow_process_event);
+#endif
+#if defined(RANDOM_FORTUNA)
+	random_harvestq_init(random_fortuna_process_event);
+#endif
 
 	/* Register the randomness harvesting routine */
 	randomdev_init_harvester(random_harvestq_internal,
@@ -258,7 +271,7 @@ randomdev_flush_reseed(void)
 	/* Command a entropy queue flush and wait for it to finish */
 	random_kthread_control = 1;
 	while (random_kthread_control)
-		pause("-", hz / 10);
+		pause("-", hz/10);
 
 #if defined(RANDOM_YARROW)
 	/* This ultimately calls randomdev_unblock() */
@@ -270,30 +283,32 @@ randomdev_flush_reseed(void)
 #endif
 }
 
+/* ARGSUSED */
 static int
-randomdev_modevent(module_t mod __unused, int type, void *unused __unused)
+randomdev_soft_modevent(module_t mod __unused, int type, void *unused __unused)
 {
+	int error = 0;
 
 	switch (type) {
 	case MOD_LOAD:
 		random_adaptor_register(RANDOM_CSPRNG_NAME, &random_context);
-		/*
-		 * For statically built kernels that contain both device
-		 * random and options PADLOCK_RNG/RDRAND_RNG/etc..,
-		 * this event handler will do nothing, since the random
-		 * driver-specific handlers are loaded after these HW
-		 * consumers, and hence hasn't yet registered for this event.
-		 *
-		 * In case where both the random driver and RNG's are built
-		 * as seperate modules, random.ko is loaded prior to *_rng.ko's
-		 * (by dependency). This event handler is there to delay
-		 * creation of /dev/{u,}random and attachment of this *_rng.ko.
-		 */
-		EVENTHANDLER_INVOKE(random_adaptor_attach, &random_context);
-		return (0);
-	}
+		break;
 
-	return (EINVAL);
+	case MOD_UNLOAD:
+		random_adaptor_deregister(RANDOM_CSPRNG_NAME);
+		break;
+
+	case MOD_SHUTDOWN:
+		break;
+
+	default:
+		error = EOPNOTSUPP;
+		break;
+
+	}
+	return (error);
 }
 
-RANDOM_ADAPTOR_MODULE(RANDOM_MODULE_NAME, randomdev_modevent, 1);
+DEV_MODULE(RANDOM_MODULE_NAME, randomdev_soft_modevent, NULL);
+MODULE_VERSION(RANDOM_MODULE_NAME, 1);
+MODULE_DEPEND(RANDOM_MODULE_NAME, randomdev, 1, 1, 1);

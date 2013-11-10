@@ -75,7 +75,7 @@ randomdev_encrypt_init(struct randomdev_key *context, void *data)
  * a multiple of BLOCKSIZE.
  */
 void
-randomdev_encrypt(struct randomdev_key *context, void *d_in, void *d_out, unsigned length)
+randomdev_encrypt(struct randomdev_key *context, void *d_in, void *d_out, u_int length)
 {
 	rijndael_blockEncrypt(&context->cipher, &context->key, d_in, length*8, d_out);
 }

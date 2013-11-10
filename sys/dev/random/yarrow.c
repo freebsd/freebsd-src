@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/random.h>
+#include <sys/selinfo.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -43,7 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <crypto/sha2/sha2.h>
 
 #include <dev/random/hash.h>
-#include <dev/random/random_adaptors.h>
+#include <dev/random/randomdev.h>
+#include <dev/random/random_harvestq.h>
 #include <dev/random/randomdev_soft.h>
 #include <dev/random/yarrow.h>
 
@@ -73,7 +75,6 @@ static struct random_state {
 		u_int thresh;	/* pool reseed threshhold */
 		struct randomdev_hash hash;	/* accumulated entropy */
 	} pool[2];		/* pool[0] is fast, pool[1] is slow */
-	u_int which;		/* toggle - sets the current insertion pool */
 } random_state;
 
 RANDOM_CHECK_UINT(gengateinterval, 4, 64);
@@ -99,7 +100,7 @@ clear_counter(void)
 
 /* 128-bit C = C + 1 */
 /* Nothing to see here, folks, just an ugly mess. */
-/* TODO: Make a Galois counter instead? */
+/* XXX: TODO? Make a Galois counter instead? */
 static void
 increment_counter(void)
 {
@@ -110,14 +111,14 @@ increment_counter(void)
 
 /* Process a single stochastic event off the harvest queue */
 void
-random_process_event(struct harvest *event)
+random_yarrow_process_event(struct harvest *event)
 {
 	u_int pl, overthreshhold[2];
 	struct source *source;
 	enum esource src;
 
 #if 0
-	/* Do this better with DTrace */
+	/* XXX: Fix!! Do this better with DTrace */
 	{
 		int i;
 
@@ -126,12 +127,14 @@ random_process_event(struct harvest *event)
 			printf("%02X", event->entropy[i]);
 		for (; i < 16; i++)
 			printf("  ");
-		printf(" %2d %2d %02X\n", event->size, event->bits, event->source);
-	}
+		printf(" %2d %2d %02X %02X\n", event->size, event->bits, event->source, event->destination);
+       }
 #endif
 
-	/* Accumulate the event into the appropriate pool */
-	pl = random_state.which;
+	/* Accumulate the event into the appropriate pool
+         * where each event carries the destination information
+	 */
+	pl = event->destination % 2;
 	source = &random_state.pool[pl].source[event->source];
 	randomdev_hash_iterate(&random_state.pool[pl].hash, event,
 		sizeof(*event));
@@ -154,9 +157,6 @@ random_process_event(struct harvest *event)
 	/* if enough slow sources are over threshhold, reseed */
 	if (overthreshhold[SLOW] >= random_state.slowoverthresh)
 		reseed(SLOW);
-
-	/* Invert the fast/slow pool selector bit */
-	random_state.which = !random_state.which;
 }
 
 void
@@ -213,7 +213,6 @@ random_yarrow_init_alg(struct sysctl_ctx_list *clist)
 	random_state.pool[0].thresh = (3*(BLOCKSIZE*8))/4;
 	random_state.pool[1].thresh = (BLOCKSIZE*8);
 	random_state.slowoverthresh = 2;
-	random_state.which = FAST;
 
 	/* Initialise the fast and slow entropy pools */
 	for (i = 0; i < 2; i++)
@@ -244,10 +243,6 @@ reseed(u_int fastslow)
 	uint8_t temp[KEYSIZE];
 	u_int i;
 	enum esource j;
-
-#if 0
-	printf("Yarrow: %s reseed\n", fastslow == FAST ? "fast" : "slow");
-#endif
 
 	/* The reseed task must not be jumped on */
 	mtx_lock(&random_reseed_mtx);
@@ -312,7 +307,14 @@ reseed(u_int fastslow)
 	memset((void *)hash, 0, sizeof(hash));
 
 	/* 7. Dump to seed file */
-	/* XXX Not done here yet */
+#ifdef RANDOM_RWFILE
+#ifdef RANDOM_RWFILE_WRITE_OK /* XXX: Not defined so writes disabled for now */
+	seed_file = "/var/db/entropy/seed_cache";
+	error = randomdev_write_file(seed_file, <generated entropy>, PAGE_SIZE);
+		if (error == 0) {
+			printf("random: entropy seed file '%s' successfully written\n", seed_file);
+#endif
+#endif
 
 	/* Unblock the device if it was blocked due to being unseeded */
 	randomdev_unblock();

@@ -35,26 +35,21 @@
  * specified or approximate amount of entropy immediately upon request or within
  * an acceptable amount of time.
  */
+struct live_entropy_source {
+	const char		*ident;
+	enum esource		source;
+	random_read_func_t	*read;
+};
+
 struct live_entropy_sources {
 	LIST_ENTRY(live_entropy_sources) entries;	/* list of providers */
-	struct random_hardware_source	*rsource;	/* associated random adaptor */
+	struct live_entropy_source	*rsource;	/* associated random adaptor */
 };
 
 extern struct mtx live_mtx;
 
-void live_entropy_source_register(struct random_hardware_source *);
-void live_entropy_source_deregister(struct random_hardware_source *);
-void live_entropy_sources_feed(int, event_proc_f);
-
-#define LIVE_ENTROPY_SRC_MODULE(name, modevent, ver)		\
-    static moduledata_t name##_mod = {				\
-	#name,							\
-	modevent,						\
-	0							\
-    };								\
-    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS,		\
-		   SI_ORDER_SECOND);				\
-    MODULE_VERSION(name, ver);					\
-    MODULE_DEPEND(name, random, 1, 1, 1);
+void live_entropy_source_register(struct live_entropy_source *);
+void live_entropy_source_deregister(struct live_entropy_source *);
+void live_entropy_sources_feed(void);
 
 #endif /* SYS_DEV_RANDOM_LIVE_ENTROPY_SOURCES_H_INCLUDED */

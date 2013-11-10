@@ -29,9 +29,20 @@
 #ifndef SYS_DEV_RANDOM_RANDOM_ADAPTORS_H_INCLUDED
 #define SYS_DEV_RANDOM_RANDOM_ADAPTORS_H_INCLUDED
 
-#include <sys/eventhandler.h>
-
 MALLOC_DECLARE(M_ENTROPY);
+
+struct random_adaptor {
+	struct selinfo		rsel;
+	const char		*ident;
+	int			seeded;
+	u_int			priority;
+	random_init_func_t	*init;
+	random_deinit_func_t	*deinit;
+	random_block_func_t	*block;
+	random_read_func_t	*read;
+	random_poll_func_t	*poll;
+	random_reseed_func_t	*reseed;
+};
 
 struct random_adaptors {
 	LIST_ENTRY(random_adaptors) entries;	/* list of providers */
@@ -39,33 +50,10 @@ struct random_adaptors {
 	struct random_adaptor	*rsp;
 };
 
-struct random_adaptor *random_adaptor_get(const char *);
-int random_adaptor_register(const char *, struct random_adaptor *);
-void random_adaptor_choose(struct random_adaptor **);
+void random_adaptor_register(const char *, struct random_adaptor *);
+void random_adaptor_deregister(const char *);
+void random_adaptor_choose(void);
 
 extern struct random_adaptor *random_adaptor;
-
-/*
- * random_adaptor's should be registered prior to
- * random module (SI_SUB_DRIVERS/SI_ORDER_MIDDLE)
- */
-#define RANDOM_ADAPTOR_MODULE(name, modevent, ver)		\
-    static moduledata_t name##_mod = {				\
-	#name,							\
-	modevent,						\
-	0							\
-    };								\
-    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS,		\
-		   SI_ORDER_SECOND);				\
-    MODULE_VERSION(name, ver);					\
-    MODULE_DEPEND(name, random, 1, 1, 1);
-
-typedef void (*random_adaptor_attach_hook)(void *, struct random_adaptor *);
-EVENTHANDLER_DECLARE(random_adaptor_attach, random_adaptor_attach_hook);
-
-/* kern.random sysctls */
-#ifdef SYSCTL_DECL	/* from sysctl.h */
-SYSCTL_DECL(_kern_random);
-#endif /* SYSCTL_DECL */
 
 #endif /* SYS_DEV_RANDOM_RANDOM_ADAPTORS_H_INCLUDED */

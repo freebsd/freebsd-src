@@ -63,15 +63,12 @@ void random_harvest(const void *, u_int, u_int, enum esource);
 /* Allow the sysadmin to select the broad category of
  * entropy types to harvest
  */
-struct harvest_select {
+extern struct harvest_select {
 	int ethernet;
 	int point_to_point;
 	int interrupt;
 	int swi;
-	int namei;
-};
-
-extern struct harvest_select harvest;
+} harvest;
 
 #endif /* _KERNEL */
 

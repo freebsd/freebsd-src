@@ -32,9 +32,7 @@
 #ifdef RANDOM_RWFILE
 
 int randomdev_read_file(const char *filename, void *buf, size_t);
-#ifdef RANDOM_RWFILE_WRITE_OK /* Not defined so writes disabled for now */
-int randomdev_write_file(const char *filename, void *buf, size_t);
-#endif
+int randomdev_write_file(const char *filename, const void *buf, size_t);
 
 #endif
 

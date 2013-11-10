@@ -58,7 +58,7 @@ static struct les_head sources = LIST_HEAD_INITIALIZER(sources);
 static struct sx les_lock; /* need a sleepable lock */
 
 void
-live_entropy_source_register(struct random_hardware_source *rsource)
+live_entropy_source_register(struct live_entropy_source *rsource)
 {
 	struct live_entropy_sources *les;
 
@@ -73,7 +73,7 @@ live_entropy_source_register(struct random_hardware_source *rsource)
 }
 
 void
-live_entropy_source_deregister(struct random_hardware_source *rsource)
+live_entropy_source_deregister(struct live_entropy_source *rsource)
 {
 	struct live_entropy_sources *les = NULL;
 
@@ -93,43 +93,23 @@ live_entropy_source_deregister(struct random_hardware_source *rsource)
 static int
 live_entropy_source_handler(SYSCTL_HANDLER_ARGS)
 {
+	/* XXX: FIX!! Fixed array size */
+	char buf[128];
 	struct live_entropy_sources *les;
-	int error, count;
-
-	count = error = 0;
+	int count;
 
 	sx_slock(&les_lock);
 
-	if (LIST_EMPTY(&sources))
-		error = SYSCTL_OUT(req, "", 0);
-	else {
-		LIST_FOREACH(les, &sources, entries) {
-
-			error = SYSCTL_OUT(req, ",", count++ ? 1 : 0);
-			if (error)
-				break;
-
-			error = SYSCTL_OUT(req, les->rsource->ident, strlen(les->rsource->ident));
-			if (error)
-				break;
-		}
+	buf[0] = '\0';
+	count = 0;
+	LIST_FOREACH(les, &sources, entries) {
+		strcat(buf, (count++ ? "," : ""));
+		strcat(buf, les->rsource->ident);
 	}
 
 	sx_sunlock(&les_lock);
 
-	return (error);
-}
-
-static void
-live_entropy_sources_init(void *unused)
-{
-
-	SYSCTL_PROC(_kern_random, OID_AUTO, live_entropy_sources,
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    NULL, 0, live_entropy_source_handler, "",
-	    "List of Active Live Entropy Sources");
-
-	sx_init(&les_lock, "live_entropy_sources");
+	return (SYSCTL_OUT(req, buf, strlen(buf)));
 }
 
 /*
@@ -142,11 +122,15 @@ live_entropy_sources_init(void *unused)
  * This function runs inside the RNG thread! Don't do anything silly!
  * Remember that we are NOT holding harvest_mtx on entry!
  */
+/* XXXRW: get_cyclecount() is cheap on most modern hardware, where cycle
+ * counters are built in, but on older hardware it will do a real time clock
+ * read which can be quite expensive.
+ */
 void
-live_entropy_sources_feed(int rounds, event_proc_f entropy_processor)
+live_entropy_sources_feed(void)
 {
 	static struct harvest event;
-	static uint8_t buf[HARVESTSIZE];
+	static u_int dest = 0;
 	struct live_entropy_sources *les;
 	int i, n;
 
@@ -158,28 +142,39 @@ live_entropy_sources_feed(int rounds, event_proc_f entropy_processor)
 	 */
 	LIST_FOREACH(les, &sources, entries) {
 
-		for (i = 0; i < rounds; i++) {
+		/* XXX: FIX!! "2" is the number of pools in Yarrow */
+		for (i = 0; i < 2; i++) {
 			/*
 			 * This should be quick, since it's a live entropy
 			 * source.
 			 */
-			/* FIXME: Whine loudly if this didn't work. */
-			n = les->rsource->read(buf, sizeof(buf));
-			n = MIN(n, HARVESTSIZE);
-
+			/* XXX: FIX!! Whine loudly if this didn't work. */
+			n = les->rsource->read(event.entropy, HARVESTSIZE);
 			event.somecounter = get_cyclecount();
 			event.size = n;
 			event.bits = (n*8)/2;
 			event.source = les->rsource->source;
-			memcpy(event.entropy, buf, n);
+			event.destination = dest++;
 
 			/* Do the actual entropy insertion */
-			entropy_processor(&event);
+			harvest_process_event(&event);
 		}
 
 	}
 
 	sx_sunlock(&les_lock);
+}
+
+static void
+live_entropy_sources_init(void *unused)
+{
+
+	SYSCTL_PROC(_kern_random, OID_AUTO, live_entropy_sources,
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    NULL, 0, live_entropy_source_handler, "",
+	    "List of Active Live Entropy Sources");
+
+	sx_init(&les_lock, "live_entropy_sources");
 }
 
 static void

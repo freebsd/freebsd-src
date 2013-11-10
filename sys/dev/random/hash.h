@@ -45,6 +45,6 @@ void randomdev_hash_init(struct randomdev_hash *);
 void randomdev_hash_iterate(struct randomdev_hash *, void *, size_t);
 void randomdev_hash_finish(struct randomdev_hash *, void *);
 void randomdev_encrypt_init(struct randomdev_key *, void *);
-void randomdev_encrypt(struct randomdev_key *context, void *, void *, unsigned);
+void randomdev_encrypt(struct randomdev_key *context, void *, void *, u_int);
 
 #endif

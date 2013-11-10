@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013 Arthur Mesh <arthurmesh@gmail.com>
+ * Copyright (c) 2013 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,15 +31,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/random.h>
 #include <sys/selinfo.h>
 #include <sys/systm.h>
 #include <sys/time.h>
 
-#include <dev/random/random_adaptors.h>
 #include <dev/random/randomdev.h>
+#include <dev/random/random_adaptors.h>
 
 static struct mtx	dummy_random_mtx;
 
@@ -94,7 +96,7 @@ dummy_random_deinit(void)
 }
 
 struct random_adaptor dummy_random = {
-	.ident = "Dummy entropy device that always blocks",
+	.ident = "Dummy entropy device",
 	.init = dummy_random_init,
 	.deinit = dummy_random_deinit,
 	.block = dummy_random_block,
@@ -104,21 +106,3 @@ struct random_adaptor dummy_random = {
 	.seeded = 0, /* This device can never be seeded */
 	.priority = 1, /* Bottom priority, so goes to last position */
 };
-
-static int
-dummy_random_modevent(module_t mod __unused, int type, void *unused __unused)
-{
-
-	switch (type) {
-	case MOD_LOAD:
-		random_adaptor_register("dummy", &dummy_random);
-		EVENTHANDLER_INVOKE(random_adaptor_attach,
-		    &dummy_random);
-
-		return (0);
-	}
-
-	return (EINVAL);
-}
-
-RANDOM_ADAPTOR_MODULE(dummy, dummy_random_modevent, 1);
