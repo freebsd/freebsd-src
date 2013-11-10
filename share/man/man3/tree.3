@@ -139,10 +139,10 @@
 .Ft "struct TYPE *"
 .Fn RB_PARENT "struct TYPE *elm" "RB_ENTRY NAME"
 .Fn RB_FOREACH VARNAME NAME "RB_HEAD *head"
-.Fn RB_FOREACH_FROM "VARNAME" "NAME" "RB_HEAD *head" "POS_VARNAME"
+.Fn RB_FOREACH_FROM "VARNAME" "NAME" "POS_VARNAME"
 .Fn RB_FOREACH_SAFE "VARNAME" "NAME" "RB_HEAD *head" "TEMP_VARNAME"
 .Fn RB_FOREACH_REVERSE VARNAME NAME "RB_HEAD *head"
-.Fn RB_FOREACH_REVERSE_FROM "VARNAME" "NAME" "RB_HEAD *head" "POS_VARNAME"
+.Fn RB_FOREACH_REVERSE_FROM "VARNAME" "NAME" "POS_VARNAME"
 .Fn RB_FOREACH_REVERSE_SAFE "VARNAME" "NAME" "RB_HEAD *head" "TEMP_VARNAME"
 .Ft void
 .Fn RB_INIT "RB_HEAD *head"
@@ -480,7 +480,9 @@ and
 .Fn RB_FOREACH_REVERSE_FROM
 may be used to continue an interrupted traversal
 in a forward or reverse direction respectively.
-The resume point should be passed as their last argument,
+The head pointer is not required.
+The pointer to the node from where to resume the traversal
+should be passed as their last argument,
 and will be overwritten to provide safe traversal.
 .Pp
 The
