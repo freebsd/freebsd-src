@@ -233,9 +233,6 @@ fetch_to_fd(const char *url, char *path)
 		}
 	}
 
-	if (remote == NULL)
-		goto fetchfail;
-
 	while (done < st.size) {
 		if ((r = fread(buf, 1, sizeof(buf), remote)) < 1)
 			break;

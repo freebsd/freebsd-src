@@ -13,17 +13,14 @@ This file has architecture-dependent installation instructions, culled
 from {alpha,i386}/INSTALL.TXT.
 
 -->
-
-<sect1 id="install">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="install">
   <title>Установка &os;</title>
 
   <para>Этот раздел описывает процесс установки новой системы &os;.
     Особое внимание уделено получению дистрибутива &os; &release.current;
-    и началу процедуры установки.  Глава <ulink
-    url="&url.books.handbook;/install.html"><quote>Установка
-    FreeBSD</quote></ulink> <ulink
-    url="&url.books.handbook;/">Руководства
-    FreeBSD</ulink> предоставляет более подробную информацию о самой
+    и началу процедуры установки.  Глава <link xlink:href="&url.books.handbook;/install.html"><quote>Установка
+    FreeBSD</quote></link> <link xlink:href="&url.books.handbook;/">Руководства
+    FreeBSD</link> предоставляет более подробную информацию о самой
     программе установке, включая пошаговую инструкцию по установке
     с иллюстрациями.</para>
 
@@ -31,7 +28,7 @@ from {alpha,i386}/INSTALL.TXT.
     <xref linkend="upgrading"/>, где находятся инструкции по
     обновлению.</para>
 
-  <sect2 id="getting-started">
+  <sect2 xml:id="getting-started">
     <title>Перед установкой</title>
 
     <para>Возможно наиболее важным действием, которое должно быть выполнено
@@ -42,12 +39,10 @@ from {alpha,i386}/INSTALL.TXT.
       о релизе, список совместимого оборудования) доступны также из меню
       Documentation программы установки.</para>
 
-    <para>Он-лайн версии &os; <ulink
-      url="&url.books.faq;/">FAQ</ulink> и
-      <ulink
-      url="&url.books.handbook;/">Handbook</ulink>
-      доступны также с <ulink url="&url.base;/ru/">веб сайта
-      Проекта FreeBSD</ulink>, если у вас есть подключение к интернет.</para>
+    <para>Он-лайн версии &os; <link xlink:href="&url.books.faq;/">FAQ</link> и
+      <link xlink:href="&url.books.handbook;/">Handbook</link>
+      доступны также с <link xlink:href="&url.base;/ru/">веб сайта
+      Проекта FreeBSD</link>, если у вас есть подключение к интернет.</para>
 
     <para>Этот набор документов может показаться сложным, но время,
       потраченное на их чтение, окупится многократно.  Ознакомление с
@@ -130,7 +125,7 @@ from {alpha,i386}/INSTALL.TXT.
       &os;.</para>
   </sect2>
 
-  <sect2 id="floppies">
+  <sect2 xml:id="floppies">
     <title>Инструкции по созданию дискет</title>
 
     <para arch="i386,alpha,pc98">В зависимости от способа установки &os;,
@@ -143,12 +138,12 @@ from {alpha,i386}/INSTALL.TXT.
 
     <para arch="i386,alpha">Для большинства установок с CDROM или по сети,
       вам потребуются скопировать образы дискет
-      <filename>boot.flp</filename> и <filename>kern<replaceable>X</replaceable>.flp</filename>
+      <filename>boot.flp</filename> и <filename>kernX.flp</filename>
       из каталога <filename>floppies/</filename> (для 1.44MB дискет).</para>
 
     <para arch="pc98">Для обычной установки с CDROM или по сети, вам
       потребуется скопировать образы дискет <filename>boot.flp</filename>
-      и <filename>kern<replaceable>X</replaceable>.flp</filename> из каталога
+      и <filename>kernX.flp</filename> из каталога
       <filename>floppies/</filename> (для 1.44MB дискет) или
       <filename>boot-small.flp</filename> и
       <filename>kern-small.flp</filename> (для 1.2MB дискет).</para>
@@ -157,17 +152,16 @@ from {alpha,i386}/INSTALL.TXT.
       Загрузите
       <replaceable>release</replaceable><filename>/floppies/boot.flp</filename>
       и все
-      <replaceable>release</replaceable><filename>/floppies/kern<replaceable>X</replaceable>.flp</filename>
-      с <ulink url="&release.url;"></ulink> или с одного из зеркал,
-      перечисленных в разделе <ulink
-      url="&url.books.handbook;/mirrors-ftp.html">FTP
-      зеркала</ulink> Руководства или, или на страницах
-      <ulink url="http://mirrorlist.FreeBSD.org/"></ulink>.</para>
+      <replaceable>release</replaceable><filename>/floppies/kernX.flp</filename>
+      с <uri xlink:href="&release.url;">&release.url;</uri> или с одного из зеркал,
+      перечисленных в разделе <link xlink:href="&url.books.handbook;/mirrors-ftp.html">FTP
+      зеркала</link> Руководства или, или на страницах
+      <uri xlink:href="http://mirrorlist.FreeBSD.org/">http://mirrorlist.FreeBSD.org/</uri>.</para>
 
     <para arch="i386,alpha">Возьмите несколько чистых,
       только что отформатированных
       дискет и поместите образ <filename>boot.flp</filename> на первую,
-      а <filename>kern<replaceable>X</replaceable>.flp</filename> на остальные.  Эти образы
+      а <filename>kernX.flp</filename> на остальные.  Эти образы
       <emphasis>не</emphasis> DOS файлы.  Вы не можете просто скопировать
       их на DOS или UFS дискету как обычные файлы, потребуется
       размещение образов на диске с помощью <filename>fdimage.exe</filename>
@@ -178,7 +172,7 @@ from {alpha,i386}/INSTALL.TXT.
     <para arch="pc98">Возьмите несколько чистых,
       только что отформатированных
       дискет и поместите образ <filename>boot.flp</filename> на первую,
-      а <filename>kern<replaceable>X</replaceable>.flp</filename> на остальные.  Эти образы
+      а <filename>kernX.flp</filename> на остальные.  Эти образы
       <emphasis>не</emphasis> DOS файлы.  Вы не можете просто скопировать
       их на DOS или UFS дискету как обычные файлы, потребуется
       размещение образов на диске с помощью <filename>rawrite.exe</filename>
@@ -189,17 +183,17 @@ from {alpha,i386}/INSTALL.TXT.
     <para arch="i386,alpha,pc98">Например, для создания дискеты с образом ядра
       под DOS, вам потребуется выполнить примерно такую команду:</para>
 
-    <screen arch="i386,alpha"><prompt>C></prompt> <userinput>fdimage boot.flp a:</userinput></screen>
-    <screen arch="pc98"><prompt>A></prompt> <userinput>rawrite</userinput></screen>
+    <screen arch="i386,alpha"><prompt>C&gt;</prompt> <userinput>fdimage boot.flp a:</userinput></screen>
+    <screen arch="pc98"><prompt>A&gt;</prompt> <userinput>rawrite</userinput></screen>
 
     <para arch="i386,alpha">Предполагается, что вы скопировали
       <filename>fdimage.exe</filename> и <filename>boot.flp</filename>
-      в отдельный каталог.  Для файлов <filename>kern<replaceable>X</replaceable>.flp</filename>
+      в отдельный каталог.  Для файлов <filename>kernX.flp</filename>
       действия будут аналогичны.</para>
 
     <para arch="pc98">Предполагается, что вы скопировали
       <filename>rawrite.exe</filename> и <filename>boot.flp</filename>
-      в отдельный каталог.  Для файлов <filename>kern<replaceable>X</replaceable>.flp</filename>
+      в отдельный каталог.  Для файлов <filename>kernX.flp</filename>
       действия будут аналогичны.</para>
 
     <para arch="i386,alpha,pc98">Если вы создаете загрузочную дискету на
@@ -225,7 +219,7 @@ from {alpha,i386}/INSTALL.TXT.
       &os;/&arch;.</para>
   </sect2>
 
-  <sect2 id="start-installation">
+  <sect2 xml:id="start-installation">
     <title>Установка &os; с CDROM или через интернет</title>
 
 <!-- i386/pc98 text starts here -->
@@ -272,7 +266,7 @@ from {alpha,i386}/INSTALL.TXT.
       через сеть, используя PPP, SLIP или выделенное соединение.
       Начните установку, создав набор загрузочных дискет &os;
       из файлов <filename>floppies/boot.flp</filename> и
-      <filename>floppies/kern<replaceable>X</replaceable>.flp</filename>, используя инструкции
+      <filename>floppies/kernX.flp</filename>, используя инструкции
       в <xref linkend="floppies"/>.  Перезагрузите компьютер,
       диск <filename>boot.flp</filename>; после запроса вставьте
       последовательно остальные диски.  Прочтите
@@ -304,7 +298,7 @@ from {alpha,i386}/INSTALL.TXT.
     <para arch="alpha">В качестве альтернативы вы можете начать установку
       с дискеты.  Для начала вам потребуется создать набор загрузочных
       дискет из <filename>floppies/boot.flp</filename> и файлов
-      <filename>floppies/kern<replaceable>X</replaceable>.flp</filename>, используя инструкции из
+      <filename>floppies/kernX.flp</filename>, используя инструкции из
       <xref linkend="floppies"/>.  Вставьте <filename>boot.flp</filename>,
       для запуска установки из приглашения SRM консоли
       (<literal>&gt;&gt;&gt;</literal>) наберите следующую команду:</para>
@@ -332,10 +326,8 @@ OpenBoot 4.2, 128 MB memory installed, Serial #51090132.
 Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
 
     <para arch="sparc64">Если после этого сообщения ваша система начинает
-      загрузку, потребуется нажать <keycombo
-      action="simul"><keycap>L1</keycap><keycap>A</keycap></keycombo>
-      или <keycombo
-      action="simul"><keycap>Stop</keycap><keycap>A</keycap></keycombo>
+      загрузку, потребуется нажать <keycombo action="simul"><keycap>L1</keycap><keycap>A</keycap></keycombo>
+      или <keycombo action="simul"><keycap>Stop</keycap><keycap>A</keycap></keycombo>
       на клавиатуре, или отправить <command>BREAK</command> через
       последовательную консоль (например, используя <command>~#</command>
       в &man.tip.1; или &man.cu.1;) для получения приглашения PROM.
@@ -343,8 +335,8 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
 
     <screenco arch="sparc64">
       <areaspec>
-	<area id="prompt-single" coords="1 5"/>
-	<area id="prompt-smp" coords="2 5"/>
+	<area xml:id="prompt-single" coords="1 5"/>
+	<area xml:id="prompt-smp" coords="2 5"/>
       </areaspec>
 
       <screen><prompt>ok     </prompt>
@@ -420,9 +412,9 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
     <para arch="alpha">Этот пример взят с Digital Personal Workstation 433au
       и показывает три диска, подключенных к машине.  Первый это CDROM,
-      называющийся <devicename>dka0</devicename>, а другие два диска
-      называются <devicename>dkc0</devicename> и
-      <devicename>dkc100</devicename> соответственно.</para>
+      называющийся <filename>dka0</filename>, а другие два диска
+      называются <filename>dkc0</filename> и
+      <filename>dkc100</filename> соответственно.</para>
 
     <para arch="alpha">Вы можете указать какой файл ядра загружать и какие
       параметры загрузки использовать параметрами <option>-file</option>
@@ -458,7 +450,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  <para>На компьютере, где вы производите установку, перейдите
 	    к меню Options и установите имя релиза в <literal>any</literal>.
 	    Затем вы можете выбрать тип носителя <literal>FTP</literal>,
-	    <filename>ftp://<replaceable>machine</replaceable></filename>
+	    <filename>ftp://machine</filename>
 	    после выбора <quote>URL</quote> в меню ftp сайтов.</para>
 
 	  <warning>
@@ -474,8 +466,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	    с которого будет вестись установка, сначала потребуется
 	    добавить запись в файл <filename>/etc/exports</filename>
 	    (на компьютере, где находится привод CDROM).  Пример ниже
-	    позволяет компьютеру <hostid
-	    role="hostname">ziggy.foo.com</hostid> смонтировать CDROM
+	    позволяет компьютеру <systemitem class="fqdomainname">ziggy.foo.com</systemitem> смонтировать CDROM
 	    во время установки непосредственно через NFS:</para>
 
 	  <screen>/cdrom          -ro             ziggy.foo.com</screen>
@@ -485,7 +476,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	    NFS вероятно не лучший выбор для вас, пока вы не прочтете
 	    &man.rc.conf.5; и не настроите все правильно.  Предполагая,
 	    что эта часть прошла нормально, вы должны ввести:
-	    <filename><replaceable>cdrom-host</replaceable>:/cdrom</filename>
+	    <filename>cdrom-host:/cdrom</filename>
 	    в качестве пути к NFS компьютеру, где находится дистрибутив,
 	    например <filename>wiggy:/cdrom</filename>.</para>
 	</listitem>
@@ -566,16 +557,16 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       <para arch="i386,amd64">Для подготовке к установке с раздела MS-DOS
 	вы должны просто скопировать файлы из дистрибутива в каталог
 	<filename>FREEBSD</filename> на основном разделе DOS
-	(<devicename>C:</devicename>).  Например, для выполнения
+	(<filename>C:</filename>).  Например, для выполнения
 	минимальной установки &os; с раздела DOS, используя файлы,
 	скопированные с CDROM, вы можете сделать примерно следующее:</para>
 
-      <screen arch="i386,amd64"><prompt>C:\></prompt> <userinput>MD C:\FREEBSD</userinput>
-<prompt>C:\></prompt> <userinput>XCOPY /S E:\BASE C:\FREEBSD\BASE</userinput></screen>
-      <screen arch="pc98"><prompt>A:\></prompt> <userinput>MD A:\FREEBSD</userinput>
-<prompt>A:\></prompt> <userinput>XCOPY /S E:\BASE A:\FREEBSD\BASE</userinput></screen>
+      <screen arch="i386,amd64"><prompt>C:\&gt;</prompt> <userinput>MD C:\FREEBSD</userinput>
+<prompt>C:\&gt;</prompt> <userinput>XCOPY /S E:\BASE C:\FREEBSD\BASE</userinput></screen>
+      <screen arch="pc98"><prompt>A:\&gt;</prompt> <userinput>MD A:\FREEBSD</userinput>
+<prompt>A:\&gt;</prompt> <userinput>XCOPY /S E:\BASE A:\FREEBSD\BASE</userinput></screen>
 
-      <para>Предполагается, что на <devicename>E:</devicename> смонтирован
+      <para>Предполагается, что на <filename>E:</filename> смонтирован
 	CD.</para>
 
       <para arch="i386,amd64">Для всех дистрибутивных наборов, которые
@@ -604,8 +595,8 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	которые вам нужны, используйте <command>tar</command> для
 	помещения их на ленту с помощью примерно такой команды:</para>
 
-      <screen>&prompt.root; <userinput>cd <replaceable>/where/you/have/your/dists</replaceable></userinput>
-&prompt.root; <userinput>tar cvf /dev/sa0 <replaceable>dist1</replaceable> .. <replaceable>dist2</replaceable></userinput></screen>
+      <screen>&prompt.root; <userinput>cd /where/you/have/your/dists</userinput>
+&prompt.root; <userinput>tar cvf /dev/sa0 dist1 .. dist2</userinput></screen>
 
       <para>При установке вы также должны убедиться, что оставлено
 	достаточно места во временном каталоге (который вам будет предложено
@@ -625,7 +616,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	<xref linkend="floppies"/> и приступайте к установке.</para>
     </sect3>
 
-    <sect3 id="ftpnfs">
+    <sect3 xml:id="ftpnfs">
       <title>Установка по сети через FTP или NFS</title>
 
       <para>После создания загрузочных дискет, как описано в первом
@@ -669,8 +660,8 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  проходит быстрее.  Обычно не требуется использовать
 	  <quote>настоящий</quote> IP адрес при PPP соединении таким способом
 	  и вы можете использовать адреса RFC 1918 для концов соединения
-	  (например <hostid role="ipaddr">10.0.0.1</hostid>,
-	  <hostid role="ipaddr">10.0.0.2</hostid>, и т.д.).</para>
+	  (например <systemitem class="ipaddress">10.0.0.1</systemitem>,
+	  <systemitem class="ipaddress">10.0.0.2</systemitem>, и т.д.).</para>
 
 	<important>
 	  <para>Если вы используете компьютер с Linux, а не с &os; в
@@ -740,7 +731,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  <quote>subdir mounts</quote>, т.е. если каталог вашего дистрибутива
 	  &os; находится в
 	  <filename>wiggy:/usr/archive/stuff/FreeBSD</filename>,
-	  <hostid role="hostname">wiggy</hostid> должен позволять
+	  <systemitem class="fqdomainname">wiggy</systemitem> должен позволять
 	  непосредственное монтирование
 	  <filename>/usr/archive/stuff/FreeBSD</filename>,
 	  а не только <filename>/usr</filename> или
@@ -801,7 +792,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	      <para>В редких случаях, когда FTP прокси не работает через
 		HTTP, вы можете указать URL примерно так:</para>
 
-	      <screen><userinput>ftp://foo.bar.com:<replaceable>port</replaceable>/pub/FreeBSD</userinput></screen>
+	      <screen><userinput>ftp://foo.bar.com:port/pub/FreeBSD</userinput></screen>
 
 	      <para>В URL выше, <replaceable>port</replaceable>
 		это номер порта FTP прокси сервера.</para>
@@ -821,7 +812,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       <procedure>
 	<step>
 	  <para>Подключите любой ANSI (vt100) совместимый терминал или
-	    программу эмуляции терминала к <devicename>COM1</devicename>
+	    программу эмуляции терминала к <filename>COM1</filename>
 	    порту PC, на который вы устанавливаете &os;.</para>
 	</step>
 	<step>
@@ -833,20 +824,19 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	<step>
 	  <para>Если вы не видите ничего на последовательной консоли,
 	    подключите клавиатуру опять.
-	    Если вы загружаетесь с CDROM, выполните <xref
-	    linkend="hitspace"/> после получения сигналов.</para>
+	    Если вы загружаетесь с CDROM, выполните <xref linkend="hitspace"/> после получения сигналов.</para>
 	</step>
 	<step>
 	  <para>При загрузке с дискет, после остановки чтения с диска
-	    вставьте первый диск <filename>kern<replaceable>X</replaceable>.flp</filename> и нажмите
+	    вставьте первый диск <filename>kernX.flp</filename> и нажмите
 	    <keycap>Enter</keycap>.  После остановки чтения с диска
-	    вставьте следующий диск <filename>kern<replaceable>X</replaceable>.flp</filename> и нажмите
+	    вставьте следующий диск <filename>kernX.flp</filename> и нажмите
 	    <keycap>Enter</keycap>, и так далее для всех дисков
-	    <filename>kern<replaceable>X</replaceable>.flp</filename>.  Когда загрузка завершится,
+	    <filename>kernX.flp</filename>.  Когда загрузка завершится,
 	    вставьте опять <filename>boot.flp</filename> и нажмите
 	    <keycap>Enter</keycap>.</para>
 	</step>
-	<step id="hitspace">
+	<step xml:id="hitspace">
 	  <para>После звукового сигнала нажмите цифру <keycap>6</keycap>,
 	    затем введите</para>
 
@@ -935,9 +925,9 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
 	<answer>
 	  <para>Да.  Расширенные разделы DOS именуются после других
-	    <quote>слайсов</quote> &os;, т.е. <devicename>D:</devicename>
+	    <quote>слайсов</quote> &os;, т.е. <filename>D:</filename>
 	    может стать <filename>/dev/da0s5</filename>,
-	    <devicename>E:</devicename> &mdash; <filename>/dev/da0s6</filename>
+	    <filename>E:</filename> &mdash; <filename>/dev/da0s6</filename>
 	    и т.д.  В этом примере предполагается, что расширенный раздел
 	    находится на диске SCSI 0.  Для дисков IDE замените
 	    <literal>da</literal> на <literal>ad</literal> соответственно.
@@ -956,14 +946,13 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	<answer>
 	  <para>Хотя еще имеются некоторые острые углы, во многих случаях
 	    может подойти утилита &man.doscmd.1;, работа над которой
-	    продолжается.  Порт/пакет <filename
-	    role="package">emulators/doscmd</filename> можно найти в
+	    продолжается.  Порт/пакет <package>emulators/doscmd</package> можно найти в
 	    коллекции портов &os;.  Если вы заинтересованы в работе над
 	    этой утилитой,
 	    отправьте письмо в &a.emulation; и укажите, что вы
 	    заинтересованы в этой продолжающейся работе!</para>
 
-	  <para>Порт/пакет <filename role="package">emulators/pcemu</filename>
+	  <para>Порт/пакет <package>emulators/pcemu</package>
 	    в коллекции портов &os; эмулирует 8088 и BIOS сервисы для
 	    запуска текстовых приложений DOS.  Для работы ему требуется
 	    X Window System (XFree86).</para>
@@ -979,8 +968,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	<answer>
 	  <para>Существуют несколько портов/пакетов в коллекции портов
 	    &os;, которые могут сделать возможным использование многих
-	    приложений &windows;.  Порт/пакет <filename
-	    role="package">emulators/wine</filename> предоставляет уровень
+	    приложений &windows;.  Порт/пакет <package>emulators/wine</package> предоставляет уровень
 	    совместимости над &os;, который позволяет многим
 	    &windows; приложениям работать в X Windows (XFree86).</para>
 	</answer>
@@ -995,11 +983,9 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  <para>В коллекции портов находятся несколько портов/пакетов, которые
 	    имитируют <quote>виртуальные машины</quote> и позволяют другим
 	    операционным системам работать поверх &os;.  Порт/пакет
-	    <filename role="package">emulators/bochs</filename> позволяет
+	    <package>emulators/bochs</package> позволяет
 	    &microsoft.windows;, Linux и даже другим копиям &os; работать
-	    внутри окна рабочего стола &os;.  Порты/пакеты <filename
-	    role="package">emulators/vmware2</filename> и <filename
-	    role="package">emulators/vmware3</filename> позволяют запускать
+	    внутри окна рабочего стола &os;.  Порты/пакеты <package>emulators/vmware2</package> и <package>emulators/vmware3</package> позволяют запускать
 	    в &os; коммерческие виртуальные машины VMware.</para>
 	</answer>
       </qandaentry>
@@ -1047,8 +1033,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
 	<answer>
 	  <para>&os; очень хорошо запускает приложения Tru64 с помощью
-	    пакета/порта <filename
-	    role="package">emulators/osf1_base</filename>.</para>
+	    пакета/порта <package>emulators/osf1_base</package>.</para>
 	</answer>
       </qandaentry>
 
@@ -1059,8 +1044,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
 	<answer>
 	  <para>&os; может выполнять бинарные файлы AlphaLinux с помощью
-	    порта/пакета <filename
-	    role="package">emulators/linux_base</filename>.</para>
+	    порта/пакета <package>emulators/linux_base</package>.</para>
 	</answer>
       </qandaentry>
 

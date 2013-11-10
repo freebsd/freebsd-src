@@ -1714,11 +1714,9 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 
 	/*
 	 * Attempt to open the backing image. Use the PCI
-	 * slot/func/ahci_port for the identifier string
-	 * since that uniquely identifies a storage device.
+	 * slot/func for the identifier string.
 	 */
-	snprintf(bident, sizeof(bident), "%d:%d:%d", pi->pi_slot, pi->pi_func,
-	    0);
+	snprintf(bident, sizeof(bident), "%d:%d", pi->pi_slot, pi->pi_func);
 	bctxt = blockif_open(opts, bident);
 	if (bctxt == NULL) {       	
 		ret = 1;

@@ -126,7 +126,8 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libyaml \
 	libz \
 	${_atf} \
-	${_clang}
+	${_clang} \
+	${_tests}
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
 _csu=csu/${MACHINE_ARCH}-elf
@@ -139,10 +140,6 @@ _csu=csu
 .endif
 
 # NB: keep these sorted by MK_* knobs
-
-.if ${MK_ATF} != "no"
-_atf=		atf
-.endif
 
 .if ${MK_ATM} != "no"
 _libngatm=	libngatm
@@ -251,6 +248,11 @@ _libsmutil=	libsmutil
 
 .if ${MK_TELNET} != "no"
 _libtelnet=	libtelnet
+.endif
+
+.if ${MK_TESTS} != "no"
+_atf=		atf
+_tests=		tests
 .endif
 
 .if ${MK_UNBOUND} != "no"

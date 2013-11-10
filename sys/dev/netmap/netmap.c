@@ -24,10 +24,6 @@
  */
 
 
-#ifdef __FreeBSD__
-#define TEST_STUFF	// test code, does not compile yet on linux
-#endif /* __FreeBSD__ */
-
 /*
  * This module supports memory mapped access to network devices,
  * see netmap(4).
@@ -535,7 +531,7 @@ BDG_NMB(struct netmap_mem_d *nmd, struct netmap_slot *slot)
 	return (unlikely(i >= nmd->pools[NETMAP_BUF_POOL].objtotal)) ?  lut[0].vaddr : lut[i].vaddr;
 }
 
-static void bdg_netmap_attach(struct netmap_adapter *);
+static int bdg_netmap_attach(struct netmap_adapter *);
 static int bdg_netmap_reg(struct ifnet *ifp, int onoff);
 int kern_netmap_regif(struct nmreq *nmr);
 
@@ -699,112 +695,6 @@ pkt_copy(void *_src, void *_dst, int l)
         }
 }
 
-
-#ifdef TEST_STUFF
-struct xxx {
-	char *name;
-	void (*fn)(uint32_t);
-};
-
-
-static void
-nm_test_defmtx(uint32_t n)
-{
-	uint32_t i;
-	struct mtx m;
-	mtx_init(&m, "test", NULL, MTX_DEF);
-	for (i = 0; i < n; i++) { mtx_lock(&m); mtx_unlock(&m); }
-	mtx_destroy(&m);
-	return;
-}
-
-static void
-nm_test_spinmtx(uint32_t n)
-{
-	uint32_t i;
-	struct mtx m;
-	mtx_init(&m, "test", NULL, MTX_SPIN);
-	for (i = 0; i < n; i++) { mtx_lock(&m); mtx_unlock(&m); }
-	mtx_destroy(&m);
-	return;
-}
-
-static void
-nm_test_rlock(uint32_t n)
-{
-	uint32_t i;
-	struct rwlock m;
-	rw_init(&m, "test");
-	for (i = 0; i < n; i++) { rw_rlock(&m); rw_runlock(&m); }
-	rw_destroy(&m);
-	return;
-}
-
-static void
-nm_test_wlock(uint32_t n)
-{
-	uint32_t i;
-	struct rwlock m;
-	rw_init(&m, "test");
-	for (i = 0; i < n; i++) { rw_wlock(&m); rw_wunlock(&m); }
-	rw_destroy(&m);
-	return;
-}
-
-static void
-nm_test_slock(uint32_t n)
-{
-	uint32_t i;
-	struct sx m;
-	sx_init(&m, "test");
-	for (i = 0; i < n; i++) { sx_slock(&m); sx_sunlock(&m); }
-	sx_destroy(&m);
-	return;
-}
-
-static void
-nm_test_xlock(uint32_t n)
-{
-	uint32_t i;
-	struct sx m;
-	sx_init(&m, "test");
-	for (i = 0; i < n; i++) { sx_xlock(&m); sx_xunlock(&m); }
-	sx_destroy(&m);
-	return;
-}
-
-
-struct xxx nm_tests[] = {
-	{ "defmtx", nm_test_defmtx },
-	{ "spinmtx", nm_test_spinmtx },
-	{ "rlock", nm_test_rlock },
-	{ "wlock", nm_test_wlock },
-	{ "slock", nm_test_slock },
-	{ "xlock", nm_test_xlock },
-};
-
-static int
-nm_test(struct nmreq *nmr)
-{
-	uint32_t scale, n, test;
-	static int old_test = -1;
-
-	test = nmr->nr_cmd;
-	scale = nmr->nr_offset;
-	n = sizeof(nm_tests) / sizeof(struct xxx) - 1;
-	if (test > n) {
-		D("test index too high, max %d", n);
-		return 0;
-	}
-
-	if (old_test != test) {
-		D("test %s scale %d", nm_tests[test].name, scale);
-		old_test = test;
-	}
-	nm_tests[test].fn(scale);
-	return 0;
-}
-#endif /* TEST_STUFF */
 
 /*
  * locate a bridge among the existing ones.
@@ -1854,6 +1744,7 @@ get_ifp(struct nmreq *nmr, struct ifnet **ifp, int create)
 		 * and attach it to the ifp
 		 */
 		struct netmap_adapter tmp_na;
+		int error;
 
 		if (nmr->nr_cmd) {
 			/* nr_cmd must be 0 for a virtual port */
@@ -1884,7 +1775,12 @@ get_ifp(struct nmreq *nmr, struct ifnet **ifp, int create)
 		strcpy(iter->if_xname, name);
 		tmp_na.ifp = iter;
 		/* bdg_netmap_attach creates a struct netmap_adapter */
-		bdg_netmap_attach(&tmp_na);
+		error = bdg_netmap_attach(&tmp_na);
+		if (error) {
+			D("error %d", error);
+			free(iter, M_DEVBUF);
+			return error;
+		}
 		cand2 = -1;	/* only need one port */
 	} else if (NETMAP_CAPABLE(iter)) { /* this is a NIC */
 		/* make sure the NIC is not already in use */
@@ -2438,13 +2334,6 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	switch (cmd) {
 	case NIOCGINFO:		/* return capabilities etc */
 		if (nmr->nr_version != NETMAP_API) {
-#ifdef TEST_STUFF
-			/* some test code for locks etc */
-			if (nmr->nr_version == 666) {
-				error = nm_test(nmr);
-				break;
-			}
-#endif /* TEST_STUFF */
 			D("API mismatch got %d have %d",
 				nmr->nr_version, NETMAP_API);
 			nmr->nr_version = NETMAP_API;
@@ -2678,7 +2567,7 @@ netmap_poll(struct cdev *dev, int events, struct thread *td)
 	struct netmap_adapter *na;
 	struct ifnet *ifp;
 	struct netmap_kring *kring;
-	u_int i, check_all, want_tx, want_rx, revents = 0;
+	u_int i, check_all_tx, check_all_rx, want_tx, want_rx, revents = 0;
 	u_int lim_tx, lim_rx, host_forwarded = 0;
 	struct mbq q = { NULL, NULL, 0 };
 	void *pwait = dev;	/* linux compatibility */
@@ -2753,7 +2642,8 @@ netmap_poll(struct cdev *dev, int events, struct thread *td)
 	 * there are pending packets to send. The latter can be disabled
 	 * passing NETMAP_NO_TX_POLL in the NIOCREG call.
 	 */
-	check_all = (priv->np_qlast == NETMAP_HW_RING) && (lim_tx > 1 || lim_rx > 1);
+	check_all_tx = (priv->np_qlast == NETMAP_HW_RING) && (lim_tx > 1);
+	check_all_rx = (priv->np_qlast == NETMAP_HW_RING) && (lim_rx > 1);
 
 	if (priv->np_qlast != NETMAP_HW_RING) {
 		lim_tx = lim_rx = priv->np_qlast;
@@ -2827,7 +2717,7 @@ flush_tx:
 			nm_kr_put(kring);
 		}
 		if (want_tx && retry_tx) {
-			selrecord(td, check_all ?
+			selrecord(td, check_all_tx ?
 			    &na->tx_si : &na->tx_rings[priv->np_qfirst].si);
 			retry_tx = 0;
 			goto flush_tx;
@@ -2873,7 +2763,7 @@ do_retry_rx:
 		}
 		if (retry_rx) {
 			retry_rx = 0;
-			selrecord(td, check_all ?
+			selrecord(td, check_all_rx ?
 			    &na->rx_si : &na->rx_rings[priv->np_qfirst].si);
 			goto do_retry_rx;
 		}
@@ -3118,7 +3008,7 @@ netmap_reset(struct netmap_adapter *na, enum txrx tx, u_int n,
 		return NULL;	/* no netmap support here */
 	}
 	if (!(na->ifp->if_capenable & IFCAP_NETMAP)) {
-		D("interface not in netmap mode");
+		ND("interface not in netmap mode");
 		return NULL;	/* nothing to reinitialize */
 	}
 
@@ -4075,7 +3965,7 @@ done:
 }
 
 
-static void
+static int
 bdg_netmap_attach(struct netmap_adapter *arg)
 {
 	struct netmap_adapter na;
@@ -4095,7 +3985,7 @@ bdg_netmap_attach(struct netmap_adapter *arg)
 	na.nm_mem = netmap_mem_private_new(arg->ifp->if_xname,
 			na.num_tx_rings, na.num_tx_desc,
 			na.num_rx_rings, na.num_rx_desc);
-	netmap_attach(&na, na.num_tx_rings);
+	return netmap_attach(&na, na.num_tx_rings);
 }
 
 

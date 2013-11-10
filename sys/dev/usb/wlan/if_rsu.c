@@ -481,8 +481,13 @@ rsu_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	if (uvp == NULL)
 		return (NULL);
 	vap = &uvp->vap;
-	ieee80211_vap_setup(ic, vap, name, unit, opmode,
-	    flags, bssid, mac);
+
+	if (ieee80211_vap_setup(ic, vap, name, unit, opmode,
+	    flags, bssid, mac) != 0) {
+		/* out of memory */
+		free(uvp, M_80211_VAP);
+		return (NULL);
+	}
 
 	/* override state transition machine */
 	uvp->newstate = vap->iv_newstate;

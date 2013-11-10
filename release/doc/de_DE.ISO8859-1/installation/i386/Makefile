@@ -13,7 +13,6 @@ INSTALL_ONLY_COMPRESSED?=
 # SGML content
 SRCS+=	article.xml
 SRCS+=	../common/artheader.xml
-SRCS+=	../common/abstract.xml
 SRCS+=	../common/install.xml
 SRCS+=	../common/layout.xml
 SRCS+=	../common/trouble.xml
