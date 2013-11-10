@@ -145,11 +145,11 @@ u_int imx_soc_type()
 {
 	uint32_t digprog, hwsoc;
 	uint32_t *pcr;
-	const uint32_t HWSOC_MX6SL   = 0x60;
-	const uint32_t HWSOC_MX6DL   = 0x61;
-	const uint32_t HWSOC_MX6SOLO = 0x62;
-	const uint32_t HWSOC_MX6Q    = 0x63;
 	const vm_offset_t SCU_CONFIG_PHYSADDR = 0x00a00004;
+#define	HWSOC_MX6SL	0x60
+#define	HWSOC_MX6DL	0x61
+#define	HWSOC_MX6SOLO	0x62
+#define	HWSOC_MX6Q	0x63
 
 	digprog = imx6_anatop_read_4(IMX6_ANALOG_DIGPROG_SL);
 	hwsoc = (digprog >> IMX6_ANALOG_DIGPROG_SOCTYPE_SHIFT) & 
