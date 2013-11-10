@@ -424,13 +424,8 @@ needs_exclusive_leaf(struct mount *mp, int flags)
 	 * extended shared operations, then use a shared lock for the
 	 * leaf node, otherwise use an exclusive lock.
 	 */
-	if (flags & ISOPEN) {
-		if (mp != NULL &&
-		    (mp->mnt_kern_flag & MNTK_EXTENDED_SHARED))
-			return (0);
-		else
-			return (1);
-	}
+	if ((flags & ISOPEN) != 0)
+		return (!MNT_EXTENDED_SHARED(mp));
 
 	/*
 	 * Lookup requests outside of open() that specify LOCKSHARED
