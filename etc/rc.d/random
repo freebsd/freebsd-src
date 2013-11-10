@@ -17,75 +17,90 @@ stop_cmd="random_stop"
 extra_commands="saveseed"
 saveseed_cmd="${name}_stop"
 
+random_harvest()
+{
+	tag=$1
+	source=$2
+	if checkyesno ${tag} ; then
+		setting=1
+	else
+		setting=0
+	fi
+	oldsetting=`${SYSCTL_N} -i kern.random.sys.harvest.${source}`
+	case ${oldsetting} in
+	0 | 1)
+		if [ ${oldsetting} != ${setting} ] ; then
+			${SYSCTL} kern.random.sys.harvest.${source}=${setting} >/dev/null
+		fi
+		if [ ${setting} = 1 ] ; then
+			echo -n " ${source}"
+		fi
+		;;
+	*)
+		;;
+	esac
+}
+
 random_start()
 {
-	echo -n 'Entropy harvesting:'
-
-	if checkyesno harvest_interrupt; then
-		${SYSCTL} kern.random.sys.harvest.interrupt=1 >/dev/null
-		echo -n ' interrupts'
-	else
-		${SYSCTL} kern.random.sys.harvest.interrupt=0 >/dev/null
-	fi
-
-	if checkyesno harvest_ethernet; then
-		${SYSCTL} kern.random.sys.harvest.ethernet=1 >/dev/null
-		echo -n ' ethernet'
-	else
-		${SYSCTL} kern.random.sys.harvest.ethernet=0 >/dev/null
-	fi
-
-	if checkyesno harvest_p_to_p; then
-		${SYSCTL} kern.random.sys.harvest.point_to_point=1 >/dev/null
-		echo -n ' point_to_point'
-	else
-		${SYSCTL} kern.random.sys.harvest.point_to_point=0 >/dev/null
-	fi
-
-	if checkyesno harvest_swi; then
-		${SYSCTL} kern.random.sys.harvest.swi=1 >/dev/null
-		echo -n ' swi'
-	else
-		${SYSCTL} kern.random.sys.harvest.swi=0 >/dev/null
-	fi
-
-	echo '.'
+	randomadaptor=`${SYSCTL_N} -i kern.random.active_adaptor`
+	case ${randomadaptor} in
+	dummy | '')
+		;;
+	*)
+		echo -n 'Entropy harvesting:'
+		random_harvest 'harvest_interrupt' 'interrupt'
+		random_harvest 'harvest_ethernet' 'ethernet'
+		random_harvest 'harvest_p_to_p' 'point_to_point'
+		random_harvest 'harvest_swi' 'swi'
+		echo '.'
+		;;
+	esac
 }
 
 random_stop()
 {
-	# Write some entropy so when the machine reboots /dev/random
-	# can be reseeded
-	#
-	case ${entropy_file} in
-	[Nn][Oo] | '')
+	randomadaptor=`${SYSCTL_N} -i kern.random.active_adaptor`
+	case ${randomadaptor} in
+	dummy | '')
+		warn 'entropy device not present; entropy not cached'
 		;;
 	*)
-		echo -n 'Writing entropy file:'
-		rm -f ${entropy_file} 2> /dev/null
-		oumask=`umask`
-		umask 077
-		if touch ${entropy_file} 2> /dev/null; then
-			entropy_file_confirmed="${entropy_file}"
-		else
-			# Try this as a reasonable alternative for read-only
-			# roots, diskless workstations, etc.
-			rm -f /var/db/entropy-file 2> /dev/null
-			if touch /var/db/entropy-file 2> /dev/null; then
-				entropy_file_confirmed=/var/db/entropy-file
-			fi
-		fi
-		case ${entropy_file_confirmed} in
-		'')
-			warn 'write failed (read-only fs?)'
+		# Write some entropy so when the machine reboots /dev/random
+		# can be reseeded
+		#
+		case ${entropy_file} in
+		[Nn][Oo] | '')
 			;;
 		*)
-			dd if=/dev/random of=${entropy_file_confirmed} \
-			   bs=4096 count=1 2> /dev/null
+			echo -n 'Writing entropy file:'
+			rm -f ${entropy_file} 2> /dev/null
+			oumask=`umask`
+			umask 077
+			if touch ${entropy_file} 2> /dev/null; then
+				entropy_file_confirmed="${entropy_file}"
+			else
+				# Try this as a reasonable alternative for read-only
+				# roots, diskless workstations, etc.
+				rm -f /var/db/entropy-file 2> /dev/null
+				if touch /var/db/entropy-file 2> /dev/null; then
+					entropy_file_confirmed=/var/db/entropy-file
+				fi
+			fi
+			case ${entropy_file_confirmed} in
+			'')
+				warn 'write failed (read-only fs?)'
+				;;
+			*)
+				dd if=/dev/random of=${entropy_file_confirmed} \
+			   	bs=4096 count=1 2> /dev/null
+				echo -n ${entropy_file_confirmed}
+				;;
+			esac
+			umask ${oumask}
 			echo '.'
 			;;
 		esac
-		umask ${oumask}
 		;;
 	esac
 }

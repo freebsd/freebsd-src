@@ -14,25 +14,27 @@ name="postrandom"
 start_cmd="${name}_start"
 stop_cmd=":"
 
-# This will remove old ${entropy_file} and generate a new one.
+# This will remove old entropy file.
 # According to Bruce Schneier, this is strongly recommended in order
 # to avoid using same ${entropy_file} across reboots.
 # Reference: Chapter 10.6, Practical Cryptography, ISBN: 0-471-22357-3
 
 postrandom_start()
 {
-	/etc/rc.d/random fastsaveseed
-
 	case ${entropy_dir} in
 	[Nn][Oo])
 		;;
 	*)
 		entropy_dir=${entropy_dir:-/var/db/entropy}
 		if [ -d "${entropy_dir}" ]; then
-			if [ -w /dev/random ]; then
-				rm -f ${entropy_dir}/*
-			fi
+			rm -f ${entropy_dir}/*
 		fi
+		boot_dir=${boot_dir:-/boot}
+		if [ -d "${boot_dir}" ]; then
+			rm -f ${boot_dir}/entropy
+		fi
+		rm -f /entropy
+		rm -f /var/db/entropy-file
 		;;
 	esac
 }
