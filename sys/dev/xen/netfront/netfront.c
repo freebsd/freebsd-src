@@ -2003,7 +2003,7 @@ xn_configure_features(struct netfront_info *np)
 	int err;
 
 	err = 0;
-#if __FreeBSD_version >= 70000 && (defined(INET) || defined(INET6))
+#if __FreeBSD_version >= 700000 && (defined(INET) || defined(INET6))
 	if ((np->xn_ifp->if_capenable & IFCAP_LRO) != 0)
 		tcp_lro_free(&np->xn_lro);
 #endif
