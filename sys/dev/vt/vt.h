@@ -346,6 +346,13 @@ struct vt_font {
 	unsigned int		 vf_refcount;
 };
 
+struct mouse_cursor {
+	uint8_t map[64 * 64 / 8];
+	uint8_t mask[64 * 64 / 8];
+	uint8_t w;
+	uint8_t h;
+};
+
 const uint8_t	*vtfont_lookup(const struct vt_font *vf, term_char_t c);
 struct vt_font	*vtfont_ref(struct vt_font *vf);
 void		 vtfont_unref(struct vt_font *vf);
