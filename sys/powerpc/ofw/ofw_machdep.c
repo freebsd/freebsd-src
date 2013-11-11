@@ -63,11 +63,13 @@ __FBSDID("$FreeBSD$");
 static struct mem_region OFmem[PHYS_AVAIL_SZ], OFavail[PHYS_AVAIL_SZ];
 static struct mem_region OFfree[PHYS_AVAIL_SZ];
 
+static int	apple_hacks;
+
+#ifdef AIM
 extern register_t ofmsr[5];
 extern void	*openfirmware_entry;
 static void	*fdt;
 int		ofw_real_mode;
-static int	apple_hacks;
 
 int		ofwcall(void *);
 static int	openfirmware(void *args);
@@ -114,6 +116,7 @@ ofw_sprg_restore(void)
 	 */
 	__asm __volatile("mtsprg0 %0" :: "r"(ofw_sprg0_save));
 }
+#endif
 
 /*
  * Memory region utilities: determine if two regions overlap,
@@ -436,6 +439,7 @@ ofw_mem_regions(struct mem_region **memp, int *memsz,
 	*availsz = fsz;
 }
 
+#ifdef AIM
 void
 OF_initial_setup(void *fdt_ptr, void *junk, int (*openfirm)(void *))
 {
@@ -606,6 +610,8 @@ OF_reboot()
 
 	for (;;);	/* just in case */
 }
+
+#endif /* AIM */
 
 void
 OF_getetheraddr(device_t dev, u_char *addr)
