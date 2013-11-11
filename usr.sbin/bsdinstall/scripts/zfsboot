@@ -645,6 +645,18 @@ zfs_create_diskpart()
 	fi
 	f_dprintf "$funcname: disk=[%s] index=[%s]" "$disk" "$index"
 
+	# Check for unknown partition scheme before proceeding further
+	case "$ZFSBOOT_PARTITION_SCHEME" in
+	""|MBR|GPT) : known good ;;
+	*)
+		f_dprintf "$funcname: %s is an unsupported partition scheme" \
+		          "$ZFSBOOT_PARTITION_SCHEME"
+		msg_error="$msg_error: $funcname" f_show_err \
+			"$msg_unsupported_partition_scheme" \
+			"$ZFSBOOT_PARTITION_SCHEME"
+		return $FAILURE
+	esac
+
 	#
 	# Destroy whatever partition layout is currently on disk.
 	# NOTE: `-F' required to destroy if partitions still exist.
@@ -823,14 +835,6 @@ zfs_create_diskpart()
 			             return $FAILURE
 		fi
 		;;
-
-	*)
-		f_dprintf "$funcname: %s is an unsupported partition scheme" \
-		          "$ZFSBOOT_PARTITION_SCHEME"
-		msg_error="$msg_error: $funcname" f_show_err \
-			"$msg_unsupported_partition_scheme" \
-			"$ZFSBOOT_PARTITION_SCHEME"
-		return $FAILURE
 
 	esac # $ZFSBOOT_PARTITION_SCHEME
 
