@@ -100,8 +100,6 @@ __FBSDID("$FreeBSD$");
 
 #define TODO			panic("%s: not implemented", __func__);
 
-extern struct mtx sched_lock;
-
 extern int dumpsys_minidump;
 
 extern unsigned char _etext[];
@@ -1906,7 +1904,7 @@ mmu_booke_activate(mmu_t mmu, struct thread *td)
 
 	KASSERT((pmap != kernel_pmap), ("mmu_booke_activate: kernel_pmap!"));
 
-	mtx_lock_spin(&sched_lock);
+	sched_pin();
 
 	cpuid = PCPU_GET(cpuid);
 	CPU_SET_ATOMIC(cpuid, &pmap->pm_active);
@@ -1919,7 +1917,7 @@ mmu_booke_activate(mmu_t mmu, struct thread *td)
 	mtspr(SPR_PID0, pmap->pm_tid[cpuid]);
 	__asm __volatile("isync");
 
-	mtx_unlock_spin(&sched_lock);
+	sched_unpin();
 
 	CTR3(KTR_PMAP, "%s: e (tid = %d for '%s')", __func__,
 	    pmap->pm_tid[PCPU_GET(cpuid)], td->td_proc->p_comm);

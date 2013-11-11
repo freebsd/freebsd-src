@@ -1,3 +1,6 @@
+/* $FreeBSD$ */
+/* $NetBSD: locore.S,v 1.24 2000/05/31 05:09:17 thorpej Exp $ */
+
 /*-
  * Copyright (C) 2001 Benno Rice
  * All rights reserved.
@@ -21,12 +24,7 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *	from: $NetBSD: locore.S,v 1.24 2000/05/31 05:09:17 thorpej Exp $
- *	from: $FreeBSD$
- *
- * $FreeBSD$
- */
+*/
 /*-
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
@@ -59,6 +57,7 @@
  */
 
 #include "assym.s"
+#include "opt_sched.h"
 
 #include <sys/syscall.h>
 
@@ -71,65 +70,129 @@
  * void cpu_throw(struct thread *old, struct thread *new)
  */
 ENTRY(cpu_throw)
-	mr	%r15, %r4
+	mr	%r2, %r4
 	b	cpu_switchin
 
 /*
- * void cpu_switch(struct thread *old, struct thread *new, struct mutex *mtx);)
+ * void cpu_switch(struct thread *old,
+ *		   struct thread *new,
+ *		   struct mutex *mtx); 
  *
  * Switch to a new thread saving the current state in the old thread.
  */
 ENTRY(cpu_switch)
-	stw	%r5, TD_LOCK(%r3)
-
-	lwz	%r5, TD_PCB(%r3)	/* Get the old thread's PCB ptr */
-
-	mr	%r12, %r2	
-	stmw	%r12, PCB_CONTEXT(%r5)	/* Save the non-volatile GP regs.
+	lwz	%r6,TD_PCB(%r3)		/* Get the old thread's PCB ptr */
+	stmw	%r12,PCB_CONTEXT(%r6)	/* Save the non-volatile GP regs.
 					   These can now be used for scratch */
 
 	mfcr	%r16			/* Save the condition register */
-	stw	%r16, PCB_CR(%r5)
+	stw	%r16,PCB_CR(%r6)
 	mflr	%r16			/* Save the link register */
-	stw	%r16, PCB_LR(%r5)
+	stw	%r16,PCB_LR(%r6)
+#ifdef BOOKE
 	mfctr	%r16
-	stw	%r16, PCB_BOOKE_CTR(%r5)
+	stw	%r16,PCB_BOOKE_CTR(%r6)
 	mfxer	%r16
-	stw	%r16, PCB_BOOKE_XER(%r5)
-	mfspr	%r16, SPR_DBCR0
-	stw	%r16, PCB_BOOKE_DBCR0(%r5)
+	stw	%r16,PCB_BOOKE_XER(%r6)
+	mfspr	%r16,SPR_DBCR0
+	stw	%r16,PCB_BOOKE_DBCR0(%r6)
+#endif
+	stw	%r1,PCB_SP(%r6)		/* Save the stack pointer */
 
-	stw	%r1, PCB_SP(%r5)	/* Save the stack pointer */
+	mr	%r14,%r3		/* Copy the old thread ptr... */
+	mr	%r2,%r4			/* and the new thread ptr in curthread */
+	mr	%r16,%r5		/* and the new lock */
+	mr	%r17,%r6		/* and the PCB */
+	
+#ifdef AIM
+	lwz	%r7,PCB_FLAGS(%r17)
+	/* Save FPU context if needed */
+	andi.	%r7, %r7, PCB_FPU
+	beq	.L1
+	bl	save_fpu
 
-	mr	%r14, %r3		/* Copy the old thread ptr... */
-	mr	%r15, %r4		/* and the new thread ptr in scratch */
-
+.L1:
+	mr	%r3,%r14		/* restore old thread ptr */
+	lwz	%r7,PCB_FLAGS(%r17)
+	/* Save Altivec context if needed */
+	andi.	%r7, %r7, PCB_VEC
+	beq	.L2
+	bl	save_vec
+	
+.L2:
+#endif
+	mr	%r3,%r14		/* restore old thread ptr */
 	bl	pmap_deactivate		/* Deactivate the current pmap */
 
+	sync				/* Make sure all of that finished */
+	stw	%r16,TD_LOCK(%r14)	/* ULE:	update old thread's lock */
+
 cpu_switchin:
-	mr	%r3, %r15		/* Get new thread ptr */
+#if defined(SMP) && defined(SCHED_ULE)
+	/* Wait for the new thread to become unblocked */
+	lis	%r6,blocked_lock@ha
+	addi	%r6,%r6,blocked_lock@l
+blocked_loop:
+	lwz	%r7,TD_LOCK(%r2)
+	cmpw	%r6,%r7 
+	beq-	blocked_loop
+	isync
+#endif
+
+	mfsprg	%r7,0			/* Get the pcpu pointer */
+	stw	%r2,PC_CURTHREAD(%r7)	/* Store new current thread */
+	lwz	%r17,TD_PCB(%r2)	/* Store new current PCB */
+	stw	%r17,PC_CURPCB(%r7)
+
+	mr	%r3,%r2			/* Get new thread ptr */
 	bl	pmap_activate		/* Activate the new address space */
 
-	mfsprg	%r7, 0			/* Get the pcpu pointer */
-	stw	%r15, PC_CURTHREAD(%r7)	/* Store new current thread */
-	lwz	%r17, TD_PCB(%r15)	/* Store new current PCB */
-	stw	%r17, PC_CURPCB(%r7)
+#ifdef AIM
+	lwz	%r6, PCB_FLAGS(%r17)
+	/* Restore FPU context if needed */
+	andi.	%r6, %r6, PCB_FPU
+	beq	.L3
+	mr	%r3,%r2			/* Pass curthread to enable_fpu */
+	bl	enable_fpu
 
-	mr	%r3, %r17		/* Recover PCB ptr */
-	lmw	%r12, PCB_CONTEXT(%r3)	/* Load the non-volatile GP regs */
-	mr	%r2, %r12
-	lwz	%r5, PCB_CR(%r3)	/* Load the condition register */
+.L3:
+	lwz	%r6, PCB_FLAGS(%r17)
+	/* Restore Altivec context if needed */
+	andi.	%r6, %r6, PCB_VEC
+	beq	.L4
+	mr	%r3,%r2			/* Pass curthread to enable_vec */
+	bl	enable_vec
+
+.L4:
+#endif
+	/* thread to restore is in r3 */
+	mr	%r3,%r17		/* Recover PCB ptr */
+	lmw	%r12,PCB_CONTEXT(%r3)	/* Load the non-volatile GP regs */
+	lwz	%r5,PCB_CR(%r3)		/* Load the condition register */
 	mtcr	%r5
-	lwz	%r5, PCB_LR(%r3)	/* Load the link register */
+	lwz	%r5,PCB_LR(%r3)		/* Load the link register */
 	mtlr	%r5
-	lwz	%r5, PCB_BOOKE_CTR(%r3)
+#ifdef AIM
+	lwz	%r5,PCB_AIM_USR_VSID(%r3) /* Load the USER_SR segment reg */
+	isync
+	mtsr	USER_SR,%r5
+	isync
+#endif
+#ifdef BOOKE
+	lwz	%r5,PCB_BOOKE_CTR(%r3)
 	mtctr	%r5
-	lwz	%r5, PCB_BOOKE_XER(%r3)
-	mtxer	%r5
-	lwz	%r5, PCB_BOOKE_DBCR0(%r3)
-	mtspr	SPR_DBCR0, %r5
-
-	lwz	%r1, PCB_SP(%r3)	/* Load the stack pointer */
+	lwz	%r5,PCB_BOOKE_XER(%r3)
+	mtctr	%r5
+	lwz	%r5,PCB_BOOKE_DBCR0(%r3)
+	mtspr	SPR_DBCR0,%r5
+#endif
+	lwz	%r1,PCB_SP(%r3)		/* Load the stack pointer */
+	/*
+	 * Perform a dummy stwcx. to clear any reservations we may have
+	 * inherited from the previous thread. It doesn't matter if the
+	 * stwcx succeeds or not. pcb_context[0] can be clobbered.
+	 */
+	stwcx.	%r1, 0, %r3
 	blr
 
 /*
@@ -137,10 +200,9 @@ cpu_switchin:
  * Update pcb, saving current processor state
  */
 ENTRY(savectx)
-	mr	%r12, %r2
-	stmw	%r12, PCB_CONTEXT(%r3)	/* Save the non-volatile GP regs */
+	stmw	%r12,PCB_CONTEXT(%r3)	/* Save the non-volatile GP regs */
 	mfcr	%r4			/* Save the condition register */
-	stw	%r4, PCB_CONTEXT(%r3)
+	stw	%r4,PCB_CR(%r3)
 	blr
 
 /*
@@ -148,11 +210,11 @@ ENTRY(savectx)
  * Set up the return from cpu_fork()
  */
 ENTRY(fork_trampoline)
-	lwz	%r3, CF_FUNC(%r1)
-	lwz	%r4, CF_ARG0(%r1)
-	lwz	%r5, CF_ARG1(%r1)
+	lwz	%r3,CF_FUNC(%r1)
+	lwz	%r4,CF_ARG0(%r1)
+	lwz	%r5,CF_ARG1(%r1)
 	bl	fork_exit
-	addi	%r1, %r1, CF_SIZE-FSP	/* Allow 8 bytes in front of
+	addi	%r1,%r1,CF_SIZE-FSP	/* Allow 8 bytes in front of
 					   trapframe to simulate FRAME_SETUP
 					   does when allocating space for
 					   a frame pointer/saved LR */
