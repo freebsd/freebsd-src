@@ -3104,7 +3104,7 @@ iwn_notif_intr(struct iwn_softc *sc)
 		    desc->type, iwn_intr_str(desc->type),
 		    le16toh(desc->len));
 
-		if (!(desc->qid & 0x80))	/* Reply to a command. */
+		if (!(desc->qid & IWN_UNSOLICITED_RX_NOTIF))	/* Reply to a command. */
 			iwn_cmd_done(sc, desc);
 
 		switch (desc->type) {
