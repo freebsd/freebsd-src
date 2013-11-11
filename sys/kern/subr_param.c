@@ -153,6 +153,7 @@ static const char *const vm_guest_sysctl_names[] = {
 	"none",
 	"generic",
 	"xen",
+	"hv",
 	NULL
 };
 
