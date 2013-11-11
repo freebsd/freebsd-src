@@ -232,41 +232,28 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 
 	/* (2) check. */
 	if (ifa == NULL) {
-		struct rtentry *rt;
-		struct sockaddr_in6 tsin6;
-		int need_proxy;
-#ifdef RADIX_MPATH
 		struct route_in6 ro;
-#endif
+		int need_proxy;
 
-		bzero(&tsin6, sizeof tsin6);
-		tsin6.sin6_len = sizeof(struct sockaddr_in6);
-		tsin6.sin6_family = AF_INET6;
-		tsin6.sin6_addr = taddr6;
+		bzero(&ro, sizeof(ro));
+		ro.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
+		ro.ro_dst.sin6_family = AF_INET6;
+		ro.ro_dst.sin6_addr = taddr6;
 
 		/* Always use the default FIB. */
 #ifdef RADIX_MPATH
-		bzero(&ro, sizeof(ro));
-		ro.ro_dst = tsin6;
 		rtalloc_mpath_fib((struct route *)&ro, RTF_ANNOUNCE,
 		    RT_DEFAULT_FIB);
-		rt = ro.ro_rt;
 #else
-		rt = in6_rtalloc1((struct sockaddr *)&tsin6, 0, 0,
-		    RT_DEFAULT_FIB);
+		in6_rtalloc(&ro, RT_DEFAULT_FIB);
 #endif
-		need_proxy = (rt && (rt->rt_flags & RTF_ANNOUNCE) != 0 &&
-		    rt->rt_gateway->sa_family == AF_LINK);
-		if (rt != NULL) {
-			/*
-			 * Make a copy while we can be sure that rt_gateway
-			 * is still stable before unlocking to avoid lock
-			 * order problems.  proxydl will only be used if
-			 * proxy will be set in the next block.
-			 */
+		need_proxy = (ro.ro_rt &&
+		    (ro.ro_rt->rt_flags & RTF_ANNOUNCE) != 0 &&
+		    ro.ro_rt->rt_gateway->sa_family == AF_LINK);
+		if (ro.ro_rt != NULL) {
 			if (need_proxy)
-				proxydl = *SDL(rt->rt_gateway);
-			RTFREE_LOCKED(rt);
+				proxydl = *SDL(ro.ro_rt->rt_gateway);
+			RTFREE(ro.ro_rt);
 		}
 		if (need_proxy) {
 			/*
