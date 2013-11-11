@@ -69,9 +69,9 @@
 #define	SIOCSIFMETRIC	 _IOW('i', 24, struct ifreq)	/* set IF metric */
 #define	SIOCDIFADDR	 _IOW('i', 25, struct ifreq)	/* delete IF addr */
 #define	OSIOCAIFADDR	 _IOW('i', 26, struct oifaliasreq) /* FreeBSD 9.x */
-#define	SIOCALIFADDR	 _IOW('i', 27, struct if_laddrreq) /* add IF addr */
-#define	SIOCGLIFADDR	_IOWR('i', 28, struct if_laddrreq) /* get IF addr */
-#define	SIOCDLIFADDR	 _IOW('i', 29, struct if_laddrreq) /* delete IF addr */
+/*	SIOCALIFADDR	 _IOW('i', 27, struct if_laddrreq) KAME */
+/*	SIOCGLIFADDR	_IOWR('i', 28, struct if_laddrreq) KAME */
+/*	SIOCDLIFADDR	 _IOW('i', 29, struct if_laddrreq) KAME */
 #define	SIOCSIFCAP	 _IOW('i', 30, struct ifreq)	/* set IF features */
 #define	SIOCGIFCAP	_IOWR('i', 31, struct ifreq)	/* get IF features */
 #define	SIOCGIFINDEX	_IOWR('i', 32, struct ifreq)	/* get IF index */
@@ -101,8 +101,8 @@
 #define	SIOCGIFPSRCADDR	_IOWR('i', 71, struct ifreq)	/* get gif psrc addr */
 #define	SIOCGIFPDSTADDR	_IOWR('i', 72, struct ifreq)	/* get gif pdst addr */
 #define	SIOCDIFPHYADDR	 _IOW('i', 73, struct ifreq)	/* delete gif addrs */
-#define	SIOCSLIFPHYADDR	 _IOW('i', 74, struct if_laddrreq) /* set gif addrs */
-#define	SIOCGLIFPHYADDR	_IOWR('i', 75, struct if_laddrreq) /* get gif addrs */
+/*	SIOCSLIFPHYADDR	 _IOW('i', 74, struct if_laddrreq) KAME */
+/*	SIOCGLIFPHYADDR	_IOWR('i', 75, struct if_laddrreq) KAME */
 
 #define	SIOCGPRIVATE_0	_IOWR('i', 80, struct ifreq)	/* device private 0 */
 #define	SIOCGPRIVATE_1	_IOWR('i', 81, struct ifreq)	/* device private 1 */

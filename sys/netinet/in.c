@@ -68,10 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
-static int in_mask2len(struct in_addr *);
-static void in_len2mask(struct in_addr *, int);
-static int in_lifaddr_ioctl(struct socket *, u_long, caddr_t,
-	struct ifnet *, struct thread *);
 static int in_aifaddr_ioctl(u_long, caddr_t, struct ifnet *, struct thread *);
 static int in_difaddr_ioctl(caddr_t, struct ifnet *, struct thread *);
 
@@ -192,42 +188,6 @@ in_socktrim(struct sockaddr_in *ap)
 	}
 }
 
-static int
-in_mask2len(mask)
-	struct in_addr *mask;
-{
-	int x, y;
-	u_char *p;
-
-	p = (u_char *)mask;
-	for (x = 0; x < sizeof(*mask); x++) {
-		if (p[x] != 0xff)
-			break;
-	}
-	y = 0;
-	if (x < sizeof(*mask)) {
-		for (y = 0; y < 8; y++) {
-			if ((p[x] & (0x80 >> y)) == 0)
-				break;
-		}
-	}
-	return (x * 8 + y);
-}
-
-static void
-in_len2mask(struct in_addr *mask, int len)
-{
-	int i;
-	u_char *p;
-
-	p = (u_char *)mask;
-	bzero(mask, sizeof(*mask));
-	for (i = 0; i < len / 8; i++)
-		p[i] = 0xff;
-	if (len % 8)
-		p[i] = (0xff00 >> (len % 8)) & 0xff;
-}
-
 /*
  * Generic internet control operations (ioctl's).
  */
@@ -265,10 +225,6 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		error = in_aifaddr_ioctl(cmd, data, ifp, td);
 		sx_xunlock(&in_control_sx);
 		return (error);
-	case SIOCALIFADDR:
-	case SIOCDLIFADDR:
-	case SIOCGLIFADDR:
-		return (in_lifaddr_ioctl(so, cmd, data, ifp, td));
 	case SIOCSIFADDR:
 	case SIOCSIFBRDADDR:
 	case SIOCSIFDSTADDR:
@@ -641,194 +597,6 @@ in_difaddr_ioctl(caddr_t data, struct ifnet *ifp, struct thread *td)
 	EVENTHANDLER_INVOKE(ifaddr_event, ifp);
 
 	return (0);
-}
-
-/*
- * SIOC[GAD]LIFADDR.
- *	SIOCGLIFADDR: get first address. (?!?)
- *	SIOCGLIFADDR with IFLR_PREFIX:
- *		get first address that matches the specified prefix.
- *	SIOCALIFADDR: add the specified address.
- *	SIOCALIFADDR with IFLR_PREFIX:
- *		EINVAL since we can't deduce hostid part of the address.
- *	SIOCDLIFADDR: delete the specified address.
- *	SIOCDLIFADDR with IFLR_PREFIX:
- *		delete the first address that matches the specified prefix.
- * return values:
- *	EINVAL on invalid parameters
- *	EADDRNOTAVAIL on prefix match failed/specified address not found
- *	other values may be returned from in_ioctl()
- */
-static int
-in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
-    struct ifnet *ifp, struct thread *td)
-{
-	struct if_laddrreq *iflr = (struct if_laddrreq *)data;
-	struct ifaddr *ifa;
-	int error;
-
-	switch (cmd) {
-	case SIOCALIFADDR:
-		if (td != NULL) {
-			error = priv_check(td, PRIV_NET_ADDIFADDR);
-			if (error)
-				return (error);
-		}
-		break;
-	case SIOCDLIFADDR:
-		if (td != NULL) {
-			error = priv_check(td, PRIV_NET_DELIFADDR);
-			if (error)
-				return (error);
-		}
-		break;
-	}
-
-	switch (cmd) {
-	case SIOCGLIFADDR:
-		/* address must be specified on GET with IFLR_PREFIX */
-		if ((iflr->flags & IFLR_PREFIX) == 0)
-			break;
-		/*FALLTHROUGH*/
-	case SIOCALIFADDR:
-	case SIOCDLIFADDR:
-		/* address must be specified on ADD and DELETE */
-		if (iflr->addr.ss_family != AF_INET)
-			return (EINVAL);
-		if (iflr->addr.ss_len != sizeof(struct sockaddr_in))
-			return (EINVAL);
-		/* XXX need improvement */
-		if (iflr->dstaddr.ss_family
-		 && iflr->dstaddr.ss_family != AF_INET)
-			return (EINVAL);
-		if (iflr->dstaddr.ss_family
-		 && iflr->dstaddr.ss_len != sizeof(struct sockaddr_in))
-			return (EINVAL);
-		break;
-	default: /*shouldn't happen*/
-		return (EOPNOTSUPP);
-	}
-	if (sizeof(struct in_addr) * 8 < iflr->prefixlen)
-		return (EINVAL);
-
-	switch (cmd) {
-	case SIOCALIFADDR:
-	    {
-		struct in_aliasreq ifra;
-
-		if (iflr->flags & IFLR_PREFIX)
-			return (EINVAL);
-
-		/* copy args to in_aliasreq, perform ioctl(SIOCAIFADDR). */
-		bzero(&ifra, sizeof(ifra));
-		bcopy(iflr->iflr_name, ifra.ifra_name,
-			sizeof(ifra.ifra_name));
-
-		bcopy(&iflr->addr, &ifra.ifra_addr, iflr->addr.ss_len);
-
-		if (iflr->dstaddr.ss_family) {	/*XXX*/
-			bcopy(&iflr->dstaddr, &ifra.ifra_dstaddr,
-				iflr->dstaddr.ss_len);
-		}
-
-		ifra.ifra_mask.sin_family = AF_INET;
-		ifra.ifra_mask.sin_len = sizeof(struct sockaddr_in);
-		in_len2mask(&ifra.ifra_mask.sin_addr, iflr->prefixlen);
-
-		return (in_control(so, SIOCAIFADDR, (caddr_t)&ifra, ifp, td));
-	    }
-	case SIOCGLIFADDR:
-	case SIOCDLIFADDR:
-	    {
-		struct in_ifaddr *ia;
-		struct in_addr mask, candidate, match;
-		struct sockaddr_in *sin;
-
-		bzero(&mask, sizeof(mask));
-		bzero(&match, sizeof(match));
-		if (iflr->flags & IFLR_PREFIX) {
-			/* lookup a prefix rather than address. */
-			in_len2mask(&mask, iflr->prefixlen);
-
-			sin = (struct sockaddr_in *)&iflr->addr;
-			match.s_addr = sin->sin_addr.s_addr;
-			match.s_addr &= mask.s_addr;
-
-			/* if you set extra bits, that's wrong */
-			if (match.s_addr != sin->sin_addr.s_addr)
-				return (EINVAL);
-
-		} else {
-			/* on getting an address, take the 1st match */
-			/* on deleting an address, do exact match */
-			if (cmd != SIOCGLIFADDR) {
-				in_len2mask(&mask, 32);
-				sin = (struct sockaddr_in *)&iflr->addr;
-				match.s_addr = sin->sin_addr.s_addr;
-			}
-		}
-
-		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)	{
-			if (ifa->ifa_addr->sa_family != AF_INET)
-				continue;
-			if (match.s_addr == 0)
-				break;
-			sin = (struct sockaddr_in *)&ifa->ifa_addr;
-			candidate.s_addr = sin->sin_addr.s_addr;
-			candidate.s_addr &= mask.s_addr;
-			if (candidate.s_addr == match.s_addr)
-				break;
-		}
-		if (ifa != NULL)
-			ifa_ref(ifa);
-		IF_ADDR_RUNLOCK(ifp);
-		if (ifa == NULL)
-			return (EADDRNOTAVAIL);
-		ia = (struct in_ifaddr *)ifa;
-
-		if (cmd == SIOCGLIFADDR) {
-			/* fill in the if_laddrreq structure */
-			bcopy(&ia->ia_addr, &iflr->addr, ia->ia_addr.sin_len);
-
-			if ((ifp->if_flags & IFF_POINTOPOINT) != 0) {
-				bcopy(&ia->ia_dstaddr, &iflr->dstaddr,
-					ia->ia_dstaddr.sin_len);
-			} else
-				bzero(&iflr->dstaddr, sizeof(iflr->dstaddr));
-
-			iflr->prefixlen =
-				in_mask2len(&ia->ia_sockmask.sin_addr);
-
-			iflr->flags = 0;	/*XXX*/
-			ifa_free(ifa);
-
-			return (0);
-		} else {
-			struct in_aliasreq ifra;
-
-			/* fill in_aliasreq and do ioctl(SIOCDIFADDR) */
-			bzero(&ifra, sizeof(ifra));
-			bcopy(iflr->iflr_name, ifra.ifra_name,
-				sizeof(ifra.ifra_name));
-
-			bcopy(&ia->ia_addr, &ifra.ifra_addr,
-				ia->ia_addr.sin_len);
-			if ((ifp->if_flags & IFF_POINTOPOINT) != 0) {
-				bcopy(&ia->ia_dstaddr, &ifra.ifra_dstaddr,
-					ia->ia_dstaddr.sin_len);
-			}
-			bcopy(&ia->ia_sockmask, &ifra.ifra_dstaddr,
-				ia->ia_sockmask.sin_len);
-			ifa_free(ifa);
-
-			return (in_control(so, SIOCDIFADDR, (caddr_t)&ifra,
-			    ifp, td));
-		}
-	    }
-	}
-
-	return (EOPNOTSUPP);	/*just for safety*/
 }
 
 #define rtinitflags(x) \
