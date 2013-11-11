@@ -67,6 +67,7 @@ extern register_t ofmsr[5];
 extern void	*openfirmware_entry;
 static void	*fdt;
 int		ofw_real_mode;
+static int	apple_hacks;
 
 int		ofwcall(void *);
 static int	openfirmware(void *args);
@@ -79,6 +80,9 @@ register_t	ofw_sprg0_save;
 static __inline void
 ofw_sprg_prepare(void)
 {
+	if (!apple_hacks)
+		return;
+	
 	/*
 	 * Assume that interrupt are disabled at this point, or
 	 * SPRG1-3 could be trashed
@@ -98,6 +102,9 @@ ofw_sprg_prepare(void)
 static __inline void
 ofw_sprg_restore(void)
 {
+	if (!apple_hacks)
+		return;
+	
 	/*
 	 * Note that SPRG1-3 contents are irrelevant. They are scratch
 	 * registers used in the early portion of trap handling when
@@ -178,15 +185,10 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 
 	/*
 	 * On Apple hardware, address_cells is always 1 for "available",
-	 * even when it is explicitly set to 2. Then all memory above 4 GB
-	 * should be added by hand to the available list. Detect Apple hardware
-	 * by seeing if ofw_real_mode is set -- only Apple seems to use
-	 * virtual-mode OF.
+	 * even when it is explicitly set to 2. All memory above 4 GB
+	 * also needs to be added by hand to the available list.
 	 */
-	if (strcmp(prop, "available") == 0 && !ofw_real_mode)
-		apple_hack_mode = 1;
-	
-	if (apple_hack_mode)
+	if (strcmp(prop, "available") == 0 && apple_hacks)
 		address_cells = 1;
 
 	/*
@@ -241,7 +243,7 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 	sz = j*sizeof(output[0]);
 
 	#ifdef __powerpc64__
-	if (apple_hack_mode) {
+	if (strcmp(prop, "available") == 0 && apple_hacks) {
 		/* Add in regions above 4 GB to the available list */
 		struct mem_region himem[16];
 		int hisz;
@@ -479,6 +481,9 @@ OF_bootstrap()
 
 		OF_init(fdt);
 	} 
+
+	/* Apple firmware has some bugs. Check for a "mac-io" alias. */
+	apple_hacks = (OF_finddevice("mac-io") != -1) ? 1 : 0;
 
 	return (status);
 }
