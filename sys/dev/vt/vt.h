@@ -149,6 +149,8 @@ struct vt_buf {
 	int			 vb_roffset;	/* (b) History rows offset. */
 	int			 vb_curroffset;	/* (b) Saved rows offset. */
 	term_pos_t		 vb_cursor;	/* (u) Cursor position. */
+	term_pos_t		 vb_mark_start;	/* (b) Copy region start. */
+	term_pos_t		 vb_mark_end;	/* (b) Copy region end. */
 	term_rect_t		 vb_dirtyrect;	/* (b) Dirty rectangle. */
 	struct vt_bufmask	 vb_dirtymask;	/* (b) Dirty bitmasks. */
 	term_char_t		*vb_buffer;	/* (u) Data buffer. */
@@ -307,6 +309,14 @@ static struct vt_window	driver ## _conswindow = {			\
 		.vb_curroffset = 0,					\
 		.vb_roffset = 0,					\
 		.vb_flags = VBF_STATIC,					\
+		.vb_mark_start = {					\
+			.tp_row = 0,					\
+			.tp_col = 0,					\
+		},							\
+		.vb_mark_end = {					\
+			.tp_row = 0,					\
+			.tp_col = 0,					\
+		},							\
 		.vb_scr_size = {					\
 			.tp_row = height,				\
 			.tp_col = width,				\
