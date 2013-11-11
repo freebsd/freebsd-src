@@ -933,6 +933,9 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 
 	vt_termsize(vd, vf, &size);
 	vt_winsize(vd, vf, &wsz);
+	/* Save offset to font aligned area. */
+	vd->vd_offset.tp_col = (vd->vd_width % vf->vf_width) / 2;
+	vd->vd_offset.tp_row = (vd->vd_height % vf->vf_height) / 2;
 
 	/* Grow the screen buffer and terminal. */
 	terminal_mute(tm, 1);
