@@ -1217,7 +1217,8 @@ vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
 				keyboard_t *kbd;
 				error = 0;
 
-				DPRINTF(20, "%s: vd_keyboard = %d\n", __func__, vd->vd_keyboard);
+				DPRINTF(20, "%s: vd_keyboard = %d\n", __func__,
+				    vd->vd_keyboard);
 				mtx_lock(&Giant);
 				kbd = kbd_get_keyboard(vd->vd_keyboard);
 				if (kbd != NULL) {
@@ -1227,7 +1228,8 @@ vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
 				}
 				mtx_unlock(&Giant);
 				if (error)
-					DPRINTF(20, "kbdd_ioctl(KDSKBMODE) return %d\n", error);
+					DPRINTF(20, "kbdd_ioctl(KDSKBMODE) "
+					    "return %d\n", error);
 			}
 			return (0);
 		default:
