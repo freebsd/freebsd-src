@@ -386,5 +386,6 @@ int		 vtfont_load(vfnt_t *f, struct vt_font **ret);
 
 /* Sysmouse. */
 void sysmouse_process_event(mouse_info_t *mi);
+void vt_mouse_event(int type, int x, int y, int event, int cnt);
 
 #endif /* !_DEV_VT_VT_H_ */
