@@ -120,6 +120,7 @@ extern unsigned char vt_logo_image[];
 
 /* Font. */
 extern struct vt_font vt_font_default;
+extern struct mouse_cursor vt_default_mouse_pointer;
 
 static int signal_vt_rel(struct vt_window *);
 static int signal_vt_acq(struct vt_window *);
