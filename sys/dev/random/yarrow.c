@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/random.h>
-#include <sys/selinfo.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -111,11 +110,11 @@ increment_counter(void)
 
 /* Process a single stochastic event off the harvest queue */
 void
-random_yarrow_process_event(struct harvest *event)
+random_yarrow_process_event(struct harvest_event *event)
 {
 	u_int pl, overthreshhold[2];
 	struct source *source;
-	enum esource src;
+	enum random_entropy_source src;
 
 #if 0
 	/* XXX: Fix!! Do this better with DTrace */
@@ -134,11 +133,11 @@ random_yarrow_process_event(struct harvest *event)
 	/* Accumulate the event into the appropriate pool
          * where each event carries the destination information
 	 */
-	pl = event->destination % 2;
-	source = &random_state.pool[pl].source[event->source];
+	pl = event->he_destination % 2;
+	source = &random_state.pool[pl].source[event->he_source];
 	randomdev_hash_iterate(&random_state.pool[pl].hash, event,
 		sizeof(*event));
-	source->bits += event->bits;
+	source->bits += event->he_bits;
 
 	/* Count the over-threshold sources in each pool */
 	for (pl = 0; pl < 2; pl++) {
@@ -242,7 +241,7 @@ reseed(u_int fastslow)
 	uint8_t hash[KEYSIZE];			/* h' */
 	uint8_t temp[KEYSIZE];
 	u_int i;
-	enum esource j;
+	enum random_entropy_source j;
 
 	/* The reseed task must not be jumped on */
 	mtx_lock(&random_reseed_mtx);
@@ -307,13 +306,11 @@ reseed(u_int fastslow)
 	memset((void *)hash, 0, sizeof(hash));
 
 	/* 7. Dump to seed file */
-#ifdef RANDOM_RWFILE
-#ifdef RANDOM_RWFILE_WRITE_OK /* XXX: Not defined so writes disabled for now */
+#ifdef RANDOM_RWFILE_WRITE_OK /* XXX: Not defined so writes ain't gonna happen */
 	seed_file = "/var/db/entropy/seed_cache";
 	error = randomdev_write_file(seed_file, <generated entropy>, PAGE_SIZE);
 		if (error == 0) {
 			printf("random: entropy seed file '%s' successfully written\n", seed_file);
-#endif
 #endif
 
 	/* Unblock the device if it was blocked due to being unseeded */

@@ -31,29 +31,41 @@
 
 MALLOC_DECLARE(M_ENTROPY);
 
+typedef void random_adaptor_init_func_t(void);
+typedef void random_adaptor_deinit_func_t(void);
+
+typedef int random_adaptor_block_func_t(int);
+typedef int random_adaptor_read_func_t(void *, int);
+typedef int random_adaptor_poll_func_t(int, struct thread *);
+
+typedef void random_adaptor_reseed_func_t(void);
+
 struct random_adaptor {
-	struct selinfo		rsel;
-	const char		*ident;
-	int			seeded;
-	u_int			priority;
-	random_init_func_t	*init;
-	random_deinit_func_t	*deinit;
-	random_block_func_t	*block;
-	random_read_func_t	*read;
-	random_poll_func_t	*poll;
-	random_reseed_func_t	*reseed;
+	const char			*ra_ident;
+	int				ra_seeded;
+	u_int				ra_priority;
+	random_adaptor_init_func_t	*ra_init;
+	random_adaptor_deinit_func_t	*ra_deinit;
+	random_adaptor_block_func_t	*ra_block;
+	random_adaptor_read_func_t	*ra_read;
+	random_adaptor_poll_func_t	*ra_poll;
+	random_adaptor_reseed_func_t	*ra_reseed;
 };
 
 struct random_adaptors {
-	LIST_ENTRY(random_adaptors) entries;	/* list of providers */
-	const char		*name;		/* name of random adaptor */
-	struct random_adaptor	*rsp;
+	LIST_ENTRY(random_adaptors) rra_entries;	/* list of providers */
+	const char		*rra_name;		/* name of random adaptor */
+	struct random_adaptor	*rra_ra;
 };
+
+/* Dummy "always-block" pseudo-device */
+extern struct random_adaptor randomdev_dummy;
 
 void random_adaptor_register(const char *, struct random_adaptor *);
 void random_adaptor_deregister(const char *);
-void random_adaptor_choose(void);
 
-extern struct random_adaptor *random_adaptor;
+int random_adaptor_block(int);
+int random_adaptor_read(struct uio *, int);
+int random_adaptor_poll(int, struct thread *);
 
 #endif /* SYS_DEV_RANDOM_RANDOM_ADAPTORS_H_INCLUDED */

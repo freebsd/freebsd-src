@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/random.h>
-#include <sys/selinfo.h>
 #include <sys/systm.h>
 #include <sys/time.h>
 
@@ -95,14 +94,14 @@ dummy_random_deinit(void)
 	mtx_destroy(&dummy_random_mtx);
 }
 
-struct random_adaptor dummy_random = {
-	.ident = "Dummy entropy device",
-	.init = dummy_random_init,
-	.deinit = dummy_random_deinit,
-	.block = dummy_random_block,
-	.poll = dummy_random_poll,
-	.read = (random_read_func_t *)random_null_func,
-	.reseed = (random_reseed_func_t *)random_null_func,
-	.seeded = 0, /* This device can never be seeded */
-	.priority = 1, /* Bottom priority, so goes to last position */
+struct random_adaptor randomdev_dummy = {
+	.ra_ident = "Dummy entropy device",
+	.ra_init = dummy_random_init,
+	.ra_deinit = dummy_random_deinit,
+	.ra_block = dummy_random_block,
+	.ra_poll = dummy_random_poll,
+	.ra_read = (random_adaptor_read_func_t *)random_null_func,
+	.ra_reseed = (random_adaptor_reseed_func_t *)random_null_func,
+	.ra_seeded = 0, /* This device can never be seeded */
+	.ra_priority = 1, /* Bottom priority, so goes to last position */
 };

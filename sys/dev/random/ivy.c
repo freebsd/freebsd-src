@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/random.h>
-#include <sys/selinfo.h>
 #include <sys/systm.h>
 
 #include <machine/md_var.h>
@@ -57,9 +56,9 @@ __FBSDID("$FreeBSD$");
 static int random_ivy_read(void *, int);
 
 static struct live_entropy_source random_ivy = {
-	.ident = "Hardware, Intel IvyBridge+ RNG",
-	.source = RANDOM_PURE_RDRAND,
-	.read = random_ivy_read
+	.les_ident = "Hardware, Intel IvyBridge+ RNG",
+	.les_source = RANDOM_PURE_RDRAND,
+	.les_read = random_ivy_read
 };
 
 static inline int

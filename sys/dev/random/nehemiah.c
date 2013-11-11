@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/random.h>
-#include <sys/selinfo.h>
 #include <sys/systm.h>
 
 #include <machine/segments.h>
@@ -55,9 +54,9 @@ static void random_nehemiah_deinit(void);
 static int random_nehemiah_read(void *, int);
 
 static struct live_entropy_source random_nehemiah = {
-	.ident = "Hardware, VIA Nehemiah Padlock RNG",
-	.source = RANDOM_PURE_NEHEMIAH,
-	.read = random_nehemiah_read
+	.les_ident = "Hardware, VIA Nehemiah Padlock RNG",
+	.les_source = RANDOM_PURE_NEHEMIAH,
+	.les_read = random_nehemiah_read
 };
 
 /* XXX: FIX? TODO? now that the Davies-Meyer hash is gone and we only use

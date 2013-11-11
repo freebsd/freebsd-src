@@ -35,17 +35,16 @@
 
 typedef void random_init_func_t(void);
 typedef void random_deinit_func_t(void);
+
 typedef int random_block_func_t(int);
-typedef int random_read_func_t(void *, int);
+typedef int random_read_func_t(struct uio *, int);
 typedef int random_poll_func_t(int, struct thread *);
+
 typedef void random_reseed_func_t(void);
 
-void randomdev_init_harvester(void (*)(const void *, u_int, u_int, enum esource),
+void randomdev_init_harvester(void (*)(const void *, u_int, u_int, enum random_entropy_source),
     int (*)(void *, int));
 void randomdev_deinit_harvester(void);
-
-/* Dummy "always-block" device */
-extern struct random_adaptor dummy_random;
 
 /* kern.random sysctls */
 #ifdef SYSCTL_DECL	/* from sysctl.h */

@@ -82,41 +82,43 @@ static int randomdev_block(int flag);
 static void randomdev_flush_reseed(void);
 
 #if defined(RANDOM_YARROW)
-static struct random_adaptor random_context = {
-	.ident = "Software, Yarrow",
-	.init = randomdev_init,
-	.deinit = randomdev_deinit,
-	.block = randomdev_block,
-	.read = random_yarrow_read,
-	.poll = randomdev_poll,
-	.reseed = randomdev_flush_reseed,
-	.seeded = 0, /* This will be seeded during entropy processing */
-	.priority = 90, /* High priority, so top of the list. Fortuna may still win. */
+static struct random_adaptor random_soft_processor = {
+	.ra_ident = "Software, Yarrow",
+	.ra_init = randomdev_init,
+	.ra_deinit = randomdev_deinit,
+	.ra_block = randomdev_block,
+	.ra_read = random_yarrow_read,
+	.ra_poll = randomdev_poll,
+	.ra_reseed = randomdev_flush_reseed,
+	.ra_seeded = 0, /* This will be seeded during entropy processing */
+	.ra_priority = 90, /* High priority, so top of the list. Fortuna may still win. */
 };
 #define RANDOM_MODULE_NAME	yarrow
 #define RANDOM_CSPRNG_NAME	"yarrow"
 #endif
 
 #if defined(RANDOM_FORTUNA)
-static struct random_adaptor random_context = {
-	.ident = "Software, Fortuna",
-	.init = randomdev_init,
-	.deinit = randomdev_deinit,
-	.block = randomdev_block,
-	.read = random_fortuna_read,
-	.poll = randomdev_poll,
-	.reseed = randomdev_flush_reseed,
-	.seeded = 0, /* This will be excplicitly seeded at startup when secured */
-	.priority = 100, /* High priority, so top of the list. Beat Yarrow. */
+static struct random_adaptor random_soft_processor = {
+	.ra_ident = "Software, Fortuna",
+	.ra_init = randomdev_init,
+	.ra_deinit = randomdev_deinit,
+	.ra_block = randomdev_block,
+	.ra_read = random_fortuna_read,
+	.ra_poll = randomdev_poll,
+	.ra_reseed = randomdev_flush_reseed,
+	.ra_seeded = 0, /* This will be excplicitly seeded at startup when secured */
+	.ra_priority = 100, /* High priority, so top of the list. Beat Yarrow. */
 };
 #define RANDOM_MODULE_NAME	fortuna
 #define RANDOM_CSPRNG_NAME	"fortuna"
 #endif
 
-TUNABLE_INT("kern.random.sys.seeded", &random_context.seeded);
+TUNABLE_INT("kern.random.sys.seeded", &random_soft_processor.ra_seeded);
 
 /* List for the dynamic sysctls */
 static struct sysctl_ctx_list random_clist;
+
+static struct selinfo rsel;
 
 /* ARGSUSED */
 static int
@@ -147,7 +149,7 @@ randomdev_init(void)
 	SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_o),
 	    OID_AUTO, "seeded", CTLTYPE_INT | CTLFLAG_RW,
-	    &random_context.seeded, 0, random_check_boolean, "I",
+	    &random_soft_processor.ra_seeded, 0, random_check_boolean, "I",
 	    "Seeded State");
 
 	random_sys_harvest_o = SYSCTL_ADD_NODE(&random_clist,
@@ -155,6 +157,7 @@ randomdev_init(void)
 	    OID_AUTO, "harvest", CTLFLAG_RW, 0,
 	    "Entropy Sources");
 
+	/* XXX: FIX!! This is yucky. Rather do it as a bitfield? */
 	SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_harvest_o),
 	    OID_AUTO, "ethernet", CTLTYPE_INT | CTLFLAG_RW,
@@ -175,6 +178,11 @@ randomdev_init(void)
 	    OID_AUTO, "swi", CTLTYPE_INT | CTLFLAG_RW,
 	    &harvest.swi, 1, random_check_boolean, "I",
 	    "Harvest SWI entropy");
+	SYSCTL_ADD_PROC(&random_clist,
+	    SYSCTL_CHILDREN(random_sys_harvest_o),
+	    OID_AUTO, "uma", CTLTYPE_INT | CTLFLAG_RW,
+	    &harvest.uma, 1, random_check_boolean, "I",
+	    "Harvest UMA allocator entropy");
 
 	/* Register the randomness processing routine */
 #if defined(RANDOM_YARROW)
@@ -186,7 +194,7 @@ randomdev_init(void)
 
 	/* Register the randomness harvesting routine */
 	randomdev_init_harvester(random_harvestq_internal,
-	    random_context.read);
+	    random_soft_processor.ra_read);
 }
 
 void
@@ -214,11 +222,11 @@ randomdev_deinit(void)
 void
 randomdev_unblock(void)
 {
-	if (!random_context.seeded) {
-		selwakeuppri(&random_context.rsel, PUSER);
-		wakeup(&random_context);
+	if (!random_soft_processor.ra_seeded) {
+		selwakeuppri(&rsel, PUSER);
+		wakeup(&random_soft_processor);
                 printf("random: unblocking device.\n");
-		random_context.seeded = 1;
+		random_soft_processor.ra_seeded = 1;
 	}
 	/* Do arc4random(9) a favour while we are about it. */
 	(void)atomic_cmpset_int(&arc4rand_iniseed_state, ARC4_ENTR_NONE,
@@ -232,10 +240,10 @@ randomdev_poll(int events, struct thread *td)
 
 	mtx_lock(&random_reseed_mtx);
 
-	if (random_context.seeded)
+	if (random_soft_processor.ra_seeded)
 		revents = events & (POLLIN | POLLRDNORM);
 	else
-		selrecord(td, &random_context.rsel);
+		selrecord(td, &rsel);
 
 	mtx_unlock(&random_reseed_mtx);
 	return (revents);
@@ -249,12 +257,12 @@ randomdev_block(int flag)
 	mtx_lock(&random_reseed_mtx);
 
 	/* Blocking logic */
-	while (!random_context.seeded && !error) {
+	while (!random_soft_processor.ra_seeded && !error) {
 		if (flag & O_NONBLOCK)
 			error = EWOULDBLOCK;
 		else {
 			printf("random: blocking on read.\n");
-			error = msleep(&random_context,
+			error = msleep(&random_soft_processor,
 			    &random_reseed_mtx,
 			    PUSER | PCATCH, "block", 0);
 		}
@@ -291,7 +299,7 @@ randomdev_soft_modevent(module_t mod __unused, int type, void *unused __unused)
 
 	switch (type) {
 	case MOD_LOAD:
-		random_adaptor_register(RANDOM_CSPRNG_NAME, &random_context);
+		random_adaptor_register(RANDOM_CSPRNG_NAME, &random_soft_processor);
 		break;
 
 	case MOD_UNLOAD:

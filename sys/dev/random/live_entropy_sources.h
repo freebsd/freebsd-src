@@ -36,14 +36,14 @@
  * an acceptable amount of time.
  */
 struct live_entropy_source {
-	const char		*ident;
-	enum esource		source;
-	random_read_func_t	*read;
+	const char			*les_ident;
+	enum random_entropy_source	 les_source;
+	random_adaptor_read_func_t	*les_read;
 };
 
 struct live_entropy_sources {
-	LIST_ENTRY(live_entropy_sources) entries;	/* list of providers */
-	struct live_entropy_source	*rsource;	/* associated random adaptor */
+	LIST_ENTRY(live_entropy_sources) lles_entries;	/* list of providers */
+	struct live_entropy_source	*lles_rsource;	/* associated random adaptor */
 };
 
 extern struct mtx live_mtx;

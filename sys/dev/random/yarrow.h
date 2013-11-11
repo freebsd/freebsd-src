@@ -33,6 +33,6 @@ void random_yarrow_init_alg(struct sysctl_ctx_list *);
 void random_yarrow_deinit_alg(void);
 int random_yarrow_read(void *, int);
 void random_yarrow_reseed(void);
-void random_yarrow_process_event(struct harvest *event);
+void random_yarrow_process_event(struct harvest_event *event);
 
 #endif

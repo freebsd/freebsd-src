@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/random.h>
 #include <sys/rwlock.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
@@ -1980,6 +1981,8 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	int lockfail;
 	int cpu;
 
+	random_harvest(&(zone->uz_name), sizeof(void *), 1, RANDOM_UMA_ALLOC);
+
 	/* This is the fast path allocation */
 #ifdef UMA_DEBUG_ALLOC_1
 	printf("Allocating one item from %s(%p)\n", zone->uz_name, zone);
@@ -2010,6 +2013,7 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 			    	zone->uz_fini(item, zone->uz_size);
 				return (NULL);
 			}
+			random_harvest(&item, sizeof(void *), 1, RANDOM_UMA_ALLOC);
 			return (item);
 		}
 		/* This is unfortunate but should not be fatal. */
@@ -2052,6 +2056,7 @@ zalloc_start:
 #endif
 		if (flags & M_ZERO)
 			bzero(item, zone->uz_size);
+		random_harvest(&item, sizeof(void *), 1, RANDOM_UMA_ALLOC);
 		return (item);
 	}
 
@@ -2172,6 +2177,7 @@ zalloc_start:
 zalloc_item:
 	item = zone_alloc_item(zone, udata, flags);
 
+	random_harvest(&item, sizeof(void *), 1, RANDOM_UMA_ALLOC);
 	return (item);
 }
 
@@ -2519,6 +2525,14 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	uma_cache_t cache;
 	uma_bucket_t bucket;
 	int cpu;
+	struct entropy {
+		const void *uz_name;
+		const void *item;
+	} entropy;
+
+	entropy.uz_name = zone->uz_name;
+	entropy.item = item;
+	random_harvest(&entropy, sizeof(struct entropy), 2, RANDOM_UMA_ALLOC);
 
 #ifdef UMA_DEBUG_ALLOC_1
 	printf("Freeing item %p to %s(%p)\n", item, zone->uz_name, zone);

@@ -35,82 +35,143 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/poll.h>
 #include <sys/queue.h>
 #include <sys/random.h>
-#include <sys/selinfo.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
+#include <sys/uio.h>
 #include <sys/unistd.h>
 
 #include <dev/random/randomdev.h>
 #include <dev/random/random_adaptors.h>
 
 LIST_HEAD(adaptors_head, random_adaptors);
-static struct adaptors_head adaptors = LIST_HEAD_INITIALIZER(adaptors);
-static struct sx adaptors_lock; /* need a sleepable lock */
+static struct adaptors_head random_adaptors_list = LIST_HEAD_INITIALIZER(random_adaptors_list);
+static struct sx random_adaptors_lock; /* need a sleepable lock */
 
-/* List for the dynamic sysctls */
-static struct sysctl_ctx_list random_clist;
-
-struct random_adaptor *random_adaptor = NULL;
+/* Contains a pointer to the currently active adaptor */
+static struct random_adaptor *random_adaptor = NULL;
 
 MALLOC_DEFINE(M_ENTROPY, "entropy", "Entropy harvesting buffers and data structures");
 
+static void random_adaptor_choose(void);
+
 void
-random_adaptor_register(const char *name, struct random_adaptor *rsp)
+random_adaptor_register(const char *name, struct random_adaptor *ra)
 {
-	struct random_adaptors *rpp;
+	struct random_adaptors *rra;
 
-	KASSERT(name != NULL && rsp != NULL, ("invalid input to %s", __func__));
+	KASSERT(name != NULL && ra != NULL, ("invalid input to %s", __func__));
 
-	rpp = malloc(sizeof(struct random_adaptors), M_ENTROPY, M_WAITOK);
-	rpp->name = name;
-	rpp->rsp = rsp;
+	rra = malloc(sizeof(struct random_adaptors), M_ENTROPY, M_WAITOK);
+	rra->rra_name = name;
+	rra->rra_ra = ra;
 
-	sx_xlock(&adaptors_lock);
-	LIST_INSERT_HEAD(&adaptors, rpp, entries);
-	sx_xunlock(&adaptors_lock);
+	sx_xlock(&random_adaptors_lock);
+
+	LIST_INSERT_HEAD(&random_adaptors_list, rra, rra_entries);
 
 	random_adaptor_choose();
+
+	sx_xunlock(&random_adaptors_lock);
+
+	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 }
 
 void
 random_adaptor_deregister(const char *name)
 {
-	struct random_adaptors *rpp;
+	struct random_adaptors *rra;
 
 	KASSERT(name != NULL, ("invalid input to %s", __func__));
+	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
-	sx_xlock(&adaptors_lock);
-	LIST_FOREACH(rpp, &adaptors, entries)
-		if (strcmp(rpp->name, name) == 0) {
-			LIST_REMOVE(rpp, entries);
+	sx_xlock(&random_adaptors_lock);
+
+	LIST_FOREACH(rra, &random_adaptors_list, rra_entries)
+		if (strcmp(rra->rra_name, name) == 0) {
+			LIST_REMOVE(rra, rra_entries);
 			break;
 		}
-	sx_xunlock(&adaptors_lock);
-	if (rpp != NULL)
-		free(rpp, M_ENTROPY);
 
 	random_adaptor_choose();
+	/* It is conceivable that there is no active random adaptor here,
+	 * e.g. at shutdown.
+	 */
+
+	sx_xunlock(&random_adaptors_lock);
+
+	if (rra != NULL)
+		free(rra, M_ENTROPY);
 }
 
-static struct random_adaptor *
-random_adaptor_get(const char *name)
+int
+random_adaptor_block(int flag)
 {
-	struct random_adaptors	*rpp;
-	struct random_adaptor	*rsp;
+	int ret;
 
-	rsp = NULL;
+	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
+	sx_slock(&random_adaptors_lock);
+	ret = random_adaptor->ra_block(flag);
+	sx_sunlock(&random_adaptors_lock);
+	return ret;
+}
 
-	sx_slock(&adaptors_lock);
+int
+random_adaptor_read(struct uio *uio, int flag)
+{
+	int c, error = 0;
+	void *random_buf;
 
-	LIST_FOREACH(rpp, &adaptors, entries)
-		if (strcmp(rpp->name, name) == 0)
-			rsp = rpp->rsp;
+	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
-	sx_sunlock(&adaptors_lock);
+	sx_slock(&random_adaptors_lock);
 
-	return (rsp);
+	/* Blocking logic */
+	if (random_adaptor->ra_seeded)
+		error = (random_adaptor->ra_block)(flag);
+
+	/* The actual read */
+	if (!error) {
+
+		random_buf = (void *)malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
+
+		while (uio->uio_resid > 0 && !error) {
+			c = MIN(uio->uio_resid, PAGE_SIZE);
+			c = (random_adaptor->ra_read)(random_buf, c);
+			error = uiomove(random_buf, c, uio);
+		}
+		/* Finished reading; let the source know so it can do some
+		 * optional housekeeping */
+		(random_adaptor->ra_read)(NULL, 0);
+
+		free(random_buf, M_ENTROPY);
+
+	}
+
+	sx_sunlock(&random_adaptors_lock);
+
+	return (error);
+}
+
+int
+random_adaptor_poll(int events, struct thread *td)
+{
+	int revents = 0;
+
+	sx_slock(&random_adaptors_lock);
+
+	if (events & (POLLIN | POLLRDNORM)) {
+		if (random_adaptor->ra_seeded)
+			revents = events & (POLLIN | POLLRDNORM);
+		else
+			revents = (random_adaptor->ra_poll)(events, td);
+	}
+
+	sx_sunlock(&random_adaptors_lock);
+
+	return (revents);
 }
 
 /*
@@ -118,13 +179,18 @@ random_adaptor_get(const char *name)
  * one or the highest priority one, whichever comes first. Panic on failure
  * as the fallback must be the "dummy" adaptor.
  */
-void
+static void
 random_adaptor_choose(void)
 {
 	char			 rngs[128], *token, *cp;
-	struct random_adaptors	*rppi;
+	struct random_adaptors	*rra, *rrai;
 	struct random_adaptor	*random_adaptor_previous;
 	u_int			 primax;
+
+	/* We are going to be messing with random_adaptor.
+	 * Exclusive lock is mandatory.
+	 */
+	sx_assert(&random_adaptors_lock, SA_XLOCKED);
 
 	random_adaptor_previous = random_adaptor;
 
@@ -132,15 +198,21 @@ random_adaptor_choose(void)
 	if (TUNABLE_STR_FETCH("kern.random.active_adaptor", rngs, sizeof(rngs))) {
 		cp = rngs;
 
-		while ((token = strsep(&cp, ",")) != NULL)
-			if ((random_adaptor = random_adaptor_get(token)) != NULL) {
+		while ((token = strsep(&cp, ",")) != NULL) {
+			LIST_FOREACH(rra, &random_adaptors_list, rra_entries)
+				if (strcmp(rra->rra_name, token) == 0) {
+					random_adaptor = rra->rra_ra;
+					break;
+				}
+			if (random_adaptor != NULL) {
 				printf("random: selecting requested adaptor <%s>\n",
-				    random_adaptor->ident);
+				    random_adaptor->ra_ident);
 				break;
 			}
 			else
 				printf("random: requested adaptor <%s> not available\n",
 				    token);
+		}
 	}
 
 	primax = 0U;
@@ -149,17 +221,15 @@ random_adaptor_choose(void)
 		 * Fall back to the highest priority item on the available
 		 * RNG list.
 		 */
-		sx_slock(&adaptors_lock);
-		LIST_FOREACH(rppi, &adaptors, entries) {
-			if (rppi->rsp->priority >= primax) {
-				random_adaptor = rppi->rsp;
-				primax = rppi->rsp->priority;
+		LIST_FOREACH(rrai, &random_adaptors_list, rra_entries) {
+			if (rrai->rra_ra->ra_priority >= primax) {
+				random_adaptor = rrai->rra_ra;
+				primax = rrai->rra_ra->ra_priority;
 			}
 		}
-		sx_sunlock(&adaptors_lock);
 		if (random_adaptor != NULL)
 			printf("random: selecting highest priority adaptor <%s>\n",
-			    random_adaptor->ident);
+			    random_adaptor->ra_ident);
 	}
 
 	KASSERT(random_adaptor != NULL, ("adaptor not found"));
@@ -167,8 +237,8 @@ random_adaptor_choose(void)
 	/* If we are changing adaptors, deinit the old and init the new. */
 	if (random_adaptor != random_adaptor_previous) {
 		if (random_adaptor_previous != NULL)
-			(random_adaptor_previous->deinit)();
-		(random_adaptor->init)();
+			(random_adaptor_previous->ra_deinit)();
+		(random_adaptor->ra_init)();
 	}
 }
 
@@ -177,25 +247,26 @@ random_sysctl_adaptors_handler(SYSCTL_HANDLER_ARGS)
 {
 	/* XXX: FIX!! Fixed array size, but see below, this may be OK */
 	char buf[128], *pbuf;
-	struct random_adaptors *rpp;
+	struct random_adaptors *rra;
 	int count, snp;
 	size_t lbuf;
-
-	sx_slock(&adaptors_lock);
 
 	buf[0] = '\0';
 	pbuf = buf;
 	lbuf = 256;
 	count = 0;
-	LIST_FOREACH(rpp, &adaptors, entries) {
+
+	sx_slock(&random_adaptors_lock);
+
+	LIST_FOREACH(rra, &random_adaptors_list, rra_entries) {
 		snp = snprintf(pbuf, lbuf, "%s%s(%d)",
-		    (count++ ? "," : ""), rpp->name, rpp->rsp->priority);
+		    (count++ ? "," : ""), rra->rra_name, rra->rra_ra->ra_priority);
 		KASSERT(snp > 0, ("buffer overflow"));
 		lbuf -= (size_t)snp;
 		pbuf += snp;
 	}
 
-	sx_sunlock(&adaptors_lock);
+	sx_sunlock(&random_adaptors_lock);
 
 	return (SYSCTL_OUT(req, buf, strlen(buf)));
 }
@@ -203,30 +274,28 @@ random_sysctl_adaptors_handler(SYSCTL_HANDLER_ARGS)
 static int
 random_sysctl_active_adaptor_handler(SYSCTL_HANDLER_ARGS)
 {
-	struct random_adaptor	*rsp;
-	struct random_adaptors	*rpp;
-	const char		*name;
-	int error;
+	/* XXX: FIX!! Fixed array size, but see below, this may be OK */
+	char buf[32];
+	struct random_adaptors *rra;
+	const char *name;
+
+	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
 	name = NULL;
-	rsp = random_adaptor;
+	buf[0] = '\0';
 
-	if (rsp != NULL) {
-		sx_slock(&adaptors_lock);
+	sx_slock(&random_adaptors_lock);
 
-		LIST_FOREACH(rpp, &adaptors, entries)
-			if (rpp->rsp == rsp)
-				name = rpp->name;
+	LIST_FOREACH(rra, &random_adaptors_list, rra_entries)
+		if (rra->rra_ra == random_adaptor) {
+			strncpy(buf, rra->rra_name, sizeof(buf));
+			break;
+		}
 
-		sx_sunlock(&adaptors_lock);
-	}
 
-	if (rsp == NULL || name == NULL)
-		error = SYSCTL_OUT(req, "", 0);
-	else
-		error = SYSCTL_OUT(req, name, strlen(name));
+	sx_sunlock(&random_adaptors_lock);
 
-	return (error);
+	return (SYSCTL_OUT(req, buf, strlen(buf)));
 }
 
 /* ARGSUSED */
@@ -244,12 +313,12 @@ random_adaptors_init(void *unused __unused)
 	    NULL, 0, random_sysctl_active_adaptor_handler, "",
 	    "Active Random Number Generator Adaptor");
 
-	sx_init(&adaptors_lock, "random_adaptors");
+	sx_init(&random_adaptors_lock, "random_adaptors");
 
 	/* This dummy "thing" is not a module by itself, but part of the
 	 * randomdev module.
 	 */
-	random_adaptor_register("dummy", &dummy_random);
+	random_adaptor_register("dummy", &randomdev_dummy);
 }
 
 /* ARGSUSED */
@@ -259,8 +328,7 @@ random_adaptors_deinit(void *unused __unused)
 	/* Don't do this! Panic will follow. */
 	/* random_adaptor_deregister("dummy"); */
 
-	sx_destroy(&adaptors_lock);
-	sysctl_ctx_free(&random_clist);
+	sx_destroy(&random_adaptors_lock);
 }
 
 /* XXX: FIX!! Move this to where its not so well hidden, like randomdev[_soft].c, maybe. */
@@ -289,8 +357,14 @@ static void
 random_adaptors_seed(void *unused __unused)
 {
  
-	if (random_adaptor != NULL)
-		(*random_adaptor->reseed)();
+	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
+
+	sx_slock(&random_adaptors_lock);
+
+	random_adaptor->ra_reseed();
+
+	sx_sunlock(&random_adaptors_lock);
+
 	arc4rand(NULL, 0, 1);
 }
 SYSINIT(random_seed, SI_SUB_INTRINSIC_POST, SI_ORDER_LAST,

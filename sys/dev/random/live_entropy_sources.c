@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/random.h>
-#include <sys/selinfo.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -50,44 +49,44 @@ __FBSDID("$FreeBSD$");
 #include "live_entropy_sources.h"
 
 LIST_HEAD(les_head, live_entropy_sources);
-static struct les_head sources = LIST_HEAD_INITIALIZER(sources);
+static struct les_head les_sources = LIST_HEAD_INITIALIZER(les_sources);
 
 /*
- * The live_lock protects the consistency of the "struct les_head sources"
+ * The live_lock protects the consistency of the "struct les_head les_sources"
  */
 static struct sx les_lock; /* need a sleepable lock */
 
 void
 live_entropy_source_register(struct live_entropy_source *rsource)
 {
-	struct live_entropy_sources *les;
+	struct live_entropy_sources *lles;
 
 	KASSERT(rsource != NULL, ("invalid input to %s", __func__));
 
-	les = malloc(sizeof(struct live_entropy_sources), M_ENTROPY, M_WAITOK);
-	les->rsource = rsource;
+	lles = malloc(sizeof(struct live_entropy_sources), M_ENTROPY, M_WAITOK);
+	lles->lles_rsource = rsource;
 
 	sx_xlock(&les_lock);
-	LIST_INSERT_HEAD(&sources, les, entries);
+	LIST_INSERT_HEAD(&les_sources, lles, lles_entries);
 	sx_xunlock(&les_lock);
 }
 
 void
 live_entropy_source_deregister(struct live_entropy_source *rsource)
 {
-	struct live_entropy_sources *les = NULL;
+	struct live_entropy_sources *lles = NULL;
 
 	KASSERT(rsource != NULL, ("invalid input to %s", __func__));
 
 	sx_xlock(&les_lock);
-	LIST_FOREACH(les, &sources, entries)
-		if (les->rsource == rsource) {
-			LIST_REMOVE(les, entries);
+	LIST_FOREACH(lles, &les_sources, lles_entries)
+		if (lles->lles_rsource == rsource) {
+			LIST_REMOVE(lles, lles_entries);
 			break;
 		}
 	sx_xunlock(&les_lock);
-	if (les != NULL)
-		free(les, M_ENTROPY);
+	if (lles != NULL)
+		free(lles, M_ENTROPY);
 }
 
 static int
@@ -95,16 +94,16 @@ live_entropy_source_handler(SYSCTL_HANDLER_ARGS)
 {
 	/* XXX: FIX!! Fixed array size */
 	char buf[128];
-	struct live_entropy_sources *les;
+	struct live_entropy_sources *lles;
 	int count;
 
 	sx_slock(&les_lock);
 
 	buf[0] = '\0';
 	count = 0;
-	LIST_FOREACH(les, &sources, entries) {
+	LIST_FOREACH(lles, &les_sources, lles_entries) {
 		strcat(buf, (count++ ? "," : ""));
-		strcat(buf, les->rsource->ident);
+		strcat(buf, lles->lles_rsource->les_ident);
 	}
 
 	sx_sunlock(&les_lock);
@@ -129,9 +128,9 @@ live_entropy_source_handler(SYSCTL_HANDLER_ARGS)
 void
 live_entropy_sources_feed(void)
 {
-	static struct harvest event;
+	static struct harvest_event event;
 	static u_int dest = 0;
-	struct live_entropy_sources *les;
+	struct live_entropy_sources *lles;
 	int i, n;
 
 	sx_slock(&les_lock);
@@ -140,7 +139,7 @@ live_entropy_sources_feed(void)
 	 * Walk over all of live entropy sources, and feed their output
 	 * to the system-wide RNG.
 	 */
-	LIST_FOREACH(les, &sources, entries) {
+	LIST_FOREACH(lles, &les_sources, lles_entries) {
 
 		/* XXX: FIX!! "2" is the number of pools in Yarrow */
 		for (i = 0; i < 2; i++) {
@@ -149,12 +148,12 @@ live_entropy_sources_feed(void)
 			 * source.
 			 */
 			/* XXX: FIX!! Whine loudly if this didn't work. */
-			n = les->rsource->read(event.entropy, HARVESTSIZE);
-			event.somecounter = get_cyclecount();
-			event.size = n;
-			event.bits = (n*8)/2;
-			event.source = les->rsource->source;
-			event.destination = dest++;
+			n = lles->lles_rsource->les_read(event.he_entropy, HARVESTSIZE);
+			event.he_somecounter = get_cyclecount();
+			event.he_size = n;
+			event.he_bits = (n*8)/2;
+			event.he_source = lles->lles_rsource->les_source;
+			event.he_destination = dest++;
 
 			/* Do the actual entropy insertion */
 			harvest_process_event(&event);
