@@ -636,10 +636,8 @@ vt_bitblt_char(struct vt_device *vd, struct vt_font *vf, term_char_t c,
 		 * Fonts may not always be able to fill the entire
 		 * screen.
 		 */
-		top = row * vf->vf_height +
-		    (vd->vd_height % vf->vf_height) / 2;
-		left = col * vf->vf_width +
-		    (vd->vd_width % vf->vf_width) / 2;
+		top = row * vf->vf_height + vd->vd_offset.tp_row;
+		left = col * vf->vf_width + vd->vd_offset.tp_col;
 
 		vd->vd_driver->vd_bitbltchr(vd, src, top, left,
 		    vf->vf_width, vf->vf_height, fg, bg);
