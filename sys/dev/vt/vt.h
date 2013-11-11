@@ -42,6 +42,7 @@
 #include <sys/condvar.h>
 #include <sys/consio.h>
 #include <sys/kbio.h>
+#include <sys/mouse.h>
 #include <sys/terminal.h>
 #include <sys/sysctl.h>
 
@@ -103,6 +104,12 @@ struct vt_device {
 	struct vt_window	*vd_savedwindow;/* (?) Saved for suspend. */
 	const struct vt_driver	*vd_driver;	/* (c) Graphics driver. */
 	void			*vd_softc;	/* (u) Driver data. */
+	uint16_t		 vd_mx;		/* (?) Mouse X. */
+	uint16_t		 vd_my;		/* (?) Mouse Y. */
+	vt_axis_t		 vd_mdirtyx;	/* (?) Screen width. */
+	vt_axis_t		 vd_mdirtyy;	/* (?) Screen height. */
+	uint32_t		 vd_mstate;	/* (?) Mouse state. */
+	term_pos_t		 vd_offset;	/* (?) Pixel offset. */
 	vt_axis_t		 vd_width;	/* (?) Screen width. */
 	vt_axis_t		 vd_height;	/* (?) Screen height. */
 	struct mtx		 vd_lock;	/* Per-device lock. */
@@ -115,6 +122,7 @@ struct vt_device {
 #define	VDF_INVALID	0x08	/* Entire screen should be re-rendered. */
 #define	VDF_DEAD	0x10	/* Early probing found nothing. */
 #define	VDF_INITIALIZED	0x20	/* vtterm_cnprobe already done. */
+#define	VDF_MOUSECURSOR	0x40	/* Mouse cursor visible. */
 	int			 vd_keyboard;	/* (G) Keyboard index. */
 	unsigned int		 vd_unit;	/* (c) Device unit. */
 };
