@@ -497,18 +497,6 @@ struct ifgroupreq {
 #define ifgr_groups	ifgr_ifgru.ifgru_groups
 };
 
-/*
- * Structure for SIOC[AGD]LIFADDR
- */
-struct if_laddrreq {
-	char	iflr_name[IFNAMSIZ];
-	u_int	flags;
-#define	IFLR_PREFIX	0x8000  /* in: prefix given  out: kernel fills id */
-	u_int	prefixlen;         /* in/out */
-	struct	sockaddr_storage addr;   /* in/out */
-	struct	sockaddr_storage dstaddr; /* out */
-};
-
 #endif /* __BSD_VISIBLE */
 
 #ifdef _KERNEL
