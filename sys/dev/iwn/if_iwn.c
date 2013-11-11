@@ -1738,7 +1738,7 @@ iwn4965_read_eeprom(struct iwn_softc *sc)
 	iwn_read_prom_data(sc, IWN4965_EEPROM_DOMAIN, sc->eeprom_domain, 4);
 
 	/* Read the list of authorized channels (20MHz ones only). */
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < IWN_NBANDS - 1; i++) {
 		addr = iwn4965_regulatory_bands[i];
 		iwn_read_eeprom_channels(sc, i, addr);
 	}
@@ -1829,7 +1829,7 @@ iwn5000_read_eeprom(struct iwn_softc *sc)
 	    sc->eeprom_domain, 4);
 
 	/* Read the list of authorized channels (20MHz ones only). */
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < IWN_NBANDS - 1; i++) {
 		if (sc->hw_type >= IWN_HW_REV_TYPE_6000)
 			addr = base + iwn6000_regulatory_bands[i];
 		else
