@@ -442,9 +442,12 @@ svn_wc__db_bump_moved_away(svn_wc__db_wcroot_t *wcroot,
                            svn_wc__db_t *db,
                            apr_pool_t *scratch_pool);
 
+/* Unbreak the move from LOCAL_RELPATH on op-depth in WCROOT, by making
+   the destination a normal copy */
 svn_error_t *
 svn_wc__db_resolve_break_moved_away_internal(svn_wc__db_wcroot_t *wcroot,
                                              const char *local_relpath,
+                                             int op_depth,
                                              apr_pool_t *scratch_pool);
 
 svn_error_t *

@@ -323,9 +323,9 @@ parse_fingerprint(yaml_document_t *doc, yaml_node_t *node)
 static void
 free_fingerprint_list(struct fingerprint_list* list)
 {
-	struct fingerprint* fingerprint;
+	struct fingerprint *fingerprint, *tmp;
 
-	STAILQ_FOREACH(fingerprint, list, next) {
+	STAILQ_FOREACH_SAFE(fingerprint, list, next, tmp) {
 		if (fingerprint->name)
 			free(fingerprint->name);
 		free(fingerprint);

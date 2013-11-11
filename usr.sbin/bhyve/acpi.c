@@ -259,7 +259,17 @@ basl_fwrite_madt(FILE *fp)
 	EFPRINTF(fp, "[0004]\t\tInterrupt : 00000000\n");
 	EFPRINTF(fp, "\n");
 
-	/* Override the 8259 chained vector. XXX maybe not needed */
+	/* Legacy IRQ0 is connected to pin 2 of the IOAPIC */
+	EFPRINTF(fp, "[0001]\t\tSubtable Type : 02\n");
+	EFPRINTF(fp, "[0001]\t\tLength : 0A\n");
+	EFPRINTF(fp, "[0001]\t\tBus : 00\n");
+	EFPRINTF(fp, "[0001]\t\tSource : 00\n");
+	EFPRINTF(fp, "[0004]\t\tInterrupt : 00000002\n");
+	EFPRINTF(fp, "[0002]\t\tFlags (decoded below) : 0005\n");
+	EFPRINTF(fp, "\t\t\tPolarity : 1\n");
+	EFPRINTF(fp, "\t\t\tTrigger Mode : 1\n");
+	EFPRINTF(fp, "\n");
+
 	EFPRINTF(fp, "[0001]\t\tSubtable Type : 02\n");
 	EFPRINTF(fp, "[0001]\t\tLength : 0A\n");
 	EFPRINTF(fp, "[0001]\t\tBus : 00\n");

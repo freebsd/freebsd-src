@@ -20,7 +20,7 @@
 __FBSDID("$FreeBSD$");
 
 /*-
- * Ralink Technology RT2700U/RT2800U/RT3000U chipset driver.
+ * Ralink Technology RT2700U/RT2800U/RT3000U/RT3900E chipset driver.
  * http://www.ralinktech.com/
  */
 
@@ -74,8 +74,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/wlan/if_runreg.h>
 #include <dev/usb/wlan/if_runvar.h>
-
-#define	N(_a) ((int)(sizeof((_a)) / sizeof((_a)[0])))
 
 #ifdef	USB_DEBUG
 #define RUN_DEBUG
@@ -174,6 +172,7 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(DLINK,		RT2870),
     RUN_DEV(DLINK,		RT3072),
     RUN_DEV(DLINK,		DWA127),
+    RUN_DEV(DLINK,		DWA140B3),
     RUN_DEV(DLINK2,		DWA130),
     RUN_DEV(DLINK2,		RT2870_1),
     RUN_DEV(DLINK2,		RT2870_2),
@@ -257,6 +256,7 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(RALINK,		RT3072),
     RUN_DEV(RALINK,		RT3370),
     RUN_DEV(RALINK,		RT3572),
+    RUN_DEV(RALINK,		RT5370),
     RUN_DEV(RALINK,		RT8070),
     RUN_DEV(SAMSUNG,		WIS09ABGN),
     RUN_DEV(SAMSUNG2,		RT2870_1),
@@ -350,7 +350,7 @@ static int	run_rt3070_rf_write(struct run_softc *, uint8_t, uint8_t);
 static int	run_bbp_read(struct run_softc *, uint8_t, uint8_t *);
 static int	run_bbp_write(struct run_softc *, uint8_t, uint8_t);
 static int	run_mcu_cmd(struct run_softc *, uint8_t, uint16_t);
-static const char *run_get_rf(int);
+static const char *run_get_rf(uint16_t);
 static int	run_read_eeprom(struct run_softc *);
 static struct ieee80211_node *run_node_alloc(struct ieee80211vap *,
 			    const uint8_t mac[IEEE80211_ADDR_LEN]);
@@ -362,7 +362,7 @@ static void	run_key_update_begin(struct ieee80211vap *);
 static void	run_key_update_end(struct ieee80211vap *);
 static void	run_key_set_cb(void *);
 static int	run_key_set(struct ieee80211vap *, struct ieee80211_key *,
-			    const uint8_t mac[IEEE80211_ADDR_LEN]);
+		    const uint8_t mac[IEEE80211_ADDR_LEN]);
 static void	run_key_delete_cb(void *);
 static int	run_key_delete(struct ieee80211vap *, struct ieee80211_key *);
 static void	run_ratectl_to(void *);
@@ -394,6 +394,7 @@ static void	run_set_rx_antenna(struct run_softc *, int);
 static void	run_rt2870_set_chan(struct run_softc *, u_int);
 static void	run_rt3070_set_chan(struct run_softc *, u_int);
 static void	run_rt3572_set_chan(struct run_softc *, u_int);
+static void	run_rt5390_set_chan(struct run_softc *, u_int);
 static int	run_set_chan(struct run_softc *, struct ieee80211_channel *);
 static void	run_set_channel(struct ieee80211com *);
 static void	run_scan_start(struct ieee80211com *);
@@ -417,12 +418,15 @@ static void	run_update_mcast(struct ifnet *);
 static int8_t	run_rssi2dbm(struct run_softc *, uint8_t, uint8_t);
 static void	run_update_promisc_locked(struct ifnet *);
 static void	run_update_promisc(struct ifnet *);
+static void	run_rt5390_bbp_init(struct run_softc *);
 static int	run_bbp_init(struct run_softc *);
 static int	run_rt3070_rf_init(struct run_softc *);
+static void	run_rt5390_rf_init(struct run_softc *);
 static int	run_rt3070_filter_calib(struct run_softc *, uint8_t, uint8_t,
 		    uint8_t *);
 static void	run_rt3070_rf_setup(struct run_softc *);
 static int	run_txrx_enable(struct run_softc *);
+static void	run_adjust_freq_offset(struct run_softc *);
 static void	run_init(void *);
 static void	run_init_locked(struct run_softc *);
 static void	run_stop(void *);
@@ -440,6 +444,8 @@ static const struct {
 	uint8_t	val;
 } rt2860_def_bbp[] = {
 	RT2860_DEF_BBP
+},rt5390_def_bbp[] = {
+	RT5390_DEF_BBP
 };
 
 static const struct rfprog {
@@ -462,6 +468,10 @@ static const struct {
 	RT3070_DEF_RF
 },rt3572_def_rf[] = {
 	RT3572_DEF_RF
+},rt5390_def_rf[] = {
+	RT5390_DEF_RF
+},rt5392_def_rf[] = {
+	RT5392_DEF_RF
 };
 
 static const struct usb_config run_config[RUN_N_XFER] = {
@@ -665,7 +675,7 @@ run_attach(device_t self)
 	    sc->rf_rev == RT2860_RF_2850 ||
 	    sc->rf_rev == RT3070_RF_3052) {
 		/* set supported .11a rates */
-		for (i = 14; i < N(rt2860_rf2850); i++) {
+		for (i = 14; i < nitems(rt2860_rf2850); i++) {
 			uint8_t chan = rt2860_rf2850[i].chan;
 			ic->ic_channels[ic->ic_nchans].ic_freq =
 			    ieee80211_ieee2mhz(chan, IEEE80211_CHAN_A);
@@ -1176,7 +1186,7 @@ run_write_region_1(struct run_softc *sc, uint16_t reg, const uint8_t *buf,
 	 * NOTE: It appears the WRITE_REGION_1 command cannot be
 	 * passed a huge amount of data, which will crash the
 	 * firmware. Limit amount of data passed to 64-bytes at a
-	 * time:
+	 * time.
 	 */
 	while (len > 0) {
 		int delta = 64;
@@ -1453,7 +1463,7 @@ b4inc(uint32_t b32, int8_t delta)
 }
 
 static const char *
-run_get_rf(int rev)
+run_get_rf(uint16_t rev)
 {
 	switch (rev) {
 	case RT2860_RF_2820:	return "RT2820";
@@ -1465,6 +1475,8 @@ run_get_rf(int rev)
 	case RT3070_RF_3021:	return "RT3021";
 	case RT3070_RF_3022:	return "RT3022";
 	case RT3070_RF_3052:	return "RT3052";
+	case RT5390_RF_5370:	return "RT5370";
+	case RT5390_RF_5372:	return "RT5372";
 	}
 	return ("unknown");
 }
@@ -1501,21 +1513,25 @@ run_read_eeprom(struct run_softc *sc)
 	sc->sc_bssid[4] = val & 0xff;
 	sc->sc_bssid[5] = val >> 8;
 
-	/* read vender BBP settings */
-	for (i = 0; i < 10; i++) {
-		run_srom_read(sc, RT2860_EEPROM_BBP_BASE + i, &val);
-		sc->bbp[i].val = val & 0xff;
-		sc->bbp[i].reg = val >> 8;
-		DPRINTF("BBP%d=0x%02x\n", sc->bbp[i].reg, sc->bbp[i].val);
-	}
-	if (sc->mac_ver >= 0x3071) {
-		/* read vendor RF settings */
+	if (sc->mac_ver < 0x5390) {
+		/* read vender BBP settings */
 		for (i = 0; i < 10; i++) {
-			run_srom_read(sc, RT3071_EEPROM_RF_BASE + i, &val);
-			sc->rf[i].val = val & 0xff;
-			sc->rf[i].reg = val >> 8;
-			DPRINTF("RF%d=0x%02x\n", sc->rf[i].reg,
-			    sc->rf[i].val);
+			run_srom_read(sc, RT2860_EEPROM_BBP_BASE + i, &val);
+			sc->bbp[i].val = val & 0xff;
+			sc->bbp[i].reg = val >> 8;
+			DPRINTF("BBP%d=0x%02x\n", sc->bbp[i].reg,
+			    sc->bbp[i].val);
+		}
+		if (sc->mac_ver >= 0x3071) {
+			/* read vendor RF settings */
+			for (i = 0; i < 10; i++) {
+				run_srom_read(sc, RT3071_EEPROM_RF_BASE + i,
+				   &val);
+				sc->rf[i].val = val & 0xff;
+				sc->rf[i].reg = val >> 8;
+				DPRINTF("RF%d=0x%02x\n", sc->rf[i].reg,
+				    sc->rf[i].val);
+			}
 		}
 	}
 
@@ -1541,7 +1557,11 @@ run_read_eeprom(struct run_softc *sc)
 	    sc->leds, sc->led[0], sc->led[1], sc->led[2]);
 
 	/* read RF information */
-	run_srom_read(sc, RT2860_EEPROM_ANTENNA, &val);
+	if (sc->mac_ver >= 0x5390)
+		run_srom_read(sc, 0x00, &val);
+	else
+		run_srom_read(sc, RT2860_EEPROM_ANTENNA, &val);
+
 	if (val == 0xffff) {
 		DPRINTF("invalid EEPROM antenna info, using default\n");
 		if (sc->mac_ver == 0x3572) {
@@ -1561,11 +1581,15 @@ run_read_eeprom(struct run_softc *sc)
 			sc->nrxchains = 2;
 		}
 	} else {
-		sc->rf_rev = (val >> 8) & 0xf;
+		if (sc->mac_ver >= 0x5390) {
+			sc->rf_rev = val;
+			run_srom_read(sc, RT2860_EEPROM_ANTENNA, &val);
+		} else
+			sc->rf_rev = (val >> 8) & 0xf;
 		sc->ntxchains = (val >> 4) & 0xf;
 		sc->nrxchains = val & 0xf;
 	}
-	DPRINTF("EEPROM RF rev=0x%02x chains=%dT%dR\n",
+	DPRINTF("EEPROM RF rev=0x%04x chains=%dT%dR\n",
 	    sc->rf_rev, sc->ntxchains, sc->nrxchains);
 
 	/* check if RF supports automatic Tx access gain control */
@@ -1589,16 +1613,29 @@ run_read_eeprom(struct run_softc *sc)
 		sc->txpow1[i + 0] = (int8_t)(val & 0xff);
 		sc->txpow1[i + 1] = (int8_t)(val >> 8);
 
-		run_srom_read(sc, RT2860_EEPROM_PWR2GHZ_BASE2 + i / 2, &val);
-		sc->txpow2[i + 0] = (int8_t)(val & 0xff);
-		sc->txpow2[i + 1] = (int8_t)(val >> 8);
+		if (sc->mac_ver != 0x5390) {
+			run_srom_read(sc,
+			    RT2860_EEPROM_PWR2GHZ_BASE2 + i / 2, &val);
+			sc->txpow2[i + 0] = (int8_t)(val & 0xff);
+			sc->txpow2[i + 1] = (int8_t)(val >> 8);
+		}
 	}
 	/* fix broken Tx power entries */
 	for (i = 0; i < 14; i++) {
-		if (sc->txpow1[i] < 0 || sc->txpow1[i] > 31)
-			sc->txpow1[i] = 5;
-		if (sc->txpow2[i] < 0 || sc->txpow2[i] > 31)
-			sc->txpow2[i] = 5;
+		if (sc->mac_ver >= 0x5390) {
+			if (sc->txpow1[i] < 0 || sc->txpow1[i] > 27)
+				sc->txpow1[i] = 5;
+		} else {
+			if (sc->txpow1[i] < 0 || sc->txpow1[i] > 31)
+				sc->txpow1[i] = 5;
+		}
+		if (sc->mac_ver > 0x5390) {
+			if (sc->txpow2[i] < 0 || sc->txpow2[i] > 27)
+				sc->txpow2[i] = 5;
+		} else if (sc->mac_ver < 0x5390) {
+			if (sc->txpow2[i] < 0 || sc->txpow2[i] > 31)
+				sc->txpow2[i] = 5;
+		}
 		DPRINTF("chan %d: power1=%d, power2=%d\n",
 		    rt2860_rf2850[i].chan, sc->txpow1[i], sc->txpow2[i]);
 	}
@@ -3544,15 +3581,24 @@ run_select_chan_group(struct run_softc *sc, int group)
 	run_bbp_write(sc, 62, 0x37 - sc->lna[group]);
 	run_bbp_write(sc, 63, 0x37 - sc->lna[group]);
 	run_bbp_write(sc, 64, 0x37 - sc->lna[group]);
-	run_bbp_write(sc, 86, 0x00);
+	if (sc->mac_ver < 0x5390)
+		run_bbp_write(sc, 86, 0x00);
 
 	if (group == 0) {
 		if (sc->ext_2ghz_lna) {
-			run_bbp_write(sc, 82, 0x62);
-			run_bbp_write(sc, 75, 0x46);
+			if (sc->mac_ver >= 0x5390)
+				run_bbp_write(sc, 75, 0x52);
+			else {
+				run_bbp_write(sc, 82, 0x62);
+				run_bbp_write(sc, 75, 0x46);
+			}
 		} else {
-			run_bbp_write(sc, 82, 0x84);
-			run_bbp_write(sc, 75, 0x50);
+			if (sc->mac_ver >= 0x5390)
+				run_bbp_write(sc, 75, 0x50);
+			else {
+				run_bbp_write(sc, 82, 0x84);
+				run_bbp_write(sc, 75, 0x50);
+			}
 		}
 	} else {
 		if (sc->mac_ver == 0x3572)
@@ -3879,18 +3925,141 @@ run_rt3572_set_chan(struct run_softc *sc, u_int chan)
 }
 
 static void
+run_rt5390_set_chan(struct run_softc *sc, u_int chan)
+{
+	int8_t txpow1, txpow2;
+	uint8_t rf;
+	int i;
+
+	/* find the settings for this channel (we know it exists) */
+	for (i = 0; rt2860_rf2850[i].chan != chan; i++);
+
+	/* use Tx power values from EEPROM */
+	txpow1 = sc->txpow1[i];
+	txpow2 = sc->txpow2[i];
+
+	run_rt3070_rf_write(sc, 8, rt3070_freqs[i].n);
+	run_rt3070_rf_write(sc, 9, rt3070_freqs[i].k & 0x0f);
+	run_rt3070_rf_read(sc, 11, &rf);
+	rf = (rf & ~0x03) | (rt3070_freqs[i].r & 0x03);
+	run_rt3070_rf_write(sc, 11, rf);
+
+	run_rt3070_rf_read(sc, 49, &rf);
+	rf = (rf & ~0x3f) | (txpow1 & 0x3f);
+	/* The valid range of the RF R49 is 0x00 to 0x27. */
+	if ((rf & 0x3f) > 0x27)
+		rf = (rf & ~0x3f) | 0x27;
+	run_rt3070_rf_write(sc, 49, rf);
+
+	if (sc->mac_ver == 0x5392) {
+		run_rt3070_rf_read(sc, 50, &rf);
+		rf = (rf & ~0x3f) | (txpow2 & 0x3f);
+		/* The valid range of the RF R50 is 0x00 to 0x27. */
+		if ((rf & 0x3f) > 0x27)
+			rf = (rf & ~0x3f) | 0x27;
+		run_rt3070_rf_write(sc, 50, rf);
+	}
+
+	run_rt3070_rf_read(sc, 1, &rf);
+	rf |= RT3070_RF_BLOCK | RT3070_PLL_PD | RT3070_RX0_PD | RT3070_TX0_PD;
+	if (sc->mac_ver == 0x5392)
+		rf |= RT3070_RX1_PD | RT3070_TX1_PD;
+	run_rt3070_rf_write(sc, 1, rf);
+
+	if (sc->mac_ver != 0x5392) {
+		run_rt3070_rf_read(sc, 2, &rf);
+		rf |= 0x80;
+		run_rt3070_rf_write(sc, 2, rf);
+		run_delay(sc, 10);
+		rf &= 0x7f;
+		run_rt3070_rf_write(sc, 2, rf);
+	}
+
+	run_adjust_freq_offset(sc);
+
+	if (sc->mac_ver == 0x5392) {
+		/* Fix for RT5392C. */
+		if (sc->mac_rev >= 0x0223) {
+			if ((chan >= 1) && (chan <= 4))
+				rf = 0x0f;
+			else if ((chan >= 5) && (chan <= 7))
+				rf = 0x0e;
+			else if ((chan >= 8) && (chan <= 14))
+				rf = 0x0d;
+			run_rt3070_rf_write(sc, 23, rf);
+
+			if ((chan >= 1) && (chan <= 4))
+				rf = 0x0c;
+			else if (chan == 5)
+				rf = 0x0b;
+			else if ((chan >= 6) && (chan <= 7))
+				rf = 0x0a;
+			else if ((chan >= 8) && (chan <= 10))
+				rf = 0x09;
+			else if ((chan >= 11) && (chan <= 14))
+				rf = 0x08;
+			run_rt3070_rf_write(sc, 59, rf);
+		} else {
+			if ((chan >= 1) && (chan <= 11))
+				rf = 0x0f;
+			else if ((chan >= 12) && (chan <= 14))
+				rf = 0x0b;
+			run_rt3070_rf_write(sc, 59, rf);
+		}
+	} else {
+		/* Fix for RT5390F. */
+		if (sc->mac_rev >= 0x0502) {
+			if ((chan >= 1) && (chan <= 11))
+				rf = 0x43;
+			else if ((chan >= 12) && (chan <= 14))
+				rf = 0x23;
+			run_rt3070_rf_write(sc, 55, rf);
+
+			if ((chan >= 1) && (chan <= 11))
+				rf = 0x0f;
+			else if (chan == 12)
+				rf = 0x0d;
+			else if ((chan >= 13) && (chan <= 14))
+				rf = 0x0b;
+			run_rt3070_rf_write(sc, 59, rf);
+		} else {
+			run_rt3070_rf_write(sc, 55, 0x44);
+			run_rt3070_rf_write(sc, 59, 0x8f);
+		}
+	}
+
+	/* Enable VCO calibration. */
+	run_rt3070_rf_read(sc, 3, &rf);
+	rf |= RT5390_VCOCAL;
+	run_rt3070_rf_write(sc, 3, rf);
+}
+
+static void
 run_set_rx_antenna(struct run_softc *sc, int aux)
 {
 	uint32_t tmp;
+	uint8_t bbp152;
 
 	if (aux) {
-		run_mcu_cmd(sc, RT2860_MCU_CMD_ANTSEL, 0);
-		run_read(sc, RT2860_GPIO_CTRL, &tmp);
-		run_write(sc, RT2860_GPIO_CTRL, (tmp & ~0x0808) | 0x08);
+		if (sc->rf_rev == RT5390_RF_5370) {
+			run_bbp_read(sc, 152, &bbp152);
+			run_bbp_write(sc, 152, bbp152 & ~0x80);
+		}
+		if (sc->rf_rev == RT3070_RF_3020) {
+			run_mcu_cmd(sc, RT2860_MCU_CMD_ANTSEL, 0);
+			run_read(sc, RT2860_GPIO_CTRL, &tmp);
+			run_write(sc, RT2860_GPIO_CTRL, (tmp & ~0x0808) | 0x08);
+		}
 	} else {
-		run_mcu_cmd(sc, RT2860_MCU_CMD_ANTSEL, 1);
-		run_read(sc, RT2860_GPIO_CTRL, &tmp);
-		run_write(sc, RT2860_GPIO_CTRL, tmp & ~0x0808);
+		if (sc->rf_rev == RT5390_RF_5370) {
+			run_bbp_read(sc, 152, &bbp152);
+			run_bbp_write(sc, 152, bbp152 | 0x80);
+		}
+		if (sc->rf_rev == RT3070_RF_3020) {
+			run_mcu_cmd(sc, RT2860_MCU_CMD_ANTSEL, 1);
+			run_read(sc, RT2860_GPIO_CTRL, &tmp);
+			run_write(sc, RT2860_GPIO_CTRL, tmp & ~0x0808);
+		}
 	}
 }
 
@@ -3904,7 +4073,9 @@ run_set_chan(struct run_softc *sc, struct ieee80211_channel *c)
 	if (chan == 0 || chan == IEEE80211_CHAN_ANY)
 		return (EINVAL);
 
-	if (sc->mac_ver == 0x3572)
+	if (sc->mac_ver >= 0x5390)
+		run_rt5390_set_chan(sc, chan);
+	else if (sc->mac_ver == 0x3572)
 		run_rt3572_set_chan(sc, chan);
 	else if (sc->mac_ver >= 0x3070)
 		run_rt3070_set_chan(sc, chan);
@@ -4184,7 +4355,8 @@ run_enable_tsf_sync(struct run_softc *sc)
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	uint32_t tmp;
 
-	DPRINTF("rvp_id=%d ic_opmode=%d\n", RUN_VAP(vap)->rvp_id, ic->ic_opmode);
+	DPRINTF("rvp_id=%d ic_opmode=%d\n", RUN_VAP(vap)->rvp_id,
+	    ic->ic_opmode);
 
 	run_read(sc, RT2860_BCN_TIME_CFG, &tmp);
 	tmp &= ~0x1fffff;
@@ -4356,6 +4528,35 @@ run_rssi2dbm(struct run_softc *sc, uint8_t rssi, uint8_t rxchain)
 	return (-12 - delta - rssi);
 }
 
+static void
+run_rt5390_bbp_init(struct run_softc *sc)
+{
+	int i;
+	uint8_t bbp4;
+
+	/* Avoid data lost and CRC error. */
+	run_bbp_read(sc, 4, &bbp4);
+	run_bbp_write(sc, 4, bbp4 | 0x40);
+
+	for (i = 0; i < nitems(rt5390_def_bbp); i++) {
+		run_bbp_write(sc, rt5390_def_bbp[i].reg,
+		    rt5390_def_bbp[i].val);
+	}
+	if (sc->mac_ver == 0x5392) {
+		run_bbp_write(sc, 88, 0x90);
+		run_bbp_write(sc, 95, 0x9a);
+		run_bbp_write(sc, 98, 0x12);
+		run_bbp_write(sc, 106, 0x12);
+		run_bbp_write(sc, 134, 0xd0);
+		run_bbp_write(sc, 135, 0xf6);
+		run_bbp_write(sc, 148, 0x84);
+	}
+
+	/* Disable hardware antenna diversity. */
+	if (sc->mac_ver == 0x5390)
+		run_bbp_write(sc, 154, 0);
+}
+
 static int
 run_bbp_init(struct run_softc *sc)
 {
@@ -4373,9 +4574,13 @@ run_bbp_init(struct run_softc *sc)
 		return (ETIMEDOUT);
 
 	/* initialize BBP registers to default values */
-	for (i = 0; i < N(rt2860_def_bbp); i++) {
-		run_bbp_write(sc, rt2860_def_bbp[i].reg,
-		    rt2860_def_bbp[i].val);
+	if (sc->mac_ver >= 0x5390)
+		run_rt5390_bbp_init(sc);
+	else {
+		for (i = 0; i < nitems(rt2860_def_bbp); i++) {
+			run_bbp_write(sc, rt2860_def_bbp[i].reg,
+			    rt2860_def_bbp[i].val);
+		}
 	}
 
 	/* fix BBP84 for RT2860E */
@@ -4408,12 +4613,12 @@ run_rt3070_rf_init(struct run_softc *sc)
 
 	/* initialize RF registers to default value */
 	if (sc->mac_ver == 0x3572) {
-		for (i = 0; i < N(rt3572_def_rf); i++) {
+		for (i = 0; i < nitems(rt3572_def_rf); i++) {
 			run_rt3070_rf_write(sc, rt3572_def_rf[i].reg,
 			    rt3572_def_rf[i].val);
 		}
 	} else {
-		for (i = 0; i < N(rt3070_def_rf); i++) {
+		for (i = 0; i < nitems(rt3070_def_rf); i++) {
 			run_rt3070_rf_write(sc, rt3070_def_rf[i].reg,
 			    rt3070_def_rf[i].val);
 		}
@@ -4537,6 +4742,62 @@ run_rt3070_rf_init(struct run_softc *sc)
 	return (0);
 }
 
+static void
+run_rt5390_rf_init(struct run_softc *sc)
+{
+	uint32_t tmp;
+	uint8_t rf;
+	int i;
+
+	if (sc->mac_ver == 0x5392)
+		run_rt3070_rf_write(sc, 2, 0x80);
+	else {
+		run_rt3070_rf_read(sc, 2, &rf);
+		/* Toggle RF R2 to initiate calibration. */
+		run_rt3070_rf_write(sc, 2, rf | 0x80);
+		run_delay(sc, 10);
+		run_rt3070_rf_write(sc, 2, rf & ~0x80);
+	}
+
+	/* Initialize RF registers to default value. */
+	if (sc->mac_ver == 0x5392) {
+		for (i = 0; i < nitems(rt5392_def_rf); i++) {
+			run_rt3070_rf_write(sc, rt5392_def_rf[i].reg,
+			    rt5392_def_rf[i].val);
+		}
+		if (sc->mac_rev >= 0x0223) {
+			run_rt3070_rf_write(sc, 23, 0x0f);
+			run_rt3070_rf_write(sc, 24, 0x3e);
+			run_rt3070_rf_write(sc, 51, 0x32);
+			run_rt3070_rf_write(sc, 53, 0x22);
+			run_rt3070_rf_write(sc, 56, 0xc1);
+			run_rt3070_rf_write(sc, 59, 0x0f);
+		}
+	} else {
+		for (i = 0; i < nitems(rt5390_def_rf); i++) {
+			run_rt3070_rf_write(sc, rt5390_def_rf[i].reg,
+			    rt5390_def_rf[i].val);
+		}
+		if (sc->mac_rev >= 0x0502) {
+			run_rt3070_rf_write(sc, 6, 0xe0);
+			run_rt3070_rf_write(sc, 25, 0x80);
+			run_rt3070_rf_write(sc, 46, 0x73);
+			run_rt3070_rf_write(sc, 53, 0x00);
+			run_rt3070_rf_write(sc, 56, 0x42);
+			run_rt3070_rf_write(sc, 61, 0xd1);
+		}
+	}
+
+	sc->rf24_20mhz = 0x1f;	/* default value */
+	sc->rf24_40mhz = 0x2f;	/* default value */
+
+	if (sc->mac_rev < 0x0211)
+		run_rt3070_rf_write(sc, 27, 0x3);
+
+	run_read(sc, RT3070_OPT_14, &tmp);
+	run_write(sc, RT3070_OPT_14, tmp | 1);
+}
+
 static int
 run_rt3070_filter_calib(struct run_softc *sc, uint8_t init, uint8_t target,
     uint8_t *val)
@@ -4566,7 +4827,7 @@ run_rt3070_filter_calib(struct run_softc *sc, uint8_t init, uint8_t target,
 			break;
 	}
 	if (ntries == 100)
-		return ETIMEDOUT;
+		return (ETIMEDOUT);
 
 	/* set power and frequency of stopband test tone */
 	run_bbp_write(sc, 24, 0x06);
@@ -4608,7 +4869,45 @@ run_rt3070_rf_setup(struct run_softc *sc)
 	uint8_t bbp, rf;
 	int i;
 
-	if (sc->mac_ver == 0x3572) {
+	if (sc->mac_ver >= 0x5390) {
+		if (sc->mac_rev >= 0x0211) {
+			/* Enable DC filter. */
+			run_bbp_write(sc, 103, 0xc0);
+
+			/* Improve power consumption. */
+			run_bbp_read(sc, 31, &bbp);
+			run_bbp_write(sc, 31, bbp & ~0x03);
+		}
+
+		run_bbp_read(sc, 138, &bbp);
+		if (sc->ntxchains == 1)
+			bbp |= 0x20;	/* turn off DAC1 */
+		if (sc->nrxchains == 1)
+			bbp &= ~0x02;	/* turn off ADC1 */
+		run_bbp_write(sc, 138, bbp);
+
+		run_rt3070_rf_read(sc, 38, &rf);
+		run_rt3070_rf_write(sc, 38, rf & ~RT5390_RX_LO1);
+
+		run_rt3070_rf_read(sc, 39, &rf);
+		run_rt3070_rf_write(sc, 39, rf & ~RT5390_RX_LO2);
+
+		/* Avoid data lost and CRC error. */
+		run_bbp_read(sc, 4, &bbp);
+		run_bbp_write(sc, 4, bbp | 0x40);
+
+		run_rt3070_rf_read(sc, 30, &rf);
+		rf = (rf & ~0x18) | 0x10;
+		run_rt3070_rf_write(sc, 30, rf);
+
+		run_write(sc, RT2860_TX_SW_CFG1, 0);
+		if (sc->mac_rev < 0x0211) {
+			run_write(sc, RT2860_TX_SW_CFG2,
+			    sc->patch_dac ? 0x2c : 0x0f);
+		} else
+			run_write(sc, RT2860_TX_SW_CFG2, 0);
+
+	} else if (sc->mac_ver == 0x3572) {
 		/* enable DC filter */
 		if (sc->mac_rev >= 0x0201)
 			run_bbp_write(sc, 103, 0xc0);
@@ -4672,7 +4971,7 @@ run_rt3070_rf_setup(struct run_softc *sc)
 	}
 
 	/* initialize RF registers from ROM for >=RT3071*/
-	if (sc->mac_ver >= 0x3071) {
+	if (sc->mac_ver >= 0x3071 && sc->mac_ver < 0x5390) {
 		for (i = 0; i < 10; i++) {
 			if (sc->rf[i].reg == 0 || sc->rf[i].reg == 0xff)
 				continue;
@@ -4691,13 +4990,13 @@ run_txrx_enable(struct run_softc *sc)
 	run_write(sc, RT2860_MAC_SYS_CTRL, RT2860_MAC_TX_EN);
 	for (ntries = 0; ntries < 200; ntries++) {
 		if ((error = run_read(sc, RT2860_WPDMA_GLO_CFG, &tmp)) != 0)
-			return error;
+			return (error);
 		if ((tmp & (RT2860_TX_DMA_BUSY | RT2860_RX_DMA_BUSY)) == 0)
 			break;
 		run_delay(sc, 50);
 	}
 	if (ntries == 200)
-		return ETIMEDOUT;
+		return (ETIMEDOUT);
 
 	run_delay(sc, 50);
 
@@ -4725,6 +5024,20 @@ run_txrx_enable(struct run_softc *sc)
 	    RT2860_MAC_RX_EN | RT2860_MAC_TX_EN);
 
 	return (0);
+}
+
+static void
+run_adjust_freq_offset(struct run_softc * sc)
+{
+	uint8_t rf, tmp;
+
+	run_rt3070_rf_read(sc, 17, &rf);
+	tmp = rf;
+	rf = (rf & ~0x7f) | (sc->freq & 0x7f);
+	rf = MIN(rf, 0x5f);
+
+	if (tmp != rf)
+		run_mcu_cmd(sc, 0x74, (tmp << 8 ) | rf);
 }
 
 static void
@@ -4800,13 +5113,20 @@ run_init_locked(struct run_softc *sc)
 		run_write(sc, RT2860_TX_PWR_CFG(ridx), sc->txpow20mhz[ridx]);
 	}
 
-	for (i = 0; i < N(rt2870_def_mac); i++)
+	for (i = 0; i < nitems(rt2870_def_mac); i++)
 		run_write(sc, rt2870_def_mac[i].reg, rt2870_def_mac[i].val);
 	run_write(sc, RT2860_WMM_AIFSN_CFG, 0x00002273);
 	run_write(sc, RT2860_WMM_CWMIN_CFG, 0x00002344);
 	run_write(sc, RT2860_WMM_CWMAX_CFG, 0x000034aa);
 
-	if (sc->mac_ver >= 0x3070) {
+	if (sc->mac_ver == 0x5392) {
+		run_write(sc, RT2860_TX_SW_CFG0, 0x00000404);
+		run_write(sc, RT2860_MAX_LEN_CFG, 0x00002fff);
+		run_write(sc, RT2860_HT_FBK_CFG1, 0xedcb4980);
+		run_write(sc, RT2860_LG_FBK_CFG0, 0xedcba322);
+	} else if (sc->mac_ver == 0x5390) {
+		run_write(sc, RT2860_TX_SW_CFG0, 0x00000404);
+	} else if (sc->mac_ver >= 0x3070) {
 		/* set delay of PA_PE assertion to 1us (unit of 0.25us) */
 		run_write(sc, RT2860_TX_SW_CFG0,
 		    4 << RT2860_DLY_PAPE_EN_SHIFT);
@@ -4863,14 +5183,16 @@ run_init_locked(struct run_softc *sc)
 	run_write(sc, RT2860_WMM_TXOP1_CFG, 48 << 16 | 96);
 
 	/* write vendor-specific BBP values (from EEPROM) */
-	for (i = 0; i < 10; i++) {
-		if (sc->bbp[i].reg == 0 || sc->bbp[i].reg == 0xff)
-			continue;
-		run_bbp_write(sc, sc->bbp[i].reg, sc->bbp[i].val);
+	if (sc->mac_ver < 0x5390) {
+		for (i = 0; i < 10; i++) {
+			if (sc->bbp[i].reg == 0 || sc->bbp[i].reg == 0xff)
+				continue;
+			run_bbp_write(sc, sc->bbp[i].reg, sc->bbp[i].val);
+		}
 	}
 
 	/* select Main antenna for 1T1R devices */
-	if (sc->rf_rev == RT3070_RF_3020)
+	if (sc->rf_rev == RT3070_RF_3020 || sc->rf_rev == RT5390_RF_5370)
 		run_set_rx_antenna(sc, 0);
 
 	/* send LEDs operating mode to microcontroller */
@@ -4878,7 +5200,9 @@ run_init_locked(struct run_softc *sc)
 	(void)run_mcu_cmd(sc, RT2860_MCU_CMD_LED2, sc->led[1]);
 	(void)run_mcu_cmd(sc, RT2860_MCU_CMD_LED3, sc->led[2]);
 
-	if (sc->mac_ver >= 0x3070)
+	if (sc->mac_ver >= 0x5390)
+		run_rt5390_rf_init(sc);
+	else if (sc->mac_ver >= 0x3070)
 		run_rt3070_rf_init(sc);
 
 	/* disable non-existing Rx chains */
@@ -4972,6 +5296,24 @@ run_stop(void *arg)
 		sc->rx_m = NULL;
 	}
 
+	/* Disable Tx/Rx DMA. */
+	if (run_read(sc, RT2860_WPDMA_GLO_CFG, &tmp) != 0)
+		return;
+	tmp &= ~(RT2860_RX_DMA_EN | RT2860_TX_DMA_EN);
+	run_write(sc, RT2860_WPDMA_GLO_CFG, tmp);
+
+        for (ntries = 0; ntries < 100; ntries++) {
+		if (run_read(sc, RT2860_WPDMA_GLO_CFG, &tmp) != 0)
+			return;
+		if ((tmp & (RT2860_TX_DMA_BUSY | RT2860_RX_DMA_BUSY)) == 0)
+				break;
+		run_delay(sc, 10);
+	}
+	if (ntries == 100) {
+		device_printf(sc->sc_dev, "timeout waiting for DMA engine\n");
+		return;
+	}
+
 	/* disable Tx/Rx */
 	run_read(sc, RT2860_MAC_SYS_CTRL, &tmp);
 	tmp &= ~(RT2860_MAC_RX_EN | RT2860_MAC_TX_EN);
@@ -4999,8 +5341,6 @@ run_stop(void *arg)
 
 	for (i = 0; i != RUN_EP_QUEUES; i++)
 		run_unsetup_tx_list(sc, &sc->sc_epq[i]);
-
-	return;
 }
 
 static void
@@ -5026,7 +5366,7 @@ static driver_t run_driver = {
 
 static devclass_t run_devclass;
 
-DRIVER_MODULE(run, uhub, run_driver, run_devclass, NULL, 0);
+DRIVER_MODULE(run, uhub, run_driver, run_devclass, NULL, NULL);
 MODULE_DEPEND(run, wlan, 1, 1, 1);
 MODULE_DEPEND(run, usb, 1, 1, 1);
 MODULE_DEPEND(run, firmware, 1, 1, 1);
