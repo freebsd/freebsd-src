@@ -46,6 +46,9 @@ static MALLOC_DEFINE(M_VTBUF, "vtbuf", "vt buffer");
 
 #define	VTBUF_LOCK(vb)		mtx_lock_spin(&(vb)->vb_lock)
 #define	VTBUF_UNLOCK(vb)	mtx_unlock_spin(&(vb)->vb_lock)
+
+#define POS_INDEX(vb, c, r) ((r) * (vb)->vb_scr_size.tp_col + (c))
+
 /*
  * line4
  * line5 <--- curroffset (terminal output to that line)
@@ -125,6 +128,21 @@ vthistory_getpos(const struct vt_buf *vb, unsigned int *offset)
 {
 
 	*offset = vb->vb_roffset;
+}
+
+int
+vtbuf_iscursor(struct vt_buf *vb, int row, int col)
+{
+	if ((vb->vb_flags & VBF_CURSOR) && (vb->vb_cursor.tp_row == row) &&
+	    (vb->vb_cursor.tp_col == col))
+		return (1);
+
+	if ((POS_INDEX(vb, vb->vb_mark_start.tp_col, vb->vb_mark_start.tp_row) <
+	    POS_INDEX(vb, col, row)) && (POS_INDEX(vb, col, row) <=
+	    POS_INDEX(vb, vb->vb_mark_start.tp_col, vb->vb_mark_start.tp_row)))
+		return (1);
+
+	return (0);
 }
 
 static inline uint64_t
@@ -460,6 +478,77 @@ vtbuf_cursor_position(struct vt_buf *vb, const term_pos_t *p)
 	} else {
 		vb->vb_cursor = *p;
 	}
+}
+
+void
+vtbuf_mouse_cursor_position(struct vt_buf *vb, int col, int row)
+{
+	term_rect_t area;
+
+	area.tr_begin.tp_row = MAX(row - 1, 0);
+	area.tr_begin.tp_col = MAX(col - 1, 0);
+	area.tr_end.tp_row = MIN(row + 2, vb->vb_scr_size.tp_row);
+	area.tr_end.tp_col = MIN(col + 2, vb->vb_scr_size.tp_col);
+	vtbuf_dirty(vb, &area);
+}
+
+void
+vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row)
+{
+	term_rect_t area;
+	vt_axis_t tmp;
+
+	switch (type) {
+	case VTB_MARK_END:
+	case VTB_MARK_EXTEND:
+		vb->vb_mark_end.tp_col = col;
+		vb->vb_mark_end.tp_row = row;
+		break;
+	case VTB_MARK_START:
+		vb->vb_mark_start.tp_col = col;
+		vb->vb_mark_start.tp_row = row;
+		/* Start again, so clear end point. */
+		vb->vb_mark_end.tp_col = 0;
+		vb->vb_mark_end.tp_row = 0;
+		break;
+	case VTB_MARK_WORD:
+		vb->vb_mark_start.tp_col = 0; /* XXX */
+		vb->vb_mark_end.tp_col = 10; /* XXX */
+		vb->vb_mark_start.tp_row = vb->vb_mark_end.tp_row = row;
+		break;
+	case VTB_MARK_ROW:
+		vb->vb_mark_start.tp_col = 0;
+		vb->vb_mark_end.tp_col = vb->vb_scr_size.tp_col;
+		vb->vb_mark_start.tp_row = vb->vb_mark_end.tp_row = row;
+		break;
+	}
+
+	/* Swap start and end if start > end. */
+	if (POS_INDEX(vb, vb->vb_mark_start.tp_col, vb->vb_mark_start.tp_row) >
+	    POS_INDEX(vb, vb->vb_mark_end.tp_col, vb->vb_mark_end.tp_row)) {
+		tmp = vb->vb_mark_start.tp_col;
+		vb->vb_mark_start.tp_col = vb->vb_mark_end.tp_col;
+		vb->vb_mark_end.tp_col = tmp;
+		tmp = vb->vb_mark_start.tp_row;
+		vb->vb_mark_start.tp_row = vb->vb_mark_end.tp_row;
+		vb->vb_mark_end.tp_row = tmp;
+	}
+
+	/* Notify renderer to update marked region. */
+	if (vb->vb_mark_start.tp_col || vb->vb_mark_end.tp_col ||
+	    vb->vb_mark_start.tp_row || vb->vb_mark_end.tp_row) {
+
+		area.tr_begin.tp_col = 0;
+		area.tr_begin.tp_row = MIN(vb->vb_mark_start.tp_row,
+		    vb->vb_mark_end.tp_row);
+
+		area.tr_end.tp_col = vb->vb_scr_size.tp_col;
+		area.tr_end.tp_row = MAX(vb->vb_mark_start.tp_row,
+		    vb->vb_mark_end.tp_row);
+
+		vtbuf_dirty(vb, &area);
+	}
+
 }
 
 void
