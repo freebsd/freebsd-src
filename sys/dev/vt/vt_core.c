@@ -1040,6 +1040,109 @@ finish_vt_acq(struct vt_window *vw)
 	return EINVAL;
 }
 
+void
+vt_mouse_event(int type, int x, int y, int event, int cnt)
+{
+	struct vt_device *vd;
+	struct vt_window *vw;
+	struct vt_font *vf;
+	term_pos_t size;
+	int mark;
+
+	vd = main_vd;
+	vw = vd->vd_curwindow;
+	vf = vw->vw_font;
+
+	if (vf == NULL)	/* Text mode. */
+		return;
+
+	/*
+	 * TODO: add flag about pointer position changed, to not redraw chars
+	 * under mouse pointer when nothing changed.
+	 */
+
+	switch (type) {
+	case MOUSE_ACTION:
+	case MOUSE_MOTION_EVENT:
+		/* Movement */
+		x += vd->vd_mx;
+		y += vd->vd_my;
+
+		vt_termsize(vd, vf, &size);
+
+		/* Apply limits. */
+		x = MAX(x, 0);
+		y = MAX(y, 0);
+		x = MIN(x, (size.tp_col * vf->vf_width) - 1);
+		y = MIN(y, (size.tp_row * vf->vf_height) - 1);
+
+		vd->vd_mx = x;
+		vd->vd_my = y;
+		if (vd->vd_mstate & MOUSE_BUTTON1DOWN)
+			vtbuf_set_mark(&vw->vw_buf, VTB_MARK_END,
+			    vd->vd_mx / vf->vf_width,
+			    vd->vd_my / vf->vf_height);
+		return; /* Done */
+	case MOUSE_BUTTON_EVENT:
+		/* Buttons */
+		break;
+	default:
+		return; /* Done */
+	}
+
+	switch (event) {
+	case MOUSE_BUTTON1DOWN:
+		switch (cnt % 4) {
+		case 0:	/* up */
+			mark = VTB_MARK_END;
+			break;
+		case 1: /* single click: start cut operation */
+			mark = VTB_MARK_START;
+			break;
+		case 2:	/* double click: cut a word */
+			mark = VTB_MARK_WORD;
+			break;
+		case 3:	/* triple click: cut a line */
+			mark = VTB_MARK_ROW;
+			break;
+		}
+		break;
+	case VT_MOUSE_PASTEBUTTON:
+		switch (event) {
+		case 0:	/* up */
+			break;
+		default:
+			//sc_mouse_paste(cur_scp);
+			break;
+		}
+		return; /* Done */
+	case VT_MOUSE_EXTENDBUTTON:
+		switch (event) {
+		case 0:	/* up */
+			if (!(vd->vd_mstate & MOUSE_BUTTON1DOWN))
+				mark = VTB_MARK_END;
+			else
+				mark = 0;
+			break;
+		default:
+			mark = VTB_MARK_EXTEND;
+			break;
+		}
+		break;
+	default:
+		return; /* Done */
+	}
+
+	/* Save buttons state. */
+	if (cnt > 0)
+		vd->vd_mstate |= event;
+	else
+		vd->vd_mstate &= ~event;
+
+	vtbuf_set_mark(&vw->vw_buf, mark, vd->vd_mx / vf->vf_width,
+	    vd->vd_my / vf->vf_height);
+}
+
 static int
 vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
     struct thread *td)
