@@ -1,5 +1,5 @@
 #
-# $FreeBSD: projects/pf/head/lib/libz/Makefile 232689 2012-03-08 09:58:17Z glebius $
+# $FreeBSD$
 #
 
 LIB=		z

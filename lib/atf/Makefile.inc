@@ -25,8 +25,6 @@
 #
 # $FreeBSD$
 
-ATF=		${.CURDIR}/../../../contrib/atf
-
 _CFLAGS:=	${CFLAGS}
 _CPPFLAGS:=	${CPPFLAGS}
 _CXXFLAGS:=	${CXXFLAGS}

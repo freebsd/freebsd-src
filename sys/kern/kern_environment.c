@@ -315,20 +315,12 @@ char *
 getenv(const char *name)
 {
 	char buf[KENV_MNAMELEN + 1 + KENV_MVALLEN + 1];
-	char *ret, *cp;
-	int len;
+	char *ret;
 
 	if (dynamic_kenv) {
-		mtx_lock(&kenv_lock);
-		cp = _getenv_dynamic(name, NULL);
-		if (cp != NULL) {
-			strcpy(buf, cp);
-			mtx_unlock(&kenv_lock);
-			len = strlen(buf) + 1;
-			ret = malloc(len, M_KENV, M_WAITOK);
-			strcpy(ret, buf);
+		if (getenv_string(name, buf, sizeof(buf))) {
+			ret = strdup(buf, M_KENV);
 		} else {
-			mtx_unlock(&kenv_lock);
 			ret = NULL;
 			WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 			    "getenv");
@@ -458,15 +450,20 @@ unsetenv(const char *name)
 int
 getenv_string(const char *name, char *data, int size)
 {
-	char *tmp;
+	char *cp;
 
-	tmp = getenv(name);
-	if (tmp != NULL) {
-		strlcpy(data, tmp, size);
-		freeenv(tmp);
-		return (1);
-	} else
-		return (0);
+	if (dynamic_kenv) {
+		mtx_lock(&kenv_lock);
+		cp = _getenv_dynamic(name, NULL);
+		if (cp != NULL)
+			strlcpy(data, cp, size);
+		mtx_unlock(&kenv_lock);
+	} else {
+		cp = _getenv_static(name);
+		if (cp != NULL)
+			strlcpy(data, cp, size);
+	}
+	return (cp != NULL);
 }
 
 /*
@@ -535,18 +532,15 @@ getenv_ulong(const char *name, unsigned long *data)
 int
 getenv_quad(const char *name, quad_t *data)
 {
-	char	*value;
+	char	value[KENV_MNAMELEN + 1 + KENV_MVALLEN + 1];
 	char	*vtp;
 	quad_t	iv;
 
-	value = getenv(name);
-	if (value == NULL)
+	if (!getenv_string(name, value, sizeof(value)))
 		return (0);
 	iv = strtoq(value, &vtp, 0);
-	if (vtp == value || (vtp[0] != '\0' && vtp[1] != '\0')) {
-		freeenv(value);
+	if (vtp == value || (vtp[0] != '\0' && vtp[1] != '\0'))
 		return (0);
-	}
 	switch (vtp[0]) {
 	case 't': case 'T':
 		iv *= 1024;
@@ -559,11 +553,9 @@ getenv_quad(const char *name, quad_t *data)
 	case '\0':
 		break;
 	default:
-		freeenv(value);
 		return (0);
 	}
 	*data = iv;
-	freeenv(value);
 	return (1);
 }
 

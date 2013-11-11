@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2013
+.Dd November 5, 2013
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -583,14 +583,6 @@ The interface is a loopback device.
 The interface is point-to-point;
 .Dq broadcast
 address is actually the address of the other end.
-.It Dv IFF_SMART
-.Aq S*
-The interface manages its own routes, rather than using the generic
-code in
-.Fn if_up
-and
-.Fn if_down .
-This is probably useful for serial lines.
 .It Dv IFF_DRV_RUNNING
 .Aq D*
 The interface has been configured and dynamic resources were
@@ -1284,9 +1276,8 @@ further interpretation.
 The following commands are handled by
 .Fn ifioctl :
 .Pp
-.Bl -tag -width ".Dv OSIOCGIFNETMASK" -offset indent -compact
+.Bl -tag -width ".Dv SIOCGIFNETMASK" -offset indent -compact
 .It Dv SIOCGIFCONF
-.It Dv OSIOCGIFCONF
 Get interface configuration.
 (No call-down to driver.)
 .Pp
@@ -1380,17 +1371,6 @@ function is called to perform the operation; qq.v.
 The socket's protocol control routine is called to implement the
 requested action.
 .Pp
-.It Dv OSIOCGIFADDR
-.It Dv OSIOCGIFDSTADDR
-.It Dv OSIOCGIFBRDADDR
-.It Dv OSIOCGIFNETMASK
-The socket's protocol control routine is called to implement the
-requested action.
-On return,
-.Vt sockaddr
-structures are converted into old-style (no
-.Va sa_len
-member).
 .El
 .El
 .Pp

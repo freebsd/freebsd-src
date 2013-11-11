@@ -30,6 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -118,6 +120,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	const char *propnames[] = {"stdout-path", "linux,stdout-path", "stdout",
 	    "stdin-path", "stdin", NULL};
 	const char **name;
+	const struct ofw_compat_data *cd;
 	struct uart_class *class;
 	phandle_t node, chosen;
 	pcell_t shift, br, rclk;
@@ -166,22 +169,13 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	/*
 	 * Finalize configuration.
 	 */
-	if (fdt_is_compatible(node, "fsl,imx-uart"))
-		class = &uart_imx_class;
-	else if (fdt_is_compatible(node, "quicc"))
-		class = &uart_quicc_class;
-	else if (fdt_is_compatible(node, "lpc"))
-		class = &uart_lpc_class;
-	else if (fdt_is_compatible(node, "arm,pl011"))
-		class = &uart_pl011_class;
-	else if (fdt_is_compatible(node, "exynos"))
-		class = &uart_s3c2410_class;
-	else if (fdt_is_compatible(node, "cadence,uart"))
-		class = &uart_cdnc_class;
-	else if (fdt_is_compatible(node, "ti,ns16550"))
-		class = &uart_ti8250_class;
-	else if (fdt_is_compatible(node, "ns16550"))
-		class = &uart_ns8250_class;
+	for (cd = uart_fdt_compat_data; cd->ocd_str != NULL; ++cd) {
+		if (fdt_is_compatible(node, cd->ocd_str))
+			break;
+	}
+	if (cd->ocd_str == NULL)
+		return (ENXIO);
+	class = (struct uart_class *)cd->ocd_data;
 
 	di->bas.chan = 0;
 	di->bas.regshft = (u_int)shift;

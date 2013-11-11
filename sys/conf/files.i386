@@ -560,6 +560,7 @@ x86/iommu/intel_drv.c		optional acpi acpi_dmar pci
 x86/iommu/intel_fault.c		optional acpi acpi_dmar pci
 x86/iommu/intel_gas.c		optional acpi acpi_dmar pci
 x86/iommu/intel_idpgtbl.c	optional acpi acpi_dmar pci
+x86/iommu/intel_qi.c		optional acpi acpi_dmar pci
 x86/iommu/intel_quirks.c	optional acpi acpi_dmar pci
 x86/iommu/intel_utils.c		optional acpi acpi_dmar pci
 x86/isa/atpic.c			optional atpic

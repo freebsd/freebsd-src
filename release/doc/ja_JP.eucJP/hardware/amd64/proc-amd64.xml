@@ -3,8 +3,7 @@
     $FreeBSD$
     Original revision: 1.5
 -->
-
-<sect1 id="proc">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="proc">
   <title>対応プロセッサおよびマザーボード</title>
 
   <para>&os;/&arch; は 2003 年の半ばに誕生したもので、&arch.print;

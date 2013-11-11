@@ -1686,8 +1686,7 @@ relock_DIOCKILLSTATES:
 		struct pfioc_state	*ps = (struct pfioc_state *)addr;
 		struct pfsync_state	*sp = &ps->state;
 
-		if (sp->timeout >= PFTM_MAX &&
-		    sp->timeout != PFTM_UNTIL_PACKET) {
+		if (sp->timeout >= PFTM_MAX) {
 			error = EINVAL;
 			break;
 		}

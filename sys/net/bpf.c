@@ -577,7 +577,7 @@ bpf_movein(struct uio *uio, int linktype, struct ifnet *ifp, struct mbuf **mp,
 				goto bad;
 			}
 		}
-		bcopy(m->m_data, sockp->sa_data, hlen);
+		bcopy(mtod(m, const void *), sockp->sa_data, hlen);
 	}
 	*hdrlen = hlen;
 

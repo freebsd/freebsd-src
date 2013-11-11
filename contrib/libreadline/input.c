@@ -154,7 +154,7 @@ _rl_unget_char (key)
     {
       pop_index--;
       if (pop_index < 0)
-	pop_index = ibuffer_len - 1;
+	pop_index = ibuffer_len;
       ibuffer[pop_index] = key;
       return (1);
     }

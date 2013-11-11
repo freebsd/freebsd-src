@@ -1,4 +1,6 @@
 # $FreeBSD$
+arm/arm/bus_space_asm_generic.S	standard
+arm/arm/bus_space_generic.c	standard
 arm/arm/cpufunc_asm_arm9.S	standard
 arm/arm/irq_dispatch.S		standard
 arm/s3c2xx0/board_ln2410sbc.c	optional	board_ln2410sbc
