@@ -340,8 +340,8 @@ TEST_SHLIB_VAR_SWIG_RB=\
     done; \
     export @SVN_APR_SHLIB_PATH_VAR@; \
   fi;
- 
-APXS = @APXS@ 
+
+APXS = @APXS@
 
 PYTHON = @PYTHON@
 PERL = @PERL@
