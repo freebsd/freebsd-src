@@ -652,11 +652,13 @@ vt_flush(struct vt_device *vd)
 {
 	struct vt_window *vw = vd->vd_curwindow;
 	struct vt_font *vf = vw->vw_font;
-	term_pos_t size;
-	term_rect_t tarea;
 	struct vt_bufmask tmask;
+	struct mouse_cursor *m;
 	unsigned int row, col;
+	term_rect_t tarea;
+	term_pos_t size;
 	term_char_t *r;
+	int h, w;
 
 	if (vd->vd_flags & VDF_SPLASH || vw->vw_flags & VWF_BUSY)
 		return;
@@ -673,6 +675,12 @@ vt_flush(struct vt_device *vd)
 		vd->vd_flags &= ~VDF_INVALID;
 	}
 
+	/* No mouse for DDB. */
+	if (kdb_active || panicstr != NULL)
+		return;
+
+	/* Mark last mouse position as dirty to erase. */
+	vtbuf_mouse_cursor_position(&vw->vw_buf, vd->vd_mdirtyx, vd->vd_mdirtyy);
 
 	for (row = tarea.tr_begin.tp_row; row < tarea.tr_end.tp_row; row++) {
 		if (!VTBUF_DIRTYROW(&tmask, row))
@@ -686,6 +694,26 @@ vt_flush(struct vt_device *vd)
 			vt_bitblt_char(vd, vf, r[col],
 			    VTBUF_ISCURSOR(&vw->vw_buf, row, col), row, col);
 		}
+	}
+
+	if ((vd->vd_flags & (VDF_MOUSECURSOR|VDF_TEXTMODE)) ==
+	    VDF_MOUSECURSOR) {
+		m = &vt_default_mouse_pointer;
+		w = m->w;
+		h = m->h;
+
+		if ((vd->vd_mx + m->w) > (size.tp_col * vf->vf_width))
+			w = (size.tp_col * vf->vf_width) - vd->vd_mx - 1;
+		if ((vd->vd_my + m->h) > (size.tp_row * vf->vf_height))
+			h = (size.tp_row * vf->vf_height) - vd->vd_my - 1;
+
+		vd->vd_driver->vd_bitbltchr(vd, m->map,
+		    vd->vd_offset.tp_row + vd->vd_my,
+		    vd->vd_offset.tp_col + vd->vd_mx,
+		    w, h, TC_WHITE, TC_BLACK);
+		/* Save point of last mouse cursor to erase it later. */
+		vd->vd_mdirtyx = vd->vd_mx / vf->vf_width;
+		vd->vd_mdirtyy = vd->vd_my / vf->vf_height;
 	}
 }
 
