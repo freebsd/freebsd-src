@@ -81,7 +81,8 @@ static struct fs_type_defn base_defn =
 #else
     NULL,
 #endif
-    NULL
+    NULL /* End of static list: this needs to be reset to NULL if the
+            common_pool used when setting it has been cleared. */
   };
 
 static struct fs_type_defn fsfs_defn =
@@ -355,6 +356,7 @@ svn_fs_initialize(apr_pool_t *pool)
     return SVN_NO_ERROR;
 
   common_pool = svn_pool_create(pool);
+  base_defn.next = NULL;
   SVN_ERR(svn_mutex__init(&common_pool_lock, TRUE, common_pool));
 
   /* ### This won't work if POOL is NULL and libsvn_fs is loaded as a DSO
