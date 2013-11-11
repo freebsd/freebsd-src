@@ -106,18 +106,23 @@ xbox_blank(struct vt_device *vd, term_color_t color)
 }
 
 static void
-xbox_bitbltchr(struct vt_device *vd, const uint8_t *src,
-    vt_axis_t top, vt_axis_t left, unsigned int width, unsigned int height,
-    term_color_t fg, term_color_t bg)
+xbox_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
+    int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
+    unsigned int height, term_color_t fg, term_color_t bg)
 {
 	struct xbox_softc *sc = vd->vd_softc;
 	u_long line;
 	uint32_t fgc, bgc;
 	int c;
-	uint8_t b = 0;
+	uint8_t b, m;
 
 	fgc = colormap[fg];
 	bgc = colormap[bg];
+
+	/* Don't try to put off screen pixels */
+	if (((left + width) > info->fb_width) || ((top + height) >
+	    info->fb_height))
+		return;
 
 	line = (VT_XBOX_WIDTH * top + left) * 4;
 	for (; height > 0; height--) {
@@ -126,6 +131,15 @@ xbox_bitbltchr(struct vt_device *vd, const uint8_t *src,
 				b = *src++;
 			else
 				b <<= 1;
+			if (mask != NULL) {
+				if (c % 8 == 0)
+					m = *mask++;
+				else
+					m <<= 1;
+				/* Skip pixel write, if mask has no bit set. */
+				if ((m & 0x80) == 0)
+					continue;
+			}
 			MEM_WRITE4(sc, line + c * 4, b & 0x80 ? fgc : bgc);
 		}
 		line += VT_XBOX_WIDTH * 4;

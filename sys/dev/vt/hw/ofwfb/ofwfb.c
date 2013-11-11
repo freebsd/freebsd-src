@@ -98,18 +98,23 @@ ofwfb_blank(struct vt_device *vd, term_color_t color)
 }
 
 static void
-ofwfb_bitbltchr(struct vt_device *vd, const uint8_t *src,
-    vt_axis_t top, vt_axis_t left, unsigned int width, unsigned int height,
-    term_color_t fg, term_color_t bg)
+ofwfb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
+    int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
+    unsigned int height, term_color_t fg, term_color_t bg)
 {
 	struct ofwfb_softc *sc = vd->vd_softc;
 	u_long line;
 	uint32_t fgc, bgc;
 	int c;
-	uint8_t b = 0;
+	uint8_t b, m;
 
 	fgc = sc->sc_colormap[fg];
 	bgc = sc->sc_colormap[bg];
+
+	/* Don't try to put off screen pixels */
+	if (((left + width) > info->fb_width) || ((top + height) >
+	    info->fb_height))
+		return;
 
 	line = (sc->sc_stride * top) + left * sc->sc_depth/8;
 	for (; height > 0; height--) {
@@ -118,6 +123,15 @@ ofwfb_bitbltchr(struct vt_device *vd, const uint8_t *src,
 				b = *src++;
 			else
 				b <<= 1;
+			if (mask != NULL) {
+				if (c % 8 == 0)
+					m = *mask++;
+				else
+					m <<= 1;
+				/* Skip pixel write, if mask has no bit set. */
+				if ((m & 0x80) == 0)
+					continue;
+			}
 			switch(sc->sc_depth) {
 			case 8:
 				*(uint8_t *)(sc->sc_addr + line + c) =

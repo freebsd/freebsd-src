@@ -169,9 +169,9 @@ vga_bitblt_draw(struct vt_device *vd, const uint8_t *src,
 }
 
 static void
-vga_bitbltchr(struct vt_device *vd, const uint8_t *src,
-    vt_axis_t top, vt_axis_t left, unsigned int width, unsigned int height,
-    term_color_t fg, term_color_t bg)
+vga_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
+    int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
+    unsigned int height, term_color_t fg, term_color_t bg)
 {
 	struct vga_softc *sc = vd->vd_softc;
 	u_long dst;
@@ -179,6 +179,11 @@ vga_bitbltchr(struct vt_device *vd, const uint8_t *src,
 
 	dst = (VT_VGA_WIDTH * top + left) / 8;
 	shift = left % 8;
+
+	/* Don't try to put off screen pixels */
+	if (((left + width) > VT_VGA_WIDTH) || ((top + height) >
+	    VT_VGA_HEIGHT))
+		return;
 
 	if (sc->vga_curcolor == fg) {
 		vga_bitblt_draw(vd, src, dst, shift, width, height, fg, 0);

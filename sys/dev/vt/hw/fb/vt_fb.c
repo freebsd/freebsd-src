@@ -92,29 +92,46 @@ vt_fb_blank(struct vt_device *vd, term_color_t color)
 }
 
 void
-vt_fb_bitbltchr(struct vt_device *vd, const uint8_t *src,
-    vt_axis_t top, vt_axis_t left, unsigned int width, unsigned int height,
-    term_color_t fg, term_color_t bg)
+vt_fb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
+    int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
+    unsigned int height, term_color_t fg, term_color_t bg)
 {
 	struct fb_info *info;
 	uint32_t fgc, bgc, cc, o;
 	int c, l, bpp;
 	u_long line;
-	uint8_t b;
+	uint8_t b, m;
+	const uint8_t *ch;
 
-	b = 0;
 	info = vd->vd_softc;
 	bpp = FBTYPE_GET_BYTESPP(info);
 	fgc = info->fb_cmap[fg];
 	bgc = info->fb_cmap[bg];
+	if (bpl == 0)
+		bpl = (width + 7) >> 3; /* Bytes per sorce line. */
+
+	/* Don't try to put off screen pixels */
+	if (((left + width) > info->fb_width) || ((top + height) >
+	    info->fb_height))
+		return;
 
 	line = (info->fb_stride * top) + (left * bpp);
 	for (l = 0; l < height; l++) {
+		ch = src;
 		for (c = 0; c < width; c++) {
 			if (c % 8 == 0)
-				b = *src++;
+				b = *ch++;
 			else
 				b <<= 1;
+			if (mask != NULL) {
+				if (c % 8 == 0)
+					m = *mask++;
+				else
+					m <<= 1;
+				/* Skip pixel write, if mask has no bit set. */
+				if ((m & 0x80) == 0)
+					continue;
+			}
 			o = line + (c * bpp);
 			cc = b & 0x80 ? fgc : bgc;
 
@@ -140,6 +157,7 @@ vt_fb_bitbltchr(struct vt_device *vd, const uint8_t *src,
 			}
 		}
 		line += info->fb_stride;
+		src += bpl;
 	}
 }
 

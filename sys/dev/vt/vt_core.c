@@ -640,7 +640,7 @@ vt_bitblt_char(struct vt_device *vd, struct vt_font *vf, term_char_t c,
 		top = row * vf->vf_height + vd->vd_offset.tp_row;
 		left = col * vf->vf_width + vd->vd_offset.tp_col;
 
-		vd->vd_driver->vd_bitbltchr(vd, src, top, left,
+		vd->vd_driver->vd_bitbltchr(vd, src, NULL, 0, top, left,
 		    vf->vf_width, vf->vf_height, fg, bg);
 	} else {
 		vd->vd_driver->vd_putchar(vd, TCHAR_CHARACTER(c),
@@ -659,7 +659,7 @@ vt_flush(struct vt_device *vd)
 	term_rect_t tarea;
 	term_pos_t size;
 	term_char_t *r;
-	int h, w;
+	int bpl, h, w;
 
 	if (vd->vd_flags & VDF_SPLASH || vw->vw_flags & VWF_BUSY)
 		return;
@@ -700,6 +700,7 @@ vt_flush(struct vt_device *vd)
 	if ((vd->vd_flags & (VDF_MOUSECURSOR|VDF_TEXTMODE)) ==
 	    VDF_MOUSECURSOR) {
 		m = &vt_default_mouse_pointer;
+		bpl = (m->w + 7) >> 3; /* Bytes per sorce line. */
 		w = m->w;
 		h = m->h;
 
@@ -708,7 +709,7 @@ vt_flush(struct vt_device *vd)
 		if ((vd->vd_my + m->h) > (size.tp_row * vf->vf_height))
 			h = (size.tp_row * vf->vf_height) - vd->vd_my - 1;
 
-		vd->vd_driver->vd_bitbltchr(vd, m->map,
+		vd->vd_driver->vd_bitbltchr(vd, m->map, m->mask, bpl,
 		    vd->vd_offset.tp_row + vd->vd_my,
 		    vd->vd_offset.tp_col + vd->vd_mx,
 		    w, h, TC_WHITE, TC_BLACK);
@@ -764,8 +765,8 @@ vtterm_splash(struct vt_device *vd)
 		switch (vt_logo_depth) {
 		case 1:
 			/* XXX: Unhardcode colors! */
-			vd->vd_driver->vd_bitbltchr(vd, vt_logo_image, top, left,
-			    vt_logo_width, vt_logo_height, 0xf, 0x0);
+			vd->vd_driver->vd_bitbltchr(vd, vt_logo_image, NULL, 0,
+			    top, left, vt_logo_width, vt_logo_height, 0xf, 0x0);
 		}
 		vd->vd_flags |= VDF_SPLASH;
 	}
