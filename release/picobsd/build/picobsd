@@ -881,7 +881,7 @@ fill_floppy_image() {
     else
     	log "not loading mfs, size ${mfs_size} img ${imgsize}"
     fi
-    log "Compress with kgzip and copy to floppy image"
+    log "Compress with gzip and copy to floppy image"
 
     mkdir -p  ${dst}/boot/kernel
     # XXX loader.conf does not work unless we also load the .4th files
