@@ -51,7 +51,8 @@ struct status_baton
 {
   /* These fields all correspond to the ones in the
      svn_cl__print_status() interface. */
-  const char *cwd_abspath;
+  const char *target_abspath;
+  const char *target_path;
   svn_boolean_t suppress_externals_placeholders;
   svn_boolean_t detailed;
   svn_boolean_t show_last_committed;
@@ -77,6 +78,8 @@ struct status_baton
 struct status_cache
 {
   const char *path;
+  const char *target_abspath;
+  const char *target_path;
   svn_client_status_t *status;
 };
 
@@ -152,10 +155,11 @@ print_status_normal_or_xml(void *baton,
   struct status_baton *sb = baton;
 
   if (sb->xml_mode)
-    return svn_cl__print_status_xml(sb->cwd_abspath, path, status,
-                                    sb->ctx, pool);
+    return svn_cl__print_status_xml(sb->target_abspath, sb->target_path,
+                                    path, status, sb->ctx, pool);
   else
-    return svn_cl__print_status(sb->cwd_abspath, path, status,
+    return svn_cl__print_status(sb->target_abspath, sb->target_path,
+                                path, status,
                                 sb->suppress_externals_placeholders,
                                 sb->detailed,
                                 sb->show_last_committed,
@@ -239,6 +243,8 @@ print_status(void *baton,
       const char *cl_key = apr_pstrdup(sb->cl_pool, status->changelist);
       struct status_cache *scache = apr_pcalloc(sb->cl_pool, sizeof(*scache));
       scache->path = apr_pstrdup(sb->cl_pool, path);
+      scache->target_abspath = apr_pstrdup(sb->cl_pool, sb->target_abspath);
+      scache->target_path = apr_pstrdup(sb->cl_pool, sb->target_path);
       scache->status = svn_client_status_dup(status, sb->cl_pool);
 
       path_array =
@@ -303,7 +309,6 @@ svn_cl__status(apr_getopt_t *os,
                                   "mode"));
     }
 
-  SVN_ERR(svn_dirent_get_absolute(&(sb.cwd_abspath), "", scratch_pool));
   sb.suppress_externals_placeholders = (opt_state->quiet
                                         && (! opt_state->verbose));
   sb.detailed = (opt_state->verbose || opt_state->update);
@@ -327,6 +332,10 @@ svn_cl__status(apr_getopt_t *os,
       svn_revnum_t repos_rev = SVN_INVALID_REVNUM;
 
       svn_pool_clear(iterpool);
+
+      SVN_ERR(svn_dirent_get_absolute(&(sb.target_abspath), target,
+                                      scratch_pool));
+      sb.target_path = target;
 
       SVN_ERR(svn_cl__check_cancel(ctx->cancel_baton));
 
@@ -392,6 +401,8 @@ svn_cl__status(apr_getopt_t *os,
             {
               struct status_cache *scache =
                 APR_ARRAY_IDX(path_array, j, struct status_cache *);
+              sb.target_abspath = scache->target_abspath;
+              sb.target_path = scache->target_path;
               SVN_ERR(print_status_normal_or_xml(&sb, scache->path,
                                                  scache->status, scratch_pool));
             }

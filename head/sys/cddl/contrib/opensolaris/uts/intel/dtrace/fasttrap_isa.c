@@ -1399,12 +1399,12 @@ fasttrap_pid_probe(struct reg *rp)
 #ifdef __amd64
 		if (p->p_model == DATAMODEL_NATIVE) {
 			rp->r_rsp -= sizeof (uintptr_t);
-			ret = fasttrap_sulword(&rp->r_rbp, (void *)rp->r_rsp);
+			ret = fasttrap_sulword((void *)rp->r_rsp, rp->r_rbp);
 		} else {
 #endif
 #ifdef __i386__
 			rp->r_rsp -= sizeof (uint32_t);
-			ret = fasttrap_suword32(&rp->r_rbp, (void *)rp->r_rsp);
+			ret = fasttrap_suword32((void *)rp->r_rsp, rp->r_rbp);
 #endif
 #ifdef __amd64
 		}
@@ -1499,13 +1499,13 @@ fasttrap_pid_probe(struct reg *rp)
 			if (p->p_model == DATAMODEL_NATIVE) {
 				addr = rp->r_rsp - sizeof (uintptr_t);
 				pcps = pc + tp->ftt_size;
-				ret = fasttrap_sulword((void *)addr, &pcps);
+				ret = fasttrap_sulword((void *)addr, pcps);
 			} else {
 #endif
 #ifdef __i386__
 				addr = rp->r_rsp - sizeof (uint32_t);
 				pcps = (uint32_t)(pc + tp->ftt_size);
-				ret = fasttrap_suword32((void *)addr, &pcps);
+				ret = fasttrap_suword32((void *)addr, pcps);
 #endif
 #ifdef __amd64
 			}

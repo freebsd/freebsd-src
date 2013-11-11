@@ -119,7 +119,7 @@ f_startup_rcconf_map()
 	fi
 
 	#
-	# create the in-memory cache (potentially from validated on-disk cache)
+	# Create the in-memory cache (potentially from validated on-disk cache)
 	#
 
 	#
@@ -140,7 +140,7 @@ f_startup_rcconf_map()
 		# the current value and provide error exit status.
 		#
 		STARTUP_RCCONF_MAP=$(
-			(	# Get digest as the first word on the first line
+			(	# Get digest as the first word on first line
 				read digest rest_ignored
 
 				#

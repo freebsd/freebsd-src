@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2012 Matteo Landi, Luigi Rizzo. All rights reserved.
+ * Copyright (C) 2011-2013 Matteo Landi, Luigi Rizzo. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,7 +25,7 @@
 
 /*
  * $FreeBSD$
- * $Id$
+ * $Id: pkt-gen.c 12346 2013-06-12 17:36:25Z luigi $
  *
  * Example program to show how to build a multithreaded packet
  * source/sink using the netmap device.
@@ -40,7 +40,10 @@
 
 #include <ctype.h>	// isprint()
 
-const char *default_payload="netmap pkt-gen payload\n"
+const char *default_payload="netmap pkt-gen DIRECT payload\n"
+	"http://info.iet.unipi.it/~luigi/netmap/ ";
+
+const char *indirect_payload="netmap pkt-gen indirect payload\n"
 	"http://info.iet.unipi.it/~luigi/netmap/ ";
 
 int time_second;	// support for RD() debugging macro
@@ -58,8 +61,8 @@ struct pkt {
 
 struct ip_range {
 	char *name;
-	struct in_addr start, end, cur;
-	uint16_t port0, port1, cur_p;
+	uint32_t start, end; /* same as struct in_addr */
+	uint16_t port0, port1;
 };
 
 struct mac_range {
@@ -80,6 +83,7 @@ struct glob_arg {
 	int burst;
 	int forever;
 	int npackets;	/* total packets to send */
+	int frags;	/* fragments per packet */
 	int nthreads;
 	int cpus;
 	int options;	/* testing */
@@ -103,6 +107,8 @@ struct glob_arg {
 	void *mmap_addr;
 	int mmap_size;
 	char *ifname;
+	char *nmr_config;
+	int dummy_send;
 };
 enum dev_type { DEV_NONE, DEV_NETMAP, DEV_PCAP, DEV_TAP };
 
@@ -137,45 +143,58 @@ struct targ {
 static void
 extract_ip_range(struct ip_range *r)
 {
-	char *p_lo, *p_hi;
-	char buf1[16]; // one ip address
+	char *ap, *pp;
+	struct in_addr a;
 
 	D("extract IP range from %s", r->name);
-	p_lo = index(r->name, ':');	/* do we have ports ? */
-	if (p_lo) {
-		D(" found ports at %s", p_lo);
-		*p_lo++ = '\0';
-		p_hi = index(p_lo, '-');
-		if (p_hi)
-			*p_hi++ = '\0';
-		else
-			p_hi = p_lo;
-		r->port0 = strtol(p_lo, NULL, 0);
-		r->port1 = strtol(p_hi, NULL, 0);
-		if (r->port1 < r->port0) {
-			r->cur_p = r->port0;
-			r->port0 = r->port1;
-			r->port1 = r->cur_p;
+	r->port0 = r->port1 = 0;
+	r->start = r->end = 0;
+
+	/* the first - splits start/end of range */
+	ap = index(r->name, '-');	/* do we have ports ? */
+	if (ap) {
+		*ap++ = '\0';
+	}
+	/* grab the initial values (mandatory) */
+	pp = index(r->name, ':');
+	if (pp) {
+		*pp++ = '\0';
+		r->port0 = r->port1 = strtol(pp, NULL, 0);
+	};
+	inet_aton(r->name, &a);
+	r->start = r->end = ntohl(a.s_addr);
+	if (ap) {
+		pp = index(ap, ':');
+		if (pp) {
+			*pp++ = '\0';
+			if (*pp) 
+				r->port1 = strtol(pp, NULL, 0);
 		}
-		r->cur_p = r->port0;
-		D("ports are %d to %d", r->port0, r->port1);
+		if (*ap) {
+			inet_aton(ap, &a);
+			r->end = ntohl(a.s_addr);
+		}
 	}
-	p_hi = index(r->name, '-');	/* do we have upper ip ? */
-	if (p_hi) {
-		*p_hi++ = '\0';
-	} else
-		p_hi = r->name;
-	inet_aton(r->name, &r->start);
-	inet_aton(p_hi, &r->end);
-	if (r->start.s_addr > r->end.s_addr) {
-		r->cur = r->start;
+	if (r->port0 > r->port1) {
+		uint16_t tmp = r->port0;
+		r->port0 = r->port1;
+		r->port1 = tmp;
+	}
+	if (r->start > r->end) {
+		uint32_t tmp = r->start;
 		r->start = r->end;
-		r->end = r->cur;
+		r->end = tmp;
 	}
-	r->cur = r->start;
-	strncpy(buf1, inet_ntoa(r->end), sizeof(buf1));
-	D("range is %s %d to %s %d", inet_ntoa(r->start), r->port0,
-		buf1, r->port1);
+	{
+		struct in_addr a;
+		char buf1[16]; // one ip address
+
+		a.s_addr = htonl(r->end);
+		strncpy(buf1, inet_ntoa(a), sizeof(buf1));
+		a.s_addr = htonl(r->start);
+		D("range is %s:%d to %s:%d",
+			inet_ntoa(a), r->port0, buf1, r->port1);
+	}
 }
 
 static void
@@ -253,6 +272,53 @@ system_ncpus(void)
 #include <net/if_utun.h>
 #define TAP_CLONEDEV	"/dev/tap"
 #endif /* __APPLE__ */
+
+
+/*
+ * parse the vale configuration in conf and put it in nmr.
+ * The configuration may consist of 0 to 4 numbers separated
+ * by commas: #tx-slots,#rx-slots,#tx-rings,#rx-rings.
+ * Missing numbers or zeroes stand for default values.
+ * As an additional convenience, if exactly one number
+ * is specified, then this is assigned to both #tx-slots and #rx-slots.
+ * If there is no 4th number, then the 3rd is assigned to both #tx-rings
+ * and #rx-rings.
+ */
+void parse_nmr_config(const char* conf, struct nmreq *nmr)
+{
+	char *w, *tok;
+	int i, v;
+
+	nmr->nr_tx_rings = nmr->nr_rx_rings = 0;
+	nmr->nr_tx_slots = nmr->nr_rx_slots = 0;
+	if (conf == NULL || ! *conf)
+		return;
+	w = strdup(conf);
+	for (i = 0, tok = strtok(w, ","); tok; i++, tok = strtok(NULL, ",")) {
+		v = atoi(tok);
+		switch (i) {
+		case 0:
+			nmr->nr_tx_slots = nmr->nr_rx_slots = v;
+			break;
+		case 1:
+			nmr->nr_rx_slots = v;
+			break;
+		case 2:
+			nmr->nr_tx_rings = nmr->nr_rx_rings = v;
+			break;
+		case 3:
+			nmr->nr_rx_rings = v;
+			break;
+		default:
+			D("ignored config: %s", tok);
+			break;
+		}
+	}
+	D("txr %d txd %d rxr %d rxd %d",
+			nmr->nr_tx_rings, nmr->nr_tx_slots,
+			nmr->nr_rx_rings, nmr->nr_rx_slots);
+	free(w);
+}
 
 
 /*
@@ -361,7 +427,9 @@ dump_payload(char *p, int len, struct netmap_ring *ring, int cur)
 
 	/* get the length in ASCII of the length of the packet. */
 	
-	printf("ring %p cur %5d len %5d buf %p\n", ring, cur, len, p);
+	printf("ring %p cur %5d [buf %6d flags 0x%04x len %5d]\n",
+		ring, cur, ring->slot[cur].buf_idx,
+		ring->slot[cur].flags, len);
 	/* hexdump routine */
 	for (i = 0; i < len; ) {
 		memset(buf, sizeof(buf), ' ');
@@ -389,6 +457,54 @@ dump_payload(char *p, int len, struct netmap_ring *ring, int cur)
 #define uh_sum check
 #endif /* linux */
 
+/*
+ * increment the addressed in the packet,
+ * starting from the least significant field.
+ *	DST_IP DST_PORT SRC_IP SRC_PORT
+ */
+static void
+update_addresses(struct pkt *pkt, struct glob_arg *g)
+{
+	uint32_t a;
+	uint16_t p;
+	struct ip *ip = &pkt->ip;
+	struct udphdr *udp = &pkt->udp;
+
+	p = ntohs(udp->uh_sport);
+	if (p < g->src_ip.port1) { /* just inc, no wrap */
+		udp->uh_sport = htons(p + 1);
+		return;
+	}
+	udp->uh_sport = htons(g->src_ip.port0);
+
+	a = ntohl(ip->ip_src.s_addr);
+	if (a < g->src_ip.end) { /* just inc, no wrap */
+		ip->ip_src.s_addr = htonl(a + 1);
+		return;
+	}
+	ip->ip_src.s_addr = htonl(g->src_ip.start);
+
+	udp->uh_sport = htons(g->src_ip.port0);
+	p = ntohs(udp->uh_dport);
+	if (p < g->dst_ip.port1) { /* just inc, no wrap */
+		udp->uh_dport = htons(p + 1);
+		return;
+	}
+	udp->uh_dport = htons(g->dst_ip.port0);
+
+	a = ntohl(ip->ip_dst.s_addr);
+	if (a < g->dst_ip.end) { /* just inc, no wrap */
+		ip->ip_dst.s_addr = htonl(a + 1);
+		return;
+	}
+	ip->ip_dst.s_addr = htonl(g->dst_ip.start);
+
+}
+
+/*
+ * initialize one packet and prepare for the next one.
+ * The copy could be done better instead of repeating it each time.
+ */
 static void
 initialize_packet(struct targ *targ)
 {
@@ -398,9 +514,10 @@ initialize_packet(struct targ *targ)
 	struct udphdr *udp;
 	uint16_t paylen = targ->g->pkt_size - sizeof(*eh) - sizeof(struct ip);
 	const char *payload = targ->g->options & OPT_INDIRECT ?
-		"XXXXXXXXXXXXXXXXXXXXXX" : default_payload;
+		indirect_payload : default_payload;
 	int i, l, l0 = strlen(payload);
 
+	/* create a nice NUL-terminated string */
 	for (i = 0; i < paylen;) {
 		l = min(l0, paylen - i);
 		bcopy(payload, pkt->body + i, l);
@@ -409,6 +526,7 @@ initialize_packet(struct targ *targ)
 	pkt->body[i-1] = '\0';
 	ip = &pkt->ip;
 
+	/* prepare the headers */
         ip->ip_v = IPVERSION;
         ip->ip_hl = 5;
         ip->ip_id = 0;
@@ -418,22 +536,14 @@ initialize_packet(struct targ *targ)
         ip->ip_off = htons(IP_DF); /* Don't fragment */
         ip->ip_ttl = IPDEFTTL;
 	ip->ip_p = IPPROTO_UDP;
-	ip->ip_dst.s_addr = targ->g->dst_ip.cur.s_addr;
-	if (++targ->g->dst_ip.cur.s_addr > targ->g->dst_ip.end.s_addr)
-		targ->g->dst_ip.cur.s_addr = targ->g->dst_ip.start.s_addr;
-	ip->ip_src.s_addr = targ->g->src_ip.cur.s_addr;
-	if (++targ->g->src_ip.cur.s_addr > targ->g->src_ip.end.s_addr)
-		targ->g->src_ip.cur.s_addr = targ->g->src_ip.start.s_addr;
+	ip->ip_dst.s_addr = htonl(targ->g->dst_ip.start);
+	ip->ip_src.s_addr = htonl(targ->g->src_ip.start);
 	ip->ip_sum = wrapsum(checksum(ip, sizeof(*ip), 0));
 
 
 	udp = &pkt->udp;
-        udp->uh_sport = htons(targ->g->src_ip.cur_p);
-	if (++targ->g->src_ip.cur_p > targ->g->src_ip.port1)
-		targ->g->src_ip.cur_p = targ->g->src_ip.port0;
-        udp->uh_dport = htons(targ->g->dst_ip.cur_p);
-	if (++targ->g->dst_ip.cur_p > targ->g->dst_ip.port1)
-		targ->g->dst_ip.cur_p = targ->g->dst_ip.port0;
+        udp->uh_sport = htons(targ->g->src_ip.port0);
+        udp->uh_dport = htons(targ->g->dst_ip.port0);
 	udp->uh_ulen = htons(paylen);
 	/* Magic: taken from sbin/dhclient/packet.c */
 	udp->uh_sum = wrapsum(checksum(udp, sizeof(*udp),
@@ -461,13 +571,18 @@ initialize_packet(struct targ *targ)
  */
 static int
 send_packets(struct netmap_ring *ring, struct pkt *pkt, 
-		int size, u_int count, int options)
+		struct glob_arg *g, u_int count, int options, u_int nfrags)
 {
 	u_int sent, cur = ring->cur;
+	int fcnt;
+	int size = g->pkt_size;
 
 	if (ring->avail < count)
 		count = ring->avail;
-
+	if (count < nfrags) {
+		D("truncating packet, no room for frags %d %d",
+			count, nfrags);
+	}
 #if 0
 	if (options & (OPT_COPY | OPT_PREFETCH) ) {
 		for (sent = 0; sent < count; sent++) {
@@ -480,25 +595,36 @@ send_packets(struct netmap_ring *ring, struct pkt *pkt,
 		cur = ring->cur;
 	}
 #endif
-	for (sent = 0; sent < count; sent++) {
+	for (fcnt = nfrags, sent = 0; sent < count; sent++) {
 		struct netmap_slot *slot = &ring->slot[cur];
 		char *p = NETMAP_BUF(ring, slot->buf_idx);
 
 		slot->flags = 0;
-		if (options & OPT_DUMP)
-			dump_payload(p, size, ring, cur);
 		if (options & OPT_INDIRECT) {
 			slot->flags |= NS_INDIRECT;
-			*((struct pkt **)(void *)p) = pkt;
-		} else if (options & OPT_COPY)
+			slot->ptr = (uint64_t)pkt;
+		} else if (options & OPT_COPY) {
 			pkt_copy(pkt, p, size);
-		else if (options & OPT_MEMCPY)
+			if (fcnt == 1)
+				update_addresses(pkt, g);
+		} else if (options & OPT_MEMCPY) {
 			memcpy(p, pkt, size);
-		else if (options & OPT_PREFETCH)
+			if (fcnt == 1)
+				update_addresses(pkt, g);
+		} else if (options & OPT_PREFETCH) {
 			prefetch(p);
+		}
+		if (options & OPT_DUMP)
+			dump_payload(p, size, ring, cur);
 		slot->len = size;
-		if (sent == count - 1)
+		if (--fcnt > 0)
+			slot->flags |= NS_MOREFRAG;
+		else
+			fcnt = nfrags;
+		if (sent == count - 1) {
+			slot->flags &= ~NS_MOREFRAG;
 			slot->flags |= NS_REPORT;
+		}
 		cur = NETMAP_RING_NEXT(ring, cur);
 	}
 	ring->avail -= sent;
@@ -801,6 +927,7 @@ sender_body(void *data)
 	    for (i = 0; !targ->cancel && (n == 0 || sent < n); i++) {
 		if (pcap_inject(p, pkt, size) != -1)
 			sent++;
+		update_addresses(pkt, targ->g);
 		if (i > 10000) {
 			targ->count = sent;
 			i = 0;
@@ -814,6 +941,7 @@ sender_body(void *data)
 	    for (i = 0; !targ->cancel && (n == 0 || sent < n); i++) {
 		if (write(targ->g->main_fd, pkt, size) != -1)
 			sent++;
+		update_addresses(pkt, targ->g);
 		if (i > 10000) {
 			targ->count = sent;
 			i = 0;
@@ -821,6 +949,8 @@ sender_body(void *data)
 	    }
     } else {
 	int tosend = 0;
+	int frags = targ->g->frags;
+
 	while (!targ->cancel && (n == 0 || sent < n)) {
 
 		if (rate_limit && tosend <= 0) {
@@ -855,11 +985,20 @@ sender_body(void *data)
 			txring = NETMAP_TXRING(nifp, i);
 			if (txring->avail == 0)
 				continue;
-			m = send_packets(txring, &targ->pkt, targ->g->pkt_size,
-					 limit, options);
+			if (frags > 1)
+				limit = ((limit + frags - 1) / frags) * frags;
+				
+			m = send_packets(txring, &targ->pkt, targ->g,
+					 limit, options, frags);
+			ND("limit %d avail %d frags %d m %d", 
+				limit, txring->avail, frags, m);
 			sent += m;
-			tosend -= m;
 			targ->count = sent;
+			if (rate_limit) {
+				tosend -= m;
+				if (tosend <= 0)
+					break;
+			}
 		}
 	}
 	/* flush any remaining packets */
@@ -909,7 +1048,6 @@ receive_packets(struct netmap_ring *ring, u_int limit, int dump)
 		struct netmap_slot *slot = &ring->slot[cur];
 		char *p = NETMAP_BUF(ring, slot->buf_idx);
 
-		slot->flags = OPT_INDIRECT; // XXX
 		if (dump)
 			dump_payload(p, slot->len, ring, cur);
 
@@ -1063,18 +1201,20 @@ usage(void)
 		"\t-n count		number of iterations (can be 0)\n"
 		"\t-t pkts_to_send		also forces tx mode\n"
 		"\t-r pkts_to_receive	also forces rx mode\n"
-		"\t-l pkts_size		in bytes excluding CRC\n"
-		"\t-d dst-ip		end with %%n to sweep n addresses\n"
-		"\t-s src-ip		end with %%n to sweep n addresses\n"
-		"\t-D dst-mac		end with %%n to sweep n addresses\n"
-		"\t-S src-mac		end with %%n to sweep n addresses\n"
+		"\t-l pkt_size		in bytes excluding CRC\n"
+		"\t-d dst_ip[:port[-dst_ip:port]]   single or range\n"
+		"\t-s src_ip[:port[-src_ip:port]]   single or range\n"
+		"\t-D dst-mac\n"
+		"\t-S src-mac\n"
 		"\t-a cpu_id		use setaffinity\n"
 		"\t-b burst size		testing, mostly\n"
 		"\t-c cores		cores to use\n"
 		"\t-p threads		processes/threads to use\n"
 		"\t-T report_ms		milliseconds between reports\n"
-		"\t-P				use libpcap instead of netmap\n"
+		"\t-P			use libpcap instead of netmap\n"
 		"\t-w wait_for_link_time	in seconds\n"
+		"\t-R rate		in packets per second\n"
+		"\t-X			dump payload\n"
 		"",
 		cmd);
 
@@ -1112,6 +1252,7 @@ start_threads(struct glob_arg *g)
 		strncpy(tifreq.nr_name, g->ifname, sizeof(tifreq.nr_name));
 		tifreq.nr_version = NETMAP_API;
 		tifreq.nr_ringid = (g->nthreads > 1) ? (i | NETMAP_HW_RING) : 0;
+		parse_nmr_config(g->nmr_config, &tifreq);
 
 		/*
 		 * if we are acting as a receiver only, do not touch the transmit ring.
@@ -1126,8 +1267,10 @@ start_threads(struct glob_arg *g)
 			D("Unable to register %s", g->ifname);
 			continue;
 		}
+		D("memsize is %d MB", tifreq.nr_memsize >> 20);
 		targs[i].nmr = tifreq;
 		targs[i].nifp = NETMAP_IF(g->mmap_addr, tifreq.nr_offset);
+		D("nifp flags 0x%x", targs[i].nifp->ni_flags);
 		/* start threads. */
 		targs[i].qfirst = (g->nthreads > 1) ? i : 0;
 		targs[i].qlast = (g->nthreads > 1) ? i+1 :
@@ -1343,9 +1486,11 @@ main(int arc, char **argv)
 	g.cpus = 1;
 	g.forever = 1;
 	g.tx_rate = 0;
+	g.frags = 1;
+	g.nmr_config = "";
 
 	while ( (ch = getopt(arc, argv,
-			"a:f:n:i:It:r:l:d:s:D:S:b:c:o:p:PT:w:WvR:X")) != -1) {
+			"a:f:F:n:i:It:r:l:d:s:D:S:b:c:o:p:PT:w:WvR:XC:")) != -1) {
 		struct sf *fn;
 
 		switch(ch) {
@@ -1356,6 +1501,15 @@ main(int arc, char **argv)
 
 		case 'n':
 			g.npackets = atoi(optarg);
+			break;
+
+		case 'F':
+			i = atoi(optarg);
+			if (i < 1 || i > 63) {
+				D("invalid frags %d [1..63], ignore", i);
+				break;
+			}
+			g.frags = i;
 			break;
 
 		case 'f':
@@ -1383,6 +1537,8 @@ main(int arc, char **argv)
 				g.dev_type = DEV_TAP;
 			else
 				g.dev_type = DEV_NETMAP;
+			if (!strcmp(g.ifname, "null"))
+				g.dummy_send = 1;
 			break;
 
 		case 'I':
@@ -1454,6 +1610,9 @@ main(int arc, char **argv)
 			break;
 		case 'X':
 			g.options |= OPT_DUMP;
+			break;
+		case 'C':
+			g.nmr_config = strdup(optarg);
 		}
 	}
 
@@ -1507,6 +1666,8 @@ main(int arc, char **argv)
 		D("cannot open pcap on %s", g.ifname);
 		usage();
 	}
+    } else if (g.dummy_send) {
+	D("using a dummy send routine");
     } else {
 	bzero(&nmr, sizeof(nmr));
 	nmr.nr_version = NETMAP_API;
@@ -1523,20 +1684,36 @@ main(int arc, char **argv)
 	if (g.main_fd == -1) {
 		D("Unable to open /dev/netmap");
 		// fail later
-	} else {
-		if ((ioctl(g.main_fd, NIOCGINFO, &nmr)) == -1) {
-			D("Unable to get if info without name");
-		} else {
-			D("map size is %d Kb", nmr.nr_memsize >> 10);
-		}
-		bzero(&nmr, sizeof(nmr));
-		nmr.nr_version = NETMAP_API;
-		strncpy(nmr.nr_name, g.ifname, sizeof(nmr.nr_name));
-		if ((ioctl(g.main_fd, NIOCGINFO, &nmr)) == -1) {
-			D("Unable to get if info for %s", g.ifname);
-		}
-		devqueues = nmr.nr_rx_rings;
 	}
+	/*
+	 * Register the interface on the netmap device: from now on,
+	 * we can operate on the network interface without any
+	 * interference from the legacy network stack.
+	 *
+	 * We decide to put the first interface registration here to
+	 * give time to cards that take a long time to reset the PHY.
+	 */
+	bzero(&nmr, sizeof(nmr));
+	nmr.nr_version = NETMAP_API;
+	strncpy(nmr.nr_name, g.ifname, sizeof(nmr.nr_name));
+	nmr.nr_version = NETMAP_API;
+	parse_nmr_config(g.nmr_config, &nmr);
+	if (ioctl(g.main_fd, NIOCREGIF, &nmr) == -1) {
+		D("Unable to register interface %s", g.ifname);
+		//continue, fail later
+	}
+	ND("%s: txr %d txd %d rxr %d rxd %d", g.ifname,
+			nmr.nr_tx_rings, nmr.nr_tx_slots,
+			nmr.nr_rx_rings, nmr.nr_rx_slots);
+	//if ((ioctl(g.main_fd, NIOCGINFO, &nmr)) == -1) {
+	//	D("Unable to get if info without name");
+	//} else {
+	//	D("map size is %d Kb", nmr.nr_memsize >> 10);
+	//}
+	if ((ioctl(g.main_fd, NIOCGINFO, &nmr)) == -1) {
+		D("Unable to get if info for %s", g.ifname);
+	}
+	devqueues = nmr.nr_rx_rings;
 
 	/* validate provided nthreads. */
 	if (g.nthreads < 1 || g.nthreads > devqueues) {
@@ -1559,19 +1736,6 @@ main(int arc, char **argv)
 		// continue, fail later
 	}
 
-	/*
-	 * Register the interface on the netmap device: from now on,
-	 * we can operate on the network interface without any
-	 * interference from the legacy network stack.
-	 *
-	 * We decide to put the first interface registration here to
-	 * give time to cards that take a long time to reset the PHY.
-	 */
-	nmr.nr_version = NETMAP_API;
-	if (ioctl(g.main_fd, NIOCREGIF, &nmr) == -1) {
-		D("Unable to register interface %s", g.ifname);
-		//continue, fail later
-	}
 
 
 	/* Print some debug information. */
@@ -1595,6 +1759,7 @@ main(int arc, char **argv)
 	}
     }
 
+		
 	if (g.options) {
 		D("--- SPECIAL OPTIONS:%s%s%s%s%s\n",
 			g.options & OPT_PREFETCH ? " prefetch" : "",
@@ -1603,23 +1768,24 @@ main(int arc, char **argv)
 			g.options & OPT_INDIRECT ? " indirect" : "",
 			g.options & OPT_COPY ? " copy" : "");
 	}
-	
-	if (g.tx_rate == 0) {
-		g.tx_period.tv_sec = 0;
-		g.tx_period.tv_nsec = 0;
-	} else if (g.tx_rate == 1) {
-		g.tx_period.tv_sec = 1;
-		g.tx_period.tv_nsec = 0;
-	} else {
-		g.tx_period.tv_sec = 0;
+
+	g.tx_period.tv_sec = g.tx_period.tv_nsec = 0;
+	if (g.tx_rate > 0) {
+		/* try to have at least something every second,
+		 * reducing the burst size to 0.5s worth of data
+		 * (but no less than one full set of fragments)
+	 	 */
+		if (g.burst > g.tx_rate/2)
+			g.burst = g.tx_rate/2;
+		if (g.burst < g.frags)
+			g.burst = g.frags;
 		g.tx_period.tv_nsec = (1e9 / g.tx_rate) * g.burst;
-		if (g.tx_period.tv_nsec > 1000000000) {
-			g.tx_period.tv_sec = g.tx_period.tv_nsec / 1000000000;
-			g.tx_period.tv_nsec = g.tx_period.tv_nsec % 1000000000;
-		}
+		g.tx_period.tv_sec = g.tx_period.tv_nsec / 1000000000;
+		g.tx_period.tv_nsec = g.tx_period.tv_nsec % 1000000000;
 	}
-	D("Sending %d packets every  %d.%09d ns",
-			g.burst, (int)g.tx_period.tv_sec, (int)g.tx_period.tv_nsec);
+	if (g.td_body == sender_body)
+	    D("Sending %d packets every  %ld.%09ld s",
+			g.burst, g.tx_period.tv_sec, g.tx_period.tv_nsec);
 	/* Wait for PHY reset. */
 	D("Wait %d secs for phy reset", wait_link);
 	sleep(wait_link);

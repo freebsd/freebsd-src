@@ -1190,7 +1190,7 @@ device_tree::write_dts(int fd)
 		for (std::vector<reservation>::iterator i=reservations.begin(),
 		     e=reservations.end() ; i!=e ; ++i)
 		{
-			fprintf(stderr, " %" PRIx64 " %" PRIx64, i->first, i->second);
+			fprintf(file, " %" PRIx64 " %" PRIx64, i->first, i->second);
 		}
 		fputs(";\n\n", file);
 	}

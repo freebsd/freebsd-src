@@ -318,7 +318,7 @@ enum { PF_ICMP_MULTI_NONE, PF_ICMP_MULTI_SOLICITED, PF_ICMP_MULTI_LINK };
 #define	STATE_LOOKUP(i, k, d, s, pd)					\
 	do {								\
 		(s) = pf_find_state((i), (k), (d));			\
-		if ((s) == NULL || (s)->timeout == PFTM_PURGE)		\
+		if ((s) == NULL)					\
 			return (PF_DROP);				\
 		if (PACKET_LOOPED(pd))					\
 			return (PF_PASS);				\
@@ -1228,11 +1228,11 @@ pf_find_state(struct pfi_kif *kif, struct pf_state_key_cmp *key, u_int dir)
 		if (s->kif == V_pfi_all || s->kif == kif) {
 			PF_STATE_LOCK(s);
 			PF_HASHROW_UNLOCK(kh);
-			if (s->timeout == PFTM_UNLINKED) {
+			if (s->timeout >= PFTM_MAX) {
 				/*
-				 * State is being processed
-				 * by pf_unlink_state() in
-				 * an other thread.
+				 * State is either being processed by
+				 * pf_unlink_state() in an other thread, or
+				 * is scheduled for immediate expiry.
 				 */
 				PF_STATE_UNLOCK(s);
 				return (NULL);
@@ -1433,8 +1433,6 @@ pf_state_expires(const struct pf_state *state)
 	/* handle all PFTM_* > PFTM_MAX here */
 	if (state->timeout == PFTM_PURGE)
 		return (time_uptime);
-	if (state->timeout == PFTM_UNTIL_PACKET)
-		return (0);
 	KASSERT(state->timeout != PFTM_UNLINKED,
 	    ("pf_state_expires: timeout == PFTM_UNLINKED"));
 	KASSERT((state->timeout < PFTM_MAX),
@@ -4607,6 +4605,8 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 		if (ret >= 0) {
 			if (ret == PF_DROP && pd->af == AF_INET6 &&
 			    icmp_dir == PF_OUT) {
+				if (*state)
+					PF_STATE_UNLOCK(*state);
 				ret = pf_icmp_state_lookup(&key, pd, state, m,
 				    direction, kif, virtual_id, virtual_type,
 				    icmp_dir, &iidx, multi);
@@ -5058,6 +5058,8 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 			if (ret >= 0) {
 				if (ret == PF_DROP && pd->af == AF_INET6 &&
 				    icmp_dir == PF_OUT) {
+					if (*state)
+						PF_STATE_UNLOCK(*state);
 					ret = pf_icmp_state_lookup(&key, pd,
 					    state, m, direction, kif,
 					    virtual_id, virtual_type,
