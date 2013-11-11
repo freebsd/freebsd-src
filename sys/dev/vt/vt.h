@@ -45,8 +45,25 @@
 #include <sys/terminal.h>
 #include <sys/sysctl.h>
 
+#include "opt_syscons.h"
+
+#ifndef	VT_MAXWINDOWS
+#ifdef	MAXCONS
+#define	VT_MAXWINDOWS	MAXCONS
+#else
 #define	VT_MAXWINDOWS	12
+#endif
+#endif
+
 #define	VT_CONSWINDOW	0
+
+#if defined(SC_TWOBUTTON_MOUSE) || defined(VT_TWOBUTTON_MOUSE)
+#define VT_MOUSE_PASTEBUTTON	MOUSE_BUTTON3DOWN	/* right button */
+#define VT_MOUSE_EXTENDBUTTON	MOUSE_BUTTON2DOWN	/* not really used */
+#else
+#define VT_MOUSE_PASTEBUTTON	MOUSE_BUTTON2DOWN	/* middle button */
+#define VT_MOUSE_EXTENDBUTTON	MOUSE_BUTTON3DOWN	/* right button */
+#endif /* defined(SC_TWOBUTTON_MOUSE) || defined(VT_TWOBUTTON_MOUSE) */
 
 #define	SC_DRIVER_NAME	"vt"
 #define	DPRINTF(_l, ...)	if (vt_debug > (_l)) printf( __VA_ARGS__ )
