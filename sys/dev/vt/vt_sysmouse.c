@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/mouse.h>
 #include <sys/poll.h>
 #include <sys/random.h>
 #include <sys/selinfo.h>
@@ -171,6 +170,8 @@ sysmouse_process_event(mouse_info_t *mi)
 	    (sysmouse_status.obutton ^ sysmouse_status.button);
 	if (sysmouse_status.flags == 0)
 		goto done;
+
+	vt_mouse_event(mi->operation, x, y, mi->u.event.id, mi->u.event.value);
 
 	/* The first five bytes are compatible with MouseSystems. */
 	buf[0] = MOUSE_MSC_SYNC |
@@ -329,7 +330,7 @@ sysmouse_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 		sysmouse_status.dy = 0;
 		sysmouse_status.dz = 0;
 		mtx_unlock(&sysmouse_lock);
-		
+
 		return (0);
 	case MOUSE_SETLEVEL: {
 		int level;
@@ -358,6 +359,8 @@ sysmouse_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 
 		return (0);
 	}
+	case MOUSE_MOUSECHAR:
+		return (0);
 	default:
 		printf("sysmouse: unknown ioctl: %c:%lx\n",
 		    (char)IOCGROUP(cmd), IOCBASECMD(cmd));
