@@ -50,6 +50,7 @@
 #include "svn_private_config.h"
 
 #include "private/svn_fspath.h"
+#include "private/svn_subr_private.h"
 
 #include "../libsvn_ra/ra_loader.h"
 
@@ -701,7 +702,7 @@ static svn_error_t *open_session(svn_ra_svn__session_baton_t **sess_p,
   N_("Module for accessing a repository using the svn network protocol.")
 #endif
 
-static const char *ra_svn_get_description(void)
+static const char *ra_svn_get_description(apr_pool_t *pool)
 {
   return _(RA_SVN_DESCRIPTION);
 }
@@ -2775,7 +2776,7 @@ svn_ra_svn__init(const svn_version_t *loader_version,
       { NULL, NULL }
     };
 
-  SVN_ERR(svn_ver_check_list(svn_ra_svn_version(), checklist));
+  SVN_ERR(svn_ver_check_list2(svn_ra_svn_version(), checklist, svn_ver_equal));
 
   /* Simplified version check to make sure we can safely use the
      VTABLE parameter. The RA loader does a more exhaustive check. */
