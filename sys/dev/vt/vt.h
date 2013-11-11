@@ -164,9 +164,18 @@ void vtbuf_init(struct vt_buf *, const term_pos_t *);
 void vtbuf_grow(struct vt_buf *, const term_pos_t *, int);
 void vtbuf_putchar(struct vt_buf *, const term_pos_t *, term_char_t);
 void vtbuf_cursor_position(struct vt_buf *, const term_pos_t *);
+void vtbuf_mouse_cursor_position(struct vt_buf *vb, int col, int row);
 void vtbuf_cursor_visibility(struct vt_buf *, int);
 void vtbuf_undirty(struct vt_buf *, term_rect_t *, struct vt_bufmask *);
 void vtbuf_sethistory_size(struct vt_buf *, int);
+void vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row);
+int vtbuf_iscursor(struct vt_buf *vb, int row, int col);
+
+#define	VTB_MARK_END		1
+#define	VTB_MARK_START		2
+#define	VTB_MARK_WORD		3
+#define	VTB_MARK_ROW		4
+#define	VTB_MARK_EXTEND		5
 
 #define	VTBUF_SLCK_ENABLE(vb)	(vb)->vb_flags |= VBF_SCROLL
 #define	VTBUF_SLCK_DISABLE(vb)	(vb)->vb_flags &= ~VBF_SCROLL
