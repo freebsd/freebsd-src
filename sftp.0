@@ -342,8 +342,7 @@ SEE ALSO
      ftp(1), ls(1), scp(1), ssh(1), ssh-add(1), ssh-keygen(1), glob(3),
      ssh_config(5), sftp-server(8), sshd(8)
 
-     T. Ylonen and S. Lehtinen, SSH File Transfer Protocol,
-     draft-ietf-secsh-filexfer-00.txt, January 2001, work in progress
-     material.
+     T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
+     filexfer-00.txt, January 2001, work in progress material.
 
 OpenBSD 5.4                      July 25, 2013                     OpenBSD 5.4
