@@ -107,6 +107,7 @@ int sc_txtmouse_no_retrace_wait;
 static SYSCTL_NODE(_kern, OID_AUTO, vt, CTLFLAG_RD, 0, "Newcons parameters");
 VT_SYSCTL_INT(debug, 0, "Newcons debug level");
 VT_SYSCTL_INT(deadtimer, 15, "Time to wait busy process in VT_PROCESS mode");
+VT_SYSCTL_INT(suspendswitch, 1, "Switch to VT0 before suspend");
 
 static unsigned int vt_unit = 0;
 static MALLOC_DEFINE(M_VT, "vt", "vt device");
@@ -1603,6 +1604,8 @@ void
 vt_suspend()
 {
 
+	if (vt_suspendswitch == 0)
+		return;
 	/* Save current window. */
 	main_vd->vd_savedwindow = main_vd->vd_curwindow;
 	/* Ask holding process to free window and switch to console window */
@@ -1613,6 +1616,8 @@ void
 vt_resume()
 {
 
+	if (vt_suspendswitch == 0)
+		return;
 	/* Switch back to saved window */
 	if (main_vd->vd_savedwindow != NULL)
 		vt_proc_window_switch(main_vd->vd_savedwindow);
