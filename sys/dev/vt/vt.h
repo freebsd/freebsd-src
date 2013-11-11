@@ -197,8 +197,7 @@ int vtbuf_iscursor(struct vt_buf *vb, int row, int col);
 #define	VTBUF_FIELD(vb, r, c) \
 	((vb)->vb_rows[((vb)->vb_curroffset + (r)) % VTBUF_MAX_HEIGHT(vb)][(c)])
 #define	VTBUF_ISCURSOR(vb, r, c) \
-	((vb)->vb_flags & VBF_CURSOR && \
-	(vb)->vb_cursor.tp_row == (r) && (vb)->vb_cursor.tp_col == (c))
+	vtbuf_iscursor((vb), (r), (c))
 #define	VTBUF_DIRTYROW(mask, row) \
 	((mask)->vbm_row & ((uint64_t)1 << ((row) % 64)))
 #define	VTBUF_DIRTYCOL(mask, col) \
