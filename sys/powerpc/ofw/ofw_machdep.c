@@ -627,7 +627,7 @@ OF_getetheraddr(device_t dev, u_char *addr)
 static void
 OF_get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep, int *pcip)
 {
-	char name[16];
+	char type[64];
 	uint32_t addr, size;
 	int pci, res;
 
@@ -639,10 +639,10 @@ OF_get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep, int *pcip)
 		size = 1;
 	pci = 0;
 	if (addr == 3 && size == 2) {
-		res = OF_getprop(node, "name", name, sizeof(name));
+		res = OF_getprop(node, "device_type", type, sizeof(type));
 		if (res != -1) {
-			name[sizeof(name) - 1] = '\0';
-			pci = (strcmp(name, "pci") == 0) ? 1 : 0;
+			type[sizeof(type) - 1] = '\0';
+			pci = (strcmp(type, "pci") == 0) ? 1 : 0;
 		}
 	}
 	if (addrp != NULL)
@@ -676,8 +676,13 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	if (tag == NULL || handle == NULL)
 		return (EINVAL);
 
+	/* Assume big-endian unless we find a PCI device */
+	*tag = &bs_be_tag;
+
 	/* Get the requested register. */
 	OF_get_addr_props(bridge, &naddr, &nsize, &pci);
+	if (pci)
+		*tag = &bs_le_tag;
 	res = OF_getprop(dev, (pci) ? "assigned-addresses" : "reg",
 	    cell, sizeof(cell));
 	if (res == -1)
@@ -705,6 +710,8 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	parent = OF_parent(bridge);
 	while (parent != 0) {
 		OF_get_addr_props(parent, &nbridge, NULL, &pcib);
+		if (pcib)
+			*tag = &bs_le_tag;
 		res = OF_getprop(bridge, "ranges", cell, sizeof(cell));
 		if (res == -1)
 			goto next;
@@ -745,7 +752,6 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 		OF_get_addr_props(bridge, &naddr, &nsize, &pci);
 	}
 
-	*tag = &bs_le_tag;
 	return (bus_space_map(*tag, addr, size,
 	    prefetch ? BUS_SPACE_MAP_PREFETCHABLE : 0, handle));
 }
