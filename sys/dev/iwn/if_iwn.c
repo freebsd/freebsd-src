@@ -1768,7 +1768,7 @@ iwn4965_read_eeprom(struct iwn_softc *sc)
 #ifdef IWN_DEBUG
 	/* Print samples. */
 	if (sc->sc_debug & IWN_DEBUG_ANY) {
-		for (i = 0; i < IWN_NBANDS; i++)
+		for (i = 0; i < IWN_NBANDS - 1; i++)
 			iwn4965_print_power_group(sc, i);
 	}
 #endif
