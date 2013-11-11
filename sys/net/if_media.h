@@ -150,7 +150,10 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_10G_LRM	24		/* 10GBase-LRM 850nm Multi-mode */
 #define	IFM_UNKNOWN	25		/* media types not defined yet */
 #define	IFM_10G_T	26		/* 10GBase-T - RJ45 */
-
+/*
+ * Please update ieee8023ad_lacp.c:lacp_compose_key()
+ * after adding new Ethernet media types.
+ */
 /* note 31 is the max! */
 
 #define	IFM_ETH_MASTER	0x00000100	/* master mode (1000baseT) */
