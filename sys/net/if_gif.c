@@ -710,7 +710,6 @@ gif_ioctl(ifp, cmd, data)
 #ifdef INET6
 	case SIOCSIFPHYADDR_IN6:
 #endif /* INET6 */
-	case SIOCSLIFPHYADDR:
 		switch (cmd) {
 #ifdef INET
 		case SIOCSIFPHYADDR:
@@ -728,12 +727,6 @@ gif_ioctl(ifp, cmd, data)
 				&(((struct in6_aliasreq *)data)->ifra_dstaddr);
 			break;
 #endif
-		case SIOCSLIFPHYADDR:
-			src = (struct sockaddr *)
-				&(((struct if_laddrreq *)data)->addr);
-			dst = (struct sockaddr *)
-				&(((struct if_laddrreq *)data)->dstaddr);
-			break;
 		default:
 			return EINVAL;
 		}
@@ -788,9 +781,6 @@ gif_ioctl(ifp, cmd, data)
 				break;
 			return EAFNOSUPPORT;
 #endif /* INET6 */
-		case SIOCSLIFPHYADDR:
-			/* checks done in the above */
-			break;
 		}
 
 		error = gif_set_tunnel(GIF2IFP(sc), src, dst);
@@ -884,31 +874,6 @@ gif_ioctl(ifp, cmd, data)
 				return (error);
 		}
 #endif
-		break;
-
-	case SIOCGLIFPHYADDR:
-		if (sc->gif_psrc == NULL || sc->gif_pdst == NULL) {
-			error = EADDRNOTAVAIL;
-			goto bad;
-		}
-
-		/* copy src */
-		src = sc->gif_psrc;
-		dst = (struct sockaddr *)
-			&(((struct if_laddrreq *)data)->addr);
-		size = sizeof(((struct if_laddrreq *)data)->addr);
-		if (src->sa_len > size)
-			return EINVAL;
-		bcopy((caddr_t)src, (caddr_t)dst, src->sa_len);
-
-		/* copy dst */
-		src = sc->gif_pdst;
-		dst = (struct sockaddr *)
-			&(((struct if_laddrreq *)data)->dstaddr);
-		size = sizeof(((struct if_laddrreq *)data)->dstaddr);
-		if (src->sa_len > size)
-			return EINVAL;
-		bcopy((caddr_t)src, (caddr_t)dst, src->sa_len);
 		break;
 
 	case SIOCSIFFLAGS:
