@@ -86,7 +86,6 @@ libkern/qdivrem.c		optional	powerpc
 libkern/ucmpdi2.c		optional	powerpc
 libkern/udivdi3.c		optional	powerpc
 libkern/umoddi3.c		optional	powerpc
-powerpc/aim/copyinout.c		optional	aim
 powerpc/aim/interrupt.c		optional	aim
 powerpc/aim/locore.S		optional	aim no-obj
 powerpc/aim/machdep.c		optional	aim
@@ -98,7 +97,6 @@ powerpc/aim/mp_cpudep.c		optional	aim smp
 powerpc/aim/slb.c		optional	aim powerpc64
 powerpc/aim/trap.c		optional	aim
 powerpc/aim/uma_machdep.c	optional	aim
-powerpc/booke/copyinout.c	optional	booke
 powerpc/booke/interrupt.c	optional	booke
 powerpc/booke/locore.S		optional	booke no-obj
 powerpc/booke/machdep.c		optional	booke
@@ -173,6 +171,7 @@ powerpc/powerpc/bcopy.c		standard
 powerpc/powerpc/bus_machdep.c	standard
 powerpc/powerpc/busdma_machdep.c standard
 powerpc/powerpc/clock.c		standard
+powerpc/powerpc/copyinout.c	standard
 powerpc/powerpc/copystr.c	standard
 powerpc/powerpc/cpu.c		standard
 powerpc/powerpc/db_disasm.c	optional	ddb
