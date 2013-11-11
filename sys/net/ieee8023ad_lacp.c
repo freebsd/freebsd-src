@@ -1028,8 +1028,45 @@ lacp_compose_key(struct lacp_port *lp)
 		KASSERT(IFM_TYPE(media) == IFM_ETHER, ("invalid media type"));
 		KASSERT((media & IFM_FDX) != 0, ("aggregating HDX interface"));
 
-		/* bit 0..4:	IFM_SUBTYPE */
-		key = subtype;
+		/* bit 0..4:	IFM_SUBTYPE modulo speed */
+		switch (subtype) {
+		case IFM_10_T:
+		case IFM_10_2:
+		case IFM_10_5:
+		case IFM_10_STP:
+		case IFM_10_FL:
+			key = IFM_10_T;
+			break;
+		case IFM_100_TX:
+		case IFM_100_FX:
+		case IFM_100_T4:
+		case IFM_100_VG:
+		case IFM_100_T2:
+			key = IFM_100_TX;
+			break;
+		case IFM_1000_SX:
+		case IFM_1000_LX:
+		case IFM_1000_CX:
+		case IFM_1000_T:
+			key = IFM_1000_SX;
+			break;
+		case IFM_10G_LR:
+		case IFM_10G_SR:
+		case IFM_10G_CX4:
+		case IFM_10G_TWINAX:
+		case IFM_10G_TWINAX_LONG:
+		case IFM_10G_LRM:
+		case IFM_10G_T:
+			key = IFM_10G_LR;
+			break;
+		case IFM_40G_CR4:
+		case IFM_40G_SR4:
+		case IFM_40G_LR4:
+			key = IFM_40G_CR4;
+			break;
+		default:
+			key = subtype;
+		}
 		/* bit 5..14:	(some bits of) if_index of lagg device */
 		key |= 0x7fe0 & ((sc->sc_ifp->if_index) << 5);
 		/* bit 15:	0 */
