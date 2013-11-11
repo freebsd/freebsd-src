@@ -1937,9 +1937,12 @@ sctp_is_address_in_scope(struct sctp_ifa *ifa,
 static struct mbuf *
 sctp_add_addr_to_mbuf(struct mbuf *m, struct sctp_ifa *ifa, uint16_t * len)
 {
+#if defined(INET) || defined(INET6)
 	struct sctp_paramhdr *parmh;
 	struct mbuf *mret;
 	uint16_t plen;
+
+#endif
 
 	switch (ifa->address.sa.sa_family) {
 #ifdef INET
@@ -1955,6 +1958,7 @@ sctp_add_addr_to_mbuf(struct mbuf *m, struct sctp_ifa *ifa, uint16_t * len)
 	default:
 		return (m);
 	}
+#if defined(INET) || defined(INET6)
 	if (M_TRAILINGSPACE(m) >= plen) {
 		/* easy side we just drop it on the end */
 		parmh = (struct sctp_paramhdr *)(SCTP_BUF_AT(m, SCTP_BUF_LEN(m)));
@@ -2015,6 +2019,7 @@ sctp_add_addr_to_mbuf(struct mbuf *m, struct sctp_ifa *ifa, uint16_t * len)
 		*len += plen;
 	}
 	return (mret);
+#endif
 }
 
 
@@ -3855,8 +3860,11 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 	struct sctphdr *sctphdr;
 	int packet_length;
 	int ret;
+
+#if defined(INET) || defined(INET6)
 	uint32_t vrf_id;
 
+#endif
 #if defined(INET) || defined(INET6)
 	struct mbuf *o_pak;
 	sctp_route_t *ro = NULL;
@@ -3875,12 +3883,13 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 		sctp_m_freem(m);
 		return (EFAULT);
 	}
+#if defined(INET) || defined(INET6)
 	if (stcb) {
 		vrf_id = stcb->asoc.vrf_id;
 	} else {
 		vrf_id = inp->def_vrf_id;
 	}
-
+#endif
 	/* fill in the HMAC digest for any AUTH chunk in the packet */
 	if ((auth != NULL) && (stcb != NULL)) {
 		sctp_fill_hmac_digest_m(m, auth_offset, auth, stcb, auth_keyid);
@@ -10798,8 +10807,12 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 	struct sctphdr *shout;
 	struct sctp_chunkhdr *ch;
 	struct udphdr *udp;
-	int len, cause_len, padding_len, ret;
+	int len, cause_len, padding_len;
 
+#if defined(INET) || defined(INET6)
+	int ret;
+
+#endif
 #ifdef INET
 	struct sockaddr_in *src_sin, *dst_sin;
 	struct ip *ip;

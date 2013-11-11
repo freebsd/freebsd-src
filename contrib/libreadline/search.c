@@ -211,7 +211,11 @@ _rl_nsearch_init (dir, pchar)
   rl_end = rl_point = 0;
 
   p = _rl_make_prompt_for_search (pchar ? pchar : ':');
+#if defined (PREFER_STDARG)
+  rl_message ("%s", p);
+#else
   rl_message ("%s", p, 0);
+#endif
   free (p);
 
   RL_SETSTATE(RL_STATE_NSEARCH);

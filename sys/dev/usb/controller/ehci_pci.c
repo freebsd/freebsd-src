@@ -152,6 +152,10 @@ ehci_pci_match(device_t self)
 		return ("Intel PCH USB 2.0 controller USB-A");
 	case 0x3b3c8086:
 		return ("Intel PCH USB 2.0 controller USB-B");
+	case 0x8c268086:
+		return ("Intel Lynx Point USB 2.0 controller USB-A");
+	case 0x8c2d8086:
+		return ("Intel Lynx Point USB 2.0 controller USB-B");
 
 	case 0x00e01033:
 		return ("NEC uPD 720100 USB 2.0 controller");

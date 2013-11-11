@@ -1864,7 +1864,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		 * Arches which default to 64-bit need to explicitly use
 		 * the 32-bit library path.
 		 */
-		int use_32 = !(dtp->dt_oflags & DTRACE_O_LP64);
+		int use_32 = (dtp->dt_oflags & DTRACE_O_ILP32);
 #else
 		/*
 		 * Arches which are 32-bit only just use the normal
@@ -1879,9 +1879,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		len = snprintf(&tmp, 1, fmt, dtp->dt_ld_path, file, tfile,
 		    drti) + 1;
 
-#if !defined(sun)
 		len *= 2;
-#endif
 		cmd = alloca(len);
 
 		(void) snprintf(cmd, len, fmt, dtp->dt_ld_path, file,

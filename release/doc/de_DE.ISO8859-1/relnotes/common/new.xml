@@ -2,10 +2,10 @@
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.xml,v 1.250 2003/05/24 22:38:23 ue Exp $
   basiert auf: 1.571
 -->
-<articleinfo>
-  <title>&os;/&arch; &release.current; Release Notes</title>
+<info><title>&os;/&arch; &release.current; Release Notes</title>
+  
 
-  <corpauthor>The FreeBSD Project</corpauthor>
+  <author><orgname>The FreeBSD Project</orgname></author>
 
   <pubdate>$FreeBSD$</pubdate>
 
@@ -42,9 +42,9 @@
       Kernel und an den Benutzerprogrammen.  Einige kurze Anmerkungen
       zum Thema Aktualisierung wurden ebenfalls aufgenommen.</para>
   </abstract>
-</articleinfo>
+</info>
 
-<sect1 id="intro">
+<sect1 xml:id="intro">
   <title>Einf&uuml;hrung</title>
 
   <para>Dieses Dokument enth&auml;lt die Release Notes f&uuml;r &os;
@@ -59,19 +59,16 @@
     &release.branch; zwischen &release.prev; und der zuk&uuml;nftigen
     Version &release.next;.  Sie k&ouml;nnen einige fertige
     &release.type; Distributionen, die in diesem Entwicklungszweig
-    entstanden sind, auf <ulink url="&release.url;"></ulink>
+    entstanden sind, auf <uri xlink:href="&release.url;">&release.url;</uri>
     finden.</para>
 
   <para releasetype="release">Diese Distribution von &os; &release.current; ist eine
-    &release.type; Distribution.  Sie k&ouml;nnen Sie von <ulink
-    url="&release.url;"></ulink> und allen seinen Mirrors erhalten.
+    &release.type; Distribution.  Sie k&ouml;nnen Sie von <uri xlink:href="&release.url;">&release.url;</uri> und allen seinen Mirrors erhalten.
     Weitere Informationen, wie Sie diese (oder andere) &release.type;
     Distributionen von &os; erhalten k&ouml;nnen, finden Sie im Anhang
-    <ulink
-    url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/mirrors.html"><quote>Obtaining
-    FreeBSD</quote></ulink> des <ulink
-    url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/">FreeBSD
-    Handbuchs</ulink>.</para>
+    <link xlink:href="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/mirrors.html"><quote>Obtaining
+    FreeBSD</quote></link> des <link xlink:href="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/">FreeBSD
+    Handbuchs</link>.</para>
 
   <para>Anwender, die noch keine Erfahrung mit einer &release.branch;
     Version eines &os; &release.type; haben, sollten auf jeden Fall die
@@ -94,7 +91,7 @@
     finden Sie auf den &os; Webseiten.</para>
 </sect1>
 
-<sect1 id="new">
+<sect1 xml:id="new">
   <title>Neuerungen</title>
 
   <para>In diesem Artikel finden Sie
@@ -119,14 +116,13 @@
     Anwender sichtbare &Auml;nderungen und die wichtigsten
     Verbesserungen der Infrastruktur.</para>
 
-  <sect2 id="security">
+  <sect2 xml:id="security">
     <title>Sicherheit</title>
 
     <para>Ein &uuml;ber das Netzwerk nutzbarer Fehler in
       <application>CVS</application> k&ouml;nnte dazu f&uuml;hren,
       da&szlig; ein Angreifer beliebige Programme auf dem CVS Server
-      ausf&uuml;hren kann.  Weitere Informationen finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>.
+      ausf&uuml;hren kann.  Weitere Informationen finden Sie in <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</link>.
       &merged;</para>
 
     <para>Durch Auswertung der Antwortzeiten von
@@ -135,41 +131,35 @@
       bestimmten Umst&auml;nden den Klartext der &uuml;bermittelten
       Daten zu erhalten.  Dieser Fehler durch die neue
       <application>OpenSSL</application> Version 0.9.7 behoben.
-      Weitere Informationen finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</ulink>.
+      Weitere Informationen finden Sie in <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</link>.
       &merged;</para>
 
     <para>Die Sicherheit und Leistung der Erweiterung
       <quote>syncookies</quote> wurde verbessert, damit Angreifer es
       schwerer haben, eine Verbindung zu f&auml;lschen.  Weitere
-      Informationen finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>.
+      Informationen finden Sie in <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</link>.
       &merged;</para>
 
     <para>Diverse &uuml;ber das Netzwerk nutzbare
       Puffer-&Uuml;berl&auml;ufe in <application>sendmail</application>
       wurden durch die Aktualisierung von
       <application>sendmail</application> behoben.  Weitere
-      Information finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>
-      und <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:07.sendmail.asc">FreeBSD-SA-03:07</ulink>.
+      Information finden Sie in <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</link>
+      und <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:07.sendmail.asc">FreeBSD-SA-03:07</link>.
       &merged;</para>
 
     <para>In der XDR-Implementierung wurde ein Fehler behoben, der es
       einem Angreifer m&ouml;glich machte, den Dienst abst&uuml;rzen
-      zu lassen.  Weitere Informationen finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>.
+      zu lassen.  Weitere Informationen finden Sie in <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</link>.
       &merged;</para>
 
     <para>In <application>OpenSSL</application> wurden zwei vor kurzem
       ver&ouml;ffentlichte Schwachstellen repariert.  Weitere
-      Informationen finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</ulink>.
+      Informationen finden Sie in <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</link>.
       &merged;</para>
   </sect2>
 
-  <sect2 id="kernel">
+  <sect2 xml:id="kernel">
     <title>&Auml;nderungen im Kernel</title>
 
     <para arch="pc98">Der Power Management Controller CanBe wird jetzt
@@ -240,7 +230,7 @@
       Zeile <literal>options&nbsp;LAZY_SWITCH</literal>
       stehen.</para>
 
-    <sect3 id="proc">
+    <sect3 xml:id="proc">
       <title>Unterst&uuml;tzung f&uuml;r Prozessoren und
 	Mainboards</title>
 
@@ -281,7 +271,7 @@
 	Product Data Stuktur ausgelesen werden.</para>
     </sect3>
 
-    <sect3 id="boot">
+    <sect3 xml:id="boot">
       <title>&Auml;nderungen im Bootloader</title>
 
       <para arch="alpha">Der Alpha Bootloader
@@ -322,7 +312,7 @@
 
     </sect3>
 
-    <sect3 id="net-if">
+    <sect3 xml:id="net-if">
       <title>Netzwerke und Netzwerkkarten</title>
 
       <para arch="i386,pc98">Der neue Treiber &man.axe.4;
@@ -349,7 +339,7 @@
 	Fehlern kommen konnte.</para>
     </sect3>
 
-    <sect3 id="net-proto">
+    <sect3 xml:id="net-proto">
       <title>Netzwerk-Protokolle</title>
 
       <para>Es ist jetzt wieder m&ouml;glich, bei &man.ipfw.4;
@@ -422,7 +412,7 @@
 	daf&uuml;r jetzt entfernt.</para>
     </sect3>
 
-    <sect3 id="disks">
+    <sect3 xml:id="disks">
       <title>Festplatten und Massenspeicher</title>
 
       <para>Der Treiber &man.aac.4; l&auml;uft jetzt v&ouml;llig
@@ -453,9 +443,7 @@
 	    aufnehmen, m&uuml;ssen alle Programme neu kompilieren, die
 	    &man.pass.4; oder &man.xpt.4; verwenden.  Dazu
 	    geh&ouml;ren unter anderem &man.camcontrol.8; aus dem
-	    Basissystem und die Ports <filename
-	    role="port">sysutils/cdrtools</filename> und <filename
-	    role="port">multimedia/xmms</filename>.</para>
+	    Basissystem und die Ports <package role="port">sysutils/cdrtools</package> und <package role="port">multimedia/xmms</package>.</para>
 	</note>
       </para>
 
@@ -498,7 +486,7 @@
 	entfernt.</para>
     </sect3>
 
-    <sect3 id="fs">
+    <sect3 xml:id="fs">
       <title>Dateisystem</title>
 
       <para>Mit der neuen Kernel-Option <literal>DIRECTIO</literal>
@@ -519,13 +507,13 @@
 	kommen;  diese Fehler wurden beseitigt.</para>
     </sect3>
 
-    <sect3 id="pccard">
+    <sect3 xml:id="pccard">
       <title>Unterst&uuml;tzung f&uuml;r PCCARD</title>
 
-      <para></para>
+      <para/>
     </sect3>
 
-    <sect3 id="mm">
+    <sect3 xml:id="mm">
       <title>Multimedia</title>
 
       <para arch="i386,pc98">Die f&uuml;r &man.speaker.4; genutzen
@@ -535,7 +523,7 @@
     </sect3>
   </sect2>
 
-  <sect2 id="userland">
+  <sect2 xml:id="userland">
     <title>Benutzerprogramme</title>
 
     <para>&man.adduser.8; geht jetzt korrekt mit Pa&szlig;w&ouml;rtern
@@ -567,7 +555,7 @@
       &Auml;nderung der UID und GID den alten und neuen Wert
       aus.</para>
 
-    <para>>&man.config.8; kennt jetzt das Schl&uuml;selwort
+    <para>&gt;&man.config.8; kennt jetzt das Schl&uuml;selwort
       <literal>nodevice</literal>, das bei der Konfiguration eines
       angepa&szlig;ten Kernels verwendet werden kann, um die Wirkung
       einer vorher gesetzten <literal>device</literal> Anweisung
@@ -698,8 +686,8 @@
 
     <para>Das neue Programm &man.mksnap.ffs.8; vereinfacht die
       Erzeugung von FFS Snapshots.  Das Programm ist SUID
-      <username>root</username> und soll von Mitgliedern der Gruppe
-      <groupname>operator</groupname> aufgerufen werden.</para>
+      <systemitem class="username">root</systemitem> und soll von Mitgliedern der Gruppe
+      <systemitem class="groupname">operator</systemitem> aufgerufen werden.</para>
 
     <para>Bei &man.mount.8; und &man.umount.8; kann jetzt mit
       <option>-F</option> eine andere Tabelle der Dateisysteme als
@@ -961,7 +949,7 @@
       Informationen finden Sie in &man.rc.subr.8;.</para>
   </sect2>
 
-  <sect2 id="contrib">
+  <sect2 xml:id="contrib">
     <title>Zus&auml;tzliche Software</title>
 
     <para>Die <application>ACPI-CA</application> Routinen wurden von
@@ -1029,12 +1017,11 @@
     <para><application>Kerberos IV</application> (in Form von
       <application>KTH eBones</application>) wird nicht mehr
       unterst&uuml;tzt.  Anwender, die diese Funktionalit&auml;t
-      ben&ouml;tigen, k&ouml;nnen den Port oder das Package <filename
-      role="port">security/krb4</filename> installieren.  Der Kerberos
+      ben&ouml;tigen, k&ouml;nnen den Port oder das Package <package role="port">security/krb4</package> installieren.  Der Kerberos
       IV Kompatibilit&auml;tsmodus wurde aus Kerberos 5 entfernt, und
       die Namen der Benutzerprogramme wurden von
-      <literal>k5<replaceable>program</replaceable></literal> in
-      <literal>k<replaceable>program</replaceable></literal>
+      <literal>k5program</literal> in
+      <literal>kprogram</literal>
       ge&auml;ndert.</para>
 
     <para><application>Kerberos 5</application> wird jetzt beim
@@ -1084,7 +1071,7 @@
       <filename>tzdata2003a</filename> aktualisiert.  &merged;</para>
   </sect2>
 
-  <sect2 id="ports">
+  <sect2 xml:id="ports">
     <title>Infrastruktur f&uuml;r Ports und Packages</title>
 
     <para>Die nur eine Zeile langen <filename>pkg-comment</filename>
@@ -1120,7 +1107,7 @@
       bearbeiteten Paketes ausgegeben.</para>
   </sect2>
 
-  <sect2 id="releng">
+  <sect2 xml:id="releng">
     <title>Erzeugung von Releases und Integration</title>
 
     <para><application>GNOME</application> steht jetzt in der Version
@@ -1151,7 +1138,7 @@
       4.<replaceable>X</replaceable> wurden entfernt.</para>
   </sect2>
 
-  <sect2 id="doc">
+  <sect2 xml:id="doc">
     <title>Dokumentation</title>
 
     <para>Die Dokumentation wurde um die beiden Artikel <quote>FreeBSD
@@ -1165,7 +1152,7 @@
   </sect2>
 </sect1>
 
-<sect1 id="upgrade">
+<sect1 xml:id="upgrade">
   <title>Aktualisierung einer &auml;lteren Version von &os;</title>
 
   <para>Anwender, die schon ein &os;-System im Einsatz haben, sollten

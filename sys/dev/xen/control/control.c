@@ -158,7 +158,6 @@ static xctrl_shutdown_handler_t xctrl_poweroff;
 static xctrl_shutdown_handler_t xctrl_reboot;
 static xctrl_shutdown_handler_t xctrl_suspend;
 static xctrl_shutdown_handler_t xctrl_crash;
-static xctrl_shutdown_handler_t xctrl_halt;
 
 /*-------------------------- Private Data Structures -------------------------*/
 /** Element type for lookup table of event name to handler. */
@@ -173,7 +172,7 @@ static const struct xctrl_shutdown_reason xctrl_shutdown_reasons[] = {
 	{ "reboot",   xctrl_reboot   },
 	{ "suspend",  xctrl_suspend  },
 	{ "crash",    xctrl_crash    },
-	{ "halt",     xctrl_halt     },
+	{ "halt",     xctrl_poweroff },
 };
 
 struct xctrl_softc {
@@ -439,12 +438,6 @@ static void
 xctrl_crash()
 {
 	panic("Xen directed crash");
-}
-
-static void
-xctrl_halt()
-{
-	shutdown_nice(RB_HALT);
 }
 
 /*------------------------------ Event Reception -----------------------------*/

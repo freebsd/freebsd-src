@@ -224,6 +224,7 @@
 #define IWN_GP_DRIVER_CALIB_VER6	(1 << 2)
 #define IWN_GP_DRIVER_6050_1X2		(1 << 3)
 #define	IWN_GP_DRIVER_REG_BIT_RADIO_IQ_INVERT	(1 << 7)
+#define	IWN_GP_DRIVER_NONE		0
 
 /* Possible flags for register IWN_UCODE_GP1_CLR. */
 #define IWN_UCODE_GP1_RFKILL		(1 << 1)
@@ -1104,6 +1105,12 @@ struct iwn_enhanced_sensitivity_cmd {
 	uint16_t	reserved;
 } __packed;
 
+/*
+ * Define maximal number of calib result send to runtime firmware
+ * PS: TEMP_OFFSET count for 2 (std and v2)
+ */
+#define	IWN5000_PHY_CALIB_MAX_RESULT		8
+
 /* Structures for command IWN_CMD_PHY_CALIB. */
 struct iwn_phy_calib {
 	uint8_t	code;
@@ -1734,6 +1741,16 @@ static const uint32_t iwn1000_regulatory_bands[IWN_NBANDS] = {
 	IWN5000_EEPROM_NO_HT40,
 };
 
+static const uint32_t iwn2030_regulatory_bands[IWN_NBANDS] = {
+	IWN5000_EEPROM_BAND1,
+	IWN5000_EEPROM_BAND2,
+	IWN5000_EEPROM_BAND3,
+	IWN5000_EEPROM_BAND4,
+	IWN5000_EEPROM_BAND5,
+	IWN6000_EEPROM_BAND6,
+	IWN5000_EEPROM_BAND7
+};
+
 #define IWN_CHAN_BANDS_COUNT	 7
 #define IWN_MAX_CHAN_PER_BAND	14
 static const struct iwn_chan_band {
@@ -1760,8 +1777,8 @@ static const uint8_t iwn_bss_ac_to_queue[] = {
 static const uint8_t iwn_pan_ac_to_queue[] = {
 	5, 4, 6, 7,
 };
-#define IWN1000_OTP_NBLOCKS	3 
-#define IWN6000_OTP_NBLOCKS	4 
+#define IWN1000_OTP_NBLOCKS	3
+#define IWN6000_OTP_NBLOCKS	4
 #define IWN6050_OTP_NBLOCKS	7
 
 /* HW rate indices. */

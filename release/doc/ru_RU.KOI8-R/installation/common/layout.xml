@@ -9,7 +9,7 @@
 
 	This section contains the contents of the old LAYOUT.TXT file.
 -->
-<sect1 id="layout">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="layout">
   <title>Содержимое дистрибутива</title>
 
   <para>Типичный каталог дистрибутива &os; выглядит примерно так
@@ -29,8 +29,7 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
     но расположены там немного по-другому.  Для большинства архитектур
     на диске с установкой находится также <quote>live filesystem</quote>.
     Она полезна при восстановлении или решении проблем с существующей
-    установкой &os; (обратитесь к <xref
-    linkend="trouble"/> за инструкциями по ее использованию).</para>
+    установкой &os; (обратитесь к <xref linkend="trouble"/> за инструкциями по ее использованию).</para>
 
   <para>Каталог <filename>floppies</filename> представляет определенный
     интерес для пользователей, которые не могут выполнить загрузку с
@@ -111,7 +110,7 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
 	<para>Коллекция портов может быть установлена как любой другой
 	  дистрибутивный набор и требует около 190MB места.  Дальнейшая
 	  информация по коллекции портов может быть получена с
-	  <ulink url="&url.base;/ru/ports/"></ulink>
+	  <uri xlink:href="&url.base;/ru/ports/">&url.base;/ru/ports/</uri>
 	  или локально из <filename>/usr/share/doc/handbook</filename>
 	  если вы установили дистрибутивный набор
 	  <filename>doc</filename>.</para>

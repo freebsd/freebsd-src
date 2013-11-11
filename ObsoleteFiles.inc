@@ -38,6 +38,21 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20131109: extattr(2) mlinks fixed
+OLD_FILES+=usr/share/man/man2/extattr_delete_list.2.gz
+OLD_FILES+=usr/share/man/man2/extattr_get_list.2.gz
+# 20131107: example files removed
+OLD_FILES+=usr/share/examples/libusb20/aux.c
+OLD_FILES+=usr/share/examples/libusb20/aux.h
+# 20131103: WITH_LIBICONV_COMPAT removal
+OLD_FILES+=usr/include/_libiconv_compat.h
+OLD_FILES+=usr/lib/libiconv.a
+OLD_FILES+=usr/lib/libiconv.so
+OLD_FILES+=usr/lib/libiconv.so.3
+OLD_FILES+=usr/lib/libiconv_p.a
+# 20131103: removal of utxrm(8), use 'utx rm' instead.
+OLD_FILES+=usr/sbin/utxrm
+OLD_FILES+=usr/share/man/man8/utxrm.8.gz
 # 20131031: pkg_install has been removed
 OLD_FILES+=etc/periodic/daily/220.backup-pkgdb
 OLD_FILES+=etc/periodic/daily/490.status-pkg-changes
