@@ -195,23 +195,15 @@ diff_status_callback(void *baton,
   struct diff_baton *eb = baton;
   svn_wc__db_t *db = eb->db;
 
-  switch (status->node_status)
+  if (! status->versioned)
+    return SVN_NO_ERROR; /* unversioned (includes dir externals) */
+
+  if (status->node_status == svn_wc_status_conflicted
+      && status->text_status == svn_wc_status_none
+      && status->prop_status == svn_wc_status_none)
     {
-      case svn_wc_status_unversioned:
-      case svn_wc_status_ignored:
-        return SVN_NO_ERROR; /* No diff */
-
-      case svn_wc_status_conflicted:
-        if (status->text_status == svn_wc_status_none
-            && status->prop_status == svn_wc_status_none)
-          {
-            /* Node is an actual only node describing a tree conflict */
-            return SVN_NO_ERROR;
-          }
-        break;
-
-      default:
-        break; /* Go check other conditions */
+      /* Node is an actual only node describing a tree conflict */
+      return SVN_NO_ERROR;
     }
 
   /* Not text/prop modified, not copied. Easy out */
