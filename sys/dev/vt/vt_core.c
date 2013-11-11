@@ -670,16 +670,6 @@ vt_flush(struct vt_device *vd)
 		tarea.tr_end = size;
 		tmask.vbm_row = tmask.vbm_col = VBM_DIRTY;
 
-		/*
-		 * Blank to prevent borders with artifacts.  This is
-		 * only required when the font doesn't exactly fill the
-		 * screen.
-		 */
-		if (vd->vd_flags & VDF_INVALID && vf != NULL &&
-		    (vd->vd_width % vf->vf_width != 0 ||
-		    vd->vd_height % vf->vf_height != 0))
-			vd->vd_driver->vd_blank(vd, TC_BLACK);
-
 		vd->vd_flags &= ~VDF_INVALID;
 	}
 
