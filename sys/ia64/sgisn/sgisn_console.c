@@ -247,23 +247,21 @@ sncon_rx_intr(void *arg)
 	struct sncon_softc *sc = arg;
 	struct tty *tp = sc->sc_tp;
 	struct ia64_sal_result r;
-	int ch, count;
+	int ch, cnt;
 #if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
 	int kdb;
 #endif
 
 	tty_lock(tp);
 
-	count = 0;
-	do {
-		r = ia64_sal_entry(SAL_SGISN_POLL, 0, 0, 0, 0, 0, 0, 0);
-		if (r.sal_status || r.sal_result[0] == 0)
+	cnt = 0;
+	r = ia64_sal_entry(SAL_SGISN_CON_INTR, 0, 2 /* status */,
+	    0, 0, 0, 0, 0);
+	while (cnt < 128 && r.sal_status == 0 && (r.sal_result[0] & 2) == 2) {
+		r.sal_result[0] = ~0UL;
+		r = ia64_sal_entry(SAL_SGISN_CON_IREAD, 0, 0, 0, 0, 0, 0, 0);
+		if (r.sal_result[0] == ~0UL)
 			break;
-
-		r = ia64_sal_entry(SAL_SGISN_GETC, 0, 0, 0, 0, 0, 0, 0);
-		if (r.sal_status != 0)
-			break;
-
 		ch = r.sal_result[0];
 
 #if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
@@ -285,9 +283,11 @@ sncon_rx_intr(void *arg)
 #endif
 
 		ttydisc_rint(tp, ch, 0);
-		count++;
-	} while (count < 128);
-	if (count > 0)
+		cnt++;
+		r = ia64_sal_entry(SAL_SGISN_CON_INTR, 0, 2 /* status */,
+		    0, 0, 0, 0, 0);
+	}
+	if (cnt > 0)
 		ttydisc_rint_done(tp);
 	tty_unlock(tp);
 }
@@ -321,8 +321,8 @@ sncon_attach(device_t dev)
 	} while (0);
 
 	/* Enable or disable RX interrupts appropriately. */
-	r = ia64_sal_entry(SAL_SGISN_CON_INTR, 2,
-	    (sc->sc_ires != NULL) ? 1 : 0, 0, 0, 0, 0, 0);
+	r = ia64_sal_entry(SAL_SGISN_CON_INTR, 2 /* recv */,
+	    (sc->sc_ires != NULL) ? 1 : 0 /* on/off */, 0, 0, 0, 0, 0);
 
 	sc->sc_tp = tty_alloc(&sncon_tty_class, sc);
 	if (sncon_is_console)
@@ -346,7 +346,8 @@ sncon_detach(device_t dev)
 
 	if (sc->sc_ires != NULL) {
 		/* Disable RX interrupts. */
-		r = ia64_sal_entry(SAL_SGISN_CON_INTR, 2, 0, 0, 0, 0, 0, 0);
+		r = ia64_sal_entry(SAL_SGISN_CON_INTR, 2 /* recv */,
+		    0 /* off */, 0, 0, 0, 0, 0);
 
 		bus_teardown_intr(dev, sc->sc_ires, sc->sc_icookie);
 		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irid,
