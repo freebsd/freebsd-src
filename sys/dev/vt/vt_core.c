@@ -1266,7 +1266,12 @@ vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
 		 */
 		switch (mouse->operation) {
 		case MOUSE_HIDE:
+			vd->vd_flags &= ~VDF_MOUSECURSOR;
+			return (0);
 		case MOUSE_SHOW:
+			vd->vd_mx = vd->vd_width / 2;
+			vd->vd_my = vd->vd_height / 2;
+			vd->vd_flags |= VDF_MOUSECURSOR;
 			return (0);
 		default:
 			return (EINVAL);
