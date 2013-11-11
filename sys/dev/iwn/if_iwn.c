@@ -2987,12 +2987,24 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s begin\n", __func__);
 
-#ifdef NOT_YET
 	if (nframes == 1) {
-		if ((*status & 0xff) != 1 && (*status & 0xff) != 2)
+		if ((*status & 0xff) != 1 && (*status & 0xff) != 2) {
+#ifdef	NOT_YET
 			printf("ieee80211_send_bar()\n");
-	}
 #endif
+			/*
+			 * If we completely fail a transmit, make sure a
+			 * notification is pushed up to the rate control
+			 * layer.
+			 */
+			tap = sc->qid2tap[qid];
+			tid = tap->txa_tid;
+			wn = (void *)tap->txa_ni;
+			ni = tap->txa_ni;
+			ieee80211_ratectl_tx_complete(ni->ni_vap, ni,
+			    IEEE80211_RATECTL_TX_FAILURE, &nframes, NULL);
+		}
+	}
 
 	bitmap = 0;
 	start = idx;
