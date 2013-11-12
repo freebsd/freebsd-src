@@ -4336,7 +4336,7 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 	memset(&linkq, 0, sizeof linkq);
 	linkq.id = wn->id;
 	linkq.antmsk_1stream = txant;
-	linkq.antmsk_2stream = sc->txchainmask;
+	linkq.antmsk_2stream = IWN_ANT_AB;
 	linkq.ampdu_max = 64;
 	linkq.ampdu_threshold = 3;
 	linkq.ampdu_limit = htole16(4000);	/* 4ms */
