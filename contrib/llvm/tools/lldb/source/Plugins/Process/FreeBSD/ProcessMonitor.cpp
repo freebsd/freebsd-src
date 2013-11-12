@@ -70,12 +70,12 @@ PtraceWrapper(int req, lldb::pid_t pid, void *addr, int data,
     Log *log (ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PTRACE));
 
     if (log) {
-        log->Printf("ptrace(%s, %lu, %p, %x) called from file %s line %d",
+        log->Printf("ptrace(%s, %" PRIu64 ", %p, %x) called from file %s line %d",
                     reqName, pid, addr, data, file, line);
         if (req == PT_IO) {
             struct ptrace_io_desc *pi = (struct ptrace_io_desc *) addr;
             
-            log->Printf("PT_IO: op=%s offs=%zx size=%ld",
+            log->Printf("PT_IO: op=%s offs=%zx size=%zu",
                      Get_PT_IO_OP(pi->piod_op), (size_t)pi->piod_offs, pi->piod_len);
         }
     }
@@ -704,23 +704,16 @@ ProcessMonitor::ProcessMonitor(ProcessPOSIX *process,
       m_operation_thread(LLDB_INVALID_HOST_THREAD),
       m_monitor_thread(LLDB_INVALID_HOST_THREAD),
       m_pid(LLDB_INVALID_PROCESS_ID),
-      m_server_mutex(Mutex::eMutexTypeRecursive),
       m_terminal_fd(-1),
-      m_client_fd(-1),
-      m_server_fd(-1)
+      m_operation(0)
 {
-    std::unique_ptr<LaunchArgs> args;
-
-    args.reset(new LaunchArgs(this, module, argv, envp,
-                              stdin_path, stdout_path, stderr_path, working_dir));
+    std::unique_ptr<LaunchArgs> args(new LaunchArgs(this, module, argv, envp,
+                                     stdin_path, stdout_path, stderr_path,
+                                     working_dir));
     
 
-    // Server/client descriptors.
-    if (!EnableIPC())
-    {
-        error.SetErrorToGenericError();
-        error.SetErrorString("Monitor failed to initialize.");
-    }
+    sem_init(&m_operation_pending, 0, 0);
+    sem_init(&m_operation_done, 0, 0);
 
     StartLaunchOpThread(args.get(), error);
     if (!error.Success())
@@ -765,21 +758,14 @@ ProcessMonitor::ProcessMonitor(ProcessPOSIX *process,
       m_operation_thread(LLDB_INVALID_HOST_THREAD),
       m_monitor_thread(LLDB_INVALID_HOST_THREAD),
       m_pid(pid),
-      m_server_mutex(Mutex::eMutexTypeRecursive),
       m_terminal_fd(-1),
-      m_client_fd(-1),
-      m_server_fd(-1)
+      m_operation(0)
 {
-    std::unique_ptr<AttachArgs> args;
+    sem_init(&m_operation_pending, 0, 0);
+    sem_init(&m_operation_done, 0, 0);
 
-    args.reset(new AttachArgs(this, pid));
 
-    // Server/client descriptors.
-    if (!EnableIPC())
-    {
-        error.SetErrorToGenericError();
-        error.SetErrorString("Monitor failed to initialize.");
-    }
+    std::unique_ptr<AttachArgs> args(new AttachArgs(this, pid));
 
     StartAttachOpThread(args.get(), error);
     if (!error.Success())
@@ -855,7 +841,6 @@ ProcessMonitor::Launch(LaunchArgs *args)
 {
     ProcessMonitor *monitor = args->m_monitor;
     ProcessFreeBSD &process = monitor->GetProcess();
-    lldb::ProcessSP processSP = process.shared_from_this();
     const char **argv = args->m_argv;
     const char **envp = args->m_envp;
     const char *stdin_path = args->m_stdin_path;
@@ -868,20 +853,9 @@ ProcessMonitor::Launch(LaunchArgs *args)
     char err_str[err_len];
     lldb::pid_t pid;
 
-    lldb::ThreadSP inferior;
-    Log *log (ProcessPOSIXLog::GetLogIfAllCategoriesSet (POSIX_LOG_PROCESS));
-
     // Propagate the environment if one is not supplied.
     if (envp == NULL || envp[0] == NULL)
         envp = const_cast<const char **>(environ);
-
-    // Pseudo terminal setup.
-    if (!terminal.OpenFirstAvailableMaster(O_RDWR | O_NOCTTY, err_str, err_len))
-    {
-        args->m_error.SetErrorToGenericError();
-        args->m_error.SetErrorString("Could not open controlling TTY.");
-        goto FINISH;
-    }
 
     if ((pid = terminal.Fork(err_str, err_len)) == -1)
     {
@@ -1002,30 +976,10 @@ ProcessMonitor::Launch(LaunchArgs *args)
     if (!EnsureFDFlags(monitor->m_terminal_fd, O_NONBLOCK, args->m_error))
         goto FINISH;
 
-    // Update the process thread list with this new thread.
-    inferior.reset(process.CreateNewPOSIXThread(*processSP, pid));
-    if (log)
-        log->Printf ("ProcessMonitor::%s() adding pid = %" PRIu64, __FUNCTION__, pid);
-    process.GetThreadList().AddThread(inferior);
-
-    // Let our process instance know the thread has stopped.
-    process.SendMessage(ProcessMessage::Trace(pid));
+    process.SendMessage(ProcessMessage::Attach(pid));
 
 FINISH:
     return args->m_error.Success();
-}
-
-bool
-ProcessMonitor::EnableIPC()
-{
-    int fd[2];
-
-    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fd))
-        return false;
-
-    m_client_fd = fd[0];
-    m_server_fd = fd[1];
-    return true;
 }
 
 void
@@ -1059,9 +1013,6 @@ ProcessMonitor::Attach(AttachArgs *args)
 
     ProcessMonitor *monitor = args->m_monitor;
     ProcessFreeBSD &process = monitor->GetProcess();
-    lldb::ProcessSP processSP = process.shared_from_this();
-    ThreadList &tl = process.GetThreadList();
-    lldb::ThreadSP inferior;
 
     if (pid <= 1)
     {
@@ -1084,14 +1035,9 @@ ProcessMonitor::Attach(AttachArgs *args)
         goto FINISH;
     }
 
-    // Update the process thread list with the attached thread.
-    inferior.reset(process.CreateNewPOSIXThread(*processSP, pid));
-    tl.AddThread(inferior);
+    process.SendMessage(ProcessMessage::Attach(pid));
 
-    // Let our process instance know the thread has stopped.
-    process.SendMessage(ProcessMessage::Trace(pid));
-
- FINISH:
+FINISH:
     return args->m_error.Success();
 }
 
@@ -1393,13 +1339,8 @@ void
 ProcessMonitor::ServeOperation(OperationArgs *args)
 {
     int status;
-    pollfd fdset;
 
     ProcessMonitor *monitor = args->m_monitor;
-
-    fdset.fd = monitor->m_server_fd;
-    fdset.events = POLLIN | POLLPRI;
-    fdset.revents = 0;
 
     // We are finised with the arguments and are ready to go.  Sync with the
     // parent thread and start serving operations on the inferior.
@@ -1407,64 +1348,28 @@ ProcessMonitor::ServeOperation(OperationArgs *args)
 
     for (;;)
     {
-        if ((status = poll(&fdset, 1, -1)) < 0)
-        {
-            switch (errno)
-            {
-            default:
-                assert(false && "Unexpected poll() failure!");
-                continue;
+        // wait for next pending operation
+        sem_wait(&monitor->m_operation_pending);
 
-            case EINTR: continue; // Just poll again.
-            case EBADF: return;   // Connection terminated.
-            }
-        }
+        monitor->m_operation->Execute(monitor);
 
-        assert(status == 1 && "Too many descriptors!");
-
-        if (fdset.revents & POLLIN)
-        {
-            Operation *op = NULL;
-
-        READ_AGAIN:
-            if ((status = read(fdset.fd, &op, sizeof(op))) < 0)
-            {
-                // There is only one acceptable failure.
-                assert(errno == EINTR);
-                goto READ_AGAIN;
-            }
-            if (status == 0)
-                continue; // Poll again. The connection probably terminated.
-            assert(status == sizeof(op));
-            op->Execute(monitor);
-            write(fdset.fd, &op, sizeof(op));
-        }
+        // notify calling thread that operation is complete
+        sem_post(&monitor->m_operation_done);
     }
 }
 
 void
 ProcessMonitor::DoOperation(Operation *op)
 {
-    int status;
-    Operation *ack = NULL;
-    Mutex::Locker lock(m_server_mutex);
+    Mutex::Locker lock(m_operation_mutex);
 
-    // FIXME: Do proper error checking here.
-    write(m_client_fd, &op, sizeof(op));
+    m_operation = op;
 
-READ_AGAIN:
-    if ((status = read(m_client_fd, &ack, sizeof(ack))) < 0)
-    {
-        // If interrupted by a signal handler try again.  Otherwise the monitor
-        // thread probably died and we have a stale file descriptor -- abort the
-        // operation.
-        if (errno == EINTR)
-            goto READ_AGAIN;
-        return;
-    }
+    // notify operation thread that an operation is ready to be processed
+    sem_post(&m_operation_pending);
 
-    assert(status == sizeof(ack));
-    assert(ack == op && "Invalid monitor thread response!");
+    // wait for operation to complete
+    sem_wait(&m_operation_done);
 }
 
 size_t
@@ -1551,6 +1456,12 @@ ProcessMonitor::WriteFPR(lldb::tid_t tid, void *buf, size_t buf_size)
 
 bool
 ProcessMonitor::WriteRegisterSet(lldb::tid_t tid, void *buf, size_t buf_size, unsigned int regset)
+{
+    return false;
+}
+
+bool
+ProcessMonitor::ReadThreadPointer(lldb::tid_t tid, lldb::addr_t &value)
 {
     return false;
 }
@@ -1648,9 +1559,36 @@ ProcessMonitor::StopMonitor()
 {
     StopMonitoringChildProcess();
     StopOpThread();
-    CloseFD(m_terminal_fd);
-    CloseFD(m_client_fd);
-    CloseFD(m_server_fd);
+    sem_destroy(&m_operation_pending);
+    sem_destroy(&m_operation_done);
+
+    // Note: ProcessPOSIX passes the m_terminal_fd file descriptor to
+    // Process::SetSTDIOFileDescriptor, which in turn transfers ownership of
+    // the descriptor to a ConnectionFileDescriptor object.  Consequently
+    // even though still has the file descriptor, we shouldn't close it here.
+}
+
+// FIXME: On Linux, when a new thread is created, we receive to notifications,
+// (1) a SIGTRAP|PTRACE_EVENT_CLONE from the main process thread with the
+// child thread id as additional information, and (2) a SIGSTOP|SI_USER from
+// the new child thread indicating that it has is stopped because we attached.
+// We have no guarantee of the order in which these arrive, but we need both
+// before we are ready to proceed.  We currently keep a list of threads which
+// have sent the initial SIGSTOP|SI_USER event.  Then when we receive the
+// SIGTRAP|PTRACE_EVENT_CLONE notification, if the initial stop has not occurred
+// we call ProcessMonitor::WaitForInitialTIDStop() to wait for it.
+//
+// Right now, the above logic is in ProcessPOSIX, so we need a definition of
+// this function in the FreeBSD ProcessMonitor implementation even if it isn't
+// logically needed.
+//
+// We really should figure out what actually happens on FreeBSD and move the
+// Linux-specific logic out of ProcessPOSIX as needed.
+
+bool
+ProcessMonitor::WaitForInitialTIDStop(lldb::tid_t tid)
+{
+    return true;
 }
 
 void
@@ -1664,14 +1602,4 @@ ProcessMonitor::StopOpThread()
     Host::ThreadCancel(m_operation_thread, NULL);
     Host::ThreadJoin(m_operation_thread, &result, NULL);
     m_operation_thread = LLDB_INVALID_HOST_THREAD;
-}
-
-void
-ProcessMonitor::CloseFD(int &fd)
-{
-    if (fd != -1)
-    {
-        close(fd);
-        fd = -1;
-    }
 }

@@ -354,7 +354,7 @@ ABISysV_x86_64::PrepareTrivialCall (Thread &thread,
     const RegisterInfo *reg_info = NULL;
     if (arg1_ptr)
     {
-        reg_info = reg_ctx->GetRegisterInfoByName("rdi", 0);
+        reg_info = reg_ctx->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_ARG1);
         if (log)
             log->Printf("About to write arg1 (0x%" PRIx64 ") into %s", (uint64_t)*arg1_ptr, reg_info->name);
 
@@ -363,7 +363,7 @@ ABISysV_x86_64::PrepareTrivialCall (Thread &thread,
 
         if (arg2_ptr)
         {
-            reg_info = reg_ctx->GetRegisterInfoByName("rsi", 0);
+            reg_info = reg_ctx->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_ARG2);
             if (log)
                 log->Printf("About to write arg2 (0x%" PRIx64 ") into %s", (uint64_t)*arg2_ptr, reg_info->name);
             if (!reg_ctx->WriteRegisterFromUnsigned (reg_info, *arg2_ptr))
@@ -371,7 +371,7 @@ ABISysV_x86_64::PrepareTrivialCall (Thread &thread,
 
             if (arg3_ptr)
             {
-                reg_info = reg_ctx->GetRegisterInfoByName("rdx", 0);
+                reg_info = reg_ctx->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_ARG3);
                 if (log)
                     log->Printf("About to write arg3 (0x%" PRIx64 ") into %s", (uint64_t)*arg3_ptr, reg_info->name);
                 if (!reg_ctx->WriteRegisterFromUnsigned (reg_info, *arg3_ptr))
@@ -379,7 +379,7 @@ ABISysV_x86_64::PrepareTrivialCall (Thread &thread,
 
                 if (arg4_ptr)
                 {
-                    reg_info = reg_ctx->GetRegisterInfoByName("rcx", 0);
+                    reg_info = reg_ctx->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_ARG4);
                     if (log)
                         log->Printf("About to write arg4 (0x%" PRIx64 ") into %s", (uint64_t)*arg4_ptr, reg_info->name);
                     if (!reg_ctx->WriteRegisterFromUnsigned (reg_info, *arg4_ptr))
@@ -387,7 +387,7 @@ ABISysV_x86_64::PrepareTrivialCall (Thread &thread,
 
                     if (arg5_ptr)
                     {
-                        reg_info = reg_ctx->GetRegisterInfoByName("r8", 0);
+                        reg_info = reg_ctx->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_ARG5);
                         if (log)
                             log->Printf("About to write arg5 (0x%" PRIx64 ") into %s", (uint64_t)*arg5_ptr, reg_info->name);
                         if (!reg_ctx->WriteRegisterFromUnsigned (reg_info, *arg5_ptr))
@@ -395,7 +395,7 @@ ABISysV_x86_64::PrepareTrivialCall (Thread &thread,
 
                         if (arg6_ptr)
                         {
-                            reg_info = reg_ctx->GetRegisterInfoByName("r9", 0);
+                            reg_info = reg_ctx->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_ARG6);
                             if (log)
                                 log->Printf("About to write arg6 (0x%" PRIx64 ") into %s", (uint64_t)*arg6_ptr, reg_info->name);
                             if (!reg_ctx->WriteRegisterFromUnsigned (reg_info, *arg6_ptr))
@@ -415,32 +415,75 @@ ABISysV_x86_64::PrepareTrivialCall (Thread &thread,
 
     sp &= ~(0xfull); // 16-byte alignment
 
-    // The return address is pushed onto the stack (yes after the alignment...)
     sp -= 8;
 
+    Error error;
+    const RegisterInfo *pc_reg_info = reg_ctx->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_PC);
+    const RegisterInfo *sp_reg_info = reg_ctx->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_SP);
+    ProcessSP process_sp (thread.GetProcess());
+
     RegisterValue reg_value;
-    reg_value.SetUInt64 (return_addr);
 
+#if 0
+    // This code adds an extra frame so that we don't lose the function that we came from
+    // by pushing the PC and the FP and then writing the current FP to point to the FP value
+    // we just pushed. It is disabled for now until the stack backtracing code can be debugged.
+
+    // Save current PC
+    const RegisterInfo *fp_reg_info = reg_ctx->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_FP);
+    if (reg_ctx->ReadRegister(pc_reg_info, reg_value))
+    {
+        if (log)
+            log->Printf("Pushing the current PC onto the stack: 0x%" PRIx64 ": 0x%" PRIx64, (uint64_t)sp, reg_value.GetAsUInt64());
+        
+        if (!process_sp->WritePointerToMemory(sp, reg_value.GetAsUInt64(), error))
+            return false;
+
+        sp -= 8;
+        
+        // Save current FP
+        if (reg_ctx->ReadRegister(fp_reg_info, reg_value))
+        {
+            if (log)
+                log->Printf("Pushing the current FP onto the stack: 0x%" PRIx64 ": 0x%" PRIx64, (uint64_t)sp, reg_value.GetAsUInt64());
+            
+            if (!process_sp->WritePointerToMemory(sp, reg_value.GetAsUInt64(), error))
+                return false;
+        }
+        // Setup FP backchain
+        reg_value.SetUInt64 (sp);
+        
+        if (log)
+            log->Printf("Writing FP:  0x%" PRIx64 " (for FP backchain)", reg_value.GetAsUInt64());
+
+        if (!reg_ctx->WriteRegister(fp_reg_info, reg_value))
+        {
+            return false;
+        }
+        
+        sp -= 8;
+    }
+#endif 
+    
     if (log)
-        log->Printf("Pushing the return address onto the stack: new SP 0x%" PRIx64 ", return address 0x%" PRIx64, (uint64_t)sp, (uint64_t)return_addr);
+        log->Printf("Pushing the return address onto the stack: 0x%" PRIx64 ": 0x%" PRIx64, (uint64_t)sp, (uint64_t)return_addr);
 
-    const RegisterInfo *pc_reg_info = reg_ctx->GetRegisterInfoByName("rip");
-    Error error (reg_ctx->WriteRegisterValueToMemory(pc_reg_info, sp, pc_reg_info->byte_size, reg_value));
-    if (error.Fail())
+    // Save return address onto the stack
+    if (!process_sp->WritePointerToMemory(sp, return_addr, error))
         return false;
 
     // %rsp is set to the actual stack value.
 
     if (log)
-        log->Printf("Writing SP (0x%" PRIx64 ") down", (uint64_t)sp);
+        log->Printf("Writing SP: 0x%" PRIx64, (uint64_t)sp);
     
-    if (!reg_ctx->WriteRegisterFromUnsigned (reg_ctx->GetRegisterInfoByName("rsp"), sp))
+    if (!reg_ctx->WriteRegisterFromUnsigned (sp_reg_info, sp))
         return false;
 
     // %rip is set to the address of the called function.
     
     if (log)
-        log->Printf("Writing new IP (0x%" PRIx64 ") down", (uint64_t)func_addr);
+        log->Printf("Writing IP: 0x%" PRIx64, (uint64_t)func_addr);
 
     if (!reg_ctx->WriteRegisterFromUnsigned (pc_reg_info, func_addr))
         return false;
@@ -506,12 +549,12 @@ ABISysV_x86_64::GetArgumentValues (Thread &thread,
     
     uint32_t argument_register_ids[6];
     
-    argument_register_ids[0] = reg_ctx->GetRegisterInfoByName("rdi", 0)->kinds[eRegisterKindLLDB];
-    argument_register_ids[1] = reg_ctx->GetRegisterInfoByName("rsi", 0)->kinds[eRegisterKindLLDB];
-    argument_register_ids[2] = reg_ctx->GetRegisterInfoByName("rdx", 0)->kinds[eRegisterKindLLDB];
-    argument_register_ids[3] = reg_ctx->GetRegisterInfoByName("rcx", 0)->kinds[eRegisterKindLLDB];
-    argument_register_ids[4] = reg_ctx->GetRegisterInfoByName("r8", 0)->kinds[eRegisterKindLLDB];
-    argument_register_ids[5] = reg_ctx->GetRegisterInfoByName("r9", 0)->kinds[eRegisterKindLLDB];
+    argument_register_ids[0] = reg_ctx->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_ARG1)->kinds[eRegisterKindLLDB];
+    argument_register_ids[1] = reg_ctx->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_ARG2)->kinds[eRegisterKindLLDB];
+    argument_register_ids[2] = reg_ctx->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_ARG3)->kinds[eRegisterKindLLDB];
+    argument_register_ids[3] = reg_ctx->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_ARG4)->kinds[eRegisterKindLLDB];
+    argument_register_ids[4] = reg_ctx->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_ARG5)->kinds[eRegisterKindLLDB];
+    argument_register_ids[5] = reg_ctx->GetRegisterInfo (eRegisterKindGeneric, LLDB_REGNUM_GENERIC_ARG6)->kinds[eRegisterKindLLDB];
     
     unsigned int current_argument_register = 0;
     
@@ -1085,33 +1128,12 @@ ABISysV_x86_64::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_c
 bool
 ABISysV_x86_64::CreateFunctionEntryUnwindPlan (UnwindPlan &unwind_plan)
 {
-    uint32_t reg_kind = unwind_plan.GetRegisterKind();
-    uint32_t sp_reg_num = LLDB_INVALID_REGNUM;
-    uint32_t pc_reg_num = LLDB_INVALID_REGNUM;
+    unwind_plan.Clear();
+    unwind_plan.SetRegisterKind (eRegisterKindDWARF);
     
-    switch (reg_kind)
-    {
-    case eRegisterKindDWARF:
-    case eRegisterKindGCC:
-        sp_reg_num = gcc_dwarf_rsp;
-        pc_reg_num = gcc_dwarf_rip;
-        break;
-
-    case eRegisterKindGDB:
-        sp_reg_num = gdb_rsp;
-        pc_reg_num = gdb_rip;
-        break;
-
-    case eRegisterKindGeneric:
-        sp_reg_num = LLDB_REGNUM_GENERIC_SP;
-        pc_reg_num = LLDB_REGNUM_GENERIC_PC;
-        break;
-    }
-
-    if (sp_reg_num == LLDB_INVALID_REGNUM ||
-        pc_reg_num == LLDB_INVALID_REGNUM)
-        return false;
-
+    uint32_t sp_reg_num = gcc_dwarf_rsp;
+    uint32_t pc_reg_num = gcc_dwarf_rip;
+    
     UnwindPlan::RowSP row(new UnwindPlan::Row);
     row->SetCFARegister (sp_reg_num);
     row->SetCFAOffset (8);
@@ -1125,48 +1147,23 @@ ABISysV_x86_64::CreateFunctionEntryUnwindPlan (UnwindPlan &unwind_plan)
 bool
 ABISysV_x86_64::CreateDefaultUnwindPlan (UnwindPlan &unwind_plan)
 {
-    uint32_t reg_kind = unwind_plan.GetRegisterKind();
-    uint32_t fp_reg_num = LLDB_INVALID_REGNUM;
-    uint32_t sp_reg_num = LLDB_INVALID_REGNUM;
-    uint32_t pc_reg_num = LLDB_INVALID_REGNUM;
+    unwind_plan.Clear();
+    unwind_plan.SetRegisterKind (eRegisterKindDWARF);
+
+    uint32_t fp_reg_num = gcc_dwarf_rbp;
+    uint32_t sp_reg_num = gcc_dwarf_rsp;
+    uint32_t pc_reg_num = gcc_dwarf_rip;
     
-    switch (reg_kind)
-    {
-        case eRegisterKindDWARF:
-        case eRegisterKindGCC:
-            fp_reg_num = gcc_dwarf_rbp;
-            sp_reg_num = gcc_dwarf_rsp;
-            pc_reg_num = gcc_dwarf_rip;
-            break;
-            
-        case eRegisterKindGDB:
-            fp_reg_num = gdb_rbp;
-            sp_reg_num = gdb_rsp;
-            pc_reg_num = gdb_rip;
-            break;
-            
-        case eRegisterKindGeneric:
-            fp_reg_num = LLDB_REGNUM_GENERIC_FP;
-            sp_reg_num = LLDB_REGNUM_GENERIC_SP;
-            pc_reg_num = LLDB_REGNUM_GENERIC_PC;
-            break;
-    }
-
-    if (fp_reg_num == LLDB_INVALID_REGNUM ||
-        sp_reg_num == LLDB_INVALID_REGNUM ||
-        pc_reg_num == LLDB_INVALID_REGNUM)
-        return false;
-
     UnwindPlan::RowSP row(new UnwindPlan::Row);
 
     const int32_t ptr_size = 8;
-    row->SetCFARegister (LLDB_REGNUM_GENERIC_FP);
+    row->SetCFARegister (gcc_dwarf_rbp);
     row->SetCFAOffset (2 * ptr_size);
     row->SetOffset (0);
     
     row->SetRegisterLocationToAtCFAPlusOffset(fp_reg_num, ptr_size * -2, true);
     row->SetRegisterLocationToAtCFAPlusOffset(pc_reg_num, ptr_size * -1, true);
-    row->SetRegisterLocationToAtCFAPlusOffset(sp_reg_num, ptr_size *  0, true);
+    row->SetRegisterLocationToIsCFAPlusOffset(sp_reg_num, 0, true);
 
     unwind_plan.AppendRow (row);
     unwind_plan.SetSourceName ("x86_64 default unwind plan");
