@@ -158,7 +158,7 @@ METHOD const char * get_name {
 } DEFAULT ofw_bus_default_get_name;
 
 # Get the firmware node for the device dev on the bus. The default method will
-# return 0, which signals that there is no such node.
+# return -1, which signals that there is no such node.
 METHOD phandle_t get_node {
 	device_t bus;
 	device_t dev;
