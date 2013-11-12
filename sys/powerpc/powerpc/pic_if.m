@@ -33,11 +33,30 @@
 
 INTERFACE pic;
 
+CODE {
+	static pic_translate_code_t pic_translate_code_default;
+
+	static void pic_translate_code_default(device_t dev, u_int irq,
+	    int code, enum intr_trigger *trig, enum intr_polarity *pol)
+	{
+		*trig = INTR_TRIGGER_CONFORM;
+		*pol = INTR_POLARITY_CONFORM;
+	}
+};
+
 METHOD void bind {
 	device_t	dev;
 	u_int		irq;
 	cpuset_t	cpumask;
 };
+
+METHOD void translate_code {
+	device_t	dev;
+	u_int		irq;
+	int		code;
+	enum intr_trigger *trig;
+	enum intr_polarity *pol;
+} DEFAULT pic_translate_code_default;
 
 METHOD void config {
 	device_t	dev;

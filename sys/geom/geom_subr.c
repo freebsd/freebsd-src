@@ -951,6 +951,13 @@ g_handleattr_int(struct bio *bp, const char *attribute, int val)
 }
 
 int
+g_handleattr_uint16_t(struct bio *bp, const char *attribute, uint16_t val)
+{
+
+	return (g_handleattr(bp, attribute, &val, sizeof val));
+}
+
+int
 g_handleattr_off_t(struct bio *bp, const char *attribute, off_t val)
 {
 

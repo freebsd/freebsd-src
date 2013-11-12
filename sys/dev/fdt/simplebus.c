@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #include "fdt_common.h"
+#include "fdt_ic_if.h"
 #include "ofw_bus_if.h"
 
 #ifdef DEBUG
@@ -80,9 +81,18 @@ static int simplebus_attach(device_t);
 static int simplebus_print_child(device_t, device_t);
 static int simplebus_setup_intr(device_t, device_t, struct resource *, int,
     driver_filter_t *, driver_intr_t *, void *, void **);
+static int simplebus_teardown_intr(device_t, device_t, struct resource *,
+    void *);
 
+static int simplebus_activate_resource(device_t, device_t, int, int,
+    struct resource *);
 static struct resource *simplebus_alloc_resource(device_t, device_t, int,
     int *, u_long, u_long, u_long, u_int);
+static int simplebus_deactivate_resource(device_t, device_t, int, int,
+    struct resource *);
+static int simplebus_release_resource(device_t, device_t, int, int,
+    struct resource *);
+static device_t simplebus_get_interrupt_parent(device_t);
 static struct resource_list *simplebus_get_resource_list(device_t, device_t);
 
 static ofw_bus_get_devinfo_t simplebus_get_devinfo;
@@ -102,11 +112,11 @@ static device_method_t simplebus_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	simplebus_print_child),
 	DEVMETHOD(bus_alloc_resource,	simplebus_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_release_resource,	simplebus_release_resource),
+	DEVMETHOD(bus_activate_resource, simplebus_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, simplebus_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	simplebus_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_teardown_intr,	simplebus_teardown_intr),
 	DEVMETHOD(bus_get_resource_list, simplebus_get_resource_list),
 
 	/* OFW bus interface */
@@ -128,7 +138,7 @@ static driver_t simplebus_driver = {
 
 devclass_t simplebus_devclass;
 
-DRIVER_MODULE(simplebus, fdtbus, simplebus_driver, simplebus_devclass, 0, 0);
+DRIVER_MODULE(simplebus, nexus, simplebus_driver, simplebus_devclass, 0, 0);
 DRIVER_MODULE(simplebus, simplebus, simplebus_driver, simplebus_devclass, 0,
     0);
 
@@ -217,6 +227,7 @@ simplebus_attach(device_t dev)
 static int
 simplebus_print_child(device_t dev, device_t child)
 {
+	device_t ip;
 	struct simplebus_devinfo *di;
 	struct resource_list *rl;
 	int rv;
@@ -228,6 +239,8 @@ simplebus_print_child(device_t dev, device_t child)
 	rv += bus_print_child_header(dev, child);
 	rv += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
 	rv += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	if ((ip = simplebus_get_interrupt_parent(child)) != NULL)
+		rv += printf(" (%s)", device_get_nameunit(ip));
 	rv += bus_print_child_footer(dev, child);
 
 	return (rv);
@@ -237,6 +250,7 @@ static struct resource *
 simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
+	device_t ic;
 	struct simplebus_devinfo *di;
 	struct resource_list_entry *rle;
 
@@ -263,8 +277,51 @@ simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		count = rle->count;
 	}
 
+	if (type == SYS_RES_IRQ &&
+	    (ic = simplebus_get_interrupt_parent(child)) != NULL)
+		return(FDT_IC_ALLOC_INTR(ic, child, rid, start, flags));
+
 	return (bus_generic_alloc_resource(bus, child, type, rid, start, end,
 	    count, flags));
+}
+
+static int
+simplebus_activate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	device_t ic;
+
+	if (type == SYS_RES_IRQ &&
+	    (ic = simplebus_get_interrupt_parent(child)) != NULL)
+		return (FDT_IC_ACTIVATE_INTR(ic, r));
+
+	return (bus_generic_activate_resource(dev, child, type, rid, r));
+}
+
+static int
+simplebus_deactivate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	device_t ic;
+
+	if (type == SYS_RES_IRQ &&
+	    (ic = simplebus_get_interrupt_parent(child)) != NULL)
+		return (FDT_IC_DEACTIVATE_INTR(ic, r));
+
+	return (bus_generic_deactivate_resource(dev, child, type, rid, r));
+}
+
+static int
+simplebus_release_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	device_t ic;
+
+	if (type == SYS_RES_IRQ &&
+	    (ic = simplebus_get_interrupt_parent(child)) != NULL)
+		return (FDT_IC_RELEASE_INTR(ic, r));
+
+	return (bus_generic_release_resource(dev, child, type, rid, r));
 }
 
 static struct resource_list *
@@ -276,15 +333,43 @@ simplebus_get_resource_list(device_t bus, device_t child)
 	return (&di->di_res);
 }
 
+static device_t
+simplebus_get_interrupt_parent(device_t dev)
+{
+	struct simplebus_devinfo *di;
+	struct fdt_ic *ic;
+	device_t ip;
+	phandle_t ph, iph;
+
+	ip = NULL;
+
+	di = device_get_ivars(dev);
+	if (di == NULL)
+		return (NULL);
+
+	if (OF_getencprop(di->di_ofw.obd_node, "interrupt-parent", &iph,
+	    sizeof(iph)) > 0) {
+		ph = OF_xref_phandle(iph);
+		SLIST_FOREACH(ic, &fdt_ic_list_head, fdt_ics) {
+			if (ic->iph == ph) {
+				ip = ic->dev;
+				break;
+			}
+		}
+	}
+	return (ip);
+}
+
 static int
 simplebus_setup_intr(device_t bus, device_t child, struct resource *res,
     int flags, driver_filter_t *filter, driver_intr_t *ihand, void *arg,
     void **cookiep)
 {
 	struct simplebus_devinfo *di;
+	device_t ic;
 	enum intr_trigger trig;
 	enum intr_polarity pol;
-	int error, rid;
+	int error, irq, rid;
 
 	di = device_get_ivars(child);
 	if (di == NULL)
@@ -297,18 +382,39 @@ simplebus_setup_intr(device_t bus, device_t child, struct resource *res,
 	if (rid >= DI_MAX_INTR_NUM)
 		return (ENOENT);
 
+	ic = simplebus_get_interrupt_parent(child);
+
 	trig = di->di_intr_sl[rid].trig;
 	pol = di->di_intr_sl[rid].pol;
 	if (trig != INTR_TRIGGER_CONFORM || pol != INTR_POLARITY_CONFORM) {
-		error = bus_generic_config_intr(bus, rman_get_start(res),
-		    trig, pol);
+		irq = rman_get_start(res);
+		if (ic != NULL)
+			error = FDT_IC_CONFIG_INTR(ic, irq, trig, pol);
+		else
+			error = bus_generic_config_intr(bus, irq, trig, pol);
 		if (error)
 			return (error);
 	}
 
-	error = bus_generic_setup_intr(bus, child, res, flags, filter, ihand,
-	    arg, cookiep);
+	if (ic != NULL)
+		error = FDT_IC_SETUP_INTR(ic, child, res, flags, filter,
+		    ihand, arg, cookiep);
+	else
+		error = bus_generic_setup_intr(bus, child, res, flags, filter,
+		    ihand, arg, cookiep);
 	return (error);
+}
+
+static int
+simplebus_teardown_intr(device_t bus, device_t child, struct resource *res,
+    void *cookie)
+{
+	device_t ic;
+
+	if ((ic = simplebus_get_interrupt_parent(child)) != NULL)
+		return (FDT_IC_TEARDOWN_INTR(ic, child, res, cookie));
+
+	return (bus_generic_teardown_intr(bus, child, res, cookie));
 }
 
 static const struct ofw_bus_devinfo *

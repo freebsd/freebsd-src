@@ -331,7 +331,7 @@ rtc_init(struct vmctx *ctx)
 
 	memset(rtc_nvram, 0, sizeof(rtc_nvram));
 
-	rtc_nvram[nvoff(RTC_CENTURY)] = rtcout(tm.tm_year / 100);
+	rtc_nvram[nvoff(RTC_CENTURY)] = bin2bcd((tm.tm_year + 1900) / 100);
 
 	/* XXX init diag/reset code/equipment/checksum ? */
 

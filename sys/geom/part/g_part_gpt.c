@@ -731,8 +731,11 @@ g_part_gpt_resize(struct g_part_table *basetable,
     struct g_part_entry *baseentry, struct g_part_parms *gpp)
 {
 	struct g_part_gpt_entry *entry;
-	entry = (struct g_part_gpt_entry *)baseentry;
 
+	if (baseentry == NULL)
+		return (EOPNOTSUPP);
+
+	entry = (struct g_part_gpt_entry *)baseentry;
 	baseentry->gpe_end = baseentry->gpe_start + gpp->gpp_size - 1;
 	entry->ent.ent_lba_end = baseentry->gpe_end;
 

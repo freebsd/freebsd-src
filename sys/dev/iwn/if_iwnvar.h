@@ -249,6 +249,7 @@ struct iwn_softc {
 #define IWN_FLAG_ENH_SENS	(1 << 7)
 #define IWN_FLAG_ADV_BTCOEX	(1 << 8)
 #define IWN_FLAG_PAN_SUPPORT	(1 << 9)
+#define IWN_FLAG_BTCOEX		(1 << 10)
 
 	uint8_t 		hw_type;
 	/* subdevice_id used to adjust configuration */
@@ -315,7 +316,7 @@ struct iwn_softc {
 	struct callout		watchdog_to;
 	struct callout		ct_kill_exit_to;
 	struct iwn_fw_info	fw;
-	struct iwn_calib_info	calibcmd[5];
+	struct iwn_calib_info	calibcmd[IWN5000_PHY_CALIB_MAX_RESULT];
 	uint32_t		errptr;
 
 	struct iwn_rx_stat	last_rx_stat;
@@ -387,8 +388,8 @@ struct iwn_softc {
 	 */
 	int			current_pwrsave_level;
 
-	/* For specifique params */
-	struct iwn_base_params *base_params;
+	/* For specific params */
+	const struct iwn_base_params *base_params;
 };
 
 #define IWN_LOCK_INIT(_sc) \

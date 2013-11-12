@@ -36,11 +36,11 @@
  * Costa Mesa, CA 92626
  */
 
-
 /* $FreeBSD$ */
 
 #include <sys/param.h>
 #include <sys/endian.h>
+#include <sys/eventhandler.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
@@ -65,6 +65,7 @@
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_media.h>
 #include <net/if_vlan_var.h>
@@ -88,7 +89,8 @@
 
 #include "oce_hw.h"
 
-#define COMPONENT_REVISION "4.6.95.0"
+/* OCE device driver module component revision informaiton */
+#define COMPONENT_REVISION "10.0.664.0"
 
 /* OCE devices supported by this driver */
 #define PCI_VENDOR_EMULEX		0x10df	/* Emulex */
@@ -150,6 +152,7 @@ extern int mp_ncpus;			/* system's total active cpu cores */
 #define OCE_MAX_TX_ELEMENTS		29
 #define OCE_MAX_TX_DESC			1024
 #define OCE_MAX_TX_SIZE			65535
+#define OCE_MAX_TSO_SIZE		(65535 - ETHER_HDR_LEN)
 #define OCE_MAX_RX_SIZE			4096
 #define OCE_MAX_RQ_POSTS		255
 #define OCE_DEFAULT_PROMISCUOUS		0
@@ -173,6 +176,7 @@ extern int mp_ncpus;			/* system's total active cpu cores */
 #define  OCE_CAPAB_FLAGS 		(MBX_RX_IFACE_FLAGS_BROADCAST    | \
 					MBX_RX_IFACE_FLAGS_UNTAGGED      | \
 					MBX_RX_IFACE_FLAGS_PROMISCUOUS      | \
+					MBX_RX_IFACE_FLAGS_VLAN_PROMISCUOUS |	\
 					MBX_RX_IFACE_FLAGS_MCAST_PROMISCUOUS   | \
 					MBX_RX_IFACE_FLAGS_RSS | \
 					MBX_RX_IFACE_FLAGS_PASS_L3L4_ERR)
@@ -863,7 +867,7 @@ typedef struct oce_softc {
 	uint32_t if_cap_flags;
 
 	uint32_t flow_control;
-	uint32_t promisc;
+	uint8_t  promisc;
 
 	struct oce_aic_obj aic_obj[OCE_MAX_EQ];
 
@@ -877,9 +881,11 @@ typedef struct oce_softc {
 	struct oce_drv_stats oce_stats_info;
 	struct callout  timer;
 	int8_t be3_native;
+	uint8_t hw_error;
 	uint16_t qnq_debug_event;
 	uint16_t qnqid;
 	uint16_t pvid;
+	uint16_t max_vlans;
 
 } OCE_SOFTC, *POCE_SOFTC;
 
@@ -1010,7 +1016,7 @@ int oce_config_vlan(POCE_SOFTC sc, uint32_t if_id,
 		uint32_t untagged, uint32_t enable_promisc);
 int oce_set_flow_control(POCE_SOFTC sc, uint32_t flow_control);
 int oce_config_nic_rss(POCE_SOFTC sc, uint32_t if_id, uint16_t enable_rss);
-int oce_rxf_set_promiscuous(POCE_SOFTC sc, uint32_t enable);
+int oce_rxf_set_promiscuous(POCE_SOFTC sc, uint8_t enable);
 int oce_set_common_iface_rx_filter(POCE_SOFTC sc, POCE_DMA_MEM sgl);
 int oce_get_link_status(POCE_SOFTC sc, struct link_status *link);
 int oce_mbox_get_nic_stats_v0(POCE_SOFTC sc, POCE_DMA_MEM pstats_dma_mem);

@@ -421,6 +421,7 @@ create_drive(char *device)
 	const char *errstr;
 	char *drivename, *dname;
 	int drives, i, flags, volumes, subdisks, plexes;
+	int found = 0;
 
 	flags = plexes = subdisks = volumes = 0;
 	drives = 1;
@@ -448,10 +449,8 @@ create_drive(char *device)
 	errstr = gctl_issue(req);
 	if (errstr != NULL) {
 		warnx("error creating drive: %s", errstr);
-		gctl_free(req);
-		return (NULL);
+		drivename = NULL;
 	} else {
-		gctl_free(req);
 		/* XXX: This is needed because we have to make sure the drives
 		 * are created before we return. */
 		/* Loop until it's in the config. */
@@ -461,13 +460,17 @@ create_drive(char *device)
 			/* If we got a different name, quit. */
 			if (dname == NULL)
 				continue;
-			if (strcmp(dname, drivename)) {
-				free(dname);
-				return (drivename);
-			}
+			if (strcmp(dname, drivename))
+				found = 1;
 			free(dname);
 			dname = NULL;
+			if (found)
+				break;
 			usleep(100000); /* Sleep for 0.1s */
+		}
+		if (found == 0) {
+			warnx("error creating drive");
+			drivename = NULL;
 		}
 	}
 	gctl_free(req);

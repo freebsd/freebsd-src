@@ -6,12 +6,12 @@
      $FreeBSD$
      Original revision: 1.1
 -->
-<sect1>
-  <sect1info>
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+  <info><title>P&eacute;riph&eacute;riques support&eacute;s</title>
     <pubdate>$FreeBSD$</pubdate>
-  </sect1info>
+  </info>
 
-  <title>P&eacute;riph&eacute;riques support&eacute;s</title>
+  
 
   <para>Cette section d&eacute;crit les p&eacute;riph&eacute;riques
   actuellement connus pour &ecirc;tre support&eacute;s avec &os; la
@@ -47,10 +47,10 @@
       <listitem><para>Les ponts g&eacute;n&eacute;riques
       PCI-PCI</para></listitem>
       <listitem><para>&man.ahc.4; (tr&egrave;s rapidement).</para></listitem>
-      <listitem><para>&man.ata.4;, <devicename>atadisk</devicename>,
-        <devicename>atapicd</devicename> (mais pas atapifd,
+      <listitem><para>&man.ata.4;, <filename>atadisk</filename>,
+        <filename>atapicd</filename> (mais pas atapifd,
         atapist)</para></listitem>
-      <listitem><para><devicename>gem</devicename> (Les cartes
+      <listitem><para><filename>gem</filename> (Les cartes
       ethernet des cartes m&egrave;res Blade 100, Sun
       GEM/ERI)</para></listitem>
       <listitem><para><literal>hme</literal> (Les cartes ethernet des
@@ -123,7 +123,7 @@
       <listitem><para>les p&eacute;riph&eacute;riques graphiques, claviers
       (except&eacute;s indirectement en mode texte via l'utilisation du
       p&eacute;riph&eacute;rique
-      <devicename>ofw_console</devicename>)</para></listitem>
+      <filename>ofw_console</filename>)</para></listitem>
 
       <listitem><para>Les ports s&eacute;ries Siemens sab82532 (Ultra
       5/10; les ports du clavier et de la souris sont
@@ -131,7 +131,7 @@
       est en cours de finalisation).</para></listitem>
 
       <listitem><para>les claviers s&eacute;ries(except&eacute;s indirectement
-      via le p&eacute;riph&eacute;rique <devicename>ofw_console</devicename>
+      via le p&eacute;riph&eacute;rique <filename>ofw_console</filename>
       device)</para></listitem>
 
       <listitem><para>Les ports s&eacute;ries Zilog z8530 (clavier et

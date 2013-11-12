@@ -59,10 +59,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 #include <net/ethernet.h> /* for ETHERTYPE_IP */
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
-#include <net/pf_mtag.h>
 #include <net/pfil.h>
 #include <net/vnet.h>
+
+#include <netpfil/pf/pf_mtag.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -432,7 +434,7 @@ verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 	 * If ifp is provided, check for equality with rtentry.
 	 * We should use rt->rt_ifa->ifa_ifp, instead of rt->rt_ifp,
 	 * in order to pass packets injected back by if_simloop():
-	 * if useloopback == 1 routing entry (via lo0) for our own address
+	 * routing entry (via lo0) for our own address
 	 * may exist, so we need to handle routing assymetry.
 	 */
 	if (ifp != NULL && ro.ro_rt->rt_ifa->ifa_ifp != ifp) {
@@ -476,34 +478,6 @@ flow6id_match( int curr_flow, ipfw_insn_u32 *cmd )
 	for (i=0; i <= cmd->o.arg1; ++i )
 		if (curr_flow == cmd->d[i] )
 			return 1;
-	return 0;
-}
-
-/* support for IP6_*_ME opcodes */
-static int
-search_ip6_addr_net (struct in6_addr * ip6_addr)
-{
-	struct ifnet *mdc;
-	struct ifaddr *mdc2;
-	struct in6_ifaddr *fdm;
-	struct in6_addr copia;
-
-	TAILQ_FOREACH(mdc, &V_ifnet, if_link) {
-		if_addr_rlock(mdc);
-		TAILQ_FOREACH(mdc2, &mdc->if_addrhead, ifa_link) {
-			if (mdc2->ifa_addr->sa_family == AF_INET6) {
-				fdm = (struct in6_ifaddr *)mdc2;
-				copia = fdm->ia_addr.sin6_addr;
-				/* need for leaving scope_id in the sock_addr */
-				in6_clearscope(&copia);
-				if (IN6_ARE_ADDR_EQUAL(ip6_addr, &copia)) {
-					if_addr_runlock(mdc);
-					return 1;
-				}
-			}
-		}
-		if_addr_runlock(mdc);
-	}
 	return 0;
 }
 
@@ -1531,7 +1505,8 @@ do {								\
 #ifdef INET6
 				/* FALLTHROUGH */
 			case O_IP6_SRC_ME:
-				match= is_ipv6 && search_ip6_addr_net(&args->f_id.src_ip6);
+				match= is_ipv6 &&
+				    in6_localip(&args->f_id.src_ip6);
 #endif
 				break;
 
@@ -1570,7 +1545,8 @@ do {								\
 #ifdef INET6
 				/* FALLTHROUGH */
 			case O_IP6_DST_ME:
-				match= is_ipv6 && search_ip6_addr_net(&args->f_id.dst_ip6);
+				match= is_ipv6 &&
+				    in6_localip(&args->f_id.dst_ip6);
 #endif
 				break;
 

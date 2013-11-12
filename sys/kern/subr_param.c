@@ -153,6 +153,7 @@ static const char *const vm_guest_sysctl_names[] = {
 	"none",
 	"generic",
 	"xen",
+	"hv",
 	NULL
 };
 
@@ -344,7 +345,7 @@ init_param2(long physpages)
 }
 
 /*
- * Sysctl stringiying handler for kern.vm_guest.
+ * Sysctl stringifying handler for kern.vm_guest.
  */
 static int
 sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS)

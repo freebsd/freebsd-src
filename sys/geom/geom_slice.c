@@ -382,7 +382,7 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
 			printf("GEOM: Reconfigure %s, start %jd length %jd end %jd\n",
 			    pp->name, (intmax_t)offset, (intmax_t)length,
 			    (intmax_t)(offset + length - 1));
-		pp->mediasize = gsl->length;
+		g_resize_provider(pp, gsl->length);
 		return (0);
 	}
 	sb = sbuf_new_auto();
@@ -396,8 +396,10 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
 	pp->stripeoffset = pp2->stripeoffset + offset;
 	if (pp->stripesize > 0)
 		pp->stripeoffset %= pp->stripesize;
-	if (gsp->nhotspot == 0)
+	if (gsp->nhotspot == 0) {
 		pp->flags |= pp2->flags & G_PF_ACCEPT_UNMAPPED;
+		pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
+	}
 	if (0 && bootverbose)
 		printf("GEOM: Configure %s, start %jd length %jd end %jd\n",
 		    pp->name, (intmax_t)offset, (intmax_t)length,
@@ -430,16 +432,20 @@ g_slice_conf_hot(struct g_geom *gp, u_int idx, off_t offset, off_t length, int r
 {
 	struct g_slicer *gsp;
 	struct g_slice_hot *gsl, *gsl2;
+	struct g_consumer *cp;
 	struct g_provider *pp;
 
 	g_trace(G_T_TOPOLOGY, "g_slice_conf_hot(%s, idx: %d, off: %jd, len: %jd)",
 	    gp->name, idx, (intmax_t)offset, (intmax_t)length);
 	g_topology_assert();
 	gsp = gp->softc;
-	/* Deny unmapped I/O if hotspots are used. */
+	/* Deny unmapped I/O and direct dispatch if hotspots are used. */
 	if (gsp->nhotspot == 0) {
 		LIST_FOREACH(pp, &gp->provider, provider)
-			pp->flags &= ~G_PF_ACCEPT_UNMAPPED;
+			pp->flags &= ~(G_PF_ACCEPT_UNMAPPED |
+			    G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE);
+		LIST_FOREACH(cp, &gp->consumer, consumer)
+			cp->flags &= ~(G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE);
 	}
 	gsl = gsp->hotspot;
 	if(idx >= gsp->nhotspot) {
@@ -511,6 +517,7 @@ g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_co
 	if (gp->class->destroy_geom == NULL)
 		gp->class->destroy_geom = g_slice_destroy_geom;
 	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
 	if (error == 0)
 		error = g_access(cp, 1, 0, 0);

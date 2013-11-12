@@ -332,6 +332,7 @@ static int map_bars_0_and_4(struct adapter *);
 static int map_bar_2(struct adapter *);
 static void setup_memwin(struct adapter *);
 static int validate_mem_range(struct adapter *, uint32_t, int);
+static int fwmtype_to_hwmtype(int);
 static int validate_mt_off_len(struct adapter *, int, uint32_t, int,
     uint32_t *);
 static void memwin_info(struct adapter *, int, uint32_t *, uint32_t *);
@@ -1576,6 +1577,24 @@ validate_mem_range(struct adapter *sc, uint32_t addr, int len)
 	return (EFAULT);
 }
 
+static int
+fwmtype_to_hwmtype(int mtype)
+{
+
+	switch (mtype) {
+	case FW_MEMTYPE_EDC0:
+		return (MEM_EDC0);
+	case FW_MEMTYPE_EDC1:
+		return (MEM_EDC1);
+	case FW_MEMTYPE_EXTMEM:
+		return (MEM_MC0);
+	case FW_MEMTYPE_EXTMEM1:
+		return (MEM_MC1);
+	default:
+		panic("%s: cannot translate fw mtype %d.", __func__, mtype);
+	}
+}
+
 /*
  * Verify that the memory range specified by the memtype/offset/len pair is
  * valid and lies entirely within the memtype specified.  The global address of
@@ -1592,7 +1611,7 @@ validate_mt_off_len(struct adapter *sc, int mtype, uint32_t off, int len,
 		return (EINVAL);
 
 	em = t4_read_reg(sc, A_MA_TARGET_MEM_ENABLE);
-	switch (mtype) {
+	switch (fwmtype_to_hwmtype(mtype)) {
 	case MEM_EDC0:
 		if (!(em & F_EDRAM0_ENABLE))
 			return (EINVAL);
@@ -2293,7 +2312,7 @@ partition_resources(struct adapter *sc, const struct firmware *default_cfg,
 		}
 	} else {
 use_config_on_flash:
-		mtype = FW_MEMTYPE_CF_FLASH;
+		mtype = FW_MEMTYPE_FLASH;
 		moff = t4_flash_cfg_addr(sc);
 	}
 
@@ -3382,7 +3401,8 @@ t4_get_regs(struct adapter *sc, struct t4_regdump *regs, uint8_t *buf)
 		0xd004, 0xd03c,
 		0xdfc0, 0xdfe0,
 		0xe000, 0xea7c,
-		0xf000, 0x11190,
+		0xf000, 0x11110,
+		0x11118, 0x11190,
 		0x19040, 0x1906c,
 		0x19078, 0x19080,
 		0x1908c, 0x19124,
@@ -3588,7 +3608,8 @@ t4_get_regs(struct adapter *sc, struct t4_regdump *regs, uint8_t *buf)
 		0xd004, 0xd03c,
 		0xdfc0, 0xdfe0,
 		0xe000, 0x11088,
-		0x1109c, 0x1117c,
+		0x1109c, 0x11110,
+		0x11118, 0x1117c,
 		0x11190, 0x11204,
 		0x19040, 0x1906c,
 		0x19078, 0x19080,
@@ -5306,12 +5327,12 @@ sysctl_devlog(SYSCTL_HANDLER_ARGS)
 	struct adapter *sc = arg1;
 	struct devlog_params *dparams = &sc->params.devlog;
 	struct fw_devlog_e *buf, *e;
-	int i, j, rc, nentries, first = 0;
+	int i, j, rc, nentries, first = 0, m;
 	struct sbuf *sb;
 	uint64_t ftstamp = UINT64_MAX;
 
 	if (dparams->start == 0) {
-		dparams->memtype = 0;
+		dparams->memtype = FW_MEMTYPE_EDC0;
 		dparams->start = 0x84000;
 		dparams->size = 32768;
 	}
@@ -5322,8 +5343,8 @@ sysctl_devlog(SYSCTL_HANDLER_ARGS)
 	if (buf == NULL)
 		return (ENOMEM);
 
-	rc = -t4_mem_read(sc, dparams->memtype, dparams->start, dparams->size,
-	    (void *)buf);
+	m = fwmtype_to_hwmtype(dparams->memtype);
+	rc = -t4_mem_read(sc, m, dparams->start, dparams->size, (void *)buf);
 	if (rc != 0)
 		goto done;
 
@@ -5934,10 +5955,13 @@ sysctl_pm_stats(SYSCTL_HANDLER_ARGS)
 	struct adapter *sc = arg1;
 	struct sbuf *sb;
 	int rc, i;
-	uint32_t tx_cnt[PM_NSTATS], rx_cnt[PM_NSTATS];
-	uint64_t tx_cyc[PM_NSTATS], rx_cyc[PM_NSTATS];
-	static const char *pm_stats[] = {
-		"Read:", "Write bypass:", "Write mem:", "Flush:", "FIFO wait:"
+	uint32_t cnt[PM_NSTATS];
+	uint64_t cyc[PM_NSTATS];
+	static const char *rx_stats[] = {
+		"Read:", "Write bypass:", "Write mem:", "Flush:"
+	};
+	static const char *tx_stats[] = {
+		"Read:", "Write bypass:", "Write mem:", "Bypass + mem:"
 	};
 
 	rc = sysctl_wire_old_buffer(req, 0);
@@ -5948,14 +5972,17 @@ sysctl_pm_stats(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	t4_pmtx_get_stats(sc, tx_cnt, tx_cyc);
-	t4_pmrx_get_stats(sc, rx_cnt, rx_cyc);
+	t4_pmtx_get_stats(sc, cnt, cyc);
+	sbuf_printf(sb, "                Tx pcmds             Tx bytes");
+	for (i = 0; i < ARRAY_SIZE(tx_stats); i++)
+		sbuf_printf(sb, "\n%-13s %10u %20ju", tx_stats[i], cnt[i],
+		    cyc[i]);
 
-	sbuf_printf(sb, "                Tx count            Tx cycles    "
-	    "Rx count            Rx cycles");
-	for (i = 0; i < PM_NSTATS; i++)
-		sbuf_printf(sb, "\n%-13s %10u %20ju  %10u %20ju",
-		    pm_stats[i], tx_cnt[i], tx_cyc[i], rx_cnt[i], rx_cyc[i]);
+	t4_pmrx_get_stats(sc, cnt, cyc);
+	sbuf_printf(sb, "\n                Rx pcmds             Rx bytes");
+	for (i = 0; i < ARRAY_SIZE(rx_stats); i++)
+		sbuf_printf(sb, "\n%-13s %10u %20ju", rx_stats[i], cnt[i],
+		    cyc[i]);
 
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);

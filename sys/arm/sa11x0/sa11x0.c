@@ -139,7 +139,7 @@ extern vm_offset_t saipic_base;
 int
 sa11x0_probe(device_t dev)
 {
-	return 0;
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 void

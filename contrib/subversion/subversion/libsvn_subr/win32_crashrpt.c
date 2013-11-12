@@ -427,13 +427,15 @@ write_var_values(PSYMBOL_INFO sym_info, ULONG sym_size, void *baton)
 
       format_value(value_str, sym_info->ModBase, sym_info->TypeIndex,
                    (void *)var_data);
-      fprintf(log_file, "%s=%s", sym_info->Name, value_str);
+      fprintf(log_file, "%.*s=%s", (int)sym_info->NameLen, sym_info->Name,
+              value_str);
     }
   if (!log_params && sym_info->Flags & SYMFLAG_LOCAL)
     {
       format_value(value_str, sym_info->ModBase, sym_info->TypeIndex,
                    (void *)var_data);
-      fprintf(log_file, "        %s = %s\n", sym_info->Name, value_str);
+      fprintf(log_file, "        %.*s = %s\n", (int)sym_info->NameLen,
+              sym_info->Name, value_str);
     }
 
   return TRUE;
@@ -466,8 +468,10 @@ write_function_detail(STACKFRAME64 stack_frame, int nr_of_frame, FILE *log_file)
   if (SymFromAddr_(proc, stack_frame.AddrPC.Offset, &func_disp, pIHS))
     {
       fprintf(log_file,
-                    "#%d  0x%08I64x in %.200s(",
-                    nr_of_frame, stack_frame.AddrPC.Offset, pIHS->Name);
+                    "#%d  0x%08I64x in %.*s(",
+                    nr_of_frame, stack_frame.AddrPC.Offset,
+                    pIHS->NameLen > 200 ? 200 : (int)pIHS->NameLen,
+                    pIHS->Name);
 
       /* restrict symbol enumeration to this frame only */
       ih_stack_frame.InstructionOffset = stack_frame.AddrPC.Offset;

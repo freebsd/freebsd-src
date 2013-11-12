@@ -563,7 +563,8 @@ get_inet_address(struct sockaddr_in *addr, char *host)
 
 	(void) memset((char *)addr, 0, sizeof (*addr));
 	addr->sin_addr.s_addr = inet_addr(host);
-	if (addr->sin_addr.s_addr == -1 || addr->sin_addr.s_addr == 0) {
+	if (addr->sin_addr.s_addr == INADDR_NONE ||
+	    addr->sin_addr.s_addr == INADDR_ANY) {
 		if ((nconf = __rpc_getconfip("udp")) == NULL &&
 		    (nconf = __rpc_getconfip("tcp")) == NULL)
 			errx(1, "couldn't find a suitable transport");

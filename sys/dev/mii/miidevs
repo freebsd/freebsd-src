@@ -136,6 +136,7 @@ model yyAMD 79c901home		0x0039 Am79C901 HomePNA 1.0 interface
 /* Atheros Communications/Attansic PHYs */
 model xxATHEROS F1		0x0001 Atheros F1 10/100/1000 PHY
 model xxATHEROS F2		0x0002 Atheros F2 10/100 PHY
+model xxATHEROS AR8021		0x0004 Atheros AR8021 10/100/1000 PHY
 model xxATHEROS F1_7		0x0007 Atheros F1 10/100/1000 PHY
 
 /* Asix semiconductor PHYs */
@@ -304,6 +305,7 @@ model yyREALTEK RTL8201L	0x0020 RTL8201L 10/100 media interface
 model xxREALTEK RTL8169S	0x0011 RTL8169S/8110S/8211 1000BASE-T media interface
 model REALTEK RTL8305SC		0x0005 RTL8305SC 10/100 802.1q switch
 model REALTEK RTL8201E		0x0008 RTL8201E 10/100 media interface
+model REALTEK RTL8251		0x0000 RTL8251 1000BASE-T media interface
 model REALTEK RTL8169S		0x0011 RTL8169S/8110S/8211 1000BASE-T media interface
 
 /* Seeq Seeq PHYs */

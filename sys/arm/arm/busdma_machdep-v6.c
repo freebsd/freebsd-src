@@ -425,14 +425,21 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	if (_bus_dma_can_bounce(newtag->lowaddr, newtag->highaddr)
 	 || newtag->alignment > 1)
 		newtag->flags |= BUS_DMA_COULD_BOUNCE;
-	else
-		maxsize = 2; /* Need at most 2 bounce pages for unaligned access on cache line boundaries */
 
+	/*
+	 * Any request can auto-bounce due to cacheline alignment, in addition
+	 * to any alignment or boundary specifications in the tag, so if the
+	 * ALLOCNOW flag is set, there's always work to do.
+	 */
 	if ((flags & BUS_DMA_ALLOCNOW) != 0) {
 		struct bounce_zone *bz;
-
-		/* Must bounce */
-
+		/*
+		 * Round size up to a full page, and add one more page because
+		 * there can always be one more boundary crossing than the
+		 * number of pages in a transfer.
+		 */
+		maxsize = roundup2(maxsize, PAGE_SIZE) + PAGE_SIZE;
+		
 		if ((error = alloc_bounce_zone(newtag)) != 0) {
 			free(newtag, M_DEVBUF);
 			return (error);
@@ -518,20 +525,22 @@ static int allocate_bz_and_pages(bus_dma_tag_t dmat, bus_dmamap_t mapp)
 	STAILQ_INIT(&(mapp->bpages));
 
 	/*
-	 * Attempt to add pages to our pool on a per-instance
-	 * basis up to a sane limit.
+	 * Attempt to add pages to our pool on a per-instance basis up to a sane
+	 * limit.  Even if the tag isn't flagged as COULD_BOUNCE due to
+	 * alignment and boundary constraints, it could still auto-bounce due to
+	 * cacheline alignment, which requires at most two bounce pages.
 	 */
 	if (dmat->flags & BUS_DMA_COULD_BOUNCE)
 		maxpages = MAX_BPAGES;
 	else
-		maxpages = 2 * bz->map_count; /* Only need at most 2 pages for buffers unaligned on cache line boundaries */
+		maxpages = 2 * bz->map_count;
 	if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0
 	    || (bz->map_count > 0 && bz->total_bpages < maxpages)) {
 		int pages;
 		
-		pages = MAX(atop(dmat->maxsize), 1);
+		pages = atop(roundup2(dmat->maxsize, PAGE_SIZE)) + 1;
 		pages = MIN(maxpages - bz->total_bpages, pages);
-		pages = MAX(pages, 1);
+		pages = MAX(pages, 2);
 		if (alloc_bounce_pages(dmat, pages) < pages)
 			return (ENOMEM);
 		
@@ -966,6 +975,16 @@ _bus_dmamap_load_phys(bus_dma_tag_t dmat,
 	return (0);
 }
 
+int
+_bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map,
+    struct vm_page **ma, bus_size_t tlen, int ma_offs, int flags,
+    bus_dma_segment_t *segs, int *segp)
+{
+
+	return (bus_dmamap_load_ma_triv(dmat, map, ma, tlen, ma_offs, flags,
+	    segs, segp));
+}
+
 /*
  * Utility function to load a linear buffer.  segp contains
  * the starting segment on entrace, and the ending segment on exit.
@@ -1273,7 +1292,12 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 			}
 			break;
 
+		case BUS_DMASYNC_POSTREAD:
+		case BUS_DMASYNC_POSTWRITE:
+		case BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE:
+			break;
 		default:
+			panic("unsupported combination of sync operations: 0x%08x\n", op);
 			break;
 		}
 	}

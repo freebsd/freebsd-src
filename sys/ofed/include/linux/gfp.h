@@ -92,14 +92,14 @@ __free_page(struct page *m)
 }
 
 static inline void
-__free_pages(void *p, unsigned int order)
+__free_pages(struct page *m, unsigned int order)
 {
 	size_t size;
 
-	if (p == 0)
+	if (m == NULL)
 		return;
 	size = PAGE_SIZE << order;
-	kmem_free(kmem_arena, (vm_offset_t)p, size);
+	kmem_free(kmem_arena, (vm_offset_t)page_address(m), size);
 }
 
 /*

@@ -34,7 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
 
 #include <sys/param.h>
@@ -52,9 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/signalvar.h>
 #include <sys/vmmeter.h>
-#ifdef HWPMC_HOOKS
-#include <sys/pmckern.h>
-#endif
 
 #include <security/audit/audit.h>
 
@@ -125,9 +121,8 @@ dtrace_doubletrap_func_t	dtrace_doubletrap_func;
 systrace_probe_func_t	systrace_probe_func;
 
 /*
- * These hooks are necessary for the pid, usdt and fasttrap providers.
+ * These hooks are necessary for the pid and usdt providers.
  */
-dtrace_fasttrap_probe_ptr_t	dtrace_fasttrap_probe_ptr;
 dtrace_pid_probe_ptr_t		dtrace_pid_probe_ptr;
 dtrace_return_probe_ptr_t	dtrace_return_probe_ptr;
 int (*dtrace_invop_jump_addr)(struct trapframe *);
@@ -179,6 +174,9 @@ trap(struct trapframe *frame)
 {
 	struct thread	*td;
 	struct proc	*p;
+#ifdef KDTRACE_HOOKS
+	uint32_t inst;
+#endif
 	int		sig, type, user;
 	u_int		ucode;
 	ksiginfo_t	ksi;
@@ -195,14 +193,6 @@ trap(struct trapframe *frame)
 	CTR3(KTR_TRAP, "trap: %s type=%s (%s)", td->td_name,
 	    trapname(type), user ? "user" : "kernel");
 
-#ifdef HWPMC_HOOKS
-	if (type == EXC_PERF && (pmc_intr != NULL)) {
-		(*pmc_intr)(PCPU_GET(cpuid), frame);
-		if (user)
-			userret(td, frame);
-		return;
-	}
-#endif
 #ifdef KDTRACE_HOOKS
 	/*
 	 * A trap can occur while DTrace executes a probe. Before
@@ -217,7 +207,7 @@ trap(struct trapframe *frame)
 	 * function can return normally.
 	 */
 	/*
-	 * XXXDTRACE: add fasttrap and pid  probes handlers here (if ever)
+	 * XXXDTRACE: add pid probe handler here (if ever)
 	 */
 	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type))
 		return;
@@ -291,9 +281,18 @@ trap(struct trapframe *frame)
 
 		case EXC_PGM:
 			/* Identify the trap reason */
-			if (frame->srr1 & EXC_PGM_TRAP)
-				sig = SIGTRAP;
-			else if (ppc_instr_emulate(frame) == 0)
+			if (frame->srr1 & EXC_PGM_TRAP) {
+#ifdef KDTRACE_HOOKS
+				inst = fuword32((const void *)frame->srr0);
+				if (inst == 0x0FFFDDDD && dtrace_pid_probe_ptr != NULL) {
+					struct reg regs;
+					fill_regs(td, &regs);
+					(*dtrace_pid_probe_ptr)(&regs);
+					break;
+				}
+#endif
+ 				sig = SIGTRAP;
+			} else if (ppc_instr_emulate(frame) == 0)
 				frame->srr0 += 4;
 			else
 				sig = SIGILL;

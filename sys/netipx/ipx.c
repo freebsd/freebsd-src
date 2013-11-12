@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 
 #include <netipx/ipx.h>
@@ -190,13 +191,8 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		if (td && (error = priv_check(td, PRIV_NET_SETLLADDR)) != 0)
 			goto out;
 		if (ia == NULL) {
-			ia = malloc(sizeof(*ia), M_IFADDR, M_NOWAIT | M_ZERO);
-			if (ia == NULL) {
-				error = ENOBUFS;
-				goto out;
-			}
-			ifa = (struct ifaddr *)ia;
-			ifa_init(ifa);
+			ifa = ifa_alloc(sizeof(struct ipx_ifaddr), M_WAITOK);
+			ia = (struct ipx_ifaddr *)ifa;
 			ia->ia_ifp = ifp;
 			ifa->ifa_addr = (struct sockaddr *)&ia->ia_addr;
 			ifa->ifa_netmask = (struct sockaddr *)&ipx_netmask;

@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 
 static struct nlist nl[] = {
 #define	N_IFNET		0
-	{ .n_name = "_ifnet" },
+	{ .n_name = "_ifnet" },		/* XXXGL: can be deleted */
 #define	N_RTSTAT	1
 	{ .n_name = "_rtstat" },
 #define	N_RTREE		2
@@ -214,8 +214,10 @@ struct protox {
 	  pim_stats,	NULL,		"pim",	1,	IPPROTO_PIM },
 	{ -1,		N_CARPSTAT,	1,	NULL,
 	  carp_stats,	NULL,		"carp",	1,	0 },
+#ifdef PF
 	{ -1,		N_PFSYNCSTAT,	1,	NULL,
 	  pfsync_stats,	NULL,		"pfsync", 1,	0 },
+#endif
 	{ -1,		N_ARPSTAT,	1,	NULL,
 	  arp_stats,	NULL,		"arp", 1,	0 },
 	{ -1,		-1,		0,	NULL,
@@ -552,7 +554,7 @@ main(int argc, char *argv[])
 #endif
 	kread(0, NULL, 0);
 	if (iflag && !sflag) {
-		intpr(interval, nl[N_IFNET].n_value, NULL);
+		intpr(interval, NULL);
 		exit(0);
 	}
 	if (rflag) {
@@ -636,8 +638,7 @@ printproto(struct protox *tp, const char *name)
 	if (sflag) {
 		if (iflag) {
 			if (tp->pr_istats)
-				intpr(interval, nl[N_IFNET].n_value,
-				      tp->pr_istats);
+				intpr(interval, tp->pr_istats);
 			else if (pflag)
 				printf("%s: no per-interface stats routine\n",
 				    tp->pr_name);

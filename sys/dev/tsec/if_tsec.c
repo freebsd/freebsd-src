@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -111,6 +112,8 @@ DRIVER_MODULE(miibus, tsec, miibus_driver, miibus_devclass, 0, 0);
 MODULE_DEPEND(tsec, ether, 1, 1, 1);
 MODULE_DEPEND(tsec, miibus, 1, 1, 1);
 
+struct mtx tsec_phy_mtx;
+
 int
 tsec_attach(struct tsec_softc *sc)
 {
@@ -120,6 +123,10 @@ tsec_attach(struct tsec_softc *sc)
 	bus_dmamap_t **map_pptr;
 	int error = 0;
 	int i;
+
+	/* Initialize global (because potentially shared) MII lock */
+	if (!mtx_initialized(&tsec_phy_mtx))
+		mtx_init(&tsec_phy_mtx, "tsec mii", NULL, MTX_DEF);
 
 	/* Reset all TSEC counters */
 	TSEC_TX_RX_COUNTERS_INIT(sc);
@@ -406,21 +413,24 @@ tsec_init_locked(struct tsec_softc *sc)
 	 */
 	TSEC_WRITE(sc, TSEC_REG_TBIPA, 5);
 
+	TSEC_PHY_LOCK(sc);
+
 	/* Step 6: Reset the management interface */
-	TSEC_WRITE(sc->phy_sc, TSEC_REG_MIIMCFG, TSEC_MIIMCFG_RESETMGMT);
+	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMCFG, TSEC_MIIMCFG_RESETMGMT);
 
 	/* Step 7: Setup the MII Mgmt clock speed */
-	TSEC_WRITE(sc->phy_sc, TSEC_REG_MIIMCFG, TSEC_MIIMCFG_CLKDIV28);
+	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMCFG, TSEC_MIIMCFG_CLKDIV28);
 
 	/* Step 8: Read MII Mgmt indicator register and check for Busy = 0 */
 	timeout = TSEC_READ_RETRY;
-	while (--timeout && (TSEC_READ(sc->phy_sc, TSEC_REG_MIIMIND) &
+	while (--timeout && (TSEC_PHY_READ(sc, TSEC_REG_MIIMIND) &
 	    TSEC_MIIMIND_BUSY))
 		DELAY(TSEC_READ_DELAY);
 	if (timeout == 0) {
 		if_printf(ifp, "tsec_init_locked(): Mgmt busy timeout\n");
 		return;
 	}
+	TSEC_PHY_UNLOCK(sc);
 
 	/* Step 9: Setup the MII Mgmt */
 	mii_mediachg(sc->tsec_mii);
@@ -1561,22 +1571,27 @@ tsec_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct tsec_softc *sc;
 	uint32_t timeout;
+	int rv;
 
 	sc = device_get_softc(dev);
 
-	TSEC_WRITE(sc->phy_sc, TSEC_REG_MIIMADD, (phy << 8) | reg);
-	TSEC_WRITE(sc->phy_sc, TSEC_REG_MIIMCOM, 0);
-	TSEC_WRITE(sc->phy_sc, TSEC_REG_MIIMCOM, TSEC_MIIMCOM_READCYCLE);
+	TSEC_PHY_LOCK();
+	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMADD, (phy << 8) | reg);
+	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMCOM, 0);
+	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMCOM, TSEC_MIIMCOM_READCYCLE);
 
 	timeout = TSEC_READ_RETRY;
-	while (--timeout && TSEC_READ(sc->phy_sc, TSEC_REG_MIIMIND) &
+	while (--timeout && TSEC_PHY_READ(sc, TSEC_REG_MIIMIND) &
 	    (TSEC_MIIMIND_NOTVALID | TSEC_MIIMIND_BUSY))
 		DELAY(TSEC_READ_DELAY);
 
 	if (timeout == 0)
 		device_printf(dev, "Timeout while reading from PHY!\n");
 
-	return (TSEC_READ(sc->phy_sc, TSEC_REG_MIIMSTAT));
+	rv = TSEC_PHY_READ(sc, TSEC_REG_MIIMSTAT);
+	TSEC_PHY_UNLOCK();
+
+	return (rv);
 }
 
 int
@@ -1587,13 +1602,15 @@ tsec_miibus_writereg(device_t dev, int phy, int reg, int value)
 
 	sc = device_get_softc(dev);
 
-	TSEC_WRITE(sc->phy_sc, TSEC_REG_MIIMADD, (phy << 8) | reg);
-	TSEC_WRITE(sc->phy_sc, TSEC_REG_MIIMCON, value);
+	TSEC_PHY_LOCK();
+	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMADD, (phy << 8) | reg);
+	TSEC_PHY_WRITE(sc, TSEC_REG_MIIMCON, value);
 
 	timeout = TSEC_READ_RETRY;
-	while (--timeout && (TSEC_READ(sc->phy_sc, TSEC_REG_MIIMIND) &
+	while (--timeout && (TSEC_READ(sc, TSEC_REG_MIIMIND) &
 	    TSEC_MIIMIND_BUSY))
 		DELAY(TSEC_READ_DELAY);
+	TSEC_PHY_UNLOCK();
 
 	if (timeout == 0)
 		device_printf(dev, "Timeout while writing to PHY!\n");

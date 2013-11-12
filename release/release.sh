@@ -108,10 +108,10 @@ fi
 # instead of their values.
 DOCPORTS=
 if [ "x${NOPORTS}" != "x" ]; then
- DOCPORTS="NOPORTS=yes "
+	DOCPORTS="NOPORTS=yes "
 fi
 if [ "x${NODOC}" != "x" ]; then
- DOCPORTS="${DOCPORTS}NODOC=yes"
+	DOCPORTS="${DOCPORTS}NODOC=yes"
 fi
 
 # The aggregated build-time flags based upon variables defined within
@@ -134,7 +134,7 @@ RELEASE_RMAKEFLAGS="${ARCH_FLAGS} KERNCONF=\"${KERNEL}\" ${CONF_FILES} \
 # Force src checkout if configured
 FORCE_SRC_KEY=
 if [ "x${SRC_FORCE_CHECKOUT}" != "x" ]; then
- FORCE_SRC_KEY="--force"
+	FORCE_SRC_KEY="--force"
 fi
 
 if [ ! ${CHROOTDIR} ]; then
@@ -167,6 +167,10 @@ mount -t devfs devfs ${CHROOTDIR}/dev
 trap "umount ${CHROOTDIR}/dev" EXIT # Clean up devfs mount on exit
 
 build_doc_ports() {
+	# Run ldconfig(8) in the chroot directory so /var/run/ld-elf*.so.hints
+	# is created.  This is needed by ports-mgmt/pkg.
+	chroot ${CHROOTDIR} /etc/rc.d/ldconfig forcerestart
+
 	## Trick the ports 'run-autotools-fixup' target to do the right thing.
 	_OSVERSION=$(sysctl -n kern.osreldate)
 	if [ -d ${CHROOTDIR}/usr/doc ] && [ "x${NODOC}" = "x" ]; then

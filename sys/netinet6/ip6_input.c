@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/route.h>
@@ -706,8 +707,8 @@ passin:
 			goto bad;
 		}
 		/* Count the packet in the ip address stats */
-		ia->ia_ifa.if_ipackets++;
-		ia->ia_ifa.if_ibytes += m->m_pkthdr.len;
+		counter_u64_add(ia->ia_ifa.ifa_ipackets, 1);
+		counter_u64_add(ia->ia_ifa.ifa_ibytes, m->m_pkthdr.len);
 		ifa_free(&ia->ia_ifa);
 		ours = 1;
 		goto hbhcheck;

@@ -41,6 +41,10 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DECLARE(M_AESNI);
 
+struct blocks8 {
+	__m128i	blk[8];
+} __packed;
+
 void
 aesni_encrypt_cbc(int rounds, const void *key_schedule, size_t len,
     const uint8_t *from, uint8_t *to, const uint8_t iv[AES_BLOCK_LEN])
@@ -65,20 +69,20 @@ aesni_decrypt_cbc(int rounds, const void *key_schedule, size_t len,
     uint8_t *buf, const uint8_t iv[AES_BLOCK_LEN])
 {
 	__m128i blocks[8];
-	__m128i *bufs;
+	struct blocks8 *blks;
 	__m128i ivreg, nextiv;
 	size_t i, j, cnt;
 
 	ivreg = _mm_loadu_si128((const __m128i *)iv);
 	cnt = len / AES_BLOCK_LEN / 8;
 	for (i = 0; i < cnt; i++) {
-		bufs = (__m128i *)buf;
-		aesni_dec8(rounds - 1, key_schedule, bufs[0], bufs[1],
-		    bufs[2], bufs[3], bufs[4], bufs[5], bufs[6],
-		    bufs[7], &blocks[0]);
+		blks = (struct blocks8 *)buf;
+		aesni_dec8(rounds - 1, key_schedule, blks->blk[0], blks->blk[1],
+		    blks->blk[2], blks->blk[3], blks->blk[4], blks->blk[5],
+		    blks->blk[6], blks->blk[7], &blocks[0]);
 		for (j = 0; j < 8; j++) {
-			nextiv = bufs[j];
-			bufs[j] = blocks[j] ^ ivreg;
+			nextiv = blks->blk[j];
+			blks->blk[j] = blocks[j] ^ ivreg;
 			ivreg = nextiv;
 		}
 		buf += AES_BLOCK_LEN * 8;
@@ -86,9 +90,9 @@ aesni_decrypt_cbc(int rounds, const void *key_schedule, size_t len,
 	i *= 8;
 	cnt = len / AES_BLOCK_LEN;
 	for (; i < cnt; i++) {
-		bufs = (__m128i *)buf;
-		nextiv = bufs[0];
-		bufs[0] = aesni_dec(rounds - 1, key_schedule, bufs[0]) ^ ivreg;
+		nextiv = _mm_loadu_si128((void *)buf);
+		_mm_storeu_si128((void *)buf,
+		    aesni_dec(rounds - 1, key_schedule, nextiv) ^ ivreg);
 		ivreg = nextiv;
 		buf += AES_BLOCK_LEN;
 	}
@@ -99,15 +103,26 @@ aesni_encrypt_ecb(int rounds, const void *key_schedule, size_t len,
     const uint8_t *from, uint8_t *to)
 {
 	__m128i tot;
-	const __m128i *blocks;
+	__m128i tout[8];
+	struct blocks8 *top;
+	const struct blocks8 *blks;
 	size_t i, cnt;
 
 	cnt = len / AES_BLOCK_LEN / 8;
 	for (i = 0; i < cnt; i++) {
-		blocks = (const __m128i *)from;
-		aesni_enc8(rounds - 1, key_schedule, blocks[0], blocks[1],
-		    blocks[2], blocks[3], blocks[4], blocks[5], blocks[6],
-		    blocks[7], (__m128i *)to);
+		blks = (const struct blocks8 *)from;
+		top = (struct blocks8 *)to;
+		aesni_enc8(rounds - 1, key_schedule, blks->blk[0], blks->blk[1],
+		    blks->blk[2], blks->blk[3], blks->blk[4], blks->blk[5],
+		    blks->blk[6], blks->blk[7], tout);
+		top->blk[0] = tout[0];
+		top->blk[1] = tout[1];
+		top->blk[2] = tout[2];
+		top->blk[3] = tout[3];
+		top->blk[4] = tout[4];
+		top->blk[5] = tout[5];
+		top->blk[6] = tout[6];
+		top->blk[7] = tout[7];
 		from += AES_BLOCK_LEN * 8;
 		to += AES_BLOCK_LEN * 8;
 	}
@@ -127,15 +142,26 @@ aesni_decrypt_ecb(int rounds, const void *key_schedule, size_t len,
     const uint8_t from[AES_BLOCK_LEN], uint8_t to[AES_BLOCK_LEN])
 {
 	__m128i tot;
-	const __m128i *blocks;
+	__m128i tout[8];
+	const struct blocks8 *blks;
+	struct blocks8 *top;
 	size_t i, cnt;
 
 	cnt = len / AES_BLOCK_LEN / 8;
 	for (i = 0; i < cnt; i++) {
-		blocks = (const __m128i *)from;
-		aesni_dec8(rounds - 1, key_schedule, blocks[0], blocks[1],
-		    blocks[2], blocks[3], blocks[4], blocks[5], blocks[6],
-		    blocks[7], (__m128i *)to);
+		blks = (const struct blocks8 *)from;
+		top = (struct blocks8 *)to;
+		aesni_dec8(rounds - 1, key_schedule, blks->blk[0], blks->blk[1],
+		    blks->blk[2], blks->blk[3], blks->blk[4], blks->blk[5],
+		    blks->blk[6], blks->blk[7], tout);
+		top->blk[0] = tout[0];
+		top->blk[1] = tout[1];
+		top->blk[2] = tout[2];
+		top->blk[3] = tout[3];
+		top->blk[4] = tout[4];
+		top->blk[5] = tout[5];
+		top->blk[6] = tout[6];
+		top->blk[7] = tout[7];
 		from += AES_BLOCK_LEN * 8;
 		to += AES_BLOCK_LEN * 8;
 	}
@@ -173,31 +199,33 @@ xts_crank_lfsr(__m128i inp)
 }
 
 static void
-aesni_crypt_xts_block(int rounds, const void *key_schedule, __m128i *tweak,
-    const __m128i *from, __m128i *to, int do_encrypt)
+aesni_crypt_xts_block(int rounds, const __m128i *key_schedule, __m128i *tweak,
+    const uint8_t *from, uint8_t *to, int do_encrypt)
 {
 	__m128i block;
 
-	block = *from ^ *tweak;
+	block = _mm_loadu_si128((const __m128i *)from) ^ *tweak;
 
 	if (do_encrypt)
 		block = aesni_enc(rounds - 1, key_schedule, block);
 	else
 		block = aesni_dec(rounds - 1, key_schedule, block);
 
-	*to = block ^ *tweak;
+	_mm_storeu_si128((__m128i *)to, block ^ *tweak);
 
 	*tweak = xts_crank_lfsr(*tweak);
 }
 
 static void
-aesni_crypt_xts_block8(int rounds, const void *key_schedule, __m128i *tweak,
-    const __m128i *from, __m128i *to, int do_encrypt)
+aesni_crypt_xts_block8(int rounds, const __m128i *key_schedule, __m128i *tweak,
+    const uint8_t *from, uint8_t *to, int do_encrypt)
 {
 	__m128i tmptweak;
 	__m128i a, b, c, d, e, f, g, h;
 	__m128i tweaks[8];
 	__m128i tmp[8];
+	__m128i *top;
+	const __m128i *fromp;
 
 	tmptweak = *tweak;
 
@@ -205,10 +233,12 @@ aesni_crypt_xts_block8(int rounds, const void *key_schedule, __m128i *tweak,
 	 * unroll the loop.  This lets gcc put values directly in the
 	 * register and saves memory accesses.
 	 */
+	fromp = (const __m128i *)from;
 #define PREPINP(v, pos) 					\
 		do {						\
 			tweaks[(pos)] = tmptweak;		\
-			(v) = from[(pos)] ^ tmptweak;		\
+			(v) = _mm_loadu_si128(&fromp[pos]) ^	\
+			    tmptweak;				\
 			tmptweak = xts_crank_lfsr(tmptweak);	\
 		} while (0)
 	PREPINP(a, 0);
@@ -228,20 +258,21 @@ aesni_crypt_xts_block8(int rounds, const void *key_schedule, __m128i *tweak,
 		aesni_dec8(rounds - 1, key_schedule, a, b, c, d, e, f, g, h,
 		    tmp);
 
-	to[0] = tmp[0] ^ tweaks[0];
-	to[1] = tmp[1] ^ tweaks[1];
-	to[2] = tmp[2] ^ tweaks[2];
-	to[3] = tmp[3] ^ tweaks[3];
-	to[4] = tmp[4] ^ tweaks[4];
-	to[5] = tmp[5] ^ tweaks[5];
-	to[6] = tmp[6] ^ tweaks[6];
-	to[7] = tmp[7] ^ tweaks[7];
+	top = (__m128i *)to;
+	_mm_storeu_si128(&top[0], tmp[0] ^ tweaks[0]);
+	_mm_storeu_si128(&top[1], tmp[1] ^ tweaks[1]);
+	_mm_storeu_si128(&top[2], tmp[2] ^ tweaks[2]);
+	_mm_storeu_si128(&top[3], tmp[3] ^ tweaks[3]);
+	_mm_storeu_si128(&top[4], tmp[4] ^ tweaks[4]);
+	_mm_storeu_si128(&top[5], tmp[5] ^ tweaks[5]);
+	_mm_storeu_si128(&top[6], tmp[6] ^ tweaks[6]);
+	_mm_storeu_si128(&top[7], tmp[7] ^ tweaks[7]);
 }
 
 static void
-aesni_crypt_xts(int rounds, const void *data_schedule,
-    const void *tweak_schedule, size_t len, const uint8_t *from, uint8_t *to,
-    const uint8_t iv[AES_BLOCK_LEN], int do_encrypt)
+aesni_crypt_xts(int rounds, const __m128i *data_schedule,
+    const __m128i *tweak_schedule, size_t len, const uint8_t *from,
+    uint8_t *to, const uint8_t iv[AES_BLOCK_LEN], int do_encrypt)
 {
 	__m128i tweakreg;
 	uint8_t tweak[AES_XTS_BLOCKSIZE] __aligned(16);
@@ -264,7 +295,7 @@ aesni_crypt_xts(int rounds, const void *data_schedule,
 	cnt = len / AES_XTS_BLOCKSIZE / 8;
 	for (i = 0; i < cnt; i++) {
 		aesni_crypt_xts_block8(rounds, data_schedule, &tweakreg,
-		    (const __m128i *)from, (__m128i *)to, do_encrypt);
+		    from, to, do_encrypt);
 		from += AES_XTS_BLOCKSIZE * 8;
 		to += AES_XTS_BLOCKSIZE * 8;
 	}
@@ -272,7 +303,7 @@ aesni_crypt_xts(int rounds, const void *data_schedule,
 	cnt = len / AES_XTS_BLOCKSIZE;
 	for (; i < cnt; i++) {
 		aesni_crypt_xts_block(rounds, data_schedule, &tweakreg,
-		    (const __m128i *)from, (__m128i *)to, do_encrypt);
+		    from, to, do_encrypt);
 		from += AES_XTS_BLOCKSIZE;
 		to += AES_XTS_BLOCKSIZE;
 	}

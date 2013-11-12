@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.324 2013/07/12 00:19:58 djm Exp $ */
+/* $OpenBSD: channels.c,v 1.327 2013/11/08 00:39:15 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -711,7 +711,7 @@ channel_register_status_confirm(int id, channel_confirm_cb *cb,
 	if ((c = channel_lookup(id)) == NULL)
 		fatal("channel_register_expect: %d: bad id", id);
 
-	cc = xmalloc(sizeof(*cc));
+	cc = xcalloc(1, sizeof(*cc));
 	cc->cb = cb;
 	cc->abandon_cb = abandon_cb;
 	cc->ctx = ctx;

@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
@@ -42,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/libalias/alias_local.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>

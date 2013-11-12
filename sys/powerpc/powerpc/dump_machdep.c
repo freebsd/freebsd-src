@@ -114,7 +114,7 @@ cb_dumpdata(struct pmap_md *md, int seqnr, void *arg)
 {
 	struct dumperinfo *di = (struct dumperinfo*)arg;
 	vm_offset_t va;
-	size_t counter, ofs, resid, sz;
+	size_t counter, ofs, resid, sz, maxsz;
 	int c, error, twiddle;
 
 	error = 0;
@@ -123,11 +123,12 @@ cb_dumpdata(struct pmap_md *md, int seqnr, void *arg)
 
 	ofs = 0;	/* Logical offset within the chunk */
 	resid = md->md_size;
+	maxsz = min(DFLTPHYS, di->maxiosize);
 
 	printf("  chunk %d: %lu bytes ", seqnr, (u_long)resid);
 
 	while (resid) {
-		sz = (resid > DFLTPHYS) ? DFLTPHYS : resid;
+		sz = min(resid, maxsz);
 		va = pmap_dumpsys_map(md, ofs, &sz);
 		counter += sz;
 		if (counter >> 24) {
@@ -160,7 +161,7 @@ static int
 cb_dumphdr(struct pmap_md *md, int seqnr, void *arg)
 {
 	struct dumperinfo *di = (struct dumperinfo*)arg;
-	Elf32_Phdr phdr;
+	Elf_Phdr phdr;
 	int error;
 
 	bzero(&phdr, sizeof(phdr));
@@ -207,7 +208,7 @@ foreach_chunk(callback_t cb, void *arg)
 void
 dumpsys(struct dumperinfo *di)
 {
-	Elf32_Ehdr ehdr;
+	Elf_Ehdr ehdr;
 	uint32_t dumpsize;
 	off_t hdrgap;
 	size_t hdrsz;
@@ -218,7 +219,7 @@ dumpsys(struct dumperinfo *di)
 	ehdr.e_ident[EI_MAG1] = ELFMAG1;
 	ehdr.e_ident[EI_MAG2] = ELFMAG2;
 	ehdr.e_ident[EI_MAG3] = ELFMAG3;
-	ehdr.e_ident[EI_CLASS] = ELFCLASS32;
+	ehdr.e_ident[EI_CLASS] = ELF_TARG_CLASS;
 #if BYTE_ORDER == LITTLE_ENDIAN
 	ehdr.e_ident[EI_DATA] = ELFDATA2LSB;
 #else
@@ -227,11 +228,11 @@ dumpsys(struct dumperinfo *di)
 	ehdr.e_ident[EI_VERSION] = EV_CURRENT;
 	ehdr.e_ident[EI_OSABI] = ELFOSABI_STANDALONE;	/* XXX big picture? */
 	ehdr.e_type = ET_CORE;
-	ehdr.e_machine = EM_PPC;
+	ehdr.e_machine = ELF_ARCH;      /* Defined in powerpc/include/elf.h */
 	ehdr.e_phoff = sizeof(ehdr);
 	ehdr.e_ehsize = sizeof(ehdr);
-	ehdr.e_phentsize = sizeof(Elf32_Phdr);
-	ehdr.e_shentsize = sizeof(Elf32_Shdr);
+	ehdr.e_phentsize = sizeof(Elf_Phdr);
+	ehdr.e_shentsize = sizeof(Elf_Shdr);
 
 	/* Calculate dump size. */
 	dumpsize = 0L;
@@ -260,7 +261,7 @@ dumpsys(struct dumperinfo *di)
 	    ehdr.e_phnum);
 
 	/* Dump leader */
-	error = di->dumper(di->priv, &kdh, 0, dumplo, sizeof(kdh));
+	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
 	if (error)
 		goto fail;
 	dumplo += sizeof(kdh);
@@ -291,12 +292,12 @@ dumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump trailer */
-	error = di->dumper(di->priv, &kdh, 0, dumplo, sizeof(kdh));
+	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
 	if (error)
 		goto fail;
 
 	/* Signal completion, signoff and exit stage left. */
-	di->dumper(di->priv, NULL, 0, 0, 0);
+	dump_write(di, NULL, 0, 0, 0);
 	printf("\nDump complete\n");
 	return;
 
@@ -306,6 +307,8 @@ dumpsys(struct dumperinfo *di)
 
 	if (error == ECANCELED)
 		printf("\nDump aborted\n");
+	else if (error == ENOSPC)
+		printf("\nDump failed. Partition too small.\n");
 	else
 		printf("\n** DUMP FAILED (ERROR %d) **\n", error);
 }

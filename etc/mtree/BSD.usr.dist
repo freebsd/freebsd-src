@@ -169,12 +169,6 @@
             ..
             atm
             ..
-            bind9
-                arm
-                ..
-                misc
-                ..
-            ..
             legal
                 intel_ipw
                 ..
@@ -331,8 +325,6 @@
             ..
             ipfw
             ..
-            iscsi
-            ..
             jails
             ..
             kld
@@ -366,8 +358,6 @@
             mdoc
             ..
             netgraph
-                bluetooth
-                ..
             ..
             pc-sysinstall
             ..
@@ -487,6 +477,14 @@
             ..
         ..
         info
+        ..
+        keys
+            pkg
+                revoked
+                ..
+                trusted
+                ..
+            ..
         ..
         locale
             UTF-8
