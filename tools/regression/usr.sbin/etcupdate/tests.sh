@@ -33,13 +33,17 @@ WORKDIR=work
 
 usage()
 {
-	echo "Usage: tests.sh [-w workdir]"
+	echo "Usage: tests.sh [-s script] [-w workdir]"
 	exit 1
 }
 
-# Allow the user to specify an alternate work directory.
-while getopts "w:" option; do
+# Allow the user to specify an alternate work directory or script.
+COMMAND=etcupdate
+while getopts "s:w:" option; do
 	case $option in
+		s)
+			COMMAND="sh $OPTARG"
+			;;
 		w)
 			WORKDIR=$OPTARG
 			;;
@@ -904,7 +908,7 @@ fi
 
 build_trees
 
-etcupdate -nr -d $WORKDIR -D $TEST > $WORKDIR/testn.out
+$COMMAND -nr -d $WORKDIR -D $TEST > $WORKDIR/testn.out
 
 cat > $WORKDIR/correct.out <<EOF
   D /dirchange/fromdir/extradir/file
@@ -971,7 +975,7 @@ EOF
 echo "Differences for -n:"
 diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/testn.out
 
-etcupdate -r -d $WORKDIR -D $TEST > $WORKDIR/test.out
+$COMMAND -r -d $WORKDIR -D $TEST > $WORKDIR/test.out
 
 echo "Differences for real:"
 diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out
