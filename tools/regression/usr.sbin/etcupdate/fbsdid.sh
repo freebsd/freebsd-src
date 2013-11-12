@@ -33,13 +33,17 @@ WORKDIR=work
 
 usage()
 {
-	echo "Usage: fbsdid.sh [-w workdir]"
+	echo "Usage: fbsdid.sh [-s script] [-w workdir]"
 	exit 1
 }
 
-# Allow the user to specify an alternate work directory.
-while getopts "w:" option; do
+# Allow the user to specify an alternate work directory or script.
+COMMAND=etcupdate
+while getopts "s:w:" option; do
 	case $option in
+		s)
+			COMMAND="sh $OPTARG"
+			;;
 		w)
 			WORKDIR=$OPTARG
 			;;
@@ -267,7 +271,7 @@ fi
 
 build_trees
 
-etcupdate -r -d $WORKDIR -D $TEST > $WORKDIR/test.out
+$COMMAND -r -d $WORKDIR -D $TEST > $WORKDIR/test.out
 
 cat > $WORKDIR/correct.out <<EOF
   C /already
@@ -300,7 +304,7 @@ file /local-already "" 0298b958a603049f45ae6a109c4f7fea
 
 build_trees
 
-etcupdate -rF -d $WORKDIR -D $TEST > $WORKDIR/testF.out
+$COMMAND -rF -d $WORKDIR -D $TEST > $WORKDIR/testF.out
 
 cat > $WORKDIR/correctF.out <<EOF
   D /remove
