@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include "vmm_stat.h"
 #include "vmm_mem.h"
 #include "io/ppt.h"
+#include "io/vioapic.h"
 #include <machine/vmm_dev.h>
 
 struct vmmdev_softc {
@@ -146,10 +147,11 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vmmdev_softc *sc;
 	struct vm_memory_segment *seg;
 	struct vm_register *vmreg;
-	struct vm_seg_desc* vmsegdesc;
+	struct vm_seg_desc *vmsegdesc;
 	struct vm_run *vmrun;
 	struct vm_event *vmevent;
 	struct vm_lapic_irq *vmirq;
+	struct vm_ioapic_irq *ioapic_irq;
 	struct vm_capability *vmcap;
 	struct vm_pptdev *pptdev;
 	struct vm_pptdev_mmio *pptmmio;
@@ -292,6 +294,14 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_LAPIC_IRQ:
 		vmirq = (struct vm_lapic_irq *)data;
 		error = lapic_set_intr(sc->vm, vmirq->cpuid, vmirq->vector);
+		break;
+	case VM_IOAPIC_ASSERT_IRQ:
+		ioapic_irq = (struct vm_ioapic_irq *)data;
+		error = vioapic_assert_irq(sc->vm, ioapic_irq->irq);
+		break;
+	case VM_IOAPIC_DEASSERT_IRQ:
+		ioapic_irq = (struct vm_ioapic_irq *)data;
+		error = vioapic_deassert_irq(sc->vm, ioapic_irq->irq);
 		break;
 	case VM_MAP_MEMORY:
 		seg = (struct vm_memory_segment *)data;
