@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/random.h>
+#include <sys/sbuf.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -48,13 +49,13 @@ __FBSDID("$FreeBSD$");
 
 #include "live_entropy_sources.h"
 
-LIST_HEAD(les_head, live_entropy_sources);
-static struct les_head les_sources = LIST_HEAD_INITIALIZER(les_sources);
-
 /*
- * The live_lock protects the consistency of the "struct les_head les_sources"
+ * The les_lock protects the consistency of the "struct les_head les_sources"
  */
 static struct sx les_lock; /* need a sleepable lock */
+
+LIST_HEAD(les_head, live_entropy_sources);
+static struct les_head les_sources = LIST_HEAD_INITIALIZER(les_sources);
 
 void
 live_entropy_source_register(struct live_entropy_source *rsource)
@@ -92,23 +93,27 @@ live_entropy_source_deregister(struct live_entropy_source *rsource)
 static int
 live_entropy_source_handler(SYSCTL_HANDLER_ARGS)
 {
-	/* XXX: FIX!! Fixed array size */
-	char buf[128];
 	struct live_entropy_sources *lles;
-	int count;
+	struct sbuf sbuf;
+	int error, count;
 
 	sx_slock(&les_lock);
 
-	buf[0] = '\0';
+	sbuf_new_for_sysctl(&sbuf, NULL, 64, req);
+
 	count = 0;
 	LIST_FOREACH(lles, &les_sources, lles_entries) {
-		strcat(buf, (count++ ? "," : ""));
-		strcat(buf, lles->lles_rsource->les_ident);
+		sbuf_cat(&sbuf, (count++ ? ",'" : "'"));
+		sbuf_cat(&sbuf, lles->lles_rsource->les_ident);
+		sbuf_cat(&sbuf, "'");
 	}
+
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
 
 	sx_sunlock(&les_lock);
 
-	return (SYSCTL_OUT(req, buf, strlen(buf)));
+	return (error);
 }
 
 /*
@@ -128,8 +133,9 @@ live_entropy_source_handler(SYSCTL_HANDLER_ARGS)
 void
 live_entropy_sources_feed(void)
 {
+	/* XXX: This wastes a few words of space */
+	static u_int destination[ENTROPYSOURCE];
 	static struct harvest_event event;
-	static u_int dest = 0;
 	struct live_entropy_sources *lles;
 	int i, n;
 
@@ -153,7 +159,7 @@ live_entropy_sources_feed(void)
 			event.he_size = n;
 			event.he_bits = (n*8)/2;
 			event.he_source = lles->lles_rsource->les_source;
-			event.he_destination = dest++;
+			event.he_destination = destination[event.he_source]++;
 
 			/* Do the actual entropy insertion */
 			harvest_process_event(&event);

@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/random.h>
+#include <sys/sbuf.h>
 #include <sys/selinfo.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
@@ -129,10 +130,35 @@ random_check_boolean(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req));
 }
 
+/* ARGSUSED */
+RANDOM_CHECK_UINT(harvestmask, 0, ((1<<RANDOM_ENVIRONMENTAL_END) - 1));
+
+/* ARGSUSED */
+static int
+random_print_harvestmask(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sbuf;
+	int error, i;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+
+	for (i = 31; i >= 0; i--)
+		sbuf_cat(&sbuf, (randomdev_harvest_source_mask & (1<<i)) ? "1" : "0");
+
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+
+	return (error);
+}
+
 void
 randomdev_init(void)
 {
-	struct sysctl_oid *random_sys_o, *random_sys_harvest_o;
+	struct sysctl_oid *random_sys_o;
 
 #if defined(RANDOM_YARROW)
 	random_yarrow_init_alg(&random_clist);
@@ -152,37 +178,17 @@ randomdev_init(void)
 	    &random_soft_processor.ra_seeded, 0, random_check_boolean, "I",
 	    "Seeded State");
 
-	random_sys_harvest_o = SYSCTL_ADD_NODE(&random_clist,
+	SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_o),
-	    OID_AUTO, "harvest", CTLFLAG_RW, 0,
-	    "Entropy Sources");
+	    OID_AUTO, "source_mask", CTLTYPE_UINT | CTLFLAG_RW,
+	    &randomdev_harvest_source_mask, ((1<<RANDOM_ENVIRONMENTAL_END) - 1),
+	    random_check_uint_harvestmask, "IU",
+	    "Entropy harvesting mask");
 
-	/* XXX: FIX!! This is yucky. Rather do it as a bitfield? */
 	SYSCTL_ADD_PROC(&random_clist,
-	    SYSCTL_CHILDREN(random_sys_harvest_o),
-	    OID_AUTO, "ethernet", CTLTYPE_INT | CTLFLAG_RW,
-	    &harvest.ethernet, 1, random_check_boolean, "I",
-	    "Harvest NIC entropy");
-	SYSCTL_ADD_PROC(&random_clist,
-	    SYSCTL_CHILDREN(random_sys_harvest_o),
-	    OID_AUTO, "point_to_point", CTLTYPE_INT | CTLFLAG_RW,
-	    &harvest.point_to_point, 1, random_check_boolean, "I",
-	    "Harvest serial net entropy");
-	SYSCTL_ADD_PROC(&random_clist,
-	    SYSCTL_CHILDREN(random_sys_harvest_o),
-	    OID_AUTO, "interrupt", CTLTYPE_INT | CTLFLAG_RW,
-	    &harvest.interrupt, 1, random_check_boolean, "I",
-	    "Harvest IRQ entropy");
-	SYSCTL_ADD_PROC(&random_clist,
-	    SYSCTL_CHILDREN(random_sys_harvest_o),
-	    OID_AUTO, "swi", CTLTYPE_INT | CTLFLAG_RW,
-	    &harvest.swi, 1, random_check_boolean, "I",
-	    "Harvest SWI entropy");
-	SYSCTL_ADD_PROC(&random_clist,
-	    SYSCTL_CHILDREN(random_sys_harvest_o),
-	    OID_AUTO, "uma", CTLTYPE_INT | CTLFLAG_RW,
-	    &harvest.uma, 1, random_check_boolean, "I",
-	    "Harvest UMA allocator entropy");
+	    SYSCTL_CHILDREN(random_sys_o),
+	    OID_AUTO, "source_mask_bin", CTLTYPE_STRING | CTLFLAG_RD,
+	    NULL, 0, random_print_harvestmask, "A", "Entropy harvesting mask (printable)");
 
 	/* Register the randomness processing routine */
 #if defined(RANDOM_YARROW)

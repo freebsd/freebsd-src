@@ -116,20 +116,6 @@ random_yarrow_process_event(struct harvest_event *event)
 	struct source *source;
 	enum random_entropy_source src;
 
-#if 0
-	/* XXX: Fix!! Do this better with DTrace */
-	{
-		int i;
-
-		printf("Harvest:%16jX ", event->somecounter);
-		for (i = 0; i < event->size; i++)
-			printf("%02X", event->entropy[i]);
-		for (; i < 16; i++)
-			printf("  ");
-		printf(" %2d %2d %02X %02X\n", event->size, event->bits, event->source, event->destination);
-       }
-#endif
-
 	/* Accumulate the event into the appropriate pool
          * where each event carries the destination information
 	 */
@@ -307,10 +293,10 @@ reseed(u_int fastslow)
 
 	/* 7. Dump to seed file */
 #ifdef RANDOM_RWFILE_WRITE_OK /* XXX: Not defined so writes ain't gonna happen */
-	seed_file = "/var/db/entropy/seed_cache";
+	seed_file = "<some file>";
 	error = randomdev_write_file(seed_file, <generated entropy>, PAGE_SIZE);
-		if (error == 0) {
-			printf("random: entropy seed file '%s' successfully written\n", seed_file);
+	if (error == 0)
+		printf("random: entropy seed file '%s' successfully written\n", seed_file);
 #endif
 
 	/* Unblock the device if it was blocked due to being unseeded */

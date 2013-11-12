@@ -46,6 +46,8 @@ void randomdev_init_harvester(void (*)(const void *, u_int, u_int, enum random_e
     int (*)(void *, int));
 void randomdev_deinit_harvester(void);
 
+extern u_int randomdev_harvest_source_mask;
+
 /* kern.random sysctls */
 #ifdef SYSCTL_DECL	/* from sysctl.h */
 SYSCTL_DECL(_kern_random);

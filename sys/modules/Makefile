@@ -744,6 +744,8 @@ _opensolaris=	opensolaris
 .endif
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 _padlock=	padlock
+_padlock_rng=	padlock_rng
+_rdrand_rng=	rdrand_rng
 .endif
 _pccard=	pccard
 _qlxge=		qlxge

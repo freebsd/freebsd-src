@@ -36,6 +36,9 @@ int read_random(void *, int);
 /*
  * Note: if you add or remove members of random_entropy_source, remember to also update the
  * KASSERT regarding what valid members are in random_harvest_internal().
+ *
+ * NOTE: complain loudly to markm@ or on the lists if this enum gets more than 32
+ * distinct values (0-31)!
  */
 enum random_entropy_source {
 	RANDOM_START = 0,
@@ -50,6 +53,7 @@ enum random_entropy_source {
 	RANDOM_INTERRUPT,
 	RANDOM_SWI,
 	RANDOM_UMA_ALLOC,
+	RANDOM_ENVIRONMENTAL_END,
 	/* High-quality HW RNGs from here on. */
 	RANDOM_PURE_OCTEON,
 	RANDOM_PURE_SAFE,

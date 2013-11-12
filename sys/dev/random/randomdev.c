@@ -84,9 +84,8 @@ static struct cdev *random_dev;
 
 /* Allow the sysadmin to select the broad category of
  * entropy types to harvest.
- * Here because the rest of the kernel checks these in random_harvest() calls.
  */
-struct harvest_select harvest = { 1, 1, 1, 1, 1 };
+u_int randomdev_harvest_source_mask = ((1<<RANDOM_ENVIRONMENTAL_END) - 1);
 
 /* Set up the sysctl root node for the entropy device */
 SYSCTL_NODE(_kern, OID_AUTO, random, CTLFLAG_RW, 0, "Random Number Generator");
@@ -216,7 +215,8 @@ randomdev_deinit_harvester(void)
 void
 random_harvest(const void *entropy, u_int count, u_int bits, enum random_entropy_source origin)
 {
-	(*reap_func)(entropy, count, bits, origin);
+	if (randomdev_harvest_source_mask & (1<<origin))
+		(*reap_func)(entropy, count, bits, origin);
 }
 
 /* If the entropy device is not loaded, don't act on harvesting calls
@@ -243,7 +243,7 @@ read_random(void *buf, int count)
  * provide _some_ kind of output. No warranty of the quality of
  * this output is made, mainly because its lousy. Caveat Emptor.
  */
-/* XXX: FIX!! Move this to dummy_rng.c */
+/* XXX: FIX!! Move this to dummy_rng.c ? */
 static int
 random_read_phony(void *buf, int count)
 {

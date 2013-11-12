@@ -43,7 +43,7 @@ typedef void random_adaptor_reseed_func_t(void);
 struct random_adaptor {
 	const char			*ra_ident;
 	int				ra_seeded;
-	u_int				ra_priority;
+	int				ra_priority;
 	random_adaptor_init_func_t	*ra_init;
 	random_adaptor_deinit_func_t	*ra_deinit;
 	random_adaptor_block_func_t	*ra_block;

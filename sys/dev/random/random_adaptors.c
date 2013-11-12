@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/queue.h>
 #include <sys/random.h>
+#include <sys/sbuf.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
@@ -46,12 +47,16 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/randomdev.h>
 #include <dev/random/random_adaptors.h>
 
-LIST_HEAD(adaptors_head, random_adaptors);
-static struct adaptors_head random_adaptors_list = LIST_HEAD_INITIALIZER(random_adaptors_list);
+/* These are the data structures and associated items that need to be locked against
+ * "under-the-feet" changes.
+ */
 static struct sx random_adaptors_lock; /* need a sleepable lock */
 
-/* Contains a pointer to the currently active adaptor */
-static struct random_adaptor *random_adaptor = NULL;
+LIST_HEAD(adaptors_head, random_adaptors);
+static struct adaptors_head random_adaptors_list = LIST_HEAD_INITIALIZER(random_adaptors_list);
+static struct random_adaptor *random_adaptor = NULL; /* Currently active adaptor */
+
+/* End of data items requiring lock protection */
 
 MALLOC_DEFINE(M_ENTROPY, "entropy", "Entropy harvesting buffers and data structures");
 
@@ -70,6 +75,7 @@ random_adaptor_register(const char *name, struct random_adaptor *ra)
 
 	sx_xlock(&random_adaptors_lock);
 
+	/* XXX: FIX!! Make sure we are not inserting a duplicate */
 	LIST_INSERT_HEAD(&random_adaptors_list, rra, rra_entries);
 
 	random_adaptor_choose();
@@ -112,9 +118,13 @@ random_adaptor_block(int flag)
 	int ret;
 
 	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
+
 	sx_slock(&random_adaptors_lock);
+
 	ret = random_adaptor->ra_block(flag);
+
 	sx_sunlock(&random_adaptors_lock);
+
 	return ret;
 }
 
@@ -185,7 +195,7 @@ random_adaptor_choose(void)
 	char			 rngs[128], *token, *cp;
 	struct random_adaptors	*rra, *rrai;
 	struct random_adaptor	*random_adaptor_previous;
-	u_int			 primax;
+	int			 primax;
 
 	/* We are going to be messing with random_adaptor.
 	 * Exclusive lock is mandatory.
@@ -215,7 +225,7 @@ random_adaptor_choose(void)
 		}
 	}
 
-	primax = 0U;
+	primax = 0;
 	if (random_adaptor == NULL) {
 		/*
 		 * Fall back to the highest priority item on the available
@@ -245,57 +255,53 @@ random_adaptor_choose(void)
 static int
 random_sysctl_adaptors_handler(SYSCTL_HANDLER_ARGS)
 {
-	/* XXX: FIX!! Fixed array size, but see below, this may be OK */
-	char buf[128], *pbuf;
 	struct random_adaptors *rra;
-	int count, snp;
-	size_t lbuf;
-
-	buf[0] = '\0';
-	pbuf = buf;
-	lbuf = 256;
-	count = 0;
+	struct sbuf sbuf;
+	int error, count;
 
 	sx_slock(&random_adaptors_lock);
 
-	LIST_FOREACH(rra, &random_adaptors_list, rra_entries) {
-		snp = snprintf(pbuf, lbuf, "%s%s(%d)",
+	sbuf_new_for_sysctl(&sbuf, NULL, 64, req);
+
+	count = 0;
+	LIST_FOREACH(rra, &random_adaptors_list, rra_entries)
+		sbuf_printf(&sbuf, "%s%s(%d)",
 		    (count++ ? "," : ""), rra->rra_name, rra->rra_ra->ra_priority);
-		KASSERT(snp > 0, ("buffer overflow"));
-		lbuf -= (size_t)snp;
-		pbuf += snp;
-	}
+
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
 
 	sx_sunlock(&random_adaptors_lock);
 
-	return (SYSCTL_OUT(req, buf, strlen(buf)));
+	return (error);
 }
 
 static int
 random_sysctl_active_adaptor_handler(SYSCTL_HANDLER_ARGS)
 {
-	/* XXX: FIX!! Fixed array size, but see below, this may be OK */
-	char buf[32];
 	struct random_adaptors *rra;
-	const char *name;
+	struct sbuf sbuf;
+	int error;
 
 	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
-	name = NULL;
-	buf[0] = '\0';
-
 	sx_slock(&random_adaptors_lock);
+
+	sbuf_new_for_sysctl(&sbuf, NULL, 16, req);
 
 	LIST_FOREACH(rra, &random_adaptors_list, rra_entries)
 		if (rra->rra_ra == random_adaptor) {
-			strncpy(buf, rra->rra_name, sizeof(buf));
+			sbuf_cat(&sbuf, rra->rra_name);
 			break;
 		}
 
 
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+
 	sx_sunlock(&random_adaptors_lock);
 
-	return (SYSCTL_OUT(req, buf, strlen(buf)));
+	return (error);
 }
 
 /* ARGSUSED */

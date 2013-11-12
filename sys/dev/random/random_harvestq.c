@@ -231,6 +231,7 @@ void
 random_harvestq_internal(const void *entropy, u_int count, u_int bits,
     enum random_entropy_source origin)
 {
+	/* XXX: This wastes a few words of space */
 	static u_int destination[ENTROPYSOURCE];
 	struct harvest_event *event;
 

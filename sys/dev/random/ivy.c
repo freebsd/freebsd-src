@@ -47,9 +47,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/random/randomdev.h>
 #include <dev/random/randomdev_soft.h>
-#include <dev/random/random_harvestq.h>
-#include <dev/random/live_entropy_sources.h>
 #include <dev/random/random_adaptors.h>
+#include <dev/random/live_entropy_sources.h>
 
 #define	RETRY_COUNT	10
 
@@ -109,7 +108,7 @@ rdrand_modevent(module_t mod, int type, void *unused)
 	case MOD_LOAD:
 		if (cpu_feature2 & CPUID2_RDRAND) {
 			live_entropy_source_register(&random_ivy);
-			printf("random: live provider: %s\n", random_ivy.ident);
+			printf("random: live provider: \"%s\"\n", random_ivy.les_ident);
 		}
 		break;
 

@@ -45,9 +45,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/random/randomdev.h>
 #include <dev/random/randomdev_soft.h>
-#include <dev/random/random_harvestq.h>
-#include <dev/random/live_entropy_sources.h>
 #include <dev/random/random_adaptors.h>
+#include <dev/random/live_entropy_sources.h>
 
 static void random_nehemiah_init(void);
 static void random_nehemiah_deinit(void);
@@ -132,7 +131,7 @@ nehemiah_modevent(module_t mod, int type, void *unused)
 	case MOD_LOAD:
 		if (via_feature_rng & VIA_HAS_RNG) {
 			live_entropy_source_register(&random_nehemiah);
-			printf("random: live provider: %s\n", random_nehemiah.ident);
+			printf("random: live provider: \"%s\"\n", random_nehemiah.les_ident);
 			random_nehemiah_init();
 		}
 		break;
