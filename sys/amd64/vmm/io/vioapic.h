@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2012 NetApp, Inc.
+ * Copyright (c) 2013 Tycho Nightingale <tycho.nightingale@pluribusnetworks.com>
+ * Copyright (c) 2013 Neel Natu <neel@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,13 +27,23 @@
  * $FreeBSD$
  */
 
-#ifndef _IOAPIC_H_
-#define	_IOAPIC_H_
+#ifndef _VIOAPIC_H_
+#define	_VIOAPIC_H_
 
-struct vmctx;
+struct vm;
+struct vioapic;
 
-void	ioapic_init(int num);
-void	ioapic_deassert_pin(struct vmctx *ctx, int pin);
-void	ioapic_assert_pin(struct vmctx *ctx, int pin);
+#define	VIOAPIC_BASE	0xFEC00000
+#define	VIOAPIC_SIZE	4096
 
+struct vioapic *vioapic_init(struct vm *vm);
+void	vioapic_cleanup(struct vioapic *vioapic);
+
+int	vioapic_assert_irq(struct vm *vm, int irq);
+int	vioapic_deassert_irq(struct vm *vm, int irq);
+
+int	vioapic_mmio_write(void *vm, int vcpuid, uint64_t gpa,
+	    uint64_t wval, int size, void *arg);
+int	vioapic_mmio_read(void *vm, int vcpuid, uint64_t gpa,
+	    uint64_t *rval, int size, void *arg);
 #endif
