@@ -3570,6 +3570,66 @@ iwn_check_rate_needs_protection(struct iwn_softc *sc,
 	return (1);
 }
 
+/*
+ * return a value between 0 and IWN_MAX_TX_RETRIES-1 as an index into
+ * the link quality table that reflects this particular entry.
+ */
+static int
+iwn_tx_rate_to_linkq_offset(struct iwn_softc *sc, struct ieee80211_node *ni,
+    uint8_t rate)
+{
+	struct ieee80211_rateset *rs;
+	int is_11n;
+	int nr;
+	int i;
+	uint8_t cmp_rate;
+
+	/*
+	 * Figure out if we're using 11n or not here.
+	 */
+	if (IEEE80211_IS_CHAN_HT(ni->ni_chan) && ni->ni_htrates.rs_nrates > 0)
+		is_11n = 1;
+	else
+		is_11n = 0;
+
+	/*
+	 * Use the correct rate table.
+	 */
+	if (is_11n) {
+		rs = (struct ieee80211_rateset *) &ni->ni_htrates;
+		nr = ni->ni_htrates.rs_nrates;
+	} else {
+		rs = &ni->ni_rates;
+		nr = rs->rs_nrates;
+	}
+
+	/*
+	 * Find the relevant link quality entry in the table.
+	 */
+	for (i = 0; i < nr && i < IWN_MAX_TX_RETRIES - 1 ; i++) {
+		/*
+		 * The link quality table index starts at 0 == highest
+		 * rate, so we walk the rate table backwards.
+		 */
+		cmp_rate = rs->rs_rates[(nr - 1) - i];
+		if (rate & IEEE80211_RATE_MCS)
+			cmp_rate |= IEEE80211_RATE_MCS;
+
+		DPRINTF(sc, IWN_DEBUG_XMIT, "%s: idx %d: nr=%d, rate=0x%02x, rateentry=0x%02x\n",
+		    __func__,
+		    i,
+		    nr,
+		    rate,
+		    cmp_rate);
+
+		if (cmp_rate == rate)
+			return (i);
+	}
+
+	/* Failed? Start at the end */
+	return (IWN_MAX_TX_RETRIES - 1);
+}
+
 static int
 iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 {
@@ -3750,29 +3810,14 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	tx->data_ntries = 15;
 	tx->lifetime = htole32(IWN_LIFETIME_INFINITE);
 	tx->rate = iwn_rate_to_plcp(sc, ni, rate);
-#if 0
 	if (tx->id == sc->broadcast_id) {
 		/* Group or management frame. */
 		tx->linkq = 0;
-		/* XXX Alternate between antenna A and B? */
-		txant = IWN_LSB(sc->txchainmask);
-		tx->rate |= htole32(IWN_RFLAG_ANT(txant));
 	} else {
-		/*
-		 * XXX This is no longer true.  ni_rates may actually
-		 * XXX need to be ni_htrates (for 11n rates) and thus
-		 * XXX ridx is totally bogus here.
-		 *
-		 * XXX So, break this out into a function and look up
-		 * XXX the correct place to start the MRR table rate
-		 * XXX attempt.
-		 */
-		tx->linkq = ni->ni_rates.rs_nrates - ridx - 1;
+		tx->linkq = iwn_tx_rate_to_linkq_offset(sc, ni, rate);
 		flags |= IWN_TX_LINKQ;	/* enable MRR */
 	}
-#else
-	tx->linkq = 0;	/* Don't enable MRR for now */
-#endif
+
 	/* Set physical address of "scratch area". */
 	tx->loaddr = htole32(IWN_LOADDR(data->scratch_paddr));
 	tx->hiaddr = IWN_HIADDR(data->scratch_paddr);
