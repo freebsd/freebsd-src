@@ -133,7 +133,11 @@ GDBRemoteCommunication::GDBRemoteCommunication(const char *comm_name,
                                                const char *listener_name, 
                                                bool is_platform) :
     Communication(comm_name),
+#ifdef LLDB_CONFIGURATION_DEBUG
+    m_packet_timeout (1000),
+#else
     m_packet_timeout (1),
+#endif
     m_sequence_mutex (Mutex::eMutexTypeRecursive),
     m_public_is_running (false),
     m_private_is_running (false),
@@ -173,7 +177,7 @@ GDBRemoteCommunication::SendAck ()
     char ch = '+';
     const size_t bytes_written = Write (&ch, 1, status, NULL);
     if (log)
-        log->Printf ("<%4zu> send packet: %c", bytes_written, ch);
+        log->Printf ("<%4" PRIu64 "> send packet: %c", (uint64_t)bytes_written, ch);
     m_history.AddPacket (ch, History::ePacketTypeSend, bytes_written);
     return bytes_written;
 }
@@ -186,7 +190,7 @@ GDBRemoteCommunication::SendNack ()
     char ch = '-';
     const size_t bytes_written = Write (&ch, 1, status, NULL);
     if (log)
-        log->Printf ("<%4zu> send packet: %c", bytes_written, ch);
+        log->Printf("<%4" PRIu64 "> send packet: %c", (uint64_t)bytes_written, ch);
     m_history.AddPacket (ch, History::ePacketTypeSend, bytes_written);
     return bytes_written;
 }
@@ -222,7 +226,7 @@ GDBRemoteCommunication::SendPacketNoLock (const char *payload, size_t payload_le
             if (!m_history.DidDumpToLog ())
                 m_history.Dump (log);
 
-            log->Printf ("<%4zu> send packet: %.*s", bytes_written, (int)packet.GetSize(), packet.GetData());
+            log->Printf("<%4" PRIu64 "> send packet: %.*s", (uint64_t)bytes_written, (int)packet.GetSize(), packet.GetData());
         }
 
         m_history.AddPacket (packet.GetString(), packet.GetSize(), History::ePacketTypeSend, bytes_written);
@@ -456,13 +460,38 @@ GDBRemoteCommunication::CheckForPacket (const uint8_t *src, size_t src_len, Stri
                 if (!m_history.DidDumpToLog ())
                     m_history.Dump (log);
                 
-                log->Printf ("<%4zu> read packet: %.*s", total_length, (int)(total_length), m_bytes.c_str());
+                log->Printf("<%4" PRIu64 "> read packet: %.*s", (uint64_t)total_length, (int)(total_length), m_bytes.c_str());
             }
 
             m_history.AddPacket (m_bytes.c_str(), total_length, History::ePacketTypeRecv, total_length);
 
-            packet_str.assign (m_bytes, content_start, content_length);
-            
+            // Clear packet_str in case there is some existing data in it.
+            packet_str.clear();
+            // Copy the packet from m_bytes to packet_str expanding the
+            // run-length encoding in the process.
+            // Reserve enough byte for the most common case (no RLE used)
+            packet_str.reserve(m_bytes.length());
+            for (std::string::const_iterator c = m_bytes.begin() + content_start; c != m_bytes.begin() + content_start + content_length; ++c)
+            {
+                if (*c == '*')
+                {
+                    // '*' indicates RLE. Next character will give us the
+                    // repeat count and previous character is what is to be
+                    // repeated.
+                    char char_to_repeat = packet_str.back();
+                    // Number of time the previous character is repeated
+                    int repeat_count = *++c + 3 - ' ';
+                    // We have the char_to_repeat and repeat_count. Now push
+                    // it in the packet.
+                    for (int i = 0; i < repeat_count; ++i)
+                        packet_str.push_back(char_to_repeat);
+                }
+                else
+                {
+                    packet_str.push_back(*c);
+                }
+            }
+
             if (m_bytes[0] == '$')
             {
                 assert (checksum_idx < m_bytes.size());
