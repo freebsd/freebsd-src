@@ -195,7 +195,7 @@ copyout(const void *kaddr, void *udaddr, size_t len)
 	while (len > 0) {
 		if (map_user_ptr(pm, udaddr, (void **)&p, len, &l)) {
 			td->td_pcb->pcb_onfault = NULL;
-			return (-1);
+			return (EFAULT);
 		}
 
 		bcopy(kp, p, l);
@@ -233,7 +233,7 @@ copyin(const void *udaddr, void *kaddr, size_t len)
 	while (len > 0) {
 		if (map_user_ptr(pm, udaddr, (void **)&p, len, &l)) {
 			td->td_pcb->pcb_onfault = NULL;
-			return (-1);
+			return (EFAULT);
 		}
 
 		bcopy(p, kp, l);
