@@ -190,12 +190,12 @@ gpiobus_attach(device_t dev)
 	if (res)
 		return (ENXIO);
 
+	KASSERT(sc->sc_npins != 0, ("GPIO device with no pins"));
+
 	/*
 	 * Increase to get number of pins
 	 */
 	sc->sc_npins++;
-
-	KASSERT(sc->sc_npins != 0, ("GPIO device with no pins"));
 
 	sc->sc_pins_mapped = malloc(sizeof(int) * sc->sc_npins, M_DEVBUF, 
 	    M_NOWAIT | M_ZERO);
