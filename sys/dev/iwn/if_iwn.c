@@ -4322,7 +4322,7 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 {
 #define	RV(v)	((v) & IEEE80211_RATE_VAL)
 	struct iwn_node *wn = (void *)ni;
-	struct ieee80211_rateset *rs = &ni->ni_rates;
+	struct ieee80211_rateset *rs;
 	struct iwn_cmd_link_quality linkq;
 	uint8_t txant;
 	int i, rate, txrate;
@@ -4346,10 +4346,13 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 	 * 11n _and_ we have some 11n rates, or don't
 	 * try.
 	 */
-	if (IEEE80211_IS_CHAN_HT(ni->ni_chan) && ni->ni_htrates.rs_nrates > 0)
+	if (IEEE80211_IS_CHAN_HT(ni->ni_chan) && ni->ni_htrates.rs_nrates > 0) {
+		rs = (struct ieee80211_rateset *) &ni->ni_htrates;
 		is_11n = 1;
-	else
+	} else {
+		rs = &ni->ni_rates;
 		is_11n = 0;
+	}
 
 	/* Start at highest available bit-rate. */
 	if (is_11n)
@@ -4360,7 +4363,7 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 		uint32_t plcp;
 
 		if (is_11n)
-			rate = IEEE80211_RATE_MCS | txrate;
+			rate = IEEE80211_RATE_MCS | rs->rs_rates[txrate];
 		else
 			rate = RV(rs->rs_rates[txrate]);
 
