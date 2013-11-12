@@ -41,6 +41,7 @@ public:
         eCore_arm_armv5e,
         eCore_arm_armv5t,
         eCore_arm_armv6,
+        eCore_arm_armv6m,
         eCore_arm_armv7,
         eCore_arm_armv7f,
         eCore_arm_armv7s,
@@ -53,6 +54,7 @@ public:
         eCore_thumbv5,
         eCore_thumbv5e,
         eCore_thumbv6,
+        eCore_thumbv6m,
         eCore_thumbv7,
         eCore_thumbv7f,
         eCore_thumbv7s,
@@ -60,6 +62,8 @@ public:
         eCore_thumbv7m,
         eCore_thumbv7em,
         
+        eCore_mips64,
+
         eCore_ppc_generic,
         eCore_ppc_ppc601,
         eCore_ppc_ppc602,

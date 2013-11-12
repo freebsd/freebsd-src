@@ -316,7 +316,7 @@ struct iwn_softc {
 	struct callout		watchdog_to;
 	struct callout		ct_kill_exit_to;
 	struct iwn_fw_info	fw;
-	struct iwn_calib_info	calibcmd[5];
+	struct iwn_calib_info	calibcmd[IWN5000_PHY_CALIB_MAX_RESULT];
 	uint32_t		errptr;
 
 	struct iwn_rx_stat	last_rx_stat;
@@ -388,8 +388,8 @@ struct iwn_softc {
 	 */
 	int			current_pwrsave_level;
 
-	/* For specifique params */
-	struct iwn_base_params *base_params;
+	/* For specific params */
+	const struct iwn_base_params *base_params;
 };
 
 #define IWN_LOCK_INIT(_sc) \

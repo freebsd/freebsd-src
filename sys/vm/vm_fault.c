@@ -1074,7 +1074,7 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 {
 	vm_offset_t end, va;
 	vm_page_t *mp;
-	int count;
+	vm_size_t count;
 	boolean_t pmap_failed;
 
 	if (len == 0)
