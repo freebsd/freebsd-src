@@ -227,6 +227,7 @@ powerpc/pseries/phyp_llan.c	optional	llan
 powerpc/pseries/phyp_vscsi.c	optional	pseries powerpc64 scbus
 powerpc/pseries/platform_chrp.c	optional	pseries
 powerpc/pseries/plpar_iommu.c	optional	pseries powerpc64
+powerpc/pseries/plpar_pcibus.c	optional	pseries powerpc64 pci
 powerpc/pseries/rtas_dev.c	optional	pseries
 powerpc/pseries/rtas_pci.c	optional	pseries pci
 powerpc/pseries/vdevice.c	optional	pseries powerpc64
