@@ -1073,6 +1073,8 @@ ipoib_remove_one(struct ib_device *device)
 		if (rdma_port_get_link_layer(device, priv->port) != IB_LINK_LAYER_INFINIBAND)
 			continue;
 
+		ipoib_stop(priv);
+
 		ib_unregister_event_handler(&priv->event_handler);
 
 		/* dev_change_flags(priv->dev, priv->dev->flags & ~IFF_UP); */
