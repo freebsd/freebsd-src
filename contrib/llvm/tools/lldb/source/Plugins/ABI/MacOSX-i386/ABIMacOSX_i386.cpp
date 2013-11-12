@@ -235,12 +235,22 @@ ABIMacOSX_i386::GetRedZoneSize () const
 ABISP
 ABIMacOSX_i386::CreateInstance (const ArchSpec &arch)
 {
-    static ABISP g_abi_sp;
+    static ABISP g_abi_mac_sp;
+    static ABISP g_abi_other_sp;
     if (arch.GetTriple().getArch() == llvm::Triple::x86)
     {
-        if (!g_abi_sp)
-            g_abi_sp.reset (new ABIMacOSX_i386);
-        return g_abi_sp;
+        if (arch.GetTriple().isOSDarwin())
+        {
+            if (!g_abi_mac_sp)
+                g_abi_mac_sp.reset (new ABIMacOSX_i386(true));
+            return g_abi_mac_sp;
+        }
+        else
+        {
+            if (!g_abi_other_sp)
+                g_abi_other_sp.reset (new ABIMacOSX_i386(false));
+            return g_abi_other_sp;
+        }
     }
     return ABISP();
 }
@@ -823,37 +833,12 @@ ABIMacOSX_i386::GetReturnValueObjectImpl (Thread &thread,
 bool
 ABIMacOSX_i386::CreateFunctionEntryUnwindPlan (UnwindPlan &unwind_plan)
 {
-    uint32_t reg_kind = unwind_plan.GetRegisterKind();
-    uint32_t sp_reg_num = LLDB_INVALID_REGNUM;
-    uint32_t pc_reg_num = LLDB_INVALID_REGNUM;
-    
-    switch (reg_kind)
-    {
-        case eRegisterKindDWARF:
-            sp_reg_num = dwarf_esp;
-            pc_reg_num = dwarf_eip;
-            break;
+    unwind_plan.Clear();
+    unwind_plan.SetRegisterKind (eRegisterKindDWARF);
 
-        case eRegisterKindGCC:
-            sp_reg_num = gcc_esp;
-            pc_reg_num = gcc_eip;
-            break;
-            
-        case eRegisterKindGDB:
-            sp_reg_num = gdb_esp;
-            pc_reg_num = gdb_eip;
-            break;
-            
-        case eRegisterKindGeneric:
-            sp_reg_num = LLDB_REGNUM_GENERIC_SP;
-            pc_reg_num = LLDB_REGNUM_GENERIC_PC;
-            break;
-    }
+    uint32_t sp_reg_num = dwarf_esp;
+    uint32_t pc_reg_num = dwarf_eip;
     
-    if (sp_reg_num == LLDB_INVALID_REGNUM ||
-        pc_reg_num == LLDB_INVALID_REGNUM)
-        return false;
-
     UnwindPlan::RowSP row(new UnwindPlan::Row);
     row->SetCFARegister (sp_reg_num);
     row->SetCFAOffset (4);
@@ -867,6 +852,9 @@ ABIMacOSX_i386::CreateFunctionEntryUnwindPlan (UnwindPlan &unwind_plan)
 bool
 ABIMacOSX_i386::CreateDefaultUnwindPlan (UnwindPlan &unwind_plan)
 {
+    unwind_plan.Clear ();
+    unwind_plan.SetRegisterKind (eRegisterKindDWARF);
+
     uint32_t fp_reg_num = dwarf_ebp;
     uint32_t sp_reg_num = dwarf_esp;
     uint32_t pc_reg_num = dwarf_eip;
@@ -874,15 +862,13 @@ ABIMacOSX_i386::CreateDefaultUnwindPlan (UnwindPlan &unwind_plan)
     UnwindPlan::RowSP row(new UnwindPlan::Row);
     const int32_t ptr_size = 4;
 
-    unwind_plan.Clear ();
-    unwind_plan.SetRegisterKind (eRegisterKindDWARF);
     row->SetCFARegister (fp_reg_num);
     row->SetCFAOffset (2 * ptr_size);
     row->SetOffset (0);
     
     row->SetRegisterLocationToAtCFAPlusOffset(fp_reg_num, ptr_size * -2, true);
     row->SetRegisterLocationToAtCFAPlusOffset(pc_reg_num, ptr_size * -1, true);
-    row->SetRegisterLocationToAtCFAPlusOffset(sp_reg_num, ptr_size *  0, true);
+    row->SetRegisterLocationToIsCFAPlusOffset(sp_reg_num, 0, true);
 
     unwind_plan.AppendRow (row);
     unwind_plan.SetSourceName ("i386 default unwind plan");

@@ -10,9 +10,11 @@
 #include "lldb/Host/Mutex.h"
 #include "lldb/Host/Host.h"
 
+#ifndef _WIN32
+#include <pthread.h>
+#endif
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
 
 #if 0
 // This logging is way too verbose to enable even for a log channel. 
@@ -177,6 +179,8 @@ Mutex::Locker::TryLock (Mutex &mutex, const char *failure_message)
     return m_mutex_ptr != NULL;
 }
 
+#ifndef _WIN32
+
 //----------------------------------------------------------------------
 // Default constructor.
 //
@@ -250,15 +254,6 @@ Mutex::~Mutex()
     }
     memset (&m_mutex, '\xba', sizeof(m_mutex));
 #endif
-}
-
-//----------------------------------------------------------------------
-// Mutex get accessor.
-//----------------------------------------------------------------------
-pthread_mutex_t *
-Mutex::GetMutex()
-{
-    return &m_mutex;
 }
 
 //----------------------------------------------------------------------
@@ -339,6 +334,17 @@ Mutex::Unlock()
 #endif
     DEBUG_LOG ("[%4.4" PRIx64 "/%4.4" PRIx64 "] pthread_mutex_unlock (%p) => %i\n", Host::GetCurrentProcessID(), Host::GetCurrentThreadID(), &m_mutex, err);
     return err;
+}
+
+#endif
+
+//----------------------------------------------------------------------
+// Mutex get accessor.
+//----------------------------------------------------------------------
+lldb::mutex_t *
+Mutex::GetMutex()
+{
+    return &m_mutex;
 }
 
 #ifdef LLDB_CONFIGURATION_DEBUG

@@ -380,6 +380,7 @@ namespace lldb {
         eArgTypeClassName,
         eArgTypeCommandName,
         eArgTypeCount,
+        eArgTypeDescriptionVerbosity,
         eArgTypeDirectoryName,
         eArgTypeDisassemblyFlavor,
         eArgTypeEndAddress,
@@ -406,6 +407,9 @@ namespace lldb {
         eArgTypeOffset,
         eArgTypeOldPathPrefix,
         eArgTypeOneLiner,
+        eArgTypePath,
+        eArgTypePermissionsNumber,
+        eArgTypePermissionsString,
         eArgTypePid,
         eArgTypePlugin,
         eArgTypeProcessName,
@@ -480,7 +484,8 @@ namespace lldb {
         eSymbolTypeUndefined,
         eSymbolTypeObjCClass,
         eSymbolTypeObjCMetaClass,
-        eSymbolTypeObjCIVar
+        eSymbolTypeObjCIVar,
+        eSymbolTypeReExported
     } SymbolType;
     
     typedef enum SectionType

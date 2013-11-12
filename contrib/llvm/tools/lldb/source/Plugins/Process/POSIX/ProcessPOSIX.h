@@ -70,13 +70,16 @@ public:
     DoHalt(bool &caused_stop);
 
     virtual lldb_private::Error
-    DoDetach(bool keep_stopped);
+    DoDetach(bool keep_stopped) = 0;
 
     virtual lldb_private::Error
     DoSignal(int signal);
 
     virtual lldb_private::Error
     DoDestroy();
+
+    virtual void
+    DoDidExec();
 
     virtual void
     RefreshStateAfterStop();
@@ -166,6 +169,9 @@ public:
     /// The \p stop_tid paramter indicates the thread which the stop happened for.
     bool
     AddThreadForInitialStopIfNeeded(lldb::tid_t stop_tid);
+
+    bool
+    WaitingForInitialStop(lldb::tid_t stop_tid);
 
     virtual POSIXThread *
     CreateNewPOSIXThread(lldb_private::Process &process, lldb::tid_t tid);
