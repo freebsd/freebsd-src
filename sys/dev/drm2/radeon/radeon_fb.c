@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <machine/_inttypes.h>
+
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_crtc.h>
 #include <dev/drm2/drm_crtc_helper.h>
@@ -241,7 +243,7 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 	info->fb_pbase = rdev->mc.aper_base + tmp;
 	info->fb_vbase = (vm_offset_t)rbo->kptr;
 
-	DRM_INFO("fb mappable at 0x%lX\n",  info->fb_pbase);
+	DRM_INFO("fb mappable at 0x%" PRIXPTR "\n",  info->fb_pbase);
 	DRM_INFO("vram apper at 0x%lX\n",  (unsigned long)rdev->mc.aper_base);
 	DRM_INFO("size %lu\n", (unsigned long)radeon_bo_size(rbo));
 	DRM_INFO("fb depth is %d\n", fb->depth);
