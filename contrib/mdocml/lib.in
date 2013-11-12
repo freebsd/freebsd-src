@@ -67,6 +67,7 @@ LINE("libmemstat",	"Kernel Memory Allocator Statistics Library (libmemstat, \\-l
 LINE("libmenu",		"Curses Menu Library (libmenu, \\-lmenu)")
 LINE("libnetgraph",	"Netgraph User Library (libnetgraph, \\-lnetgraph)")
 LINE("libnetpgp",	"Netpgp signing, verification, encryption and decryption (libnetpgp, \\-lnetpgp)")
+LINE("libnv",		"Name/value pairs library (libnv, \\-lnv)")
 LINE("libossaudio",	"OSS Audio Emulation Library (libossaudio, \\-lossaudio)")
 LINE("libpam",		"Pluggable Authentication Module Library (libpam, \\-lpam)")
 LINE("libpcap",		"Packet Capture Library (libpcap, \\-lpcap)")
