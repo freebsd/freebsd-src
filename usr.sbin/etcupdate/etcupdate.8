@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 16, 2012
+.Dd November 12, 2013
 .Dt ETCUPDATE 8
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Nd "manage updates to system files not updated by installworld"
 .Sh SYNOPSIS
 .Nm
-.Op Fl nBF
+.Op Fl npBF
 .Op Fl d Ar workdir
 .Op Fl r | Fl s Ar source | Fl t Ar tarball
 .Op Fl A Ar patterns
@@ -64,6 +64,7 @@
 .Op Fl M Ar options
 .Nm
 .Cm resolve
+.Op Fl p
 .Op Fl d Ar workdir
 .Op Fl D Ar destdir
 .Op Fl L Ar logfile
@@ -481,6 +482,33 @@ option is not specified,
 then a temporary
 .Dq current
 tree will be extracted to perform the comparison.
+.It Fl p
+Enable
+.Dq pre-world
+mode.
+Only merge changes to files that are necessary to successfully run
+.Sq make installworld
+or
+.Sq make installkernel .
+When this flag is enabled,
+the existing
+.Dq current
+and
+.Dq previous
+trees are left alone.
+Instead,
+a temporary tree is populated with the necessary files.
+This temporary tree is compared against the
+.Dq current
+tree.
+This allows a normal update to be run after
+.Sq make installworld
+has completed.
+Any conflicts generated during a
+.Dq pre-world
+update should be resolved by a
+.Dq pre-world
+.Cm resolve .
 .It Fl r
 Do not update the
 .Dq current
