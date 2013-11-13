@@ -122,7 +122,8 @@ MALLOC_DECLARE(M_NAND);
 
 #define NAND_MAN_SAMSUNG		0xec
 #define NAND_MAN_HYNIX			0xad
-#define	NAND_MAN_STMICRO		0x20
+#define NAND_MAN_STMICRO		0x20
+#define NAND_MAN_MICRON			0x2c
 
 struct nand_id {
 	uint8_t man_id;

@@ -672,9 +672,11 @@ typecmd_impl(int argc, char **argv, int cmd, const char *path)
 
 		/* Then look at the aliases */
 		if ((ap = lookupalias(argv[i], 1)) != NULL) {
-			if (cmd == TYPECMD_SMALLV)
-				out1fmt("alias %s='%s'\n", argv[i], ap->val);
-			else
+			if (cmd == TYPECMD_SMALLV) {
+				out1fmt("alias %s=", argv[i]);
+				out1qstr(ap->val);
+				outcslow('\n', out1);
+			} else
 				out1fmt("%s is an alias for %s\n", argv[i],
 				    ap->val);
 			continue;

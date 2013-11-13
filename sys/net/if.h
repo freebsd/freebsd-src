@@ -412,6 +412,14 @@ struct ifaliasreq {
 	int	ifra_vhid;
 };
 
+/* 9.x compat */
+struct oifaliasreq {
+	char	ifra_name[IFNAMSIZ];
+	struct	sockaddr ifra_addr;
+	struct	sockaddr ifra_broadaddr;
+	struct	sockaddr ifra_mask;
+};
+
 struct ifmediareq {
 	char	ifm_name[IFNAMSIZ];	/* if name, e.g. "en0" */
 	int	ifm_current;		/* current media options */
@@ -487,18 +495,6 @@ struct ifgroupreq {
 	} ifgr_ifgru;
 #define ifgr_group	ifgr_ifgru.ifgru_group
 #define ifgr_groups	ifgr_ifgru.ifgru_groups
-};
-
-/*
- * Structure for SIOC[AGD]LIFADDR
- */
-struct if_laddrreq {
-	char	iflr_name[IFNAMSIZ];
-	u_int	flags;
-#define	IFLR_PREFIX	0x8000  /* in: prefix given  out: kernel fills id */
-	u_int	prefixlen;         /* in/out */
-	struct	sockaddr_storage addr;   /* in/out */
-	struct	sockaddr_storage dstaddr; /* out */
 };
 
 #endif /* __BSD_VISIBLE */

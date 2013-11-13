@@ -425,7 +425,7 @@ kernel_list(int iscsi_fd, const struct target *targ __unused,
 			printf("Secret:           %s\n", conf->isc_secret);
 			printf("Mutual user:      %s\n",
 			    conf->isc_mutual_user);
-			printf("Mutual secret :   %s\n",
+			printf("Mutual secret:    %s\n",
 			    conf->isc_mutual_secret);
 			printf("Session type:     %s\n",
 			    conf->isc_discovery ? "Discovery" : "Normal");

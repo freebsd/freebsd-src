@@ -92,14 +92,9 @@ struct xpt_task {
 	uintptr_t	data2;
 };
 
-typedef enum {
-	XPT_FLAG_OPEN		= 0x01
-} xpt_flags;
-
 struct xpt_softc {
-	xpt_flags		flags;
-
 	/* number of high powered commands that can go through right now */
+	struct mtx		xpt_highpower_lock;
 	STAILQ_HEAD(highpowerlist, cam_ed)	highpowerq;
 	int			num_highpower;
 
@@ -240,6 +235,7 @@ static timeout_t xpt_release_devq_timeout;
 static void	 xpt_release_simq_timeout(void *arg) __unused;
 static void	 xpt_acquire_bus(struct cam_eb *bus);
 static void	 xpt_release_bus(struct cam_eb *bus);
+static uint32_t	 xpt_freeze_devq_device(struct cam_ed *dev, u_int count);
 static int	 xpt_release_devq_device(struct cam_ed *dev, u_int count,
 		    int run_queue);
 static struct cam_et*
@@ -367,22 +363,12 @@ xptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 		return(ENODEV);
 	}
 
-	/* Mark ourselves open */
-	mtx_lock(&xsoftc.xpt_lock);
-	xsoftc.flags |= XPT_FLAG_OPEN;
-	mtx_unlock(&xsoftc.xpt_lock);
-
 	return(0);
 }
 
 static int
 xptclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
-
-	/* Mark ourselves closed */
-	mtx_lock(&xsoftc.xpt_lock);
-	xsoftc.flags &= ~XPT_FLAG_OPEN;
-	mtx_unlock(&xsoftc.xpt_lock);
 
 	return(0);
 }
@@ -863,6 +849,7 @@ xpt_init(void *dummy)
 	xsoftc.num_highpower = CAM_MAX_HIGHPOWER;
 
 	mtx_init(&xsoftc.xpt_lock, "XPT lock", NULL, MTX_DEF);
+	mtx_init(&xsoftc.xpt_highpower_lock, "XPT highpower lock", NULL, MTX_DEF);
 	mtx_init(&xsoftc.xpt_topo_lock, "XPT topology lock", NULL, MTX_DEF);
 	xsoftc.xpt_taskq = taskqueue_create("CAM XPT task", M_WAITOK,
 	    taskqueue_thread_enqueue, /*context*/&xsoftc.xpt_taskq);
@@ -900,6 +887,7 @@ xpt_init(void *dummy)
 		       " failing attach\n", status);
 		return (EINVAL);
 	}
+	mtx_unlock(&xsoftc.xpt_lock);
 
 	/*
 	 * Looking at the XPT from the SIM layer, the XPT is
@@ -914,11 +902,12 @@ xpt_init(void *dummy)
 		       " failing attach\n", status);
 		return (EINVAL);
 	}
-
+	xpt_path_lock(path);
 	cam_periph_alloc(xptregister, NULL, NULL, NULL, "xpt", CAM_PERIPH_BIO,
 			 path, NULL, 0, xpt_sim);
+	xpt_path_unlock(path);
 	xpt_free_path(path);
-	mtx_unlock(&xsoftc.xpt_lock);
+
 	if (cam_num_doneqs < 1)
 		cam_num_doneqs = 1 + mp_ncpus / 6;
 	else if (cam_num_doneqs > MAXCPU)
@@ -3223,7 +3212,7 @@ xpt_run_devq(struct cam_devq *devq)
 
 		if ((work_ccb->ccb_h.flags & CAM_HIGH_POWER) != 0) {
 
-			mtx_lock(&xsoftc.xpt_lock);
+			mtx_lock(&xsoftc.xpt_highpower_lock);
 		 	if (xsoftc.num_highpower <= 0) {
 				/*
 				 * We got a high power command, but we
@@ -3231,11 +3220,11 @@ xpt_run_devq(struct cam_devq *devq)
 				 * the device queue until we have a slot
 				 * available.
 				 */
-				xpt_freeze_devq(work_ccb->ccb_h.path, 1);
+				xpt_freeze_devq_device(device, 1);
 				STAILQ_INSERT_TAIL(&xsoftc.highpowerq, device,
 						   highpowerq_entry);
 
-				mtx_unlock(&xsoftc.xpt_lock);
+				mtx_unlock(&xsoftc.xpt_highpower_lock);
 				continue;
 			} else {
 				/*
@@ -3244,7 +3233,7 @@ xpt_run_devq(struct cam_devq *devq)
 				 */
 				xsoftc.num_highpower--;
 			}
-			mtx_unlock(&xsoftc.xpt_lock);
+			mtx_unlock(&xsoftc.xpt_highpower_lock);
 		}
 		cam_ccbq_remove_ccb(&device->ccbq, work_ccb);
 		cam_ccbq_send_ccb(&device->ccbq, work_ccb);
@@ -4286,6 +4275,24 @@ xpt_dev_async_default(u_int32_t async_code, struct cam_eb *bus,
 	printf("%s called\n", __func__);
 }
 
+static uint32_t
+xpt_freeze_devq_device(struct cam_ed *dev, u_int count)
+{
+	struct cam_devq	*devq;
+	uint32_t freeze;
+
+	devq = dev->sim->devq;
+	mtx_assert(&devq->send_mtx, MA_OWNED);
+	CAM_DEBUG_DEV(dev, CAM_DEBUG_TRACE,
+	    ("xpt_freeze_devq_device(%d) %u->%u\n", count,
+	    dev->ccbq.queue.qfrozen_cnt, dev->ccbq.queue.qfrozen_cnt + count));
+	freeze = (dev->ccbq.queue.qfrozen_cnt += count);
+	/* Remove frozen device from sendq. */
+	if (device_is_queued(dev))
+		camq_remove(&devq->send_queue, dev->devq_entry.index);
+	return (freeze);
+}
+
 u_int32_t
 xpt_freeze_devq(struct cam_path *path, u_int count)
 {
@@ -4295,12 +4302,8 @@ xpt_freeze_devq(struct cam_path *path, u_int count)
 
 	devq = dev->sim->devq;
 	mtx_lock(&devq->send_mtx);
-	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_freeze_devq() %u->%u\n",
-	    dev->ccbq.queue.qfrozen_cnt, dev->ccbq.queue.qfrozen_cnt + count));
-	freeze = (dev->ccbq.queue.qfrozen_cnt += count);
-	/* Remove frozen device from sendq. */
-	if (device_is_queued(dev))
-		camq_remove(&devq->send_queue, dev->devq_entry.index);
+	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_freeze_devq(%d)\n", count));
+	freeze = xpt_freeze_devq_device(dev, count);
 	mtx_unlock(&devq->send_mtx);
 	return (freeze);
 }
@@ -5150,7 +5153,7 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 		struct highpowerlist	*hphead;
 		struct cam_ed		*device;
 
-		mtx_lock(&xsoftc.xpt_lock);
+		mtx_lock(&xsoftc.xpt_highpower_lock);
 		hphead = &xsoftc.highpowerq;
 
 		device = STAILQ_FIRST(hphead);
@@ -5166,14 +5169,14 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 		if (device != NULL) {
 
 			STAILQ_REMOVE_HEAD(hphead, highpowerq_entry);
-			mtx_unlock(&xsoftc.xpt_lock);
+			mtx_unlock(&xsoftc.xpt_highpower_lock);
 
 			mtx_lock(&device->sim->devq->send_mtx);
 			xpt_release_devq_device(device,
 					 /*count*/1, /*runqueue*/TRUE);
 			mtx_unlock(&device->sim->devq->send_mtx);
 		} else
-			mtx_unlock(&xsoftc.xpt_lock);
+			mtx_unlock(&xsoftc.xpt_highpower_lock);
 	}
 
 	sim = ccb_h->path->bus->sim;

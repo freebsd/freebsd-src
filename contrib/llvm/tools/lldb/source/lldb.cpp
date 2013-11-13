@@ -37,6 +37,7 @@
 #include "Plugins/UnwindAssembly/InstEmulation/UnwindAssemblyInstEmulation.h"
 #include "Plugins/DynamicLoader/POSIX-DYLD/DynamicLoaderPOSIXDYLD.h"
 #include "Plugins/Platform/FreeBSD/PlatformFreeBSD.h"
+#include "Plugins/Platform/POSIX/PlatformPOSIX.h"
 #include "Plugins/LanguageRuntime/CPlusPlus/ItaniumABI/ItaniumABILanguageRuntime.h"
 #ifndef LLDB_DISABLE_PYTHON
 #include "Plugins/OperatingSystem/Python/OperatingSystemPython.h"
@@ -55,7 +56,7 @@
 #include "Plugins/Platform/MacOSX/PlatformiOSSimulator.h"
 #endif
 
-#if defined(__linux__) or defined(__FreeBSD__)
+#if defined(__linux__) || defined(__FreeBSD__)
 #include "Plugins/Process/elf-core/ProcessElfCore.h"
 #endif
 
@@ -134,7 +135,7 @@ lldb_private::Initialize ()
         ProcessFreeBSD::Initialize();
 #endif
 
-#if defined(__linux__) or defined(__FreeBSD__)
+#if defined(__linux__) || defined(__FreeBSD__)
         ProcessElfCore::Initialize();
 #endif
         //----------------------------------------------------------------------
@@ -167,7 +168,6 @@ lldb_private::Terminate ()
     
     // Terminate and unload and loaded system or user LLDB plug-ins
     PluginManager::Terminate();
-
     ABISysV_x86_64::Terminate();
     DisassemblerLLVMC::Terminate();
     ObjectContainerBSDArchive::Terminate();
@@ -210,7 +210,7 @@ lldb_private::Terminate ()
     ProcessFreeBSD::Terminate();
 #endif
 
-#if defined(__linux__) or defined(__FreeBSD__)
+#if defined(__linux__) || defined(__FreeBSD__)
     ProcessElfCore::Terminate();
 #endif
     ProcessGDBRemote::Terminate();
@@ -388,7 +388,7 @@ lldb_private::NameMatches (const char *name,
         llvm::StringRef match_sref(match);
         switch (match_type)
         {
-        case eNameMatchIgnore:
+        case eNameMatchIgnore: // This case cannot occur: tested before
             return true;
         case eNameMatchEquals:      return name_sref == match_sref;
         case eNameMatchContains:    return name_sref.find (match_sref) != llvm::StringRef::npos;

@@ -323,11 +323,10 @@ parse_fingerprint(yaml_document_t *doc, yaml_node_t *node)
 static void
 free_fingerprint_list(struct fingerprint_list* list)
 {
-	struct fingerprint* fingerprint;
+	struct fingerprint *fingerprint, *tmp;
 
-	STAILQ_FOREACH(fingerprint, list, next) {
-		if (fingerprint->name)
-			free(fingerprint->name);
+	STAILQ_FOREACH_SAFE(fingerprint, list, next, tmp) {
+		free(fingerprint->name);
 		free(fingerprint);
 	}
 	free(list);
@@ -729,12 +728,9 @@ cleanup:
 	if (revoked)
 		free_fingerprint_list(revoked);
 	if (sc) {
-		if (sc->cert)
-			free(sc->cert);
-		if (sc->sig)
-			free(sc->sig);
-		if (sc->name)
-			free(sc->name);
+		free(sc->cert);
+		free(sc->sig);
+		free(sc->name);
 		free(sc);
 	}
 

@@ -36,6 +36,7 @@ LDADD=		-latf-c
 
 LDFLAGS+=	-L${.OBJDIR}/../libatf-c
 
+ATF=		${.CURDIR:H:H:H}/contrib/atf
 .PATH:		${ATF}
 .PATH:		${ATF}/atf-c++
 .PATH:		${ATF}/atf-c++/detail
@@ -72,5 +73,9 @@ INCS+=		atf-c++.hpp
 INCSDIR_atf-c++.hpp= ${INCLUDEDIR}
 
 MAN=		atf-c++-api.3
+
+.if ${MK_TESTS} != "no"
+SUBDIR=		tests
+.endif
 
 .include <bsd.lib.mk>

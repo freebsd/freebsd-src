@@ -181,6 +181,7 @@ fsl_pcib_probe(device_t dev)
 		return (ENXIO);
 
 	if (!(ofw_bus_is_compatible(dev, "fsl,mpc8540-pci") ||
+	    ofw_bus_is_compatible(dev, "fsl,mpc8540-pcie") ||
 	    ofw_bus_is_compatible(dev, "fsl,mpc8548-pcie")))
 		return (ENXIO);
 

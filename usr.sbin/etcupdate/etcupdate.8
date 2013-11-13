@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 16, 2012
+.Dd November 12, 2013
 .Dt ETCUPDATE 8
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Nd "manage updates to system files not updated by installworld"
 .Sh SYNOPSIS
 .Nm
-.Op Fl nBF
+.Op Fl npBF
 .Op Fl d Ar workdir
 .Op Fl r | Fl s Ar source | Fl t Ar tarball
 .Op Fl A Ar patterns
@@ -64,6 +64,7 @@
 .Op Fl M Ar options
 .Nm
 .Cm resolve
+.Op Fl p
 .Op Fl d Ar workdir
 .Op Fl D Ar destdir
 .Op Fl L Ar logfile
@@ -342,27 +343,7 @@ then nothing will be output.
 .Sh OPTIONS
 The following options are available.
 Note that most options do not apply to all modes.
-.Bl -tag -width ".Fl d Ar workdir"
-.It Fl B
-Do not build generated files in a private object tree.
-Instead,
-reuse the generated files from a previously built object tree that matches
-the source tree.
-This can be useful to avoid gratuitous conflicts in
-.Xr sendmail 8
-configuration
-files when bootstrapping.
-It can also be useful for building a tarball that matches a specific
-world build.
-.It Fl d Ar workdir
-Specify an alternate directory to use as the work directory.
-The work directory is used to store the
-.Dq current
-and
-.Dq previous
-trees as well as unresolved conflicts.
-The default work directory is
-.Pa <destdir>/var/db/etcupdate .
+.Bl -tag -width ".Fl A Ar patterns"
 .It Fl A Ar patterns
 Always install the new version of any files that match any of the patterns
 listed in
@@ -378,6 +359,17 @@ Note that ignored files specified via the
 variable or the
 .Fl I
 option will not be installed.
+.It Fl B
+Do not build generated files in a private object tree.
+Instead,
+reuse the generated files from a previously built object tree that matches
+the source tree.
+This can be useful to avoid gratuitous conflicts in
+.Xr sendmail 8
+configuration
+files when bootstrapping.
+It can also be useful for building a tarball that matches a specific
+world build.
 .It Fl D Ar destdir
 Specify an alternate destination directory as the target of a merge.
 This is analogous to the
@@ -388,6 +380,15 @@ The default destination directory is an empty string which results in
 merges updating
 .Pa /etc
 on the local machine.
+.It Fl d Ar workdir
+Specify an alternate directory to use as the work directory.
+The work directory is used to store the
+.Dq current
+and
+.Dq previous
+trees as well as unresolved conflicts.
+The default work directory is
+.Pa <destdir>/var/db/etcupdate .
 .It Fl F
 Ignore changes in the FreeBSD ID string when comparing files in the
 destination directory to files in either of the
@@ -481,6 +482,33 @@ option is not specified,
 then a temporary
 .Dq current
 tree will be extracted to perform the comparison.
+.It Fl p
+Enable
+.Dq pre-world
+mode.
+Only merge changes to files that are necessary to successfully run
+.Sq make installworld
+or
+.Sq make installkernel .
+When this flag is enabled,
+the existing
+.Dq current
+and
+.Dq previous
+trees are left alone.
+Instead,
+a temporary tree is populated with the necessary files.
+This temporary tree is compared against the
+.Dq current
+tree.
+This allows a normal update to be run after
+.Sq make installworld
+has completed.
+Any conflicts generated during a
+.Dq pre-world
+update should be resolved by a
+.Dq pre-world
+.Cm resolve .
 .It Fl r
 Do not update the
 .Dq current

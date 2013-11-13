@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2013
+.Dd November 7, 2013
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -279,6 +279,11 @@ Requires that the
 .Pq memory disk
 device driver be present in the kernel
 .Pq either by being compiled in or available as a module .
+.It Cm mini-memstick
+Similar to
+.Cm memstick ,
+with the exception that the installation distribution sets
+are not included.
 .It Cm ftp
 Creates a directory named
 .Pa ftp

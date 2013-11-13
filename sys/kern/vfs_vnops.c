@@ -360,8 +360,8 @@ vn_close(vp, flags, file_cred, td)
 	struct mount *mp;
 	int error, lock_flags;
 
-	if (vp->v_type != VFIFO && !(flags & FWRITE) && vp->v_mount != NULL &&
-	    vp->v_mount->mnt_kern_flag & MNTK_EXTENDED_SHARED)
+	if (vp->v_type != VFIFO && (flags & FWRITE) == 0 &&
+	    MNT_EXTENDED_SHARED(vp->v_mount))
 		lock_flags = LK_SHARED;
 	else
 		lock_flags = LK_EXCLUSIVE;
@@ -933,8 +933,9 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	void *rl_cookie;
 	struct mount *mp;
 	vm_page_t *prev_td_ma;
-	int cnt, error, save, saveheld, prev_td_ma_cnt;
+	int error, save, saveheld, prev_td_ma_cnt;
 	vm_offset_t addr, end;
+	vm_size_t cnt;
 	vm_prot_t prot;
 	size_t len, resid;
 	ssize_t adv;

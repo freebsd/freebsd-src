@@ -39,6 +39,7 @@ svn_ra_local__split_URL(svn_repos_t **repos,
   const char *repos_dirent;
   const char *repos_root_dirent;
   svn_stringbuf_t *urlbuf;
+  apr_size_t root_end;
 
   SVN_ERR(svn_uri_get_dirent_from_file_url(&repos_dirent, URL, pool));
 
@@ -65,10 +66,17 @@ svn_ra_local__split_URL(svn_repos_t **repos,
                    "/",
                    svn_dirent_skip_ancestor(repos_root_dirent, repos_dirent),
                    (const char *)NULL); */
-  *fs_path = &repos_dirent[strlen(repos_root_dirent)];
-
-  if (**fs_path == '\0')
+  root_end = strlen(repos_root_dirent);
+  if (! repos_dirent[root_end])
     *fs_path = "/";
+  else if (repos_dirent[root_end] == '/')
+    *fs_path = &repos_dirent[root_end];
+  else
+    {
+      /* On Windows "C:/" is the parent directory of "C:/dir" */
+      *fs_path = &repos_dirent[root_end-1];
+      SVN_ERR_ASSERT((*fs_path)[0] == '/');
+    }
 
   /* Remove the path components after the root dirent from the original URL,
      to get a URL to the repository root.

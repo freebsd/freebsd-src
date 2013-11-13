@@ -108,10 +108,10 @@ fi
 # instead of their values.
 DOCPORTS=
 if [ "x${NOPORTS}" != "x" ]; then
- DOCPORTS="NOPORTS=yes "
+	DOCPORTS="NOPORTS=yes "
 fi
 if [ "x${NODOC}" != "x" ]; then
- DOCPORTS="${DOCPORTS}NODOC=yes"
+	DOCPORTS="${DOCPORTS}NODOC=yes"
 fi
 
 # The aggregated build-time flags based upon variables defined within
@@ -134,7 +134,7 @@ RELEASE_RMAKEFLAGS="${ARCH_FLAGS} KERNCONF=\"${KERNEL}\" ${CONF_FILES} \
 # Force src checkout if configured
 FORCE_SRC_KEY=
 if [ "x${SRC_FORCE_CHECKOUT}" != "x" ]; then
- FORCE_SRC_KEY="--force"
+	FORCE_SRC_KEY="--force"
 fi
 
 if [ ! ${CHROOTDIR} ]; then

@@ -5082,7 +5082,9 @@ again:
 	/*
 	 * Check for ATIO Queue entries.
 	 */
-	if (IS_24XX(isp)) {
+	if (IS_24XX(isp) &&
+	    ((isr & BIU2400_R2HST_ISTAT_MASK) == ISP2400R2HST_ATIO_RSPQ_UPDATE ||
+	     (isr & BIU2400_R2HST_ISTAT_MASK) == ISP2400R2HST_ATIO_RQST_UPDATE)) {
 		iptr = ISP_READ(isp, BIU2400_ATIO_RSPINP);
 		optr = isp->isp_atioodx;
 
@@ -5107,9 +5109,11 @@ again:
 				break;
 			}
 			optr = ISP_NXT_QENTRY(oop, RESULT_QUEUE_LEN(isp));
-			ISP_WRITE(isp, BIU2400_ATIO_RSPOUTP, optr);
 		}
-		isp->isp_atioodx = optr;
+		if (isp->isp_atioodx != optr) {
+			ISP_WRITE(isp, BIU2400_ATIO_RSPOUTP, optr);
+			isp->isp_atioodx = optr;
+		}
 	}
 #endif
 
@@ -5284,7 +5288,6 @@ again:
 				optr = ISP_NXT_QENTRY(tsto, RESULT_QUEUE_LEN(isp));
 			}
 			if (r > 0) {
-				ISP_WRITE(isp, isp->isp_respoutrp, optr);
 				ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
 				last_etype = etype;
 				continue;
@@ -5319,7 +5322,6 @@ again:
 		if (sp->req_header.rqs_flags & RQSFLAG_MASK) {
 			if (sp->req_header.rqs_flags & RQSFLAG_CONTINUATION) {
 				isp_print_bytes(isp, "unexpected continuation segment", QENTRY_LEN, sp);
-				ISP_WRITE(isp, isp->isp_respoutrp, optr);
 				last_etype = etype;
 				continue;
 			}
@@ -5343,7 +5345,6 @@ again:
 			}
 			if (sp->req_header.rqs_flags & RQSFLAG_BADORDER) {
 				isp_print_bytes(isp, "invalid IOCB ordering", QENTRY_LEN, sp);
-				ISP_WRITE(isp, isp->isp_respoutrp, optr);
 				last_etype = etype;
 				continue;
 			}
@@ -5352,7 +5353,6 @@ again:
 		if (!ISP_VALID_HANDLE(isp, sp->req_handle)) {
 			isp_prt(isp, ISP_LOGERR, "bad request handle 0x%x (iocb type 0x%x)", sp->req_handle, etype);
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
-			ISP_WRITE(isp, isp->isp_respoutrp, optr);
 			last_etype = etype;
 			continue;
 		}
@@ -5369,7 +5369,6 @@ again:
 				isp_prt(isp, ISP_LOGERR, "cannot find handle 0x%x (status 0x%x)", sp->req_handle, ts);
 			}
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
-			ISP_WRITE(isp, isp->isp_respoutrp, optr);
 			last_etype = etype;
 			continue;
 		}
