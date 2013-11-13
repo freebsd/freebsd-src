@@ -608,7 +608,7 @@ static void
 if_detached_event(void *arg __unused, struct ifnet *ifp)
 {
     vifi_t vifi;
-    int i;
+    u_long i;
 
     MROUTER_LOCK();
 
@@ -704,7 +704,7 @@ static int
 X_ip_mrouter_done(void)
 {
     struct ifnet *ifp;
-    int i;
+    u_long i;
     vifi_t vifi;
 
     MROUTER_LOCK();
@@ -796,7 +796,7 @@ set_assert(int i)
 int
 set_api_config(uint32_t *apival)
 {
-    int i;
+    u_long i;
 
     /*
      * We can set the API capabilities only if it is the first operation
@@ -1431,7 +1431,7 @@ non_fatal:
 static void
 expire_upcalls(void *arg)
 {
-    int i;
+    u_long i;
 
     CURVNET_SET((struct vnet *) arg);
 
