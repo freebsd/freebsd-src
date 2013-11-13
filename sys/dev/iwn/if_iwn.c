@@ -4788,10 +4788,48 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 	memset(&linkq, 0, sizeof linkq);
 	linkq.id = wn->id;
 	linkq.antmsk_1stream = txant;
-	linkq.antmsk_2stream = IWN_ANT_AB;
+
+	/*
+	 * The '2 stream' setup is a bit .. odd.
+	 *
+	 * For NICs that support only 1 antenna, default to IWN_ANT_AB or
+	 * the firmware panics (eg Intel 5100.)
+	 *
+	 * For NICs that support two antennas, we use ANT_AB.
+	 *
+	 * For NICs that support three antennas, we use the two that
+	 * wasn't the default one.
+	 *
+	 * XXX TODO: if bluetooth (full concurrent) is enabled, restrict
+	 * this to only one antenna.
+	 */
+
+	/* So - if there's no secondary antenna, assume IWN_ANT_AB */
+
+	/* Default - transmit on the other antennas */
+	linkq.antmsk_2stream = (sc->txchainmask & ~IWN_LSB(sc->txchainmask));
+
+	/* Now, if it's zero, set it to IWN_ANT_AB, so to not panic firmware */
+	if (linkq.antmsk_2stream == 0)
+		linkq.antmsk_2stream = IWN_ANT_AB;
+
+	/*
+	 * If the NIC is a two-stream TX NIC, configure the TX mask to
+	 * the default chainmask
+	 */
+	else if (sc->ntxchains == 2)
+		linkq.antmsk_2stream = sc->txchainmask;
+
 	linkq.ampdu_max = 32;		/* XXX negotiated? */
 	linkq.ampdu_threshold = 3;
 	linkq.ampdu_limit = htole16(4000);	/* 4ms */
+
+	DPRINTF(sc, IWN_DEBUG_XMIT,
+	    "%s: 1stream antenna=0x%02x, 2stream antenna=0x%02x, ntxstreams=%d\n",
+	    __func__,
+	    linkq.antmsk_1stream,
+	    linkq.antmsk_2stream,
+	    sc->ntxchains);
 
 	/*
 	 * Are we using 11n rates? Ensure the channel is
