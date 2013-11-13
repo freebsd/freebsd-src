@@ -949,7 +949,7 @@
 				    off_t offset, off_t len); }
 531	AUE_NULL	STD	{ int posix_fadvise(int fd, off_t offset, \
 				    off_t len, int advice); }
-532	AUE_WAIT6	STD	{ int wait6(int idtype, id_t id, \
+532	AUE_WAIT6	STD	{ int wait6(idtype_t idtype, id_t id, \
 				    int *status, int options, \
 				    struct __wrusage *wrusage, \
 				    siginfo_t *info); }
