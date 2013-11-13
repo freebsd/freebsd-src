@@ -1242,8 +1242,10 @@ fprintlog(struct filed *f, int flags, const char *msg)
 				switch (errno) {
 				case ENOBUFS:
 				case ENETDOWN:
+				case ENETUNREACH:
 				case EHOSTUNREACH:
 				case EHOSTDOWN:
+				case EADDRNOTAVAIL:
 					break;
 				/* case EBADF: */
 				/* case EACCES: */
@@ -1254,7 +1256,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 				/* case ENOBUFS: */
 				/* case ECONNREFUSED: */
 				default:
-					dprintf("removing entry\n");
+					dprintf("removing entry: errno=%d\n", e);
 					f->f_type = F_UNUSED;
 					break;
 				}
