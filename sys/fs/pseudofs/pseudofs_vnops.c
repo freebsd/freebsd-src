@@ -654,11 +654,13 @@ pfs_read(struct vop_read_args *va)
 		goto ret;
 	}
 
+	resid = uio->uio_resid;
+	offset = uio->uio_offset;
+	buflen = offset + resid;
+
 	/* beaucoup sanity checks so we don't ask for bogus allocation */
-	if (uio->uio_offset < 0 || uio->uio_resid < 0 ||
-	    (offset = uio->uio_offset) != uio->uio_offset ||
-	    (resid = uio->uio_resid) != uio->uio_resid ||
-	    (buflen = offset + resid) < offset || buflen >= INT_MAX) {
+	if (resid < 0 || buflen < offset || buflen < resid ||
+	    buflen >= INT_MAX) {
 		error = EINVAL;
 		goto ret;
 	}
