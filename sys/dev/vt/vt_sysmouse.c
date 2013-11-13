@@ -138,7 +138,7 @@ sysmouse_process_event(mouse_info_t *mi)
 	    0,
 	};
 	unsigned char buf[MOUSE_SYS_PACKETSIZE];
-	int x, y, z;
+	int x, y, iy, z;
 
 	random_harvest(mi, sizeof *mi, 2, RANDOM_MOUSE);
 
@@ -171,7 +171,6 @@ sysmouse_process_event(mouse_info_t *mi)
 	if (sysmouse_status.flags == 0)
 		goto done;
 
-	vt_mouse_event(mi->operation, x, y, mi->u.event.id, mi->u.event.value);
 
 	/* The first five bytes are compatible with MouseSystems. */
 	buf[0] = MOUSE_MSC_SYNC |
@@ -179,9 +178,9 @@ sysmouse_process_event(mouse_info_t *mi)
 	x = imax(imin(x, 255), -256);
 	buf[1] = x >> 1;
 	buf[3] = x - buf[1];
-	y = -imax(imin(y, 255), -256);
-	buf[2] = y >> 1;
-	buf[4] = y - buf[2];
+	iy = -imax(imin(y, 255), -256);
+	buf[2] = iy >> 1;
+	buf[4] = iy - buf[2];
 	/* Extended part. */
         z = imax(imin(z, 127), -128);
         buf[5] = (z >> 1) & 0x7f;
@@ -190,6 +189,11 @@ sysmouse_process_event(mouse_info_t *mi)
         buf[7] = (~sysmouse_status.button >> 3) & 0x7f;
 
 	sysmouse_buf_store(buf);
+
+	mtx_unlock(&sysmouse_lock);
+	vt_mouse_event(mi->operation, x, y, mi->u.event.id, mi->u.event.value);
+	return;
+
 done:	mtx_unlock(&sysmouse_lock);
 }
 
