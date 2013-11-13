@@ -77,8 +77,18 @@ static struct entropyfifo emptyfifo;
 /* Harvested entropy */
 static struct entropyfifo harvestfifo;
 
+/* Round-robin destination cache. */
+u_int harvest_destination[ENTROPYSOURCE];
+
 /* Function called to process one harvested stochastic event */
 void (*harvest_process_event)(struct harvest_event *);
+
+/* Pool count is used by anything needing to know how many entropy
+ * pools are currently being maintained.
+ * This is of use to (e.g.) the live source feed where we need to give
+ * all the pools a top-up.
+ */
+int harvest_pool_count;
 
 /* <0 to end the kthread, 0 to let it run, 1 to flush the harvest queues */
 int random_kthread_control = 0;
@@ -143,7 +153,7 @@ random_kthread(void *arg __unused)
 }
 
 void
-random_harvestq_init(void (*event_processor)(struct harvest_event *))
+random_harvestq_init(void (*event_processor)(struct harvest_event *), int poolcount)
 {
 	uint8_t *keyfile, *data;
 	int error, i;
@@ -164,6 +174,9 @@ random_harvestq_init(void (*event_processor)(struct harvest_event *))
 
 	/* Point to the correct event_processing function */
 	harvest_process_event = event_processor;
+
+	/* Store the pool count (used by live source feed) */
+	harvest_pool_count = poolcount;
 
 	mtx_init(&harvest_mtx, "entropy harvest mutex", NULL, MTX_SPIN);
 
@@ -231,9 +244,8 @@ void
 random_harvestq_internal(const void *entropy, u_int count, u_int bits,
     enum random_entropy_source origin)
 {
-	/* XXX: This wastes a few words of space */
-	static u_int destination[ENTROPYSOURCE];
 	struct harvest_event *event;
+	size_t c;
 
 	KASSERT(origin >= RANDOM_START && origin < ENTROPYSOURCE,
 	    ("random_harvest_internal: origin %d invalid\n", origin));
@@ -252,9 +264,10 @@ random_harvestq_internal(const void *entropy, u_int count, u_int bits,
 		event->he_size = count;
 		event->he_bits = bits;
 		event->he_source = origin;
-		event->he_destination = destination[origin]++;
-		memcpy(event->he_entropy, entropy,
-		    MIN(count, HARVESTSIZE));
+		event->he_destination = harvest_destination[origin]++;
+		c = MIN(count, HARVESTSIZE);
+		memcpy(event->he_entropy, entropy, c);
+		memset(event->he_entropy + c, 0, HARVESTSIZE - c);
 
 		STAILQ_INSERT_TAIL(&harvestfifo.head,
 		    event, he_next);

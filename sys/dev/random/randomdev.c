@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/random.h>
 #include <sys/sysctl.h>
-#include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
 #include <sys/unistd.h>
@@ -175,18 +174,14 @@ randomdev_modevent(module_t mod __unused, int type, void *data __unused)
 DEV_MODULE(randomdev, randomdev_modevent, NULL);
 MODULE_VERSION(randomdev, 1);
 
-/* Internal stub/fake routines for when no entropy device is loaded */
+/* Internal stub/fake routine for when no entropy processor is loaded */
 static void random_harvest_phony(const void *, u_int, u_int, enum random_entropy_source);
-static int random_read_phony(void *, int);
 
 /* hold the addresses of the routines which are actually called if
  * the random device is loaded.
  */
 static void (*reap_func)(const void *, u_int, u_int, enum random_entropy_source) = random_harvest_phony;
-static int (*read_func)(void *, int) = random_read_phony;
-
-/* If no entropy device is loaded, don't spam the console with warnings */
-static int warned = 0;
+static int (*read_func)(void *, int) = dummy_random_read_phony;
 
 /* Initialise the harvester when/if it is loaded */
 void
@@ -195,7 +190,6 @@ randomdev_init_harvester(void (*reaper)(const void *, u_int, u_int, enum random_
 {
 	reap_func = reaper;
 	read_func = reader;
-	warned = 1;
 }
 
 /* Deinitialise the harvester when/if it is unloaded */
@@ -203,8 +197,7 @@ void
 randomdev_deinit_harvester(void)
 {
 	reap_func = random_harvest_phony;
-	read_func = random_read_phony;
-	warned = 0;
+	read_func = dummy_random_read_phony;
 }
 
 /* Entropy harvesting routine. This is supposed to be fast; do
@@ -237,34 +230,6 @@ int
 read_random(void *buf, int count)
 {
 	return ((*read_func)(buf, count));
-}
-
-/* If the entropy device is not loaded, make a token effort to
- * provide _some_ kind of output. No warranty of the quality of
- * this output is made, mainly because its lousy. Caveat Emptor.
- */
-/* XXX: FIX!! Move this to dummy_rng.c ? */
-static int
-random_read_phony(void *buf, int count)
-{
-	u_long randval;
-	int size, i;
-
-	if (!warned) {
-		log(LOG_WARNING, "random device not loaded; using insecure pseudo-random number generator\n");
-		warned = 1;
-	}
-
-	/* srandom() is called in kern/init_main.c:proc0_post() */
-
-	/* Fill buf[] with random(9) output */
-	for (i = 0; i < count; i+= (int)sizeof(u_long)) {
-		randval = random();
-		size = MIN(count - i, sizeof(u_long));
-		memcpy(&((char *)buf)[i], &randval, (size_t)size);
-	}
-
-	return (count);
 }
 
 /* Helper routine to enable kproc_exit() to work while the module is

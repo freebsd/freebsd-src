@@ -68,4 +68,6 @@ int random_adaptor_block(int);
 int random_adaptor_read(struct uio *, int);
 int random_adaptor_poll(int, struct thread *);
 
+int random_adaptor_read_rate(void);
+
 #endif /* SYS_DEV_RANDOM_RANDOM_ADAPTORS_H_INCLUDED */

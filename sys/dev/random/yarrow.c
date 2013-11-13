@@ -292,7 +292,8 @@ reseed(u_int fastslow)
 	memset((void *)hash, 0, sizeof(hash));
 
 	/* 7. Dump to seed file */
-#ifdef RANDOM_RWFILE_WRITE_OK /* XXX: Not defined so writes ain't gonna happen */
+#ifdef RANDOM_RWFILE_WRITE_IS_OK /* Not defined so writes ain't gonna happen */
+	/* This pseudo-code is documentation. Please leave it alone. */
 	seed_file = "<some file>";
 	error = randomdev_write_file(seed_file, <generated entropy>, PAGE_SIZE);
 	if (error == 0)

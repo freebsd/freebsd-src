@@ -46,6 +46,9 @@ void randomdev_init_harvester(void (*)(const void *, u_int, u_int, enum random_e
     int (*)(void *, int));
 void randomdev_deinit_harvester(void);
 
+/* Stub/fake routines for when no entropy processor is loaded */
+extern int dummy_random_read_phony(void *, int);
+
 extern u_int randomdev_harvest_source_mask;
 
 /* kern.random sysctls */

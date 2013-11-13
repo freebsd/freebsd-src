@@ -192,10 +192,10 @@ randomdev_init(void)
 
 	/* Register the randomness processing routine */
 #if defined(RANDOM_YARROW)
-	random_harvestq_init(random_yarrow_process_event);
+	random_harvestq_init(random_yarrow_process_event, 2);
 #endif
 #if defined(RANDOM_FORTUNA)
-	random_harvestq_init(random_fortuna_process_event);
+	random_harvestq_init(random_fortuna_process_event, 32);
 #endif
 
 	/* Register the randomness harvesting routine */

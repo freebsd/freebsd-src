@@ -35,13 +35,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/random.h>
+#include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/time.h>
 
 #include <dev/random/randomdev.h>
 #include <dev/random/random_adaptors.h>
 
-static struct mtx	dummy_random_mtx;
+static struct mtx dummy_random_mtx;
+
+/* If no entropy device is loaded, don't spam the console with warnings */
+static int warned = 0;
 
 /* Used to fake out unused random calls in random_adaptor */
 static void
@@ -92,6 +96,39 @@ dummy_random_deinit(void)
 {
 
 	mtx_destroy(&dummy_random_mtx);
+}
+
+/* This is used only by the internal read_random(9) call, and then only
+ * if no entropy processor is loaded.
+ *
+ * DO NOT, REPEAT, DO NOT add this to the "struct random_adaptor" below!
+ *
+ * Make a token effort to provide _some_ kind of output. No warranty of
+ * the quality of this output is made, mainly because its lousy.
+ *
+ * Caveat Emptor.
+ */
+int
+dummy_random_read_phony(void *buf, int count)
+{
+	u_long randval;
+	int size, i;
+
+	if (!warned) {
+		log(LOG_WARNING, "random device not loaded; using insecure pseudo-random number generator\n");
+		warned = 1;
+	}
+
+	/* srandom() is called in kern/init_main.c:proc0_post() */
+
+	/* Fill buf[] with random(9) output */
+	for (i = 0; i < count; i+= (int)sizeof(u_long)) {
+		randval = random();
+		size = MIN(count - i, sizeof(u_long));
+		memcpy(&((char *)buf)[i], &randval, (size_t)size);
+	}
+
+	return (count);
 }
 
 struct random_adaptor randomdev_dummy = {

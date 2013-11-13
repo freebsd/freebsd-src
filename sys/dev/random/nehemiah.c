@@ -58,7 +58,7 @@ static struct live_entropy_source random_nehemiah = {
 	.les_read = random_nehemiah_read
 };
 
-/* XXX: FIX? TODO? now that the Davies-Meyer hash is gone and we only use
+/* XXX: FIX? Now that the Davies-Meyer hash is gone and we only use
  * the 'xstore' instruction, do we still need to preserve the
  * FPU state with fpu_kern_(enter|leave)() ?
  */

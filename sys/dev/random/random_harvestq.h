@@ -45,13 +45,24 @@ struct harvest_event {
 	STAILQ_ENTRY(harvest_event)	he_next;		/* next item on the list */
 };
 
-void random_harvestq_init(void (*)(struct harvest_event *));
+void random_harvestq_init(void (*)(struct harvest_event *), int);
 void random_harvestq_deinit(void);
 void random_harvestq_internal(const void *, u_int, u_int, enum random_entropy_source);
+
+/* Pool count is used by anything needing to know how many entropy
+ * pools are currently being maintained.
+ * This is of use to (e.g.) the live source feed where we need to give
+ * all the pools a top-up.
+ */
+extern int harvest_pool_count;
 
 /* This is in randomdev.c as it needs to be permanently in the kernel */
 void randomdev_set_wakeup_exit(void *);
 
+/* Round-robin destination cache. */
+extern u_int harvest_destination[ENTROPYSOURCE];
+
+/* Function called to process one harvested stochastic event */
 extern void (*harvest_process_event)(struct harvest_event *);
 
 extern int random_kthread_control;
