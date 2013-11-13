@@ -107,7 +107,7 @@
 #ifdef __powerpc64__
 #define	KSTACK_PAGES		8		/* includes pcb */
 #else
-#define	KSTACK_PAGES		8		/* includes pcb */
+#define	KSTACK_PAGES		4		/* includes pcb */
 #endif
 #endif
 #define	KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
