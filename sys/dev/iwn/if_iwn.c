@@ -607,6 +607,10 @@ iwn_attach(device_t dev)
 		 * This is a total hack to work around that until some
 		 * per-device method is implemented to return the
 		 * actual stream support.
+		 *
+		 * XXX Note: the 5350 is a 3x3 device; so we shouldn't
+		 * cap this!  But, anything that touches rates in the
+		 * driver needs to be audited first before 3x3 is enabled.
 		 */
 		if (ic->ic_rxstream > 2)
 			ic->ic_rxstream = 2;
