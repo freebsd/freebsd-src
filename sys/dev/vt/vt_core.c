@@ -677,10 +677,6 @@ vt_flush(struct vt_device *vd)
 		vd->vd_flags &= ~VDF_INVALID;
 	}
 
-	/* No mouse for DDB. */
-	if (kdb_active || panicstr != NULL)
-		return;
-
 	/* Mark last mouse position as dirty to erase. */
 	vtbuf_mouse_cursor_position(&vw->vw_buf, vd->vd_mdirtyx, vd->vd_mdirtyy);
 
@@ -697,6 +693,10 @@ vt_flush(struct vt_device *vd)
 			    VTBUF_ISCURSOR(&vw->vw_buf, row, col), row, col);
 		}
 	}
+
+	/* No mouse for DDB. */
+	if (kdb_active || panicstr != NULL)
+		return;
 
 	if ((vd->vd_flags & (VDF_MOUSECURSOR|VDF_TEXTMODE)) ==
 	    VDF_MOUSECURSOR) {
