@@ -9078,7 +9078,13 @@ tsubst_copy_and_build (tree t,
       return build_x_binary_op
 	(TREE_CODE (t),
 	 RECUR (TREE_OPERAND (t, 0)),
+	 (TREE_NO_WARNING (TREE_OPERAND (t, 0))
+	  ? ERROR_MARK
+	  : TREE_CODE (TREE_OPERAND (t, 0))),
 	 RECUR (TREE_OPERAND (t, 1)),
+	 (TREE_NO_WARNING (TREE_OPERAND (t, 1))
+	  ? ERROR_MARK
+	  : TREE_CODE (TREE_OPERAND (t, 1))),
 	 /*overloaded_p=*/NULL);
 
     case SCOPE_REF:
@@ -9087,7 +9093,14 @@ tsubst_copy_and_build (tree t,
     case ARRAY_REF:
       op1 = tsubst_non_call_postfix_expression (TREE_OPERAND (t, 0),
 						args, complain, in_decl);
-      return build_x_binary_op (ARRAY_REF, op1, RECUR (TREE_OPERAND (t, 1)),
+      return build_x_binary_op (ARRAY_REF, op1,
+				(TREE_NO_WARNING (TREE_OPERAND (t, 0))
+				 ? ERROR_MARK
+				 : TREE_CODE (TREE_OPERAND (t, 0))),
+				RECUR (TREE_OPERAND (t, 1)),
+				(TREE_NO_WARNING (TREE_OPERAND (t, 1))
+				 ? ERROR_MARK
+				 : TREE_CODE (TREE_OPERAND (t, 1))),
 				/*overloaded_p=*/NULL);
 
     case SIZEOF_EXPR:
