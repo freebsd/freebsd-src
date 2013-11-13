@@ -1698,7 +1698,7 @@ case $command in
 		fi
 		;;
 	build|diff|status)
-		if [ -n "$dryrun" -o -n "$rerun" -o -n "$tarball" -o
+		if [ -n "$dryrun" -o -n "$rerun" -o -n "$tarball" -o \
 		     -n "$preworld" ]; then
 			usage
 		fi
