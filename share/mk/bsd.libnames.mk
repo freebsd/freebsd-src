@@ -97,6 +97,7 @@ LIBNCURSES?=	${DESTDIR}${LIBDIR}/libncurses.a
 LIBNCURSESW?=	${DESTDIR}${LIBDIR}/libncursesw.a
 LIBNETGRAPH?=	${DESTDIR}${LIBDIR}/libnetgraph.a
 LIBNGATM?=	${DESTDIR}${LIBDIR}/libngatm.a
+LIBNV?=		${DESTDIR}${LIBDIR}/libnv.a
 LIBNVPAIR?=	${DESTDIR}${LIBDIR}/libnvpair.a
 LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 

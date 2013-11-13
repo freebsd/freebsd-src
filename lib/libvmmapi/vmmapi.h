@@ -67,6 +67,8 @@ int	vm_inject_event(struct vmctx *ctx, int vcpu, enum vm_event_type type,
 int	vm_inject_event2(struct vmctx *ctx, int vcpu, enum vm_event_type type,
 			 int vector, int error_code);
 int	vm_lapic_irq(struct vmctx *ctx, int vcpu, int vector);
+int	vm_ioapic_assert_irq(struct vmctx *ctx, int irq);
+int	vm_ioapic_deassert_irq(struct vmctx *ctx, int irq);
 int	vm_inject_nmi(struct vmctx *ctx, int vcpu);
 int	vm_capability_name2type(const char *capname);
 const char *vm_capability_type2name(int type);
