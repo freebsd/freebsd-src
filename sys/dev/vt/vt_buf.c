@@ -614,8 +614,11 @@ vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz)
 		for (c = cs; c < ce; c ++) {
 			buf[i++] = vb->vb_rows[r][c];
 		}
-		buf[i++] = '\r';
-		buf[i++] = '\n';
+		/* Add new line for all rows, but not for last one. */
+		if (r != e.tp_row) {
+			buf[i++] = '\r';
+			buf[i++] = '\n';
+		}
 	}
 }
 
