@@ -102,6 +102,7 @@ struct vt_device {
 	struct vt_window	*vd_windows[VT_MAXWINDOWS]; /* (c) Windows. */
 	struct vt_window	*vd_curwindow;	/* (d) Current window. */
 	struct vt_window	*vd_savedwindow;/* (?) Saved for suspend. */
+	struct vt_window	*vd_markedwin;	/* (?) Copy/paste buf owner. */
 	const struct vt_driver	*vd_driver;	/* (c) Graphics driver. */
 	void			*vd_softc;	/* (u) Driver data. */
 	uint16_t		 vd_mx;		/* (?) Mouse X. */
@@ -174,19 +175,23 @@ void vtbuf_putchar(struct vt_buf *, const term_pos_t *, term_char_t);
 void vtbuf_cursor_position(struct vt_buf *, const term_pos_t *);
 void vtbuf_mouse_cursor_position(struct vt_buf *vb, int col, int row);
 void vtbuf_cursor_visibility(struct vt_buf *, int);
+void vtbuf_scroll_mode(struct vt_buf *vb, int yes);
 void vtbuf_undirty(struct vt_buf *, term_rect_t *, struct vt_bufmask *);
 void vtbuf_sethistory_size(struct vt_buf *, int);
-void vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row);
+int vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row);
 int vtbuf_iscursor(struct vt_buf *vb, int row, int col);
+int vtbuf_get_marked_len(struct vt_buf *vb);
+void vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz);
 
+#define	VTB_MARK_NONE		0
 #define	VTB_MARK_END		1
 #define	VTB_MARK_START		2
 #define	VTB_MARK_WORD		3
 #define	VTB_MARK_ROW		4
 #define	VTB_MARK_EXTEND		5
 
-#define	VTBUF_SLCK_ENABLE(vb)	(vb)->vb_flags |= VBF_SCROLL
-#define	VTBUF_SLCK_DISABLE(vb)	(vb)->vb_flags &= ~VBF_SCROLL
+#define	VTBUF_SLCK_ENABLE(vb)	vtbuf_scroll_mode((vb), 1)
+#define	VTBUF_SLCK_DISABLE(vb)	vtbuf_scroll_mode((vb), 0)
 
 #define	VTBUF_MAX_HEIGHT(vb) \
 	((vb)->vb_history_size)
@@ -310,6 +315,7 @@ static struct vt_device	driver ## _consdev = {				\
 	.vd_flags = VDF_INVALID,					\
 	.vd_windows = { [VT_CONSWINDOW] =  &driver ## _conswindow, },	\
 	.vd_curwindow = &driver ## _conswindow,				\
+	.vd_markedwin = NULL,						\
 };									\
 static term_char_t	driver ## _constextbuf[(width) * 		\
 	    (VBF_DEFAULT_HISTORY_SIZE)];				\

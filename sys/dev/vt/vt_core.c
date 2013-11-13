@@ -1069,7 +1069,8 @@ vt_mouse_event(int type, int x, int y, int event, int cnt)
 	struct vt_window *vw;
 	struct vt_font *vf;
 	term_pos_t size;
-	int mark;
+	term_char_t *buf;
+	int i, len, mark;
 
 	vd = main_vd;
 	vw = vd->vd_curwindow;
@@ -1100,10 +1101,17 @@ vt_mouse_event(int type, int x, int y, int event, int cnt)
 
 		vd->vd_mx = x;
 		vd->vd_my = y;
-		if (vd->vd_mstate & MOUSE_BUTTON1DOWN)
-			vtbuf_set_mark(&vw->vw_buf, VTB_MARK_END,
-			    vd->vd_mx / vf->vf_width,
-			    vd->vd_my / vf->vf_height);
+		if ((vd->vd_mstate & MOUSE_BUTTON1DOWN) &&
+		    (vtbuf_set_mark(&vw->vw_buf, VTB_MARK_END,
+			vd->vd_mx / vf->vf_width, 
+			vd->vd_my / vf->vf_height) == 1)) {
+
+			/*
+			 * We have something marked to copy, so update pointer
+			 * to window with selection.
+			 */
+			vd->vd_markedwin = vw;
+		}
 		return; /* Done */
 	case MOUSE_BUTTON_EVENT:
 		/* Buttons */
@@ -1134,7 +1142,27 @@ vt_mouse_event(int type, int x, int y, int event, int cnt)
 		case 0:	/* up */
 			break;
 		default:
-			//sc_mouse_paste(cur_scp);
+			if (vd->vd_markedwin == NULL)
+				return;
+			/* Get current selecton size in bytes. */
+			len = vtbuf_get_marked_len(&vd->vd_markedwin->vw_buf);
+			if (len <= 0)
+				return;
+
+			buf = malloc(len, M_VT, M_WAITOK | M_ZERO);
+			/* Request cupy/paste buffer data, no more than `len' */
+			vtbuf_extract_marked(&vd->vd_markedwin->vw_buf, buf,
+			    len);
+
+			len /= sizeof(term_char_t);
+			for (i = 0; i < len; i++ ) {
+				if (buf[i] == '\0')
+					continue;
+				terminal_input_char(vw->vw_terminal, buf[i]);
+			}
+
+			/* Done, so cleanup. */
+			free(buf, M_VT);
 			break;
 		}
 		return; /* Done */
@@ -1161,8 +1189,14 @@ vt_mouse_event(int type, int x, int y, int event, int cnt)
 	else
 		vd->vd_mstate &= ~event;
 
-	vtbuf_set_mark(&vw->vw_buf, mark, vd->vd_mx / vf->vf_width,
-	    vd->vd_my / vf->vf_height);
+	if (vtbuf_set_mark(&vw->vw_buf, mark, vd->vd_mx / vf->vf_width,
+	    vd->vd_my / vf->vf_height) == 1) {
+		/*
+		 * We have something marked to copy, so update pointer to
+		 * window with selection.
+		 */
+		vd->vd_markedwin = vw;
+	}
 }
 
 static int

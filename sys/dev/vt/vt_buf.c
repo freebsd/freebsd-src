@@ -47,7 +47,12 @@ static MALLOC_DEFINE(M_VTBUF, "vtbuf", "vt buffer");
 #define	VTBUF_LOCK(vb)		mtx_lock_spin(&(vb)->vb_lock)
 #define	VTBUF_UNLOCK(vb)	mtx_unlock_spin(&(vb)->vb_lock)
 
-#define POS_INDEX(vb, c, r) ((r) * (vb)->vb_scr_size.tp_col + (c))
+#define POS_INDEX(c, r) (((r) << 12) + (c))
+#define	POS_COPY(d, s)	do {	\
+	(d).tp_col = (s).tp_col;	\
+	(d).tp_row = (s).tp_row;	\
+} while (0)
+
 
 /*
  * line4
@@ -130,16 +135,58 @@ vthistory_getpos(const struct vt_buf *vb, unsigned int *offset)
 	*offset = vb->vb_roffset;
 }
 
+/* Translate current view row number to history row. */
+static int
+vtbuf_wth(struct vt_buf *vb, int row)
+{
+
+	return ((vb->vb_roffset + row) % vb->vb_history_size);
+}
+
+/* Translate history row to current view row number. */
+static int
+vtbuf_htw(struct vt_buf *vb, int row)
+{
+
+	/*
+	 * total 1000 rows.
+	 * History offset	roffset	winrow
+	 *	205		200	((205 - 200 + 1000) % 1000) = 5
+	 *	90		990	((90 - 990 + 1000) % 1000) = 100
+	 */
+	return ((row - vb->vb_roffset + vb->vb_history_size) %
+	    vb->vb_history_size);
+}
+
 int
 vtbuf_iscursor(struct vt_buf *vb, int row, int col)
 {
-	if ((vb->vb_flags & VBF_CURSOR) && (vb->vb_cursor.tp_row == row) &&
-	    (vb->vb_cursor.tp_col == col))
+	int sc, sr, ec, er, tmp;
+
+	if ((vb->vb_flags & (VBF_CURSOR|VBF_SCROLL)) == VBF_CURSOR &&
+	    (vb->vb_cursor.tp_row == row) && (vb->vb_cursor.tp_col == col))
 		return (1);
 
-	if ((POS_INDEX(vb, vb->vb_mark_start.tp_col, vb->vb_mark_start.tp_row) <
-	    POS_INDEX(vb, col, row)) && (POS_INDEX(vb, col, row) <=
-	    POS_INDEX(vb, vb->vb_mark_start.tp_col, vb->vb_mark_start.tp_row)))
+	/* Mark cut/paste region. */
+
+	/*
+	 * Luckily screen view is not like circular buffer, so we will
+	 * calculate in screen coordinates.  Translate first.
+	 */
+	sc = vb->vb_mark_start.tp_col;
+	sr = vtbuf_htw(vb, vb->vb_mark_start.tp_row);
+	ec = vb->vb_mark_end.tp_col;
+	er = vtbuf_htw(vb, vb->vb_mark_end.tp_row);
+
+
+	/* Swap start and end if start > end. */
+	if (POS_INDEX(sc, sr) > POS_INDEX(ec, er)) {
+		tmp = sc; sc = ec; ec = tmp;
+		tmp = sr; sr = er; er = tmp;
+	}
+
+	if ((POS_INDEX(sc, sr) <= POS_INDEX(col, row)) &&
+	    (POS_INDEX(col, row) < POS_INDEX(ec, er)))
 		return (1);
 
 	return (0);
@@ -347,6 +394,10 @@ vtbuf_init_early(struct vt_buf *vb)
 	vb->vb_flags |= VBF_CURSOR;
 	vb->vb_roffset = 0;
 	vb->vb_curroffset = 0;
+	vb->vb_mark_start.tp_row = 0;
+	vb->vb_mark_start.tp_col = 0;
+	vb->vb_mark_end.tp_row = 0;
+	vb->vb_mark_end.tp_col = 0;
 
 	vtbuf_init_rows(vb);
 	vtbuf_make_undirty(vb);
@@ -492,63 +543,127 @@ vtbuf_mouse_cursor_position(struct vt_buf *vb, int col, int row)
 	vtbuf_dirty(vb, &area);
 }
 
-void
-vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row)
+static void
+vtbuf_flush_mark(struct vt_buf *vb)
 {
 	term_rect_t area;
-	vt_axis_t tmp;
-
-	switch (type) {
-	case VTB_MARK_END:
-	case VTB_MARK_EXTEND:
-		vb->vb_mark_end.tp_col = col;
-		vb->vb_mark_end.tp_row = row;
-		break;
-	case VTB_MARK_START:
-		vb->vb_mark_start.tp_col = col;
-		vb->vb_mark_start.tp_row = row;
-		/* Start again, so clear end point. */
-		vb->vb_mark_end.tp_col = 0;
-		vb->vb_mark_end.tp_row = 0;
-		break;
-	case VTB_MARK_WORD:
-		vb->vb_mark_start.tp_col = 0; /* XXX */
-		vb->vb_mark_end.tp_col = 10; /* XXX */
-		vb->vb_mark_start.tp_row = vb->vb_mark_end.tp_row = row;
-		break;
-	case VTB_MARK_ROW:
-		vb->vb_mark_start.tp_col = 0;
-		vb->vb_mark_end.tp_col = vb->vb_scr_size.tp_col;
-		vb->vb_mark_start.tp_row = vb->vb_mark_end.tp_row = row;
-		break;
-	}
-
-	/* Swap start and end if start > end. */
-	if (POS_INDEX(vb, vb->vb_mark_start.tp_col, vb->vb_mark_start.tp_row) >
-	    POS_INDEX(vb, vb->vb_mark_end.tp_col, vb->vb_mark_end.tp_row)) {
-		tmp = vb->vb_mark_start.tp_col;
-		vb->vb_mark_start.tp_col = vb->vb_mark_end.tp_col;
-		vb->vb_mark_end.tp_col = tmp;
-		tmp = vb->vb_mark_start.tp_row;
-		vb->vb_mark_start.tp_row = vb->vb_mark_end.tp_row;
-		vb->vb_mark_end.tp_row = tmp;
-	}
+	int s, e;
 
 	/* Notify renderer to update marked region. */
 	if (vb->vb_mark_start.tp_col || vb->vb_mark_end.tp_col ||
 	    vb->vb_mark_start.tp_row || vb->vb_mark_end.tp_row) {
 
+		s = vtbuf_htw(vb, vb->vb_mark_start.tp_row);
+		e = vtbuf_htw(vb, vb->vb_mark_end.tp_row);
+
 		area.tr_begin.tp_col = 0;
-		area.tr_begin.tp_row = MIN(vb->vb_mark_start.tp_row,
-		    vb->vb_mark_end.tp_row);
+		area.tr_begin.tp_row = MIN(s, e);
 
 		area.tr_end.tp_col = vb->vb_scr_size.tp_col;
-		area.tr_end.tp_row = MAX(vb->vb_mark_start.tp_row,
-		    vb->vb_mark_end.tp_row);
+		area.tr_end.tp_row = MAX(s, e) + 1;
 
 		vtbuf_dirty(vb, &area);
 	}
+}
 
+int
+vtbuf_get_marked_len(struct vt_buf *vb)
+{
+	int ei, si, sz;
+	term_pos_t s, e;
+
+	/* Swap according to window coordinates. */
+	if (POS_INDEX(vtbuf_htw(vb, vb->vb_mark_start.tp_row), vb->vb_mark_start.tp_col) >
+	    POS_INDEX(vtbuf_htw(vb, vb->vb_mark_end.tp_row), vb->vb_mark_end.tp_col)) {
+		POS_COPY(e, vb->vb_mark_start);
+		POS_COPY(s, vb->vb_mark_end);
+	} else {
+		POS_COPY(s, vb->vb_mark_start);
+		POS_COPY(e, vb->vb_mark_end);
+	}
+
+	si = s.tp_row * vb->vb_scr_size.tp_col + s.tp_col;
+	ei = e.tp_row * vb->vb_scr_size.tp_col + e.tp_col;
+
+	/* Number symbols and number of rows to inject \n */
+	sz = ei - si + ((e.tp_row - s.tp_row) * 2) + 1;
+
+	return (sz * sizeof(term_char_t));
+}
+
+void
+vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz)
+{
+	int i, r, c, cs, ce;
+	term_pos_t s, e;
+
+	/* Swap according to window coordinates. */
+	if (POS_INDEX(vtbuf_htw(vb, vb->vb_mark_start.tp_row), vb->vb_mark_start.tp_col) >
+	    POS_INDEX(vtbuf_htw(vb, vb->vb_mark_end.tp_row), vb->vb_mark_end.tp_col)) {
+		POS_COPY(e, vb->vb_mark_start);
+		POS_COPY(s, vb->vb_mark_end);
+	} else {
+		POS_COPY(s, vb->vb_mark_start);
+		POS_COPY(e, vb->vb_mark_end);
+	}
+
+	i = 0;
+	for (r = s.tp_row; r <= e.tp_row; r ++) {
+		cs = (r == s.tp_row)?s.tp_col:0;
+		ce = (r == e.tp_row)?e.tp_col:vb->vb_scr_size.tp_col;
+		for (c = cs; c < ce; c ++) {
+			buf[i++] = vb->vb_rows[r][c];
+		}
+		buf[i++] = '\r';
+		buf[i++] = '\n';
+	}
+}
+
+int
+vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row)
+{
+
+	switch (type) {
+	case VTB_MARK_END:
+	case VTB_MARK_EXTEND:
+		vtbuf_flush_mark(vb); /* Clean old mark. */
+		vb->vb_mark_end.tp_col = col;
+		vb->vb_mark_end.tp_row = vtbuf_wth(vb, row);
+		break;
+	case VTB_MARK_START:
+		vtbuf_flush_mark(vb); /* Clean old mark. */
+		vb->vb_mark_start.tp_col = col;
+		vb->vb_mark_start.tp_row = vtbuf_wth(vb, row);
+		/* Start again, so clear end point. */
+		vb->vb_mark_end.tp_col = col;
+		vb->vb_mark_end.tp_row = vtbuf_wth(vb, row);
+		break;
+	case VTB_MARK_WORD:
+		vtbuf_flush_mark(vb); /* Clean old mark. */
+		vb->vb_mark_start.tp_col = 0; /* XXX */
+		vb->vb_mark_end.tp_col = 10; /* XXX */
+		vb->vb_mark_start.tp_row = vb->vb_mark_end.tp_row =
+		    vtbuf_wth(vb, row);
+		break;
+	case VTB_MARK_ROW:
+		vtbuf_flush_mark(vb); /* Clean old mark. */
+		vb->vb_mark_start.tp_col = 0;
+		vb->vb_mark_end.tp_col = vb->vb_scr_size.tp_col;
+		vb->vb_mark_start.tp_row = vb->vb_mark_end.tp_row =
+		    vtbuf_wth(vb, row);
+		break;
+	case VTB_MARK_NONE:
+		break;
+	default:
+		/* panic? */
+		return (0);
+	}
+	if (type != VTB_MARK_NONE) {
+		/* Draw new marked region. */
+		vtbuf_flush_mark(vb);
+		return (1);
+	}
+	return (0);
 }
 
 void
@@ -568,3 +683,22 @@ vtbuf_cursor_visibility(struct vt_buf *vb, int yes)
 	if (oflags != nflags)
 		vtbuf_dirty_cell(vb, &vb->vb_cursor);
 }
+
+void
+vtbuf_scroll_mode(struct vt_buf *vb, int yes)
+{
+	int oflags, nflags;
+
+	VTBUF_LOCK(vb);
+	oflags = vb->vb_flags;
+	if (yes)
+		vb->vb_flags |= VBF_SCROLL;
+	else
+		vb->vb_flags &= ~VBF_SCROLL;
+	nflags = vb->vb_flags;
+	VTBUF_UNLOCK(vb);
+
+	if (oflags != nflags)
+		vtbuf_dirty_cell(vb, &vb->vb_cursor);
+}
+
