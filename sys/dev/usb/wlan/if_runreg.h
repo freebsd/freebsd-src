@@ -934,31 +934,6 @@ static const struct rt2860_rate {
 };
 
 /*
- * Control and status registers access macros.
- */
-#define RAL_READ(sc, reg)						\
-	bus_space_read_4((sc)->sc_st, (sc)->sc_sh, (reg))
-
-#define RAL_WRITE(sc, reg, val)						\
-	bus_space_write_4((sc)->sc_st, (sc)->sc_sh, (reg), (val))
-
-#define RAL_BARRIER_WRITE(sc)						\
-	bus_space_barrier((sc)->sc_st, (sc)->sc_sh, 0, 0x1800,		\
-	    BUS_SPACE_BARRIER_WRITE)
-
-#define RAL_BARRIER_READ_WRITE(sc)					\
-	bus_space_barrier((sc)->sc_st, (sc)->sc_sh, 0, 0x1800,		\
-	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE)
-
-#define RAL_WRITE_REGION_1(sc, offset, datap, count)			\
-	bus_space_write_region_1((sc)->sc_st, (sc)->sc_sh, (offset),	\
-	    (datap), (count))
-
-#define RAL_SET_REGION_4(sc, offset, val, count)			\
-	bus_space_set_region_4((sc)->sc_st, (sc)->sc_sh, (offset),	\
-	    (val), (count))
-
-/*
  * EEPROM access macro.
  */
 #define RT2860_EEPROM_CTL(sc, val) do {					\
