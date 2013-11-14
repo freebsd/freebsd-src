@@ -779,7 +779,7 @@ Output::output_hash_function () const
             "     register %s len;\n" :
           option[ANSIC] | option[CPLUSPLUS] ?
                  "(register const char *str, register %s len)\n" :
-          "", option.get_size_type());
+          "%s", option.get_size_type());
 
   /* Note that when the hash function is called, it has already been verified
      that  min_key_len <= len <= max_key_len.  */
@@ -1907,7 +1907,7 @@ Output::output_lookup_function () const
             "     register %s len;\n" :
           option[ANSIC] | option[CPLUSPLUS] ?
                  "(register const char *str, register %s len)\n" :
-          "", option.get_size_type());
+          "%s", option.get_size_type());
 
   /* Output the function's body.  */
   printf ("{\n");
