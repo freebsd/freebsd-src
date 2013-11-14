@@ -6184,6 +6184,11 @@ iwn_scan(struct iwn_softc *sc)
 	 */
 	hdr->quiet_time = htole16(10);		/* timeout in milliseconds */
 	hdr->quiet_threshold = htole16(1);	/* min # of packets */
+	/*
+	 * Max needs to be greater than active and passive and quiet!
+	 * It's also in microseconds!
+	 */
+	hdr->max_svc = htole32(250 * 1000);
 
 	/* Select antennas for scanning. */
 	rxchain =
