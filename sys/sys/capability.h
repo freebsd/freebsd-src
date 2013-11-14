@@ -277,7 +277,7 @@ bool cap_rights_contains(const cap_rights_t *big, const cap_rights_t *little);
 
 #include <sys/systm.h>
 
-#define IN_CAPABILITY_MODE(td) ((td->td_ucred->cr_flags & CRED_FLAG_CAPMODE) != 0)
+#define IN_CAPABILITY_MODE(td) (((td)->td_ucred->cr_flags & CRED_FLAG_CAPMODE) != 0)
 
 struct filedesc;
 
@@ -328,8 +328,9 @@ int cap_rights_limit(int fd, const cap_rights_t *rights);
 /*
  * Returns capability rights for the given descriptor.
  */
-#define	cap_rights_get(fd, rights)	__cap_rights_get(CAP_RIGHTS_VERSION, (fd), (rights))
-int __cap_rights_get(int version, int fd, cap_rights_t *rightsp);
+#define	cap_rights_get(fd, rights)					\
+	__cap_rights_get(CAP_RIGHTS_VERSION, (fd), (rights))
+int __cap_rights_get(int version, int fd, cap_rights_t *rights);
 /*
  * Limits allowed ioctls for the given descriptor.
  */
