@@ -49,7 +49,7 @@
  * Values below) but that is far from infinite.
  *
  * In the event of a conflict arbitration of allocation in this file
- * is subject to core@ approval
+ * is subject to core@ approval.
  * 
  * Applications are differentiated based on the high order bit(s) of
  * the remaining three bytes.  Our first allocation has all 0s, the
@@ -62,5 +62,5 @@
  */
 
 /* Allocate 64K to bhyve */
-#define OUI_FREEBSD_BHYVE_LOW	((OUI_FREEBSD << 3) + 0x000001)
-#define OUI_FREEBSD_BHYVE_HIGH	((OUI_FREEBSD << 3) + 0x00ffff)
+#define OUI_FREEBSD_BHYVE_LOW	(((uint64_t)OUI_FREEBSD << 24) | 0x000001)
+#define OUI_FREEBSD_BHYVE_HIGH	(((uint64_t)OUI_FREEBSD << 24) | 0x00ffff)
