@@ -79,9 +79,12 @@
 #define	CAP_SEEK_TELL		CAPRIGHT(0, 0x0000000000000004ULL)
 /* Allows for lseek(2). */
 #define	CAP_SEEK		(CAP_SEEK_TELL | 0x0000000000000008ULL)
-/* Allows for pread(2), preadv(2). */
+/* Allows for aio_read(2), pread(2), preadv(2). */
 #define	CAP_PREAD		(CAP_SEEK | CAP_READ)
-/* Allows for openat(O_WRONLY) (without O_APPEND), pwrite(2), pwritev(2). */
+/*
+ * Allows for aio_write(2), openat(O_WRONLY) (without O_APPEND), pwrite(2),
+ * pwritev(2).
+ */
 #define	CAP_PWRITE		(CAP_SEEK | CAP_WRITE)
 /* Allows for mmap(PROT_NONE). */
 #define	CAP_MMAP		CAPRIGHT(0, 0x0000000000000010ULL)
@@ -103,7 +106,7 @@
 #define	CAP_CREATE		CAPRIGHT(0, 0x0000000000000040ULL)
 /* Allows for openat(O_EXEC) and fexecve(2) in turn. */
 #define	CAP_FEXECVE		CAPRIGHT(0, 0x0000000000000080ULL)
-/* Allows for openat(O_SYNC), openat(O_FSYNC), fsync(2). */
+/* Allows for openat(O_SYNC), openat(O_FSYNC), fsync(2), aio_fsync(2). */
 #define	CAP_FSYNC		CAPRIGHT(0, 0x0000000000000100ULL)
 /* Allows for openat(O_TRUNC), ftruncate(2). */
 #define	CAP_FTRUNCATE		CAPRIGHT(0, 0x0000000000000200ULL)
@@ -112,54 +115,101 @@
 #define	CAP_LOOKUP		CAPRIGHT(0, 0x0000000000000400ULL)
 
 /* VFS methods. */
+/* Allows for fchdir(2). */
 #define	CAP_FCHDIR		CAPRIGHT(0, 0x0000000000000800ULL)
+/* Allows for fchflags(2). */
 #define	CAP_FCHFLAGS		CAPRIGHT(0, 0x0000000000001000ULL)
+/* Allows for fchflags(2) and chflagsat(2). */
 #define	CAP_CHFLAGSAT		(CAP_FCHFLAGS | CAP_LOOKUP)
+/* Allows for fchmod(2). */
 #define	CAP_FCHMOD		CAPRIGHT(0, 0x0000000000002000ULL)
+/* Allows for fchmod(2) and fchmodat(2). */
 #define	CAP_FCHMODAT		(CAP_FCHMOD | CAP_LOOKUP)
+/* Allows for fchown(2). */
 #define	CAP_FCHOWN		CAPRIGHT(0, 0x0000000000004000ULL)
+/* Allows for fchown(2) and fchownat(2). */
 #define	CAP_FCHOWNAT		(CAP_FCHOWN | CAP_LOOKUP)
+/* Allows for fcntl(2). */
 #define	CAP_FCNTL		CAPRIGHT(0, 0x0000000000008000ULL)
+/*
+ * Allows for flock(2), openat(O_SHLOCK), openat(O_EXLOCK),
+ * fcntl(F_SETLK_REMOTE), fcntl(F_SETLKW), fcntl(F_SETLK), fcntl(F_GETLK).
+ */
 #define	CAP_FLOCK		CAPRIGHT(0, 0x0000000000010000ULL)
+/* Allows for fpathconf(2). */
 #define	CAP_FPATHCONF		CAPRIGHT(0, 0x0000000000020000ULL)
+/* Allows for UFS background-fsck operations. */
 #define	CAP_FSCK		CAPRIGHT(0, 0x0000000000040000ULL)
+/* Allows for fstat(2). */
 #define	CAP_FSTAT		CAPRIGHT(0, 0x0000000000080000ULL)
+/* Allows for fstat(2), fstatat(2) and faccessat(2). */
 #define	CAP_FSTATAT		(CAP_FSTAT | CAP_LOOKUP)
+/* Allows for fstatfs(2). */
 #define	CAP_FSTATFS		CAPRIGHT(0, 0x0000000000100000ULL)
+/* Allows for futimes(2). */
 #define	CAP_FUTIMES		CAPRIGHT(0, 0x0000000000200000ULL)
+/* Allows for futimes(2) and futimesat(2). */
 #define	CAP_FUTIMESAT		(CAP_FUTIMES | CAP_LOOKUP)
+/* Allows for linkat(2) and renameat(2) (destination directory descriptor). */
 #define	CAP_LINKAT		CAPRIGHT(0, 0x0000000000400000ULL)
+/* Allows for mkdirat(2). */
 #define	CAP_MKDIRAT		CAPRIGHT(0, 0x0000000000800000ULL)
+/* Allows for mkfifoat(2). */
 #define	CAP_MKFIFOAT		CAPRIGHT(0, 0x0000000001000000ULL)
+/* Allows for mknodat(2). */
 #define	CAP_MKNODAT		CAPRIGHT(0, 0x0000000002000000ULL)
+/* Allows for renameat(2). */
 #define	CAP_RENAMEAT		CAPRIGHT(0, 0x0000000004000000ULL)
+/* Allows for symlinkat(2). */
 #define	CAP_SYMLINKAT		CAPRIGHT(0, 0x0000000008000000ULL)
+/*
+ * Allows for unlinkat(2) and renameat(2) if destination object exists and
+ * will be removed.
+ */
 #define	CAP_UNLINKAT		CAPRIGHT(0, 0x0000000010000000ULL)
 
 /* Extended attributes. */
+/* Allows for extattr_delete_fd(2). */
 #define	CAP_EXTATTR_DELETE	CAPRIGHT(0, 0x0000000020000000ULL)
+/* Allows for extattr_get_fd(2). */
 #define	CAP_EXTATTR_GET		CAPRIGHT(0, 0x0000000040000000ULL)
+/* Allows for extattr_list_fd(2). */
 #define	CAP_EXTATTR_LIST	CAPRIGHT(0, 0x0000000080000000ULL)
+/* Allows for extattr_set_fd(2). */
 #define	CAP_EXTATTR_SET		CAPRIGHT(0, 0x0000000100000000ULL)
 
 /* Access Control Lists. */
+/* Allows for acl_valid_fd_np(3). */
 #define	CAP_ACL_CHECK		CAPRIGHT(0, 0x0000000200000000ULL)
+/* Allows for acl_delete_fd_np(3). */
 #define	CAP_ACL_DELETE		CAPRIGHT(0, 0x0000000400000000ULL)
+/* Allows for acl_get_fd(3) and acl_get_fd_np(3). */
 #define	CAP_ACL_GET		CAPRIGHT(0, 0x0000000800000000ULL)
+/* Allows for acl_set_fd(3) and acl_set_fd_np(3). */
 #define	CAP_ACL_SET		CAPRIGHT(0, 0x0000001000000000ULL)
 
 /* Socket operations. */
+/* Allows for accept(2) and accept4(2). */
 #define	CAP_ACCEPT		CAPRIGHT(0, 0x0000002000000000ULL)
+/* Allows for bind(2). */
 #define	CAP_BIND		CAPRIGHT(0, 0x0000004000000000ULL)
+/* Allows for connect(2). */
 #define	CAP_CONNECT		CAPRIGHT(0, 0x0000008000000000ULL)
+/* Allows for getpeername(2). */
 #define	CAP_GETPEERNAME		CAPRIGHT(0, 0x0000010000000000ULL)
+/* Allows for getsockname(2). */
 #define	CAP_GETSOCKNAME		CAPRIGHT(0, 0x0000020000000000ULL)
+/* Allows for getsockopt(2). */
 #define	CAP_GETSOCKOPT		CAPRIGHT(0, 0x0000040000000000ULL)
+/* Allows for listen(2). */
 #define	CAP_LISTEN		CAPRIGHT(0, 0x0000080000000000ULL)
+/* Allows for sctp_peeloff(2). */
 #define	CAP_PEELOFF		CAPRIGHT(0, 0x0000100000000000ULL)
 #define	CAP_RECV		CAP_READ
 #define	CAP_SEND		CAP_WRITE
+/* Allows for setsockopt(2). */
 #define	CAP_SETSOCKOPT		CAPRIGHT(0, 0x0000200000000000ULL)
+/* Allows for shutdown(2). */
 #define	CAP_SHUTDOWN		CAPRIGHT(0, 0x0000400000000000ULL)
 
 #define	CAP_SOCK_CLIENT \
@@ -181,7 +231,9 @@
 /* INDEX 1 */
 
 /* Mandatory Access Control. */
+/* Allows for mac_get_fd(3). */
 #define	CAP_MAC_GET		CAPRIGHT(1, 0x0000000000000001ULL)
+/* Allows for mac_set_fd(3). */
 #define	CAP_MAC_SET		CAPRIGHT(1, 0x0000000000000002ULL)
 
 /* Methods on semaphores. */
@@ -194,19 +246,25 @@
 #define	CAP_POST_EVENT		CAPRIGHT(1, 0x0000000000000040ULL)
 
 /* Strange and powerful rights that should not be given lightly. */
+/* Allows for ioctl(2). */
 #define	CAP_IOCTL		CAPRIGHT(1, 0x0000000000000080ULL)
 #define	CAP_TTYHOOK		CAPRIGHT(1, 0x0000000000000100ULL)
 
 /* Process management via process descriptors. */
+/* Allows for pdgetpid(2). */
 #define	CAP_PDGETPID		CAPRIGHT(1, 0x0000000000000200ULL)
+/* Allows for pdwait4(2). */
 #define	CAP_PDWAIT		CAPRIGHT(1, 0x0000000000000400ULL)
+/* Allows for pdkill(2). */
 #define	CAP_PDKILL		CAPRIGHT(1, 0x0000000000000800ULL)
 
 /*
  * Rights that allow to use bindat(2) and connectat(2) syscalls on a
  * directory descriptor.
  */
+/* Allows for bindat(2) on a directory descriptor. */
 #define	CAP_BINDAT		CAPRIGHT(1, 0x0000000000001000ULL)
+/* Allows for connectat(2) on a directory descriptor. */
 #define	CAP_CONNECTAT		CAPRIGHT(1, 0x0000000000002000ULL)
 
 /* All used bits for index 1. */
