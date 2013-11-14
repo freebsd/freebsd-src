@@ -885,7 +885,7 @@ struct iwn_scan_essid {
 
 struct iwn_scan_hdr {
 	uint16_t	len;
-	uint8_t		reserved1;
+	uint8_t		scan_flags;
 	uint8_t		nchan;
 	uint16_t	quiet_time;
 	uint16_t	quiet_threshold;
