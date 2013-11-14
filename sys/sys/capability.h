@@ -269,8 +269,8 @@ void __cap_rights_clear(cap_rights_t *rights, ...);
 bool __cap_rights_is_set(const cap_rights_t *rights, ...);
 
 bool cap_rights_is_valid(const cap_rights_t *rights);
-void cap_rights_merge(cap_rights_t *dst, const cap_rights_t *src);
-void cap_rights_remove(cap_rights_t *dst, const cap_rights_t *src);
+cap_rights_t *cap_rights_merge(cap_rights_t *dst, const cap_rights_t *src);
+cap_rights_t *cap_rights_remove(cap_rights_t *dst, const cap_rights_t *src);
 bool cap_rights_contains(const cap_rights_t *big, const cap_rights_t *little);
 
 #ifdef _KERNEL

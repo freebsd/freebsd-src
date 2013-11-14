@@ -168,7 +168,7 @@ __cap_rights_init(int version, cap_rights_t *rights, ...)
 	return (rights);
 }
 
-void
+cap_rights_t *
 __cap_rights_set(cap_rights_t *rights, ...)
 {
 	va_list ap;
@@ -178,9 +178,11 @@ __cap_rights_set(cap_rights_t *rights, ...)
 	va_start(ap, rights);
 	cap_rights_vset(rights, ap);
 	va_end(ap);
+
+	return (rights);
 }
 
-void
+cap_rights_t *
 __cap_rights_clear(cap_rights_t *rights, ...)
 {
 	va_list ap;
@@ -190,6 +192,8 @@ __cap_rights_clear(cap_rights_t *rights, ...)
 	va_start(ap, rights);
 	cap_rights_vclear(rights, ap);
 	va_end(ap);
+
+	return (rights);
 }
 
 bool
@@ -235,7 +239,7 @@ cap_rights_is_valid(const cap_rights_t *rights)
 	return (true);
 }
 
-void
+cap_rights_t *
 cap_rights_merge(cap_rights_t *dst, const cap_rights_t *src)
 {
 	unsigned int i, n;
@@ -254,9 +258,11 @@ cap_rights_merge(cap_rights_t *dst, const cap_rights_t *src)
 
 	assert(cap_rights_is_valid(src));
 	assert(cap_rights_is_valid(dst));
+
+	return (dst);
 }
 
-void
+cap_rights_t *
 cap_rights_remove(cap_rights_t *dst, const cap_rights_t *src)
 {
 	unsigned int i, n;
@@ -277,6 +283,8 @@ cap_rights_remove(cap_rights_t *dst, const cap_rights_t *src)
 
 	assert(cap_rights_is_valid(src));
 	assert(cap_rights_is_valid(dst));
+
+	return (dst);
 }
 
 bool
