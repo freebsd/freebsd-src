@@ -1102,7 +1102,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt)
 		vd->vd_mx = x;
 		vd->vd_my = y;
 		if ((vd->vd_mstate & MOUSE_BUTTON1DOWN) &&
-		    (vtbuf_set_mark(&vw->vw_buf, VTB_MARK_END,
+		    (vtbuf_set_mark(&vw->vw_buf, VTB_MARK_MOVE,
 			vd->vd_mx / vf->vf_width, 
 			vd->vd_my / vf->vf_height) == 1)) {
 
@@ -1170,7 +1170,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt)
 		switch (cnt) {
 		case 0:	/* up */
 			if (!(vd->vd_mstate & MOUSE_BUTTON1DOWN))
-				mark = VTB_MARK_END;
+				mark = VTB_MARK_EXTEND;
 			else
 				mark = 0;
 			break;

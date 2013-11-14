@@ -627,7 +627,11 @@ vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row)
 {
 
 	switch (type) {
-	case VTB_MARK_END:
+	case VTB_MARK_END:	/* B1 UP */
+		if (vb->vb_mark_last != VTB_MARK_MOVE)
+			return (0);
+		/* FALLTHROUGH */
+	case VTB_MARK_MOVE:
 	case VTB_MARK_EXTEND:
 		vtbuf_flush_mark(vb); /* Clean old mark. */
 		vb->vb_mark_end.tp_col = col;
@@ -656,11 +660,14 @@ vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row)
 		    vtbuf_wth(vb, row);
 		break;
 	case VTB_MARK_NONE:
+		vb->vb_mark_last = type;
+		/* FALLTHROUGH */
 	default:
 		/* panic? */
 		return (0);
 	}
 
+	vb->vb_mark_last = type;
 	/* Draw new marked region. */
 	vtbuf_flush_mark(vb);
 	return (1);

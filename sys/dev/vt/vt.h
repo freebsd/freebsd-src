@@ -160,6 +160,7 @@ struct vt_buf {
 	term_pos_t		 vb_cursor;	/* (u) Cursor position. */
 	term_pos_t		 vb_mark_start;	/* (b) Copy region start. */
 	term_pos_t		 vb_mark_end;	/* (b) Copy region end. */
+	int			 vb_mark_last;	/* Last mouse event. */
 	term_rect_t		 vb_dirtyrect;	/* (b) Dirty rectangle. */
 	struct vt_bufmask	 vb_dirtymask;	/* (b) Dirty bitmasks. */
 	term_char_t		*vb_buffer;	/* (u) Data buffer. */
@@ -189,6 +190,7 @@ void vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz);
 #define	VTB_MARK_WORD		3
 #define	VTB_MARK_ROW		4
 #define	VTB_MARK_EXTEND		5
+#define	VTB_MARK_MOVE		6
 
 #define	VTBUF_SLCK_ENABLE(vb)	vtbuf_scroll_mode((vb), 1)
 #define	VTBUF_SLCK_DISABLE(vb)	vtbuf_scroll_mode((vb), 0)
