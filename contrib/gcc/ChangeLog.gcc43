@@ -4,6 +4,11 @@
 	* doc/extend.texi: Document the 0b-prefixed binary integer
 	constant extension.
 	
+2007-05-03  Ian Lance Taylor  <iant@google.com> (r124381)
+
+	* config/rs6000/rs6000.c (rs6000_override_options): Don't set
+	MASK_PPC_GFXOPT for 8540 or 8548.
+
 2007-05-01  Dwarakanath Rajagopal <dwarak.rajagopal@amd.com> (r124341)
 
 	* doc/invoke.texi: Fix typo, 'AMD Family 10h core' instead of 
