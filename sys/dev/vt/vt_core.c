@@ -1138,7 +1138,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt)
 		}
 		break;
 	case VT_MOUSE_PASTEBUTTON:
-		switch (event) {
+		switch (cnt) {
 		case 0:	/* up */
 			break;
 		default:
@@ -1167,7 +1167,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt)
 		}
 		return; /* Done */
 	case VT_MOUSE_EXTENDBUTTON:
-		switch (event) {
+		switch (cnt) {
 		case 0:	/* up */
 			if (!(vd->vd_mstate & MOUSE_BUTTON1DOWN))
 				mark = VTB_MARK_END;
