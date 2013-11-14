@@ -168,49 +168,34 @@
  */
 #define	CAP_UNLINKAT		(CAP_LOOKUP | 0x0000000010000000ULL)
 
-/* Extended attributes. */
-/* Allows for extattr_delete_fd(2). */
-#define	CAP_EXTATTR_DELETE	CAPRIGHT(0, 0x0000000020000000ULL)
-/* Allows for extattr_get_fd(2). */
-#define	CAP_EXTATTR_GET		CAPRIGHT(0, 0x0000000040000000ULL)
-/* Allows for extattr_list_fd(2). */
-#define	CAP_EXTATTR_LIST	CAPRIGHT(0, 0x0000000080000000ULL)
-/* Allows for extattr_set_fd(2). */
-#define	CAP_EXTATTR_SET		CAPRIGHT(0, 0x0000000100000000ULL)
-
-/* Access Control Lists. */
-/* Allows for acl_valid_fd_np(3). */
-#define	CAP_ACL_CHECK		CAPRIGHT(0, 0x0000000200000000ULL)
-/* Allows for acl_delete_fd_np(3). */
-#define	CAP_ACL_DELETE		CAPRIGHT(0, 0x0000000400000000ULL)
-/* Allows for acl_get_fd(3) and acl_get_fd_np(3). */
-#define	CAP_ACL_GET		CAPRIGHT(0, 0x0000000800000000ULL)
-/* Allows for acl_set_fd(3) and acl_set_fd_np(3). */
-#define	CAP_ACL_SET		CAPRIGHT(0, 0x0000001000000000ULL)
-
 /* Socket operations. */
 /* Allows for accept(2) and accept4(2). */
-#define	CAP_ACCEPT		CAPRIGHT(0, 0x0000002000000000ULL)
+#define	CAP_ACCEPT		CAPRIGHT(0, 0x0000000020000000ULL)
 /* Allows for bind(2). */
-#define	CAP_BIND		CAPRIGHT(0, 0x0000004000000000ULL)
+#define	CAP_BIND		CAPRIGHT(0, 0x0000000040000000ULL)
 /* Allows for connect(2). */
-#define	CAP_CONNECT		CAPRIGHT(0, 0x0000008000000000ULL)
+#define	CAP_CONNECT		CAPRIGHT(0, 0x0000000080000000ULL)
 /* Allows for getpeername(2). */
-#define	CAP_GETPEERNAME		CAPRIGHT(0, 0x0000010000000000ULL)
+#define	CAP_GETPEERNAME		CAPRIGHT(0, 0x0000000100000000ULL)
 /* Allows for getsockname(2). */
-#define	CAP_GETSOCKNAME		CAPRIGHT(0, 0x0000020000000000ULL)
+#define	CAP_GETSOCKNAME		CAPRIGHT(0, 0x0000000200000000ULL)
 /* Allows for getsockopt(2). */
-#define	CAP_GETSOCKOPT		CAPRIGHT(0, 0x0000040000000000ULL)
+#define	CAP_GETSOCKOPT		CAPRIGHT(0, 0x0000000400000000ULL)
 /* Allows for listen(2). */
-#define	CAP_LISTEN		CAPRIGHT(0, 0x0000080000000000ULL)
+#define	CAP_LISTEN		CAPRIGHT(0, 0x0000000800000000ULL)
 /* Allows for sctp_peeloff(2). */
-#define	CAP_PEELOFF		CAPRIGHT(0, 0x0000100000000000ULL)
+#define	CAP_PEELOFF		CAPRIGHT(0, 0x0000001000000000ULL)
 #define	CAP_RECV		CAP_READ
 #define	CAP_SEND		CAP_WRITE
 /* Allows for setsockopt(2). */
-#define	CAP_SETSOCKOPT		CAPRIGHT(0, 0x0000200000000000ULL)
+#define	CAP_SETSOCKOPT		CAPRIGHT(0, 0x0000002000000000ULL)
 /* Allows for shutdown(2). */
-#define	CAP_SHUTDOWN		CAPRIGHT(0, 0x0000400000000000ULL)
+#define	CAP_SHUTDOWN		CAPRIGHT(0, 0x0000004000000000ULL)
+
+/* Allows for bindat(2) on a directory descriptor. */
+#define	CAP_BINDAT		(CAP_LOOKUP | 0x0000008000000000ULL)
+/* Allows for connectat(2) on a directory descriptor. */
+#define	CAP_CONNECTAT		(CAP_LOOKUP | 0x0000010000000000ULL)
 
 #define	CAP_SOCK_CLIENT \
 	(CAP_CONNECT | CAP_GETPEERNAME | CAP_GETSOCKNAME | CAP_GETSOCKOPT | \
@@ -221,10 +206,10 @@
 	 CAP_SETSOCKOPT | CAP_SHUTDOWN)
 
 /* All used bits for index 0. */
-#define	CAP_ALL0		CAPRIGHT(0, 0x00007FFFFFFFFFFFULL)
+#define	CAP_ALL0		CAPRIGHT(0, 0x0000007FFFFFFFFFULL)
 
 /* Available bits for index 0. */
-#define	CAP_UNUSED0_48		CAPRIGHT(0, 0x0000800000000000ULL)
+#define	CAP_UNUSED0_40		CAPRIGHT(0, 0x0000008000000000ULL)
 /* ... */
 #define	CAP_UNUSED0_57		CAPRIGHT(0, 0x0100000000000000ULL)
 
@@ -258,20 +243,31 @@
 /* Allows for pdkill(2). */
 #define	CAP_PDKILL		CAPRIGHT(1, 0x0000000000000800ULL)
 
-/*
- * Rights that allow to use bindat(2) and connectat(2) syscalls on a
- * directory descriptor.
- */
-/* Allows for bindat(2) on a directory descriptor. */
-#define	CAP_BINDAT		CAPRIGHT(1, 0x0000000000001000ULL)
-/* Allows for connectat(2) on a directory descriptor. */
-#define	CAP_CONNECTAT		CAPRIGHT(1, 0x0000000000002000ULL)
+/* Extended attributes. */
+/* Allows for extattr_delete_fd(2). */
+#define	CAP_EXTATTR_DELETE	CAPRIGHT(1, 0x0000000000001000ULL)
+/* Allows for extattr_get_fd(2). */
+#define	CAP_EXTATTR_GET		CAPRIGHT(1, 0x0000000000002000ULL)
+/* Allows for extattr_list_fd(2). */
+#define	CAP_EXTATTR_LIST	CAPRIGHT(1, 0x0000000000004000ULL)
+/* Allows for extattr_set_fd(2). */
+#define	CAP_EXTATTR_SET		CAPRIGHT(1, 0x0000000000008000ULL)
+
+/* Access Control Lists. */
+/* Allows for acl_valid_fd_np(3). */
+#define	CAP_ACL_CHECK		CAPRIGHT(1, 0x0000000000010000ULL)
+/* Allows for acl_delete_fd_np(3). */
+#define	CAP_ACL_DELETE		CAPRIGHT(1, 0x0000000000020000ULL)
+/* Allows for acl_get_fd(3) and acl_get_fd_np(3). */
+#define	CAP_ACL_GET		CAPRIGHT(1, 0x0000000000040000ULL)
+/* Allows for acl_set_fd(3) and acl_set_fd_np(3). */
+#define	CAP_ACL_SET		CAPRIGHT(1, 0x0000000000080000ULL)
 
 /* All used bits for index 1. */
-#define	CAP_ALL1		CAPRIGHT(1, 0x0000000000003FFFULL)
+#define	CAP_ALL1		CAPRIGHT(1, 0x00000000000FFFFFULL)
 
 /* Available bits for index 1. */
-#define	CAP_UNUSED1_15		CAPRIGHT(1, 0x0000000000004000ULL)
+#define	CAP_UNUSED1_21		CAPRIGHT(1, 0x0000000000100000ULL)
 /* ... */
 #define	CAP_UNUSED1_57		CAPRIGHT(1, 0x0100000000000000ULL)
 
