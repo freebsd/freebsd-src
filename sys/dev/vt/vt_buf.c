@@ -573,8 +573,10 @@ vtbuf_get_marked_len(struct vt_buf *vb)
 	term_pos_t s, e;
 
 	/* Swap according to window coordinates. */
-	if (POS_INDEX(vtbuf_htw(vb, vb->vb_mark_start.tp_row), vb->vb_mark_start.tp_col) >
-	    POS_INDEX(vtbuf_htw(vb, vb->vb_mark_end.tp_row), vb->vb_mark_end.tp_col)) {
+	if (POS_INDEX(vtbuf_htw(vb, vb->vb_mark_start.tp_row),
+	    vb->vb_mark_start.tp_col) >
+	    POS_INDEX(vtbuf_htw(vb, vb->vb_mark_end.tp_row),
+	    vb->vb_mark_end.tp_col)) {
 		POS_COPY(e, vb->vb_mark_start);
 		POS_COPY(s, vb->vb_mark_end);
 	} else {
@@ -598,8 +600,10 @@ vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz)
 	term_pos_t s, e;
 
 	/* Swap according to window coordinates. */
-	if (POS_INDEX(vtbuf_htw(vb, vb->vb_mark_start.tp_row), vb->vb_mark_start.tp_col) >
-	    POS_INDEX(vtbuf_htw(vb, vb->vb_mark_end.tp_row), vb->vb_mark_end.tp_col)) {
+	if (POS_INDEX(vtbuf_htw(vb, vb->vb_mark_start.tp_row),
+	    vb->vb_mark_start.tp_col) >
+	    POS_INDEX(vtbuf_htw(vb, vb->vb_mark_end.tp_row),
+	    vb->vb_mark_end.tp_col)) {
 		POS_COPY(e, vb->vb_mark_start);
 		POS_COPY(s, vb->vb_mark_end);
 	} else {
