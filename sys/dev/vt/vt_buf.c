@@ -629,6 +629,8 @@ vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz)
 int
 vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row)
 {
+	term_char_t *r;
+	int i;
 
 	switch (type) {
 	case VTB_MARK_END:	/* B1 UP */
@@ -651,10 +653,23 @@ vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row)
 		break;
 	case VTB_MARK_WORD:
 		vtbuf_flush_mark(vb); /* Clean old mark. */
-		vb->vb_mark_start.tp_col = 0; /* XXX */
-		vb->vb_mark_end.tp_col = 10; /* XXX */
 		vb->vb_mark_start.tp_row = vb->vb_mark_end.tp_row =
 		    vtbuf_wth(vb, row);
+		r = vb->vb_rows[vb->vb_mark_start.tp_row];
+		for (i = col; i >= 0; i --) {
+			if (TCHAR_CHARACTER(r[i]) == ' ') {
+				vb->vb_mark_start.tp_col = i + 1;
+				break;
+			}
+		}
+		for (i = col; i < vb->vb_scr_size.tp_col; i ++) {
+			if (TCHAR_CHARACTER(r[i]) == ' ') {
+				vb->vb_mark_end.tp_col = i;
+				break;
+			}
+		}
+		if (vb->vb_mark_start.tp_col > vb->vb_mark_end.tp_col)
+			vb->vb_mark_start.tp_col = vb->vb_mark_end.tp_col;
 		break;
 	case VTB_MARK_ROW:
 		vtbuf_flush_mark(vb); /* Clean old mark. */
