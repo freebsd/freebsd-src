@@ -878,12 +878,12 @@ RestartScan:
 			 * the byte vector is zeroed for those skipped entries.
 			 */
 			while ((lastvecindex + 1) < vecindex) {
+				++lastvecindex;
 				error = subyte(vec + lastvecindex, 0);
 				if (error) {
 					error = EFAULT;
 					goto done2;
 				}
-				++lastvecindex;
 			}
 
 			/*
@@ -919,12 +919,12 @@ RestartScan:
 	 */
 	vecindex = OFF_TO_IDX(end - first_addr);
 	while ((lastvecindex + 1) < vecindex) {
+		++lastvecindex;
 		error = subyte(vec + lastvecindex, 0);
 		if (error) {
 			error = EFAULT;
 			goto done2;
 		}
-		++lastvecindex;
 	}
 
 	/*
