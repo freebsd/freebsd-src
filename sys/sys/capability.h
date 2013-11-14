@@ -258,11 +258,11 @@ cap_rights_t *__cap_rights_init(int version, cap_rights_t *rights, ...);
 
 #define	cap_rights_set(rights, ...)					\
 	__cap_rights_set((rights), __VA_ARGS__, 0ULL)
-void __cap_rights_set(cap_rights_t *rights, ...);
+cap_rights_t *__cap_rights_set(cap_rights_t *rights, ...);
 
 #define	cap_rights_clear(rights, ...)					\
 	__cap_rights_clear((rights), __VA_ARGS__, 0ULL)
-void __cap_rights_clear(cap_rights_t *rights, ...);
+cap_rights_t *__cap_rights_clear(cap_rights_t *rights, ...);
 
 #define	cap_rights_is_set(rights, ...)					\
 	__cap_rights_is_set((rights), __VA_ARGS__, 0ULL)
