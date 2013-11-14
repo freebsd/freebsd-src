@@ -151,22 +151,22 @@
 /* Allows for futimes(2) and futimesat(2). */
 #define	CAP_FUTIMESAT		(CAP_FUTIMES | CAP_LOOKUP)
 /* Allows for linkat(2) and renameat(2) (destination directory descriptor). */
-#define	CAP_LINKAT		CAPRIGHT(0, 0x0000000000400000ULL)
+#define	CAP_LINKAT		(CAP_LOOKUP | 0x0000000000400000ULL)
 /* Allows for mkdirat(2). */
-#define	CAP_MKDIRAT		CAPRIGHT(0, 0x0000000000800000ULL)
+#define	CAP_MKDIRAT		(CAP_LOOKUP | 0x0000000000800000ULL)
 /* Allows for mkfifoat(2). */
-#define	CAP_MKFIFOAT		CAPRIGHT(0, 0x0000000001000000ULL)
+#define	CAP_MKFIFOAT		(CAP_LOOKUP | 0x0000000001000000ULL)
 /* Allows for mknodat(2). */
-#define	CAP_MKNODAT		CAPRIGHT(0, 0x0000000002000000ULL)
+#define	CAP_MKNODAT		(CAP_LOOKUP | 0x0000000002000000ULL)
 /* Allows for renameat(2). */
-#define	CAP_RENAMEAT		CAPRIGHT(0, 0x0000000004000000ULL)
+#define	CAP_RENAMEAT		(CAP_LOOKUP | 0x0000000004000000ULL)
 /* Allows for symlinkat(2). */
-#define	CAP_SYMLINKAT		CAPRIGHT(0, 0x0000000008000000ULL)
+#define	CAP_SYMLINKAT		(CAP_LOOKUP | 0x0000000008000000ULL)
 /*
  * Allows for unlinkat(2) and renameat(2) if destination object exists and
  * will be removed.
  */
-#define	CAP_UNLINKAT		CAPRIGHT(0, 0x0000000010000000ULL)
+#define	CAP_UNLINKAT		(CAP_LOOKUP | 0x0000000010000000ULL)
 
 /* Extended attributes. */
 /* Allows for extattr_delete_fd(2). */
