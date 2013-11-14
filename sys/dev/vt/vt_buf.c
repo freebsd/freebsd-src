@@ -656,17 +656,14 @@ vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row)
 		    vtbuf_wth(vb, row);
 		break;
 	case VTB_MARK_NONE:
-		break;
 	default:
 		/* panic? */
 		return (0);
 	}
-	if (type != VTB_MARK_NONE) {
-		/* Draw new marked region. */
-		vtbuf_flush_mark(vb);
-		return (1);
-	}
-	return (0);
+
+	/* Draw new marked region. */
+	vtbuf_flush_mark(vb);
+	return (1);
 }
 
 void
