@@ -17,7 +17,7 @@ CLEANFILES=	sandboxasm.o
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
 
 .if defined(CHERI_CC) && defined(SYSROOT)
-CC=	${CHERI_CC} --sysroot=${SYSROOT}
+CC=	${CHERI_CC} --sysroot=${SYSROOT} -integrated-as
 .endif
 
 .include <bsd.lib.mk>
