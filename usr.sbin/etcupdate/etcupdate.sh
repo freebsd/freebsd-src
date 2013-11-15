@@ -1026,16 +1026,6 @@ handle_modified_file()
 		fi
 	fi
 
-	# If the only change in the new file versus the old file is a
-	# change in the FreeBSD ID string and -F is specified, just
-	# update the FreeBSD ID string in the local file.
-	if [ -n "$FREEBSD_ID" -a $cmp -eq $COMPARE_DIFFFILES ] && \
-	    fbsdid_only $OLDTREE/$file $NEWTREE/$file; then
-		if update_freebsdid $file; then
-			continue
-		fi
-	fi
-
 	# If the file was removed from the dest tree, just whine.
 	if [ $newdestcmp -eq $COMPARE_ONLYFIRST ]; then
 		# If the removed file matches an ALWAYS_INSTALL glob,
@@ -1047,6 +1037,14 @@ handle_modified_file()
 					echo "  A $file"
 				fi
 			fi
+			return
+		fi
+
+		# If the only change in the new file versus the old
+		# file is a change in the FreeBSD ID string and -F is
+		# specified, don't warn.
+		if [ -n "$FREEBSD_ID" -a $cmp -eq $COMPARE_DIFFFILES ] && \
+		    fbsdid_only $OLDTREE/$file $NEWTREE/$file; then
 			return
 		fi
 
@@ -1077,6 +1075,16 @@ handle_modified_file()
 		log "ALWAYS: updating $file"
 		if update_unmodified $file; then
 			return
+		fi
+	fi
+
+	# If the only change in the new file versus the old file is a
+	# change in the FreeBSD ID string and -F is specified, just
+	# update the FreeBSD ID string in the local file.
+	if [ -n "$FREEBSD_ID" -a $cmp -eq $COMPARE_DIFFFILES ] && \
+	    fbsdid_only $OLDTREE/$file $NEWTREE/$file; then
+		if update_freebsdid $file; then
+			continue
 		fi
 	fi
 
