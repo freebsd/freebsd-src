@@ -820,17 +820,18 @@ AcpiDmXrefDescendingOp (
     {
         if (Status == AE_NOT_FOUND)
         {
-            AcpiDmAddToExternalList (Op, Path, (UINT8) ObjectType, 0);
-
             /*
-             * We could install this into the namespace, but we catch duplicate
-             * externals when they are added to the list.
+             * Add this symbol as an external declaration, except if the
+             * parent is a CondRefOf operator. For this operator, we do not
+             * need an external, nor do we want one, since this can cause
+             * disassembly problems if the symbol is actually a control
+             * method.
              */
-#if 0
-            Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ACPI_TYPE_ANY,
-                       ACPI_IMODE_LOAD_PASS1, ACPI_NS_DONT_OPEN_SCOPE,
-                       WalkState, &Node);
-#endif
+            if (!(Op->Asl.Parent &&
+                (Op->Asl.Parent->Asl.AmlOpcode == AML_COND_REF_OF_OP)))
+            {
+                AcpiDmAddToExternalList (Op, Path, (UINT8) ObjectType, 0);
+            }
         }
     }
 
