@@ -226,9 +226,10 @@
 #define	CAP_SEM_POST		CAPRIGHT(1, 0x0000000000000008ULL)
 #define	CAP_SEM_WAIT		CAPRIGHT(1, 0x0000000000000010ULL)
 
-/* kqueue events. */
-#define	CAP_POLL_EVENT		CAPRIGHT(1, 0x0000000000000020ULL)
-#define	CAP_POST_EVENT		CAPRIGHT(1, 0x0000000000000040ULL)
+/* Allows select(2) and poll(2) on descriptor. */
+#define	CAP_EVENT		CAPRIGHT(1, 0x0000000000000020ULL)
+/* Allows for kevent(2) on kqueue descriptor with eventlist != NULL. */
+#define	CAP_KQUEUE_EVENT	CAPRIGHT(1, 0x0000000000000040ULL)
 
 /* Strange and powerful rights that should not be given lightly. */
 /* Allows for ioctl(2). */
@@ -263,13 +264,21 @@
 /* Allows for acl_set_fd(3) and acl_set_fd_np(3). */
 #define	CAP_ACL_SET		CAPRIGHT(1, 0x0000000000080000ULL)
 
+/* Allows for kevent(2) on kqueue descriptor with changelist != NULL. */
+#define	CAP_KQUEUE_CHANGE	CAPRIGHT(1, 0x0000000000100000ULL)
+
+#define	CAP_KQUEUE		(CAP_KQUEUE_EVENT | CAP_KQUEUE_CHANGE)
+
 /* All used bits for index 1. */
-#define	CAP_ALL1		CAPRIGHT(1, 0x00000000000FFFFFULL)
+#define	CAP_ALL1		CAPRIGHT(1, 0x00000000001FFFFFULL)
 
 /* Available bits for index 1. */
-#define	CAP_UNUSED1_21		CAPRIGHT(1, 0x0000000000100000ULL)
+#define	CAP_UNUSED1_22		CAPRIGHT(1, 0x0000000000200000ULL)
 /* ... */
 #define	CAP_UNUSED1_57		CAPRIGHT(1, 0x0100000000000000ULL)
+
+/* Backward compatibility. */
+#define	CAP_POLL_EVENT		CAP_EVENT
 
 #define	CAP_ALL(rights)		do {					\
 	(rights)->cr_rights[0] =					\
