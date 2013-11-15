@@ -31,6 +31,7 @@
 
 #include <sys/bus.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/sx.h>
 #include <sys/taskqueue.h>
@@ -218,9 +219,10 @@ struct onfi_params {
 	uint8_t		driver_strength_support;
 	uint8_t		res4[12];
 	uint16_t	vendor_rev;
-	uint8_t		vendor_spec[8];
+	uint8_t		vendor_spec[88];
 	uint16_t	crc;
 }__attribute__((packed));
+CTASSERT(sizeof(struct onfi_params) == 256);
 
 struct nand_ecc_data {
 	int	eccsize;		/* Number of data bytes per ECC step */
