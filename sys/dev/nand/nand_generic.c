@@ -319,10 +319,31 @@ check_fail(device_t nandbus)
 	return (0);
 }
 
+static uint16_t
+onfi_crc(const void *buf, size_t buflen)
+{
+	int i, j;
+	uint16_t crc;
+	const uint8_t *bufptr;
+
+	bufptr = buf;
+	crc = 0x4f4e;
+	for (j = 0; j < buflen; j++) {
+		crc ^= *bufptr++ << 8;
+		for (i = 0; i < 8; i++)
+			if (crc & 0x8000)
+				crc = (crc << 1) ^ 0x8005;
+			else
+				crc <<= 1;
+	}
+       return crc;
+}
+
 static int
 onfi_read_parameter(struct nand_chip *chip, struct onfi_params *params)
 {
 	device_t nandbus;
+	int found, sigcount, trycopy;
 
 	nand_debug(NDBG_GEN,"read parameter");
 
@@ -339,16 +360,32 @@ onfi_read_parameter(struct nand_chip *chip, struct onfi_params *params)
 	if (NANDBUS_START_COMMAND(nandbus))
 		return (ENXIO);
 
-	NANDBUS_READ_BUFFER(nandbus, params, sizeof(struct onfi_params));
+	/*
+	 * XXX Bogus DELAY, we really need a nandbus_wait_ready() here, but it's
+	 * not accessible from here (static to nandbus).
+	 */
+	DELAY(1000);
 
-	if (memcmp(params->signature, "ONFI", sizeof(params->signature))) {
-		device_printf(chip->dev, "Error: bad signature\n");
-		return (ENXIO);
+	/*
+	 * The ONFI spec mandates a minimum of three copies of the parameter
+	 * data, so loop up to 3 times trying to find good data.  Each copy is
+	 * validated by a signature of "ONFI" and a crc. There is a very strange
+	 * rule that the signature is valid if any 2 of the 4 bytes are correct.
+	 */
+	for (found= 0, trycopy = 0; !found && trycopy < 3; trycopy++) {
+		NANDBUS_READ_BUFFER(nandbus, params, sizeof(struct onfi_params));
+		sigcount  = params->signature[0] == 'O';
+		sigcount += params->signature[1] == 'N';
+		sigcount += params->signature[2] == 'F';
+		sigcount += params->signature[3] == 'I';
+		if (sigcount < 2)
+			continue;
+		if (onfi_crc(params, 254) != params->crc)
+			continue;
+		found = 1;
 	}
-
-	/* TODO */
-	/* Check CRC */
-	/* Use redundant page if necessary */
+	if (!found)
+		return (ENXIO);
 
 	return (0);
 }
