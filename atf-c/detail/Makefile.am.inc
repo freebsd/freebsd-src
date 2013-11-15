@@ -69,11 +69,6 @@ tests_atf_c_detail_PROGRAMS += atf-c/detail/fs_test
 atf_c_detail_fs_test_SOURCES = atf-c/detail/fs_test.c
 atf_c_detail_fs_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la
 
-tests_atf_c_detail_PROGRAMS += atf-c/detail/test_helpers_test
-atf_c_detail_test_helpers_test_SOURCES = atf-c/detail/test_helpers_test.c
-atf_c_detail_test_helpers_test_LDADD = atf-c/detail/libtest_helpers.la \
-                                       libatf-c.la
-
 tests_atf_c_detail_PROGRAMS += atf-c/detail/list_test
 atf_c_detail_list_test_SOURCES = atf-c/detail/list_test.c
 atf_c_detail_list_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la

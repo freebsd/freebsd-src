@@ -36,7 +36,7 @@ extern "C" {
 
 #include <memory>
 
-#include "atf-c++/utils.hpp"
+#include "atf-c++/noncopyable.hpp"
 
 namespace atf {
 namespace atf_run {
@@ -47,7 +47,7 @@ class signal_programmer;
 // The "timer" class.
 // ------------------------------------------------------------------------
 
-class timer : utils::noncopyable {
+class timer : noncopyable {
     struct impl;
     std::auto_ptr< impl > m_pimpl;
 

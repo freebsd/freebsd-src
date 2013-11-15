@@ -36,7 +36,8 @@
 
 #include "fs.hpp"
 
-#include "../atf-c++/utils.hpp"
+#include "../atf-c++/detail/auto_array.hpp"
+#include "../atf-c++/noncopyable.hpp"
 
 namespace atf {
 namespace atf_run {
@@ -253,8 +254,7 @@ private:
 //! However, it is not copyable to avoid introducing inconsistences with
 //! the on-disk file and the in-memory buffers.
 //!
-class systembuf :
-    public std::streambuf, atf::utils::noncopyable
+class systembuf : public std::streambuf, atf::noncopyable
 {
 public:
     typedef int handle_type;
@@ -374,14 +374,8 @@ protected:
 //! this happens, the buffer eventually empties and the system blocks
 //! until the writer generates some data.
 //!
-class pistream :
-    public std::istream, utils::noncopyable
+class pistream : public std::istream, noncopyable
 {
-    //!
-    //! \brief The file handle managed by this stream.
-    //!
-    int m_fd;
-
     //!
     //! \brief The systembuf object used to manage this stream's data.
     //!
@@ -406,12 +400,12 @@ public:
 // The "muxer" class.
 // ------------------------------------------------------------------------
 
-class muxer : utils::noncopyable {
+class muxer : noncopyable {
     const int* m_fds;
     const size_t m_nfds;
 
     const size_t m_bufsize;
-    atf::utils::auto_array< std::string > m_buffers;
+    atf::auto_array< std::string > m_buffers;
 
 protected:
     virtual void line_callback(const size_t, const std::string&) = 0;

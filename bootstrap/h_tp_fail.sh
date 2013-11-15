@@ -1,7 +1,7 @@
 #
 # Automated Testing Framework (atf)
 #
-# Copyright (c) 2007 The NetBSD Foundation, Inc.
+# Copyright (c) 2009 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,38 +27,21 @@
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-# TODO: This test program is about checking the test case's "environment"
-# (not the variables).  Should be named something else than t_fork.
-
-atf_test_case stop
-stop_head()
+atf_test_case @TC_NAME@
+@TC_NAME@_head()
 {
-    atf_set "descr" "Tests that sending a stop signal to a test case does" \
-                    "not report it as failed"
+    atf_set "descr" "An empty test case that always fails"
 }
-stop_body()
+@TC_NAME@_body()
 {
-    for h in $(get_helpers); do
-        ${h} -s $(atf_get_srcdir) -v pidfile=$(pwd)/pid \
-             -v donefile=$(pwd)/done -r resfile fork_stop &
-        ppid=${!}
-        echo "Waiting for pid file for test program ${ppid}"
-        while test ! -f pid; do sleep 1; done
-        pid=$(cat pid)
-        echo "Test case's pid is ${pid}"
-        kill -STOP ${pid}
-        touch done
-        echo "Wrote done file"
-        kill -CONT ${pid}
-        wait ${ppid}
-        atf_check -s eq:0 -o ignore -e empty grep '^passed$' resfile
-        rm -f pid done
-    done
+    echo "ignore-me"
+    echo "ignore-me" 1>&2
+    atf_fail "No reason"
 }
 
 atf_init_test_cases()
 {
-    atf_add_test_case stop
+    atf_add_test_case @TC_NAME@
 }
 
 # vim: syntax=sh:expandtab:shiftwidth=4:softtabstop=4

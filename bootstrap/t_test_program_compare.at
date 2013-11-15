@@ -1,0 +1,186 @@
+dnl
+dnl Automated Testing Framework (atf)
+dnl
+dnl Copyright (c) 2007 The NetBSD Foundation, Inc.
+dnl All rights reserved.
+dnl
+dnl Redistribution and use in source and binary forms, with or without
+dnl modification, are permitted provided that the following conditions
+dnl are met:
+dnl 1. Redistributions of source code must retain the above copyright
+dnl    notice, this list of conditions and the following disclaimer.
+dnl 2. Redistributions in binary form must reproduce the above copyright
+dnl    notice, this list of conditions and the following disclaimer in the
+dnl    documentation and/or other materials provided with the distribution.
+dnl
+dnl THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND
+dnl CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+dnl INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+dnl MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+dnl IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS BE LIABLE FOR ANY
+dnl DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+dnl DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+dnl GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+dnl INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+dnl IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+dnl OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+dnl IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+dnl
+
+AT_SETUP([test_program: compare the user-visible interfaces])
+
+dnl No arguments.
+AT_CHECK([TEST_HELPER(tp_basic_c)], [1], [], [stderr])
+sed 's,tp_basic_c,tp_basic_cpp,g' <stderr >experr
+AT_CHECK([TEST_HELPER(tp_basic_cpp)], [1], [], [experr])
+sed 's,tp_basic_c,tp_basic_sh,g' <stderr >experr
+AT_CHECK([TEST_HELPER(tp_basic_sh)], [1], [], [experr])
+
+dnl Try to ask for help, which is not bundled in.
+AT_CHECK([TEST_HELPER(tp_basic_c) -h], [1], [], [stderr])
+sed 's,tp_basic_c,tp_basic_cpp,g' <stderr >experr
+AT_CHECK([TEST_HELPER(tp_basic_cpp) -h], [1], [], [experr])
+sed 's,tp_basic_c,tp_basic_sh,g' <stderr >experr
+AT_CHECK([TEST_HELPER(tp_basic_sh) -h], [1], [], [experr])
+
+dnl Give an invalid option.
+AT_CHECK([TEST_HELPER(tp_basic_c) -Z], [1], [], [stderr])
+sed 's,tp_basic_c,tp_basic_cpp,g' <stderr >experr
+AT_CHECK([TEST_HELPER(tp_basic_cpp) -Z], [1], [], [experr])
+sed 's,tp_basic_c,tp_basic_sh,g' <stderr >experr
+AT_CHECK([TEST_HELPER(tp_basic_sh) -Z], [1], [], [experr])
+
+dnl List all tests.
+AT_CHECK([TEST_HELPER(tp_basic_c) -l], [0], [stdout], [])
+sed 's,tp_basic_c,tp_basic_cpp,g' <stdout >expout
+AT_CHECK([TEST_HELPER(tp_basic_cpp) -l], [0], [expout], [])
+sed 's,tp_basic_c,tp_basic_sh,g' <stdout >expout
+AT_CHECK([TEST_HELPER(tp_basic_sh) -l], [0], [expout], [])
+
+dnl Run no tests.
+AT_CHECK([TEST_HELPER(tp_basic_c)],
+         [1], [stdout], [stderr])
+sed 's,tp_basic_c,tp_basic_cpp,g' <stdout >expout
+sed 's,tp_basic_c,tp_basic_cpp,g' <stderr >experr
+AT_CHECK([TEST_HELPER(tp_basic_cpp)],
+         [1], [expout], [experr])
+sed 's,tp_basic_c,tp_basic_sh,g' <stdout >expout
+sed 's,tp_basic_c,tp_basic_sh,g' <stderr >experr
+AT_CHECK([TEST_HELPER(tp_basic_sh)],
+         [1], [expout], [experr])
+
+dnl Run the pass test case.
+AT_CHECK([TEST_HELPER(tp_basic_c) -r resout pass],
+         [0], [stdout], [stderr])
+sed 's,tp_basic_c,tp_basic_cpp,g' <stdout >expout
+sed 's,tp_basic_c,tp_basic_cpp,g' <stderr >experr
+sed 's,tp_basic_c,tp_basic_cpp,g' <resout >resexp
+AT_CHECK([TEST_HELPER(tp_basic_cpp) -r resout pass],
+         [0], [expout], [experr])
+AT_CHECK([cmp -s resout resexp], [0], [], [])
+sed 's,tp_basic_c,tp_basic_sh,g' <stdout >expout
+sed 's,tp_basic_c,tp_basic_sh,g' <stderr >experr
+sed 's,tp_basic_c,tp_basic_sh,g' <resout >resexp
+AT_CHECK([TEST_HELPER(tp_basic_sh) -r resout pass],
+         [0], [expout], [experr])
+AT_CHECK([cmp -s resout resexp], [0], [], [])
+
+dnl Run the fail test case.
+AT_CHECK([TEST_HELPER(tp_basic_c) -r resout fail],
+         [1], [stdout], [stderr])
+sed 's,tp_basic_c,tp_basic_cpp,g' <stdout >expout
+sed 's,tp_basic_c,tp_basic_cpp,g' <stderr >experr
+sed 's,tp_basic_c,tp_basic_cpp,g' <resout >resexp
+AT_CHECK([TEST_HELPER(tp_basic_cpp) -r resout fail],
+         [1], [expout], [experr])
+AT_CHECK([cmp -s resout resexp], [0], [], [])
+sed 's,tp_basic_c,tp_basic_sh,g' <stdout >expout
+sed 's,tp_basic_c,tp_basic_sh,g' <stderr >experr
+sed 's,tp_basic_c,tp_basic_sh,g' <resout >resexp
+AT_CHECK([TEST_HELPER(tp_basic_sh) -r resout fail],
+         [1], [expout], [experr])
+AT_CHECK([cmp -s resout resexp], [0], [], [])
+
+dnl Run the skip test case.
+AT_CHECK([TEST_HELPER(tp_basic_c) -r resout skip],
+         [0], [stdout], [stderr])
+sed 's,tp_basic_c,tp_basic_cpp,g' <stdout >expout
+sed 's,tp_basic_c,tp_basic_cpp,g' <stderr >experr
+sed 's,tp_basic_c,tp_basic_cpp,g' <resout >resexp
+AT_CHECK([TEST_HELPER(tp_basic_cpp) -r resout skip],
+         [0], [expout], [experr])
+AT_CHECK([cmp -s resout resexp], [0], [], [])
+sed 's,tp_basic_c,tp_basic_sh,g' <stdout >expout
+sed 's,tp_basic_c,tp_basic_sh,g' <stderr >experr
+sed 's,tp_basic_c,tp_basic_sh,g' <resout >resexp
+AT_CHECK([TEST_HELPER(tp_basic_sh) -r resout skip],
+         [0], [expout], [experr])
+AT_CHECK([cmp -s resout resexp], [0], [], [])
+
+dnl Run the default test case.
+AT_CHECK([TEST_HELPER(tp_basic_c) -r resout default],
+         [0], [stdout], [stderr])
+sed 's,tp_basic_c,tp_basic_cpp,g' <stdout >expout
+sed 's,tp_basic_c,tp_basic_cpp,g' <stderr >experr
+sed 's,tp_basic_c,tp_basic_cpp,g' <resout >resexp
+AT_CHECK([TEST_HELPER(tp_basic_cpp) -r resout default],
+         [0], [expout], [experr])
+AT_CHECK([cmp -s resout resexp], [0], [], [])
+sed 's,tp_basic_c,tp_basic_sh,g' <stdout >expout
+sed 's,tp_basic_c,tp_basic_sh,g' <stderr >experr
+sed 's,tp_basic_c,tp_basic_sh,g' <resout >resexp
+AT_CHECK([TEST_HELPER(tp_basic_sh) -r resout default],
+         [0], [expout], [experr])
+AT_CHECK([cmp -s resout resexp], [0], [], [])
+
+dnl Try running multiple tests.
+AT_CHECK([TEST_HELPER(tp_basic_c) pass fail],
+         [1], [stdout], [stderr])
+sed 's,tp_basic_c,tp_basic_cpp,g' <stdout >expout
+sed 's,tp_basic_c,tp_basic_cpp,g' <stderr >experr
+AT_CHECK([TEST_HELPER(tp_basic_cpp) pass fail],
+         [1], [expout], [experr])
+sed 's,tp_basic_c,tp_basic_sh,g' <stdout >expout
+sed 's,tp_basic_c,tp_basic_sh,g' <stderr >experr
+AT_CHECK([TEST_HELPER(tp_basic_sh) pass fail],
+         [1], [expout], [experr])
+
+dnl Run an unknown test case.
+AT_CHECK([TEST_HELPER(tp_basic_c) unknown],
+         [1], [stdout], [stderr])
+sed 's,tp_basic_c,tp_basic_cpp,g' <stdout >expout
+sed 's,tp_basic_c,tp_basic_cpp,g' <stderr >experr
+AT_CHECK([TEST_HELPER(tp_basic_cpp) unknown],
+         [1], [expout], [experr])
+sed 's,tp_basic_c,tp_basic_sh,g' <stdout >expout
+sed 's,tp_basic_c,tp_basic_sh,g' <stderr >experr
+AT_CHECK([TEST_HELPER(tp_basic_sh) unknown],
+         [1], [expout], [experr])
+
+dnl Try running a non-existent cleanup routine.
+AT_CHECK([TEST_HELPER(tp_basic_c) pass:cleanup],
+         [0], [stdout], [stderr])
+sed 's,tp_basic_c,tp_basic_cpp,g' <stdout >expout
+sed 's,tp_basic_c,tp_basic_cpp,g' <stderr >experr
+AT_CHECK([TEST_HELPER(tp_basic_cpp) pass:cleanup],
+         [0], [expout], [experr])
+sed 's,tp_basic_c,tp_basic_sh,g' <stdout >expout
+sed 's,tp_basic_c,tp_basic_sh,g' <stderr >experr
+AT_CHECK([TEST_HELPER(tp_basic_sh) pass:cleanup],
+         [0], [expout], [experr])
+
+dnl Run a test and dump the results on stdout.
+AT_CHECK([TEST_HELPER(tp_basic_c) skip],
+         [0], [stdout], [stderr])
+sed 's,tp_basic_c,tp_basic_cpp,g' <stdout >expout
+sed 's,tp_basic_c,tp_basic_cpp,g' <stderr >experr
+AT_CHECK([TEST_HELPER(tp_basic_cpp) skip],
+         [0], [expout], [experr])
+sed 's,tp_basic_c,tp_basic_sh,g' <stdout >expout
+sed 's,tp_basic_c,tp_basic_sh,g' <stderr >experr
+AT_CHECK([TEST_HELPER(tp_basic_sh) skip],
+         [0], [expout], [experr])
+
+AT_CLEANUP()
+
+dnl vim: syntax=m4:expandtab:shiftwidth=4:softtabstop=4

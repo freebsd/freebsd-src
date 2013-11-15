@@ -38,6 +38,7 @@ extern "C" {
 #include <stdexcept>
 
 #include "macros.hpp"
+#include "utils.hpp"
 
 #include "detail/fs.hpp"
 #include "detail/process.hpp"
@@ -291,7 +292,7 @@ ATF_TEST_CASE_BODY(pass)
 {
     ATF_TEST_CASE_USE(h_pass);
     run_h_tc< ATF_TEST_CASE_NAME(h_pass) >();
-    ATF_REQUIRE(grep_file("result", "^passed"));
+    ATF_REQUIRE(atf::utils::grep_file("^passed", "result"));
     ATF_REQUIRE(atf::fs::exists(atf::fs::path("before")));
     ATF_REQUIRE(!atf::fs::exists(atf::fs::path("after")));
 }
@@ -305,7 +306,7 @@ ATF_TEST_CASE_BODY(fail)
 {
     ATF_TEST_CASE_USE(h_fail);
     run_h_tc< ATF_TEST_CASE_NAME(h_fail) >();
-    ATF_REQUIRE(grep_file("result", "^failed: Failed on purpose"));
+    ATF_REQUIRE(atf::utils::grep_file("^failed: Failed on purpose", "result"));
     ATF_REQUIRE(atf::fs::exists(atf::fs::path("before")));
     ATF_REQUIRE(!atf::fs::exists(atf::fs::path("after")));
 }
@@ -319,7 +320,8 @@ ATF_TEST_CASE_BODY(skip)
 {
     ATF_TEST_CASE_USE(h_skip);
     run_h_tc< ATF_TEST_CASE_NAME(h_skip) >();
-    ATF_REQUIRE(grep_file("result", "^skipped: Skipped on purpose"));
+    ATF_REQUIRE(atf::utils::grep_file("^skipped: Skipped on purpose",
+        "result"));
     ATF_REQUIRE(atf::fs::exists(atf::fs::path("before")));
     ATF_REQUIRE(!atf::fs::exists(atf::fs::path("after")));
 }
@@ -354,10 +356,11 @@ ATF_TEST_CASE_BODY(require)
 
         ATF_REQUIRE(atf::fs::exists(before));
         if (t->ok) {
-            ATF_REQUIRE(grep_file("result", "^passed"));
+            ATF_REQUIRE(atf::utils::grep_file("^passed", "result"));
             ATF_REQUIRE(atf::fs::exists(after));
         } else {
-            ATF_REQUIRE(grep_file("result", "^failed: .*condition not met"));
+            ATF_REQUIRE(atf::utils::grep_file(
+                "^failed: .*condition not met", "result"));
             ATF_REQUIRE(!atf::fs::exists(after));
         }
 
@@ -403,10 +406,10 @@ ATF_TEST_CASE_BODY(require_eq)
 
         ATF_REQUIRE(atf::fs::exists(before));
         if (t->ok) {
-            ATF_REQUIRE(grep_file("result", "^passed"));
+            ATF_REQUIRE(atf::utils::grep_file("^passed", "result"));
             ATF_REQUIRE(atf::fs::exists(after));
         } else {
-            ATF_REQUIRE(grep_file("result", "^failed: .*v1 != v2"));
+            ATF_REQUIRE(atf::utils::grep_file("^failed: .*v1 != v2", "result"));
             ATF_REQUIRE(!atf::fs::exists(after));
         }
 
@@ -448,10 +451,10 @@ ATF_TEST_CASE_BODY(require_in)
 
         ATF_REQUIRE(atf::fs::exists(before));
         if (t->ok) {
-            ATF_REQUIRE(grep_file("result", "^passed"));
+            ATF_REQUIRE(atf::utils::grep_file("^passed", "result"));
             ATF_REQUIRE(atf::fs::exists(after));
         } else {
-            ATF_REQUIRE(grep_file("result", "^failed: "));
+            ATF_REQUIRE(atf::utils::grep_file("^failed: ", "result"));
             ATF_REQUIRE(!atf::fs::exists(after));
         }
 
@@ -495,10 +498,10 @@ ATF_TEST_CASE_BODY(require_match)
 
         ATF_REQUIRE(atf::fs::exists(before));
         if (t->ok) {
-            ATF_REQUIRE(grep_file("result", "^passed"));
+            ATF_REQUIRE(atf::utils::grep_file("^passed", "result"));
             ATF_REQUIRE(atf::fs::exists(after));
         } else {
-            ATF_REQUIRE(grep_file("result", "^failed: "));
+            ATF_REQUIRE(atf::utils::grep_file("^failed: ", "result"));
             ATF_REQUIRE(!atf::fs::exists(after));
         }
 
@@ -540,10 +543,10 @@ ATF_TEST_CASE_BODY(require_not_in)
 
         ATF_REQUIRE(atf::fs::exists(before));
         if (t->ok) {
-            ATF_REQUIRE(grep_file("result", "^passed"));
+            ATF_REQUIRE(atf::utils::grep_file("^passed", "result"));
             ATF_REQUIRE(atf::fs::exists(after));
         } else {
-            ATF_REQUIRE(grep_file("result", "^failed: "));
+            ATF_REQUIRE(atf::utils::grep_file("^failed: ", "result"));
             ATF_REQUIRE(!atf::fs::exists(after));
         }
 
@@ -586,13 +589,13 @@ ATF_TEST_CASE_BODY(require_throw)
 
         ATF_REQUIRE(atf::fs::exists(before));
         if (t->ok) {
-            ATF_REQUIRE(grep_file("result", "^passed"));
+            ATF_REQUIRE(atf::utils::grep_file("^passed", "result"));
             ATF_REQUIRE(atf::fs::exists(after));
         } else {
             std::cout << "Checking that message contains '" << t->msg
                       << "'\n";
             std::string exp_result = std::string("^failed: .*") + t->msg;
-            ATF_REQUIRE(grep_file("result", exp_result.c_str()));
+            ATF_REQUIRE(atf::utils::grep_file(exp_result.c_str(), "result"));
             ATF_REQUIRE(!atf::fs::exists(after));
         }
 
@@ -638,13 +641,13 @@ ATF_TEST_CASE_BODY(require_throw_re)
 
         ATF_REQUIRE(atf::fs::exists(before));
         if (t->ok) {
-            ATF_REQUIRE(grep_file("result", "^passed"));
+            ATF_REQUIRE(atf::utils::grep_file("^passed", "result"));
             ATF_REQUIRE(atf::fs::exists(after));
         } else {
             std::cout << "Checking that message contains '" << t->msg
                       << "'\n";
             std::string exp_result = std::string("^failed: .*") + t->msg;
-            ATF_REQUIRE(grep_file("result", exp_result.c_str()));
+            ATF_REQUIRE(atf::utils::grep_file(exp_result.c_str(), "result"));
             ATF_REQUIRE(!atf::fs::exists(after));
         }
 
@@ -688,13 +691,13 @@ ATF_TEST_CASE_BODY(check_errno)
         ATF_REQUIRE(atf::fs::exists(after));
 
         if (t->ok) {
-            ATF_REQUIRE(grep_file("result", "^passed"));
+            ATF_REQUIRE(atf::utils::grep_file("^passed", "result"));
         } else {
-            ATF_REQUIRE(grep_file("result", "^failed"));
+            ATF_REQUIRE(atf::utils::grep_file("^failed", "result"));
 
             std::string exp_result = "macros_test.cpp:[0-9]+: " +
                 std::string(t->msg) + "$";
-            ATF_REQUIRE(grep_file("stderr", exp_result.c_str()));
+            ATF_REQUIRE(atf::utils::grep_file(exp_result.c_str(), "stderr"));
         }
 
         atf::fs::remove(before);
@@ -734,12 +737,12 @@ ATF_TEST_CASE_BODY(require_errno)
 
         ATF_REQUIRE(atf::fs::exists(before));
         if (t->ok) {
-            ATF_REQUIRE(grep_file("result", "^passed"));
+            ATF_REQUIRE(atf::utils::grep_file("^passed", "result"));
             ATF_REQUIRE(atf::fs::exists(after));
         } else {
             std::string exp_result = "^failed: .*macros_test.cpp:[0-9]+: " +
                 std::string(t->msg) + "$";
-            ATF_REQUIRE(grep_file("result", exp_result.c_str()));
+            ATF_REQUIRE(atf::utils::grep_file(exp_result.c_str(), "result"));
 
             ATF_REQUIRE(!atf::fs::exists(after));
         }

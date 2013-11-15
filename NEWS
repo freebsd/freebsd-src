@@ -2,6 +2,40 @@ Major changes between releases                  Automated Testing Framework
 ===========================================================================
 
 
+Changes in version 0.17
+***********************
+
+Experimental version released on February 14th, 2013.
+
+* Added the atf_utils_cat_file, atf_utils_compare_file,
+  atf_utils_copy_file, atf_utils_create_file, atf_utils_file_exists,
+  atf_utils_fork, atf_utils_grep_file, atf_utils_grep_string,
+  atf_utils_readline, atf_utils_redirect and atf_utils_wait utility
+  functions to atf-c-api.  Documented the already-public
+  atf_utils_free_charpp function.
+
+* Added the cat_file, compare_file, copy_file, create_file, file_exists,
+  fork, grep_collection, grep_file, grep_string, redirect and wait
+  functions to the atf::utils namespace of atf-c++-api.  These are
+  wrappers around the same functions added to the atf-c-api library.
+
+* Added the ATF_CHECK_MATCH, ATF_CHECK_MATCH_MSG, ATF_REQUIRE_MATCH and
+  ATF_REQUIRE_MATCH_MSG macros to atf-c to simplify the validation of a
+  string against a regular expression.
+
+* Miscellaneous fixes for manpage typos and compilation problems with
+  clang.
+
+* Added caching of the results of those configure tests that rely on
+  executing a test program.  This should help crossbuild systems by
+  providing a mechanism to pre-specify what the results should be.
+
+* PR bin/45690: Make atf-report convert any non-printable characters to
+  a plain-text representation (matching their corresponding hexadecimal
+  entities) in XML output files.  This is to prevent the output of test
+  cases from breaking xsltproc later.
+
+
 Changes in version 0.16
 ***********************
 

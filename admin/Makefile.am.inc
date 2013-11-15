@@ -27,18 +27,12 @@
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-dist-hook: check-install
-PHONY_TARGETS += check-install
-check-install: $(srcdir)/INSTALL
-	$(srcdir)/admin/check-install.sh $(srcdir)/INSTALL
-
 dist-hook: check-style
 PHONY_TARGETS += check-style
 check-style:
 	$(srcdir)/admin/check-style.sh
 
-EXTRA_DIST += admin/check-install.sh \
-              admin/check-style-common.awk \
+EXTRA_DIST += admin/check-style-common.awk \
               admin/check-style-c.awk \
               admin/check-style-cpp.awk \
               admin/check-style-man.awk \

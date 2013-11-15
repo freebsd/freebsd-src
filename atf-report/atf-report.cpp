@@ -31,6 +31,7 @@ extern "C" {
 #include <sys/time.h>
 }
 
+#include <cctype>
 #include <cstdlib>
 #include <fstream>
 #include <iomanip>
@@ -381,7 +382,6 @@ public:
 class xml_writer : public writer {
     ostream_ptr m_os;
 
-    size_t m_curtp, m_ntps;
     std::string m_tcname, m_tpname;
 
     static
@@ -395,17 +395,24 @@ class xml_writer : public writer {
     std::string
     elemval(const std::string& str)
     {
-        std::string ostr;
+        std::ostringstream buf;
         for (std::string::const_iterator iter = str.begin();
              iter != str.end(); iter++) {
-            switch (*iter) {
-            case '&': ostr += "&amp;"; break;
-            case '<': ostr += "&lt;"; break;
-            case '>': ostr += "&gt;"; break;
-            default:  ostr += *iter;
+            const int character = static_cast< unsigned char >(*iter);
+            if (character == '&') {
+                buf << "&amp;";
+            } else if (character == '<') {
+                buf << "&lt;";
+            } else if (character == '>') {
+                buf << "&gt;";
+            } else if (std::isalnum(character) || std::ispunct(character) ||
+                       std::isspace(character)) {
+                buf << static_cast< char >(character);
+            } else {
+                buf << "&amp;#" << character << ";";
             }
         }
-        return ostr;
+        return buf.str();
     }
 
     void

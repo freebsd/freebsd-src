@@ -87,8 +87,6 @@ class tc;
 void header_check(const char*);
 void build_check_cxx_o(const atf::tests::tc&, const char*, const char*, bool);
 atf::fs::path get_process_helpers_path(const atf::tests::tc&);
-bool grep_file(const char*, const char*);
-bool grep_string(const std::string&, const char*);
 
 struct run_h_tc_data {
     const atf::tests::vars_map& m_config;
