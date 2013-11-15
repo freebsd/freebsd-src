@@ -54,7 +54,7 @@ atf_test_case expout_mismatch
 expout_mismatch_head()
 {
     atf_set "descr" "Verifies that atf_check prints a diff of the" \
-                    "stdout and the expected stdout if the two do no" \
+                    "stdout and the expected stdout if the two do not" \
                     "match"
 }
 expout_mismatch_body()
@@ -79,7 +79,7 @@ atf_test_case experr_mismatch
 experr_mismatch_head()
 {
     atf_set "descr" "Verifies that atf_check prints a diff of the" \
-                    "stderr and the expected stderr if the two do no" \
+                    "stderr and the expected stderr if the two do not" \
                     "match"
 }
 experr_mismatch_body()

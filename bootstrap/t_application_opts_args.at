@@ -1,0 +1,86 @@
+dnl
+dnl Automated Testing Framework (atf)
+dnl
+dnl Copyright (c) 2007 The NetBSD Foundation, Inc.
+dnl All rights reserved.
+dnl
+dnl Redistribution and use in source and binary forms, with or without
+dnl modification, are permitted provided that the following conditions
+dnl are met:
+dnl 1. Redistributions of source code must retain the above copyright
+dnl    notice, this list of conditions and the following disclaimer.
+dnl 2. Redistributions in binary form must reproduce the above copyright
+dnl    notice, this list of conditions and the following disclaimer in the
+dnl    documentation and/or other materials provided with the distribution.
+dnl
+dnl THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND
+dnl CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+dnl INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+dnl MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+dnl IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS BE LIABLE FOR ANY
+dnl DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+dnl DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+dnl GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+dnl INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+dnl IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+dnl OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+dnl IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+dnl
+
+AT_SETUP([application: arguments and options handling])
+
+dnl Check that an application that does not redefine any method does
+dnl not show strange flags in the usage message.
+AT_CHECK([APP_HELPER(app_empty) -h], 0, [stdout], [])
+AT_CHECK([grep ' -d ' stdout], 1, [ignore], [])
+AT_CHECK([grep ' -h ' stdout], 0, [ignore], [])
+AT_CHECK([grep ' -v ' stdout], 1, [ignore], [])
+AT_CHECK([grep ' -z ' stdout], 1, [ignore], [])
+
+dnl Check that an application that adds its own options shows them in
+dnl the usage message.
+AT_CHECK([APP_HELPER(app_opts_args) -h], 0, [stdout], [])
+AT_CHECK([grep ' -d ' stdout], 0, [ignore], [])
+AT_CHECK([grep ' -h ' stdout], 0, [ignore], [])
+AT_CHECK([grep ' -v ' stdout], 0, [ignore], [])
+AT_CHECK([grep ' -z ' stdout], 1, [ignore], [])
+
+dnl Check that an application that does not redefine any method does
+dnl not recognize strange flags.
+AT_CHECK([APP_HELPER(app_empty) -d], 1, [], [stderr])
+AT_CHECK([grep 'Unknown option.*-d' stderr], 0, [ignore], [])
+AT_CHECK([APP_HELPER(app_empty) -v], 1, [], [stderr])
+AT_CHECK([grep 'Unknown option.*-v' stderr], 0, [ignore], [])
+AT_CHECK([APP_HELPER(app_empty) -z], 1, [], [stderr])
+AT_CHECK([grep 'Unknown option.*-z' stderr], 0, [ignore], [])
+
+dnl Check that an application that adds its own options is able to
+dnl properly handle them.
+AT_CHECK([APP_HELPER(app_opts_args) -d], 0, [stdout], [])
+AT_CHECK([grep -- '-d given' stdout], 0, [ignore], [])
+AT_CHECK([APP_HELPER(app_opts_args) -v], 1, [], [stderr])
+AT_CHECK([grep 'Option.*-v.*requires an argument' stderr], 0, [ignore], [])
+AT_CHECK([APP_HELPER(app_opts_args) -v foo], 0, [stdout], [])
+AT_CHECK([grep -- '-v given with argument foo' stdout], 0, [ignore], [])
+AT_CHECK([APP_HELPER(app_opts_args) -z], 1, [], [stderr])
+AT_CHECK([grep 'Unknown option.*-z' stderr], 0, [ignore], [])
+
+dnl Check that option processing stops after an argument.
+AT_CHECK([APP_HELPER(app_opts_args) -- -d], 0, [stdout], [])
+AT_CHECK([grep -- '-d given' stdout], 1, [], [])
+AT_CHECK([APP_HELPER(app_opts_args) arg -d], 0, [stdout], [])
+AT_CHECK([grep -- '-d given' stdout], 1, [], [])
+
+dnl Check that an application that does not redefine any method does
+dnl not show unexpected arguments in the usage message.
+AT_CHECK([APP_HELPER(app_empty) -h], 0, [stdout], [])
+AT_CHECK([grep '\@<:@options\@:>@$' stdout], 0, [ignore], [])
+
+dnl Check that an application that defines the arguments it takes
+dnl shows them in the usage message.
+AT_CHECK([APP_HELPER(app_opts_args) -h], 0, [stdout], [])
+AT_CHECK([grep '\@<:@options\@:>@ <arg1> <arg2>' stdout], 0, [ignore], [])
+
+AT_CLEANUP()
+
+dnl vim: syntax=m4:expandtab:shiftwidth=4:softtabstop=4

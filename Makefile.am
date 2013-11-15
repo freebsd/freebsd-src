@@ -101,11 +101,14 @@ endif
 
 PHONY_TARGETS += installcheck-kyua
 if HAVE_KYUA
+if !ENABLE_TOOLS
+INSTALLCHECK_TARGETS += installcheck-kyua
+endif
 installcheck-kyua:
 	cd $(pkgtestsdir) && $(TESTS_ENVIRONMENT) $(KYUA) test
 endif
 
-installcheck-targets: $(INSTALLCHECK_TARGETS)
+installcheck-local: $(INSTALLCHECK_TARGETS)
 
 pkgtests_DATA = Kyuafile
 if ENABLE_TOOLS

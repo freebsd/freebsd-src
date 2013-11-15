@@ -67,14 +67,6 @@ test-programs/expect_test: $(srcdir)/test-programs/expect_test.sh
 	@src="$(srcdir)/test-programs/expect_test.sh $(common_sh)"; \
 	dst="test-programs/expect_test"; $(BUILD_SH_TP)
 
-tests_test_programs_SCRIPTS += test-programs/fork_test
-CLEANFILES += test-programs/fork_test
-EXTRA_DIST += test-programs/fork_test.sh
-test-programs/fork_test: $(srcdir)/test-programs/fork_test.sh
-	test -d test-programs || mkdir -p test-programs
-	@src="$(srcdir)/test-programs/fork_test.sh $(common_sh)"; \
-	dst="test-programs/fork_test"; $(BUILD_SH_TP)
-
 tests_test_programs_SCRIPTS += test-programs/meta_data_test
 CLEANFILES += test-programs/meta_data_test
 EXTRA_DIST += test-programs/meta_data_test.sh

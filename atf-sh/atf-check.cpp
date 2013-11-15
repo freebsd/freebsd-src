@@ -49,9 +49,9 @@ extern "C" {
 
 #include "atf-c++/check.hpp"
 #include "atf-c++/config.hpp"
-#include "atf-c++/utils.hpp"
 
 #include "atf-c++/detail/application.hpp"
+#include "atf-c++/detail/auto_array.hpp"
 #include "atf-c++/detail/exceptions.hpp"
 #include "atf-c++/detail/fs.hpp"
 #include "atf-c++/detail/process.hpp"
@@ -116,7 +116,7 @@ public:
         std::ostream(NULL),
         m_fd(-1)
     {
-        atf::utils::auto_array< char > buf(new char[p.str().length() + 1]);
+        atf::auto_array< char > buf(new char[p.str().length() + 1]);
         std::strcpy(buf.get(), p.c_str());
 
         m_fd = ::mkstemp(buf.get());

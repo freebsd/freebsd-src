@@ -1,8 +1,7 @@
-#! /bin/sh
 #
 # Automated Testing Framework (atf)
 #
-# Copyright (c) 2007 The NetBSD Foundation, Inc.
+# Copyright (c) 2009 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -28,65 +27,21 @@
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-#
-# A utility to ensure that INSTALL lists the correct versions of the
-# tools used to generate the distfile.
-#
-
-Prog_Name=${0##*/}
-
-#
-# err message
-#
-err() {
-    echo "${Prog_Name}: ${@}" 1>&2
-    exit 1
+atf_test_case @TC_NAME@
+@TC_NAME@_head()
+{
+    atf_set "descr" "An empty test case that always passes"
+}
+@TC_NAME@_body()
+{
+    echo "ignore-me"
+    echo "ignore-me" 1>&2
+    atf_pass
 }
 
-#
-# warn message
-#
-warn() {
-    echo "${Prog_Name}: ${@}" 1>&2
+atf_init_test_cases()
+{
+    atf_add_test_case @TC_NAME@
 }
-
-#
-# check_tool readme_file prog_name verbose_name
-#
-#   Executes 'prog_name' to determine its version and checks if the
-#   given 'readme_file' contains 'verbose_name <version>' in it.
-#
-check_tool() {
-    readme=${1}
-    prog=${2}
-    name=${3}
-
-    ver=$(${prog} --version | head -n 1 | cut -d ' ' -f 4)
-
-    if grep "\\* ${name} ${ver}" ${readme} >/dev/null; then
-        true
-    else
-        warn "Incorrect version of ${name}"
-        false
-    fi
-}
-
-#
-# main readme_file
-#
-# Entry point.
-#
-main() {
-    readme=${1}
-    ret=0
-
-    check_tool ${readme} autoconf "GNU autoconf" || ret=1
-    check_tool ${readme} automake "GNU automake" || ret=1
-    check_tool ${readme} libtool "GNU libtool" || ret=1
-
-    return ${ret}
-}
-
-main "${@}"
 
 # vim: syntax=sh:expandtab:shiftwidth=4:softtabstop=4
