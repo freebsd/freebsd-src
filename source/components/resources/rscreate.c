@@ -435,23 +435,22 @@ AcpiRsCreatePciRoutingTable (
  *
  * FUNCTION:    AcpiRsCreateAmlResources
  *
- * PARAMETERS:  LinkedListBuffer        - Pointer to the resource linked list
- *              OutputBuffer            - Pointer to the user's buffer
+ * PARAMETERS:  ResourceList            - Pointer to the resource list buffer
+ *              OutputBuffer            - Where the AML buffer is returned
  *
  * RETURN:      Status  AE_OK if okay, else a valid ACPI_STATUS code.
  *              If the OutputBuffer is too small, the error will be
  *              AE_BUFFER_OVERFLOW and OutputBuffer->Length will point
  *              to the size buffer needed.
  *
- * DESCRIPTION: Takes the linked list of device resources and
- *              creates a bytestream to be used as input for the
- *              _SRS control method.
+ * DESCRIPTION: Converts a list of device resources to an AML bytestream
+ *              to be used as input for the _SRS control method.
  *
  ******************************************************************************/
 
 ACPI_STATUS
 AcpiRsCreateAmlResources (
-    ACPI_RESOURCE           *LinkedListBuffer,
+    ACPI_BUFFER             *ResourceList,
     ACPI_BUFFER             *OutputBuffer)
 {
     ACPI_STATUS             Status;
@@ -461,17 +460,15 @@ AcpiRsCreateAmlResources (
     ACPI_FUNCTION_TRACE (RsCreateAmlResources);
 
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "LinkedListBuffer = %p\n",
-        LinkedListBuffer));
+    /* Params already validated, no need to re-validate here */
 
-    /*
-     * Params already validated, so we don't re-validate here
-     *
-     * Pass the LinkedListBuffer into a module that calculates
-     * the buffer size needed for the byte stream.
-     */
-    Status = AcpiRsGetAmlLength (LinkedListBuffer,
-                &AmlSizeNeeded);
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "ResourceList Buffer = %p\n",
+        ResourceList->Pointer));
+
+    /* Get the buffer size needed for the AML byte stream */
+
+    Status = AcpiRsGetAmlLength (ResourceList->Pointer,
+                ResourceList->Length, &AmlSizeNeeded);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "AmlSizeNeeded=%X, %s\n",
         (UINT32) AmlSizeNeeded, AcpiFormatException (Status)));
@@ -490,14 +487,14 @@ AcpiRsCreateAmlResources (
 
     /* Do the conversion */
 
-    Status = AcpiRsConvertResourcesToAml (LinkedListBuffer, AmlSizeNeeded,
-                    OutputBuffer->Pointer);
+    Status = AcpiRsConvertResourcesToAml (ResourceList->Pointer,
+                AmlSizeNeeded, OutputBuffer->Pointer);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "OutputBuffer %p Length %X\n",
-            OutputBuffer->Pointer, (UINT32) OutputBuffer->Length));
+        OutputBuffer->Pointer, (UINT32) OutputBuffer->Length));
     return_ACPI_STATUS (AE_OK);
 }

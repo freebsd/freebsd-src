@@ -211,6 +211,7 @@ AcpiDebugPrint (
         }
 
         AcpiGbl_PrevThreadId = ThreadId;
+        AcpiGbl_NestingLevel = 0;
     }
 
     /*
@@ -219,13 +220,22 @@ AcpiDebugPrint (
      */
     AcpiOsPrintf ("%9s-%04ld ", ModuleName, LineNumber);
 
+#ifdef ACPI_EXEC_APP
+    /*
+     * For AcpiExec only, emit the thread ID and nesting level.
+     * Note: nesting level is really only useful during a single-thread
+     * execution. Otherwise, multiple threads will keep resetting the
+     * level.
+     */
     if (ACPI_LV_THREADS & AcpiDbgLevel)
     {
         AcpiOsPrintf ("[%u] ", (UINT32) ThreadId);
     }
 
-    AcpiOsPrintf ("[%02ld] %-22.22s: ",
-        AcpiGbl_NestingLevel, AcpiUtTrimFunctionName (FunctionName));
+    AcpiOsPrintf ("[%02ld] ", AcpiGbl_NestingLevel);
+#endif
+
+    AcpiOsPrintf ("%-22.22s: ", AcpiUtTrimFunctionName (FunctionName));
 
     va_start (args, Format);
     AcpiOsVprintf (Format, args);
@@ -475,7 +485,10 @@ AcpiUtExit (
             "%s\n", AcpiGbl_FnExitStr);
     }
 
-    AcpiGbl_NestingLevel--;
+    if (AcpiGbl_NestingLevel)
+    {
+        AcpiGbl_NestingLevel--;
+    }
 }
 
 ACPI_EXPORT_SYMBOL (AcpiUtExit)
@@ -527,7 +540,10 @@ AcpiUtStatusExit (
         }
     }
 
-    AcpiGbl_NestingLevel--;
+    if (AcpiGbl_NestingLevel)
+    {
+        AcpiGbl_NestingLevel--;
+    }
 }
 
 ACPI_EXPORT_SYMBOL (AcpiUtStatusExit)
@@ -569,7 +585,10 @@ AcpiUtValueExit (
             ACPI_FORMAT_UINT64 (Value));
     }
 
-    AcpiGbl_NestingLevel--;
+    if (AcpiGbl_NestingLevel)
+    {
+        AcpiGbl_NestingLevel--;
+    }
 }
 
 ACPI_EXPORT_SYMBOL (AcpiUtValueExit)
@@ -610,7 +629,10 @@ AcpiUtPtrExit (
             "%s %p\n", AcpiGbl_FnExitStr, Ptr);
     }
 
-    AcpiGbl_NestingLevel--;
+    if (AcpiGbl_NestingLevel)
+    {
+        AcpiGbl_NestingLevel--;
+    }
 }
 
 #endif

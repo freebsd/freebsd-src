@@ -224,6 +224,11 @@ CFLAGS += \
     -DACPI_EXEC_APP\
     -I$(ACPIEXEC)
 
+ifeq ($(ASLTS),TRUE)
+CFLAGS += \
+    -DACPI_CHECKSUM_ABORT=TRUE
+endif
+
 LDFLAGS += -lpthread
 
 ifneq ($(HOST),_APPLE)

@@ -830,7 +830,7 @@ AcpiDmTestResourceConversion (
 
     /* Convert internal resource list to external AML resource template */
 
-    Status = AcpiRsCreateAmlResources (ResourceBuffer.Pointer, &NewAml);
+    Status = AcpiRsCreateAmlResources (&ResourceBuffer, &NewAml);
     if (ACPI_FAILURE (Status))
     {
         AcpiOsPrintf ("AcpiRsCreateAmlResources failed: %s\n",
@@ -842,8 +842,8 @@ AcpiDmTestResourceConversion (
 
     OriginalAml = ReturnBuffer.Pointer;
 
-    AcpiDmCompareAmlResources (
-        OriginalAml->Buffer.Pointer, (ACPI_RSDESC_SIZE) OriginalAml->Buffer.Length,
+    AcpiDmCompareAmlResources (OriginalAml->Buffer.Pointer,
+        (ACPI_RSDESC_SIZE) OriginalAml->Buffer.Length,
         NewAml.Pointer, (ACPI_RSDESC_SIZE) NewAml.Length);
 
     /* Cleanup and exit */
@@ -1042,7 +1042,7 @@ GetCrs:
         }
 
 EndCrs:
-        ACPI_FREE_BUFFER (ReturnBuffer);
+        ACPI_FREE (ReturnBuffer.Pointer);
     }
 
 

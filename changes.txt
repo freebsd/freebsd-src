@@ -1,4 +1,79 @@
 ----------------------------------------
+15 November 2013. Summary of changes for version 20131115:
+
+This release is available at https://acpica.org/downloads
+
+
+1) ACPICA kernel-resident subsystem:
+
+Resource Manager: Fixed loop termination for the "get AML length" 
+function. The loop previously had an error termination on a NULL resource 
+pointer, which can never happen since the loop simply increments a valid 
+resource pointer. This fix changes the loop to terminate with an error on 
+an invalid end-of-buffer condition. The problem can be seen as an 
+infinite loop by callers to AcpiSetCurrentResources with an invalid or 
+corrupted resource descriptor, or a resource descriptor that is missing 
+an END_TAG descriptor. Reported by Dan Carpenter 
+<dan.carpenter@oracle.com>. Lv Zheng, Bob Moore.
+
+Table unload and ACPICA termination: Delete all attached data objects 
+during namespace node deletion. This fix updates namespace node deletion 
+to delete the entire list of attached objects (attached via 
+AcpiAttachObject) instead of just one of the attached items. ACPICA BZ 
+1024. Tomasz Nowicki (tomasz.nowicki@linaro.org).
+
+ACPICA termination: Added support to delete all objects attached to the 
+root namespace node. This fix deletes any and all objects that have been 
+attached to the root node via AcpiAttachData. Previously, none of these 
+objects were deleted. Reported by Tomasz Nowicki. ACPICA BZ 1026.
+
+Debug output: Do not emit the function nesting level for the in-kernel 
+build. The nesting level is really only useful during a single-thread 
+execution. Therefore, only enable this output for the AcpiExec utility. 
+Also, only emit the thread ID when executing under AcpiExec (Context 
+switches are still always detected and a message is emitted). ACPICA BZ 
+972.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version:  95.9K Code, 27.0K Data, 122.9K Total
+    Debug Version:     185.1K Code, 77.2K Data, 262.3K Total
+  Previous Release:
+    Non-Debug Version:  95.8K Code, 27.0K Data, 122.8K Total
+    Debug Version:     185.2K Code, 77.2K Data, 262.4K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+AcpiExec/Unix-OSL: Use <termios.h> instead of <termio.h>. This is the 
+correct portable POSIX header for terminal control functions.
+
+Disassembler: Fixed control method invocation issues related to the use 
+of the CondRefOf() operator. The problem is seen in the disassembly where 
+control method invocations may not be disassembled properly if the 
+control method name has been used previously as an argument to CondRefOf. 
+The solution is to not attempt to emit an external declaration for the 
+CondRefOf target (it is not necessary in the first place). This prevents 
+disassembler object type confusion. ACPICA BZ 988.
+
+Unix Makefiles: Added an option to disable compiler optimizations and the 
+_FORTIFY_SOURCE flag. Some older compilers have problems compiling ACPICA 
+with optimizations (reportedly, gcc 4.4 for example). This change adds a 
+command line option for make (NOOPT) that disables all compiler 
+optimizations and the _FORTIFY_SOURCE compiler flag. The default 
+optimization is -O2 with the _FORTIFY_SOURCE flag specified. ACPICA BZ 
+1034. Lv Zheng, Bob Moore.
+
+Tests/ASLTS: Added options to specify individual test cases and modes. 
+This allows testers running aslts.sh to optionally specify individual 
+test modes and test cases. Also added an option to disable the forced 
+generation of the ACPICA tools from source if desired. Lv Zheng.
+
+----------------------------------------
 27 September 2013. Summary of changes for version 20130927:
 
 This release is available at https://acpica.org/downloads
@@ -7,8 +82,10 @@ This release is available at https://acpica.org/downloads
 1) ACPICA kernel-resident subsystem:
 
 Fixed a problem with store operations to reference objects. This change 
-fixes a problem where a Store operation to an ArgX object that contained a 
-reference to a field object did not complete the automatic dereference and 
+fixes a problem where a Store operation to an ArgX object that contained 
+a 
+reference to a field object did not complete the automatic dereference 
+and 
 then write to the actual field object. Instead, the object type of the 
 field object was inadvertently changed to match the type of the source 
 operand. The new behavior will actually write to the field object (buffer 
@@ -26,10 +103,12 @@ Hardcoded the access width for the FADT-defined reset register. The ACPI
 specification requires the reset register width to be 8 bits. ACPICA now 
 hardcodes the width to 8 and ignores the FADT width value. This provides 
 compatibility with other ACPI implementations that have allowed BIOS code 
-with bad register width values to go unnoticed. Matthew Garett, Bob Moore, 
+with bad register width values to go unnoticed. Matthew Garett, Bob 
+Moore, 
 Lv Zheng.
 
-Changed the position/use of the ACPI_PRINTF_LIKE macro. This macro is used 
+Changed the position/use of the ACPI_PRINTF_LIKE macro. This macro is 
+used 
 in the OSL header (acpiosxf). The change modifies the position of this 
 macro in each instance where it is used (AcpiDebugPrint, etc.) to avoid 
 build issues if the OSL defines the implementation of the interface to be 
@@ -42,12 +121,14 @@ additional or different processing for these functions. Changed from
 ACPI_EXPORT_SYMBOL to ACPI_EXPORT_SYMBOL_INIT for these functions. Lv 
 Zheng, Bob Moore.
 
-Cleaned up the memory allocation macros for configurability. In the common 
+Cleaned up the memory allocation macros for configurability. In the 
+common 
 case, the ACPI_ALLOCATE and related macros now resolve directly to their 
 respective AcpiOs* OSL interfaces. Two options:
 1) The ACPI_ALLOCATE_ZEROED macro uses a simple local implementation by 
 default, unless overridden by the USE_NATIVE_ALLOCATE_ZEROED define.
-2) For AcpiExec (and for debugging), the macros can optionally be resolved 
+2) For AcpiExec (and for debugging), the macros can optionally be 
+resolved 
 to the local ACPICA interfaces that track each allocation (local tracking 
 is used to immediately detect memory leaks).
 Lv Zheng.
@@ -73,7 +154,8 @@ has a much larger code and data size.
 2) iASL Compiler/Disassembler and Tools:
 
 iASL: Implemented wildcard support for the -e option. This simplifies use 
-when there are many SSDTs that must be included to resolve external method 
+when there are many SSDTs that must be included to resolve external 
+method 
 declarations. ACPICA BZ 1041. Example:
     iasl -e ssdt*.dat -d dsdt.dat
 
@@ -81,7 +163,8 @@ AcpiExec: Add history/line-editing for Unix/Linux systems. This change
 adds a portable module that implements full history and limited line 
 editing for Unix and Linux systems. It does not use readline() due to 
 portability issues. Instead it uses the POSIX termio interface to put the 
-terminal in raw input mode so that the various special keys can be trapped 
+terminal in raw input mode so that the various special keys can be 
+trapped 
 (such as up/down-arrow for history support and left/right-arrow for line 
 editing). Uses the existing debugger history mechanism. ACPICA BZ 1036.
 
