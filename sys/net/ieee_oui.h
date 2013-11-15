@@ -32,7 +32,8 @@
  */
 
 /* Organizationally Unique Identifier assigned by IEEE 14 Nov 2013 */
-#define OUI_FREEBSD 0x589cfc
+#define OUI_FREEBSD_BASE 0x589cfc000000
+#define OUI_FREEBSD(nic) (OUI_FREEBSD_BASE | (nic))
 
 /* 
  * OUIs are most often used to uniquely identify network interfaces
@@ -62,5 +63,5 @@
  */
 
 /* Allocate 64K to bhyve */
-#define OUI_FREEBSD_BHYVE_LOW	(((uint64_t)OUI_FREEBSD << 24) | 0x000001)
-#define OUI_FREEBSD_BHYVE_HIGH	(((uint64_t)OUI_FREEBSD << 24) | 0x00ffff)
+#define OUI_FREEBSD_BHYVE_LOW	OUI_FREEBSD(0x000001)
+#define OUI_FREEBSD_BHYVE_HIGH	OUI_FREEBSD(0x00ffff)
