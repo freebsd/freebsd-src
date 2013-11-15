@@ -1,4 +1,4 @@
-.\"     $OpenBSD: nc.1,v 1.63 2013/07/16 00:07:52 schwarze Exp $
+.\"     $OpenBSD: nc.1,v 1.65 2013/08/20 21:05:20 jmc Exp $
 .\"
 .\" Copyright (c) 1996 David Sacerdote
 .\" All rights reserved.
@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: March 20 2013 $
+.Dd $Mdocdate: August 20 2013 $
 .Dt NC 1
 .Os
 .Sh NAME
@@ -34,7 +34,7 @@
 .Sh SYNOPSIS
 .Nm nc
 .Bk -words
-.Op Fl 46DdhklNnrStUuvz
+.Op Fl 46DdFhklNnrStUuvz
 .Op Fl I Ar length
 .Op Fl i Ar interval
 .Op Fl O Ar length
@@ -102,6 +102,21 @@ to use IPv6 addresses only.
 Enable debugging on the socket.
 .It Fl d
 Do not attempt to read from stdin.
+.It Fl F
+Pass the first connected socket using
+.Xr sendmsg 2
+to stdout and exit.
+This is useful in conjunction with
+.Fl X
+to have
+.Nm
+perform connection setup with a proxy but then leave the rest of the
+connection to another program (e.g.\&
+.Xr ssh 1
+using the
+.Xr ssh_config 5
+.Cm ProxyUseFdPass
+option).
 .It Fl h
 Prints out
 .Nm
