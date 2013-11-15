@@ -920,8 +920,7 @@ vtterm_cngetc(struct terminal *tm)
 	}
 
 	if (vw->vw_kbdsq && *vw->vw_kbdsq)
-		return (*
-		vw->vw_kbdsq++);
+		return (*vw->vw_kbdsq++);
 
 	return (-1);
 }
