@@ -153,10 +153,7 @@ static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
 #endif
 
 static int
-gif_clone_create(ifc, unit, params)
-	struct if_clone *ifc;
-	int unit;
-	caddr_t params;
+gif_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
 	struct gif_softc *sc;
 
@@ -200,8 +197,7 @@ gif_clone_create(ifc, unit, params)
 }
 
 static void
-gif_clone_destroy(ifp)
-	struct ifnet *ifp;
+gif_clone_destroy(struct ifnet *ifp)
 {
 #if defined(INET) || defined(INET6)
 	int err;
@@ -247,10 +243,7 @@ VNET_SYSINIT(vnet_gif_init, SI_SUB_PSEUDO, SI_ORDER_MIDDLE, vnet_gif_init,
     NULL);
 
 static int
-gifmodevent(mod, type, data)
-	module_t mod;
-	int type;
-	void *data;
+gifmodevent(module_t mod, int type, void *data)
 {
 
 	switch (type) {
@@ -280,11 +273,7 @@ DECLARE_MODULE(if_gif, gif_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_gif, 1);
 
 int
-gif_encapcheck(m, off, proto, arg)
-	const struct mbuf *m;
-	int off;
-	int proto;
-	void *arg;
+gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 {
 	struct ip ip;
 	struct gif_softc *sc;
@@ -529,10 +518,7 @@ gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 }
 
 void
-gif_input(m, af, ifp)
-	struct mbuf *m;
-	int af;
-	struct ifnet *ifp;
+gif_input(struct mbuf *m, int af, struct ifnet *ifp)
 {
 	int isr, n;
 	struct gif_softc *sc;
@@ -669,10 +655,7 @@ gif_input(m, af, ifp)
 
 /* XXX how should we handle IPv6 scope on SIOC[GS]IFPHYADDR? */
 int
-gif_ioctl(ifp, cmd, data)
-	struct ifnet *ifp;
-	u_long cmd;
-	caddr_t data;
+gif_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct gif_softc *sc  = ifp->if_softc;
 	struct ifreq     *ifr = (struct ifreq*)data;
@@ -914,10 +897,7 @@ gif_ioctl(ifp, cmd, data)
  * a mutex.
  */
 int
-gif_set_tunnel(ifp, src, dst)
-	struct ifnet *ifp;
-	struct sockaddr *src;
-	struct sockaddr *dst;
+gif_set_tunnel(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
 {
 	struct gif_softc *sc = ifp->if_softc;
 	struct gif_softc *sc2;
@@ -1023,8 +1003,7 @@ gif_set_tunnel(ifp, src, dst)
 }
 
 void
-gif_delete_tunnel(ifp)
-	struct ifnet *ifp;
+gif_delete_tunnel(struct ifnet *ifp)
 {
 	struct gif_softc *sc = ifp->if_softc;
 
