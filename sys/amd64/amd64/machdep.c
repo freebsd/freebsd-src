@@ -256,7 +256,6 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
-	realmem = Maxmem;
 
 	/*
 	 * Display physical memory if SMBIOS reports reasonable amount.
@@ -270,6 +269,7 @@ cpu_startup(dummy)
 	if (memsize < ptoa((uintmax_t)cnt.v_free_count))
 		memsize = ptoa((uintmax_t)Maxmem);
 	printf("real memory  = %ju (%ju MB)\n", memsize, memsize >> 20);
+	realmem = atop(memsize);
 
 	/*
 	 * Display any holes after the first chunk of extended memory.
