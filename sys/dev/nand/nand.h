@@ -235,6 +235,20 @@ struct onfi_params {
 }__attribute__((packed));
 CTASSERT(sizeof(struct onfi_params) == 256);
 
+struct onfi_chip_params {
+	uint8_t luns;
+	uint32_t blocks_per_lun;
+	uint32_t pages_per_block;
+	uint32_t bytes_per_page;
+	uint32_t spare_bytes_per_page;
+	uint16_t t_bers;
+	uint16_t t_prog;
+	uint16_t t_r;
+	uint16_t t_ccs;
+	uint16_t features;
+	uint8_t address_cycles;
+};
+
 struct nand_ecc_data {
 	int	eccsize;		/* Number of data bytes per ECC step */
 	int	eccmode;
@@ -367,7 +381,7 @@ void nand_init(struct nand_softc *nand, device_t dev, int ecc_mode,
 void nand_detach(struct nand_softc *nand);
 struct nand_params *nand_get_params(struct nand_id *id);
 
-void nand_onfi_set_params(struct nand_chip *chip, struct onfi_params *params);
+void nand_onfi_set_params(struct nand_chip *chip, struct onfi_chip_params *params);
 void nand_set_params(struct nand_chip *chip, struct nand_params *params);
 int  nand_init_stat(struct nand_chip *chip);
 void nand_destroy_stat(struct nand_chip *chip);

@@ -115,7 +115,7 @@ nand_init(struct nand_softc *nand, device_t dev, int ecc_mode,
 }
 
 void
-nand_onfi_set_params(struct nand_chip *chip, struct onfi_params *params)
+nand_onfi_set_params(struct nand_chip *chip, struct onfi_chip_params *params)
 {
 	struct chip_geom *cg;
 
