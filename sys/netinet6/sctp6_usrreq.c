@@ -138,17 +138,17 @@ sctp6_input_with_port(struct mbuf **i_pak, int *offp, uint16_t port)
 	src.sin6_len = sizeof(struct sockaddr_in6);
 	src.sin6_port = sh->src_port;
 	src.sin6_addr = ip6->ip6_src;
-	if (in6_setscope(&src.sin6_addr, m->m_pkthdr.rcvif, NULL) != 0) {
-		goto out;
-	}
+	src.sin6_scope_id = in6_getscopezone(m->m_pkthdr.rcvif,
+	    in6_addrscope(&ip6->ip6_src));
+
 	memset(&dst, 0, sizeof(struct sockaddr_in6));
 	dst.sin6_family = AF_INET6;
 	dst.sin6_len = sizeof(struct sockaddr_in6);
 	dst.sin6_port = sh->dest_port;
 	dst.sin6_addr = ip6->ip6_dst;
-	if (in6_setscope(&dst.sin6_addr, m->m_pkthdr.rcvif, NULL) != 0) {
-		goto out;
-	}
+	dst.sin6_scope_id = in6_getscopezone(m->m_pkthdr.rcvif,
+	    in6_addrscope(&ip6->ip6_dst));
+
 	if (faithprefix_p != NULL && (*faithprefix_p) (&dst.sin6_addr)) {
 		/* XXX send icmp6 host/port unreach? */
 		goto out;
