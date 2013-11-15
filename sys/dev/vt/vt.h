@@ -56,6 +56,10 @@
 #endif
 #endif
 
+#ifndef VT_ALT_TO_ESC_HACK
+#define	VT_ALT_TO_ESC_HACK	1
+#endif
+
 #define	VT_CONSWINDOW	0
 
 #if defined(SC_TWOBUTTON_MOUSE) || defined(VT_TWOBUTTON_MOUSE)
@@ -125,6 +129,7 @@ struct vt_device {
 #define	VDF_INITIALIZED	0x20	/* vtterm_cnprobe already done. */
 #define	VDF_MOUSECURSOR	0x40	/* Mouse cursor visible. */
 	int			 vd_keyboard;	/* (G) Keyboard index. */
+	unsigned int		 vd_kbstate;	/* (?) Device unit. */
 	unsigned int		 vd_unit;	/* (c) Device unit. */
 };
 
@@ -318,6 +323,7 @@ static struct vt_device	driver ## _consdev = {				\
 	.vd_windows = { [VT_CONSWINDOW] =  &driver ## _conswindow, },	\
 	.vd_curwindow = &driver ## _conswindow,				\
 	.vd_markedwin = NULL,						\
+	.vd_kbstate = 0,						\
 };									\
 static term_char_t	driver ## _constextbuf[(width) * 		\
 	    (VBF_DEFAULT_HISTORY_SIZE)];				\

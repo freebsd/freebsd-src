@@ -390,8 +390,27 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 	struct vt_window *vw = vd->vd_curwindow;
 	int state = 0;
 
-	if (c & RELKEY)
+#if VT_ALT_TO_ESC_HACK
+	if (c & RELKEY) {
+		switch (c & ~RELKEY) {
+		case (SPCLKEY | RALT):
+		case (SPCLKEY | LALT):
+			vd->vd_kbstate &= ~ALKED;
+		}
+		/* Other keys ignored for RELKEY event. */
 		return (0);
+	} else {
+		switch (c & ~RELKEY) {
+		case (SPCLKEY | RALT):
+		case (SPCLKEY | LALT):
+			vd->vd_kbstate |= ALKED;
+		}
+	}
+#else
+	if (c & RELKEY)
+		/* Other keys ignored for RELKEY event. */
+		return (0);
+#endif
 
 	if (vt_machine_kbdevent(c))
 		return (0);
@@ -471,9 +490,18 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 		}
 	} else if (KEYFLAGS(c) == 0) {
 		/* Don't do UTF-8 conversion when doing raw mode. */
-		if (vw->vw_kbdmode == K_XLATE)
+		if (vw->vw_kbdmode == K_XLATE) {
+#if VT_ALT_TO_ESC_HACK
+			if (vd->vd_kbstate & ALKED) {
+				/*
+				 * Prepend ESC sequence if one of ALT keys down.
+				 */
+				terminal_input_char(vw->vw_terminal, 0x1b);
+			}
+#endif
+
 			terminal_input_char(vw->vw_terminal, KEYCHAR(c));
-		else
+		} else
 			terminal_input_raw(vw->vw_terminal, c);
 	}
 	return (0);
