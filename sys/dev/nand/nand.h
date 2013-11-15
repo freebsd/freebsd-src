@@ -236,7 +236,6 @@ struct onfi_params {
 CTASSERT(sizeof(struct onfi_params) == 256);
 
 struct onfi_chip_params {
-	uint8_t luns;
 	uint32_t blocks_per_lun;
 	uint32_t pages_per_block;
 	uint32_t bytes_per_page;
@@ -247,6 +246,7 @@ struct onfi_chip_params {
 	uint16_t t_ccs;
 	uint16_t features;
 	uint8_t address_cycles;
+	uint8_t luns;
 };
 
 struct nand_ecc_data {
