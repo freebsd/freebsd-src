@@ -41,6 +41,8 @@
 		.set PSL_RESERVED_DEFAULT,0x00000002
 		.set PSL_T,0x00000100		# Trap flag
 		.set PSL_I,0x00000200		# Interrupt enable flag
+		.set PSL_D,0x00000400		# String instruction direction
+		.set PSL_NT,0x00004000		# Nested task flag
 		.set PSL_VM,0x00020000		# Virtual 8086 mode flag
 		.set PSL_AC,0x00040000		# Alignment check flag
 /*
@@ -611,8 +613,8 @@ rret_tramp:	movw $MEM_ESPR-0x08,%sp		# Reset stack pointer
 		pushl %ds			#  regs
 		pushl %es
 		pushfl				# Save %eflags
-		cli				# Disable interrupts
-		std				# String ops dec
+		pushl $PSL_RESERVED_DEFAULT|PSL_D # Use clean %eflags with
+		popfl				#  string ops dec
 		xorw %ax,%ax			# Reset seg 
 		movw %ax,%ds			#  regs
 		movw %ax,%es			#  (%ss is already 0)
@@ -675,6 +677,7 @@ rret_tramp.1:	xorl %ecx,%ecx			# Zero
 		testl $V86F_FLAGS,%edx		# User wants flags?
 		jz rret_tramp.3			# No
 		movl MEM_ESPR-0x3c,%eax		# Read real mode flags
+		andl $~(PSL_T|PSL_NT),%eax	# Clear unsafe flags
 		movw %ax,-0x08(%esi)		# Update user flags (low 16)
 /*
  * Return to the user task
