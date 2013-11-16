@@ -49,6 +49,14 @@
 	* config/i386/i386.c (override_options): Likewise.
 	* doc/invoke.texi: Likewise.
 
+2007-03-12  Seongbae Park <seongbae.park@gmail.com>
+
+	* c-decl.c (warn_variable_length_array): New function.
+	Refactored from grokdeclarator to handle warn_vla
+	and handle unnamed array case.
+	(grokdeclarator): Refactored VLA warning case.
+	* c.opt (Wvla): New flag.
+
 2007-03-11  Ian Lance Taylor  <iant@google.com> (r122831 - partial)
 
 	* tree-vrp.c (vrp_int_const_binop): Handle PLUS_EXPR and
