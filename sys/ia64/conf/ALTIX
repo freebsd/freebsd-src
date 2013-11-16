@@ -66,6 +66,7 @@ options 	TMPFS
 options 	UFS_DIRHASH
 options 	WITNESS
 options 	WITNESS_SKIPSPIN
+options 	ZFS
 options 	_KPOSIX_PRIORITY_SCHEDULING
 
 options 	ALQ
