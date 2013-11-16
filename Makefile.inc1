@@ -509,7 +509,7 @@ _worldtmp:
 .endif
 .if ${MK_TESTS} != "no"
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
-	    -p ${WORLDTMP}${TESTSBASE} >/dev/null
+	    -p ${WORLDTMP}/usr >/dev/null
 .endif
 .for _mtree in ${LOCAL_MTREE}
 	mtree -deU -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
