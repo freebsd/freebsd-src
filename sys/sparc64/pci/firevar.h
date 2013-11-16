@@ -32,6 +32,12 @@
 #define	_SPARC64_PCI_FIREVAR_H_
 
 struct fire_softc {
+	/*
+	 * The iommu state pointer must be the first field
+	 * in the softc so that the iommu code can get to
+	 * it from within the busdma I/F methods.
+	 */
+	struct iommu_state		*sc_is_ptr;
 	struct iommu_state		sc_is;
 	struct bus_dma_methods		sc_dma_methods;
 

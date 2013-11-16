@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/busdma.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -84,6 +85,8 @@ __FBSDID("$FreeBSD$");
 #include <sparc64/sbus/sbusreg.h>
 #include <sparc64/sbus/sbusvar.h>
 
+#include "busdma_if.h"
+
 struct sbus_devinfo {
 	int			sdi_burstsz;
 	int			sdi_clockfreq;
@@ -106,6 +109,13 @@ struct sbus_rd {
 };
 
 struct sbus_softc {
+	/*
+	 * The iommu state pointer must be the first field
+	 * in the softc so that the iommu code can get to
+	 * it from within the busdma I/F methods.
+	 */
+	struct iommu_state	*sc_is_ptr;
+
 	device_t		sc_dev;
 	bus_dma_tag_t		sc_cdmatag;
 	int			sc_clockfreq;	/* clock frequency (in Hz) */
@@ -187,6 +197,12 @@ static device_method_t sbus_methods[] = {
 	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
+
+	/* busdma I/O MMU interface. */
+	DEVMETHOD(busdma_iommu_xlate,	iommu_xlate),
+	DEVMETHOD(busdma_iommu_map,	iommu_map),
+	DEVMETHOD(busdma_iommu_unmap,	iommu_unmap),
+	DEVMETHOD(busdma_iommu_sync,	iommu_sync),
 
 	DEVMETHOD_END
 };
@@ -344,6 +360,7 @@ sbus_attach(device_t dev)
 	/* initalise the IOMMU */
 
 	/* punch in our copies */
+	sc->sc_is_ptr = &sc->sc_is;	/* For busdma/mi */
 	sc->sc_is.is_pmaxaddr = IOMMU_MAXADDR(SBUS_IOMMU_BITS);
 	sc->sc_is.is_bustag = rman_get_bustag(sc->sc_sysio_res);
 	sc->sc_is.is_bushandle = rman_get_bushandle(sc->sc_sysio_res);

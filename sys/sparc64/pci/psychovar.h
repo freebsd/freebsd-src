@@ -36,6 +36,12 @@
  * per pair of psychos.
  */
 struct psycho_softc {
+	/*
+	 * The iommu state pointer must be the first field
+	 * in the softc so that the iommu code can get to
+	 * it from within the busdma I/F methods.
+	 */
+	struct iommu_state		*sc_is;
 	struct bus_dma_methods		*sc_dma_methods;
 
 	device_t			sc_dev;
@@ -54,8 +60,6 @@ struct psycho_softc {
 
 	/* Bus A or B of a psycho pair? */
 	u_int				sc_half;
-
-	struct iommu_state		*sc_is;
 
 	struct resource			*sc_mem_res;
 	struct resource			*sc_irq_res[PSYCHO_NINTR];

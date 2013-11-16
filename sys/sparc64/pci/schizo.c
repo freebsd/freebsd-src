@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/busdma.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -75,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sparc64/pci/schizoreg.h>
 #include <sparc64/pci/schizovar.h>
 
+#include "busdma_if.h"
 #include "pcib_if.h"
 
 static const struct schizo_desc *schizo_get_desc(device_t);
@@ -151,6 +153,12 @@ static device_method_t schizo_methods[] = {
 
 	/* ofw_pci interface */
 	DEVMETHOD(ofw_pci_setup_device,	schizo_setup_device),
+
+	/* busdma I/O MMU interface. */
+	DEVMETHOD(busdma_iommu_xlate,	iommu_xlate),
+	DEVMETHOD(busdma_iommu_map,	iommu_map),
+	DEVMETHOD(busdma_iommu_unmap,	iommu_unmap),
+	DEVMETHOD(busdma_iommu_sync,	iommu_sync),
 
 	DEVMETHOD_END
 };
@@ -506,6 +514,7 @@ schizo_attach(device_t dev)
 	 */
 	memcpy(&sc->sc_dma_methods, &iommu_dma_methods,
 	    sizeof(sc->sc_dma_methods));
+	sc->sc_is_ptr = &sc->sc_is.sis_is;	/* For busdma/mi */
 	sc->sc_is.sis_sc = sc;
 	sc->sc_is.sis_is.is_flags = IOMMU_PRESERVE_PROM;
 	sc->sc_is.sis_is.is_pmaxaddr = IOMMU_MAXADDR(STX_IOMMU_BITS);

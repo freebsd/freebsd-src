@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/busdma.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -81,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sparc64/pci/firereg.h>
 #include <sparc64/pci/firevar.h>
 
+#include "busdma_if.h"
 #include "pcib_if.h"
 
 struct fire_msiqarg;
@@ -163,6 +165,12 @@ static device_method_t fire_methods[] = {
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	fire_get_node),
+
+	/* busdma I/O MMU interface. */
+	DEVMETHOD(busdma_iommu_xlate,	iommu_xlate),
+	DEVMETHOD(busdma_iommu_map,	iommu_map),
+	DEVMETHOD(busdma_iommu_unmap,	iommu_unmap),
+	DEVMETHOD(busdma_iommu_sync,	iommu_sync),
 
 	DEVMETHOD_END
 };
@@ -701,6 +709,7 @@ fire_attach(device_t dev)
 	 */
 	memcpy(&sc->sc_dma_methods, &iommu_dma_methods,
 	    sizeof(sc->sc_dma_methods));
+	sc->sc_is_ptr = &sc->sc_is;	/* For busdma/mi */
 	sc->sc_is.is_flags = IOMMU_FIRE | IOMMU_PRESERVE_PROM;
 	if (sc->sc_mode == FIRE_MODE_OBERON) {
 		sc->sc_is.is_flags |= IOMMU_FLUSH_CACHE;

@@ -108,6 +108,12 @@ void iommu_init(const char *name, struct iommu_state *is, u_int tsbsize,
 void iommu_reset(struct iommu_state *is);
 void iommu_decode_fault(struct iommu_state *is, vm_offset_t phys);
 
+/* busdma I/O MMU methods. */
+int iommu_xlate(device_t, device_t, busdma_mtag_t);
+int iommu_map(device_t, device_t, busdma_md_t, u_int, bus_addr_t *);
+int iommu_unmap(device_t, device_t, busdma_md_t, u_int);
+int iommu_sync(device_t, device_t, busdma_md_t, u_int, bus_addr_t, bus_size_t);
+
 extern struct bus_dma_methods iommu_dma_methods;
 
 #endif /* !_MACHINE_IOMMUVAR_H_ */

@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/busdma.h>
 #include <sys/endian.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -75,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sparc64/pci/psychoreg.h>
 #include <sparc64/pci/psychovar.h>
 
+#include "busdma_if.h"
 #include "pcib_if.h"
 
 static const struct psycho_desc *psycho_find_desc(const struct psycho_desc *,
@@ -153,6 +155,12 @@ static device_method_t psycho_methods[] = {
 
 	/* ofw_pci interface */
 	DEVMETHOD(ofw_pci_setup_device,	psycho_setup_device),
+
+	/* busdma I/O MMU interface. */
+	DEVMETHOD(busdma_iommu_xlate,	iommu_xlate),
+	DEVMETHOD(busdma_iommu_map,	iommu_map),
+	DEVMETHOD(busdma_iommu_unmap,	iommu_unmap),
+	DEVMETHOD(busdma_iommu_sync,	iommu_sync),
 
 	DEVMETHOD_END
 };

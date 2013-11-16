@@ -84,6 +84,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/busdma.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -1164,6 +1166,53 @@ iommu_dvmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 	if ((op & BUS_DMASYNC_PREWRITE) != 0)
 		membar(Sync);
 }
+
+
+
+
+int
+iommu_xlate(device_t bus __unused, device_t dev __unused,
+    busdma_mtag_t mtag __unused)
+{
+
+	/* No translation necessary */
+	return (0);
+}
+
+int
+iommu_map(device_t bus __unused, device_t dev __unused,
+    busdma_md_t md __unused, u_int idx __unused, bus_addr_t *ba_p __unused)
+{
+
+	return (ENOSYS);
+}
+
+int
+iommu_unmap(device_t bus __unused, device_t dev __unused,
+    busdma_md_t md __unused, u_int idx __unused)
+{
+
+	return (ENOSYS);
+}
+
+int
+iommu_sync(device_t bus, device_t dev __unused,
+    busdma_md_t md __unused, u_int op __unused, bus_addr_t addr __unused,
+    bus_size_t size __unused)
+{
+	struct iommu_state *is, **isp;
+
+	isp = device_get_softc(bus);
+	is = *isp;
+
+	if ((op & BUSDMA_SYNC_PREWRITE) == BUSDMA_SYNC_PREWRITE)
+		membar(Sync);
+
+	return (0);
+}
+
+
+
 
 #ifdef IOMMU_DIAG
 
