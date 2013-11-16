@@ -545,7 +545,10 @@ ahci_attach(device_t dev)
 		    (ctlr->caps & AHCI_CAP_NPMASK) + 1);
 	}
 	if (bootverbose && version >= 0x00010200) {
-		device_printf(dev, "Caps2:%s%s%s\n",
+		device_printf(dev, "Caps2:%s%s%s%s%s%s\n",
+		    (ctlr->caps2 & AHCI_CAP2_DESO) ? " DESO":"",
+		    (ctlr->caps2 & AHCI_CAP2_SADM) ? " SADM":"",
+		    (ctlr->caps2 & AHCI_CAP2_SDS) ? " SDS":"",
 		    (ctlr->caps2 & AHCI_CAP2_APST) ? " APST":"",
 		    (ctlr->caps2 & AHCI_CAP2_NVMP) ? " NVMP":"",
 		    (ctlr->caps2 & AHCI_CAP2_BOH) ? " BOH":"");
