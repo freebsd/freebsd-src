@@ -228,7 +228,7 @@ static device_method_t sncon_methods[] = {
 	DEVMETHOD(device_attach,	sncon_attach),
 	DEVMETHOD(device_detach,	sncon_detach),
 	DEVMETHOD(device_probe,		sncon_probe),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t sncon_driver = {

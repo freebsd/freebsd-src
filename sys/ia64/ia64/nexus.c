@@ -138,7 +138,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(clock_gettime,	nexus_gettime),
 	DEVMETHOD(clock_settime,	nexus_settime),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t nexus_driver = {

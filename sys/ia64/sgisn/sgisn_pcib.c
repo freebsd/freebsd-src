@@ -156,7 +156,7 @@ static device_method_t sgisn_pcib_methods[] = {
 	DEVMETHOD(busdma_iommu_unmap,	sgisn_pcib_iommu_unmap),
 	DEVMETHOD(busdma_iommu_sync,	sgisn_pcib_iommu_sync),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t sgisn_pcib_driver = {

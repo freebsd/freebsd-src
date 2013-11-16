@@ -122,7 +122,7 @@ static device_method_t sgisn_shub_methods[] = {
 	DEVMETHOD(busdma_iommu_xlate,	sgisn_shub_iommu_xlate),
 	DEVMETHOD(busdma_iommu_map,	sgisn_shub_iommu_map),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t sgisn_shub_devclass;
