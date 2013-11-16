@@ -607,6 +607,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_WC_REG_RX1_PCI_CTRL			0x80ca
 #define MDIO_WC_REG_RX2_PCI_CTRL			0x80da
 #define MDIO_WC_REG_RX3_PCI_CTRL			0x80ea
+#define MDIO_WC_REG_RXB_ANA_RX_CONTROL_PCI		0x80fa
 #define MDIO_WC_REG_XGXSBLK2_UNICORE_MODE_10G 		0x8104
 #define MDIO_WC_REG_XGXS_STATUS3			0x8129
 #define MDIO_WC_REG_PAR_DET_10G_STATUS			0x8130
@@ -4632,6 +4633,19 @@ static void elink_warpcore_enable_AN_KR(struct elink_phy *phy,
 
 		elink_warpcore_enable_AN_KR2(phy, params, vars);
 	} else {
+		/* Enable Auto-Detect to support 1G over CL37 as well */
+		elink_cl45_write(sc, phy, MDIO_WC_DEVAD,
+				 MDIO_WC_REG_SERDESDIGITAL_CONTROL1000X1, 0x10);
+
+		/* Force cl48 sync_status LOW to avoid getting stuck in CL73
+		 * parallel-detect loop when CL73 and CL37 are enabled.
+		 */
+		CL22_WR_OVER_CL45(sc, phy, MDIO_REG_BANK_AER_BLOCK,
+				  MDIO_AER_BLOCK_AER_REG, 0);
+		elink_cl45_write(sc, phy, MDIO_WC_DEVAD,
+				 MDIO_WC_REG_RXB_ANA_RX_CONTROL_PCI, 0x0800);
+		elink_set_aer_mmd(params, phy);
+
 		elink_disable_kr2(params, vars, phy);
 	}
 
@@ -7317,10 +7331,8 @@ static elink_status_t elink_link_initialize(struct elink_params *params,
 		    (CHIP_IS_E1x(sc) ||
 		     CHIP_IS_E2(sc)))
 			elink_set_parallel_detection(phy, params);
-			if (params->phy[ELINK_INT_PHY].config_init)
-				params->phy[ELINK_INT_PHY].config_init(phy,
-								 params,
-								 vars);
+		if (params->phy[ELINK_INT_PHY].config_init)
+			params->phy[ELINK_INT_PHY].config_init(phy, params, vars);
 	}
 
 	/* Re-read this value in case it was changed inside config_init due to
@@ -8904,17 +8916,20 @@ static elink_status_t elink_get_edc_mode(struct elink_phy *phy,
 				*edc_mode = ELINK_EDC_MODE_ACTIVE_DAC;
 			else
 				check_limiting_mode = 1;
-		} else if (copper_module_type &
-			ELINK_SFP_EEPROM_FC_TX_TECH_BITMASK_COPPER_PASSIVE) {
-				ELINK_DEBUG_P0(sc,
-				   "Passive Copper cable detected\n");
-				*edc_mode =
-				      ELINK_EDC_MODE_PASSIVE_DAC;
 		} else {
-			ELINK_DEBUG_P1(sc,
-			   "Unknown copper-cable-type 0x%x !!!\n",
-			   copper_module_type);
-			return ELINK_STATUS_ERROR;
+			*edc_mode = ELINK_EDC_MODE_PASSIVE_DAC;
+			/* Even in case PASSIVE_DAC indication is not set,
+			 * treat it as a passive DAC cable, since some cables
+			 * don't have this indication.
+			 */
+			if (copper_module_type &
+			    ELINK_SFP_EEPROM_FC_TX_TECH_BITMASK_COPPER_PASSIVE) {
+				ELINK_DEBUG_P0(sc,
+					       "Passive Copper cable detected\n");
+			} else {
+				ELINK_DEBUG_P0(sc,
+					       "Unknown copper-cable-type\n");
+			}
 		}
 		break;
 	}
@@ -14359,6 +14374,10 @@ static uint8_t elink_analyze_link_error(struct elink_params *params,
 	}
 	ELINK_DEBUG_P3(sc, "Link changed:[%x %x]->%x\n", vars->link_up,
 	   old_status, status);
+
+	/* Do not touch the link in case physical link down */
+	if ((vars->phy_flags & PHY_PHYSICAL_LINK_FLAG) == 0)
+		return 1;
 
 	/* a. Update shmem->link_status accordingly
 	 * b. Update elink_vars->link_up
