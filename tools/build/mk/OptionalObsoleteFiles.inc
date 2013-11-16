@@ -3190,13 +3190,6 @@ OLD_FILES+=usr/share/man/man1/host.1.gz
 # to be filled in
 #.endif
 
-.if ${MK_LIBICONV_COMPAT} == no
-OLD_FILES+=usr/lib/libiconv.a
-OLD_FILES+=usr/lib/libiconv.so
-OLD_FILES+=usr/lib/libiconv.so.3
-OLD_FILES+=usr/lib/libiconv_p.a
-.endif
-
 .if ${MK_LIBCPLUSPLUS} == no
 OLD_LIBS+=lib/libcxxrt.so.1
 OLD_FILES+=usr/lib/libc++.a
