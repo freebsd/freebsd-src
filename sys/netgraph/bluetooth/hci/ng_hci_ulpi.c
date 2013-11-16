@@ -391,7 +391,7 @@ ng_hci_lp_sco_con_req(ng_hci_unit_p unit, item_p item, hook_p hook)
 
 		default:
 			panic(
-"%s: %s - Inavalid connection state=%d\n",
+"%s: %s - Invalid connection state=%d\n",
 				__func__, NG_NODE_NAME(unit->node),
 				sco_con->state);
 			break;
