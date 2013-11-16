@@ -26,7 +26,7 @@
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 30, 2012
+.Dd November 15, 2013
 .Dt ATF-C-API 3
 .Os
 .Sh NAME
@@ -202,9 +202,8 @@
 .Fa "const char *expected_stderr"
 .Fc
 .Sh DESCRIPTION
-The ATF
-.Pp
-C-based test programs always follow this template:
+ATF provides a C programming interface to implement test programs.
+C-based test programs follow this template:
 .Bd -literal -offset indent
 .Ns ... C-specific includes go here ...
 
@@ -536,7 +535,7 @@ In particular, these are useful to write tests for command-line interfaces.
 .Fa "const char *file"
 .Fa "const char *prefix"
 .Fc
-.Bd -offset indent
+.Bd -ragged -offset indent
 Prints the contents of
 .Fa file
 to the standard output, prefixing every line with the string in
@@ -548,7 +547,7 @@ to the standard output, prefixing every line with the string in
 .Fa "const char *file"
 .Fa "const char *contents"
 .Fc
-.Bd -offset indent
+.Bd -ragged -offset indent
 Returns true if the given
 .Fa file
 matches exactly the expected inlined
@@ -560,7 +559,7 @@ matches exactly the expected inlined
 .Fa "const char *source"
 .Fa "const char *destination"
 .Fc
-.Bd -offset indent
+.Bd -ragged -offset indent
 Copies the file
 .Fa source
 to
@@ -574,7 +573,7 @@ The permissions of the file are preserved during the code.
 .Fa "const char *contents"
 .Fa "..."
 .Fc
-.Bd -offset indent
+.Bd -ragged -offset indent
 Creates
 .Fa file
 with the text given in
@@ -586,7 +585,7 @@ which is a formatting string that uses the rest of the variable arguments.
 .Fo atf_utils_file_exists
 .Fa "const char *file"
 .Fc
-.Bd -offset indent
+.Bd -ragged -offset indent
 Checks if
 .Fa file
 exists.
@@ -596,7 +595,7 @@ exists.
 .Fo atf_utils_fork
 .Fa "void"
 .Fc
-.Bd -offset indent
+.Bd -ragged -offset indent
 Forks a process and redirects the standard output and standard error of the
 child to files for later validation with
 .Fn atf_utils_wait .
@@ -607,7 +606,7 @@ Fails the test case if the fork fails, so this does not return an error.
 .Fo atf_utils_free_charpp
 .Fa "char **argv"
 .Fc
-.Bd -offset indent
+.Bd -ragged -offset indent
 Frees a dynamically-allocated array of dynamically-allocated strings.
 .Ed
 .Pp
@@ -617,7 +616,7 @@ Frees a dynamically-allocated array of dynamically-allocated strings.
 .Fa "const char *file"
 .Fa "..."
 .Fc
-.Bd -offset indent
+.Bd -ragged -offset indent
 Searches for the
 .Fa regexp ,
 which is a formatting string representing the regular expression,
@@ -632,7 +631,7 @@ The variable arguments are used to construct the regular expression.
 .Fa "const char *str"
 .Fa "..."
 .Fc
-.Bd -offset indent
+.Bd -ragged -offset indent
 Searches for the
 .Fa regexp ,
 which is a formatting string representing the regular expression,
@@ -645,7 +644,7 @@ The variable arguments are used to construct the regular expression.
 .Fo atf_utils_readline
 .Fa "int fd"
 .Fc
-.Bd -offset indent
+.Bd -ragged -offset indent
 Reads a line from the file descriptor
 .Fa fd .
 The line, if any, is returned as a dynamically-allocated buffer that must be
@@ -660,7 +659,7 @@ If there was nothing to read, returns
 .Fa "const int fd"
 .Fa "const char *file"
 .Fc
-.Bd -offset indent
+.Bd -ragged -offset indent
 Redirects the given file descriptor
 .Fa fd
 to
@@ -679,7 +678,7 @@ those spawned by
 .Fa "const char *expected_stdout"
 .Fa "const char *expected_stderr"
 .Fc
-.Bd -offset indent
+.Bd -ragged -offset indent
 Waits and validates the result of a subprocess spawned with
 .Fn atf_utils_wait .
 The validation involves checking that the subprocess exited cleanly and returned

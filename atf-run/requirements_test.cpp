@@ -239,7 +239,7 @@ ATF_TEST_CASE_WITHOUT_HEAD(require_memory_not_enough);
 ATF_TEST_CASE_BODY(require_memory_not_enough) {
     atf::tests::vars_map metadata;
     metadata["require.memory"] = "128t";
-#if defined(__APPLE__) || defined(__NetBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)
     do_check("Not enough memory; needed 140737488355328, available [0-9]*",
              metadata);
 #else

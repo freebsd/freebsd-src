@@ -2,6 +2,24 @@ Major changes between releases                  Automated Testing Framework
 ===========================================================================
 
 
+Changes in version 0.18
+***********************
+
+Experimental version released on November 16th, 2013.
+
+* Issue 45: Added require.memory support in atf-run for FreeBSD.
+
+* Fixed an issue with the handling of cin with libc++.
+
+* Issue 64: Fixed various mandoc formatting warnings.
+
+* NetBSD PR bin/48284: Made atf-check flush its progress message to
+  stdout so that an interrupted test case always shows the last message
+  being executed.
+
+* NetBSD PR bin/48285: Fixed atf_check examples in atf-sh-api(3).
+
+
 Changes in version 0.17
 ***********************
 
