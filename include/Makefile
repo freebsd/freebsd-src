@@ -83,15 +83,7 @@ _netipx=	netipx
 
 # Handle the #define aliases for libiconv
 .if ${MK_ICONV} == "yes"
-CLEANFILES+=	_libiconv_compat.h
-INCS+=		_libiconv_compat.h iconv.h
-_libiconv_compat.h:	${.CURDIR}/Makefile
-	echo "/* Indicate whether libiconv symbols are present */" > _libiconv_compat.h
-.if ${MK_LIBICONV_COMPAT} == "yes"
-	echo "#define __LIBICONV_COMPAT" >> _libiconv_compat.h
-.else
-	echo "#undef __LIBICONV_COMPAT" >> _libiconv_compat.h
-.endif
+INCS+=		iconv.h
 .endif
 	
 
