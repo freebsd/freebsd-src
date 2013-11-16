@@ -170,7 +170,7 @@ static const struct iwn_base_params iwn2000_base_params = {
 	.support_hostap = true,
 	.no_multi_vaps = false,
 	.additional_gp_drv_bit = IWN_GP_DRIVER_REG_BIT_RADIO_IQ_INVERT,
-	.bt_mode = IWN_BT_ADVANCED,
+	.bt_mode = IWN_BT_NONE,
 };
 
 static const struct iwn_base_params iwn2030_base_params = {
