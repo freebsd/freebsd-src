@@ -907,7 +907,7 @@ cleanup:
 }
 
 int
-main(__unused int argc, char *argv[])
+main(int argc, char *argv[])
 {
 	char pkgpath[MAXPATHLEN];
 	const char *pkgarg;
