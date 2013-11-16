@@ -2856,7 +2856,7 @@ bge_dma_ring_alloc(struct bge_softc *sc, bus_size_t alignment,
 	}
 	/* Allocate DMA'able memory for ring. */
 	error = busdma_mem_alloc(*tag,
-	    BUSDMA_ALLOC_ZERO | BUSDMA_ALLOC_CONSISTENT, map);
+	    BUSDMA_ALLOC_ZERO | BUSDMA_ALLOC_COHERENT, map);
 	if (error != 0) {
 		device_printf(sc->bge_dev, 
 		    "could not allocate DMA'able memory for %s (error %d)\n",

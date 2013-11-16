@@ -1579,7 +1579,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	}
 
 	error = busdma_mem_alloc(isp->isp_osinfo.cdmat,
-	    BUSDMA_ALLOC_CONSISTENT, &isp->isp_osinfo.cdmd);
+	    BUSDMA_ALLOC_COHERENT, &isp->isp_osinfo.cdmd);
 	if (error != 0) {
 		isp_prt(isp, ISP_LOGERR, "cannot allocate %d bytes of CCB memory", len);
 		busdma_tag_destroy(isp->isp_osinfo.cdmat);

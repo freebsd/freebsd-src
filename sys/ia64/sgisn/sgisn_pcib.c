@@ -609,7 +609,7 @@ sgisn_pcib_iommu_xlate(device_t bus, device_t dev, busdma_mtag_t mtag)
 	 * need consistent DMA and we're not in PCI-X mode, force 32-bit
 	 * mappings.
 	 */
-	if ((mtag->dmt_flags & BUSDMA_ALLOC_CONSISTENT) &&
+	if ((mtag->dmt_flags & BUSDMA_ALLOC_COHERENT) &&
 	    (sc->sc_fwbus->fw_mode & 1) == 0 &&
 	    mtag->dmt_maxaddr == BUS_SPACE_MAXADDR)
 		mtag->dmt_maxaddr >>= 4;
@@ -623,7 +623,7 @@ sgisn_pcib_iommu_xlate(device_t bus, device_t dev, busdma_mtag_t mtag)
 	 */
 	if (mtag->dmt_maxaddr < BUS_SPACE_MAXADDR &&
 	    (sc->sc_fwbus->fw_mode & 1) == 0 &&
-	    (mtag->dmt_flags & BUSDMA_ALLOC_CONSISTENT) == 0)
+	    (mtag->dmt_flags & BUSDMA_ALLOC_COHERENT) == 0)
 		mtag->dmt_flags |= BUSDMA_MD_IA64_DIRECT32;
 
 	if (mtag->dmt_flags & BUSDMA_MD_IA64_DIRECT32) {
@@ -658,7 +658,7 @@ sgisn_pcib_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 	maxaddr = busdma_tag_get_maxaddr(tag);
 	if (maxaddr == BUS_SPACE_MAXADDR) {
 		addr = ba;
-		if (flags & BUSDMA_ALLOC_CONSISTENT)
+		if (flags & BUSDMA_ALLOC_COHERENT)
 			addr |= 1UL << 56;	/* bar */
 		else if ((sc->sc_fwbus->fw_mode & 1) == 0)
 			addr |= 1UL << 59;	/* prefetch */
@@ -746,7 +746,7 @@ sgisn_pcib_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 
 	ba &= ~SGISN_PCIB_PAGE_MASK;
 	ba |= 1 << 0;		/* valid */
-	if (flags & BUSDMA_ALLOC_CONSISTENT)
+	if (flags & BUSDMA_ALLOC_COHERENT)
 		ba |= 1 << 4;	/* bar */
 	else if ((sc->sc_fwbus->fw_mode & 1) == 0)
 		ba |= 1 << 3;	/* prefetch */

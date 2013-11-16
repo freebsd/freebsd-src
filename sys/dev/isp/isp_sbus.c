@@ -500,7 +500,7 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 		return (error);
 	}
 
-	error = busdma_mem_alloc(isp->isp_osinfo.cdmat, BUSDMA_ALLOC_CONSISTENT,
+	error = busdma_mem_alloc(isp->isp_osinfo.cdmat, BUSDMA_ALLOC_COHERENT,
 	    &isp->isp_osinfo.cdmd);
 	if (error) {
 		isp_prt(isp, ISP_LOGERR,
