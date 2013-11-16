@@ -277,6 +277,10 @@ struct ata_pci_controller {
 #define ATA_ISCH                0x811a8086
 #define ATA_DH89XXCC            0x23238086
 
+#define ATA_COLETOCRK_AH1       0x23a38086
+#define ATA_COLETOCRK_S1        0x23a18086
+#define ATA_COLETOCRK_S2        0x23a68086
+
 #define ATA_ITE_ID              0x1283
 #define ATA_IT8211F             0x82111283
 #define ATA_IT8212F             0x82121283

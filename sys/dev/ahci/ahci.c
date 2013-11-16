@@ -202,6 +202,7 @@ static struct {
 	{0x1e078086, 0x00, "Intel Panther Point",	0},
 	{0x1e0e8086, 0x00, "Intel Panther Point",	0},
 	{0x1e0f8086, 0x00, "Intel Panther Point",	0},
+	{0x23a38086, 0x00, "Intel Coleto Creek",        0},
 	{0x8c028086, 0x00, "Intel Lynx Point",	0},
 	{0x8c038086, 0x00, "Intel Lynx Point",	0},
 	{0x8c048086, 0x00, "Intel Lynx Point",	0},
