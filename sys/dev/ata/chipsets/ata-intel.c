@@ -227,6 +227,9 @@ ata_intel_probe(device_t dev)
      { ATA_I31244,       0,          0, 2, ATA_SA150, "31244" },
      { ATA_ISCH,         0,          0, 1, ATA_UDMA5, "SCH" },
      { ATA_DH89XXCC,     0, INTEL_AHCI, 0, ATA_SA300, "DH89xxCC" },
+     { ATA_COLETOCRK_S1, 0, INTEL_6CH2, 0, ATA_SA300, "COLETOCRK" },
+     { ATA_COLETOCRK_S2, 0, INTEL_6CH2, 0, ATA_SA300, "COLETOCRK" },
+     { ATA_COLETOCRK_AH1,0, INTEL_AHCI, 0, ATA_SA300, "COLETOCRK" },
      { 0, 0, 0, 0, 0, 0}};
 
     if (pci_get_vendor(dev) != ATA_INTEL_ID)
