@@ -1180,33 +1180,124 @@ iommu_xlate(device_t bus __unused, device_t dev __unused,
 }
 
 int
-iommu_map(device_t bus __unused, device_t dev __unused,
-    busdma_md_t md __unused, u_int idx __unused, bus_addr_t *ba_p __unused)
-{
-
-	return (ENOSYS);
-}
-
-int
-iommu_unmap(device_t bus __unused, device_t dev __unused,
-    busdma_md_t md __unused, u_int idx __unused)
-{
-
-	return (ENOSYS);
-}
-
-int
-iommu_sync(device_t bus, device_t dev __unused,
-    busdma_md_t md __unused, u_int op __unused, bus_addr_t addr __unused,
-    bus_size_t size __unused)
+iommu_map(device_t bus, device_t dev __unused, busdma_md_t md, u_int idx,
+    bus_addr_t *ba_p)
 {
 	struct iommu_state *is, **isp;
+	struct resource *r;
+	busdma_tag_t tag;
+	bus_addr_t ba;
+	u_long align, bndry, maxaddr, size, start;
+	u_int flags, stream;
 
 	isp = device_get_softc(bus);
 	is = *isp;
 
+	ba = *ba_p;
+
+	tag = busdma_md_get_tag(md);
+	align = (busdma_tag_get_align(tag) + IO_PAGE_MASK) >> IO_PAGE_SHIFT;
+	bndry = busdma_tag_get_bndry(tag) >> IO_PAGE_SHIFT;
+	maxaddr = busdma_tag_get_maxaddr(tag) >> IO_PAGE_SHIFT;
+	size = busdma_md_get_size(md, idx) + (ba & IO_PAGE_MASK);
+	size = round_io_page(size) >> IO_PAGE_SHIFT;
+
+	r = rman_reserve_resource_bound(&is->is_dvma_rman, 0L, maxaddr, size,
+	    bndry, RF_ACTIVE | rman_make_alignment_flags(align), NULL);
+	if (r == NULL)
+		return (ENOMEM);
+
+	size = rman_get_size(r);
+	start = rman_get_start(r) << IO_PAGE_SHIFT;
+
+	*ba_p = start | (ba & IO_PAGE_MASK);
+	ba &= ~IO_PAGE_MASK;
+	busdma_md_set_iommu(md, idx, (uintptr_t)(void *)r);
+
+	flags = busdma_md_get_flags(md);
+	stream = size >= IOMMU_STREAM_THRESH && IOMMU_HAS_SB(is) &&
+	    (flags & BUSDMA_ALLOC_COHERENT) == 0;
+	while (size > 0) {
+		iommu_enter(is, start, ba, stream, 0);
+		start += IO_PAGE_SIZE;
+		ba += IO_PAGE_SIZE;
+		size--;
+	}
+	return (0);
+}
+
+int
+iommu_unmap(device_t bus, device_t dev __unused, busdma_md_t md, u_int idx)
+{
+	struct iommu_state *is, **isp;
+	struct resource *r;
+	u_int sync;
+
+	isp = device_get_softc(bus);
+	is = *isp;
+
+	IS_LOCK(is);
+	r = (void *)busdma_md_get_iommu(md, idx);
+	sync = iommu_remove(is, rman_get_start(r) << IO_PAGE_SHIFT,
+	    rman_get_size(r) << IO_PAGE_SHIFT);
+	if (sync)
+		iommu_strbuf_sync(is);
+	rman_release_resource(r);
+	IS_UNLOCK(is);
+	return (0);
+}
+
+int
+iommu_sync(device_t bus, device_t dev __unused, busdma_md_t md, u_int op,
+    bus_addr_t addr, bus_size_t size)
+{
+	struct iommu_state *is, **isp;
+	struct resource *r;
+	bus_addr_t ba;
+	bus_size_t sz;
+	u_long va;
+	u_int flags, idx, nsegs, sync;
+
+	if ((op & BUSDMA_SYNC_PREWRITE) != BUSDMA_SYNC_PREWRITE &&
+	    (op & BUSDMA_SYNC_POSTREAD) != BUSDMA_SYNC_POSTREAD)
+		return (0);
+
 	if ((op & BUSDMA_SYNC_PREWRITE) == BUSDMA_SYNC_PREWRITE)
 		membar(Sync);
+
+	flags = busdma_md_get_flags(md);
+	if ((flags & BUSDMA_ALLOC_COHERENT) != 0)
+		return (0);
+
+	isp = device_get_softc(bus);
+	is = *isp;
+
+	nsegs = busdma_md_get_nsegs(md);
+	for (idx = 0; idx < nsegs; idx++) {
+		ba = busdma_md_get_busaddr(md, idx);
+		sz = busdma_md_get_size(md, idx);
+		if (ba + sz <= addr || addr + size <= ba)
+			continue;
+		r = (void *)busdma_md_get_iommu(md, idx);
+		if (r == NULL)
+			continue;
+
+		sz = rman_get_size(r);
+		va = rman_get_start(r) << IO_PAGE_SHIFT;
+		sync = 0;
+		IS_LOCK(is);
+		while (sz > 0) {
+			if ((IOMMU_GET_TTE(is, va) & IOTTE_STREAM) != 0) {
+				sync++;
+				iommu_strbuf_flush(is, va);
+			}
+			va += IO_PAGE_SIZE;
+			sz--;
+		}
+		if (sync)
+			iommu_strbuf_sync(is);
+		IS_UNLOCK(is);
+	}
 
 	return (0);
 }
