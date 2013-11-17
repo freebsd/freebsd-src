@@ -23,7 +23,7 @@ FILES+=		unused_test.cpp
 		tests_test \
 		utils_test
 ATF_TESTS_CXX+=	${_T}
-SRCS_${_T}=	${_T}.cpp test_helpers.cpp
+SRCS.${_T}=	${_T}.cpp test_helpers.cpp
 .endfor
 
 ATF_TESTS_SH=	pkg_config_test
@@ -41,7 +41,7 @@ ATF_TESTS_SH=	pkg_config_test
 		text_test \
 		ui_test
 ATF_TESTS_CXX+=	${_T}
-SRCS_${_T}=	${_T}.cpp test_helpers.cpp
+SRCS.${_T}=	${_T}.cpp test_helpers.cpp
 .endfor
 
 .include <atf.test.mk>

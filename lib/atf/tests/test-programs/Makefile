@@ -13,7 +13,7 @@ CFLAGS+=	-I${ATF}
 ATF_TESTS_C=		c_helpers
 
 ATF_TESTS_CXX=		cpp_helpers
-SRCS_cpp_helpers=	cpp_helpers.cpp
+SRCS.cpp_helpers=	cpp_helpers.cpp
 
 ATF_TESTS_SH=		sh_helpers
 .for _T in config_test expect_test fork_test meta_data_test result_test srcdir_test
