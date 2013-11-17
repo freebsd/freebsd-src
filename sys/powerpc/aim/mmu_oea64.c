@@ -2642,7 +2642,7 @@ moea64_scan_md(mmu_t mmu, struct pmap_md *prev)
 				pvo = moea64_pvo_find_va(kernel_pmap,
 				    va & ~ADDR_POFF);
 				if (pvo != NULL &&
-				    (pvo->pvo_pte.pte.pte_hi & PTE_VALID))
+				    (pvo->pvo_pte.lpte.pte_hi & LPTE_VALID))
 					break;
 				va += PAGE_SIZE;
 			}
@@ -2657,7 +2657,7 @@ moea64_scan_md(mmu_t mmu, struct pmap_md *prev)
 					pvo = moea64_pvo_find_va(kernel_pmap,
 					    va & ~ADDR_POFF);
 					if (pvo == NULL ||
-					    !(pvo->pvo_pte.pte.pte_hi & PTE_VALID))
+					    !(pvo->pvo_pte.lpte.pte_hi & LPTE_VALID))
 						break;
 					va += PAGE_SIZE;
 				}

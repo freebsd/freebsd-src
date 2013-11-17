@@ -256,7 +256,6 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
-	realmem = Maxmem;
 
 	/*
 	 * Display physical memory if SMBIOS reports reasonable amount.
@@ -270,6 +269,7 @@ cpu_startup(dummy)
 	if (memsize < ptoa((uintmax_t)cnt.v_free_count))
 		memsize = ptoa((uintmax_t)Maxmem);
 	printf("real memory  = %ju (%ju MB)\n", memsize, memsize >> 20);
+	realmem = atop(memsize);
 
 	/*
 	 * Display any holes after the first chunk of extended memory.
@@ -486,17 +486,7 @@ sys_sigreturn(td, uap)
 	/*
 	 * Don't allow users to change privileged or reserved flags.
 	 */
-	/*
-	 * XXX do allow users to change the privileged flag PSL_RF.
-	 * The cpu sets PSL_RF in tf_rflags for faults.  Debuggers
-	 * should sometimes set it there too.  tf_rflags is kept in
-	 * the signal context during signal handling and there is no
-	 * other place to remember it, so the PSL_RF bit may be
-	 * corrupted by the signal handler without us knowing.
-	 * Corruption of the PSL_RF bit at worst causes one more or
-	 * one less debugger trap, so allowing it is fairly harmless.
-	 */
-	if (!EFL_SECURE(rflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
+	if (!EFL_SECURE(rflags, regs->tf_rflags)) {
 		uprintf("pid %d (%s): sigreturn rflags = 0x%lx\n", p->p_pid,
 		    td->td_name, rflags);
 		return (EINVAL);

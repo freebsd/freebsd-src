@@ -227,7 +227,6 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 {
 	struct pf_state_key_cmp	key;
 	struct pf_addr		init_addr;
-	uint16_t		cut;
 
 	bzero(&init_addr, sizeof(init_addr));
 	if (pf_map_addr(af, r, saddr, naddr, &init_addr, sn))
@@ -235,21 +234,19 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 
 	switch (proto) {
 	case IPPROTO_ICMP:
-		if (dport != ICMP_ECHO)
+		if (dport != htons(ICMP_ECHO))
 			return (0);
 		low = 1;
 		high = 65535;
 		break;
 #ifdef INET6
 	case IPPROTO_ICMPV6:
-		if (dport != ICMP_ECHO)
+		if (dport != htons(ICMP6_ECHO_REQUEST))
 			return (0);
 		low = 1;
 		high = 65535;
 		break;
 #endif
-	default:
-		return (0); /* Don't try to modify non-echo ICMP */
 	}
 
 	bzero(&key, sizeof(key));
@@ -283,7 +280,7 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 				return (0);
 			}
 		} else {
-			uint16_t tmp;
+			uint16_t tmp, cut;
 
 			if (low > high) {
 				tmp = low;
@@ -291,7 +288,7 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 				high = tmp;
 			}
 			/* low < high */
-			cut = htonl(arc4random()) % (1 + high - low) + low;
+			cut = arc4random() % (1 + high - low) + low;
 			/* low <= cut <= high */
 			for (tmp = cut; tmp <= high; ++(tmp)) {
 				key.port[1] = htons(tmp);
