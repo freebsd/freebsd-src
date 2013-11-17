@@ -27,10 +27,6 @@
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-extern "C" {
-#include <regex.h>
-}
-
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -90,43 +86,6 @@ get_process_helpers_path(const atf::tests::tc& tc, bool is_detail)
     else
         return atf::fs::path(tc.get_config_var("srcdir")) /
                ".." / "atf-c" / "detail" / "process_helpers";
-}
-
-bool
-grep_file(const char* name, const char* regex)
-{
-    std::ifstream is(name);
-    ATF_REQUIRE(is);
-
-    bool found = false;
-
-    std::string line;
-    std::getline(is, line);
-    while (!found && is.good()) {
-        if (grep_string(line, regex))
-            found = true;
-        else
-            std::getline(is, line);
-    }
-
-    return found;
-}
-
-bool
-grep_string(const std::string& str, const char* regex)
-{
-    int res;
-    regex_t preg;
-
-    std::cout << "Looking for '" << regex << "' in '" << str << "'\n";
-    ATF_REQUIRE(::regcomp(&preg, regex, REG_EXTENDED) == 0);
-
-    res = ::regexec(&preg, str.c_str(), 0, NULL, 0);
-    ATF_REQUIRE(res == 0 || res == REG_NOMATCH);
-
-    ::regfree(&preg);
-
-    return res == 0;
 }
 
 void

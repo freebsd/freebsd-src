@@ -16,7 +16,7 @@ ATF_TESTS_CXX=		cpp_helpers
 SRCS.cpp_helpers=	cpp_helpers.cpp
 
 ATF_TESTS_SH=		sh_helpers
-.for _T in config_test expect_test fork_test meta_data_test result_test srcdir_test
+.for _T in config_test expect_test meta_data_test result_test srcdir_test
 ATF_TESTS_SH+=		${_T}
 ATF_TESTS_SH_SRC_${_T}=	common.sh ${_T}.sh
 .endfor
