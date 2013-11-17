@@ -58,6 +58,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_fpu_emu.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -91,6 +92,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/sigframe.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
+
+#ifdef FPU_EMU
+#include <powerpc/fpu/fpu_extern.h>
+#endif
 
 #ifdef COMPAT_FREEBSD32
 #include <compat/freebsd32/freebsd32_signal.h>
@@ -1036,5 +1041,38 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 
 	td->td_retval[0] = (register_t)entry;
 	td->td_retval[1] = 0;
+}
+
+int
+ppc_instr_emulate(struct trapframe *frame, struct pcb *pcb)
+{
+	uint32_t instr;
+	int reg, sig;
+
+	instr = fuword32((void *)frame->srr0);
+	sig = SIGILL;
+
+	if ((instr & 0xfc1fffff) == 0x7c1f42a6) {	/* mfpvr */
+		reg = (instr & ~0xfc1fffff) >> 21;
+		frame->fixreg[reg] = mfpvr();
+		frame->srr0 += 4;
+		return (0);
+	}
+
+	if ((instr & 0xfc000ffe) == 0x7c0004ac) {	/* various sync */
+		powerpc_sync(); /* Do a heavy-weight sync */
+		frame->srr0 += 4;
+		return (0);
+	}
+
+#ifdef FPU_EMU
+	if (!(pcb->pcb_flags & PCB_FPREGS)) {
+		bzero(&pcb->pcb_fpu, sizeof(pcb->pcb_fpu));
+		pcb->pcb_flags |= PCB_FPREGS;
+	}
+	sig = fpu_emulate(frame, (struct fpreg *)&pcb->pcb_fpu);
+#endif
+
+	return (sig);
 }
 
