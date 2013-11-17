@@ -44,6 +44,9 @@ OLD_FILES+=usr/share/man/man2/extattr_get_list.2.gz
 # 20131107: example files removed
 OLD_FILES+=usr/share/examples/libusb20/aux.c
 OLD_FILES+=usr/share/examples/libusb20/aux.h
+# 20131105: tzdata 2013h import
+OLD_FILES+=usr/share/zoneinfo/America/Shiprock
+OLD_FILES+=usr/share/zoneinfo/Antarctica/South_Pole
 # 20131103: WITH_LIBICONV_COMPAT removal
 OLD_FILES+=usr/include/_libiconv_compat.h
 OLD_FILES+=usr/lib/libiconv.a
@@ -79,8 +82,14 @@ OLD_FILES+=etc/keys/pkg/trusted/pkg.freebsd.org.2013102301
 # 20131028: ng_fec(4) removed
 OLD_FILES+=usr/include/netgraph/ng_fec.h
 OLD_FILES+=usr/share/man/man4/ng_fec.4.gz
+# 20131027: header moved
+OLD_FILES+=usr/include/net/pf_mtag.h
 # 20131023: remove never used iscsi directory
 OLD_DIRS+=usr/share/examples/iscsi
+# 20131021: isf(4) removed
+OLD_FILES+=usr/sbin/isfctl
+OLD_FILES+=usr/share/man/man4/isf.4.gz
+OLD_FILES+=usr/share/man/man8/isfctl.8.gz
 # 20131014: libbsdyml becomes private
 OLD_FILES+=usr/lib/libbsdyml.a
 OLD_FILES+=usr/lib/libbsdyml.so
