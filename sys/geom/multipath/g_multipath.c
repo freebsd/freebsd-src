@@ -67,6 +67,11 @@ static enum {
 static struct bio_queue_head gmtbq;
 static struct mtx gmtbq_mtx;
 
+static int g_multipath_read_metadata(struct g_consumer *cp,
+    struct g_multipath_metadata *md);
+static int g_multipath_write_metadata(struct g_consumer *cp,
+    struct g_multipath_metadata *md);
+
 static void g_multipath_orphan(struct g_consumer *);
 static void g_multipath_resize(struct g_consumer *);
 static void g_multipath_start(struct bio *);
@@ -243,11 +248,11 @@ g_multipath_resize(struct g_consumer *cp)
 {
 	struct g_multipath_softc *sc;
 	struct g_geom *gp;
+	struct g_consumer *cp1;
 	struct g_provider *pp;
 	struct g_multipath_metadata md;
 	off_t size, psize, ssize;
 	int error;
-	void *buf;
 
 	g_topology_assert();
 
@@ -264,8 +269,8 @@ g_multipath_resize(struct g_consumer *cp)
 	} else {
 		size = ssize = OFF_MAX;
 		mtx_lock(&sc->sc_mtx);
-		LIST_FOREACH(cp, &gp->consumer, consumer) {
-			pp = cp->provider;
+		LIST_FOREACH(cp1, &gp->consumer, consumer) {
+			pp = cp1->provider;
 			if (pp == NULL)
 				continue;
 			if (pp->mediasize < size) {
@@ -280,36 +285,31 @@ g_multipath_resize(struct g_consumer *cp)
 	psize = size - ((sc->sc_uuid[0] != 0) ? ssize : 0);
 	printf("GEOM_MULTIPATH: %s size changed from %jd to %jd\n",
 	    sc->sc_name, sc->sc_pp->mediasize, psize);
-	if (sc->sc_uuid[0] != 0 && psize < sc->sc_pp->mediasize) {
-		g_multipath_destroy(gp);
-		return;
+	if (sc->sc_uuid[0] != 0 && size < sc->sc_size) {
+		error = g_multipath_read_metadata(cp, &md);
+		if (error ||
+		    (strcmp(md.md_magic, G_MULTIPATH_MAGIC) != 0) ||
+		    (memcmp(md.md_uuid, sc->sc_uuid, sizeof(sc->sc_uuid)) != 0) ||
+		    (strcmp(md.md_name, sc->sc_name) != 0) ||
+		    (md.md_size != 0 && md.md_size != size) ||
+		    (md.md_sectorsize != 0 && md.md_sectorsize != ssize)) {
+			g_multipath_destroy(gp);
+			return;
+		}
 	}
 	sc->sc_size = size;
 	g_resize_provider(sc->sc_pp, psize);
 
-	if (sc->sc_uuid[0] != 0 && sc->sc_active != NULL) {
-		cp = sc->sc_active;
+	if (sc->sc_uuid[0] != 0) {
 		pp = cp->provider;
-		error = g_access(cp, 1, 1, 1);
-		if (error != 0) {
-			printf("GEOM_MULTIPATH: Can't open %s (%d)\n",
-			    pp->name, error);
-			return;
-		}
-		g_topology_unlock();
-		buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
 		strlcpy(md.md_magic, G_MULTIPATH_MAGIC, sizeof(md.md_magic));
 		memcpy(md.md_uuid, sc->sc_uuid, sizeof (sc->sc_uuid));
 		strlcpy(md.md_name, sc->sc_name, sizeof(md.md_name));
 		md.md_version = G_MULTIPATH_VERSION;
 		md.md_size = size;
-		md.md_sectorsize = pp->sectorsize;
+		md.md_sectorsize = ssize;
 		md.md_active_active = sc->sc_active_active;
-		multipath_metadata_encode(&md, buf);
-		error = g_write_data(cp, pp->mediasize - pp->sectorsize,
-		    buf, pp->sectorsize);
-		g_topology_lock();
-		g_access(cp, -1, -1, -1);
+		error = g_multipath_write_metadata(cp, &md);
 		if (error != 0)
 			printf("GEOM_MULTIPATH: Can't update metadata on %s "
 			    "(%d)\n", pp->name, error);
@@ -747,6 +747,30 @@ g_multipath_read_metadata(struct g_consumer *cp,
 	return (0);
 }
 
+static int
+g_multipath_write_metadata(struct g_consumer *cp,
+    struct g_multipath_metadata *md)
+{
+	struct g_provider *pp;
+	u_char *buf;
+	int error;
+
+	g_topology_assert();
+	error = g_access(cp, 1, 1, 1);
+	if (error != 0)
+		return (error);
+	pp = cp->provider;
+	g_topology_unlock();
+	buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
+	multipath_metadata_encode(md, buf);
+	error = g_write_data(cp, pp->mediasize - pp->sectorsize,
+	    buf, pp->sectorsize);
+	g_topology_lock();
+	g_access(cp, -1, -1, -1);
+	g_free(buf);
+	return (error);
+}
+
 static struct g_geom *
 g_multipath_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 {
@@ -1109,7 +1133,6 @@ g_multipath_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	struct g_multipath_metadata md;
 	const char *name;
 	int error, *val;
-	void *buf;
 
 	g_topology_assert();
 
@@ -1136,13 +1159,6 @@ g_multipath_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	if (sc->sc_uuid[0] != 0 && sc->sc_active != NULL) {
 		cp = sc->sc_active;
 		pp = cp->provider;
-		error = g_access(cp, 1, 1, 1);
-		if (error != 0) {
-			gctl_error(req, "Can't open %s (%d)", pp->name, error);
-			return;
-		}
-		g_topology_unlock();
-		buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
 		strlcpy(md.md_magic, G_MULTIPATH_MAGIC, sizeof(md.md_magic));
 		memcpy(md.md_uuid, sc->sc_uuid, sizeof (sc->sc_uuid));
 		strlcpy(md.md_name, name, sizeof(md.md_name));
@@ -1150,11 +1166,7 @@ g_multipath_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		md.md_size = pp->mediasize;
 		md.md_sectorsize = pp->sectorsize;
 		md.md_active_active = sc->sc_active_active;
-		multipath_metadata_encode(&md, buf);
-		error = g_write_data(cp, pp->mediasize - pp->sectorsize,
-		    buf, pp->sectorsize);
-		g_topology_lock();
-		g_access(cp, -1, -1, -1);
+		error = g_multipath_write_metadata(cp, &md);
 		if (error != 0)
 			gctl_error(req, "Can't update metadata on %s (%d)",
 			    pp->name, error);
