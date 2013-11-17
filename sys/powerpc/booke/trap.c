@@ -194,6 +194,11 @@ trap(struct trapframe *frame)
 
 		case EXC_PGM:	/* Program exception */
 #ifdef FPU_EMU
+			if (!(td->td_pcb->pcb_flags & PCB_FPREGS)) {
+				bzero(&td->td_pcb->pcb_fpu,
+				    sizeof(td->td_pcb->pcb_fpu));
+				td->td_pcb->pcb_flags |= PCB_FPREGS;
+			}
 			sig = fpu_emulate(frame,
 			    (struct fpreg *)&td->td_pcb->pcb_fpu);
 #else

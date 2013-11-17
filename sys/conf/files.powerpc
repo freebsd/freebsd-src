@@ -165,7 +165,7 @@ powerpc/powermac/uninorth.c	optional	powermac
 powerpc/powermac/uninorthpci.c	optional	powermac pci
 powerpc/powermac/vcoregpio.c	optional	powermac 
 powerpc/powermac/windtunnel.c	optional	powermac windtunnel
-powerpc/powerpc/altivec.c	optional	aim
+powerpc/powerpc/altivec.c	standard
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bcopy.c		standard
 powerpc/powerpc/bus_machdep.c	standard
@@ -182,7 +182,7 @@ powerpc/powerpc/dump_machdep.c	standard
 powerpc/powerpc/elf32_machdep.c	optional	powerpc | compat_freebsd32
 powerpc/powerpc/elf64_machdep.c	optional	powerpc64
 powerpc/powerpc/exec_machdep.c	standard
-powerpc/powerpc/fpu.c		optional	aim
+powerpc/powerpc/fpu.c		standard
 powerpc/powerpc/fuswintr.c	standard
 powerpc/powerpc/gdb_machdep.c	optional	gdb
 powerpc/powerpc/in_cksum.c	optional	inet | inet6
