@@ -72,6 +72,7 @@ struct busdma_md_seg {
 	vm_paddr_t	mds_paddr;
 	vm_offset_t	mds_vaddr;
 	vm_size_t	mds_size;
+	uintptr_t	mds_iommu;
 };
 
 struct busdma_md {
@@ -625,6 +626,24 @@ busdma_tag_destroy(struct busdma_tag *tag)
 }
 
 bus_addr_t
+busdma_tag_get_align(struct busdma_tag *tag)
+{
+
+	CTR2(KTR_BUSDMA, "%s: tag=%p", __func__, tag);
+
+	return ((tag != NULL) ? tag->dt_align : 0UL);
+}
+
+bus_addr_t
+busdma_tag_get_bndry(struct busdma_tag *tag)
+{
+
+	CTR2(KTR_BUSDMA, "%s: tag=%p", __func__, tag);
+
+	return ((tag != NULL) ? tag->dt_bndry : 0UL);
+}
+
+bus_addr_t
 busdma_tag_get_maxaddr(struct busdma_tag *tag)
 {
 
@@ -695,6 +714,19 @@ busdma_md_get_flags(struct busdma_md *md)
 	return ((md != NULL) ? md->md_flags : 0);
 }
 
+uintptr_t
+busdma_md_get_iommu(struct busdma_md *md, u_int idx)
+{
+	struct busdma_md_seg *seg;
+	uintptr_t iommu;
+
+	CTR3(KTR_BUSDMA, "%s: md=%p, idx=%u", __func__, md, idx);
+
+	seg = _busdma_md_get_seg(md, idx);
+	iommu = (seg != NULL) ? seg->mds_iommu : 0UL;
+	return (iommu);
+}
+
 u_int
 busdma_md_get_nsegs(struct busdma_md *md)
 {
@@ -753,6 +785,24 @@ busdma_md_get_vaddr(struct busdma_md *md, u_int idx)
 	vaddr = (seg != NULL) ? seg->mds_vaddr : 0UL;
 	KASSERT(vaddr != 0UL, ("%s: invalid vaddr", __func__));
 	return (vaddr);
+}
+
+uintptr_t
+busdma_md_set_iommu(struct busdma_md *md, u_int idx, uintptr_t iommu)
+{
+	struct busdma_md_seg *seg;
+	uintptr_t prev;
+
+	CTR4(KTR_BUSDMA, "%s: md=%p, idx=%u, iommu=%jx", __func__, md, idx,
+	    (uintmax_t)iommu);
+
+	seg = _busdma_md_get_seg(md, idx);
+	if (seg != NULL) {
+		prev = seg->mds_iommu;
+		seg->mds_iommu = iommu;
+	} else
+		prev = 0UL;
+	return (prev);
 }
 
 int
