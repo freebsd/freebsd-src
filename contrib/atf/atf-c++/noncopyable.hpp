@@ -1,7 +1,7 @@
 //
 // Automated Testing Framework (atf)
 //
-// Copyright (c) 2010 The NetBSD Foundation, Inc.
+// Copyright (c) 2007 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,55 +27,30 @@
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#if !defined(_ATF_RUN_ALARM_HPP_)
-#define _ATF_RUN_ALARM_HPP_
-
-extern "C" {
-#include <sys/types.h>
-}
-
-#include <memory>
-
-#include "atf-c++/noncopyable.hpp"
+#if !defined(_ATF_CXX_NONCOPYABLE_HPP_)
+#define _ATF_CXX_NONCOPYABLE_HPP_
 
 namespace atf {
-namespace atf_run {
-
-class signal_programmer;
 
 // ------------------------------------------------------------------------
-// The "timer" class.
+// The "noncopyable" class.
 // ------------------------------------------------------------------------
 
-class timer : noncopyable {
-    struct impl;
-    std::auto_ptr< impl > m_pimpl;
+class noncopyable {
+    // The class cannot be empty; otherwise we get ABI-stability warnings
+    // during the build, which will break it due to strict checking.
+    int m_noncopyable_dummy;
 
-public:
-    timer(const unsigned int);
-    virtual ~timer(void);
+    noncopyable(const noncopyable& nc);
+    noncopyable& operator=(const noncopyable& nc);
 
-    bool fired(void) const;
-    void set_fired(void);
-    virtual void timeout_callback(void) = 0;
+protected:
+    // Explicitly needed to provide some non-private functions.  Otherwise
+    // we also get some warnings during the build.
+    noncopyable(void) {}
+    ~noncopyable(void) {}
 };
 
-// ------------------------------------------------------------------------
-// The "child_timer" class.
-// ------------------------------------------------------------------------
-
-class child_timer : public timer {
-    const pid_t m_pid;
-    volatile bool& m_terminate;
-
-public:
-    child_timer(const unsigned int, const pid_t, volatile bool&);
-    virtual ~child_timer(void);
-
-    void timeout_callback(void);
-};
-
-} // namespace atf_run
 } // namespace atf
 
-#endif // !defined(_ATF_RUN_ALARM_HPP_)
+#endif // !defined(_ATF_CXX_NONCOPYABLE_HPP_)

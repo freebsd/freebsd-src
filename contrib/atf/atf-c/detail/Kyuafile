@@ -9,6 +9,5 @@ atf_test_program{name="list_test"}
 atf_test_program{name="map_test"}
 atf_test_program{name="process_test"}
 atf_test_program{name="sanity_test"}
-atf_test_program{name="test_helpers_test"}
 atf_test_program{name="text_test"}
 atf_test_program{name="user_test"}
