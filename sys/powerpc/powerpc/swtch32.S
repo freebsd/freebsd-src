@@ -90,10 +90,6 @@ ENTRY(cpu_switch)
 	mflr	%r16			/* Save the link register */
 	stw	%r16,PCB_LR(%r6)
 #ifdef BOOKE
-	mfctr	%r16
-	stw	%r16,PCB_BOOKE_CTR(%r6)
-	mfxer	%r16
-	stw	%r16,PCB_BOOKE_XER(%r6)
 	mfspr	%r16,SPR_DBCR0
 	stw	%r16,PCB_BOOKE_DBCR0(%r6)
 #endif
@@ -179,10 +175,6 @@ blocked_loop:
 	isync
 #endif
 #ifdef BOOKE
-	lwz	%r5,PCB_BOOKE_CTR(%r3)
-	mtctr	%r5
-	lwz	%r5,PCB_BOOKE_XER(%r3)
-	mtctr	%r5
 	lwz	%r5,PCB_BOOKE_DBCR0(%r3)
 	mtspr	SPR_DBCR0,%r5
 #endif
