@@ -1002,7 +1002,7 @@ f_package_extract()
 		return $FAILURE
 	fi
 
-	local orphan devname=
+	local devname=
 	f_struct device_$device get name devname
 	if [ "$depended" ]; then
 		f_show_info "$msg_adding_package_as_a_dependency_from_media" \
@@ -1013,7 +1013,7 @@ f_package_extract()
 
 	# Request the package be added via pkg-install(8)
 	if f_debugging; then
-		pkg -d install -y $orphan "$name"
+		pkg -d install -y "$name"
 	else
 		f_quietly pkg install -y "$name"
 	fi
