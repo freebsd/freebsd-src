@@ -59,13 +59,13 @@ extern int harvest_pool_count;
 /* This is in randomdev.c as it needs to be permanently in the kernel */
 void randomdev_set_wakeup_exit(void *);
 
-/* Round-robin destination cache. */
-extern u_int harvest_destination[ENTROPYSOURCE];
+/* Force all currently pending queue contents to clear, and kick the software processor */
+void random_harvestq_flush(void);
 
 /* Function called to process one harvested stochastic event */
 extern void (*harvest_process_event)(struct harvest_event *);
 
-extern int random_kthread_control;
-extern struct mtx harvest_mtx;
+/* Round-robin destination cache. */
+extern u_int harvest_destination[ENTROPYSOURCE];
 
 #endif /* SYS_DEV_RANDOM_RANDOM_HARVESTQ_H_INCLUDED */

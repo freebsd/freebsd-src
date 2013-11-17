@@ -52,10 +52,10 @@ __FBSDID("$FreeBSD$");
 
 #define	RETRY_COUNT	10
 
-static int random_ivy_read(void *, int);
+static u_int random_ivy_read(void *, u_int);
 
 static struct live_entropy_source random_ivy = {
-	.les_ident = "Hardware, Intel IvyBridge+ RNG",
+	.les_ident = "Intel IvyBridge+ RNG",
 	.les_source = RANDOM_PURE_RDRAND,
 	.les_read = random_ivy_read
 };
@@ -85,15 +85,17 @@ ivy_rng_store(long *buf)
 #endif
 }
 
-static int
-random_ivy_read(void *buf, int c)
+/* It is specifically allowed that buf is a multiple of sizeof(long) */
+static u_int
+random_ivy_read(void *buf, u_int c)
 {
 	long *b;
-	int count;
+	u_int count;
 
 	KASSERT(c % sizeof(long) == 0, ("partial read %d", c));
-	for (b = buf, count = c; count > 0; count -= sizeof(long), b++) {
-		if (ivy_rng_store(b) == 0)
+	b = buf;
+	for (count = c; count > 0; count -= sizeof(long)) {
+		if (ivy_rng_store(b++) == 0)
 			break;
 	}
 	return (c - count);

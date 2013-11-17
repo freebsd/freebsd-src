@@ -28,6 +28,8 @@
 #include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_random.h"
+
 #include <sys/kernel.h>
 #include <sys/libkern.h>
 #include <sys/lock.h>
@@ -52,7 +54,7 @@ __FBSDID("$FreeBSD$");
 /*
  * The les_lock protects the consistency of the "struct les_head les_sources"
  */
-static struct sx les_lock; /* need a sleepable lock */
+static struct sx les_lock; /* Need a sleepable lock for the sbuf/sysctl stuff. */
 
 LIST_HEAD(les_head, live_entropy_sources);
 static struct les_head les_sources = LIST_HEAD_INITIALIZER(les_sources);
@@ -124,7 +126,6 @@ live_entropy_source_handler(SYSCTL_HANDLER_ARGS)
  *
  * BEWARE!!!
  * This function runs inside the RNG thread! Don't do anything silly!
- * Remember that we are NOT holding harvest_mtx on entry!
  */
 /* XXXRW: get_cyclecount() is cheap on most modern hardware, where cycle
  * counters are built in, but on older hardware it will do a real time clock
@@ -135,7 +136,8 @@ live_entropy_sources_feed(void)
 {
 	static struct harvest_event event;
 	struct live_entropy_sources *lles;
-	int i, n, read_rate;
+	int i, read_rate;
+	u_int n;
 
 	sx_slock(&les_lock);
 
@@ -156,7 +158,7 @@ live_entropy_sources_feed(void)
 			/* This *must* be quick, since it's a live entropy source. */
 			n = lles->lles_rsource->les_read(event.he_entropy, HARVESTSIZE);
 			KASSERT((n > 0 && n <= HARVESTSIZE), ("very bad return from les_read (= %d) in %s", n, __func__));
-			memset(event.he_entropy + n, 0, HARVESTSIZE - (u_int)n);
+			memset(event.he_entropy + n, 0, HARVESTSIZE - n);
 
 			/* Do the actual entropy insertion */
 			harvest_process_event(&event);

@@ -50,10 +50,10 @@ __FBSDID("$FreeBSD$");
 
 static void random_nehemiah_init(void);
 static void random_nehemiah_deinit(void);
-static int random_nehemiah_read(void *, int);
+static u_int random_nehemiah_read(void *, u_int);
 
 static struct live_entropy_source random_nehemiah = {
-	.les_ident = "Hardware, VIA Nehemiah Padlock RNG",
+	.les_ident = "VIA Nehemiah Padlock RNG",
 	.les_source = RANDOM_PURE_NEHEMIAH,
 	.les_read = random_nehemiah_read
 };
@@ -100,8 +100,9 @@ random_nehemiah_deinit(void)
 	fpu_kern_free_ctx(fpu_ctx_save);
 }
 
-static int
-random_nehemiah_read(void *buf, int c)
+/* It is specifically allowed that buf is a multiple of sizeof(long) */
+static u_int
+random_nehemiah_read(void *buf, u_int c)
 {
 	uint8_t *b;
 	size_t count, ret;

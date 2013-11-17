@@ -30,6 +30,8 @@
 #ifndef SYS_DEV_RANDOM_LIVE_ENTROPY_SOURCES_H_INCLUDED
 #define SYS_DEV_RANDOM_LIVE_ENTROPY_SOURCES_H_INCLUDED
 
+typedef u_int random_live_read_func_t(void *, u_int);
+
 /*
  * Live entropy source is a source of entropy that can provide
  * specified or approximate amount of entropy immediately upon request or within
@@ -38,7 +40,7 @@
 struct live_entropy_source {
 	const char			*les_ident;
 	enum random_entropy_source	 les_source;
-	random_adaptor_read_func_t	*les_read;
+	random_live_read_func_t		*les_read;
 };
 
 struct live_entropy_sources {

@@ -33,26 +33,9 @@
  * specific to the entropy processor
  */
 
-void randomdev_init(void);
+void randomdev_init(struct mtx *);
 void randomdev_deinit(void);
 
-void randomdev_unblock(void);
-
 extern struct mtx random_reseed_mtx;
-
-/* If this was C++, the macro below would be a template */
-#define RANDOM_CHECK_UINT(name, min, max)				\
-static int								\
-random_check_uint_##name(SYSCTL_HANDLER_ARGS)				\
-{									\
-	if (oidp->oid_arg1 != NULL) {					\
-		 if (*(u_int *)(oidp->oid_arg1) <= (min))		\
-			*(u_int *)(oidp->oid_arg1) = (min);		\
-		 else if (*(u_int *)(oidp->oid_arg1) > (max))		\
-			*(u_int *)(oidp->oid_arg1) = (max);		\
-	}								\
-        return (sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2,	\
-		req));							\
-}
 
 #endif

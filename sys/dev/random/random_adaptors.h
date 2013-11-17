@@ -31,25 +31,22 @@
 
 MALLOC_DECLARE(M_ENTROPY);
 
-typedef void random_adaptor_init_func_t(void);
+typedef void random_adaptor_init_func_t(struct mtx *);
 typedef void random_adaptor_deinit_func_t(void);
-
-typedef int random_adaptor_block_func_t(int);
-typedef int random_adaptor_read_func_t(void *, int);
-typedef int random_adaptor_poll_func_t(int, struct thread *);
-
+typedef void random_adaptor_read_func_t(uint8_t *, u_int);
+typedef void random_adaptor_write_func_t(uint8_t *, u_int);
+typedef int random_adaptor_seeded_func_t(void);
 typedef void random_adaptor_reseed_func_t(void);
 
 struct random_adaptor {
 	const char			*ra_ident;
-	int				ra_seeded;
-	int				ra_priority;
+	int				 ra_priority;
 	random_adaptor_init_func_t	*ra_init;
 	random_adaptor_deinit_func_t	*ra_deinit;
-	random_adaptor_block_func_t	*ra_block;
 	random_adaptor_read_func_t	*ra_read;
-	random_adaptor_poll_func_t	*ra_poll;
+	random_adaptor_write_func_t	*ra_write;
 	random_adaptor_reseed_func_t	*ra_reseed;
+	random_adaptor_seeded_func_t	*ra_seeded;
 };
 
 struct random_adaptors {
@@ -64,10 +61,13 @@ extern struct random_adaptor randomdev_dummy;
 void random_adaptor_register(const char *, struct random_adaptor *);
 void random_adaptor_deregister(const char *);
 
-int random_adaptor_block(int);
-int random_adaptor_read(struct uio *, int);
-int random_adaptor_poll(int, struct thread *);
+int random_adaptor_open(struct cdev *, int, int, struct thread *);
+int random_adaptor_read(struct cdev *, struct uio *, int);
+int random_adaptor_write(struct cdev *, struct uio *, int);
+int random_adaptor_close(struct cdev *, int, int, struct thread *);
+int random_adaptor_poll(struct cdev *, int, struct thread *);
 
 int random_adaptor_read_rate(void);
+void random_adaptor_unblock(void);
 
 #endif /* SYS_DEV_RANDOM_RANDOM_ADAPTORS_H_INCLUDED */
