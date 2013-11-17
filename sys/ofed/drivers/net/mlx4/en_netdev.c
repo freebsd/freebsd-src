@@ -52,6 +52,9 @@ static void mlx4_en_vlan_rx_add_vid(void *arg, struct net_device *dev, u16 vid)
 	int idx;
 	u8 field;
 
+	if (arg != priv)
+		return;
+
 	if ((vid == 0) || (vid > 4095))    /* Invalid */
 		return;
 	en_dbg(HW, priv, "adding VLAN:%d\n", vid);
@@ -72,6 +75,9 @@ static void mlx4_en_vlan_rx_kill_vid(void *arg, struct net_device *dev, u16 vid)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	int idx;
 	u8 field;
+
+	if (arg != priv)
+		return;
 
 	if ((vid == 0) || (vid > 4095))    /* Invalid */
 		return;
