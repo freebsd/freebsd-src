@@ -385,7 +385,9 @@ bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 	int i, ret;
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
+		sx_xlock(&fb_helper->dev->mode_config.mutex);
 		ret = drm_crtc_helper_set_config(mode_set);
+		sx_xunlock(&fb_helper->dev->mode_config.mutex);
 		if (ret)
 			error = true;
 	}
