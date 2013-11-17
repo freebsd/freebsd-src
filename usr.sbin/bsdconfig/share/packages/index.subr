@@ -86,6 +86,7 @@ INDEX_FORMAT="$INDEX_FORMAT|"			# disc
 #
 f_index_initialize()
 {
+	local __funcname=f_index_initialize
 	local __var_to_set="${2:-PACKAGE_INDEX}"
 
 	[ "$_INDEX_INITTED" ] && return $SUCCESS
@@ -117,7 +118,9 @@ f_index_initialize()
 	$DEVICE_TYPE_NFS)        __site="file://$MOUNTPOINT" ;;
 	esac
 
-	if ! PACKAGESITE="$__site" f_quietly pkg update; then
+	export PACKAGESITE="$__site"
+	f_dprintf "PACKAGESITE=[%s]" "$PACKAGESITE"
+	if ! f_eval_catch $__funcname pkg "pkg update"; then
 		f_show_err "$msg_unable_to_update_pkg_from_selected_media"
 		f_device_shutdown media
 		return $FAILURE
