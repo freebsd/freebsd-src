@@ -148,7 +148,7 @@ check_machine(const std::string& machines)
         return "Requires one of the '" + machines + "' machine types";
 }
 
-#if defined(__APPLE__) || defined(__NetBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)
 static
 std::string
 check_memory_sysctl(const int64_t needed, const char* sysctl_variable)
@@ -171,6 +171,13 @@ check_memory_sysctl(const int64_t needed, const char* sysctl_variable)
 static
 std::string
 check_memory_darwin(const int64_t needed)
+{
+    return check_memory_sysctl(needed, "hw.usermem");
+}
+#   elif defined(__FreeBSD__)
+static
+std::string
+check_memory_freebsd(const int64_t needed)
 {
     return check_memory_sysctl(needed, "hw.usermem");
 }
@@ -201,6 +208,8 @@ check_memory(const std::string& raw_memory)
 
 #if defined(__APPLE__)
     return check_memory_darwin(needed);
+#elif defined(__FreeBSD__)
+    return check_memory_freebsd(needed);
 #elif defined(__NetBSD__)
     return check_memory_netbsd(needed);
 #else

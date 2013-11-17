@@ -3,6 +3,7 @@ Content-Type: application/X-atf-atffile; version="1"
 prop: test-suite = atf
 
 tp: application_test
+tp: auto_array_test
 tp: env_test
 tp: exceptions_test
 tp: expand_test

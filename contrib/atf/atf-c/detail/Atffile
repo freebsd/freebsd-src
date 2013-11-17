@@ -9,6 +9,5 @@ tp: list_test
 tp: map_test
 tp: process_test
 tp: sanity_test
-tp: test_helpers_test
 tp: text_test
 tp: user_test

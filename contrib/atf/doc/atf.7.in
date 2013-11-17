@@ -34,9 +34,9 @@
 .Nd introduction to the Automated Testing Framework
 .Sh DESCRIPTION
 .Em IMPORTANT: If you are here because you want to know how to run the tests in
-.Em Pa __TESTSDIR__ ,
+.Pa __TESTSDIR__ ,
 .Em you most likely want to read the
-.Em Xr tests 7
+.Xr tests 7
 .Em manual page instead.
 .Pp
 The Automated Testing Framework
