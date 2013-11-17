@@ -1013,9 +1013,9 @@ f_package_extract()
 
 	# Request the package be added via pkg-install(8)
 	if f_debugging; then
-		pkg -d install -y "$name"
+		f_eval_catch $funcname pkg 'pkg -d install -y "%s"' "$name"
 	else
-		f_quietly pkg install -y "$name"
+		f_eval_catch $funcname pkg 'pkg install -y "%s"' "$name"
 	fi
 	if [ $? -ne $SUCCESS ]; then
 		$alert "$msg_pkg_install_apparently_did_not_like_the_package" \
@@ -1144,9 +1144,9 @@ f_package_delete()
 	#
 	f_show_info "$msg_uninstalling_package_waiting_for_pkg_delete" "$name"
 	if f_debugging; then
-		pkg -d delete -y "$name"
+		f_eval_catch $funcname pkg 'pkg -d delete -y "%s"' "$name"
 	else
-		f_quietly pkg delete -y "$name"
+		f_eval_catch $funcname pkg 'pkg delete -y "%s"' "$name"
 	fi
 	if [ $? -ne $SUCCESS ]; then
 		f_show_msg "$msg_pkg_delete_failed" "$name"
