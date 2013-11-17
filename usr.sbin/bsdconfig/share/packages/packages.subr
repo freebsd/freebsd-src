@@ -971,10 +971,16 @@ f_package_extract()
 	f_getvar $VAR_PKG_TMPDIR:-/var/tmp tmpdir
 	f_quietly mkdir -p -m 1777 "$tmpdir"
 
-	local path
+	local path device_type
+	device_$device get type device_type
 	case "$name" in
 	*/*) path="$name" ;;
-	*) path="All/$name" ;;
+	*)
+		if [ "$device_type" = "$DEVICE_TYPE_HTTP" ]; then
+			path="$PKG_ABI/latest/All/$name"
+		else
+			path="packages/$PKG_ABI/All/$name"
+		fi
 	esac
 
 	# We have a path, call the device strategy routine to check the file
@@ -982,12 +988,20 @@ f_package_extract()
 	for pkg_ext in "" $PACKAGE_EXTENSIONS; do
 		if f_device_get $device "$path$pkg_ext" $PROBE_EXIST; then
 			path="$path$pkg_ext"
-			f_dprintf "$funcname: found path=[%s] dev=[%s]" \
-			          "$path" "$device"
+			found=1
+			break
+		elif [ "$device_type" = "$DEVICE_TYPE_HTTP" ] &&
+		     f_device_get $device \
+			"packages/$PKG_ABI/All/$name$pkg_ext" $PROBE_EXIST
+		then
+			# Mirroring physical media over HTTP
+			path="packages/$PKG_ABI/All/$name$pkg_ext"
 			found=1
 			break
 		fi
 	done
+	[ "$found" ] && f_dprintf "$funcname: found path=[%s] dev=[%s]" \
+	                          "$path" "$device"
 
 	local alert=f_show_msg no_confirm=
 	f_getvar $VAR_NO_CONFIRM no_confirm
