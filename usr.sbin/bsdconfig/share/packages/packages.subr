@@ -571,12 +571,12 @@ f_package_menu_deselect()
 #
 f_package_review()
 {
+	local funcname=f_package_review
 	local prompt # Calculated below
 	local menu_list # Calculated below
 	local hline="$hline_alnum_arrows_punc_tab_enter"
 
-	local fname=f_package_review
-	f_dprintf "%s: SELECTED_PACKAGES=[%s]" $fname "$SELECTED_PACKAGES"
+	f_dprintf "$funcname: SELECTED_PACKAGES=[%s]" "$SELECTED_PACKAGES"
 
 	prompt=$( printf "$msg_reviewing_selected_packages" "$_All_nselected" )
 
@@ -628,7 +628,7 @@ f_package_review()
 		f_str2varname "$package" varpkg
 		debug= f_getvar _mark_$varpkg mark
 		[ "$mark" = "I" ] || continue
-		f_dprintf "%s: Installing %s package" $fname "$package"
+		f_dprintf "$funcname: Installing %s package" "$package"
 		f_package_add "$package"
 	done
 	for package in $SELECTED_PACKAGES; do
@@ -636,7 +636,7 @@ f_package_review()
 		f_str2varname "$package" varpkg
 		debug= f_getvar _mark_$varpkg mark
 		[ "$mark" = "R" ] || continue
-		f_dprintf "%s: Reinstalling %s package" $fname "$package"
+		f_dprintf "$funcname: Reinstalling %s package" "$package"
 		f_package_reinstall "$package"
 	done
 	for package in $SELECTED_PACKAGES; do
@@ -644,7 +644,7 @@ f_package_review()
 		f_str2varname "$package" varpkg
 		debug= f_getvar _mark_$varpkg mark
 		[ "$mark" = "U" ] || continue
-		f_dprintf "%s: Uninstalling %s package" $fname "$package"
+		f_dprintf "$funcname: Uninstalling %s package" "$package"
 		f_package_delete "$package" || continue
 		f_package_deselect "$package"
 	done
@@ -943,11 +943,11 @@ f_package_add()
 #
 f_package_extract()
 {
+	local funcname=f_package_extract
 	local device="$1" name="$2" depended="$3"
 
-	local fname=f_package_extract
-	f_dprintf "%s: device=[%s] name=[%s] depended=[%s]" \
-	          $fname "$device" "$name" "$depended"
+	f_dprintf "$funcname: device=[%s] name=[%s] depended=[%s]" \
+	          "$device" "$name" "$depended"
 
 	# Check to make sure it's not already there
 	local varpkg mark=
@@ -982,8 +982,8 @@ f_package_extract()
 	for pkg_ext in "" $PACKAGE_EXTENSIONS; do
 		if f_device_get $device "$path$pkg_ext" $PROBE_EXIST; then
 			path="$path$pkg_ext"
-			f_dprintf "%s: found path=[%s] dev=[%s]" \
-			          $fname "$path" "$device"
+			f_dprintf "$funcname: found path=[%s] dev=[%s]" \
+			          "$path" "$device"
 			found=1
 			break
 		fi
@@ -994,8 +994,8 @@ f_package_extract()
 	[ "$no_confirm" ] && alert=f_show_info
 
 	if [ ! "$found" ]; then
-		f_dprintf "%s: No such %s file on %s device" \
-	                  $fname "$path" "$device"
+		f_dprintf "$funcname: No such %s file on %s device" \
+	                  "$path" "$device"
 		$alert "$msg_unable_to_fetch_package_from_selected_media" \
 		       "$name"
 		[ "$no_confirm" ] && sleep 2
@@ -1035,8 +1035,8 @@ f_package_extract()
 #
 f_package_delete()
 {
+	local funcname=f_package_delete
 	local name="$1"
-	local fname=f_package_delete
 
 	if ! { [ "$name" ] || { f_getvar $VAR_PACKAGE name && [ "$name" ]; }; }
 	then
@@ -1045,7 +1045,7 @@ f_package_delete()
 		return $FAILURE
 	fi
 
-	f_dprintf "%s: name=[%s]" $fname "$name"
+	f_dprintf "$funcname: name=[%s]" "$name"
 
 	[ "$name" ] || return $FAILURE
 
@@ -1082,7 +1082,7 @@ f_package_delete()
 	# detected the installed packages -- something we should do only once.
 	#
 	if [ ! "$PACKAGES_DETECTED" ]; then
-		f_dprintf "%s: Detecting installed packages" $fname
+		f_dprintf "$funcname: Detecting installed packages"
 		f_package_detect_installed
 		export PACKAGES_DETECTED=1 # exported for awk(1) ENVIRON[]
 	fi
@@ -1134,8 +1134,8 @@ f_package_delete()
 	# Chase dependencies that are marked for uninstallation
 	#
 	for pkgsel in $udeps; do
-		f_dprintf "%s: Uninstalling dependency %s (%s)" \
-		          $fname "$pkgsel" "marked for delete"
+		f_dprintf "$funcname: Uninstalling dependency %s (%s)" \
+		          "$pkgsel" "marked for delete"
 		f_package_delete "$pkgsel"
 	done
 
@@ -1152,7 +1152,7 @@ f_package_delete()
 		f_show_msg "$msg_pkg_delete_failed" "$name"
 		return $FAILURE
 	else
-		f_dprintf "%s: pkg-delete(8) of %s successful" $fname "$name"
+		f_dprintf "$funcname: pkg-delete(8) of %s successful" "$name"
 		f_str2varname "$name" varpkg
 		setvar _mark_$varpkg ""
 	fi
