@@ -69,17 +69,12 @@ size_t	__iconv(iconv_t, const char **, size_t *, char **,
 /*
  * GNU interfaces for iconv
  */
-/* We have iconvctl() */
-#define _ICONV_VERSION	0x0108
-extern int _iconv_version;
-
 typedef struct {
 	void	*spaceholder[64];
 } iconv_allocation_t;
 
 int	 iconv_open_into(const char *, const char *, iconv_allocation_t *);
-void	 iconv_set_relocation_prefix(const char *orig_prefix,
-	     const char *curr_prefix);
+void	 iconv_set_relocation_prefix(const char *, const char *);
 
 /*
  * iconvctl() request macros
