@@ -24,6 +24,7 @@ _TESTS+= ${PLAIN_TESTS_C}
 .for _T in ${PLAIN_TESTS_C}
 BINDIR.${_T}= ${TESTSDIR}
 MAN.${_T}?= # empty
+SRCS.${_T}?= ${_T}.c
 TEST_INTERFACE.${_T}= plain
 .endfor
 .endif
@@ -34,6 +35,7 @@ _TESTS+= ${PLAIN_TESTS_CXX}
 .for _T in ${PLAIN_TESTS_CXX}
 BINDIR.${_T}= ${TESTSDIR}
 MAN.${_T}?= # empty
+SRCS.${_T}?= ${_T}.cc
 TEST_INTERFACE.${_T}= plain
 .endfor
 .endif
