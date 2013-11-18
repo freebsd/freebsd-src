@@ -86,7 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <altq/altq.h>
 #endif
 
-static int		 pfattach(void);
+static int		 pf_vnet_init(void);
 static struct pf_pool	*pf_get_pool(char *, u_int32_t, u_int8_t, u_int32_t,
 			    u_int8_t, u_int8_t, u_int8_t);
 
@@ -202,15 +202,18 @@ pfsync_defer_t			*pfsync_defer_ptr = NULL;
 pflog_packet_t			*pflog_packet_ptr = NULL;
 
 static int
-pfattach(void)
+pf_vnet_init(void)
 {
 	u_int32_t *my_timeout = V_pf_default_rule.timeout;
 	int error;
 
-	pf_initialize();
+	TAILQ_INIT(&V_pf_tags);
+	TAILQ_INIT(&V_pf_qids);
+
+	pf_vnet_initialize();
 	pfr_initialize();
-	pfi_initialize();
-	pf_normalize_init();
+	pfi_vnet_initialize();
+	pf_vnet_normalize_init();
 
 	V_pf_limits[PF_LIMIT_STATES].limit = PFSTATE_HIWAT;
 	V_pf_limits[PF_LIMIT_SRC_NODES].limit = PFSNODE_HIWAT;
@@ -3634,26 +3637,9 @@ dehook_pf(void)
 static int
 pf_load(void)
 {
-	int error;
-
-	VNET_ITERATOR_DECL(vnet_iter);
-
-	VNET_LIST_RLOCK();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter);
-		V_pf_pfil_hooked = 0;
-		V_pf_end_threads = 0;
-		TAILQ_INIT(&V_pf_tags);
-		TAILQ_INIT(&V_pf_qids);
-		CURVNET_RESTORE();
-	}
-	VNET_LIST_RUNLOCK();
 
 	rw_init(&pf_rules_lock, "pf rulesets");
-
 	pf_dev = make_dev(&pf_cdevsw, 0, 0, 0, 0600, PF_NAME);
-	if ((error = pfattach()) != 0)
-		return (error);
 
 	return (0);
 }
@@ -3730,3 +3716,6 @@ static moduledata_t pf_mod = {
 
 DECLARE_MODULE(pf, pf_mod, SI_SUB_PSEUDO, SI_ORDER_FIRST);
 MODULE_VERSION(pf, PF_MODVER);
+
+VNET_SYSINIT(pf_vnet_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY - 255,
+    pf_vnet_init, NULL);
