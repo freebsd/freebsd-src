@@ -38,6 +38,16 @@
                 ..
             ..
         ..
+        share
+            examples
+                tests
+                    atf
+                    ..
+                    plain
+                    ..
+                ..
+            ..
+        ..
         usr.bin
             atf
                 atf-sh
