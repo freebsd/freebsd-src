@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 31, 2013
+.Dd November 7, 2013
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -175,6 +175,11 @@ Not applicable on all platforms. Requires that the
 .Xr md 4
 (memory disk) device driver be present in the kernel
 (either by being compiled in or available as a module).
+.It Cm mini-memstick
+Similar to
+.Cm memstick ,
+with the exception that the installation distribution sets
+are not included.
 .It Cm ftp
 Creates a directory named
 .Pa ftp
