@@ -355,7 +355,7 @@ vt_scrollmode_kbdevent(struct vt_window *vw, int c, int console)
 		/* Turn scrolling off. */
 		vt_scroll(vw, 0, VHS_END);
 		VTBUF_SLCK_DISABLE(&vw->vw_buf);
-		vw->vw_flags &= ~VWF_SCROLL;
+		atomic_clear_int(&vw->vw_flags, VWF_SCROLL);
 		break;
 	}
 	case FKEY | F(49): /* Home key. */
@@ -438,11 +438,11 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 			VT_LOCK(vd);
 			if (state & SLKED) {
 				/* Turn scrolling on. */
-				vw->vw_flags |= VWF_SCROLL;
+				atomic_set_int(&vw->vw_flags, VWF_SCROLL);
 				VTBUF_SLCK_ENABLE(&vw->vw_buf);
 			} else {
 				/* Turn scrolling off. */
-				vw->vw_flags &= ~VWF_SCROLL;
+				atomic_clear_int(&vw->vw_flags, VWF_SCROLL);
 				VTBUF_SLCK_DISABLE(&vw->vw_buf);
 				vt_scroll(vw, 0, VHS_END);
 			}
@@ -889,12 +889,12 @@ vtterm_cngetc(struct terminal *tm)
 			kbdd_ioctl(kbd, KDGKBSTATE, (caddr_t)&state);
 			if (state & SLKED) {
 				/* Turn scrolling on. */
-				vw->vw_flags |= VWF_SCROLL;
+				atomic_set_int(&vw->vw_flags, VWF_SCROLL);
 				VTBUF_SLCK_ENABLE(&vw->vw_buf);
 			} else {
 				/* Turn scrolling off. */
 				vt_scroll(vw, 0, VHS_END);
-				vw->vw_flags &= ~VWF_SCROLL;
+				atomic_clear_int(&vw->vw_flags, VWF_SCROLL);
 				VTBUF_SLCK_DISABLE(&vw->vw_buf);
 			}
 			break;
@@ -934,9 +934,9 @@ vtterm_opened(struct terminal *tm, int opened)
 	VT_LOCK(vd);
 	vd->vd_flags &= ~VDF_SPLASH;
 	if (opened)
-		vw->vw_flags |= VWF_OPENED;
+		atomic_set_int(&vw->vw_flags, VWF_OPENED);
 	else {
-		vw->vw_flags &= ~VWF_OPENED;
+		atomic_clear_int(&vw->vw_flags, VWF_OPENED);
 		/* TODO: finish ACQ/REL */
 	}
 	VT_UNLOCK(vd);
@@ -974,7 +974,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 		VT_UNLOCK(vd);
 		return (ENOTTY);
 	}
-	vw->vw_flags |= VWF_BUSY;
+	atomic_set_int(&vw->vw_flags, VWF_BUSY);
 	VT_UNLOCK(vd);
 
 	vt_termsize(vd, vf, &size);
@@ -997,7 +997,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 	/* Force a full redraw the next timer tick. */
 	if (vd->vd_curwindow == vw)
 		vd->vd_flags |= VDF_INVALID;
-	vw->vw_flags &= ~VWF_BUSY;
+	atomic_clear_int(&vw->vw_flags, VWF_BUSY);
 	VT_UNLOCK(vd);
 	return (0);
 }
@@ -1034,7 +1034,7 @@ signal_vt_rel(struct vt_window *vw)
 		vw->vw_pid = 0;
 		return TRUE;
 	}
-	vw->vw_flags |= VWF_SWWAIT_REL;
+	atomic_set_int(&vw->vw_flags, VWF_SWWAIT_REL);
 	PROC_LOCK(vw->vw_proc);
 	kern_psignal(vw->vw_proc, vw->vw_smode.relsig);
 	PROC_UNLOCK(vw->vw_proc);
@@ -1055,7 +1055,7 @@ signal_vt_acq(struct vt_window *vw)
 		vw->vw_pid = 0;
 		return TRUE;
 	}
-	vw->vw_flags |= VWF_SWWAIT_ACQ;
+	atomic_set_int(&vw->vw_flags, VWF_SWWAIT_ACQ);
 	PROC_LOCK(vw->vw_proc);
 	kern_psignal(vw->vw_proc, vw->vw_smode.acqsig);
 	PROC_UNLOCK(vw->vw_proc);
@@ -1068,7 +1068,7 @@ finish_vt_rel(struct vt_window *vw, int release, int *s)
 {
 
 	if (vw->vw_flags & VWF_SWWAIT_REL) {
-		vw->vw_flags &= ~VWF_SWWAIT_REL;
+		atomic_clear_int(&vw->vw_flags, VWF_SWWAIT_REL);
 		if (release) {
 			callout_drain(&vw->vw_proc_dead_timer);
 			vt_late_window_switch(vw->vw_switch_to);
@@ -1083,7 +1083,7 @@ finish_vt_acq(struct vt_window *vw)
 {
 
 	if (vw->vw_flags & VWF_SWWAIT_ACQ) {
-		vw->vw_flags &= ~VWF_SWWAIT_ACQ;
+		atomic_clear_int(&vw->vw_flags, VWF_SWWAIT_ACQ);
 		return 0;
 	}
 	return EINVAL;
@@ -1392,9 +1392,9 @@ vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
 	case VT_LOCKSWITCH:
 		/* TODO: Check current state, switching can be in progress. */
 		if ((*(int *)data) & 0x01)
-			vw->vw_flags |= VWF_VTYLOCK;
+			atomic_set_int(&vw->vw_flags, VWF_VTYLOCK);
 		else
-			vw->vw_flags &= ~VWF_VTYLOCK;
+			atomic_clear_int(&vw->vw_flags, VWF_VTYLOCK);
 	case VT_OPENQRY: {
 		unsigned int i;
 
