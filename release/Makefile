@@ -172,8 +172,7 @@ dvd:
 # Install system
 	mkdir -p ${.TARGET}
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
-		DESTDIR=${.OBJDIR}/${.TARGET} WITHOUT_RESCUE=1 WITHOUT_KERNEL_SYMBOLS=1 \
-		WITHOUT_PROFILE=1
+		DESTDIR=${.OBJDIR}/${.TARGET} WITHOUT_RESCUE=1 WITHOUT_KERNEL_SYMBOLS=1
 # Copy distfiles
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	cp *.txz MANIFEST ${.TARGET}/usr/freebsd-dist
