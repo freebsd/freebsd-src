@@ -224,6 +224,7 @@ sysmouse_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	mtx_lock(&sysmouse_lock);
 	free(sysmouse_buffer, M_SYSMOUSE);
 	sysmouse_buffer = NULL;
+	sysmouse_level = 0;
 	mtx_unlock(&sysmouse_lock);
 
 	return (0);
@@ -344,6 +345,7 @@ sysmouse_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 			return (EINVAL);
 
 		sysmouse_level = level;
+		vt_mouse_state((level == 0)?VT_MOUSE_SHOW:VT_MOUSE_HIDE);
 		return (0);
 	}
 	case MOUSE_SETMODE: {
@@ -356,6 +358,8 @@ sysmouse_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 		case 0:
 		case 1:
 			sysmouse_level = mode->level;
+			vt_mouse_state((mode->level == 0)?VT_MOUSE_SHOW:
+			    VT_MOUSE_HIDE);
 			break;
 		default:
 			return (EINVAL);

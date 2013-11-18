@@ -705,8 +705,11 @@ vt_flush(struct vt_device *vd)
 		vd->vd_flags &= ~VDF_INVALID;
 	}
 
-	/* Mark last mouse position as dirty to erase. */
-	vtbuf_mouse_cursor_position(&vw->vw_buf, vd->vd_mdirtyx, vd->vd_mdirtyy);
+	if ((vw->vw_flags & VWF_MOUSE_HIDE) == 0) {
+		/* Mark last mouse position as dirty to erase. */
+		vtbuf_mouse_cursor_position(&vw->vw_buf, vd->vd_mdirtyx,
+		    vd->vd_mdirtyy);
+	}
 
 	for (row = tarea.tr_begin.tp_row; row < tarea.tr_end.tp_row; row++) {
 		if (!VTBUF_DIRTYROW(&tmask, row))
@@ -721,6 +724,10 @@ vt_flush(struct vt_device *vd)
 			    VTBUF_ISCURSOR(&vw->vw_buf, row, col), row, col);
 		}
 	}
+
+	/* Mouse disabled. */
+	if (vw->vw_flags & VWF_MOUSE_HIDE)
+		return;
 
 	/* No mouse for DDB. */
 	if (kdb_active || panicstr != NULL)
@@ -1103,6 +1110,9 @@ vt_mouse_event(int type, int x, int y, int event, int cnt)
 	vw = vd->vd_curwindow;
 	vf = vw->vw_font;
 
+	if (vw->vw_flags & VWF_MOUSE_HIDE)
+		return; /* Mouse disabled. */
+
 	if (vf == NULL)	/* Text mode. */
 		return;
 
@@ -1223,6 +1233,25 @@ vt_mouse_event(int type, int x, int y, int event, int cnt)
 		 * window with selection.
 		 */
 		vd->vd_markedwin = vw;
+	}
+}
+
+void
+vt_mouse_state(int show)
+{
+	struct vt_device *vd;
+	struct vt_window *vw;
+
+	vd = main_vd;
+	vw = vd->vd_curwindow;
+
+	switch (show) {
+	case VT_MOUSE_HIDE:
+		atomic_set_int(&vw->vw_flags, VWF_MOUSE_HIDE);
+		break;
+	case VT_MOUSE_SHOW:
+		atomic_clear_int(&vw->vw_flags, VWF_MOUSE_HIDE);
+		break;
 	}
 }
 

@@ -241,6 +241,7 @@ struct vt_window {
 #define	VWF_SCROLL	0x4	/* Keys influence scrollback. */
 #define	VWF_CONSOLE	0x8	/* Kernel message console window. */
 #define	VWF_VTYLOCK	0x10	/* Prevent window switch. */
+#define	VWF_MOUSE_HIDE	0x20	/* Disable mouse events processing. */
 #define	VWF_SWWAIT_REL	0x10000	/* Program wait for VT acquire is done. */
 #define	VWF_SWWAIT_ACQ	0x20000	/* Program wait for VT release is done. */
 	pid_t			 vw_pid;	/* Terminal holding process */
@@ -401,5 +402,9 @@ int		 vtfont_load(vfnt_t *f, struct vt_font **ret);
 /* Sysmouse. */
 void sysmouse_process_event(mouse_info_t *mi);
 void vt_mouse_event(int type, int x, int y, int event, int cnt);
+void vt_mouse_state(int show);
+#define	VT_MOUSE_SHOW 1
+#define	VT_MOUSE_HIDE 0
 
 #endif /* !_DEV_VT_VT_H_ */
+
