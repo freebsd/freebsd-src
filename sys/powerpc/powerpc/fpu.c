@@ -66,10 +66,11 @@ enable_fpu(struct thread *td)
 	 * initialise the FPU registers and FPSCR to 0, and set the flag
 	 * to indicate that the FPU is in use.
 	 */
+	pcb->pcb_flags |= PCB_FPU;
 	tf->srr1 |= PSL_FP;
-	if (!(pcb->pcb_flags & PCB_FPU)) {
+	if (!(pcb->pcb_flags & PCB_FPREGS)) {
 		memset(&pcb->pcb_fpu, 0, sizeof pcb->pcb_fpu);
-		pcb->pcb_flags |= PCB_FPU;
+		pcb->pcb_flags |= PCB_FPREGS;
 	}
 
 	/*

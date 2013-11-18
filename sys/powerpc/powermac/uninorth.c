@@ -264,6 +264,7 @@ unin_chip_attach(device_t dev)
 	phandle_t  child;
 	phandle_t  iparent;
 	device_t   cdev;
+	cell_t     acells, scells;
 	char compat[32];
 	char name[32];
 	u_int irq, reg[3];
@@ -275,12 +276,21 @@ unin_chip_attach(device_t dev)
 	if (OF_getprop(root, "reg", reg, sizeof(reg)) < 8)
 		return (ENXIO);
 
-	if (strcmp(ofw_bus_get_name(dev), "u3") == 0
-	    || strcmp(ofw_bus_get_name(dev), "u4") == 0)
-		i = 1; /* #address-cells lies */
+	acells = scells = 1;
+	OF_getprop(OF_parent(root), "#address-cells", &acells, sizeof(acells));
+	OF_getprop(OF_parent(root), "#size-cells", &scells, sizeof(scells));
 
-	sc->sc_physaddr = reg[i];
-	sc->sc_size = reg[i+1];
+	i = 0;
+	sc->sc_physaddr = reg[i++];
+	if (acells == 2) {
+		sc->sc_physaddr <<= 32;
+		sc->sc_physaddr |= reg[i++];
+	}
+	sc->sc_size = reg[i++];
+	if (scells == 2) {
+		sc->sc_size <<= 32;
+		sc->sc_size |= reg[i++];
+	}
 
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "UniNorth Device Memory";
