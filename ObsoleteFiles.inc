@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20131109: extattr(2) mlinks fixed
+OLD_FILES+=usr/share/man/man2/extattr_delete_list.2.gz
+OLD_FILES+=usr/share/man/man2/extattr_get_list.2.gz
 # 20130704: new clang import which bumps version from 3.2 to 3.3.
 OLD_FILES+=usr/include/clang/3.2/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.2/__wmmintrin_pclmul.h
