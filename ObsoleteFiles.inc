@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20131109: extattr(2) mlinks fixed
+OLD_FILES+=usr/share/man/man2/extattr_delete_list.2.gz
+OLD_FILES+=usr/share/man/man2/extattr_get_list.2.gz
 # 20131103: WITH_LIBICONV_COMPAT removal
 OLD_FILES+=usr/include/_libiconv_compat.h
 OLD_FILES+=usr/lib/libiconv.a
