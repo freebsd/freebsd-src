@@ -62,7 +62,7 @@ f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 #
 f_dialog_menu_netdev()
 {
-	local defaultitem="${1%\*}" # Tim trailing asterisk if present
+	local defaultitem="${1%\*}" # Trim trailing asterisk if present
 
 	#
 	# Display a message to let the user know we're working...
