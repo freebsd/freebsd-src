@@ -36,7 +36,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <iconv.h>
 #include <sys/sysctl.h>
 #include <ctype.h>
 #include <errno.h>
@@ -47,10 +46,16 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <netsmb/smb_lib.h>
 
+#ifdef HAVE_ICONV
+#include <iconv.h>
+#endif
+
 u_char nls_lower[256];
 u_char nls_upper[256];
 
+#ifdef HAVE_ICONV
 static iconv_t nls_toext, nls_toloc;
+#endif
 
 int
 nls_setlocale(const char *name)
@@ -71,9 +76,7 @@ nls_setlocale(const char *name)
 int
 nls_setrecode(const char *local, const char *external)
 {
-#ifdef APPLE
-	return ENOENT;
-#else
+#ifdef HAVE_ICONV
 	iconv_t icd;
 
 	if (nls_toext)
@@ -93,12 +96,15 @@ nls_setrecode(const char *local, const char *external)
 	}
 	nls_toloc = icd;
 	return 0;
+#else
+	return ENOENT;
 #endif
 }
 
 char *
 nls_str_toloc(char *dst, const char *src)
 {
+#ifdef HAVE_ICONV
 	char *p = dst;
 	size_t inlen, outlen;
 
@@ -113,11 +119,15 @@ nls_str_toloc(char *dst, const char *src)
 	}
 	*p = 0;
 	return dst;
+#else
+	return strcpy(dst, src);
+#endif
 }
 
 char *
 nls_str_toext(char *dst, const char *src)
 {
+#ifdef HAVE_ICONV
 	char *p = dst;
 	size_t inlen, outlen;
 
@@ -132,11 +142,15 @@ nls_str_toext(char *dst, const char *src)
 	}
 	*p = 0;
 	return dst;
+#else
+	return strcpy(dst, src);
+#endif
 }
 
 void *
 nls_mem_toloc(void *dst, const void *src, int size)
 {
+#ifdef HAVE_ICONV
 	char *p = dst;
 	const char *s = src;
 	size_t inlen, outlen;
@@ -154,11 +168,15 @@ nls_mem_toloc(void *dst, const void *src, int size)
 		outlen--;
 	}
 	return dst;
+#else
+	return memcpy(dst, src, size);
+#endif
 }
 
 void *
 nls_mem_toext(void *dst, const void *src, int size)
 {
+#ifdef HAVE_ICONV
 	char *p = dst;
 	const char *s = src;
 	size_t inlen, outlen;
@@ -177,6 +195,9 @@ nls_mem_toext(void *dst, const void *src, int size)
 		outlen--;
 	}
 	return dst;
+#else
+	return memcpy(dst, src, size);
+#endif
 }
 
 char *

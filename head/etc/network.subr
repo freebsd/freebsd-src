@@ -1429,6 +1429,9 @@ childif_create()
 			fi
 			${IFCONFIG_CMD} $i name $child && cfg=0
 		fi
+		if autoif $child; then
+			ifn_start $child
+		fi
 	done
 
 	# Create vlan interfaces
@@ -1451,6 +1454,9 @@ childif_create()
 				i=`${IFCONFIG_CMD} vlan create ${create_args}`
 				${IFCONFIG_CMD} $i name $child && cfg=0
 			fi
+		fi
+		if autoif $child; then
+			ifn_start $child
 		fi
 	done
 

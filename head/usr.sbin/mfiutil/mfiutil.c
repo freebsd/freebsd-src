@@ -78,7 +78,7 @@ usage(void)
 	fprintf(stderr, "    name <volume> <name>\n");
 	fprintf(stderr, "    volume progress <volume>  - display status of active operations\n");
 	fprintf(stderr, "    clear                     - clear volume configuration\n");
-	fprintf(stderr, "    create <type> [-v] <drive>[,<drive>[,...]] [<drive>[,<drive>[,...]]\n");
+	fprintf(stderr, "    create <type> [-v] [-s stripe_size] <drive>[,<drive>[,...]] [<drive>[,<drive>[,...]]\n");
 	fprintf(stderr, "    delete <volume>\n");
 	fprintf(stderr, "    add <drive> [volume]      - add a hot spare\n");
 	fprintf(stderr, "    remove <drive>            - remove a hot spare\n");

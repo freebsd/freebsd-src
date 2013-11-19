@@ -71,10 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/spr.h>
 
-#ifdef FPU_EMU
-#include <powerpc/fpu/fpu_extern.h>
-#endif
-
 #define	FAULTBUF_LR	0
 #define	FAULTBUF_R1	1
 #define	FAULTBUF_R2	2
@@ -193,13 +189,7 @@ trap(struct trapframe *frame)
 			break;
 
 		case EXC_PGM:	/* Program exception */
-#ifdef FPU_EMU
-			sig = fpu_emulate(frame,
-			    (struct fpreg *)&td->td_pcb->pcb_fpu);
-#else
-			/* XXX SIGILL for non-trap instructions. */
-			sig = SIGTRAP;
-#endif
+			sig = ppc_instr_emulate(frame, td->td_pcb);
 			break;
 
 		default:

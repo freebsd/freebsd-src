@@ -136,7 +136,7 @@ REVISION!=	make -C ${SRCDIR}/release -V REVISION
 BRANCH!=	make -C ${SRCDIR}/release -V BRANCH
 SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 		${SRCDIR}/sys/sys/param.h
-VERSION=	FreeBSD ${REVISION}-${BRANCH} ${TARGET_ARCH} ${SRCRELDATE}
+VERSION=	FreeBSD ${REVISION}-${BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDATE}
 .endif
 
 KNOWN_ARCHES?=	amd64 arm armeb/arm armv6/arm i386 i386/pc98 ia64 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
@@ -509,7 +509,7 @@ _worldtmp:
 .endif
 .if ${MK_TESTS} != "no"
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
-	    -p ${WORLDTMP}${TESTSBASE} >/dev/null
+	    -p ${WORLDTMP}/usr >/dev/null
 .endif
 .for _mtree in ${LOCAL_MTREE}
 	mtree -deU -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
@@ -1475,11 +1475,13 @@ _startup_libs+=	lib/csu/${MACHINE_CPUARCH}
 _startup_libs+=	gnu/lib/libgcc
 _startup_libs+=	lib/libcompiler_rt
 _startup_libs+=	lib/libc
+_startup_libs+=	lib/libc_nonshared
 .if ${MK_LIBCPLUSPLUS} != "no"
 _startup_libs+=	lib/libcxxrt
 .endif
 
 gnu/lib/libgcc__L: lib/libc__L
+gnu/lib/libgcc__L: lib/libc_nonshared__L
 .if ${MK_LIBCPLUSPLUS} != "no"
 lib/libcxxrt__L: gnu/lib/libgcc__L
 .endif

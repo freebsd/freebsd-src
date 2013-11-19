@@ -123,11 +123,16 @@ public:
     const RegisterInfo *
     GetRegisterInfoByName (const char *reg_name, uint32_t start_idx = 0);
 
+    const RegisterInfo *
+    GetRegisterInfo (uint32_t reg_kind, uint32_t reg_num);
+
     uint64_t
     GetPC (uint64_t fail_value = LLDB_INVALID_ADDRESS);
 
     bool
     SetPC (uint64_t pc);
+
+    bool SetPC (Address addr);
 
     uint64_t
     GetSP (uint64_t fail_value = LLDB_INVALID_ADDRESS);

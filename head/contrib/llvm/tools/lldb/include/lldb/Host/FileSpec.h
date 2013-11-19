@@ -177,7 +177,7 @@ public:
     ///     A pointer to this object if either the directory or filename
     ///     is valid, NULL otherwise.
     //------------------------------------------------------------------
-    operator bool() const;
+    explicit operator bool() const;
 
     //------------------------------------------------------------------
     /// Logical NOT operator.
@@ -624,6 +624,21 @@ public:
     static size_t
     Resolve (const char *src_path, char *dst_path, size_t dst_len);
 
+    FileSpec
+    CopyByAppendingPathComponent (const char *new_path) const;
+    
+    FileSpec
+    CopyByRemovingLastPathComponent () const;
+    
+    void
+    AppendPathComponent (const char *new_path);
+    
+    void
+    RemoveLastPathComponent ();
+    
+    const char*
+    GetLastPathComponent () const;
+    
     //------------------------------------------------------------------
     /// Resolves the user name at the beginning of \a src_path, and writes the output
     /// to \a dst_path.  Note, \a src_path can contain other path components after the

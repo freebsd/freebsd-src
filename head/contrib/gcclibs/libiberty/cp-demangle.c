@@ -1054,6 +1054,11 @@ d_name (struct d_info *di)
     case 'Z':
       return d_local_name (di);
 
+/* APPLE LOCAL begin mainline 2007-05-09 5173149 */ \
+    case 'L':
+      return d_unqualified_name (di);
+	
+/* APPLE LOCAL end mainline 2007-05-09 5173149 */ \
     case 'S':
       {
 	int subst;
@@ -1174,7 +1179,10 @@ d_prefix (struct d_info *di)
       if (IS_DIGIT (peek)
 	  || IS_LOWER (peek)
 	  || peek == 'C'
-	  || peek == 'D')
+/* APPLE LOCAL begin mainline 2007-05-09 5173149 */ \
+	  || peek == 'D'
+	  || peek == 'L')
+/* APPLE LOCAL end mainline 2007-05-09 5173149 */ \
 	dc = d_unqualified_name (di);
       else if (peek == 'S')
 	dc = d_substitution (di, 1);
@@ -1208,6 +1216,11 @@ d_prefix (struct d_info *di)
 /* <unqualified-name> ::= <operator-name>
                       ::= <ctor-dtor-name>
                       ::= <source-name>
+ APPLE LOCAL begin mainline 2007-05-09 5173149
+		      ::= <local-source-name> 
+
+    <local-source-name>	::= L <source-name> <discriminator>
+ APPLE LOCAL end mainline 2007-05-09 5173149
 */
 
 static struct demangle_component *
@@ -1229,6 +1242,21 @@ d_unqualified_name (struct d_info *di)
     }
   else if (peek == 'C' || peek == 'D')
     return d_ctor_dtor_name (di);
+/* APPLE LOCAL begin mainline 2007-05-09 5173149 */ \
+  else if (peek == 'L')
+    {
+      struct demangle_component * ret;
+
+      d_advance (di, 1);
+
+      ret = d_source_name (di);
+      if (ret == NULL)
+	return NULL;
+      if (! d_discriminator (di))
+	return NULL;
+      return ret;
+    }
+/* APPLE LOCAL end mainline 2007-05-09 5173149 */ \
   else
     return NULL;
 }

@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 25, 2009
+.Dd November 12, 2013
 .Dt ACL 3
 .Os
 .Sh NAME
@@ -131,6 +131,10 @@ This function is described in
 .Xr acl_from_text 3 ,
 and may be used to convert a text-form ACL into working ACL state, if
 the ACL has POSIX.1e or NFSv4 semantics.
+.It Fn acl_get_brand_np
+This function is described in
+.Xr acl_get_brand_np 3
+and may be used to determine whether the ACL has POSIX.1e or NFSv4 semantics.
 .It Fn acl_get_entry
 This function is described in
 .Xr acl_get_entry 3 ,
@@ -202,7 +206,7 @@ This function is described in
 .Xr acl_set_tag_type 3 ,
 and may be used to set the tag type of an ACL.
 .It Fn acl_strip_np
-This function is describe din
+This function is described in
 .Xr acl-strip_np 3 ,
 and may be used to remove extended entries from an ACL.
 .It Xo
@@ -248,6 +252,7 @@ library.
 .Xr acl_free 3 ,
 .Xr acl_from_text 3 ,
 .Xr acl_get 3 ,
+.Xr acl_get_brand_np 3 ,
 .Xr acl_get_entry_type_np 3 ,
 .Xr acl_get_flagset_np 3 ,
 .Xr acl_get_permset 3 ,

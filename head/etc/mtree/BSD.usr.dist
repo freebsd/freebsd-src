@@ -120,8 +120,6 @@
     sbin
     ..
     share
-        atf
-        ..
         bsdconfig
             media
             ..
@@ -164,8 +162,6 @@
         ..
         doc
             IPv6
-            ..
-            atf
             ..
             atm
             ..
@@ -1442,7 +1438,5 @@
         ..
     ..
     src             nochange
-    ..
-    tests
     ..
 ..
