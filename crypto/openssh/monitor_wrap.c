@@ -482,7 +482,7 @@ mm_newkeys_from_blob(u_char *blob, int blen)
 	buffer_init(&b);
 	buffer_append(&b, blob, blen);
 
-	newkey = xmalloc(sizeof(*newkey));
+	newkey = xcalloc(1, sizeof(*newkey));
 	enc = &newkey->enc;
 	mac = &newkey->mac;
 	comp = &newkey->comp;
