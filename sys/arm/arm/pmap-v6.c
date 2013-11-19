@@ -1519,10 +1519,10 @@ pmap_fault_fixup(pmap_t pmap, vm_offset_t va, vm_prot_t ftype, int user)
 		vm_page_dirty(m);
 
 		/* Re-enable write permissions for the page */
-		pmap_set_prot(ptep, VM_PROT_WRITE, *ptep & L2_S_PROT_U);
-		CTR1(KTR_PMAP, "pmap_fault_fix: new pte:0x%x", pte);
+		*ptep = (pte & ~L2_APX);
 		PTE_SYNC(ptep);
 		rv = 1;
+		CTR1(KTR_PMAP, "pmap_fault_fix: new pte:0x%x", *ptep);
 	} else if (!L2_S_REFERENCED(pte)) {
 		/*
 		 * This looks like a good candidate for "page referenced"
@@ -1545,6 +1545,7 @@ pmap_fault_fixup(pmap_t pmap, vm_offset_t va, vm_prot_t ftype, int user)
 		*ptep = pte | L2_S_REF;
 		PTE_SYNC(ptep);
 		rv = 1;
+		CTR1(KTR_PMAP, "pmap_fault_fix: new pte:0x%x", *ptep);
 	}
 
 	/*
