@@ -373,7 +373,6 @@ __DEFAULT_NO_OPTIONS = \
     NAND \
     OFED \
     OPENSSH_NONE_CIPHER \
-    PKGTOOLS \
     SHARED_TOOLCHAIN \
     SVN \
     TESTS \

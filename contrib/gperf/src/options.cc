@@ -67,6 +67,8 @@ static const char *const DEFAULT_STRINGPOOL_NAME = "stringpool";
 /* Default delimiters that separate keywords from their attributes.  */
 static const char *const DEFAULT_DELIMITERS = ",";
 
+static const char *const DEFAULT_SIZE_TYPE = "unsigned int";
+
 /* Prints program usage to given stream.  */
 
 void
@@ -202,6 +204,9 @@ Options::long_usage (FILE * stream)
            "                         Prevents the transfer of the type declaration to the\n"
            "                         output file. Use this option if the type is already\n"
            "                         defined elsewhere.\n");
+  fprintf (stream,
+           "      --size-type=TYPE   Specify the type for length parameters. Default type is\n"
+	   "                         'unsigned int'.\n");
   fprintf (stream, "\n");
   fprintf (stream,
            "Algorithm employed by gperf:\n");
@@ -470,6 +475,7 @@ Options::Options ()
     _lengthtable_name (DEFAULT_LENGTHTABLE_NAME),
     _stringpool_name (DEFAULT_STRINGPOOL_NAME),
     _delimiters (DEFAULT_DELIMITERS),
+    _size_type (DEFAULT_SIZE_TYPE),
     _key_positions ()
 {
 }
@@ -514,6 +520,7 @@ Options::~Options ()
                "\nhash table size multiplier = %g"
                "\ninitial associated value = %d"
                "\ndelimiters = %s"
+	       "\nsize type = %s"
                "\nnumber of switch statements = %d\n",
                _option_word & TYPE ? "enabled" : "disabled",
                _option_word & UPPERLOWER ? "enabled" : "disabled",
@@ -539,7 +546,7 @@ Options::~Options ()
                _function_name, _hash_name, _wordlist_name, _lengthtable_name,
                _stringpool_name, _slot_name, _initializer_suffix,
                _asso_iterations, _jump, _size_multiple, _initial_asso_value,
-               _delimiters, _total_switches);
+               _delimiters, _size_type, _total_switches);
       if (_key_positions.is_useall())
         fprintf (stderr, "all characters are used in the hash function\n");
       else
@@ -668,6 +675,12 @@ Options::set_delimiters (const char *delimiters)
     _delimiters = delimiters;
 }
 
+void
+Options::set_size_type (const char *size_type)
+{
+  if (_size_type == DEFAULT_SIZE_TYPE) 
+    _size_type = size_type;
+}
 
 /* Parses the command line Options and sets appropriate flags in option_word.  */
 
@@ -693,6 +706,7 @@ static const struct option long_options[] =
   { "global-table", no_argument, NULL, 'G' },
   { "word-array-name", required_argument, NULL, 'W' },
   { "length-table-name", required_argument, NULL, CHAR_MAX + 4 },
+  { "size-type", required_argument, NULL, CHAR_MAX + 5 },
   { "switch", required_argument, NULL, 'S' },
   { "omit-struct-type", no_argument, NULL, 'T' },
   { "key-positions", required_argument, NULL, 'k' },
@@ -1044,6 +1058,11 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         case CHAR_MAX + 4:      /* Sets the name for the length table array.  */
           {
             _lengthtable_name = /*getopt*/optarg;
+            break;
+          }
+        case CHAR_MAX + 5:      /* Sets the name for the length table array.  */
+          {
+            _size_type = /*getopt*/optarg;
             break;
           }
         default:

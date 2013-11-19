@@ -59,11 +59,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 #include <machine/vmm.h>
+#include <machine/vmm_dev.h>
+
 #include "vmm_ktr.h"
 #include "vmm_host.h"
 #include "vmm_mem.h"
 #include "vmm_util.h"
-#include <machine/vmm_dev.h>
+#include "vioapic.h"
 #include "vlapic.h"
 #include "vmm_msr.h"
 #include "vmm_ipi.h"
@@ -106,6 +108,7 @@ struct mem_seg {
 struct vm {
 	void		*cookie;	/* processor-specific data */
 	void		*iommu;		/* iommu-specific data */
+	struct vioapic	*vioapic;	/* virtual ioapic */
 	struct vmspace	*vmspace;	/* guest's address space */
 	struct vcpu	vcpu[VM_MAXCPU];
 	int		num_mem_segs;
@@ -300,6 +303,7 @@ vm_create(const char *name, struct vm **retvm)
 	vm = malloc(sizeof(struct vm), M_VM, M_WAITOK | M_ZERO);
 	strcpy(vm->name, name);
 	vm->cookie = VMINIT(vm, vmspace_pmap(vmspace));
+	vm->vioapic = vioapic_init(vm);
 
 	for (i = 0; i < VM_MAXCPU; i++) {
 		vcpu_init(vm, i);
@@ -340,6 +344,8 @@ vm_destroy(struct vm *vm)
 
 	for (i = 0; i < VM_MAXCPU; i++)
 		vcpu_cleanup(&vm->vcpu[i]);
+
+	vioapic_cleanup(vm->vioapic);
 
 	VMSPACE_FREE(vm->vmspace);
 
@@ -938,6 +944,8 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, boolean_t *retu)
 	struct vm_exit *vme;
 	int error, inst_length;
 	uint64_t rip, gla, gpa, cr3;
+	mem_region_read_t mread;
+	mem_region_write_t mwrite;
 
 	vcpu = &vm->vcpu[vcpuid];
 	vme = &vcpu->exitinfo;
@@ -960,13 +968,18 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, boolean_t *retu)
 		return (EFAULT);
 
 	/* return to userland unless this is a local apic access */
-	if (gpa < DEFAULT_APIC_BASE || gpa >= DEFAULT_APIC_BASE + PAGE_SIZE) {
+	if (gpa >= DEFAULT_APIC_BASE && gpa < DEFAULT_APIC_BASE + PAGE_SIZE) {
+		mread = lapic_mmio_read;
+		mwrite = lapic_mmio_write;
+	} else if (gpa >= VIOAPIC_BASE && gpa < VIOAPIC_BASE + VIOAPIC_SIZE) {
+		mread = vioapic_mmio_read;
+		mwrite = vioapic_mmio_write;
+	} else {
 		*retu = TRUE;
 		return (0);
 	}
 
-	error = vmm_emulate_instruction(vm, vcpuid, gpa, vie,
-					lapic_mmio_read, lapic_mmio_write, 0);
+	error = vmm_emulate_instruction(vm, vcpuid, gpa, vie, mread, mwrite, 0);
 
 	/* return to userland to spin up the AP */
 	if (error == 0 && vme->exitcode == VM_EXITCODE_SPINUP_AP)
@@ -1149,6 +1162,13 @@ vm_lapic(struct vm *vm, int cpu)
 	return (vm->vcpu[cpu].vlapic);
 }
 
+struct vioapic *
+vm_ioapic(struct vm *vm)
+{
+
+	return (vm->vioapic);
+}
+
 boolean_t
 vmm_is_pptdev(int bus, int slot, int func)
 {
@@ -1312,4 +1332,13 @@ vm_get_vmspace(struct vm *vm)
 {
 
 	return (vm->vmspace);
+}
+
+int
+vm_apicid2vcpuid(struct vm *vm, int apicid)
+{
+	/*
+	 * XXX apic id is assumed to be numerically identical to vcpu id
+	 */
+	return (apicid);
 }

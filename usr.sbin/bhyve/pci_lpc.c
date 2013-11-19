@@ -31,13 +31,16 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <machine/vmm.h>
+#include <machine/vmm_dev.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <vmmapi.h>
+
 #include "inout.h"
-#include "ioapic.h"
 #include "pci_emul.h"
 #include "uart_emul.h"
 
@@ -91,7 +94,7 @@ lpc_uart_intr_assert(void *arg)
 
 	assert(sc->irq >= 0);
 
-	ioapic_assert_pin(lpc_bridge->pi_vmctx, sc->irq);
+	vm_ioapic_assert_irq(lpc_bridge->pi_vmctx, sc->irq);
 }
 
 static void
@@ -101,7 +104,7 @@ lpc_uart_intr_deassert(void *arg)
 
 	assert(sc->irq >= 0);
 
-	ioapic_deassert_pin(lpc_bridge->pi_vmctx, sc->irq);
+	vm_ioapic_deassert_irq(lpc_bridge->pi_vmctx, sc->irq);
 }
 
 static int

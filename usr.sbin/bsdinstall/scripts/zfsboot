@@ -764,7 +764,7 @@ zfs_create_diskpart()
 		#
 		f_eval_catch $funcname gpart "$GPART_CREATE" mbr \$disk ||
 		             return $FAILURE
-		f_eval_catch $funcname gpart "$GPART_BOOTCODE" /boot/boot0 \
+		f_eval_catch $funcname gpart "$GPART_BOOTCODE" /boot/mbr \
 		             \$disk || return $FAILURE
 
 		#

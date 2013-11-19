@@ -933,8 +933,9 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	void *rl_cookie;
 	struct mount *mp;
 	vm_page_t *prev_td_ma;
-	int cnt, error, save, saveheld, prev_td_ma_cnt;
+	int error, save, saveheld, prev_td_ma_cnt;
 	vm_offset_t addr, end;
+	vm_size_t cnt;
 	vm_prot_t prot;
 	size_t len, resid;
 	ssize_t adv;

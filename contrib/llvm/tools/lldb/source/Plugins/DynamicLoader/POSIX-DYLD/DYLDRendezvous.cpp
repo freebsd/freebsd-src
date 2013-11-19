@@ -14,6 +14,7 @@
 #include "lldb/Core/Error.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
+#include "lldb/Symbol/Symbol.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 
@@ -30,17 +31,14 @@ ResolveRendezvousAddress(Process *process)
     addr_t info_location;
     addr_t info_addr;
     Error error;
-    size_t size;
 
     info_location = process->GetImageInfoAddress();
 
     if (info_location == LLDB_INVALID_ADDRESS)
         return LLDB_INVALID_ADDRESS;
 
-    info_addr = 0;
-    size = process->DoReadMemory(info_location, &info_addr,
-                                 process->GetAddressByteSize(), error);
-    if (size != process->GetAddressByteSize() || error.Fail())
+    info_addr = process->ReadPointerFromMemory(info_location, error);
+    if (error.Fail())
         return LLDB_INVALID_ADDRESS;
 
     if (info_addr == 0)
@@ -58,6 +56,8 @@ DYLDRendezvous::DYLDRendezvous(Process *process)
       m_added_soentries(),
       m_removed_soentries()
 {
+    m_thread_info.valid = false;
+
     // Cache a copy of the executable path
     if (m_process)
     {
@@ -88,19 +88,19 @@ DYLDRendezvous::Resolve()
     if (cursor == LLDB_INVALID_ADDRESS)
         return false;
 
-    if (!(cursor = ReadMemory(cursor, &info.version, word_size)))
+    if (!(cursor = ReadWord(cursor, &info.version, word_size)))
         return false;
 
-    if (!(cursor = ReadMemory(cursor + padding, &info.map_addr, address_size)))
+    if (!(cursor = ReadPointer(cursor + padding, &info.map_addr)))
         return false;
 
-    if (!(cursor = ReadMemory(cursor, &info.brk, address_size)))
+    if (!(cursor = ReadPointer(cursor, &info.brk)))
         return false;
 
-    if (!(cursor = ReadMemory(cursor, &info.state, word_size)))
+    if (!(cursor = ReadWord(cursor, &info.state, word_size)))
         return false;
 
-    if (!(cursor = ReadMemory(cursor + padding, &info.ldbase, address_size)))
+    if (!(cursor = ReadPointer(cursor + padding, &info.ldbase)))
         return false;
 
     // The rendezvous was successfully read.  Update our internal state.
@@ -234,16 +234,27 @@ DYLDRendezvous::TakeSnapshot(SOEntryList &entry_list)
 }
 
 addr_t
-DYLDRendezvous::ReadMemory(addr_t addr, void *dst, size_t size)
+DYLDRendezvous::ReadWord(addr_t addr, uint64_t *dst, size_t size)
 {
-    size_t bytes_read;
     Error error;
 
-    bytes_read = m_process->DoReadMemory(addr, dst, size, error);
-    if (bytes_read != size || error.Fail())
+    *dst = m_process->ReadUnsignedIntegerFromMemory(addr, size, 0, error);
+    if (error.Fail())
         return 0;
 
-    return addr + bytes_read;
+    return addr + size;
+}
+
+addr_t
+DYLDRendezvous::ReadPointer(addr_t addr, addr_t *dst)
+{
+    Error error;
+ 
+    *dst = m_process->ReadPointerFromMemory(addr, error);
+    if (error.Fail())
+        return 0;
+
+    return addr + m_process->GetAddressByteSize();
 }
 
 std::string
@@ -275,28 +286,88 @@ DYLDRendezvous::ReadStringFromMemory(addr_t addr)
 bool
 DYLDRendezvous::ReadSOEntryFromMemory(lldb::addr_t addr, SOEntry &entry)
 {
-    size_t address_size = m_process->GetAddressByteSize();
-
     entry.clear();
+
+    entry.link_addr = addr;
     
-    if (!(addr = ReadMemory(addr, &entry.base_addr, address_size)))
+    if (!(addr = ReadPointer(addr, &entry.base_addr)))
+        return false;
+
+    // mips adds an extra load offset field to the link map struct on
+    // FreeBSD and NetBSD (need to validate other OSes).
+    // http://svnweb.freebsd.org/base/head/sys/sys/link_elf.h?revision=217153&view=markup#l57
+    const ArchSpec &arch = m_process->GetTarget().GetArchitecture();
+    if (arch.GetCore() == ArchSpec::eCore_mips64)
+    {
+        assert (arch.GetTriple().getOS() == llvm::Triple::FreeBSD ||
+                arch.GetTriple().getOS() == llvm::Triple::NetBSD);
+        addr_t mips_l_offs;
+        if (!(addr = ReadPointer(addr, &mips_l_offs)))
+            return false;
+        if (mips_l_offs != 0 && mips_l_offs != entry.base_addr)
+            return false;
+    }
+    
+    if (!(addr = ReadPointer(addr, &entry.path_addr)))
         return false;
     
-    if (!(addr = ReadMemory(addr, &entry.path_addr, address_size)))
+    if (!(addr = ReadPointer(addr, &entry.dyn_addr)))
         return false;
     
-    if (!(addr = ReadMemory(addr, &entry.dyn_addr, address_size)))
+    if (!(addr = ReadPointer(addr, &entry.next)))
         return false;
     
-    if (!(addr = ReadMemory(addr, &entry.next, address_size)))
-        return false;
-    
-    if (!(addr = ReadMemory(addr, &entry.prev, address_size)))
+    if (!(addr = ReadPointer(addr, &entry.prev)))
         return false;
     
     entry.path = ReadStringFromMemory(entry.path_addr);
     
     return true;
+}
+
+
+bool
+DYLDRendezvous::FindMetadata(const char *name, PThreadField field, uint32_t& value)
+{
+    Target& target = m_process->GetTarget();
+
+    SymbolContextList list;
+    if (!target.GetImages().FindSymbolsWithNameAndType (ConstString(name), eSymbolTypeAny, list))
+        return false;
+
+    Address address = list[0].symbol->GetAddress();
+    addr_t addr = address.GetLoadAddress (&target);
+    if (addr == LLDB_INVALID_ADDRESS)
+        return false;
+
+    Error error;
+    value = (uint32_t)m_process->ReadUnsignedIntegerFromMemory(addr + field*sizeof(uint32_t), sizeof(uint32_t), 0, error);
+    if (error.Fail())
+        return false;
+
+    if (field == eSize)
+        value /= 8; // convert bits to bytes
+
+    return true;
+}
+
+const DYLDRendezvous::ThreadInfo&
+DYLDRendezvous::GetThreadInfo()
+{
+    if (!m_thread_info.valid)
+    {
+        bool ok = true;
+
+        ok &= FindMetadata ("_thread_db_pthread_dtvp", eOffset, m_thread_info.dtv_offset);
+        ok &= FindMetadata ("_thread_db_dtv_dtv", eSize, m_thread_info.dtv_slot_size);
+        ok &= FindMetadata ("_thread_db_link_map_l_tls_modid", eOffset, m_thread_info.modid_offset);
+        ok &= FindMetadata ("_thread_db_dtv_t_pointer_val", eOffset, m_thread_info.tls_offset);
+
+        if (ok)
+            m_thread_info.valid = true;
+    }
+
+    return m_thread_info;
 }
 
 void

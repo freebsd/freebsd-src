@@ -4056,7 +4056,10 @@ OLD_FILES+=usr/share/man/man1/telnet.1.gz
 OLD_FILES+=usr/share/man/man8/telnetd.8.gz
 .endif
 
-.if ${MK_TESTS} == no
+.if ${MK_TESTS} == yes
+OLD_FILES+=usr/tests/lib/atf/libatf-c/test_helpers_test
+OLD_FILES+=usr/tests/lib/atf/test-programs/fork_test
+.else
 # ATF libraries.
 OLD_FILES+=usr/bin/atf-sh
 OLD_DIRS+=usr/include/atf-c
@@ -4105,11 +4108,13 @@ OLD_FILES+=usr/share/man/man4/atf-test-case.4.gz
 OLD_FILES+=usr/share/mk/atf.test.mk
 
 # Test suite.
+. if(exists(${DESTDIR}/usr/tests/))
 TESTS_DIRS!=find ${DESTDIR}/usr/tests -type d | sed -e 's,^${DESTDIR}/,,'; echo
 OLD_DIRS+=${TESTS_DIRS}
 TESTS_FILES!=find ${DESTDIR}/usr/tests \! -type d | sed -e 's,^${DESTDIR}/,,'; echo
 OLD_FILES+=${TESTS_FILES}
-.endif
+. endif
+.endif	# Test suite.
 
 #.if ${MK_TOOLCHAIN} == no
 # to be filled in

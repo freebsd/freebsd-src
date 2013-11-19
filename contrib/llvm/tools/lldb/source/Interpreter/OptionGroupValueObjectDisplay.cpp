@@ -15,6 +15,7 @@
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
+#include "lldb/DataFormatters/ValueObjectPrinter.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Utility/Utils.h"
@@ -33,17 +34,17 @@ OptionGroupValueObjectDisplay::~OptionGroupValueObjectDisplay ()
 static OptionDefinition
 g_option_table[] =
 {
-    { LLDB_OPT_SET_1, false, "dynamic-type",       'd', required_argument, g_dynamic_value_types, 0, eArgTypeNone,      "Show the object as its full dynamic type, not its static type, if available."},
-    { LLDB_OPT_SET_1, false, "synthetic-type",     'S', required_argument, NULL, 0, eArgTypeBoolean,   "Show the object obeying its synthetic provider, if available."},
-    { LLDB_OPT_SET_1, false, "depth",              'D', required_argument, NULL, 0, eArgTypeCount,     "Set the max recurse depth when dumping aggregate types (default is infinity)."},
-    { LLDB_OPT_SET_1, false, "flat",               'F', no_argument,       NULL, 0, eArgTypeNone,      "Display results in a flat format that uses expression paths for each variable or member."},
-    { LLDB_OPT_SET_1, false, "location",           'L', no_argument,       NULL, 0, eArgTypeNone,      "Show variable location information."},
-    { LLDB_OPT_SET_1, false, "object-description", 'O', no_argument,       NULL, 0, eArgTypeNone,      "Print as an Objective-C object."},
-    { LLDB_OPT_SET_1, false, "ptr-depth",          'P', required_argument, NULL, 0, eArgTypeCount,     "The number of pointers to be traversed when dumping values (default is zero)."},
-    { LLDB_OPT_SET_1, false, "show-types",         'T', no_argument,       NULL, 0, eArgTypeNone,      "Show variable types when dumping values."},
-    { LLDB_OPT_SET_1, false, "no-summary-depth",   'Y', optional_argument, NULL, 0, eArgTypeCount,     "Set the depth at which omitting summary information stops (default is 1)."},
-    { LLDB_OPT_SET_1, false, "raw-output",         'R', no_argument,       NULL, 0, eArgTypeNone,      "Don't use formatting options."},
-    { LLDB_OPT_SET_1, false, "show-all-children",  'A', no_argument,       NULL, 0, eArgTypeNone,      "Ignore the upper bound on the number of children to show."},
+    { LLDB_OPT_SET_1, false, "dynamic-type",       'd', OptionParser::eRequiredArgument, g_dynamic_value_types, 0, eArgTypeNone,      "Show the object as its full dynamic type, not its static type, if available."},
+    { LLDB_OPT_SET_1, false, "synthetic-type",     'S', OptionParser::eRequiredArgument, NULL, 0, eArgTypeBoolean,   "Show the object obeying its synthetic provider, if available."},
+    { LLDB_OPT_SET_1, false, "depth",              'D', OptionParser::eRequiredArgument, NULL, 0, eArgTypeCount,     "Set the max recurse depth when dumping aggregate types (default is infinity)."},
+    { LLDB_OPT_SET_1, false, "flat",               'F', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,      "Display results in a flat format that uses expression paths for each variable or member."},
+    { LLDB_OPT_SET_1, false, "location",           'L', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,      "Show variable location information."},
+    { LLDB_OPT_SET_1, false, "object-description", 'O', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,      "Print as an Objective-C object."},
+    { LLDB_OPT_SET_1, false, "ptr-depth",          'P', OptionParser::eRequiredArgument, NULL, 0, eArgTypeCount,     "The number of pointers to be traversed when dumping values (default is zero)."},
+    { LLDB_OPT_SET_1, false, "show-types",         'T', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,      "Show variable types when dumping values."},
+    { LLDB_OPT_SET_1, false, "no-summary-depth",   'Y', OptionParser::eOptionalArgument, NULL, 0, eArgTypeCount,     "Set the depth at which omitting summary information stops (default is 1)."},
+    { LLDB_OPT_SET_1, false, "raw-output",         'R', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,      "Don't use formatting options."},
+    { LLDB_OPT_SET_1, false, "show-all-children",  'A', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,      "Ignore the upper bound on the number of children to show."},
     { 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
 };
 
@@ -147,12 +148,12 @@ OptionGroupValueObjectDisplay::OptionParsingStarting (CommandInterpreter &interp
     }
 }
 
-ValueObject::DumpValueObjectOptions
-OptionGroupValueObjectDisplay::GetAsDumpOptions (bool objc_is_compact,
+DumpValueObjectOptions
+OptionGroupValueObjectDisplay::GetAsDumpOptions (LanguageRuntimeDescriptionDisplayVerbosity lang_descr_verbosity,
                                                  lldb::Format format,
                                                  lldb::TypeSummaryImplSP summary_sp)
 {
-    ValueObject::DumpValueObjectOptions options;
+    DumpValueObjectOptions options;
     options.SetMaximumPointerDepth(ptr_depth);
     if (use_objc)
         options.SetShowSummary(false);
@@ -169,7 +170,7 @@ OptionGroupValueObjectDisplay::GetAsDumpOptions (bool objc_is_compact,
     .SetFormat(format)
     .SetSummary(summary_sp);
     
-    if (objc_is_compact)
+    if (lang_descr_verbosity == eLanguageRuntimeDescriptionDisplayVerbosityCompact)
         options.SetHideRootType(use_objc)
         .SetHideName(use_objc)
         .SetHideValue(use_objc);

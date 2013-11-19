@@ -115,6 +115,8 @@ phyp_iommu_set_dma_tag(device_t bus, device_t dev, bus_dma_tag_t tag)
 		    (((uint64_t)(dmawindow[dma_acells + 1]) << 32) |
 		    dmawindow[dma_acells + 2]);
 
+	if (bootverbose)
+		device_printf(dev, "Mapping IOMMU domain %#x\n", dmawindow[0]);
 	window->map = NULL;
 	SLIST_FOREACH(i, &iommu_map_head, entries) {
 		if (i->iobn == dmawindow[0]) {
@@ -134,6 +136,7 @@ phyp_iommu_set_dma_tag(device_t bus, device_t dev, bus_dma_tag_t tag)
 		window->map->vmem = vmem_create("IOMMU mappings", PAGE_SIZE,
 		    trunc_page(VMEM_ADDR_MAX) - PAGE_SIZE, PAGE_SIZE, 0,
 		    M_BESTFIT | M_NOWAIT);
+		SLIST_INSERT_HEAD(&iommu_map_head, window->map, entries);
 	}
 
 	/*

@@ -381,8 +381,8 @@ oce_sh_be3_flashdata(POCE_SOFTC sc, const struct firmware *fw, int32_t num_imgs)
 		return EINVAL;
 	}
 
-	rc = oce_dma_alloc(sc, sizeof(struct mbx_common_read_write_flashrom)
-			+ 32*1024, &dma_mem, 0);
+	rc = oce_dma_alloc(sc, sizeof(struct mbx_common_read_write_flashrom),
+				&dma_mem, 0);
 	if (rc) {
 		device_printf(sc->dev,
 				"Memory allocation failure while flashing\n");

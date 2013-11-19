@@ -209,6 +209,9 @@ public:
   /* Sets the delimiters string, if not already set.  */
   void                  set_delimiters (const char *delimiters);
 
+  const char *		get_size_type() const;
+  void			set_size_type(const char*);
+
   /* Returns key positions.  */
   const Positions&      get_key_positions () const;
 
@@ -278,6 +281,8 @@ private:
 
   /* Separates keywords from other attributes.  */
   const char *          _delimiters;
+
+  const char *		_size_type;
 
   /* Contains user-specified key choices.  */
   Positions             _key_positions;

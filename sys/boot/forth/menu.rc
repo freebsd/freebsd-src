@@ -120,6 +120,10 @@ set optionstoggled_ansi[6]="[1mV[37merbose..... [32;7mOn[0;37m"
 \ 
 set menu_timeout_command="boot"
 
+\ Include optional elements defined in a local file
+\ 
+try-include /boot/menu.rc.local
+
 \ Display the main menu (see `menu.4th')
 set menuset_initial=1
 menuset-loadinitial
