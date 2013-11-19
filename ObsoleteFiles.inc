@@ -132,6 +132,7 @@ OLD_FILES+=usr/bin/gnu-ranlib
 OLD_FILES+=usr/share/man/man1/gnu-ar.1.gz
 OLD_FILES+=usr/share/man/man1/gnu-ranlib.1.gz
 # 20130930: BIND removed from base
+OLD_FILES+=etc/mtree/BIND.chroot.dist
 OLD_FILES+=etc/namedb
 OLD_FILES+=etc/periodic/daily/470.status-named
 OLD_FILES+=usr/bin/dig
