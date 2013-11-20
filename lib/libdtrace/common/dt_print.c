@@ -493,9 +493,11 @@ dt_print_enum(ctf_id_t base, ulong_t off, dt_printarg_t *pap)
 		value = *(uint8_t *)addr;
 		break;
 	case sizeof (uint16_t):
+		/* LINTED - alignment */
 		value = *(uint16_t *)addr;
 		break;
 	case sizeof (int32_t):
+		/* LINTED - alignment */
 		value = *(int32_t *)addr;
 		break;
 	default:
