@@ -1247,10 +1247,10 @@ vt_mouse_state(int show)
 
 	switch (show) {
 	case VT_MOUSE_HIDE:
-		atomic_set_int(&vw->vw_flags, VWF_MOUSE_HIDE);
+		vw->vw_flags |= VWF_MOUSE_HIDE;
 		break;
 	case VT_MOUSE_SHOW:
-		atomic_clear_int(&vw->vw_flags, VWF_MOUSE_HIDE);
+		vw->vw_flags &= ~VWF_MOUSE_HIDE;
 		break;
 	}
 }
