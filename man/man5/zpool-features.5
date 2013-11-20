@@ -271,6 +271,29 @@ configuration.
 When the \fBmulti_vdev_crash_dump\fR feature is set to \fBenabled\fR,
 the administrator can use the \fBdumpadm\fR(1M) command to configure a
 dump device on a pool comprised of multiple vdevs.
+.RE
+
+.sp
+.ne 2
+.na
+\fB\fBextensible_dataset\fR\fR
+.ad
+.RS 4n
+.TS
+l l .
+GUID	com.delphix:extensible_dataset
+READ\-ONLY COMPATIBLE	no
+DEPENDENCIES	none
+.TE
+
+This feature allows more flexible use of internal ZFS data structures,
+and exists for other features to depend on.
+
+This feature will be \fBactive\fR when the first dependent feature uses it,
+and will be returned to the \fBenabled\fR state when all datasets that use
+this feature are destroyed.
+
+.RE
 
 .SH "SEE ALSO"
 \fBzpool\fR(1M)
