@@ -240,6 +240,7 @@ void
 pmap_unmapdev(vm_offset_t va, vm_size_t size)
 {
 	vm_offset_t tmpva, offset;
+	vm_size_t origsize = size;
 	
 	offset = va & PAGE_MASK;
 	va = trunc_page(va);
@@ -251,6 +252,6 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 		tmpva += PAGE_SIZE;
 	}
 
-	kva_free(va, size);
+	kva_free(va, origsize);
 }
 
