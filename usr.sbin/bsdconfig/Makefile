@@ -6,6 +6,7 @@ SUBDIR=	console \
 	dot \
 	examples \
 	include \
+	includes \
 	mouse \
 	networking \
 	packages \
