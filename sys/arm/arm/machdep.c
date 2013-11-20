@@ -361,7 +361,6 @@ cpu_startup(void *dummy)
 #endif
 #endif
 
-	cpu_setup("");
 	identify_arm_cpu();
 
 	printf("real memory  = %ju (%ju MB)\n", (uintmax_t)ptoa(physmem),
@@ -1429,6 +1428,12 @@ initarm(struct arm_boot_params *abp)
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2));
+
+	/*
+	 * Now that proper page tables are installed, call cpu_setup() to enable
+	 * instruction and data caches and other chip-specific features.
+	 */
+	cpu_setup("");
 
 	/*
 	 * Only after the SOC registers block is mapped we can perform device
