@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 1988, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
 /*	Copyright (c) 1983, 1984, 1985, 1986, 1987, 1988, 1989 AT&T	*/
@@ -2580,6 +2581,15 @@ vnevent_mountedover(vnode_t *vp, caller_context_t *ct)
 		return;
 	}
 	(void) VOP_VNEVENT(vp, VE_MOUNTEDOVER, NULL, NULL, ct);
+}
+
+void
+vnevent_truncate(vnode_t *vp, caller_context_t *ct)
+{
+	if (vp == NULL || vp->v_femhead == NULL) {
+		return;
+	}
+	(void) VOP_VNEVENT(vp, VE_TRUNCATE, NULL, NULL, ct);
 }
 
 /*
