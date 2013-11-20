@@ -2149,7 +2149,7 @@ dt_load_libs_dir(dtrace_hdl_t *dtp, const char *path)
 		(void) snprintf(fname, sizeof (fname),
 		    "%s/%s", path, dp->d_name);
 
-		if ((fp = fopen(fname, "r")) == NULL) {
+		if ((fp = fopen(fname, "rF")) == NULL) {
 			dt_dprintf("skipping library %s: %s\n",
 			    fname, strerror(errno));
 			continue;
@@ -2171,12 +2171,15 @@ dt_load_libs_dir(dtrace_hdl_t *dtp, const char *path)
 			dt_dprintf("skipping library %s, already processed "
 			    "library with the same name: %s", dp->d_name,
 			    dld->dtld_library);
+			(void) fclose(fp);
 			continue;
 		}
 
 		dtp->dt_filetag = fname;
-		if (dt_lib_depend_add(dtp, &dtp->dt_lib_dep, fname) != 0)
+		if (dt_lib_depend_add(dtp, &dtp->dt_lib_dep, fname) != 0) {
+			(void) fclose(fp);
 			return (-1); /* preserve dt_errno */
+		}
 
 		rv = dt_compile(dtp, DT_CTX_DPROG,
 		    DTRACE_PROBESPEC_NAME, NULL,
@@ -2184,8 +2187,10 @@ dt_load_libs_dir(dtrace_hdl_t *dtp, const char *path)
 
 		if (rv != NULL && dtp->dt_errno &&
 		    (dtp->dt_errno != EDT_COMPILER ||
-		    dtp->dt_errtag != dt_errtag(D_PRAGMA_DEPEND)))
+		    dtp->dt_errtag != dt_errtag(D_PRAGMA_DEPEND))) {
+			(void) fclose(fp);
 			return (-1); /* preserve dt_errno */
+		}
 
 		if (dtp->dt_errno)
 			dt_dprintf("error parsing library %s: %s\n",
