@@ -1923,21 +1923,31 @@ XGE_HAL_OBJS =  xgehal-channel.o xgehal-fifo.o xgehal-ring.o  xgehal-config.o \
 		xge-queue.o  xgehal-mgmt.o xgehal-mgmtaux.o
 
 #
+#	e1000/igb common objs
+#
+#	Historically e1000g and igb had separate copies of all of the common
+#	code. At this time while they are now sharing the same copy of it, they
+#	are building it into their own modules which is due to the differences
+#	in the osdep and debug portions of their code.
+#
+E1000API_OBJS += e1000_80003es2lan.o e1000_82540.o e1000_82541.o e1000_82542.o \
+		e1000_82543.o e1000_82571.o e1000_api.o e1000_ich8lan.o \
+		e1000_mac.o e1000_manage.o e1000_nvm.o e1000_phy.o \
+		e1000_82575.o e1000_i210.o e1000_mbx.o e1000_vf.o
+
+#
 #	e1000g module
 #
-E1000G_OBJS +=	e1000_80003es2lan.o e1000_82540.o e1000_82541.o e1000_82542.o \
-		e1000_82543.o e1000_82571.o e1000_api.o e1000_ich8lan.o \
-		e1000_mac.o e1000_manage.o e1000_nvm.o e1000_osdep.o \
-		e1000_phy.o e1000g_debug.o e1000g_main.o e1000g_alloc.o \
-		e1000g_tx.o e1000g_rx.o e1000g_stat.o
+E1000G_OBJS +=	e1000g_debug.o e1000g_main.o e1000g_alloc.o \
+		e1000g_tx.o e1000g_rx.o e1000g_stat.o \
+		e1000g_osdep.o e1000g_workarounds.o
+		
 
 #
 #	Intel 82575 1G NIC driver module
 #
-IGB_OBJS =	igb_82575.o igb_api.o igb_mac.o igb_manage.o \
-		igb_nvm.o igb_osdep.o igb_phy.o igb_buf.o \
-		igb_debug.o igb_gld.o igb_log.o igb_main.o \
-		igb_rx.o igb_stat.o igb_tx.o
+IGB_OBJS =	igb_buf.o igb_debug.o igb_gld.o igb_log.o igb_main.o \
+		igb_rx.o igb_stat.o igb_tx.o igb_osdep.o
 
 #
 #	Intel Pro/100 NIC driver module
