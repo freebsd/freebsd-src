@@ -25,7 +25,7 @@
  */
 
 /*
- * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
@@ -512,7 +512,8 @@ enum {
 	EDT_BADSTACKPC,		/* invalid stack program counter size */
 	EDT_BADAGGVAR,		/* invalid aggregation variable identifier */
 	EDT_OVERSION,		/* client is requesting deprecated version */
-	EDT_ENABLING_ERR	/* failed to enable probe */
+	EDT_ENABLING_ERR,	/* failed to enable probe */
+	EDT_NOPROBES		/* no probes sites for declared provider */
 };
 
 /*
