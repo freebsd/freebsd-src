@@ -1724,14 +1724,6 @@ BUSRA_OBJS += busra.o
 
 PCS_OBJS += pcs.o
 
-PCAN_OBJS += pcan.o
-
-PCATA_OBJS += pcide.o pcdisk.o pclabel.o pcata.o
-
-PCSER_OBJS += pcser.o pcser_cis.o
-
-PCWL_OBJS += pcwl.o
-
 PSET_OBJS +=	pset.o
 
 OHCI_OBJS += ohci.o ohci_hub.o ohci_polled.o
