@@ -1751,6 +1751,8 @@ IPF_OBJS += ip_fil_solaris.o fil.o solaris.o ip_state.o ip_frag.o ip_nat.o \
 	    ip_proxy.o ip_auth.o ip_pool.o ip_htable.o ip_lookup.o \
 	    ip_log.o misc.o ip_compat.o ip_nat6.o drand48.o
 
+IPD_OBJS += ipd.o
+
 IBD_OBJS +=	ibd.o ibd_cm.o
 
 EIBNX_OBJS +=	enx_main.o enx_hdlrs.o enx_ibt.o enx_log.o enx_fip.o \
