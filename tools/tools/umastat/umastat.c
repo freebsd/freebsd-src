@@ -117,6 +117,9 @@ static const struct flaginfo {
 	u_int32_t	 fi_flag;
 	const char	*fi_name;
 } flaginfo[] = {
+	{ UMA_ZFLAG_MULTI, "multi" },
+	{ UMA_ZFLAG_DRAINING, "draining" },
+	{ UMA_ZFLAG_BUCKET, "bucket" },
 	{ UMA_ZFLAG_INTERNAL, "internal" },
 	{ UMA_ZFLAG_FULL, "full" },
 	{ UMA_ZFLAG_CACHEONLY, "cacheonly" },
@@ -132,6 +135,10 @@ static const struct flaginfo {
 	{ UMA_ZONE_SECONDARY, "secondary" },
 	{ UMA_ZONE_REFCNT, "refcnt" },
 	{ UMA_ZONE_MAXBUCKET, "maxbucket" },
+	{ UMA_ZONE_CACHESPREAD, "cachespread" },
+	{ UMA_ZONE_VTOSLAB, "vtoslab" },
+	{ UMA_ZONE_NODUMP, "nodump" },
+	{ UMA_ZONE_PCPU, "pcpu" },
 };
 static const int flaginfo_count = sizeof(flaginfo) / sizeof(struct flaginfo);
 
