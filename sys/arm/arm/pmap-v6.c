@@ -1519,10 +1519,10 @@ pmap_fault_fixup(pmap_t pmap, vm_offset_t va, vm_prot_t ftype, int user)
 		vm_page_dirty(m);
 
 		/* Re-enable write permissions for the page */
-		pmap_set_prot(ptep, VM_PROT_WRITE, *ptep & L2_S_PROT_U);
-		CTR1(KTR_PMAP, "pmap_fault_fix: new pte:0x%x", pte);
+		*ptep = (pte & ~L2_APX);
 		PTE_SYNC(ptep);
 		rv = 1;
+		CTR1(KTR_PMAP, "pmap_fault_fix: new pte:0x%x", *ptep);
 	} else if (!L2_S_REFERENCED(pte)) {
 		/*
 		 * This looks like a good candidate for "page referenced"
@@ -1545,6 +1545,7 @@ pmap_fault_fixup(pmap_t pmap, vm_offset_t va, vm_prot_t ftype, int user)
 		*ptep = pte | L2_S_REF;
 		PTE_SYNC(ptep);
 		rv = 1;
+		CTR1(KTR_PMAP, "pmap_fault_fix: new pte:0x%x", *ptep);
 	}
 
 	/*
@@ -3078,36 +3079,38 @@ validate:
 	 * then continue setting mapping parameters
 	 */
 	if (m != NULL) {
-		if (prot & (VM_PROT_ALL)) {
-			if ((m->oflags & VPO_UNMANAGED) == 0)
+		if ((m->oflags & VPO_UNMANAGED) == 0) {
+			if (prot & (VM_PROT_ALL)) {
 				vm_page_aflag_set(m, PGA_REFERENCED);
-		} else {
-			/*
-			 * Need to do page referenced emulation.
-			 */
-			npte &= ~L2_S_REF;
+			} else {
+				/*
+				 * Need to do page referenced emulation.
+				 */
+				npte &= ~L2_S_REF;
+			}
 		}
 
 		if (prot & VM_PROT_WRITE) {
-			/*
-			 * Enable write permission if the access type
-			 * indicates write intention. Emulate modified
-			 * bit otherwise.
-			 */
-			if ((access & VM_PROT_WRITE) != 0)
-				npte &= ~(L2_APX);
-
 			if ((m->oflags & VPO_UNMANAGED) == 0) {
-				vm_page_aflag_set(m, PGA_WRITEABLE);
 				/*
-				 * The access type and permissions indicate 
-				 * that the page will be written as soon as
-				 * returned from fault service.
-				 * Mark it dirty from the outset.
+				 * Enable write permission if the access type
+				 * indicates write intention. Emulate modified
+				 * bit otherwise.
 				 */
-				if ((access & VM_PROT_WRITE) != 0)
+				if ((access & VM_PROT_WRITE) != 0) {
+					npte &= ~(L2_APX);
+					vm_page_aflag_set(m, PGA_WRITEABLE);
+					/*
+					 * The access type and permissions
+					 * indicate that the page will be
+					 * written as soon as returned from
+					 * fault service.
+					 * Mark it dirty from the outset.
+					 */
 					vm_page_dirty(m);
-			}
+				}
+			} else
+				npte &= ~(L2_APX);
 		}
 		if (!(prot & VM_PROT_EXECUTE))
 			npte |= L2_XN;

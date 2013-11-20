@@ -1096,7 +1096,7 @@ jwork_move(dst, src)
 	LIST_FOREACH_SAFE(wk, dst, wk_list, wkn) {
 		if (wk->wk_type == D_JSEGDEP)
 			jsegdep = jsegdep_merge(WK_JSEGDEP(wk), jsegdep);
-		if (wk->wk_type == D_FREEDEP)
+		else if (wk->wk_type == D_FREEDEP)
 			freedep = freedep_merge(WK_FREEDEP(wk), freedep);
 	}
 

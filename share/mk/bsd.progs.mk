@@ -44,7 +44,7 @@ PROG ?= $t
 # just one of many
 PROG_VARS += BINDIR CFLAGS CPPFLAGS CXXFLAGS DPADD DPLIBS LDADD MAN SRCS
 .for v in ${PROG_VARS:O:u}
-.if defined(${v}.${PROG})
+.if defined(${v}.${PROG}) || defined(${v}_${PROG})
 $v += ${${v}_${PROG}:U${${v}.${PROG}}}
 .else
 $v ?=

@@ -62,7 +62,8 @@ f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 #
 f_dialog_menu_netdev()
 {
-	local defaultitem="${1%\*}" # Tim trailing asterisk if present
+	local menu_list # Calculated below
+	local defaultitem="${1%\*}" # Trim trailing asterisk if present
 
 	#
 	# Display a message to let the user know we're working...
@@ -74,19 +75,15 @@ f_dialog_menu_netdev()
 	# Get list of usable network interfaces
 	#
 	local d='[[:digit:]]+:'
-	local iflist="`echo "$(ifconfig -l):" | sed -E -e "
-		# Convert all spaces to colons
-		y/ /:/
-
-		# Prune unsavory interfaces
-		s/lo$d//g
-		s/ppp$d//g
-		s/sl$d//g
-		s/faith$d//g
-
-		# Convert all colons back into spaces
-		y/:/ /
-	"`"
+	local if iflist= # Calculated below
+	for if in $( ifconfig -l ); do
+		# Skip unsavory interfaces
+		case "$if" in
+		lo[0-9]*|ppp[0-9]*|sl[0-9]*|faith[0-9]*) continue ;;
+		esac
+		iflist="$iflist $if"
+	done
+	iflist="${iflist# }"
 
 	#
 	# Optionally kick interfaces in the head to get them to accurately
@@ -110,20 +107,17 @@ f_dialog_menu_netdev()
 	# Mark any "active" interfaces with an asterisk (*)
 	# to the right of the device name.
 	#
-	interfaces=$(
+	menu_list=$(
 		for ifn in $iflist; do
-			active=$( ifconfig $ifn | awk \
-			'
-				( $1 == "status:" ) \
-				{
-					if ( $2 == "active" ) { print 1; exit }
-				}
-			' )
+			active=$( ifconfig $ifn 2> /dev/null | awk '
+			($1 == "status:") {
+				if ($2 == "active") { print 1; exit }
+			}' )
 			printf "'%s%s' '%s'\n" \
 				$ifn "${active:+*}" "$( f_device_desc $ifn )"
 		done
 	)
-	if [ ! "$interfaces" ]; then
+	if [ ! "$menu_list" ]; then
 		f_show_msg "$msg_no_network_interfaces"
 		return $DIALOG_CANCEL
 	fi
@@ -132,8 +126,8 @@ f_dialog_menu_netdev()
 	# Maybe the default item was marked as active
 	#
 	if [ "$defaultitem" ]; then
-		ifconfig "$defaultitem" 2> /dev/null | awk \
-			'( $1 == "status:" && $2 != "active" ) { exit 0 }' ||
+		ifconfig "$defaultitem" 2> /dev/null |
+			awk '($1 == "status:" && $2 == "active"){exit 1}' ||
 			defaultitem="$defaultitem*"
 	fi
 
@@ -149,7 +143,7 @@ f_dialog_menu_netdev()
 	                        \"\$DIALOG_BACKTITLE\" \
 	                        \"\$prompt\"           \
 	                        \"\$hline\"            \
-	                        $interfaces
+	                        $menu_list
 	local menu_choice
 	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
@@ -160,7 +154,7 @@ f_dialog_menu_netdev()
 		--default-item \"\$defaultitem\"   \
 		--menu \"\$prompt\"                \
 		$height $width $rows               \
-		$interfaces                        \
+		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?

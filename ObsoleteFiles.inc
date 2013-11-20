@@ -53,6 +53,10 @@ OLD_FILES+=usr/lib/libiconv.a
 OLD_FILES+=usr/lib/libiconv.so
 OLD_FILES+=usr/lib/libiconv.so.3
 OLD_FILES+=usr/lib/libiconv_p.a
+OLD_FILES+=usr/lib32/libiconv.a
+OLD_FILES+=usr/lib32/libiconv.so
+OLD_FILES+=usr/lib32/libiconv.so.3
+OLD_FILES+=usr/lib32/libiconv_p.a
 # 20131103: removal of utxrm(8), use 'utx rm' instead.
 OLD_FILES+=usr/sbin/utxrm
 OLD_FILES+=usr/share/man/man8/utxrm.8.gz
@@ -128,6 +132,7 @@ OLD_FILES+=usr/bin/gnu-ranlib
 OLD_FILES+=usr/share/man/man1/gnu-ar.1.gz
 OLD_FILES+=usr/share/man/man1/gnu-ranlib.1.gz
 # 20130930: BIND removed from base
+OLD_FILES+=etc/mtree/BIND.chroot.dist
 OLD_FILES+=etc/namedb
 OLD_FILES+=etc/periodic/daily/470.status-named
 OLD_FILES+=usr/bin/dig
