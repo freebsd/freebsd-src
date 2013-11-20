@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 1988, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
 /*	Copyright (c) 1983, 1984, 1985, 1986, 1987, 1988, 1989 AT&T	*/
@@ -733,7 +734,8 @@ typedef enum vnevent	{
 	VE_CREATE	= 5,	/* Create with vnode's name which exists */
 	VE_LINK		= 6, 	/* Link with vnode's name as source */
 	VE_RENAME_DEST_DIR	= 7, 	/* Rename with vnode as target dir */
-	VE_MOUNTEDOVER	= 8 	/* File or Filesystem got mounted over vnode */
+	VE_MOUNTEDOVER	= 8, 	/* File or Filesystem got mounted over vnode */
+	VE_TRUNCATE = 9		/* Truncate */
 } vnevent_t;
 
 /*
@@ -1290,6 +1292,7 @@ void	vnevent_create(vnode_t *, caller_context_t *);
 void	vnevent_link(vnode_t *, caller_context_t *);
 void	vnevent_rename_dest_dir(vnode_t *, caller_context_t *ct);
 void	vnevent_mountedover(vnode_t *, caller_context_t *);
+void	vnevent_truncate(vnode_t *, caller_context_t *);
 int	vnevent_support(vnode_t *, caller_context_t *);
 
 /* Vnode specific data */
