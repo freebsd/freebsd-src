@@ -127,7 +127,7 @@ show_include()
 while getopts adfF:hn flag; do
 	case "$flag" in
 	a) USE_COLOR=1 ;;
-	d) SHOW_DESC=1 ;;
+	d) SHOW_DESC=1 SHOW_FUNCS=1 ;;
 	f) SHOW_FUNCS=1 ;;
 	F) FUNC_PATTERN="$OPTARG" ;;
 	n) USE_COLOR= ;;
