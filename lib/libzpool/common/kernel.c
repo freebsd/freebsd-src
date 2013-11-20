@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
  */
 
 #include <assert.h>
@@ -221,10 +222,10 @@ rw_enter(krwlock_t *rwlp, krw_t rw)
 	ASSERT(rwlp->rw_owner != (void *)-1UL);
 	ASSERT(rwlp->rw_owner != curthread);
 
-	if (rw == RW_READER)
-		VERIFY(rw_rdlock(&rwlp->rw_lock) == 0);
-	else
+	if (rw == RW_WRITER)
 		VERIFY(rw_wrlock(&rwlp->rw_lock) == 0);
+	else
+		VERIFY(rw_rdlock(&rwlp->rw_lock) == 0);
 
 	rwlp->rw_owner = curthread;
 }
@@ -247,10 +248,10 @@ rw_tryenter(krwlock_t *rwlp, krw_t rw)
 	ASSERT(rwlp->initialized == B_TRUE);
 	ASSERT(rwlp->rw_owner != (void *)-1UL);
 
-	if (rw == RW_READER)
-		rv = rw_tryrdlock(&rwlp->rw_lock);
-	else
+	if (rw == RW_WRITER)
 		rv = rw_trywrlock(&rwlp->rw_lock);
+	else
+		rv = rw_tryrdlock(&rwlp->rw_lock);
 
 	if (rv == 0) {
 		rwlp->rw_owner = curthread;
