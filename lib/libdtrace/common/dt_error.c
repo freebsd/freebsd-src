@@ -26,6 +26,7 @@
 
 /*
  * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
 #include <strings.h>
@@ -108,7 +109,8 @@ static const struct {
 	{ EDT_BADSTACKPC, "Invalid stack program counter size" },
 	{ EDT_BADAGGVAR, "Invalid aggregation variable identifier" },
 	{ EDT_OVERSION,	"Client requested deprecated version of library" },
-	{ EDT_ENABLING_ERR, "Failed to enable probe" }
+	{ EDT_ENABLING_ERR, "Failed to enable probe" },
+	{ EDT_NOPROBES, "No probe sites found for declared provider" }
 };
 
 static const int _dt_nerr = sizeof (_dt_errlist) / sizeof (_dt_errlist[0]);

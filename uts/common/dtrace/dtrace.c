@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
@@ -13941,8 +13941,8 @@ dtrace_helper_provider_add(dof_helper_t *dofhp, int gen)
 	 * Check to make sure this isn't a duplicate.
 	 */
 	for (i = 0; i < help->dthps_nprovs; i++) {
-		if (dofhp->dofhp_addr ==
-		    help->dthps_provs[i]->dthp_prov.dofhp_addr)
+		if (dofhp->dofhp_dof ==
+		    help->dthps_provs[i]->dthp_prov.dofhp_dof)
 			return (EALREADY);
 	}
 
