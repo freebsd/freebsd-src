@@ -1876,6 +1876,9 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	struct ucred *cred;
 	vm_prot_t old_prot;
 
+	if (start == end)
+		return (KERN_SUCCESS);
+
 	vm_map_lock(map);
 
 	VM_MAP_RANGE_CHECK(map, start, end);
@@ -2030,12 +2033,16 @@ vm_map_madvise(
 	case MADV_AUTOSYNC:
 	case MADV_NOCORE:
 	case MADV_CORE:
+		if (start == end)
+			return (KERN_SUCCESS);
 		modify_map = 1;
 		vm_map_lock(map);
 		break;
 	case MADV_WILLNEED:
 	case MADV_DONTNEED:
 	case MADV_FREE:
+		if (start == end)
+			return (KERN_SUCCESS);
 		vm_map_lock_read(map);
 		break;
 	default:
@@ -2190,6 +2197,8 @@ vm_map_inherit(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	default:
 		return (KERN_INVALID_ARGUMENT);
 	}
+	if (start == end)
+		return (KERN_SUCCESS);
 	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
 	if (vm_map_lookup_entry(map, start, &temp_entry)) {
@@ -2222,6 +2231,8 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	int rv;
 	boolean_t need_wakeup, result, user_unwire;
 
+	if (start == end)
+		return (KERN_SUCCESS);
 	user_unwire = (flags & VM_MAP_WIRE_USER) ? TRUE : FALSE;
 	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
@@ -2392,6 +2403,8 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	boolean_t fictitious, need_wakeup, result, user_wire;
 	vm_prot_t prot;
 
+	if (start == end)
+		return (KERN_SUCCESS);
 	prot = 0;
 	if (flags & VM_MAP_WIRE_WRITE)
 		prot |= VM_PROT_WRITE;
@@ -2833,6 +2846,8 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 	vm_map_entry_t first_entry;
 
 	VM_MAP_ASSERT_LOCKED(map);
+	if (start == end)
+		return (KERN_SUCCESS);
 
 	/*
 	 * Find the start of the region, and clip it
