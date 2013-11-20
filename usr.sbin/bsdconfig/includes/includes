@@ -29,7 +29,7 @@
 ############################################################ INCLUDES
 
 # Prevent common.subr from auto initializing debugging (this is not an inter-
-# active utility that requires debugging).
+# active utility that requires debugging; also `-d' has been repurposed).
 #
 DEBUG_SELF_INITIALIZE=NO
 
@@ -50,6 +50,7 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 # Options
 #
 USE_COLOR=1
+SHOW_DESC=
 SHOW_FUNCS=
 FUNC_PATTERN=
 
@@ -64,20 +65,33 @@ show_include()
 	local file="${1#./}"
 
 	local pattern="${FUNC_PATTERN:-.*}"
-	output=$( awk -v use_color=${USE_COLOR:-0} -v re="$pattern" '
+	output=$( awk \
+		-v use_color=${USE_COLOR:-0} \
+		-v re="$pattern" \
+		-v show_desc=${SHOW_DESC:-0} '
 	/^$/,/^#/ {
 		if ($0 ~ /^# f_/) {
 			if (!match($2, re)) next
 			if (use_color)
-				printf " %s[1;31m%s[0m%s\n",
+				printf "+%s[1;31m%s[0m%s\n",
 				       substr($0, 2, RSTART),
 				       substr($0, 2 + RSTART, RLENGTH),
 				       substr($0, 2 + RSTART + RLENGTH)
 			else
 				print substr($0, 2)
-			print_more = substr($0, length($0)) == "\\"
+			if (show_desc)
+				print_more = 1
+			else
+				print_more = substr($0, length($0)) == "\\"
 		}
-		while (print_more) {
+		if (show_desc && print_more) {
+			getline
+			while ($0 ~ /^#/) {
+				print substr($0, 2)
+				getline
+			}
+			print_more = 0
+		} else while (print_more) {
 			getline
 			print substr($0, 2)
 			print_more = substr($0, length($0)) == "\\"
@@ -89,10 +103,10 @@ show_include()
 			return $SUCCESS
 		fi
 		if [ "$FUNC_PATTERN" ]; then
-			printf "$msg_functions_in_matching\n" \
+			printf ">>> $msg_functions_in_matching\n" \
 			       "$file" "$FUNC_PATTERN"
 		else
-			printf "$msg_functions_in\n" "$file"
+			printf ">>> $msg_functions_in\n" "$file"
 		fi
 		echo "$output"
 		echo # blank line to simplify awk(1)-based reparse
@@ -110,9 +124,10 @@ show_include()
 #
 # Process command-line arguments
 #
-while getopts afF:hn flag; do
+while getopts adfF:hn flag; do
 	case "$flag" in
 	a) USE_COLOR=1 ;;
+	d) SHOW_DESC=1 ;;
 	f) SHOW_FUNCS=1 ;;
 	F) FUNC_PATTERN="$OPTARG" ;;
 	n) USE_COLOR= ;;
