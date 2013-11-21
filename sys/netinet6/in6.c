@@ -433,10 +433,7 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		break;
 	}
 	if (sa6 && sa6->sin6_family == AF_INET6) {
-		if (sa6->sin6_scope_id == 0)
-			sa6->sin6_scope_id = in6_getscopezone(ifp,
-			    in6_addrscope(&sa6->sin6_addr));
-		error = sa6_checkzone(sa6);
+		error = sa6_checkzone_ifp(ifp, sa6);
 		if (error != 0)
 			return (error);
 		if (td != NULL && (error = prison_check_ip6(td->td_ucred,
