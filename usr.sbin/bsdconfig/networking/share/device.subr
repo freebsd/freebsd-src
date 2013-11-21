@@ -278,22 +278,23 @@ f_dialog_menu_netdev_edit()
 		      	  msg=$( printf "$msg_scanning_for_dhcp" "$interface" )
 		      	  if [ "$USE_XDIALOG" ]; then
 		      	  	(
-		      	  	  f_quietly ifconfig $interface delete
-		      	  	  f_quietly dhclient $interface
+		      	  	  f_quietly ifconfig "$interface" delete
+		      	  	  f_quietly dhclient "$interface"
 		      	  	) |
 		      	  	  f_xdialog_info "$msg"
 		      	  else
 		      	  	f_dialog_info "$msg"
-		      	  	f_quietly ifconfig $interface delete
-		      	  	f_quietly dhclient $interface
+		      	  	f_quietly ifconfig "$interface" delete
+		      	  	f_quietly dhclient "$interface"
 		      	  fi
 		      	)
 		      	retval=$?
 		      	trap 'interrupt' SIGINT
 		      	if [ $retval -eq $DIALOG_OK ]; then
 		      		dhcp=1
-		      		ipaddr=$( f_ifconfig_inet $interface )
-		      		netmask=$( f_ifconfig_netmask $interface )
+		      		f_ifconfig_inet "$interface" ipaddr
+				f_ifconfig_inet6 "$interface" ipaddr6
+		      		f_ifconfig_netmask "$interface" netmask
 		      		options=
 
 		      		# Fixup search/domain in resolv.conf(5)
