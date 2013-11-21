@@ -59,10 +59,6 @@
 #include <netinet/tcp.h>
 #endif
 
-#ifdef INET6
-#include <netinet6/scope6_var.h>
-#endif
-
 #include <netinet/if_ether.h>
 
 #ifdef IPX
@@ -3582,8 +3578,6 @@ sppp_ipv6cp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			nohisaddr = IN6_IS_ADDR_UNSPECIFIED(&desiredaddr);
 
 			desiredaddr.s6_addr16[0] = htons(0xfe80);
-			(void)in6_setscope(&desiredaddr, SP2IFP(sp), NULL);
-
 			if (!collision && !nohisaddr) {
 				/* no collision, hisaddr known - Conf-Ack */
 				type = CONF_ACK;
@@ -3730,7 +3724,6 @@ sppp_ipv6cp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 				break;
 			bzero(&suggestaddr, sizeof(suggestaddr));
 			suggestaddr.s6_addr16[0] = htons(0xfe80);
-			(void)in6_setscope(&suggestaddr, SP2IFP(sp), NULL);
 			bcopy(&p[2], &suggestaddr.s6_addr[8], 8);
 
 			sp->ipv6cp.opts |= (1 << IPV6CP_OPT_IFID);
