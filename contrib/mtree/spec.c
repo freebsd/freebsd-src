@@ -1,4 +1,4 @@
-/*	$NetBSD: spec.c,v 1.87 2013/10/16 17:26:14 christos Exp $	*/
+/*	$NetBSD: spec.c,v 1.88 2013/10/17 17:22:59 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -67,7 +67,7 @@
 #if 0
 static char sccsid[] = "@(#)spec.c	8.2 (Berkeley) 4/28/95";
 #else
-__RCSID("$NetBSD: spec.c,v 1.87 2013/10/16 17:26:14 christos Exp $");
+__RCSID("$NetBSD: spec.c,v 1.88 2013/10/17 17:22:59 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -80,8 +80,8 @@ __RCSID("$NetBSD: spec.c,v 1.87 2013/10/16 17:26:14 christos Exp $");
 #include <grp.h>
 #include <pwd.h>
 #include <stdarg.h>
-#include <stdint.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
