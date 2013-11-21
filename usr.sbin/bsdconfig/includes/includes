@@ -137,7 +137,7 @@ done
 shift $(( $OPTIND - 1 ))
 
 # cd(1) to `share' dir so relative paths work for find and positional args
-cd $BSDCFG_SHARE || f_die 1 "$msg_directory_not_found" "$BSDCFG_SHARE"
+cd $BSDCFG_SHARE || f_die # Pedantic
 
 #
 # If given an argument, operate on it specifically (implied `-f') and exit
@@ -147,9 +147,11 @@ for include in "$@"; do
 	# See if they've just omitted the `*.subr' suffix
 	[ -f "$include.subr" -a ! -f "$include" ] && include="$include.subr"
 	if [ ! -f "$include" ]; then
-		f_die 1 "$msg_no_such_file_or_directory" "$0" "$include"
+		printf "$msg_no_such_file_or_directory" "$0" "$include"
+		exit $FAILURE
 	elif [ ! -r "$include" ]; then
-		f_die 1 "$msg_permission_denied" "$0" "$include"
+		printf "$msg_permission_denied" "$0" "$include"
+		exit $FAILURE
 	fi
 	show_include "$include" || f_die
 done
