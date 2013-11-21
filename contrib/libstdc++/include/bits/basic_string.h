@@ -390,6 +390,16 @@ _GLIBCXX_BEGIN_NAMESPACE(std)
       _S_copy_chars(_CharT* __p, const _CharT* __k1, const _CharT* __k2)
       { _M_copy(__p, __k1, __k2 - __k1); }
 
+      static int
+      _S_compare(size_type __x, size_type __y)
+      {
+         if (__x > __y)
+            return 1;
+         if (__x < __y)
+            return -1;
+         return 0;
+      }
+
       void
       _M_mutate(size_type __pos, size_type __len1, size_type __len2);
 
@@ -1934,7 +1944,7 @@ _GLIBCXX_BEGIN_NAMESPACE(std)
 
 	int __r = traits_type::compare(_M_data(), __str.data(), __len);
 	if (!__r)
-	  __r =  __size - __osize;
+	  __r =  _S_compare(__size, __osize);
 	return __r;
       }
 
