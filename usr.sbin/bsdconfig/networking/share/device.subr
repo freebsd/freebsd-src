@@ -74,7 +74,6 @@ f_dialog_menu_netdev()
 	#
 	# Get list of usable network interfaces
 	#
-	local d='[[:digit:]]+:'
 	local if iflist= # Calculated below
 	for if in $( ifconfig -l ); do
 		# Skip unsavory interfaces
