@@ -1,6 +1,7 @@
 #!/bin/sh
 #-
 # Copyright (c) 2013 Nathan Whitehorn
+# Copyright (c) 2013 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,19 +26,47 @@
 # SUCH DAMAGE.
 #
 # $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/variable.subr
+
+############################################################ CONFIGURATION
 
 # VARIABLES:
 # PARTITIONS
 # DISTRIBUTIONS
 # BSDINSTALL_DISTDIR
 
-error() {
-	test -f $PATH_FSTAB && bsdinstall umount
-	echo "Installation Error!"
-	cat $BSDINSTALL_LOG
-	echo "Installation Error!"
+############################################################ GLOBALS
+
+#
+# Strings that should be moved to an i18n file and loaded with f_include_lang()
+#
+msg_installation_error="Installation Error!"
+
+############################################################ FUNCTIONS
+
+error()
+{
+	[ -f "$PATH_FSTAB" ] && bsdinstall umount
+	
+	local file
+	f_getvar "$VAR_DEBUG_FILE#+" file
+	if [ "$file" ]; then
+		f_dialog_title "$msg_installation_error"
+		f_dialog_textbox "$file"
+		# No need to restore title, pining for the fjords
+	fi
+
 	exit 1
 }
+
+############################################################ MAIN
 
 set -e
 trap error EXIT
@@ -45,7 +74,7 @@ trap error EXIT
 SCRIPT="$1"
 shift
 
-echo "Begun Installation at $(date)" > $BSDINSTALL_LOG
+f_dprintf "Began Instalation at %s" "$( date )"
 rm -rf $BSDINSTALL_TMPETC
 mkdir $BSDINSTALL_TMPETC
 
@@ -54,6 +83,14 @@ split -a 2 -p '^#!.*' "$SCRIPT" /tmp/bsdinstall-installscript-
 . /tmp/bsdinstall-installscript-aa
 : ${DISTRIBUTIONS="kernel.txz base.txz"}; export DISTRIBUTIONS
 export BSDINSTALL_DISTDIR
+
+# Re-initialize a new log if preamble changed BSDINSTALL_LOG
+if [ "$BSDINSTALL_LOG" != "${debugFile#+}" ]; then
+	export debugFile="$BSDINSTALL_LOG"
+	f_quietly f_debug_init
+	# NB: Being scripted, let debug go to terminal for invalid debugFile
+	f_dprintf "Began Instalation at %s" "$( date )"
+fi
 
 # Make partitions
 rm -f $PATH_FSTAB
@@ -86,6 +123,10 @@ fi
 bsdinstall entropy
 bsdinstall umount
 
-echo "Installation Completed at $(date)" >> $BSDINSTALL_LOG
+f_dprintf "Installation Completed at %s" "$( date )"
 
 trap true EXIT
+
+################################################################################
+# END
+################################################################################
