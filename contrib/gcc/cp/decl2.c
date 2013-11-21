@@ -1698,10 +1698,6 @@ determine_visibility (tree decl)
      class can influence the visibility of the DECL.  */
   if (DECL_CLASS_SCOPE_P (decl))
     class_type = DECL_CONTEXT (decl);
-  else if (TREE_CODE (decl) == VAR_DECL
-	   && DECL_TINFO_P (decl)
-	   && CLASS_TYPE_P (TREE_TYPE (DECL_NAME (decl))))
-    class_type = TREE_TYPE (DECL_NAME (decl));
   else
     {
       /* Not a class member.  */
@@ -1787,7 +1783,8 @@ determine_visibility (tree decl)
     {
       /* Propagate anonymity from type to decl.  */
       int tvis = type_visibility (TREE_TYPE (decl));
-      if (tvis == VISIBILITY_ANON)
+      if (tvis == VISIBILITY_ANON
+	  || ! DECL_VISIBILITY_SPECIFIED (decl))
 	constrain_visibility (decl, tvis);
     }
 }
@@ -2326,7 +2323,7 @@ start_objects (int method_type, int initp)
     sprintf (type, "%c", method_type);
 
   fndecl = build_lang_decl (FUNCTION_DECL,
-			    get_file_function_name_long (type),
+			    get_file_function_name (type),
 			    build_function_type (void_type_node,
 						 void_list_node));
   start_preparsed_function (fndecl, /*attrs=*/NULL_TREE, SF_PRE_PARSED);
@@ -2334,6 +2331,10 @@ start_objects (int method_type, int initp)
   /* It can be a static function as long as collect2 does not have
      to scan the object file to find its ctor/dtor routine.  */
   TREE_PUBLIC (current_function_decl) = ! targetm.have_ctors_dtors;
+
+  /* Mark as artificial because it's not explicitly in the user's
+     source code.  */
+  DECL_ARTIFICIAL (current_function_decl) = 1;
 
   /* Mark this declaration as used to avoid spurious warnings.  */
   TREE_USED (current_function_decl) = 1;
