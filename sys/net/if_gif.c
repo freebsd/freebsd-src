@@ -830,13 +830,6 @@ gif_ioctl(ifp, cmd, data)
 		if (src->sa_len > size)
 			return EINVAL;
 		bcopy((caddr_t)src, (caddr_t)dst, src->sa_len);
-#ifdef INET6
-		if (dst->sa_family == AF_INET6) {
-			error = sa6_recoverscope((struct sockaddr_in6 *)dst);
-			if (error != 0)
-				return (error);
-		}
-#endif
 		break;
 			
 	case SIOCGIFPDSTADDR:
@@ -875,13 +868,6 @@ gif_ioctl(ifp, cmd, data)
 		if (error != 0)
 			return (error);
 		bcopy((caddr_t)src, (caddr_t)dst, src->sa_len);
-#ifdef INET6
-		if (dst->sa_family == AF_INET6) {
-			error = sa6_recoverscope((struct sockaddr_in6 *)dst);
-			if (error != 0)
-				return (error);
-		}
-#endif
 		break;
 
 	case SIOCSIFFLAGS:
