@@ -1977,7 +1977,6 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 	struct tcphdr *th;
 #ifdef INET6
 	struct ip6_hdr *ip6;
-	struct in6_addr in6;
 	char ip6buf[INET6_ADDRSTRLEN];
 	uint32_t plen;
 	uint16_t nhdr;
@@ -2066,12 +2065,10 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 	 * Note: Upper-Layer Packet Length comes before Next Header.
 	 */
 	case (IPV6_VERSION >> 4):
-		in6 = ip6->ip6_src;
-		in6_clearscope(&in6);
-		MD5Update(&ctx, (char *)&in6, sizeof(struct in6_addr));
-		in6 = ip6->ip6_dst;
-		in6_clearscope(&in6);
-		MD5Update(&ctx, (char *)&in6, sizeof(struct in6_addr));
+		MD5Update(&ctx, (char *)&ip6->ip6_src,
+		    sizeof(struct in6_addr));
+		MD5Update(&ctx, (char *)&ip6->ip6_dst,
+		    sizeof(struct in6_addr));
 		plen = htonl(len + sizeof(struct tcphdr) + optlen);
 		MD5Update(&ctx, (char *)&plen, sizeof(uint32_t));
 		nhdr = 0;
