@@ -234,8 +234,9 @@ static void	 tcp_newreno_partial_ack(struct tcpcb *, struct tcphdr *);
 static void inline 	tcp_fields_to_host(struct tcphdr *);
 #ifdef TCP_SIGNATURE
 static void inline 	tcp_fields_to_net(struct tcphdr *);
-static int inline	tcp_signature_verify_input(struct mbuf *, int, int,
-			    int, struct tcpopt *, struct tcphdr *, u_int);
+static int inline	tcp_signature_verify_input(struct mbuf *,
+			    struct in_conninfo *, int, int,
+			    struct tcpopt *, struct tcphdr *, u_int);
 #endif
 static void inline	cc_ack_received(struct tcpcb *tp, struct tcphdr *th,
 			    uint16_t type);
@@ -479,13 +480,13 @@ tcp_fields_to_net(struct tcphdr *th)
 }
 
 static inline int
-tcp_signature_verify_input(struct mbuf *m, int off0, int tlen, int optlen,
-    struct tcpopt *to, struct tcphdr *th, u_int tcpbflag)
+tcp_signature_verify_input(struct mbuf *m, struct in_conninfo *inc, int tlen,
+    int optlen, struct tcpopt *to, struct tcphdr *th, u_int tcpbflag)
 {
 	int ret;
 
 	tcp_fields_to_net(th);
-	ret = tcp_signature_verify(m, off0, tlen, optlen, to, th, tcpbflag);
+	ret = tcp_signature_verify(m, inc, tlen, optlen, to, th, tcpbflag);
 	tcp_fields_to_host(th);
 	return (ret);
 }
@@ -1146,7 +1147,8 @@ relocked:
 			if (sig_checked == 0)  {
 				tcp_dooptions(&to, optp, optlen,
 				    (thflags & TH_SYN) ? TO_SYN : 0);
-				if (!tcp_signature_verify_input(m, off0, tlen,
+				if (!tcp_signature_verify_input(m,
+				    &tp->t_inpcb->inp_inc, tlen,
 				    optlen, &to, th, tp->t_flags)) {
 
 					/*
@@ -1388,8 +1390,8 @@ relocked:
 	if (sig_checked == 0)  {
 		tcp_dooptions(&to, optp, optlen,
 		    (thflags & TH_SYN) ? TO_SYN : 0);
-		if (!tcp_signature_verify_input(m, off0, tlen, optlen, &to,
-		    th, tp->t_flags)) {
+		if (!tcp_signature_verify_input(m, &tp->t_inpcb->inp_inc,
+		    tlen, optlen, &to, th, tp->t_flags)) {
 
 			/*
 			 * In SYN_SENT state if it receives an RST, it is

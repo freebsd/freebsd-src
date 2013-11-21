@@ -698,9 +698,10 @@ int	 tcp_twcheck(struct inpcb *, struct tcpopt *, struct tcphdr *,
 int	 tcp_twrespond(struct tcptw *, int);
 void	 tcp_setpersist(struct tcpcb *);
 #ifdef TCP_SIGNATURE
-int	 tcp_signature_compute(struct mbuf *, int, int, int, u_char *, u_int);
-int	 tcp_signature_verify(struct mbuf *, int, int, int, struct tcpopt *,
-	    struct tcphdr *, u_int);
+int	 tcp_signature_compute(struct mbuf *, struct in_conninfo *, int,
+	    int, u_char *, u_int);
+int	 tcp_signature_verify(struct mbuf *, struct in_conninfo *, int,
+	    int, struct tcpopt *, struct tcphdr *, u_int);
 #endif
 void	 tcp_slowtimo(void);
 struct tcptemp *

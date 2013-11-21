@@ -1941,7 +1941,7 @@ tcp_signature_apply(void *fstate, void *data, u_int len)
  *
  * Parameters:
  * m		pointer to head of mbuf chain
- * _unused	
+ * inc		pointer to struct in_conninfo
  * len		length of TCP segment data, excluding options
  * optlen	length of TCP segment options
  * buf		pointer to storage for computed MD5 digest
@@ -1960,8 +1960,8 @@ tcp_signature_apply(void *fstate, void *data, u_int len)
  * specify per-application flows but it is unstable.
  */
 int
-tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
-    u_char *buf, u_int direction)
+tcp_signature_compute(struct mbuf *m, struct in_conninfo *inc, int len,
+    int optlen, u_char *buf, u_int direction)
 {
 	union sockaddr_union dst;
 #ifdef INET
@@ -2008,6 +2008,8 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 		dst.sa.sa_family = AF_INET6;
 		dst.sin6.sin6_addr = (direction == IPSEC_DIR_INBOUND) ?
 		    ip6->ip6_src : ip6->ip6_dst;
+		if (IN6_IS_ADDR_LINKLOCAL(&dst.sin6.sin6_addr))
+			dst.sin6.sin6_scope_id = inc->inc6_zoneid;
 		break;
 #endif
 	default:
@@ -2129,8 +2131,8 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
  * Return 1 if successful, otherwise return 0.
  */
 int
-tcp_signature_verify(struct mbuf *m, int off0, int tlen, int optlen,
-    struct tcpopt *to, struct tcphdr *th, u_int tcpbflag)
+tcp_signature_verify(struct mbuf *m, struct in_conninfo *inc, int tlen,
+    int optlen, struct tcpopt *to, struct tcphdr *th, u_int tcpbflag)
 {
 	char tmpdigest[TCP_SIGLEN];
 
@@ -2161,7 +2163,7 @@ tcp_signature_verify(struct mbuf *m, int off0, int tlen, int optlen,
 		TCPSTAT_INC(tcps_sig_rcvbadsig);
 		return (0);
 	}
-	if (tcp_signature_compute(m, off0, tlen, optlen, &tmpdigest[0],
+	if (tcp_signature_compute(m, inc, tlen, optlen, &tmpdigest[0],
 	    IPSEC_DIR_INBOUND) == -1) {
 		TCPSTAT_INC(tcps_sig_err_buildsig);
 		TCPSTAT_INC(tcps_sig_rcvbadsig);

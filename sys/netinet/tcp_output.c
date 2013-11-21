@@ -1071,7 +1071,7 @@ send:
 #ifdef TCP_SIGNATURE
 	if (tp->t_flags & TF_SIGNATURE) {
 		int sigoff = to.to_signature - opt;
-		tcp_signature_compute(m, 0, len, optlen,
+		tcp_signature_compute(m, &tp->t_inpcb->inp_inc, len, optlen,
 		    (u_char *)(th + 1) + sigoff, IPSEC_DIR_OUTBOUND);
 	}
 #endif
