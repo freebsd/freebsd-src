@@ -4167,13 +4167,15 @@ t4_sysctls(struct adapter *sc)
 	struct sysctl_oid_list *children, *c0;
 	static char *caps[] = {
 		"\20\1PPP\2QFC\3DCBX",			/* caps[0] linkcaps */
-		"\20\1NIC\2VM\3IDS\4UM\5UM_ISGL",	/* caps[1] niccaps */
+		"\20\1NIC\2VM\3IDS\4UM\5UM_ISGL"	/* caps[1] niccaps */
+		    "\6HASHFILTER\7ETHOFLD",
 		"\20\1TOE",				/* caps[2] toecaps */
 		"\20\1RDDP\2RDMAC",			/* caps[3] rdmacaps */
 		"\20\1INITIATOR_PDU\2TARGET_PDU"	/* caps[4] iscsicaps */
 		    "\3INITIATOR_CNXOFLD\4TARGET_CNXOFLD"
 		    "\5INITIATOR_SSNOFLD\6TARGET_SSNOFLD",
 		"\20\1INITIATOR\2TARGET\3CTRL_OFLD"	/* caps[5] fcoecaps */
+		    "\4PO_INITIAOR\5PO_TARGET"
 	};
 	static char *doorbells = {"\20\1UDB\2WCWR\3UDBWC\4KDB"};
 
