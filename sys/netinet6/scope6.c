@@ -500,3 +500,24 @@ sa6_checkzone(struct sockaddr_in6 *sa6)
 	/* Return error if we can't determine zone id */
 	return (sa6->sin6_scope_id ? 0: EADDRNOTAVAIL);
 }
+
+/*
+ * This function is similar to sa6_checkzone, but it uses given ifp
+ * to initialize sin6_scope_id.
+ */
+int
+sa6_checkzone_ifp(struct ifnet *ifp, struct sockaddr_in6 *sa6)
+{
+	int scope;
+
+	scope = in6_addrscope(&sa6->sin6_addr);
+	if (scope == IPV6_ADDR_SCOPE_LINKLOCAL ||
+	    scope == IPV6_ADDR_SCOPE_INTFACELOCAL) {
+		if (sa6->sin6_scope_id != 0 &&
+		    sa6->sin6_scope_id != in6_getscopezone(ifp, scope))
+			return (EADDRNOTAVAIL);
+		if (sa6->sin6_scope_id == 0)
+			sa6->sin6_scope_id = in6_getscopezone(ifp, scope);
+	}
+	return (sa6_checkzone(sa6));
+}
