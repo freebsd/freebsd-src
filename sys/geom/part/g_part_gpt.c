@@ -759,8 +759,8 @@ static int
 g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 {
 	struct g_provider *pp;
-	char *buf;
-	int error, res;
+	u_char *buf;
+	int error, index, pri, res;
 
 	/* We don't nest, which means that our depth should be 0. */
 	if (table->gpt_depth != 0)
@@ -785,11 +785,21 @@ g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 	if (pp->sectorsize < MBRSIZE || pp->mediasize < 6 * pp->sectorsize)
 		return (ENOSPC);
 
-	/* Check that there's a MBR. */
+	/*
+	 * Check that there's a MBR or a PMBR. If it's a PMBR, we return
+	 * as the highest priority on a match, otherwise we assume some
+	 * GPT-unaware tool has destroyed the GPT by recreating a MBR and
+	 * we really want the MBR scheme to take precedence.
+	 */
 	buf = g_read_data(cp, 0L, pp->sectorsize, &error);
 	if (buf == NULL)
 		return (error);
 	res = le16dec(buf + DOSMAGICOFFSET);
+	pri = G_PART_PROBE_PRI_LOW;
+	for (index = 0; index < NDOSPART; index++) {
+		if (buf[DOSPARTOFF + DOSPARTSIZE * index + 4] == 0xee)
+			pri = G_PART_PROBE_PRI_HIGH;
+	}
 	g_free(buf);
 	if (res != DOSMAGIC) 
 		return (ENXIO);
@@ -801,7 +811,7 @@ g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 	res = memcmp(buf, GPT_HDR_SIG, 8);
 	g_free(buf);
 	if (res == 0)
-		return (G_PART_PROBE_PRI_HIGH);
+		return (pri);
 
 	/* No primary? Check that there's a secondary. */
 	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
@@ -810,7 +820,7 @@ g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 		return (error);
 	res = memcmp(buf, GPT_HDR_SIG, 8); 
 	g_free(buf);
-	return ((res == 0) ? G_PART_PROBE_PRI_HIGH : ENXIO);
+	return ((res == 0) ? pri : ENXIO);
 }
 
 static int
