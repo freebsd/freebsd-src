@@ -298,7 +298,8 @@ nand_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	struct nand_oob_rw *oob_rw = NULL;
 	struct nand_raw_rw *raw_rw = NULL;
 	device_t nandbus;
-	size_t bufsize, len, raw_size;
+	size_t bufsize = 0, len = 0;
+	size_t raw_size;
 	off_t off;
 	uint8_t *buf = NULL;
 	int ret = 0;
