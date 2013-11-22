@@ -3081,7 +3081,7 @@ DIOCCHANGEADDR_error:
 		uint32_t		 i, nr = 0;
 
 		if (psn->psn_len == 0) {
-			for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask;
+			for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask;
 			    i++, sh++) {
 				PF_HASHROW_LOCK(sh);
 				LIST_FOREACH(n, &sh->nodes, entry)
@@ -3093,7 +3093,7 @@ DIOCCHANGEADDR_error:
 		}
 
 		p = pstore = malloc(psn->psn_len, M_TEMP, M_WAITOK);
-		for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask;
+		for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask;
 		    i++, sh++) {
 		    PF_HASHROW_LOCK(sh);
 		    LIST_FOREACH(n, &sh->nodes, entry) {
@@ -3385,7 +3385,7 @@ pf_clear_srcnodes(struct pf_src_node *n)
 	if (n == NULL) {
 		struct pf_srchash *sh;
 
-		for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask;
+		for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask;
 		    i++, sh++) {
 			PF_HASHROW_LOCK(sh);
 			LIST_FOREACH(n, &sh->nodes, entry) {
