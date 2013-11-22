@@ -109,8 +109,39 @@ static int
 fb_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
 {
+	struct fb_info *info;
+	int error;
 
-	return (0);
+	error = 0;
+	info = dev->si_drv1;
+
+	switch (cmd) {
+	case FBIOGTYPE:
+		bcopy(info, (struct fbtype *)data, sizeof(struct fbtype));
+		break;
+
+	case FBIO_GETWINORG:	/* get frame buffer window origin */
+		*(u_int *)data = 0;
+		break;
+
+	case FBIO_GETDISPSTART:	/* get display start address */
+		((video_display_start_t *)data)->x = 0;
+		((video_display_start_t *)data)->y = 0;
+		break;
+
+	case FBIO_GETLINEWIDTH:	/* get scan line width in bytes */
+		*(u_int *)data = info->fb_stride;
+		break;
+
+	case FBIO_BLANK:	/* blank display */
+		error = 0;	/* TODO */
+		break;
+
+	default:
+		error = ENOIOCTL;
+		break;
+	}
+	return (error);
 }
 
 static int
