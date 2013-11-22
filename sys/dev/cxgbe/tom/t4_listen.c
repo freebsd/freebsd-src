@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 #include <net/route.h>
@@ -52,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
-#include <netinet6/scope6_var.h>
+#include <netinet6/in6_var.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #define TCPSTATES
@@ -1085,22 +1086,14 @@ static int
 ifnet_has_ip6(struct ifnet *ifp, struct in6_addr *ip6)
 {
 	struct ifaddr *ifa;
-	struct sockaddr_in6 *sin6;
 	int found = 0;
-	struct in6_addr in6 = *ip6;
-
-	/* Just as in ip6_input */
-	if (in6_clearscope(&in6) || in6_clearscope(&in6))
-		return (0);
-	in6_setscope(&in6, ifp, NULL);
 
 	if_addr_rlock(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		sin6 = (void *)ifa->ifa_addr;
-		if (sin6->sin6_family != AF_INET6)
+		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 
-		if (IN6_ARE_ADDR_EQUAL(&sin6->sin6_addr, &in6)) {
+		if (IN6_ARE_ADDR_EQUAL(ip6, IFA_IN6(ifa))) {
 			found = 1;
 			break;
 		}
