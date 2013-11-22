@@ -1467,8 +1467,9 @@ struct pf_ifspeed {
 #define	DIOCGIFSPEED	_IOWR('D', 92, struct pf_ifspeed)
 
 #ifdef _KERNEL
+LIST_HEAD(pf_src_node_list, pf_src_node);
 struct pf_srchash {
-	LIST_HEAD(, pf_src_node)	nodes;
+	struct pf_src_node_list		nodes;
 	struct mtx			lock;
 };
 
@@ -1576,6 +1577,9 @@ extern struct pf_state		*pf_find_state_all(struct pf_state_key_cmp *,
 				    u_int, int *);
 extern struct pf_src_node	*pf_find_src_node(struct pf_addr *,
 				    struct pf_rule *, sa_family_t, int);
+extern void			 pf_unlink_src_node(struct pf_src_node *);
+extern void			 pf_unlink_src_node_locked(struct pf_src_node *);
+extern u_int			 pf_free_src_nodes(struct pf_src_node_list *);
 extern void			 pf_print_state(struct pf_state *);
 extern void			 pf_print_flags(u_int8_t);
 extern u_int16_t		 pf_cksum_fixup(u_int16_t, u_int16_t, u_int16_t,
