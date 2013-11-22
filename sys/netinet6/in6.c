@@ -2261,11 +2261,10 @@ in6_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			ndpc.rtm.rtm_type = RTM_GET;
 			ndpc.rtm.rtm_flags = RTF_UP;
 			ndpc.rtm.rtm_addrs = RTA_DST | RTA_GATEWAY;
-			ndpc.sin6.sin6_family = AF_INET6;
-			ndpc.sin6.sin6_len = sizeof(ndpc.sin6);
 			bcopy(L3_ADDR(lle), &ndpc.sin6, L3_ADDR_LEN(lle));
-			if (V_deembed_scopeid)
-				sa6_recoverscope(&ndpc.sin6);
+			if (IN6_IS_ADDR_LINKLOCAL(&ndpc.sin6.sin6_addr))
+				ndpc.sin6.sin6_scope_id = in6_getscopezone(
+				    ifp, IPV6_ADDR_SCOPE_LINKLOCAL);
 
 			/* publish */
 			if (lle->la_flags & LLE_PUB)
