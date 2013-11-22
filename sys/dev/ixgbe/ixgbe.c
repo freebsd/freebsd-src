@@ -47,7 +47,7 @@
 } while (0)
 #define	IXGBE_RX_UNLOCK_COND(rxr, locking) do {				\
 	if ((locking) != 0)						\
-		IXGBE_RX_UNLOCK(rtxr);					\
+		IXGBE_RX_UNLOCK(rxr);					\
 } while (0)
 #define	IXGBE_TX_LOCK_COND(txr, locking) do {				\
 	if ((locking) != 0)						\
