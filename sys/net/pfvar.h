@@ -1574,8 +1574,8 @@ pf_release_state(struct pf_state *s)
 extern struct pf_state		*pf_find_state_byid(uint64_t, uint32_t);
 extern struct pf_state		*pf_find_state_all(struct pf_state_key_cmp *,
 				    u_int, int *);
-struct pf_src_node		*pf_find_src_node(struct pf_addr *, struct pf_rule *,
-				    sa_family_t, int);
+extern struct pf_src_node	*pf_find_src_node(struct pf_addr *,
+				    struct pf_rule *, sa_family_t, int);
 extern void			 pf_print_state(struct pf_state *);
 extern void			 pf_print_flags(u_int8_t);
 extern u_int16_t		 pf_cksum_fixup(u_int16_t, u_int16_t, u_int16_t,
