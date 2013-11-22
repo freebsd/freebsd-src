@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <netinet/tcp_var.h>
-#include <netinet6/scope6_var.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
 #include <netinet/toecore.h>
@@ -762,7 +761,7 @@ static void
 update_clip_table(struct adapter *sc, struct tom_data *td)
 {
 	struct in6_ifaddr *ia;
-	struct in6_addr *lip, tlip;
+	struct in6_addr *lip;
 	struct clip_head stale;
 	struct clip_entry *ce, *ce_temp;
 	int rc, gen = atomic_load_acq_int(&in6_ifaddr_gen);
@@ -786,12 +785,6 @@ update_clip_table(struct adapter *sc, struct tom_data *td)
 
 		if (IN6_IS_ADDR_LOOPBACK(lip))
 			continue;
-		if (IN6_IS_SCOPE_EMBED(lip)) {
-			/* Remove the embedded scope */
-			tlip = *lip;
-			lip = &tlip;
-			in6_clearscope(lip);
-		}
 		/*
 		 * XXX: how to weed out the link local address for the loopback
 		 * interface?  It's fe80::1 usually (always?).
