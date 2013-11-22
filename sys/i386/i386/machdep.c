@@ -2002,26 +2002,20 @@ sdtossd(sd, ssd)
 
 #ifndef XEN
 static int
-add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
+add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
+    int *physmap_idxp)
 {
 	int i, insert_idx, physmap_idx;
 
 	physmap_idx = *physmap_idxp;
 	
-	if (boothowto & RB_VERBOSE)
-		printf("SMAP type=%02x base=%016llx len=%016llx\n",
-		    smap->type, smap->base, smap->length);
-
-	if (smap->type != SMAP_TYPE_MEMORY)
-		return (1);
-
-	if (smap->length == 0)
+	if (length == 0)
 		return (1);
 
 #ifndef PAE
-	if (smap->base > 0xffffffff) {
+	if (base > 0xffffffff) {
 		printf("%uK of memory above 4GB ignored\n",
-		    (u_int)(smap->length / 1024));
+		    (u_int)(length / 1024));
 		return (1);
 	}
 #endif
@@ -2032,8 +2026,8 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 	 */
 	insert_idx = physmap_idx + 2;
 	for (i = 0; i <= physmap_idx; i += 2) {
-		if (smap->base < physmap[i + 1]) {
-			if (smap->base + smap->length <= physmap[i]) {
+		if (base < physmap[i + 1]) {
+			if (base + length <= physmap[i]) {
 				insert_idx = i;
 				break;
 			}
@@ -2045,15 +2039,14 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 	}
 
 	/* See if we can prepend to the next entry. */
-	if (insert_idx <= physmap_idx &&
-	    smap->base + smap->length == physmap[insert_idx]) {
-		physmap[insert_idx] = smap->base;
+	if (insert_idx <= physmap_idx && base + length == physmap[insert_idx]) {
+		physmap[insert_idx] = base;
 		return (1);
 	}
 
 	/* See if we can append to the previous entry. */
-	if (insert_idx > 0 && smap->base == physmap[insert_idx - 1]) {
-		physmap[insert_idx - 1] += smap->length;
+	if (insert_idx > 0 && base == physmap[insert_idx - 1]) {
+		physmap[insert_idx - 1] += length;
 		return (1);
 	}
 
@@ -2075,9 +2068,44 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 	}
 
 	/* Insert the new entry. */
-	physmap[insert_idx] = smap->base;
-	physmap[insert_idx + 1] = smap->base + smap->length;
+	physmap[insert_idx] = base;
+	physmap[insert_idx + 1] = base + length;
 	return (1);
+}
+
+static int
+add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
+{
+	if (boothowto & RB_VERBOSE)
+		printf("SMAP type=%02x base=%016llx len=%016llx\n",
+		    smap->type, smap->base, smap->length);
+
+	if (smap->type != SMAP_TYPE_MEMORY)
+		return (1);
+
+	return (add_physmap_entry(smap->base, smap->length, physmap,
+	    physmap_idxp));
+}
+
+static void
+add_smap_entries(struct bios_smap *smapbase, vm_paddr_t *physmap,
+    int *physmap_idxp)
+{
+	struct bios_smap *smap, *smapend;
+	u_int32_t smapsize;
+	/*
+	 * Memory map from INT 15:E820.
+	 *
+	 * subr_module.c says:
+	 * "Consumer may safely assume that size value precedes data."
+	 * ie: an int32_t immediately precedes SMAP.
+	 */
+	smapsize = *((u_int32_t *)smapbase - 1);
+	smapend = (struct bios_smap *)((uintptr_t)smapbase + smapsize);
+
+	for (smap = smapbase; smap < smapend; smap++)
+		if (!add_smap_entry(smap, physmap, physmap_idxp))
+			break;
 }
 
 static void
@@ -2156,8 +2184,7 @@ getmemsize(int first)
 	struct vm86frame vmf;
 	struct vm86context vmc;
 	vm_paddr_t pa;
-	struct bios_smap *smap, *smapbase, *smapend;
-	u_int32_t smapsize;
+	struct bios_smap *smap, *smapbase;
 	caddr_t kmdp;
 #endif
 
@@ -2199,18 +2226,8 @@ getmemsize(int first)
 		smapbase = (struct bios_smap *)preload_search_info(kmdp,
 		    MODINFO_METADATA | MODINFOMD_SMAP);
 	if (smapbase != NULL) {
-		/*
-		 * subr_module.c says:
-		 * "Consumer may safely assume that size value precedes data."
-		 * ie: an int32_t immediately precedes SMAP.
-		 */
-		smapsize = *((u_int32_t *)smapbase - 1);
-		smapend = (struct bios_smap *)((uintptr_t)smapbase + smapsize);
+		add_smap_entries(smapbase, physmap, &physmap_idx);
 		has_smap = 1;
-
-		for (smap = smapbase; smap < smapend; smap++)
-			if (!add_smap_entry(smap, physmap, &physmap_idx))
-				break;
 		goto have_smap;
 	}
 
