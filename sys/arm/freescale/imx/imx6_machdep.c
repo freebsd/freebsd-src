@@ -34,17 +34,46 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/reboot.h>
 
-#include <machine/bus.h>
 #include <vm/vm.h>
-#include <vm/pmap.h>
+
+#include <machine/bus.h>
+#include <machine/devmap.h>
+#include <machine/machdep.h>
+
 #include <arm/freescale/imx/imx6_anatopreg.h>
 #include <arm/freescale/imx/imx6_anatopvar.h>
 #include <arm/freescale/imx/imx_machdep.h>
 
+vm_offset_t
+initarm_lastaddr(void)
+{
+
+	return (arm_devmap_lastaddr());
+}
+
+void
+initarm_early_init(void)
+{
+
+	/* XXX - Get rid of this stuff soon. */
+	boothowto |= RB_VERBOSE|RB_MULTIPLE;
+	bootverbose = 1;
+}
+
+void
+initarm_gpio_init(void)
+{
+
+}
+
+void
+initarm_late_init(void)
+{
+
+}
+
 /*
- * Set up static device mappings.  Note that for imx this is called from
- * initarm_lastaddr() so that it can return the lowest address used for static
- * device mapping, maximizing kva space.
+ * Set up static device mappings.
  *
  * This attempts to cover the most-used devices with 1MB section mappings, which
  * is good for performance (uses fewer TLB entries for device access).
@@ -59,8 +88,8 @@ __FBSDID("$FreeBSD$");
  * static map some of that area.  Be careful with other things in that area such
  * as OCRAM that probably shouldn't be mapped as PTE_DEVICE memory.
  */
-void
-imx_devmap_init(void)
+int
+initarm_devmap_init(void)
 {
 	const uint32_t IMX6_ARMMP_PHYS = 0x00a00000;
 	const uint32_t IMX6_ARMMP_SIZE = 0x00100000;
@@ -69,9 +98,11 @@ imx_devmap_init(void)
 	const uint32_t IMX6_AIPS2_PHYS = 0x02100000;
 	const uint32_t IMX6_AIPS2_SIZE = 0x00100000;
 
-	imx_devmap_addentry(IMX6_ARMMP_PHYS, IMX6_ARMMP_SIZE);
-	imx_devmap_addentry(IMX6_AIPS1_PHYS, IMX6_AIPS1_SIZE);
-	imx_devmap_addentry(IMX6_AIPS2_PHYS, IMX6_AIPS2_SIZE);
+	arm_devmap_add_entry(IMX6_ARMMP_PHYS, IMX6_ARMMP_SIZE);
+	arm_devmap_add_entry(IMX6_AIPS1_PHYS, IMX6_AIPS1_SIZE);
+	arm_devmap_add_entry(IMX6_AIPS2_PHYS, IMX6_AIPS2_SIZE);
+
+	return (0);
 }
 
 void
@@ -112,14 +143,13 @@ cpu_reset(void)
  */
 u_int imx_soc_type()
 {
-	const struct pmap_devmap *pd;
 	uint32_t digprog, hwsoc;
 	uint32_t *pcr;
-	const uint32_t HWSOC_MX6SL   = 0x60;
-	const uint32_t HWSOC_MX6DL   = 0x61;
-	const uint32_t HWSOC_MX6SOLO = 0x62;
-	const uint32_t HWSOC_MX6Q    = 0x63;
 	const vm_offset_t SCU_CONFIG_PHYSADDR = 0x00a00004;
+#define	HWSOC_MX6SL	0x60
+#define	HWSOC_MX6DL	0x61
+#define	HWSOC_MX6SOLO	0x62
+#define	HWSOC_MX6Q	0x63
 
 	digprog = imx6_anatop_read_4(IMX6_ANALOG_DIGPROG_SL);
 	hwsoc = (digprog >> IMX6_ANALOG_DIGPROG_SOCTYPE_SHIFT) & 
@@ -131,10 +161,8 @@ u_int imx_soc_type()
 		    IMX6_ANALOG_DIGPROG_SOCTYPE_SHIFT;
 		/*printf("digprog = 0x%08x\n", digprog);*/
 		if (hwsoc == HWSOC_MX6DL) {
-			pd = pmap_devmap_find_pa(SCU_CONFIG_PHYSADDR, 4);
-			if (pd != NULL) {
-				pcr = (uint32_t *)(pd->pd_va + 
-				    (SCU_CONFIG_PHYSADDR - pd->pd_pa));
+			pcr = arm_devmap_ptov(SCU_CONFIG_PHYSADDR, 4);
+			if (pcr != NULL) {
 				/*printf("scu config = 0x%08x\n", *pcr);*/
 				if ((*pcr & 0x03) == 0) {
 					hwsoc = HWSOC_MX6SOLO;

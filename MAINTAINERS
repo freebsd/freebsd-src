@@ -99,7 +99,6 @@ nfs		alfred	Will be happy to review code, but not mandatory.
 rpc.lockd	alfred	Will be happy to review code, but not mandatory.
 truss		alfred	Will be happy to review code, but not mandatory.
 rpc		alfred	Pre-commit review requested.
-pkg_install	portmgr	Pre-commit review or approval from portmgr@ requested.
 linux emul	emulation	Please discuss changes here.
 bs{diff,patch}	cperciva	Pre-commit review requested.
 portsnap	cperciva	Pre-commit review requested.

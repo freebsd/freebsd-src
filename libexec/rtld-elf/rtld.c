@@ -3269,6 +3269,11 @@ dl_iterate_phdr(__dl_iterate_hdr_callback callback, void *param)
 		break;
 
     }
+    if (error == 0) {
+	rtld_fill_dl_phdr_info(&obj_rtld, &phdr_info);
+	error = callback(&phdr_info, sizeof(phdr_info), param);
+    }
+
     lock_release(rtld_bind_lock, &bind_lockstate);
     lock_release(rtld_phdr_lock, &phdr_lockstate);
 

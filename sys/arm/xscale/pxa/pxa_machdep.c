@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#include <machine/devmap.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
@@ -124,7 +125,7 @@ static void	pxa_probe_sdram(bus_space_tag_t, bus_space_handle_t,
 		    uint32_t *, uint32_t *);
 
 /* Static device mappings. */
-static const struct pmap_devmap pxa_devmap[] = {
+static const struct arm_devmap_entry pxa_devmap[] = {
 	/*
 	 * Map the on-board devices up into the KVA region so we don't muck
 	 * up user-space.
@@ -281,7 +282,7 @@ initarm(struct arm_boot_params *abp)
 	/* Map the vector page. */
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	pmap_devmap_bootstrap(l1pagetable, pxa_devmap);
+	arm_devmap_bootstrap(l1pagetable, pxa_devmap);
 
 	/*
 	 * Give the XScale global cache clean code an appropriately
@@ -316,6 +317,7 @@ initarm(struct arm_boot_params *abp)
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();
+	cpu_setup("");
 
 	/*
 	 * Sort out bus_space for on-board devices.

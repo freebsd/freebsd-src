@@ -103,7 +103,7 @@ static const STRUCT_USB_HOST_ID rsu_devs[] = {
 	RSU_DEV_HT(DLINK2,		RTL8192SU_2),
 	RSU_DEV_HT(EDIMAX,		RTL8192SU_1),
 	RSU_DEV_HT(EDIMAX,		RTL8192SU_2),
-	RSU_DEV_HT(EDIMAX,		RTL8192SU_3),
+	RSU_DEV_HT(EDIMAX,		EW7622UMN),
 	RSU_DEV_HT(GUILLEMOT,		HWGUN54),
 	RSU_DEV_HT(GUILLEMOT,		HWNUM300),
 	RSU_DEV_HT(HAWKING,		RTL8192SU_1),
@@ -481,8 +481,13 @@ rsu_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	if (uvp == NULL)
 		return (NULL);
 	vap = &uvp->vap;
-	ieee80211_vap_setup(ic, vap, name, unit, opmode,
-	    flags, bssid, mac);
+
+	if (ieee80211_vap_setup(ic, vap, name, unit, opmode,
+	    flags, bssid, mac) != 0) {
+		/* out of memory */
+		free(uvp, M_80211_VAP);
+		return (NULL);
+	}
 
 	/* override state transition machine */
 	uvp->newstate = vap->iv_newstate;

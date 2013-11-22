@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
 %release;
 ]>
-
 <!--
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
 	files, this file should remain as a single SGML file, so that
@@ -16,14 +15,13 @@
 	not be the one that received the last change in the document.)
 
 -->
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+  <info><title>&os; &release; Errata </title>
+    
 
-<article>
-  <articleinfo>
-    <title>&os; &release; Errata </title>
-
-    <corpauthor>
+    <author><orgname>
     The &os; Project
-    </corpauthor>
+    </orgname></author>
 
     <pubdate>$FreeBSD$</pubdate>
 
@@ -34,16 +32,23 @@
       <year>2003</year>
       <year>2004</year>
       <year>2005</year>
+      <year>2006</year>
+      <year>2007</year>
+      <year>2008</year>
+      <year>2009</year>
+      <year>2010</year>
+      <year>2011</year>
+      <year>2012</year>
+      <year>2013</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
-    <legalnotice id="trademarks" role="trademarks">
+    <legalnotice xml:id="trademarks" role="trademarks">
       &tm-attrib.freebsd;
       &tm-attrib.intel;
       &tm-attrib.sparc;
       &tm-attrib.general;
     </legalnotice>
-  </articleinfo>
 
   <abstract>
     <para>This document lists errata items for &os; &release;,
@@ -59,8 +64,9 @@
     <para>This errata document for &os; &release;
       will be maintained until the release of &os; &release.next;.</para>
   </abstract>
+  </info>
 
-  <sect1 id="intro">
+  <sect1 xml:id="intro">
     <title>Introduction</title>
 
     <para>This errata document contains <quote>late-breaking news</quote>
@@ -74,21 +80,18 @@
       out of date by definition, but other copies are kept updated on
       the Internet and should be consulted as the <quote>current
       errata</quote> for this release.  These other copies of the
-      errata are located at <ulink
-      url="http://www.FreeBSD.org/releases/"></ulink>, plus any sites
+      errata are located at <uri xlink:href="http://www.FreeBSD.org/releases/">http://www.FreeBSD.org/releases/</uri>, plus any sites
       which keep up-to-date mirrors of this location.</para>
 
     <para>Source and binary snapshots of &os; &release.branch; also
       contain up-to-date copies of this document (as of the time of
       the snapshot).</para>
 
-    <para>For a list of all &os; CERT security advisories, see <ulink
-      url="http://www.FreeBSD.org/security/"></ulink> or <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+    <para>For a list of all &os; CERT security advisories, see <uri xlink:href="http://www.FreeBSD.org/security/">http://www.FreeBSD.org/security/</uri> or <uri xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/">ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/</uri>.</para>
 
   </sect1>
 
-  <sect1 id="security">
+  <sect1 xml:id="security">
     <title>Security Advisories</title>
 
     <para releasetype="current">No advisories.</para>
@@ -98,7 +101,7 @@
     <para releasetype="snapshot">No advisories.</para>
   </sect1>
 
-  <sect1 id="open-issues">
+  <sect1 xml:id="open-issues">
     <title>Open Issues</title>
 
     <para releasetype="current">No open issues.</para>
@@ -108,7 +111,7 @@
     <para releasetype="snapshot">No open issues.</para>
   </sect1>
 
-  <sect1 id="late-news">
+  <sect1 xml:id="late-news">
     <title>Late-Breaking News</title>
 
     <para releasetype="current">No news.</para>

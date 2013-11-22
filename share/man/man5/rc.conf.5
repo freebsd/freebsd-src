@@ -917,6 +917,33 @@ Empty by default.
 This variable contains additional flags passed to the
 .Xr pflogd 8
 program.
+.It Va pflog_instances
+.Pq Vt str
+If logging to more than one
+.Xr pflog 4
+interface is desired,
+.Va pflog_instances
+is set to the list of
+.Xr pflogd 8
+instances that should be started at system boot time. If
+.Va pflog_instances
+is set, for each whitespace-seperated
+.Ar element
+in the list,
+.Ao Ar element Ac Ns Va _dev
+and
+.Ao Ar element Ac Ns Va _logfile
+elements are assumed to exist.
+.Ao Ar element Ac Ns Va _dev
+must contain the
+.Xr pflog 4
+interface to be watched by the named
+.Xr pflogd 8
+instance.
+.Ao Ar element Ac Ns Va _logfile
+must contain the name of the logfile that will be used by the
+.Xr pflogd 8
+instance.
 .It Va ftpproxy_enable
 .Pq Vt bool
 Set to
@@ -935,6 +962,19 @@ Empty by default.
 This variable contains additional flags passed to the
 .Xr ftp-proxy 8
 program.
+.It Va ftpproxy_instances
+.Pq Vt str
+Empty by default. If multiple instances of
+.Xr ftp-proxy 8
+are desired at boot time,
+.Va ftpproxy_instances
+should contain a whitespace-seperated list of instance names. For each
+.Ar element
+in the list, a variable named
+.Ao Ar element Ac Ns Va _flags
+should be defined, containing the command-line flags to be passed to the
+.Xr ftp-proxy 8
+instance.
 .It Va pfsync_enable
 .Pq Vt bool
 Set to

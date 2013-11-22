@@ -62,7 +62,8 @@ f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 #
 f_dialog_menu_netdev()
 {
-	local defaultitem="${1%\*}" # Tim trailing asterisk if present
+	local menu_list # Calculated below
+	local defaultitem="${1%\*}" # Trim trailing asterisk if present
 
 	#
 	# Display a message to let the user know we're working...
@@ -73,20 +74,17 @@ f_dialog_menu_netdev()
 	#
 	# Get list of usable network interfaces
 	#
-	local d='[[:digit:]]+:'
-	local iflist="`echo "$(ifconfig -l):" | sed -E -e "
-		# Convert all spaces to colons
-		y/ /:/
-
-		# Prune unsavory interfaces
-		s/lo$d//g
-		s/ppp$d//g
-		s/sl$d//g
-		s/faith$d//g
-
-		# Convert all colons back into spaces
-		y/:/ /
-	"`"
+	local devs if iflist= # Calculated below
+	f_device_rescan_network
+	f_device_find "" $DEVICE_TYPE_NETWORK devs
+	for if in $devs; do
+		# Skip unsavory interfaces
+		case "$if" in
+		lo[0-9]*|ppp[0-9]*|sl[0-9]*|faith[0-9]*) continue ;;
+		esac
+		iflist="$iflist $if"
+	done
+	iflist="${iflist# }"
 
 	#
 	# Optionally kick interfaces in the head to get them to accurately
@@ -95,9 +93,8 @@ f_dialog_menu_netdev()
 	if [ "$DIALOG_MENU_NETDEV_KICK_INTERFACES" ]; then
 		DIALOG_MENU_NETDEV_KICK_INTERFACES=
 
-		local ifn
-		for ifn in $iflist; do
-			f_quietly ifconfig $ifn up
+		for if in $iflist; do
+			f_quietly ifconfig $if up
 		done
 
 		if [ "$DIALOG_MENU_NETDEV_SLEEP_AFTER_KICK" ]; then
@@ -110,46 +107,37 @@ f_dialog_menu_netdev()
 	# Mark any "active" interfaces with an asterisk (*)
 	# to the right of the device name.
 	#
-	interfaces=$(
-		for ifn in $iflist; do
-			active=$( ifconfig $ifn | awk \
-			'
-				( $1 == "status:" ) \
-				{
-					if ( $2 == "active" ) { print 1; exit }
-				}
-			' )
-			printf "'%s%s' '%s'\n" \
-				$ifn "${active:+*}" "$( f_device_desc $ifn )"
+	menu_list=$(
+		for if in $iflist; do
+			f_device_desc $if $DEVICE_TYPE_NETWORK desc
+			f_shell_escape "$desc" desc
+			if f_device_is_active $if; then
+				printf "'%s\*' '%s'\n" $if "$desc"
+			else
+				printf "'%s' '%s'\n" $if "$desc"
+			fi
 		done
 	)
-	if [ ! "$interfaces" ]; then
+	if [ ! "$menu_list" ]; then
 		f_show_msg "$msg_no_network_interfaces"
 		return $DIALOG_CANCEL
 	fi
 
-	#
 	# Maybe the default item was marked as active
-	#
-	if [ "$defaultitem" ]; then
-		ifconfig "$defaultitem" 2> /dev/null | awk \
-			'( $1 == "status:" && $2 != "active" ) { exit 0 }' ||
-			defaultitem="$defaultitem*"
-	fi
-
-	local hline="$hline_arrows_tab_enter"
+	f_device_is_active "$defaultitem" && defaultitem="$defaultitem*"
 
 	#
 	# Ask user to select an interface
 	#
 	local prompt="$msg_select_network_interface"
+	local hline="$hline_arrows_tab_enter"
 	local height width rows
 	eval f_dialog_menu_size height width rows \
 	                        \"\$DIALOG_TITLE\"     \
 	                        \"\$DIALOG_BACKTITLE\" \
 	                        \"\$prompt\"           \
 	                        \"\$hline\"            \
-	                        $interfaces
+	                        $menu_list
 	local menu_choice
 	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
@@ -160,7 +148,7 @@ f_dialog_menu_netdev()
 		--default-item \"\$defaultitem\"   \
 		--menu \"\$prompt\"                \
 		$height $width $rows               \
-		$interfaces                        \
+		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
@@ -284,22 +272,23 @@ f_dialog_menu_netdev_edit()
 		      	  msg=$( printf "$msg_scanning_for_dhcp" "$interface" )
 		      	  if [ "$USE_XDIALOG" ]; then
 		      	  	(
-		      	  	  f_quietly ifconfig $interface delete
-		      	  	  f_quietly dhclient $interface
+		      	  	  f_quietly ifconfig "$interface" delete
+		      	  	  f_quietly dhclient "$interface"
 		      	  	) |
 		      	  	  f_xdialog_info "$msg"
 		      	  else
 		      	  	f_dialog_info "$msg"
-		      	  	f_quietly ifconfig $interface delete
-		      	  	f_quietly dhclient $interface
+		      	  	f_quietly ifconfig "$interface" delete
+		      	  	f_quietly dhclient "$interface"
 		      	  fi
 		      	)
 		      	retval=$?
 		      	trap 'interrupt' SIGINT
 		      	if [ $retval -eq $DIALOG_OK ]; then
 		      		dhcp=1
-		      		ipaddr=$( f_ifconfig_inet $interface )
-		      		netmask=$( f_ifconfig_netmask $interface )
+		      		f_ifconfig_inet "$interface" ipaddr
+				f_ifconfig_inet6 "$interface" ipaddr6
+		      		f_ifconfig_netmask "$interface" netmask
 		      		options=
 
 		      		# Fixup search/domain in resolv.conf(5)

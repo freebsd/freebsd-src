@@ -199,13 +199,13 @@ amrr_node_init(struct ieee80211_node *ni)
 	    amn->amn_rix--) {
 		/* legacy - anything < 36mbit, stop searching */
 		/* 11n - stop at MCS4 / MCS12 / MCS28 */
-		if (amrr_node_is_11n(ni) &&
-		    (rs->rs_rates[amn->amn_rix] & 0x7) < 4)
+		if (amrr_node_is_11n(ni)) {
+			if ((rs->rs_rates[amn->amn_rix] & 0x7) < 4)
+				break;
+		} else if ((rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL) <= 72)
 			break;
-		else if ((rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL) <= 72)
-			break;
-		rate = rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL;
 	}
+	rate = rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL;
 
 	/* if the rate is an 11n rate, ensure the MCS bit is set */
 	if (amrr_node_is_11n(ni))

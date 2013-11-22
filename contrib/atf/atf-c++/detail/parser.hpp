@@ -259,7 +259,7 @@ tokenizer< IS >::next(void)
                 t = token(m_lineno, m_text_type, text);
                 quoted = true;
             } else {
-                m_is.unget();
+                m_is.putback(ch);
                 done = true;
             }
         } else {
@@ -271,13 +271,13 @@ tokenizer< IS >::next(void)
                     t = token(m_lineno, (*idelim).second,
                                    std::string("") + ch);
                 else
-                    m_is.unget();
+                    m_is.putback(ch);
             } else if (ch == '\n') {
                 done = true;
                 if (text.empty())
                     t = token(m_lineno, m_nl_type, "<<NEWLINE>>");
                 else
-                    m_is.unget();
+                    m_is.putback(ch);
             } else if (m_skipws && (ch == ' ' || ch == '\t')) {
                 if (!text.empty())
                     done = true;

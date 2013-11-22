@@ -68,54 +68,6 @@ OLD_FILES+=usr/share/man/man1/batch.1.gz
 OLD_FILES+=usr/share/man/man8/atrun.8.gz
 .endif
 
-.if ${MK_ATF} == no
-OLD_FILES+=usr/bin/atf-sh
-OLD_DIRS+=usr/include/atf-c
-OLD_FILES+=usr/include/atf-c/build.h
-OLD_FILES+=usr/include/atf-c/check.h
-OLD_FILES+=usr/include/atf-c/config.h
-OLD_FILES+=usr/include/atf-c/defs.h
-OLD_FILES+=usr/include/atf-c/error.h
-OLD_FILES+=usr/include/atf-c/error_fwd.h
-OLD_FILES+=usr/include/atf-c/macros.h
-OLD_FILES+=usr/include/atf-c/tc.h
-OLD_FILES+=usr/include/atf-c/tp.h
-OLD_FILES+=usr/include/atf-c/utils.h
-OLD_FILES+=usr/include/atf-c.h
-OLD_DIRS+=usr/include/atf-c++
-OLD_FILES+=usr/include/atf-c++/build.hpp
-OLD_FILES+=usr/include/atf-c++/check.hpp
-OLD_FILES+=usr/include/atf-c++/config.hpp
-OLD_FILES+=usr/include/atf-c++/macros.hpp
-OLD_FILES+=usr/include/atf-c++/tests.hpp
-OLD_FILES+=usr/include/atf-c++/utils.hpp
-OLD_FILES+=usr/include/atf-c++.hpp
-OLD_FILES+=usr/lib/libatf-c_p.a
-OLD_FILES+=usr/lib/libatf-c.so.1
-OLD_FILES+=usr/lib/libatf-c.so
-OLD_FILES+=usr/lib/libatf-c++.a
-OLD_FILES+=usr/lib/libatf-c++_p.a
-OLD_FILES+=usr/lib/libatf-c++.so.1
-OLD_FILES+=usr/lib/libatf-c++.so
-OLD_FILES+=usr/lib/libatf-c.a
-OLD_FILES+=usr/libexec/atf-check
-OLD_DIRS+=usr/share/atf
-OLD_FILES+=usr/share/atf/libatf-sh.subr
-OLD_DIRS+=usr/share/doc/atf
-OLD_FILES+=usr/share/doc/atf/AUTHORS
-OLD_FILES+=usr/share/doc/atf/COPYING
-OLD_FILES+=usr/share/doc/atf/NEWS
-OLD_FILES+=usr/share/doc/atf/README
-OLD_FILES+=usr/share/man/man1/atf-check.1.gz
-OLD_FILES+=usr/share/man/man1/atf-sh.1.gz
-OLD_FILES+=usr/share/man/man1/atf-test-program.1.gz
-OLD_FILES+=usr/share/man/man3/atf-c-api.3.gz
-OLD_FILES+=usr/share/man/man3/atf-c++-api.3.gz
-OLD_FILES+=usr/share/man/man3/atf-sh-api.3.gz
-OLD_FILES+=usr/share/man/man4/atf-test-case.4.gz
-OLD_FILES+=usr/share/mk/atf.test.mk
-.endif
-
 .if ${MK_ATM} == no
 OLD_FILES+=rescue/atmconfig
 OLD_FILES+=sbin/atmconfig
@@ -3136,13 +3088,6 @@ OLD_FILES+=usr/share/man/man1/host.1.gz
 # to be filled in
 #.endif
 
-.if ${MK_LIBICONV_COMPAT} == no
-OLD_FILES+=usr/lib/libiconv.a
-OLD_FILES+=usr/lib/libiconv.so
-OLD_FILES+=usr/lib/libiconv.so.3
-OLD_FILES+=usr/lib/libiconv_p.a
-.endif
-
 .if ${MK_LIBCPLUSPLUS} == no
 OLD_LIBS+=lib/libcxxrt.so.1
 OLD_FILES+=usr/lib/libc++.a
@@ -4111,6 +4056,66 @@ OLD_FILES+=usr/share/man/man1/telnet.1.gz
 OLD_FILES+=usr/share/man/man8/telnetd.8.gz
 .endif
 
+.if ${MK_TESTS} == yes
+OLD_FILES+=usr/tests/lib/atf/libatf-c/test_helpers_test
+OLD_FILES+=usr/tests/lib/atf/test-programs/fork_test
+.else
+# ATF libraries.
+OLD_FILES+=usr/bin/atf-sh
+OLD_DIRS+=usr/include/atf-c
+OLD_FILES+=usr/include/atf-c/build.h
+OLD_FILES+=usr/include/atf-c/check.h
+OLD_FILES+=usr/include/atf-c/config.h
+OLD_FILES+=usr/include/atf-c/defs.h
+OLD_FILES+=usr/include/atf-c/error.h
+OLD_FILES+=usr/include/atf-c/error_fwd.h
+OLD_FILES+=usr/include/atf-c/macros.h
+OLD_FILES+=usr/include/atf-c/tc.h
+OLD_FILES+=usr/include/atf-c/tp.h
+OLD_FILES+=usr/include/atf-c/utils.h
+OLD_FILES+=usr/include/atf-c.h
+OLD_DIRS+=usr/include/atf-c++
+OLD_FILES+=usr/include/atf-c++/build.hpp
+OLD_FILES+=usr/include/atf-c++/check.hpp
+OLD_FILES+=usr/include/atf-c++/config.hpp
+OLD_FILES+=usr/include/atf-c++/macros.hpp
+OLD_FILES+=usr/include/atf-c++/tests.hpp
+OLD_FILES+=usr/include/atf-c++/utils.hpp
+OLD_FILES+=usr/include/atf-c++.hpp
+OLD_FILES+=usr/lib/libatf-c_p.a
+OLD_FILES+=usr/lib/libatf-c.so.1
+OLD_FILES+=usr/lib/libatf-c.so
+OLD_FILES+=usr/lib/libatf-c++.a
+OLD_FILES+=usr/lib/libatf-c++_p.a
+OLD_FILES+=usr/lib/libatf-c++.so.1
+OLD_FILES+=usr/lib/libatf-c++.so
+OLD_FILES+=usr/lib/libatf-c.a
+OLD_FILES+=usr/libexec/atf-check
+OLD_DIRS+=usr/share/atf
+OLD_FILES+=usr/share/atf/libatf-sh.subr
+OLD_DIRS+=usr/share/doc/atf
+OLD_FILES+=usr/share/doc/atf/AUTHORS
+OLD_FILES+=usr/share/doc/atf/COPYING
+OLD_FILES+=usr/share/doc/atf/NEWS
+OLD_FILES+=usr/share/doc/atf/README
+OLD_FILES+=usr/share/man/man1/atf-check.1.gz
+OLD_FILES+=usr/share/man/man1/atf-sh.1.gz
+OLD_FILES+=usr/share/man/man1/atf-test-program.1.gz
+OLD_FILES+=usr/share/man/man3/atf-c-api.3.gz
+OLD_FILES+=usr/share/man/man3/atf-c++-api.3.gz
+OLD_FILES+=usr/share/man/man3/atf-sh-api.3.gz
+OLD_FILES+=usr/share/man/man4/atf-test-case.4.gz
+OLD_FILES+=usr/share/mk/atf.test.mk
+
+# Test suite.
+. if(exists(${DESTDIR}/usr/tests/))
+TESTS_DIRS!=find ${DESTDIR}/usr/tests -type d | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_DIRS+=${TESTS_DIRS}
+TESTS_FILES!=find ${DESTDIR}/usr/tests \! -type d | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_FILES+=${TESTS_FILES}
+. endif
+.endif	# Test suite.
+
 #.if ${MK_TOOLCHAIN} == no
 # to be filled in
 #.endif
@@ -4147,14 +4152,12 @@ OLD_FILES+=usr/bin/who
 OLD_FILES+=usr/sbin/ac
 OLD_FILES+=usr/sbin/lastlogin
 OLD_FILES+=usr/sbin/utx
-OLD_FILES+=usr/sbin/utxrm
 OLD_FILES+=usr/share/man/man1/last.1.gz
 OLD_FILES+=usr/share/man/man1/users.1.gz
 OLD_FILES+=usr/share/man/man1/who.1.gz
 OLD_FILES+=usr/share/man/man8/ac.8.gz
 OLD_FILES+=usr/share/man/man8/lastlogin.8.gz
 OLD_FILES+=usr/share/man/man8/utx.8.gz
-OLD_FILES+=usr/share/man/man8/utxrm.8.gz
 .endif
 
 .if ${MK_WIRELESS} == no

@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#include <machine/devmap.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
@@ -108,7 +109,7 @@ struct pv_addr abtstack;
 struct pv_addr kernelstack;
 
 /* Static device mappings. */
-static const struct pmap_devmap econa_devmap[] = {
+static const struct arm_devmap_entry econa_devmap[] = {
 	{
 		/*
 		 * This maps DDR SDRAM
@@ -275,7 +276,7 @@ initarm(struct arm_boot_params *abp)
 		    VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 	}
 
-	pmap_devmap_bootstrap(l1pagetable, econa_devmap);
+	arm_devmap_bootstrap(l1pagetable, econa_devmap);
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT);
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
@@ -308,6 +309,7 @@ initarm(struct arm_boot_params *abp)
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();
+	cpu_setup("");
 
 	/* Set stack for exception handlers */
 	data_abort_handler_address = (u_int)data_abort_handler;

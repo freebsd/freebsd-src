@@ -32,6 +32,7 @@
 
 SUBDIR_ORDERED=	${_csu} \
 	libc \
+	libc_nonshared \
 	libbsm \
 	libauditd \
 	libcompiler_rt \
@@ -81,7 +82,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libgpib} \
 	${_libgssapi} \
 	${_librpcsec_gss} \
-	${_libiconv_compat} \
 	libipsec \
 	${_libipx} \
 	libjail \
@@ -95,6 +95,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libnandfs} \
 	libnetbsd \
 	${_libngatm} \
+	libnv \
 	libopie \
 	libpam \
 	libpcap \
@@ -127,7 +128,8 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libyaml \
 	libz \
 	${_atf} \
-	${_clang}
+	${_clang} \
+	${_tests}
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
 _csu=csu/${MACHINE_ARCH}-elf
@@ -140,10 +142,6 @@ _csu=csu
 .endif
 
 # NB: keep these sorted by MK_* knobs
-
-.if ${MK_ATF} != "no"
-_atf=		atf
-.endif
 
 .if ${MK_ATM} != "no"
 _libngatm=	libngatm
@@ -186,10 +184,6 @@ _libldns=	libldns
 .if ${MK_LIBCPLUSPLUS} != "no"
 _libcxxrt=	libcxxrt
 _libcplusplus=	libc++
-.endif
-
-.if ${MK_LIBICONV_COMPAT} != "no"
-_libiconv_compat=	libiconv_compat
 .endif
 
 .if ${MK_LIBTHR} != "no"
@@ -256,6 +250,11 @@ _libsmutil=	libsmutil
 
 .if ${MK_TELNET} != "no"
 _libtelnet=	libtelnet
+.endif
+
+.if ${MK_TESTS} != "no"
+_atf=		atf
+_tests=		tests
 .endif
 
 .if ${MK_UNBOUND} != "no"

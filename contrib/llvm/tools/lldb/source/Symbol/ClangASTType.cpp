@@ -288,6 +288,26 @@ ClangASTType::IsArrayType (ClangASTType *element_type_ptr,
     return 0;
 }
 
+bool
+ClangASTType::IsRuntimeGeneratedType () const
+{
+    if (!IsValid())
+        return false;
+    
+    clang::DeclContext* decl_ctx = GetDeclContextForType();
+    if (!decl_ctx)
+        return false;
+
+    if (!llvm::isa<clang::ObjCInterfaceDecl>(decl_ctx))
+        return false;
+    
+    clang::ObjCInterfaceDecl *result_iface_decl = llvm::dyn_cast<clang::ObjCInterfaceDecl>(decl_ctx);
+    
+    ClangASTMetadata* ast_metadata = ClangASTContext::GetMetadata(m_ast, result_iface_decl);
+    if (!ast_metadata)
+        return false;
+    return (ast_metadata->GetISAPtr() != 0);
+}
 
 bool
 ClangASTType::IsCharType () const
@@ -385,6 +405,34 @@ ClangASTType::IsFunctionType (bool *is_variadic_ptr) const
     return false;
 }
 
+size_t
+ClangASTType::GetNumberOfFunctionArguments () const
+{
+    if (IsValid())
+    {
+        QualType qual_type (GetCanonicalQualType());
+        const FunctionProtoType* func = dyn_cast<FunctionProtoType>(qual_type.getTypePtr());
+        if (func)
+            return func->getNumArgs();
+    }
+    return 0;
+}
+
+ClangASTType
+ClangASTType::GetFunctionArgumentAtIndex (const size_t index)
+{
+    if (IsValid())
+    {
+        QualType qual_type (GetCanonicalQualType());
+        const FunctionProtoType* func = dyn_cast<FunctionProtoType>(qual_type.getTypePtr());
+        if (func)
+        {
+            if (index < func->getNumArgs())
+                return ClangASTType(m_ast, func->getArgType(index).getAsOpaquePtr());
+        }
+    }
+    return ClangASTType();
+}
 
 bool
 ClangASTType::IsFunctionPointerType () const
@@ -1065,14 +1113,14 @@ ClangASTType::GetConstTypeName () const
 {
     if (IsValid())
     {
-        std::string type_name (GetTypeName());
-        if (!type_name.empty())
-            return ConstString (type_name.c_str());
+        ConstString type_name (GetTypeName());
+        if (type_name)
+            return type_name;
     }
     return ConstString("<invalid>");
 }
 
-std::string
+ConstString
 ClangASTType::GetTypeName () const
 {
     std::string type_name;
@@ -1093,7 +1141,7 @@ ClangASTType::GetTypeName () const
             type_name = qual_type.getAsString(printing_policy);
         }
     }
-    return type_name;
+    return ConstString(type_name);
 }
 
 
@@ -1865,7 +1913,6 @@ ClangASTType::GetEncoding (uint64_t &count) const
         case clang::Type::TemplateSpecialization:
         case clang::Type::Atomic:
             break;
-            
     }
     count = 0;
     return lldb::eEncodingInvalid;
@@ -2271,26 +2318,29 @@ ClangASTType::GetNumDirectBaseClasses () const
             break;
             
         case clang::Type::ObjCObjectPointer:
-            if (GetCompleteType())
-            {
-                const ObjCObjectPointerType *objc_class_type = qual_type->getAsObjCInterfacePointerType();
-                if (objc_class_type)
-                {
-                    ObjCInterfaceDecl *class_interface_decl = objc_class_type->getInterfaceDecl();
-                    if (class_interface_decl && class_interface_decl->getSuperClass())
-                        count = 1;
-                }
-            }
+            count = GetPointeeType().GetNumDirectBaseClasses();
             break;
             
         case clang::Type::ObjCObject:
-        case clang::Type::ObjCInterface:
             if (GetCompleteType())
             {
                 const ObjCObjectType *objc_class_type = qual_type->getAsObjCQualifiedInterfaceType();
                 if (objc_class_type)
                 {
                     ObjCInterfaceDecl *class_interface_decl = objc_class_type->getInterface();
+                    
+                    if (class_interface_decl && class_interface_decl->getSuperClass())
+                        count = 1;
+                }
+            }
+            break;
+        case clang::Type::ObjCInterface:
+            if (GetCompleteType())
+            {
+                const ObjCInterfaceType *objc_interface_type = qual_type->getAs<ObjCInterfaceType>();
+                if (objc_interface_type)
+                {
+                    ObjCInterfaceDecl *class_interface_decl = objc_interface_type->getInterface();
                     
                     if (class_interface_decl && class_interface_decl->getSuperClass())
                         count = 1;
@@ -2472,12 +2522,16 @@ ClangASTType::GetDirectBaseClassAtIndex (size_t idx, uint32_t *bit_offset_ptr) c
             break;
             
         case clang::Type::ObjCObjectPointer:
+            return GetPointeeType().GetDirectBaseClassAtIndex(idx,bit_offset_ptr);
+            
+        case clang::Type::ObjCObject:
             if (idx == 0 && GetCompleteType())
             {
-                const ObjCObjectPointerType *objc_class_type = qual_type->getAsObjCInterfacePointerType();
+                const ObjCObjectType *objc_class_type = qual_type->getAsObjCQualifiedInterfaceType();
                 if (objc_class_type)
                 {
-                    ObjCInterfaceDecl *class_interface_decl = objc_class_type->getInterfaceDecl();
+                    ObjCInterfaceDecl *class_interface_decl = objc_class_type->getInterface();
+                    
                     if (class_interface_decl)
                     {
                         ObjCInterfaceDecl *superclass_interface_decl = class_interface_decl->getSuperClass();
@@ -2491,15 +2545,13 @@ ClangASTType::GetDirectBaseClassAtIndex (size_t idx, uint32_t *bit_offset_ptr) c
                 }
             }
             break;
-            
-        case clang::Type::ObjCObject:
         case clang::Type::ObjCInterface:
             if (idx == 0 && GetCompleteType())
             {
-                const ObjCObjectType *objc_class_type = qual_type->getAsObjCQualifiedInterfaceType();
-                if (objc_class_type)
+                const ObjCObjectType *objc_interface_type = qual_type->getAs<ObjCInterfaceType>();
+                if (objc_interface_type)
                 {
-                    ObjCInterfaceDecl *class_interface_decl = objc_class_type->getInterface();
+                    ObjCInterfaceDecl *class_interface_decl = objc_interface_type->getInterface();
                     
                     if (class_interface_decl)
                     {
@@ -2977,7 +3029,7 @@ ClangASTType::GetChildClangTypeAtIndex (ExecutionContext *exe_ctx,
                             // Base classes should be a multiple of 8 bits in size
                             child_byte_offset = bit_offset/8;
                             ClangASTType base_class_clang_type(m_ast, base_class->getType());
-                            child_name = base_class_clang_type.GetTypeName();
+                            child_name = base_class_clang_type.GetTypeName().AsCString("");
                             uint64_t base_class_clang_type_bit_size = base_class_clang_type.GetBitSize();
                             
                             // Base classes bit sizes should be a multiple of 8 bits in size
@@ -3507,7 +3559,17 @@ ClangASTType::GetIndexOfChildMemberWithName (const char *name,
                          field != field_end;
                          ++field, ++child_idx)
                     {
-                        if (field->getName().equals (name_sref))
+                        llvm::StringRef field_name = field->getName();
+                        if (field_name.empty())
+                        {
+                            ClangASTType field_type(m_ast,field->getType());
+                            child_indexes.push_back(child_idx);
+                            if (field_type.GetIndexOfChildMemberWithName(name,  omit_empty_base_classes, child_indexes))
+                                return child_indexes.size();
+                            child_indexes.pop_back();
+                                
+                        }
+                        else if (field_name.equals (name_sref))
                         {
                             // We have to add on the number of base classes to this index!
                             child_indexes.push_back (child_idx + ClangASTContext::GetNumBaseClasses (cxx_record_decl, omit_empty_base_classes));
@@ -3767,7 +3829,7 @@ ClangASTType::GetIndexOfChildWithName (const char *name, bool omit_empty_base_cl
                                 continue;
                             
                             ClangASTType base_class_clang_type (m_ast, base_class->getType());
-                            std::string base_class_type_name (base_class_clang_type.GetTypeName());
+                            std::string base_class_type_name (base_class_clang_type.GetTypeName().AsCString(""));
                             if (base_class_type_name.compare (name) == 0)
                                 return child_idx;
                             ++child_idx;

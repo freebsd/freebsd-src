@@ -63,6 +63,9 @@ __FBSDID("$FreeBSD$");
 static struct mem_region OFmem[PHYS_AVAIL_SZ], OFavail[PHYS_AVAIL_SZ];
 static struct mem_region OFfree[PHYS_AVAIL_SZ];
 
+static int	apple_hacks;
+
+#ifdef AIM
 extern register_t ofmsr[5];
 extern void	*openfirmware_entry;
 static void	*fdt;
@@ -79,6 +82,9 @@ register_t	ofw_sprg0_save;
 static __inline void
 ofw_sprg_prepare(void)
 {
+	if (!apple_hacks)
+		return;
+	
 	/*
 	 * Assume that interrupt are disabled at this point, or
 	 * SPRG1-3 could be trashed
@@ -98,6 +104,9 @@ ofw_sprg_prepare(void)
 static __inline void
 ofw_sprg_restore(void)
 {
+	if (!apple_hacks)
+		return;
+	
 	/*
 	 * Note that SPRG1-3 contents are irrelevant. They are scratch
 	 * registers used in the early portion of trap handling when
@@ -107,6 +116,7 @@ ofw_sprg_restore(void)
 	 */
 	__asm __volatile("mtsprg0 %0" :: "r"(ofw_sprg0_save));
 }
+#endif
 
 /*
  * Memory region utilities: determine if two regions overlap,
@@ -178,15 +188,10 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 
 	/*
 	 * On Apple hardware, address_cells is always 1 for "available",
-	 * even when it is explicitly set to 2. Then all memory above 4 GB
-	 * should be added by hand to the available list. Detect Apple hardware
-	 * by seeing if ofw_real_mode is set -- only Apple seems to use
-	 * virtual-mode OF.
+	 * even when it is explicitly set to 2. All memory above 4 GB
+	 * also needs to be added by hand to the available list.
 	 */
-	if (strcmp(prop, "available") == 0 && !ofw_real_mode)
-		apple_hack_mode = 1;
-	
-	if (apple_hack_mode)
+	if (strcmp(prop, "available") == 0 && apple_hacks)
 		address_cells = 1;
 
 	/*
@@ -241,7 +246,7 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 	sz = j*sizeof(output[0]);
 
 	#ifdef __powerpc64__
-	if (apple_hack_mode) {
+	if (strcmp(prop, "available") == 0 && apple_hacks) {
 		/* Add in regions above 4 GB to the available list */
 		struct mem_region himem[16];
 		int hisz;
@@ -434,6 +439,7 @@ ofw_mem_regions(struct mem_region **memp, int *memsz,
 	*availsz = fsz;
 }
 
+#ifdef AIM
 void
 OF_initial_setup(void *fdt_ptr, void *junk, int (*openfirm)(void *))
 {
@@ -479,6 +485,9 @@ OF_bootstrap()
 
 		OF_init(fdt);
 	} 
+
+	/* Apple firmware has some bugs. Check for a "mac-io" alias. */
+	apple_hacks = (OF_finddevice("mac-io") != -1) ? 1 : 0;
 
 	return (status);
 }
@@ -602,6 +611,8 @@ OF_reboot()
 	for (;;);	/* just in case */
 }
 
+#endif /* AIM */
+
 void
 OF_getetheraddr(device_t dev, u_char *addr)
 {
@@ -622,7 +633,7 @@ OF_getetheraddr(device_t dev, u_char *addr)
 static void
 OF_get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep, int *pcip)
 {
-	char name[16];
+	char type[64];
 	uint32_t addr, size;
 	int pci, res;
 
@@ -634,10 +645,10 @@ OF_get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep, int *pcip)
 		size = 1;
 	pci = 0;
 	if (addr == 3 && size == 2) {
-		res = OF_getprop(node, "name", name, sizeof(name));
+		res = OF_getprop(node, "device_type", type, sizeof(type));
 		if (res != -1) {
-			name[sizeof(name) - 1] = '\0';
-			pci = (strcmp(name, "pci") == 0) ? 1 : 0;
+			type[sizeof(type) - 1] = '\0';
+			pci = (strcmp(type, "pci") == 0) ? 1 : 0;
 		}
 	}
 	if (addrp != NULL)
@@ -671,8 +682,13 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	if (tag == NULL || handle == NULL)
 		return (EINVAL);
 
+	/* Assume big-endian unless we find a PCI device */
+	*tag = &bs_be_tag;
+
 	/* Get the requested register. */
 	OF_get_addr_props(bridge, &naddr, &nsize, &pci);
+	if (pci)
+		*tag = &bs_le_tag;
 	res = OF_getprop(dev, (pci) ? "assigned-addresses" : "reg",
 	    cell, sizeof(cell));
 	if (res == -1)
@@ -700,6 +716,8 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	parent = OF_parent(bridge);
 	while (parent != 0) {
 		OF_get_addr_props(parent, &nbridge, NULL, &pcib);
+		if (pcib)
+			*tag = &bs_le_tag;
 		res = OF_getprop(bridge, "ranges", cell, sizeof(cell));
 		if (res == -1)
 			goto next;
@@ -740,7 +758,6 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 		OF_get_addr_props(bridge, &naddr, &nsize, &pci);
 	}
 
-	*tag = &bs_le_tag;
 	return (bus_space_map(*tag, addr, size,
 	    prefetch ? BUS_SPACE_MAP_PREFETCHABLE : 0, handle));
 }

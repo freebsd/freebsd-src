@@ -170,7 +170,7 @@ static devclass_t fsl_pcib_devclass;
 
 DEFINE_CLASS_1(pcib, fsl_pcib_driver, fsl_pcib_methods,
     sizeof(struct fsl_pcib_softc), ofw_pci_driver);
-DRIVER_MODULE(pcib, fdtbus, fsl_pcib_driver, fsl_pcib_devclass, 0, 0);
+DRIVER_MODULE(pcib, nexus, fsl_pcib_driver, fsl_pcib_devclass, 0, 0);
 
 static int
 fsl_pcib_probe(device_t dev)
@@ -181,6 +181,7 @@ fsl_pcib_probe(device_t dev)
 		return (ENXIO);
 
 	if (!(ofw_bus_is_compatible(dev, "fsl,mpc8540-pci") ||
+	    ofw_bus_is_compatible(dev, "fsl,mpc8540-pcie") ||
 	    ofw_bus_is_compatible(dev, "fsl,mpc8548-pcie")))
 		return (ENXIO);
 

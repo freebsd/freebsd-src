@@ -1011,6 +1011,18 @@ svc_run_internal(SVCPOOL *pool, bool_t ismaster)
 
 	while (pool->sp_state != SVCPOOL_CLOSING) {
 		/*
+		 * Create new thread if requested.
+		 */
+		if (pool->sp_state == SVCPOOL_THREADWANTED) {
+			pool->sp_state = SVCPOOL_THREADSTARTING;
+			pool->sp_lastcreatetime = time_uptime;
+			mtx_unlock(&pool->sp_lock);
+			svc_new_thread(pool);
+			mtx_lock(&pool->sp_lock);
+			continue;
+		}
+
+		/*
 		 * Check for idle transports once per second.
 		 */
 		if (time_uptime > pool->sp_lastidlecheck) {
@@ -1046,8 +1058,13 @@ svc_run_internal(SVCPOOL *pool, bool_t ismaster)
 				continue;
 
 			LIST_INSERT_HEAD(&pool->sp_idlethreads, st, st_ilink);
-			error = cv_timedwait_sig(&st->st_cond, &pool->sp_lock,
-				5 * hz);
+			if (ismaster || (!ismaster &&
+			    pool->sp_threadcount > pool->sp_minthreads))
+				error = cv_timedwait_sig(&st->st_cond,
+				    &pool->sp_lock, 5 * hz);
+			else
+				error = cv_wait_sig(&st->st_cond,
+				    &pool->sp_lock);
 			LIST_REMOVE(st, st_ilink);
 
 			/*
@@ -1060,24 +1077,11 @@ svc_run_internal(SVCPOOL *pool, bool_t ismaster)
 					&& !st->st_xprt
 					&& STAILQ_EMPTY(&st->st_reqs))
 					break;
-			}
-			if (error == EWOULDBLOCK)
-				continue;
-			if (error) {
-				if (pool->sp_state != SVCPOOL_CLOSING) {
-					mtx_unlock(&pool->sp_lock);
-					svc_exit(pool);
-					mtx_lock(&pool->sp_lock);
-				}
-				break;
-			}
-
-			if (pool->sp_state == SVCPOOL_THREADWANTED) {
-				pool->sp_state = SVCPOOL_THREADSTARTING;
-				pool->sp_lastcreatetime = time_uptime;
+			} else if (error) {
 				mtx_unlock(&pool->sp_lock);
-				svc_new_thread(pool);
+				svc_exit(pool);
 				mtx_lock(&pool->sp_lock);
+				break;
 			}
 			continue;
 		}
@@ -1245,9 +1249,11 @@ svc_exit(SVCPOOL *pool)
 
 	mtx_lock(&pool->sp_lock);
 
-	pool->sp_state = SVCPOOL_CLOSING;
-	LIST_FOREACH(st, &pool->sp_idlethreads, st_ilink)
-		cv_signal(&st->st_cond);
+	if (pool->sp_state != SVCPOOL_CLOSING) {
+		pool->sp_state = SVCPOOL_CLOSING;
+		LIST_FOREACH(st, &pool->sp_idlethreads, st_ilink)
+			cv_signal(&st->st_cond);
+	}
 
 	mtx_unlock(&pool->sp_lock);
 }

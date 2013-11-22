@@ -58,7 +58,7 @@ enum esource {
 	RANDOM_PURE_RNDTEST,
 	ENTROPYSOURCE
 };
-void random_harvest(void *, u_int, u_int, enum esource);
+void random_harvest(const void *, u_int, u_int, enum esource);
 
 /* Allow the sysadmin to select the broad category of
  * entropy types to harvest

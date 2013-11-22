@@ -10,23 +10,20 @@
 #ifndef liblldb_RegisterContextLinux_x86_64_H_
 #define liblldb_RegisterContextLinux_x86_64_H_
 
-#include "Plugins/Process/POSIX/RegisterContext_x86_64.h"
+#include "RegisterContextPOSIX.h"
 
-class RegisterContextLinux_x86_64:
-    public RegisterContext_x86_64
+class RegisterContextLinux_x86_64
+  : public RegisterInfoInterface
 {
 public:
-    RegisterContextLinux_x86_64(lldb_private::Thread &thread, uint32_t concrete_frame_idx);
+    RegisterContextLinux_x86_64(const lldb_private::ArchSpec &target_arch);
+    virtual ~RegisterContextLinux_x86_64();
 
     size_t
     GetGPRSize();
 
-protected:
-    virtual const lldb_private::RegisterInfo *
+    const lldb_private::RegisterInfo *
     GetRegisterInfo();
-
-    virtual void
-    UpdateRegisterInfo();
 };
 
 #endif

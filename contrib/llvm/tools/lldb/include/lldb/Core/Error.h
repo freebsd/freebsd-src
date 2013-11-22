@@ -11,11 +11,10 @@
 #define __DCError_h__
 #if defined(__cplusplus)
 
-#if defined (__APPLE__)
-#include <mach/mach.h>
-#endif
-#include <stdint.h>
-#include <stdio.h>
+#include "llvm/Support/DataTypes.h"
+
+#include <cstdarg>
+#include <cstdio>
 #include <string>
 
 #include "lldb/lldb-private.h"
@@ -70,7 +69,7 @@ public:
     Error (ValueType err, lldb::ErrorType type = lldb::eErrorTypeGeneric);
 
     explicit
-    Error (const char* err_str);
+    Error (const char *format, ...) __attribute__ ((format (printf, 2, 3)));
     
     Error (const Error &rhs);
     //------------------------------------------------------------------

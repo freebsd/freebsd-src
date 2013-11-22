@@ -118,8 +118,8 @@ f_clean_env()
 # f_sysrc_get $varname
 #
 # Get a system configuration setting from the collection of system-
-# configuration files (in order: /etc/defaults/rc.conf /etc/rc.conf
-# and /etc/rc.conf).
+# configuration files (in order: /etc/defaults/rc.conf /etc/rc.conf and
+# /etc/rc.conf.local)
 #
 # NOTE: Additional shell parameter-expansion formats are supported. For
 # example, passing an argument of "hostname%%.*" (properly quoted) will

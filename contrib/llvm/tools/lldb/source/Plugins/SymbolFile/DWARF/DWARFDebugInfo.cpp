@@ -57,7 +57,7 @@ DWARFDebugInfo::GetCompileUnitAranges ()
         Log *log (LogChannelDWARF::GetLogIfAll(DWARF_LOG_DEBUG_ARANGES));
 
         m_cu_aranges_ap.reset (new DWARFDebugAranges());
-        const DataExtractor &debug_aranges_data = m_dwarf2Data->get_debug_aranges_data();
+        const DWARFDataExtractor &debug_aranges_data = m_dwarf2Data->get_debug_aranges_data();
         if (debug_aranges_data.GetByteSize() > 0)
         {
             if (log)
@@ -66,18 +66,35 @@ DWARFDebugInfo::GetCompileUnitAranges ()
             m_cu_aranges_ap->Extract (debug_aranges_data);
             
         }
-        else
+
+        // Make a list of all CUs represented by the arange data in the file.
+        std::set<dw_offset_t> cus_with_data;
+        for (size_t n=0;n<m_cu_aranges_ap.get()->GetNumRanges();n++)
         {
-            if (log)
-                log->Printf ("DWARFDebugInfo::GetCompileUnitAranges() for \"%s\" by parsing", 
-                             m_dwarf2Data->GetObjectFile()->GetFileSpec().GetPath().c_str());
-            const size_t num_compile_units = GetNumCompileUnits();
-            const bool clear_dies_if_already_not_parsed = true;
-            for (size_t idx = 0; idx < num_compile_units; ++idx)
+            dw_offset_t offset = m_cu_aranges_ap.get()->OffsetAtIndex(n);
+            if (offset != DW_INVALID_OFFSET)
+                cus_with_data.insert (offset);
+        }
+
+        // Manually build arange data for everything that wasn't in the .debug_aranges table.
+        bool printed = false;
+        const size_t num_compile_units = GetNumCompileUnits();
+        const bool clear_dies_if_already_not_parsed = true;
+        for (size_t idx = 0; idx < num_compile_units; ++idx)
+        {
+            DWARFCompileUnit* cu = GetCompileUnitAtIndex(idx);
+
+            dw_offset_t offset = cu->GetOffset();
+            if (cus_with_data.find(offset) == cus_with_data.end())
             {
-                DWARFCompileUnit* cu = GetCompileUnitAtIndex(idx);
-                if (cu)
-                    cu->BuildAddressRangeTable (m_dwarf2Data, m_cu_aranges_ap.get(), clear_dies_if_already_not_parsed);
+                if (log)
+                {
+                    if (!printed)
+                        log->Printf ("DWARFDebugInfo::GetCompileUnitAranges() for \"%s\" by parsing",
+                                     m_dwarf2Data->GetObjectFile()->GetFileSpec().GetPath().c_str());
+                    printed = true;
+                }
+                cu->BuildAddressRangeTable (m_dwarf2Data, m_cu_aranges_ap.get(), clear_dies_if_already_not_parsed);
             }
         }
 
@@ -146,7 +163,7 @@ DWARFDebugInfo::ParseCompileUnitHeadersIfNeeded()
         if (m_dwarf2Data != NULL)
         {
             lldb::offset_t offset = 0;
-            const DataExtractor &debug_info_data = m_dwarf2Data->get_debug_info_data();
+            const DWARFDataExtractor &debug_info_data = m_dwarf2Data->get_debug_info_data();
             while (debug_info_data.ValidOffset(offset))
             {
                 DWARFCompileUnitSP cu_sp(new DWARFCompileUnit(m_dwarf2Data));

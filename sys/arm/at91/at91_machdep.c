@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#include <machine/devmap.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
@@ -128,7 +129,7 @@ struct pv_addr abtstack;
 struct pv_addr kernelstack;
 
 /* Static device mappings. */
-const struct pmap_devmap at91_devmap[] = {
+const struct arm_devmap_entry at91_devmap[] = {
 	/*
 	 * Map the on-board devices VA == PA so that we can access them
 	 * with the MMU on or off.
@@ -566,7 +567,7 @@ initarm(struct arm_boot_params *abp)
 		    VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 	}
 
-	pmap_devmap_bootstrap(l1pagetable, at91_devmap);
+	arm_devmap_bootstrap(l1pagetable, at91_devmap);
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
@@ -603,6 +604,7 @@ initarm(struct arm_boot_params *abp)
 	 * of the stack memory.
 	 */
 	cpu_control(CPU_CONTROL_MMU_ENABLE, CPU_CONTROL_MMU_ENABLE);
+	cpu_setup("");
 
 	set_stackptrs(0);
 

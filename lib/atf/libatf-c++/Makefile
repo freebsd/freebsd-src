@@ -36,6 +36,7 @@ LDADD=		-latf-c
 
 LDFLAGS+=	-L${.OBJDIR}/../libatf-c
 
+ATF=		${.CURDIR:H:H:H}/contrib/atf
 .PATH:		${ATF}
 .PATH:		${ATF}/atf-c++
 .PATH:		${ATF}/atf-c++/detail
@@ -58,12 +59,14 @@ SRCS=		application.cpp \
 		process.cpp \
 		tests.cpp \
 		text.cpp \
-		ui.cpp
+		ui.cpp \
+		utils.cpp
 
 INCS=		build.hpp \
 		check.hpp \
 		config.hpp \
 		macros.hpp \
+		noncopyable.hpp \
 		tests.hpp \
 		utils.hpp
 INCSDIR=	${INCLUDEDIR}/atf-c++
@@ -72,5 +75,9 @@ INCS+=		atf-c++.hpp
 INCSDIR_atf-c++.hpp= ${INCLUDEDIR}
 
 MAN=		atf-c++-api.3
+
+.if ${MK_TESTS} != "no"
+SUBDIR=		tests
+.endif
 
 .include <bsd.lib.mk>

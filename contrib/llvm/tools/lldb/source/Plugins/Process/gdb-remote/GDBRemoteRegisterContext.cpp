@@ -17,6 +17,9 @@
 #include "lldb/Core/RegisterValue.h"
 #include "lldb/Core/Scalar.h"
 #include "lldb/Core/StreamString.h"
+#ifndef LLDB_DISABLE_PYTHON
+#include "lldb/Interpreter/PythonDataObjects.h"
+#endif
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Utility/Utils.h"
 // Project includes
@@ -54,7 +57,7 @@ GDBRemoteRegisterContext::GDBRemoteRegisterContext
     // Make a heap based buffer that is big enough to store all registers
     DataBufferSP reg_data_sp(new DataBufferHeap (reg_info.GetRegisterDataByteSize(), 0));
     m_reg_data.SetData (reg_data_sp);
-
+    m_reg_data.SetByteOrder(thread.GetProcess()->GetByteOrder());
 }
 
 //----------------------------------------------------------------------
@@ -695,6 +698,7 @@ GDBRemoteRegisterContext::ConvertRegisterKindToRegisterNumber (uint32_t kind, ui
 {
     return m_reg_info.ConvertRegisterKindToRegisterNumber (kind, num);
 }
+
 
 void
 GDBRemoteDynamicRegisterInfo::HardcodeARMRegisters(bool from_scratch)

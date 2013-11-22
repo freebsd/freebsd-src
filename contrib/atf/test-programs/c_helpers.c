@@ -177,22 +177,6 @@ ATF_TC_CLEANUP(cleanup_sigterm, tc)
     safe_remove(atf_tc_get_config_var(tc, "tmpfile"));
 }
 
-ATF_TC_WITH_CLEANUP(cleanup_fork);
-ATF_TC_HEAD(cleanup_fork, tc)
-{
-    atf_tc_set_md_var(tc, "descr", "Helper test case for the t_cleanup test "
-                      "program");
-}
-ATF_TC_BODY(cleanup_fork, tc)
-{
-}
-ATF_TC_CLEANUP(cleanup_fork, tc)
-{
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);
-    close(3);
-}
-
 /* ---------------------------------------------------------------------
  * Helper tests for "t_config".
  * --------------------------------------------------------------------- */
@@ -386,37 +370,6 @@ ATF_TC_BODY(expect_timeout_but_pass, tc)
 }
 
 /* ---------------------------------------------------------------------
- * Helper tests for "t_fork".
- * --------------------------------------------------------------------- */
-
-ATF_TC(fork_stop);
-ATF_TC_HEAD(fork_stop, tc)
-{
-    atf_tc_set_md_var(tc, "descr", "Helper test case for the t_fork test "
-                      "program");
-}
-ATF_TC_BODY(fork_stop, tc)
-{
-    FILE *f;
-    const char *dfstr, *pfstr;
-
-    dfstr = atf_tc_get_config_var(tc, "donefile");
-    pfstr = atf_tc_get_config_var(tc, "pidfile");
-
-    f = fopen(pfstr, "w");
-    if (f == NULL)
-        atf_tc_fail("Failed to create pidfile %s", pfstr);
-    fprintf(f, "%d", (int)getpid());
-    fclose(f);
-    printf("Wrote pid file\n");
-
-    printf("Waiting for done file\n");
-    while (access(dfstr, F_OK) != 0)
-        usleep(10000);
-    printf("Exiting\n");
-}
-
-/* ---------------------------------------------------------------------
  * Helper tests for "t_meta_data".
  * --------------------------------------------------------------------- */
 
@@ -511,7 +464,6 @@ ATF_TP_ADD_TCS(tp)
     ATF_TP_ADD_TC(tp, cleanup_skip);
     ATF_TP_ADD_TC(tp, cleanup_curdir);
     ATF_TP_ADD_TC(tp, cleanup_sigterm);
-    ATF_TP_ADD_TC(tp, cleanup_fork);
 
     /* Add helper tests for t_config. */
     ATF_TP_ADD_TC(tp, config_unset);
@@ -537,9 +489,6 @@ ATF_TP_ADD_TCS(tp)
     ATF_TP_ADD_TC(tp, expect_death_but_pass);
     ATF_TP_ADD_TC(tp, expect_timeout_and_hang);
     ATF_TP_ADD_TC(tp, expect_timeout_but_pass);
-
-    /* Add helper tests for t_fork. */
-    ATF_TP_ADD_TC(tp, fork_stop);
 
     /* Add helper tests for t_meta_data. */
     ATF_TP_ADD_TC(tp, metadata_no_descr);

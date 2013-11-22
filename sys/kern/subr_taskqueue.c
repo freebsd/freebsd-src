@@ -390,11 +390,9 @@ taskqueue_cancel_locked(struct taskqueue *queue, struct task *task,
 int
 taskqueue_cancel(struct taskqueue *queue, struct task *task, u_int *pendp)
 {
-	u_int pending;
 	int error;
 
 	TQ_LOCK(queue);
-	pending = task->ta_pending;
 	error = taskqueue_cancel_locked(queue, task, pendp);
 	TQ_UNLOCK(queue);
 

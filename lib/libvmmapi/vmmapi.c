@@ -397,6 +397,28 @@ vm_lapic_irq(struct vmctx *ctx, int vcpu, int vector)
 }
 
 int
+vm_ioapic_assert_irq(struct vmctx *ctx, int irq)
+{
+	struct vm_ioapic_irq ioapic_irq;
+
+	bzero(&ioapic_irq, sizeof(struct vm_ioapic_irq));
+	ioapic_irq.irq = irq;
+
+	return (ioctl(ctx->fd, VM_IOAPIC_ASSERT_IRQ, &ioapic_irq));
+}
+
+int
+vm_ioapic_deassert_irq(struct vmctx *ctx, int irq)
+{
+	struct vm_ioapic_irq ioapic_irq;
+
+	bzero(&ioapic_irq, sizeof(struct vm_ioapic_irq));
+	ioapic_irq.irq = irq;
+
+	return (ioctl(ctx->fd, VM_IOAPIC_DEASSERT_IRQ, &ioapic_irq));
+}
+
+int
 vm_inject_nmi(struct vmctx *ctx, int vcpu)
 {
 	struct vm_nmi vmnmi;
