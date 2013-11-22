@@ -421,9 +421,9 @@ netdump_send_arp()
 	ah->ar_pln = sizeof(struct in_addr);
 	ah->ar_op = htons(ARPOP_REQUEST);
 	memcpy(ar_sha(ah), IF_LLADDR(nd_ifp), ETHER_ADDR_LEN);
-	((struct in_addr *)ar_spa(ah))->s_addr = nd_client.s_addr;
+	memcpy(ar_spa(ah), &nd_client.s_addr, sizeof(nd_client.s_addr));
 	bzero(ar_tha(ah), ETHER_ADDR_LEN);
-	((struct in_addr *)ar_tpa(ah))->s_addr = nd_gw.s_addr;
+	memcpy(ar_tpa(ah), &nd_gw.s_addr, sizeof(nd_gw.s_addr));
 
 	return (netdump_ether_output(m, nd_ifp, bcast, ETHERTYPE_ARP));
 }
