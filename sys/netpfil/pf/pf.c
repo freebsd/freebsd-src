@@ -1471,7 +1471,7 @@ pf_purge_expired_src_nodes()
 	for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask; i++, sh++) {
 	    PF_HASHROW_LOCK(sh);
 	    LIST_FOREACH_SAFE(cur, &sh->nodes, entry, next)
-		if (cur->states <= 0 && cur->expire <= time_uptime) {
+		if (cur->states == 0 && cur->expire <= time_uptime) {
 			if (cur->rule.ptr != NULL)
 				cur->rule.ptr->src_nodes--;
 			LIST_REMOVE(cur, entry);
@@ -1492,7 +1492,7 @@ pf_src_tree_remove_state(struct pf_state *s)
 	if (s->src_node != NULL) {
 		if (s->src.tcp_est)
 			--s->src_node->conn;
-		if (--s->src_node->states <= 0) {
+		if (--s->src_node->states == 0) {
 			timeout = s->rule.ptr->timeout[PFTM_SRC_NODE];
 			if (!timeout)
 				timeout =
@@ -1501,7 +1501,7 @@ pf_src_tree_remove_state(struct pf_state *s)
 		}
 	}
 	if (s->nat_src_node != s->src_node && s->nat_src_node != NULL) {
-		if (--s->nat_src_node->states <= 0) {
+		if (--s->nat_src_node->states == 0) {
 			timeout = s->rule.ptr->timeout[PFTM_SRC_NODE];
 			if (!timeout)
 				timeout =
