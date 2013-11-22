@@ -465,24 +465,22 @@ switch (type) {							\
 case SYNC_SFORDEV:						\
 {								\
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
-	bus_dmamap_sync(fc->tdmat, fc->tdmap,			\
-	   BUS_DMASYNC_PREWRITE);				\
+	busdma_sync(fc->tdmd, BUSDMA_SYNC_PREWRITE);		\
 	break;							\
 }								\
 case SYNC_REQUEST:						\
-	bus_dmamap_sync(isp->isp_osinfo.cdmat,			\
-	   isp->isp_osinfo.cdmap, BUS_DMASYNC_PREWRITE);	\
+	busdma_sync_range(isp->isp_osinfo.cdmd, BUSDMA_SYNC_PREWRITE,	\
+	    isp->isp_rquest_dma + (offset * size), size);	\
 	break;							\
 case SYNC_SFORCPU:						\
 {								\
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
-	bus_dmamap_sync(fc->tdmat, fc->tdmap,			\
-	   BUS_DMASYNC_POSTWRITE);				\
+	busdma_sync(fc->tdmd, BUSDMA_SYNC_POSTWRITE);		\
 	break;							\
 }								\
 case SYNC_RESULT:						\
-	bus_dmamap_sync(isp->isp_osinfo.cdmat, 			\
-	   isp->isp_osinfo.cdmap, BUS_DMASYNC_POSTWRITE);	\
+	busdma_sync_range(isp->isp_osinfo.cdmd, BUSDMA_SYNC_POSTWRITE,	\
+	    isp->isp_rquest_dma + (offset * size), size);	\
 	break;							\
 case SYNC_REG:							\
 	bus_space_barrier(isp->isp_osinfo.bus_tag,		\
