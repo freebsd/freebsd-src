@@ -41,6 +41,7 @@ void	vioapic_cleanup(struct vioapic *vioapic);
 
 int	vioapic_assert_irq(struct vm *vm, int irq);
 int	vioapic_deassert_irq(struct vm *vm, int irq);
+int	vioapic_pulse_irq(struct vm *vm, int irq);
 
 int	vioapic_mmio_write(void *vm, int vcpuid, uint64_t gpa,
 	    uint64_t wval, int size, void *arg);

@@ -419,6 +419,17 @@ vm_ioapic_deassert_irq(struct vmctx *ctx, int irq)
 }
 
 int
+vm_ioapic_pulse_irq(struct vmctx *ctx, int irq)
+{
+	struct vm_ioapic_irq ioapic_irq;
+
+	bzero(&ioapic_irq, sizeof(struct vm_ioapic_irq));
+	ioapic_irq.irq = irq;
+
+	return (ioctl(ctx->fd, VM_IOAPIC_PULSE_IRQ, &ioapic_irq));
+}
+
+int
 vm_inject_nmi(struct vmctx *ctx, int vcpu)
 {
 	struct vm_nmi vmnmi;
