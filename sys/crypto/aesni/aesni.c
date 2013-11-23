@@ -92,8 +92,8 @@ aesni_attach(device_t dev)
 	sc = device_get_softc(dev);
 	TAILQ_INIT(&sc->sessions);
 	sc->sid = 1;
-	sc->cid = crypto_get_driverid(dev,
-	    CRYPTOCAP_F_HARDWARE|CRYPTOCAP_F_SYNC);
+	sc->cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE |
+	    CRYPTOCAP_F_SYNC);
 	if (sc->cid < 0) {
 		device_printf(dev, "Could not get crypto driver id.\n");
 		return (ENOMEM);
