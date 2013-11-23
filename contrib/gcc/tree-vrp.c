@@ -2509,12 +2509,18 @@ adjust_range_with_scev (value_range_t *vr, struct loop *loop, tree stmt,
 				true))
     return;
 
+  type = TREE_TYPE (var);
+
+  /* If we see a pointer type starting at a constant, then we have an
+     unusual ivopt.  It may legitimately wrap.  */
+  if (POINTER_TYPE_P (type) && is_gimple_min_invariant (init))
+    return;
+
   /* We use TYPE_MIN_VALUE and TYPE_MAX_VALUE here instead of
      negative_overflow_infinity and positive_overflow_infinity,
      because we have concluded that the loop probably does not
      wrap.  */
 
-  type = TREE_TYPE (var);
   if (POINTER_TYPE_P (type) || !TYPE_MIN_VALUE (type))
     tmin = lower_bound_in_type (type, type);
   else

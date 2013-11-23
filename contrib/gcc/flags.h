@@ -122,12 +122,27 @@ extern bool extra_warnings;
 
 extern void set_Wunused (int setting);
 
+/* Used to set the level of -Wstrict-aliasing, when no level is specified.  
+   The external way to set the default level is to use
+   -Wstrict-aliasing=level.  
+   ONOFF is assumed to take value 1 when -Wstrict-aliasing is specified,
+   and 0 otherwise.  After calling this function, wstrict_aliasing will be
+   set to the default value of -Wstrict_aliasing=level.  */
+
+extern void set_warn_strict_aliasing (int onoff);
+
 /* Nonzero means warn about any objects definitions whose size is larger
    than N bytes.  Also want about function definitions whose returned
    values are larger than N bytes. The value N is in `larger_than_size'.  */
 
 extern bool warn_larger_than;
 extern HOST_WIDE_INT larger_than_size;
+
+/* Nonzero means warn about any function whose frame size is larger
+   than N bytes. */
+
+extern bool warn_frame_larger_than;
+extern HOST_WIDE_INT frame_larger_than_size;
 
 /* Nonzero means warn about constructs which might not be strict
    aliasing safe.  */
@@ -286,6 +301,10 @@ extern const char *flag_random_seed;
 
 #define abi_version_at_least(N) \
   (flag_abi_version == 0 || flag_abi_version >= (N))
+
+/* Return whether the function should be excluded from
+   instrumentation.  */
+extern bool flag_instrument_functions_exclude_p (tree fndecl);
 
 /* True if the given mode has a NaN representation and the treatment of
    NaN operands is important.  Certain optimizations, such as folding

@@ -396,7 +396,7 @@ c_common_handle_option (size_t scode, const char *arg, int value)
       if (c_dialect_cxx ())
 	warn_sign_compare = value;
       warn_switch = value;
-      warn_strict_aliasing = value;
+      set_warn_strict_aliasing (value);
       warn_strict_overflow = value;
       warn_address = value;
 
@@ -604,6 +604,10 @@ c_common_handle_option (size_t scode, const char *arg, int value)
 	result = 0;
       else
 	disable_builtin_function (arg);
+      break;
+
+    case OPT_fdirectives_only:
+      cpp_opts->directives_only = 1;
       break;
 
     case OPT_fdollars_in_identifiers:
@@ -1329,6 +1333,11 @@ sanitize_cpp_opts (void)
   if (flag_dump_macros == 'M')
     flag_no_output = 1;
 
+  /* By default, -fdirectives-only implies -dD.  This allows subsequent phases
+     to perform proper macro expansion.  */
+  if (cpp_opts->directives_only && !cpp_opts->preprocessed && !flag_dump_macros)
+    flag_dump_macros = 'D';
+
   /* Disable -dD, -dN and -dI if normal output is suppressed.  Allow
      -dM since at least glibc relies on -M -dM to work.  */
   /* Also, flag_no_output implies flag_no_line_commands, always.  */
@@ -1359,6 +1368,14 @@ sanitize_cpp_opts (void)
      actually output the current directory?  */
   if (flag_working_directory == -1)
     flag_working_directory = (debug_info_level != DINFO_LEVEL_NONE);
+
+  if (cpp_opts->directives_only)
+    {
+      if (warn_unused_macros)
+	error ("-fdirectives-only is incompatible with -Wunused_macros");
+      if (cpp_opts->traditional)
+	error ("-fdirectives-only is incompatible with -traditional");
+    }
 }
 
 /* Add include path with a prefix at the front of its name.  */
@@ -1442,6 +1459,8 @@ finish_options (void)
 	    }
 	}
     }
+  else if (cpp_opts->directives_only)
+    cpp_init_special_builtins (parse_in);
 
   include_cursor = 0;
   push_command_line_include ();
