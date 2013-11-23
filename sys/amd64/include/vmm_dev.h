@@ -170,6 +170,7 @@ enum {
 	IOCNUM_INJECT_NMI = 32,
 	IOCNUM_IOAPIC_ASSERT_IRQ = 33,
 	IOCNUM_IOAPIC_DEASSERT_IRQ = 34,
+	IOCNUM_IOAPIC_PULSE_IRQ = 35,
 
 	/* PCI pass-thru */
 	IOCNUM_BIND_PPTDEV = 40,
@@ -209,6 +210,8 @@ enum {
 	_IOW('v', IOCNUM_IOAPIC_ASSERT_IRQ, struct vm_ioapic_irq)
 #define	VM_IOAPIC_DEASSERT_IRQ	\
 	_IOW('v', IOCNUM_IOAPIC_DEASSERT_IRQ, struct vm_ioapic_irq)
+#define	VM_IOAPIC_PULSE_IRQ	\
+	_IOW('v', IOCNUM_IOAPIC_PULSE_IRQ, struct vm_ioapic_irq)
 #define	VM_SET_CAPABILITY \
 	_IOW('v', IOCNUM_SET_CAPABILITY, struct vm_capability)
 #define	VM_GET_CAPABILITY \

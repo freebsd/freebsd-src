@@ -371,6 +371,7 @@ initarm(struct arm_boot_params *abp)
 
 	cpufunc_control(0x337f, 0x107d);
 	arm_vector_init(ARM_VECTORS_LOW, ARM_VEC_ALL);
+	cpu_setup("");
 
 	pmap_curmaxkvaddr = freemempos + KERNEL_PT_VMDATA_NUM * 0x400000;
 

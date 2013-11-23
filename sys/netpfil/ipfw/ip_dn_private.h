@@ -83,6 +83,7 @@ SLIST_HEAD(dn_alg_head, dn_alg);
 
 struct mq {	/* a basic queue of packets*/
         struct mbuf *head, *tail;
+	int count;
 };
 
 static inline void

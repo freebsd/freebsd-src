@@ -89,7 +89,7 @@ rasprintf(char **buf, size_t *bufsiz, size_t offs, const char *fmt, ...)
 			len = vsnprintf(*buf + offs, *bufsiz - offs, fmt, ap);
 			va_end(ap);
 
-			if (len < 0 || (size_t)len < *bufsiz - offs)
+			if (len < 0 || (size_t)len + 1 < *bufsiz - offs)
 				return len;
 			nbufsiz = MAX(*bufsiz + 512, (size_t)len + 1);
 		} else

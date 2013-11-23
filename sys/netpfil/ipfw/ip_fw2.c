@@ -370,7 +370,7 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd, struct ip_fw_chain *chain, uin
 				return(1);
 		}
 	} else {
-#ifdef __FreeBSD__	/* and OSX too ? */
+#if !defined(USERSPACE) && defined(__FreeBSD__)	/* and OSX too ? */
 		struct ifaddr *ia;
 
 		if_addr_rlock(ifp);
@@ -413,7 +413,7 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd, struct ip_fw_chain *chain, uin
 static int
 verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 {
-#ifndef __FreeBSD__
+#if defined(USERSPACE) || !defined(__FreeBSD__)
 	return 0;
 #else
 	struct route ro;
@@ -664,6 +664,9 @@ static int
 check_uidgid(ipfw_insn_u32 *insn, struct ip_fw_args *args, int *ugid_lookupp,
     struct ucred **uc)
 {
+#if defined(USERSPACE)
+	return 0;	// not supported in userspace
+#else
 #ifndef __FreeBSD__
 	/* XXX */
 	return cred_check(insn, proto, oif,
@@ -766,6 +769,7 @@ check_uidgid(ipfw_insn_u32 *insn, struct ip_fw_args *args, int *ugid_lookupp,
 		match = ((*uc)->cr_prison->pr_id == (int)insn->d[0]);
 	return (match);
 #endif /* __FreeBSD__ */
+#endif /* not supported in userspace */
 }
 
 /*
@@ -1464,6 +1468,7 @@ do {								\
 					    key = htonl(dst_port);
 					else if (v == 3)
 					    key = htonl(src_port);
+#ifndef USERSPACE
 					else if (v == 4 || v == 5) {
 					    check_uidgid(
 						(ipfw_insn_u32 *)cmd,
@@ -1483,6 +1488,7 @@ do {								\
 #endif /* !__FreeBSD__ */
 					    key = htonl(key);
 					} else
+#endif /* !USERSPACE */
 					    break;
 				    }
 				    match = ipfw_lookup_table(chain,
@@ -1946,6 +1952,7 @@ do {								\
 				break;
 
 			case O_SOCKARG:	{
+#ifndef USERSPACE	/* not supported in userspace */
 				struct inpcb *inp = args->inp;
 				struct inpcbinfo *pi;
 				
@@ -1986,6 +1993,7 @@ do {								\
 							match = 1;
 					}
 				}
+#endif /* !USERSPACE */
 				break;
 			}
 

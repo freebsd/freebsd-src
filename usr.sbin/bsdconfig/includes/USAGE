@@ -28,7 +28,7 @@ Usage: bsdconfig @PROGRAM_NAME@ [OPTIONS] [include ...]
 
 OPTIONS:
 	-a    Always use color even when output is not to a terminal.
-	-d    Print the description for each function selected.
+	-d    Print description for each function selected. Implies `-f'.
 	-f    Show functions for selected includes.
 	-F pattern
 	      If `-f', only print functions matching pattern. Without `-f'
@@ -68,4 +68,4 @@ EXAMPLES:
 
 	Show descriptions of each of the `show' functions:
 
-		bsdconfig @PROGRAM_NAME@ -dfF show
+		bsdconfig @PROGRAM_NAME@ -dF show

@@ -355,6 +355,7 @@ initarm(struct arm_boot_params *abp)
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();
+	cpu_setup("");
 
 	/* Disable all peripheral interrupts */
 	ioreg_write32(S3C24X0_INTCTL_BASE + INTCTL_INTMSK, ~0);

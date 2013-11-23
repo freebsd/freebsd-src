@@ -160,8 +160,14 @@ vioapic_set_pinstate(struct vioapic *vioapic, int pin, bool newstate)
 	}
 }
 
+enum irqstate {
+	IRQSTATE_ASSERT,
+	IRQSTATE_DEASSERT,
+	IRQSTATE_PULSE
+};
+
 static int
-vioapic_set_irqstate(struct vm *vm, int irq, bool state)
+vioapic_set_irqstate(struct vm *vm, int irq, enum irqstate irqstate)
 {
 	struct vioapic *vioapic;
 
@@ -171,7 +177,20 @@ vioapic_set_irqstate(struct vm *vm, int irq, bool state)
 	vioapic = vm_ioapic(vm);
 
 	VIOAPIC_LOCK(vioapic);
-	vioapic_set_pinstate(vioapic, irq, state);
+	switch (irqstate) {
+	case IRQSTATE_ASSERT:
+		vioapic_set_pinstate(vioapic, irq, true);
+		break;
+	case IRQSTATE_DEASSERT:
+		vioapic_set_pinstate(vioapic, irq, false);
+		break;
+	case IRQSTATE_PULSE:
+		vioapic_set_pinstate(vioapic, irq, true);
+		vioapic_set_pinstate(vioapic, irq, false);
+		break;
+	default:
+		panic("vioapic_set_irqstate: invalid irqstate %d", irqstate);
+	}
 	VIOAPIC_UNLOCK(vioapic);
 
 	return (0);
@@ -181,14 +200,21 @@ int
 vioapic_assert_irq(struct vm *vm, int irq)
 {
 
-	return (vioapic_set_irqstate(vm, irq, true));
+	return (vioapic_set_irqstate(vm, irq, IRQSTATE_ASSERT));
 }
 
 int
 vioapic_deassert_irq(struct vm *vm, int irq)
 {
 
-	return (vioapic_set_irqstate(vm, irq, false));
+	return (vioapic_set_irqstate(vm, irq, IRQSTATE_DEASSERT));
+}
+
+int
+vioapic_pulse_irq(struct vm *vm, int irq)
+{
+
+	return (vioapic_set_irqstate(vm, irq, IRQSTATE_PULSE));
 }
 
 static uint32_t
