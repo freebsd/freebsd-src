@@ -701,25 +701,37 @@ static void
 cache_drain_safe_cpu(uma_zone_t zone)
 {
 	uma_cache_t cache;
+	uma_bucket_t b1, b2;
 
 	if (zone->uz_flags & UMA_ZFLAG_INTERNAL)
 		return;
 
+	b1 = b2 = NULL;
 	ZONE_LOCK(zone);
 	critical_enter();
 	cache = &zone->uz_cpu[curcpu];
 	if (cache->uc_allocbucket) {
-		LIST_INSERT_HEAD(&zone->uz_buckets, cache->uc_allocbucket,
-		    ub_link);
+		if (cache->uc_allocbucket->ub_cnt != 0)
+			LIST_INSERT_HEAD(&zone->uz_buckets,
+			    cache->uc_allocbucket, ub_link);
+		else
+			b1 = cache->uc_allocbucket;
 		cache->uc_allocbucket = NULL;
 	}
 	if (cache->uc_freebucket) {
-		LIST_INSERT_HEAD(&zone->uz_buckets, cache->uc_freebucket,
-		    ub_link);
+		if (cache->uc_freebucket->ub_cnt != 0)
+			LIST_INSERT_HEAD(&zone->uz_buckets,
+			    cache->uc_freebucket, ub_link);
+		else
+			b2 = cache->uc_freebucket;
 		cache->uc_freebucket = NULL;
 	}
 	critical_exit();
 	ZONE_UNLOCK(zone);
+	if (b1)
+		bucket_free(zone, b1, NULL);
+	if (b2)
+		bucket_free(zone, b2, NULL);
 }
 
 /*
