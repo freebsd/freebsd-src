@@ -47,5 +47,6 @@ void OF_reboot(void);
 
 void ofw_mem_regions(struct mem_region **, int *, struct mem_region **, int *);
 void ofw_quiesce(void); /* Must be called before VM is up! */
+void ofw_save_trap_vec(char *);
 
 #endif /* _MACHINE_OFW_MACHDEP_H_ */
