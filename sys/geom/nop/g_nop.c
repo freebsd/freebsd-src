@@ -214,7 +214,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 		}
 	}
 	gp = g_new_geomf(mp, "%s", name);
-	sc = g_malloc(sizeof(*sc), M_WAITOK);
+	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	sc->sc_offset = offset;
 	sc->sc_explicitsize = explicitsize;
 	sc->sc_error = ioerror;
