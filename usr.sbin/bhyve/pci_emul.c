@@ -1135,7 +1135,11 @@ pci_lintr_assert(struct pci_devinst *pi)
 {
 
 	assert(pi->pi_lintr_pin >= 0);
-	vm_ioapic_assert_irq(pi->pi_vmctx, pi->pi_lintr_pin);
+
+	if (pi->pi_lintr_state == 0) {
+		pi->pi_lintr_state = 1;
+		vm_ioapic_assert_irq(pi->pi_vmctx, pi->pi_lintr_pin);
+	}
 }
 
 void
@@ -1143,7 +1147,11 @@ pci_lintr_deassert(struct pci_devinst *pi)
 {
 
 	assert(pi->pi_lintr_pin >= 0);
-	vm_ioapic_deassert_irq(pi->pi_vmctx, pi->pi_lintr_pin);
+
+	if (pi->pi_lintr_state == 1) {
+		pi->pi_lintr_state = 0;
+		vm_ioapic_deassert_irq(pi->pi_vmctx, pi->pi_lintr_pin);
+	}
 }
 
 /*
