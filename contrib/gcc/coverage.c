@@ -429,57 +429,75 @@ tree_coverage_counter_ref (unsigned counter, unsigned no)
 static unsigned
 coverage_checksum_string (unsigned chksum, const char *string)
 {
-  int i;
   char *dup = NULL;
+  char *ptr;
 
   /* Look for everything that looks if it were produced by
      get_file_function_name and zero out the second part
      that may result from flag_random_seed.  This is not critical
      as the checksums are used only for sanity checking.  */
-  for (i = 0; string[i]; i++)
+#define GLOBAL_PREFIX "_GLOBAL__"
+#define TRAILING_N "N_"
+#define ISCAPXDIGIT(a) (((a) >= '0' && (a) <= '9') || ((a) >= 'A' && (a) <= 'F'))
+  if ((ptr = strstr (string, GLOBAL_PREFIX)))
     {
-      int offset = 0;
-      if (!strncmp (string + i, "_GLOBAL__N_", 11))
-      offset = 11;
-      if (!strncmp (string + i, "_GLOBAL__", 9))
-      offset = 9;
+      /* Skip _GLOBAL__. */
+      ptr += strlen (GLOBAL_PREFIX);
 
-      /* C++ namespaces do have scheme:
-         _GLOBAL__N_<filename>_<wrongmagicnumber>_<magicnumber>functionname
-       since filename might contain extra underscores there seems
-       to be no better chance then walk all possible offsets looking
-       for magicnuber.  */
-      if (offset)
-	{
-	  for (i = i + offset; string[i]; i++)
-	    if (string[i]=='_')
-	      {
-		int y;
+      /* Skip optional N_ (in case __GLOBAL_N__). */
+      if (!strncmp (ptr, TRAILING_N, strlen (TRAILING_N)))
+          ptr += strlen (TRAILING_N);
+      /* At this point, ptr should point after "_GLOBAL__N_" or "_GLOBAL__". */
 
-		for (y = 1; y < 9; y++)
-		  if (!(string[i + y] >= '0' && string[i + y] <= '9')
-		      && !(string[i + y] >= 'A' && string[i + y] <= 'F'))
-		    break;
-		if (y != 9 || string[i + 9] != '_')
-		  continue;
-		for (y = 10; y < 18; y++)
-		  if (!(string[i + y] >= '0' && string[i + y] <= '9')
-		      && !(string[i + y] >= 'A' && string[i + y] <= 'F'))
-		    break;
-		if (y != 18)
-		  continue;
-		if (!dup)
-		  string = dup = xstrdup (string);
-		for (y = 10; y < 18; y++)
-		  dup[i + y] = '0';
-	      }
-	  break;
-	}
+      while ((ptr = strchr (ptr, '_')) != NULL)
+        {
+          int y;
+          /* For every "_" in the rest of the string,
+             try the follwing pattern matching */
+
+          /* Skip over '_'. */
+          ptr++;
+#define NDIGITS (8)
+          /* Try matching the pattern:
+             <8-digit hex>_<8-digit hex>
+             The second number is randomly generated
+             so we want to mask it out before computing the checksum. */
+          for (y = 0; *ptr != 0 && y < NDIGITS; y++, ptr++)
+              if (!ISCAPXDIGIT (*ptr))
+                  break;
+          if (y != NDIGITS || *ptr != '_')
+              continue;
+          /* Skip over '_' again. */
+          ptr++;
+          for (y = 0; *ptr != 0 && y < NDIGITS; y++, ptr++)
+              if (!ISCAPXDIGIT (*ptr))
+                  break;
+
+          if (y == NDIGITS)
+            {
+              /* We have a match.
+                 Duplicate the string and mask out
+                 the second 8-digit number. */
+              dup = xstrdup (string);
+              ptr = dup + (ptr - string);
+              for(y = -NDIGITS - 1 ; y < 0; y++)
+                {
+                  ptr[y] = '0';
+                }
+              ptr = dup;
+              break;
+            }
+        }
+        /* "ptr" should be NULL if we couldn't find the match
+           (strchr will return NULL if no match is found),
+           or it should point to dup which contains the string
+           with the random part masked. */
     }
 
-  chksum = crc32_string (chksum, string);
+  chksum = crc32_string (chksum, (ptr) ? ptr : string);
+
   if (dup)
-    free (dup);
+      free (dup);
 
   return chksum;
 }
