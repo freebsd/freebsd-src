@@ -54,10 +54,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/devmap.h>
 #include <machine/machdep.h>
+#include <machine/platformvar.h>
 
 #include <dev/fdt/fdt_common.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_wdog.h>
+
+#include "platform_if.h"
 
 /* Start of address space used for bootstrap map */
 #define DEVMAP_BOOTSTRAP_MAP_START	0xE0000000
@@ -144,4 +147,10 @@ cpu_reset()
 	bcmwd_watchdog_reset();
 	while (1);
 }
+
+static platform_method_t bcm2835_methods[] = {
+	PLATFORMMETHOD_END,
+};
+
+FDT_PLATFORM_DEF(bcm2835, "bcm2835", 0, "raspberrypi,model-b");
 

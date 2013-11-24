@@ -1,9 +1,6 @@
 /*-
- * Copyright (c) 2010 The FreeBSD Foundation
+ * Copyright (c) 2013 Andrew Turner
  * All rights reserved.
- *
- * This software was developed by Semihalf under sponsorship from
- * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,37 +22,48 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _MACHINE_FDT_H_
-#define _MACHINE_FDT_H_
+#include "opt_platform.h"
+
+#include <sys/param.h>
+
+#include <arm/include/platform.h>
+#include <arm/include/platformvar.h>
 
 #include <dev/ofw/openfirm.h>
+#include <dev/fdt/fdt_common.h>
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
+#include "platform_if.h"
 
-#include <machine/bus.h>
-#include <machine/intr.h>
-#include <machine/platform.h>
+#define	FDT_PLATFORM(plat)	\
+    ((fdt_platform_def_t *)(plat)->cls->baseclasses[0])
 
-/* Max interrupt number */
-#define FDT_INTR_MAX	NIRQ
+static int
+fdt_platform_probe(platform_t plat)
+{
+	const char *compat;
+	phandle_t root;
 
-/* Map phandle/intpin pair to global IRQ number */
-#define	FDT_MAP_IRQ(node, pin)	(pin)
+	/*
+	 * TODO: Make these KASSERTs, we should only be here if we
+	 * are using the FDT platform magic.
+	 */
+	if (plat->cls == NULL || FDT_PLATFORM(plat) == NULL)
+		return 1;
 
-/*
- * Bus space tag. XXX endianess info needs to be derived from the blob.
- */
-extern bus_space_tag_t fdtbus_bs_tag;
+	/* Is the device is compatible? */
+	root = OF_finddevice("/");
+	compat = FDT_PLATFORM(plat)->fdt_compatible;
+	if (fdt_is_compatible(root, compat) != 0)
+		return 0;
 
-struct arm_devmap_entry;
+	/* Not compatible, return an error */
+	return 1;
+}
 
-int fdt_localbus_devmap(phandle_t, struct arm_devmap_entry *, int, int *);
-int fdt_pci_devmap(phandle_t, struct arm_devmap_entry *devmap, vm_offset_t,
-    vm_offset_t);
+platform_method_t fdt_platform_methods[] = {
+	PLATFORMMETHOD(platform_probe,	fdt_platform_probe),
+	PLATFORMMETHOD_END
+};
 
-#endif /* _MACHINE_FDT_H_ */

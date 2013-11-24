@@ -96,6 +96,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/pcb.h>
+#include <machine/platform.h>
 #include <machine/reg.h>
 #include <machine/trap.h>
 #include <machine/undefined.h>
@@ -1237,6 +1238,8 @@ initarm(struct arm_boot_params *abp)
 
 	if (OF_init((void *)dtbp) != 0)
 		while (1);
+
+	platform_probe_and_attach();
 
 	/* Grab physical memory regions information from device tree. */
 	if (fdt_get_mem_regions(memory_regions, &memory_regions_sz,
