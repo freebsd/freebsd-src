@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/platform.h>
 #include <machine/ofw_machdep.h>
+#include <machine/trap.h>
 
 static struct mem_region OFmem[PHYS_AVAIL_SZ], OFavail[PHYS_AVAIL_SZ];
 static struct mem_region OFfree[PHYS_AVAIL_SZ];
@@ -70,9 +71,30 @@ extern register_t ofmsr[5];
 extern void	*openfirmware_entry;
 static void	*fdt;
 int		ofw_real_mode;
+extern char     save_trap_init[0x2f00];          /* EXC_LAST */
+char            save_trap_of[0x2f00];            /* EXC_LAST */
 
 int		ofwcall(void *);
 static int	openfirmware(void *args);
+
+__inline void
+ofw_save_trap_vec(char *save_trap_vec)
+{
+	if (apple_hacks)
+                return;
+
+	bcopy((void *)EXC_RST, save_trap_vec, EXC_LAST - EXC_RST);
+}
+
+static __inline void
+ofw_restore_trap_vec(char *restore_trap_vec)
+{
+	if (apple_hacks)
+                return;
+
+	bcopy(restore_trap_vec, (void *)EXC_RST, EXC_LAST - EXC_RST);
+	__syncicache(EXC_RSVD, EXC_LAST - EXC_RSVD);
+}
 
 /*
  * Saved SPRG0-3 from OpenFirmware. Will be restored prior to the callback.
@@ -524,6 +546,12 @@ openfirmware_core(void *args)
 
 	ofw_sprg_prepare();
 
+	/* Save trap vectors */
+	ofw_save_trap_vec(save_trap_of);
+
+	/* Restore initially saved trap vectors */
+	ofw_restore_trap_vec(save_trap_init);
+
 #if defined(AIM) && !defined(__powerpc64__)
 	/*
 	 * Clear battable[] translations
@@ -535,6 +563,10 @@ openfirmware_core(void *args)
 #endif
 
 	result = ofwcall(args);
+
+	/* Restore trap vecotrs */
+	ofw_restore_trap_vec(save_trap_of);
+
 	ofw_sprg_restore();
 
 	intr_restore(oldmsr);
