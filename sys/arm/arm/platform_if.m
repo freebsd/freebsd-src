@@ -78,14 +78,6 @@ CODE {
 #endif
 	}
 #endif
-	static vm_offset_t platform_null_real_maxaddr(platform_t plat)
-	{
-		return (VM_MAX_ADDRESS);
-	}
-	static void platform_null_smp_ap_init(platform_t plat)
-	{
-		return;
-	}
 };
 
 /**
