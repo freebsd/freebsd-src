@@ -1,3 +1,9 @@
+2007-06-05  Joerg Wunsch  <j.gnu@uriah.heep.sax.de> (r125346)
+
+	PR preprocessor/23479
+	* doc/extend.texi: Document the 0b-prefixed binary integer
+	constant extension.
+	
 2007-05-01  Dwarakanath Rajagopal <dwarak.rajagopal@amd.com> (r124339)
  
 	* config/i386/i386.c (override_options): Accept k8-sse3, opteron-sse3 
