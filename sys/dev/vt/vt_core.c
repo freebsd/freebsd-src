@@ -359,7 +359,7 @@ vt_scrollmode_kbdevent(struct vt_window *vw, int c, int console)
 		break;
 	}
 	case FKEY | F(49): /* Home key. */
-		vt_scroll(vw, 0, VHS_END);
+		vt_scroll(vw, 0, VHS_SET);
 		break;
 	case FKEY | F(50): /* Arrow up. */
 		vt_scroll(vw, -1, VHS_CUR);
@@ -369,7 +369,7 @@ vt_scrollmode_kbdevent(struct vt_window *vw, int c, int console)
 		vt_scroll(vw, -size.tp_row, VHS_CUR);
 		break;
 	case FKEY | F(57): /* End key. */
-		vt_scroll(vw, 0, VHS_SET);
+		vt_scroll(vw, 0, VHS_END);
 		break;
 	case FKEY | F(58): /* Arrow down. */
 		vt_scroll(vw, 1, VHS_CUR);
