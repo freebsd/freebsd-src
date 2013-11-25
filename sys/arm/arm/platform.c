@@ -79,13 +79,11 @@ platform_probe_and_attach(void)
 	plat_obj = &plat_kernel_obj;
 	best_prio = 0;
 
-printf("platform_probe_and_attach\n");
 	/*
 	 * Try to locate the best platform kobj
 	 */
 	SET_FOREACH(platpp, platform_set) {
 		platp = *platpp;
-printf("platp = %p %p\n", platp, platp->baseclasses);
 
 		/*
 		 * Take care of compiling the selected class, and
@@ -138,5 +136,33 @@ printf("platp = %p %p\n", platp, platp->baseclasses);
 	strlcpy(plat_name,plat_def_impl->name,sizeof(plat_name));
 
 	PLATFORM_ATTACH(plat_obj);
+}
+
+int
+platform_devmap_init(void)
+{
+
+	return PLATFORM_DEVMAP_INIT(plat_obj);
+}
+
+vm_offset_t
+platform_lastaddr(void)
+{
+
+	return PLATFORM_LASTADDR(plat_obj);
+}
+
+void
+platform_gpio_init(void)
+{
+
+	PLATFORM_GPIO_INIT(plat_obj);
+}
+
+void
+platform_late_init(void)
+{
+
+	PLATFORM_LATE_INIT(plat_obj);
 }
 

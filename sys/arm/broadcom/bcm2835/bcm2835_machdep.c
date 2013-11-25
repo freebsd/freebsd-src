@@ -65,26 +65,15 @@ __FBSDID("$FreeBSD$");
 /* Start of address space used for bootstrap map */
 #define DEVMAP_BOOTSTRAP_MAP_START	0xE0000000
 
-vm_offset_t
-initarm_lastaddr(void)
+static vm_offset_t
+bcm2835_lastaddr(platform_t plat)
 {
 
 	return (DEVMAP_BOOTSTRAP_MAP_START);
 }
 
-void
-initarm_early_init(void)
-{
-
-}
-
-void
-initarm_gpio_init(void)
-{
-}
-
-void
-initarm_late_init(void)
+static void
+bcm2835_late_init(platform_t plat)
 {
 	phandle_t system;
 	pcell_t cells[2];
@@ -111,8 +100,8 @@ static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
 /*
  * Construct pmap_devmap[] with DT-derived config data.
  */
-int
-initarm_devmap_init(void)
+static int
+bcm2835_devmap_init(platform_t plat)
 {
 	int i = 0;
 
@@ -149,6 +138,10 @@ cpu_reset()
 }
 
 static platform_method_t bcm2835_methods[] = {
+	PLATFORMMETHOD(platform_devmap_init,	bcm2835_devmap_init),
+	PLATFORMMETHOD(platform_lastaddr,	bcm2835_lastaddr),
+	PLATFORMMETHOD(platform_late_init,	bcm2835_late_init),
+
 	PLATFORMMETHOD_END,
 };
 

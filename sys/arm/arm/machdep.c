@@ -108,6 +108,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 #endif
 
+#define DEBUG
 #ifdef DEBUG
 #define	debugf(fmt, args...) printf(fmt, ##args)
 #else
@@ -1239,8 +1240,6 @@ initarm(struct arm_boot_params *abp)
 	if (OF_init((void *)dtbp) != 0)
 		while (1);
 
-	platform_probe_and_attach();
-
 	/* Grab physical memory regions information from device tree. */
 	if (fdt_get_mem_regions(memory_regions, &memory_regions_sz,
 	    &memsize) != 0)
@@ -1249,6 +1248,8 @@ initarm(struct arm_boot_params *abp)
 	/* Grab physical memory regions information from device tree. */
 	if (fdt_get_reserved_regions(reserved_regions, &reserved_regions_sz) != 0)
 		reserved_regions_sz = 0;
+
+	platform_probe_and_attach();
 
 	/*
 	 * Build the dump_avail table
@@ -1319,9 +1320,6 @@ initarm(struct arm_boot_params *abp)
 	}
 
 	availmem_regions_sz = curr;
-
-	/* Platform-specific initialisation */
-	initarm_early_init();
 
 	pcpu0_init();
 
@@ -1438,9 +1436,9 @@ initarm(struct arm_boot_params *abp)
 	    VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE, PTE_CACHE);
 
 	/* Establish static device mappings. */
-	err_devmap = initarm_devmap_init();
+	err_devmap = platform_devmap_init();
 	arm_devmap_bootstrap(l1pagetable, NULL);
-	vm_max_kernel_address = initarm_lastaddr();
+	vm_max_kernel_address = platform_lastaddr();
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
 	pmap_pa = kernel_l1pt.pv_pa;
@@ -1454,16 +1452,21 @@ initarm(struct arm_boot_params *abp)
 	 */
 	OF_interpret("perform-fixup", 0);
 
-	initarm_gpio_init();
+	platform_gpio_init();
 
 	cninit();
 
 	physmem = memsize / PAGE_SIZE;
 
 	debugf("initarm: console initialized\n");
-	debugf(" arg1 kmdp = 0x%08x\n", (uint32_t)kmdp);
-	debugf(" boothowto = 0x%08x\n", boothowto);
-	debugf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
+	debugf("   arg1 kmdp = 0x%08x\n", (uint32_t)kmdp);
+	debugf("   boothowto = 0x%08x\n", boothowto);
+	debugf("        dtbp = 0x%08x\n", (uint32_t)dtbp);
+	debugf("         abp = %p\n", abp);
+	debugf(" abp->abp_r0 = 0x%08x\n", abp->abp_r0);
+	debugf(" abp->abp_r1 = 0x%08x\n", abp->abp_r1);
+	debugf(" abp->abp_r2 = 0x%08x\n", abp->abp_r2);
+	debugf(" abp->abp_r3 = 0x%08x\n", abp->abp_r3);
 	print_kenv();
 
 	env = getenv("kernelname");
@@ -1474,7 +1477,7 @@ initarm(struct arm_boot_params *abp)
 		printf("WARNING: could not fully configure devmap, error=%d\n",
 		    err_devmap);
 
-	initarm_late_init();
+	platform_late_init();
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the

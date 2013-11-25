@@ -98,3 +98,40 @@ METHOD int attach {
 	platform_t	_plat;
 } DEFAULT platform_null_attach;
 
+/**
+ * @brief Called as one of the last steps of early virtual memory
+ * initialization, shortly before the new page tables are installed.
+ */
+METHOD int devmap_init {
+	platform_t	_plat;
+};
+
+/**
+ * @brief Called after devmap_init(), and must return the address of the
+ * first byte of unusable KVA space.  This allows a platform to carve out
+ * of the top of the KVA space whatever reserves it needs for things like
+ * static device mapping, and this is called to get the value before
+ * calling pmap_bootstrap() which uses the value to size the available KVA.
+ */
+METHOD vm_offset_t lastaddr {
+	platform_t	_plat;
+};
+
+/**
+ * @brief Called after the static device mappings are established and just
+ * before cninit(). The intention is that the routine can do any hardware
+ * setup (such as gpio or pinmux) necessary to make the console functional.
+ */
+METHOD void gpio_init {
+	platform_t	_plat;
+};
+
+/**
+ * @brief Called just after cninit(). This is the first of the init
+ * routines that can use printf() and expect the output to appear on
+ * a standard console.
+ */
+METHOD void late_init {
+	platform_t	_plat;
+};
+

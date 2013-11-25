@@ -55,5 +55,9 @@ void	platform_smp_ap_init(void);
 const char *installed_platform(void);
 #endif
 void platform_probe_and_attach(void);
+int platform_devmap_init(void);
+vm_offset_t platform_lastaddr(void);
+void platform_gpio_init(void);
+void platform_late_init(void);
 
 #endif	/* _MACHINE_PLATFORM_H_ */
