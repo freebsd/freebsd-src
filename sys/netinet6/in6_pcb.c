@@ -1170,8 +1170,8 @@ init_sin6(struct sockaddr_in6 *sin6, struct mbuf *m)
 	sin6->sin6_len = sizeof(*sin6);
 	sin6->sin6_family = AF_INET6;
 	sin6->sin6_addr = ip->ip6_src;
-
-	(void)sa6_recoverscope(sin6); /* XXX: should catch errors... */
-
+	if (m->m_pkthdr.rcvif != NULL)
+		sin6->sin6_scope_id = in6_getscopezone(m->m_pkthdr.rcvif,
+		    in6_addrscope(&sin6->sin6_addr));
 	return;
 }
