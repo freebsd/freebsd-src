@@ -113,7 +113,7 @@ ttys_set_type()
 	#
 	# Create new temporary file to write our ttys(5) update with new types.
 	#
-	local tmpfile="$( mktemp -t "pgm" )"
+	local tmpfile="$( mktemp -t "$pgm" )"
 	[ "$tmpfile" ] || return $FAILURE
 
 	#
