@@ -96,6 +96,8 @@ const char *vm_get_stat_desc(struct vmctx *ctx, int index);
 int	vm_get_x2apic_state(struct vmctx *ctx, int vcpu, enum x2apic_state *s);
 int	vm_set_x2apic_state(struct vmctx *ctx, int vcpu, enum x2apic_state s);
 
+int	vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities);
+
 /* Reset vcpu register state */
 int	vcpu_reset(struct vmctx *ctx, int vcpu);
 
