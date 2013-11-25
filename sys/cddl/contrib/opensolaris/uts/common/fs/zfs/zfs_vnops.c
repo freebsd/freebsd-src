@@ -4317,6 +4317,11 @@ zfs_link(vnode_t *tdvp, vnode_t *svp, char *name, cred_t *cr,
 	szp = VTOZ(svp);
 	ZFS_VERIFY_ZP(szp);
 
+	if (szp->z_pflags & (ZFS_APPENDONLY | ZFS_IMMUTABLE | ZFS_READONLY)) {
+		ZFS_EXIT(zfsvfs);
+		return (SET_ERROR(EPERM));
+	}
+
 	/*
 	 * We check z_zfsvfs rather than v_vfsp here, because snapshots and the
 	 * ctldir appear to have the same v_vfsp.
