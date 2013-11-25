@@ -1,7 +1,7 @@
 /*-
+ * Copyright (c) 2013 Mark R V Murray
  * Copyright (c) 2013 Arthur Mesh <arthurmesh@gmail.com>
  * Copyright (c) 2013 David E. O'Brien <obrien@NUXI.org>
- * Copyright (c) 2013 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,15 +62,16 @@ static struct adaptors_head random_adaptors_list = LIST_HEAD_INITIALIZER(random_
 static struct random_adaptor *random_adaptor = NULL; /* Currently active adaptor */
 /* End of data items requiring random_adaptors_lock protection */
 
-/* The random_rate_mtx mutex protects the consistency of the read-rate logic. */
-struct mtx random_rate_mtx;
-int random_adaptor_read_rate_cache;
-/* End of data items requiring random_rate_mtx mutex protection */
+/* The random_readrate_mtx mutex protects the read-rate estimator.
+ */
+static struct mtx random_read_rate_mtx;
+static int random_adaptor_read_rate_cache;
+/* End of data items requiring random_readrate_mtx mutex protection */
 
 /* The random_reseed_mtx mutex protects seeding and polling/blocking.
  * This is passed into the software entropy hasher/processor.
  */
-struct mtx random_reseed_mtx;
+static struct mtx random_reseed_mtx;
 /* End of data items requiring random_reseed_mtx mutex protection */
 
 static struct selinfo rsel;
@@ -191,122 +192,70 @@ random_adaptor_deregister(const char *name)
 	free(rra, M_ENTROPY);
 }
 
-/*
- * Per-instance structure.
- *
- * List of locks
- * XXX: FIX!!
- */
-struct random_adaptor_softc {
-	int oink;
-	int tweet;
-};
-
-static void
-random_adaptor_dtor(void *data)
-{
-	struct random_adaptor_softc *ras = data;
-
-	free(ras, M_ENTROPY);
-}
-
 /* ARGSUSED */
 int
-random_adaptor_open(struct cdev *dev __unused, int flags, int mode __unused, struct thread *td __unused)
-{
-	struct random_adaptor_softc *ras;
-
-	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
-
-	ras = malloc(sizeof(struct random_adaptor_softc), M_ENTROPY, M_WAITOK|M_ZERO);
-	/* XXX: FIX!! Set up softc here */
-
-	devfs_set_cdevpriv(ras, random_adaptor_dtor);
-
-	/* Give the source a chance to do some pre-read/write startup */
-	if (flags & FREAD) {
-		sx_slock(&random_adaptors_lock);
-		(random_adaptor->ra_read)(NULL, 0);
-		sx_sunlock(&random_adaptors_lock);
-	} else if (flags & FWRITE) {
-		sx_slock(&random_adaptors_lock);
-		(random_adaptor->ra_write)(NULL, 0);
-		sx_sunlock(&random_adaptors_lock);
-	}
-
-	return (0);
-}
-
-/* ARGSUSED */
-int
-random_adaptor_close(struct cdev *dev __unused, int flags, int fmt __unused, struct thread *td __unused)
-{
-
-	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
-
-	/* Give the source a chance to do some post-read/write shutdown */
-	if (flags & FREAD) {
-		sx_slock(&random_adaptors_lock);
-		(random_adaptor->ra_read)(NULL, 1);
-		sx_sunlock(&random_adaptors_lock);
-	} else if (flags & FWRITE) {
-		sx_slock(&random_adaptors_lock);
-		(random_adaptor->ra_write)(NULL, 1);
-		sx_sunlock(&random_adaptors_lock);
-	}
-
-	return (0);
-}
-
-/* ARGSUSED */
-int
-random_adaptor_read(struct cdev *dev __unused, struct uio *uio, int flags __unused)
+random_adaptor_read(struct cdev *dev __unused, struct uio *uio, int flags)
 {
 	void *random_buf;
 	int c, error;
-	u_int npages;
-	struct random_adaptor_softc *ras;
+	ssize_t nbytes;
 
 	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
-	error = devfs_get_cdevpriv((void **)&ras);
-	if (error == 0) {
+	sx_slock(&random_adaptors_lock);
 
-		sx_slock(&random_adaptors_lock);
+	mtx_lock(&random_reseed_mtx);
 
-		/* Blocking logic */
-		mtx_lock(&random_reseed_mtx);
-		while (!random_adaptor->ra_seeded() && !error) {
-			if (flags & O_NONBLOCK)
-				error = EWOULDBLOCK;
-			else
-				error = msleep(&random_adaptor, &random_reseed_mtx, PUSER | PCATCH, "block", 0);
+	/* Let the entropy source do any pre-read setup. */
+	(random_adaptor->ra_read)(NULL, 0);
+
+	/* (Un)Blocking logic */
+	error = 0;
+	while (!random_adaptor->ra_seeded()) {
+		if (flags & O_NONBLOCK)	{
+			error = EWOULDBLOCK;
+			break;
 		}
-		mtx_unlock(&random_reseed_mtx);
+
+		/* Sleep instead of going into a spin-frenzy */
+		msleep(&random_adaptor, &random_reseed_mtx, PUSER | PCATCH, "block", hz/10);
+
+		/* keep tapping away at the pre-read until we seed/unblock. */
+		(random_adaptor->ra_read)(NULL, 0);
+	}
+
+	mtx_unlock(&random_reseed_mtx);
+
+	mtx_lock(&random_read_rate_mtx);
+
+	/* The read-rate stuff is a rough indication of the instantaneous read rate,
+	 * used to increase the use of 'live' entropy sources when lots of reads are done.
+	 */
+	nbytes = (uio->uio_resid + 32 - 1)/32; /* Round up to units of 32 */
+	random_adaptor_read_rate_cache += nbytes*32;
+	random_adaptor_read_rate_cache = MIN(random_adaptor_read_rate_cache, 32);
+
+	mtx_unlock(&random_read_rate_mtx);
+
+	if (!error) {
 
 		/* The actual read */
-		if (!error) {
-			/* The read-rate stuff is a *VERY* crude indication of the instantaneous read rate,
-			 * designed to increase the use of 'live' entropy sources when lots of reads are done.
-			 */
-			mtx_lock(&random_rate_mtx);
-			npages = (uio->uio_resid + PAGE_SIZE - 1)/PAGE_SIZE;
-			random_adaptor_read_rate_cache += npages;
-			random_adaptor_read_rate_cache = MIN(random_adaptor_read_rate_cache, 32);
-			mtx_unlock(&random_rate_mtx);
 
-			random_buf = (void *)malloc(npages*PAGE_SIZE, M_ENTROPY, M_WAITOK);
-			while (uio->uio_resid > 0 && !error) {
-				c = MIN(uio->uio_resid, npages*PAGE_SIZE);
-				(random_adaptor->ra_read)(random_buf, c);
-				error = uiomove(random_buf, c, uio);
-			}
-			free(random_buf, M_ENTROPY);
+		random_buf = (void *)malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
+
+		while (uio->uio_resid && !error) {
+			c = MIN(uio->uio_resid, PAGE_SIZE);
+			(random_adaptor->ra_read)(random_buf, c);
+			error = uiomove(random_buf, c, uio);
 		}
 
-		sx_sunlock(&random_adaptors_lock);
+		/* Let the entropy source do any post-read cleanup. */
+		(random_adaptor->ra_read)(NULL, 1);
 
+		free(random_buf, M_ENTROPY);
 	}
+
+	sx_sunlock(&random_adaptors_lock);
 
 	return (error);
 }
@@ -318,9 +267,12 @@ random_adaptor_read_rate(void)
 
 	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
-	mtx_lock(&random_rate_mtx);
+	mtx_lock(&random_read_rate_mtx);
+
 	ret = random_adaptor_read_rate_cache;
-	mtx_unlock(&random_rate_mtx);
+	random_adaptor_read_rate_cache = 1;
+
+	mtx_unlock(&random_read_rate_mtx);
 
 	return (ret);
 }
@@ -329,26 +281,25 @@ random_adaptor_read_rate(void)
 int
 random_adaptor_write(struct cdev *dev __unused, struct uio *uio, int flags __unused)
 {
-	int error;
-	struct random_adaptor_softc *ras;
+	int c, error = 0;
+	void *random_buf;
 
 	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
 	sx_slock(&random_adaptors_lock);
-	error = devfs_get_cdevpriv((void **)&ras);
-	if (error == 0) {
-		/* We used to allow this to insert userland entropy.
-		 * We don't any more because (1) this so-called entropy
-		 * is usually lousy and (b) its vaguely possible to
-		 * mess with entropy harvesting by overdoing a write.
-		 * Now we just ignore input like /dev/null does.
-		 */
-		/* XXX: FIX!! Now that RWFILE is gone, we need to get this back.
-		 * ALSO: See devfs_get_cdevpriv(9) and friends for ways to build per-session nodes.
-		 */
-		uio->uio_resid = 0;
-		/* c = (random_adaptor->ra_write)(random_buf, c); */
+
+	random_buf = (void *)malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
+
+	while (uio->uio_resid > 0) {
+		c = MIN((int)uio->uio_resid, PAGE_SIZE);
+		error = uiomove(random_buf, c, uio);
+		if (error)
+			break;
+		(random_adaptor->ra_write)(random_buf, c);
 	}
+
+	free(random_buf, M_ENTROPY);
+
 	sx_sunlock(&random_adaptors_lock);
 
 	return (error);
@@ -358,13 +309,8 @@ random_adaptor_write(struct cdev *dev __unused, struct uio *uio, int flags __unu
 int
 random_adaptor_poll(struct cdev *dev __unused, int events, struct thread *td __unused)
 {
-	struct random_adaptor_softc *ras;
 
 	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
-
-	if (devfs_get_cdevpriv((void **)&ras) != 0)
-		return (events &
-		    (POLLHUP|POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM));
 
 	sx_slock(&random_adaptors_lock);
 	mtx_lock(&random_reseed_mtx);
@@ -456,8 +402,7 @@ random_adaptors_init(void *unused __unused)
 
 	sx_init(&random_adaptors_lock, "random_adaptors");
 
-	mtx_init(&random_rate_mtx, "read rate mutex", NULL, MTX_DEF);
-	mtx_init(&random_reseed_mtx, "read rate mutex", NULL, MTX_DEF);
+	mtx_init(&random_reseed_mtx, "reseed mutex", NULL, MTX_DEF);
 
 	/* The dummy adaptor is not a module by itself, but part of the
 	 * randomdev module.
@@ -475,7 +420,6 @@ random_adaptors_deinit(void *unused __unused)
 	/* random_adaptor_deregister("dummy"); */
 
 	mtx_destroy(&random_reseed_mtx);
-	mtx_destroy(&random_rate_mtx);
 
 	sx_destroy(&random_adaptors_lock);
 }
@@ -515,7 +459,9 @@ random_adaptors_seed(void *unused __unused)
 	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
 	sx_slock(&random_adaptors_lock);
+	mtx_lock(&random_reseed_mtx);
 	random_adaptor->ra_reseed();
+	mtx_unlock(&random_reseed_mtx);
 	sx_sunlock(&random_adaptors_lock);
 
 	arc4rand(NULL, 0, 1);

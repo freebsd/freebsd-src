@@ -169,15 +169,6 @@ random_harvestq_flush(void)
 	random_kthread_control = 1;
 	while (random_kthread_control)
 		pause("-", hz/10);
-
-#if 0
-#if defined(RANDOM_YARROW)
-	random_yarrow_reseed();
-#endif
-#if defined(RANDOM_FORTUNA)
-	random_fortuna_reseed();
-#endif
-#endif
 }
 
 /* ARGSUSED */
@@ -195,6 +186,49 @@ random_print_harvestmask(SYSCTL_HANDLER_ARGS)
 		sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
 		for (i = 31; i >= 0; i--)
 			sbuf_cat(&sbuf, (harvest_source_mask & (1<<i)) ? "1" : "0");
+		error = sbuf_finish(&sbuf);
+		sbuf_delete(&sbuf);
+	}
+
+	return (error);
+}
+
+static const char *(random_source_descr[]) = {
+	"CACHED",
+	"ATTACH",
+	"KEYBOARD",
+	"MOUSE",
+	"NET_TUN",
+	"NET_ETHER",
+	"NET_NG",
+	"INTERRUPT",
+	"SWI",
+	"UMA_ALLOC",
+	"", /* "ENVIRONMENTAL_END" */
+	"PURE_OCTEON",
+	"PURE_SAFE",
+	"PURE_GLXSB",
+	"PURE_UBSEC",
+	"PURE_HIFN",
+	"PURE_RDRAND",
+	"PURE_NEHEMIAH",
+	"PURE_RNDTEST",
+	/* "ENTROPYSOURCE" */
+};
+
+/* ARGSUSED */
+static int
+random_print_harvestmask_symbolic(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sbuf;
+	int error, i;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error == 0) {
+		sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+		for (i = ENTROPYSOURCE - 1; i >= 0; i--)
+			sbuf_cat(&sbuf, (i == ENTROPYSOURCE - 1) ? "" : ",");
+			sbuf_cat(&sbuf, (harvest_source_mask & (1<<i)) ? random_source_descr[i] : "");
 		error = sbuf_finish(&sbuf);
 		sbuf_delete(&sbuf);
 	}
@@ -231,6 +265,11 @@ random_harvestq_init(void (*event_processor)(struct harvest_event *), int poolco
 	    SYSCTL_CHILDREN(random_sys_o),
 	    OID_AUTO, "mask_bin", CTLTYPE_STRING | CTLFLAG_RD,
 	    NULL, 0, random_print_harvestmask, "A", "Entropy harvesting mask (printable)");
+
+	SYSCTL_ADD_PROC(&random_clist,
+	    SYSCTL_CHILDREN(random_sys_o),
+	    OID_AUTO, "mask_symbolic", CTLTYPE_STRING | CTLFLAG_RD,
+	    NULL, 0, random_print_harvestmask_symbolic, "A", "Entropy harvesting mask (symbolic)");
 
 	/* Initialise the harvest fifos */
 

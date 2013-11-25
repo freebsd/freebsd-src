@@ -61,10 +61,8 @@ extern struct random_adaptor randomdev_dummy;
 void random_adaptor_register(const char *, struct random_adaptor *);
 void random_adaptor_deregister(const char *);
 
-int random_adaptor_open(struct cdev *, int, int, struct thread *);
 int random_adaptor_read(struct cdev *, struct uio *, int);
 int random_adaptor_write(struct cdev *, struct uio *, int);
-int random_adaptor_close(struct cdev *, int, int, struct thread *);
 int random_adaptor_poll(struct cdev *, int, struct thread *);
 
 int random_adaptor_read_rate(void);

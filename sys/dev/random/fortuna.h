@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2013 Mark R V Murray
+ * Copyright (c) 2013 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,19 +26,19 @@
  * $FreeBSD$
  */
 
-#ifndef SYS_DEV_RANDOM_YARROW_H_INCLUDED
-#define SYS_DEV_RANDOM_YARROW_H_INCLUDED
+#ifndef SYS_DEV_RANDOM_FORTUNA_H_INCLUDED
+#define SYS_DEV_RANDOM_FORTUNA_H_INCLUDED
 
 #ifdef _KERNEL
 typedef struct mtx mtx_t;
 #endif
 
-void random_yarrow_init_alg(struct sysctl_ctx_list *, mtx_t *);
-void random_yarrow_deinit_alg(void);
-void random_yarrow_read(uint8_t *, u_int);
-void random_yarrow_write(uint8_t *, u_int);
-void random_yarrow_reseed(void);
-int random_yarrow_seeded(void);
-void random_yarrow_process_event(struct harvest_event *event);
+void random_fortuna_init_alg(struct sysctl_ctx_list *, mtx_t *);
+void random_fortuna_deinit_alg(void);
+void random_fortuna_read(uint8_t *, u_int);
+void random_fortuna_write(uint8_t *, u_int);
+void random_fortuna_reseed(void);
+int random_fortuna_seeded(void);
+void random_fortuna_process_event(struct harvest_event *event);
 
 #endif

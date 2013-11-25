@@ -77,10 +77,8 @@ static d_ioctl_t randomdev_ioctl;
 static struct cdevsw random_cdevsw = {
 	.d_name = "random",
 	.d_version = D_VERSION,
-	.d_open = random_adaptor_open,
 	.d_read = random_adaptor_read,
 	.d_write = random_adaptor_write,
-	.d_close = random_adaptor_close,
 	.d_poll = random_adaptor_poll,
 	.d_ioctl = randomdev_ioctl,
 };
@@ -138,7 +136,7 @@ randomdev_modevent(module_t mod __unused, int type, void *data __unused)
 	switch (type) {
 	case MOD_LOAD:
 		random_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &random_cdevsw,
-		    RANDOM_MINOR, NULL, UID_ROOT, GID_WHEEL, 0666, "random");
+		    RANDOM_MINOR, NULL, UID_ROOT, GID_WHEEL, 0644, "random");
 		make_dev_alias(random_dev, "urandom"); /* compatibility */
 		break;
 
