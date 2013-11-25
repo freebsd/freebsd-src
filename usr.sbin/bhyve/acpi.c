@@ -263,7 +263,7 @@ basl_fwrite_madt(FILE *fp)
 	EFPRINTF(fp, "[0001]\t\tSubtable Type : 01\n");
 	EFPRINTF(fp, "[0001]\t\tLength : 0C\n");
 	/* iasl expects a hex value for the i/o apic id */
-	EFPRINTF(fp, "[0001]\t\tI/O Apic ID : %02x\n", basl_ncpu);
+	EFPRINTF(fp, "[0001]\t\tI/O Apic ID : %02x\n", 0);
 	EFPRINTF(fp, "[0001]\t\tReserved : 00\n");
 	EFPRINTF(fp, "[0004]\t\tAddress : fec00000\n");
 	EFPRINTF(fp, "[0004]\t\tInterrupt : 00000000\n");
