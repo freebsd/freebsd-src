@@ -102,8 +102,10 @@ APU_DECLARE(apr_status_t) apr_dbd_init(apr_pool_t *pool)
     }
 
     /* Top level pool scope, need process-scope lifetime */
-    for (parent = pool;  parent; parent = apr_pool_parent_get(pool))
-         pool = parent;
+    for (parent = apr_pool_parent_get(pool);
+        parent && parent != pool;
+        parent = apr_pool_parent_get(pool))
+       pool = parent;
 #if APU_DSO_BUILD
     /* deprecate in 2.0 - permit implicit initialization */
     apu_dso_init(pool);
@@ -184,7 +186,7 @@ APU_DECLARE(apr_status_t) apr_dbd_get_driver(apr_pool_t *pool, const char *name,
 
 #if defined(NETWARE)
     apr_snprintf(modname, sizeof(modname), "dbd%s.nlm", name);
-#elif defined(WIN32)
+#elif defined(WIN32) || defined(__CYGWIN__)
     apr_snprintf(modname, sizeof(modname),
                  "apr_dbd_%s-" APU_STRINGIFY(APU_MAJOR_VERSION) ".dll", name);
 #else
@@ -204,7 +206,7 @@ APU_DECLARE(apr_status_t) apr_dbd_get_driver(apr_pool_t *pool, const char *name,
     }
     apu_dso_mutex_unlock();
 
-#else /* not builtin and !APR_HAS_DSO => not implemented */
+#else /* not builtin and !APU_DSO_BUILD => not implemented */
     rv = APR_ENOTIMPL;
 #endif
 
