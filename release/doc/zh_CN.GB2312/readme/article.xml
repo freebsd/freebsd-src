@@ -302,11 +302,11 @@
 	</itemizedlist>
       </para>
 
-      <para>在支持 &man.sysinstall.8; 的平台上 (目前有
+      <para>在支持 &man.bsdinstall.8; 的平台上 (目前有
 	&arch.amd64;、 &arch.i386;、 &arch.ia64;、 &arch.pc98; 以及 &arch.sparc64;)，
 	这些文档在安装时都可以通过 Documentation 菜单访问。
 	一旦系统已经安装，您可以通过重新运行
-	&man.sysinstall.8; 工具来重新访问菜单。</para>
+	&man.bsdinstall.8; 工具来重新访问菜单。</para>
 
       <note>
 	<para>在安装您拿到的任何发行版之前阅读勘误是非常重要的，
