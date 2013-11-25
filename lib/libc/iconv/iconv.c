@@ -298,6 +298,12 @@ __bsd_iconvctl(iconv_t cd, int request, void *argument)
 	case ICONV_SET_FALLBACKS:
 		errno = EOPNOTSUPP;
 		return (-1);
+	case ICONV_GET_ILSEQ_INVALID:
+		*i = cv->cv_shared->ci_ilseq_invalid ? 1 : 0;
+		return (0);
+	case ICONV_SET_ILSEQ_INVALID:
+		cv->cv_shared->ci_ilseq_invalid = *i;
+		return (0);
 	default:
 		errno = EINVAL;
 		return (-1);

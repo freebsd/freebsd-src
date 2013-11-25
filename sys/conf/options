@@ -126,7 +126,7 @@ GEOM_UZIP	opt_geom.h
 GEOM_VIRSTOR	opt_geom.h
 GEOM_VOL	opt_geom.h
 GEOM_ZERO	opt_geom.h
-KDTRACE_HOOKS	opt_kdtrace.h
+KDTRACE_HOOKS	opt_global.h
 KSTACK_MAX_PAGES
 KSTACK_PAGES
 KTRACE

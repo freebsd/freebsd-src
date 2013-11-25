@@ -165,8 +165,6 @@ if (hfile) {
 
 if (cfile) {
 	printc(common_head \
-	    "#include \"opt_kdtrace.h\"\n" \
-	    "\n" \
 	    "#include <sys/param.h>\n" \
 	    "#include <sys/event.h>\n" \
 	    "#include <sys/kernel.h>\n" \

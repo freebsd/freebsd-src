@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_kdb.h"
-#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/kdb.h>
