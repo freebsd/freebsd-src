@@ -326,6 +326,20 @@ page_busy(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 {
 	vm_object_t obj;
 	vm_page_t pp;
+	int64_t end;
+
+	/*
+	 * At present vm_page_clear_dirty extends the cleared range to DEV_BSIZE
+	 * aligned boundaries, if the range is not aligned.  As a result a
+	 * DEV_BSIZE subrange with partially dirty data may get marked as clean.
+	 * It may happen that all DEV_BSIZE subranges are marked clean and thus
+	 * the whole page would be considred clean despite have some dirty data.
+	 * For this reason we should shrink the range to DEV_BSIZE aligned
+	 * boundaries before calling vm_page_clear_dirty.
+	 */
+	end = rounddown2(off + nbytes, DEV_BSIZE);
+	off = roundup2(off, DEV_BSIZE);
+	nbytes = end - off;
 
 	obj = vp->v_object;
 	VM_OBJECT_LOCK_ASSERT(obj, MA_OWNED);
@@ -357,7 +371,8 @@ page_busy(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 			vm_object_pip_add(obj, 1);
 			vm_page_io_start(pp);
 			pmap_remove_write(pp);
-			vm_page_clear_dirty(pp, off, nbytes);
+			if (nbytes != 0)
+				vm_page_clear_dirty(pp, off, nbytes);
 		}
 		break;
 	}
