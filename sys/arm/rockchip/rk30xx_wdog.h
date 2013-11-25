@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2013 Tycho Nightingale <tycho.nightingale@pluribusnetworks.com>
- * Copyright (c) 2013 Neel Natu <neel@freebsd.org>
+ * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -12,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY NETAPP, INC ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL NETAPP, INC OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -25,23 +24,12 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
+ *
  */
+#ifndef	__RK30XX_WDOG_H__
+#define	__RK30XX_WDOG_H__
 
-#ifndef _VIOAPIC_H_
-#define	_VIOAPIC_H_
+void rk30_wd_watchdog_reset(void);
 
-#define	VIOAPIC_BASE	0xFEC00000
-#define	VIOAPIC_SIZE	4096
+#endif /*__RK30XX_WDOG_H__*/
 
-struct vioapic *vioapic_init(struct vm *vm);
-void	vioapic_cleanup(struct vioapic *vioapic);
-
-int	vioapic_assert_irq(struct vm *vm, int irq);
-int	vioapic_deassert_irq(struct vm *vm, int irq);
-int	vioapic_pulse_irq(struct vm *vm, int irq);
-
-int	vioapic_mmio_write(void *vm, int vcpuid, uint64_t gpa,
-	    uint64_t wval, int size, void *arg);
-int	vioapic_mmio_read(void *vm, int vcpuid, uint64_t gpa,
-	    uint64_t *rval, int size, void *arg);
-#endif
