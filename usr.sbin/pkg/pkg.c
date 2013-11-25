@@ -740,12 +740,9 @@ cleanup:
 static int
 bootstrap_pkg(bool force)
 {
-	FILE *config;
 	int fd_pkg, fd_sig;
 	int ret;
-	char *site;
 	char url[MAXPATHLEN];
-	char conf[MAXPATHLEN];
 	char tmppkg[MAXPATHLEN];
 	char tmpsig[MAXPATHLEN];
 	const char *packagesite;
@@ -754,7 +751,6 @@ bootstrap_pkg(bool force)
 
 	fd_sig = -1;
 	ret = -1;
-	config = NULL;
 
 	if (config_string(PACKAGESITE, &packagesite) != 0) {
 		warnx("No PACKAGESITE defined");
@@ -800,26 +796,6 @@ bootstrap_pkg(bool force)
 
 	if ((ret = extract_pkg_static(fd_pkg, pkgstatic, MAXPATHLEN)) == 0)
 		ret = install_pkg_static(pkgstatic, tmppkg, force);
-
-	snprintf(conf, MAXPATHLEN, "%s/etc/pkg.conf",
-	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
-
-	if (access(conf, R_OK) == -1) {
-		site = strrchr(url, '/');
-		if (site == NULL)
-			goto cleanup;
-		site[0] = '\0';
-		site = strrchr(url, '/');
-		if (site == NULL)
-			goto cleanup;
-		site[0] = '\0';
-
-		config = fopen(conf, "w+");
-		if (config == NULL)
-			goto cleanup;
-		fprintf(config, "packagesite: %s\n", url);
-		fclose(config);
-	}
 
 	goto cleanup;
 
