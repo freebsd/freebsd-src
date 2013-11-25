@@ -147,10 +147,10 @@ for include in "$@"; do
 	# See if they've just omitted the `*.subr' suffix
 	[ -f "$include.subr" -a ! -f "$include" ] && include="$include.subr"
 	if [ ! -f "$include" ]; then
-		printf "$msg_no_such_file_or_directory" "$0" "$include"
+		printf "$msg_no_such_file_or_directory\n" "$0" "$include"
 		exit $FAILURE
 	elif [ ! -r "$include" ]; then
-		printf "$msg_permission_denied" "$0" "$include"
+		printf "$msg_permission_denied\n" "$0" "$include"
 		exit $FAILURE
 	fi
 	show_include "$include" || f_die
