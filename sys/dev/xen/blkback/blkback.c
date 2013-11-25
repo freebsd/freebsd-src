@@ -40,8 +40,6 @@ __FBSDID("$FreeBSD$");
  *        a FreeBSD domain to other domains.
  */
 
-#include "opt_kdtrace.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
