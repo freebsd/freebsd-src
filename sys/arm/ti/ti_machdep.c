@@ -60,6 +60,14 @@ __FBSDID("$FreeBSD$");
 /* Start of address space used for bootstrap map */
 #define DEVMAP_BOOTSTRAP_MAP_START	0xF0000000
 
+#if !defined(SOC_OMAP4) && !defined(SOC_TI_AM335X)
+#error "Unknown SoC"
+#endif
+
+#if defined(SOC_OMAP4) && defined(SOC_TI_AM335X)
+#error Not yet able to use both OMAP4 and AM335X in the same kernel
+#endif
+
 void (*ti_cpu_reset)(void);
 
 static int
@@ -118,10 +126,6 @@ ti_am335x_devmap_init(platform_t plat)
 }
 #endif
 
-#if !defined(SOC_OMAP4) && !defined(SOC_TI_AM335X)
-#error "Unknown SoC"
-#endif
-
 struct arm32_dma_range *
 bus_dma_get_range(void)
 {
@@ -157,5 +161,17 @@ static platform_method_t omap4_methods[] = {
 };
 
 FDT_PLATFORM_DEF(omap4, "omap4", 0, "ti,omap4430");
+#endif
+
+#if defined(SOC_TI_AM335X)
+static platform_method_t am335x_methods[] = {
+	PLATFORMMETHOD(platform_attach,		ti_attach),
+	PLATFORMMETHOD(platform_devmap_init,	ti_am335x_devmap_init),
+	PLATFORMMETHOD(platform_lastaddr,	ti_lastaddr),
+
+	PLATFORMMETHOD_END,
+};
+
+FDT_PLATFORM_DEF(am335x, "am335x", 0, "ti,am335x");
 #endif
 
