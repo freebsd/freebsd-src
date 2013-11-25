@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
  * vnode op calls for Sun NFS version 2, 3 and 4
  */
 
-#include "opt_kdtrace.h"
 #include "opt_inet.h"
 
 #include <sys/param.h>

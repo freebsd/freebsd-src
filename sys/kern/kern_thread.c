@@ -27,7 +27,6 @@
  */
 
 #include "opt_witness.h"
-#include "opt_kdtrace.h"
 #include "opt_hwpmc_hooks.h"
 
 #include <sys/cdefs.h>
