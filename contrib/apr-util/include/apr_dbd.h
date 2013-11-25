@@ -107,10 +107,10 @@ APU_DECLARE(apr_status_t) apr_dbd_get_driver(apr_pool_t *pool, const char *name,
 
 /** apr_dbd_open_ex: open a connection to a backend
  *
+ *  @param driver - driver struct.
  *  @param pool - working pool
  *  @param params - arguments to driver (implementation-dependent)
  *  @param handle - pointer to handle to return
- *  @param driver - driver struct.
  *  @param error - descriptive error.
  *  @return APR_SUCCESS for success
  *  @return APR_EGENERAL if driver exists but connection failed
@@ -147,10 +147,10 @@ APU_DECLARE(apr_status_t) apr_dbd_open_ex(const apr_dbd_driver_t *driver,
 
 /** apr_dbd_open: open a connection to a backend
  *
+ *  @param driver - driver struct.
  *  @param pool - working pool
  *  @param params - arguments to driver (implementation-dependent)
  *  @param handle - pointer to handle to return
- *  @param driver - driver struct.
  *  @return APR_SUCCESS for success
  *  @return APR_EGENERAL if driver exists but connection failed
  *  @see apr_dbd_open_ex
@@ -161,8 +161,8 @@ APU_DECLARE(apr_status_t) apr_dbd_open(const apr_dbd_driver_t *driver,
 
 /** apr_dbd_close: close a connection to a backend
  *
- *  @param handle - handle to close
  *  @param driver - driver struct.
+ *  @param handle - handle to close
  *  @return APR_SUCCESS for success or error status
  */
 APU_DECLARE(apr_status_t) apr_dbd_close(const apr_dbd_driver_t *driver,
