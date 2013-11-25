@@ -146,6 +146,10 @@ struct vm_gpa_pte {
 	int		ptenum;
 };
 
+struct vm_hpet_cap {
+	uint32_t	capabilities;	/* lower 32 bits of HPET capabilities */
+};
+
 enum {
 	/* general routines */
 	IOCNUM_ABIVERS = 0,
@@ -186,6 +190,7 @@ enum {
 	/* kernel device state */
 	IOCNUM_SET_X2APIC_STATE = 60,
 	IOCNUM_GET_X2APIC_STATE = 61,
+	IOCNUM_GET_HPET_CAPABILITIES = 62,
 };
 
 #define	VM_RUN		\
@@ -236,6 +241,8 @@ enum {
 	_IOW('v', IOCNUM_SET_X2APIC_STATE, struct vm_x2apic)
 #define	VM_GET_X2APIC_STATE \
 	_IOWR('v', IOCNUM_GET_X2APIC_STATE, struct vm_x2apic)
+#define	VM_GET_HPET_CAPABILITIES \
+	_IOR('v', IOCNUM_GET_HPET_CAPABILITIES, struct vm_hpet_cap)
 #define	VM_GET_GPA_PMAP \
 	_IOWR('v', IOCNUM_GET_GPA_PMAP, struct vm_gpa_pte)
 #endif

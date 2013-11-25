@@ -27,21 +27,18 @@
  * $FreeBSD$
  */
 
-#ifndef _VIOAPIC_H_
-#define	_VIOAPIC_H_
+#ifndef _VHPET_H_
+#define	_VHPET_H_
 
-#define	VIOAPIC_BASE	0xFEC00000
-#define	VIOAPIC_SIZE	4096
+#define	VHPET_BASE	0xfed00000
+#define	VHPET_SIZE	1024
 
-struct vioapic *vioapic_init(struct vm *vm);
-void	vioapic_cleanup(struct vioapic *vioapic);
+struct vhpet *vhpet_init(struct vm *vm);
+void 	vhpet_cleanup(struct vhpet *vhpet);
+int	vhpet_mmio_write(void *vm, int vcpuid, uint64_t gpa, uint64_t val,
+	    int size, void *arg);
+int	vhpet_mmio_read(void *vm, int vcpuid, uint64_t gpa, uint64_t *val,
+	    int size, void *arg);
+int	vhpet_getcap(struct vm_hpet_cap *cap);
 
-int	vioapic_assert_irq(struct vm *vm, int irq);
-int	vioapic_deassert_irq(struct vm *vm, int irq);
-int	vioapic_pulse_irq(struct vm *vm, int irq);
-
-int	vioapic_mmio_write(void *vm, int vcpuid, uint64_t gpa,
-	    uint64_t wval, int size, void *arg);
-int	vioapic_mmio_read(void *vm, int vcpuid, uint64_t gpa,
-	    uint64_t *rval, int size, void *arg);
-#endif
+#endif	/* _VHPET_H_ */
