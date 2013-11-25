@@ -73,6 +73,7 @@ ATSE_CFI_HACK	opt_cfi.h
 AUDIT		opt_global.h
 BOOTHOWTO	opt_global.h
 BOOTVERBOSE	opt_global.h
+BUSDMA_MI	opt_global.h
 CALLOUT_PROFILING
 CAPABILITIES	opt_capsicum.h
 CAPABILITY_MODE	opt_capsicum.h
