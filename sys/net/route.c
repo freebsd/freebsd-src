@@ -255,6 +255,9 @@ vnet_route_uninit(const void *unused __unused)
 			dom->dom_rtdetach((void **)rnh, dom->dom_rtoffset);
 		}
 	}
+
+	free(V_rt_tables, M_RTABLE);
+	uma_zdestroy(V_rtzone);
 }
 VNET_SYSUNINIT(vnet_route_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
     vnet_route_uninit, 0);
