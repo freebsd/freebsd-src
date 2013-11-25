@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_perfmon.h"
 #include "opt_platform.h"
 #include "opt_xbox.h"
-#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>

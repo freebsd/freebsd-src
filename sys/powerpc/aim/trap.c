@@ -34,8 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kdtrace.h"
-
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/proc.h>

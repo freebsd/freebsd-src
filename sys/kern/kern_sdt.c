@@ -25,8 +25,6 @@
  * $FreeBSD$
  */
 
-#include "opt_kdtrace.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sdt.h>

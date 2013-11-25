@@ -55,7 +55,7 @@
  */
 
 #include "opt_ddb.h"
-#include "opt_kdtrace.h"
+
 #include <machine/asm.h>
 #include <machine/cpu.h>
 #include <machine/regnum.h>

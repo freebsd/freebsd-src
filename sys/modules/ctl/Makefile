@@ -22,7 +22,6 @@ SRCS+=	bus_if.h
 SRCS+=	device_if.h
 SRCS+=	vnode_if.h
 SRCS+=	opt_cam.h
-SRCS+=	opt_kdtrace.h
 
 #CFLAGS+=-DICL_KERNEL_PROXY
 
