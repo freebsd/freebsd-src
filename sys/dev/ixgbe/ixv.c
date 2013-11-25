@@ -1627,7 +1627,7 @@ ixv_allocate_msix(struct adapter *adapter)
 	*/
 	if (adapter->hw.mac.type == ixgbe_mac_82599_vf) {
 		int msix_ctrl;
-		pci_find_extcap(dev, PCIY_MSIX, &rid);
+		pci_find_cap(dev, PCIY_MSIX, &rid);
 		rid += PCIR_MSIX_CTRL;
 		msix_ctrl = pci_read_config(dev, rid, 2);
 		msix_ctrl |= PCIM_MSIXCTRL_MSIX_ENABLE;

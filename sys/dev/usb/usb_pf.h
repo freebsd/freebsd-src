@@ -38,12 +38,12 @@
 #define	_DEV_USB_PF_H
 
 struct usbpf_pkthdr {
-	int		up_busunit;	/* Host controller unit number */
-	u_char		up_address;	/* USB device address */
-	u_char		up_endpoint;	/* USB endpoint */
-	u_char		up_type;	/* points SUBMIT / DONE */
-	u_char		up_xfertype;	/* Transfer type */
-	u_int32_t	up_flags;	/* Transfer flags */
+	uint32_t	up_busunit;	/* Host controller unit number */
+	uint8_t		up_address;	/* USB device address */
+	uint8_t		up_endpoint;	/* USB endpoint */
+	uint8_t		up_type;	/* points SUBMIT / DONE */
+	uint8_t		up_xfertype;	/* Transfer type */
+	uint32_t	up_flags;	/* Transfer flags */
 #define	USBPF_FLAG_FORCE_SHORT_XFER	(1 << 0)
 #define	USBPF_FLAG_SHORT_XFER_OK	(1 << 1)
 #define	USBPF_FLAG_SHORT_FRAMES_OK	(1 << 2)
@@ -53,7 +53,7 @@ struct usbpf_pkthdr {
 #define	USBPF_FLAG_MANUAL_STATUS	(1 << 6)
 #define	USBPF_FLAG_NO_PIPE_OK		(1 << 7)
 #define	USBPF_FLAG_STALL_PIPE		(1 << 8)
-	u_int32_t	up_status;	/* Transfer status */
+	uint32_t	up_status;	/* Transfer status */
 #define	USBPF_STATUS_OPEN		(1 << 0)
 #define	USBPF_STATUS_TRANSFERRING	(1 << 1)
 #define	USBPF_STATUS_DID_DMA_DELAY	(1 << 2)
@@ -76,12 +76,12 @@ struct usbpf_pkthdr {
 #define	USBPF_STATUS_CURR_DMA_SET	(1 << 17)
 #define	USBPF_STATUS_CAN_CANCEL_IMMED	(1 << 18)
 #define	USBPF_STATUS_DOING_CALLBACK	(1 << 19)
-	u_int32_t	up_length;	/* Total data length (submit/actual) */
-	u_int32_t	up_frames;	/* USB frame number (submit/actual) */
-	u_int32_t	up_error;	/* usb_error_t */
-	u_int32_t	up_interval;	/* for interrupt and isoc */
+	uint32_t	up_length;	/* Total data length (submit/actual) */
+	uint32_t	up_frames;	/* USB frame number (submit/actual) */
+	uint32_t	up_error;	/* usb_error_t */
+	uint32_t	up_interval;	/* for interrupt and isoc */
 	/* sizeof(struct usbpf_pkthdr) == 128 bytes */
-	u_char		up_reserved[96];
+	uint8_t		up_reserved[96];
 };
 
 #define	USBPF_HDR_LEN		128
