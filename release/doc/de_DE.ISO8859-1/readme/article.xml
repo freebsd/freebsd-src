@@ -390,13 +390,13 @@
           geh&ouml;rt, steht immer am Anfang des Textes.</para>
       </note>
 
-      <para>Auf den Plattformen, auf denen &man.sysinstall.8; zur
+      <para>Auf den Plattformen, auf denen &man.bsdinstall.8; zur
 	Verf&uuml;gung steht (zur Zeit alpha, i386, ia64, pc98 und
 	sparc64) finden Sie diese Dokumente w&auml;hrend der
 	Installation normalerweise unter dem Men&uuml;punkt
 	Dokumentation.  Um nach der Installation des Systems dieses
 	Men&uuml;  zugreifen zu k&ouml;nnen, m&uuml;ssen Sie das
-	Programm &man.sysinstall.8;  erneut aufrufen.</para>
+	Programm &man.bsdinstall.8;  erneut aufrufen.</para>
 
       <note>
         <para>Sie sollten auf jeden Fall die Errata zur jeweiligen
