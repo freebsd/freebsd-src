@@ -1062,7 +1062,7 @@ fail:
 	return (error);
 }
 
-int
+static int
 run_reset(struct run_softc *sc)
 {
 	usb_device_request_t req;
@@ -1465,7 +1465,7 @@ run_get_rf(uint16_t rev)
 	return ("unknown");
 }
 
-int
+static int
 run_read_eeprom(struct run_softc *sc)
 {
 	int8_t delta_2ghz, delta_5ghz;
