@@ -1928,7 +1928,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			goto dropwithreset;
 		}
 		if ((thflags & (TH_ACK|TH_RST)) == (TH_ACK|TH_RST)) {
-			TCP_PROBE5(connect_refused, NULL, tp,
+			TCP_PROBE5(connect__refused, NULL, tp,
 			    mtod(m, const char *), tp, th);
 			tp = tcp_drop(tp, ECONNREFUSED);
 		}
@@ -1981,7 +1981,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				thflags &= ~TH_SYN;
 			} else {
 				tcp_state_change(tp, TCPS_ESTABLISHED);
-				TCP_PROBE5(connect_established, NULL, tp,
+				TCP_PROBE5(connect__established, NULL, tp,
 				    mtod(m, const char *), tp, th);
 				cc_conn_init(tp);
 				tcp_timer_activate(tp, TT_KEEP,
@@ -2387,7 +2387,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tp->t_flags &= ~TF_NEEDFIN;
 		} else {
 			tcp_state_change(tp, TCPS_ESTABLISHED);
-			TCP_PROBE5(accept_established, NULL, tp,
+			TCP_PROBE5(accept__established, NULL, tp,
 			    mtod(m, const char *), tp, th);
 			cc_conn_init(tp);
 			tcp_timer_activate(tp, TT_KEEP, TP_KEEPIDLE(tp));
