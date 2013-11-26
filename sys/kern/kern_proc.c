@@ -91,17 +91,17 @@ __FBSDID("$FreeBSD$");
 #endif
 
 SDT_PROVIDER_DEFINE(proc);
-SDT_PROBE_DEFINE4(proc, kernel, ctor, entry, entry, "struct proc *", "int",
+SDT_PROBE_DEFINE4(proc, kernel, ctor, entry, "struct proc *", "int",
     "void *", "int");
-SDT_PROBE_DEFINE4(proc, kernel, ctor, return, return, "struct proc *", "int",
+SDT_PROBE_DEFINE4(proc, kernel, ctor, return, "struct proc *", "int",
     "void *", "int");
-SDT_PROBE_DEFINE4(proc, kernel, dtor, entry, entry, "struct proc *", "int",
+SDT_PROBE_DEFINE4(proc, kernel, dtor, entry, "struct proc *", "int",
     "void *", "struct thread *");
-SDT_PROBE_DEFINE3(proc, kernel, dtor, return, return, "struct proc *", "int",
+SDT_PROBE_DEFINE3(proc, kernel, dtor, return, "struct proc *", "int",
     "void *");
-SDT_PROBE_DEFINE3(proc, kernel, init, entry, entry, "struct proc *", "int",
+SDT_PROBE_DEFINE3(proc, kernel, init, entry, "struct proc *", "int",
     "int");
-SDT_PROBE_DEFINE3(proc, kernel, init, return, return, "struct proc *", "int",
+SDT_PROBE_DEFINE3(proc, kernel, init, return, "struct proc *", "int",
     "int");
 
 MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");

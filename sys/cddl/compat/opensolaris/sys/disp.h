@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2013 Andriy Gapon
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,18 +26,15 @@
  * $FreeBSD$
  */
 
-#ifndef _OPENSOLARIS_SYS_TASKQ_H_
-#define	_OPENSOLARIS_SYS_TASKQ_H_
+#ifndef _OPENSOLARIS_SYS_DISP_H_
+#define	_OPENSOLARIS_SYS_DISP_H_
 
-#include_next <sys/taskq.h>
+#ifdef _KERNEL
 
-struct ostask {
-	struct task	 ost_task;
-	task_func_t	*ost_func;
-	void		*ost_arg;
-};
+#include <sys/proc.h>
 
-taskqid_t taskq_dispatch_safe(taskq_t *tq, task_func_t func, void *arg,
-    u_int flags, struct ostask *task);
+#define	kpreempt(x)	kern_yield(PRI_USER)
 
-#endif	/* _OPENSOLARIS_SYS_TASKQ_H_ */
+#endif	/* _KERNEL */
+
+#endif	/* _OPENSOLARIS_SYS_DISP_H_ */

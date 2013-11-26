@@ -186,7 +186,7 @@ static const ztest_shared_opts_t ztest_opts_defaults = {
 
 extern uint64_t metaslab_gang_bang;
 extern uint64_t metaslab_df_alloc_threshold;
-extern uint64_t zfs_deadman_synctime;
+extern uint64_t zfs_deadman_synctime_ms;
 
 static ztest_shared_opts_t *ztest_shared_opts;
 static ztest_shared_opts_t ztest_opts;
@@ -5328,10 +5328,10 @@ ztest_deadman_thread(void *arg)
 	hrtime_t delta, total = 0;
 
 	for (;;) {
-		delta = (zs->zs_thread_stop - zs->zs_thread_start) /
-		    NANOSEC + zfs_deadman_synctime;
+		delta = zs->zs_thread_stop - zs->zs_thread_start +
+		    MSEC2NSEC(zfs_deadman_synctime_ms);
 
-		(void) poll(NULL, 0, (int)(1000 * delta));
+		(void) poll(NULL, 0, (int)NSEC2MSEC(delta));
 
 		/*
 		 * If the pool is suspended then fail immediately. Otherwise,
@@ -5342,12 +5342,12 @@ ztest_deadman_thread(void *arg)
 		if (spa_suspended(spa)) {
 			fatal(0, "aborting test after %llu seconds because "
 			    "pool has transitioned to a suspended state.",
-			    zfs_deadman_synctime);
+			    zfs_deadman_synctime_ms / 1000);
 			return (NULL);
 		}
 		vdev_deadman(spa->spa_root_vdev);
 
-		total += zfs_deadman_synctime;
+		total += zfs_deadman_synctime_ms/1000;
 		(void) printf("ztest has been running for %lld seconds\n",
 		    total);
 	}
@@ -6080,7 +6080,7 @@ main(int argc, char **argv)
 	(void) setvbuf(stdout, NULL, _IOLBF, 0);
 
 	dprintf_setup(&argc, argv);
-	zfs_deadman_synctime = 300;
+	zfs_deadman_synctime_ms = 300000;
 
 	ztest_fd_rand = open("/dev/urandom", O_RDONLY);
 	ASSERT3S(ztest_fd_rand, >=, 0);

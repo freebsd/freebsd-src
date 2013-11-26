@@ -1600,6 +1600,60 @@ struct iwn_fw_tlv {
 #define IWN5000_FWSZ		IWN5000_FW_TEXT_MAXSZ
 
 /*
+ * Microcode flags TLV (18.)
+ */
+
+/**
+ * enum iwn_ucode_tlv_flag - ucode API flags
+ * @IWN_UCODE_TLV_FLAGS_PAN: This is PAN capable microcode; this previously
+ *      was a separate TLV but moved here to save space.
+ * @IWN_UCODE_TLV_FLAGS_NEWSCAN: new uCode scan behaviour on hidden SSID,
+ *      treats good CRC threshold as a boolean
+ * @IWN_UCODE_TLV_FLAGS_MFP: This uCode image supports MFP (802.11w).
+ * @IWN_UCODE_TLV_FLAGS_P2P: This uCode image supports P2P.
+ * @IWN_UCODE_TLV_FLAGS_DW_BC_TABLE: The SCD byte count table is in DWORDS
+ * @IWN_UCODE_TLV_FLAGS_UAPSD: This uCode image supports uAPSD
+ * @IWN_UCODE_TLV_FLAGS_SHORT_BL: 16 entries of black list instead of 64 in scan
+ *      offload profile config command.
+ * @IWN_UCODE_TLV_FLAGS_RX_ENERGY_API: supports rx signal strength api
+ * @IWN_UCODE_TLV_FLAGS_TIME_EVENT_API_V2: using the new time event API.
+ * @IWN_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS: D3 image supports up to six
+ *      (rather than two) IPv6 addresses
+ * @IWN_UCODE_TLV_FLAGS_BF_UPDATED: new beacon filtering API
+ * @IWN_UCODE_TLV_FLAGS_NO_BASIC_SSID: not sending a probe with the SSID element
+ *      from the probe request template.
+ * @IWN_UCODE_TLV_FLAGS_D3_CONTINUITY_API: modified D3 API to allow keeping
+ *      connection when going back to D0
+ * @IWN_UCODE_TLV_FLAGS_NEW_NSOFFL_SMALL: new NS offload (small version)
+ * @IWN_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE: new NS offload (large version)
+ * @IWN_UCODE_TLV_FLAGS_SCHED_SCAN: this uCode image supports scheduled scan.
+ * @IWN_UCODE_TLV_FLAGS_STA_KEY_CMD: new ADD_STA and ADD_STA_KEY command API
+ * @IWN_UCODE_TLV_FLAGS_DEVICE_PS_CMD: support device wide power command
+ *      containing CAM (Continuous Active Mode) indication.
+ */
+enum iwn_ucode_tlv_flag {
+	IWN_UCODE_TLV_FLAGS_PAN			= (1 << 0),
+	IWN_UCODE_TLV_FLAGS_NEWSCAN		= (1 << 1),
+	IWN_UCODE_TLV_FLAGS_MFP			= (1 << 2),
+	IWN_UCODE_TLV_FLAGS_P2P			= (1 << 3),
+	IWN_UCODE_TLV_FLAGS_DW_BC_TABLE		= (1 << 4),
+	IWN_UCODE_TLV_FLAGS_NEWBT_COEX		= (1 << 5),
+	IWN_UCODE_TLV_FLAGS_UAPSD		= (1 << 6),
+	IWN_UCODE_TLV_FLAGS_SHORT_BL		= (1 << 7),
+	IWN_UCODE_TLV_FLAGS_RX_ENERGY_API	= (1 << 8),
+	IWN_UCODE_TLV_FLAGS_TIME_EVENT_API_V2	= (1 << 9),
+	IWN_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS	= (1 << 10),
+	IWN_UCODE_TLV_FLAGS_BF_UPDATED		= (1 << 11),
+	IWN_UCODE_TLV_FLAGS_NO_BASIC_SSID	= (1 << 12),
+	IWN_UCODE_TLV_FLAGS_D3_CONTINUITY_API	= (1 << 14),
+	IWN_UCODE_TLV_FLAGS_NEW_NSOFFL_SMALL	= (1 << 15),
+	IWN_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE	= (1 << 16),
+	IWN_UCODE_TLV_FLAGS_SCHED_SCAN		= (1 << 17),
+	IWN_UCODE_TLV_FLAGS_STA_KEY_CMD		= (1 << 19),
+	IWN_UCODE_TLV_FLAGS_DEVICE_PS_CMD	= (1 << 20),
+};
+
+/*
  * Offsets into EEPROM.
  */
 #define IWN_EEPROM_MAC		0x015

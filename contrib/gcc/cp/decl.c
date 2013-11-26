@@ -4966,9 +4966,9 @@ make_rtl_for_nonlocal_decl (tree decl, tree init, const char* asmspec)
     {
       gcc_assert (TREE_STATIC (decl));
       /* An in-class declaration of a static data member should be
-	 external; it is only a declaration, and not a definition.  */
-      if (init == NULL_TREE)
-	gcc_assert (DECL_EXTERNAL (decl) || !TREE_PUBLIC (decl));
+	 external; it is only a declaration, and not a definition. */
+      if (init == NULL_TREE && DECL_INITIAL (decl) == NULL_TREE)
+	gcc_assert (DECL_EXTERNAL (decl));
     }
 
   /* We don't create any RTL for local variables.  */
