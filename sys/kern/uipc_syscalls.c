@@ -1981,7 +1981,7 @@ sendfile_readpage(vm_object_t obj, struct vnode *vp, int nd,
 	vm_page_t m;
 	vm_pindex_t pindex;
 	ssize_t resid;
-	int error, readahead, rv;
+	int error, rv;
 
 	pindex = OFF_TO_IDX(off);
 	VM_OBJECT_WLOCK(obj);
@@ -2015,20 +2015,43 @@ sendfile_readpage(vm_object_t obj, struct vnode *vp, int nd,
 	 */
 	error = 0;
 	if (vp != NULL) {
-		VM_OBJECT_WUNLOCK(obj);
-		readahead = sfreadahead * MAXBSIZE;
+		struct uio auio;
+		struct iovec aiov;
+		int readahead;
 
+		VM_OBJECT_WUNLOCK(obj);
+#ifdef MAC
 		/*
-		 * Use vn_rdwr() instead of the pager interface for
-		 * the vnode, to allow the read-ahead.
-		 *
-		 * XXXMAC: Because we don't have fp->f_cred here, we
+		 * XXX: Because we don't have fp->f_cred here, we
 		 * pass in NOCRED.  This is probably wrong, but is
 		 * consistent with our original implementation.
 		 */
-		error = vn_rdwr(UIO_READ, vp, NULL, readahead, trunc_page(off),
-		    UIO_NOCOPY, IO_NODELOCKED | IO_VMIO | ((readahead /
-		    bsize) << IO_SEQSHIFT), td->td_ucred, NOCRED, &resid, td);
+		error = mac_vnode_check_read(td->td_ucred, NOCRED, vp);
+		if (error)
+			goto free_page;
+#endif
+
+		readahead = sfreadahead * MAXBSIZE;
+
+		auio.uio_iov = &aiov;
+		auio.uio_iovcnt = 1;
+		aiov.iov_base = NULL;
+		aiov.iov_len = readahead;
+		auio.uio_resid = readahead;
+		auio.uio_offset = trunc_page(off);
+		auio.uio_segflg = UIO_NOCOPY;
+		auio.uio_rw = UIO_READ;
+		auio.uio_td = td;
+
+		/*
+		 * Use VOP_READ() instead of the pager interface for
+		 * the vnode, to allow the read-ahead.
+		 */
+		error = VOP_READ(vp, &auio, IO_NODELOCKED | IO_VMIO |
+		    ((readahead / bsize) << IO_SEQSHIFT), td->td_ucred);
+
+		resid = auio.uio_resid;
+		
 		SFSTAT_INC(sf_iocnt);
 		VM_OBJECT_WLOCK(obj);
 	} else {
