@@ -121,7 +121,7 @@ taskq_dispatch(taskq_t *tq, task_func_t func, void *arg, uint_t flags)
 		mflag = M_WAITOK;
 	else
 		mflag = M_NOWAIT;
-	/* 
+	/*
 	 * If TQ_FRONT is given, we want higher priority for this task, so it
 	 * can go at the front of the queue.
 	 */
@@ -140,8 +140,6 @@ taskq_dispatch(taskq_t *tq, task_func_t func, void *arg, uint_t flags)
 	return ((taskqid_t)(void *)task);
 }
 
-#define	TASKQ_MAGIC	0x74541c
-
 static void
 taskq_run_safe(void *arg, int pending __unused)
 {
@@ -156,7 +154,7 @@ taskq_dispatch_safe(taskq_t *tq, task_func_t func, void *arg, u_int flags,
 {
 	int prio;
 
-	/* 
+	/*
 	 * If TQ_FRONT is given, we want higher priority for this task, so it
 	 * can go at the front of the queue.
 	 */
