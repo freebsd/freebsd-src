@@ -165,6 +165,7 @@ struct ahci_cmd_hdr {
 struct ahci_prdt_entry {
 	uint64_t dba;
 	uint32_t reserved;
+#define	DBCMASK		0x3fffff
 	uint32_t dbc;
 };
 
@@ -461,10 +462,13 @@ ahci_handle_dma(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done,
 	 * Build up the iovec based on the prdt
 	 */
 	for (i = 0; i < iovcnt; i++) {
+		uint32_t dbcsz;
+
+		dbcsz = (prdt->dbc & DBCMASK) + 1;
 		breq->br_iov[i].iov_base = paddr_guest2host(ahci_ctx(sc),
-				prdt->dba, prdt->dbc + 1);
-		breq->br_iov[i].iov_len = prdt->dbc + 1;
-		aior->done += (prdt->dbc + 1);
+		    prdt->dba, dbcsz);
+		breq->br_iov[i].iov_len = dbcsz;
+		aior->done += dbcsz;
 		prdt++;
 	}
 	if (readop)
@@ -513,11 +517,14 @@ write_prdt(struct ahci_port *p, int slot, uint8_t *cfis,
 	from = buf;
 	prdt = (struct ahci_prdt_entry *)(cfis + 0x80);
 	for (i = 0; i < hdr->prdtl && len; i++) {
-		uint8_t *ptr = paddr_guest2host(ahci_ctx(p->pr_sc),
-				prdt->dba, prdt->dbc + 1);
-		memcpy(ptr, from, prdt->dbc + 1);
-		len -= (prdt->dbc + 1);
-		from += (prdt->dbc + 1);
+		uint8_t *ptr;
+		uint32_t dbcsz;
+
+		dbcsz = (prdt->dbc & DBCMASK) + 1;
+		ptr = paddr_guest2host(ahci_ctx(p->pr_sc), prdt->dba, dbcsz);
+		memcpy(ptr, from, dbcsz);
+		len -= dbcsz;
+		from += dbcsz;
 		prdt++;
 	}
 	hdr->prdbc = size - len;
@@ -908,10 +915,13 @@ atapi_read(struct ahci_port *p, int slot, uint8_t *cfis,
 	 * Build up the iovec based on the prdt
 	 */
 	for (i = 0; i < iovcnt; i++) {
+		uint32_t dbcsz;
+
+		dbcsz = (prdt->dbc & DBCMASK) + 1;
 		breq->br_iov[i].iov_base = paddr_guest2host(ahci_ctx(sc),
-		    prdt->dba, prdt->dbc + 1);
-		breq->br_iov[i].iov_len = prdt->dbc + 1;
-		aior->done += (prdt->dbc + 1);
+		    prdt->dba, dbcsz);
+		breq->br_iov[i].iov_len = dbcsz;
+		aior->done += dbcsz;
 		prdt++;
 	}
 	err = blockif_read(p->bctx, breq);
