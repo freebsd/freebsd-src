@@ -246,7 +246,7 @@ int zfs_flags = 0;
 SYSCTL_DECL(_debug);
 TUNABLE_INT("debug.zfs_flags", &zfs_flags);
 SYSCTL_INT(_debug, OID_AUTO, zfs_flags, CTLFLAG_RWTUN, &zfs_flags, 0,
-    "Try to recover from otherwise-fatal errors.");
+    "ZFS debug flags.");
 
 /*
  * zfs_recover can be set to nonzero to attempt to recover from
