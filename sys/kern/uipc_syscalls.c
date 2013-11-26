@@ -1908,6 +1908,7 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	struct file *fp;
 	cap_rights_t rights;
 	int error;
+	off_t sbytes;
 
 	/*
 	 * File offset must be positive.  If it goes beyond EOF
@@ -1947,9 +1948,11 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	}
 
 	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, uap->offset,
-	    uap->nbytes, uap->sbytes, uap->flags, compat ? SFK_COMPAT : 0, td);
+	    uap->nbytes, &sbytes, uap->flags, compat ? SFK_COMPAT : 0, td);
 	fdrop(fp, td);
-
+	if (uap->sbytes != NULL) {
+		copyout(&sbytes, uap->sbytes, sizeof(off_t));
+	}
 out:
 	free(hdr_uio, M_IOV);
 	free(trl_uio, M_IOV);
@@ -2546,7 +2549,7 @@ out:
 		td->td_retval[0] = 0;
 	}
 	if (sent != NULL) {
-		copyout(&sbytes, sent, sizeof(off_t));
+		(*sent) = sbytes;
 	}
 	if (obj != NULL)
 		vm_object_deallocate(obj);
