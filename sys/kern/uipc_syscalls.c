@@ -2206,7 +2206,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	struct vnode *vp;
 	struct vm_object *obj;
 	struct socket *so;
-	struct mbuf *m;
+	struct mbuf *m, *mh, *mhtail;
 	struct sf_buf *sf;
 	struct vm_page *pg;
 	struct shmfd *shmfd;
@@ -2222,7 +2222,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	m = NULL;
 	sfs = NULL;
 	fsbytes = sbytes = 0;
-	hdrlen = mnw = 0;
+	mnw = 0;
 	rem = nbytes;
 	obj_size = 0;
 	inflight_called = false;
@@ -2258,29 +2258,29 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 #endif
 
 	/* If headers are specified copy them into mbufs. */
-	if (hdr_uio != NULL) {
+	if (hdr_uio != NULL && hdr_uio->uio_resid > 0) {
 		hdr_uio->uio_td = td;
 		hdr_uio->uio_rw = UIO_WRITE;
-		if (hdr_uio->uio_resid > 0) {
-			/*
-			 * In FBSD < 5.0 the nbytes to send also included
-			 * the header.  If compat is specified subtract the
-			 * header size from nbytes.
-			 */
-			if (kflags & SFK_COMPAT) {
-				if (nbytes > hdr_uio->uio_resid)
-					nbytes -= hdr_uio->uio_resid;
-				else
-					nbytes = 0;
-			}
-			m = m_uiotombuf(hdr_uio, (mnw ? M_NOWAIT : M_WAITOK),
-			    0, 0, 0);
-			if (m == NULL) {
-				error = mnw ? EAGAIN : ENOBUFS;
-				goto out;
-			}
-			hdrlen = m_length(m, NULL);
+		/*
+		 * In FBSD < 5.0 the nbytes to send also included
+		 * the header.  If compat is specified subtract the
+		 * header size from nbytes.
+		 */
+		if (kflags & SFK_COMPAT) {
+			if (nbytes > hdr_uio->uio_resid)
+				nbytes -= hdr_uio->uio_resid;
+			else
+				nbytes = 0;
 		}
+		mh = m_uiotombuf(hdr_uio, (mnw ? M_NOWAIT : M_WAITOK), 0, 0, 0);
+		if (mh == NULL) {
+			error = mnw ? EAGAIN : ENOBUFS;
+			goto out;
+		}
+		hdrlen = m_length(mh, &mhtail);
+	} else {
+		mh = NULL;
+		hdrlen = 0;
 	}
 
 	/*
@@ -2485,8 +2485,6 @@ retry_space:
 			/* Append to mbuf chain. */
 			if (mtail != NULL)
 				mtail->m_next = m0;
-			else if (m != NULL)
-				m_last(m)->m_next = m0;
 			else
 				m = m0;
 			mtail = m0;
@@ -2505,11 +2503,20 @@ retry_space:
 		if (vp != NULL)
 			VOP_UNLOCK(vp, 0);
 
-		/* Add the buffer chain to the socket buffer. */
-		if (m != NULL) {
-			int mlen, err;
+		/* Prepend header, if any. */
+		if (hdrlen) {
+			mhtail->m_next = m;
+			m = mh;
+		}
 
-			mlen = m_length(m, NULL);
+		/* Add the buffer chain to the socket buffer. */
+		if (loopbytes + hdrlen > 0) {
+			int err;
+
+			KASSERT(m_length(m, NULL) == loopbytes + hdrlen,
+			    ("%s: mlen %u loop %d hdr %d", __func__,
+			    m_length(m, NULL), loopbytes, hdrlen));
+
 			SOCKBUF_LOCK(&so->so_snd);
 			if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 				error = EPIPE;
@@ -2532,12 +2539,10 @@ retry_space:
 				 * - fsbytes contains the total amount
 				 *   of bytes sent from the file.
 				 */
-				sbytes += mlen;
-				fsbytes += mlen;
-				if (hdrlen) {
-					fsbytes -= hdrlen;
+				sbytes += loopbytes + hdrlen;
+				fsbytes += loopbytes;
+				if (hdrlen)
 					hdrlen = 0;
-				}
 			} else if (error == 0)
 				error = err;
 			m = NULL;	/* pru_send always consumes */
