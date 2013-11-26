@@ -31,6 +31,12 @@
 	regs_invalidated_by_call, rather than just checking the
 	membership of REGNO (REG).
 
+2007-05-16  Eric Christopher  <echristo@apple.com> (r124763)
+
+       * config/rs6000/rs6000.c (rs6000_emit_prologue): Move altivec register
+        saving after stack push. Set sp_offset whenever we push.
+        (rs6000_emit_epilogue): Move altivec register restore before stack push.
+
 2007-05-03  Ian Lance Taylor  <iant@google.com> (r124381)
 
 	* config/rs6000/rs6000.c (rs6000_override_options): Don't set
