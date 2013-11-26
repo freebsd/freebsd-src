@@ -30,9 +30,6 @@
 #ifndef _VIOAPIC_H_
 #define	_VIOAPIC_H_
 
-struct vm;
-struct vioapic;
-
 #define	VIOAPIC_BASE	0xFEC00000
 #define	VIOAPIC_SIZE	4096
 

@@ -2540,7 +2540,11 @@ xhci_configure_device(struct usb_device *udev)
 
 	xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx2, temp);
 
-	temp = XHCI_SCTX_3_DEV_ADDR_SET(udev->address) |
+	/*
+	 * These fields should be initialized to zero, according to
+	 * XHCI section 6.2.2 - slot context:
+	 */
+	temp = XHCI_SCTX_3_DEV_ADDR_SET(0) |
 	    XHCI_SCTX_3_SLOT_STATE_SET(0);
 
 	xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx3, temp);

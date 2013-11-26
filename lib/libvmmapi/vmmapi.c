@@ -825,3 +825,16 @@ vm_get_gpa_pmap(struct vmctx *ctx, uint64_t gpa, uint64_t *pte, int *num)
 
 	return (error);
 }
+
+int
+vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities)
+{
+	int error;
+	struct vm_hpet_cap cap;
+
+	bzero(&cap, sizeof(struct vm_hpet_cap));
+	error = ioctl(ctx->fd, VM_GET_HPET_CAPABILITIES, &cap);
+	if (capabilities != NULL)
+		*capabilities = cap.capabilities;
+	return (error);
+}

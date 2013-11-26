@@ -47,14 +47,15 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 
 #include <machine/vmparam.h>
-
 #include <machine/vmm.h>
+#include <machine/vmm_dev.h>
+
 #include "vmm_lapic.h"
 #include "vmm_stat.h"
 #include "vmm_mem.h"
 #include "io/ppt.h"
 #include "io/vioapic.h"
-#include <machine/vmm_dev.h>
+#include "io/vhpet.h"
 
 struct vmmdev_softc {
 	struct vm	*vm;		/* vm instance cookie */
@@ -366,6 +367,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		pmap_get_mapping(vmspace_pmap(vm_get_vmspace(sc->vm)),
 				 gpapte->gpa, gpapte->pte, &gpapte->ptenum);
 		error = 0;
+		break;
+	case VM_GET_HPET_CAPABILITIES:
+		error = vhpet_getcap((struct vm_hpet_cap *)data);
 		break;
 	default:
 		error = ENOTTY;
