@@ -24,6 +24,7 @@
  * Copyright (c) 2012 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  */
 
 #ifndef _ZIO_H
@@ -474,10 +475,9 @@ struct zio {
 	zio_cksum_report_t *io_cksum_report;
 	uint64_t	io_ena;
 
-#ifdef _KERNEL
-	/* FreeBSD only. */
-	struct ostask	io_task;
-#endif
+	/* Taskq dispatching state */
+	taskq_ent_t	io_tqent;
+
 	avl_node_t	io_trim_node;
 	list_node_t	io_trim_link;
 };
