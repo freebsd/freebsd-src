@@ -29,6 +29,8 @@
 #include <sys/systm.h>
 #include <sys/sdt.h>
 
+SDT_PROVIDER_DEFINE(sdt);
+
 /*
  * Hook for the DTrace probe function. The SDT provider will set this to
  * dtrace_probe() when it loads.
