@@ -39,13 +39,14 @@ extern uint32_t	nfscl_accesscache_flush_done_id;
 extern uint32_t	nfscl_accesscache_get_hit_id;
 extern uint32_t	nfscl_accesscache_get_miss_id;
 extern uint32_t	nfscl_accesscache_load_done_id;
+
 /*
  * Definitions for NFS attribute cache probes.
  */
-extern uint32_t nfscl_attrcache_flush_done_id;
-extern uint32_t nfscl_attrcache_get_hit_id;
-extern uint32_t nfscl_attrcache_get_miss_id;
-extern uint32_t nfscl_attrcache_load_done_id;
+extern uint32_t	nfscl_attrcache_flush_done_id;
+extern uint32_t	nfscl_attrcache_get_hit_id;
+extern uint32_t	nfscl_attrcache_get_miss_id;
+extern uint32_t	nfscl_attrcache_load_done_id;
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
@@ -76,14 +77,6 @@ extern uint32_t nfscl_attrcache_load_done_id;
 		    nfscl_accesscache_load_done_id, (vp), (uid),	\
 		    (rmode), (error));					\
 } while (0)
-
-/*
- * Definitions for NFS attribute cache probes.
- */
-extern uint32_t	nfscl_attrcache_flush_done_id;
-extern uint32_t	nfscl_attrcache_get_hit_id;
-extern uint32_t	nfscl_attrcache_get_miss_id;
-extern uint32_t	nfscl_attrcache_load_done_id;
 
 #define	KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp)	do {			\
 	if (dtrace_nfscl_attrcache_flush_done_probe != NULL)		\
