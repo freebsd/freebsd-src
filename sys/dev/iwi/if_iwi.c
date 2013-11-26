@@ -945,10 +945,13 @@ iwi_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 	struct ieee80211vap *vap = ifp->if_softc;
 	struct ieee80211com *ic = vap->iv_ic;
 	struct iwi_softc *sc = ic->ic_ifp->if_softc;
+	struct ieee80211_node *ni;
 
 	/* read current transmission rate from adapter */
-	vap->iv_bss->ni_txrate =
+	ni = ieee80211_ref_node(vap->iv_bss);
+	ni->ni_txrate =
 	    iwi_cvtrate(CSR_READ_4(sc, IWI_CSR_CURRENT_TX_RATE));
+	ieee80211_free_node(ni);
 	ieee80211_media_status(ifp, imr);
 }
 
@@ -1367,13 +1370,14 @@ iwi_checkforqos(struct ieee80211vap *vap,
 		frm += frm[1] + 2;
 	}
 
-	ni = vap->iv_bss;
+	ni = ieee80211_ref_node(vap->iv_bss);
 	ni->ni_capinfo = capinfo;
 	ni->ni_associd = associd & 0x3fff;
 	if (wme != NULL)
 		ni->ni_flags |= IEEE80211_NODE_QOS;
 	else
 		ni->ni_flags &= ~IEEE80211_NODE_QOS;
+	ieee80211_free_node(ni);
 #undef SUBTYPE
 }
 
@@ -2812,7 +2816,7 @@ iwi_auth_and_assoc(struct iwi_softc *sc, struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = vap->iv_ifp;
-	struct ieee80211_node *ni = vap->iv_bss;
+	struct ieee80211_node *ni;
 	struct iwi_configuration config;
 	struct iwi_associate *assoc = &sc->assoc;
 	struct iwi_rateset rs;
@@ -2821,6 +2825,8 @@ iwi_auth_and_assoc(struct iwi_softc *sc, struct ieee80211vap *vap)
 	int error, mode;
 
 	IWI_LOCK_ASSERT(sc);
+
+	ni = ieee80211_ref_node(vap->iv_bss);
 
 	if (sc->flags & IWI_FLAG_ASSOCIATED) {
 		DPRINTF(("Already associated\n"));
@@ -2980,6 +2986,7 @@ iwi_auth_and_assoc(struct iwi_softc *sc, struct ieee80211vap *vap)
 	    le16toh(assoc->intval)));
 	error = iwi_cmd(sc, IWI_CMD_ASSOCIATE, assoc, sizeof *assoc);
 done:
+	ieee80211_free_node(ni);
 	if (error)
 		IWI_STATE_END(sc, IWI_FW_ASSOCIATING);
 
