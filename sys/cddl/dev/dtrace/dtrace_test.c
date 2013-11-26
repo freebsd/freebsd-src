@@ -39,7 +39,7 @@
 
 SDT_PROVIDER_DEFINE(test);
 
-SDT_PROBE_DEFINE7(test, , , sdttest, sdttest, "int", "int", "int", "int", "int",
+SDT_PROBE_DEFINE7(test, , , sdttest, "int", "int", "int", "int", "int",
     "int", "int");
 
 /*

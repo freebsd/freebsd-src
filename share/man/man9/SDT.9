@@ -35,28 +35,28 @@
 .Fn SDT_PROVIDER_DECLARE prov
 .Fn SDT_PROVIDER_DEFINE prov
 .Fn SDT_PROBE_DECLARE prov mod func name
-.Fn SDT_PROBE_DEFINE prov mod func name sname
-.Fn SDT_PROBE_DEFINE0 prov mod func name sname
-.Fn SDT_PROBE_DEFINE1 prov mod func name sname arg0
-.Fn SDT_PROBE_DEFINE2 prov mod func name sname arg0 arg1
-.Fn SDT_PROBE_DEFINE3 prov mod func name sname arg0 arg1 arg2
-.Fn SDT_PROBE_DEFINE4 prov mod func name sname arg0 arg1 arg2 arg3
-.Fn SDT_PROBE_DEFINE5 prov mod func name sname arg0 arg1 arg2 arg3 arg4
-.Fn SDT_PROBE_DEFINE6 prov mod func name sname arg0 arg1 arg2 arg3 arg4 arg5
-.Fn SDT_PROBE_DEFINE7 prov mod func name sname arg0 arg1 arg2 arg3 arg4 arg5   \
+.Fn SDT_PROBE_DEFINE prov mod func name
+.Fn SDT_PROBE_DEFINE0 prov mod func name
+.Fn SDT_PROBE_DEFINE1 prov mod func name arg0
+.Fn SDT_PROBE_DEFINE2 prov mod func name arg0 arg1
+.Fn SDT_PROBE_DEFINE3 prov mod func name arg0 arg1 arg2
+.Fn SDT_PROBE_DEFINE4 prov mod func name arg0 arg1 arg2 arg3
+.Fn SDT_PROBE_DEFINE5 prov mod func name arg0 arg1 arg2 arg3 arg4
+.Fn SDT_PROBE_DEFINE6 prov mod func name arg0 arg1 arg2 arg3 arg4 arg5
+.Fn SDT_PROBE_DEFINE7 prov mod func name arg0 arg1 arg2 arg3 arg4 arg5   \
     arg6
-.Fn SDT_PROBE_DEFINE0_XLATE prov mod func name sname
-.Fn SDT_PROBE_DEFINE1_XLATE prov mod func name sname arg0 xarg0
-.Fn SDT_PROBE_DEFINE2_XLATE prov mod func name sname arg0 xarg0 arg1 xarg1
-.Fn SDT_PROBE_DEFINE3_XLATE prov mod func name sname arg0 xarg0 arg1 xarg1 \
+.Fn SDT_PROBE_DEFINE0_XLATE prov mod func name
+.Fn SDT_PROBE_DEFINE1_XLATE prov mod func name arg0 xarg0
+.Fn SDT_PROBE_DEFINE2_XLATE prov mod func name arg0 xarg0 arg1 xarg1
+.Fn SDT_PROBE_DEFINE3_XLATE prov mod func name arg0 xarg0 arg1 xarg1 \
     arg2 xarg2
-.Fn SDT_PROBE_DEFINE4_XLATE prov mod func name sname arg0 xarg0 arg1 xarg1 \
+.Fn SDT_PROBE_DEFINE4_XLATE prov mod func name arg0 xarg0 arg1 xarg1 \
     arg2 xarg2 arg3 xarg3
-.Fn SDT_PROBE_DEFINE5_XLATE prov mod func name sname arg0 xarg0 arg1 xarg1 \
+.Fn SDT_PROBE_DEFINE5_XLATE prov mod func name arg0 xarg0 arg1 xarg1 \
     arg2 xarg2 arg3 xarg3 arg4 xarg4
-.Fn SDT_PROBE_DEFINE6_XLATE prov mod func name sname arg0 xarg0 arg1 xarg1 \
+.Fn SDT_PROBE_DEFINE6_XLATE prov mod func name arg0 xarg0 arg1 xarg1 \
     arg2 xarg2 arg3 xarg3 arg4 xarg4 arg5 xarg5
-.Fn SDT_PROBE_DEFINE7_XLATE prov mod func name sname arg0 xarg0 arg1 xarg1 \
+.Fn SDT_PROBE_DEFINE7_XLATE prov mod func name arg0 xarg0 arg1 xarg1 \
     arg2 xarg2 arg3 xarg3 arg4 xarg4 arg5 xarg5 arg6 xarg6
 .Fn SDT_PROBE0 prov mod func name
 .Fn SDT_PROBE1 prov mod func name arg0
@@ -136,20 +136,19 @@ See the
 section.
 Note in particular that probes must not be defined across multiple kernel
 modules.
-The
-.Fn SDT_PROBE_DEFINE*
-macros also take an extra
-.Ar sname
-parameter.
-This is used to allow the creation of probes with names containing the
+.Pp
+If
 .Ql -
-character.
-Specifically, the
+character (dash) is wanted in a probe name,
+then it should be represented as
+.Ql __
+(double underscore) in the probe
 .Ar name
-argument should contain the probe name with all dashes converted to underscores,
-and the
-.Ar sname
-argument should be the probe name as it will be referenced by D scripts.
+parameter passed to various
+.Fn SDT_*
+macros,
+because of technical reasons
+(a dash is not valid in C identifiers).
 .Pp
 The
 .Fn SDT_PROBE_DEFINE*
