@@ -65,6 +65,7 @@ extern "C" {
 #include <inttypes.h>
 #include <fsshare.h>
 #include <pthread.h>
+#include <sched.h>
 #include <sys/debug.h>
 #include <sys/note.h>
 #include <sys/types.h>
@@ -203,6 +204,8 @@ extern int aok;
  * Threads
  */
 #define	curthread	((void *)(uintptr_t)thr_self())
+
+#define	kpreempt(x)	sched_yield()
 
 typedef struct kthread kthread_t;
 
