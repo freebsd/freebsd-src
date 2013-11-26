@@ -1978,49 +1978,59 @@ freebsd4_sendfile(struct thread *td, struct freebsd4_sendfile_args *uap)
 #endif /* COMPAT_FREEBSD4 */
 
 static int
-sendfile_readpage(vm_object_t obj, struct vnode *vp, int nd,
-    off_t off, int xfsize, int bsize, struct thread *td, vm_page_t *res)
+sendfile_read(vm_object_t obj, struct mbuf *m0, struct vnode *vp, int flags,
+    off_t off0, int *readsize, int bsize, struct thread *td)
 {
-	vm_page_t m;
-	vm_pindex_t pindex;
-	ssize_t resid;
-	int error, rv;
+	struct mbuf *m, *mp = NULL;
+	off_t off;
+	int error, read = 0;
 
-	pindex = OFF_TO_IDX(off);
 	VM_OBJECT_WLOCK(obj);
-	m = vm_page_grab(obj, pindex, (vp != NULL ? VM_ALLOC_NOBUSY |
-	    VM_ALLOC_IGN_SBUSY : 0) | VM_ALLOC_WIRED | VM_ALLOC_NORMAL);
 
-	/*
-	 * Check if page is valid for what we need, otherwise initiate I/O.
-	 *
-	 * The non-zero nd argument prevents disk I/O, instead we
-	 * return the caller what he specified in nd.  In particular,
-	 * if we already turned some pages into mbufs, nd == EAGAIN
-	 * and the main function send them the pages before we come
-	 * here again and block.
-	 */
-	if (m->valid != 0 && vm_page_is_valid(m, off & PAGE_MASK, xfsize)) {
-		if (vp == NULL)
-			vm_page_xunbusy(m);
+	/* Skip valid pages, if any. */
+	for (m = m0, off = off0; m != NULL;
+	    off += m->m_len, mp = m, m = m->m_next) {
+		vm_page_t pg;
+
+		KASSERT(m->m_ext.ext_type == EXT_SFBUF, ("EXT_SFBUF expected"));
+		pg = sf_buf_page((struct sf_buf *)m->m_ext.ext_arg2);
+
+		if (!pg->valid ||
+		    !vm_page_is_valid(pg, off & PAGE_MASK, m->m_len))
+			break;
+
+		read += m->m_len;
+	}
+
+	if (m == NULL) {
 		VM_OBJECT_WUNLOCK(obj);
-		*res = m;
+		KASSERT(*readsize == read, ("%s: readsize %d read %d", __func__,
+		    *readsize, read));
+
 		return (0);
-	} else if (nd != 0) {
+	}
+
+	if (flags & SF_NODISKIO) {
+#if 0
+		/*
+		 * XXXGL: for for multiple pages.
+		 */
 		if (vp == NULL)
 			vm_page_xunbusy(m);
-		error = nd;
-		goto free_page;
+#endif
+		*readsize = read;
+		VM_OBJECT_WUNLOCK(obj);
+		error = EBUSY;
+		goto done;
 	}
 
 	/*
 	 * Get the page from backing store.
 	 */
-	error = 0;
 	if (vp != NULL) {
 		struct uio auio;
 		struct iovec aiov;
-		int readahead;
+		ssize_t toread;
 
 		VM_OBJECT_WUNLOCK(obj);
 #ifdef MAC
@@ -2031,16 +2041,17 @@ sendfile_readpage(vm_object_t obj, struct vnode *vp, int nd,
 		 */
 		error = mac_vnode_check_read(td->td_ucred, NOCRED, vp);
 		if (error)
-			goto free_page;
+			goto done;
 #endif
 
-		readahead = sfreadahead * MAXBSIZE;
+		toread = *readsize - read + sfreadahead * MAXBSIZE;
+		toread = roundup2(toread, MAXBSIZE);
 
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
 		aiov.iov_base = NULL;
-		aiov.iov_len = readahead;
-		auio.uio_resid = readahead;
+		aiov.iov_len = toread;
+		auio.uio_resid = toread;
 		auio.uio_offset = trunc_page(off);
 		auio.uio_segflg = UIO_NOCOPY;
 		auio.uio_rw = UIO_READ;
@@ -2051,13 +2062,16 @@ sendfile_readpage(vm_object_t obj, struct vnode *vp, int nd,
 		 * the vnode, to allow the read-ahead.
 		 */
 		error = VOP_READ(vp, &auio, IO_NODELOCKED | IO_VMIO |
-		    ((readahead / bsize) << IO_SEQSHIFT), td->td_ucred);
+		    ((toread / bsize) << IO_SEQSHIFT), td->td_ucred);
 
-		resid = auio.uio_resid;
-		
 		SFSTAT_INC(sf_iocnt);
-		VM_OBJECT_WLOCK(obj);
 	} else {
+		/*
+		 * XXXGL: need fix for for multiple pages.
+		 */
+		error = EDOOFUS;
+		VM_OBJECT_WUNLOCK(obj);
+#if 0
 		if (vm_pager_has_page(obj, pindex, NULL, NULL)) {
 			rv = vm_pager_get_pages(obj, &m, 1, 0);
 			SFSTAT_INC(sf_iocnt);
@@ -2078,27 +2092,40 @@ sendfile_readpage(vm_object_t obj, struct vnode *vp, int nd,
 		}
 		if (m != NULL)
 			vm_page_xunbusy(m);
+#endif
 	}
-	if (error == 0) {
-		*res = m;
-	} else if (m != NULL) {
-free_page:
-		vm_page_lock(m);
-		vm_page_unwire(m, 0);
 
+done:
+	if (error) {
 		/*
-		 * See if anyone else might know about this page.  If
-		 * not and it is not valid, then free it.
+		 * Free rest of the mbuf chain in case of either hard or
+		 * soft (EBUSY) error.
 		 */
-		if (m->wire_count == 0 && m->valid == 0 && !vm_page_busied(m))
-			vm_page_free(m);
-		vm_page_unlock(m);
+		if (mp) {  
+			KASSERT(mp->m_next == m,
+			    ("%s: bad mp %p", __func__, mp));
+			mp->m_next = NULL;
+		}
+		m_freem(m);
 	}
-	KASSERT(error != 0 || (m->wire_count > 0 &&
-	    vm_page_is_valid(m, off & PAGE_MASK, xfsize)),
-	    ("wrong page state m %p off %#jx xfsize %d", m, (uintmax_t)off,
-	    xfsize));
-	VM_OBJECT_WUNLOCK(obj);
+#ifdef INVARIANTS
+	  else {
+		VM_OBJECT_WLOCK(obj);
+		for (m = m0, off = off0; m != NULL;
+		    off += m->m_len, m = m->m_next) {
+			vm_page_t pg;
+
+			pg = sf_buf_page((struct sf_buf *)m->m_ext.ext_arg2);
+
+			KASSERT((pg->wire_count > 0 && vm_page_is_valid(pg,
+			    off & PAGE_MASK, m->m_len)),
+			    ("wrong page %p state off %#jx len %d",
+			    pg, (uintmax_t)off, m->m_len));
+		}
+		VM_OBJECT_WUNLOCK(obj);
+	}
+#endif
+
 	return (error);
 }
 
@@ -2212,8 +2239,8 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	struct shmfd *shmfd;
 	struct sendfile_sync *sfs;
 	struct vattr va;
-	off_t off, xfsize, fsbytes, sbytes, rem, obj_size;
-	int error, bsize, nd, hdrlen, mnw;
+	off_t off, fsbytes, sbytes, rem, obj_size;
+	int error, bsize, hdrlen, mnw;
 	bool inflight_called;
 
 	pg = NULL;
@@ -2304,6 +2331,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	 */
 	for (off = offset; ; ) {
 		struct mbuf *mtail;
+		off_t loopoff;
 		int loopbytes;
 		int space;
 		int done;
@@ -2399,8 +2427,11 @@ retry_space:
 		 * Loop and construct maximum sized mbuf chain to be bulk
 		 * dumped into socket buffer.
 		 */
+		loopoff = off;
 		while (space > loopbytes) {
 			vm_offset_t pgoff;
+			vm_pindex_t pindex;
+			off_t xfsize;
 			struct mbuf *m0;
 
 			/*
@@ -2408,7 +2439,7 @@ retry_space:
 			 * Not to exceed a page, the EOF,
 			 * or the passed in nbytes.
 			 */
-			pgoff = (vm_offset_t)(off & PAGE_MASK);
+			pgoff = (vm_offset_t)(loopoff & PAGE_MASK);
 			rem = obj_size - offset;
 			if (nbytes != 0)
 				rem = omin(rem, nbytes);
@@ -2420,23 +2451,13 @@ retry_space:
 				break;
 			}
 
-			/*
-			 * Attempt to look up the page.  Allocate
-			 * if not found or wait and loop if busy.
-			 */
-			if (m != NULL)
-				nd = EAGAIN; /* send what we already got */
-			else if ((flags & SF_NODISKIO) != 0)
-				nd = EBUSY;
-			else
-				nd = 0;
-			error = sendfile_readpage(obj, vp, nd, off,
-			    xfsize, bsize, td, &pg);
-			if (error != 0) {
-				if (error == EAGAIN)
-					error = 0;	/* not a real error */
-				break;
-			}
+			pindex = OFF_TO_IDX(loopoff);
+			VM_OBJECT_WLOCK(obj);
+			pg = vm_page_grab(obj, pindex,
+			    (vp != NULL ? VM_ALLOC_NOBUSY |
+			    VM_ALLOC_IGN_SBUSY : 0) |
+			    VM_ALLOC_WIRED | VM_ALLOC_NORMAL);
+			VM_OBJECT_WUNLOCK(obj);
 
 			/*
 			 * Get a sendfile buf.  When allocating the
@@ -2489,9 +2510,9 @@ retry_space:
 				m = m0;
 			mtail = m0;
 
-			/* Keep track of bits processed. */
+			/* Keep track of bytes processed. */
 			loopbytes += xfsize;
-			off += xfsize;
+			loopoff += xfsize;
 
 			if (sfs != NULL) {
 				mtx_lock(&sfs->mtx);
@@ -2499,6 +2520,13 @@ retry_space:
 				mtx_unlock(&sfs->mtx);
 			}
 		}
+
+		error = sendfile_read(obj, m, vp, flags, off, &loopbytes,
+		    bsize, td);
+		if (loopbytes)
+			off += loopbytes;
+		else
+			m = NULL;
 
 		if (vp != NULL)
 			VOP_UNLOCK(vp, 0);
