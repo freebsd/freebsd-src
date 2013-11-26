@@ -72,6 +72,8 @@ struct netdump_methods {
 
 int	 netdumpsys(void);
 
+extern int nd_enable;
+
 #endif
 
 #endif /* !_NETINET_NETDUMP_H_ */

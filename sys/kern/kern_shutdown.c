@@ -251,17 +251,11 @@ doadump(void)
 	/*
 	 * If netdump finished successfully just return, otherwise give
 	 * traditional disk dumping a chance.
-	 *
-	 * Avoid a POLA breakage by skipping netdump when calling it from
-	 * within KDB.  That may change in the future.
 	 */
-#ifdef KDB
-	if (kdb_why == KDB_WHY_UNSET)
-#endif
-		if (netdumpsys() == 0) {
-			dumping--;
-			return;
-		}
+	if (netdumpsys() == 0) {
+		dumping--;
+		return;
+	}
 #endif
 
 	/*
@@ -619,6 +613,17 @@ panic(const char *fmt, ...)
 	critical_exit();
 	kern_reboot(bootopt);
 }
+
+#ifdef DDB
+DB_COMMAND(netdump, ddb_force_netdump)
+{
+
+	if (nd_enable)
+		netdumpsys();
+	else
+		db_printf("netdump is not enabled\n");
+}
+#endif
 
 /*
  * Support for poweroff delay.

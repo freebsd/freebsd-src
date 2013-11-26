@@ -137,7 +137,7 @@ static struct in_addr nd_server = {INADDR_ANY};
 static struct in_addr nd_client = {INADDR_ANY};
 static struct in_addr nd_gw = {INADDR_ANY};
 struct ifnet *nd_ifp;
-static int nd_enable = 0;
+int nd_enable = 0;
 static uint16_t nd_server_port = NETDUMP_PORT;
 
 /* Tunables storages. */
@@ -1198,11 +1198,3 @@ netdump_config_defaults(void *dummy __unused)
 	}
 }
 SYSINIT(netdump, SI_SUB_KLD, SI_ORDER_ANY, netdump_config_defaults, NULL);
-
-#ifdef DDB
-DB_COMMAND(netdump, ddb_force_netdump)
-{
-
-	netdumpsys();
-}
-#endif
