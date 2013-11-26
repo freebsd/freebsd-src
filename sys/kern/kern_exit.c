@@ -93,7 +93,7 @@ dtrace_execexit_func_t	dtrace_fasttrap_exit;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE1(proc, kernel, , exit, exit, "int");
+SDT_PROBE_DEFINE1(proc, kernel, , exit, "int");
 
 /* Hook for NFS teardown procedure. */
 void (*nlminfo_release_p)(struct proc *p);

@@ -88,7 +88,7 @@ dtrace_fork_func_t	dtrace_fasttrap_fork;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE3(proc, kernel, , create, create, "struct proc *",
+SDT_PROBE_DEFINE3(proc, kernel, , create, "struct proc *",
     "struct proc *", "int");
 
 #ifndef _SYS_SYSPROTO_H_

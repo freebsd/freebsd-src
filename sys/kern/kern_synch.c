@@ -107,18 +107,18 @@ SYSCTL_INT(_kern, OID_AUTO, fscale, CTLFLAG_RD, 0, FSCALE, "");
 static void	loadav(void *arg);
 
 SDT_PROVIDER_DECLARE(sched);
-SDT_PROBE_DEFINE(sched, , , preempt, preempt);
+SDT_PROBE_DEFINE(sched, , , preempt);
 
 /*
  * These probes reference Solaris features that are not implemented in FreeBSD.
  * Create the probes anyway for compatibility with existing D scripts; they'll
  * just never fire.
  */
-SDT_PROBE_DEFINE(sched, , , cpucaps_sleep, cpucaps-sleep);
-SDT_PROBE_DEFINE(sched, , , cpucaps_wakeup, cpucaps-wakeup);
-SDT_PROBE_DEFINE(sched, , , schedctl_nopreempt, schedctl-nopreempt);
-SDT_PROBE_DEFINE(sched, , , schedctl_preempt, schedctl-preempt);
-SDT_PROBE_DEFINE(sched, , , schedctl_yield, schedctl-yield);
+SDT_PROBE_DEFINE(sched, , , cpucaps__sleep);
+SDT_PROBE_DEFINE(sched, , , cpucaps__wakeup);
+SDT_PROBE_DEFINE(sched, , , schedctl__nopreempt);
+SDT_PROBE_DEFINE(sched, , , schedctl__preempt);
+SDT_PROBE_DEFINE(sched, , , schedctl__yield);
 
 static void
 sleepinit(void *unused)

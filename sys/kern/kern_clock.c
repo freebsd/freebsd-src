@@ -92,7 +92,7 @@ SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL);
 static struct mtx time_lock;
 
 SDT_PROVIDER_DECLARE(sched);
-SDT_PROBE_DEFINE2(sched, , , tick, tick, "struct thread *", "struct proc *");
+SDT_PROBE_DEFINE2(sched, , , tick, "struct thread *", "struct proc *");
 
 static int
 sysctl_kern_cp_time(SYSCTL_HANDLER_ARGS)
