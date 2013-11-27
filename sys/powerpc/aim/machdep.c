@@ -157,8 +157,6 @@ SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
 
 uintptr_t	powerpc_init(vm_offset_t, vm_offset_t, vm_offset_t, void *);
 
-int             setfault(faultbuf);             /* defined in locore.S */
-
 long		Maxmem = 0;
 long		realmem = 0;
 
