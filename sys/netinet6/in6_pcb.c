@@ -161,7 +161,7 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 
 			ifa = in6ifa_ifwithaddr(&sin6->sin6_addr,
 			    sin6->sin6_scope_id);
-			if (ifa != NULL &&
+			if (ifa == NULL &&
 			    (inp->inp_flags & INP_BINDANY) == 0) {
 				return (EADDRNOTAVAIL);
 			}
