@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 #define	GB	(1024 * 1024 * 1024UL)
 #define	BSP	0
 
-static char *host_base = "/";
+static char *host_base;
 static struct termios term, oldterm;
 static int disk_fd = -1;
 static int consin_fd, consout_fd;
