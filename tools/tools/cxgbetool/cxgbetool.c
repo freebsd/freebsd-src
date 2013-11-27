@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <net/sff8472.h>
 
 #include "t4_ioctl.h"
 
@@ -94,6 +95,7 @@ usage(FILE *fp)
 	    "\ti2c <port> <devaddr> <addr> [<len>] read from i2c device\n"
 	    "\tloadfw <fw-image.bin>               install firmware\n"
 	    "\tmemdump <addr> <len>                dump a memory range\n"
+	    "\tmodinfo <port>                      optics/cable information\n"
 	    "\treg <address>[=<val>]               read/write register\n"
 	    "\treg64 <address>[=<val>]             read/write 64 bit register\n"
 	    "\tregdump [<module>] ...              dump registers\n"
@@ -1828,6 +1830,135 @@ set_tracer(uint8_t idx, int argc, const char *argv[])
 }
 
 static int
+modinfo(int argc, const char *argv[])
+{
+	long port;
+	char string[16], *p;
+	struct t4_i2c_data i2cd;
+	int rc, i;
+	uint16_t temp, vcc, tx_bias, tx_power, rx_power;
+
+	if (argc != 1) {
+		warnx("must supply a port");
+		return (EINVAL);
+	}
+
+	p = str_to_number(argv[0], &port, NULL);
+	if (*p || port > UCHAR_MAX) {
+		warnx("invalid port id \"%s\"", argv[0]);
+		return (EINVAL);
+	}
+
+	bzero(&i2cd, sizeof(i2cd));
+	i2cd.len = 1;
+	i2cd.port_id = port;
+	i2cd.dev_addr = SFF_8472_BASE;
+
+	i2cd.offset = SFF_8472_ID;
+	if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+		goto fail;
+
+	if (i2cd.data[0] > SFF_8472_ID_LAST)
+		printf("Unknown ID\n");
+	else
+		printf("ID: %s\n", sff_8472_id[i2cd.data[0]]);
+
+	bzero(&string, sizeof(string));
+	for (i = SFF_8472_VENDOR_START; i < SFF_8472_VENDOR_END; i++) {
+		i2cd.offset = i;
+		if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+			goto fail;
+		string[i - SFF_8472_VENDOR_START] = i2cd.data[0];
+	}
+	printf("Vendor %s\n", string);
+
+	bzero(&string, sizeof(string));
+	for (i = SFF_8472_SN_START; i < SFF_8472_SN_END; i++) {
+		i2cd.offset = i;
+		if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+			goto fail;
+		string[i - SFF_8472_SN_START] = i2cd.data[0];
+	}
+	printf("SN %s\n", string);
+
+	bzero(&string, sizeof(string));
+	for (i = SFF_8472_PN_START; i < SFF_8472_PN_END; i++) {
+		i2cd.offset = i;
+		if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+			goto fail;
+		string[i - SFF_8472_PN_START] = i2cd.data[0];
+	}
+	printf("PN %s\n", string);
+
+	bzero(&string, sizeof(string));
+	for (i = SFF_8472_REV_START; i < SFF_8472_REV_END; i++) {
+		i2cd.offset = i;
+		if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+			goto fail;
+		string[i - SFF_8472_REV_START] = i2cd.data[0];
+	}
+	printf("Rev %s\n", string);
+
+	i2cd.offset = SFF_8472_DIAG_TYPE;
+	if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+		goto fail;
+
+	if ((char )i2cd.data[0] & (SFF_8472_DIAG_IMPL |
+				   SFF_8472_DIAG_INTERNAL)) {
+
+		/* Switch to reading from the Diagnostic address. */
+		i2cd.dev_addr = SFF_8472_DIAG;
+		i2cd.len = 1;
+
+		i2cd.offset = SFF_8472_TEMP;
+		if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+			goto fail;
+		temp = i2cd.data[0] << 8;
+		printf("Temp: ");
+		if ((temp & SFF_8472_TEMP_SIGN) == SFF_8472_TEMP_SIGN)
+			printf("-");
+		else
+			printf("+");
+		printf("%dC\n", (temp & SFF_8472_TEMP_MSK) >>
+		    SFF_8472_TEMP_SHIFT);
+
+		i2cd.offset = SFF_8472_VCC;
+		if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+			goto fail;
+		vcc = i2cd.data[0] << 8;
+		printf("Vcc %fV\n", vcc / SFF_8472_VCC_FACTOR);
+
+		i2cd.offset = SFF_8472_TX_BIAS;
+		if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+			goto fail;
+		tx_bias = i2cd.data[0] << 8;
+		printf("TX Bias %fuA\n", tx_bias / SFF_8472_BIAS_FACTOR);
+
+		i2cd.offset = SFF_8472_TX_POWER;
+		if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+			goto fail;
+		tx_power = i2cd.data[0] << 8;
+		printf("TX Power %fmW\n", tx_power / SFF_8472_POWER_FACTOR);
+
+		i2cd.offset = SFF_8472_RX_POWER;
+		if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+			goto fail;
+		rx_power = i2cd.data[0] << 8;
+		printf("RX Power %fmW\n", rx_power / SFF_8472_POWER_FACTOR);
+
+	} else
+		printf("Diagnostics not supported.\n");
+
+	return(0);
+
+fail:
+	if (rc == EPERM)
+		warnx("No module/cable in port %ld", port);
+	return (rc);
+
+}
+
+static int
 tracer_cmd(int argc, const char *argv[])
 {
 	long long val;
@@ -1900,6 +2031,8 @@ run_cmd(int argc, const char *argv[])
 		rc = clearstats(argc, argv);
 	else if (!strcmp(cmd, "tracer"))
 		rc = tracer_cmd(argc, argv);
+	else if (!strcmp(cmd, "modinfo"))
+		rc = modinfo(argc, argv);
 	else {
 		rc = EINVAL;
 		warnx("invalid command \"%s\"", cmd);
