@@ -72,6 +72,7 @@
 #include <netinet/ip6.h>
 #ifdef INET6
 #include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
 #endif
 #include <netinet/in_pcb.h>
 #ifdef INET6
@@ -793,8 +794,9 @@ ipsec6_setspidx_ipaddr(struct mbuf *m, struct secpolicyindex *spidx)
 	sin6->sin6_len = sizeof(struct sockaddr_in6);
 	bcopy(&ip6->ip6_src, &sin6->sin6_addr, sizeof(ip6->ip6_src));
 	if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src)) {
-		sin6->sin6_addr.s6_addr16[1] = 0;
-		sin6->sin6_scope_id = ntohs(ip6->ip6_src.s6_addr16[1]);
+		if (m->m_pkthdr.rcvif != NULL) /* XXX */
+			sin6->sin6_scope_id = in6_getscopezone(
+			    m->m_pkthdr.rcvif, IPV6_ADDR_SCOPE_LINKLOCAL);
 	}
 	spidx->prefs = sizeof(struct in6_addr) << 3;
 
@@ -804,8 +806,9 @@ ipsec6_setspidx_ipaddr(struct mbuf *m, struct secpolicyindex *spidx)
 	sin6->sin6_len = sizeof(struct sockaddr_in6);
 	bcopy(&ip6->ip6_dst, &sin6->sin6_addr, sizeof(ip6->ip6_dst));
 	if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst)) {
-		sin6->sin6_addr.s6_addr16[1] = 0;
-		sin6->sin6_scope_id = ntohs(ip6->ip6_dst.s6_addr16[1]);
+		if (m->m_pkthdr.rcvif != NULL) /* XXX */
+			sin6->sin6_scope_id = in6_getscopezone(
+			    m->m_pkthdr.rcvif, IPV6_ADDR_SCOPE_LINKLOCAL);
 	}
 	spidx->prefd = sizeof(struct in6_addr) << 3;
 

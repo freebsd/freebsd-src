@@ -62,6 +62,7 @@
 #include <netinet/ip6.h>
 #ifdef INET6
 #include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
 #endif
 #include <netinet/in_pcb.h>
 #ifdef INET6
@@ -328,11 +329,12 @@ again:
 				sin6->sin6_family = AF_INET6;
 				sin6->sin6_port = IPSEC_PORT_ANY;
 				sin6->sin6_addr = ip6->ip6_src;
-				if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src)) {
+				if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src) &&
+				    m->m_pkthdr.rcvif != NULL) {
 					/* fix scope id for comparing SPD */
-					sin6->sin6_addr.s6_addr16[1] = 0;
-					sin6->sin6_scope_id =
-					    ntohs(ip6->ip6_src.s6_addr16[1]);
+					sin6->sin6_scope_id = in6_getscopezone(
+					    m->m_pkthdr.rcvif,
+					    IPV6_ADDR_SCOPE_LINKLOCAL);
 				}
 			}
 			if (saidx->dst.sin6.sin6_len == 0) {
@@ -341,11 +343,12 @@ again:
 				sin6->sin6_family = AF_INET6;
 				sin6->sin6_port = IPSEC_PORT_ANY;
 				sin6->sin6_addr = ip6->ip6_dst;
-				if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst)) {
+				if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst) &&
+				    m->m_pkthdr.rcvif != NULL) {
 					/* fix scope id for comparing SPD */
-					sin6->sin6_addr.s6_addr16[1] = 0;
-					sin6->sin6_scope_id =
-					    ntohs(ip6->ip6_dst.s6_addr16[1]);
+					sin6->sin6_scope_id = in6_getscopezone(
+					    m->m_pkthdr.rcvif,
+					    IPV6_ADDR_SCOPE_LINKLOCAL);
 				}
 			}
 		}
@@ -744,12 +747,6 @@ ipsec6_encapsulate(struct mbuf *m, struct secasvar *sav)
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 	bcopy((caddr_t)ip6, (caddr_t)oip6, sizeof(struct ip6_hdr));
-
-	/* Fake link-local scope-class addresses */
-	if (IN6_IS_SCOPE_LINKLOCAL(&oip6->ip6_src))
-		oip6->ip6_src.s6_addr16[1] = 0;
-	if (IN6_IS_SCOPE_LINKLOCAL(&oip6->ip6_dst))
-		oip6->ip6_dst.s6_addr16[1] = 0;
 
 	/* construct new IPv6 header. see RFC 2401 5.1.2.2 */
 	/* ECN consideration. */

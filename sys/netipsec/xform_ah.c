@@ -433,12 +433,6 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 		ip6.ip6_vfc &= ~IPV6_VERSION_MASK;
 		ip6.ip6_vfc |= IPV6_VERSION;
 
-		/* Scoped address handling. */
-		if (IN6_IS_SCOPE_LINKLOCAL(&ip6.ip6_src))
-			ip6.ip6_src.s6_addr16[1] = 0;
-		if (IN6_IS_SCOPE_LINKLOCAL(&ip6.ip6_dst))
-			ip6.ip6_dst.s6_addr16[1] = 0;
-
 		/* Done with IPv6 header. */
 		m_copyback(m, 0, sizeof(struct ip6_hdr), (caddr_t) &ip6);
 

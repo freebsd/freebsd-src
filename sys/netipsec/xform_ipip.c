@@ -536,11 +536,6 @@ ipip_output(
 
 		/* scoped address handling */
 		ip6 = mtod(m, struct ip6_hdr *);
-		if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src))
-			ip6->ip6_src.s6_addr16[1] = 0;
-		if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst))
-			ip6->ip6_dst.s6_addr16[1] = 0;
-
 		M_PREPEND(m, sizeof(struct ip6_hdr), M_NOWAIT);
 		if (m == 0) {
 			DPRINTF(("%s: M_PREPEND failed\n", __func__));
