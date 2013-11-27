@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <fcntl.h>
 #include <termios.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -67,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #define	FIFOSZ	16
 
 static bool uart_stdio;		/* stdio in use for i/o */
+static struct termios tio_stdio_orig;
 
 static struct {
 	int	baseaddr;
@@ -87,6 +89,12 @@ struct fifo {
 	int	size;		/* size of the fifo */
 };
 
+struct ttyfd {
+	bool	opened;
+	int	fd;		/* tty device file descriptor */
+	struct termios tio_orig, tio_new;    /* I/O Terminals */
+};
+
 struct uart_softc {
 	pthread_mutex_t mtx;	/* protects all softc elements */
 	uint8_t	data;		/* Data register (R/W) */
@@ -103,8 +111,7 @@ struct uart_softc {
 
 	struct fifo rxfifo;
 
-	bool	opened;
-	bool	stdio;
+	struct ttyfd tty;
 	bool	thre_int_pending;	/* THRE interrupt pending */
 
 	void	*arg;
@@ -114,38 +121,41 @@ struct uart_softc {
 
 static void uart_drain(int fd, enum ev_type ev, void *arg);
 
-static struct termios tio_orig, tio_new;	/* I/O Terminals */
-
 static void
 ttyclose(void)
 {
 
-	tcsetattr(STDIN_FILENO, TCSANOW, &tio_orig);
+	tcsetattr(STDIN_FILENO, TCSANOW, &tio_stdio_orig);
 }
 
 static void
-ttyopen(void)
+ttyopen(struct ttyfd *tf)
 {
 
-	tcgetattr(STDIN_FILENO, &tio_orig);
+	tcgetattr(tf->fd, &tf->tio_orig);
 
-	cfmakeraw(&tio_new);
-	tcsetattr(STDIN_FILENO, TCSANOW, &tio_new);
+	tf->tio_new = tf->tio_orig;
+	cfmakeraw(&tf->tio_new);
+	tf->tio_new.c_cflag |= CLOCAL;
+	tcsetattr(tf->fd, TCSANOW, &tf->tio_new);
 
-	atexit(ttyclose);
+	if (tf->fd == STDIN_FILENO) {
+		tio_stdio_orig = tf->tio_orig;
+		atexit(ttyclose);
+	}
 }
 
 static bool
-tty_char_available(void)
+tty_char_available(struct ttyfd *tf)
 {
 	fd_set rfds;
 	struct timeval tv;
 
 	FD_ZERO(&rfds);
-	FD_SET(STDIN_FILENO, &rfds);
+	FD_SET(tf->fd, &rfds);
 	tv.tv_sec = 0;
 	tv.tv_usec = 0;
-	if (select(STDIN_FILENO + 1, &rfds, NULL, NULL, &tv) > 0 ) {
+	if (select(tf->fd + 1, &rfds, NULL, NULL, &tv) > 0 ) {
 		return (true);
 	} else {
 		return (false);
@@ -153,12 +163,12 @@ tty_char_available(void)
 }
 
 static int
-ttyread(void)
+ttyread(struct ttyfd *tf)
 {
 	char rb;
 
-	if (tty_char_available()) {
-		read(STDIN_FILENO, &rb, 1);
+	if (tty_char_available(tf)) {
+		read(tf->fd, &rb, 1);
 		return (rb & 0xff);
 	} else {
 		return (-1);
@@ -166,10 +176,10 @@ ttyread(void)
 }
 
 static void
-ttywrite(unsigned char wb)
+ttywrite(struct ttyfd *tf, unsigned char wb)
 {
 
-	(void)write(STDIN_FILENO, &wb, 1);
+	(void)write(tf->fd, &wb, 1);
 }
 
 static void
@@ -226,10 +236,8 @@ uart_opentty(struct uart_softc *sc)
 {
 	struct mevent *mev;
 
-	assert(!sc->opened && sc->stdio);
-
-	ttyopen();
-	mev = mevent_add(STDIN_FILENO, EVF_READ, uart_drain, sc);
+	ttyopen(&sc->tty);
+	mev = mevent_add(sc->tty.fd, EVF_READ, uart_drain, sc);
 	assert(mev);
 }
 
@@ -294,7 +302,7 @@ uart_drain(int fd, enum ev_type ev, void *arg)
 
 	sc = arg;	
 
-	assert(fd == STDIN_FILENO);
+	assert(fd == sc->tty.fd);
 	assert(ev == EVF_READ);
 	
 	/*
@@ -305,10 +313,10 @@ uart_drain(int fd, enum ev_type ev, void *arg)
 	pthread_mutex_lock(&sc->mtx);
 
 	if ((sc->mcr & MCR_LOOPBACK) != 0) {
-		(void) ttyread();
+		(void) ttyread(&sc->tty);
 	} else {
 		while (fifo_available(&sc->rxfifo) &&
-		       ((ch = ttyread()) != -1)) {
+		       ((ch = ttyread(&sc->tty)) != -1)) {
 			fifo_putchar(&sc->rxfifo, ch);
 		}
 		uart_toggle_intr(sc);
@@ -322,12 +330,6 @@ uart_write(struct uart_softc *sc, int offset, uint8_t value)
 {
 	int fifosz;
 	uint8_t msr;
-
-	/* Open terminal */
-	if (!sc->opened && sc->stdio) {
-		uart_opentty(sc);
-		sc->opened = true;
-	}
 
 	pthread_mutex_lock(&sc->mtx);
 	
@@ -351,8 +353,8 @@ uart_write(struct uart_softc *sc, int offset, uint8_t value)
 		if (sc->mcr & MCR_LOOPBACK) {
 			if (fifo_putchar(&sc->rxfifo, value) != 0)
 				sc->lsr |= LSR_OE;
-		} else if (sc->stdio) {
-			ttywrite(value);
+		} else if (sc->tty.opened) {
+			ttywrite(&sc->tty, value);
 		} /* else drop on floor */
 		sc->thre_int_pending = true;
 		break;
@@ -458,12 +460,6 @@ uint8_t
 uart_read(struct uart_softc *sc, int offset)
 {
 	uint8_t iir, intr_reason, reg;
-
-	/* Open terminal */
-	if (!sc->opened && sc->stdio) {
-		uart_opentty(sc);
-		sc->opened = true;
-	}
 
 	pthread_mutex_lock(&sc->mtx);
 
@@ -581,19 +577,47 @@ uart_init(uart_intr_func_t intr_assert, uart_intr_func_t intr_deassert,
 	return (sc);
 }
 
+static int
+uart_tty_backend(struct uart_softc *sc, const char *opts)
+{
+	int fd;
+	int retval;
+
+	retval = -1;
+
+	fd = open(opts, O_RDWR);
+	if (fd > 0 && isatty(fd)) {
+		sc->tty.fd = fd;
+		sc->tty.opened = true;
+		retval = 0;
+	}
+	    
+	return (retval);
+}
+
 int
 uart_set_backend(struct uart_softc *sc, const char *opts)
 {
-	/*
-	 * XXX one stdio backend supported at this time.
-	 */
+	int retval;
+
+	retval = -1;
+
 	if (opts == NULL)
 		return (0);
 
-	if (strcmp("stdio", opts) == 0 && !uart_stdio) {
-		sc->stdio = true;
-		uart_stdio = true;
-		return (0);
-	} else
-		return (-1);
+	if (strcmp("stdio", opts) == 0) {
+		if (!uart_stdio) {
+			sc->tty.fd = STDIN_FILENO;
+			sc->tty.opened = true;
+			uart_stdio = true;
+			retval = 0;
+		}
+	} else if (uart_tty_backend(sc, opts) == 0) {
+		retval = 0;
+	}
+
+	if (retval == 0)
+		uart_opentty(sc);
+
+	return (retval);
 }

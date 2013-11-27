@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20131126:
+	WITH_LIB32 has been changed to WITHOUT_LIB32 by default.  You
+	can set WITH_LIB32=yes in make.conf or src.conf, or if you need
+	to do a quick 32 bit library build you can do a 'make build32'
+	and 'make install32' as a separate step AFTER doing a
+	buildworld/installworld.
+
 20131108:
 	The WITHOUT_ATF build knob has been removed and its functionality
 	has been subsumed into the more generic WITHOUT_TESTS.  If you were

@@ -216,7 +216,7 @@ SDT_PROBE_DEFINE2(vnet, functions, vnet_alloc, return,
     "int", "struct vnet *");
 SDT_PROBE_DEFINE2(vnet, functions, vnet_destroy, entry,
     "int", "struct vnet *");
-SDT_PROBE_DEFINE1(vnet, functions, vnet_destroy, entry,
+SDT_PROBE_DEFINE1(vnet, functions, vnet_destroy, return,
     "int");
 
 #ifdef DDB
