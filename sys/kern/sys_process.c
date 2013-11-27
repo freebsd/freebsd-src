@@ -184,6 +184,20 @@ proc_write_fpregs(struct thread *td, struct fpreg *fpregs)
 	PROC_ACTION(set_fpregs(td, fpregs));
 }
 
+#ifdef CPU_CHERI
+int
+proc_read_capregs(struct thread *td, void *capregs)
+{
+	PROC_ACTION(fill_capregs(td, capregs));
+}
+
+int
+proc_write_capregs(struct thread *td, void *capregs)
+{
+	PROC_ACTION(set_capregs(td, capregs));
+}
+#endif
+
 #ifdef COMPAT_FREEBSD32
 /* For 32 bit binaries, we need to expose the 32 bit regs layouts. */
 int

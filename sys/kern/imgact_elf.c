@@ -81,6 +81,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/md_var.h>
 
+#ifdef CPU_CHERI
+#include <machine/cheri.h>
+#endif
+
 #define ELF_NOTE_ROUNDSIZE	4
 #define OLD_EI_BRAND	8
 
@@ -1072,6 +1076,9 @@ static void __elfN(note_prpsinfo)(void *, struct sbuf *, size_t *);
 static void __elfN(note_prstatus)(void *, struct sbuf *, size_t *);
 static void __elfN(note_threadmd)(void *, struct sbuf *, size_t *);
 static void __elfN(note_thrmisc)(void *, struct sbuf *, size_t *);
+#ifdef CPU_CHERI
+static void __elfN(note_capregs)(void *, struct sbuf *, size_t *);
+#endif
 static void __elfN(note_procstat_auxv)(void *, struct sbuf *, size_t *);
 static void __elfN(note_procstat_proc)(void *, struct sbuf *, size_t *);
 static void __elfN(note_procstat_psstrings)(void *, struct sbuf *, size_t *);
@@ -1467,6 +1474,10 @@ __elfN(prepare_notes)(struct thread *td, struct note_info_list *list,
 		    __elfN(note_fpregset), thr);
 		size += register_note(list, NT_THRMISC,
 		    __elfN(note_thrmisc), thr);
+#ifdef CPU_CHERI
+		size += register_note(list, NT_CAPREGS,
+		    __elfN(note_capregs), thr);
+#endif
 		size += register_note(list, -1,
 		    __elfN(note_threadmd), thr);
 
@@ -1635,6 +1646,9 @@ typedef thrmisc_t elf_thrmisc_t;
 typedef struct kinfo_proc elf_kinfo_proc_t;
 typedef vm_offset_t elf_ps_strings_t;
 #endif
+#ifdef CPU_CHERI
+typedef struct cheri_frame elf_capregs_t;
+#endif
 
 static void
 __elfN(note_prpsinfo)(void *arg, struct sbuf *sb, size_t *sizep)
@@ -1726,6 +1740,25 @@ __elfN(note_thrmisc)(void *arg, struct sbuf *sb, size_t *sizep)
 	}
 	*sizep = sizeof(thrmisc);
 }
+
+#ifdef CPU_CHERI
+static void
+__elfN(note_capregs)(void *arg, struct sbuf *sb, size_t *sizep)
+{
+	struct thread *td;
+	elf_capregs_t *capregs;
+
+	td = (struct thread *)arg;
+	if (sb != NULL) {
+		KASSERT(*sizep == sizeof(*capregs), ("invalid size"));
+		capregs = malloc(sizeof(*capregs), M_TEMP, M_ZERO | M_WAITOK);
+		fill_capregs(td, capregs);
+		sbuf_bcat(sb, capregs, sizeof(*capregs));
+		free(capregs, M_TEMP);
+	}
+	*sizep = sizeof(*capregs);
+}
+#endif
 
 /*
  * Allow for MD specific notes, as well as any MD

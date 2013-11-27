@@ -440,6 +440,21 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 	return 0;
 }
 
+#ifdef CPU_CHERI
+int
+fill_capregs(struct thread *td, void *_capregs)
+{
+	memcpy(_capregs, &td->td_pcb->pcb_cheriframe, sizeof(struct cheri_frame));
+	return (0);
+}
+
+int
+set_capregs(struct thread *td, void *_capregs)
+{
+	return (ENOSYS);
+}
+#endif
+
 
 /*
  * Clear registers on exec

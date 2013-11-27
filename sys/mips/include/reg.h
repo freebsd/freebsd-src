@@ -92,6 +92,10 @@ int	set_fpregs(struct thread *, struct fpreg *);
 int	set_regs(struct thread *, struct reg *);
 int	fill_dbregs(struct thread *, struct dbreg *);
 int	set_dbregs(struct thread *, struct dbreg *);
+#ifdef CPU_CHERI
+int	fill_capregs(struct thread *, void *);
+int	set_capregs(struct thread *, void *);
+#endif
 #endif
 
 #ifdef COMPAT_FREEBSD32

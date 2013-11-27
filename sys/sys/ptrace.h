@@ -75,6 +75,9 @@
 #define	PT_VM_TIMESTAMP	40	/* Get VM version (timestamp) */
 #define	PT_VM_ENTRY	41	/* Get VM map (entry) */
 
+#define	PT_GETCAPREGS	50	/* get capability registers */
+#define	PT_SETCAPREGS	51	/* set capability registers */
+
 #define PT_FIRSTMACH    64	/* for machine-specific requests */
 #include <machine/ptrace.h>	/* machine-specific requests, if any */
 
@@ -164,6 +167,10 @@ int	proc_read_dbregs(struct thread *_td, struct dbreg *_dbreg);
 int	proc_write_dbregs(struct thread *_td, struct dbreg *_dbreg);
 int	proc_sstep(struct thread *_td);
 int	proc_rwmem(struct proc *_p, struct uio *_uio);
+#ifdef CPU_CHERI
+int	proc_read_capregs(struct thread *_td, void *capregs);
+int	proc_write_capregs(struct thread *_td, void *capregs);
+#endif
 #ifdef COMPAT_FREEBSD32
 struct reg32;
 struct fpreg32;
