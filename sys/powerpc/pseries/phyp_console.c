@@ -192,11 +192,9 @@ uart_phyp_cnprobe(struct consdev *cp)
 {
 	char buf[64];
 	ihandle_t stdout;
-	phandle_t input, opts, chosen;
+	phandle_t input, chosen;
 	static struct uart_phyp_softc sc;
 
-	if ((opts = OF_finddevice("/options")) == -1)
-		goto fail;
 	if ((chosen = OF_finddevice("/chosen")) == -1)
 		goto fail;
 
