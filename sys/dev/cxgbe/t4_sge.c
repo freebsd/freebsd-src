@@ -1392,7 +1392,7 @@ rxb_free(struct mbuf *m, void *arg1, void *arg2)
 {
 	uma_zone_t zone = arg1;
 	caddr_t cl = arg2;
-#ifdef INVARIANTS
+#ifdef notyet
 	u_int refcount;
 
 	refcount = *find_buf_refcnt(cl);
