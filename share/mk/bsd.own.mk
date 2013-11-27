@@ -303,6 +303,7 @@ __DEFAULT_YES_OPTIONS = \
     LDNS \
     LDNS_UTILS \
     LEGACY_CONSOLE \
+    LIB32 \
     LIBPTHREAD \
     LIBTHR \
     LOCALES \
@@ -368,7 +369,6 @@ __DEFAULT_NO_OPTIONS = \
     GPL_DTC \
     HESIOD \
     INSTALL_AS_USER \
-    LIB32 \
     LLDB \
     NAND \
     OFED \
