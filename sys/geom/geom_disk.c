@@ -460,26 +460,36 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 			bp->bio_length = DISK_IDENT_SIZE;
 			bp->bio_data = buf;
 			res = dp->d_getattr(bp);
-			sbuf_printf(sb, "%s<ident>%s</ident>\n", indent,
+			sbuf_printf(sb, "%s<ident>", indent);
+			g_conf_printf_escaped(sb, "%s",
 			    res == 0 ? buf: dp->d_ident);
+			sbuf_printf(sb, "</ident>\n");
 			bp->bio_attribute = "GEOM::lunid";
 			bp->bio_length = DISK_IDENT_SIZE;
 			bp->bio_data = buf;
-			if (dp->d_getattr(bp) == 0)
-				sbuf_printf(sb, "%s<lunid>%s</lunid>\n",
-				    indent, buf);
+			if (dp->d_getattr(bp) == 0) {
+				sbuf_printf(sb, "%s<lunid>", indent);
+				g_conf_printf_escaped(sb, "%s", buf);
+				sbuf_printf(sb, "</lunid>\n");
+			}
 			bp->bio_attribute = "GEOM::lunname";
 			bp->bio_length = DISK_IDENT_SIZE;
 			bp->bio_data = buf;
-			if (dp->d_getattr(bp) == 0)
-				sbuf_printf(sb, "%s<lunname>%s</lunname>\n",
-				    indent, buf);
+			if (dp->d_getattr(bp) == 0) {
+				sbuf_printf(sb, "%s<lunname>", indent);
+				g_conf_printf_escaped(sb, "%s", buf);
+				sbuf_printf(sb, "</lunname>\n");
+			}
 			g_destroy_bio(bp);
 			g_free(buf);
-		} else
-			sbuf_printf(sb, "%s<ident>%s</ident>\n", indent,
-			    dp->d_ident);
-		sbuf_printf(sb, "%s<descr>%s</descr>\n", indent, dp->d_descr);
+		} else {
+			sbuf_printf(sb, "%s<ident>", indent);
+			g_conf_printf_escaped(sb, "%s", dp->d_ident);
+			sbuf_printf(sb, "</ident>\n");
+		}
+		sbuf_printf(sb, "%s<descr>", indent);
+		g_conf_printf_escaped(sb, "%s", dp->d_descr);
+		sbuf_printf(sb, "</descr>\n");
 	}
 }
 
