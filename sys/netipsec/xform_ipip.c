@@ -426,7 +426,7 @@ ipip_output(
 	struct ip *ipo;
 #endif /* INET */
 #ifdef INET6
-	struct ip6_hdr *ip6, *ip6o;
+	struct ip6_hdr *ip6o;
 #endif /* INET6 */
 
 	sav = isr->sav;
@@ -534,8 +534,6 @@ ipip_output(
 			goto bad;
 		}
 
-		/* scoped address handling */
-		ip6 = mtod(m, struct ip6_hdr *);
 		M_PREPEND(m, sizeof(struct ip6_hdr), M_NOWAIT);
 		if (m == 0) {
 			DPRINTF(("%s: M_PREPEND failed\n", __func__));
