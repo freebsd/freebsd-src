@@ -259,7 +259,7 @@ basl_fwrite_madt(FILE *fp)
 		EFPRINTF(fp, "\n");
 	}
 
-	/* Always a single IOAPIC entry, with ID ncpu+1 */
+	/* Always a single IOAPIC entry, with ID 0 */
 	EFPRINTF(fp, "[0001]\t\tSubtable Type : 01\n");
 	EFPRINTF(fp, "[0001]\t\tLength : 0C\n");
 	/* iasl expects a hex value for the i/o apic id */

@@ -59,4 +59,7 @@ CTR3(KTR_VMM, "vm %s: " format, vm_name((vm)), (p1), (p2))
 
 #define	VM_CTR3(vm, format, p1, p2, p3)					\
 CTR4(KTR_VMM, "vm %s: " format, vm_name((vm)), (p1), (p2), (p3))
+
+#define	VM_CTR4(vm, format, p1, p2, p3, p4)				\
+CTR5(KTR_VMM, "vm %s: " format, vm_name((vm)), (p1), (p2), (p3), (p4))
 #endif

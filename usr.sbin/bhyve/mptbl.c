@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #define MPEP_FEATURES           (0xBFEBFBFF) /* XXX Intel i7 */
 
 /* Number of i/o intr entries */
-#define	MPEII_MAX_IRQ		16
+#define	MPEII_MAX_IRQ		24
 
 /* Define processor entry struct since <x86/mptable.h> gets it wrong */
 typedef struct BPROCENTRY {

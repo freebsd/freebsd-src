@@ -266,14 +266,14 @@ vhpet_timer_interrupt(struct vhpet *vhpet, int n)
 		if (apicid != 0xff) {
 			/* unicast */
 			vcpuid = vm_apicid2vcpuid(vhpet->vm, apicid);
-			lapic_set_intr(vhpet->vm, vcpuid, vector);
+			lapic_intr_edge(vhpet->vm, vcpuid, vector);
 		} else {
 			/* broadcast */
 			dmask = vm_active_cpus(vhpet->vm);
 			while ((vcpuid = CPU_FFS(&dmask)) != 0) {
 				vcpuid--;
 				CPU_CLR(vcpuid, &dmask);
-				lapic_set_intr(vhpet->vm, vcpuid, vector);
+				lapic_intr_edge(vhpet->vm, vcpuid, vector);
 			}
 		}
 		return;
@@ -725,8 +725,9 @@ done:
 struct vhpet *
 vhpet_init(struct vm *vm)
 {
-	int i;
+	int i, pincount;
 	struct vhpet *vhpet;
+	uint64_t allowed_irqs;
 	struct vhpet_callout_arg *arg;
 	struct bintime bt;
 
@@ -737,12 +738,20 @@ vhpet_init(struct vm *vm)
 	FREQ2BT(HPET_FREQ, &bt);
 	vhpet->freq_sbt = bttosbt(bt);
 
+	pincount = vioapic_pincount(vm);
+	if (pincount >= 24)
+		allowed_irqs = 0x00f00000;	/* irqs 20, 21, 22 and 23 */
+	else
+		allowed_irqs = 0;
+
 	/*
 	 * Initialize HPET timer hardware state.
 	 */
 	for (i = 0; i < VHPET_NUM_TIMERS; i++) {
-		vhpet->timer[i].cap_config = 0UL << 32 |
-		    HPET_TCAP_FSB_INT_DEL | HPET_TCAP_PER_INT;
+		vhpet->timer[i].cap_config = allowed_irqs << 32;
+		vhpet->timer[i].cap_config |= HPET_TCAP_PER_INT;
+		vhpet->timer[i].cap_config |= HPET_TCAP_FSB_INT_DEL;
+
 		vhpet->timer[i].compval = 0xffffffff;
 		callout_init(&vhpet->timer[i].callout, 1);
 
