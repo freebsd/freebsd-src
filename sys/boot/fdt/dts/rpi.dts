@@ -316,7 +316,7 @@
 
 		ok {
 			label = "ok";
-			gpios = <&gpio 16 1>;
+			gpios = <&gpio 16 2 0>;
 
 			/* Don't change this - it configures
 			 * how the led driver determines if
