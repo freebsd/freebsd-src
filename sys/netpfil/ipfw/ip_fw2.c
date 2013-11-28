@@ -2413,38 +2413,35 @@ do {								\
 			}
 
 			case O_NAT:
+				l = 0;          /* exit inner loop */
+				done = 1;       /* exit outer loop */
  				if (!IPFW_NAT_LOADED) {
 				    retval = IP_FW_DENY;
-				} else {
-				    struct cfg_nat *t;
-				    int nat_id;
+				    break;
+				}
 
-				    set_match(args, f_pos, chain);
-				    /* Check if this is 'global' nat rule */
-				    if (cmd->arg1 == 0) {
-					    retval = ipfw_nat_ptr(args, NULL, m);
-					    l = 0;
-					    done = 1;
-					    break;
-				    }
-				    t = ((ipfw_insn_nat *)cmd)->nat;
-				    if (t == NULL) {
+				struct cfg_nat *t;
+				int nat_id;
+
+				set_match(args, f_pos, chain);
+				/* Check if this is 'global' nat rule */
+				if (cmd->arg1 == 0) {
+					retval = ipfw_nat_ptr(args, NULL, m);
+					break;
+				}
+				t = ((ipfw_insn_nat *)cmd)->nat;
+				if (t == NULL) {
 					nat_id = IP_FW_ARG_TABLEARG(cmd->arg1);
 					t = (*lookup_nat_ptr)(&chain->nat, nat_id);
 
 					if (t == NULL) {
 					    retval = IP_FW_DENY;
-					    l = 0;	/* exit inner loop */
-					    done = 1;	/* exit outer loop */
 					    break;
 					}
 					if (cmd->arg1 != IP_FW_TABLEARG)
 					    ((ipfw_insn_nat *)cmd)->nat = t;
-				    }
-				    retval = ipfw_nat_ptr(args, t, m);
 				}
-				l = 0;          /* exit inner loop */
-				done = 1;       /* exit outer loop */
+				retval = ipfw_nat_ptr(args, t, m);
 				break;
 
 			case O_REASS: {
