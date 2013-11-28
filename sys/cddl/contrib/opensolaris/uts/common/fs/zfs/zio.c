@@ -843,7 +843,7 @@ zio_ioctl(zio_t *pio, spa_t *spa, vdev_t *vd, int cmd, uint64_t offset,
 
 	if (vd->vdev_children == 0) {
 		zio = zio_create(pio, spa, 0, NULL, NULL, size, done, private,
-		    ZIO_TYPE_IOCTL, ZIO_PRIORITY_NOW, flags, vd, 0, NULL,
+		    ZIO_TYPE_IOCTL, ZIO_PRIORITY_NOW, flags, vd, offset, NULL,
 		    ZIO_STAGE_OPEN, ZIO_IOCTL_PIPELINE);
 
 		zio->io_cmd = cmd;
