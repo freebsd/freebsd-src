@@ -131,6 +131,10 @@ static int bucketdisable = 1;
 /* Linked list of all kegs in the system */
 static LIST_HEAD(,uma_keg) uma_kegs = LIST_HEAD_INITIALIZER(uma_kegs);
 
+/* Linked list of all cache-only zones in the system */
+static LIST_HEAD(,uma_zone) uma_cachezones =
+    LIST_HEAD_INITIALIZER(uma_cachezones);
+
 /* This mutex protects the keg list */
 static struct mtx_padalign uma_mtx;
 
@@ -1590,6 +1594,9 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 		zone->uz_release = arg->release;
 		zone->uz_arg = arg->arg;
 		zone->uz_lockptr = &zone->uz_lock;
+		mtx_lock(&uma_mtx);
+		LIST_INSERT_HEAD(&uma_cachezones, zone, uz_link);
+		mtx_unlock(&uma_mtx);
 		goto out;
 	}
 
@@ -3466,8 +3473,8 @@ DB_SHOW_COMMAND(uma, db_show_uma)
 	uma_zone_t z;
 	int cachefree;
 
-	db_printf("%18s %8s %8s %8s %12s %8s\n", "Zone", "Size", "Used", "Free",
-	    "Requests", "Sleeps");
+	db_printf("%18s %8s %8s %8s %12s %8s %8s\n", "Zone", "Size", "Used",
+	    "Free", "Requests", "Sleeps", "Bucket");
 	LIST_FOREACH(kz, &uma_kegs, uk_link) {
 		LIST_FOREACH(z, &kz->uk_zones, uz_link) {
 			if (kz->uk_flags & UMA_ZFLAG_INTERNAL) {
@@ -3483,13 +3490,35 @@ DB_SHOW_COMMAND(uma, db_show_uma)
 				cachefree += kz->uk_free;
 			LIST_FOREACH(bucket, &z->uz_buckets, ub_link)
 				cachefree += bucket->ub_cnt;
-			db_printf("%18s %8ju %8jd %8d %12ju %8ju\n", z->uz_name,
-			    (uintmax_t)kz->uk_size,
+			db_printf("%18s %8ju %8jd %8d %12ju %8ju %8u\n",
+			    z->uz_name, (uintmax_t)kz->uk_size,
 			    (intmax_t)(allocs - frees), cachefree,
-			    (uintmax_t)allocs, sleeps);
+			    (uintmax_t)allocs, sleeps, z->uz_count);
 			if (db_pager_quit)
 				return;
 		}
+	}
+}
+
+DB_SHOW_COMMAND(umacache, db_show_umacache)
+{
+	uint64_t allocs, frees;
+	uma_bucket_t bucket;
+	uma_zone_t z;
+	int cachefree;
+
+	db_printf("%18s %8s %8s %8s %12s %8s\n", "Zone", "Size", "Used", "Free",
+	    "Requests", "Bucket");
+	LIST_FOREACH(z, &uma_cachezones, uz_link) {
+		uma_zone_sumstat(z, &cachefree, &allocs, &frees, NULL);
+		LIST_FOREACH(bucket, &z->uz_buckets, ub_link)
+			cachefree += bucket->ub_cnt;
+		db_printf("%18s %8ju %8jd %8d %12ju %8u\n",
+		    z->uz_name, (uintmax_t)z->uz_size,
+		    (intmax_t)(allocs - frees), cachefree,
+		    (uintmax_t)allocs, z->uz_count);
+		if (db_pager_quit)
+			return;
 	}
 }
 #endif
