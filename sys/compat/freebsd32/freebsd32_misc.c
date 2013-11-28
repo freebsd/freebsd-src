@@ -1928,7 +1928,7 @@ freebsd32_jail(struct thread *td, struct freebsd32_jail_args *uap)
 		CP(j32_v0, j, version);
 		PTRIN_CP(j32_v0, j, path);
 		PTRIN_CP(j32_v0, j, hostname);
-		j.ip4s = j32_v0.ip_number;
+		j.ip4s = htonl(j32_v0.ip_number);	/* jail_v0 is host order */
 		break;
 	}
 
