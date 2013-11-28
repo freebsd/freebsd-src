@@ -734,6 +734,77 @@ cust_pkg () (
 	rm -rf ${NANO_WORLDDIR}/Pkg
 )
 
+cust_pkgng () (
+
+	# If the package directory doesn't exist, we're done.
+	if [ ! -d ${NANO_PACKAGE_DIR} ]; then
+		echo "DONE 0 packages"
+		return 0
+	fi
+
+	# Find a pkg-* package
+	for x in `find -s ${NANO_PACKAGE_DIR} -iname 'pkg-*'`; do
+		_NANO_PKG_PACKAGE=`basename "$x"`
+	done
+	if [ -z "${_NANO_PKG_PACKAGE}" -o ! -f "${NANO_PACKAGE_DIR}/${_NANO_PKG_PACKAGE}" ]; then
+		echo "FAILED: need a pkg/ package for bootstrapping"
+		exit 2
+	fi
+
+	# Copy packages into chroot
+	mkdir -p ${NANO_WORLDDIR}/Pkg
+	(
+		cd ${NANO_PACKAGE_DIR}
+		find ${NANO_PACKAGE_LIST} -print |
+		cpio -Ldumpv ${NANO_WORLDDIR}/Pkg
+	)
+
+	#Bootstrap pkg
+	chroot ${NANO_WORLDDIR} sh -c \
+		"env ASSUME_ALWAYS_YES=YES SIGNATURE_TYPE=none /usr/sbin/pkg add /Pkg/${_NANO_PKG_PACKAGE}"
+	chroot ${NANO_WORLDDIR} sh -c "pkg -N >/dev/null 2>&1;"
+	if [ "$?" -ne "0" ]; then
+		echo "FAILED: pkg bootstrapping faied"
+		exit 2
+	fi
+	rm -f ${NANO_WORLDDIR}/Pkg/pkg-*
+
+	# Count & report how many we have to install
+	todo=`ls ${NANO_WORLDDIR}/Pkg | /usr/bin/wc -l`
+	todo=$(expr $todo + 1) # add one for pkg since it is installed already
+	echo "=== TODO: $todo"
+	ls ${NANO_WORLDDIR}/Pkg
+	echo "==="
+	while true
+	do
+		# Record how many we have now
+		have=`chroot ${NANO_WORLDDIR} sh -c \
+			'env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l'`
+
+		# Attempt to install more packages
+		# ...but no more than 200 at a time due to (XXX still the case?) pkg_add's internal
+		# limitations.
+		chroot ${NANO_WORLDDIR} sh -c \
+			'ls Pkg/*txz | xargs -n 200 env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg add ' || true
+
+		# See what that got us
+		now=`chroot ${NANO_WORLDDIR} sh -c \
+			'env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info | /usr/bin/wc -l'`
+		echo "=== NOW $now"
+		chroot ${NANO_WORLDDIR} sh -c \
+			'env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg info'
+		echo "==="
+		if [ $now -eq $todo ] ; then
+			echo "DONE $now packages"
+			break
+		elif [ $now -eq $have ] ; then
+			echo "FAILED: Nothing happened on this pass"
+			exit 2
+		fi
+	done
+	rm -rf ${NANO_WORLDDIR}/Pkg
+)
+
 #######################################################################
 # Convenience function:
 # 	Register all args as customize function.
