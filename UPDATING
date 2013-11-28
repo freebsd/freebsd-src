@@ -76,7 +76,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	BIND has been removed from the base system.  If all you need
 	is a local resolver, simply enable and start the local_unbound
 	service instead.  Otherwise, several versions of BIND are
-	available in the ports tree.
+	available in the ports tree.   The dns/bind99 port is one example.
+
+	With this change, nslookup(1) and dig(1) are no longer in the base
+	system.  Users should instead use host(1) which is still
+	in the base system.  Alternatively, nslookup and dig can
+	be obtained by installing the dns/bind-tools port.
 
 20130916:
 	With the addition of unbound(8), a new unbound user is now
