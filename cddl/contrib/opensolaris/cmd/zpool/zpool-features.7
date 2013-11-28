@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 20, 2013
+.Dd October 08, 2013
 .Dt ZPOOL-FEATURES 7
 .Os
 .Sh NAME
@@ -251,6 +251,24 @@ configuration.
 .\" .Xr dumpon 8
 .\" command to configure a
 .\" dump device on a pool comprised of multiple vdevs.
+.It Sy spacemap_histogram
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:spacemap_histogram"
+.It GUID Ta com.delphix:spacemap_histogram
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This features allows ZFS to maintain more information about how free space
+is organized within the pool. If this feature is 
+.Sy enabled ,
+ZFS will
+set this feature to
+.Sy active
+when a new space map object is created or
+an existing space map is upgraded to the new format.
+Once the feature is
+.Sy active ,
+it will remain in that state until the pool is destroyed.
 .El
 .Sh SEE ALSO
 .Xr zpool 8
