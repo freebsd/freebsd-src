@@ -84,6 +84,7 @@
 #ifdef INET6
 #include <netinet6/in6_var.h>
 #include <netinet6/in6_ifattach.h>
+#include <netinet6/scope6_var.h>
 #endif /* INET6 */
 #endif /* INET || INET6 */
 
@@ -1703,7 +1704,20 @@ ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp)
 	    if (sdl->sdl_index && sdl->sdl_index <= V_if_index)
 		return (ifaddr_byindex(sdl->sdl_index));
 	}
+#ifdef INET6
+	if (af == AF_INET6) {
+		struct sockaddr_in6 *sin6;
 
+		sin6 = (struct sockaddr_in6 *)addr;
+		if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) &&
+		    sin6->sin6_scope_id != 0) {
+			ifp = in6_getlinkifnet(sin6->sin6_scope_id);
+			if (ifp != NULL)
+				return ((struct ifaddr *)
+				    in6ifa_ifpforlinklocal(ifp, 0));
+		}
+	}
+#endif
 	/*
 	 * Scan though each interface, looking for ones that have addresses
 	 * in this address family.  Maintain a reference on ifa_maybe once
