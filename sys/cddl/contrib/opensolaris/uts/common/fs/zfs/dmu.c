@@ -45,6 +45,7 @@
 #include <sys/zio_compress.h>
 #include <sys/sa.h>
 #ifdef _KERNEL
+#include <sys/vm.h>
 #include <sys/zfs_znode.h>
 #endif
 
@@ -1172,6 +1173,64 @@ dmu_write_pages(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 			bcopy(va, (char *)db->db_data + bufoff, thiscpy);
 			zfs_unmap_page(pp, va);
 			pp = pp->p_next;
+			bufoff += PAGESIZE;
+		}
+
+		if (tocpy == db->db_size)
+			dmu_buf_fill_done(db, tx);
+
+		offset += tocpy;
+		size -= tocpy;
+	}
+	dmu_buf_rele_array(dbp, numbufs, FTAG);
+	return (err);
+}
+
+#else
+
+int
+dmu_write_pages(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
+    vm_page_t *ma, dmu_tx_t *tx)
+{
+	dmu_buf_t **dbp;
+	struct sf_buf *sf;
+	int numbufs, i;
+	int err;
+
+	if (size == 0)
+		return (0);
+
+	err = dmu_buf_hold_array(os, object, offset, size,
+	    FALSE, FTAG, &numbufs, &dbp);
+	if (err)
+		return (err);
+
+	for (i = 0; i < numbufs; i++) {
+		int tocpy, copied, thiscpy;
+		int bufoff;
+		dmu_buf_t *db = dbp[i];
+		caddr_t va;
+
+		ASSERT(size > 0);
+		ASSERT3U(db->db_size, >=, PAGESIZE);
+
+		bufoff = offset - db->db_offset;
+		tocpy = (int)MIN(db->db_size - bufoff, size);
+
+		ASSERT(i == 0 || i == numbufs-1 || tocpy == db->db_size);
+
+		if (tocpy == db->db_size)
+			dmu_buf_will_fill(db, tx);
+		else
+			dmu_buf_will_dirty(db, tx);
+
+		for (copied = 0; copied < tocpy; copied += PAGESIZE) {
+			ASSERT3U(ptoa((*ma)->pindex), ==, db->db_offset + bufoff);
+			thiscpy = MIN(PAGESIZE, tocpy - copied);
+			va = zfs_map_page(*ma, &sf);
+			bcopy(va, (char *)db->db_data + bufoff, thiscpy);
+			zfs_unmap_page(sf);
+			ma += 1;
 			bufoff += PAGESIZE;
 		}
 
