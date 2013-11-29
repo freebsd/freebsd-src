@@ -137,7 +137,7 @@ iconv_unregister_converter(struct iconv_converter_class *dcp)
 {
 	dcp->refs--;
 	if (dcp->refs > 1) {
-		ICDEBUG("converter have %d references left\n", dcp->refs);
+		ICDEBUG("converter has %d references left\n", dcp->refs);
 		return EBUSY;
 	}
 	TAILQ_REMOVE(&iconv_converters, dcp, cc_link);
