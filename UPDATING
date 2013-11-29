@@ -79,7 +79,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	available in the ports tree.   The dns/bind99 port is one example.
 
 	With this change, nslookup(1) and dig(1) are no longer in the base
-	system.  Users should instead use host(1) which is still
+	system.  Users should instead use host(1) and drill(1) which are
 	in the base system.  Alternatively, nslookup and dig can
 	be obtained by installing the dns/bind-tools port.
 
