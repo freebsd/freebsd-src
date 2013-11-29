@@ -87,13 +87,13 @@ show_include()
 		if (show_desc && print_more) {
 			getline
 			while ($0 ~ /^#/) {
-				print substr($0, 2)
+				print " " substr($0, 2)
 				getline
 			}
 			print_more = 0
 		} else while (print_more) {
 			getline
-			print substr($0, 2)
+			print " " substr($0, 2)
 			print_more = substr($0, length($0)) == "\\"
 		}
 	}' "$file" )
