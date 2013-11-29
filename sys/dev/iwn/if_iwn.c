@@ -4012,12 +4012,14 @@ iwn_tx_rate_to_linkq_offset(struct iwn_softc *sc, struct ieee80211_node *ni,
 		if (rate & IEEE80211_RATE_MCS)
 			cmp_rate |= IEEE80211_RATE_MCS;
 
+#if 0
 		DPRINTF(sc, IWN_DEBUG_XMIT, "%s: idx %d: nr=%d, rate=0x%02x, rateentry=0x%02x\n",
 		    __func__,
 		    i,
 		    nr,
 		    rate,
 		    cmp_rate);
+#endif
 
 		if (cmp_rate == rate)
 			return (i);
