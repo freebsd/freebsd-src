@@ -71,7 +71,6 @@
 #include <sys/kidmap.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/sf_buf.h>
 #include <sys/sched.h>
 #include <sys/acl.h>
 #include <vm/vm_param.h>
@@ -450,21 +449,6 @@ page_unhold(vm_page_t pp)
 	vm_page_lock(pp);
 	vm_page_unhold(pp);
 	vm_page_unlock(pp);
-}
-
-static caddr_t
-zfs_map_page(vm_page_t pp, struct sf_buf **sfp)
-{
-
-	*sfp = sf_buf_alloc(pp, 0);
-	return ((caddr_t)sf_buf_kva(*sfp));
-}
-
-static void
-zfs_unmap_page(struct sf_buf *sf)
-{
-
-	sf_buf_free(sf);
 }
 
 /*
