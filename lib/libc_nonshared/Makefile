@@ -12,16 +12,17 @@ CFLAGS+=${PICFLAG} -DPIC -fvisibility=hidden
 
 LIB=	c_nonshared
 
+LIBC_NONSHARED_SRCS=
+
 # So that an empty .a file doesn't cause errors.
 SRCS=	__stub.c
 
 .if ${MK_ICONV} == "yes"
-SRCS+=	__iconv.c __iconv_free_list.c __iconv_get_list.c \
-	iconv.c iconv_canonicalize.c iconv_close.c \
-	iconv_open.c iconv_open_into.c \
-	iconv_set_relocation_prefix.c iconvctl.c iconvlist.c
+.PATH: ${.CURDIR}/../libc/iconv
+.include "Makefile.iconv"
 CFLAGS+=-I${.CURDIR}/../libc/iconv
 .endif
 
-.include <bsd.lib.mk>
+SRCS+=	${LIBC_NONSHARED_SRCS}
 
+.include <bsd.lib.mk>
