@@ -1036,6 +1036,15 @@ rt_xaddrs(caddr_t cp, caddr_t cplim, struct rt_addrinfo *rtinfo)
 			return (0); /* should be EINVAL but for compat */
 		}
 		/* accept it */
+#ifdef INET6
+		/*
+		 * XXX: some software use embedded scope ids.
+		 * We remove id from address and initialize sin6_scope_id
+		 * instead.
+		 */
+		if (sa->sa_family == AF_INET6)
+			sa6_recoverscope((struct sockaddr_in6 *)sa);
+#endif
 		rtinfo->rti_info[i] = sa;
 		cp += SA_SIZE(sa);
 	}
