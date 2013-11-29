@@ -4,6 +4,47 @@
 	* config/arm/unwind-arm.h (__gnu_Unwind_Backtrace): New.
 	* config/arm/unwind-arm.c (__gnu_Unwind_Backtrace): New.
 
+2007-07-12  Geoffrey Keating  <geoffk@apple.com> (r126588)
+
+	* builtins.c (get_pointer_alignment): Honor DECL_ALIGN on a
+	FUNCTION_DECL.
+	* tree.c (build_decl_stat): Move code from here...
+	(make_node_stat): ... to here.  Don't uselessly clear DECL_USER_ALIGN.
+	(expr_align): Honor DECL_ALIGN on a FUNCTION_DECL.  Add comment
+	about using DECL_ALIGN of LABEL_DECL and CONST_DECL.
+	* tree.h (DECL_USER_ALIGN): Fix misplaced comment.
+	* varasm.c (assemble_start_function): Use DECL_ALIGN instead of
+	FUNCTION_BOUNDARY.
+
+2007-07-09  Geoffrey Keating  <geoffk@apple.com> (r126529)
+
+	PR 32617
+	* c-common.c (c_alignof_expr): Look at DECL_ALIGN of
+	FUNCTION_DECLs.
+	(handle_aligned_attribute): Allow use on FUNCTION_DECLs.
+	* varasm.c (assemble_start_function): Honor DECL_ALIGN
+	for FUNCTION_DECLs.  Don't use align_functions_log if
+	DECL_USER_ALIGN.
+	* print-tree.c (print_node): Print DECL_ALIGN and DECL_USER_ALIGN
+	even for FUNCTION_DECLs.
+	* c-decl.c (merge_decls): Propagate DECL_ALIGN even for
+	FUNCTION_DECLs.
+	* tree.h (DECL_ALIGN): Update for new location of 'align'.
+	(DECL_FUNCTION_CODE): Update for new location and name of
+	'function_code'.
+	(DECL_OFFSET_ALIGN): Update for new location of 'off_align'.
+	(struct tree_decl_common): Move 'align' and 'off_align' out
+	of union, ensure they're still on a 32-bit boundary.  Remove
+	other fields in union 'u1'.
+	(struct tree_function_decl): Add field 'function_code' replacing
+	'u1.f' in tree_decl_common.
+	* tree.c (build_decl_stat): Set initial value of DECL_ALIGN.
+	* doc/extend.texi (Function Attributes): Add 'aligned' attribute.
+	(Variable Attributes): Cross-reference 'aligned' attribute
+	to Function Attributes.
+	* flags.h (force_align_functions_log): Delete.
+	* toplev.c (force_align_functions_log): Delete.
+
 2007-06-05  Joerg Wunsch  <j.gnu@uriah.heep.sax.de> (r125346)
 
 	PR preprocessor/23479
@@ -60,7 +101,7 @@
 	alignment for amdfam10 architecture. Increasing the max loop
 	alignment to 24 bytes.
 
-2007-04-16  Lawrence Crowl  <crowl@google.com>
+2007-04-16  Lawrence Crowl  <crowl@google.com> (r123909)
 
 	* doc/invoke.texi (Debugging Options): Add documentation for the
 	-femit-struct-debug options -femit-struct-debug-baseonly,
@@ -139,7 +180,7 @@
 	* config/i386/i386.c (override_options): Likewise.
 	* doc/invoke.texi: Likewise.
 
-2007-03-12  Seongbae Park <seongbae.park@gmail.com>
+2007-03-12  Seongbae Park <seongbae.park@gmail.com> (r122851)
 
 	* c-decl.c (warn_variable_length_array): New function.
 	Refactored from grokdeclarator to handle warn_vla
@@ -340,7 +381,7 @@
 
 	* config.gcc: Support core2 processor.
 
-2007-01-05  Manuel Lopez-Ibanez  <manu@gcc.gnu.org>
+2007-01-05  Manuel Lopez-Ibanez  <manu@gcc.gnu.org> (r120505)
 
 	PR c/19978
 	* tree.h (TREE_OVERFLOW_P): New.
