@@ -7474,7 +7474,7 @@ iwn_read_firmware_tlv(struct iwn_softc *sc, struct iwn_fw_info *fw,
 				sc->sc_flags |= IWN_FLAG_ENH_SENS;
 			break;
 		case IWN_FW_TLV_PHY_CALIB:
-			tmp = htole32(*ptr);
+			tmp = le32toh(*ptr);
 			if (tmp < 253) {
 				sc->reset_noise_gain = tmp;
 				sc->noise_gain = tmp + 1;
