@@ -78,7 +78,7 @@ show_include()
 				       substr($0, 2 + RSTART, RLENGTH),
 				       substr($0, 2 + RSTART + RLENGTH)
 			else
-				print substr($0, 2)
+				print "+" substr($0, 2)
 			if (show_desc)
 				print_more = 1
 			else
