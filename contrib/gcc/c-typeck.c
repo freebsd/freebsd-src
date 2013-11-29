@@ -2616,7 +2616,10 @@ parser_build_unary_op (enum tree_code code, struct c_expr arg)
 
   result.original_code = ERROR_MARK;
   result.value = build_unary_op (code, arg.value, 0);
-  overflow_warning (result.value);
+  
+  if (TREE_OVERFLOW_P (result.value) && !TREE_OVERFLOW_P (arg.value))
+    overflow_warning (result.value);
+
   return result;
 }
 
@@ -2660,7 +2663,10 @@ parser_build_binary_op (enum tree_code code, struct c_expr arg1,
     warning (OPT_Waddress, 
              "comparison with string literal results in unspecified behaviour");
 
-  overflow_warning (result.value);
+  if (TREE_OVERFLOW_P (result.value) 
+      && !TREE_OVERFLOW_P (arg1.value) 
+      && !TREE_OVERFLOW_P (arg2.value))
+    overflow_warning (result.value);
 
   return result;
 }
@@ -3847,10 +3853,7 @@ convert_for_assignment (tree type, tree rhs, enum impl_conv errtype,
     }
 
   if (TYPE_MAIN_VARIANT (type) == TYPE_MAIN_VARIANT (rhstype))
-    {
-      overflow_warning (rhs);
-      return rhs;
-    }
+    return rhs;
 
   if (coder == VOID_TYPE)
     {
