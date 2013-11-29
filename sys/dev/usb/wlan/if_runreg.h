@@ -844,11 +844,6 @@ struct rt2860_rxwi {
 	 sizeof (struct ieee80211_htframe) +	\
 	 sizeof (uint16_t))
 
-#define RT2860_RF1	0
-#define RT2860_RF2	2
-#define RT2860_RF3	1
-#define RT2860_RF4	3
-
 #define RT2860_RF_2820	0x0001	/* 2T3R */
 #define RT2860_RF_2850	0x0002	/* dual-band 2T3R */
 #define RT2860_RF_2720	0x0003	/* 1T2R */

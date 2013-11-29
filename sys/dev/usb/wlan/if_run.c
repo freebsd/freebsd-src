@@ -344,7 +344,7 @@ static int	run_write_region_1(struct run_softc *, uint16_t,
 static int	run_set_region_4(struct run_softc *, uint16_t, uint32_t, int);
 static int	run_efuse_read_2(struct run_softc *, uint16_t, uint16_t *);
 static int	run_eeprom_read_2(struct run_softc *, uint16_t, uint16_t *);
-static int	run_rt2870_rf_write(struct run_softc *, uint8_t, uint32_t);
+static int	run_rt2870_rf_write(struct run_softc *, uint32_t);
 static int	run_rt3070_rf_read(struct run_softc *, uint8_t, uint8_t *);
 static int	run_rt3070_rf_write(struct run_softc *, uint8_t, uint8_t);
 static int	run_bbp_read(struct run_softc *, uint8_t, uint8_t *);
@@ -1279,7 +1279,7 @@ run_srom_read(struct run_softc *sc, uint16_t addr, uint16_t *val)
 }
 
 static int
-run_rt2870_rf_write(struct run_softc *sc, uint8_t reg, uint32_t val)
+run_rt2870_rf_write(struct run_softc *sc, uint32_t val)
 {
 	uint32_t tmp;
 	int error, ntries;
@@ -3684,24 +3684,24 @@ run_rt2870_set_chan(struct run_softc *sc, u_int chan)
 		r4 |= (txpow2 << 6);
 	}
 
-	run_rt2870_rf_write(sc, RT2860_RF1, rfprog[i].r1);
-	run_rt2870_rf_write(sc, RT2860_RF2, r2);
-	run_rt2870_rf_write(sc, RT2860_RF3, r3 & ~(1 << 2));
-	run_rt2870_rf_write(sc, RT2860_RF4, r4);
+	run_rt2870_rf_write(sc, rfprog[i].r1);
+	run_rt2870_rf_write(sc, r2);
+	run_rt2870_rf_write(sc, r3 & ~(1 << 2));
+	run_rt2870_rf_write(sc, r4);
 
 	run_delay(sc, 10);
 
-	run_rt2870_rf_write(sc, RT2860_RF1, rfprog[i].r1);
-	run_rt2870_rf_write(sc, RT2860_RF2, r2);
-	run_rt2870_rf_write(sc, RT2860_RF3, r3 | (1 << 2));
-	run_rt2870_rf_write(sc, RT2860_RF4, r4);
+	run_rt2870_rf_write(sc, rfprog[i].r1);
+	run_rt2870_rf_write(sc, r2);
+	run_rt2870_rf_write(sc, r3 | (1 << 2));
+	run_rt2870_rf_write(sc, r4);
 
 	run_delay(sc, 10);
 
-	run_rt2870_rf_write(sc, RT2860_RF1, rfprog[i].r1);
-	run_rt2870_rf_write(sc, RT2860_RF2, r2);
-	run_rt2870_rf_write(sc, RT2860_RF3, r3 & ~(1 << 2));
-	run_rt2870_rf_write(sc, RT2860_RF4, r4);
+	run_rt2870_rf_write(sc, rfprog[i].r1);
+	run_rt2870_rf_write(sc, r2);
+	run_rt2870_rf_write(sc, r3 & ~(1 << 2));
+	run_rt2870_rf_write(sc, r4);
 }
 
 static void
