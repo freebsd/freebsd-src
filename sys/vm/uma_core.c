@@ -1689,8 +1689,9 @@ keg_dtor(void *arg, int size, void *udata)
 	keg = (uma_keg_t)arg;
 	KEG_LOCK(keg);
 	if (keg->uk_free != 0) {
-		printf("Freed UMA keg was not empty (%d items). "
+		printf("Freed UMA keg (%s) was not empty (%d items). "
 		    " Lost %d pages of memory.\n",
+		    keg->uk_name ? keg->uk_name : "",
 		    keg->uk_free, keg->uk_pages);
 	}
 	KEG_UNLOCK(keg);
