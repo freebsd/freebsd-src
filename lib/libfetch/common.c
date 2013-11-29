@@ -829,6 +829,16 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 		return (-1);
 	}
 	SSL_set_fd(conn->ssl, conn->sd);
+
+#if OPENSSL_VERSION_NUMBER >= 0x0090806fL && !defined(OPENSSL_NO_TLSEXT)
+	if (!SSL_set_tlsext_host_name(conn->ssl,
+	    __DECONST(struct url *, URL)->host)) {
+		fprintf(stderr,
+		    "TLS server name indication extension failed for host %s\n",
+		    URL->host);
+		return (-1);
+	}
+#endif
 	while ((ret = SSL_connect(conn->ssl)) == -1) {
 		ssl_err = SSL_get_error(conn->ssl, ret);
 		if (ssl_err != SSL_ERROR_WANT_READ &&
