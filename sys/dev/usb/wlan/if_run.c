@@ -1293,10 +1293,7 @@ run_rt2870_rf_write(struct run_softc *sc, uint8_t reg, uint32_t val)
 	if (ntries == 10)
 		return (ETIMEDOUT);
 
-	/* RF registers are 24-bit on the RT2860 */
-	tmp = RT2860_RF_REG_CTRL | 24 << RT2860_RF_REG_WIDTH_SHIFT |
-	    (val & 0x3fffff) << 2 | (reg & 3);
-	return (run_write(sc, RT2860_RF_CSR_CFG0, tmp));
+	return (run_write(sc, RT2860_RF_CSR_CFG0, val));
 }
 
 static int
@@ -3649,45 +3646,61 @@ run_rt2870_set_chan(struct run_softc *sc, u_int chan)
 
 	r2 = rfprog[i].r2;
 	if (sc->ntxchains == 1)
-		r2 |= 1 << 12;		/* 1T: disable Tx chain 2 */
+		r2 |= 1 << 14;		/* 1T: disable Tx chain 2 */
 	if (sc->nrxchains == 1)
-		r2 |= 1 << 15 | 1 << 4;	/* 1R: disable Rx chains 2 & 3 */
+		r2 |= 1 << 17 | 1 << 6;	/* 1R: disable Rx chains 2 & 3 */
 	else if (sc->nrxchains == 2)
-		r2 |= 1 << 4;		/* 2R: disable Rx chain 3 */
+		r2 |= 1 << 6;		/* 2R: disable Rx chain 3 */
 
 	/* use Tx power values from EEPROM */
 	txpow1 = sc->txpow1[i];
 	txpow2 = sc->txpow2[i];
+
+	/* Initialize RF R3 and R4. */
+	r3 = rfprog[i].r3 & 0xffffc1ff;
+	r4 = (rfprog[i].r4 & ~(0x001f87c0)) | (sc->freq << 15);
 	if (chan > 14) {
-		if (txpow1 >= 0)
-			txpow1 = txpow1 << 1 | 1;
-		else
-			txpow1 = (7 + txpow1) << 1;
-		if (txpow2 >= 0)
-			txpow2 = txpow2 << 1 | 1;
-		else
-			txpow2 = (7 + txpow2) << 1;
+		if (txpow1 >= 0) {
+			txpow1 = (txpow1 > 0xf) ? (0xf) : (txpow1);
+			r3 |= (txpow1 << 10) | (1 << 9);
+		} else {
+			txpow1 += 7;
+
+			/* txpow1 is not possible larger than 15. */
+			r3 |= (txpow1 << 10);
+		}
+		if (txpow2 >= 0) {
+			txpow2 = (txpow2 > 0xf) ? (0xf) : (txpow2);
+			r4 |= (txpow1 << 7) | (1 << 6);
+		} else {
+			txpow2 += 7;
+			r4 |= (txpow2 << 7);
+		}
+	} else {
+		/* Set Tx0 power. */
+		r3 |= (txpow1 << 9);
+
+		/* Set frequency offset and Tx1 power. */
+		r4 |= (txpow2 << 6);
 	}
-	r3 = rfprog[i].r3 | txpow1 << 7;
-	r4 = rfprog[i].r4 | sc->freq << 13 | txpow2 << 4;
 
 	run_rt2870_rf_write(sc, RT2860_RF1, rfprog[i].r1);
 	run_rt2870_rf_write(sc, RT2860_RF2, r2);
-	run_rt2870_rf_write(sc, RT2860_RF3, r3);
+	run_rt2870_rf_write(sc, RT2860_RF3, r3 & ~(1 << 2));
 	run_rt2870_rf_write(sc, RT2860_RF4, r4);
 
 	run_delay(sc, 10);
 
 	run_rt2870_rf_write(sc, RT2860_RF1, rfprog[i].r1);
 	run_rt2870_rf_write(sc, RT2860_RF2, r2);
-	run_rt2870_rf_write(sc, RT2860_RF3, r3 | 1);
+	run_rt2870_rf_write(sc, RT2860_RF3, r3 | (1 << 2));
 	run_rt2870_rf_write(sc, RT2860_RF4, r4);
 
 	run_delay(sc, 10);
 
 	run_rt2870_rf_write(sc, RT2860_RF1, rfprog[i].r1);
 	run_rt2870_rf_write(sc, RT2860_RF2, r2);
-	run_rt2870_rf_write(sc, RT2860_RF3, r3);
+	run_rt2870_rf_write(sc, RT2860_RF3, r3 & ~(1 << 2));
 	run_rt2870_rf_write(sc, RT2860_RF4, r4);
 }
 
