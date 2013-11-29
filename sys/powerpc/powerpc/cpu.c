@@ -276,7 +276,6 @@ cpu_est_clockrate(int cpu_id, uint64_t *cps)
 	uint16_t	vers;
 	register_t	msr;
 	phandle_t	cpu, dev, root;
-	uint32_t	freq[2];
 	int		res  = 0;
 	char		buf[8];
 
@@ -323,13 +322,11 @@ cpu_est_clockrate(int cpu_id, uint64_t *cps)
 			mtmsr(msr);
 			return (0);
 
-		case IBMPOWER5:
-		case IBMPOWER5PLUS:
-		case IBMPOWER6:
-		case IBMPOWER7:
-		case IBMPOWER7PLUS:
-		case IBMPOWER8:
+		default:
 			root = OF_peer(0);
+			if (root == 0)
+				return (ENXIO);
+
 			dev = OF_child(root);
 			while (dev != 0) {
 				res = OF_getprop(dev, "name", buf, sizeof(buf));
@@ -347,19 +344,17 @@ cpu_est_clockrate(int cpu_id, uint64_t *cps)
 			}
 			if (cpu == 0)
 				return (ENOENT);
-			if (OF_getprop(cpu, "clock-frequency", &freq[0],
-					sizeof(freq[0])))
-					*cps = freq[0];
-			else if (OF_getprop(cpu, "ibm,extended-clock-frequency",
-					&freq, sizeof(freq)))
-					*cps = freq[1];
-			else
-			    *cps = 0;
-
-			return(0);		
+			if (OF_getprop(cpu, "ibm,extended-clock-frequency",
+			    cps, sizeof(*cps)) >= 0) {
+				return (0);
+			} else if (OF_getprop(cpu, "clock-frequency", cps, 
+			    sizeof(cell_t)) >= 0) {
+				*cps >>= 32;
+				return (0);
+			} else {
+				return (ENOENT);
+			}
 	}
-	
-	return (ENXIO);
 }
 
 void
