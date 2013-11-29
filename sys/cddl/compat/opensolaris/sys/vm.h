@@ -31,6 +31,8 @@
 
 #ifdef _KERNEL
 
+#include <sys/sf_buf.h>
+
 extern const int zfs_vm_pagerret_bad;
 extern const int zfs_vm_pagerret_error;
 extern const int zfs_vm_pagerret_ok;
@@ -38,6 +40,19 @@ extern const int zfs_vm_pagerret_ok;
 void	zfs_vmobject_assert_wlocked(vm_object_t object);
 void	zfs_vmobject_wlock(vm_object_t object);
 void	zfs_vmobject_wunlock(vm_object_t object);
+
+static inline caddr_t
+zfs_map_page(vm_page_t pp, struct sf_buf **sfp)
+{
+	*sfp = sf_buf_alloc(pp, 0);
+	return ((caddr_t)sf_buf_kva(*sfp));
+}
+
+static inline void
+zfs_unmap_page(struct sf_buf *sf)
+{
+	sf_buf_free(sf);
+}
 
 #endif	/* _KERNEL */
 
