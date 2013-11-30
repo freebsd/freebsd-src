@@ -854,8 +854,8 @@ __FBSDID("$FreeBSD$");
 #       define RADEON_PITCH_SHIFT           21
 #       define RADEON_DST_TILE_LINEAR       (0 << 30)
 #       define RADEON_DST_TILE_MACRO        (1 << 30)
-#       define RADEON_DST_TILE_MICRO        (2 << 30)
-#       define RADEON_DST_TILE_BOTH         (3 << 30)
+#       define RADEON_DST_TILE_MICRO        (2U << 30)
+#       define RADEON_DST_TILE_BOTH         (3U << 30)
 #define RADEON_DST_WIDTH                    0x140c
 #define RADEON_DST_WIDTH_HEIGHT             0x1598
 #define RADEON_DST_WIDTH_X                  0x1588

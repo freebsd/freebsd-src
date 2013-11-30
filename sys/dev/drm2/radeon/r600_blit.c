@@ -196,7 +196,7 @@ set_vtx_resource(drm_radeon_private_t *dev_priv, u64 gpu_addr)
 
 	sq_vtx_constant_word2 = (((gpu_addr >> 32) & 0xff) | (16 << 8));
 #ifdef __BIG_ENDIAN
-	sq_vtx_constant_word2 |= (2 << 30);
+	sq_vtx_constant_word2 |= (2U << 30);
 #endif
 
 	BEGIN_RING(9);
