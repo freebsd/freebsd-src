@@ -200,7 +200,7 @@
 #define IWN_RESET_SW			(1 << 7)
 #define IWN_RESET_MASTER_DISABLED	(1 << 8)
 #define IWN_RESET_STOP_MASTER		(1 << 9)
-#define IWN_RESET_LINK_PWR_MGMT_DIS	(1 << 31)
+#define IWN_RESET_LINK_PWR_MGMT_DIS	(1U << 31)
 
 /* Possible flags for register IWN_GP_CNTRL. */
 #define IWN_GP_CNTRL_MAC_ACCESS_ENA	(1 << 0)
@@ -265,7 +265,7 @@ static const struct {
 
 /* Possible flags for register IWN_DRAM_INT_TBL. */
 #define IWN_DRAM_INT_TBL_WRAP_CHECK	(1 << 27)
-#define IWN_DRAM_INT_TBL_ENABLE		(1 << 31)
+#define IWN_DRAM_INT_TBL_ENABLE		(1U << 31)
 
 /* Possible values for register IWN_ANA_PLL. */
 #define IWN_ANA_PLL_INIT	0x00880300
@@ -275,7 +275,7 @@ static const struct {
 
 /* Possible flags for register IWN_BSM_WR_CTRL. */
 #define IWN_BSM_WR_CTRL_START_EN	(1 << 30)
-#define IWN_BSM_WR_CTRL_START		(1 << 31)
+#define IWN_BSM_WR_CTRL_START		(1U << 31)
 
 /* Possible flags for register IWN_INT. */
 #define IWN_INT_ALIVE		(1 <<  0)
@@ -288,7 +288,7 @@ static const struct {
 #define IWN_INT_FH_TX		(1 << 27)
 #define IWN_INT_RX_PERIODIC	(1 << 28)
 #define IWN_INT_HW_ERR		(1 << 29)
-#define IWN_INT_FH_RX		(1 << 31)
+#define IWN_INT_FH_RX		(1U << 31)
 
 /* Shortcut. */
 #define IWN_INT_MASK_DEF						\
@@ -308,7 +308,7 @@ static const struct {
 
 /* Possible flags/values for register IWN_FH_TX_CONFIG. */
 #define IWN_FH_TX_CONFIG_DMA_PAUSE		0
-#define IWN_FH_TX_CONFIG_DMA_ENA		(1 << 31)
+#define IWN_FH_TX_CONFIG_DMA_ENA		(1U << 31)
 #define IWN_FH_TX_CONFIG_CIRQ_HOST_ENDTFD	(1 << 20)
 
 /* Possible flags/values for register IWN_FH_TXBUF_STATUS. */
@@ -323,7 +323,7 @@ static const struct {
 #define IWN_FH_TX_STATUS_IDLE(chnl)	(1 << ((chnl) + 16))
 
 /* Possible flags for register IWN_FH_RX_CONFIG. */
-#define IWN_FH_RX_CONFIG_ENA		(1 << 31)
+#define IWN_FH_RX_CONFIG_ENA		(1U << 31)
 #define IWN_FH_RX_CONFIG_NRBD(x)	((x) << 20)
 #define IWN_FH_RX_CONFIG_RB_SIZE_8K	(1 << 16)
 #define IWN_FH_RX_CONFIG_SINGLE_FRAME	(1 << 15)
@@ -332,7 +332,7 @@ static const struct {
 #define IWN_FH_RX_CONFIG_IGN_RXF_EMPTY	(1 <<  2)
 
 /* Possible flags for register IWN_FH_TX_CONFIG. */
-#define IWN_FH_TX_CONFIG_DMA_ENA	(1 << 31)
+#define IWN_FH_TX_CONFIG_DMA_ENA	(1U << 31)
 #define IWN_FH_TX_CONFIG_DMA_CREDIT_ENA	(1 <<  3)
 
 /* Possible flags for register IWN_EEPROM. */
@@ -380,7 +380,7 @@ static const struct {
 #define IWN_APMG_PCI_STT_L1A_DIS	(1 << 11)
 
 /* Possible flags for register IWN_BSM_DRAM_TEXT_SIZE. */
-#define IWN_FW_UPDATED	(1 << 31)
+#define IWN_FW_UPDATED	(1U << 31)
 
 #define IWN_SCHED_WINSZ		64
 #define IWN_SCHED_LIMIT		64

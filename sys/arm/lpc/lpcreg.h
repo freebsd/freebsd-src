@@ -604,7 +604,7 @@
 #define	LPC_DMAC_CH_LLI			0x08
 #define	LPC_DMAC_CH_LLI_AHB1		(1 << 0)
 #define	LPC_DMAC_CH_CONTROL		0x0c
-#define	LPC_DMAC_CH_CONTROL_I		(1 << 31)
+#define	LPC_DMAC_CH_CONTROL_I		(1U << 31)
 #define	LPC_DMAC_CH_CONTROL_DI		(1 << 27)
 #define	LPC_DMAC_CH_CONTROL_SI		(1 << 26)
 #define	LPC_DMAC_CH_CONTROL_D		(1 << 25)

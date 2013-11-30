@@ -56,7 +56,7 @@
 #define	PROCBASED_MSR_BITMAPS		(1 << 28)
 #define	PROCBASED_MONITOR_EXITING	(1 << 29)
 #define	PROCBASED_PAUSE_EXITING		(1 << 30)
-#define	PROCBASED_SECONDARY_CONTROLS	(1 << 31)
+#define	PROCBASED_SECONDARY_CONTROLS	(1U << 31)
 
 /* Secondary Processor-Based VM-Execution Controls */
 #define	PROCBASED2_VIRTUALIZE_APIC	(1 << 0)

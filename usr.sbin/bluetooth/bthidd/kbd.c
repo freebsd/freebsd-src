@@ -67,7 +67,7 @@ static int32_t	kbd_xlate(int32_t code, int32_t make, int32_t *b, int32_t const *
  * The "break" (key released) code is generated as "make" | 0x80
  */
 
-#define E0PREFIX	(1 << 31)
+#define E0PREFIX	(1U << 31)
 #define NOBREAK		(1 << 30)
 #define CODEMASK	(~(E0PREFIX|NOBREAK))
 

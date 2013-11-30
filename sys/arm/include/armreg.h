@@ -360,7 +360,7 @@
 
 #define	CPU_CT_ARMV7		0x4
 /* ARM v7 Cache type definitions */
-#define	CPUV7_CT_CTYPE_WT	(1 << 31)
+#define	CPUV7_CT_CTYPE_WT	(1U << 31)
 #define	CPUV7_CT_CTYPE_WB	(1 << 30)
 #define	CPUV7_CT_CTYPE_RA	(1 << 29)
 #define	CPUV7_CT_CTYPE_WA	(1 << 28)
