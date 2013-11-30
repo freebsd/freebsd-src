@@ -105,7 +105,7 @@ ENTRY(pj4b_config)
 	orr	r0, r0, #(1 << 27)	/* Critical word first sequencing disable */
 	orr	r0, r0, #(1 << 29)	/* Disable MO device read / write */
 	orr	r0, r0, #(1 << 30)	/* L1 cache strict round-robin replacement policy*/
-	orr	r0, r0, #(1 << 31)	/* Enable write evict */
+	orr	r0, r0, #(1U << 31)	/* Enable write evict */
 	mcr	p15, 1, r0, c15, c1, 2
 #if defined(SMP)
 	/* Set SMP mode in Auxiliary Control Register */

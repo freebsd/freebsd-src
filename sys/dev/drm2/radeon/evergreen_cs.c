@@ -2949,7 +2949,7 @@ int evergreen_dma_cs_parse(struct radeon_cs_parser *p)
 					switch (misc) {
 					case 0:
 						/* L2T, frame to fields */
-						if (idx_value & (1 << 31)) {
+						if (idx_value & (1U << 31)) {
 							DRM_ERROR("bad L2T, frame to fields DMA_PACKET_COPY\n");
 							return -EINVAL;
 						}
@@ -2992,7 +2992,7 @@ int evergreen_dma_cs_parse(struct radeon_cs_parser *p)
 							return -EINVAL;
 						}
 						/* detile bit */
-						if (idx_value & (1 << 31)) {
+						if (idx_value & (1U << 31)) {
 							/* tiled src, linear dst */
 							ib[idx+1] += (u32)(src_reloc->lobj.gpu_offset >> 8);
 
@@ -3009,7 +3009,7 @@ int evergreen_dma_cs_parse(struct radeon_cs_parser *p)
 						break;
 					case 3:
 						/* L2T, broadcast */
-						if (idx_value & (1 << 31)) {
+						if (idx_value & (1U << 31)) {
 							DRM_ERROR("bad L2T, broadcast DMA_PACKET_COPY\n");
 							return -EINVAL;
 						}
@@ -3048,7 +3048,7 @@ int evergreen_dma_cs_parse(struct radeon_cs_parser *p)
 					case 4:
 						/* L2T, T2L */
 						/* detile bit */
-						if (idx_value & (1 << 31)) {
+						if (idx_value & (1U << 31)) {
 							/* tiled src, linear dst */
 							src_offset = radeon_get_ib_value(p, idx+1);
 							src_offset <<= 8;
@@ -3093,7 +3093,7 @@ int evergreen_dma_cs_parse(struct radeon_cs_parser *p)
 						break;
 					case 7:
 						/* L2T, broadcast */
-						if (idx_value & (1 << 31)) {
+						if (idx_value & (1U << 31)) {
 							DRM_ERROR("bad L2T, broadcast DMA_PACKET_COPY\n");
 							return -EINVAL;
 						}
@@ -3137,7 +3137,7 @@ int evergreen_dma_cs_parse(struct radeon_cs_parser *p)
 					switch (misc) {
 					case 0:
 						/* detile bit */
-						if (idx_value & (1 << 31)) {
+						if (idx_value & (1U << 31)) {
 							/* tiled src, linear dst */
 							src_offset = radeon_get_ib_value(p, idx+1);
 							src_offset <<= 8;

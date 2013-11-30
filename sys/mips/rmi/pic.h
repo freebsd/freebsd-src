@@ -214,7 +214,7 @@ void pic_setup_intr(int picintr, int irq, uint32_t cpumask, int level)
 
 	mtx_lock_spin(&xlr_pic_lock);
 	xlr_write_reg(mmio, PIC_IRT_0(picintr), cpumask);
-	xlr_write_reg(mmio, PIC_IRT_1(picintr), ((1 << 31) | (level << 30) |
+	xlr_write_reg(mmio, PIC_IRT_1(picintr), ((1U << 31) | (level << 30) |
 	    (1 << 6) | irq));
 	mtx_unlock_spin(&xlr_pic_lock);
 }

@@ -202,7 +202,7 @@ extern void mach64_driver_irq_uninstall(struct drm_device *dev);
 #	define MACH64_CIRCULAR_BUF_SIZE_32KB		(1 << 0)
 #	define MACH64_CIRCULAR_BUF_SIZE_64KB		(2 << 0)
 #	define MACH64_CIRCULAR_BUF_SIZE_128KB		(3 << 0)
-#	define MACH64_LAST_DESCRIPTOR			(1 << 31)
+#	define MACH64_LAST_DESCRIPTOR			(1U << 31)
 #define MACH64_BM_HOSTDATA			0x0644
 #define MACH64_BM_STATUS			0x018c
 #define MACH64_BM_SYSTEM_MEM_ADDR		0x0184
@@ -316,7 +316,7 @@ extern void mach64_driver_irq_uninstall(struct drm_device *dev);
 
 #define MACH64_FIFO_STAT			0x0710
 #	define MACH64_FIFO_SLOT_MASK			0x0000ffff
-#	define MACH64_FIFO_ERR				(1 << 31)
+#	define MACH64_FIFO_ERR				(1U << 31)
 
 #define MACH64_GEN_TEST_CNTL			0x04d0
 #	define MACH64_GUI_ENGINE_ENABLE			(1 << 8)
@@ -442,7 +442,7 @@ extern void mach64_driver_irq_uninstall(struct drm_device *dev);
 #	define MACH64_CRTC2_VLINE_SYNC			(1 << 28) /* LT Pro */	/* 0=even, 1=odd */
 #	define MACH64_CRTC_SNAPSHOT2_INT_EN		(1 << 29)	/* LT Pro */
 #	define MACH64_CRTC_SNAPSHOT2_INT		(1 << 30)	/* LT Pro */
-#	define MACH64_CRTC_VBLANK2_INT			(1 << 31)
+#	define MACH64_CRTC_VBLANK2_INT			(1U << 31)
 #	define MACH64_CRTC_INT_ENS				\
 		(						\
 			MACH64_CRTC_VBLANK_INT_EN |		\

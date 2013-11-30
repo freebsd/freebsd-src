@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #define NVIDIA_MMIO_PMC       (0x0)
 #define  NVIDIA_PMC_OFF         (NVIDIA_MMIO_PMC + 0x10f0)
 #define   NVIDIA_PMC_BL_SHIFT    (16)
-#define   NVIDIA_PMC_BL_EN       (1 << 31)
+#define   NVIDIA_PMC_BL_EN       (1U << 31)
 
 
 struct nvbl_softc {
