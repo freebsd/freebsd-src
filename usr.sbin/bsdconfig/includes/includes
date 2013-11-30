@@ -69,16 +69,36 @@ show_include()
 		-v use_color=${USE_COLOR:-0} \
 		-v re="$pattern" \
 		-v show_desc=${SHOW_DESC:-0} '
+        function asorti(src, dest)
+        {
+		# Copy src indices to dest and calculate array length
+		nitems = 0; for (i in src) dest[++nitems] = i
+
+		# Sort the array of indices (dest) using insertion sort method
+		for (i = 1; i <= nitems; k = i++)
+		{
+			idx = dest[i]
+			while ((k > 0) && (dest[k] > idx))
+			{
+				dest[k+1] = dest[k]
+				k--
+			}
+			dest[k+1] = idx
+		}
+
+		return nitems
+        }
 	/^$/,/^#/ {
 		if ($0 ~ /^# f_/) {
 			if (!match($2, re)) next
+			fn = $2
 			if (use_color)
-				printf "+%s[1;31m%s[0m%s\n",
+				syntax[fn] = sprintf("+%s[1;31m%s[0m%s\n",
 				       substr($0, 2, RSTART),
 				       substr($0, 2 + RSTART, RLENGTH),
-				       substr($0, 2 + RSTART + RLENGTH)
+				       substr($0, 2 + RSTART + RLENGTH))
 			else
-				print "+" substr($0, 2)
+				syntax[fn] = "+" substr($0, 2) "\n"
 			if (show_desc)
 				print_more = 1
 			else
@@ -87,15 +107,20 @@ show_include()
 		if (show_desc && print_more) {
 			getline
 			while ($0 ~ /^#/) {
-				print " " substr($0, 2)
+				syntax[fn] = syntax[fn] " " substr($0, 2) "\n"
 				getline
 			}
 			print_more = 0
 		} else while (print_more) {
 			getline
-			print " " substr($0, 2)
+			syntax[fn] = syntax[fn] " " substr($0, 2) "\n"
 			print_more = substr($0, length($0)) == "\\"
 		}
+	}
+	END {
+		n = asorti(syntax, sorted_indices)
+		for (i = 1; i <= n; i++)
+			printf "%s", syntax[sorted_indices[i]]
 	}' "$file" )
 	if [ "$output" ]; then
 		if [ ! "$SHOW_FUNCS" ]; then
