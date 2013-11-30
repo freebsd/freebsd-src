@@ -39,6 +39,7 @@ guest inside a bhyve virtual machine
 .Op Fl d Ar disk-path
 .Op Fl h Ar host-path
 .Op Fl e Ar name=value
+.Op Fl c Ar cons-dev
 .Ar vmname
 .Sh DESCRIPTION
 .Nm
@@ -100,6 +101,16 @@ to
 .Pp
 The option may be used more than once to set more than one environment
 variable.
+.It Fl c Ar cons-dev
+.Ar cons-dev
+is a
+.Xr tty 4
+device to use for
+.Nm
+terminal I/O.
+.Pp
+The text string "stdio" is also accepted and selects the use of
+unbuffered standard I/O. This is the default value.
 .El
 .Sh EXAMPLES
 To create a virtual machine named
@@ -109,10 +120,23 @@ that boots off the ISO image
 and has 1GB memory allocated to it:
 .Pp
 .Dl "bhyveload -m 1G -d /freebsd/release.iso freebsd-vm"
+.Pp
+To create a virtual machine named
+.Ar test-vm
+with 256MB of memory allocated, the guest root filesystem under the host
+directory
+.Pa /user/images/test
+and terminal I/O sent to the
+.Xr nmdm 4
+device
+.Pa /dev/nmdm1B
+.Pp
+.Dl "bhyveload -m 256MB -h /usr/images/test -c /dev/nmdm1B test-vm
 .Sh SEE ALSO
 .Xr bhyve 4 ,
 .Xr bhyve 8 ,
 .Xr loader 8 ,
+.Xr nmdm 4,
 .Xr vmm 4
 .Sh HISTORY
 .Nm
