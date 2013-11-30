@@ -22,7 +22,7 @@
 #define HAVE_ATAN2F 1
 
 /* Define to 1 if you have the `atan2l' function. */
-/* #undef HAVE_ATAN2L */
+#define HAVE_ATAN2L 1
 
 /* Define to 1 if you have the `atanf' function. */
 #define HAVE_ATANF 1
@@ -100,7 +100,7 @@
 #define HAVE_FMODF 1
 
 /* Define to 1 if you have the `fmodl' function. */
-/* #undef HAVE_FMODL */
+#define HAVE_FMODL 1
 
 /* Define to 1 if you have the `fpclass' function. */
 /* #undef HAVE_FPCLASS */
@@ -134,7 +134,7 @@
 #define HAVE_HYPOTF 1
 
 /* Define to 1 if you have the `hypotl' function. */
-/* #undef HAVE_HYPOTL */
+#define HAVE_HYPOTL 1
 
 /* Define to 1 if you have the `iconv' function. */
 /* #undef HAVE_ICONV */
@@ -293,7 +293,7 @@
 #define HAVE_SQRTF 1
 
 /* Define to 1 if you have the `sqrtl' function. */
-/* #undef HAVE_SQRTL */
+#define HAVE_SQRTL 1
 
 /* Define to 1 if you have the <stdbool.h> header file. */
 #define HAVE_STDBOOL_H 1
@@ -303,6 +303,12 @@
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
+
+/* Define if strerror_l is available in <string.h>. */
+/* #undef HAVE_STRERROR_L */
+
+/* Define if strerror_r is available in <string.h>. */
+#define HAVE_STRERROR_R 1
 
 /* Define to 1 if you have the <strings.h> header file. */
 #define HAVE_STRINGS_H 1
@@ -315,6 +321,9 @@
 
 /* Define to 1 if you have the `strtold' function. */
 #define HAVE_STRTOLD 1
+
+/* Define if strxfrm_l is available in <string.h>. */
+/* #undef HAVE_STRXFRM_L */
 
 /* Define to 1 if you have the <sys/filio.h> header file. */
 #define HAVE_SYS_FILIO_H 1
