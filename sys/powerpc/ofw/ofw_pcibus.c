@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_private.h>
 
+#include "ofw_pcibus.h"
 #include "pcib_if.h"
 #include "pci_if.h"
 
@@ -85,12 +86,7 @@ static device_method_t ofw_pcibus_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	{ 0, 0 }
-};
-
-struct ofw_pcibus_devinfo {
-	struct pci_devinfo	opd_dinfo;
-	struct ofw_bus_devinfo	opd_obdinfo;
+	DEVMETHOD_END
 };
 
 static devclass_t pci_devclass;
@@ -195,6 +191,7 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 			pci_freecfg((struct pci_devinfo *)dinfo);
 			continue;
 		}
+		dinfo->opd_dma_tag = NULL;
 		pci_add_child(dev, (struct pci_devinfo *)dinfo);
 
 		/*
@@ -272,6 +269,7 @@ ofw_pcibus_enum_bus(device_t dev, u_int domain, u_int busno)
 			if (dinfo == NULL)
 				continue;
 
+			dinfo->opd_dma_tag = NULL;
 			dinfo->opd_obdinfo.obd_node = -1;
 
 			dinfo->opd_obdinfo.obd_name = NULL;

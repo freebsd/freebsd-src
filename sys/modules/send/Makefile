@@ -2,6 +2,6 @@
 .PATH: ${.CURDIR}/../../netinet6
 
 KMOD=	send
-SRCS=	send.c opt_kdtrace.h
+SRCS=	send.c
 
 .include <bsd.kmod.mk>

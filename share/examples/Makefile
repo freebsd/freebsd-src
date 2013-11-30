@@ -249,4 +249,8 @@ SUBDIR+=pf
 .endif
 .endif
 
+.if ${MK_TESTS} != "no"
+SUBDIR+=tests
+.endif
+
 .include <bsd.subdir.mk>

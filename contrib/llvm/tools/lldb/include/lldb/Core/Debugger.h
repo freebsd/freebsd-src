@@ -13,7 +13,6 @@
 
 
 #include <stdint.h>
-#include <unistd.h>
 
 #include <stack>
 
@@ -321,6 +320,9 @@ public:
     
     uint32_t
     GetDisassemblyLineCount () const;
+    
+    bool
+    GetAutoOneLineSummaries () const;
     
     bool
     GetNotifyVoid () const;

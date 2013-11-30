@@ -5,27 +5,53 @@
 
 /set type=dir uname=root gname=wheel mode=0755
 .
-    lib
-        atf
-            libatf-c
-            ..
-            libatf-c++
-            ..
-            test-programs
-            ..
+    include
+        atf-c
         ..
-        libcrypt
+        atf-c++
         ..
     ..
-    libexec
+    share
         atf
-            atf-check
+        ..
+        doc
+            atf
             ..
         ..
     ..
-    usr.bin
-        atf
-            atf-sh
+    tests
+        lib
+            atf
+                libatf-c
+                ..
+                libatf-c++
+                ..
+                test-programs
+                ..
+            ..
+            libcrypt
+            ..
+        ..
+        libexec
+            atf
+                atf-check
+                ..
+            ..
+        ..
+        share
+            examples
+                tests
+                    atf
+                    ..
+                    plain
+                    ..
+                ..
+            ..
+        ..
+        usr.bin
+            atf
+                atf-sh
+                ..
             ..
         ..
     ..

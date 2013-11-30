@@ -86,7 +86,7 @@ public:
     /// @param[in] cstr
     ///     A pointer to the first character in the C string. The C 
     ///     string can be NULL terminated in a buffer that contains
-    ///     more characters than the length of the stirng, or the
+    ///     more characters than the length of the string, or the
     ///     string can be part of another string and a new substring
     ///     can be created.
     ///
@@ -148,11 +148,11 @@ public:
     ///     /b True this object contains a valid non-empty C string, \b 
     ///     false otherwise.
     //------------------------------------------------------------------
-    operator bool() const
+    explicit operator bool() const 
     {
         return m_string && m_string[0];
     }
-
+    
     //------------------------------------------------------------------
     /// Assignment operator
     ///

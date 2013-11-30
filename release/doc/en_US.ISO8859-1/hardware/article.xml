@@ -177,18 +177,13 @@
 	bugs may generate some problems.  Perusal of the archives of
 	the &a.smp; may yield some clues.</para>
 
-      <para>&os; will take advantage of HyperThreading (HTT) support
-	on &intel; CPUs that support this feature.  A kernel with the
-	<literal>options&nbsp;SMP</literal> feature enabled will
-	automatically detect the additional logical processors.  The
-	default &os; scheduler treats the logical processors the same
-	as additional physical processors; in other words, no attempt
-	is made to optimize scheduling decisions given the shared
-	resources between logical processors within the same CPU.
-	Because this naive scheduling can result in suboptimal
-	performance, under certain circumstances it may be useful to
-	disable the logical processors with the
-	<varname>machdep.hyperthreading_allowed</varname> tunable.
+      <para>&os; will take advantage of SMT (Symmetric MultiThreading,
+	also known as HyperThreading on &intel; CPUs) on the supported
+	CPUs.  The <filename>GENERIC</filename> kernel which is
+	installed by default will automatically detect the additional
+	logical processors.  The default &os; scheduler recognizes
+	processor topology on the system and selects logical and
+	physical processors to obtain optimal performance.
 	The &man.smp.4; manual page has more details.</para>
 
       <para>&os; will take advantage of Physical Address Extensions
@@ -303,63 +298,12 @@
     <sect2 xml:id="proc-powerpc">
       <title>powerpc</title>
 
-      <para>This section describes the systems currently known to be
-	supported by &os; on the PowerPC platform. This list is not
-	exhaustive.</para>
+      <para>All Apple PowerPC machines with built-in USB are supported,
+	as well a limited selection of non-Apple machines,
+	including KVM on POWER7</para>
 
-      <para>In general, all New World architecture Apple hardware
-	is supported, as well a limited selection of non-Apple
-	machines.</para>
-
-      <para>All systems listed below are fully supported, with the
-	exception that software fan control is currently missing on
-	some Power Macintosh G5 models. SMP is supported on all systems
-	with more than 1 processor.</para>
-
-      <itemizedlist>
-	<listitem>
-	  <para>Apple iMac G3</para>
-	</listitem>
-	<listitem>
-	  <para>Apple iMac G4</para>
-	</listitem>
-	<listitem>
-	  <para>Apple iMac G5</para>
-	</listitem>
-	<listitem>
-	  <para>Apple Power Macintosh G3 (Blue &amp; White)</para>
-	</listitem>
-	<listitem>
-	  <para>Apple Power Macintosh G4</para>
-	</listitem>
-	<listitem>
-	  <para>Apple Power Macintosh G5</para>
-	</listitem>
-	<listitem>
-	  <para>Apple iBook G3</para>
-	</listitem>
-	<listitem>
-	  <para>Apple iBook G4</para>
-	</listitem>
-	<listitem>
-	  <para>Apple PowerBook G3 (Lombard and Pismo)</para>
-	</listitem>
-	<listitem>
-	  <para>Apple PowerBook G4</para>
-	</listitem>
-	<listitem>
-	  <para>Apple XServe G4</para>
-	</listitem>
-	<listitem>
-	  <para>Apple XServe G5</para>
-	</listitem>
-	<listitem>
-	  <para>Apple Mac Mini</para>
-	</listitem>
-	<listitem>
-	  <para>Embedded boards based on MPC85XX</para>
-	</listitem>
-      </itemizedlist>
+      <para>SMP is supported on all systems with more than
+	1 processor.</para>
     </sect2>
 
     <sect2 xml:id="proc-sparc64">
@@ -367,10 +311,7 @@
 
       <para>This section describes the systems currently known to be
 	supported by &os; on the Fujitsu &sparc64; and Sun &ultrasparc;
-	platforms.  For
-	background information on the various hardware designs see the
-	<link xlink:href="http://sunsolve.sun.com/handbook_pub/">Sun System
-	  Handbook</link>.</para>
+	platforms.</para>
 
       <para>SMP is supported on all systems with more than 1
 	processor.</para>

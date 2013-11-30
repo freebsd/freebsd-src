@@ -117,7 +117,9 @@ static const struct flaginfo {
 	u_int32_t	 fi_flag;
 	const char	*fi_name;
 } flaginfo[] = {
-	{ UMA_ZFLAG_PRIVALLOC, "privalloc" },
+	{ UMA_ZFLAG_MULTI, "multi" },
+	{ UMA_ZFLAG_DRAINING, "draining" },
+	{ UMA_ZFLAG_BUCKET, "bucket" },
 	{ UMA_ZFLAG_INTERNAL, "internal" },
 	{ UMA_ZFLAG_FULL, "full" },
 	{ UMA_ZFLAG_CACHEONLY, "cacheonly" },
@@ -133,6 +135,10 @@ static const struct flaginfo {
 	{ UMA_ZONE_SECONDARY, "secondary" },
 	{ UMA_ZONE_REFCNT, "refcnt" },
 	{ UMA_ZONE_MAXBUCKET, "maxbucket" },
+	{ UMA_ZONE_CACHESPREAD, "cachespread" },
+	{ UMA_ZONE_VTOSLAB, "vtoslab" },
+	{ UMA_ZONE_NODUMP, "nodump" },
+	{ UMA_ZONE_PCPU, "pcpu" },
 };
 static const int flaginfo_count = sizeof(flaginfo) / sizeof(struct flaginfo);
 
@@ -364,14 +370,15 @@ main(int argc, char *argv[])
 		}
 		printf("Keg {\n");
 
-		printf("  uk_recurse = %d\n", kz.uk_recurse);
 		uma_print_keg_align(&kz, "  ");
 		printf("  uk_pages = %d\n", kz.uk_pages);
 		printf("  uk_free = %d\n", kz.uk_free);
+		printf("  uk_reserve = %d\n", kz.uk_reserve);
 		printf("  uk_size = %d\n", kz.uk_size);
 		printf("  uk_rsize = %d\n", kz.uk_rsize);
 		printf("  uk_maxpages = %d\n", kz.uk_maxpages);
 
+		printf("  uk_slabsize = %d\n", kz.uk_slabsize);
 		printf("  uk_pgoff = %d\n", kz.uk_pgoff);
 		printf("  uk_ppera = %d\n", kz.uk_ppera);
 		printf("  uk_ipers = %d\n", kz.uk_ipers);
@@ -414,21 +421,18 @@ main(int argc, char *argv[])
 			}
 			printf("  Zone {\n");
 			printf("    uz_name = \"%s\";\n", name);
-			printf("    uz_allocs = %ju;\n",
+			printf("    uz_allocs = %lu;\n",
 			    uzp_userspace->uz_allocs);
-			printf("    uz_frees = %ju;\n",
+			printf("    uz_frees = %lu;\n",
 			    uzp_userspace->uz_frees);
-			printf("    uz_fails = %ju;\n",
+			printf("    uz_fails = %lu;\n",
 			    uzp_userspace->uz_fails);
-			printf("    uz_fills = %u;\n",
-			    uzp_userspace->uz_fills);
+			printf("    uz_sleeps = %ju;\n",
+			    uzp_userspace->uz_sleeps);
 			printf("    uz_count = %u;\n",
 			    uzp_userspace->uz_count);
 			uma_print_bucketlist(kvm, (void *)
-			    &uzp_userspace->uz_full_bucket, "uz_full_bucket",
-			    "    ");
-			uma_print_bucketlist(kvm, (void *)
-			    &uzp_userspace->uz_free_bucket, "uz_free_bucket",
+			    &uzp_userspace->uz_buckets, "uz_buckets",
 			    "    ");
 
 			if (!(kz.uk_flags & UMA_ZFLAG_INTERNAL)) {

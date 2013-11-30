@@ -5,7 +5,6 @@ ARM_KERN_DIRECTMAP	opt_vm.h
 ARM_L2_PIPT		opt_global.h
 ARM_MANY_BOARD		opt_global.h
 ARM_USE_SMALL_ALLOC	opt_global.h
-ARM_VFP_SUPPORT		opt_global.h
 ARM_WANT_TP_ADDRESS	opt_global.h
 COUNTS_PER_SEC		opt_timer.h
 CPU_ARM9		opt_global.h

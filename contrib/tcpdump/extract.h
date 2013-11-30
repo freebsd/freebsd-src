@@ -51,13 +51,25 @@ typedef struct {
 	u_int32_t	val;
 } __attribute__((packed)) unaligned_u_int32_t;
 
-#define EXTRACT_16BITS(p) \
-	((u_int16_t)ntohs(((const unaligned_u_int16_t *)(p))->val))
-#define EXTRACT_32BITS(p) \
-	((u_int32_t)ntohl(((const unaligned_u_int32_t *)(p))->val))
-#define EXTRACT_64BITS(p) \
-	((u_int64_t)(((u_int64_t)ntohl(((const unaligned_u_int32_t *)(p) + 0)->val)) << 32 | \
-		     ((u_int64_t)ntohl(((const unaligned_u_int32_t *)(p) + 1)->val)) << 0))
+static inline u_int16_t
+EXTRACT_16BITS(const void *p)
+{
+	return ((u_int16_t)ntohs(((const unaligned_u_int16_t *)(p))->val));
+}
+
+static inline u_int32_t
+EXTRACT_32BITS(const void *p)
+{
+	return ((u_int32_t)ntohl(((const unaligned_u_int32_t *)(p))->val));
+}
+
+static inline u_int64_t
+EXTRACT_64BITS(const void *p)
+{
+	return ((u_int64_t)(((u_int64_t)ntohl(((const unaligned_u_int32_t *)(p) + 0)->val)) << 32 | \
+		((u_int64_t)ntohl(((const unaligned_u_int32_t *)(p) + 1)->val)) << 0));
+
+}
 
 #else /* HAVE___ATTRIBUTE__ */
 /*
@@ -88,13 +100,26 @@ typedef struct {
  * The processor natively handles unaligned loads, so we can just
  * cast the pointer and fetch through it.
  */
-#define EXTRACT_16BITS(p) \
-	((u_int16_t)ntohs(*(const u_int16_t *)(p)))
-#define EXTRACT_32BITS(p) \
-	((u_int32_t)ntohl(*(const u_int32_t *)(p)))
-#define EXTRACT_64BITS(p) \
-	((u_int64_t)(((u_int64_t)ntohl(*((const u_int32_t *)(p) + 0))) << 32 | \
-		     ((u_int64_t)ntohl(*((const u_int32_t *)(p) + 1))) << 0))
+static inline u_int16_t
+EXTRACT_16BITS(const void *p)
+{
+	return ((u_int16_t)ntohs(*(const u_int16_t *)(p)));
+}
+
+static inline u_int32_t
+EXTRACT_32BITS(const void *p)
+{
+	return ((u_int32_t)ntohl(*(const u_int32_t *)(p)));
+}
+
+static inline u_int64_t
+EXTRACT_64BITS(const void *p)
+{
+	return ((u_int64_t)(((u_int64_t)ntohl(*((const u_int32_t *)(p) + 0))) << 32 | \
+		((u_int64_t)ntohl(*((const u_int32_t *)(p) + 1))) << 0));
+
+}
+
 #endif /* LBL_ALIGN */
 
 #define EXTRACT_24BITS(p) \

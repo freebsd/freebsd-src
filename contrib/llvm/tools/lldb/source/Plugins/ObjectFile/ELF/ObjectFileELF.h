@@ -102,6 +102,9 @@ public:
     virtual lldb_private::Symtab *
     GetSymtab();
 
+    virtual lldb_private::Symbol *
+    ResolveSymbolForAddress(const lldb_private::Address& so_addr, bool verify_unique);
+
     virtual bool
     IsStripped ();
 
@@ -124,7 +127,7 @@ public:
     GetDependentModules(lldb_private::FileSpecList& files);
 
     virtual lldb_private::Address
-    GetImageInfoAddress();
+    GetImageInfoAddress(lldb_private::Target *target);
     
     virtual lldb_private::Address
     GetEntryPointAddress ();

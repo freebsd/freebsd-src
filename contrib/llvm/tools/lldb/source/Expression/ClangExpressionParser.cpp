@@ -55,10 +55,6 @@
 #include "llvm/Support/PathV1.h"
 #include "llvm/Support/TargetSelect.h"
 
-#if defined(__FreeBSD__)
-#define USE_STANDARD_JIT
-#endif
-
 #if defined (USE_STANDARD_JIT)
 #include "llvm/ExecutionEngine/JIT.h"
 #else
@@ -122,7 +118,6 @@ static FrontendAction *CreateFrontendBaseAction(CompilerInstance &CI) {
             
         case ASTDump:                return new ASTDumpAction();
         case ASTPrint:               return new ASTPrintAction();
-        case ASTDumpXML:             return new ASTDumpXMLAction();
         case ASTView:                return new ASTViewAction();
         case DumpRawTokens:          return new DumpRawTokensAction();
         case DumpTokens:             return new DumpTokensAction();
@@ -198,8 +193,6 @@ ClangExpressionParser::ClangExpressionParser (ExecutionContextScope *exe_scope,
             llvm::InitializeAllAsmPrinters();
             llvm::InitializeAllTargetMCs();
             llvm::InitializeAllDisassemblers();
-            
-            llvm::DisablePrettyStackTrace = true;
         }
     } InitializeLLVM;
     
@@ -321,6 +314,8 @@ ClangExpressionParser::ClangExpressionParser (ExecutionContextScope *exe_scope,
     // Set CodeGen options
     m_compiler->getCodeGenOpts().EmitDeclMetadata = true;
     m_compiler->getCodeGenOpts().InstrumentFunctions = false;
+    m_compiler->getCodeGenOpts().DisableFPElim = true;
+    m_compiler->getCodeGenOpts().OmitLeafFramePointer = false;
     
     // Disable some warnings.
     m_compiler->getDiagnostics().setDiagnosticGroupMapping("unused-value", clang::diag::MAP_IGNORE, SourceLocation());

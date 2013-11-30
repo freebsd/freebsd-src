@@ -844,11 +844,6 @@ struct rt2860_rxwi {
 	 sizeof (struct ieee80211_htframe) +	\
 	 sizeof (uint16_t))
 
-#define RT2860_RF1	0
-#define RT2860_RF2	2
-#define RT2860_RF3	1
-#define RT2860_RF4	3
-
 #define RT2860_RF_2820	0x0001	/* 2T3R */
 #define RT2860_RF_2850	0x0002	/* dual-band 2T3R */
 #define RT2860_RF_2720	0x0003	/* 1T2R */
@@ -932,31 +927,6 @@ static const struct rt2860_rate {
 	{  96, 6, IEEE80211_T_OFDM, 8,  40,  40 },
 	{ 108, 7, IEEE80211_T_OFDM, 8,  40,  40 }
 };
-
-/*
- * Control and status registers access macros.
- */
-#define RAL_READ(sc, reg)						\
-	bus_space_read_4((sc)->sc_st, (sc)->sc_sh, (reg))
-
-#define RAL_WRITE(sc, reg, val)						\
-	bus_space_write_4((sc)->sc_st, (sc)->sc_sh, (reg), (val))
-
-#define RAL_BARRIER_WRITE(sc)						\
-	bus_space_barrier((sc)->sc_st, (sc)->sc_sh, 0, 0x1800,		\
-	    BUS_SPACE_BARRIER_WRITE)
-
-#define RAL_BARRIER_READ_WRITE(sc)					\
-	bus_space_barrier((sc)->sc_st, (sc)->sc_sh, 0, 0x1800,		\
-	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE)
-
-#define RAL_WRITE_REGION_1(sc, offset, datap, count)			\
-	bus_space_write_region_1((sc)->sc_st, (sc)->sc_sh, (offset),	\
-	    (datap), (count))
-
-#define RAL_SET_REGION_4(sc, offset, val, count)			\
-	bus_space_set_region_4((sc)->sc_st, (sc)->sc_sh, (offset),	\
-	    (val), (count))
 
 /*
  * EEPROM access macro.

@@ -1652,6 +1652,7 @@ freebsd32_do_sendfile(struct thread *td,
 	cap_rights_t rights;
 	off_t offset;
 	int error;
+	off_t sbytes;
 
 	offset = PAIR32TO64(off_t, uap->offset);
 	if (offset < 0)
@@ -1692,8 +1693,10 @@ freebsd32_do_sendfile(struct thread *td,
 	}
 
 	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, offset,
-	    uap->nbytes, uap->sbytes, uap->flags, compat ? SFK_COMPAT : 0, td);
+	    uap->nbytes, &sbytes, uap->flags, compat ? SFK_COMPAT : 0, td);
 	fdrop(fp, td);
+	if (uap->sbytes != NULL)
+		copyout(&sbytes, uap->sbytes, sizeof(off_t));
 
 out:
 	if (hdr_uio)
@@ -1925,7 +1928,7 @@ freebsd32_jail(struct thread *td, struct freebsd32_jail_args *uap)
 		CP(j32_v0, j, version);
 		PTRIN_CP(j32_v0, j, path);
 		PTRIN_CP(j32_v0, j, hostname);
-		j.ip4s = j32_v0.ip_number;
+		j.ip4s = htonl(j32_v0.ip_number);	/* jail_v0 is host order */
 		break;
 	}
 

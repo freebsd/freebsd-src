@@ -1089,6 +1089,8 @@ const int x86_cmpxchg = ~m_386;
 const int x86_cmpxchg8b = ~(m_386 | m_486);
 /* Exchange and add was added for 80486.  */
 const int x86_xadd = ~m_386;
+/* Byteswap was added for 80486.  */
+const int x86_bswap = ~m_386;
 const int x86_pad_returns = m_ATHLON_K8_AMDFAM10 | m_CORE2 | m_GENERIC;
 
 /* In case the average insn count for single function invocation is

@@ -4,6 +4,7 @@
 # 
 # User-driven targets:
 #  cdrom: Builds release CD-ROM media (disc1.iso)
+#  dvdrom: Builds release DVD-ROM media (dvd1.iso)
 #  memstick: Builds memory stick image (memstick.img)
 #  mini-memstick: Builds minimal memory stick image (mini-memstick.img)
 #  ftp: Sets up FTP distribution area (ftp)
@@ -15,9 +16,11 @@
 #            (by default, the directory above this one) 
 #  PORTSDIR: location of ports tree to distribute (default: /usr/ports)
 #  DOCDIR:   location of doc tree (default: /usr/doc)
+#  NOPKG:    if set, do not distribute third-party packages
 #  NOPORTS:  if set, do not distribute ports tree
 #  NOSRC:    if set, do not distribute source tree
 #  NODOC:    if set, do not generate release documentation
+#  NODVD:    if set, do not generate dvd1.iso
 #  TARGET/TARGET_ARCH: architecture of built release 
 #
 
@@ -72,6 +75,10 @@ IMAGES=
 .if exists(${.CURDIR}/${TARGET}/mkisoimages.sh)
 RELEASE_TARGETS+= cdrom
 IMAGES+=	disc1.iso bootonly.iso
+. if(!defined(NODVD))
+RELEASE_TARGETS+= dvdrom
+IMAGES+=	dvd1.iso
+. endif
 .endif
 .if exists(${.CURDIR}/${TARGET}/make-memstick.sh)
 RELEASE_TARGETS+= memstick.img
@@ -164,9 +171,31 @@ bootonly: packagesystem
 	echo hostid_enable=\"NO\" >> bootonly/etc/rc.conf
 	cp ${.CURDIR}/rc.local bootonly/etc
 
+dvd:
+# Install system
+	mkdir -p ${.TARGET}
+	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
+		DESTDIR=${.OBJDIR}/${.TARGET} WITHOUT_RESCUE=1 WITHOUT_KERNEL_SYMBOLS=1
+# Copy distfiles
+	mkdir -p ${.TARGET}/usr/freebsd-dist
+	cp *.txz MANIFEST ${.TARGET}/usr/freebsd-dist
+# Copy documentation, if generated
+.if !defined(NODOC)
+	cp reldoc/* ${.TARGET}
+.endif
+# Set up installation environment
+	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
+	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
+	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
+	cp ${.CURDIR}/rc.local ${.TARGET}/etc
+	touch ${.TARGET}
+
 release.iso: disc1.iso
 disc1.iso: system
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} release
+
+dvd1.iso: dvd pkg-stage
+	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} dvd
 
 bootonly.iso: bootonly
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} bootonly
@@ -183,7 +212,14 @@ packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
 	sh ${.CURDIR}/scripts/make-manifest.sh *.txz > MANIFEST
 	touch ${.TARGET}
 
+pkg-stage:
+.if !defined(NOPKG) && exists(${.CURDIR}/${TARGET}/pkg-stage.conf)
+	sh ${.CURDIR}/scripts/pkg-stage.sh ${.CURDIR}/${TARGET}/pkg-stage.conf \
+		${REVISION}
+.endif
+
 cdrom: disc1.iso bootonly.iso
+dvdrom: dvd1.iso
 ftp: packagesystem
 	rm -rf ftp
 	mkdir -p ftp
@@ -199,8 +235,8 @@ clean:
 	rm -f packagesystem
 	rm -f *.txz MANIFEST
 	rm -f system
-	rm -rf release bootonly
-	rm -f disc1.iso bootonly.iso memstick.img
+	rm -rf release bootonly dvd
+	rm -f ${IMAGES}
 
 install:
 .if defined(DESTDIR) && !empty(DESTDIR)

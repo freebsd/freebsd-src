@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_kdtrace.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -1394,7 +1393,7 @@ relocked:
 	}
 #endif
 
-	TCP_PROBE5(receive, NULL, tp, m->m_data, tp, th);
+	TCP_PROBE5(receive, NULL, tp, mtod(m, const char *), tp, th);
 
 	/*
 	 * Segment belongs to a connection in SYN_SENT, ESTABLISHED or later
@@ -1406,7 +1405,7 @@ relocked:
 	return;
 
 dropwithreset:
-	TCP_PROBE5(receive, NULL, tp, m->m_data, tp, th);
+	TCP_PROBE5(receive, NULL, tp, mtod(m, const char *), tp, th);
 
 	if (ti_locked == TI_WLOCKED) {
 		INP_INFO_WUNLOCK(&V_tcbinfo);
@@ -1430,7 +1429,7 @@ dropwithreset:
 
 dropunlock:
 	if (m != NULL)
-		TCP_PROBE5(receive, NULL, tp, m->m_data, tp, th);
+		TCP_PROBE5(receive, NULL, tp, mtod(m, const char *), tp, th);
 
 	if (ti_locked == TI_WLOCKED) {
 		INP_INFO_WUNLOCK(&V_tcbinfo);
@@ -1929,8 +1928,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			goto dropwithreset;
 		}
 		if ((thflags & (TH_ACK|TH_RST)) == (TH_ACK|TH_RST)) {
-			TCP_PROBE5(connect_refused, NULL, tp, m->m_data, tp,
-			    th);
+			TCP_PROBE5(connect__refused, NULL, tp,
+			    mtod(m, const char *), tp, th);
 			tp = tcp_drop(tp, ECONNREFUSED);
 		}
 		if (thflags & TH_RST)
@@ -1982,8 +1981,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				thflags &= ~TH_SYN;
 			} else {
 				tcp_state_change(tp, TCPS_ESTABLISHED);
-				TCP_PROBE5(connect_established, NULL, tp,
-				    m->m_data, tp, th);
+				TCP_PROBE5(connect__established, NULL, tp,
+				    mtod(m, const char *), tp, th);
 				cc_conn_init(tp);
 				tcp_timer_activate(tp, TT_KEEP,
 				    TP_KEEPIDLE(tp));
@@ -2388,8 +2387,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tp->t_flags &= ~TF_NEEDFIN;
 		} else {
 			tcp_state_change(tp, TCPS_ESTABLISHED);
-			TCP_PROBE5(accept_established, NULL, tp, m->m_data, tp,
-			    th);
+			TCP_PROBE5(accept__established, NULL, tp,
+			    mtod(m, const char *), tp, th);
 			cc_conn_init(tp);
 			tcp_timer_activate(tp, TT_KEEP, TP_KEEPIDLE(tp));
 		}

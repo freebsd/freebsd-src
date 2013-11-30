@@ -38,6 +38,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." "$0"
 f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/media/common.subr
 f_include $BSDCFG_SHARE/mustberoot.subr
 f_include $BSDCFG_SHARE/packages/packages.subr
 
@@ -73,6 +74,7 @@ f_device_get_all
 #
 # Display the package configuration menu and exit
 #
+trap 'f_media_close' EXIT
 f_package_config
 
 ################################################################################

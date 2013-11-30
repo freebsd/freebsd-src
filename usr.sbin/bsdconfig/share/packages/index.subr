@@ -86,6 +86,7 @@ INDEX_FORMAT="$INDEX_FORMAT|"			# disc
 #
 f_index_initialize()
 {
+	local __funcname=f_index_initialize
 	local __var_to_set="${2:-PACKAGE_INDEX}"
 
 	[ "$_INDEX_INITTED" ] && return $SUCCESS
@@ -105,19 +106,26 @@ f_index_initialize()
 	device_media get type __type
 	device_media get private __data
 	case "$__type" in
-	$DEVICE_TYPE_UFS|$DEVICE_TYPE_DISK) __site="file://$MOUNTPOINT" ;;
-	$DEVICE_TYPE_DIRECTORY)  __site="file://$__data" ;;
-	$DEVICE_TYPE_FLOPPY)     __site="file://${__data:-$MOUNTPOINT}" ;;
-	$DEVICE_TYPE_FTP)        f_getvar $VAR_FTP_PATH __site ;;
-	$DEVICE_TYPE_HTTP_PROXY) f_getvar $VAR_HTTP_PROXY_PATH __site ;;
-	$DEVICE_TYPE_HTTP)       f_getvar $VAR_HTTP_PATH __site ;;
-	$DEVICE_TYPE_CDROM)      __site="file://$MOUNTPOINT" ;;
-	$DEVICE_TYPE_USB)        __site="file://$MOUNTPOINT" ;;
-	$DEVICE_TYPE_DOS)        __site="file://$MOUNTPOINT" ;;
-	$DEVICE_TYPE_NFS)        __site="file://$MOUNTPOINT" ;;
+	$DEVICE_TYPE_DIRECTORY)
+		__site="file://$__data/packages/$PKG_ABI" ;;
+	$DEVICE_TYPE_FLOPPY)
+		__site="file://${__data:-$MOUNTPOINT}/packages/$PKG_ABI" ;;
+	$DEVICE_TYPE_FTP)
+		f_getvar $VAR_FTP_PATH __site
+		__site="$__site/packages/$PKG_ABI" ;;
+	$DEVICE_TYPE_HTTP)
+		f_getvar $VAR_HTTP_PATH __site
+		__site="$__site/$PKG_ABI/latest" ;;
+	$DEVICE_TYPE_HTTP_PROXY)
+		f_getvar $VAR_HTTP_PROXY_PATH __site
+		__site="$__site/packages/$PKG_ABI" ;;
+	*) # UFS, DISK, CDROM, USB, DOS, NFS, etc.
+		__site="file://$MOUNTPOINT/packages/$PKG_ABI"
 	esac
 
-	if ! PACKAGESITE="$__site" f_quietly pkg update; then
+	export PACKAGESITE="$__site"
+	f_dprintf "PACKAGESITE=[%s]" "$PACKAGESITE"
+	if ! f_eval_catch $__funcname pkg "pkg update"; then
 		f_show_err "$msg_unable_to_update_pkg_from_selected_media"
 		f_device_shutdown media
 		return $FAILURE

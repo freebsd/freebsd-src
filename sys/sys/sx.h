@@ -86,6 +86,8 @@
 
 #ifdef _KERNEL
 
+#define	sx_recurse	lock_object.lo_data
+
 /*
  * Function prototipes.  Routines that start with an underscore are not part
  * of the public interface and are wrappered with a macro.
@@ -163,6 +165,8 @@ __sx_xunlock(struct sx *sx, struct thread *td, const char *file, int line)
 {
 	uintptr_t tid = (uintptr_t)td;
 
+	if (sx->sx_recurse == 0)
+		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_SX_XUNLOCK_RELEASE, sx);
 	if (!atomic_cmpset_rel_ptr(&sx->sx_lock, tid, SX_LOCK_UNLOCKED))
 		_sx_xunlock_hard(sx, tid, file, line);
 }
@@ -196,6 +200,7 @@ __sx_sunlock(struct sx *sx, const char *file, int line)
 {
 	uintptr_t x = sx->sx_lock;
 
+	LOCKSTAT_PROFILE_RELEASE_LOCK(LS_SX_SUNLOCK_RELEASE, sx);
 	if (x == (SX_SHARERS_LOCK(1) | SX_LOCK_EXCLUSIVE_WAITERS) ||
 	    !atomic_cmpset_rel_ptr(&sx->sx_lock, x, x - SX_ONE_SHARER))
 		_sx_sunlock_hard(sx, file, line);

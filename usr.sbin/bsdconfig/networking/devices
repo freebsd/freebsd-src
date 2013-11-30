@@ -28,6 +28,12 @@
 #
 ############################################################ INCLUDES
 
+# Prevent device.subr (included indirectly) from auto scanning; this will be
+# performed indirectly later via f_dialog_menu_netdev() -- but only after we've
+# successfully completed f_mustberoot_init().
+#
+DEVICE_SELF_SCAN_ALL=NO
+
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." "$0"

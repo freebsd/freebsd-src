@@ -32,6 +32,7 @@
 
 SUBDIR_ORDERED=	${_csu} \
 	libc \
+	libc_nonshared \
 	libbsm \
 	libauditd \
 	libcompiler_rt \
@@ -94,6 +95,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libnandfs} \
 	libnetbsd \
 	${_libngatm} \
+	libnv \
 	libopie \
 	libpam \
 	libpcap \

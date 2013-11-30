@@ -681,20 +681,54 @@ pf_insert_src_node(struct pf_src_node **sn, struct pf_rule *rule,
 	return (0);
 }
 
-static void
-pf_remove_src_node(struct pf_src_node *src)
+void
+pf_unlink_src_node_locked(struct pf_src_node *src)
+{
+#ifdef INVARIANTS
+	struct pf_srchash *sh;
+
+	sh = &V_pf_srchash[pf_hashsrc(&src->addr, src->af)];
+	PF_HASHROW_ASSERT(sh);
+#endif
+	LIST_REMOVE(src, entry);
+	if (src->rule.ptr)
+		src->rule.ptr->src_nodes--;
+	V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
+	V_pf_status.src_nodes--;
+}
+
+void
+pf_unlink_src_node(struct pf_src_node *src)
 {
 	struct pf_srchash *sh;
 
 	sh = &V_pf_srchash[pf_hashsrc(&src->addr, src->af)];
 	PF_HASHROW_LOCK(sh);
-	LIST_REMOVE(src, entry);
+	pf_unlink_src_node_locked(src);
 	PF_HASHROW_UNLOCK(sh);
+}
 
-	V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
-	V_pf_status.src_nodes--;
+static void
+pf_free_src_node(struct pf_src_node *sn)
+{
 
-	uma_zfree(V_pf_sources_z, src);
+	KASSERT(sn->states == 0, ("%s: %p has refs", __func__, sn));
+	LIST_REMOVE(sn, entry);
+	uma_zfree(V_pf_sources_z, sn);
+}
+
+u_int
+pf_free_src_nodes(struct pf_src_node_list *head)
+{
+	struct pf_src_node *sn, *tmp;
+	u_int count = 0;
+
+	LIST_FOREACH_SAFE(sn, head, entry, tmp) {
+		pf_free_src_node(sn);
+		count++;
+	}
+
+	return (count);
 }
 
 /* Data storage structures initialization. */
@@ -1464,24 +1498,24 @@ pf_state_expires(const struct pf_state *state)
 void
 pf_purge_expired_src_nodes()
 {
+	struct pf_src_node_list	 freelist;
 	struct pf_srchash	*sh;
 	struct pf_src_node	*cur, *next;
 	int i;
 
+	LIST_INIT(&freelist);
 	for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask; i++, sh++) {
 	    PF_HASHROW_LOCK(sh);
 	    LIST_FOREACH_SAFE(cur, &sh->nodes, entry, next)
-		if (cur->states <= 0 && cur->expire <= time_uptime) {
-			if (cur->rule.ptr != NULL)
-				cur->rule.ptr->src_nodes--;
-			LIST_REMOVE(cur, entry);
-			V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
-			V_pf_status.src_nodes--;
-			uma_zfree(V_pf_sources_z, cur);
+		if (cur->states == 0 && cur->expire <= time_uptime) {
+			pf_unlink_src_node_locked(cur);
+			LIST_INSERT_HEAD(&freelist, cur, entry);
 		} else if (cur->rule.ptr != NULL)
 			cur->rule.ptr->rule_flag |= PFRULE_REFS;
 	    PF_HASHROW_UNLOCK(sh);
 	}
+
+	pf_free_src_nodes(&freelist);
 }
 
 static void
@@ -1492,7 +1526,7 @@ pf_src_tree_remove_state(struct pf_state *s)
 	if (s->src_node != NULL) {
 		if (s->src.tcp_est)
 			--s->src_node->conn;
-		if (--s->src_node->states <= 0) {
+		if (--s->src_node->states == 0) {
 			timeout = s->rule.ptr->timeout[PFTM_SRC_NODE];
 			if (!timeout)
 				timeout =
@@ -1501,7 +1535,7 @@ pf_src_tree_remove_state(struct pf_state *s)
 		}
 	}
 	if (s->nat_src_node != s->src_node && s->nat_src_node != NULL) {
-		if (--s->nat_src_node->states <= 0) {
+		if (--s->nat_src_node->states == 0) {
 			timeout = s->rule.ptr->timeout[PFTM_SRC_NODE];
 			if (!timeout)
 				timeout =
@@ -3771,11 +3805,15 @@ csfailed:
 	if (nk != NULL)
 		uma_zfree(V_pf_state_key_z, nk);
 
-	if (sn != NULL && sn->states == 0 && sn->expire == 0)
-		pf_remove_src_node(sn);
+	if (sn != NULL && sn->states == 0 && sn->expire == 0) {
+		pf_unlink_src_node(sn);
+		pf_free_src_node(sn);
+	}
 
-	if (nsn != sn && nsn != NULL && nsn->states == 0 && nsn->expire == 0)
-		pf_remove_src_node(nsn);
+	if (nsn != sn && nsn != NULL && nsn->states == 0 && nsn->expire == 0) {
+		pf_unlink_src_node(nsn);
+		pf_free_src_node(nsn);
+	}
 
 	return (PF_DROP);
 }

@@ -38,10 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-
-#ifdef __FreeBSD__
 #include <sys/endian.h>
-#endif
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -234,13 +231,13 @@ usage(void)
 {
 	extern char *__progname;
 
-	fprintf(stderr, "usage: %s [-AdeghmNnOPqRrvz] ", __progname);
-	fprintf(stderr, "[-a anchor] [-D macro=value] [-F modifier]\n");
-	fprintf(stderr, "\t[-f file] [-i interface] [-K host | network]\n");
-	fprintf(stderr, "\t[-k host | network | label | id] ");
-	fprintf(stderr, "[-o level] [-p device]\n");
-	fprintf(stderr, "\t[-s modifier] ");
-	fprintf(stderr, "[-t table -T command [address ...]] [-x level]\n");
+	fprintf(stderr,
+"usage: %s [-AdeghmNnOPqRrvz] [-a anchor] [-D macro=value] [-F modifier]\n"
+	"\t[-f file] [-i interface] [-K host | network]\n"
+	"\t[-k host | network | label | id] [-o level] [-p device]\n"
+	"\t[-s modifier] [-t table -T command [address ...]] [-x level]\n",
+	    __progname);
+
 	exit(1);
 }
 
@@ -250,10 +247,8 @@ pfctl_enable(int dev, int opts)
 	if (ioctl(dev, DIOCSTART)) {
 		if (errno == EEXIST)
 			errx(1, "pf already enabled");
-#ifdef __FreeBSD__
 		else if (errno == ESRCH)
 			errx(1, "pfil registeration failed");
-#endif
 		else
 			err(1, "DIOCSTART");
 	}
@@ -2185,7 +2180,7 @@ main(int argc, char *argv[])
 		/* turn off options */
 		opts &= ~ (PF_OPT_DISABLE | PF_OPT_ENABLE);
 		clearopt = showopt = debugopt = NULL;
-#if defined(__FreeBSD__) && !defined(ENABLE_ALTQ)
+#if !defined(ENABLE_ALTQ)
 		altqsupport = 0;
 #else
 		altqsupport = 1;

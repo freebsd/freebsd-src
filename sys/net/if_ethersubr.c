@@ -708,13 +708,25 @@ static void
 ether_input(struct ifnet *ifp, struct mbuf *m)
 {
 
-	/*
-	 * We will rely on rcvif being set properly in the deferred context,
-	 * so assert it is correct here.
-	 */
-	KASSERT(m->m_pkthdr.rcvif == ifp, ("%s: ifnet mismatch", __func__));
+	struct mbuf *mn;
 
-	netisr_dispatch(NETISR_ETHER, m);
+	/*
+	 * The drivers are allowed to pass in a chain of packets linked with
+	 * m_nextpkt. We split them up into separate packets here and pass
+	 * them up. This allows the drivers to amortize the receive lock.
+	 */
+	while (m) {
+		mn = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+
+		/*
+		 * We will rely on rcvif being set properly in the deferred context,
+		 * so assert it is correct here.
+		 */
+		KASSERT(m->m_pkthdr.rcvif == ifp, ("%s: ifnet mismatch", __func__));
+		netisr_dispatch(NETISR_ETHER, m);
+		m = mn;
+	}
 }
 
 /*

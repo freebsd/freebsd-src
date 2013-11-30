@@ -61,14 +61,15 @@
 usage()
 {
 	cat <<EOF
-usage: etcupdate [-nBF] [-d workdir] [-r | -s source | -t tarball] [-A patterns]
-                 [-D destdir] [-I patterns] [-L logfile] [-M options]
+usage: etcupdate [-npBF] [-d workdir] [-r | -s source | -t tarball]
+                 [-A patterns] [-D destdir] [-I patterns] [-L logfile]
+                 [-M options]
        etcupdate build [-B] [-d workdir] [-s source] [-L logfile] [-M options]
                  <tarball>
        etcupdate diff [-d workdir] [-D destdir] [-I patterns] [-L logfile]
        etcupdate extract [-B] [-d workdir] [-s source | -t tarball] [-L logfile]
                  [-M options]
-       etcupdate resolve [-d workdir] [-D destdir] [-L logfile]
+       etcupdate resolve [-p] [-d workdir] [-D destdir] [-L logfile]
        etcupdate status [-d workdir] [-D destdir]
 EOF
 	exit 1
@@ -181,22 +182,31 @@ always_install()
 # $1 - directory to store new tree in
 build_tree()
 {
-	local make
+	local destdir dir file make
 
 	make="make $MAKE_OPTIONS"
 
 	log "Building tree at $1 with $make"
 	mkdir -p $1/usr/obj >&3 2>&1
-	(cd $SRCDIR; $make DESTDIR=$1 distrib-dirs) >&3 2>&1 || return 1
+	destdir=`realpath $1`
 
-	if ! [ -n "$nobuild" ]; then
-		(cd $SRCDIR; \
-	    MAKEOBJDIRPREFIX=$1/usr/obj $make _obj SUBDIR_OVERRIDE=etc &&
-	    MAKEOBJDIRPREFIX=$1/usr/obj $make everything SUBDIR_OVERRIDE=etc &&
-	    MAKEOBJDIRPREFIX=$1/usr/obj $make DESTDIR=$1 distribution) \
+	if [ -n "$preworld" ]; then
+		# Build a limited tree that only contains files that are
+		# crucial to installworld.
+		for file in $PREWORLD_FILES; do
+			dir=`dirname /$file`
+			mkdir -p $1/$dir >&3 2>&1 || return 1
+			cp -p $SRCDIR/$file $1/$file || return 1
+		done
+	elif ! [ -n "$nobuild" ]; then
+		(cd $SRCDIR; $make DESTDIR=$destdir distrib-dirs &&
+    MAKEOBJDIRPREFIX=$destdir/usr/obj $make _obj SUBDIR_OVERRIDE=etc &&
+    MAKEOBJDIRPREFIX=$destdir/usr/obj $make everything SUBDIR_OVERRIDE=etc &&
+    MAKEOBJDIRPREFIX=$destdir/usr/obj $make DESTDIR=$destdir distribution) \
 		    >&3 2>&1 || return 1
 	else
-		(cd $SRCDIR; $make DESTDIR=$1 distribution) >&3 2>&1 || return 1
+		(cd $SRCDIR; $make DESTDIR=$destdir distrib-dirs &&
+		    $make DESTDIR=$destdir distribution) >&3 2>&1 || return 1
 	fi
 	chflags -R noschg $1 >&3 2>&1 || return 1
 	rm -rf $1/usr/obj >&3 2>&1 || return 1
@@ -218,9 +228,15 @@ build_tree()
 # source tree.
 extract_tree()
 {
+	local files
+
 	# If we have a tarball, extract that into the new directory.
 	if [ -n "$tarball" ]; then
-		if ! (mkdir -p $NEWTREE && tar xf $tarball -C $NEWTREE) \
+		files=
+		if [ -n "$preworld" ]; then
+			files="$PREWORLD_FILES"
+		fi
+		if ! (mkdir -p $NEWTREE && tar xf $tarball -C $NEWTREE $files) \
 		    >&3 2>&1; then
 			echo "Failed to extract new tree."
 			remove_tree $NEWTREE
@@ -1010,16 +1026,6 @@ handle_modified_file()
 		fi
 	fi
 
-	# If the only change in the new file versus the old file is a
-	# change in the FreeBSD ID string and -F is specified, just
-	# update the FreeBSD ID string in the local file.
-	if [ -n "$FREEBSD_ID" -a $cmp -eq $COMPARE_DIFFFILES ] && \
-	    fbsdid_only $OLDTREE/$file $NEWTREE/$file; then
-		if update_freebsdid $file; then
-			continue
-		fi
-	fi
-
 	# If the file was removed from the dest tree, just whine.
 	if [ $newdestcmp -eq $COMPARE_ONLYFIRST ]; then
 		# If the removed file matches an ALWAYS_INSTALL glob,
@@ -1031,6 +1037,14 @@ handle_modified_file()
 					echo "  A $file"
 				fi
 			fi
+			return
+		fi
+
+		# If the only change in the new file versus the old
+		# file is a change in the FreeBSD ID string and -F is
+		# specified, don't warn.
+		if [ -n "$FREEBSD_ID" -a $cmp -eq $COMPARE_DIFFFILES ] && \
+		    fbsdid_only $OLDTREE/$file $NEWTREE/$file; then
 			return
 		fi
 
@@ -1061,6 +1075,16 @@ handle_modified_file()
 		log "ALWAYS: updating $file"
 		if update_unmodified $file; then
 			return
+		fi
+	fi
+
+	# If the only change in the new file versus the old file is a
+	# change in the FreeBSD ID string and -F is specified, just
+	# update the FreeBSD ID string in the local file.
+	if [ -n "$FREEBSD_ID" -a $cmp -eq $COMPARE_DIFFFILES ] && \
+	    fbsdid_only $OLDTREE/$file $NEWTREE/$file; then
+		if update_freebsdid $file; then
+			continue
 		fi
 	fi
 
@@ -1298,6 +1322,11 @@ resolve_cmd()
 		return
 	fi
 
+	if ! [ -d $NEWTREE ]; then
+		echo "The current tree is not present to resolve conflicts."
+		exit 1
+	fi
+
 	conflicts=`(cd $CONFLICTS; find . ! -type d) | sed -e 's/^\.//'`
 	for file in $conflicts; do
 		resolve_conflict $file
@@ -1343,7 +1372,7 @@ update_cmd()
 		usage
 	fi
 
-	log "update command: rerun=$rerun tarball=$tarball"
+	log "update command: rerun=$rerun tarball=$tarball preworld=$preworld"
 
 	if [ `id -u` -ne 0 ]; then
 		echo "Must be root to update a tree."
@@ -1376,8 +1405,21 @@ update_cmd()
 				echo "Unable to create temporary directory."
 				exit 1
 			fi
-			OLDTREE=$NEWTREE
+
+			# A pre-world dryrun has already set OLDTREE to
+			# point to the current stock tree.
+			if [ -z "$preworld" ]; then
+				OLDTREE=$NEWTREE
+			fi
 			NEWTREE=$dir
+
+		# For a pre-world update, blow away any pre-existing
+		# NEWTREE.
+		elif [ -n "$preworld" ]; then
+			if ! remove_tree $NEWTREE; then
+				echo "Unable to remove pre-world tree."
+				exit 1
+			fi
 
 		# Rotate the existing stock tree to the old tree.
 		elif [ -d $NEWTREE ]; then
@@ -1421,6 +1463,12 @@ EOF
 	# Initialize conflicts and warnings handling.
 	rm -f $WARNINGS
 	mkdir -p $CONFLICTS
+
+	# Ignore removed files for the pre-world case.  A pre-world
+	# update uses a stripped-down tree.
+	if [ -n "$preworld" ]; then
+		> $WORKDIR/removed.files
+	fi
 	
 	# The order for the following sections is important.  In the
 	# odd case that a directory is converted into a file, the
@@ -1535,13 +1583,17 @@ always=
 dryrun=
 ignore=
 nobuild=
-while getopts "d:nrs:t:A:BD:FI:L:M:" option; do
+preworld=
+while getopts "d:nprs:t:A:BD:FI:L:M:" option; do
 	case "$option" in
 		d)
 			WORKDIR=$OPTARG
 			;;
 		n)
 			dryrun=YES
+			;;
+		p)
+			preworld=YES
 			;;
 		r)
 			rerun=YES
@@ -1633,6 +1685,9 @@ WARNINGS=$WORKDIR/warnings
 # Use $EDITOR for resolving conflicts.  If it is not set, default to vi.
 EDITOR=${EDITOR:-/usr/bin/vi}
 
+# Files that need to be updated before installworld.
+PREWORLD_FILES="etc/master.passwd etc/group"
+
 # Handle command-specific argument processing such as complaining
 # about unsupported options.  Since the configuration file is always
 # included, do not complain about extra command line arguments that
@@ -1644,18 +1699,38 @@ case $command in
 			echo
 			usage
 		fi
+		if [ -n "$rerun" -a -n "$preworld" ]; then
+			echo "Only one of -p or -r can be specified."
+			echo
+			usage
+		fi
 		;;
-	build|diff|resolve|status)
+	build|diff|status)
+		if [ -n "$dryrun" -o -n "$rerun" -o -n "$tarball" -o \
+		     -n "$preworld" ]; then
+			usage
+		fi
+		;;
+	resolve)
 		if [ -n "$dryrun" -o -n "$rerun" -o -n "$tarball" ]; then
 			usage
 		fi
 		;;
 	extract)
-		if [ -n "$dryrun" -o -n "$rerun" ]; then
+		if [ -n "$dryrun" -o -n "$rerun" -o -n "$preworld" ]; then
 			usage
 		fi
 		;;
 esac
+
+# Pre-world mode uses a different set of trees.  It leaves the current
+# tree as-is so it is still present for a full etcupdate run after the
+# world install is complete.  Instead, it installs a few critical files
+# into a separate tree.
+if [ -n "$preworld" ]; then
+	OLDTREE=$NEWTREE
+	NEWTREE=$WORKDIR/preworld
+fi
 
 # Open the log file.  Don't truncate it if doing a minor operation so
 # that a minor operation doesn't lose log info from a major operation.
