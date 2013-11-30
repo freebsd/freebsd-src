@@ -309,6 +309,7 @@ parse_drconf_memory(int *msz, int *asz, struct mem_region *ofmem,
 	res = OF_getprop(phandle, "ibm,lmb-size", lmb_size, sizeof(lmb_size));
 	if (res == -1)
 		return (0);
+	printf("Logical Memory Block size: %d MB\n", lmb_size[1] >> 20);
 
 	/* Parse the /ibm,dynamic-memory.
 	   The first position gives the # of entries. The next two words
