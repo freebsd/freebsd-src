@@ -294,7 +294,7 @@
 
 #define HE_REGO_CON_DAT		0x807F8
 #define HE_REGO_CON_CTL		0x807FC
-#define HE_REGM_CON_MBOX	(2 << 30)
+#define HE_REGM_CON_MBOX	(2U << 30)
 #define HE_REGM_CON_TCM		(1 << 30)
 #define HE_REGM_CON_RCM		(0 << 30)
 #define HE_REGM_CON_WE		(1 << 29)

@@ -807,8 +807,8 @@ extern int r600_cs_init(struct drm_device *dev);
 #define RADEON_DST_PITCH_OFFSET_C	0x1c80
 #	define RADEON_DST_TILE_LINEAR		(0 << 30)
 #	define RADEON_DST_TILE_MACRO		(1 << 30)
-#	define RADEON_DST_TILE_MICRO		(2 << 30)
-#	define RADEON_DST_TILE_BOTH		(3 << 30)
+#	define RADEON_DST_TILE_MICRO		(2U << 30)
+#	define RADEON_DST_TILE_BOTH		(3U << 30)
 
 #define RADEON_SCRATCH_REG0		0x15e0
 #define RADEON_SCRATCH_REG1		0x15e4
