@@ -18,6 +18,9 @@ CLEANFILES=	sandboxasm.o
 
 .if defined(CHERI_CC) && defined(SYSROOT)
 CC=	${CHERI_CC} --sysroot=${SYSROOT} -integrated-as
+
+# XXXRW: Until ELF types are right
+LDFLAGS+=	-Wl,--no-warn-mismatch
 .endif
 
 .include <bsd.lib.mk>
