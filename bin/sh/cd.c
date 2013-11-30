@@ -182,6 +182,7 @@ cdlogical(char *dest)
 	struct stat statb;
 	int first;
 	int badstat;
+	size_t len;
 
 	/*
 	 *  Check each component of the path. If we find a symlink or
@@ -189,8 +190,9 @@ cdlogical(char *dest)
 	 *  next time we get the value of the current directory.
 	 */
 	badstat = 0;
-	cdcomppath = stalloc(strlen(dest) + 1);
-	scopy(dest, cdcomppath);
+	len = strlen(dest);
+	cdcomppath = stalloc(len + 1);
+	memcpy(cdcomppath, dest, len + 1);
 	STARTSTACKSTR(p);
 	if (*dest == '/') {
 		STPUTC('/', p);
@@ -275,6 +277,7 @@ findcwd(char *dir)
 {
 	char *new;
 	char *p;
+	size_t len;
 
 	/*
 	 * If our argument is NULL, we don't know the current directory
@@ -283,8 +286,9 @@ findcwd(char *dir)
 	 */
 	if (dir == NULL || curdir == NULL)
 		return getpwd2();
-	cdcomppath = stalloc(strlen(dir) + 1);
-	scopy(dir, cdcomppath);
+	len = strlen(dir);
+	cdcomppath = stalloc(len + 1);
+	memcpy(cdcomppath, dir, len + 1);
 	STARTSTACKSTR(new);
 	if (*dir != '/') {
 		STPUTS(curdir, new);
