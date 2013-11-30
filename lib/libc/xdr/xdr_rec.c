@@ -106,7 +106,7 @@ static const struct  xdr_ops xdrrec_ops = {
  * meet the needs of xdr and rpc based on tcp.
  */
 
-#define LAST_FRAG ((u_int32_t)(1 << 31))
+#define LAST_FRAG ((u_int32_t)(1U << 31))
 
 typedef struct rec_strm {
 	char *tcp_handle;

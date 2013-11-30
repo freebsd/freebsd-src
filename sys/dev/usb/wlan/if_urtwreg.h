@@ -72,7 +72,7 @@
 #define	URTW_TX_HWMASK			(7 << 25)
 #define	URTW_TX_DISREQQSIZE		(1 << 28)
 #define	URTW_TX_HW_SEQNUM		(1 << 30)
-#define	URTW_TX_CWMIN			(1 << 31)
+#define	URTW_TX_CWMIN			(1U << 31)
 #define	URTW_TX_NOICV			(0x80000)
 #define	URTW_RX				0x0044		/* 4 byte  */
 #define	URTW_RX_9356SEL			(1 << 6)
@@ -106,7 +106,7 @@
 #define	URTW_MAX_RX_DMA_2048		(7 << URTW_MAX_RX_DMA_SHIFT)
 #define	URTW_MAX_RX_DMA_1024		(6)
 #define	URTW_MAX_RX_DMA_SHIFT		(10)
-#define	URTW_RCR_ONLYERLPKT		(1 << 31)
+#define	URTW_RCR_ONLYERLPKT		(1U << 31)
 #define	URTW_INT_TIMEOUT		0x0048		/* 4 byte  */
 #define	URTW_INT_TBDA			0x004c		/* 4 byte  */
 #define	URTW_EPROM_CMD			0x0050		/* 1 byte  */
@@ -330,7 +330,7 @@ struct urtw_8187b_rxhdr {
 #define	URTW_RX_FLAG_LAST	(1 << 28)
 #define	URTW_RX_FLAG_FIRST	(1 << 29)
 #define	URTW_RX_FLAG_EOR	(1 << 30)
-#define	URTW_RX_FLAG_OWN	(1 << 31)
+#define	URTW_RX_FLAG_OWN	(1U << 31)
 	uint64_t		mactime;
 	uint8_t			noise;
 	uint8_t			rssi;
@@ -367,7 +367,7 @@ struct urtw_8187b_txhdr {
 #define	URTW_TX_FLAG_LAST	(1 << 28)
 #define	URTW_TX_FLAG_FIRST	(1 << 29)
 #define	URTW_TX_FLAG_DMA	(1 << 30)
-#define	URTW_TX_FLAG_OWN	(1 << 31)
+#define	URTW_TX_FLAG_OWN	(1U << 31)
 	uint16_t		rtsdur;
 	uint16_t		len;
 #define	URTW_TX_LEN				/*  0 ~ 14 bits */
