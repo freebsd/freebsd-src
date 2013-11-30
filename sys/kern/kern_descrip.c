@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
-#include "opt_procdesc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -3115,11 +3114,9 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 			tp = fp->f_data;
 			break;
 
-#ifdef PROCDESC
 		case DTYPE_PROCDESC:
 			kif->kf_type = KF_TYPE_PROCDESC;
 			break;
-#endif
 
 		default:
 			kif->kf_type = KF_TYPE_UNKNOWN;
@@ -3485,12 +3482,10 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 			data = fp->f_data;
 			break;
 
-#ifdef PROCDESC
 		case DTYPE_PROCDESC:
 			type = KF_TYPE_PROCDESC;
 			data = fp->f_data;
 			break;
-#endif
 
 		default:
 			type = KF_TYPE_UNKNOWN;

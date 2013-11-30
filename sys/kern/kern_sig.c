@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_ktrace.h"
 #include "opt_core.h"
-#include "opt_procdesc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1723,7 +1722,6 @@ sys_pdkill(td, uap)
 	struct thread *td;
 	struct pdkill_args *uap;
 {
-#ifdef PROCDESC
 	struct proc *p;
 	cap_rights_t rights;
 	int error;
@@ -1743,9 +1741,6 @@ sys_pdkill(td, uap)
 		kern_psignal(p, uap->signum);
 	PROC_UNLOCK(p);
 	return (error);
-#else
-	return (ENOSYS);
-#endif
 }
 
 #if defined(COMPAT_43)
