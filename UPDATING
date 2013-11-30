@@ -31,13 +31,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
-20131126:
-	WITH_LIB32 has been changed to WITHOUT_LIB32 by default.  You
-	can set WITH_LIB32=yes in make.conf or src.conf, or if you need
-	to do a quick 32 bit library build you can do a 'make build32'
-	and 'make install32' as a separate step AFTER doing a
-	buildworld/installworld.
-
 20131108:
 	The WITHOUT_ATF build knob has been removed and its functionality
 	has been subsumed into the more generic WITHOUT_TESTS.  If you were
@@ -83,7 +76,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	BIND has been removed from the base system.  If all you need
 	is a local resolver, simply enable and start the local_unbound
 	service instead.  Otherwise, several versions of BIND are
-	available in the ports tree.
+	available in the ports tree.   The dns/bind99 port is one example.
+
+	With this change, nslookup(1) and dig(1) are no longer in the base
+	system.  Users should instead use host(1) and drill(1) which are
+	in the base system.  Alternatively, nslookup and dig can
+	be obtained by installing the dns/bind-tools port.
 
 20130916:
 	With the addition of unbound(8), a new unbound user is now

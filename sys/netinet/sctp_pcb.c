@@ -5864,14 +5864,6 @@ sctp_pcb_init()
 	for (i = 0; i < SCTP_STACK_VTAG_HASH_SIZE; i++) {
 		LIST_INIT(&SCTP_BASE_INFO(vtag_timewait)[i]);
 	}
-	/*
-	 * Only initialize non-VNET global mutexes for the
-	 * default instance.
-	 */
-	if (IS_DEFAULT_VNET(curvnet)) {
-		SCTP_ITERATOR_LOCK_INIT();
-		SCTP_IPI_ITERATOR_WQ_INIT();
-	}
 	sctp_startup_iterator();
 
 #if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)

@@ -1690,12 +1690,11 @@ merge_decls (tree newdecl, tree olddecl, tree newtype, tree oldtype)
       DECL_SIZE (newdecl) = DECL_SIZE (olddecl);
       DECL_SIZE_UNIT (newdecl) = DECL_SIZE_UNIT (olddecl);
       DECL_MODE (newdecl) = DECL_MODE (olddecl);
-      if (TREE_CODE (olddecl) != FUNCTION_DECL)
-	if (DECL_ALIGN (olddecl) > DECL_ALIGN (newdecl))
-	  {
-	    DECL_ALIGN (newdecl) = DECL_ALIGN (olddecl);
-	    DECL_USER_ALIGN (newdecl) |= DECL_ALIGN (olddecl);
-	  }
+      if (DECL_ALIGN (olddecl) > DECL_ALIGN (newdecl))
+	{
+	  DECL_ALIGN (newdecl) = DECL_ALIGN (olddecl);
+	  DECL_USER_ALIGN (newdecl) |= DECL_ALIGN (olddecl);
+	}
     }
 
 

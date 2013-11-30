@@ -44,4 +44,7 @@ int	vioapic_mmio_write(void *vm, int vcpuid, uint64_t gpa,
 	    uint64_t wval, int size, void *arg);
 int	vioapic_mmio_read(void *vm, int vcpuid, uint64_t gpa,
 	    uint64_t *rval, int size, void *arg);
+
+int	vioapic_pincount(struct vm *vm);
+void	vioapic_process_eoi(struct vm *vm, int vcpuid, int vector);
 #endif

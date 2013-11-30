@@ -5339,7 +5339,7 @@ ztest_deadman_thread(void *arg)
 		 * vdev_deadman() discovers that there hasn't been any recent
 		 * I/Os then it will end up aborting the tests.
 		 */
-		if (spa_suspended(spa)) {
+		if (spa_suspended(spa) || spa->spa_root_vdev == NULL) {
 			fatal(0, "aborting test after %llu seconds because "
 			    "pool has transitioned to a suspended state.",
 			    zfs_deadman_synctime_ms / 1000);

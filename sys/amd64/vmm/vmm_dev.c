@@ -294,7 +294,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_LAPIC_IRQ:
 		vmirq = (struct vm_lapic_irq *)data;
-		error = lapic_set_intr(sc->vm, vmirq->cpuid, vmirq->vector);
+		error = lapic_intr_edge(sc->vm, vmirq->cpuid, vmirq->vector);
 		break;
 	case VM_IOAPIC_ASSERT_IRQ:
 		ioapic_irq = (struct vm_ioapic_irq *)data;
