@@ -107,6 +107,7 @@ vt_fb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
 	bpp = FBTYPE_GET_BYTESPP(info);
 	fgc = info->fb_cmap[fg];
 	bgc = info->fb_cmap[bg];
+	b = m = 0;
 	if (bpl == 0)
 		bpl = (width + 7) >> 3; /* Bytes per sorce line. */
 

@@ -1109,6 +1109,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt)
 	vd = main_vd;
 	vw = vd->vd_curwindow;
 	vf = vw->vw_font;
+	mark = 0;
 
 	if (vw->vw_flags & VWF_MOUSE_HIDE)
 		return; /* Mouse disabled. */
