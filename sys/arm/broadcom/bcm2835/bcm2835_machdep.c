@@ -137,10 +137,18 @@ cpu_reset()
 	while (1);
 }
 
+int bcm2835_get_next_irq(platform_t, int);
+void bcm2835_mask_irq(platform_t, uintptr_t);
+void bcm2835_unmask_irq(platform_t, uintptr_t);
+
 static platform_method_t bcm2835_methods[] = {
 	PLATFORMMETHOD(platform_devmap_init,	bcm2835_devmap_init),
 	PLATFORMMETHOD(platform_lastaddr,	bcm2835_lastaddr),
 	PLATFORMMETHOD(platform_late_init,	bcm2835_late_init),
+
+	PLATFORMMETHOD(platform_get_next_irq,	bcm2835_get_next_irq),
+	PLATFORMMETHOD(platform_mask_irq,	bcm2835_mask_irq),
+	PLATFORMMETHOD(platform_unmask_irq,	bcm2835_unmask_irq),
 
 	PLATFORMMETHOD_END,
 };

@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 
 #include <machine/cpu.h>
+#include <machine/intr.h>
 #include <machine/md_var.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
@@ -164,5 +165,23 @@ platform_late_init(void)
 {
 
 	PLATFORM_LATE_INIT(plat_obj);
+}
+
+int
+arm_get_next_irq(int last)
+{
+	return PLATFORM_GET_NEXT_IRQ(plat_obj, last);
+}
+
+void
+arm_mask_irq(uintptr_t irq)
+{
+	PLATFORM_MASK_IRQ(plat_obj, irq);
+}
+
+void
+arm_unmask_irq(uintptr_t irq)
+{
+	PLATFORM_UNMASK_IRQ(plat_obj, irq);
 }
 

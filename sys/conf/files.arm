@@ -63,6 +63,7 @@ cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional zfs compile-with "${Z
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/fb/fb.c			optional	sc
+dev/fdt/fdt_arm.c		optional	fdt
 dev/fdt/fdt_platform.c		optional	fdt
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
 dev/kbd/kbd.c			optional	sc

@@ -135,3 +135,24 @@ METHOD void late_init {
 	platform_t	_plat;
 };
 
+/**
+ */
+METHOD int get_next_irq {
+	platform_t	_plat;
+	int		last;
+};
+
+/**
+ */
+METHOD void mask_irq {
+	platform_t	_plat;
+	uintptr_t	irq;
+};
+
+/**
+ */
+METHOD void unmask_irq {
+	platform_t	_plat;
+	uintptr_t	irq;
+};
+

@@ -76,6 +76,11 @@ void arm_setup_irqhandler(const char *, int (*)(void*), void (*)(void*),
 int arm_remove_irqhandler(int, void *);
 extern void (*arm_post_filter)(void *);
 
+struct platform_kobj;
+
 void gic_init_secondary(void);
+int gic_get_next_irq(struct platform_kobj *, int);
+void gic_mask_irq(struct platform_kobj *, uintptr_t);
+void gic_unmask_irq(struct platform_kobj *, uintptr_t);
 
 #endif	/* _MACHINE_INTR_H */

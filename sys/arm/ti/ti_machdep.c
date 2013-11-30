@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/devmap.h>
+#include <machine/intr.h>
 #include <machine/machdep.h>
 #include <machine/platformvar.h>
 
@@ -156,6 +157,10 @@ static platform_method_t omap4_methods[] = {
 	PLATFORMMETHOD(platform_attach,		ti_attach),
 	PLATFORMMETHOD(platform_devmap_init,	ti_omap4_devmap_init),
 	PLATFORMMETHOD(platform_lastaddr,	ti_lastaddr),
+
+	PLATFORMMETHOD(platform_get_next_irq,	gic_get_next_irq),
+	PLATFORMMETHOD(platform_mask_irq,	gic_mask_irq),
+	PLATFORMMETHOD(platform_unmask_irq,	gic_unmask_irq),
 
 	PLATFORMMETHOD_END,
 };

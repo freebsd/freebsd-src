@@ -1,8 +1,6 @@
 /*-
- * Copyright (C) 2008-2011 MARVELL INTERNATIONAL LTD.
+ * Copyright (c) 2013 Andrew Turner
  * All rights reserved.
- *
- * Developed by Semihalf.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,14 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of MARVELL nor the names of contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -29,36 +24,48 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_global.h"
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/kdb.h>
-#include <sys/reboot.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 
-#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 
-#include <machine/bus.h>
-#include <machine/fdt.h>
-#include <machine/vmparam.h>
+#include "ofw_bus_if.h"
+#include "fdt_common.h"
 
 struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
 
-static int
-fdt_intc_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
-    int *pol)
-{
+/*
+ * The list of interrupts we can decode in fdt_pic_decode_arm.
+ * TODO: Allwinner needs an offset for gic, this needs to be fixed somehow
+ */
+static const char * fdt_compatible[] = {
+	"arm,gic",
+	"broadcom,bcm2835-armctrl-ic",
+	"ti,aintc",
+	NULL
+};
 
-	if (!fdt_is_compatible(node, "broadcom,bcm2835-armctrl-ic"))
+static int
+fdt_pic_decode_arm(phandle_t node, pcell_t *intr, int *interrupt,
+    int *trig, int *pol)
+{
+	u_int i;
+
+	for (i = 0; fdt_compatible[i] != NULL; i++) {
+		if (fdt_is_compatible(node, fdt_compatible[i]))
+			break;
+	}
+	if (fdt_compatible[i] == NULL)
 		return (ENXIO);
 
 	*interrupt = fdt32_to_cpu(intr[0]);
@@ -68,8 +75,8 @@ fdt_intc_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
 	return (0);
 }
 
-
 fdt_pic_decode_t fdt_pic_table[] = {
-	&fdt_intc_decode_ic,
+	&fdt_pic_decode_arm,
 	NULL
 };
+

@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
+#include <machine/platformvar.h>
 #include <machine/smp.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -250,7 +251,7 @@ gic_post_filter(void *arg)
 }
 
 int
-arm_get_next_irq(int last_irq)
+gic_get_next_irq(platform_t plat, int last_irq)
 {
 	uint32_t active_irq;
 
@@ -276,7 +277,7 @@ arm_get_next_irq(int last_irq)
 }
 
 void
-arm_mask_irq(uintptr_t nb)
+gic_mask_irq(platform_t plat, uintptr_t nb)
 {
 
 	gic_d_write_4(GICD_ICENABLER(nb >> 5), (1UL << (nb & 0x1F)));
@@ -284,7 +285,7 @@ arm_mask_irq(uintptr_t nb)
 }
 
 void
-arm_unmask_irq(uintptr_t nb)
+gic_unmask_irq(platform_t plat, uintptr_t nb)
 {
 
 	gic_d_write_4(GICD_ISENABLER(nb >> 5), (1UL << (nb & 0x1F)));

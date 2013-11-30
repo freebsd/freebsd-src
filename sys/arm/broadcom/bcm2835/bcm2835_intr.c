@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
+#include <machine/platformvar.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
@@ -137,8 +138,12 @@ static devclass_t bcm_intc_devclass;
 
 DRIVER_MODULE(intc, simplebus, bcm_intc_driver, bcm_intc_devclass, 0, 0);
 
+int bcm2835_get_next_irq(platform_t, int);
+void bcm2835_mask_irq(platform_t, uintptr_t);
+void bcm2835_unmask_irq(platform_t, uintptr_t);
+
 int
-arm_get_next_irq(int last_irq)
+bcm2835_get_next_irq(platform_t plat, int last_irq)
 {
 	uint32_t pending;
 	int32_t irq = last_irq + 1;
@@ -173,7 +178,7 @@ arm_get_next_irq(int last_irq)
 }
 
 void
-arm_mask_irq(uintptr_t nb)
+bcm2835_mask_irq(platform_t plat, uintptr_t nb)
 {
 	dprintf("%s: %d\n", __func__, nb);
 
@@ -188,7 +193,7 @@ arm_mask_irq(uintptr_t nb)
 }
 
 void
-arm_unmask_irq(uintptr_t nb)
+bcm2835_unmask_irq(platform_t plat, uintptr_t nb)
 {
 	dprintf("%s: %d\n", __func__, nb);
 
