@@ -390,11 +390,11 @@ opentrace(void)
 			else
 				p = "/tmp";
 		}
-		scopy(p, s);
+		strcpy(s, p);
 		strcat(s, "/trace");
 	}
 #else
-	scopy("./trace", s);
+	strcpy(s, "./trace");
 #endif /* not_this_way */
 	if ((tracefile = fopen(s, "a")) == NULL) {
 		fprintf(stderr, "Can't open %s: %s\n", s, strerror(errno));
