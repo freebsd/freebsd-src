@@ -165,7 +165,6 @@ PPC_DEBUG	opt_ppc.h
 PPC_PROBE_CHIPSET	opt_ppc.h
 PPS_SYNC	opt_ntp.h
 PREEMPTION	opt_sched.h
-PROCDESC	opt_procdesc.h
 QUOTA
 SCHED_4BSD	opt_sched.h
 SCHED_STATS	opt_sched.h
