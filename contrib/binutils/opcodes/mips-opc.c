@@ -266,7 +266,7 @@ const struct mips_opcode mips_builtin_opcodes[] =
 /* there is no csdhi */
 
 {"clld",      "v,d,+O(+w)", 0xc8000007, 0xfc000007, 0, 0, I1},
-{"cscd",      "v,d,+O(+w)", 0xc8000007, 0xfc000007, 0, 0, I1},
+{"cscd",      "v,d,+O(+w)", 0xe8000007, 0xfc000007, 0, 0, I1},
 {"clldr",     "v,d(+w)",    0xc8000007, 0xfc0007ff, 0, 0, I1},
 {"cscdr",     "v,d(+w)",    0xe8000007, 0xfc0007ff, 0, 0, I1},
 {"clldi",     "v,+O(+w)",   0xc8000007, 0xfc00f807, 0, 0, I1},
