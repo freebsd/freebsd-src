@@ -110,10 +110,11 @@ ofwfb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
 
 	fgc = sc->sc_colormap[fg];
 	bgc = sc->sc_colormap[bg];
+	b = m = 0;
 
 	/* Don't try to put off screen pixels */
-	if (((left + width) > info->fb_width) || ((top + height) >
-	    info->fb_height))
+	if (((left + width) > vd->vd_width) || ((top + height) >
+	    vd->vd_height))
 		return;
 
 	line = (sc->sc_stride * top) + left * sc->sc_depth/8;
