@@ -25,6 +25,7 @@ machine		arm armv6
 cpu		CPU_ARM1176
 
 files		"../broadcom/bcm2835/files.bcm2835"
+files		"../ti/omap4/files.omap4"
 files		"../ti/files.ti"
 
 # The standard load address for FreeBSD/armv6
@@ -143,3 +144,10 @@ device		bcm2835_bsc
 # SPI
 device		spibus
 device		bcm2835_spi
+
+# OMAP support
+options 	SOC_OMAP4	# TODO Remove this, it should be unneeded
+device		ti_sdma
+device		twl
+device		twl_clks
+device		twl_vreg
