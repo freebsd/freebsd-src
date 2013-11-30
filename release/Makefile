@@ -4,6 +4,7 @@
 # 
 # User-driven targets:
 #  cdrom: Builds release CD-ROM media (disc1.iso)
+#  dvdrom: Builds release DVD-ROM media (dvd1.iso)
 #  memstick: Builds memory stick image (memstick.img)
 #  ftp: Sets up FTP distribution area (ftp)
 #  release: Build all media and FTP distribution area
@@ -17,6 +18,7 @@
 #  NOPORTS:  if set, do not distribute ports tree
 #  NOSRC:    if set, do not distribute source tree
 #  NODOC:    if set, do not generate release documentation
+#  NODVD:    if set, do not generate dvd1.iso
 #  TARGET/TARGET_ARCH: architecture of built release 
 #
 
