@@ -86,7 +86,10 @@ _chsbrt_invoke:
 	#
 	# Don't save $sp as CCall will do that for us.
 	#
-	daddiu	$sp, -88
+	# NB: Use 96 rather than 88 for the stack to ensure 32-byte alignment
+	# for capabilities stored and loaded from it later.
+	#
+	daddiu	$sp, -96
 	sd	$s0, 0($sp)
 	sd	$s1, 8($sp)
 	sd	$s2, 16($sp)
@@ -182,6 +185,11 @@ _chsbrt_invoke:
 	ccall	$c1, $c2
 
 	#
+	# CReturn restores IDC; propagate to $c0
+	#
+	cmove	$c0, $c26
+
+	#
 	# Restore capability registers from stack.
 	#
 	clc	$c17, $sp, 0($c0)
@@ -217,11 +225,6 @@ _chsbrt_invoke:
 	ccleartag	$c16
 
 	#
-	# CReturn restores IDC; propagate to $c0
-	#
-	cmove	$c0, $c26
-
-	#
 	# Restore general-purpose registers from the stack.
 	#
 	ld	$s0, 0($sp)
@@ -235,7 +238,7 @@ _chsbrt_invoke:
 	ld	$gp, 64($sp)
 	ld	$fp, 72($sp)
 	ld	$ra, 80($sp)
-	daddiu	$sp, 88
+	daddiu	$sp, 96
 
 	#
 	# Conservative: clear general-purpose registers that aren't return
