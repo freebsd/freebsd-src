@@ -56,6 +56,18 @@ CODE {
 	{
 		return;
 	}
+
+	static struct arm32_dma_range *
+	platform_null_bus_dma_get_range(platform_t plat)
+	{
+		return (NULL);
+	}
+
+	static int platform_null_bus_dma_get_range_nb(platform_t plat)
+	{
+		return (0);
+	}
+
 #if 0
 	static int platform_null_smp_first_cpu(platform_t plat,
 	    struct cpuref  *cpuref)
@@ -155,4 +167,16 @@ METHOD void unmask_irq {
 	platform_t	_plat;
 	uintptr_t	irq;
 };
+
+/**
+ */
+METHOD struct arm32_dma_range * bus_dma_get_range {
+	platform_t	_plat;
+} DEFAULT platform_null_bus_dma_get_range;
+
+/**
+ */
+METHOD int bus_dma_get_range_nb {
+	platform_t	_plat;
+} DEFAULT platform_null_bus_dma_get_range_nb;
 

@@ -34,11 +34,13 @@ __FBSDID("$FreeBSD$");
  * through a previously registered kernel object.
  */
 
+#define	_ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/ktr.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 #include <sys/systm.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
@@ -47,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 
+#include <machine/bus_dma.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 #include <machine/md_var.h>
@@ -185,3 +188,14 @@ arm_unmask_irq(uintptr_t irq)
 	PLATFORM_UNMASK_IRQ(plat_obj, irq);
 }
 
+struct arm32_dma_range *
+bus_dma_get_range(void)
+{
+	return PLATFORM_BUS_DMA_GET_RANGE(plat_obj);
+}
+
+int
+bus_dma_get_range_nb(void)
+{
+	return PLATFORM_BUS_DMA_GET_RANGE_NB(plat_obj);
+}

@@ -116,20 +116,6 @@ bcm2835_devmap_init(platform_t plat)
 	return (0);
 }
 
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
-
-	return (NULL);
-}
-
-int
-bus_dma_get_range_nb(void)
-{
-
-	return (0);
-}
-
 void
 cpu_reset()
 {
