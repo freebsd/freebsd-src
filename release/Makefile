@@ -29,11 +29,15 @@ PORTSDIR?=	/usr/ports
 DOCDIR?=	/usr/doc
 RELNOTES_LANG?= en_US.ISO8859-1
 
-TARGET?=	${MACHINE}
+.if !defined(TARGET) || empty(TARGET)
+TARGET=		${MACHINE}
+.endif
+.if !defined(TARGET_ARCH) || empty(TARGET_ARCH)
 .if ${TARGET} == ${MACHINE}
-TARGET_ARCH?=	${MACHINE_ARCH}
+TARGET_ARCH=	${MACHINE_ARCH}
 .else
-TARGET_ARCH?=	${TARGET}
+TARGET_ARCH=	${TARGET}
+.endif
 .endif
 IMAKE=		${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
 DISTDIR=	dist
@@ -75,7 +79,7 @@ IMAGES=
 .if exists(${.CURDIR}/${TARGET}/mkisoimages.sh)
 RELEASE_TARGETS+= cdrom
 IMAGES+=	disc1.iso bootonly.iso
-. if(!defined(NODVD))
+. if !defined(NODVD)
 RELEASE_TARGETS+= dvdrom
 IMAGES+=	dvd1.iso
 . endif
