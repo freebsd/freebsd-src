@@ -34,8 +34,13 @@
 .set noat
 
 #
-# Assembly wrapper for CCall on an object-capability.  Calling conventions
-# into _chsbrt_invoke:
+# Assembly wrapper for CCall on an object-capability.  Its function is to
+# save, clear, and restore general-purpose and capability registers as needed
+# on either side of CCall.  $c0/$sp assumed to provide a valid stack, and the
+# caller must have set up $c1, $c2, and general-purpose/capability argument
+# registers before calling this function.
+#
+# Calling conventions into _chsbrt_invoke:
 #
 # Registers	Description			Before, After
 # $c0		MIPS address space		Save/Clear, Restore
@@ -134,7 +139,8 @@ _chsbrt_invoke:
 	li	$ra, 0
 
 	#
-	# Scrub unpreserved general-purpose registers
+	# Scrub unpreserved general-purpose registers: $at, $v0, $v1,
+	# temporaries, and exception-handling registers.
 	#
 	li	$at, 0
 	li	$v0, 0
@@ -143,10 +149,6 @@ _chsbrt_invoke:
 	li	$t1, 0
 	li	$t2, 0
 	li	$t3, 0
-	li	$t4, 0
-	li	$t5, 0
-	li	$t6, 0
-	li	$t7, 0
 	li	$t8, 0
 	li	$t9, 0
 	li	$k0, 0		# Is this really necessary?
@@ -246,10 +248,6 @@ _chsbrt_invoke:
 	li	$t1, 0
 	li	$t2, 0
 	li	$t3, 0
-	li	$t4, 0
-	li	$t5, 0
-	li	$t6, 0
-	li	$t7, 0
 	li	$t8, 0
 	li	$t9, 0
 	li	$k0, 0		# Is this really necessary?
