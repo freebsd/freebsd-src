@@ -207,7 +207,8 @@ static phandle_t
 ofw_fdt_instance_to_package(ofw_t ofw, ihandle_t instance)
 {
 
-	return (-1);
+	/* Where real OF uses ihandles in the tree, FDT uses xref phandles */
+	return (OF_xref_phandle(instance));
 }
 
 /* Get the length of a property of a package. */
@@ -350,8 +351,13 @@ ofw_fdt_finddevice(ofw_t ofw, const char *device)
 static ssize_t
 ofw_fdt_instance_to_path(ofw_t ofw, ihandle_t instance, char *buf, size_t len)
 {
+	phandle_t phandle;
 
-	return (-1);
+	phandle = OF_instance_to_package(instance);
+	if (phandle == -1)
+		return (-1);
+
+	return (OF_package_to_path(phandle, buf, len));
 }
 
 /* Return the fully qualified pathname corresponding to a package. */
