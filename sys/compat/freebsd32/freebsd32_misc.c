@@ -83,6 +83,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/msg.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
+#include <sys/condvar.h>
+#include <sys/sf_buf.h>
+#include <sys/sf_sync.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -1653,12 +1656,14 @@ freebsd32_do_sendfile(struct thread *td,
 	off_t offset;
 	int error;
 	off_t sbytes;
+	struct sendfile_sync *sfs;
 
 	offset = PAIR32TO64(off_t, uap->offset);
 	if (offset < 0)
 		return (EINVAL);
 
 	hdr_uio = trl_uio = NULL;
+	sfs = NULL;
 
 	if (uap->hdtr != NULL) {
 		error = copyin(uap->hdtr, &hdtr32, sizeof(hdtr32));
@@ -1692,8 +1697,21 @@ freebsd32_do_sendfile(struct thread *td,
 		goto out;
 	}
 
+	/*
+	 * If we need to wait for completion, initialise the sfsync
+	 * state here.
+	 */
+	if (uap->flags & SF_SYNC)
+		sfs = sf_sync_alloc(uap->flags & SF_SYNC);
+
 	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, offset,
-	    uap->nbytes, &sbytes, uap->flags, compat ? SFK_COMPAT : 0, td);
+	    uap->nbytes, &sbytes, uap->flags, compat ? SFK_COMPAT : 0,
+	    sfs, td);
+	if (sfs != NULL) {
+		sf_sync_syscall_wait(sfs);
+		sf_sync_free(sfs);
+	}
+
 	fdrop(fp, td);
 	if (uap->sbytes != NULL)
 		copyout(&sbytes, uap->sbytes, sizeof(off_t));
