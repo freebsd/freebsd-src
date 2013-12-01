@@ -3816,10 +3816,32 @@ f
 SASDASDFASDF_sdfsdf
 SASDASDFASDF_sdfsdf
 SASDASDFASDF_sdfsdf
-# APPLE LOCAL begin mainline 2007-05-09 5173149
 # These are all cases of invalid manglings where the demangler would read
 # past the end of the string.
 # d_name wasn't honouring a NULL from d_substitution
+--format=gnu-v3
+_ZSA
+_ZSA
+# d_expr_primary wasn't honouring NULL from cplus_demangle_mangled_name
+--format=gnu-v3
+_ZN1fIL_
+_ZN1fIL_
+# d_operator_name was taking two characters in a row
+--format=gnu-v3
+_Za
+_Za
+# d_prefix wasn't honouring NULL from d_substitution
+--format=gnu-v3
+_ZNSA
+_ZNSA
+# d_prefix wasn't honouring NULL from d_template_param
+--format=gnu-v3
+_ZNT
+_ZNT
+# Dereferencing NULL in d_pointer_to_member_type
+--format=gnu-v3
+_Z1aMark
+_Z1aMark
 --format=gnu-v3
 _ZSA
 _ZSA
@@ -3859,4 +3881,3 @@ foo()::var1
 --format=gnu-v3
 _ZZN7myspaceL3foo_1EvEN11localstruct1fEZNS_3fooEvE16otherlocalstruct
 myspace::foo()::localstruct::f(myspace::foo()::otherlocalstruct)
-# APPLE LOCAL end mainline 2007-05-09 5173149
