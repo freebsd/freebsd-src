@@ -164,9 +164,12 @@ struct cheri_stack {
 	    "i" (cb));							\
 } while (0)
 
+#ifdef _KERNEL
+/* XXXRW: LLVM-MC does not yet support cgetcause, so use in the kernel only */
 #define	CHERI_CGETCAUSE(v) do {						\
 	__asm__ __volatile__ ("cgetcause %0" : "=r" (v));		\
 } while (0)
+#endif
 
 /*
  * Routines that modify or replace values in capability registers that don't
