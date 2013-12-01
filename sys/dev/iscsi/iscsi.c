@@ -2110,10 +2110,12 @@ iscsi_load(void)
 	sc->sc_cdev->si_drv1 = sc;
 
 	/*
-	 * XXX: For some reason this doesn't do its job; active sessions still hang out there
-	 * 	after final sync, making the reboot effectively hang.
+	 * Note that this needs to get run before dashutdown().  Otherwise,
+	 * when rebooting with iSCSI session with outstanding requests,
+	 * but disconnected, dashutdown() will hang on cam_periph_runccb().
 	 */
-	sc->sc_shutdown_eh = EVENTHANDLER_REGISTER(shutdown_post_sync, iscsi_shutdown, sc, SHUTDOWN_PRI_DEFAULT);
+	sc->sc_shutdown_eh = EVENTHANDLER_REGISTER(shutdown_post_sync,
+	    iscsi_shutdown, sc, SHUTDOWN_PRI_FIRST);
 
 	return (0);
 }
