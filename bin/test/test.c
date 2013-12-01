@@ -67,9 +67,18 @@ error(const char *msg, ...)
 	operand ::= <any legal UNIX file name>
 */
 
+enum token_types {
+	UNOP = 0x100,
+	BINOP = 0x200,
+	BUNOP = 0x300,
+	BBINOP = 0x400,
+	PAREN = 0x500
+};
+
 enum token {
 	EOI,
-	FILRD,
+	OPERAND,
+	FILRD = UNOP + 1,
 	FILWR,
 	FILEX,
 	FILEXIST,
@@ -85,13 +94,13 @@ enum token {
 	FILSUID,
 	FILSGID,
 	FILSTCK,
-	FILNT,
-	FILOT,
-	FILEQ,
-	FILUID,
-	FILGID,
 	STREZ,
 	STRNZ,
+	FILUID,
+	FILGID,
+	FILNT = BINOP + 1,
+	FILOT,
+	FILEQ,
 	STREQ,
 	STRNE,
 	STRLT,
@@ -102,70 +111,62 @@ enum token {
 	INTGT,
 	INTLE,
 	INTLT,
-	UNOT,
-	BAND,
+	UNOT = BUNOP + 1,
+	BAND = BBINOP + 1,
 	BOR,
-	LPAREN,
-	RPAREN,
-	OPERAND
+	LPAREN = PAREN + 1,
+	RPAREN
 };
 
-enum token_types {
-	UNOP,
-	BINOP,
-	BUNOP,
-	BBINOP,
-	PAREN
-};
+#define TOKEN_TYPE(token) ((token) & 0xff00)
 
 static struct t_op {
 	char op_text[4];
-	short op_num, op_type;
+	short op_num;
 } const ops [] = {
-	{"-r",	FILRD,	UNOP},
-	{"-w",	FILWR,	UNOP},
-	{"-x",	FILEX,	UNOP},
-	{"-e",	FILEXIST,UNOP},
-	{"-f",	FILREG,	UNOP},
-	{"-d",	FILDIR,	UNOP},
-	{"-c",	FILCDEV,UNOP},
-	{"-b",	FILBDEV,UNOP},
-	{"-p",	FILFIFO,UNOP},
-	{"-u",	FILSUID,UNOP},
-	{"-g",	FILSGID,UNOP},
-	{"-k",	FILSTCK,UNOP},
-	{"-s",	FILGZ,	UNOP},
-	{"-t",	FILTT,	UNOP},
-	{"-z",	STREZ,	UNOP},
-	{"-n",	STRNZ,	UNOP},
-	{"-h",	FILSYM,	UNOP},		/* for backwards compat */
-	{"-O",	FILUID,	UNOP},
-	{"-G",	FILGID,	UNOP},
-	{"-L",	FILSYM,	UNOP},
-	{"-S",	FILSOCK,UNOP},
-	{"=",	STREQ,	BINOP},
-	{"==",	STREQ,	BINOP},
-	{"!=",	STRNE,	BINOP},
-	{"<",	STRLT,	BINOP},
-	{">",	STRGT,	BINOP},
-	{"-eq",	INTEQ,	BINOP},
-	{"-ne",	INTNE,	BINOP},
-	{"-ge",	INTGE,	BINOP},
-	{"-gt",	INTGT,	BINOP},
-	{"-le",	INTLE,	BINOP},
-	{"-lt",	INTLT,	BINOP},
-	{"-nt",	FILNT,	BINOP},
-	{"-ot",	FILOT,	BINOP},
-	{"-ef",	FILEQ,	BINOP},
-	{"!",	UNOT,	BUNOP},
-	{"-a",	BAND,	BBINOP},
-	{"-o",	BOR,	BBINOP},
-	{"(",	LPAREN,	PAREN},
-	{")",	RPAREN,	PAREN},
-	{"",	0,	0}
+	{"-r",	FILRD},
+	{"-w",	FILWR},
+	{"-x",	FILEX},
+	{"-e",	FILEXIST},
+	{"-f",	FILREG},
+	{"-d",	FILDIR},
+	{"-c",	FILCDEV},
+	{"-b",	FILBDEV},
+	{"-p",	FILFIFO},
+	{"-u",	FILSUID},
+	{"-g",	FILSGID},
+	{"-k",	FILSTCK},
+	{"-s",	FILGZ},
+	{"-t",	FILTT},
+	{"-z",	STREZ},
+	{"-n",	STRNZ},
+	{"-h",	FILSYM},		/* for backwards compat */
+	{"-O",	FILUID},
+	{"-G",	FILGID},
+	{"-L",	FILSYM},
+	{"-S",	FILSOCK},
+	{"=",	STREQ},
+	{"==",	STREQ},
+	{"!=",	STRNE},
+	{"<",	STRLT},
+	{">",	STRGT},
+	{"-eq",	INTEQ},
+	{"-ne",	INTNE},
+	{"-ge",	INTGE},
+	{"-gt",	INTGT},
+	{"-le",	INTLE},
+	{"-lt",	INTLT},
+	{"-nt",	FILNT},
+	{"-ot",	FILOT},
+	{"-ef",	FILEQ},
+	{"!",	UNOT},
+	{"-a",	BAND},
+	{"-o",	BOR},
+	{"(",	LPAREN},
+	{")",	RPAREN},
+	{"",	0}
 };
 
-static struct t_op const *t_wp_op;
 static int nargc;
 static char **t_wp;
 static int parenlevel;
@@ -295,10 +296,10 @@ primary(enum token n)
 		parenlevel--;
 		return res;
 	}
-	if (t_wp_op && t_wp_op->op_type == UNOP) {
+	if (TOKEN_TYPE(n) == UNOP) {
 		/* unary expression */
 		if (--nargc == 0)
-			syntax(t_wp_op->op_text, "argument expected");
+			syntax(NULL, "argument expected"); /* impossible */
 		switch (n) {
 		case STREZ:
 			return strlen(*++t_wp) == 0;
@@ -311,10 +312,8 @@ primary(enum token n)
 		}
 	}
 
-	if (t_lex(nargc > 0 ? t_wp[1] : NULL), t_wp_op && t_wp_op->op_type ==
-	    BINOP) {
+	if (TOKEN_TYPE(t_lex(nargc > 0 ? t_wp[1] : NULL)) == BINOP)
 		return binop();
-	}
 
 	return strlen(*t_wp) > 0;
 }
@@ -322,17 +321,17 @@ primary(enum token n)
 static int
 binop(void)
 {
-	const char *opnd1, *opnd2;
-	struct t_op const *op;
+	const char *opnd1, *op, *opnd2;
+	enum token n;
 
 	opnd1 = *t_wp;
-	(void) t_lex(nargc > 0 ? (--nargc, *++t_wp) : NULL);
-	op = t_wp_op;
+	op = nargc > 0 ? t_wp[1] : NULL;
+	n = t_lex(nargc > 0 ? (--nargc, *++t_wp) : NULL);
 
 	if ((opnd2 = nargc > 0 ? (--nargc, *++t_wp) : NULL) == NULL)
-		syntax(op->op_text, "argument expected");
+		syntax(op, "argument expected");
 
-	switch (op->op_num) {
+	switch (n) {
 	case STREQ:
 		return strcmp(opnd1, opnd2) == 0;
 	case STRNE:
@@ -424,22 +423,20 @@ t_lex(char *s)
 	struct t_op const *op = ops;
 
 	if (s == 0) {
-		t_wp_op = NULL;
 		return EOI;
 	}
 	while (*op->op_text) {
 		if (strcmp(s, op->op_text) == 0) {
-			if (((op->op_type == UNOP || op->op_type == BUNOP)
+			if (((TOKEN_TYPE(op->op_num) == UNOP ||
+			    TOKEN_TYPE(op->op_num) == BUNOP)
 						&& isunopoperand()) ||
 			    (op->op_num == LPAREN && islparenoperand()) ||
 			    (op->op_num == RPAREN && isrparenoperand()))
 				break;
-			t_wp_op = op;
 			return op->op_num;
 		}
 		op++;
 	}
-	t_wp_op = NULL;
 	return OPERAND;
 }
 
@@ -458,7 +455,7 @@ isunopoperand(void)
 	t = *(t_wp + 2);
 	while (*op->op_text) {
 		if (strcmp(s, op->op_text) == 0)
-			return op->op_type == BINOP &&
+			return TOKEN_TYPE(op->op_num) == BINOP &&
 			    (parenlevel == 0 || t[0] != ')' || t[1] != '\0');
 		op++;
 	}
@@ -480,7 +477,7 @@ islparenoperand(void)
 		return 0;
 	while (*op->op_text) {
 		if (strcmp(s, op->op_text) == 0)
-			return op->op_type == BINOP;
+			return TOKEN_TYPE(op->op_num) == BINOP;
 		op++;
 	}
 	return 0;
