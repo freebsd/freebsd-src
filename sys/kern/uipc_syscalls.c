@@ -2564,9 +2564,7 @@ retry_space:
 			 * threads might exhaust the buffers and then
 			 * deadlock.
 			 */
-			if (m != NULL)
-				sfwait = SFB_NOWAIT;
-			sf = sf_buf_alloc(pg, sfwait);
+			sf = sf_buf_alloc(pg, m != NULL : SFB_NOWAIT ? sfwait);
 			if (sf == NULL) {
 				SFSTAT_INC(sf_allocfail);
 				vm_page_lock(pg);
