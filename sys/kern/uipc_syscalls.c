@@ -2337,7 +2337,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	struct shmfd *shmfd;
 	struct vattr va;
 	off_t off, fsbytes, sbytes, rem, obj_size;
-	int error, bsize, hdrlen, mnw;
+	int error, bsize, hdrlen, mwait, merror, sfwait;
 	bool inflight_called;
 
 	pg = NULL;
@@ -2345,7 +2345,6 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	so = NULL;
 	m = NULL;
 	fsbytes = sbytes = 0;
-	mnw = 0;
 	rem = nbytes;
 	obj_size = 0;
 	inflight_called = false;
@@ -2365,8 +2364,15 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	 * caller to retry later.
 	 * XXX: Experimental.
 	 */
-	if (flags & SF_MNOWAIT)
-		mnw = 1;
+	if (flags & SF_MNOWAIT) {
+		mwait = M_NOWAIT;
+		merror = EAGAIN;
+		sfwait = SFB_NOWAIT;
+	} else {
+		mwait = M_WAITOK;
+		merror = ENOBUFS;
+		sfwait = SFB_CATCH;
+	}
 
 #ifdef MAC
 	error = mac_socket_check_send(td->td_ucred, so);
@@ -2389,9 +2395,9 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 			else
 				nbytes = 0;
 		}
-		mh = m_uiotombuf(hdr_uio, (mnw ? M_NOWAIT : M_WAITOK), 0, 0, 0);
+		mh = m_uiotombuf(hdr_uio, mwait, 0, 0, 0);
 		if (mh == NULL) {
-			error = mnw ? EAGAIN : ENOBUFS;
+			error = merror;
 			goto out;
 		}
 		hdrlen = m_length(mh, &mhtail);
@@ -2558,8 +2564,9 @@ retry_space:
 			 * threads might exhaust the buffers and then
 			 * deadlock.
 			 */
-			sf = sf_buf_alloc(pg, (mnw || m != NULL) ? SFB_NOWAIT :
-			    SFB_CATCH);
+			if (m != NULL)
+				sfwait = SFB_NOWAIT;
+			sf = sf_buf_alloc(pg, sfwait);
 			if (sf == NULL) {
 				SFSTAT_INC(sf_allocfail);
 				vm_page_lock(pg);
@@ -2568,7 +2575,7 @@ retry_space:
 				    ("%s: object disappeared", __func__));
 				vm_page_unlock(pg);
 				if (m == NULL)
-					error = (mnw ? EAGAIN : EINTR);
+					error = merror;
 				break;
 			}
 
@@ -2576,16 +2583,16 @@ retry_space:
 			 * Get an mbuf and set it up as having
 			 * external storage.
 			 */
-			m0 = m_get((mnw ? M_NOWAIT : M_WAITOK), MT_DATA);
+			m0 = m_get(mwait, MT_DATA);
 			if (m0 == NULL) {
-				error = (mnw ? EAGAIN : ENOBUFS);
+				error = merror;
 				(void)sf_buf_mext(NULL, NULL, sf);
 				break;
 			}
 			if (m_extadd(m0, (caddr_t )sf_buf_kva(sf), PAGE_SIZE,
-			    sf_buf_mext, sfs, sf, M_RDONLY, EXT_SFBUF,
-			    (mnw ? M_NOWAIT : M_WAITOK)) != 0) {
-				error = (mnw ? EAGAIN : ENOBUFS);
+			    sf_buf_mext, sfs, sf, M_RDONLY, EXT_SFBUF, mwait)
+			    != 0) {
+				error = merror;
 				(void)sf_buf_mext(NULL, NULL, sf);
 				m_freem(m0);
 				break;
