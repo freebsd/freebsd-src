@@ -43,4 +43,15 @@ register_t	sandbox_invoke(struct sandbox *sb, register_t a0,
 	    struct chericap *c10);
 void	sandbox_destroy(struct sandbox *sb);
 
+/*
+ * CHERI compiler-aware version of invoke.
+ */
+#if defined(__CHERI__) && defined(__capability)
+register_t	sandbox_cinvoke(struct sandbox *sb, register_t a0,
+    register_t a1, register_t a2, register_t a3, __capability void *c3,
+    __capability void *c4, __capability void *c5, __capability void *c6,
+    __capability void *c7, __capability void *c8, __capability void *c9,
+    __capability void *c10);
+#endif
+
 #endif /* !_SANDBOX_H_ */

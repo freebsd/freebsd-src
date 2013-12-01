@@ -28,11 +28,16 @@
  * SUCH DAMAGE.
  */
 
+#if defined(__CHERI__) && defined(__capability)
+#define	USE_C_CAPS
+#endif
+
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 
 #include <machine/cheri.h>
+#include <machine/cheric.h>
 
 #include <err.h>
 #include <errno.h>
@@ -62,7 +67,6 @@ int sb_verbose;
  * TODO:
  * - Add atomically set flag and assertion to ensure single-threaded entry to
  *   the sandbox.
- * - Use __capability.
  */
 struct sandbox {
 	char		*sb_path;
@@ -70,14 +74,22 @@ struct sandbox {
 	register_t	 sb_sandboxlen;
 	register_t	 sb_heapbase;
 	register_t	 sb_heaplen;
+#ifdef USE_C_CAPS
+	__capability void	*sb_codecap;	/* Sealed code capability. */
+	__capability void	*sb_datacap;	/* Sealed data capability. */
+#else
 	struct chericap	 sb_codecap;	/* Sealed code capability for CCall. */
 	struct chericap	 sb_datacap;	/* Sealed data capability for CCall. */
+#endif
 	struct stat	 sb_stat;
 };
 
 int
 sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 {
+#ifdef USE_C_CAPS
+	__capability void *sbcap;
+#endif
 	struct sandbox *sb;
 	int fd, saved_errno;
 	size_t length;
@@ -208,6 +220,27 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 	 */
 	assert(length == 0);
 
+#ifdef USE_C_CAPS
+	/*
+	 * Construct a generic capability that desxribes the combined
+	 * data/code segment that we will seal.
+	 *
+	 * 0x1000 is the sandbox start adress.
+	 */
+	sbcap = (__capability void *)base;
+	sbcap = cheri_setlen(sbcap, sandboxlen);
+	sbcap = cheri_settype(sbcap, 0x1000);
+
+	/* Construct sealed code capability. */
+	sb->sb_codecap = cheri_andperm(sbcap, CHERI_PERM_EXECUTE |
+	    CHERI_PERM_SEAL);
+	sb->sb_codecap = cheri_sealcode(sb->sb_codecap);
+
+	/* Construct sealed data capability. */
+	sb->sb_datacap = cheri_andperm(sbcap, CHERI_PERM_LOAD |
+	    CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP);
+	sb->sb_datacap = cheri_sealdata(sb->sb_datacap, sbcap);
+#else
 	/*
 	 * Construct a generic capability in $c10 that describes the combined
 	 * code/data segment that we will seal.
@@ -239,6 +272,8 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 
 	CHERI_CSC(1, 0, &sb->sb_codecap, 0);
 	CHERI_CSC(2, 0, &sb->sb_datacap, 0);
+#endif
+
 	sb->sb_sandboxlen = sandboxlen;
 
 	if (sb_verbose) {
@@ -306,6 +341,15 @@ error:
 		CHERI_CCLEARTAG(cnum);					\
 } while (0)
 
+/*
+ * This version of invoke() is intended for callers without CHERI compiler
+ * support.
+ *
+ * XXXRW: (1) does this work because we are lucky, and (2) how can we create a
+ * compiler-friendly version?  Probably using a macro and inline assembly,
+ * with suitable clobbers/etc to ensure that the right values end up in the
+ * right registers.
+ */
 register_t
 sandbox_invoke(struct sandbox *sb, register_t a0, register_t a1,
     register_t a2, register_t a3, struct chericap *c3, struct chericap *c4,
@@ -345,11 +389,38 @@ sandbox_invoke(struct sandbox *sb, register_t a0, register_t a1,
 	    sb->sb_heaplen));
 }
 
+#ifdef USE_C_CAPS
+register_t
+sandbox_cinvoke(struct sandbox *sb, register_t a0, register_t a1,
+    register_t a2, register_t a3, __capability void *c3,
+    __capability void *c4, __capability void *c5, __capability void *c6,
+    __capability void *c7, __capability void *c8, __capability void *c9,
+    __capability void *c10)
+{
+
+	/*-
+	 * XXXRW: TODO:
+	 *
+	 * 1. Install sb->sb_codecap in $c1.
+	 * 2. Install sb->sb_datacap in $c2.
+	 * 3. Install _chsbrt_invoke in $t9.
+	 * 4. Install a0, a1, a2, and a3 in $a0, $a1, $a2, and $a3.
+	 * 5. Install c4, c5, c6, c7, c8, c9, c10 in $c4, $c5, $c6, $c7, $c8,
+	 *    $c9, and $c10.
+	 * 6. Extract $v0 and $v1 on return.
+	 * 7. What about capability return values?
+	 */
+	__asm__ __volatile__(
+	    "jalr $t9; nop"
+	    );
+}
+#endif
+
 void
 sandbox_destroy(struct sandbox *sb)
 {
 
 	munmap(sb->sb_mem, sb->sb_sandboxlen);
-	bzero(sb, sizeof(*sb));
+	bzero(sb, sizeof(*sb));		/* Clears tags. */
 	free(sb);
 }
