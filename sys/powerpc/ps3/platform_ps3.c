@@ -58,8 +58,8 @@ extern void *ap_pcpu;
 
 static int ps3_probe(platform_t);
 static int ps3_attach(platform_t);
-static void ps3_mem_regions(platform_t, struct mem_region **phys, int *physsz,
-    struct mem_region **avail, int *availsz);
+static void ps3_mem_regions(platform_t, struct mem_region *phys, int *physsz,
+    struct mem_region *avail, int *availsz);
 static vm_offset_t ps3_real_maxaddr(platform_t);
 static u_long ps3_timebase_freq(platform_t, struct cpuref *cpuref);
 #ifdef SMP
@@ -107,11 +107,30 @@ ps3_probe(platform_t plat)
 	return (BUS_PROBE_NOWILDCARD);
 }
 
-#define MEM_REGIONS	2
-static struct mem_region avail_regions[MEM_REGIONS];
-
 static int
 ps3_attach(platform_t plat)
+{
+	uint64_t junk;
+	int count;
+	struct mem_region avail_regions[2];
+
+	ps3_mem_regions(plat, NULL, NULL, avail_regions, &count);
+
+	lv1_allocate_memory(avail_regions[1].mr_size, 24 /* 16 MB pages */,
+	    0, 0x04 /* any address */, &avail_regions[1].mr_start, &junk);
+
+	pmap_mmu_install("mmu_ps3", BUS_PROBE_SPECIFIC);
+	cpu_idle_hook = ps3_cpu_idle;
+
+	/* Set a breakpoint to make NULL an invalid address */
+	lv1_set_dabr(0x7 /* read and write, MMU on */, 2 /* kernel accesses */);
+
+	return (0);
+}
+
+void
+ps3_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
+    struct mem_region *avail_regions, int *availsz)
 {
 	uint64_t lpar_id, junk, ppe_id;
 
@@ -133,26 +152,12 @@ ps3_attach(platform_t plat)
 	/* Convert to maximum amount we can allocate in 16 MB pages */
 	avail_regions[1].mr_size -= avail_regions[0].mr_size;
 	avail_regions[1].mr_size -= avail_regions[1].mr_size % (16*1024*1024);
+	*availsz = 2;
 
-	lv1_allocate_memory(avail_regions[1].mr_size, 24 /* 16 MB pages */,
-	    0, 0x04 /* any address */, &avail_regions[1].mr_start, &junk);
-
-	pmap_mmu_install("mmu_ps3", BUS_PROBE_SPECIFIC);
-	cpu_idle_hook = ps3_cpu_idle;
-
-	/* Set a breakpoint to make NULL an invalid address */
-	lv1_set_dabr(0x7 /* read and write, MMU on */, 2 /* kernel accesses */);
-
-	return (0);
-}
-
-void
-ps3_mem_regions(platform_t plat, struct mem_region **phys, int *physsz,
-    struct mem_region **avail, int *availsz)
-{
-
-	*phys = *avail = avail_regions;
-	*physsz = *availsz = MEM_REGIONS;
+	if (phys != NULL) {
+		memcpy(phys, avail_regions, sizeof(*phys)*2);
+		*physsz = 2;
+	}
 }
 
 static u_long
@@ -241,7 +246,12 @@ ps3_reset(platform_t plat)
 static vm_offset_t
 ps3_real_maxaddr(platform_t plat)
 {
-	return (avail_regions[0].mr_start + avail_regions[0].mr_size);
+	struct mem_region *phys, *avail;
+	int nphys, navail;
+
+	mem_regions(&phys, &nphys, &avail, &navail);
+
+	return (phys[0].mr_start + phys[0].mr_size);
 }
 
 static void
