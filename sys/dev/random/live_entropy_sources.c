@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/queue.h>
 #include <sys/random.h>
 #include <sys/sbuf.h>
@@ -169,8 +170,8 @@ live_entropy_sources_feed(void)
 	sx_sunlock(&les_lock);
 }
 
-static void
-live_entropy_sources_init(void *unused)
+void
+live_entropy_sources_init(void)
 {
 
 	SYSCTL_PROC(_kern_random, OID_AUTO, live_entropy_sources,
@@ -181,14 +182,9 @@ live_entropy_sources_init(void *unused)
 	sx_init(&les_lock, "live_entropy_sources");
 }
 
-static void
-live_entropy_sources_deinit(void *unused)
+void
+live_entropy_sources_deinit(void)
 {
 
 	sx_destroy(&les_lock);
 }
-
-SYSINIT(random_adaptors, SI_SUB_DRIVERS, SI_ORDER_FIRST,
-    live_entropy_sources_init, NULL);
-SYSUNINIT(random_adaptors, SI_SUB_DRIVERS, SI_ORDER_FIRST,
-    live_entropy_sources_deinit, NULL);

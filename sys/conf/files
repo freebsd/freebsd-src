@@ -2049,6 +2049,7 @@ dev/random/live_entropy_sources.c	optional random
 dev/random/random_harvestq.c	optional random
 dev/random/randomdev_soft.c	optional random
 dev/random/yarrow.c		optional random
+dev/random/fortuna.c		optional random
 dev/random/hash.c		optional random
 dev/rc/rc.c			optional rc
 dev/re/if_re.c			optional re

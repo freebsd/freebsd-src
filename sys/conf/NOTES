@@ -2958,6 +2958,6 @@ options 	BROOKTREE_ALLOC_PAGES=(217*4+1)
 options 	MAXFILES=999
 
 # Random number generator
-options 	RANDOM_YARROW	# Yarrow RNG
-##options 	RANDOM_FORTUNA	# Fortuna RNG - not yet implemented
+options 	RANDOM_YARROW	# Yarrow RNG (Default)
+options 	RANDOM_FORTUNA	# Fortuna RNG
 options 	RANDOM_DEBUG	# Debugging messages

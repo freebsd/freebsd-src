@@ -135,12 +135,15 @@ randomdev_modevent(module_t mod __unused, int type, void *data __unused)
 
 	switch (type) {
 	case MOD_LOAD:
+		printf("random: entropy device infrastructure driver\n");
 		random_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &random_cdevsw,
 		    RANDOM_MINOR, NULL, UID_ROOT, GID_WHEEL, 0644, "random");
 		make_dev_alias(random_dev, "urandom"); /* compatibility */
+		random_adaptors_init();
 		break;
 
 	case MOD_UNLOAD:
+		random_adaptors_deinit();
 		destroy_dev(random_dev);
 		break;
 
@@ -156,8 +159,15 @@ randomdev_modevent(module_t mod __unused, int type, void *data __unused)
 	return (error);
 }
 
-/* Order is SI_ORDER_MIDDLE */
-DEV_MODULE(randomdev, randomdev_modevent, NULL);
+#define	EARLY_2_DEV_MODULE(name, evh, arg)	\
+static moduledata_t name##_mod = {		\
+    #name,					\
+    evh,					\
+    arg						\
+};						\
+DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND)
+
+EARLY_2_DEV_MODULE(randomdev, randomdev_modevent, NULL);
 MODULE_VERSION(randomdev, 1);
 
 /* ================
@@ -212,11 +222,11 @@ random_harvest(const void *entropy, u_int count, u_int bits, enum random_entropy
  */
 
 /* Hold the address of the routine which is actually called */
-static u_int (*read_func)(void *, u_int) = dummy_random_read_phony;
+static u_int (*read_func)(uint8_t *, u_int) = dummy_random_read_phony;
 
 /* Initialise the reader when/if it is loaded */
 void
-randomdev_init_reader(u_int (*reader)(void *, u_int))
+randomdev_init_reader(u_int (*reader)(uint8_t *, u_int))
 {
 
 	read_func = reader;

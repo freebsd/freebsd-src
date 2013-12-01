@@ -57,8 +57,12 @@ dummy_random(void)
 
 /* ARGSUSED */
 static void
-dummy_random_init(struct mtx *mtx __unused)
+dummy_random_init(void)
 {
+
+#ifdef RANDOM_DEBUG
+	printf("random: %s\n", __func__);
+#endif
 
 	randomdev_init_reader(dummy_random_read_phony);
 }
@@ -79,12 +83,12 @@ dummy_random_init(struct mtx *mtx __unused)
  * Caveat Emptor.
  */
 u_int
-dummy_random_read_phony(void *buf, u_int count)
+dummy_random_read_phony(uint8_t *buf, u_int count)
 {
 	/* If no entropy device is loaded, don't spam the console with warnings */
 	static int warned = 0;
 	u_long randval;
-	int size, i;
+	size_t size, i;
 
 	if (!warned) {
 		log(LOG_WARNING, "random device not loaded/active; using insecure pseudo-random number generator\n");
@@ -94,10 +98,10 @@ dummy_random_read_phony(void *buf, u_int count)
 	/* srandom() is called in kern/init_main.c:proc0_post() */
 
 	/* Fill buf[] with random(9) output */
-	for (i = 0; i < count; i+= (int)sizeof(u_long)) {
+	for (i = 0; i < count; i += sizeof(u_long)) {
 		randval = random();
 		size = MIN(count - i, sizeof(u_long));
-		memcpy(&((char *)buf)[i], &randval, (size_t)size);
+		memcpy(buf + i, &randval, (size_t)size);
 	}
 
 	return (count);

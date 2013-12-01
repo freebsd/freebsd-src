@@ -90,7 +90,7 @@ void (*harvest_process_event)(struct harvest_event *);
 /* Allow the sysadmin to select the broad category of
  * entropy types to harvest.
  */
-static u_int harvest_source_mask = ((1<<RANDOM_ENVIRONMENTAL_END) - 1);
+static u_int harvest_source_mask = ((1U << RANDOM_ENVIRONMENTAL_END) - 1);
 
 /* Pool count is used by anything needing to know how many entropy
  * pools are currently being maintained.
@@ -172,7 +172,7 @@ random_harvestq_flush(void)
 }
 
 /* ARGSUSED */
-RANDOM_CHECK_UINT(harvestmask, 0, ((1<<RANDOM_ENVIRONMENTAL_END) - 1));
+RANDOM_CHECK_UINT(harvestmask, 0, ((1U << RANDOM_ENVIRONMENTAL_END) - 1));
 
 /* ARGSUSED */
 static int
@@ -184,8 +184,8 @@ random_print_harvestmask(SYSCTL_HANDLER_ARGS)
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error == 0) {
 		sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
-		for (i = 31; i >= 0; i--)
-			sbuf_cat(&sbuf, (harvest_source_mask & (1<<i)) ? "1" : "0");
+		for (i = RANDOM_ENVIRONMENTAL_END - 1; i >= 0; i--)
+			sbuf_cat(&sbuf, (harvest_source_mask & (1U << i)) ? "1" : "0");
 		error = sbuf_finish(&sbuf);
 		sbuf_delete(&sbuf);
 	}
@@ -226,9 +226,10 @@ random_print_harvestmask_symbolic(SYSCTL_HANDLER_ARGS)
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error == 0) {
 		sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
-		for (i = ENTROPYSOURCE - 1; i >= 0; i--)
-			sbuf_cat(&sbuf, (i == ENTROPYSOURCE - 1) ? "" : ",");
-			sbuf_cat(&sbuf, (harvest_source_mask & (1<<i)) ? random_source_descr[i] : "");
+		for (i = RANDOM_ENVIRONMENTAL_END - 1; i >= 0; i--) {
+			sbuf_cat(&sbuf, (i == RANDOM_ENVIRONMENTAL_END - 1) ? "" : ",");
+			sbuf_cat(&sbuf, (harvest_source_mask & (1U << i)) ? random_source_descr[i] : "");
+		}
 		error = sbuf_finish(&sbuf);
 		sbuf_delete(&sbuf);
 	}
@@ -257,7 +258,7 @@ random_harvestq_init(void (*event_processor)(struct harvest_event *), int poolco
 	SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_o),
 	    OID_AUTO, "mask", CTLTYPE_UINT | CTLFLAG_RW,
-	    &harvest_source_mask, ((1<<RANDOM_ENVIRONMENTAL_END) - 1),
+	    &harvest_source_mask, ((1U << RANDOM_ENVIRONMENTAL_END) - 1),
 	    random_check_uint_harvestmask, "IU",
 	    "Entropy harvesting mask");
 
@@ -374,7 +375,7 @@ random_harvestq_internal(const void *entropy, u_int count, u_int bits,
 	    ("random_harvest_internal: origin %d invalid\n", origin));
 
 	/* Mask out unwanted sources */
-	if (!(harvest_source_mask & (1<<origin)))
+	if (!(harvest_source_mask & (1U << origin)))
 		return;
 
 	/* Lockless check to avoid lock operations if queue is empty. */

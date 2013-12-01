@@ -33,7 +33,7 @@
 typedef struct mtx mtx_t;
 #endif
 
-void random_fortuna_init_alg(struct sysctl_ctx_list *, mtx_t *);
+void random_fortuna_init_alg(void);
 void random_fortuna_deinit_alg(void);
 void random_fortuna_read(uint8_t *, u_int);
 void random_fortuna_write(uint8_t *, u_int);

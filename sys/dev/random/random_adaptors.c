@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/queue.h>
@@ -52,6 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/random/randomdev.h>
 #include <dev/random/random_adaptors.h>
+#include <dev/random/live_entropy_sources.h>
 
 /* The random_adaptors_lock protects random_adaptors_list and friends and random_adaptor.
  * We need a sleepable lock for uiomove/block/poll/sbuf/sysctl.
@@ -67,12 +69,6 @@ static struct random_adaptor *random_adaptor = NULL; /* Currently active adaptor
 static struct mtx random_read_rate_mtx;
 static int random_adaptor_read_rate_cache;
 /* End of data items requiring random_readrate_mtx mutex protection */
-
-/* The random_reseed_mtx mutex protects seeding and polling/blocking.
- * This is passed into the software entropy hasher/processor.
- */
-static struct mtx random_reseed_mtx;
-/* End of data items requiring random_reseed_mtx mutex protection */
 
 static struct selinfo rsel;
 
@@ -147,7 +143,7 @@ random_adaptor_choose(void)
 #endif
 		if (random_adaptor_previous != NULL)
 			(random_adaptor_previous->ra_deinit)();
-		(random_adaptor->ra_init)(&random_reseed_mtx);
+		(random_adaptor->ra_init)();
 	}
 }
 
@@ -200,11 +196,13 @@ random_adaptor_read(struct cdev *dev __unused, struct uio *uio, int flags)
 	int c, error;
 	ssize_t nbytes;
 
+#ifdef RANDOM_DEBUG_VERBOSE
+	printf("random: %s %ld\n", __func__, uio->uio_resid);
+#endif
+
 	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
 	sx_slock(&random_adaptors_lock);
-
-	mtx_lock(&random_reseed_mtx);
 
 	/* Let the entropy source do any pre-read setup. */
 	(random_adaptor->ra_read)(NULL, 0);
@@ -218,13 +216,11 @@ random_adaptor_read(struct cdev *dev __unused, struct uio *uio, int flags)
 		}
 
 		/* Sleep instead of going into a spin-frenzy */
-		msleep(&random_adaptor, &random_reseed_mtx, PUSER | PCATCH, "block", hz/10);
+		tsleep(&random_adaptor, PUSER | PCATCH, "block", hz/10);
 
 		/* keep tapping away at the pre-read until we seed/unblock. */
 		(random_adaptor->ra_read)(NULL, 0);
 	}
-
-	mtx_unlock(&random_reseed_mtx);
 
 	mtx_lock(&random_read_rate_mtx);
 
@@ -284,6 +280,10 @@ random_adaptor_write(struct cdev *dev __unused, struct uio *uio, int flags __unu
 	int c, error = 0;
 	void *random_buf;
 
+#ifdef RANDOM_DEBUG
+	printf("random: %s %ld\n", __func__, uio->uio_resid);
+#endif
+
 	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
 	sx_slock(&random_adaptors_lock);
@@ -291,11 +291,14 @@ random_adaptor_write(struct cdev *dev __unused, struct uio *uio, int flags __unu
 	random_buf = (void *)malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
 
 	while (uio->uio_resid > 0) {
-		c = MIN((int)uio->uio_resid, PAGE_SIZE);
+		c = MIN(uio->uio_resid, PAGE_SIZE);
 		error = uiomove(random_buf, c, uio);
 		if (error)
 			break;
 		(random_adaptor->ra_write)(random_buf, c);
+
+		/* Introduce an annoying delay to stop swamping */
+		tsleep(&random_adaptor, PUSER | PCATCH, "block", hz/10);
 	}
 
 	free(random_buf, M_ENTROPY);
@@ -310,17 +313,21 @@ int
 random_adaptor_poll(struct cdev *dev __unused, int events, struct thread *td __unused)
 {
 
+#ifdef RANDOM_DEBUG
+	printf("random: %s\n", __func__);
+#endif
+
 	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
 	sx_slock(&random_adaptors_lock);
-	mtx_lock(&random_reseed_mtx);
+
 	if (events & (POLLIN | POLLRDNORM)) {
 		if (random_adaptor->ra_seeded())
 			events &= (POLLIN | POLLRDNORM);
 		else
 			selrecord(td, &rsel);
 	}
-	mtx_unlock(&random_reseed_mtx);
+
 	sx_sunlock(&random_adaptors_lock);
 
 	return (events);
@@ -330,8 +337,6 @@ random_adaptor_poll(struct cdev *dev __unused, int events, struct thread *td __u
 void
 random_adaptor_unblock(void)
 {
-
-	mtx_assert(&random_reseed_mtx, MA_OWNED);
 
 	selwakeuppri(&rsel, PUSER);
 	wakeup(&random_adaptor);
@@ -385,46 +390,53 @@ random_sysctl_active_adaptor_handler(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-/* ARGSUSED */
-static void
-random_adaptors_init(void *unused __unused)
+void
+random_adaptors_init(void)
 {
+
+#ifdef RANDOM_DEBUG
+	printf("random: %s\n", __func__);
+#endif
 
 	SYSCTL_PROC(_kern_random, OID_AUTO, adaptors,
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    NULL, 0, random_sysctl_adaptors_handler, "",
+	    NULL, 0, random_sysctl_adaptors_handler, "A",
 	    "Random Number Generator adaptors");
 
 	SYSCTL_PROC(_kern_random, OID_AUTO, active_adaptor,
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    NULL, 0, random_sysctl_active_adaptor_handler, "",
+	    NULL, 0, random_sysctl_active_adaptor_handler, "A",
 	    "Active Random Number Generator Adaptor");
 
 	sx_init(&random_adaptors_lock, "random_adaptors");
 
-	mtx_init(&random_reseed_mtx, "reseed mutex", NULL, MTX_DEF);
+	mtx_init(&random_read_rate_mtx, "read rate mutex", NULL, MTX_DEF);
 
 	/* The dummy adaptor is not a module by itself, but part of the
 	 * randomdev module.
 	 */
 	random_adaptor_register("dummy", &randomdev_dummy);
-}
-SYSINIT(random_adaptors, SI_SUB_DRIVERS, SI_ORDER_FIRST,
-    random_adaptors_init, NULL);
 
-/* ARGSUSED */
-static void
-random_adaptors_deinit(void *unused __unused)
+	live_entropy_sources_init();
+}
+
+void
+random_adaptors_deinit(void)
 {
+
+#ifdef RANDOM_DEBUG
+	printf("random: %s\n", __func__);
+#endif
+
+	live_entropy_sources_deinit();
+
 	/* Don't do this! Panic will surely follow! */
 	/* random_adaptor_deregister("dummy"); */
 
-	mtx_destroy(&random_reseed_mtx);
+	mtx_destroy(&random_read_rate_mtx);
 
 	sx_destroy(&random_adaptors_lock);
 }
-SYSUNINIT(random_adaptors, SI_SUB_DRIVERS, SI_ORDER_FIRST,
-    random_adaptors_deinit, NULL);
 
 /*
  * First seed.
@@ -459,9 +471,7 @@ random_adaptors_seed(void *unused __unused)
 	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
 	sx_slock(&random_adaptors_lock);
-	mtx_lock(&random_reseed_mtx);
 	random_adaptor->ra_reseed();
-	mtx_unlock(&random_reseed_mtx);
 	sx_sunlock(&random_adaptors_lock);
 
 	arc4rand(NULL, 0, 1);

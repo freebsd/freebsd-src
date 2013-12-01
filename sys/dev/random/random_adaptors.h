@@ -31,7 +31,7 @@
 
 MALLOC_DECLARE(M_ENTROPY);
 
-typedef void random_adaptor_init_func_t(struct mtx *);
+typedef void random_adaptor_init_func_t(void);
 typedef void random_adaptor_deinit_func_t(void);
 typedef void random_adaptor_read_func_t(uint8_t *, u_int);
 typedef void random_adaptor_write_func_t(uint8_t *, u_int);
@@ -57,6 +57,9 @@ struct random_adaptors {
 
 /* Dummy "always-block" pseudo-device */
 extern struct random_adaptor randomdev_dummy;
+
+void random_adaptors_init(void);
+void random_adaptors_deinit(void);
 
 void random_adaptor_register(const char *, struct random_adaptor *);
 void random_adaptor_deregister(const char *);

@@ -33,9 +33,7 @@
  * specific to the entropy processor
  */
 
-void randomdev_init(struct mtx *);
+void randomdev_init(void);
 void randomdev_deinit(void);
-
-extern struct mtx random_reseed_mtx;
 
 #endif

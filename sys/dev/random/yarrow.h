@@ -33,7 +33,7 @@
 typedef struct mtx mtx_t;
 #endif
 
-void random_yarrow_init_alg(struct sysctl_ctx_list *, mtx_t *);
+void random_yarrow_init_alg(void);
 void random_yarrow_deinit_alg(void);
 void random_yarrow_read(uint8_t *, u_int);
 void random_yarrow_write(uint8_t *, u_int);

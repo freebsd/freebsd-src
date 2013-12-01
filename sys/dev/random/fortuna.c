@@ -69,6 +69,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/yarrow.h>
 #endif /* _KERNEL */
 
+#if !defined(RANDOM_YARROW) && !defined(RANDOM_FORTUNA)
+#define RANDOM_YARROW
+#elif defined(RANDOM_YARROW) && defined(RANDOM_FORTUNA)
+#error "Must define either RANDOM_YARROW or RANDOM_FORTUNA"
+#endif
+#if defined(RANDOM_FORTUNA)
+
 #define NPOOLS 32
 #define MINPOOLSIZE 64
 #define DEFPOOLSIZE 256
@@ -106,14 +113,14 @@ static struct fortuna_state {
 
 	/* Extras for the OS */
 
-	/* The reseed thread mutex */
-	mtx_t *reseed_mtx;
-
 #ifdef _KERNEL
 	/* For use when 'pacing' the reseeds */
 	sbintime_t lasttime;
 #endif
 } fortuna_state;
+
+/* The random_reseed_mtx mutex protects seeding and polling/blocking.  */
+static struct mtx random_reseed_mtx;
 
 static struct fortuna_start_cache {
 	uint8_t junk[PAGE_SIZE];
@@ -122,11 +129,12 @@ static struct fortuna_start_cache {
 } fortuna_start_cache;
 
 #ifdef _KERNEL
+static struct sysctl_ctx_list random_clist;
 RANDOM_CHECK_UINT(minpoolsize, MINPOOLSIZE, MAXPOOLSIZE);
 #endif
 
 void
-random_fortuna_init_alg(struct sysctl_ctx_list *clist, mtx_t *lock)
+random_fortuna_init_alg(void)
 {
 	int i;
 #ifdef _KERNEL
@@ -142,18 +150,18 @@ random_fortuna_init_alg(struct sysctl_ctx_list *clist, mtx_t *lock)
 	randomdev_hash_init(&fortuna_start_cache.hash);
 
 	/* Set up a lock for the reseed process */
-	fortuna_state.reseed_mtx = lock;
+	mtx_init(&random_reseed_mtx, "reseed mutex", NULL, MTX_DEF);
 
 #ifdef _KERNEL
 	/* Fortuna parameters. Do not adjust these unless you have
 	 * have a very good clue about what they do!
 	 */
-	random_fortuna_o = SYSCTL_ADD_NODE(clist,
+	random_fortuna_o = SYSCTL_ADD_NODE(&random_clist,
 		SYSCTL_STATIC_CHILDREN(_kern_random),
 		OID_AUTO, "fortuna", CTLFLAG_RW, 0,
 		"Fortuna Parameters");
 
-	SYSCTL_ADD_PROC(clist,
+	SYSCTL_ADD_PROC(&random_clist,
 		SYSCTL_CHILDREN(random_fortuna_o), OID_AUTO,
 		"minpoolsize", CTLTYPE_UINT|CTLFLAG_RW,
 		&fortuna_state.minpoolsize, DEFPOOLSIZE,
@@ -192,6 +200,7 @@ random_fortuna_deinit_alg(void)
 #ifdef RANDOM_DEBUG
 	printf("random: %s\n", __func__);
 #endif
+	mtx_destroy(&random_reseed_mtx);
 	memset((void *)(&fortuna_state), 0, sizeof(struct fortuna_state));
 }
 
@@ -203,7 +212,7 @@ random_fortuna_process_event(struct harvest_event *event)
 	u_int pl;
 
 	/* We must be locked for all this as plenty of state gets messed with */
-	mtx_lock(fortuna_state.reseed_mtx);
+	mtx_lock(&random_reseed_mtx);
 
 	/* Accumulate the event into the appropriate pool
 	 * where each event carries the destination information
@@ -217,7 +226,7 @@ random_fortuna_process_event(struct harvest_event *event)
 	fortuna_state.pool[pl].length = MIN(fortuna_state.pool[pl].length, MAXPOOLSIZE);
 
 	/* Done with state-messing */
-	mtx_unlock(fortuna_state.reseed_mtx);
+	mtx_unlock(&random_reseed_mtx);
 }
 
 /* F&S - Reseed() */
@@ -233,7 +242,7 @@ reseed(uint8_t *junk, u_int length)
 	printf("random: %s %d %u\n", __func__, (fortuna_state.counter.whole != 0ULL), length);
 #endif
 #ifdef _KERNEL
-	mtx_assert(fortuna_state.reseed_mtx, MA_OWNED);
+	mtx_assert(&random_reseed_mtx, MA_OWNED);
 #endif
 
 	/* F&S - temp = H(K|s) */
@@ -313,7 +322,7 @@ random_fortuna_read(uint8_t *buf, u_int bytecount)
 	u_int seedlength;
 
 	/* We must be locked for all this as plenty of state gets messed with */
-	mtx_lock(fortuna_state.reseed_mtx);
+	mtx_lock(&random_reseed_mtx);
 
 	/* if buf == NULL and bytecount == 0 then this is the pre-read. */
 	/* if buf == NULL and bytecount != 0 then this is the post-read; ignore. */
@@ -378,7 +387,7 @@ random_fortuna_read(uint8_t *buf, u_int bytecount)
 	else
 		random_fortuna_genrandom(buf, bytecount);
 
-	mtx_unlock(fortuna_state.reseed_mtx);
+	mtx_unlock(&random_reseed_mtx);
 }
 
 /* Internal function to hand external entropy to the PRNG */
@@ -390,7 +399,7 @@ random_fortuna_write(uint8_t *buf, u_int count)
 	uintmax_t timestamp;
 
 	/* We must be locked for all this as plenty of state gets messed with */
-	mtx_lock(fortuna_state.reseed_mtx);
+	mtx_lock(&random_reseed_mtx);
 
 	timestamp = get_cyclecount();
 	randomdev_hash_iterate(&fortuna_start_cache.hash, &timestamp, sizeof(timestamp));
@@ -415,7 +424,7 @@ random_fortuna_write(uint8_t *buf, u_int count)
 	reseed(fortuna_start_cache.junk, MIN(PAGE_SIZE, fortuna_start_cache.length));
 	memset((void *)(fortuna_start_cache.junk), 0, sizeof(fortuna_start_cache.junk));
 
-	mtx_unlock(fortuna_state.reseed_mtx);
+	mtx_unlock(&random_reseed_mtx);
 }
 
 void
@@ -431,3 +440,5 @@ random_fortuna_seeded(void)
 
 	return (fortuna_state.counter.whole != 0ULL);
 }
+
+#endif /* RANDOM_FORTUNA */
