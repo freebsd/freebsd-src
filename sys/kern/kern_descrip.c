@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
-#include "opt_procdesc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -3115,11 +3114,9 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 			tp = fp->f_data;
 			break;
 
-#ifdef PROCDESC
 		case DTYPE_PROCDESC:
 			kif->kf_type = KF_TYPE_PROCDESC;
 			break;
-#endif
 
 		default:
 			kif->kf_type = KF_TYPE_UNKNOWN;
@@ -3485,12 +3482,10 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 			data = fp->f_data;
 			break;
 
-#ifdef PROCDESC
 		case DTYPE_PROCDESC:
 			type = KF_TYPE_PROCDESC;
 			data = fp->f_data;
 			break;
-#endif
 
 		default:
 			type = KF_TYPE_UNKNOWN;
@@ -3954,7 +3949,7 @@ badfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 static int
 badfo_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
-    int kflags, struct thread *td)
+    int kflags, struct sendfile_sync *sfs, struct thread *td)
 {
 
 	return (EBADF);
@@ -3993,7 +3988,7 @@ invfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 int
 invfo_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
-    int kflags, struct thread *td)
+    int kflags, struct sendfile_sync *sfs, struct thread *td)
 {
 
 	return (EINVAL);

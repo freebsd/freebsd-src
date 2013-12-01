@@ -1307,9 +1307,11 @@ addfname(char *name)
 {
 	char *p;
 	struct strlist *sp;
+	size_t len;
 
-	p = stalloc(strlen(name) + 1);
-	scopy(name, p);
+	len = strlen(name);
+	p = stalloc(len + 1);
+	memcpy(p, name, len + 1);
 	sp = (struct strlist *)stalloc(sizeof *sp);
 	sp->text = p;
 	*exparg.lastp = sp;

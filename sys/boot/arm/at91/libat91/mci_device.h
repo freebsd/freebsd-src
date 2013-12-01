@@ -306,7 +306,7 @@ typedef struct _AT91S_MciDevice
 #define AT91C_VDD_33_34					(1 << 21)
 #define AT91C_VDD_34_35					(1 << 22)
 #define AT91C_VDD_35_36					(1 << 23)
-#define AT91C_CARD_POWER_UP_BUSY		(1 << 31)
+#define AT91C_CARD_POWER_UP_BUSY		(1U << 31)
 
 #define AT91C_MMC_HOST_VOLTAGE_RANGE	(AT91C_VDD_27_28 | AT91C_VDD_28_29  | \
     AT91C_VDD_29_30 | AT91C_VDD_30_31 | AT91C_VDD_31_32 | AT91C_VDD_32_33)

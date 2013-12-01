@@ -318,7 +318,7 @@ uint64_t vmcs_read(uint32_t encoding);
 /*
  * VMCS IDT-Vectoring information fields
  */
-#define	VMCS_IDT_VEC_VALID		(1 << 31)
+#define	VMCS_IDT_VEC_VALID		(1U << 31)
 #define	VMCS_IDT_VEC_ERRCODE_VALID	(1 << 11)
 
 /*

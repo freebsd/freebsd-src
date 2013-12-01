@@ -105,7 +105,7 @@ __FBSDID("$FreeBSD$");
 #define	USBPHY_IP_CLR		0x98	/* PHY IP Block Register */
 #define	USBPHY_IP_TOG		0x9C	/* PHY IP Block Register */
 
-#define	USBPHY_CTRL_SFTRST	(1 << 31)
+#define	USBPHY_CTRL_SFTRST	(1U << 31)
 #define	USBPHY_CTRL_CLKGATE	(1 << 30)
 #define	USBPHY_DEBUG_CLKGATE	(1 << 30)
 

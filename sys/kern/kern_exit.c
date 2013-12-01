@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 #include "opt_ktrace.h"
-#include "opt_procdesc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -500,9 +499,7 @@ exit1(struct thread *td, int rv)
 	 * procdesc_exit() to serialize concurrent calls to close() and
 	 * exit().
 	 */
-#ifdef PROCDESC
 	if (p->p_procdesc == NULL || procdesc_exit(p)) {
-#endif
 		/*
 		 * Notify parent that we're gone.  If parent has the
 		 * PS_NOCLDWAIT flag set, or if the handler is set to SIG_IGN,
@@ -539,10 +536,8 @@ exit1(struct thread *td, int rv)
 			else	/* LINUX thread */
 				kern_psignal(p->p_pptr, p->p_sigparent);
 		}
-#ifdef PROCDESC
 	} else
 		PROC_LOCK(p->p_pptr);
-#endif
 	sx_xunlock(&proctree_lock);
 
 	/*
@@ -807,10 +802,8 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	clear_orphan(p);
 	PROC_UNLOCK(p);
 	leavepgrp(p);
-#ifdef PROCDESC
 	if (p->p_procdesc != NULL)
 		procdesc_reap(p);
-#endif
 	sx_xunlock(&proctree_lock);
 
 	/*
