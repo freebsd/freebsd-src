@@ -91,52 +91,6 @@ ofw_restore_trap_vec(char *restore_trap_vec)
 	__syncicache(EXC_RSVD, EXC_LAST - EXC_RSVD);
 }
 
-/*
- * Saved SPRG0-3 from OpenFirmware. Will be restored prior to the callback.
- */
-register_t	ofw_sprg0_save;
-
-static __inline void
-ofw_sprg_prepare(void)
-{
-	if (ofw_real_mode)
-		return;
-	
-	/*
-	 * Assume that interrupt are disabled at this point, or
-	 * SPRG1-3 could be trashed
-	 */
-	__asm __volatile("mfsprg0 %0\n\t"
-			 "mtsprg0 %1\n\t"
-	    		 "mtsprg1 %2\n\t"
-	    		 "mtsprg2 %3\n\t"
-			 "mtsprg3 %4\n\t"
-			 : "=&r"(ofw_sprg0_save)
-			 : "r"(ofmsr[1]),
-			 "r"(ofmsr[2]),
-			 "r"(ofmsr[3]),
-			 "r"(ofmsr[4]));
-}
-
-static __inline void
-ofw_sprg_restore(void)
-{
-#if 0
-	if (ofw_real_mode)
-		return;
-#endif
-	
-	/*
-	 * Note that SPRG1-3 contents are irrelevant. They are scratch
-	 * registers used in the early portion of trap handling when
-	 * interrupts are disabled.
-	 *
-	 * PCPU data cannot be used until this routine is called !
-	 */
-	__asm __volatile("mtsprg0 %0" :: "r"(ofw_sprg0_save));
-}
-#endif
-
 static int
 parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 {
@@ -332,12 +286,9 @@ openfirmware_core(void *args)
 
 	/*
 	 * Turn off exceptions - we really don't want to end up
-	 * anywhere unexpected with PCPU set to something strange
-	 * or the stack pointer wrong.
+	 * anywhere in the kernel while in OF state.
 	 */
 	oldmsr = intr_disable();
-
-	ofw_sprg_prepare();
 
 	/* Save trap vectors */
 	ofw_save_trap_vec(save_trap_of);
@@ -359,8 +310,6 @@ openfirmware_core(void *args)
 
 	/* Restore trap vecotrs */
 	ofw_restore_trap_vec(save_trap_of);
-
-	ofw_sprg_restore();
 
 	intr_restore(oldmsr);
 
