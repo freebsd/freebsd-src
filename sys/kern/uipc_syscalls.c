@@ -2075,156 +2075,86 @@ freebsd4_sendfile(struct thread *td, struct freebsd4_sendfile_args *uap)
 }
 #endif /* COMPAT_FREEBSD4 */
 
-static int
-sendfile_read(vm_object_t obj, struct mbuf *m0, struct vnode *vp, int flags,
-    off_t off0, int *readsize, int bsize, struct thread *td)
-{
-	struct mbuf *m, *mp = NULL;
+struct page_descr {
 	off_t off;
-	int error, read = 0;
+	off_t xfsize;
+};
+
+static void
+sendfile_swapin(vm_object_t obj, vm_page_t *pa, struct page_descr *pd,
+    int npages, off_t off, off_t len)
+{
+	int rv;
+
+	KASSERT(npages * PAGE_SIZE >= len, ("%s: npages %d len %ju",
+	    __func__, npages, (uintmax_t)len));
 
 	VM_OBJECT_WLOCK(obj);
+	for (int i = 0; i < npages; i++) {
+		vm_offset_t pgoff;
+		off_t xfsize;
 
-	/* Skip valid pages, if any. */
-	for (m = m0, off = off0; m != NULL;
-	    off += m->m_len, mp = m, m = m->m_next) {
-		vm_page_t pg;
+		pgoff = (vm_offset_t)(off & PAGE_MASK);
+		xfsize = omin(PAGE_SIZE - pgoff, len);
 
-		KASSERT(m->m_ext.ext_type == EXT_SFBUF, ("EXT_SFBUF expected"));
-		pg = sf_buf_page((struct sf_buf *)m->m_ext.ext_arg2);
+		pd[i].off = off;
+		pd[i].xfsize = xfsize;
+		pa[i] = vm_page_grab(obj, OFF_TO_IDX(off),
+		    VM_ALLOC_WIRED | VM_ALLOC_NORMAL);
 
-		if (!pg->valid ||
-		    !vm_page_is_valid(pg, off & PAGE_MASK, m->m_len))
-			break;
-
-		read += m->m_len;
+		off += xfsize;
+		len -= xfsize;
 	}
 
-	if (m == NULL) {
-		VM_OBJECT_WUNLOCK(obj);
-		KASSERT(*readsize == read, ("%s: readsize %d read %d", __func__,
-		    *readsize, read));
+	for (int i = 0; i < npages; i++) {
+		int j, a;
 
-		return (0);
-	}
+		if (vm_page_is_valid(pa[i], pd[i].off & PAGE_MASK,
+		    pd[i].xfsize)) {
+			vm_page_xunbusy(pa[i]);
+			continue;
+		}
 
-	if (flags & SF_NODISKIO) {
-#if 0
-		/*
-		 * XXXGL: for for multiple pages.
-		 */
-		if (vp == NULL)
-			vm_page_xunbusy(m);
-#endif
-		*readsize = read;
-		VM_OBJECT_WUNLOCK(obj);
-		error = EBUSY;
-		goto done;
-	}
+		for (j = i + 1; j < npages; j++)
+			if (vm_page_is_valid(pa[j], pd[j].off & PAGE_MASK,
+			    pd[j].xfsize))
+				break;
 
-	/*
-	 * Get the page from backing store.
-	 */
-	if (vp != NULL) {
-		struct uio auio;
-		struct iovec aiov;
-		ssize_t toread;
+		while (!vm_pager_has_page(obj, OFF_TO_IDX(pd[i].off),
+		    NULL, &a) && i < j) {
+			pmap_zero_page(pa[i]);
+			pa[i]->valid = VM_PAGE_BITS_ALL;
+			pa[i]->dirty = 0;
+			vm_page_xunbusy(pa[i]);
+			i++;
+		}
+		if (i == j)
+			continue;
 
-		VM_OBJECT_WUNLOCK(obj);
-#ifdef MAC
-		/*
-		 * XXX: Because we don't have fp->f_cred here, we
-		 * pass in NOCRED.  This is probably wrong, but is
-		 * consistent with our original implementation.
-		 */
-		error = mac_vnode_check_read(td->td_ucred, NOCRED, vp);
-		if (error)
-			goto done;
-#endif
+		rv = vm_pager_get_pages(obj, pa + i, min(a + 1, npages - i), 0);
 
-		toread = *readsize - read + sfreadahead * MAXBSIZE;
-		toread = roundup2(toread, MAXBSIZE);
+		KASSERT(rv == VM_PAGER_OK, ("%s: pager fail obj %p page %p",
+		    __func__, obj, pa[i]));
 
-		auio.uio_iov = &aiov;
-		auio.uio_iovcnt = 1;
-		aiov.iov_base = NULL;
-		aiov.iov_len = toread;
-		auio.uio_resid = toread;
-		auio.uio_offset = trunc_page(off);
-		auio.uio_segflg = UIO_NOCOPY;
-		auio.uio_rw = UIO_READ;
-		auio.uio_td = td;
-
-		/*
-		 * Use VOP_READ() instead of the pager interface for
-		 * the vnode, to allow the read-ahead.
-		 */
-		error = VOP_READ(vp, &auio, IO_NODELOCKED | IO_VMIO |
-		    ((toread / bsize) << IO_SEQSHIFT), td->td_ucred);
-
+		vm_page_xunbusy(pa[i]);
 		SFSTAT_INC(sf_iocnt);
-	} else {
-		/*
-		 * XXXGL: need fix for for multiple pages.
-		 */
-		error = EDOOFUS;
-		VM_OBJECT_WUNLOCK(obj);
-#if 0
-		if (vm_pager_has_page(obj, pindex, NULL, NULL)) {
-			rv = vm_pager_get_pages(obj, &m, 1, 0);
-			SFSTAT_INC(sf_iocnt);
-			m = vm_page_lookup(obj, pindex);
-			if (m == NULL)
-				error = EIO;
-			else if (rv != VM_PAGER_OK) {
-				vm_page_lock(m);
-				vm_page_free(m);
-				vm_page_unlock(m);
-				m = NULL;
-				error = EIO;
-			}
-		} else {
-			pmap_zero_page(m);
-			m->valid = VM_PAGE_BITS_ALL;
-			m->dirty = 0;
+		for (; a > 0 && i < npages; a--, i++) {
+			vm_page_t p;
+
+			p = pa[i];
+			pa[i] = vm_page_lookup(obj, OFF_TO_IDX(pd[i].off));
+			if (p != pa[i])
+				printf("p %p pa[i] %p\n", p, pa[i]);
 		}
-		if (m != NULL)
-			vm_page_xunbusy(m);
-#endif
 	}
 
-done:
-	if (error) {
-		/*
-		 * Free rest of the mbuf chain in case of either hard or
-		 * soft (EBUSY) error.
-		 */
-		if (mp) {  
-			KASSERT(mp->m_next == m,
-			    ("%s: bad mp %p", __func__, mp));
-			mp->m_next = NULL;
-		}
-		m_freem(m);
-	}
-#ifdef INVARIANTS
-	  else {
-		VM_OBJECT_WLOCK(obj);
-		for (m = m0, off = off0; m != NULL;
-		    off += m->m_len, m = m->m_next) {
-			vm_page_t pg;
+	for (int i = 0; i < npages; i++)
+		KASSERT((pa[i]->wire_count > 0 && vm_page_is_valid(pa[i],
+		    pd[i].off & PAGE_MASK, pd[i].xfsize)),
+		    ("wrong page %p state off 0x%jx len 0x%jx",
+		    pa[i], (uintmax_t)pd[i].off, (uintmax_t)pd[i].xfsize));
 
-			pg = sf_buf_page((struct sf_buf *)m->m_ext.ext_arg2);
-
-			KASSERT((pg->wire_count > 0 && vm_page_is_valid(pg,
-			    off & PAGE_MASK, m->m_len)),
-			    ("wrong page %p state off %#jx len %d",
-			    pg, (uintmax_t)off, m->m_len));
-		}
-		VM_OBJECT_WUNLOCK(obj);
-	}
-#endif
-
-	return (error);
+	VM_OBJECT_WUNLOCK(obj);
 }
 
 static int
@@ -2333,27 +2263,19 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	struct socket *so;
 	struct mbuf *m, *mh, *mhtail;
 	struct sf_buf *sf;
-	struct vm_page *pg;
 	struct shmfd *shmfd;
 	struct vattr va;
-	off_t off, fsbytes, sbytes, rem, obj_size;
-	int error, bsize, hdrlen, mwait, merror, sfwait;
-	bool inflight_called;
+	off_t off, sbytes, rem, obj_size;
+	int error, serror, bsize, hdrlen, mwait, merror, sfwait;
 
-	pg = NULL;
 	obj = NULL;
 	so = NULL;
 	m = NULL;
-	fsbytes = sbytes = 0;
-	rem = nbytes;
-	obj_size = 0;
-	inflight_called = false;
+	sbytes = 0;
 
 	error = sendfile_getobj(td, fp, &obj, &vp, &shmfd, &obj_size, &bsize);
 	if (error != 0)
 		return (error);
-	if (rem == 0)
-		rem = obj_size;
 
 	error = kern_sendfile_getsock(td, sockfd, &sock_fp, &so);
 	if (error != 0)
@@ -2406,6 +2328,8 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 		hdrlen = 0;
 	}
 
+	rem = nbytes ? omin(nbytes, obj_size - offset) : obj_size - offset;
+
 	/*
 	 * Protect against multiple writers to the socket.
 	 *
@@ -2425,22 +2349,14 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	 * The outer loop checks the state and available space of the socket
 	 * and takes care of the overall progress.
 	 */
-	for (off = offset; ; ) {
+	for (off = offset; rem > 0; ) {
+		vm_page_t *pa;
+		struct page_descr *pd;
+		u_int npages;
 		struct mbuf *mtail;
-		off_t loopoff;
-		int loopbytes;
 		int space;
-		int done;
-
-		if ((nbytes != 0 && nbytes == fsbytes) ||
-		    (nbytes == 0 && obj_size == fsbytes))
-			break;
 
 		mtail = NULL;
-		loopbytes = 0;
-		space = 0;
-		done = 0;
-
 		/*
 		 * Check the socket state for ongoing connection,
 		 * no errors and space in socket buffer.
@@ -2516,44 +2432,41 @@ retry_space:
 				VOP_UNLOCK(vp, 0);
 				goto done;
 			}
-			obj_size = va.va_size;
+			if (va.va_size != obj_size) {
+				if (nbytes == 0)
+					rem += va.va_size - obj_size;
+				else if (offset + nbytes > va.va_size)
+					rem -= (offset + nbytes - va.va_size);
+				obj_size = va.va_size;
+			}
 		}
+
+		if (space > rem)
+			space = rem;
+
+		npages = howmany(space - (PAGE_SIZE - off & PAGE_MASK),
+		    PAGE_SIZE);
+		if (off & PAGE_MASK)
+			npages++;
+		pa = malloc(npages * sizeof(vm_page_t), M_TEMP, mwait);
+		if (pa == NULL) {
+			error = merror;
+			goto done;
+		}
+		pd = malloc(npages * sizeof(*pd), M_TEMP, mwait);
+		if (pd == NULL) {
+			free(pa, M_TEMP);
+			error = merror;
+			goto done;
+		}
+		sendfile_swapin(obj, pa, pd, npages, off, space);
 
 		/*
 		 * Loop and construct maximum sized mbuf chain to be bulk
 		 * dumped into socket buffer.
 		 */
-		loopoff = off;
-		while (space > loopbytes) {
-			vm_offset_t pgoff;
-			vm_pindex_t pindex;
-			off_t xfsize;
+		for (int i = 0; i < npages; i++) {
 			struct mbuf *m0;
-
-			/*
-			 * Calculate the amount to transfer.
-			 * Not to exceed a page, the EOF,
-			 * or the passed in nbytes.
-			 */
-			pgoff = (vm_offset_t)(loopoff & PAGE_MASK);
-			rem = obj_size - offset;
-			if (nbytes != 0)
-				rem = omin(rem, nbytes);
-			rem -= fsbytes + loopbytes;
-			xfsize = omin(PAGE_SIZE - pgoff, rem);
-			xfsize = omin(space - loopbytes, xfsize);
-			if (xfsize <= 0) {
-				done = 1;		/* all data sent */
-				break;
-			}
-
-			pindex = OFF_TO_IDX(loopoff);
-			VM_OBJECT_WLOCK(obj);
-			pg = vm_page_grab(obj, pindex,
-			    (vp != NULL ? VM_ALLOC_NOBUSY |
-			    VM_ALLOC_IGN_SBUSY : 0) |
-			    VM_ALLOC_WIRED | VM_ALLOC_NORMAL);
-			VM_OBJECT_WUNLOCK(obj);
 
 			/*
 			 * Get a sendfile buf.  When allocating the
@@ -2564,14 +2477,15 @@ retry_space:
 			 * threads might exhaust the buffers and then
 			 * deadlock.
 			 */
-			sf = sf_buf_alloc(pg, m != NULL ? SFB_NOWAIT : sfwait);
+			sf = sf_buf_alloc(pa[i],
+			    m != NULL ? SFB_NOWAIT : sfwait);
 			if (sf == NULL) {
 				SFSTAT_INC(sf_allocfail);
-				vm_page_lock(pg);
-				vm_page_unwire(pg, 0);
-				KASSERT(pg->object != NULL,
-				    ("%s: object disappeared", __func__));
-				vm_page_unlock(pg);
+				for (int j = i; j < npages; j++) {
+					vm_page_lock(pa[j]);
+					vm_page_unwire(pa[j], 0);
+					vm_page_unlock(pa[j]);
+				}
 				if (m == NULL)
 					error = merror;
 				break;
@@ -2590,13 +2504,19 @@ retry_space:
 			if (m_extadd(m0, (caddr_t )sf_buf_kva(sf), PAGE_SIZE,
 			    sf_buf_mext, sfs, sf, M_RDONLY, EXT_SFBUF, mwait)
 			    != 0) {
+				for (int j = i + 1; j < npages; j++) {
+					vm_page_lock(pa[j]);
+					vm_page_unwire(pa[j], 0);
+					vm_page_unlock(pa[j]);
+				}
 				error = merror;
 				(void)sf_buf_mext(NULL, NULL, sf);
 				m_freem(m0);
 				break;
 			}
-			m0->m_data = (char *)sf_buf_kva(sf) + pgoff;
-			m0->m_len = xfsize;
+			m0->m_data = (char *)sf_buf_kva(sf) +
+			    (pd[i].off & PAGE_MASK);
+			m0->m_len = pd[i].xfsize;
 
 			/* Append to mbuf chain. */
 			if (mtail != NULL)
@@ -2606,8 +2526,8 @@ retry_space:
 			mtail = m0;
 
 			/* Keep track of bytes processed. */
-			loopbytes += xfsize;
-			loopoff += xfsize;
+			off += pd[i].xfsize;
+			rem -= pd[i].xfsize;
 
 			/*
 			 * XXX eventually this should be a sfsync
@@ -2617,15 +2537,11 @@ retry_space:
 				sf_sync_ref(sfs);
 		}
 
-		error = sendfile_read(obj, m, vp, flags, off, &loopbytes,
-		    bsize, td);
-		if (loopbytes)
-			off += loopbytes;
-		else
-			m = NULL;
-
 		if (vp != NULL)
 			VOP_UNLOCK(vp, 0);
+
+		free(pa, M_TEMP);
+		free(pd, M_TEMP);
 
 		/* Prepend header, if any. */
 		if (hdrlen) {
@@ -2634,47 +2550,31 @@ retry_space:
 		}
 
 		/* Add the buffer chain to the socket buffer. */
-		if (loopbytes + hdrlen > 0) {
-			int err;
+		KASSERT(m_length(m, NULL) == space + hdrlen,
+		    ("%s: mlen %u space %d hdrlen %d",
+		    __func__, m_length(m, NULL), space, hdrlen));
 
-			KASSERT(m_length(m, NULL) == loopbytes + hdrlen,
-			    ("%s: mlen %u loop %d hdr %d", __func__,
-			    m_length(m, NULL), loopbytes, hdrlen));
-
-			SOCKBUF_LOCK(&so->so_snd);
-			if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
-				error = EPIPE;
-				SOCKBUF_UNLOCK(&so->so_snd);
-				goto done;
-			}
+		SOCKBUF_LOCK(&so->so_snd);
+		if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
+			error = EPIPE;
 			SOCKBUF_UNLOCK(&so->so_snd);
-			CURVNET_SET(so->so_vnet);
-			/* Avoid error aliasing. */
-			err = (*so->so_proto->pr_usrreqs->pru_send)
-				    (so, 0, m, NULL, NULL, td);
-			CURVNET_RESTORE();
-			if (err == 0) {
-				/*
-				 * We need two counters to get the
-				 * file offset and nbytes to send
-				 * right:
-				 * - sbytes contains the total amount
-				 *   of bytes sent, including headers.
-				 * - fsbytes contains the total amount
-				 *   of bytes sent from the file.
-				 */
-				sbytes += loopbytes + hdrlen;
-				fsbytes += loopbytes;
-				if (hdrlen)
-					hdrlen = 0;
-			} else if (error == 0)
-				error = err;
-			m = NULL;	/* pru_send always consumes */
+			goto done;
 		}
+		SOCKBUF_UNLOCK(&so->so_snd);
+		CURVNET_SET(so->so_vnet);
+		/* Avoid error aliasing. */
+		serror = (*so->so_proto->pr_usrreqs->pru_send)
+			    (so, 0, m, NULL, NULL, td);
+		CURVNET_RESTORE();
+		if (serror == 0) {
+			sbytes += space + hdrlen;
+			if (hdrlen)
+				hdrlen = 0;
+		} else if (error == 0)
+			error = serror;
+		m = NULL;	/* pru_send always consumes */
 
-		/* Quit outer loop on error or when we're done. */
-		if (done)
-			break;
+		/* Quit outer loop on error. */
 		if (error != 0)
 			goto done;
 	}
