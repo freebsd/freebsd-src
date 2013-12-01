@@ -90,6 +90,7 @@ ofw_restore_trap_vec(char *restore_trap_vec)
 	bcopy(restore_trap_vec, (void *)EXC_RST, EXC_LAST - EXC_RST);
 	__syncicache(EXC_RSVD, EXC_LAST - EXC_RSVD);
 }
+#endif
 
 static int
 parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
