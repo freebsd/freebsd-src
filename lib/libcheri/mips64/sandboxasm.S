@@ -34,22 +34,37 @@
 .set noat
 
 #
-# Caller side of the CHERI sandbox runtime startup code -- set up arguments
-# for a CCall into a sandbox.
+# Assembly wrapper for CCall on an object-capability.  Calling conventions
+# into _chsbrt_invoke:
 #
-# ABI conventions; *'d items implemented here:
-#    $c1 contains to-be-invoked sealed code capability *
-#    $c2 contains to-be-invoked sealed data capability *
-#    $c3-$c10 caller-save argument registers
-#    $c3 return value register
-#    $c11-$c16 caller-save registers
-#    $c17-$c24 callee-save registers
-#    $c25 unused *
-#    $c26 IDC *
+# Registers	Description			Before, After
+# $c0		MIPS address space		Save/Clear, Restore
+# $c1, $c2	Invoked capabilities		Pass through, Clear
+# $c3..$c10	Argument capabilities		Pass through, Clear
+# $c11..$c16	Caller-save capabilities	Clear, Clear
+# $c17..$c24	Callee-save capabilities	Save/Clear, Restore
+# $c26		IDC				Handled by CCall
 #
-#    $a0-$a5 will be filled with general-purpose arguments
+# Calling conventions implemented around CCall:
 #
-# XXXRW: No floating-point support.
+# $c1		Invoked code capability
+# $c2		Invoked data capability
+# $c3..$c10	Argument capabilities
+# $c11..$c16	n/a
+# $c17..$c24	n/a
+# $c26		IDC
+#
+# XXXRW: Worries/TODO:
+#
+# - Floating-point registers.
+# - Unused argument registers (capability and general-purpose) -- only the
+#   caller knows which are used, and hence which need to be scrubbed.
+# - Check that CCall scrubs $sp in callee.
+# - What about $c25?  Should we swap $c25 and $c26 in the ISA definition?
+# - Easy to imagine a #ifdef FAST_BUT_LOOSE that does less clearing but trusts
+#   the compiler more.  Would also be nice to have a CClearMask that took a
+#   bitmask of capability registers to flush -- and likeways ClearMask for
+#   MIPS registers.
 #
 
 	.text
@@ -60,62 +75,185 @@ _chsbrt_invoke:
 	#
 	# Save caller-save general-purpose registers.
 	#
-	# XXXRW: Check this -- and also other caller-save registers?
+	# Caller-save registers are: $s0..$s7, $gp, $sp, $s8 ($fp).
 	#
-	# XXXRW: Save caller-save capability registers.
+	# Do also save $ra so that we can return properly.
 	#
-	daddiu	$sp, -96
-	sd	$gp, 88($sp)
+	# Don't save $sp as CCall will do that for us.
+	#
+	daddiu	$sp, -88
+	sd	$s0, 0($sp)
+	sd	$s1, 8($sp)
+	sd	$s2, 16($sp)
+	sd	$s3, 24($sp)
+	sd	$s4, 32($sp)
+	sd	$s5, 40($sp)
+	sd	$s6, 48($sp)
+	sd	$s7, 56($sp)
+	sd	$gp, 64($sp)
+	sd	$fp, 72($sp)
 	sd	$ra, 80($sp)
-	sd	$s8, 72($sp)
-	sd	$s7, 64($sp)
-	sd	$s6, 56($sp)
-	sd	$s5, 48($sp)
-	sd	$s4, 40($sp)
-	sd	$s3, 32($sp)
-	sd	$s2, 24($sp)
-	sd	$s1, 16($sp)
-	sd	$s0, 8($sp)
-	sd	$fp, 0($sp)
 
 	#
-	# XXXRW: When CCall, scrub general-purpose and capability registers
-	# here.
+	# Save $c0 where CCall will preserve it, and CReturn will restore it.
 	#
-
-	# Save $c0 in IDC for use after return.
+	# XXXRW: Arguably $c0's value should already be there, so we restore
+	# it after CCall returns, but shouldn't need to save it here.
+	#
 	cmove	$c26, $c0
 
-	# Clear $c0 so it is not available to the sanebox.
-	ccleartag	$c0
+	#
+	# Save capability registers we later need to restore (that won't be
+	# handled by CCall for us).
+	#
+	daddiu	$sp, -256
+	csc	$c17, $sp, 0($c0)
+	csc	$c18, $sp, 32($c0)
+	csc	$c19, $sp, 64($c0)
+	csc	$c20, $sp, 96($c0)
+	csc	$c21, $sp, 128($c0)
+	csc	$c22, $sp, 160($c0)
+	csc	$c23, $sp, 192($c0)
+	csc	$c24, $sp, 224($c0)
 
-	# Invoke object capability.
+	#
+	# Scrub caller-save non-argument general-purpose registers.
+	#
+	# Don't scrub $sp as CCall will do that for us ... right?
+	#
+	li	$s0, 0
+	li	$s1, 0
+	li	$s2, 0
+	li	$s3, 0
+	li	$s4, 0
+	li	$s5, 0
+	li	$s6, 0
+	li	$s7, 0
+	li	$gp, 0
+	li	$fp, 0
+	li	$ra, 0
+
+	#
+	# Scrub unpreserved general-purpose registers
+	#
+	li	$at, 0
+	li	$v0, 0
+	li	$v1, 0
+	li	$t0, 0
+	li	$t1, 0
+	li	$t2, 0
+	li	$t3, 0
+	li	$t4, 0
+	li	$t5, 0
+	li	$t6, 0
+	li	$t7, 0
+	li	$t8, 0
+	li	$t9, 0
+	li	$k0, 0		# Is this really necessary?
+	li	$k1, 0		# Is this really necessary?
+
+	#
+	# Scrub non-{invoked, argument} capabilities; we do this after
+	# general-purpose registers as clearing $c0 will disable MIPS memory
+	# instructions.
+	#
+	ccleartag	$c0
+	ccleartag	$c11
+	ccleartag	$c12
+	ccleartag	$c13
+	ccleartag	$c14
+	ccleartag	$c15
+	ccleartag	$c16
+	ccleartag	$c17
+	ccleartag	$c18
+	ccleartag	$c19
+	ccleartag	$c20
+	ccleartag	$c21
+	ccleartag	$c22
+	ccleartag	$c23
+	ccleartag	$c24
+
+	#
+	# Invoke object capability.  CCall/CReturn will save and restore $sp
+	# and IDC, so we don't need to.
+	#
 	ccall	$c1, $c2
 
-	# Set $c0 back to restored $idc.
+	#
+	# Restore capability registers from stack.
+	#
+	clc	$c17, $sp, 0($c0)
+	clc	$c18, $sp, 32($c0)
+	clc	$c19, $sp, 64($c0)
+	clc	$c20, $sp, 96($c0)
+	clc	$c21, $sp, 128($c0)
+	clc	$c22, $sp, 160($c0)
+	clc	$c23, $sp, 192($c0)
+	clc	$c24, $sp, 224($c0)
+	daddiu	$sp, 256
+
+	#
+	# Conservative: clear capability registers that aren't return values
+	# and haven't been restored, to prevent accidental use.  Could save on
+	# cycles by not doing this, but have to trust the compiler more.
+	#
+	ccleartag	$c1
+	ccleartag	$c2
+	ccleartag	$c3
+	ccleartag	$c4
+	ccleartag	$c5
+	ccleartag	$c6
+	ccleartag	$c7
+	ccleartag	$c8
+	ccleartag	$c9
+	ccleartag	$c10
+	ccleartag	$c11
+	ccleartag	$c12
+	ccleartag	$c13
+	ccleartag	$c14
+	ccleartag	$c15
+	ccleartag	$c16
+
+	#
+	# CReturn restores IDC; propagate to $c0
+	#
 	cmove	$c0, $c26
 
-	# Use CCall-restored $sp to restore other registers of note.
-	ld	$fp, 0($sp)
-	ld	$s0, 8($sp)
-	ld	$s1, 16($sp)
-	ld	$s2, 24($sp)
-	ld	$s3, 32($sp)
-	ld	$s4, 40($sp)
-	ld	$s5, 48($sp)
-	ld	$s6, 56($sp)
-	ld	$s7, 64($sp)
-	ld	$s8, 72($sp)
+	#
+	# Restore general-purpose registers from the stack.
+	#
+	ld	$s0, 0($sp)
+	ld	$s1, 8($sp)
+	ld	$s2, 16($sp)
+	ld	$s3, 24($sp)
+	ld	$s4, 32($sp)
+	ld	$s5, 40($sp)
+	ld	$s6, 48($sp)
+	ld	$s7, 56($sp)
+	ld	$gp, 64($sp)
+	ld	$fp, 72($sp)
 	ld	$ra, 80($sp)
-	ld	$gp, 88($sp)
-	daddiu	$sp, 96
+	daddiu	$sp, 88
 
 	#
-	# XXXRW: Restore caller-save capability registers.
+	# Conservative: clear general-purpose registers that aren't return
+	# values and haven't been restored, to prevent accidental use.  Could
+	# save on cycles by not doing this, but have to trust the compiler
+	# more.
 	#
-	# XXXRW: Defensively clear other general-purpose, capability registers
-	# on return?
-	#
+	li	$at, 0
+	li	$t0, 0
+	li	$t1, 0
+	li	$t2, 0
+	li	$t3, 0
+	li	$t4, 0
+	li	$t5, 0
+	li	$t6, 0
+	li	$t7, 0
+	li	$t8, 0
+	li	$t9, 0
+	li	$k0, 0		# Is this really necessary?
+	li	$k1, 0		# Is this really necessary?
 
 	#
 	# Return to C-language caller.
