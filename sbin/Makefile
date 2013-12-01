@@ -72,7 +72,7 @@ SUBDIR=adjkerntz \
 	swapon \
 	sysctl \
 	tunefs \
-	umount \
+	umount
 
 .if ${MK_ATM} != "no"
 SUBDIR+=	atm
