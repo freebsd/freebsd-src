@@ -127,6 +127,7 @@ MINUSLPAM+=	-lypclnt
 
 LIBPANEL?=	${DESTDIR}${LIBDIR}/libpanel.a
 LIBPCAP?=	${DESTDIR}${LIBDIR}/libpcap.a
+LIBPJDLOG?=	${DESTDIR}${LIBDIR}/libpjdlog.a
 LIBPMC?=	${DESTDIR}${LIBDIR}/libpmc.a
 LIBPROC?=	${DESTDIR}${LIBDIR}/libproc.a
 LIBPROCSTAT?=	${DESTDIR}${LIBDIR}/libprocstat.a
