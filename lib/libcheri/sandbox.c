@@ -44,6 +44,7 @@
 #include <unistd.h>
 
 #include "sandbox.h"
+#include "sandbox_internal.h"
 
 #define	roundup2(x, y)	(((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
 
@@ -53,13 +54,16 @@
 
 int sb_verbose;
 
-/*
- * Library routine for setting up a sandbox.
+/*-
+ * Opaque data structure describing each sandbox; returned by sandbox_setup()
+ * and destroyed by sandbox_destroy().  Currently, sandboxes are
+ * single-threaded.
+ *
+ * TODO:
+ * - Add atomically set flag and assertion to ensure single-threaded entry to
+ *   the sandbox.
+ * - Use __capability.
  */
-
-register_t	_chsbrt_invoke(register_t, register_t, register_t,
-		    register_t, register_t, register_t);
-
 struct sandbox {
 	char		*sb_path;
 	void		*sb_mem;
