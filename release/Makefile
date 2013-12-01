@@ -91,7 +91,12 @@ IMAGES+=	memstick.img
 IMAGES+=	mini-memstick.img
 .endif
 
+CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
+CLEANDIRS=	dist ftp release bootonly dvd
+beforeclean:
+	chflags -R noschg .
 .include <bsd.obj.mk>
+clean: beforeclean
 
 base.txz:
 	mkdir -p ${DISTDIR}
@@ -232,15 +237,6 @@ ftp: packagesystem
 release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${RELEASE_TARGETS}
-
-clean:
-	chflags -R noschg .
-	rm -rf dist ftp
-	rm -f packagesystem
-	rm -f *.txz MANIFEST
-	rm -f system
-	rm -rf release bootonly dvd
-	rm -f ${IMAGES}
 
 install:
 .if defined(DESTDIR) && !empty(DESTDIR)
