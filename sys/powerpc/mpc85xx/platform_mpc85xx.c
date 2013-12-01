@@ -72,8 +72,8 @@ static int cpu, maxcpu;
 
 static int mpc85xx_probe(platform_t);
 static int mpc85xx_attach(platform_t);
-static void mpc85xx_mem_regions(platform_t, struct mem_region **phys,
-    int *physsz, struct mem_region **avail, int *availsz);
+static void mpc85xx_mem_regions(platform_t, struct mem_region *phys,
+    int *physsz, struct mem_region *avail, int *availsz);
 static u_long mpc85xx_timebase_freq(platform_t, struct cpuref *cpuref);
 static int mpc85xx_smp_first_cpu(platform_t, struct cpuref *cpuref);
 static int mpc85xx_smp_next_cpu(platform_t, struct cpuref *cpuref);
@@ -201,8 +201,8 @@ mpc85xx_attach(platform_t plat)
 }
 
 void
-mpc85xx_mem_regions(platform_t plat, struct mem_region **phys, int *physsz,
-    struct mem_region **avail, int *availsz)
+mpc85xx_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
+    struct mem_region *avail, int *availsz)
 {
 
 	ofw_mem_regions(phys, physsz, avail, availsz);
