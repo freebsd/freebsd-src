@@ -32,7 +32,7 @@
 /* Registers definition for Freescale i.MX515 Generic Periodic Timer */
 
 #define	IMX_GPT_CR	0x0000 /* Control Register          R/W */
-#define		GPT_CR_FO3		(1 << 31)
+#define		GPT_CR_FO3		(1U << 31)
 #define		GPT_CR_FO2		(1 << 30)
 #define		GPT_CR_FO1		(1 << 29)
 #define		GPT_CR_OM3_SHIFT	26

@@ -35,6 +35,8 @@ SUBDIR_ORDERED=	${_csu} \
 	libc_nonshared \
 	libbsm \
 	libauditd \
+	libutil \
+	libpjdlog \
 	libcompiler_rt \
 	libcrypt \
 	libelf \
@@ -49,7 +51,6 @@ SUBDIR_ORDERED=	${_csu} \
 	librpcsvc \
 	libsbuf \
 	libtacplus \
-	libutil \
 	${_libypclnt} \
 	${_libcxxrt} \
 	${_libcplusplus}

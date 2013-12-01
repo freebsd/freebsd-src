@@ -1505,7 +1505,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libradius lib/libsbuf lib/libtacplus \
 		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
 		${_cddl_lib_libzfs_core} \
-		lib/libutil ${_lib_libypclnt} lib/libz lib/msun \
+		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_lib_libldns} \
 		${_secure_lib_libssh} ${_secure_lib_libssl}
 
@@ -1520,6 +1520,8 @@ _lib_libthr=	lib/libthr
 .if ${MK_OFED} != "no"
 _ofed_lib=	contrib/ofed/usr.lib/
 .endif
+
+lib/libpjdlog__L: lib/libutil__L
 
 _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib ${_ofed_lib}
 .for _DIR in ${LOCAL_LIB_DIRS}

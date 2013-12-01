@@ -1243,7 +1243,7 @@ configure_cpu_port(struct ece_softc *sc)
 	/* SA learning Disable */
 	cpu_port_config |= (SA_LEARNING_DISABLE);
 	/* set data offset + 2 */
-	cpu_port_config &= ~(1 << 31);
+	cpu_port_config &= ~(1U << 31);
 
 	write_4(sc, CPU_PORT_CONFIG, cpu_port_config);
 

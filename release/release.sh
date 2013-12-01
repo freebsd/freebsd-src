@@ -176,9 +176,9 @@ build_doc_ports() {
 	_OSVERSION=$(sysctl -n kern.osreldate)
 	if [ -d ${CHROOTDIR}/usr/doc ] && [ "x${NODOC}" = "x" ]; then
 		PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
-		PBUILD_FLAGS="${PBUILD_FLAGS} OPTIONS_UNSET='FOP IGOR'"
+		PBUILD_FLAGS="${PBUILD_FLAGS}"
 		chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
-			${PBUILD_FLAGS} install clean distclean
+			${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" install clean distclean
 	fi
 }
 

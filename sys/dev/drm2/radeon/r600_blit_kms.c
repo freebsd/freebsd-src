@@ -244,12 +244,12 @@ set_scissors(struct radeon_device *rdev, int x1, int y1,
 
 	radeon_ring_write(ring, PACKET3(PACKET3_SET_CONTEXT_REG, 2));
 	radeon_ring_write(ring, (PA_SC_GENERIC_SCISSOR_TL - PACKET3_SET_CONTEXT_REG_OFFSET) >> 2);
-	radeon_ring_write(ring, (x1 << 0) | (y1 << 16) | (1 << 31));
+	radeon_ring_write(ring, (x1 << 0) | (y1 << 16) | (1U << 31));
 	radeon_ring_write(ring, (x2 << 0) | (y2 << 16));
 
 	radeon_ring_write(ring, PACKET3(PACKET3_SET_CONTEXT_REG, 2));
 	radeon_ring_write(ring, (PA_SC_WINDOW_SCISSOR_TL - PACKET3_SET_CONTEXT_REG_OFFSET) >> 2);
-	radeon_ring_write(ring, (x1 << 0) | (y1 << 16) | (1 << 31));
+	radeon_ring_write(ring, (x1 << 0) | (y1 << 16) | (1U << 31));
 	radeon_ring_write(ring, (x2 << 0) | (y2 << 16));
 }
 

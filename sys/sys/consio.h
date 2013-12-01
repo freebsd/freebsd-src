@@ -184,7 +184,7 @@ typedef struct mouse_info mouse_info_t;
 #define CONS_CURSOR_ATTRS	(CONS_BLINK_CURSOR | CONS_CHAR_CURSOR |	\
 				 CONS_HIDDEN_CURSOR)
 #define CONS_RESET_CURSOR	(1 << 30)
-#define CONS_LOCAL_CURSOR	(1 << 31)
+#define CONS_LOCAL_CURSOR	(1U << 31)
 #define CONS_CURSOR_FLAGS	(CONS_RESET_CURSOR | CONS_LOCAL_CURSOR)
 struct cshape {
 	/* shape[0]: flags, shape[1]: base, shape[2]: height */

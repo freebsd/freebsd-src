@@ -79,7 +79,7 @@ __FBSDID("$FreeBSD$");
 #define	CCM_CPPDSR	0x88	/* PLL PFD Disable Status Register */
 #define	CCM_CCOWR	0x8C	/* CORE Wakeup Register */
 
-#define	PLL3_PFD4_EN	(1 << 31)
+#define	PLL3_PFD4_EN	(1U << 31)
 #define	PLL3_PFD3_EN	(1 << 30)
 #define	PLL3_PFD2_EN	(1 << 29)
 #define	PLL3_PFD1_EN	(1 << 28)
