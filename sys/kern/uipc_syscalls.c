@@ -2288,7 +2288,6 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	struct vattr va;
 	off_t off, xfsize, fsbytes, sbytes, rem, obj_size;
 	int error, bsize, nd, hdrlen, mnw;
-	bool inflight_called;
 
 	pg = NULL;
 	obj = NULL;
@@ -2298,7 +2297,6 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	hdrlen = mnw = 0;
 	rem = nbytes;
 	obj_size = 0;
-	inflight_called = false;
 
 	error = sendfile_getobj(td, fp, &obj, &vp, &shmfd, &obj_size, &bsize);
 	if (error != 0)
