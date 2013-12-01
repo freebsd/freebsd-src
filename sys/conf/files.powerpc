@@ -63,8 +63,7 @@ dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvtb.c		optional	sc
 dev/tsec/if_tsec.c		optional	tsec
 dev/tsec/if_tsec_fdt.c		optional	tsec fdt
-dev/uart/uart_cpu_fdt.c		optional	uart fdt
-dev/uart/uart_cpu_powerpc.c	optional	uart aim
+dev/uart/uart_cpu_powerpc.c	optional	uart
 dev/usb/controller/ehci_fsl.c	optional	ehci mpc85xx
 kern/kern_clocksource.c		standard
 kern/subr_dummy_vdso_tc.c	standard
