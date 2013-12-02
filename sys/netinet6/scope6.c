@@ -457,8 +457,9 @@ in6_getscopezone(const struct ifnet *ifp, int scope)
  * This function is for checking sockaddr_in6 structure passed
  * from the application level (usually).
  *
- * sin6_scope_id should be set for link-local unicast addresses and for
- * any multicast addresses.
+ * sin6_scope_id should be set for link-local unicast, link-local and
+ * interface-local  multicast addresses.
+ *
  * If it is zero, then look into default zone ids. If default zone id is
  * not set or disabled, then return error.
  */
@@ -468,25 +469,28 @@ sa6_checkzone(struct sockaddr_in6 *sa6)
 	int scope;
 
 	scope = in6_addrscope(&sa6->sin6_addr);
-	if (!IN6_IS_ADDR_MULTICAST(&sa6->sin6_addr)) {
-		if (scope == IPV6_ADDR_SCOPE_GLOBAL)
-			return (sa6->sin6_scope_id ? EINVAL: 0);
-		/*
-		 * Since ::1 address always configured on the lo0, we can
-		 * automatically set its zone id, when it is not specified.
-		 * Return error, when specified zone id doesn't match with
-		 * actual value.
-		 */
-		if (IN6_IS_ADDR_LOOPBACK(&sa6->sin6_addr)) {
-			if (sa6->sin6_scope_id == 0)
-				sa6->sin6_scope_id = in6_getscopezone(
-				    V_loif, IPV6_ADDR_SCOPE_LINKLOCAL);
-			else if (sa6->sin6_scope_id != in6_getscopezone(
-			    V_loif, IPV6_ADDR_SCOPE_LINKLOCAL))
-				return (EADDRNOTAVAIL);
-		}
+	if (scope == IPV6_ADDR_SCOPE_GLOBAL)
+		return (sa6->sin6_scope_id ? EINVAL: 0);
+	if (IN6_IS_ADDR_MULTICAST(&sa6->sin6_addr) &&
+	    scope != IPV6_ADDR_SCOPE_LINKLOCAL &&
+	    scope != IPV6_ADDR_SCOPE_INTFACELOCAL) {
+		if (sa6->sin6_scope_id == 0 && V_ip6_use_defzone != 0)
+			sa6->sin6_scope_id = V_sid_default.s6id_list[scope];
+		return (0);
 	}
-	/* Any multicast and link-local addresses. */
+	/*
+	 * Since ::1 address always configured on the lo0, we can
+	 * automatically set its zone id, when it is not specified.
+	 * Return error, when specified zone id doesn't match with
+	 * actual value.
+	 */
+	if (IN6_IS_ADDR_LOOPBACK(&sa6->sin6_addr)) {
+		if (sa6->sin6_scope_id == 0)
+			sa6->sin6_scope_id = in6_getscopezone(V_loif, scope);
+		else if (sa6->sin6_scope_id != in6_getscopezone(V_loif, scope))
+			return (EADDRNOTAVAIL);
+	}
+	/* XXX: we can validate sin6_scope_id here */
 	if (sa6->sin6_scope_id != 0)
 		return (0);
 	if (V_ip6_use_defzone != 0)
@@ -507,11 +511,11 @@ sa6_checkzone_ifp(struct ifnet *ifp, struct sockaddr_in6 *sa6)
 	scope = in6_addrscope(&sa6->sin6_addr);
 	if (scope == IPV6_ADDR_SCOPE_LINKLOCAL ||
 	    scope == IPV6_ADDR_SCOPE_INTFACELOCAL) {
-		if (sa6->sin6_scope_id != 0 &&
-		    sa6->sin6_scope_id != in6_getscopezone(ifp, scope))
-			return (EADDRNOTAVAIL);
-		if (sa6->sin6_scope_id == 0)
+		if (sa6->sin6_scope_id == 0) {
 			sa6->sin6_scope_id = in6_getscopezone(ifp, scope);
+			return (0);
+		} else if (sa6->sin6_scope_id != in6_getscopezone(ifp, scope))
+			return (EADDRNOTAVAIL);
 	}
 	return (sa6_checkzone(sa6));
 }
