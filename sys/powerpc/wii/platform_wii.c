@@ -56,8 +56,8 @@ __FBSDID("$FreeBSD$");
 
 static int		wii_probe(platform_t);
 static int		wii_attach(platform_t);
-static void		wii_mem_regions(platform_t, struct mem_region **,
-			    int *, struct mem_region **, int *);
+static void		wii_mem_regions(platform_t, struct mem_region *,
+			    int *, struct mem_region *, int *);
 static unsigned long	wii_timebase_freq(platform_t, struct cpuref *);
 static void		wii_reset(platform_t);
 static void		wii_cpu_idle(sbintime_t);
@@ -107,12 +107,9 @@ wii_attach(platform_t plat)
 	return (0);
 }
 
-#define MEM_REGIONS     2
-static struct mem_region avail_regions[MEM_REGIONS];
-
 static void
-wii_mem_regions(platform_t plat, struct mem_region **phys, int *physsz,
-    struct mem_region **avail, int *availsz)
+wii_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
+    struct mem_region *avail_regions, int *availsz)
 {
 	/* 24MB 1T-SRAM */
 	avail_regions[0].mr_start = 0x00000000;
@@ -139,8 +136,8 @@ wii_mem_regions(platform_t plat, struct mem_region **phys, int *physsz,
 	 */
 	avail_regions[1].mr_size -= WIIIPC_IOH_LEN + 1;
 
-	*phys = *avail = avail_regions;
-	*physsz = *availsz = MEM_REGIONS;
+	memcpy(phys, avail, 2*sizeof(*avail);
+	*physsz = *availsz = 2;
 }
 
 static u_long
