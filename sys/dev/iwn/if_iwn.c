@@ -3608,7 +3608,8 @@ iwn_notif_intr(struct iwn_softc *sc)
 			    BUS_DMASYNC_POSTREAD);
 #ifdef	IWN_DEBUG
 			uint32_t *status = (uint32_t *)(desc + 1);
-			DPRINTF(sc, IWN_DEBUG_INTR, "state changed to %x\n",
+			DPRINTF(sc, IWN_DEBUG_INTR | IWN_DEBUG_STATE,
+			    "state changed to %x\n",
 			    le32toh(*status));
 #endif
 			break;
@@ -3633,11 +3634,11 @@ iwn_notif_intr(struct iwn_softc *sc)
 #ifdef	IWN_DEBUG
 			struct iwn_stop_scan *scan =
 			    (struct iwn_stop_scan *)(desc + 1);
-			DPRINTF(sc, IWN_DEBUG_STATE,
+			DPRINTF(sc, IWN_DEBUG_STATE | IWN_DEBUG_SCAN,
 			    "scan finished nchan=%d status=%d chan=%d\n",
 			    scan->nchan, scan->status, scan->chan);
 #endif
-
+			sc->sc_is_scanning = 0;
 			IWN_UNLOCK(sc);
 			ieee80211_scan_next(vap);
 			IWN_LOCK(sc);
@@ -5020,6 +5021,12 @@ iwn_set_led(struct iwn_softc *sc, uint8_t which, uint8_t off, uint8_t on)
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->Doing %s\n", __func__);
 
+#if 0
+	/* XXX don't set LEDs during scan? */
+	if (sc->sc_is_scanning)
+		return;
+#endif
+
 	/* Clear microcode LED ownership. */
 	IWN_CLRBITS(sc, IWN_LED, IWN_LED_BSM_CTRL);
 
@@ -5485,6 +5492,10 @@ iwn_collect_noise(struct iwn_softc *sc,
 #ifdef notyet
 	/* XXX Disable RX chains with no antennas connected. */
 	sc->rxon->rxchain = htole16(IWN_RXCHAIN_SEL(sc->chainmask));
+	if (sc->sc_is_scanning)
+		device_printf(sc->sc_dev,
+		    "%s: is_scanning set, before RXON\n",
+		    __func__);
 	(void)iwn_cmd(sc, IWN_CMD_RXON, sc->rxon, sc->rxonsz, 1);
 #endif
 
@@ -6119,6 +6130,10 @@ iwn_config(struct iwn_softc *sc)
 	    IWN_RXCHAIN_IDLE_COUNT(2);
 	sc->rxon->rxchain = htole16(rxchain);
 	DPRINTF(sc, IWN_DEBUG_RESET, "%s: setting configuration\n", __func__);
+	if (sc->sc_is_scanning)
+		device_printf(sc->sc_dev,
+		    "%s: is_scanning set, before RXON\n",
+		    __func__);
 	error = iwn_cmd(sc, IWN_CMD_RXON, sc->rxon, sc->rxonsz, 0);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "%s: RXON command failed\n",
@@ -6169,6 +6184,73 @@ ieee80211_add_ssid(uint8_t *frm, const uint8_t *ssid, u_int len)
 	return frm + len;
 }
 
+static uint16_t
+iwn_get_active_dwell_time(struct iwn_softc *sc,
+    struct ieee80211_channel *c, uint8_t n_probes)
+{
+	/* No channel? Default to 2GHz settings */
+	if (c == NULL || IEEE80211_IS_CHAN_2GHZ(c)) {
+		return (IWN_ACTIVE_DWELL_TIME_2GHZ +
+		IWN_ACTIVE_DWELL_FACTOR_2GHZ * (n_probes + 1));
+	}
+
+	/* 5GHz dwell time */
+	return (IWN_ACTIVE_DWELL_TIME_5GHZ +
+	    IWN_ACTIVE_DWELL_FACTOR_5GHZ * (n_probes + 1));
+}
+
+/*
+ * Limit the total dwell time to 85% of the beacon interval.
+ *
+ * Returns the dwell time in milliseconds.
+ */
+static uint16_t
+iwn_limit_dwell(struct iwn_softc *sc, uint16_t dwell_time)
+{
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+	struct ieee80211vap *vap = NULL;
+	int bintval = 0;
+
+	/* bintval is in TU (1.024mS) */
+	if (! TAILQ_EMPTY(&ic->ic_vaps)) {
+		vap = TAILQ_FIRST(&ic->ic_vaps);
+		bintval = vap->iv_bss->ni_intval;
+	}
+
+	/*
+	 * If it's non-zero, we should calculate the minimum of
+	 * it and the DWELL_BASE.
+	 *
+	 * XXX Yes, the math should take into account that bintval
+	 * is 1.024mS, not 1mS..
+	 */
+	if (bintval > 0) {
+		DPRINTF(sc, IWN_DEBUG_SCAN,
+		    "%s: bintval=%d\n",
+		    __func__,
+		    bintval);
+		return (MIN(IWN_PASSIVE_DWELL_BASE, ((bintval * 85) / 100)));
+	}
+
+	/* No association context? Default */
+	return (IWN_PASSIVE_DWELL_BASE);
+}
+
+static uint16_t
+iwn_get_passive_dwell_time(struct iwn_softc *sc, struct ieee80211_channel *c)
+{
+	uint16_t passive;
+
+	if (c == NULL || IEEE80211_IS_CHAN_2GHZ(c)) {
+		passive = IWN_PASSIVE_DWELL_BASE + IWN_PASSIVE_DWELL_TIME_2GHZ;
+	} else {
+		passive = IWN_PASSIVE_DWELL_BASE + IWN_PASSIVE_DWELL_TIME_5GHZ;
+	}
+
+	/* Clamp to the beacon interval if we're associated */
+	return (iwn_limit_dwell(sc, passive));
+}
+
 static int
 iwn_scan(struct iwn_softc *sc)
 {
@@ -6187,8 +6269,21 @@ iwn_scan(struct iwn_softc *sc)
 	uint16_t rxchain;
 	uint8_t txant;
 	int buflen, error;
+	int is_active;
+	uint16_t dwell_active, dwell_passive;
+	uint32_t extra, scan_service_time;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s begin\n", __func__);
+
+	/*
+	 * We are absolutely not allowed to send a scan command when another
+	 * scan command is pending.
+	 */
+	if (sc->sc_is_scanning) {
+		device_printf(sc->sc_dev, "%s: called whilst scanning!\n",
+		    __func__);
+		return (EAGAIN);
+	}
 
 	sc->rxon = &sc->rx_on[IWN_RXON_BSS_CTX];
 	buf = malloc(IWN_SCAN_MAXSZ, M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -6209,7 +6304,18 @@ iwn_scan(struct iwn_softc *sc)
 	 * Max needs to be greater than active and passive and quiet!
 	 * It's also in microseconds!
 	 */
-	hdr->max_svc = htole32(250 * 1000);
+	hdr->max_svc = htole32(250 * 1024);
+
+	/*
+	 * Reset scan: interval=100
+	 * Normal scan: interval=becaon interval
+	 * suspend_time: 100 (TU)
+	 *
+	 */
+	extra = (100 /* suspend_time */ / 100 /* beacon interval */) << 22;
+	//scan_service_time = extra | ((100 /* susp */ % 100 /* int */) * 1024);
+	scan_service_time = (4 << 22) | (100 * 1024);	/* Hardcode for now! */
+	hdr->pause_svc = htole32(scan_service_time);
 
 	/* Select antennas for scanning. */
 	rxchain =
@@ -6249,12 +6355,31 @@ iwn_scan(struct iwn_softc *sc)
 	txant = IWN_LSB(sc->txchainmask);
 	tx->rate |= htole32(IWN_RFLAG_ANT(txant));
 
+	/*
+	 * Only do active scanning if we're announcing a probe request
+	 * for a given SSID (or more, if we ever add it to the driver.)
+	 */
+	is_active = 0;
+
+	/*
+	 * If we're scanning for a specific SSID, add it to the command.
+	 */
 	essid = (struct iwn_scan_essid *)(tx + 1);
 	if (ss->ss_ssid[0].len != 0) {
 		essid[0].id = IEEE80211_ELEMID_SSID;
 		essid[0].len = ss->ss_ssid[0].len;
 		memcpy(essid[0].data, ss->ss_ssid[0].ssid, ss->ss_ssid[0].len);
 	}
+
+	DPRINTF(sc, IWN_DEBUG_SCAN, "%s: ssid_len=%d, ssid=%*s\n",
+	    __func__,
+	    ss->ss_ssid[0].len,
+	    ss->ss_ssid[0].len,
+	    ss->ss_ssid[0].ssid);
+
+	if (ss->ss_nssid > 0)
+		is_active = 1;
+
 	/*
 	 * Build a probe request frame.  Most of the following code is a
 	 * copy & paste of what is done in net80211.
@@ -6280,6 +6405,41 @@ iwn_scan(struct iwn_softc *sc)
 	/* Set length of probe request. */
 	tx->len = htole16(frm - (uint8_t *)wh);
 
+	/*
+	 * If active scanning is requested but a certain channel is
+	 * marked passive, we can do active scanning if we detect
+	 * transmissions.
+	 *
+	 * There is an issue with some firmware versions that triggers
+	 * a sysassert on a "good CRC threshold" of zero (== disabled),
+	 * on a radar channel even though this means that we should NOT
+	 * send probes.
+	 *
+	 * The "good CRC threshold" is the number of frames that we
+	 * need to receive during our dwell time on a channel before
+	 * sending out probes -- setting this to a huge value will
+	 * mean we never reach it, but at the same time work around
+	 * the aforementioned issue. Thus use IWL_GOOD_CRC_TH_NEVER
+	 * here instead of IWL_GOOD_CRC_TH_DISABLED.
+	 *
+	 * This was fixed in later versions along with some other
+	 * scan changes, and the threshold behaves as a flag in those
+	 * versions.
+	 */
+
+	/*
+	 * If we're doing active scanning, set the crc_threshold
+	 * to a suitable value.  This is different to active veruss
+	 * passive scanning depending upon the channel flags; the
+	 * firmware will obey that particular check for us.
+	 */
+	if (sc->tlv_feature_flags & IWN_UCODE_TLV_FLAGS_NEWSCAN)
+		hdr->crc_threshold = is_active ?
+		    IWN_GOOD_CRC_TH_DEFAULT : IWN_GOOD_CRC_TH_DISABLED;
+	else
+		hdr->crc_threshold = is_active ?
+		    IWN_GOOD_CRC_TH_DEFAULT : IWN_GOOD_CRC_TH_NEVER;
+
 	c = ic->ic_curchan;
 	chan = (struct iwn_scan_chan *)frm;
 	chan->chan = htole16(ieee80211_chan2ieee(ic, c));
@@ -6287,45 +6447,60 @@ iwn_scan(struct iwn_softc *sc)
 	if (ss->ss_nssid > 0)
 		chan->flags |= htole32(IWN_CHAN_NPBREQS(1));
 	chan->dsp_gain = 0x6e;
+
+	/*
+	 * Set the passive/active flag depending upon the channel mode.
+	 * XXX TODO: take the is_active flag into account as well?
+	 */
+	if (c->ic_flags & IEEE80211_CHAN_PASSIVE)
+		chan->flags |= htole32(IWN_CHAN_PASSIVE);
+	else
+		chan->flags |= htole32(IWN_CHAN_ACTIVE);
+
+	/*
+	 * Calculate the active/passive dwell times.
+	 */
+
+	dwell_active = iwn_get_active_dwell_time(sc, c, ss->ss_nssid);
+	dwell_passive = iwn_get_passive_dwell_time(sc, c);
+
+	/* Make sure they're valid */
+	if (dwell_passive <= dwell_active)
+		dwell_passive = dwell_active + 1;
+
+	chan->active = htole16(dwell_active);
+	chan->passive = htole16(dwell_passive);
+
 	if (IEEE80211_IS_CHAN_5GHZ(c) &&
 	    !(c->ic_flags & IEEE80211_CHAN_PASSIVE)) {
 		chan->rf_gain = 0x3b;
-		chan->active  = htole16(24);
-		chan->passive = htole16(110);
-		chan->flags |= htole32(IWN_CHAN_ACTIVE);
 	} else if (IEEE80211_IS_CHAN_5GHZ(c)) {
 		chan->rf_gain = 0x3b;
-		chan->active  = htole16(24);
-		if (sc->rxon->associd)
-			chan->passive = htole16(78);
-		else
-			chan->passive = htole16(110);
-		hdr->crc_threshold = 0xffff;
 	} else if (!(c->ic_flags & IEEE80211_CHAN_PASSIVE)) {
 		chan->rf_gain = 0x28;
-		chan->active  = htole16(36);
-		chan->passive = htole16(120);
-		chan->flags |= htole32(IWN_CHAN_ACTIVE);
 	} else {
 		chan->rf_gain = 0x28;
-		chan->active  = htole16(36);
-		if (sc->rxon->associd)
-			chan->passive = htole16(88);
-		else
-			chan->passive = htole16(120);
-		hdr->crc_threshold = 0xffff;
 	}
 
 	DPRINTF(sc, IWN_DEBUG_STATE,
 	    "%s: chan %u flags 0x%x rf_gain 0x%x "
-	    "dsp_gain 0x%x active 0x%x passive 0x%x\n", __func__,
+	    "dsp_gain 0x%x active %d passive %d scan_svc_time %d crc 0x%x "
+	    "isactive=%d numssid=%d\n", __func__,
 	    chan->chan, chan->flags, chan->rf_gain, chan->dsp_gain,
-	    chan->active, chan->passive);
+	    dwell_active, dwell_passive, scan_service_time,
+	    hdr->crc_threshold, is_active, ss->ss_nssid);
 
 	hdr->nchan++;
 	chan++;
 	buflen = (uint8_t *)chan - buf;
 	hdr->len = htole16(buflen);
+
+	if (sc->sc_is_scanning) {
+		device_printf(sc->sc_dev,
+		    "%s: called with is_scanning set!\n",
+		    __func__);
+	}
+	sc->sc_is_scanning = 1;
 
 	DPRINTF(sc, IWN_DEBUG_STATE, "sending scan command nchan=%d\n",
 	    hdr->nchan);
@@ -6373,6 +6548,10 @@ iwn_auth(struct iwn_softc *sc, struct ieee80211vap *vap)
 	DPRINTF(sc, IWN_DEBUG_STATE, "rxon chan %d flags %x cck %x ofdm %x\n",
 	    sc->rxon->chan, sc->rxon->flags, sc->rxon->cck_mask,
 	    sc->rxon->ofdm_mask);
+	if (sc->sc_is_scanning)
+		device_printf(sc->sc_dev,
+		    "%s: is_scanning set, before RXON\n",
+		    __func__);
 	error = iwn_cmd(sc, IWN_CMD_RXON, sc->rxon, sc->rxonsz, 1);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "%s: RXON command failed, error %d\n",
@@ -6468,6 +6647,10 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 	sc->rxon->filter |= htole32(IWN_FILTER_BSS);
 	DPRINTF(sc, IWN_DEBUG_STATE, "rxon chan %d flags %x\n",
 	    sc->rxon->chan, sc->rxon->flags);
+	if (sc->sc_is_scanning)
+		device_printf(sc->sc_dev,
+		    "%s: is_scanning set, before RXON\n",
+		    __func__);
 	error = iwn_cmd(sc, IWN_CMD_RXON, sc->rxon, sc->rxonsz, 1);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
@@ -8109,6 +8292,7 @@ iwn_stop_locked(struct iwn_softc *sc)
 
 	IWN_LOCK_ASSERT(sc);
 
+	sc->sc_is_scanning = 0;
 	sc->sc_tx_timer = 0;
 	callout_stop(&sc->watchdog_to);
 	callout_stop(&sc->calib_to);
