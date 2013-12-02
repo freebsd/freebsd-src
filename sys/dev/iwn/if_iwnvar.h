@@ -361,6 +361,9 @@ struct iwn_softc {
 	int			sc_tx_timer;
 	int			sc_scan_timer;
 
+	/* Are we doing a scan? */
+	int			sc_is_scanning;
+
 	struct ieee80211_tx_ampdu *qid2tap[IWN5000_NTXQUEUES];
 
 	int			(*sc_ampdu_rx_start)(struct ieee80211_node *,
