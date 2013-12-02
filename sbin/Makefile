@@ -78,6 +78,10 @@ SUBDIR=adjkerntz \
 SUBDIR+=	atm
 .endif
 
+.if ${MK_CASPER} != "no"
+SUBDIR+=	casperd
+.endif
+
 .if ${MK_CXX} != "no"
 SUBDIR+=	devd
 .endif
