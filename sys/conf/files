@@ -2863,7 +2863,7 @@ kern/subr_acl_posix1e.c		optional ufs_acl
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
 kern/subr_bus.c			standard
-kern/subr_bus_dma.c		standard
+kern/subr_bus_dma.c		optional legacy_bus_dma
 kern/subr_busdma.c		standard
 kern/subr_bufring.c		standard
 kern/subr_capability.c		standard

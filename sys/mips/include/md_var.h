@@ -73,8 +73,10 @@ void	mips_pcpu0_init(void);
 void	mips_proc0_init(void);
 void	mips_postboot_fixup(void);
 
+#if defined(LEGACY_BUS_DMA)
 extern int busdma_swi_pending;
 void	busdma_swi(void);
+#endif
 
 struct	dumperinfo;
 void	dump_add_page(vm_paddr_t);

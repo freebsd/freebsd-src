@@ -946,15 +946,17 @@ sf_buf_free(struct sf_buf *sf)
 	mtx_unlock(&sf_buf_lock);
 }
 
+#if defined(LEGACY_BUS_DMA)
 /*
  * Software interrupt handler for queued VM system processing.
  */   
 void  
 swi_vm(void *dummy) 
-{     
+{
 	if (busdma_swi_pending != 0)
 		busdma_swi();
 }
+#endif
 
 /*
  * Tell whether this address is in some physical memory region.

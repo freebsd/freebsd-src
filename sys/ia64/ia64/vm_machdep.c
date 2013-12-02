@@ -351,6 +351,7 @@ cpu_exit(struct thread *td)
 {
 }
 
+#if defined(LEGACY_BUS_DMA)
 /*
  * Software interrupt handler for queued VM system processing.
  */   
@@ -361,3 +362,4 @@ swi_vm(void *dummy)
 	if (busdma_swi_pending != 0)
 		busdma_swi();
 }
+#endif

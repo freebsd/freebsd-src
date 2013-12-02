@@ -466,6 +466,7 @@ cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
 	    ("cpu_set_fork_handler: Incorrect stack alignment"));
 }
 
+#if defined(LEGACY_BUS_DMA)
 /*
  * Software interrupt handler for queued VM system processing.
  */
@@ -476,6 +477,7 @@ swi_vm(void *dummy)
 	if (busdma_swi_pending)
 		busdma_swi();
 }
+#endif
 
 void
 cpu_exit(struct thread *td)

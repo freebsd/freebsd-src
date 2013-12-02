@@ -697,15 +697,17 @@ cpu_reset_real()
 	while(1);
 }
 
+#if defined(LEGACY_BUS_DMA)
 /*
  * Software interrupt handler for queued VM system processing.
  */   
 void  
 swi_vm(void *dummy) 
-{     
+{
 	if (busdma_swi_pending != 0)
 		busdma_swi();
 }
+#endif
 
 /*
  * Tell whether this address is in some physical memory region.

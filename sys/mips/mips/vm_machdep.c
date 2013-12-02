@@ -590,6 +590,7 @@ sf_buf_free(struct sf_buf *sf)
 }
 #endif	/* !__mips_n64 */
 
+#if defined(LEGACY_BUS_DMA)
 /*
  * Software interrupt handler for queued VM system processing.
  */
@@ -600,6 +601,7 @@ swi_vm(void *dummy)
 	if (busdma_swi_pending)
 		busdma_swi();
 }
+#endif
 
 int
 cpu_set_user_tls(struct thread *td, void *tls_base)

@@ -128,17 +128,6 @@ struct uio;
 #define	BUS_DMASYNC_POSTWRITE	8
 
 /*
- *	bus_dma_segment_t
- *
- *	Describes a single contiguous DMA transaction.  Values
- *	are suitable for programming into DMA registers.
- */
-typedef struct bus_dma_segment {
-	bus_addr_t	ds_addr;	/* DMA address */
-	bus_size_t	ds_len;		/* length of transfer */
-} bus_dma_segment_t;
-
-/*
  * A function that returns 1 if the address cannot be accessed by
  * a device and 0 if it can be.
  */
@@ -148,6 +137,19 @@ typedef int bus_dma_filter_t(void *, bus_addr_t);
  * Generic helper function for manipulating mutexes.
  */
 void busdma_lock_mutex(void *arg, bus_dma_lock_op_t op);
+
+#if defined(LEGACY_BUS_DMA)
+
+/*
+ *	bus_dma_segment_t
+ *
+ *	Describes a single contiguous DMA transaction.  Values
+ *	are suitable for programming into DMA registers.
+ */
+typedef struct bus_dma_segment {
+	bus_addr_t	ds_addr;	/* DMA address */
+	bus_size_t	ds_len;		/* length of transfer */
+} bus_dma_segment_t;
 
 /*
  * Allocate a device specific dma_tag encapsulating the constraints of
@@ -343,5 +345,12 @@ bus_dma_segment_t *_bus_dmamap_complete(bus_dma_tag_t dmat,
 					int nsegs, int error);
 
 #endif /* __sparc64__ */
+
+#else /* LEGACY_BUS_DMA */
+
+#include <sys/busdma.h>
+#include <sys/bus_dma_compat.h>
+
+#endif /* LEGACY_BUS_DMA */
 
 #endif /* _BUS_DMA_H_ */

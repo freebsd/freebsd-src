@@ -75,10 +75,13 @@ struct ia64_init_return {
 
 extern uint64_t ia64_lapic_addr;
 extern vm_paddr_t paddr_max;
+
+#if defined(LEGACY_BUS_DMA)
 extern u_int busdma_swi_pending;
+void	busdma_swi(void);
+#endif
 
 void	*acpi_find_table(const char *sig);
-void	busdma_swi(void);
 int	copyout_regstack(struct thread *, uint64_t *, uint64_t *);
 void	cpu_mp_add(u_int, u_int, u_int);
 void	cpu_pcpu_setup(struct pcpu *, u_int, u_int);

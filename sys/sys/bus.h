@@ -388,7 +388,6 @@ int	bus_activate_resource(device_t dev, int type, int rid,
 			      struct resource *r);
 int	bus_deactivate_resource(device_t dev, int type, int rid,
 				struct resource *r);
-bus_dma_tag_t bus_get_dma_tag(device_t dev);
 int	bus_release_resource(device_t dev, int type, int rid,
 			     struct resource *r);
 int	bus_free_resource(device_t dev, int type, struct resource *r);
@@ -410,6 +409,10 @@ int	bus_child_present(device_t child);
 int	bus_child_pnpinfo_str(device_t child, char *buf, size_t buflen);
 int	bus_child_location_str(device_t child, char *buf, size_t buflen);
 void	bus_enumerate_hinted_children(device_t bus);
+
+#if defined(LEGACY_BUS_DMA)
+bus_dma_tag_t bus_get_dma_tag(device_t dev);
+#endif
 
 static __inline struct resource *
 bus_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)

@@ -71,8 +71,12 @@ enum cpu_class {
 extern enum cpu_class cpu_class;
 
 struct dumperinfo;
+
+#if defined(LEGACY_BUS_DMA)
 extern int busdma_swi_pending;
 void busdma_swi(void);
+#endif
+
 void dump_add_page(vm_paddr_t);
 void dump_drop_page(vm_paddr_t);
 void minidumpsys(struct dumperinfo *);

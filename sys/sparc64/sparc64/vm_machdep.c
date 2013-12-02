@@ -494,12 +494,14 @@ sf_buf_free(struct sf_buf *sf)
 	mtx_unlock(&sf_freelist.sf_lock);
 }
 
+#if defined(LEGACY_BUS_DMA)
 void
 swi_vm(void *v)
 {
 
 	/* Nothing to do here - busdma bounce buffers are not implemented. */
 }
+#endif
 
 void *
 uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)

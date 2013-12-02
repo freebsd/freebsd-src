@@ -119,7 +119,6 @@ static void	priv_ithread_execute_handler(struct proc *p,
 #endif
 static void	ithread_loop(void *);
 static void	ithread_update(struct intr_thread *ithd);
-static void	start_softintr(void *);
 
 /* Map an interrupt type to an ithread priority. */
 u_char
@@ -1861,6 +1860,7 @@ DB_SHOW_COMMAND(intr, db_show_intr)
 }
 #endif /* DDB */
 
+#if defined(LEGACY_BUS_DMA)
 /*
  * Start standard software interrupt threads
  */
@@ -1873,6 +1873,7 @@ start_softintr(void *dummy)
 }
 SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr,
     NULL);
+#endif
 
 /*
  * Sysctls used by systat and others: hw.intrnames and hw.intrcnt.

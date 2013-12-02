@@ -42,7 +42,11 @@ extern	int	szsigcode64;
 #endif
 
 extern	long	Maxmem;
+
+#if defined(LEGACY_BUS_DMA)
 extern	int	busdma_swi_pending;
+void	busdma_swi(void);
+#endif
 
 extern	vm_offset_t	kstack0;
 extern	vm_offset_t	kstack0_phys;
@@ -53,7 +57,6 @@ extern  int hw_direct_map;
 
 void	__syncicache(void *, int);
 
-void	busdma_swi(void);
 int	is_physical_memory(vm_offset_t addr);
 int	mem_valid(vm_offset_t addr, int len);
 

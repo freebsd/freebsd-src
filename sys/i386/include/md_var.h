@@ -38,7 +38,12 @@
 
 extern	long	Maxmem;
 extern	u_int	basemem;	/* PA of original top of base memory */
+
+#if defined(LEGACY_BUS_DMA)
 extern	int	busdma_swi_pending;
+void	busdma_swi(void);
+#endif
+
 extern	u_int	cpu_exthigh;
 extern	u_int	cpu_feature;
 extern	u_int	cpu_feature2;
@@ -81,7 +86,6 @@ struct  dbreg;
 struct	dumperinfo;
 
 void	bcopyb(const void *from, void *to, size_t len);
-void	busdma_swi(void);
 void	cpu_setregs(void);
 void	cpu_switch_load_gs(void) __asm(__STRING(cpu_switch_load_gs));
 void	doreti_iret(void) __asm(__STRING(doreti_iret));

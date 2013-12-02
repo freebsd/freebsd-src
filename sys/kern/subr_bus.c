@@ -4434,6 +4434,7 @@ bus_child_location_str(device_t child, char *buf, size_t buflen)
 	return (BUS_CHILD_LOCATION_STR(parent, child, buf, buflen));
 }
 
+#if defined(LEGACY_BUS_DMA)
 /**
  * @brief Wrapper function for BUS_GET_DMA_TAG().
  *
@@ -4450,6 +4451,7 @@ bus_get_dma_tag(device_t dev)
 		return (NULL);
 	return (BUS_GET_DMA_TAG(parent, dev));
 }
+#endif /* LEGACY_BUS_DMA */
 
 /* Resume all devices and then notify userland that we're up again. */
 static int

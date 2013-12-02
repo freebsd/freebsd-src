@@ -38,7 +38,12 @@
 
 extern	long	Maxmem;
 extern	u_int	basemem;
+
+#if defined(LEGACY_BUS_DMA)
 extern	int	busdma_swi_pending;
+void	busdma_swi(void);
+#endif
+
 extern	u_int	cpu_exthigh;
 extern	u_int	cpu_feature;
 extern	u_int	cpu_feature2;
@@ -87,7 +92,6 @@ struct	dumperinfo;
 
 void	*alloc_fpusave(int flags);
 void	amd64_syscall(struct thread *td, int traced);
-void	busdma_swi(void);
 void	cpu_setregs(void);
 void	ctx_fpusave(void *);
 void	doreti_iret(void) __asm(__STRING(doreti_iret));

@@ -73,7 +73,6 @@ ATSE_CFI_HACK	opt_cfi.h
 AUDIT		opt_global.h
 BOOTHOWTO	opt_global.h
 BOOTVERBOSE	opt_global.h
-BUSDMA_MI	opt_global.h
 CALLOUT_PROFILING
 CAPABILITIES	opt_capsicum.h
 CAPABILITY_MODE	opt_capsicum.h
@@ -132,6 +131,7 @@ KSTACK_MAX_PAGES
 KSTACK_PAGES
 KTRACE
 KTRACE_REQUEST_POOL	opt_ktrace.h
+LEGACY_BUS_DMA	opt_global.h
 LIBICONV
 MAC		opt_global.h
 MAC_BIBA	opt_dontuse.h
