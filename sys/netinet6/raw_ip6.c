@@ -734,7 +734,10 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (error);
 	if (TAILQ_EMPTY(&V_ifnet) || addr->sin6_family != AF_INET6)
 		return (EADDRNOTAVAIL);
-	if ((error = sa6_checkzone(addr)) != 0)
+	INP_RLOCK(inp);
+	error = sa6_checkzone_pcb(inp, addr);
+	INP_RUNLOCK(inp);
+	if (error != 0)
 		return (error);
 	if (!IN6_IS_ADDR_UNSPECIFIED(&addr->sin6_addr)) {
 		ifa = in6ifa_ifwithaddr(&addr->sin6_addr, addr->sin6_scope_id);
@@ -775,7 +778,9 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (EADDRNOTAVAIL);
 	if (addr->sin6_family != AF_INET6)
 		return (EAFNOSUPPORT);
-	error = sa6_checkzone(addr);
+	INP_RLOCK(inp);
+	error = sa6_checkzone_pcb(inp, addr);
+	INP_RUNLOCK(inp);
 	if (error != 0)
 		return (error);
 
@@ -873,7 +878,9 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		 * Application must provide a proper zone ID or the use of
 		 * default zone IDs should be enabled.
 		 */
-		ret = sa6_checkzone(dst);
+		INP_RLOCK(inp);
+		ret = sa6_checkzone_pcb(inp, dst);
+		INP_RUNLOCK(inp);
 		if (ret != 0) {
 			m_freem(m);
 			return (ret);

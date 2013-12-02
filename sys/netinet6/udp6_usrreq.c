@@ -1073,6 +1073,7 @@ static int
 udp6_send(struct socket *so, int flags, struct mbuf *m,
     struct sockaddr *addr, struct mbuf *control, struct thread *td)
 {
+	struct sockaddr_in6 tmp;
 	struct inpcb *inp;
 	int error = 0;
 
@@ -1093,7 +1094,9 @@ udp6_send(struct socket *so, int flags, struct mbuf *m,
 		 * Application must provide a proper zone ID or the use of
 		 * default zone IDs should be enabled.
 		 */
-		error = sa6_checkzone((struct sockaddr_in6*)addr);
+		tmp = *(struct sockaddr_in6 *)addr;
+		addr = (struct sockaddr *)&tmp;
+		error = sa6_checkzone_pcb(inp, &tmp);
 		if (error != 0)
 			goto bad;
 	}
