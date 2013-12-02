@@ -2209,7 +2209,7 @@ nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
 			LLE_RUNLOCK(ln);
 		/* this could happen, if we could not allocate memory */
 		m_freem(m);
-		return (1);
+		return (EHOSTUNREACH);
 	}
 
 	bcopy(&ln->ll_addr, desten, ifp->if_addrlen);
