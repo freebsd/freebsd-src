@@ -30,12 +30,10 @@
 
 /*
  * Linker definition for a relocatable sandbox.  Each one begins with a
- * 0x1000 byte "guard" region to catch NULL pointer dereferences.  In the
- * future world order, we'd like to use the TLB to make accesses there trap,
- * but we're not there yet.
+ * 0x8000 byte "guard" region to catch NULL pointer dereferences.
  */
 
-__code_base__ = 0x1000;
+__code_base__ = 0x8000;
 
 SECTIONS
 {

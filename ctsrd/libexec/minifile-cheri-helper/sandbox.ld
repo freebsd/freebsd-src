@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2012 Robert N. M. Watson
+ * Copyright (c) 2011-2013 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -30,12 +30,10 @@
 
 /*
  * Linker definition for a relocatable sandbox.  Each one begins with a
- * 0x1000 byte "guard" region to catch NULL pointer dereferences.  In the
- * future world order, we'd like to use the TLB to make accesses there trap,
- * but we're not there yet.
+ * 0x8000 byte "guard" region to catch NULL pointer dereferences.
  */
 
-__code_base__ = 0x1000;
+__code_base__ = 0x8000;
 
 SECTIONS
 {

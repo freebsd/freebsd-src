@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2013 Robert N. M. Watson
+ * Copyright (c) 2013 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -28,34 +28,29 @@
  * SUCH DAMAGE.
  */
 
+#ifndef _SANDBOXASM_H_
+#define	_SANDBOXASM_H_
+
 /*
- * Linker definition for a relocatable sandbox.  Each one begins with a
- * 0x1000 byte "guard" region to catch NULL pointer dereferences, followed by
- * some amount of metadata.  The binary is linked at 0x8000.
+ * Per-sandbox meta-data structure mapped read-only within the sandbox at a
+ * fixed address to allow sandboxed code to find its stack, heap, etc.
+ *
+ * The base address must match libcheri's sandbox.c as well as the linker
+ * scripts used to statically link sandboxed code.  The offsets must match
+ * struct sandbox_metadata in sandbox.h.  See the comment there for good
+ * reasons not to change these definitions if you can avoid it.
+ *
+ * XXXRW: For reasons I don't understand, and should learn about, I can't get
+ * this to usefully include in .S files.  But that is the actual goal -- they
+ * should use these definitions rather than hard-coded values.
  */
+#define	SANDBOX_METADATA_BASE			0x1000
+#define	SANDBOX_METADATA_OFFSET_HEAPBASE	0
+#define	SANDBOX_METADATA_OFFSET_HEAPLEN		8
 
-__code_base__ = 0x8000;
+/*
+ * This is the code entry point for sandboxes, and should match their linking.
+ */
+#define	SANDBOX_ENTRY	0x8000
 
-SECTIONS
-{
-	. = __code_base__;
-
-	.text ALIGN(0x8): { chsbrt.o }
-	.text ALIGN(0x8): { *(.text) }
-	.MIPS.options ALIGN(0x8): { *(.MIPS.options) }
-	.bss ALIGN(0x8): { *(.bss) }
-	.data ALIGN(0x8): { *(.data) }
-
-	_gp = ALIGN(16) + 0x7ff0;
-	.got : { *(.got.plt) *(.got) }
-
-	/*
-	 * Force zero-filling of previous segments in generated image.
-	 */
-	sandbox_trailer : {
-		QUAD(0xffffffffffffffff)
-	}
-
-	__bss_start = ADDR(.bss);
-	__bss_end = ALIGN(__bss_start + SIZEOF(.bss), 0x8);
-}
+#endif /* !_SANDBOXASM_H_ */

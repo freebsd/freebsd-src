@@ -242,11 +242,20 @@ _chsbrt_invoke:
 
 	#
 	# Conservative: clear general-purpose registers that aren't return
-	# values and haven't been restored, to prevent accidental use.  Could
-	# save on cycles by not doing this, but have to trust the compiler
-	# more.
+	# values and haven't been restored, to prevent accidental use.  This
+	# includes argument registers, whose values we can no longer trust.
+	# Could save on cycles by not doing this, but have to trust the
+	# compiler more.
 	#
 	li	$at, 0
+	li	$a0, 0
+	li	$a1, 0
+	li	$a2, 0
+	li	$a3, 0
+	li	$a4, 0
+	li	$a5, 0
+	li	$a6, 0
+	li	$a7, 0
 	li	$t0, 0
 	li	$t1, 0
 	li	$t2, 0

@@ -49,12 +49,14 @@
 #include <unistd.h>
 
 #include "sandbox.h"
+#include "sandboxasm.h"
 #include "sandbox_internal.h"
 
 #define	roundup2(x, y)	(((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
 
 #define	GUARD_PAGE_SIZE	0x1000
 #define	PAGE_SIZE	0x1000
+#define	METADATA_SIZE	0x1000
 #define	STACK_SIZE	(32*PAGE_SIZE)
 
 int sb_verbose;
@@ -90,6 +92,7 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 #ifdef USE_C_CAPS
 	__capability void *sbcap;
 #endif
+	struct sandbox_metadata *sbm;
 	struct sandbox *sb;
 	int fd, saved_errno;
 	size_t length;
@@ -138,12 +141,18 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 	 *
 	 * The rough sandbox memory map is as follows:
 	 *
-	 * [stack]
-	 * [guard page]
-	 * [heap]
-	 * [guard page]
-	 * [memory mapped binary]
-	 * [guard page]
+	 * K + 0x1000 [stack]
+	 * K          [guard page]
+	 * J + 0x1000 [heap]
+	 * J          [guard page]
+	 * 0x8000     [memory mapped binary] (SANDBOX_ENTRY)
+	 * 0x2000     [guard page]
+	 * 0x1000     [read-only sandbox metadata page]
+	 * 0x0000     [guard page]
+	 *
+	 * Address constants in sandbox.h must be synchronised with the layout
+	 * implemented here.  Location and contents of sandbox metadata is
+	 * part of the ABI.
 	 */
 	length = sandboxlen;
 	base = sb->sb_mem = mmap(NULL, length, 0, MAP_ANON, -1, 0);
@@ -154,10 +163,31 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 	}
 
 	/*
-	 * Skip guard page.
+	 * Skip guard page(s) to the base of the metadata structure.
 	 */
-	base += GUARD_PAGE_SIZE;
-	length -= GUARD_PAGE_SIZE;
+	base += SANDBOX_METADATA_BASE;
+	length -= SANDBOX_METADATA_BASE;
+
+	/*
+	 * Map metadata structure -- but can't fill it out until we have
+	 * calculated all the other addresses involved.
+	 */
+	if ((sbm = mmap(base, METADATA_SIZE, PROT_READ | PROT_WRITE,
+	    MAP_ANON | MAP_FIXED, -1, 0)) == MAP_FAILED) {
+		saved_errno = errno;
+		warn("%s: mmap metadata", __func__);
+		goto error;
+	}
+
+	/*
+	 * Skip forward to the mapping location for the binary -- in case we
+	 * add more metadata in the future.  Assert that we didn't bump into
+	 * the sandbox entry address.  This address is hard to change as it is
+	 * the address used in static linking for sandboxed code.
+	 */
+	assert((register_t)base - (register_t)sb->sb_mem < SANDBOX_ENTRY);
+	base = (void *)((register_t)sb->sb_mem + SANDBOX_ENTRY);
+	length = sandboxlen - SANDBOX_ENTRY;
 
 	/*
 	 * Map program binary.
@@ -220,16 +250,26 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 	 */
 	assert(length == 0);
 
+	/*
+	 * Now that addresses are known, write out metadata for in-sandbox
+	 * use; then mprotect() so that it can't be modified by the sandbox.
+	 */
+	sbm->sbm_heapbase = sb->sb_heapbase;
+	sbm->sbm_heaplen = sb->sb_heaplen;
+	if (mprotect(base, METADATA_SIZE, PROT_READ) < 0) {
+		saved_errno = errno;
+		warn("%s: mprotect metadata", __func__);
+		goto error;
+	}
+
 #ifdef USE_C_CAPS
 	/*
 	 * Construct a generic capability that desxribes the combined
 	 * data/code segment that we will seal.
-	 *
-	 * 0x1000 is the sandbox start adress.
 	 */
 	sbcap = (__capability void *)base;
 	sbcap = cheri_setlen(sbcap, sandboxlen);
-	sbcap = cheri_settype(sbcap, 0x1000);
+	sbcap = cheri_settype(sbcap, SANDBOX_ENTRY);
 
 	/* Construct sealed code capability. */
 	sb->sb_codecap = cheri_andperm(sbcap, CHERI_PERM_EXECUTE |
@@ -252,7 +292,7 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 	 * XXXRW: $c3 is probably not the right thing.
 	 */
 	CHERI_CINCBASE(3, 0, sb->sb_mem);
-	CHERI_CSETTYPE(3, 3, 0x1000);		/* Sandbox start address. */
+	CHERI_CSETTYPE(3, 3, SANDBOX_ENTRY);
 	CHERI_CSETLEN(3, 3, sandboxlen);
 
 	/*

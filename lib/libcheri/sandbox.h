@@ -31,6 +31,21 @@
 #ifndef _SANDBOX_H_
 #define	_SANDBOX_H_
 
+/*
+ * Per-sandbox meta-data structure mapped read-only within the sandbox at a
+ * fixed address to allow sandboxed code to find its stack, heap, etc.
+ *
+ * NB: This data structure (and its base address) are part of the ABI between
+ * libcheri and programs running in sandboxes.  Only ever append to this,
+ * don't modify the order, lengths, or interpretations of existing fields.  If
+ * this reaches a page in size, then allocation code in sandbox.c will need
+ * updating.  See also sandbox.c and sandboxasm.h.
+ */
+struct sandbox_metadata {
+	register_t	sbm_heapbase;		/* Offset: 0 */
+	register_t	sbm_heaplen;		/* Offset: 8 */
+};
+
 extern int sb_verbose;
 
 struct sandbox;

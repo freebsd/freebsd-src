@@ -4,7 +4,8 @@ LIB=	cheri
 SRCS=	sandbox.c			\
 	sandboxasm.S
 
-INCS=	sandbox.h
+INCS=	sandbox.h			\
+	sandboxasm.h
 INCSDIR=	${INCLUDEDIR}
 
 SHLIB_MAJOR=	1
