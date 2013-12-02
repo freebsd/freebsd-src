@@ -688,6 +688,7 @@ sgisn_pcib_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 
 	ate = 0;
 	entry = ~0;
+	bitshft = 0;
 	while (ate < (PCIB_REG_ATE_SIZE / 64) && entry == ~0) {
 		bits = sc->sc_ate[ate];
 		/* Move to the next long if this one is full. */
@@ -697,7 +698,6 @@ sgisn_pcib_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 		}
 		/* If this long is empty, take it (catches count == 64). */
 		if (bits == 0UL) {
-			bitshft = 0;
 			entry = ate * 64;
 			break;
 		}
@@ -706,7 +706,6 @@ sgisn_pcib_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 			ate++;
 			continue;
 		}
-		bitshft = 0;
 		do {
 			if ((bits & ((1UL << count) - 1UL)) == 0) {
 				entry = ate * 64 + bitshft;
@@ -721,8 +720,10 @@ sgisn_pcib_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 				bitshft++;
 			}
 		} while (bitshft <= (64 - count));
-		if (entry == ~0)
+		if (entry == ~0) {
 			ate++;
+			bitshft = 0;
+		}
 	}
 	if (entry != ~0) {
 		KASSERT(ate < (PCIB_REG_ATE_SIZE / 64), ("foo: ate"));
