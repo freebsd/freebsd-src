@@ -3508,8 +3508,8 @@ iwn_notif_intr(struct iwn_softc *sc)
 		desc = mtod(data->m, struct iwn_rx_desc *);
 
 		DPRINTF(sc, IWN_DEBUG_RECV,
-		    "%s: qid %x idx %d flags %x type %d(%s) len %d\n",
-		    __func__, desc->qid & 0xf, desc->idx, desc->flags,
+		    "%s: cur=%d; qid %x idx %d flags %x type %d(%s) len %d\n",
+		    __func__, sc->rxq.cur, desc->qid & 0xf, desc->idx, desc->flags,
 		    desc->type, iwn_intr_str(desc->type),
 		    le16toh(desc->len));
 
