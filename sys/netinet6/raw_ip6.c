@@ -392,6 +392,7 @@ rip6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 int
 rip6_output(struct mbuf *m, ...)
 {
+	struct route_in6 ro;
 	struct mbuf *control;
 	struct m_tag *mtag;
 	struct socket *so;
@@ -413,6 +414,7 @@ rip6_output(struct mbuf *m, ...)
 	control = va_arg(ap, struct mbuf *);
 	va_end(ap);
 
+	bzero(&ro, sizeof(ro));
 	in6p = sotoinpcb(so);
 	INP_WLOCK(in6p);
 
@@ -453,7 +455,7 @@ rip6_output(struct mbuf *m, ...)
 	/*
 	 * Source address selection.
 	 */
-	error = in6_selectsrc(dstsock, optp, in6p, NULL, so->so_cred,
+	error = in6_selectsrc(dstsock, optp, in6p, &ro, so->so_cred,
 	    &oifp, &in6a);
 	if (error)
 		goto bad;
@@ -523,7 +525,7 @@ rip6_output(struct mbuf *m, ...)
 		}
 	}
 
-	error = ip6_output(m, optp, NULL, IPV6_USEROIF, in6p->in6p_moptions,
+	error = ip6_output(m, optp, &ro, IPV6_USEROIF, in6p->in6p_moptions,
 	    &oifp, in6p);
 	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6) {
 		icmp6_ifoutstat_inc(oifp, type, code);
@@ -543,6 +545,7 @@ rip6_output(struct mbuf *m, ...)
 		m_freem(control);
 	}
 	INP_WUNLOCK(in6p);
+	RO_RTFREE(&ro);
 	return (error);
 }
 

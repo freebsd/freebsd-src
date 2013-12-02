@@ -615,6 +615,7 @@ static int
 udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
     struct mbuf *control, struct thread *td)
 {
+	struct route_in6 ro;
 	u_int32_t ulen = m->m_pkthdr.len;
 	u_int32_t plen = sizeof(struct udphdr) + ulen;
 	struct ip6_hdr *ip6;
@@ -631,6 +632,7 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
 
+	bzero(&ro, sizeof(ro));
 	/* addr6 has been validated in udp6_send(). */
 	sin6 = (struct sockaddr_in6 *)addr6;
 	if (control) {
@@ -694,7 +696,7 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 		}
 
 		if (!IN6_IS_ADDR_V4MAPPED(faddr)) {
-			error = in6_selectsrc(sin6, optp, inp, NULL,
+			error = in6_selectsrc(sin6, optp, inp, &ro,
 			    td->td_ucred, &oifp, &in6a);
 			if (error)
 				goto release;
@@ -785,7 +787,7 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 
 		UDP_PROBE(send, NULL, inp, ip6, inp, udp6);
 		UDPSTAT_INC(udps_opackets);
-		error = ip6_output(m, optp, NULL, flags, inp->in6p_moptions,
+		error = ip6_output(m, optp, &ro, flags, inp->in6p_moptions,
 		    &oifp, inp);
 		break;
 	case AF_INET:
@@ -802,6 +804,7 @@ releaseopt:
 		ip6_clearpktopts(&opt, -1);
 		m_freem(control);
 	}
+	RO_RTFREE(&ro);
 	return (error);
 }
 

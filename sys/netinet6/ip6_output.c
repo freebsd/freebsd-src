@@ -684,16 +684,20 @@ again:
 		ifp = ro->ro_rt->rt_ifp;
 	} else {
 		/*
-		 * We can just use specified by user outgoing interface when
-		 * IPV6_USEROIF flag is set. But we should determine new
-		 * outgoing interface if PFIL has changed destination address,
-		 * or some packet options is set.
+		 * The caller can use IPV6_USEROIF flag to suggest outgoing
+		 * interface. But destination address should be reachable via
+		 * specified interface. This means, that destination address
+		 * is multicast, or destination/source address is LLA, or
+		 * outgoing interface is PTP tunnel. In other cases we need
+		 * to do route lookup to determine gateway and use its layer2
+		 * address.
+		 * XXX: fwd/nexthop/pktinfo/rthdr ?
 		 */
-		if ((flags & IPV6_USEROIF) != 0 &&
-		    (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
-		    (fwd_tag == NULL && (opt == NULL ||
-		    (opt->ip6po_nexthop == NULL &&
-		    opt->ip6po_rthdr == NULL)))))
+		if ((flags & IPV6_USEROIF) != 0 && (
+		    ((*ifpp)->if_flags & IFF_POINTOPOINT) != 0 ||
+		    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
+		    IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_src) ||
+		    IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_dst)))
 			ifp = *ifpp;
 		else {
 			/*
@@ -717,7 +721,7 @@ again:
 				    IN6_IS_ADDR_MC_INTFACELOCAL(
 				    &ip6->ip6_dst)) {
 					error = EHOSTUNREACH;
-					IP6STAT_INC(ip6s_noroute);
+					IP6STAT_INC(ip6s_badscope);
 					goto bad;
 				}
 			} else if (IN6_IS_ADDR_LINKLOCAL(&dst->sin6_addr) ||
@@ -729,7 +733,7 @@ again:
 				if (dst->sin6_scope_id == 0 || !(ifp =
 				    in6_getlinkifnet(dst->sin6_scope_id))) {
 					error = EHOSTUNREACH;
-					IP6STAT_INC(ip6s_noroute);
+					IP6STAT_INC(ip6s_badscope);
 					goto bad;
 				}
 				goto oif_found;
