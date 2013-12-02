@@ -4070,6 +4070,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	}
 	ac = M_WME_GETAC(m);
 	if (m->m_flags & M_AMPDU_MPDU) {
+		uint16_t seqno;
 		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
 
 		if (!IEEE80211_AMPDU_RUNNING(tap)) {
@@ -4077,9 +4078,27 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 			return EINVAL;
 		}
 
+		/*
+		 * Queue this frame to the hardware ring that we've
+		 * negotiated AMPDU TX on.
+		 *
+		 * Note that the sequence number must match the TX slot
+		 * being used!
+		 */
 		ac = *(int *)tap->txa_private;
+		seqno = ni->ni_txseqs[tid];
 		*(uint16_t *)wh->i_seq =
-		    htole16(ni->ni_txseqs[tid] << IEEE80211_SEQ_SEQ_SHIFT);
+		    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
+		ring = &sc->txq[ac];
+		if ((seqno % 256) != ring->cur) {
+			device_printf(sc->sc_dev,
+			    "%s: m=%p: seqno (%d) (%d) != ring index (%d) !\n",
+			    __func__,
+			    m,
+			    seqno,
+			    seqno % 256,
+			    ring->cur);
+		}
 		ni->ni_txseqs[tid]++;
 	}
 	ring = &sc->txq[ac];
