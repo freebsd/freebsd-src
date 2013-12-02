@@ -766,6 +766,11 @@ _cpp_lex_token (cpp_reader *pfile)
 	  pfile->cur_run = next_tokenrun (pfile->cur_run);
 	  pfile->cur_token = pfile->cur_run->base;
 	}
+      /* We assume that the current token is somewhere in the current
+	 run.  */
+      if (pfile->cur_token < pfile->cur_run->base
+	  || pfile->cur_token >= pfile->cur_run->limit)
+	abort ();
 
       if (pfile->lookaheads)
 	{
@@ -847,11 +852,8 @@ _cpp_get_fresh_line (cpp_reader *pfile)
 	  && buffer->next_line > buffer->rlimit
 	  && !buffer->from_stage3)
 	{
-	  /* Only warn once.  */
+	  /* Clip to buffer size.  */
 	  buffer->next_line = buffer->rlimit;
-	  cpp_error_with_line (pfile, CPP_DL_PEDWARN, pfile->line_table->highest_line,
-			       CPP_BUF_COLUMN (buffer, buffer->cur),
-			       "no newline at end of file");
 	}
 
       return_at_eof = buffer->return_at_eof;

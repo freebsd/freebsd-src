@@ -1,6 +1,7 @@
 /* Part of CPP library.  (Macro and #define handling.)
    Copyright (C) 1986, 1987, 1989, 1992, 1993, 1994, 1995, 1996, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003, 2004, 2005,
+   2006 Free Software Foundation, Inc.
    Written by Per Bothner, 1994.
    Based on CCCP program by Paul Rubin, June 1986
    Adapted to ANSI C, Richard Stallman, Jan 1987
@@ -438,19 +439,18 @@ static bool
 paste_tokens (cpp_reader *pfile, const cpp_token **plhs, const cpp_token *rhs)
 {
   unsigned char *buf, *end, *lhsend;
-  const cpp_token *lhs;
+  cpp_token *lhs;
   unsigned int len;
 
-  lhs = *plhs;
-  len = cpp_token_len (lhs) + cpp_token_len (rhs) + 1;
+  len = cpp_token_len (*plhs) + cpp_token_len (rhs) + 1;
   buf = (unsigned char *) alloca (len);
-  end = lhsend = cpp_spell_token (pfile, lhs, buf, false);
+  end = lhsend = cpp_spell_token (pfile, *plhs, buf, false);
 
   /* Avoid comment headers, since they are still processed in stage 3.
      It is simpler to insert a space here, rather than modifying the
      lexer to ignore comments in some circumstances.  Simply returning
      false doesn't work, since we want to clear the PASTE_LEFT flag.  */
-  if (lhs->type == CPP_DIV && rhs->type != CPP_EQ)
+  if ((*plhs)->type == CPP_DIV && rhs->type != CPP_EQ)
     *end++ = ' ';
   end = cpp_spell_token (pfile, rhs, end, false);
   *end = '\n';
@@ -460,12 +460,21 @@ paste_tokens (cpp_reader *pfile, const cpp_token **plhs, const cpp_token *rhs)
 
   /* Set pfile->cur_token as required by _cpp_lex_direct.  */
   pfile->cur_token = _cpp_temp_token (pfile);
-  *plhs = _cpp_lex_direct (pfile);
+  lhs = _cpp_lex_direct (pfile);
   if (pfile->buffer->cur != pfile->buffer->rlimit)
     {
+      source_location saved_loc = lhs->src_loc;
+
       _cpp_pop_buffer (pfile);
       _cpp_backup_tokens (pfile, 1);
       *lhsend = '\0';
+
+      /* We have to remove the PASTE_LEFT flag from the old lhs, but
+	 we want to keep the new location.  */
+      *lhs = **plhs;
+      *plhs = lhs;
+      lhs->src_loc = saved_loc;
+      lhs->flags &= ~PASTE_LEFT;
 
       /* Mandatory error for all apart from assembler.  */
       if (CPP_OPTION (pfile, lang) != CLK_ASM)
@@ -475,6 +484,7 @@ paste_tokens (cpp_reader *pfile, const cpp_token **plhs, const cpp_token *rhs)
       return false;
     }
 
+  *plhs = lhs;
   _cpp_pop_buffer (pfile);
   return true;
 }
@@ -1405,10 +1415,12 @@ alloc_expansion_token (cpp_reader *pfile, cpp_macro *macro)
 static cpp_token *
 lex_expansion_token (cpp_reader *pfile, cpp_macro *macro)
 {
-  cpp_token *token;
+  cpp_token *token, *saved_cur_token;
 
+  saved_cur_token = pfile->cur_token;
   pfile->cur_token = alloc_expansion_token (pfile, macro);
   token = _cpp_lex_direct (pfile);
+  pfile->cur_token = saved_cur_token;
 
   /* Is this a parameter?  */
   if (token->type == CPP_NAME
@@ -1597,18 +1609,12 @@ _cpp_create_definition (cpp_reader *pfile, cpp_hashnode *node)
     ok = _cpp_create_trad_definition (pfile, macro);
   else
     {
-      cpp_token *saved_cur_token = pfile->cur_token;
-
       ok = create_iso_definition (pfile, macro);
 
-      /* Restore lexer position because of games lex_expansion_token()
-	 plays lexing the macro.  We set the type for SEEN_EOL() in
-	 directives.c.
+      /* We set the type for SEEN_EOL() in directives.c.
 
 	 Longer term we should lex the whole line before coming here,
 	 and just copy the expansion.  */
-      saved_cur_token[-1].type = pfile->cur_token[-1].type;
-      pfile->cur_token = saved_cur_token;
 
       /* Stop the lexer accepting __VA_ARGS__.  */
       pfile->state.va_args_ok = 0;
