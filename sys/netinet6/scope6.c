@@ -519,3 +519,41 @@ sa6_checkzone_ifp(struct ifnet *ifp, struct sockaddr_in6 *sa6)
 	}
 	return (sa6_checkzone(sa6));
 }
+
+int
+sa6_checkzone_pcb(struct inpcb *inp, struct sockaddr_in6 *sa6)
+{
+	struct in6_pktinfo *pi;
+	int scope;
+
+	scope = in6_addrscope(&sa6->sin6_addr);
+	if (scope == IPV6_ADDR_SCOPE_LINKLOCAL ||
+	    scope == IPV6_ADDR_SCOPE_INTFACELOCAL) {
+		if (sa6->sin6_scope_id == 0) {
+			/*
+			 * We requre that sin6_scope_id must be initialized for
+			 * link-local and interface-local addresses. But user
+			 * didn't initialize it. Try to determine zone id from
+			 * socket options.
+			 * XXX: we will do this again in the in6_selectsrc().
+			 */
+			INP_LOCK_ASSERT(inp);
+			if (inp->in6p_outputopts != NULL) {
+				pi = inp->in6p_outputopts->ip6po_pktinfo;
+				if (pi != NULL && pi->ipi6_ifindex != 0) {
+					/* XXX: in6_getscopezone */
+					sa6->sin6_scope_id = pi->ipi6_ifindex;
+					return (0);
+				}
+			}
+			if (inp->in6p_moptions != NULL &&
+			    inp->in6p_moptions->im6o_multicast_ifp != NULL) {
+				sa6->sin6_scope_id = in6_getscopezone(
+				    inp->in6p_moptions->im6o_multicast_ifp,
+				    scope);
+				return (0);
+			}
+		}
+	}
+	return (sa6_checkzone(sa6));
+}
