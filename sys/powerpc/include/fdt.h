@@ -35,15 +35,7 @@
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
 
-/* Max interrupt number */
-#define FDT_INTR_MAX	INTR_VECTORS
-
 /* Map phandle/intpin pair to global IRQ number */
 #define	FDT_MAP_IRQ(node, pin)	powerpc_get_irq(node, pin)
-
-/*
- * Bus space tag. XXX endianess info needs to be derived from the blob.
- */
-#define fdtbus_bs_tag	(&bs_be_tag)
 
 #endif /* _MACHINE_FDT_H_ */
