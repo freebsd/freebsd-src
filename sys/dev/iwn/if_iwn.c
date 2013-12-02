@@ -7506,7 +7506,7 @@ iwn_read_firmware_tlv(struct iwn_softc *sc, struct iwn_fw_info *fw,
 			DPRINTF(sc, IWN_DEBUG_RESET,
 			    "PAN Support found: %d\n", 1);
 			break;
-	case IWN_FW_TLV_FLAGS:
+		case IWN_FW_TLV_FLAGS:
 			if (len < sizeof(uint32_t))
 				break;
 			if (len % sizeof(uint32_t))
