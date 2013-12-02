@@ -174,7 +174,7 @@ else
 		/ type=/ { if ($1 != file) {print} }' >> ${manifest}
 fi
 
-# For each extras file, add contents kyes relative to the directory the
+# For each extras file, add contents keys relative to the directory the
 # manifest lives in for each file line that does not have one.  Adjust
 # contents keys relative to ./ to be relative to the same directory.
 for eman in ${EXTRAS}; do
