@@ -7506,8 +7506,16 @@ iwn_read_firmware_tlv(struct iwn_softc *sc, struct iwn_fw_info *fw,
 			DPRINTF(sc, IWN_DEBUG_RESET,
 			    "PAN Support found: %d\n", 1);
 			break;
-		case IWN_FW_TLV_FLAGS :
-			sc->tlv_feature_flags = htole32(*ptr);
+	case IWN_FW_TLV_FLAGS:
+			if (len < sizeof(uint32_t))
+				break;
+			if (len % sizeof(uint32_t))
+				break;
+			sc->tlv_feature_flags = le32toh(*ptr);
+			DPRINTF(sc, IWN_DEBUG_RESET,
+			    "%s: feature: 0x%08x\n",
+			    __func__,
+			    sc->tlv_feature_flags);
 			break;
 		case IWN_FW_TLV_PBREQ_MAXLEN:
 		case IWN_FW_TLV_RUNT_EVTLOG_PTR:
