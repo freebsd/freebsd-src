@@ -261,6 +261,13 @@ sysctl_hw_machine_arch(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_hw, HW_MACHINE_ARCH, machine_arch, CTLTYPE_STRING | CTLFLAG_RD,
     NULL, 0, sysctl_hw_machine_arch, "A", "System architecture");
 
+SYSCTL_STRING(_kern, OID_AUTO, supported_abis, CTLFLAG_RD | CTLFLAG_MPSAFE,
+#ifdef COMPAT_FREEBSD32
+    MACHINE_ARCH " " MACHINE_ARCH32, 0, "List of supported ABIs");
+#else
+    MACHINE_ARCH, 0, "List of supported ABIs");
+#endif
+
 static int
 sysctl_hostname(SYSCTL_HANDLER_ARGS)
 {
