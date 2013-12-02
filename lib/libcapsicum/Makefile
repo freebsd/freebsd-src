@@ -3,6 +3,7 @@
 LIB=	capsicum
 
 SHLIB_MAJOR=	0
+SHLIBDIR?=	/lib
 
 SRCS=	libcapsicum.c
 SRCS+=	libcapsicum_dns.c
