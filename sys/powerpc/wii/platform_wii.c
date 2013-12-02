@@ -136,7 +136,7 @@ wii_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
 	 */
 	avail_regions[1].mr_size -= WIIIPC_IOH_LEN + 1;
 
-	memcpy(phys, avail, 2*sizeof(*avail);
+	memcpy(phys, avail_regions, 2*sizeof(*avail_regions));
 	*physsz = *availsz = 2;
 }
 
