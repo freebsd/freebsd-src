@@ -45,6 +45,13 @@
 #define	cheri_andperm(x, y)	__builtin_cheri_and_cap_perms((x), (y))
 #define	cheri_setlen(x, y)	__builtin_cheri_set_cap_length((x), (y))
 #define	cheri_settype(x, y)	__builtin_cheri_set_cap_type((x), (y))
+
+#define	cheri_sealcode(x)	__builtin_cheri_seal_cap_code((x))
+#define	cheri_sealdata(x, y)	__builtin_cheri_seal_cap_data((x), (y))
+#define	cheri_unseal(x, y)	__builtin_cheri_unseal_cap((x), (y))
+
+#define	cheri_getcause()	__builtin_cheri_get_cause()
+#define	cheri_setcause(x)	__builtin_cheri_set_cause(x)
 #endif
 
 #endif /* _MIPS_INCLUDE_CHERI_H_ */
