@@ -465,13 +465,12 @@ WriteFPROperation::Execute(ProcessMonitor *monitor)
 class ResumeOperation : public Operation
 {
 public:
-    ResumeOperation(lldb::tid_t tid, uint32_t signo, bool &result) :
-        m_tid(tid), m_signo(signo), m_result(result) { }
+    ResumeOperation(uint32_t signo, bool &result) :
+        m_signo(signo), m_result(result) { }
 
     void Execute(ProcessMonitor *monitor);
 
 private:
-    lldb::tid_t m_tid;
     uint32_t m_signo;
     bool &m_result;
 };
@@ -479,17 +478,18 @@ private:
 void
 ResumeOperation::Execute(ProcessMonitor *monitor)
 {
+    lldb::pid_t pid = monitor->GetPID();
     int data = 0;
 
     if (m_signo != LLDB_INVALID_SIGNAL_NUMBER)
         data = m_signo;
 
-    if (PTRACE(PT_CONTINUE, m_tid, (caddr_t)1, data))
+    if (PTRACE(PT_CONTINUE, pid, (caddr_t)1, data))
     {
         Log *log (ProcessPOSIXLog::GetLogIfAllCategoriesSet (POSIX_LOG_PROCESS));
 
         if (log)
-            log->Printf ("ResumeOperation (%"  PRIu64 ") failed: %s", m_tid, strerror(errno));
+            log->Printf ("ResumeOperation (%"  PRIu64 ") failed: %s", pid, strerror(errno));
         m_result = false;
     }
     else
@@ -502,13 +502,12 @@ ResumeOperation::Execute(ProcessMonitor *monitor)
 class SingleStepOperation : public Operation
 {
 public:
-    SingleStepOperation(lldb::tid_t tid, uint32_t signo, bool &result)
-        : m_tid(tid), m_signo(signo), m_result(result) { }
+    SingleStepOperation(uint32_t signo, bool &result)
+        : m_signo(signo), m_result(result) { }
 
     void Execute(ProcessMonitor *monitor);
 
 private:
-    lldb::tid_t m_tid;
     uint32_t m_signo;
     bool &m_result;
 };
@@ -516,12 +515,13 @@ private:
 void
 SingleStepOperation::Execute(ProcessMonitor *monitor)
 {
+    lldb::pid_t pid = monitor->GetPID();
     int data = 0;
 
     if (m_signo != LLDB_INVALID_SIGNAL_NUMBER)
         data = m_signo;
 
-    if (PTRACE(PT_STEP, m_tid, NULL, data))
+    if (PTRACE(PT_STEP, pid, NULL, data))
         m_result = false;
     else
         m_result = true;
@@ -585,7 +585,7 @@ EventMessageOperation::Execute(ProcessMonitor *monitor)
         m_result = false;
     else {
         if (plwp.pl_flags & PL_FLAG_FORKED) {
-            m_message = (unsigned long *)plwp.pl_child_pid;
+            *m_message = plwp.pl_child_pid;
             m_result = true;
         } else
             m_result = false;
@@ -953,7 +953,7 @@ ProcessMonitor::Launch(LaunchArgs *args)
         }
         goto FINISH;
     }
-    assert(WIFSTOPPED(status) && wpid == pid &&
+    assert(WIFSTOPPED(status) && wpid == (::pid_t)pid &&
            "Could not sync with inferior process.");
 
 #ifdef notyet
@@ -1338,8 +1338,6 @@ ProcessMonitor::GetCrashReasonForSIGBUS(const siginfo_t *info)
 void
 ProcessMonitor::ServeOperation(OperationArgs *args)
 {
-    int status;
-
     ProcessMonitor *monitor = args->m_monitor;
 
     // We are finised with the arguments and are ready to go.  Sync with the
@@ -1467,15 +1465,15 @@ ProcessMonitor::ReadThreadPointer(lldb::tid_t tid, lldb::addr_t &value)
 }
 
 bool
-ProcessMonitor::Resume(lldb::tid_t tid, uint32_t signo)
+ProcessMonitor::Resume(lldb::tid_t unused, uint32_t signo)
 {
     bool result;
     Log *log (ProcessPOSIXLog::GetLogIfAllCategoriesSet (POSIX_LOG_PROCESS));
 
     if (log)
-        log->Printf ("ProcessMonitor::%s() resuming thread = %"  PRIu64 " with signal %s", __FUNCTION__, tid,
+        log->Printf ("ProcessMonitor::%s() resuming pid %"  PRIu64 " with signal %s", __FUNCTION__, GetPID(),
                                  m_process->GetUnixSignals().GetSignalAsCString (signo));
-    ResumeOperation op(tid, signo, result);
+    ResumeOperation op(signo, result);
     DoOperation(&op);
     if (log)
         log->Printf ("ProcessMonitor::%s() resuming result = %s", __FUNCTION__, result ? "true" : "false");
@@ -1483,10 +1481,10 @@ ProcessMonitor::Resume(lldb::tid_t tid, uint32_t signo)
 }
 
 bool
-ProcessMonitor::SingleStep(lldb::tid_t tid, uint32_t signo)
+ProcessMonitor::SingleStep(lldb::tid_t unused, uint32_t signo)
 {
     bool result;
-    SingleStepOperation op(tid, signo, result);
+    SingleStepOperation op(signo, result);
     DoOperation(&op);
     return result;
 }
