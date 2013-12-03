@@ -156,7 +156,7 @@ vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 }
 
 void *vcpu_stats(struct vm *vm, int vcpu);
-void vm_interrupt_hostcpu(struct vm *vm, int vcpu);
+void vcpu_notify_event(struct vm *vm, int vcpuid);
 struct vmspace *vm_get_vmspace(struct vm *vm);
 int vm_assign_pptdev(struct vm *vm, int bus, int slot, int func);
 int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
