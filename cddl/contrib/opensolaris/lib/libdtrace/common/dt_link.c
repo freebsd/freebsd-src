@@ -1709,8 +1709,6 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		 */
 		return (0);
 	}
-	/* XXX Should get a temp file name here. */
-	snprintf(tfile, sizeof(tfile), "%s.tmp", file);
 #endif
 
 	/*
@@ -1785,9 +1783,11 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		    "failed to open %s: %s", file, strerror(errno)));
 	}
 #else
-	if ((fd = open(tfile, O_RDWR | O_CREAT | O_TRUNC, 0666)) == -1)
+	snprintf(tfile, sizeof(tfile), "%s.XXXXXX", file);
+	if ((fd = mkstemp(tfile)) == -1)
 		return (dt_link_error(dtp, NULL, -1, NULL,
-		    "failed to open %s: %s", tfile, strerror(errno)));
+		    "failed to create temporary file %s: %s",
+		    tfile, strerror(errno)));
 #endif
 
 	/*
@@ -1830,13 +1830,15 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		status = dump_elf32(dtp, dof, fd);
 
 	if (status != 0 || lseek(fd, 0, SEEK_SET) != 0) {
-#else
-	/* We don't write the ELF header, just the DOF section */
-	if (dt_write(dtp, fd, dof, dof->dofh_filesz) < dof->dofh_filesz) {
-#endif
 		return (dt_link_error(dtp, NULL, -1, NULL,
 		    "failed to write %s: %s", file, strerror(errno)));
 	}
+#else
+	/* We don't write the ELF header, just the DOF section */
+	if (dt_write(dtp, fd, dof, dof->dofh_filesz) < dof->dofh_filesz)
+		return (dt_link_error(dtp, NULL, -1, NULL,
+		    "failed to write %s: %s", tfile, strerror(errno)));
+#endif
 
 	if (!dtp->dt_lazyload) {
 #if defined(sun)

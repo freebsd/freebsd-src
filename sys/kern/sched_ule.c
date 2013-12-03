@@ -1532,7 +1532,7 @@ sched_priority(struct thread *td)
 		pri = SCHED_PRI_MIN;
 		if (td->td_sched->ts_ticks)
 			pri += min(SCHED_PRI_TICKS(td->td_sched),
-			    SCHED_PRI_RANGE);
+			    SCHED_PRI_RANGE - 1);
 		pri += SCHED_PRI_NICE(td->td_proc->p_nice);
 		KASSERT(pri >= PRI_MIN_BATCH && pri <= PRI_MAX_BATCH,
 		    ("sched_priority: invalid priority %d: nice %d, " 

@@ -75,7 +75,7 @@ lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
 	vlapic = vm_lapic(vm, cpu);
 	vlapic_set_intr_ready(vlapic, vector, level);
 
-	vm_interrupt_hostcpu(vm, cpu);
+	vcpu_notify_event(vm, cpu);
 
 	return (0);
 }

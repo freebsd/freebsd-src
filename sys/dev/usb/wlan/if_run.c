@@ -3167,8 +3167,9 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 	usbd_transfer_start(sc->sc_xfer[qid]);
 
-	DPRINTFN(8, "sending data frame len=%d rate=%d qid=%d\n", m->m_pkthdr.len +
-	    (int)(sizeof (struct rt2870_txd) + sizeof (struct rt2860_rxwi)),
+	DPRINTFN(8, "sending data frame len=%d rate=%d qid=%d\n",
+	    m->m_pkthdr.len +
+	    (int)(sizeof(struct rt2870_txd) + sizeof(struct rt2860_txwi)),
 	    rt2860_rates[ridx].rate, qid);
 
 	return (0);
@@ -3233,7 +3234,7 @@ run_tx_mgt(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	run_set_tx_desc(sc, data);
 
 	DPRINTFN(10, "sending mgt frame len=%d rate=%d\n", m->m_pkthdr.len +
-	    (int)(sizeof (struct rt2870_txd) + sizeof (struct rt2860_rxwi)),
+	    (int)(sizeof(struct rt2870_txd) + sizeof(struct rt2860_txwi)),
 	    rt2860_rates[ridx].rate);
 
 	STAILQ_INSERT_TAIL(&sc->sc_epq[0].tx_qh, data, next);
