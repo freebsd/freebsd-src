@@ -38,6 +38,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20131202: libcapsicum and libcasper moved to /lib/
+OLD_FILES+=usr/lib/libcapsicum.a
+OLD_FILES+=usr/lib/libcapsicum.so
+OLD_LIBS+=usr/lib/libcapsicum.so.0
+OLD_FILES+=usr/lib/libcasper.a
+OLD_FILES+=usr/lib/libcasper.so
+OLD_LIBS+=usr/lib/libcasper.so.0
 # 20131109: extattr(2) mlinks fixed
 OLD_FILES+=usr/share/man/man2/extattr_delete_list.2.gz
 OLD_FILES+=usr/share/man/man2/extattr_get_list.2.gz
