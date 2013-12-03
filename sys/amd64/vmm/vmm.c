@@ -1099,7 +1099,7 @@ vm_inject_nmi(struct vm *vm, int vcpuid)
 	vcpu = &vm->vcpu[vcpuid];
 
 	vcpu->nmi_pending = 1;
-	vm_interrupt_hostcpu(vm, vcpuid);
+	vcpu_notify_event(vm, vcpuid);
 	return (0);
 }
 
@@ -1319,8 +1319,15 @@ vm_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state state)
 	return (0);
 }
 
+/*
+ * This function is called to ensure that a vcpu "sees" a pending event
+ * as soon as possible:
+ * - If the vcpu thread is sleeping then it is woken up.
+ * - If the vcpu is running on a different host_cpu then an IPI will be directed
+ *   to the host_cpu to cause the vcpu to trap into the hypervisor.
+ */
 void
-vm_interrupt_hostcpu(struct vm *vm, int vcpuid)
+vcpu_notify_event(struct vm *vm, int vcpuid)
 {
 	int hostcpu;
 	struct vcpu *vcpu;
