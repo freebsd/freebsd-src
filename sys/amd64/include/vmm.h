@@ -283,7 +283,6 @@ struct vm_exit {
 		struct {
 			uint64_t	gpa;
 			int		fault_type;
-			int		protection;
 		} paging;
 		struct {
 			uint64_t	gpa;
