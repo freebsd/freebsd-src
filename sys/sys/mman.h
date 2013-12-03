@@ -91,6 +91,17 @@
  */
 #define	MAP_NOCORE	 0x00020000 /* dont include these pages in a coredump */
 #define	MAP_PREFAULT_READ 0x00040000 /* prefault mapping for reading */
+
+/*
+ * Request specific alignment (n == log2 of the desired alignment).
+ *
+ * MAP_ALIGNED_SUPER requests optimal superpage alignment, but does
+ * not enforce a specific alignment.
+ */
+#define	MAP_ALIGNED(n)	 ((n) << MAP_ALIGNMENT_SHIFT)
+#define	MAP_ALIGNMENT_SHIFT	24
+#define	MAP_ALIGNMENT_MASK	MAP_ALIGNED(0xff)
+#define	MAP_ALIGNED_SUPER	MAP_ALIGNED(1) /* align on a superpage */
 #endif /* __BSD_VISIBLE */
 
 #if __POSIX_VISIBLE >= 199309
