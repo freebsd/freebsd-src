@@ -114,7 +114,7 @@ service_free(struct service *service)
 {
 	struct service_connection *sconn;
 
-	PJDLOG_ASSERT(service->s_magic = SERVICE_MAGIC);
+	PJDLOG_ASSERT(service->s_magic == SERVICE_MAGIC);
 
 	service->s_magic = 0;
 	while ((sconn = service_connection_first(service)) != NULL)
@@ -130,7 +130,7 @@ service_connection_add(struct service *service, int sock,
 	struct service_connection *sconn;
 	int serrno;
 
-	PJDLOG_ASSERT(service->s_magic = SERVICE_MAGIC);
+	PJDLOG_ASSERT(service->s_magic == SERVICE_MAGIC);
 
 	sconn = malloc(sizeof(*sconn));
 	if (sconn == NULL) {
@@ -168,7 +168,7 @@ service_connection_remove(struct service *service,
     struct service_connection *sconn)
 {
 
-	PJDLOG_ASSERT(service->s_magic = SERVICE_MAGIC);
+	PJDLOG_ASSERT(service->s_magic == SERVICE_MAGIC);
 	PJDLOG_ASSERT(sconn->sc_magic == SERVICE_CONNECTION_MAGIC);
 
 	TAILQ_REMOVE(&service->s_connections, sconn, sc_next);
@@ -206,7 +206,7 @@ service_connection_first(struct service *service)
 {
 	struct service_connection *sconn;
 
-	PJDLOG_ASSERT(service->s_magic = SERVICE_MAGIC);
+	PJDLOG_ASSERT(service->s_magic == SERVICE_MAGIC);
 
 	sconn = TAILQ_FIRST(&service->s_connections);
 	PJDLOG_ASSERT(sconn == NULL ||
