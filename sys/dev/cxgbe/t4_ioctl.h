@@ -208,6 +208,74 @@ struct t4_filter {
 	struct t4_filter_specification fs;
 };
 
+/*
+ * Support for "sched-class" command to allow a TX Scheduling Class to be
+ * programmed with various parameters.
+ */
+struct t4_sched_params {
+	int8_t   subcmd;		/* sub-command */
+	int8_t   type;			/* packet or flow */
+	union {
+		struct {		/* sub-command SCHED_CLASS_CONFIG */
+			int8_t   minmax;	/* minmax enable */
+		} config;
+		struct {		/* sub-command SCHED_CLASS_PARAMS */
+			int8_t   level;		/* scheduler hierarchy level */
+			int8_t   mode;		/* per-class or per-flow */
+			int8_t   rateunit;	/* bit or packet rate */
+			int8_t   ratemode;	/* %port relative or kbps
+						   absolute */
+			int8_t   channel;	/* scheduler channel [0..N] */
+			int8_t   cl;		/* scheduler class [0..N] */
+			int32_t  minrate;	/* minimum rate */
+			int32_t  maxrate;	/* maximum rate */
+			int16_t  weight;	/* percent weight */
+			int16_t  pktsize;	/* average packet size */
+		} params;
+		uint8_t     reserved[6 + 8 * 8];
+	} u;
+};
+
+enum {
+	SCHED_CLASS_SUBCMD_CONFIG,	/* config sub-command */
+	SCHED_CLASS_SUBCMD_PARAMS,	/* params sub-command */
+};
+
+enum {
+	SCHED_CLASS_TYPE_PACKET,
+};
+
+enum {
+	SCHED_CLASS_LEVEL_CL_RL,	/* class rate limiter */
+	SCHED_CLASS_LEVEL_CL_WRR,	/* class weighted round robin */
+	SCHED_CLASS_LEVEL_CH_RL,	/* channel rate limiter */
+};
+
+enum {
+	SCHED_CLASS_MODE_CLASS,		/* per-class scheduling */
+	SCHED_CLASS_MODE_FLOW,		/* per-flow scheduling */
+};
+
+enum {
+	SCHED_CLASS_RATEUNIT_BITS,	/* bit rate scheduling */
+	SCHED_CLASS_RATEUNIT_PKTS,	/* packet rate scheduling */
+};
+
+enum {
+	SCHED_CLASS_RATEMODE_REL,	/* percent of port bandwidth */
+	SCHED_CLASS_RATEMODE_ABS,	/* Kb/s */
+};
+
+/*
+ * Support for "sched_queue" command to allow one or more NIC TX Queues to be
+ * bound to a TX Scheduling Class.
+ */
+struct t4_sched_queue {
+	uint8_t  port;
+	int8_t   queue;	/* queue index; -1 => all queues */
+	int8_t   cl;	/* class index; -1 => unbind */
+};
+
 #define T4_SGE_CONTEXT_SIZE 24
 enum {
 	SGE_CONTEXT_EGRESS,
@@ -261,6 +329,10 @@ struct t4_tracer {
 #define CHELSIO_T4_GET_MEM	_IOW('f', T4_GET_MEM, struct t4_mem_range)
 #define CHELSIO_T4_GET_I2C	_IOWR('f', T4_GET_I2C, struct t4_i2c_data)
 #define CHELSIO_T4_CLEAR_STATS	_IOW('f', T4_CLEAR_STATS, uint32_t)
+#define CHELSIO_T4_SCHED_CLASS  _IOW('f', T4_SET_SCHED_CLASS, \
+    struct t4_sched_params)
+#define CHELSIO_T4_SCHED_QUEUE  _IOW('f', T4_SET_SCHED_QUEUE, \
+    struct t4_sched_queue)
 #define CHELSIO_T4_GET_TRACER	_IOWR('f', T4_GET_TRACER, struct t4_tracer)
 #define CHELSIO_T4_SET_TRACER	_IOW('f', T4_SET_TRACER, struct t4_tracer)
 #endif
