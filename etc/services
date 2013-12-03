@@ -2192,6 +2192,8 @@ ospf6d		2606/tcp   #OSPF6d vty
 dict		2628/tcp   #RFC 2229
 dict		2628/udp   #RFC 2229
 listen		2766/tcp   #System V listener port
+smpp		2775/tcp   #SMPP
+smpp		2775/udp   #SMPP
 www-dev		2784/tcp   #world wide web - development
 www-dev		2784/udp   #world wide web - development
 m2ua		2904/sctp  #M2UA
