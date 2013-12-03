@@ -6,11 +6,14 @@ LIB=	lldbPluginProcessUtility
 
 SRCDIR=	tools/lldb/source/Plugins/Process/Utility
 SRCS=	DynamicRegisterInfo.cpp \
+	HistoryThread.cpp \
+	HistoryUnwind.cpp \
 	InferiorCallPOSIX.cpp \
 	RegisterContextDarwin_arm.cpp \
 	RegisterContextDarwin_i386.cpp \
 	RegisterContextDarwin_x86_64.cpp \
 	RegisterContextDummy.cpp \
+	RegisterContextHistory.cpp \
 	RegisterContextLLDB.cpp \
 	RegisterContextMach_arm.cpp \
 	RegisterContextMach_i386.cpp \
