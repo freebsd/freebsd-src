@@ -28,7 +28,7 @@
 .\"     @(#)wait.2	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd September 7, 2013
+.Dd December 3, 2013
 .Dt WAIT 2
 .Os
 .Sh NAME
@@ -62,63 +62,76 @@
 .Sh DESCRIPTION
 The
 .Fn wait
-function suspends execution of its calling process until
+function suspends execution of its calling thread until
 .Fa status
-information is available for a terminated child process,
+information is available for a child process
 or a signal is received.
 On return from a successful
 .Fn wait
 call,
 the
 .Fa status
-area contains termination information about the process that exited
+area contains information about the process that reported a status change
 as defined below.
-The
-.Fn wait
-call is the same as
-.Fn wait4
-with a
-.Fa wpid
-value of -1,
-with an
-.Fa options
-value of zero,
-and a
-.Fa rusage
-value of zero.
 .Pp
 The
 .Fn wait4
-system call provides a more general interface for programs
-that need to wait for certain child processes,
+and
+.Fn wait6
+system calls provide a more general interface for programs
+that need to wait for specific child processes,
 that need resource utilization statistics accumulated by child processes,
 or that require options.
-.Pp
-The broadest interface of all functions in this family is
-.Fn wait6
-which is otherwise very much like
+The other wait functions are implemented using either
 .Fn wait4
-but with a few very important distinctions.
-To wait for exited processes, the option flag
+or
+.Fn wait6 .
+.Pp
+The
+.Fn wait6
+function is the most general function in this family and its distinct
+features are:
+.Pp
+All of the desired process statuses to be waited on must be explicitly
+specified in
+.Fa options .
+The
+.Fn wait ,
+.Fn waitpid ,
+.Fn wait3 ,
+and
+.Fn wait4
+functions all implicitly wait for exited and trapped processes,
+but the
+.Fn waitid 
+and
+.Fn wait6
+functions require the corresponding
 .Dv WEXITED
-need to be explicitly specified.
-This allows for waiting for processes which have experienced other
-status changes without having to handle also the exit status from
-the terminated processes.
-Instead of the traditional
-.Dv rusage
-argument, a pointer to a new structure
+and
+.Dv WTRAPPED
+flags to be explicitly specified.
+This allows waiting for processes which have experienced other
+status changes without having to also handle the exit status from
+terminated processes.
+.Pp
+The
+.Fn wait6
+function accepts a
+.Fa wrusage
+argument which points to a structure defined as:
 .Bd -literal
 struct __wrusage {
 	struct rusage   wru_self;
 	struct rusage   wru_children;
 };
 .Ed
-can be passed.
+.Pp
 This allows the calling process to collect resource usage statistics
 from both its own child process as well as from its grand children.
 When no resource usage statistics are needed this pointer can be
 .Dv NULL .
+.Pp
 The last argument
 .Fa infop
 must be either
@@ -126,11 +139,13 @@ must be either
 or a pointer to a
 .Fa siginfo_t
 structure.
-When specified, the structure is filled the same as for
-.Dv SIGNCHLD
-signal, delivered at the process state change.
-.br
-The process, which state is queried, is specified by two arguments
+If
+.Pf non- Dv NULL ,
+the structure is filled with the same data as for a
+.Dv SIGCHLD
+signal delivered when the process changed state.
+.Pp
+The set of child processes to be queried is specified by the arguments
 .Fa idtype
 and
 .Fa id .
@@ -138,8 +153,8 @@ The separate
 .Fa idtype
 and
 .Fa id
-arguments allows to support many other types of
-IDs  as well in addition to PID and PGID.
+arguments support many other types of
+identifers in addition to process IDs and process group IDs.
 .Bl -bullet -offset indent
 .It
 If
@@ -188,50 +203,33 @@ and
 wait for any child process in the same process group as the caller.
 .El
 .Pp
-Non-standard specifiers for the process to wait for, supported by this
+Non-standard identifier types supported by this 
 implementation of
 .Fn waitid
 and
-.Fn wait6 ,
+.Fn wait6
 are:
-.Bl -bullet -offset indent
-.It
-The
-.Fa idtype
-value
-.Dv P_UID
-waits for processes which effective UID is equal to
-.Dv (uid_t)id .
-.It
-The
-.Fa idtype
-value
-.Dv P_GID
-waits for processes which effective GID is equal to
-.Dv (gid_t)id .
-.It
-The
-.Fa idtype
-value
-.Dv P_SID
-waits for processes which session ID is equal to
-.Dv id .
-In case the child process started its own new session,
-SID will be the same as its own PID.
-Otherwise the SID of a child process will match the caller's SID.
-.It
-The
-.Fa idtype
-value
-.Dv P_JAILID
-waits for processes within a jail which jail identifier is equal
-to
-.Dv id .
+.Bl -tag -width P_JAILID
+.It Dv P_UID
+Wait for processes whose effective user ID is equal to
+.Dv (uid_t) Fa id .
+.It Dv P_GID
+Wait for processes whose effective group ID is equal to
+.Dv (gid_t) Fa id .
+.It Dv P_SID
+Wait for processes whose session ID is equal to
+.Fa id .
+.\" This is just how sessions work, not sure this needs to be documented here
+If the child process started its own session,
+its session ID will be the same as its process ID.
+Otherwise the session ID of a child process will match the caller's session ID.
+.It Dv P_JAILID
+Waits for processes within a jail whose jail identifier is equal to
+.Fa id .
 .El
 .Pp
-For
-.Fn wait ,
-.Fn wait3 ,
+For the
+.Fn waitpid
 and
 .Fn wait4
 functions, the single
@@ -250,12 +248,12 @@ the call waits for any child process in the process group of the caller.
 .It
 If
 .Fa wpid
-is greater than zero, the call waits for the process with process id
+is greater than zero, the call waits for the process with process ID
 .Fa wpid .
 .It
 If
 .Fa wpid
-is less than -1, the call waits for any process whose process group id
+is less than -1, the call waits for any process whose process group ID
 equals the absolute value of
 .Fa wpid .
 .El
@@ -267,30 +265,28 @@ argument is defined below.
 The
 .Fa options
 argument contains the bitwise OR of any of the following options.
-.Bl -tag -width Ds
+.Bl -tag -width WCONTINUED
 .It Dv WCONTINUED
-indicates that children of the current process that
-have continued from a job control stop, by receiving a
+Report the status of selected processes that
+have continued from a job control stop by receiving a
 .Dv SIGCONT
-signal, should also have their status reported.
+signal.
 .It Dv WNOHANG
-is used to indicate that the call should not block when
+Do not block when
 there are no processes wishing to report status.
 .It Dv WUNTRACED
-indicates that children of the current process which are stopped
-due to a
+Report the status of selected processes which are stopped due to a
 .Dv SIGTTIN , SIGTTOU , SIGTSTP ,
 or
 .Dv SIGSTOP
-signal shall have their status reported.
+signal.
 .It Dv WSTOPPED
-is an alias for
+An alias for
 .Dv WUNTRACED .
 .It Dv WTRAPPED
-allows waiting for processes which have trapped or reached a breakpoint.
-.It Dv WEXITED
-indicates that the caller is wants to receive status reports from
-terminated processes.
+Report the status of selected processes which are being traced via
+.Xr ptrace 2
+and have trapped or reached a breakpoint.
 This flag is implicitly set for the functions
 .Fn wait ,
 .Fn waitpid ,
@@ -302,11 +298,27 @@ For the
 .Fn waitid
 and
 .Fn wait6
-functions, the flag has to be explicitly included in the
-.Fa options ,
+functions, the flag has to be explicitly included in
+.Fa options
+if status reports from trapped processes are expected.
+.It Dv WEXITED
+Report the status of selected processes which have terminated.
+This flag is implicitly set for the functions
+.Fn wait ,
+.Fn waitpid ,
+.Fn wait3 ,
+and
+.Fn wait4 .
+.br
+For the
+.Fn waitid
+and
+.Fn wait6
+functions, the flag has to be explicitly included in
+.Fa options
 if status reports from terminated processes are expected.
 .It Dv WNOWAIT
-keeps the process whose status is returned in a waitable state.
+Keep the process whose status is returned in a waitable state.
 The process may be waited for again after this call completes.
 .El
 .sp
@@ -336,50 +348,68 @@ process and all its children is returned.
 .Pp
 If
 .Fa wrusage
-argument is non-NULL, a resource usage statistics
-from both its own child process as well as from its grand children
-is returned.
+is non-NULL, separate summaries are returned for the resources used
+by the terminated process and the resources used by all its children.
 .Pp
 If
 .Fa infop
-is non-NULL, it must point to a
+is non-NULL, a
 .Dv siginfo_t
-structure which is filled on return such that the
-.Dv si_signo
-field is always
+structure is returned with the
+.Fa si_signo
+field set to
 .Dv SIGCHLD
-and the field
-.Dv si_pid
-if be non-zero, if there is a status change to report.
-If there are no status changes to report and WNOHANG is applied,
-both of these fields are returned zero.
-When using the
-.Fn waitid
-function with the
+and the
+.Fa si_pid
+field set to the process ID of the process reporting status.
+.Pp
+When the
 .Dv WNOHANG
-option set, checking these fields is the only way to know whether
-there were any status changes to report, because the return value
-from
+option is specified and no processes
+wish to report status,
 .Fn waitid
-is be zero as it is for any successful return from
-.Fn waitid .
+sets the
+.Fa si_signo
+and
+.Fa si_pid
+fields in
+.Fa infop
+to zero.
+Checking these fields is the only way to know if a status change was reported.
 .Pp
 When the
 .Dv WNOHANG
 option is specified and no processes
 wish to report status,
 .Fn wait4
-returns a
+and
+.Fn wait6
+return a
 process id
 of 0.
 .Pp
+The
+.Fn wait
+call is the same as
+.Fn wait4
+with a
+.Fa wpid
+value of -1,
+with an
+.Fa options
+value of zero,
+and a
+.Fa rusage
+value of
+.Dv NULL .
 The
 .Fn waitpid
 function is identical to
 .Fn wait4
 with an
 .Fa rusage
-value of zero.
+value of
+.Dv NULL .
 The older
 .Fn wait3
 call is the same as
@@ -388,29 +418,31 @@ with a
 .Fa wpid
 value of -1.
 The
+.Fn wait4
+function is identical to
 .Fn wait6
-call, with the bits
+with the flags
 .Dv WEXITED
 and
 .Dv WTRAPPED
-set in the
+set in
 .Fa options
-and with
+and
 .Fa infop
 set to
-.Dv NULL ,
-is similar to
-.Fn wait4 .
+.Dv NULL .
 .Pp
-The following macros may be used to test the manner of exit of the process.
-One of the first four macros will evaluate to a non-zero (true) value:
+The following macros may be used to test the current status of the process.
+Exactly one of the following four macros will evaluate to a non-zero
+.Pq true
+value:
 .Bl -tag -width Ds
 .It Fn WIFCONTINUED status
 True if the process has not terminated, and
 has continued after a job control stop.
 This macro can be true only if the wait call specified the
 .Dv WCONTINUED
-option).
+option.
 .It Fn WIFEXITED status
 True if the process terminated normally by a call to
 .Xr _exit 2
@@ -481,7 +513,7 @@ in
 The implementation queues one
 .Dv SIGCHLD
 signal for each child process whose
-status has changed, if
+status has changed; if
 .Fn wait
 returns because the status of a child process is available, the pending
 SIGCHLD signal associated with the process ID of the child process will
@@ -492,7 +524,7 @@ signals remain pending.
 .Pp
 If
 .Dv SIGCHLD
-is blocked,
+is blocked and
 .Fn wait
 returns because the status of a child process is available, the pending
 .Dv SIGCHLD
@@ -538,13 +570,23 @@ If
 .Fn waitid
 returns because one or more processes have a state change to report,
 0 is returned.
-To indicate an error, -1 will be returned and
-.Dv errno
-set to an appropriate value.
+If an error is detected,
+a value of -1
+is returned and
+.Va errno
+is set to indicate the error.
 If
 .Dv WNOHANG
-was used, 0 can be returned indicating no error, but no processes
-may have changed state either, if si_signo and/or si_pid are zero.
+is specified and there are
+no stopped, continued or exited children,
+0 is returned.
+The
+.Fa si_signo
+and
+.Fa si_pid
+fields of
+.Fa infop
+must be checked against zero to determine if a process reported status.
 .Sh ERRORS
 The
 .Fn wait
@@ -620,7 +662,7 @@ requires
 .Fn waitid
 to return the full 32 bits passed to
 .Xr _exit 2 ;
-this implementation only returns 8 bits like in the other calls.
+this implementation only returns 8 bits like the other calls.
 .Sh HISTORY
 The
 .Fn wait
