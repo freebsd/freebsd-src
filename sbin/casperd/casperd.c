@@ -206,6 +206,7 @@ casper_limit(const nvlist_t *oldlimits, const nvlist_t *newlimits)
 	int type;
 	void *cookie;
 
+	cookie = NULL;
 	while ((name = nvlist_next(newlimits, &type, &cookie)) != NULL) {
 		if (type != NV_TYPE_NULL)
 			return (EINVAL);
