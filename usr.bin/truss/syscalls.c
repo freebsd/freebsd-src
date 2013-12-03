@@ -296,7 +296,7 @@ static struct xlat mmap_flags[] = {
 	X(MAP_SHARED) X(MAP_PRIVATE) X(MAP_FIXED) X(MAP_RENAME)
 	X(MAP_NORESERVE) X(MAP_RESERVED0080) X(MAP_RESERVED0100)
 	X(MAP_HASSEMAPHORE) X(MAP_STACK) X(MAP_NOSYNC) X(MAP_ANON)
-	X(MAP_NOCORE) XEND
+	X(MAP_NOCORE) X(MAP_PREFAULT_READ) XEND
 };
 
 static struct xlat mprot_flags[] = {
@@ -893,9 +893,41 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	case Mprot:
 		tmp = strdup(xlookup_bits(mprot_flags, args[sc->offset]));
 		break;
-	case Mmapflags:
-		tmp = strdup(xlookup_bits(mmap_flags, args[sc->offset]));
+	case Mmapflags: {
+		char *base, *alignstr;
+		int align, flags;
+
+		/*
+		 * MAP_ALIGNED can't be handled by xlookup_bits(), so
+		 * generate that string manually and prepend it to the
+		 * string from xlookup_bits().  Have to be careful to
+		 * avoid outputting MAP_ALIGNED|0 if MAP_ALIGNED is
+		 * the only flag.
+		 */
+		flags = args[sc->offset] & ~MAP_ALIGNMENT_MASK;
+		align = args[sc->offset] & MAP_ALIGNMENT_MASK;
+		if (align != 0) {
+			if (align == MAP_ALIGNED_SUPER)
+				alignstr = strdup("MAP_ALIGNED_SUPER");
+			else
+				asprintf(&alignstr, "MAP_ALIGNED(%d)",
+				    align >> MAP_ALIGNMENT_SHIFT);
+			if (flags == 0) {
+				tmp = alignstr;
+				break;
+			}
+		} else
+			alignstr = NULL;
+		base = strdup(xlookup_bits(mmap_flags, flags));
+		if (alignstr == NULL) {
+			tmp = base;
+			break;
+		}
+		asprintf(&tmp, "%s|%s", alignstr, base);
+		free(alignstr);
+		free(base);
 		break;
+	}
 	case Whence:
 		tmp = strdup(xlookup(whence_arg, args[sc->offset]));
 		break;

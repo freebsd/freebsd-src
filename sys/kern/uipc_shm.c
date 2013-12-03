@@ -778,7 +778,7 @@ shm_map(struct file *fp, size_t size, off_t offset, void **memp)
 	offset = trunc_page(offset);
 	size = round_page(size + ofs);
 	rv = vm_map_find(kernel_map, obj, offset, &kva, size,
-	    VMFS_ALIGNED_SPACE, VM_PROT_READ | VM_PROT_WRITE,
+	    VMFS_OPTIMAL_SPACE, VM_PROT_READ | VM_PROT_WRITE,
 	    VM_PROT_READ | VM_PROT_WRITE, 0);
 	if (rv == KERN_SUCCESS) {
 		rv = vm_map_wire(kernel_map, kva, kva + size,

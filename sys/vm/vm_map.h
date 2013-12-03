@@ -339,14 +339,19 @@ long vmspace_resident_count(struct vmspace *vmspace);
 #define	VM_FAULT_READ_AHEAD_MAX		min(atop(MAXPHYS) - 1, UINT8_MAX)
 
 /*
- * The following "find_space" options are supported by vm_map_find()
+ * The following "find_space" options are supported by vm_map_find().
+ *
+ * For VMFS_ALIGNED_SPACE, the desired alignment is specified to
+ * the macro argument as log base 2 of the desired alignment.
  */
 #define	VMFS_NO_SPACE		0	/* don't find; use the given range */
 #define	VMFS_ANY_SPACE		1	/* find a range with any alignment */
-#define	VMFS_ALIGNED_SPACE	2	/* find a superpage-aligned range */
+#define	VMFS_SUPER_SPACE	2	/* find a superpage-aligned range */
+#define	VMFS_ALIGNED_SPACE(x)	((x) << 8) /* find a range with fixed alignment */
 #if defined(__mips__)
 #define	VMFS_TLB_ALIGNED_SPACE	3	/* find a TLB entry aligned range */
 #endif
+#define	VMFS_OPTIMAL_SPACE	4	/* find a range with optimal alignment*/
 
 /*
  * vm_map_wire and vm_map_unwire option flags

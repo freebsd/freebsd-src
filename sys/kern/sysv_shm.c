@@ -413,7 +413,7 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 	vm_object_reference(shmseg->object);
 	rv = vm_map_find(&p->p_vmspace->vm_map, shmseg->object,
 	    0, &attach_va, size, (flags & MAP_FIXED) ? VMFS_NO_SPACE :
-	    VMFS_ANY_SPACE, prot, prot, MAP_INHERIT_SHARE);
+	    VMFS_OPTIMAL_SPACE, prot, prot, MAP_INHERIT_SHARE);
 	if (rv != KERN_SUCCESS) {
 		vm_object_deallocate(shmseg->object);
 		error = ENOMEM;

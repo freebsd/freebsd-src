@@ -238,7 +238,7 @@ kmem_suballoc(vm_map_t parent, vm_offset_t *min, vm_offset_t *max,
 
 	*min = vm_map_min(parent);
 	ret = vm_map_find(parent, NULL, 0, min, size, superpage_align ?
-	    VMFS_ALIGNED_SPACE : VMFS_ANY_SPACE, VM_PROT_ALL, VM_PROT_ALL,
+	    VMFS_SUPER_SPACE : VMFS_ANY_SPACE, VM_PROT_ALL, VM_PROT_ALL,
 	    MAP_ACC_NO_CHARGE);
 	if (ret != KERN_SUCCESS)
 		panic("kmem_suballoc: bad status return of %d", ret);
