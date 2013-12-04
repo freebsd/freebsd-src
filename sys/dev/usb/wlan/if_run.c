@@ -3672,7 +3672,7 @@ run_rt2870_set_chan(struct run_softc *sc, u_int chan)
 		}
 		if (txpow2 >= 0) {
 			txpow2 = (txpow2 > 0xf) ? (0xf) : (txpow2);
-			r4 |= (txpow1 << 7) | (1 << 6);
+			r4 |= (txpow2 << 7) | (1 << 6);
 		} else {
 			txpow2 += 7;
 			r4 |= (txpow2 << 7);
