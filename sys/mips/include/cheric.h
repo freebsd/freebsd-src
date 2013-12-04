@@ -38,6 +38,7 @@
  * in the kernel.
  */
 #define	cheri_getlen(x)		__builtin_cheri_get_cap_length(x)
+#define	cheri_getbase(x)	(void *)(x)
 #define	cheri_getperm(x)	__builtin_cheri_get_cap_perms(x)
 #define	cheri_gettag(x)		__builtin_cheri_get_cap_tag(x)
 #define	cheri_gettype(x)	__builtin_cheri_get_cap_type(x)
@@ -53,6 +54,70 @@
 
 #define	cheri_getcause()	__builtin_cheri_get_cause()
 #define	cheri_setcause(x)	__builtin_cheri_set_cause(x)
+
+static __inline __capability void *
+cheri_setlentype(__capability void *cap, size_t len, register_t type)
+{
+
+	return (cheri_settype(cheri_setlen(cap, len), type));
+}
+
+static __inline __capability void *
+cheri_ptr(void *ptr, size_t len)
+{
+
+	return (cheri_setlen((__capability void *)ptr, len));
+}
+
+static __inline __capability void *
+cheri_ptrperm(void *ptr, size_t len, register_t perm)
+{
+
+	return (cheri_andperm(cheri_setlen((__capability void *)ptr, len),
+	    perm));
+}
+
+static __inline __capability void *
+cheri_ptrtype(void *ptr, size_t len, register_t type)
+{
+
+	return (cheri_settype(cheri_setlen((__capability void *)ptr, len),
+	    type));
+}
+
+static __inline __capability void *
+cheri_zerocap(void)
+{
+	__capability void *cap;
+
+	/* XXXRW: Use ccleartag instead? */
+	((char *)&cap)[0] = 0;
+	return (cap);
+}
+
+static __inline __capability void *
+cheri_getreg(int x)
+{
+	__capability void *cap;
+
+	__asm __volatile ("cmove %0, $c%1" : "+C" (cap) : "i" (x));
+	return (cap);
+}
+
+static __inline void
+cheri_setreg(int x, __capability void *cap)
+{
+
+	/*
+	 * Not clear this is right for non-zero regs -- should we be declaring
+	 * a register clobber?
+	 */
+	if (x == 0)
+		__asm __volatile ("cmove $c%0, %1" : : "i" (x), "C" (cap) :
+		    "memory");
+	else
+		__asm __volatile ("cmove $c%0, %1" : : "i" (x), "C" (cap));
+}
 #endif
 
 #endif /* _MIPS_INCLUDE_CHERI_H_ */
