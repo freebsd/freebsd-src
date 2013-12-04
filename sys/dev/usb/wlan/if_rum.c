@@ -1137,7 +1137,7 @@ rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 		dur = ieee80211_ack_duration(ic->ic_rt, tp->mgmtrate, 
 		    ic->ic_flags & IEEE80211_F_SHPREAMBLE);
-		*(uint16_t *)wh->i_dur = htole16(dur);
+		USETW(wh->i_dur, dur);
 
 		/* tell hardware to add timestamp for probe responses */
 		if ((wh->i_fc[0] &
@@ -1281,7 +1281,7 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 		dur = ieee80211_ack_duration(ic->ic_rt, rate, 
 		    ic->ic_flags & IEEE80211_F_SHPREAMBLE);
-		*(uint16_t *)wh->i_dur = htole16(dur);
+		USETW(wh->i_dur, dur);
 	}
 
 	rum_setup_tx_desc(sc, &data->desc, flags, 0, m0->m_pkthdr.len, rate);
