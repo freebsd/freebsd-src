@@ -31,7 +31,19 @@
 #ifndef _LIBCHERI_SANDBOX_INTERNAL_H_
 #define	_LIBCHERI_SANDBOX_INTERNAL_H_
 
-register_t	_chsbrt_invoke(register_t, register_t, register_t,
-		    register_t, register_t, register_t);
+#ifndef USE_C_CAPS
+register_t	_chsbrt_invoke(register_t a0, register_t a1, register_t a2,
+		    register_t a3, register_t a4, register_t a5,
+		    register_t a6, register_t a7);
+#else
+register_t	_chsbrt_invoke(__capability void *c1, __capability void *c2,
+		    register_t a0, register_t a1, register_t a2,
+		    register_t a3, register_t a4, register_t a5,
+		    register_t a6, register_t a7, __capability void *c3,
+		    __capability void *c4, __capability void *c5,
+		    __capability void *c6, __capability void *c7,
+		    __capability void *c8, __capability void *c9,
+		    __capability void *c10) __attribute__((cheri_ccall));
+#endif
 
 #endif /* !_LIBCHERI_SANDBOX_INTERNAL_H_ */

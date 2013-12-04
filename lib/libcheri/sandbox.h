@@ -51,22 +51,20 @@ extern int sb_verbose;
 struct sandbox;
 int	sandbox_setup(const char *path, register_t sandboxlen,
 	    struct sandbox **sbp);
+void	sandbox_destroy(struct sandbox *sb);
+
+#if defined(__CHERI__) && defined(__capability)
+register_t
+sandbox_cinvoke(struct sandbox *sb, register_t a0, register_t a1,
+    register_t a2, register_t a3, register_t a4, register_t a5, register_t a6,
+    register_t a7, __capability void *c3, __capability void *c4,
+    __capability void *c5, __capability void *c6, __capability void *c7,
+    __capability void *c8, __capability void *c9, __capability void *c10);
+#endif
 register_t	sandbox_invoke(struct sandbox *sb, register_t a0,
 	    register_t a1, register_t a2, register_t a3, struct chericap *c3,
 	    struct chericap *c4, struct chericap *c5, struct chericap *c6,
 	    struct chericap *c7, struct chericap *c8, struct chericap *c9,
 	    struct chericap *c10);
-void	sandbox_destroy(struct sandbox *sb);
-
-/*
- * CHERI compiler-aware version of invoke.
- */
-#if defined(__CHERI__) && defined(__capability)
-register_t	sandbox_cinvoke(struct sandbox *sb, register_t a0,
-    register_t a1, register_t a2, register_t a3, __capability void *c3,
-    __capability void *c4, __capability void *c5, __capability void *c6,
-    __capability void *c7, __capability void *c8, __capability void *c9,
-    __capability void *c10);
-#endif
 
 #endif /* !_SANDBOX_H_ */

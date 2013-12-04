@@ -267,7 +267,7 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 	 * Construct a generic capability that desxribes the combined
 	 * data/code segment that we will seal.
 	 */
-	sbcap = (__capability void *)base;
+	sbcap = (__capability void *)sb->sb_mem;
 	sbcap = cheri_setlen(sbcap, sandboxlen);
 	sbcap = cheri_settype(sbcap, SANDBOX_ENTRY);
 
@@ -375,86 +375,83 @@ error:
 }
 
 #define	CHERI_CLOADORCLEAR(cnum, cptr) do {				\
-	if (c ## cnum != NULL)						\
+	if (cptr != NULL)						\
 		CHERI_CLC(cnum, 0, cptr, 0);				\
 	else								\
 		CHERI_CCLEARTAG(cnum);					\
 } while (0)
 
-/*
- * This version of invoke() is intended for callers without CHERI compiler
- * support.
- *
- * XXXRW: (1) does this work because we are lucky, and (2) how can we create a
- * compiler-friendly version?  Probably using a macro and inline assembly,
- * with suitable clobbers/etc to ensure that the right values end up in the
- * right registers.
- */
-register_t
-sandbox_invoke(struct sandbox *sb, register_t a0, register_t a1,
-    register_t a2, register_t a3, struct chericap *c3, struct chericap *c4,
-    struct chericap *c5, struct chericap *c6, struct chericap *c7,
-    struct chericap *c8, struct chericap *c9, struct chericap *c10)
-{
-
-	CHERI_CLC(1, 0, &sb->sb_codecap, 0);
-	CHERI_CLC(2, 0, &sb->sb_datacap, 0);
-	CHERI_CLOADORCLEAR(3, c3);
-	CHERI_CLOADORCLEAR(4, c4);
-	CHERI_CLOADORCLEAR(5, c5);
-	CHERI_CLOADORCLEAR(6, c6);
-	CHERI_CLOADORCLEAR(7, c7);
-	CHERI_CLOADORCLEAR(8, c8);
-	CHERI_CLOADORCLEAR(9, c9);
-	CHERI_CLOADORCLEAR(10, c10);
-#ifndef SPEEDY_BUT_SLOPPY
-	CHERI_CCLEARTAG(11);
-	CHERI_CCLEARTAG(12);
-	CHERI_CCLEARTAG(13);
-	CHERI_CCLEARTAG(14);
-	CHERI_CCLEARTAG(15);
-	CHERI_CCLEARTAG(16);
-	CHERI_CCLEARTAG(17);
-	CHERI_CCLEARTAG(18);
-	CHERI_CCLEARTAG(19);
-	CHERI_CCLEARTAG(20);
-	CHERI_CCLEARTAG(21);
-	CHERI_CCLEARTAG(22);
-	CHERI_CCLEARTAG(23);
-	CHERI_CCLEARTAG(24);
-	CHERI_CCLEARTAG(25);
-	CHERI_CCLEARTAG(26);
-#endif
-	return (_chsbrt_invoke(a0, a1, a2, a3, sb->sb_heapbase,
-	    sb->sb_heaplen));
-}
 
 #ifdef USE_C_CAPS
 register_t
 sandbox_cinvoke(struct sandbox *sb, register_t a0, register_t a1,
-    register_t a2, register_t a3, __capability void *c3,
-    __capability void *c4, __capability void *c5, __capability void *c6,
-    __capability void *c7, __capability void *c8, __capability void *c9,
-    __capability void *c10)
+    register_t a2, register_t a3, register_t a4, register_t a5, register_t a6,
+    register_t a7, __capability void *c3, __capability void *c4,
+    __capability void *c5, __capability void *c6, __capability void *c7,
+    __capability void *c8, __capability void *c9, __capability void *c10)
 {
 
-	/*-
+	/*
 	 * XXXRW: TODO:
 	 *
-	 * 1. Install sb->sb_codecap in $c1.
-	 * 2. Install sb->sb_datacap in $c2.
-	 * 3. Install _chsbrt_invoke in $t9.
-	 * 4. Install a0, a1, a2, and a3 in $a0, $a1, $a2, and $a3.
-	 * 5. Install c4, c5, c6, c7, c8, c9, c10 in $c4, $c5, $c6, $c7, $c8,
-	 *    $c9, and $c10.
-	 * 6. Extract $v0 and $v1 on return.
-	 * 7. What about capability return values?
+	 * 1. What about $v1, capability return values?
+	 * 2. Does the right thing happen with $a0..$a7, $c3..$c10?
 	 */
-	__asm__ __volatile__(
-	    "jalr $t9; nop"
-	    );
+	return (_chsbrt_invoke(sb->sb_codecap, sb->sb_datacap, a0, a1, a2, a3,
+	    a4, a5, a6, a7, c3, c4, c5, c6, c7, c8, c9, c10));
 }
 #endif
+
+/*
+ * This version of invoke() is intended for callers not implementing CHERI
+ * compiler support -- but internally, it can be implemented either way.
+ *
+ * XXXRW: Zeroing the capability pointer will clear the tag, but it seems a
+ * bit ugly.  It would be nice to have a pretty way to do this.  Note that C
+ * NULL != an untagged capability pointer, and we would benefit from having a
+ * canonical 'NULL' for the capability space (connoting no rights).
+ */
+register_t
+sandbox_invoke(struct sandbox *sb, register_t a0, register_t a1,
+    register_t a2, register_t a3, struct chericap *c3p, struct chericap *c4p,
+    struct chericap *c5p, struct chericap *c6p, struct chericap *c7p,
+    struct chericap *c8p, struct chericap *c9p, struct chericap *c10p)
+{
+#ifdef USE_C_CAPS
+	__capability void *c3, *c4, *c5, *c6, *c7, *c8, *c9, *c10;
+	__capability void *cclear;
+
+#ifdef HAD_CHERI_CCLEARTAG
+	/* XXXRW: Or some other pretty way to do this. */
+	cclear = cheri_ccleartag();
+#else
+	bzero(&cclear, sizeof(cclear));
+#endif
+	c3 = (c3p != NULL ? *(__capability void **)c3p : cclear);
+	c4 = (c4p != NULL ? *(__capability void **)c4p : cclear);
+	c5 = (c5p != NULL ? *(__capability void **)c5p : cclear);
+	c6 = (c6p != NULL ? *(__capability void **)c6p : cclear);
+	c7 = (c7p != NULL ? *(__capability void **)c7p : cclear);
+	c8 = (c8p != NULL ? *(__capability void **)c8p : cclear);
+	c9 = (c9p != NULL ? *(__capability void **)c9p : cclear);
+	c10 = (c10p != NULL ? (__capability void *)c10p : cclear);
+
+	return (sandbox_cinvoke(sb, a0, a1, a2, a3, 0, 0, 0, 0, c3, c4, c5,
+	    c6, c7, c8, c9, c10));
+#else
+	CHERI_CLC(1, 0, &sb->sb_codecap, 0);
+	CHERI_CLC(2, 0, &sb->sb_datacap, 0);
+	CHERI_CLOADORCLEAR(3, c3p);
+	CHERI_CLOADORCLEAR(4, c4p);
+	CHERI_CLOADORCLEAR(5, c5p);
+	CHERI_CLOADORCLEAR(6, c6p);
+	CHERI_CLOADORCLEAR(7, c7p);
+	CHERI_CLOADORCLEAR(8, c8p);
+	CHERI_CLOADORCLEAR(9, c9p);
+	CHERI_CLOADORCLEAR(10, c10p);
+	return (_chsbrt_invoke(a0, a1, a2, a3, 0, 0, 0, 0));
+#endif
+}
 
 void
 sandbox_destroy(struct sandbox *sb)
