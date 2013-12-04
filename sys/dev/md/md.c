@@ -908,6 +908,22 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 	return (rv != VM_PAGER_ERROR ? 0 : ENOSPC);
 }
 
+static int
+mdstart_null(struct md_s *sc, struct bio *bp)
+{
+
+	switch (bp->bio_cmd) {
+	case BIO_READ:
+		bzero(bp->bio_data, bp->bio_length);
+		cpu_flush_dcache(bp->bio_data, bp->bio_length);
+		break;
+	case BIO_WRITE:
+		break;
+	}
+	bp->bio_resid = 0;
+	return (0);
+}
+
 static void
 md_kthread(void *arg)
 {
@@ -1027,6 +1043,7 @@ mdinit(struct md_s *sc)
 		pp->flags |= G_PF_ACCEPT_UNMAPPED;
 		break;
 	case MD_PRELOAD:
+	case MD_NULL:
 		break;
 	}
 	sc->gp = gp;
@@ -1245,6 +1262,7 @@ mdresize(struct md_s *sc, struct md_ioctl *mdio)
 
 	switch (sc->type) {
 	case MD_VNODE:
+	case MD_NULL:
 		break;
 	case MD_SWAP:
 		if (mdio->md_mediasize <= 0 ||
@@ -1339,6 +1357,19 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	return (error);
 }
 
+static int
+mdcreate_null(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
+{
+
+	/*
+	 * Range check.  Disallow negative sizes or any size less then the
+	 * size of a page.  Then round to a page.
+	 */
+	if (sc->mediasize <= 0 || (sc->mediasize % PAGE_SIZE) != 0)
+		return (EDOM);
+
+	return (0);
+}
 
 static int
 xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
@@ -1371,6 +1402,7 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		case MD_PRELOAD:
 		case MD_VNODE:
 		case MD_SWAP:
+		case MD_NULL:
 			break;
 		default:
 			return (EINVAL);
@@ -1415,6 +1447,10 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		case MD_SWAP:
 			sc->start = mdstart_swap;
 			error = mdcreate_swap(sc, mdio, td);
+			break;
+		case MD_NULL:
+			sc->start = mdstart_null;
+			error = mdcreate_null(sc, mdio, td);
 			break;
 		}
 		if (error != 0) {
@@ -1585,6 +1621,9 @@ g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		break;
 	case MD_SWAP:
 		type = "swap";
+		break;
+	case MD_NULL:
+		type = "null";
 		break;
 	default:
 		type = "unknown";
