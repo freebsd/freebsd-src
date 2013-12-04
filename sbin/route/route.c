@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 static struct keytab {
 	const char	*kt_cp;
 	int	kt_i;
-} keywords[] = {
+} const keywords[] = {
 #include "keywords.h"
 	{0, 0}
 };
@@ -1848,7 +1848,7 @@ printb(int b, const char *str)
 int
 keyword(const char *cp)
 {
-	struct keytab *kt = keywords;
+	const struct keytab *kt = keywords;
 
 	while (kt->kt_cp != NULL && strcmp(kt->kt_cp, cp) != 0)
 		kt++;
