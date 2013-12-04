@@ -71,6 +71,8 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <ifaddrs.h>
 
+#define ATALK_BUF_SIZE 20
+
 static struct keytab {
 	const char	*kt_cp;
 	int	kt_i;
@@ -92,7 +94,7 @@ static int	defaultfib;
 static int	numfibs;
 
 static int	atalk_aton(const char *, struct at_addr *);
-static char	*atalk_ntoa(struct at_addr);
+static char	*atalk_ntoa(struct at_addr, char [ATALK_BUF_SIZE]);
 static void	printb(int, const char *);
 static void	flushroutes(int argc, char *argv[]);
 static int	flushroutes_fib(int);
@@ -495,6 +497,7 @@ routename(struct sockaddr *sa)
 {
 	struct sockaddr_dl *sdl;
 	const char *cp;
+	char atalk_buf[ATALK_BUF_SIZE];
 	static char line[NI_MAXHOST];
 	static char domain[MAXHOSTNAMELEN + 1];
 	static int first = 1;
@@ -577,7 +580,8 @@ routename(struct sockaddr *sa)
 #endif
 	case AF_APPLETALK:
 		(void)snprintf(line, sizeof(line), "atalk %s",
-		    atalk_ntoa(((struct sockaddr_at *)(void *)sa)->sat_addr));
+		    atalk_ntoa(((struct sockaddr_at *)(void *)sa)->sat_addr,
+		    atalk_buf));
 		break;
 
 	case AF_LINK:
@@ -622,6 +626,7 @@ netname(struct sockaddr *sa)
 {
 	struct sockaddr_dl *sdl;
 	static char line[MAXHOSTNAMELEN + 1];
+	char atalk_buf[ATALK_BUF_SIZE];
 	int n;
 #ifdef INET
 	struct netent *np = NULL;
@@ -685,7 +690,8 @@ netname(struct sockaddr *sa)
 
 	case AF_APPLETALK:
 		(void)snprintf(line, sizeof(line), "atalk %s",
-		    atalk_ntoa(((struct sockaddr_at *)(void *)sa)->sat_addr));
+		    atalk_ntoa(((struct sockaddr_at *)(void *)sa)->sat_addr,
+		    atalk_buf));
 		break;
 
 	case AF_LINK:
@@ -1858,6 +1864,7 @@ keyword(const char *cp)
 static void
 sodump(struct sockaddr *sa, const char *which)
 {
+	char atalk_buf[ATALK_BUF_SIZE];
 #ifdef INET6
 	char nbuf[INET6_ADDRSTRLEN];
 #endif
@@ -1882,7 +1889,8 @@ sodump(struct sockaddr *sa, const char *which)
 #endif
 	case AF_APPLETALK:
 		(void)printf("%s: atalk %s; ", which,
-		    atalk_ntoa(((struct sockaddr_at *)(void *)sa)->sat_addr));
+		    atalk_ntoa(((struct sockaddr_at *)(void *)sa)->sat_addr,
+		    atalk_buf));
 		break;
 	}
 	(void)fflush(stdout);
@@ -1952,11 +1960,9 @@ atalk_aton(const char *text, struct at_addr *addr)
 }
 
 static char *
-atalk_ntoa(struct at_addr at)
+atalk_ntoa(struct at_addr at, char buf[ATALK_BUF_SIZE])
 {
-	static char buf[20];
-
-	(void)snprintf(buf, sizeof(buf), "%u.%u", ntohs(at.s_net), at.s_node);
-	buf[sizeof(buf) - 1] = '\0';
+	(void)snprintf(buf, ATALK_BUF_SIZE, "%u.%u", ntohs(at.s_net), at.s_node);
+	buf[ATALK_BUF_SIZE - 1] = '\0';
 	return(buf);
 }
