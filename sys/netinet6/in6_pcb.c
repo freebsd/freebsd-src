@@ -973,9 +973,8 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 			continue;
 		if (IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr, faddr) &&
 		    IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr) &&
-		    inp->inp_fport == fport &&
-		    inp->inp_lport == lport &&
-		    inp->in6p_zoneid == zoneid) {
+		    inp->inp_fport == fport && inp->inp_lport == lport && (
+			inp->in6p_zoneid == 0 || inp->in6p_zoneid == zoneid)) {
 			/*
 			 * XXX We should be able to directly return
 			 * the inp here, without any checks.
@@ -1031,8 +1030,9 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 					continue;
 			}
 
-			if (IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr) &&
-			    inp->in6p_zoneid == zoneid) {
+			if (IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr) && (
+			    inp->in6p_zoneid == 0 ||
+			    inp->in6p_zoneid == zoneid)) {
 				if (injail)
 					return (inp);
 				else
