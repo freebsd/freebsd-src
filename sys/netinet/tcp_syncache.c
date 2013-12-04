@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_pcb.h>
+#include <netinet6/scope6_var.h>
 #endif
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
@@ -1541,10 +1542,16 @@ syncache_respond(struct syncache *sc)
 	m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 #ifdef INET6
 	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
+		struct ifnet *ifp;
+
 		m->m_pkthdr.csum_flags = CSUM_TCP_IPV6;
 		th->th_sum = in6_cksum_pseudo(ip6, tlen + optlen - hlen,
 		    IPPROTO_TCP, 0);
-		ip6->ip6_hlim = in6_selecthlim(NULL, NULL);
+		if (sc->sc_inc.inc6_zoneid != 0)
+			ifp = in6_getlinkifnet(sc->sc_inc.inc6_zoneid);
+		else
+			ifp = NULL;
+		ip6->ip6_hlim = in6_selecthlim(NULL, ifp);
 #ifdef TCP_OFFLOAD
 		if (ADDED_BY_TOE(sc)) {
 			struct toedev *tod = sc->sc_tod;
@@ -1554,8 +1561,8 @@ syncache_respond(struct syncache *sc)
 			return (error);
 		}
 #endif
-		/* XXX: scope zone id */
-		error = ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
+		error = ip6_output(m, NULL, NULL, ifp ? IPV6_USEROIF: 0,
+		    NULL, &ifp, NULL);
 	}
 #endif
 #if defined(INET6) && defined(INET)
