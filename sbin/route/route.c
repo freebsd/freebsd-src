@@ -497,7 +497,8 @@ routename(struct sockaddr *sa)
 	const char *cp;
 	static char line[NI_MAXHOST];
 	static char domain[MAXHOSTNAMELEN + 1];
-	static int first = 1, n;
+	static int first = 1;
+	int n;
 
 	if (first) {
 		first = 0;
