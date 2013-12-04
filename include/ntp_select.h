@@ -1,8 +1,8 @@
 /*
  * Not all machines define FD_SET in sys/types.h
  */ 
-#ifndef _ntp_select_h
-#define _ntp_select_h
+#ifndef NTP_SELECT_H
+#define NTP_SELECT_H
 
 /* Was: (defined(RS6000)||defined(SYS_PTX))&&!defined(_BSD) */
 /* Could say: !defined(FD_SET) && defined(HAVE_SYS_SELECT_H) */
@@ -11,13 +11,13 @@
 #include <sys/select.h>
 #else
 #include <sockLib.h>
-extern int  select P((int width, fd_set *pReadFds, fd_set *pWriteFds,
-            fd_set *pExceptFds, struct timeval *pTimeOut));
+extern int  select (int width, fd_set *pReadFds, fd_set *pWriteFds,
+		    fd_set *pExceptFds, struct timeval *pTimeOut);
 
 #endif
 #endif
 
-#if !defined(FD_SET) && !defined(SYS_WINNT)
+#if !defined(FD_SET)
 #define NFDBITS         32
 #define FD_SETSIZE      32
 #define FD_SET(n, p)    ((p)->fds_bits[(n)/NFDBITS] |= (1 << ((n) % NFDBITS)))
@@ -32,4 +32,9 @@ typedef struct {
 } fd_set;
 #endif
 
-#endif /* _ntp_select_h */
+#ifdef SYS_WINNT
+/* ports/winnt/libntp/setpriority.c */
+extern	void	InitSockets(void);
+#endif
+
+#endif	/* NTP_SELECT_H */

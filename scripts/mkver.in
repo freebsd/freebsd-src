@@ -17,7 +17,7 @@ case "@LCRYPTO@" in
  *) ConfStr="${ConfStr}-?" ;;
 esac
 
-ConfStr="$ConfStr `LC_TIME=C TZ= date`"
+ConfStr="$ConfStr `LC_TIME=C TZ=UTC date`"
 
 if [ ! -f .version ]; then
   echo 0 > .version

@@ -1,13 +1,50 @@
 /*  -*- Mode: C -*-  */
 
-/* --- fake the preprocessor into handlng portability */
-/*
- *  Time-stamp:      "2007-02-03 17:41:06 bkorb"
+/**
+ * \file compat.h --- fake the preprocessor into handlng portability
  *
- * Author:           Gary V Vaughan <gvaughan@oranda.demon.co.uk>
- * Created:          Mon Jun 30 15:54:46 1997
+ *  Time-stamp:      "2010-07-16 15:11:57 bkorb"
  *
- * $Id: compat.h,v 4.16 2007/04/27 01:10:47 bkorb Exp $
+ *  compat.h is free software.
+ *  This file is part of AutoGen.
+ *
+ *  AutoGen Copyright (c) 1992-2011 by Bruce Korb - all rights reserved
+ *
+ *  AutoGen is free software: you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the
+ *  Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  AutoGen is distributed in the hope that it will be useful, but
+ *  WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *  See the GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *  As a special exception, Bruce Korb gives permission for additional
+ *  uses of the text contained in the release of compat.h.
+ *
+ *  The exception is that, if you link the compat.h library with other
+ *  files to produce an executable, this does not by itself cause the
+ *  resulting executable to be covered by the GNU General Public License.
+ *  Your use of that executable is in no way restricted on account of
+ *  linking the compat.h library code into it.
+ *
+ *  This exception does not however invalidate any other reasons why
+ *  the executable file might be covered by the GNU General Public License.
+ *
+ *  This exception applies only to the code released by Bruce Korb under
+ *  the name compat.h.  If you copy code from other sources under the
+ *  General Public License into a copy of compat.h, as the General Public
+ *  License permits, the exception does not apply to the code that you add
+ *  in this way.  To avoid misleading anyone as to the status of such
+ *  modified files, you must delete this exception notice from them.
+ *
+ *  If you write modifications of your own for compat.h, it is your choice
+ *  whether to permit this exception to apply to your modifications.
+ *  If you do not wish that, delete this exception notice.
  */
 #ifndef COMPAT_H_GUARD
 #define COMPAT_H_GUARD 1
@@ -221,57 +258,89 @@
 #endif
 
 #ifndef SHORT_MAX
-#  define SHORT_MAX     ~(1 << (8*sizeof(short) -1))
+#  define SHORT_MAX     ~(1 << (8*sizeof(short) - 1))
 #else
 #  define USHORT_MAX    ~(OUS)
 #endif
 
 #ifndef HAVE_INT8_T
-  typedef signed char       int8_t;
+  typedef signed char           int8_t;
+# define  HAVE_INT8_T           1
 #endif
 #ifndef HAVE_UINT8_T
-  typedef unsigned char     uint8_t;
+  typedef unsigned char         uint8_t;
+# define  HAVE_UINT8_T          1
 #endif
 #ifndef HAVE_INT16_T
-  typedef signed short      int16_t;
+  typedef signed short          int16_t;
+# define  HAVE_INT16_T          1
 #endif
 #ifndef HAVE_UINT16_T
-  typedef unsigned short    uint16_t;
-#endif
-#ifndef HAVE_UINT_T
-  typedef unsigned int      uint_t;
+  typedef unsigned short        uint16_t;
+# define  HAVE_UINT16_T         1
 #endif
 
 #ifndef HAVE_INT32_T
-# if SIZEOF_INT == 4
-        typedef signed int      int32_t;
-# elif SIZEOF_LONG == 4
-        typedef signed long     int32_t;
+# if SIZEOF_INT ==              4
+    typedef signed int          int32_t;
+# elif SIZEOF_LONG ==           4
+    typedef signed long         int32_t;
 # endif
+# define  HAVE_INT32_T          1
 #endif
 
 #ifndef HAVE_UINT32_T
-# if SIZEOF_INT == 4
-        typedef unsigned int    uint32_t;
-# elif SIZEOF_LONG == 4
-        typedef unsigned long   uint32_t;
+# if SIZEOF_INT ==              4
+    typedef unsigned int        uint32_t;
+# elif SIZEOF_LONG ==           4
+    typedef unsigned long       uint32_t;
 # else
 #   error Cannot create a uint32_t type.
     Choke Me.
 # endif
+# define  HAVE_UINT32_T         1
 #endif
 
 #ifndef HAVE_INTPTR_T
-  typedef signed long   intptr_t;
+# if SIZEOF_CHARP == SIZEOF_LONG
+    typedef signed long         intptr_t;
+# else
+    typedef signed int          intptr_t;
+# endif
+# define  HAVE_INTPTR_T         1
 #endif
+
 #ifndef HAVE_UINTPTR_T
-  typedef unsigned long uintptr_t;
+# if SIZEOF_CHARP == SIZEOF_LONG
+    typedef unsigned long       intptr_t;
+# else
+    typedef unsigned int        intptr_t;
+# endif
+# define  HAVE_INTPTR_T         1
+#endif
+
+#ifndef HAVE_UINT_T
+  typedef unsigned int          uint_t;
+# define  HAVE_UINT_T           1
+#endif
+
+#ifndef HAVE_SIZE_T
+  typedef unsigned int          size_t;
+# define  HAVE_SIZE_T           1
+#endif
+#ifndef HAVE_WINT_T
+  typedef unsigned int          wint_t;
+# define  HAVE_WINT_T           1
+#endif
+#ifndef HAVE_PID_T
+  typedef signed int            pid_t;
+# define  HAVE_PID_T            1
 #endif
 
 /* redefine these for BSD style string libraries */
 #ifndef HAVE_STRCHR
-#  define strchr        index
-#  define strrchr       rindex
+#  define strchr            index
+#  define strrchr           rindex
 #endif
 
 #ifdef USE_FOPEN_BINARY

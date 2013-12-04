@@ -9,198 +9,281 @@
 # include <config.h>
 #endif
 
-#ifdef HAVE_SYS_TYPES_H
-# include <sys/types.h>
-#endif
+#include <sys/types.h>
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
-
 #include <stdio.h>
 
-#include "ntp_types.h"
+#include "ntp.h"
 #include "ntp_string.h"
 #include "ntp_syslog.h"
-#include "ntp_stdlib.h"
 
 #ifdef SYS_WINNT
 # include <stdarg.h>
 # include "..\ports\winnt\libntp\messages.h"
 #endif
 
-int syslogit = 1;
 
-FILE *syslog_file = NULL;
+int	syslogit = 1;
+int	msyslog_term = FALSE;	/* duplicate to stdout/err */
+FILE *	syslog_file;
 
-u_long ntp_syslogmask =  ~ (u_long) 0;
+u_int32 ntp_syslogmask =  ~(u_int32)0;	/* libntp default is all lit */
 
-#ifdef SYS_WINNT
-static char separator = '\\';
-#else
-static char separator = '/';
-#endif /* SYS_WINNT */
-extern	char *progname;
+extern	char *	progname;
 
 /* Declare the local functions */
-void	addto_syslog	P((int, char *));
-void	format_errmsg   P((char *, int, const char *, int));
+void	addto_syslog	(int, const char *);
+void	format_errmsg	(char *, size_t, const char *, int);
 
 
 /*
- * This routine adds the contents of a buffer to the log
+ * This routine adds the contents of a buffer to the syslog or an
+ * application-specific logfile.
  */
 void
-addto_syslog(int level, char * buf)
+addto_syslog(
+	int		level,
+	const char *	msg
+	)
 {
-	char *prog;
-	FILE *out_file = syslog_file;
+	static char *	prevcall_progname;
+	static char *	prog;
+	const char	nl[] = "\n";
+	const char	empty[] = "";
+	FILE *		term_file;
+	int		log_to_term;
+	int		log_to_file;
+	const char *	nl_or_empty;
+	const char *	human_time;
 
-#if !defined(VMS) && !defined (SYS_VXWORKS)
-	if (syslogit)
-	    syslog(level, "%s", buf);
-	else
-#endif /* VMS  && SYS_VXWORKS*/
-	{
-		out_file = syslog_file ? syslog_file: level <= LOG_ERR ? stderr : stdout;
-		/* syslog() provides the timestamp, so if we're not using
-		   syslog, we must provide it. */
-		prog = strrchr(progname, separator);
-		if (prog == NULL)
-		    prog = progname;
+	/* setup program basename static var prog if needed */
+	if (progname != prevcall_progname) {
+		prevcall_progname = progname;
+		prog = strrchr(progname, DIR_SEP);
+		if (prog != NULL)
+			prog++;
 		else
-		    prog++;
-		(void) fprintf(out_file, "%s ", humanlogtime ());
-		(void) fprintf(out_file, "%s[%d]: %s", prog, (int)getpid(), buf);
-		fflush (out_file);
+			prog = progname;
 	}
-#if DEBUG
-	if (debug && out_file != stdout && out_file != stderr)
-		printf("addto_syslog: %s\n", buf);
-#endif
-}
-void
-format_errmsg(char *nfmt, int lennfmt, const char *fmt, int errval)
-{
-	register char c;
-	register char *n;
-	register const char *f;
 
+	log_to_term = msyslog_term;
+	log_to_file = FALSE;
+#if !defined(VMS) && !defined(SYS_VXWORKS)
+	if (syslogit)
+		syslog(level, "%s", msg);
+	else
+#endif
+		if (syslog_file != NULL)
+			log_to_file = TRUE;
+		else
+			log_to_term = TRUE;
+#if DEBUG
+	if (debug > 0)
+		log_to_term = TRUE;
+#endif
+	if (!(log_to_file || log_to_term))
+		return;
+
+	/* syslog() adds the timestamp, name, and pid */
+	human_time = humanlogtime();
+
+	/* syslog() adds trailing \n if not present */
+	if ('\n' != msg[strlen(msg) - 1])
+		nl_or_empty = nl;
+	else
+		nl_or_empty = empty;
+
+	if (log_to_term) {
+		term_file = (level <= LOG_ERR)
+				? stderr
+				: stdout;
+		fprintf(term_file, "%s %s[%d]: %s%s", human_time, prog,
+			(int)getpid(), msg, nl_or_empty);
+		fflush(term_file);
+	}
+
+	if (log_to_file) {
+		fprintf(syslog_file, "%s %s[%d]: %s%s", human_time,
+			prog, (int)getpid(), msg, nl_or_empty);
+		fflush(syslog_file);
+	}
+}
+
+
+void
+format_errmsg(
+	char *		nfmt,
+	size_t		lennfmt,
+	const char *	fmt,
+	int		errval
+	)
+{
+	char c;
+	char *n;
+	const char *f;
+	size_t len;
 	char *err;
 
 	n = nfmt;
 	f = fmt;
-	while ((c = *f++) != '\0' && n < (nfmt+lennfmt - 2)) {
+	while ((c = *f++) != '\0' && n < (nfmt + lennfmt - 1)) {
 		if (c != '%') {
 			*n++ = c;
 			continue;
 		}
 		if ((c = *f++) != 'm') {
 			*n++ = '%';
+			if ('\0' == c)
+				break;
 			*n++ = c;
 			continue;
 		}
-		err = 0;
 		err = strerror(errval);
+		len = strlen(err);
+
 		/* Make sure we have enough space for the error message */
-		if ((n + strlen(err)) < (nfmt + lennfmt -2)) {
-			strcpy(n, err);
-			n += strlen(err);
+		if ((n + len) < (nfmt + lennfmt - 1)) {
+			memcpy(n, err, len);
+			n += len;
 		}
 	}
-#if !defined(VMS)
-	if (!syslogit)
-#endif /* VMS */
-	    *n++ = '\n';
 	*n = '\0';
 }
 
-/*
- * The externally called functions are defined here
- * but share the internal function above to fetch
- * any error message strings, This is done so that we can
- * have two different functions to perform the logging
- * since Windows gets it's error information from different
- * places depending on whether or not it's network I/O.
- * msyslog() is for general use while netsyslog() is for
- * network I/O functions. They are virtually identical
- * in implementation.
- */
 
-#if defined(__STDC__) || defined(HAVE_STDARG_H)
-void msyslog(int level, const char *fmt, ...)
-#else /* defined(__STDC__) || defined(HAVE_STDARG_H) */
-     /*VARARGS*/
-     void msyslog(va_alist)
-     va_dcl
-#endif /* defined(__STDC__) || defined(HAVE_STDARG_H) */
+int
+mvsnprintf(
+	char *		buf,
+	size_t		bufsiz,
+	const char *	fmt,
+	va_list		ap
+	)
 {
-#if defined(__STDC__) || defined(HAVE_STDARG_H)
+#ifndef VSNPRINTF_PERCENT_M
+	char		nfmt[256];
 #else
-	int level;
-	const char *fmt;
+	const char *	nfmt = fmt;
 #endif
-	va_list ap;
-	char buf[1025], nfmt[256];
+	int		errval;
 
 	/*
 	 * Save the error value as soon as possible
 	 */
 #ifdef SYS_WINNT
-	int errval = GetLastError();
-#else
-	int errval = errno;
-#endif
+	errval = GetLastError();
+	if (NO_ERROR == errval)
+#endif /* SYS_WINNT */
+		errval = errno;
 
-#if defined(__STDC__) || defined(HAVE_STDARG_H)
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-
-	level = va_arg(ap, int);
-	fmt = va_arg(ap, char *);
-#endif
+#ifndef VSNPRINTF_PERCENT_M
 	format_errmsg(nfmt, sizeof(nfmt), fmt, errval);
-
-	vsnprintf(buf, sizeof(buf), nfmt, ap);
-	addto_syslog(level, buf);
-	va_end(ap);
+#else
+	errno = errval;
+#endif
+	return vsnprintf(buf, bufsiz, nfmt, ap);
 }
-#if defined(__STDC__) || defined(HAVE_STDARG_H)
-void netsyslog(int level, const char *fmt, ...)
-#else /* defined(__STDC__) || defined(HAVE_STDARG_H) */
-     /*VARARGS*/
-     void netsyslog(va_alist)
-     va_dcl
-#endif /* defined(__STDC__) || defined(HAVE_STDARG_H) */
+
+
+int
+mvfprintf(
+	FILE *		fp,
+	const char *	fmt,
+	va_list		ap
+	)
 {
-#if defined(__STDC__) || defined(HAVE_STDARG_H)
+#ifndef VSNPRINTF_PERCENT_M
+	char		nfmt[256];
 #else
-	int level;
-	const char *fmt;
+	const char *	nfmt = fmt;
 #endif
-	va_list ap;
-	char buf[1025], nfmt[256];
+	int		errval;
 
 	/*
 	 * Save the error value as soon as possible
 	 */
 #ifdef SYS_WINNT
-	int errval = WSAGetLastError();
-#else
-	int errval = errno;
-#endif
+	errval = GetLastError();
+	if (NO_ERROR == errval)
+#endif /* SYS_WINNT */
+		errval = errno;
 
-#if defined(__STDC__) || defined(HAVE_STDARG_H)
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-
-	level = va_arg(ap, int);
-	fmt = va_arg(ap, char *);
-#endif
+#ifndef VSNPRINTF_PERCENT_M
 	format_errmsg(nfmt, sizeof(nfmt), fmt, errval);
+#else
+	errno = errval;
+#endif
+	return vfprintf(fp, nfmt, ap);
+}
 
-	vsnprintf(buf, sizeof(buf), nfmt, ap);
-	addto_syslog(level, buf);
+
+int
+mfprintf(
+	FILE *		fp,
+	const char *	fmt,
+	...
+	)
+{
+	va_list		ap;
+	int		rc;
+
+	va_start(ap, fmt);
+	rc = mvfprintf(fp, fmt, ap);
 	va_end(ap);
+
+	return rc;
+}
+
+
+int
+mprintf(
+	const char *	fmt,
+	...
+	)
+{
+	va_list		ap;
+	int		rc;
+
+	va_start(ap, fmt);
+	rc = mvfprintf(stdout, fmt, ap);
+	va_end(ap);
+
+	return rc;
+}
+
+
+int
+msnprintf(
+	char *		buf,
+	size_t		bufsiz,
+	const char *	fmt,
+	...
+	)
+{
+	va_list	ap;
+	size_t	rc;
+
+	va_start(ap, fmt);
+	rc = mvsnprintf(buf, bufsiz, fmt, ap);
+	va_end(ap);
+
+	return rc;
+}
+
+
+void
+msyslog(
+	int		level,
+	const char *	fmt,
+	...
+	)
+{
+	char	buf[1024];
+	va_list	ap;
+
+	va_start(ap, fmt);
+	mvsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+	addto_syslog(level, buf);
 }

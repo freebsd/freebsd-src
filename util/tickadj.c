@@ -180,11 +180,13 @@ main(
 # include <sys/resource.h>
 # include <sys/file.h>
 # include <a.out.h>
-# include <sys/var.h>
+# ifdef HAVE_SYS_VAR_H
+#  include <sys/var.h>
+# endif
 #endif
 
-#include "ntp_io.h"
 #include "ntp_stdlib.h"
+#include "ntp_io.h"
 
 #ifdef hz /* Was: RS6000 */
 # undef hz
@@ -225,10 +227,10 @@ const char *kmem = KMEM;
 const char *file = NULL;
 int   fd  = -1;
 
-static	void	getoffsets	P((off_t *, off_t *, off_t *, off_t *));
-static	int	openfile	P((const char *, int));
-static	void	writevar	P((int, off_t, int));
-static	void	readvar		P((int, off_t, int *));
+static	void	getoffsets	(off_t *, off_t *, off_t *, off_t *);
+static	int	openfile	(const char *, int);
+static	void	writevar	(int, off_t, int);
+static	void	readvar		(int, off_t, int *);
 
 /*
  * main - parse arguments and handle options

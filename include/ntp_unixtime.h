@@ -136,6 +136,3 @@ extern u_long msutotsfhi[];
 
 #define	MSUTOTSF(msu, tsf) \
 	(tsf) = msutotsfhi[((msu) >> 5) & 0x1f] + msutotsflo[(msu) & 0x1f]
-
-extern	char *	tvtoa		P((const struct timeval *));
-extern	char *	utvtoa		P((const struct timeval *));

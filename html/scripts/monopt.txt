@@ -1,0 +1,5 @@
+document.write("<h4>Monitoring Commands</h4><p><ul>\
+<li class='inline'><a href='monopt.html#filegen'>filegen - specify monitor files</a><br>\
+<li class='inline'><a href='monopt.html#statsdir'>statsdir - specify monitor files directory</a><br>\
+<li class='inline'><a href='comdex.html'>Command Index</a></p>\
+</ul>")

@@ -36,13 +36,20 @@ char *strchr(), *strrchr();
 #endif /* STDC_HEADERS */
 
 #ifdef NTP_NEED_BOPS
-# define memcmp(a,b,c) bcmp(a,b,(int)c)
-# define memmove(t,f,c) bcopy(f,t,(int)c)
-# define memcpy(t,f,c) bcopy(f,t,(int)c)
-# define memset(a,x,c) if (x == 0x00) bzero(a,(int)c); else ntp_memset((char*)a,x,c)
 
-void ntp_memset P((char *, int, int));
+#ifdef HAVE_STRINGS_H
+# include <strings.h>		/* bcmp, bcopy, bzero */
+#endif
 
+void	ntp_memset	(char *, int, int);
+
+#define memcmp(a, b, c)		bcmp(a, b, (int)(c))
+#define memmove(t, f, c)	bcopy(f, t, (int)(c))
+#define memcpy(t, f, c)		bcopy(f, t, (int)(c))
+#define memset(a, x, c)		if (0 == (x)) \
+					bzero(a, (int)(c)); \
+				else \
+					ntp_memset((char *)(a), x, c)
 #endif /*  NTP_NEED_BOPS */
 
 #endif /* _ntp_string_h */

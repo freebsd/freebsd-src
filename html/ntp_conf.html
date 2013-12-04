@@ -11,9 +11,9 @@
 
 	<body>
 		<h3>Configuration File Definition (Advanced)</h3>
-		<img src="pic/bustardfly.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>Pogo</i>, Walt Kelly</a>
-		<p>A typical NTP monitoring packet</p>
-		<p>Last update: <csobj format="ShortTime" h="25" locale="00000409" region="0" t="DateTime" w="61">19:46</csobj> UTC <csobj format="LongDate" h="25" locale="00000409" region="0" t="DateTime" w="223">Friday, June 16, 2006</csobj></p>
+		<img src="pic/pogo7.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>Pogo</i>, Walt Kelly</a>
+		<p>Racoon is shooting configuration bugs.</p>
+		<p>Last update: <csobj format="ShortTime" h="25" locale="00000409" region="0" t="DateTime" w="61">02:20</csobj> UTC <csobj format="LongDate" h="25" locale="00000409" region="0" t="DateTime" w="252">Monday, March 03, 2008</csobj></p>
 		<br clear="left">
 		<hr>
 		<h4>Table of Contents</h4>
@@ -101,8 +101,9 @@
 			<dd>This file is structured as a standard Bison file and consists of three main parts, separated by <tt>%%</tt>:
 		</dl>
 		<ol>
-			<li>The prologue and bison declarations: This section contains a list of the terminal symbols, the non-terminal symbols and the types of these symbols.<li>The rules section: This section contains a description of the actual phrase-structure rules that are used to parse the configuration commands. Each rule consists of a left-hand side (LHS), a right-hand side (RHS) and an optional action. As is standard with phrase-structure grammars, the LHS consists of a single non-terminal symbol. The RHS can contain both terminal and non-terminal symbols, while the optional action can consist of any arbitrary C code.
-			<li>The epilogue: This section is left empty on purpose. It is traditionally used to code the support functions needed to build the ASTs Since, we have moved all the support functions to <b>ntp_config.c</b>, this section is left empty. 
+			<li>The prologue and bison declarations: This section contains a list of the terminal symbols, the non-terminal symbols and the types of these symbols.</li>
+			<li>The rules section: This section contains a description of the actual phrase-structure rules that are used to parse the configuration commands. Each rule consists of a left-hand side (LHS), a right-hand side (RHS) and an optional action. As is standard with phrase-structure grammars, the LHS consists of a single non-terminal symbol. The RHS can contain both terminal and non-terminal symbols, while the optional action can consist of any arbitrary C code.</li>
+			<li>The epilogue: This section is left empty on purpose. It is traditionally used to code the support functions needed to build the ASTs Since, we have moved all the support functions to <b>ntp_config.c</b>, this section is left empty.</li> 
 		</ol>
 		<h4>Prologue and Bison Declarations</h4>
 		<p>All the terminal symbols (also known as tokens) have to be declared in the prologue section. Note that terminals and non-terminals may have values associated with them and these values have types. (More on this later). An unnamed union has to be declared with all the possible types at the start of the prologue section. For example, we declare the following union at the start of the <b>ntp_config.y</b> file:</p>
@@ -153,17 +154,17 @@
 		<p><b>ntp_config.c</b></p>
 		<p>This file contains the major chunk of the configuration code including all the support functions needed for building and traversing the ASTs. As such, most of the functions in this file can be divided into two groups:</p>
 		<ol>
-			<li>Functions that have a <tt>create_</tt> prefix. These functions are used to build a node of the AST. 
-			<li>Functions that have a <tt>config_</tt> prefix. These functions are used to traverse the AST and configure NTP according to the nodes present on the tree. 
+			<li>Functions that have a <tt>create_</tt> prefix. These functions are used to build a node of the AST.</li> 
+			<li>Functions that have a <tt>config_</tt> prefix. These functions are used to traverse the AST and configure NTP according to the nodes present on the tree.</li> 
 		</ol>
 		<h4>Guidelines for Adding Configuration Commands</h4>
 		<p>The following steps may be used to add a new configuration command to the NTP reference implementation:</p>
 		<ol>
-			<li>Write phrase-structure grammar rules for the syntax of the new command. Add these rules to the rules section of the <b>ntp_config.y</b> file. 
-			<li>Write the action to be performed on recognizing the rules. These actions will be used to build the AST.
-			<li>If new reserved words are needed, add these to the <tt>struct key_tok keyword_list[]</tt>structure in the <b>ntp_config.c </b>file. This will allow the scanner to recognize these reserved words and generate the desired tokens on recognizing them. 
-			<li>Specify the types of all the terminals and non-terminal symbols in the prologue section of the <b>ntp_config.c</b> file. 
-			<li>Write a function with a <tt>config_</tt> prefix that will   be executed for this new command. Make sure this function is called in the <tt>config_ntpd()</tt>function. 
+			<li>Write phrase-structure grammar rules for the syntax of the new command. Add these rules to the rules section of the <b>ntp_config.y</b> file. </li>
+			<li>Write the action to be performed on recognizing the rules. These actions will be used to build the AST.</li>
+			<li>If new reserved words are needed, add these to the <tt>struct key_tok keyword_list[]</tt>structure in the <b>ntp_config.c </b>file. This will allow the scanner to recognize these reserved words and generate the desired tokens on recognizing them.</li> 
+			<li>Specify the types of all the terminals and non-terminal symbols in the prologue section of the <b>ntp_config.c</b> file.</li> 
+			<li>Write a function with a <tt>config_</tt> prefix that will   be executed for this new command. Make sure this function is called in the <tt>config_ntpd()</tt>function.</li> 
 		</ol>
 		<hr>
 		<address><a href="mailto:skamboj@udel.edu">Sachin Kamboj</a></address>

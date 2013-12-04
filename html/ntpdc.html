@@ -13,15 +13,15 @@
 		<h3><tt>ntpdc</tt> - special NTP query program</h3>
 		<img src="pic/alice31.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>Alice's Adventures in Wonderland</i>, Lewis Carroll</a>
 		<p>This program is a big puppy.</p>
-		<p>Last update: <csobj format="ShortTime" h="25" locale="00000409" region="0" t="DateTime" w="99">04:11 AM</csobj> UTC <csobj format="LongDate" h="25" locale="00000409" region="0" t="DateTime" w="294">Monday, November 27, 2006</csobj></p>
+		<p>Last update: <csobj format="ShortTime" h="25" locale="00000409" region="0" t="DateTime" w="61">01:11</csobj> UTC <csobj format="LongDate" h="25" locale="00000409" region="0" t="DateTime" w="308">Saturday, November 24, 2007</csobj></p>
 		<br clear="left">
 		<h4>More Help</h4>
-		<script type="text/javascript" language="javascript" src="scripts/links12.txt"></script>
+		<script type="text/javascript" language="javascript" src="scripts/manual.txt"></script>
 		<hr>
 		<h4>Synopsis</h4>
-		<tt>ntpdc [ -ilnps ] [ -c <i>command</i> ] [ <i>host</i> ] [ ... ]</tt>
+		<tt>ntpdc [ -46dilnps ] [ -c <i>command</i> ] [ <i>host</i> ] [ ... ]</tt>
 		<h4>Description</h4>
-		<tt>ntpdc</tt> is used to query the <tt>ntpd</tt> daemon about its current state and to request changes in that state. The program may be run either in interactive mode or controlled using command line arguments. Extensive state and statistics information is available through the <tt>ntpdc</tt> interface. In addition, nearly all the configuration options which can be specified at startup using ntpd's configuration file may also be specified at run time using <tt>ntpdc</tt>.
+		<p><tt>ntpdc</tt> is used to query the <tt>ntpd</tt> daemon about its current state and to request changes in that state. The program may be run either in interactive mode or controlled using command line arguments. Extensive state and statistics information is available through the <tt>ntpdc</tt> interface. In addition, nearly all the configuration options which can be specified at startup using ntpd's configuration file may also be specified at run time using <tt>ntpdc</tt>.</p>
 		<p>If one or more request options are included on the command line when <tt>ntpdc</tt> is executed, each of the requests will be sent to the NTP servers running on each of the hosts given as command line arguments, or on localhost by default. If no request options are given, <tt>ntpdc</tt> will attempt to read commands from the standard input and execute these on the NTP server running on the first host given on the command line, again defaulting to localhost when no other host is specified. <tt>ntpdc</tt> will prompt for commands if the standard input is a terminal device.</p>
 		<p><tt>ntpdc</tt> uses NTP mode 7 packets to communicate with the NTP server, and hence can be used to query any compatible server on the network which permits it. Note that since NTP is a UDP protocol this communication will be somewhat unreliable, especially over large distances in terms of network topology. <tt>ntpdc</tt> makes no attempt to retransmit requests, and will time requests out if the remote host is not heard from within a suitable timeout time.</p>
 		<p>The operation of <tt>ntpdc</tt> are specific to the particular implementation of the <tt>ntpd</tt> daemon and can be expected to work only with this and maybe some previous versions of the daemon. Requests from a remote <tt>ntpdc</tt> program which affect the state of the local server must be authenticated, which requires both the remote program and local server share a common key and key identifier.</p>
@@ -35,6 +35,8 @@
 			<dd>Force DNS resolution of following host names on the command line to the IPv6 namespace.
 			<dt><tt>-c <i>command</i></tt>
 			<dd>The following argument is interpreted as an interactive format command and is added to the list of commands to be executed on the specified host(s). Multiple -c options may be given.
+			<dt><tt>-d</tt>
+			<dd>Turn on debugging mode.
 			<dt><tt>-i</tt>
 			<dd>Force <tt>ntpdc</tt> to operate in interactive mode. Prompts will be written to the standard output and commands read from the standard input.
 			<dt><tt>-l</tt>
@@ -134,11 +136,11 @@
 		<dt><tt>addpeer <i>peer_address</i> [
 		<i>keyid</i> ] [ <i>version</i> ] [
 		<tt>minpoll# | prefer | iburst  | burst | minpoll
-		<i>N</i> | <tt>maxpoll</tt> <i>N</i> [...] ]</tt>
+		<i>N</i> | <tt>maxpoll</tt> <i>N</i> [...] </tt> ]</tt>
 		<dt><tt>addpeer <i>peer_address</i> [
 		<tt>prefer | iburst | burst | minpoll
 		<i>N</i> | <tt>maxpoll</tt> <i>N</i> | <tt>keyid</tt>
-			<i>N</i> | <tt>version</tt> <i>N</i> [...] ]</tt>
+			<i>N</i> | <tt>version</tt> <i>N</i> [...] </tt> ]</tt>
 			<dd>Add a configured peer association at the
 			given address and operating in symmetric
 			active mode. Note that an existing association
@@ -163,14 +165,15 @@
 			ntpd.  See the <a href="confopt.html">Server Options</a> page for further information.
 			Each flag (or its absence) replaces the
 			previous setting. The <tt>prefer</tt> keyword indicates a preferred peer (and thus will be used primarily for clock synchronisation if possible). The preferred peer also determines the validity of the PPS signal - if the preferred peer is suitable for synchronisation so is the PPS signal.
+			The <tt>dynamic</tt> keyword allows association configuration even when no suitable network interface is found at configuration time. The dynamic interface update mechanism may complete the configuration when new interfaces appear (e.g. WLAN/PPP interfaces) at a later time and thus render the association operable.
 			<dt><tt>addserver <i>peer_address</i> [
 		<i>keyid</i> ] [ <i>version</i> ] [
 		<tt>minpoll# | prefer | iburst  | burst | minpoll
-		<i>N</i> | <tt>maxpoll</tt> <i>N</i> [...] ]</tt>
+		<i>N</i> | <tt>maxpoll</tt> <i>N</i> [...] </tt> ]</tt>
 		<dt><tt>addserver <i>peer_address</i> [
 		<tt>prefer | iburst | burst | minpoll
 		<i>N</i> | <tt>maxpoll</tt> <i>N</i> | <tt>keyid</tt>
-			<i>N</i> | <tt>version</tt> <i>N</i> [...] ]</tt>
+			<i>N</i> | <tt>version</tt> <i>N</i> [...] </tt> ]</tt>
 			<dd>Identical to the addpeer command, except that the operating mode is client.
 			<dt><tt>broadcast <i>peer_address</i> [
 			<i>keyid</i> ] [ <i>version</i> ] [ <i>prefer</i> ]</tt>
@@ -199,9 +202,9 @@
 			<dd>Returns information concerning the authentication module, including known keys and counts of encryptions and decryptions which have been done.
 			<dt><tt>traps</tt>
 			<dd>Display the traps set in the server. See the source listing for further information.
-			<dt><tt>addtrap [ <i>address</i> [ <i>port</i> ] [ <i>interface</i> ]</tt>
+			<dt><tt>addtrap [ <i>address</i> ] [ <i>port</i> ] [ <i>interface</i> ]</tt>
 			<dd>Set a trap for asynchronous messages. See the source listing for further information.
-			<dt><tt>clrtrap [ <i>address</i> [ <i>port</i> ] [ <i>interface</i>]</tt>
+			<dt><tt>clrtrap [ <i>address</i> ] [ <i>port</i> ] [ <i>interface</i>]</tt>
 			<dd>Clear a trap for asynchronous messages. See the source listing for further information.
 			<dt><tt>reset</tt>
 			<dd>Clear the statistics counters in various modules of the server. See the source listing for further information.

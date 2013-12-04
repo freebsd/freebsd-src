@@ -30,7 +30,7 @@
 #include <stdio.h>
 #else
 #include "sys/parsestreams.h"
-extern void printf P((const char *, ...));
+extern int printf (const char *, ...);
 #endif
 
 /* Type II Serial Output format
@@ -57,8 +57,8 @@ static struct format rcc8000_fmt =
   0 
 };
 
-static unsigned long cvt_rcc8000 P((unsigned char *, int, struct format *, clocktime_t *, void *));
-static unsigned long inp_rcc8000 P((parse_t *, unsigned int, timestamp_t *));
+static unsigned long cvt_rcc8000 (unsigned char *, int, struct format *, clocktime_t *, void *);
+static unsigned long inp_rcc8000 (parse_t *, unsigned int, timestamp_t *);
 
 clockformat_t clock_rcc8000 =
 {

@@ -23,7 +23,7 @@ signal_no_reset(
 #if defined(__STDC__) || defined(HAVE_STDARG_H)
 #else
 	 int sig;
-	 void (*func) P((int));
+	 void (*func) (int);
 #endif
 {
 	int n;

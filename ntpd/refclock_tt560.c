@@ -47,9 +47,9 @@ typedef union byteswap_u
 /*
  * Function prototypes
  */
-static	int	tt560_start	P((int, struct peer *));
-static	void	tt560_shutdown	P((int, struct peer *));
-static	void	tt560_poll	P((int unit, struct peer *));
+static	int	tt560_start	(int, struct peer *);
+static	void	tt560_shutdown	(int, struct peer *);
+static	void	tt560_poll	(int unit, struct peer *);
 
 /*
  * Transfer vector

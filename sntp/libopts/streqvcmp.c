@@ -1,7 +1,8 @@
 
-/*
- *  $Id: streqvcmp.c,v 4.10 2007/04/28 22:19:23 bkorb Exp $
- * Time-stamp:      "2006-07-26 18:25:53 bkorb"
+/**
+ * \file streqvcmp.c
+ *
+ * Time-stamp:      "2010-07-17 10:16:24 bkorb"
  *
  *  String Equivalence Comparison
  *
@@ -9,52 +10,27 @@
  *  character before comparison.  In processing long option names,
  *  the characters "-", "_" and "^" all need to be equivalent
  *  (because they are treated so by different development environments).
- */
-
-/*
- *  Automated Options copyright 1992-2007 Bruce Korb
  *
- *  Automated Options is free software.
- *  You may redistribute it and/or modify it under the terms of the
- *  GNU General Public License, as published by the Free Software
- *  Foundation; either version 2, or (at your option) any later version.
+ *  This file is part of AutoOpts, a companion to AutoGen.
+ *  AutoOpts is free software.
+ *  AutoOpts is Copyright (c) 1992-2011 by Bruce Korb - all rights reserved
  *
- *  Automated Options is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  AutoOpts is available under any one of two licenses.  The license
+ *  in use must be one of these two and the choice is under the control
+ *  of the user of the license.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with Automated Options.  See the file "COPYING".  If not,
- *  write to:  The Free Software Foundation, Inc.,
- *             51 Franklin Street, Fifth Floor,
- *             Boston, MA  02110-1301, USA.
+ *   The GNU Lesser General Public License, version 3 or later
+ *      See the files "COPYING.lgplv3" and "COPYING.gplv3"
  *
- * As a special exception, Bruce Korb gives permission for additional
- * uses of the text contained in his release of AutoOpts.
+ *   The Modified Berkeley Software Distribution License
+ *      See the file "COPYING.mbsd"
  *
- * The exception is that, if you link the AutoOpts library with other
- * files to produce an executable, this does not by itself cause the
- * resulting executable to be covered by the GNU General Public License.
- * Your use of that executable is in no way restricted on account of
- * linking the AutoOpts library code into it.
+ *  These files have the following md5sums:
  *
- * This exception does not however invalidate any other reasons why
- * the executable file might be covered by the GNU General Public License.
+ *  43b91e8ca915626ed3818ffb1b71248b pkg/libopts/COPYING.gplv3
+ *  06a1a2e4760c90ea5e1dad8dfaac4d39 pkg/libopts/COPYING.lgplv3
+ *  66a5cedaf62c4b2637025f049f9b826f pkg/libopts/COPYING.mbsd
  *
- * This exception applies only to the code released by Bruce Korb under
- * the name AutoOpts.  If you copy code from other sources under the
- * General Public License into a copy of AutoOpts, as the General Public
- * License permits, the exception does not apply to the code that you add
- * in this way.  To avoid misleading anyone as to the status of such
- * modified files, you must delete this exception notice from them.
- *
- * If you write modifications of your own for AutoOpts, it is your choice
- * whether to permit this exception to apply to your modifications.
- * If you do not wish that, delete this exception notice.
- */
-
-/*
  * This array is designed for mapping upper and lower case letter
  * together for a case independent comparison.  The mappings are
  * based upon ascii character sequences.
@@ -122,7 +98,7 @@ static unsigned char charmap[] = {
  * err:  none checked.  Caller responsible for seg faults.
 =*/
 int
-strneqvcmp( tCC* s1, tCC* s2, int ct )
+strneqvcmp(tCC* s1, tCC* s2, int ct)
 {
     for (; ct > 0; --ct) {
         unsigned char u1 = (unsigned char) *s1++;
@@ -161,7 +137,7 @@ strneqvcmp( tCC* s1, tCC* s2, int ct )
  * err:  none checked.  Caller responsible for seg faults.
 =*/
 int
-streqvcmp( tCC* s1, tCC* s2 )
+streqvcmp(tCC* s1, tCC* s2)
 {
     for (;;) {
         unsigned char u1 = (unsigned char) *s1++;
@@ -194,7 +170,7 @@ streqvcmp( tCC* s1, tCC* s2 )
  * are incremented and the process repeated until @code{ct} entries have been
  * set. For example,
  * @example
- *    streqvmap( 'a', 'A', 26 );
+ *    streqvmap('a', 'A', 26);
  * @end example
  * @noindent
  * will alter the mapping so that all English lower case letters
@@ -206,10 +182,10 @@ streqvcmp( tCC* s1, tCC* s2 )
  * err:  none.
 =*/
 void
-streqvmap( char From, char To, int ct )
+streqvmap(char From, char To, int ct)
 {
     if (ct == 0) {
-        ct = sizeof( charmap ) - 1;
+        ct = sizeof(charmap) - 1;
         do  {
             charmap[ ct ] = ct;
         } while (--ct >= 0);
@@ -223,7 +199,7 @@ streqvmap( char From, char To, int ct )
             charmap[ chFrom ] = (unsigned)chTo;
             chFrom++;
             chTo++;
-            if ((chFrom >= sizeof( charmap )) || (chTo >= sizeof( charmap )))
+            if ((chFrom >= sizeof(charmap)) || (chTo >= sizeof(charmap)))
                 break;
         } while (--ct > 0);
     }
@@ -246,7 +222,7 @@ streqvmap( char From, char To, int ct )
  * err:  none.
 =*/
 void
-strequate( char const* s )
+strequate(char const* s)
 {
     if ((s != NULL) && (*s != NUL)) {
         unsigned char equiv = (unsigned)*s;
@@ -270,10 +246,12 @@ strequate( char const* s )
  * This function name is mapped to option_strtransform so as to not conflict
  * with the POSIX name space.
  *
+ * The source and destination may be the same.
+ *
  * err:  none.
 =*/
 void
-strtransform( char* d, char const* s )
+strtransform(char* d, char const* s)
 {
     do  {
         *(d++) = (char)charmap[ (unsigned)*s ];

@@ -15,9 +15,6 @@
  * high order bit of each byte a parity bit.  "Ascii" means a 1-to-8
  * character string whose ascii representation is used as the key.
  */
-
-#define	KEY_TYPE_MD5	4
-
 int
 authusekey(
 	keyid_t keyno,
@@ -31,17 +28,8 @@ authusekey(
 	cp = str;
 	len = strlen((const char *)cp);
 	if (len == 0)
-	    return 0;
-
-	switch(keytype) {
-	    case KEY_TYPE_MD5:
-		MD5auth_setkey(keyno, str, (int)strlen((const char *)str));
-		break;
-
-	    default:
-		/* Oh, well */
 		return 0;
-	}
 
+	MD5auth_setkey(keyno, keytype, str, (int)strlen((const char *)str));
 	return 1;
 }

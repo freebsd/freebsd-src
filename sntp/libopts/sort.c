@@ -1,67 +1,44 @@
 
 /*
- *  sort.c  $Id: sort.c,v 4.10 2007/04/28 22:19:23 bkorb Exp $
- * Time-stamp:      "2006-10-18 11:29:04 bkorb"
+ * \file sort.c
+ *
+ * Time-stamp:      "2010-07-17 10:34:15 bkorb"
  *
  *  This module implements argument sorting.
- */
-
-/*
- *  Automated Options copyright 1992-2007 Bruce Korb
  *
- *  Automated Options is free software.
- *  You may redistribute it and/or modify it under the terms of the
- *  GNU General Public License, as published by the Free Software
- *  Foundation; either version 2, or (at your option) any later version.
+ *  This file is part of AutoOpts, a companion to AutoGen.
+ *  AutoOpts is free software.
+ *  AutoOpts is Copyright (c) 1992-2011 by Bruce Korb - all rights reserved
  *
- *  Automated Options is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  AutoOpts is available under any one of two licenses.  The license
+ *  in use must be one of these two and the choice is under the control
+ *  of the user of the license.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with Automated Options.  See the file "COPYING".  If not,
- *  write to:  The Free Software Foundation, Inc.,
- *             51 Franklin Street, Fifth Floor,
- *             Boston, MA  02110-1301, USA.
+ *   The GNU Lesser General Public License, version 3 or later
+ *      See the files "COPYING.lgplv3" and "COPYING.gplv3"
  *
- * As a special exception, Bruce Korb gives permission for additional
- * uses of the text contained in his release of AutoOpts.
+ *   The Modified Berkeley Software Distribution License
+ *      See the file "COPYING.mbsd"
  *
- * The exception is that, if you link the AutoOpts library with other
- * files to produce an executable, this does not by itself cause the
- * resulting executable to be covered by the GNU General Public License.
- * Your use of that executable is in no way restricted on account of
- * linking the AutoOpts library code into it.
+ *  These files have the following md5sums:
  *
- * This exception does not however invalidate any other reasons why
- * the executable file might be covered by the GNU General Public License.
- *
- * This exception applies only to the code released by Bruce Korb under
- * the name AutoOpts.  If you copy code from other sources under the
- * General Public License into a copy of AutoOpts, as the General Public
- * License permits, the exception does not apply to the code that you add
- * in this way.  To avoid misleading anyone as to the status of such
- * modified files, you must delete this exception notice from them.
- *
- * If you write modifications of your own for AutoOpts, it is your choice
- * whether to permit this exception to apply to your modifications.
- * If you do not wish that, delete this exception notice.
+ *  43b91e8ca915626ed3818ffb1b71248b pkg/libopts/COPYING.gplv3
+ *  06a1a2e4760c90ea5e1dad8dfaac4d39 pkg/libopts/COPYING.lgplv3
+ *  66a5cedaf62c4b2637025f049f9b826f pkg/libopts/COPYING.mbsd
  */
 
 /* = = = START-STATIC-FORWARD = = = */
-/* static forward declarations maintained by :mkfwd */
 static tSuccess
-mustHandleArg( tOptions* pOpts, char* pzArg, tOptState* pOS,
-               char** ppzOpts, int* pOptsIdx );
+mustHandleArg(tOptions* pOpts, char* pzArg, tOptState* pOS,
+              char** ppzOpts, int* pOptsIdx);
 
 static tSuccess
-mayHandleArg( tOptions* pOpts, char* pzArg, tOptState* pOS,
-              char** ppzOpts, int* pOptsIdx );
+mayHandleArg(tOptions* pOpts, char* pzArg, tOptState* pOS,
+             char** ppzOpts, int* pOptsIdx);
 
 static tSuccess
-checkShortOpts( tOptions* pOpts, char* pzArg, tOptState* pOS,
-                char** ppzOpts, int* pOptsIdx );
+checkShortOpts(tOptions* pOpts, char* pzArg, tOptState* pOS,
+               char** ppzOpts, int* pOptsIdx);
 /* = = = END-STATIC-FORWARD = = = */
 
 /*
@@ -70,8 +47,8 @@ checkShortOpts( tOptions* pOpts, char* pzArg, tOptState* pOS,
  *  does not start with a hyphen and "must" will consume it, hyphen or not.
  */
 static tSuccess
-mustHandleArg( tOptions* pOpts, char* pzArg, tOptState* pOS,
-               char** ppzOpts, int* pOptsIdx )
+mustHandleArg(tOptions* pOpts, char* pzArg, tOptState* pOS,
+              char** ppzOpts, int* pOptsIdx)
 {
     /*
      *  An option argument is required.  Long options can either have
@@ -108,8 +85,8 @@ mustHandleArg( tOptions* pOpts, char* pzArg, tOptState* pOS,
 }
 
 static tSuccess
-mayHandleArg( tOptions* pOpts, char* pzArg, tOptState* pOS,
-              char** ppzOpts, int* pOptsIdx )
+mayHandleArg(tOptions* pOpts, char* pzArg, tOptState* pOS,
+             char** ppzOpts, int* pOptsIdx)
 {
     /*
      *  An option argument is optional.
@@ -151,11 +128,11 @@ mayHandleArg( tOptions* pOpts, char* pzArg, tOptState* pOS,
  *  does or may take an argument, the do the argument processing and leave.
  */
 static tSuccess
-checkShortOpts( tOptions* pOpts, char* pzArg, tOptState* pOS,
-                char** ppzOpts, int* pOptsIdx )
+checkShortOpts(tOptions* pOpts, char* pzArg, tOptState* pOS,
+               char** ppzOpts, int* pOptsIdx)
 {
     while (*pzArg != NUL) {
-        if (FAILED( shortOptionFind( pOpts, (tAoUC)*pzArg, pOS )))
+        if (FAILED(shortOptionFind(pOpts, (tAoUC)*pzArg, pOS)))
             return FAILURE;
 
         /*
@@ -200,7 +177,7 @@ checkShortOpts( tOptions* pOpts, char* pzArg, tOptState* pOS,
  *  then this routine will to the trick.
  */
 LOCAL void
-optionSort( tOptions* pOpts )
+optionSort(tOptions* pOpts)
 {
     char** ppzOpts;
     char** ppzOpds;
@@ -212,20 +189,20 @@ optionSort( tOptions* pOpts )
     /*
      *  Disable for POSIX conformance, or if there are no operands.
      */
-    if (  (getenv( "POSIXLY_CORRECT" ) != NULL)
+    if (  (getenv("POSIXLY_CORRECT") != NULL)
        || NAMED_OPTS(pOpts))
         return;
 
     /*
      *  Make sure we can allocate two full-sized arg vectors.
      */
-    ppzOpts = malloc( pOpts->origArgCt * sizeof( char* ));
+    ppzOpts = malloc(pOpts->origArgCt * sizeof(char*));
     if (ppzOpts == NULL)
         goto exit_no_mem;
 
-    ppzOpds = malloc( pOpts->origArgCt * sizeof( char* ));
+    ppzOpds = malloc(pOpts->origArgCt * sizeof(char*));
     if (ppzOpds == NULL) {
-        free( ppzOpts );
+        free(ppzOpts);
         goto exit_no_mem;
     }
 
@@ -274,7 +251,7 @@ optionSort( tOptions* pOpts )
                     pOpts->origArgVect[ (pOpts->curOptIdx)++ ];
                 goto restOperands;
             }
-            res = longOptionFind( pOpts, pzArg+2, &os );
+            res = longOptionFind(pOpts, pzArg+2, &os);
             break;
 
         default:
@@ -284,13 +261,13 @@ optionSort( tOptions* pOpts )
              *  short (i.e. single character) option.
              */
             if ((pOpts->fOptSet & OPTPROC_SHORTOPT) == 0) {
-                res = longOptionFind( pOpts, pzArg+1, &os );
+                res = longOptionFind(pOpts, pzArg+1, &os);
             } else {
-                res = shortOptionFind( pOpts, (tAoUC)pzArg[1], &os );
+                res = shortOptionFind(pOpts, (tAoUC)pzArg[1], &os);
             }
             break;
         }
-        if (FAILED( res )) {
+        if (FAILED(res)) {
             errno = EINVAL;
             goto freeTemps;
         }
@@ -309,20 +286,20 @@ optionSort( tOptions* pOpts )
              *  of the argument string.
              */
             if (  (os.optType == TOPT_SHORT)
-               && FAILED( checkShortOpts( pOpts, pzArg+2, &os,
-                                          ppzOpts, &optsIdx )) )  {
+               && FAILED(checkShortOpts(pOpts, pzArg+2, &os, ppzOpts,
+                                        &optsIdx)) )  {
                 errno = EINVAL;
                 goto freeTemps;
             }
 
         } else if (os.pOD->fOptState & OPTST_ARG_OPTIONAL) {
-            switch (mayHandleArg( pOpts, pzArg+2, &os, ppzOpts, &optsIdx )) {
+            switch (mayHandleArg(pOpts, pzArg+2, &os, ppzOpts, &optsIdx)) {
             case FAILURE: errno = EIO; goto freeTemps;
             case PROBLEM: errno = 0;   goto joinLists;
             }
 
         } else {
-            switch (mustHandleArg( pOpts, pzArg+2, &os, ppzOpts, &optsIdx )) {
+            switch (mustHandleArg(pOpts, pzArg+2, &os, ppzOpts, &optsIdx)) {
             case PROBLEM:
             case FAILURE: errno = EIO; goto freeTemps;
             }
@@ -335,14 +312,14 @@ optionSort( tOptions* pOpts )
 
  joinLists:
     if (optsIdx > 0)
-        memcpy( pOpts->origArgVect + 1, ppzOpts, optsIdx * sizeof( char* ));
+        memcpy(pOpts->origArgVect + 1, ppzOpts, optsIdx * sizeof(char*));
     if (opdsIdx > 0)
-        memcpy( pOpts->origArgVect + 1 + optsIdx,
-                ppzOpds, opdsIdx * sizeof( char* ));
+        memcpy(pOpts->origArgVect + 1 + optsIdx, ppzOpds,
+               opdsIdx * sizeof(char*));
 
  freeTemps:
-    free( ppzOpts );
-    free( ppzOpds );
+    free(ppzOpts);
+    free(ppzOpds);
     return;
 
  exit_no_mem:

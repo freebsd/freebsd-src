@@ -46,8 +46,8 @@
 #include "binio.h"
 #include "ieee754io.h"
 
-static void get_mbg_tzname P((unsigned char **, char *));
-static void mbg_time_status_str P((char **, unsigned int, int));
+static void get_mbg_tzname (unsigned char **, char *);
+static void mbg_time_status_str (char **, unsigned int, int);
 
 #if 0				/* no actual floats on Meinberg binary interface */
 static offsets_t mbg_float  = { 1, 0, 3, 2, 0, 0, 0, 0 }; /* byte order for meinberg floats */

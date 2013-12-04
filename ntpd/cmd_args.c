@@ -9,21 +9,13 @@
 #include "ntp_stdlib.h"
 #include "ntp_cmdargs.h"
 
-#ifdef SIM
-# include "ntpsim.h"
-# include "ntpdsim-opts.h"
-# define OPTSTRUCT	ntpdsimOptions
-#else
-# include "ntpd-opts.h"
-# define OPTSTRUCT	ntpdOptions
-#endif /* SIM */
+#include "ntpd-opts.h"
 
 /*
  * Definitions of things either imported from or exported to outside
  */
 extern char const *progname;
 extern const char *specific_interface;
-extern short default_ai_family;
 
 #ifdef HAVE_NETINFO
 extern int	check_netinfo;
@@ -41,29 +33,29 @@ getCmdOpts(
 {
 	extern const char *config_file;
 	int errflg;
-	tOptions *myOptions = &OPTSTRUCT;
+	tOptions *myOptions = &ntpdOptions;
 
 	/*
 	 * Initialize, initialize
 	 */
 	errflg = 0;
 
-	switch (WHICH_IDX_IPV4) {
-	    case INDEX_OPT_IPV4:
-		default_ai_family = AF_INET;
-		break;
-	    case INDEX_OPT_IPV6:
-		default_ai_family = AF_INET6;
-		break;
-	    default:
-		/* ai_fam_templ = ai_fam_default;	*/
-		break;
-	}
+	if (ipv4_works && ipv6_works) {
+		if (HAVE_OPT( IPV4 ))
+			ipv6_works = 0;
+		else if (HAVE_OPT( IPV6 ))
+			ipv4_works = 0;
+	} else if (!ipv4_works && !ipv6_works) {
+		msyslog(LOG_ERR, "Neither IPv4 nor IPv6 networking detected, fatal.");
+		exit(1);
+	} else if (HAVE_OPT( IPV4 ) && !ipv4_works)
+		msyslog(LOG_WARNING, "-4/--ipv4 ignored, IPv4 networking not found.");
+	else if (HAVE_OPT( IPV6 ) && !ipv6_works)
+		msyslog(LOG_WARNING, "-6/--ipv6 ignored, IPv6 networking not found.");
 
 	if (HAVE_OPT( AUTHREQ ))
 		proto_config(PROTO_AUTHENTICATE, 1, 0., NULL);
-
-	if (HAVE_OPT( AUTHNOREQ ))
+	else if (HAVE_OPT( AUTHNOREQ ))
 		proto_config(PROTO_AUTHENTICATE, 0, 0., NULL);
 
 	if (HAVE_OPT( BCASTSYNC ))
@@ -82,24 +74,12 @@ getCmdOpts(
 	if (HAVE_OPT( PANICGATE ))
 		allow_panic = TRUE;
 
-	if (HAVE_OPT( JAILDIR )) {
 #ifdef HAVE_DROPROOT
-			droproot = 1;
-			chrootdir = OPT_ARG( JAILDIR );
-#else
-			fprintf(stderr, 
-				"command line -i option (jaildir) is not supported by this binary"
-# ifndef SYS_WINNT
-				",\n" "can not drop root privileges.  See configure options\n"
-				"--enable-clockctl and --enable-linuxcaps.\n");
-# else
-				".\n");
-# endif
-			msyslog(LOG_ERR, 
-				"command line -i option (jaildir) is not supported by this binary.");
-			errflg++;
-#endif
+	if (HAVE_OPT( JAILDIR )) {
+		droproot = 1;
+		chrootdir = OPT_ARG( JAILDIR );
 	}
+#endif
 
 	if (HAVE_OPT( KEYFILE ))
 		getauthkeys(OPT_ARG( KEYFILE ));
@@ -146,30 +126,15 @@ getCmdOpts(
 		} while (--ct > 0);
 	}
 
-	if (HAVE_OPT( USER )) {
 #ifdef HAVE_DROPROOT
-		char *ntp_optarg = OPT_ARG( USER );
-
+	if (HAVE_OPT( USER )) {
 		droproot = 1;
-		user = emalloc(strlen(ntp_optarg) + 1);
-		(void)strncpy(user, ntp_optarg, strlen(ntp_optarg) + 1);
+		user = estrdup(OPT_ARG( USER ));
 		group = rindex(user, ':');
 		if (group)
 			*group++ = '\0'; /* get rid of the ':' */
-#else
-		fprintf(stderr, 
-			"command line -u/--user option is not supported by this binary"
-# ifndef SYS_WINNT
-			",\n" "can not drop root privileges.  See configure options\n"
-			"--enable-clockctl and --enable-linuxcaps.\n");
-# else
-			".\n");
-# endif
-		msyslog(LOG_ERR, 
-			"command line -u/--user option is not supported by this binary.");
-		errflg++;
-#endif
 	}
+#endif
 
 	if (HAVE_OPT( VAR )) {
 		int		ct = STACKCT_OPT(  VAR );
@@ -195,9 +160,10 @@ getCmdOpts(
 		} while (--ct > 0);
 	}
 
-	if (HAVE_OPT( SLEW ))
+	if (HAVE_OPT( SLEW )) {
 		clock_max = 600;
-
+		kern_enable = 0;
+	}
 	if (HAVE_OPT( UPDATEINTERVAL )) {
 		long val = OPT_VALUE_UPDATEINTERVAL;
 			  
@@ -214,32 +180,11 @@ getCmdOpts(
 		}
 	}
 #ifdef SIM
-	if (HAVE_OPT( SIMBROADCASTDELAY ))
-		sscanf(OPT_ARG( SIMBROADCASTDELAY ), "%lf", &ntp_node.bdly);
 
-	if (HAVE_OPT( PHASENOISE ))
-		sscanf(OPT_ARG( PHASENOISE ), "%lf", &ntp_node.snse);
-
-	if (HAVE_OPT( SIMSLEW ))
-		sscanf(OPT_ARG( SIMSLEW ), "%lf", &ntp_node.slew);
-
-	if (HAVE_OPT( SERVERTIME ))
-		sscanf(OPT_ARG( SERVERTIME ), "%lf", &ntp_node.clk_time);
-
-	if (HAVE_OPT( ENDSIMTIME ))
-		sscanf(OPT_ARG( ENDSIMTIME ), "%lf", &ntp_node.sim_time);
-
-	if (HAVE_OPT( FREQERR ))
-		sscanf(OPT_ARG( FREQERR ), "%lf", &ntp_node.ferr);
-
-	if (HAVE_OPT( WALKNOISE ))
-		sscanf(OPT_ARG( WALKNOISE ), "%lf", &ntp_node.fnse);
-
-	if (HAVE_OPT( NDELAY ))
-		sscanf(OPT_ARG( NDELAY ), "%lf", &ntp_node.ndly);
-
-	if (HAVE_OPT( PDELAY ))
-		sscanf(OPT_ARG( PDELAY ), "%lf", &ntp_node.pdly);
+	/* SK:
+	 * The simulator no longer takes any command line arguments. Hence,
+	 * all the code that was here has been removed.
+	 */
 
 #endif /* SIM */
 

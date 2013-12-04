@@ -1,6 +1,7 @@
 /*
  * inttoa - return an asciized signed integer
  */
+#include <config.h>
 #include <stdio.h>
 
 #include "lib_strbuf.h"
@@ -8,13 +9,13 @@
 
 char *
 inttoa(
-	long ival
+	long val
 	)
 {
 	register char *buf;
 
 	LIB_GETBUF(buf);
+	snprintf(buf, LIB_BUFLENGTH, "%ld", val);
 
-	(void) sprintf(buf, "%ld", (long)ival);
 	return buf;
 }

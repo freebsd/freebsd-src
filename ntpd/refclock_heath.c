@@ -186,10 +186,10 @@ static int speed[] = {B1200, B2400, B4800, B9600};
 /*
  * Function prototypes
  */
-static	int	heath_start	P((int, struct peer *));
-static	void	heath_shutdown	P((int, struct peer *));
-static	void	heath_receive	P((struct recvbuf *));
-static	void	heath_poll	P((int, struct peer *));
+static	int	heath_start	(int, struct peer *);
+static	void	heath_shutdown	(int, struct peer *);
+static	void	heath_receive	(struct recvbuf *);
+static	void	heath_poll	(int, struct peer *);
 
 /*
  * Transfer vector
@@ -221,7 +221,7 @@ heath_start(
 	/*
 	 * Open serial port
 	 */
-	sprintf(device, DEVICE, unit);
+	snprintf(device, sizeof(device), DEVICE, unit);
 	if (!(fd = refclock_open(device, speed[peer->ttl & 0x3],
 	    LDISC_REMOTE)))
 		return (0);
@@ -231,7 +231,8 @@ heath_start(
 	pp->io.datalen = 0;
 	pp->io.fd = fd;
 	if (!io_addclock(&pp->io)) {
-		(void) close(fd);
+		close(fd);
+		pp->io.fd = -1;
 		return (0);
 	}
 
@@ -241,7 +242,7 @@ heath_start(
 	peer->precision = PRECISION;
 	peer->burst = NSTAGE;
 	pp->clockdesc = DESCRIPTION;
-	memcpy((char *)&pp->refid, REFID, 4);
+	memcpy(&pp->refid, REFID, 4);
 	return (1);
 }
 
@@ -258,7 +259,8 @@ heath_shutdown(
 	struct refclockproc *pp;
 
 	pp = peer->procptr;
-	io_closeclock(&pp->io);
+	if (-1 != pp->io.fd)
+		io_closeclock(&pp->io);
 }
 
 

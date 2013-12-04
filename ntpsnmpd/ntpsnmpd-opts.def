@@ -1,0 +1,40 @@
+/* -*- Mode: Text -*- */
+
+autogen definitions options;
+
+#include copyright.def
+#include homerc.def
+#include autogen-version.def
+
+prog-name      = "ntpsnmpd";
+prog-title     = "NTP SNMP MIB agent";
+
+test-main;
+
+flag = {
+    name      = nofork;
+    value     = n;
+    descrip   = "Do not fork";
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = syslog;
+    value     = p;
+    descrip   = "Log to syslog()";
+    doc = <<-  _EndOfDoc_
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = agentXSocket;
+/*  value     = x; */
+    arg-type  = string;
+    arg-default = "unix:/var/agentx/master";
+    descrip   = "The socket address ntpsnmpd uses to connect to net-snmpd";
+    doc = <<-  _EndOfDoc_
+	[<transport-specifier>:]<transport-address>
+	The default is the Unix Domain socket "unix:/var/agentx/master". Another common alternative is tcp:localhost:705.
+	_EndOfDoc_;
+};

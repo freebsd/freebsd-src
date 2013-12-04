@@ -135,28 +135,28 @@ struct instance {
 /*
  * Function prototypes
  */
-static	void	jupiter_canmsg	P((struct instance *, u_int));
-static	u_short	jupiter_cksum	P((u_short *, u_int));
-static	int	jupiter_config	P((struct instance *));
-static	void	jupiter_debug	P((struct peer *, char *, char *, ...))
+static	void	jupiter_canmsg	(struct instance *, u_int);
+static	u_short	jupiter_cksum	(u_short *, u_int);
+static	int	jupiter_config	(struct instance *);
+static	void	jupiter_debug	(struct peer *, char *, char *, ...)
     __attribute__ ((format (printf, 3, 4)));
-static	char *	jupiter_parse_t	P((struct instance *, u_short *));
-static	char *	jupiter_parse_gpos	P((struct instance *, u_short *));
-static	void	jupiter_platform	P((struct instance *, u_int));
-static	void	jupiter_poll	P((int, struct peer *));
-static	void	jupiter_control	P((int, struct refclockstat *, struct
-				    refclockstat *, struct peer *));
+static	char *	jupiter_parse_t	(struct instance *, u_short *);
+static	char *	jupiter_parse_gpos	(struct instance *, u_short *);
+static	void	jupiter_platform	(struct instance *, u_int);
+static	void	jupiter_poll	(int, struct peer *);
+static	void	jupiter_control	(int, struct refclockstat *, struct
+				    refclockstat *, struct peer *);
 #ifdef HAVE_PPSAPI
-static	int	jupiter_ppsapi	P((struct instance *));
-static	int	jupiter_pps	P((struct instance *));
+static	int	jupiter_ppsapi	(struct instance *);
+static	int	jupiter_pps	(struct instance *);
 #endif /* HAVE_PPSAPI */
-static	int	jupiter_recv	P((struct instance *));
-static	void	jupiter_receive P((struct recvbuf *rbufp));
-static	void	jupiter_reqmsg	P((struct instance *, u_int, u_int));
-static	void	jupiter_reqonemsg	P((struct instance *, u_int));
-static	char *	jupiter_send	P((struct instance *, struct jheader *));
-static	void	jupiter_shutdown	P((int, struct peer *));
-static	int	jupiter_start	P((int, struct peer *));
+static	int	jupiter_recv	(struct instance *);
+static	void	jupiter_receive (struct recvbuf *rbufp);
+static	void	jupiter_reqmsg	(struct instance *, u_int, u_int);
+static	void	jupiter_reqonemsg	(struct instance *, u_int);
+static	char *	jupiter_send	(struct instance *, struct jheader *);
+static	void	jupiter_shutdown	(int, struct peer *);
+static	int	jupiter_start	(int, struct peer *);
 
 /*
  * Transfer vector
@@ -188,7 +188,7 @@ jupiter_start(
 	/*
 	 * Open serial port
 	 */
-	(void)sprintf(gpsdev, DEVICE, unit);
+	snprintf(gpsdev, sizeof(gpsdev), DEVICE, unit);
 	fd = refclock_open(gpsdev, SPEED232, LDISC_RAW);
 	if (fd == 0) {
 		jupiter_debug(peer, "jupiter_start", "open %s: %s",
@@ -197,12 +197,8 @@ jupiter_start(
 	}
 
 	/* Allocate unit structure */
-	if ((instance = (struct instance *)
-	    emalloc(sizeof(struct instance))) == NULL) {
-		(void) close(fd);
-		return (0);
-	}
-	memset((char *)instance, 0, sizeof(struct instance));
+	instance = emalloc(sizeof(*instance));
+	memset(instance, 0, sizeof(*instance));
 	instance->peer = peer;
 	pp = peer->procptr;
 	pp->io.clock_recv = jupiter_receive;
@@ -210,7 +206,7 @@ jupiter_start(
 	pp->io.datalen = 0;
 	pp->io.fd = fd;
 	if (!io_addclock(&pp->io)) {
-		(void) close(fd);
+		close(fd);
 		free(instance);
 		return (0);
 	}
@@ -934,10 +930,10 @@ jupiter_send(struct instance *instance, struct jheader *hp)
 	}
 
 	if ((cc = write(instance->peer->procptr->io.fd, (char *)hp, size)) < 0) {
-		(void)sprintf(errstr, "write: %s", strerror(errno));
+		snprintf(errstr, sizeof(errstr), "write: %s", strerror(errno));
 		return (errstr);
 	} else if (cc != size) {
-		(void)sprintf(errstr, "short write (%d != %d)", cc, size);
+		snprintf(errstr, sizeof(errstr), "short write (%d != %d)", cc, size);
 		return (errstr);
 	}
 	return (NULL);

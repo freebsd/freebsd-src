@@ -97,10 +97,10 @@ struct zyferunit {
 /*
  * Function prototypes
  */
-static	int	zyfer_start	P((int, struct peer *));
-static	void	zyfer_shutdown	P((int, struct peer *));
-static	void	zyfer_receive	P((struct recvbuf *));
-static	void	zyfer_poll	P((int, struct peer *));
+static	int	zyfer_start	(int, struct peer *);
+static	void	zyfer_shutdown	(int, struct peer *);
+static	void	zyfer_receive	(struct recvbuf *);
+static	void	zyfer_poll	(int, struct peer *);
 
 /*
  * Transfer vector

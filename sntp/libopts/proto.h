@@ -1,47 +1,49 @@
 /* -*- buffer-read-only: t -*- vi: set ro:
  *
  * Prototypes for autoopts
- * Generated Sat May  5 12:02:36 PDT 2007
+ * Generated Fri Apr 29 15:44:06 PDT 2011
  */
 #ifndef AUTOOPTS_PROTO_H_GUARD
 #define AUTOOPTS_PROTO_H_GUARD 1
+
 #ifndef LOCAL
 #  define LOCAL extern
 #  define REDEF_LOCAL 1
 #else
 #  undef  REDEF_LOCAL
 #endif
-/*\n *  Extracted from autoopts.c\n */
+/*
+ *  Extracted from autoopts.c
+ */
 LOCAL void *
-ao_malloc( size_t sz );
+ao_malloc(size_t sz);
 
 LOCAL void *
-ao_realloc( void *p, size_t sz );
-
-LOCAL void
-ao_free( void *p );
+ao_realloc(void *p, size_t sz);
 
 LOCAL char *
-ao_strdup( char const *str );
+ao_strdup(char const *str);
 
 LOCAL tSuccess
-handleOption( tOptions* pOpts, tOptState* pOptState );
+handle_opt(tOptions* pOpts, tOptState* pOptState);
 
 LOCAL tSuccess
-longOptionFind( tOptions* pOpts, char* pzOptName, tOptState* pOptState );
+longOptionFind(tOptions* pOpts, char* pzOptName, tOptState* pOptState);
 
 LOCAL tSuccess
-shortOptionFind( tOptions* pOpts, uint_t optValue, tOptState* pOptState );
+shortOptionFind(tOptions* pOpts, uint_t optValue, tOptState* pOptState);
 
 LOCAL tSuccess
-doImmediateOpts( tOptions* pOpts );
+doImmediateOpts(tOptions* pOpts);
 
 LOCAL tSuccess
-doRegularOpts( tOptions* pOpts );
+doRegularOpts(tOptions* pOpts);
 
-/*\n *  Extracted from configfile.c\n */
+/*
+ *  Extracted from configfile.c
+ */
 LOCAL void
-internalFileLoad( tOptions* pOpts );
+internalFileLoad(tOptions* pOpts);
 
 LOCAL char*
 parseAttributes(
@@ -51,18 +53,22 @@ parseAttributes(
     tOptionValue*       pType );
 
 LOCAL tSuccess
-validateOptionsStruct( tOptions* pOpts, char const* pzProgram );
+validateOptionsStruct(tOptions* pOpts, char const* pzProgram);
 
-/*\n *  Extracted from environment.c\n */
+/*
+ *  Extracted from environment.c
+ */
 LOCAL void
-doPrognameEnv( tOptions* pOpts, teEnvPresetType type );
+doPrognameEnv(tOptions* pOpts, teEnvPresetType type);
 
 LOCAL void
-doEnvPresets( tOptions* pOpts, teEnvPresetType type );
+doEnvPresets(tOptions* pOpts, teEnvPresetType type);
 
-/*\n *  Extracted from load.c\n */
+/*
+ *  Extracted from load.c
+ */
 LOCAL void
-mungeString( char* pzTxt, tOptionLoadMode mode );
+mungeString(char* pzTxt, tOptionLoadMode mode);
 
 LOCAL void
 loadOptionLine(
@@ -72,17 +78,32 @@ loadOptionLine(
     tDirection  direction,
     tOptionLoadMode   load_mode );
 
-/*\n *  Extracted from nested.c\n */
+/*
+ *  Extracted from nested.c
+ */
+LOCAL void
+unload_arg_list(tArgList* pAL);
+
 LOCAL tOptionValue*
 optionLoadNested(char const* pzTxt, char const* pzName, size_t nameLen);
 
-/*\n *  Extracted from sort.c\n */
-LOCAL void
-optionSort( tOptions* pOpts );
+LOCAL int
+get_special_char(char const ** ppz, int * ct);
 
-/*\n *  Extracted from stack.c\n */
 LOCAL void
-addArgListEntry( void** ppAL, void* entry );
+emit_special_char(FILE * fp, int ch);
+
+/*
+ *  Extracted from sort.c
+ */
+LOCAL void
+optionSort(tOptions* pOpts);
+
+/*
+ *  Extracted from stack.c
+ */
+LOCAL void
+addArgListEntry(void** ppAL, void* entry);
 
 #ifdef REDEF_LOCAL
 #  undef LOCAL

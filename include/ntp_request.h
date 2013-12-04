@@ -2,10 +2,12 @@
  * ntp_request.h - definitions for the ntpd remote query facility
  */
 
-#ifndef _NTP_REQUEST_H
-#define _NTP_REQUEST_H
+#ifndef NTP_REQUEST_H
+#define NTP_REQUEST_H
 
+#include "stddef.h"
 #include "ntp_types.h"
+#include "recvbuff.h"
 
 /*
  * A mode 7 packet is used exchanging data between an NTP server
@@ -133,8 +135,8 @@ struct req_pkt {
 	char data[MAXFILENAME + 48];	/* data area [32 prev](176 byte max) */
 					/* struct conf_peer must fit */
 	l_fp tstamp;			/* time stamp, for authentication */
-	keyid_t keyid;			/* encryption key */
-	char mac[MAX_MAC_LEN-sizeof(u_int32)]; /* (optional) 8 byte auth code */
+	keyid_t keyid;			/* (optional) encryption key */
+	char mac[MAX_MAC_LEN-sizeof(keyid_t)]; /* (optional) auth code */
 };
 
 /*
@@ -143,23 +145,24 @@ struct req_pkt {
  */
 struct req_pkt_tail {
 	l_fp tstamp;			/* time stamp, for authentication */
-	keyid_t keyid;			/* encryption key */
-	char mac[MAX_MAC_LEN-sizeof(u_int32)]; /* (optional) 8 byte auth code */
+	keyid_t keyid;			/* (optional) encryption key */
+	char mac[MAX_MAC_LEN-sizeof(keyid_t)]; /* (optional) auth code */
 };
 
-/*
- * Input packet lengths.  One with the mac, one without.
- */
-#define	REQ_LEN_HDR	8	/* 4 * u_char + 2 * u_short */
-#define	REQ_LEN_MAC	(sizeof(struct req_pkt))
-#define	REQ_LEN_NOMAC	(sizeof(struct req_pkt) - MAX_MAC_LEN)
+/* MODE_PRIVATE request packet header length before optional items. */
+#define	REQ_LEN_HDR	(offsetof(struct req_pkt, data))
+/* MODE_PRIVATE request packet fixed length without MAC. */
+#define	REQ_LEN_NOMAC	(offsetof(struct req_pkt, keyid))
+/* MODE_PRIVATE req_pkt_tail minimum size (16 octet digest) */
+#define REQ_TAIL_MIN	\
+	(sizeof(struct req_pkt_tail) - (MAX_MAC_LEN - MAX_MD5_LEN))
 
 /*
- * A response packet.  The length here is variable, this is a
- * maximally sized one.  Note that this implementation doesn't
+ * A MODE_PRIVATE response packet.  The length here is variable, this
+ * is a maximally sized one.  Note that this implementation doesn't
  * authenticate responses.
  */
-#define	RESP_HEADER_SIZE	(8)
+#define	RESP_HEADER_SIZE	(offsetof(struct resp_pkt, data))
 #define	RESP_DATA_SIZE		(500)
 
 struct resp_pkt {
@@ -381,7 +384,7 @@ struct info_peer {
 	u_int32 pkeyid;		/* unused */
 	u_int32 refid;		/* peer.refid */
 	u_int32 timer;		/* peer.timer */
-	s_fp rootdelay;		/* peer.distance */
+	s_fp rootdelay;		/* peer.delay */
 	u_fp rootdispersion;	/* peer.dispersion */
 	l_fp reftime;		/* peer.reftime */
 	l_fp org;		/* peer.org */
@@ -465,7 +468,7 @@ struct info_sys {
 	u_char leap;		/* system leap bits */
 	u_char stratum;		/* our stratum */
 	s_char precision;	/* local clock precision */
-	s_fp rootdelay;		/* distance from sync source */
+	s_fp rootdelay;		/* delay from sync source */
 	u_fp rootdispersion;	/* dispersion from sync source */
 	u_int32 refid;		/* reference ID of sync source */
 	l_fp reftime;		/* system reference time */
@@ -667,7 +670,7 @@ struct conf_restrict {
 struct info_monitor_1 {	
 	u_int32 lasttime;	/* last packet from this host */
 	u_int32 firsttime;	/* first time we received a packet */
-	u_int32 lastdrop;        /* last time we rejected a packet due to client limitation policy */
+	u_int32 restr;		/* restrict bits (was named lastdrop) */
 	u_int32 count;		/* count of packets received */
 	u_int32 addr;		/* host address V4 style */
 	u_int32 daddr;		/* destination host address */
@@ -688,7 +691,7 @@ struct info_monitor_1 {
 struct info_monitor {	
 	u_int32 lasttime;	/* last packet from this host */
 	u_int32 firsttime;	/* first time we received a packet */
-	u_int32 lastdrop;       /* last time we rejected a packet due to client limitation policy */
+	u_int32 restr;		/* restrict bits (was named lastdrop) */
 	u_int32 count;		/* count of packets received */
 	u_int32 addr;		/* host address */
 	u_short port;		/* port number of last reception */
@@ -700,7 +703,7 @@ struct info_monitor {
 };
 
 /*
- * Structure used for returning monitor data (old format
+ * Structure used for returning monitor data (old format)
  */
 struct old_info_monitor {	
 	u_int32 lasttime;	/* last packet from this host */
@@ -820,7 +823,7 @@ struct info_clock {
 	l_fp fudgetime1;
 	l_fp fudgetime2;
 	int32 fudgeval1;
-	int32 fudgeval2;
+	u_int32 fudgeval2;
 };
 
 
@@ -831,7 +834,7 @@ struct conf_fudge {
 	u_int32 clockadr;
 	u_int32 which;
 	l_fp fudgetime;
-	int32 fudgeval_flags;
+	u_int32 fudgeval_flags;
 };
 
 #define	FUDGE_TIME1	1
@@ -923,4 +926,10 @@ struct info_dns_assoc {
 	associd_t associd;	/* association ID */
 	char hostname[NTP_MAXHOSTNAME];	/* hostname */
 };
+
+/*
+ * function declarations
+ */
+int get_packet_mode(struct recvbuf *rbufp); /* Return packet mode */
+
 #endif /* NTP_REQUEST_H */

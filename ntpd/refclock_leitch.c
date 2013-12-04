@@ -43,6 +43,7 @@
  *	STATUS: G (good), D (diag fail), T (time not provided) or
  *		P (last phone update failed)
  */
+#define PRECISION	(-20)	/* 1x10-8 */
 #define MAXUNITS 1		/* max number of LEITCH units */
 #define LEITCHREFID	"ATOM"	/* reference id */
 #define LEITCH_DESCRIPTION "Leitch: CSD 5300 Master Clock System Driver"
@@ -96,20 +97,20 @@ struct leitchunit {
 /*
  * Function prototypes
  */
-static	void	leitch_init	P((void));
-static	int	leitch_start	P((int, struct peer *));
-static	void	leitch_shutdown	P((int, struct peer *));
-static	void	leitch_poll	P((int, struct peer *));
-static	void	leitch_control	P((int, struct refclockstat *, struct refclockstat *, struct peer *));
+static	void	leitch_init	(void);
+static	int	leitch_start	(int, struct peer *);
+static	void	leitch_shutdown	(int, struct peer *);
+static	void	leitch_poll	(int, struct peer *);
+static	void	leitch_control	(int, struct refclockstat *, struct refclockstat *, struct peer *);
 #define	leitch_buginfo	noentry
-static	void	leitch_receive	P((struct recvbuf *));
-static	void	leitch_process	P((struct leitchunit *));
+static	void	leitch_receive	(struct recvbuf *);
+static	void	leitch_process	(struct leitchunit *);
 #if 0
-static	void	leitch_timeout	P((struct peer *));
+static	void	leitch_timeout	(struct peer *);
 #endif
-static	int	leitch_get_date	P((struct recvbuf *, struct leitchunit *));
-static	int	leitch_get_time	P((struct recvbuf *, struct leitchunit *, int));
-static	int	days_per_year		P((int));
+static	int	leitch_get_date	(struct recvbuf *, struct leitchunit *);
+static	int	leitch_get_time	(struct recvbuf *, struct leitchunit *, int);
+static	int	days_per_year		(int);
 
 static struct leitchunit leitchunits[MAXUNITS];
 static u_char unitinuse[MAXUNITS];
@@ -149,9 +150,17 @@ leitch_shutdown(
 	struct peer *peer
 	)
 {
+	struct leitchunit *leitch;
+
+	if (unit >= MAXUNITS) {
+		return;
+	}
+	leitch = &leitchunits[unit];
+	if (-1 != leitch->leitchio.fd)
+		io_closeclock(&leitch->leitchio);
 #ifdef DEBUG
 	if (debug)
-	    fprintf(stderr, "leitch_shutdown()\n");
+		fprintf(stderr, "leitch_shutdown()\n");
 #endif
 }
 
@@ -257,7 +266,7 @@ leitch_start(
 	/*
 	 * Open serial port.
 	 */
-	(void) sprintf(leitchdev, LEITCH232, unit);
+	snprintf(leitchdev, sizeof(leitchdev), LEITCH232, unit);
 	fd232 = open(leitchdev, O_RDWR, 0777);
 	if (fd232 == -1) {
 		msyslog(LOG_ERR,
@@ -266,7 +275,7 @@ leitch_start(
 	}
 
 	leitch = &leitchunits[unit];
-	memset((char*)leitch, 0, sizeof(*leitch));
+	memset(leitch, 0, sizeof(*leitch));
 
 #if defined(HAVE_SYSV_TTYS)
 	/*
@@ -386,6 +395,7 @@ leitch_start(
 	leitch->leitchio.datalen = 0;
 	leitch->leitchio.fd = fd232;
 	if (!io_addclock(&leitch->leitchio)) {
+		leitch->leitchio.fd = -1;
 		goto screwed;
 	}
 
@@ -393,7 +403,7 @@ leitch_start(
 	 * All done.  Initialize a few random peer variables, then
 	 * return success.
 	 */
-	peer->precision = 0;
+	peer->precision = PRECISION;
 	peer->stratum = stratumtouse[unit];
 	peer->refid = refid[unit];
 	unitinuse[unit] = 1;

@@ -24,9 +24,9 @@ modetoa(
 		"bclient",
 	};
 
-	if (mode < 0 || mode >= (sizeof modestrings)/sizeof(char *)) {
+	if (mode < 0 || mode >= COUNTOF(modestrings)) {
 		LIB_GETBUF(bp);
-		(void)sprintf(bp, "mode#%d", mode);
+		snprintf(bp, LIB_BUFLENGTH, "mode#%d", mode);
 		return bp;
 	}
 

@@ -11,6 +11,7 @@
 #include "ntp_tty.h"
 #include "ntp_refclock.h"
 #include "ntp_stdlib.h"
+#include "ntp_assert.h"
 
 #include <stdio.h>
 
@@ -34,63 +35,57 @@
 #include "ntp_syscall.h"
 #endif /* KERNEL_PLL */
 
+#ifdef HAVE_PPSAPI
+#include "ppsapi_timepps.h"
+#include "refclock_atom.h"
+#endif /* HAVE_PPSAPI */
+
 /*
  * Reference clock support is provided here by maintaining the fiction
- * that the clock is actually a peer. As no packets are exchanged with a
- * reference clock, however, we replace the transmit, receive and packet
- * procedures with separate code to simulate them. Routines
+ * that the clock is actually a peer.  As no packets are exchanged with
+ * a reference clock, however, we replace the transmit, receive and
+ * packet procedures with separate code to simulate them.  Routines
  * refclock_transmit() and refclock_receive() maintain the peer
  * variables in a state analogous to an actual peer and pass reference
- * clock data on through the filters. Routines refclock_peer() and
+ * clock data on through the filters.  Routines refclock_peer() and
  * refclock_unpeer() are called to initialize and terminate reference
- * clock associations. A set of utility routines is included to open
+ * clock associations.  A set of utility routines is included to open
  * serial devices, process sample data, edit input lines to extract
- * embedded timestamps and to peform various debugging functions.
+ * embedded timestamps and to perform various debugging functions.
  *
  * The main interface used by these routines is the refclockproc
- * structure, which contains for most drivers the decimal equivalants of
- * the year, day, month, hour, second and millisecond/microsecond
- * decoded from the ASCII timecode. Additional information includes the
- * receive timestamp, exception report, statistics tallies, etc. In
- * addition, there may be a driver-specific unit structure used for
+ * structure, which contains for most drivers the decimal equivalants
+ * of the year, day, month, hour, second and millisecond/microsecond
+ * decoded from the ASCII timecode.  Additional information includes
+ * the receive timestamp, exception report, statistics tallies, etc. 
+ * In addition, there may be a driver-specific unit structure used for
  * local control of the device.
  *
  * The support routines are passed a pointer to the peer structure,
- * which is used for all peer-specific processing and contains a pointer
- * to the refclockproc structure, which in turn containes a pointer to
- * the unit structure, if used. The peer structure is identified by an
- * interface address in the dotted quad form 127.127.t.u (for now only
- * IPv4 addresses are used, so we need to be sure the address is it),
- * where t is the clock type and u the unit. Some legacy drivers derive
- * the refclockproc structure pointer from the table
- * typeunit[type][unit]. This interface is strongly discouraged and may
- * be abandoned in future.
+ * which is used for all peer-specific processing and contains a
+ * pointer to the refclockproc structure, which in turn contains a
+ * pointer to the unit structure, if used.  The peer structure is 
+ * identified by an interface address in the dotted quad form 
+ * 127.127.t.u, where t is the clock type and u the unit.
  */
-#define MAXUNIT 	4	/* max units */
 #define FUDGEFAC	.1	/* fudge correction factor */
 #define LF		0x0a	/* ASCII LF */
 
 #ifdef PPS
 int	fdpps;			/* ppsclock legacy */
 #endif /* PPS */
-int	cal_enable;		/* enable refclock calibrate */
 
-/*
- * Type/unit peer index. Used to find the peer structure for control and
- * debugging. When all clock drivers have been converted to new style,
- * this dissapears.
- */
-static struct peer *typeunit[REFCLK_MAX + 1][MAXUNIT];
+int	cal_enable;		/* enable refclock calibrate */
 
 /*
  * Forward declarations
  */
 #ifdef QSORT_USES_VOID_P
-static int refclock_cmpl_fp P((const void *, const void *));
+static int refclock_cmpl_fp (const void *, const void *);
 #else
-static int refclock_cmpl_fp P((const double *, const double *));
+static int refclock_cmpl_fp (const double *, const double *);
 #endif /* QSORT_USES_VOID_P */
-static int refclock_sample P((struct refclockproc *));
+static int refclock_sample (struct refclockproc *);
 
 
 /*
@@ -113,57 +108,35 @@ refclock_report(
 		return;
 
 	switch (code) {
-		case CEVNT_NOMINAL:
-			break;
 
-		case CEVNT_TIMEOUT:
-			pp->noreply++;
-			break;
+	case CEVNT_TIMEOUT:
+		pp->noreply++;
+		break;
 
-		case CEVNT_BADREPLY:
-			pp->badformat++;
-			break;
+	case CEVNT_BADREPLY:
+		pp->badformat++;
+		break;
 
-		case CEVNT_FAULT:
-			break;
+	case CEVNT_FAULT:
+		break;
 
-		case CEVNT_PROP:
-			break;
+	case CEVNT_BADDATE:
+	case CEVNT_BADTIME:
+		pp->baddata++;
+		break;
 
-		case CEVNT_BADDATE:
-		case CEVNT_BADTIME:
-			pp->baddata++;
-			break;
-
-		default:
-			/* shouldn't happen */
-			break;
+	default:
+		/* ignore others */
+		break;
 	}
-
+	if (pp->lastevent < 15)
+		pp->lastevent++;
 	if (pp->currentstatus != code) {
 		pp->currentstatus = (u_char)code;
-
-		/* RFC1305: copy only iff not CEVNT_NOMINAL */
-		if (code != CEVNT_NOMINAL)
-			pp->lastevent = (u_char)code;
-
-		if (code == CEVNT_FAULT)
-			msyslog(LOG_ERR,
-			    "clock %s event '%s' (0x%02x)",
-			    refnumtoa(&peer->srcadr),
-			    ceventstr(code), code);
-		else {
-			NLOG(NLOG_CLOCKEVENT)
-			  msyslog(LOG_INFO,
-			    "clock %s event '%s' (0x%02x)",
-			    refnumtoa(&peer->srcadr),
-			    ceventstr(code), code);
-		}
-
-		/* RFC1305: post peer clock event */
-		report_event(EVNT_PEERCLOCK, peer);
+		report_event(PEVNT_CLOCK, peer, ceventstr(code));
 	}
 }
+
 
 /*
  * init_refclock - initialize the reference clock drivers
@@ -175,14 +148,11 @@ refclock_report(
 void
 init_refclock(void)
 {
-	int i, j;
+	int i;
 
-	for (i = 0; i < (int)num_refclock_conf; i++) {
+	for (i = 0; i < (int)num_refclock_conf; i++)
 		if (refclock_conf[i]->clock_init != noentry)
 			(refclock_conf[i]->clock_init)();
-		for (j = 0; j < MAXUNIT; j++)
-			typeunit[i][j] = 0;
-	}
 }
 
 
@@ -211,12 +181,6 @@ refclock_newpeer(
 	 * Check for valid clock address. If already running, shut it
 	 * down first.
 	 */
-	if (peer->srcadr.ss_family != AF_INET) {
-		msyslog(LOG_ERR,
-		       "refclock_newpeer: clock address %s invalid, address family not implemented for refclock",
-                        stoa(&peer->srcadr));
-                return (0);
-        }
 	if (!ISREFCLOCKADR(&peer->srcadr)) {
 		msyslog(LOG_ERR,
 			"refclock_newpeer: clock address %s invalid",
@@ -225,7 +189,7 @@ refclock_newpeer(
 	}
 	clktype = (u_char)REFCLOCKTYPE(&peer->srcadr);
 	unit = REFCLOCKUNIT(&peer->srcadr);
-	if (clktype >= num_refclock_conf || unit >= MAXUNIT ||
+	if (clktype >= num_refclock_conf ||
 		refclock_conf[clktype]->clock_start == noentry) {
 		msyslog(LOG_ERR,
 			"refclock_newpeer: clock type %d invalid\n",
@@ -236,12 +200,8 @@ refclock_newpeer(
 	/*
 	 * Allocate and initialize interface structure
 	 */
-	pp = (struct refclockproc *)emalloc(sizeof(struct refclockproc));
-	if (pp == NULL)
-		return (0);
-
-	memset((char *)pp, 0, sizeof(struct refclockproc));
-	typeunit[clktype][unit] = peer;
+	pp = emalloc(sizeof(*pp));
+	memset(pp, 0, sizeof(*pp));
 	peer->procptr = pp;
 
 	/*
@@ -249,7 +209,7 @@ refclock_newpeer(
 	 */
 	peer->refclktype = clktype;
 	peer->refclkunit = (u_char)unit;
-	peer->flags |= FLAG_REFCLOCK | FLAG_FIXPOLL;
+	peer->flags |= FLAG_REFCLOCK;
 	peer->leap = LEAP_NOTINSYNC;
 	peer->stratum = STRATUM_REFCLOCK;
 	peer->ppoll = peer->maxpoll;
@@ -297,7 +257,7 @@ refclock_unpeer(
 	 * Wiggle the driver to release its resources, then give back
 	 * the interface structure.
 	 */
-	if (!peer->procptr)
+	if (NULL == peer->procptr)
 		return;
 
 	clktype = peer->refclktype;
@@ -305,7 +265,7 @@ refclock_unpeer(
 	if (refclock_conf[clktype]->clock_shutdown != noentry)
 		(refclock_conf[clktype]->clock_shutdown)(unit, peer);
 	free(peer->procptr);
-	peer->procptr = 0;
+	peer->procptr = NULL;
 }
 
 
@@ -365,19 +325,17 @@ refclock_transmit(
 		 * Update reachability and poll variables like the
 		 * network code.
 		 */
-		oreach = peer->reach;
+		oreach = peer->reach & 0xfe;
 		peer->reach <<= 1;
+		if (!(peer->reach & 0x0f))
+			clock_filter(peer, 0., 0., MAXDISPERSE);
 		peer->outdate = current_time;
 		if (!peer->reach) {
 			if (oreach) {
-				report_event(EVNT_UNREACH, peer);
+				report_event(PEVNT_UNREACH, peer, NULL);
 				peer->timereachable = current_time;
 			}
 		} else {
-			if (!(oreach & 0x07)) {
-				clock_filter(peer, 0., 0., MAXDISPERSE);
-				clock_select();
-			}
 			if (peer->flags & FLAG_BURST)
 				peer->burst = NSTAGE;
 		}
@@ -393,7 +351,6 @@ refclock_transmit(
 /*
  * Compare two doubles - used with qsort()
  */
-#ifdef QSORT_USES_VOID_P
 static int
 refclock_cmpl_fp(
 	const void *p1,
@@ -404,30 +361,11 @@ refclock_cmpl_fp(
 	const double *dp2 = (const double *)p2;
 
 	if (*dp1 < *dp2)
-		return (-1);
-
+		return -1;
 	if (*dp1 > *dp2)
-		return (1);
-
-	return (0);
+		return 1;
+	return 0;
 }
-
-#else
-static int
-refclock_cmpl_fp(
-	const double *dp1,
-	const double *dp2
-	)
-{
-	if (*dp1 < *dp2)
-		return (-1);
-
-	if (*dp1 > *dp2)
-		return (1);
-
-	return (0);
-}
-#endif /* QSORT_USES_VOID_P */
 
 
 /*
@@ -458,6 +396,7 @@ refclock_process_offset(
 
 /*
  * refclock_process - process a sample from the clock
+ * refclock_process_f - refclock_process with other than time1 fudge
  *
  * This routine converts the timecode in the form days, hours, minutes,
  * seconds and milliseconds/microseconds to internal timestamp format,
@@ -472,8 +411,9 @@ refclock_process_offset(
  * zero and the fraction for pp->lastrec is set to the PPS offset.
  */
 int
-refclock_process(
-	struct refclockproc *pp		/* refclock structure pointer */
+refclock_process_f(
+	struct refclockproc *pp,	/* refclock structure pointer */
+	double fudge
 	)
 {
 	l_fp offset, ltemp;
@@ -493,9 +433,17 @@ refclock_process(
 	offset.l_uf = 0;
 	DTOLFP(pp->nsec / 1e9, &ltemp);
 	L_ADD(&offset, &ltemp);
-	refclock_process_offset(pp, offset, pp->lastrec,
-	    pp->fudgetime1);
+	refclock_process_offset(pp, offset, pp->lastrec, fudge);
 	return (1);
+}
+
+
+int
+refclock_process(
+	struct refclockproc *pp		/* refclock structure pointer */
+)
+{
+	return refclock_process_f(pp, pp->fudgetime1);
 }
 
 
@@ -514,7 +462,7 @@ refclock_sample(
 	struct refclockproc *pp		/* refclock structure pointer */
 	)
 {
-	int	i, j, k, m, n;
+	size_t	i, j, k, m, n;
 	double	off[MAXSTAGE];
 	double	offset;
 
@@ -532,13 +480,7 @@ refclock_sample(
 		return (0);
 
 	if (n > 1)
-		qsort(
-#ifdef QSORT_USES_VOID_P
-		    (void *)
-#else
-		    (char *)
-#endif
-		    off, (size_t)n, sizeof(double), refclock_cmpl_fp);
+		qsort((void *)off, n, sizeof(off[0]), refclock_cmpl_fp);
 
 	/*
 	 * Reject the furthest from the median of the samples until
@@ -572,7 +514,7 @@ refclock_sample(
 		    "refclock_sample: n %d offset %.6f disp %.6f jitter %.6f\n",
 		    n, pp->offset, pp->disp, pp->jitter);
 #endif
-	return (n);
+	return (int)n;
 }
 
 
@@ -611,30 +553,23 @@ refclock_receive(
 	peer->received++;
 	peer->timereceived = current_time;
 	if (!peer->reach) {
-		report_event(EVNT_REACH, peer);
+		report_event(PEVNT_REACH, peer, NULL);
 		peer->timereachable = current_time;
 	}
 	peer->reach |= 1;
 	peer->reftime = pp->lastref;
-	peer->org = pp->lastrec;
-	peer->rootdispersion = pp->disp;
-	get_systime(&peer->rec);
+	peer->aorg = pp->lastrec;
+	peer->rootdisp = pp->disp;
+	get_systime(&peer->dst);
 	if (!refclock_sample(pp))
 		return;
 
 	clock_filter(peer, pp->offset, 0., pp->jitter);
-	record_peer_stats(&peer->srcadr, ctlpeerstatus(peer),
-	    peer->offset, peer->delay, clock_phi * (current_time -
-	    peer->epoch), peer->jitter);
-	if (cal_enable && last_offset < MINDISPERSE) {
-#ifdef KERNEL_PLL
-		if (peer != sys_peer || pll_status & STA_PPSTIME)
-#else
-		if (peer != sys_peer)
-#endif /* KERNEL_PLL */
+	if (cal_enable && fabs(last_offset) < sys_mindisp && sys_peer !=
+	    NULL) {
+		if (sys_peer->refclktype == REFCLK_ATOM_PPS &&
+		    peer->refclktype != REFCLK_ATOM_PPS)
 			pp->fudgetime1 -= pp->offset * FUDGEFAC;
-		else
-			pp->fudgetime1 -= pp->fudgetime1 * FUDGEFAC;
 	}
 }
 
@@ -781,6 +716,9 @@ refclock_open(
 {
 	int	fd;
 	int	omode;
+#ifdef O_NONBLOCK
+	char    trash[128];	/* litter bin for old input data */
+#endif
 
 	/*
 	 * Open serial port and set default options
@@ -798,6 +736,7 @@ refclock_open(
 		msyslog(LOG_ERR, "refclock_open %s: %m", dev);
 		return (0);
 	}
+	NTP_INSIST(fd != 0);
 	if (!refclock_setup(fd, speed, lflags)) {
 		close(fd);
 		return (0);
@@ -806,8 +745,19 @@ refclock_open(
 		close(fd);
 		return (0);
 	}
+#ifdef O_NONBLOCK
+	/*
+	 * We want to make sure there is no pending trash in the input
+	 * buffer. Since we have non-blocking IO available, this is a
+	 * good moment to read and dump all available outdated stuff
+	 * that might have become toxic for the driver.
+	 */
+	while (read(fd, trash, sizeof(trash)) > 0 || errno == EINTR)
+		/*NOP*/;
+#endif
 	return (fd);
 }
+
 
 /*
  * refclock_setup - initialize terminal interface structure
@@ -900,6 +850,14 @@ refclock_setup(
 		    "refclock_setup fd %d TCSANOW: %m", fd);
 		return (0);
 	}
+
+	/*
+	 * flush input and output buffers to discard any outdated stuff
+	 * that might have become toxic for the driver. Failing to do so
+	 * is logged, but we keep our fingers crossed otherwise.
+	 */
+	if (tcflush(fd, TCIOFLUSH) < 0)
+		msyslog(LOG_ERR, "refclock_setup fd %d tcflush(): %m", fd);
 #endif /* HAVE_TERMIOS */
 
 #ifdef HAVE_SYSV_TTYS
@@ -1064,7 +1022,7 @@ refclock_ioctl(
  */
 void
 refclock_control(
-	struct sockaddr_storage *srcadr,
+	sockaddr_u *srcadr,
 	struct refclockstat *in,
 	struct refclockstat *out
 	)
@@ -1077,22 +1035,15 @@ refclock_control(
 	/*
 	 * Check for valid address and running peer
 	 */
-	if (srcadr->ss_family != AF_INET)
-		return;
-
 	if (!ISREFCLOCKADR(srcadr))
 		return;
 
 	clktype = (u_char)REFCLOCKTYPE(srcadr);
 	unit = REFCLOCKUNIT(srcadr);
-	if (clktype >= num_refclock_conf || unit >= MAXUNIT)
-		return;
 
-	peer = typeunit[clktype][unit];
-	if (peer == NULL)
-		return;
+	peer = findexistingpeer(srcadr, NULL, -1, 0);
 
-	if (peer->procptr == NULL)
+	if (NULL == peer || NULL == peer->procptr)
 		return;
 
 	pp = peer->procptr;
@@ -1149,7 +1100,7 @@ refclock_control(
 		out->currentstatus = pp->currentstatus;
 		out->type = pp->type;
 		out->clockdesc = pp->clockdesc;
-		out->lencode = pp->lencode;
+		out->lencode = (u_short)pp->lencode;
 		out->p_lastcode = pp->a_lastcode;
 	}
 
@@ -1170,32 +1121,28 @@ refclock_control(
  */
 void
 refclock_buginfo(
-	struct sockaddr_storage *srcadr, /* clock address */
+	sockaddr_u *srcadr,	/* clock address */
 	struct refclockbug *bug /* output structure */
 	)
 {
 	struct peer *peer;
 	struct refclockproc *pp;
-	u_char clktype;
+	int clktype;
 	int unit;
-	int i;
+	unsigned u;
 
 	/*
 	 * Check for valid address and peer structure
 	 */
-	if (srcadr->ss_family != AF_INET)
-		return;
-
 	if (!ISREFCLOCKADR(srcadr))
 		return;
 
 	clktype = (u_char) REFCLOCKTYPE(srcadr);
 	unit = REFCLOCKUNIT(srcadr);
-	if (clktype >= num_refclock_conf || unit >= MAXUNIT)
-		return;
 
-	peer = typeunit[clktype][unit];
-	if (peer == NULL)
+	peer = findexistingpeer(srcadr, NULL, -1, 0);
+
+	if (NULL == peer || NULL == peer->procptr)
 		return;
 
 	pp = peer->procptr;
@@ -1216,8 +1163,8 @@ refclock_buginfo(
 	bug->stimes = 0xfffffffc;
 	bug->times[0] = pp->lastref;
 	bug->times[1] = pp->lastrec;
-	for (i = 2; i < (int)bug->ntimes; i++)
-		DTOLFP(pp->filter[i - 2], &bug->times[i]);
+	for (u = 2; u < bug->ntimes; u++)
+		DTOLFP(pp->filter[u - 2], &bug->times[u]);
 
 	/*
 	 * Give the stuff to the clock
@@ -1226,4 +1173,154 @@ refclock_buginfo(
 		(refclock_conf[clktype]->clock_buginfo)(unit, bug, peer);
 }
 
+
+#ifdef HAVE_PPSAPI
+/*
+ * refclock_ppsapi - initialize/update ppsapi
+ *
+ * This routine is called after the fudge command to open the PPSAPI
+ * interface for later parameter setting after the fudge command.
+ */
+int
+refclock_ppsapi(
+	int	fddev,			/* fd device */
+	struct refclock_atom *ap	/* atom structure pointer */
+	)
+{
+	if (ap->handle == 0) {
+		if (time_pps_create(fddev, &ap->handle) < 0) {
+			msyslog(LOG_ERR,
+			    "refclock_ppsapi: time_pps_create: %m");
+			return (0);
+		}
+	}
+	return (1);
+}
+
+
+/*
+ * refclock_params - set ppsapi parameters
+ *
+ * This routine is called to set the PPSAPI parameters after the fudge
+ * command.
+ */
+int
+refclock_params(
+	int	mode,			/* mode bits */
+	struct refclock_atom *ap	/* atom structure pointer */
+	)
+{
+	memset(&ap->pps_params, 0, sizeof(pps_params_t));
+	ap->pps_params.api_version = PPS_API_VERS_1;
+
+	/*
+	 * Solaris serial ports provide PPS pulse capture only on the
+	 * assert edge. FreeBSD serial ports provide capture on the
+	 * clear edge, while FreeBSD parallel ports provide capture
+	 * on the assert edge. Your mileage may vary.
+	 */
+	if (mode & CLK_FLAG2)
+		ap->pps_params.mode = PPS_TSFMT_TSPEC | PPS_CAPTURECLEAR;
+	else
+		ap->pps_params.mode = PPS_TSFMT_TSPEC | PPS_CAPTUREASSERT;
+	if (time_pps_setparams(ap->handle, &ap->pps_params) < 0) {
+		msyslog(LOG_ERR,
+		    "refclock_params: time_pps_setparams: %m");
+		return (0);
+	}
+
+	/*
+	 * If flag3 is lit, select the kernel PPS.
+	 */
+	if (mode & CLK_FLAG3) {
+		if (time_pps_kcbind(ap->handle, PPS_KC_HARDPPS,
+		    ap->pps_params.mode & ~PPS_TSFMT_TSPEC,
+		    PPS_TSFMT_TSPEC) < 0) {
+			if (errno != EOPNOTSUPP) { 
+				msyslog(LOG_ERR,
+				    "refclock_params: time_pps_kcbind: %m");
+				return (0);
+			}
+		}
+		pps_enable = 1;
+	}
+	return (1);
+}
+
+
+/*
+ * refclock_pps - called once per second
+ *
+ * This routine is called once per second. It snatches the PPS
+ * timestamp from the kernel and saves the sign-extended fraction in
+ * a circular buffer for processing at the next poll event.
+ */
+int
+refclock_pps(
+	struct peer *peer,		/* peer structure pointer */
+	struct refclock_atom *ap,	/* atom structure pointer */
+	int	mode			/* mode bits */	
+	)
+{
+	struct refclockproc *pp;
+	pps_info_t pps_info;
+	struct timespec timeout;
+	double	dtemp;
+
+	/*
+	 * We require the clock to be synchronized before setting the
+	 * parameters. When the parameters have been set, fetch the
+	 * most recent PPS timestamp.
+	 */ 
+	pp = peer->procptr;
+	if (ap->handle == 0)
+		return (0);
+
+	if (ap->pps_params.mode == 0 && sys_leap != LEAP_NOTINSYNC) {
+		if (refclock_params(pp->sloppyclockflag, ap) < 1)
+			return (0);
+	}
+	timeout.tv_sec = 0;
+	timeout.tv_nsec = 0;
+	memset(&pps_info, 0, sizeof(pps_info_t));
+	if (time_pps_fetch(ap->handle, PPS_TSFMT_TSPEC, &pps_info,
+	    &timeout) < 0) {
+		refclock_report(peer, CEVNT_FAULT);
+		return (0);
+	}
+	timeout = ap->ts;
+	if (ap->pps_params.mode & PPS_CAPTUREASSERT)
+		ap->ts = pps_info.assert_timestamp;
+	else if (ap->pps_params.mode & PPS_CAPTURECLEAR)
+		ap->ts = pps_info.clear_timestamp;
+	else
+		return (0);
+	
+	/*
+	 * There can be zero, one or two PPS pulses between polls,
+	 * depending on the poll interval relative to the PPS interval.
+	 * The pulse must be newer and within the range gate relative
+	 * to the last pulse.
+	 */
+	if (ap->ts.tv_sec <= timeout.tv_sec || abs(ap->ts.tv_nsec -
+	    timeout.tv_nsec) > RANGEGATE)
+		return (0);
+
+	/*
+	 * Convert to signed fraction offset and stuff in median filter.
+	 */
+	pp->lastrec.l_ui = (u_int32)ap->ts.tv_sec + JAN_1970;
+	dtemp = ap->ts.tv_nsec / 1e9;
+	pp->lastrec.l_uf = (u_int32)(dtemp * FRAC);
+	if (dtemp > .5)
+		dtemp -= 1.;
+	SAMPLE(-dtemp + pp->fudgetime1);
+#ifdef DEBUG
+	if (debug > 1)
+		printf("refclock_pps: %lu %f %f\n", current_time,
+		    dtemp, pp->fudgetime1);
+#endif
+	return (1);
+}
+#endif /* HAVE_PPSAPI */
 #endif /* REFCLOCK */

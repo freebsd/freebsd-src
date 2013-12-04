@@ -35,17 +35,20 @@
 				     /* without this, open is suppressed */
 
 typedef struct FILEGEN
-        {
-	  FILE   *fp;		/* file referring to current generation */
-	  char   *prefix;	/* filename prefix and basename to be used*/
-	  char   *basename;	/* for constructing filename of generation file */
+{
+	FILE *	     fp;	/* file referring to current generation */
+	const char * prefix;	/* filename prefix and basename to be used*/
+	char *	     basename;	/* for constructing filename of generation file */
 				/* WARNING: must be malloced !!! will be fed to free()*/
-	  u_long  id;		/* id of current generation */
-	  u_char  type;		/* type of file generation */
-	  u_char  flag;		/* flags modifying processing of file generation */
-	}	FILEGEN;
+	u_long	     id;	/* id of current generation */
+	u_char	     type;	/* type of file generation */
+	u_char	     flag;	/* flags modifying processing of file generation */
+}	FILEGEN;
 
-extern	void	filegen_setup	P((FILEGEN *, u_long));
-extern	void	filegen_config	P((FILEGEN *, char *, u_int, u_int));
-extern	FILEGEN *filegen_get	P((char *));
-extern	void	filegen_register P((char *, const char *, FILEGEN *));
+extern	void	filegen_setup	(FILEGEN *, u_long);
+extern	void	filegen_config	(FILEGEN *, const char *, u_int, u_int);
+extern	FILEGEN *filegen_get	(const char *);
+extern	void	filegen_register (const char *, const char *, FILEGEN *);
+#ifdef DEBUG
+extern	void	filegen_unregister(char *);
+#endif

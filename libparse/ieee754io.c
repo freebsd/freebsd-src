@@ -43,9 +43,9 @@
 #include "ntp_fp.h"
 #include "ieee754io.h"
 
-static unsigned char get_byte P((unsigned char *, offsets_t, int *));
+static unsigned char get_byte (unsigned char *, offsets_t, int *);
 #ifdef __not_yet__
-static void put_byte P((unsigned char *, offsets_t, int *, unsigned char));
+static void put_byte (unsigned char *, offsets_t, int *, unsigned char);
 #endif
 
 #ifdef LIBDEBUG

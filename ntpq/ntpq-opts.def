@@ -14,8 +14,8 @@ test-main;
 
 flag = {
     name      = ipv4;
+    flags-cant = ipv6;
     value     = 4;
-    equivalence = ipv4;
     descrip   = "Force IPv4 DNS name resolution";
     doc = <<-  _EndOfDoc_
 	Force DNS resolution of following host names on the command line
@@ -25,8 +25,8 @@ flag = {
 
 flag = {
     name      = ipv6;
+    flags-cant = ipv4;
     value     = 6;
-    equivalence = ipv4;
     descrip   = "Force IPv6 DNS name resolution";
     doc = <<-  _EndOfDoc_
 	Force DNS resolution of following host names on the command line
@@ -41,7 +41,7 @@ flag = {
     descrip   = "run a command and exit";
     max       = NOLIMIT;
     arg-name  = cmd;
-    stack-arg;
+    call-proc = ntpq_custom_opt_handler;
     doc = <<-  _EndOfDoc_
 	The following argument is interpreted as an interactive format command
 	and is added to the list of commands to be executed on the specified
@@ -56,6 +56,7 @@ flag = {
     value     = p;
     descrip   = "Print a list of the peers";
     flags-cant = interactive;
+    call-proc = ntpq_custom_opt_handler;
     doc = <<-  _EndOfDoc_
 	Print a list of the peers known to the server as well as a summary
 	of their state. This is equivalent to the 'peers' interactive command.
@@ -80,6 +81,20 @@ flag = {
     doc = <<-  _EndOfDoc_
 	Output all host addresses in dotted-quad numeric format rather than
 	converting to the canonical host names. 
+	_EndOfDoc_;
+};
+
+flag = {
+    name      = old-rv;
+    descrip   = "Always output status line with readvar";
+    doc = <<-  _EndOfDoc_
+	By default, ntpq now suppresses the associd=... line that
+	precedes the output of "readvar" (alias "rv") when a single
+	variable is requested, such as ntpq -c "rv 0 offset".  This
+	option causes ntpq to include both lines of output for a
+	single-variable readvar.  Using an environment variable to
+	preset this option in a script will enable both older and
+	newer ntpq to behave identically in this regard.
 	_EndOfDoc_;
 };
 

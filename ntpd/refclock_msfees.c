@@ -382,11 +382,15 @@ dump_buf(
 	int i;
 	register char *ptr = buff;
 
-	sprintf(ptr, text);
-	for (i=from; i<to; i++)
-	{	while (*ptr) ptr++;
-	if ((ptr-buff) > DUMP_BUF_SIZE) msyslog(LOG_DEBUG, "D: %s", ptr=buff);
-	sprintf(ptr, " %06d", ((int)coffs[i].l_f) / 4295);
+	snprintf(buff, sizeof(buff), text);
+	for (i = from; i < to; i++) {
+		ptr += strlen(ptr);
+		if ((ptr - buff) > DUMP_BUF_SIZE) {
+			msyslog(LOG_DEBUG, "D: %s", buff);
+			ptr = buff;
+		}
+		snprintf(ptr, sizeof(buff) - (ptr - buff),
+			 " %06d", ((int)coffs[i].l_f) / 4295);
 	}
 	msyslog(LOG_DEBUG, "D: %s", buff);
 }
@@ -450,7 +454,7 @@ msfees_start(
 
 	/* Unit okay, attempt to open the devices.  We do them both at
 	 * once to make sure we can */
-	(void) sprintf(eesdev, EES232, unit);
+	snprintf(eesdev, sizeof(eesdev), EES232, unit);
 
 	fd232 = open(eesdev, O_RDWR, 0777);
 	if (fd232 == -1) {
@@ -987,17 +991,20 @@ ees_receive(
 
 	/* Dump the deltas each minute */
 	if (dbg & DB_DUMP_DELTAS)
-	{	if (/*0 <= ees->second && */
-		ees->second < ((sizeof deltas) / (sizeof deltas[0]))) deltas[ees->second] = delta_sfsec;
+	{	
+		if (/*0 <= ees->second && */
+		    ees->second < COUNTOF(deltas))
+			deltas[ees->second] = delta_sfsec;
 	/* Dump on second 1, as second 0 sometimes missed */
 	if (ees->second == 1) {
-		char text[16 * ((sizeof deltas) / (sizeof deltas[0]))];
+		char text[16 * COUNTOF(deltas)];
 		char *cptr=text;
 		int i;
-		for (i=0; i<((sizeof deltas) / (sizeof deltas[0])); i++) {
-			sprintf(cptr, " %d.%04d",
-				msec(deltas[i]), subms(deltas[i]));
-			while (*cptr) cptr++;
+		for (i = 0; i < COUNTOF(deltas); i++) {
+			snprintf(cptr, sizeof(text) / COUNTOF(deltas),
+				" %d.%04d", msec(deltas[i]),
+				subms(deltas[i]));
+			cptr += strlen(cptr);
 		}
 		msyslog(LOG_ERR, "Deltas: %d.%04d<->%d.%04d: %s",
 			msec(EES_STEP_F - EES_STEP_F_GRACE), subms(EES_STEP_F - EES_STEP_F_GRACE),

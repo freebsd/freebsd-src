@@ -15,7 +15,6 @@ No changes should be needed for any system that is even remotely like Unix. */
 
 
 
-#define VERSION         "1.6"          /* Just the version string */
 #define MAX_SOCKETS        10          /* Maximum number of addresses */
 
 #ifndef LOCKNAME
@@ -25,6 +24,8 @@ No changes should be needed for any system that is even remotely like Unix. */
 #    define SAVENAME "/etc/sntp.state" /* Stores the recovery state */
 #endif
 
+//#define DEBUG
+
 
 
 /* Defined in main.c */
@@ -32,7 +33,7 @@ No changes should be needed for any system that is even remotely like Unix. */
 #define op_client           1          /* Behave as a challenge client */
 #define op_listen           2          /* Behave as a listening client */
 
-extern const char *argv0;
+/* extern const char *argv0;
 
 extern int verbose, operation;
 
@@ -42,7 +43,7 @@ extern void fatal (int syserr, const char *message, const char *insert);
 
 
 
-/* Defined in unix.c */
+ Defined in unix.c */
 
 extern void do_nothing (int seconds);
 
@@ -74,7 +75,7 @@ extern int read_socket (int which, void *packet, int length, int waiting);
 
 extern int flush_socket (int which);
 
-extern void close_socket (int which);
+/* extern void close_socket (int which); */
 
 
 

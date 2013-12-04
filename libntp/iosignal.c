@@ -59,7 +59,7 @@ static int sigio_block_count = 0;
  */
 static int sigio_handler_active = 0;
 # endif
-extern	void	input_handler	P((l_fp *));
+extern	void	input_handler	(l_fp *);
 
 /*
  * SIGPOLL and SIGIO ROUTINES.

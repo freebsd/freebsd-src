@@ -16,8 +16,10 @@
         <p>Address: 127.127.28.<i>u</i><br>
             Reference ID: <tt>SHM</tt><br>
             Driver ID: <tt>SHM</tt></p>
+
         <h4>Description</h4>
         <p>This driver receives its reference clock info from a shared memory-segment. The shared memory-segment is created with owner-only access for unit 0 and 1, and world access for unit 2 and 3</p>
+
         <h4>Structure of shared memory-segment</h4>
         <pre>struct shmTime {
 &nbsp; int&nbsp;&nbsp;&nbsp; mode; /* 0 - if valid set
@@ -40,15 +42,59 @@
 &nbsp; int&nbsp;&nbsp;&nbsp; valid;
 &nbsp; int&nbsp;&nbsp;&nbsp; dummy[10];&nbsp;
 };</pre>
+
         <h4>Operation mode=0</h4>
-        <p>When the poll-method of the driver is called, the valid-flag of the shared memory-segment is checked:</p>
-        <p>If set, the values in the record (clockTimeStampSec, clockTimeStampUSec, receiveTimeStampSec, receiveTimeStampUSec, leap, precision) are passed to ntp, and the valid-flag is cleared.</p>
-        <p>If not set, a timeout is reported to ntp, nothing else happend</p>
+        <p>Each second, the valid-flag of the shared memory-segment is checked:</p>
+        <p>If set, the values in the record (clockTimeStampSec, clockTimeStampUSec, receiveTimeStampSec, receiveTimeStampUSec, leap, precision) are passed to ntp, and the valid-flag is cleared and a counter is bumped.</p>
+        <p>If not set, a counter is bumped</p>
         <h4>Operation mode=1</h4>
-        <p>When the poll-method of the driver is called, the valid-flag of the shared memory-segment is checked:</p>
-        <p>If set, the count-field of the record is remembered, and the values in the record (clockTimeStampSec, clockTimeStampUSec, receiveTimeStampSec, receiveTimeStampUSec, leap, precision) are read. Then, the remembered count is compared to the count now in the record. If both are equal, the values read from the record are passed to ntp. If they differ, another process has modified the record while it was read out (was not able to produce this case), and failure is reported to ntp. The valid flag is cleared.</p>
-        <p>If not set, a timeout is reported to ntp, nothing else happend</p>
-        <h4>Fudge Factors</h4>
+        <p>Each second, the valid-flag of the shared memory-segment is checked:</p>
+        <p>If set, the count-field of the record is remembered, and the values in the record (clockTimeStampSec, clockTimeStampUSec, receiveTimeStampSec, receiveTimeStampUSec, leap, precision) are read. Then, the remembered count is compared to the count now in the record. If both are equal, the values read from the record are passed to ntp. If they differ, another process has modified the record while it was read out (was not able to produce this case), and failure is reported to ntp. The valid flag is cleared and a counter is bumped.</p>
+        <p>If not set, a counter is bumped</p>
+
+
+<h4>gpsd</h4>
+
+<a href="http://gpsd.berlios.de/"><i>gpsd</i></a>
+knows how to talk to many GPS devices.
+It works with <i>ntpd</i> through the SHM driver.
+<P>
+The <i>gpsd</i> man page suggests setting minpoll and maxpoll to 4.
+That was an attempt to reduce jitter.
+The SHM driver was fixed (ntp-4.2.5p138) to collect data each second rather than
+once per polling interval so that suggestion is no longer reasonable.
+<P>
+
+
+<h4>Clockstats</h4>
+If flag4 is set when the driver is polled, a clockstats record is written.
+The first 3 fields are the normal date, time, and IP address common to all clockstats records.
+<P>
+The 4th field is the number of second ticks since the last poll.
+The 5th field is the number of good data samples found.  The last 64 will be used by ntpd.
+The 6th field is the number of sample that didn't have valid data ready.
+The 7th field is the number of bad samples.
+The 8th field is the number of times the the mode 1 info was update while nptd was trying to grab a sample.
+<P>
+
+Here is a sample showing the GPS reception fading out:
+<pre>
+54364 84927.157 127.127.28.0  66  65   1   0   0
+54364 84990.161 127.127.28.0  63  63   0   0   0
+54364 85053.160 127.127.28.0  63  63   0   0   0
+54364 85116.159 127.127.28.0  63  62   1   0   0
+54364 85180.158 127.127.28.0  64  63   1   0   0
+54364 85246.161 127.127.28.0  66  66   0   0   0
+54364 85312.157 127.127.28.0  66  50  16   0   0
+54364 85375.160 127.127.28.0  63  41  22   0   0
+54364 85439.155 127.127.28.0  64  64   0   0   0
+54364 85505.158 127.127.28.0  66  36  30   0   0
+54364 85569.157 127.127.28.0  64   0  64   0   0
+54364 85635.157 127.127.28.0  66   0  66   0   0
+54364 85700.160 127.127.28.0  65   0  65   0   0
+</pre>
+
+	<h4>Fudge Factors</h4>
         <dl>
             <dt><tt>time1 <i>time</i></tt>
             <dd>Specifies the time offset calibration factor, in seconds and fraction, with default 0.0.
@@ -65,7 +111,7 @@
             <dt><tt>flag3 0 | 1</tt>
             <dd>Not used by this driver.
             <dt><tt>flag4 0 | 1</tt>
-            <dd>Not used by this driver.
+            <dd>If flag4 is set, clockstats records will be written when the driver is polled.
             <h4>Additional Information</h4>
             <p><a href="../refclock.html">Reference Clock Drivers</a></p>
         </dl>
@@ -74,3 +120,4 @@
     </body>
 
 </html>
+

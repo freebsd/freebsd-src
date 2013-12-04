@@ -1,13 +1,21 @@
-AUTOMAKE_OPTIONS=	../util/ansi2knr
+NULL=
+AUTOMAKE_OPTIONS=	
 
-bindir=		${exec_prefix}/${BINSUBDIR}
+if NTP_BINSUBDIR_IS_BIN
 bin_PROGRAMS=	ntpdc
+else
+sbin_PROGRAMS=	ntpdc
+endif
+
 EXTRA_PROGRAMS=	ntpdc-layout
 EXTRA_DATA=	check-layout
-BUILT_SOURCES=	@MAKE_CHECK_LAYOUT@
-AM_CPPFLAGS=	-I$(top_srcdir)/include $(LIBOPTS_CFLAGS)
+BUILT_SOURCES=	@MAKE_CHECK_LAYOUT@ ntpdc-opts.c ntpdc-opts.h
+AM_CPPFLAGS= -I$(top_srcdir)/include -I$(top_srcdir)/lib/isc/include \
+	-I$(top_srcdir)/lib/isc/nothreads/include \
+	-I$(top_srcdir)/lib/isc/unix/include $(LIBOPTS_CFLAGS)
 # LDADD might need RESLIB and ADJLIB
-ntpdc_LDADD=	version.o @READLINE_LIBS@ $(LIBOPTS_LDADD) ../libntp/libntp.a
+ntpdc_LDADD=	version.o $(LIBOPTS_LDADD) ../libntp/libntp.a \
+		@EDITLINE_LIBS@ @LCRYPTO@
 # ntpdc-layout doesn't need any additional libraries at all
 ntpdc_layout_LDADD=
 DISTCLEANFILES=	.version version.c
@@ -16,10 +24,10 @@ noinst_HEADERS=	ntpdc.h
 ETAGS_ARGS= 	Makefile.am
 EXTRA_DIST=	nl_in.c nl.pl layout.std	\
 		ntpdc-opts.def ntpdc.1 ntpdc-opts.texi ntpdc-opts.menu
-BUILT_SOURCES+=	ntpdc-opts.c ntpdc-opts.h ntpdc.1 ntpdc-opts.texi	\
-		ntpdc-opts.menu
-man_MANS=	ntpdc.1
-run_ag=         cd $(srcdir) && autogen -L ../include --writable
+man_MANS=	$(srcdir)/ntpdc.1
+noinst_DATA=	$(srcdir)/ntpdc-opts.texi $(srcdir)/ntpdc-opts.menu
+run_ag=		cd $(srcdir) &&	env PATH="$(abs_builddir):$(PATH)"	\
+		autogen -L ../include --writable
 std_def_list=	$(top_srcdir)/include/debug-opt.def		\
 		$(top_srcdir)/include/autogen-version.def 	\
 		$(top_srcdir)/include/copyright.def 		\
@@ -27,14 +35,20 @@ std_def_list=	$(top_srcdir)/include/debug-opt.def		\
 		$(top_srcdir)/include/version.def
 
 $(srcdir)/ntpdc-opts.h: $(srcdir)/ntpdc-opts.c
+	@: do-nothing action to avoid default SCCS get, .h built with .c
+	
 $(srcdir)/ntpdc-opts.c: $(srcdir)/ntpdc-opts.def $(std_def_list)
 	$(run_ag) ntpdc-opts.def
 
 $(srcdir)/ntpdc.1: $(srcdir)/ntpdc-opts.def $(std_def_list)
 	$(run_ag) -Tagman1.tpl -bntpdc ntpdc-opts.def
 
-$(srcdir)/ntpdc-opts.texi $(srcdir)/ntpdc-opts.menu: $(srcdir)/ntpdc-opts.def $(std_def_list)
+$(srcdir)/ntpdc-opts.menu: $(srcdir)/ntpdc-opts.texi
+	@: do-nothing action to avoid default SCCS get, .menu built with .texi
+	
+$(srcdir)/ntpdc-opts.texi: $(srcdir)/ntpdc-opts.def $(std_def_list)
 	$(run_ag) -Taginfo.tpl -DLEVEL=section ntpdc-opts.def
+	$(top_srcdir)/scripts/check--help $@
 
 ntpdc_SOURCES = ntpdc.c ntpdc_ops.c ntpdc-opts.c ntpdc-opts.h
 
@@ -43,7 +57,7 @@ ntpdc-layout.o: nl.c
 layout.here: ntpdc-layout
 	./ntpdc-layout > $@
 
-check-layout: ntpdc-layout layout.std layout.here
+check-layout: ntpdc-layout $(srcdir)/layout.std layout.here
 	cmp $(srcdir)/layout.std layout.here && echo stamp > $@
 
 $(PROGRAMS): $(LDADD)
@@ -60,7 +74,8 @@ version.o: $(ntpdc_OBJECTS) ../libntp/libntp.a Makefile $(top_srcdir)/version
 
 # I ran nl_in.c (attached, to be installed into ntpdc) through
 # $(CC) -E nl_in.c | nl.pl > nl.c
-nl.c: nl_in.c nl.pl Makefile.am
+nl.c: nl_in.c nl.pl Makefile.am ../config.h ../include/ntp_request.h ntpdc.h
 	$(CC) -E $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(srcdir)/nl_in.c | ./nl.pl > nl.c
 
-include ../bincheck.mf
+include $(top_srcdir)/bincheck.mf
+include $(top_srcdir)/depsver.mf

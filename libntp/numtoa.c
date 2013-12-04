@@ -1,6 +1,13 @@
 /*
  * numtoa - return asciized network numbers store in local array space
  */
+#include <config.h>
+
+#include <sys/types.h>
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>		/* ntohl */
+#endif
+
 #include <stdio.h>
 
 #include "ntp_fp.h"
@@ -17,8 +24,10 @@ numtoa(
 
 	netnum = ntohl(num);
 	LIB_GETBUF(buf);
-	(void) sprintf(buf, "%lu.%lu.%lu.%lu", ((u_long)netnum >> 24) & 0xff,
-		       ((u_long)netnum >> 16) & 0xff, ((u_long)netnum >> 8) & 0xff,
-		       (u_long)netnum & 0xff);
+	snprintf(buf, LIB_BUFLENGTH, "%lu.%lu.%lu.%lu",
+		 ((u_long)netnum >> 24) & 0xff,
+		 ((u_long)netnum >> 16) & 0xff,
+		 ((u_long)netnum >> 8) & 0xff,
+		 (u_long)netnum & 0xff);
 	return buf;
 }

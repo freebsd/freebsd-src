@@ -7,13 +7,13 @@
 #include "ntp_types.h"
 
 struct calendar {
-	u_short year;	/* year (A.D.) */
+	u_short year;		/* year (A.D.) */
 	u_short yearday;	/* day of year, 1 = January 1 */
-	u_char month;	/* month, 1 = January */
+	u_char month;		/* month, 1 = January */
 	u_char monthday;	/* day of month */
-	u_char hour;	/* hour of day, midnight = 0 */
-	u_char minute;	/* minute of hour */
-	u_char second;	/* second of minute */
+	u_char hour;		/* hour of day, midnight = 0 */
+	u_char minute;		/* minute of hour */
+	u_char second;		/* second of minute */
 };
 
 /*
@@ -44,7 +44,7 @@ struct calendar {
 #define	DAYSPERYEAR	(365)			/* days per year */
 
 #define	SECSPERDAY	(SECSPERMIN*MINSPERHR*HRSPERDAY)
-#define SECSPERYEAR	(365 * SECSPERDAY)	/* regular year */
+#define	SECSPERYEAR	(365 * SECSPERDAY)	/* regular year */
 #define	SECSPERLEAPYEAR	(366 * SECSPERDAY)	/* leap year */
 
 #define	MAR1900		((JAN+FEB) * SECSPERDAY) /* no leap year in 1900 */
@@ -56,9 +56,9 @@ struct calendar {
  * Gross hacks.  I have illicit knowlege that there won't be overflows
  * here, the compiler often can't tell this.
  */
-#define TIMES60(val)	((((val)<<4) - (val))<<2)       /* *(16 - 1) * 4 */
+#define	TIMES60(val)	((((val)<<4) - (val))<<2)	/* *(16 - 1) * 4 */
 #define	TIMES24(val)	(((val)<<4) + ((val)<<3))	/* *16 + *8 */
-#define	TIMES7(val)	(((val)<<3) - (val))            /* *8  - *1 */
+#define	TIMES7(val)	(((val)<<3) - (val))		/* *8  - *1 */
 #define	TIMESDPERC(val)	(((val)<<10) + ((val)<<8) \
 			+ ((val)<<7) + ((val)<<5) \
 			+ ((val)<<4) + ((val)<<2) + (val))	/* *big* hack */
@@ -78,8 +78,8 @@ struct calendar {
 #define	JANFEBLEAP	((JAN+FEBLEAP) * SECSPERDAY)
 
 
-extern	void	caljulian	P((u_long, struct calendar *));
-extern	u_long	caltontp	P((const struct calendar *));
+extern	void	caljulian	(u_long, struct calendar *);
+extern	u_long	caltontp	(const struct calendar *);
 
 /*
  * Additional support stuff for Ed Rheingold's calendrical calculations
@@ -87,26 +87,26 @@ extern	u_long	caltontp	P((const struct calendar *));
 
 /*
  * Start day of NTP time as days past the imaginary date 12/1/1 BC.
- * P((This is the beginning of the Christian Era, or BCE.))
+ * (This is the beginning of the Christian Era, or BCE.)
  */
-#define DAY_NTP_STARTS 693596
+#define	DAY_NTP_STARTS 693596
 /*
  * The Gregorian calendar is based on a 400 year cycle.  This is the number
  * of days in each cycle.
  */
-#define GREGORIAN_CYCLE_DAYS 146097
+#define	GREGORIAN_CYCLE_DAYS 146097
 
 /*
  * Days in a normal 100 year leap year calendar.  We lose a leap year day
  * in years evenly divisible by 100 but not by 400.
  */
-#define GREGORIAN_NORMAL_CENTURY_DAYS 36524
+#define	GREGORIAN_NORMAL_CENTURY_DAYS 36524
 
 /*
  * Days in a normal 4 year leap year calendar cycle.
  */
-#define GREGORIAN_NORMAL_LEAP_CYCLE_DAYS 1461
+#define	GREGORIAN_NORMAL_LEAP_CYCLE_DAYS 1461
 
-#define is_leapyear(y) (y%4 == 0 && !(y%100 == 0 && !(y%400 == 0)))
+#define	is_leapyear(y)	(!((y) % 4) && !(!((y) % 100) && (y) % 400))
 
 #endif

@@ -69,7 +69,9 @@
 
 #include <sys/types.h>
 #include <ctype.h>
+#ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
+#endif
 #include <isc/net.h>
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
@@ -127,8 +129,8 @@ DNSlookup_name(
 }
 #endif
 
-static	int do_nodename P((const char *nodename, struct addrinfo *ai,
-    const struct addrinfo *hints));
+static	int do_nodename (const char *nodename, struct addrinfo *ai,
+    const struct addrinfo *hints);
 
 int
 getaddrinfo (const char *nodename, const char *servname,
@@ -362,7 +364,7 @@ do_nodename(
 			 sockin6->sin6_addr = in6addr_any;
 			 */
 		}
-#ifdef HAVE_SA_LEN_IN_STRUCT_SOCKADDR
+#ifdef ISC_PLATFORM_HAVESALEN
 		ai->ai_addr->sa_len = SOCKLEN(ai->ai_addr);
 #endif
 
@@ -428,15 +430,11 @@ do_nodename(
 	sockin = (struct sockaddr_in *)ai->ai_addr;
 	memcpy(&sockin->sin_addr, hp->h_addr, hp->h_length);
 	ai->ai_addr->sa_family = hp->h_addrtype;
-#ifdef HAVE_SA_LEN_IN_STRUCT_SOCKADDR
+#ifdef ISC_PLATFORM_HAVESALEN
 	ai->ai_addr->sa_len = sizeof(struct sockaddr);
 #endif
-	if (hints != NULL && hints->ai_flags & AI_CANONNAME) {
-		ai->ai_canonname = malloc(strlen(hp->h_name) + 1);
-		if (ai->ai_canonname == NULL)
-			return (EAI_MEMORY);
-		strcpy(ai->ai_canonname, hp->h_name);
-	}
+	if (hints != NULL && hints->ai_flags & AI_CANONNAME)
+		ai->ai_canonname = estrdup(hp->h_name);
 	return (0);
 }
 

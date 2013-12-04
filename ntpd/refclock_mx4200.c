@@ -167,28 +167,28 @@ static char pmvxg[] = "PMVXG";
 /*
  * Function prototypes
  */
-static	int	mx4200_start	P((int, struct peer *));
-static	void	mx4200_shutdown	P((int, struct peer *));
-static	void	mx4200_receive	P((struct recvbuf *));
-static	void	mx4200_poll	P((int, struct peer *));
+static	int	mx4200_start	(int, struct peer *);
+static	void	mx4200_shutdown	(int, struct peer *);
+static	void	mx4200_receive	(struct recvbuf *);
+static	void	mx4200_poll	(int, struct peer *);
 
-static	char *	mx4200_parse_t	P((struct peer *));
-static	char *	mx4200_parse_p	P((struct peer *));
-static	char *	mx4200_parse_s	P((struct peer *));
+static	char *	mx4200_parse_t	(struct peer *);
+static	char *	mx4200_parse_p	(struct peer *);
+static	char *	mx4200_parse_s	(struct peer *);
 #ifdef QSORT_USES_VOID_P
-int	mx4200_cmpl_fp	P((const void *, const void *));
+int	mx4200_cmpl_fp	(const void *, const void *);
 #else
-int	mx4200_cmpl_fp	P((const l_fp *, const l_fp *));
+int	mx4200_cmpl_fp	(const l_fp *, const l_fp *);
 #endif /* not QSORT_USES_VOID_P */
-static	int	mx4200_config	P((struct peer *));
-static	void	mx4200_ref	P((struct peer *));
-static	void	mx4200_send	P((struct peer *, char *, ...))
+static	int	mx4200_config	(struct peer *);
+static	void	mx4200_ref	(struct peer *);
+static	void	mx4200_send	(struct peer *, char *, ...)
     __attribute__ ((format (printf, 2, 3)));
-static	u_char	mx4200_cksum	P((char *, int));
-static	int	mx4200_jday	P((int, int, int));
-static	void	mx4200_debug	P((struct peer *, char *, ...))
+static	u_char	mx4200_cksum	(char *, int);
+static	int	mx4200_jday	(int, int, int);
+static	void	mx4200_debug	(struct peer *, char *, ...)
     __attribute__ ((format (printf, 2, 3)));
-static	int	mx4200_pps	P((struct peer *));
+static	int	mx4200_pps	(struct peer *);
 
 /*
  * Transfer vector
@@ -222,7 +222,7 @@ mx4200_start(
 	/*
 	 * Open serial port
 	 */
-	(void)sprintf(gpsdev, DEVICE, unit);
+	snprintf(gpsdev, sizeof(gpsdev), DEVICE, unit);
 	if (!(fd = refclock_open(gpsdev, SPEED232, LDISC_PPS))) {
 	    return (0);
 	}
@@ -230,19 +230,16 @@ mx4200_start(
 	/*
 	 * Allocate unit structure
 	 */
-	if (!(up = (struct mx4200unit *) emalloc(sizeof(struct mx4200unit)))) {
-		perror("emalloc");
-		(void) close(fd);
-		return (0);
-	}
-	memset((char *)up, 0, sizeof(struct mx4200unit));
+	up = emalloc(sizeof(*up));
+	memset(up, 0, sizeof(*up));
 	pp = peer->procptr;
 	pp->io.clock_recv = mx4200_receive;
 	pp->io.srcclock = (caddr_t)peer;
 	pp->io.datalen = 0;
 	pp->io.fd = fd;
 	if (!io_addclock(&pp->io)) {
-		(void) close(fd);
+		close(fd);
+		pp->io.fd = -1;
 		free(up);
 		return (0);
 	}
@@ -274,8 +271,10 @@ mx4200_shutdown(
 
 	pp = peer->procptr;
 	up = (struct mx4200unit *)pp->unitptr;
-	io_closeclock(&pp->io);
-	free(up);
+	if (-1 != pp->io.fd)
+		io_closeclock(&pp->io);
+	if (NULL != up)
+		free(up);
 }
 
 
@@ -576,9 +575,9 @@ mx4200_ref(
 	}
 	alt = up->avg_alt;
 	minute = (lat - (double)(int)lat) * 60.0;
-	sprintf(lats,"%02d%02.4f", (int)lat, minute);
+	snprintf(lats, sizeof(lats), "%02d%02.4f", (int)lat, minute);
 	minute = (lon - (double)(int)lon) * 60.0;
-	sprintf(lons,"%03d%02.4f", (int)lon, minute);
+	snprintf(lons, sizeof(lons), "%03d%02.4f", (int)lon, minute);
 
 	mx4200_send(peer, "%s,%03d,,,,,%s,%c,%s,%c,%.2f,%d", pmvxg,
 	    PMVXG_S_INITMODEA,
@@ -961,18 +960,18 @@ mx4200_parse_t(
 	char   time_mark_valid, time_sync, op_mode;
 	int    sentence_type, valid;
 	int    year, day_of_year, month, day_of_month;
-	int    hour, minute, second, leapsec;
+	int    hour, minute, second, leapsec_warn;
 	int    oscillator_offset, time_mark_error, time_bias;
 
 	pp = peer->procptr;
 	up = (struct mx4200unit *)pp->unitptr;
 
-	leapsec = 0;  /* Not all receivers output leap second warnings (!) */
+	leapsec_warn = 0;  /* Not all receivers output leap second warnings (!) */
 	sscanf(pp->a_lastcode,
 		"$PMVXG,%d,%c,%d,%d,%d,%d:%d:%d,%c,%c,%d,%d,%d,%d",
 		&sentence_type, &time_mark_valid, &year, &month, &day_of_month,
 		&hour, &minute, &second, &time_sync, &op_mode,
-		&oscillator_offset, &time_mark_error, &time_bias, &leapsec);
+		&oscillator_offset, &time_mark_error, &time_bias, &leapsec_warn);
 
 	if (sentence_type != PMVXG_D_TRECOVOUT)
 		return ("wrong rec-type");
@@ -1005,8 +1004,8 @@ mx4200_parse_t(
 		mx4200_debug(peer,
 		    "mx4200_parse_t: bad time %02d:%02d:%02d",
 		    hour, minute, second);
-		if (leapsec != 0)
-			mx4200_debug(peer, " (leap %+d\n)", leapsec);
+		if (leapsec_warn != 0)
+			mx4200_debug(peer, " (leap %+d\n)", leapsec_warn);
 		mx4200_debug(peer, "\n");
 		refclock_report(peer, CEVNT_BADTIME);
 		return ("bad time");
@@ -1068,7 +1067,7 @@ mx4200_parse_t(
 	/*
 	 * Setup leap second indicator
 	 */
-	switch (leapsec) {
+	switch (leapsec_warn) {
 		case 0:
 			pp->leap = LEAP_NOWARNING;
 			break;
@@ -1085,12 +1084,12 @@ mx4200_parse_t(
 	/*
 	 * Any change to the leap second warning status?
 	 */
-	if (leapsec != up->last_leap ) {
+	if (leapsec_warn != up->last_leap ) {
 		msyslog(LOG_DEBUG,
 		    "mx4200: leap second warning: %d to %d (%d)",
-		    up->last_leap, leapsec, pp->leap);
+		    up->last_leap, leapsec_warn, pp->leap);
 	}
-	up->last_leap = leapsec;
+	up->last_leap = leapsec_warn;
 
 	/*
 	 * Copy time data for billboard monitoring.
@@ -1520,14 +1519,14 @@ mx4200_pps(
 	if (time_pps_fetch(up->pps_h, PPS_TSFMT_TSPEC, &(up->pps_i),
 			&timeout) < 0) {
 		mx4200_debug(peer,
-		  "mx4200_pps: time_pps_fetch: serial=%ul, %s\n",
+		  "mx4200_pps: time_pps_fetch: serial=%lu, %s\n",
 		     (unsigned long)up->pps_i.assert_sequence, strerror(errno));
 		refclock_report(peer, CEVNT_FAULT);
 		return(1);
 	}
 	if (temp_serial == up->pps_i.assert_sequence) {
 		mx4200_debug(peer,
-		   "mx4200_pps: assert_sequence serial not incrementing: %ul\n",
+		   "mx4200_pps: assert_sequence serial not incrementing: %lu\n",
 			(unsigned long)up->pps_i.assert_sequence);
 		refclock_report(peer, CEVNT_FAULT);
 		return(1);
@@ -1540,7 +1539,7 @@ mx4200_pps(
 		if (up->pps_i.assert_sequence == up->lastserial) {
 			mx4200_debug(peer, "mx4200_pps: no new pps event\n");
 		} else {
-			mx4200_debug(peer, "mx4200_pps: missed %ul pps events\n",
+			mx4200_debug(peer, "mx4200_pps: missed %lu pps events\n",
 			    up->pps_i.assert_sequence - up->lastserial - 1UL);
 		}
 		refclock_report(peer, CEVNT_FAULT);

@@ -2,8 +2,12 @@
  * socktoa - return a numeric host name from a sockaddr_storage structure
  */
 #include <sys/types.h>
+#ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
+#endif
 
 #include <arpa/inet.h>
 
@@ -17,15 +21,15 @@
 
 char *
 socktohost(
-	struct sockaddr_storage* sock
+	const sockaddr_u *sock
 	)
 {
 	register char *buffer;
 
 	LIB_GETBUF(buffer);
-	if (getnameinfo((struct sockaddr *)sock, SOCKLEN(sock), buffer,
-	    LIB_BUFLENGTH /* NI_MAXHOST*/, NULL, 0, 0))
+	if (getnameinfo(&sock->sa, SOCKLEN(sock), buffer,
+	    LIB_BUFLENGTH, NULL, 0, 0))
 		return stoa(sock);
 
-  	return buffer;
+	return buffer;
 }

@@ -1,7 +1,7 @@
-.TH NTPQ 1 2009-12-08 "( 4.2.4p8)" "Programmer's Manual"
+.TH NTPQ 1 2011-12-24 "( 4.2.6p5)" "Programmer's Manual"
 .\"  EDIT THIS FILE WITH CAUTION  (ntpq.1)
 .\"  
-.\"  It has been AutoGen-ed  Tuesday December  8, 2009 at 08:14:27 AM EST
+.\"  It has been AutoGen-ed  December 24, 2011 at 06:34:35 PM by AutoGen 5.12
 .\"  From the definitions    ntpq-opts.def
 .\"  and the template file   agman1.tpl
 .\"
@@ -15,7 +15,7 @@ ntpq \- standard NTP query program
 .in +8
 [ host ...]
 .SH "DESCRIPTION"
-This manual page documents, briefly, the \fBntpq\fP command.
+This manual page briefly documents the \fBntpq\fP command.
 The
 [= prog-name =]
 utility program is used to query NTP servers which
@@ -281,14 +281,16 @@ a timeout will be twice the timeout value set.
 .TP
 .BR \-4 ", " \--ipv4
 Force IPv4 DNS name resolution.
-This option is a member of the ipv4 class of options.
+This option must not appear in combination with any of the following options:
+ipv6.
 .sp
 Force DNS resolution of following host names on the command line
 to the IPv4 namespace.
 .TP
 .BR \-6 ", " \--ipv6
 Force IPv6 DNS name resolution.
-This option is a member of the ipv4 class of options.
+This option must not appear in combination with any of the following options:
+ipv4.
 .sp
 Force DNS resolution of following host names on the command line
 to the IPv6 namespace.
@@ -336,8 +338,19 @@ numeric host addresses.
 Output all host addresses in dotted-quad numeric format rather than
 converting to the canonical host names. 
 .TP
+.BR \--old-rv
+Always output status line with readvar.
+.sp
+By default, ntpq now suppresses the associd=... line that
+precedes the output of "readvar" (alias "rv") when a single
+variable is requested, such as ntpq \-c "rv 0 offset".  This
+option causes ntpq to include both lines of output for a
+single-variable readvar.  Using an environment variable to
+preset this option in a script will enable both older and
+newer ntpq to behave identically in this regard.
+.TP
 .BR \-? , " \--help"
-Display usage information and exit.
+Display extended usage information and exit.
 .TP
 .BR \-! , " \--more-help"
 Extended usage information passed thru pager.
@@ -352,7 +365,7 @@ The \fIno-load-opts\fP form will disable the loading
 of earlier RC/INI files.  \fI--no-load-opts\fP is handled early,
 out of order.
 .TP
-.BR \-v " [{\fIv|c|n\fP}]," " \--version" "[=\fI{v|c|n}\fP]"
+.BR \- " [{\fIv|c|n\fP}]," " \--version" "[=\fI{v|c|n}\fP]"
 Output version of program and exit.  The default mode is `v', a simple
 version.  The `c' mode will print copyright information and `n' will
 print the full copyright notice.
@@ -363,7 +376,7 @@ environment variables named:
 .nf
   \fBNTPQ_<option-name>\fP or \fBNTPQ\fP
 .fi
-.aj
+.ad
 The environmental presets take precedence (are processed later than)
 the configuration files.
 The \fIhomerc\fP files are "\fI$HOME\fP", and "\fI.\fP".
@@ -378,6 +391,7 @@ Please send bug reports to:  http://bugs.ntp.org, bugs@ntp.org
 .nf
 .na
 see html/copyright.html
+
 .fi
 .ad
 .PP

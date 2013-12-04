@@ -101,9 +101,9 @@
  * 59		      - usually missing (minute indication), except for leap insertion
  */
 
-static u_long pps_rawdcf P((parse_t *, int, timestamp_t *));
-static u_long cvt_rawdcf P((unsigned char *, int, struct format *, clocktime_t *, void *));
-static u_long inp_rawdcf P((parse_t *, unsigned int, timestamp_t  *));
+static u_long pps_rawdcf (parse_t *, int, timestamp_t *);
+static u_long cvt_rawdcf (unsigned char *, int, struct format *, clocktime_t *, void *);
+static u_long inp_rawdcf (parse_t *, unsigned int, timestamp_t  *);
 
 typedef struct last_tcode {
 	time_t tcode;	/* last converted time code */

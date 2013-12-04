@@ -21,6 +21,12 @@
 #include <stdio.h>
 #include <ctype.h>
 
+#ifdef SYS_WINNT
+extern int async_write(int, const void *, unsigned int);
+#undef write
+#define write(fd, data, octets)	async_write(fd, data, octets)
+#endif
+
 /* This should be an atom clock but those are very hard to build.
  *
  * The PCL720 from P C Labs has an Intel 8253 lookalike, as well as a bunch
@@ -167,15 +173,15 @@ struct true_unit {
 /*
  * Function prototypes
  */
-static	int	true_start	P((int, struct peer *));
-static	void	true_shutdown	P((int, struct peer *));
-static	void	true_receive	P((struct recvbuf *));
-static	void	true_poll	P((int, struct peer *));
-static	void	true_send	P((struct peer *, const char *));
-static	void	true_doevent	P((struct peer *, enum true_event));
+static	int	true_start	(int, struct peer *);
+static	void	true_shutdown	(int, struct peer *);
+static	void	true_receive	(struct recvbuf *);
+static	void	true_poll	(int, struct peer *);
+static	void	true_send	(struct peer *, const char *);
+static	void	true_doevent	(struct peer *, enum true_event);
 
 #ifdef CLOCK_PPS720
-static	u_long	true_sample720	P((void));
+static	u_long	true_sample720	(void);
 #endif
 
 /*
@@ -235,6 +241,7 @@ true_debug(struct peer *peer, const char *fmt, ...)
 		fprintf(up->debug, "true%d: ", up->unit);
 		vfprintf(up->debug, fmt, ap);
 	}
+	va_end(ap);
 }
 #endif /*STDC*/
 
@@ -289,7 +296,16 @@ true_start(
 	up->pollcnt = 2;
 	up->type = t_unknown;
 	up->state = s_Base;
+
+	/*
+	 * Send a CTRL-C character at the start,
+	 * just in case the clock is already
+	 * sending timecodes
+	 */
+	true_send(peer, "\03\r");
+	
 	true_doevent(peer, e_Init);
+
 	return (1);
 }
 
@@ -480,7 +496,8 @@ true_receive(
 		 * Adjust the synchronize indicator according to timecode
 		 * say were OK, and then say not if we really are not OK
 		 */
-		if (synced == '>' || synced == '#' || synced == '?')
+		if (synced == '>' || synced == '#' || synced == '?'
+		    || synced == 'X')
 		    pp->leap = LEAP_NOTINSYNC;
 		else
                     pp->leap = LEAP_NOWARNING;

@@ -1,27 +1,24 @@
 /*  
  *  EDIT THIS FILE WITH CAUTION  (ntp-keygen-opts.h)
  *  
- *  It has been AutoGen-ed  Tuesday December  8, 2009 at 08:14:55 AM EST
+ *  It has been AutoGen-ed  December 24, 2011 at 06:34:40 PM by AutoGen 5.12
  *  From the definitions    ntp-keygen-opts.def
  *  and the template file   options
  *
- * Generated from AutoOpts 29:0:4 templates.
- */
-
-/*
- *  This file was produced by an AutoOpts template.  AutoOpts is a
- *  copyrighted work.  This header file is not encumbered by AutoOpts
- *  licensing, but is provided under the licensing terms chosen by the
- *  ntp-keygen author or copyright holder.  AutoOpts is licensed under
- *  the terms of the LGPL.  The redistributable library (``libopts'') is
- *  licensed under the terms of either the LGPL or, at the users discretion,
- *  the BSD license.  See the AutoOpts and/or libopts sources for details.
+ * Generated from AutoOpts 35:0:10 templates.
+ *
+ *  AutoOpts is a copyrighted work.  This header file is not encumbered
+ *  by AutoOpts licensing, but is provided under the licensing terms chosen
+ *  by the ntp-keygen author or copyright holder.  AutoOpts is
+ *  licensed under the terms of the LGPL.  The redistributable library
+ *  (``libopts'') is licensed under the terms of either the LGPL or, at the
+ *  users discretion, the BSD license.  See the AutoOpts and/or libopts sources
+ *  for details.
  *
  * This source file is copyrighted and licensed under the following terms:
  *
- * ntp-keygen copyright 1970-2009 David L. Mills and/or others - all rights reserved
- *
- * see html/copyright.html
+ *  see html/copyright.html
+ *  
  */
 /*
  *  This file contains the programmatic interface to the Automated
@@ -30,7 +27,7 @@
  *  "AutoOpts" chapter.  Please refer to that doc for usage help.
  */
 #ifndef AUTOOPTS_NTP_KEYGEN_OPTS_H_GUARD
-#define AUTOOPTS_NTP_KEYGEN_OPTS_H_GUARD
+#define AUTOOPTS_NTP_KEYGEN_OPTS_H_GUARD 1
 #include "config.h"
 #include <autoopts/options.h>
 
@@ -41,7 +38,7 @@
  *  tolerable version is at least as old as what was current when the header
  *  template was released.
  */
-#define AO_TEMPLATE_VERSION 118784
+#define AO_TEMPLATE_VERSION 143360
 #if (AO_TEMPLATE_VERSION < OPTIONS_MINIMUM_VERSION) \
  || (AO_TEMPLATE_VERSION > OPTIONS_STRUCT_VERSION)
 # error option template version mismatches autoopts/options.h header
@@ -52,40 +49,39 @@
  *  Enumeration of each option:
  */
 typedef enum {
-        INDEX_OPT_CERTIFICATE      =  0,
-        INDEX_OPT_DEBUG_LEVEL      =  1,
-        INDEX_OPT_SET_DEBUG_LEVEL  =  2,
-        INDEX_OPT_ID_KEY           =  3,
-        INDEX_OPT_GQ_PARAMS        =  4,
-        INDEX_OPT_GQ_KEYS          =  5,
-        INDEX_OPT_HOST_KEY         =  6,
-        INDEX_OPT_IFFKEY           =  7,
-        INDEX_OPT_ISSUER_NAME      =  8,
-        INDEX_OPT_MD5KEY           =  9,
-        INDEX_OPT_MODULUS          = 10,
-        INDEX_OPT_PVT_CERT         = 11,
-        INDEX_OPT_PVT_PASSWD       = 12,
-        INDEX_OPT_GET_PVT_PASSWD   = 13,
-        INDEX_OPT_SIGN_KEY         = 14,
-        INDEX_OPT_SUBJECT_NAME     = 15,
-        INDEX_OPT_TRUSTED_CERT     = 16,
-        INDEX_OPT_MV_PARAMS        = 17,
-        INDEX_OPT_MV_KEYS          = 18,
-        INDEX_OPT_VERSION          = 19,
-        INDEX_OPT_HELP             = 20,
-        INDEX_OPT_MORE_HELP        = 21,
-        INDEX_OPT_SAVE_OPTS        = 22,
-        INDEX_OPT_LOAD_OPTS        = 23
+    INDEX_OPT_CERTIFICATE      =  0,
+    INDEX_OPT_DEBUG_LEVEL      =  1,
+    INDEX_OPT_SET_DEBUG_LEVEL  =  2,
+    INDEX_OPT_ID_KEY           =  3,
+    INDEX_OPT_GQ_PARAMS        =  4,
+    INDEX_OPT_HOST_KEY         =  5,
+    INDEX_OPT_IFFKEY           =  6,
+    INDEX_OPT_ISSUER_NAME      =  7,
+    INDEX_OPT_MD5KEY           =  8,
+    INDEX_OPT_MODULUS          =  9,
+    INDEX_OPT_PVT_CERT         = 10,
+    INDEX_OPT_PVT_PASSWD       = 11,
+    INDEX_OPT_GET_PVT_PASSWD   = 12,
+    INDEX_OPT_SIGN_KEY         = 13,
+    INDEX_OPT_SUBJECT_NAME     = 14,
+    INDEX_OPT_TRUSTED_CERT     = 15,
+    INDEX_OPT_MV_PARAMS        = 16,
+    INDEX_OPT_MV_KEYS          = 17,
+    INDEX_OPT_VERSION          = 18,
+    INDEX_OPT_HELP             = 19,
+    INDEX_OPT_MORE_HELP        = 20,
+    INDEX_OPT_SAVE_OPTS        = 21,
+    INDEX_OPT_LOAD_OPTS        = 22
 } teOptIndex;
 
-#define OPTION_CT    24
-#define NTP_KEYGEN_VERSION       "4.2.4p8"
-#define NTP_KEYGEN_FULL_VERSION  "ntp-keygen (ntp) - Create a NTP host key - Ver. 4.2.4p8"
+#define OPTION_CT    23
+#define NTP_KEYGEN_VERSION       "4.2.6p5"
+#define NTP_KEYGEN_FULL_VERSION  "ntp-keygen (ntp) 4.2.6p5"
 
 /*
  *  Interface defines for all options.  Replace "n" with the UPPER_CASED
  *  option name (as in the teOptIndex enumeration above).
- *  e.g. HAVE_OPT( CERTIFICATE )
+ *  e.g. HAVE_OPT(CERTIFICATE)
  */
 #define         DESC(n) (ntp_keygenOptions.pOptDesc[INDEX_OPT_## n])
 #define     HAVE_OPT(n) (! UNUSED_OPT(& DESC(n)))
@@ -99,10 +95,18 @@ typedef enum {
 #define STACKLST_OPT(n) (((tArgList*)(DESC(n).optCookie))->apzArgs)
 #define    CLEAR_OPT(n) STMTS( \
                 DESC(n).fOptState &= OPTST_PERSISTENT_MASK;   \
-                if ( (DESC(n).fOptState & OPTST_INITENABLED) == 0) \
+                if ((DESC(n).fOptState & OPTST_INITENABLED) == 0) \
                     DESC(n).fOptState |= OPTST_DISABLED; \
                 DESC(n).optCookie = NULL )
 
+/* * * * * *
+ *
+ *  Enumeration of ntp-keygen exit codes
+ */
+typedef enum {
+    NTP_KEYGEN_EXIT_SUCCESS = 0,
+    NTP_KEYGEN_EXIT_FAILURE = 1
+} ntp_keygen_exit_code_t;
 /*
  *  Make sure there are no #define name conflicts with the option names
  */
@@ -126,10 +130,6 @@ typedef enum {
 # ifdef    GQ_PARAMS
 #  warning undefining GQ_PARAMS due to option name conflict
 #  undef   GQ_PARAMS
-# endif
-# ifdef    GQ_KEYS
-#  warning undefining GQ_KEYS due to option name conflict
-#  undef   GQ_KEYS
 # endif
 # ifdef    HOST_KEY
 #  warning undefining HOST_KEY due to option name conflict
@@ -189,7 +189,6 @@ typedef enum {
 # undef SET_DEBUG_LEVEL
 # undef ID_KEY
 # undef GQ_PARAMS
-# undef GQ_KEYS
 # undef HOST_KEY
 # undef IFFKEY
 # undef ISSUER_NAME
@@ -205,71 +204,43 @@ typedef enum {
 # undef MV_KEYS
 #endif  /*  NO_OPTION_NAME_WARNINGS */
 
-/*
+/* * * * * *
+ *
  *  Interface defines for specific options.
  */
-#ifdef OPENSSL
 #define VALUE_OPT_CERTIFICATE    'c'
-#endif /* OPENSSL */
-#ifdef DEBUG
 #define VALUE_OPT_DEBUG_LEVEL    'd'
-#endif /* DEBUG */
-#ifdef DEBUG
 #define VALUE_OPT_SET_DEBUG_LEVEL 'D'
-#endif /* DEBUG */
-#ifdef OPENSSL
 #define VALUE_OPT_ID_KEY         'e'
-#endif /* OPENSSL */
-#ifdef OPENSSL
 #define VALUE_OPT_GQ_PARAMS      'G'
-#endif /* OPENSSL */
-#ifdef OPENSSL
-#define VALUE_OPT_GQ_KEYS        'g'
-#endif /* OPENSSL */
-#ifdef OPENSSL
 #define VALUE_OPT_HOST_KEY       'H'
-#endif /* OPENSSL */
-#ifdef OPENSSL
 #define VALUE_OPT_IFFKEY         'I'
-#endif /* OPENSSL */
-#ifdef OPENSSL
 #define VALUE_OPT_ISSUER_NAME    'i'
-#endif /* OPENSSL */
 #define VALUE_OPT_MD5KEY         'M'
-#ifdef OPENSSL
 #define VALUE_OPT_MODULUS        'm'
+#ifdef OPENSSL
+
 #define OPT_VALUE_MODULUS        (DESC(MODULUS).optArg.argInt)
 #endif /* OPENSSL */
-#ifdef OPENSSL
 #define VALUE_OPT_PVT_CERT       'P'
-#endif /* OPENSSL */
-#ifdef OPENSSL
 #define VALUE_OPT_PVT_PASSWD     'p'
-#endif /* OPENSSL */
-#ifdef OPENSSL
 #define VALUE_OPT_GET_PVT_PASSWD 'q'
-#endif /* OPENSSL */
-#ifdef OPENSSL
 #define VALUE_OPT_SIGN_KEY       'S'
-#endif /* OPENSSL */
-#ifdef OPENSSL
 #define VALUE_OPT_SUBJECT_NAME   's'
-#endif /* OPENSSL */
-#ifdef OPENSSL
 #define VALUE_OPT_TRUSTED_CERT   'T'
-#endif /* OPENSSL */
-#ifdef OPENSSL
 #define VALUE_OPT_MV_PARAMS      'V'
+#ifdef OPENSSL
+
 #define OPT_VALUE_MV_PARAMS      (DESC(MV_PARAMS).optArg.argInt)
 #endif /* OPENSSL */
-#ifdef OPENSSL
 #define VALUE_OPT_MV_KEYS        'v'
+#ifdef OPENSSL
+
 #define OPT_VALUE_MV_KEYS        (DESC(MV_KEYS).optArg.argInt)
 #endif /* OPENSSL */
-
-#define VALUE_OPT_VERSION       'v'
 #define VALUE_OPT_HELP          '?'
 #define VALUE_OPT_MORE_HELP     '!'
+#define VALUE_OPT_VERSION       INDEX_OPT_VERSION
 #define VALUE_OPT_SAVE_OPTS     '>'
 #define VALUE_OPT_LOAD_OPTS     '<'
 #define SET_OPT_SAVE_OPTS(a)   STMTS( \
@@ -279,37 +250,56 @@ typedef enum {
 /*
  *  Interface defines not associated with particular options
  */
-#define ERRSKIP_OPTERR  STMTS( ntp_keygenOptions.fOptSet &= ~OPTPROC_ERRSTOP )
-#define ERRSTOP_OPTERR  STMTS( ntp_keygenOptions.fOptSet |= OPTPROC_ERRSTOP )
+#define ERRSKIP_OPTERR  STMTS(ntp_keygenOptions.fOptSet &= ~OPTPROC_ERRSTOP)
+#define ERRSTOP_OPTERR  STMTS(ntp_keygenOptions.fOptSet |= OPTPROC_ERRSTOP)
 #define RESTART_OPT(n)  STMTS( \
                 ntp_keygenOptions.curOptIdx = (n); \
-                ntp_keygenOptions.pzCurOpt  = NULL )
+                ntp_keygenOptions.pzCurOpt  = NULL)
 #define START_OPT       RESTART_OPT(1)
-#define USAGE(c)        (*ntp_keygenOptions.pUsageProc)( &ntp_keygenOptions, c )
-/* extracted from /usr/local/gnu/autogen-5.9.1/share/autogen/opthead.tpl near line 360 */
+#define USAGE(c)        (*ntp_keygenOptions.pUsageProc)(&ntp_keygenOptions, c)
+/* extracted from opthead.tlib near line 451 */
+
+#ifdef  __cplusplus
+extern "C" {
+#endif
 
 /* * * * * *
  *
  *  Declare the ntp-keygen option descriptor.
  */
-#ifdef  __cplusplus
-extern "C" {
-#endif
+extern tOptions ntp_keygenOptions;
 
-extern tOptions   ntp_keygenOptions;
+#if defined(ENABLE_NLS)
+# ifndef _
+#   include <stdio.h>
+static inline char* aoGetsText(char const* pz) {
+    if (pz == NULL) return NULL;
+    return (char*)gettext(pz);
+}
+#   define _(s)  aoGetsText(s)
+# endif /* _() */
 
-#ifndef _
-#  if ENABLE_NLS
-#    include <stdio.h>
-     static inline char* aoGetsText( char const* pz ) {
-         if (pz == NULL) return NULL;
-         return (char*)gettext( pz );
-     }
-#    define _(s)  aoGetsText(s)
-#  else  /* ENABLE_NLS */
-#    define _(s)  s
-#  endif /* ENABLE_NLS */
-#endif
+# define OPT_NO_XLAT_CFG_NAMES  STMTS(ntp_keygenOptions.fOptSet |= \
+                                    OPTPROC_NXLAT_OPT_CFG;)
+# define OPT_NO_XLAT_OPT_NAMES  STMTS(ntp_keygenOptions.fOptSet |= \
+                                    OPTPROC_NXLAT_OPT|OPTPROC_NXLAT_OPT_CFG;)
+
+# define OPT_XLAT_CFG_NAMES     STMTS(ntp_keygenOptions.fOptSet &= \
+                                  ~(OPTPROC_NXLAT_OPT|OPTPROC_NXLAT_OPT_CFG);)
+# define OPT_XLAT_OPT_NAMES     STMTS(ntp_keygenOptions.fOptSet &= \
+                                  ~OPTPROC_NXLAT_OPT;)
+
+#else   /* ENABLE_NLS */
+# define OPT_NO_XLAT_CFG_NAMES
+# define OPT_NO_XLAT_OPT_NAMES
+
+# define OPT_XLAT_CFG_NAMES
+# define OPT_XLAT_OPT_NAMES
+
+# ifndef _
+#   define _(_s)  _s
+# endif
+#endif  /* ENABLE_NLS */
 
 #ifdef  __cplusplus
 }

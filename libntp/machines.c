@@ -8,10 +8,12 @@
 #include "config.h"
 #endif
 
+#include "ntp.h"
 #include "ntp_machine.h"
 #include "ntp_syslog.h"
 #include "ntp_stdlib.h"
 #include "ntp_unixtime.h"
+#include "lib_strbuf.h"
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -409,7 +411,20 @@ return 0;
 }
 #endif /* MPE */
 
-const char *set_tod_using = "UNKNOWN";
+#define SET_TOD_UNDETERMINED	0
+#define SET_TOD_CLOCK_SETTIME	1
+#define SET_TOD_SETTIMEOFDAY	2
+#define SET_TOD_STIME		3
+
+const char * const set_tod_used[] = {
+	"undetermined",
+	"clock_settime",
+	"settimeofday",
+	"stime"
+};
+
+pset_tod_using	set_tod_using = NULL;
+
 
 int
 ntp_set_tod(
@@ -417,7 +432,9 @@ ntp_set_tod(
 	void *tzp
 	)
 {
+	static int tod;
 	int rc = -1;
+	int saved_errno = 0;
 
 #ifdef DEBUG
 	if (debug)
@@ -425,29 +442,31 @@ ntp_set_tod(
 #endif
 
 #ifdef HAVE_CLOCK_SETTIME
-	if (rc) {
+	if (rc && (SET_TOD_CLOCK_SETTIME == tod || !tod)) {
 		struct timespec ts;
 
-		set_tod_using = "clock_settime";
 		/* Convert timeval to timespec */
 		ts.tv_sec = tvp->tv_sec;
 		ts.tv_nsec = 1000 *  tvp->tv_usec;
 
 		errno = 0;
 		rc = clock_settime(CLOCK_REALTIME, &ts);
+		saved_errno = errno;
 #ifdef DEBUG
 		if (debug) {
-			printf("ntp_set_tod: %s: %d: %s\n",
-			       set_tod_using, rc, strerror(errno));
+			printf("ntp_set_tod: clock_settime: %d: %s\n",
+			       rc, strerror(saved_errno));
 		}
 #endif
+		if (!tod && !rc)
+			tod = SET_TOD_CLOCK_SETTIME;
+
 	}
 #endif /* HAVE_CLOCK_SETTIME */
 #ifdef HAVE_SETTIMEOFDAY
-	if (rc) {
+	if (rc && (SET_TOD_SETTIMEOFDAY == tod || !tod)) {
 		struct timeval adjtv;
 
-		set_tod_using = "settimeofday";
 		/*
 		 * Some broken systems don't reset adjtime() when the
 		 * clock is stepped.
@@ -456,37 +475,52 @@ ntp_set_tod(
 		adjtime(&adjtv, NULL);
 		errno = 0;
 		rc = SETTIMEOFDAY(tvp, tzp);
+		saved_errno = errno;
 #ifdef DEBUG
 		if (debug) {
-			printf("ntp_set_tod: %s: %d: %s\n",
-			       set_tod_using, rc, strerror(errno));
+			printf("ntp_set_tod: settimeofday: %d: %s\n",
+			       rc, strerror(saved_errno));
 		}
 #endif
+		if (!tod && !rc)
+			tod = SET_TOD_SETTIMEOFDAY;
 	}
 #endif /* HAVE_SETTIMEOFDAY */
 #ifdef HAVE_STIME
-	if (rc) {
+	if (rc && (SET_TOD_STIME == tod || !tod)) {
 		long tp = tvp->tv_sec;
 
-		set_tod_using = "stime";
 		errno = 0;
 		rc = stime(&tp); /* lie as bad as SysVR4 */
+		saved_errno = errno;
 #ifdef DEBUG
 		if (debug) {
-			printf("ntp_set_tod: %s: %d: %s\n",
-			       set_tod_using, rc, strerror(errno));
+			printf("ntp_set_tod: stime: %d: %s\n",
+			       rc, strerror(saved_errno));
 		}
 #endif
+		if (!tod && !rc)
+			tod = SET_TOD_STIME;
 	}
 #endif /* HAVE_STIME */
-	if (rc)
-	    set_tod_using = "Failed!";
+
 #ifdef DEBUG
 	if (debug) {
 		printf("ntp_set_tod: Final result: %s: %d: %s\n",
-			set_tod_using, rc, strerror(errno));
+			set_tod_used[tod], rc, strerror(saved_errno));
 	}
 #endif
+	/*
+	 * Say how we're setting the time of day
+	 */
+	if (!rc && NULL != set_tod_using) {
+		(*set_tod_using)(set_tod_used[tod]);
+		set_tod_using = NULL;
+	}
+
+	if (rc)
+		errno = saved_errno;
+
 	return rc;
 }
 
@@ -508,6 +542,9 @@ getpass(const char * prompt)
 		password[i] = (char) c;
 	}
 	password[i] = '\0';
+
+	fputc('\n', stderr);
+	fflush(stderr);
 
 	return password;
 }

@@ -39,6 +39,9 @@
  * This driver supports a reference clock attached thru shared memory
  */ 
 
+/* Temp hack to simplify testing of the old mode. */
+#define OLDWAY 0
+
 /*
  * SHM interface definitions
  */
@@ -51,9 +54,12 @@
 /*
  * Function prototypes
  */
-static  int     shm_start       (int, struct peer *);
-static  void    shm_shutdown    (int, struct peer *);
-static  void    shm_poll        (int unit, struct peer *);
+static  int     shm_start       (int unit, struct peer *peer);
+static  void    shm_shutdown    (int unit, struct peer *peer);
+static  void    shm_poll        (int unit, struct peer *peer);
+static  void    shm_timer       (int unit, struct peer *peer);
+	int	shm_peek	(int unit, struct peer *peer);
+	void	shm_clockstats  (int unit, struct peer *peer);
 
 /*
  * Transfer vector
@@ -61,12 +67,13 @@ static  void    shm_poll        (int unit, struct peer *);
 struct  refclock refclock_shm = {
 	shm_start,              /* start up driver */
 	shm_shutdown,           /* shut down driver */
-	shm_poll,               /* transmit poll message */
-	noentry,                /* not used */
-	noentry,                /* initialize driver (not used) */
-	noentry,                /* not used */
-	NOFLAGS                 /* not used */
+	shm_poll,		/* transmit poll message */
+	noentry,		/* not used: control */
+	noentry,		/* not used: init */
+	noentry,		/* not used: buginfo */
+	shm_timer,              /* once per second */
 };
+
 struct shmTime {
 	int    mode; /* 0 - if valid set
 		      *       use values, 
@@ -88,15 +95,30 @@ struct shmTime {
 	int    dummy[10]; 
 };
 
+struct shmunit {
+	struct shmTime *shm;	/* pointer to shared memory segment */
+
+	/* debugging/monitoring counters - reset when printed */
+	int ticks;		/* number of attempts to read data*/
+	int good;		/* number of valid samples */
+	int notready;		/* number of peeks without data ready */
+	int bad;		/* number of invalid samples */
+	int clash;		/* number of access clashes while reading */
+};
+
+
 struct shmTime *getShmTime(int);
 
 struct shmTime *getShmTime (int unit) {
 #ifndef SYS_WINNT
 	int shmid=0;
 
-	assert (unit<10); /* MAXUNIT is 4, so should never happen */
+	/* 0x4e545030 is NTP0.
+	 * Big units will give non-ascii but that's OK
+	 * as long as everybody does it the same way. 
+	 */
 	shmid=shmget (0x4e545030+unit, sizeof (struct shmTime), 
-		      IPC_CREAT|(unit<2?0700:0777));
+		      IPC_CREAT|(unit<2?0600:0666));
 	if (shmid==-1) { /*error */
 		msyslog(LOG_ERR,"SHM shmget (unit %d): %s",unit,strerror(errno));
 		return 0;
@@ -115,8 +137,8 @@ struct shmTime *getShmTime (int unit) {
 	HANDLE shmid=0;
 	SECURITY_DESCRIPTOR sd;
 	SECURITY_ATTRIBUTES sa;
-	sprintf (buf,"NTP%d",unit);
-	if (unit>=2) { /* world access */
+	snprintf(buf, sizeof(buf), "NTP%d", unit);
+	if (unit >= 2) { /* world access */
 		if (!InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION)) {
 			msyslog(LOG_ERR,"SHM InitializeSecurityDescriptor (unit %d): %m",unit);
 			return 0;
@@ -163,22 +185,29 @@ shm_start(
 	)
 {
 	struct refclockproc *pp;
+	struct shmunit *up;
+
 	pp = peer->procptr;
 	pp->io.clock_recv = noentry;
 	pp->io.srcclock = (caddr_t)peer;
 	pp->io.datalen = 0;
 	pp->io.fd = -1;
-	pp->unitptr = (caddr_t)getShmTime(unit);
+
+	up = emalloc(sizeof(*up));
+	memset(up, 0, sizeof(*up));
+	pp->unitptr = (caddr_t)up;
+
+	up->shm = getShmTime(unit);
 
 	/*
 	 * Initialize miscellaneous peer variables
 	 */
 	memcpy((char *)&pp->refid, REFID, 4);
-	if (pp->unitptr!=0) {
-		((struct shmTime*)pp->unitptr)->precision=PRECISION;
-		peer->precision = ((struct shmTime*)pp->unitptr)->precision;
-		((struct shmTime*)pp->unitptr)->valid=0;
-		((struct shmTime*)pp->unitptr)->nsamples=NSAMPLES;
+	if (up->shm != 0) {
+		up->shm->precision = PRECISION;
+		peer->precision = up->shm->precision;
+		up->shm->valid=0;
+		up->shm->nsamples=NSAMPLES;
 		pp->clockdesc = DESCRIPTION;
 		return (1);
 	}
@@ -197,17 +226,34 @@ shm_shutdown(
 	struct peer *peer
 	)
 {
-	register struct shmTime *up;
 	struct refclockproc *pp;
+	struct shmunit *up;
 
 	pp = peer->procptr;
-	up = (struct shmTime *)pp->unitptr;
+	up = (struct shmunit *)pp->unitptr;
+
+	if (NULL == up)
+		return;
 #ifndef SYS_WINNT
 	/* HMS: shmdt()wants char* or const void * */
-	(void) shmdt (up);
+	(void) shmdt ((char *)up->shm);
 #else
-	UnmapViewOfFile (up);
+	UnmapViewOfFile (up->shm);
 #endif
+	free(up);
+}
+
+
+/*
+ * shm_timer - called every second
+ */
+static  void
+shm_timer(int unit, struct peer *peer)
+{
+	if (OLDWAY)
+		return;
+
+	shm_peek(unit, peer);
 }
 
 
@@ -220,26 +266,60 @@ shm_poll(
 	struct peer *peer
 	)
 {
-	register struct shmTime *up;
 	struct refclockproc *pp;
+	int ok;
+
+	pp = peer->procptr;
+	
+	if (OLDWAY) {
+		ok = shm_peek(unit, peer);
+		if (!ok) return;
+	}
+
+        /*
+         * Process median filter samples. If none received, declare a
+         * timeout and keep going.
+         */
+        if (pp->coderecv == pp->codeproc) {
+                refclock_report(peer, CEVNT_TIMEOUT);
+		shm_clockstats(unit, peer);
+                return;
+        }
+	pp->lastref = pp->lastrec;
+	refclock_receive(peer);
+	shm_clockstats(unit, peer);
+}
+
+/*
+ * shm_peek - try to grab a sample
+ */
+int shm_peek(
+	int unit,
+	struct peer *peer
+	)
+{
+	struct refclockproc *pp;
+	struct shmunit *up;
+	struct shmTime *shm;
 
 	/*
 	 * This is the main routine. It snatches the time from the shm
 	 * board and tacks on a local timestamp.
 	 */
 	pp = peer->procptr;
-	up = (struct shmTime*)pp->unitptr;
-	if (up==0) { /* try to map again - this may succeed if meanwhile some-
-			body has ipcrm'ed the old (unaccessible) shared mem
-			segment  */
-		pp->unitptr = (caddr_t)getShmTime(unit);
-		up = (struct shmTime*)pp->unitptr;
+	up = (struct shmunit*)pp->unitptr;
+	up->ticks++;
+	if (up->shm == 0) {
+		/* try to map again - this may succeed if meanwhile some-
+		body has ipcrm'ed the old (unaccessible) shared mem segment */
+		up->shm = getShmTime(unit);
 	}
-	if (up==0) {
+	shm = up->shm;
+	if (shm == 0) {
 		refclock_report(peer, CEVNT_FAULT);
-		return;
+		return(0);
 	}
-	if (up->valid) {
+	if (shm->valid) {
 		struct timeval tvr;
 		struct timeval tvt;
 		struct tm *t;
@@ -248,27 +328,27 @@ shm_poll(
 		tvr.tv_usec = 0;
 		tvt.tv_sec = 0;
 		tvt.tv_usec = 0;
-		switch (up->mode) {
+		switch (shm->mode) {
 		    case 0: {
-			    tvr.tv_sec=up->receiveTimeStampSec;
-			    tvr.tv_usec=up->receiveTimeStampUSec;
-			    tvt.tv_sec=up->clockTimeStampSec;
-			    tvt.tv_usec=up->clockTimeStampUSec;
+			    tvr.tv_sec=shm->receiveTimeStampSec;
+			    tvr.tv_usec=shm->receiveTimeStampUSec;
+			    tvt.tv_sec=shm->clockTimeStampSec;
+			    tvt.tv_usec=shm->clockTimeStampUSec;
 		    }
 		    break;
 		    case 1: {
-			    int cnt=up->count;
-			    tvr.tv_sec=up->receiveTimeStampSec;
-			    tvr.tv_usec=up->receiveTimeStampUSec;
-			    tvt.tv_sec=up->clockTimeStampSec;
-			    tvt.tv_usec=up->clockTimeStampUSec;
-			    ok=(cnt==up->count);
+			    int cnt=shm->count;
+			    tvr.tv_sec=shm->receiveTimeStampSec;
+			    tvr.tv_usec=shm->receiveTimeStampUSec;
+			    tvt.tv_sec=shm->clockTimeStampSec;
+			    tvt.tv_usec=shm->clockTimeStampUSec;
+			    ok=(cnt==shm->count);
 		    }
 		    break;
 		    default:
-			msyslog (LOG_ERR, "SHM: bad mode found in shared memory: %d",up->mode);
+			msyslog (LOG_ERR, "SHM: bad mode found in shared memory: %d",shm->mode);
 		}
-		up->valid=0;
+		shm->valid=0;
 		if (ok) {
 			time_t help;	/* XXX NetBSD has incompatible tv_sec */
 
@@ -283,28 +363,53 @@ shm_poll(
 			pp->minute=t->tm_min;
 			pp->second=t->tm_sec;
 			pp->nsec=tvt.tv_usec * 1000;
-			peer->precision=up->precision;
-			pp->leap=up->leap;
+			peer->precision=shm->precision;
+			pp->leap=shm->leap;
 		} 
 		else {
 			refclock_report(peer, CEVNT_FAULT);
 			msyslog (LOG_NOTICE, "SHM: access clash in shared memory");
-			return;
+			up->clash++;
+			return(0);
 		}
 	}
 	else {
 		refclock_report(peer, CEVNT_TIMEOUT);
-		/*
-		msyslog (LOG_NOTICE, "SHM: no new value found in shared memory");
-		*/
-		return;
+		up->notready++;
+		return(0);
 	}
 	if (!refclock_process(pp)) {
 		refclock_report(peer, CEVNT_BADTIME);
-		return;
+		up->bad++;
+		return(0);
 	}
-	pp->lastref = pp->lastrec;
-	refclock_receive(peer);
+	up->good++;
+	return(1);
+}
+
+/*
+ * shm_clockstats - dump and reset counters
+ */
+void shm_clockstats(
+	int unit,
+	struct peer *peer
+	)
+{
+	struct refclockproc *pp;
+	struct shmunit *up;
+	char logbuf[256];
+
+	pp = peer->procptr;
+	up = (struct shmunit*)pp->unitptr;
+
+	if (!(pp->sloppyclockflag & CLK_FLAG4)) return;
+
+        snprintf(logbuf, sizeof(logbuf), "%3d %3d %3d %3d %3d",
+                up->ticks, up->good, up->notready, up->bad, up->clash);
+        record_clock_stats(&peer->srcadr, logbuf);
+
+	up->ticks = up->good = up->notready =up->bad = up->clash = 0;
+
 }
 
 #else
