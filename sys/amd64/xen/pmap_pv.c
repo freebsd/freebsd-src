@@ -136,7 +136,6 @@ static struct mtx pv_chunks_mutex;
 static struct rwlock pv_list_locks[NPV_LIST_LOCKS];
 
 vm_map_t	pv_map; /* Kernel submap for pc chunk alloc */
-extern vm_offset_t pv_minva, pv_maxva; /* VA range for submap */
 
 /***************************************************
  * page management routines.
@@ -177,6 +176,10 @@ free_pv_chunk(struct pv_chunk *pc)
 {
 	vm_page_t m;
 	mtx_lock(&pv_chunks_mutex);
+
+	KASSERT(pc->pc_map[0] == PC_FREE0 && pc->pc_map[1] == PC_FREE1 &&
+	    pc->pc_map[2] == PC_FREE2, ("Tried to free chunk in use"));
+
  	TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
 	mtx_unlock(&pv_chunks_mutex);
 	PV_STAT(atomic_subtract_int(&pv_entry_spare, _NPCPV));
@@ -224,7 +227,15 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 		return;
 	}
 	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-	free_pv_chunk(pc);
+
+	/* 
+	 * We don't reclaim the pc backing memory here, in case it's
+	 * still being scanned. This is the responsibility of 
+	 * pmap_free_pv_entry().
+	 * XXX: This is quite fragile. pc management needs to be
+	 * formalised a bit better.
+	 */
+
 }
 
 pv_entry_t
@@ -235,8 +246,6 @@ pmap_get_pv_entry(pmap_t pmap)
 	struct pv_chunk *pc;
 	vm_page_t m;
 
-	KASSERT(pmap != kernel_pmap,
-		("Trying to track kernel va"));
 	rw_assert(&pvh_global_lock, RA_LOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	PV_STAT(atomic_add_long(&pv_entry_allocs, 1));
@@ -265,7 +274,7 @@ pmap_get_pv_entry(pmap_t pmap)
 	}
 
 	/* No free items, allocate another chunk */
-	m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
+	m = vm_page_alloc(NULL, 0, VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ |
 	    VM_ALLOC_WIRED);
 	if (m == NULL) {
 		panic("XXX: TODO: memory pressure reclaim\n");
@@ -317,12 +326,13 @@ pmap_put_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	}
 
 	rw_rlock(&pvh_global_lock);
-	if (pmap != kernel_pmap) {
-		pv = pmap_get_pv_entry(pmap);
-		pv->pv_va = va;
-		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
-	}
+
+	pv = pmap_get_pv_entry(pmap);
+	pv->pv_va = va;
+	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
+
 	rw_runlock(&pvh_global_lock);
+
 	return true;
 }
 
@@ -332,9 +342,9 @@ pmap_free_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
 	bool found = false;
 	pv_entry_t pv;
+	struct pv_chunk *pc;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if (pmap == kernel_pmap) return true;
 
 	rw_rlock(&pvh_global_lock);
 
@@ -342,6 +352,11 @@ pmap_free_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		if (pmap == PV_PMAP(pv) && va == pv->pv_va) {
 			TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 			free_pv_entry(pmap, pv);
+			pc = pv_to_chunk(pv);
+			if (pc->pc_map[0] == PC_FREE0 && pc->pc_map[1] == PC_FREE1 &&
+			    pc->pc_map[2] == PC_FREE2) {
+				free_pv_chunk(pc);
+			}
 			found = true;
 			break;
 		}
@@ -358,9 +373,8 @@ pmap_find_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	pv_entry_t pv = NULL;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if (pmap == kernel_pmap) return NULL;
-	rw_rlock(&pvh_global_lock);
 
+	rw_rlock(&pvh_global_lock);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		if (pmap == PV_PMAP(pv) && va == pv->pv_va) {
 			break;
@@ -441,7 +455,6 @@ pmap_pv_vm_page_to_v(pmap_t pmap, vm_page_t m)
 bool
 pmap_pv_vm_page_mapped(pmap_t pmap, vm_page_t m)
 {
-	if (pmap == kernel_pmap) return true;
 	return (pmap_pv_vm_page_to_v(pmap, m) == 
 		(VM_MAX_KERNEL_ADDRESS + 1)) ? false : true;
 
@@ -454,18 +467,37 @@ pmap_pv_vm_page_mapped(pmap_t pmap, vm_page_t m)
  */
 
 int
-pmap_pv_iterate(vm_page_t m, pv_cb_t cb)
+pmap_pv_iterate(vm_page_t m, pv_cb_t cb, iterate_flags iflag)
 {
 	int iter = 0;
 	pv_entry_t next_pv, pv;
 
-	rw_wlock(&pvh_global_lock);
+	switch(iflag) {
+	case PV_RO_ITERATE:
+		rw_rlock(&pvh_global_lock);
+		break;
+	case PV_RW_ITERATE:
+		rw_wlock(&pvh_global_lock);
+		break;
+	default:
+		panic("%s: unknown iterate flag, %d, requested\n", __func__, iflag);
+	}
 
 	TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_next, next_pv) {
 		iter++;
 		if (cb(PV_PMAP(pv), pv->pv_va, m)) break;
 	}
-	rw_wunlock(&pvh_global_lock);
+
+	switch(iflag) {
+	case PV_RO_ITERATE:
+		rw_runlock(&pvh_global_lock);
+		break;
+	case PV_RW_ITERATE:
+		rw_wunlock(&pvh_global_lock);
+		break;
+	default:
+		panic("%s: unknown iterate flag, %d, requested\n", __func__, iflag);
+	}
 	return iter;
 }
 
@@ -493,20 +525,39 @@ pmap_pv_iterate_map(pmap_t pmap, pv_cb_t cb)
 		for (field = 0; field < _NPCM; field++) {
 			inuse = ~pc->pc_map[field] & pc_freemask[field];
 			while (inuse != 0) {
+				bool cbresult = false;
 				bit = bsfq(inuse);
 				bitmask = 1UL << bit;
 				idx = field * 64 + bit;
 				pv = &pc->pc_pventry[idx];
 				inuse &= ~bitmask;
 
-				if (cb(PV_PMAP(pv), pv->pv_va, NULL)) break;
-			}
-			if (TAILQ_EMPTY(&pmap->pm_pvchunk)) {
-				/* Chunks were all freed! Bail. */
-				break;
+				cbresult = cb(PV_PMAP(pv), pv->pv_va, NULL);
+
+				/* 
+				 * Check to see the chunk was not
+				 * freed by callback. If it is,
+				 * reclaim chunk memory.
+				 */
+
+				if (pc->pc_map[0] == PC_FREE0 && pc->pc_map[1] == PC_FREE1 &&
+				        pc->pc_map[2] == PC_FREE2) {
+					goto nextpc;
+				}
+
+				if (TAILQ_EMPTY(&pmap->pm_pvchunk)) {
+					/* Chunks were all freed in the callback! Bail. */
+					goto done_iterating;
+				}
+
+				/* Try the next va */
+				if (cbresult == false) break;
 			}
 		}
+	nextpc:
+		continue;
 	}
+done_iterating:
 	return iter;
 }
 

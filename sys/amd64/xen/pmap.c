@@ -646,6 +646,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	kernel_pmap->pm_root.rt_root = 0;
 	CPU_FILL(&kernel_pmap->pm_active);	/* don't allow deactivation */
 	pmap_pv_init();
+	pmap_pv_pmap_init(kernel_pmap);
 
 	tsz = mmu_map_t_size();
 
@@ -756,6 +757,7 @@ pmap_pinit0(pmap_t pmap)
 	pmap->pm_cr3 = pmap_kextract_ma((vm_offset_t) KPML4phys);
 	pmap->pm_root.rt_root = 0;
 	CPU_ZERO(&pmap->pm_active);
+	CPU_ZERO(&pmap->pm_save);
 	PCPU_SET(curpmap, pmap);
 	pmap_pv_pmap_init(pmap);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -1003,27 +1005,16 @@ pmap_qremove(vm_offset_t sva, int count)
 	// XXX: TODO: pmap_invalidate_range(kernel_pmap, sva, va);
 }
 
-/*
- *	Insert the given physical page (p) at
- *	the specified virtual address (v) in the
- *	target physical map with the protection requested.
- *
- *	If specified, the page will be wired down, meaning
- *	that the related pte can not be reclaimed.
- *
- *	NB:  This is the only routine which MAY NOT lazy-evaluate
- *	or lose information.  That is, this routine must actually
- *	insert this page into the given map NOW.
- */
+#include <ddb/ddb.h>
 
-void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
+static void
+pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
     vm_prot_t prot, boolean_t wired)
 {
 	pt_entry_t *pte;
 	pt_entry_t newpte, origpte;
 	vm_paddr_t opa, pa;
-	vm_page_t mpte, om;
+	vm_page_t om;
 
 	va = trunc_page(va);
 
@@ -1031,11 +1022,11 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
 	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%lx)",
 	    va));
-	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
-		VM_OBJECT_ASSERT_WLOCKED(m->object);
 
 	KASSERT(VM_PAGE_TO_PHYS(m) != 0,
 		("VM_PAGE_TO_PHYS(m) == 0x%lx\n", VM_PAGE_TO_PHYS(m)));
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
 	pa = VM_PAGE_TO_PHYS(m);
 	newpte = (pt_entry_t)(xpmap_ptom(pa) | PG_A | PG_V | PG_U);
@@ -1051,10 +1042,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		newpte |= PG_W;
 
 	/* newpte |= pmap_cache_bits(m->md.pat_mode, 0); XXX */
-
-	mpte = NULL;
-
-	PMAP_LOCK(pmap);
 
 	/*
 	 * In the case that a page table page is not
@@ -1114,13 +1101,16 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		pmap_resident_count_inc(pmap, 1);
 	}
 
-
 	/*
 	 * Enter on the PV list if part of our managed memory.
 	 */
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
+		bool pvunmanaged = false;
 		newpte |= PG_MANAGED;
-		pmap_put_pv_entry(pmap, va, m);
+		pvunmanaged = pmap_put_pv_entry(pmap, va, m);
+
+		KASSERT(pvunmanaged == true,
+		    ("VPO_UNMANAGED flag set on existing pv entry for m == %p\n", m));
 
 		if ((newpte & PG_RW) != 0)
 			vm_page_aflag_set(m, PGA_WRITEABLE);
@@ -1195,6 +1185,44 @@ validate:
 
 unchanged:
 	pmap_vtopte_release(pmap, va, &tptr);
+
+}
+
+/*
+ *	Insert the given physical page (p) at
+ *	the specified virtual address (v) in the
+ *	target physical map with the protection requested.
+ *
+ *	If specified, the page will be wired down, meaning
+ *	that the related pte can not be reclaimed.
+ *
+ *	NB:  This is the only routine which MAY NOT lazy-evaluate
+ *	or lose information.  That is, this routine must actually
+ *	insert this page into the given map NOW.
+ */
+
+void
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
+    vm_prot_t prot, boolean_t wired)
+{
+	va = trunc_page(va);
+
+	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
+	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
+	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%lx)",
+	    va));
+
+	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
+		VM_OBJECT_ASSERT_WLOCKED(m->object);
+
+	KASSERT(VM_PAGE_TO_PHYS(m) != 0,
+		("VM_PAGE_TO_PHYS(m) == 0x%lx\n", VM_PAGE_TO_PHYS(m)));
+
+
+	PMAP_LOCK(pmap);
+
+	pmap_enter_locked(pmap, va, access, m, prot, wired);
+
 	PMAP_UNLOCK(pmap);
 }
 
@@ -1219,16 +1247,20 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	vm_pindex_t diff, psize;
 	vm_page_t m;
 
-	VM_OBJECT_ASSERT_WLOCKED(m_start->object);
+	VM_OBJECT_ASSERT_LOCKED(m_start->object);
 
 	psize = atop(end - start);
 	m = m_start;
 
+	PMAP_LOCK(pmap);
+
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		va = start + ptoa(diff);
-		pmap_enter(pmap, va, prot, m, prot, false);
+		pmap_enter_locked(pmap, va, prot, m, prot, false);
 		m = TAILQ_NEXT(m, listq);
 	}
+
+	PMAP_UNLOCK(pmap);
 }
 
 void
@@ -1237,8 +1269,22 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 	/* RO and unwired */
 	prot = (prot & ~VM_PROT_WRITE) | VM_PROT_READ;
 
+	va = trunc_page(va);
+
+	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
+	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
+	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%lx)",
+	    va));
+
+	KASSERT(VM_PAGE_TO_PHYS(m) != 0,
+		("VM_PAGE_TO_PHYS(m) == 0x%lx\n", VM_PAGE_TO_PHYS(m)));
+
+	PMAP_LOCK(pmap);
+
 	/* XXX: do we care about "speed" ? */
-	pmap_enter(pmap, va, prot, m, prot, false);
+	pmap_enter_locked(pmap, va, prot, m, prot, false);
+
+	PMAP_UNLOCK(pmap);
 }
 
 void *
@@ -1493,7 +1539,7 @@ pmap_remove_all(vm_page_t m)
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_remove_all: page %p is not managed", m));
 
-	pmap_pv_iterate(m, pv_remove);
+	pmap_pv_iterate(m, pv_remove, PV_RW_ITERATE);
 
 	/* free pv entry from all pmaps */
 	pmap_pv_page_unmap(m);
@@ -1894,6 +1940,9 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 	if (dst_addr != src_addr)
 		return;
 
+	if (dst_pmap->pm_type != src_pmap->pm_type)
+		return;
+
 	if (dst_pmap < src_pmap) {
 		PMAP_LOCK(dst_pmap);
 		PMAP_LOCK(src_pmap);
@@ -2000,7 +2049,6 @@ out:
 	mmu_map_t_fini(dtptr);
 	mmu_map_t_fini(stptr);
 
-	
 	PMAP_UNLOCK(src_pmap);
 	PMAP_UNLOCK(dst_pmap);
 }
@@ -2014,7 +2062,7 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 	KASSERT(msrc != NULL && mdst != NULL,
 		("Invalid source or destination page!"));
 
-	va_src = kmem_malloc(kernel_arena, PAGE_SIZE * 2, M_ZERO);
+	va_src = kva_alloc(PAGE_SIZE * 2);
 	va_dst = va_src + PAGE_SIZE;
 
 	KASSERT(va_src != 0,
@@ -2031,7 +2079,7 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 	pmap_kremove(va_src);
 	pmap_kremove(va_dst);
 
-	kmem_free(kernel_arena, va_src, PAGE_SIZE * 2);
+	kva_free(va_src, PAGE_SIZE * 2);
 }
 
 int unmapped_buf_allowed = 1;
@@ -2072,7 +2120,7 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	pmap_kremove(a_pg);
 	pmap_kremove(b_pg);
 
-	kmem_free(kernel_arena, a_pg, PAGE_SIZE * 2);
+	kva_free(a_pg, PAGE_SIZE * 2);
 }
 
 void
@@ -2211,6 +2259,8 @@ pv_map_remove(pmap_t pmap, vm_offset_t va, vm_page_t m)
 void
 pmap_remove_pages(pmap_t pmap)
 {
+	KASSERT(pmap != kernel_pmap, 
+		("Trying to destroy kernel_pmap pv mappings!"));
 	if (pmap != PCPU_GET(curpmap)) {
 		printf("warning: pmap_remove_pages called with non-current pmap\n");
 		return;
@@ -2228,7 +2278,7 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 {
 	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
-#include <ddb/ddb.h>
+
 static bool
 pv_dummy(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
@@ -2238,10 +2288,11 @@ pv_dummy(pmap_t pmap, vm_offset_t va, vm_page_t m)
 boolean_t
 pmap_page_is_mapped(vm_page_t m)
 {
+
 	if ((m->oflags & VPO_UNMANAGED) != 0)
 		return (FALSE);
 
-	return pmap_pv_iterate(m, pv_dummy);
+	return pmap_pv_iterate(m, pv_dummy, PV_RO_ITERATE);
 }
 
 boolean_t
@@ -2251,11 +2302,48 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	return 0;
 }
 
+static bool
+pv_page_is_wired(pmap_t pmap, vm_offset_t va, vm_page_t m)
+{
+	pt_entry_t *pte, tpte;
+
+	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
+			 * effectively const.
+			 */
+
+	mmu_map_t tptr = tbuf;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+
+	pte = pmap_vtopte_inspect(pmap, va, &tptr);
+
+	KASSERT(pte != NULL, ("pte has no backing page tables!"));
+
+	tpte = *pte;
+
+	if ((tpte & PG_V) == 0) {
+		panic("bad pte va %lx pte %lx", va, tpte);
+	}
+
+	/*
+	 * We cannot remove wired pages from a process' mapping at this time
+	 */
+	if (tpte & PG_W) {
+		return false; /* Continue iteration */
+	}
+
+	pmap_vtopte_release(pmap, va, &tptr);
+
+	return true; /* stop iteration */
+}
+
 int
 pmap_page_wired_mappings(vm_page_t m)
 {
-	KASSERT(0, ("XXX: %s: TODO\n", __func__));
-	return -1;
+	if ((m->oflags & VPO_UNMANAGED) != 0)
+		return (0);
+
+	return pmap_pv_iterate(m, pv_page_is_wired, PV_RW_ITERATE);
 }
 
 boolean_t
@@ -2477,15 +2565,32 @@ pmap_remove_write(vm_page_t m)
 	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
  		return;
 
-	pmap_pv_iterate(m, pv_remove_write);
+	pmap_pv_iterate(m, pv_remove_write, PV_RW_ITERATE);
 	vm_page_aflag_clear(m, PGA_WRITEABLE);
 }
+
+/*
+ *	pmap_ts_referenced:
+ *
+ *	Return a count of reference bits for a page, clearing those bits.
+ *	It is not necessary for every reference bit to be cleared, but it
+ *	is necessary that 0 only be returned when there are truly no
+ *	reference bits set.
+ *
+ */
 
 int
 pmap_ts_referenced(vm_page_t m)
 {
-	KASSERT(0, ("XXX: %s: TODO\n", __func__));
-	return -1;
+	/*
+	 * XXX: we don't clear refs yet. We just return non-zero if at
+	 * least one reference exists.
+	 * This obeys the required semantics - but only just.
+	 */
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
+	    ("pmap_ts_referenced: page %p is not managed", m));
+
+	return pmap_pv_iterate(m, pv_dummy, PV_RO_ITERATE);
 }
 
 void
