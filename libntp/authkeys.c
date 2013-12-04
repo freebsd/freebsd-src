@@ -1,7 +1,6 @@
 /*
  * authkeys.c - routines to manage the storage of authentication keys
  */
-
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
@@ -22,17 +21,16 @@
 struct savekey {
 	struct savekey *next;
 	union {
-		long bogon;		/* Make sure nonempty */
-		u_char MD5_key[32];	/* MD5 key */
+		u_char MD5_key[64];	/* for keys up to to 512 bits */
 	} k;
 	keyid_t keyid;		/* key identifier */
+	int	type;		/* key type */
 	u_short flags;		/* flags that wave */
 	u_long lifetime;	/* remaining lifetime */
 	int keylen;		/* key length */
 };
 
 #define	KEY_TRUSTED	0x001	/* this key is trusted */
-#define	KEY_MD5		0x200	/* this is a MD5 type key */
 
 /*
  * The hash table. This is indexed by the low order bits of the
@@ -68,6 +66,7 @@ int authnumfreekeys;
 keyid_t	cache_keyid;		/* key identifier */
 u_char	*cache_key;		/* key pointer */
 u_int	cache_keylen;		/* key length */
+int	cache_type;		/* key type */
 u_short cache_flags;		/* flags that wave */
 
 
@@ -143,28 +142,47 @@ authhavekey(
 	if (keyno == 0 || keyno == cache_keyid)
 		return (1);
 
+	/*
+	 * Seach the bin for the key. If found and the key type
+	 * is zero, somebody marked it trusted without specifying
+	 * a key or key type. In this case consider the key missing.
+	 */
 	authkeyuncached++;
 	sk = key_hash[KEYHASH(keyno)];
-	while (sk != 0) {
-		if (keyno == sk->keyid)
-		    break;
+	while (sk != NULL) {
+		if (keyno == sk->keyid) {
+			if (sk->type == 0) {
+				authkeynotfound++;
+				return (0);
+			}
+			break;
+		}
 		sk = sk->next;
 	}
-	if (sk == 0) {
+
+	/*
+	 * If the key is not found, or if it is found but not trusted,
+	 * the key is not considered found.
+	 */
+	if (sk == NULL) {
 		authkeynotfound++;
 		return (0);
-	} else if (!(sk->flags & KEY_TRUSTED)) {
+
+	}
+	if (!(sk->flags & KEY_TRUSTED)) {
 		authnokey++;
 		return (0);
 	}
+
+	/*
+	 * The key is found and trusted. Initialize the key cache.
+	 */
 	cache_keyid = sk->keyid;
+	cache_type = sk->type;
 	cache_flags = sk->flags;
-	if (sk->flags & KEY_MD5) {
-		cache_key = sk->k.MD5_key;
-		cache_keylen = sk->keylen;
-		return (1);
-	}
-	return (0);
+	cache_key = sk->k.MD5_key;
+	cache_keylen = sk->keylen;
+	return (1);
 }
 
 
@@ -201,26 +219,36 @@ authtrust(
 {
 	struct savekey *sk;
 
-#ifdef DEBUG
-	if (debug > 2)
-		printf("authtrust: keyid %08x life %lu\n", keyno, trust);
-#endif
+	/*
+	 * Search bin for key; if it does not exist and is untrusted,
+	 * forget it.
+	 */
 	sk = key_hash[KEYHASH(keyno)];
 	while (sk != 0) {
 		if (keyno == sk->keyid)
 		    break;
+
 		sk = sk->next;
 	}
-
 	if (sk == 0 && !trust)
 		return;
-	
+
+	/*
+	 * There are two conditions remaining. Either it does not
+	 * exist and is to be trusted or it does exist and is or is
+	 * not to be trusted.
+	 */	
 	if (sk != 0) {
 		if (cache_keyid == keyno) {
 			cache_flags = 0;
 			cache_keyid = 0;
 		}
 
+		/*
+		 * Key exists. If it is to be trusted, say so and
+		 * update its lifetime. If not, return it to the
+		 * free list.
+		 */
 		if (trust > 0) {
 			sk->flags |= KEY_TRUSTED;
 			if (trust > 1)
@@ -229,7 +257,6 @@ authtrust(
 				sk->lifetime = 0;
 			return;
 		}
-
 		sk->flags &= ~KEY_TRUSTED; {
 			struct savekey *skp;
 
@@ -250,6 +277,11 @@ authtrust(
 		return;
 	}
 
+	/*
+	 * Here there is not key, but the key is to be trusted. There
+	 * seems to be a disconnect here. Here we allocate a new key,
+	 * but do not specify a key type, key or key length.
+	 */ 
 	if (authnumfreekeys == 0)
 	    if (auth_moremem() == 0)
 		return;
@@ -257,8 +289,9 @@ authtrust(
 	sk = authfreekeys;
 	authfreekeys = sk->next;
 	authnumfreekeys--;
-
 	sk->keyid = keyno;
+	sk->type = 0;
+	sk->keylen = 0;
 	sk->flags = KEY_TRUSTED;
 	sk->next = key_hash[KEYHASH(keyno)];
 	key_hash[KEYHASH(keyno)] = sk;
@@ -290,6 +323,7 @@ authistrusted(
 	if (sk == 0) {
 		authkeynotfound++;
 		return (0);
+
 	} else if (!(sk->flags & KEY_TRUSTED)) {
 		authkeynotfound++;
 		return (0);
@@ -301,6 +335,7 @@ authistrusted(
 void
 MD5auth_setkey(
 	keyid_t keyno,
+	int	keytype,
 	const u_char *key,
 	const int len
 	)
@@ -312,14 +347,16 @@ MD5auth_setkey(
 	 * new value.
 	 */
 	sk = key_hash[KEYHASH(keyno)];
-	while (sk != 0) {
+	while (sk != NULL) {
 		if (keyno == sk->keyid) {
+			sk->type = keytype;
+			sk->keylen = min(len, sizeof(sk->k.MD5_key));
+#ifndef DISABLE_BUG1243_FIX
+			memcpy(sk->k.MD5_key, key, sk->keylen);
+#else
 			strncpy((char *)sk->k.MD5_key, (const char *)key,
 			    sizeof(sk->k.MD5_key));
-			if ((sk->keylen = len) > sizeof(sk->k.MD5_key))
-			    sk->keylen = sizeof(sk->k.MD5_key);
-
-			sk->flags |= KEY_MD5;
+#endif
 			if (cache_keyid == keyno) {
 				cache_flags = 0;
 				cache_keyid = 0;
@@ -332,29 +369,43 @@ MD5auth_setkey(
 	/*
 	 * Need to allocate new structure.  Do it.
 	 */
-	if (authnumfreekeys == 0) {
-		if (auth_moremem() == 0)
-		    return;
-	}
+	if (0 == authnumfreekeys && !auth_moremem())
+		return;
 
 	sk = authfreekeys;
 	authfreekeys = sk->next;
 	authnumfreekeys--;
 
-	strncpy((char *)sk->k.MD5_key, (const char *)key,
-		sizeof(sk->k.MD5_key));
-	if ((sk->keylen = len) > sizeof(sk->k.MD5_key))
-	    sk->keylen = sizeof(sk->k.MD5_key);
-
 	sk->keyid = keyno;
-	sk->flags = KEY_MD5;
+	sk->type = keytype;
+	sk->flags = 0;
 	sk->lifetime = 0;
+	sk->keylen = min(len, sizeof(sk->k.MD5_key));
+#ifndef DISABLE_BUG1243_FIX
+	memcpy(sk->k.MD5_key, key, sk->keylen);
+#else
+	strncpy((char *)sk->k.MD5_key, (const char *)key,
+	    sizeof(sk->k.MD5_key));
+#endif
 	sk->next = key_hash[KEYHASH(keyno)];
 	key_hash[KEYHASH(keyno)] = sk;
+#ifdef DEBUG
+	if (debug > 1) {
+		char	hex[] = "0123456789abcdef";
+		int	j;
+
+		printf("auth_setkey: key %d type %d len %d ", sk->keyid,
+		    sk->type, sk->keylen);
+		for (j = 0; j < sk->keylen; j++)
+				printf("%c%c", hex[key[j] >> 4],
+				    hex[key[j] & 0xf]);
+		printf("\n");
+	}	
+#endif
 	authnumkeys++;
-	return;
 }
-    
+
+
 /*
  * auth_delkeys - delete all known keys, in preparation for rereading
  *		  the keys file (presumably)
@@ -449,10 +500,7 @@ authencrypt(
 	if (!authhavekey(keyno))
 		return (0);
 
-	if (cache_flags & KEY_MD5)
-		return (MD5authencrypt(cache_key, pkt, length));
-
-	return (0);
+	return (MD5authencrypt(cache_type, cache_key, pkt, length));
 }
 
 /*
@@ -481,8 +529,6 @@ authdecrypt(
 	if (!authhavekey(keyno) || size < 4)
 		return (0);
 
-	if (cache_flags & KEY_MD5)
-		return (MD5authdecrypt(cache_key, pkt, length, size));
-
-	return (0);
+	return (MD5authdecrypt(cache_type, cache_key, pkt, length,
+	   size));
 }

@@ -1,11 +1,19 @@
 #include autogen-version.def
 
+include = <<- _EOF_
+	#ifdef __windows
+	  extern int atoi(const char *);
+	#else
+	# include <stdlib.h>
+	#endif
+	_EOF_;
+
 test-main;
 
 flag = {
     name      = ipv4;
     value     = 4;
-    equivalence = ipv4;
+    flags-cant = ipv6;
     descrip   = "Force IPv4 DNS name resolution";
     doc = <<-  _EndOfDoc_
 	Force DNS resolution of following host names on the command line
@@ -16,7 +24,7 @@ flag = {
 flag = {
     name      = ipv6;
     value     = 6;
-    equivalence = ipv4;
+    flags-cant = ipv4;
     descrip   = "Force IPv6 DNS name resolution";
     doc = <<-  _EndOfDoc_
 	Force DNS resolution of following host names on the command line
@@ -56,17 +64,6 @@ flag = {
 	_EndOfDoc_;
 };
 
-#ifdef SIM
-flag = {
-    name      = simbroadcastdelay;
-    value     = B;
-    arg-type  = string;
-    descrip   = "Simulator broadcast delay";
-    doc = <<-  _EndOfDoc_
-	_EndOfDoc_;
-};
-#endif
-
 flag = {
     name      = configfile;
     value     = c;
@@ -79,18 +76,33 @@ flag = {
 	_EndOfDoc_;
 };
 
-#ifdef SIM
 flag = {
-    name      = phasenoise;
-    value     = C;
-    arg-type  = string;
-    descrip   = "Phase noise level";
+    name      = debug-level;
+    value     = d;
+    max       = NOLIMIT;
+    ifdef     = DEBUG;
+    nopreset;
+    descrip   = "Increase output debug message level";
+    omitted-usage = "this package was built using 'configure --disable--debug'";
     doc = <<-  _EndOfDoc_
+	Increase the debugging message output level.
 	_EndOfDoc_;
 };
-#endif
 
-#include debug-opt.def
+flag = {
+    name      = set-debug-level;
+    value     = D;
+    arg-type  = string;
+    max       = NOLIMIT;
+    ifdef     = DEBUG;
+    descrip   = "Set the output debug message level";
+    omitted-usage = "this package was built using 'configure --disable--debug'";
+    flag-code = 'DESC(DEBUG_LEVEL).optOccCt = atoi( pOptDesc->pzLastArg );';
+    doc = <<-  _EndOfDoc_
+	Set the output debugging level.  Can be supplied multiple times,
+	but each overrides the previous value(s).
+	_EndOfDoc_;
+};
 
 flag = {
     name      = driftfile;
@@ -112,6 +124,7 @@ flag = {
 flag = {
     name      = panicgate;
     value     = g;
+    max       = NOLIMIT;
     descrip   = "Allow the first adjustment to be Big";
     doc = <<-  _EndOfDoc_
 	Normally,
@@ -129,30 +142,28 @@ flag = {
 	_EndOfDoc_;
 };
 
-#ifdef SIM
 flag = {
-    name      = simslew;
-    value     = H;
-    arg-type  = string;
-    descrip   = "Simuator slew";
-    doc = <<-  _EndOfDoc_
-	_EndOfDoc_;
-};
-#endif
-
-flag = {
+    ifdef     = HAVE_DROPROOT;
     name      = jaildir;
     value     = i;
     arg-type  = string;
     descrip   = "Jail directory";
+    omitted-usage = "built without --enable-clockctl or --enable-linuxcaps";
     doc = <<-  _EndOfDoc_
 	Chroot the server to the directory
 	jaildir
 	.
-	This option also implies that the server attempts to drop root privileges at startup (otherwise, chroot gives very little additional security), and it is only available if the OS supports to run the server without full root privileges.
+	This option also implies that the server attempts to drop root privileges at startup.
 	You may need to also specify a
 	-u
 	option.
+	This option is only available if the OS supports adjusting the clock
+	without full root privileges.
+	This option is supported under NetBSD (configure with
+	--enable-clockctl
+	) and Linux (configure with
+	--enable-linuxcaps
+	).
 	_EndOfDoc_;
 };
 
@@ -160,11 +171,16 @@ flag = {
     name      = interface;
     value     = I;
     arg-type  = string;
-    descrip   = "Listen on interface";
+    descrip   = "Listen on an interface name or address";
     max       = NOLIMIT;
     arg-name  = iface;
     stack-arg;
     doc = <<-  _EndOfDoc_
+	Open the network address given, or all the addresses associated with the
+	given interface name.  This option may appear multiple times.  This option
+	also implies not opening other addresses, except wildcard and localhost.
+	This option is deprecated. Please consider using the configuration file
+	interface command, which is more versatile. 
 	_EndOfDoc_;
 };
 
@@ -200,9 +216,12 @@ flag = {
 flag = {
     name      = novirtualips;
     value     = L;
-    descrip   = "Do not listen to virtual IPs";
+    descrip   = "Do not listen to virtual interfaces";
     doc = <<-  _EndOfDoc_
-	Do not listen to virtual IPs. The default is to listen.
+	Do not listen to virtual interfaces, defined as those with
+	names containing a colon.  This option is deprecated.  Please
+	consider using the configuration file interface command, which
+	is more versatile.
 	_EndOfDoc_;
 };
 
@@ -212,7 +231,9 @@ flag = {
     value     = M;
     descrip   = "Modify Multimedia Timer (Windows only)";
     doc = <<-  _EndOfDoc_
-	Set the Windows Multimedia Timer to highest resolution.
+	Set the Windows Multimedia Timer to highest resolution.  This
+	ensures the resolution does not change while ntpd is running,
+	avoiding timekeeping glitches associated with changes.
 	_EndOfDoc_;
 };
 
@@ -234,17 +255,6 @@ flag = {
 	at the highest priority.
 	_EndOfDoc_;
 };
-
-#ifdef SIM
-flag = {
-    name      = servertime;
-    value     = O;
-    arg-type  = string;
-    descrip   = "Server time";
-    doc = <<-  _EndOfDoc_
-	_EndOfDoc_;
-};
-#endif
 
 flag = {
     name      = pidfile;
@@ -304,15 +314,14 @@ flag = {
 };
 
 flag = {
-    name      = updateinterval;
-    value     = U;
-    arg-type  = number;
-    descrip   = "interval in seconds between scans for new or dropped interfaces";
+    ifdef     = SAVECONFIG;
+    name      = saveconfigquit;
+    arg-type  = string;
+    descrip   = "Save parsed configuration and quit";
     doc = <<-  _EndOfDoc_
-	Give the time in seconds between two scans for new or dropped interfaces.
-	For systems with routing socket support the scans will be performed shortly after the interface change
-	has been detected by the system.
-	Use 0 to disable scanning.
+	Cause ntpd to parse its startup configuration file and save an
+	equivalent to the given filename and exit.  This option was
+	designed for automated testing.
 	_EndOfDoc_;
 };
 
@@ -329,17 +338,6 @@ flag = {
 	_EndOfDoc_;
 };
 
-#ifdef SIM
-flag = {
-    name      = endsimtime;
-    value     = S;
-    arg-type  = string;
-    descrip   = "Simulation end time";
-    doc = <<-  _EndOfDoc_
-	_EndOfDoc_;
-};
-#endif
-
 flag = {
     name      = trustedkey;
     value     = t;
@@ -353,37 +351,18 @@ flag = {
 	_EndOfDoc_;
 };
 
-#ifdef SIM
 flag = {
-    name      = freqerr;
-    value     = T;
-    arg-type  = string;
-    descrip   = "Simulation frequency error";
-    doc = <<-  _EndOfDoc_
-	_EndOfDoc_;
-};
-#endif
-
-#ifdef SIM
-flag = {
-    name      = walknoise;
-    value     = W;
-    arg-type  = string;
-    descrip   = "Simulation random walk noise";
-    doc = <<-  _EndOfDoc_
-	_EndOfDoc_;
-};
-#endif
-
-flag = {
+    ifdef     = HAVE_DROPROOT;
     name      = user;
     value     = u;
     arg-type  = string;
     descrip   = "Run as userid (or userid:groupid)";
+    omitted-usage = "built without --enable-clockctl or --enable-linuxcaps";
     doc = <<-  _EndOfDoc_
 	Specify a user, and optionally a group, to switch to.
-	This option is only available if the OS supports to run the server without full root privileges.
-	Currently, this option is supported under NetBSD (configure with
+	This option is only available if the OS supports adjusting the clock
+	without full root privileges.
+	This option is supported under NetBSD (configure with
 	--enable-clockctl
 	) and Linux (configure with
 	--enable-linuxcaps
@@ -392,8 +371,21 @@ flag = {
 };
 
 flag = {
+    name      = updateinterval;
+    value     = U;
+    arg-type  = number;
+    descrip   = "interval in seconds between scans for new or dropped interfaces";
+    doc = <<-  _EndOfDoc_
+	Give the time in seconds between two scans for new or dropped interfaces.
+	For systems with routing socket support the scans will be performed shortly after the interface change
+	has been detected by the system.
+	Use 0 to disable scanning. 60 seconds is the minimum time between scans.
+	_EndOfDoc_;
+};
+
+flag = {
     name      = var;
-    value     = v;
+/*    value     = v;	Bug 817 */
     arg-type  = string;
     descrip   = "make ARG an ntp variable (RW)";
     max       = NOLIMIT;
@@ -405,7 +397,7 @@ flag = {
 
 flag = {
     name      = dvar;
-    value     = V;
+/*    value     = V;	Bug 817 */
     arg-type  = string;
     descrip   = "make ARG an ntp variable (RW|DEF)";
     max       = NOLIMIT;
@@ -436,24 +428,26 @@ flag = {
 	_EndOfDoc_;
 };
 
-#ifdef SIM
 flag = {
-    name      = ndelay;
-    value     = Y;
-    arg-type  = string;
-    descrip   = "Simulation network delay";
+    ifdef     = SYS_WINNT;
+    name      = usepcc;
+    descrip   = "Use CPU cycle counter (Windows only)";
     doc = <<-  _EndOfDoc_
+	Attempt to substitute the CPU counter for QueryPerformanceCounter.
+	The CPU counter and QueryPerformanceCounter are compared, and if
+	they have the same frequency, the CPU counter (RDTSC on x86) is
+	used directly, saving the overhead of a system call.
 	_EndOfDoc_;
 };
-#endif
 
-#ifdef SIM
 flag = {
-    name      = pdelay;
-    value     = Z;
+    ifdef     = SYS_WINNT;
+    name      = pccfreq;
     arg-type  = string;
-    descrip   = "Simulation processing delay";
+    descrip   = "Force CPU cycle counter use (Windows only)";
     doc = <<-  _EndOfDoc_
+	Force substitution the CPU counter for QueryPerformanceCounter.
+	The CPU counter (RDTSC on x86) is used unconditionally with the
+	given frequency (in Hz).
 	_EndOfDoc_;
 };
-#endif

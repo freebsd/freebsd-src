@@ -16,6 +16,9 @@ do
      *version.def)
 	outputs="include/version.def $outputs"
 	;;
+     *version.texi)
+	outputs="include/version.texi $outputs"
+	;;
      *) echo "Unrecognized option: $i"
 	exit 1
 	;;
@@ -23,7 +26,7 @@ do
 done
 
 case "$outputs" in
- '') outputs="version.m4 include/version.def" ;;
+ '') outputs="version.m4 include/version.def include/version.texi" ;;
 esac
 
 set -e
@@ -61,6 +64,24 @@ case "$outputs" in
 	;;
      *)
 	mv /tmp/version.def+ include/version.def
+	;;
+    esac
+    ;;
+esac
+
+case "$outputs" in
+ *version.texi*)
+    echo "@set UPDATED `date +'%d %B %Y'`"	>  /tmp/version.texi+
+    echo "@set EDITION $dversion"		>> /tmp/version.texi+
+    echo "@set VERSION $dversion"		>> /tmp/version.texi+
+    cmp -s /tmp/version.texi+ include/version.texi
+    rc=$?
+    case "$force$rc" in
+     00)
+	rm -f /tmp/version.texi+
+	;;
+     *)
+	mv /tmp/version.texi+ include/version.texi
 	;;
     esac
     ;;

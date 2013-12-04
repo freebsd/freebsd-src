@@ -23,6 +23,14 @@
 # include "ntp_timer.h"
 #endif
 
+#ifdef KERNEL_PLL
+#include "ntp_syscall.h"
+#endif /* KERNEL_PLL */
+
+#ifdef OPENSSL
+#include <openssl/rand.h>
+#endif /* OPENSSL */
+
 /*
  * These routines provide support for the event timer.	The timer is
  * implemented by an interrupt routine which sets a flag once every
@@ -33,25 +41,27 @@
  * dispatched to the transmit procedure.  Finally, we call the hourly
  * procedure to do cleanup and print a message.
  */
-
 volatile int interface_interval = 300;     /* update interface every 5 minutes as default */
 	  
 /*
- * Alarm flag.	The mainline code imports this.
+ * Alarm flag. The mainline code imports this.
  */
 volatile int alarm_flag;
 
 /*
- * The counters
+ * The counters and timeouts
  */
-static	u_long adjust_timer;		/* second timer */
-static	u_long keys_timer;		/* minute timer */
-static	u_long stats_timer;		/* stats timer */
-static	u_long huffpuff_timer;		/* huff-n'-puff timer */
-static  u_long interface_timer;	        /* interface update timer */
+static  u_long interface_timer;	/* interface update timer */
+static	u_long adjust_timer;	/* second timer */
+static	u_long stats_timer;	/* stats timer */
+static	u_long huffpuff_timer;	/* huff-n'-puff timer */
+u_long	leapsec;		/* leapseconds countdown */
+l_fp	sys_time;		/* current system time */
 #ifdef OPENSSL
-static	u_long revoke_timer;		/* keys revoke timer */
-u_char	sys_revoke = KEY_REVOKE;	/* keys revoke timeout (log2 s) */
+static	u_long revoke_timer;	/* keys revoke timer */
+static	u_long keys_timer;	/* session key timer */
+u_long	sys_revoke = KEY_REVOKE; /* keys revoke timeout (log2 s) */
+u_long	sys_automax = NTP_AUTOMAX; /* key list timeout (log2 s) */
 #endif /* OPENSSL */
 
 /*
@@ -60,9 +70,10 @@ u_char	sys_revoke = KEY_REVOKE;	/* keys revoke timeout (log2 s) */
 volatile u_long alarm_overflow;
 
 #define MINUTE	60
-#define HOUR	(60*60)
+#define HOUR	(60 * MINUTE)
+#define	DAY	(24 * HOUR)
 
-u_long current_time;
+u_long current_time;		/* seconds since startup */
 
 /*
  * Stats.  Number of overflows and number of calls to transmit().
@@ -79,7 +90,7 @@ static int vmsinc[2];		/* timer increment */
 #if defined SYS_WINNT
 static HANDLE WaitableTimerHandle = NULL;
 #else
-static	RETSIGTYPE alarming P((int));
+static	RETSIGTYPE alarming (int);
 #endif /* SYS_WINNT */
 
 #if !defined(VMS)
@@ -140,11 +151,6 @@ reinit_timer(void)
 void
 init_timer(void)
 {
-# if defined SYS_WINNT & !defined(SYS_CYGWIN32)
-	HANDLE hToken = INVALID_HANDLE_VALUE;
-	TOKEN_PRIVILEGES tkp;
-# endif /* SYS_WINNT */
-
 	/*
 	 * Initialize...
 	 */
@@ -199,28 +205,6 @@ init_timer(void)
 	sys$setimr(0, &vmstimer, alarming, alarming, 0);
 # endif /* VMS */
 #else /* SYS_WINNT */
-	_tzset();
-
-	/*
-	 * Get privileges needed for fiddling with the clock
-	 */
-
-	/* get the current process token handle */
-	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken)) {
-		msyslog(LOG_ERR, "OpenProcessToken failed: %m");
-		exit(1);
-	}
-	/* get the LUID for system-time privilege. */
-	LookupPrivilegeValue(NULL, SE_SYSTEMTIME_NAME, &tkp.Privileges[0].Luid);
-	tkp.PrivilegeCount = 1;  /* one privilege to set */
-	tkp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-	/* get set-time privilege for this process. */
-	AdjustTokenPrivileges(hToken, FALSE, &tkp, 0, (PTOKEN_PRIVILEGES) NULL, 0);
-	/* cannot test return value of AdjustTokenPrivileges. */
-	if (GetLastError() != ERROR_SUCCESS) {
-		msyslog(LOG_ERR, "AdjustTokenPrivileges failed: %m");
-	}
-
 	/*
 	 * Set up timer interrupts for every 2**EVENT_TIMEOUT seconds
 	 * Under Windows/NT, 
@@ -253,26 +237,25 @@ get_timer_handle(void)
 #endif
 
 /*
- * timer - dispatch anyone who needs to be
+ * timer - event timer
  */
 void
 timer(void)
 {
 	register struct peer *peer, *next_peer;
-#ifdef OPENSSL
-	char	statstr[NTP_MAXSTRLEN]; /* statistics for filegen */
-#endif /* OPENSSL */
-	u_int n;
-
-	current_time += (1<<EVENT_TIMEOUT);
+	u_int	n;
 
 	/*
-	 * Adjustment timeout first.
+	 * The basic timerevent is one second. This is used to adjust
+	 * the system clock in time and frequency, implement the
+	 * kiss-o'-deatch function and implement the association
+	 * polling function..
 	 */
+	current_time++;
+	get_systime(&sys_time);
 	if (adjust_timer <= current_time) {
 		adjust_timer += 1;
 		adj_host_clock();
-		kod_proto();
 #ifdef REFCLOCK
 		for (n = 0; n < NTP_HASH_SIZE; n++) {
 			for (peer = peer_hash[n]; peer != 0; peer = next_peer) {
@@ -285,15 +268,25 @@ timer(void)
 	}
 
 	/*
-	 * Now dispatch any peers whose event timer has expired. Be careful
-	 * here, since the peer structure might go away as the result of
-	 * the call.
+	 * Now dispatch any peers whose event timer has expired. Be
+	 * careful here, since the peer structure might go away as the
+	 * result of the call.
 	 */
 	for (n = 0; n < NTP_HASH_SIZE; n++) {
 		for (peer = peer_hash[n]; peer != 0; peer = next_peer) {
 			next_peer = peer->next;
-			if (peer->action && peer->nextaction <= current_time)
-	  			peer->action(peer);
+			if (peer->action && peer->nextaction <=
+			    current_time)
+				peer->action(peer);
+
+			/*
+			 * Restrain the non-burst packet rate not more
+			 * than one packet every 16 seconds. This is
+			 * usually tripped using iburst and minpoll of
+			 * 128 s or less.
+			 */
+			if (peer->throttle > 0)
+				peer->throttle--;
 			if (peer->nextdate <= current_time) {
 #ifdef REFCLOCK
 				if (peer->flags & FLAG_REFCLOCK)
@@ -308,15 +301,61 @@ timer(void)
 	}
 
 	/*
-	 * Garbage collect expired keys.
+	 * Orphan mode is active when enabled and when no servers less
+	 * than the orphan stratum are available. A server with no other
+	 * synchronization source is an orphan. It shows offset zero and
+	 * reference ID the loopback address.
 	 */
-	if (keys_timer <= current_time) {
-		keys_timer += MINUTE;
-		auth_agekeys();
+	if (sys_orphan < STRATUM_UNSPEC && sys_peer == NULL) {
+		if (sys_leap == LEAP_NOTINSYNC) {
+			sys_leap = LEAP_NOWARNING;
+#ifdef OPENSSL
+			if (crypto_flags)	
+				crypto_update();
+#endif /* OPENSSL */
+		}
+		sys_stratum = (u_char)sys_orphan;
+		if (sys_stratum > 1)
+			sys_refid = htonl(LOOPBACKADR);
+		else
+			memcpy(&sys_refid, "LOOP", 4);
+		sys_offset = 0;
+		sys_rootdelay = 0;
+		sys_rootdisp = 0;
 	}
 
 	/*
-	 * Huff-n'-puff filter
+	 * Leapseconds. If a leap is pending, decrement the time
+	 * remaining. If less than one day remains, set the leap bits.
+	 * When no time remains, clear the leap bits and increment the
+	 * TAI. If kernel suppport is not available, do the leap
+	 * crudely. Note a leap cannot be pending unless the clock is
+	 * set.
+	 */
+	if (leapsec > 0) {
+		leapsec--;
+		if (leapsec == 0) {
+			sys_leap = LEAP_NOWARNING;
+			sys_tai = leap_tai;
+#ifdef KERNEL_PLL
+			if (!(pll_control && kern_enable))
+				step_systime(-1.0);
+#else /* KERNEL_PLL */
+#ifndef SYS_WINNT /* WinNT port has its own leap second handling */
+			step_systime(-1.0);
+#endif /* SYS_WINNT */
+#endif /* KERNEL_PLL */
+			report_event(EVNT_LEAP, NULL, NULL);
+		} else {
+			if (leapsec < DAY)
+				sys_leap = LEAP_ADDSECOND;
+			if (leap_tai > 0)
+				sys_tai = leap_tai - 1;
+		}
+	}
+
+	/*
+	 * Update huff-n'-puff filter.
 	 */
 	if (huffpuff_timer <= current_time) {
 		huffpuff_timer += HUFFPUFF;
@@ -325,37 +364,44 @@ timer(void)
 
 #ifdef OPENSSL
 	/*
-	 * Garbage collect old keys and generate new private value
+	 * Garbage collect expired keys.
 	 */
-	if (revoke_timer <= current_time) {
-		revoke_timer += RANDPOLL(sys_revoke);
-		expire_all();
-		sprintf(statstr, "refresh ts %u", ntohl(hostval.tstamp));
-		record_crypto_stats(NULL, statstr);
-#ifdef DEBUG
-		if (debug)
-			printf("timer: %s\n", statstr);
-#endif
+	if (keys_timer <= current_time) {
+		keys_timer += 1 << sys_automax;
+		auth_agekeys();
+	}
+
+	/*
+	 * Garbage collect key list and generate new private value. The
+	 * timer runs only after initial synchronization and fires about
+	 * once per day.
+	 */
+	if (revoke_timer <= current_time && sys_leap !=
+	    LEAP_NOTINSYNC) {
+		revoke_timer += 1 << sys_revoke;
+		RAND_bytes((u_char *)&sys_private, 4);
 	}
 #endif /* OPENSSL */
 
 	/*
-	 * interface update timer
+	 * Interface update timer
 	 */
 	if (interface_interval && interface_timer <= current_time) {
 
-		timer_interfacetimeout(current_time + interface_interval);
-		DPRINTF(1, ("timer: interface update\n"));
+		timer_interfacetimeout(current_time +
+		    interface_interval);
+		DPRINTF(2, ("timer: interface update\n"));
 		interface_update(NULL, NULL);
 	}
 	
 	/*
-	 * Finally, periodically write stats.
+	 * Finally, write hourly stats.
 	 */
 	if (stats_timer <= current_time) {
-	     if (stats_timer != 0)
-		  write_stats();
-	     stats_timer += stats_write_period;
+		stats_timer += HOUR;
+		write_stats();
+		if (sys_tai != 0 && sys_time.l_ui > leap_expire)
+			report_event(EVNT_LEAPVAL, NULL, NULL);
 	}
 }
 

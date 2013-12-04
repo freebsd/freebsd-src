@@ -51,7 +51,7 @@
 #include <stdio.h>
 #else
 #include "sys/parsestreams.h"
-extern void printf P((const char *, ...));
+extern int printf (const char *, ...);
 #endif
 
 static struct format dcf7000_fmt =
@@ -64,8 +64,8 @@ static struct format dcf7000_fmt =
 	(const unsigned char *)"  -  -  -  -  -  -  -  \r",
 	0
 };    
-static u_long cvt_dcf7000 P((unsigned char *, int, struct format *, clocktime_t *, void *));
-static unsigned long inp_dcf7000 P((parse_t *, unsigned int, timestamp_t *));
+static u_long cvt_dcf7000 (unsigned char *, int, struct format *, clocktime_t *, void *);
+static unsigned long inp_dcf7000 (parse_t *, unsigned int, timestamp_t *);
 
 clockformat_t clock_dcf7000 =
 {

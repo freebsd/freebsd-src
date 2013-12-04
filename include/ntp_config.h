@@ -1,3 +1,11 @@
+#ifndef NTP_CONFIG_H
+#define NTP_CONFIG_H
+
+#include "ntp_machine.h"
+#include "ntp_data_structures.h"
+#include "ntpsim.h"
+
+
 /*
  * Configuration file name
  */
@@ -11,171 +19,227 @@
 # endif /* SYS_WINNT */
 #endif /* not CONFIG_FILE */
 
-/*
- * Types of entries we understand.
+#ifdef HAVE_IPTOS_SUPPORT
+/* 
+ * "qos" modified keywords 
  */
-#define CONFIG_UNKNOWN		0
+#define	CONF_QOS_LOWDELAY		1
+#define CONF_QOS_THROUGHPUT		2
+#define CONF_QOS_RELIABILITY		3
+#define CONF_QOS_MINCOST		4
+
+#ifdef 		IPTOS_PREC_INTERNETCONTROL
+#define CONF_QOS_CS0			5
+#define CONF_QOS_CS1			6
+#define CONF_QOS_CS2			7
+#define CONF_QOS_CS3			8
+#define CONF_QOS_CS4			9
+#define CONF_QOS_CS5			10
+#define CONF_QOS_CS6			11
+#define CONF_QOS_CS7			12
+#endif		/* IPTOS_PREC_INTERNETCONTROL */
+
+#endif	/* HAVE_IPTOS_SUPPORT */
+
 
 /*
- * Command keywords
+ * We keep config trees around for possible saveconfig use.  When
+ * built with configure --disable-saveconfig, and when built with
+ * debugging enabled, include the free_config_*() routines.  In the
+ * DEBUG case, they are used in an atexit() cleanup routine to make
+ * postmortem leak check reports more interesting.
  */
-#define CONFIG_PEER		1
-#define CONFIG_SERVER		2
-#define CONFIG_AUTOMAX		3
-#define CONFIG_DRIFTFILE	4
-#define CONFIG_BROADCAST	5
-#define CONFIG_BROADCASTCLIENT	6
-#define CONFIG_AUTHENTICATE	7
-#define CONFIG_KEYS		8
-#define CONFIG_REVOKE		9
-#define CONFIG_CDELAY		10
-#define CONFIG_RESTRICT		11
-#define CONFIG_BDELAY		12
-#define CONFIG_TRUSTEDKEY	13
-#define CONFIG_REQUESTKEY	14
-#define CONFIG_CONTROLKEY	15
-#define CONFIG_TRAP		16
-#define CONFIG_FUDGE		17
-#define CONFIG_TINKER		18
-#define CONFIG_STATSDIR		19
-#define CONFIG_FILEGEN		20
-#define CONFIG_STATISTICS	21
-#define CONFIG_PIDFILE		22
-#define CONFIG_SETVAR		23
-#define CONFIG_DISCARD		24
-#define CONFIG_ADJ		25
-#define CONFIG_MULTICASTCLIENT	26
-#define CONFIG_ENABLE		27
-#define CONFIG_DISABLE		28
-#define CONFIG_PHONE		29
-#define CONFIG_LOGFILE		30
-#define CONFIG_LOGCONFIG	31
-#define CONFIG_MANYCASTCLIENT	32
-#define CONFIG_MANYCASTSERVER	33
-#define CONFIG_TOS		34
-#define CONFIG_TTL		35
-#define CONFIG_INCLUDEFILE      36
-#define CONFIG_KEYSDIR		37
-#define CONFIG_END		38
-#ifdef OPENSSL
-#define CONFIG_CRYPTO		39
-#endif /* OPENSSL */
+#if !defined(FREE_CFG_T) && (!defined(SAVECONFIG) || defined(DEBUG))
+#define FREE_CFG_T
+#endif
 
-/*
- * "peer", "server", "broadcast" modifier keywords
- */
-#define CONF_MOD_VERSION	1
-#define CONF_MOD_KEY		2
-#define CONF_MOD_MINPOLL	3
-#define CONF_MOD_MAXPOLL	4
-#define CONF_MOD_PREFER		5
-#define CONF_MOD_BURST		6
-#define CONF_MOD_IBURST		7
-#define CONF_MOD_SKEY		8
-#define CONF_MOD_TTL		9
-#define CONF_MOD_MODE		10
-#define CONF_MOD_NOSELECT 	11
-#define CONF_MOD_TRUE		12
-#define	CONF_MOD_PREEMPT	13
-#define CONF_MOD_DYNAMIC	14
+/* Limits */
+#define MAXLINE 1024
 
-/*
- * "restrict" modifier keywords
- */
-#define CONF_RES_MASK		1
-#define CONF_RES_IGNORE		2
-#define CONF_RES_NOSERVE	3
-#define CONF_RES_NOTRUST	4
-#define CONF_RES_NOQUERY	5
-#define CONF_RES_NOMODIFY	6
-#define CONF_RES_NOPEER		7
-#define CONF_RES_NOTRAP		8
-#define CONF_RES_LPTRAP		9
-#define CONF_RES_NTPPORT	10
-#define CONF_RES_LIMITED	11
-#define CONF_RES_VERSION	12
-#define CONF_RES_DEMOBILIZE	13
+/* Configuration sources */
 
-/*
- * "trap" modifier keywords
- */
-#define CONF_TRAP_PORT		1
-#define CONF_TRAP_INTERFACE	2
+#define CONF_SOURCE_FILE		0
+#define CONF_SOURCE_NTPQ		1
 
-/*
- * "fudge" modifier keywords
- */
-#define CONF_FDG_TIME1		1
-#define CONF_FDG_TIME2		2
-#define CONF_FDG_STRATUM	3
-#define CONF_FDG_REFID		4
-#define CONF_FDG_FLAG1		5
-#define CONF_FDG_FLAG2		6
-#define CONF_FDG_FLAG3		7
-#define CONF_FDG_FLAG4		8
 
-/*
- * "filegen" modifier keywords
- */
-#define CONF_FGEN_FILE		1
-#define CONF_FGEN_TYPE		2
-#define CONF_FGEN_FLAG_LINK	3
-#define CONF_FGEN_FLAG_NOLINK	4
-#define CONF_FGEN_FLAG_ENABLE	5
-#define CONF_FGEN_FLAG_DISABLE	6
+/* Structure for storing an attribute-value pair  */
+struct attr_val {
+    int attr;
+    union val {
+ 	double	d;
+ 	int	i;
+	u_int	u;
+ 	char *	s;
+	void *	p;
+    } value;
+    int type;
+};
 
-/*
- * "discard" modifier keywords
- */
-#define CONF_DISCARD_AVERAGE	1
-#define CONF_DISCARD_MINIMUM	2
-#define	CONF_DISCARD_MONITOR	3
+/* Structure for nodes on the syntax tree */
+struct address_node {
+    char *address;
+    int type;
+};
 
-/*
- * "tinker" modifier keywords
- */
-#define CONF_CLOCK_MAX		1
-#define CONF_CLOCK_PANIC	2
-#define CONF_CLOCK_PHI		3
-#define CONF_CLOCK_MINSTEP	4
-#define CONF_CLOCK_ALLAN	5
-#define CONF_CLOCK_HUFFPUFF	6
-#define CONF_CLOCK_FREQ		7
+struct restrict_node {
+    struct address_node *addr;
+    struct address_node *mask;
+    queue *flags;
+    int line_no;
+};
 
-/*
- * "tos" modifier keywords
- */
-#define CONF_TOS_MINCLOCK	1
-#define	CONF_TOS_MAXCLOCK	2
-#define CONF_TOS_MINSANE	3
-#define CONF_TOS_FLOOR		4
-#define CONF_TOS_CEILING	5
-#define CONF_TOS_COHORT		6
-#define CONF_TOS_MINDISP	7
-#define CONF_TOS_MAXDIST	8
-#define	CONF_TOS_MAXHOP		9
-#define	CONF_TOS_BEACON		10
-#define	CONF_TOS_ORPHAN		11
+struct peer_node {
+    int host_mode;
+    struct address_node *addr;
+    queue *peerflags;
+    int minpoll;
+    int maxpoll;
+    int ttl;
+    int peerversion;
+    int peerkey;
+    double bias;
+};
 
-#ifdef OPENSSL
-/*
- * "crypto" modifier keywords
- */
-#define	CONF_CRYPTO_RSA		1	
-#define	CONF_CRYPTO_SIGN	2
-#define CONF_CRYPTO_LEAP	3
-#define CONF_CRYPTO_CERT	4
-#define CONF_CRYPTO_RAND	5
-#define CONF_CRYPTO_KEYS	6
-#define	CONF_CRYPTO_IDENT	7
-#define	CONF_CRYPTO_IFFPAR	8
-#define CONF_CRYPTO_GQPAR	9
-#define CONF_CRYPTO_MVPAR	10
-#define CONF_CRYPTO_PW		11
-#endif /* OPENSSL */
+struct unpeer_node {
+	u_int			assocID;
+	struct address_node *	addr;
+};
 
-/*
- * Address selection, IPv4 or IPv6
- */
-#define	CONF_ADDR_IPV4		1
-#define	CONF_ADDR_IPV6		2
+struct auth_node {
+    int control_key;
+    int cryptosw;
+    queue *crypto_cmd_list;
+    char *keys;
+    char *keysdir;
+    int request_key;
+    int revoke;
+    queue *trusted_key_list;
+    char *ntp_signd_socket;
+};
+
+struct filegen_node {
+	int	filegen_token;
+	queue *	options;
+};
+
+struct setvar_node {
+	char *	var;
+	char *	val;
+	int	isdefault;
+};
+
+typedef struct nic_rule_node_tag {
+    int match_class;
+    char *if_name;	/* interface name or numeric address */
+    int action;
+} nic_rule_node;
+
+struct addr_opts_node {
+    struct address_node *addr;
+    queue *options;
+};
+
+struct sim_node {
+    queue *init_opts;
+    queue *servers;
+};
+
+
+/* The syntax tree */
+struct config_tree {
+    struct config_tree *link;
+
+    struct attr_val source;
+    time_t timestamp;
+
+    queue *peers;
+    queue *unpeers;
+
+    /* Other Modes */
+    int broadcastclient;
+    queue *manycastserver;
+    queue *multicastclient;
+
+    queue *orphan_cmds;
+
+    /* Monitoring Configuration */
+    queue *stats_list;
+    char *stats_dir;
+    queue *filegen_opts;
+
+    /* Access Control Configuration */
+    queue *discard_opts;
+    queue *restrict_opts;
+
+    queue *fudge;
+    queue *tinker;
+    queue *enable_opts;
+    queue *disable_opts;
+    struct auth_node auth;
+
+    queue *logconfig;
+    queue *qos;
+    queue *phone;
+    queue *setvar;
+    queue *ttl;
+    queue *trap;
+    queue *vars;
+    queue *nic_rules;
+
+    struct sim_node *sim_details;
+};
+
+
+/* Structure for holding a remote configuration command */
+struct REMOTE_CONFIG_INFO {
+	char buffer[MAXLINE];
+	char err_msg[MAXLINE];
+	int pos;
+	int err_pos;
+	int no_errors;
+};
+
+/* get text from T_ tokens */
+const char * token_name(int token);
+
+struct peer_node *create_peer_node(int hmode,
+				   struct address_node *addr,
+				   queue *options);
+struct unpeer_node *create_unpeer_node(struct address_node *addr);
+struct address_node *create_address_node(char *addr, int type);
+void destroy_address_node(struct address_node *my_node);
+queue *enqueue_in_new_queue(void *my_node);
+struct attr_val *create_attr_dval(int attr, double value);
+struct attr_val *create_attr_ival(int attr, int value);
+struct attr_val *create_attr_shorts(int, ntp_u_int16_t, ntp_u_int16_t);
+struct attr_val *create_attr_sval(int attr, char *s);
+struct attr_val *create_attr_pval(int attr, void *s);
+struct filegen_node *create_filegen_node(int filegen_token, queue *options);
+void **create_pval(void *val);
+struct restrict_node *create_restrict_node(struct address_node *addr,
+					   struct address_node *mask,
+					   queue *flags, int line_no);
+int *create_ival(int val);
+struct addr_opts_node *create_addr_opts_node(struct address_node *addr,
+					     queue *options);
+struct sim_node *create_sim_node(queue *init_opts, queue *servers);
+struct setvar_node *create_setvar_node(char *var, char *val,
+				       int isdefault);
+nic_rule_node *create_nic_rule_node(int match_class, char *if_name,
+				    int action);
+
+script_info *create_sim_script_info(double duration,
+				    queue *script_queue);
+server_info *create_sim_server(struct address_node *addr,
+			       double server_offset, queue *script);
+
+extern struct REMOTE_CONFIG_INFO remote_config;
+void config_remotely(sockaddr_u *);
+
+#ifdef SAVECONFIG
+int dump_config_tree(struct config_tree *ptree, FILE *df, int comment);
+int dump_all_config_trees(FILE *df, int comment);
+#endif
+
+
+#endif	/* !defined(NTP_CONFIG_H) */

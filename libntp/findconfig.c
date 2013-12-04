@@ -28,7 +28,7 @@ FindConfig(
 
 			/* First choice is my hostname */
 			if (gethostname(hostname, BUFSIZ) >= 0) {
-				(void) sprintf(result, "%s/%s", base, hostname);
+				snprintf(result, sizeof(result), "%s/%s", base, hostname);
 				if (stat(result, &sbuf) == 0) {
 					goto outahere;
 				} else {
@@ -39,13 +39,13 @@ FindConfig(
 					    cp = unamebuf.machine + 5;
 					else
 					    cp = unamebuf.machine;
-					(void) sprintf(result, "%s/default.%s", base, cp);
+					snprintf(result, sizeof(result), "%s/default.%s", base, cp);
 					if (stat(result, &sbuf) == 0) {
 						goto outahere;
 					} else {
 
 						/* Last choice is just default */
-						(void) sprintf(result, "%s/default", base);
+						snprintf(result, sizeof(result), "%s/default", base);
 						if (stat(result, &sbuf) == 0) {
 							goto outahere;
 						} else {

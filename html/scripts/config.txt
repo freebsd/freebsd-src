@@ -1,0 +1,7 @@
+document.write("<ul><p>Client and Server Configuration<br>\
+<ul>\
+<li class='inline'><a href='assoc.html'>Association Management</a><br>\
+<li class='inline'><a href='rate.html'>Rate Management and the Kiss-o'-Death Packet</a><br>\
+<li class='inline'><a href='manyopt.html'>Automatic Server Discovery</a><br>\
+<li class='inline'><a href='sitemap.html'>Site Map</a></p>\
+</ul></ul>")

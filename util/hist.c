@@ -20,7 +20,7 @@
 #define NSRT 20000		/* size of overflow histogram */
 #define NCNT (600 * 1000000)	/* sample interval (us) */
 
-int col P((long *, long *));
+int col (long *, long *);
 
 int
 main(

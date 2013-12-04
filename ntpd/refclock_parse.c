@@ -1,7 +1,7 @@
 /*
- * /src/NTP/REPOSITORY/ntp4-dev/ntpd/refclock_parse.c,v 4.80 2007/08/11 12:06:29 kardel Exp
+ * /src/NTP/REPOSITORY/ntp4-dev/ntpd/refclock_parse.c,v 4.81 2009/05/01 10:15:29 kardel RELEASE_20090105_A
  *
- * refclock_parse.c,v 4.80 2007/08/11 12:06:29 kardel Exp
+ * refclock_parse.c,v 4.81 2009/05/01 10:15:29 kardel RELEASE_20090105_A
  *
  * generic reference clock driver for several DCF/GPS/MSF/... receivers
  *
@@ -15,7 +15,7 @@
  *   Currently the STREAMS module is only available for Suns running
  *   SunOS 4.x and SunOS5.x.
  *
- * Copyright (c) 1995-2007 by Frank Kardel <kardel <AT> ntp.org>
+ * Copyright (c) 1995-2009 by Frank Kardel <kardel <AT> ntp.org>
  * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universität Erlangen-Nürnberg, Germany
  *
  * Redistribution and use in source and binary forms, with or without
@@ -141,6 +141,7 @@
 
 #ifdef HAVE_PPSAPI
 # include "ppsapi_timepps.h"
+# include "refclock_atom.h"
 #endif
 
 #ifdef PPS
@@ -188,16 +189,16 @@
 #include "ieee754io.h"
 #include "recvbuff.h"
 
-static char rcsid[] = "refclock_parse.c,v 4.80 2007/08/11 12:06:29 kardel Exp";
+static char rcsid[] = "refclock_parse.c,v 4.81 2009/05/01 10:15:29 kardel RELEASE_20090105_A+POWERUPTRUST";
 
 /**===========================================================================
  ** external interface to ntp mechanism
  **/
 
-static	int	parse_start	P((int, struct peer *));
-static	void	parse_shutdown	P((int, struct peer *));
-static	void	parse_poll	P((int, struct peer *));
-static	void	parse_control	P((int, struct refclockstat *, struct refclockstat *, struct peer *));
+static	int	parse_start	(int, struct peer *);
+static	void	parse_shutdown	(int, struct peer *);
+static	void	parse_poll	(int, struct peer *);
+static	void	parse_control	(int, struct refclockstat *, struct refclockstat *, struct peer *);
 
 struct	refclock refclock_parse = {
 	parse_start,
@@ -231,16 +232,16 @@ struct parseunit;		/* to keep inquiring minds happy */
 typedef struct bind
 {
   const char *bd_description;	                                /* name of type of binding */
-  int	(*bd_init)     P((struct parseunit *));			/* initialize */
-  void	(*bd_end)      P((struct parseunit *));			/* end */
-  int   (*bd_setcs)    P((struct parseunit *, parsectl_t *));	/* set character size */
-  int	(*bd_disable)  P((struct parseunit *));			/* disable */
-  int	(*bd_enable)   P((struct parseunit *));			/* enable */
-  int	(*bd_getfmt)   P((struct parseunit *, parsectl_t *));	/* get format */
-  int	(*bd_setfmt)   P((struct parseunit *, parsectl_t *));	/* setfmt */
-  int	(*bd_timecode) P((struct parseunit *, parsectl_t *));	/* get time code */
-  void	(*bd_receive)  P((struct recvbuf *));			/* receive operation */
-  int	(*bd_io_input) P((struct recvbuf *));			/* input operation */
+  int	(*bd_init)     (struct parseunit *);			/* initialize */
+  void	(*bd_end)      (struct parseunit *);			/* end */
+  int   (*bd_setcs)    (struct parseunit *, parsectl_t *);	/* set character size */
+  int	(*bd_disable)  (struct parseunit *);			/* disable */
+  int	(*bd_enable)   (struct parseunit *);			/* enable */
+  int	(*bd_getfmt)   (struct parseunit *, parsectl_t *);	/* get format */
+  int	(*bd_setfmt)   (struct parseunit *, parsectl_t *);	/* setfmt */
+  int	(*bd_timecode) (struct parseunit *, parsectl_t *);	/* get time code */
+  void	(*bd_receive)  (struct recvbuf *);			/* receive operation */
+  int	(*bd_io_input) (struct recvbuf *);			/* input operation */
 } bind_t;
 
 #define PARSE_END(_X_)			(*(_X_)->binding->bd_end)(_X_)
@@ -252,12 +253,11 @@ typedef struct bind
 #define PARSE_GETTIMECODE(_X_, _DCT_)	(*(_X_)->binding->bd_timecode)(_X_, _DCT_)
 
 /*
- * io modes
+ * special handling flags
  */
-#define PARSE_F_PPSPPS		0x0001 /* use loopfilter PPS code (CIOGETEV) */
-#define PARSE_F_PPSONSECOND	0x0002 /* PPS pulses are on second */
-
-
+#define PARSE_F_PPSONSECOND	0x00000001 /* PPS pulses are on second */
+#define PARSE_F_POWERUPTRUST	0x00000100 /* POWERUP state ist trusted for */
+                                           /* trusttime after SYNC was seen */
 /**===========================================================================
  ** error message regression handling
  **
@@ -405,9 +405,8 @@ struct parseunit
 	u_long        ppsserial;        /* magic cookie for ppsclock serials (avoids stale ppsclock data) */
 	int	      ppsfd;	        /* fd to ise for PPS io */
 #ifdef HAVE_PPSAPI
-        pps_handle_t  ppshandle;        /* store PPSAPI handle */
-        pps_params_t  ppsparams;        /* current PPS parameters */
         int           hardppsstate;     /* current hard pps state */
+	struct refclock_atom atom;      /* PPSAPI structure */
 #endif
 	parsetime_t   timedata;		/* last (parse module) data */
 	void         *localdata;        /* optional local, receiver-specific data */
@@ -423,9 +422,9 @@ struct parseunit
  ** includes NTP parameters, TTY parameters and IO handling parameters
  **/
 
-static	void	poll_dpoll	P((struct parseunit *));
-static	void	poll_poll	P((struct peer *));
-static	int	poll_init	P((struct parseunit *));
+static	void	poll_dpoll	(struct parseunit *);
+static	void	poll_poll	(struct peer *);
+static	int	poll_init	(struct parseunit *);
 
 typedef struct poll_info
 {
@@ -536,8 +535,8 @@ typedef struct poll_info
 /*
  * Meinberg GPS16X receiver
  */
-static	void	gps16x_message	 P((struct parseunit *, parsetime_t *));
-static  int     gps16x_poll_init P((struct parseunit *));
+static	void	gps16x_message	 (struct parseunit *, parsetime_t *);
+static  int     gps16x_poll_init (struct parseunit *);
 
 #define	GPS16X_ROOTDELAY	0.0         /* nothing here */
 #define	GPS16X_BASEDELAY	0.001968         /* XXX to be fixed ! 1.968ms +- 104us (oscilloscope) - relative to start (end of STX) */
@@ -677,16 +676,18 @@ static poll_info_t wsdcf_pollinfo = { WS_POLLRATE, WS_POLLCMD, WS_CMDSIZE };
  * RAWDCF receivers that need to be powered from DTR
  * (like Expert mouse clock)
  */
-static	int	rawdcf_init_1	P((struct parseunit *));
+static	int	rawdcf_init_1	(struct parseunit *);
 #define RAWDCFDTRSET_DESCRIPTION	"RAW DCF77 CODE (DTR SET/RTS CLR)"
+#define RAWDCFDTRSET75_DESCRIPTION	"RAW DCF77 CODE (DTR SET/RTS CLR @ 75 baud)"
 #define RAWDCFDTRSET_INIT 		rawdcf_init_1
 
 /*
  * RAWDCF receivers that need to be powered from
  * DTR CLR and RTS SET
  */
-static	int	rawdcf_init_2	P((struct parseunit *));
+static	int	rawdcf_init_2	(struct parseunit *);
 #define RAWDCFDTRCLRRTSSET_DESCRIPTION	"RAW DCF77 CODE (DTR CLR/RTS SET)"
+#define RAWDCFDTRCLRRTSSET75_DESCRIPTION "RAW DCF77 CODE (DTR CLR/RTS SET @ 75 baud)"
 #define RAWDCFDTRCLRRTSSET_INIT	rawdcf_init_2
 
 /*
@@ -700,17 +701,17 @@ static	int	rawdcf_init_2	P((struct parseunit *));
 #define TRIM_TAIPCMDSIZE	(sizeof(TRIM_TAIPPOLLCMD)-1)
 
 static poll_info_t trimbletaip_pollinfo = { TRIM_POLLRATE, TRIM_TAIPPOLLCMD, TRIM_TAIPCMDSIZE };
-static	int	trimbletaip_init	P((struct parseunit *));
-static	void	trimbletaip_event	P((struct parseunit *, int));
+static	int	trimbletaip_init	(struct parseunit *);
+static	void	trimbletaip_event	(struct parseunit *, int);
 
 /* query time & UTC correction data */
 static char tsipquery[] = { DLE, 0x21, DLE, ETX, DLE, 0x2F, DLE, ETX };
 
 static poll_info_t trimbletsip_pollinfo = { TRIM_POLLRATE, tsipquery, sizeof(tsipquery) };
-static	int	trimbletsip_init	P((struct parseunit *));
-static	void	trimbletsip_end   	P((struct parseunit *));
-static	void	trimbletsip_message	P((struct parseunit *, parsetime_t *));
-static	void	trimbletsip_event	P((struct parseunit *, int));
+static	int	trimbletsip_init	(struct parseunit *);
+static	void	trimbletsip_end   	(struct parseunit *);
+static	void	trimbletsip_message	(struct parseunit *, parsetime_t *);
+static	void	trimbletsip_event	(struct parseunit *, int);
 
 #define TRIMBLETSIP_IDLE_TIME	    (300) /* 5 minutes silence at most */
 #define TRIMBLE_RESET_HOLDOFF       TRIMBLETSIP_IDLE_TIME
@@ -857,12 +858,12 @@ static poll_info_t rcc8000_pollinfo = { RCC_POLLRATE, RCC_POLLCMD, RCC_CMDSIZE }
 
 static struct parse_clockinfo
 {
-	u_long  cl_flags;		/* operation flags (io modes) */
-  void  (*cl_poll)    P((struct parseunit *));			/* active poll routine */
-  int   (*cl_init)    P((struct parseunit *));			/* active poll init routine */
-  void  (*cl_event)   P((struct parseunit *, int));		/* special event handling (e.g. reset clock) */
-  void  (*cl_end)     P((struct parseunit *));			/* active poll end routine */
-  void  (*cl_message) P((struct parseunit *, parsetime_t *));	/* process a lower layer message */
+	u_long  cl_flags;		/* operation flags (PPS interpretation, trust handling) */
+  void  (*cl_poll)    (struct parseunit *);			/* active poll routine */
+  int   (*cl_init)    (struct parseunit *);			/* active poll init routine */
+  void  (*cl_event)   (struct parseunit *, int);		/* special event handling (e.g. reset clock) */
+  void  (*cl_end)     (struct parseunit *);			/* active poll end routine */
+  void  (*cl_message) (struct parseunit *, parsetime_t *);	/* process a lower layer message */
 	void   *cl_data;		/* local data area for "poll" mechanism */
 	double    cl_rootdelay;		/* rootdelay */
 	double    cl_basedelay;		/* current offset by which the RS232
@@ -1351,6 +1352,99 @@ static struct parse_clockinfo
 		RAWDCF_SAMPLES,
 		RAWDCF_KEEP
 	},
+	{				/* mode 20, like mode 14 but driven by 75 baud */
+		RAWDCF_FLAGS,
+		NO_POLL,
+		RAWDCFDTRSET_INIT,
+		NO_EVENT,
+		NO_END,
+		NO_MESSAGE,
+		NO_LCLDATA,
+		RAWDCF_ROOTDELAY,
+		RAWDCF_BASEDELAY,
+		DCF_A_ID,
+		RAWDCFDTRSET75_DESCRIPTION,
+		RAWDCF_FORMAT,
+		DCF_TYPE,
+		RAWDCF_MAXUNSYNC,
+		B75,
+		RAWDCF_CFLAG,
+		RAWDCF_IFLAG,
+		RAWDCF_OFLAG,
+		RAWDCF_LFLAG,
+		RAWDCF_SAMPLES,
+		RAWDCF_KEEP
+	},
+	{				/* mode 21, like mode 16 but driven by 75 baud
+					 - RAWDCF RTS set, DTR clr */
+		RAWDCF_FLAGS,
+		NO_POLL,
+		RAWDCFDTRCLRRTSSET_INIT,
+		NO_EVENT,
+		NO_END,
+		NO_MESSAGE,
+		NO_LCLDATA,
+		RAWDCF_ROOTDELAY,
+		RAWDCF_BASEDELAY,
+		DCF_A_ID,
+		RAWDCFDTRCLRRTSSET75_DESCRIPTION,
+		RAWDCF_FORMAT,
+		DCF_TYPE,
+		RAWDCF_MAXUNSYNC,
+		B75,
+		RAWDCF_CFLAG,
+		RAWDCF_IFLAG,
+		RAWDCF_OFLAG,
+		RAWDCF_LFLAG,
+		RAWDCF_SAMPLES,
+		RAWDCF_KEEP
+	},
+	{				/* mode 22 - like 2 with POWERUP trust */
+		MBG_FLAGS | PARSE_F_POWERUPTRUST,
+		NO_POLL,
+		NO_INIT,
+		NO_EVENT,
+		NO_END,
+		NO_MESSAGE,
+		NO_LCLDATA,
+		DCFUA31_ROOTDELAY,
+		DCFUA31_BASEDELAY,
+		DCF_A_ID,
+		DCFUA31_DESCRIPTION,
+		DCFUA31_FORMAT,
+		DCF_TYPE,
+		DCFUA31_MAXUNSYNC,
+		DCFUA31_SPEED,
+		DCFUA31_CFLAG,
+		DCFUA31_IFLAG,
+		DCFUA31_OFLAG,
+		DCFUA31_LFLAG,
+		DCFUA31_SAMPLES,
+		DCFUA31_KEEP
+	},
+	{				/* mode 23 - like 7 with POWERUP trust */
+		MBG_FLAGS | PARSE_F_POWERUPTRUST,
+		GPS16X_POLL,
+		GPS16X_INIT,
+		NO_EVENT,
+		GPS16X_END,
+		GPS16X_MESSAGE,
+		GPS16X_DATA,
+		GPS16X_ROOTDELAY,
+		GPS16X_BASEDELAY,
+		GPS16X_ID,
+		GPS16X_DESCRIPTION,
+		GPS16X_FORMAT,
+		GPS_TYPE,
+		GPS16X_MAXUNSYNC,
+		GPS16X_SPEED,
+		GPS16X_CFLAG,
+		GPS16X_IFLAG,
+		GPS16X_OFLAG,
+		GPS16X_LFLAG,
+		GPS16X_SAMPLES,
+		GPS16X_KEEP
+	},
 };
 
 static int ncltypes = sizeof(parse_clockinfo) / sizeof(struct parse_clockinfo);
@@ -1371,11 +1465,11 @@ static int notice = 0;
 
 #define PARSE_STATETIME(parse, i) ((parse->generic->currentstatus == i) ? parse->statetime[i] + current_time - parse->lastchange : parse->statetime[i])
 
-static void parse_event   P((struct parseunit *, int));
-static void parse_process P((struct parseunit *, parsetime_t *));
-static void clear_err     P((struct parseunit *, u_long));
-static int  list_err      P((struct parseunit *, u_long));
-static char * l_mktime    P((u_long));
+static void parse_event   (struct parseunit *, int);
+static void parse_process (struct parseunit *, parsetime_t *);
+static void clear_err     (struct parseunit *, u_long);
+static int  list_err      (struct parseunit *, u_long);
+static char * l_mktime    (u_long);
 
 /**===========================================================================
  ** implementation error message regression module
@@ -1474,10 +1568,10 @@ mkreadable(
 	)
 {
 	char *b    = buffer;
-	char *endb = (char *)0;
+	char *endb = NULL;
 
 	if (blen < 4)
-		return (char *)0;		/* don't bother with mini buffers */
+		return NULL;		/* don't bother with mini buffers */
 
 	endb = buffer + blen - 4;
 
@@ -1515,7 +1609,7 @@ mkreadable(
 				}
 				else
 				{
-					sprintf(buffer, "\\x%02x", *src++);
+					snprintf(buffer, blen, "\\x%02x", *src++);
 					blen   -= 4;
 					buffer += 4;
 				}
@@ -1554,27 +1648,27 @@ mkascii(
  * define possible io handling methods
  */
 #ifdef STREAM
-static int  ppsclock_init   P((struct parseunit *));
-static int  stream_init     P((struct parseunit *));
-static void stream_end      P((struct parseunit *));
-static int  stream_enable   P((struct parseunit *));
-static int  stream_disable  P((struct parseunit *));
-static int  stream_setcs    P((struct parseunit *, parsectl_t *));
-static int  stream_getfmt   P((struct parseunit *, parsectl_t *));
-static int  stream_setfmt   P((struct parseunit *, parsectl_t *));
-static int  stream_timecode P((struct parseunit *, parsectl_t *));
-static void stream_receive  P((struct recvbuf *));
+static int  ppsclock_init   (struct parseunit *);
+static int  stream_init     (struct parseunit *);
+static void stream_end      (struct parseunit *);
+static int  stream_enable   (struct parseunit *);
+static int  stream_disable  (struct parseunit *);
+static int  stream_setcs    (struct parseunit *, parsectl_t *);
+static int  stream_getfmt   (struct parseunit *, parsectl_t *);
+static int  stream_setfmt   (struct parseunit *, parsectl_t *);
+static int  stream_timecode (struct parseunit *, parsectl_t *);
+static void stream_receive  (struct recvbuf *);
 #endif
 					 
-static int  local_init     P((struct parseunit *));
-static void local_end      P((struct parseunit *));
-static int  local_nop      P((struct parseunit *));
-static int  local_setcs    P((struct parseunit *, parsectl_t *));
-static int  local_getfmt   P((struct parseunit *, parsectl_t *));
-static int  local_setfmt   P((struct parseunit *, parsectl_t *));
-static int  local_timecode P((struct parseunit *, parsectl_t *));
-static void local_receive  P((struct recvbuf *));
-static int  local_input    P((struct recvbuf *));
+static int  local_init     (struct parseunit *);
+static void local_end      (struct parseunit *);
+static int  local_nop      (struct parseunit *);
+static int  local_setcs    (struct parseunit *, parsectl_t *);
+static int  local_getfmt   (struct parseunit *, parsectl_t *);
+static int  local_setfmt   (struct parseunit *, parsectl_t *);
+static int  local_timecode (struct parseunit *, parsectl_t *);
+static void local_receive  (struct recvbuf *);
+static int  local_input    (struct recvbuf *);
 
 static bind_t io_bindings[] =
 {
@@ -2073,7 +2167,7 @@ local_input(
 					pps_timeout.tv_sec  = 0;
 					pps_timeout.tv_nsec = 0;
 
-					if (time_pps_fetch(parse->ppshandle, PPS_TSFMT_TSPEC, &pps_info,
+					if (time_pps_fetch(parse->atom.handle, PPS_TSFMT_TSPEC, &pps_info,
 							   &pps_timeout) == 0)
 					{
 						if (pps_info.assert_sequence + pps_info.clear_sequence != parse->ppsserial)
@@ -2621,7 +2715,7 @@ parse_shutdown(
 #ifdef HAVE_PPSAPI
 	if (parse->flags & PARSE_PPSCLOCK)
 	{
-		(void)time_pps_destroy(parse->ppshandle);
+		(void)time_pps_destroy(parse->atom.handle);
 	}
 #endif
 	if (parse->generic->io.fd != parse->ppsfd && parse->ppsfd != -1)
@@ -2684,7 +2778,7 @@ parse_hardpps(
 				        i = PPS_CAPTUREASSERT;
 			}
 		
-		if (time_pps_kcbind(parse->ppshandle, PPS_KC_HARDPPS, i,
+		if (time_pps_kcbind(parse->atom.handle, PPS_KC_HARDPPS, i,
 		    PPS_TSFMT_TSPEC) < 0) {
 		        msyslog(LOG_ERR, "PARSE receiver #%d: time_pps_kcbind failed: %m",
 				CLK_UNIT(parse->peer));
@@ -2711,23 +2805,30 @@ parse_ppsapi(
 	     struct parseunit *parse
 	)
 {
-	int cap, mode, mode1;
+	int cap, mode_ppsoffset;
 	char *cp;
 	
 	parse->flags &= ~PARSE_PPSCLOCK;
 
-	if (time_pps_getcap(parse->ppshandle, &cap) < 0) {
+	/*
+	 * collect PPSAPI offset capability - should move into generic handling
+	 */
+	if (time_pps_getcap(parse->atom.handle, &cap) < 0) {
 		msyslog(LOG_ERR, "PARSE receiver #%d: parse_ppsapi: time_pps_getcap failed: %m",
 			CLK_UNIT(parse->peer));
 		
 		return 0;
 	}
 
-	if (time_pps_getparams(parse->ppshandle, &parse->ppsparams) < 0) {
-		msyslog(LOG_ERR, "PARSE receiver #%d: parse_ppsapi: time_pps_getparams failed: %m",
-			CLK_UNIT(parse->peer));
+	/*
+	 * initialize generic PPSAPI interface
+	 *
+	 * we leave out CLK_FLAG3 as time_pps_kcbind()
+	 * is handled here for now. Ideally this should also
+	 * be part of the generic PPSAPI interface
+	 */
+	if (!refclock_params(parse->flags & (CLK_FLAG1|CLK_FLAG2|CLK_FLAG4), &parse->atom))
 		return 0;
-	}
 
 	/* nb. only turn things on, if someone else has turned something
 	 *	on before we get here, leave it alone!
@@ -2735,47 +2836,36 @@ parse_ppsapi(
 
 	if (parse->flags & PARSE_CLEAR) {
 		cp = "CLEAR";
-		mode = PPS_CAPTURECLEAR;
-		mode1 = PPS_OFFSETCLEAR;
+		mode_ppsoffset = PPS_OFFSETCLEAR;
 	} else {
 		cp = "ASSERT";
-		mode = PPS_CAPTUREASSERT;
-		mode1 = PPS_OFFSETASSERT;
+		mode_ppsoffset = PPS_OFFSETASSERT;
 	}
 
 	msyslog(LOG_INFO, "PARSE receiver #%d: initializing PPS to %s",
 		CLK_UNIT(parse->peer), cp);
 
-	if (!(mode & cap)) {
-	  msyslog(LOG_ERR, "PARSE receiver #%d: FAILED to initialize PPS to %s (PPS API capabilities=0x%x)",
-		  CLK_UNIT(parse->peer), cp, cap);
-	
-		return 0;
-	}
-
-	if (!(mode1 & cap)) {
+	if (!(mode_ppsoffset & cap)) {
 	  msyslog(LOG_WARNING, "PARSE receiver #%d: Cannot set PPS_%sCLEAR, this will increase jitter (PPS API capabilities=0x%x)",
 		  CLK_UNIT(parse->peer), cp, cap);
-		mode1 = 0;
+		mode_ppsoffset = 0;
 	} else {
-	        if (mode1 == PPS_OFFSETCLEAR) 
+	        if (mode_ppsoffset == PPS_OFFSETCLEAR) 
 		        {
-			        parse->ppsparams.clear_offset.tv_sec = -parse->ppsphaseadjust;
-			        parse->ppsparams.clear_offset.tv_nsec = -1e9*(parse->ppsphaseadjust - (long)parse->ppsphaseadjust);
+			        parse->atom.pps_params.clear_offset.tv_sec = -parse->ppsphaseadjust;
+			        parse->atom.pps_params.clear_offset.tv_nsec = -1e9*(parse->ppsphaseadjust - (long)parse->ppsphaseadjust);
 			}
 	  
-		if (mode1 == PPS_OFFSETASSERT)
+		if (mode_ppsoffset == PPS_OFFSETASSERT)
 	                {
-		                parse->ppsparams.assert_offset.tv_sec = -parse->ppsphaseadjust;
-				parse->ppsparams.assert_offset.tv_nsec = -1e9*(parse->ppsphaseadjust - (long)parse->ppsphaseadjust);
+		                parse->atom.pps_params.assert_offset.tv_sec = -parse->ppsphaseadjust;
+				parse->atom.pps_params.assert_offset.tv_nsec = -1e9*(parse->ppsphaseadjust - (long)parse->ppsphaseadjust);
 			}
 	}
 	
-	/* only set what is legal */
+	parse->atom.pps_params.mode |= mode_ppsoffset;
 
-	parse->ppsparams.mode = (mode | mode1 | PPS_TSFMT_TSPEC) & cap;
-
-	if (time_pps_setparams(parse->ppshandle, &parse->ppsparams) < 0) {
+	if (time_pps_setparams(parse->atom.handle, &parse->atom.pps_params) < 0) {
 	  msyslog(LOG_ERR, "PARSE receiver #%d: FAILED set PPS parameters: %m",
 		  CLK_UNIT(parse->peer));
 		return 0;
@@ -2817,7 +2907,7 @@ parse_start(
 	if (!notice)
         {
 		NLOG(NLOG_CLOCKINFO) /* conditional if clause for conditional syslog */
-			msyslog(LOG_INFO, "NTP PARSE support: Copyright (c) 1989-2006, Frank Kardel");
+			msyslog(LOG_INFO, "NTP PARSE support: Copyright (c) 1989-2009, Frank Kardel");
 		notice = 1;
 	}
 
@@ -3033,7 +3123,7 @@ parse_start(
 		parse->hardppsstate = PARSE_HARDPPS_DISABLE;
 		if (CLK_PPS(parse->peer))
 		{
-		  if (time_pps_create(parse->ppsfd, &parse->ppshandle) < 0) 
+		  if (!refclock_ppsapi(parse->ppsfd, &parse->atom))
 		    {
 		      msyslog(LOG_NOTICE, "PARSE receiver #%d: parse_start: could not set up PPS: %m", CLK_UNIT(parse->peer));
 		    }
@@ -3716,7 +3806,7 @@ parse_process(
 		 * for PARSE Meinberg DCF77 receivers the lost synchronisation
 		 * is true as it is the powerup state and the time is taken
 		 * from a crude real time clock chip
-		 * for the PZF series this is only partly true, as
+		 * for the PZF/GPS series this is only partly true, as
 		 * PARSE_POWERUP only means that the pseudo random
 		 * phase shift sequence cannot be found. this is only
 		 * bad, if we have never seen the clock in the SYNC
@@ -3734,11 +3824,14 @@ parse_process(
 		 * interval. fortunately powerdowns last usually longer than 64
 		 * seconds and the receiver is at least 2 minutes in the
 		 * POWERUP or NOSYNC state before switching to SYNC
+		 * for GPS receivers this can mean antenna problems and other causes.
+		 * the additional grace period can be enables by a clock
+		 * mode having the PARSE_F_POWERUPTRUST flag in cl_flag set.
 		 */
 		parse_event(parse, CEVNT_FAULT);
 		NLOG(NLOG_CLOCKSTATUS)
 			ERR(ERR_BADSTATUS)
-			msyslog(LOG_ERR,"PARSE receiver #%d: NOT SYNCHRONIZED",
+			msyslog(LOG_ERR,"PARSE receiver #%d: NOT SYNCHRONIZED/RECEIVER PROBLEMS",
 				CLK_UNIT(parse->peer));
 	}
 	else
@@ -3811,7 +3904,7 @@ parse_process(
 		/*
 		 * set fudge = 0.0 if already included in PPS time stamps
 		 */
-		if (parse->ppsparams.mode & (PPS_OFFSETCLEAR|PPS_OFFSETASSERT))
+		if (parse->atom.pps_params.mode & (PPS_OFFSETCLEAR|PPS_OFFSETASSERT))
 		        {
 			        ppsphaseadjust = 0.0;
 			}
@@ -3944,13 +4037,14 @@ parse_process(
 	 * we have seen the clock in sync at least once
 	 * after the last time we didn't see an expected data telegram
 	 * at startup being not in sync is also bad just like
-	 * POWERUP state
+	 * POWERUP state unless PARSE_F_POWERUPTRUST is set 
 	 * see the clock states section above for more reasoning
 	 */
-	if (((current_time - parse->lastsync) > parse->maxunsync) ||
-	    (parse->lastsync < parse->lastmissed) ||
+	if (((current_time - parse->lastsync) > parse->maxunsync)           ||
+	    (parse->lastsync < parse->lastmissed)                           ||
 	    ((parse->lastsync == 0) && !PARSE_SYNC(parsetime->parse_state)) ||
-	    PARSE_POWERUP(parsetime->parse_state))
+	    (((parse->parse_type->cl_flags & PARSE_F_POWERUPTRUST) == 0) &&
+	     PARSE_POWERUP(parsetime->parse_state)))
 	{
 		parse->generic->leap = LEAP_NOTINSYNC;
 		parse->lastsync = 0;	/* wait for full sync again */
@@ -3996,16 +4090,32 @@ parse_process(
 		
 		refclock_process_offset(parse->generic, reftime, rectime, fudge);
 
+#ifdef HAVE_PPSAPI
 		/*
 		 * pass PPS information on to PPS clock
 		 */
 		if (PARSE_PPS(parsetime->parse_state) && CLK_PPS(parse->peer))
 		        {
-			        (void) pps_sample(&parse->timedata.parse_ptime.fp);
+			  /* refclock_pps includes fudgetime1 - we keep the RS232 offset in there :-( */
+			        double savedtime1 = parse->generic->fudgetime1;
+
+				parse->generic->fudgetime1 = fudge;
+				
+				if (refclock_pps(parse->peer, &parse->atom,
+						 parse->flags & (CLK_FLAG1|CLK_FLAG2|CLK_FLAG3|CLK_FLAG4))) {
+					parse->peer->flags |= FLAG_PPS;
+				} else {
+					parse->peer->flags &= ~FLAG_PPS;
+				}
+
+				parse->generic->fudgetime1 = savedtime1;
+
 				parse_hardpps(parse, PARSE_HARDPPS_ENABLE);
 			}
+#endif
 	} else {
 	        parse_hardpps(parse, PARSE_HARDPPS_DISABLE);
+		parse->peer->flags &= ~FLAG_PPS;
 	}
 
 	/*
@@ -4834,11 +4944,11 @@ struct txbuf
 	u_char *txt;			/* pointer to actual data buffer */
 };
 
-void	sendcmd		P((struct txbuf *buf, int c)); 
-void	sendbyte	P((struct txbuf *buf, int b)); 
-void	sendetx		P((struct txbuf *buf, struct parseunit *parse)); 
-void	sendint		P((struct txbuf *buf, int a)); 
-void	sendflt		P((struct txbuf *buf, double a)); 
+void	sendcmd		(struct txbuf *buf, int c); 
+void	sendbyte	(struct txbuf *buf, int b); 
+void	sendetx		(struct txbuf *buf, struct parseunit *parse); 
+void	sendint		(struct txbuf *buf, int a); 
+void	sendflt		(struct txbuf *buf, double a); 
  
 void
 sendcmd(
@@ -4851,11 +4961,11 @@ sendcmd(
 	buf->idx = 2;
 }
 
-void	sendcmd		P((struct txbuf *buf, int c)); 
-void	sendbyte	P((struct txbuf *buf, int b)); 
-void	sendetx		P((struct txbuf *buf, struct parseunit *parse)); 
-void	sendint		P((struct txbuf *buf, int a)); 
-void	sendflt		P((struct txbuf *buf, double a)); 
+void	sendcmd		(struct txbuf *buf, int c); 
+void	sendbyte	(struct txbuf *buf, int b); 
+void	sendetx		(struct txbuf *buf, struct parseunit *parse); 
+void	sendint		(struct txbuf *buf, int a); 
+void	sendflt		(struct txbuf *buf, double a); 
  
 void
 sendbyte(
@@ -5058,7 +5168,7 @@ trimbletsip_end(
 		parse->localdata = (void *)0;
 	}
 	parse->peer->nextaction = 0;
-	parse->peer->action = (void (*) P((struct peer *)))0;
+	parse->peer->action = (void (*) (struct peer *))0;
 }
 
 /*--------------------------------------------------
@@ -5744,6 +5854,9 @@ int refclock_parse_bs;
  * History:
  *
  * refclock_parse.c,v
+ * Revision 4.81  2009/05/01 10:15:29  kardel
+ * use new refclock_ppsapi interface
+ *
  * Revision 4.80  2007/08/11 12:06:29  kardel
  * update comments wrt/ to PPS
  *

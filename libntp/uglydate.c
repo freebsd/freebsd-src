@@ -41,8 +41,10 @@ uglydate(
 		while (year >= 100)
 		    year -= 100;
 	}
-	(void) sprintf(bp, "%17s %02d:%03d:%02d:%02d:%02d.%03ld",
-		       timep, year, tm->tm_yday, tm->tm_hour, tm->tm_min,
-		       tm->tm_sec, msec);
+	snprintf(bp, LIB_BUFLENGTH,
+		 "%17s %02d:%03d:%02d:%02d:%02d.%03ld", timep, year,
+		 tm->tm_yday, tm->tm_hour, tm->tm_min, tm->tm_sec,
+		 msec);
+
 	return bp;
 }

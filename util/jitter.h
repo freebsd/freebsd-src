@@ -7,17 +7,6 @@
 #define SIZEOF_INT 4
 
 /*
- * Set up for prototyping
- */
-#ifndef P
-#if defined(__STDC__) || defined(HAVE_PROTOTYPES)
-#define P(x)    x
-#else /* not __STDC__ and not HAVE_PROTOTYPES */
-#define P(x)    ()
-#endif /* not __STDC__ and HAVE_PROTOTYPES */
-#endif /* P */
-
-/*
  * VMS DECC (v4.1), {u_char,u_short,u_long} are only in SOCKET.H,
  *                      and u_int isn't defined anywhere
  */
@@ -382,25 +371,25 @@ typedef u_int32 u_fp;
  * Prototypes
  */
 #if 0
-extern	char *	dofptoa		P((u_fp, int, short, int));
-extern	char *	dolfptoa	P((u_long, u_long, int, short, int));
+extern	char *	dofptoa		(u_fp, int, short, int);
+extern	char *	dolfptoa	(u_long, u_long, int, short, int);
 #endif
 
-extern	int	atolfp		P((const char *, l_fp *));
-extern	int	buftvtots	P((const char *, l_fp *));
-extern	char *	fptoa		P((s_fp, short));
-extern	char *	fptoms		P((s_fp, short));
-extern	int	hextolfp	P((const char *, l_fp *));
-extern  void    gpstolfp        P((int, int, unsigned long, l_fp *));
-extern	int	mstolfp		P((const char *, l_fp *));
-extern	char *	prettydate	P((l_fp *));
-extern	char *	gmprettydate	P((l_fp *));
-extern	char *	uglydate	P((l_fp *));
-extern  void    mfp_mul         P((int32 *, u_int32 *, int32, u_int32, int32, u_int32));
+extern	int	atolfp		(const char *, l_fp *);
+extern	int	buftvtots	(const char *, l_fp *);
+extern	char *	fptoa		(s_fp, short);
+extern	char *	fptoms		(s_fp, short);
+extern	int	hextolfp	(const char *, l_fp *);
+extern  void    gpstolfp        (int, int, unsigned long, l_fp *);
+extern	int	mstolfp		(const char *, l_fp *);
+extern	char *	prettydate	(l_fp *);
+extern	char *	gmprettydate	(l_fp *);
+extern	char *	uglydate	(l_fp *);
+extern  void    mfp_mul         (int32 *, u_int32 *, int32, u_int32, int32, u_int32);
 
-extern	void	get_systime	P((l_fp *));
-extern	int	step_systime	P((double));
-extern	int	adj_systime	P((double));
+extern	void	get_systime	(l_fp *);
+extern	int	step_systime	(double);
+extern	int	adj_systime	(double);
 
 #define	lfptoa(_fpv, _ndec)	mfptoa((_fpv)->l_ui, (_fpv)->l_uf, (_ndec))
 #define	lfptoms(_fpv, _ndec)	mfptoms((_fpv)->l_ui, (_fpv)->l_uf, (_ndec))

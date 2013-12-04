@@ -185,7 +185,7 @@ static char pat[] = "-\\|/";
 
 #define R_SHIFT(_X_, _Y_) (((_X_) < 0) ? -(-(_X_) >> (_Y_)) : ((_X_) >> (_Y_)))
 
-static struct timeval max_adj_offset = { 0, 128000 };
+static long max_adj_offset_usec = 128000;
 
 static long clock_adjust = 0;	/* current adjustment value (usec * 2^USECSCALE) */
 static long accum_drift   = 0;	/* accumulated drift value  (usec / ADJINTERVAL) */
@@ -195,8 +195,8 @@ static char skip_adjust  = 1;	/* discard first adjustment (bad samples) */
 /*
  * DCF77 state flags
  */
-#define DCFB_ANNOUNCE           0x0001 /* switch time zone warning (DST switch) */
-#define DCFB_DST                0x0002 /* DST in effect */
+#define DCFB_ANNOUNCE		0x0001 /* switch time zone warning (DST switch) */
+#define DCFB_DST		0x0002 /* DST in effect */
 #define DCFB_LEAP		0x0004 /* LEAP warning (1 hour prior to occurrence) */
 #define DCFB_ALTERNATE		0x0008 /* alternate antenna used */
 
@@ -1042,7 +1042,8 @@ adjust_clock(
 	toffset = *offset;
 	toffset.tv_sec  = l_abs(toffset.tv_sec);
 	toffset.tv_usec = l_abs(toffset.tv_usec);
-	if (timercmp(&toffset, &max_adj_offset, >))
+	if (toffset.tv_sec ||
+	    (!toffset.tv_sec && toffset.tv_usec > max_adj_offset_usec))
 	{
 		/*
 		 * hopeless - set the clock - and clear the timing
@@ -1609,7 +1610,7 @@ main(
 			struct sigaction act;
 
 # ifdef HAVE_SA_SIGACTION_IN_STRUCT_SIGACTION
-			act.sa_sigaction = (void (*) P((int, siginfo_t *, void *)))0;
+			act.sa_sigaction = (void (*) (int, siginfo_t *, void *))0;
 # endif /* HAVE_SA_SIGACTION_IN_STRUCT_SIGACTION */
 			act.sa_handler   = tick;
 			sigemptyset(&act.sa_mask);

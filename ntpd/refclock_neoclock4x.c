@@ -3,17 +3,10 @@
  * Refclock_neoclock4x.c
  * - NeoClock4X driver for DCF77 or FIA Timecode
  *
- * Date: 2006-01-11 v1.15
+ * Date: 2009-12-04 v1.16
  *
  * see http://www.linum.com/redir/jump/id=neoclock4x&action=redir
  * for details about the NeoClock4X device
- *
- * Copyright (C) 2002-2004 by Linum Software GmbH <neoclock4x@linum.com>
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
  *
  */
 
@@ -109,7 +102,7 @@
 #define NEOCLOCK4X_OFFSET_ANTENNA2         33
 #define NEOCLOCK4X_OFFSET_CRC              35
 
-#define NEOCLOCK4X_DRIVER_VERSION          "1.15 (2006-01-11)"
+#define NEOCLOCK4X_DRIVER_VERSION          "1.16 (2009-12-04)"
 
 #define NSEC_TO_MILLI                      1000000
 
@@ -138,20 +131,20 @@ struct neoclock4x_unit {
   int   utc_msec;
 };
 
-static	int	neoclock4x_start        P((int, struct peer *));
-static	void	neoclock4x_shutdown	P((int, struct peer *));
-static	void	neoclock4x_receive	P((struct recvbuf *));
-static	void	neoclock4x_poll		P((int, struct peer *));
-static	void	neoclock4x_control      P((int, struct refclockstat *, struct refclockstat *, struct peer *));
+static	int	neoclock4x_start        (int, struct peer *);
+static	void	neoclock4x_shutdown	(int, struct peer *);
+static	void	neoclock4x_receive	(struct recvbuf *);
+static	void	neoclock4x_poll		(int, struct peer *);
+static	void	neoclock4x_control      (int, struct refclockstat *, struct refclockstat *, struct peer *);
 
-static int      neol_atoi_len           P((const char str[], int *, int));
-static int      neol_hexatoi_len        P((const char str[], int *, int));
-static void     neol_jdn_to_ymd         P((unsigned long, int *, int *, int *));
-static void     neol_localtime          P((unsigned long, int* , int*, int*, int*, int*, int*));
-static unsigned long neol_mktime        P((int, int, int, int, int, int));
+static int      neol_atoi_len           (const char str[], int *, int);
+static int      neol_hexatoi_len        (const char str[], int *, int);
+static void     neol_jdn_to_ymd         (unsigned long, int *, int *, int *);
+static void     neol_localtime          (unsigned long, int* , int*, int*, int*, int*, int*);
+static unsigned long neol_mktime        (int, int, int, int, int, int);
 #if !defined(NEOCLOCK4X_FIRMWARE)
-static int      neol_query_firmware     P((int, int, char *, int));
-static int      neol_check_firmware     P((int, const char*, char *));
+static int      neol_query_firmware     (int, int, char *, int);
+static int      neol_check_firmware     (int, const char*, char *);
 #endif
 
 struct refclock refclock_neoclock4x = {
@@ -1024,6 +1017,12 @@ neol_query_firmware(int fd,
     {
       NLOG(NLOG_CLOCKINFO)
 	msyslog(LOG_INFO, "NeoClock4X(%d): firmware version: %s", unit, firmware);
+
+      if(strstr(firmware, "/R2"))
+	{
+	  msyslog(LOG_INFO, "NeoClock4X(%d): Your NeoClock4X uses the new R2 firmware release. Please note the changed LED behaviour.", unit);
+	}
+
     }
 
   return (flag);
@@ -1110,4 +1109,16 @@ int refclock_neoclock4x_bs;
  * - remove some unsued #ifdefs
  * - fix nsec calculation, closes #499
  *
+ * 2009/12/04 cjh
+ * Revision 1.16
+ * - change license to ntp COPYRIGHT notice. This should allow Debian
+ *   to add this refclock driver in further releases.
+ * - detect R2 hardware
+ *
  */
+
+
+
+
+
+

@@ -12,12 +12,11 @@
 		<h3>Debugging Reference Clock Drivers</h3>
 		<img src="pic/oz2.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>The Wizard of Oz</i>, L. Frank Baum</a>
 		<p>Call the girls and the'll sweep your bugs.</p>
-		<p>Last update: <csobj format="ShortTime" h="25" locale="00000409" region="0" t="DateTime" w="61">18:49</csobj> UTC <csobj format="LongDate" h="25" locale="00000409" region="0" t="DateTime" w="246">Thursday, July 28, 2005</csobj></p>
+		<p>Last update: <csobj format="ShortTime" h="25" locale="00000409" region="0" t="DateTime" w="61">01:24</csobj> UTC <csobj format="LongDate" h="25" locale="00000409" region="0" t="DateTime" w="308">Saturday, November 24, 2007</csobj></p>
 		<br clear="left">
 		<h4>Related Links</h4>
-		<script type="text/javascript" language="javascript" src="scripts/links10.txt"></script>
-		<h4>More Help</h4>
-		<script type="text/javascript" language="javascript" src="scripts/links12.txt"></script>
+		<script type="text/javascript" language="javascript" src="scripts/refclock.txt"></script>
+		<script type="text/javascript" language="javascript" src="scripts/install.txt"></script>
 		<hr>
 		<p>The <a href="ntpq.html"><tt>ntpq</tt></a> and <a href="ntpdc.html"><tt>ntpdc</tt></a> utility programs can be used to debug reference clocks, either on the server itself or from another machine elsewhere in the network. The server is compiled, installed and started using the configuration file described in the <a href="ntpd.html"><tt>ntpd</tt></a> page and its dependencies. If the clock appears in the <tt>ntpq</tt> utility and <tt>pe</tt> command, no errors have occurred and the daemon has started, opened the devices specified and waiting for peers and radios to come up. If not, the first thing to look for are error messages on the system log. These are usually due to improper configuration, missing links or multiple instances of the daemon.</p>
 		<p>It normally takes a minute or so for evidence to appear that the clock is running and the driver is operating correctly. The first indication is a nonzero value in the <tt>reach</tt> column in the <tt>pe</tt> billboard. If nothing appears after a few minutes, the next step is to be sure the RS232 messages, if used, are getting to and from the clock. The most reliable way to do this is with an RS232 tester and to look for data flashes as the driver polls the clock and/or as data arrive from the clock. Our experience is that the overwhelming fraction of problems occurring during installation are due to problems such as miswired connectors or improperly configured device links at this stage.</p>

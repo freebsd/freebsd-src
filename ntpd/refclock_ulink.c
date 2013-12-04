@@ -106,10 +106,10 @@ struct ulinkunit {
 /*
  * Function prototypes
  */
-static	int	ulink_start	P((int, struct peer *));
-static	void	ulink_shutdown	P((int, struct peer *));
-static	void	ulink_receive	P((struct recvbuf *));
-static	void	ulink_poll	P((int, struct peer *));
+static	int	ulink_start	(int, struct peer *);
+static	void	ulink_shutdown	(int, struct peer *);
+static	void	ulink_receive	(struct recvbuf *);
+static	void	ulink_poll	(int, struct peer *);
 
 /*
  * Transfer vector

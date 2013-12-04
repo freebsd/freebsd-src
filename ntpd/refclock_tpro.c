@@ -42,9 +42,9 @@ struct tprounit {
 /*
  * Function prototypes
  */
-static	int	tpro_start	P((int, struct peer *));
-static	void	tpro_shutdown	P((int, struct peer *));
-static	void	tpro_poll	P((int unit, struct peer *));
+static	int	tpro_start	(int, struct peer *);
+static	void	tpro_shutdown	(int, struct peer *);
+static	void	tpro_poll	(int unit, struct peer *);
 
 /*
  * Transfer vector
@@ -77,7 +77,7 @@ tpro_start(
 	/*
 	 * Open TPRO device
 	 */
-	(void)sprintf(device, DEVICE, unit);
+	snprintf(device, sizeof(device), DEVICE, unit);
 	fd = open(device, O_RDONLY | O_NDELAY, 0777);
 	if (fd == -1) {
 		msyslog(LOG_ERR, "tpro_start: open of %s: %m", device);
@@ -87,11 +87,8 @@ tpro_start(
 	/*
 	 * Allocate and initialize unit structure
 	 */
-	if (!(up = (struct tprounit *) emalloc(sizeof(struct tprounit)))) {
-		(void) close(fd);
-		return (0);
-	}
-	memset((char *)up, 0, sizeof(struct tprounit));
+	up = emalloc(sizeof(*up));
+	memset(up, 0, sizeof(*up));
 	pp = peer->procptr;
 	pp->io.clock_recv = noentry;
 	pp->io.srcclock = (caddr_t)peer;
@@ -125,7 +122,8 @@ tpro_shutdown(
 	pp = peer->procptr;
 	up = (struct tprounit *)pp->unitptr;
 	io_closeclock(&pp->io);
-	free(up);
+	if (NULL != up)
+		free(up);
 }
 
 
@@ -170,13 +168,13 @@ tpro_poll(
 	 * we could pad the written string appropriately and read the
 	 * resulting value in already scaled.
 	 */
-	sprintf(pp->a_lastcode,
-	    "%1x%1x%1x %1x%1x:%1x%1x:%1x%1x.%1x%1x%1x%1x%1x%1x %1x",
-	    tp->day100, tp->day10, tp->day1, tp->hour10, tp->hour1,
-	    tp->min10, tp->min1, tp->sec10, tp->sec1, tp->ms100,
-	    tp->ms10, tp->ms1, tp->usec100, tp->usec10, tp->usec1,
-	    tp->status);
-	    pp->lencode = strlen(pp->a_lastcode);
+	snprintf(pp->a_lastcode, sizeof(pp->a_lastcode),
+		 "%1x%1x%1x %1x%1x:%1x%1x:%1x%1x.%1x%1x%1x%1x%1x%1x %1x",
+		 tp->day100, tp->day10, tp->day1, tp->hour10, tp->hour1,
+		 tp->min10, tp->min1, tp->sec10, tp->sec1, tp->ms100,
+		 tp->ms10, tp->ms1, tp->usec100, tp->usec10, tp->usec1,
+		 tp->status);
+	pp->lencode = strlen(pp->a_lastcode);
 #ifdef DEBUG
 	if (debug)
 		printf("tpro: time %s timecode %d %s\n",
@@ -204,7 +202,6 @@ tpro_poll(
 		refclock_report(peer, CEVNT_TIMEOUT);
 		return;
 	}
-	refclock_receive(peer);
 	pp->lastref = pp->lastrec;
 	record_clock_stats(&peer->srcadr, pp->a_lastcode);
 	refclock_receive(peer);

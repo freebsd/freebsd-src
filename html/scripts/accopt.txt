@@ -1,0 +1,5 @@
+document.write("<h4>Access Control Commands</h4><p><ul>\
+<li class='inline'><a href='accopt.html#discard'>discard - specify headway parameters</a><br>\
+<li class='inline'><a href='accopt.html#restrict'>restrict - specify access restrictions</a><br>\
+<li class='inline'><a href='comdex.html'>Command Index</a></p>\
+</ul>")

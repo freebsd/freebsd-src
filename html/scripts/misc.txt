@@ -1,0 +1,9 @@
+document.write("<ul><p>Miscellaneous<br><ul>\
+<li class='inline'><a href='copyright.html'>Copyright Notice</a><br>\
+<li class='inline'><a href='prefer.html'>Mitigation Rules and the <tt>prefer</tt> Keyword</a><br>\
+<li class='inline'><a href='kern.html'>Kernel Model for Precision Timekeeping</a><br>\
+<li class='inline'><a href='kernpps.html'>PPSAPI Interface for Precision Time Signals</a><br>\
+<li class='inline'><a href='pps.html'>Pulse-per-second (PPS) Signal Interfacing</a><br>\
+<li class='inline'><a href='gadget.html'>Gadget Box PPS Level Converter and CHU Modem</a><br>\
+<li class='inline'><a href='sitemap.html'>Site Map</a></p>\
+</ul></ul>")

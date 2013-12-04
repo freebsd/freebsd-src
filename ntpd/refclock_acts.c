@@ -136,6 +136,7 @@
 #define REFID		"NONE"	/* default reference ID */
 #define MSGCNT		20	/* max message count */
 #define SMAX		256	/* max clockstats line length */
+#define	MAXPHONE	10	/* max number of phone numbers */
 
 /*
  * Calling program modes
@@ -210,15 +211,15 @@ struct actsunit {
 /*
  * Function prototypes
  */
-static	int	acts_start	P((int, struct peer *));
-static	void	acts_shutdown	P((int, struct peer *));
-static	void	acts_receive	P((struct recvbuf *));
-static	void	acts_message	P((struct peer *));
-static	void	acts_timecode	P((struct peer *, char *));
-static	void	acts_poll	P((int, struct peer *));
-static	void	acts_timeout	P((struct peer *));
-static	void	acts_disc	P((struct peer *));
-static	void	acts_timer	P((int, struct peer *));
+static	int	acts_start	(int, struct peer *);
+static	void	acts_shutdown	(int, struct peer *);
+static	void	acts_receive	(struct recvbuf *);
+static	void	acts_message	(struct peer *);
+static	void	acts_timecode	(struct peer *, char *);
+static	void	acts_poll	(int, struct peer *);
+static	void	acts_timeout	(struct peer *);
+static	void	acts_disc	(struct peer *);
+static	void	acts_timer	(int, struct peer *);
 
 /*
  * Transfer vector (conditional structure name)
@@ -232,8 +233,6 @@ struct	refclock refclock_acts = {
 	noentry,		/* not used */
 	acts_timer		/* housekeeping timer */
 };
-
-struct	refclock refclock_ptb;
 
 /*
  * Initialize data for processing
@@ -251,9 +250,6 @@ acts_start (
 	 * Allocate and initialize unit structure
 	 */
 	up = emalloc(sizeof(struct actsunit));
-	if (up == NULL)
-		return (0);
-
 	memset(up, 0, sizeof(struct actsunit));
 	up->unit = unit;
 	pp = peer->procptr;
@@ -269,7 +265,6 @@ acts_start (
 	pp->clockdesc = DESCRIPTION;
 	memcpy((char *)&pp->refid, REFID, 4);
 	peer->sstclktype = CTL_SST_TS_TELEPHONE;
-	peer->flags &= ~FLAG_FIXPOLL;
 	up->bufptr = pp->a_lastcode;
 	return (1);
 }
@@ -362,21 +357,28 @@ acts_message(
 
 	/*
 	 * What to do depends on the state and the first token in the
-	 * message. A NO token sends the message to the clockstats.
-	 */
+	 * message.	 */
 	pp = peer->procptr;
 	up = (struct actsunit *)pp->unitptr;
 #ifdef DEBUG
 	ioctl(pp->io.fd, TIOCMGET, (char *)&modem);
-	sprintf(tbuf, "acts: %04x (%d %d) %lu %s", modem, up->state,
-	    up->timer, strlen(pp->a_lastcode), pp->a_lastcode);
+	snprintf(tbuf, sizeof(tbuf), "acts: %04x (%d %d) %lu %s", modem,
+		 up->state, up->timer, (u_long)strlen(pp->a_lastcode),
+		 pp->a_lastcode);
 	if (debug)
 		printf("%s\n", tbuf);
 #endif
+
+	/*
+	 * Extract the first token in the line. A NO token sends the
+	 * message to the clockstats.
+	 */
 	strncpy(tbuf, pp->a_lastcode, SMAX);
 	strtok(tbuf, " ");
-	if (strcmp(tbuf, "NO") == 0)
-		record_clock_stats(&peer->srcadr, pp->a_lastcode);
+	if (strcmp(tbuf, "NO") == 0) {
+		report_event(PEVNT_CLOCK, peer, pp->a_lastcode);
+		return;
+	}
 	switch(up->state) {
 
 	/*
@@ -401,7 +403,7 @@ acts_message(
 	 * here is token CONNECT. Send the message to the clockstats.
 	 */
 	case S_CONNECT:
-		record_clock_stats(&peer->srcadr, pp->a_lastcode);
+		report_event(PEVNT_CLOCK, peer, pp->a_lastcode);
 		if (strcmp(tbuf, "CONNECT") != 0) {
 			acts_disc(peer);
 			return;
@@ -616,10 +618,8 @@ acts_timecode(
 	if (!refclock_process(pp)) {
 		refclock_report(peer, CEVNT_BADTIME);
 		return;
-			}
+	}
 	pp->lastref = pp->lastrec;
-	if (peer->disp > MAXDISTANCE)
-		refclock_receive(peer);
 	if (up->state != S_MSG) {
 		up->state = S_MSG;
 		up->timer = TIMECODE;
@@ -724,7 +724,7 @@ acts_timeout(
 	int	fd;
 	char	device[20];
 	char	lockfile[128], pidbuf[8];
-	char	tbuf[BMAX];
+	char	tbuf[SMAX];
 
 	/*
 	 * The state machine is driven by messages from the modem, when
@@ -751,14 +751,16 @@ acts_timeout(
 		 * file may not be removed.
 		 */
 		if (pp->sloppyclockflag & CLK_FLAG2) {
-			sprintf(lockfile, LOCKFILE, up->unit);
+			snprintf(lockfile, sizeof(lockfile), LOCKFILE,
+			    up->unit);
 			fd = open(lockfile, O_WRONLY | O_CREAT | O_EXCL,
 			    0644);
 			if (fd < 0) {
 				msyslog(LOG_ERR, "acts: port busy");
 				return;
 			}
-			sprintf(pidbuf, "%d\n", (u_int)getpid());
+			snprintf(pidbuf, sizeof(pidbuf), "%d\n",
+			    (u_int)getpid());
 			write(fd, pidbuf, strlen(pidbuf));
 			close(fd);
 		}
@@ -767,10 +769,13 @@ acts_timeout(
 		 * Open the device in raw mode and link the I/O.
 		 */
 		if (!pp->io.fd) {
-			sprintf(device, DEVICE, up->unit);
+			snprintf(device, sizeof(device), DEVICE,
+			    up->unit);
 			fd = refclock_open(device, SPEED232,
 			    LDISC_ACTS | LDISC_RAW | LDISC_REMOTE);
 			if (fd == 0) {
+				msyslog(LOG_ERR,
+				    "acts: open fails");
 				return;
 			}
 			pp->io.fd = fd;
@@ -825,9 +830,9 @@ acts_timeout(
 	 * before hammering it with a dial command.
 	 */
 	case S_DTR:
-		sprintf(tbuf, "DIAL #%d %s", up->retry,
+		snprintf(tbuf, sizeof(tbuf), "DIAL #%d %s", up->retry,
 		    sys_phone[up->retry]);
-		record_clock_stats(&peer->srcadr, tbuf);
+		report_event(PEVNT_CLOCK, peer, tbuf);
 #ifdef DEBUG
 		if (debug)
 			printf("%s\n", tbuf);
@@ -866,7 +871,8 @@ acts_timeout(
 			io_closeclock(&pp->io);
 			close(pp->io.fd);
 			if (pp->sloppyclockflag & CLK_FLAG2) {
-				sprintf(lockfile, LOCKFILE, up->unit);
+				snprintf(lockfile, sizeof(lockfile),
+				    LOCKFILE, up->unit);
 				unlink(lockfile);
 			}
 			pp->io.fd = 0;
@@ -910,9 +916,9 @@ acts_disc (
 
 	/*
 	 * We get here if the call terminated successfully or if an
-	 * error occured. If the median filter has something in it,feed
-	 * the data to the clock filter. If a modem port, drop DTR to
-	 * force command mode and send modem hangup.
+	 * error occured. If the median filter has something in it,
+	 * feed the data to the clock filter. If a modem port, drop DTR
+	 * to force command mode and send modem hangup.
 	 */
 	pp = peer->procptr;
 	up = (struct actsunit *)pp->unitptr;
@@ -925,7 +931,6 @@ acts_disc (
 	up->timer = SETUP;
 	up->state = S_CLOSE;
 }
-
 #else
 int refclock_acts_bs;
 #endif /* REFCLOCK */

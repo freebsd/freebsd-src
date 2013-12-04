@@ -11,7 +11,6 @@ flag = {
     name      = debug-level;
     value     = d;
     max       = NOLIMIT;
-    ifdef     = DEBUG;
     nopreset;
     descrip   = "Increase output debug message level";
     doc = <<-  _EndOfDoc_
@@ -23,7 +22,6 @@ flag = {
     name      = set-debug-level;
     value     = D;
     max       = NOLIMIT;
-    ifdef     = DEBUG;
     descrip   = "Set the output debug message level";
     arg-type  = string;
     flag-code = 'DESC(DEBUG_LEVEL).optOccCt = atoi( pOptDesc->pzLastArg );';

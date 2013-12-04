@@ -34,7 +34,7 @@
 #include <stdio.h>
 #else
 #include "sys/parsestreams.h"
-extern void printf P((const char *, ...));
+extern int printf (const char *, ...);
 #endif
 
 /* 
@@ -118,8 +118,8 @@ static struct format hopf6021_fmt =
 		   ('A' <= (x) && (x) <= 'F') ? (x) - 'A' + 10 : \
 		   -1)
 
-static unsigned long cvt_hopf6021 P((unsigned char *, int, struct format *, clocktime_t *, void *));
-static unsigned long inp_hopf6021 P((parse_t *, unsigned int, timestamp_t *));
+static unsigned long cvt_hopf6021 (unsigned char *, int, struct format *, clocktime_t *, void *);
+static unsigned long inp_hopf6021 (parse_t *, unsigned int, timestamp_t *);
 
 clockformat_t clock_hopf6021 =
 {

@@ -1,61 +1,38 @@
 
 /*
- *  Time-stamp:      "2007-04-15 09:59:39 bkorb"
+ *  \file autoopts.h
  *
- *  autoopts.h  $Id: autoopts.h,v 4.23 2007/04/15 19:01:18 bkorb Exp $
- *  Time-stamp:      "2005-02-14 05:59:50 bkorb"
+ *  Time-stamp:      "2011-03-25 17:51:34 bkorb"
  *
  *  This file defines all the global structures and special values
  *  used in the automated option processing library.
- */
-
-/*
- *  Automated Options copyright 1992-2007 Bruce Korb
  *
- *  Automated Options is free software.
- *  You may redistribute it and/or modify it under the terms of the
- *  GNU General Public License, as published by the Free Software
- *  Foundation; either version 2, or (at your option) any later version.
+ *  This file is part of AutoOpts, a companion to AutoGen.
+ *  AutoOpts is free software.
+ *  AutoOpts is Copyright (c) 1992-2011 by Bruce Korb - all rights reserved
  *
- *  Automated Options is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  AutoOpts is available under any one of two licenses.  The license
+ *  in use must be one of these two and the choice is under the control
+ *  of the user of the license.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with Automated Options.  See the file "COPYING".  If not,
- *  write to:  The Free Software Foundation, Inc.,
- *             51 Franklin Street, Fifth Floor,
- *             Boston, MA  02110-1301, USA.
+ *   The GNU Lesser General Public License, version 3 or later
+ *      See the files "COPYING.lgplv3" and "COPYING.gplv3"
  *
- * As a special exception, Bruce Korb gives permission for additional
- * uses of the text contained in his release of AutoOpts.
+ *   The Modified Berkeley Software Distribution License
+ *      See the file "COPYING.mbsd"
  *
- * The exception is that, if you link the AutoOpts library with other
- * files to produce an executable, this does not by itself cause the
- * resulting executable to be covered by the GNU General Public License.
- * Your use of that executable is in no way restricted on account of
- * linking the AutoOpts library code into it.
+ *  These files have the following md5sums:
  *
- * This exception does not however invalidate any other reasons why
- * the executable file might be covered by the GNU General Public License.
- *
- * This exception applies only to the code released by Bruce Korb under
- * the name AutoOpts.  If you copy code from other sources under the
- * General Public License into a copy of AutoOpts, as the General Public
- * License permits, the exception does not apply to the code that you add
- * in this way.  To avoid misleading anyone as to the status of such
- * modified files, you must delete this exception notice from them.
- *
- * If you write modifications of your own for AutoOpts, it is your choice
- * whether to permit this exception to apply to your modifications.
- * If you do not wish that, delete this exception notice.
+ *  43b91e8ca915626ed3818ffb1b71248b pkg/libopts/COPYING.gplv3
+ *  06a1a2e4760c90ea5e1dad8dfaac4d39 pkg/libopts/COPYING.lgplv3
+ *  66a5cedaf62c4b2637025f049f9b826f pkg/libopts/COPYING.mbsd
  */
 
 #ifndef AUTOGEN_AUTOOPTS_H
 #define AUTOGEN_AUTOOPTS_H
 
 #include "compat/compat.h"
+#include "ag-char-map.h"
 
 #define AO_NAME_LIMIT           127
 #define AO_NAME_SIZE            ((size_t)(AO_NAME_LIMIT + 1))
@@ -110,36 +87,6 @@ typedef int tDirection;
 #define PROCESSING(d)           ((d)>0)
 #define PRESETTING(d)           ((d)<0)
 
-#define ISNAMECHAR( c )         (isalnum(c) || ((c) == '_') || ((c) == '-'))
-
-/*
- *  Procedure success codes
- *
- *  USAGE:  define procedures to return "tSuccess".  Test their results
- *          with the SUCCEEDED, FAILED and HADGLITCH macros.
- *
- *  Microsoft sticks its nose into user space here, so for Windows' sake,
- *  make sure all of these are undefined.
- */
-#undef  SUCCESS
-#undef  FAILURE
-#undef  PROBLEM
-#undef  SUCCEEDED
-#undef  SUCCESSFUL
-#undef  FAILED
-#undef  HADGLITCH
-
-#define SUCCESS                 ((tSuccess) 0)
-#define FAILURE                 ((tSuccess)-1)
-#define PROBLEM                 ((tSuccess) 1)
-
-typedef int tSuccess;
-
-#define SUCCEEDED( p )          ((p) == SUCCESS)
-#define SUCCESSFUL( p )         SUCCEEDED( p )
-#define FAILED( p )             ((p) <  SUCCESS)
-#define HADGLITCH( p )          ((p) >  SUCCESS)
-
 /*
  *  When loading a line (or block) of text as an option, the value can
  *  be processed in any of several modes:
@@ -167,7 +114,7 @@ typedef enum {
     OPTION_LOAD_KEEP
 } tOptionLoadMode;
 
-extern tOptionLoadMode option_load_mode;
+static tOptionLoadMode option_load_mode;
 
 /*
  *  The pager state is used by optionPagedUsage() procedure.
@@ -182,8 +129,6 @@ typedef enum {
     PAGER_STATE_READY,
     PAGER_STATE_CHILD
 } tePagerState;
-
-extern tePagerState pagerState;
 
 typedef enum {
     ENV_ALL,
@@ -208,9 +153,9 @@ typedef struct {
     { NULL, NULL, OPTST_ ## st, TOPT_UNDEFINED }
 
 #define TEXTTO_TABLE \
-        _TT_( LONGUSAGE ) \
-        _TT_( USAGE ) \
-        _TT_( VERSION )
+        _TT_(LONGUSAGE) \
+        _TT_(USAGE) \
+        _TT_(VERSION)
 #define _TT_(n) \
         TT_ ## n ,
 
@@ -219,39 +164,40 @@ typedef enum { TEXTTO_TABLE COUNT_TT } teTextTo;
 #undef _TT_
 
 typedef struct {
-    tCC*    pzStr;
-    tCC*    pzReq;
-    tCC*    pzNum;
-    tCC*    pzKey;
-    tCC*    pzKeyL;
-    tCC*    pzBool;
-    tCC*    pzNest;
-    tCC*    pzOpt;
-    tCC*    pzNo;
-    tCC*    pzBrk;
-    tCC*    pzNoF;
-    tCC*    pzSpc;
-    tCC*    pzOptFmt;
+    char const * pzStr;
+    char const * pzReq;
+    char const * pzNum;
+    char const * pzFile;
+    char const * pzKey;
+    char const * pzKeyL;
+    char const * pzBool;
+    char const * pzNest;
+    char const * pzOpt;
+    char const * pzNo;
+    char const * pzBrk;
+    char const * pzNoF;
+    char const * pzSpc;
+    char const * pzOptFmt;
+    char const * pzTime;
 } arg_types_t;
 
-#define AGALOC( c, w )          ao_malloc((size_t)c)
-#define AGREALOC( p, c, w )     ao_realloc((void*)p, (size_t)c)
-#define AGFREE( p )             ao_free((void*)p)
-#define AGDUPSTR( p, s, w )     (p = ao_strdup(s))
+#define AGALOC(c, w)          ao_malloc((size_t)c)
+#define AGREALOC(p, c, w)     ao_realloc((void*)p, (size_t)c)
+#define AGFREE(_p)            free((void *)_p)
+#define AGDUPSTR(p, s, w)     (p = ao_strdup(s))
 
 static void *
-ao_malloc( size_t sz );
+ao_malloc(size_t sz);
 
 static void *
-ao_realloc( void *p, size_t sz );
+ao_realloc(void *p, size_t sz);
 
-static void
-ao_free( void *p );
+#define ao_free(_p) free((void *)_p)
 
 static char *
-ao_strdup( char const *str );
+ao_strdup(char const *str);
 
-#define TAGMEM( m, t )
+#define TAGMEM(m, t)
 
 /*
  *  DO option handling?
@@ -358,8 +304,8 @@ ao_strdup( char const *str );
 #endif
 
 #ifndef HAVE_STRCHR
-extern char* strchr( char const *s, int c);
-extern char* strrchr( char const *s, int c);
+extern char* strchr(char const *s, int c);
+extern char* strrchr(char const *s, int c);
 #endif
 
 /*
@@ -373,7 +319,8 @@ extern char* strrchr( char const *s, int c);
 /*
  *  File pointer for usage output
  */
-extern FILE* option_usage_fp;
+FILE * option_usage_fp;
+static char const * program_pkgdatadir;
 
 extern tOptProc optionPrintVersion, optionPagedUsage, optionLoadOpt;
 

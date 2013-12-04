@@ -1,81 +1,80 @@
 
-/*
- *  $Id: autoopts.c,v 4.25 2007/04/15 19:01:18 bkorb Exp $
- *  Time-stamp:      "2007-04-15 11:10:40 bkorb"
+/**
+ * \file autoopts.c
+ *
+ *  Time-stamp:      "2011-03-25 17:55:07 bkorb"
  *
  *  This file contains all of the routines that must be linked into
  *  an executable to use the generated option processing.  The optional
  *  routines are in separately compiled modules so that they will not
  *  necessarily be linked in.
+ *
+ *  This file is part of AutoOpts, a companion to AutoGen.
+ *  AutoOpts is free software.
+ *  AutoOpts is Copyright (c) 1992-2011 by Bruce Korb - all rights reserved
+ *
+ *  AutoOpts is available under any one of two licenses.  The license
+ *  in use must be one of these two and the choice is under the control
+ *  of the user of the license.
+ *
+ *   The GNU Lesser General Public License, version 3 or later
+ *      See the files "COPYING.lgplv3" and "COPYING.gplv3"
+ *
+ *   The Modified Berkeley Software Distribution License
+ *      See the file "COPYING.mbsd"
+ *
+ *  These files have the following md5sums:
+ *
+ *  43b91e8ca915626ed3818ffb1b71248b pkg/libopts/COPYING.gplv3
+ *  06a1a2e4760c90ea5e1dad8dfaac4d39 pkg/libopts/COPYING.lgplv3
+ *  66a5cedaf62c4b2637025f049f9b826f pkg/libopts/COPYING.mbsd
  */
 
-/*
- *  Automated Options copyright 1992-2007 Bruce Korb
- *
- *  Automated Options is free software.
- *  You may redistribute it and/or modify it under the terms of the
- *  GNU General Public License, as published by the Free Software
- *  Foundation; either version 2, or (at your option) any later version.
- *
- *  Automated Options is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with Automated Options.  See the file "COPYING".  If not,
- *  write to:  The Free Software Foundation, Inc.,
- *             51 Franklin Street, Fifth Floor,
- *             Boston, MA  02110-1301, USA.
- *
- * As a special exception, Bruce Korb gives permission for additional
- * uses of the text contained in his release of AutoOpts.
- *
- * The exception is that, if you link the AutoOpts library with other
- * files to produce an executable, this does not by itself cause the
- * resulting executable to be covered by the GNU General Public License.
- * Your use of that executable is in no way restricted on account of
- * linking the AutoOpts library code into it.
- *
- * This exception does not however invalidate any other reasons why
- * the executable file might be covered by the GNU General Public License.
- *
- * This exception applies only to the code released by Bruce Korb under
- * the name AutoOpts.  If you copy code from other sources under the
- * General Public License into a copy of AutoOpts, as the General Public
- * License permits, the exception does not apply to the code that you add
- * in this way.  To avoid misleading anyone as to the status of such
- * modified files, you must delete this exception notice from them.
- *
- * If you write modifications of your own for AutoOpts, it is your choice
- * whether to permit this exception to apply to your modifications.
- * If you do not wish that, delete this exception notice.
- */
+#ifndef PKGDATADIR
+#  define PKGDATADIR ""
+#endif
 
-static char const zNil[] = "";
+static char const   zNil[] = "";
+static arg_types_t  argTypes             = { NULL };
+static char         zOptFmtLine[16]      = { NUL };
+static ag_bool      displayEnum          = AG_FALSE;
+static char const   pkgdatadir_default[] = PKGDATADIR;
+static char const * program_pkgdatadir   = pkgdatadir_default;
+static tOptionLoadMode option_load_mode  = OPTION_LOAD_UNCOOKED;
+static tePagerState pagerState           = PAGER_STATE_INITIAL;
+
+       FILE *       option_usage_fp      = NULL;
 
 /* = = = START-STATIC-FORWARD = = = */
-/* static forward declarations maintained by :mkfwd */
 static tSuccess
-findOptDesc( tOptions* pOpts, tOptState* pOptState );
+findOptDesc(tOptions* pOpts, tOptState* pOptState);
 
 static tSuccess
-nextOption( tOptions* pOpts, tOptState* pOptState );
+next_opt_arg_must(tOptions* pOpts, tOptState* pOptState);
 
 static tSuccess
-doPresets( tOptions* pOpts );
+next_opt_arg_may(tOptions* pOpts, tOptState* pOptState);
+
+static tSuccess
+next_opt_arg_none(tOptions* pOpts, tOptState* pOptState);
+
+static tSuccess
+nextOption(tOptions* pOpts, tOptState* pOptState);
+
+static tSuccess
+doPresets(tOptions* pOpts);
 
 static int
-checkConsistency( tOptions* pOpts );
+checkConsistency(tOptions* pOpts);
 /* = = = END-STATIC-FORWARD = = = */
 
 LOCAL void *
-ao_malloc( size_t sz )
+ao_malloc(size_t sz)
 {
     void * res = malloc(sz);
     if (res == NULL) {
-        fprintf( stderr, "malloc of %d bytes failed\n", (int)sz );
-        exit( EXIT_FAILURE );
+        fprintf(stderr, zAO_Alloc, (int)sz);
+        exit(EXIT_FAILURE);
     }
     return res;
 }
@@ -83,36 +82,25 @@ ao_malloc( size_t sz )
 #define malloc(_s) ao_malloc(_s)
 
 LOCAL void *
-ao_realloc( void *p, size_t sz )
+ao_realloc(void *p, size_t sz)
 {
-    void * res = realloc(p, sz);
+    void * res = (p == NULL) ? malloc(sz) : realloc(p, sz);
     if (res == NULL) {
-        fprintf( stderr, "realloc of %d bytes at 0x%p failed\n", (int)sz, p );
-        exit( EXIT_FAILURE );
+        fprintf(stderr, zAO_Realloc, (int)sz, p);
+        exit(EXIT_FAILURE);
     }
     return res;
 }
 #undef  realloc
 #define realloc(_p,_s) ao_realloc(_p,_s)
 
-
-LOCAL void
-ao_free( void *p )
-{
-    if (p != NULL)
-        free(p);
-}
-#undef  free
-#define free(_p) ao_free(_p)
-
-
 LOCAL char *
-ao_strdup( char const *str )
+ao_strdup(char const *str)
 {
     char * res = strdup(str);
     if (res == NULL) {
-        fprintf( stderr, "strdup of %d byte string failed\n", (int)strlen(str) );
-        exit( EXIT_FAILURE );
+        fprintf(stderr, zAO_Strdup, (int)strlen(str));
+        exit(EXIT_FAILURE);
     }
     return res;
 }
@@ -136,13 +124,13 @@ ao_strdup( char const *str )
 #endif
 
 /*
- *  handleOption
+ *  handle_opt
  *
  *  This routine handles equivalencing, sets the option state flags and
  *  invokes the handler procedure, if any.
  */
 LOCAL tSuccess
-handleOption( tOptions* pOpts, tOptState* pOptState )
+handle_opt(tOptions* pOpts, tOptState* pOptState)
 {
     /*
      *  Save a copy of the option procedure pointer.
@@ -190,8 +178,8 @@ handleOption( tOptions* pOpts, tOptState* pOptState )
              *  THEN we have a usage problem.
              */
             if (p->optActualIndex != pOD->optIndex) {
-                fprintf( stderr, (char*)zMultiEquiv, p->pz_Name, pOD->pz_Name,
-                         (pOpts->pOptDesc + p->optActualIndex)->pz_Name);
+                fprintf(stderr, (char*)zMultiEquiv, p->pz_Name, pOD->pz_Name,
+                        (pOpts->pOptDesc + p->optActualIndex)->pz_Name);
                 return FAILURE;
             }
         } else {
@@ -240,7 +228,7 @@ handleOption( tOptions* pOpts, tOptState* pOptState )
             char const * pzEqv =
                 (pOD->optEquivIndex != NO_EQUIVALENT) ? zEquiv : zNil;
 
-            fputs( zErrOnly, stderr );
+            fputs(zErrOnly, stderr);
 
             if (pOD->optMaxCt > 1)
                 fprintf(stderr, zAtMost, pOD->optMaxCt, pOD->pz_Name, pzEqv);
@@ -254,8 +242,8 @@ handleOption( tOptions* pOpts, tOptState* pOptState )
     /*
      *  If provided a procedure to call, call it
      */
-    if (pOP != (tpOptProc)NULL)
-        (*pOP)( pOpts, pOD );
+    if (pOP != NULL)
+        (*pOP)(pOpts, pOD);
 
     return SUCCESS;
 }
@@ -274,32 +262,45 @@ handleOption( tOptions* pOpts, tOptState* pOptState )
  *  Find the long option descriptor for the current option
  */
 LOCAL tSuccess
-longOptionFind( tOptions* pOpts, char* pzOptName, tOptState* pOptState )
+longOptionFind(tOptions* pOpts, char* pzOptName, tOptState* pOptState)
 {
     ag_bool    disable  = AG_FALSE;
-    char*      pzEq     = strchr( pzOptName, '=' );
+    char*      pzEq     = strchr(pzOptName, '=');
     tOptDesc*  pOD      = pOpts->pOptDesc;
     int        idx      = 0;
     int        idxLim   = pOpts->optCt;
     int        matchCt  = 0;
     int        matchIdx = 0;
     int        nameLen;
+    char       opt_name_buf[128];
 
     /*
      *  IF the value is attached to the name,
-     *  THEN clip it off.
-     *  Either way, figure out how long our name is
+     *  copy it off so we can NUL terminate.
      */
     if (pzEq != NULL) {
         nameLen = (int)(pzEq - pzOptName);
-        *pzEq = NUL;
-    } else nameLen = strlen( pzOptName );
+        if (nameLen >= sizeof(opt_name_buf))
+            return FAILURE;
+        memcpy(opt_name_buf, pzOptName, nameLen);
+        opt_name_buf[nameLen] = NUL;
+        pzOptName = opt_name_buf;
+        pzEq++;
+
+    } else nameLen = strlen(pzOptName);
 
     do  {
-        if (SKIP_OPT(pOD))
+        /*
+         *  If option disabled or a doc option, skip to next
+         */
+        if (pOD->pz_Name == NULL)
             continue;
 
-        if (strneqvcmp( pzOptName, pOD->pz_Name, nameLen ) == 0) {
+        if (  SKIP_OPT(pOD)
+           && (pOD->fOptState != (OPTST_OMITTED | OPTST_NO_INIT)))
+            continue;
+
+        if (strneqvcmp(pzOptName, pOD->pz_Name, nameLen) == 0) {
             /*
              *  IF we have a complete match
              *  THEN it takes priority over any already located partial
@@ -348,13 +349,21 @@ longOptionFind( tOptions* pOpts, char* pzOptName, tOptState* pOptState )
 
     } while (pOD++, (++idx < idxLim));
 
-    if (pzEq != NULL)
-        *(pzEq++) = '=';
-
     /*
      *  Make sure we either found an exact match or found only one partial
      */
     if (matchCt == 1) {
+        pOD = pOpts->pOptDesc + matchIdx;
+
+        if (SKIP_OPT(pOD)) {
+            fprintf(stderr, zDisabledErr, pOpts->pzProgName, pOD->pz_Name);
+            if (pOD->pzText != NULL)
+                fprintf(stderr, " -- %s", pOD->pzText);
+            fputc('\n', stderr);
+            (*pOpts->pUsageProc)(pOpts, EXIT_FAILURE);
+            /* NOTREACHED */
+        }
+
         /*
          *  IF we found a disablement name,
          *  THEN set the bit in the callers' flag word
@@ -362,7 +371,7 @@ longOptionFind( tOptions* pOpts, char* pzOptName, tOptState* pOptState )
         if (disable)
             pOptState->flags |= OPTST_DISABLED;
 
-        pOptState->pOD      = pOpts->pOptDesc + matchIdx;
+        pOptState->pOD      = pOD;
         pOptState->pzOptArg = pzEq;
         pOptState->optType  = TOPT_LONG;
         return SUCCESS;
@@ -389,9 +398,9 @@ longOptionFind( tOptions* pOpts, char* pzOptName, tOptState* pOptState )
      *  THEN call the usage procedure.
      */
     if ((pOpts->fOptSet & OPTPROC_ERRSTOP) != 0) {
-        fprintf( stderr, zIllOptStr, pOpts->pzProgPath,
-                 (matchCt == 0) ? zIllegal : zAmbiguous, pzOptName );
-        (*pOpts->pUsageProc)( pOpts, EXIT_FAILURE );
+        fprintf(stderr, (matchCt == 0) ? zIllOptStr : zAmbigOptStr,
+                pOpts->pzProgPath, pzOptName);
+        (*pOpts->pUsageProc)(pOpts, EXIT_FAILURE);
     }
 
     return FAILURE;
@@ -404,7 +413,7 @@ longOptionFind( tOptions* pOpts, char* pzOptName, tOptState* pOptState )
  *  Find the short option descriptor for the current option
  */
 LOCAL tSuccess
-shortOptionFind( tOptions* pOpts, uint_t optValue, tOptState* pOptState )
+shortOptionFind(tOptions* pOpts, uint_t optValue, tOptState* pOptState)
 {
     tOptDesc*  pRes = pOpts->pOptDesc;
     int        ct   = pOpts->optCt;
@@ -412,28 +421,28 @@ shortOptionFind( tOptions* pOpts, uint_t optValue, tOptState* pOptState )
     /*
      *  Search the option list
      */
-    for (;;) {
-        /*
-         *  IF the values match,
-         *  THEN we stop here
-         */
-        if ((! SKIP_OPT(pRes)) && (optValue == pRes->optValue)) {
-            pOptState->pOD     = pRes;
-            pOptState->optType = TOPT_SHORT;
-            return SUCCESS;
+    do  {
+        if (optValue != pRes->optValue)
+            continue;
+
+        if (SKIP_OPT(pRes)) {
+            if (  (pRes->fOptState == (OPTST_OMITTED | OPTST_NO_INIT))
+               && (pRes->pz_Name != NULL)) {
+                fprintf(stderr, zDisabledErr, pOpts->pzProgPath, pRes->pz_Name);
+                if (pRes->pzText != NULL)
+                    fprintf(stderr, " -- %s", pRes->pzText);
+                fputc('\n', stderr);
+                (*pOpts->pUsageProc)(pOpts, EXIT_FAILURE);
+                /* NOTREACHED */
+            }
+            goto short_opt_error;
         }
 
-        /*
-         *  Advance to next option description
-         */
-        pRes++;
+        pOptState->pOD     = pRes;
+        pOptState->optType = TOPT_SHORT;
+        return SUCCESS;
 
-        /*
-         *  IF we have searched everything, ...
-         */
-        if (--ct <= 0)
-            break;
-    }
+    } while (pRes++, --ct > 0);
 
     /*
      *  IF    the character value is a digit
@@ -441,7 +450,7 @@ shortOptionFind( tOptions* pOpts, uint_t optValue, tOptState* pOptState )
      *  THEN the result is the "option" itself and the
      *       option is the specially marked "number" option.
      */
-    if (  isdigit( optValue )
+    if (  IS_DEC_DIGIT_CHAR(optValue)
        && (pOpts->specOptIdx.number_option != NO_EQUIVALENT) ) {
         pOptState->pOD = \
         pRes           = pOpts->pOptDesc + pOpts->specOptIdx.number_option;
@@ -450,13 +459,15 @@ shortOptionFind( tOptions* pOpts, uint_t optValue, tOptState* pOptState )
         return SUCCESS;
     }
 
+short_opt_error:
+
     /*
      *  IF we are to stop on errors (the default, actually)
      *  THEN call the usage procedure.
      */
     if ((pOpts->fOptSet & OPTPROC_ERRSTOP) != 0) {
-        fprintf( stderr, zIllOptChr, pOpts->pzProgPath, optValue );
-        (*pOpts->pUsageProc)( pOpts, EXIT_FAILURE );
+        fprintf(stderr, zIllOptChr, pOpts->pzProgPath, optValue);
+        (*pOpts->pUsageProc)(pOpts, EXIT_FAILURE);
     }
 
     return FAILURE;
@@ -469,7 +480,7 @@ shortOptionFind( tOptions* pOpts, uint_t optValue, tOptState* pOptState )
  *  Find the option descriptor for the current option
  */
 static tSuccess
-findOptDesc( tOptions* pOpts, tOptState* pOptState )
+findOptDesc(tOptions* pOpts, tOptState* pOptState)
 {
     /*
      *  IF we are continuing a short option list (e.g. -xyz...)
@@ -477,7 +488,7 @@ findOptDesc( tOptions* pOpts, tOptState* pOptState )
      *  OTHERWISE see if there is room to advance and then do so.
      */
     if ((pOpts->pzCurOpt != NULL) && (*pOpts->pzCurOpt != NUL))
-        return shortOptionFind( pOpts, (tAoUC)*(pOpts->pzCurOpt), pOptState );
+        return shortOptionFind(pOpts, (tAoUC)*(pOpts->pzCurOpt), pOptState);
 
     if (pOpts->curOptIdx >= pOpts->origArgCt)
         return PROBLEM; /* NORMAL COMPLETION */
@@ -488,16 +499,28 @@ findOptDesc( tOptions* pOpts, tOptState* pOptState )
      *  IF all arguments must be named options, ...
      */
     if (NAMED_OPTS(pOpts)) {
-        char* pz = pOpts->pzCurOpt;
+        char *   pz  = pOpts->pzCurOpt;
+        int      def;
+        tSuccess res; 
+        tAoUS *  def_opt;
+
         pOpts->curOptIdx++;
 
-        /*
-         *  Skip over any flag/option markers.
-         *  In this mode, they are not required.
-         */
-        while (*pz == '-') pz++;
+        if (*pz != '-')
+            return longOptionFind(pOpts, pz, pOptState);
 
-        return longOptionFind( pOpts, pz, pOptState );
+        /*
+         *  The name is prefixed with one or more hyphens.  Strip them off
+         *  and disable the "default_opt" setting.  Use heavy recasting to
+         *  strip off the "const" quality of the "default_opt" field.
+         */
+        while (*(++pz) == '-')   ;
+        def_opt = (void *)&(pOpts->specOptIdx.default_opt);
+        def = *def_opt;
+        *def_opt = NO_EQUIVALENT;
+        res = longOptionFind(pOpts, pz, pOptState);
+        *def_opt = def;
+        return res;
     }
 
     /*
@@ -533,12 +556,12 @@ findOptDesc( tOptions* pOpts, tOptState* pOptState )
          *  Therefore, if long options are not to be accepted, we punt.
          */
         if ((pOpts->fOptSet & OPTPROC_LONGOPT) == 0) {
-            fprintf( stderr, zIllOptStr, pOpts->pzProgPath,
-                     zIllegal, pOpts->pzCurOpt-2 );
+            fprintf(stderr, zIllOptStr, pOpts->pzProgPath,
+                    zIllegal, pOpts->pzCurOpt-2);
             return FAILURE;
         }
 
-        return longOptionFind( pOpts, pOpts->pzCurOpt, pOptState );
+        return longOptionFind(pOpts, pOpts->pzCurOpt, pOptState);
     }
 
     /*
@@ -547,11 +570,158 @@ findOptDesc( tOptions* pOpts, tOptState* pOptState )
      *  short (i.e. single character) option.
      */
     if ((pOpts->fOptSet & OPTPROC_SHORTOPT) != 0)
-        return shortOptionFind( pOpts, (tAoUC)*(pOpts->pzCurOpt), pOptState );
+        return shortOptionFind(pOpts, (tAoUC)*(pOpts->pzCurOpt), pOptState);
 
-    return longOptionFind( pOpts, pOpts->pzCurOpt, pOptState );
+    return longOptionFind(pOpts, pOpts->pzCurOpt, pOptState);
 }
 
+
+static tSuccess
+next_opt_arg_must(tOptions* pOpts, tOptState* pOptState)
+{
+    /*
+     *  An option argument is required.  Long options can either have
+     *  a separate command line argument, or an argument attached by
+     *  the '=' character.  Figure out which.
+     */
+    switch (pOptState->optType) {
+    case TOPT_SHORT:
+        /*
+         *  See if an arg string follows the flag character
+         */
+        if (*++(pOpts->pzCurOpt) == NUL)
+            pOpts->pzCurOpt = pOpts->origArgVect[ pOpts->curOptIdx++ ];
+        pOptState->pzOptArg = pOpts->pzCurOpt;
+        break;
+
+    case TOPT_LONG:
+        /*
+         *  See if an arg string has already been assigned (glued on
+         *  with an `=' character)
+         */
+        if (pOptState->pzOptArg == NULL)
+            pOptState->pzOptArg = pOpts->origArgVect[ pOpts->curOptIdx++ ];
+        break;
+
+    default:
+#ifdef DEBUG
+        fputs("AutoOpts lib error: option type not selected\n", stderr);
+        exit(EXIT_FAILURE);
+#endif
+
+    case TOPT_DEFAULT:
+        /*
+         *  The option was selected by default.  The current token is
+         *  the option argument.
+         */
+        break;
+    }
+
+    /*
+     *  Make sure we did not overflow the argument list.
+     */
+    if (pOpts->curOptIdx > pOpts->origArgCt) {
+        fprintf(stderr, zMisArg, pOpts->pzProgPath, pOptState->pOD->pz_Name);
+        return FAILURE;
+    }
+
+    pOpts->pzCurOpt = NULL;  /* next time advance to next arg */
+    return SUCCESS;
+}
+
+
+static tSuccess
+next_opt_arg_may(tOptions* pOpts, tOptState* pOptState)
+{
+    /*
+     *  An option argument is optional.
+     */
+    switch (pOptState->optType) {
+    case TOPT_SHORT:
+        if (*++pOpts->pzCurOpt != NUL)
+            pOptState->pzOptArg = pOpts->pzCurOpt;
+        else {
+            char* pzLA = pOpts->origArgVect[ pOpts->curOptIdx ];
+
+            /*
+             *  BECAUSE it is optional, we must make sure
+             *  we did not find another flag and that there
+             *  is such an argument.
+             */
+            if ((pzLA == NULL) || (*pzLA == '-'))
+                pOptState->pzOptArg = NULL;
+            else {
+                pOpts->curOptIdx++; /* argument found */
+                pOptState->pzOptArg = pzLA;
+            }
+        }
+        break;
+
+    case TOPT_LONG:
+        /*
+         *  Look for an argument if we don't already have one (glued on
+         *  with a `=' character) *AND* we are not in named argument mode
+         */
+        if (  (pOptState->pzOptArg == NULL)
+           && (! NAMED_OPTS(pOpts))) {
+            char* pzLA = pOpts->origArgVect[ pOpts->curOptIdx ];
+
+            /*
+             *  BECAUSE it is optional, we must make sure
+             *  we did not find another flag and that there
+             *  is such an argument.
+             */
+            if ((pzLA == NULL) || (*pzLA == '-'))
+                pOptState->pzOptArg = NULL;
+            else {
+                pOpts->curOptIdx++; /* argument found */
+                pOptState->pzOptArg = pzLA;
+            }
+        }
+        break;
+
+    default:
+    case TOPT_DEFAULT:
+        fputs(zAO_Woops, stderr );
+        exit(EX_SOFTWARE);
+    }
+
+    /*
+     *  After an option with an optional argument, we will
+     *  *always* start with the next option because if there
+     *  were any characters following the option name/flag,
+     *  they would be interpreted as the argument.
+     */
+    pOpts->pzCurOpt = NULL;
+    return SUCCESS;
+}
+
+
+static tSuccess
+next_opt_arg_none(tOptions* pOpts, tOptState* pOptState)
+{
+    /*
+     *  No option argument.  Make sure next time around we find
+     *  the correct option flag character for short options
+     */
+    if (pOptState->optType == TOPT_SHORT)
+        (pOpts->pzCurOpt)++;
+
+    /*
+     *  It is a long option.  Make sure there was no ``=xxx'' argument
+     */
+    else if (pOptState->pzOptArg != NULL) {
+        fprintf(stderr, zNoArg, pOpts->pzProgPath, pOptState->pOD->pz_Name);
+        return FAILURE;
+    }
+
+    /*
+     *  It is a long option.  Advance to next command line argument.
+     */
+    else
+        pOpts->pzCurOpt = NULL;
+    return SUCCESS;
+}
 
 /*
  *  nextOption
@@ -562,17 +732,22 @@ findOptDesc( tOptions* pOpts, tOptState* pOptState )
  *  without consequence (side effect).
  */
 static tSuccess
-nextOption( tOptions* pOpts, tOptState* pOptState )
+nextOption(tOptions* pOpts, tOptState* pOptState)
 {
-    tSuccess res;
-    enum { ARG_NONE, ARG_MAY, ARG_MUST } arg_type = ARG_NONE;
-    teOptArgType at;
+    {
+        tSuccess res;
+        res = findOptDesc(pOpts, pOptState);
+        if (! SUCCESSFUL(res))
+            return res;
+    }
 
-    res = findOptDesc( pOpts, pOptState );
-    if (! SUCCESSFUL( res ))
-        return res;
+    if (  ((pOptState->flags & OPTST_DEFINED) != 0)
+       && ((pOptState->pOD->fOptState & OPTST_NO_COMMAND) != 0)) {
+        fprintf(stderr, zNotCmdOpt, pOptState->pOD->pz_Name);
+        return FAILURE;
+    }
+
     pOptState->flags |= (pOptState->pOD->fOptState & OPTST_PERSISTENT_MASK);
-    at = OPTST_GET_ARGTYPE(pOptState->flags);
 
     /*
      *  Figure out what to do about option arguments.  An argument may be
@@ -580,157 +755,30 @@ nextOption( tOptions* pOpts, tOptState* pOptState )
      *  latter by examining for an option marker on the next possible argument.
      *  Disabled mode option selection also disables option arguments.
      */
-    if ((pOptState->flags & OPTST_DISABLED) != 0)
-        arg_type = ARG_NONE;
-    else if (at == OPARG_TYPE_NONE)
-        arg_type = ARG_NONE;
-    else if (pOptState->flags & OPTST_ARG_OPTIONAL)
-        arg_type = ARG_MAY;
-    else
-        arg_type = ARG_MUST;
+    {
+        enum { ARG_NONE, ARG_MAY, ARG_MUST } arg_type = ARG_NONE;
+        tSuccess res;
 
-    switch (arg_type) {
-    case ARG_MUST:
-        /*
-         *  An option argument is required.  Long options can either have
-         *  a separate command line argument, or an argument attached by
-         *  the '=' character.  Figure out which.
-         */
-        switch (pOptState->optType) {
-        case TOPT_SHORT:
-            /*
-             *  See if an arg string follows the flag character
-             */
-            if (*++(pOpts->pzCurOpt) == NUL)
-                pOpts->pzCurOpt = pOpts->origArgVect[ pOpts->curOptIdx++ ];
-            pOptState->pzOptArg = pOpts->pzCurOpt;
-            break;
+        if ((pOptState->flags & OPTST_DISABLED) != 0)
+            arg_type = ARG_NONE;
 
-        case TOPT_LONG:
-            /*
-             *  See if an arg string has already been assigned (glued on
-             *  with an `=' character)
-             */
-            if (pOptState->pzOptArg == NULL)
-                pOptState->pzOptArg = pOpts->origArgVect[ pOpts->curOptIdx++ ];
-            break;
+        else if (OPTST_GET_ARGTYPE(pOptState->flags) == OPARG_TYPE_NONE)
+            arg_type = ARG_NONE;
 
-        default:
-#ifdef DEBUG
-            fputs( "AutoOpts lib error: option type not selected\n",
-                   stderr );
-            exit( EXIT_FAILURE );
-#endif
+        else if (pOptState->flags & OPTST_ARG_OPTIONAL)
+            arg_type = ARG_MAY;
 
-        case TOPT_DEFAULT:
-            /*
-             *  The option was selected by default.  The current token is
-             *  the option argument.
-             */
-            break;
-        }
-
-        /*
-         *  Make sure we did not overflow the argument list.
-         */
-        if (pOpts->curOptIdx > pOpts->origArgCt) {
-            fprintf( stderr, zMisArg, pOpts->pzProgPath,
-                     pOptState->pOD->pz_Name );
-            return FAILURE;
-        }
-
-        pOpts->pzCurOpt = NULL;  /* next time advance to next arg */
-        break;
-
-    case ARG_MAY:
-        /*
-         *  An option argument is optional.
-         */
-        switch (pOptState->optType) {
-        case TOPT_SHORT:
-            if (*++pOpts->pzCurOpt != NUL)
-                pOptState->pzOptArg = pOpts->pzCurOpt;
-            else {
-                char* pzLA = pOpts->origArgVect[ pOpts->curOptIdx ];
-
-                /*
-                 *  BECAUSE it is optional, we must make sure
-                 *  we did not find another flag and that there
-                 *  is such an argument.
-                 */
-                if ((pzLA == NULL) || (*pzLA == '-'))
-                    pOptState->pzOptArg = NULL;
-                else {
-                    pOpts->curOptIdx++; /* argument found */
-                    pOptState->pzOptArg = pzLA;
-                }
-            }
-            break;
-
-        case TOPT_LONG:
-            /*
-             *  Look for an argument if we don't already have one (glued on
-             *  with a `=' character) *AND* we are not in named argument mode
-             */
-            if (  (pOptState->pzOptArg == NULL)
-               && (! NAMED_OPTS(pOpts))) {
-                char* pzLA = pOpts->origArgVect[ pOpts->curOptIdx ];
-
-                /*
-                 *  BECAUSE it is optional, we must make sure
-                 *  we did not find another flag and that there
-                 *  is such an argument.
-                 */
-                if ((pzLA == NULL) || (*pzLA == '-'))
-                    pOptState->pzOptArg = NULL;
-                else {
-                    pOpts->curOptIdx++; /* argument found */
-                    pOptState->pzOptArg = pzLA;
-                }
-            }
-            break;
-
-        default:
-        case TOPT_DEFAULT:
-            fputs( "AutoOpts lib error: defaulted to option with optional arg\n",
-                   stderr );
-            exit( EX_SOFTWARE );
-        }
-
-        /*
-         *  After an option with an optional argument, we will
-         *  *always* start with the next option because if there
-         *  were any characters following the option name/flag,
-         *  they would be interpreted as the argument.
-         */
-        pOpts->pzCurOpt = NULL;
-        break;
-
-    default: /* CANNOT */
-        /*
-         *  No option argument.  Make sure next time around we find
-         *  the correct option flag character for short options
-         */
-        if (pOptState->optType == TOPT_SHORT)
-            (pOpts->pzCurOpt)++;
-
-        /*
-         *  It is a long option.  Make sure there was no ``=xxx'' argument
-         */
-        else if (pOptState->pzOptArg != NULL) {
-            fprintf( stderr, zNoArg, pOpts->pzProgPath,
-                     pOptState->pOD->pz_Name );
-            return FAILURE;
-        }
-
-        /*
-         *  It is a long option.  Advance to next command line argument.
-         */
         else
-            pOpts->pzCurOpt = NULL;
-    }
+            arg_type = ARG_MUST;
 
-    return SUCCESS;
+        switch (arg_type) {
+        case ARG_MUST: res = next_opt_arg_must(pOpts, pOptState); break;
+        case ARG_MAY:  res = next_opt_arg_may( pOpts, pOptState); break;
+        case ARG_NONE: res = next_opt_arg_none(pOpts, pOptState); break;
+        }
+
+        return res;
+    }
 }
 
 
@@ -747,11 +795,12 @@ nextOption( tOptions* pOpts, tOptState* pOptState )
  *  line arguments.
  */
 
-/*
- *  doImmediateOpts - scan the command line for immediate action options
+/**
+ *  scan the command line for immediate action options.
+ *  This is only called the first time through.
  */
 LOCAL tSuccess
-doImmediateOpts( tOptions* pOpts )
+doImmediateOpts(tOptions* pOpts)
 {
     pOpts->curOptIdx = 1;     /* start by skipping program name */
     pOpts->pzCurOpt  = NULL;
@@ -763,73 +812,76 @@ doImmediateOpts( tOptions* pOpts )
     for (;;) {
         tOptState optState = OPTSTATE_INITIALIZER(PRESET);
 
-        switch (nextOption( pOpts, &optState )) {
-        case FAILURE: goto optionsDone;
+        switch (nextOption(pOpts, &optState)) {
+        case FAILURE: goto   failed_option;
         case PROBLEM: return SUCCESS; /* no more args */
         case SUCCESS: break;
         }
 
         /*
-         *  IF this *is* an immediate-attribute option, then do it.
+         *  IF this is an immediate-attribute option, then do it.
          */
         if (! DO_IMMEDIATELY(optState.flags))
             continue;
 
-        if (! SUCCESSFUL( handleOption( pOpts, &optState )))
+        if (! SUCCESSFUL(handle_opt(pOpts, &optState)))
             break;
-    } optionsDone:;
+    } failed_option:;
 
     if ((pOpts->fOptSet & OPTPROC_ERRSTOP) != 0)
-        (*pOpts->pUsageProc)( pOpts, EXIT_FAILURE );
+        (*pOpts->pUsageProc)(pOpts, EXIT_FAILURE);
+
     return FAILURE;
 }
 
-
+/**
+ * Process all the options from our current position onward.  (This allows
+ * interspersed options and arguments for the few non-standard programs that
+ * require it.)  Thus, do not rewind option indexes because some programs
+ * choose to re-invoke after a non-option.
+ */
 LOCAL tSuccess
-doRegularOpts( tOptions* pOpts )
+doRegularOpts(tOptions* pOpts)
 {
-    /*
-     *  Now, process all the options from our current position onward.
-     *  (This allows interspersed options and arguments for the few
-     *  non-standard programs that require it.)
-     */
     for (;;) {
         tOptState optState = OPTSTATE_INITIALIZER(DEFINED);
 
-        switch (nextOption( pOpts, &optState )) {
-        case FAILURE: goto optionsDone;
+        switch (nextOption(pOpts, &optState)) {
+        case FAILURE: goto   failed_option;
         case PROBLEM: return SUCCESS; /* no more args */
         case SUCCESS: break;
         }
 
         /*
-         *  IF this is not being processed normally (i.e. is immediate action)
+         *  IF this is an immediate action option,
          *  THEN skip it (unless we are supposed to do it a second time).
          */
         if (! DO_NORMALLY(optState.flags)) {
             if (! DO_SECOND_TIME(optState.flags))
                 continue;
-            optState.pOD->optOccCt--; /* don't count last time */
+            optState.pOD->optOccCt--; /* don't count this repetition */
         }
 
-        if (! SUCCESSFUL( handleOption( pOpts, &optState )))
+        if (! SUCCESSFUL(handle_opt(pOpts, &optState)))
             break;
-    } optionsDone:;
+    } failed_option:;
+
     if ((pOpts->fOptSet & OPTPROC_ERRSTOP) != 0)
-        (*pOpts->pUsageProc)( pOpts, EXIT_FAILURE );
+        (*pOpts->pUsageProc)(pOpts, EXIT_FAILURE);
+
     return FAILURE;
 }
 
 
-/*
- *  doPresets - check for preset values from a config file or the envrionment
+/**
+ *  check for preset values from a config files or envrionment variables
  */
 static tSuccess
-doPresets( tOptions* pOpts )
+doPresets(tOptions* pOpts)
 {
     tOptDesc * pOD = NULL;
 
-    if (! SUCCESSFUL( doImmediateOpts( pOpts )))
+    if (! SUCCESSFUL(doImmediateOpts(pOpts)))
         return FAILURE;
 
     /*
@@ -837,7 +889,8 @@ doPresets( tOptions* pOpts )
      *  has a --load-opts option.  See if a command line option has disabled
      *  option presetting.
      */
-    if (pOpts->specOptIdx.save_opts != 0) {
+    if (  (pOpts->specOptIdx.save_opts != NO_EQUIVALENT)
+       && (pOpts->specOptIdx.save_opts != 0)) {
         pOD = pOpts->pOptDesc + pOpts->specOptIdx.save_opts + 1;
         if (DISABLED_OPT(pOD))
             return SUCCESS;
@@ -852,22 +905,22 @@ doPresets( tOptions* pOpts )
      *  THEN do any environment presets and leave.
      */
     if (pOpts->papzHomeList == NULL) {
-        doEnvPresets( pOpts, ENV_ALL );
+        doEnvPresets(pOpts, ENV_ALL);
     }
     else {
-        doEnvPresets( pOpts, ENV_IMM );
+        doEnvPresets(pOpts, ENV_IMM);
 
         /*
          *  Check to see if environment variables have disabled presetting.
          */
         if ((pOD != NULL) && ! DISABLED_OPT(pOD))
-            internalFileLoad( pOpts );
+            internalFileLoad(pOpts);
 
         /*
          *  ${PROGRAM_LOAD_OPTS} value of "no" cannot disable other environment
          *  variable options.  Only the loading of .rc files.
          */
-        doEnvPresets( pOpts, ENV_NON_IMM );
+        doEnvPresets(pOpts, ENV_NON_IMM);
     }
     pOpts->fOptSet &= ~OPTPROC_PRESETTING;
 
@@ -882,7 +935,7 @@ doPresets( tOptions* pOpts )
  *  Make sure that the argument list passes our consistency tests.
  */
 static int
-checkConsistency( tOptions* pOpts )
+checkConsistency(tOptions* pOpts)
 {
     int        errCt = 0;
     tOptDesc*  pOD   = pOpts->pOptDesc;
@@ -907,7 +960,7 @@ checkConsistency( tOptions* pOpts )
                 if (UNUSED_OPT(p)) {
                     const tOptDesc* pN = pOpts->pOptDesc + pMust[-1];
                     errCt++;
-                    fprintf( stderr, zReqFmt, pOD->pz_Name, pN->pz_Name );
+                    fprintf(stderr, zReqFmt, pOD->pz_Name, pN->pz_Name);
                 }
 
                 if (*pMust == NO_EQUIVALENT)
@@ -919,7 +972,7 @@ checkConsistency( tOptions* pOpts )
                 if (SELECTED_OPT(p)) {
                     const tOptDesc* pN = pOpts->pOptDesc + pCant[-1];
                     errCt++;
-                    fprintf( stderr, zCantFmt, pOD->pz_Name, pN->pz_Name );
+                    fprintf(stderr, zCantFmt, pOD->pz_Name, pN->pz_Name);
                 }
 
                 if (*pCant == NO_EQUIVALENT)
@@ -951,8 +1004,8 @@ checkConsistency( tOptions* pOpts )
 
             errCt++;
             if (pOD->optMinCt > 1)
-                 fprintf( stderr, zNotEnough, pOD->pz_Name, pOD->optMinCt );
-            else fprintf( stderr, zNeedOne, pOD->pz_Name );
+                 fprintf(stderr, zNotEnough, pOD->pz_Name, pOD->optMinCt);
+            else fprintf(stderr, zNeedOne, pOD->pz_Name);
         } while (0);
 
         if (--oCt <= 0)
@@ -971,7 +1024,7 @@ checkConsistency( tOptions* pOpts )
          */
         if ((pOpts->fOptSet & OPTPROC_NO_ARGS) != 0) {
             if (pOpts->origArgCt > pOpts->curOptIdx) {
-                fprintf( stderr, zNoArgs, pOpts->pzProgName );
+                fprintf(stderr, zNoArgs, pOpts->pzProgName);
                 ++errCt;
             }
         }
@@ -981,7 +1034,7 @@ checkConsistency( tOptions* pOpts )
          */
         else if ((pOpts->fOptSet & OPTPROC_ARGS_REQ) != 0) {
             if (pOpts->origArgCt <= pOpts->curOptIdx) {
-                fprintf( stderr, zArgsMust, pOpts->pzProgName );
+                fprintf(stderr, zArgsMust, pOpts->pzProgName);
                 ++errCt;
             }
         }
@@ -1044,13 +1097,10 @@ checkConsistency( tOptions* pOpts )
  *       ERRSKIP_OPTERR or ERRSTOP_OPTERR macros were invoked.
 =*/
 int
-optionProcess(
-    tOptions*  pOpts,
-    int        argCt,
-    char**     argVect )
+optionProcess(tOptions * pOpts, int argCt, char ** argVect)
 {
-    if (! SUCCESSFUL( validateOptionsStruct( pOpts, argVect[0] )))
-        exit( EX_SOFTWARE );
+    if (! SUCCESSFUL(validateOptionsStruct(pOpts, argVect[0])))
+        exit(EX_SOFTWARE);
 
     /*
      *  Establish the real program name, the program full path,
@@ -1060,12 +1110,28 @@ optionProcess(
         pOpts->origArgCt   = argCt;
         pOpts->origArgVect = argVect;
         pOpts->fOptSet    |= OPTPROC_INITDONE;
+        if (HAS_pzPkgDataDir(pOpts))
+            program_pkgdatadir = pOpts->pzPkgDataDir;
 
-        if (! SUCCESSFUL( doPresets( pOpts )))
+        if (! SUCCESSFUL(doPresets(pOpts)))
             return 0;
 
+        /*
+         *  IF option name conversion was suppressed but it is not suppressed
+         *  for the command line, then it's time to translate option names.
+         *  Usage text will not get retranslated.
+         */
+        if (  ((pOpts->fOptSet & OPTPROC_TRANSLATE) != 0)
+           && (pOpts->pTransProc != NULL)
+           && ((pOpts->fOptSet & OPTPROC_NO_XLAT_MASK)
+              == OPTPROC_NXLAT_OPT_CFG)  )  {
+
+            pOpts->fOptSet &= ~OPTPROC_NXLAT_OPT_CFG;
+            (*pOpts->pTransProc)();
+        }
+
         if ((pOpts->fOptSet & OPTPROC_REORDER) != 0)
-            optionSort( pOpts );
+            optionSort(pOpts);
 
         pOpts->curOptIdx   = 1;
         pOpts->pzCurOpt    = NULL;
@@ -1080,7 +1146,7 @@ optionProcess(
         pOpts->pzCurOpt  = NULL;
     }
 
-    if (! SUCCESSFUL( doRegularOpts( pOpts )))
+    if (! SUCCESSFUL(doRegularOpts(pOpts)))
         return pOpts->origArgCt;
 
     /*
@@ -1090,12 +1156,13 @@ optionProcess(
      *  THEN do that now before testing for conflicts.
      *       (conflicts are ignored in preset options)
      */
-    if (pOpts->specOptIdx.save_opts != 0) {
+    if (  (pOpts->specOptIdx.save_opts != NO_EQUIVALENT)
+       && (pOpts->specOptIdx.save_opts != 0)) {
         tOptDesc*  pOD = pOpts->pOptDesc + pOpts->specOptIdx.save_opts;
 
-        if (SELECTED_OPT( pOD )) {
-            optionSaveFile( pOpts );
-            exit( EXIT_SUCCESS );
+        if (SELECTED_OPT(pOD)) {
+            optionSaveFile(pOpts);
+            exit(EXIT_SUCCESS);
         }
     }
 
@@ -1104,8 +1171,8 @@ optionProcess(
      *  THEN look for too few occurrences of required options
      */
     if ((pOpts->fOptSet & OPTPROC_ERRSTOP) != 0) {
-        if (checkConsistency( pOpts ) != 0)
-            (*pOpts->pUsageProc)( pOpts, EXIT_FAILURE );
+        if (checkConsistency(pOpts) != 0)
+            (*pOpts->pUsageProc)(pOpts, EXIT_FAILURE);
     }
 
     return pOpts->curOptIdx;

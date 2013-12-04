@@ -2,8 +2,8 @@
  * Collect all machine dependent idiosyncrasies in one place.
  */
 
-#ifndef __ntp_machine
-#define __ntp_machine
+#ifndef NTP_MACHINE_H
+#define NTP_MACHINE_H
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
@@ -74,23 +74,11 @@ WILL IOCTL(SIOCGIFCONF) WORK ON A SOCKET
 
 MISC
 
-  HAVE_PROTOTYPES	- Prototype functions
   DOSYNCTODR		- Resync TODR clock  every hour.
   RETSIGTYPE		- Define signal function type.
   NO_SIGNED_CHAR_DECL - No "signed char" see include/ntp.h
   LOCK_PROCESS		- Have plock.
 */
-
-/*
- * Set up for prototyping (duplicated from ntp_types.h)
- */
-#ifndef P
-#if defined(__STDC__) || defined(HAVE_PROTOTYPES)
-#define P(x)    x
-#else /* not __STDC__ and not HAVE_PROTOTYPES */
-#define P(x)    ()
-#endif /* not __STDC__ and not HAVE_PROTOTYPES */
-#endif /* P */
 
 #if !defined(HAVE_NTP_ADJTIME) && defined(HAVE___ADJTIMEX)
 # define ntp_adjtime __adjtimex
@@ -239,55 +227,16 @@ typedef unsigned long u_long;
  * make them macros for everyone else
  */
 #ifndef SYS_WINNT
-# define SOCKET	int
+typedef int SOCKET;
 # define INVALID_SOCKET	-1
 # define SOCKET_ERROR	-1
-# define closesocket close
+# define socket_errno()		(errno)
+# define closesocket(fd)	close(fd)
+#else	/* SYS_WINNT follows */
+# define socket_errno()		(errno = WSAGetLastError())
 #endif
-/*
- * Windows NT
- */
-#if defined(SYS_WINNT)
-# if !defined(HAVE_CONFIG_H)  || !defined(__config)
-# include <config.h>
-# endif /* HAVE_CONFIG_H) */
-# include <windows.h>
-# include <ws2tcpip.h>
-# include <winsock2.h>
 
-# define ifreq _INTERFACE_INFO
-# define ifr_flags iiFlags
-# define ifr_addr iiAddress.AddressIn
-# define ifr_broadaddr iiBroadcastAddress.AddressIn
-# define ifr_mask iiNetmask.AddressIn
-# define zz_family sin_family
-
-# define S_IFREG _S_IFREG
-# define stat _stat
-# define isascii __isascii
-# define isatty _isatty
-# define mktemp _mktemp
-# define unlink _unlink
-# define fileno _fileno
-# define write _write
-#ifndef close
-# define close _close
-#endif
-# undef interface
-# include <process.h>
-#define getpid _getpid
-/*
- * Defining registers are not a good idea on Windows
- * This gets rid of the usage
- */
-#ifndef register
-# define register
-#endif
- typedef char *caddr_t;
-# define vsnprintf _vsnprintf
-#endif /* SYS_WINNT */
-
-int ntp_set_tod P((struct timeval *tvp, void *tzp));
+int ntp_set_tod (struct timeval *tvp, void *tzp);
 
 #if defined (SYS_CYGWIN32)
 #include <windows.h>
@@ -326,7 +275,7 @@ int ntp_set_tod P((struct timeval *tvp, void *tzp));
 #include "taskLib.h"
 #include "time.h"
 
-extern int sysClkRateGet P(());
+extern int sysClkRateGet ();
 
 /* usrtime.h
  * Bob Herlien's excellent time code find it at:
@@ -335,14 +284,14 @@ extern int sysClkRateGet P(());
  * adjtime() too ... casey
  */
 /*
-extern int	  gettimeofday P(( struct timeval *tp, struct timezone *tzp ));
-extern int	  settimeofday P((struct timeval *, struct timezone *));
-extern int	  adjtime P(( struct timeval *delta, struct timeval *olddelta ));
+extern int	  gettimeofday ( struct timeval *tp, struct timezone *tzp );
+extern int	  settimeofday (struct timeval *, struct timezone *);
+extern int	  adjtime ( struct timeval *delta, struct timeval *olddelta );
  */
 
 /* in  machines.c */
-extern void sleep P((int seconds));
-extern void alarm P((int seconds));
+extern void sleep (int seconds);
+extern void alarm (int seconds);
 /* machines.c */
 
 
@@ -382,10 +331,10 @@ extern int h_errno;
 
 #define TRY_AGAIN	2
 
-struct hostent *gethostbyname P((char * netnum));
-struct hostent *gethostbyaddr P((char * netnum, int size, int addr_type));
+struct hostent *gethostbyname (char * netnum);
+struct hostent *gethostbyaddr (char * netnum, int size, int addr_type);
 /* type is the protocol */
-struct servent *getservbyname P((char *name, char *type));
+struct servent *getservbyname (char *name, char *type);
 #endif	/* NO_NETDB */
 
 #ifdef NO_MAIN_ALLOWED
@@ -515,8 +464,7 @@ extern char *strdup(const char *);
 
 #if !defined(HAVE_ATT_NICE) \
 	&& !defined(HAVE_BSD_NICE) \
-	&& !defined(HAVE_NO_NICE) \
-	&& !defined(SYS_WINNT)
+	&& !defined(HAVE_NO_NICE)
 #include "ERROR: You must define one of the HAVE_xx_NICE defines!"
 #endif
 
@@ -544,7 +492,7 @@ extern char *strdup(const char *);
 #endif
 
 #ifndef HAVE_TIMEGM
-extern time_t	timegm		P((struct tm *));
+extern time_t	timegm		(struct tm *);
 #endif
 
 #ifdef HAVE_SYSV_TTYS
@@ -587,4 +535,4 @@ extern time_t	timegm		P((struct tm *));
 	BYTE_ORDER_NOT_DEFINED_FOR_AUTHENTICATION
 #endif
 
-#endif /* __ntp_machine */
+#endif	/* NTP_MACHINE_H */

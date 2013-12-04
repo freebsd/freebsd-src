@@ -20,9 +20,18 @@
 # define ntp_gettime(t)		syscall(SYS_ntp_gettime, (t))
 #else /* !NTP_SYSCALLS_STD */
 # ifdef HAVE___ADJTIMEX
-extern	int	__adjtimex	P((struct timex *));
+extern	int	__adjtimex	(struct timex *);
 
 #  define ntp_adjtime(t)	__adjtimex((t))
+
+#ifndef HAVE_STRUCT_NTPTIMEVAL
+struct ntptimeval
+{
+  struct timeval time;  /* current time (ro) */
+  long int maxerror;    /* maximum error (us) (ro) */
+  long int esterror;    /* estimated error (us) (ro) */
+};
+#endif
 
 static inline int
 ntp_gettime(

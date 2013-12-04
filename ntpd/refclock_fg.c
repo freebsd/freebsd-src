@@ -33,11 +33,11 @@
 /*
  * Function prototypes
  */
-static	int 	fg_init 		P((int));
-static	int 	fg_start 		P((int, struct peer *));
-static	void	fg_shutdown		P((int, struct peer *));
-static	void	fg_poll		P((int, struct peer *));
-static  void    fg_receive     P((struct recvbuf *));
+static	int 	fg_init 	(int);
+static	int 	fg_start 	(int, struct peer *);
+static	void	fg_shutdown	(int, struct peer *);
+static	void	fg_poll		(int, struct peer *);
+static  void    fg_receive	(struct recvbuf *);
 
 /* 
  * Forum Graphic unit control structure

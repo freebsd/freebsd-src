@@ -52,7 +52,7 @@
 #include <stdio.h>
 #else
 #include "sys/parsestreams.h"
-extern void printf P((const char *, ...));
+extern int printf (const char *, ...);
 #endif
 
 /*
@@ -89,8 +89,8 @@ extern void printf P((const char *, ...));
 #define   WS_MEST	0x04
 #define WS_LEAP		0x10
 
-static u_long cvt_schmid P((unsigned char *, int, struct format *, clocktime_t *, void *));
-static unsigned long inp_schmid P((parse_t *, unsigned int, timestamp_t *));
+static u_long cvt_schmid (unsigned char *, int, struct format *, clocktime_t *, void *);
+static unsigned long inp_schmid (parse_t *, unsigned int, timestamp_t *);
 
 clockformat_t clock_schmid =
 {

@@ -52,11 +52,11 @@
 /*
  * Function prototypes
  */
-char *sprintb		P((u_int, const char *));
-const char *timex_state	P((int));
+char *sprintb		(u_int, const char *);
+const char *timex_state	(int);
 
 #ifdef SIGSYS
-void pll_trap		P((int));
+void pll_trap		(int);
 
 static struct sigaction newsigsys;	/* new sigaction status */
 static struct sigaction sigsys;		/* current sigaction status */
@@ -67,6 +67,7 @@ static volatile int pll_control; /* (0) daemon, (1) kernel loop */
 static volatile int status;	/* most recent status bits */
 static volatile int flash;	/* most recent ntp_adjtime() bits */
 char* progname;
+volatile int debug;		/* for libntp */
 static char optargs[] = "MNT:cde:f:hm:o:rs:t:";
 
 int

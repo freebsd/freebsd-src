@@ -158,7 +158,28 @@
 				<p><b><tt>Gude Analog- und Digitalsystem GmbH 'Expert mouseCLOCK USB v2.0'</tt></b><br>
 				<br></p>
 
+			<li><b><tt>server 127.127.8.0-3 mode 20</tt></b>
+				<p><b><tt>RAWDCF receiver similar to mode 14, but operating @ 75 baud (DTR=high/RTS=low)</tt></b><br>
+				</p>
+				<p>Driving the DCF clocks at 75 baud may help to get them to work with a bunch of common USB serial converters, that do 75 but cannot do 50 baud at all, e.g. those based on Prolific PL2303.
+				<br></p>
+
+			<li><b><tt>server 127.127.8.0-3 mode 21</tt></b>
+				<p><b><tt>RAWDCF receiver similar to mode 16, but operating @ 75 baud (DTR=low/RTS=high) </tt></b><br>
+				</p>
+				<p>See comment from mode 20 clock.
+				<br></p>
+
+			<li><b><tt>server 127.127.8.0-3 mode 22</tt></b>
+				<p><b><tt>MEINBERG, mode 2 but with POWERUP trust </tt></b><br>
+				</p>
+
+			<li><b><tt>server 127.127.8.0-3 mode 23</tt></b>
+				<p><b><tt>MEINBERG, mode 7 but with POWERUP trust </tt></b><br>
+				</p>
+
 		</ul>
+
 		<p>Actual data formats and setup requirements of the various clocks can be found in <a href="../parsedata.html">NTP PARSE clock data formats</a>.</p>
 		<h4>Operation</h4>
 		<p>The reference clock support software carefully monitors the state transitions of the receiver. All state changes and exceptional events (such as loss of time code transmission) are logged via the syslog facility. Every hour a summary of the accumulated times for the clock states is listed via syslog.</p>

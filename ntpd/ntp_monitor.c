@@ -18,17 +18,14 @@
 #endif
 
 /*
- * I'm still not sure I like what I've done here. It certainly consumes
- * memory like it is going out of style, and also may not be as low
- * overhead as I'd imagined.
+ * Record statistics based on source address, mode and version. The
+ * receive procedure calls us with the incoming rbufp before it does
+ * anything else. While at it, implement rate controls for inbound
+ * traffic.
  *
- * Anyway, we record statistics based on source address, mode and
- * version (for now, anyway. Check the code).  The receive procedure
- * calls us with the incoming rbufp before it does anything else.
- *
- * Each entry is doubly linked into two lists, a hash table and a
- * most-recently-used list. When a packet arrives it is looked up in
- * the hash table.  If found, the statistics are updated and the entry
+ * Each entry is doubly linked into two lists, a hash table and a most-
+ * recently-used (MRU) list. When a packet arrives it is looked up in
+ * the hash table. If found, the statistics are updated and the entry
  * relinked at the head of the MRU list. If not found, a new entry is
  * allocated, initialized and linked into both the hash table and at the
  * head of the MRU list.
@@ -38,14 +35,12 @@
  * the memory limit. Then we free memory by grabbing entries off the
  * tail for the MRU list, unlinking from the hash table, and
  * reinitializing.
- *
- * trimmed back memory consumption ... jdg 8/94
  */
 /*
  * Limits on the number of structures allocated.  This limit is picked
- * with the illicit knowlege that we can only return somewhat less
- * than 8K bytes in a mode 7 response packet, and that each structure
- * will require about 20 bytes of space in the response.
+ * with the illicit knowlege that we can only return somewhat less than
+ * 8K bytes in a mode 7 response packet, and that each structure will
+ * require about 20 bytes of space in the response.
  *
  * ... I don't believe the above is true anymore ... jdg
  */
@@ -59,9 +54,9 @@
 /*
  * Hashing stuff
  */
-#define	MON_HASH_SIZE	128
-#define	MON_HASH_MASK	(MON_HASH_SIZE-1)
-#define	MON_HASH(addr)	sock_hash(addr)
+#define	MON_HASH_SIZE	NTP_HASH_SIZE
+#define	MON_HASH_MASK	NTP_HASH_MASK
+#define	MON_HASH(addr)	NTP_HASH_ADDR(addr)
 
 /*
  * Pointers to the hash table, the MRU list and the count table.  Memory
@@ -73,21 +68,30 @@ struct	mon_data mon_mru_list;
 
 /*
  * List of free structures structures, and counters of free and total
- * structures.  The free structures are linked with the hash_next field.
+ * structures. The free structures are linked with the hash_next field.
  */
 static  struct mon_data *mon_free;      /* free list or null if none */
 static	int mon_total_mem;		/* total structures allocated */
 static	int mon_mem_increments;		/* times called malloc() */
 
 /*
+ * Parameters of the RES_LIMITED restriction option. We define headway
+ * as the idle time between packets. A packet is discarded if the
+ * headway is less than the minimum, as well as if the average headway
+ * is less than eight times the increment.
+ */
+int	ntp_minpkt = NTP_MINPKT;	/* minimum (log 2 s) */
+int	ntp_minpoll = NTP_MINPOLL;	/* increment (log 2 s) */
+
+/*
  * Initialization state.  We may be monitoring, we may not.  If
  * we aren't, we may not even have allocated any memory yet.
  */
 int	mon_enabled;			/* enable switch */
-u_long	mon_age = 3000;			/* preemption limit */
+int	mon_age = 3000;			/* preemption limit */
 static	int mon_have_memory;
-static	void	mon_getmoremem	P((void));
-static	void	remove_from_hash P((struct mon_data *));
+static	void	mon_getmoremem	(void);
+static	void	remove_from_hash (struct mon_data *);
 
 /*
  * init_mon - initialize monitoring global data
@@ -101,7 +105,6 @@ init_mon(void)
 	 */
 	mon_enabled = MON_OFF;
 	mon_have_memory = 0;
-
 	mon_total_mem = 0;
 	mon_mem_increments = 0;
 	mon_free = NULL;
@@ -152,13 +155,13 @@ mon_stop(
 	register int i;
 
 	if (mon_enabled == MON_OFF)
-	    return;
+		return;
 	if ((mon_enabled & mode) == 0 || mode == MON_OFF)
-	    return;
+		return;
 
 	mon_enabled &= ~mode;
 	if (mon_enabled != MON_OFF)
-	    return;
+		return;
 	
 	/*
 	 * Put everything back on the free list
@@ -173,7 +176,6 @@ mon_stop(
 			md = md_next;
 		}
 	}
-
 	mon_mru_list.mru_next = &mon_mru_list;
 	mon_mru_list.mru_prev = &mon_mru_list;
 }
@@ -184,37 +186,39 @@ ntp_monclearinterface(struct interface *interface)
         struct mon_data *md;
 
 	for (md = mon_mru_list.mru_next; md != &mon_mru_list;
-	     md = md->mru_next) {
-	  if (md->interface == interface) 
-	    {
-	      /* dequeue from mru list and put to free list */
-	      md->mru_prev->mru_next = md->mru_next;
-	      md->mru_next->mru_prev = md->mru_prev;
-	      remove_from_hash(md);
-	      md->hash_next = mon_free;
-	      mon_free = md;
-	    }
+	    md = md->mru_next) {
+		if (md->interface == interface) {
+		      /* dequeue from mru list and put to free list */
+		      md->mru_prev->mru_next = md->mru_next;
+		      md->mru_next->mru_prev = md->mru_prev;
+		      remove_from_hash(md);
+		      md->hash_next = mon_free;
+		      mon_free = md;
+		}
 	}
 }
+
 
 /*
  * ntp_monitor - record stats about this packet
  *
- * Returns 1 if the packet is at the head of the list, 0 otherwise.
+ * Returns flags
  */
 int
 ntp_monitor(
-	struct recvbuf *rbufp
+	struct recvbuf *rbufp,
+	int	flags
 	)
 {
 	register struct pkt *pkt;
 	register struct mon_data *md;
-        struct sockaddr_storage addr;
-	register int hash;
+	sockaddr_u addr;
+	register u_int hash;
 	register int mode;
+	int	interval;
 
 	if (mon_enabled == MON_OFF)
-		return 0;
+		return (flags);
 
 	pkt = &rbufp->recv_pkt;
 	memset(&addr, 0, sizeof(addr));
@@ -223,14 +227,18 @@ ntp_monitor(
 	mode = PKT_MODE(pkt->li_vn_mode);
 	md = mon_hash[hash];
 	while (md != NULL) {
+		int	head;		/* headway increment */
+		int	leak;		/* new headway */
+		int	limit;		/* average threshold */
 
 		/*
 		 * Match address only to conserve MRU size.
 		 */
-		if (SOCKCMP(&md->rmtadr, &addr)) {
-			md->drop_count = current_time - md->lasttime;
+		if (SOCK_EQ(&md->rmtadr, &addr)) {
+			interval = current_time - md->lasttime;
 			md->lasttime = current_time;
 			md->count++;
+			md->flags = flags;
 			md->rmtport = NSRCPORT(&rbufp->recv_srcadr);
 			md->mode = (u_char) mode;
 			md->version = PKT_VERSION(pkt->li_vn_mode);
@@ -244,7 +252,49 @@ ntp_monitor(
 			md->mru_prev = &mon_mru_list;
 			mon_mru_list.mru_next->mru_prev = md;
 			mon_mru_list.mru_next = md;
-			return 1;
+
+			/*
+			 * At this point the most recent arrival is
+			 * first in the MRU list. Decrease the counter
+			 * by the headway, but not less than zero.
+			 */
+			md->leak -= interval;
+			if (md->leak < 0)
+				md->leak = 0;
+			head = 1 << ntp_minpoll;
+			leak = md->leak + head;
+			limit = NTP_SHIFT * head;
+#ifdef DEBUG
+			if (debug > 1)
+				printf("restrict: interval %d headway %d limit %d\n",
+				    interval, leak, limit);
+#endif
+
+			/*
+			 * If the minimum and average thresholds are not
+			 * exceeded, douse the RES_LIMITED and RES_KOD
+			 * bits and increase the counter by the headway
+			 * increment. Note that we give a 1-s grace for
+			 * the minimum threshold and a 2-s grace for the
+			 * headway increment. If one or both thresholds
+			 * are exceeded and the old counter is less than
+			 * the average threshold, set the counter to the
+			 * average threshold plus the inrcrment and
+			 * leave the RES_KOD bit lit. Othewise, leave
+			 * the counter alone and douse the RES_KOD bit.
+			 * This rate-limits the KoDs to no less than the
+			 * average headway.
+			 */
+			if (interval + 1 >= (1 << ntp_minpkt) &&
+			    leak < limit) {
+				md->leak = leak - 2;
+				md->flags &= ~(RES_LIMITED | RES_KOD);
+			} else if (md->leak < limit) {
+				md->leak = limit + head;
+			} else {
+				md->flags &= ~RES_KOD;
+			}
+			return (md->flags);
 		}
 		md = md->hash_next;
 	}
@@ -260,10 +310,9 @@ ntp_monitor(
 		 * Preempt from the MRU list if old enough.
 		 */
 		md = mon_mru_list.mru_prev;
-		/* We get 31 bits from ntp_random() */
-		if (((u_long)ntp_random()) / FRAC >
-		    (double)(current_time - md->lasttime) / mon_age)
-			return 0;
+		if (ntp_random() / (2. * FRAC) > (double)(current_time
+		    - md->lasttime) / mon_age)
+			return (flags & ~(RES_LIMITED | RES_KOD));
 
 		md->mru_prev->mru_next = &mon_mru_list;
 		mon_mru_list.mru_prev = md->mru_prev;
@@ -278,19 +327,20 @@ ntp_monitor(
 	/*
 	 * Got one, initialize it
 	 */
-	md->avg_interval = 0;
-	md->lasttime = current_time;
+	md->lasttime = md->firsttime = current_time;
 	md->count = 1;
-	md->drop_count = 0;
+	md->flags = flags & ~(RES_LIMITED | RES_KOD);
+	md->leak = 0;
 	memset(&md->rmtadr, 0, sizeof(md->rmtadr));
 	memcpy(&md->rmtadr, &addr, sizeof(addr));
 	md->rmtport = NSRCPORT(&rbufp->recv_srcadr);
 	md->mode = (u_char) mode;
 	md->version = PKT_VERSION(pkt->li_vn_mode);
 	md->interface = rbufp->dstadr;
-	md->cast_flags = (u_char)(((rbufp->dstadr->flags & INT_MCASTOPEN) &&
-	    rbufp->fd == md->interface->fd) ? MDF_MCAST: rbufp->fd ==
-		md->interface->bfd ? MDF_BCAST : MDF_UCAST);
+	md->cast_flags = (u_char)(((rbufp->dstadr->flags &
+	    INT_MCASTOPEN) && rbufp->fd == md->interface->fd) ?
+	    MDF_MCAST: rbufp->fd == md->interface->bfd ? MDF_BCAST :
+	    MDF_UCAST);
 
 	/*
 	 * Drop him into front of the hash table. Also put him on top of
@@ -302,7 +352,7 @@ ntp_monitor(
 	md->mru_prev = &mon_mru_list;
 	mon_mru_list.mru_next->mru_prev = md;
 	mon_mru_list.mru_next = md;
-	return 1;
+	return (md->flags);
 }
 
 
@@ -338,7 +388,7 @@ remove_from_hash(
 	struct mon_data *md
 	)
 {
-	register int hash;
+	register u_int hash;
 	register struct mon_data *md_prev;
 
 	hash = MON_HASH(&md->rmtadr);

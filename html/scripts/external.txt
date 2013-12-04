@@ -1,0 +1,15 @@
+document.write("<ul><p>External Links<br><ul>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/book.html'>Computer Network Time Synchronization - The Network Time Protocol (book)</a><br>\
+<li class='inline'><a href='http://www.ntp.org/index.html'>NTP Public Services Project (home page)</a><br>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/ntp.html'>NTP Research Project (home page)</a><br>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/exec.html'>Executive Summary: Computer Network Time Synchronization</a><br>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/leap.html'>The NTP Timescale and Leap Seconds</a><br>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/time.html'>NTP Timestamp Calculations</a><br>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/y2k.html'>The NTP Era and Era Numbering</a><br>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/stamp.html'>Timestamp Capture Principles</a><br>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/autocfg.html'>Autonomous Configuration</a><br>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/autokey.html'>Autonomous Authentication</a><br>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/proto.html'>Autokey Protocol</a><br>\
+<li class='inline'><a href='http://www.eecis.udel.edu/~mills/ident.html'>Autokey Identity Schemes</a><br>\
+<li class='inline'><a href='sitemap.html'>Site Map</a><\p>\
+</ul></ul>")

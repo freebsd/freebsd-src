@@ -12,10 +12,6 @@
 #include "ntp_random.h"
 #include "ntpd.h"		/* for sys_precision */
 
-#ifdef SIM
-# include "ntpsim.h"
-#endif /*SIM */
-
 #ifdef HAVE_SYS_PARAM_H
 # include <sys/param.h>
 #endif
@@ -26,24 +22,33 @@
 # include <utmpx.h>
 #endif /* HAVE_UTMPX_H */
 
+
+#define	FUZZ	500e-6		/* fuzz pivot */
+
 /*
  * These routines (get_systime, step_systime, adj_systime) implement an
  * interface between the system independent NTP clock and the Unix
- * system clock in various architectures and operating systems.
+ * system clock in various architectures and operating systems. Time is
+ * a precious quantity in these routines and every effort is made to
+ * minimize errors by unbiased rounding and amortizing adjustment
+ * residues.
  *
- * Time is a precious quantity in these routines and every effort is
- * made to minimize errors by always rounding toward zero and amortizing
- * adjustment residues. By default the adjustment quantum is 1 us for
- * the usual Unix tickadj() system call, but this can be increased if
- * necessary by the tick configuration command. For instance, when the
- * adjtime() quantum is a clock tick for a 100-Hz clock, the quantum
- * should be 10 ms.
+ * In order to improve the apparent resolution, provide unbiased
+ * rounding and insure that the readings cannot be predicted, the low-
+ * order unused portion of the time below the resolution limit is filled
+ * with an unbiased random fuzz.
+ *
+ * The sys_tick variable secifies the system clock tick interval in
+ * seconds. For systems that can interpolate between timer interrupts,
+ * the resolution is presumed much less than the time to read the system
+ * clock, which is the value of sys_tick after the precision has been
+ * determined. For those systems that cannot interpolate between timer
+ * interrupts, sys_tick will be much larger in the order of 10 ms, so the
+ * fuzz should be that value. For Sunses the tick is not interpolated, but
+ * the system clock is derived from a 2-MHz oscillator, so the resolution
+ * is 500 ns and sys_tick is 500 ns.
  */
-#if defined RELIANTUNIX_CLOCK || defined SCO5_CLOCK
-double	sys_tick = 10e-3;	/* 10 ms tickadj() */
-#else
-double	sys_tick = 1e-6;	/* 1 us tickadj() */
-#endif
+double	sys_tick = 0;		/* precision (time to read the clock) */
 double	sys_residual = 0;	/* adjustment residue (s) */
 
 #ifndef SIM
@@ -56,59 +61,61 @@ get_systime(
 	l_fp *now		/* system time */
 	)
 {
-	double dtemp;
+	double	dtemp;
 
 #if defined(HAVE_CLOCK_GETTIME) || defined(HAVE_GETCLOCK)
 	struct timespec ts;	/* seconds and nanoseconds */
 
 	/*
-	 * Convert Unix clock from seconds and nanoseconds to seconds.
-	 * The bottom is only two bits down, so no need for fuzz.
-	 * Some systems don't have that level of precision, however...
+	 * Convert Unix timespec from seconds and nanoseconds to NTP
+	 * seconds and fraction.
 	 */
 # ifdef HAVE_CLOCK_GETTIME
 	clock_gettime(CLOCK_REALTIME, &ts);
 # else
 	getclock(TIMEOFDAY, &ts);
 # endif
-	now->l_i = ts.tv_sec + JAN_1970;
-	dtemp = ts.tv_nsec / 1e9;
+	now->l_i = (int32)ts.tv_sec + JAN_1970;
+	dtemp = 0;
+	if (sys_tick > FUZZ)
+		dtemp = ntp_random() * 2. / FRAC * sys_tick * 1e9;
+	else if (sys_tick > 0)
+		dtemp = ntp_random() * 2. / FRAC;
+	dtemp = (ts.tv_nsec + dtemp) * 1e-9;
+	if (dtemp >= 1.) {
+		dtemp -= 1.;
+		now->l_i++;
+	} else if (dtemp < 0) {
+		dtemp += 1.;
+		now->l_i--;
+	}
+	now->l_uf = (u_int32)(dtemp * FRAC);
 
 #else /* HAVE_CLOCK_GETTIME || HAVE_GETCLOCK */
 	struct timeval tv;	/* seconds and microseconds */
 
 	/*
-	 * Convert Unix clock from seconds and microseconds to seconds.
-	 * Add in unbiased random fuzz beneath the microsecond.
+	 * Convert Unix timeval from seconds and microseconds to NTP
+	 * seconds and fraction.
 	 */
 	GETTIMEOFDAY(&tv, NULL);
 	now->l_i = tv.tv_sec + JAN_1970;
-	dtemp = tv.tv_usec / 1e6;
-
-#endif /* HAVE_CLOCK_GETTIME || HAVE_GETCLOCK */
-
-	/*
-	 * ntp_random() produces 31 bits (always nonnegative).
-	 * This bit is done only after the precision has been
-	 * determined.
-	 */
-	if (sys_precision != 0)
-		dtemp += (ntp_random() / FRAC - .5) / (1 <<
-		    -sys_precision);
-
-	/*
-	 * Renormalize to seconds past 1900 and fraction.
-	 */
-	dtemp += sys_residual;
-	if (dtemp >= 1) {
-		dtemp -= 1;
+	dtemp = 0;
+	if (sys_tick > FUZZ)
+		dtemp = ntp_random() * 2. / FRAC * sys_tick * 1e6;
+	else if (sys_tick > 0)
+		dtemp = ntp_random() * 2. / FRAC;
+	dtemp = (tv.tv_usec + dtemp) * 1e-6;
+	if (dtemp >= 1.) {
+		dtemp -= 1.;
 		now->l_i++;
 	} else if (dtemp < 0) {
-		dtemp += 1;
+		dtemp += 1.;
 		now->l_i--;
 	}
-	dtemp *= FRAC;
-	now->l_uf = (u_int32)dtemp;
+	now->l_uf = (u_int32)(dtemp * FRAC);
+
+#endif /* HAVE_CLOCK_GETTIME || HAVE_GETCLOCK */
 }
 
 
@@ -363,180 +370,11 @@ step_systime(
 /*
  * Clock routines for the simulator - Harish Nair, with help
  */
-/*
- * get_systime - return the system time in NTP timestamp format 
- */
-void
-get_systime(
-        l_fp *now		/* current system time in l_fp */        )
-{
-	/*
-	 * To fool the code that determines the local clock precision,
-	 * we advance the clock a minimum of 200 nanoseconds on every
-	 * clock read. This is appropriate for a typical modern machine
-	 * with nanosecond clocks. Note we make no attempt here to
-	 * simulate reading error, since the error is so small. This may
-	 * change when the need comes to implement picosecond clocks.
-	 */
-	if (ntp_node.ntp_time == ntp_node.last_time)
-		ntp_node.ntp_time += 200e-9;
-	ntp_node.last_time = ntp_node.ntp_time;
-	DTOLFP(ntp_node.ntp_time, now);
-}
- 
- 
-/*
- * adj_systime - advance or retard the system clock exactly like the
- * real thng.
- */
-int				/* always succeeds */
-adj_systime(
-        double now		/* time adjustment (s) */
-        )
-{
-	struct timeval adjtv;	/* new adjustment */
-	double	dtemp;
-	long	ticks;
-	int	isneg = 0;
 
-	/*
-	 * Most Unix adjtime() implementations adjust the system clock
-	 * in microsecond quanta, but some adjust in 10-ms quanta. We
-	 * carefully round the adjustment to the nearest quantum, then
-	 * adjust in quanta and keep the residue for later.
-	 */
-	dtemp = now + sys_residual;
-	if (dtemp < 0) {
-		isneg = 1;
-		dtemp = -dtemp;
-	}
-	adjtv.tv_sec = (long)dtemp;
-	dtemp -= adjtv.tv_sec;
-	ticks = (long)(dtemp / sys_tick + .5);
-	adjtv.tv_usec = (long)(ticks * sys_tick * 1e6);
-	dtemp -= adjtv.tv_usec / 1e6;
-	sys_residual = dtemp;
 
-	/*
-	 * Convert to signed seconds and microseconds for the Unix
-	 * adjtime() system call. Note we purposely lose the adjtime()
-	 * leftover.
-	 */
-	if (isneg) {
-		adjtv.tv_sec = -adjtv.tv_sec;
-		adjtv.tv_usec = -adjtv.tv_usec;
-		sys_residual = -sys_residual;
-	}
-	ntp_node.adj = now;
-	return (1);
-}
- 
- 
-/*
- * step_systime - step the system clock. We are religious here.
+/* SK: 
+ * The code that used to be here has been moved to ntpsim.c,
+ * where, IMHO, it rightfully belonged.
  */
-int				/* always succeeds */
-step_systime(
-        double now		/* step adjustment (s) */
-        )
-{
-#ifdef DEBUG
-	if (debug)
-		printf("step_systime: time %.6f adj %.6f\n",
-		   ntp_node.ntp_time, now);
+
 #endif
-	ntp_node.ntp_time += now;
-	return (1);
-}
-
-/*
- * node_clock - update the clocks
- */
-int				/* always succeeds */
-node_clock(
-	Node *n,		/* global node pointer */
-	double t		/* node time */
-	)
-{
-	double	dtemp;
-
-	/*
-	 * Advance client clock (ntp_time). Advance server clock
-	 * (clk_time) adjusted for systematic and random frequency
-	 * errors. The random error is a random walk computed as the
-	 * integral of samples from a Gaussian distribution.
-	 */
-	dtemp = t - n->ntp_time;
-	n->time = t;
-	n->ntp_time += dtemp;
-	n->ferr += gauss(0, dtemp * n->fnse);
-	n->clk_time += dtemp * (1 + n->ferr);
-
-	/*
-	 * Perform the adjtime() function. If the adjustment completed
-	 * in the previous interval, amortize the entire amount; if not,
-	 * carry the leftover to the next interval.
-	 */
-	dtemp *= n->slew;
-	if (dtemp < fabs(n->adj)) {
-		if (n->adj < 0) {
-			n->adj += dtemp;
-			n->ntp_time -= dtemp;
-		} else {
-			n->adj -= dtemp;
-			n->ntp_time += dtemp;
-		}
-	} else {
-		n->ntp_time += n->adj;
-		n->adj = 0;
-	}
-        return (0);
-}
-
- 
-/*
- * gauss() - returns samples from a gaussion distribution
- */
-double				/* Gaussian sample */
-gauss(
-	double m,		/* sample mean */
-	double s		/* sample standard deviation (sigma) */
-	)
-{
-        double q1, q2;
-
-	/*
-	 * Roll a sample from a Gaussian distribution with mean m and
-	 * standard deviation s. For m = 0, s = 1, mean(y) = 0,
-	 * std(y) = 1.
-	 */
-	if (s == 0)
-		return (m);
-        while ((q1 = drand48()) == 0);
-        q2 = drand48();
-        return (m + s * sqrt(-2. * log(q1)) * cos(2. * PI * q2));
-}
-
- 
-/*
- * poisson() - returns samples from a network delay distribution
- */
-double				/* delay sample (s) */
-poisson(
-	double m,		/* fixed propagation delay (s) */
-	double s		/* exponential parameter (mu) */
-	)
-{
-        double q1;
-
-	/*
-	 * Roll a sample from a composite distribution with propagation
-	 * delay m and exponential distribution time with parameter s.
-	 * For m = 0, s = 1, mean(y) = std(y) = 1.
-	 */
-	if (s == 0)
-		return (m);
-        while ((q1 = drand48()) == 0);
-        return (m - s * log(q1 * s));
-}
-#endif /* SIM */

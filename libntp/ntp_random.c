@@ -39,9 +39,7 @@ static char sccsid[] = "@(#)random.c	8.2 (Berkeley) 5/19/95";
 #endif /* LIBC_SCCS and not lint */
 
 #include "config.h"
-#ifdef HAVE_SYS_TYPES_H
-# include <sys/types.h>
-#endif
+#include <sys/types.h>
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
@@ -219,7 +217,7 @@ static long rand_deg = DEG_3;
 static long rand_sep = SEP_3;
 static long *end_ptr = &randtbl[DEG_3 + 1];
 
-static inline long good_rand P((long));
+static inline long good_rand (long);
 
 static inline long
 good_rand (

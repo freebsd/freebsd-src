@@ -68,8 +68,8 @@ struct clktype clktypes[] = {
 	  "MSF_ARCRON" },
 	{ REFCLK_SHM,		"Clock attached thru shared Memory (28)",
 	  "SHM" },
-        { REFCLK_PALISADE,      "Trimble Navigation Palisade GPS (29)",
-          "GPS_PALISADE" },
+	{ REFCLK_PALISADE,	"Trimble Navigation Palisade GPS (29)",
+	  "GPS_PALISADE" },
 	{ REFCLK_ONCORE,	"Motorola UT Oncore GPS (30)",
 	  "GPS_ONCORE" },
 	{ REFCLK_GPS_JUPITER,	"Rockwell Jupiter GPS (31)",
@@ -78,7 +78,7 @@ struct clktype clktypes[] = {
 	  "CHRONOLOG" },
 	{ REFCLK_DUMBCLOCK,	"Dumb generic hh:mm:ss local clock (33)",
 	  "DUMBCLOCK" },
-	{ REFCLK_ULINK,         "Ultralink M320 WWVB receiver (34)",
+	{ REFCLK_ULINK,		"Ultralink M320 WWVB receiver (34)",
 	  "ULINK_M320"},
 	{ REFCLK_PCF,		"Conrad parallel port radio clock (35)",
 	  "PCF"},
@@ -112,7 +112,7 @@ clockname(
   
 	for (clk = clktypes; clk->code != -1; clk++) {
 		if (num == clk->code)
-		    return (clk->abbrev);
+			return (clk->abbrev);
 	}
 	return (NULL);
 }

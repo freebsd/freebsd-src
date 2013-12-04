@@ -15,7 +15,7 @@ test-main;
 flag = {
     name      = ipv4;
     value     = 4;
-    equivalence = ipv4;
+    flags-cant = ipv6;
     descrip   = "Force IPv4 DNS name resolution";
     doc = <<-  _EndOfDoc_
 	Force DNS resolution of following host names on the command line
@@ -26,7 +26,7 @@ flag = {
 flag = {
     name      = ipv6;
     value     = 6;
-    equivalence = ipv4;
+    flags-cant = ipv4;
     descrip   = "Force IPv6 DNS name resolution";
     doc = <<-  _EndOfDoc_
 	Force DNS resolution of following host names on the command line

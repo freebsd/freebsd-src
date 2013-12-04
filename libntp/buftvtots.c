@@ -11,6 +11,7 @@
 #include "ntp_string.h"
 #include "ntp_unixtime.h"
 
+#ifndef SYS_WINNT
 int
 buftvtots(
 	const char *bufp,
@@ -33,3 +34,20 @@ buftvtots(
 	TVUTOTSF(tv.tv_usec, ts->l_uf);
 	return 1;
 }
+#else	/* SYS_WINNT */
+/*
+ * Windows doesn't have the tty_clock line discipline, so
+ * don't look for a timestamp where there is none.
+ */
+int
+buftvtots(
+	const char *bufp,
+	l_fp *ts
+	)
+{
+	UNUSED_ARG(bufp);
+	UNUSED_ARG(ts);
+
+	return 0;
+}
+#endif	/* SYS_WINNT */

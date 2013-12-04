@@ -5,18 +5,18 @@
 	<head>
 		<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
 		<meta name="generator" content="HTML Tidy, see www.w3.org">
-		<title>ntpdsim - Network Time Protocol (NTP) simulator</title>
+		<title>ntpdsim - Network Time Protocol (NTP) Simulator</title>
 		<link href="scripts/style.css" type="text/css" rel="stylesheet">
 	</head>
 
 	<body>
-		<h3><tt>ntpdsim</tt> - Network Time Protocol (NTP) simulator</h3>
-		<img src="pic/alice47.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/%7emills/pictures.html">from <i>Alice's Adventures in Wonderland</i>, Lewis Carroll</a>
-		<p>The mushroom knows all the command line options.</p>
-		<p>Last update: <csobj format="ShortTime" h="25" locale="00000409" region="0" t="DateTime" w="61">21:32</csobj> UTC <csobj format="LongDate" h="25" locale="00000409" region="0" t="DateTime" w="223">Friday, June 16, 2006</csobj></p>
+		<h3><tt>ntpdsim</tt> - Network Time Protocol (NTP) Simulator</h3>
+		<img src="pic/oz2.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/%7emills/pictures.html">from <i>The Wizard of Oz</i>, L. Frank Baum</a>
+		<p>All in a row.</p>
+		<p>Last update: <csobj format="ShortTime" h="25" locale="00000409" region="0" t="DateTime" w="61">15:56</csobj> UTC <csobj format="LongDate" h="25" locale="00000409" region="0" t="DateTime" w="250">Sunday, March 02, 2008</csobj></p>
 		<br clear="left">
 		<h4>Related Links</h4>
-		<script type="text/javascript" language="javascript" src="scripts/links7.txt"></script>
+		<script type="text/javascript" language="javascript" src="scripts/manual.txt"></script>
 		<h4>Table of Contents</h4>
 		<ul>
 			<li><a href="#description">Description</a><br>
@@ -25,7 +25,14 @@
 		</ul>
 		<h4 id="description">Description</h4>
 		<p>The ntpdsim program is used to simulate and study the behavior of an NTP daemon that derives its time from a number of different simulated time sources (servers). Each simulated server can be configured to have a different time offset, frequency offset, propagation delay, processing delay, network jitter and oscillator wander.</p>
-		<p>The ntpdsim program runs all the same selection, mitigation, and discipline algorithms as the actual ntpd daemon at the client. (It actually uses the same code). However, the input/output routines and servers are simulated. That is, instead of sending the client messages over the network to the actual servers, the client messages are intercepted by the ntpdsim program, which then generates the replies to those messages. The reply messages are carefully "inserted" into the input queue of the client at the right time according to the specified server properties (like propagation delay).</p>
+		<p>The ntpdsim program runs all the same selection, mitigation, and discipline
+			algorithms as the actual ntpd daemon at the client. (It actually
+			uses the same code). However, the input/output routines and servers are simulated.
+			That is, instead of sending the client messages over the network
+			to the actual servers, the client messages are intercepted by the ntpdsim
+			program, which then generates the replies to those messages. The reply messages
+			are carefully &quot;inserted&quot; into the input queue of the client at the right time
+			according to the specified server properties (like propagation delay).</p>
 		<p>Each simulated server runs according to a specified script that describes the server properties at a particular time. Each script consists of a series of consecutive acts. Each act runs for a particular duration and specifies the frequency offset, propagation delay, processing delay, network jitter and oscillator wander of the server for that duration. Once the duration of an act expires, the simulated server reconfigures itself according to the properties specified in the next act.</p>
 		<h4 id="configuration">Configuration</h4>
 		<p>The ntpdsim program is configured by providing a configuration file at startup. The crux of the simulator configuration is specified using a <tt>simulate</tt> command, the syntax of which is given below. Note that all time quantities are in seconds and all frequency quantities are in parts per million (PPM):</p>

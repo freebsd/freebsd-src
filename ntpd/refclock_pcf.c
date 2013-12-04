@@ -38,9 +38,9 @@
 /*
  * Function prototypes
  */
-static	int 	pcf_start 		P((int, struct peer *));
-static	void	pcf_shutdown		P((int, struct peer *));
-static	void	pcf_poll		P((int, struct peer *));
+static	int 	pcf_start 		(int, struct peer *);
+static	void	pcf_shutdown		(int, struct peer *);
+static	void	pcf_poll		(int, struct peer *);
 
 /*
  * Transfer vector
@@ -72,10 +72,10 @@ pcf_start(
 	/*
 	 * Open device file for reading.
 	 */
-	(void)sprintf(device, DEVICE, unit);
+	snprintf(device, sizeof(device), DEVICE, unit);
 	fd = open(device, O_RDONLY);
 	if (fd == -1) {
-		(void)sprintf(device, OLDDEVICE, unit);
+		snprintf(device, sizeof(device), OLDDEVICE, unit);
 		fd = open(device, O_RDONLY);
 	}
 #ifdef DEBUG
@@ -143,6 +143,8 @@ pcf_poll(
 		refclock_report(peer, CEVNT_FAULT);
 		return;
 	}
+
+	memset(&tm, 0, sizeof(tm));
 
 	tm.tm_mday = buf[11] * 10 + buf[10];
 	tm.tm_mon = buf[13] * 10 + buf[12] - 1;

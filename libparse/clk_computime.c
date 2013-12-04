@@ -54,7 +54,7 @@
 #include <stdio.h>
 #else
 #include "sys/parsestreams.h"
-extern void printf P((const char *, ...));
+extern int printf (const char *, ...);
 #endif
 
 /*
@@ -88,8 +88,8 @@ static struct format computime_fmt =
 	0
 };
 
-static u_long cvt_computime P((unsigned char *, int, struct format *, clocktime_t *, void *));
-static unsigned long inp_computime P((parse_t *, unsigned int, timestamp_t *));
+static u_long cvt_computime (unsigned char *, int, struct format *, clocktime_t *, void *);
+static unsigned long inp_computime (parse_t *, unsigned int, timestamp_t *);
 
 clockformat_t   clock_computime =
 {

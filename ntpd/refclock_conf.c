@@ -138,7 +138,7 @@ extern	struct refclock refclock_nmea;
 #define	refclock_nmea	refclock_none
 #endif
 
-#ifdef CLOCK_ATOM
+#if defined (CLOCK_ATOM) && defined(HAVE_PPSAPI)
 extern	struct refclock	refclock_atom;
 #else
 #define refclock_atom	refclock_none
@@ -168,8 +168,8 @@ extern	struct refclock refclock_shm;
 #define refclock_shm refclock_none
 #endif
 
-#ifdef CLOCK_PALISADE
-extern  struct refclock refclock_palisade;
+#ifdef CLOCK_PALISADE 
+extern	struct refclock refclock_palisade;
 #else
 #define refclock_palisade refclock_none
 #endif
@@ -264,7 +264,7 @@ extern	struct refclock	refclock_neoclock4x;
  *
  * Types are defined in ntp.h.  The index must match this.
  */
-struct refclock *refclock_conf[] = {
+struct refclock * const refclock_conf[] = {
 	&refclock_none,		/* 0 REFCLK_NONE */
 	&refclock_local,	/* 1 REFCLK_LOCAL */
 	&refclock_none,		/* 2 deprecated: REFCLK_GPS_TRAK */

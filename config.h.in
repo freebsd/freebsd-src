@@ -9,9 +9,6 @@
 /* CHU audio/decoder? */
 #undef AUDIO_CHU
 
-/* Declare char *sys_errlist array */
-#undef CHAR_SYS_ERRLIST
-
 /* ACTS modem service */
 #undef CLOCK_ACTS
 
@@ -150,10 +147,10 @@
 /* Ultralink M320 WWVB receiver? */
 #undef CLOCK_ULINK
 
-/* VARITEXT protocol */
+/* VARITEXT clock */
 #undef CLOCK_VARITEXT
 
-/* WHARTON 400A Series protocol */
+/* WHARTON 400A Series clock */
 #undef CLOCK_WHARTON_400A
 
 /* WWV audio driver */
@@ -162,7 +159,7 @@
 /* Zyfer GPStarplus */
 #undef CLOCK_ZYFER
 
-/* Enable debugging? */
+/* Enable ntpd debugging code? */
 #undef DEBUG
 
 /* Enable processing time debugging? */
@@ -267,17 +264,23 @@
 /* What is the fallback value for HZ? */
 #undef DEFAULT_HZ
 
+/* Directory separator character, usually / or \\ */
+#undef DIR_SEP
+
+/* use old autokey session key behavior? */
+#undef DISABLE_BUG1243_FIX
+
 /* synch TODR hourly? */
 #undef DOSYNCTODR
 
 /* The number of minutes in a DST adjustment */
 #undef DSTMINUTES
 
-/* fopen(3) accepts a 'b' in the mode flag */
-#undef FOPEN_BINARY_FLAG
+/* number of args to el_init() */
+#undef EL_INIT_ARGS
 
-/* fopen(3) accepts a 't' in the mode flag */
-#undef FOPEN_TEXT_FLAG
+/* Force deferred DNS lookups? */
+#undef FORCE_DEFER_DNS
 
 /* force ntpdate to step the clock if !defined(STEP_SLEW) ? */
 #undef FORCE_NTPDATE_STEP
@@ -285,7 +288,7 @@
 /* What is getsockname()'s socklen type? */
 #undef GETSOCKNAME_SOCKLEN_TYPE
 
-/* Do we have a routing socket (struct rt_msghdr)? */
+/* Do we have a routing socket (rt_msghdr or rtattr)? */
 #undef HAS_ROUTING_SOCKET
 
 /* Define to 1 if you have the <arpa/nameser.h> header file. */
@@ -312,9 +315,6 @@
 /* Define to 1 if you have the `daemon' function. */
 #undef HAVE_DAEMON
 
-/* Define this if /dev/zero is readable device */
-#undef HAVE_DEV_ZERO
-
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
 #undef HAVE_DIRENT_H
@@ -328,23 +328,20 @@
 /* Define to 1 if you don't have `vprintf' but do have `_doprnt.' */
 #undef HAVE_DOPRNT
 
-/* [Can we drop root privileges?] */
+/* Can we drop root privileges? */
 #undef HAVE_DROPROOT
 
 /* Define to 1 if you have the <errno.h> header file. */
 #undef HAVE_ERRNO_H
-
-/* Define to 1 if you have the `EVP_md2' function. */
-#undef HAVE_EVP_MD2
-
-/* Define to 1 if you have the `EVP_mdc2' function. */
-#undef HAVE_EVP_MDC2
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
 
 /* Define to 1 if you have the `finite' function. */
 #undef HAVE_FINITE
+
+/* Define to 1 if you have the `fork' function. */
+#undef HAVE_FORK
 
 /* Define to 1 if you have the `getbootfile' function. */
 #undef HAVE_GETBOOTFILE
@@ -358,16 +355,25 @@
 /* Define to 1 if you have the `getifaddrs' function. */
 #undef HAVE_GETIFADDRS
 
+/* Define to 1 if you have the `getpassphrase' function. */
+#undef HAVE_GETPASSPHRASE
+
 /* Define to 1 if you have the `getrusage' function. */
 #undef HAVE_GETRUSAGE
 
 /* Define to 1 if you have the `getuid' function. */
 #undef HAVE_GETUID
 
+/* Define to 1 if you have the <histedit.h> header file. */
+#undef HAVE_HISTEDIT_H
+
+/* Define to 1 if you have the <history.h> header file. */
+#undef HAVE_HISTORY_H
+
 /* Define to 1 if you have the `hstrerror' function. */
 #undef HAVE_HSTRERROR
 
-/* Obvious... */
+/* Obvious */
 #undef HAVE_HZ_IN_STRUCT_CLOCKINFO
 
 /* Define to 1 if you have the <ieeefp.h> header file. */
@@ -375,6 +381,9 @@
 
 /* have iflist_sysctl? */
 #undef HAVE_IFLIST_SYSCTL
+
+/* Define to 1 if you have the `if_nametoindex' function. */
+#undef HAVE_IF_NAMETOINDEX
 
 /* inline keyword or macro available */
 #undef HAVE_INLINE
@@ -400,20 +409,11 @@
 /* Define to 1 if you have the `isfinite' function. */
 #undef HAVE_ISFINITE
 
+/* Define to 1 if you have the <kvm.h> header file. */
+#undef HAVE_KVM_H
+
 /* Define to 1 if you have the `kvm_open' function. */
 #undef HAVE_KVM_OPEN
-
-/* Define to 1 if you have the `K_open' function. */
-#undef HAVE_K_OPEN
-
-/* Define to 1 if you have the `advapi32' library (-ladvapi32). */
-#undef HAVE_LIBADVAPI32
-
-/* Do we have the curses library? */
-#undef HAVE_LIBCURSES
-
-/* Do we have the edit library? */
-#undef HAVE_LIBEDIT
 
 /* Define to 1 if you have the `elf' library (-lelf). */
 #undef HAVE_LIBELF
@@ -436,8 +436,8 @@
 /* Define to 1 if you have the `posix4' library (-lposix4). */
 #undef HAVE_LIBPOSIX4
 
-/* Define to 1 if you have the `readline' library (-lreadline). */
-#undef HAVE_LIBREADLINE
+/* Define to 1 if you have the `resolv' library (-lresolv). */
+#undef HAVE_LIBRESOLV
 
 /* Define to 1 if you have the `rt' library (-lrt). */
 #undef HAVE_LIBRT
@@ -448,8 +448,14 @@
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
 
-/* [Do we have Linux capabilities?] */
+/* Do we have Linux capabilities? */
 #undef HAVE_LINUX_CAPABILITIES
+
+/* Define to 1 if you have the <linux/if_addr.h> header file. */
+#undef HAVE_LINUX_IF_ADDR_H
+
+/* Define to 1 if the system has the type `long'. */
+#undef HAVE_LONG
 
 /* Define to 1 if you have the <machine/inline.h> header file. */
 #undef HAVE_MACHINE_INLINE_H
@@ -508,6 +514,9 @@
 /* Define to 1 if you have the <netinet/in_systm.h> header file. */
 #undef HAVE_NETINET_IN_SYSTM_H
 
+/* Define to 1 if you have the <netinet/in_var.h> header file. */
+#undef HAVE_NETINET_IN_VAR_H
+
 /* Define to 1 if you have the <netinet/ip.h> header file. */
 #undef HAVE_NETINET_IP_H
 
@@ -523,6 +532,12 @@
 /* Define to 1 if you have the <net/if.h> header file. */
 #undef HAVE_NET_IF_H
 
+/* Define to 1 if you have the <net/if_var.h> header file. */
+#undef HAVE_NET_IF_VAR_H
+
+/* Define to 1 if you have the <net/netmp.h> header file. */
+#undef HAVE_NET_NETMP_H
+
 /* Define to 1 if you have the <net/route.h> header file. */
 #undef HAVE_NET_ROUTE_H
 
@@ -531,6 +546,9 @@
 
 /* Define to 1 if you have the `nlist' function. */
 #undef HAVE_NLIST
+
+/* Define to 1 if you have the <nlist.h> header file. */
+#undef HAVE_NLIST_H
 
 /* Define to 1 if you have the `ntp_adjtime' function. */
 #undef HAVE_NTP_ADJTIME
@@ -541,8 +559,8 @@
 /* Do we want support for Samba's signing daemon? */
 #undef HAVE_NTP_SIGND
 
-/* Define this if pathfind(3) works */
-#undef HAVE_PATHFIND
+/* Define to 1 if the system has the type `pid_t'. */
+#undef HAVE_PID_T
 
 /* Define to 1 if you have the `plock' function. */
 #undef HAVE_PLOCK
@@ -553,14 +571,17 @@
 /* Do we have the PPS API per the Draft RFC? */
 #undef HAVE_PPSAPI
 
-/* Are function prototypes OK? */
-#undef HAVE_PROTOTYPES
-
 /* Define to 1 if you have the `pututline' function. */
 #undef HAVE_PUTUTLINE
 
 /* Define to 1 if you have the `pututxline' function. */
 #undef HAVE_PUTUTXLINE
+
+/* Define to 1 if you have the <readline.h> header file. */
+#undef HAVE_READLINE_H
+
+/* Define if your readline library has \`add_history' */
+#undef HAVE_READLINE_HISTORY
 
 /* Define to 1 if you have the <readline/history.h> header file. */
 #undef HAVE_READLINE_HISTORY_H
@@ -571,22 +592,25 @@
 /* Define to 1 if you have the `readlink' function. */
 #undef HAVE_READLINK
 
-/* Define this if we have a functional realpath(3C) */
-#undef HAVE_REALPATH
-
 /* Define to 1 if you have the `recvmsg' function. */
 #undef HAVE_RECVMSG
 
 /* Define to 1 if you have the <resolv.h> header file. */
 #undef HAVE_RESOLV_H
 
+/* Define to 1 if you have the `res_init' function. */
+#undef HAVE_RES_INIT
+
+/* Do we have Linux routing socket? */
+#undef HAVE_RTNETLINK
+
 /* Define to 1 if you have the `rtprio' function. */
 #undef HAVE_RTPRIO
 
-/* Should be obvious... */
-#undef HAVE_SA_LEN_IN_STRUCT_SOCKADDR
+/* Define to 1 if you have the <runetype.h> header file. */
+#undef HAVE_RUNETYPE_H
 
-/* Obvious... */
+/* Obvious */
 #undef HAVE_SA_SIGACTION_IN_STRUCT_SIGACTION
 
 /* Define to 1 if you have the <sched.h> header file. */
@@ -640,17 +664,14 @@
 /* Define to 1 if you have the `sigvec' function. */
 #undef HAVE_SIGVEC
 
+/* Define to 1 if the system has the type `size_t'. */
+#undef HAVE_SIZE_T
+
 /* Define to 1 if you have the `snprintf' function. */
 #undef HAVE_SNPRINTF
 
-/* [Are Solaris privileges available?] */
+/* Are Solaris privileges available? */
 #undef HAVE_SOLARIS_PRIVS
-
-/* Does struct sockaddr_storage have ss_family? */
-#undef HAVE_SS_FAMILY_IN_SS
-
-/* Does struct sockaddr_storage have ss_len? */
-#undef HAVE_SS_LEN_IN_SS
 
 /* Define to 1 if you have the <stdarg.h> header file. */
 #undef HAVE_STDARG_H
@@ -673,9 +694,6 @@
 /* Define to 1 if you have the `strerror' function. */
 #undef HAVE_STRERROR
 
-/* Define this if strftime() works */
-#undef HAVE_STRFTIME
-
 /* Define to 1 if you have the <strings.h> header file. */
 #undef HAVE_STRINGS_H
 
@@ -684,6 +702,9 @@
 
 /* Define to 1 if you have the `strrchr' function. */
 #undef HAVE_STRRCHR
+
+/* Define to 1 if you have the `strsignal' function. */
+#undef HAVE_STRSIGNAL
 
 /* Define to 1 if you have the `strstr' function. */
 #undef HAVE_STRSTR
@@ -703,7 +724,7 @@
 /* Does a system header define struct sockaddr_storage? */
 #undef HAVE_STRUCT_SOCKADDR_STORAGE
 
-/* Do we have struct timespec? */
+/* struct timespec declared? */
 #undef HAVE_STRUCT_TIMESPEC
 
 /* Define to 1 if you have the <sun/audioio.h> header file. */
@@ -858,6 +879,9 @@
 /* Define to 1 if you have the <sys/un.h> header file. */
 #undef HAVE_SYS_UN_H
 
+/* Define to 1 if you have the <sys/var.h> header file. */
+#undef HAVE_SYS_VAR_H
+
 /* Define to 1 if you have the <sys/wait.h> header file. */
 #undef HAVE_SYS_WAIT_H
 
@@ -870,7 +894,7 @@
 /* Define to 1 if you have the <termio.h> header file. */
 #undef HAVE_TERMIO_H
 
-/* Obvious... */
+/* Obvious */
 #undef HAVE_TICKADJ_IN_STRUCT_CLOCKINFO
 
 /* Define to 1 if you have the `timegm' function. */
@@ -887,6 +911,9 @@
 
 /* Define to 1 if you have the <timex.h> header file. */
 #undef HAVE_TIMEX_H
+
+/* Define to 1 if the system has the type `time_t'. */
+#undef HAVE_TIME_T
 
 /* Do we have the TIOCGPPSEV ioctl (Solaris)? */
 #undef HAVE_TIOCGPPSEV
@@ -948,6 +975,12 @@
 /* Define to 1 if you have the <varargs.h> header file. */
 #undef HAVE_VARARGS_H
 
+/* Define to 1 if you have the `vfork' function. */
+#undef HAVE_VFORK
+
+/* Define to 1 if you have the <vfork.h> header file. */
+#undef HAVE_VFORK_H
+
 /* Define to 1 if you have the `vprintf' function. */
 #undef HAVE_VPRINTF
 
@@ -956,6 +989,21 @@
 
 /* Define to 1 if you have the `vsprintf' function. */
 #undef HAVE_VSPRINTF
+
+/* Define to 1 if you have the <wchar.h> header file. */
+#undef HAVE_WCHAR_H
+
+/* Define to 1 if the system has the type `wchar_t'. */
+#undef HAVE_WCHAR_T
+
+/* Define to 1 if the system has the type `wint_t'. */
+#undef HAVE_WINT_T
+
+/* Define to 1 if `fork' works. */
+#undef HAVE_WORKING_FORK
+
+/* Define to 1 if `vfork' works. */
+#undef HAVE_WORKING_VFORK
 
 /* Define to 1 if you have the </sys/sync/queue.h> header file. */
 #undef HAVE__SYS_SYNC_QUEUE_H
@@ -969,13 +1017,32 @@
 /* Define to 1 if you have the `__ntp_gettime' function. */
 #undef HAVE___NTP_GETTIME
 
+/* Define to 1 if you have the `__res_init' function. */
+#undef HAVE___RES_INIT
+
 /* Does struct sockaddr_storage have __ss_family? */
 #undef HAVE___SS_FAMILY_IN_SS
+
+
+	/* Handle sockaddr_storage.__ss_family */
+	#ifdef HAVE___SS_FAMILY_IN_SS
+	# define ss_family __ss_family
+	#endif /* HAVE___SS_FAMILY_IN_SS */
+    
+
 
 /* Does struct sockaddr_storage have __ss_len? */
 #undef HAVE___SS_LEN_IN_SS
 
-/* [Retry queries on _any_ DNS error?] */
+
+	/* Handle sockaddr_storage.__ss_len */
+	#ifdef HAVE___SS_LEN_IN_SS
+	# define ss_len __ss_len
+	#endif /* HAVE___SS_LEN_IN_SS */
+    
+
+
+/* Retry queries on _any_ DNS error? */
 #undef IGNORE_DNS_ERRORS
 
 /* Should we use the IRIG sawtooth filter? */
@@ -999,14 +1066,11 @@
 /* have IPv6? */
 #undef ISC_PLATFORM_HAVEIPV6
 
-/* ISC: struct sockaddr as sa_len? */
+/* struct sockaddr has sa_len? */
 #undef ISC_PLATFORM_HAVESALEN
 
-/* have sin6_scope_id? */
+/* sin6_scope_id? */
 #undef ISC_PLATFORM_HAVESCOPEID
-
-/* ISC: provide inet_aton() */
-#undef ISC_PLATFORM_NEEDATON
 
 /* missing in6addr_any? */
 #undef ISC_PLATFORM_NEEDIN6ADDRANY
@@ -1017,7 +1081,7 @@
 /* ISC: provide inet_ntop() */
 #undef ISC_PLATFORM_NEEDNTOP
 
-/* Do we need our own in_port_t? */
+/* Declare in_port_t? */
 #undef ISC_PLATFORM_NEEDPORTT
 
 /* ISC: provide inet_pton() */
@@ -1044,7 +1108,11 @@
 /* Should we align with the NIST lockclock scheme? */
 #undef LOCKCLOCK
 
-/* Does the kernel support multicasting IP? */
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#undef LT_OBJDIR
+
+/* Does the target support multicast IP? */
 #undef MCAST
 
 /* Should we recommend a minimum value for tickadj? */
@@ -1056,10 +1124,13 @@
 /* Do we want the HPUX FindConfig()? */
 #undef NEED_HPUX_FINDCONFIG
 
+/* We need to provide netsnmp_daemonize() */
+#undef NEED_NETSNMP_DAEMONIZE
+
 /* Do we need the qnx adjtime call? */
 #undef NEED_QNX_ADJTIME
 
-/* Do we need extra room for SO_RCVBUF? (HPUX <8) */
+/* Do we need extra room for SO_RCVBUF? (HPUX < 8) */
 #undef NEED_RCVBUF_SLOP
 
 /* Do we need an s_char typedef? */
@@ -1080,13 +1151,10 @@
 /* Define to 1 if your C compiler doesn't accept -c and -o together. */
 #undef NO_MINUS_C_MINUS_O
 
-/* Define this if optional arguments are disallowed */
-#undef NO_OPTIONAL_OPT_ARGS
-
 /* Should we avoid #warning on option name collisions? */
 #undef NO_OPTION_NAME_WARNINGS
 
-/* Is there a problem using PARENB and IGNPAR (IRIX)? */
+/* Is there a problem using PARENB and IGNPAR? */
 #undef NO_PARENB_IGNPAR
 
 /* Default location of crypto key info */
@@ -1113,8 +1181,7 @@
 /* need to recreate sockets on changed routing? */
 #undef OS_MISSES_SPECIFIC_ROUTE_UPDATES
 
-/* wildcard socket needs to set REUSEADDR when binding to interface addresses
-   */
+/* wildcard socket needs REUSEADDR to bind interface addresses */
 #undef OS_NEEDS_REUSEADDR_FOR_IFADDRBIND
 
 /* Do we need to override the system's idea of HZ? */
@@ -1141,11 +1208,11 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
+/* define to a working POSIX compliant shell */
+#undef POSIX_SHELL
+
 /* Do we have the ppsclock streams module? */
 #undef PPS
-
-/* PPS auxiliary interface for ATOM? */
-#undef PPS_SAMPLE
 
 /* PARSE kernel PLL PPS support */
 #undef PPS_SYNC
@@ -1156,9 +1223,6 @@
 /* Preset a value for 'tickadj'? */
 #undef PRESET_TICKADJ
 
-/* Define to 1 if the C compiler supports function prototypes. */
-#undef PROTOTYPES
-
 /* Does qsort expect to work on "void *" stuff? */
 #undef QSORT_USES_VOID_P
 
@@ -1168,14 +1232,14 @@
 /* Basic refclock support? */
 #undef REFCLOCK
 
-/* name of regex header file */
-#undef REGEX_HEADER
-
 /* Do we want the ReliantUNIX clock hacks? */
 #undef RELIANTUNIX_CLOCK
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #undef RETSIGTYPE
+
+/* saveconfig mechanism */
+#undef SAVECONFIG
 
 /* Do we want the SCO clock hacks? */
 #undef SCO5_CLOCK
@@ -1216,9 +1280,6 @@
 /* canonical system (cpu-vendor-os) of where we should run */
 #undef STR_SYSTEM
 
-/* Buggy syscall() (Solaris2.4)? */
-#undef SYSCALL_BUG
-
 /* Does Xettimeofday take 1 arg? */
 #undef SYSV_TIMEOFDAY
 
@@ -1251,9 +1312,6 @@ typedef unsigned int	uintptr_t;
 
 /* Do we set process groups with -pid? */
 #undef UDP_BACKWARDS_SETOWN
-
-/* How do we create unsigned long constants? */
-#undef ULONG_CONST
 
 /* Must we have a CTTY for fsetown? */
 #undef USE_FSETOWNCTTY
@@ -1292,12 +1350,6 @@ typedef unsigned int	uintptr_t;
 /* configure --enable-ipv6 */
 #undef WANT_IPV6
 
-/* Do we want the windows symmetric client hack? */
-#undef WINTIME
-
-/* Define this if a working libregex can be found */
-#undef WITH_LIBREGEX
-
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
 #if defined AC_APPLE_UNIVERSAL_BUILD
@@ -1310,16 +1362,6 @@ typedef unsigned int	uintptr_t;
 # endif
 #endif
 
-/* Handle ss_family */
-#if !defined(HAVE_SS_FAMILY_IN_SS) && defined(HAVE___SS_FAMILY_IN_SS)
-# define ss_family __ss_family
-#endif /* !defined(HAVE_SS_FAMILY_IN_SS) && defined(HAVE_SA_FAMILY_IN_SS) */
-
-/* Handle ss_len */
-#if !defined(HAVE_SS_LEN_IN_SS) && defined(HAVE___SS_LEN_IN_SS)
-# define ss_len __ss_len
-#endif /* !defined(HAVE_SS_LEN_IN_SS) && defined(HAVE_SA_LEN_IN_SS) */
-
 /* Define to 1 if on MINIX. */
 #undef _MINIX
 
@@ -1330,13 +1372,13 @@ typedef unsigned int	uintptr_t;
 /* Define to 1 if you need to in order for `stat' and other things to work. */
 #undef _POSIX_SOURCE
 
+/* Are we _special_? */
+#undef __APPLE_USE_RFC_3542
+
 /* Define to 1 if type `char' is unsigned and you are not using gcc.  */
 #ifndef __CHAR_UNSIGNED__
 # undef __CHAR_UNSIGNED__
 #endif
-
-/* Define like PROTOTYPES; this can be used by system headers. */
-#undef __PROTOTYPES
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
@@ -1353,17 +1395,27 @@ typedef unsigned int	uintptr_t;
 /* Define to `long int' if <sys/types.h> does not define. */
 #undef off_t
 
+/* Define to `int' if <sys/types.h> does not define. */
+#undef pid_t
+
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 #undef size_t
-
-/* Define to `long' if <sys/types.h> does not define. */
-#undef time_t
 
 /* Define to `int' if <sys/types.h> doesn't define. */
 #undef uid_t
 
-/* Alternate uintptr_t for systems without it. */
-#undef uintptr_t
+/* Define as `fork' if `vfork' does not work. */
+#undef vfork
 
-/* Does the compiler like "volatile"? */
+/* define away volatile? */
 #undef volatile
+
+
+#ifndef MPINFOU_PREDECLARED
+# define MPINFOU_PREDECLARED
+typedef union mpinfou {		/* For lint */
+	struct pdk_mpinfo *pdkptr;
+	struct mpinfo *pikptr;
+} mpinfou_t;
+#endif
+

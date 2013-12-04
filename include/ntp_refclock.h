@@ -110,7 +110,7 @@ struct refclockstat {
 	double	fudgetime1;	/* configure fudge time1 */
 	double	fudgetime2;	/* configure fudge time2 */
 	int32	fudgeval1;	/* configure fudge value1 */
-	int32	fudgeval2;	/* configure fudge value2 */
+	u_int32	fudgeval2;	/* configure fudge value2 */
 	u_char	currentstatus;	/* clock status */
 	u_char	lastevent;	/* last exception event */
 	u_char	leap;		/* leap bits */
@@ -123,14 +123,14 @@ struct refclockstat {
  */
 struct refclockio {
 	struct	refclockio *next; /* link to next structure */
-	void	(*clock_recv) P((struct recvbuf *)); /* completion routine */
-	int 	(*io_input)   P((struct recvbuf *)); /* input routine -
+	void	(*clock_recv) (struct recvbuf *); /* completion routine */
+	int 	(*io_input)   (struct recvbuf *); /* input routine -
 				to avoid excessive buffer use
 				due to small bursts
 				of refclock input data */
 	caddr_t	srcclock;	/* pointer to clock structure */
 	int	datalen;	/* lenth of data */
-	SOCKET	fd;		/* file descriptor */
+	int	fd;		/* file descriptor */
 	u_long	recvcount;	/* count of receive completions */
 };
 
@@ -177,7 +177,7 @@ struct refclockbug {
 
 struct refclockproc {
 	struct	refclockio io;	/* I/O handler structure */
-	caddr_t	unitptr;	/* pointer to unit structure */
+	void *	unitptr;	/* pointer to unit structure */
 	u_char	leap;		/* leap/synchronization code */
 	u_char	currentstatus;	/* clock status */
 	u_char	lastevent;	/* last exception event */
@@ -185,7 +185,7 @@ struct refclockproc {
 	const char *clockdesc;	/* clock description */
 
 	char	a_lastcode[BMAX]; /* last timecode received */
-	u_short	lencode;	/* length of last timecode */
+	int	lencode;	/* length of last timecode */
 
 	int	year;		/* year of eternity */
 	int	day;		/* day of year */
@@ -231,14 +231,14 @@ struct refclockproc {
 #define	NOFLAGS	0		/* flag for null flags */
 
 struct refclock {
-	int (*clock_start)	P((int, struct peer *));
-	void (*clock_shutdown)	P((int, struct peer *));
-	void (*clock_poll)	P((int, struct peer *));
-	void (*clock_control)	P((int, struct refclockstat *,
-				    struct refclockstat *, struct peer *));
-	void (*clock_init)	P((void));
-	void (*clock_buginfo)	P((int, struct refclockbug *, struct peer *));
-	void (*clock_timer)	P((int, struct peer *));
+	int (*clock_start)	(int, struct peer *);
+	void (*clock_shutdown)	(int, struct peer *);
+	void (*clock_poll)	(int, struct peer *);
+	void (*clock_control)	(int, struct refclockstat *,
+				    struct refclockstat *, struct peer *);
+	void (*clock_init)	(void);
+	void (*clock_buginfo)	(int, struct refclockbug *, struct peer *);
+	void (*clock_timer)	(int, struct peer *);
 };
 
 /*
@@ -247,27 +247,28 @@ struct refclock {
 /*
  * auxiliary PPS interface (implemented by refclock_atom())
  */
-extern	int	pps_sample P((l_fp *));
-extern	int	io_addclock_simple P((struct refclockio *));
-extern	int	io_addclock	P((struct refclockio *));
-extern	void	io_closeclock	P((struct refclockio *));
+extern	int	pps_sample (l_fp *);
+extern	int	io_addclock_simple (struct refclockio *);
+extern	int	io_addclock	(struct refclockio *);
+extern	void	io_closeclock	(struct refclockio *);
 
 #ifdef REFCLOCK
-extern	void	refclock_buginfo P((struct sockaddr_storage *,
-				    struct refclockbug *));
-extern	void	refclock_control P((struct sockaddr_storage *,
+extern	void	refclock_buginfo (sockaddr_u *,
+				    struct refclockbug *);
+extern	void	refclock_control (sockaddr_u *,
 				    struct refclockstat *,
-				    struct refclockstat *));
-extern	int	refclock_open	P((char *, u_int, u_int));
-extern	int	refclock_setup	P((int, u_int, u_int));
-extern	void	refclock_timer	P((struct peer *));
-extern	void	refclock_transmit P((struct peer *));
-extern	int	refclock_ioctl	P((int, u_int));
-extern 	int	refclock_process P((struct refclockproc *));
-extern 	void	refclock_process_offset P((struct refclockproc *, l_fp, l_fp, double));
-extern	void	refclock_report	P((struct peer *, int));
-extern	int	refclock_gtlin	P((struct recvbuf *, char *, int, l_fp *));
-extern	int	refclock_gtraw  P((struct recvbuf *, char *, int, l_fp *));
+				    struct refclockstat *);
+extern	int	refclock_open	(char *, u_int, u_int);
+extern	int	refclock_setup	(int, u_int, u_int);
+extern	void	refclock_timer	(struct peer *);
+extern	void	refclock_transmit (struct peer *);
+extern	int	refclock_ioctl	(int, u_int);
+extern 	int	refclock_process (struct refclockproc *);
+extern 	int	refclock_process_f (struct refclockproc *, double);
+extern 	void	refclock_process_offset (struct refclockproc *, l_fp, l_fp, double);
+extern	void	refclock_report	(struct peer *, int);
+extern	int	refclock_gtlin	(struct recvbuf *, char *, int, l_fp *);
+extern	int	refclock_gtraw  (struct recvbuf *, char *, int, l_fp *);
 #endif /* REFCLOCK */
 
 #endif /* NTP_REFCLOCK_H */

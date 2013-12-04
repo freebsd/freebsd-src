@@ -6,6 +6,7 @@
 
 #include "ntp_fp.h"
 #include "ntp_string.h"
+#include "ntp_assert.h"
 
 /*
  * Powers of 10
@@ -37,6 +38,8 @@ atolfp(
 	int ndec;
 	int isneg;
 	static const char *digits = "0123456789";
+
+	NTP_REQUIRE(str != NULL);
 
 	isneg = 0;
 	dec_i = dec_f = 0;

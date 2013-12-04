@@ -22,105 +22,143 @@ struct codestring {
 };
 
 /*
- * Leap values
+ * Leap status (leap)
  */
 static
 struct codestring leap_codes[] = {
 	{ LEAP_NOWARNING,	"leap_none" },
 	{ LEAP_ADDSECOND,	"leap_add_sec" },
 	{ LEAP_DELSECOND,	"leap_del_sec" },
-	{ LEAP_NOTINSYNC,	"sync_alarm" },
-	{ -1,	"leap" }
+	{ LEAP_NOTINSYNC,	"leap_alarm" },
+	{ -1,			"leap" }
 };
 
 /*
- * Clock source
+ * Clock source status (sync)
  */
 static
 struct codestring sync_codes[] = {
 	{ CTL_SST_TS_UNSPEC,	"sync_unspec" },
-	{ CTL_SST_TS_ATOM,	"sync_atomic" },
-	{ CTL_SST_TS_LF,	"sync_lf_clock" },
-	{ CTL_SST_TS_HF,	"sync_hf_clock" },
-	{ CTL_SST_TS_UHF,	"sync_uhf_clock" },
-	{ CTL_SST_TS_LOCAL,	"sync_local_proto" },
+	{ CTL_SST_TS_ATOM,	"sync_pps" },
+	{ CTL_SST_TS_LF,	"sync_lf_radio" },
+	{ CTL_SST_TS_HF,	"sync_hf_radio" },
+	{ CTL_SST_TS_UHF,	"sync_uhf_radio" },
+	{ CTL_SST_TS_LOCAL,	"sync_local" },
 	{ CTL_SST_TS_NTP,	"sync_ntp" },
-	{ CTL_SST_TS_UDPTIME,	"sync_udp/time" },
+	{ CTL_SST_TS_UDPTIME,	"sync_other" },
 	{ CTL_SST_TS_WRSTWTCH,	"sync_wristwatch" },
 	{ CTL_SST_TS_TELEPHONE,	"sync_telephone" },
 	{ -1,			"sync" }
 };
 
-
 /*
- * Peer selection
+ * Peer selection status (sel)
  */
 static
 struct codestring select_codes[] = {
-	{ CTL_PST_SEL_REJECT,	"selreject" },
+	{ CTL_PST_SEL_REJECT,	"sel_reject" },
 	{ CTL_PST_SEL_SANE,	"sel_falsetick" },
 	{ CTL_PST_SEL_CORRECT,	"sel_excess" },
 	{ CTL_PST_SEL_SELCAND,	"sel_outlyer" },
-	{ CTL_PST_SEL_SYNCCAND,	"sel_candidat" },
-	{ CTL_PST_SEL_DISTSYSPEER, "sel_selected" },
+	{ CTL_PST_SEL_SYNCCAND,	"sel_candidate" },
+	{ CTL_PST_SEL_EXCESS,	"sel_backup" },
 	{ CTL_PST_SEL_SYSPEER,	"sel_sys.peer" },
 	{ CTL_PST_SEL_PPS,	"sel_pps.peer" },
 	{ -1,			"sel" }
 };
 
-
 /*
- * Clock status
+ * Clock status (clk)
  */
 static
 struct codestring clock_codes[] = {
-	{ CTL_CLK_OKAY,		"clk_okay" },
-	{ CTL_CLK_NOREPLY,	"clk_noreply" },
-	{ CTL_CLK_BADFORMAT,	"clk_badformat" },
+	{ CTL_CLK_OKAY,		"clk_unspec" },
+	{ CTL_CLK_NOREPLY,	"clk_no_reply" },
+	{ CTL_CLK_BADFORMAT,	"clk_bad_format" },
 	{ CTL_CLK_FAULT,	"clk_fault" },
-	{ CTL_CLK_PROPAGATION,	"clk_badsignal" },
-	{ CTL_CLK_BADDATE,	"clk_baddate" },
-	{ CTL_CLK_BADTIME,	"clk_badtime" },
+	{ CTL_CLK_PROPAGATION,	"clk_bad_signal" },
+	{ CTL_CLK_BADDATE,	"clk_bad_date" },
+	{ CTL_CLK_BADTIME,	"clk_bad_time" },
 	{ -1,			"clk" }
 };
 
 
+#ifdef FLASH_CODES_UNUSED
 /*
- * System Events
+ * Flash bits -- see ntpq.c tstflags & tstflagnames
+ */
+static
+struct codestring flash_codes[] = {
+	{ TEST1,		"pkt_dup" },
+	{ TEST2,		"pkt_bogus" },
+	{ TEST3,		"pkt_unsync" },
+	{ TEST4,		"pkt_denied" },
+	{ TEST5,		"pkt_auth" },
+	{ TEST6,		"pkt_stratum" },
+	{ TEST7,		"pkt_header" },
+	{ TEST8,		"pkt_autokey" },
+	{ TEST9,		"pkt_crypto" },
+	{ TEST10,		"peer_stratum" },
+	{ TEST11,		"peer_dist" },
+	{ TEST12,		"peer_loop" },
+	{ TEST13,		"peer_unreach" },
+	{ -1,			"flash" }
+};
+#endif
+
+
+/*
+ * System events (sys)
  */
 static
 struct codestring sys_codes[] = {
-	{ EVNT_UNSPEC,		"event_unspec" },
-	{ EVNT_SYSRESTART,	"event_restart" },
-	{ EVNT_SYSFAULT,	"event_fault" },
-	{ EVNT_SYNCCHG,		"event_sync_chg" },
-	{ EVNT_PEERSTCHG,	"event_peer/strat_chg" },
-	{ EVNT_CLOCKRESET,	"event_clock_reset" },
-	{ EVNT_BADDATETIM,	"event_bad_date" },
-	{ EVNT_CLOCKEXCPT,	"event_clock_excptn" },
-	{ -1,			"event" }
+	{ EVNT_UNSPEC,		"unspecified" },
+	{ EVNT_NSET,		"freq_not_set" },
+	{ EVNT_FSET,		"freq_set" },
+	{ EVNT_SPIK,		"spike_detect" },
+	{ EVNT_FREQ,		"freq_mode" },
+	{ EVNT_SYNC,		"clock_sync" },
+	{ EVNT_SYSRESTART,	"restart" },
+	{ EVNT_SYSFAULT,	"panic_stop" },
+	{ EVNT_NOPEER,		"no_sys_peer" },
+	{ EVNT_ARMED,		"leap_armed" },
+	{ EVNT_DISARMED,	"leap_disarmed" },
+	{ EVNT_LEAP,		"leap_event" },
+	{ EVNT_CLOCKRESET,	"clock_step" },
+	{ EVNT_KERN,		"kern" },
+	{ EVNT_TAI,		"TAI" },
+	{ EVNT_LEAPVAL,		"stale_leapsecond_values" },
+	{ EVNT_CLKHOP,		"clockhop" },
+	{ -1,			"" }
 };
 
 /*
- * Peer events
+ * Peer events (peer)
  */
 static
 struct codestring peer_codes[] = {
-	{ EVNT_UNSPEC,			"event_unspec" },
-	{ EVNT_PEERIPERR & ~PEER_EVENT,	"event_ip_err" },
-	{ EVNT_PEERAUTH & ~PEER_EVENT,	"event_authen" },
-	{ EVNT_UNREACH & ~PEER_EVENT,	"event_unreach" },
-	{ EVNT_REACH & ~PEER_EVENT,	"event_reach" },
-	{ EVNT_PEERCLOCK & ~PEER_EVENT,	"event_peer_clock" },
-#if 0
-	{ EVNT_PEERSTRAT & ~PEER_EVENT,	"event_stratum_chg" },
-#endif
-	{ -1,				"event" }
+	{ PEVNT_MOBIL & ~PEER_EVENT,	"mobilize" },
+	{ PEVNT_DEMOBIL & ~PEER_EVENT,	"demobilize" },
+	{ PEVNT_UNREACH & ~PEER_EVENT,	"unreachable" },
+	{ PEVNT_REACH & ~PEER_EVENT,	"reachable" },
+	{ PEVNT_RESTART & ~PEER_EVENT,	"restart" },
+	{ PEVNT_REPLY & ~PEER_EVENT,	"no_reply" },
+	{ PEVNT_RATE & ~PEER_EVENT,	"rate_exceeded" },
+	{ PEVNT_DENY & ~PEER_EVENT,	"access_denied" },
+	{ PEVNT_ARMED & ~PEER_EVENT,	"leap_armed" },
+	{ PEVNT_NEWPEER & ~PEER_EVENT,	"sys_peer" },
+	{ PEVNT_CLOCK & ~PEER_EVENT,	"clock_event" },
+	{ PEVNT_AUTH & ~PEER_EVENT,	"bad_auth" },
+	{ PEVNT_POPCORN & ~PEER_EVENT,	"popcorn" },
+	{ PEVNT_XLEAVE & ~PEER_EVENT,	"interleave_mode" },
+	{ PEVNT_XERR & ~PEER_EVENT,	"interleave_error" },
+	{ PEVNT_TAI & ~PEER_EVENT,	"TAI" },
+	{ -1,				"" }
 };
 
 #ifdef OPENSSL
 /*
- * Crypto events
+ * Crypto events (cryp)
  */
 static
 struct codestring crypto_codes[] = {
@@ -134,20 +172,19 @@ struct codestring crypto_codes[] = {
 	{ XEVNT_SGL & ~CRPT_EVENT,	"bad_signature_length" },
 	{ XEVNT_SIG & ~CRPT_EVENT,	"signature_not_verified" },
 	{ XEVNT_VFY & ~CRPT_EVENT,	"certificate_not_verified" },
-	{ XEVNT_PER & ~CRPT_EVENT,	"host certificate_expired" },
+	{ XEVNT_PER & ~CRPT_EVENT,	"host_certificate_expired" },
 	{ XEVNT_CKY & ~CRPT_EVENT,	"bad_or_missing_cookie" },
-	{ XEVNT_DAT & ~CRPT_EVENT,	"bad_or_missing_leapsecond_table" },
+	{ XEVNT_DAT & ~CRPT_EVENT,	"bad_or_missing_leapseconds" },
 	{ XEVNT_CRT & ~CRPT_EVENT,	"bad_or_missing_certificate" },	
-	{ XEVNT_ID & ~CRPT_EVENT,	"bad_or_missing_group_key" },
+	{ XEVNT_ID & ~CRPT_EVENT,	"bad_or_missing_group key" },
 	{ XEVNT_ERR & ~CRPT_EVENT,	"protocol_error" },
-	{ XEVNT_SRV & ~CRPT_EVENT,	"server certificate expired" },
-	{ -1,				"crypto" }
+	{ -1,				"" }
 };
 #endif /* OPENSSL */
 
 /* Forwards */
-static const char *getcode P((int, struct codestring *));
-static const char *getevents P((int));
+static const char *getcode (int, struct codestring *);
+static const char *getevents (int);
 
 /*
  * getcode - return string corresponding to code
@@ -162,10 +199,10 @@ getcode(
 
 	while (codetab->code != -1) {
 		if (codetab->code == code)
-		    return codetab->string;
+			return codetab->string;
 		codetab++;
 	}
-	(void) sprintf(buf, "%s_%d", codetab->string, code);
+	snprintf(buf, sizeof(buf), "%s_%d", codetab->string, code);
 	return buf;
 }
 
@@ -180,8 +217,9 @@ getevents(
 	static char buf[20];
 
 	if (cnt == 0)
-	    return "no events";
-	(void) sprintf(buf, "%d event%s", cnt, (cnt==1) ? "" : "s");
+		return "no events";
+	snprintf(buf, sizeof(buf), "%d event%s", cnt, (cnt==1) ? "" : 
+	    "s");
 	return buf;
 }
 
@@ -201,57 +239,69 @@ statustoa(
 
 	switch (type) {
 	    case TYPE_SYS:
-		(void)strcpy(cb, getcode(CTL_SYS_LI(st), leap_codes));
-		(void)strcat(cb, ", ");
-		(void)strcat(cb, getcode(CTL_SYS_SOURCE(st) & ~CTL_SST_TS_PPS, sync_codes));
-		if (CTL_SYS_SOURCE(st) & CTL_SST_TS_PPS)
-		    (void)strcat(cb, "/PPS");
-		(void)strcat(cb, ", ");
-		(void)strcat(cb, getevents(CTL_SYS_NEVNT(st)));
-		(void)strcat(cb, ", ");
-		(void)strcat(cb, getcode(CTL_SYS_EVENT(st), sys_codes));
+		strcpy(cb, getcode(CTL_SYS_LI(st), leap_codes));
+		strcat(cb, ", ");
+		strcat(cb, getcode(CTL_SYS_SOURCE(st), sync_codes));
+		strcat(cb, ", ");
+		strcat(cb, getevents(CTL_SYS_NEVNT(st)));
+		strcat(cb, ", ");
+		strcat(cb, getcode(CTL_SYS_EVENT(st), sys_codes));
 		break;
 	
 	    case TYPE_PEER:
+
 		/*
 		 * Handcraft the bits
 		 */
 		pst = (u_char) CTL_PEER_STATVAL(st);
-		if (!(pst & CTL_PST_REACH)) {
-			(void)strcpy(cb, "unreach");
-		} else {
-			(void)strcpy(cb, "reach");
-
-		}
 		if (pst & CTL_PST_CONFIG)
-		    (void)strcat(cb, ", conf");
+			strcpy(cb, "conf");
 		if (pst & CTL_PST_AUTHENABLE) {
-			if (!(pst & CTL_PST_REACH) || (pst & CTL_PST_AUTHENTIC))
-			    (void)strcat(cb, ", auth");
+			if (pst & CTL_PST_CONFIG)
+				strcat(cb, ", authenb");
 			else
-			    (void)strcat(cb, ", unauth");
+				strcat(cb, "authenb");
+		}
+		if (pst & CTL_PST_AUTHENTIC) {
+			if (pst & (CTL_PST_CONFIG | CTL_PST_AUTHENABLE))
+				strcat(cb, ", auth");
+			else
+				strcat(cb, "auth");
+		}
+		if (pst & CTL_PST_REACH) {
+			if (pst & (CTL_PST_CONFIG | CTL_PST_AUTHENABLE |
+			    CTL_PST_AUTHENTIC))
+				strcat(cb, ", reach");
+			else
+				strcat(cb, "reach");
+		}
+		if (pst & CTL_PST_BCAST) {
+			if (pst & (CTL_PST_CONFIG | CTL_PST_AUTHENABLE |
+			    CTL_PST_AUTHENTIC | CTL_PST_REACH))
+				strcat(cb, ", bcst");
+			else
+				strcat(cb, "bcst");
 		}
 
 		/*
 		 * Now the codes
 		 */
-		if ((pst & 0x7) != CTL_PST_SEL_REJECT) {
-			(void)strcat(cb, ", ");
-			(void)strcat(cb, getcode(pst & 0x7, select_codes));
-		}
-		(void)strcat(cb, ", ");
-		(void)strcat(cb, getevents(CTL_PEER_NEVNT(st)));
+		strcat(cb, ", ");
+		strcat(cb, getcode(pst & 0x7, select_codes));
+		strcat(cb, ", ");
+		strcat(cb, getevents(CTL_PEER_NEVNT(st)));
 		if (CTL_PEER_EVENT(st) != EVNT_UNSPEC) {
-			(void)strcat(cb, ", ");
-			(void)strcat(cb, getcode(CTL_PEER_EVENT(st),
-						 peer_codes));
+			strcat(cb, ", ");
+			strcat(cb, getcode(CTL_PEER_EVENT(st),
+			    peer_codes));
 		}
 		break;
 	
 	    case TYPE_CLOCK:
-		(void)strcpy(cb, getcode(((st)>>8) & 0xff, clock_codes));
-		(void)strcat(cb, ", last_");
-		(void)strcat(cb, getcode((st) & 0xff, clock_codes));
+		strcat(cb, ", ");
+		strcat(cb, getevents(CTL_SYS_NEVNT(st)));
+		strcat(cb, ", ");
+		strcat(cb, getcode((st) & 0xf, clock_codes));
 		break;
 	}
 	return cb;
@@ -278,28 +328,4 @@ ceventstr(
 	)
 {
 	return getcode(num, clock_codes);
-}
-
-const char *
-sysstatstr(
-	int status
-	)
-{
-	return statustoa(TYPE_SYS, status);
-}
-
-const char *
-peerstatstr(
-	int status
-	)
-{
-	return statustoa(TYPE_PEER, status);
-}
-
-const char *
-clockstatstr(
-	int status
-	)
-{
-	return statustoa(TYPE_CLOCK, status);
 }

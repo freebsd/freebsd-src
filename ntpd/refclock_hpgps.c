@@ -125,10 +125,10 @@ struct hpgpsunit {
 /*
  * Function prototypes
  */
-static	int	hpgps_start	P((int, struct peer *));
-static	void	hpgps_shutdown	P((int, struct peer *));
-static	void	hpgps_receive	P((struct recvbuf *));
-static	void	hpgps_poll	P((int, struct peer *));
+static	int	hpgps_start	(int, struct peer *);
+static	void	hpgps_shutdown	(int, struct peer *);
+static	void	hpgps_receive	(struct recvbuf *);
+static	void	hpgps_poll	(int, struct peer *);
 
 /*
  * Transfer vector
@@ -162,7 +162,7 @@ hpgps_start(
 	 * Open serial port. Use CLK line discipline, if available.
 	 * Default is HP 58503A, mode arg selects HP Z3801A
 	 */
-	(void)sprintf(device, DEVICE, unit);
+	snprintf(device, sizeof(device), DEVICE, unit);
 	/* mode parameter to server config line shares ttl slot */
 	if ((peer->ttl == 1)) {
 		if (!(fd = refclock_open(device, SPEED232Z,
@@ -175,19 +175,16 @@ hpgps_start(
 	/*
 	 * Allocate and initialize unit structure
 	 */
-	if (!(up = (struct hpgpsunit *)
-	      emalloc(sizeof(struct hpgpsunit)))) {
-		(void) close(fd);
-		return (0);
-	}
-	memset((char *)up, 0, sizeof(struct hpgpsunit));
+	up = emalloc(sizeof(*up));
+	memset(up, 0, sizeof(*up));
 	pp = peer->procptr;
 	pp->io.clock_recv = hpgps_receive;
 	pp->io.srcclock = (caddr_t)peer;
 	pp->io.datalen = 0;
 	pp->io.fd = fd;
 	if (!io_addclock(&pp->io)) {
-		(void) close(fd);
+		close(fd);
+		pp->io.fd = -1;
 		free(up);
 		return (0);
 	}
@@ -232,8 +229,10 @@ hpgps_shutdown(
 
 	pp = peer->procptr;
 	up = (struct hpgpsunit *)pp->unitptr;
-	io_closeclock(&pp->io);
-	free(up);
+	if (-1 != pp->io.fd)
+		io_closeclock(&pp->io);
+	if (NULL != up)
+		free(up);
 }
 
 
@@ -532,18 +531,25 @@ hpgps_receive(
 		pp->leap = LEAP_NOTINSYNC;
 	}
 	else {
+		pp->leap = LEAP_NOWARNING;
 		switch (leapchar) {
 
-		    case '+':
-			pp->leap = LEAP_ADDSECOND;
+		    case '0':
 			break;
                      
-		    case '0':
-			pp->leap = LEAP_NOWARNING;
+		    /* See http://bugs.ntp.org/1090
+		     * Ignore leap announcements unless June or December.
+		     * Better would be to use :GPSTime? to find the month,
+		     * but that seems too likely to introduce other bugs.
+		     */
+		    case '+':
+			if ((month==6) || (month==12))
+			    pp->leap = LEAP_ADDSECOND;
 			break;
                      
 		    case '-':
-			pp->leap = LEAP_DELSECOND;
+			if ((month==6) || (month==12))
+			    pp->leap = LEAP_DELSECOND;
 			break;
                      
 		    default:

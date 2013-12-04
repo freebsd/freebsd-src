@@ -3,7 +3,7 @@
  */
 
 #include <stdio.h>
-
+#include <stddef.h>
 #include <ctype.h>
 #include <signal.h>
 #include <setjmp.h>
@@ -12,24 +12,19 @@
 #include "ntp_select.h"
 #include "ntp_io.h"
 #include "ntp_stdlib.h"
-/* Don't include ISC's version of IPv6 variables and structures */
-#define ISC_IPV6_H 1
+#include "ntp_assert.h"
+#include "ntp_lineedit.h"
 #include "isc/net.h"
 #include "isc/result.h"
+#include <ssl_applink.c>
 
+#include "ntp_libopts.h"
 #include "ntpdc-opts.h"
 
 #ifdef SYS_WINNT
 # include <Mswsock.h>
 # include <io.h>
-#else
-# define closesocket close
 #endif /* SYS_WINNT */
-
-#if defined(HAVE_LIBREADLINE) || defined (HAVE_LIBEDIT)
-# include <readline/readline.h>
-# include <readline/history.h>
-#endif /* HAVE_LIBREADLINE || HAVE_LIBEDIT */
 
 #ifdef SYS_VXWORKS
 				/* vxWorks needs mode flag -casey*/
@@ -56,12 +51,8 @@ static	const char *	prompt = "ntpdc> ";	/* prompt to ask him about */
 static	u_long	info_auth_keyid;
 static int keyid_entered = 0;
 
-/*
- * Type of key md5
- */
-#define	KEY_TYPE_MD5	4
-
-static	int info_auth_keytype = KEY_TYPE_MD5;	/* MD5 */
+static	int	info_auth_keytype = NID_md5;	/* MD5 */
+static	size_t	info_auth_hashlen = 16;		/* MD5 */
 u_long	current_time;		/* needed by authkeys; not used */
 
 /*
@@ -69,42 +60,38 @@ u_long	current_time;		/* needed by authkeys; not used */
  */
 s_char	sys_precision;		/* local clock precision (log2 s) */
 
-int		ntpdcmain	P((int,	char **));
+int		ntpdcmain	(int,	char **);
 /*
  * Built in command handler declarations
  */
-static	int	openhost	P((const char *));
-static	int	sendpkt		P((char *, int));
-static	void	growpktdata	P((void));
-static	int	getresponse	P((int, int, int *, int *, char **, int));
-static	int	sendrequest	P((int, int, int, int, int, char *));
-static	void	getcmds		P((void));
-static	RETSIGTYPE abortcmd	P((int));
-static	void	docmd		P((const char *));
-static	void	tokenize	P((const char *, char **, int *));
-static	int	findcmd		P((char *, struct xcmd *, struct xcmd *, struct xcmd **));
-static	int	getarg		P((char *, int, arg_v *));
-static	int	getnetnum	P((const char *, struct sockaddr_storage *, char *, int));
-static	void	help		P((struct parse *, FILE *));
-#ifdef QSORT_USES_VOID_P
-static	int	helpsort	P((const void *, const void *));
-#else
-static	int	helpsort	P((char **, char **));
-#endif
-static	void	printusage	P((struct xcmd *, FILE *));
-static	void	timeout		P((struct parse *, FILE *));
-static	void	my_delay	P((struct parse *, FILE *));
-static	void	host		P((struct parse *, FILE *));
-static	void	keyid		P((struct parse *, FILE *));
-static	void	keytype		P((struct parse *, FILE *));
-static	void	passwd		P((struct parse *, FILE *));
-static	void	hostnames	P((struct parse *, FILE *));
-static	void	setdebug	P((struct parse *, FILE *));
-static	void	quit		P((struct parse *, FILE *));
-static	void	version		P((struct parse *, FILE *));
-static	void	warning		P((const char *, const char *, const char *));
-static	void	error		P((const char *, const char *, const char *));
-static	u_long	getkeyid	P((const char *));
+static	int	openhost	(const char *);
+static	int	sendpkt		(void *, size_t);
+static	void	growpktdata	(void);
+static	int	getresponse	(int, int, int *, int *, char **, int);
+static	int	sendrequest	(int, int, int, u_int, size_t, char *);
+static	void	getcmds		(void);
+static	RETSIGTYPE abortcmd	(int);
+static	void	docmd		(const char *);
+static	void	tokenize	(const char *, char **, int *);
+static	int	findcmd		(char *, struct xcmd *, struct xcmd *, struct xcmd **);
+static	int	getarg		(char *, int, arg_v *);
+static	int	getnetnum	(const char *, sockaddr_u *, char *, int);
+static	void	help		(struct parse *, FILE *);
+static	int	helpsort	(const void *, const void *);
+static	void	printusage	(struct xcmd *, FILE *);
+static	void	timeout		(struct parse *, FILE *);
+static	void	my_delay	(struct parse *, FILE *);
+static	void	host		(struct parse *, FILE *);
+static	void	keyid		(struct parse *, FILE *);
+static	void	keytype		(struct parse *, FILE *);
+static	void	passwd		(struct parse *, FILE *);
+static	void	hostnames	(struct parse *, FILE *);
+static	void	setdebug	(struct parse *, FILE *);
+static	void	quit		(struct parse *, FILE *);
+static	void	version		(struct parse *, FILE *);
+static	void	warning		(const char *, const char *, const char *);
+static	void	error		(const char *, const char *, const char *);
+static	u_long	getkeyid	(const char *);
 
 
 
@@ -159,10 +146,10 @@ static	struct xcmd builtins[] = {
 /*
  * Default values we use.
  */
+#define	DEFHOST		"localhost"	/* default host name */
 #define	DEFTIMEOUT	(5)		/* 5 second time out */
 #define	DEFSTIMEOUT	(2)		/* 2 second time out after first */
 #define	DEFDELAY	0x51EB852	/* 20 milliseconds, l_fp fraction */
-#define	DEFHOST		"localhost"	/* default host name */
 #define	LENHOSTNAME	256		/* host name is 256 characters long */
 #define	MAXCMDS		100		/* maximum commands on cmd line */
 #define	MAXHOSTS	200		/* maximum hosts on cmd line */
@@ -173,8 +160,8 @@ static	struct xcmd builtins[] = {
 /*
  * Some variables used and manipulated locally
  */
-static	struct timeval tvout = { DEFTIMEOUT, 0 };	/* time out for reads */
-static	struct timeval tvsout = { DEFSTIMEOUT, 0 };	/* secondary time out */
+static	struct sock_timeval tvout = { DEFTIMEOUT, 0 };	/* time out for reads */
+static	struct sock_timeval tvsout = { DEFSTIMEOUT, 0 };/* secondary time out */
 static	l_fp delay_time;				/* delay time */
 static	char currenthost[LENHOSTNAME];			/* current host name */
 int showhostnames = 1;					/* show host names by default */
@@ -184,18 +171,6 @@ static	int ai_fam_default;				/* default address family */
 static	SOCKET sockfd;					/* fd socket is opened on */
 static	int havehost = 0;				/* set to 1 when host open */
 int s_port = 0;
-
-#if defined (SYS_WINNT) || defined (SYS_VXWORKS)
-char password[9];
-#endif /* SYS_WINNT || SYS_VXWORKS */
-
-#ifdef SYS_WINNT
-DWORD NumberOfBytesWritten;
-
-HANDLE	TimerThreadHandle = NULL;	/* 1998/06/03 - Used in ntplib/machines.c */
-void timer(void)	{  ; };	/* 1998/06/03 - Used in ntplib/machines.c */
-
-#endif /* SYS_WINNT */
 
 /*
  * Holds data returned from queries.  We allocate INITDATASIZE
@@ -306,38 +281,27 @@ ntpdcmain(
 	taskPrioritySet(taskIdSelf(), 100 );
 #endif
 
-#ifdef SYS_WINNT
-	if (!Win32InitSockets())
-	{
-		fprintf(stderr, "No useable winsock.dll:");
-		exit(1);
-	}
-#endif /* SYS_WINNT */
+	init_lib();	/* sets up ipv4_works, ipv6_works */
+	ssl_applink();
 
-	/* Check to see if we have IPv6. Otherwise force the -4 flag */
-	if (isc_net_probeipv6() != ISC_R_SUCCESS) {
+	/* Check to see if we have IPv6. Otherwise default to IPv4 */
+	if (!ipv6_works)
 		ai_fam_default = AF_INET;
-	}
 
 	progname = argv[0];
 
 	{
-		int optct = optionProcess(&ntpdcOptions, argc, argv);
+		int optct = ntpOptionProcess(&ntpdcOptions, argc, argv);
 		argc -= optct;
 		argv += optct;
 	}
 
-	switch (WHICH_IDX_IPV4) {
-	    case INDEX_OPT_IPV4:
+	if (HAVE_OPT(IPV4))
 		ai_fam_templ = AF_INET;
-		break;
-	    case INDEX_OPT_IPV6:
+	else if (HAVE_OPT(IPV6))
 		ai_fam_templ = AF_INET6;
-		break;
-	    default:
+	else
 		ai_fam_templ = ai_fam_default;
-		break;
-	}
 
 	if (HAVE_OPT(COMMAND)) {
 		int		cmdct = STACKCT_OPT( COMMAND );
@@ -446,12 +410,8 @@ ntpdcmain(
 	/*
 	 * Initialize the packet data buffer
 	 */
-	pktdata = (char *)malloc(INITDATASIZE);
-	if (pktdata == NULL) {
-		(void) fprintf(stderr, "%s: malloc() failed!\n", progname);
-		exit(1);
-	}
 	pktdatasize = INITDATASIZE;
+	pktdata = emalloc(INITDATASIZE);
 
 	if (numcmds == 0) {
 		(void) openhost(chosts[0]);
@@ -499,10 +459,14 @@ openhost(
 	
 	if (*cp == '[') {
 		cp++;	
-		for(i = 0; *cp != ']'; cp++, i++)
-			name[i] = *cp;	
-		name[i] = '\0';
-		hname = name;
+		for (i = 0; *cp && *cp != ']'; cp++, i++)
+			name[i] = *cp;
+		if (*cp == ']') {
+			name[i] = '\0';
+			hname = name;
+		} else {
+			return 0;
+		}
 	}	
 
 	/*
@@ -517,7 +481,7 @@ openhost(
 	hints.ai_family = ai_fam_templ;
 	hints.ai_protocol = IPPROTO_UDP;
 	hints.ai_socktype = SOCK_DGRAM;
-	hints.ai_flags = AI_NUMERICHOST;
+	hints.ai_flags = Z_AI_NUMERICHOST;
 
 	a_info = getaddrinfo(hname, service, &hints, &ai);
 	if (a_info == EAI_NONAME
@@ -543,8 +507,14 @@ openhost(
 		return 0;
 	}
 
+	/* 
+	 * getaddrinfo() has returned without error so ai should not 
+	 * be NULL.
+	 */
+	NTP_INSIST(ai != NULL);
+
 	if (ai->ai_canonname == NULL) {
-		strncpy(temphost, stoa((struct sockaddr_storage *)ai->ai_addr),
+		strncpy(temphost, stoa((sockaddr_u *)ai->ai_addr),
 		    LENHOSTNAME);
 		temphost[LENHOSTNAME-1] = '\0';
 	} else {
@@ -619,8 +589,8 @@ openhost(
 		    ai->ai_addrlen) == -1)
 #endif /* SYS_VXWORKS */
 	    error("connect", "", "");
-	if (ai != NULL)
-		freeaddrinfo(ai);
+
+	freeaddrinfo(ai);
 	havehost = 1;
 	req_pkt_size = REQ_LEN_NOMAC;
 	impl_ver = IMPL_XNTPD;
@@ -634,11 +604,11 @@ openhost(
  */
 static int
 sendpkt(
-	char *xdata,
-	int xdatalen
+	void *	xdata,
+	size_t	xdatalen
 	)
 {
-	if (send(sockfd, xdata, (size_t)xdatalen, 0) == -1) {
+	if (send(sockfd, xdata, xdatalen, 0) == -1) {
 		warning("write to %s failed", currenthost, "");
 		return -1;
 	}
@@ -654,11 +624,7 @@ static void
 growpktdata(void)
 {
 	pktdatasize += INCDATASIZE;
-	pktdata = (char *)realloc(pktdata, (unsigned)pktdatasize);
-	if (pktdata == 0) {
-		(void) fprintf(stderr, "%s: realloc() failed!\n", progname);
-		exit(1);
-	}
+	pktdata = erealloc(pktdata, (size_t)pktdatasize);
 }
 
 
@@ -676,7 +642,7 @@ getresponse(
 	)
 {
 	struct resp_pkt rpkt;
-	struct timeval tvo;
+	struct sock_timeval tvo;
 	int items;
 	int i;
 	int size;
@@ -710,9 +676,9 @@ getresponse(
 
     again:
 	if (firstpkt)
-	    tvo = tvout;
+		tvo = tvout;
 	else
-	    tvo = tvsout;
+		tvo = tvsout;
 	
 	FD_SET(sockfd, &fds);
 	n = select(sockfd+1, &fds, (fd_set *)0, (fd_set *)0, &tvo);
@@ -823,11 +789,12 @@ getresponse(
 		pad = esize - size;
 	else 
 		pad = 0;
-	if ((datasize = items*size) > (n-RESP_HEADER_SIZE)) {
+	datasize = items * size;
+	if ((size_t)datasize > (n-RESP_HEADER_SIZE)) {
 		if (debug)
 		    printf(
-			    "Received items %d, size %d (total %d), data in packet is %d\n",
-			    items, size, datasize, n-RESP_HEADER_SIZE);
+			    "Received items %d, size %d (total %d), data in packet is %lu\n",
+			    items, size, datasize, (u_long)(n-RESP_HEADER_SIZE));
 		goto again;
 	}
 
@@ -869,7 +836,7 @@ getresponse(
 	if ((datap + datasize + (pad * items)) > (pktdata + pktdatasize)) {
 		int offset = datap - pktdata;
 		growpktdata();
-	        *rdata = pktdata; /* might have been realloced ! */
+		*rdata = pktdata; /* might have been realloced ! */
 		datap = pktdata + offset;
 	}
 	/* 
@@ -877,9 +844,9 @@ getresponse(
 	 * items.  This is so we can play nice with older implementations
 	 */
 
-	tmp_data = (char *)rpkt.data;
-	for(i = 0; i <items; i++){
-		memmove(datap, tmp_data, (unsigned)size);
+	tmp_data = rpkt.data;
+	for (i = 0; i < items; i++) {
+		memcpy(datap, tmp_data, (unsigned)size);
 		tmp_data += size;
 		memset(datap + size, 0, pad);
 		datap += size + pad;
@@ -897,36 +864,62 @@ getresponse(
 	 */
 	++numrecv;
 	if (numrecv <= lastseq)
-	    goto again;
+		goto again;
 	return INFO_OKAY;
 }
 
 
 /*
  * sendrequest - format and send a request packet
+ *
+ * Historically, ntpdc has used a fixed-size request packet regardless
+ * of the actual payload size.  When authenticating, the timestamp, key
+ * ID, and digest have been placed just before the end of the packet.
+ * With the introduction in late 2009 of support for authenticated
+ * ntpdc requests using larger 20-octet digests (vs. 16 for MD5), we
+ * come up four bytes short.
+ *
+ * To maintain interop while allowing for larger digests, the behavior
+ * is unchanged when using 16-octet digests.  For larger digests, the
+ * timestamp, key ID, and digest are placed immediately following the
+ * request payload, with the overall packet size variable.  ntpd can
+ * distinguish 16-octet digests by the overall request size being
+ * REQ_LEN_NOMAC + 4 + 16 with the auth bit enabled.  When using a
+ * longer digest, that request size should be avoided.
+ *
+ * With the form used with 20-octet and larger digests, the timestamp,
+ * key ID, and digest are located by ntpd relative to the start of the
+ * packet, and the size of the digest is then implied by the packet
+ * size.
  */
 static int
 sendrequest(
 	int implcode,
 	int reqcode,
 	int auth,
-	int qitems,
-	int qsize,
+	u_int qitems,
+	size_t qsize,
 	char *qdata
 	)
 {
 	struct req_pkt qpkt;
-	int datasize;
+	size_t	datasize;
+	size_t	reqsize;
+	u_long	key_id;
+	l_fp	ts;
+	l_fp *	ptstamp;
+	int	maclen;
+	char *	pass;
 
-	memset((char *)&qpkt, 0, sizeof qpkt);
+	memset(&qpkt, 0, sizeof(qpkt));
 
 	qpkt.rm_vn_mode = RM_VN_MODE(0, 0, 0);
 	qpkt.implementation = (u_char)implcode;
 	qpkt.request = (u_char)reqcode;
 
 	datasize = qitems * qsize;
-	if (datasize != 0 && qdata != NULL) {
-		memmove((char *)qpkt.data, qdata, (unsigned)datasize);
+	if (datasize && qdata != NULL) {
+		memcpy(qpkt.data, qdata, datasize);
 		qpkt.err_nitems = ERR_NITEMS(0, qitems);
 		qpkt.mbz_itemsize = MBZ_ITEMSIZE(qsize);
 	} else {
@@ -936,53 +929,61 @@ sendrequest(
 
 	if (!auth || (keyid_entered && info_auth_keyid == 0)) {
 		qpkt.auth_seq = AUTH_SEQ(0, 0);
-		return sendpkt((char *)&qpkt, req_pkt_size);
-	} else {
-		l_fp ts;
-		int maclen = 0;
-		const char *pass = "\0";
-		struct req_pkt_tail *qpktail;
-
-		qpktail = (struct req_pkt_tail *)((char *)&qpkt + req_pkt_size
-		    + MAX_MAC_LEN - sizeof(struct req_pkt_tail));
-
-		if (info_auth_keyid == 0) {
-			if (((struct conf_peer *)qpkt.data)->keyid > 0)
-				info_auth_keyid = ((struct conf_peer *)qpkt.data)->keyid;
-			else {
-				maclen = getkeyid("Keyid: ");
-				if (maclen == 0) {
-					(void) fprintf(stderr,
-					    "Invalid key identifier\n");
-					return 1;
-				}
-				info_auth_keyid = maclen;
-			}
-		}
-		if (!authistrusted(info_auth_keyid)) {
-			pass = getpass("MD5 Password: ");
-			if (*pass == '\0') {
-				(void) fprintf(stderr,
-				    "Invalid password\n");
-				return (1);
-			}
-		}
-		authusekey(info_auth_keyid, info_auth_keytype, (const u_char *)pass);
-		authtrust(info_auth_keyid, 1);
-		qpkt.auth_seq = AUTH_SEQ(1, 0);
-		qpktail->keyid = htonl(info_auth_keyid);
-		get_systime(&ts);
-		L_ADD(&ts, &delay_time);
-		HTONL_FP(&ts, &qpktail->tstamp);
-		maclen = authencrypt(info_auth_keyid, (u_int32 *)&qpkt,
-		    req_pkt_size);
-		if (maclen == 0) {  
-			(void) fprintf(stderr, "Key not found\n");
-			return (1);
-		}
-		return sendpkt((char *)&qpkt, (int)(req_pkt_size + maclen));
+		return sendpkt(&qpkt, req_pkt_size);
 	}
-	/*NOTREACHED*/
+
+	if (info_auth_keyid == 0) {
+		key_id = getkeyid("Keyid: ");
+		if (!key_id) {
+			fprintf(stderr, "Invalid key identifier\n");
+			return 1;
+		}
+		info_auth_keyid = key_id;
+	}
+	if (!authistrusted(info_auth_keyid)) {
+		pass = getpass_keytype(info_auth_keytype);
+		if ('\0' == pass[0]) {
+			fprintf(stderr, "Invalid password\n");
+			return 1;
+		}
+		authusekey(info_auth_keyid, info_auth_keytype,
+			   (u_char *)pass);
+		authtrust(info_auth_keyid, 1);
+	}
+	qpkt.auth_seq = AUTH_SEQ(1, 0);
+	if (info_auth_hashlen > 16) {
+		/*
+		 * Only ntpd which expects REQ_LEN_NOMAC plus maclen
+		 * octets in an authenticated request using a 16 octet
+		 * digest (that is, a newer ntpd) will handle digests
+		 * larger than 16 octets, so for longer digests, do
+		 * not attempt to shorten the requests for downlevel
+		 * ntpd compatibility.
+		 */
+		if (REQ_LEN_NOMAC != req_pkt_size)
+			return 1;
+		reqsize = REQ_LEN_HDR + datasize + sizeof(*ptstamp);
+		/* align to 32 bits */
+		reqsize = (reqsize + 3) & ~3;
+	} else
+		reqsize = req_pkt_size;
+	ptstamp = (void *)((char *)&qpkt + reqsize);
+	ptstamp--;
+	get_systime(&ts);
+	L_ADD(&ts, &delay_time);
+	HTONL_FP(&ts, ptstamp);
+	maclen = authencrypt(info_auth_keyid, (void *)&qpkt, reqsize);
+	if (!maclen) {  
+		fprintf(stderr, "Key not found\n");
+		return 1;
+	} else if (maclen != (info_auth_hashlen + sizeof(keyid_t))) {
+		fprintf(stderr,
+			"%d octet MAC, %lu expected with %lu octet digest\n",
+			maclen, (u_long)(info_auth_hashlen + sizeof(keyid_t)),
+			(u_long)info_auth_hashlen);
+		return 1;
+	}
+	return sendpkt(&qpkt, reqsize + maclen);
 }
 
 
@@ -1007,7 +1008,7 @@ doquery(
 	int res;
 	char junk[512];
 	fd_set fds;
-	struct timeval tvzero;
+	struct sock_timeval tvzero;
 
 	/*
 	 * Check to make sure host is open
@@ -1041,7 +1042,7 @@ again:
 	 */
 	res = sendrequest(implcode, reqcode, auth, qitems, qsize, qdata);
 	if (res != 0)
-	    return res;
+		return res;
 	
 	/*
 	 * Get the response.  If we got a standard error, print a message
@@ -1079,36 +1080,36 @@ again:
  	/* log error message if not told to be quiet */
  	if ((res > 0) && (((1 << res) & quiet_mask) == 0)) {
 		switch(res) {
-		    case INFO_ERR_IMPL:
+		case INFO_ERR_IMPL:
 			/* Give us a chance to try the older implementation. */
 			if (implcode == IMPL_XNTPD)
 				break;
 			(void) fprintf(stderr,
 				       "***Server implementation incompatable with our own\n");
 			break;
-		    case INFO_ERR_REQ:
+		case INFO_ERR_REQ:
 			(void) fprintf(stderr,
 				       "***Server doesn't implement this request\n");
 			break;
-		    case INFO_ERR_FMT:
+		case INFO_ERR_FMT:
 			(void) fprintf(stderr,
 				       "***Server reports a format error in the received packet (shouldn't happen)\n");
 			break;
-		    case INFO_ERR_NODATA:
+		case INFO_ERR_NODATA:
 			(void) fprintf(stderr,
 				       "***Server reports data not found\n");
 			break;
-		    case INFO_ERR_AUTH:
+		case INFO_ERR_AUTH:
 			(void) fprintf(stderr, "***Permission denied\n");
 			break;
-		    case ERR_TIMEOUT:
+		case ERR_TIMEOUT:
 			(void) fprintf(stderr, "***Request timed out\n");
 			break;
-		    case ERR_INCOMPLETE:
+		case ERR_INCOMPLETE:
 			(void) fprintf(stderr,
 				       "***Response from server was incomplete\n");
 			break;
-		    default:
+		default:
 			(void) fprintf(stderr,
 				       "***Server returns unknown error code %d\n", res);
 			break;
@@ -1124,33 +1125,20 @@ again:
 static void
 getcmds(void)
 {
-#if defined(HAVE_LIBREADLINE) || defined(HAVE_LIBEDIT)
-	char *line;
+	char *	line;
+	int	count;
+
+	ntp_readline_init(interactive ? prompt : NULL);
 
 	for (;;) {
-		if ((line = readline(interactive?prompt:"")) == NULL) return;
-		if (*line) add_history(line);
+		line = ntp_readline(&count);
+		if (NULL == line)
+			break;
 		docmd(line);
 		free(line);
 	}
-#else /* not (HAVE_LIBREADLINE || HAVE_LIBEDIT) */
-	char line[MAXLINE];
 
-	for (;;) {
-		if (interactive) {
-#ifdef VMS	/* work around a problem with mixing stdout & stderr */
-			fputs("",stdout);
-#endif
-			(void) fputs(prompt, stderr);
-			(void) fflush(stderr);
-		}
-
-		if (fgets(line, sizeof line, stdin) == NULL)
-		    return;
-
-		docmd(line);
-	}
-#endif /* not HAVE_LIBREADLINE || HAVE_LIBEDIT */
+	ntp_readline_uninit();
 }
 
 
@@ -1482,41 +1470,47 @@ getarg(
 static int
 getnetnum(
 	const char *hname,
-	struct sockaddr_storage *num,
+	sockaddr_u *num,
 	char *fullhost,
 	int af
 	)
 {
-	int sockaddr_len;
 	struct addrinfo hints, *ai = NULL;
 
-	sockaddr_len = (af == AF_INET)
-			   ? sizeof(struct sockaddr_in)
-			   : sizeof(struct sockaddr_in6);
-	memset((char *)&hints, 0, sizeof(struct addrinfo));
+	ZERO(hints);
 	hints.ai_flags = AI_CANONNAME;
 #ifdef AI_ADDRCONFIG
 	hints.ai_flags |= AI_ADDRCONFIG;
 #endif
 	
-	/* decodenetnum only works with addresses */
+	/*
+	 * decodenetnum only works with addresses, but handles syntax
+	 * that getaddrinfo doesn't:  [2001::1]:1234
+	 */
 	if (decodenetnum(hname, num)) {
-		if (fullhost != 0) {
-			getnameinfo((struct sockaddr *)num, sockaddr_len, 
-				    fullhost, sizeof(fullhost), NULL, 0, 
-				    NI_NUMERICHOST); 
-		}
+		if (fullhost != NULL)
+			getnameinfo(&num->sa, SOCKLEN(num), fullhost,
+				    LENHOSTNAME, NULL, 0, 0);
 		return 1;
 	} else if (getaddrinfo(hname, "ntp", &hints, &ai) == 0) {
-		memmove((char *)num, ai->ai_addr, ai->ai_addrlen);
-		if (fullhost != 0)
-			(void) strcpy(fullhost, ai->ai_canonname);
+		NTP_INSIST(sizeof(*num) >= ai->ai_addrlen);
+		memcpy(num, ai->ai_addr, ai->ai_addrlen);
+		if (fullhost != NULL) {
+			if (ai->ai_canonname != NULL) {
+				strncpy(fullhost, ai->ai_canonname,
+					LENHOSTNAME);
+				fullhost[LENHOSTNAME - 1] = '\0';
+			} else {
+				getnameinfo(&num->sa, SOCKLEN(num),
+					    fullhost, LENHOSTNAME, NULL,
+					    0, 0);
+			}
+		}
 		return 1;
-	} else {
-		(void) fprintf(stderr, "***Can't find host %s\n", hname);
-		return 0;
 	}
-	/*NOTREACHED*/
+	fprintf(stderr, "***Can't find host %s\n", hname);
+
+	return 0;
 }
 
 /*
@@ -1525,13 +1519,13 @@ getnetnum(
  */
 char *
 nntohost(
-	struct sockaddr_storage *netnum
+	sockaddr_u *netnum
 	)
 {
 	if (!showhostnames)
-	    return stoa(netnum);
+		return stoa(netnum);
 
-	if ((netnum->ss_family == AF_INET) && ISREFCLOCKADR(netnum))
+	if (ISREFCLOCKADR(netnum))
 		return refnumtoa(netnum);
 	return socktohost(netnum);
 }
@@ -1553,58 +1547,51 @@ help(
 	struct xcmd *xcp;
 	char *cmd;
 	const char *list[100];
-	int word, words;     
-        int row, rows;
-	int col, cols;
+	size_t word, words;
+	size_t row, rows;
+	size_t col, cols;
+	size_t length;
 
 	if (pcmd->nargs == 0) {
 		words = 0;
 		for (xcp = builtins; xcp->keyword != 0; xcp++) {
 			if (*(xcp->keyword) != '?')
-			    list[words++] = xcp->keyword;
+				list[words++] = xcp->keyword;
 		}
-                for (xcp = opcmds; xcp->keyword != 0; xcp++)
-		    list[words++] = xcp->keyword;
+		for (xcp = opcmds; xcp->keyword != 0; xcp++)
+			list[words++] = xcp->keyword;
 
-		qsort(
-#ifdef QSORT_USES_VOID_P
-		    (void *)
-#else
-		    (char *)
-#endif
-			(list), (size_t)(words), sizeof(char *), helpsort);
+		qsort((void *)list, (size_t)words, sizeof(list[0]),
+		      helpsort);
 		col = 0;
 		for (word = 0; word < words; word++) {
-			int length = strlen(list[word]);
-			if (col < length) {
-			    col = length;
-                        }
+			length = strlen(list[word]);
+			col = max(col, length);
 		}
 
 		cols = SCREENWIDTH / ++col;
-                rows = (words + cols - 1) / cols;
+		rows = (words + cols - 1) / cols;
 
-		(void) fprintf(fp, "ntpdc commands:\n");
+		fprintf(fp, "ntpdc commands:\n");
 
 		for (row = 0; row < rows; row++) {
-                        for (word = row; word < words; word += rows) {
-				(void) fprintf(fp, "%-*.*s", col, col-1, list[word]);
-                        }
-			(void) fprintf(fp, "\n");
+			for (word = row; word < words; word += rows)
+				fprintf(fp, "%-*.*s", col, col-1, list[word]);
+			fprintf(fp, "\n");
 		}
 	} else {
 		cmd = pcmd->argval[0].string;
 		words = findcmd(cmd, builtins, opcmds, &xcp);
 		if (words == 0) {
-			(void) fprintf(stderr,
-				       "Command `%s' is unknown\n", cmd);
+			fprintf(stderr,
+				"Command `%s' is unknown\n", cmd);
 			return;
 		} else if (words >= 2) {
-			(void) fprintf(stderr,
-				       "Command `%s' is ambiguous\n", cmd);
+			fprintf(stderr,
+				"Command `%s' is ambiguous\n", cmd);
 			return;
 		}
-		(void) fprintf(fp, "function: %s\n", xcp->comment);
+		fprintf(fp, "function: %s\n", xcp->comment);
 		printusage(xcp, fp);
 	}
 }
@@ -1613,28 +1600,17 @@ help(
 /*
  * helpsort - do hostname qsort comparisons
  */
-#ifdef QSORT_USES_VOID_P
 static int
 helpsort(
 	const void *t1,
 	const void *t2
 	)
 {
-	char const * const * name1 = (char const * const *)t1;
-	char const * const * name2 = (char const * const *)t2;
+	const char * const *	name1 = t1;
+	const char * const *	name2 = t2;
 
 	return strcmp(*name1, *name2);
 }
-#else
-static int
-helpsort(
-	char **name1,
-	char **name2
-	)
-{
-	return strcmp(*name1, *name2);
-}
-#endif
 
 
 /*
@@ -1799,21 +1775,34 @@ keytype(
 	FILE *fp
 	)
 {
-	if (pcmd->nargs == 0)
-	    fprintf(fp, "keytype is %s\n",
-		    (info_auth_keytype == KEY_TYPE_MD5) ? "MD5" : "???");
-	else
-	    switch (*(pcmd->argval[0].string)) {
-		case 'm':
-		case 'M':
-		    info_auth_keytype = KEY_TYPE_MD5;
-		    break;
+	const char *	digest_name;
+	size_t		digest_len;
+	int		key_type;
 
-		default:
-		    fprintf(fp, "keytype must be 'md5'\n");
-	    }
+	if (!pcmd->nargs) {
+		fprintf(fp, "keytype is %s with %lu octet digests\n",
+			keytype_name(info_auth_keytype),
+			(u_long)info_auth_hashlen);
+		return;
+	}
+
+	digest_name = pcmd->argval[0].string;
+	digest_len = 0;
+	key_type = keytype_from_text(digest_name, &digest_len);
+
+	if (!key_type) {
+		fprintf(fp, "keytype must be 'md5'%s\n",
+#ifdef OPENSSL
+			" or a digest type provided by OpenSSL");
+#else
+			"");
+#endif
+		return;
+	}
+
+	info_auth_keytype = key_type;
+	info_auth_hashlen = digest_len;
 }
-
 
 
 /*
@@ -1840,7 +1829,7 @@ passwd(
 			   (u_char *)pcmd->argval[0].string);
 		authtrust(info_auth_keyid, 1);
 	} else {
-		pass = getpass("MD5 Password: ");
+		pass = getpass_keytype(info_auth_keytype);
 		if (*pass == '\0')
 		    (void) fprintf(fp, "Password unchanged\n");
 		else {
@@ -1974,26 +1963,28 @@ getkeyid(
 	const char *keyprompt
 	)
 {
-	register char *p;
-	register int c;
+	int c;
 	FILE *fi;
 	char pbuf[20];
+	size_t i;
+	size_t ilim;
 
 #ifndef SYS_WINNT
 	if ((fi = fdopen(open("/dev/tty", 2), "r")) == NULL)
 #else
-	    if ((fi = _fdopen((int)GetStdHandle(STD_INPUT_HANDLE), "r")) == NULL)
+	if ((fi = _fdopen(open("CONIN$", _O_TEXT), "r")) == NULL)
 #endif /* SYS_WINNT */
 		fi = stdin;
-	    else
+	else
 		setbuf(fi, (char *)NULL);
 	fprintf(stderr, "%s", keyprompt); fflush(stderr);
-	for (p=pbuf; (c = getc(fi))!='\n' && c!=EOF;) {
-		if (p < &pbuf[18])
-		    *p++ = (char) c;
-	}
-	*p = '\0';
+	for (i = 0, ilim = COUNTOF(pbuf) - 1;
+	     i < ilim && (c = getc(fi)) != '\n' && c != EOF;
+	     )
+		pbuf[i++] = (char)c;
+	pbuf[i] = '\0';
 	if (fi != stdin)
-	    fclose(fi);
-	return (u_int32)atoi(pbuf);
+		fclose(fi);
+
+	return (u_long) atoi(pbuf);
 }

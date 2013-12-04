@@ -4,15 +4,15 @@
 #include "ntp_refclock.h"
 
 #if defined(HAVE_SIGNALED_IO)
-extern void			block_sigio     P((void));
-extern void			unblock_sigio   P((void));
-extern int			init_clock_sig	P((struct refclockio *));
-extern void			init_socket_sig P((int));
-extern void			set_signal		P((void));
-RETSIGTYPE	sigio_handler	P((int));
+extern void		block_sigio	(void);
+extern void		unblock_sigio	(void);
+extern int		init_clock_sig	(struct refclockio *);
+extern void		init_socket_sig	(int);
+extern void		set_signal	(void);
+RETSIGTYPE		sigio_handler	(int);
 
-# define BLOCKIO()	 ((void) block_sigio())
-# define UNBLOCKIO() ((void) unblock_sigio())
+# define BLOCKIO()	block_sigio()
+# define UNBLOCKIO()	unblock_sigio()
 
 #else
 

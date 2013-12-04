@@ -30,7 +30,7 @@
 #include <stdio.h>
 #else
 #include "sys/parsestreams.h"
-extern void printf P((const char *, ...));
+extern void printf (const char *, ...);
 #endif
 
 /*

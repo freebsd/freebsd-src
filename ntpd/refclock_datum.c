@@ -173,13 +173,13 @@ static struct datum_pts_unit
 ** Callback function prototypes that ntpd needs to know about.
 */
 
-static	int	datum_pts_start		P((int, struct peer *));
-static	void	datum_pts_shutdown	P((int, struct peer *));
-static	void	datum_pts_poll		P((int, struct peer *));
-static	void	datum_pts_control	P((int, struct refclockstat *,
-					   struct refclockstat *, struct peer *));
-static	void	datum_pts_init		P((void));
-static	void	datum_pts_buginfo	P((int, struct refclockbug *, struct peer *));
+static	int	datum_pts_start		(int, struct peer *);
+static	void	datum_pts_shutdown	(int, struct peer *);
+static	void	datum_pts_poll		(int, struct peer *);
+static	void	datum_pts_control	(int, struct refclockstat *,
+					   struct refclockstat *, struct peer *);
+static	void	datum_pts_init		(void);
+static	void	datum_pts_buginfo	(int, struct refclockbug *, struct peer *);
 
 /*
 ** This is the call back function structure that ntpd actually uses for
@@ -219,7 +219,7 @@ struct	refclock refclock_datum = {
 ** the adjtime() call.
 */
 
-static	void	datum_pts_receive	P((struct recvbuf *));
+static	void	datum_pts_receive	(struct recvbuf *);
 
 /*......................................................................*/
 /*	datum_pts_start - start up the datum PTS. This means open the	*/
@@ -259,13 +259,13 @@ datum_pts_start(
 	*/
 
 	temp_datum_pts_unit = (struct datum_pts_unit **)
-		malloc((nunits+1)*sizeof(struct datum_pts_unit *));
+		emalloc((nunits+1)*sizeof(struct datum_pts_unit *));
 	if (nunits > 0) memcpy(temp_datum_pts_unit, datum_pts_unit,
 			       nunits*sizeof(struct datum_pts_unit *));
 	free(datum_pts_unit);
 	datum_pts_unit = temp_datum_pts_unit;
 	datum_pts_unit[nunits] = (struct datum_pts_unit *)
-		malloc(sizeof(struct datum_pts_unit));
+		emalloc(sizeof(struct datum_pts_unit));
 	datum_pts = datum_pts_unit[nunits];
 
 	datum_pts->unit = unit;	/* set my unit id */
@@ -291,6 +291,8 @@ datum_pts_start(
 	*/
 
 #ifdef HAVE_TERMIOS
+
+	memset(&arg, 0, sizeof(arg));
 
 	arg.c_iflag = IGNBRK;
 	arg.c_oflag = 0;
@@ -395,7 +397,7 @@ datum_pts_shutdown(
 			if (nunits > 1) {
 
 				temp_datum_pts_unit = (struct datum_pts_unit **)
-					malloc((nunits-1)*sizeof(struct datum_pts_unit *));
+					emalloc((nunits-1)*sizeof(struct datum_pts_unit *));
 				if (i!= 0) memcpy(temp_datum_pts_unit, datum_pts_unit,
 						  i*sizeof(struct datum_pts_unit *));
 
