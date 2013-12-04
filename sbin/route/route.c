@@ -74,6 +74,14 @@ __FBSDID("$FreeBSD$");
 
 #define ATALK_BUF_SIZE 20
 
+struct fibl {
+	TAILQ_ENTRY(fibl)	fl_next;
+
+	int	fl_num;
+	int	fl_error;
+	int	fl_errno;
+};
+
 static struct keytab {
 	const char	*kt_cp;
 	int	kt_i;
@@ -98,6 +106,13 @@ static bool	domain_initialized;
 static int	rtm_seq;
 static char	rt_line[NI_MAXHOST];
 static char	net_line[MAXHOSTNAMELEN + 1];
+
+static struct {
+	struct	rt_msghdr m_rtm;
+	char	m_space[512];
+} m_rtmsg;
+
+static TAILQ_HEAD(fibl_head_t, fibl) fibl_head;
 
 static int	atalk_aton(const char *, struct at_addr *);
 static char	*atalk_ntoa(struct at_addr, char [ATALK_BUF_SIZE]);
@@ -129,16 +144,6 @@ static void	set_metric(char *, int);
 static int	set_sofib(int);
 static void	sockaddr(char *, struct sockaddr *, size_t);
 static void	sodump(struct sockaddr *, const char *);
-
-struct fibl {
-	TAILQ_ENTRY(fibl)	fl_next;
-
-	int	fl_num;
-	int	fl_error;
-	int	fl_errno;
-};
-static TAILQ_HEAD(fibl_head_t, fibl) fibl_head;
-
 static int	fiboptlist_csv(const char *, struct fibl_head_t *);
 static int	fiboptlist_range(const char *, struct fibl_head_t *);
 
@@ -1482,11 +1487,6 @@ monitor(int argc, char *argv[])
 		print_rtmsg((struct rt_msghdr *)(void *)msg, n);
 	}
 }
-
-static struct {
-	struct	rt_msghdr m_rtm;
-	char	m_space[512];
-} m_rtmsg;
 
 static int
 rtmsg(int cmd, int flags, int fib)
