@@ -1554,7 +1554,7 @@ rtmsg(int cmd, int flags, int fib)
 	return (0);
 }
 
-static const char *msgtypes[] = {
+static const char *const msgtypes[] = {
 	"",
 	"RTM_ADD: Add Route",
 	"RTM_DELETE: Delete Route",
