@@ -120,6 +120,9 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
+    <para arch="amd64">The maximum amount of memory the &os; kernel
+      can address has been increased from 1TB to 4TB.</para>
+
     <para>A new &man.cpuset.2; API has been added
       for thread to CPU binding and CPU resource grouping and
       assignment.  The &man.cpuset.1; userland utility has been added
@@ -201,7 +204,9 @@
       <sect4 xml:id="mm">
 	<title>Multimedia Support</title>
 
-	<para/>
+        <para>Support for version 2.0 of the USB Audio reference design
+          has been added. New devices should support higher bandwidth,
+          increased sampling frequency and wider dynamic range.</para>
 
       </sect4>
 
@@ -249,26 +254,23 @@
     <sect3 xml:id="net-proto">
       <title>Network Protocols</title>
 
-      <para>The &man.bpf.4; packet filter and capture facility now
-        supports a zero-copy mode of operation, in which buffers are
-        loaned from a user process to the kernel.  This feature can
-        be enabled by setting
-        the <varname>net.bpf.zerocopy_enable</varname> sysctl
-        variable to <literal>1</literal>.</para>
+      <para>&man.carp.4; has been rewritten to make addresses
+        more sane from the viewpoint of routing daemons such as
+        quagga/zebra. It also brings support for a single redundant
+        address on the subnet (carpdev), switching state with
+        ifconfig, better locking and using modern kernel
+        interfaces to allocate multicast memberships.</para>
 
-      <para>ISDN4BSD(I4B), <filename>netatm</filename>, and all
-        related subsystems have been removed due to lack of
-        multi-processor support.</para>
+      <para>The &man.pf.4; firewall now supports fine-grain locking
+        and better utilization on multi-cpu machines resulting in
+        significant improvements in performance.</para>
 
-      <para role="merged">A bug in TCP options padding, where the wrong padding
-        bytes were used, has been fixed.</para>
+      <para>Support for up to 65536 routing tables has been
+        introduced.</para>
 
-      <para role="merged">The IEEE 802.11s element identifiers have
-        been updated to reflect the final version of the amendment.  This
-        update breaks compatibility with older mesh setups but is necessary
-        as the previous IDs are used by another amendment leading to
-        unexpected results when trying to associate with an accesspoint
-        using the affected IDs.</para>
+      <para>Support for setting/matching differentiated services
+        codepoints (DSCP) in IP header has been added to
+        &man.ipfw.8;.</para>
 
     </sect3>
 
@@ -293,19 +295,34 @@
     <sect3 xml:id="fs">
       <title>File Systems</title>
 
-      <para>A problem with using &man.mmap.2; on ZFS filesystems has
-        been fixed.</para>
+      <para>A new kernel-based iSCSI target and initiator has been
+        added</para>
 
-      <para>A new kernel-mode NFS lock manager has been added,
-        improving performance and behavior of NFS locking.  A new
-        &man.clear.locks.8; command has been added to clear locks held
-        on behalf of an NFS client.</para>
+      <para>UFS filesystems can now be enlarged with &man.growfs.8; while
+        mounted read-write. This is especially useful for virtual
+        machines, allowing the addition of more harddrive space without
+        interruption of service.</para>
 
-      <para role="merged">The <application>ZFS</application> file system
-        has been upgraded to version 28.  Changes include Data
-        Deduplication, Triple parity RAIDZ, and zfs diff.</para>
+      <para>A state of the art FUSE implementation is now part of the
+        base system. It allows the use of nearly all fusefs file
+        systems</para>
+
+      <para>Support for the high performance LZ4 compression algorithm
+        has been added to ZFS. LZ4 is usually faster and can achieve a
+        higher compression ratio than LZJB, the default compression
+        algorithm</para>
+
+      <para>Support for L2ARC compression has been added to ZFS.</para>
+
+      <para>ZFS will now compare the checksums of incoming writes to
+        the checksum of the existing on-disk data and avoid issuing any
+        write I/O for data that has not changed. This will reduce I/O
+        as well as space usage because if the old block is referenced
+        by a snapshot, both copies of the block are kept even though
+        both contain the same data.</para>
 
     </sect3>
+
   </sect2>
 
   <sect2 xml:id="userland">
@@ -443,8 +460,8 @@
     <para role="merged"><application>bzip2</application> has been updated from 1.0.4
       to 1.0.5.</para>
 
-    <para><application>CVS</application> has been updated from 1.11.17
-      to a post-1.11.22 snapshot from 10 March 2008.</para>
+    <para><application>CVS</application> has been removed from the
+    base system, but is still available from ports</para>
 
     <para><application>FILE</application> has been updated from 4.23
       to 5.03.</para>
