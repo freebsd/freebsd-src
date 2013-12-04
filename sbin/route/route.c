@@ -97,6 +97,7 @@ static char	domain[MAXHOSTNAMELEN + 1];
 static bool	domain_initialized;
 static int	rtm_seq;
 static char	rt_line[NI_MAXHOST];
+static char	net_line[MAXHOSTNAMELEN + 1];
 
 static int	atalk_aton(const char *, struct at_addr *);
 static char	*atalk_ntoa(struct at_addr, char [ATALK_BUF_SIZE]);
@@ -627,7 +628,6 @@ static const char *
 netname(struct sockaddr *sa)
 {
 	struct sockaddr_dl *sdl;
-	static char line[MAXHOSTNAMELEN + 1];
 	char atalk_buf[ATALK_BUF_SIZE];
 	int n;
 #ifdef INET
@@ -653,17 +653,17 @@ netname(struct sockaddr *sa)
 		}
 #define C(x)	(unsigned)((x) & 0xff)
 		if (cp != NULL)
-			strncpy(line, cp, sizeof(line));
+			strncpy(net_line, cp, sizeof(net_line));
 		else if ((in.s_addr & 0xffffff) == 0)
-			(void)sprintf(line, "%u", C(in.s_addr >> 24));
+			(void)sprintf(net_line, "%u", C(in.s_addr >> 24));
 		else if ((in.s_addr & 0xffff) == 0)
-			(void)sprintf(line, "%u.%u", C(in.s_addr >> 24),
+			(void)sprintf(net_line, "%u.%u", C(in.s_addr >> 24),
 			    C(in.s_addr >> 16));
 		else if ((in.s_addr & 0xff) == 0)
-			(void)sprintf(line, "%u.%u.%u", C(in.s_addr >> 24),
+			(void)sprintf(net_line, "%u.%u.%u", C(in.s_addr >> 24),
 			    C(in.s_addr >> 16), C(in.s_addr >> 8));
 		else
-			(void)sprintf(line, "%u.%u.%u.%u", C(in.s_addr >> 24),
+			(void)sprintf(net_line, "%u.%u.%u.%u", C(in.s_addr >> 24),
 			    C(in.s_addr >> 16), C(in.s_addr >> 8),
 			    C(in.s_addr));
 #undef C
@@ -683,15 +683,15 @@ netname(struct sockaddr *sa)
 		if (nflag)
 			niflags |= NI_NUMERICHOST;
 		if (getnameinfo((struct sockaddr *)&sin6, sin6.sin6_len,
-		    line, sizeof(line), NULL, 0, niflags) != 0)
-			strncpy(line, "invalid", sizeof(line));
+		    net_line, sizeof(net_line), NULL, 0, niflags) != 0)
+			strncpy(net_line, "invalid", sizeof(net_line));
 
-		return(line);
+		return(net_line);
 	}
 #endif
 
 	case AF_APPLETALK:
-		(void)snprintf(line, sizeof(line), "atalk %s",
+		(void)snprintf(net_line, sizeof(net_line), "atalk %s",
 		    atalk_ntoa(((struct sockaddr_at *)(void *)sa)->sat_addr,
 		    atalk_buf));
 		break;
@@ -702,11 +702,11 @@ netname(struct sockaddr *sa)
 		if (sdl->sdl_nlen == 0 &&
 		    sdl->sdl_alen == 0 &&
 		    sdl->sdl_slen == 0) {
-			n = snprintf(line, sizeof(line), "link#%d",
+			n = snprintf(net_line, sizeof(net_line), "link#%d",
 			    sdl->sdl_index);
-			if (n > (int)sizeof(line))
-			    line[0] = '\0';
-			return (line);
+			if (n > (int)sizeof(net_line))
+			    net_line[0] = '\0';
+			return (net_line);
 		} else
 			return (link_ntoa(sdl));
 		break;
@@ -715,8 +715,8 @@ netname(struct sockaddr *sa)
 	    {
 		u_short *sp = (u_short *)(void *)sa->sa_data;
 		u_short *splim = sp + ((sa->sa_len + 1)>>1);
-		char *cps = line + sprintf(line, "af %d:", sa->sa_family);
-		char *cpe = line + sizeof(line);
+		char *cps = net_line + sprintf(net_line, "af %d:", sa->sa_family);
+		char *cpe = net_line + sizeof(net_line);
 
 		while (sp < splim && cps < cpe)
 			if ((n = snprintf(cps, cpe - cps, " %x", *sp++)) > 0)
@@ -726,7 +726,7 @@ netname(struct sockaddr *sa)
 		break;
 	    }
 	}
-	return (line);
+	return (net_line);
 }
 
 static void
