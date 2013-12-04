@@ -237,6 +237,12 @@ dev/nvme/nvme_util.c		optional	nvme
 dev/nvram/nvram.c		optional	nvram isa
 dev/random/ivy.c		optional	random rdrand_rng
 dev/random/nehemiah.c		optional	random padlock_rng
+dev/qlxge/qls_dbg.c		optional	qlxge pci
+dev/qlxge/qls_dump.c		optional	qlxge pci
+dev/qlxge/qls_hw.c		optional	qlxge pci
+dev/qlxge/qls_ioctl.c		optional	qlxge pci
+dev/qlxge/qls_isr.c		optional	qlxge pci
+dev/qlxge/qls_os.c		optional	qlxge pci
 dev/qlxgb/qla_dbg.c		optional	qlxgb pci
 dev/qlxgb/qla_hw.c		optional	qlxgb pci
 dev/qlxgb/qla_ioctl.c		optional	qlxgb pci

@@ -361,6 +361,7 @@ MAN=	aac.4 \
 	pts.4 \
 	pty.4 \
 	puc.4 \
+	${_qlxge.4} \
 	${_qlxgb.4} \
 	${_qlxgbe.4} \
 	ral.4 \
@@ -771,10 +772,12 @@ MLINKS+=lindev.4 full.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
+_qlxge.4=	qlxge.4
 _qlxgb.4=	qlxgb.4
 _qlxgbe.4=	qlxgbe.4
 _sfxge.4=	sfxge.4
 
+MLINKS+=qlxge.4 if_qlxge.4
 MLINKS+=qlxgb.4 if_qlxgb.4
 MLINKS+=qlxgbe.4 if_qlxgbe.4
 MLINKS+=sfxge.4 if_sfxge.4

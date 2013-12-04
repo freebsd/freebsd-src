@@ -270,6 +270,7 @@ SUBDIR=	\
 	${_pst} \
 	pty  \
 	puc \
+	${_qlxge} \
 	${_qlxgb} \
 	${_qlxgbe} \
 	ral \
@@ -713,6 +714,7 @@ _opensolaris=	opensolaris
 _padlock=	padlock
 .endif
 _pccard=	pccard
+_qlxge=		qlxge
 _qlxgb=		qlxgb
 _qlxgbe=	qlxgbe
 _rdma=		rdma
