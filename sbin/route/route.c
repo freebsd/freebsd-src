@@ -95,6 +95,7 @@ static int	defaultfib;
 static int	numfibs;
 static char	domain[MAXHOSTNAMELEN + 1];
 static bool	domain_initialized;
+static int	rtm_seq;
 
 static int	atalk_aton(const char *, struct at_addr *);
 static char	*atalk_ntoa(struct at_addr, char [ATALK_BUF_SIZE]);
@@ -1490,7 +1491,6 @@ static struct {
 static int
 rtmsg(int cmd, int flags, int fib)
 {
-	static int seq;
 	int rlen;
 	char *cp = m_rtmsg.m_space;
 	int l;
@@ -1526,7 +1526,7 @@ rtmsg(int cmd, int flags, int fib)
 	rtm.rtm_type = cmd;
 	rtm.rtm_flags = flags;
 	rtm.rtm_version = RTM_VERSION;
-	rtm.rtm_seq = ++seq;
+	rtm.rtm_seq = ++rtm_seq;
 	rtm.rtm_addrs = rtm_addrs;
 	rtm.rtm_rmx = rt_metrics;
 	rtm.rtm_inits = rtm_inits;
@@ -1551,7 +1551,7 @@ rtmsg(int cmd, int flags, int fib)
 	if (cmd == RTM_GET) {
 		do {
 			l = read(s, (char *)&m_rtmsg, sizeof(m_rtmsg));
-		} while (l > 0 && (rtm.rtm_seq != seq || rtm.rtm_pid != pid));
+		} while (l > 0 && (rtm.rtm_seq != rtm_seq || rtm.rtm_pid != pid));
 		if (l < 0)
 			warn("read from routing socket");
 		else
