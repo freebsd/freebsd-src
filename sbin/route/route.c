@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <paths.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -92,6 +93,8 @@ static u_long  rtm_inits;
 static uid_t	uid;
 static int	defaultfib;
 static int	numfibs;
+static char	domain[MAXHOSTNAMELEN + 1];
+static bool	domain_initialized;
 
 static int	atalk_aton(const char *, struct at_addr *);
 static char	*atalk_ntoa(struct at_addr, char [ATALK_BUF_SIZE]);
@@ -499,12 +502,10 @@ routename(struct sockaddr *sa)
 	const char *cp;
 	char atalk_buf[ATALK_BUF_SIZE];
 	static char line[NI_MAXHOST];
-	static char domain[MAXHOSTNAMELEN + 1];
-	static int first = 1;
 	int n;
 
-	if (first) {
-		first = 0;
+	if (!domain_initialized) {
+		domain_initialized = true;
 		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
 		    (cp = strchr(domain, '.'))) {
 			domain[MAXHOSTNAMELEN] = '\0';
