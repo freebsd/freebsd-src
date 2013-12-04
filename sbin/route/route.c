@@ -96,6 +96,7 @@ static int	numfibs;
 static char	domain[MAXHOSTNAMELEN + 1];
 static bool	domain_initialized;
 static int	rtm_seq;
+static char	rt_line[NI_MAXHOST];
 
 static int	atalk_aton(const char *, struct at_addr *);
 static char	*atalk_ntoa(struct at_addr, char [ATALK_BUF_SIZE]);
@@ -502,7 +503,6 @@ routename(struct sockaddr *sa)
 	struct sockaddr_dl *sdl;
 	const char *cp;
 	char atalk_buf[ATALK_BUF_SIZE];
-	static char line[NI_MAXHOST];
 	int n;
 
 	if (!domain_initialized) {
@@ -564,24 +564,24 @@ routename(struct sockaddr *sa)
 		else if (sa->sa_family == AF_INET6)
 			ss.ss_len = sizeof(struct sockaddr_in6);
 		error = getnameinfo((struct sockaddr *)&ss, ss.ss_len,
-		    line, sizeof(line), NULL, 0,
+		    rt_line, sizeof(rt_line), NULL, 0,
 		    (nflag == 0) ? 0 : NI_NUMERICHOST);
 		if (error) {
 			warnx("getnameinfo(): %s", gai_strerror(error));
-			strncpy(line, "invalid", sizeof(line));
+			strncpy(rt_line, "invalid", sizeof(rt_line));
 		}
 
 		/* Remove the domain part if any. */
-		p = strchr(line, '.');
+		p = strchr(rt_line, '.');
 		if (p != NULL && strcmp(p + 1, domain) == 0)
 			*p = '\0';
 
-		return (line);
+		return (rt_line);
 		break;
 	}
 #endif
 	case AF_APPLETALK:
-		(void)snprintf(line, sizeof(line), "atalk %s",
+		(void)snprintf(rt_line, sizeof(rt_line), "atalk %s",
 		    atalk_ntoa(((struct sockaddr_at *)(void *)sa)->sat_addr,
 		    atalk_buf));
 		break;
@@ -592,11 +592,11 @@ routename(struct sockaddr *sa)
 		if (sdl->sdl_nlen == 0 &&
 		    sdl->sdl_alen == 0 &&
 		    sdl->sdl_slen == 0) {
-			n = snprintf(line, sizeof(line), "link#%d",
+			n = snprintf(rt_line, sizeof(rt_line), "link#%d",
 			    sdl->sdl_index);
-			if (n > (int)sizeof(line))
-			    line[0] = '\0';
-			return (line);
+			if (n > (int)sizeof(rt_line))
+			    rt_line[0] = '\0';
+			return (rt_line);
 		} else
 			return (link_ntoa(sdl));
 		break;
@@ -605,8 +605,8 @@ routename(struct sockaddr *sa)
 	    {
 		u_short *sp = (u_short *)(void *)sa;
 		u_short *splim = sp + ((sa->sa_len + 1) >> 1);
-		char *cps = line + sprintf(line, "(%d)", sa->sa_family);
-		char *cpe = line + sizeof(line);
+		char *cps = rt_line + sprintf(rt_line, "(%d)", sa->sa_family);
+		char *cpe = rt_line + sizeof(rt_line);
 
 		while (++sp < splim && cps < cpe) /* start with sa->sa_data */
 			if ((n = snprintf(cps, cpe - cps, " %x", *sp)) > 0)
@@ -616,7 +616,7 @@ routename(struct sockaddr *sa)
 		break;
 	    }
 	}
-	return (line);
+	return (rt_line);
 }
 
 /*
