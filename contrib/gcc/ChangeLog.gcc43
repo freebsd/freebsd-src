@@ -51,11 +51,19 @@
 	* doc/extend.texi: Document the 0b-prefixed binary integer
 	constant extension.
 	
-2007-05-31  Eric Christopher  <echristo@apple.com>
+2007-05-31  Eric Christopher  <echristo@apple.com> (r125246)
 
 	* expr.c (convert_move): Assert that we don't have a BLKmode
 	operand.
 	(store_expr): Handle BLKmode moves by calling emit_block_move.
+
+2007-05-27  Eric Christopher  <echristo@apple.com> (r125116)
+
+	* config/rs6000/rs6000.c (rs6000_emit_prologue): Update
+	sp_offset depending on stack size. Save r12 depending
+	on registers we're saving later.
+	(rs6000_emit_epilogue): Update sp_offset depending only
+	on stack size.
 
 2007-05-24  Richard Sandiford  <rsandifo@nildram.co.uk> (r125037)
 
