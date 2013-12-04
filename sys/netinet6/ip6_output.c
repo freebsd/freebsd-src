@@ -724,7 +724,13 @@ again:
 					IP6STAT_INC(ip6s_badscope);
 					goto bad;
 				}
-			} else if (IN6_IS_ADDR_LINKLOCAL(&dst->sin6_addr) ||
+			}
+			if (inp != NULL && inp->in6p_zoneid != 0) {
+				ifp = in6_getlinkifnet(inp->in6p_zoneid);
+				if (ifp != NULL)
+					goto oif_found;
+			}
+			if (IN6_IS_ADDR_LINKLOCAL(&dst->sin6_addr) ||
 			    IN6_IS_ADDR_MC_INTFACELOCAL(&dst->sin6_addr) ||
 			    IN6_IS_ADDR_MC_LINKLOCAL(&dst->sin6_addr)) {
 				/*
