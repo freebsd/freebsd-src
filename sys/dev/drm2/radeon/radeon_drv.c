@@ -338,6 +338,12 @@ static const struct file_operations radeon_driver_kms_fops = {
 };
 #endif /* DUMBBELL_WIP */
 
+static int radeon_sysctl_init(struct drm_device *dev, struct sysctl_ctx_list *ctx,
+			      struct sysctl_oid *top)
+{
+	return drm_add_busid_modesetting(dev, ctx, top);
+}
+
 static struct drm_driver_info kms_driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_PCI_DMA | DRIVER_SG |
@@ -367,6 +373,7 @@ static struct drm_driver_info kms_driver = {
 	.irq_postinstall = radeon_driver_irq_postinstall_kms,
 	.irq_uninstall = radeon_driver_irq_uninstall_kms,
 	.irq_handler = radeon_driver_irq_handler_kms,
+	.sysctl_init = radeon_sysctl_init,
 	.ioctls = radeon_ioctls_kms,
 	.gem_init_object = radeon_gem_object_init,
 	.gem_free_object = radeon_gem_object_free,
