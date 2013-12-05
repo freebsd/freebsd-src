@@ -79,7 +79,7 @@ IMAGES=
 .if exists(${.CURDIR}/${TARGET}/mkisoimages.sh)
 RELEASE_TARGETS+= cdrom
 IMAGES+=	disc1.iso bootonly.iso
-. if defined(WITH_DVD)
+. if defined(WITH_DVD) && !empty(WITH_DVD)
 RELEASE_TARGETS+= dvdrom
 IMAGES+=	dvd1.iso
 . endif
