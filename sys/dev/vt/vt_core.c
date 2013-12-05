@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/systm.h>
@@ -50,6 +51,11 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/kbd/kbdreg.h>
 #include <dev/vt/vt.h>
+
+#if defined(__i386__) || defined(__amd64__)
+#include <machine/psl.h>
+#include <machine/frame.h>
+#endif
 
 static tc_bell_t	vtterm_bell;
 static tc_cursor_t	vtterm_cursor;
@@ -923,7 +929,7 @@ vtterm_cngetc(struct terminal *tm)
 		/* Force refresh to make scrollback work. */
 		vt_flush(vd);
 	} else if (KEYFLAGS(c) == 0) {
-		return KEYCHAR(c);
+		return (KEYCHAR(c));
 	}
 
 	if (vw->vw_kbdsq && *vw->vw_kbdsq)
@@ -1015,19 +1021,19 @@ vt_proc_alive(struct vt_window *vw)
 	struct proc *p;
 
 	if (vw->vw_smode.mode != VT_PROCESS)
-		return FALSE;
+		return (FALSE);
 
 	if (vw->vw_proc) {
 		if ((p = pfind(vw->vw_pid)) != NULL)
 			PROC_UNLOCK(p);
 		if (vw->vw_proc == p)
-			return TRUE;
+			return (TRUE);
 		vw->vw_proc = NULL;
 		vw->vw_smode.mode = VT_AUTO;
 		DPRINTF(1, "vt controlling process %d died\n", vw->vw_pid);
 		vw->vw_pid = 0;
 	}
-	return FALSE;
+	return (FALSE);
 }
 
 static int
@@ -1035,18 +1041,18 @@ signal_vt_rel(struct vt_window *vw)
 {
 
 	if (vw->vw_smode.mode != VT_PROCESS)
-		return FALSE;
+		return (FALSE);
 	if (vw->vw_proc == NULL || vt_proc_alive(vw) == FALSE) {
 		vw->vw_proc = NULL;
 		vw->vw_pid = 0;
-		return TRUE;
+		return (TRUE);
 	}
 	vw->vw_flags |= VWF_SWWAIT_REL;
 	PROC_LOCK(vw->vw_proc);
 	kern_psignal(vw->vw_proc, vw->vw_smode.relsig);
 	PROC_UNLOCK(vw->vw_proc);
 	DPRINTF(1, "sending relsig to %d\n", vw->vw_pid);
-	return TRUE;
+	return (TRUE);
 }
 
 static int
@@ -1054,20 +1060,20 @@ signal_vt_acq(struct vt_window *vw)
 {
 
 	if (vw->vw_smode.mode != VT_PROCESS)
-		return FALSE;
+		return (FALSE);
 	if (vw == vw->vw_device->vd_windows[VT_CONSWINDOW])
 		cnavailable(vw->vw_terminal->consdev, FALSE);
 	if (vw->vw_proc == NULL || vt_proc_alive(vw) == FALSE) {
 		vw->vw_proc = NULL;
 		vw->vw_pid = 0;
-		return TRUE;
+		return (TRUE);
 	}
 	vw->vw_flags |= VWF_SWWAIT_ACQ;
 	PROC_LOCK(vw->vw_proc);
 	kern_psignal(vw->vw_proc, vw->vw_smode.acqsig);
 	PROC_UNLOCK(vw->vw_proc);
 	DPRINTF(1, "sending acqsig to %d\n", vw->vw_pid);
-	return TRUE;
+	return (TRUE);
 }
 
 static int
@@ -1080,9 +1086,9 @@ finish_vt_rel(struct vt_window *vw, int release, int *s)
 			callout_drain(&vw->vw_proc_dead_timer);
 			vt_late_window_switch(vw->vw_switch_to);
 		}
-		return 0;
+		return (0);
 	}
-	return EINVAL;
+	return (EINVAL);
 }
 
 static int
@@ -1091,9 +1097,9 @@ finish_vt_acq(struct vt_window *vw)
 
 	if (vw->vw_flags & VWF_SWWAIT_ACQ) {
 		vw->vw_flags &= ~VWF_SWWAIT_ACQ;
-		return 0;
+		return (0);
 	}
-	return EINVAL;
+	return (EINVAL);
 }
 
 void
@@ -1262,17 +1268,68 @@ vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
 {
 	struct vt_window *vw = tm->tm_softc;
 	struct vt_device *vd = vw->vw_device;
-	int error, s;
+	keyboard_t *kbd;
+	int error, i, s;
+#if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
+	int ival;
 
 	switch (cmd) {
+	case _IO('v', 4):
+		cmd = VT_RELDISP;
+		break;
+	case _IO('v', 5):
+		cmd = VT_ACTIVATE;
+		break;
+	case _IO('v', 6):
+		cmd = VT_WAITACTIVE;
+		break;
+	case _IO('K', 20):
+		cmd = KDSKBSTATE;
+		break;
+	case _IO('K', 67):
+		cmd = KDSETRAD;
+		break;
+	case _IO('K', 7):
+		cmd = KDSKBMODE;
+		break;
+	case _IO('K', 8):
+		cmd = KDMKTONE;
+		break;
+	case _IO('K', 63):
+		cmd = KIOCSOUND;
+		break;
+	case _IO('K', 66):
+		cmd = KDSETLED;
+		break;
+	case _IO('c', 110):
+		cmd = CONS_SETKBD;
+		break;
+	}
+	ival = IOCPARM_IVAL(data);
+	data = (caddr_t)&ival;
+#endif
+
+	switch (cmd) {
+	case KDSETRAD:		/* set keyboard repeat & delay rates (old) */
+		if (*(int *)data & ~0x7f)
+			return (EINVAL);
 	case GIO_KEYMAP:
 	case PIO_KEYMAP:
 	case GIO_DEADKEYMAP:
 	case PIO_DEADKEYMAP:
 	case GETFKEY:
 	case SETFKEY:
-	case KDGKBINFO: {
-		keyboard_t *kbd;
+	case KDGKBINFO:
+	case KDGKBTYPE:
+	case KDSKBSTATE:	/* set keyboard state (locks) */
+	case KDGKBSTATE:	/* get keyboard state (locks) */
+	case KDGETREPEAT:	/* get keyboard repeat & delay rates */
+	case KDSETREPEAT:	/* set keyboard repeat & delay rates (new) */
+	case KDSETLED:		/* set keyboard LED status */
+	case KDGETLED:		/* get keyboard LED status */
+	case KBADDKBD:		/* add/remove keyboard to/from mux */
+	case KBRELKBD: {
 		error = 0;
 
 		mtx_lock(&Giant);
@@ -1280,13 +1337,18 @@ vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
 		if (kbd != NULL)
 			error = kbdd_ioctl(kbd, cmd, data);
 		mtx_unlock(&Giant);
-		if (error == ENOIOCTL)
-			return (ENODEV);
+		if (error == ENOIOCTL) {
+			if (cmd == KDGKBTYPE) {
+				/* always return something? XXX */
+				*(int *)data = 0;
+			} else {
+				return (ENODEV);
+			}
+		}
 		return (error);
 	}
 	case KDGKBMODE: {
 		int mode = -1;
-		keyboard_t *kbd;
 
 		mtx_lock(&Giant);
 		kbd = kbd_get_keyboard(vd->vd_keyboard);
@@ -1311,19 +1373,13 @@ vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
 				keyboard_t *kbd;
 				error = 0;
 
-				DPRINTF(20, "%s: vd_keyboard = %d\n", __func__,
-				    vd->vd_keyboard);
 				mtx_lock(&Giant);
 				kbd = kbd_get_keyboard(vd->vd_keyboard);
 				if (kbd != NULL) {
-					DPRINTF(20, "kbdd_ioctl(KDSKBMODE, %d)\n", mode);
 					error = kbdd_ioctl(kbd, KDSKBMODE,
 					    (void *)&mode);
 				}
 				mtx_unlock(&Giant);
-				if (error)
-					DPRINTF(20, "kbdd_ioctl(KDSKBMODE) "
-					    "return %d\n", error);
 			}
 			return (0);
 		default:
@@ -1346,7 +1402,7 @@ vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
 	}
 	case CONS_GETVERS: 
 		*(int *)data = 0x200;
-		return 0;
+		return (0);
 	case CONS_MODEINFO:
 		/* XXX */
 		return (0);
@@ -1393,22 +1449,79 @@ vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
 			sm->scrmap[i] = i;
 		return (0);
 	}
-	case KDGETLED:
-		/* XXX */
-		return (0);
-	case KDSETLED:
-		/* XXX */
-		return (0);
 	case KDSETMODE:
 		/* XXX */
 		return (0);
-	case KDSETRAD:
-		/* XXX */
+	case KDENABIO:      	/* allow io operations */
+		error = priv_check(td, PRIV_IO);
+		if (error != 0)
+			return (error);
+		error = securelevel_gt(td->td_ucred, 0);
+		if (error != 0)
+			return (error);
+#if defined(__i386__) || defined(__amd64__)
+		td->td_frame->tf_rflags |= PSL_IOPL;
+#endif
 		return (0);
+	case KDDISABIO:     	/* disallow io operations (default) */
+#if defined(__i386__) || defined(__amd64__)
+		td->td_frame->tf_rflags &= ~PSL_IOPL;
+#endif
+		return (0);
+	case KDMKTONE:      	/* sound the bell */
+		/* TODO */
+		return (0);
+	case KIOCSOUND:     	/* make tone (*data) hz */
+		/* TODO */
+		return (0);
+	case CONS_SETKBD: 		/* set the new keyboard */
+		mtx_lock(&Giant);
+		error = 0;
+		if (vd->vd_keyboard != *(int *)data) {
+			kbd = kbd_get_keyboard(*(int *)data);
+			if (kbd == NULL) {
+				mtx_unlock(&Giant);
+				return (EINVAL);
+			}
+			i = kbd_allocate(kbd->kb_name, kbd->kb_unit,
+			    (void *)&vd->vd_keyboard, vt_kbdevent, vd);
+			if (i >= 0) {
+				if (vd->vd_keyboard != -1) {
+					kbd_release(kbd,
+					    (void *)&vd->vd_keyboard);
+				}
+				kbd = kbd_get_keyboard(i);
+				vd->vd_keyboard = i;
+
+				(void)kbdd_ioctl(kbd, KDSKBMODE,
+				    (caddr_t)&vd->vd_curwindow->vw_kbdmode);
+			} else {
+				error = EPERM;	/* XXX */
+			}
+		}
+		mtx_unlock(&Giant);
+		return (error);
+	case CONS_RELKBD: 		/* release the current keyboard */
+		mtx_lock(&Giant);
+		error = 0;
+		if (vd->vd_keyboard != -1) {
+			kbd = kbd_get_keyboard(vd->vd_keyboard);
+			if (kbd == NULL) {
+				mtx_unlock(&Giant);
+				return (EINVAL);
+			}
+			error = kbd_release(kbd, (void *)&vd->vd_keyboard);
+			if (error == 0) {
+				vd->vd_keyboard = -1;
+			}
+		}
+		mtx_unlock(&Giant);
+		return (error);
 	case VT_ACTIVATE: {
 		int win;
 		win = *(int *)data - 1;
-		DPRINTF(5, "%s%d: VT_ACTIVATE ttyv%d ", SC_DRIVER_NAME, VT_UNIT(vw), win);
+		DPRINTF(5, "%s%d: VT_ACTIVATE ttyv%d ", SC_DRIVER_NAME,
+		    VT_UNIT(vw), win);
 		if ((win > VT_MAXWINDOWS) || (win < 0))
 			return (EINVAL);
 		return (vt_proc_window_switch(vd->vd_windows[win]));
@@ -1425,9 +1538,7 @@ vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
 			vw->vw_flags |= VWF_VTYLOCK;
 		else
 			vw->vw_flags &= ~VWF_VTYLOCK;
-	case VT_OPENQRY: {
-		unsigned int i;
-
+	case VT_OPENQRY:
 		VT_LOCK(vd);
 		for (i = 0; i < VT_MAXWINDOWS; i++) {
 			vw = vd->vd_windows[i];
@@ -1441,9 +1552,7 @@ vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
 		}
 		VT_UNLOCK(vd);
 		return (EINVAL);
-	}
-	case VT_WAITACTIVE: {
-		unsigned int i;
+	case VT_WAITACTIVE:
 		error = 0;
 
 		i = *(unsigned int *)data;
@@ -1457,9 +1566,7 @@ vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
 			error = cv_wait_sig(&vd->vd_winswitch, &vd->vd_lock);
 		VT_UNLOCK(vd);
 		return (error);
-	}
-	case VT_SETMODE:    	/* set screen switcher mode */
-	{
+	case VT_SETMODE: {    	/* set screen switcher mode */
 		struct vt_mode *mode;
 		struct proc *p1;
 
@@ -1508,12 +1615,11 @@ vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
 			return (EINVAL);
 		}
 		DPRINTF(5, "\n");
-		return 0;
+		return (0);
 	}
-
 	case VT_GETMODE:	/* get screen switcher mode */
 		bcopy(&vw->vw_smode, data, sizeof(struct vt_mode));
-		return 0;
+		return (0);
 
 	case VT_RELDISP:	/* screen switcher ioctl */
 		/*
@@ -1522,18 +1628,18 @@ vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
 		 */
 		if ((vw != vd->vd_curwindow) || (vw->vw_smode.mode !=
 		    VT_PROCESS)) {
-			return EINVAL;
+			return (EINVAL);
 		}
 		/* ...and this process is controlling it. */
 		if (vw->vw_proc != td->td_proc) {
-			return EPERM;
+			return (EPERM);
 		}
 		error = EINVAL;
 		switch(*(int *)data) {
 		case VT_FALSE:	/* user refuses to release screen, abort */
 			if ((error = finish_vt_rel(vw, FALSE, &s)) == 0)
-				DPRINTF(5, "%s%d: VT_RELDISP: VT_FALSE\n", SC_DRIVER_NAME,
-				    VT_UNIT(vw));
+				DPRINTF(5, "%s%d: VT_RELDISP: VT_FALSE\n",
+				    SC_DRIVER_NAME, VT_UNIT(vw));
 			break;
 		case VT_TRUE:	/* user has released screen, go on */
 			/* finish_vt_rel(..., TRUE, ...) should not be locked */
@@ -1547,13 +1653,13 @@ vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
 			return (error);
 		case VT_ACKACQ:	/* acquire acknowledged, switch completed */
 			if ((error = finish_vt_acq(vw)) == 0)
-				DPRINTF(5, "%s%d: VT_RELDISP: VT_ACKACQ\n", SC_DRIVER_NAME,
-				    VT_UNIT(vw));
+				DPRINTF(5, "%s%d: VT_RELDISP: VT_ACKACQ\n",
+				    SC_DRIVER_NAME, VT_UNIT(vw));
 			break;
 		default:
 			break;
 		}
-		return error;
+		return (error);
 	}
 
 	return (ENOIOCTL);
