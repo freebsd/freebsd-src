@@ -3,9 +3,7 @@
 
 .include <bsd.own.mk>
 
-# XXXRW: make cheritest conditionally built.
 SUBDIR= cat \
-	cheritest \
 	chflags \
 	chio \
 	chmod \
@@ -41,6 +39,10 @@ SUBDIR= cat \
 	sync \
 	test \
 	uuidgen
+
+.if ${MK_CHERI} != "no"
+SUBDIR+=	cheritest
+.endif
 
 .if ${MK_RCMDS} != "no"
 SUBDIR+=	rcp

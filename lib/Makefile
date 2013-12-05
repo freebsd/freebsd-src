@@ -35,7 +35,7 @@ SUBDIR_ORDERED=	${_csu} \
 	libbsm \
 	libauditd \
 	libcompiler_rt \
-	libcheri \
+	${_libcheri} \
 	libcrypt \
 	libelf \
 	${_libiconv_modules} \
@@ -157,6 +157,10 @@ _libsdp=	libsdp
 
 .if ${MK_BSNMP} != "no"
 _libbsnmp=	libbsnmp
+.endif
+
+.if ${MK_CHERI} != no
+_libcheri=	libcheri
 .endif
 
 .if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT)

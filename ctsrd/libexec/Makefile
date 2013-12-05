@@ -1,8 +1,11 @@
 # $FreeBSD$
 
 SUBDIR=	minifile-capsicum-helper \
-	minifile-cheri-helper \
-	readpng-capsicum-helper \
-	readpng-cheri-helper
+	readpng-capsicum-helper
+
+.if ${MK_CHERI} = "no"
+SUBDIR+=	minifile-cheri-helper \
+		readpng-cheri-helper
+.endif
 
 .include <bsd.subdir.mk>
