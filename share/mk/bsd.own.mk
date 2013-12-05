@@ -446,6 +446,12 @@ __DEFAULT_YES_OPTIONS+=FDT
 .else
 __DEFAULT_NO_OPTIONS+=FDT
 .endif
+# If we're building for 64-bit MIPS assume we want CHERI bits
+.if ${__T} == "mips64"
+__DEFAULT_YES_OPTIONS+=CHERI
+.else
+__DEFAULT_NO_OPTIONS+=CHERI
+.endif
 .undef __T
 
 #

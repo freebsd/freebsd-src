@@ -6,7 +6,7 @@
 SUBDIR=	${_atf} \
 	${_atrun} \
 	bootpd \
-	cheritest-helper \
+	${_cheritest_helper} \
 	${_comsat} \
 	fingerd \
 	ftpd \
@@ -40,6 +40,10 @@ _atf=		atf
 
 .if ${MK_AT} != "no"
 _atrun=		atrun
+.endif
+
+.if ${MK_CHERI} != "no"
+_cheritest_helper=	cheritest-helper
 .endif
 
 .if ${MK_MAIL} != "no"

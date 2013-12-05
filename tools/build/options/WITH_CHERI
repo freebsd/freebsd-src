@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Set to build software requiring CHERI capability support.
+This currently only makes sense on mips64 systems.
