@@ -2508,6 +2508,24 @@ bge_blockinit(struct bge_softc *sc)
 	CSR_WRITE_4(sc, BGE_RDMA_MODE, val);
 	DELAY(40);
 
+	if (sc->bge_flags & BGE_FLAG_RDMA_BUG) {
+		for (i = 0; i < BGE_NUM_RDMA_CHANNELS / 2; i++) {
+			val = CSR_READ_4(sc, BGE_RDMA_LENGTH + i * 4);
+			if ((val & 0xFFFF) > BGE_FRAMELEN)
+				break;
+			if (((val >> 16) & 0xFFFF) > BGE_FRAMELEN)
+				break;
+		}
+		if (i != BGE_NUM_RDMA_CHANNELS / 2) {
+			val = CSR_READ_4(sc, BGE_RDMA_LSO_CRPTEN_CTRL);
+			if (sc->bge_asicrev == BGE_ASICREV_BCM5719)
+				val |= BGE_RDMA_TX_LENGTH_WA_5719;
+			else
+				val |= BGE_RDMA_TX_LENGTH_WA_5720;
+			CSR_WRITE_4(sc, BGE_RDMA_LSO_CRPTEN_CTRL, val);
+		}
+	}
+
 	/* Turn on RX data completion state machine */
 	CSR_WRITE_4(sc, BGE_RDC_MODE, BGE_RDCMODE_ENABLE);
 
@@ -3344,10 +3362,18 @@ bge_attach(device_t dev)
 		sc->bge_flags |= BGE_FLAG_5717_PLUS | BGE_FLAG_5755_PLUS |
 		    BGE_FLAG_575X_PLUS | BGE_FLAG_5705_PLUS | BGE_FLAG_JUMBO |
 		    BGE_FLAG_JUMBO_FRAME;
-		if (sc->bge_asicrev == BGE_ASICREV_BCM5719 &&
-		    sc->bge_chipid == BGE_CHIPID_BCM5719_A0) {
-			/* Jumbo frame on BCM5719 A0 does not work. */
-			sc->bge_flags &= ~BGE_FLAG_JUMBO;
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5719 ||
+		    sc->bge_asicrev == BGE_ASICREV_BCM5720) {
+			/*
+			 * Enable work around for DMA engine miscalculation
+			 * of TXMBUF available space.
+			 */
+			sc->bge_flags |= BGE_FLAG_RDMA_BUG;
+			if (sc->bge_asicrev == BGE_ASICREV_BCM5719 &&
+			    sc->bge_chipid == BGE_CHIPID_BCM5719_A0) {
+				/* Jumbo frame on BCM5719 A0 does not work. */
+				sc->bge_flags &= ~BGE_FLAG_JUMBO;
+			}
 		}
 		break;
 	case BGE_ASICREV_BCM5755:
@@ -4765,6 +4791,7 @@ bge_stats_update_regs(struct bge_softc *sc)
 {
 	struct ifnet *ifp;
 	struct bge_mac_stats *stats;
+	uint32_t val;
 
 	ifp = sc->bge_ifp;
 	stats = &sc->bge_mac_stats;
@@ -4865,6 +4892,24 @@ bge_stats_update_regs(struct bge_softc *sc)
 	ifp->if_collisions = (u_long)stats->etherStatsCollisions;
 	ifp->if_ierrors = (u_long)(stats->NoMoreRxBDs + stats->InputDiscards +
 	    stats->InputErrors);
+
+	if (sc->bge_flags & BGE_FLAG_RDMA_BUG) {
+		/*
+		 * If controller transmitted more than BGE_NUM_RDMA_CHANNELS
+		 * frames, it's safe to disable workaround for DMA engine's
+		 * miscalculation of TXMBUF space.
+		 */
+		if (stats->ifHCOutUcastPkts + stats->ifHCOutMulticastPkts +
+		    stats->ifHCOutBroadcastPkts > BGE_NUM_RDMA_CHANNELS) {
+			val = CSR_READ_4(sc, BGE_RDMA_LSO_CRPTEN_CTRL);
+			if (sc->bge_asicrev == BGE_ASICREV_BCM5719)
+				val &= ~BGE_RDMA_TX_LENGTH_WA_5719;
+			else
+				val &= ~BGE_RDMA_TX_LENGTH_WA_5720;
+			CSR_WRITE_4(sc, BGE_RDMA_LSO_CRPTEN_CTRL, val);
+			sc->bge_flags &= ~BGE_FLAG_RDMA_BUG;
+		}
+	}
 }
 
 static void
