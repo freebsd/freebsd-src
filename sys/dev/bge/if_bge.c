@@ -1796,6 +1796,20 @@ bge_chipinit(struct bge_softc *sc)
 		pci_write_config(sc->bge_dev, BGE_PCI_MSI_DATA + 2, val, 2);
 	}
 
+	if (sc->bge_asicrev == BGE_ASICREV_BCM57765 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM57766) {
+		/*
+		 * For the 57766 and non Ax versions of 57765, bootcode
+		 * needs to setup the PCIE Fast Training Sequence (FTS)
+		 * value to prevent transmit hangs.
+		 */
+		if (sc->bge_chiprev != BGE_CHIPREV_57765_AX) {
+			CSR_WRITE_4(sc, BGE_CPMU_PADRNG_CTL,
+			    CSR_READ_4(sc, BGE_CPMU_PADRNG_CTL) |
+			    BGE_CPMU_PADRNG_CTL_RDIV2);
+		}
+	}
+
 	/*
 	 * Set up the PCI DMA control register.
 	 */
