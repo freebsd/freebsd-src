@@ -35,7 +35,7 @@ dev/iicbus/ad7417.c		optional	ad7417 powermac
 dev/iicbus/ds1631.c		optional	ds1631 powermac
 dev/iicbus/ds1775.c		optional	ds1775 powermac
 dev/iicbus/max6690.c		optional	max6690 powermac
-dev/kbd/kbd.c			optional	sc
+dev/kbd/kbd.c			optional	sc | vt
 dev/nand/nfc_fsl.c		optional	nand mpc85xx
 # ofw can be either aim or fdt: fdt case handled in files. aim only powerpc specific.
 dev/ofw/openfirm.c		optional	aim
@@ -65,6 +65,7 @@ dev/tsec/if_tsec.c		optional	tsec
 dev/tsec/if_tsec_fdt.c		optional	tsec fdt
 dev/uart/uart_cpu_powerpc.c	optional	uart
 dev/usb/controller/ehci_fsl.c	optional	ehci mpc85xx
+dev/vt/hw/ofwfb/ofwfb.c		optional	vt aim
 kern/kern_clocksource.c		standard
 kern/subr_dummy_vdso_tc.c	standard
 kern/syscalls.c			optional	ktr
