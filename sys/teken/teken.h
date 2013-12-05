@@ -168,6 +168,7 @@ void	teken_set_cursor(teken_t *, const teken_pos_t *);
 void	teken_set_curattr(teken_t *, const teken_attr_t *);
 void	teken_set_defattr(teken_t *, const teken_attr_t *);
 void	teken_set_winsize(teken_t *, const teken_pos_t *);
+void	teken_set_winsize_noreset(teken_t *, const teken_pos_t *);
 
 /* Key input escape sequences. */
 #define	TKEY_UP		0x00

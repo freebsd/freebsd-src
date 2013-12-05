@@ -82,7 +82,7 @@ pccarddevs.h			standard				   \
 	compile-with	"${AWK} -f $S/tools/pccarddevs2h.awk $S/dev/pccard/pccarddevs" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"pccarddevs.h"
-teken_state.h		optional sc					   \
+teken_state.h		optional sc | vt				   \
 	dependency	"$S/teken/gensequences $S/teken/sequences" \
 	compile-with	"${AWK} -f $S/teken/gensequences $S/teken/sequences > teken_state.h" \
 	no-obj no-implicit-rule before-depend				   \
@@ -1396,6 +1396,8 @@ dev/ex/if_ex_isa.c		optional ex isa
 dev/ex/if_ex_pccard.c		optional ex pccard
 dev/exca/exca.c			optional cbb
 dev/fatm/if_fatm.c		optional fatm pci
+dev/fb/fbd.c			optional fbd | vt
+dev/fb/fb_if.m			optional fbd | vt
 dev/fb/splash.c			optional splash
 dev/fdt/fdt_common.c		optional fdt
 dev/fdt/fdt_ic_if.m		optional fdt
@@ -2461,6 +2463,17 @@ dev/vge/if_vge.c		optional vge
 
 dev/vkbd/vkbd.c			optional vkbd
 dev/vr/if_vr.c			optional vr pci
+dev/vt/colors/vt_termcolors.c	optional vt
+dev/vt/font/vt_font_default.c	optional vt
+dev/vt/font/vt_mouse_cursor.c	optional vt
+dev/vt/hw/fb/vt_fb.c		optional vt
+dev/vt/hw/vga/vga.c		optional vt vt_vga
+dev/vt/logo/logo_freebsd.c	optional vt
+dev/vt/vt_buf.c			optional vt
+dev/vt/vt_consolectl.c		optional vt
+dev/vt/vt_core.c		optional vt
+dev/vt/vt_font.c		optional vt
+dev/vt/vt_sysmouse.c		optional vt
 dev/vte/if_vte.c		optional vte pci
 dev/vx/if_vx.c			optional vx
 dev/vx/if_vx_eisa.c		optional vx eisa
@@ -2897,6 +2910,7 @@ kern/subr_sleepqueue.c		standard
 kern/subr_smp.c			standard
 kern/subr_stack.c		optional ddb | stack | ktr
 kern/subr_taskqueue.c		standard
+kern/subr_terminal.c		optional vt
 kern/subr_trap.c		standard
 kern/subr_turnstile.c		standard
 kern/subr_uio.c			standard
@@ -3796,7 +3810,7 @@ security/mac_portacl/mac_portacl.c optional mac_portacl
 security/mac_seeotheruids/mac_seeotheruids.c optional mac_seeotheruids
 security/mac_stub/mac_stub.c	optional mac_stub
 security/mac_test/mac_test.c	optional mac_test
-teken/teken.c			optional sc
+teken/teken.c			optional sc | vt
 ufs/ffs/ffs_alloc.c		optional ffs
 ufs/ffs/ffs_balloc.c		optional ffs
 ufs/ffs/ffs_inode.c		optional ffs

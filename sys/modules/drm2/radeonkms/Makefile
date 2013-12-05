@@ -96,6 +96,7 @@ SRCS	+=								\
 	opt_drm.h							\
 	acpi_if.h							\
 	bus_if.h							\
+	fb_if.h								\
 	device_if.h							\
 	iicbb_if.h							\
 	iicbus_if.h							\

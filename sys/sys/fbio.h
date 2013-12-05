@@ -40,6 +40,10 @@
 
 #ifndef _KERNEL
 #include <sys/types.h>
+#else
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/eventhandler.h>
 #endif
 #include <sys/ioccom.h>
 
@@ -100,6 +104,78 @@ struct fbtype {
 	int	fb_size;	/* total size in bytes */
 };
 #define	FBIOGTYPE	_IOR('F', 0, struct fbtype)
+
+#define	FBTYPE_GET_STRIDE(_fb)	((_fb)->fb_size / (_fb)->fb_height)
+#define	FBTYPE_GET_BPP(_fb)	((_fb)->fb_bpp)
+#define	FBTYPE_GET_BYTESPP(_fb)	((_fb)->fb_bpp / 8)
+
+#ifdef	_KERNEL
+
+struct fb_info;
+
+typedef int fb_enter_t(void *priv);
+typedef int fb_leave_t(void *priv);
+typedef int fb_write_t(void *priv, int offset, void *data, int size);
+typedef int fb_read_t(void *priv, int offset, void *data, int size);
+
+/* XXX: should use priv instead of fb_info too. */
+typedef void fb_copy_t(struct fb_info *sc, uint32_t offset_to, uint32_t offset_from,
+    uint32_t size);
+typedef void fb_wr1_t(struct fb_info *sc, uint32_t offset, uint8_t value);
+typedef void fb_wr2_t(struct fb_info *sc, uint32_t offset, uint16_t value);
+typedef void fb_wr4_t(struct fb_info *sc, uint32_t offset, uint32_t value);
+
+struct fb_info {
+	/* Raw copy of fbtype. Do not change. */
+	int		fb_type;	/* as defined above */
+	int		fb_height;	/* in pixels */
+	int		fb_width;	/* in pixels */
+	int		fb_depth;	/* bits to define color */
+	int		fb_cmsize;	/* size of color map (entries) */
+	int		fb_size;	/* total size in bytes */
+
+	/* Methods. */
+	fb_write_t	*fb_write;	/* if NULL, direct mem write. */
+	fb_read_t	*fb_read;	/* if NULL, direct mem read. */
+
+	fb_wr1_t	*wr1;
+	fb_wr2_t	*wr2;
+	fb_wr4_t	*wr4;
+	fb_copy_t	*copy;
+	fb_enter_t	*enter;
+	fb_leave_t	*leave;
+
+	intptr_t	fb_pbase;	/* For FB mmap. */
+	intptr_t	fb_vbase;	/* if NULL, use fb_write/fb_read. */
+	void		*fb_priv;	/* First argument for read/write. */
+	const char	*fb_name;
+	uint32_t	fb_flags;
+	int		fb_stride;
+	int		fb_bpp;		/* bits per pixel */
+#define	FB_FLAG_NOMMAP		1	/* mmap unsupported. */
+	uint32_t	fb_cmap[16];
+};
+
+int fbd_list(void);
+int fbd_register(struct fb_info *);
+int fbd_unregister(struct fb_info *);
+
+static inline int
+register_framebuffer(struct fb_info *info)
+{
+
+	EVENTHANDLER_INVOKE(register_framebuffer, info);
+	return (0);
+}
+
+static inline int
+unregister_framebuffer(struct fb_info *info)
+{
+
+	EVENTHANDLER_INVOKE(unregister_framebuffer, info);
+	return (0);
+}
+#endif
 
 #ifdef notdef
 /*

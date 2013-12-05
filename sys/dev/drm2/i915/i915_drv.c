@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drm_pciids.h>
 #include <dev/drm2/i915/intel_drv.h>
 
+#include "fb_if.h"
+
 /* drv_PCI_IDs comes from drm_pciids.h, generated from drm_pciids.txt. */
 static drm_pci_id_list_t i915_pciidlist[] = {
 	i915_PCI_IDS
@@ -380,6 +382,25 @@ i915_attach(device_t kdev)
 	return (drm_attach(kdev, i915_pciidlist));
 }
 
+static struct fb_info *
+i915_fb_helper_getinfo(device_t kdev)
+{
+	struct intel_fbdev *ifbdev;
+	drm_i915_private_t *dev_priv;
+	struct drm_device *dev;
+	struct fb_info *info;
+
+	dev = device_get_softc(kdev);
+	dev_priv = dev->dev_private;
+	ifbdev = dev_priv->fbdev;
+	if (ifbdev == NULL)
+		return (NULL);
+
+	info = ifbdev->helper.fbdev;
+
+	return (info);
+}
+
 const struct intel_device_info *
 i915_get_device_id(int device)
 {
@@ -400,6 +421,10 @@ static device_method_t i915_methods[] = {
 	DEVMETHOD(device_suspend,	i915_suspend),
 	DEVMETHOD(device_resume,	i915_resume),
 	DEVMETHOD(device_detach,	drm_detach),
+
+	/* Framebuffer service methods */
+	DEVMETHOD(fb_getinfo,		i915_fb_helper_getinfo),
+
 	DEVMETHOD_END
 };
 
