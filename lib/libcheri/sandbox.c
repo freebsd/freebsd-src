@@ -267,9 +267,7 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 	 * Construct a generic capability that desxribes the combined
 	 * data/code segment that we will seal.
 	 */
-	sbcap = (__capability void *)sb->sb_mem;
-	sbcap = cheri_setlen(sbcap, sandboxlen);
-	sbcap = cheri_settype(sbcap, SANDBOX_ENTRY);
+	sbcap = cheri_ptrtype(sb->sb_mem, sandboxlen, SANDBOX_ENTRY);
 
 	/* Construct sealed code capability. */
 	sb->sb_codecap = cheri_andperm(sbcap, CHERI_PERM_EXECUTE |
@@ -350,12 +348,14 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 		printf(" length %p\n", (void *)v);
 	}
 
+#ifndef USE_C_CAPS
 	/*
 	 * Clear $c1, $c2, and $c3, which we no longer require.
 	 */
 	CHERI_CCLEARTAG(1);
 	CHERI_CCLEARTAG(2);
 	CHERI_CCLEARTAG(3);
+#endif
 
 	*sbp = sb;
 	return (0);
@@ -373,14 +373,6 @@ error:
 	errno = saved_errno;
 	return (-1);
 }
-
-#define	CHERI_CLOADORCLEAR(cnum, cptr) do {				\
-	if (cptr != NULL)						\
-		CHERI_CLC(cnum, 0, cptr, 0);				\
-	else								\
-		CHERI_CCLEARTAG(cnum);					\
-} while (0)
-
 
 #ifdef USE_C_CAPS
 register_t
@@ -402,6 +394,13 @@ sandbox_cinvoke(struct sandbox *sb, register_t a0, register_t a1,
 }
 #endif
 
+#define	CHERI_CLOADORCLEAR(cnum, cptr) do {				\
+	if (cptr != NULL)						\
+		CHERI_CLC(cnum, 0, cptr, 0);				\
+	else								\
+		CHERI_CCLEARTAG(cnum);					\
+} while (0)
+
 /*
  * This version of invoke() is intended for callers not implementing CHERI
  * compiler support -- but internally, it can be implemented either way.
@@ -421,12 +420,7 @@ sandbox_invoke(struct sandbox *sb, register_t a0, register_t a1,
 	__capability void *c3, *c4, *c5, *c6, *c7, *c8, *c9, *c10;
 	__capability void *cclear;
 
-#ifdef HAD_CHERI_CCLEARTAG
-	/* XXXRW: Or some other pretty way to do this. */
-	cclear = cheri_ccleartag();
-#else
-	bzero(&cclear, sizeof(cclear));
-#endif
+	cclear = cheri_zerocap();
 	c3 = (c3p != NULL ? *(__capability void **)c3p : cclear);
 	c4 = (c4p != NULL ? *(__capability void **)c4p : cclear);
 	c5 = (c5p != NULL ? *(__capability void **)c5p : cclear);
