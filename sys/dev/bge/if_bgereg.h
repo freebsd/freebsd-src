@@ -378,6 +378,7 @@
 #define	BGE_CHIPREV_5717_AX		0x57170
 #define	BGE_CHIPREV_5717_BX		0x57171
 #define	BGE_CHIPREV_5761_AX		0x57611
+#define	BGE_CHIPREV_57765_AX		0x577850
 #define	BGE_CHIPREV_5784_AX		0x57841
 
 /* PCI DMA Read/Write Control register */
@@ -1289,6 +1290,7 @@
 #define	BGE_CPMU_MUTEX_REQ		0x365C
 #define	BGE_CPMU_MUTEX_GNT		0x3660
 #define	BGE_CPMU_PHY_STRAP		0x3664
+#define	BGE_CPMU_PADRNG_CTL		0x3668
 
 /* Central Power Management Unit (CPMU) register */
 #define	BGE_CPMU_CTRL_LINK_IDLE_MODE	0x00000200
@@ -1327,6 +1329,9 @@
 
 /* CPMU GPHY Strap register */
 #define	BGE_CPMU_PHY_STRAP_IS_SERDES	0x00000020
+
+/* CPMU Padring Control register */
+#define	BGE_CPMU_PADRNG_CTL_RDIV2	0x00040000
 
 /*
  * Mbuf Cluster Free registers (has nothing to do with BSD mbufs)
