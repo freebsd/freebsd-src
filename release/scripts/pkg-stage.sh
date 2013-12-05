@@ -25,7 +25,7 @@ REVISION="${2}"
 . "${1}" || exit 1
 
 if [ ! -x /usr/local/sbin/pkg ]; then
-	/usr/sbin/pkg bootstrap	
+	/usr/bin/make -C /usr/ports/ports-mgmt/pkg install clean
 fi
 
 /bin/mkdir -p ${PKG_CACHEDIR}
