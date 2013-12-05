@@ -65,7 +65,7 @@ export UNAME_R="$(uname -r)" # Release Level (i.e. X.Y-RELEASE)
 if [ ! "${PKG_ABI+set}" ]; then
 	export PKG_ABI="$(
 		ASSUME_ALWAYS_YES=1 pkg -vv |
-			awk '$1=="ABI:"{print $2;exit}' 2> /dev/null
+			awk '$1=="ABI"{print $3;exit}' 2> /dev/null
 	)"
 fi
 
