@@ -209,12 +209,33 @@ struct fnt16 {
 };
 typedef struct fnt16	fnt16_t;
 
+struct vfnt_map {
+	uint32_t	src;
+	uint16_t	dst;
+	uint16_t	len;
+};
+typedef struct vfnt_map	vfnt_map_t;
+
+struct vfnt {
+	vfnt_map_t	*normal;
+	vfnt_map_t	*bold;
+	uint8_t		*glyphs;
+	unsigned int	nnormal;
+	unsigned int	nbold;
+	unsigned int	nglyphs;
+	unsigned int	width;
+	unsigned int	height;
+};
+typedef struct vfnt	vfnt_t;
+
 #define PIO_FONT8x8	_IOW('c', 64, fnt8_t)
 #define GIO_FONT8x8	_IOR('c', 65, fnt8_t)
 #define PIO_FONT8x14	_IOW('c', 66, fnt14_t)
 #define GIO_FONT8x14	_IOR('c', 67, fnt14_t)
 #define PIO_FONT8x16	_IOW('c', 68, fnt16_t)
 #define GIO_FONT8x16	_IOR('c', 69, fnt16_t)
+#define PIO_VFONT	_IOW('c', 70, vfnt_t)
+#define GIO_VFONT	_IOR('c', 71, vfnt_t)
 
 /* get video mode information */
 struct colors	{

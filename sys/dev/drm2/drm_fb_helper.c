@@ -36,6 +36,41 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drm_fb_helper.h>
 #include <dev/drm2/drm_crtc_helper.h>
 
+#if defined(__FreeBSD__)
+struct vt_kms_softc {
+	struct drm_fb_helper *fb_helper;
+	struct task	fb_mode_task;
+};
+
+static fb_enter_t	vt_kms_postswitch;
+static void vt_restore_fbdev_mode(void *, int);
+
+/* Call restore out of vt(9) locks. */
+static void
+vt_restore_fbdev_mode(void *arg, int pending)
+{
+	struct drm_fb_helper *fb_helper;
+	struct vt_kms_softc *sc;
+
+	sc = (struct vt_kms_softc *)arg;
+	fb_helper = sc->fb_helper;
+	sx_xlock(&fb_helper->dev->mode_config.mutex);
+	drm_fb_helper_restore_fbdev_mode(fb_helper);
+	sx_xunlock(&fb_helper->dev->mode_config.mutex);
+}
+
+static int
+vt_kms_postswitch(void *arg)
+{
+	struct vt_kms_softc *sc;
+
+	sc = (struct vt_kms_softc *)arg;
+	taskqueue_enqueue_fast(taskqueue_thread, &sc->fb_mode_task);
+
+	return (0);
+}
+#endif
+
 static DRM_LIST_HEAD(kernel_fb_helper_list);
 
 /* simple single crtc case helper function */
@@ -216,6 +251,10 @@ static int
 fb_get_options(const char *connector_name, char **option)
 {
 
+	/*
+	 * TODO: store mode options pointer in ${option} for connector with
+	 * name ${connector_name}
+	 */
 	return (1);
 }
 
@@ -892,11 +931,13 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	int new_fb = 0;
 	int crtc_count = 0;
 	int i;
-#if 0
 	struct fb_info *info;
-#endif
 	struct drm_fb_helper_surface_size sizes;
 	int gamma_size = 0;
+#if defined(__FreeBSD__)
+	struct vt_kms_softc *sc;
+	device_t kdev;
+#endif
 
 	memset(&sizes, 0, sizeof(struct drm_fb_helper_surface_size));
 	sizes.surface_depth = 24;
@@ -973,8 +1014,21 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	if (new_fb < 0)
 		return new_fb;
 
-#if 0
+#if defined(__FreeBSD__)
+	sc = malloc(sizeof(struct vt_kms_softc), DRM_MEM_KMS,
+	    M_WAITOK | M_ZERO);
+	sc->fb_helper = fb_helper;
+	TASK_INIT(&sc->fb_mode_task, 0, vt_restore_fbdev_mode, sc);
+
 	info = fb_helper->fbdev;
+
+	info->fb_name = device_get_nameunit(fb_helper->dev->device);
+	info->fb_depth = fb_helper->fb->bits_per_pixel;
+	info->fb_height = fb_helper->fb->height;
+	info->fb_width = fb_helper->fb->width;
+	info->fb_stride = fb_helper->fb->pitches[0];
+	info->fb_priv = sc;
+	info->enter = &vt_kms_postswitch;
 #endif
 
 	/* set the fb pointer */
@@ -982,7 +1036,18 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		fb_helper->crtc_info[i].mode_set.fb = fb_helper->fb;
 	}
 
-#if 0
+#if defined(__FreeBSD__)
+	if (new_fb) {
+		device_t fbd;
+		int ret;
+
+		kdev = fb_helper->dev->device;
+		fbd = device_add_child(kdev, "fbd", device_get_unit(kdev));
+		ret = device_probe_and_attach(fbd);
+		if (ret != 0)
+			DRM_ERROR("Failed to attach fbd device: %d\n", ret);
+	}
+#else
 	if (new_fb) {
 		info->var.pixclock = 0;
 		if (register_framebuffer(info) < 0) {
@@ -1006,7 +1071,6 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	if (new_fb)
 		list_add(&fb_helper->kernel_fb_list, &kernel_fb_helper_list);
 #endif
-
 	return 0;
 }
 
