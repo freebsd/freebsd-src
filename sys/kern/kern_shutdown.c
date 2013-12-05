@@ -89,7 +89,7 @@ __FBSDID("$FreeBSD$");
 #ifndef PANIC_REBOOT_WAIT_TIME
 #define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
 #endif
-int panic_reboot_wait_time = PANIC_REBOOT_WAIT_TIME;
+static int panic_reboot_wait_time = PANIC_REBOOT_WAIT_TIME;
 SYSCTL_INT(_kern, OID_AUTO, panic_reboot_wait_time, CTLFLAG_RW | CTLFLAG_TUN,
     &panic_reboot_wait_time, 0,
     "Seconds to wait before rebooting after a panic");
