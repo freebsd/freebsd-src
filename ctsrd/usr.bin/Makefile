@@ -7,7 +7,7 @@ SUBDIR=	browser \
 	writefile
 
 # XXX: The latter three should be buildable without cheri but aren't yet.
-.if ${MK_CHERI} == "no"
+.if ${MK_CHERI} != "no"
 SUBDIR+=	cheripoint \
 		minifile \
 		pictview \
