@@ -5282,17 +5282,51 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 		csum_flags |= BGE_TXBDFLAG_VLAN_TAG;
 		vlan_tag = m->m_pkthdr.ether_vtag;
 	}
-	for (i = 0; ; i++) {
-		d = &sc->bge_ldata.bge_tx_ring[idx];
-		d->bge_addr.bge_addr_lo = BGE_ADDR_LO(segs[i].ds_addr);
-		d->bge_addr.bge_addr_hi = BGE_ADDR_HI(segs[i].ds_addr);
-		d->bge_len = segs[i].ds_len;
-		d->bge_flags = csum_flags;
-		d->bge_vlan_tag = vlan_tag;
-		d->bge_mss = mss;
-		if (i == nsegs - 1)
-			break;
-		BGE_INC(idx, BGE_TX_RING_CNT);
+
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5762 &&
+	    (m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
+		/*
+		 * 5725 family of devices corrupts TSO packets when TSO DMA
+		 * buffers cross into regions which are within MSS bytes of
+		 * a 4GB boundary.  If we encounter the condition, drop the
+		 * packet.
+		 */
+		for (i = 0; ; i++) {
+			d = &sc->bge_ldata.bge_tx_ring[idx];
+			d->bge_addr.bge_addr_lo = BGE_ADDR_LO(segs[i].ds_addr);
+			d->bge_addr.bge_addr_hi = BGE_ADDR_HI(segs[i].ds_addr);
+			d->bge_len = segs[i].ds_len;
+			if (d->bge_addr.bge_addr_lo + segs[i].ds_len + mss <
+			    d->bge_addr.bge_addr_lo)
+				break;
+			d->bge_flags = csum_flags;
+			d->bge_vlan_tag = vlan_tag;
+			d->bge_mss = mss;
+			if (i == nsegs - 1)
+				break;
+			BGE_INC(idx, BGE_TX_RING_CNT);
+		}
+		if (i != nsegs - 1) {
+			bus_dmamap_sync(sc->bge_cdata.bge_tx_mtag, map,
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->bge_cdata.bge_tx_mtag, map);
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (EIO);
+		}
+	} else {
+		for (i = 0; ; i++) {
+			d = &sc->bge_ldata.bge_tx_ring[idx];
+			d->bge_addr.bge_addr_lo = BGE_ADDR_LO(segs[i].ds_addr);
+			d->bge_addr.bge_addr_hi = BGE_ADDR_HI(segs[i].ds_addr);
+			d->bge_len = segs[i].ds_len;
+			d->bge_flags = csum_flags;
+			d->bge_vlan_tag = vlan_tag;
+			d->bge_mss = mss;
+			if (i == nsegs - 1)
+				break;
+			BGE_INC(idx, BGE_TX_RING_CNT);
+		}
 	}
 
 	/* Mark the last segment as end of packet... */
