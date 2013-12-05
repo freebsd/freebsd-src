@@ -97,7 +97,7 @@ cheri_zerocap(void)
 
 #define	cheri_getreg(x) ({						\
 	__capability void *_cap;					\
-	__asm __volatile ("cmove %0, $c" #x : "+C" (_cap));		\
+	__asm __volatile ("cmove %0, $c" #x : "=C" (_cap));		\
 	_cap;								\
 })
 
