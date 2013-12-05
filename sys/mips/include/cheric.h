@@ -96,15 +96,16 @@ cheri_zerocap(void)
 }
 
 #define	cheri_getreg(x) ({						\
-	__asm __volatile ("cmove %0, $c" x : "+C" (cap));		\
-	cap;								\
+	__capability void *_cap;					\
+	__asm __volatile ("cmove %0, $c" #x : "+C" (_cap));		\
+	_cap;								\
 })
 
 #define	cheri_setreg(x, cap) do {					\
 	if ((x) == 0)							\
-		__asm __volatile ("cmove $c" x ", %0" : : "C" (cap));	\
+		__asm __volatile ("cmove $c" #x ", %0" : : "C" (cap));	\
 	else								\
-		__asm __volatile ("cmove $c" x ", %0" : : "C" (cap) :	\
+		__asm __volatile ("cmove $c" #x ", %0" : : "C" (cap) :	\
 		    "memory");						\
 } while (0)
 #endif
