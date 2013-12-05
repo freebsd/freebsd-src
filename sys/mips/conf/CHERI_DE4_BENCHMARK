@@ -1,0 +1,32 @@
+#
+# CHERI -- Kernel for the SRI/Cambridge "CHERI" (Capability Hardware Enhanced
+# RISC Instructions) FPGA soft core, as configured in its Terasic DE-4
+# reference configuration.
+#
+# $FreeBSD$
+#
+
+include		BERI_DE4_MDROOT
+ident		CHERI_DE4_BENCHMARK
+
+nocpu		CPU_BERI
+cpu		CPU_CHERI
+
+nooptions	HZ
+options 	HZ=100
+
+nooptions	INVARIANTS
+nooptions	INVARIANT_SUPPORT
+
+# Disable devices that poll
+nodevice	altera_atse
+nodevice	miibus
+nooptions	DEVICE_POLLING
+nodevice	altera_sdcard
+nodevice	cfi
+nodevice	cfid
+
+nooptions MD_ROOT_SIZE
+options  MD_ROOT_SIZE="32768"
+makeoptions MFS_IMAGE=/pool/users/bed22/mdroot.img
+options  ROOTDEVNAME=\"ufs:md0\"

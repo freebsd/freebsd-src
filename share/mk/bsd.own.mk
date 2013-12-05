@@ -647,6 +647,23 @@ MK_${var}:=	no
 .endif
 .endfor
 
+.if ${MK_CHERI} != "no"
+.if defined(USE_CHERI)
+.if defined(CHERI_CC)
+CC=	${CHERI_CC} -integrated-as
+.if defined(SYSROOT)
+CC+=	--sysroot=${SYSROOT}
+.endif
+# XXXRW: Needed as Clang rejects -G0 when using $CC to link.
+CFLAGS+=	-Qunused-arguments
+# XXXRW: Until ELF types are right
+LDFLAGS+=	-Wl,--no-warn-mismatch
+.else
+.error CHERI_CC must be set is USE_CHERI is defined
+.endif
+.endif
+.endif
+
 .if ${MK_CTF} != "no"
 CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
 .elif defined(.PARSEDIR) || (defined(MAKE_VERSION) && ${MAKE_VERSION} >= 5201111300)
