@@ -158,14 +158,14 @@ chrp_attach(platform_t plat)
 }
 
 static int
-parse_drconf_memory(int *msz, int *asz, struct mem_region *ofmem,
-		    struct mem_region *ofavail)
+parse_drconf_memory(struct mem_region *ofmem, int *msz,
+		    struct mem_region *ofavail, int *asz)
 {
 	phandle_t phandle;
 	vm_offset_t base;
 	int i, idx, len, lasz, lmsz, res;
-	uint32_t lmb_size[2];
-	unsigned long *dmem, flags;
+	uint32_t flags, lmb_size[2];
+	uint64_t *dmem;
 
 	lmsz = *msz;
 	lasz = *asz;
@@ -208,8 +208,8 @@ parse_drconf_memory(int *msz, int *asz, struct mem_region *ofmem,
 		/* Number of elements */
 		idx = arr[0];
 
-		/* First address. */
-		dmem = (void*)&arr[1];
+		/* First address, in arr[1], arr[2]*/
+		dmem = (uint64_t*)&arr[1];
 	
 		for (i = 0; i < idx; i++) {
 			base = *dmem;
@@ -242,7 +242,7 @@ chrp_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
 	int i;
 
 	ofw_mem_regions(phys, physsz, avail, availsz);
-	parse_drconf_memory(physsz, availsz, phys, avail);
+	parse_drconf_memory(phys, physsz, avail, availsz);
 
 	/*
 	 * On some firmwares (SLOF), some memory may be marked available that
