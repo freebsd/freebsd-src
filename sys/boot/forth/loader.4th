@@ -233,7 +233,16 @@ include /boot/check-password.4th
   s" disable-module" s" disable loading of a module" .?
   s" toggle-module" s" toggle loading of a module" .?
   s" show-module" s" show module load data" .?
+  s" try-include" s" try to load/interpret files" .?
 ;
+
+: try-include ( -- ) \ see loader.4th(8)
+  ['] include ( -- xt ) \ get the execution token of `include'
+  catch ( xt -- exception# | 0 ) if \ failed
+    LF parse ( c -- s-addr/u ) 2drop \ advance >in to EOL (drop data)
+    \ ... prevents words unused by `include' from being interpreted
+  then
+; immediate \ interpret immediately for access to `source' (aka tib)
 
 only forth also
 

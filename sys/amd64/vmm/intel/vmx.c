@@ -1301,21 +1301,6 @@ ept_fault_type(uint64_t ept_qual)
 	return (fault_type);
 }
 
-static int
-ept_protection(uint64_t ept_qual)
-{
-	int prot = 0;
-
-	if (ept_qual & EPT_VIOLATION_GPA_READABLE)
-		prot |= VM_PROT_READ;
-	if (ept_qual & EPT_VIOLATION_GPA_WRITEABLE)
-		prot |= VM_PROT_WRITE;
-	if (ept_qual & EPT_VIOLATION_GPA_EXECUTABLE)
-		prot |= VM_PROT_EXECUTE;
-
-	return (prot);
-}
-
 static boolean_t
 ept_emulation_fault(uint64_t ept_qual)
 {
@@ -1485,7 +1470,6 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->u.paging.gpa = gpa;
 			vmexit->u.paging.fault_type = ept_fault_type(qual);
-			vmexit->u.paging.protection = ept_protection(qual);
 		} else if (ept_emulation_fault(qual)) {
 			vmexit->exitcode = VM_EXITCODE_INST_EMUL;
 			vmexit->u.inst_emul.gpa = gpa;

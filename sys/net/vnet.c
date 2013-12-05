@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_kdb.h"
-#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/kdb.h>
@@ -210,14 +209,14 @@ static TAILQ_HEAD(, vnet_data_free) vnet_data_free_head =
 static struct sx vnet_data_free_lock;
 
 SDT_PROVIDER_DEFINE(vnet);
-SDT_PROBE_DEFINE1(vnet, functions, vnet_alloc, entry, entry, "int");
-SDT_PROBE_DEFINE2(vnet, functions, vnet_alloc, alloc, alloc, "int",
+SDT_PROBE_DEFINE1(vnet, functions, vnet_alloc, entry, "int");
+SDT_PROBE_DEFINE2(vnet, functions, vnet_alloc, alloc, "int",
     "struct vnet *");
-SDT_PROBE_DEFINE2(vnet, functions, vnet_alloc, return, return,
+SDT_PROBE_DEFINE2(vnet, functions, vnet_alloc, return,
     "int", "struct vnet *");
-SDT_PROBE_DEFINE2(vnet, functions, vnet_destroy, entry, entry,
+SDT_PROBE_DEFINE2(vnet, functions, vnet_destroy, entry,
     "int", "struct vnet *");
-SDT_PROBE_DEFINE1(vnet, functions, vnet_destroy, return, entry,
+SDT_PROBE_DEFINE1(vnet, functions, vnet_destroy, return,
     "int");
 
 #ifdef DDB

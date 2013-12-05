@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 18 2012
+.Dd November 14, 2013
 .Dt PF 4
 .Os
 .Sh NAME
@@ -1181,5 +1181,8 @@ packet filtering mechanism first appeared in
 and then
 .Fx 5.2 .
 .Pp
-This implementation matches
+This implementation is derived from
 .Ox 4.5 .
+It has been heavily modified to be capable of running in multithreaded
+.Fx
+kernel and scale its performance on multiple CPUs.

@@ -4056,7 +4056,10 @@ OLD_FILES+=usr/share/man/man1/telnet.1.gz
 OLD_FILES+=usr/share/man/man8/telnetd.8.gz
 .endif
 
-.if ${MK_TESTS} == no
+.if ${MK_TESTS} == yes
+OLD_FILES+=usr/tests/lib/atf/libatf-c/test_helpers_test
+OLD_FILES+=usr/tests/lib/atf/test-programs/fork_test
+.else
 # ATF libraries.
 OLD_FILES+=usr/bin/atf-sh
 OLD_DIRS+=usr/include/atf-c

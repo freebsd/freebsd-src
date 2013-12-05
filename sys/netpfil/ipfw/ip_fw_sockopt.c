@@ -653,7 +653,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 
 		case O_IP_SRC_LOOKUP:
 		case O_IP_DST_LOOKUP:
-			if (cmd->arg1 >= IPFW_TABLES_MAX) {
+			if (cmd->arg1 >= V_fw_tables_max) {
 				printf("ipfw: invalid table number %d\n",
 				    cmd->arg1);
 				return (EINVAL);

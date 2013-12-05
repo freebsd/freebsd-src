@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_kdtrace.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -1185,7 +1184,7 @@ send:
 		ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
 
 		if (tp->t_state == TCPS_SYN_SENT)
-			TCP_PROBE5(connect_request, NULL, tp, ip6, tp, th);
+			TCP_PROBE5(connect__request, NULL, tp, ip6, tp, th);
 
 		TCP_PROBE5(send, NULL, tp, ip6, tp, th);
 
@@ -1224,7 +1223,7 @@ send:
 		ip->ip_off |= htons(IP_DF);
 
 	if (tp->t_state == TCPS_SYN_SENT)
-		TCP_PROBE5(connect_request, NULL, tp, ip, tp, th);
+		TCP_PROBE5(connect__request, NULL, tp, ip, tp, th);
 
 	TCP_PROBE5(send, NULL, tp, ip, tp, th);
 

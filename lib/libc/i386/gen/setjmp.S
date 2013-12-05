@@ -78,8 +78,7 @@ ENTRY(setjmp)
 	ret
 END(setjmp)
 
-	.weak CNAME(longjmp)
-	.set CNAME(longjmp),CNAME(__longjmp)
+	WEAK_REFERENCE(__longjmp, longjmp)
 ENTRY(__longjmp)
 	movl	4(%esp),%edx
 	PIC_PROLOGUE

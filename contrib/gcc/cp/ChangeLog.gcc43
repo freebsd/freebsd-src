@@ -1,0 +1,50 @@
+2007-07-09  Geoffrey Keating  <geoffk@apple.com> (r126529)
+
+	PR 32617
+	* decl.c (cxx_init_decl_processing): Don't set
+	force_align_functions_log.
+	(grokfndecl): Honour ptrmemfunc_vbit_in_pfn.
+	* typeck.c (cxx_alignof_expr): When alignof is used on a plain
+	FUNCTION_DECL, return its alignment.
+
+2007-06-28  Geoffrey Keating  <geoffk@apple.com> (r126080)
+
+	* decl2.c (start_objects): Mark constructor-runnning function
+	as artificial.
+
+2007-06-14  Geoff Keating  <geoffk@apple.com> (r125721)
+
+	PR 31093
+	* decl2.c (determine_visibility): Remove duplicate code for
+	handling type info.
+
+2007-05-05  Geoffrey Keating  <geoffk@apple.com> (r124467)
+
+	PR 31775
+	* mangle.c (write_mangled_name): Mangle static variable names.
+	(write_unqualified_name): Use local-source-name for
+	namespace-scope static variables.
+
+2007-03-12  Seongbae Park <seongbae.park@gmail.com> (r122851)
+
+	* decl.c (compute_array_index_type): New warning flag warn_vla.
+
+2007-01-07  Manuel Lopez-Ibanez  <manu@gcc.gnu.org>
+
+	PR c++/28986
+	* typeck.c (build_binary_op): Call overflow_warning if
+	TREE_OVERFLOW_P is true for the result and not for any of the
+	operands.
+	
+2007-01-05  Manuel Lopez-Ibanez  <manu@gcc.gnu.org>
+
+	PR c/19978
+	* semantics.c (finish_unary_op_expr): Warn only if result
+	overflowed and operands did not.
+
+2006-10-31  Geoffrey Keating  <geoffk@apple.com> (r118360)
+
+	* name-lookup.c (get_anonymous_namespace_name): New.
+	(push_namespace_with_attribs): Use get_anonymous_namespace_name.
+	* decl2.c (start_objects): Update for rename of
+	get_file_function_name_long.

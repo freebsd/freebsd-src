@@ -1767,7 +1767,7 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 		else
 			dur = URTW_ASIFS_TIME + acktime;
 	}
-	*(uint16_t *)wh->i_dur = htole16(dur);
+	USETW(wh->i_dur, dur);
 
 	xferlen = m0->m_pkthdr.len;
 	xferlen += (sc->sc_flags & URTW_RTL8187B) ? (4 * 8) : (4 * 3);

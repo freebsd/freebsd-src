@@ -3389,7 +3389,11 @@ sctp_find_cmsg(int c_type, void *data, struct mbuf *control, size_t cpsize)
 						return (found);
 					}
 					m_copydata(control, at + CMSG_ALIGN(sizeof(cmh)), sizeof(struct sctp_prinfo), (caddr_t)&prinfo);
-					sndrcvinfo->sinfo_timetolive = prinfo.pr_value;
+					if (prinfo.pr_policy != SCTP_PR_SCTP_NONE) {
+						sndrcvinfo->sinfo_timetolive = prinfo.pr_value;
+					} else {
+						sndrcvinfo->sinfo_timetolive = 0;
+					}
 					sndrcvinfo->sinfo_flags |= prinfo.pr_policy;
 					break;
 				case SCTP_AUTHINFO:
@@ -6078,12 +6082,12 @@ sctp_set_prsctp_policy(struct sctp_stream_queue_pending *sp)
 {
 	/*
 	 * We assume that the user wants PR_SCTP_TTL if the user provides a
-	 * positive lifetime but does not specify any PR_SCTP policy. This
-	 * is a BAD assumption and causes problems at least with the
-	 * U-Vancovers MPI folks. I will change this to be no policy means
-	 * NO PR-SCTP.
+	 * positive lifetime but does not specify any PR_SCTP policy.
 	 */
 	if (PR_SCTP_ENABLED(sp->sinfo_flags)) {
+		sp->act_flags |= PR_SCTP_POLICY(sp->sinfo_flags);
+	} else if (sp->timetolive > 0) {
+		sp->sinfo_flags |= SCTP_PR_SCTP_TTL;
 		sp->act_flags |= PR_SCTP_POLICY(sp->sinfo_flags);
 	} else {
 		return;

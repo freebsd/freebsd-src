@@ -64,17 +64,93 @@ static char plat_name[64] = "";
 SYSCTL_STRING(_hw, OID_AUTO, platform, CTLFLAG_RD | CTLFLAG_TUN,
     plat_name, 0, "Platform currently in use");
 
-static struct mem_region *pregions = NULL;
-static struct mem_region *aregions = NULL;
+static struct mem_region pregions[PHYS_AVAIL_SZ];
+static struct mem_region aregions[PHYS_AVAIL_SZ];
 static int npregions, naregions;
+
+/*
+ * Memory region utilities: determine if two regions overlap,
+ * and merge two overlapping regions into one
+ */
+static int
+memr_overlap(struct mem_region *r1, struct mem_region *r2)
+{
+	if ((r1->mr_start + r1->mr_size) < r2->mr_start ||
+	    (r2->mr_start + r2->mr_size) < r1->mr_start)
+		return (FALSE);
+
+	return (TRUE);
+}
+
+static void
+memr_merge(struct mem_region *from, struct mem_region *to)
+{
+	vm_offset_t end;
+	end = ulmax(to->mr_start + to->mr_size, from->mr_start + from->mr_size);
+	to->mr_start = ulmin(from->mr_start, to->mr_start);
+	to->mr_size = end - to->mr_start;
+}
+
+/*
+ * Quick sort callout for comparing memory regions.
+ */
+static int
+mr_cmp(const void *a, const void *b)
+{
+	const struct mem_region *regiona, *regionb;
+
+	regiona = a;
+	regionb = b;
+	if (regiona->mr_start < regionb->mr_start)
+		return (-1);
+	else if (regiona->mr_start > regionb->mr_start)
+		return (1);
+	else
+		return (0);
+}
 
 void
 mem_regions(struct mem_region **phys, int *physsz, struct mem_region **avail,
     int *availsz)
 {
-	if (pregions == NULL)
-		PLATFORM_MEM_REGIONS(plat_obj, &pregions, &npregions,
-		    &aregions, &naregions);
+	int i, j, still_merging;
+
+	if (npregions == 0) {
+		PLATFORM_MEM_REGIONS(plat_obj, &pregions[0], &npregions,
+		    aregions, &naregions);
+		qsort(pregions, npregions, sizeof(*pregions), mr_cmp);
+		qsort(aregions, naregions, sizeof(*aregions), mr_cmp);
+
+		/* Remove overlapping available regions */
+		do {
+			still_merging = FALSE;
+			for (i = 0; i < naregions; i++) {
+				if (aregions[i].mr_size == 0)
+					continue;
+				for (j = i+1; j < naregions; j++) {
+					if (aregions[j].mr_size == 0)
+						continue;
+					if (!memr_overlap(&aregions[j],
+					    &aregions[i]))
+						continue;
+
+					memr_merge(&aregions[j], &aregions[i]);
+					/* mark inactive */
+					aregions[j].mr_size = 0;
+					still_merging = TRUE;
+				}
+			}
+		} while (still_merging == TRUE);
+
+		/* Collapse zero-length available regions */
+		for (i = 0; i < naregions; i++) {
+			if (aregions[i].mr_size == 0) {
+				memcpy(&aregions[i], &aregions[i+1],
+				    (naregions - i - 1)*sizeof(*aregions));
+				naregions--;
+			}
+		}
+	}
 
 	*phys = pregions;
 	*avail = aregions;
@@ -87,9 +163,11 @@ mem_valid(vm_offset_t addr, int len)
 {
 	int i;
 
-	if (pregions == NULL)
-		PLATFORM_MEM_REGIONS(plat_obj, &pregions, &npregions,
-		    &aregions, &naregions);
+	if (npregions == 0) {
+		struct mem_region *p, *a;
+		int na, np;
+		mem_regions(&p, &np, &a, &na);
+	}
 
 	for (i = 0; i < npregions; i++)
 		if ((addr >= pregions[i].mr_start)

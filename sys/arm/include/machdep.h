@@ -41,10 +41,10 @@ vm_offset_t parse_boot_param(struct arm_boot_params *abp);
  *  - initarm_early_init() is called very early, after parsing the boot params
  *    and after physical memory has been located and sized.
  *
- *  - platform_devmap_init() is called as one of the last steps of early virtual
+ *  - initarm_devmap_init() is called as one of the last steps of early virtual
  *    memory initialization, shortly before the new page tables are installed.
  *
- *  - initarm_lastaddr() is called after platform_devmap_init(), and must return
+ *  - initarm_lastaddr() is called after initarm_devmap_init(), and must return
  *    the address of the first byte of unusable KVA space.  This allows a
  *    platform to carve out of the top of the KVA space whatever reserves it
  *    needs for things like static device mapping, and this is called to get the

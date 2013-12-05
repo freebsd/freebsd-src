@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2013
+.Dd December 2, 2013
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -141,7 +141,7 @@ Note that targets must use either auth-group, or chap,
 or chap-mutual clauses; it's a configuration error to mix them in one target.
 .It Ic chap-mutual Ao Ar user Ac Ao Ar secret Ac Ao Ar mutualuser Ac Aq Ar mutualsecret
 Specifies mutual CHAP authentication credentials.
-Note that targets must use either auth-group, chap,
+Note that targets must use either auth-group, chap, or
 chap-mutual clauses; it's a configuration error to mix them in one target.
 .It Ic portal-group Aq Ar name
 Assigns previously defined portal group to that target.

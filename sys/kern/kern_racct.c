@@ -32,7 +32,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kdtrace.h"
 #include "opt_sched.h"
 
 #include <sys/param.h>
@@ -96,29 +95,29 @@ static void racct_add_cred_locked(struct ucred *cred, int resource,
 		uint64_t amount);
 
 SDT_PROVIDER_DEFINE(racct);
-SDT_PROBE_DEFINE3(racct, kernel, rusage, add, add, "struct proc *", "int",
+SDT_PROBE_DEFINE3(racct, kernel, rusage, add, "struct proc *", "int",
     "uint64_t");
-SDT_PROBE_DEFINE3(racct, kernel, rusage, add_failure, add-failure,
+SDT_PROBE_DEFINE3(racct, kernel, rusage, add__failure,
     "struct proc *", "int", "uint64_t");
-SDT_PROBE_DEFINE3(racct, kernel, rusage, add_cred, add-cred, "struct ucred *",
+SDT_PROBE_DEFINE3(racct, kernel, rusage, add__cred, "struct ucred *",
     "int", "uint64_t");
-SDT_PROBE_DEFINE3(racct, kernel, rusage, add_force, add-force, "struct proc *",
+SDT_PROBE_DEFINE3(racct, kernel, rusage, add__force, "struct proc *",
     "int", "uint64_t");
-SDT_PROBE_DEFINE3(racct, kernel, rusage, set, set, "struct proc *", "int",
+SDT_PROBE_DEFINE3(racct, kernel, rusage, set, "struct proc *", "int",
     "uint64_t");
-SDT_PROBE_DEFINE3(racct, kernel, rusage, set_failure, set-failure,
+SDT_PROBE_DEFINE3(racct, kernel, rusage, set__failure,
     "struct proc *", "int", "uint64_t");
-SDT_PROBE_DEFINE3(racct, kernel, rusage, sub, sub, "struct proc *", "int",
+SDT_PROBE_DEFINE3(racct, kernel, rusage, sub, "struct proc *", "int",
     "uint64_t");
-SDT_PROBE_DEFINE3(racct, kernel, rusage, sub_cred, sub-cred, "struct ucred *",
+SDT_PROBE_DEFINE3(racct, kernel, rusage, sub__cred, "struct ucred *",
     "int", "uint64_t");
-SDT_PROBE_DEFINE1(racct, kernel, racct, create, create, "struct racct *");
-SDT_PROBE_DEFINE1(racct, kernel, racct, destroy, destroy, "struct racct *");
-SDT_PROBE_DEFINE2(racct, kernel, racct, join, join, "struct racct *",
+SDT_PROBE_DEFINE1(racct, kernel, racct, create, "struct racct *");
+SDT_PROBE_DEFINE1(racct, kernel, racct, destroy, "struct racct *");
+SDT_PROBE_DEFINE2(racct, kernel, racct, join, "struct racct *",
     "struct racct *");
-SDT_PROBE_DEFINE2(racct, kernel, racct, join_failure, join-failure,
+SDT_PROBE_DEFINE2(racct, kernel, racct, join__failure,
     "struct racct *", "struct racct *");
-SDT_PROBE_DEFINE2(racct, kernel, racct, leave, leave, "struct racct *",
+SDT_PROBE_DEFINE2(racct, kernel, racct, leave, "struct racct *",
     "struct racct *");
 
 int racct_types[] = {
@@ -527,7 +526,7 @@ racct_add_locked(struct proc *p, int resource, uint64_t amount)
 #ifdef RCTL
 	error = rctl_enforce(p, resource, amount);
 	if (error && RACCT_IS_DENIABLE(resource)) {
-		SDT_PROBE(racct, kernel, rusage, add_failure, p, resource,
+		SDT_PROBE(racct, kernel, rusage, add__failure, p, resource,
 		    amount, 0, 0);
 		return (error);
 	}
@@ -558,7 +557,7 @@ racct_add_cred_locked(struct ucred *cred, int resource, uint64_t amount)
 {
 	struct prison *pr;
 
-	SDT_PROBE(racct, kernel, rusage, add_cred, cred, resource, amount,
+	SDT_PROBE(racct, kernel, rusage, add__cred, cred, resource, amount,
 	    0, 0);
 
 	racct_alloc_resource(cred->cr_ruidinfo->ui_racct, resource, amount);
@@ -591,7 +590,7 @@ void
 racct_add_force(struct proc *p, int resource, uint64_t amount)
 {
 
-	SDT_PROBE(racct, kernel, rusage, add_force, p, resource, amount, 0, 0);
+	SDT_PROBE(racct, kernel, rusage, add__force, p, resource, amount, 0, 0);
 
 	/*
 	 * We need proc lock to dereference p->p_ucred.
@@ -645,7 +644,7 @@ racct_set_locked(struct proc *p, int resource, uint64_t amount)
 	if (diff_proc > 0) {
 		error = rctl_enforce(p, resource, diff_proc);
 		if (error && RACCT_IS_DENIABLE(resource)) {
-			SDT_PROBE(racct, kernel, rusage, set_failure, p,
+			SDT_PROBE(racct, kernel, rusage, set__failure, p,
 			    resource, amount, 0, 0);
 			return (error);
 		}
@@ -805,7 +804,7 @@ racct_sub_cred_locked(struct ucred *cred, int resource, uint64_t amount)
 {
 	struct prison *pr;
 
-	SDT_PROBE(racct, kernel, rusage, sub_cred, cred, resource, amount,
+	SDT_PROBE(racct, kernel, rusage, sub__cred, cred, resource, amount,
 	    0, 0);
 
 #ifdef notyet

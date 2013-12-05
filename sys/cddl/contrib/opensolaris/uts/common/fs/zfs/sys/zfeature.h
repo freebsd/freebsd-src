@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_ZFEATURE_H
@@ -47,6 +47,7 @@ extern void spa_feature_incr(struct spa *, zfeature_info_t *, struct dmu_tx *);
 extern void spa_feature_decr(struct spa *, zfeature_info_t *, struct dmu_tx *);
 extern boolean_t spa_feature_is_enabled(struct spa *, zfeature_info_t *);
 extern boolean_t spa_feature_is_active(struct spa *, zfeature_info_t *);
+extern int spa_feature_get_refcount(struct spa *, zfeature_info_t *);
 
 #ifdef	__cplusplus
 }

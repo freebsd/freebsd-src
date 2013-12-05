@@ -46,7 +46,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
-#include "opt_kdtrace.h"
 #include "opt_vm.h"
 
 #include <sys/param.h>

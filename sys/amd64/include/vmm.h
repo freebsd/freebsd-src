@@ -38,6 +38,7 @@ struct vm_memory_segment;
 struct seg_desc;
 struct vm_exit;
 struct vm_run;
+struct vhpet;
 struct vioapic;
 struct vlapic;
 struct vmspace;
@@ -118,6 +119,7 @@ void vm_nmi_clear(struct vm *vm, int vcpuid);
 uint64_t *vm_guest_msrs(struct vm *vm, int cpu);
 struct vlapic *vm_lapic(struct vm *vm, int cpu);
 struct vioapic *vm_ioapic(struct vm *vm);
+struct vhpet *vm_hpet(struct vm *vm);
 int vm_get_capability(struct vm *vm, int vcpu, int type, int *val);
 int vm_set_capability(struct vm *vm, int vcpu, int type, int val);
 int vm_get_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state *state);
@@ -154,7 +156,7 @@ vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 }
 
 void *vcpu_stats(struct vm *vm, int vcpu);
-void vm_interrupt_hostcpu(struct vm *vm, int vcpu);
+void vcpu_notify_event(struct vm *vm, int vcpuid);
 struct vmspace *vm_get_vmspace(struct vm *vm);
 int vm_assign_pptdev(struct vm *vm, int bus, int slot, int func);
 int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
@@ -281,7 +283,6 @@ struct vm_exit {
 		struct {
 			uint64_t	gpa;
 			int		fault_type;
-			int		protection;
 		} paging;
 		struct {
 			uint64_t	gpa;

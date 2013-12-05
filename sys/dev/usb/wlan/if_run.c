@@ -344,7 +344,7 @@ static int	run_write_region_1(struct run_softc *, uint16_t,
 static int	run_set_region_4(struct run_softc *, uint16_t, uint32_t, int);
 static int	run_efuse_read_2(struct run_softc *, uint16_t, uint16_t *);
 static int	run_eeprom_read_2(struct run_softc *, uint16_t, uint16_t *);
-static int	run_rt2870_rf_write(struct run_softc *, uint8_t, uint32_t);
+static int	run_rt2870_rf_write(struct run_softc *, uint32_t);
 static int	run_rt3070_rf_read(struct run_softc *, uint8_t, uint8_t *);
 static int	run_rt3070_rf_write(struct run_softc *, uint8_t, uint8_t);
 static int	run_bbp_read(struct run_softc *, uint8_t, uint8_t *);
@@ -1062,7 +1062,7 @@ fail:
 	return (error);
 }
 
-int
+static int
 run_reset(struct run_softc *sc)
 {
 	usb_device_request_t req;
@@ -1279,7 +1279,7 @@ run_srom_read(struct run_softc *sc, uint16_t addr, uint16_t *val)
 }
 
 static int
-run_rt2870_rf_write(struct run_softc *sc, uint8_t reg, uint32_t val)
+run_rt2870_rf_write(struct run_softc *sc, uint32_t val)
 {
 	uint32_t tmp;
 	int error, ntries;
@@ -1293,10 +1293,7 @@ run_rt2870_rf_write(struct run_softc *sc, uint8_t reg, uint32_t val)
 	if (ntries == 10)
 		return (ETIMEDOUT);
 
-	/* RF registers are 24-bit on the RT2860 */
-	tmp = RT2860_RF_REG_CTRL | 24 << RT2860_RF_REG_WIDTH_SHIFT |
-	    (val & 0x3fffff) << 2 | (reg & 3);
-	return (run_write(sc, RT2860_RF_CSR_CFG0, tmp));
+	return (run_write(sc, RT2860_RF_CSR_CFG0, val));
 }
 
 static int
@@ -1465,7 +1462,7 @@ run_get_rf(uint16_t rev)
 	return ("unknown");
 }
 
-int
+static int
 run_read_eeprom(struct run_softc *sc)
 {
 	int8_t delta_2ghz, delta_5ghz;
@@ -2520,7 +2517,7 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 	struct rt2870_rxd *rxd;
 	struct rt2860_rxwi *rxwi;
 	uint32_t flags;
-	uint16_t len, phy;
+	uint16_t len;
 	uint8_t ant, rssi;
 	int8_t nf;
 
@@ -2587,6 +2584,7 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 
 	if (__predict_false(ieee80211_radiotap_active(ic))) {
 		struct run_rx_radiotap_header *tap = &sc->sc_rxtap;
+		uint16_t phy;
 
 		tap->wr_flags = 0;
 		tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
@@ -3089,7 +3087,7 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 			dur = rt2860_rates[ctl_ridx].sp_ack_dur;
 		else
 			dur = rt2860_rates[ctl_ridx].lp_ack_dur;
-		*(uint16_t *)wh->i_dur = htole16(dur);
+		USETW(wh->i_dur, dur);
 	}
 
 	/* reserve slots for mgmt packets, just in case */
@@ -3169,8 +3167,9 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 	usbd_transfer_start(sc->sc_xfer[qid]);
 
-	DPRINTFN(8, "sending data frame len=%d rate=%d qid=%d\n", m->m_pkthdr.len +
-	    (int)(sizeof (struct rt2870_txd) + sizeof (struct rt2860_rxwi)),
+	DPRINTFN(8, "sending data frame len=%d rate=%d qid=%d\n",
+	    m->m_pkthdr.len +
+	    (int)(sizeof(struct rt2870_txd) + sizeof(struct rt2860_txwi)),
 	    rt2860_rates[ridx].rate, qid);
 
 	return (0);
@@ -3208,7 +3207,7 @@ run_tx_mgt(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 		dur = ieee80211_ack_duration(ic->ic_rt, rt2860_rates[ridx].rate, 
 		    ic->ic_flags & IEEE80211_F_SHPREAMBLE);
-		*(uint16_t *)wh->i_dur = htole16(dur);
+		USETW(wh->i_dur, dur);
 	}
 
 	if (sc->sc_epq[0].tx_nfree == 0) {
@@ -3235,7 +3234,7 @@ run_tx_mgt(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	run_set_tx_desc(sc, data);
 
 	DPRINTFN(10, "sending mgt frame len=%d rate=%d\n", m->m_pkthdr.len +
-	    (int)(sizeof (struct rt2870_txd) + sizeof (struct rt2860_rxwi)),
+	    (int)(sizeof(struct rt2870_txd) + sizeof(struct rt2860_txwi)),
 	    rt2860_rates[ridx].rate);
 
 	STAILQ_INSERT_TAIL(&sc->sc_epq[0].tx_qh, data, next);
@@ -3648,46 +3647,62 @@ run_rt2870_set_chan(struct run_softc *sc, u_int chan)
 
 	r2 = rfprog[i].r2;
 	if (sc->ntxchains == 1)
-		r2 |= 1 << 12;		/* 1T: disable Tx chain 2 */
+		r2 |= 1 << 14;		/* 1T: disable Tx chain 2 */
 	if (sc->nrxchains == 1)
-		r2 |= 1 << 15 | 1 << 4;	/* 1R: disable Rx chains 2 & 3 */
+		r2 |= 1 << 17 | 1 << 6;	/* 1R: disable Rx chains 2 & 3 */
 	else if (sc->nrxchains == 2)
-		r2 |= 1 << 4;		/* 2R: disable Rx chain 3 */
+		r2 |= 1 << 6;		/* 2R: disable Rx chain 3 */
 
 	/* use Tx power values from EEPROM */
 	txpow1 = sc->txpow1[i];
 	txpow2 = sc->txpow2[i];
+
+	/* Initialize RF R3 and R4. */
+	r3 = rfprog[i].r3 & 0xffffc1ff;
+	r4 = (rfprog[i].r4 & ~(0x001f87c0)) | (sc->freq << 15);
 	if (chan > 14) {
-		if (txpow1 >= 0)
-			txpow1 = txpow1 << 1 | 1;
-		else
-			txpow1 = (7 + txpow1) << 1;
-		if (txpow2 >= 0)
-			txpow2 = txpow2 << 1 | 1;
-		else
-			txpow2 = (7 + txpow2) << 1;
+		if (txpow1 >= 0) {
+			txpow1 = (txpow1 > 0xf) ? (0xf) : (txpow1);
+			r3 |= (txpow1 << 10) | (1 << 9);
+		} else {
+			txpow1 += 7;
+
+			/* txpow1 is not possible larger than 15. */
+			r3 |= (txpow1 << 10);
+		}
+		if (txpow2 >= 0) {
+			txpow2 = (txpow2 > 0xf) ? (0xf) : (txpow2);
+			r4 |= (txpow2 << 7) | (1 << 6);
+		} else {
+			txpow2 += 7;
+			r4 |= (txpow2 << 7);
+		}
+	} else {
+		/* Set Tx0 power. */
+		r3 |= (txpow1 << 9);
+
+		/* Set frequency offset and Tx1 power. */
+		r4 |= (txpow2 << 6);
 	}
-	r3 = rfprog[i].r3 | txpow1 << 7;
-	r4 = rfprog[i].r4 | sc->freq << 13 | txpow2 << 4;
 
-	run_rt2870_rf_write(sc, RT2860_RF1, rfprog[i].r1);
-	run_rt2870_rf_write(sc, RT2860_RF2, r2);
-	run_rt2870_rf_write(sc, RT2860_RF3, r3);
-	run_rt2870_rf_write(sc, RT2860_RF4, r4);
+	run_rt2870_rf_write(sc, rfprog[i].r1);
+	run_rt2870_rf_write(sc, r2);
+	run_rt2870_rf_write(sc, r3 & ~(1 << 2));
+	run_rt2870_rf_write(sc, r4);
 
 	run_delay(sc, 10);
 
-	run_rt2870_rf_write(sc, RT2860_RF1, rfprog[i].r1);
-	run_rt2870_rf_write(sc, RT2860_RF2, r2);
-	run_rt2870_rf_write(sc, RT2860_RF3, r3 | 1);
-	run_rt2870_rf_write(sc, RT2860_RF4, r4);
+	run_rt2870_rf_write(sc, rfprog[i].r1);
+	run_rt2870_rf_write(sc, r2);
+	run_rt2870_rf_write(sc, r3 | (1 << 2));
+	run_rt2870_rf_write(sc, r4);
 
 	run_delay(sc, 10);
 
-	run_rt2870_rf_write(sc, RT2860_RF1, rfprog[i].r1);
-	run_rt2870_rf_write(sc, RT2860_RF2, r2);
-	run_rt2870_rf_write(sc, RT2860_RF3, r3);
-	run_rt2870_rf_write(sc, RT2860_RF4, r4);
+	run_rt2870_rf_write(sc, rfprog[i].r1);
+	run_rt2870_rf_write(sc, r2);
+	run_rt2870_rf_write(sc, r3 & ~(1 << 2));
+	run_rt2870_rf_write(sc, r4);
 }
 
 static void
@@ -5286,7 +5301,7 @@ run_stop(void *arg)
 	tmp &= ~(RT2860_RX_DMA_EN | RT2860_TX_DMA_EN);
 	run_write(sc, RT2860_WPDMA_GLO_CFG, tmp);
 
-        for (ntries = 0; ntries < 100; ntries++) {
+	for (ntries = 0; ntries < 100; ntries++) {
 		if (run_read(sc, RT2860_WPDMA_GLO_CFG, &tmp) != 0)
 			return;
 		if ((tmp & (RT2860_TX_DMA_BUSY | RT2860_RX_DMA_BUSY)) == 0)

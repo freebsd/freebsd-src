@@ -43,6 +43,7 @@
 #include <machine/fpu.h>
 #include <machine/segments.h>
 
+#ifdef __amd64__
 struct pcb {
 	register_t	pcb_r15;
 	register_t	pcb_r14;
@@ -105,6 +106,7 @@ struct pcb {
 
 	uint64_t	pcb_pad[3];
 };
+#endif
 
 #ifdef _KERNEL
 struct trapframe;

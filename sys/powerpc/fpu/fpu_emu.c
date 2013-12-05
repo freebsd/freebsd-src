@@ -500,7 +500,7 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 				memcpy(&fs->fpreg[rt], &fs->fpreg[rb],
 					sizeof(double));
 				a = (int *)&fs->fpreg[rt];
-				*a ^= (1 << 31);
+				*a ^= (1U << 31);
 				break;
 			case	OPC63_MCRFS:
 				FPU_EMU_EVCNT_INCR(mcrfs);
@@ -547,7 +547,7 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 				memcpy(&fs->fpreg[rt], &fs->fpreg[rb],
 					sizeof(double));
 				a = (int *)&fs->fpreg[rt];
-				*a |= (1 << 31);
+				*a |= (1U << 31);
 				break;
 			case	OPC63_FABS:
 				FPU_EMU_EVCNT_INCR(fabs);
@@ -555,7 +555,7 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 				memcpy(&fs->fpreg[rt], &fs->fpreg[rb],
 					sizeof(double));
 				a = (int *)&fs->fpreg[rt];
-				*a &= ~(1 << 31);
+				*a &= ~(1U << 31);
 				break;
 			case	OPC63_MFFS:
 				FPU_EMU_EVCNT_INCR(mffs);
@@ -606,9 +606,11 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 			rb = instr.i_a.i_frb;
 			rc = instr.i_a.i_frc;
 
-			type = FTYPE_SNG;
-			if (instr.i_any.i_opcd & 0x4)
-				type = FTYPE_DBL;
+			/*
+			 * All arithmetic operations work on registers, which
+			 * are stored as doubles.
+			 */
+			type = FTYPE_DBL;
 			switch ((unsigned int)instr.i_a.i_xo) {
 			case	OPC59_FDIVS:
 				FPU_EMU_EVCNT_INCR(fdiv);
@@ -724,6 +726,13 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 			default:
 				return (NOTFPU);
 				break;
+			}
+
+			/* If the instruction was single precision, round */
+			if (!(instr.i_any.i_opcd & 0x4)) {
+				fpu_implode(fe, fp, FTYPE_SNG, 
+					(u_int *)&fs->fpreg[rt]);
+				fpu_explode(fe, fp = &fe->fe_f1, FTYPE_SNG, rt);
 			}
 		}
 	} else {

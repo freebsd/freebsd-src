@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include "vmm_host.h"
 #include "vmm_mem.h"
 #include "vmm_util.h"
+#include "vhpet.h"
 #include "vioapic.h"
 #include "vlapic.h"
 #include "vmm_msr.h"
@@ -108,6 +109,7 @@ struct mem_seg {
 struct vm {
 	void		*cookie;	/* processor-specific data */
 	void		*iommu;		/* iommu-specific data */
+	struct vhpet	*vhpet;		/* virtual HPET */
 	struct vioapic	*vioapic;	/* virtual ioapic */
 	struct vmspace	*vmspace;	/* guest's address space */
 	struct vcpu	vcpu[VM_MAXCPU];
@@ -304,6 +306,7 @@ vm_create(const char *name, struct vm **retvm)
 	strcpy(vm->name, name);
 	vm->cookie = VMINIT(vm, vmspace_pmap(vmspace));
 	vm->vioapic = vioapic_init(vm);
+	vm->vhpet = vhpet_init(vm);
 
 	for (i = 0; i < VM_MAXCPU; i++) {
 		vcpu_init(vm, i);
@@ -337,6 +340,9 @@ vm_destroy(struct vm *vm)
 	if (vm->iommu != NULL)
 		iommu_destroy_domain(vm->iommu);
 
+	vhpet_cleanup(vm->vhpet);
+	vioapic_cleanup(vm->vioapic);
+
 	for (i = 0; i < vm->num_mem_segs; i++)
 		vm_free_mem_seg(vm, &vm->mem_segs[i]);
 
@@ -344,8 +350,6 @@ vm_destroy(struct vm *vm)
 
 	for (i = 0; i < VM_MAXCPU; i++)
 		vcpu_cleanup(&vm->vcpu[i]);
-
-	vioapic_cleanup(vm->vioapic);
 
 	VMSPACE_FREE(vm->vmspace);
 
@@ -967,13 +971,16 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, boolean_t *retu)
 	if (vmm_decode_instruction(vm, vcpuid, gla, vie) != 0)
 		return (EFAULT);
 
-	/* return to userland unless this is a local apic access */
+	/* return to userland unless this is an in-kernel emulated device */
 	if (gpa >= DEFAULT_APIC_BASE && gpa < DEFAULT_APIC_BASE + PAGE_SIZE) {
 		mread = lapic_mmio_read;
 		mwrite = lapic_mmio_write;
 	} else if (gpa >= VIOAPIC_BASE && gpa < VIOAPIC_BASE + VIOAPIC_SIZE) {
 		mread = vioapic_mmio_read;
 		mwrite = vioapic_mmio_write;
+	} else if (gpa >= VHPET_BASE && gpa < VHPET_BASE + VHPET_SIZE) {
+		mread = vhpet_mmio_read;
+		mwrite = vhpet_mmio_write;
 	} else {
 		*retu = TRUE;
 		return (0);
@@ -1092,7 +1099,7 @@ vm_inject_nmi(struct vm *vm, int vcpuid)
 	vcpu = &vm->vcpu[vcpuid];
 
 	vcpu->nmi_pending = 1;
-	vm_interrupt_hostcpu(vm, vcpuid);
+	vcpu_notify_event(vm, vcpuid);
 	return (0);
 }
 
@@ -1167,6 +1174,13 @@ vm_ioapic(struct vm *vm)
 {
 
 	return (vm->vioapic);
+}
+
+struct vhpet *
+vm_hpet(struct vm *vm)
+{
+
+	return (vm->vhpet);
 }
 
 boolean_t
@@ -1305,8 +1319,15 @@ vm_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state state)
 	return (0);
 }
 
+/*
+ * This function is called to ensure that a vcpu "sees" a pending event
+ * as soon as possible:
+ * - If the vcpu thread is sleeping then it is woken up.
+ * - If the vcpu is running on a different host_cpu then an IPI will be directed
+ *   to the host_cpu to cause the vcpu to trap into the hypervisor.
+ */
 void
-vm_interrupt_hostcpu(struct vm *vm, int vcpuid)
+vcpu_notify_event(struct vm *vm, int vcpuid)
 {
 	int hostcpu;
 	struct vcpu *vcpu;

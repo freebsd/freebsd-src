@@ -132,7 +132,7 @@
 #define	INPROGRESS	0x001000 /* dirrem, freeblks, freefrag, freefile only */
 #define	UFS1FMT		0x002000 /* indirdep only */
 #define	EXTDATA		0x004000 /* allocdirect only */
-#define ONWORKLIST	0x008000
+#define	ONWORKLIST	0x008000
 #define	IOWAITING	0x010000 /* Thread is waiting for IO to complete. */
 #define	ONDEPLIST	0x020000 /* Structure is on a dependency list. */
 #define	UNLINKED	0x040000 /* inodedep has been unlinked. */

@@ -502,6 +502,7 @@ f_media_init_http()
 			setvar $VAR_HTTP_PATH "$hp/$PKG_ABI/latest"
 			if [ "$PKG_ABI" ] && f_http_check_access; then
 				http_found=$SUCCESS
+				setvar $VAR_HTTP_PATH "$hp"
 			else
 				for fdir in $HTTP_DIRS; do
 					setvar $VAR_HTTP_PATH "$hp/$fdir/$rel"

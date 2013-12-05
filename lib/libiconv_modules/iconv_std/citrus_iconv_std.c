@@ -543,6 +543,16 @@ _citrus_iconv_std_iconv_convert(struct _citrus_iconv * __restrict cv,
 		ret = do_conv(is, &csid, &idx);
 		if (ret) {
 			if (ret == E_NO_CORRESPONDING_CHAR) {
+				/*
+				 * GNU iconv returns EILSEQ when no
+				 * corresponding character in the output.
+				 * Some software depends on this behavior
+				 * though this is against POSIX specification.
+				 */
+				if (cv->cv_shared->ci_ilseq_invalid != 0) {
+					ret = EILSEQ;
+					goto err;
+				}
 				inval++;
 				szrout = 0;
 				if ((((flags & _CITRUS_ICONV_F_HIDE_INVALID) == 0) &&

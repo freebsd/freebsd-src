@@ -203,8 +203,9 @@ static struct cap_desc {
 	{ CAP_SEM_WAIT,		"sw" },
 
 	/* Event monitoring and posting. */
-	{ CAP_POLL_EVENT,	"po" },
-	{ CAP_POST_EVENT,	"ev" },
+	{ CAP_EVENT,		"ev" },
+	{ CAP_KQUEUE_EVENT,	"ke" },
+	{ CAP_KQUEUE_CHANGE,	"kc" },
 
 	/* Strange and powerful rights that should not be given lightly. */
 	{ CAP_IOCTL,		"io" },

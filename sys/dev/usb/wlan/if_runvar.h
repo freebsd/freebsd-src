@@ -35,7 +35,7 @@
 /* NB: "11" is the maximum number of padding bytes needed for Tx */
 #define RUN_MAX_TXSZ			\
 	(sizeof (struct rt2870_txd) +	\
-	 sizeof (struct rt2860_rxwi) +	\
+	 sizeof (struct rt2860_txwi) +	\
 	 MCLBYTES + 11)
 
 #define RUN_TX_TIMEOUT	5000	/* ms */

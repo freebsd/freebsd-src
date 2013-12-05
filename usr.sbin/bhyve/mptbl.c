@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #define MPEP_FEATURES           (0xBFEBFBFF) /* XXX Intel i7 */
 
 /* Number of i/o intr entries */
-#define	MPEII_MAX_IRQ		16
+#define	MPEII_MAX_IRQ		24
 
 /* Define processor entry struct since <x86/mptable.h> gets it wrong */
 typedef struct BPROCENTRY {
@@ -279,12 +279,12 @@ mptable_build(struct vmctx *ctx, int ncpu)
 	mpch->entry_count += MPE_NUM_BUSES;
 
 	mpei = (io_apic_entry_ptr)curraddr;
-	mpt_build_ioapic_entries(mpei, ncpu + 1);
+	mpt_build_ioapic_entries(mpei, 0);
 	curraddr += sizeof(*mpei);
 	mpch->entry_count++;
 
 	mpie = (int_entry_ptr) curraddr;
-	mpt_build_ioint_entries(mpie, MPEII_MAX_IRQ, ncpu + 1);
+	mpt_build_ioint_entries(mpie, MPEII_MAX_IRQ, 0);
 	curraddr += sizeof(*mpie) * MPEII_MAX_IRQ;
 	mpch->entry_count += MPEII_MAX_IRQ;
 

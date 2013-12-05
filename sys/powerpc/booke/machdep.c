@@ -387,14 +387,6 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	/* Reset TLB1 to get rid of temporary mappings */
 	tlb1_init();
 
-	/* Set up IMMR */
-	if (fdt_immr_addr(0) == 0) {
-		fdt_immr_va = pmap_early_io_map(fdt_immr_pa, fdt_immr_size);
-	} else {
-		printf("Warning: SOC base registers could not be found!\n");
-		fdt_immr_va = 0;
-	}
-
 	/* Reset Time Base */
 	mttb(0);
 

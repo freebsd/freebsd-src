@@ -33,7 +33,7 @@ FILES+=		unused_test.c
 		tp_test \
 		utils_test
 ATF_TESTS_C+=	${_T}
-SRCS_${_T}=	${_T}.c test_helpers.c
+SRCS.${_T}=	${_T}.c test_helpers.c
 .endfor
 
 ATF_TESTS_SH=	pkg_config_test
@@ -47,16 +47,15 @@ ATF_TESTS_SH=	pkg_config_test
 		map_test \
 		process_test \
 		sanity_test \
-		test_helpers_test \
 		text_test \
 		user_test
 ATF_TESTS_C+=	${_T}
-SRCS_${_T}=	${_T}.c test_helpers.c
+SRCS.${_T}=	${_T}.c test_helpers.c
 .endfor
 
 PROGS+=		process_helpers
-SRCS_process_helpers=	process_helpers.c
-MAN_process_helpers=	# defined
-BINDIR_process_helpers=	${TESTSDIR}
+SRCS.process_helpers=	process_helpers.c
+MAN.process_helpers=	# defined
+BINDIR.process_helpers=	${TESTSDIR}
 
 .include <atf.test.mk>

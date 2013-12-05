@@ -163,8 +163,7 @@ f_media_get_cdrom()
 
 # f_media_shutdown_cdrom $device
 #
-# Shuts down the CDROM device and ejects the media using f_media_eject_cdrom(),
-# below. Return status should be ignored.
+# Shuts down the CDROM device. Return status should be ignored.
 #
 f_media_shutdown_cdrom()
 {
@@ -184,8 +183,6 @@ f_media_shutdown_cdrom()
 	else
 		CDROM_MOUNTED=
 	fi
-
-	f_media_eject_cdrom "$dev"
 }
 
 # f_media_eject_cdrom $device

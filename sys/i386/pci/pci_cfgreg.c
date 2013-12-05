@@ -306,7 +306,7 @@ pci_cfgenable(unsigned bus, unsigned slot, unsigned func, int reg, int bytes)
 		switch (cfgmech) {
 		case CFGMECH_PCIE:
 		case CFGMECH_1:
-			outl(CONF1_ADDR_PORT, (1 << 31)
+			outl(CONF1_ADDR_PORT, (1U << 31)
 			    | (bus << 16) | (slot << 11) 
 			    | (func << 8) | (reg & ~0x03));
 			dataport = CONF1_DATA_PORT + (reg & 0x03);

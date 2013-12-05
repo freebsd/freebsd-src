@@ -683,10 +683,8 @@ nvpair_unpack(int flags, const unsigned char *ptr, size_t *leftp,
 	if (ptr == NULL)
 		goto failed;
 	tmp = realloc(nvp, sizeof(*nvp) + strlen(nvp->nvp_name) + 1);
-	if (tmp == NULL) {
-		free(nvp);
+	if (tmp == NULL)
 		goto failed;
-	}
 	nvp = tmp;
 	/* Update nvp_name after realloc(). */
 	nvp->nvp_name = (char *)(nvp + 1);

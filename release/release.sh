@@ -159,6 +159,7 @@ if [ "x${NOPORTS}" = "x" ]; then
 	svn co ${SVNROOT}/${PORTBRANCH} ${CHROOTDIR}/usr/ports
 fi
 
+cp /etc/resolv.conf ${CHROOTDIR}/etc/resolv.conf
 cd ${CHROOTDIR}/usr/src
 make ${CHROOT_WMAKEFLAGS} buildworld
 make ${CHROOT_IMAKEFLAGS} installworld DESTDIR=${CHROOTDIR}
@@ -174,9 +175,10 @@ build_doc_ports() {
 	## Trick the ports 'run-autotools-fixup' target to do the right thing.
 	_OSVERSION=$(sysctl -n kern.osreldate)
 	if [ -d ${CHROOTDIR}/usr/doc ] && [ "x${NODOC}" = "x" ]; then
-		PBUILD_FLAGS="OSVERSION=${_OSVERSION} WITHOUT_JADETEX=yes WITHOUT_X11=yes BATCH=yes"
+		PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
+		PBUILD_FLAGS="${PBUILD_FLAGS}"
 		chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
-			${PBUILD_FLAGS} install clean distclean
+			${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" install clean distclean
 	fi
 }
 
@@ -192,7 +194,6 @@ if [ -e ${SRC_CONF} ] && [ ! -c ${SRC_CONF} ]; then
 fi
 
 if [ -d ${CHROOTDIR}/usr/ports ]; then
-	cp /etc/resolv.conf ${CHROOTDIR}/etc/resolv.conf
 	build_doc_ports ${CHROOTDIR}
 fi
 

@@ -449,7 +449,9 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	 * Add a loopback route to self.
 	 */
 	if (vhid == 0 && (ifp->if_flags & IFF_LOOPBACK) == 0 &&
-	    ia->ia_addr.sin_addr.s_addr != INADDR_ANY) {
+	    ia->ia_addr.sin_addr.s_addr != INADDR_ANY &&
+	    !((ifp->if_flags & IFF_POINTOPOINT) &&
+	     ia->ia_dstaddr.sin_addr.s_addr == ia->ia_addr.sin_addr.s_addr)) {
 		struct in_ifaddr *eia;
 
 		eia = in_localip_more(ia);

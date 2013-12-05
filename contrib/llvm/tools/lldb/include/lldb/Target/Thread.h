@@ -17,6 +17,7 @@
 #include "lldb/Core/UserID.h"
 #include "lldb/Core/UserSettingsController.h"
 #include "lldb/Target/ExecutionContextScope.h"
+#include "lldb/Target/RegisterCheckpoint.h"
 #include "lldb/Target/StackFrameList.h"
 
 #define LLDB_THREAD_MAX_STOP_EXC_DATA 8
@@ -130,79 +131,12 @@ public:
     DISALLOW_COPY_AND_ASSIGN (ThreadEventData);
     };
     
-    // TODO: You shouldn't just checkpoint the register state alone, so this should get
-    // moved to protected.  To do that ThreadStateCheckpoint needs to be returned as a token...
-    class RegisterCheckpoint
-    {
-    public:
-
-        RegisterCheckpoint() :
-            m_stack_id (),
-            m_data_sp ()
-        {
-        }
-
-        RegisterCheckpoint (const StackID &stack_id) :
-            m_stack_id (stack_id),
-            m_data_sp ()
-        {
-        }
-
-        ~RegisterCheckpoint()
-        {
-        }
-
-        const RegisterCheckpoint&
-        operator= (const RegisterCheckpoint &rhs)
-        {
-            if (this != &rhs)
-            {
-                this->m_stack_id = rhs.m_stack_id;
-                this->m_data_sp  = rhs.m_data_sp;
-            }
-            return *this;
-        }
-        
-        RegisterCheckpoint (const RegisterCheckpoint &rhs) :
-            m_stack_id (rhs.m_stack_id),
-            m_data_sp (rhs.m_data_sp)
-        {
-        }
-        
-        const StackID &
-        GetStackID()
-        {
-            return m_stack_id;
-        }
-
-        void
-        SetStackID (const StackID &stack_id)
-        {
-            m_stack_id = stack_id;
-        }
-
-        lldb::DataBufferSP &
-        GetData()
-        {
-            return m_data_sp;
-        }
-
-        const lldb::DataBufferSP &
-        GetData() const
-        {
-            return m_data_sp;
-        }
-
-    protected:
-        StackID m_stack_id;
-        lldb::DataBufferSP m_data_sp;
-    };
 
     struct ThreadStateCheckpoint
     {
         uint32_t           orig_stop_id;  // Dunno if I need this yet but it is an interesting bit of data.
         lldb::StopInfoSP   stop_info_sp;  // You have to restore the stop info or you might continue with the wrong signals.
-        RegisterCheckpoint register_backup;  // You need to restore the registers, of course...
+        lldb::RegisterCheckpointSP register_backup_sp;  // You need to restore the registers, of course...
         uint32_t           current_inlined_depth;
         lldb::addr_t       current_inlined_pc;
     };
@@ -339,16 +273,31 @@ public:
         return NULL;
     }
 
+    virtual void
+    SetName (const char *name)
+    {
+    }
+
     virtual lldb::queue_id_t
     GetQueueID ()
     {
         return LLDB_INVALID_QUEUE_ID;
     }
 
+    virtual void
+    SetQueueID (lldb::queue_id_t new_val)
+    {
+    }
+
     virtual const char *
     GetQueueName ()
     {
         return NULL;
+    }
+
+    virtual void
+    SetQueueName (const char *name)
+    {
     }
 
     virtual uint32_t
@@ -527,21 +476,6 @@ public:
     //------------------------------------------------------------------
     virtual lldb::ThreadPlanSP
     QueueFundamentalPlan (bool abort_other_plans);
-
-    //------------------------------------------------------------------
-    /// Queues the plan used to step over a breakpoint at the current PC of \a thread.
-    /// The default version returned by Process handles trap based breakpoints, and
-    /// will disable the breakpoint, single step over it, then re-enable it.
-    ///
-    /// @param[in] abort_other_plans
-    ///    \b true if we discard the currently queued plans and replace them with this one.
-    ///    Otherwise this plan will go on the end of the plan stack.
-    ///
-    /// @return
-    ///     A shared pointer to the newly queued thread plan, or NULL if the plan could not be queued.
-    //------------------------------------------------------------------
-    virtual lldb::ThreadPlanSP
-    QueueThreadPlanForStepOverBreakpointPlan (bool abort_other_plans);
 
     //------------------------------------------------------------------
     /// Queues the plan used to step one instruction from the current PC of \a thread.
@@ -728,14 +662,6 @@ public:
                                  bool stop_others,
                                  uint32_t frame_idx);
 
-    virtual lldb::ThreadPlanSP
-    QueueThreadPlanForCallFunction (bool abort_other_plans,
-                                    Address& function,
-                                    lldb::addr_t arg,
-                                    bool stop_other_threads,
-                                    bool unwind_on_error = false,
-                                    bool ignore_breakpoints = true);
-                                            
     //------------------------------------------------------------------
     // Thread Plan accessors:
     //------------------------------------------------------------------
@@ -879,7 +805,7 @@ public:
     
     void
     SetTracer (lldb::ThreadPlanTracerSP &tracer_sp);
-    
+
     //------------------------------------------------------------------
     // Get the thread index ID. The index ID that is guaranteed to not
     // be re-used by a process. They start at 1 and increase with each
@@ -888,8 +814,25 @@ public:
     //------------------------------------------------------------------
     uint32_t
     GetIndexID () const;
-    
-    
+
+    //------------------------------------------------------------------
+    // Get the originating thread's index ID. 
+    // In the case of an "extended" thread -- a thread which represents
+    // the stack that enqueued/spawned work that is currently executing --
+    // we need to provide the IndexID of the thread that actually did
+    // this work.  We don't want to just masquerade as that thread's IndexID
+    // by using it in our own IndexID because that way leads to madness -
+    // but the driver program which is iterating over extended threads 
+    // may ask for the OriginatingThreadID to display that information
+    // to the user. 
+    // Normal threads will return the same thing as GetIndexID();
+    //------------------------------------------------------------------
+    virtual uint32_t
+    GetExtendedBacktraceOriginatingIndexID ()
+    {
+        return GetIndexID ();
+    }
+
     //------------------------------------------------------------------
     // The API ID is often the same as the Thread::GetID(), but not in
     // all cases. Thread::GetID() is the user visible thread ID that
@@ -1001,6 +944,33 @@ public:
     void
     SetShouldReportStop (Vote vote);
 
+    //----------------------------------------------------------------------
+    /// Sets the extended backtrace token for this thread
+    ///
+    /// Some Thread subclasses may maintain a token to help with providing
+    /// an extended backtrace.  The SystemRuntime plugin will set/request this.
+    ///
+    /// @param [in] token
+    //----------------------------------------------------------------------
+    virtual void
+    SetExtendedBacktraceToken (uint64_t token) { }
+
+    //----------------------------------------------------------------------
+    /// Gets the extended backtrace token for this thread
+    ///
+    /// Some Thread subclasses may maintain a token to help with providing
+    /// an extended backtrace.  The SystemRuntime plugin will set/request this.
+    ///
+    /// @return
+    ///     The token needed by the SystemRuntime to create an extended backtrace.
+    ///     LLDB_INVALID_ADDRESS is returned if no token is available.
+    //----------------------------------------------------------------------
+    virtual uint64_t
+    GetExtendedBacktraceToken ()
+    {
+        return LLDB_INVALID_ADDRESS;
+    }
+
 protected:
 
     friend class ThreadPlan;
@@ -1027,16 +997,6 @@ protected:
 
     typedef std::vector<lldb::ThreadPlanSP> plan_stack;
 
-    virtual bool
-    SaveFrameZeroState (RegisterCheckpoint &checkpoint);
-
-    virtual bool
-    RestoreSaveFrameZero (const RegisterCheckpoint &checkpoint);
-    
-    // register_data_sp must be a DataSP passed to ReadAllRegisterValues.
-    bool
-    ResetFrameZeroRegisters (lldb::DataBufferSP register_data_sp);
-
     virtual lldb_private::Unwind *
     GetUnwinder ();
 
@@ -1058,12 +1018,6 @@ protected:
     lldb::StackFrameListSP
     GetStackFrameList ();
     
-    struct ThreadState
-    {
-        uint32_t           orig_stop_id;
-        lldb::StopInfoSP   stop_info_sp;
-        RegisterCheckpoint register_backup;
-    };
 
     //------------------------------------------------------------------
     // Classes that inherit from Process can see and modify these
