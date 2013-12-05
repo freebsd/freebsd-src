@@ -159,7 +159,7 @@ _libsdp=	libsdp
 _libbsnmp=	libbsnmp
 .endif
 
-.if ${MK_CHERI} != no
+.if ${MK_CHERI} != "no"
 _libcheri=	libcheri
 .endif
 
