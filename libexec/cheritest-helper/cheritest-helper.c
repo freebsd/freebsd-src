@@ -75,14 +75,18 @@ invoke(size_t len, int do_abort)
 #ifdef USE_C_CAPS
 		/* XXXRW: Want a CMD5Update() to avoid copying byte by byte. */
 		ch = data_input[count];
-		MD5Update(&md5context, &ch, sizeof(ch));
 #else
 		memcpy_fromcap(&ch, 3, count, sizeof(ch));
-		MD5Update(&md5context, &ch, sizeof(ch));
 #endif
+		MD5Update(&md5context, &ch, sizeof(ch));
 	}
 	MD5End(&md5context, buf);
+#ifdef USE_C_CAPS
+	for (count = 0; count < sizeof(buf); count++)
+		data_output[count] = buf[count];
+#else
 	memcpy_tocap(4, buf, 0, sizeof(buf));
+#endif
 
 	/*
 	 * Invoke getpid() to trigger kernel protection features.  Should
