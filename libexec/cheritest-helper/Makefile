@@ -15,12 +15,7 @@ NO_MAN=
 DPADD=	${LIBMD}
 LDADD=	-lmd
 
-#.if defined(CHERI_CC) && defined(SYSROOT)
-#CC=	${CHERI_CC} --sysroot=${SYSROOT} -integrated-as
-#
-## XXXRW: Until ELF types are right
-#LDFLAGS+=	-Wl,--no-warn-mismatch
-#.endif
+USE_CHERI=	yes
 
 NO_SHARED=	yes
 

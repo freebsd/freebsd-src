@@ -37,30 +37,49 @@
 
 #include "cmemcpy.h"
 
-int	invoke(register_t a0, register_t a1, register_t a2, register_t a3);
+#if defined(__CHERI__) && defined(__capability)
+#define	USE_C_CAPS
+#endif
+
+#ifdef USE_C_CAPS
+int	invoke(size_t len, int do_abort, __capability char *data_input,
+	    __capability char *data_output);
+#else
+int	invoke(size_t len, int do_abort);
+#endif
 
 /*
  * Sample sandboxed code.  Calculate an MD5 checksum of the data arriving via
- * c3, and place the checksum in c4.  a0 will hold input data length.  c4 must
- * be (at least) 33 bytes.
- *
- * ... unless a1 is set, in which case immediately abort() to test that case.
+ * c3, and place the checksum in c4.  a0 will hold input data length.  a1
+ * indicates whether we should try a system call (abort()).  c4 must be (at
+ * least) 33 bytes.
  */
+#ifdef USE_C_CAPS
 int
-invoke(register_t a0, register_t a1, register_t a2 __unused,
-    register_t a3 __unused)
+invoke(size_t len, int do_abort, __capability char *data_input,
+    __capability char *data_output)
+#else
+int
+invoke(size_t len, int do_abort)
+#endif
 {
 	MD5_CTX md5context;
 	char buf[33], ch;
 	u_int count;
 
-	if (a1)
+	if (do_abort)
 		abort();
 
 	MD5Init(&md5context);
-	for (count = 0; count < a0; count++) {
+	for (count = 0; count < len; count++) {
+#ifdef USE_C_CAPS
+		/* XXXRW: Want a CMD5Update() to avoid copying byte by byte. */
+		ch = data_input[count];
+		MD5Update(&md5context, &ch, sizeof(ch));
+#else
 		memcpy_fromcap(&ch, 3, count, sizeof(ch));
 		MD5Update(&md5context, &ch, sizeof(ch));
+#endif
 	}
 	MD5End(&md5context, buf);
 	memcpy_tocap(4, buf, 0, sizeof(buf));
