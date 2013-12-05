@@ -585,7 +585,7 @@ ae_init_locked(ae_softc_t *sc)
 	val = eaddr[0] << 8 | eaddr[1];
 	AE_WRITE_4(sc, AE_EADDR1_REG, val);
 
-	bzero(sc->rxd_base_dma, AE_RXD_COUNT_DEFAULT * 1536 + 120);
+	bzero(sc->rxd_base_dma, AE_RXD_COUNT_DEFAULT * 1536 + AE_RXD_PADDING);
 	bzero(sc->txd_base, AE_TXD_BUFSIZE_DEFAULT);
 	bzero(sc->txs_base, AE_TXS_COUNT_DEFAULT * 4);
 	/*
@@ -1145,8 +1145,8 @@ ae_alloc_rings(ae_softc_t *sc)
 	 */
 	error = bus_dma_tag_create(sc->dma_parent_tag,
 	    128, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
-	    NULL, NULL, AE_RXD_COUNT_DEFAULT * 1536 + 120, 1,
-	    AE_RXD_COUNT_DEFAULT * 1536 + 120, 0, NULL, NULL,
+	    NULL, NULL, AE_RXD_COUNT_DEFAULT * 1536 + AE_RXD_PADDING, 1,
+	    AE_RXD_COUNT_DEFAULT * 1536 + AE_RXD_PADDING, 0, NULL, NULL,
 	    &sc->dma_rxd_tag);
 	if (error != 0) {
 		device_printf(sc->dev, "could not creare TxS DMA tag.\n");
@@ -1205,15 +1205,15 @@ ae_alloc_rings(ae_softc_t *sc)
 		return (error);
 	}
 	error = bus_dmamap_load(sc->dma_rxd_tag, sc->dma_rxd_map,
-	    sc->rxd_base_dma, AE_RXD_COUNT_DEFAULT * 1536 + 120, ae_dmamap_cb,
-	    &busaddr, BUS_DMA_NOWAIT);
+	    sc->rxd_base_dma, AE_RXD_COUNT_DEFAULT * 1536 + AE_RXD_PADDING,
+	    ae_dmamap_cb, &busaddr, BUS_DMA_NOWAIT);
 	if (error != 0 || busaddr == 0) {
 		device_printf(sc->dev,
 		    "could not load DMA map for RxD ring.\n");
 		return (error);
 	}
-	sc->dma_rxd_busaddr = busaddr + 120;
-	sc->rxd_base = (ae_rxd_t *)(sc->rxd_base_dma + 120);
+	sc->dma_rxd_busaddr = busaddr + AE_RXD_PADDING;
+	sc->rxd_base = (ae_rxd_t *)(sc->rxd_base_dma + AE_RXD_PADDING);
 
 	return (0);
 }
