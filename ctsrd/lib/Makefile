@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 SUBDIR_ORDERED=	libvuln_png
 
 SUBDIR=	${SUBDIR_ORDERED} \
