@@ -176,6 +176,8 @@ static const struct bge_type {
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5721 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5722 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5723 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5725 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5727 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5750 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5750M },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5751 },
@@ -195,6 +197,7 @@ static const struct bge_type {
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5761E },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5761S },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5761SE },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5762 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5764 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5780 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5780S },
@@ -310,6 +313,7 @@ static const struct bge_revision {
 	{ BGE_CHIPID_BCM5722_A0,	"BCM5722 A0" },
 	{ BGE_CHIPID_BCM5761_A0,	"BCM5761 A0" },
 	{ BGE_CHIPID_BCM5761_A1,	"BCM5761 A1" },
+	{ BGE_CHIPID_BCM5762_A0,	"BCM5762 A0" },
 	{ BGE_CHIPID_BCM5784_A0,	"BCM5784 A0" },
 	{ BGE_CHIPID_BCM5784_A1,	"BCM5784 A1" },
 	/* 5754 and 5787 share the same ASIC ID */
@@ -354,6 +358,7 @@ static const struct bge_revision bge_majorrevs[] = {
 	{ BGE_ASICREV_BCM5717,		"unknown BCM5717" },
 	{ BGE_ASICREV_BCM5719,		"unknown BCM5719" },
 	{ BGE_ASICREV_BCM5720,		"unknown BCM5720" },
+	{ BGE_ASICREV_BCM5762,		"unknown BCM5762" },
 
 	{ 0, NULL }
 };
@@ -1885,8 +1890,9 @@ bge_chipinit(struct bge_softc *sc)
 		 * a status tag update and leave interrupts permanently
 		 * disabled.
 		 */
-		if (sc->bge_asicrev != BGE_ASICREV_BCM5717 &&
-		    sc->bge_asicrev != BGE_ASICREV_BCM57765)
+		if (!BGE_IS_57765_PLUS(sc) &&
+		    sc->bge_asicrev != BGE_ASICREV_BCM5717 &&
+		    sc->bge_asicrev != BGE_ASICREV_BCM5762)
 			dma_rw_ctl |= BGE_PCIDMARWCTL_TAGGED_STATUS_WA;
 	}
 	pci_write_config(sc->bge_dev, BGE_PCI_DMA_RW_CTL, dma_rw_ctl, 4);
@@ -1895,7 +1901,8 @@ bge_chipinit(struct bge_softc *sc)
 	 * Set up general mode register.
 	 */
 	mode_ctl = bge_dma_swap_options(sc);
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5720) {
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5720 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5762) {
 		/* Retain Host-2-BMC settings written by APE firmware. */
 		mode_ctl |= CSR_READ_4(sc, BGE_MODE_CTL) &
 		    (BGE_MODECTL_BYTESWAP_B2HRX_DATA |
@@ -1953,7 +1960,7 @@ bge_blockinit(struct bge_softc *sc)
 	struct bge_rcb *rcb;
 	bus_size_t vrcb;
 	bge_hostaddr taddr;
-	uint32_t dmactl, val;
+	uint32_t dmactl, rdmareg, val;
 	int i, limit;
 
 	/*
@@ -2224,6 +2231,11 @@ bge_blockinit(struct bge_softc *sc)
 	if (!BGE_IS_5705_PLUS(sc))
 		/* 5700 to 5704 had 16 send rings. */
 		limit = BGE_TX_RINGS_EXTSSRAM_MAX;
+	else if (BGE_IS_57765_PLUS(sc) ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5762)
+		limit = 2;
+	else if (BGE_IS_5717_PLUS(sc))
+		limit = 4;
 	else
 		limit = 1;
 	vrcb = BGE_MEMWIN_START + BGE_SEND_RING_RCB;
@@ -2262,6 +2274,7 @@ bge_blockinit(struct bge_softc *sc)
 	} else if (!BGE_IS_5705_PLUS(sc))
 		limit = BGE_RX_RINGS_MAX;
 	else if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5762 ||
 	    BGE_IS_57765_PLUS(sc))
 		limit = 4;
 	else
@@ -2301,7 +2314,8 @@ bge_blockinit(struct bge_softc *sc)
 
 	/* Set inter-packet gap */
 	val = 0x2620;
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5720)
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5720 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5762)
 		val |= CSR_READ_4(sc, BGE_TX_LENGTHS) &
 		    (BGE_TXLEN_JMB_FRM_LEN_MSK | BGE_TXLEN_CNT_DN_VAL_MSK);
 	CSR_WRITE_4(sc, BGE_TX_LENGTHS, val);
@@ -2465,7 +2479,8 @@ bge_blockinit(struct bge_softc *sc)
 			val |= BGE_RDMAMODE_TSO6_ENABLE;
 	}
 
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5720) {
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5720 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5762) {
 		val |= CSR_READ_4(sc, BGE_RDMA_MODE) &
 			BGE_RDMAMODE_H2BNC_VLAN_DET;
 		/*
@@ -2479,14 +2494,18 @@ bge_blockinit(struct bge_softc *sc)
 	    sc->bge_asicrev == BGE_ASICREV_BCM5784 ||
 	    sc->bge_asicrev == BGE_ASICREV_BCM5785 ||
 	    sc->bge_asicrev == BGE_ASICREV_BCM57780 ||
-	    BGE_IS_5717_PLUS(sc)) {
-		dmactl = CSR_READ_4(sc, BGE_RDMA_RSRVCTRL);
+	    BGE_IS_5717_PLUS(sc) || BGE_IS_57765_PLUS(sc)) {
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5762)
+			rdmareg = BGE_RDMA_RSRVCTRL_REG2;
+		else
+			rdmareg = BGE_RDMA_RSRVCTRL;
+		dmactl = CSR_READ_4(sc, rdmareg);
 		/*
 		 * Adjust tx margin to prevent TX data corruption and
 		 * fix internal FIFO overflow.
 		 */
-		if (sc->bge_asicrev == BGE_ASICREV_BCM5719 &&
-		    sc->bge_chipid == BGE_CHIPID_BCM5719_A0) {
+		if (sc->bge_chipid == BGE_CHIPID_BCM5719_A0 ||
+		    sc->bge_asicrev == BGE_ASICREV_BCM5762) {
 			dmactl &= ~(BGE_RDMA_RSRVCTRL_FIFO_LWM_MASK |
 			    BGE_RDMA_RSRVCTRL_FIFO_HWM_MASK |
 			    BGE_RDMA_RSRVCTRL_TXMRGN_MASK);
@@ -2499,7 +2518,7 @@ bge_blockinit(struct bge_softc *sc)
 		 * The fix is to limit the number of RX BDs
 		 * the hardware would fetch at a fime.
 		 */
-		CSR_WRITE_4(sc, BGE_RDMA_RSRVCTRL, dmactl |
+		CSR_WRITE_4(sc, rdmareg, dmactl |
 		    BGE_RDMA_RSRVCTRL_FIFO_OFLW_FIX);
 	}
 
@@ -2516,6 +2535,11 @@ bge_blockinit(struct bge_softc *sc)
 		CSR_WRITE_4(sc, BGE_RDMA_LSO_CRPTEN_CTRL,
 		    CSR_READ_4(sc, BGE_RDMA_LSO_CRPTEN_CTRL) |
 		    BGE_RDMA_LSO_CRPTEN_CTRL_BLEN_BD_512 |
+		    BGE_RDMA_LSO_CRPTEN_CTRL_BLEN_LSO_4K);
+	} else if (sc->bge_asicrev == BGE_ASICREV_BCM5762) {
+		CSR_WRITE_4(sc, BGE_RDMA_LSO_CRPTEN_CTRL_REG2,
+		    CSR_READ_4(sc, BGE_RDMA_LSO_CRPTEN_CTRL_REG2) |
+		    BGE_RDMA_LSO_CRPTEN_CTRL_BLEN_BD_4K |
 		    BGE_RDMA_LSO_CRPTEN_CTRL_BLEN_LSO_4K);
 	}
 
@@ -2666,6 +2690,9 @@ bge_chipid(device_t dev)
 		case BCOM_DEVICEID_BCM5718:
 		case BCOM_DEVICEID_BCM5719:
 		case BCOM_DEVICEID_BCM5720:
+		case BCOM_DEVICEID_BCM5725:
+		case BCOM_DEVICEID_BCM5727:
+		case BCOM_DEVICEID_BCM5762:
 			id = pci_read_config(dev,
 			    BGE_PCI_GEN2_PRODID_ASICREV, 4);
 			break;
@@ -3366,6 +3393,7 @@ bge_attach(device_t dev)
 
 	/* Save chipset family. */
 	switch (sc->bge_asicrev) {
+	case BGE_ASICREV_BCM5762:
 	case BGE_ASICREV_BCM57765:
 	case BGE_ASICREV_BCM57766:
 		sc->bge_flags |= BGE_FLAG_57765_PLUS;
@@ -3426,6 +3454,7 @@ bge_attach(device_t dev)
 	case BGE_ASICREV_BCM5719:
 	case BGE_ASICREV_BCM5720:
 	case BGE_ASICREV_BCM5761:
+	case BGE_ASICREV_BCM5762:
 		sc->bge_flags |= BGE_FLAG_APE;
 		break;
 	}
@@ -5490,7 +5519,8 @@ bge_init_locked(struct bge_softc *sc)
 	mode = CSR_READ_4(sc, BGE_TX_MODE);
 	if (BGE_IS_5755_PLUS(sc) || sc->bge_asicrev == BGE_ASICREV_BCM5906)
 		mode |= BGE_TXMODE_MBUF_LOCKUP_FIX;
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5720) {
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5720 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5762) {
 		mode &= ~(BGE_TXMODE_JMB_FRM_LEN | BGE_TXMODE_CNT_DN_MODE);
 		mode |= CSR_READ_4(sc, BGE_TX_MODE) &
 		    (BGE_TXMODE_JMB_FRM_LEN | BGE_TXMODE_CNT_DN_MODE);
