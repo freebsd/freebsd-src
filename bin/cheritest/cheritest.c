@@ -28,10 +28,15 @@
  * SUCH DAMAGE.
  */
 
+#if defined(__CHERI__) && defined(__capability)
+#define USE_C_CAPS
+#endif
+
 #include <sys/types.h>
 #include <sys/time.h>
 
 #include <machine/cheri.h>
+#include <machine/cheric.h>
 #include <machine/cpuregs.h>
 
 #include <err.h>
@@ -46,6 +51,19 @@
 
 #include "cheritest_sandbox.h"
 
+#ifdef USE_C_CAPS
+#define	CHERI_CAPREG_PRINT(crn) do {					\
+	__capability void *cap = cheri_getreg(crn);			\
+	printf("C%u tag %ju u %ju perms %04jx type %016jx\n", crn,	\
+	    (uintmax_t)cheri_gettag(cap),				\
+	    (uintmax_t)cheri_getunsealed(cap),				\
+	    (uintmax_t)cheri_getperm(cap),				\
+	    (uintmax_t)cheri_gettype(cap));				\
+	printf("\tbase %016jx length %016jx\n",				\
+	    (uintmax_t)cheri_getbase(cap),				\
+	    (uintmax_t)cheri_getlen(cap));				\
+} while (0)
+#else
 #define	CHERI_CAPREG_PRINT(crn) do {					\
 	register_t c_tag;						\
 	register_t c_unsealed, c_perms, c_otype, c_base, c_length;	\
@@ -63,6 +81,7 @@
 	printf("\tbase %016jx length %016jx\n", (uintmax_t)c_base,	\
 	    (uintmax_t)c_length);					\
 } while (0)
+#endif
 
 static void
 usage(void)
@@ -90,7 +109,16 @@ usage(void)
 static void
 cheritest_overrun(void)
 {
+#ifdef USE_C_CAPS
+#define	ARRAY_LEN	2
+	char array[ARRAY_LEN];
+	__capability char *arrayp = (__capability char *)array;
+	int i;
 
+	for (i = 0; i < ARRAY_LEN; i++)
+		arrayp[i] = 0;
+	arrayp[i] = 0;
+#else
 	/* Move a copy of $c0 into $c1. */
 	CHERI_CMOVE(1, 0);
 
@@ -99,6 +127,7 @@ cheritest_overrun(void)
 
 	/* Perform a byte store operation via $c1. */
 	CHERI_CSB(0, 0, 0, 1);
+#endif
 }
 
 /*
@@ -107,10 +136,30 @@ cheritest_overrun(void)
  * that, we use libcheri.
  */
 static void
+#ifdef USE_C_CAPS
+cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
+    register_t sandbox_pc, __capability void **codecapp,
+    __capability void **datacapp)
+{
+	__capability void *codecap, *datacap, *basecap;
+
+	basecap = cheri_ptrtype(sandbox_base, (uintptr_t)sandbox_end -
+	    (uintptr_t)sandbox_base, sandbox_pc);
+
+	codecap = cheri_andperm(basecap, CHERI_PERM_EXECUTE | CHERI_PERM_SEAL);
+	codecap = cheri_sealcode(codecap);
+
+	datacap = cheri_andperm(basecap, CHERI_PERM_LOAD | CHERI_PERM_STORE |
+	    CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP);
+	datacap = cheri_sealdata(datacap, basecap);
+
+	*codecapp = codecap;
+	*datacapp = datacap;
+}
+#else
 cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
     register_t sandbox_pc)
 {
-
 	/*-
 	 * Construct a generic capability in $c3 that describes the combined
 	 * code/data segment that we will seal.
@@ -142,53 +191,37 @@ cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
 	 */
 	CHERI_CCLEARTAG(3);
 }
-
-/*
- * Wrapper for CHERI_CCALL().  We don't use the normal CHERI_CCALL() macro
- * because we want to sort out $c0, and can't let compiler-generated code run
- * between $c0 manipulation and CCall.
- *
- * XXXRW: We should probably be flushing much of the general-purpose register
- * file before CCall, and restore them afterwards, at measurable cost.
- *
- * XXXRW: This should probably just be an assembly function rather than inline
- * assembly, because then the compiler would save caller-save registers for
- * us, if required, saving some work.
- */
-static void
-cheritest_ccall(void)
-{
-
-	__asm__ __volatile__ (
-	    /* Move $c0 to $idc so that it will be saved by CCall. */
-	    "cmove $c26, $c0;"
-
-	    /* Clear $c0 so it's not available to sandbox. */
-	    "ccleartag $c0;"
-
-	    /* Invoke object capability. */
-	    "ccall $c1, $c2;"
-
-	    /* Set $c0 back to stored $idc. */
-	    "cmove $c0, $c26"
-	    : : : "memory");
-}
+#endif
 
 static void
 cheritest_ccall_creturn(void)
 {
+#ifdef USE_C_CAPS
+	__capability void *codecap, *datacap;
 
+	cheritest_sandbox_setup(&sandbox_creturn, &sandbox_creturn_end, 0,
+	    &codecap, &datacap);
+	cheritest_ccall(codecap, datacap);
+#else
 	cheritest_sandbox_setup(&sandbox_creturn, &sandbox_creturn_end, 0);
 	cheritest_ccall();
+#endif
 }
 
 static void
 cheritest_ccall_nop_creturn(void)
 {
+#ifdef USE_C_CAPS
+	__capability void *codecap, *datacap;
 
+	cheritest_sandbox_setup(&sandbox_nop_creturn,
+	    &sandbox_nop_creturn_end, 0, &codecap, &datacap);
+	cheritest_ccall(codecap, datacap);
+#else
 	cheritest_sandbox_setup(&sandbox_nop_creturn,
 	    &sandbox_nop_creturn_end, 0);
 	cheritest_ccall();
+#endif
 }
 
 static void
@@ -288,7 +321,15 @@ cheritest_sandbox(void)
 	 * Install a limited C0 so that the kernel will no longer accept
 	 * system calls.
 	 */
+#ifdef USE_C_CAPS
+	__capability void *c0;
+
+	c0 = cheri_getreg(0);
+	c0 = cheri_setlen(c0, CHERI_CAP_USER_LENGTH - 1);
+	cheri_setreg(0, c0);
+#else
 	CHERI_CSETLEN(0, 1, CHERI_CAP_USER_LENGTH - 1);
+#endif
 }
 
 static void
@@ -312,11 +353,16 @@ cheritest_sandbox_invoke_abort(void)
  * stack.  Odd.
  */
 static char md5string[] = "hello world";
+#ifndef USE_C_CAPS
 static struct chericap c3, c4;
+#endif
 
 static void
 cheritest_sandbox_invoke_md5(void)
 {
+#ifdef USE_C_CAPS
+	__capability void *md5cap, *bufcap, *cclear;
+#endif
 	struct sandbox *sb;
 	char buf[33];
 	register_t v;
@@ -325,6 +371,14 @@ cheritest_sandbox_invoke_md5(void)
 	    &sb) < 0)
 		err(1, "sandbox_setup");
 
+#ifdef USE_C_CAPS
+	cclear = cheri_zerocap();
+	md5cap = cheri_ptrperm(md5string, sizeof(md5string), CHERI_PERM_LOAD);
+	bufcap = cheri_ptrperm(buf, sizeof(buf), CHERI_PERM_STORE);
+
+	v = sandbox_cinvoke(sb, strlen(md5string), 0, 0, 0, 0, 0, 0, 0,
+	    md5cap, bufcap, cclear, cclear, cclear, cclear, cclear, cclear);
+#else
 	CHERI_CINCBASE(10, 0, &md5string);
 	CHERI_CSETLEN(10, 10, strlen(md5string));
 	CHERI_CANDPERM(10, 10, CHERI_PERM_LOAD);
@@ -337,6 +391,8 @@ cheritest_sandbox_invoke_md5(void)
 
 	v = sandbox_invoke(sb, strlen(md5string), 0, 0, 0, &c3, &c4, NULL,
 	    NULL, NULL, NULL, NULL, NULL);
+#endif
+
 	printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
 	sandbox_destroy(sb);
 	buf[32] = '\0';
@@ -351,7 +407,15 @@ cheritest_unsandbox(void)
 	 * Restore a more privileged C0 so that the kernel will accept system
 	 * calls again.
 	 */
+#ifdef USE_C_CAPS
+	__capability void *c0;
+
+	c0 = cheri_getreg(1);
+	c0 = cheri_setlen(c0, CHERI_CAP_USER_LENGTH);
+	cheri_setreg(0, c0);
+#else
 	CHERI_CSETLEN(0, 1, CHERI_CAP_USER_LENGTH);
+#endif
 }
 
 static void

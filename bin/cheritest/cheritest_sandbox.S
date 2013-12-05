@@ -28,13 +28,37 @@
  * SUCH DAMAGE.
  */
 
+	.set noreorder	/* Preserve nops, allow instructions in b-d slots. */
+	.set noat	/* Don't use $at automatically. */
+
+/*
+ * CCall path; inline assembly works fine if we don't have compiler support,
+ * but with compiler support we want to use the right calling convention,
+ * which requires a complete function with safe internal register use.
+ */
+	.global cheritest_ccall
+	.ent cheritest_ccrall
+cheritest_ccall:
+        /* Move $c0 to $idc so that it will be saved by CCall. */
+        cmove $c26, $c0
+
+        /* Clear $c0 so it's not available to sandbox. */
+        ccleartag $c0
+
+        /* Invoke object capability. */
+        ccall $c1, $c2
+
+        /* Set $c0 back to stored $idc. */
+        cmove $c0, $c26
+
+	jalr $ra
+	nop
+	.end cheritest_ccall
+
 /*
  * Landing code within a sandbox.  Various versions with varying levels of
  * technical and moral complexity.
  */
-
-	.set noreorder	/* Preserve nops, allow instructions in b-d slots. */
-	.set noat	/* Don't use $at automatically. */
 
 	/*
 	 * Sandbox code that simply performs creturn immediately.
