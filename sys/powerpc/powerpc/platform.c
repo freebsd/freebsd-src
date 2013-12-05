@@ -148,6 +148,7 @@ mem_regions(struct mem_region **phys, int *physsz, struct mem_region **avail,
 				memcpy(&aregions[i], &aregions[i+1],
 				    (naregions - i - 1)*sizeof(*aregions));
 				naregions--;
+				i--;
 			}
 		}
 	}
