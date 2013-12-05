@@ -585,6 +585,7 @@ _hptmv=		hptmv
 _hptnr=		hptnr
 _hptrr=		hptrr
 .endif
+_hyperv=	hyperv
 _ichwd=		ichwd
 _ida=		ida
 _iir=		iir
