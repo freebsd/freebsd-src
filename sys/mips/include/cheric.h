@@ -95,29 +95,18 @@ cheri_zerocap(void)
 	return (cap);
 }
 
-static __inline __capability void *
-cheri_getreg(int x)
-{
-	__capability void *cap;
+#define	cheri_getreg(x) ({						\
+	__asm __volatile ("cmove %0, $c" x : "+C" (cap));		\
+	cap;								\
+})
 
-	__asm __volatile ("cmove %0, $c%1" : "+C" (cap) : "i" (x));
-	return (cap);
-}
-
-static __inline void
-cheri_setreg(int x, __capability void *cap)
-{
-
-	/*
-	 * Not clear this is right for non-zero regs -- should we be declaring
-	 * a register clobber?
-	 */
-	if (x == 0)
-		__asm __volatile ("cmove $c%0, %1" : : "i" (x), "C" (cap) :
-		    "memory");
-	else
-		__asm __volatile ("cmove $c%0, %1" : : "i" (x), "C" (cap));
-}
+#define	cheri_setreg(x, cap) do {					\
+	if ((x) == 0)							\
+		__asm __volatile ("cmove $c" x ", %0" : : "C" (cap));	\
+	else								\
+		__asm __volatile ("cmove $c" x ", %0" : : "C" (cap) :	\
+		    "memory");						\
+} while (0)
 #endif
 
 #endif /* _MIPS_INCLUDE_CHERI_H_ */
