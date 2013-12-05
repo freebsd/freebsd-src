@@ -3087,7 +3087,7 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 			dur = rt2860_rates[ctl_ridx].sp_ack_dur;
 		else
 			dur = rt2860_rates[ctl_ridx].lp_ack_dur;
-		*(uint16_t *)wh->i_dur = htole16(dur);
+		USETW(wh->i_dur, dur);
 	}
 
 	/* reserve slots for mgmt packets, just in case */
@@ -3207,7 +3207,7 @@ run_tx_mgt(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 		dur = ieee80211_ack_duration(ic->ic_rt, rt2860_rates[ridx].rate, 
 		    ic->ic_flags & IEEE80211_F_SHPREAMBLE);
-		*(uint16_t *)wh->i_dur = htole16(dur);
+		USETW(wh->i_dur, dur);
 	}
 
 	if (sc->sc_epq[0].tx_nfree == 0) {
@@ -3672,7 +3672,7 @@ run_rt2870_set_chan(struct run_softc *sc, u_int chan)
 		}
 		if (txpow2 >= 0) {
 			txpow2 = (txpow2 > 0xf) ? (0xf) : (txpow2);
-			r4 |= (txpow1 << 7) | (1 << 6);
+			r4 |= (txpow2 << 7) | (1 << 6);
 		} else {
 			txpow2 += 7;
 			r4 |= (txpow2 << 7);

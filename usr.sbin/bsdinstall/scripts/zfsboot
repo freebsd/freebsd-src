@@ -961,7 +961,7 @@ zfs_create_boot()
 	# If encryption is enabled, we need to create the GEOMs
 	#
 	if [ "$ZFSBOOT_GELI_ENCRYPTION" ]; then
-		local bootvdev=
+		local bootvdev= options=
 		local geli_pool="$BSDINSTALL_CHROOT/$ZFSBOOT_GELI_POOL_NAME"
 		local key="$ZFSBOOT_GELI_KEY_FILE"
 
@@ -978,11 +978,13 @@ zfs_create_boot()
 		f_dprintf "$funcname: %s %s %s" \
 		          "ZFSBOOT_GELI_POOL_NAME=[$ZFSBOOT_GELI_POOL_NAME]" \
 		          "bootvdev=[$bootvdev]" "unenc_list=[$unenc_list]"
+		options="-o altroot=\"\$BSDINSTALL_CHROOT\""
+		options="$options -m \"/\$ZFSBOOT_GELI_POOL_NAME\""
+		options="$options -f"
 		f_eval_catch $funcname zpool "$ZPOOL_CREATE_WITH_OPTIONS" \
-		             "-o altroot=\"\$BSDINSTALL_CHROOT\"
-		              -m \"/\$ZFSBOOT_GELI_POOL_NAME\" -f" \
-		             \$ZFSBOOT_GELI_POOL_NAME \$bootvdev \
+		             "$options" \$ZFSBOOT_GELI_POOL_NAME \$bootvdev \
 		             \$unenc_list || return $FAILURE
+
 		f_dprintf "$funcname: geli_pool=[%s]" "$geli_pool"
 		f_eval_catch $funcname mkdir "$MKDIR_P" \$geli_pool/boot ||
 		             return $FAILURE

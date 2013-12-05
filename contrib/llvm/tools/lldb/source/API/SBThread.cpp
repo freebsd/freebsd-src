@@ -433,7 +433,6 @@ SBThread::SetThread (const ThreadSP& lldb_object_sp)
     m_opaque_sp->SetThreadSP (lldb_object_sp);
 }
 
-
 lldb::tid_t
 SBThread::GetThreadID () const
 {
@@ -1283,7 +1282,7 @@ SBThread::GetDescription (SBStream &description) const
 }
 
 SBThread
-SBThread::GetExtendedBacktrace (const char *type)
+SBThread::GetExtendedBacktraceThread (const char *type)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
     Mutex::Locker api_locker;
@@ -1295,24 +1294,50 @@ SBThread::GetExtendedBacktrace (const char *type)
         Process::StopLocker stop_locker;
         if (stop_locker.TryLock(&exe_ctx.GetProcessPtr()->GetRunLock()))
         {
-            ThreadSP real_thread(exe_ctx.GetThreadPtr());
+            ThreadSP real_thread(exe_ctx.GetThreadSP());
             if (real_thread)
             {
                 ConstString type_const (type);
-                SystemRuntime *runtime = exe_ctx.GetProcessPtr()->GetSystemRuntime();
-                if (runtime)
+                Process *process = exe_ctx.GetProcessPtr();
+                if (process)
                 {
-                    ThreadSP origin_thread = runtime->GetExtendedBacktrace (real_thread, type_const);
-                    sb_origin_thread.SetThread (origin_thread);
+                    SystemRuntime *runtime = process->GetSystemRuntime();
+                    if (runtime)
+                    {
+                        ThreadSP new_thread_sp (runtime->GetExtendedBacktraceThread (real_thread, type_const));
+                        if (new_thread_sp)
+                        {
+                            // Save this in the Process' ExtendedThreadList so a strong pointer retains the
+                            // object.
+                            process->GetExtendedThreadList().AddThread (new_thread_sp);
+                            sb_origin_thread.SetThread (new_thread_sp);
+                            if (log)
+                            {
+                                const char *queue_name = new_thread_sp->GetQueueName();
+                                if (queue_name == NULL)
+                                    queue_name = "";
+                                log->Printf ("SBThread(%p)::GetExtendedBacktraceThread() => new extended Thread created (%p) with queue_id 0x%" PRIx64 " queue name '%s'", exe_ctx.GetThreadPtr(), new_thread_sp.get(), new_thread_sp->GetQueueID(), queue_name);
+                            }
+                        }
+                    }
                 }
             }
         }
         else
         {
             if (log)
-                log->Printf ("SBThread(%p)::GetExtendedBacktrace() => error: process is running", exe_ctx.GetThreadPtr());
+                log->Printf ("SBThread(%p)::GetExtendedBacktraceThread() => error: process is running", exe_ctx.GetThreadPtr());
         }
     }
 
     return sb_origin_thread;
+}
+
+uint32_t
+SBThread::GetExtendedBacktraceOriginatingIndexID ()
+{
+    ThreadSP thread_sp(m_opaque_sp->GetThreadSP());
+    if (thread_sp)
+        return thread_sp->GetExtendedBacktraceOriginatingIndexID();
+    return LLDB_INVALID_INDEX32;
 }

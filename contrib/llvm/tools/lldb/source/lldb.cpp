@@ -54,6 +54,7 @@
 #include "Plugins/Platform/MacOSX/PlatformRemoteiOS.h"
 #include "Plugins/Platform/MacOSX/PlatformDarwinKernel.h"
 #include "Plugins/Platform/MacOSX/PlatformiOSSimulator.h"
+#include "Plugins/SystemRuntime/MacOSX/SystemRuntimeMacOSX.h"
 #endif
 
 #if defined(__linux__) || defined(__FreeBSD__)
@@ -124,6 +125,7 @@ lldb_private::Initialize ()
         PlatformRemoteiOS::Initialize();
         PlatformMacOSX::Initialize();
         PlatformiOSSimulator::Initialize();
+        SystemRuntimeMacOSX::Initialize();
 #endif
 #if defined (__linux__)
         //----------------------------------------------------------------------
@@ -198,6 +200,7 @@ lldb_private::Terminate ()
     PlatformDarwinKernel::Terminate();
     PlatformRemoteiOS::Terminate();
     PlatformiOSSimulator::Terminate();
+    SystemRuntimeMacOSX::Terminate();
 #endif
 
     Debugger::SettingsTerminate ();
