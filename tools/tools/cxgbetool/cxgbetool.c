@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include "t4_ioctl.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
-
+#define in_range(val, lo, hi) ( val < 0 || (val <= hi && val >= lo))
 #define	max(x, y) ((x) > (y) ? (x) : (y))
 
 static const char *progname, *nexus;
@@ -99,9 +99,11 @@ usage(FILE *fp)
 	    "\treg <address>[=<val>]               read/write register\n"
 	    "\treg64 <address>[=<val>]             read/write 64 bit register\n"
 	    "\tregdump [<module>] ...              dump registers\n"
+	    "\tsched-class params <param> <val> .. configure TX scheduler class\n"
+	    "\tsched-queue <port> <queue> <class>  bind NIC queues to TX Scheduling class\n"
 	    "\tstdio                               interactive mode\n"
 	    "\ttcb <tid>                           read TCB\n"
-	    "\ttracer <idx> tx<n>|rx<n>            set and enable a tracer)\n"
+	    "\ttracer <idx> tx<n>|rx<n>            set and enable a tracer\n"
 	    "\ttracer <idx> disable|enable         disable or enable a tracer\n"
 	    "\ttracer list                         list all tracers\n"
 	    );
@@ -323,7 +325,7 @@ dump_regs_t4(int argc, const char *argv[], const uint32_t *regs)
 		T4_MODREGS(ma),
 		{ "edc0", t4_edc_0_regs },
 		{ "edc1", t4_edc_1_regs },
-		T4_MODREGS(cim), 
+		T4_MODREGS(cim),
 		T4_MODREGS(tp),
 		T4_MODREGS(ulp_rx),
 		T4_MODREGS(ulp_tx),
@@ -335,7 +337,7 @@ dump_regs_t4(int argc, const char *argv[], const uint32_t *regs)
 		{ "i2c", t4_i2cm_regs },
 		T4_MODREGS(mi),
 		T4_MODREGS(uart),
-		T4_MODREGS(pmu), 
+		T4_MODREGS(pmu),
 		T4_MODREGS(sf),
 		T4_MODREGS(pl),
 		T4_MODREGS(le),
@@ -1830,6 +1832,47 @@ set_tracer(uint8_t idx, int argc, const char *argv[])
 }
 
 static int
+tracer_cmd(int argc, const char *argv[])
+{
+	long long val;
+	uint8_t idx;
+	char *s;
+
+	if (argc == 0) {
+		warnx("tracer: no arguments.");
+		return (EINVAL);
+	};
+
+	/* list */
+	if (strcmp(argv[0], "list") == 0) {
+		if (argc != 1)
+			warnx("trailing arguments after \"list\" ignored.");
+
+		return show_tracers();
+	}
+
+	/* <idx> ... */
+	s = str_to_number(argv[0], NULL, &val);
+	if (*s || val > 0xff) {
+		warnx("\"%s\" is neither an index nor a tracer subcommand.",
+		    argv[0]);
+		return (EINVAL);
+	}
+	idx = (int8_t)val;
+
+	/* <idx> disable */
+	if (argc == 2 && strcmp(argv[1], "disable") == 0)
+		return tracer_onoff(idx, 0);
+
+	/* <idx> enable */
+	if (argc == 2 && strcmp(argv[1], "enable") == 0)
+		return tracer_onoff(idx, 1);
+
+	/* <idx> ... */
+	return set_tracer(idx, argc - 1, argv + 1);
+}
+
+static int
 modinfo(int argc, const char *argv[])
 {
 	long port;
@@ -1958,45 +2001,289 @@ fail:
 
 }
 
+/* XXX: pass in a low/high and do range checks as well */
 static int
-tracer_cmd(int argc, const char *argv[])
+get_sched_param(const char *param, const char *args[], long *val)
 {
-	long long val;
-	uint8_t idx;
-	char *s;
+	char *p;
 
+	if (strcmp(param, args[0]) != 0)
+		return (EINVAL);
+
+	p = str_to_number(args[1], val, NULL);
+	if (*p) {
+		warnx("parameter \"%s\" has bad value \"%s\"", args[0],
+		    args[1]);
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+static int
+sched_class(int argc, const char *argv[])
+{
+	struct t4_sched_params op;
+	int errs, i;
+
+	memset(&op, 0xff, sizeof(op));
+	op.subcmd = -1;
+	op.type = -1;
 	if (argc == 0) {
-		warnx("tracer: no arguments.");
-		return (EINVAL);
-	};
-
-	/* list */
-	if (strcmp(argv[0], "list") == 0) {
-		if (argc != 1)
-			warnx("trailing arguments after \"list\" ignored.");
-
-		return show_tracers();
-	}
-
-	/* <idx> ... */
-	s = str_to_number(argv[0], NULL, &val);
-	if (*s || val > 0xff) {
-		warnx("\"%s\" is neither an index nor a tracer subcommand.",
-		    argv[0]);
+		warnx("missing scheduling sub-command");
 		return (EINVAL);
 	}
-	idx = (int8_t)val;
+	if (!strcmp(argv[0], "config")) {
+		op.subcmd = SCHED_CLASS_SUBCMD_CONFIG;
+		op.u.config.minmax = -1;
+	} else if (!strcmp(argv[0], "params")) {
+		op.subcmd = SCHED_CLASS_SUBCMD_PARAMS;
+		op.u.params.level = op.u.params.mode = op.u.params.rateunit =
+		    op.u.params.ratemode = op.u.params.channel =
+		    op.u.params.cl = op.u.params.minrate = op.u.params.maxrate =
+		    op.u.params.weight = op.u.params.pktsize = -1;
+	} else {
+		warnx("invalid scheduling sub-command \"%s\"", argv[0]);
+		return (EINVAL);
+	}
 
-	/* <idx> disable */
-	if (argc == 2 && strcmp(argv[1], "disable") == 0)
-		return tracer_onoff(idx, 0);
+	/* Decode remaining arguments ... */
+	errs = 0;
+	for (i = 1; i < argc; i += 2) {
+		const char **args = &argv[i];
+		long l;
 
-	/* <idx> enable */
-	if (argc == 2 && strcmp(argv[1], "enable") == 0)
-		return tracer_onoff(idx, 1);
+		if (i + 1 == argc) {
+			warnx("missing argument for \"%s\"", args[0]);
+			errs++;
+			break;
+		}
 
-	/* <idx> ... */
-	return set_tracer(idx, argc - 1, argv + 1);
+		if (!strcmp(args[0], "type")) {
+			if (!strcmp(args[1], "packet"))
+				op.type = SCHED_CLASS_TYPE_PACKET;
+			else {
+				warnx("invalid type parameter \"%s\"", args[1]);
+				errs++;
+			}
+
+			continue;
+		}
+
+		if (op.subcmd == SCHED_CLASS_SUBCMD_CONFIG) {
+			if(!get_sched_param("minmax", args, &l))
+				op.u.config.minmax = (int8_t)l;
+			else {
+				warnx("unknown scheduler config parameter "
+				    "\"%s\"", args[0]);
+				errs++;
+			}
+
+			continue;
+		}
+
+		/* Rest applies only to SUBCMD_PARAMS */
+		if (op.subcmd != SCHED_CLASS_SUBCMD_PARAMS)
+			continue;
+
+		if (!strcmp(args[0], "level")) {
+			if (!strcmp(args[1], "cl-rl"))
+				op.u.params.level = SCHED_CLASS_LEVEL_CL_RL;
+			else if (!strcmp(args[1], "cl-wrr"))
+				op.u.params.level = SCHED_CLASS_LEVEL_CL_WRR;
+			else if (!strcmp(args[1], "ch-rl"))
+				op.u.params.level = SCHED_CLASS_LEVEL_CH_RL;
+			else {
+				warnx("invalid level parameter \"%s\"",
+				    args[1]);
+				errs++;
+			}
+		} else if (!strcmp(args[0], "mode")) {
+			if (!strcmp(args[1], "class"))
+				op.u.params.mode = SCHED_CLASS_MODE_CLASS;
+			else if (!strcmp(args[1], "flow"))
+				op.u.params.mode = SCHED_CLASS_MODE_FLOW;
+			else {
+				warnx("invalid mode parameter \"%s\"", args[1]);
+				errs++;
+			}
+		} else if (!strcmp(args[0], "rate-unit")) {
+			if (!strcmp(args[1], "bits"))
+				op.u.params.rateunit = SCHED_CLASS_RATEUNIT_BITS;
+			else if (!strcmp(args[1], "pkts"))
+				op.u.params.rateunit = SCHED_CLASS_RATEUNIT_PKTS;
+			else {
+				warnx("invalid rate-unit parameter \"%s\"",
+				    args[1]);
+				errs++;
+			}
+		} else if (!strcmp(args[0], "rate-mode")) {
+			if (!strcmp(args[1], "relative"))
+				op.u.params.ratemode = SCHED_CLASS_RATEMODE_REL;
+			else if (!strcmp(args[1], "absolute"))
+				op.u.params.ratemode = SCHED_CLASS_RATEMODE_ABS;
+			else {
+				warnx("invalid rate-mode parameter \"%s\"",
+				    args[1]);
+				errs++;
+			}
+		} else if (!get_sched_param("channel", args, &l))
+			op.u.params.channel = (int8_t)l;
+		else if (!get_sched_param("class", args, &l))
+			op.u.params.cl = (int8_t)l;
+		else if (!get_sched_param("min-rate", args, &l))
+			op.u.params.minrate = (int32_t)l;
+		else if (!get_sched_param("max-rate", args, &l))
+			op.u.params.maxrate = (int32_t)l;
+		else if (!get_sched_param("weight", args, &l))
+			op.u.params.weight = (int16_t)l;
+		else if (!get_sched_param("pkt-size", args, &l))
+			op.u.params.pktsize = (int16_t)l;
+		else {
+			warnx("unknown scheduler parameter \"%s\"", args[0]);
+			errs++;
+		}
+	}
+
+	/*
+	 * Catch some logical fallacies in terms of argument combinations here
+	 * so we can offer more than just the EINVAL return from the driver.
+	 * The driver will be able to catch a lot more issues since it knows
+	 * the specifics of the device hardware capabilities like how many
+	 * channels, classes, etc. the device supports.
+	 */
+	if (op.type < 0) {
+		warnx("sched \"type\" parameter missing");
+		errs++;
+	}
+	if (op.subcmd == SCHED_CLASS_SUBCMD_CONFIG) {
+		if (op.u.config.minmax < 0) {
+			warnx("sched config \"minmax\" parameter missing");
+			errs++;
+		}
+	}
+	if (op.subcmd == SCHED_CLASS_SUBCMD_PARAMS) {
+		if (op.u.params.level < 0) {
+			warnx("sched params \"level\" parameter missing");
+			errs++;
+		}
+		if (op.u.params.mode < 0) {
+			warnx("sched params \"mode\" parameter missing");
+			errs++;
+		}
+		if (op.u.params.rateunit < 0) {
+			warnx("sched params \"rate-unit\" parameter missing");
+			errs++;
+		}
+		if (op.u.params.ratemode < 0) {
+			warnx("sched params \"rate-mode\" parameter missing");
+			errs++;
+		}
+		if (op.u.params.channel < 0) {
+			warnx("sched params \"channel\" missing");
+			errs++;
+		}
+		if (op.u.params.cl < 0) {
+			warnx("sched params \"class\" missing");
+			errs++;
+		}
+		if (op.u.params.maxrate < 0 &&
+		    (op.u.params.level == SCHED_CLASS_LEVEL_CL_RL ||
+		    op.u.params.level == SCHED_CLASS_LEVEL_CH_RL)) {
+			warnx("sched params \"max-rate\" missing for "
+			    "rate-limit level");
+			errs++;
+		}
+		if (op.u.params.weight < 0 &&
+		    op.u.params.level == SCHED_CLASS_LEVEL_CL_WRR) {
+			warnx("sched params \"weight\" missing for "
+			    "weighted-round-robin level");
+			errs++;
+		}
+		if (op.u.params.pktsize < 0 &&
+		    (op.u.params.level == SCHED_CLASS_LEVEL_CL_RL ||
+		    op.u.params.level == SCHED_CLASS_LEVEL_CH_RL)) {
+			warnx("sched params \"pkt-size\" missing for "
+			    "rate-limit level");
+			errs++;
+		}
+		if (op.u.params.mode == SCHED_CLASS_MODE_FLOW &&
+		    op.u.params.ratemode != SCHED_CLASS_RATEMODE_ABS) {
+			warnx("sched params mode flow needs rate-mode absolute");
+			errs++;
+		}
+		if (op.u.params.ratemode == SCHED_CLASS_RATEMODE_REL &&
+		    !in_range(op.u.params.maxrate, 1, 100)) {
+                        warnx("sched params \"max-rate\" takes "
+			    "percentage value(1-100) for rate-mode relative");
+                        errs++;
+                }
+                if (op.u.params.ratemode == SCHED_CLASS_RATEMODE_ABS &&
+		    !in_range(op.u.params.maxrate, 1, 10000000)) {
+                        warnx("sched params \"max-rate\" takes "
+			    "value(1-10000000) for rate-mode absolute");
+                        errs++;
+                }
+                if (op.u.params.maxrate > 0 &&
+		    op.u.params.maxrate < op.u.params.minrate) {
+                        warnx("sched params \"max-rate\" is less than "
+			    "\"min-rate\"");
+                        errs++;
+                }
+	}
+
+	if (errs > 0) {
+		warnx("%d error%s in sched-class command", errs,
+		    errs == 1 ? "" : "s");
+		return (EINVAL);
+	}
+
+	return doit(CHELSIO_T4_SCHED_CLASS, &op);
+}
+
+static int
+sched_queue(int argc, const char *argv[])
+{
+	struct t4_sched_queue op = {0};
+	char *p;
+	long val;
+
+	if (argc != 3) {
+		/* need "<port> <queue> <class> */
+		warnx("incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	p = str_to_number(argv[0], &val, NULL);
+	if (*p || val > UCHAR_MAX) {
+		warnx("invalid port id \"%s\"", argv[0]);
+		return (EINVAL);
+	}
+	op.port = (uint8_t)val;
+
+	if (!strcmp(argv[1], "all") || !strcmp(argv[1], "*"))
+		op.queue = -1;
+	else {
+		p = str_to_number(argv[1], &val, NULL);
+		if (*p || val < -1) {
+			warnx("invalid queue \"%s\"", argv[1]);
+			return (EINVAL);
+		}
+		op.queue = (int8_t)val;
+	}
+
+	if (!strcmp(argv[2], "unbind") || !strcmp(argv[2], "clear"))
+		op.cl = -1;
+	else {
+		p = str_to_number(argv[2], &val, NULL);
+		if (*p || val < -1) {
+			warnx("invalid class \"%s\"", argv[2]);
+			return (EINVAL);
+		}
+		op.cl = (int8_t)val;
+	}
+
+	return doit(CHELSIO_T4_SCHED_QUEUE, &op);
 }
 
 static int
@@ -2033,6 +2320,10 @@ run_cmd(int argc, const char *argv[])
 		rc = tracer_cmd(argc, argv);
 	else if (!strcmp(cmd, "modinfo"))
 		rc = modinfo(argc, argv);
+	else if (!strcmp(cmd, "sched-class"))
+		rc = sched_class(argc, argv);
+	else if (!strcmp(cmd, "sched-queue"))
+		rc = sched_queue(argc, argv);
 	else {
 		rc = EINVAL;
 		warnx("invalid command \"%s\"", cmd);
