@@ -30,15 +30,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/kthread.h>
-#include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/mutex.h>
 
 #include <sys/gpio.h>
 #include "gpiobus_if.h"
@@ -55,7 +50,6 @@ struct gpioiic_softc
 {
 	device_t	sc_dev;
 	device_t	sc_busdev;
-	struct cdev	*sc_leddev;
 	int		scl_pin;
 	int		sda_pin;
 };
@@ -78,6 +72,7 @@ gpioiic_probe(device_t dev)
 {
 
 	device_set_desc(dev, "GPIO I2C bit-banging driver");
+
 	return (0);
 }
 
@@ -139,7 +134,7 @@ gpioiic_callback(device_t dev, int index, caddr_t data)
 		error = EINVAL;
 	}
 
-	return(error);
+	return (error);
 }
 
 static void
