@@ -18,6 +18,10 @@
 	* decl2.c (determine_visibility): Remove duplicate code for
 	handling type info.
 
+2007-05-31  Daniel Berlin  <dberlin@dberlin.org> (r125239)
+
+	* typeck.c (build_binary_op): Include types in error.
+
 2007-05-05  Geoffrey Keating  <geoffk@apple.com> (r124467)
 
 	PR 31775
