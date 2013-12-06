@@ -3712,9 +3712,6 @@ run_rt3070_set_chan(struct run_softc *sc, u_int chan)
 	uint8_t rf;
 	int i;
 
-	/* RT3070 is 2GHz only */
-	KASSERT(chan >= 1 && chan <= 14, ("wrong channel selected\n"));
-
 	/* find the settings for this channel (we know it exists) */
 	for (i = 0; rt2860_rf2850[i].chan != chan; i++);
 
