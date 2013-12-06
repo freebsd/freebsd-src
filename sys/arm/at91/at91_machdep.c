@@ -426,9 +426,8 @@ initarm(void *arg, void *arg2)
 	dump_avail[2] = 0;
 	dump_avail[3] = 0;
 
-	pmap_bootstrap(freemempos,
-	    KERNVIRTADDR + 3 * memsize,
-	    &kernel_l1pt);
+	/* Use the full 256MB of KVA we have available, regardless of memory size */
+	pmap_bootstrap(freemempos, KERNVIRTADDR + (256 << 20), &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
