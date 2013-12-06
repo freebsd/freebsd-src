@@ -57,6 +57,14 @@
 	operand.
 	(store_expr): Handle BLKmode moves by calling emit_block_move.
 
+2007-05-31  Daniel Berlin  <dberlin@dberlin.org> (r125239)
+
+	* c-typeck.c (build_indirect_ref): Include type in error message.
+	(build_binary_op): Pass types to binary_op_error.
+	* c-common.c (binary_op_error): Take two type arguments, print out
+	types with error.
+	* c-common.h (binary_op_error): Update prototype.
+
 2007-05-27  Eric Christopher  <echristo@apple.com> (r125116)
 
 	* config/rs6000/rs6000.c (rs6000_emit_prologue): Update
