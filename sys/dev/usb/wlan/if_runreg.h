@@ -707,6 +707,9 @@
 /* possible flags for RT3020 RF register 21 */
 #define RT3070_RX_LO2	(1 << 3)
 
+/* Possible flags for RT5390 RF register 2. */
+#define	RT5390_RESCAL	(1 << 7)
+
 /* Possible flags for RT5390 RF register 3. */
 #define	RT5390_VCOCAL	(1 << 7)
 
@@ -715,6 +718,13 @@
 
 /* Possible flags for RT5390 RF register 39. */
 #define	RT5390_RX_LO2	(1 << 7)
+
+/* Possible flags for RT5390 BBP register 4. */
+#define	RT5390_MAC_IF_CTRL	(1 << 6)
+
+/* Possible flags for RT5390 BBP register 105. */
+#define	RT5390_MLD			(1 << 2)
+#define	RT5390_EN_SIG_MODULATION	(1 << 3)
 
 /* RT2860 TX descriptor */
 struct rt2860_txd {

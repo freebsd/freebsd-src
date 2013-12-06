@@ -4530,7 +4530,7 @@ run_rt5390_bbp_init(struct run_softc *sc)
 
 	/* Avoid data lost and CRC error. */
 	run_bbp_read(sc, 4, &bbp4);
-	run_bbp_write(sc, 4, bbp4 | 0x40);
+	run_bbp_write(sc, 4, bbp | RT5390_MAC_IF_CTRL);
 
 	for (i = 0; i < nitems(rt5390_def_bbp); i++) {
 		run_bbp_write(sc, rt5390_def_bbp[i].reg,
@@ -4746,11 +4746,11 @@ run_rt5390_rf_init(struct run_softc *sc)
 	/* Toggle RF R2 to initiate calibration. */
 	if (sc->mac_ver == 0x5390) {
 		run_rt3070_rf_read(sc, 2, &rf);
-		run_rt3070_rf_write(sc, 2, rf | 0x80);
+		run_rt3070_rf_write(sc, 2, rf | RT5390_RESCAL);
 		run_delay(sc, 10);
-		run_rt3070_rf_write(sc, 2, rf & ~0x80);
+		run_rt3070_rf_write(sc, 2, rf & ~RT5390_RESCAL);
 	} else {
-		run_rt3070_rf_write(sc, 2, 0x80);
+		run_rt3070_rf_write(sc, 2, RT5390_RESCAL);
 		run_delay(sc, 10);
 	}
 
@@ -4889,7 +4889,7 @@ run_rt3070_rf_setup(struct run_softc *sc)
 
 		/* Avoid data lost and CRC error. */
 		run_bbp_read(sc, 4, &bbp);
-		run_bbp_write(sc, 4, bbp | 0x40);
+		run_bbp_write(sc, 4, bbp | RT5390_MAC_IF_CTRL);
 
 		run_rt3070_rf_read(sc, 30, &rf);
 		rf = (rf & ~0x18) | 0x10;
