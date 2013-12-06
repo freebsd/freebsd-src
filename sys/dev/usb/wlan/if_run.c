@@ -3230,7 +3230,7 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 	DPRINTFN(8, "sending data frame len=%d rate=%d qid=%d\n",
 	    m->m_pkthdr.len + (int)(sizeof(struct rt2870_txd) +
-	    sizeof(struct rt2870_txwi)), rt2860_rates[ridx].rate, qid);
+	    sizeof(struct rt2860_txwi)), rt2860_rates[ridx].rate, qid);
 
 	return (0);
 }
