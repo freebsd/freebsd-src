@@ -3976,46 +3976,46 @@ run_rt5390_set_chan(struct run_softc *sc, u_int chan)
 	if (sc->mac_ver == 0x5392) {
 		/* Fix for RT5392C. */
 		if (sc->mac_rev >= 0x0223) {
-			if ((chan >= 1) && (chan <= 4))
+			if (chan <= 4)
 				rf = 0x0f;
-			else if ((chan >= 5) && (chan <= 7))
+			else if (chan >= 5 && chan <= 7)
 				rf = 0x0e;
-			else if ((chan >= 8) && (chan <= 14))
+			else
 				rf = 0x0d;
 			run_rt3070_rf_write(sc, 23, rf);
 
-			if ((chan >= 1) && (chan <= 4))
+			if (chan <= 4)
 				rf = 0x0c;
 			else if (chan == 5)
 				rf = 0x0b;
-			else if ((chan >= 6) && (chan <= 7))
+			else if (chan >= 6 && chan <= 7)
 				rf = 0x0a;
-			else if ((chan >= 8) && (chan <= 10))
+			else if (chan >= 8 && chan <= 10)
 				rf = 0x09;
-			else if ((chan >= 11) && (chan <= 14))
+			else
 				rf = 0x08;
 			run_rt3070_rf_write(sc, 59, rf);
 		} else {
-			if ((chan >= 1) && (chan <= 11))
+			if (chan <= 11)
 				rf = 0x0f;
-			else if ((chan >= 12) && (chan <= 14))
+			else
 				rf = 0x0b;
 			run_rt3070_rf_write(sc, 59, rf);
 		}
 	} else {
 		/* Fix for RT5390F. */
 		if (sc->mac_rev >= 0x0502) {
-			if ((chan >= 1) && (chan <= 11))
+			if (chan <= 11)
 				rf = 0x43;
-			else if ((chan >= 12) && (chan <= 14))
+			else
 				rf = 0x23;
 			run_rt3070_rf_write(sc, 55, rf);
 
-			if ((chan >= 1) && (chan <= 11))
+			if (chan <= 11)
 				rf = 0x0f;
 			else if (chan == 12)
 				rf = 0x0d;
-			else if ((chan >= 13) && (chan <= 14))
+			else
 				rf = 0x0b;
 			run_rt3070_rf_write(sc, 59, rf);
 		} else {
@@ -4040,8 +4040,7 @@ run_set_rx_antenna(struct run_softc *sc, int aux)
 		if (sc->rf_rev == RT5390_RF_5370) {
 			run_bbp_read(sc, 152, &bbp152);
 			run_bbp_write(sc, 152, bbp152 & ~0x80);
-		}
-		if (sc->rf_rev == RT3070_RF_3020) {
+		} else {
 			run_mcu_cmd(sc, RT2860_MCU_CMD_ANTSEL, 0);
 			run_read(sc, RT2860_GPIO_CTRL, &tmp);
 			run_write(sc, RT2860_GPIO_CTRL, (tmp & ~0x0808) | 0x08);
@@ -4050,8 +4049,7 @@ run_set_rx_antenna(struct run_softc *sc, int aux)
 		if (sc->rf_rev == RT5390_RF_5370) {
 			run_bbp_read(sc, 152, &bbp152);
 			run_bbp_write(sc, 152, bbp152 | 0x80);
-		}
-		if (sc->rf_rev == RT3070_RF_3020) {
+		} else {
 			run_mcu_cmd(sc, RT2860_MCU_CMD_ANTSEL, 1);
 			run_read(sc, RT2860_GPIO_CTRL, &tmp);
 			run_write(sc, RT2860_GPIO_CTRL, tmp & ~0x0808);
@@ -4745,14 +4743,15 @@ run_rt5390_rf_init(struct run_softc *sc)
 	uint8_t rf;
 	int i;
 
-	if (sc->mac_ver == 0x5392)
-		run_rt3070_rf_write(sc, 2, 0x80);
-	else {
+	/* Toggle RF R2 to initiate calibration. */
+	if (sc->mac_ver == 0x5390) {
 		run_rt3070_rf_read(sc, 2, &rf);
-		/* Toggle RF R2 to initiate calibration. */
 		run_rt3070_rf_write(sc, 2, rf | 0x80);
 		run_delay(sc, 10);
 		run_rt3070_rf_write(sc, 2, rf & ~0x80);
+	} else {
+		run_rt3070_rf_write(sc, 2, 0x80);
+		run_delay(sc, 10);
 	}
 
 	/* Initialize RF registers to default value. */
@@ -5023,7 +5022,7 @@ run_txrx_enable(struct run_softc *sc)
 }
 
 static void
-run_adjust_freq_offset(struct run_softc * sc)
+run_adjust_freq_offset(struct run_softc *sc)
 {
 	uint8_t rf, tmp;
 
@@ -5115,13 +5114,14 @@ run_init_locked(struct run_softc *sc)
 	run_write(sc, RT2860_WMM_CWMIN_CFG, 0x00002344);
 	run_write(sc, RT2860_WMM_CWMAX_CFG, 0x000034aa);
 
-	if (sc->mac_ver == 0x5392) {
-		run_write(sc, RT2860_TX_SW_CFG0, 0x00000404);
-		run_write(sc, RT2860_MAX_LEN_CFG, 0x00002fff);
-		run_write(sc, RT2860_HT_FBK_CFG1, 0xedcb4980);
-		run_write(sc, RT2860_LG_FBK_CFG0, 0xedcba322);
-	} else if (sc->mac_ver == 0x5390) {
-		run_write(sc, RT2860_TX_SW_CFG0, 0x00000404);
+	if (sc->mac_ver >= 0x5390) {
+		run_write(sc, RT2860_TX_SW_CFG0,
+		    4 << RT2860_DLY_PAPE_EN_SHIFT | 4);
+		if (sc->mac_ver >= 0x5392) {
+			run_write(sc, RT2860_MAX_LEN_CFG, 0x00002fff);
+			run_write(sc, RT2860_HT_FBK_CFG1, 0xedcb4980);
+			run_write(sc, RT2860_LG_FBK_CFG0, 0xedcba322);
+		}
 	} else if (sc->mac_ver >= 0x3070) {
 		/* set delay of PA_PE assertion to 1us (unit of 0.25us) */
 		run_write(sc, RT2860_TX_SW_CFG0,
