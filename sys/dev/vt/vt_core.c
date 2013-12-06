@@ -1459,12 +1459,16 @@ vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
 		error = securelevel_gt(td->td_ucred, 0);
 		if (error != 0)
 			return (error);
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__i386__)
+		td->td_frame->tf_eflags |= PSL_IOPL;
+#elif defined(__amd64__)
 		td->td_frame->tf_rflags |= PSL_IOPL;
 #endif
 		return (0);
 	case KDDISABIO:     	/* disallow io operations (default) */
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__i386__)
+		td->td_frame->tf_eflags &= ~PSL_IOPL;
+#elif defined(__amd64__)
 		td->td_frame->tf_rflags &= ~PSL_IOPL;
 #endif
 		return (0);
