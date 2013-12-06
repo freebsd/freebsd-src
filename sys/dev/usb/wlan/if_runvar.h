@@ -25,13 +25,7 @@
 
 #define RUN_MAX_RXSZ			\
 	MIN(4096, MJUMPAGESIZE)
-#if 0
-	(sizeof (uint32_t) +		\
-	 sizeof (struct rt2860_rxwi) +	\
-	 sizeof (uint16_t) +		\
-	 MCLBYTES +			\
-	 sizeof (struct rt2870_rxd))
-#endif
+
 /* NB: "11" is the maximum number of padding bytes needed for Tx */
 #define RUN_MAX_TXSZ			\
 	(sizeof (struct rt2870_txd) +	\
