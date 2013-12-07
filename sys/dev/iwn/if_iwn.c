@@ -282,7 +282,8 @@ static int	iwn_send_advanced_btcoex(struct iwn_softc *);
 static int	iwn5000_runtime_calib(struct iwn_softc *);
 static int	iwn_config(struct iwn_softc *);
 static uint8_t	*ieee80211_add_ssid(uint8_t *, const uint8_t *, u_int);
-static int	iwn_scan(struct iwn_softc *, struct ieee80211_channel *);
+static int	iwn_scan(struct iwn_softc *, struct ieee80211vap *,
+		    struct ieee80211_scan_state *, struct ieee80211_channel *);
 static int	iwn_auth(struct iwn_softc *, struct ieee80211vap *vap);
 static int	iwn_run(struct iwn_softc *, struct ieee80211vap *vap);
 static int	iwn_ampdu_rx_start(struct ieee80211_node *,
@@ -6352,12 +6353,12 @@ iwn_get_passive_dwell_time(struct iwn_softc *sc, struct ieee80211_channel *c)
 }
 
 static int
-iwn_scan(struct iwn_softc *sc, struct ieee80211_channel *c)
+iwn_scan(struct iwn_softc *sc, struct ieee80211vap *vap,
+    struct ieee80211_scan_state *ss, struct ieee80211_channel *c)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
-	struct ieee80211_scan_state *ss = ic->ic_scan;	/*XXX*/
-	struct ieee80211_node *ni = ss->ss_vap->iv_bss;
+	struct ieee80211_node *ni = vap->iv_bss;
 	struct iwn_scan_hdr *hdr;
 	struct iwn_cmd_data *tx;
 	struct iwn_scan_essid *essid;
@@ -6465,22 +6466,26 @@ iwn_scan(struct iwn_softc *sc, struct ieee80211_channel *c)
 
 	/*
 	 * If we're scanning for a specific SSID, add it to the command.
+	 *
+	 * XXX maybe look at adding support for scanning multiple SSIDs?
 	 */
 	essid = (struct iwn_scan_essid *)(tx + 1);
-	if (ss->ss_ssid[0].len != 0) {
-		essid[0].id = IEEE80211_ELEMID_SSID;
-		essid[0].len = ss->ss_ssid[0].len;
-		memcpy(essid[0].data, ss->ss_ssid[0].ssid, ss->ss_ssid[0].len);
+	if (ss != NULL) {
+		if (ss->ss_ssid[0].len != 0) {
+			essid[0].id = IEEE80211_ELEMID_SSID;
+			essid[0].len = ss->ss_ssid[0].len;
+			memcpy(essid[0].data, ss->ss_ssid[0].ssid, ss->ss_ssid[0].len);
+		}
+
+		DPRINTF(sc, IWN_DEBUG_SCAN, "%s: ssid_len=%d, ssid=%*s\n",
+		    __func__,
+		    ss->ss_ssid[0].len,
+		    ss->ss_ssid[0].len,
+		    ss->ss_ssid[0].ssid);
+
+		if (ss->ss_nssid > 0)
+			is_active = 1;
 	}
-
-	DPRINTF(sc, IWN_DEBUG_SCAN, "%s: ssid_len=%d, ssid=%*s\n",
-	    __func__,
-	    ss->ss_ssid[0].len,
-	    ss->ss_ssid[0].len,
-	    ss->ss_ssid[0].ssid);
-
-	if (ss->ss_nssid > 0)
-		is_active = 1;
 
 	/*
 	 * Build a probe request frame.  Most of the following code is a
@@ -8488,7 +8493,7 @@ iwn_scan_curchan(struct ieee80211_scan_state *ss, unsigned long maxdwell)
 	int error;
 
 	IWN_LOCK(sc);
-	error = iwn_scan(sc, ic->ic_curchan);
+	error = iwn_scan(sc, vap, ss, ic->ic_curchan);
 	IWN_UNLOCK(sc);
 	if (error != 0)
 		ieee80211_cancel_scan(vap);
