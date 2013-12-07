@@ -1336,7 +1336,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	struct vmcs *vmcs;
 	struct vmxctx *vmxctx;
 	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, reason;
-	uint64_t qual, gpa;
+	uint64_t qual, gpa, rflags;
 
 	handled = 0;
 	vmcs = &vmx->vmcs[vcpu];
@@ -1406,7 +1406,10 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		break;
 	case EXIT_REASON_HLT:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_HLT, 1);
+		if ((error = vmread(VMCS_GUEST_RFLAGS, &rflags)) != 0)
+			panic("vmx_exit_process: vmread(rflags) %d", error);
 		vmexit->exitcode = VM_EXITCODE_HLT;
+		vmexit->u.hlt.rflags = rflags;
 		break;
 	case EXIT_REASON_MTF:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_MTRAP, 1);

@@ -53,6 +53,9 @@ __FBSDID("$FreeBSD$");
 #define	VLAPIC_CTR1(vlapic, format, p1)					\
 	VCPU_CTR1((vlapic)->vm, (vlapic)->vcpuid, format, p1)
 
+#define	VLAPIC_CTR2(vlapic, format, p1, p2)				\
+	VCPU_CTR2((vlapic)->vm, (vlapic)->vcpuid, format, p1, p2)
+
 #define	VLAPIC_CTR_IRR(vlapic, msg)					\
 do {									\
 	uint32_t *irrptr = &(vlapic)->apic.irr0;			\
@@ -220,6 +223,12 @@ vlapic_set_intr_ready(struct vlapic *vlapic, int vector, bool level)
 
 	if (vector < 0 || vector >= 256)
 		panic("vlapic_set_intr_ready: invalid vector %d\n", vector);
+
+	if (!(lapic->svr & APIC_SVR_ENABLE)) {
+		VLAPIC_CTR1(vlapic, "vlapic is software disabled, ignoring "
+		    "interrupt %d", vector);
+		return;
+	}
 
 	idx = (vector / 32) * 4;
 	mask = 1 << (vector % 32);
@@ -593,6 +602,25 @@ vlapic_intr_accepted(struct vlapic *vlapic, int vector)
 	vlapic_update_ppr(vlapic);
 }
 
+static void
+lapic_set_svr(struct vlapic *vlapic, uint32_t new)
+{
+	struct LAPIC *lapic;
+	uint32_t old, changed;
+
+	lapic = &vlapic->apic;
+	old = lapic->svr;
+	changed = old ^ new;
+	if ((changed & APIC_SVR_ENABLE) != 0) {
+		if ((new & APIC_SVR_ENABLE) == 0) {
+			VLAPIC_CTR0(vlapic, "vlapic is software-disabled");
+		} else {
+			VLAPIC_CTR0(vlapic, "vlapic is software-enabled");
+		}
+	}
+	lapic->svr = new;
+}
+
 int
 vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data)
 {
@@ -602,7 +630,7 @@ vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data)
 
 	if (offset > sizeof(*lapic)) {
 		*data = 0;
-		return 0;
+		goto done;
 	}
 	
 	offset &= ~3;
@@ -680,6 +708,8 @@ vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data)
 			*data = 0;
 			break;
 	}
+done:
+	VLAPIC_CTR2(vlapic, "vlapic read offset %#x, data %#lx", offset, *data);
 	return 0;
 }
 
@@ -689,6 +719,8 @@ vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data)
 	struct LAPIC	*lapic = &vlapic->apic;
 	uint32_t	*reg;
 	int		retval;
+
+	VLAPIC_CTR2(vlapic, "vlapic write offset %#x, data %#lx", offset, data);
 
 	if (offset > sizeof(*lapic)) {
 		return 0;
@@ -712,7 +744,7 @@ vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data)
 		case APIC_OFFSET_DFR:
 			break;
 		case APIC_OFFSET_SVR:
-			lapic->svr = data;
+			lapic_set_svr(vlapic, data);
 			break;
 		case APIC_OFFSET_ICR_LOW: 
 			if (!x2apic(vlapic)) {
@@ -886,4 +918,16 @@ vlapic_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state state)
 
 	if (state == X2APIC_DISABLED)
 		vlapic->msr_apicbase &= ~APICBASE_X2APIC;
+}
+
+bool
+vlapic_enabled(struct vlapic *vlapic)
+{
+	struct LAPIC *lapic = &vlapic->apic;
+
+	if ((vlapic->msr_apicbase & APICBASE_ENABLED) != 0 &&
+	    (lapic->svr & APIC_SVR_ENABLE) != 0)
+		return (true);
+	else
+		return (false);
 }
