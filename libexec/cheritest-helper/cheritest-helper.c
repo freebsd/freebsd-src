@@ -28,6 +28,12 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+#if __has_feature(capabilities)
+#define	USE_C_CAPS
+#endif
+
 #include <sys/types.h>
 
 #include <machine/cheri.h>
@@ -36,10 +42,6 @@
 #include <stdlib.h>
 
 #include "cmemcpy.h"
-
-#if defined(__CHERI__) && defined(__capability)
-#define	USE_C_CAPS
-#endif
 
 #ifdef USE_C_CAPS
 int	invoke(size_t len, int do_abort, __capability char *data_input,

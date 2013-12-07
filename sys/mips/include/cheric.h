@@ -31,7 +31,9 @@
 #ifndef _MIPS_INCLUDE_CHERIC_H_
 #define	_MIPS_INCLUDE_CHERIC_H_
 
-#if !defined(_KERNEL) && defined (__capability)
+#include <sys/cdefs.h>
+
+#if !defined(_KERNEL) && __has_feature(capabilities)
 /*
  * Programmer-friendly macros for CHERI-aware C code -- requires use of
  * CHERI-aware Clang/LLVM, and full CP2 context switching, so not yet usable

@@ -28,7 +28,9 @@
  * SUCH DAMAGE.
  */
 
-#if defined(__CHERI__) && defined(__capability)
+#include <sys/cdefs.h>
+
+#if __has_feature(capabilities)
 #define USE_C_CAPS
 #endif
 
