@@ -1397,7 +1397,7 @@ dev/ex/if_ex_pccard.c		optional ex pccard
 dev/exca/exca.c			optional cbb
 dev/fatm/if_fatm.c		optional fatm pci
 dev/fb/fbd.c			optional fbd | vt
-dev/fb/fb_if.m			optional fbd | vt
+dev/fb/fb_if.m			standard
 dev/fb/splash.c			optional splash
 dev/fdt/fdt_common.c		optional fdt
 dev/fdt/fdt_ic_if.m		optional fdt
