@@ -219,7 +219,8 @@ powermac_timebase_freq(platform_t plat, struct cpuref *cpuref)
 static int
 powermac_smp_fill_cpuref(struct cpuref *cpuref, phandle_t cpu)
 {
-	cell_t cpuid, res;
+	cell_t cpuid;
+	int res;
 
 	cpuref->cr_hwref = cpu;
 	res = OF_getprop(cpu, "reg", &cpuid, sizeof(cpuid));
