@@ -73,7 +73,7 @@ CWARNFLAGS+=	-Wno-empty-body -Wno-string-plus-int
 .endif # WARNS <= 6
 .if ${WARNS} <= 3
 CWARNFLAGS+=	-Wno-tautological-compare -Wno-unused-value\
-		-Wno-parentheses-equality -Wno-unused-function -Wno-conversion
+		-Wno-parentheses-equality -Wno-unused-function -Wno-enum-conversion
 .endif # WARNS <= 3
 .if ${WARNS} <= 2
 CWARNFLAGS+=	-Wno-switch -Wno-switch-enum -Wno-knr-promoted-parameter
