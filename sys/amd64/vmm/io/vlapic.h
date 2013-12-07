@@ -100,5 +100,6 @@ int vlapic_timer_tick(struct vlapic *vlapic);
 uint64_t vlapic_get_apicbase(struct vlapic *vlapic);
 void vlapic_set_apicbase(struct vlapic *vlapic, uint64_t val);
 void vlapic_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state s);
+bool vlapic_enabled(struct vlapic *vlapic);
 
 #endif	/* _VLAPIC_H_ */

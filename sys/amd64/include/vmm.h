@@ -264,6 +264,7 @@ enum vm_exitcode {
 	VM_EXITCODE_PAGING,
 	VM_EXITCODE_INST_EMUL,
 	VM_EXITCODE_SPINUP_AP,
+	VM_EXITCODE_SPINDOWN_CPU,
 	VM_EXITCODE_MAX
 };
 
@@ -307,6 +308,9 @@ struct vm_exit {
 			int		vcpu;
 			uint64_t	rip;
 		} spinup_ap;
+		struct {
+			uint64_t	rflags;
+		} hlt;
 	} u;
 };
 
