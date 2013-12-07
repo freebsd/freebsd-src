@@ -1563,7 +1563,6 @@ vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap)
 		panic("vmx_run: error %d setting up pcpu defaults", error);
 
 	do {
-		lapic_timer_tick(vmx->vm, vcpu);
 		vmx_inject_interrupts(vmx, vcpu);
 		vmx_run_trace(vmx, vcpu);
 		rc = vmx_setjmp(vmxctx);

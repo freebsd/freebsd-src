@@ -865,24 +865,11 @@ vm_handle_hlt(struct vm *vm, int vcpuid, boolean_t intr_disabled,
 {
 	struct vm_exit *vmexit;
 	struct vcpu *vcpu;
-	int sleepticks, t;
+	int t, timo;
 
 	vcpu = &vm->vcpu[vcpuid];
 
 	vcpu_lock(vcpu);
-
-	/*
-	 * Figure out the number of host ticks until the next apic
-	 * timer interrupt in the guest.
-	 */
-	sleepticks = lapic_timer_tick(vm, vcpuid);
-
-	/*
-	 * If the guest local apic timer is disabled then sleep for
-	 * a long time but not forever.
-	 */
-	if (sleepticks < 0)
-		sleepticks = hz;
 
 	/*
 	 * Do a final check for pending NMI or interrupts before
@@ -893,12 +880,15 @@ vm_handle_hlt(struct vm *vm, int vcpuid, boolean_t intr_disabled,
 	 */
 	if (!vm_nmi_pending(vm, vcpuid) &&
 	    (intr_disabled || vlapic_pending_intr(vcpu->vlapic) < 0)) {
-		if (sleepticks <= 0)
-			panic("invalid sleepticks %d", sleepticks);
 		t = ticks;
 		vcpu_require_state_locked(vcpu, VCPU_SLEEPING);
 		if (vlapic_enabled(vcpu->vlapic)) {
-			msleep_spin(vcpu, &vcpu->mtx, "vmidle", sleepticks);
+			/*
+			 * XXX msleep_spin() is not interruptible so use the
+			 * 'timo' to put an upper bound on the sleep time.
+			 */
+			timo = hz;
+			msleep_spin(vcpu, &vcpu->mtx, "vmidle", timo);
 		} else {
 			/*
 			 * Spindown the vcpu if the apic is disabled and it

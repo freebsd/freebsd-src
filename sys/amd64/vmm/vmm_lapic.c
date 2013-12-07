@@ -80,16 +80,6 @@ lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
 	return (0);
 }
 
-int
-lapic_timer_tick(struct vm *vm, int cpu)
-{
-	struct vlapic *vlapic;
-
-	vlapic = vm_lapic(vm, cpu);
-
-	return (vlapic_timer_tick(vlapic));
-}
-
 static boolean_t
 x2apic_msr(u_int msr)
 {
