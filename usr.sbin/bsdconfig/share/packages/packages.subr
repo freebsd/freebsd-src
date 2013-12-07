@@ -472,8 +472,7 @@ f_package_menu_select()
 	"$msg_all"|"") f_category_desc_get "All" prompt ;;
 	            *) f_category_desc_get "$category" prompt ;;
 	esac
-	prompt="$prompt $( printf "$msg_page_of_npages" \
-	                          "$page" "$npages" )"
+	f_sprintf prompt "%s $msg_page_of_npages" "$prompt" "$page" "$npages"
 
 	local mheight mwidth mrows
 	eval f_dialog_menu${SHOW_DESC:+_with_help}_size mheight mwidth mrows \
@@ -536,7 +535,7 @@ f_package_menu_deselect()
 	" # End-Quote
 	local hline="$hline_alnum_arrows_punc_tab_enter"
 
-	prompt=$( printf "$msg_what_would_you_like_to_do_with" "$package" )
+	f_sprintf prompt "$msg_what_would_you_like_to_do_with" "$package"
 
 	local height width rows
 	eval f_dialog_menu_size height width rows \
@@ -578,7 +577,7 @@ f_package_review()
 
 	f_dprintf "$funcname: SELECTED_PACKAGES=[%s]" "$SELECTED_PACKAGES"
 
-	prompt=$( printf "$msg_reviewing_selected_packages" "$_All_nselected" )
+	f_sprintf prompt "$msg_reviewing_selected_packages" "$_All_nselected"
 
 	local package varpkg mark
 	for package in $SELECTED_PACKAGES; do
