@@ -245,17 +245,21 @@ f_index_initialize()
 	#
 
 	# Create a new temporary file to write to
-	local __tmpfile="$( mktemp -t "$pgm" )"
-	if [ "$__tmpfile" ]; then
+	local __tmpfile
+	if f_eval_catch -dk __tmpfile $__funcname mktemp \
+		'mktemp -t "%s"' "$pgm"
+	then
 		# Write the temporary file contents
 		echo "$__sqlite_digest" > "$__tmpfile"
 		debug= f_getvar "$__var_to_set" >> "$__tmpfile"
 
 		# Finally, move the temporary file into place
 		case "$PACKAGES_INDEX_CACHEFILE" in
-		*/*) f_quietly mkdir -p "${PACKAGES_INDEX_CACHEFILE%/*}"
+		*/*) f_eval_catch -d $funcname mkdir \
+			'mkdir -p "%s"' "${PACKAGES_INDEX_CACHEFILE%/*}"
 		esac
-		f_quietly mv -f "$__tmpfile" "$PACKAGES_INDEX_CACHEFILE"
+		f_eval_catch -d $__funcname mv 'mv -f "%s" "%s"' \
+			"$__tmpfile" "$PACKAGES_INDEX_CACHEFILE"
 	fi
 
 	f_show_info "$msg_located_index_now_reading_package_data_from_it"
