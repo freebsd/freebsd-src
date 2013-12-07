@@ -30,8 +30,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/smp.h>
 
@@ -103,12 +105,15 @@ struct vlapic {
 	struct vm		*vm;
 	int			vcpuid;
 
-	struct LAPIC		 apic;
+	struct LAPIC		apic;
 
 	int			 esr_update;
 
-	int			 divisor;
-	int			 ccr_ticks;
+	struct callout	callout;	/* vlapic timer */
+	struct bintime	timer_fire_bt;	/* callout expiry time */
+	struct bintime	timer_freq_bt;	/* timer frequency */
+	struct bintime	timer_period_bt; /* timer period */
+	struct mtx	timer_mtx;
 
 	/*
 	 * The 'isrvec_stk' is a stack of vectors injected by the local apic.
@@ -122,6 +127,21 @@ struct vlapic {
 	uint64_t		msr_apicbase;
 	enum boot_state		boot_state;
 };
+
+/*
+ * The 'vlapic->timer_mtx' is used to provide mutual exclusion between the
+ * vlapic_callout_handler() and vcpu accesses to the following registers:
+ * - initial count register aka icr_timer
+ * - current count register aka ccr_timer
+ * - divide config register aka dcr_timer
+ * - timer LVT register
+ *
+ * Note that the vlapic_callout_handler() does not write to any of these
+ * registers so they can be safely read from the vcpu context without locking.
+ */
+#define	VLAPIC_TIMER_LOCK(vlapic)	mtx_lock(&((vlapic)->timer_mtx))
+#define	VLAPIC_TIMER_UNLOCK(vlapic)	mtx_unlock(&((vlapic)->timer_mtx))
+#define	VLAPIC_TIMER_LOCKED(vlapic)	mtx_owned(&((vlapic)->timer_mtx))
 
 #define VLAPIC_BUS_FREQ	tsc_freq
 
@@ -170,11 +190,62 @@ vlapic_dump_lvt(uint32_t offset, uint32_t *lvt)
 }
 #endif
 
-static uint64_t
+static uint32_t
 vlapic_get_ccr(struct vlapic *vlapic)
 {
-	struct LAPIC    *lapic = &vlapic->apic;
-	return lapic->ccr_timer;
+	struct bintime bt_now, bt_rem;
+	struct LAPIC *lapic;
+	uint32_t ccr;
+	
+	ccr = 0;
+	lapic = &vlapic->apic;
+
+	VLAPIC_TIMER_LOCK(vlapic);
+	if (callout_active(&vlapic->callout)) {
+		/*
+		 * If the timer is scheduled to expire in the future then
+		 * compute the value of 'ccr' based on the remaining time.
+		 */
+		binuptime(&bt_now);
+		if (bintime_cmp(&vlapic->timer_fire_bt, &bt_now, >)) {
+			bt_rem = vlapic->timer_fire_bt;
+			bintime_sub(&bt_rem, &bt_now);
+			ccr += bt_rem.sec * BT2FREQ(&vlapic->timer_freq_bt);
+			ccr += bt_rem.frac / vlapic->timer_freq_bt.frac;
+		}
+	}
+	KASSERT(ccr <= lapic->icr_timer, ("vlapic_get_ccr: invalid ccr %#x, "
+	    "icr_timer is %#x", ccr, lapic->icr_timer));
+	VLAPIC_CTR2(vlapic, "vlapic ccr_timer = %#x, icr_timer = %#x",
+	    ccr, lapic->icr_timer);
+	VLAPIC_TIMER_UNLOCK(vlapic);
+	return (ccr);
+}
+
+static void
+vlapic_set_dcr(struct vlapic *vlapic, uint32_t dcr)
+{
+	struct LAPIC *lapic;
+	int divisor;
+	
+	lapic = &vlapic->apic;
+	VLAPIC_TIMER_LOCK(vlapic);
+
+	lapic->dcr_timer = dcr;
+	divisor = vlapic_timer_divisor(dcr);
+	VLAPIC_CTR2(vlapic, "vlapic dcr_timer=%#x, divisor=%d", dcr, divisor);
+
+	/*
+	 * Update the timer frequency and the timer period.
+	 *
+	 * XXX changes to the frequency divider will not take effect until
+	 * the timer is reloaded.
+	 */
+	FREQ2BT(VLAPIC_BUS_FREQ / divisor, &vlapic->timer_freq_bt);
+	vlapic->timer_period_bt = vlapic->timer_freq_bt;
+	bintime_mul(&vlapic->timer_period_bt, lapic->icr_timer);
+
+	VLAPIC_TIMER_UNLOCK(vlapic);
 }
 
 static void
@@ -203,7 +274,7 @@ vlapic_reset(struct vlapic *vlapic)
 	memset(lapic, 0, sizeof(*lapic));
 	lapic->apr = vlapic->vcpuid;
 	vlapic_init_ipi(vlapic);
-	vlapic->divisor = vlapic_timer_divisor(lapic->dcr_timer);
+	vlapic_set_dcr(vlapic, 0);
 
 	if (vlapic->vcpuid == 0)
 		vlapic->boot_state = BS_RUNNING;	/* BSP */
@@ -250,30 +321,8 @@ vlapic_set_intr_ready(struct vlapic *vlapic, int vector, bool level)
 	VLAPIC_CTR_IRR(vlapic, "vlapic_set_intr_ready");
 }
 
-static void
-vlapic_start_timer(struct vlapic *vlapic, uint32_t elapsed)
-{
-	uint32_t icr_timer;
-
-	icr_timer = vlapic->apic.icr_timer;
-
-	vlapic->ccr_ticks = ticks;
-	if (elapsed < icr_timer)
-		vlapic->apic.ccr_timer = icr_timer - elapsed;
-	else {
-		/*
-		 * This can happen when the guest is trying to run its local
-		 * apic timer higher that the setting of 'hz' in the host.
-		 *
-		 * We deal with this by running the guest local apic timer
-		 * at the rate of the host's 'hz' setting.
-		 */
-		vlapic->apic.ccr_timer = 0;
-	}
-}
-
 static __inline uint32_t *
-vlapic_get_lvt(struct vlapic *vlapic, uint32_t offset)
+vlapic_get_lvtptr(struct vlapic *vlapic, uint32_t offset)
 {
 	struct LAPIC	*lapic = &vlapic->apic;
 	int 		 i;
@@ -283,6 +332,33 @@ vlapic_get_lvt(struct vlapic *vlapic, uint32_t offset)
 	}
 	i = (offset - APIC_OFFSET_TIMER_LVT) >> 2;
 	return ((&lapic->lvt_timer) + i);;
+}
+
+static __inline uint32_t
+vlapic_get_lvt(struct vlapic *vlapic, uint32_t offset)
+{
+
+	return (*vlapic_get_lvtptr(vlapic, offset));
+}
+
+static void
+vlapic_set_lvt(struct vlapic *vlapic, uint32_t offset, uint32_t val)
+{
+	uint32_t *lvtptr;
+	struct LAPIC *lapic;
+	
+	lapic = &vlapic->apic;
+	lvtptr = vlapic_get_lvtptr(vlapic, offset);	
+
+	if (offset == APIC_OFFSET_TIMER_LVT)
+		VLAPIC_TIMER_LOCK(vlapic);
+
+	if (!(lapic->svr & APIC_SVR_ENABLE))
+		val |= APIC_LVT_M;
+	*lvtptr = val;
+
+	if (offset == APIC_OFFSET_TIMER_LVT)
+		VLAPIC_TIMER_UNLOCK(vlapic);
 }
 
 #if 1
@@ -407,15 +483,16 @@ vlapic_process_eoi(struct vlapic *vlapic)
 }
 
 static __inline int
-vlapic_get_lvt_field(uint32_t *lvt, uint32_t mask)
+vlapic_get_lvt_field(uint32_t lvt, uint32_t mask)
 {
-	return (*lvt & mask);
+
+	return (lvt & mask);
 }
 
 static __inline int
 vlapic_periodic_timer(struct vlapic *vlapic)
 {
-	uint32_t *lvt;
+	uint32_t lvt;
 	
 	lvt = vlapic_get_lvt(vlapic, APIC_OFFSET_TIMER_LVT);
 
@@ -428,15 +505,109 @@ static void
 vlapic_fire_timer(struct vlapic *vlapic)
 {
 	int vector;
-	uint32_t *lvt;
+	uint32_t lvt;
+
+	KASSERT(VLAPIC_TIMER_LOCKED(vlapic), ("vlapic_fire_timer not locked"));
 	
 	lvt = vlapic_get_lvt(vlapic, APIC_OFFSET_TIMER_LVT);
 
 	if (!vlapic_get_lvt_field(lvt, APIC_LVTT_M)) {
 		vmm_stat_incr(vlapic->vm, vlapic->vcpuid, VLAPIC_INTR_TIMER, 1);
-		vector = vlapic_get_lvt_field(lvt,APIC_LVTT_VECTOR);
+		vector = vlapic_get_lvt_field(lvt, APIC_LVTT_VECTOR);
 		vlapic_set_intr_ready(vlapic, vector, false);
+		vcpu_notify_event(vlapic->vm, vlapic->vcpuid);
 	}
+}
+
+static void
+vlapic_callout_handler(void *arg)
+{
+	struct vlapic *vlapic;
+	struct bintime bt, btnow;
+	sbintime_t rem_sbt;
+
+	vlapic = arg;
+
+	VLAPIC_TIMER_LOCK(vlapic);
+	if (callout_pending(&vlapic->callout))	/* callout was reset */
+		goto done;
+
+	if (!callout_active(&vlapic->callout))	/* callout was stopped */
+		goto done;
+
+	callout_deactivate(&vlapic->callout);
+
+	KASSERT(vlapic->apic.icr_timer != 0, ("vlapic timer is disabled"));
+
+	vlapic_fire_timer(vlapic);
+
+	if (vlapic_periodic_timer(vlapic)) {
+		binuptime(&btnow);
+		KASSERT(bintime_cmp(&btnow, &vlapic->timer_fire_bt, >=),
+		    ("vlapic callout at %#lx.%#lx, expected at %#lx.#%lx",
+		    btnow.sec, btnow.frac, vlapic->timer_fire_bt.sec,
+		    vlapic->timer_fire_bt.frac));
+
+		/*
+		 * Compute the delta between when the timer was supposed to
+		 * fire and the present time.
+		 */
+		bt = btnow;
+		bintime_sub(&bt, &vlapic->timer_fire_bt);
+
+		rem_sbt = bttosbt(vlapic->timer_period_bt);
+		if (bintime_cmp(&bt, &vlapic->timer_period_bt, <)) {
+			/*
+			 * Adjust the time until the next countdown downward
+			 * to account for the lost time.
+			 */
+			rem_sbt -= bttosbt(bt);
+		} else {
+			/*
+			 * If the delta is greater than the timer period then
+			 * just reset our time base instead of trying to catch
+			 * up.
+			 */
+			vlapic->timer_fire_bt = btnow;
+			VLAPIC_CTR2(vlapic, "vlapic timer lagging by %lu "
+			    "usecs, period is %lu usecs - resetting time base",
+			    bttosbt(bt) / SBT_1US,
+			    bttosbt(vlapic->timer_period_bt) / SBT_1US);
+		}
+
+		bintime_add(&vlapic->timer_fire_bt, &vlapic->timer_period_bt);
+		callout_reset_sbt(&vlapic->callout, rem_sbt, 0,
+		    vlapic_callout_handler, vlapic, 0);
+	}
+done:
+	VLAPIC_TIMER_UNLOCK(vlapic);
+}
+
+static void
+vlapic_set_icr_timer(struct vlapic *vlapic, uint32_t icr_timer)
+{
+	struct LAPIC *lapic;
+	sbintime_t sbt;
+
+	VLAPIC_TIMER_LOCK(vlapic);
+
+	lapic = &vlapic->apic;
+	lapic->icr_timer = icr_timer;
+
+	vlapic->timer_period_bt = vlapic->timer_freq_bt;
+	bintime_mul(&vlapic->timer_period_bt, icr_timer);
+
+	if (icr_timer != 0) {
+		binuptime(&vlapic->timer_fire_bt);
+		bintime_add(&vlapic->timer_fire_bt, &vlapic->timer_period_bt);
+
+		sbt = bttosbt(vlapic->timer_period_bt);
+		callout_reset_sbt(&vlapic->callout, sbt, 0,
+		    vlapic_callout_handler, vlapic, 0);
+	} else
+		callout_stop(&vlapic->callout);
+
+	VLAPIC_TIMER_UNLOCK(vlapic);
 }
 
 static VMM_STAT_ARRAY(IPIS_SENT, VM_MAXCPU, "ipis sent to vcpu");
@@ -564,7 +735,6 @@ vlapic_pending_intr(struct vlapic *vlapic)
 				break;
 		}
 	}
-	VLAPIC_CTR0(vlapic, "no pending intr");
 	return (-1);
 }
 
@@ -613,9 +783,21 @@ lapic_set_svr(struct vlapic *vlapic, uint32_t new)
 	changed = old ^ new;
 	if ((changed & APIC_SVR_ENABLE) != 0) {
 		if ((new & APIC_SVR_ENABLE) == 0) {
+			/*
+			 * The apic is now disabled so stop the apic timer.
+			 */
 			VLAPIC_CTR0(vlapic, "vlapic is software-disabled");
+			VLAPIC_TIMER_LOCK(vlapic);
+			callout_stop(&vlapic->callout);
+			VLAPIC_TIMER_UNLOCK(vlapic);
 		} else {
+			/*
+			 * The apic is now enabled so restart the apic timer
+			 * if it is configured in periodic mode.
+			 */
 			VLAPIC_CTR0(vlapic, "vlapic is software-enabled");
+			if (vlapic_periodic_timer(vlapic))
+				vlapic_set_icr_timer(vlapic, lapic->icr_timer);
 		}
 	}
 	lapic->svr = new;
@@ -691,8 +873,7 @@ vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data)
 			*data = lapic->icr_hi;
 			break;
 		case APIC_OFFSET_TIMER_LVT ... APIC_OFFSET_ERROR_LVT:
-			reg = vlapic_get_lvt(vlapic, offset);	
-			*data = *(reg);
+			*data = vlapic_get_lvt(vlapic, offset);	
 			break;
 		case APIC_OFFSET_ICR:
 			*data = lapic->icr_timer;
@@ -717,7 +898,6 @@ int
 vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data)
 {
 	struct LAPIC	*lapic = &vlapic->apic;
-	uint32_t	*reg;
 	int		retval;
 
 	VLAPIC_CTR2(vlapic, "vlapic write offset %#x, data %#lx", offset, data);
@@ -760,21 +940,14 @@ vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data)
 			}
 			break;
 		case APIC_OFFSET_TIMER_LVT ... APIC_OFFSET_ERROR_LVT:
-			reg = vlapic_get_lvt(vlapic, offset);	
-			if (!(lapic->svr & APIC_SVR_ENABLE)) {
-				data |= APIC_LVT_M;
-			}
-			*reg = data;
-			// vlapic_dump_lvt(offset, reg);
+			vlapic_set_lvt(vlapic, offset, data);
 			break;
 		case APIC_OFFSET_ICR:
-			lapic->icr_timer = data;
-			vlapic_start_timer(vlapic, 0);
+			vlapic_set_icr_timer(vlapic, data);
 			break;
 
 		case APIC_OFFSET_DCR:
-			lapic->dcr_timer = data;
-			vlapic->divisor = vlapic_timer_divisor(data);
+			vlapic_set_dcr(vlapic, data);
 			break;
 
 		case APIC_OFFSET_ESR:
@@ -796,70 +969,6 @@ vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data)
 	return (retval);
 }
 
-int
-vlapic_timer_tick(struct vlapic *vlapic)
-{
-	int curticks, delta, periodic, fired;
-	uint32_t ccr;
-	uint32_t decrement, leftover;
-
-restart:
-	curticks = ticks;
-	delta = curticks - vlapic->ccr_ticks;
-
-	/* Local APIC timer is disabled */
-	if (vlapic->apic.icr_timer == 0)
-		return (-1);
-
-	/* One-shot mode and timer has already counted down to zero */
-	periodic = vlapic_periodic_timer(vlapic);
-	if (!periodic && vlapic->apic.ccr_timer == 0)
-		return (-1);
-	/*
-	 * The 'curticks' and 'ccr_ticks' are out of sync by more than
-	 * 2^31 ticks. We deal with this by restarting the timer.
-	 */
-	if (delta < 0) {
-		vlapic_start_timer(vlapic, 0);
-		goto restart;
-	}
-
-	fired = 0;
-	decrement = (VLAPIC_BUS_FREQ / vlapic->divisor) / hz;
-
-	vlapic->ccr_ticks = curticks;
-	ccr = vlapic->apic.ccr_timer;
-
-	while (delta-- > 0) {
-		if (ccr > decrement) {
-			ccr -= decrement;
-			continue;
-		}
-
-		/* Trigger the local apic timer interrupt */
-		vlapic_fire_timer(vlapic);
-		if (periodic) {
-			leftover = decrement - ccr;
-			vlapic_start_timer(vlapic, leftover);
-			ccr = vlapic->apic.ccr_timer;
-		} else {
-			/*
-			 * One-shot timer has counted down to zero.
-			 */
-			ccr = 0;
-		}
-		fired = 1;
-		break;
-	}
-
-	vlapic->apic.ccr_timer = ccr;
-
-	if (!fired)
-		return ((ccr / decrement) + 1);
-	else
-		return (0);
-}
-
 struct vlapic *
 vlapic_init(struct vm *vm, int vcpuid)
 {
@@ -868,6 +977,9 @@ vlapic_init(struct vm *vm, int vcpuid)
 	vlapic = malloc(sizeof(struct vlapic), M_VLAPIC, M_WAITOK | M_ZERO);
 	vlapic->vm = vm;
 	vlapic->vcpuid = vcpuid;
+
+	mtx_init(&vlapic->timer_mtx, "vlapic timer mtx", NULL, MTX_DEF);
+	callout_init(&vlapic->callout, 1);
 
 	vlapic->msr_apicbase = DEFAULT_APIC_BASE | APICBASE_ENABLED;
 
@@ -883,6 +995,7 @@ void
 vlapic_cleanup(struct vlapic *vlapic)
 {
 
+	callout_drain(&vlapic->callout);
 	free(vlapic, M_VLAPIC);
 }
 
