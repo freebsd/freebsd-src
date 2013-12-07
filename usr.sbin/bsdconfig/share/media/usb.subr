@@ -57,7 +57,7 @@ f_media_set_usb()
 
 	local devs ndevs
 	f_device_find "" $DEVICE_TYPE_USB devs
-	ndevs=$( set -- $devs; echo $# )
+	f_count ndevs $devs
 
 	if [ ${ndevs:=0} -eq 0 ]; then
 		f_show_msg "$msg_no_usb_devices_found"
@@ -103,6 +103,7 @@ f_media_set_usb()
 #
 f_media_init_usb()
 {
+	local funcname=f_media_init_usb
 	local dev="$1" devname err
 
 	device_$dev get devname devname || return $FAILURE
@@ -114,14 +115,14 @@ f_media_init_usb()
 		return $SUCCESS
 	fi
 
-	if [ ! -e "$MOUNTPOINT" ] &&
-	   ! err=$( mkdir -p "$MOUNTPOINT" 2>&1 )
-	then
-		f_dialog_msgbox "$err"
-		return $FAILURE
+	if [ ! -e "$MOUNTPOINT" ]; then
+		f_eval_catch $funcname mkdir 'mkdir -p "%s"' "$MOUNTPOINT" ||
+			return $FAILURE
 	fi
 
-	if err=$( mount "$devname" "$MOUNTPOINT" 2>&1 ); then
+	if f_eval_catch -dk err $funcname mount \
+		'mount "%s" "%s"' "$devname" "$MOUNTPOINT"
+	then
 		USB_MOUNTED=1
 		return $SUCCESS
 	fi
@@ -156,11 +157,14 @@ f_media_get_usb()
 #
 f_media_shutdown_usb()
 {
+	local funcname=f_media_shutdown_usb
 	local dev="$1" err
 
 	[ "$USB_MOUNTED" ] || return $FAILURE
 
-	if ! err=$( umount -f "$MOUNTPOINT" 2>&1 ); then
+	if ! f_eval_catch -dk err $funcname umount \
+		'umount -f "%s"' "$MOUNTPOINT"
+	then
 		err="${err#umount: }"; err="${err#*: }"
 		f_show_msg "$msg_could_not_unmount_the_ufs_partition" \
 		           "$MOUNTPOINT" "$err"
