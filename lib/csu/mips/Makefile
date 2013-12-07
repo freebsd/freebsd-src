@@ -38,7 +38,7 @@ gcrt1_c.o: gcrt1_c.s
 	${CC} ${ACFLAGS} -c -o ${.TARGET} gcrt1_c.s
 
 gcrt1.o: gcrt1_c.o crt1_s.o
-	${LD} ${LDFLAGS} -o gcrt1.o -r crt1_s.o gcrt1_c.o
+	${LD} ${LDFLAGS:S/^-Wl,//} -o gcrt1.o -r crt1_s.o gcrt1_c.o
 
 # Compile crt1_c.c without -DGCRT
 crt1_c.s: crt1_c.c
@@ -49,7 +49,7 @@ crt1_c.o: crt1_c.s
 	${CC} ${ACFLAGS} -c -o ${.TARGET} crt1_c.s
 
 crt1.o: crt1_c.o crt1_s.o
-	${LD} ${LDFLAGS} -o crt1.o -r crt1_s.o crt1_c.o
+	${LD} ${LDFLAGS:S/^-Wl,//} -o crt1.o -r crt1_s.o crt1_c.o
 
 # Compile crt1_c.c with -fPIC -DPIC
 Scrt1_c.s: crt1_c.c
@@ -60,6 +60,6 @@ Scrt1_c.o: Scrt1_c.s
 	${CC} ${ACFLAGS} -c -o ${.TARGET} Scrt1_c.s
 
 Scrt1.o: Scrt1_c.o crt1_s.o
-	${LD} ${LDFLAGS} -o Scrt1.o -r crt1_s.o Scrt1_c.o
+	${LD} ${LDFLAGS:S/^-Wl,//} -o Scrt1.o -r crt1_s.o Scrt1_c.o
 
 .include <bsd.prog.mk>

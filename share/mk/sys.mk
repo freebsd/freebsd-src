@@ -123,6 +123,7 @@ LFLAGS		?=
 
 LD		?=	ld
 LDFLAGS		?=
+LDFLAGS		+=	-Wl,--no-warn-mismatch
 
 LINT		?=	lint
 LINTFLAGS	?=	-cghapbx
