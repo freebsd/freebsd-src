@@ -153,11 +153,11 @@ CLEANFILES+=	${KMOD:S/$/.c/}
 ${_firmw:C/\:.*$/.fwo/}:	${_firmw:C/\:.*$//}
 	@${ECHO} ${_firmw:C/\:.*$//} ${.ALLSRC:M*${_firmw:C/\:.*$//}}
 	@if [ -e ${_firmw:C/\:.*$//} ]; then			\
-		${LD} -b binary --no-warn-mismatch ${LDFLAGS}	\
+		${LD} -b binary --no-warn-mismatch ${LDFLAGS:S/^-Wl,//}	\
 		    -r -d -o ${.TARGET}	${_firmw:C/\:.*$//};	\
 	else							\
 		ln -s ${.ALLSRC:M*${_firmw:C/\:.*$//}} ${_firmw:C/\:.*$//}; \
-		${LD} -b binary --no-warn-mismatch ${LDFLAGS}	\
+		${LD} -b binary --no-warn-mismatch ${LDFLAGS:S/^-Wl,//}	\
 		    -r -d -o ${.TARGET}	${_firmw:C/\:.*$//};	\
 		rm ${_firmw:C/\:.*$//};				\
 	fi
@@ -185,7 +185,7 @@ ${PROG}.symbols: ${FULLPROG}
 
 .if ${__KLD_SHARED} == yes
 ${FULLPROG}: ${KMOD}.kld
-	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld
+	${LD} -Bshareable ${LDFLAGS:S/^-Wl,//} -o ${.TARGET} ${KMOD}.kld
 .if !defined(DEBUG_FLAGS)
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
@@ -201,7 +201,7 @@ ${KMOD}.kld: ${OBJS}
 .else
 ${FULLPROG}: ${OBJS}
 .endif
-	${LD} ${LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
+	${LD} ${LDFLAGS:S/^-Wl,//} -r -d -o ${.TARGET} ${OBJS}
 .if defined(MK_CTF) && ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .endif

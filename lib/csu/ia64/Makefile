@@ -27,7 +27,7 @@ crtbrand.o: crtbrand.s
 	${CC} ${ACFLAGS} -c -o ${.TARGET} crtbrand.s
 
 crt1.o: crt1_.o crtbrand.o
-	${LD} ${LDFLAGS} -r -o ${.TARGET} crt1_.o crtbrand.o
+	${LD} ${LDFLAGS:S/^-Wl,//} -r -o ${.TARGET} crt1_.o crtbrand.o
 
 gcrt1_.o: crt1.S
 	${CC} ${CFLAGS} -DGCRT -c -o ${.TARGET} ${.ALLSRC}
@@ -40,7 +40,7 @@ gcrtbrand.o: gcrtbrand.s
 	${CC} ${ACFLAGS} -c -o ${.TARGET} gcrtbrand.s
 
 gcrt1.o: gcrt1_.o gcrtbrand.o
-	${LD} ${LDFLAGS} -r -o ${.TARGET} ${.ALLSRC}
+	${LD} ${LDFLAGS:S/^-Wl,//} -r -o ${.TARGET} ${.ALLSRC}
 
 Scrt1_.o: crt1.S
 	${CC} ${CFLAGS} -fPIC -DPIC -c -o ${.TARGET} ${.ALLSRC}
@@ -53,7 +53,7 @@ Scrtbrand.o: Scrtbrand.s
 	${CC} ${ACFLAGS} -c -o ${.TARGET} Scrtbrand.s
 
 Scrt1.o: Scrt1_.o Scrtbrand.o
-	${LD} ${LDFLAGS} -r -o ${.TARGET} ${.ALLSRC}
+	${LD} ${LDFLAGS:S/^-Wl,//} -r -o ${.TARGET} ${.ALLSRC}
 
 realinstall:
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
