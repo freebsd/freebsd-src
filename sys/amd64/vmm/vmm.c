@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vm.h>
 #include <machine/pcb.h>
 #include <machine/smp.h>
+#include <x86/psl.h>
 #include <x86/apicreg.h>
 #include <machine/vmparam.h>
 
@@ -859,8 +860,10 @@ vcpu_require_state_locked(struct vcpu *vcpu, enum vcpu_state newstate)
  * Emulate a guest 'hlt' by sleeping until the vcpu is ready to run.
  */
 static int
-vm_handle_hlt(struct vm *vm, int vcpuid, boolean_t *retu)
+vm_handle_hlt(struct vm *vm, int vcpuid, boolean_t intr_disabled,
+    boolean_t *retu)
 {
+	struct vm_exit *vmexit;
 	struct vcpu *vcpu;
 	int sleepticks, t;
 
@@ -888,12 +891,24 @@ vm_handle_hlt(struct vm *vm, int vcpuid, boolean_t *retu)
 	 * These interrupts could have happened any time after we
 	 * returned from VMRUN() and before we grabbed the vcpu lock.
 	 */
-	if (!vm_nmi_pending(vm, vcpuid) && lapic_pending_intr(vm, vcpuid) < 0) {
+	if (!vm_nmi_pending(vm, vcpuid) &&
+	    (intr_disabled || vlapic_pending_intr(vcpu->vlapic) < 0)) {
 		if (sleepticks <= 0)
 			panic("invalid sleepticks %d", sleepticks);
 		t = ticks;
 		vcpu_require_state_locked(vcpu, VCPU_SLEEPING);
-		msleep_spin(vcpu, &vcpu->mtx, "vmidle", sleepticks);
+		if (vlapic_enabled(vcpu->vlapic)) {
+			msleep_spin(vcpu, &vcpu->mtx, "vmidle", sleepticks);
+		} else {
+			/*
+			 * Spindown the vcpu if the apic is disabled and it
+			 * had entered the halted state.
+			 */
+			*retu = TRUE;
+			vmexit = vm_exitinfo(vm, vcpuid);
+			vmexit->exitcode = VM_EXITCODE_SPINDOWN_CPU;
+			VCPU_CTR0(vm, vcpuid, "spinning down cpu");
+		}
 		vcpu_require_state_locked(vcpu, VCPU_FROZEN);
 		vmm_stat_incr(vm, vcpuid, VCPU_IDLE_TICKS, ticks - t);
 	}
@@ -1003,7 +1018,7 @@ vm_run(struct vm *vm, struct vm_run *vmrun)
 	struct pcb *pcb;
 	uint64_t tscval, rip;
 	struct vm_exit *vme;
-	boolean_t retu;
+	boolean_t retu, intr_disabled;
 	pmap_t pmap;
 
 	vcpuid = vmrun->cpuid;
@@ -1046,7 +1061,11 @@ restart:
 		retu = FALSE;
 		switch (vme->exitcode) {
 		case VM_EXITCODE_HLT:
-			error = vm_handle_hlt(vm, vcpuid, &retu);
+			if ((vme->u.hlt.rflags & PSL_I) == 0)
+				intr_disabled = TRUE;
+			else
+				intr_disabled = FALSE;
+			error = vm_handle_hlt(vm, vcpuid, intr_disabled, &retu);
 			break;
 		case VM_EXITCODE_PAGING:
 			error = vm_handle_paging(vm, vcpuid, &retu);
