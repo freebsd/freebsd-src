@@ -272,7 +272,10 @@ static int	iwn4965_set_gains(struct iwn_softc *);
 static int	iwn5000_set_gains(struct iwn_softc *);
 static void	iwn_tune_sensitivity(struct iwn_softc *,
 		    const struct iwn_rx_stats *);
+static void	iwn_save_stats_counters(struct iwn_softc *,
+		    const struct iwn_stats *);
 static int	iwn_send_sensitivity(struct iwn_softc *);
+static void	iwn_check_rx_recovery(struct iwn_softc *, struct iwn_stats *);
 static int	iwn_set_pslevel(struct iwn_softc *, int, int, int);
 static int	iwn_send_btcoex(struct iwn_softc *);
 static int	iwn_send_advanced_btcoex(struct iwn_softc *);
@@ -3187,10 +3190,36 @@ iwn_rx_statistics(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 	if (calib->state == IWN_CALIB_STATE_ASSOC)
 		iwn_collect_noise(sc, &stats->rx.general);
-	else if (calib->state == IWN_CALIB_STATE_RUN)
+	else if (calib->state == IWN_CALIB_STATE_RUN) {
 		iwn_tune_sensitivity(sc, &stats->rx);
+		/*
+		 * XXX TODO: Only run the RX recovery if we're associated!
+		 */
+		iwn_check_rx_recovery(sc, stats);
+		iwn_save_stats_counters(sc, stats);
+	}
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
+}
+
+/*
+ * Save the relevant statistic counters for the next calibration
+ * pass.
+ */
+static void
+iwn_save_stats_counters(struct iwn_softc *sc, const struct iwn_stats *rs)
+{
+	struct iwn_calib_state *calib = &sc->calib;
+
+	/* Save counters values for next call. */
+	calib->bad_plcp_cck = le32toh(rs->rx.cck.bad_plcp);
+	calib->fa_cck = le32toh(rs->rx.cck.fa);
+	calib->bad_plcp_ht = le32toh(rs->rx.ht.bad_plcp);
+	calib->bad_plcp_ofdm = le32toh(rs->rx.ofdm.bad_plcp);
+	calib->fa_ofdm = le32toh(rs->rx.ofdm.fa);
+
+	/* Last time we received these tick values */
+	sc->last_calib_ticks = ticks;
 }
 
 /*
@@ -5652,10 +5681,6 @@ iwn_tune_sensitivity(struct iwn_softc *sc, const struct iwn_rx_stats *stats)
 	fa += le32toh(stats->ofdm.fa) - calib->fa_ofdm;
 	fa *= 200 * IEEE80211_DUR_TU;	/* 200TU */
 
-	/* Save counters values for next call. */
-	calib->bad_plcp_ofdm = le32toh(stats->ofdm.bad_plcp);
-	calib->fa_ofdm = le32toh(stats->ofdm.fa);
-
 	if (fa > 50 * rxena) {
 		/* High false alarm count, decrease sensitivity. */
 		DPRINTF(sc, IWN_DEBUG_CALIBRATE,
@@ -5708,10 +5733,6 @@ iwn_tune_sensitivity(struct iwn_softc *sc, const struct iwn_rx_stats *stats)
 	fa  = le32toh(stats->cck.bad_plcp) - calib->bad_plcp_cck;
 	fa += le32toh(stats->cck.fa) - calib->fa_cck;
 	fa *= 200 * IEEE80211_DUR_TU;	/* 200TU */
-
-	/* Save counters values for next call. */
-	calib->bad_plcp_cck = le32toh(stats->cck.bad_plcp);
-	calib->fa_cck = le32toh(stats->cck.fa);
 
 	if (fa > 50 * rxena) {
 		/* High false alarm count, decrease sensitivity. */
@@ -5815,6 +5836,86 @@ iwn_send_sensitivity(struct iwn_softc *sc)
 	cmd.cck_det_icept      = htole16(99);
 send:
 	return iwn_cmd(sc, IWN_CMD_SET_SENSITIVITY, &cmd, len, 1);
+}
+
+/*
+ * Look at the increase of PLCP errors over time; if it exceeds
+ * a programmed threshold then trigger an RF retune.
+ */
+static void
+iwn_check_rx_recovery(struct iwn_softc *sc, struct iwn_stats *rs)
+{
+	int32_t delta_ofdm, delta_ht, delta_cck;
+	struct iwn_calib_state *calib = &sc->calib;
+	int delta_ticks, cur_ticks;
+	int delta_msec;
+	int thresh;
+
+	/*
+	 * Calculate the difference between the current and
+	 * previous statistics.
+	 */
+	delta_cck = le32toh(rs->rx.cck.bad_plcp) - calib->bad_plcp_cck;
+	delta_ofdm = le32toh(rs->rx.ofdm.bad_plcp) - calib->bad_plcp_ofdm;
+	delta_ht = le32toh(rs->rx.ht.bad_plcp) - calib->bad_plcp_ht;
+
+	/*
+	 * Calculate the delta in time between successive statistics
+	 * messages.  Yes, it can roll over; so we make sure that
+	 * this doesn't happen.
+	 *
+	 * XXX go figure out what to do about rollover
+	 * XXX go figure out what to do if ticks rolls over to -ve instead!
+	 * XXX go stab signed integer overflow undefined-ness in the face.
+	 */
+	cur_ticks = ticks;
+	delta_ticks = cur_ticks - sc->last_calib_ticks;
+
+	/*
+	 * If any are negative, then the firmware likely reset; so just
+	 * bail.  We'll pick this up next time.
+	 */
+	if (delta_cck < 0 || delta_ofdm < 0 || delta_ht < 0 || delta_ticks < 0)
+		return;
+
+	/*
+	 * delta_ticks is in ticks; we need to convert it up to milliseconds
+	 * so we can do some useful math with it.
+	 */
+	delta_msec = ticks_to_msecs(delta_ticks);
+
+	/*
+	 * Calculate what our threshold is given the current delta_msec.
+	 */
+	thresh = sc->base_params->plcp_err_threshold * delta_msec;
+
+	DPRINTF(sc, IWN_DEBUG_STATE,
+	    "%s: time delta: %d; cck=%d, ofdm=%d, ht=%d, total=%d, thresh=%d\n",
+	    __func__,
+	    delta_msec,
+	    delta_cck,
+	    delta_ofdm,
+	    delta_ht,
+	    (delta_msec + delta_cck + delta_ofdm + delta_ht),
+	    thresh);
+
+	/*
+	 * If we need a retune, then schedule a single channel scan
+	 * to a channel that isn't the currently active one!
+	 *
+	 * The math from linux iwlwifi:
+	 *
+	 * if ((delta * 100 / msecs) > threshold)
+	 */
+	if (thresh > 0 && (delta_cck + delta_ofdm + delta_ht) * 100 > thresh) {
+		device_printf(sc->sc_dev,
+		    "%s: PLCP error threshold raw (%d) comparison (%d) "
+		    "over limit (%d); retune!\n",
+		    __func__,
+		    (delta_cck + delta_ofdm + delta_ht),
+		    (delta_cck + delta_ofdm + delta_ht) * 100,
+		    thresh);
+	}
 }
 
 /*
@@ -7048,10 +7149,10 @@ iwn5000_query_calibration(struct iwn_softc *sc)
 	int error;
 
 	memset(&cmd, 0, sizeof cmd);
-	cmd.ucode.once.enable = 0xffffffff;
-	cmd.ucode.once.start  = 0xffffffff;
-	cmd.ucode.once.send   = 0xffffffff;
-	cmd.ucode.flags       = 0xffffffff;
+	cmd.ucode.once.enable = htole32(0xffffffff);
+	cmd.ucode.once.start  = htole32(0xffffffff);
+	cmd.ucode.once.send   = htole32(0xffffffff);
+	cmd.ucode.flags       = htole32(0xffffffff);
 	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s: sending calibration query\n",
 	    __func__);
 	error = iwn_cmd(sc, IWN5000_CMD_CALIB_CONFIG, &cmd, sizeof cmd, 0);
@@ -7107,7 +7208,7 @@ iwn5000_send_wimax_coex(struct iwn_softc *sc)
 {
 	struct iwn5000_wimax_coex wimax;
 
-#ifdef notyet
+#if 0
 	if (sc->hw_type == IWN_HW_REV_TYPE_6050) {
 		/* Enable WiMAX coexistence for combo adapters. */
 		wimax.flags =
