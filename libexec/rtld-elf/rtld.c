@@ -4369,11 +4369,11 @@ free_tls(void *tls, size_t tcbsize, size_t tcbalign)
     tlsstart = tlsend - size;
     for (i = 0; i < dtvsize; i++) {
 	if (dtv[i + 2] != 0 && (dtv[i + 2] < tlsstart || dtv[i + 2] > tlsend)) {
-		free_aligned(dtv[i + 2]);
+		free_aligned((void *)dtv[i + 2]);
 	}
     }
 
-    free_aligned(tlsstart);
+    free_aligned((void *)tlsstart);
     free((void*) dtv);
 }
 
