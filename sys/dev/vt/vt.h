@@ -46,7 +46,9 @@
 #include <sys/terminal.h>
 #include <sys/sysctl.h>
 
+#include "opt_compat.h"
 #include "opt_syscons.h"
+#include "opt_splash.h"
 
 #ifndef	VT_MAXWINDOWS
 #ifdef	MAXCONS
