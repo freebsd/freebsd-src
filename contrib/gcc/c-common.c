@@ -254,6 +254,10 @@ int flag_short_double;
 
 int flag_short_wchar;
 
+/* Nonzero means allow implicit conversions between vectors with
+   differing numbers of subparts and/or differing element types.  */
+int flag_lax_vector_conversions;
+
 /* Nonzero means allow Microsoft extensions without warnings or errors.  */
 int flag_ms_extensions;
 
@@ -1095,18 +1099,45 @@ constant_fits_type_p (tree c, tree type)
   return !TREE_OVERFLOW (c);
 }
 
-/* Nonzero if vector types T1 and T2 can be converted to each other
-   without an explicit cast.  */
-int
-vector_types_convertible_p (tree t1, tree t2)
+
+/* True if vector types T1 and T2 can be converted to each other
+   without an explicit cast.  If EMIT_LAX_NOTE is true, and T1 and T2
+   can only be converted with -flax-vector-conversions yet that is not
+   in effect, emit a note telling the user about that option if such
+   a note has not previously been emitted.  */
+bool
+vector_types_convertible_p (tree t1, tree t2, bool emit_lax_note)
 {
-  return targetm.vector_opaque_p (t1)
-	 || targetm.vector_opaque_p (t2)
-	 || (tree_int_cst_equal (TYPE_SIZE (t1), TYPE_SIZE (t2))
-	     && (TREE_CODE (TREE_TYPE (t1)) != REAL_TYPE ||
-		 TYPE_PRECISION (t1) == TYPE_PRECISION (t2))
-	     && INTEGRAL_TYPE_P (TREE_TYPE (t1))
-		== INTEGRAL_TYPE_P (TREE_TYPE (t2)));
+  static bool emitted_lax_note = false;
+  bool convertible_lax;
+
+  if ((targetm.vector_opaque_p (t1) || targetm.vector_opaque_p (t2))
+      && tree_int_cst_equal (TYPE_SIZE (t1), TYPE_SIZE (t2)))
+    return true;
+
+  convertible_lax =
+    (tree_int_cst_equal (TYPE_SIZE (t1), TYPE_SIZE (t2))
+     && (TREE_CODE (TREE_TYPE (t1)) != REAL_TYPE ||
+	 TYPE_PRECISION (t1) == TYPE_PRECISION (t2))
+     && (INTEGRAL_TYPE_P (TREE_TYPE (t1))
+	 == INTEGRAL_TYPE_P (TREE_TYPE (t2))));
+
+  if (!convertible_lax || flag_lax_vector_conversions)
+    return convertible_lax;
+
+  if (TYPE_VECTOR_SUBPARTS (t1) == TYPE_VECTOR_SUBPARTS (t2)
+      && comptypes (TREE_TYPE (t1), TREE_TYPE (t2)))
+    return true;
+
+  if (emit_lax_note && !emitted_lax_note)
+    {
+      emitted_lax_note = true;
+      inform ("use -flax-vector-conversions to permit "
+              "conversions between vectors with differing "
+              "element types or numbers of subparts");
+    }
+
+  return false;
 }
 
 /* Convert EXPR to TYPE, warning about conversion problems with constants.
@@ -1988,10 +2019,10 @@ min_precision (tree value, int unsignedp)
 }
 
 /* Print an error message for invalid operands to arith operation
-   CODE.  */
+   CODE with TYPE0 for operand 0, and TYPE1 for operand 1.  */
 
 void
-binary_op_error (enum tree_code code)
+binary_op_error (enum tree_code code, tree type0, tree type1)
 {
   const char *opname;
 
@@ -2042,7 +2073,8 @@ binary_op_error (enum tree_code code)
     default:
       gcc_unreachable ();
     }
-  error ("invalid operands to binary %s", opname);
+  error ("invalid operands to binary %s (have %qT and %qT)", opname,
+	 type0, type1);
 }
 
 /* Subroutine of build_binary_op, used for comparison operations.

@@ -45,17 +45,39 @@
 	* flags.h (force_align_functions_log): Delete.
 	* toplev.c (force_align_functions_log): Delete.
 
+2007-06-28  Geoffrey Keating  <geoffk@apple.com> (r126088)
+
+	* doc/invoke.texi (C++ Dialect Options): Document
+	fvisibility-ms-compat.
+	* c.opt (fvisibility-ms-compat): New.
+
 2007-06-05  Joerg Wunsch  <j.gnu@uriah.heep.sax.de> (r125346)
 
 	PR preprocessor/23479
 	* doc/extend.texi: Document the 0b-prefixed binary integer
 	constant extension.
 	
-2007-05-31  Eric Christopher  <echristo@apple.com>
+2007-05-31  Eric Christopher  <echristo@apple.com> (r125246)
 
 	* expr.c (convert_move): Assert that we don't have a BLKmode
 	operand.
 	(store_expr): Handle BLKmode moves by calling emit_block_move.
+
+2007-05-31  Daniel Berlin  <dberlin@dberlin.org> (r125239)
+
+	* c-typeck.c (build_indirect_ref): Include type in error message.
+	(build_binary_op): Pass types to binary_op_error.
+	* c-common.c (binary_op_error): Take two type arguments, print out
+	types with error.
+	* c-common.h (binary_op_error): Update prototype.
+
+2007-05-27  Eric Christopher  <echristo@apple.com> (r125116)
+
+	* config/rs6000/rs6000.c (rs6000_emit_prologue): Update
+	sp_offset depending on stack size. Save r12 depending
+	on registers we're saving later.
+	(rs6000_emit_epilogue): Update sp_offset depending only
+	on stack size.
 
 2007-05-24  Richard Sandiford  <rsandifo@nildram.co.uk> (r125037)
 
@@ -380,6 +402,36 @@
 2007-01-17  Eric Christopher  <echristo@apple.com> (r120846)
 
 	* config.gcc: Support core2 processor.
+
+2007-01-11  Joseph Myers  <joseph@codesourcery.com> (r120688)
+
+	* c-common.c (vector_types_convertible_p): Treat opaque types as
+	always convertible if they have the same size, but not otherwise.
+
+2007-01-08  Mark Shinwell  <shinwell@codesourcery.com> (r120572)
+
+	* c.opt: Add -flax-vector-conversions.
+	* c-typeck.c (convert_for_assignment): Pass flag to
+	vector_types_convertible_p to allow emission of note.
+	(digest_init): Likewise.
+	* c-opts.c: Handle -flax-vector-conversions.
+	* c-common.c (flag_lax_vector_conversions): New.
+	(vector_types_convertible_p): Unless -flax-vector conversions
+	has been passed, disallow conversions between vectors with
+	differing numbers of subparts and/or element types.  If such
+	a conversion is disallowed, possibly emit a note on the first
+	occasion only to inform the user of -flax-vector-conversions.
+	The new last argument specifies this.
+	* c-common.h (flag_lax_vector_conversions): New.
+	(vector_types_convertible_p): Add extra argument.
+	* config/i386/i386.c (ix86_init_mmx_sse_builtins): Use
+	char_type_node for V*QI type vectors.
+	* config/rs6000/rs6000-c.c (altivec_overloaded_builtins):
+	Update to satisfy new typechecking rules.
+	* config/rs6000/altivec.h (vec_cmple): Use vec_cmpge, for both
+	C and C++ variants.
+	* doc/invoke.texi (C Dialect Options): Document
+	-flax-vector-conversions.
 
 2007-01-05  Manuel Lopez-Ibanez  <manu@gcc.gnu.org> (r120505)
 

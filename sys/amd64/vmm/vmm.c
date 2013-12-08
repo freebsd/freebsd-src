@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vm.h>
 #include <machine/pcb.h>
 #include <machine/smp.h>
+#include <x86/psl.h>
 #include <x86/apicreg.h>
 #include <machine/vmparam.h>
 
@@ -859,27 +860,16 @@ vcpu_require_state_locked(struct vcpu *vcpu, enum vcpu_state newstate)
  * Emulate a guest 'hlt' by sleeping until the vcpu is ready to run.
  */
 static int
-vm_handle_hlt(struct vm *vm, int vcpuid, boolean_t *retu)
+vm_handle_hlt(struct vm *vm, int vcpuid, boolean_t intr_disabled,
+    boolean_t *retu)
 {
+	struct vm_exit *vmexit;
 	struct vcpu *vcpu;
-	int sleepticks, t;
+	int t, timo;
 
 	vcpu = &vm->vcpu[vcpuid];
 
 	vcpu_lock(vcpu);
-
-	/*
-	 * Figure out the number of host ticks until the next apic
-	 * timer interrupt in the guest.
-	 */
-	sleepticks = lapic_timer_tick(vm, vcpuid);
-
-	/*
-	 * If the guest local apic timer is disabled then sleep for
-	 * a long time but not forever.
-	 */
-	if (sleepticks < 0)
-		sleepticks = hz;
 
 	/*
 	 * Do a final check for pending NMI or interrupts before
@@ -888,12 +878,27 @@ vm_handle_hlt(struct vm *vm, int vcpuid, boolean_t *retu)
 	 * These interrupts could have happened any time after we
 	 * returned from VMRUN() and before we grabbed the vcpu lock.
 	 */
-	if (!vm_nmi_pending(vm, vcpuid) && lapic_pending_intr(vm, vcpuid) < 0) {
-		if (sleepticks <= 0)
-			panic("invalid sleepticks %d", sleepticks);
+	if (!vm_nmi_pending(vm, vcpuid) &&
+	    (intr_disabled || vlapic_pending_intr(vcpu->vlapic) < 0)) {
 		t = ticks;
 		vcpu_require_state_locked(vcpu, VCPU_SLEEPING);
-		msleep_spin(vcpu, &vcpu->mtx, "vmidle", sleepticks);
+		if (vlapic_enabled(vcpu->vlapic)) {
+			/*
+			 * XXX msleep_spin() is not interruptible so use the
+			 * 'timo' to put an upper bound on the sleep time.
+			 */
+			timo = hz;
+			msleep_spin(vcpu, &vcpu->mtx, "vmidle", timo);
+		} else {
+			/*
+			 * Spindown the vcpu if the apic is disabled and it
+			 * had entered the halted state.
+			 */
+			*retu = TRUE;
+			vmexit = vm_exitinfo(vm, vcpuid);
+			vmexit->exitcode = VM_EXITCODE_SPINDOWN_CPU;
+			VCPU_CTR0(vm, vcpuid, "spinning down cpu");
+		}
 		vcpu_require_state_locked(vcpu, VCPU_FROZEN);
 		vmm_stat_incr(vm, vcpuid, VCPU_IDLE_TICKS, ticks - t);
 	}
@@ -1003,7 +1008,7 @@ vm_run(struct vm *vm, struct vm_run *vmrun)
 	struct pcb *pcb;
 	uint64_t tscval, rip;
 	struct vm_exit *vme;
-	boolean_t retu;
+	boolean_t retu, intr_disabled;
 	pmap_t pmap;
 
 	vcpuid = vmrun->cpuid;
@@ -1046,7 +1051,11 @@ restart:
 		retu = FALSE;
 		switch (vme->exitcode) {
 		case VM_EXITCODE_HLT:
-			error = vm_handle_hlt(vm, vcpuid, &retu);
+			if ((vme->u.hlt.rflags & PSL_I) == 0)
+				intr_disabled = TRUE;
+			else
+				intr_disabled = FALSE;
+			error = vm_handle_hlt(vm, vcpuid, intr_disabled, &retu);
 			break;
 		case VM_EXITCODE_PAGING:
 			error = vm_handle_paging(vm, vcpuid, &retu);
@@ -1099,7 +1108,7 @@ vm_inject_nmi(struct vm *vm, int vcpuid)
 	vcpu = &vm->vcpu[vcpuid];
 
 	vcpu->nmi_pending = 1;
-	vm_interrupt_hostcpu(vm, vcpuid);
+	vcpu_notify_event(vm, vcpuid);
 	return (0);
 }
 
@@ -1319,8 +1328,15 @@ vm_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state state)
 	return (0);
 }
 
+/*
+ * This function is called to ensure that a vcpu "sees" a pending event
+ * as soon as possible:
+ * - If the vcpu thread is sleeping then it is woken up.
+ * - If the vcpu is running on a different host_cpu then an IPI will be directed
+ *   to the host_cpu to cause the vcpu to trap into the hypervisor.
+ */
 void
-vm_interrupt_hostcpu(struct vm *vm, int vcpuid)
+vcpu_notify_event(struct vm *vm, int vcpuid)
 {
 	int hostcpu;
 	struct vcpu *vcpu;

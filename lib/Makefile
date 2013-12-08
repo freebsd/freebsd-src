@@ -37,6 +37,8 @@ SUBDIR_ORDERED=	${_csu} \
 	libauditd \
 	libutil \
 	libpjdlog \
+	libnv \
+	${_libcapsicum} \
 	libcompiler_rt \
 	libcrypt \
 	libelf \
@@ -70,6 +72,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libbz2 \
 	libcalendar \
 	libcam \
+	${_libcasper} \
 	libcompat \
 	libdevinfo \
 	libdevstat \
@@ -155,6 +158,11 @@ _libsdp=	libsdp
 
 .if ${MK_BSNMP} != "no"
 _libbsnmp=	libbsnmp
+.endif
+
+.if ${MK_CASPER} != "no"
+_libcapsicum=	libcapsicum
+_libcasper=	libcasper
 .endif
 
 .if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT)

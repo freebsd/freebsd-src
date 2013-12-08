@@ -1499,7 +1499,8 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libbz2 ${_libcom_err} lib/libcrypt \
 		lib/libelf lib/libexpat \
 		${_lib_libgssapi} ${_lib_libipx} \
-		lib/libkiconv lib/libkvm lib/liblzma lib/libmd \
+		lib/libkiconv lib/libkvm lib/liblzma lib/libmd lib/libnv \
+		${_lib_libcapsicum} \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
 		lib/libopie lib/libpam ${_lib_libthr} \
 		lib/libradius lib/libsbuf lib/libtacplus \
@@ -1521,6 +1522,11 @@ _lib_libthr=	lib/libthr
 _ofed_lib=	contrib/ofed/usr.lib/
 .endif
 
+.if ${MK_CASPER} != "no"
+_lib_libcapsicum=lib/libcapsicum
+.endif
+
+lib/libcapsicum__L: lib/libnv__L
 lib/libpjdlog__L: lib/libutil__L
 
 _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib ${_ofed_lib}

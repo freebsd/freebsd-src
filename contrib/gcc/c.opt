@@ -584,6 +584,10 @@ Inject friend functions into enclosing namespace
 flabels-ok
 C++ ObjC++
 
+flax-vector-conversions
+C ObjC C++ ObjC++
+Allow implicit conversions between vectors with differing numbers of subparts and/or differing element types.
+
 fms-extensions
 C ObjC C++ ObjC++
 Don't warn about uses of Microsoft extensions
@@ -736,6 +740,10 @@ Use __cxa_get_exception_ptr in exception handling
 fvisibility-inlines-hidden
 C++ ObjC++
 Marks all inlined methods as having hidden visibility
+
+fvisibility-ms-compat
+C++ ObjC++ Var(flag_visibility_ms_compat)
+Changes visibility to match Microsoft Visual Studio by default
 
 fvtable-gc
 C++ ObjC++

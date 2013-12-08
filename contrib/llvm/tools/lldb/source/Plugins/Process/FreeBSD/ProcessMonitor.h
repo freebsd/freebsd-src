@@ -164,10 +164,18 @@ public:
     bool
     ReadThreadPointer(lldb::tid_t tid, lldb::addr_t &value);
 
+    /// Returns current thread IDs in process
+    size_t
+    GetCurrentThreadIDs(std::vector<lldb::tid_t> &thread_ids);
+
     /// Writes a ptrace_lwpinfo structure corresponding to the given thread ID
     /// to the memory region pointed to by @p lwpinfo.
     bool
     GetLwpInfo(lldb::tid_t tid, void *lwpinfo, int &error_no);
+
+    /// Suspends or unsuspends a thread prior to process resume or step.
+    bool
+    ThreadSuspend(lldb::tid_t tid, bool suspend);
 
     /// Writes the raw event message code (vis-a-vis PTRACE_GETEVENTMSG)
     /// corresponding to the given thread IDto the memory pointed to by @p
@@ -175,15 +183,15 @@ public:
     bool
     GetEventMessage(lldb::tid_t tid, unsigned long *message);
 
-    /// Resumes the given thread.  If @p signo is anything but
-    /// LLDB_INVALID_SIGNAL_NUMBER, deliver that signal to the thread.
+    /// Resumes the process.  If @p signo is anything but
+    /// LLDB_INVALID_SIGNAL_NUMBER, deliver that signal to the process.
     bool
-    Resume(lldb::tid_t tid, uint32_t signo);
+    Resume(lldb::tid_t unused, uint32_t signo);
 
-    /// Single steps the given thread.  If @p signo is anything but
-    /// LLDB_INVALID_SIGNAL_NUMBER, deliver that signal to the thread.
+    /// Single steps the process.  If @p signo is anything but
+    /// LLDB_INVALID_SIGNAL_NUMBER, deliver that signal to the process.
     bool
-    SingleStep(lldb::tid_t tid, uint32_t signo);
+    SingleStep(lldb::tid_t unused, uint32_t signo);
 
     /// Sends the inferior process a PTRACE_KILL signal.  The inferior will
     /// still exists and can be interrogated.  Once resumed it will exit as

@@ -486,7 +486,7 @@ add_file(int percent, const char *file, const char *dir, FILEDESC **head,
 		if (Offend) {
 			if (was_malloc)
 				free(tpath);
-			path = offensive;
+			path = tpath = offensive;
 			offensive = NULL;
 			was_malloc = TRUE;
 			DPRINTF(1, (stderr, "\ttrying \"%s\"\n", path));
@@ -508,7 +508,7 @@ over:
 		if (All_forts && offensive != NULL) {
 			if (was_malloc)
 				free(tpath);
-			path = offensive;
+			path = tpath = offensive;
 			offensive = NULL;
 			was_malloc = TRUE;
 			DPRINTF(1, (stderr, "\ttrying \"%s\"\n", path));
@@ -806,10 +806,6 @@ is_fortfile(const char *file, char **datp, char **posp, int check_for_offend)
 	strcat(datfile, ".dat");
 	if (access(datfile, R_OK) < 0) {
 		DPRINTF(2, (stderr, "FALSE (no readable \".dat\" file)\n"));
-#ifdef DEBUG
-		if (Debug < 2)
-			DPRINTF(0, (stderr, "Warning: file \"%s\" unreadable\n", datfile));
-#endif
 		free(datfile);
 		return (FALSE);
 	}

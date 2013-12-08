@@ -50,6 +50,14 @@
 #define IWN_FLG_NEED_PHY_CALIB_TEMP_OFFSETv2	(1<<7)
 
 /*
+ * Each chip has a different threshold for PLCP errors that should trigger a
+ * retune.
+ */
+#define	IWN_PLCP_ERR_DEFAULT_THRESHOLD		50
+#define	IWN_PLCP_ERR_LONG_THRESHOLD		100
+#define	IWN_PLCP_ERR_EXT_LONG_THRESHOLD		200
+
+/*
  * Define some parameters for managing different NIC.
  * Refer to linux specific file like iwl-xxxx.c to determine correct value
  * for NIC.
@@ -102,6 +110,7 @@ struct iwn_base_params {
 	const bool	no_multi_vaps;
 	uint8_t	additional_gp_drv_bit;
 	enum bt_mode_enum	bt_mode;
+	uint32_t	plcp_err_threshold;
 };
 
 static const struct iwn_base_params iwn5000_base_params = {
@@ -123,6 +132,7 @@ static const struct iwn_base_params iwn5000_base_params = {
 	.no_multi_vaps = true,	/* no_multi_vaps */
 	.additional_gp_drv_bit = IWN_GP_DRIVER_NONE,	/* additional_gp_drv_bit */
 	.bt_mode = IWN_BT_NONE,	/* bt_mode */
+	.plcp_err_threshold = IWN_PLCP_ERR_LONG_THRESHOLD,
 };
 
 /*
@@ -148,6 +158,7 @@ static const struct iwn_base_params iwn4965_base_params = {
 	.no_multi_vaps = true,	/* no_multi_vaps - XXX should work on fixing!  */
 	.additional_gp_drv_bit = IWN_GP_DRIVER_NONE,	/* additional_gp_drv_bit */
 	.bt_mode = IWN_BT_SIMPLE,	/* bt_mode */
+	.plcp_err_threshold = IWN_PLCP_ERR_DEFAULT_THRESHOLD,
 };
 
 
@@ -171,6 +182,7 @@ static const struct iwn_base_params iwn2000_base_params = {
 	.no_multi_vaps = false,
 	.additional_gp_drv_bit = IWN_GP_DRIVER_REG_BIT_RADIO_IQ_INVERT,
 	.bt_mode = IWN_BT_NONE,
+	.plcp_err_threshold = IWN_PLCP_ERR_DEFAULT_THRESHOLD,
 };
 
 static const struct iwn_base_params iwn2030_base_params = {
@@ -193,6 +205,7 @@ static const struct iwn_base_params iwn2030_base_params = {
 	.no_multi_vaps = false,
 	.additional_gp_drv_bit = IWN_GP_DRIVER_REG_BIT_RADIO_IQ_INVERT,
 	.bt_mode = IWN_BT_ADVANCED,
+	.plcp_err_threshold = IWN_PLCP_ERR_DEFAULT_THRESHOLD,
 };
 
 static const struct iwn_base_params iwn1000_base_params = {
@@ -214,6 +227,7 @@ static const struct iwn_base_params iwn1000_base_params = {
 	.no_multi_vaps = true,
 	.additional_gp_drv_bit = IWN_GP_DRIVER_NONE,
 	.bt_mode = IWN_BT_NONE,
+	.plcp_err_threshold = IWN_PLCP_ERR_EXT_LONG_THRESHOLD,
 };
 static const struct iwn_base_params iwn_6000_base_params = {
 	.pll_cfg_val = 0,
@@ -234,6 +248,7 @@ static const struct iwn_base_params iwn_6000_base_params = {
 	.no_multi_vaps = true,
 	.additional_gp_drv_bit = IWN_GP_DRIVER_NONE,
 	.bt_mode = IWN_BT_SIMPLE,
+	.plcp_err_threshold = IWN_PLCP_ERR_DEFAULT_THRESHOLD,
 };
 static const struct iwn_base_params iwn_6000i_base_params = {
 	.pll_cfg_val = 0,
@@ -254,6 +269,7 @@ static const struct iwn_base_params iwn_6000i_base_params = {
 	.no_multi_vaps = true,
 	.additional_gp_drv_bit = IWN_GP_DRIVER_NONE,
 	.bt_mode = IWN_BT_SIMPLE,
+	.plcp_err_threshold = IWN_PLCP_ERR_DEFAULT_THRESHOLD,
 };
 static const struct iwn_base_params iwn_6000g2_base_params = {
 	.pll_cfg_val = 0,
@@ -275,6 +291,7 @@ static const struct iwn_base_params iwn_6000g2_base_params = {
 	.no_multi_vaps = true,
 	.additional_gp_drv_bit = 0,
 	.bt_mode = IWN_BT_SIMPLE,
+	.plcp_err_threshold = IWN_PLCP_ERR_DEFAULT_THRESHOLD,
 };
 
 static const struct iwn_base_params iwn_6050_base_params = {
@@ -296,6 +313,7 @@ static const struct iwn_base_params iwn_6050_base_params = {
 	.no_multi_vaps = true,
 	.additional_gp_drv_bit = IWN_GP_DRIVER_NONE,
 	.bt_mode = IWN_BT_SIMPLE,
+	.plcp_err_threshold = IWN_PLCP_ERR_DEFAULT_THRESHOLD,
 };
 static const struct iwn_base_params iwn_6150_base_params = {
 	.pll_cfg_val = 0,
@@ -315,6 +333,7 @@ static const struct iwn_base_params iwn_6150_base_params = {
 	.no_multi_vaps = true,
 	.additional_gp_drv_bit = IWN_GP_DRIVER_6050_1X2,
 	.bt_mode = IWN_BT_SIMPLE,
+	.plcp_err_threshold = IWN_PLCP_ERR_DEFAULT_THRESHOLD,
 };
 
 /* IWL_DEVICE_6035 & IWL_DEVICE_6030 */
@@ -338,6 +357,7 @@ static const struct iwn_base_params iwn_6000g2b_base_params = {
 	.no_multi_vaps = true,
 	.additional_gp_drv_bit = IWN_GP_DRIVER_NONE,
 	.bt_mode = IWN_BT_ADVANCED,
+	.plcp_err_threshold = IWN_PLCP_ERR_DEFAULT_THRESHOLD,
 };
 static const struct iwn_base_params iwn_5x50_base_params = {
 	.pll_cfg_val = IWN_ANA_PLL_INIT,
@@ -358,6 +378,7 @@ static const struct iwn_base_params iwn_5x50_base_params = {
 	.no_multi_vaps = true,
 	.additional_gp_drv_bit = IWN_GP_DRIVER_NONE,
 	.bt_mode = IWN_BT_SIMPLE,
+	.plcp_err_threshold = IWN_PLCP_ERR_LONG_THRESHOLD,
 };
 
 #endif	/* __IF_IWN_CHIP_CFG_H__ */

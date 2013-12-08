@@ -192,7 +192,7 @@ Target::Destroy()
     DeleteCurrentProcess ();
     m_platform_sp.reset();
     m_arch.Clear();
-    ClearModules();
+    ClearModules(true);
     m_section_load_list.Clear();
     const bool notify = false;
     m_breakpoint_list.RemoveAll(notify);
@@ -1014,9 +1014,9 @@ LoadScriptingResourceForModule (const ModuleSP &module_sp, Target *target)
 }
 
 void
-Target::ClearModules()
+Target::ClearModules(bool delete_locations)
 {
-    ModulesDidUnload (m_images, true);
+    ModulesDidUnload (m_images, delete_locations);
     GetSectionLoadList().Clear();
     m_images.Clear();
     m_scratch_ast_context_ap.reset();
@@ -1025,10 +1025,18 @@ Target::ClearModules()
 }
 
 void
+Target::DidExec ()
+{
+    // When a process exec's we need to know about it so we can do some cleanup. 
+    m_breakpoint_list.RemoveInvalidLocations(m_arch);
+    m_internal_breakpoint_list.RemoveInvalidLocations(m_arch);
+}
+
+void
 Target::SetExecutableModule (ModuleSP& executable_sp, bool get_dependent_files)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_TARGET));
-    ClearModules();
+    ClearModules(false);
     
     if (executable_sp.get())
     {
@@ -1098,7 +1106,7 @@ Target::SetArchitecture (const ArchSpec &arch_spec)
         m_arch = arch_spec;
         ModuleSP executable_sp = GetExecutableModule ();
 
-        ClearModules();
+        ClearModules(true);
         // Need to do something about unsetting breakpoints.
         
         if (executable_sp)
@@ -2182,12 +2190,78 @@ Target::RunStopHooks ()
     result.GetImmediateErrorStream()->Flush();
 }
 
+const TargetPropertiesSP &
+Target::GetGlobalProperties()
+{
+    static TargetPropertiesSP g_settings_sp;
+    if (!g_settings_sp)
+    {
+        g_settings_sp.reset (new TargetProperties (NULL));
+    }
+    return g_settings_sp;
+}
+
+Error
+Target::Install (ProcessLaunchInfo *launch_info)
+{
+    Error error;
+    PlatformSP platform_sp (GetPlatform());
+    if (platform_sp)
+    {
+        if (platform_sp->IsRemote())
+        {
+            if (platform_sp->IsConnected())
+            {
+                // Install all files that have an install path, and always install the
+                // main executable when connected to a remote platform
+                const ModuleList& modules = GetImages();
+                const size_t num_images = modules.GetSize();
+                for (size_t idx = 0; idx < num_images; ++idx)
+                {
+                    const bool is_main_executable = idx == 0;
+                    ModuleSP module_sp(modules.GetModuleAtIndex(idx));
+                    if (module_sp)
+                    {
+                        FileSpec local_file (module_sp->GetFileSpec());
+                        if (local_file)
+                        {
+                            FileSpec remote_file (module_sp->GetRemoteInstallFileSpec());
+                            if (!remote_file)
+                            {
+                                if (is_main_executable) // TODO: add setting for always installing main executable???
+                                {
+                                    // Always install the main executable
+                                    remote_file.GetDirectory() = platform_sp->GetWorkingDirectory();
+                                    remote_file.GetFilename() = module_sp->GetFileSpec().GetFilename();
+                                }
+                            }
+                            if (remote_file)
+                            {
+                                error = platform_sp->Install(local_file, remote_file);
+                                if (error.Success())
+                                {
+                                    module_sp->SetPlatformFileSpec(remote_file);
+                                    if (is_main_executable)
+                                    {
+                                        if (launch_info)
+                                            launch_info->SetExecutableFile(remote_file, false);
+                                    }
+                                }
+                                else
+                                    break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return error;
+}
 
 //--------------------------------------------------------------
-// class Target::StopHook
+// Target::StopHook
 //--------------------------------------------------------------
-
-
 Target::StopHook::StopHook (lldb::TargetSP target_sp, lldb::user_id_t uid) :
         UserID (uid),
         m_target_sp (target_sp),
@@ -2519,6 +2593,9 @@ protected:
     mutable bool m_got_host_env;
 };
 
+//----------------------------------------------------------------------
+// TargetProperties
+//----------------------------------------------------------------------
 TargetProperties::TargetProperties (Target *target) :
     Properties ()
 {
@@ -2807,17 +2884,10 @@ TargetProperties::GetMemoryModuleLoadLevel() const
 }
 
 
-const TargetPropertiesSP &
-Target::GetGlobalProperties()
-{
-    static TargetPropertiesSP g_settings_sp;
-    if (!g_settings_sp)
-    {
-        g_settings_sp.reset (new TargetProperties (NULL));
-    }
-    return g_settings_sp;
-}
 
+//----------------------------------------------------------------------
+// Target::TargetEventData
+//----------------------------------------------------------------------
 const ConstString &
 Target::TargetEventData::GetFlavorString ()
 {

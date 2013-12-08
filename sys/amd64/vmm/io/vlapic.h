@@ -95,10 +95,10 @@ int vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data);
 int vlapic_pending_intr(struct vlapic *vlapic);
 void vlapic_intr_accepted(struct vlapic *vlapic, int vector);
 void vlapic_set_intr_ready(struct vlapic *vlapic, int vector, bool level);
-int vlapic_timer_tick(struct vlapic *vlapic);
 
 uint64_t vlapic_get_apicbase(struct vlapic *vlapic);
 void vlapic_set_apicbase(struct vlapic *vlapic, uint64_t val);
 void vlapic_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state s);
+bool vlapic_enabled(struct vlapic *vlapic);
 
 #endif	/* _VLAPIC_H_ */

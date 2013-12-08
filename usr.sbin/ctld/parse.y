@@ -300,7 +300,7 @@ auth_group_statement:	AUTH_GROUP STR
 				log_warnx("auth-group for target \"%s\" "
 				    "specified more than once", target->t_iqn);
 			else
-				log_warnx("cannot mix auth-grup with explicit "
+				log_warnx("cannot mix auth-group with explicit "
 				    "authorisations for target \"%s\"",
 				    target->t_iqn);
 			return (1);
@@ -321,7 +321,7 @@ chap_statement:	CHAP STR STR
 
 		if (target->t_auth_group != NULL) {
 			if (target->t_auth_group->ag_name != NULL) {
-				log_warnx("cannot mix auth-grup with explicit "
+				log_warnx("cannot mix auth-group with explicit "
 				    "authorisations for target \"%s\"",
 				    target->t_iqn);
 				free($2);
@@ -351,7 +351,7 @@ chap_mutual_statement:	CHAP_MUTUAL STR STR STR STR
 
 		if (target->t_auth_group != NULL) {
 			if (target->t_auth_group->ag_name != NULL) {
-				log_warnx("cannot mix auth-grup with explicit "
+				log_warnx("cannot mix auth-group with explicit "
 				    "authorisations for target \"%s\"",
 				    target->t_iqn);
 				free($2);

@@ -32,6 +32,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." mustberoot.subr
 f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/strings.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
@@ -77,6 +78,7 @@ SECURE_DIVULGE_UNKNOWN_USER=
 #
 f_become_root_via_sudo()
 {
+	local funcname=f_become_root_via_sudo
 	local prompt hline height width rows msg
 
 	[ "$( id -u )" = "0" ] && return $SUCCESS
@@ -90,8 +92,8 @@ f_become_root_via_sudo()
 	#
 	local checkpath="${HOME%/}/.bsdconfig_uses_sudo"
 	if [ ! -e "$checkpath" ]; then
-		prompt=$( printf "$msg_you_are_not_root_but" bsdconfig )
-		msg=$( printf "$msg_always_try_sudo_when_run_as" "$USER" )
+		f_sprintf prompt "$msg_you_are_not_root_but" bsdconfig
+		f_sprintf msg "$msg_always_try_sudo_when_run_as" "$USER"
 		local menu_list="
 			'X' '$msg_cancel_exit'
 			'1' '$msg'
@@ -124,12 +126,9 @@ f_become_root_via_sudo()
 		X) # Cancel/Exit
 		   f_die ;;
 		1) # Always try sudo(8) when run as $user
-			local err
-			if ! err=$( touch "$checkpath" 2>&1 ); then
-				f_dialog_msgbox "$err"
-			else
+			f_eval_catch $funcname touch \
+				'touch "%s"' "$checkpath" &&
 				f_show_msg "$msg_created_path" "$checkpath"
-			fi
 		esac
 	else
 		#
@@ -225,7 +224,7 @@ f_become_root_via_sudo()
 		# the security event and exit immediately.
 		#
 		if [ $nfailures -ge $PASSWD_TRIES ]; then
-			msg=$( printf "$msg_nfailed_attempts" "$nfailures" )
+			f_sprintf msg "$msg_nfailed_attempts" "$nfailures"
 			logger -p auth.notice -t sudo " " \
 				"$USER : $msg" \
 				"; TTY=$(tty)" \
@@ -387,7 +386,7 @@ f_authenticate_some_user()
 	# the security event and exit immediately.
 	#
 	if [ $nfailures -ge $PASSWD_TRIES ]; then
-		msg=$( printf "$msg_nfailed_attempts" "$nfailures" )
+		f_sprintf msg "$msg_nfailed_attempts" "$nfailures"
 		logger -p auth.notice -t sudo " " \
 			"${SUDO_USER:-$USER} : $msg" \
 			"; TTY=$(tty)"               \

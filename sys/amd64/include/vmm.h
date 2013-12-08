@@ -156,7 +156,7 @@ vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 }
 
 void *vcpu_stats(struct vm *vm, int vcpu);
-void vm_interrupt_hostcpu(struct vm *vm, int vcpu);
+void vcpu_notify_event(struct vm *vm, int vcpuid);
 struct vmspace *vm_get_vmspace(struct vm *vm);
 int vm_assign_pptdev(struct vm *vm, int bus, int slot, int func);
 int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
@@ -264,6 +264,7 @@ enum vm_exitcode {
 	VM_EXITCODE_PAGING,
 	VM_EXITCODE_INST_EMUL,
 	VM_EXITCODE_SPINUP_AP,
+	VM_EXITCODE_SPINDOWN_CPU,
 	VM_EXITCODE_MAX
 };
 
@@ -283,7 +284,6 @@ struct vm_exit {
 		struct {
 			uint64_t	gpa;
 			int		fault_type;
-			int		protection;
 		} paging;
 		struct {
 			uint64_t	gpa;
@@ -308,6 +308,9 @@ struct vm_exit {
 			int		vcpu;
 			uint64_t	rip;
 		} spinup_ap;
+		struct {
+			uint64_t	rflags;
+		} hlt;
 	} u;
 };
 

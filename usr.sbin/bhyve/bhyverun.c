@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/time.h>
 
+#include <machine/atomic.h>
 #include <machine/segments.h>
 
 #include <stdio.h>
@@ -84,8 +85,6 @@ int guest_ncpus;
 static int pincpu = -1;
 static int guest_vmexit_on_hlt, guest_vmexit_on_pause, disable_x2apic;
 static int virtio_msix = 1;
-
-static int foundcpus;
 
 static int strictio;
 
@@ -210,8 +209,7 @@ fbsdrun_addcpu(struct vmctx *ctx, int vcpu, uint64_t rip)
 		exit(1);
 	}
 
-	cpumask |= 1 << vcpu;
-	foundcpus++;
+	atomic_set_int(&cpumask, 1 << vcpu);
 
 	/*
 	 * Set up the vmexit struct to allow execution to start
@@ -226,6 +224,20 @@ fbsdrun_addcpu(struct vmctx *ctx, int vcpu, uint64_t rip)
 	error = pthread_create(&mt_vmm_info[vcpu].mt_thr, NULL,
 	    fbsdrun_start_thread, &mt_vmm_info[vcpu]);
 	assert(error == 0);
+}
+
+static int
+fbsdrun_deletecpu(struct vmctx *ctx, int vcpu)
+{
+
+	if ((cpumask & (1 << vcpu)) == 0) {
+		fprintf(stderr, "addcpu: attempting to delete unknown cpu %d\n",
+		    vcpu);
+		exit(1);
+	}
+
+	atomic_clear_int(&cpumask, 1 << vcpu);
+	return (cpumask == 0);
 }
 
 static int
@@ -327,6 +339,17 @@ vmexit_spinup_ap(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 }
 
 static int
+vmexit_spindown_cpu(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
+{
+	int lastcpu;
+
+	lastcpu = fbsdrun_deletecpu(ctx, *pvcpu);
+	if (!lastcpu)
+		pthread_exit(NULL);
+	return (vmexit_catch_reset());
+}
+
+static int
 vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
 
@@ -417,6 +440,7 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_MTRAP]  = vmexit_mtrap,
 	[VM_EXITCODE_INST_EMUL] = vmexit_inst_emul,
 	[VM_EXITCODE_SPINUP_AP] = vmexit_spinup_ap,
+	[VM_EXITCODE_SPINDOWN_CPU] = vmexit_spindown_cpu,
 };
 
 static void

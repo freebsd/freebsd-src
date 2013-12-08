@@ -1483,6 +1483,7 @@ ctl_be_block_close(struct ctl_be_block_lun *be_lun)
 		case CTL_BE_BLOCK_FILE:
 			break;
 		case CTL_BE_BLOCK_NONE:
+			break;
 		default:
 			panic("Unexpected backend type.");
 			break;
@@ -1501,6 +1502,7 @@ ctl_be_block_close(struct ctl_be_block_lun *be_lun)
 			}
 			break;
 		case CTL_BE_BLOCK_NONE:
+			break;
 		default:
 			panic("Unexpected backend type.");
 			break;
@@ -1587,7 +1589,7 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 	} else {
 		error = EINVAL;
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s is not a disk or file", be_lun->dev_path);
+			 "%s is not a disk or plain file", be_lun->dev_path);
 	}
 	VOP_UNLOCK(be_lun->vn, 0);
 

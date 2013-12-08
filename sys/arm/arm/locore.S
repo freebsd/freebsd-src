@@ -391,6 +391,7 @@ Ltag:
 	mrc	p15, 0, r0, c1, c0, 0
 #if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
 	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
+	orr	r0, r0, #CPU_CONTROL_AF_ENABLE
 #endif
 	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE)
 	mcr	p15, 0, r0, c1, c0, 0

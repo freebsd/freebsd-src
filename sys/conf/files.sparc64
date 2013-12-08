@@ -39,7 +39,7 @@ dev/fb/fb.c			optional	sc
 dev/fb/gallant12x22.c		optional	sc
 dev/fb/machfb.c			optional	machfb sc
 dev/hwpmc/hwpmc_sparc64.c	optional	hwpmc
-dev/kbd/kbd.c			optional	atkbd | sc | ukbd
+dev/kbd/kbd.c			optional	atkbd | sc | ukbd | vt
 dev/le/if_le_lebuffer.c		optional	le sbus
 dev/le/if_le_ledma.c		optional	le sbus
 dev/le/lebuffer_sbus.c		optional	le sbus
@@ -59,7 +59,8 @@ dev/syscons/scgfbrndr.c		optional	sc
 dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvtb.c		optional	sc
 dev/uart/uart_cpu_sparc64.c	optional	uart
-dev/uart/uart_kbd_sun.c		optional	uart sc
+dev/uart/uart_kbd_sun.c		optional	uart sc | vt
+dev/vt/hw/ofwfb/ofwfb.c		optional	vt
 kern/kern_clocksource.c		standard
 kern/subr_dummy_vdso_tc.c	standard
 kern/syscalls.c			optional	ktr
