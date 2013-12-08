@@ -220,7 +220,7 @@
 	movq	PCPU(CURTHREAD),%rdi ;\
 	movq	%rsp, TD_FRAME(%rdi) ;\
 	movl	TF_RFLAGS(%rsp),%esi ;\
-	andl	$PSL_T,%esi	     ;\
+	andq	$PSL_T, %rsi	     ;\
 	call	amd64_syscall
 
 #define SYSRET \
@@ -564,8 +564,7 @@ IDTVEC(syscall_callback)
 	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
 	movq	%r11, TF_RFLAGS(%rsp) ; /* Tweak for INTR_EXIT */
-	movq	%r10, %rcx	; /* Translate to C abi */
-	movq	%rcx, TF_RCX(%rsp) ; /* Cosmetic. XXX: discard */
+	movq	%r10, TF_RCX(%rsp) ; /* Translate to C abi. see trap.c:cpu_fetch_syscall_args() */
 	DO_STI_MAYBE		; /* Clobbers %rdi */
 	movq	TF_RDI(%rsp), %rdi ;
 	CALLSYSCALL		;
