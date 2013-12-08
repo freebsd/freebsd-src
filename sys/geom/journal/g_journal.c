@@ -168,7 +168,7 @@ SYSCTL_UINT(_kern_geom_journal_cache, OID_AUTO, divisor, CTLFLAG_RDTUN,
 static int
 g_journal_cache_switch_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	int cswitch;
+	u_int cswitch;
 	int error;
 
 	cswitch = g_journal_cache_switch;
