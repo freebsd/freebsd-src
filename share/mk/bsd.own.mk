@@ -656,10 +656,6 @@ CC+=	--sysroot=${SYSROOT}
 .endif
 # XXXRW: Needed as Clang rejects -G0 when using $CC to link.
 CFLAGS+=	-Qunused-arguments
-# XXXRW: Until ELF types are right
-LDFLAGS+=	-Wl,--no-warn-mismatch
-.else
-.error CHERI_CC must be set is USE_CHERI is defined
 .endif
 .endif
 .endif
