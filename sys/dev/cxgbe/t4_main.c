@@ -3157,7 +3157,7 @@ port_full_init(struct port_info *pi)
 	struct ifnet *ifp = pi->ifp;
 	uint16_t *rss;
 	struct sge_rxq *rxq;
-	int rc, i;
+	int rc, i, j;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 	KASSERT((pi->flags & PORT_INIT_DONE) == 0,
@@ -3174,21 +3174,25 @@ port_full_init(struct port_info *pi)
 		goto done;	/* error message displayed already */
 
 	/*
-	 * Setup RSS for this port.
+	 * Setup RSS for this port.  Save a copy of the RSS table for later use.
 	 */
-	rss = malloc(pi->nrxq * sizeof (*rss), M_CXGBE,
-	    M_ZERO | M_WAITOK);
-	for_each_rxq(pi, i, rxq) {
-		rss[i] = rxq->iq.abs_id;
+	rss = malloc(pi->rss_size * sizeof (*rss), M_CXGBE, M_ZERO | M_WAITOK);
+	for (i = 0; i < pi->rss_size;) {
+		for_each_rxq(pi, j, rxq) {
+			rss[i++] = rxq->iq.abs_id;
+			if (i == pi->rss_size)
+				break;
+		}
 	}
-	rc = -t4_config_rss_range(sc, sc->mbox, pi->viid, 0,
-	    pi->rss_size, rss, pi->nrxq);
-	free(rss, M_CXGBE);
+
+	rc = -t4_config_rss_range(sc, sc->mbox, pi->viid, 0, pi->rss_size, rss,
+	    pi->rss_size);
 	if (rc != 0) {
 		if_printf(ifp, "rss_config failed: %d\n", rc);
 		goto done;
 	}
 
+	pi->rss = rss;
 	pi->flags |= PORT_INIT_DONE;
 done:
 	if (rc != 0)
@@ -3237,6 +3241,7 @@ port_full_uninit(struct port_info *pi)
 			quiesce_fl(sc, &ofld_rxq->fl);
 		}
 #endif
+		free(pi->rss, M_CXGBE);
 	}
 
 	t4_teardown_port_queues(pi);

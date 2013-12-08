@@ -200,6 +200,7 @@ struct port_info {
 	unsigned long flags;
 	int if_flags;
 
+	uint16_t *rss;
 	uint16_t viid;
 	int16_t  xact_addr_filt;/* index of exact MAC address filter */
 	uint16_t rss_size;	/* size of VI's RSS table slice */
