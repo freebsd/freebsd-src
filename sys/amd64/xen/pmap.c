@@ -761,6 +761,7 @@ pmap_pinit0(pmap_t pmap)
 	PCPU_SET(curpmap, pmap);
 	pmap_pv_pmap_init(pmap);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
+	pmap->pm_pcid = -1;
 }
 
 int
@@ -815,6 +816,7 @@ void pmap_xen_userload(pmap_t pmap)
 		PT_SET_VA_MA((pml4_entry_t *)KPML4phys + i, pml4e, false);
 	}
 	PT_UPDATES_FLUSH();
+	invltlb();
 
 	/* Tell xen about user pmap switch */
 	xen_pt_user_switch(pmap->pm_cr3);
@@ -826,13 +828,18 @@ pmap_release(pmap_t pmap)
 	KASSERT(pmap != kernel_pmap,
 		("%s: kernel pmap released", __func__));
 
+	KASSERT(pmap->pm_stats.resident_count == 0,
+	    ("pmap_release: pmap resident count %ld != 0",
+	    pmap->pm_stats.resident_count));
+
+	KASSERT(vm_radix_is_empty(&pmap->pm_root),
+	    ("pmap_release: pmap has reserved page table page(s)"));
+
 	xen_pgdir_unpin(pmap->pm_cr3);
 	pmap_xen_setpages_rw((uintptr_t)pmap->pm_pml4, 1);
 
 	bzero(pmap->pm_pml4, PAGE_SIZE);
 	kmem_free(kernel_arena, (vm_offset_t)pmap->pm_pml4, PAGE_SIZE);
-
-	PMAP_LOCK_DESTROY(pmap);
 }
 
 static pt_entry_t *
@@ -1004,8 +1011,6 @@ pmap_qremove(vm_offset_t sva, int count)
 	xen_flush_queue();
 	// XXX: TODO: pmap_invalidate_range(kernel_pmap, sva, va);
 }
-
-#include <ddb/ddb.h>
 
 static void
 pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
