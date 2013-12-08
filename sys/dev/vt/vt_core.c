@@ -794,6 +794,7 @@ vtterm_done(struct terminal *tm)
 	}
 }
 
+#ifdef DEV_SPLASH
 static void
 vtterm_splash(struct vt_device *vd)
 {
@@ -813,6 +814,7 @@ vtterm_splash(struct vt_device *vd)
 		vd->vd_flags |= VDF_SPLASH;
 	}
 }
+#endif
 
 static void
 vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
@@ -845,7 +847,9 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 	vt_winsize(vd, vw->vw_font, &wsz);
 	terminal_set_winsize(tm, &wsz);
 
+#ifdef DEV_SPLASH
 	vtterm_splash(vd);
+#endif
 
 	vd->vd_flags |= VDF_INITIALIZED;
 	main_vd = vd;
@@ -1788,8 +1792,10 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	/* Refill settings with new sizes. */
 	vt_resize(vd);
 
+#ifdef DEV_SPLASH
 	if (vd->vd_flags & VDF_SPLASH)
 		vtterm_splash(vd);
+#endif
 
 	if (vd->vd_curwindow != NULL)
 		callout_schedule(&vd->vd_timer, hz / VT_TIMERFREQ);
