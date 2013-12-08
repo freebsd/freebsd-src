@@ -3157,6 +3157,9 @@ cxx_init_decl_processing (void)
     }
   if (flag_inline_functions)
     flag_inline_trees = 2;
+  
+  if (flag_visibility_ms_compat)
+   default_visibility = VISIBILITY_HIDDEN;
 
   /* Initially, C.  */
   current_lang_name = lang_name_c;

@@ -7,6 +7,13 @@
 	* typeck.c (cxx_alignof_expr): When alignof is used on a plain
 	FUNCTION_DECL, return its alignment.
 
+2007-06-28  Geoffrey Keating  <geoffk@apple.com> (r126088)
+
+	* decl2.c (determine_visibility): Implement
+	flag_visibility_ms_compat effect on type info.
+	* decl.c (cxx_init_decl_processing): Implement
+	global effect of flag_visibility_ms_compat.
+
 2007-06-28  Geoffrey Keating  <geoffk@apple.com> (r126080)
 
 	* decl2.c (start_objects): Mark constructor-runnning function
