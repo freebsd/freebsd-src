@@ -314,7 +314,7 @@ sys_jail(struct thread *td, struct jail_args *uap)
 		j.version = j0.version;
 		j.path = j0.path;
 		j.hostname = j0.hostname;
-		j.ip4s = j0.ip_number;
+		j.ip4s = htonl(j0.ip_number);	/* jail_v0 is host order */
 		break;
 	}
 

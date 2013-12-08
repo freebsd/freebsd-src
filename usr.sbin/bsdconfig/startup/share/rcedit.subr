@@ -32,6 +32,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." startup/rcedit.subr
 f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/strings.subr
 f_include $BSDCFG_SHARE/sysrc.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="140.startup"
@@ -54,10 +55,11 @@ f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 #
 f_dialog_rcedit()
 {
+	local funcname=f_dialog_rcedit
 	local msg var="$1" _input
 
-	msg=$( printf "$msg_please_enter_a_new_value" \
-	              "$var" "$( f_sysrc_get_default "$var" )" )
+	f_sprintf msg "$msg_please_enter_a_new_value" \
+	              "$var" "$( f_sysrc_get_default "$var" )"
 
 	shift 1 # var
 	if [ "$1" ]; then
@@ -77,7 +79,8 @@ f_dialog_rcedit()
 
 	f_dprintf "%s: [%s]->[%s]" "$var" "$cur_val" "$_input"
 
-	err=$( f_sysrc_set "$var" "$_input" 2>&1 ) || f_dialog_msgbox "$err"
+	f_eval_catch $funcname f_sysrc_set \
+		'f_sysrc_set "%s" "%s"' "$var" "$_input"
 }
 
 ############################################################ MAIN

@@ -99,12 +99,22 @@ struct vdev_cache {
 	kmutex_t	vc_lock;
 };
 
+typedef struct vdev_queue_class {
+	uint32_t	vqc_active;
+
+	/*
+	 * Sorted by offset or timestamp, depending on if the queue is
+	 * LBA-ordered vs FIFO.
+	 */
+	avl_tree_t	vqc_queued_tree;
+} vdev_queue_class_t;
+
 struct vdev_queue {
-	avl_tree_t	vq_deadline_tree;
-	avl_tree_t	vq_read_tree;
-	avl_tree_t	vq_write_tree;
-	avl_tree_t	vq_pending_tree;
-	hrtime_t	vq_io_complete_ts;
+	vdev_t		*vq_vdev;
+	vdev_queue_class_t vq_class[ZIO_PRIORITY_NUM_QUEUEABLE];
+	avl_tree_t	vq_active_tree;
+	uint64_t	vq_last_offset;
+	hrtime_t	vq_io_complete_ts; /* time last i/o completed */
 	kmutex_t	vq_lock;
 	uint64_t	vq_lastoffset;
 };
@@ -153,7 +163,6 @@ struct vdev {
 	vdev_t		*vdev_parent;	/* parent vdev			*/
 	vdev_t		**vdev_child;	/* array of children		*/
 	uint64_t	vdev_children;	/* number of children		*/
-	space_map_t	vdev_dtl[DTL_TYPES]; /* in-core dirty time logs	*/
 	vdev_stat_t	vdev_stat;	/* virtual device statistics	*/
 	boolean_t	vdev_expanding;	/* expand the vdev?		*/
 	boolean_t	vdev_reopening;	/* reopen in progress?		*/
@@ -174,19 +183,21 @@ struct vdev {
 	txg_node_t	vdev_txg_node;	/* per-txg dirty vdev linkage	*/
 	boolean_t	vdev_remove_wanted; /* async remove wanted?	*/
 	boolean_t	vdev_probe_wanted; /* async probe wanted?	*/
-	uint64_t	vdev_removing;	/* device is being removed?	*/
 	list_node_t	vdev_config_dirty_node; /* config dirty list	*/
 	list_node_t	vdev_state_dirty_node; /* state dirty list	*/
 	uint64_t	vdev_deflate_ratio; /* deflation ratio (x512)	*/
 	uint64_t	vdev_islog;	/* is an intent log device	*/
-	uint64_t	vdev_ishole;	/* is a hole in the namespace 	*/
+	uint64_t	vdev_removing;	/* device is being removed?	*/
+	boolean_t	vdev_ishole;	/* is a hole in the namespace 	*/
 
 	/*
 	 * Leaf vdev state.
 	 */
-	uint64_t	vdev_psize;	/* physical device capacity	*/
-	space_map_obj_t	vdev_dtl_smo;	/* dirty time log space map obj	*/
+	range_tree_t	*vdev_dtl[DTL_TYPES]; /* dirty time logs	*/
+	space_map_t	*vdev_dtl_sm;	/* dirty time log space map	*/
 	txg_node_t	vdev_dtl_node;	/* per-txg dirty DTL linkage	*/
+	uint64_t	vdev_dtl_object; /* DTL object			*/
+	uint64_t	vdev_psize;	/* physical device capacity	*/
 	uint64_t	vdev_wholedisk;	/* true if this is a whole disk */
 	uint64_t	vdev_offline;	/* persistent offline state	*/
 	uint64_t	vdev_faulted;	/* persistent faulted state	*/
@@ -200,19 +211,18 @@ struct vdev {
 	char		*vdev_fru;	/* physical FRU location	*/
 	uint64_t	vdev_not_present; /* not present during import	*/
 	uint64_t	vdev_unspare;	/* unspare when resilvering done */
-	hrtime_t	vdev_last_try;	/* last reopen time		*/
 	boolean_t	vdev_nowritecache; /* true if flushwritecache failed */
 	boolean_t	vdev_notrim;	/* true if trim failed */
 	boolean_t	vdev_checkremove; /* temporary online test	*/
 	boolean_t	vdev_forcefault; /* force online fault		*/
 	boolean_t	vdev_splitting;	/* split or repair in progress  */
 	boolean_t	vdev_delayed_close; /* delayed device close?	*/
-	uint8_t		vdev_tmpoffline; /* device taken offline temporarily? */
-	uint8_t		vdev_detached;	/* device detached?		*/
-	uint8_t		vdev_cant_read;	/* vdev is failing all reads	*/
-	uint8_t		vdev_cant_write; /* vdev is failing all writes	*/
-	uint64_t	vdev_isspare;	/* was a hot spare		*/
-	uint64_t	vdev_isl2cache;	/* was a l2cache device		*/
+	boolean_t	vdev_tmpoffline; /* device taken offline temporarily? */
+	boolean_t	vdev_detached;	/* device detached?		*/
+	boolean_t	vdev_cant_read;	/* vdev is failing all reads	*/
+	boolean_t	vdev_cant_write; /* vdev is failing all writes	*/
+	boolean_t	vdev_isspare;	/* was a hot spare		*/
+	boolean_t	vdev_isl2cache;	/* was a l2cache device		*/
 	vdev_queue_t	vdev_queue;	/* I/O deadline schedule queue	*/
 	vdev_cache_t	vdev_cache;	/* physical block cache		*/
 	spa_aux_vdev_t	*vdev_aux;	/* for l2cache vdevs		*/
@@ -317,9 +327,11 @@ extern void vdev_remove_parent(vdev_t *cvd);
 extern void vdev_load_log_state(vdev_t *nvd, vdev_t *ovd);
 extern boolean_t vdev_log_state_valid(vdev_t *vd);
 extern void vdev_load(vdev_t *vd);
+extern int vdev_dtl_load(vdev_t *vd);
 extern void vdev_sync(vdev_t *vd, uint64_t txg);
 extern void vdev_sync_done(vdev_t *vd, uint64_t txg);
 extern void vdev_dirty(vdev_t *vd, int flags, void *arg, uint64_t txg);
+extern void vdev_dirty_leaves(vdev_t *vd, int flags, uint64_t txg);
 
 /*
  * Available vdev types.

@@ -1440,7 +1440,7 @@ Optional Packages:
   --with-ldap-lib=path    path to ldap lib file
   --with-ldap=library     ldap library to use
   --with-dbm=DBM          choose the DBM type to use.
-                          DBM={sdbm,gdbm,ndbm,db,db1,db185,db2,db3,db4,db4X,db5X}
+                          DBM={sdbm,gdbm,ndbm,db,db1,db185,db2,db3,db4,db4X,db5X,db6X}
                           for some X=0,...,9
   --with-gdbm=DIR         enable GDBM support
   --with-ndbm=PATH        Find the NDBM header and library in `PATH/include'
@@ -11218,8 +11218,10 @@ fi
 
       fi
 
-      test ${apu_has_ldap} != "1" && as_fn_error $? "could not find an LDAP library" "$LINENO" 5
-      test ${apu_has_ldap} == "1" &&
+      if test ${apu_has_ldap} != "1"; then
+        as_fn_error $? "could not find an LDAP library" "$LINENO" 5
+      else
+
   if test "x$LDADD_ldap" = "x"; then
     test "x$silent" != "xyes" && echo "  setting LDADD_ldap to \"$LDADD_ldap_found\""
     LDADD_ldap="$LDADD_ldap_found"
@@ -11240,6 +11242,7 @@ fi
     done
   fi
 
+      fi
       as_ac_Lib=`$as_echo "ac_cv_lib_$apu_liblber_name''_ber_init" | $as_tr_sh`
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ber_init in -l$apu_liblber_name" >&5
 $as_echo_n "checking for ber_init in -l$apu_liblber_name... " >&6; }
@@ -11617,6 +11620,7 @@ fi
     dbm_list="$dbm_list, db$db_version"
     db_version=`expr $db_version + 1`
   done
+  dbm_list="$dbm_list, db60"
 
 
 # Check whether --with-dbm was given.
@@ -15708,7 +15712,7 @@ fi
       as_fn_error $? "Berkeley db3 not found" "$LINENO" 5
     fi
     ;;
-  db[45][0-9])
+  db[456][0-9])
     db_major=`echo "$requested" | sed -e 's/db//' -e 's/.$//'`
     db_minor=`echo "$requested" | sed -e 's/db//' -e 's/.//'`
 
@@ -16113,7 +16117,7 @@ fi
       as_fn_error $? "Berkeley db$db_major not found" "$LINENO" 5
     fi
     ;;
-  db[45])
+  db[456])
     db_major=`echo "$requested" | sed -e 's/db//'`
     # Start version search at version x.9
     db_minor=9
@@ -18561,11 +18565,11 @@ fi
       eval "apu_use_$requested=1"
       apu_default_dbm=$requested
       ;;
-    db185 | db[12345])
+    db185 | db[123456])
       apu_use_db=1
       apu_default_dbm=$requested
       ;;
-    db[45][0-9])
+    db[456][0-9])
       apu_use_db=1
       apu_default_dbm=`echo $requested | sed -e 's/.$//'`
       ;;

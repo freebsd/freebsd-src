@@ -94,17 +94,16 @@ lpc_uart_intr_assert(void *arg)
 
 	assert(sc->irq >= 0);
 
-	vm_ioapic_assert_irq(lpc_bridge->pi_vmctx, sc->irq);
+	vm_ioapic_pulse_irq(lpc_bridge->pi_vmctx, sc->irq);
 }
 
 static void
 lpc_uart_intr_deassert(void *arg)
 {
-	struct lpc_uart_softc *sc = arg;
-
-	assert(sc->irq >= 0);
-
-	vm_ioapic_deassert_irq(lpc_bridge->pi_vmctx, sc->irq);
+	/* 
+	 * The COM devices on the LPC bus generate edge triggered interrupts,
+	 * so nothing more to do here.
+	 */
 }
 
 static int

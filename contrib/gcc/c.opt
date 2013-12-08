@@ -494,6 +494,10 @@ fdefault-inline
 C++ ObjC++
 Inline member functions by default
 
+fdirectives-only
+C ObjC C++ ObjC++
+Preprocess directives only.
+
 fdollars-in-identifiers
 C ObjC C++ ObjC++
 Permit '$' as an identifier character
@@ -579,6 +583,10 @@ Inject friend functions into enclosing namespace
 
 flabels-ok
 C++ ObjC++
+
+flax-vector-conversions
+C ObjC C++ ObjC++
+Allow implicit conversions between vectors with differing numbers of subparts and/or differing element types.
 
 fms-extensions
 C ObjC C++ ObjC++

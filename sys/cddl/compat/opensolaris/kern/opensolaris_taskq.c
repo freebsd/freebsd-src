@@ -46,7 +46,7 @@ static void
 system_taskq_init(void *arg)
 {
 
-	taskq_zone = uma_zcreate("taskq_zone", sizeof(struct ostask),
+	taskq_zone = uma_zcreate("taskq_zone", sizeof(taskq_ent_t),
 	    NULL, NULL, NULL, NULL, 0, 0);
 	system_taskq = taskq_create("system_taskq", mp_ncpus, 0, 0, 0, 0);
 }
@@ -104,9 +104,9 @@ taskq_member(taskq_t *tq, kthread_t *thread)
 static void
 taskq_run(void *arg, int pending __unused)
 {
-	struct ostask *task = arg;
+	taskq_ent_t *task = arg;
 
-	task->ost_func(task->ost_arg);
+	task->tqent_func(task->tqent_arg);
 
 	uma_zfree(taskq_zone, task);
 }
@@ -114,14 +114,14 @@ taskq_run(void *arg, int pending __unused)
 taskqid_t
 taskq_dispatch(taskq_t *tq, task_func_t func, void *arg, uint_t flags)
 {
-	struct ostask *task;
+	taskq_ent_t *task;
 	int mflag, prio;
 
 	if ((flags & (TQ_SLEEP | TQ_NOQUEUE)) == TQ_SLEEP)
 		mflag = M_WAITOK;
 	else
 		mflag = M_NOWAIT;
-	/* 
+	/*
 	 * If TQ_FRONT is given, we want higher priority for this task, so it
 	 * can go at the front of the queue.
 	 */
@@ -131,42 +131,44 @@ taskq_dispatch(taskq_t *tq, task_func_t func, void *arg, uint_t flags)
 	if (task == NULL)
 		return (0);
 
-	task->ost_func = func;
-	task->ost_arg = arg;
+	task->tqent_func = func;
+	task->tqent_arg = arg;
 
-	TASK_INIT(&task->ost_task, prio, taskq_run, task);
-	taskqueue_enqueue(tq->tq_queue, &task->ost_task);
+	TASK_INIT(&task->tqent_task, prio, taskq_run, task);
+	taskqueue_enqueue(tq->tq_queue, &task->tqent_task);
 
 	return ((taskqid_t)(void *)task);
 }
 
-#define	TASKQ_MAGIC	0x74541c
-
 static void
-taskq_run_safe(void *arg, int pending __unused)
+taskq_run_ent(void *arg, int pending __unused)
 {
-	struct ostask *task = arg;
+	taskq_ent_t *task = arg;
 
-	task->ost_func(task->ost_arg);
+	task->tqent_func(task->tqent_arg);
 }
 
-taskqid_t
-taskq_dispatch_safe(taskq_t *tq, task_func_t func, void *arg, u_int flags,
-    struct ostask *task)
+void
+taskq_dispatch_ent(taskq_t *tq, task_func_t func, void *arg, u_int flags,
+    taskq_ent_t *task)
 {
 	int prio;
 
-	/* 
+	/*
 	 * If TQ_FRONT is given, we want higher priority for this task, so it
 	 * can go at the front of the queue.
 	 */
 	prio = !!(flags & TQ_FRONT);
 
-	task->ost_func = func;
-	task->ost_arg = arg;
+	task->tqent_func = func;
+	task->tqent_arg = arg;
 
-	TASK_INIT(&task->ost_task, prio, taskq_run_safe, task);
-	taskqueue_enqueue(tq->tq_queue, &task->ost_task);
+	TASK_INIT(&task->tqent_task, prio, taskq_run_ent, task);
+	taskqueue_enqueue(tq->tq_queue, &task->tqent_task);
+}
 
-	return ((taskqid_t)(void *)task);
+void
+taskq_wait(taskq_t *tq)
+{
+	taskqueue_drain_all(tq->tq_queue);
 }

@@ -34,8 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kdtrace.h"
-
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/proc.h>
@@ -88,12 +86,6 @@ static void	syscall(struct trapframe *frame);
 static int	handle_user_slb_spill(pmap_t pm, vm_offset_t addr);
 extern int	n_slbs;
 #endif
-
-int	setfault(faultbuf);		/* defined in locore.S */
-
-/* Why are these not defined in a header? */
-int	badaddr(void *, size_t);
-int	badaddr_read(void *, size_t, int *);
 
 struct powerpc_exception {
 	u_int	vector;
@@ -690,59 +682,6 @@ trap_pfault(struct trapframe *frame, int user)
 		return (0);
 
 	return (SIGSEGV);
-}
-
-int
-badaddr(void *addr, size_t size)
-{
-	return (badaddr_read(addr, size, NULL));
-}
-
-int
-badaddr_read(void *addr, size_t size, int *rptr)
-{
-	struct thread	*td;
-	faultbuf	env;
-	int		x;
-
-	/* Get rid of any stale machine checks that have been waiting.  */
-	__asm __volatile ("sync; isync");
-
-	td = curthread;
-
-	if (setfault(env)) {
-		td->td_pcb->pcb_onfault = 0;
-		__asm __volatile ("sync");
-		return 1;
-	}
-
-	__asm __volatile ("sync");
-
-	switch (size) {
-	case 1:
-		x = *(volatile int8_t *)addr;
-		break;
-	case 2:
-		x = *(volatile int16_t *)addr;
-		break;
-	case 4:
-		x = *(volatile int32_t *)addr;
-		break;
-	default:
-		panic("badaddr: invalid size (%zd)", size);
-	}
-
-	/* Make sure we took the machine check, if we caused one. */
-	__asm __volatile ("sync; isync");
-
-	td->td_pcb->pcb_onfault = 0;
-	__asm __volatile ("sync");	/* To be sure. */
-
-	/* Use the value to avoid reorder. */
-	if (rptr)
-		*rptr = x;
-
-	return (0);
 }
 
 /*

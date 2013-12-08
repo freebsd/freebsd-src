@@ -326,6 +326,7 @@ s/\$//g
 		for (cap in capenabled) {
 			if (funcname == capenabled[cap]) {
 				flags = "SYF_CAPENABLED";
+				break;
 			}
 		}
 

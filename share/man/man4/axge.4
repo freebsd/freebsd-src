@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2013
+.Dd November 22, 2013
 .Dt AXGE 4
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@ To compile this driver into the kernel,
 place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
+.Cd "device xhci"
 .Cd "device ehci"
 .Cd "device uhci"
 .Cd "device ohci"

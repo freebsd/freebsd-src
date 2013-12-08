@@ -177,16 +177,13 @@
 	bugs may generate some problems.  Perusal of the archives of
 	the &a.smp; may yield some clues.</para>
 
-      <para>&os; will take advantage of HyperThreading (HTT) support
-	on &intel; CPUs that support this feature.  The
-	default &os; scheduler treats the logical processors the same
-	as additional physical processors; in other words, no attempt
-	is made to optimize scheduling decisions given the shared
-	resources between logical processors within the same CPU.
-	Because this naive scheduling can result in suboptimal
-	performance, under certain circumstances it may be useful to
-	disable the logical processors with the
-	<varname>machdep.hyperthreading_allowed</varname> tunable.
+      <para>&os; will take advantage of SMT (Symmetric MultiThreading,
+	also known as HyperThreading on &intel; CPUs) on the supported
+	CPUs.  The <filename>GENERIC</filename> kernel which is
+	installed by default will automatically detect the additional
+	logical processors.  The default &os; scheduler recognizes
+	processor topology on the system and selects logical and
+	physical processors to obtain optimal performance.
 	The &man.smp.4; manual page has more details.</para>
 
       <para>&os; will take advantage of Physical Address Extensions

@@ -3092,6 +3092,7 @@ validate:
 
 		if (prot & VM_PROT_WRITE) {
 			if ((m->oflags & VPO_UNMANAGED) == 0) {
+				vm_page_aflag_set(m, PGA_WRITEABLE);
 				/*
 				 * Enable write permission if the access type
 				 * indicates write intention. Emulate modified
@@ -3099,7 +3100,6 @@ validate:
 				 */
 				if ((access & VM_PROT_WRITE) != 0) {
 					npte &= ~(L2_APX);
-					vm_page_aflag_set(m, PGA_WRITEABLE);
 					/*
 					 * The access type and permissions
 					 * indicate that the page will be

@@ -67,7 +67,7 @@ static u_int g_cache_used_hi = 20;
 static int
 sysctl_handle_pct(SYSCTL_HANDLER_ARGS)
 {
-	u_int val = *(u_int *)arg1;
+	int val;
 	int error;
 
 	error = sysctl_handle_int(oidp, &val, 0, req);

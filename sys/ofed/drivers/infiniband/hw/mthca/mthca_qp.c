@@ -1756,7 +1756,7 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		/* Add one more inline data segment for ICRC */
 		if (qp->transport == MLX) {
 			((struct mthca_data_seg *) wqe)->byte_count =
-				cpu_to_be32((1 << 31) | 4);
+				cpu_to_be32((1U << 31) | 4);
 			((u32 *) wqe)[1] = 0;
 			wqe += sizeof (struct mthca_data_seg);
 			size += sizeof (struct mthca_data_seg) / 16;
@@ -2097,7 +2097,7 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		/* Add one more inline data segment for ICRC */
 		if (qp->transport == MLX) {
 			((struct mthca_data_seg *) wqe)->byte_count =
-				cpu_to_be32((1 << 31) | 4);
+				cpu_to_be32((1U << 31) | 4);
 			((u32 *) wqe)[1] = 0;
 			wqe += sizeof (struct mthca_data_seg);
 			size += sizeof (struct mthca_data_seg) / 16;

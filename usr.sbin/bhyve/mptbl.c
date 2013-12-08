@@ -72,20 +72,7 @@ __FBSDID("$FreeBSD$");
 #define MPEP_FEATURES           (0xBFEBFBFF) /* XXX Intel i7 */
 
 /* Number of i/o intr entries */
-#define	MPEII_MAX_IRQ		16
-
-/* Define processor entry struct since <x86/mptable.h> gets it wrong */
-typedef struct BPROCENTRY {
-	u_char		type;
-	u_char		apic_id;
-	u_char		apic_version;
-	u_char		cpu_flags;
-	uint32_t	cpu_signature;
-	uint32_t	feature_flags;
-	uint32_t	reserved1;
-	uint32_t	reserved2;
-}      *bproc_entry_ptr;
-CTASSERT(sizeof(struct BPROCENTRY) == 20);
+#define	MPEII_MAX_IRQ		24
 
 /* Bus entry defines */
 #define MPE_NUM_BUSES		2
@@ -134,7 +121,7 @@ mpt_build_mpch(mpcth_t mpch)
 }
 
 static void
-mpt_build_proc_entries(bproc_entry_ptr mpep, int ncpu)
+mpt_build_proc_entries(proc_entry_ptr mpep, int ncpu)
 {
 	int i;
 
@@ -247,7 +234,7 @@ mptable_build(struct vmctx *ctx, int ncpu)
 	mpcth_t			mpch;
 	bus_entry_ptr		mpeb;
 	io_apic_entry_ptr	mpei;
-	bproc_entry_ptr		mpep;
+	proc_entry_ptr		mpep;
 	mpfps_t			mpfp;
 	int_entry_ptr		mpie;
 	char 			*curraddr;
@@ -268,7 +255,7 @@ mptable_build(struct vmctx *ctx, int ncpu)
 	mpt_build_mpch(mpch);
 	curraddr += sizeof(*mpch);
 
-	mpep = (bproc_entry_ptr)curraddr;
+	mpep = (proc_entry_ptr)curraddr;
 	mpt_build_proc_entries(mpep, ncpu);
 	curraddr += sizeof(*mpep) * ncpu;
 	mpch->entry_count += ncpu;
@@ -279,12 +266,12 @@ mptable_build(struct vmctx *ctx, int ncpu)
 	mpch->entry_count += MPE_NUM_BUSES;
 
 	mpei = (io_apic_entry_ptr)curraddr;
-	mpt_build_ioapic_entries(mpei, ncpu + 1);
+	mpt_build_ioapic_entries(mpei, 0);
 	curraddr += sizeof(*mpei);
 	mpch->entry_count++;
 
 	mpie = (int_entry_ptr) curraddr;
-	mpt_build_ioint_entries(mpie, MPEII_MAX_IRQ, ncpu + 1);
+	mpt_build_ioint_entries(mpie, MPEII_MAX_IRQ, 0);
 	curraddr += sizeof(*mpie) * MPEII_MAX_IRQ;
 	mpch->entry_count += MPEII_MAX_IRQ;
 

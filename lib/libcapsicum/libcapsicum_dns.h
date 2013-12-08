@@ -1,6 +1,9 @@
 /*-
- * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2012 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * This software was developed by Pawel Jakub Dawidek under sponsorship from
+ * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,18 +29,29 @@
  * $FreeBSD$
  */
 
-#ifndef _OPENSOLARIS_SYS_TASKQ_H_
-#define	_OPENSOLARIS_SYS_TASKQ_H_
+#ifndef	_LIBCAPSICUM_DNS_H_
+#define	_LIBCAPSICUM_DNS_H_
 
-#include_next <sys/taskq.h>
+#include <sys/socket.h>	/* socklen_t */
 
-struct ostask {
-	struct task	 ost_task;
-	task_func_t	*ost_func;
-	void		*ost_arg;
-};
+struct addrinfo;
+struct hostent;
 
-taskqid_t taskq_dispatch_safe(taskq_t *tq, task_func_t func, void *arg,
-    u_int flags, struct ostask *task);
+struct hostent *cap_gethostbyname(cap_channel_t *chan, const char *name);
+struct hostent *cap_gethostbyname2(cap_channel_t *chan, const char *name,
+    int type);
+struct hostent *cap_gethostbyaddr(cap_channel_t *chan, const void *addr,
+    socklen_t len, int type);
 
-#endif	/* _OPENSOLARIS_SYS_TASKQ_H_ */
+int cap_getaddrinfo(cap_channel_t *chan, const char *hostname,
+    const char *servname, const struct addrinfo *hints, struct addrinfo **res);
+int cap_getnameinfo(cap_channel_t *chan, const struct sockaddr *sa,
+    socklen_t salen, char *host, size_t hostlen, char *serv, size_t servlen,
+    int flags);
+
+int cap_dns_type_limit(cap_channel_t *chan, const char * const *types,
+    size_t ntypes);
+int cap_dns_family_limit(cap_channel_t *chan, const int *families,
+    size_t nfamilies);
+
+#endif	/* !_LIBCAPSICUM_DNS_H_ */

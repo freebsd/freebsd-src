@@ -1425,7 +1425,7 @@ bad:
 			/* SAS1078 36GB limitation WAR */
 			if (mpt->is_1078 && ((addr +
 			    MPI_SGE_LENGTH(se->FlagsLength)) >> 32) == 9) {
-				addr = (addr >> 32) | (1 << 31);
+				addr = (addr >> 32) | (1U << 31);
 				tf |= MPI_SGE_FLAGS_LOCAL_ADDRESS;
 			} else
 				addr >>= 32;
@@ -1543,12 +1543,12 @@ bad:
 			MPI_pSGE_SET_LENGTH(se, busdma_md_get_size(md, seg));
 			addr = busdma_md_get_busaddr(md, seg);
 			se->Address.Low = htole32(addr & 0xffffffff);
-			if (sizeof (bus_addr_t) > 4) {
+			if (sizeof(bus_addr_t) > 4) {
 				/* SAS1078 36GB limitation WAR */
 				if (mpt->is_1078 && ((addr +
 				    MPI_SGE_LENGTH(se->FlagsLength)) >>
 				    32) == 9) {
-					addr = (addr >> 32) | (1 << 31);
+					addr = (addr >> 32) | (1U << 31);
 					tf |= MPI_SGE_FLAGS_LOCAL_ADDRESS;
 				} else
 					addr >>= 32;

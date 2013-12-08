@@ -1301,21 +1301,6 @@ ept_fault_type(uint64_t ept_qual)
 	return (fault_type);
 }
 
-static int
-ept_protection(uint64_t ept_qual)
-{
-	int prot = 0;
-
-	if (ept_qual & EPT_VIOLATION_GPA_READABLE)
-		prot |= VM_PROT_READ;
-	if (ept_qual & EPT_VIOLATION_GPA_WRITEABLE)
-		prot |= VM_PROT_WRITE;
-	if (ept_qual & EPT_VIOLATION_GPA_EXECUTABLE)
-		prot |= VM_PROT_EXECUTE;
-
-	return (prot);
-}
-
 static boolean_t
 ept_emulation_fault(uint64_t ept_qual)
 {
@@ -1351,7 +1336,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	struct vmcs *vmcs;
 	struct vmxctx *vmxctx;
 	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, reason;
-	uint64_t qual, gpa;
+	uint64_t qual, gpa, rflags;
 
 	handled = 0;
 	vmcs = &vmx->vmcs[vcpu];
@@ -1421,7 +1406,10 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		break;
 	case EXIT_REASON_HLT:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_HLT, 1);
+		if ((error = vmread(VMCS_GUEST_RFLAGS, &rflags)) != 0)
+			panic("vmx_exit_process: vmread(rflags) %d", error);
 		vmexit->exitcode = VM_EXITCODE_HLT;
+		vmexit->u.hlt.rflags = rflags;
 		break;
 	case EXIT_REASON_MTF:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_MTRAP, 1);
@@ -1485,7 +1473,6 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->u.paging.gpa = gpa;
 			vmexit->u.paging.fault_type = ept_fault_type(qual);
-			vmexit->u.paging.protection = ept_protection(qual);
 		} else if (ept_emulation_fault(qual)) {
 			vmexit->exitcode = VM_EXITCODE_INST_EMUL;
 			vmexit->u.inst_emul.gpa = gpa;
@@ -1576,7 +1563,6 @@ vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap)
 		panic("vmx_run: error %d setting up pcpu defaults", error);
 
 	do {
-		lapic_timer_tick(vmx->vm, vcpu);
 		vmx_inject_interrupts(vmx, vcpu);
 		vmx_run_trace(vmx, vcpu);
 		rc = vmx_setjmp(vmxctx);

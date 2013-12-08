@@ -123,6 +123,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/spr.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
+#include <machine/ofw_machdep.h>
 
 #include <ddb/ddb.h>
 
@@ -155,8 +156,6 @@ SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
 	   CTLFLAG_RD, &cacheline_size, 0, "");
 
 uintptr_t	powerpc_init(vm_offset_t, vm_offset_t, vm_offset_t, void *);
-
-int             setfault(faultbuf);             /* defined in locore.S */
 
 long		Maxmem = 0;
 long		realmem = 0;
@@ -249,6 +248,7 @@ extern void	*dblow, *dbsize;
 extern void	*imisstrap, *imisssize;
 extern void	*dlmisstrap, *dlmisssize;
 extern void	*dsmisstrap, *dsmisssize;
+char 		save_trap_init[0x2f00];		/* EXC_LAST */
 
 uintptr_t
 powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
@@ -272,6 +272,9 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	kmdp = NULL;
 	trap_offset = 0;
 	cacheline_warn = 0;
+
+	/* Save trap vectors. */
+	ofw_save_trap_vec(save_trap_init);
 
 #ifdef WII
 	/*

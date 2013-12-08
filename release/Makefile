@@ -4,6 +4,7 @@
 # 
 # User-driven targets:
 #  cdrom: Builds release CD-ROM media (disc1.iso)
+#  dvdrom: Builds release DVD-ROM media (dvd1.iso)
 #  memstick: Builds memory stick image (memstick.img)
 #  mini-memstick: Builds minimal memory stick image (mini-memstick.img)
 #  ftp: Sets up FTP distribution area (ftp)
@@ -15,9 +16,11 @@
 #            (by default, the directory above this one) 
 #  PORTSDIR: location of ports tree to distribute (default: /usr/ports)
 #  DOCDIR:   location of doc tree (default: /usr/doc)
+#  NOPKG:    if set, do not distribute third-party packages
 #  NOPORTS:  if set, do not distribute ports tree
 #  NOSRC:    if set, do not distribute source tree
 #  NODOC:    if set, do not generate release documentation
+#  WITH_DVD: if set, generate dvd1.iso
 #  TARGET/TARGET_ARCH: architecture of built release 
 #
 
@@ -26,11 +29,15 @@ PORTSDIR?=	/usr/ports
 DOCDIR?=	/usr/doc
 RELNOTES_LANG?= en_US.ISO8859-1
 
-TARGET?=	${MACHINE}
+.if !defined(TARGET) || empty(TARGET)
+TARGET=		${MACHINE}
+.endif
+.if !defined(TARGET_ARCH) || empty(TARGET_ARCH)
 .if ${TARGET} == ${MACHINE}
-TARGET_ARCH?=	${MACHINE_ARCH}
+TARGET_ARCH=	${MACHINE_ARCH}
 .else
-TARGET_ARCH?=	${TARGET}
+TARGET_ARCH=	${TARGET}
+.endif
 .endif
 IMAKE=		${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
 DISTDIR=	dist
@@ -72,7 +79,7 @@ IMAGES=
 .if exists(${.CURDIR}/${TARGET}/mkisoimages.sh)
 RELEASE_TARGETS+= cdrom
 IMAGES+=	disc1.iso bootonly.iso
-. if(!defined(NODVD))
+. if defined(WITH_DVD) && !empty(WITH_DVD)
 RELEASE_TARGETS+= dvdrom
 IMAGES+=	dvd1.iso
 . endif
@@ -84,7 +91,12 @@ IMAGES+=	memstick.img
 IMAGES+=	mini-memstick.img
 .endif
 
+CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
+CLEANDIRS=	dist ftp release bootonly dvd
+beforeclean:
+	chflags -R noschg .
 .include <bsd.obj.mk>
+clean: beforeclean
 
 base.txz:
 	mkdir -p ${DISTDIR}
@@ -210,7 +222,7 @@ packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
 	touch ${.TARGET}
 
 pkg-stage:
-.if(exists(${.CURDIR}/${TARGET}/pkg-stage.conf))
+.if !defined(NOPKG) && exists(${.CURDIR}/${TARGET}/pkg-stage.conf)
 	sh ${.CURDIR}/scripts/pkg-stage.sh ${.CURDIR}/${TARGET}/pkg-stage.conf \
 		${REVISION}
 .endif
@@ -225,15 +237,6 @@ ftp: packagesystem
 release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${RELEASE_TARGETS}
-
-clean:
-	chflags -R noschg .
-	rm -rf dist ftp
-	rm -f packagesystem
-	rm -f *.txz MANIFEST
-	rm -f system
-	rm -rf release bootonly dvd
-	rm -f ${IMAGES}
 
 install:
 .if defined(DESTDIR) && !empty(DESTDIR)

@@ -3158,12 +3158,6 @@ cxx_init_decl_processing (void)
   if (flag_inline_functions)
     flag_inline_trees = 2;
 
-  /* Force minimum function alignment if using the least significant
-     bit of function pointers to store the virtual bit.  */
-  if (TARGET_PTRMEMFUNC_VBIT_LOCATION == ptrmemfunc_vbit_in_pfn
-      && force_align_functions_log < 1)
-    force_align_functions_log = 1;
-
   /* Initially, C.  */
   current_lang_name = lang_name_c;
 
@@ -4966,9 +4960,9 @@ make_rtl_for_nonlocal_decl (tree decl, tree init, const char* asmspec)
     {
       gcc_assert (TREE_STATIC (decl));
       /* An in-class declaration of a static data member should be
-	 external; it is only a declaration, and not a definition.  */
-      if (init == NULL_TREE)
-	gcc_assert (DECL_EXTERNAL (decl) || !TREE_PUBLIC (decl));
+	 external; it is only a declaration, and not a definition. */
+      if (init == NULL_TREE && DECL_INITIAL (decl) == NULL_TREE)
+	gcc_assert (DECL_EXTERNAL (decl));
     }
 
   /* We don't create any RTL for local variables.  */
@@ -6064,6 +6058,14 @@ grokfndecl (tree ctype,
   /* Propagate volatile out from type to decl.  */
   if (TYPE_VOLATILE (type))
     TREE_THIS_VOLATILE (decl) = 1;
+
+  /* If pointers to member functions use the least significant bit to
+     indicate whether a function is virtual, ensure a pointer
+     to this function will have that bit clear.  */
+  if (TARGET_PTRMEMFUNC_VBIT_LOCATION == ptrmemfunc_vbit_in_pfn
+      && TREE_CODE (type) == METHOD_TYPE
+      && DECL_ALIGN (decl) < 2 * BITS_PER_UNIT)
+    DECL_ALIGN (decl) = 2 * BITS_PER_UNIT;
 
   if (friendp
       && TREE_CODE (orig_declarator) == TEMPLATE_ID_EXPR)
