@@ -441,7 +441,7 @@ usb_bus_detach(struct usb_proc_msg *pm)
 /*------------------------------------------------------------------------*
  *	usb_bus_suspend
  *
- * This function is used to suspend the USB contoller.
+ * This function is used to suspend the USB controller.
  *------------------------------------------------------------------------*/
 static void
 usb_bus_suspend(struct usb_proc_msg *pm)
@@ -498,7 +498,7 @@ usb_bus_suspend(struct usb_proc_msg *pm)
 /*------------------------------------------------------------------------*
  *	usb_bus_resume
  *
- * This function is used to resume the USB contoller.
+ * This function is used to resume the USB controller.
  *------------------------------------------------------------------------*/
 static void
 usb_bus_resume(struct usb_proc_msg *pm)
@@ -561,7 +561,7 @@ usb_bus_resume(struct usb_proc_msg *pm)
 /*------------------------------------------------------------------------*
  *	usb_bus_reset
  *
- * This function is used to reset the USB contoller.
+ * This function is used to reset the USB controller.
  *------------------------------------------------------------------------*/
 static void
 usb_bus_reset(struct usb_proc_msg *pm)
@@ -583,7 +583,7 @@ usb_bus_reset(struct usb_proc_msg *pm)
 /*------------------------------------------------------------------------*
  *	usb_bus_shutdown
  *
- * This function is used to shutdown the USB contoller.
+ * This function is used to shutdown the USB controller.
  *------------------------------------------------------------------------*/
 static void
 usb_bus_shutdown(struct usb_proc_msg *pm)
