@@ -43,15 +43,15 @@
 .Sh DESCRIPTION
 The
 .Nm
-daemon provides various services in capability-like fashion to programs
-running in capability mode sandbox.
+daemon hosts various services that can be accessed through
+libcapsicum's capabilities by programs running in sandboxes.
 For example it is prohibited to send UDP packets to arbitrary destinations
 when operating in capability mode, which makes DNS resolution impossible.
 To make it possible the
 .Nm
-daemon provides
+daemon provides the
 .Nm system.dns
-service that allows to proxy DNS resolution requests through dedicated,
+service that proxies DNS resolution requests through a dedicated,
 non-sandboxed process provided by
 .Nm .
 .Pp
@@ -80,15 +80,15 @@ stored.
 The default location is
 .Pa /var/run/casperd.pid .
 .It Fl S Ar sockpath
-Specify alternative location of a
+Specify alternative location of the
 .Xr unix 4
-domain socket that can be used to connect to the
+domain socket used to connect to the
 .Nm
 daemon.
 The default location is
 .Pa /var/run/casper .
 .It Fl v
-Print or log verbose/debugging informations.
+Print or log verbose/debugging information.
 This option can be specified multiple times to raise the verbosity
 level.
 .El
