@@ -6,7 +6,7 @@
  *
  * See the LICENSE file for redistribution information.
  *
- *	$Id: key.h,v 10.55 2012/10/07 01:31:17 zy Exp $
+ *	$Id: key.h,v 10.56 2013/11/13 12:15:27 zy Exp $
  */
 
 #include "multibyte.h"
@@ -23,8 +23,9 @@
 #define INPUT2INT5(sp,cw,n,nlen,w,wlen)					    \
     sp->conv.input2int(sp, n, nlen, &(cw), &wlen, &w)
 #define CONST
+#define INTISWIDE(c)        (wctob(c) == EOF)
 #define CHAR_WIDTH(sp, ch)  wcwidth(ch)
-#define INTISWIDE(c)	(wctob(c) == EOF)
+#define CAN_PRINT(sp, ch)   (CHAR_WIDTH(sp, ch) > 0)
 #else
 #define FILE2INT5(sp,buf,n,nlen,w,wlen) \
     (w = n, wlen = nlen, 0)
@@ -36,9 +37,10 @@
     (n = w, nlen = wlen, 0)
 #define INPUT2INT5(sp,buf,n,nlen,w,wlen) \
     (w = n, wlen = nlen, 0)
-#define CONST const
-#define INTISWIDE(c)	    0
+#define CONST               const
+#define INTISWIDE(c)        0
 #define CHAR_WIDTH(sp, ch)  1
+#define CAN_PRINT(sp, ch)   isprint(ch)
 #endif
 #define FILE2INT(sp,n,nlen,w,wlen)					    \
     FILE2INT5(sp,sp->cw,n,nlen,w,wlen)
