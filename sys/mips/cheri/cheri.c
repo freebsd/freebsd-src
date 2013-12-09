@@ -73,13 +73,6 @@ SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_exception, CTLFLAG_RW,
     "Run debugger on CHERI exception");
 
 /*
- * XXXRW: Temporary hack -- single global trusted stack used by any instance
- * of CCall or CReturn in any thread of any process.  This won't last long,
- * but is enough to test things a little.
- */
-struct cheri_stack_frame	cheri_tsc_hack;
-
-/*
  * Capability memcpy() routine -- not a general-purpose memcpy() as it has
  * much stronger alignment and size requirements.
  *
@@ -245,11 +238,11 @@ cheri_exec_setregs(struct thread *td)
 }
 
 #define	CHERI_REG_PRINT(c, ctag, num) do {				\
-	printf("C%u t: %u u: %u perms %04jx otype %016jx\n", num,	\
+	printf("C%u t: %u u: %u perms 0x%04jx otype 0x%016jx\n", num,	\
 	    ctag, c.c_unsealed, (uintmax_t)c.c_perms,			\
 	    (uintmax_t)c.c_otype);					\
-	printf("\tbase %016jx length %016jx\n", (uintmax_t)c.c_base,	\
-	    (uintmax_t)c.c_length);					\
+	printf("\tbase 0x%016jx length 0x%016jx\n",			\
+	    (uintmax_t)c.c_base, (uintmax_t)c.c_length);		\
 } while (0)
 
 void
@@ -267,7 +260,8 @@ cheri_log_exception(struct trapframe *frame, int trap_type)
 	CHERI_CGETCAUSE(cause);
 	exccode = (cause >> 8) & 0xff;
 	regnum = cause & 0x1f;
-	printf("CHERI cause: ExcCode: %02x RegNum: %02x\n", exccode, regnum);
+	printf("CHERI cause: ExcCode: 0x%02x RegNum: 0x%02x\n", exccode,
+	    regnum);
 
 	/* XXXRW: awkward and unmaintainable pointer construction. */
 	cheriframe = &(((struct pcb *)frame)->pcb_cheriframe);
@@ -303,6 +297,14 @@ cheri_log_exception(struct trapframe *frame, int trap_type)
 	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
 	intr_enable();
 	CHERI_REG_PRINT(c, ctag, 3);
+
+	/* C4 */
+	intr_disable();
+	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &cheriframe->cf_c4, 0);
+	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
+	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
+	intr_enable();
+	CHERI_REG_PRINT(c, ctag, 4);
 
 	/* C24 - RCC */
 	intr_disable();
@@ -385,11 +387,11 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
 									\
 	CHERI_GETCAPREG((crn), c);					\
 	CHERI_CGETTAG(ctag, (crn));					\
-	db_printf("C%u t: %u u: %u perms %04jx otype %016jx\n", num,	\
-	    ctag, c.c_unsealed, (uintmax_t)c.c_perms,			\
+	db_printf("C%u t: %u u: %u perms 0x%04jx otype 0x%016jx\n",	\
+	    num, ctag, c.c_unsealed, (uintmax_t)c.c_perms,		\
 	    (uintmax_t)c.c_otype);					\
-	db_printf("\tbase %016jx length %016jx\n", (uintmax_t)c.c_base,	\
-	    (uintmax_t)c.c_length);					\
+	db_printf("\tbase 0x%016jx length 0x%016jx\n",			\
+	    (uintmax_t)c.c_base, (uintmax_t)c.c_length);		\
 } while (0)
 
 #define	DB_CHERI_REG_PRINT(crn)	 DB_CHERI_REG_PRINT_NUM(crn, crn)
@@ -435,7 +437,7 @@ DB_SHOW_COMMAND(cheri, ddb_dump_cheri)
 	DB_CHERI_REG_PRINT(30);
 	DB_CHERI_REG_PRINT(31);
 	CHERI_CGETCAUSE(cause);
-	db_printf("CHERI cause: ExcCode: %02x RegNum: %02x\n",
+	db_printf("CHERI cause: ExcCode: 0x%02x RegNum: 0x%02x\n",
 	    (uint8_t)((cause >> 8) & 0xff), (uint8_t)(cause & 0x1f));
 }
 
