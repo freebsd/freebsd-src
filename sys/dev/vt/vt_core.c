@@ -34,6 +34,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+
+#include "opt_compat.h"
+
 #include <sys/consio.h>
 #include <sys/eventhandler.h>
 #include <sys/fbio.h>
