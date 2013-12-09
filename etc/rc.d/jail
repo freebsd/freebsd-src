@@ -319,8 +319,8 @@ jail_extract_address()
 		_mask=${_mask:-/32}
 
 	elif [ "${_type}" = "inet6" ]; then
-		# In case _maske is not set for IPv6, use /64.
-		_mask=${_mask:-/64}
+		# In case _maske is not set for IPv6, use /128.
+		_mask=${_mask:-/128}
 	fi
 }
 
