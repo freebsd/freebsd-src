@@ -86,6 +86,26 @@ struct rk30_gpio_softc {
 	struct gpio_pin		sc_gpio_pins[RK30_GPIO_PINS];
 };
 
+static struct rk30_gpio_softc *rk30_gpio_sc = NULL;
+
+typedef int (*gpios_phandler_t)(phandle_t, pcell_t *, int);
+
+struct gpio_ctrl_entry {
+	const char		*compat;
+	gpios_phandler_t	handler;
+};
+
+int rk30_gpios_prop_handle(phandle_t ctrl, pcell_t *gpios, int len);
+int platform_gpio_init(void);
+
+struct gpio_ctrl_entry gpio_controllers[] = {
+	{ "rockchip,rk30xx-gpio", &rk30_gpios_prop_handle },
+	{ "rockchip,rk30xx-gpio", &rk30_gpios_prop_handle },
+	{ "rockchip,rk30xx-gpio", &rk30_gpios_prop_handle },
+	{ "rockchip,rk30xx-gpio", &rk30_gpios_prop_handle },
+	{ NULL, NULL }
+};
+
 #define	RK30_GPIO_LOCK(_sc)		mtx_lock(&_sc->sc_mtx)
 #define	RK30_GPIO_UNLOCK(_sc)		mtx_unlock(&_sc->sc_mtx)
 #define	RK30_GPIO_LOCK_ASSERT(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED)
@@ -436,6 +456,9 @@ rk30_gpio_attach(device_t dev)
 	int i, rid;
 	phandle_t gpio;
 
+	if (rk30_gpio_sc)
+		return (ENXIO);
+
 	sc->sc_dev = dev;
 
 	mtx_init(&sc->sc_mtx, "rk30 gpio", "gpio", MTX_DEF);
@@ -480,6 +503,11 @@ rk30_gpio_attach(device_t dev)
 
 	device_add_child(dev, "gpioc", device_get_unit(dev));
 	device_add_child(dev, "gpiobus", device_get_unit(dev));
+
+	rk30_gpio_sc = sc;
+
+	platform_gpio_init();
+	
 	return (bus_generic_attach(dev));
 
 fail:
@@ -525,3 +553,121 @@ static driver_t rk30_gpio_driver = {
 };
 
 DRIVER_MODULE(rk30_gpio, simplebus, rk30_gpio_driver, rk30_gpio_devclass, 0, 0);
+
+int
+rk30_gpios_prop_handle(phandle_t ctrl, pcell_t *gpios, int len)
+{
+	struct rk30_gpio_softc *sc;
+	pcell_t gpio_cells;
+	int inc, t, tuples, tuple_size;
+	int dir, flags, pin, i;
+	u_long gpio_ctrl, size;
+
+	sc = rk30_gpio_sc;
+	if (sc == NULL)
+		return ENXIO;
+
+	if (OF_getprop(ctrl, "#gpio-cells", &gpio_cells, sizeof(pcell_t)) < 0)
+		return (ENXIO);
+
+	gpio_cells = fdt32_to_cpu(gpio_cells);
+	if (gpio_cells != 2)
+		return (ENXIO);
+
+	tuple_size = gpio_cells * sizeof(pcell_t) + sizeof(phandle_t);
+	tuples = len / tuple_size;
+
+	if (fdt_regsize(ctrl, &gpio_ctrl, &size))
+		return (ENXIO);
+
+	/*
+	 * Skip controller reference, since controller's phandle is given
+	 * explicitly (in a function argument).
+	 */
+	inc = sizeof(ihandle_t) / sizeof(pcell_t);
+	gpios += inc;
+	for (t = 0; t < tuples; t++) {
+		pin = fdt32_to_cpu(gpios[0]);
+		dir = fdt32_to_cpu(gpios[1]);
+		flags = fdt32_to_cpu(gpios[2]);
+
+		for (i = 0; i < sc->sc_gpio_npins; i++) {
+			if (sc->sc_gpio_pins[i].gp_pin == pin)
+				break;
+		}
+		if (i >= sc->sc_gpio_npins)
+			return (EINVAL);
+
+		rk30_gpio_pin_configure(sc, &sc->sc_gpio_pins[i], flags);
+
+		if (dir == 1) {
+			/* Input. */
+			rk30_gpio_pin_set(sc->sc_dev, pin, RK30_GPIO_INPUT);
+		} else {
+			/* Output. */
+			rk30_gpio_pin_set(sc->sc_dev, pin, RK30_GPIO_OUTPUT);
+		}
+		gpios += gpio_cells + inc;
+	}
+
+	return (0);
+}
+
+#define	MAX_PINS_PER_NODE	5
+#define	GPIOS_PROP_CELLS	4
+
+int
+platform_gpio_init(void)
+{
+	phandle_t child, parent, root, ctrl;
+	pcell_t gpios[MAX_PINS_PER_NODE * GPIOS_PROP_CELLS];
+	struct gpio_ctrl_entry *e;
+	int len, rv;
+
+	root = OF_finddevice("/");
+	len = 0;
+	parent = root;
+
+	/* Traverse through entire tree to find nodes with 'gpios' prop */
+	for (child = OF_child(parent); child != 0; child = OF_peer(child)) {
+
+		/* Find a 'leaf'. Start the search from this node. */
+		while (OF_child(child)) {
+			parent = child;
+			child = OF_child(child);
+		}
+		if ((len = OF_getproplen(child, "gpios")) > 0) {
+
+			if (len > sizeof(gpios))
+				return (ENXIO);
+
+			/* Get 'gpios' property. */
+			OF_getprop(child, "gpios", &gpios, len);
+
+			e = (struct gpio_ctrl_entry *)&gpio_controllers;
+
+			/* Find and call a handler. */
+			for (; e->compat; e++) {
+				/*
+				 * First cell of 'gpios' property should
+				 * contain a ref. to a node defining GPIO
+				 * controller.
+				 */
+				ctrl = OF_xref_phandle(fdt32_to_cpu(gpios[0]));
+
+				if (fdt_is_compatible(ctrl, e->compat))
+					/* Call a handler. */
+					if ((rv = e->handler(ctrl,
+					    (pcell_t *)&gpios, len)))
+						return (rv);
+			}
+		}
+
+		if (OF_peer(child) == 0) {
+			/* No more siblings. */
+			child = parent;
+			parent = OF_parent(child);
+		}
+	}
+	return (0);
+}
