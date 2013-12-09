@@ -1076,19 +1076,19 @@ ti_i2c_attach(device_t dev)
 		goto out;
 	}
 
-	/* XXXOMAP3: FIXME get proper revision here */
-	/* First read the version number of the I2C module */
-	sc->sc_rev = ti_i2c_read_2(sc, I2C_REG_REVNB_HI) & 0xff;
-
-	device_printf(dev, "I2C revision %d.%d\n", sc->sc_rev >> 4,
-	    sc->sc_rev & 0xf);
-
-	/* Activate the H/W */
+	/* First we _must_ activate the H/W */
 	err = ti_i2c_activate(dev);
 	if (err) {
 		device_printf(dev, "ti_i2c_activate failed\n");
 		goto out;
 	}
+
+	/* XXXOMAP3: FIXME get proper revision here */
+	/* Read the version number of the I2C module */
+	sc->sc_rev = ti_i2c_read_2(sc, I2C_REG_REVNB_HI) & 0xff;
+
+	device_printf(dev, "I2C revision %d.%d\n", sc->sc_rev >> 4,
+	    sc->sc_rev & 0xf);
 
 	/* activate the interrupt */
 	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
