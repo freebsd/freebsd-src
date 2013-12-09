@@ -404,7 +404,7 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	for (i = 0; i < nmsgs; i++) {
 
 		/* Write the slave address. */
-		BCM_BSC_WRITE(sc, BCM_BSC_SLAVE, (msgs[i].slave >> 1) & 0x7f);
+		BCM_BSC_WRITE(sc, BCM_BSC_SLAVE, msgs[i].slave);
 
 		/* Write the data length. */
 		BCM_BSC_WRITE(sc, BCM_BSC_DLEN, msgs[i].len);
