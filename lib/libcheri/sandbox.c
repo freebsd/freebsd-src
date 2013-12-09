@@ -278,7 +278,8 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 
 	/* Construct sealed data capability. */
 	sb->sb_datacap = cheri_andperm(sbcap, CHERI_PERM_LOAD |
-	    CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP);
+	    CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
+	    CHERI_PERM_STORE_EPHEM_CAP);
 	sb->sb_datacap = cheri_sealdata(sb->sb_datacap, sbcap);
 #else
 	/*
@@ -307,7 +308,8 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 	 * suitable for use with CCall.
 	 */
 	CHERI_CANDPERM(2, 3, CHERI_PERM_LOAD | CHERI_PERM_STORE |
-	    CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP);
+	    CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
+	    CHERI_PERM_STORE_EPHEM_CAP);
 	CHERI_CSEALDATA(2, 2, 3);
 
 	CHERI_CSC(1, 0, &sb->sb_codecap, 0);

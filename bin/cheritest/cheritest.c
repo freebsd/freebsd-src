@@ -150,7 +150,8 @@ cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
 	basecap = cheri_ptrtype(sandbox_base, (uintptr_t)sandbox_end -
 	    (uintptr_t)sandbox_base, sandbox_pc);
 
-	codecap = cheri_andperm(basecap, CHERI_PERM_EXECUTE | CHERI_PERM_SEAL);
+	codecap = cheri_andperm(basecap, CHERI_PERM_EXECUTE |
+	    CHERI_PERM_SEAL | CHERI_PERM_STORE_EPHEM_CAP);
 	codecap = cheri_sealcode(codecap);
 
 	datacap = cheri_andperm(basecap, CHERI_PERM_LOAD | CHERI_PERM_STORE |
@@ -187,7 +188,8 @@ cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
 	 * suitable for use with CCall.
 	 */
 	CHERI_CANDPERM(2, 3, CHERI_PERM_LOAD | CHERI_PERM_STORE |
-	    CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP);
+	    CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
+	    CHERI_PERM_STORE_EPHEM_CAP);
 	CHERI_CSEALDATA(2, 2, 3);
 
 	/*
@@ -346,9 +348,13 @@ cheritest_sandbox_invoke_abort(void)
 	    &sb) < 0)
 		err(1, "sandbox_setup");
 
-	/* XXXRW: USE_C_CAPS variant. */
+#ifdef USE_C_CAPS
+	v = sandbox_cinvoke(sb, CHERITEST_HELPER_OP_ABORT, 0, 0, 0, 0, 0, 0,
+	    0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+#else
 	v = sandbox_invoke(sb, CHERITEST_HELPER_OP_ABORT, 0, 0, 0, NULL, NULL,
 	    NULL, NULL, NULL, NULL, NULL, NULL);
+#endif
 	printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
 	sandbox_destroy(sb);
 }
@@ -416,8 +422,8 @@ cheritest_sandbox_invoke_spin(void)
 		err(1, "sandbox_setup");
 
 #ifdef USE_C_CAPS
-	v = sandbox_cinvoke(sb, CHERITEST_HELPER_OP_SPIN, 0, 0, 0, NULL, NULL,
-	    NULL, NULL, NULL, NULL, NULL, NULL);
+	v = sandbox_cinvoke(sb, CHERITEST_HELPER_OP_SPIN, 0, 0, 0, 0, 0, 0, 0,
+	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 #else
 	v = sandbox_invoke(sb, CHERITEST_HELPER_OP_SPIN, 0, 0, 0, NULL, NULL,
 	    NULL, NULL, NULL, NULL, NULL, NULL);
