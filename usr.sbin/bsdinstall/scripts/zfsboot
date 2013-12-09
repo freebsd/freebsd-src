@@ -1203,7 +1203,7 @@ zfs_create_boot()
 			return $FAILURE
 		f_eval_catch $funcname printf "$PRINTF_CONF" \
 			geli_%s_keyfile0_type \
-			'"$disk$targetpart" "$disk$targetpart"' \
+			'"$disk$targetpart" "$disk$targetpart:geli_keyfile0"' \
 			\$BSDINSTALL_TMPBOOT/loader.conf.\$disk\$targetpart ||
 			return $FAILURE
 		f_eval_catch $funcname printf "$PRINTF_CONF" \
