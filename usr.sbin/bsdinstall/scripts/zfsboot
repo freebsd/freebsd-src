@@ -1190,7 +1190,7 @@ zfs_create_boot()
 	f_eval_catch $funcname echo "$ECHO_APPEND" 'geom_eli_load=\"YES\"' \
 	    \$BSDINSTALL_TMPBOOT/loader.conf.geli || return $FAILURE
 	f_eval_catch $funcname printf "$PRINTF_CONF" vfs.root.mountfrom \
-	    '"zfs:$poolname/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOT_FSNAME"' \
+	    '"zfs:$poolname/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME"' \
 	    \$BSDINSTALL_TMPBOOT/loader.conf.root || return $FAILURE
 	f_dprintf "$funcname: disks=[%s]" "$disks"
 	for disk in $disks; do
