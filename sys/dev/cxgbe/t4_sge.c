@@ -1391,7 +1391,7 @@ rxb_free(struct mbuf *m, void *arg1, void *arg2)
 {
 	uma_zone_t zone = arg1;
 	caddr_t cl = arg2;
-#ifdef INVARIANTS
+#ifdef notyet
 	u_int refcount;
 
 	refcount = *find_buf_refcnt(cl);
@@ -1677,7 +1677,7 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 
 	m0->m_pkthdr.rcvif = ifp;
 	m0->m_flags |= M_FLOWID;
-	m0->m_pkthdr.flowid = rss->hash_val;
+	m0->m_pkthdr.flowid = be32toh(rss->hash_val);
 
 	if (cpl->csum_calc && !cpl->err_vec) {
 		if (ifp->if_capenable & IFCAP_RXCSUM &&

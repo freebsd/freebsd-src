@@ -425,6 +425,8 @@ static int get_sge_context(struct adapter *, struct t4_sge_context *);
 static int load_fw(struct adapter *, struct t4_data *);
 static int read_card_mem(struct adapter *, int, struct t4_mem_range *);
 static int read_i2c(struct adapter *, struct t4_i2c_data *);
+static int set_sched_class(struct adapter *, struct t4_sched_params *);
+static int set_sched_queue(struct adapter *, struct t4_sched_queue *);
 #ifdef TCP_OFFLOAD
 static int toe_capability(struct port_info *, int);
 #endif
@@ -3155,7 +3157,7 @@ port_full_init(struct port_info *pi)
 	struct ifnet *ifp = pi->ifp;
 	uint16_t *rss;
 	struct sge_rxq *rxq;
-	int rc, i;
+	int rc, i, j;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 	KASSERT((pi->flags & PORT_INIT_DONE) == 0,
@@ -3172,21 +3174,25 @@ port_full_init(struct port_info *pi)
 		goto done;	/* error message displayed already */
 
 	/*
-	 * Setup RSS for this port.
+	 * Setup RSS for this port.  Save a copy of the RSS table for later use.
 	 */
-	rss = malloc(pi->nrxq * sizeof (*rss), M_CXGBE,
-	    M_ZERO | M_WAITOK);
-	for_each_rxq(pi, i, rxq) {
-		rss[i] = rxq->iq.abs_id;
+	rss = malloc(pi->rss_size * sizeof (*rss), M_CXGBE, M_ZERO | M_WAITOK);
+	for (i = 0; i < pi->rss_size;) {
+		for_each_rxq(pi, j, rxq) {
+			rss[i++] = rxq->iq.abs_id;
+			if (i == pi->rss_size)
+				break;
+		}
 	}
-	rc = -t4_config_rss_range(sc, sc->mbox, pi->viid, 0,
-	    pi->rss_size, rss, pi->nrxq);
-	free(rss, M_CXGBE);
+
+	rc = -t4_config_rss_range(sc, sc->mbox, pi->viid, 0, pi->rss_size, rss,
+	    pi->rss_size);
 	if (rc != 0) {
 		if_printf(ifp, "rss_config failed: %d\n", rc);
 		goto done;
 	}
 
+	pi->rss = rss;
 	pi->flags |= PORT_INIT_DONE;
 done:
 	if (rc != 0)
@@ -3235,6 +3241,7 @@ port_full_uninit(struct port_info *pi)
 			quiesce_fl(sc, &ofld_rxq->fl);
 		}
 #endif
+		free(pi->rss, M_CXGBE);
 	}
 
 	t4_teardown_port_queues(pi);
@@ -3401,7 +3408,8 @@ t4_get_regs(struct adapter *sc, struct t4_regdump *regs, uint8_t *buf)
 		0xd004, 0xd03c,
 		0xdfc0, 0xdfe0,
 		0xe000, 0xea7c,
-		0xf000, 0x11190,
+		0xf000, 0x11110,
+		0x11118, 0x11190,
 		0x19040, 0x1906c,
 		0x19078, 0x19080,
 		0x1908c, 0x19124,
@@ -3607,7 +3615,8 @@ t4_get_regs(struct adapter *sc, struct t4_regdump *regs, uint8_t *buf)
 		0xd004, 0xd03c,
 		0xdfc0, 0xdfe0,
 		0xe000, 0x11088,
-		0x1109c, 0x1117c,
+		0x1109c, 0x11110,
+		0x11118, 0x1117c,
 		0x11190, 0x11204,
 		0x19040, 0x1906c,
 		0x19078, 0x19080,
@@ -4165,13 +4174,15 @@ t4_sysctls(struct adapter *sc)
 	struct sysctl_oid_list *children, *c0;
 	static char *caps[] = {
 		"\20\1PPP\2QFC\3DCBX",			/* caps[0] linkcaps */
-		"\20\1NIC\2VM\3IDS\4UM\5UM_ISGL",	/* caps[1] niccaps */
+		"\20\1NIC\2VM\3IDS\4UM\5UM_ISGL"	/* caps[1] niccaps */
+		    "\6HASHFILTER\7ETHOFLD",
 		"\20\1TOE",				/* caps[2] toecaps */
 		"\20\1RDDP\2RDMAC",			/* caps[3] rdmacaps */
 		"\20\1INITIATOR_PDU\2TARGET_PDU"	/* caps[4] iscsicaps */
 		    "\3INITIATOR_CNXOFLD\4TARGET_CNXOFLD"
 		    "\5INITIATOR_SSNOFLD\6TARGET_SSNOFLD",
 		"\20\1INITIATOR\2TARGET\3CTRL_OFLD"	/* caps[5] fcoecaps */
+		    "\4PO_INITIAOR\5PO_TARGET"
 	};
 	static char *doorbells = {"\20\1UDB\2WCWR\3UDBWC\4KDB"};
 
@@ -5953,10 +5964,13 @@ sysctl_pm_stats(SYSCTL_HANDLER_ARGS)
 	struct adapter *sc = arg1;
 	struct sbuf *sb;
 	int rc, i;
-	uint32_t tx_cnt[PM_NSTATS], rx_cnt[PM_NSTATS];
-	uint64_t tx_cyc[PM_NSTATS], rx_cyc[PM_NSTATS];
-	static const char *pm_stats[] = {
-		"Read:", "Write bypass:", "Write mem:", "Flush:", "FIFO wait:"
+	uint32_t cnt[PM_NSTATS];
+	uint64_t cyc[PM_NSTATS];
+	static const char *rx_stats[] = {
+		"Read:", "Write bypass:", "Write mem:", "Flush:"
+	};
+	static const char *tx_stats[] = {
+		"Read:", "Write bypass:", "Write mem:", "Bypass + mem:"
 	};
 
 	rc = sysctl_wire_old_buffer(req, 0);
@@ -5967,14 +5981,17 @@ sysctl_pm_stats(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	t4_pmtx_get_stats(sc, tx_cnt, tx_cyc);
-	t4_pmrx_get_stats(sc, rx_cnt, rx_cyc);
+	t4_pmtx_get_stats(sc, cnt, cyc);
+	sbuf_printf(sb, "                Tx pcmds             Tx bytes");
+	for (i = 0; i < ARRAY_SIZE(tx_stats); i++)
+		sbuf_printf(sb, "\n%-13s %10u %20ju", tx_stats[i], cnt[i],
+		    cyc[i]);
 
-	sbuf_printf(sb, "                Tx count            Tx cycles    "
-	    "Rx count            Rx cycles");
-	for (i = 0; i < PM_NSTATS; i++)
-		sbuf_printf(sb, "\n%-13s %10u %20ju  %10u %20ju",
-		    pm_stats[i], tx_cnt[i], tx_cyc[i], rx_cnt[i], rx_cyc[i]);
+	t4_pmrx_get_stats(sc, cnt, cyc);
+	sbuf_printf(sb, "\n                Rx pcmds             Rx bytes");
+	for (i = 0; i < ARRAY_SIZE(rx_stats); i++)
+		sbuf_printf(sb, "\n%-13s %10u %20ju", rx_stats[i], cnt[i],
+		    cyc[i]);
 
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
@@ -7285,6 +7302,228 @@ read_i2c(struct adapter *sc, struct t4_i2c_data *i2cd)
 	return (rc);
 }
 
+static int
+in_range(int val, int lo, int hi)
+{
+
+	return (val < 0 || (val <= hi && val >= lo));
+}
+
+static int
+set_sched_class(struct adapter *sc, struct t4_sched_params *p)
+{
+	int fw_subcmd, fw_type, rc;
+
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4setsc");
+	if (rc)
+		return (rc);
+
+	if (!(sc->flags & FULL_INIT_DONE)) {
+		rc = EAGAIN;
+		goto done;
+	}
+
+	/*
+	 * Translate the cxgbetool parameters into T4 firmware parameters.  (The
+	 * sub-command and type are in common locations.)
+	 */
+	if (p->subcmd == SCHED_CLASS_SUBCMD_CONFIG)
+		fw_subcmd = FW_SCHED_SC_CONFIG;
+	else if (p->subcmd == SCHED_CLASS_SUBCMD_PARAMS)
+		fw_subcmd = FW_SCHED_SC_PARAMS;
+	else {
+		rc = EINVAL;
+		goto done;
+	}
+	if (p->type == SCHED_CLASS_TYPE_PACKET)
+		fw_type = FW_SCHED_TYPE_PKTSCHED;
+	else {
+		rc = EINVAL;
+		goto done;
+	}
+
+	if (fw_subcmd == FW_SCHED_SC_CONFIG) {
+		/* Vet our parameters ..*/
+		if (p->u.config.minmax < 0) {
+			rc = EINVAL;
+			goto done;
+		}
+
+		/* And pass the request to the firmware ...*/
+		rc = -t4_sched_config(sc, fw_type, p->u.config.minmax);
+		goto done;
+	}
+
+	if (fw_subcmd == FW_SCHED_SC_PARAMS) {
+		int fw_level;
+		int fw_mode;
+		int fw_rateunit;
+		int fw_ratemode;
+
+		if (p->u.params.level == SCHED_CLASS_LEVEL_CL_RL)
+			fw_level = FW_SCHED_PARAMS_LEVEL_CL_RL;
+		else if (p->u.params.level == SCHED_CLASS_LEVEL_CL_WRR)
+			fw_level = FW_SCHED_PARAMS_LEVEL_CL_WRR;
+		else if (p->u.params.level == SCHED_CLASS_LEVEL_CH_RL)
+			fw_level = FW_SCHED_PARAMS_LEVEL_CH_RL;
+		else {
+			rc = EINVAL;
+			goto done;
+		}
+
+		if (p->u.params.mode == SCHED_CLASS_MODE_CLASS)
+			fw_mode = FW_SCHED_PARAMS_MODE_CLASS;
+		else if (p->u.params.mode == SCHED_CLASS_MODE_FLOW)
+			fw_mode = FW_SCHED_PARAMS_MODE_FLOW;
+		else {
+			rc = EINVAL;
+			goto done;
+		}
+
+		if (p->u.params.rateunit == SCHED_CLASS_RATEUNIT_BITS)
+			fw_rateunit = FW_SCHED_PARAMS_UNIT_BITRATE;
+		else if (p->u.params.rateunit == SCHED_CLASS_RATEUNIT_PKTS)
+			fw_rateunit = FW_SCHED_PARAMS_UNIT_PKTRATE;
+		else {
+			rc = EINVAL;
+			goto done;
+		}
+
+		if (p->u.params.ratemode == SCHED_CLASS_RATEMODE_REL)
+			fw_ratemode = FW_SCHED_PARAMS_RATE_REL;
+		else if (p->u.params.ratemode == SCHED_CLASS_RATEMODE_ABS)
+			fw_ratemode = FW_SCHED_PARAMS_RATE_ABS;
+		else {
+			rc = EINVAL;
+			goto done;
+		}
+
+		/* Vet our parameters ... */
+		if (!in_range(p->u.params.channel, 0, 3) ||
+		    !in_range(p->u.params.cl, 0, is_t4(sc) ? 15 : 16) ||
+		    !in_range(p->u.params.minrate, 0, 10000000) ||
+		    !in_range(p->u.params.maxrate, 0, 10000000) ||
+		    !in_range(p->u.params.weight, 0, 100)) {
+			rc = ERANGE;
+			goto done;
+		}
+
+		/*
+		 * Translate any unset parameters into the firmware's
+		 * nomenclature and/or fail the call if the parameters
+		 * are required ...
+		 */
+		if (p->u.params.rateunit < 0 || p->u.params.ratemode < 0 ||
+		    p->u.params.channel < 0 || p->u.params.cl < 0) {
+			rc = EINVAL;
+			goto done;
+		}
+		if (p->u.params.minrate < 0)
+			p->u.params.minrate = 0;
+		if (p->u.params.maxrate < 0) {
+			if (p->u.params.level == SCHED_CLASS_LEVEL_CL_RL ||
+			    p->u.params.level == SCHED_CLASS_LEVEL_CH_RL) {
+				rc = EINVAL;
+				goto done;
+			} else
+				p->u.params.maxrate = 0;
+		}
+		if (p->u.params.weight < 0) {
+			if (p->u.params.level == SCHED_CLASS_LEVEL_CL_WRR) {
+				rc = EINVAL;
+				goto done;
+			} else
+				p->u.params.weight = 0;
+		}
+		if (p->u.params.pktsize < 0) {
+			if (p->u.params.level == SCHED_CLASS_LEVEL_CL_RL ||
+			    p->u.params.level == SCHED_CLASS_LEVEL_CH_RL) {
+				rc = EINVAL;
+				goto done;
+			} else
+				p->u.params.pktsize = 0;
+		}
+
+		/* See what the firmware thinks of the request ... */
+		rc = -t4_sched_params(sc, fw_type, fw_level, fw_mode,
+		    fw_rateunit, fw_ratemode, p->u.params.channel,
+		    p->u.params.cl, p->u.params.minrate, p->u.params.maxrate,
+		    p->u.params.weight, p->u.params.pktsize);
+		goto done;
+	}
+
+	rc = EINVAL;
+done:
+	end_synchronized_op(sc, 0);
+	return (rc);
+}
+
+static int
+set_sched_queue(struct adapter *sc, struct t4_sched_queue *p)
+{
+	struct port_info *pi = NULL;
+	struct sge_txq *txq;
+	uint32_t fw_mnem, fw_queue, fw_class;
+	int i, rc;
+
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4setsq");
+	if (rc)
+		return (rc);
+
+	if (!(sc->flags & FULL_INIT_DONE)) {
+		rc = EAGAIN;
+		goto done;
+	}
+
+	if (p->port >= sc->params.nports) {
+		rc = EINVAL;
+		goto done;
+	}
+
+	pi = sc->port[p->port];
+	if (!in_range(p->queue, 0, pi->ntxq - 1) || !in_range(p->cl, 0, 7)) {
+		rc = EINVAL;
+		goto done;
+	}
+
+	/*
+	 * Create a template for the FW_PARAMS_CMD mnemonic and value (TX
+	 * Scheduling Class in this case).
+	 */
+	fw_mnem = (V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
+	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_EQ_SCHEDCLASS_ETH));
+	fw_class = p->cl < 0 ? 0xffffffff : p->cl;
+
+	/*
+	 * If op.queue is non-negative, then we're only changing the scheduling
+	 * on a single specified TX queue.
+	 */
+	if (p->queue >= 0) {
+		txq = &sc->sge.txq[pi->first_txq + p->queue];
+		fw_queue = (fw_mnem | V_FW_PARAMS_PARAM_YZ(txq->eq.cntxt_id));
+		rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &fw_queue,
+		    &fw_class);
+		goto done;
+	}
+
+	/*
+	 * Change the scheduling on all the TX queues for the
+	 * interface.
+	 */
+	for_each_txq(pi, i, txq) {
+		fw_queue = (fw_mnem | V_FW_PARAMS_PARAM_YZ(txq->eq.cntxt_id));
+		rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &fw_queue,
+		    &fw_class);
+		if (rc)
+			goto done;
+	}
+
+	rc = 0;
+done:
+	end_synchronized_op(sc, 0);
+	return (rc);
+}
+
 int
 t4_os_find_pci_capability(struct adapter *sc, int cap)
 {
@@ -7528,6 +7767,12 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		}
 		break;
 	}
+	case CHELSIO_T4_SCHED_CLASS:
+		rc = set_sched_class(sc, (struct t4_sched_params *)data);
+		break;
+	case CHELSIO_T4_SCHED_QUEUE:
+		rc = set_sched_queue(sc, (struct t4_sched_queue *)data);
+		break;
 	case CHELSIO_T4_GET_TRACER:
 		rc = t4_get_tracer(sc, (struct t4_tracer *)data);
 		break;
