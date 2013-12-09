@@ -52,7 +52,6 @@ options 	NULLFS
 options 	P1003_1B_SEMAPHORES
 #options 	PREEMPTION
 options 	PRINTF_BUFR_SIZE=128
-options 	PROCDESC
 options 	PROCFS
 options 	PSEUDOFS
 options 	SCHED_ULE
