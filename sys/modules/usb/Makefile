@@ -27,6 +27,18 @@
 
 .include <bsd.own.mk>
 
+#
+# Check for common USB debug flags to pass when building the USB
+# modules in this directory:
+#
+.if defined(USB_DEBUG)
+MAKE+=" DEBUG_FLAGS+=-DUSB_DEBUG"
+.endif
+
+.if defined(USB_DEBUG) && defined(USB_REQ_DEBUG)
+MAKE+=" DEBUG_FLAGS+=-DUSB_REQ_DEBUG"
+.endif
+
 # Modules that include binary-only blobs of microcode should be selectable by
 # MK_SOURCELESS_UCODE option (see below).
 
