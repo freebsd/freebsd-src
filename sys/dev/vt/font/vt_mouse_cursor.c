@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/vt/vt.h>
 
+#ifndef SC_NO_CUTPASTE
 struct mouse_cursor vt_default_mouse_pointer = {
 	.map = {
 		0x00, /* "__      " */
@@ -66,3 +67,4 @@ struct mouse_cursor vt_default_mouse_pointer = {
 	.w = 8,
 	.h = 13,
 };
+#endif

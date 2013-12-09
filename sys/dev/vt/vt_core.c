@@ -127,7 +127,9 @@ extern unsigned char vt_logo_image[];
 
 /* Font. */
 extern struct vt_font vt_font_default;
+#ifndef SC_NO_CUTPASTE
 extern struct mouse_cursor vt_default_mouse_pointer;
+#endif
 
 static int signal_vt_rel(struct vt_window *);
 static int signal_vt_acq(struct vt_window *);
@@ -689,12 +691,14 @@ vt_flush(struct vt_device *vd)
 	struct vt_window *vw = vd->vd_curwindow;
 	struct vt_font *vf = vw->vw_font;
 	struct vt_bufmask tmask;
-	struct mouse_cursor *m;
 	unsigned int row, col;
 	term_rect_t tarea;
 	term_pos_t size;
 	term_char_t *r;
+#ifndef SC_NO_CUTPASTE
+	struct mouse_cursor *m;
 	int bpl, h, w;
+#endif
 
 	if (vd->vd_flags & VDF_SPLASH || vw->vw_flags & VWF_BUSY)
 		return;
@@ -711,11 +715,13 @@ vt_flush(struct vt_device *vd)
 		vd->vd_flags &= ~VDF_INVALID;
 	}
 
+#ifndef SC_NO_CUTPASTE
 	if ((vw->vw_flags & VWF_MOUSE_HIDE) == 0) {
 		/* Mark last mouse position as dirty to erase. */
 		vtbuf_mouse_cursor_position(&vw->vw_buf, vd->vd_mdirtyx,
 		    vd->vd_mdirtyy);
 	}
+#endif
 
 	for (row = tarea.tr_begin.tp_row; row < tarea.tr_end.tp_row; row++) {
 		if (!VTBUF_DIRTYROW(&tmask, row))
@@ -731,6 +737,7 @@ vt_flush(struct vt_device *vd)
 		}
 	}
 
+#ifndef SC_NO_CUTPASTE
 	/* Mouse disabled. */
 	if (vw->vw_flags & VWF_MOUSE_HIDE)
 		return;
@@ -759,6 +766,7 @@ vt_flush(struct vt_device *vd)
 		vd->vd_mdirtyx = vd->vd_mx / vf->vf_width;
 		vd->vd_mdirtyy = vd->vd_my / vf->vf_height;
 	}
+#endif
 }
 
 static void
@@ -1106,6 +1114,7 @@ finish_vt_acq(struct vt_window *vw)
 	return (EINVAL);
 }
 
+#ifndef SC_NO_CUTPASTE
 void
 vt_mouse_event(int type, int x, int y, int event, int cnt)
 {
@@ -1265,6 +1274,7 @@ vt_mouse_state(int show)
 		break;
 	}
 }
+#endif
 
 static int
 vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
