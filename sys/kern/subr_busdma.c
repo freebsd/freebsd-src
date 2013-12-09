@@ -1026,6 +1026,7 @@ busdma_mem_alloc(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 
 	md->md_flags = mtag.dmt_flags;
 	mflags = (flags & BUSDMA_ALLOC_ZERO) ? M_ZERO : 0;
+	mflags |= M_NOWAIT;
 
 	idx = 0;
 	maxsz = tag->dt_maxsz;
