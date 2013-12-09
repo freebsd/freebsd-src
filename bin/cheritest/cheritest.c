@@ -41,6 +41,7 @@
 #include <machine/cheric.h>
 #include <machine/cpuregs.h>
 
+#include <cheritest-helper.h>
 #include <err.h>
 #include <inttypes.h>
 #include <stdio.h>
@@ -102,6 +103,7 @@ usage(void)
 	fprintf(stderr, "cheritest sandbox\n");
 	fprintf(stderr, "cheritest sandbox_invoke_abort\n");
 	fprintf(stderr, "cheritest sandbox_invoke_md5\n");
+	fprintf(stderr, "cheritest sandbox_invoke_spin\n");
 	fprintf(stderr, "cheritest sleep\n");
 	fprintf(stderr, "cheritest unsandbox\n");
 	fprintf(stderr, "cheritest syscalltest\n");
@@ -344,8 +346,9 @@ cheritest_sandbox_invoke_abort(void)
 	    &sb) < 0)
 		err(1, "sandbox_setup");
 
-	v = sandbox_invoke(sb, 0, 1, 0, 0, NULL, NULL, NULL, NULL, NULL,
-	    NULL, NULL, NULL);
+	/* XXXRW: USE_C_CAPS variant. */
+	v = sandbox_invoke(sb, CHERITEST_HELPER_OP_ABORT, 0, 0, 0, NULL, NULL,
+	    NULL, NULL, NULL, NULL, NULL, NULL);
 	printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
 	sandbox_destroy(sb);
 }
@@ -378,8 +381,9 @@ cheritest_sandbox_invoke_md5(void)
 	md5cap = cheri_ptrperm(md5string, sizeof(md5string), CHERI_PERM_LOAD);
 	bufcap = cheri_ptrperm(buf, sizeof(buf), CHERI_PERM_STORE);
 
-	v = sandbox_cinvoke(sb, strlen(md5string), 0, 0, 0, 0, 0, 0, 0,
-	    md5cap, bufcap, cclear, cclear, cclear, cclear, cclear, cclear);
+	v = sandbox_cinvoke(sb, CHERITEST_HELPER_OP_MD5, strlen(md5string), 0,
+	    0, 0, 0, 0, 0, md5cap, bufcap, cclear, cclear, cclear, cclear,
+	    cclear, cclear);
 #else
 	CHERI_CINCBASE(10, 0, &md5string);
 	CHERI_CSETLEN(10, 10, strlen(md5string));
@@ -391,14 +395,35 @@ cheritest_sandbox_invoke_md5(void)
 	CHERI_CANDPERM(10, 10, CHERI_PERM_STORE);
 	CHERI_CSC(10, 0, &c4, 0);
 
-	v = sandbox_invoke(sb, strlen(md5string), 0, 0, 0, &c3, &c4, NULL,
-	    NULL, NULL, NULL, NULL, NULL);
+	v = sandbox_invoke(sb, CHERITEST_HELPER_OP_MD5, strlen(md5string), 0,
+	    0, &c3, &c4, NULL, NULL, NULL, NULL, NULL, NULL);
 #endif
 
 	printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
 	sandbox_destroy(sb);
 	buf[32] = '\0';
 	printf("MD5 checksum of '%s' is %s\n", md5string, buf);
+}
+
+static void
+cheritest_sandbox_invoke_spin(void)
+{
+	struct sandbox *sb;
+	register_t v;
+
+	if (sandbox_setup("/usr/libexec/cheritest-helper.bin", 4*1024*1024,
+	    &sb) < 0)
+		err(1, "sandbox_setup");
+
+#ifdef USE_C_CAPS
+	v = sandbox_cinvoke(sb, CHERITEST_HELPER_OP_SPIN, 0, 0, 0, NULL, NULL,
+	    NULL, NULL, NULL, NULL, NULL, NULL);
+#else
+	v = sandbox_invoke(sb, CHERITEST_HELPER_OP_SPIN, 0, 0, 0, NULL, NULL,
+	    NULL, NULL, NULL, NULL, NULL, NULL);
+#endif
+	sandbox_destroy(sb);
+	printf("Recovered from spin (surprising)\n");
 }
 
 static void
@@ -476,6 +501,8 @@ main(__unused int argc, __unused char *argv[])
 			cheritest_sandbox_invoke_abort();
 		else if (strcmp(argv[i], "sandbox_invoke_md5") == 0)
 			cheritest_sandbox_invoke_md5();
+		else if (strcmp(argv[i], "sandbox_invoke_spin") == 0)
+			cheritest_sandbox_invoke_spin();
 		else if (strcmp(argv[i], "sleep") == 0)
 			sleep(10);
 		else if (strcmp(argv[i], "unsandbox") == 0)

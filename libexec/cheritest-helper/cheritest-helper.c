@@ -42,35 +42,26 @@
 #include <stdlib.h>
 
 #include "cmemcpy.h"
+#include "cheritest-helper.h"
 
 #ifdef USE_C_CAPS
-int	invoke(size_t len, int do_abort, __capability char *data_input,
+int	invoke(register_t op, size_t len, __capability char *data_input,
 	    __capability char *data_output);
 #else
-int	invoke(size_t len, int do_abort);
+int	invoke(register_t op, size_t len);
 #endif
 
-/*
- * Sample sandboxed code.  Calculate an MD5 checksum of the data arriving via
- * c3, and place the checksum in c4.  a0 will hold input data length.  a1
- * indicates whether we should try a system call (abort()).  c4 must be (at
- * least) 33 bytes.
- */
+static int
 #ifdef USE_C_CAPS
-int
-invoke(size_t len, int do_abort, __capability char *data_input,
-    __capability char *data_output)
+invoke_md5(size_t len, __capability char *data_input,
+  __capability char *data_output)
 #else
-int
-invoke(size_t len, int do_abort)
+invoke_md5(size_t len)
 #endif
 {
 	MD5_CTX md5context;
 	char buf[33], ch;
 	u_int count;
-
-	if (do_abort)
-		abort();
 
 	MD5Init(&md5context);
 	for (count = 0; count < len; count++) {
@@ -97,4 +88,37 @@ invoke(size_t len, int do_abort)
 	__asm__ __volatile__ ("syscall 20");
 
 	return (123456);
+}
+
+/*
+ * Sample sandboxed code.  Calculate an MD5 checksum of the data arriving via
+ * c3, and place the checksum in c4.  a0 will hold input data length.  a1
+ * indicates whether we should try a system call (abort()).  c4 must be (at
+ * least) 33 bytes.
+ */
+int
+#ifdef USE_C_CAPS
+invoke(register_t op, size_t len, __capability char *data_input,
+    __capability char *data_output)
+#else
+invoke(register_t op, size_t len)
+#endif
+{
+	int ret;
+
+	switch (op) {
+	case CHERITEST_HELPER_OP_MD5:
+#ifdef USE_C_CAPS
+		return (invoke_md5(len, data_input, data_output));
+#else
+		return (invoke_md5(len));
+#endif
+
+	case CHERITEST_HELPER_OP_ABORT:
+		abort();
+
+	case CHERITEST_HELPER_OP_SPIN:
+		while (1);
+	}
+	return (ret);
 }

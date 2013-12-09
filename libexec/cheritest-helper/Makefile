@@ -9,6 +9,8 @@ SRCS=	cheritest-helper.c			\
 	memcpy.S				\
 	memset.c
 
+INCS=	cheritest-helper.h
+
 LDFLAGS+=	-Wl,--script=${.CURDIR}/sandbox.ld -nostdlib
 NO_MAN=
 #STRIP=
