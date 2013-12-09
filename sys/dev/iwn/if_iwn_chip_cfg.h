@@ -359,6 +359,34 @@ static const struct iwn_base_params iwn_6000g2b_base_params = {
 	.bt_mode = IWN_BT_ADVANCED,
 	.plcp_err_threshold = IWN_PLCP_ERR_DEFAULT_THRESHOLD,
 };
+
+/*
+ * 6235 series NICs.
+ */
+static const struct iwn_base_params iwn_6235_base_params = {
+	.pll_cfg_val = 0,
+	.max_ll_items = IWN_OTP_MAX_LL_ITEMS_6x00,
+	.shadow_ram_support = true,
+	.shadow_reg_enable = true,
+	.bt_session_2 = false,
+	.bt_sco_disable = true,
+	.additional_nic_config = true,
+	.regulatory_bands = iwn6000_regulatory_bands,
+	.enhanced_TX_power = true,
+	.calib_need =
+	    (IWN_FLG_NEED_PHY_CALIB_DC
+	    | IWN_FLG_NEED_PHY_CALIB_LO
+	    | IWN_FLG_NEED_PHY_CALIB_TX_IQ
+	    | IWN_FLG_NEED_PHY_CALIB_BASE_BAND
+	    | IWN_FLG_NEED_PHY_CALIB_TEMP_OFFSET ),
+	.support_hostap = false,
+	.no_multi_vaps = true,
+	/* XXX 1x2? This NIC is 2x2, right? */
+	.additional_gp_drv_bit = IWN_GP_DRIVER_6050_1X2,
+	.bt_mode = IWN_BT_ADVANCED,
+	.plcp_err_threshold = IWN_PLCP_ERR_DEFAULT_THRESHOLD,
+};
+
 static const struct iwn_base_params iwn_5x50_base_params = {
 	.pll_cfg_val = IWN_ANA_PLL_INIT,
 	.max_ll_items = IWN_OTP_MAX_LL_ITEMS_6x00,

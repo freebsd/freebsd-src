@@ -124,15 +124,8 @@ static const struct iwn_ident iwn_ident_table[] = {
 	{ 0x8086, IWN_DID_5x50_2, "Intel WiMAX/WiFi Link 5350"			},
 	{ 0x8086, IWN_DID_5x50_3, "Intel WiMAX/WiFi Link 5150"			},
 	{ 0x8086, IWN_DID_5x50_4, "Intel WiMAX/WiFi Link 5150"			},
-	/*
-	 * These currently don't function; the firmware crashes during
-	 * the startup calibration request.
-	 */
-#if 0
 	{ 0x8086, IWN_DID_6035_1, "Intel Centrino Advanced 6235"		},
-	/* XXX TODO: figure out which ID this one is? */
 	{ 0x8086, IWN_DID_6035_2, "Intel Centrino Advanced 6235"		},
-#endif
 	{ 0, 0, NULL }
 };
 
@@ -837,8 +830,8 @@ iwn_config_specific(struct iwn_softc *sc, uint16_t pid)
 			case IWN_SDID_6035_3:
 			case IWN_SDID_6035_4:
 				sc->fwname = "iwn6000g2bfw";
-				sc->limits = &iwn6000_sensitivity_limits;
-				sc->base_params = &iwn_6000g2b_base_params;
+				sc->limits = &iwn6235_sensitivity_limits;
+				sc->base_params = &iwn_6235_base_params;
 				break;
 			default:
 				device_printf(sc->sc_dev, "adapter type id : 0x%04x sub id :"
@@ -5815,7 +5808,7 @@ iwn_send_sensitivity(struct iwn_softc *sc)
 	cmd.energy_cck         = htole16(calib->energy_cck);
 	/* Barker modulation: use default values. */
 	cmd.corr_barker        = htole16(190);
-	cmd.corr_barker_mrc    = htole16(390);
+	cmd.corr_barker_mrc    = htole16(sc->limits->barker_mrc);
 
 	DPRINTF(sc, IWN_DEBUG_CALIBRATE,
 	    "%s: set sensitivity %d/%d/%d/%d/%d/%d/%d\n", __func__,
@@ -6648,7 +6641,7 @@ iwn_auth(struct iwn_softc *sc, struct ieee80211vap *vap)
 		sc->rxon->ofdm_mask = 0;
 	} else {
 		/* Assume 802.11b/g. */
-		sc->rxon->cck_mask  = 0x0f;
+		sc->rxon->cck_mask  = 0x03;
 		sc->rxon->ofdm_mask = 0x15;
 	}
 	DPRINTF(sc, IWN_DEBUG_STATE, "rxon chan %d flags %x cck %x ofdm %x\n",
