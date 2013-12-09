@@ -33,6 +33,7 @@
 # re-processing of flags (all children log to the parent's log file).
 #
 export DEBUG_SELF_INITIALIZE=
+export DEBUG_INITIALIZE_FILE=
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
