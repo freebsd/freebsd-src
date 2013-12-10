@@ -131,7 +131,7 @@ void getsocket(void);
 int set(int, char **);
 void get(char *);
 int delete(char *);
-void dump(struct in6_addr *, int);
+void dump(struct sockaddr_in6 *, int);
 static struct in6_nbrinfo *getnbrinfo(struct in6_addr *, int, int);
 static char *ether_str(struct sockaddr_dl *);
 int ndp_ether_aton(char *, u_char *);
@@ -461,7 +461,9 @@ get(char *host)
 		return;
 	}
 	sin->sin6_addr = ((struct sockaddr_in6 *)res->ai_addr)->sin6_addr;
-	dump(&sin->sin6_addr, 0);
+	sin->sin6_scope_id =
+	    ((struct sockaddr_in6 *)res->ai_addr)->sin6_scope_id;
+	dump(sin, 0);
 	if (found_entry == 0) {
 		getnameinfo((struct sockaddr *)sin, sin->sin6_len, host_buf,
 		    sizeof(host_buf), NULL ,0,
@@ -543,7 +545,7 @@ delete:
  * Dump the entire neighbor cache
  */
 void
-dump(struct in6_addr *addr, int cflag)
+dump(struct sockaddr_in6 *addr, int cflag)
 {
 	int mib[6];
 	size_t needed;
@@ -615,7 +617,9 @@ again:;
 			continue;
 
 		if (addr) {
-			if (!IN6_ARE_ADDR_EQUAL(addr, &sin->sin6_addr))
+			if (IN6_ARE_ADDR_EQUAL(&addr->sin6_addr,
+			    &sin->sin6_addr) == 0 ||
+			    addr->sin6_scope_id != sin->sin6_scope_id)
 				continue;
 			found_entry = 1;
 		} else if (IN6_IS_ADDR_MULTICAST(&sin->sin6_addr))
