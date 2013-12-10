@@ -109,11 +109,6 @@
 #include <unistd.h>
 #include "gmt2local.h"
 
-/* packing rule for routing socket */
-#define ROUNDUP(a) \
-	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
-#define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
-
 #define NEXTADDR(w, s) \
 	if (rtm->rtm_addrs & (w)) { \
 		bcopy((char *)&s, cp, sizeof(s)); cp += SA_SIZE(&s);}
@@ -421,7 +416,7 @@ set(int argc, char **argv)
 		/* NOTREACHED */
 	}
 	sin = (struct sockaddr_in6 *)(rtm + 1);
-	sdl = (struct sockaddr_dl *)(ROUNDUP(sin->sin6_len) + (char *)sin);
+	sdl = (struct sockaddr_dl *)(ALIGN(sin->sin6_len) + (char *)sin);
 	if (IN6_ARE_ADDR_EQUAL(&sin->sin6_addr, &sin_m.sin6_addr)) {
 		if (sdl->sdl_family == AF_LINK &&
 		    !(rtm->rtm_flags & RTF_GATEWAY)) {
@@ -508,7 +503,7 @@ delete(char *host)
 		/* NOTREACHED */
 	}
 	sin = (struct sockaddr_in6 *)(rtm + 1);
-	sdl = (struct sockaddr_dl *)(ROUNDUP(sin->sin6_len) + (char *)sin);
+	sdl = (struct sockaddr_dl *)(ALIGN(sin->sin6_len) + (char *)sin);
 	if (IN6_ARE_ADDR_EQUAL(&sin->sin6_addr, &sin_m.sin6_addr)) {
 		if (sdl->sdl_family == AF_LINK &&
 		    !(rtm->rtm_flags & RTF_GATEWAY)) {
@@ -598,7 +593,7 @@ again:;
 
 		rtm = (struct rt_msghdr *)next;
 		sin = (struct sockaddr_in6 *)(rtm + 1);
-		sdl = (struct sockaddr_dl *)((char *)sin + ROUNDUP(sin->sin6_len));
+		sdl = (struct sockaddr_dl *)((char *)sin + ALIGN(sin->sin6_len));
 
 		/*
 		 * Some OSes can produce a route that has the LINK flag but
