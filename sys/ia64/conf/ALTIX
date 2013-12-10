@@ -50,7 +50,7 @@ options 	NFSLOCKD
 options 	NFS_ROOT
 options 	NULLFS
 options 	P1003_1B_SEMAPHORES
-#options 	PREEMPTION
+options 	PREEMPTION
 options 	PRINTF_BUFR_SIZE=128
 options 	PROCFS
 options 	PSEUDOFS
