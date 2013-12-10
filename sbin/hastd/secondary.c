@@ -110,15 +110,12 @@ static void *disk_thread(void *arg);
 static void *send_thread(void *arg);
 
 #define	QUEUE_INSERT(name, hio)	do {					\
-	bool _wakeup;							\
-									\
 	mtx_lock(&hio_##name##_list_lock);				\
-	_wakeup = TAILQ_EMPTY(&hio_##name##_list);			\
+	if (TAILQ_EMPTY(&hio_##name##_list))				\
+		cv_broadcast(&hio_##name##_list_cond);			\
 	TAILQ_INSERT_TAIL(&hio_##name##_list, (hio), hio_next);		\
 	hio_##name##_list_size++;					\
 	mtx_unlock(&hio_##name##_list_lock);				\
-	if (_wakeup)							\
-		cv_broadcast(&hio_##name##_list_cond);			\
 } while (0)
 #define	QUEUE_TAKE(name, hio)	do {					\
 	mtx_lock(&hio_##name##_list_lock);				\
