@@ -190,6 +190,7 @@ netvsc_init(void)
 	if (!cold && !g_netvsc_drv.drv_inited) {
 		g_netvsc_drv.drv_inited = 1;
 		netvsc_drv_init();
+		printf("done!\n");
 	} else {
 		printf("Already initialized!\n");
 	}
