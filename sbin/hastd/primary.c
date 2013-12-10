@@ -180,27 +180,21 @@ static pthread_mutex_t metadata_lock;
 	((res)->hr_remotein != NULL && (res)->hr_remoteout != NULL)
 
 #define	QUEUE_INSERT1(hio, name, ncomp)	do {				\
-	bool _wakeup;							\
-									\
 	mtx_lock(&hio_##name##_list_lock[(ncomp)]);			\
-	_wakeup = TAILQ_EMPTY(&hio_##name##_list[(ncomp)]);		\
+	if (TAILQ_EMPTY(&hio_##name##_list[(ncomp)]))			\
+		cv_broadcast(&hio_##name##_list_cond[(ncomp)]);		\
 	TAILQ_INSERT_TAIL(&hio_##name##_list[(ncomp)], (hio),		\
 	    hio_next[(ncomp)]);						\
 	hio_##name##_list_size[(ncomp)]++;				\
-	mtx_unlock(&hio_##name##_list_lock[ncomp]);			\
-	if (_wakeup)							\
-		cv_broadcast(&hio_##name##_list_cond[(ncomp)]);		\
+	mtx_unlock(&hio_##name##_list_lock[(ncomp)]);			\
 } while (0)
 #define	QUEUE_INSERT2(hio, name)	do {				\
-	bool _wakeup;							\
-									\
 	mtx_lock(&hio_##name##_list_lock);				\
-	_wakeup = TAILQ_EMPTY(&hio_##name##_list);			\
+	if (TAILQ_EMPTY(&hio_##name##_list))				\
+		cv_broadcast(&hio_##name##_list_cond);			\
 	TAILQ_INSERT_TAIL(&hio_##name##_list, (hio), hio_##name##_next);\
 	hio_##name##_list_size++;					\
 	mtx_unlock(&hio_##name##_list_lock);				\
-	if (_wakeup)							\
-		cv_broadcast(&hio_##name##_list_cond);			\
 } while (0)
 #define	QUEUE_TAKE1(hio, name, ncomp, timeout)	do {			\
 	bool _last;							\
