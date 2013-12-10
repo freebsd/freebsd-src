@@ -233,6 +233,10 @@ static pthread_mutex_t metadata_lock;
 	mtx_unlock(&hio_##name##_list_lock);				\
 } while (0)
 
+#define ISFULLSYNC(hio)	((hio)->hio_replication == HAST_REPLICATION_FULLSYNC)
+#define ISMEMSYNC(hio)	((hio)->hio_replication == HAST_REPLICATION_MEMSYNC)
+#define ISASYNC(hio)	((hio)->hio_replication == HAST_REPLICATION_ASYNC)
+
 #define	SYNCREQ(hio)		do {					\
 	(hio)->hio_ggio.gctl_unit = -1;					\
 	(hio)->hio_ggio.gctl_seq = 1;					\
@@ -240,9 +244,9 @@ static pthread_mutex_t metadata_lock;
 #define	ISSYNCREQ(hio)		((hio)->hio_ggio.gctl_unit == -1)
 #define	SYNCREQDONE(hio)	do { (hio)->hio_ggio.gctl_unit = -2; } while (0)
 #define	ISSYNCREQDONE(hio)	((hio)->hio_ggio.gctl_unit == -2)
-#define ISMEMSYNCWRITE(hio)	\
-	(((hio)->hio_replication == HAST_REPLICATION_MEMSYNC &&		\
-	(hio)->hio_ggio.gctl_cmd == BIO_WRITE && !ISSYNCREQ(hio)))
+
+#define ISMEMSYNCWRITE(hio)	(ISMEMSYNC(hio) &&			\
+	    (hio)->hio_ggio.gctl_cmd == BIO_WRITE && !ISSYNCREQ(hio))
 
 static struct hast_resource *gres;
 
@@ -1356,7 +1360,7 @@ ggate_recv_thread(void *arg)
 			} else {
 				mtx_unlock(&res->hr_amp_lock);
 			}
-			if (hio->hio_replication == HAST_REPLICATION_MEMSYNC) {
+			if (ISMEMSYNC(hio)) {
 				hio->hio_memsyncacked = false;
 				refcnt_init(&hio->hio_writecount, ncomps);
 			}
@@ -1441,8 +1445,7 @@ local_send_thread(void *arg)
 				    ret, (intmax_t)ggio->gctl_length);
 			} else {
 				hio->hio_errors[ncomp] = 0;
-				if (hio->hio_replication ==
-				    HAST_REPLICATION_ASYNC) {
+				if (ISASYNC(hio)) {
 					ggio->gctl_error = 0;
 					write_complete(res, hio);
 				}
