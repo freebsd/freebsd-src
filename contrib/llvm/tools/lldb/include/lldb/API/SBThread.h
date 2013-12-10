@@ -94,6 +94,9 @@ public:
     const char *
     GetQueueName() const;
 
+    lldb::queue_id_t
+    GetQueueID() const;
+
     void
     StepOver (lldb::RunMode stop_other_threads = lldb::eOnlyDuringStepping);
 
@@ -116,6 +119,9 @@ public:
     StepOverUntil (lldb::SBFrame &frame, 
                    lldb::SBFileSpec &file_spec, 
                    uint32_t line);
+
+    SBError
+    JumpToLine (lldb::SBFileSpec &file_spec, uint32_t line);
 
     void
     RunToAddress (lldb::addr_t addr);
@@ -194,6 +200,12 @@ public:
     
     bool
     GetStatus (lldb::SBStream &status) const;
+
+    SBThread
+    GetExtendedBacktraceThread (const char *type);
+
+    uint32_t
+    GetExtendedBacktraceOriginatingIndexID ();
 
 protected:
     friend class SBBreakpoint;

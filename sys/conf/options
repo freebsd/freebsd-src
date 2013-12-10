@@ -126,7 +126,8 @@ GEOM_UZIP	opt_geom.h
 GEOM_VIRSTOR	opt_geom.h
 GEOM_VOL	opt_geom.h
 GEOM_ZERO	opt_geom.h
-KDTRACE_HOOKS	opt_kdtrace.h
+KDTRACE_HOOKS	opt_global.h
+KDTRACE_FRAME	opt_kdtrace.h
 KSTACK_MAX_PAGES
 KSTACK_PAGES
 KTRACE
@@ -164,7 +165,6 @@ PPC_DEBUG	opt_ppc.h
 PPC_PROBE_CHIPSET	opt_ppc.h
 PPS_SYNC	opt_ntp.h
 PREEMPTION	opt_sched.h
-PROCDESC	opt_procdesc.h
 QUOTA
 SCHED_4BSD	opt_sched.h
 SCHED_STATS	opt_sched.h
@@ -731,8 +731,10 @@ SAFE_DEBUG		opt_safe.h
 SAFE_NO_RNG		opt_safe.h
 SAFE_RNDTEST		opt_safe.h
 
-# syscons options
+# syscons/vt options
 MAXCONS			opt_syscons.h
+VT_FB_DEFAULT_WIDTH	opt_syscons.h
+VT_FB_DEFAULT_HEIGHT	opt_syscons.h
 SC_ALT_MOUSE_IMAGE	opt_syscons.h
 SC_CUT_SPACES2TABS	opt_syscons.h
 SC_CUT_SEPCHARS		opt_syscons.h

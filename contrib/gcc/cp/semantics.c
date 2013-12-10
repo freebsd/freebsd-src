@@ -587,6 +587,16 @@ maybe_convert_cond (tree cond)
 
   /* Do the conversion.  */
   cond = convert_from_reference (cond);
+
+  if (TREE_CODE (cond) == MODIFY_EXPR
+      && !TREE_NO_WARNING (cond)
+      && warn_parentheses)
+    {
+      warning (OPT_Wparentheses,
+	       "suggest parentheses around assignment used as truth value");
+      TREE_NO_WARNING (cond) = 1;
+    }
+
   return condition_conversion (cond);
 }
 
@@ -2002,7 +2012,9 @@ finish_unary_op_expr (enum tree_code code, tree expr)
       result = copy_node (result);
       TREE_NEGATED_INT (result) = 1;
     }
-  overflow_warning (result);
+  if (TREE_OVERFLOW_P (result) && !TREE_OVERFLOW_P (expr))
+    overflow_warning (result);
+
   return result;
 }
 

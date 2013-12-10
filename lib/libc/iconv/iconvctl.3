@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2009
+.Dd November 25, 2009
 .Dt ICONVCTL 3
 .Os
 .Sh NAME
@@ -110,6 +110,31 @@ variable, which is passed to
 via
 .Fa argument
 by its address.
+.It ICONV_GET_ILSEQ_INVALID
+Determines if a character in the input buffer that is valid,
+but for which an identical character does not exist in the target
+codeset returns
+.Er EILSEQ
+or not.
+The answer is stored in
+.Fa argument ,
+which is of
+.Ft int * .
+It will be set to 1 if this feature is enabled or set to 0 otherwise.
+.It ICONV_SET_ILSEQ_INVALID
+Sets whether a character in the input buffer that is valid,
+but for which an identical character does not exist in the target
+codeset returns
+.Er EILSEQ
+or not.
+If
+.Fa argument ,
+which is of
+.Ft int *
+is set to 1 it will be enabled,
+and if
+.Fa argument
+is set to 0 it will be disabled.
 .El
 .\" XXX: fallbacks are unimplemented and trying to set them will always
 .\"      return EOPNOTSUPP but definitions are provided for source-level

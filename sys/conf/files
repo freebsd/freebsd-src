@@ -82,7 +82,7 @@ pccarddevs.h			standard				   \
 	compile-with	"${AWK} -f $S/tools/pccarddevs2h.awk $S/dev/pccard/pccarddevs" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"pccarddevs.h"
-teken_state.h		optional sc					   \
+teken_state.h		optional sc | vt				   \
 	dependency	"$S/teken/gensequences $S/teken/sequences" \
 	compile-with	"${AWK} -f $S/teken/gensequences $S/teken/sequences > teken_state.h" \
 	no-obj no-implicit-rule before-depend				   \
@@ -205,6 +205,7 @@ cddl/contrib/opensolaris/uts/common/fs/zfs/gzip.c			optional zfs compile-with "$
 cddl/contrib/opensolaris/uts/common/fs/zfs/lz4.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/lzjb.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/metaslab.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/range_tree.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/refcount.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/rrwlock.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/sa.c				optional zfs compile-with "${ZFS_C}"
@@ -215,6 +216,7 @@ cddl/contrib/opensolaris/uts/common/fs/zfs/spa_errlog.c			optional zfs compile-w
 cddl/contrib/opensolaris/uts/common/fs/zfs/spa_history.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/spa_misc.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/space_map.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/space_reftree.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/trim_map.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/txg.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/uberblock.c			optional zfs compile-with "${ZFS_C}"
@@ -1394,7 +1396,9 @@ dev/ex/if_ex_isa.c		optional ex isa
 dev/ex/if_ex_pccard.c		optional ex pccard
 dev/exca/exca.c			optional cbb
 dev/fatm/if_fatm.c		optional fatm pci
-dev/fb/splash.c			optional splash
+dev/fb/fbd.c			optional fbd | vt
+dev/fb/fb_if.m			standard
+dev/fb/splash.c			optional sc splash
 dev/fdt/fdt_common.c		optional fdt
 dev/fdt/fdt_ic_if.m		optional fdt
 dev/fdt/fdt_pci.c		optional fdt pci
@@ -2311,6 +2315,7 @@ dev/usb/usb_util.c		optional usb
 #
 dev/usb/net/if_aue.c		optional aue
 dev/usb/net/if_axe.c		optional axe
+dev/usb/net/if_axge.c		optional axge
 dev/usb/net/if_cdce.c		optional cdce
 dev/usb/net/if_cue.c		optional cue
 dev/usb/net/if_ipheth.c		optional ipheth
@@ -2321,8 +2326,8 @@ dev/usb/net/if_smsc.c		optional smsc
 dev/usb/net/if_udav.c		optional udav
 dev/usb/net/if_usie.c		optional usie
 dev/usb/net/ruephy.c		optional rue
-dev/usb/net/usb_ethernet.c	optional aue | axe | cdce | cue | kue | mos | \
-					 rue | smsc | udav | ipheth
+dev/usb/net/usb_ethernet.c	optional aue | axe | axge | cdce | cue | kue | \
+					 mos | rue | smsc | udav | ipheth
 dev/usb/net/uhso.c		optional uhso
 #
 # USB WLAN drivers
@@ -2458,6 +2463,17 @@ dev/vge/if_vge.c		optional vge
 
 dev/vkbd/vkbd.c			optional vkbd
 dev/vr/if_vr.c			optional vr pci
+dev/vt/colors/vt_termcolors.c	optional vt
+dev/vt/font/vt_font_default.c	optional vt
+dev/vt/font/vt_mouse_cursor.c	optional vt
+dev/vt/hw/fb/vt_fb.c		optional vt
+dev/vt/hw/vga/vga.c		optional vt vt_vga
+dev/vt/logo/logo_freebsd.c	optional vt splash
+dev/vt/vt_buf.c			optional vt
+dev/vt/vt_consolectl.c		optional vt
+dev/vt/vt_core.c		optional vt
+dev/vt/vt_font.c		optional vt
+dev/vt/vt_sysmouse.c		optional vt
 dev/vte/if_vte.c		optional vte pci
 dev/vx/if_vx.c			optional vx
 dev/vx/if_vx_eisa.c		optional vx eisa
@@ -2894,6 +2910,7 @@ kern/subr_sleepqueue.c		standard
 kern/subr_smp.c			standard
 kern/subr_stack.c		optional ddb | stack | ktr
 kern/subr_taskqueue.c		standard
+kern/subr_terminal.c		optional vt
 kern/subr_trap.c		standard
 kern/subr_turnstile.c		standard
 kern/subr_uio.c			standard
@@ -3711,7 +3728,7 @@ opencrypto/crypto.c		optional crypto
 opencrypto/cryptodev.c		optional cryptodev
 opencrypto/cryptodev_if.m	optional crypto
 opencrypto/cryptosoft.c		optional crypto
-opencrypto/deflate.c		optional crypto
+opencrypto/cryptodeflate.c	optional crypto
 opencrypto/rmd160.c		optional crypto | ipsec
 opencrypto/skipjack.c		optional crypto
 opencrypto/xform.c		optional crypto
@@ -3793,7 +3810,7 @@ security/mac_portacl/mac_portacl.c optional mac_portacl
 security/mac_seeotheruids/mac_seeotheruids.c optional mac_seeotheruids
 security/mac_stub/mac_stub.c	optional mac_stub
 security/mac_test/mac_test.c	optional mac_test
-teken/teken.c			optional sc
+teken/teken.c			optional sc | vt
 ufs/ffs/ffs_alloc.c		optional ffs
 ufs/ffs/ffs_balloc.c		optional ffs
 ufs/ffs/ffs_inode.c		optional ffs

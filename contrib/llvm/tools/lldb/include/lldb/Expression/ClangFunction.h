@@ -67,8 +67,8 @@ class ClangFunction : public ClangExpression
 {
     friend class ASTStructExtractor;
 public:
-	//------------------------------------------------------------------
-	/// Constructor
+    //------------------------------------------------------------------
+    /// Constructor
     ///
     /// @param[in] exe_scope
     ///     An execution context scope that gets us at least a target and 
@@ -84,14 +84,14 @@ public:
     /// @param[in] arg_value_list
     ///     The default values to use when calling this function.  Can
     ///     be overridden using WriteFunctionArguments().
-	//------------------------------------------------------------------  
-	ClangFunction (ExecutionContextScope &exe_scope,
+    //------------------------------------------------------------------  
+    ClangFunction (ExecutionContextScope &exe_scope,
                    Function &function_ptr, 
                    ClangASTContext *ast_context, 
                    const ValueList &arg_value_list);
     
     //------------------------------------------------------------------
-	/// Constructor
+    /// Constructor
     ///
     /// @param[in] exe_scope
     ///     An execution context scope that gets us at least a target and 
@@ -110,32 +110,32 @@ public:
     /// @param[in] arg_value_list
     ///     The default values to use when calling this function.  Can
     ///     be overridden using WriteFunctionArguments().
-	//------------------------------------------------------------------
-	ClangFunction (ExecutionContextScope &exe_scope,
+    //------------------------------------------------------------------
+    ClangFunction (ExecutionContextScope &exe_scope,
                    const ClangASTType &return_type,
                    const Address& function_address, 
                    const ValueList &arg_value_list);
     
     //------------------------------------------------------------------
-	/// Destructor
-	//------------------------------------------------------------------
-	virtual 
+    /// Destructor
+    //------------------------------------------------------------------
+    virtual 
     ~ClangFunction();
 
     //------------------------------------------------------------------
-	/// Compile the wrapper function
+    /// Compile the wrapper function
     ///
     /// @param[in] errors
     ///     The stream to print parser errors to.
     ///
     /// @return
     ///     The number of errors.
-	//------------------------------------------------------------------
+    //------------------------------------------------------------------
     unsigned
     CompileFunction (Stream &errors);
     
     //------------------------------------------------------------------
-	/// Insert the default function wrapper and its default argument struct  
+    /// Insert the default function wrapper and its default argument struct  
     ///
     /// @param[in] exe_ctx
     ///     The execution context to insert the function and its arguments
@@ -151,14 +151,14 @@ public:
     ///
     /// @return
     ///     True on success; false otherwise.
-	//------------------------------------------------------------------
+    //------------------------------------------------------------------
     bool
     InsertFunction (ExecutionContext &exe_ctx,
                     lldb::addr_t &args_addr_ref,
                     Stream &errors);
 
     //------------------------------------------------------------------
-	/// Insert the default function wrapper (using the JIT)
+    /// Insert the default function wrapper (using the JIT)
     ///
     /// @param[in] exe_ctx
     ///     The execution context to insert the function and its arguments
@@ -169,12 +169,12 @@ public:
     ///
     /// @return
     ///     True on success; false otherwise.
-	//------------------------------------------------------------------
+    //------------------------------------------------------------------
     bool WriteFunctionWrapper (ExecutionContext &exe_ctx, 
                                Stream &errors);
     
     //------------------------------------------------------------------
-	/// Insert the default function argument struct  
+    /// Insert the default function argument struct  
     ///
     /// @param[in] exe_ctx
     ///     The execution context to insert the function and its arguments
@@ -190,13 +190,13 @@ public:
     ///
     /// @return
     ///     True on success; false otherwise.
-	//------------------------------------------------------------------
+    //------------------------------------------------------------------
     bool WriteFunctionArguments (ExecutionContext &exe_ctx, 
                                  lldb::addr_t &args_addr_ref, 
                                  Stream &errors);
     
     //------------------------------------------------------------------
-	/// Insert an argument struct with a non-default function address and
+    /// Insert an argument struct with a non-default function address and
     /// non-default argument values
     ///
     /// @param[in] exe_ctx
@@ -219,150 +219,13 @@ public:
     ///
     /// @return
     ///     True on success; false otherwise.
-	//------------------------------------------------------------------
+    //------------------------------------------------------------------
     bool WriteFunctionArguments (ExecutionContext &exe_ctx, 
                                  lldb::addr_t &args_addr_ref, 
                                  Address function_address, 
                                  ValueList &arg_values, 
                                  Stream &errors);
 
-    //------------------------------------------------------------------
-	/// [Static] Execute a function, passing it a single void* parameter.
-    /// ClangFunction uses this to call the wrapper function.
-    ///
-    /// @param[in] exe_ctx
-    ///     The execution context to insert the function and its arguments
-    ///     into.
-    ///
-    /// @param[in] function_address
-    ///     The address of the function in the target process.
-    ///
-    /// @param[in] void_arg
-    ///     The value of the void* parameter.
-    ///
-    /// @param[in] stop_others
-    ///     True if other threads should pause during execution.
-    ///
-    /// @param[in] try_all_threads
-    ///     If the timeout expires, true if other threads should run.  If
-    ///     the function may try to take locks, this is useful.
-    /// 
-    /// @param[in] unwind_on_error
-    ///     If true, and the execution stops before completion, we unwind the
-    ///     function call, and return the program state to what it was before the
-    ///     execution.  If false, we leave the program in the stopped state.
-    /// 
-    /// @param[in] timeout_usec
-    ///     Timeout value (0 for no timeout). If try_all_threads is true, then we
-    ///     will try on one thread for the lesser of .25 sec and half the total timeout.
-    ///     then switch to running all threads, otherwise this will be the total timeout.
-    ///
-    /// @param[in] errors
-    ///     The stream to write errors to.
-    ///
-    /// @param[in] this_arg
-    ///     If non-NULL, the function is invoked like a C++ method, with the
-    ///     value pointed to by the pointer as its 'this' argument.
-    ///
-    /// @return
-    ///     Returns one of the ExecutionResults enum indicating function call status.
-	//------------------------------------------------------------------
-    static ExecutionResults 
-    ExecuteFunction (ExecutionContext &exe_ctx, 
-                     lldb::addr_t function_address, 
-                     lldb::addr_t &void_arg, 
-                     bool stop_others, 
-                     bool try_all_threads,
-                     bool unwind_on_error,
-                     bool ignore_breakpoints,
-                     uint32_t timeout_usec,
-                     Stream &errors,
-                     lldb::addr_t* this_arg = 0);
-    
-    //------------------------------------------------------------------
-    /// Run the function this ClangFunction was created with.
-    ///
-    /// This simple version will run the function stopping other threads
-    /// for a fixed timeout period (1000 usec) and if it does not complete,
-    /// we halt the process and try with all threads running.
-    ///
-    /// @param[in] exe_ctx
-    ///     The thread & process in which this function will run.
-    ///
-    /// @param[in] errors
-    ///     Errors will be written here if there are any.
-    ///
-    /// @param[out] results
-    ///     The result value will be put here after running the function.
-    ///
-    /// @return
-    ///     Returns one of the ExecutionResults enum indicating function call status.
-    //------------------------------------------------------------------
-    ExecutionResults 
-    ExecuteFunction(ExecutionContext &exe_ctx, 
-                     Stream &errors, 
-                     Value &results);
-    
-    //------------------------------------------------------------------
-    /// Run the function this ClangFunction was created with.
-    ///
-    /// This simple version will run the function obeying the stop_others
-    /// argument.  There is no timeout.
-    ///
-    /// @param[in] exe_ctx
-    ///     The thread & process in which this function will run.
-    ///
-    /// @param[in] errors
-    ///     Errors will be written here if there are any.
-    ///
-    /// @param[in] stop_others
-    ///     If \b true, run only this thread, if \b false let all threads run.
-    ///
-    /// @param[out] results
-    ///     The result value will be put here after running the function.
-    ///
-    /// @return
-    ///     Returns one of the ExecutionResults enum indicating function call status.
-    //------------------------------------------------------------------
-    ExecutionResults 
-    ExecuteFunction(ExecutionContext &exe_ctx, 
-                     Stream &errors, bool stop_others, 
-                     Value &results);
-    
-    //------------------------------------------------------------------
-    /// Run the function this ClangFunction was created with.
-    ///
-    /// This simple version will run the function on one thread.  If \a timeout_usec
-    /// is not zero, we time out after that timeout.  If \a try_all_threads is true, then we will
-    /// resume with all threads on, otherwise we halt the process, and eExecutionInterrupted will be returned.
-    ///
-    /// @param[in] exe_ctx
-    ///     The thread & process in which this function will run.
-    ///
-    /// @param[in] errors
-    ///     Errors will be written here if there are any.
-    ///
-    /// @param[in] timeout_usec
-    ///     Timeout value (0 for no timeout). If try_all_threads is true, then we
-    ///     will try on one thread for the lesser of .25 sec and half the total timeout.
-    ///     then switch to running all threads, otherwise this will be the total timeout.
-    ///
-    /// @param[in] try_all_threads
-    ///     If \b true, run only this thread, if \b false let all threads run.
-    ///
-    /// @param[out] results
-    ///     The result value will be put here after running the function.
-    ///
-    /// @return
-    ///     Returns one of the ExecutionResults enum indicating function call status.
-    //------------------------------------------------------------------
-    ExecutionResults 
-    ExecuteFunction(ExecutionContext &exe_ctx, 
-                    Stream &errors, 
-                    uint32_t single_thread_timeout_usec, 
-                    bool try_all_threads, 
-                    Value &results);
-    
     //------------------------------------------------------------------
     /// Run the function this ClangFunction was created with.
     ///
@@ -381,17 +244,8 @@ public:
     /// @param[in] errors
     ///     Errors will be written here if there are any.
     ///
-    /// @param[in] stop_others
-    ///     If \b true, run only this thread, if \b false let all threads run.
-    ///
-    /// @param[in] timeout_usec
-    ///     Timeout value (0 for no timeout). If try_all_threads is true, then we
-    ///     will try on one thread for the lesser of .25 sec and half the total timeout.
-    ///     then switch to running all threads, otherwise this will be the total timeout.
-    ///
-    ///
-    /// @param[in] try_all_threads
-    ///     If \b true, run only this thread, if \b false let all threads run.
+    /// @param[in] options
+    ///     The options for this expression execution.
     ///
     /// @param[out] results
     ///     The result value will be put here after running the function.
@@ -402,61 +256,9 @@ public:
     ExecutionResults 
     ExecuteFunction(ExecutionContext &exe_ctx, 
                     lldb::addr_t *args_addr_ptr, 
-                    Stream &errors, 
-                    bool stop_others, 
-                    uint32_t timeout_usec,
-                    bool try_all_threads,
-                    bool unwind_on_error,
-                    bool ignore_breakpoints,
+                    const EvaluateExpressionOptions &options,
+                    Stream &errors,
                     Value &results);
-    
-    //------------------------------------------------------------------
-    /// [static] Get a thread plan to run a function.
-    ///
-    /// @param[in] exe_ctx
-    ///     The execution context to insert the function and its arguments
-    ///     into.
-    ///
-    /// @param[in] func_addr
-    ///     The address of the function in the target process.
-    ///
-    /// @param[in] args_addr_ref
-    ///     The value of the void* parameter.
-    ///
-    /// @param[in] errors
-    ///     The stream to write errors to.
-    ///
-    /// @param[in] stop_others
-    ///     True if other threads should pause during execution.
-    ///
-    /// @param[in] unwind_on_error
-    ///     True if the thread plan may simply be discarded if an error occurs.
-    ///
-    /// @param[in] ignore_breakpoints
-    ///     True if the expression execution will ignore breakpoint hits and continue executing.
-    ///
-    /// @param[in] this_arg
-    ///     If non-NULL (and cmd_arg is NULL), the function is invoked like a C++ 
-    ///     method, with the value pointed to by the pointer as its 'this' 
-    ///     argument.
-    ///
-    /// @param[in] cmd_arg
-    ///     If non-NULL, the function is invoked like an Objective-C method, with
-    ///     this_arg in the 'self' slot and cmd_arg in the '_cmd' slot
-    ///
-    /// @return
-    ///     A ThreadPlan for executing the function.
-	//------------------------------------------------------------------
-    static ThreadPlan *
-    GetThreadPlanToCallFunction (ExecutionContext &exe_ctx, 
-                                 lldb::addr_t func_addr, 
-                                 lldb::addr_t &args_addr_ref, 
-                                 Stream &errors, 
-                                 bool stop_others, 
-                                 bool unwind_on_error,
-                                 bool ignore_breakpoints,
-                                 lldb::addr_t *this_arg = 0,
-                                 lldb::addr_t *cmd_arg = 0);
     
     //------------------------------------------------------------------
     /// Get a thread plan to run the function this ClangFunction was created with.
@@ -468,8 +270,8 @@ public:
     /// @param[in] func_addr
     ///     The address of the function in the target process.
     ///
-    /// @param[in] args_addr_ref
-    ///     The value of the void* parameter.
+    /// @param[in] args_addr
+    ///     The address of the argument struct.
     ///
     /// @param[in] errors
     ///     The stream to write errors to.
@@ -482,23 +284,12 @@ public:
     ///
     /// @return
     ///     A ThreadPlan for executing the function.
-	//------------------------------------------------------------------
+    //------------------------------------------------------------------
     ThreadPlan *
     GetThreadPlanToCallFunction (ExecutionContext &exe_ctx, 
-                                 lldb::addr_t &args_addr_ref, 
-                                 Stream &errors, 
-                                 bool stop_others, 
-                                 bool unwind_on_error = true,
-                                 bool ignore_breakpoints = true)
-    {
-        return ClangFunction::GetThreadPlanToCallFunction (exe_ctx, 
-                                                           m_jit_start_addr, 
-                                                           args_addr_ref, 
-                                                           errors, 
-                                                           stop_others, 
-                                                           unwind_on_error,
-                                                           ignore_breakpoints);
-    }
+                                 lldb::addr_t args_addr,
+                                 const EvaluateExpressionOptions &options,
+                                 Stream &errors);
     
     //------------------------------------------------------------------
     /// Get the result of the function from its struct
@@ -514,7 +305,7 @@ public:
     ///
     /// @return
     ///     True on success; false otherwise.
-	//------------------------------------------------------------------
+    //------------------------------------------------------------------
     bool FetchFunctionResults (ExecutionContext &exe_ctx, 
                                lldb::addr_t args_addr, 
                                Value &ret_value);
@@ -528,7 +319,7 @@ public:
     ///
     /// @param[in] args_addr
     ///     The address of the argument struct.
-	//------------------------------------------------------------------
+    //------------------------------------------------------------------
     void DeallocateFunctionResults (ExecutionContext &exe_ctx, 
                                     lldb::addr_t args_addr);
     
@@ -614,9 +405,9 @@ public:
         return m_arg_values;
     }
 private:
-	//------------------------------------------------------------------
-	// For ClangFunction only
-	//------------------------------------------------------------------
+    //------------------------------------------------------------------
+    // For ClangFunction only
+    //------------------------------------------------------------------
 
     std::unique_ptr<ClangExpressionParser> m_parser;                 ///< The parser responsible for compiling the function.
     std::unique_ptr<IRExecutionUnit> m_execution_unit_ap;
@@ -624,17 +415,18 @@ private:
     Function                       *m_function_ptr;                 ///< The function we're going to call.  May be NULL if we don't have debug info for the function.
     Address                         m_function_addr;                ///< If we don't have the FunctionSP, we at least need the address & return type.
     ClangASTType                    m_function_return_type;         ///< The opaque clang qual type for the function return type.
-    ClangASTContext                *m_clang_ast_context;            ///< This is the clang_ast_context that we're getting types from the and value, and the function return the function pointer is NULL.
 
     std::string                     m_wrapper_function_name;        ///< The name of the wrapper function.
     std::string                     m_wrapper_function_text;        ///< The contents of the wrapper function.
     std::string                     m_wrapper_struct_name;          ///< The name of the struct that contains the target function address, arguments, and result.
     std::list<lldb::addr_t>         m_wrapper_args_addrs;           ///< The addresses of the arguments to the wrapper function.
     
+    std::unique_ptr<ASTStructExtractor> m_struct_extractor;         ///< The class that generates the argument struct below.
+
     bool                            m_struct_valid;                 ///< True if the ASTStructExtractor has populated the variables below.
     
-	//------------------------------------------------------------------
-	/// These values are populated by the ASTStructExtractor
+    //------------------------------------------------------------------
+    /// These values are populated by the ASTStructExtractor
     size_t                          m_struct_size;                  ///< The size of the argument struct, in bytes.
     std::vector<uint64_t>           m_member_offsets;               ///< The offset of each member in the struct, in bytes.
     uint64_t                        m_return_size;                  ///< The size of the result variable, in bytes.

@@ -38,7 +38,6 @@ public:
     //------------------------------------------------------------------
     GDBRemoteCommunicationClient(bool is_platform);
 
-    virtual
     ~GDBRemoteCommunicationClient();
 
     //------------------------------------------------------------------
@@ -65,10 +64,16 @@ public:
                                           size_t packet_length,
                                           StringExtractorGDBRemote &response);
 
-    virtual bool
+    bool
     GetThreadSuffixSupported ();
 
-    void
+    // This packet is usually sent first and the boolean return value
+    // indicates if the packet was send and any response was received
+    // even in the response is UNIMPLEMENTED. If the packet failed to
+    // get a response, then false is returned. This quickly tells us
+    // if we were able to connect and communicte with the remote GDB
+    // server
+    bool
     QueryNoAckModeSupported ();
 
     void
@@ -89,7 +94,10 @@ public:
     GetLaunchSuccess (std::string &error_str);
 
     uint16_t
-    LaunchGDBserverAndGetPort ();
+    LaunchGDBserverAndGetPort (lldb::pid_t &pid);
+    
+    bool
+    KillSpawnedProcess (lldb::pid_t pid);
 
     //------------------------------------------------------------------
     /// Sends a GDB remote protocol 'A' packet that delivers program
@@ -106,7 +114,7 @@ public:
     ///     response was received.
     //------------------------------------------------------------------
     int
-    SendArgumentsPacket (char const *argv[]);
+    SendArgumentsPacket (const lldb_private::ProcessLaunchInfo &launch_info);
 
     //------------------------------------------------------------------
     /// Sends a "QEnvironment:NAME=VALUE" packet that will build up the
@@ -182,7 +190,10 @@ public:
 
     //------------------------------------------------------------------
     /// Sets the working directory to \a path for a process that will 
-    /// be launched with the 'A' packet.
+    /// be launched with the 'A' packet for non platform based
+    /// connections. If this packet is sent to a GDB server that
+    /// implements the platform, it will change the current working
+    /// directory for the platform process.
     ///
     /// @param[in] path
     ///     The path to a directory to use when launching our processs
@@ -192,6 +203,19 @@ public:
     //------------------------------------------------------------------
     int
     SetWorkingDir (char const *path);
+
+    //------------------------------------------------------------------
+    /// Gets the current working directory of a remote platform GDB
+    /// server.
+    ///
+    /// @param[out] cwd
+    ///     The current working directory on the remote platform.
+    ///
+    /// @return
+    ///     Boolean for success
+    //------------------------------------------------------------------
+    bool
+    GetWorkingDir (std::string &cwd);
 
     lldb::addr_t
     AllocateMemory (size_t size, uint32_t permissions);
@@ -217,12 +241,18 @@ public:
 
     const lldb_private::ArchSpec &
     GetHostArchitecture ();
+    
+    uint32_t
+    GetHostDefaultPacketTimeout();
 
     const lldb_private::ArchSpec &
     GetProcessArchitecture ();
 
     bool
     GetVContSupported (char flavor);
+
+    bool
+    GetpPacketSupported (lldb::tid_t tid);
 
     bool
     GetVAttachOrWaitSupported ();
@@ -347,9 +377,84 @@ public:
         return m_interrupt_sent;
     }
     
+    lldb::user_id_t
+    OpenFile (const lldb_private::FileSpec& file_spec,
+              uint32_t flags,
+              mode_t mode,
+              lldb_private::Error &error);
+    
+    bool
+    CloseFile (lldb::user_id_t fd,
+               lldb_private::Error &error);
+    
+    lldb::user_id_t
+    GetFileSize (const lldb_private::FileSpec& file_spec);
+    
+    lldb_private::Error
+    GetFilePermissions(const char *path, uint32_t &file_permissions);
+
+    lldb_private::Error
+    SetFilePermissions(const char *path, uint32_t file_permissions);
+
+    uint64_t
+    ReadFile (lldb::user_id_t fd,
+              uint64_t offset,
+              void *dst,
+              uint64_t dst_len,
+              lldb_private::Error &error);
+    
+    uint64_t
+    WriteFile (lldb::user_id_t fd,
+               uint64_t offset,
+               const void* src,
+               uint64_t src_len,
+               lldb_private::Error &error);
+    
+    lldb_private::Error
+    CreateSymlink (const char *src,
+                   const char *dst);
+    
+    lldb_private::Error
+    Unlink (const char *path);
+
+    lldb_private::Error
+    MakeDirectory (const char *path,
+                   uint32_t mode);
+    
+    bool
+    GetFileExists (const lldb_private::FileSpec& file_spec);
+    
+    lldb_private::Error
+    RunShellCommand (const char *command,           // Shouldn't be NULL
+                     const char *working_dir,       // Pass NULL to use the current working directory
+                     int *status_ptr,               // Pass NULL if you don't want the process exit status
+                     int *signo_ptr,                // Pass NULL if you don't want the signal that caused the process to exit
+                     std::string *command_output,   // Pass NULL if you don't want the command output
+                     uint32_t timeout_sec);         // Timeout in seconds to wait for shell program to finish
+    
+    bool
+    CalculateMD5 (const lldb_private::FileSpec& file_spec,
+                  uint64_t &high,
+                  uint64_t &low);
+    
     std::string
     HarmonizeThreadIdsForProfileData (ProcessGDBRemote *process,
                                       StringExtractorGDBRemote &inputStringExtractor);
+
+    bool
+    ReadRegister(lldb::tid_t tid,
+                 uint32_t reg_num,
+                 StringExtractorGDBRemote &response);
+
+    bool
+    ReadAllRegisters (lldb::tid_t tid,
+                      StringExtractorGDBRemote &response);
+
+    bool
+    SaveRegisterState (lldb::tid_t tid, uint32_t &save_id);
+    
+    bool
+    RestoreRegisterState (lldb::tid_t tid, uint32_t save_id);
     
 protected:
 
@@ -377,6 +482,8 @@ protected:
     lldb_private::LazyBool m_watchpoints_trigger_after_instruction;
     lldb_private::LazyBool m_attach_or_wait_reply;
     lldb_private::LazyBool m_prepare_for_reg_writing_reply;
+    lldb_private::LazyBool m_supports_p;
+    lldb_private::LazyBool m_supports_QSaveRegisterState;
     
     bool
         m_supports_qProcessInfoPID:1,
@@ -388,7 +495,9 @@ protected:
         m_supports_z1:1,
         m_supports_z2:1,
         m_supports_z3:1,
-        m_supports_z4:1;
+        m_supports_z4:1,
+        m_supports_QEnvironment:1,
+        m_supports_QEnvironmentHexEncoded:1;
     
 
     lldb::tid_t m_curr_tid;         // Current gdb remote protocol thread index for all other operations
@@ -416,6 +525,7 @@ protected:
     std::string m_os_build;
     std::string m_os_kernel;
     std::string m_hostname;
+    uint32_t m_default_packet_timeout;
     
     bool
     DecodeProcessInfoResponse (StringExtractorGDBRemote &response, 

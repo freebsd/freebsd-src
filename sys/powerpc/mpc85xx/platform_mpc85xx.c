@@ -49,6 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <powerpc/mpc85xx/mpc85xx.h>
 
 #include "platform_if.h"
@@ -63,13 +66,14 @@ extern uint32_t bp_tlb1_end[];
 #endif
 
 extern uint32_t *bootinfo;
+vm_offset_t ccsrbar_va;
 
 static int cpu, maxcpu;
 
 static int mpc85xx_probe(platform_t);
 static int mpc85xx_attach(platform_t);
-static void mpc85xx_mem_regions(platform_t, struct mem_region **phys,
-    int *physsz, struct mem_region **avail, int *availsz);
+static void mpc85xx_mem_regions(platform_t, struct mem_region *phys,
+    int *physsz, struct mem_region *avail, int *availsz);
 static u_long mpc85xx_timebase_freq(platform_t, struct cpuref *cpuref);
 static int mpc85xx_smp_first_cpu(platform_t, struct cpuref *cpuref);
 static int mpc85xx_smp_next_cpu(platform_t, struct cpuref *cpuref);
@@ -116,8 +120,12 @@ mpc85xx_probe(platform_t plat)
 static int
 mpc85xx_attach(platform_t plat)
 {
-	phandle_t cpus, child;
+	phandle_t cpus, child, ccsr;
+	const char *soc_name_guesses[] = {"/soc", "soc", NULL};
+	const char **name;
+	pcell_t ranges[6], acells, pacells, scells;
 	uint32_t sr;
+	uint64_t ccsrbar, ccsrsize;
 	int i, law_max, tgt;
 
 	if ((cpus = OF_finddevice("/cpus")) != -1) {
@@ -126,6 +134,51 @@ mpc85xx_attach(platform_t plat)
 			;
 	} else
 		maxcpu = 1;
+
+	/*
+	 * Locate CCSR region. Irritatingly, there is no way to find it
+	 * unless you already know where it is. Try to infer its location
+	 * from the device tree.
+	 */
+
+	ccsr = -1;
+	for (name = soc_name_guesses; *name != NULL && ccsr == -1; name++)
+		ccsr = OF_finddevice(*name);
+	if (ccsr == -1) {
+		char type[64];
+
+	 	/* That didn't work. Search for devices of type "soc" */
+		child = OF_child(OF_peer(0));
+		for (OF_child(child); child != 0; child = OF_peer(child)) {
+			if (OF_getprop(child, "device_type", type, sizeof(type))
+			    <= 0)
+				continue;
+
+			if (strcmp(type, "soc") == 0) {
+				ccsr = child;
+				break;
+			}
+		}
+	}
+
+	if (ccsr == -1)
+		panic("Could not locate CCSR window!");
+
+	OF_getprop(ccsr, "#size-cells", &scells, sizeof(scells));
+	OF_getprop(ccsr, "#address-cells", &acells, sizeof(acells));
+	OF_searchprop(OF_parent(ccsr), "#address-cells", &pacells,
+	    sizeof(pacells));
+	OF_getprop(ccsr, "ranges", ranges, sizeof(ranges));
+	ccsrbar = ccsrsize = 0;
+	for (i = acells; i < acells + pacells; i++) {
+		ccsrbar <<= 32;
+		ccsrbar |= ranges[i];
+	}
+	for (i = acells + pacells; i < acells + pacells + scells; i++) {
+		ccsrsize <<= 32;
+		ccsrsize |= ranges[i];
+	}
+	ccsrbar_va = pmap_early_io_map(ccsrbar, ccsrsize);
 
 	/*
 	 * Clear local access windows. Skip DRAM entries, so we don't shoot
@@ -148,8 +201,8 @@ mpc85xx_attach(platform_t plat)
 }
 
 void
-mpc85xx_mem_regions(platform_t plat, struct mem_region **phys, int *physsz,
-    struct mem_region **avail, int *availsz)
+mpc85xx_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
+    struct mem_region *avail, int *availsz)
 {
 
 	ofw_mem_regions(phys, physsz, avail, availsz);

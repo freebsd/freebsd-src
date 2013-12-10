@@ -1876,6 +1876,19 @@ build_indirect_ref (tree ptr, const char *errorstring)
 
   if (TREE_CODE (type) == POINTER_TYPE)
     {
+      if (TREE_CODE (pointer) == CONVERT_EXPR
+          || TREE_CODE (pointer) == NOP_EXPR
+          || TREE_CODE (pointer) == VIEW_CONVERT_EXPR)
+	{
+	  /* If a warning is issued, mark it to avoid duplicates from
+	     the backend.  This only needs to be done at
+	     warn_strict_aliasing > 2.  */
+	  if (warn_strict_aliasing > 2)
+	    if (strict_aliasing_warning (TREE_TYPE (TREE_OPERAND (pointer, 0)),
+					 type, TREE_OPERAND (pointer, 0)))
+	      TREE_NO_WARNING (pointer) = 1;
+	}
+
       if (TREE_CODE (pointer) == ADDR_EXPR
 	  && (TREE_TYPE (TREE_OPERAND (pointer, 0))
 	      == TREE_TYPE (type)))
@@ -1910,7 +1923,7 @@ build_indirect_ref (tree ptr, const char *errorstring)
 	}
     }
   else if (TREE_CODE (pointer) != ERROR_MARK)
-    error ("invalid type argument of %qs", errorstring);
+    error ("invalid type argument of %qs (have %qT)", errorstring, type);
   return error_mark_node;
 }
 
@@ -2603,7 +2616,10 @@ parser_build_unary_op (enum tree_code code, struct c_expr arg)
 
   result.original_code = ERROR_MARK;
   result.value = build_unary_op (code, arg.value, 0);
-  overflow_warning (result.value);
+  
+  if (TREE_OVERFLOW_P (result.value) && !TREE_OVERFLOW_P (arg.value))
+    overflow_warning (result.value);
+
   return result;
 }
 
@@ -2631,73 +2647,7 @@ parser_build_binary_op (enum tree_code code, struct c_expr arg1,
   /* Check for cases such as x+y<<z which users are likely
      to misinterpret.  */
   if (warn_parentheses)
-    {
-      if (code == LSHIFT_EXPR || code == RSHIFT_EXPR)
-	{
-	  if (code1 == PLUS_EXPR || code1 == MINUS_EXPR
-	      || code2 == PLUS_EXPR || code2 == MINUS_EXPR)
-	    warning (OPT_Wparentheses,
-		     "suggest parentheses around + or - inside shift");
-	}
-
-      if (code == TRUTH_ORIF_EXPR)
-	{
-	  if (code1 == TRUTH_ANDIF_EXPR
-	      || code2 == TRUTH_ANDIF_EXPR)
-	    warning (OPT_Wparentheses,
-		     "suggest parentheses around && within ||");
-	}
-
-      if (code == BIT_IOR_EXPR)
-	{
-	  if (code1 == BIT_AND_EXPR || code1 == BIT_XOR_EXPR
-	      || code1 == PLUS_EXPR || code1 == MINUS_EXPR
-	      || code2 == BIT_AND_EXPR || code2 == BIT_XOR_EXPR
-	      || code2 == PLUS_EXPR || code2 == MINUS_EXPR)
-	    warning (OPT_Wparentheses,
-		     "suggest parentheses around arithmetic in operand of |");
-	  /* Check cases like x|y==z */
-	  if (TREE_CODE_CLASS (code1) == tcc_comparison
-	      || TREE_CODE_CLASS (code2) == tcc_comparison)
-	    warning (OPT_Wparentheses,
-		     "suggest parentheses around comparison in operand of |");
-	}
-
-      if (code == BIT_XOR_EXPR)
-	{
-	  if (code1 == BIT_AND_EXPR
-	      || code1 == PLUS_EXPR || code1 == MINUS_EXPR
-	      || code2 == BIT_AND_EXPR
-	      || code2 == PLUS_EXPR || code2 == MINUS_EXPR)
-	    warning (OPT_Wparentheses,
-		     "suggest parentheses around arithmetic in operand of ^");
-	  /* Check cases like x^y==z */
-	  if (TREE_CODE_CLASS (code1) == tcc_comparison
-	      || TREE_CODE_CLASS (code2) == tcc_comparison)
-	    warning (OPT_Wparentheses,
-		     "suggest parentheses around comparison in operand of ^");
-	}
-
-      if (code == BIT_AND_EXPR)
-	{
-	  if (code1 == PLUS_EXPR || code1 == MINUS_EXPR
-	      || code2 == PLUS_EXPR || code2 == MINUS_EXPR)
-	    warning (OPT_Wparentheses,
-		     "suggest parentheses around + or - in operand of &");
-	  /* Check cases like x&y==z */
-	  if (TREE_CODE_CLASS (code1) == tcc_comparison
-	      || TREE_CODE_CLASS (code2) == tcc_comparison)
-	    warning (OPT_Wparentheses,
-		     "suggest parentheses around comparison in operand of &");
-	}
-      /* Similarly, check for cases like 1<=i<=10 that are probably errors.  */
-      if (TREE_CODE_CLASS (code) == tcc_comparison
-	  && (TREE_CODE_CLASS (code1) == tcc_comparison
-	      || TREE_CODE_CLASS (code2) == tcc_comparison))
-	warning (OPT_Wparentheses, "comparisons like X<=Y<=Z do not "
-		 "have their mathematical meaning");
-
-    }
+    warn_about_parentheses (code, code1, code2);
 
   /* Warn about comparisons against string literals, with the exception
      of testing for equality or inequality of a string literal with NULL.  */
@@ -2713,7 +2663,10 @@ parser_build_binary_op (enum tree_code code, struct c_expr arg1,
     warning (OPT_Waddress, 
              "comparison with string literal results in unspecified behaviour");
 
-  overflow_warning (result.value);
+  if (TREE_OVERFLOW_P (result.value) 
+      && !TREE_OVERFLOW_P (arg1.value) 
+      && !TREE_OVERFLOW_P (arg2.value))
+    overflow_warning (result.value);
 
   return result;
 }
@@ -3628,7 +3581,8 @@ build_c_cast (tree type, tree expr)
 	warning (OPT_Wint_to_pointer_cast, "cast to pointer from integer "
 		 "of different size");
 
-      strict_aliasing_warning (otype, type, expr);
+      if (warn_strict_aliasing <= 2)
+        strict_aliasing_warning (otype, type, expr);
 
       /* If pedantic, warn for conversions between function and object
 	 pointer types, except for converting a null pointer constant
@@ -3899,10 +3853,7 @@ convert_for_assignment (tree type, tree rhs, enum impl_conv errtype,
     }
 
   if (TYPE_MAIN_VARIANT (type) == TYPE_MAIN_VARIANT (rhstype))
-    {
-      overflow_warning (rhs);
-      return rhs;
-    }
+    return rhs;
 
   if (coder == VOID_TYPE)
     {
@@ -3942,7 +3893,7 @@ convert_for_assignment (tree type, tree rhs, enum impl_conv errtype,
     }
   /* Some types can interconvert without explicit casts.  */
   else if (codel == VECTOR_TYPE && coder == VECTOR_TYPE
-	   && vector_types_convertible_p (type, TREE_TYPE (rhs)))
+	   && vector_types_convertible_p (type, TREE_TYPE (rhs), true))
     return convert (type, rhs);
   /* Arithmetic types all interconvert, and enum is treated like int.  */
   else if ((codel == INTEGER_TYPE || codel == REAL_TYPE
@@ -4678,7 +4629,7 @@ digest_init (tree type, tree init, bool strict_string, int require_constant)
      below and handle as a constructor.  */
   if (code == VECTOR_TYPE
       && TREE_CODE (TREE_TYPE (inside_init)) == VECTOR_TYPE
-      && vector_types_convertible_p (TREE_TYPE (inside_init), type)
+      && vector_types_convertible_p (TREE_TYPE (inside_init), type, true)
       && TREE_CONSTANT (inside_init))
     {
       if (TREE_CODE (inside_init) == VECTOR_CST
@@ -8184,7 +8135,7 @@ build_binary_op (enum tree_code code, tree orig_op0, tree orig_op1,
 	  || !same_scalar_type_ignoring_signedness (TREE_TYPE (type0),
 						    TREE_TYPE (type1))))
     {
-      binary_op_error (code);
+      binary_op_error (code, type0, type1);
       return error_mark_node;
     }
 
@@ -8480,7 +8431,7 @@ build_binary_op (enum tree_code code, tree orig_op0, tree orig_op1,
 
   if (!result_type)
     {
-      binary_op_error (code);
+      binary_op_error (code, TREE_TYPE (op0), TREE_TYPE (op1));
       return error_mark_node;
     }
 

@@ -33,12 +33,7 @@ public:
                         lldb::addr_t sp,
                         lldb::addr_t func_addr,
                         lldb::addr_t return_addr, 
-                        lldb::addr_t *arg1_ptr = NULL,
-                        lldb::addr_t *arg2_ptr = NULL,
-                        lldb::addr_t *arg3_ptr = NULL,
-                        lldb::addr_t *arg4_ptr = NULL,
-                        lldb::addr_t *arg5_ptr = NULL,
-                        lldb::addr_t *arg6_ptr = NULL) const;
+                        llvm::ArrayRef<lldb::addr_t> args) const;
     
     virtual bool
     PrepareNormalCall (lldb_private::Thread &thread,
@@ -79,9 +74,21 @@ public:
     virtual bool
     CallFrameAddressIsValid (lldb::addr_t cfa)
     {
-        // Make sure the stack call frame addresses are are 8 byte aligned
-        if (cfa & (8ull - 1ull))
-            return false;   // Not 8 byte aligned
+        // Darwin call frame addresses must be 16-byte aligned, but other OS's
+        // only need 4-byte alignment.  Otherwise the ABI matches, so we have
+        // this one minor override here.
+        if (target_is_darwin)
+        {
+            // Make sure the stack call frame addresses are are 16 byte aligned
+            if (cfa & (16ull - 1ull))
+                return false;   // Not 16 byte aligned
+        }
+        else
+        {
+            // Make sure the stack call frame addresses are are 4 byte aligned
+            if (cfa & (4ull - 1ull))
+                return false;   // Not 4 byte aligned
+        }
         if (cfa == 0)
             return false;   // Zero is not a valid stack address
         return true;
@@ -132,7 +139,11 @@ protected:
     RegisterIsCalleeSaved (const lldb_private::RegisterInfo *reg_info);
 
 private:
-    ABIMacOSX_i386() : lldb_private::ABI() { } // Call CreateInstance instead.
+    ABIMacOSX_i386(bool is_darwin) : lldb_private::ABI(), 
+                                     target_is_darwin(is_darwin) 
+                                   { } // Call CreateInstance instead.
+
+    bool target_is_darwin;
 };
 
 

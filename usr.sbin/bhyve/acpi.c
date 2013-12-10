@@ -44,6 +44,7 @@
  *     XSDT  ->   0xf0480    (36 bytes + 8*N table addrs, 2 used)
  *       MADT  ->   0xf0500  (depends on #CPUs)
  *       FADT  ->   0xf0600  (268 bytes)
+ *       HPET  ->   0xf0740  (56 bytes)
  *         FACS  ->   0xf0780 (64 bytes)
  *         DSDT  ->   0xf0800 (variable - can go up to 0x100000)
  */
@@ -61,6 +62,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include <machine/vmm.h>
+#include <vmmapi.h>
+
 #include "bhyverun.h"
 #include "acpi.h"
 
@@ -73,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #define XSDT_OFFSET		0x080
 #define MADT_OFFSET		0x100
 #define FADT_OFFSET		0x200
+#define	HPET_OFFSET		0x340
 #define FACS_OFFSET		0x380
 #define DSDT_OFFSET		0x400
 
@@ -86,6 +91,7 @@ static int basl_keep_temps;
 static int basl_verbose_iasl;
 static int basl_ncpu;
 static uint32_t basl_acpi_base = BHYVE_ACPI_BASE;
+static uint32_t hpet_capabilities;
 
 /*
  * Contains the full pathname of the template to be passed
@@ -158,11 +164,13 @@ basl_fwrite_rsdt(FILE *fp)
 	EFPRINTF(fp, "[0004]\t\tAsl Compiler Revision : 00000000\n");
 	EFPRINTF(fp, "\n");
 
-	/* Add in pointers to the MADT and FADT */
+	/* Add in pointers to the MADT, FADT and HPET */
 	EFPRINTF(fp, "[0004]\t\tACPI Table Address 0 : %08X\n",
 	    basl_acpi_base + MADT_OFFSET);
 	EFPRINTF(fp, "[0004]\t\tACPI Table Address 1 : %08X\n",
 	    basl_acpi_base + FADT_OFFSET);
+	EFPRINTF(fp, "[0004]\t\tACPI Table Address 2 : %08X\n",
+	    basl_acpi_base + HPET_OFFSET);
 
 	EFFLUSH(fp);
 
@@ -194,11 +202,13 @@ basl_fwrite_xsdt(FILE *fp)
 	EFPRINTF(fp, "[0004]\t\tAsl Compiler Revision : 00000000\n");
 	EFPRINTF(fp, "\n");
 
-	/* Add in pointers to the MADT and FADT */
+	/* Add in pointers to the MADT, FADT and HPET */
 	EFPRINTF(fp, "[0004]\t\tACPI Table Address 0 : 00000000%08X\n",
 	    basl_acpi_base + MADT_OFFSET);
 	EFPRINTF(fp, "[0004]\t\tACPI Table Address 1 : 00000000%08X\n",
 	    basl_acpi_base + FADT_OFFSET);
+	EFPRINTF(fp, "[0004]\t\tACPI Table Address 2 : 00000000%08X\n",
+	    basl_acpi_base + HPET_OFFSET);
 
 	EFFLUSH(fp);
 
@@ -249,11 +259,11 @@ basl_fwrite_madt(FILE *fp)
 		EFPRINTF(fp, "\n");
 	}
 
-	/* Always a single IOAPIC entry, with ID ncpu+1 */
+	/* Always a single IOAPIC entry, with ID 0 */
 	EFPRINTF(fp, "[0001]\t\tSubtable Type : 01\n");
 	EFPRINTF(fp, "[0001]\t\tLength : 0C\n");
 	/* iasl expects a hex value for the i/o apic id */
-	EFPRINTF(fp, "[0001]\t\tI/O Apic ID : %02x\n", basl_ncpu);
+	EFPRINTF(fp, "[0001]\t\tI/O Apic ID : %02x\n", 0);
 	EFPRINTF(fp, "[0001]\t\tReserved : 00\n");
 	EFPRINTF(fp, "[0004]\t\tAddress : fec00000\n");
 	EFPRINTF(fp, "[0004]\t\tInterrupt : 00000000\n");
@@ -499,6 +509,55 @@ err_exit:
 }
 
 static int
+basl_fwrite_hpet(FILE *fp)
+{
+	int err;
+
+	err = 0;
+
+	EFPRINTF(fp, "/*\n");
+	EFPRINTF(fp, " * bhyve HPET template\n");
+	EFPRINTF(fp, " */\n");
+	EFPRINTF(fp, "[0004]\t\tSignature : \"HPET\"\n");
+	EFPRINTF(fp, "[0004]\t\tTable Length : 00000000\n");
+	EFPRINTF(fp, "[0001]\t\tRevision : 01\n");
+	EFPRINTF(fp, "[0001]\t\tChecksum : 00\n");
+	EFPRINTF(fp, "[0006]\t\tOem ID : \"BHYVE \"\n");
+	EFPRINTF(fp, "[0008]\t\tOem Table ID : \"BVHPET  \"\n");
+	EFPRINTF(fp, "[0004]\t\tOem Revision : 00000001\n");
+
+	/* iasl will fill in the compiler ID/revision fields */
+	EFPRINTF(fp, "[0004]\t\tAsl Compiler ID : \"xxxx\"\n");
+	EFPRINTF(fp, "[0004]\t\tAsl Compiler Revision : 00000000\n");
+	EFPRINTF(fp, "\n");
+
+	EFPRINTF(fp, "[0004]\t\tTimer Block ID : %08X\n", hpet_capabilities);
+	EFPRINTF(fp,
+	    "[0012]\t\tTimer Block Register : [Generic Address Structure]\n");
+	EFPRINTF(fp, "[0001]\t\tSpace ID : 00 [SystemMemory]\n");
+	EFPRINTF(fp, "[0001]\t\tBit Width : 00\n");
+	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
+	EFPRINTF(fp,
+		 "[0001]\t\tEncoded Access Width : 00 [Undefined/Legacy]\n");
+	EFPRINTF(fp, "[0008]\t\tAddress : 00000000FED00000\n");
+	EFPRINTF(fp, "\n");
+
+	EFPRINTF(fp, "[0001]\t\tHPET Number : 00\n");
+	EFPRINTF(fp, "[0002]\t\tMinimum Clock Ticks : 0000\n");
+	EFPRINTF(fp, "[0004]\t\tFlags (decoded below) : 00000001\n");
+	EFPRINTF(fp, "\t\t\t4K Page Protect : 1\n");
+	EFPRINTF(fp, "\t\t\t64K Page Protect : 0\n");
+	EFPRINTF(fp, "\n");
+
+	EFFLUSH(fp);
+
+	return (0);
+
+err_exit:
+	return (errno);
+}
+
+static int
 basl_fwrite_facs(FILE *fp)
 {
 	int err;
@@ -594,6 +653,24 @@ basl_fwrite_dsdt(FILE *fp)
 	EFPRINTF(fp, "      Name (_ADR, 0x00010000)\n");
 	EFPRINTF(fp, "      OperationRegion (P40C, PCI_Config, 0x60, 0x04)\n");
 	EFPRINTF(fp, "    }\n");
+
+	EFPRINTF(fp, "    Device (HPET)\n");
+	EFPRINTF(fp, "    {\n");
+	EFPRINTF(fp, "      Name (_HID, EISAID(\"PNP0103\"))\n");
+	EFPRINTF(fp, "      Name (_UID, 0)\n");
+	EFPRINTF(fp, "      Name (_CRS, ResourceTemplate ()\n");
+	EFPRINTF(fp, "      {\n");
+	EFPRINTF(fp, "        DWordMemory (ResourceConsumer, PosDecode, "
+		 "MinFixed, MaxFixed, NonCacheable, ReadWrite,\n");
+	EFPRINTF(fp, "            0x00000000,\n");
+	EFPRINTF(fp, "            0xFED00000,\n");
+	EFPRINTF(fp, "            0xFED003FF,\n");
+	EFPRINTF(fp, "            0x00000000,\n");
+	EFPRINTF(fp, "            0x00000400\n");
+	EFPRINTF(fp, "            )\n");
+	EFPRINTF(fp, "      })\n");
+	EFPRINTF(fp, "    }\n");
+
 	EFPRINTF(fp, "  }\n");
 	EFPRINTF(fp, "\n");
 	EFPRINTF(fp, "  Scope (_SB.PCI0.ISA)\n");
@@ -810,6 +887,7 @@ static struct {
 	{ basl_fwrite_xsdt, XSDT_OFFSET },
 	{ basl_fwrite_madt, MADT_OFFSET },
 	{ basl_fwrite_fadt, FADT_OFFSET },
+	{ basl_fwrite_hpet, HPET_OFFSET },
 	{ basl_fwrite_facs, FACS_OFFSET },
 	{ basl_fwrite_dsdt, DSDT_OFFSET },
 	{ NULL }
@@ -821,8 +899,11 @@ acpi_build(struct vmctx *ctx, int ncpu)
 	int err;
 	int i;
 
-	err = 0;
 	basl_ncpu = ncpu;
+
+	err = vm_get_hpet_capabilities(ctx, &hpet_capabilities);
+	if (err != 0)
+		return (err);
 
 	/*
 	 * For debug, allow the user to have iasl compiler output sent

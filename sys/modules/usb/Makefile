@@ -27,6 +27,18 @@
 
 .include <bsd.own.mk>
 
+#
+# Check for common USB debug flags to pass when building the USB
+# modules in this directory:
+#
+.if defined(USB_DEBUG)
+MAKE+=" DEBUG_FLAGS+=-DUSB_DEBUG"
+.endif
+
+.if defined(USB_DEBUG) && defined(USB_REQ_DEBUG)
+MAKE+=" DEBUG_FLAGS+=-DUSB_REQ_DEBUG"
+.endif
+
 # Modules that include binary-only blobs of microcode should be selectable by
 # MK_SOURCELESS_UCODE option (see below).
 
@@ -38,7 +50,7 @@ SUBDIR += ${_urtwn} ${_urtwnfw}
 SUBDIR += atp uhid ukbd ums udbp ufm uep
 SUBDIR += ucom u3g uark ubsa ubser uchcom ucycom ufoma uftdi ugensa uipaq ulpt \
 	  umct umcs umodem umoscom uplcom uslcom uvisor uvscom
-SUBDIR += uether aue axe cdce cue ${_kue} mos rue smsc udav uhso ipheth
+SUBDIR += uether aue axe axge cdce cue ${_kue} mos rue smsc udav uhso ipheth
 SUBDIR += usfs umass urio
 SUBDIR += quirk template
 SUBDIR += ${_g_audio} ${_g_keyboard} ${_g_modem} ${_g_mouse}

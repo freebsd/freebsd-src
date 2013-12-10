@@ -31,7 +31,7 @@
 .\"	@(#)sed.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2009
+.Dd December 9, 2013
 .Dt SED 1
 .Os
 .Sh NAME
@@ -196,7 +196,7 @@ option was specified);
 a context address
 that consists of a regular expression preceded and followed by a
 delimiter. The closing delimiter can also optionally be followed by the
-.Dq I
+.Dq i
 character, to indicate that the regular expression is to be matched
 in a case-insensitive way.
 .El
@@ -507,7 +507,7 @@ Append the pattern space to
 if a replacement was made.
 If the replacement string is identical to that which it replaces, it
 is still considered to have been a replacement.
-.It I
+.It i or I
 Match the regular expression in a case-insensitive way.
 .El
 .Pp

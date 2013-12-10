@@ -401,10 +401,16 @@ vdev_geom_attach_taster(struct g_consumer *cp, struct g_provider *pp)
 
 	if (pp->flags & G_PF_WITHER)
 		return (EINVAL);
-	if (pp->sectorsize > VDEV_PAD_SIZE || !ISP2(pp->sectorsize))
-		return (EINVAL);
 	g_attach(cp, pp);
 	error = g_access(cp, 1, 0, 0);
+	if (error == 0) {
+		if (pp->sectorsize > VDEV_PAD_SIZE || !ISP2(pp->sectorsize))
+			error = EINVAL;
+		else if (pp->mediasize < SPA_MINDEVSIZE)
+			error = EINVAL;
+		if (error != 0)
+			g_access(cp, -1, 0, 0);
+	}
 	if (error != 0)
 		g_detach(cp);
 	return (error);

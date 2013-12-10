@@ -9,10 +9,6 @@
     ..
     arpa
     ..
-    atf-c
-    ..
-    atf-c++
-    ..
     bsm
     ..
     bsnmp
@@ -332,6 +328,8 @@
     ssp
     ..
     sys
+    ..
+    teken
     ..
     ufs
         ffs

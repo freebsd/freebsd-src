@@ -61,7 +61,7 @@ SBFileSpec::operator = (const SBFileSpec &rhs)
 bool
 SBFileSpec::IsValid() const
 {
-    return *m_opaque_ap;
+    return m_opaque_ap->operator bool();
 }
 
 bool
@@ -119,6 +119,24 @@ SBFileSpec::GetDirectory() const
             log->Printf ("SBFileSpec(%p)::GetDirectory () => NULL", m_opaque_ap.get());
     }
     return s;
+}
+
+void
+SBFileSpec::SetFilename(const char *filename)
+{
+    if (filename && filename[0])
+        m_opaque_ap->GetFilename().SetCString(filename);
+    else
+        m_opaque_ap->GetFilename().Clear();
+}
+
+void
+SBFileSpec::SetDirectory(const char *directory)
+{
+    if (directory && directory[0])
+        m_opaque_ap->GetDirectory().SetCString(directory);
+    else
+        m_opaque_ap->GetDirectory().Clear();
 }
 
 uint32_t

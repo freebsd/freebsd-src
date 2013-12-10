@@ -43,6 +43,7 @@
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/StackFrame.h"
+#include "lldb/Target/SystemRuntime.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadSpec.h"
 
@@ -83,8 +84,7 @@ Target::Target(Debugger &debugger, const ArchSpec &target_arch, const lldb::Plat
     m_source_manager_ap(),
     m_stop_hooks (),
     m_stop_hook_next_id (0),
-    m_suppress_stop_hooks (false),
-    m_suppress_synthetic_value(false)
+    m_suppress_stop_hooks (false)
 {
     SetEventName (eBroadcastBitBreakpointChanged, "breakpoint-changed");
     SetEventName (eBroadcastBitModulesLoaded, "modules-loaded");
@@ -192,7 +192,7 @@ Target::Destroy()
     DeleteCurrentProcess ();
     m_platform_sp.reset();
     m_arch.Clear();
-    m_images.Clear();
+    ClearModules(true);
     m_section_load_list.Clear();
     const bool notify = false;
     m_breakpoint_list.RemoveAll(notify);
@@ -201,14 +201,10 @@ Target::Destroy()
     m_last_created_watchpoint.reset();
     m_search_filter_sp.reset();
     m_image_search_paths.Clear(notify);
-    m_scratch_ast_context_ap.reset();
-    m_scratch_ast_source_ap.reset();
-    m_ast_importer_ap.reset();
     m_persistent_variables.Clear();
     m_stop_hooks.clear();
     m_stop_hook_next_id = 0;
     m_suppress_stop_hooks = false;
-    m_suppress_synthetic_value = false;
 }
 
 
@@ -247,11 +243,12 @@ BreakpointSP
 Target::CreateSourceRegexBreakpoint (const FileSpecList *containingModules,
                                      const FileSpecList *source_file_spec_list,
                                      RegularExpression &source_regex,
-                                     bool internal)
+                                     bool internal,
+                                     bool hardware)
 {
     SearchFilterSP filter_sp(GetSearchFilterForModuleAndCUList (containingModules, source_file_spec_list));
     BreakpointResolverSP resolver_sp(new BreakpointResolverFileRegex (NULL, source_regex));
-    return CreateBreakpoint (filter_sp, resolver_sp, internal);
+    return CreateBreakpoint (filter_sp, resolver_sp, internal, hardware);
 }
 
 
@@ -261,7 +258,8 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
                           uint32_t line_no,
                           LazyBool check_inlines,
                           LazyBool skip_prologue,
-                          bool internal)
+                          bool internal,
+                          bool hardware)
 {
     if (check_inlines == eLazyBoolCalculate)
     {
@@ -304,12 +302,12 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
                                                                      line_no,
                                                                      check_inlines,
                                                                      skip_prologue));
-    return CreateBreakpoint (filter_sp, resolver_sp, internal);
+    return CreateBreakpoint (filter_sp, resolver_sp, internal, hardware);
 }
 
 
 BreakpointSP
-Target::CreateBreakpoint (lldb::addr_t addr, bool internal)
+Target::CreateBreakpoint (lldb::addr_t addr, bool internal, bool hardware)
 {
     Address so_addr;
     // Attempt to resolve our load address if possible, though it is ok if
@@ -322,16 +320,16 @@ Target::CreateBreakpoint (lldb::addr_t addr, bool internal)
         // The address didn't resolve, so just set this as an absolute address
         so_addr.SetOffset (addr);
     }
-    BreakpointSP bp_sp (CreateBreakpoint(so_addr, internal));
+    BreakpointSP bp_sp (CreateBreakpoint(so_addr, internal, hardware));
     return bp_sp;
 }
 
 BreakpointSP
-Target::CreateBreakpoint (Address &addr, bool internal)
+Target::CreateBreakpoint (Address &addr, bool internal, bool hardware)
 {
     SearchFilterSP filter_sp(new SearchFilterForNonModuleSpecificSearches (shared_from_this()));
     BreakpointResolverSP resolver_sp (new BreakpointResolverAddress (NULL, addr));
-    return CreateBreakpoint (filter_sp, resolver_sp, internal);
+    return CreateBreakpoint (filter_sp, resolver_sp, internal, hardware);
 }
 
 BreakpointSP
@@ -340,7 +338,8 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
                           const char *func_name, 
                           uint32_t func_name_type_mask, 
                           LazyBool skip_prologue,
-                          bool internal)
+                          bool internal,
+                          bool hardware)
 {
     BreakpointSP bp_sp;
     if (func_name)
@@ -355,7 +354,7 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
                                                                       func_name_type_mask, 
                                                                       Breakpoint::Exact, 
                                                                       skip_prologue));
-        bp_sp = CreateBreakpoint (filter_sp, resolver_sp, internal);
+        bp_sp = CreateBreakpoint (filter_sp, resolver_sp, internal, hardware);
     }
     return bp_sp;
 }
@@ -366,7 +365,8 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
                           const std::vector<std::string> &func_names,
                           uint32_t func_name_type_mask,
                           LazyBool skip_prologue,
-                          bool internal)
+                          bool internal,
+                          bool hardware)
 {
     BreakpointSP bp_sp;
     size_t num_names = func_names.size();
@@ -381,7 +381,7 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
                                                                       func_names,
                                                                       func_name_type_mask,
                                                                       skip_prologue));
-        bp_sp = CreateBreakpoint (filter_sp, resolver_sp, internal);
+        bp_sp = CreateBreakpoint (filter_sp, resolver_sp, internal, hardware);
     }
     return bp_sp;
 }
@@ -393,7 +393,8 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
                           size_t num_names, 
                           uint32_t func_name_type_mask, 
                           LazyBool skip_prologue,
-                          bool internal)
+                          bool internal,
+                          bool hardware)
 {
     BreakpointSP bp_sp;
     if (num_names > 0)
@@ -408,7 +409,7 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
                                                                       num_names, 
                                                                       func_name_type_mask,
                                                                       skip_prologue));
-        bp_sp = CreateBreakpoint (filter_sp, resolver_sp, internal);
+        bp_sp = CreateBreakpoint (filter_sp, resolver_sp, internal, hardware);
     }
     return bp_sp;
 }
@@ -478,14 +479,15 @@ Target::CreateFuncRegexBreakpoint (const FileSpecList *containingModules,
                                    const FileSpecList *containingSourceFiles,
                                    RegularExpression &func_regex, 
                                    LazyBool skip_prologue,
-                                   bool internal)
+                                   bool internal,
+                                   bool hardware)
 {
     SearchFilterSP filter_sp(GetSearchFilterForModuleAndCUList (containingModules, containingSourceFiles));
     BreakpointResolverSP resolver_sp(new BreakpointResolverName (NULL, 
                                                                  func_regex, 
                                                                  skip_prologue == eLazyBoolCalculate ? GetSkipPrologue() : skip_prologue));
 
-    return CreateBreakpoint (filter_sp, resolver_sp, internal);
+    return CreateBreakpoint (filter_sp, resolver_sp, internal, hardware);
 }
 
 lldb::BreakpointSP
@@ -495,12 +497,12 @@ Target::CreateExceptionBreakpoint (enum lldb::LanguageType language, bool catch_
 }
     
 BreakpointSP
-Target::CreateBreakpoint (SearchFilterSP &filter_sp, BreakpointResolverSP &resolver_sp, bool internal)
+Target::CreateBreakpoint (SearchFilterSP &filter_sp, BreakpointResolverSP &resolver_sp, bool internal, bool request_hardware)
 {
     BreakpointSP bp_sp;
     if (filter_sp && resolver_sp)
     {
-        bp_sp.reset(new Breakpoint (*this, filter_sp, resolver_sp));
+        bp_sp.reset(new Breakpoint (*this, filter_sp, resolver_sp, request_hardware));
         resolver_sp->SetBreakpoint (bp_sp.get());
 
         if (internal)
@@ -630,7 +632,7 @@ Target::CreateWatchpoint(lldb::addr_t addr, size_t size, const ClangASTType *typ
         if (!CheckIfWatchpointsExhausted(this, error))
         {
             if (!OptionGroupWatchpoint::IsWatchSizeSupported(size))
-                error.SetErrorStringWithFormat("watch size of %lu is not supported", size);
+                error.SetErrorStringWithFormat("watch size of %zu is not supported", size);
         }
         wp_sp.reset();
     }
@@ -1012,13 +1014,29 @@ LoadScriptingResourceForModule (const ModuleSP &module_sp, Target *target)
 }
 
 void
-Target::SetExecutableModule (ModuleSP& executable_sp, bool get_dependent_files)
+Target::ClearModules(bool delete_locations)
 {
-    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_TARGET));
+    ModulesDidUnload (m_images, delete_locations);
+    GetSectionLoadList().Clear();
     m_images.Clear();
     m_scratch_ast_context_ap.reset();
     m_scratch_ast_source_ap.reset();
     m_ast_importer_ap.reset();
+}
+
+void
+Target::DidExec ()
+{
+    // When a process exec's we need to know about it so we can do some cleanup. 
+    m_breakpoint_list.RemoveInvalidLocations(m_arch);
+    m_internal_breakpoint_list.RemoveInvalidLocations(m_arch);
+}
+
+void
+Target::SetExecutableModule (ModuleSP& executable_sp, bool get_dependent_files)
+{
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_TARGET));
+    ClearModules(false);
     
     if (executable_sp.get())
     {
@@ -1087,10 +1105,8 @@ Target::SetArchitecture (const ArchSpec &arch_spec)
           log->Printf ("Target::SetArchitecture changing architecture to %s (%s)", arch_spec.GetArchitectureName(), arch_spec.GetTriple().getTriple().c_str());
         m_arch = arch_spec;
         ModuleSP executable_sp = GetExecutableModule ();
-        m_images.Clear();
-        m_scratch_ast_context_ap.reset();
-        m_scratch_ast_source_ap.reset();
-        m_ast_importer_ap.reset();
+
+        ClearModules(true);
         // Need to do something about unsetting breakpoints.
         
         if (executable_sp)
@@ -1135,7 +1151,7 @@ Target::ModuleRemoved (const ModuleList& module_list, const ModuleSP &module_sp)
     // A module is being added to this target for the first time
     ModuleList my_module_list;
     my_module_list.Append(module_sp);
-    ModulesDidUnload (my_module_list);
+    ModulesDidUnload (my_module_list, false);
 }
 
 void
@@ -1150,7 +1166,15 @@ Target::ModulesDidLoad (ModuleList &module_list)
 {
     if (module_list.GetSize())
     {
-        m_breakpoint_list.UpdateBreakpoints (module_list, true);
+        m_breakpoint_list.UpdateBreakpoints (module_list, true, false);
+        if (m_process_sp)
+        {
+            SystemRuntime *sys_runtime = m_process_sp->GetSystemRuntime();
+            if (sys_runtime)
+            {
+                sys_runtime->ModulesDidLoad (module_list);
+            }
+        }
         // TODO: make event data that packages up the module_list
         BroadcastEvent (eBroadcastBitModulesLoaded, NULL);
     }
@@ -1171,17 +1195,17 @@ Target::SymbolsDidLoad (ModuleList &module_list)
             }
         }
         
-        m_breakpoint_list.UpdateBreakpoints (module_list, true);
+        m_breakpoint_list.UpdateBreakpoints (module_list, true, false);
         BroadcastEvent(eBroadcastBitSymbolsLoaded, NULL);
     }
 }
 
 void
-Target::ModulesDidUnload (ModuleList &module_list)
+Target::ModulesDidUnload (ModuleList &module_list, bool delete_locations)
 {
     if (module_list.GetSize())
     {
-        m_breakpoint_list.UpdateBreakpoints (module_list, false);
+        m_breakpoint_list.UpdateBreakpoints (module_list, false, delete_locations);
         // TODO: make event data that packages up the module_list
         BroadcastEvent (eBroadcastBitModulesUnloaded, NULL);
     }
@@ -1724,10 +1748,7 @@ Target::ImageSearchPathsChanged
     Target *target = (Target *)baton;
     ModuleSP exe_module_sp (target->GetExecutableModule());
     if (exe_module_sp)
-    {
-        target->m_images.Clear();
         target->SetExecutableModule (exe_module_sp, true);
-    }
 }
 
 ClangASTContext *
@@ -1875,18 +1896,13 @@ Target::EvaluateExpression
     else
     {
         const char *prefix = GetExpressionPrefixContentsAsCString();
-                
+        Error error;
         execution_results = ClangUserExpression::Evaluate (exe_ctx, 
-                                                           options.GetExecutionPolicy(),
-                                                           lldb::eLanguageTypeUnknown,
-                                                           options.DoesCoerceToId() ? ClangUserExpression::eResultTypeId : ClangUserExpression::eResultTypeAny,
-                                                           options.DoesUnwindOnError(),
-                                                           options.DoesIgnoreBreakpoints(),
-                                                           expr_cstr, 
+                                                           options,
+                                                           expr_cstr,
                                                            prefix, 
                                                            result_valobj_sp,
-                                                           options.GetRunOthers(),
-                                                           options.GetTimeoutUsec());
+                                                           error);
     }
     
     m_suppress_stop_hooks = old_suppress_value;
@@ -2174,12 +2190,78 @@ Target::RunStopHooks ()
     result.GetImmediateErrorStream()->Flush();
 }
 
+const TargetPropertiesSP &
+Target::GetGlobalProperties()
+{
+    static TargetPropertiesSP g_settings_sp;
+    if (!g_settings_sp)
+    {
+        g_settings_sp.reset (new TargetProperties (NULL));
+    }
+    return g_settings_sp;
+}
+
+Error
+Target::Install (ProcessLaunchInfo *launch_info)
+{
+    Error error;
+    PlatformSP platform_sp (GetPlatform());
+    if (platform_sp)
+    {
+        if (platform_sp->IsRemote())
+        {
+            if (platform_sp->IsConnected())
+            {
+                // Install all files that have an install path, and always install the
+                // main executable when connected to a remote platform
+                const ModuleList& modules = GetImages();
+                const size_t num_images = modules.GetSize();
+                for (size_t idx = 0; idx < num_images; ++idx)
+                {
+                    const bool is_main_executable = idx == 0;
+                    ModuleSP module_sp(modules.GetModuleAtIndex(idx));
+                    if (module_sp)
+                    {
+                        FileSpec local_file (module_sp->GetFileSpec());
+                        if (local_file)
+                        {
+                            FileSpec remote_file (module_sp->GetRemoteInstallFileSpec());
+                            if (!remote_file)
+                            {
+                                if (is_main_executable) // TODO: add setting for always installing main executable???
+                                {
+                                    // Always install the main executable
+                                    remote_file.GetDirectory() = platform_sp->GetWorkingDirectory();
+                                    remote_file.GetFilename() = module_sp->GetFileSpec().GetFilename();
+                                }
+                            }
+                            if (remote_file)
+                            {
+                                error = platform_sp->Install(local_file, remote_file);
+                                if (error.Success())
+                                {
+                                    module_sp->SetPlatformFileSpec(remote_file);
+                                    if (is_main_executable)
+                                    {
+                                        if (launch_info)
+                                            launch_info->SetExecutableFile(remote_file, false);
+                                    }
+                                }
+                                else
+                                    break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return error;
+}
 
 //--------------------------------------------------------------
-// class Target::StopHook
+// Target::StopHook
 //--------------------------------------------------------------
-
-
 Target::StopHook::StopHook (lldb::TargetSP target_sp, lldb::user_id_t uid) :
         UserID (uid),
         m_target_sp (target_sp),
@@ -2511,6 +2593,9 @@ protected:
     mutable bool m_got_host_env;
 };
 
+//----------------------------------------------------------------------
+// TargetProperties
+//----------------------------------------------------------------------
 TargetProperties::TargetProperties (Target *target) :
     Properties ()
 {
@@ -2799,17 +2884,10 @@ TargetProperties::GetMemoryModuleLoadLevel() const
 }
 
 
-const TargetPropertiesSP &
-Target::GetGlobalProperties()
-{
-    static TargetPropertiesSP g_settings_sp;
-    if (!g_settings_sp)
-    {
-        g_settings_sp.reset (new TargetProperties (NULL));
-    }
-    return g_settings_sp;
-}
 
+//----------------------------------------------------------------------
+// Target::TargetEventData
+//----------------------------------------------------------------------
 const ConstString &
 Target::TargetEventData::GetFlavorString ()
 {

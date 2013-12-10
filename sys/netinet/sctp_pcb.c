@@ -875,6 +875,9 @@ sctp_does_stcb_own_this_addr(struct sctp_tcb *stcb, struct sockaddr *to)
 					 */
 					continue;
 				}
+				if (sctp_ifa->address.sa.sa_family != to->sa_family) {
+					continue;
+				}
 				switch (sctp_ifa->address.sa.sa_family) {
 #ifdef INET
 				case AF_INET:
@@ -5861,7 +5864,6 @@ sctp_pcb_init()
 	for (i = 0; i < SCTP_STACK_VTAG_HASH_SIZE; i++) {
 		LIST_INIT(&SCTP_BASE_INFO(vtag_timewait)[i]);
 	}
-
 	sctp_startup_iterator();
 
 #if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
@@ -5890,35 +5892,31 @@ sctp_pcb_finish(void)
 	struct sctp_tagblock *twait_block, *prev_twait_block;
 	struct sctp_laddr *wi, *nwi;
 	int i;
+	struct sctp_iterator *it, *nit;
 
 	/*
-	 * Free BSD the it thread never exits but we do clean up. The only
-	 * way freebsd reaches here if we have VRF's but we still add the
-	 * ifdef to make it compile on old versions.
+	 * In FreeBSD the iterator thread never exits but we do clean up.
+	 * The only way FreeBSD reaches here is if we have VRF's but we
+	 * still add the ifdef to make it compile on old versions.
 	 */
-	{
-		struct sctp_iterator *it, *nit;
-
-		SCTP_IPI_ITERATOR_WQ_LOCK();
-		TAILQ_FOREACH_SAFE(it, &sctp_it_ctl.iteratorhead, sctp_nxt_itr, nit) {
-			if (it->vn != curvnet) {
-				continue;
-			}
-			TAILQ_REMOVE(&sctp_it_ctl.iteratorhead, it, sctp_nxt_itr);
-			if (it->function_atend != NULL) {
-				(*it->function_atend) (it->pointer, it->val);
-			}
-			SCTP_FREE(it, SCTP_M_ITER);
+	SCTP_IPI_ITERATOR_WQ_LOCK();
+	TAILQ_FOREACH_SAFE(it, &sctp_it_ctl.iteratorhead, sctp_nxt_itr, nit) {
+		if (it->vn != curvnet) {
+			continue;
 		}
-		SCTP_IPI_ITERATOR_WQ_UNLOCK();
-		SCTP_ITERATOR_LOCK();
-		if ((sctp_it_ctl.cur_it) &&
-		    (sctp_it_ctl.cur_it->vn == curvnet)) {
-			sctp_it_ctl.iterator_flags |= SCTP_ITERATOR_STOP_CUR_IT;
+		TAILQ_REMOVE(&sctp_it_ctl.iteratorhead, it, sctp_nxt_itr);
+		if (it->function_atend != NULL) {
+			(*it->function_atend) (it->pointer, it->val);
 		}
-		SCTP_ITERATOR_UNLOCK();
+		SCTP_FREE(it, SCTP_M_ITER);
 	}
-
+	SCTP_IPI_ITERATOR_WQ_UNLOCK();
+	SCTP_ITERATOR_LOCK();
+	if ((sctp_it_ctl.cur_it) &&
+	    (sctp_it_ctl.cur_it->vn == curvnet)) {
+		sctp_it_ctl.iterator_flags |= SCTP_ITERATOR_STOP_CUR_IT;
+	}
+	SCTP_ITERATOR_UNLOCK();
 	SCTP_OS_TIMER_STOP(&SCTP_BASE_INFO(addr_wq_timer.timer));
 	SCTP_WQ_ADDR_LOCK();
 	LIST_FOREACH_SAFE(wi, &SCTP_BASE_INFO(addr_wq), sctp_nxt_addr, nwi) {

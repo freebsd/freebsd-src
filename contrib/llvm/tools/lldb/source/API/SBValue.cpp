@@ -63,20 +63,20 @@ public:
                lldb::DynamicValueType use_dynamic,
                bool use_synthetic,
                const char *name = NULL) :
-        m_valobj_sp(in_valobj_sp),
-        m_use_dynamic(use_dynamic),
-        m_use_synthetic(use_synthetic),
-        m_name (name)
+    m_valobj_sp(in_valobj_sp),
+    m_use_dynamic(use_dynamic),
+    m_use_synthetic(use_synthetic),
+    m_name (name)
     {
         if (!m_name.IsEmpty() && m_valobj_sp)
             m_valobj_sp->SetName(m_name);
     }
     
     ValueImpl (const ValueImpl& rhs) :
-        m_valobj_sp(rhs.m_valobj_sp),
-        m_use_dynamic(rhs.m_use_dynamic),
-        m_use_synthetic(rhs.m_use_synthetic),
-        m_name (rhs.m_name)
+    m_valobj_sp(rhs.m_valobj_sp),
+    m_use_dynamic(rhs.m_use_dynamic),
+    m_use_synthetic(rhs.m_use_synthetic),
+    m_name (rhs.m_name)
     {
     }
     
@@ -120,7 +120,7 @@ public:
         Target *target = value_sp->GetTargetSP().get();
         if (target)
             api_locker.Lock(target->GetAPIMutex());
-
+        
         ProcessSP process_sp(value_sp->GetProcessSP());
         if (process_sp && !stop_locker.TryLock (&process_sp->GetRunLock()))
         {
@@ -131,7 +131,7 @@ public:
             error.SetErrorString ("process must be stopped.");
             return ValueObjectSP();
         }
-
+        
         if (value_sp->GetDynamicValue(m_use_dynamic))
             value_sp = value_sp->GetDynamicValue(m_use_dynamic);
         if (value_sp->GetSyntheticValue(m_use_synthetic))
@@ -167,7 +167,7 @@ public:
     {
         return m_use_synthetic;
     }
-
+    
     // All the derived values that we would make from the m_valobj_sp will share
     // the ExecutionContext with m_valobj_sp, so we don't need to do the calculations
     // in GetSP to return the Target, Process, Thread or Frame.  It is convenient to
@@ -207,7 +207,7 @@ public:
         else
             return StackFrameSP();
     }
-
+    
 private:
     lldb::ValueObjectSP m_valobj_sp;
     lldb::DynamicValueType m_use_dynamic;
@@ -227,7 +227,7 @@ public:
     {
         return in_value.GetSP(m_stop_locker, m_api_locker, m_lock_error);
     }
-
+    
     Error &
     GetError()
     {
@@ -238,11 +238,11 @@ private:
     Process::StopLocker m_stop_locker;
     Mutex::Locker m_api_locker;
     Error m_lock_error;
-
+    
 };
 
 SBValue::SBValue () :
-    m_opaque_sp ()
+m_opaque_sp ()
 {
 }
 
@@ -318,7 +318,7 @@ SBValue::GetName()
     lldb::ValueObjectSP value_sp(GetSP(locker));
     if (value_sp)
         name = value_sp->GetName().GetCString();
-
+    
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
     if (log)
     {
@@ -327,7 +327,7 @@ SBValue::GetName()
         else
             log->Printf ("SBValue(%p)::GetName () => NULL", value_sp.get());
     }
-
+    
     return name;
 }
 
@@ -350,7 +350,7 @@ SBValue::GetTypeName ()
         else
             log->Printf ("SBValue(%p)::GetTypeName () => NULL", value_sp.get());
     }
-
+    
     return name;
 }
 
@@ -359,17 +359,17 @@ SBValue::GetByteSize ()
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
     size_t result = 0;
-
+    
     ValueLocker locker;
     lldb::ValueObjectSP value_sp(GetSP(locker));
     if (value_sp)
     {
         result = value_sp->GetByteSize();
     }
-
+    
     if (log)
         log->Printf ("SBValue(%p)::GetByteSize () => %" PRIu64, value_sp.get(), (uint64_t)result);
-
+    
     return result;
 }
 
@@ -377,18 +377,18 @@ bool
 SBValue::IsInScope ()
 {
     bool result = false;
-
+    
     ValueLocker locker;
     lldb::ValueObjectSP value_sp(GetSP(locker));
     if (value_sp)
     {
         result = value_sp->IsInScope ();
     }
-
+    
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
     if (log)
         log->Printf ("SBValue(%p)::IsInScope () => %i", value_sp.get(), result);
-
+    
     return result;
 }
 
@@ -396,7 +396,7 @@ const char *
 SBValue::GetValue ()
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
-
+    
     const char *cstr = NULL;
     ValueLocker locker;
     lldb::ValueObjectSP value_sp(GetSP(locker));
@@ -411,7 +411,7 @@ SBValue::GetValue ()
         else
             log->Printf ("SBValue(%p)::GetValue() => NULL", value_sp.get());
     }
-
+    
     return cstr;
 }
 
@@ -429,14 +429,14 @@ SBValue::GetValueType ()
     {
         switch (result)
         {
-        case eValueTypeInvalid:         log->Printf ("SBValue(%p)::GetValueType () => eValueTypeInvalid", value_sp.get()); break;
-        case eValueTypeVariableGlobal:  log->Printf ("SBValue(%p)::GetValueType () => eValueTypeVariableGlobal", value_sp.get()); break;
-        case eValueTypeVariableStatic:  log->Printf ("SBValue(%p)::GetValueType () => eValueTypeVariableStatic", value_sp.get()); break;
-        case eValueTypeVariableArgument:log->Printf ("SBValue(%p)::GetValueType () => eValueTypeVariableArgument", value_sp.get()); break;
-        case eValueTypeVariableLocal:   log->Printf ("SBValue(%p)::GetValueType () => eValueTypeVariableLocal", value_sp.get()); break;
-        case eValueTypeRegister:        log->Printf ("SBValue(%p)::GetValueType () => eValueTypeRegister", value_sp.get()); break;
-        case eValueTypeRegisterSet:     log->Printf ("SBValue(%p)::GetValueType () => eValueTypeRegisterSet", value_sp.get()); break;
-        case eValueTypeConstResult:     log->Printf ("SBValue(%p)::GetValueType () => eValueTypeConstResult", value_sp.get()); break;
+            case eValueTypeInvalid:         log->Printf ("SBValue(%p)::GetValueType () => eValueTypeInvalid", value_sp.get()); break;
+            case eValueTypeVariableGlobal:  log->Printf ("SBValue(%p)::GetValueType () => eValueTypeVariableGlobal", value_sp.get()); break;
+            case eValueTypeVariableStatic:  log->Printf ("SBValue(%p)::GetValueType () => eValueTypeVariableStatic", value_sp.get()); break;
+            case eValueTypeVariableArgument:log->Printf ("SBValue(%p)::GetValueType () => eValueTypeVariableArgument", value_sp.get()); break;
+            case eValueTypeVariableLocal:   log->Printf ("SBValue(%p)::GetValueType () => eValueTypeVariableLocal", value_sp.get()); break;
+            case eValueTypeRegister:        log->Printf ("SBValue(%p)::GetValueType () => eValueTypeRegister", value_sp.get()); break;
+            case eValueTypeRegisterSet:     log->Printf ("SBValue(%p)::GetValueType () => eValueTypeRegisterSet", value_sp.get()); break;
+            case eValueTypeConstResult:     log->Printf ("SBValue(%p)::GetValueType () => eValueTypeConstResult", value_sp.get()); break;
         }
     }
     return result;
@@ -473,7 +473,7 @@ SBValue::GetType()
     TypeImplSP type_sp;
     if (value_sp)
     {
-        type_sp.reset (new TypeImpl(value_sp->GetClangType()));
+        type_sp.reset (new TypeImpl(value_sp->GetTypeImpl()));
         sb_type.SetSP(type_sp);
     }
     if (log)
@@ -499,7 +499,7 @@ SBValue::GetValueDidChange ()
     }
     if (log)
         log->Printf ("SBValue(%p)::GetValueDidChange() => %i", value_sp.get(), result);
-
+    
     return result;
 }
 
@@ -571,7 +571,7 @@ SBValue::SetValueFromCString (const char *value_str, lldb::SBError& error)
     
     if (log)
         log->Printf ("SBValue(%p)::SetValueFromCString(\"%s\") => %i", value_sp.get(), value_str, success);
-
+    
     return success;
 }
 
@@ -671,7 +671,7 @@ SBValue::CreateChildAtOffset (const char *name, uint32_t offset, SBType type)
         TypeImplSP type_sp (type.GetSP());
         if (type.IsValid())
         {
-            sb_value.SetSP(value_sp->GetSyntheticChildAtOffset(offset, type_sp->GetClangASTType(), true),GetPreferDynamicValue(),GetPreferSyntheticValue(), name);
+            sb_value.SetSP(value_sp->GetSyntheticChildAtOffset(offset, type_sp->GetClangASTType(false), true),GetPreferDynamicValue(),GetPreferSyntheticValue(), name);
         }
     }
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
@@ -696,7 +696,7 @@ SBValue::Cast (SBType type)
     lldb::ValueObjectSP value_sp(GetSP(locker));
     TypeImplSP type_sp (type.GetSP());
     if (value_sp && type_sp)
-        sb_value.SetSP(value_sp->Cast(type_sp->GetClangASTType()),GetPreferDynamicValue(),GetPreferSyntheticValue());
+        sb_value.SetSP(value_sp->Cast(type_sp->GetClangASTType(false)),GetPreferDynamicValue(),GetPreferSyntheticValue());
     return sb_value;
 }
 
@@ -761,19 +761,19 @@ SBValue::CreateValueFromAddress(const char* name, lldb::addr_t address, SBType s
     lldb::TypeImplSP type_impl_sp (sb_type.GetSP());
     if (value_sp && type_impl_sp)
     {
-        ClangASTType pointee_ast_type(type_impl_sp->GetClangASTType().GetPointerType ());
-        if (pointee_ast_type)
+        ClangASTType pointer_ast_type(type_impl_sp->GetClangASTType(false).GetPointerType ());
+        if (pointer_ast_type)
         {
             lldb::DataBufferSP buffer(new lldb_private::DataBufferHeap(&address,sizeof(lldb::addr_t)));
-        
+            
             ExecutionContext exe_ctx (value_sp->GetExecutionContextRef());
             ValueObjectSP ptr_result_valobj_sp(ValueObjectConstResult::Create (exe_ctx.GetBestExecutionContextScope(),
-                                                                               pointee_ast_type,
+                                                                               pointer_ast_type,
                                                                                ConstString(name),
                                                                                buffer,
-                                                                               lldb::endian::InlHostByteOrder(), 
+                                                                               exe_ctx.GetByteOrder(),
                                                                                exe_ctx.GetAddressByteSize()));
-        
+            
             if (ptr_result_valobj_sp)
             {
                 ptr_result_valobj_sp->GetValue().SetValueType(Value::eValueTypeLoadAddress);
@@ -806,9 +806,9 @@ SBValue::CreateValueFromData (const char* name, SBData data, SBType type)
     if (value_sp)
     {
         ExecutionContext exe_ctx (value_sp->GetExecutionContextRef());
-
+        
         new_value_sp = ValueObjectConstResult::Create (exe_ctx.GetBestExecutionContextScope(),
-                                                       type.m_opaque_sp->GetClangASTType(),
+                                                       type.m_opaque_sp->GetClangASTType(false),
                                                        ConstString(name),
                                                        *data.m_opaque_sp,
                                                        LLDB_INVALID_ADDRESS);
@@ -837,7 +837,7 @@ SBValue::GetChildAtIndex (uint32_t idx)
     
     if (target_sp)
         use_dynamic = target_sp->GetPreferDynamicValue();
-
+    
     return GetChildAtIndex (idx, use_dynamic, can_create_synthetic);
 }
 
@@ -846,7 +846,7 @@ SBValue::GetChildAtIndex (uint32_t idx, lldb::DynamicValueType use_dynamic, bool
 {
     lldb::ValueObjectSP child_sp;
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
-
+    
     ValueLocker locker;
     lldb::ValueObjectSP value_sp(GetSP(locker));
     if (value_sp)
@@ -870,7 +870,7 @@ SBValue::GetChildAtIndex (uint32_t idx, lldb::DynamicValueType use_dynamic, bool
     sb_value.SetSP (child_sp, use_dynamic, GetPreferSyntheticValue());
     if (log)
         log->Printf ("SBValue(%p)::GetChildAtIndex (%u) => SBValue(%p)", value_sp.get(), idx, value_sp.get());
-
+    
     return sb_value;
 }
 
@@ -913,9 +913,9 @@ SBValue::GetChildMemberWithName (const char *name, lldb::DynamicValueType use_dy
 {
     lldb::ValueObjectSP child_sp;
     const ConstString str_name (name);
-
+    
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
-
+    
     ValueLocker locker;
     lldb::ValueObjectSP value_sp(GetSP(locker));
     if (value_sp)
@@ -925,10 +925,10 @@ SBValue::GetChildMemberWithName (const char *name, lldb::DynamicValueType use_dy
     
     SBValue sb_value;
     sb_value.SetSP(child_sp, use_dynamic_value, GetPreferSyntheticValue());
-
+    
     if (log)
         log->Printf ("SBValue(%p)::GetChildMemberWithName (name=\"%s\") => SBValue(%p)", value_sp.get(), name, value_sp.get());
-
+    
     return sb_value;
 }
 
@@ -1048,11 +1048,12 @@ SBValue::GetValueAsSigned(SBError& error, int64_t fail_value)
     lldb::ValueObjectSP value_sp(GetSP(locker));
     if (value_sp)
     {
-        Scalar scalar;
-        if (value_sp->ResolveValue (scalar))
-            return scalar.SLongLong (fail_value);
-        else
-            error.SetErrorString ("could not resolve value");
+        bool success = true;
+        uint64_t ret_val = fail_value;
+        ret_val = value_sp->GetValueAsSigned(fail_value, &success);
+        if (!success)
+            error.SetErrorString("could not resolve value");
+        return ret_val;
     }
     else
         error.SetErrorStringWithFormat ("could not get SBValue: %s", locker.GetError().AsCString());
@@ -1068,11 +1069,12 @@ SBValue::GetValueAsUnsigned(SBError& error, uint64_t fail_value)
     lldb::ValueObjectSP value_sp(GetSP(locker));
     if (value_sp)
     {
-        Scalar scalar;
-        if (value_sp->ResolveValue (scalar))
-            return scalar.ULongLong(fail_value);
-        else
+        bool success = true;
+        uint64_t ret_val = fail_value;
+        ret_val = value_sp->GetValueAsUnsigned(fail_value, &success);
+        if (!success)
             error.SetErrorString("could not resolve value");
+        return ret_val;
     }
     else
         error.SetErrorStringWithFormat ("could not get SBValue: %s", locker.GetError().AsCString());
@@ -1087,9 +1089,7 @@ SBValue::GetValueAsSigned(int64_t fail_value)
     lldb::ValueObjectSP value_sp(GetSP(locker));
     if (value_sp)
     {
-        Scalar scalar;
-        if (value_sp->ResolveValue (scalar))
-            return scalar.SLongLong(fail_value);
+        return value_sp->GetValueAsSigned(fail_value);
     }
     return fail_value;
 }
@@ -1101,9 +1101,7 @@ SBValue::GetValueAsUnsigned(uint64_t fail_value)
     lldb::ValueObjectSP value_sp(GetSP(locker));
     if (value_sp)
     {
-        Scalar scalar;
-        if (value_sp->ResolveValue (scalar))
-            return scalar.ULongLong(fail_value);
+        return value_sp->GetValueAsUnsigned(fail_value);
     }
     return fail_value;
 }
@@ -1117,7 +1115,7 @@ SBValue::MightHaveChildren ()
     lldb::ValueObjectSP value_sp(GetSP(locker));
     if (value_sp)
         has_children = value_sp->MightHaveChildren();
-
+    
     if (log)
         log->Printf ("SBValue(%p)::MightHaveChildren() => %i", value_sp.get(), has_children);
     return has_children;
@@ -1127,16 +1125,16 @@ uint32_t
 SBValue::GetNumChildren ()
 {
     uint32_t num_children = 0;
-
+    
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
     ValueLocker locker;
     lldb::ValueObjectSP value_sp(GetSP(locker));
     if (value_sp)
         num_children = value_sp->GetNumChildren();
-
+    
     if (log)
         log->Printf ("SBValue(%p)::GetNumChildren () => %u", value_sp.get(), num_children);
-
+    
     return num_children;
 }
 
@@ -1149,13 +1147,13 @@ SBValue::Dereference ()
     lldb::ValueObjectSP value_sp(GetSP(locker));
     if (value_sp)
     {
-            Error error;
-            sb_value = value_sp->Dereference (error);
+        Error error;
+        sb_value = value_sp->Dereference (error);
     }
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
     if (log)
         log->Printf ("SBValue(%p)::Dereference () => SBValue(%p)", value_sp.get(), value_sp.get());
-
+    
     return sb_value;
 }
 
@@ -1163,17 +1161,17 @@ bool
 SBValue::TypeIsPointerType ()
 {
     bool is_ptr_type = false;
-
+    
     ValueLocker locker;
     lldb::ValueObjectSP value_sp(GetSP(locker));
     if (value_sp)
         is_ptr_type = value_sp->IsPointerType();
-
+    
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
     if (log)
         log->Printf ("SBValue(%p)::TypeIsPointerType () => %i", value_sp.get(), is_ptr_type);
-
-
+    
+    
     return is_ptr_type;
 }
 
@@ -1390,16 +1388,14 @@ bool
 SBValue::GetDescription (SBStream &description)
 {
     Stream &strm = description.ref();
-
+    
     ValueLocker locker;
     lldb::ValueObjectSP value_sp(GetSP(locker));
     if (value_sp)
-    {
-        ValueObject::DumpValueObject (strm, value_sp.get());
-    }
+        value_sp->Dump(strm);
     else
         strm.PutCString ("No value");
-
+    
     return true;
 }
 
@@ -1653,7 +1649,7 @@ SBValue::Watch (bool resolve_location, bool read, bool write, SBError &error)
         size_t byte_size = GetByteSize();
         if (byte_size == 0)
             return sb_watchpoint;
-                
+        
         uint32_t watch_type = 0;
         if (read)
             watch_type |= LLDB_WATCH_TYPE_READ;
@@ -1664,14 +1660,14 @@ SBValue::Watch (bool resolve_location, bool read, bool write, SBError &error)
         ClangASTType type (value_sp->GetClangType());
         WatchpointSP watchpoint_sp = target_sp->CreateWatchpoint(addr, byte_size, &type, watch_type, rc);
         error.SetError(rc);
-                
-        if (watchpoint_sp) 
+        
+        if (watchpoint_sp)
         {
             sb_watchpoint.SetSP (watchpoint_sp);
             Declaration decl;
             if (value_sp->GetDeclaration (decl))
             {
-                if (decl.GetFile()) 
+                if (decl.GetFile())
                 {
                     StreamString ss;
                     // True to show fullpath for declaration file.

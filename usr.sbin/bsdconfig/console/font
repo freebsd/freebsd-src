@@ -38,8 +38,8 @@ f_include $BSDCFG_SHARE/sysrc.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="080.console"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ FUNCTIONS
 
@@ -174,14 +174,16 @@ esac
 
 [ "$f8" -a "$f14" -a "$f16" ] || f_die 1 "$msg_unknown_font_selection"
 
-f_sysrc_set font8x8 "$f8" || f_die
-f_sysrc_set font8x14 "$f14" || f_die
-f_sysrc_set font8x16 "$f16" || f_die
+f_eval_catch "$0" f_sysrc_set 'f_sysrc_set font8x8 "%s"' "$f8" || f_die
+f_eval_catch "$0" f_sysrc_set 'f_sysrc_set font8x14 "%s"' "$f14" || f_die
+f_eval_catch "$0" f_sysrc_set 'f_sysrc_set font8x16 "%s"' "$f16" || f_die
 
 if [ "$mc_start" ]; then
-	f_sysrc_set mousechar_start "$mc_start" || f_die
+	f_eval_catch "$0" f_sysrc_set \
+		'f_sysrc_set mousechar_start "%s"' "$mc_start" || f_die
 else
-	f_sysrc_delete mousechar_start || f_die
+	f_eval_catch "$0" f_sysrc_delete \
+		'f_sysrc_delete mousechar_start' || f_die
 fi
 
 exit $SUCCESS

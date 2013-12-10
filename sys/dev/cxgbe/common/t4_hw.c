@@ -5664,3 +5664,50 @@ int __devinit t4_port_init(struct port_info *p, int mbox, int pf, int vf)
 
 	return 0;
 }
+
+int t4_sched_config(struct adapter *adapter, int type, int minmaxen)
+{
+	struct fw_sched_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_write = cpu_to_be32(V_FW_CMD_OP(FW_SCHED_CMD) |
+				      F_FW_CMD_REQUEST |
+				      F_FW_CMD_WRITE);
+	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
+
+	cmd.u.config.sc = FW_SCHED_SC_CONFIG;
+	cmd.u.config.type = type;
+	cmd.u.config.minmaxen = minmaxen;
+
+	return t4_wr_mbox_meat(adapter,adapter->mbox, &cmd, sizeof(cmd),
+			       NULL, 1);
+}
+
+int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
+		    int rateunit, int ratemode, int channel, int cl,
+		    int minrate, int maxrate, int weight, int pktsize)
+{
+	struct fw_sched_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_write = cpu_to_be32(V_FW_CMD_OP(FW_SCHED_CMD) |
+				      F_FW_CMD_REQUEST |
+				      F_FW_CMD_WRITE);
+	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
+
+	cmd.u.params.sc = FW_SCHED_SC_PARAMS;
+	cmd.u.params.type = type;
+	cmd.u.params.level = level;
+	cmd.u.params.mode = mode;
+	cmd.u.params.ch = channel;
+	cmd.u.params.cl = cl;
+	cmd.u.params.unit = rateunit;
+	cmd.u.params.rate = ratemode;
+	cmd.u.params.min = cpu_to_be32(minrate);
+	cmd.u.params.max = cpu_to_be32(maxrate);
+	cmd.u.params.weight = cpu_to_be16(weight);
+	cmd.u.params.pktsize = cpu_to_be16(pktsize);
+
+	return t4_wr_mbox_meat(adapter,adapter->mbox, &cmd, sizeof(cmd),
+			       NULL, 1);
+}

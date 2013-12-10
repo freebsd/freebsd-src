@@ -12,10 +12,12 @@
 
 // C Includes
 // C++ Includes
+#include <vector>
+#include <set>
 // Other libraries and framework includes
 // Project includes
+#include "lldb/Host/Mutex.h"
 #include "lldb/Target/Process.h"
-
 #include "GDBRemoteCommunication.h"
 
 class ProcessGDBRemote;
@@ -24,6 +26,8 @@ class StringExtractorGDBRemote;
 class GDBRemoteCommunicationServer : public GDBRemoteCommunication
 {
 public:
+    typedef std::map<uint16_t, lldb::pid_t> PortMap;
+
     enum
     {
         eBroadcastBitRunPacketSent = kLoUserBroadcastBit
@@ -56,23 +60,95 @@ public:
     // Set both ports to zero to let the platform automatically bind to 
     // a port chosen by the OS.
     void
-    SetPortRange (uint16_t lo_port_num, uint16_t hi_port_num)
+    SetPortMap (PortMap &&port_map)
     {
-        m_lo_port_num = lo_port_num;
-        m_hi_port_num = hi_port_num;
+        m_port_map = port_map;
+    }
+
+    //----------------------------------------------------------------------
+    // If we are using a port map where we can only use certain ports,
+    // get the next available port.
+    //
+    // If we are using a port map and we are out of ports, return UINT16_MAX
+    //
+    // If we aren't using a port map, return 0 to indicate we should bind to
+    // port 0 and then figure out which port we used.
+    //----------------------------------------------------------------------
+    uint16_t
+    GetNextAvailablePort ()
+    {
+        if (m_port_map.empty())
+            return 0; // Bind to port zero and get a port, we didn't have any limitations
+        
+        for (auto &pair : m_port_map)
+        {
+            if (pair.second == LLDB_INVALID_PROCESS_ID)
+            {
+                pair.second = ~(lldb::pid_t)LLDB_INVALID_PROCESS_ID;
+                return pair.first;
+            }
+        }
+        return UINT16_MAX;
+    }
+
+    bool
+    AssociatePortWithProcess (uint16_t port, lldb::pid_t pid)
+    {
+        PortMap::iterator pos = m_port_map.find(port);
+        if (pos != m_port_map.end())
+        {
+            pos->second = pid;
+            return true;
+        }
+        return false;
+    }
+
+    bool
+    FreePort (uint16_t port)
+    {
+        PortMap::iterator pos = m_port_map.find(port);
+        if (pos != m_port_map.end())
+        {
+            pos->second = LLDB_INVALID_PROCESS_ID;
+            return true;
+        }
+        return false;
+    }
+
+    bool
+    FreePortForProcess (lldb::pid_t pid)
+    {
+        if (!m_port_map.empty())
+        {
+            for (auto &pair : m_port_map)
+            {
+                if (pair.second == pid)
+                {
+                    pair.second = LLDB_INVALID_PROCESS_ID;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    void
+    SetPortOffset (uint16_t port_offset)
+    {
+        m_port_offset = port_offset;
     }
 
 protected:
-    //typedef std::map<uint16_t, lldb::pid_t> PortToPIDMap;
-
     lldb::thread_t m_async_thread;
     lldb_private::ProcessLaunchInfo m_process_launch_info;
     lldb_private::Error m_process_launch_error;
+    std::set<lldb::pid_t> m_spawned_pids;
+    lldb_private::Mutex m_spawned_pids_mutex;
     lldb_private::ProcessInstanceInfoList m_proc_infos;
     uint32_t m_proc_infos_index;
-    uint16_t m_lo_port_num;
-    uint16_t m_hi_port_num;
-    //PortToPIDMap m_port_to_pid_map;
+    PortMap m_port_map;
+    uint16_t m_port_offset;
+    
 
     size_t
     SendUnimplementedResponse (const char *packet);
@@ -85,7 +161,7 @@ protected:
 
     bool
     Handle_A (StringExtractorGDBRemote &packet);
-
+    
     bool
     Handle_qLaunchSuccess (StringExtractorGDBRemote &packet);
 
@@ -94,7 +170,16 @@ protected:
     
     bool
     Handle_qLaunchGDBServer (StringExtractorGDBRemote &packet);
+    
+    bool
+    Handle_qKillSpawnedProcess (StringExtractorGDBRemote &packet);
 
+    bool
+    Handle_qPlatform_mkdir (StringExtractorGDBRemote &packet);
+    
+    bool
+    Handle_qPlatform_chmod (StringExtractorGDBRemote &packet);
+    
     bool
     Handle_qProcessInfoPID (StringExtractorGDBRemote &packet);
     
@@ -120,10 +205,16 @@ protected:
     Handle_QEnvironment  (StringExtractorGDBRemote &packet);
     
     bool
+    Handle_QLaunchArch (StringExtractorGDBRemote &packet);
+    
+    bool
     Handle_QSetDisableASLR (StringExtractorGDBRemote &packet);
 
     bool
     Handle_QSetWorkingDir (StringExtractorGDBRemote &packet);
+    
+    bool
+    Handle_qGetWorkingDir (StringExtractorGDBRemote &packet);
 
     bool
     Handle_QStartNoAckMode (StringExtractorGDBRemote &packet);
@@ -137,7 +228,53 @@ protected:
     bool
     Handle_QSetSTDERR (StringExtractorGDBRemote &packet);
     
+    bool
+    Handle_vFile_Open (StringExtractorGDBRemote &packet);
+
+    bool
+    Handle_vFile_Close (StringExtractorGDBRemote &packet);
+
+    bool
+    Handle_vFile_pRead (StringExtractorGDBRemote &packet);
+
+    bool
+    Handle_vFile_pWrite (StringExtractorGDBRemote &packet);
+
+    bool
+    Handle_vFile_Size (StringExtractorGDBRemote &packet);
+    
+    bool
+    Handle_vFile_Mode (StringExtractorGDBRemote &packet);
+
+    bool
+    Handle_vFile_Exists (StringExtractorGDBRemote &packet);
+    
+    bool
+    Handle_vFile_symlink (StringExtractorGDBRemote &packet);
+    
+    bool
+    Handle_vFile_unlink (StringExtractorGDBRemote &packet);
+
+    bool
+    Handle_vFile_Stat (StringExtractorGDBRemote &packet);
+    
+    bool
+    Handle_vFile_MD5 (StringExtractorGDBRemote &packet);
+    
+    bool
+    Handle_qPlatform_shell (StringExtractorGDBRemote &packet);
+
 private:
+    bool
+    DebugserverProcessReaped (lldb::pid_t pid);
+    
+    static bool
+    ReapDebugserverProcess (void *callback_baton,
+                            lldb::pid_t pid,
+                            bool exited,
+                            int signal,
+                            int status);
+
     //------------------------------------------------------------------
     // For GDBRemoteCommunicationServer only
     //------------------------------------------------------------------

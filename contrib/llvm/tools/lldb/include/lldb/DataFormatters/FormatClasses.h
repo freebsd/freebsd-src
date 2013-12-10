@@ -10,10 +10,6 @@
 #ifndef lldb_FormatClasses_h_
 #define lldb_FormatClasses_h_
 
-// C Includes
-#include <stdint.h>
-#include <unistd.h>
-
 // C++ Includes
 #include <string>
 #include <vector>
@@ -24,17 +20,86 @@
 #include "lldb/lldb-public.h"
 #include "lldb/lldb-enumerations.h"
 
-#include "lldb/Core/ValueObject.h"
-#include "lldb/Interpreter/ScriptInterpreterPython.h"
 #include "lldb/Symbol/ClangASTType.h"
 #include "lldb/Symbol/Type.h"
 
-#include "lldb/DataFormatters/TypeFormat.h"
-#include "lldb/DataFormatters/TypeSummary.h"
-#include "lldb/DataFormatters/TypeSynthetic.h"
-
 namespace lldb_private {
 
+class FormattersMatchCandidate
+{
+public:
+    
+    FormattersMatchCandidate (ConstString name,
+                              uint32_t reason,
+                              bool strip_ptr,
+                              bool strip_ref,
+                              bool strip_tydef) :
+    m_type_name(name),
+    m_reason(reason),
+    m_stripped_pointer(strip_ptr),
+    m_stripped_reference(strip_ref),
+    m_stripped_typedef(strip_tydef)
+    {
+    }
+    
+    ~FormattersMatchCandidate ()
+    {}
+    
+    ConstString
+    GetTypeName () const
+    {
+        return m_type_name;
+    }
+    
+    uint32_t
+    GetReason () const
+    {
+        return m_reason;
+    }
+    
+    bool
+    DidStripPointer () const
+    {
+        return m_stripped_pointer;
+    }
+    
+    bool
+    DidStripReference () const
+    {
+        return m_stripped_reference;
+    }
+    
+    bool
+    DidStripTypedef () const
+    {
+        return m_stripped_typedef;
+    }
+    
+    template <class Formatter>
+    bool
+    IsMatch (const std::shared_ptr<Formatter>& formatter_sp) const
+    {
+        if (!formatter_sp)
+            return false;
+        if (formatter_sp->Cascades() == false && DidStripTypedef())
+            return false;
+        if (formatter_sp->SkipsPointers() && DidStripPointer())
+            return false;
+        if (formatter_sp->SkipsReferences() && DidStripReference())
+            return false;
+        return true;
+    }
+    
+private:
+    ConstString m_type_name;
+    uint32_t m_reason;
+    bool m_stripped_pointer;
+    bool m_stripped_reference;
+    bool m_stripped_typedef;
+};
+
+typedef std::vector<FormattersMatchCandidate> FormattersMatchVector;
+    
 class TypeNameSpecifierImpl
 {
 public:
@@ -61,7 +126,7 @@ public:
         if (type)
         {
             m_type.m_type_name.assign(type->GetName().GetCString());
-            m_type.m_typeimpl_sp = lldb::TypeImplSP(new TypeImpl(type));
+            m_type.m_type_pair.SetType(type);
         }
     }
 
@@ -72,7 +137,7 @@ public:
         if (type.IsValid())
         {
             m_type.m_type_name.assign(type.GetConstTypeName().GetCString());
-            m_type.m_typeimpl_sp = lldb::TypeImplSP(new TypeImpl(type));
+            m_type.m_type_pair.SetType(type);
         }
     }
     
@@ -87,16 +152,16 @@ public:
     lldb::TypeSP
     GetTypeSP ()
     {
-        if (m_type.m_typeimpl_sp && m_type.m_typeimpl_sp->IsValid())
-            return m_type.m_typeimpl_sp->GetTypeSP();
+        if (m_type.m_type_pair.IsValid())
+            return m_type.m_type_pair.GetTypeSP();
         return lldb::TypeSP();
     }
     
     ClangASTType
     GetClangASTType ()
     {
-        if (m_type.m_typeimpl_sp && m_type.m_typeimpl_sp->IsValid())
-            return m_type.m_typeimpl_sp->GetClangASTType();
+        if (m_type.m_type_pair.IsValid())
+            return m_type.m_type_pair.GetClangASTType();
         return ClangASTType();
     }
     
@@ -109,12 +174,11 @@ public:
 private:
     bool m_is_regex;
     // this works better than TypeAndOrName because the latter only wraps a TypeSP
-    // whereas TypeImplSP can also be backed by a ClangASTType which is more commonly
-    // used in LLDB. moreover, TypeImplSP is also what is currently backing SBType
+    // whereas TypePair can also be backed by a ClangASTType
     struct TypeOrName
     {
         std::string m_type_name;
-        lldb::TypeImplSP m_typeimpl_sp;
+        TypePair m_type_pair;
     };
     TypeOrName m_type;
     

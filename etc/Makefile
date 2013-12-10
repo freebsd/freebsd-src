@@ -221,6 +221,9 @@ distribution:
 .if ${MK_BLUETOOTH} != "no"
 	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
 .endif
+.if ${MK_CASPER} != "no"
+	${_+_}cd ${.CURDIR}/casper; ${MAKE} install
+.endif
 	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install
 	${_+_}cd ${.CURDIR}/devd; ${MAKE} install
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
@@ -321,7 +324,7 @@ MTREES+=	mtree/BSD.debug.dist		/usr/lib
 MTREES+=	mtree/BSD.groff.dist		/usr
 .endif
 .if ${MK_TESTS} != "no"
-MTREES+=	mtree/BSD.tests.dist		${TESTSBASE}
+MTREES+=	mtree/BSD.tests.dist		/usr
 .endif
 .if ${MK_SENDMAIL} != "no"
 MTREES+=	mtree/BSD.sendmail.dist		/

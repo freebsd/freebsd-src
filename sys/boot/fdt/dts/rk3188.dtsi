@@ -80,7 +80,7 @@
 			compatible = "rockchip,rk3188-dw-apb-timer-osc";
 			reg = <0x20038000 0x20>;
 			interrupts = <76>;
-			clocks = <24000000>;
+			clock-frequency = <24000000>;
 			status = "disabled";
 		};
 
@@ -88,7 +88,7 @@
 			compatible = "rockchip,rk30xx-timer";
 			reg = <0x20038020 0x20>;
 			interrupts = <77>;
-			clocks = <24000000>;
+			clock-frequency = <24000000>;
 			status = "disabled";
 		};
 
@@ -96,7 +96,7 @@
 			compatible = "rockchip,rk30xx-timer";
 			reg = <0x20038060 0x20>;
 			interrupts = <91>;
-			clocks = <24000000>;
+			clock-frequency = <24000000>;
 			status = "disabled";
 		};
 
@@ -104,7 +104,7 @@
 			compatible = "rockchip,rk30xx-timer";
 			reg = <0x20038080 0x20>;
 			interrupts = <92>;
-			clocks = <24000000>;
+			clock-frequency = <24000000>;
 			status = "disabled";
 		};
 
@@ -112,13 +112,14 @@
 			compatible = "rockchip,rk30xx-timer";
 			reg = <0x200380a0 0x20>;
 			interrupts = <96>;
-			clocks = <24000000>;
+			clock-frequency = <24000000>;
 			status = "disabled";
 		};
 
 		watchdog@2004c000 {
 			compatible = "rockchip,rk30xx-wdt";
 			reg = <0x2004c000 0x100>;
+			clock-frequency = < 66000000 >;
 		};
 
 		gpio0: gpio@2000a000 {
@@ -173,6 +174,7 @@
 			interrupt-parent = <&GIC>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			gpios = <&gpio0 3 2 2>;
 		};
 
 		uart0: serial@10124000 {
@@ -233,7 +235,7 @@
 			interrupts = <55>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			clocks = <24000000>;	/* TODO: verify freq */
+			clock-frequency = <24000000>;	/* TODO: verify freq */
 			status = "disabled";
 		};
 
@@ -243,7 +245,7 @@
 			interrupts = <56>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			clocks = <24000000>;	/* TODO: verify freq */
+			clock-frequency = <24000000>;	/* TODO: verify freq */
 			status = "disabled";
 		};
 	};

@@ -2664,7 +2664,7 @@ int r600_dma_cs_parse(struct radeon_cs_parser *p)
 			if (tiled) {
 				idx_value = radeon_get_ib_value(p, idx + 2);
 				/* detile bit */
-				if (idx_value & (1 << 31)) {
+				if (idx_value & (1U << 31)) {
 					/* tiled src, linear dst */
 					src_offset = radeon_get_ib_value(p, idx+1);
 					src_offset <<= 8;

@@ -201,10 +201,6 @@ macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 		return;
 	}
 
-	if (OF_searchprop(devnode, "#interrupt-cells", &icells, sizeof(icells))
-	    <= 0)
-		icells = 1;
-
 	nintr = OF_getprop_alloc(devnode, "interrupts", sizeof(*intr), 
 		(void **)&intr);
 	if (nintr == -1) {
@@ -220,6 +216,10 @@ macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 	if (OF_getprop(devnode, "interrupt-parent", &iparent, sizeof(iparent))
 	    <= 0)
 		panic("Interrupt but no interrupt parent!\n");
+
+	if (OF_getprop(OF_xref_phandle(iparent), "#interrupt-cells", &icells,
+	    sizeof(icells)) <= 0)
+		icells = 1;
 
 	for (i = 0; i < nintr; i+=icells) {
 		u_int irq = MAP_IRQ(iparent, intr[i]);

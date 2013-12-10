@@ -1089,6 +1089,8 @@ const int x86_cmpxchg = ~m_386;
 const int x86_cmpxchg8b = ~(m_386 | m_486);
 /* Exchange and add was added for 80486.  */
 const int x86_xadd = ~m_386;
+/* Byteswap was added for 80486.  */
+const int x86_bswap = ~m_386;
 const int x86_pad_returns = m_ATHLON_K8_AMDFAM10 | m_CORE2 | m_GENERIC;
 
 /* In case the average insn count for single function invocation is
@@ -15406,7 +15408,7 @@ ix86_init_mmx_sse_builtins (void)
   const struct builtin_description * d;
   size_t i;
 
-  tree V16QI_type_node = build_vector_type_for_mode (intQI_type_node, V16QImode);
+  tree V16QI_type_node = build_vector_type_for_mode (char_type_node, V16QImode);
   tree V2SI_type_node = build_vector_type_for_mode (intSI_type_node, V2SImode);
   tree V2SF_type_node = build_vector_type_for_mode (float_type_node, V2SFmode);
   tree V2DI_type_node
@@ -15415,7 +15417,7 @@ ix86_init_mmx_sse_builtins (void)
   tree V4SF_type_node = build_vector_type_for_mode (float_type_node, V4SFmode);
   tree V4SI_type_node = build_vector_type_for_mode (intSI_type_node, V4SImode);
   tree V4HI_type_node = build_vector_type_for_mode (intHI_type_node, V4HImode);
-  tree V8QI_type_node = build_vector_type_for_mode (intQI_type_node, V8QImode);
+  tree V8QI_type_node = build_vector_type_for_mode (char_type_node, V8QImode);
   tree V8HI_type_node = build_vector_type_for_mode (intHI_type_node, V8HImode);
 
   tree pchar_type_node = build_pointer_type (char_type_node);

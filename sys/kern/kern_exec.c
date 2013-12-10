@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_capsicum.h"
 #include "opt_hwpmc_hooks.h"
-#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_vm.h"
 
@@ -96,9 +95,9 @@ dtrace_execexit_func_t	dtrace_fasttrap_exec;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE1(proc, kernel, , exec, exec, "char *");
-SDT_PROBE_DEFINE1(proc, kernel, , exec_failure, exec-failure, "int");
-SDT_PROBE_DEFINE1(proc, kernel, , exec_success, exec-success, "char *");
+SDT_PROBE_DEFINE1(proc, kernel, , exec, "char *");
+SDT_PROBE_DEFINE1(proc, kernel, , exec__failure, "int");
+SDT_PROBE_DEFINE1(proc, kernel, , exec__success, "char *");
 
 MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");
 
@@ -833,7 +832,7 @@ interpret:
 
 	vfs_mark_atime(imgp->vp, td->td_ucred);
 
-	SDT_PROBE(proc, kernel, , exec_success, args->fname, 0, 0, 0, 0);
+	SDT_PROBE(proc, kernel, , exec__success, args->fname, 0, 0, 0, 0);
 
 done1:
 	/*
@@ -905,7 +904,7 @@ exec_fail:
 	p->p_flag &= ~P_INEXEC;
 	PROC_UNLOCK(p);
 
-	SDT_PROBE(proc, kernel, , exec_failure, error, 0, 0, 0, 0);
+	SDT_PROBE(proc, kernel, , exec__failure, error, 0, 0, 0, 0);
 
 done2:
 #ifdef MAC

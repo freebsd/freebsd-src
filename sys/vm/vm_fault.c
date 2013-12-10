@@ -1079,7 +1079,7 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 
 	if (len == 0)
 		return (0);
-	end = round_page(addr + len);	
+	end = round_page(addr + len);
 	addr = trunc_page(addr);
 
 	/*
@@ -1088,9 +1088,9 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 	if (addr < vm_map_min(map) || addr > end || end > vm_map_max(map))
 		return (-1);
 
-	count = howmany(end - addr, PAGE_SIZE);
-	if (count > max_count)
+	if (atop(end - addr) > max_count)
 		panic("vm_fault_quick_hold_pages: count > max_count");
+	count = atop(end - addr);
 
 	/*
 	 * Most likely, the physical pages are resident in the pmap, so it is

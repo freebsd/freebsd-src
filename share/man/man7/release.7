@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2013
+.Dd December 2, 2013
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -241,6 +241,10 @@ will prevent the
 distribution package from being created.
 Setting this also sets
 .Va NODOC .
+.It Va WITH_DVD
+Set to a non-empty value to include the
+.Cm dvdrom
+target.
 .El
 .Sh MAKEFILE TARGETS
 The release makefile
@@ -270,6 +274,15 @@ This target produces files called
 and
 .Pa bootonly.iso
 as its output.
+.It Cm dvdrom
+Builds installation DVD-ROM images.
+This may require the
+.Xr md 4
+(memory disk) device driver be present in the kernel
+(either by being compiled in or available as a module).
+This target produces the
+.Pa dvd1.iso
+file as its output.
 .It Cm memstick
 Builds an installation memory stick image named
 .Pa memstick.img .
@@ -302,7 +315,8 @@ Builds a bootable installation system containing all the distribution files
 packaged by the
 .Cm packagesystem
 target, and suitable for imaging by the
-.Cm cdrom
+.Cm cdrom ,
+.Cm dvdrom
 and
 .Cm memstick
 targets.

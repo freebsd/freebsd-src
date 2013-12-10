@@ -188,15 +188,8 @@ f_number_of_lines()
 #
 f_isinteger()
 {
-	local arg="$1"
-
-	# Prevent division-by-zero
-	[ "$arg" = "0" ] && return $SUCCESS
-
-	# Attempt to perform arithmetic divison (an operation which will exit
-	# with error unless arg is a valid positive/negative whole integer).
-	#
-	( : $((0/$arg)) ) > /dev/null 2>&1
+	local arg="${1#-}"
+	[ "${arg:-x}" = "${arg#[!0-9]*}" ]
 }
 
 # f_uriencode [$text]

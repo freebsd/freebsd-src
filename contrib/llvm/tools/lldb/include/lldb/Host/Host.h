@@ -18,6 +18,7 @@
 
 #include "lldb/lldb-private.h"
 #include "lldb/Core/StringList.h"
+#include "lldb/Host/File.h"
 
 namespace lldb_private {
 
@@ -209,6 +210,9 @@ public:
     static lldb::pid_t
     GetCurrentProcessID ();
 
+    static void
+    Kill(lldb::pid_t pid, int signo);
+
     //------------------------------------------------------------------
     /// Get the thread ID for the calling thread in the current process.
     ///
@@ -263,6 +267,17 @@ public:
     ThreadJoin (lldb::thread_t thread,
                 lldb::thread_result_t *thread_result_ptr,
                 Error *error);
+
+    typedef void (*ThreadLocalStorageCleanupCallback) (void *p);
+
+    static lldb::thread_key_t
+    ThreadLocalStorageCreate(ThreadLocalStorageCleanupCallback callback);
+
+    static void*
+    ThreadLocalStorageGet(lldb::thread_key_t key);
+
+    static void
+    ThreadLocalStorageSet(lldb::thread_key_t key, void *value);
 
     //------------------------------------------------------------------
     /// Gets the name of a thread in a process.
@@ -458,7 +473,7 @@ public:
                      int *signo_ptr,                // Pass NULL if you don't want the signal that caused the process to exit
                      std::string *command_output,   // Pass NULL if you don't want the command output
                      uint32_t timeout_sec,
-                     const char *shell = "/bin/bash");
+                     const char *shell = LLDB_DEFAULT_SHELL);
     
     static lldb::DataBufferSP
     GetAuxvData (lldb_private::Process *process);
@@ -494,6 +509,60 @@ public:
     DynamicLibraryGetSymbol (void *dynamic_library_handle, 
                              const char *symbol_name, 
                              Error &error);
+    
+    static Error
+    MakeDirectory (const char* path, uint32_t mode);
+    
+    static Error
+    GetFilePermissions (const char* path, uint32_t &file_permissions);
+
+    static Error
+    SetFilePermissions (const char* path, uint32_t file_permissions);
+    
+    static Error
+    Symlink (const char *src, const char *dst);
+    
+    static Error
+    Readlink (const char *path, char *buf, size_t buf_len);
+
+    static Error
+    Unlink (const char *path);
+
+    static lldb::user_id_t
+    OpenFile (const FileSpec& file_spec,
+              uint32_t flags,
+              uint32_t mode,
+              Error &error);
+    
+    static bool
+    CloseFile (lldb::user_id_t fd,
+               Error &error);
+    
+    static uint64_t
+    WriteFile (lldb::user_id_t fd,
+               uint64_t offset,
+               const void* src,
+               uint64_t src_len,
+               Error &error);
+    
+    static uint64_t
+    ReadFile (lldb::user_id_t fd,
+              uint64_t offset,
+              void* dst,
+              uint64_t dst_len,
+              Error &error);
+
+    static lldb::user_id_t
+    GetFileSize (const FileSpec& file_spec);
+    
+    static bool
+    GetFileExists (const FileSpec& file_spec);
+    
+    static bool
+    CalculateMD5 (const FileSpec& file_spec,
+                  uint64_t &low,
+                  uint64_t &high);
+
 };
 
 } // namespace lldb_private

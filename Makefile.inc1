@@ -136,7 +136,7 @@ REVISION!=	make -C ${SRCDIR}/release -V REVISION
 BRANCH!=	make -C ${SRCDIR}/release -V BRANCH
 SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 		${SRCDIR}/sys/sys/param.h
-VERSION=	FreeBSD ${REVISION}-${BRANCH} ${TARGET_ARCH} ${SRCRELDATE}
+VERSION=	FreeBSD ${REVISION}-${BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDATE}
 .endif
 
 KNOWN_ARCHES?=	amd64 arm armeb/arm armv6/arm i386 i386/pc98 ia64 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
@@ -509,7 +509,7 @@ _worldtmp:
 .endif
 .if ${MK_TESTS} != "no"
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
-	    -p ${WORLDTMP}${TESTSBASE} >/dev/null
+	    -p ${WORLDTMP}/usr >/dev/null
 .endif
 .for _mtree in ${LOCAL_MTREE}
 	mtree -deU -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
@@ -1475,11 +1475,13 @@ _startup_libs+=	lib/csu/${MACHINE_CPUARCH}
 _startup_libs+=	gnu/lib/libgcc
 _startup_libs+=	lib/libcompiler_rt
 _startup_libs+=	lib/libc
+_startup_libs+=	lib/libc_nonshared
 .if ${MK_LIBCPLUSPLUS} != "no"
 _startup_libs+=	lib/libcxxrt
 .endif
 
 gnu/lib/libgcc__L: lib/libc__L
+gnu/lib/libgcc__L: lib/libc_nonshared__L
 .if ${MK_LIBCPLUSPLUS} != "no"
 lib/libcxxrt__L: gnu/lib/libgcc__L
 .endif
@@ -1497,13 +1499,14 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libbz2 ${_libcom_err} lib/libcrypt \
 		lib/libelf lib/libexpat \
 		${_lib_libgssapi} ${_lib_libipx} \
-		lib/libkiconv lib/libkvm lib/liblzma lib/libmd \
+		lib/libkiconv lib/libkvm lib/liblzma lib/libmd lib/libnv \
+		${_lib_libcapsicum} \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
 		lib/libopie lib/libpam ${_lib_libthr} \
 		lib/libradius lib/libsbuf lib/libtacplus \
 		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
 		${_cddl_lib_libzfs_core} \
-		lib/libutil ${_lib_libypclnt} lib/libz lib/msun \
+		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_lib_libldns} \
 		${_secure_lib_libssh} ${_secure_lib_libssl}
 
@@ -1518,6 +1521,13 @@ _lib_libthr=	lib/libthr
 .if ${MK_OFED} != "no"
 _ofed_lib=	contrib/ofed/usr.lib/
 .endif
+
+.if ${MK_CASPER} != "no"
+_lib_libcapsicum=lib/libcapsicum
+.endif
+
+lib/libcapsicum__L: lib/libnv__L
+lib/libpjdlog__L: lib/libutil__L
 
 _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib ${_ofed_lib}
 .for _DIR in ${LOCAL_LIB_DIRS}

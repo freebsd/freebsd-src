@@ -62,7 +62,7 @@ lapic_intr_accepted(struct vm *vm, int cpu, int vector)
 }
 
 int
-lapic_set_intr(struct vm *vm, int cpu, int vector)
+lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
 {
 	struct vlapic *vlapic;
 
@@ -73,21 +73,11 @@ lapic_set_intr(struct vm *vm, int cpu, int vector)
 		return (EINVAL);
 
 	vlapic = vm_lapic(vm, cpu);
-	vlapic_set_intr_ready(vlapic, vector);
+	vlapic_set_intr_ready(vlapic, vector, level);
 
-	vm_interrupt_hostcpu(vm, cpu);
+	vcpu_notify_event(vm, cpu);
 
 	return (0);
-}
-
-int
-lapic_timer_tick(struct vm *vm, int cpu)
-{
-	struct vlapic *vlapic;
-
-	vlapic = vm_lapic(vm, cpu);
-
-	return (vlapic_timer_tick(vlapic));
 }
 
 static boolean_t

@@ -94,8 +94,9 @@ f_dialog_input_netmask()
 	# the system may hang (if any NFS mounts are using that interface).
 	#
 	if f_nfs_mounted && ! f_jailed; then
-		local setting="$( printf "$msg_current_subnet" \
-		                         "$interface" "$_netmask" )"
+		local setting
+		f_sprintf setting "$msg_current_subnet" \
+		                  "$interface" "$_netmask"
 		f_noyes "$msg_nfs_mounts_may_cause_hang" "$setting" ||
 			return $DIALOG_CANCEL
 	fi
@@ -103,7 +104,8 @@ f_dialog_input_netmask()
 	#
 	# Loop until the user provides taint-free input.
 	#
-	local msg="$( printf "$msg_please_enter_subnet_mask" "$interface" )"
+	local msg
+	f_sprintf msg "$msg_please_enter_subnet_mask" "$interface"
 	while :; do
 		#
 		# Return error status if:

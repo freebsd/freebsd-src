@@ -86,6 +86,7 @@ INDEX_FORMAT="$INDEX_FORMAT|"			# disc
 #
 f_index_initialize()
 {
+	local __funcname=f_index_initialize
 	local __var_to_set="${2:-PACKAGE_INDEX}"
 
 	[ "$_INDEX_INITTED" ] && return $SUCCESS
@@ -105,19 +106,26 @@ f_index_initialize()
 	device_media get type __type
 	device_media get private __data
 	case "$__type" in
-	$DEVICE_TYPE_UFS|$DEVICE_TYPE_DISK) __site="file://$MOUNTPOINT" ;;
-	$DEVICE_TYPE_DIRECTORY)  __site="file://$__data" ;;
-	$DEVICE_TYPE_FLOPPY)     __site="file://${__data:-$MOUNTPOINT}" ;;
-	$DEVICE_TYPE_FTP)        f_getvar $VAR_FTP_PATH __site ;;
-	$DEVICE_TYPE_HTTP_PROXY) f_getvar $VAR_HTTP_PROXY_PATH __site ;;
-	$DEVICE_TYPE_HTTP)       f_getvar $VAR_HTTP_PATH __site ;;
-	$DEVICE_TYPE_CDROM)      __site="file://$MOUNTPOINT" ;;
-	$DEVICE_TYPE_USB)        __site="file://$MOUNTPOINT" ;;
-	$DEVICE_TYPE_DOS)        __site="file://$MOUNTPOINT" ;;
-	$DEVICE_TYPE_NFS)        __site="file://$MOUNTPOINT" ;;
+	$DEVICE_TYPE_DIRECTORY)
+		__site="file://$__data/packages/$PKG_ABI" ;;
+	$DEVICE_TYPE_FLOPPY)
+		__site="file://${__data:-$MOUNTPOINT}/packages/$PKG_ABI" ;;
+	$DEVICE_TYPE_FTP)
+		f_getvar $VAR_FTP_PATH __site
+		__site="$__site/packages/$PKG_ABI" ;;
+	$DEVICE_TYPE_HTTP)
+		f_getvar $VAR_HTTP_PATH __site
+		__site="$__site/$PKG_ABI/latest" ;;
+	$DEVICE_TYPE_HTTP_PROXY)
+		f_getvar $VAR_HTTP_PROXY_PATH __site
+		__site="$__site/packages/$PKG_ABI" ;;
+	*) # UFS, DISK, CDROM, USB, DOS, NFS, etc.
+		__site="file://$MOUNTPOINT/packages/$PKG_ABI"
 	esac
 
-	if ! PACKAGESITE="$__site" f_quietly pkg update; then
+	export PACKAGESITE="$__site"
+	f_dprintf "PACKAGESITE=[%s]" "$PACKAGESITE"
+	if ! f_eval_catch $__funcname pkg "pkg update"; then
 		f_show_err "$msg_unable_to_update_pkg_from_selected_media"
 		f_device_shutdown media
 		return $FAILURE
@@ -237,17 +245,21 @@ f_index_initialize()
 	#
 
 	# Create a new temporary file to write to
-	local __tmpfile="$( mktemp -t "$pgm" )"
-	if [ "$__tmpfile" ]; then
+	local __tmpfile
+	if f_eval_catch -dk __tmpfile $__funcname mktemp \
+		'mktemp -t "%s"' "$pgm"
+	then
 		# Write the temporary file contents
 		echo "$__sqlite_digest" > "$__tmpfile"
 		debug= f_getvar "$__var_to_set" >> "$__tmpfile"
 
 		# Finally, move the temporary file into place
 		case "$PACKAGES_INDEX_CACHEFILE" in
-		*/*) f_quietly mkdir -p "${PACKAGES_INDEX_CACHEFILE%/*}"
+		*/*) f_eval_catch -d $funcname mkdir \
+			'mkdir -p "%s"' "${PACKAGES_INDEX_CACHEFILE%/*}"
 		esac
-		f_quietly mv -f "$__tmpfile" "$PACKAGES_INDEX_CACHEFILE"
+		f_eval_catch -d $__funcname mv 'mv -f "%s" "%s"' \
+			"$__tmpfile" "$PACKAGES_INDEX_CACHEFILE"
 	fi
 
 	f_show_info "$msg_located_index_now_reading_package_data_from_it"

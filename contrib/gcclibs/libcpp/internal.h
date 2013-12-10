@@ -355,6 +355,10 @@ struct cpp_reader
   struct file_hash_entry *file_hash_entries;
   unsigned int file_hash_entries_allocated, file_hash_entries_used;
 
+  /* Negative path lookup hash table.  */
+  struct htab *nonexistent_file_hash;
+  struct obstack nonexistent_file_ob;
+
   /* Nonzero means don't look for #include "foo" the source-file
      directory.  */
   bool quote_ignores_source_dir;
@@ -562,6 +566,17 @@ extern void _cpp_init_internal_pragmas (cpp_reader *);
 extern void _cpp_do_file_change (cpp_reader *, enum lc_reason, const char *,
 				 unsigned int, unsigned int);
 extern void _cpp_pop_buffer (cpp_reader *);
+
+/* In directives.c */
+struct _cpp_dir_only_callbacks
+{
+  /* Called to print a block of lines. */
+  void (*print_lines) (int, const void *, size_t);
+  void (*maybe_print_line) (source_location);
+};
+
+extern void _cpp_preprocess_dir_only (cpp_reader *,
+				      const struct _cpp_dir_only_callbacks *);
 
 /* In traditional.c.  */
 extern bool _cpp_scan_out_logical_line (cpp_reader *, cpp_macro *);

@@ -34,7 +34,7 @@
 #include <sys/proc.h>
 #endif
 
-#if defined(AIM) && defined(__powerpc64__)
+#ifdef __powerpc64__
 
 #define	counter_enter()	do {} while (0)
 #define	counter_exit()	do {} while (0)
@@ -98,7 +98,7 @@ counter_u64_add(counter_u64_t c, int64_t inc)
 	    : "cc", "memory");
 }
 
-#else	/* !AIM || !64bit */
+#else	/* !64bit */
 
 #define	counter_enter()	critical_enter()
 #define	counter_exit()	critical_exit()
@@ -157,6 +157,6 @@ counter_u64_add(counter_u64_t c, int64_t inc)
 	counter_exit();
 }
 
-#endif	/* AIM 64bit */
+#endif	/* 64bit */
 
 #endif	/* ! __MACHINE_COUNTER_H__ */

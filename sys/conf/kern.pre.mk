@@ -194,7 +194,7 @@ MKMODULESENV+=	WITHOUT_MODULES="${WITHOUT_MODULES}"
 MKMODULESENV+=	DEBUG_FLAGS="${DEBUG}"
 .endif
 
-# Detect knerel config options that force stack frames to be turned on.
+# Detect kernel config options that force stack frames to be turned on.
 DDB_ENABLED!=	grep DDB opt_ddb.h || true ; echo
 DTR_ENABLED!=	grep KDTRACE_FRAME opt_kdtrace.h || true ; echo
 HWPMC_ENABLED!=	grep HWPMC opt_hwpmc_hooks.h || true ; echo

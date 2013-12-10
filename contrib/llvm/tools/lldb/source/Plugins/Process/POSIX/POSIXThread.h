@@ -21,7 +21,7 @@
 
 class ProcessMessage;
 class ProcessMonitor;
-class RegisterContextPOSIX;
+class POSIXBreakpointProtocol;
 
 //------------------------------------------------------------------------------
 // @class POSIXThread
@@ -59,6 +59,9 @@ public:
     virtual lldb::RegisterContextSP
     CreateRegisterContextForFrame (lldb_private::StackFrame *frame);
 
+    virtual lldb::addr_t
+    GetThreadPointer ();
+
     //--------------------------------------------------------------------------
     // These functions provide a mapping from the register offset
     // back to the register index or name for use in debugging or log
@@ -76,8 +79,6 @@ public:
     //--------------------------------------------------------------------------
     // These methods form a specialized interface to POSIX threads.
     //
-    bool Resume();
-
     void Notify(const ProcessMessage &message);
 
     //--------------------------------------------------------------------------
@@ -92,15 +93,12 @@ public:
     uint32_t FindVacantWatchpointIndex();
 
 protected:
-    RegisterContextPOSIX *
-    GetRegisterContextPOSIX ()
+    POSIXBreakpointProtocol *
+    GetPOSIXBreakpointProtocol ()
     {
         if (!m_reg_context_sp)
             m_reg_context_sp = GetRegisterContext();
-#if 0
-        return dynamic_cast<RegisterContextPOSIX*>(m_reg_context_sp.get());
-#endif
-        return (RegisterContextPOSIX *)m_reg_context_sp.get();
+        return m_posix_thread;
     }
     
     std::unique_ptr<lldb_private::StackFrame> m_frame_ap;
@@ -109,6 +107,7 @@ protected:
 
     bool m_thread_name_valid;
     std::string m_thread_name;
+    POSIXBreakpointProtocol *m_posix_thread;
 
     ProcessMonitor &
     GetMonitor();
@@ -125,6 +124,7 @@ protected:
     void CrashNotify(const ProcessMessage &message);
     void ThreadNotify(const ProcessMessage &message);
     void ExitNotify(const ProcessMessage &message);
+    void ExecNotify(const ProcessMessage &message);
 
     lldb_private::Unwind *
     GetUnwinder();

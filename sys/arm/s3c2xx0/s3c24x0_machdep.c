@@ -351,10 +351,11 @@ initarm(struct arm_boot_params *abp)
 	 * but since we are boot strapping the addresses used for the read
 	 * may have just been remapped and thus the cache could be out
 	 * of sync. A re-clean after the switch will cure this.
-	 * After booting there are no gross reloations of the kernel thus
+	 * After booting there are no gross relocations of the kernel thus
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();
+	cpu_setup("");
 
 	/* Disable all peripheral interrupts */
 	ioreg_write32(S3C24X0_INTCTL_BASE + INTCTL_INTMSK, ~0);

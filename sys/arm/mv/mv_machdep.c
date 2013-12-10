@@ -296,7 +296,7 @@ out:
  * Supply a default do-nothing implementation of fdt_pci_devmap() via a weak
  * alias.  Many Marvell platforms don't support a PCI interface, but to support
  * those that do, we end up with a reference to this function below, in
- * platform_devmap_init().  If "device pci" appears in the kernel config, the
+ * initarm_devmap_init().  If "device pci" appears in the kernel config, the
  * real implementation of this function in dev/fdt/fdt_pci.c overrides the weak
  * alias defined here.
  */
