@@ -549,6 +549,7 @@ t4_attach(device_t dev)
 #ifdef TCP_OFFLOAD
 	int ofld_rqidx, ofld_tqidx;
 #endif
+	const char *pcie_ts;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -816,9 +817,24 @@ t4_attach(device_t dev)
 		goto done;
 	}
 
+	switch (sc->params.pci.speed) {
+		case 0x1:
+			pcie_ts = "2.5";
+			break;
+		case 0x2:
+			pcie_ts = "5.0";
+			break;
+		case 0x3:
+			pcie_ts = "8.0";
+			break;
+		default:
+			pcie_ts = "??";
+			break;
+	}
 	device_printf(dev,
-	    "PCIe x%d, %d ports, %d %s interrupt%s, %d eq, %d iq\n",
-	    sc->params.pci.width, sc->params.nports, sc->intr_count,
+	    "PCIe x%d (%s GTS/s) (%d), %d ports, %d %s interrupt%s, %d eq, %d iq\n",
+	    sc->params.pci.width, pcie_ts, sc->params.pci.speed,
+	    sc->params.nports, sc->intr_count,
 	    sc->intr_type == INTR_MSIX ? "MSI-X" :
 	    (sc->intr_type == INTR_MSI ? "MSI" : "INTx"),
 	    sc->intr_count > 1 ? "s" : "", sc->sge.neq, sc->sge.niq);
