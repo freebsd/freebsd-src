@@ -168,9 +168,7 @@ int mode = 0;
 char *arg = NULL;
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int ch;
 
@@ -320,8 +318,7 @@ main(argc, argv)
  * Process a file to set standard ndp entries
  */
 int
-file(name)
-	char *name;
+file(char *name)
 {
 	FILE *fp;
 	int i, retval;
@@ -378,9 +375,7 @@ struct	{
  * Set an individual neighbor cache entry
  */
 int
-set(argc, argv)
-	int argc;
-	char **argv;
+set(int argc, char **argv)
 {
 	register struct sockaddr_in6 *sin = &sin_m;
 	register struct sockaddr_dl *sdl;
@@ -455,8 +450,7 @@ overwrite:
  * Display an individual neighbor cache entry
  */
 void
-get(host)
-	char *host;
+get(char *host)
 {
 	struct sockaddr_in6 *sin = &sin_m;
 	struct addrinfo hints, *res;
@@ -486,8 +480,7 @@ get(host)
  * Delete a neighbor cache entry
  */
 int
-delete(host)
-	char *host;
+delete(char *host)
 {
 	struct sockaddr_in6 *sin = &sin_m;
 	register struct rt_msghdr *rtm = &m_rtmsg.m_rtm;
@@ -555,9 +548,7 @@ delete:
  * Dump the entire neighbor cache
  */
 void
-dump(addr, cflag)
-	struct in6_addr *addr;
-	int cflag;
+dump(struct in6_addr *addr, int cflag)
 {
 	int mib[6];
 	size_t needed;
@@ -762,10 +753,7 @@ again:;
 }
 
 static struct in6_nbrinfo *
-getnbrinfo(addr, ifindex, warning)
-	struct in6_addr *addr;
-	int ifindex;
-	int warning;
+getnbrinfo(struct in6_addr *addr, int ifindex, int warning)
 {
 	static struct in6_nbrinfo nbi;
 	int s;
@@ -806,9 +794,7 @@ ether_str(struct sockaddr_dl *sdl)
 }
 
 int
-ndp_ether_aton(a, n)
-	char *a;
-	u_char *n;
+ndp_ether_aton(char *a, u_char *n)
 {
 	int i, o[6];
 
@@ -840,8 +826,7 @@ usage()
 }
 
 int
-rtmsg(cmd)
-	int cmd;
+rtmsg(int cmd)
 {
 	static int seq;
 	int rlen;
@@ -906,10 +891,7 @@ doit:
 }
 
 void
-ifinfo(ifname, argc, argv)
-	char *ifname;
-	int argc;
-	char **argv;
+ifinfo(char *ifname, int argc, char **argv)
 {
 	struct in6_ndireq nd;
 	int i, s;
@@ -1478,8 +1460,7 @@ harmonize_rtr()
 
 #ifdef SIOCSDEFIFACE_IN6	/* XXX: check SIOCGDEFIFACE_IN6 as well? */
 static void
-setdefif(ifname)
-	char *ifname;
+setdefif(char *ifname)
 {
 	struct in6_ndifreq ndifreq;
 	unsigned int ifindex;
@@ -1532,8 +1513,7 @@ getdefif()
 #endif
 
 static char *
-sec2str(total)
-	time_t total;
+sec2str(time_t total)
 {
 	static char result[256];
 	int days, hours, mins, secs;
@@ -1578,8 +1558,7 @@ sec2str(total)
  * from tcpdump/util.c
  */
 static void
-ts_print(tvp)
-	const struct timeval *tvp;
+ts_print(const struct timeval *tvp)
 {
 	int s;
 
