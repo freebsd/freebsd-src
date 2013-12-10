@@ -1044,8 +1044,10 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		kdev = fb_helper->dev->device;
 		fbd = device_add_child(kdev, "fbd", device_get_unit(kdev));
 		ret = device_probe_and_attach(fbd);
+#ifdef DEV_VT
 		if (ret != 0)
 			DRM_ERROR("Failed to attach fbd device: %d\n", ret);
+#endif
 	}
 #else
 	if (new_fb) {
