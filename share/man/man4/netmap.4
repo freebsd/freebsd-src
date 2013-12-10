@@ -77,7 +77,6 @@ sockets or BPF/pcap).
 For a list of devices with native
 .Nm
 support, see the end of this manual page.
-.Pp
 .Sh OPERATION - THE NETMAP API
 .Nm
 clients must first
@@ -99,7 +98,6 @@ interface or on a port of a
 switch, as indicated below. Additional fields in the
 .Pa struct nmreq
 control the details of operation.
-.Pp
 .Bl -tag -width XXXX
 .It Dv Interface name (e.g. 'em0', 'eth1', ... )
 The data path of the interface is disconnected from the host stack.
@@ -237,7 +235,6 @@ accordingly, as shown in the figure below:
                     |-- avail --|   (before syscall)
                    cur
 .Ed
-
 In receive rings, after a system call 'cur' indicates
 the first slot that contains a valid packet,
 and 'avail' reports how many of them are available.
@@ -289,7 +286,6 @@ are normally fixed size (2 Kbyte) buffers allocated by the kernel
 that contain packet data. Buffers addresses are computed through
 macros.
 .El
-.Pp
 .Bl -tag -width XXX
 Some macros support the access to objects in the shared memory
 region. In particular,
