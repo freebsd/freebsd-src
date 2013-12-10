@@ -1656,18 +1656,9 @@ remote_send_thread(void *arg)
 			    "Unable to send request (%s): ",
 			    strerror(hio->hio_errors[ncomp]));
 			remote_close(res, ncomp);
-			/*
-			 * Take request back from the receive queue and move
-			 * it immediately to the done queue.
-			 */
-			mtx_lock(&hio_recv_list_lock[ncomp]);
-			TAILQ_REMOVE(&hio_recv_list[ncomp], hio,
-			    hio_next[ncomp]);
-			hio_recv_list_size[ncomp]--;
-			mtx_unlock(&hio_recv_list_lock[ncomp]);
-			goto done_queue;
+		} else {
+			rw_unlock(&hio_remote_lock[ncomp]);
 		}
-		rw_unlock(&hio_remote_lock[ncomp]);
 		nv_free(nv);
 		if (wakeup)
 			cv_signal(&hio_recv_list_cond[ncomp]);
