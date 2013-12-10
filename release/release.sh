@@ -72,6 +72,9 @@ KERNEL="GENERIC"
 NODOC=
 NOPORTS=
 
+# Set to non-empty value to build dvd1.iso as part of the release.
+WITH_DVD=
+
 usage() {
 	echo "Usage: $0 [-c release.conf]"
 	exit 1
@@ -129,7 +132,7 @@ CHROOT_DMAKEFLAGS="${CONF_FILES}"
 RELEASE_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${ARCH_FLAGS} ${CONF_FILES}"
 RELEASE_KMAKEFLAGS="${MAKE_FLAGS} ${KERNEL_FLAGS} KERNCONF=\"${KERNEL}\" ${ARCH_FLAGS} ${CONF_FILES}"
 RELEASE_RMAKEFLAGS="${ARCH_FLAGS} KERNCONF=\"${KERNEL}\" ${CONF_FILES} \
-	${DOCPORTS}"
+	${DOCPORTS} WITH_DVD=${WITH_DVD}"
 
 # Force src checkout if configured
 FORCE_SRC_KEY=
