@@ -746,12 +746,12 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		return (error);
 	}
 
-	KASSERT(bp->bio_length <= MAXPHYS, ("bio_length %jd",
-	    (uintmax_t)bp->bio_length));
 	if ((bp->bio_flags & BIO_UNMAPPED) == 0) {
 		pb = NULL;
 		aiov.iov_base = bp->bio_data;
 	} else {
+		KASSERT(bp->bio_length <= MAXPHYS, ("bio_length %jd",
+		    (uintmax_t)bp->bio_length));
 		pb = getpbuf(&md_vnode_pbuf_freecnt);
 		pmap_qenter((vm_offset_t)pb->b_data, bp->bio_ma, bp->bio_ma_n);
 		aiov.iov_base = (void *)((vm_offset_t)pb->b_data +
