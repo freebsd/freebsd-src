@@ -139,8 +139,8 @@ struct vlapic {
  * Note that the vlapic_callout_handler() does not write to any of these
  * registers so they can be safely read from the vcpu context without locking.
  */
-#define	VLAPIC_TIMER_LOCK(vlapic)	mtx_lock(&((vlapic)->timer_mtx))
-#define	VLAPIC_TIMER_UNLOCK(vlapic)	mtx_unlock(&((vlapic)->timer_mtx))
+#define	VLAPIC_TIMER_LOCK(vlapic)	mtx_lock_spin(&((vlapic)->timer_mtx))
+#define	VLAPIC_TIMER_UNLOCK(vlapic)	mtx_unlock_spin(&((vlapic)->timer_mtx))
 #define	VLAPIC_TIMER_LOCKED(vlapic)	mtx_owned(&((vlapic)->timer_mtx))
 
 #define VLAPIC_BUS_FREQ	tsc_freq
@@ -613,7 +613,7 @@ vlapic_set_icr_timer(struct vlapic *vlapic, uint32_t icr_timer)
 static VMM_STAT_ARRAY(IPIS_SENT, VM_MAXCPU, "ipis sent to vcpu");
 
 static int
-lapic_process_icr(struct vlapic *vlapic, uint64_t icrval)
+lapic_process_icr(struct vlapic *vlapic, uint64_t icrval, bool *retu)
 {
 	int i;
 	cpuset_t dmask;
@@ -688,16 +688,17 @@ lapic_process_icr(struct vlapic *vlapic, uint64_t icrval)
 			if (vlapic2->boot_state != BS_SIPI)
 				return (0);
 
-			vmexit = vm_exitinfo(vlapic->vm, vlapic->vcpuid);
-			vmexit->exitcode = VM_EXITCODE_SPINUP_AP;
-			vmexit->u.spinup_ap.vcpu = dest;
-			vmexit->u.spinup_ap.rip = vec << PAGE_SHIFT;
-
 			/*
 			 * XXX this assumes that the startup IPI always succeeds
 			 */
 			vlapic2->boot_state = BS_RUNNING;
 			vm_activate_cpu(vlapic2->vm, dest);
+
+			*retu = true;
+			vmexit = vm_exitinfo(vlapic->vm, vlapic->vcpuid);
+			vmexit->exitcode = VM_EXITCODE_SPINUP_AP;
+			vmexit->u.spinup_ap.vcpu = dest;
+			vmexit->u.spinup_ap.rip = vec << PAGE_SHIFT;
 
 			return (0);
 		}
@@ -804,7 +805,7 @@ lapic_set_svr(struct vlapic *vlapic, uint32_t new)
 }
 
 int
-vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data)
+vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data, bool *retu)
 {
 	struct LAPIC	*lapic = &vlapic->apic;
 	uint32_t	*reg;
@@ -895,7 +896,7 @@ done:
 }
 
 int
-vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data)
+vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data, bool *retu)
 {
 	struct LAPIC	*lapic = &vlapic->apic;
 	int		retval;
@@ -931,7 +932,7 @@ vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data)
 				data &= 0xffffffff;
 				data |= (uint64_t)lapic->icr_hi << 32;
 			}
-			retval = lapic_process_icr(vlapic, data);
+			retval = lapic_process_icr(vlapic, data, retu);
 			break;
 		case APIC_OFFSET_ICR_HI:
 			if (!x2apic(vlapic)) {
@@ -978,7 +979,14 @@ vlapic_init(struct vm *vm, int vcpuid)
 	vlapic->vm = vm;
 	vlapic->vcpuid = vcpuid;
 
-	mtx_init(&vlapic->timer_mtx, "vlapic timer mtx", NULL, MTX_DEF);
+	/*
+	 * If the vlapic is configured in x2apic mode then it will be
+	 * accessed in the critical section via the MSR emulation code.
+	 *
+	 * Therefore the timer mutex must be a spinlock because blockable
+	 * mutexes cannot be acquired in a critical section.
+	 */
+	mtx_init(&vlapic->timer_mtx, "vlapic timer mtx", NULL, MTX_SPIN);
 	callout_init(&vlapic->callout, 1);
 
 	vlapic->msr_apicbase = DEFAULT_APIC_BASE | APICBASE_ENABLED;
