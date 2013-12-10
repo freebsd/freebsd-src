@@ -995,10 +995,10 @@ nozpool_all_slices(avl_tree_t *r, const char *sname)
 #endif	/* sun */
 }
 
+#ifdef sun
 static void
 check_slices(avl_tree_t *r, int fd, const char *sname)
 {
-#ifdef sun
 	struct extvtoc vtoc;
 	struct dk_gpt *gpt;
 	char diskname[MAXNAMELEN];
@@ -1028,8 +1028,8 @@ check_slices(avl_tree_t *r, int fd, const char *sname)
 			check_one_slice(r, diskname, i, 0, 1);
 		efi_free(gpt);
 	}
-#endif	/* sun */
 }
+#endif	/* sun */
 
 static void
 zpool_open_func(void *arg)
@@ -1059,6 +1059,7 @@ zpool_open_func(void *arg)
 		return;
 	}
 	/* this file is too small to hold a zpool */
+#ifdef sun
 	if (S_ISREG(statbuf.st_mode) &&
 	    statbuf.st_size < SPA_MINDEVSIZE) {
 		(void) close(fd);
@@ -1070,6 +1071,12 @@ zpool_open_func(void *arg)
 		 */
 		check_slices(rn->rn_avl, fd, rn->rn_name);
 	}
+#else	/* !sun */
+	if (statbuf.st_size < SPA_MINDEVSIZE) {
+		(void) close(fd);
+		return;
+	}
+#endif	/* sun */
 
 	if ((zpool_read_label(fd, &config)) != 0) {
 		(void) close(fd);
