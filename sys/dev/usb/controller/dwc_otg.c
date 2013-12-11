@@ -122,9 +122,9 @@ SYSCTL_INT(_hw_usb_dwc_otg, OID_AUTO, debug, CTLFLAG_RW,
 
 /* prototypes */
 
-struct usb_bus_methods dwc_otg_bus_methods;
-struct usb_pipe_methods dwc_otg_device_non_isoc_methods;
-struct usb_pipe_methods dwc_otg_device_isoc_methods;
+static const struct usb_bus_methods dwc_otg_bus_methods;
+static const struct usb_pipe_methods dwc_otg_device_non_isoc_methods;
+static const struct usb_pipe_methods dwc_otg_device_isoc_methods;
 
 static dwc_otg_cmd_t dwc_otg_setup_rx;
 static dwc_otg_cmd_t dwc_otg_data_rx;
@@ -3327,7 +3327,7 @@ dwc_otg_device_non_isoc_start(struct usb_xfer *xfer)
 	dwc_otg_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods dwc_otg_device_non_isoc_methods =
+static const struct usb_pipe_methods dwc_otg_device_non_isoc_methods =
 {
 	.open = dwc_otg_device_non_isoc_open,
 	.close = dwc_otg_device_non_isoc_close,
@@ -3422,7 +3422,7 @@ dwc_otg_device_isoc_start(struct usb_xfer *xfer)
 	dwc_otg_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods dwc_otg_device_isoc_methods =
+static const struct usb_pipe_methods dwc_otg_device_isoc_methods =
 {
 	.open = dwc_otg_device_isoc_open,
 	.close = dwc_otg_device_isoc_close,
@@ -4201,7 +4201,7 @@ dwc_otg_device_suspend(struct usb_device *udev)
 	USB_BUS_UNLOCK(udev->bus);
 }
 
-struct usb_bus_methods dwc_otg_bus_methods =
+static const struct usb_bus_methods dwc_otg_bus_methods =
 {
 	.endpoint_init = &dwc_otg_ep_init,
 	.xfer_setup = &dwc_otg_xfer_setup,
