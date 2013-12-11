@@ -101,6 +101,9 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 	uint8_t *base;
 	register_t v;
 
+	if (getenv("LIBCHERI_SB_VERBOSE"))
+		sb_verbose = 1;
+
 	fd = open(path, O_RDONLY);
 	if (fd == -1) {
 		saved_errno = errno;
