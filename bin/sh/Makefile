@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.4 (Berkeley) 5/5/95
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG=	sh
 INSTALLFLAGS= -S
 SHSRCS=	alias.c arith_yacc.c arith_yylex.c cd.c echo.c error.c eval.c \
@@ -59,7 +61,8 @@ syntax.c syntax.h: mksyntax
 token.h: mktokens
 	sh ${.CURDIR}/mktokens
 
-regress:
-	cd ${.CURDIR}/../../tools/regression/bin/sh && ${MAKE} SH=${.OBJDIR}/sh
+.if ${MK_TESTS} != "no"
+SUBDIR+=    tests
+.endif
 
 .include <bsd.prog.mk>
