@@ -1694,7 +1694,7 @@ ext2_ind_read(struct vop_read_args *ap)
 			error = cluster_read(vp, ip->i_size, lbn, size,
 			    NOCRED, blkoffset + uio->uio_resid, seqcount, &bp);
 		else if (seqcount > 1) {
-			int nextsize = blksize(fs, ip, nextlbn);
+			u_int nextsize = blksize(fs, ip, nextlbn);
 			error = breadn(vp, lbn,
 			    size, &nextlbn, &nextsize, 1, NOCRED, &bp);
 		} else
