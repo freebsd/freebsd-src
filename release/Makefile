@@ -6,6 +6,7 @@
 #  cdrom: Builds release CD-ROM media (disc1.iso)
 #  dvdrom: Builds release DVD-ROM media (dvd1.iso)
 #  memstick: Builds memory stick image (memstick.img)
+#  mini-memstick: Builds minimal memory stick image (mini-memstick.img)
 #  ftp: Sets up FTP distribution area (ftp)
 #  release: Build all media and FTP distribution area
 #  install: Copies all release media into ${DESTDIR}
@@ -84,7 +85,9 @@ IMAGES+=	dvd1.iso
 .endif
 .if exists(${.CURDIR}/${TARGET}/make-memstick.sh)
 RELEASE_TARGETS+= memstick.img
+RELEASE_TARGETS+= mini-memstick.img
 IMAGES+=	memstick.img
+IMAGES+=	mini-memstick.img
 .endif
 
 CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
@@ -207,6 +210,10 @@ bootonly.iso: bootonly
 memstick: memstick.img
 memstick.img: system
 	sh ${.CURDIR}/${TARGET}/make-memstick.sh release ${.TARGET}
+
+mini-memstick: mini-memstick.img
+mini-memstick.img: system
+	sh ${.CURDIR}/${TARGET}/make-memstick.sh bootonly ${.TARGET}
 
 packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
 	sh ${.CURDIR}/scripts/make-manifest.sh *.txz > MANIFEST
