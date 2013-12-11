@@ -70,7 +70,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/vm_pageout.h>
 
-#define	VMEM_MAXORDER		(sizeof(vmem_size_t) * NBBY)
+#define	VMEM_OPTORDER		5
+#define	VMEM_OPTVALUE		(1 << VMEM_OPTORDER)
+#define	VMEM_MAXORDER						\
+    (VMEM_OPTVALUE - 1 + sizeof(vmem_size_t) * NBBY - VMEM_OPTORDER)
 
 #define	VMEM_HASHSIZE_MIN	16
 #define	VMEM_HASHSIZE_MAX	131072
@@ -200,8 +203,10 @@ static LIST_HEAD(, vmem) vmem_list = LIST_HEAD_INITIALIZER(vmem_list);
 #define	VMEM_CROSS_P(addr1, addr2, boundary) \
 	((((addr1) ^ (addr2)) & -(boundary)) != 0)
 
-#define	ORDER2SIZE(order)	((vmem_size_t)1 << (order))
-#define	SIZE2ORDER(size)	((int)flsl(size) - 1)
+#define	ORDER2SIZE(order)	((order) < VMEM_OPTVALUE ? ((order) + 1) : \
+    (vmem_size_t)1 << ((order) - (VMEM_OPTVALUE - VMEM_OPTORDER - 1)))
+#define	SIZE2ORDER(size)	((size) <= VMEM_OPTVALUE ? ((size) - 1) : \
+    (flsl(size) + (VMEM_OPTVALUE - VMEM_OPTORDER - 2)))
 
 /*
  * Maximum number of boundary tags that may be required to satisfy an
@@ -334,11 +339,14 @@ bt_free(vmem_t *vm, bt_t *bt)
 
 /*
  * freelist[0] ... [1, 1]
- * freelist[1] ... [2, 3]
- * freelist[2] ... [4, 7]
- * freelist[3] ... [8, 15]
+ * freelist[1] ... [2, 2]
  *  :
- * freelist[n] ... [(1 << n), (1 << (n + 1)) - 1]
+ * freelist[29] ... [30, 30]
+ * freelist[30] ... [31, 31]
+ * freelist[31] ... [32, 63]
+ * freelist[33] ... [64, 127]
+ *  :
+ * freelist[n] ... [(1 << (n - 26)), (1 << (n - 25)) - 1]
  *  :
  */
 
@@ -979,6 +987,7 @@ vmem_init(vmem_t *vm, const char *name, vmem_addr_t base, vmem_size_t size,
 	int i;
 
 	MPASS(quantum > 0);
+	MPASS((quantum & (quantum - 1)) == 0);
 
 	bzero(vm, sizeof(*vm));
 
@@ -988,8 +997,7 @@ vmem_init(vmem_t *vm, const char *name, vmem_addr_t base, vmem_size_t size,
 	LIST_INIT(&vm->vm_freetags);
 	strlcpy(vm->vm_name, name, sizeof(vm->vm_name));
 	vm->vm_quantum_mask = quantum - 1;
-	vm->vm_quantum_shift = SIZE2ORDER(quantum);
-	MPASS(ORDER2SIZE(vm->vm_quantum_shift) == quantum);
+	vm->vm_quantum_shift = flsl(quantum) - 1;
 	vm->vm_nbusytag = 0;
 	vm->vm_size = 0;
 	vm->vm_inuse = 0;
