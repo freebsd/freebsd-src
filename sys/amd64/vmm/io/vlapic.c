@@ -260,7 +260,7 @@ vlapic_init_ipi(struct vlapic *vlapic)
 {
 	struct LAPIC    *lapic = &vlapic->apic;
 	lapic->version = VLAPIC_VERSION;
-	lapic->version |= (VLAPIC_MAXLVT_ENTRIES < MAXLVTSHIFT);
+	lapic->version |= (VLAPIC_MAXLVT_ENTRIES << MAXLVTSHIFT);
 	lapic->dfr = 0xffffffff;
 	lapic->svr = APIC_SVR_VECTOR;
 	vlapic_mask_lvts(&lapic->lvt_timer, VLAPIC_MAXLVT_ENTRIES+1);
