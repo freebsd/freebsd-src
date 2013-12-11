@@ -1144,7 +1144,7 @@ atestart_locked(struct ifnet *ifp)
 		/*
 		 * There's a small race between the loop in ate_intr finishing
 		 * and the check above to see if the packet was finished, as well
-		 * as when atestart gets called via other paths. Loose the race
+		 * as when atestart gets called via other paths. Lose the race
 		 * gracefully and free the mbuf...
 		 */
 		if (sc->sent_mbuf[sc->txhead] != NULL) {
