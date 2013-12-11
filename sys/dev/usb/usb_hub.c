@@ -2541,7 +2541,7 @@ usbd_set_power_mode(struct usb_device *udev, uint8_t power_mode)
 uint8_t
 usbd_filter_power_mode(struct usb_device *udev, uint8_t power_mode)
 {
-	struct usb_bus_methods *mtod;
+	const struct usb_bus_methods *mtod;
 	int8_t temp;
 
 	mtod = udev->bus->methods;

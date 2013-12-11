@@ -99,11 +99,11 @@ SYSCTL_INT(_hw_usb_musbotg, OID_AUTO, debug, CTLFLAG_RW,
 
 /* prototypes */
 
-struct usb_bus_methods musbotg_bus_methods;
-struct usb_pipe_methods musbotg_device_bulk_methods;
-struct usb_pipe_methods musbotg_device_ctrl_methods;
-struct usb_pipe_methods musbotg_device_intr_methods;
-struct usb_pipe_methods musbotg_device_isoc_methods;
+static const struct usb_bus_methods musbotg_bus_methods;
+static const struct usb_pipe_methods musbotg_device_bulk_methods;
+static const struct usb_pipe_methods musbotg_device_ctrl_methods;
+static const struct usb_pipe_methods musbotg_device_intr_methods;
+static const struct usb_pipe_methods musbotg_device_isoc_methods;
 
 /* Control transfers: Device mode */
 static musbotg_cmd_t musbotg_dev_ctrl_setup_rx;
@@ -3335,7 +3335,7 @@ musbotg_device_bulk_start(struct usb_xfer *xfer)
 	musbotg_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods musbotg_device_bulk_methods =
+static const struct usb_pipe_methods musbotg_device_bulk_methods =
 {
 	.open = musbotg_device_bulk_open,
 	.close = musbotg_device_bulk_close,
@@ -3372,7 +3372,7 @@ musbotg_device_ctrl_start(struct usb_xfer *xfer)
 	musbotg_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods musbotg_device_ctrl_methods =
+static const struct usb_pipe_methods musbotg_device_ctrl_methods =
 {
 	.open = musbotg_device_ctrl_open,
 	.close = musbotg_device_ctrl_close,
@@ -3409,7 +3409,7 @@ musbotg_device_intr_start(struct usb_xfer *xfer)
 	musbotg_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods musbotg_device_intr_methods =
+static const struct usb_pipe_methods musbotg_device_intr_methods =
 {
 	.open = musbotg_device_intr_open,
 	.close = musbotg_device_intr_close,
@@ -3498,7 +3498,7 @@ musbotg_device_isoc_start(struct usb_xfer *xfer)
 	musbotg_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods musbotg_device_isoc_methods =
+static const struct usb_pipe_methods musbotg_device_isoc_methods =
 {
 	.open = musbotg_device_isoc_open,
 	.close = musbotg_device_isoc_close,
@@ -4218,7 +4218,7 @@ musbotg_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
 	}
 }
 
-struct usb_bus_methods musbotg_bus_methods =
+static const struct usb_bus_methods musbotg_bus_methods =
 {
 	.endpoint_init = &musbotg_ep_init,
 	.get_dma_delay = &musbotg_get_dma_delay,

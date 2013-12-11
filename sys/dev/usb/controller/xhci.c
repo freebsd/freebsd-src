@@ -160,7 +160,7 @@ static void xhci_ctx_set_le64(struct xhci_softc *sc, volatile uint64_t *ptr, uin
 static uint64_t xhci_ctx_get_le64(struct xhci_softc *sc, volatile uint64_t *ptr);
 #endif
 
-extern struct usb_bus_methods xhci_bus_methods;
+static const struct usb_bus_methods xhci_bus_methods;
 
 #ifdef USB_DEBUG
 static void
@@ -3069,7 +3069,7 @@ xhci_device_generic_start(struct usb_xfer *xfer)
 		usbd_transfer_timeout_ms(xfer, &xhci_timeout, xfer->timeout);
 }
 
-struct usb_pipe_methods xhci_device_generic_methods =
+static const struct usb_pipe_methods xhci_device_generic_methods =
 {
 	.open = xhci_device_generic_open,
 	.close = xhci_device_generic_close,
@@ -4235,7 +4235,7 @@ xhci_set_endpoint_mode(struct usb_device *udev, struct usb_endpoint *ep,
 	}
 }
 
-struct usb_bus_methods xhci_bus_methods = {
+static const struct usb_bus_methods xhci_bus_methods = {
 	.endpoint_init = xhci_ep_init,
 	.endpoint_uninit = xhci_ep_uninit,
 	.xfer_setup = xhci_xfer_setup,

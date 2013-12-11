@@ -376,7 +376,7 @@ usb_init_endpoint(struct usb_device *udev, uint8_t iface_index,
     struct usb_endpoint_ss_comp_descriptor *ecomp,
     struct usb_endpoint *ep)
 {
-	struct usb_bus_methods *methods;
+	const struct usb_bus_methods *methods;
 	usb_stream_t x;
 
 	methods = udev->bus->methods;
