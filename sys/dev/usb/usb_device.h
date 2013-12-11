@@ -139,7 +139,7 @@ struct usb_hw_ep_scratch {
 	struct usb_hw_ep_scratch_sub *ep_max;
 	struct usb_config_descriptor *cd;
 	struct usb_device *udev;
-	struct usb_bus_methods *methods;
+	const struct usb_bus_methods *methods;
 	uint8_t	bmOutAlloc[(USB_EP_MAX + 15) / 16];
 	uint8_t	bmInAlloc[(USB_EP_MAX + 15) / 16];
 };

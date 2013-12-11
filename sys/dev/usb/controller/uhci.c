@@ -151,11 +151,11 @@ struct uhci_std_temp {
 	uint8_t	last_frame;
 };
 
-extern struct usb_bus_methods uhci_bus_methods;
-extern struct usb_pipe_methods uhci_device_bulk_methods;
-extern struct usb_pipe_methods uhci_device_ctrl_methods;
-extern struct usb_pipe_methods uhci_device_intr_methods;
-extern struct usb_pipe_methods uhci_device_isoc_methods;
+static const struct usb_bus_methods uhci_bus_methods;
+static const struct usb_pipe_methods uhci_device_bulk_methods;
+static const struct usb_pipe_methods uhci_device_ctrl_methods;
+static const struct usb_pipe_methods uhci_device_intr_methods;
+static const struct usb_pipe_methods uhci_device_isoc_methods;
 
 static uint8_t	uhci_restart(uhci_softc_t *sc);
 static void	uhci_do_poll(struct usb_bus *);
@@ -1840,7 +1840,7 @@ uhci_setup_standard_chain(struct usb_xfer *xfer)
 static void
 uhci_device_done(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct usb_pipe_methods *methods = xfer->endpoint->methods;
+	const struct usb_pipe_methods *methods = xfer->endpoint->methods;
 	uhci_softc_t *sc = UHCI_BUS2SC(xfer->xroot->bus);
 	uhci_qh_t *qh;
 
@@ -1935,7 +1935,7 @@ uhci_device_bulk_start(struct usb_xfer *xfer)
 	uhci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods uhci_device_bulk_methods =
+static const struct usb_pipe_methods uhci_device_bulk_methods =
 {
 	.open = uhci_device_bulk_open,
 	.close = uhci_device_bulk_close,
@@ -1997,7 +1997,7 @@ uhci_device_ctrl_start(struct usb_xfer *xfer)
 	uhci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods uhci_device_ctrl_methods =
+static const struct usb_pipe_methods uhci_device_ctrl_methods =
 {
 	.open = uhci_device_ctrl_open,
 	.close = uhci_device_ctrl_close,
@@ -2084,7 +2084,7 @@ uhci_device_intr_start(struct usb_xfer *xfer)
 	uhci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods uhci_device_intr_methods =
+static const struct usb_pipe_methods uhci_device_intr_methods =
 {
 	.open = uhci_device_intr_open,
 	.close = uhci_device_intr_close,
@@ -2292,7 +2292,7 @@ uhci_device_isoc_start(struct usb_xfer *xfer)
 	uhci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods uhci_device_isoc_methods =
+static const struct usb_pipe_methods uhci_device_isoc_methods =
 {
 	.open = uhci_device_isoc_open,
 	.close = uhci_device_isoc_close,
@@ -3076,7 +3076,7 @@ uhci_device_resume(struct usb_device *udev)
 {
 	struct uhci_softc *sc = UHCI_BUS2SC(udev->bus);
 	struct usb_xfer *xfer;
-	struct usb_pipe_methods *methods;
+	const struct usb_pipe_methods *methods;
 	uhci_qh_t *qh;
 
 	DPRINTF("\n");
@@ -3118,7 +3118,7 @@ uhci_device_suspend(struct usb_device *udev)
 {
 	struct uhci_softc *sc = UHCI_BUS2SC(udev->bus);
 	struct usb_xfer *xfer;
-	struct usb_pipe_methods *methods;
+	const struct usb_pipe_methods *methods;
 	uhci_qh_t *qh;
 
 	DPRINTF("\n");
@@ -3213,7 +3213,7 @@ uhci_set_hw_power(struct usb_bus *bus)
 }
 
 
-struct usb_bus_methods uhci_bus_methods =
+static const struct usb_bus_methods uhci_bus_methods =
 {
 	.endpoint_init = uhci_ep_init,
 	.xfer_setup = uhci_xfer_setup,
