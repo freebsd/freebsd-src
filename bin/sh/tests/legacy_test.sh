@@ -1,10 +1,13 @@
 # $FreeBSD$
 
-if [ -z "${SH}" ]; then
-	echo '${SH} is not set, please correct and re-run.'
-	exit 1
-fi
-export SH=${SH}
+: ${SH:="__SH__"}
+export SH
+
+# TODO(jmmv): The Kyua TAP interface should be passing us the value of
+# "srcdir" as an environment variable, just as it does with the ATF
+# interface in the form of a configuration variable.  For now, just try
+# to guess this.
+: ${TESTS_DATA:=$(dirname ${0})}
 
 COUNTER=1
 
@@ -17,6 +20,7 @@ do_test() {
 		rm tmp.stdout tmp.stderr
 		return
 	fi
+	sed -I '' -e "s|^${TESTS_DATA}|.|" tmp.stderr
 	for i in stdout stderr; do
 		if [ -f ${1}.${i} ]; then
 			if ! cmp -s tmp.${i} ${1}.${i}; then
@@ -34,7 +38,7 @@ do_test() {
 	rm tmp.stdout tmp.stderr
 }
 
-TESTS=$(find -Es . -regex ".*\.[0-9]+")
+TESTS=$(find -Es ${TESTS_DATA} -regex ".*\.[0-9]+")
 printf "1..%d\n" $(echo ${TESTS} | wc -w)
 
 for i in ${TESTS} ; do
