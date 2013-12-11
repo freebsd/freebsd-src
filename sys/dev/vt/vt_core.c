@@ -1321,9 +1321,12 @@ vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
 	case _IO('c', 110):
 		cmd = CONS_SETKBD;
 		break;
+	default:
+		goto skip_thunk;
 	}
 	ival = IOCPARM_IVAL(data);
 	data = (caddr_t)&ival;
+skip_thunk:
 #endif
 
 	switch (cmd) {
