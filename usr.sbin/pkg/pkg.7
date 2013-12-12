@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 19, 2013
+.Dd December 12, 2013
 .Dt PKG 7
 .Os
 .Sh NAME
@@ -152,6 +152,7 @@ MIRROR_TYPE: "srv",
 SIGNATURE_TYPE: "none",
 FINGERPRINTS: "/usr/share/keys/pkg",
 ASSUME_ALWAYS_YES: "yes"
+REPOS_DIR: ["/etc/pkg", "/usr/local/etc/pkg/repos"]
 .Ed
 .Pp
 Reference
@@ -194,14 +195,20 @@ The URL that
 .Xr pkg 8
 and other packages
 will be fetched from.
+.It Ev REPOS_DIR
+Comma-separated list of directories that should be searched for repository
+configuration files.
 .El
 .Sh FILES
 Configuration is read from the files in the listed order.
-The first enabled repository is the one used for bootstrapping
+This path can be changed by setting
+.Sy REPOS_DIR .
+The last enabled repository is the one used for bootstrapping
 .Xr pkg 8 .
 .Bl -tag -width "/usr/local/etc/pkg/repos/*.conf"
 .It Pa /usr/local/etc/pkg.conf
 .It Pa /etc/pkg/FreeBSD.conf
+.It Pa /usr/local/etc/pkg/repos/*.conf
 .El
 .Sh EXAMPLES
 Some examples are listed here.
