@@ -161,10 +161,10 @@ MALLOC_DEFINE(M_CXGBE, "cxgbe", "Chelsio T4/T5 Ethernet driver and services");
  * then ADAPTER_LOCK, then t4_uld_list_lock.
  */
 static struct sx t4_list_lock;
-static SLIST_HEAD(, adapter) t4_list;
+SLIST_HEAD(, adapter) t4_list;
 #ifdef TCP_OFFLOAD
 static struct sx t4_uld_list_lock;
-static SLIST_HEAD(, uld_info) t4_uld_list;
+SLIST_HEAD(, uld_info) t4_uld_list;
 #endif
 
 /*
