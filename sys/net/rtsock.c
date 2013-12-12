@@ -66,7 +66,7 @@
 #include <netinet/if_ether.h>
 #include <netinet/ip_carp.h>
 #ifdef INET6
-#include <netinet6/ip6_var.h>
+#include <netinet6/in6_var.h>
 #include <netinet6/scope6_var.h>
 #endif
 
@@ -558,6 +558,70 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 	return (0);
 }
 
+#ifdef INET6
+static int
+in6_rt_handle_lla(struct rt_msghdr **ortm, struct rt_addrinfo *info)
+{
+	struct sockaddr_dl sdl;
+	struct sockaddr_in6 *sin6;
+	struct rt_msghdr *rtm = *ortm;
+	struct llentry *lle;
+	struct ifnet *ifp;
+	int i;
+
+	if (rtm->rtm_type != RTM_GET)
+		return (EOPNOTSUPP);
+	sin6 = (struct sockaddr_in6 *)info->rti_info[RTAX_DST];
+	if (sin6->sin6_scope_id == 0)
+		return (EADDRNOTAVAIL);
+	ifp = in6_getlinkifnet(sin6->sin6_scope_id);
+	if (ifp == NULL)
+		return (ESRCH);
+	/* Clear all sockaddr pointers except DST */
+	for (i = RTAX_GATEWAY; i < RTAX_MAX; i++)
+		info->rti_info[i] = NULL;
+
+	IF_AFDATA_RLOCK(ifp);
+	lle = lla_lookup(LLTABLE6(ifp), 0, info->rti_info[RTAX_DST]);
+	IF_AFDATA_RUNLOCK(ifp);
+	if (lle != NULL) {
+		bzero(&sdl, sizeof(sdl));
+		info->rti_info[RTAX_GATEWAY] = (struct sockaddr *)&sdl;
+		sdl.sdl_family = AF_LINK;
+		sdl.sdl_len = sizeof(sdl);
+		sdl.sdl_alen = ifp->if_addrlen;
+		sdl.sdl_index = ifp->if_index;
+		sdl.sdl_type = ifp->if_type;
+		bcopy(&lle->ll_addr, LLADDR(&sdl), ifp->if_addrlen);
+		if (lle->la_flags & LLE_PUB)
+			rtm->rtm_flags |= RTF_ANNOUNCE;
+		if (lle->la_flags & LLE_STATIC) {
+			rtm->rtm_flags |= RTF_STATIC;
+			rtm->rtm_rmx.rmx_expire = 0;
+		} else
+			rtm->rtm_rmx.rmx_expire = lle->la_expire;
+		LLE_RUNLOCK(lle);
+	} else
+		info->rti_info[RTAX_GATEWAY] = ifp->if_addr->ifa_addr;
+	rtm->rtm_flags |= RTF_UP | RTF_HOST;
+	rtm->rtm_index = ifp->if_index;
+	if (rtm->rtm_addrs & (RTA_IFA | RTA_IFP))
+		info->rti_info[RTAX_IFP] = ifp->if_addr->ifa_addr;
+	i = rt_msg2(rtm->rtm_type, info, NULL, NULL);
+	if (i > rtm->rtm_msglen) {
+		R_Malloc(rtm, struct rt_msghdr *, i);
+		if (rtm == NULL)
+			return (ENOBUFS);
+		bcopy(*ortm, rtm, i);
+		Free(*ortm);
+		*ortm = rtm;
+	}
+	rt_msg2(rtm->rtm_type, info, (caddr_t)rtm, NULL);
+	rtm->rtm_addrs = info->rti_addrs;
+	return (0);
+}
+#endif
+
 /*ARGSUSED*/
 static int
 route_output(struct mbuf *m, struct socket *so)
@@ -700,6 +764,17 @@ route_output(struct mbuf *m, struct socket *so)
 	case RTM_GET:
 	case RTM_CHANGE:
 	case RTM_LOCK:
+#ifdef INET6
+		if (info.rti_info[RTAX_DST]->sa_family == AF_INET6) {
+			struct sockaddr_in6 *sin6;
+
+			sin6 = (struct sockaddr_in6 *)info.rti_info[RTAX_DST];
+			if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
+				error = in6_rt_handle_lla(&rtm, &info);
+				break;
+			}
+		}
+#endif
 		rnh = rt_tables_get_rnh(so->so_fibnum,
 		    info.rti_info[RTAX_DST]->sa_family);
 		if (rnh == NULL)
