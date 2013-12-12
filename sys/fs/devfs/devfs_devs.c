@@ -486,9 +486,9 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 {
 	struct cdev_priv *cdp;
 	struct devfs_dirent *de;
-	struct devfs_dirent *dd;
+	struct devfs_dirent *dd, *dt;
 	struct cdev *pdev;
-	int de_flags, j;
+	int de_flags, depth, j;
 	char *q, *s;
 
 	sx_assert(&dm->dm_lock, SX_XLOCKED);
@@ -589,9 +589,17 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 			de->de_mode = 0755;
 			de->de_dirent->d_type = DT_LNK;
 			pdev = cdp->cdp_c.si_parent;
-			j = strlen(pdev->si_name) + 1;
+			dt = dd;
+			depth = 0;
+			while (dt != dm->dm_rootdir &&
+			    (dt = devfs_parent_dirent(dt)) != NULL)
+				depth++;
+			j = depth * 3 + strlen(pdev->si_name) + 1;
 			de->de_symlink = malloc(j, M_DEVFS, M_WAITOK);
-			bcopy(pdev->si_name, de->de_symlink, j);
+			de->de_symlink[0] = 0;
+			while (depth-- > 0)
+				strcat(de->de_symlink, "../");
+			strcat(de->de_symlink, pdev->si_name);
 		} else {
 			de->de_uid = cdp->cdp_c.si_uid;
 			de->de_gid = cdp->cdp_c.si_gid;
