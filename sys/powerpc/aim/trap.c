@@ -297,7 +297,7 @@ trap(struct trapframe *frame)
 #ifdef KDTRACE_HOOKS
 		case EXC_PGM:
 			if (frame->srr1 & EXC_PGM_TRAP) {
-				if (*(uintptr_t *)frame->srr0 == 0x7c810808) {
+				if (*(uint32_t *)frame->srr0 == 0x7c810808) {
 					if (dtrace_invop_jump_addr != NULL) {
 						dtrace_invop_jump_addr(frame);
 						return;
