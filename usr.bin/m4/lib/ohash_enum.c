@@ -1,6 +1,8 @@
-/* $OpenBSD: expr.c,v 1.18 2010/09/07 19:58:09 marco Exp $ */
-/*
- * Copyright (c) 2004 Marc Espie <espie@cvs.openbsd.org>
+/* $OpenBSD: ohash_enum.c,v 1.3 2004/06/22 20:00:16 espie Exp $ */
+/* ex:ts=8 sw=4: 
+ */
+
+/* Copyright (c) 1999, 2004 Marc Espie <espie@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -17,31 +19,20 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdint.h>
-#include <stdio.h>
-#include <stddef.h>
-#include "mdef.h"
-#include "extern.h"
+#include "ohash_int.h"
 
-int32_t end_result;
-const char *copy_toeval;
-int yyerror(const char *msg);
-
-extern void yy_scan_string(const char *);
-extern int yyparse(void);
-
-int
-yyerror(const char *msg)
+void *
+ohash_first(struct ohash *h, unsigned int *pos)
 {
-	fprintf(stderr, "m4: %s in expr %s\n", msg, copy_toeval);
-	return(0);
+	*pos = 0;
+	return ohash_next(h, pos);
 }
-
-int
-expr(const char *toeval)
+	
+void *
+ohash_next(struct ohash *h, unsigned int *pos)
 {
-	copy_toeval = toeval;
-	yy_scan_string(toeval);
-	yyparse();
-	return end_result;
+	for (; *pos < h->size; (*pos)++) 
+		if (h->t[*pos].p != DELETED && h->t[*pos].p != NULL) 
+			return __DECONST(void *, h->t[(*pos)++].p);
+	return NULL;
 }
