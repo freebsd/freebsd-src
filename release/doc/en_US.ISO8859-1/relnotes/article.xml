@@ -328,6 +328,13 @@
   <sect2 xml:id="userland">
     <title>Userland Changes</title>
 
+    <para role="merged">BIND has been replaced by &man.unbound.8; for
+      local dns resolution in the base system.  With this change, nslookup
+      and dig are no longer a part of the base system.  Users should
+      instead use &man.host.1; and &man.drill.1; Alternatively,
+      nslookup and dig can be obtained by installing the
+      dns/bind-tools port.</para>
+
     <para role="merged">The &man.adduser.8; utility now supports
       a <option>-M</option> option to set the mode of a new user's
       home directory.</para>
