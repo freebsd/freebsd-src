@@ -789,8 +789,9 @@ CNAME(dblow):
 	mfcr	%r29			/* save CR in r29 */
 	mfsrr1	%r1
 	mtcr	%r1
-	bf	17,1f			/* branch if privileged */
+	bf	17,2f			/* branch if privileged */
 
+1:
 	/* Unprivileged case */
 	mtcr	%r29			/* put the condition register back */
         mfsprg2	%r29			/* ... and r29 */
@@ -799,8 +800,17 @@ CNAME(dblow):
 	li	%r1, 0	 		/* How to get the vector from LR */
 
         bla     generictrap		/* and we look like a generic trap */
-1:
+2:
+#ifdef KDTRACE_HOOKS
 	/* Privileged, so drop to KDB */
+	mfsrr0	%r1
+	lwz	%r4,0(%r1)
+	/* Check if it's a DTrace trap. */
+	li	%r3,0x0808
+	addis	%r3,%r3,0x7c81
+	cmplw	%cr0,%r3,%r4
+	beq	%cr0,1b
+#endif
 	GET_CPUINFO(%r1)
 	std	%r27,(PC_DBSAVE+CPUSAVE_R27)(%r1)	/* free r27 */
 	std	%r28,(PC_DBSAVE+CPUSAVE_R28)(%r1)	/* free r28 */
