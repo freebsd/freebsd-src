@@ -1181,7 +1181,7 @@ void
 device_tree::write_dts(int fd)
 {
 	FILE *file = fdopen(fd, "w");
-	fputs("/dtc-v1/;\n\n", file);
+	fputs("/dts-v1/;\n\n", file);
 
 	if (!reservations.empty())
 	{
