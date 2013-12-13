@@ -679,21 +679,29 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 		limp->rlim_max = RLIM_INFINITY;
 
 	oldssiz.rlim_cur = 0;
-	newlim = lim_alloc();
+	newlim = NULL;
 	PROC_LOCK(p);
+	if (lim_shared(p->p_limit)) {
+		PROC_UNLOCK(p);
+		newlim = lim_alloc();
+		PROC_LOCK(p);
+	}
 	oldlim = p->p_limit;
 	alimp = &oldlim->pl_rlimit[which];
 	if (limp->rlim_cur > alimp->rlim_max ||
 	    limp->rlim_max > alimp->rlim_max)
 		if ((error = priv_check(td, PRIV_PROC_SETRLIMIT))) {
 			PROC_UNLOCK(p);
-			lim_free(newlim);
+			if (newlim != NULL)
+				lim_free(newlim);
 			return (error);
 		}
 	if (limp->rlim_cur > limp->rlim_max)
 		limp->rlim_cur = limp->rlim_max;
-	lim_copy(newlim, oldlim);
-	alimp = &newlim->pl_rlimit[which];
+	if (newlim != NULL) {
+		lim_copy(newlim, oldlim);
+		alimp = &newlim->pl_rlimit[which];
+	}
 
 	switch (which) {
 
@@ -743,9 +751,11 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 	if (p->p_sysent->sv_fixlimit != NULL)
 		p->p_sysent->sv_fixlimit(limp, which);
 	*alimp = *limp;
-	p->p_limit = newlim;
+	if (newlim != NULL)
+		p->p_limit = newlim;
 	PROC_UNLOCK(p);
-	lim_free(oldlim);
+	if (newlim != NULL)
+		lim_free(oldlim);
 
 	if (which == RLIMIT_STACK) {
 		/*
