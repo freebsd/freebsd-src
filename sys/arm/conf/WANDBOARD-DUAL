@@ -17,7 +17,7 @@
 #
 # $FreeBSD$
 
-include  	WANDBOARD-COMMON
+include  	"WANDBOARD.common"
 ident		WANDBOARD-DUAL
 
 # Flattened Device Tree
