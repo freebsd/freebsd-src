@@ -8,6 +8,7 @@ arm/arm/irq_dispatch.S			standard
 kern/kern_clocksource.c			standard
 
 # Init
+arm/freescale/imx/imx_machdep.c		standard
 arm/freescale/imx/imx51_machdep.c	standard
 arm/freescale/imx/common.c		standard
 arm/freescale/imx/bus_space.c		standard
