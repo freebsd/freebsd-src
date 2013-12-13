@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/armreg.h>
 #include <machine/atags.h>
 #include <machine/cpu.h>
+#include <machine/devmap.h>
 #include <machine/frame.h>
 #include <machine/machdep.h>
 #include <machine/md_var.h>
@@ -158,7 +159,6 @@ struct pv_addr undstack;
 struct pv_addr abtstack;
 static struct pv_addr kernelstack;
 
-const struct pmap_devmap *pmap_devmap_bootstrap_table;
 #endif
 
 #if defined(LINUX_BOOT_ABI)
@@ -1417,7 +1417,7 @@ initarm(struct arm_boot_params *abp)
 
 	/* Map pmap_devmap[] entries */
 	err_devmap = platform_devmap_init();
-	pmap_devmap_bootstrap(l1pagetable, pmap_devmap_bootstrap_table);
+	arm_devmap_bootstrap(l1pagetable, NULL);
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
 	pmap_pa = kernel_l1pt.pv_pa;
