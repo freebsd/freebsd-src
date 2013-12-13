@@ -59,7 +59,7 @@ vm_offset_t
 initarm_lastaddr(void)
 {
 
-	return (ZYNQ7_PSIO_VBASE - ARM_NOCACHE_KVA_SIZE);
+	return (ZYNQ7_PSIO_VBASE);
 }
 
 void
