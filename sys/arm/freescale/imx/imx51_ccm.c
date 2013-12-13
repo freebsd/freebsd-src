@@ -278,8 +278,8 @@ imx51_get_clock(enum imx51_clock clk)
 	case IMX51CLK_MAIN_BUS_CLK:
 		freq = imx51_get_clock(IMX51CLK_MAIN_BUS_CLK_SRC);
 		cdcr = bus_read_4(ccm_softc->res[0], CCMC_CDCR);
-		return freq / (cdcr & CDCR_PERIPH_CLK_DVFS_PODF_MASK) >>
-			CDCR_PERIPH_CLK_DVFS_PODF_SHIFT;
+		return freq / (1 + ((cdcr & CDCR_PERIPH_CLK_DVFS_PODF_MASK) >>
+			CDCR_PERIPH_CLK_DVFS_PODF_SHIFT));
 	case IMX51CLK_AHB_CLK_ROOT:
 		freq = imx51_get_clock(IMX51CLK_MAIN_BUS_CLK);
 		cbcdr = bus_read_4(ccm_softc->res[0], CCMC_CBCDR);
