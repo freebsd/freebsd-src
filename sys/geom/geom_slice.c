@@ -382,7 +382,7 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
 			printf("GEOM: Reconfigure %s, start %jd length %jd end %jd\n",
 			    pp->name, (intmax_t)offset, (intmax_t)length,
 			    (intmax_t)(offset + length - 1));
-		pp->mediasize = gsl->length;
+		g_resize_provider(pp, gsl->length);
 		return (0);
 	}
 	sb = sbuf_new_auto();
