@@ -66,7 +66,7 @@ initarm_lastaddr(void)
 		while (1);
 
 	/* Platform-specific initialisation */
-	return (fdt_immr_va - ARM_NOCACHE_KVA_SIZE);
+	return (fdt_immr_va);
 }
 
 void

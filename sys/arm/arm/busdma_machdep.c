@@ -122,7 +122,6 @@ struct bus_dma_tag {
 
 struct bounce_page {
 	vm_offset_t	vaddr;		/* kva of bounce buffer */
-	vm_offset_t	vaddr_nocache;	/* kva of bounce buffer uncached */
 	bus_addr_t	busaddr;	/* Physical address */
 	vm_offset_t	datavaddr;	/* kva of client data */
 	bus_addr_t	dataaddr;	/* client physical address */
@@ -1196,39 +1195,23 @@ _bus_dmamap_sync_bp(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 	STAILQ_FOREACH(bpage, &map->bpages, links) {
 		if (op & BUS_DMASYNC_PREWRITE) {
 			if (bpage->datavaddr != 0)
-				bcopy((void *)bpage->datavaddr,
-				    (void *)(bpage->vaddr_nocache != 0 ?
-					     bpage->vaddr_nocache :
-					     bpage->vaddr),
-				    bpage->datacount);
+				bcopy((void *)bpage->datavaddr, 
+				    (void *)bpage->vaddr, bpage->datacount);
 			else
 				physcopyout(bpage->dataaddr,
-				    (void *)(bpage->vaddr_nocache != 0 ?
-					     bpage->vaddr_nocache :
-					     bpage->vaddr),
-				    bpage->datacount);
-			if (bpage->vaddr_nocache == 0) {
-				cpu_dcache_wb_range(bpage->vaddr,
-				    bpage->datacount);
-				cpu_l2cache_wb_range(bpage->vaddr,
-				    bpage->datacount);
-			}
+				    (void *)bpage->vaddr,bpage->datacount);
+			cpu_dcache_wb_range(bpage->vaddr, bpage->datacount);
+			cpu_l2cache_wb_range(bpage->vaddr, bpage->datacount);
 			dmat->bounce_zone->total_bounced++;
 		}
 		if (op & BUS_DMASYNC_POSTREAD) {
-			if (bpage->vaddr_nocache == 0) {
-				cpu_dcache_inv_range(bpage->vaddr,
-				    bpage->datacount);
-				cpu_l2cache_inv_range(bpage->vaddr,
-				    bpage->datacount);
-			}
+			cpu_dcache_inv_range(bpage->vaddr, bpage->datacount);
+			cpu_l2cache_inv_range(bpage->vaddr, bpage->datacount);
 			if (bpage->datavaddr != 0)
-				bcopy((void *)(bpage->vaddr_nocache != 0 ?
-				    bpage->vaddr_nocache : bpage->vaddr),
+				bcopy((void *)bpage->vaddr,
 				    (void *)bpage->datavaddr, bpage->datacount);
 			else
-				physcopyin((void *)(bpage->vaddr_nocache != 0 ?
-				    bpage->vaddr_nocache : bpage->vaddr),
+				physcopyin((void *)bpage->vaddr,
 				    bpage->dataaddr, bpage->datacount);
 			dmat->bounce_zone->total_bounced++;
 		}
@@ -1385,8 +1368,6 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 			break;
 		}
 		bpage->busaddr = pmap_kextract(bpage->vaddr);
-		bpage->vaddr_nocache = (vm_offset_t)arm_remap_nocache(
-		    (void *)bpage->vaddr, PAGE_SIZE);
 		mtx_lock(&bounce_lock);
 		STAILQ_INSERT_TAIL(&bz->bounce_page_list, bpage, links);
 		total_bpages++;
