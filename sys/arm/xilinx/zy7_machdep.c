@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 
 #include <machine/bus.h>
-#include <machine/pmap.h>
-#include <machine/frame.h>
 #include <machine/machdep.h>
 
 #include <arm/xilinx/zy7_reg.h>
