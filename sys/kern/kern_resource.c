@@ -80,6 +80,8 @@ static int	donice(struct thread *td, struct proc *chgp, int n);
 static struct uidinfo *uilookup(uid_t uid);
 static void	ruxagg_locked(struct rusage_ext *rux, struct thread *td);
 
+static __inline int	lim_shared(struct plimit *limp);
+
 /*
  * Resource controls and accounting.
  */
@@ -1129,6 +1131,14 @@ lim_hold(limp)
 	return (limp);
 }
 
+static __inline int
+lim_shared(limp)
+	struct plimit *limp;
+{
+
+	return (limp->pl_refcnt > 1);
+}
+
 void
 lim_fork(struct proc *p1, struct proc *p2)
 {
@@ -1162,7 +1172,7 @@ lim_copy(dst, src)
 	struct plimit *dst, *src;
 {
 
-	KASSERT(dst->pl_refcnt == 1, ("lim_copy to shared limit"));
+	KASSERT(!lim_shared(dst), ("lim_copy to shared limit"));
 	bcopy(src->pl_rlimit, dst->pl_rlimit, sizeof(src->pl_rlimit));
 }
 
