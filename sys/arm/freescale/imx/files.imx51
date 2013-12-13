@@ -37,7 +37,8 @@ dev/ata/chipsets/ata-fsl.c		optional imxata
 # UART driver
 dev/uart/uart_dev_imx.c			optional uart
 
-# USB join controller (1 OTG, 3 EHCI)
+# USB OH3 controller (1 OTG, 3 EHCI)
+arm/freescale/imx/imx_nop_usbphy.c	optional echi
 dev/usb/controller/ehci_imx.c		optional ehci
 
 # Watchdog
