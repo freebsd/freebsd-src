@@ -38,7 +38,6 @@
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/pmap.h>
 #include <machine/intr.h>
 
 /* Max interrupt number */

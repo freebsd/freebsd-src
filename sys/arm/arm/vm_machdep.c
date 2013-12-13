@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/unistd.h>
 #include <machine/cpu.h>
+#include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/sysarch.h>
 #include <sys/lock.h>
@@ -294,7 +295,7 @@ done:
 void
 cpu_set_syscall_retval(struct thread *td, int error)
 {
-	trapframe_t *frame;
+	struct trapframe *frame;
 	int fixup;
 #ifdef __ARMEB__
 	uint32_t insn;
