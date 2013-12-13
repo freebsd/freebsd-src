@@ -106,9 +106,9 @@ pmufreq_identify(driver_t *driver, device_t parent)
 static int
 pmufreq_probe(device_t dev)
 {
-	uint32_t min_freq;
 	struct pmufreq_softc *sc;
 	phandle_t node;
+	uint32_t min_freq;
 
 	if (resource_disabled("pmufreq", 0))
 		return (ENXIO);
@@ -174,8 +174,7 @@ static int
 pmufreq_set(device_t dev, const struct cf_setting *set)
 {
 	struct pmufreq_softc *sc;
-	int speed_sel;
-	int error;
+	int error, speed_sel;
 
 	if (set == NULL)
 		return (EINVAL);
@@ -191,7 +190,7 @@ pmufreq_set(device_t dev, const struct cf_setting *set)
 	if (error == 0)
 		sc->curfreq = set->freq;
 
-	return error;
+	return (error);
 }
 
 static int
