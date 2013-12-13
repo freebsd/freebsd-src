@@ -136,6 +136,13 @@ static driver_t	unin_chip_driver = {
 
 static devclass_t	unin_chip_devclass;
 
+/*
+ * Assume there is only one unin chip in a PowerMac, so that pmu.c functions can
+ * suspend the chip after the whole rest of the device tree is suspended, not
+ * earlier.
+ */
+static device_t		unin_chip;
+
 DRIVER_MODULE(unin, nexus, unin_chip_driver, unin_chip_devclass, 0, 0);
 
 /*
@@ -210,31 +217,30 @@ unin_chip_add_reg(phandle_t devnode, struct unin_chip_devinfo *dinfo)
 }
 
 static void
-unin_enable_gmac(device_t dev)
+unin_update_reg(device_t dev, uint32_t regoff, uint32_t set, uint32_t clr)
 {
-	volatile u_int *clkreg;
+	volatile u_int *reg;
 	struct unin_chip_softc *sc;
 	u_int32_t tmpl;
 
 	sc = device_get_softc(dev);
-	clkreg = (void *)(sc->sc_addr + UNIN_CLOCKCNTL);
-	tmpl = inl(clkreg);
-	tmpl |= UNIN_CLOCKCNTL_GMAC;
-	outl(clkreg, tmpl);
+	reg = (void *)(sc->sc_addr + regoff);
+	tmpl = inl(reg);
+	tmpl &= ~clr;
+	tmpl |= set;
+	outl(reg, tmpl);
+}
+
+static void
+unin_enable_gmac(device_t dev)
+{
+	unin_update_reg(dev, UNIN_CLOCKCNTL, UNIN_CLOCKCNTL_GMAC, 0);
 }
 
 static void
 unin_enable_mpic(device_t dev)
 {
-	volatile u_int *toggle;
-	struct unin_chip_softc *sc;
-	u_int32_t tmpl;
-
-	sc = device_get_softc(dev);
-	toggle = (void *)(sc->sc_addr + UNIN_TOGGLE_REG);
-	tmpl = inl(toggle);
-	tmpl |= UNIN_MPIC_RESET | UNIN_MPIC_OUTPUT_ENABLE;
-	outl(toggle, tmpl);
+	unin_update_reg(dev, UNIN_TOGGLE_REG, UNIN_MPIC_RESET | UNIN_MPIC_OUTPUT_ENABLE, 0);
 }
 
 static int
@@ -310,6 +316,9 @@ unin_chip_attach(device_t dev)
 			      error);
 		return (error);
 	}
+
+	if (unin_chip == NULL)
+		unin_chip = dev;
 
         /*
 	 * Iterate through the sub-devices
@@ -631,3 +640,33 @@ unin_chip_get_devinfo(device_t dev, device_t child)
 	return (&dinfo->udi_obdinfo);
 }
 
+int
+unin_chip_wake(device_t dev)
+{
+
+	if (dev == NULL)
+		dev = unin_chip;
+	unin_update_reg(dev, UNIN_PWR_MGMT, UNIN_PWR_NORMAL, UNIN_PWR_MASK);
+	DELAY(10);
+	unin_update_reg(dev, UNIN_HWINIT_STATE, UNIN_RUNNING, 0);
+	DELAY(100);
+
+	return (0);
+}
+
+int
+unin_chip_sleep(device_t dev, int idle)
+{
+	if (dev == NULL)
+		dev = unin_chip;
+
+	unin_update_reg(dev, UNIN_HWINIT_STATE, UNIN_SLEEPING, 0);
+	DELAY(10);
+	if (idle)
+		unin_update_reg(dev, UNIN_PWR_MGMT, UNIN_PWR_IDLE2, UNIN_PWR_MASK);
+	else
+		unin_update_reg(dev, UNIN_PWR_MGMT, UNIN_PWR_SLEEP, UNIN_PWR_MASK);
+	DELAY(10);
+
+	return (0);
+}
