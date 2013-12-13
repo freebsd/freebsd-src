@@ -1247,6 +1247,18 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 		sx_sunlock(&sc->sc_lock);
 		return (EINVAL);
 	}
+	if (is->is_connected) {
+		/*
+		 * This might have happened because another iscsid(8)
+		 * instance handed off the connection in the meantime.
+		 * Just return.
+		 */
+		ISCSI_SESSION_WARN(is, "handoff on already connected "
+		    "session");
+		ISCSI_SESSION_UNLOCK(is);
+		sx_sunlock(&sc->sc_lock);
+		return (EBUSY);
+	}
 
 	strlcpy(is->is_target_alias, handoff->idh_target_alias,
 	    sizeof(is->is_target_alias));
