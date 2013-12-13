@@ -34,9 +34,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/reboot.h>
 
-#include <machine/bus.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
+
+#include <machine/bus.h>
+#include <machine/devmap.h>
+
 #include <arm/freescale/imx/imx6_anatopreg.h>
 #include <arm/freescale/imx/imx6_anatopvar.h>
 #include <arm/freescale/imx/imx_machdep.h>
@@ -112,7 +115,6 @@ cpu_reset(void)
  */
 u_int imx_soc_type()
 {
-	const struct pmap_devmap *pd;
 	uint32_t digprog, hwsoc;
 	uint32_t *pcr;
 	const uint32_t HWSOC_MX6SL   = 0x60;
@@ -131,10 +133,8 @@ u_int imx_soc_type()
 		    IMX6_ANALOG_DIGPROG_SOCTYPE_SHIFT;
 		/*printf("digprog = 0x%08x\n", digprog);*/
 		if (hwsoc == HWSOC_MX6DL) {
-			pd = pmap_devmap_find_pa(SCU_CONFIG_PHYSADDR, 4);
-			if (pd != NULL) {
-				pcr = (uint32_t *)(pd->pd_va + 
-				    (SCU_CONFIG_PHYSADDR - pd->pd_pa));
+			pcr = arm_devmap_ptov(SCU_CONFIG_PHYSADDR, 4);
+			if (pcr != NULL) {
 				/*printf("scu config = 0x%08x\n", *pcr);*/
 				if ((*pcr & 0x03) == 0) {
 					hwsoc = HWSOC_MX6SOLO;
