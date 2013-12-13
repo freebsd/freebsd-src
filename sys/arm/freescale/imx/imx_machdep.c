@@ -158,34 +158,33 @@ bus_dma_get_range_nb(void)
 	return (0);
 }
 
+/*
+ * This code which manipulates the watchdog hardware is here to implement
+ * cpu_reset() because the watchdog is the only way for software to reset the
+ * chip.  Why here and not in imx_wdog.c?  Because there's no requirement that
+ * the watchdog driver be compiled in, but it's nice to be able to reboot even
+ * if it's not.
+ */
 void
 imx_wdog_cpu_reset(vm_offset_t wdcr_physaddr)
 {
+	const struct pmap_devmap *pd;
+	volatile uint16_t * pcr;
 
 	/*
-	 * This code which manipulates the watchdog hardware is here to
-	 * implement cpu_reset() because the watchdog is the only way for
-	 * software to reset the chip.  Why here and not in imx_wdog.c?  Because
-	 * there's no requirement that the watchdog driver be compiled in, but
-	 * it's nice to be able to reboot even if it's not.
+	 * The deceptively simple write of WDOG_CR_WDE enables the watchdog,
+	 * sets the timeout to its minimum value (half a second), and also
+	 * clears the SRS bit which results in the SFTW (software-requested
+	 * reset) bit being set in the watchdog status register after the reset.
+	 * This is how software can distinguish a reset from a wdog timeout.
 	 */
-	volatile uint16_t * pcr;
-	const struct pmap_devmap *pd;
-
 	if ((pd = pmap_devmap_find_pa(wdcr_physaddr, 2)) == NULL) {
 		printf("cpu_reset() can't find its control register... locking up now.");
 	} else {
 		pcr = (uint16_t *)(pd->pd_va + (wdcr_physaddr - pd->pd_pa));
-		/*
-		 * This deceptively simple write enables the watchdog, sets the timeout
-		 * to its minimum value (half a second), and also clears the SRS bit
-		 * which results in the SFTW (software-requested reset) bit being set in
-		 * the watchdog status register after the reset. This is how software
-		 * can distinguish a requested reset from a wdog timeout.
-		 */
 		*pcr = WDOG_CR_WDE;
 	}
-	while (1)
+	for (;;)
 		continue;
 }
 
