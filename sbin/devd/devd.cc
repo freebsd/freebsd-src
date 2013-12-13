@@ -772,7 +772,7 @@ process_event(char *buffer)
 	char *sp;
 
 	sp = buffer + 1;
-	devdlog(LOG_DEBUG, "Processing event '%s'\n", buffer);
+	devdlog(LOG_INFO, "Processing event '%s'\n", buffer);
 	type = *buffer++;
 	cfg.push_var_table();
 	// No match doesn't have a device, and the format is a little
@@ -989,7 +989,7 @@ event_loop(void)
 		}
 		rv = select(max_fd, &fds, NULL, NULL, &tv);
 		if (got_siginfo) {
-			devdlog(LOG_INFO, "Events received so far=%u\n",
+			devdlog(LOG_NOTICE, "Events received so far=%u\n",
 			    total_events);
 			got_siginfo = 0;
 		}
