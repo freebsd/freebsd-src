@@ -2289,6 +2289,9 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		 * Mark the entry in case the map lock is released.  (See
 		 * above.)
 		 */
+		KASSERT((entry->eflags & MAP_ENTRY_IN_TRANSITION) == 0 &&
+		    entry->wiring_thread == NULL,
+		    ("owned map entry %p", entry));
 		entry->eflags |= MAP_ENTRY_IN_TRANSITION;
 		entry->wiring_thread = curthread;
 		/*
@@ -2357,7 +2360,9 @@ done:
 			}
 		}
 		KASSERT((entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0,
-		    ("vm_map_unwire: in-transition flag missing"));
+		    ("vm_map_unwire: in-transition flag missing %p", entry));
+		KASSERT(entry->wiring_thread == curthread,
+		    ("vm_map_unwire: alien wire %p", entry));
 		entry->eflags &= ~MAP_ENTRY_IN_TRANSITION;
 		entry->wiring_thread = NULL;
 		if (entry->eflags & MAP_ENTRY_NEEDS_WAKEUP) {
@@ -2457,6 +2462,9 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		 * Mark the entry in case the map lock is released.  (See
 		 * above.)
 		 */
+		KASSERT((entry->eflags & MAP_ENTRY_IN_TRANSITION) == 0 &&
+		    entry->wiring_thread == NULL,
+		    ("owned map entry %p", entry));
 		entry->eflags |= MAP_ENTRY_IN_TRANSITION;
 		entry->wiring_thread = curthread;
 		if ((entry->protection & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0
