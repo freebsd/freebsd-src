@@ -160,7 +160,8 @@ struct pmu_softc {
 	volatile int	sc_autopoll;
 	int		sc_batteries;
 	struct cdev	*sc_leddev;
-	int	lid_closed;
+	int		lid_closed;
+	uint8_t		saved_regs[9];
 };
 
 struct pmu_battstate {
@@ -171,5 +172,7 @@ struct pmu_battstate {
 	int current;
 	int voltage;
 };
+
+int pmu_set_speed(int low_speed);
 
 #endif /* PMUVAR_H */

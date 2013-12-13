@@ -49,7 +49,8 @@ struct pmap;
 	uint32_t	pc_ipimask;					\
 	register_t	pc_tempsave[CPUSAVE_LEN];			\
 	register_t	pc_disisave[CPUSAVE_LEN];			\
-	register_t	pc_dbsave[CPUSAVE_LEN];
+	register_t	pc_dbsave[CPUSAVE_LEN];				\
+	void		*pc_restore;
 
 #define PCPU_MD_AIM32_FIELDS						\
 	/* char		__pad[0] */

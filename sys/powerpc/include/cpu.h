@@ -98,4 +98,6 @@ void	cpu_reset(void);
 void	fork_trampoline(void);
 void	swi_vm(void *);
 
+void	flush_disable_caches(void);
+
 #endif	/* _MACHINE_CPU_H_ */
