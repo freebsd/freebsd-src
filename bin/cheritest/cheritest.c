@@ -105,9 +105,7 @@ usage(void)
 	fprintf(stderr, "cheritest invoke_vm_rfault\n");
 	fprintf(stderr, "cheritest invoke_vm_wfault\n");
 	fprintf(stderr, "cheritest invoke_vm_xfault\n");
-#if 0
 	fprintf(stderr, "cheritest listcausereg\n");
-#endif
 	fprintf(stderr, "cheritest listprivregs\n");
 	fprintf(stderr, "cheritest listregs\n");
 	fprintf(stderr, "cheritest overrun\n");
@@ -247,18 +245,19 @@ cheritest_copyregs(void)
 	CHERI_CMOVE(7, 0);
 }
 
-#if 0
-/* XXXRW: Not yet supported by LLVM-MC. */
 static void
 cheritest_listcausereg(void)
 {
 	register_t cause;
 
 	printf("CP2 cause register:\n");
+#ifdef USE_C_CAPS
+	cause = cheri_getcause();
+#else
 	CHERI_CGETCAUSE(cause);
+#endif
 	printf("Cause: %ju\n", (uintmax_t)cause);
 }
-#endif
 
 static void
 cheritest_listprivregs(void)
@@ -445,12 +444,9 @@ main(__unused int argc, __unused char *argv[])
 		usage();
 
 	for (i = 0; i < argc; i++) {
-#if 0
 		if (strcmp(argv[i], "listcausereg") == 0)
 			cheritest_listcausereg();
-		else
-#endif
-		if (strcmp(argv[i], "listprivregs") == 0)
+		else if (strcmp(argv[i], "listprivregs") == 0)
 			cheritest_listprivregs();
 		else if (strcmp(argv[i], "listregs") == 0)
 			cheritest_listregs();
