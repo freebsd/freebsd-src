@@ -108,7 +108,7 @@ static struct ofw_compat_data compat_data[] = {
 #define	MMCHS_CON			0x02C
 #define	  MMCHS_CON_DW8			  (1 << 5)
 #define	  MMCHS_CON_DVAL_8_4MS		  (3 << 9)
-#define	MMCHS_SD_CAPA			0x240
+#define	MMCHS_SD_CAPA			0x140
 #define	  MMCHS_SD_CAPA_VS18		  (1 << 26)
 #define	  MMCHS_SD_CAPA_VS30		  (1 << 25)
 #define	  MMCHS_SD_CAPA_VS33		  (1 << 24)
@@ -432,9 +432,9 @@ ti_sdhci_attach(device_t dev)
 	 * that it can set the right values in the CAPA register, which can only
 	 * be done once and never reset.
 	 */
-	sc->slot.host.host_ocr |= MMC_OCR_LOW_VOLTAGE;
+	sc->slot.host.caps |= MMC_OCR_LOW_VOLTAGE;
 	if (sc->mmchs_device_id == 0 || OF_hasprop(node, "ti,dual-volt")) {
-		sc->slot.host.host_ocr |= MMC_OCR_290_300 | MMC_OCR_300_310;
+		sc->slot.host.caps |= MMC_OCR_290_300 | MMC_OCR_300_310;
 	}
 
 	/*
