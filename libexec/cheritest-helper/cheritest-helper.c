@@ -37,6 +37,7 @@
 #include <sys/types.h>
 
 #include <machine/cheri.h>
+#include <machine/cheric.h>
 
 #include <md5.h>
 #include <stdlib.h>
@@ -81,6 +82,92 @@ invoke_md5(size_t len)
 	memcpy_tocap(4, buf, 0, sizeof(buf));
 #endif
 
+	return (123456);
+}
+
+#define	N	10
+static int
+invoke_cap_fault(register_t op)
+{
+	char buffer[N], ch;
+#ifdef USE_C_CAPS
+	__capability char *cap;
+
+	cap = cheri_ptrperm(buffer, sizeof(buffer), CHERI_PERM_LOAD);
+#else
+	CHERI_CINCBASE(3, 0, (uintptr_t)buffer);
+	CHERI_CSETLEN(3, 3, sizeof(buffer);
+	CHERI_CSETPERM(3, 3, CHERI_PERM_LOAD);
+#endif
+
+	switch (op) {
+	case CHERITEST_HELPER_OP_CP2_BOUND:
+#ifdef USE_C_CAPS
+		ch = cap[N];
+#else
+		CHERI_CLB(ch, N, 0, 3);
+#endif
+		return (ch);
+
+	case CHERITEST_HELPER_OP_CP2_PERM:
+#ifdef USE_C_CAPS
+		cap[0] = 0;
+#else
+		CHERI_CSB(0, 0, 0, 3);
+#endif
+		break;
+
+	case CHERITEST_HELPER_OP_CP2_TAG:
+#ifdef USE_C_CAPS
+		cap = cheri_zerocap();
+		ch = cap[0];
+#else
+		CHERI_CCLEARTAG(3);
+		CHERI_CLB(ch, 0, 0, 3);
+#endif
+		return (ch);
+
+	case CHERITEST_HELPER_OP_CP2_SEAL:
+#ifdef USE_C_CAPS
+		cap = cheri_sealcode(cap);
+		ch = cap[0];
+#else
+		CHERI_SEALCODE(3, 3);
+		CHERI_CLB(ch, 0, 0, 3);
+#endif
+		return (ch);
+	}
+	return (0);
+}
+
+static int
+invoke_vm_fault(register_t op)
+{
+	volatile char *chp;
+	void (*fn)(void) = NULL;
+	char ch;
+
+	chp = NULL;
+	switch (op) {
+	case CHERITEST_HELPER_OP_VM_RFAULT:
+		ch = chp[0];
+		break;
+
+	case CHERITEST_HELPER_OP_VM_WFAULT:
+		chp[0] = 0;
+		break;
+
+	case CHERITEST_HELPER_OP_VM_XFAULT:
+		fn();
+		break;
+	}
+	return (0);
+}
+
+static int
+invoke_syscall(void)
+{
+
 	/*
 	 * Invoke getpid() to trigger kernel protection features.  Should
 	 * mostly be a nop.
@@ -119,6 +206,23 @@ invoke(register_t op, size_t len)
 
 	case CHERITEST_HELPER_OP_SPIN:
 		while (1);
+
+	case CHERITEST_HELPER_OP_CP2_BOUND:
+	case CHERITEST_HELPER_OP_CP2_PERM:
+	case CHERITEST_HELPER_OP_CP2_TAG:
+	case CHERITEST_HELPER_OP_CP2_SEAL:
+		return (invoke_cap_fault(op));
+
+	case CHERITEST_HELPER_OP_VM_RFAULT:
+	case CHERITEST_HELPER_OP_VM_WFAULT:
+	case CHERITEST_HELPER_OP_VM_XFAULT:
+		return (invoke_vm_fault(op));
+
+	case CHERITEST_HELPER_OP_SYSCALL:
+		return (invoke_syscall());
+
+	case CHERITEST_HELPER_OP_DIVZERO:
+		return (1/0);
 	}
 	return (ret);
 }

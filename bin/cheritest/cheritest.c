@@ -93,20 +93,25 @@ usage(void)
 	fprintf(stderr, "cheritest ccall_creturn\n");
 	fprintf(stderr, "cheritest ccall_nop_creturn\n");
 	fprintf(stderr, "cheritest copyregs\n");
+	fprintf(stderr, "cheritest invoke_abort\n");
+	fprintf(stderr, "cheritest invoke_cp2_bound\n");
+	fprintf(stderr, "cheritest invoke_cp2_perm\n");
+	fprintf(stderr, "cheritest invoke_cp2_seal\n");
+	fprintf(stderr, "cheritest invoke_cp2_tag\n");
+	fprintf(stderr, "cheritest invoke_divzero\n");
+	fprintf(stderr, "cheritest invoke_md5\n");
+	fprintf(stderr, "cheritest invoke_spin\n");
+	fprintf(stderr, "cheritest invoke_syscall\n");
+	fprintf(stderr, "cheritest invoke_vm_rfault\n");
+	fprintf(stderr, "cheritest invoke_vm_wfault\n");
+	fprintf(stderr, "cheritest invoke_vm_xfault\n");
 #if 0
 	fprintf(stderr, "cheritest listcausereg\n");
 #endif
 	fprintf(stderr, "cheritest listprivregs\n");
 	fprintf(stderr, "cheritest listregs\n");
-	fprintf(stderr, "cheritest nullderef\n");
 	fprintf(stderr, "cheritest overrun\n");
-	fprintf(stderr, "cheritest sandbox\n");
-	fprintf(stderr, "cheritest sandbox_invoke_abort\n");
-	fprintf(stderr, "cheritest sandbox_invoke_md5\n");
-	fprintf(stderr, "cheritest sandbox_invoke_spin\n");
 	fprintf(stderr, "cheritest sleep\n");
-	fprintf(stderr, "cheritest unsandbox\n");
-	fprintf(stderr, "cheritest syscalltest\n");
 	exit(EX_USAGE);
 }
 
@@ -310,36 +315,7 @@ cheritest_listregs(void)
 }
 
 static void
-cheritest_nullderef(void)
-{
-	int *p, v;
-
-	p = NULL;
-	v = *p;
-	printf("%d\n", v);
-}
-
-static void
-cheritest_sandbox(void)
-{
-
-	/*
-	 * Install a limited C0 so that the kernel will no longer accept
-	 * system calls.
-	 */
-#ifdef USE_C_CAPS
-	__capability void *c0;
-
-	c0 = cheri_getreg(0);
-	c0 = cheri_setlen(c0, CHERI_CAP_USER_LENGTH - 1);
-	cheri_setreg(0, c0);
-#else
-	CHERI_CSETLEN(0, 1, CHERI_CAP_USER_LENGTH - 1);
-#endif
-}
-
-static void
-cheritest_sandbox_invoke_abort(void)
+cheritest_invoke_simple_op(int op)
 {
 	struct sandbox *sb;
 	register_t v;
@@ -349,11 +325,11 @@ cheritest_sandbox_invoke_abort(void)
 		err(1, "sandbox_setup");
 
 #ifdef USE_C_CAPS
-	v = sandbox_cinvoke(sb, CHERITEST_HELPER_OP_ABORT, 0, 0, 0, 0, 0, 0,
-	    0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+	v = sandbox_cinvoke(sb, op, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL,
+	    NULL, NULL, NULL, NULL, NULL);
 #else
-	v = sandbox_invoke(sb, CHERITEST_HELPER_OP_ABORT, 0, 0, 0, NULL, NULL,
-	    NULL, NULL, NULL, NULL, NULL, NULL);
+	v = sandbox_invoke(sb, op, 0, 0, 0, NULL, NULL, NULL, NULL, NULL,
+	    NULL, NULL, NULL);
 #endif
 	printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
 	sandbox_destroy(sb);
@@ -369,7 +345,7 @@ static struct chericap c3, c4;
 #endif
 
 static void
-cheritest_sandbox_invoke_md5(void)
+cheritest_invoke_md5(void)
 {
 #ifdef USE_C_CAPS
 	__capability void *md5cap, *bufcap, *cclear;
@@ -412,7 +388,7 @@ cheritest_sandbox_invoke_md5(void)
 }
 
 static void
-cheritest_sandbox_invoke_spin(void)
+cheritest_invoke_spin(void)
 {
 	struct sandbox *sb;
 	register_t v;
@@ -433,36 +409,23 @@ cheritest_sandbox_invoke_spin(void)
 }
 
 static void
-cheritest_unsandbox(void)
+cheritest_invoke_syscall(void)
 {
+	struct sandbox *sb;
+	register_t v;
 
-	/*
-	 * Restore a more privileged C0 so that the kernel will accept system
-	 * calls again.
-	 */
+	if (sandbox_setup("/usr/libexec/cheritest-helper.bin", 4*1024*1024,
+	    &sb) < 0)
+		err(1, "sandbox_setup");
+
 #ifdef USE_C_CAPS
-	__capability void *c0;
-
-	c0 = cheri_getreg(1);
-	c0 = cheri_setlen(c0, CHERI_CAP_USER_LENGTH);
-	cheri_setreg(0, c0);
+	v = sandbox_cinvoke(sb, CHERITEST_HELPER_OP_SYSCALL, 0, 0, 0, 0, 0, 0,
+	    0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 #else
-	CHERI_CSETLEN(0, 1, CHERI_CAP_USER_LENGTH);
+	v = sandbox_invoke(sb, CHERITEST_HELPER_OP_SYSCALL, 0, 0, 0, NULL,
+	    NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 #endif
-}
-
-static void
-cheritest_syscalltest(void)
-{
-	struct timeval tv;
-	int ret;
-
-	cheritest_sandbox();
-	ret = gettimeofday(&tv, NULL);
-	cheritest_unsandbox();
-	if (ret)
-		err(1, "gettimeofday");
-
+	sandbox_destroy(sb);
 }
 
 int
@@ -497,24 +460,42 @@ main(__unused int argc, __unused char *argv[])
 			cheritest_ccall_nop_creturn();
 		else if (strcmp(argv[i], "copyregs") == 0)
 			cheritest_copyregs();
-		else if (strcmp(argv[i], "nullderef") == 0)
-			cheritest_nullderef();
+		else if (strcmp(argv[i], "invoke_abort") == 0)
+			cheritest_invoke_simple_op(CHERITEST_HELPER_OP_ABORT);
+		else if (strcmp(argv[i], "invoke_cp2_bound") == 0)
+			cheritest_invoke_simple_op(
+			    CHERITEST_HELPER_OP_CP2_BOUND);
+		else if (strcmp(argv[i], "invoke_cp2_perm") == 0)
+			cheritest_invoke_simple_op(
+			    CHERITEST_HELPER_OP_CP2_PERM);
+		else if (strcmp(argv[i], "invoke_cp2_tag") == 0)
+			cheritest_invoke_simple_op(
+			    CHERITEST_HELPER_OP_CP2_TAG);
+		else if (strcmp(argv[i], "invoke_cp2_seal") == 0)
+			cheritest_invoke_simple_op(
+			    CHERITEST_HELPER_OP_CP2_SEAL);
+		else if (strcmp(argv[i], "invoke_divzero") == 0)
+			cheritest_invoke_simple_op(
+			    CHERITEST_HELPER_OP_DIVZERO);
+		else if (strcmp(argv[i], "invoke_md5") == 0)
+			cheritest_invoke_md5();
+		else if (strcmp(argv[i], "invoke_spin") == 0)
+			cheritest_invoke_spin();
+		else if (strcmp(argv[i], "invoke_syscall") == 0)
+			cheritest_invoke_syscall();
+		else if (strcmp(argv[i], "invoke_vm_rfault") == 0)
+			cheritest_invoke_simple_op(
+			    CHERITEST_HELPER_OP_VM_RFAULT);
+		else if (strcmp(argv[i], "invoke_vm_wfault") == 0)
+			cheritest_invoke_simple_op(
+			    CHERITEST_HELPER_OP_VM_WFAULT);
+		else if (strcmp(argv[i], "invoke_vm_xfault") == 0)
+			cheritest_invoke_simple_op(
+			    CHERITEST_HELPER_OP_VM_XFAULT);
 		else if (strcmp(argv[i], "overrun") == 0)
 			cheritest_overrun();
-		else if (strcmp(argv[i], "sandbox") == 0)
-			cheritest_sandbox();
-		else if (strcmp(argv[i], "sandbox_invoke_abort") == 0)
-			cheritest_sandbox_invoke_abort();
-		else if (strcmp(argv[i], "sandbox_invoke_md5") == 0)
-			cheritest_sandbox_invoke_md5();
-		else if (strcmp(argv[i], "sandbox_invoke_spin") == 0)
-			cheritest_sandbox_invoke_spin();
 		else if (strcmp(argv[i], "sleep") == 0)
 			sleep(10);
-		else if (strcmp(argv[i], "unsandbox") == 0)
-			cheritest_unsandbox();
-		else if (strcmp(argv[i], "syscalltest") == 0)
-			cheritest_syscalltest();
 		else
 			usage();
 	}
