@@ -320,6 +320,8 @@ initarm(struct arm_boot_params *abp)
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();
+	cpu_setup("");
+
 	i80321_calibrate_delay();
 	i81342_sdram_bounds(&obio_bs_tag, IOP34X_VADDR, &memstart, &memsize);
 	physmem = memsize / PAGE_SIZE;
