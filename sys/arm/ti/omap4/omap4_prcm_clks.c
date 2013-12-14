@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
+#include <machine/platformvar.h>
 
 #include <arm/ti/tivar.h>
 #include <arm/ti/ti_prcm.h>
@@ -1339,8 +1340,10 @@ omap4_clk_hsusbhost_set_source(struct ti_clock_dev *clkdev,
 #define PRM_RSTCTRL		0x1b00
 #define PRM_RSTCTRL_RESET	0x2
 
-static void
-omap4_prcm_reset(void)
+void omap4_prcm_reset(platform_t);
+
+void
+omap4_prcm_reset(platform_t plat)
 {
 	struct omap4_prcm_softc *sc = omap4_prcm_sc;
 	bus_write_4(sc->sc_res[0], PRM_RSTCTRL,
@@ -1398,7 +1401,6 @@ omap4_prcm_attach(device_t dev)
 	}
 
 	omap4_prcm_sc = sc;
-	ti_cpu_reset = omap4_prcm_reset;
 	omap4_clk_get_arm_fclk_freq(NULL, &freq);
 	platform_arm_tmr_freq = freq / 2;
 

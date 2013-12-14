@@ -170,6 +170,14 @@ platform_late_init(void)
 	PLATFORM_LATE_INIT(plat_obj);
 }
 
+void
+cpu_reset(void)
+{
+	PLATFORM_CPU_RESET(plat_obj);
+
+	panic("CPU failed to reset");
+}
+
 int
 arm_get_next_irq(int last)
 {
@@ -199,3 +207,16 @@ bus_dma_get_range_nb(void)
 {
 	return PLATFORM_BUS_DMA_GET_RANGE_NB(plat_obj);
 }
+
+void
+cpu_initclocks(void)
+{
+	PLATFORM_CPU_INITCLOCKS(plat_obj);
+}
+
+void
+DELAY(int usec)
+{
+	PLATFORM_DELAY(plat_obj, usec);
+}
+

@@ -69,13 +69,10 @@ __FBSDID("$FreeBSD$");
 #error Not yet able to use both OMAP4 and AM335X in the same kernel
 #endif
 
-void (*ti_cpu_reset)(void);
-
 static int
 ti_attach(platform_t plat)
 {
 
-	ti_cpu_reset = NULL;
 	return (0);
 }
 
@@ -127,26 +124,22 @@ ti_am335x_devmap_init(platform_t plat)
 }
 #endif
 
-void
-cpu_reset()
-{
-	if (ti_cpu_reset)
-		(*ti_cpu_reset)();
-	else
-		printf("no cpu_reset implementation\n");
-	printf("Reset failed!\n");
-	while (1);
-}
-
 #if defined(SOC_OMAP4)
+void omap4_prcm_reset(platform_t);
+
 static platform_method_t omap4_methods[] = {
 	PLATFORMMETHOD(platform_attach,		ti_attach),
 	PLATFORMMETHOD(platform_devmap_init,	ti_omap4_devmap_init),
 	PLATFORMMETHOD(platform_lastaddr,	ti_lastaddr),
 
+	PLATFORMMETHOD(platform_cpu_reset,	omap4_prcm_reset),
+
 	PLATFORMMETHOD(platform_get_next_irq,	gic_get_next_irq),
 	PLATFORMMETHOD(platform_mask_irq,	gic_mask_irq),
 	PLATFORMMETHOD(platform_unmask_irq,	gic_unmask_irq),
+
+	PLATFORMMETHOD(platform_cpu_initclocks, arm_tmr_cpu_initclocks),
+	PLATFORMMETHOD(platform_delay,		arm_tmr_delay),
 
 	PLATFORMMETHOD_END,
 };

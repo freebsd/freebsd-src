@@ -58,6 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
+#include <machine/intr.h>
+#include <machine/platformvar.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
@@ -365,7 +367,7 @@ DRIVER_MODULE(mp_tmr, simplebus, arm_tmr_driver, arm_tmr_devclass, 0, 0);
  *	nothing
  */
 void
-cpu_initclocks(void)
+arm_tmr_cpu_initclocks(platform_t plat)
 {
 	if (PCPU_GET(cpuid) == 0)
 		cpu_initclocks_bsp();
@@ -374,7 +376,7 @@ cpu_initclocks(void)
 }
 
 /**
- *	DELAY - Delay for at least usec microseconds.
+ *	arm_tmr_delay - Delay for at least usec microseconds.
  *	@usec: number of microseconds to delay by
  *
  *	This function is called all over the kernel and is suppose to provide a
@@ -385,7 +387,7 @@ cpu_initclocks(void)
  *	nothing
  */
 void
-DELAY(int usec)
+arm_tmr_delay(platform_t plat, int usec)
 {
 	int32_t counts_per_usec;
 	int32_t counts;

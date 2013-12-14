@@ -149,6 +149,12 @@ METHOD void late_init {
 
 /**
  */
+METHOD void cpu_reset {
+	platform_t	_plat;
+};
+
+/**
+ */
 METHOD int get_next_irq {
 	platform_t	_plat;
 	int		last;
@@ -180,3 +186,15 @@ METHOD int bus_dma_get_range_nb {
 	platform_t	_plat;
 } DEFAULT platform_null_bus_dma_get_range_nb;
 
+/**
+ */
+METHOD void cpu_initclocks {
+	platform_t	_plat;
+};
+
+/**
+ */
+METHOD void delay {
+	platform_t	_plat;
+	int		usec;
+};

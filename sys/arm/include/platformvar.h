@@ -121,4 +121,7 @@ DATA_SET(platform_set, NAME ## _platform)
 
 #endif
 
+void arm_tmr_cpu_initclocks(platform_t);
+void arm_tmr_delay(platform_t, int);
+
 #endif /* _MACHINE_PLATFORMVAR_H_ */

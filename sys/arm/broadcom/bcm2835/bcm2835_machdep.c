@@ -116,8 +116,8 @@ bcm2835_devmap_init(platform_t plat)
 	return (0);
 }
 
-void
-cpu_reset()
+static void
+bcm_2835_cpu_reset(platform_t plat)
 {
 	bcmwd_watchdog_reset();
 	while (1);
@@ -126,15 +126,22 @@ cpu_reset()
 int bcm2835_get_next_irq(platform_t, int);
 void bcm2835_mask_irq(platform_t, uintptr_t);
 void bcm2835_unmask_irq(platform_t, uintptr_t);
+void bcm2835_cpu_initclocks(platform_t);
+void bcm2835_delay(platform_t, int);
 
 static platform_method_t bcm2835_methods[] = {
 	PLATFORMMETHOD(platform_devmap_init,	bcm2835_devmap_init),
 	PLATFORMMETHOD(platform_lastaddr,	bcm2835_lastaddr),
 	PLATFORMMETHOD(platform_late_init,	bcm2835_late_init),
 
+	PLATFORMMETHOD(platform_cpu_reset,	bcm_2835_cpu_reset),
+
 	PLATFORMMETHOD(platform_get_next_irq,	bcm2835_get_next_irq),
 	PLATFORMMETHOD(platform_mask_irq,	bcm2835_mask_irq),
 	PLATFORMMETHOD(platform_unmask_irq,	bcm2835_unmask_irq),
+
+	PLATFORMMETHOD(platform_cpu_initclocks, bcm2835_cpu_initclocks),
+	PLATFORMMETHOD(platform_delay,		bcm2835_delay),
 
 	PLATFORMMETHOD_END,
 };

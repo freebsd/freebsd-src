@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
+#include <machine/platformvar.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
@@ -274,14 +275,17 @@ static devclass_t bcm_systimer_devclass;
 
 DRIVER_MODULE(bcm_systimer, simplebus, bcm_systimer_driver, bcm_systimer_devclass, 0, 0);
 
+void bcm2835_cpu_initclocks(platform_t);
+void bcm2835_delay(platform_t, int);
+
 void
-cpu_initclocks(void)
+bcm2835_cpu_initclocks(platform_t plat)
 {
 	cpu_initclocks_bsp();
 }
 
 void
-DELAY(int usec)
+bcm2835_delay(platform_t plat, int usec)
 {
 	int32_t counts;
 	uint32_t first, last;
