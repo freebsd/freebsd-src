@@ -96,8 +96,8 @@ invoke_cap_fault(register_t op)
 	cap = cheri_ptrperm(buffer, sizeof(buffer), CHERI_PERM_LOAD);
 #else
 	CHERI_CINCBASE(3, 0, (uintptr_t)buffer);
-	CHERI_CSETLEN(3, 3, sizeof(buffer);
-	CHERI_CSETPERM(3, 3, CHERI_PERM_LOAD);
+	CHERI_CSETLEN(3, 3, sizeof(buffer));
+	CHERI_CANDPERM(3, 3, CHERI_PERM_LOAD);
 #endif
 
 	switch (op) {
@@ -132,7 +132,7 @@ invoke_cap_fault(register_t op)
 		cap = cheri_sealcode(cap);
 		ch = cap[0];
 #else
-		CHERI_SEALCODE(3, 3);
+		CHERI_CSEALCODE(3, 3);
 		CHERI_CLB(ch, 0, 0, 3);
 #endif
 		return (ch);
