@@ -57,8 +57,8 @@ options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 
-options		FREEBSD_BOOT_LOADER	# FreeBSD loader support
-options		LINUX_BOOT_ABI		# Linux loader support, e.g. U-Boot
+options 	FREEBSD_BOOT_LOADER	# FreeBSD loader support
+options 	LINUX_BOOT_ABI		# Linux loader support, e.g. U-Boot
 
 
 # Debugging support.  Always need this:
@@ -80,6 +80,8 @@ options 	VFP		# vfp/neon
 
 # Flattened Device Tree
 options 	FDT
+
+device		pl310			#  PL310 L2 cache controller
 
 # ATA/SCSI/umass peripherals
 device		scbus		# SCSI bus (required for ATA/SCSI)
@@ -140,6 +142,7 @@ device		gpioled
 device		iic
 device		iicbus
 device		bcm2835_bsc
+device		ti_i2c
 
 # SPI
 device		spibus
