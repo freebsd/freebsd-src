@@ -101,6 +101,11 @@ struct tid_info {
 	u_int nftids;
 	u_int ftid_base;
 	u_int ftids_in_use;
+
+	struct mtx etid_lock __aligned(CACHE_LINE_SIZE);
+	struct etid_entry *etid_tab;
+	u_int netids;
+	u_int etid_base;
 };
 
 struct t4_range {
