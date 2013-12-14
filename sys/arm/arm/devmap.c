@@ -36,9 +36,89 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
+#include <machine/armreg.h>
 #include <machine/devmap.h>
 
 static const struct arm_devmap_entry *devmap_table;
+static boolean_t devmap_bootstrap_done = false;
+
+/*
+ * The allocated-kva (akva) devmap table and metadata.  Platforms can call
+ * arm_devmap_add_entry() to add static device mappings to this table using
+ * automatically allocated virtual addresses carved out of the top of kva space.
+ * Allocation begins immediately below the ARM_VECTORS_HIGH address.
+ */
+#define	AKVA_DEVMAP_MAX_ENTRIES	32
+static struct arm_devmap_entry	akva_devmap_entries[AKVA_DEVMAP_MAX_ENTRIES];
+static u_int			akva_devmap_idx;
+static vm_offset_t		akva_devmap_vaddr = ARM_VECTORS_HIGH;
+
+/*
+ * Return the "last" kva address used by the registered devmap table.  It's
+ * actually the lowest address used by the static mappings, i.e., the address of
+ * the first unusable byte of KVA.
+ */
+vm_offset_t
+arm_devmap_lastaddr()
+{
+	const struct arm_devmap_entry *pd;
+	vm_offset_t lowaddr;
+
+	if (akva_devmap_idx > 0)
+		return (akva_devmap_vaddr);
+
+	if (devmap_table == NULL)
+		panic("arm_devmap_lastaddr(): No devmap table registered.");
+
+	lowaddr = ARM_VECTORS_HIGH;
+	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
+		if (lowaddr > pd->pd_va)
+			lowaddr = pd->pd_va;
+	}
+
+	return (lowaddr);
+}
+
+/*
+ * Add an entry to the internal "akva" static devmap table using the given
+ * physical address and size and a virtual address allocated from the top of
+ * kva.  This automatically registers the akva table on the first call, so all a
+ * platform has to do is call this routine to install as many mappings as it
+ * needs and when initarm() calls arm_devmap_bootstrap() it will pick up all the
+ * entries in the akva table automatically.
+ */
+void
+arm_devmap_add_entry(vm_paddr_t pa, vm_size_t sz)
+{
+	struct arm_devmap_entry *m;
+
+	if (devmap_bootstrap_done)
+		panic("arm_devmap_add_entry() after arm_devmap_bootstrap()");
+
+	if (akva_devmap_idx == (AKVA_DEVMAP_MAX_ENTRIES - 1))
+		panic("AKVA_DEVMAP_MAX_ENTRIES is too small");
+
+	if (akva_devmap_idx == 0)
+		arm_devmap_register_table(akva_devmap_entries);
+
+	/*
+	 * Allocate virtual address space from the top of kva downwards.  If the
+	 * range being mapped is aligned and sized to 1MB boundaries then also
+	 * align the virtual address to the next-lower 1MB boundary so that we
+	 * end up with a nice efficient section mapping.
+	 */
+	if ((pa & 0x000fffff) == 0 && (sz & 0x000fffff) == 0) {
+		akva_devmap_vaddr = trunc_1mpage(akva_devmap_vaddr - sz);
+	} else {
+		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - sz);
+	}
+	m = &akva_devmap_entries[akva_devmap_idx++];
+	m->pd_va    = akva_devmap_vaddr;
+	m->pd_pa    = pa;
+	m->pd_size  = sz;
+	m->pd_prot  = VM_PROT_READ | VM_PROT_WRITE;
+	m->pd_cache = PTE_DEVICE;
+}
 
 /*
  * Register the given table as the one to use in arm_devmap_bootstrap().
@@ -73,12 +153,14 @@ arm_devmap_bootstrap(vm_offset_t l1pt, const struct arm_devmap_entry *table)
 	if (table != NULL)
 		devmap_table = table;
 	else if (devmap_table == NULL)
-		panic("arm_devmap_bootstrap: No devmap table registered.");
+		panic("arm_devmap_bootstrap(): No devmap table registered");
 
 	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
 		pmap_map_chunk(l1pt, pd->pd_va, pd->pd_pa, pd->pd_size,
 		    pd->pd_prot,pd->pd_cache);
 	}
+
+	devmap_bootstrap_done = true;
 }
 
 /*
