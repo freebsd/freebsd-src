@@ -74,9 +74,18 @@ extern int errno;
 #include <err.h>
 #include <grp.h>
 #include <inttypes.h>
+#ifdef HAVE_LIBCAPSICUM
+#include <libcapsicum.h>
+#include <libcapsicum_grp.h>
+#include <libcapsicum_pwd.h>
+#include <libcapsicum_service.h>
+#endif
 #include <locale.h>
 #include <netdb.h>
 #include <nl_types.h>
+#ifdef HAVE_LIBCAPSICUM
+#include <nv.h>
+#endif
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -167,6 +176,10 @@ struct proc_info
 
 TAILQ_HEAD(trace_procs, proc_info) trace_procs;
 
+#ifdef HAVE_LIBCAPSICUM
+static cap_channel_t *cappwd, *capgrp;
+#endif
+
 static void
 strerror_init(void)
 {
@@ -191,6 +204,64 @@ localtime_init(void)
 	(void)time(&ltime);
 	(void)localtime(&ltime);
 }
+
+#ifdef HAVE_LIBCAPSICUM
+static int
+cappwdgrp_setup(cap_channel_t **cappwdp, cap_channel_t **capgrpp)
+{
+	cap_channel_t *capcas, *cappwdloc, *capgrploc;
+	const char *cmds[1], *fields[1];
+
+	capcas = cap_init();
+	if (capcas == NULL) {
+		warn("unable to contact casperd");
+		return (NULL);
+	}
+	cappwdloc = cap_service_open(capcas, "system.pwd");
+	capgrploc = cap_service_open(capcas, "system.grp");
+	/* Casper capability no longer needed. */
+	cap_close(capcas);
+	if (cappwdloc == NULL || capgrploc == NULL) {
+		if (cappwdloc == NULL)
+			warn("unable to open system.pwd service");
+		if (capgrploc == NULL)
+			warn("unable to open system.grp service");
+		goto fail;
+	}
+	/* Limit system.pwd to only getpwuid() function and pw_name field. */
+	cmds[0] = "getpwuid";
+	if (cap_pwd_limit_cmds(cappwdloc, cmds, 1) < 0) {
+		warn("unable to limit access to system.pwd service");
+		goto fail;
+	}
+	fields[0] = "pw_name";
+	if (cap_pwd_limit_fields(cappwdloc, fields, 1) < 0) {
+		warn("unable to limit access to system.pwd service");
+		goto fail;
+	}
+	/* Limit system.grp to only getgrgid() function and gr_name field. */
+	cmds[0] = "getgrgid";
+	if (cap_grp_limit_cmds(capgrploc, cmds, 1) < 0) {
+		warn("unable to limit access to system.grp service");
+		goto fail;
+	}
+	fields[0] = "gr_name";
+	if (cap_grp_limit_fields(capgrploc, fields, 1) < 0) {
+		warn("unable to limit access to system.grp service");
+		goto fail;
+	}
+
+	*cappwdp = cappwdloc;
+	*capgrpp = capgrploc;
+	return (0);
+fail:
+	if (capgrploc == NULL)
+		cap_close(cappwdloc);
+	if (capgrploc == NULL)
+		cap_close(capgrploc);
+	return (-1);
+}
+#endif	/* HAVE_LIBCAPSICUM */
 
 int
 main(int argc, char *argv[])
@@ -265,14 +336,28 @@ main(int argc, char *argv[])
 
 	strerror_init();
 	localtime_init();
-
+#ifdef HAVE_LIBCAPSICUM
+	if (resolv != 0) {
+		if (cappwdgrp_setup(&cappwd, &capgrp) < 0) {
+			cappwd = NULL;
+			capgrp = NULL;
+		}
+	}
+	if (resolv == 0 || (cappwd != NULL && capgrp != NULL)) {
+		if (cap_enter() < 0 && errno != ENOSYS)
+			err(1, "unable to enter capability mode");
+	}
+#else
 	if (resolv == 0) {
 		if (cap_enter() < 0 && errno != ENOSYS)
 			err(1, "unable to enter capability mode");
 	}
+#endif
 	limitfd(STDIN_FILENO);
 	limitfd(STDOUT_FILENO);
 	limitfd(STDERR_FILENO);
+	if (cap_sandboxed())
+		fprintf(stderr, "capability mode sandbox enabled\n");
 
 	TAILQ_INIT(&trace_procs);
 	drop_logged = 0;
@@ -1664,11 +1749,31 @@ ktrstat(struct stat *statp)
 		printf("mode=%s, ", mode);
 	}
 	printf("nlink=%ju, ", (uintmax_t)statp->st_nlink);
-	if (resolv == 0 || (pwd = getpwuid(statp->st_uid)) == NULL)
+	if (resolv == 0) {
+		pwd = NULL;
+	} else {
+#ifdef HAVE_LIBCAPSICUM
+		if (cappwd != NULL)
+			pwd = cap_getpwuid(cappwd, statp->st_uid);
+		else
+#endif
+			pwd = getpwuid(statp->st_uid);
+	}
+	if (pwd == NULL)
 		printf("uid=%ju, ", (uintmax_t)statp->st_uid);
 	else
 		printf("uid=\"%s\", ", pwd->pw_name);
-	if (resolv == 0 || (grp = getgrgid(statp->st_gid)) == NULL)
+	if (resolv == 0) {
+		grp = NULL;
+	} else {
+#ifdef HAVE_LIBCAPSICUM
+		if (capgrp != NULL)
+			grp = cap_getgrgid(capgrp, statp->st_gid);
+		else
+#endif
+			grp = getgrgid(statp->st_gid);
+	}
+	if (grp == NULL)
 		printf("gid=%ju, ", (uintmax_t)statp->st_gid);
 	else
 		printf("gid=\"%s\", ", grp->gr_name);
