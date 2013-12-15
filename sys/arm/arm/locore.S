@@ -287,7 +287,7 @@ Lstartup_pagetable_secondary:
 
 .Lstart:
 	.word	_edata
-	.word	_end
+	.word	_ebss
 	.word	svcstk + INIT_ARM_STACK_SIZE
 
 .Lvirt_done:
