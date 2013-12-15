@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 .if (${MACHINE_ARCH} == "amd64")
 SFX=		32
 .endif
