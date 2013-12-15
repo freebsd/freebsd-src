@@ -38,8 +38,6 @@ struct cmsgcred;
 struct iovec;
 struct msghdr;
 
-int msg_peek(int sock, void *buf, size_t size);
-
 int cred_send(int sock);
 int cred_recv(int sock, struct cmsgcred *cred);
 
