@@ -214,7 +214,8 @@ in the following sections.
 -Wimport  -Wno-import  -Winit-self  -Winline @gol
 -Wno-int-to-pointer-cast @gol
 -Wno-invalid-offsetof  -Winvalid-pch @gol
--Wlarger-than-@var{len}  -Wunsafe-loop-optimizations  -Wlong-long @gol
+-Wlarger-than-@var{len}  -Wframe-larger-than-@var{len} @gol
+-Wunsafe-loop-optimizations  -Wlong-long @gol
 -Wmain  -Wmissing-braces  -Wmissing-field-initializers @gol
 -Wmissing-format-attribute  -Wmissing-include-dirs @gol
 -Wmissing-noreturn @gol
@@ -758,6 +759,8 @@ See S/390 and zSeries Options.
 -fnon-call-exceptions  -funwind-tables @gol
 -fasynchronous-unwind-tables @gol
 -finhibit-size-directive  -finstrument-functions @gol
+-finstrument-functions-exclude-function-list=@var{sym},@var{sym},@dots{} @gol
+-finstrument-functions-exclude-file-list=@var{file},@var{file},@dots{} @gol
 -fno-common  -fno-ident @gol
 -fpcc-struct-return  -fpic  -fPIC -fpie -fPIE @gol
 -fno-jump-tables @gol
@@ -2505,14 +2508,40 @@ It warns about code which might break the strict aliasing rules that the
 compiler is using for optimization.  The warning does not catch all
 cases, but does attempt to catch the more common pitfalls.  It is
 included in @option{-Wall}.
+It is equivalent to -Wstrict-aliasing=3
 
-@item -Wstrict-aliasing=2
-@opindex Wstrict-aliasing=2
+@item -Wstrict-aliasing=n
+@opindex Wstrict-aliasing=n
 This option is only active when @option{-fstrict-aliasing} is active.
 It warns about code which might break the strict aliasing rules that the
-compiler is using for optimization.  This warning catches more cases than
-@option{-Wstrict-aliasing}, but it will also give a warning for some ambiguous
-cases that are safe.
+compiler is using for optimization.
+Higher levels correspond to higher accuracy (fewer false positives).
+Higher levels also correspond to more effort, similar to the way -O works.
+@option{-Wstrict-aliasing} is equivalent to @option{-Wstrict-aliasing=n},
+with n=3.
+
+Level 1: Most aggressive, quick, least accurate.
+Possibly useful when higher levels
+do not warn but -fstrict-aliasing still breaks the code, as it has very few 
+false negatives.  However, it has many false positives.
+Warns for all pointer conversions between possibly incompatible types, 
+even if never dereferenced.  Runs in the frontend only.
+
+Level 2: Aggressive, quick, not too precise.
+May still have many false positives (not as many as level 1 though),
+and few false negatives (but possibly more than level 1).
+Unlike level 1, it only warns when an address is taken.  Warns about
+incomplete types.  Runs in the frontend only.
+
+Level 3 (default for @option{-Wstrict-aliasing}): 
+Should have very few false positives and few false 
+negatives.  Slightly slower than levels 1 or 2 when optimization is enabled.
+Takes care of the common punn+dereference pattern in the frontend:
+@code{*(int*)&some_float}.
+If optimization is enabled, it also runs in the backend, where it deals 
+with multiple statement cases using flow-sensitive points-to information.
+Only warns when the converted pointer is dereferenced.
+Does not warn about incomplete types.
 
 @item -Wstrict-overflow
 @item -Wstrict-overflow=@var{n}
@@ -2827,6 +2856,10 @@ global variable or whenever a built-in function is shadowed.
 @item -Wlarger-than-@var{len}
 @opindex Wlarger-than
 Warn whenever an object of larger than @var{len} bytes is defined.
+
+@item -Wframe-larger-than-@var{len}
+@opindex Wframe-larger-than
+Warn whenever the frame size of a function is larger than @var{len} bytes.
 
 @item -Wunsafe-loop-optimizations
 @opindex Wunsafe-loop-optimizations
@@ -13355,6 +13388,37 @@ interrupt routines, and any functions from which the profiling functions
 cannot safely be called (perhaps signal handlers, if the profiling
 routines generate output or allocate memory).
 
+@item -finstrument-functions-exclude-file-list=@var{file},@var{file},@dots{}
+@opindex finstrument-functions-exclude-file-list
+
+Set the list of functions that are excluded from instrumentation (see
+the description of @code{-finstrument-functions}).  If the file that
+contains a function definition matches with one of @var{file}, then
+that function is not instrumented.  The match is done on substrings:
+if the @var{file} parameter is a substring of the file name, it is
+considered to be a match.
+
+For example,
+@code{-finstrument-functions-exclude-file-list=/bits/stl,include/sys}
+will exclude any inline function defined in files whose pathnames
+contain @code{/bits/stl} or @code{include/sys}.
+
+If, for some reason, you want to include letter @code{','} in one of
+@var{sym}, write @code{'\,'}. For example,
+@code{-finstrument-functions-exclude-file-list='\,\,tmp'}
+(note the single quote surrounding the option).
+
+@item -finstrument-functions-exclude-function-list=@var{sym},@var{sym},@dots{}
+@opindex finstrument-functions-exclude-function-list
+
+This is similar to @code{-finstrument-functions-exclude-file-list},
+but this option sets the list of function names to be excluded from
+instrumentation.  The function name to be matched is its user-visible
+name, such as @code{vector<int> blah(const vector<int> &)}, not the
+internal mangled name (e.g., @code{_Z4blahRSt6vectorIiSaIiEE}).  The
+match is done on substrings: if the @var{sym} parameter is a substring
+of the function name, it is considered to be a match.
+
 @item -fstack-check
 @opindex fstack-check
 Generate code to verify that you do not go beyond the boundary of the
@@ -13932,3 +13996,4 @@ exist, because otherwise they won't get converted.
 
 @xref{Protoize Caveats}, for more information on how to use
 @code{protoize} successfully.
+
