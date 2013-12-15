@@ -76,6 +76,12 @@ extern int SIZE_BUF;
 #include <net/bpf.h>
 #include <fcntl.h>
 #include <libgen.h>
+#ifdef HAVE_LIBCAPSICUM
+#include <libcapsicum.h>
+#include <libcapsicum_dns.h>
+#include <libcapsicum_service.h>
+#include <nv.h>
+#endif	/* HAVE_LIBCAPSICUM */
 #endif	/* __FreeBSD__ */
 #ifndef WIN32
 #include <sys/wait.h>
@@ -122,6 +128,10 @@ static int infodelay;
 static int infoprint;
 
 char *program_name;
+
+#ifdef HAVE_LIBCAPSICUM
+cap_channel_t *capdns;
+#endif
 
 int32_t thiszone;		/* seconds offset from gmt to local time */
 
@@ -683,6 +693,45 @@ get_next_file(FILE *VFile, char *ptr)
 
 	return ret;
 }
+
+#ifdef HAVE_LIBCAPSICUM
+static cap_channel_t *
+capdns_setup(void)
+{
+	cap_channel_t *capcas, *capdnsloc;
+	const char *types[1];
+	int families[2];
+
+	capcas = cap_init();
+	if (capcas == NULL) {
+		warning("unable to contact casperd");
+		return (NULL);
+	}
+	capdnsloc = cap_service_open(capcas, "system.dns");
+	/* Casper capability no longer needed. */
+	cap_close(capcas);
+	if (capdnsloc == NULL) {
+		warning("unable to open system.dns service");
+		return (NULL);
+	}
+	/* Limit system.dns to reverse DNS lookups. */
+	types[0] = "ADDR";
+	if (cap_dns_type_limit(capdnsloc, types, 1) < 0) {
+		warning("unable to limit access to system.dns service");
+		cap_close(capdnsloc);
+		return (NULL);
+	}
+	families[0] = AF_INET;
+	families[1] = AF_INET6;
+	if (cap_dns_family_limit(capdnsloc, families, 2) < 0) {
+		warning("unable to limit access to system.dns service");
+		cap_close(capdnsloc);
+		return (NULL);
+	}
+
+	return (capdnsloc);
+}
+#endif	/* HAVE_LIBCAPSICUM */
 
 int
 main(int argc, char **argv)
@@ -1417,6 +1466,12 @@ main(int argc, char **argv)
 		free(cmdbuf);
 		exit(0);
 	}
+
+#ifdef HAVE_LIBCAPSICUM
+	if (!nflag)
+		capdns = capdns_setup();
+#endif	/* HAVE_LIBCAPSICUM */
+
 	init_addrtoname(localnet, netmask);
         init_checksum();
 
@@ -1615,7 +1670,12 @@ main(int argc, char **argv)
 #endif /* WIN32 */
 
 #ifdef __FreeBSD__
-	cansandbox = (nflag && VFileName == NULL && zflag == NULL);
+	cansandbox = (VFileName == NULL && zflag == NULL);
+#ifdef HAVE_LIBCAPSICUM
+	cansandbox = (cansandbox && (nflag || capdns != NULL));
+#else
+	cansandbox = (cansandbox && nflag);
+#endif
 	if (cansandbox && cap_enter() < 0 && errno != ENOSYS)
 		error("unable to enter the capability mode");
 	if (cap_sandboxed())
