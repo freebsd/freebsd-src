@@ -897,11 +897,13 @@ CNAME(dblow):
 #ifdef KDTRACE_HOOKS
 	/* Privileged, so drop to KDB */
 	mfsrr0	%r1
-	lwz	%r4,0(%r1)
+	mtsprg3	%r3
+	lwz	%r1,0(%r1)
 	/* Check if it's a DTrace trap. */
 	li	%r3,0x0808
 	addis	%r3,%r3,0x7c81
-	cmplw	%cr0,%r3,%r4
+	cmplw	%cr0,%r3,%r1
+	mfsprg3	%r3
 	beq	%cr0,1b
 #endif
 	/* Privileged, so drop to KDB */
