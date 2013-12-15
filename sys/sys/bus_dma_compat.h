@@ -50,7 +50,8 @@ bus_dma_tag_create(bus_dma_tag_t dt, bus_size_t align, bus_addr_t bndry,
 	uintptr_t token;
 	int error;
 
-	KASSERT(highaddr == BUS_SPACE_MAXADDR, ("%s: bad highaddr", __func__));
+	KASSERT(highaddr == BUS_SPACE_MAXADDR,
+	    ("%s: bad highaddr %lx", __func__, (u_long)highaddr));
 
 	token = (uintptr_t)(void *)dt;
 	if (token & 1UL) {
