@@ -1880,7 +1880,11 @@ dev/nand/nfc_if.m		optional nand
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
 dev/netmap/netmap.c		optional netmap
+dev/netmap/netmap_freebsd.c	optional netmap
+dev/netmap/netmap_generic.c	optional netmap
+dev/netmap/netmap_mbq.c	optional netmap
 dev/netmap/netmap_mem2.c	optional netmap
+dev/netmap/netmap_vale.c	optional netmap
 # compile-with "${NORMAL_C} -Wconversion -Wextra"
 dev/nge/if_nge.c		optional nge
 dev/nxge/if_nxge.c		optional nxge \
