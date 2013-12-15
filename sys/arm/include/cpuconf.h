@@ -183,6 +183,11 @@
 #error ARM_NMMUS is 0
 #endif
 
+#if (ARM_MMU_V6 + ARM_MMU_V7) > 0 && ARM_NMMUS != (ARM_MMU_V6 + ARM_MMU_V7)
+#error Unable to mix pre-v6 MMUs with post-v6 MMUs
+#endif
+
+
 /*
  * Step 4: Define features that may be present on a subset of CPUs
  *
