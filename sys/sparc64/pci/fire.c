@@ -88,8 +88,10 @@ __FBSDID("$FreeBSD$");
 struct fire_msiqarg;
 
 static const struct fire_desc *fire_get_desc(device_t dev);
+#ifdef LEGACY_BUS_DMA
 static void fire_dmamap_sync(bus_dma_tag_t dt __unused, bus_dmamap_t map,
     bus_dmasync_op_t op);
+#endif
 static int fire_get_intrmap(struct fire_softc *sc, u_int ino,
     bus_addr_t *intrmapptr, bus_addr_t *intrclrptr);
 static void fire_intr_assign(void *arg);
@@ -707,15 +709,19 @@ fire_attach(device_t dev)
 	 * Set up the IOMMU.  Both Fire and Oberon have one per PBM, but
 	 * neither has a streaming buffer.
 	 */
+#ifdef LEGACY_BUS_DMA
 	memcpy(&sc->sc_dma_methods, &iommu_dma_methods,
 	    sizeof(sc->sc_dma_methods));
+#endif
 	sc->sc_is_ptr = &sc->sc_is;	/* For busdma/mi */
 	sc->sc_is.is_flags = IOMMU_FIRE | IOMMU_PRESERVE_PROM;
 	if (sc->sc_mode == FIRE_MODE_OBERON) {
 		sc->sc_is.is_flags |= IOMMU_FLUSH_CACHE;
 		sc->sc_is.is_pmaxaddr = IOMMU_MAXADDR(OBERON_IOMMU_BITS);
 	} else {
+#ifdef LEGACY_BUS_DMA
 		sc->sc_dma_methods.dm_dmamap_sync = fire_dmamap_sync;
+#endif
 		sc->sc_is.is_pmaxaddr = IOMMU_MAXADDR(FIRE_IOMMU_BITS);
 	}
 	sc->sc_is.is_sb[0] = sc->sc_is.is_sb[1] = 0;
@@ -776,10 +782,11 @@ fire_attach(device_t dev)
 	    sc->sc_is.is_pmaxaddr, ~0, NULL, NULL, sc->sc_is.is_pmaxaddr,
 	    0xff, 0xffffffff, 0, NULL, NULL, &sc->sc_pci_dmat) != 0)
 		panic("%s: could not create PCI DMA tag", __func__);
+#ifdef LEGACY_BUS_DMA
 	/* Customize the tag. */
 	sc->sc_pci_dmat->dt_cookie = &sc->sc_is;
 	sc->sc_pci_dmat->dt_mt = &sc->sc_dma_methods;
-
+#endif
 	/*
 	 * Get the bus range from the firmware.
 	 * NB: Neither Fire nor Oberon support PCI bus reenumeration.
@@ -1510,6 +1517,7 @@ fire_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	return (ENOENT);
 }
 
+#ifdef LEGACY_BUS_DMA
 static void
 fire_dmamap_sync(bus_dma_tag_t dt __unused, bus_dmamap_t map,
     bus_dmasync_op_t op)
@@ -1532,6 +1540,7 @@ fire_dmamap_sync(bus_dma_tag_t dt __unused, bus_dmamap_t map,
 	} else if ((op & BUS_DMASYNC_PREWRITE) != 0)
 		membar(Sync);
 }
+#endif /* LEGACY_BUS_DMA */
 
 static void
 fire_intr_enable(void *arg)

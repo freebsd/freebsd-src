@@ -45,8 +45,9 @@ struct schizo_softc {
 	 * it from within the busdma I/F methods.
 	 */
 	struct iommu_state		*sc_is_ptr;
+#ifdef LEGACY_BUS_DMA
 	struct bus_dma_methods          sc_dma_methods;
-
+#endif
 	device_t			sc_dev;
 
 	struct mtx			sc_sync_mtx;

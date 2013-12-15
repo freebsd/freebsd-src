@@ -39,8 +39,9 @@ struct fire_softc {
 	 */
 	struct iommu_state		*sc_is_ptr;
 	struct iommu_state		sc_is;
+#ifdef LEGACY_BUS_DMA
 	struct bus_dma_methods		sc_dma_methods;
-
+#endif
 	struct mtx			sc_msi_mtx;
 	struct mtx			sc_pcib_mtx;
 

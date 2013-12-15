@@ -97,7 +97,9 @@ static bus_get_resource_list_t nexus_get_resource_list;
 static bus_bind_intr_t nexus_bind_intr;
 #endif
 static bus_describe_intr_t nexus_describe_intr;
+#ifdef LEGACY_BUS_DMA
 static bus_get_dma_tag_t nexus_get_dma_tag;
+#endif
 static ofw_bus_get_devinfo_t nexus_get_devinfo;
 
 static int nexus_inlist(const char *, const char *const *);
@@ -134,8 +136,9 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
 #endif
 	DEVMETHOD(bus_describe_intr,	nexus_describe_intr),
+#ifdef LEGACY_BUS_DMA
 	DEVMETHOD(bus_get_dma_tag,	nexus_get_dma_tag),
-
+#endif
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	nexus_get_devinfo),
 	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
@@ -181,7 +184,9 @@ static const char *const nexus_excl_type[] = {
 };
 
 extern struct bus_space_tag nexus_bustag;
+#ifdef LEGACY_BUS_DMA
 extern struct bus_dma_tag nexus_dmatag;
+#endif
 
 static int
 nexus_inlist(const char *name, const char *const *list)
@@ -495,12 +500,14 @@ nexus_get_resource_list(device_t bus __unused, device_t child)
 	return (&ndi->ndi_rl);
 }
 
+#ifdef LEGACY_BUS_DMA
 static bus_dma_tag_t
 nexus_get_dma_tag(device_t bus __unused, device_t child __unused)
 {
 
 	return (&nexus_dmatag);
 }
+#endif
 
 static const struct ofw_bus_devinfo *
 nexus_get_devinfo(device_t bus __unused, device_t child)

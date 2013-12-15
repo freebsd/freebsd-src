@@ -219,6 +219,7 @@ iommu_strbuf_sync(struct iommu_state *is)
 	iommu_strbuf_flush_sync(is);
 }
 
+#ifdef LEGACY_BUS_DMA
 /* LRU queue handling for lazy resource allocation. */
 static __inline void
 iommu_map_insq(struct iommu_state *is, bus_dmamap_t map)
@@ -242,6 +243,7 @@ iommu_map_remq(struct iommu_state *is, bus_dmamap_t map)
 		TAILQ_REMOVE(&is->is_maplruq, map, dm_maplruq);
 	map->dm_onq = 0;
 }
+#endif /* LEGACY_BUS_DMA */
 
 /*
  * initialise the UltraSPARC IOMMU (PCI or SBus):
@@ -561,6 +563,7 @@ iommu_strbuf_flush_sync(struct iommu_state *is)
 	return (1);
 }
 
+#ifdef LEGACY_BUS_DMA
 /* Determine whether we may enable streaming on a mapping. */
 static __inline int
 iommu_use_streaming(struct iommu_state *is, bus_dmamap_t map, bus_size_t size)
@@ -1166,6 +1169,7 @@ iommu_dvmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 	if ((op & BUS_DMASYNC_PREWRITE) != 0)
 		membar(Sync);
 }
+#endif /* LEGACY_BUS_DMA */
 
 
 
@@ -1202,8 +1206,10 @@ iommu_map(device_t bus, device_t dev __unused, busdma_md_t md, u_int idx,
 	size = busdma_md_get_size(md, idx) + (ba & IO_PAGE_MASK);
 	size = round_io_page(size) >> IO_PAGE_SHIFT;
 
+	IS_LOCK(is);
 	r = rman_reserve_resource_bound(&is->is_dvma_rman, 0L, maxaddr, size,
 	    bndry, RF_ACTIVE | rman_make_alignment_flags(align), NULL);
+	IS_UNLOCK(is);
 	if (r == NULL)
 		return (ENOMEM);
 
@@ -1341,6 +1347,7 @@ iommu_diag(struct iommu_state *is, vm_offset_t va)
 
 #endif /* IOMMU_DIAG */
 
+#ifdef LEGACY_BUS_DMA
 struct bus_dma_methods iommu_dma_methods = {
 	iommu_dvmamap_create,
 	iommu_dvmamap_destroy,
@@ -1353,3 +1360,4 @@ struct bus_dma_methods iommu_dma_methods = {
 	iommu_dvmamem_alloc,
 	iommu_dvmamem_free,
 };
+#endif /* LEGACY_BUS_DMA */

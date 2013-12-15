@@ -86,8 +86,10 @@ static void psycho_set_intr(struct psycho_softc *, u_int, bus_addr_t,
     driver_filter_t, driver_intr_t);
 static int psycho_find_intrmap(struct psycho_softc *, u_int, bus_addr_t *,
     bus_addr_t *, u_long *);
+#ifdef LEGACY_BUS_DMA
 static void sabre_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map,
     bus_dmasync_op_t op);
+#endif
 static void psycho_intr_enable(void *);
 static void psycho_intr_disable(void *);
 static void psycho_intr_assign(void *);
@@ -549,6 +551,7 @@ psycho_attach(device_t dev)
 			panic("%s: could not malloc IOMMU state", __func__);
 		sc->sc_is->is_flags = IOMMU_PRESERVE_PROM;
 		if (sc->sc_mode == PSYCHO_MODE_SABRE) {
+#ifdef LEGACY_BUS_DMA
 			sc->sc_dma_methods =
 			    malloc(sizeof(*sc->sc_dma_methods), M_DEVBUF,
 			    M_NOWAIT);
@@ -559,10 +562,13 @@ psycho_attach(device_t dev)
 			    sizeof(*sc->sc_dma_methods));
 			sc->sc_dma_methods->dm_dmamap_sync =
 			    sabre_dmamap_sync;
+#endif
 			sc->sc_is->is_pmaxaddr =
 			    IOMMU_MAXADDR(SABRE_IOMMU_BITS);
 		} else {
+#ifdef LEGACY_BUS_DMA
 			sc->sc_dma_methods = &iommu_dma_methods;
+#endif
 			sc->sc_is->is_pmaxaddr =
 			    IOMMU_MAXADDR(PSYCHO_IOMMU_BITS);
 		}
@@ -572,8 +578,10 @@ psycho_attach(device_t dev)
 		sc->sc_is->is_flags |= (rerun != 1) ? IOMMU_RERUN_DISABLE : 0;
 		psycho_iommu_init(sc, 3, dvmabase);
 	} else {
+#ifdef LEGACY_BUS_DMA
 		/* Just copy IOMMU state, config tag and address. */
 		sc->sc_dma_methods = &iommu_dma_methods;
+#endif
 		sc->sc_is = osc->sc_is;
 		if (OF_getproplen(node, "no-streaming-cache") < 0)
 			sc->sc_is->is_sb[1] = sc->sc_pcictl + PCR_STRBUF;
@@ -592,10 +600,11 @@ psycho_attach(device_t dev)
 	    sc->sc_is->is_pmaxaddr, ~0, NULL, NULL, sc->sc_is->is_pmaxaddr,
 	    0xff, 0xffffffff, 0, NULL, NULL, &sc->sc_pci_dmat) != 0)
 		panic("%s: could not create PCI DMA tag", __func__);
+#ifdef LEGACY_BUS_DMA
 	/* Customize the tag. */
 	sc->sc_pci_dmat->dt_cookie = sc->sc_is;
 	sc->sc_pci_dmat->dt_mt = sc->sc_dma_methods;
-
+#endif
 	i = OF_getprop(node, "bus-range", (void *)prop_array,
 	    sizeof(prop_array));
 	if (i == -1)
@@ -1105,6 +1114,7 @@ psycho_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	return (ENOENT);
 }
 
+#ifdef LEGACY_BUS_DMA
 static void
 sabre_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 {
@@ -1120,6 +1130,7 @@ sabre_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 	if ((op & BUS_DMASYNC_PREWRITE) != 0)
 		membar(Sync);
 }
+#endif /* LEGACY_BUS_DMA */
 
 static void
 psycho_intr_enable(void *arg)

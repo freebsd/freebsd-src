@@ -138,6 +138,7 @@ const int bus_stream_asi[] = {
 	0
 };
 
+#ifdef LEGACY_BUS_DMA
 /*
  * Convenience function for manipulating driver locks from busdma (during
  * busdma_swi, for example).  Drivers that don't provide their own locks
@@ -593,6 +594,7 @@ struct bus_dma_tag nexus_dmatag = {
 	NULL,
 	&nexus_dma_methods,
 };
+#endif /* LEGACY_BUS_DMA */
 
 /*
  * Helpers to map/unmap bus memory

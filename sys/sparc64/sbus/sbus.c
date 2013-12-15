@@ -385,10 +385,11 @@ sbus_attach(device_t dev)
 	    sc->sc_is.is_pmaxaddr, ~0, NULL, NULL, sc->sc_is.is_pmaxaddr,
 	    0xff, 0xffffffff, 0, NULL, NULL, &sc->sc_cdmatag) != 0)
 		panic("%s: bus_dma_tag_create failed", __func__);
+#ifdef LEGACY_BUS_DMA
 	/* Customize the tag. */
 	sc->sc_cdmatag->dt_cookie = &sc->sc_is;
 	sc->sc_cdmatag->dt_mt = &iommu_dma_methods;
-
+#endif
 	/*
 	 * Hunt through all the interrupt mapping regs and register our
 	 * interrupt controller for the corresponding interrupt vectors.

@@ -82,10 +82,12 @@ __FBSDID("$FreeBSD$");
 static const struct schizo_desc *schizo_get_desc(device_t);
 static void schizo_set_intr(struct schizo_softc *, u_int, u_int,
     driver_filter_t);
+#ifdef LEGACY_BUS_DMA
 static void schizo_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map,
     bus_dmasync_op_t op);
 static void ichip_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map,
     bus_dmasync_op_t op);
+#endif
 static void schizo_intr_enable(void *);
 static void schizo_intr_disable(void *);
 static void schizo_intr_assign(void *);
@@ -512,8 +514,10 @@ schizo_attach(device_t dev)
 	 * affected by several errata though.  However, except for context
 	 * flushes, taking advantage of it should be okay even with those.
 	 */
+#ifdef LEGACY_BUS_DMA
 	memcpy(&sc->sc_dma_methods, &iommu_dma_methods,
 	    sizeof(sc->sc_dma_methods));
+#endif
 	sc->sc_is_ptr = &sc->sc_is.sis_is;	/* For busdma/mi */
 	sc->sc_is.sis_sc = sc;
 	sc->sc_is.sis_is.is_flags = IOMMU_PRESERVE_PROM;
@@ -601,10 +605,11 @@ schizo_attach(device_t dev)
 	    sc->sc_is.sis_is.is_pmaxaddr, 0xff, 0xffffffff, 0, NULL, NULL,
 	    &sc->sc_pci_dmat) != 0)
 		panic("%s: could not create PCI DMA tag", __func__);
+#ifdef LEGACY_BUS_DMA
 	/* Customize the tag. */
 	sc->sc_pci_dmat->dt_cookie = &sc->sc_is;
 	sc->sc_pci_dmat->dt_mt = &sc->sc_dma_methods;
-
+#endif
 	/*
 	 * Get the bus range from the firmware.
 	 * NB: Tomatillos don't support PCI bus reenumeration.
@@ -704,8 +709,10 @@ schizo_attach(device_t dev)
 	    sc->sc_mode == SCHIZO_MODE_TOM ||
 	    sc->sc_mode == SCHIZO_MODE_XMS) {
 		if (sc->sc_mode == SCHIZO_MODE_SCZ) {
+#ifdef LEGACY_BUS_DMA
 			sc->sc_dma_methods.dm_dmamap_sync =
 			    schizo_dmamap_sync;
+#endif
 			sc->sc_cdma_state = SCHIZO_CDMA_STATE_IDLE;
 			/*
 			 * Some firmware versions include the CDMA interrupt
@@ -741,8 +748,10 @@ schizo_attach(device_t dev)
 				    NULL, MTX_SPIN);
 			sc->sc_sync_val = 1ULL << (STX_PCIERR_A_INO +
 			    sc->sc_half);
+#ifdef LEGACY_BUS_DMA
 			sc->sc_dma_methods.dm_dmamap_sync =
 			    ichip_dmamap_sync;
+#endif
 		}
 		if (sc->sc_mode == SCHIZO_MODE_TOM && sc->sc_ver <= 4)
 			sc->sc_flags |= SCHIZO_FLAGS_BSWAR;
@@ -1159,6 +1168,7 @@ schizo_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	return (ENOENT);
 }
 
+#ifdef LEGACY_BUS_DMA
 static void
 schizo_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 {
@@ -1271,6 +1281,7 @@ ichip_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 	if ((op & BUS_DMASYNC_PREWRITE) != 0)
 		membar(Sync);
 }
+#endif /* LEGACY_BUS_DMA */
 
 static void
 schizo_intr_enable(void *arg)
