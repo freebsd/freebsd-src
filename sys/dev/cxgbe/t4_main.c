@@ -161,10 +161,10 @@ MALLOC_DEFINE(M_CXGBE, "cxgbe", "Chelsio T4/T5 Ethernet driver and services");
  * then ADAPTER_LOCK, then t4_uld_list_lock.
  */
 static struct sx t4_list_lock;
-static SLIST_HEAD(, adapter) t4_list;
+SLIST_HEAD(, adapter) t4_list;
 #ifdef TCP_OFFLOAD
 static struct sx t4_uld_list_lock;
-static SLIST_HEAD(, uld_info) t4_uld_list;
+SLIST_HEAD(, uld_info) t4_uld_list;
 #endif
 
 /*
@@ -549,6 +549,7 @@ t4_attach(device_t dev)
 #ifdef TCP_OFFLOAD
 	int ofld_rqidx, ofld_tqidx;
 #endif
+	const char *pcie_ts;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -816,9 +817,24 @@ t4_attach(device_t dev)
 		goto done;
 	}
 
+	switch (sc->params.pci.speed) {
+		case 0x1:
+			pcie_ts = "2.5";
+			break;
+		case 0x2:
+			pcie_ts = "5.0";
+			break;
+		case 0x3:
+			pcie_ts = "8.0";
+			break;
+		default:
+			pcie_ts = "??";
+			break;
+	}
 	device_printf(dev,
-	    "PCIe x%d, %d ports, %d %s interrupt%s, %d eq, %d iq\n",
-	    sc->params.pci.width, sc->params.nports, sc->intr_count,
+	    "PCIe x%d (%s GTS/s) (%d), %d ports, %d %s interrupt%s, %d eq, %d iq\n",
+	    sc->params.pci.width, pcie_ts, sc->params.pci.speed,
+	    sc->params.nports, sc->intr_count,
 	    sc->intr_type == INTR_MSIX ? "MSI-X" :
 	    (sc->intr_type == INTR_MSI ? "MSI" : "INTx"),
 	    sc->intr_count > 1 ? "s" : "", sc->sge.neq, sc->sge.niq);
@@ -2343,7 +2359,6 @@ use_config_on_flash:
 
 #define LIMIT_CAPS(x) do { \
 	caps.x &= htobe16(t4_##x##_allowed); \
-	sc->x = htobe16(caps.x); \
 } while (0)
 
 	/*
@@ -2445,6 +2460,8 @@ get_params__post_init(struct adapter *sc)
 	sc->sge.eq_start = val[1];
 	sc->tids.ftid_base = val[2];
 	sc->tids.nftids = val[3] - val[2] + 1;
+	sc->params.ftid_min = val[2];
+	sc->params.ftid_max = val[3];
 	sc->vres.l2t.start = val[4];
 	sc->vres.l2t.size = val[5] - val[4] + 1;
 	KASSERT(sc->vres.l2t.size <= L2T_SIZE,
@@ -2463,7 +2480,35 @@ get_params__post_init(struct adapter *sc)
 		return (rc);
 	}
 
-	if (caps.toecaps) {
+#define READ_CAPS(x) do { \
+	sc->x = htobe16(caps.x); \
+} while (0)
+	READ_CAPS(linkcaps);
+	READ_CAPS(niccaps);
+	READ_CAPS(toecaps);
+	READ_CAPS(rdmacaps);
+	READ_CAPS(iscsicaps);
+	READ_CAPS(fcoecaps);
+
+	if (sc->niccaps & FW_CAPS_CONFIG_NIC_ETHOFLD) {
+		param[0] = FW_PARAM_PFVF(ETHOFLD_START);
+		param[1] = FW_PARAM_PFVF(ETHOFLD_END);
+		param[2] = FW_PARAM_DEV(FLOWC_BUFFIFO_SZ);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 3, param, val);
+		if (rc != 0) {
+			device_printf(sc->dev,
+			    "failed to query NIC parameters: %d.\n", rc);
+			return (rc);
+		}
+		sc->tids.etid_base = val[0];
+		sc->params.etid_min = val[0];
+		sc->tids.netids = val[1] - val[0] + 1;
+		sc->params.netids = sc->tids.netids;
+		sc->params.eo_wr_cred = val[2];
+		sc->params.ethoffload = 1;
+	}
+
+	if (sc->toecaps) {
 		/* query offload-related parameters */
 		param[0] = FW_PARAM_DEV(NTID);
 		param[1] = FW_PARAM_PFVF(SERVER_START);
@@ -2486,7 +2531,7 @@ get_params__post_init(struct adapter *sc)
 		sc->params.ofldq_wr_cred = val[5];
 		sc->params.offload = 1;
 	}
-	if (caps.rdmacaps) {
+	if (sc->rdmacaps) {
 		param[0] = FW_PARAM_PFVF(STAG_START);
 		param[1] = FW_PARAM_PFVF(STAG_END);
 		param[2] = FW_PARAM_PFVF(RQ_START);
@@ -2525,7 +2570,7 @@ get_params__post_init(struct adapter *sc)
 		sc->vres.ocq.start = val[4];
 		sc->vres.ocq.size = val[5] - val[4] + 1;
 	}
-	if (caps.iscsicaps) {
+	if (sc->iscsicaps) {
 		param[0] = FW_PARAM_PFVF(ISCSI_START);
 		param[1] = FW_PARAM_PFVF(ISCSI_END);
 		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 2, param, val);
@@ -3157,7 +3202,7 @@ port_full_init(struct port_info *pi)
 	struct ifnet *ifp = pi->ifp;
 	uint16_t *rss;
 	struct sge_rxq *rxq;
-	int rc, i;
+	int rc, i, j;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 	KASSERT((pi->flags & PORT_INIT_DONE) == 0,
@@ -3174,21 +3219,25 @@ port_full_init(struct port_info *pi)
 		goto done;	/* error message displayed already */
 
 	/*
-	 * Setup RSS for this port.
+	 * Setup RSS for this port.  Save a copy of the RSS table for later use.
 	 */
-	rss = malloc(pi->nrxq * sizeof (*rss), M_CXGBE,
-	    M_ZERO | M_WAITOK);
-	for_each_rxq(pi, i, rxq) {
-		rss[i] = rxq->iq.abs_id;
+	rss = malloc(pi->rss_size * sizeof (*rss), M_CXGBE, M_ZERO | M_WAITOK);
+	for (i = 0; i < pi->rss_size;) {
+		for_each_rxq(pi, j, rxq) {
+			rss[i++] = rxq->iq.abs_id;
+			if (i == pi->rss_size)
+				break;
+		}
 	}
-	rc = -t4_config_rss_range(sc, sc->mbox, pi->viid, 0,
-	    pi->rss_size, rss, pi->nrxq);
-	free(rss, M_CXGBE);
+
+	rc = -t4_config_rss_range(sc, sc->mbox, pi->viid, 0, pi->rss_size, rss,
+	    pi->rss_size);
 	if (rc != 0) {
 		if_printf(ifp, "rss_config failed: %d\n", rc);
 		goto done;
 	}
 
+	pi->rss = rss;
 	pi->flags |= PORT_INIT_DONE;
 done:
 	if (rc != 0)
@@ -3237,6 +3286,7 @@ port_full_uninit(struct port_info *pi)
 			quiesce_fl(sc, &ofld_rxq->fl);
 		}
 #endif
+		free(pi->rss, M_CXGBE);
 	}
 
 	t4_teardown_port_queues(pi);
@@ -4466,6 +4516,7 @@ cxgbe_sysctls(struct port_info *pi)
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid *oid;
 	struct sysctl_oid_list *children;
+	struct adapter *sc = pi->adapter;
 
 	ctx = device_get_sysctl_ctx(pi->dev);
 
@@ -4495,7 +4546,7 @@ cxgbe_sysctls(struct port_info *pi)
 	    &pi->first_txq, 0, "index of first tx queue");
 
 #ifdef TCP_OFFLOAD
-	if (is_offload(pi->adapter)) {
+	if (is_offload(sc)) {
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nofldrxq", CTLFLAG_RD,
 		    &pi->nofldrxq, 0,
 		    "# of rx queues for offloaded TCP connections");
@@ -4534,7 +4585,7 @@ cxgbe_sysctls(struct port_info *pi)
 
 #define SYSCTL_ADD_T4_REG64(pi, name, desc, reg) \
 	SYSCTL_ADD_OID(ctx, children, OID_AUTO, name, \
-	    CTLTYPE_U64 | CTLFLAG_RD, pi->adapter, reg, \
+	    CTLTYPE_U64 | CTLFLAG_RD, sc, reg, \
 	    sysctl_handle_t4_reg64, "QU", desc)
 
 	SYSCTL_ADD_T4_REG64(pi, "tx_octets", "# of octets in good frames",
@@ -6104,6 +6155,11 @@ sysctl_tids(SYSCTL_HANDLER_ARGS)
 		    t->ftid_base + t->nftids - 1);
 	}
 
+	if (t->netids) {
+		sbuf_printf(sb, "ETID range: %u-%u\n", t->etid_base,
+		    t->etid_base + t->netids - 1);
+	}
+
 	sbuf_printf(sb, "HW TID usage: %u IP users, %u IPv6 users",
 	    t4_read_reg(sc, A_LE_DB_ACT_CNT_IPV4),
 	    t4_read_reg(sc, A_LE_DB_ACT_CNT_IPV6));
@@ -7135,14 +7191,17 @@ t4_filter_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct adapter *sc = iq->adapter;
 	const struct cpl_set_tcb_rpl *rpl = (const void *)(rss + 1);
 	unsigned int idx = GET_TID(rpl);
+	unsigned int rc;
+	struct filter_entry *f;
 
 	KASSERT(m == NULL, ("%s: payload with opcode %02x", __func__,
 	    rss->opcode));
 
-	if (idx >= sc->tids.ftid_base &&
-	    (idx -= sc->tids.ftid_base) < sc->tids.nftids) {
-		unsigned int rc = G_COOKIE(rpl->cookie);
-		struct filter_entry *f = &sc->tids.ftid_tab[idx];
+	if (is_ftid(sc, idx)) {
+
+		idx -= sc->tids.ftid_base;
+		f = &sc->tids.ftid_tab[idx];
+		rc = G_COOKIE(rpl->cookie);
 
 		mtx_lock(&sc->tids.ftid_lock);
 		if (rc == FW_FILTER_WR_FLT_ADDED) {

@@ -47,6 +47,12 @@
 #include <sys/sysctl.h>
 
 #include "opt_syscons.h"
+#include "opt_splash.h"
+
+#ifdef DEV_SC
+#error "Build with both syscons and vt is not supported. Please enable only \
+one 'device sc' or 'device vt'"
+#endif
 
 #ifndef	VT_MAXWINDOWS
 #ifdef	MAXCONS
@@ -179,15 +185,17 @@ void vtbuf_init(struct vt_buf *, const term_pos_t *);
 void vtbuf_grow(struct vt_buf *, const term_pos_t *, int);
 void vtbuf_putchar(struct vt_buf *, const term_pos_t *, term_char_t);
 void vtbuf_cursor_position(struct vt_buf *, const term_pos_t *);
-void vtbuf_mouse_cursor_position(struct vt_buf *vb, int col, int row);
-void vtbuf_cursor_visibility(struct vt_buf *, int);
 void vtbuf_scroll_mode(struct vt_buf *vb, int yes);
 void vtbuf_undirty(struct vt_buf *, term_rect_t *, struct vt_bufmask *);
 void vtbuf_sethistory_size(struct vt_buf *, int);
-int vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row);
 int vtbuf_iscursor(struct vt_buf *vb, int row, int col);
+void vtbuf_cursor_visibility(struct vt_buf *, int);
+#ifndef SC_NO_CUTPASTE
+void vtbuf_mouse_cursor_position(struct vt_buf *vb, int col, int row);
+int vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row);
 int vtbuf_get_marked_len(struct vt_buf *vb);
 void vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz);
+#endif
 
 #define	VTB_MARK_NONE		0
 #define	VTB_MARK_END		1
@@ -387,12 +395,14 @@ struct vt_font {
 	unsigned int		 vf_refcount;
 };
 
+#ifndef SC_NO_CUTPASTE
 struct mouse_cursor {
 	uint8_t map[64 * 64 / 8];
 	uint8_t mask[64 * 64 / 8];
 	uint8_t w;
 	uint8_t h;
 };
+#endif
 
 const uint8_t	*vtfont_lookup(const struct vt_font *vf, term_char_t c);
 struct vt_font	*vtfont_ref(struct vt_font *vf);
@@ -401,8 +411,10 @@ int		 vtfont_load(vfnt_t *f, struct vt_font **ret);
 
 /* Sysmouse. */
 void sysmouse_process_event(mouse_info_t *mi);
+#ifndef SC_NO_CUTPASTE
 void vt_mouse_event(int type, int x, int y, int event, int cnt);
 void vt_mouse_state(int show);
+#endif
 #define	VT_MOUSE_SHOW 1
 #define	VT_MOUSE_HIDE 0
 

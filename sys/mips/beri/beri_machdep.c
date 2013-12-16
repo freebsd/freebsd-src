@@ -178,7 +178,7 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 
 	if (OF_install(OFW_FDT, 0) == FALSE)
 		while (1);
-	if (OF_init(&fdt_static_dtb) != 0)
+	if (OF_init((void *)dtbp) != 0)
 		while (1);
 #endif
 

@@ -66,7 +66,7 @@ TEST=$WORKDIR/test
 build_trees()
 {
 
-	# Populate trees with pre-world files and an additional file
+	# Populate trees with pre-world files and additional files
 	# that should not be touched.
 
 	rm -rf $SRC $OLD $TEST $CONFLICTS
@@ -126,6 +126,7 @@ polkit:*:562:
 haldaemon:*:560:
 EOF
 	rm $TEST/etc/inetd.conf
+	touch $TEST/etc/localtime
 
 	# Copy the "old" source tree to the new source tree and
 	# make upstream modifications.

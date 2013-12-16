@@ -90,8 +90,10 @@ enum x2apic_state;
 
 struct vlapic *vlapic_init(struct vm *vm, int vcpuid);
 void vlapic_cleanup(struct vlapic *vlapic);
-int vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data);
-int vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data);
+int vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data,
+    bool *retu);
+int vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data,
+    bool *retu);
 int vlapic_pending_intr(struct vlapic *vlapic);
 void vlapic_intr_accepted(struct vlapic *vlapic, int vector);
 void vlapic_set_intr_ready(struct vlapic *vlapic, int vector, bool level);

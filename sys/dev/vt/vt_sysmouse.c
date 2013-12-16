@@ -190,9 +190,11 @@ sysmouse_process_event(mouse_info_t *mi)
 
 	sysmouse_buf_store(buf);
 
+#ifndef SC_NO_CUTPASTE
 	mtx_unlock(&sysmouse_lock);
 	vt_mouse_event(mi->operation, x, y, mi->u.event.id, mi->u.event.value);
 	return;
+#endif
 
 done:	mtx_unlock(&sysmouse_lock);
 }
@@ -345,7 +347,9 @@ sysmouse_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 			return (EINVAL);
 
 		sysmouse_level = level;
+#ifndef SC_NO_CUTPASTE
 		vt_mouse_state((level == 0)?VT_MOUSE_SHOW:VT_MOUSE_HIDE);
+#endif
 		return (0);
 	}
 	case MOUSE_SETMODE: {
@@ -358,8 +362,10 @@ sysmouse_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 		case 0:
 		case 1:
 			sysmouse_level = mode->level;
+#ifndef SC_NO_CUTPASTE
 			vt_mouse_state((mode->level == 0)?VT_MOUSE_SHOW:
 			    VT_MOUSE_HIDE);
+#endif
 			break;
 		default:
 			return (EINVAL);

@@ -359,7 +359,7 @@ DELAY(int usec)
 	}
 
 	/* Get the number of times to count */
-	counts = usec * ((am335x_dmtimer_tc.tc_frequency / 1000000) + 1);
+	counts = usec * (am335x_dmtimer_tc.tc_frequency / 1000000) + 1;
 
 	first = am335x_dmtimer_tc_read_4(DMTIMER_TCRR);
 
