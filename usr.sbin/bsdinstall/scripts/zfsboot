@@ -1387,7 +1387,7 @@ while :; do
 		f_dialog_input input \
 			"$msg_please_enter_amount_of_swap_space" \
 			"$ZFSBOOT_SWAP_SIZE" &&
-			ZFSBOOT_SWAP_SIZE="$input"
+			ZFSBOOT_SWAP_SIZE="${input:-0}"
 		;;
 	esac
 done
