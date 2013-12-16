@@ -1049,9 +1049,8 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		} else {
 			sl = &map->slist[map->sync_count - 1];
 			if (map->sync_count == 0 ||
-#ifdef ARM_L2_PIPT
-			    curaddr != sl->busaddr + sl->datacount ||
-#endif
+			    (l2cache_type == L2CACHE_PIPT &&
+			     curaddr != sl->busaddr + sl->datacount) ||
 			    vaddr != sl->vaddr + sl->datacount) {
 				if (++map->sync_count > dmat->nsegments)
 					goto cleanup;
@@ -1171,15 +1170,38 @@ _bus_dmamap_fix_user(vm_offset_t buf, bus_size_t len,
 }
 #endif
 
-#ifdef ARM_L2_PIPT
-#define l2cache_wb_range(va, pa, size) cpu_l2cache_wb_range(pa, size)
-#define l2cache_wbinv_range(va, pa, size) cpu_l2cache_wbinv_range(pa, size)
-#define l2cache_inv_range(va, pa, size) cpu_l2cache_inv_range(pa, size)
-#else
-#define l2cache_wb_range(va, pa, size) cpu_l2cache_wb_range(va, size)
-#define l2cache_wbinv_range(va, pa, size) cpu_l2cache_wbinv_range(va, size)
-#define l2cache_inv_range(va, pa, size) cpu_l2cache_inv_range(va, size)
-#endif
+static inline void
+l2cache_wb_range(vm_offset_t va, vm_offset_t pa, vm_size_t size)
+{
+	if (l2cache_type == L2CACHE_UNKNOWN)
+		return;
+	if (l2cache_type == L2CACHE_PIPT)
+		cpu_l2cache_wb_range(pa, size);
+	else
+		cpu_l2cache_wb_range(va, size);
+}
+
+static inline void
+l2cache_wbinv_range(vm_offset_t va, vm_offset_t pa, vm_size_t size)
+{
+	if (l2cache_type == L2CACHE_UNKNOWN)
+		return;
+	if (l2cache_type == L2CACHE_PIPT)
+		cpu_l2cache_wbinv_range(pa, size);
+	else
+		cpu_l2cache_wbinv_range(va, size);
+}
+
+static inline void
+l2cache_inv_range(vm_offset_t va, vm_offset_t pa, vm_size_t size)
+{
+	if (l2cache_type == L2CACHE_UNKNOWN)
+		return;
+	if (l2cache_type == L2CACHE_PIPT)
+		cpu_l2cache_inv_range(pa, size);
+	else
+		cpu_l2cache_inv_range(va, size);
+}
 
 void
 _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)

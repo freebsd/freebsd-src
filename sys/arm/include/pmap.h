@@ -52,6 +52,16 @@
 
 #include <machine/pte.h>
 #include <machine/cpuconf.h>
+
+typedef enum {
+	L2CACHE_UNKNOWN,
+	L2CACHE_VIVT,
+	L2CACHE_VIPT,
+	L2CACHE_PIPT,
+} l2cache;
+
+extern l2cache l2cache_type;
+
 /*
  * Pte related macros
  */
@@ -562,11 +572,14 @@ extern int pmap_needs_pte_sync;
 #define	PMAP_INCLUDE_PTE_SYNC
 #endif
 
-#ifdef ARM_L2_PIPT
-#define _sync_l2(pte, size) 	cpu_l2cache_wb_range(vtophys(pte), size)
-#else
-#define _sync_l2(pte, size) 	cpu_l2cache_wb_range(pte, size)
-#endif
+#define	_sync_l2(pte, size)			\
+do {						\
+	vm_offset_t __pte = (pte);		\
+						\
+	if (__pte == L2CACHE_PIPT)		\
+		__pte = vtophys(__pte);		\
+	cpu_l2cache_wb_range(__pte, size);	\
+} while (0)
 
 #define	PTE_SYNC(pte)							\
 do {									\

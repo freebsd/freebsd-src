@@ -206,13 +206,18 @@ int pmap_debug_level = 0;
 
 #define	pa_to_pvh(pa)	(&pv_table[pa_index(pa)])
 
-#ifdef ARM_L2_PIPT
-#define pmap_l2cache_wbinv_range(va, pa, size) cpu_l2cache_wbinv_range((pa), (size))
-#define pmap_l2cache_inv_range(va, pa, size) cpu_l2cache_inv_range((pa), (size))
-#else
-#define pmap_l2cache_wbinv_range(va, pa, size) cpu_l2cache_wbinv_range((va), (size))
-#define pmap_l2cache_inv_range(va, pa, size) cpu_l2cache_inv_range((va), (size))
-#endif
+static void
+pmap_l2cache_wbinv_range(vm_offset_t va, vm_offset_t pa, vm_size_t size)
+{
+
+	if (l2cache_type == L2CACHE_UNKNOWN)
+		return;
+
+	if (l2cache_type == L2CACHE_PIPT)
+		cpu_l2cache_wbinv_range(pa, size);
+	else
+		cpu_l2cache_wbinv_range(va, size);
+}
 
 extern struct pv_addr systempage;
 

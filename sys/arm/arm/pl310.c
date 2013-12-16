@@ -393,6 +393,7 @@ pl310_attach(device_t dev)
 	cpufuncs.cf_l2cache_wbinv_range = pl310_wbinv_range;
 	cpufuncs.cf_l2cache_inv_range = pl310_inv_range;
 	cpufuncs.cf_l2cache_wb_range = pl310_wb_range;
+	l2cache_type = L2CACHE_PIPT;
 
 	return (0);
 }

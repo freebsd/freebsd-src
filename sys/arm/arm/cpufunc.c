@@ -1111,6 +1111,7 @@ struct cpu_functions cortexa_cpufuncs = {
 struct cpu_functions cpufuncs;
 u_int cputype;
 u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore.s */
+l2cache l2cache_type = L2CACHE_UNKNOWN;
 
 #if defined(CPU_ARM7TDMI) || defined(CPU_ARM8) || defined(CPU_ARM9) ||	\
   defined (CPU_ARM9E) || defined (CPU_ARM10) || defined (CPU_ARM1136) ||	\
