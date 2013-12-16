@@ -80,6 +80,9 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_util.h>
 #endif
 
+#include <vm/uma.h>
+#include <vm/uma_int.h>
+#include <vm/uma_dbg.h>
 #include <net/vnet.h>
 
 #include <security/audit/audit.h>
@@ -130,6 +133,7 @@ static int sfreadahead = 1;
 SYSCTL_INT(_kern_ipc_sendfile, OID_AUTO, readahead, CTLFLAG_RW,
     &sfreadahead, 0, "Number of sendfile(2) read-ahead MAXBSIZE blocks");
 
+static uma_zone_t	zone_sfsync;
 
 static void
 sfstat_init(const void *unused)
@@ -139,6 +143,22 @@ sfstat_init(const void *unused)
 	    M_WAITOK);
 }
 SYSINIT(sfstat, SI_SUB_MBUF, SI_ORDER_FIRST, sfstat_init, NULL);
+
+static void
+sf_sync_init(const void *unused)
+{
+
+	zone_sfsync = uma_zcreate("sendfile_sync", sizeof(struct sendfile_sync),
+	    NULL, NULL,
+#ifdef	INVARIANTS
+	    trash_init, trash_fini,
+#else
+	    NULL, NULL,
+#endif
+	    UMA_ALIGN_CACHE,
+	    0);
+}
+SYSINIT(sf_sync, SI_SUB_MBUF, SI_ORDER_FIRST, sf_sync_init, NULL);
 
 static int
 sfstat_sysctl(SYSCTL_HANDLER_ARGS)
@@ -1898,7 +1918,7 @@ sf_sync_alloc(uint32_t flags)
 {
 	struct sendfile_sync *sfs;
 
-	sfs = malloc(sizeof *sfs, M_TEMP, M_WAITOK | M_ZERO);
+	sfs = uma_zalloc(zone_sfsync, M_WAITOK | M_ZERO);
 	mtx_init(&sfs->mtx, "sendfile", NULL, MTX_DEF);
 	cv_init(&sfs->cv, "sendfile");
 	sfs->flags = flags;
@@ -1953,7 +1973,7 @@ sf_sync_free(struct sendfile_sync *sfs)
 	KASSERT(sfs->count == 0, ("sendfile sync still busy"));
 	cv_destroy(&sfs->cv);
 	mtx_destroy(&sfs->mtx);
-	free(sfs, M_TEMP);
+	uma_zfree(zone_sfsync, sfs);
 }
 
 /*
