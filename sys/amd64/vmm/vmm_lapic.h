@@ -84,4 +84,5 @@ lapic_intr_edge(struct vm *vm, int cpu, int vector)
 	return (lapic_set_intr(vm, cpu, vector, LAPIC_TRIG_EDGE));
 }
 
+int	lapic_intr_msi(struct vm *vm, uint64_t addr, uint64_t msg);
 #endif

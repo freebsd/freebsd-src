@@ -103,4 +103,6 @@ void vlapic_set_apicbase(struct vlapic *vlapic, uint64_t val);
 void vlapic_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state s);
 bool vlapic_enabled(struct vlapic *vlapic);
 
+void vlapic_deliver_intr(struct vm *vm, bool level, uint32_t dest, bool phys,
+    int delmode, int vec);
 #endif	/* _VLAPIC_H_ */

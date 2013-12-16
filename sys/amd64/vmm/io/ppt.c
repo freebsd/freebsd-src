@@ -72,8 +72,8 @@ MALLOC_DEFINE(M_PPTMSIX, "pptmsix", "Passthru MSI-X resources");
 
 struct pptintr_arg {				/* pptintr(pptintr_arg) */
 	struct pptdev	*pptdev;
-	int		vec;
-	int 		vcpu;
+	uint64_t	addr;
+	uint64_t	msg_data;
 };
 
 static struct pptdev {
@@ -412,16 +412,14 @@ ppt_map_mmio(struct vm *vm, int bus, int slot, int func,
 static int
 pptintr(void *arg)
 {
-	int vec;
 	struct pptdev *ppt;
 	struct pptintr_arg *pptarg;
 	
 	pptarg = arg;
 	ppt = pptarg->pptdev;
-	vec = pptarg->vec;
 
 	if (ppt->vm != NULL)
-		lapic_intr_edge(ppt->vm, pptarg->vcpu, vec);
+		lapic_intr_msi(ppt->vm, pptarg->addr, pptarg->msg_data);
 	else {
 		/*
 		 * XXX
@@ -441,15 +439,13 @@ pptintr(void *arg)
 
 int
 ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
-	      int destcpu, int vector, int numvec)
+	      uint64_t addr, uint64_t msg, int numvec)
 {
 	int i, rid, flags;
 	int msi_count, startrid, error, tmp;
 	struct pptdev *ppt;
 
-	if ((destcpu >= VM_MAXCPU || destcpu < 0) ||
-	    (vector < 0 || vector > 255) ||
-	    (numvec < 0 || numvec > MAX_MSIMSGS))
+	if (numvec < 0 || numvec > MAX_MSIMSGS)
 		return (EINVAL);
 
 	ppt = ppt_find(bus, slot, func);
@@ -513,8 +509,8 @@ ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
 			break;
 
 		ppt->msi.arg[i].pptdev = ppt;
-		ppt->msi.arg[i].vec = vector + i;
-		ppt->msi.arg[i].vcpu = destcpu;
+		ppt->msi.arg[i].addr = addr;
+		ppt->msi.arg[i].msg_data = msg + i;
 
 		error = bus_setup_intr(ppt->dev, ppt->msi.res[i],
 				       INTR_TYPE_NET | INTR_MPSAFE,
@@ -534,7 +530,7 @@ ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
 
 int
 ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
-	       int idx, uint32_t msg, uint32_t vector_control, uint64_t addr)
+	       int idx, uint64_t addr, uint64_t msg, uint32_t vector_control)
 {
 	struct pptdev *ppt;
 	struct pci_devinfo *dinfo;
@@ -605,8 +601,8 @@ ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
 			return (ENXIO);
 	
 		ppt->msix.arg[idx].pptdev = ppt;
-		ppt->msix.arg[idx].vec = msg & 0xFF;
-		ppt->msix.arg[idx].vcpu = (addr >> 12) & 0xFF;
+		ppt->msix.arg[idx].addr = addr;
+		ppt->msix.arg[idx].msg_data = msg;
 	
 		/* Setup the MSI-X interrupt */
 		error = bus_setup_intr(ppt->dev, ppt->msix.res[idx],

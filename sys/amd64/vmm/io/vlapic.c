@@ -145,6 +145,84 @@ struct vlapic {
 
 #define VLAPIC_BUS_FREQ	tsc_freq
 
+static __inline uint32_t
+vlapic_get_id(struct vlapic *vlapic)
+{
+
+	if (x2apic(vlapic))
+		return (vlapic->vcpuid);
+	else
+		return (vlapic->vcpuid << 24);
+}
+
+static __inline uint32_t
+vlapic_get_ldr(struct vlapic *vlapic)
+{
+	struct LAPIC *lapic;
+	int apicid;
+	uint32_t ldr;
+
+	lapic = &vlapic->apic;
+	if (x2apic(vlapic)) {
+		apicid = vlapic_get_id(vlapic);
+		ldr = 1 << (apicid & 0xf);
+		ldr |= (apicid & 0xffff0) << 12;
+		return (ldr);
+	} else
+		return (lapic->ldr);
+}
+
+static __inline uint32_t
+vlapic_get_dfr(struct vlapic *vlapic)
+{
+	struct LAPIC *lapic;
+
+	lapic = &vlapic->apic;
+	if (x2apic(vlapic))
+		return (0);
+	else
+		return (lapic->dfr);
+}
+
+static void
+vlapic_set_dfr(struct vlapic *vlapic, uint32_t data)
+{
+	uint32_t dfr;
+	struct LAPIC *lapic;
+	
+	if (x2apic(vlapic)) {
+		VM_CTR1(vlapic->vm, "write to DFR in x2apic mode: %#x", data);
+		return;
+	}
+
+	lapic = &vlapic->apic;
+	dfr = (lapic->dfr & APIC_DFR_RESERVED) | (data & APIC_DFR_MODEL_MASK);
+	if ((dfr & APIC_DFR_MODEL_MASK) == APIC_DFR_MODEL_FLAT)
+		VLAPIC_CTR0(vlapic, "vlapic DFR in Flat Model");
+	else if ((dfr & APIC_DFR_MODEL_MASK) == APIC_DFR_MODEL_CLUSTER)
+		VLAPIC_CTR0(vlapic, "vlapic DFR in Cluster Model");
+	else
+		VLAPIC_CTR1(vlapic, "vlapic DFR in Unknown Model %#x", dfr);
+
+	lapic->dfr = dfr;
+}
+
+static void
+vlapic_set_ldr(struct vlapic *vlapic, uint32_t data)
+{
+	struct LAPIC *lapic;
+
+	/* LDR is read-only in x2apic mode */
+	if (x2apic(vlapic)) {
+		VLAPIC_CTR1(vlapic, "write to LDR in x2apic mode: %#x", data);
+		return;
+	}
+
+	lapic = &vlapic->apic;
+	lapic->ldr = data & ~APIC_LDR_RESERVED;
+	VLAPIC_CTR1(vlapic, "vlapic LDR set to %#x", lapic->ldr);
+}
+
 static int
 vlapic_timer_divisor(uint32_t dcr)
 {
@@ -610,12 +688,115 @@ vlapic_set_icr_timer(struct vlapic *vlapic, uint32_t icr_timer)
 	VLAPIC_TIMER_UNLOCK(vlapic);
 }
 
+/*
+ * This function populates 'dmask' with the set of vcpus that match the
+ * addressing specified by the (dest, phys, lowprio) tuple.
+ * 
+ * 'x2apic_dest' specifies whether 'dest' is interpreted as x2APIC (32-bit)
+ * or xAPIC (8-bit) destination field.
+ */
+static void
+vlapic_calcdest(struct vm *vm, cpuset_t *dmask, uint32_t dest, bool phys,
+    bool lowprio, bool x2apic_dest)
+{
+	struct vlapic *vlapic;
+	uint32_t dfr, ldr, ldest, cluster;
+	uint32_t mda_flat_ldest, mda_cluster_ldest, mda_ldest, mda_cluster_id;
+	cpuset_t amask;
+	int vcpuid;
+
+	if ((x2apic_dest && dest == 0xffffffff) ||
+	    (!x2apic_dest && dest == 0xff)) {
+		/*
+		 * Broadcast in both logical and physical modes.
+		 */
+		*dmask = vm_active_cpus(vm);
+		return;
+	}
+
+	if (phys) {
+		/*
+		 * Physical mode: destination is APIC ID.
+		 */
+		CPU_ZERO(dmask);
+		vcpuid = vm_apicid2vcpuid(vm, dest);
+		if (vcpuid < VM_MAXCPU)
+			CPU_SET(vcpuid, dmask);
+	} else {
+		/*
+		 * In the "Flat Model" the MDA is interpreted as an 8-bit wide
+		 * bitmask. This model is only avilable in the xAPIC mode.
+		 */
+		mda_flat_ldest = dest & 0xff;
+
+		/*
+		 * In the "Cluster Model" the MDA is used to identify a
+		 * specific cluster and a set of APICs in that cluster.
+		 */
+		if (x2apic_dest) {
+			mda_cluster_id = dest >> 16;
+			mda_cluster_ldest = dest & 0xffff;
+		} else {
+			mda_cluster_id = (dest >> 4) & 0xf;
+			mda_cluster_ldest = dest & 0xf;
+		}
+
+		/*
+		 * Logical mode: match each APIC that has a bit set
+		 * in it's LDR that matches a bit in the ldest.
+		 */
+		CPU_ZERO(dmask);
+		amask = vm_active_cpus(vm);
+		while ((vcpuid = CPU_FFS(&amask)) != 0) {
+			vcpuid--;
+			CPU_CLR(vcpuid, &amask);
+
+			vlapic = vm_lapic(vm, vcpuid);
+			dfr = vlapic_get_dfr(vlapic);
+			ldr = vlapic_get_ldr(vlapic);
+
+			if ((dfr & APIC_DFR_MODEL_MASK) ==
+			    APIC_DFR_MODEL_FLAT) {
+				ldest = ldr >> 24;
+				mda_ldest = mda_flat_ldest;
+			} else if ((dfr & APIC_DFR_MODEL_MASK) ==
+			    APIC_DFR_MODEL_CLUSTER) {
+				if (x2apic(vlapic)) {
+					cluster = ldr >> 16;
+					ldest = ldr & 0xffff;
+				} else {
+					cluster = ldr >> 28;
+					ldest = (ldr >> 24) & 0xf;
+				}
+				if (cluster != mda_cluster_id)
+					continue;
+				mda_ldest = mda_cluster_ldest;
+			} else {
+				/*
+				 * Guest has configured a bad logical
+				 * model for this vcpu - skip it.
+				 */
+				VLAPIC_CTR1(vlapic, "vlapic has bad logical "
+				    "model %x - cannot deliver interrupt", dfr);
+				continue;
+			}
+
+			if ((mda_ldest & ldest) != 0) {
+				CPU_SET(vcpuid, dmask);
+				if (lowprio)
+					break;
+			}
+		}
+	}
+}
+
 static VMM_STAT_ARRAY(IPIS_SENT, VM_MAXCPU, "ipis sent to vcpu");
 
 static int
 lapic_process_icr(struct vlapic *vlapic, uint64_t icrval, bool *retu)
 {
 	int i;
+	bool phys;
 	cpuset_t dmask;
 	uint32_t dest, vec, mode;
 	struct vlapic *vlapic2;
@@ -631,7 +812,9 @@ lapic_process_icr(struct vlapic *vlapic, uint64_t icrval, bool *retu)
 	if (mode == APIC_DELMODE_FIXED || mode == APIC_DELMODE_NMI) {
 		switch (icrval & APIC_DEST_MASK) {
 		case APIC_DEST_DESTFLD:
-			CPU_SETOF(dest, &dmask);
+			phys = ((icrval & APIC_DESTMODE_LOG) == 0);
+			vlapic_calcdest(vlapic->vm, &dmask, dest, phys, false,
+			    x2apic(vlapic));
 			break;
 		case APIC_DEST_SELF:
 			CPU_SETOF(vlapic->vcpuid, &dmask);
@@ -820,10 +1003,7 @@ vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data, bool *retu)
 	switch(offset)
 	{
 		case APIC_OFFSET_ID:
-			if (x2apic(vlapic))
-				*data = vlapic->vcpuid;
-			else
-				*data = vlapic->vcpuid << 24;
+			*data = vlapic_get_id(vlapic);
 			break;
 		case APIC_OFFSET_VER:
 			*data = lapic->version;
@@ -841,10 +1021,10 @@ vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data, bool *retu)
 			*data = lapic->eoi;
 			break;
 		case APIC_OFFSET_LDR:
-			*data = lapic->ldr;
+			*data = vlapic_get_ldr(vlapic);
 			break;
 		case APIC_OFFSET_DFR:
-			*data = lapic->dfr;
+			*data = vlapic_get_dfr(vlapic);
 			break;
 		case APIC_OFFSET_SVR:
 			*data = lapic->svr;
@@ -921,8 +1101,10 @@ vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data, bool *retu)
 			vlapic_process_eoi(vlapic);
 			break;
 		case APIC_OFFSET_LDR:
+			vlapic_set_ldr(vlapic, data);
 			break;
 		case APIC_OFFSET_DFR:
+			vlapic_set_dfr(vlapic, data);
 			break;
 		case APIC_OFFSET_SVR:
 			lapic_set_svr(vlapic, data);
@@ -1039,6 +1221,34 @@ vlapic_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state state)
 
 	if (state == X2APIC_DISABLED)
 		vlapic->msr_apicbase &= ~APICBASE_X2APIC;
+}
+
+void
+vlapic_deliver_intr(struct vm *vm, bool level, uint32_t dest, bool phys,
+    int delmode, int vec)
+{
+	bool lowprio;
+	int vcpuid;
+	cpuset_t dmask;
+
+	if (delmode != APIC_DELMODE_FIXED && delmode != APIC_DELMODE_LOWPRIO) {
+		VM_CTR1(vm, "vlapic intr invalid delmode %#x", delmode);
+		return;
+	}
+	lowprio = (delmode == APIC_DELMODE_LOWPRIO);
+
+	/*
+	 * We don't provide any virtual interrupt redirection hardware so
+	 * all interrupts originating from the ioapic or MSI specify the
+	 * 'dest' in the legacy xAPIC format.
+	 */
+	vlapic_calcdest(vm, &dmask, dest, phys, lowprio, false);
+
+	while ((vcpuid = CPU_FFS(&dmask)) != 0) {
+		vcpuid--;
+		CPU_CLR(vcpuid, &dmask);
+		lapic_set_intr(vm, vcpuid, vec, level);
+	}
 }
 
 bool
