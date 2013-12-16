@@ -397,6 +397,18 @@ vm_lapic_irq(struct vmctx *ctx, int vcpu, int vector)
 }
 
 int
+vm_lapic_msi(struct vmctx *ctx, uint64_t addr, uint64_t msg)
+{
+	struct vm_lapic_msi vmmsi;
+
+	bzero(&vmmsi, sizeof(vmmsi));
+	vmmsi.addr = addr;
+	vmmsi.msg = msg;
+
+	return (ioctl(ctx->fd, VM_LAPIC_MSI, &vmmsi));
+}
+
+int
 vm_ioapic_assert_irq(struct vmctx *ctx, int irq)
 {
 	struct vm_ioapic_irq ioapic_irq;
@@ -552,7 +564,7 @@ vm_map_pptdev_mmio(struct vmctx *ctx, int bus, int slot, int func,
 
 int
 vm_setup_msi(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
-	     int destcpu, int vector, int numvec)
+	     uint64_t addr, uint64_t msg, int numvec)
 {
 	struct vm_pptdev_msi pptmsi;
 
@@ -561,8 +573,8 @@ vm_setup_msi(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
 	pptmsi.bus = bus;
 	pptmsi.slot = slot;
 	pptmsi.func = func;
-	pptmsi.destcpu = destcpu;
-	pptmsi.vector = vector;
+	pptmsi.msg = msg;
+	pptmsi.addr = addr;
 	pptmsi.numvec = numvec;
 
 	return (ioctl(ctx->fd, VM_PPTDEV_MSI, &pptmsi));
@@ -570,7 +582,7 @@ vm_setup_msi(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
 
 int	
 vm_setup_msix(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
-	      int idx, uint32_t msg, uint32_t vector_control, uint64_t addr)
+	      int idx, uint64_t addr, uint64_t msg, uint32_t vector_control)
 {
 	struct vm_pptdev_msix pptmsix;
 
