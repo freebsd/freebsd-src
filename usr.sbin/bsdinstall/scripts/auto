@@ -49,6 +49,10 @@ error() {
 
 ############################################################ MAIN
 
+# Don't send ESC on function-key 62/63 (left/right command key)
+f_quietly kbdcontrol -f 62 ''
+f_quietly kbdcontrol -f 63 ''
+
 f_dprintf "Began Installation at %s" "$( date )"
 
 rm -rf $BSDINSTALL_TMPETC
