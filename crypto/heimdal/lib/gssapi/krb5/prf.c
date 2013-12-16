@@ -117,7 +117,7 @@ _gsskrb5_pseudo_random(OM_uint32 *minor_status,
     num = 0;
     p = prf_out->value;
     while(desired_output_len > 0) {
-	_gsskrb5_encode_om_uint32(num, input.data);
+	_gsskrb5_encode_be_om_uint32(num, input.data);
 	ret = krb5_crypto_prf(context, crypto, &input, &output);
 	if (ret) {
 	    OM_uint32 junk;
@@ -129,7 +129,7 @@ _gsskrb5_pseudo_random(OM_uint32 *minor_status,
 	    return GSS_S_FAILURE;
 	}
 	memcpy(p, output.data, min(desired_output_len, output.length));
-	p += output.length;
+	p += tsize;
 	desired_output_len -= output.length;
 	krb5_data_free(&output);
 	num++;

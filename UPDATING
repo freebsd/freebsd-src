@@ -15,6 +15,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20131216:
+	The behavior of gss_pseudo_random() for the krb5 mechanism
+	has changed, for applications requesting a longer random string
+	than produced by the underlying enctype's pseudo-random() function.
+	In particular, the random string produced from a session key of
+	enctype aes256-cts-hmac-sha1-96 or aes256-cts-hmac-sha1-96 will
+	be different at the 17th octet and later, after this change.
+	The counter used in the PRF+ construction is now encoded as a
+	big-endian integer in accordance with RFC 4402.
+	__FreeBSD_version is bumped to 804501.
+
 20130823:
 	Behavior of devfs rules path matching has been changed.
 	Pattern is now always matched against fully qualified devfs
