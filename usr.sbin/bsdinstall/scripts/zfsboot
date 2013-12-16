@@ -132,6 +132,7 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 	/var		mountpoint=/var
 	/var/crash	compression=lz4,exec=off,setuid=off
 	/var/log	compression=lz4,exec=off,setuid=off
+	/var/mail	compression=lz4,atime=on
 	/var/tmp	compression=lz4,exec=on,setuid=off
 " # END-QUOTE
 
