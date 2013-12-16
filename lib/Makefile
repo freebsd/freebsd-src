@@ -127,6 +127,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	liby \
 	libyaml \
 	libz \
+	${_libz_cheri} \
 	${_atf} \
 	${_clang}
 
@@ -161,6 +162,7 @@ _libbsnmp=	libbsnmp
 
 .if ${MK_CHERI} != "no"
 _libcheri=	libcheri
+_libz_cheri=	libz-cheri
 .endif
 
 .if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT)
