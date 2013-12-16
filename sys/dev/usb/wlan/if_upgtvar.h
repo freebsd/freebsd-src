@@ -352,7 +352,6 @@ struct upgt_data {
 	struct ieee80211_node		*ni;
 	struct mbuf			*m;
 	uint32_t			 addr;
-	uint8_t				 use;
 	STAILQ_ENTRY(upgt_data)		 next;
 };
 typedef STAILQ_HEAD(, upgt_data) upgt_datahead;
