@@ -61,7 +61,6 @@
 #define NM_ATOMIC_TEST_AND_SET(p)       (!atomic_cmpset_acq_int((p), 0, 1))
 #define NM_ATOMIC_CLEAR(p)              atomic_store_rel_int((p), 0)
 
-#define prefetch(x)     __builtin_prefetch(x)
 
 MALLOC_DECLARE(M_NETMAP);
 
