@@ -1047,7 +1047,7 @@ zfs_create_boot()
 	# Customize the zroot a bit...
 	local option
 	f_dprintf "$funcname: Setting miscellaneous options on root pool..."
-	for option in checksum=fletcher4 atime=off; do
+	for option in atime=off; do
 		f_eval_catch $funcname zfs "$ZFS_SET" $option "$zroot_name" ||
 			return $FAILURE
 	done
