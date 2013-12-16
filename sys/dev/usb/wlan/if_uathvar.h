@@ -186,6 +186,8 @@ struct uath_softc {
 	struct ifnet			*sc_ifp;
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
+	void				*sc_cmd_dma_buf;
+	void				*sc_tx_dma_buf;
 	struct mtx			sc_mtx;
 	uint32_t			sc_debug;
 

@@ -422,6 +422,8 @@ struct upgt_softc {
 	device_t		 sc_dev;
 	struct ifnet		*sc_ifp;
 	struct usb_device	*sc_udev;
+	void			*sc_rx_dma_buf;
+	void			*sc_tx_dma_buf;
 	struct mtx		 sc_mtx;
 	struct upgt_stat	 sc_stat;
 	int			 sc_flags;
