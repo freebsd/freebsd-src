@@ -745,6 +745,9 @@ zfs_create_diskpart()
 			             "$GPART_ADD_LABEL_WITH_SIZE" swap$index \
 			             freebsd-swap ${swapsize}b $disk ||
 			             return $FAILURE
+			# Pedantically nuke any old labels on the swap
+			f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
+			                /dev/gpt/swap$index
 			# Update fstab(5)
 			f_eval_catch $funcname printf "$PRINTF_FSTAB" \
 			             /dev/gpt/swap$index none swap sw 0 0 \
@@ -818,6 +821,9 @@ zfs_create_diskpart()
 			             "$GPART_ADD_INDEX_WITH_SIZE" 2 \
 			             freebsd-swap ${swapsize}b ${disk}s1 ||
 			             return $FAILURE
+			# Pedantically nuke any old labels on the swap
+			f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
+			                /dev/${disk}s1b
 			# Update fstab(5)
 			f_eval_catch $funcname printf "$PRINTF_FSTAB" \
 			             /dev/${disk}s1b none swap sw 0 0 \
