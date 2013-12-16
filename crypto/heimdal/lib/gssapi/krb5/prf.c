@@ -129,7 +129,7 @@ _gsskrb5_pseudo_random(OM_uint32 *minor_status,
 	    return GSS_S_FAILURE;
 	}
 	memcpy(p, output.data, min(desired_output_len, output.length));
-	p += tsize;
+	p += output.length;
 	desired_output_len -= output.length;
 	krb5_data_free(&output);
 	num++;
