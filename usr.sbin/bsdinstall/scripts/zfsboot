@@ -156,8 +156,10 @@ CHMOD_MODE='chmod %s "%s"'
 DD_WITH_OPTIONS='dd if="%s" of="%s" %s'
 ECHO_APPEND='echo "%s" >> "%s"'
 GELI_ATTACH='geli attach -j - -k "%s" "%s"'
+GELI_DETACH_F='geli detach -f "%s"'
 GELI_PASSWORD_INIT='geli init -b -B "%s" -e %s -J - -K "%s" -l 256 -s 4096 "%s"'
 GNOP_CREATE='gnop create -S 4096 "%s"'
+GNOP_DESTROY='gnop destroy "%s"'
 GPART_ADD='gpart add -t %s "%s"'
 GPART_ADD_INDEX='gpart add -i %s -t %s "%s"'
 GPART_ADD_INDEX_WITH_SIZE='gpart add -i %s -t %s -s %s "%s"'
@@ -166,19 +168,23 @@ GPART_ADD_LABEL_WITH_SIZE='gpart add -l %s -t %s -s %s "%s"'
 GPART_BOOTCODE='gpart bootcode -b "%s" "%s"'
 GPART_BOOTCODE_PART='gpart bootcode -b "%s" -p "%s" -i %s "%s"'
 GPART_CREATE='gpart create -s %s "%s"'
+GPART_DESTROY_F='gpart destroy -F "%s"'
 GPART_SET_ACTIVE='gpart set -a active -i %s "%s"'
+GRAID_DELETE='graid delete "%s"'
 LN_SF='ln -sf "%s" "%s"'
 MKDIR_P='mkdir -p "%s"'
 MOUNT_TYPE='mount -t %s "%s" "%s"'
 PRINTF_CONF="printf '%s=\"%%s\"\\\n' %s >> \"%s\""
 PRINTF_FSTAB='printf "$FSTAB_FMT" "%s" "%s" "%s" "%s" "%s" "%s" >> "%s"'
 SHELL_TRUNCATE=':> "%s"'
+UMOUNT='umount "%s"'
 ZFS_CREATE_WITH_OPTIONS='zfs create %s "%s"'
 ZFS_SET='zfs set "%s" "%s"'
 ZFS_UNMOUNT='zfs unmount "%s"'
 ZPOOL_CREATE_WITH_OPTIONS='zpool create %s "%s" %s %s'
 ZPOOL_EXPORT='zpool export "%s"'
 ZPOOL_IMPORT_WITH_OPTIONS='zpool import %s "%s"'
+ZPOOL_LABELCLEAR_F='zpool labelclear -f "%s"'
 ZPOOL_SET='zpool set %s "%s"'
 
 #
@@ -612,6 +618,8 @@ dialog_menu_layout()
 # replacement drivers do not have the exact same sector counts.
 #
 # NOTE: The MBR layout is more complicated (GPT is preferred).
+# NOTE: $swapsize and $gelisize should be defined by the calling function.
+# NOTE: Sets $bootpart and $targetpart for the calling function.
 #
 zfs_create_diskpart()
 {
@@ -664,13 +672,13 @@ zfs_create_diskpart()
 	# NOTE: Failure is ok here, blank disk will have nothing to destroy.
 	#
 	f_dprintf "$funcname: Destroying all data/layouts on \`%s'..." "$disk"
-	f_quietly gpart destroy -F $disk
-	f_quietly graid destroy $disk
-	f_quietly zpool labelclear -f /dev/$disk # Kill it with fire
+	f_eval_catch -d $funcname gpart "$GPART_DESTROY_F" $disk
+	f_eval_catch -d $funcname graid "$GRAID_DELETE" $disk
+	f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" /dev/$disk
 
 	# Make doubly-sure backup GPT is destroyed
-	f_quietly gpart create -s gpt $disk
-	f_quietly gpart destroy -F $disk
+	f_eval_catch -d $funcname gpart "$GPART_CREATE" gpt $disk
+	f_eval_catch -d $funcname gpart "$GPART_DESTROY_F" $disk
 
 	# Calculate partition size given desired amount of swap
 	f_dprintf "$funcname: Getting disk capactiy for \`%s'" "$disk"
@@ -694,36 +702,35 @@ zfs_create_diskpart()
 		#
 		# 1. Create GPT layout using labels
 		#
-		f_eval_catch $funcname gpart "$GPART_CREATE" gpt \$disk ||
+		f_eval_catch $funcname gpart "$GPART_CREATE" gpt $disk ||
 		             return $FAILURE
 
 		#
 		# 2. Add small freebsd-boot partition labeled `boot#'
 		#
 		f_eval_catch $funcname gpart "$GPART_ADD_LABEL_WITH_SIZE" \
-		             gptboot\$index freebsd-boot 512k \$disk ||
+		             gptboot$index freebsd-boot 512k $disk ||
 		             return $FAILURE
 		f_eval_catch $funcname gpart "$GPART_BOOTCODE_PART" \
-		             /boot/pmbr /boot/gptzfsboot 1 \$disk ||
+		             /boot/pmbr /boot/gptzfsboot 1 $disk ||
 		             return $FAILURE
 
-		# zpool will use the `zfs#' GPT labels
+		# NB: zpool will use the `zfs#' GPT labels
 		bootpart=p2 targetpart=p2
 
 		# Change things around if we are using geli(8)
 		if [ "$ZFSBOOT_GELI_ENCRYPTION" ]; then
 			bootpart=p2 targetpart=p3
 			partsize=$(( $partsize - $gelisize ))
-			f_dprintf "$funcname: gelisize=[%s]" \
-			          "gelisize=[$gelisize]"
 			f_eval_catch $funcname gpart \
-			             "$GPART_ADD_LABEL_WITH_SIZE" boot\$index \
-			             freebsd-zfs \${gelisize}b \$disk ||
+			             "$GPART_ADD_LABEL_WITH_SIZE" boot$index \
+			             freebsd-zfs ${gelisize}b $disk ||
 			             return $FAILURE
-
 			# Pedantically nuke any old labels, stop geli
-			f_quietly zpool labelclear -f "/dev/$disk$bootpart"
-			f_quietly geli detach -f "/dev/$disk$targetpart"
+			f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
+			                /dev/$disk$bootpart
+			f_eval_catch -d $funcname geli "$GELI_DETACH_F" \
+			                /dev/$disk$targetpart
 		fi
 
 		#
@@ -731,30 +738,29 @@ zfs_create_diskpart()
 		# NOTE: Using above calculated partsize to leave room for swap.
 		#
 		if [ ${swapsize:-0} -gt 0 ]; then
-			f_dprintf "$funcname: partsize=[%s]" \
-			          "partsize=[$partsize]"
 			f_eval_catch $funcname gpart \
-			             "$GPART_ADD_LABEL_WITH_SIZE" zfs\$index \
-			             freebsd-zfs \${partsize}b \$disk ||
+			             "$GPART_ADD_LABEL_WITH_SIZE" zfs$index \
+			             freebsd-zfs ${partsize}b $disk ||
 			             return $FAILURE
 		else
 			f_eval_catch $funcname gpart "$GPART_ADD_LABEL" \
-			             zfs\$index freebsd-zfs \$disk ||
+			             zfs$index freebsd-zfs $disk ||
 			             return $FAILURE
 		fi
-		f_quietly zpool labelclear -f "/dev/$disk$targetpart"
+		f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
+		                /dev/$disk$targetpart
 
 		#
 		# 4. Add freebsd-swap partition labeled `swap#'
 		#
 		if [ $swapsize -gt 0 ]; then
 			f_eval_catch $funcname gpart "$GPART_ADD_LABEL" \
-			             swap\$index freebsd-swap \$disk ||
+			             swap$index freebsd-swap $disk ||
 			             return $FAILURE
 			# Update fstab(5)
 			f_eval_catch $funcname printf "$PRINTF_FSTAB" \
-			             /dev/gpt/swap\$index none swap sw 0 0 \
-			             \$BSDINSTALL_TMPETC/fstab ||
+			             /dev/gpt/swap$index none swap sw 0 0 \
+			             $BSDINSTALL_TMPETC/fstab ||
 			             return $FAILURE
 		fi
 		;;
@@ -763,25 +769,28 @@ zfs_create_diskpart()
 		#
 		# 1. Create MBR layout (no labels)
 		#
-		f_eval_catch $funcname gpart "$GPART_CREATE" mbr \$disk ||
+		f_eval_catch $funcname gpart "$GPART_CREATE" mbr $disk ||
 		             return $FAILURE
 		f_eval_catch $funcname gpart "$GPART_BOOTCODE" /boot/mbr \
-		             \$disk || return $FAILURE
+		             $disk || return $FAILURE
 
 		#
 		# 2. Add freebsd slice with all available space
 		#
-		f_eval_catch $funcname gpart "$GPART_ADD" freebsd \$disk ||
+		f_eval_catch $funcname gpart "$GPART_ADD" freebsd $disk ||
 		             return $FAILURE
-		f_eval_catch $funcname gpart "$GPART_SET_ACTIVE" 1 \$disk ||
+		f_eval_catch $funcname gpart "$GPART_SET_ACTIVE" 1 $disk ||
 		             return $FAILURE
-		f_quietly zpool labelclear -f /dev/${disk}s1 # Pedantic
-		f_quietly gpart destroy -F ${disk}s1 # Pedantic
+		# Pedantically nuke any old labels
+		f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
+		                /dev/${disk}s1
+		# Pedantically nuke any old scheme
+		f_eval_catch -d $funcname gpart "$GPART_DESTROY_F" ${disk}s1
 
 		#
 		# 3. Write BSD scheme to the freebsd slice
 		#
-		f_eval_catch $funcname gpart "$GPART_CREATE" BSD \${disk}s1 ||
+		f_eval_catch $funcname gpart "$GPART_CREATE" BSD ${disk}s1 ||
 		             return $FAILURE
 
 		# zpool will use s1a (no labels)
@@ -792,15 +801,17 @@ zfs_create_diskpart()
 			bootpart=s1a targetpart=s1d
 			partsize=$(( $partsize - $gelisize ))
 			mbrindex=4 # If this is s1a then make the zpool s1d
-			f_dprintf "$funcname: mbrindex=[%s] gelisize=[%s]" \
-			          "$mbrindex" "$gelisize"
 			f_eval_catch $funcname gpart \
 			             "$GPART_ADD_INDEX_WITH_SIZE" \
-			             1 freebsd-zfs \${gelisize}b \${disk}s1 ||
+			             1 freebsd-zfs ${gelisize}b ${disk}s1 ||
 			             return $FAILURE
-			# Pedantically nuke any old labels, stop geli
-			f_quietly zpool labelclear -f "/dev/$disk$bootpart"
-			f_quietly geli detach -f "/dev/$disk$targetpart"
+			# Pedantically nuke any old labels
+			f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
+					/dev/$disk$bootpart
+			# Pedantically detach targetpart for later
+			f_eval_catch -d $funcname geli \
+			                "$GELI_DETACH_F" \
+					/dev/$disk$targetpart
 		fi
 
 		#
@@ -808,19 +819,17 @@ zfs_create_diskpart()
 		# NOTE: Using above calculated partsize to leave room for swap.
 		#
 		if [ ${swapsize:-0} -gt 0 ]; then
-			f_dprintf "$funcname: mbrindex=[%s] partsize=[%s]" \
-			          "$mbrindex" "$partsize"
 			f_eval_catch $funcname gpart \
 			             "$GPART_ADD_INDEX_WITH_SIZE" \
-			             \$mbrindex freebsd-zfs \${partsize}b \
-			             \${disk}s1 || return $FAILURE
+			             $mbrindex freebsd-zfs ${partsize}b \
+			             ${disk}s1 || return $FAILURE
 		else
-			f_dprintf "$funcname: mbrindex=[%s]" "$mbrindex"
 			f_eval_catch $funcname gpart "$GPART_ADD_INDEX" \
-			             \$mbrindex freebsd-zfs \${disk}s1 ||
+			             $mbrindex freebsd-zfs ${disk}s1 ||
 			             return $FAILURE
 		fi
-		f_quietly zpool labelclear -f /dev/$disk$targetpart # Pedantic
+		f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
+				/dev/$disk$targetpart # Pedantic
 
 		#
 		# 5. Add freebsd-swap partition
@@ -831,8 +840,8 @@ zfs_create_diskpart()
 			             return $FAILURE
 			# Update fstab(5)
 			f_eval_catch $funcname printf "$PRINTF_FSTAB" \
-			             /dev/\${disk}s1b none swap sw 0 0 \
-			             \$BSDINSTALL_TMPETC/fstab ||
+			             /dev/${disk}s1b none swap sw 0 0 \
+			             $BSDINSTALL_TMPETC/fstab ||
 			             return $FAILURE
 		fi
 		;;
@@ -852,13 +861,13 @@ zfs_create_boot()
 	local funcname=zfs_create_boot
 	local poolname="$1" vdev_type="$2"
 	local bootpart targetpart
+	shift 2 # poolname vdev_type
+	local disks="$*" disk
+	local bootpart targetpart # Set by zfs_create_diskpart() below
 
-	shift 2 # name vdev_type
-
-	# We may need this later
-	local disks="$*"
-
+	#
 	# Pedantic checks; should never be seen
+	#
 	if [ ! "$poolname" ]; then
 		f_dprintf "$funcname: NULL poolname"
 		msg_error="$msg_error: $funcname" \
@@ -874,16 +883,19 @@ zfs_create_boot()
 	f_dprintf "$funcname: poolname=[%s] vdev_type=[%s]" \
 	          "$poolname" "$vdev_type"
 
+	#
 	# Initialize fstab(5)
+	#
 	f_dprintf "$funcname: Initializing temporary fstab(5) file..."
-	f_eval_catch $funcname sh \
-	             "$SHELL_TRUNCATE" \$BSDINSTALL_TMPETC/fstab ||
+	f_eval_catch $funcname sh "$SHELL_TRUNCATE" $BSDINSTALL_TMPETC/fstab ||
 	             return $FAILURE
 	f_eval_catch $funcname printf "$PRINTF_FSTAB" \
 	             "# Device" Mountpoint FStype Options Dump "Pass#" \
-	             \$BSDINSTALL_TMPETC/fstab || return $FAILURE
+	             $BSDINSTALL_TMPETC/fstab || return $FAILURE
 
+	#
 	# Expand SI units in desired sizes
+	#
 	f_dprintf "$funcname: Expanding supplied swapsize/gelisize values..."
 	local swapsize gelisize
 	if ! f_expand_number "$ZFSBOOT_SWAP_SIZE" swapsize; then
@@ -904,23 +916,24 @@ zfs_create_boot()
 	f_dprintf "$funcname: ZFSBOOT_GELI_BOOT_SIZE=[%s] gelisize=[%s]" \
 	          "$ZFSBOOT_GELI_BOOT_SIZE" "$gelisize"
 
+	#
 	# Prepare the disks
+	#
 	f_dprintf "$funcname: Preparing disk partitions for ZFS pool..."
 	local n=0
-	for disk in $*; do
+	for disk in $disks; do
 		zfs_create_diskpart $disk $n || return $FAILURE
 		n=$(( $n + 1 ))
 	done
+	# Now $bootpart and $targetpart are set (suffix for $disk)
 
 	# MBR boot loader hack part 1
 	# We have to do this early because geli gets in the way later
 	if [ "$ZFSBOOT_PARTITION_SCHEME" = "MBR" ]; then
 		f_dprintf "$funcname: Copying MBR boot loader to disks..."
-		f_dprintf "$funcname: disks=[%s]" "$disks"
 		for disk in $disks; do
-			f_dprintf "$funcname: disk=[%s]" "$disk"
 			f_eval_catch $funcname dd "$DD_WITH_OPTIONS" \
-			             /boot/zfsboot /dev/\${disk}s1 count=1 ||
+			             /boot/zfsboot /dev/${disk}s1 count=1 ||
 			             return $FAILURE
 		done
 	fi
@@ -935,12 +948,9 @@ zfs_create_boot()
 		[ "$ZFSBOOT_GELI_ENCRYPTION" ] && part="$bootpart"
 
 		f_dprintf "$funcname: Applying 4k alignment with gnop(8)..."
-		f_dprintf "$funcname: *=[%s]" "$*"
-		for disk in $*; do
-			f_dprintf "$funcname: disk=[%s] part=[%s]" \
-			          "$disk" "$part"
+		for disk in $disks; do
 			f_eval_catch $funcname gnop "$GNOP_CREATE" \
-			             \$disk\$part || return $FAILURE
+			             $disk$part || return $FAILURE
 			if [ "$ZFSBOOT_GELI_ENCRYPTION" ]; then
 				unenc_list="$unenc_list $disk$part.nop"
 			else
@@ -950,7 +960,7 @@ zfs_create_boot()
 		set -- $new_list
 	else
 		local new_list=
-		for disk in $*; do
+		for disk in $disks; do
 			new_list="$new_list $disk$targetpart"
 			[ "$ZFSBOOT_GELI_ENCRYPTION" ] &&
 				unenc_list="$unenc_list $disk$bootpart"
@@ -969,34 +979,30 @@ zfs_create_boot()
 		f_dprintf "$funcname: Setting up disk encryption..."
 
 		# Create the parent directories for our unencrypted pool
-		f_quietly umount /mnt
+		f_eval_catch -d $funcname umount "$UMOUNT" /mnt
 		f_eval_catch $funcname mount "$MOUNT_TYPE" tmpfs none \
-		             \$BSDINSTALL_CHROOT || return $FAILURE
+		             $BSDINSTALL_CHROOT || return $FAILURE
 
 		# Create mirror across the unencrypted partition on all disks
 		[ $( set -- $unenc_list; echo $# ) -gt 1 ] && bootvdev=mirror
 
-		f_dprintf "$funcname: %s %s %s" \
-		          "ZFSBOOT_GELI_POOL_NAME=[$ZFSBOOT_GELI_POOL_NAME]" \
-		          "bootvdev=[$bootvdev]" "unenc_list=[$unenc_list]"
-		options="-o altroot=\"\$BSDINSTALL_CHROOT\""
-		options="$options -m \"/\$ZFSBOOT_GELI_POOL_NAME\""
-		options="$options -f"
+		options="-o altroot=$BSDINSTALL_CHROOT"
+		options="$options -m \"/$ZFSBOOT_GELI_POOL_NAME\" -f"
 		f_eval_catch $funcname zpool "$ZPOOL_CREATE_WITH_OPTIONS" \
-		             "$options" \$ZFSBOOT_GELI_POOL_NAME \$bootvdev \
+		             "$options" "$ZFSBOOT_GELI_POOL_NAME" $bootvdev \
 		             \$unenc_list || return $FAILURE
 
-		f_dprintf "$funcname: geli_pool=[%s]" "$geli_pool"
-		f_eval_catch $funcname mkdir "$MKDIR_P" \$geli_pool/boot ||
+		f_eval_catch $funcname mkdir "$MKDIR_P" $geli_pool/boot ||
 		             return $FAILURE
 
 		# Generate an encryption key using random(4)
-		f_dprintf "$funcname: key=[%s]" "$key"
 		f_eval_catch $funcname dd "$DD_WITH_OPTIONS" \
-		             /dev/random \$geli_pool/\$key "bs=4096 count=1" ||
+		             /dev/random $geli_pool/$key "bs=4096 count=1" ||
 		             return $FAILURE
 
+		#
 		# Create the geli(8) GEOMS
+		#
 		local geli_list
 		if ! msg_enter_new_password="$msg_geli_password" \
 			f_dialog_input_password
@@ -1005,53 +1011,55 @@ zfs_create_boot()
 			f_show_err "$msg_user_cancelled"
 			return $FAILURE
 		fi
-		f_dprintf "$funcname: disks=[%s]" "$disks"
+
+		# Initialize geli(8) on each of the target partitions
 		for disk in $disks; do
-			f_dprintf "$funcname: disk=[%s] targetpart=[%s]" \
-			          "$disk" "$targetpart"
 			f_dialog_info "$msg_geli_setup" \
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-			if ! echo "$pw_password" | f_eval_catch $funcname \
-				geli "$GELI_PASSWORD_INIT" \
-				\$geli_pool/boot/\$disk\$targetpart.eli \
-				AES-XTS \$geli_pool/\$key \$disk\$targetpart
+			if ! echo "$pw_password" | f_eval_catch \
+				$funcname geli "$GELI_PASSWORD_INIT" \
+				"$geli_pool/boot/$disk$targetpart.eli" \
+				AES-XTS "$geli_pool/$key" \
+				$disk$targetpart
 			then
 				f_interactive || f_die
+				unset pw_password # Sensitive info
 				return $FAILURE
 			fi
-			if ! echo "$pw_password" | f_eval_catch $funcname \
-				geli "$GELI_ATTACH" \$geli_pool/\$key \
-				\$disk\$targetpart
+			if ! echo "$pw_password" | f_eval_catch \
+				$funcname geli "$GELI_ATTACH" \
+				"$geli_pool/\$key" $disk$targetpart
 			then
 				f_interactive || f_die
+				unset pw_password # Sensitive info
 				return $FAILURE
 			fi
 			geli_list="$geli_list $disk$targetpart.eli"
 		done
+		unset pw_password # Sensitive info
 		set -- $geli_list
+
+		# Clean up
 		f_eval_catch $funcname zfs "$ZFS_UNMOUNT" \
-		             \$ZFSBOOT_GELI_POOL_NAME || return $FAILURE
-		f_quietly umount /mnt # done with tmpfs
+		             "$ZFSBOOT_GELI_POOL_NAME" || return $FAILURE
+		f_eval_catch -d $funcname umount "$UMOUNT" /mnt # tmpfs
 	fi
 
 	#
-	# Create the ZFS pool with desired type and disk devices
+	# Create the ZFS root pool with desired type and disk devices
 	#
 	local vdevs="$*"
 	f_dprintf "$funcname: Creating boot pool..."
-	f_dprintf "poolname=[%s] vdev_type=[%s] vdevs=[%s]" \
-	          "$poolname" "$vdev_type" "$vdevs"
 	f_eval_catch $funcname zpool "$ZPOOL_CREATE_WITH_OPTIONS" \
-	             "-o altroot=\"\$BSDINSTALL_CHROOT\" -m none -f" \
-	             \$poolname \$vdev_type \$vdevs
+	             "-o altroot=$BSDINSTALL_CHROOT -m none -f" \
+	             $poolname $vdev_type $vdevs
 
 	# Customize the zpool a bit...
 	local option
 	f_dprintf "$funcname: Setting miscellaneous options on boot pool..."
 	for option in checksum=fletcher4 atime=off; do
-		f_dprintf "$funcname: option=[%s]" "$option"
-		f_eval_catch $funcname zfs "$ZFS_SET" \$option \$poolname ||
-		             return $FAILURE
+		f_eval_catch $funcname zfs "$ZFS_SET" $option "$poolname" ||
+			return $FAILURE
 	done
 
 	#
@@ -1074,10 +1082,8 @@ zfs_create_boot()
 		# Replace both commas and spaces with ` -o '
 		f_replaceall "$options" "[ ,]" " -o " options
 		# Create the dataset with desired options
-		f_dprintf "$funcname: dataset=[%s] options=[%s]" \
-		          "$dataset" "$options"
 		f_eval_catch $funcname zfs "$ZFS_CREATE_WITH_OPTIONS" \
-		             "\${options:+-o \$options}" \$poolname\$dataset ||
+		             "${options:+-o $options}" "$poolname$dataset" ||
 		             return $FAILURE
 	done
 
@@ -1085,57 +1091,52 @@ zfs_create_boot()
 	f_dprintf "$funcname: Modifying directory permissions..."
 	local dir
 	for dir in /tmp /var/tmp; do
-		f_dprintf "$funcname: dir=[%s]" "$dir"
 		f_eval_catch $funcname chmod "$CHMOD_MODE" 1777 \
-		             \$BSDINSTALL_CHROOTDIR\$dir || return $FAILURE
+		             $BSDINSTALL_CHROOTDIR$dir || return $FAILURE
 	done
 
 	# Create symlink(s)
 	if [ "$ZFSBOOT_GELI_ENCRYPTION" ]; then
 		f_dprintf "$funcname: Creating /boot symlink for GELI..."
 		f_eval_catch $funcname ln "$LN_SF" \
-		             \$ZFSBOOT_GELI_POOL_NAME/boot \
-		             \$BSDINSTALL_CHROOT/boot || return $FAILURE
+		             "$ZFSBOOT_GELI_POOL_NAME/boot" \
+		             $BSDINSTALL_CHROOT/boot || return $FAILURE
 	fi
 
 	# Set bootfs property
 	f_dprintf "$funcname: Setting bootfs property..."
-	f_dprintf "$funcname: %s %s" \
-	          "ZFSBOOT_BEROOT_NAME=[$ZFSBOOT_BEROOT_NAME]" \
-	          "ZFSBOOT_BOOTFS_NAME=[$ZFSBOOT_BOOTFS_NAME]"
 	f_eval_catch $funcname zpool "$ZPOOL_SET" \
-	    bootfs=\"\$poolname/\$ZFSBOOT_BEROOT_NAME/\$ZFSBOOT_BOOTFS_NAME\" \
-	    \$poolname || return $FAILURE
+	    "bootfs=\"$poolname/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME\"" \
+	    "$poolname" || return $FAILURE
 
 	# Export the pool(s)
 	f_dprintf "$funcname: Temporarily exporting ZFS pool(s)..."
-	f_eval_catch $funcname zpool "$ZPOOL_EXPORT" \$poolname ||
+	f_eval_catch $funcname zpool "$ZPOOL_EXPORT" "$poolname" ||
 	             return $FAILURE
 	if [ "$ZFSBOOT_GELI_ENCRYPTION" ]; then
 		f_eval_catch $funcname zpool "$ZPOOL_EXPORT" \
-		             \$ZFSBOOT_GELI_POOL_NAME || return $FAILURE
+		             "$ZFSBOOT_GELI_POOL_NAME" || return $FAILURE
 	fi
 
 	# Destroy the gnop devices (if enabled)
 	for disk in ${ZFSBOOT_GNOP_4K_FORCE_ALIGN:+$disks}; do
 		if [ "$ZFSBOOT_GELI_ENCRYPTION" ]; then
-			f_quietly gnop destroy $disk$bootpart.nop
+			f_eval_catch -d $funcname gnop "$GNOP_DESTROY" \
+			                $disk$bootpart.nop
 		else
-			f_quietly gnop destroy $disk$targetpart.nop
+			f_eval_catch -d $funcname gnop "$GNOP_DESTROY" \
+			                $disk$targetpart.nop
 		fi
 	done
 
 	# MBR boot loader hack part 2
 	if [ "$ZFSBOOT_PARTITION_SCHEME" = "MBR" ]; then
 		f_dprintf "$funcname: Updating MBR boot loader on disks..."
-		f_dprintf "$funcname: disks=[%s]"
 		# Stick the ZFS boot loader in the "convienient hole" after 
 		# the ZFS internal metadata
 		for disk in $disks; do
-			f_dprintf "$funcname: disk=[%s] bootpart=[%s]" \
-			          "$disk" "$bootpart"
 			f_eval_catch $funcname dd "$DD_WITH_OPTIONS" \
-			             /boot/zfsboot /dev/\$disk\$bootpart \
+			             /boot/zfsboot /dev/$disk$bootpart \
 			             "skip=1 seek=1024" || return $FAILURE
 		done
 	fi
@@ -1143,42 +1144,42 @@ zfs_create_boot()
 	# Re-import the ZFS pool(s)
 	f_dprintf "$funcname: Re-importing ZFS pool(s)..."
 	f_eval_catch $funcname zpool "$ZPOOL_IMPORT_WITH_OPTIONS" \
-	             "-o altroot=\"\$BSDINSTALL_CHROOT\"" \$poolname ||
+	             "-o altroot=\"$BSDINSTALL_CHROOT\"" "$poolname" ||
 	             return $FAILURE
 	if [ "$ZFSBOOT_GELI_ENCRYPTION" ]; then
 		f_eval_catch $funcname zpool "$ZPOOL_IMPORT_WITH_OPTIONS" \
 		             "-o altroot=\"\$BSDINSTALL_CHROOT\"" \
-		             \$ZFSBOOT_GELI_POOL_NAME || return $FAILURE
+		             "$ZFSBOOT_GELI_POOL_NAME" || return $FAILURE
 	fi
 
 	# While this is apparently not needed, it seems to help MBR
 	f_dprintf "$funcname: Configuring zpool.cache..."
-	f_eval_catch $funcname mkdir "$MKDIR_P" \$BSDINSTALL_CHROOT/boot/zfs ||
+	f_eval_catch $funcname mkdir "$MKDIR_P" $BSDINSTALL_CHROOT/boot/zfs ||
 	             return $FAILURE
 	f_eval_catch $funcname zpool "$ZPOOL_SET" \
-	             cachefile=\"\$BSDINSTALL_CHROOT/boot/zfs/zpool.cache\" \
-	             \$poolname || return $FAILURE
+	             "cachefile=\"$BSDINSTALL_CHROOT/boot/zfs/zpool.cache\"" \
+	             "$poolname" || return $FAILURE
 
 	# Last, but not least... required lines for rc.conf(5)/loader.conf(5)
 	# NOTE: We later concatenate these into their destination
 	f_dprintf "%s: Configuring rc.conf(5)/loader.conf(5) additions..." \
 	          "$funcname"
 	f_eval_catch $funcname echo "$ECHO_APPEND" 'zfs_enable=\"YES\"' \
-	             \$BSDINSTALL_TMPETC/rc.conf.zfs || return $FAILURE
+	             $BSDINSTALL_TMPETC/rc.conf.zfs || return $FAILURE
 	f_eval_catch $funcname echo "$ECHO_APPEND" 'zfs_load=\"YES\"' \
-	             \$BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
+	             $BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
 
 	# We're all done unless we should go on to do encryption
 	[ "$ZFSBOOT_GELI_ENCRYPTION" ] || return $SUCCESS
 
 	# Some additional geli(8) requirements for loader.conf(5)
 	for option in \
-		zpool_cache_load=\"YES\" \
-		zpool_cache_type=\"/boot/zfs/zpool.cache\" \
-		zpool_cache_name=\"/boot/zfs/zpool.cache\" \
+		'zpool_cache_load=\"YES\"' \
+		'zpool_cache_type=\"/boot/zfs/zpool.cache\"' \
+		'zpool_cache_name=\"/boot/zfs/zpool.cache\"' \
 	; do
-		f_eval_catch $funcname echo "$ECHO_APPEND" \$option \
-		             \$BSDINSTALL_TMPBOOT/loader.conf.zfs ||
+		f_eval_catch $funcname echo "$ECHO_APPEND" "$option" \
+		             $BSDINSTALL_TMPBOOT/loader.conf.zfs ||
 		             return $FAILURE
 	done
 
@@ -1187,30 +1188,26 @@ zfs_create_boot()
 	#
 	f_dprintf "$funcname: Configuring disk encryption..."
 	f_eval_catch $funcname echo "$ECHO_APPEND" 'aesni_load=\"YES\"' \
-	    \$BSDINSTALL_TMPBOOT/loader.conf.aesni || return $FAILURE
+	    $BSDINSTALL_TMPBOOT/loader.conf.aesni || return $FAILURE
 	f_eval_catch $funcname echo "$ECHO_APPEND" 'geom_eli_load=\"YES\"' \
-	    \$BSDINSTALL_TMPBOOT/loader.conf.geli || return $FAILURE
+	    $BSDINSTALL_TMPBOOT/loader.conf.geli || return $FAILURE
 	f_eval_catch $funcname printf "$PRINTF_CONF" vfs.root.mountfrom \
-	    '"zfs:$poolname/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME"' \
-	    \$BSDINSTALL_TMPBOOT/loader.conf.root || return $FAILURE
-	f_dprintf "$funcname: disks=[%s]" "$disks"
+	    "\"zfs:$poolname/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME\"" \
+	    $BSDINSTALL_TMPBOOT/loader.conf.root || return $FAILURE
 	for disk in $disks; do
-		f_dprintf "$funcname: %s %s %s" \
-		          "disk=[$disk]" "targetpart=[$targetpart]" \
-		          "ZFSBOOT_GELI_KEY_FILE=[$ZFSBOOT_GELI_KEY_FILE]"
 		f_eval_catch $funcname printf "$PRINTF_CONF" \
-			geli_%s_keyfile0_load '"$disk$targetpart" YES' \
-			\$BSDINSTALL_TMPBOOT/loader.conf.\$disk\$targetpart ||
+			geli_%s_keyfile0_load "$disk$targetpart YES" \
+			$BSDINSTALL_TMPBOOT/loader.conf.$disk$targetpart ||
 			return $FAILURE
 		f_eval_catch $funcname printf "$PRINTF_CONF" \
 			geli_%s_keyfile0_type \
-			'"$disk$targetpart" "$disk$targetpart:geli_keyfile0"' \
-			\$BSDINSTALL_TMPBOOT/loader.conf.\$disk\$targetpart ||
+			"$disk$targetpart $disk$targetpart:geli_keyfile0" \
+			$BSDINSTALL_TMPBOOT/loader.conf.$disk$targetpart ||
 			return $FAILURE
 		f_eval_catch $funcname printf "$PRINTF_CONF" \
 			geli_%s_keyfile0_name \
-			'"$disk$targetpart" "$ZFSBOOT_GELI_KEY_FILE"' \
-			\$BSDINSTALL_TMPBOOT/loader.conf.\$disk\$targetpart ||
+			"$disk$targetpart \"$ZFSBOOT_GELI_KEY_FILE\"" \
+			$BSDINSTALL_TMPBOOT/loader.conf.$disk$targetpart ||
 			return $FAILURE
 	done
 
@@ -1259,7 +1256,7 @@ f_dialog_backtitle "$msg_freebsd_installer"
 #
 f_dprintf "BSDINSTALL_CHROOT=[%s]" "$BSDINSTALL_CHROOT"
 f_dprintf "BSDINSTALL_TMPETC=[%s]" "$BSDINSTALL_TMPETC"
-f_dprintf "PRINTF_FSTAB=[%s]" "$PRINTF_FSTAB"
+f_dprintf "FSTAB_FMT=[%s]" "$FSTAB_FMT"
 
 #
 # Loop over the main menu until we've accomplished what we came here to do
