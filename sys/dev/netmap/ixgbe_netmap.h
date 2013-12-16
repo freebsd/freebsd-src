@@ -220,8 +220,8 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 	if (nm_i != cur) {	/* we have new packets to send */
 		nic_i = netmap_idx_k2n(kring, nm_i);
 
-		prefetch(&ring->slot[nm_i]);
-		prefetch(&txr->tx_buffers[nic_i]);
+		__builtin_prefetch(&ring->slot[nm_i]);
+		__builtin_prefetch(&txr->tx_buffers[nic_i]);
 
 		for (n = 0; nm_i != cur; n++) {
 			struct netmap_slot *slot = &ring->slot[nm_i];
@@ -237,8 +237,8 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 				IXGBE_TXD_CMD_RS : 0;
 
 			/* prefetch for next round */
-			prefetch(&ring->slot[nm_i + 1]);
-			prefetch(&txr->tx_buffers[nic_i + 1]);
+			__builtin_prefetch(&ring->slot[nm_i + 1]);
+			__builtin_prefetch(&txr->tx_buffers[nic_i + 1]);
 
 			NM_CHECK_ADDR_LEN(addr, len);
 
