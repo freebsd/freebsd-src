@@ -25,17 +25,11 @@
 
 #define RUN_MAX_RXSZ			\
 	MIN(4096, MJUMPAGESIZE)
-#if 0
-	(sizeof (uint32_t) +		\
-	 sizeof (struct rt2860_rxwi) +	\
-	 sizeof (uint16_t) +		\
-	 MCLBYTES +			\
-	 sizeof (struct rt2870_rxd))
-#endif
+
 /* NB: "11" is the maximum number of padding bytes needed for Tx */
 #define RUN_MAX_TXSZ			\
 	(sizeof (struct rt2870_txd) +	\
-	 sizeof (struct rt2860_rxwi) +	\
+	 sizeof (struct rt2860_txwi) +	\
 	 MCLBYTES + 11)
 
 #define RUN_TX_TIMEOUT	5000	/* ms */
@@ -170,7 +164,7 @@ struct run_softc {
 
 	uint16_t			mac_ver;
 	uint16_t			mac_rev;
-	uint8_t				rf_rev;
+	uint16_t			rf_rev;
 	uint8_t				freq;
 	uint8_t				ntxchains;
 	uint8_t				nrxchains;
