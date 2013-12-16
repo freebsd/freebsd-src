@@ -66,6 +66,11 @@ struct vm_event {
 	int		error_code_valid;
 };
 
+struct vm_lapic_msi {
+	uint64_t	msg;
+	uint64_t	addr;
+};
+
 struct vm_lapic_irq {
 	int		cpuid;
 	int		vector;
@@ -103,8 +108,8 @@ struct vm_pptdev_msi {
 	int		slot;
 	int		func;
 	int		numvec;		/* 0 means disabled */
-	int		vector;
-	int		destcpu;
+	uint64_t	msg;
+	uint64_t	addr;
 };
 
 struct vm_pptdev_msix {
@@ -113,7 +118,7 @@ struct vm_pptdev_msix {
 	int		slot;
 	int		func;
 	int		idx;
-	uint32_t	msg;
+	uint64_t	msg;
 	uint32_t	vector_control;
 	uint64_t	addr;
 };
@@ -175,6 +180,7 @@ enum {
 	IOCNUM_IOAPIC_ASSERT_IRQ = 33,
 	IOCNUM_IOAPIC_DEASSERT_IRQ = 34,
 	IOCNUM_IOAPIC_PULSE_IRQ = 35,
+	IOCNUM_LAPIC_MSI = 36,
 
 	/* PCI pass-thru */
 	IOCNUM_BIND_PPTDEV = 40,
@@ -211,6 +217,8 @@ enum {
 	_IOW('v', IOCNUM_INJECT_EVENT, struct vm_event)
 #define	VM_LAPIC_IRQ 		\
 	_IOW('v', IOCNUM_LAPIC_IRQ, struct vm_lapic_irq)
+#define	VM_LAPIC_MSI		\
+	_IOW('v', IOCNUM_LAPIC_MSI, struct vm_lapic_msi)
 #define	VM_IOAPIC_ASSERT_IRQ	\
 	_IOW('v', IOCNUM_IOAPIC_ASSERT_IRQ, struct vm_ioapic_irq)
 #define	VM_IOAPIC_DEASSERT_IRQ	\
