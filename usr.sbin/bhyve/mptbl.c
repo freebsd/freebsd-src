@@ -242,7 +242,7 @@ mptable_add_oemtbl(void *tbl, int tblsz)
 }
 
 int
-mptable_build(struct vmctx *ctx, int ncpu, int ioapic)
+mptable_build(struct vmctx *ctx, int ncpu)
 {
 	mpcth_t			mpch;
 	bus_entry_ptr		mpeb;
@@ -278,15 +278,13 @@ mptable_build(struct vmctx *ctx, int ncpu, int ioapic)
 	curraddr += sizeof(*mpeb) * MPE_NUM_BUSES;
 	mpch->entry_count += MPE_NUM_BUSES;
 
-	if (ioapic) {
-		mpei = (io_apic_entry_ptr)curraddr;
-		mpt_build_ioapic_entries(mpei, ncpu + 1);
-		curraddr += sizeof(*mpei);
-		mpch->entry_count++;
-	}
+	mpei = (io_apic_entry_ptr)curraddr;
+	mpt_build_ioapic_entries(mpei, 0);
+	curraddr += sizeof(*mpei);
+	mpch->entry_count++;
 
 	mpie = (int_entry_ptr) curraddr;
-	mpt_build_ioint_entries(mpie, MPEII_MAX_IRQ, ncpu + 1);
+	mpt_build_ioint_entries(mpie, MPEII_MAX_IRQ, 0);
 	curraddr += sizeof(*mpie) * MPEII_MAX_IRQ;
 	mpch->entry_count += MPEII_MAX_IRQ;
 

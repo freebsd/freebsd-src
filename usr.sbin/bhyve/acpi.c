@@ -253,13 +253,23 @@ basl_fwrite_madt(FILE *fp)
 	EFPRINTF(fp, "[0001]\t\tSubtable Type : 01\n");
 	EFPRINTF(fp, "[0001]\t\tLength : 0C\n");
 	/* iasl expects a hex value for the i/o apic id */
-	EFPRINTF(fp, "[0001]\t\tI/O Apic ID : %02x\n", basl_ncpu);
+	EFPRINTF(fp, "[0001]\t\tI/O Apic ID : %02x\n", 0);
 	EFPRINTF(fp, "[0001]\t\tReserved : 00\n");
 	EFPRINTF(fp, "[0004]\t\tAddress : fec00000\n");
 	EFPRINTF(fp, "[0004]\t\tInterrupt : 00000000\n");
 	EFPRINTF(fp, "\n");
 
-	/* Override the 8259 chained vector. XXX maybe not needed */
+	/* Legacy IRQ0 is connected to pin 2 of the IOAPIC */
+	EFPRINTF(fp, "[0001]\t\tSubtable Type : 02\n");
+	EFPRINTF(fp, "[0001]\t\tLength : 0A\n");
+	EFPRINTF(fp, "[0001]\t\tBus : 00\n");
+	EFPRINTF(fp, "[0001]\t\tSource : 00\n");
+	EFPRINTF(fp, "[0004]\t\tInterrupt : 00000002\n");
+	EFPRINTF(fp, "[0002]\t\tFlags (decoded below) : 0005\n");
+	EFPRINTF(fp, "\t\t\tPolarity : 1\n");
+	EFPRINTF(fp, "\t\t\tTrigger Mode : 1\n");
+	EFPRINTF(fp, "\n");
+
 	EFPRINTF(fp, "[0001]\t\tSubtable Type : 02\n");
 	EFPRINTF(fp, "[0001]\t\tLength : 0A\n");
 	EFPRINTF(fp, "[0001]\t\tBus : 00\n");
@@ -806,18 +816,13 @@ static struct {
 };
 
 int
-acpi_build(struct vmctx *ctx, int ncpu, int ioapic)
+acpi_build(struct vmctx *ctx, int ncpu)
 {
 	int err;
 	int i;
 
 	err = 0;
 	basl_ncpu = ncpu;
-
-	if (!ioapic) {
-		fprintf(stderr, "ACPI tables require an ioapic\n");
-		return (EINVAL);
-	}
 
 	/*
 	 * For debug, allow the user to have iasl compiler output sent
