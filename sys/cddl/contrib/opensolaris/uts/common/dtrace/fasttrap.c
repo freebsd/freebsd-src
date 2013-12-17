@@ -2276,13 +2276,6 @@ fasttrap_load(void)
 	mutex_init(&fasttrap_count_mtx, "fasttrap count mtx", MUTEX_DEFAULT,
 	    NULL);
 
-	ret = kproc_create(fasttrap_pid_cleanup_cb, NULL,
-	    &fasttrap_cleanup_proc, 0, 0, "ftcleanup");
-	if (ret != 0) {
-		destroy_dev(fasttrap_cdev);
-		return (ret);
-	}
-
 #if defined(sun)
 	fasttrap_max = ddi_getprop(DDI_DEV_T_ANY, devi, DDI_PROP_DONTPASS,
 	    "fasttrap-max-probes", FASTTRAP_MAX_DEFAULT);
@@ -2335,6 +2328,24 @@ fasttrap_load(void)
 		mutex_init(&fasttrap_provs.fth_table[i].ftb_mtx, 
 		    "providers bucket mtx", MUTEX_DEFAULT, NULL);
 #endif
+
+	ret = kproc_create(fasttrap_pid_cleanup_cb, NULL,
+	    &fasttrap_cleanup_proc, 0, 0, "ftcleanup");
+	if (ret != 0) {
+		destroy_dev(fasttrap_cdev);
+#if !defined(sun)
+		for (i = 0; i < fasttrap_provs.fth_nent; i++)
+			mutex_destroy(&fasttrap_provs.fth_table[i].ftb_mtx);
+		for (i = 0; i < fasttrap_tpoints.fth_nent; i++)
+			mutex_destroy(&fasttrap_tpoints.fth_table[i].ftb_mtx);
+#endif
+		kmem_free(fasttrap_provs.fth_table, fasttrap_provs.fth_nent *
+		    sizeof (fasttrap_bucket_t));
+		mtx_destroy(&fasttrap_cleanup_mtx);
+		mutex_destroy(&fasttrap_count_mtx);
+		return (ret);
+	}
+
 
 	/*
 	 * ... and the procs hash table.
@@ -2428,6 +2439,20 @@ fasttrap_unload(void)
 		return (-1);
 	}
 
+	/*
+	 * Stop new processes from entering these hooks now, before the
+	 * fasttrap_cleanup thread runs.  That way all processes will hopefully
+	 * be out of these hooks before we free fasttrap_provs.fth_table
+	 */
+	ASSERT(dtrace_fasttrap_fork == &fasttrap_fork);
+	dtrace_fasttrap_fork = NULL;
+
+	ASSERT(dtrace_fasttrap_exec == &fasttrap_exec_exit);
+	dtrace_fasttrap_exec = NULL;
+
+	ASSERT(dtrace_fasttrap_exit == &fasttrap_exec_exit);
+	dtrace_fasttrap_exit = NULL;
+
 	mtx_lock(&fasttrap_cleanup_mtx);
 	fasttrap_cleanup_drain = 1;
 	/* Wait for the cleanup thread to finish up and signal us. */
@@ -2443,6 +2468,14 @@ fasttrap_unload(void)
 	mutex_exit(&fasttrap_count_mtx);
 #endif
 
+#if !defined(sun)
+	for (i = 0; i < fasttrap_tpoints.fth_nent; i++)
+		mutex_destroy(&fasttrap_tpoints.fth_table[i].ftb_mtx);
+	for (i = 0; i < fasttrap_provs.fth_nent; i++)
+		mutex_destroy(&fasttrap_provs.fth_table[i].ftb_mtx);
+	for (i = 0; i < fasttrap_procs.fth_nent; i++)
+		mutex_destroy(&fasttrap_procs.fth_table[i].ftb_mtx);
+#endif
 	kmem_free(fasttrap_tpoints.fth_table,
 	    fasttrap_tpoints.fth_nent * sizeof (fasttrap_bucket_t));
 	fasttrap_tpoints.fth_nent = 0;
@@ -2454,22 +2487,6 @@ fasttrap_unload(void)
 	kmem_free(fasttrap_procs.fth_table,
 	    fasttrap_procs.fth_nent * sizeof (fasttrap_bucket_t));
 	fasttrap_procs.fth_nent = 0;
-
-	/*
-	 * We know there are no tracepoints in any process anywhere in
-	 * the system so there is no process which has its p_dtrace_count
-	 * greater than zero, therefore we know that no thread can actively
-	 * be executing code in fasttrap_fork(). Similarly for p_dtrace_probes
-	 * and fasttrap_exec() and fasttrap_exit().
-	 */
-	ASSERT(dtrace_fasttrap_fork == &fasttrap_fork);
-	dtrace_fasttrap_fork = NULL;
-
-	ASSERT(dtrace_fasttrap_exec == &fasttrap_exec_exit);
-	dtrace_fasttrap_exec = NULL;
-
-	ASSERT(dtrace_fasttrap_exit == &fasttrap_exec_exit);
-	dtrace_fasttrap_exit = NULL;
 
 #if !defined(sun)
 	destroy_dev(fasttrap_cdev);
