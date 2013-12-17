@@ -399,6 +399,12 @@
 	(override_options): Add PTA_CX16 flag.  Set x86_cmpxchg16b
 	for CPUs that have PTA_CX16 set.
 
+2007-01-18  Josh Conner  <jconner@apple.com> (r120902)
+
+	PR target/30485
+	* config/rs6000/rs6000.c (rs6000_emit_vector_compare): Add
+	support for UNLE, UNLT, UNGE, and UNGT.
+
 2007-01-17  Eric Christopher  <echristo@apple.com> (r120846)
 
 	* config.gcc: Support core2 processor.
