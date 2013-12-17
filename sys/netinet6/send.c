@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
-#include <netinet6/scope6_var.h>
 #include <netinet6/send.h>
 
 static MALLOC_DEFINE(M_SEND, "send", "Secure Neighbour Discovery");

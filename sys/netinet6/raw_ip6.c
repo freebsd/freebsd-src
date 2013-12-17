@@ -430,6 +430,13 @@ rip6_output(struct mbuf *m, ...)
 		optp = in6p->in6p_outputopts;
 
 	/*
+	 * Application must provide a proper zone ID or the use of
+	 * default zone IDs should be enabled.
+	 */
+	error = sa6_checkzone_opts(optp, in6p->in6p_moptions, dstsock);
+	if (error != 0)
+		goto bad;
+	/*
 	 * For an ICMPv6 packet, we should know its type and code to update
 	 * statistics.
 	 */
@@ -738,7 +745,8 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (TAILQ_EMPTY(&V_ifnet) || addr->sin6_family != AF_INET6)
 		return (EADDRNOTAVAIL);
 	INP_RLOCK(inp);
-	error = sa6_checkzone_pcb(inp, addr);
+	error = sa6_checkzone_opts(inp->in6p_outputopts,
+	    inp->in6p_moptions, addr);
 	INP_RUNLOCK(inp);
 	if (error != 0)
 		return (error);
@@ -782,7 +790,8 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (addr->sin6_family != AF_INET6)
 		return (EAFNOSUPPORT);
 	INP_RLOCK(inp);
-	error = sa6_checkzone_pcb(inp, addr);
+	error = sa6_checkzone_opts(inp->in6p_outputopts,
+	   inp->in6p_moptions, addr);
 	INP_RUNLOCK(inp);
 	if (error != 0)
 		return (error);
@@ -876,17 +885,6 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		} else if (dst->sin6_family != AF_INET6) {
 			m_freem(m);
 			return(EAFNOSUPPORT);
-		}
-		/*
-		 * Application must provide a proper zone ID or the use of
-		 * default zone IDs should be enabled.
-		 */
-		INP_RLOCK(inp);
-		ret = sa6_checkzone_pcb(inp, dst);
-		INP_RUNLOCK(inp);
-		if (ret != 0) {
-			m_freem(m);
-			return (ret);
 		}
 	}
 	ret = rip6_output(m, so, dst, control);

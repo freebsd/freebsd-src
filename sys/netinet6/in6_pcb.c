@@ -138,7 +138,8 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 		if (nam->sa_family != AF_INET6)
 			return (EAFNOSUPPORT);
 		/* Check sin6_scope_id. The caller must set it properly. */
-		if ((error = sa6_checkzone_pcb(inp, sin6)) != 0)
+		if ((error = sa6_checkzone_opts(inp->in6p_outputopts,
+		    inp->in6p_moptions, sin6)) != 0)
 			return (error);
 
 		if ((error = prison_local_ip6(cred, &sin6->sin6_addr,
@@ -323,7 +324,8 @@ in6_pcbconnect_mbuf(register struct inpcb *inp, struct sockaddr *nam,
 	/*
 	 * Check sin6_scope_id and automatically fill it, if possible.
 	 */
-	error = sa6_checkzone_pcb(inp, sin6);
+	error = sa6_checkzone_opts(inp->in6p_outputopts,
+	    inp->in6p_moptions, sin6);
 	if (error != 0)
 		return (error);
 	if ((error = prison_remote_ip6(inp->inp_cred, &sin6->sin6_addr)) != 0)

@@ -57,7 +57,6 @@ int	sa6_embedscope(struct sockaddr_in6 *, int);
 int	sa6_recoverscope(struct sockaddr_in6 *);
 int	sa6_checkzone(struct sockaddr_in6 *);
 int	sa6_checkzone_ifp(struct ifnet *, struct sockaddr_in6 *);
-int	sa6_checkzone_pcb(struct inpcb *, struct sockaddr_in6 *);
 int	in6_setscope(struct in6_addr *, struct ifnet *, u_int32_t *);
 int	in6_clearscope(struct in6_addr *);
 uint16_t in6_getscope(struct in6_addr *);

@@ -631,9 +631,6 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
 
-	bzero(&ro, sizeof(ro));
-	/* addr6 has been validated in udp6_send(). */
-	sin6 = (struct sockaddr_in6 *)addr6;
 	if (control) {
 		if ((error = ip6_setpktopts(control, &opt,
 		    inp->in6p_outputopts, td->td_ucred, IPPROTO_UDP)) != 0)
@@ -642,6 +639,18 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 	} else
 		optp = inp->in6p_outputopts;
 
+	bzero(&ro, sizeof(ro));
+	if (addr6 != NULL) {
+		/*
+		 * Application must provide a proper zone ID or the use of
+		 * default zone IDs should be enabled.
+		 */
+		ro.ro_dst = *(struct sockaddr_in6 *)addr6;
+		sin6 = &ro.ro_dst;
+		error = sa6_checkzone_opts(optp, inp->in6p_moptions, sin6);
+		if (error != 0)
+			goto release;
+	}
 	if (sin6) {
 		faddr = &sin6->sin6_addr;
 
@@ -1075,7 +1084,6 @@ static int
 udp6_send(struct socket *so, int flags, struct mbuf *m,
     struct sockaddr *addr, struct mbuf *control, struct thread *td)
 {
-	struct sockaddr_in6 tmp;
 	struct inpcb *inp;
 	int error = 0;
 
@@ -1092,15 +1100,6 @@ udp6_send(struct socket *so, int flags, struct mbuf *m,
 			error = EAFNOSUPPORT;
 			goto bad;
 		}
-		/*
-		 * Application must provide a proper zone ID or the use of
-		 * default zone IDs should be enabled.
-		 */
-		tmp = *(struct sockaddr_in6 *)addr;
-		addr = (struct sockaddr *)&tmp;
-		error = sa6_checkzone_pcb(inp, &tmp);
-		if (error != 0)
-			goto bad;
 	}
 
 #ifdef INET

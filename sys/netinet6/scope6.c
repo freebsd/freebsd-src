@@ -521,7 +521,8 @@ sa6_checkzone_ifp(struct ifnet *ifp, struct sockaddr_in6 *sa6)
 }
 
 int
-sa6_checkzone_pcb(struct inpcb *inp, struct sockaddr_in6 *sa6)
+sa6_checkzone_opts(struct ip6_pktopts *opts, struct ip6_moptions *mopts,
+    struct sockaddr_in6 *sa6)
 {
 	struct in6_pktinfo *pi;
 	int scope;
@@ -537,22 +538,39 @@ sa6_checkzone_pcb(struct inpcb *inp, struct sockaddr_in6 *sa6)
 			 * socket options.
 			 * XXX: we will do this again in the in6_selectsrc().
 			 */
-			INP_LOCK_ASSERT(inp);
-			if (inp->in6p_outputopts != NULL) {
-				pi = inp->in6p_outputopts->ip6po_pktinfo;
+			/*
+			 * RFC 3542 p6.7:
+			 * If an interface is specified in an IPV6_PKTINFO
+			 * ancillary data item, the interface is used.
+			 */
+			if (opts != NULL) {
+				pi = opts->ip6po_pktinfo;
 				if (pi != NULL && pi->ipi6_ifindex != 0) {
 					/* XXX: in6_getscopezone */
 					sa6->sin6_scope_id = pi->ipi6_ifindex;
 					return (0);
 				}
 			}
-			if (inp->in6p_moptions != NULL &&
-			    inp->in6p_moptions->im6o_multicast_ifp != NULL) {
+			/*
+			 * If the destination address is a multicast
+			 * address and the IPV6_MULTICAST_IF socket option is
+			 * specified for the socket, the interface is used.
+			 */
+			if (mopts != NULL &&
+			    mopts->im6o_multicast_ifp != NULL) {
 				sa6->sin6_scope_id = in6_getscopezone(
-				    inp->in6p_moptions->im6o_multicast_ifp,
-				    scope);
+				    mopts->im6o_multicast_ifp, scope);
 				return (0);
 			}
+			/*
+			 * If an IPV6_NEXTHOP ancillary data item is
+			 * specified, the interface to the next hop is used.
+			 *
+			 * This option does not have any meaning for multicast
+			 * destinations. In such a case, the specified next hop
+			 * will be ignored.
+			 * XXX: handle IPV6_NEXTHOP
+			 */
 		}
 	}
 	return (sa6_checkzone(sa6));

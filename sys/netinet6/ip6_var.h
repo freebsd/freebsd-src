@@ -398,6 +398,8 @@ int	ip6_setpktopts(struct mbuf *, struct ip6_pktopts *,
 void	ip6_clearpktopts(struct ip6_pktopts *, int);
 struct ip6_pktopts *ip6_copypktopts(struct ip6_pktopts *, int);
 int	ip6_optlen(struct inpcb *);
+int	sa6_checkzone_opts(struct ip6_pktopts *, struct ip6_moptions *,
+	struct sockaddr_in6 *);
 
 int	route6_input(struct mbuf **, int *, int);
 
