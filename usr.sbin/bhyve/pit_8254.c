@@ -106,8 +106,8 @@ pit_mevent_cb(int fd, enum ev_type type, void *param)
 
 	pit_mev_count++;
 
-	ioapic_assert_pin(c->ctx, 0);
-	ioapic_deassert_pin(c->ctx, 0);
+	ioapic_assert_pin(c->ctx, 2);
+	ioapic_deassert_pin(c->ctx, 2);
 
 	/*
 	 * Delete the timer for one-shots
