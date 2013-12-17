@@ -80,9 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_util.h>
 #endif
 
-#include <vm/uma.h>
-#include <vm/uma_int.h>
-#include <vm/uma_dbg.h>
 #include <net/vnet.h>
 
 #include <security/audit/audit.h>
@@ -95,6 +92,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/uma.h>
 
 #if defined(INET) || defined(INET6)
 #ifdef SCTP
@@ -150,11 +148,7 @@ sf_sync_init(const void *unused)
 
 	zone_sfsync = uma_zcreate("sendfile_sync", sizeof(struct sendfile_sync),
 	    NULL, NULL,
-#ifdef	INVARIANTS
-	    trash_init, trash_fini,
-#else
 	    NULL, NULL,
-#endif
 	    UMA_ALIGN_CACHE,
 	    0);
 }
