@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
+ * Copyright (c) 2012, 2013 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Oleksandr Rybalko
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -99,13 +103,14 @@ struct bcmsc_softc {
 
 static int bcm_fb_probe(device_t);
 static int bcm_fb_attach(device_t);
-static void bcm_fb_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err);
+static void bcm_fb_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg,
+    int err);
 
 static void
 bcm_fb_init(void *arg)
 {
-	struct bcmsc_softc *sc = arg;
-	volatile struct bcm_fb_config*	fb_config = sc->fb_config;
+	volatile struct bcm_fb_config *fb_config;
+	struct bcmsc_softc *sc;
 	struct fb_info *info;
 	phandle_t node;
 	pcell_t cell;
@@ -113,6 +118,8 @@ bcm_fb_init(void *arg)
 	device_t fbd;
 	int err = 0;
 
+	sc = arg;
+	fb_config = sc->fb_config;
 	node = ofw_bus_get_node(sc->dev);
 
 	fb_config->xres = 0;
@@ -153,23 +160,25 @@ bcm_fb_init(void *arg)
 		BUS_DMASYNC_POSTREAD);
 
 	if (fb_config->base != 0) {
-		device_printf(sc->dev, "%dx%d(%dx%d@%d,%d) %dbpp\n", 
+		device_printf(sc->dev, "%dx%d(%dx%d@%d,%d) %dbpp\n",
 			fb_config->xres, fb_config->yres,
 			fb_config->vxres, fb_config->vyres,
 			fb_config->xoffset, fb_config->yoffset,
 			fb_config->bpp);
 
 
-		device_printf(sc->dev, "pitch %d, base 0x%08x, screen_size %d\n", 
+		device_printf(sc->dev, "pitch %d, base 0x%08x, screen_size %d\n",
 			fb_config->pitch, fb_config->base,
 			fb_config->screen_size);
 
 
 
 
-		info = malloc(sizeof(struct fb_info), M_DEVBUF, M_WAITOK | M_ZERO);
+		info = malloc(sizeof(struct fb_info), M_DEVBUF,
+		    M_WAITOK | M_ZERO);
 		info->fb_name = device_get_nameunit(sc->dev);
-		info->fb_vbase = (intptr_t)pmap_mapdev(fb_config->base, fb_config->screen_size);
+		info->fb_vbase = (intptr_t)pmap_mapdev(fb_config->base,
+		    fb_config->screen_size);
 		info->fb_pbase = fb_config->base;
 		info->fb_size = fb_config->screen_size;
 		info->fb_bpp = info->fb_depth = fb_config->bpp;
@@ -179,7 +188,8 @@ bcm_fb_init(void *arg)
 
 		sc->info = info;
 
-		fbd = device_add_child(sc->dev, "fbd", device_get_unit(sc->dev));
+		fbd = device_add_child(sc->dev, "fbd",
+		    device_get_unit(sc->dev));
 		if (fbd == NULL) {
 			device_printf(sc->dev, "Failed to add fbd child\n");
 			return;
@@ -244,8 +254,8 @@ bcm_fb_attach(device_t dev)
 		goto fail;
 	}
 
-	/* 
-	 * We have to wait until interrupts are enabled. 
+	/*
+	 * We have to wait until interrupts are enabled.
 	 * Mailbox relies on it to get data from VideoCore
 	 */
         sc->init_hook.ich_func = bcm_fb_init;
