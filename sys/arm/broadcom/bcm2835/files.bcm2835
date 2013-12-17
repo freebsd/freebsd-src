@@ -3,6 +3,7 @@
 arm/broadcom/bcm2835/bcm2835_bsc.c		optional bcm2835_bsc
 arm/broadcom/bcm2835/bcm2835_dma.c		standard
 arm/broadcom/bcm2835/bcm2835_fb.c		optional sc
+arm/broadcom/bcm2835/bcm2835_fbd.c		optional vt
 arm/broadcom/bcm2835/bcm2835_gpio.c		optional gpio
 arm/broadcom/bcm2835/bcm2835_intr.c		standard
 arm/broadcom/bcm2835/bcm2835_machdep.c		standard
