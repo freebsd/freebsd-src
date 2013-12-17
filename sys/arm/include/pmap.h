@@ -53,15 +53,6 @@
 #include <machine/pte.h>
 #include <machine/cpuconf.h>
 
-typedef enum {
-	L2CACHE_UNKNOWN,
-	L2CACHE_VIVT,
-	L2CACHE_VIPT,
-	L2CACHE_PIPT,
-} l2cache;
-
-extern l2cache l2cache_type;
-
 /*
  * Pte related macros
  */

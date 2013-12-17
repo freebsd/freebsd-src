@@ -56,6 +56,15 @@ breakpoint(void)
 	__asm(".word      0xe7ffffff");
 }
 
+typedef enum {
+	L2CACHE_UNKNOWN,
+	L2CACHE_VIVT,
+	L2CACHE_VIPT,
+	L2CACHE_PIPT,
+} l2cache;
+
+extern l2cache l2cache_type;
+
 struct cpu_functions {
 
 	/* CPU functions */
