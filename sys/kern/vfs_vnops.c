@@ -313,6 +313,9 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 			vn_lock(vp, lock_flags | LK_RETRY);
 			(void)VOP_CLOSE(vp, fmode, cred, td);
 			vn_finished_write(mp);
+			/* Prevent second close from fdrop()->vn_close(). */
+			if (fp != NULL)
+				fp->f_ops= &badfileops;
 			return (error);
 		}
 		fp->f_flag |= FHASLOCK;
