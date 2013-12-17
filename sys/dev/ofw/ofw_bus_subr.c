@@ -251,8 +251,9 @@ ofw_bus_setup_iinfo(phandle_t node, struct ofw_bus_iinfo *ii, int intrsz)
 int
 ofw_bus_lookup_imap(phandle_t node, struct ofw_bus_iinfo *ii, void *reg,
     int regsz, void *pintr, int pintrsz, void *mintr, int mintrsz,
-    phandle_t *iparent, void *maskbuf)
+    phandle_t *iparent)
 {
+	uint8_t maskbuf[regsz + pintrsz];
 	int rv;
 
 	if (ii->opi_imapsz <= 0)

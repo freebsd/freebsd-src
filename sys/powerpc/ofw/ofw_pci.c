@@ -259,7 +259,6 @@ ofw_pci_route_interrupt(device_t bus, device_t dev, int pin)
 	uint32_t pintr, mintr[2];
 	int intrcells;
 	phandle_t iparent;
-	uint8_t maskbuf[sizeof(reg) + sizeof(pintr)];
 
 	sc = device_get_softc(bus);
 	pintr = pin;
@@ -272,7 +271,7 @@ ofw_pci_route_interrupt(device_t bus, device_t dev, int pin)
 
 	intrcells = ofw_bus_lookup_imap(ofw_bus_get_node(dev),
 	    &sc->sc_pci_iinfo, &reg, sizeof(reg), &pintr, sizeof(pintr),
-	    mintr, sizeof(mintr), &iparent, maskbuf);
+	    mintr, sizeof(mintr), &iparent);
 	if (intrcells) {
 		pintr = ofw_bus_map_intr(dev, iparent, mintr[0]);
 		if (intrcells == 2)
