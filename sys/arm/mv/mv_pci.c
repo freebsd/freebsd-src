@@ -884,7 +884,6 @@ mv_pcib_route_interrupt(device_t bus, device_t dev, int pin)
 	struct ofw_pci_register reg;
 	uint32_t pintr, mintr;
 	phandle_t iparent;
-	uint8_t maskbuf[sizeof(reg) + sizeof(pintr)];
 
 	sc = device_get_softc(bus);
 	pintr = pin;
@@ -897,7 +896,7 @@ mv_pcib_route_interrupt(device_t bus, device_t dev, int pin)
 
 	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo, &reg,
 	    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
-	    &iparent, maskbuf))
+	    &iparent))
 		return (ofw_bus_map_intr(dev, iparent, mintr));
 
 	/* Maybe it's a real interrupt, not an intpin */
