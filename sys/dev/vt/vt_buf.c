@@ -135,6 +135,7 @@ vthistory_getpos(const struct vt_buf *vb, unsigned int *offset)
 	*offset = vb->vb_roffset;
 }
 
+#ifndef SC_NO_CUTPASTE	/* Only mouse support use it now. */
 /* Translate current view row number to history row. */
 static int
 vtbuf_wth(struct vt_buf *vb, int row)
@@ -142,6 +143,7 @@ vtbuf_wth(struct vt_buf *vb, int row)
 
 	return ((vb->vb_roffset + row) % vb->vb_history_size);
 }
+#endif
 
 /* Translate history row to current view row number. */
 static int
@@ -531,6 +533,7 @@ vtbuf_cursor_position(struct vt_buf *vb, const term_pos_t *p)
 	}
 }
 
+#ifndef SC_NO_CUTPASTE
 void
 vtbuf_mouse_cursor_position(struct vt_buf *vb, int col, int row)
 {
@@ -691,6 +694,7 @@ vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row)
 	vtbuf_flush_mark(vb);
 	return (1);
 }
+#endif
 
 void
 vtbuf_cursor_visibility(struct vt_buf *vb, int yes)

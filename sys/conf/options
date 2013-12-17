@@ -757,6 +757,9 @@ SC_NORM_REV_ATTR	opt_syscons.h
 SC_PIXEL_MODE		opt_syscons.h
 SC_RENDER_DEBUG		opt_syscons.h
 SC_TWOBUTTON_MOUSE	opt_syscons.h
+DEV_SC			opt_syscons.h
+DEV_VT			opt_syscons.h
+
 
 # teken terminal emulator options
 TEKEN_CONS25		opt_teken.h

@@ -119,6 +119,9 @@ f_index_initialize()
 	$DEVICE_TYPE_HTTP_PROXY)
 		f_getvar $VAR_HTTP_PROXY_PATH __site
 		__site="$__site/packages/$PKG_ABI" ;;
+	$DEVICE_TYPE_CDROM)
+		__site="file://$MOUNTPOINT/packages/$PKG_ABI"
+		export REPOS_DIR="$MOUNTPOINT/packages/repos" ;;
 	*) # UFS, DISK, CDROM, USB, DOS, NFS, etc.
 		__site="file://$MOUNTPOINT/packages/$PKG_ABI"
 	esac

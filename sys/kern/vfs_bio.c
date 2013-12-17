@@ -3679,7 +3679,6 @@ bufdonebio(struct bio *bip)
 
 	bp = bip->bio_caller2;
 	bp->b_resid = bp->b_bcount - bip->bio_completed;
-	bp->b_resid = bip->bio_resid;	/* XXX: remove */
 	bp->b_ioflags = bip->bio_flags;
 	bp->b_error = bip->bio_error;
 	if (bp->b_error)

@@ -111,7 +111,7 @@ struct lvt {
 };
 
 struct lapic {
-	struct lvt la_lvts[LVT_MAX + 1];
+	struct lvt la_lvts[APIC_LVT_MAX + 1];
 	u_int la_id:8;
 	u_int la_cluster:4;
 	u_int la_cluster_id:2;
@@ -125,7 +125,7 @@ struct lapic {
 } static lapics[MAX_APIC_ID + 1];
 
 /* Global defaults for local APIC LVT entries. */
-static struct lvt lvts[LVT_MAX + 1] = {
+static struct lvt lvts[APIC_LVT_MAX + 1] = {
 	{ 1, 1, 1, 1, APIC_LVT_DM_EXTINT, 0 },	/* LINT0: masked ExtINT */
 	{ 1, 1, 0, 1, APIC_LVT_DM_NMI, 0 },	/* LINT1: NMI */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_TIMER_INT },	/* Timer */
@@ -179,7 +179,7 @@ lvt_mode(struct lapic *la, u_int pin, uint32_t value)
 {
 	struct lvt *lvt;
 
-	KASSERT(pin <= LVT_MAX, ("%s: pin %u out of range", __func__, pin));
+	KASSERT(pin <= APIC_LVT_MAX, ("%s: pin %u out of range", __func__, pin));
 	if (la->la_lvts[pin].lvt_active)
 		lvt = &la->la_lvts[pin];
 	else
@@ -300,7 +300,7 @@ lapic_create(u_int apic_id, int boot_cpu)
 	 */
 	lapics[apic_id].la_present = 1;
 	lapics[apic_id].la_id = apic_id;
-	for (i = 0; i <= LVT_MAX; i++) {
+	for (i = 0; i <= APIC_LVT_MAX; i++) {
 		lapics[apic_id].la_lvts[i] = lvts[i];
 		lapics[apic_id].la_lvts[i].lvt_active = 0;
 	}
@@ -339,10 +339,10 @@ lapic_dump(const char* str)
 	    lapic->lvt_lint0, lapic->lvt_lint1, lapic->tpr, lapic->svr);
 	printf("  timer: 0x%08x therm: 0x%08x err: 0x%08x",
 	    lapic->lvt_timer, lapic->lvt_thermal, lapic->lvt_error);
-	if (maxlvt >= LVT_PMC)
+	if (maxlvt >= APIC_LVT_PMC)
 		printf(" pmc: 0x%08x", lapic->lvt_pcint);
 	printf("\n");
-	if (maxlvt >= LVT_CMCI)
+	if (maxlvt >= APIC_LVT_CMCI)
 		printf("   cmci: 0x%08x\n", lapic->lvt_cmci);
 }
 
@@ -366,16 +366,16 @@ lapic_setup(int boot)
 	lapic_enable();
 
 	/* Program LINT[01] LVT entries. */
-	lapic->lvt_lint0 = lvt_mode(la, LVT_LINT0, lapic->lvt_lint0);
-	lapic->lvt_lint1 = lvt_mode(la, LVT_LINT1, lapic->lvt_lint1);
+	lapic->lvt_lint0 = lvt_mode(la, APIC_LVT_LINT0, lapic->lvt_lint0);
+	lapic->lvt_lint1 = lvt_mode(la, APIC_LVT_LINT1, lapic->lvt_lint1);
 
 	/* Program the PMC LVT entry if present. */
-	if (maxlvt >= LVT_PMC)
-		lapic->lvt_pcint = lvt_mode(la, LVT_PMC, lapic->lvt_pcint);
+	if (maxlvt >= APIC_LVT_PMC)
+		lapic->lvt_pcint = lvt_mode(la, APIC_LVT_PMC, lapic->lvt_pcint);
 
 	/* Program timer LVT and setup handler. */
 	la->lvt_timer_cache = lapic->lvt_timer =
-	    lvt_mode(la, LVT_TIMER, lapic->lvt_timer);
+	    lvt_mode(la, APIC_LVT_TIMER, lapic->lvt_timer);
 	if (boot) {
 		snprintf(buf, sizeof(buf), "cpu%d:timer", PCPU_GET(cpuid));
 		intrcnt_add(buf, &la->la_timer_count);
@@ -393,14 +393,14 @@ lapic_setup(int boot)
 	}
 
 	/* Program error LVT and clear any existing errors. */
-	lapic->lvt_error = lvt_mode(la, LVT_ERROR, lapic->lvt_error);
+	lapic->lvt_error = lvt_mode(la, APIC_LVT_ERROR, lapic->lvt_error);
 	lapic->esr = 0;
 
 	/* XXX: Thermal LVT */
 
 	/* Program the CMCI LVT entry if present. */
-	if (maxlvt >= LVT_CMCI)
-		lapic->lvt_cmci = lvt_mode(la, LVT_CMCI, lapic->lvt_cmci);
+	if (maxlvt >= APIC_LVT_CMCI)
+		lapic->lvt_cmci = lvt_mode(la, APIC_LVT_CMCI, lapic->lvt_cmci);
 	    
 	intr_restore(saveintr);
 }
@@ -424,7 +424,7 @@ lapic_update_pmc(void *dummy)
 	struct lapic *la;
 
 	la = &lapics[lapic_id()];
-	lapic->lvt_pcint = lvt_mode(la, LVT_PMC, lapic->lvt_pcint);
+	lapic->lvt_pcint = lvt_mode(la, APIC_LVT_PMC, lapic->lvt_pcint);
 }
 #endif
 
@@ -440,10 +440,10 @@ lapic_enable_pmc(void)
 
 	/* Fail if the PMC LVT is not present. */
 	maxlvt = (lapic->version & APIC_VER_MAXLVT) >> MAXLVTSHIFT;
-	if (maxlvt < LVT_PMC)
+	if (maxlvt < APIC_LVT_PMC)
 		return (0);
 
-	lvts[LVT_PMC].lvt_masked = 0;
+	lvts[APIC_LVT_PMC].lvt_masked = 0;
 
 #ifdef SMP
 	/*
@@ -474,10 +474,10 @@ lapic_disable_pmc(void)
 
 	/* Fail if the PMC LVT is not present. */
 	maxlvt = (lapic->version & APIC_VER_MAXLVT) >> MAXLVTSHIFT;
-	if (maxlvt < LVT_PMC)
+	if (maxlvt < APIC_LVT_PMC)
 		return;
 
-	lvts[LVT_PMC].lvt_masked = 1;
+	lvts[APIC_LVT_PMC].lvt_masked = 1;
 
 #ifdef SMP
 	/* The APs should always be started when hwpmc is unloaded. */
@@ -617,7 +617,7 @@ int
 lapic_set_lvt_mask(u_int apic_id, u_int pin, u_char masked)
 {
 
-	if (pin > LVT_MAX)
+	if (pin > APIC_LVT_MAX)
 		return (EINVAL);
 	if (apic_id == APIC_ID_ALL) {
 		lvts[pin].lvt_masked = masked;
@@ -641,7 +641,7 @@ lapic_set_lvt_mode(u_int apic_id, u_int pin, u_int32_t mode)
 {
 	struct lvt *lvt;
 
-	if (pin > LVT_MAX)
+	if (pin > APIC_LVT_MAX)
 		return (EINVAL);
 	if (apic_id == APIC_ID_ALL) {
 		lvt = &lvts[pin];
@@ -696,7 +696,7 @@ int
 lapic_set_lvt_polarity(u_int apic_id, u_int pin, enum intr_polarity pol)
 {
 
-	if (pin > LVT_MAX || pol == INTR_POLARITY_CONFORM)
+	if (pin > APIC_LVT_MAX || pol == INTR_POLARITY_CONFORM)
 		return (EINVAL);
 	if (apic_id == APIC_ID_ALL) {
 		lvts[pin].lvt_activehi = (pol == INTR_POLARITY_HIGH);
@@ -721,7 +721,7 @@ int
 lapic_set_lvt_triggermode(u_int apic_id, u_int pin, enum intr_trigger trigger)
 {
 
-	if (pin > LVT_MAX || trigger == INTR_TRIGGER_CONFORM)
+	if (pin > APIC_LVT_MAX || trigger == INTR_TRIGGER_CONFORM)
 		return (EINVAL);
 	if (apic_id == APIC_ID_ALL) {
 		lvts[pin].lvt_edgetrigger = (trigger == INTR_TRIGGER_EDGE);
@@ -894,8 +894,8 @@ lapic_enable_cmc(void)
 	apic_id = PCPU_GET(apic_id);
 	KASSERT(lapics[apic_id].la_present,
 	    ("%s: missing APIC %u", __func__, apic_id));
-	lapics[apic_id].la_lvts[LVT_CMCI].lvt_masked = 0;
-	lapics[apic_id].la_lvts[LVT_CMCI].lvt_active = 1;
+	lapics[apic_id].la_lvts[APIC_LVT_CMCI].lvt_masked = 0;
+	lapics[apic_id].la_lvts[APIC_LVT_CMCI].lvt_active = 1;
 	if (bootverbose)
 		printf("lapic%u: CMCI unmasked\n", apic_id);
 }

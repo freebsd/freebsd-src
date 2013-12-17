@@ -1,6 +1,8 @@
 /*-
- * Copyright (C) 2012 FreeBSD Foundation
+ * Copyright (C) 2008 MARVELL INTERNATIONAL LTD.
  * All rights reserved.
+ *
+ * Developed by Semihalf.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

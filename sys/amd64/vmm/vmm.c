@@ -860,8 +860,7 @@ vcpu_require_state_locked(struct vcpu *vcpu, enum vcpu_state newstate)
  * Emulate a guest 'hlt' by sleeping until the vcpu is ready to run.
  */
 static int
-vm_handle_hlt(struct vm *vm, int vcpuid, boolean_t intr_disabled,
-    boolean_t *retu)
+vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 {
 	struct vm_exit *vmexit;
 	struct vcpu *vcpu;
@@ -894,7 +893,7 @@ vm_handle_hlt(struct vm *vm, int vcpuid, boolean_t intr_disabled,
 			 * Spindown the vcpu if the apic is disabled and it
 			 * had entered the halted state.
 			 */
-			*retu = TRUE;
+			*retu = true;
 			vmexit = vm_exitinfo(vm, vcpuid);
 			vmexit->exitcode = VM_EXITCODE_SPINDOWN_CPU;
 			VCPU_CTR0(vm, vcpuid, "spinning down cpu");
@@ -908,7 +907,7 @@ vm_handle_hlt(struct vm *vm, int vcpuid, boolean_t intr_disabled,
 }
 
 static int
-vm_handle_paging(struct vm *vm, int vcpuid, boolean_t *retu)
+vm_handle_paging(struct vm *vm, int vcpuid, bool *retu)
 {
 	int rv, ftype;
 	struct vm_map *map;
@@ -946,7 +945,7 @@ done:
 }
 
 static int
-vm_handle_inst_emul(struct vm *vm, int vcpuid, boolean_t *retu)
+vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 {
 	struct vie *vie;
 	struct vcpu *vcpu;
@@ -987,15 +986,12 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, boolean_t *retu)
 		mread = vhpet_mmio_read;
 		mwrite = vhpet_mmio_write;
 	} else {
-		*retu = TRUE;
+		*retu = true;
 		return (0);
 	}
 
-	error = vmm_emulate_instruction(vm, vcpuid, gpa, vie, mread, mwrite, 0);
-
-	/* return to userland to spin up the AP */
-	if (error == 0 && vme->exitcode == VM_EXITCODE_SPINUP_AP)
-		*retu = TRUE;
+	error = vmm_emulate_instruction(vm, vcpuid, gpa, vie, mread, mwrite,
+	    retu);
 
 	return (error);
 }
@@ -1008,7 +1004,7 @@ vm_run(struct vm *vm, struct vm_run *vmrun)
 	struct pcb *pcb;
 	uint64_t tscval, rip;
 	struct vm_exit *vme;
-	boolean_t retu, intr_disabled;
+	bool retu, intr_disabled;
 	pmap_t pmap;
 
 	vcpuid = vmrun->cpuid;
@@ -1048,13 +1044,10 @@ restart:
 	critical_exit();
 
 	if (error == 0) {
-		retu = FALSE;
+		retu = false;
 		switch (vme->exitcode) {
 		case VM_EXITCODE_HLT:
-			if ((vme->u.hlt.rflags & PSL_I) == 0)
-				intr_disabled = TRUE;
-			else
-				intr_disabled = FALSE;
+			intr_disabled = ((vme->u.hlt.rflags & PSL_I) == 0);
 			error = vm_handle_hlt(vm, vcpuid, intr_disabled, &retu);
 			break;
 		case VM_EXITCODE_PAGING:
@@ -1064,12 +1057,12 @@ restart:
 			error = vm_handle_inst_emul(vm, vcpuid, &retu);
 			break;
 		default:
-			retu = TRUE;	/* handled in userland */
+			retu = true;	/* handled in userland */
 			break;
 		}
 	}
 
-	if (error == 0 && retu == FALSE) {
+	if (error == 0 && retu == false) {
 		rip = vme->rip + vme->inst_length;
 		goto restart;
 	}

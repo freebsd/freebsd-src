@@ -74,6 +74,7 @@ SUBDIR=	libclanganalysis \
 	libllvmmipsdisassembler \
 	libllvmmipsinfo \
 	libllvmmipsinstprinter \
+	libllvmpowerpcasmparser \
 	libllvmpowerpccodegen \
 	libllvmpowerpcdesc \
 	libllvmpowerpcinfo \

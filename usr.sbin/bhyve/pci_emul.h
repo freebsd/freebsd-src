@@ -109,10 +109,10 @@ struct pci_devinst {
 	int	  pi_bar_getsize;
 
 	struct {
-		int	enabled;
-		int	cpu;
-		int	vector;
-		int	msgnum;
+		int		enabled;
+		uint64_t	addr;
+		uint64_t	msg_data;
+		int		maxmsgnum;
 	} pi_msi;
 
 	struct {

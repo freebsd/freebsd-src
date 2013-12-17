@@ -248,6 +248,21 @@
 	<para arch="amd64,i386" role="merged">The &man.wpi.4; driver has
 	  been updated to include a number of stability fixes.</para>
 
+	<para>The &man.cxgbe.4; driver has been updated to support
+	  40G/10G Ethernet NICs based on Chelsio's Terminator 5 (T5) ASIC.</para>
+
+	<para>The iw_cxgbe driver has been added.  This is an experimental iWARP/RDMA driver
+	  (kernel verbs only) for Chelsio's T4 and T5 based cards.</para>
+
+	<para>The Open Fabrics Enterprise Distribution (OFED) and OFED Infiniband core has been
+	  updated to the same version as supplied by Linux version 3.7</para>
+
+	<para>The Mellanox Infiniband driver has been updated to firmware
+	  version 2.30.3200 for ConnectX3 NICs.  Support has been added for ConnectX3 VPI NICs, where
+	  each port can be used as Infiniband 56 GB/s or Ethernet 40 GB/s.  Support has been added
+	  for dynamically loading kernel modules for Infiniband core (ibcore) and
+	  IP over Infiniband (ipoib).</para>
+
       </sect4>
     </sect3>
 
@@ -327,6 +342,13 @@
 
   <sect2 xml:id="userland">
     <title>Userland Changes</title>
+
+    <para role="merged">BIND has been replaced by &man.unbound.8; for
+      local dns resolution in the base system.  With this change, nslookup
+      and dig are no longer a part of the base system.  Users should
+      instead use &man.host.1; and &man.drill.1; Alternatively,
+      nslookup and dig can be obtained by installing the
+      dns/bind-tools port.</para>
 
     <para role="merged">The &man.adduser.8; utility now supports
       a <option>-M</option> option to set the mode of a new user's

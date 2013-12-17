@@ -189,12 +189,14 @@ usage(void)
 	"       [--set-mem=<memory in units of MB>]\n"
 	"       [--get-lowmem]\n"
 	"       [--get-highmem]\n"
-	"       [--get-gpa-pmap]\n",
+	"       [--get-gpa-pmap]\n"
+	"       [--inject-nmi]\n",
 	progname);
 	exit(1);
 }
 
 static int get_stats, getcap, setcap, capval, get_gpa_pmap;
+static int inject_nmi;
 static const char *capname;
 static int create, destroy, get_lowmem, get_highmem;
 static uint64_t memsize;
@@ -557,6 +559,7 @@ main(int argc, char *argv[])
 		{ "run",	NO_ARG,		&run,		1 },
 		{ "create",	NO_ARG,		&create,	1 },
 		{ "destroy",	NO_ARG,		&destroy,	1 },
+		{ "inject-nmi",	NO_ARG,		&inject_nmi,	1 },
 		{ NULL,		0,		NULL,		0 }
 	};
 
@@ -823,6 +826,10 @@ main(int argc, char *argv[])
 	if (!error && set_vmcs_entry_interruption_info) {
 		error = vm_set_vmcs_field(ctx, vcpu, VMCS_ENTRY_INTR_INFO,
 					  vmcs_entry_interruption_info);
+	}
+
+	if (!error && inject_nmi) {
+		error = vm_inject_nmi(ctx, vcpu);
 	}
 
 	if (!error && (get_lowmem || get_all)) {

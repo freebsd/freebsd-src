@@ -1299,18 +1299,18 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 #define V_CPL_FW4_ACK_OPCODE(x) ((x) << S_CPL_FW4_ACK_OPCODE)
 #define G_CPL_FW4_ACK_OPCODE(x) \
     (((x) >> S_CPL_FW4_ACK_OPCODE) & M_CPL_FW4_ACK_OPCODE)
- 
+
 #define S_CPL_FW4_ACK_FLOWID    0
 #define M_CPL_FW4_ACK_FLOWID    0xffffff
 #define V_CPL_FW4_ACK_FLOWID(x) ((x) << S_CPL_FW4_ACK_FLOWID)
 #define G_CPL_FW4_ACK_FLOWID(x) \
     (((x) >> S_CPL_FW4_ACK_FLOWID) & M_CPL_FW4_ACK_FLOWID)
- 
+
 #define S_CPL_FW4_ACK_CR        24
 #define M_CPL_FW4_ACK_CR        0xff
 #define V_CPL_FW4_ACK_CR(x)     ((x) << S_CPL_FW4_ACK_CR)
 #define G_CPL_FW4_ACK_CR(x)     (((x) >> S_CPL_FW4_ACK_CR) & M_CPL_FW4_ACK_CR)
- 
+
 #define S_CPL_FW4_ACK_SEQVAL    0
 #define M_CPL_FW4_ACK_SEQVAL    0x1
 #define V_CPL_FW4_ACK_SEQVAL(x) ((x) << S_CPL_FW4_ACK_SEQVAL)
@@ -1437,8 +1437,7 @@ do_set_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	    ("%s: unexpected opcode 0x%x", __func__, opcode));
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
 
-	if (tid >= sc->tids.ftid_base &&
-	    tid < sc->tids.ftid_base + sc->tids.nftids)
+	if (is_ftid(sc, tid))
 		return (t4_filter_rpl(iq, rss, m)); /* TCB is a filter */
 
 	CXGBE_UNIMPLEMENTED(__func__);

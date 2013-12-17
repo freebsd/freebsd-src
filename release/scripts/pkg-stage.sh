@@ -24,6 +24,11 @@ fi
 REVISION="${2}"
 . "${1}" || exit 1
 
+# If NOPORTS is set for the release, do not attempt to build pkg(8).
+if [ ! -f /usr/ports/Makefile ]; then
+	exit 0
+fi
+
 if [ ! -x /usr/local/sbin/pkg ]; then
 	/usr/bin/make -C /usr/ports/ports-mgmt/pkg install clean
 fi

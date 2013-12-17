@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20131215: libcam version bumped
+OLD_LIBS+=lib/libcam.so.6 usr/lib32/libcam.so.6
 # 20131202: libcapsicum and libcasper moved to /lib/
 OLD_LIBS+=usr/lib/libcapsicum.so.0
 OLD_LIBS+=usr/lib/libcasper.so.0

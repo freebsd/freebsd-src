@@ -26,6 +26,7 @@ FILES=	DAEMON \
 	bridge \
 	bsnmpd \
 	${_bthidd} \
+	casperd \
 	ccd \
 	cleanvar \
 	cleartmp \
