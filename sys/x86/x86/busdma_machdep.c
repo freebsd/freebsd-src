@@ -849,6 +849,16 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	return (buflen != 0 ? EFBIG : 0); /* XXX better return value here? */
 }
 
+int
+_bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map,
+    struct vm_page **ma, bus_size_t tlen, int ma_offs, int flags,
+    bus_dma_segment_t *segs, int *segp)
+{
+
+	return (bus_dmamap_load_ma_triv(dmat, map, ma, tlen, ma_offs, flags,
+	    segs, segp));
+}
+
 void
 __bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
 		    struct memdesc *mem, bus_dmamap_callback_t *callback,
