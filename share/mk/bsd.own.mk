@@ -552,10 +552,6 @@ MK_CLANG_EXTRAS:= no
 MK_CLANG_FULL:= no
 .endif
 
-.if ${MK_CLANG_IS_CC} == "no"
-MK_LLDB:= no
-.endif
-
 .if defined(NO_TESTS)
 # This should be handled above along the handling of all other NO_*  options.
 # However, the above is broken when WITH_*=yes are passed to make(1) as
@@ -649,6 +645,10 @@ MK_${var}:=	no
 .endif
 .endif
 .endfor
+
+.if !${COMPILER_FEATURES:Mc++11}
+MK_LLDB:=	no
+.endif
 
 .if ${MK_CTF} != "no"
 CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
