@@ -82,7 +82,6 @@ struct bus_dma_impl {
 	    bus_dmasync_op_t op);
 };
 
-void busdma_lock_mutex(void *arg, bus_dma_lock_op_t op);
 void bus_dma_dflt_lock(void *arg, bus_dma_lock_op_t op);
 int bus_dma_run_filter(struct bus_dma_tag_common *dmat, bus_addr_t paddr);
 int common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
