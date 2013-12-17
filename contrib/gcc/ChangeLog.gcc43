@@ -45,6 +45,20 @@
 	* flags.h (force_align_functions_log): Delete.
 	* toplev.c (force_align_functions_log): Delete.
 
+2007-07-06  Josh Conner  <jconner@apple.com> (r126422)
+
+	PR middle-end/32602
+	PR middle-end/32603
+	* calls.c (store_one_arg): Handle arguments which are partially
+	on the stack when detecting argument overlap.
+
+2007-07-03  Eric Christopher  <echristo@apple.com> (r126278)
+
+	* doc/cppopts.texi: Add conflicting option note to -dM.
+	* doc/invoke.texi: Add note about possible conflicts with
+	-E for -dCHARS and note that -dM will not produce
+	any results if there is no machine dependent reorg.
+	
 2007-06-28  Geoffrey Keating  <geoffk@apple.com> (r126088)
 
 	* doc/invoke.texi (C++ Dialect Options): Document
