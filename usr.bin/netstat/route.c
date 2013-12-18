@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <arpa/inet.h>
+#include <ifaddrs.h>
 #include <libutil.h>
 #include <netdb.h>
 #include <stdint.h>
@@ -113,13 +114,20 @@ typedef union {
 
 static sa_u pt_u;
 
+struct ifmap_entry {
+	char ifname[IFNAMSIZ];
+};
+
+static struct ifmap_entry *ifmap;
+static int ifmap_size;
+
 int	do_rtent = 0;
 struct	rtentry rtentry;
 struct	radix_node rnode;
 struct	radix_mask rmask;
 struct	radix_node_head **rt_tables;
 
-int	NewTree = 0;
+int	NewTree = 1;
 
 struct	timespec uptime;
 
@@ -129,7 +137,7 @@ static void size_cols_tree(struct radix_node *rn);
 static void size_cols_rtentry(struct rtentry *rt);
 static void p_tree(struct radix_node *);
 static void p_rtnode(void);
-static void ntreestuff(void);
+static void ntreestuff(int fibnum, int af);
 static void np_rtentry(struct rt_msghdr *);
 static void p_sockaddr(struct sockaddr *, struct sockaddr *, int, int);
 static const char *fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask,
@@ -175,7 +183,7 @@ routepr(u_long rtree, int fibnum)
 	printf("\n");
 
 	if (Aflag == 0 && NewTree)
-		ntreestuff();
+		ntreestuff(fibnum, af);
 	else {
 		if (rtree == 0) {
 			printf("rt_tables: symbol not in namelist\n");
@@ -288,7 +296,7 @@ static int wid_if;
 static int wid_expire;
 
 static void
-size_cols(int ef __unused, struct radix_node *rn)
+size_cols(int ef, struct radix_node *rn)
 {
 	wid_dst = WID_DST_DEFAULT(ef);
 	wid_gw = WID_GW_DEFAULT(ef);
@@ -299,7 +307,7 @@ size_cols(int ef __unused, struct radix_node *rn)
 	wid_if = WID_IF_DEFAULT(ef);
 	wid_expire = 6;
 
-	if (Wflag)
+	if (Wflag && rn != NULL)
 		size_cols_tree(rn);
 }
 
@@ -397,27 +405,14 @@ pr_rthdr(int af1)
 
 	if (Aflag)
 		printf("%-8.8s ","Address");
-	if (af1 == AF_INET || Wflag) {
-		if (Wflag) {
-			printf("%-*.*s %-*.*s %-*.*s %*.*s %*.*s %*.*s %*.*s %*s\n",
-				wid_dst,	wid_dst,	"Destination",
-				wid_gw,		wid_gw,		"Gateway",
-				wid_flags,	wid_flags,	"Flags",
-				wid_refs,	wid_refs,	"Refs",
-				wid_use,	wid_use,	"Use",
-				wid_mtu,	wid_mtu,	"Mtu",
-				wid_if,		wid_if,		"Netif",
-				wid_expire,			"Expire");
-		} else {
-			printf("%-*.*s %-*.*s %-*.*s %*.*s %*.*s %*.*s %*s\n",
-				wid_dst,	wid_dst,	"Destination",
-				wid_gw,		wid_gw,		"Gateway",
-				wid_flags,	wid_flags,	"Flags",
-				wid_refs,	wid_refs,	"Refs",
-				wid_use,	wid_use,	"Use",
-				wid_if,		wid_if,		"Netif",
-				wid_expire,			"Expire");
-		}
+	if (Wflag) {
+		printf("%-*.*s %-*.*s %-*.*s %*.*s %*.*s %*s\n",
+			wid_dst,	wid_dst,	"Destination",
+			wid_gw,		wid_gw,		"Gateway",
+			wid_flags,	wid_flags,	"Flags",
+			wid_mtu,	wid_mtu,	"Mtu",
+			wid_if,		wid_if,		"Netif",
+			wid_expire,			"Expire");
 	} else {
 		printf("%-*.*s %-*.*s %-*.*s  %*.*s %*s\n",
 			wid_dst,	wid_dst,	"Destination",
@@ -522,20 +517,61 @@ p_rtnode(void)
 }
 
 static void
-ntreestuff(void)
+ntreestuff(int fibnum, int af)
 {
 	size_t needed;
-	int mib[6];
+	int mib[7];
 	char *buf, *next, *lim;
 	struct rt_msghdr *rtm;
+	struct sockaddr *sa;
+	int fam = 0, ifindex = 0, size;
+
+	struct ifaddrs *ifap, *ifa;
+	struct sockaddr_dl *sdl;
+
+	/*
+	 * Retrieve interface list at first
+	 * since we need #ifindex -> if_xname match
+	 */
+	if (getifaddrs(&ifap) != 0)
+		err(EX_OSERR, "getifaddrs");
+
+	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+		
+		if (ifa->ifa_addr->sa_family != AF_LINK)
+			continue;
+
+		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+		ifindex = sdl->sdl_index;
+
+		if (ifindex >= ifmap_size) {
+			size = roundup(ifindex + 1, 32) *
+			    sizeof(struct ifmap_entry);
+			if ((ifmap = realloc(ifmap, size)) == NULL)
+				errx(2, "realloc(%d) failed", size);
+			memset(&ifmap[ifmap_size], 0,
+			    size - ifmap_size *
+			     sizeof(struct ifmap_entry));
+
+			ifmap_size = roundup(ifindex + 1, 32);
+		}
+
+		if (*ifmap[ifindex].ifname != '\0')
+			continue;
+
+		strlcpy(ifmap[ifindex].ifname, ifa->ifa_name, IFNAMSIZ);
+	}
+
+	freeifaddrs(ifap);
 
 	mib[0] = CTL_NET;
 	mib[1] = PF_ROUTE;
 	mib[2] = 0;
-	mib[3] = 0;
+	mib[3] = af;
 	mib[4] = NET_RT_DUMP;
 	mib[5] = 0;
-	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
+	mib[6] = fibnum;
+	if (sysctl(mib, 7, NULL, &needed, NULL, 0) < 0) {
 		err(1, "sysctl: net.route.0.0.dump estimate");
 	}
 
@@ -548,6 +584,16 @@ ntreestuff(void)
 	lim  = buf + needed;
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)next;
+		/*
+		 * Peek inside header to determine AF
+		 */
+		sa = (struct sockaddr *)(rtm + 1);
+		if (fam != sa->sa_family) {
+			fam = sa->sa_family;
+			size_cols(fam, NULL);
+			pr_family(fam);
+			pr_rthdr(fam);
+		}
 		np_rtentry(rtm);
 	}
 }
@@ -556,38 +602,52 @@ static void
 np_rtentry(struct rt_msghdr *rtm)
 {
 	struct sockaddr *sa = (struct sockaddr *)(rtm + 1);
-#ifdef notdef
-	static int masks_done, banner_printed;
-#endif
-	static int old_af;
-	int af1 = 0, interesting = RTF_UP | RTF_GATEWAY | RTF_HOST;
+	char buffer[128];
+	char prettyname[128];
+	sa_u addr, mask, gw;
+	unsigned int l;
 
-#ifdef notdef
-	/* for the moment, netmasks are skipped over */
-	if (!banner_printed) {
-		printf("Netmasks:\n");
-		banner_printed = 1;
+#define	GETSA(_s, _f)	{ \
+	bzero(&(_s), sizeof(_s)); \
+	if (rtm->rtm_addrs & _f) { \
+		l = roundup(sa->sa_len, sizeof(long)); \
+		memcpy(&(_s), sa, (l > sizeof(_s)) ? sizeof(_s) : l); \
+		sa = (struct sockaddr *)((char *)sa + l); \
+	} \
+}
+
+	GETSA(addr, RTA_DST);
+	GETSA(gw, RTA_GATEWAY);
+	GETSA(mask, RTA_NETMASK);
+	p_sockaddr(&addr.u_sa, &mask.u_sa, rtm->rtm_flags, wid_dst);
+	p_sockaddr(&gw.u_sa, NULL, RTF_HOST, wid_gw);
+
+	snprintf(buffer, sizeof(buffer), "%%-%d.%ds ", wid_flags, wid_flags);
+	p_flags(rtm->rtm_flags, buffer);
+	if (Wflag) {
+		if (rtm->rtm_rmx.rmx_mtu != 0)
+			printf("%*lu ", wid_mtu, rtm->rtm_rmx.rmx_mtu);
+		else
+			printf("%*s ", wid_mtu, "");
 	}
-	if (masks_done == 0) {
-		if (rtm->rtm_addrs != RTA_DST ) {
-			masks_done = 1;
-			af1 = sa->sa_family;
-		}
-	} else
-#endif
-		af1 = sa->sa_family;
-	if (af1 != old_af) {
-		pr_family(af1);
-		old_af = af1;
+
+	memset(prettyname, 0, sizeof(prettyname));
+	if (rtm->rtm_index < ifmap_size) {
+		strlcpy(prettyname, ifmap[rtm->rtm_index].ifname,
+		    sizeof(prettyname));
+		if (*prettyname == '\0')
+			strlcpy(prettyname, "---", sizeof(prettyname));
 	}
-	if (rtm->rtm_addrs == RTA_DST)
-		p_sockaddr(sa, NULL, 0, 36);
-	else {
-		p_sockaddr(sa, NULL, rtm->rtm_flags, 16);
-		sa = (struct sockaddr *)(SA_SIZE(sa) + (char *)sa);
-		p_sockaddr(sa, NULL, 0, 18);
+
+	printf("%*.*s", wid_if, wid_if, prettyname);
+	if (rtm->rtm_rmx.rmx_expire) {
+		time_t expire_time;
+
+		if ((expire_time =
+		    rtm->rtm_rmx.rmx_expire - uptime.tv_sec) > 0)
+			printf(" %*d", wid_expire, (int)expire_time);
 	}
-	p_flags(rtm->rtm_flags & interesting, "%-6.6s ");
+
 	putchar('\n');
 }
 
@@ -775,8 +835,10 @@ p_rtentry(struct rtentry *rt)
 	snprintf(buffer, sizeof(buffer), "%%-%d.%ds ", wid_flags, wid_flags);
 	p_flags(rt->rt_flags, buffer);
 	if (addr.u_sa.sa_family == AF_INET || Wflag) {
+#if 0
 		printf("%*d %*lu ", wid_refs, rt->rt_refcnt,
 				     wid_use, rt->rt_use);
+#endif
 		if (Wflag) {
 			if (rt->rt_rmx.rmx_mtu != 0)
 				printf("%*lu ", wid_mtu, rt->rt_rmx.rmx_mtu);
