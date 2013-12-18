@@ -5304,7 +5304,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					error = EINVAL;
 					break;
 				}
-				if (td != NULL && (error = prison_local_ip6(td->td_ucred, &(((struct sockaddr_in6 *)(addrs->addr))->sin6_addr),
+				if (td != NULL && (error = prison_local_ip6(td->td_ucred, (struct sockaddr_in6 *)(addrs->addr),
 				    (SCTP_IPV6_V6ONLY(inp) != 0))) != 0) {
 					SCTP_LTRACE_ERR_RET(inp, stcb, NULL, SCTP_FROM_SCTP_USRREQ, error);
 					break;
@@ -5350,7 +5350,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				}
 				if (td != NULL &&
 				    (error = prison_local_ip6(td->td_ucred,
-				    &(((struct sockaddr_in6 *)(addrs->addr))->sin6_addr),
+				    (struct sockaddr_in6 *)(addrs->addr),
 				    (SCTP_IPV6_V6ONLY(inp) != 0))) != 0) {
 					SCTP_LTRACE_ERR_RET(inp, stcb, NULL, SCTP_FROM_SCTP_USRREQ, error);
 					break;
@@ -5928,7 +5928,7 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 				return (EINVAL);
 			}
 			sin6p = (struct sockaddr_in6 *)addr;
-			if (p != NULL && (error = prison_remote_ip6(p->td_ucred, &sin6p->sin6_addr)) != 0) {
+			if (p != NULL && (error = prison_remote_ip6(p->td_ucred, sin6p)) != 0) {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, error);
 				return (error);
 			}

@@ -2803,7 +2803,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 				 * will transmute the ipv6 address to the
 				 * proper value.
 				 */
-				if (p && (error = prison_local_ip6(p->td_ucred, &sin6->sin6_addr,
+				if (p && (error = prison_local_ip6(p->td_ucred, sin6,
 				    (SCTP_IPV6_V6ONLY(inp) != 0))) != 0) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
 					return (error);
