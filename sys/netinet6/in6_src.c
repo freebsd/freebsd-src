@@ -196,7 +196,7 @@ srcaddrcmp(struct srcaddr_choice *c, struct in6_ifaddr *ia,
 	if (!V_ip6_use_deprecated && IFA6_IS_DEPRECATED(ia))
 		return (-1);
 	/* If jailed, only take addresses of the jail into account. */
-	if (cred != NULL && prison_check_ip6(cred, IA6_IN6(ia)) != 0)
+	if (cred != NULL && prison_check_ip6(cred, IA6_SIN6(ia)) != 0)
 		return (-1);
 	/* Source address can not break the destination zone */
 	srcscope = in6_srcaddrscope(IA6_IN6(ia));
@@ -838,10 +838,12 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
 
+#if 0
 	error = prison_local_ip6(cred, laddr,
 	    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0));
 	if (error)
 		return(error);
+#endif
 
 	/* XXX: this is redundant when called from in6_pcbbind */
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
