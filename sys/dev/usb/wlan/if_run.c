@@ -3659,7 +3659,7 @@ run_iq_calib(struct run_softc *sc, u_int chan)
 		    &val, 1);
 	} else
 		val = 0;
-	run_bbp_write(sc, 159, val & 0xff);
+	run_bbp_write(sc, 159, val);
 
 	/* Tx0 IQ phase. */
 	run_bbp_write(sc, 158, 0x2d);
@@ -3680,7 +3680,7 @@ run_iq_calib(struct run_softc *sc, u_int chan)
 		    &val, 1);
 	} else
 		val = 0;
-	run_bbp_write(sc, 159, val & 0xff);
+	run_bbp_write(sc, 159, val);
 
 	/* Tx1 IQ gain. */
 	run_bbp_write(sc, 158, 0x4a);
@@ -3701,7 +3701,7 @@ run_iq_calib(struct run_softc *sc, u_int chan)
 		    &val, 1);
 	} else
 		val = 0;
-	run_bbp_write(sc, 159, val & 0xff);
+	run_bbp_write(sc, 159, val);
 
 	/* Tx1 IQ phase. */
 	run_bbp_write(sc, 158, 0x4b);
@@ -3722,19 +3722,19 @@ run_iq_calib(struct run_softc *sc, u_int chan)
 		    &val, 1);
 	} else
 		val = 0;
-	run_bbp_write(sc, 159, val & 0xff);
+	run_bbp_write(sc, 159, val);
 
 	/* RF IQ compensation control. */
 	run_bbp_write(sc, 158, 0x04);
 	run_efuse_read(sc, RT5390_EEPROM_RF_IQ_COMPENSATION_CTL,
 	    &val, 1);
-	run_bbp_write(sc, 159, val & 0xff);
+	run_bbp_write(sc, 159, val);
 
 	/* RF IQ imbalance compensation control. */
 	run_bbp_write(sc, 158, 0x03);
 	run_efuse_read(sc,
 	    RT5390_EEPROM_RF_IQ_IMBALANCE_COMPENSATION_CTL, &val, 1);
-	run_bbp_write(sc, 159, val & 0xff);
+	run_bbp_write(sc, 159, val);
 }
 
 static void
