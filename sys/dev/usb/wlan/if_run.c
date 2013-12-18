@@ -345,6 +345,7 @@ static int	run_write(struct run_softc *, uint16_t, uint32_t);
 static int	run_write_region_1(struct run_softc *, uint16_t,
 		    const uint8_t *, int);
 static int	run_set_region_4(struct run_softc *, uint16_t, uint32_t, int);
+static int	run_efuse_read(struct run_softc *, uint16_t, uint16_t *, int);
 static int	run_efuse_read_2(struct run_softc *, uint16_t, uint16_t *);
 static int	run_eeprom_read_2(struct run_softc *, uint16_t, uint16_t *);
 static int	run_rt2870_rf_write(struct run_softc *, uint32_t);
@@ -391,6 +392,7 @@ static int	run_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
 static void	run_start(struct ifnet *);
 static int	run_ioctl(struct ifnet *, u_long, caddr_t);
+static void	run_iq_calib(struct run_softc *, u_int);
 static void	run_set_agc(struct run_softc *, uint8_t);
 static void	run_select_chan_group(struct run_softc *, int);
 static void	run_set_rx_antenna(struct run_softc *, int);
@@ -435,6 +437,28 @@ static void	run_init(void *);
 static void	run_init_locked(struct run_softc *);
 static void	run_stop(void *);
 static void	run_delay(struct run_softc *, u_int);
+
+static const struct rt2860_rate {
+	uint8_t		rate;
+	uint8_t		mcs;
+	enum		ieee80211_phytype phy;
+	uint8_t		ctl_ridx;
+	uint16_t	sp_ack_dur;
+	uint16_t	lp_ack_dur;
+} rt2860_rates[] = {
+	{   2, 0, IEEE80211_T_DS,   0, 314, 314 },
+	{   4, 1, IEEE80211_T_DS,   1, 258, 162 },
+	{  11, 2, IEEE80211_T_DS,   2, 223, 127 },
+	{  22, 3, IEEE80211_T_DS,   3, 213, 117 },
+	{  12, 0, IEEE80211_T_OFDM, 4,  60,  60 },
+	{  18, 1, IEEE80211_T_OFDM, 4,  52,  52 },
+	{  24, 2, IEEE80211_T_OFDM, 6,  48,  48 },
+	{  36, 3, IEEE80211_T_OFDM, 6,  44,  44 },
+	{  48, 4, IEEE80211_T_OFDM, 8,  44,  44 },
+	{  72, 5, IEEE80211_T_OFDM, 8,  40,  40 },
+	{  96, 6, IEEE80211_T_OFDM, 8,  40,  40 },
+	{ 108, 7, IEEE80211_T_OFDM, 8,  40,  40 }
+};
 
 static const struct {
 	uint16_t	reg;
@@ -1249,9 +1273,8 @@ run_set_region_4(struct run_softc *sc, uint16_t reg, uint32_t val, int len)
 	return (error);
 }
 
-/* Read 16-bit from eFUSE ROM (RT3070 only.) */
 static int
-run_efuse_read_2(struct run_softc *sc, uint16_t addr, uint16_t *val)
+run_efuse_read(struct run_softc *sc, uint16_t addr, uint16_t *val, int count)
 {
 	uint32_t tmp;
 	uint16_t reg;
@@ -1260,7 +1283,8 @@ run_efuse_read_2(struct run_softc *sc, uint16_t addr, uint16_t *val)
 	if ((error = run_read(sc, RT3070_EFUSE_CTRL, &tmp)) != 0)
 		return (error);
 
-	addr *= 2;
+	if (count == 2)
+		addr *= 2;
 	/*-
 	 * Read one 16-byte block into registers EFUSE_DATA[0-3]:
 	 * DATA0: F E D C
@@ -1290,8 +1314,21 @@ run_efuse_read_2(struct run_softc *sc, uint16_t addr, uint16_t *val)
 	if ((error = run_read(sc, reg, &tmp)) != 0)
 		return (error);
 
-	*val = (addr & 2) ? tmp >> 16 : tmp & 0xffff;
+	if (count == 2)
+		*val = (addr & 2) ? tmp >> 16 : tmp & 0xffff;
+	else {
+		tmp >>= (8 *(addr & 0x3));
+		memmove(val, &tmp, sizeof(*val));
+	}
 	return (0);
+}
+
+
+/* Read 16-bit from eFUSE ROM (RT3070 only.) */
+static int
+run_efuse_read_2(struct run_softc *sc, uint16_t addr, uint16_t *val)
+{
+	return (run_efuse_read(sc, addr, val, 2));
 }
 
 static int
@@ -3600,6 +3637,107 @@ run_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 static void
+run_iq_calib(struct run_softc *sc, u_int chan)
+{
+	uint16_t val;
+
+	/* Tx0 IQ gain. */
+	run_bbp_write(sc, 158, 0x2c);
+	if (chan <= 14)
+		run_efuse_read(sc, RT5390_EEPROM_IQ_GAIN_CAL_TX0_2GHZ, &val, 1);
+	else if (chan <= 64) {
+		run_efuse_read(sc,
+		    RT5390_EEPROM_IQ_GAIN_CAL_TX0_CH36_TO_CH64_5GHZ,
+		    &val, 1);
+	} else if (chan <= 138) {
+		run_efuse_read(sc,
+		    RT5390_EEPROM_IQ_GAIN_CAL_TX0_CH100_TO_CH138_5GHZ,
+		    &val, 1);
+	} else if (chan <= 165) {
+		run_efuse_read(sc,
+	    RT5390_EEPROM_IQ_GAIN_CAL_TX0_CH140_TO_CH165_5GHZ,
+		    &val, 1);
+	} else
+		val = 0;
+	run_bbp_write(sc, 159, val & 0xff);
+
+	/* Tx0 IQ phase. */
+	run_bbp_write(sc, 158, 0x2d);
+	if (chan <= 14) {
+		run_efuse_read(sc, RT5390_EEPROM_IQ_PHASE_CAL_TX0_2GHZ,
+		    &val, 1);
+	} else if (chan <= 64) {
+		run_efuse_read(sc,
+		    RT5390_EEPROM_IQ_PHASE_CAL_TX0_CH36_TO_CH64_5GHZ,
+		    &val, 1);
+	} else if (chan <= 138) {
+		run_efuse_read(sc,
+		    RT5390_EEPROM_IQ_PHASE_CAL_TX0_CH100_TO_CH138_5GHZ,
+		    &val, 1);
+	} else if (chan <= 165) {
+		run_efuse_read(sc,
+		    RT5390_EEPROM_IQ_PHASE_CAL_TX0_CH140_TO_CH165_5GHZ,
+		    &val, 1);
+	} else
+		val = 0;
+	run_bbp_write(sc, 159, val & 0xff);
+
+	/* Tx1 IQ gain. */
+	run_bbp_write(sc, 158, 0x4a);
+	if (chan <= 14) {
+		run_efuse_read(sc, RT5390_EEPROM_IQ_GAIN_CAL_TX1_2GHZ,
+		    &val, 1);
+	} else if (chan <= 64) {
+		run_efuse_read(sc,
+		    RT5390_EEPROM_IQ_GAIN_CAL_TX1_CH36_TO_CH64_5GHZ,
+		    &val, 1);
+	} else if (chan <= 138) {
+		run_efuse_read(sc,
+		    RT5390_EEPROM_IQ_GAIN_CAL_TX1_CH100_TO_CH138_5GHZ,
+		    &val, 1);
+	} else if (chan <= 165) {
+		run_efuse_read(sc,
+		    RT5390_EEPROM_IQ_GAIN_CAL_TX1_CH140_TO_CH165_5GHZ,
+		    &val, 1);
+	} else
+		val = 0;
+	run_bbp_write(sc, 159, val & 0xff);
+
+	/* Tx1 IQ phase. */
+	run_bbp_write(sc, 158, 0x4b);
+	if (chan <= 14) {
+		run_efuse_read(sc, RT5390_EEPROM_IQ_PHASE_CAL_TX1_2GHZ,
+		    &val, 1);
+	} else if (chan <= 64) {
+		run_efuse_read(sc,
+		    RT5390_EEPROM_IQ_PHASE_CAL_TX1_CH36_TO_CH64_5GHZ,
+		    &val, 1);
+	} else if (chan <= 138) {
+		run_efuse_read(sc,
+		    RT5390_EEPROM_IQ_PHASE_CAL_TX1_CH100_TO_CH138_5GHZ,
+		    &val, 1);
+	} else if (chan <= 165) {
+		run_efuse_read(sc,
+		    RT5390_EEPROM_IQ_PHASE_CAL_TX1_CH140_TO_CH165_5GHZ,
+		    &val, 1);
+	} else
+		val = 0;
+	run_bbp_write(sc, 159, val & 0xff);
+
+	/* RF IQ compensation control. */
+	run_bbp_write(sc, 158, 0x04);
+	run_efuse_read(sc, RT5390_EEPROM_RF_IQ_COMPENSATION_CTL,
+	    &val, 1);
+	run_bbp_write(sc, 159, val & 0xff);
+
+	/* RF IQ imbalance compensation control. */
+	run_bbp_write(sc, 158, 0x03);
+	run_efuse_read(sc,
+	    RT5390_EEPROM_RF_IQ_IMBALANCE_COMPENSATION_CTL, &val, 1);
+	run_bbp_write(sc, 159, val & 0xff);
+}
+
+static void
 run_set_agc(struct run_softc *sc, uint8_t agc)
 {
 	uint8_t bbp;
@@ -4332,6 +4470,10 @@ run_set_chan(struct run_softc *sc, struct ieee80211_channel *c)
 	run_select_chan_group(sc, group);
 
 	run_delay(sc, 10);
+
+	/* Perform IQ calibrations. */
+	if (sc->mac_ver >= 0x5392)
+		run_iq_calib(sc, chan);
 
 	return (0);
 }
