@@ -289,7 +289,7 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 			goto done;
 
 		ttydisc_open(tp);
-		tty_watermarks(tp);
+		tty_watermarks(tp); /* XXXGL: drops lock */
 	}
 
 	/* Wait for Carrier Detect. */
@@ -1174,16 +1174,18 @@ SYSCTL_PROC(_kern, OID_AUTO, ttys, CTLTYPE_OPAQUE|CTLFLAG_RD|CTLFLAG_MPSAFE,
  * the user.
  */
 
-void
-tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
+int
+tty_makedevf(struct tty *tp, struct ucred *cred, int flags,
+    const char *fmt, ...)
 {
 	va_list ap;
-	struct cdev *dev;
+	struct cdev *dev, *init, *lock, *cua, *cinit, *clock;
 	const char *prefix = "tty";
 	char name[SPECNAMELEN - 3]; /* for "tty" and "cua". */
 	uid_t uid;
 	gid_t gid;
 	mode_t mode;
+	int error;
 
 	/* Remove "tty" prefix from devices like PTY's. */
 	if (tp->t_flags & TF_NOPREFIX)
@@ -1205,57 +1207,92 @@ tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
 		mode = S_IRUSR|S_IWUSR|S_IWGRP;
 	}
 
+	flags = flags & TTYMK_CLONING ? MAKEDEV_REF : 0;
+	flags |= MAKEDEV_CHECKNAME;
+
 	/* Master call-in device. */
-	dev = make_dev_cred(&ttydev_cdevsw, 0, cred,
-	    uid, gid, mode, "%s%s", prefix, name);
+	error = make_dev_p(flags, &dev, &ttydev_cdevsw, cred, uid, gid, mode,
+	    "%s%s", prefix, name);
+	if (error)
+		return (error);
 	dev->si_drv1 = tp;
 	wakeup(&dev->si_drv1);
 	tp->t_dev = dev;
 
+	init = lock = cua = cinit = clock = NULL;
+
 	/* Slave call-in devices. */
 	if (tp->t_flags & TF_INITLOCK) {
-		dev = make_dev_cred(&ttyil_cdevsw, TTYUNIT_INIT, cred,
-		    uid, gid, mode, "%s%s.init", prefix, name);
-		dev_depends(tp->t_dev, dev);
-		dev->si_drv1 = tp;
-		wakeup(&dev->si_drv1);
-		dev->si_drv2 = &tp->t_termios_init_in;
+		error = make_dev_p(flags, &init, &ttyil_cdevsw, cred, uid,
+		    gid, mode, "%s%s.init", prefix, name);
+		if (error)
+			goto fail;
+		dev_depends(dev, init);
+		dev2unit(init) = TTYUNIT_INIT;
+		init->si_drv1 = tp;
+		wakeup(&init->si_drv1);
+		init->si_drv2 = &tp->t_termios_init_in;
 
-		dev = make_dev_cred(&ttyil_cdevsw, TTYUNIT_LOCK, cred,
-		    uid, gid, mode, "%s%s.lock", prefix, name);
-		dev_depends(tp->t_dev, dev);
-		dev->si_drv1 = tp;
-		wakeup(&dev->si_drv1);
-		dev->si_drv2 = &tp->t_termios_lock_in;
+		error = make_dev_p(flags, &lock, &ttyil_cdevsw, cred, uid,
+		    gid, mode, "%s%s.lock", prefix, name);
+		if (error)
+			goto fail;
+		dev_depends(dev, lock);
+		dev2unit(lock) = TTYUNIT_LOCK;
+		lock->si_drv1 = tp;
+		wakeup(&lock->si_drv1);
+		lock->si_drv2 = &tp->t_termios_lock_in;
 	}
 
 	/* Call-out devices. */
 	if (tp->t_flags & TF_CALLOUT) {
-		dev = make_dev_cred(&ttydev_cdevsw, TTYUNIT_CALLOUT, cred,
+		error = make_dev_p(flags, &cua, &ttydev_cdevsw, cred,
 		    UID_UUCP, GID_DIALER, 0660, "cua%s", name);
-		dev_depends(tp->t_dev, dev);
-		dev->si_drv1 = tp;
-		wakeup(&dev->si_drv1);
+		if (error)
+			goto fail;
+		dev_depends(dev, cua);
+		dev2unit(cua) = TTYUNIT_CALLOUT;
+		cua->si_drv1 = tp;
+		wakeup(&cua->si_drv1);
 
 		/* Slave call-out devices. */
 		if (tp->t_flags & TF_INITLOCK) {
-			dev = make_dev_cred(&ttyil_cdevsw,
-			    TTYUNIT_CALLOUT | TTYUNIT_INIT, cred,
+			error = make_dev_p(flags, &cinit, &ttyil_cdevsw, cred,
 			    UID_UUCP, GID_DIALER, 0660, "cua%s.init", name);
-			dev_depends(tp->t_dev, dev);
-			dev->si_drv1 = tp;
-			wakeup(&dev->si_drv1);
-			dev->si_drv2 = &tp->t_termios_init_out;
+			if (error)
+				goto fail;
+			dev_depends(dev, cinit);
+			dev2unit(cinit) = TTYUNIT_CALLOUT | TTYUNIT_INIT;
+			cinit->si_drv1 = tp;
+			wakeup(&cinit->si_drv1);
+			cinit->si_drv2 = &tp->t_termios_init_out;
 
-			dev = make_dev_cred(&ttyil_cdevsw,
-			    TTYUNIT_CALLOUT | TTYUNIT_LOCK, cred,
+			error = make_dev_p(flags, &clock, &ttyil_cdevsw, cred,
 			    UID_UUCP, GID_DIALER, 0660, "cua%s.lock", name);
-			dev_depends(tp->t_dev, dev);
-			dev->si_drv1 = tp;
-			wakeup(&dev->si_drv1);
-			dev->si_drv2 = &tp->t_termios_lock_out;
+			if (error)
+				goto fail;
+			dev_depends(dev, clock);
+			dev2unit(clock) = TTYUNIT_CALLOUT | TTYUNIT_LOCK;
+			clock->si_drv1 = tp;
+			wakeup(&clock->si_drv1);
+			clock->si_drv2 = &tp->t_termios_lock_out;
 		}
 	}
+
+	return (0);
+
+fail:
+	destroy_dev(dev);
+	if (init)
+		destroy_dev(init);
+	if (lock)
+		destroy_dev(lock);
+	if (cinit)
+		destroy_dev(cinit);
+	if (clock)
+		destroy_dev(clock);
+
+	return (error);
 }
 
 /*
