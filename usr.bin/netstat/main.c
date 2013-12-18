@@ -319,6 +319,7 @@ int	gflag;		/* show group (multicast) routing or stats */
 int	hflag;		/* show counters in human readable format */
 int	iflag;		/* show interfaces */
 int	Lflag;		/* show size of listen queues */
+int	Mflag;		/* read statistics from core */
 int	mflag;		/* show memory stats */
 int	noutputs = 0;	/* how much outputs before we exit */
 int	numeric_addr;	/* show addresses numerically */
@@ -424,6 +425,7 @@ main(int argc, char *argv[])
 			Lflag = 1;
 			break;
 		case 'M':
+			Mflag = 1;
 			memf = optarg;
 			break;
 		case 'm':
