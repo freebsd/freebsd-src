@@ -437,7 +437,7 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		if (error != 0)
 			return (error);
 		if (td != NULL && (error = prison_check_ip6(td->td_ucred,
-		    &sa6->sin6_addr)) != 0)
+		    sa6)) != 0)
 			return (error);
 		ia = in6ifa_ifpwithaddr(ifp, &sa6->sin6_addr);
 	} else
