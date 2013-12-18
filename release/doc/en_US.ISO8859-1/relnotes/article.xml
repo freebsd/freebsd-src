@@ -248,10 +248,11 @@
 	<para arch="amd64,i386" role="merged">The &man.wpi.4; driver has
 	  been updated to include a number of stability fixes.</para>
 
-	<para>The &man.cxgbe.4; driver has been updated to support
+	<para revision="248925">The &man.cxgbe.4; driver has been updated to support
 	  40G/10G Ethernet NICs based on Chelsio's Terminator 5 (T5) ASIC.</para>
 
-	<para>The iw_cxgbe driver has been added.  This is an experimental iWARP/RDMA driver
+	<para revision="256694">The iw_cxgbe driver has been added.  This is an
+	  experimental iWARP/RDMA driver
 	  (kernel verbs only) for Chelsio's T4 and T5 based cards.</para>
 
 	<para revision="255932">The Open Fabrics Enterprise Distribution (OFED) and OFED Infiniband core has been
