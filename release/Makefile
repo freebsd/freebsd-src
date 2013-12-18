@@ -225,7 +225,11 @@ pkg-stage:
 .if !defined(NOPKG) && exists(${.CURDIR}/${TARGET}/pkg-stage.conf)
 	sh ${.CURDIR}/scripts/pkg-stage.sh ${.CURDIR}/${TARGET}/pkg-stage.conf \
 		${REVISION}
+	mkdir -p ${.OBJDIR}/dvd/packages/repos/
+	cp ${.CURDIR}/scripts/FreeBSD_install_cdrom.conf \
+		${.OBJDIR}/dvd/packages/repos/
 .endif
+	touch ${.TARGET}
 
 cdrom: disc1.iso bootonly.iso
 dvdrom: dvd1.iso
