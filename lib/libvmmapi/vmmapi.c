@@ -563,8 +563,8 @@ vm_map_pptdev_mmio(struct vmctx *ctx, int bus, int slot, int func,
 }
 
 int
-vm_setup_msi(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
-	     uint64_t addr, uint64_t msg, int numvec)
+vm_setup_pptdev_msi(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
+    uint64_t addr, uint64_t msg, int numvec)
 {
 	struct vm_pptdev_msi pptmsi;
 
@@ -581,8 +581,8 @@ vm_setup_msi(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
 }
 
 int	
-vm_setup_msix(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
-	      int idx, uint64_t addr, uint64_t msg, uint32_t vector_control)
+vm_setup_pptdev_msix(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
+    int idx, uint64_t addr, uint64_t msg, uint32_t vector_control)
 {
 	struct vm_pptdev_msix pptmsix;
 
