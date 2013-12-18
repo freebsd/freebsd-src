@@ -70,7 +70,7 @@ svm_init_vmcb(struct vmcb *vmcb, uint64_t iopm_base_pa,
 
 	/* EFER_SVM must always be set when the guest is executing */
 	state->efer = EFER_SVM;
-
+	
 	return (0);
 }
 
@@ -355,7 +355,7 @@ vmcb_seg(struct vmcb *vmcb, int type)
  */
 int
 vmcb_eventinject(struct vmcb_ctrl *ctrl, int type, int vector,
-		 uint32_t error, boolean_t ec_valid)
+		 uint32_t error, bool ec_valid)
 {
 	int intr_type;
 

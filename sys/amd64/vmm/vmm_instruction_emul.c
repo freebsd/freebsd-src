@@ -563,7 +563,7 @@ vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
 		vie->num_valid += n;
 	}
 
-	if (vie->num_valid == inst_length)
+	if (vie->num_valid)
 		return (0);
 	else
 		return (-1);

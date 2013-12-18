@@ -86,7 +86,7 @@
 
 /* VMCB TLB control */
 #define	VMCB_TLB_FLUSH_NOTHING		0	/* Flush nothing */
-#define	VMCB_TLB_FLUSH_EVERYTHING	1	/* Flush entire TLB */
+#define	VMCB_TLB_FLUSH_ALL		1	/* Flush entire TLB */
 #define	VMCB_TLB_FLUSH_GUEST		3	/* Flush all guest entries */
 #define	VMCB_TLB_FLUSH_GUEST_NONGLOBAL	7	/* Flush guest non-PG entries */
 
@@ -147,6 +147,16 @@
 
 #define	VMCB_NPF_INFO1_GPA		BIT(32) /* Guest physical address. */
 #define	VMCB_NPF_INFO1_GPT		BIT(33) /* Guest page table. */
+
+/*
+ * EXITINTINFO, Interrupt exit info for all intrecepts.
+ * Section 15.7.2, Intercepts during IDT Interrupt Delivery.
+ */
+#define VMCB_EXITINTINFO_VECTOR(x)	(x & 0xFF)
+#define VMCB_EXITINTINFO_TYPE(x)	((x & 0x7) >> 8)
+#define VMCB_EXITINTINFO_EC_VALID	BIT(11)
+#define VMCB_EXITINTINFO_VALID		BIT(31)
+#define VMCB_EXITINTINFO_EC(x)		((x & 0xFFFFFFFF) >> 32)
 
 /* VMCB save state area segment format */
 struct vmcb_segment {
@@ -254,8 +264,8 @@ struct vmcb_state {
 	uint64_t dbgctl;
 	uint64_t br_from;
 	uint64_t br_to;
-	uint64_t lastexcpfrom;
-	uint64_t lastexcpto;
+	uint64_t int_from;
+	uint64_t int_to;
 	uint8_t	 pad7[0x968];		/* Reserved upto end of VMCB */
 } __attribute__ ((__packed__));
 CTASSERT(sizeof(struct vmcb_state) == 0xC00);
@@ -274,6 +284,6 @@ int	vmcb_read(struct vmcb *vmcb, int ident, uint64_t *retval);
 int	vmcb_write(struct vmcb *vmcb, int ident, uint64_t val);
 struct vmcb_segment *vmcb_seg(struct vmcb *vmcb, int type);
 int	vmcb_eventinject(struct vmcb_ctrl *ctrl, int type, int vector,
-			 uint32_t error, boolean_t ec_valid);
+			 uint32_t error, bool ec_valid);
 
 #endif /* _VMCB_H_ */
