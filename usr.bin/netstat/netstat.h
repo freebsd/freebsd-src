@@ -40,6 +40,7 @@ extern int	gflag;	/* show group (multicast) routing or stats */
 extern int	hflag;	/* show counters in human readable format */
 extern int	iflag;	/* show interfaces */
 extern int	Lflag;	/* show size of listen queues */
+extern int	Mflag;	/* read statistics from core */
 extern int	mflag;	/* show memory stats */
 extern int	noutputs;	/* how much outputs before we exit */
 extern int	numeric_addr;	/* show addresses numerically */
