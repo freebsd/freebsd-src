@@ -182,7 +182,7 @@ routepr(u_long rtree, int fibnum)
 		printf(" (fib: %d)", fibnum);
 	printf("\n");
 
-	if (Aflag == 0 && NewTree)
+	if (Aflag == 0 && Mflag == 0 && NewTree)
 		ntreestuff(fibnum, af);
 	else {
 		if (rtree == 0) {
