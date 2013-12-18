@@ -254,10 +254,10 @@
 	<para>The iw_cxgbe driver has been added.  This is an experimental iWARP/RDMA driver
 	  (kernel verbs only) for Chelsio's T4 and T5 based cards.</para>
 
-	<para>The Open Fabrics Enterprise Distribution (OFED) and OFED Infiniband core has been
+	<para revision="255932">The Open Fabrics Enterprise Distribution (OFED) and OFED Infiniband core has been
 	  updated to the same version as supplied by Linux version 3.7</para>
 
-	<para>The Mellanox Infiniband driver has been updated to firmware
+	<para revision="255932">The Mellanox Infiniband driver has been updated to firmware
 	  version 2.30.3200 for ConnectX3 NICs.  Support has been added for ConnectX3 VPI NICs, where
 	  each port can be used as Infiniband 56 GB/s or Ethernet 40 GB/s.  Support has been added
 	  for dynamically loading kernel modules for Infiniband core (ibcore) and
