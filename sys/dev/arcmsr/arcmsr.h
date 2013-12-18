@@ -118,6 +118,7 @@
 
 #define ARECA_SUB_DEV_ID_1880	0x1880 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1882	0x1882 /* Subsystem Device ID	*/
+#define ARECA_SUB_DEV_ID_1883	0x1883 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1212	0x1212 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1213	0x1213 /* Subsystem Device ID	*/
 #define ARECA_SUB_DEV_ID_1222	0x1222 /* Subsystem Device ID	*/
@@ -1136,16 +1137,16 @@ struct AdapterControlBlock {
 				u_int32_t		phyadd_low;
 				u_int32_t		phyadd_high;
 		}B;
-	} 							srb_phyaddr;
+	}srb_phyaddr;
 //	unsigned long				srb_phyaddr;
 	/* Offset is used in making arc cdb physical to virtual calculations */
 	u_int32_t					outbound_int_enable;
 	
 	struct MessageUnit_UNION	*pmu;                        /* message unit ATU inbound base address0 */
 	
-	u_int8_t					adapter_index;              /*  */
+	u_int8_t		adapter_index;
 	u_int8_t					irq;
-	u_int16_t					acb_flags;                  /*  */
+	u_int16_t		acb_flags;
 	
 	struct CommandControlBlock *psrb_pool[ARCMSR_MAX_FREESRB_NUM];     /* serial srb pointer array */
 	struct CommandControlBlock *srbworkingQ[ARCMSR_MAX_FREESRB_NUM];   /* working srb pointer array */
@@ -1183,6 +1184,7 @@ struct AdapterControlBlock {
 	u_int32_t					vendor_device_id;
 	u_int32_t					adapter_bus_speed;
 	u_int32_t					maxOutstanding;
+	u_int16_t		sub_device_id;
 };/* HW_DEVICE_EXTENSION */
 /* acb_flags */
 #define ACB_F_SCSISTOPADAPTER           0x0001
