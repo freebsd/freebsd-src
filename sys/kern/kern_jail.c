@@ -3369,6 +3369,8 @@ prison_check_in6(struct ucred *cred, const struct in6_addr *ia6,
 	addr.sin6_addr = *ia6;
 	if (IN6_IS_ADDR_LINKLOCAL(ia6))
 		addr.sin6_scope_id = zoneid;
+	else
+		addr.sin6_scope_id = 0;
 	return (prison_check_ip6(cred, &addr));
 }
 
