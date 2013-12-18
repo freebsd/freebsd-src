@@ -677,13 +677,6 @@ in6_selectsrc(struct sockaddr_in6 *dst, struct ip6_pktopts *opts,
 	 * Otherwise, if the socket has already bound the source, just use it.
 	 */
 	if (inp != NULL && !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
-#if 0		/* XXX: Jail support. */
-		if (cred != NULL &&
-		    (error = prison_local_ip6(cred, &inp->in6p_laddr,
-		    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
-			return (error);
-		bcopy(&inp->in6p_laddr, srcp, sizeof(*srcp));
-#endif
 		if (ro == &ro6)
 			RO_RTFREE(ro);
 		*srcp = inp->in6p_laddr;
