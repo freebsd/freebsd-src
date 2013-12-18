@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2013
+.Dd December 2, 2013
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -50,8 +50,9 @@ For some users, it may be desirable to provide an absolutely clean
 build environment, with no local modifications to the source tree or to
 .Xr make.conf 5 ,
 and with clean checkouts of specific versions of the doc, src, and ports
-trees. For this purpose, a script
-.Pq Pa src/release/generate-release.sh
+trees.
+For this purpose, a script
+.Pq Pa src/release/release.sh
 is provided to automate these checkouts and then execute
 .Dq Li "make release"
 in a clean
@@ -70,72 +71,180 @@ and
 .Dq Li "make buildkernel" .
 This is necessary to provide the object files for the release or, when
 using
-.Pa generate-release.sh ,
+.Pa release.sh ,
 so that the object files for a complete system can be installed into a clean
 .Xr chroot 8
-environment. In this second case, the built world must be capable of running
-on the build system (i.e. it must be for the same architecture and be
-compatible with the installed kernel).
+environment.
+.Pp
+If the target release build is for a different architecture or machine type,
+the
+.Va TARGET
+and
+.Va TARGET_ARCH
+variables must be used.
+See the supported
+.Fa release.conf
+variables for more information.
+.Pp
 The release procedure on some architectures may also require that the
 .Xr md 4
 (memory disk) device driver be present in the kernel
-(either by being compiled in or available as a module).
+.Pq either by being compiled in or available as a module .
 .Pp
 This document does not cover source code management, quality
 assurance, or other aspects of the release engineering process.
 .Sh CLEAN RELEASE GENERATION
-Official releases of FreeBSD are produced in a totally clean environment to
+Official releases of
+.Fx
+are produced in a totally clean environment to
 ensure consistency between the versions of the src, ports, and doc trees
-and to avoid contamination from the host system (e.g. local patches, changes
+and to avoid contamination from the host system
+.Po such as local patches, changes
 to
 .Xr make.conf 5 ,
-etc.). This is accomplished using the wrapper script
-.Pa src/release/generate-release.sh .
+etc.
+.Pc .
+This is accomplished using the wrapper script
+.Pa src/release/release.sh .
 .Pp
-.Ic generate-release.sh
-svn-branch scratch-dir
+.Ic release.sh
+.Op Fl c Ar release.conf
 .Pp
-.Ic generate-release.sh
-calls
+.Ic release.sh
+checks out the
+.Li src/ ,
+.Li ports/ ,
+and
+.Li doc/
+trees to
+.Va CHROOTDIR ,
+then calls
+.Dq Li "make buildworld"
+and
 .Dq Li "make installworld"
 to generate a
 .Xr chroot 8
-environment in
-.Ar scratch-dir .
-It then checks out the src tree specified by
-.Ar svn-branch
-using
-.Xr svn 1 .
-Once the various source trees have been obtained, it executes
+environment.
+Next,
 .Dq Li "make release"
-within the
+is run within the
 .Xr chroot 8
 environment and places the result in
-.Pa $scratch-dir/R .
-Note that because this uses a chroot, it cannot be used to cross-build
-.Fx
-release media.
+.Pa $CHROOTDIR/R .
 .Pp
-Environment variables:
-.Bl -tag -width ".Cm MAKE_FLAGS"
-.It Ev MAKE_FLAGS
-This environment variable can be set to pass flags (e.g. -j) to
-.Xr make 1
-when invoked by the script.
-.It Ev SVNROOT
-The location of the FreeBSD SVN source, doc, and ports repositories.
+The optional
+.Fa release.conf
+configuration file supports the following variables:
+.Bl -tag -width Ev
+.It Va CHROOTDIR
+The directory within which the release will be built.
+.It Va SVNROOT
+The
+.Xr svn 1
+host used to check out the various trees.
 Defaults to
-.Pa svn://svn.freebsd.org/base
-for the source tree,
-.Pa svn://svn.freebsd.org/ports/head
-for the Ports Collection, and
-.Pa svn://svn.freebsd.org/doc/head
-for the Documentation Project source.
-.It Ev RELSTRING
-Optional base name for generated media images (e.g. FreeBSD-9.0-RC2-amd64).
-Defaults to the output of
-.Ic `uname -s`-`uname -r`-`uname -p`
-within the chroot.
+.Pa svn://svn.FreeeBSD.org .
+.It Va SRCBRANCH
+The
+.Li src/
+branch to use.
+Defaults to
+.Va head/@rHEAD .
+.It Va DOCBRANCH
+The
+.Li doc/
+branch to use.
+Defaults to
+.Va head/@rHEAD .
+.It Va PORTBRANCH
+The
+.Li ports/
+branch to use.
+Defaults to
+.Va head/@rHEAD .
+.It Va TARGET
+The target machine type for cross-building a release.
+.It Va TARGET_ARCH
+The target machine architecture for cross-building a release.
+.Pp
+For the supported list of
+.Va TARGET
+and
+.Va TARGET_ARCH
+combinations, consult the output of
+.Dq make targets
+as documented in
+.Xr build 7 .
+.It Va KERNEL
+The target kernel configuration to use.
+Defaults to
+.Va GENERIC .
+Multiple
+.Va KERNEL
+entries may be specified.
+.It Va MAKE_CONF
+The
+.Xr make.conf 5
+to use for the release build.
+Defaults to
+.Fa /dev/null
+to prevent polluting the release with local system changes.
+.It Va SRC_CONF
+The
+.Xr src.conf 5
+to use for the release build.
+Defaults to
+.Fa /dev/null
+to prevent polluting the release with local system changes.
+.It Va MAKE_FLAGS
+Additional flags to pass to
+.Xr make 1 .
+.It Va WORLD_FLAGS
+Additional flags to pass to
+.Xr make 1
+during the
+.Dq buildworld
+phase.
+Defaults to setting the number of
+.Xr make 1
+jobs
+.Pq Ar -j
+to the number of CPUs available on a SMP-capable system.
+.It Va KERNEL_FLAGS
+Additional flags to pass to
+.Xr make 1
+during the
+.Dq buildkernel
+phase.
+Defaults to setting the number of
+.Xr make 1
+jobs
+.Pq Ar -j
+to half the number of CPUs available on a SMP-capable system.
+.It Va NODOC
+Set to a non-empty value to skip the
+.Li doc/
+tree checkout.
+When set,
+.Va NODOC
+will prevent the
+.Fa doc.txz
+distribution package from being created.
+.It Va NOPORTS
+Set to a non-empty value to skip the
+.Li ports/
+tree checkout.
+When set,
+.Va NOPORTS
+will prevent the
+.Fa ports.txz
+distribution package from being created.
+Setting this also sets
+.Va NODOC .
+.It Va WITH_DVD
+Set to a non-empty value to include the
+.Cm dvdrom
+target.
 .El
 .Sh MAKEFILE TARGETS
 The release makefile
@@ -164,17 +273,27 @@ and possibly that the
 (memory disk) device driver be present in the kernel
 (either by being compiled in or available as a module). This target
 produces files called
-.Pa release.iso
+.Pa disc1.iso
 and
 .Pa bootonly.iso
 as its output.
-.It Cm memstick
-Builds an installation memory stick image named
-.Pa memstick .
-Not applicable on all platforms. Requires that the
+.It Cm dvdrom
+Builds installation DVD-ROM images.
+This may require the
 .Xr md 4
 (memory disk) device driver be present in the kernel
 (either by being compiled in or available as a module).
+This target produces the
+.Pa dvd1.iso
+file as its output.
+.It Cm memstick
+Builds an installation memory stick image named
+.Pa memstick.img .
+Not applicable on all platforms. Requires that the
+.Xr md 4
+.Pq memory disk
+device driver be present in the kernel
+.Pq either by being compiled in or available as a module .
 .It Cm mini-memstick
 Similar to
 .Cm memstick ,
@@ -190,39 +309,51 @@ and suitable for upload to an FTP mirror.
 Major subtargets called by targets above:
 .Bl -tag -width ".Cm packagesystem"
 .It Cm packagesystem
-Generates all the distribution archives (e.g. base, kernel, ports, doc)
+Generates all the distribution archives
+.Pq base, kernel, ports, doc
 applicable on this platform.
 .It Cm system
 Builds a bootable installation system containing all the distribution files
 packaged by the
 .Cm packagesystem
 target, and suitable for imaging by the
-.Cm cdrom
+.Cm cdrom ,
+.Cm dvdrom
 and
 .Cm memstick
 targets.
 .It Cm reldoc
 Builds the release documentation.
 This includes the release notes,
-hardware guide, and installation instructions. Other documentation (e.g.
-the Handbook) is built during the
+hardware guide, and installation instructions.
+Other documentation, such as the Handbook,
+is built during the
 .Cm base.txz
 target invoked by
 .Cm packagesystem.
 .El
 .Sh ENVIRONMENT
 Optional variables:
-.Bl -tag -width ".Va TARGET_ARCH"
-.It Va WORLDDIR
-Location of a directory containing the src tree. By default, the directory
+.Bl -tag -width ".Ev TARGET_ARCH"
+.It Ev OSRELEASE
+Optional base name for generated media images
+.Pq e.g., FreeBSD-9.0-RC2-amd64 .
+Defaults to the output of
+.Ic `uname -s`-`uname -r`-`uname -p`
+within the chroot.
+.It Ev WORLDDIR
+Location of a directory containing the src tree.
+By default, the directory
 above the one containing the makefile
 .Pq Pa src .
 .It Va PORTSDIR
-Location of a directory containing the ports tree. By default,
+Location of a directory containing the ports tree.
+By default,
 .Pa /usr/ports .
 If it is unset or cannot be found, ports will not be included in the release.
 .It Va DOCDIR
-Location of a directory containing the doc tree. By default,
+Location of a directory containing the doc tree.
+By default,
 .Pa /usr/doc .
 If it is unset or cannot be found, most documentation will not be included in
 the release; see
@@ -279,7 +410,8 @@ Typically, one only needs to set
 .It Pa /usr/src/Makefile
 .It Pa /usr/src/Makefile.inc1
 .It Pa /usr/src/release/Makefile
-.It Pa /usr/src/release/generate-release.sh
+.It Pa /usr/src/release/release.sh
+.It Pa /usr/src/release/release.conf.sample
 .El
 .Sh EXAMPLES
 The following sequence of commands can be used to build a
@@ -304,13 +436,27 @@ The following sequence of commands can be used to build a
 in a clean environment, including ports and documentation:
 .Bd -literal -offset indent
 cd /usr/src/release
-export SVNROOT=svn://svn.freebsd.org/base
-sh generate-release.sh head /local3/release
+sh release.sh
+.Ed
+.Pp
+Optionally, a configuration file can be used customize the release build,
+such as the subversion revision to use, the branch of the subversion tree for
+.Li src/ ,
+.Li ports/ ,
+and
+.Li doc/ .
+.Bd -literal -offset indent
+cd /usr/src/release
+sh release.sh -c $HOME/release.conf
 .Ed
 .Pp
 After running these commands, all prepared release files are available in the
-.Pa /local3/release/R
+.Pa /scratch
 directory.
+The target directory can be changed by specifying the
+.Va CHROOTDIR
+variable in
+.Li release.conf .
 .Sh SEE ALSO
 .Xr cc 1 ,
 .Xr install 1 ,
@@ -361,6 +507,16 @@ was overhauled and the wrapper script
 .Pa src/release/generate-release.sh
 introduced to support the introduction of a new installer.
 .Pp
+For the
+.Fx 9.2
+release,
+.Pa src/release/release.sh
+was introduced to support per-build configuration files.
+.Pa src/release/release.sh
+is heavily based on the
+.Pa src/release/generate-release.sh
+script.
+.Pp
 At near 1000 revisions spread over multiple branches, the
 .Xr svn 1
 log of
@@ -375,5 +531,22 @@ was originally written by
 .An Jordan Hubbard ,
 and
 .An Poul-Henning Kamp .
-This manual page was written by
+.Pp
+This manual page was originally written by
 .An Murray Stokely Aq murray@FreeBSD.org .
+.Pp
+It was updated by
+.An Nathan Whitehorn Aq nwhitehorn@FreeBSD.org
+to include the
+.Fa generate-release.sh
+script used for the
+.Fx 9.0
+release cycle.
+.Pp
+It was later updated by
+.An Glen Barber Aq gjb@FreeBSD.org
+to include the
+.Fa release.sh
+script used for the
+.Fx 9.2
+release cycle.
