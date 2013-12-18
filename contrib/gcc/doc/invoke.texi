@@ -169,6 +169,8 @@ in the following sections.
 -trigraphs  -no-integrated-cpp  -traditional  -traditional-cpp @gol
 -fallow-single-precision  -fcond-mismatch -flax-vector-conversions @gol
 -fsigned-bitfields  -fsigned-char @gol
+@c APPLE LOCAL -Wnewline-eof 2001-08-23 --sts **
+-Wnewline-eof (Apple compatible) @gol
 -funsigned-bitfields  -funsigned-char}
 
 @item C++ Language Options
@@ -2081,6 +2083,12 @@ Inhibit all warning messages.
 @item -Wno-import
 @opindex Wno-import
 Inhibit warning messages about the use of @samp{#import}.
+
+@c APPLE LOCAL begin -Wnewline-eof 2001-08-23 --sts **
+@item -Wnewline-eof
+@opindex Wnewline-eof
+Warn about files missing a newline at the end of the file.  (FreeBSD ONLY)
+@c APPLE LOCAL end -Wnewline-eof 2001-08-23 --sts **
 
 @item -Wchar-subscripts
 @opindex Wchar-subscripts
