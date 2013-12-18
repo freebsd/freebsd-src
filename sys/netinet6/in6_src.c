@@ -587,6 +587,8 @@ in6_selectsrc(struct sockaddr_in6 *dst, struct ip6_pktopts *opts,
 		INP_LOCK_ASSERT(inp);
 		mopts = inp->in6p_moptions;
 		fibnum = inp->inp_inc.inc_fibnum;
+		if (opts == NULL)
+			opts = inp->in6p_outputopts;
 	} else {
 		mopts = NULL;
 		fibnum = RT_DEFAULT_FIB;
