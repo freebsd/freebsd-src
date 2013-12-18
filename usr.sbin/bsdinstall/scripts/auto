@@ -103,7 +103,7 @@ if [ -n "$FETCH_DISTRIBUTIONS" ]; then
 	export BSDINSTALL_DISTSITE
 fi
 
-rm $PATH_FSTAB
+rm -f $PATH_FSTAB
 touch $PATH_FSTAB
 
 PMODES="\
