@@ -3245,6 +3245,9 @@ enum tree_index
   TI_UINTDI_TYPE,
   TI_UINTTI_TYPE,
 
+  TI_UINT32_TYPE,
+  TI_UINT64_TYPE,
+
   TI_INTEGER_ZERO,
   TI_INTEGER_ONE,
   TI_INTEGER_MINUS_ONE,
@@ -3319,6 +3322,9 @@ extern GTY(()) tree global_trees[TI_MAX];
 #define unsigned_intSI_type_node	global_trees[TI_UINTSI_TYPE]
 #define unsigned_intDI_type_node	global_trees[TI_UINTDI_TYPE]
 #define unsigned_intTI_type_node	global_trees[TI_UINTTI_TYPE]
+
+#define uint32_type_node		global_trees[TI_UINT32_TYPE]
+#define uint64_type_node		global_trees[TI_UINT64_TYPE]
 
 #define integer_zero_node		global_trees[TI_INTEGER_ZERO]
 #define integer_one_node		global_trees[TI_INTEGER_ONE]
@@ -4185,7 +4191,7 @@ extern GTY(()) const char * current_function_func_begin_label;
 /* In tree.c */
 extern unsigned crc32_string (unsigned, const char *);
 extern void clean_symbol_name (char *);
-extern tree get_file_function_name_long (const char *);
+extern tree get_file_function_name (const char *);
 extern tree get_callee_fndecl (tree);
 extern void change_decl_assembler_name (tree, tree);
 extern int type_num_arguments (tree);
@@ -4528,10 +4534,6 @@ extern void gimplify_function_tree (tree);
 extern const char *get_name (tree);
 extern tree unshare_expr (tree);
 extern void sort_case_labels (tree);
-
-/* If KIND=='I', return a suitable global initializer (constructor) name.
-   If KIND=='D', return a suitable global clean-up (destructor) name.  */
-extern tree get_file_function_name (int);
 
 /* Interface of the DWARF2 unwind info support.  */
 
