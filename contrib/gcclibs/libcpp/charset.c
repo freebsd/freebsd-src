@@ -1628,6 +1628,7 @@ _cpp_convert_input (cpp_reader *pfile, const char *input_charset,
      terminate with another \r, not an \n, so that we do not mistake
      the \r\n sequence for a single DOS line ending and erroneously
      issue the "No newline at end of file" diagnostic.  */
+  /* APPLE LOCAL don't access to.text[-1] radar 6121572 */
   if (to.len > 0 && to.text[to.len - 1] == '\r')
     to.text[to.len] = '\r';
   else
