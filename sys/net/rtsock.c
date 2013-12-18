@@ -508,7 +508,6 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 #ifdef INET6
 	case AF_INET6:
 	{
-		struct in6_addr ia6;
 		struct ifaddr *ifa;
 		int found;
 
@@ -519,35 +518,30 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 		 */
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			struct sockaddr *sa;
-			sa = ifa->ifa_addr;
-			if (sa->sa_family != AF_INET6)
+			if (ifa->ifa_addr->sa_family != AF_INET6)
 				continue;
-			bcopy(&((struct sockaddr_in6 *)sa)->sin6_addr,
-			    &ia6, sizeof(struct in6_addr));
-			if (prison_check_ip6(cred, &ia6) == 0) {
+			if (prison_if(cred, ifa->ifa_addr) == 0) {
 				found = 1;
 				break;
 			}
 		}
 		IF_ADDR_RUNLOCK(ifp);
+		bzero(&saun->sin6, sizeof(struct sockaddr_in6));
+		saun->sin6.sin6_len = sizeof(struct sockaddr_in6);
+		saun->sin6.sin6_family = AF_INET6;
 		if (!found) {
 			/*
 			 * As a last resort return the 'default' jail address.
 			 */
-			ia6 = ((struct sockaddr_in6 *)rt->rt_ifa->ifa_addr)->
-			    sin6_addr;
-			if (prison_get_ip6(cred, &ia6) != 0)
+			if (prison_get_ip6(cred, &saun->sin6) != 0)
 				return (ESRCH);
+		} else {
+			struct sockaddr_in6 *sin6;
+
+			sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
+			saun->sin6.sin6_addr = sin6->sin6_addr;
+			saun->sin6.sin6_scope_id = sin6->sin6_scope_id;
 		}
-		bzero(&saun->sin6, sizeof(struct sockaddr_in6));
-		saun->sin6.sin6_len = sizeof(struct sockaddr_in6);
-		saun->sin6.sin6_family = AF_INET6;
-		bcopy(&ia6, &saun->sin6.sin6_addr, sizeof(struct in6_addr));
-		/*
-		saun->sin6.sin6_sin6_scope_id = in6_getscopezone(ifp,
-		    in6_addrscope(&ia6));
-		*/
 		info->rti_info[RTAX_IFA] = (struct sockaddr *)&saun->sin6;
 		break;
 	}
