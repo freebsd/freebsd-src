@@ -381,21 +381,32 @@ dos_readdir(struct open_file *fd, struct dirent *d)
 	if (dd.de.name[0] == 0xe5)
 	    continue;
 
-	/* Skip volume labels */
-	if (dd.de.attr & FA_LABEL)
-	    continue;
-
-	if ((dd.de.attr & FA_MASK) == FA_XDE) {
-	    if (dd.xde.seq & 0x40)
-		chk = dd.xde.chk;
-	    else if (dd.xde.seq != xdn - 1 || dd.xde.chk != chk)
-		continue;
-	    x = dd.xde.seq & ~0x40;
-	    if (x < 1 || x > 20) {
-		x = 0;
+	/* Check if directory entry is volume label */
+	if (dd.de.attr & FA_LABEL) {
+	    /* 
+	     * If volume label set, check if the current entry is
+	     * extended entry (FA_XDE) for long file names.
+	     */
+	    if ((dd.de.attr & FA_MASK) == FA_XDE) {
+		/*
+		 * Read through all following extended entries
+		 * to get the long file name. 0x40 marks the
+		 * last entry containing part of long file name.
+		 */
+		if (dd.xde.seq & 0x40)
+		    chk = dd.xde.chk;
+		else if (dd.xde.seq != xdn - 1 || dd.xde.chk != chk)
+		    continue;
+		x = dd.xde.seq & ~0x40;
+		if (x < 1 || x > 20) {
+		    x = 0;
+		    continue;
+		}
+		cp_xdnm(fn, &dd.xde);
+	    } else {
+		/* skip only volume label entries */
 		continue;
 	    }
-	    cp_xdnm(fn, &dd.xde);
 	} else {
 	    if (xdn == 1) {
 		x = 0;
