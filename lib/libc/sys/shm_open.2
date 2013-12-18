@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 20, 2007
+.Dd December 18, 2013
 .Dt SHM_OPEN 2
 .Os
 .Sh NAME
@@ -253,8 +253,8 @@ requires write permission to the shared memory object.
 .El
 .Sh SEE ALSO
 .Xr close 2 ,
-.Xr ftruncate 2 ,
 .Xr fstat 2 ,
+.Xr ftruncate 2 ,
 .Xr mmap 2 ,
 .Xr munmap 2
 .Sh STANDARDS
@@ -273,7 +273,7 @@ functions first appeared in
 .Fx 4.3 .
 The functions were reimplemented as system calls using shared memory objects
 directly rather than files in
-.Fx 7.0 .
+.Fx 8.0 .
 .Sh AUTHORS
 .An Garrett A. Wollman Aq wollman@FreeBSD.org
 (C library support and this manual page)
