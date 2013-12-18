@@ -124,8 +124,7 @@ exec 3>&1
 PARTMODE=`echo $PMODES | xargs dialog --backtitle "FreeBSD Installer" \
 	--title "Partitioning" \
 	--menu "How would you like to partition your disk?" \
-	0 0 0 2>&1 1>&3`
-if [ $? -eq $DIALOG_CANCEL ]; then exit 1; fi
+	0 0 0 2>&1 1>&3` || exit 1
 exec 3>&-
 
 case "$PARTMODE" in
