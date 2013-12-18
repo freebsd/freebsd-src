@@ -151,6 +151,7 @@ ports attached to the switch)
 #include <machine/bus.h>	/* bus_dmamap_* */
 #include <sys/endian.h>
 #include <sys/refcount.h>
+#include <sys/jail.h>
 
 
 /* reduce conditional code */
