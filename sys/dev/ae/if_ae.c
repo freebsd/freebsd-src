@@ -135,7 +135,7 @@ static void	ae_mac_config(ae_softc_t *sc);
 static int	ae_intr(void *arg);
 static void	ae_int_task(void *arg, int pending);
 static void	ae_tx_intr(ae_softc_t *sc);
-static int	ae_rxeof(ae_softc_t *sc, ae_rxd_t *rxd);
+static void	ae_rxeof(ae_softc_t *sc, ae_rxd_t *rxd);
 static void	ae_rx_intr(ae_softc_t *sc);
 static void	ae_watchdog(ae_softc_t *sc);
 static void	ae_tick(void *arg);
@@ -1884,7 +1884,7 @@ ae_tx_intr(ae_softc_t *sc)
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 }
 
-static int
+static void
 ae_rxeof(ae_softc_t *sc, ae_rxd_t *rxd)
 {
 	struct ifnet *ifp;
@@ -1903,12 +1903,15 @@ ae_rxeof(ae_softc_t *sc, ae_rxd_t *rxd)
 	size = le16toh(rxd->len) - ETHER_CRC_LEN;
 	if (size < (ETHER_MIN_LEN - ETHER_CRC_LEN - ETHER_VLAN_ENCAP_LEN)) {
 		if_printf(ifp, "Runt frame received.");
-		return (EIO);
+		ifp->if_ierrors++;
+		return;
 	}
 
 	m = m_devget(&rxd->data[0], size, ETHER_ALIGN, ifp, NULL);
-	if (m == NULL)
-		return (ENOBUFS);
+	if (m == NULL) {
+		ifp->if_iqdrops++;
+		return;
+	}
 
 	if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0 &&
 	    (flags & AE_RXD_HAS_VLAN) != 0) {
@@ -1916,14 +1919,13 @@ ae_rxeof(ae_softc_t *sc, ae_rxd_t *rxd)
 		m->m_flags |= M_VLANTAG;
 	}
 
+	ifp->if_ipackets++;
 	/*
 	 * Pass it through.
 	 */
 	AE_UNLOCK(sc);
 	(*ifp->if_input)(ifp, m);
 	AE_LOCK(sc);
-
-	return (0);
 }
 
 static void
@@ -1932,7 +1934,7 @@ ae_rx_intr(ae_softc_t *sc)
 	ae_rxd_t *rxd;
 	struct ifnet *ifp;
 	uint16_t flags;
-	int count, error;
+	int count;
 
 	KASSERT(sc != NULL, ("[ae, %d]: sc is NULL!", __LINE__));
 
@@ -1960,17 +1962,10 @@ ae_rx_intr(ae_softc_t *sc)
 		 */
 		sc->rxd_cur = (sc->rxd_cur + 1) % AE_RXD_COUNT_DEFAULT;
 
-		if ((flags & AE_RXD_SUCCESS) == 0) {
+		if ((flags & AE_RXD_SUCCESS) != 0)
+			ae_rxeof(sc, rxd);
+		else
 			ifp->if_ierrors++;
-			continue;
-		}
-		error = ae_rxeof(sc, rxd);
-		if (error != 0) {
-			ifp->if_ierrors++;
-			continue;
-		} else {
-			ifp->if_ipackets++;
-		}
 	}
 
 	if (count > 0) {
