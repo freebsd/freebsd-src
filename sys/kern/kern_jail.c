@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #ifdef INET6
 #include <netinet6/in6_var.h>
+#include <netinet6/scope6_var.h>
 #endif /* INET6 */
 #endif /* DDB */
 
@@ -139,8 +140,11 @@ static int _prison_check_ip4(const struct prison *, const struct in_addr *);
 static int prison_restrict_ip4(struct prison *pr, struct in_addr *newip4);
 #endif
 #ifdef INET6
-static int _prison_check_ip6(struct prison *pr, struct in6_addr *ia6);
-static int prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6);
+static int _prison_check_ip6(struct prison *, const struct sockaddr_in6 *);
+static int prison_restrict_ip6(struct prison *, struct sockaddr_in6 *);
+#define	SA6_ARE_ADDR_EQUAL(a, b)	\
+    (IN6_ARE_ADDR_EQUAL(&(a)->sin6_addr, &(b)->sin6_addr) && \
+	(a)->sin6_scope_id == (b)->sin6_scope_id)
 #endif
 
 /* Flags for prison_deref */
@@ -268,17 +272,25 @@ qcmp_v4(const void *ip1, const void *ip2)
 static int
 qcmp_v6(const void *ip1, const void *ip2)
 {
-	const struct in6_addr *ia6a, *ia6b;
+	const struct sockaddr_in6 *ip6a, *ip6b;
 	int i, rc;
 
-	ia6a = (const struct in6_addr *)ip1;
-	ia6b = (const struct in6_addr *)ip2;
+	ip6a = (const struct sockaddr_in6 *)ip1;
+	ip6b = (const struct sockaddr_in6 *)ip2;
 
 	rc = 0;
 	for (i = 0; rc == 0 && i < sizeof(struct in6_addr); i++) {
-		if (ia6a->s6_addr[i] > ia6b->s6_addr[i])
+		if (ip6a->sin6_addr.s6_addr[i] >
+		    ip6b->sin6_addr.s6_addr[i])
 			rc = 1;
-		else if (ia6a->s6_addr[i] < ia6b->s6_addr[i])
+		else if (ip6a->sin6_addr.s6_addr[i] <
+		    ip6b->sin6_addr.s6_addr[i])
+			rc = -1;
+	}
+	if (rc == 0) {
+		if (ip6a->sin6_scope_id > ip6b->sin6_scope_id)
+			rc = 1;
+		else if (ip6a->sin6_scope_id < ip6b->sin6_scope_id)
 			rc = -1;
 	}
 	return (rc);
@@ -327,6 +339,7 @@ sys_jail(struct thread *td, struct jail_args *uap)
 
 	case 2:	/* JAIL_API_VERSION */
 		/* FreeBSD multi-IPv4/IPv6,noIP jails. */
+	case 3:	/* in6_addr -> sockaddr_in6 */
 		error = copyin(uap->jail, &j, sizeof(struct jail));
 		if (error)
 			return (error);
@@ -358,7 +371,7 @@ kern_jail(struct thread *td, struct jail *j)
 	struct in_addr *u_ip4;
 #endif
 #ifdef INET6
-	struct in6_addr *u_ip6;
+	struct sockaddr_in6 *u_ip6;
 #endif
 	size_t tmplen;
 	int error, enforce_statfs, fi;
@@ -403,9 +416,16 @@ kern_jail(struct thread *td, struct jail *j)
 		return (EINVAL);
 #endif
 #ifdef INET6
+	/*
+	 * We don't support the old way, when the list of IPv6 addresses
+	 * is specified via struct in6_addr.
+	 * XXX: in some case we can (i.e. until LLA isn't used).
+	 */
+	if (j->version < 3)
+		return (EINVAL);
 	if (j->ip6s > jail_max_af_ips)
 		return (EINVAL);
-	tmplen += j->ip6s * sizeof(struct in6_addr);
+	tmplen += j->ip6s * sizeof(struct sockaddr_in6);
 #else
 	if (j->ip6s > 0)
 		return (EINVAL);
@@ -418,9 +438,9 @@ kern_jail(struct thread *td, struct jail *j)
 #endif
 #ifdef INET6
 #ifdef INET
-	u_ip6 = (struct in6_addr *)(u_ip4 + ip4s);
+	u_ip6 = (struct sockaddr_in6 *)(u_ip4 + ip4s);
 #else
-	u_ip6 = (struct in6_addr *)(u_name + MAXHOSTNAMELEN);
+	u_ip6 = (struct sockaddr_in6 *)(u_name + MAXHOSTNAMELEN);
 #endif
 #endif
 	optiov[opt.uio_iovcnt].iov_base = "path";
@@ -480,7 +500,7 @@ kern_jail(struct thread *td, struct jail *j)
 	optiov[opt.uio_iovcnt].iov_len = sizeof("ip6.addr");
 	opt.uio_iovcnt++;
 	optiov[opt.uio_iovcnt].iov_base = u_ip6;
-	optiov[opt.uio_iovcnt].iov_len = j->ip6s * sizeof(struct in6_addr);
+	optiov[opt.uio_iovcnt].iov_len = j->ip6s * sizeof(struct sockaddr_in6);
 	error = copyin(j->ip6, u_ip6, optiov[opt.uio_iovcnt].iov_len);
 	if (error) {
 		free(u_path, M_TEMP);
@@ -529,7 +549,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	struct in_addr *ip4;
 #endif
 #ifdef INET6
-	struct in6_addr *ip6;
+	struct sockaddr_in6 *ip6;
 #endif
 	struct vfsopt *opt;
 	struct vfsoptlist *opts;
@@ -881,14 +901,21 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			if (ip6s > 1)
 				qsort(ip6 + 1, ip6s - 1, sizeof(*ip6), qcmp_v6);
 			for (ii = 0; ii < ip6s; ii++) {
-				if (IN6_IS_ADDR_UNSPECIFIED(&ip6[ii])) {
+				if (IN6_IS_ADDR_UNSPECIFIED(&ip6[ii].sin6_addr)) {
 					error = EINVAL;
 					goto done_free;
 				}
-				if ((ii+1) < ip6s &&
-				    (IN6_ARE_ADDR_EQUAL(&ip6[0], &ip6[ii+1]) ||
-				     IN6_ARE_ADDR_EQUAL(&ip6[ii], &ip6[ii+1])))
-				{
+				if (ip6[ii].sin6_family != AF_INET6 ||
+				    ip6[ii].sin6_len != sizeof(*ip6) ||
+				    sa6_checkzone(&ip6[ii]) != 0) {
+					error = EINVAL;
+					goto done_free;
+				}
+				if ((ii + 1) < ip6s && (
+				    SA6_ARE_ADDR_EQUAL(&ip6[0],
+					&ip6[ii + 1]) ||
+				    SA6_ARE_ADDR_EQUAL(&ip6[ii],
+					&ip6[ii + 1]))) {
 					error = EINVAL;
 					goto done_free;
 				}
@@ -1272,8 +1299,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 				if (ppr->pr_ip6 != NULL) {
 					pr->pr_ip6s = ppr->pr_ip6s;
 					pr->pr_ip6 = malloc(pr->pr_ip6s *
-					    sizeof(struct in6_addr), M_PRISON,
-					    M_WAITOK);
+					    sizeof(struct sockaddr_in6),
+					    M_PRISON, M_WAITOK);
 					bcopy(ppr->pr_ip6, pr->pr_ip6,
 					    pr->pr_ip6s * sizeof(*pr->pr_ip6));
 				}
@@ -1465,7 +1492,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			 * subset of the parent's list.
 			 */
 			for (ij = 0; ij < ppr->pr_ip6s; ij++)
-				if (IN6_ARE_ADDR_EQUAL(&ip6[0],
+				if (SA6_ARE_ADDR_EQUAL(&ip6[0],
 				    &ppr->pr_ip6[ij]))
 					break;
 			if (ij == ppr->pr_ip6s) {
@@ -1474,11 +1501,11 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			}
 			if (ip6s > 1) {
 				for (ii = ij = 1; ii < ip6s; ii++) {
-					if (IN6_ARE_ADDR_EQUAL(&ip6[ii],
-					     &ppr->pr_ip6[0]))
+					if (SA6_ARE_ADDR_EQUAL(&ip6[ii],
+					    &ppr->pr_ip6[0]))
 						continue;
 					for (; ij < ppr->pr_ip6s; ij++)
-						if (IN6_ARE_ADDR_EQUAL(
+						if (SA6_ARE_ADDR_EQUAL(
 						    &ip6[ii], &ppr->pr_ip6[ij]))
 							break;
 					if (ij == ppr->pr_ip6s)
@@ -2989,7 +3016,7 @@ prison_check_ip4(const struct ucred *cred, const struct in_addr *ia)
 
 #ifdef INET6
 static int
-prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6)
+prison_restrict_ip6(struct prison *pr, struct sockaddr_in6 *newip6)
 {
 	int ii, ij, used;
 	struct prison *ppr;
@@ -3031,7 +3058,7 @@ prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6)
 	} else if (pr->pr_ip6s > 0) {
 		/* Remove addresses that aren't in the parent. */
 		for (ij = 0; ij < ppr->pr_ip6s; ij++)
-			if (IN6_ARE_ADDR_EQUAL(&pr->pr_ip6[0],
+			if (SA6_ARE_ADDR_EQUAL(&pr->pr_ip6[0],
 			    &ppr->pr_ip6[ij]))
 				break;
 		if (ij < ppr->pr_ip6s)
@@ -3042,12 +3069,12 @@ prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6)
 			ii = 0;
 		}
 		for (ij = 1; ii < pr->pr_ip6s; ) {
-			if (IN6_ARE_ADDR_EQUAL(&pr->pr_ip6[ii],
+			if (SA6_ARE_ADDR_EQUAL(&pr->pr_ip6[ii],
 			    &ppr->pr_ip6[0])) {
 				ii++;
 				continue;
 			}
-			switch (ij >= ppr->pr_ip4s ? -1 :
+			switch (ij >= ppr->pr_ip6s ? -1 :
 				qcmp_v6(&pr->pr_ip6[ii], &ppr->pr_ip6[ij])) {
 			case -1:
 				bcopy(pr->pr_ip6 + ii + 1, pr->pr_ip6 + ii,
@@ -3072,6 +3099,16 @@ prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6)
 }
 
 /*
+ * Copy only significant fields of struct sockaddr_in6.
+ */
+static void
+prison_copy_ip6(const struct sockaddr_in6 *src, struct sockaddr_in6 *dst)
+{
+
+	dst->sin6_addr = src->sin6_addr;
+	dst->sin6_scope_id = src->sin6_scope_id;
+}
+/*
  * Pass back primary IPv6 address for this jail.
  *
  * If not restricted return success but do not alter the address.  Caller has
@@ -3080,7 +3117,7 @@ prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6)
  * Returns 0 on success, EAFNOSUPPORT if the jail doesn't allow IPv6.
  */
 int
-prison_get_ip6(struct ucred *cred, struct in6_addr *ia6)
+prison_get_ip6(struct ucred *cred, struct sockaddr_in6 *ia6)
 {
 	struct prison *pr;
 
@@ -3100,7 +3137,7 @@ prison_get_ip6(struct ucred *cred, struct in6_addr *ia6)
 		return (EAFNOSUPPORT);
 	}
 
-	bcopy(&pr->pr_ip6[0], ia6, sizeof(struct in6_addr));
+	prison_copy_ip6(&pr->pr_ip6[0], ia6);
 	mtx_unlock(&pr->pr_mtx);
 	return (0);
 }
@@ -3113,10 +3150,10 @@ prison_get_ip6(struct ucred *cred, struct in6_addr *ia6)
  * Return EAFNOSUPPORT, in case this jail does not allow IPv6.
  */
 int
-prison_saddrsel_ip6(struct ucred *cred, struct in6_addr *ia6)
+prison_saddrsel_ip6(struct ucred *cred, struct sockaddr_in6 *ia6)
 {
+	struct sockaddr_in6 addr;
 	struct prison *pr;
-	struct in6_addr lia6;
 	int error;
 
 	KASSERT(cred != NULL, ("%s: cred is NULL", __func__));
@@ -3129,14 +3166,14 @@ prison_saddrsel_ip6(struct ucred *cred, struct in6_addr *ia6)
 	if (pr->pr_flags & PR_IP6_SADDRSEL)
 		return (1);
 
-	lia6 = in6addr_any;
-	error = prison_get_ip6(cred, &lia6);
+	addr = sa6_any;
+	error = prison_get_ip6(cred, &addr);
 	if (error)
 		return (error);
-	if (IN6_IS_ADDR_UNSPECIFIED(&lia6))
+	if (IN6_IS_ADDR_UNSPECIFIED(&addr.sin6_addr))
 		return (1);
 
-	bcopy(&lia6, ia6, sizeof(struct in6_addr));
+	prison_copy_ip6(&addr, ia6);
 	return (0);
 }
 
@@ -3176,7 +3213,7 @@ prison_equal_ip6(struct prison *pr1, struct prison *pr2)
  * doesn't allow IPv6.
  */
 int
-prison_local_ip6(struct ucred *cred, struct in6_addr *ia6, int v6only)
+prison_local_ip6(struct ucred *cred, struct sockaddr_in6 *ia6, int v6only)
 {
 	struct prison *pr;
 	int error;
@@ -3197,19 +3234,19 @@ prison_local_ip6(struct ucred *cred, struct in6_addr *ia6, int v6only)
 		return (EAFNOSUPPORT);
 	}
 
-	if (IN6_IS_ADDR_LOOPBACK(ia6)) {
-		bcopy(&pr->pr_ip6[0], ia6, sizeof(struct in6_addr));
+	if (IN6_IS_ADDR_LOOPBACK(&ia6->sin6_addr)) {
+		prison_copy_ip6(&pr->pr_ip6[0], ia6);
 		mtx_unlock(&pr->pr_mtx);
 		return (0);
 	}
 
-	if (IN6_IS_ADDR_UNSPECIFIED(ia6)) {
+	if (IN6_IS_ADDR_UNSPECIFIED(&ia6->sin6_addr)) {
 		/*
 		 * In case there is only 1 IPv6 address, and v6only is true,
 		 * then bind directly.
 		 */
 		if (v6only != 0 && pr->pr_ip6s == 1)
-			bcopy(&pr->pr_ip6[0], ia6, sizeof(struct in6_addr));
+			prison_copy_ip6(&pr->pr_ip6[0], ia6);
 		mtx_unlock(&pr->pr_mtx);
 		return (0);
 	}
@@ -3225,7 +3262,7 @@ prison_local_ip6(struct ucred *cred, struct in6_addr *ia6, int v6only)
  * Returns 0 on success, EAFNOSUPPORT if the jail doesn't allow IPv6.
  */
 int
-prison_remote_ip6(struct ucred *cred, struct in6_addr *ia6)
+prison_remote_ip6(struct ucred *cred, struct sockaddr_in6 *ia6)
 {
 	struct prison *pr;
 
@@ -3245,8 +3282,8 @@ prison_remote_ip6(struct ucred *cred, struct in6_addr *ia6)
 		return (EAFNOSUPPORT);
 	}
 
-	if (IN6_IS_ADDR_LOOPBACK(ia6)) {
-		bcopy(&pr->pr_ip6[0], ia6, sizeof(struct in6_addr));
+	if (IN6_IS_ADDR_LOOPBACK(&ia6->sin6_addr)) {
+		prison_copy_ip6(&pr->pr_ip6[0], ia6);
 		mtx_unlock(&pr->pr_mtx);
 		return (0);
 	}
@@ -3266,14 +3303,14 @@ prison_remote_ip6(struct ucred *cred, struct in6_addr *ia6)
  * doesn't allow IPv6.
  */
 static int
-_prison_check_ip6(struct prison *pr, struct in6_addr *ia6)
+_prison_check_ip6(struct prison *pr, const struct sockaddr_in6 *ia6)
 {
 	int i, a, z, d;
 
 	/*
 	 * Check the primary IP.
 	 */
-	if (IN6_ARE_ADDR_EQUAL(&pr->pr_ip6[0], ia6))
+	if (SA6_ARE_ADDR_EQUAL(&pr->pr_ip6[0], ia6))
 		return (0);
 
 	/*
@@ -3296,7 +3333,7 @@ _prison_check_ip6(struct prison *pr, struct in6_addr *ia6)
 }
 
 int
-prison_check_ip6(struct ucred *cred, struct in6_addr *ia6)
+prison_check_ip6(struct ucred *cred, const struct sockaddr_in6 *ia6)
 {
 	struct prison *pr;
 	int error;
@@ -3321,6 +3358,20 @@ prison_check_ip6(struct ucred *cred, struct in6_addr *ia6)
 	mtx_unlock(&pr->pr_mtx);
 	return (error);
 }
+
+int
+prison_check_in6(struct ucred *cred, const struct in6_addr *ia6,
+    uint32_t zoneid)
+{
+	struct sockaddr_in6 addr;
+
+	/* XXX: do we need better initialization? */
+	addr.sin6_addr = *ia6;
+	if (IN6_IS_ADDR_LINKLOCAL(ia6))
+		addr.sin6_scope_id = zoneid;
+	return (prison_check_ip6(cred, &addr));
+}
+
 #endif
 
 /*
@@ -3388,13 +3439,10 @@ prison_check_af(struct ucred *cred, int af)
  * the jail doesn't allow the address family.  IPv4 Address passed in in NBO.
  */
 int
-prison_if(struct ucred *cred, struct sockaddr *sa)
+prison_if(struct ucred *cred, const struct sockaddr *sa)
 {
 #ifdef INET
-	struct sockaddr_in *sai;
-#endif
-#ifdef INET6
-	struct sockaddr_in6 *sai6;
+	const struct sockaddr_in *sai;
 #endif
 	int error;
 
@@ -3411,14 +3459,14 @@ prison_if(struct ucred *cred, struct sockaddr *sa)
 	{
 #ifdef INET
 	case AF_INET:
-		sai = (struct sockaddr_in *)sa;
+		sai = (const struct sockaddr_in *)sa;
 		error = prison_check_ip4(cred, &sai->sin_addr);
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		sai6 = (struct sockaddr_in6 *)sa;
-		error = prison_check_ip6(cred, &sai6->sin6_addr);
+		error = prison_check_ip6(cred,
+		    (const struct sockaddr_in6 *)sa);
 		break;
 #endif
 	default:
@@ -4033,7 +4081,7 @@ sysctl_jail_list(SYSCTL_HANDLER_ARGS)
 	int ip4s = 0;
 #endif
 #ifdef INET6
-	struct in6_addr *ip6 = NULL;
+	struct sockaddr_in6 *ip6 = NULL;
 	int ip6s = 0;
 #endif
 	int descend, error;
@@ -4065,12 +4113,12 @@ sysctl_jail_list(SYSCTL_HANDLER_ARGS)
 			if (ip6s < cpr->pr_ip6s) {
 				ip6s = cpr->pr_ip6s;
 				mtx_unlock(&cpr->pr_mtx);
-				ip6 = realloc(ip6, ip6s *
-				    sizeof(struct in6_addr), M_TEMP, M_WAITOK);
+				ip6 = realloc(ip6, ip6s * sizeof(*ip6),
+				    M_TEMP, M_WAITOK);
 				goto again;
 			}
 			bcopy(cpr->pr_ip6, ip6,
-			    cpr->pr_ip6s * sizeof(struct in6_addr));
+			    cpr->pr_ip6s * sizeof(*ip6));
 		}
 #endif
 		if (cpr->pr_ref == 0) {
@@ -4106,7 +4154,7 @@ sysctl_jail_list(SYSCTL_HANDLER_ARGS)
 #ifdef INET6
 		if (xp->pr_ip6s > 0) {
 			error = SYSCTL_OUT(req, ip6,
-			    xp->pr_ip6s * sizeof(struct in6_addr));
+			    xp->pr_ip6s * sizeof(*ip6));
 			if (error)
 				break;
 		}
@@ -4364,8 +4412,8 @@ SYSCTL_JAIL_PARAM(_ip4, saddrsel, CTLTYPE_INT | CTLFLAG_RW,
 #ifdef INET6
 SYSCTL_JAIL_PARAM_SYS_NODE(ip6, CTLFLAG_RDTUN,
     "Jail IPv6 address virtualization");
-SYSCTL_JAIL_PARAM_STRUCT(_ip6, addr, CTLFLAG_RW, sizeof(struct in6_addr),
-    "S,in6_addr,a", "Jail IPv6 addresses");
+SYSCTL_JAIL_PARAM_STRUCT(_ip6, addr, CTLFLAG_RW, sizeof(struct sockaddr_in6),
+    "S,sockaddr_in6,a", "Jail IPv6 addresses");
 SYSCTL_JAIL_PARAM(_ip6, saddrsel, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Do (not) use IPv6 source address selection rather than the "
     "primary jail IPv6 address.");
@@ -4630,9 +4678,10 @@ db_show_prison(struct prison *pr)
 #ifdef INET6
 	db_printf(" ip6s            = %d\n", pr->pr_ip6s);
 	for (ii = 0; ii < pr->pr_ip6s; ii++)
-		db_printf(" %s %s\n",
+		db_printf(" %s %s%%%d\n",
 		    ii == 0 ? "ip6.addr        =" : "                 ",
-		    ip6_sprintf(ip6buf, &pr->pr_ip6[ii]));
+		    ip6_sprintf(ip6buf, &pr->pr_ip6[ii].sin6_addr),
+		    pr->pr_ip6[ii].sin6_scope_id);
 #endif
 }
 

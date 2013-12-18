@@ -47,9 +47,9 @@ struct jail {
 	uint32_t	ip4s;
 	uint32_t	ip6s;
 	struct in_addr	*ip4;
-	struct in6_addr	*ip6;
+	struct sockaddr_in6 *ip6;
 };
-#define	JAIL_API_VERSION	2
+#define	JAIL_API_VERSION	3
 
 /*
  * For all xprison structs, always keep the pr_version an int and
@@ -81,7 +81,7 @@ struct xprison {
 	 * IPv4 and IPv6 addesses. Offsets are based numbers of addresses.
 	 */
 	struct in_addr	 pr_ip4[];
-	struct in6_addr	 pr_ip6[];
+	struct sockaddr_in6 pr_ip6[];
 #endif
 };
 #define	XPRISON_VERSION		3
@@ -168,7 +168,7 @@ struct prison {
 	int		 pr_ip4s;			/* (p) number of v4 IPs */
 	int		 pr_ip6s;			/* (p) number of v6 IPs */
 	struct in_addr	*pr_ip4;			/* (p) v4 IPs of jail */
-	struct in6_addr	*pr_ip6;			/* (p) v6 IPs of jail */
+	struct sockaddr_in6 *pr_ip6;			/* (p) v6 IPs of jail */
 	struct prison_racct *pr_prison_racct;		/* (c) racct jail proxy */
 	void		*pr_sparep[3];
 	int		 pr_childcount;			/* (a) number of child jails */
@@ -387,15 +387,18 @@ int prison_remote_ip4(struct ucred *cred, struct in_addr *ia);
 int prison_check_ip4(const struct ucred *, const struct in_addr *);
 int prison_saddrsel_ip4(struct ucred *, struct in_addr *);
 #ifdef INET6
+struct in6_addr;
+struct sockaddr_in6;
 int prison_equal_ip6(struct prison *, struct prison *);
-int prison_get_ip6(struct ucred *, struct in6_addr *);
-int prison_local_ip6(struct ucred *, struct in6_addr *, int);
-int prison_remote_ip6(struct ucred *, struct in6_addr *);
-int prison_check_ip6(struct ucred *, struct in6_addr *);
-int prison_saddrsel_ip6(struct ucred *, struct in6_addr *);
+int prison_get_ip6(struct ucred *, struct sockaddr_in6 *);
+int prison_local_ip6(struct ucred *, struct sockaddr_in6 *, int);
+int prison_remote_ip6(struct ucred *, struct sockaddr_in6 *);
+int prison_check_ip6(struct ucred *, const struct sockaddr_in6 *);
+int prison_check_in6(struct ucred *, const struct in6_addr *, uint32_t);
+int prison_saddrsel_ip6(struct ucred *, struct sockaddr_in6 *);
 #endif
 int prison_check_af(struct ucred *cred, int af);
-int prison_if(struct ucred *cred, struct sockaddr *sa);
+int prison_if(struct ucred *cred, const struct sockaddr *sa);
 char *prison_name(struct prison *, struct prison *);
 int prison_priv_check(struct ucred *cred, int priv);
 int sysctl_jail_param(SYSCTL_HANDLER_ARGS);
