@@ -36,7 +36,8 @@ int	vmmdev_cleanup(void);
 
 struct vm_memory_segment {
 	vm_paddr_t	gpa;	/* in */
-	size_t		len;	/* in */
+	size_t		len;
+	int		wired;
 };
 
 struct vm_register {
@@ -135,6 +136,12 @@ struct vm_x2apic {
 	enum x2apic_state	state;
 };
 
+struct vm_gpa_pte {
+	uint64_t	gpa;				/* in */
+	uint64_t	pte[4];				/* out */
+	int		ptenum;
+};
+
 enum {
 	/* general routines */
 	IOCNUM_ABIVERS = 0,
@@ -145,6 +152,7 @@ enum {
 	/* memory apis */
 	IOCNUM_MAP_MEMORY = 10,
 	IOCNUM_GET_MEMORY_SEG = 11,
+	IOCNUM_GET_GPA_PMAP = 12,
 
 	/* register/state accessors */
 	IOCNUM_SET_REGISTER = 20,
@@ -215,4 +223,6 @@ enum {
 	_IOW('v', IOCNUM_SET_X2APIC_STATE, struct vm_x2apic)
 #define	VM_GET_X2APIC_STATE \
 	_IOWR('v', IOCNUM_GET_X2APIC_STATE, struct vm_x2apic)
+#define	VM_GET_GPA_PMAP \
+	_IOWR('v', IOCNUM_GET_GPA_PMAP, struct vm_gpa_pte)
 #endif

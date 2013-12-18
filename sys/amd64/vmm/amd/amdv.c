@@ -38,6 +38,136 @@ __FBSDID("$FreeBSD$");
 #include "io/iommu.h"
 
 static int
+amdv_init(void)
+{
+
+	printf("amdv_init: not implemented\n");
+	return (ENXIO);
+}
+
+static int
+amdv_cleanup(void)
+{
+
+	printf("amdv_cleanup: not implemented\n");
+	return (ENXIO);
+}
+
+static void *
+amdv_vminit(struct vm *vm, struct pmap *pmap)
+{
+
+	printf("amdv_vminit: not implemented\n");
+	return (NULL);
+}
+
+static int
+amdv_vmrun(void *arg, int vcpu, register_t rip, struct pmap *pmap)
+{
+
+	printf("amdv_vmrun: not implemented\n");
+	return (ENXIO);
+}
+
+static void
+amdv_vmcleanup(void *arg)
+{
+
+	printf("amdv_vmcleanup: not implemented\n");
+	return;
+}
+
+static int
+amdv_getreg(void *arg, int vcpu, int regnum, uint64_t *retval)
+{
+	
+	printf("amdv_getreg: not implemented\n");
+	return (EINVAL);
+}
+
+static int
+amdv_setreg(void *arg, int vcpu, int regnum, uint64_t val)
+{
+	
+	printf("amdv_setreg: not implemented\n");
+	return (EINVAL);
+}
+
+static int
+amdv_getdesc(void *vmi, int vcpu, int num, struct seg_desc *desc)
+{
+
+	printf("amdv_get_desc: not implemented\n");
+	return (EINVAL);
+}
+
+static int
+amdv_setdesc(void *vmi, int vcpu, int num, struct seg_desc *desc)
+{
+
+	printf("amdv_get_desc: not implemented\n");
+	return (EINVAL);
+}
+
+static int
+amdv_inject_event(void *vmi, int vcpu, int type, int vector,
+		  uint32_t error_code, int error_code_valid)
+{
+
+	printf("amdv_inject_event: not implemented\n");
+	return (EINVAL);
+}
+
+static int
+amdv_getcap(void *arg, int vcpu, int type, int *retval)
+{
+
+	printf("amdv_getcap: not implemented\n");
+	return (EINVAL);
+}
+
+static int
+amdv_setcap(void *arg, int vcpu, int type, int val)
+{
+
+	printf("amdv_setcap: not implemented\n");
+	return (EINVAL);
+}
+
+static struct vmspace *
+amdv_vmspace_alloc(vm_offset_t min, vm_offset_t max)
+{
+
+	printf("amdv_vmspace_alloc: not implemented\n");
+	return (NULL);
+}
+
+static void
+amdv_vmspace_free(struct vmspace *vmspace)
+{
+
+	printf("amdv_vmspace_free: not implemented\n");
+	return;
+}
+
+struct vmm_ops vmm_ops_amd = {
+	amdv_init,
+	amdv_cleanup,
+	amdv_vminit,
+	amdv_vmrun,
+	amdv_vmcleanup,
+	amdv_getreg,
+	amdv_setreg,
+	amdv_getdesc,
+	amdv_setdesc,
+	amdv_inject_event,
+	amdv_getcap,
+	amdv_setcap,
+	amdv_vmspace_alloc,
+	amdv_vmspace_free,
+};
+
+static int
 amd_iommu_init(void)
 {
 

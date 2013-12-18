@@ -282,6 +282,43 @@ ppt_teardown_msix(struct pptdev *ppt)
 }
 
 int
+ppt_num_devices(struct vm *vm)
+{
+	int i, num;
+
+	num = 0;
+	for (i = 0; i < num_pptdevs; i++) {
+		if (pptdevs[i].vm == vm)
+			num++;
+	}
+	return (num);
+}
+
+boolean_t
+ppt_is_mmio(struct vm *vm, vm_paddr_t gpa)
+{
+	int i, n;
+	struct pptdev *ppt;
+	struct vm_memory_segment *seg;
+
+	for (n = 0; n < num_pptdevs; n++) {
+		ppt = &pptdevs[n];
+		if (ppt->vm != vm)
+			continue;
+
+		for (i = 0; i < MAX_MMIOSEGS; i++) {
+			seg = &ppt->mmio[i];
+			if (seg->len == 0)
+				continue;
+			if (gpa >= seg->gpa && gpa < seg->gpa + seg->len)
+				return (TRUE);
+		}
+	}
+
+	return (FALSE);
+}
+
+int
 ppt_assign_device(struct vm *vm, int bus, int slot, int func)
 {
 	struct pptdev *ppt;
@@ -336,7 +373,7 @@ ppt_unassign_all(struct vm *vm)
 			bus = pci_get_bus(dev);
 			slot = pci_get_slot(dev);
 			func = pci_get_function(dev);
-			ppt_unassign_device(vm, bus, slot, func);
+			vm_unassign_pptdev(vm, bus, slot, func);
 		}
 	}
 
@@ -590,11 +627,4 @@ ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
 	}
 
 	return (0);
-}
-
-int
-ppt_num_devices(void)
-{
-
-	return (num_pptdevs);
 }

@@ -101,7 +101,7 @@ struct bhyvestats {
         uint64_t        vmexit_hlt;
         uint64_t        vmexit_pause;
         uint64_t        vmexit_mtrap;
-        uint64_t        vmexit_paging;
+        uint64_t        vmexit_inst_emul;
         uint64_t        cpu_switch_rotate;
         uint64_t        cpu_switch_direct;
         int             io_reset;
@@ -208,14 +208,12 @@ fbsdrun_addcpu(struct vmctx *ctx, int vcpu, uint64_t rip)
 	vmexit[vcpu].rip = rip;
 	vmexit[vcpu].inst_length = 0;
 
-	if (vcpu == BSP) {
-		mt_vmm_info[vcpu].mt_ctx = ctx;
-		mt_vmm_info[vcpu].mt_vcpu = vcpu;
-	
-		error = pthread_create(&mt_vmm_info[vcpu].mt_thr, NULL,
-				fbsdrun_start_thread, &mt_vmm_info[vcpu]);
-		assert(error == 0);
-	}
+	mt_vmm_info[vcpu].mt_ctx = ctx;
+	mt_vmm_info[vcpu].mt_vcpu = vcpu;
+
+	error = pthread_create(&mt_vmm_info[vcpu].mt_thr, NULL,
+	    fbsdrun_start_thread, &mt_vmm_info[vcpu]);
+	assert(error == 0);
 }
 
 static int
@@ -385,13 +383,13 @@ vmexit_mtrap(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 }
 
 static int
-vmexit_paging(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
+vmexit_inst_emul(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
 	int err;
-	stats.vmexit_paging++;
+	stats.vmexit_inst_emul++;
 
-	err = emulate_mem(ctx, *pvcpu, vmexit->u.paging.gpa,
-			  &vmexit->u.paging.vie);
+	err = emulate_mem(ctx, *pvcpu, vmexit->u.inst_emul.gpa,
+			  &vmexit->u.inst_emul.vie);
 
 	if (err) {
 		if (err == EINVAL) {
@@ -400,7 +398,7 @@ vmexit_paging(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 			    vmexit->rip);
 		} else if (err == ESRCH) {
 			fprintf(stderr, "Unhandled memory access to 0x%lx\n",
-			    vmexit->u.paging.gpa);
+			    vmexit->u.inst_emul.gpa);
 		}
 
 		return (VMEXIT_ABORT);
@@ -416,7 +414,7 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_RDMSR]  = vmexit_rdmsr,
 	[VM_EXITCODE_WRMSR]  = vmexit_wrmsr,
 	[VM_EXITCODE_MTRAP]  = vmexit_mtrap,
-	[VM_EXITCODE_PAGING] = vmexit_paging,
+	[VM_EXITCODE_INST_EMUL] = vmexit_inst_emul,
 	[VM_EXITCODE_SPINUP_AP] = vmexit_spinup_ap,
 };
 
