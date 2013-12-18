@@ -1934,13 +1934,13 @@ static void arcmsr_hbc_postqueue_isr(struct AdapterControlBlock *acb)
 	do {
 		flag_srb = CHIP_REG_READ32(HBC_MessageUnit, 0, outbound_queueport_low);
 		/* check if command done with no error*/
-        error = (flag_srb & ARCMSR_SRBREPLY_FLAG_ERROR_MODE1)?TRUE:FALSE;
+        	error = (flag_srb & ARCMSR_SRBREPLY_FLAG_ERROR_MODE1)?TRUE:FALSE;
 		arcmsr_drain_donequeue(acb, flag_srb, error);
-        throttling++;
-        if(throttling == ARCMSR_HBC_ISR_THROTTLING_LEVEL) {
-            CHIP_REG_WRITE32(HBC_MessageUnit, 0, inbound_doorbell,ARCMSR_HBCMU_DRV2IOP_POSTQUEUE_THROTTLING);
+        	throttling++;
+		if(throttling == ARCMSR_HBC_ISR_THROTTLING_LEVEL) {
+			CHIP_REG_WRITE32(HBC_MessageUnit, 0, inbound_doorbell,ARCMSR_HBCMU_DRV2IOP_POSTQUEUE_THROTTLING);
 			throttling = 0;
-        }
+        	}
 	} while(CHIP_REG_READ32(HBC_MessageUnit, 0, host_int_status) & ARCMSR_HBCMU_OUTBOUND_POSTQUEUE_ISR);
 }
 /*
@@ -2087,14 +2087,14 @@ static void arcmsr_handle_hbc_isr( struct AdapterControlBlock *acb)
 		return;
 	}
 	do {
-	/* MU doorbell interrupts*/
-	if(host_interrupt_status & ARCMSR_HBCMU_OUTBOUND_DOORBELL_ISR) {
-		arcmsr_hbc_doorbell_isr(acb);
-	}
-	/* MU post queue interrupts*/
-	if(host_interrupt_status & ARCMSR_HBCMU_OUTBOUND_POSTQUEUE_ISR) {
-		arcmsr_hbc_postqueue_isr(acb);
-	}
+		/* MU doorbell interrupts*/
+		if(host_interrupt_status & ARCMSR_HBCMU_OUTBOUND_DOORBELL_ISR) {
+			arcmsr_hbc_doorbell_isr(acb);
+		}
+		/* MU post queue interrupts*/
+		if(host_interrupt_status & ARCMSR_HBCMU_OUTBOUND_POSTQUEUE_ISR) {
+			arcmsr_hbc_postqueue_isr(acb);
+		}
 		host_interrupt_status = CHIP_REG_READ32(HBC_MessageUnit, 0, host_int_status);
 	} while (host_interrupt_status & (ARCMSR_HBCMU_OUTBOUND_POSTQUEUE_ISR | ARCMSR_HBCMU_OUTBOUND_DOORBELL_ISR));
 }
@@ -3964,7 +3964,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 			if (acb->sub_device_id == ARECA_SUB_DEV_ID_1883)
 				acb->adapter_bus_speed = ACB_BUS_SPEED_12G;
 			else
-			acb->adapter_bus_speed = ACB_BUS_SPEED_6G;
+				acb->adapter_bus_speed = ACB_BUS_SPEED_6G;
 			max_coherent_size = ARCMSR_SRBS_POOL_SIZE;
 		}
 		break;
@@ -4415,7 +4415,7 @@ static int arcmsr_probe(device_t dev)
 		if (sub_device_id == ARECA_SUB_DEV_ID_1883)
 			type = "SAS 12G";
 		else
-		type = "SAS 6G";
+			type = "SAS 6G";
 		break;
 	case PCIDevVenIDARC1214:
 		type = "SATA 6G";
