@@ -4471,7 +4471,7 @@ run_set_chan(struct run_softc *sc, struct ieee80211_channel *c)
 
 	run_delay(sc, 10);
 
-	/* Perform IQ calibrations. */
+	/* Perform IQ calibration. */
 	if (sc->mac_ver >= 0x5392)
 		run_iq_calib(sc, chan);
 
