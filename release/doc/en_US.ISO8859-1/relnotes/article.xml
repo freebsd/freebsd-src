@@ -255,7 +255,8 @@
 	  experimental iWARP/RDMA driver
 	  (kernel verbs only) for Chelsio's T4 and T5 based cards.</para>
 
-	<para revision="255932">The Open Fabrics Enterprise Distribution (OFED) and OFED Infiniband core has been
+	<para revision="255932">The Open Fabrics Enterprise Distribution (OFED) and
+	  OFED Infiniband core has been
 	  updated to the same version as supplied by Linux version 3.7</para>
 
 	<para revision="255932">The Mellanox Infiniband driver has been updated to firmware
