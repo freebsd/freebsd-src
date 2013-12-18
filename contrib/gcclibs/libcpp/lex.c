@@ -854,6 +854,14 @@ _cpp_get_fresh_line (cpp_reader *pfile)
 	{
 	  /* Clip to buffer size.  */
 	  buffer->next_line = buffer->rlimit;
+	  /* APPLE LOCAL begin suppress no newline warning.  */
+	  if ( CPP_OPTION (pfile, warn_newline_at_eof))
+	    {
+	      cpp_error_with_line (pfile, CPP_DL_PEDWARN, pfile->line_table->highest_line,
+				   CPP_BUF_COLUMN (buffer, buffer->cur),
+				   "no newline at end of file");
+	    }
+	  /* APPLE LOCAL end suppress no newline warning.  */
 	}
 
       return_at_eof = buffer->return_at_eof;
