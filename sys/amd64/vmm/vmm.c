@@ -960,6 +960,15 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, boolean_t *retu)
 	if (vmm_decode_instruction(vm, vcpuid, gla, vie) != 0)
 		return (EFAULT);
 
+	/* 
+	 * AMD-V doesn't provide instruction length which is nRIP - RIP
+	 * for some of the exit including Nested Page Fault. Use instruction
+	 * length calculated by software instruction emulation to update
+	 * RIP of vcpu.
+	 */
+	if (vme->inst_length == VIE_INST_SIZE) 
+		vme->inst_length = vie->num_processed;
+ 
 	/* return to userland unless this is a local apic access */
 	if (gpa < DEFAULT_APIC_BASE || gpa >= DEFAULT_APIC_BASE + PAGE_SIZE) {
 		*retu = TRUE;

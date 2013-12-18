@@ -31,10 +31,7 @@
 
 struct svm_softc;
 
-int 	   svm_npt_init(void);
-int 	   svm_npt_cleanup(struct svm_softc *sc);
-vm_paddr_t svm_npt_vmmap_get(void *arg, vm_paddr_t gpa);
-int	   svm_npt_vmmap_set(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, 
-			     size_t len, vm_memattr_t attr, int prot,
-			     boolean_t sp);
+int 	svm_npt_init(void);
+struct	vmspace *svm_npt_alloc(vm_offset_t min, vm_offset_t max);
+void	svm_npt_free(struct vmspace *vmspace);
 #endif /* _SVM_NPT_H_ */

@@ -62,7 +62,7 @@ struct svm_softc {
 	uint8_t	msr_bitmap[SVM_MSR_BITMAP_SIZE];
 
 	/* Nested Paging */
-	pml4_entry_t	np_pml4[NPML4EPG];
+	vm_offset_t 	nptp;	
 
 	/* Virtual machine pointer. */
 	struct vm	*vm;
@@ -76,7 +76,7 @@ struct svm_softc {
 	int 		vcpu_cnt;	/* number of VCPUs for this guest.*/
 } __aligned(PAGE_SIZE);
 
-CTASSERT((offsetof(struct svm_softc, np_pml4) & PAGE_MASK) == 0);
+CTASSERT((offsetof(struct svm_softc, nptp) & PAGE_MASK) == 0);
 
 static __inline struct svm_vcpu *
 svm_get_vcpu(struct svm_softc *sc, int vcpu)
