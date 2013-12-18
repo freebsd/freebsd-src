@@ -70,14 +70,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usbdi.h>
 #include "usbdevs.h"
 
-#define USB_DEBUG_VAR run_debug
+#define	USB_DEBUG_VAR	run_debug
 #include <dev/usb/usb_debug.h>
 
 #include <dev/usb/wlan/if_runreg.h>
 #include <dev/usb/wlan/if_runvar.h>
 
 #ifdef	USB_DEBUG
-#define RUN_DEBUG
+#define	RUN_DEBUG
 #endif
 
 #ifdef	RUN_DEBUG
@@ -87,17 +87,17 @@ SYSCTL_INT(_hw_usb_run, OID_AUTO, debug, CTLFLAG_RW, &run_debug, 0,
     "run debug level");
 #endif
 
-#define IEEE80211_HAS_ADDR4(wh) \
+#define	IEEE80211_HAS_ADDR4(wh)	\
 	(((wh)->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
 
 /*
  * Because of LOR in run_key_delete(), use atomic instead.
  * '& RUN_CMDQ_MASQ' is to loop cmdq[].
  */
-#define RUN_CMDQ_GET(c)	(atomic_fetchadd_32((c), 1) & RUN_CMDQ_MASQ)
+#define	RUN_CMDQ_GET(c)	(atomic_fetchadd_32((c), 1) & RUN_CMDQ_MASQ)
 
 static const STRUCT_USB_HOST_ID run_devs[] = {
-#define RUN_DEV(v,p) { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
+#define	RUN_DEV(v,p)	{ USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
     RUN_DEV(ABOCOM,		RT2770),
     RUN_DEV(ABOCOM,		RT2870),
     RUN_DEV(ABOCOM,		RT3070),
@@ -4772,8 +4772,8 @@ run_enable_tsf_sync(struct run_softc *sc)
 static void
 run_enable_mrr(struct run_softc *sc)
 {
-#define CCK(mcs)	(mcs)
-#define OFDM(mcs)	(1 << 3 | (mcs))
+#define	CCK(mcs)	(mcs)
+#define	OFDM(mcs)	(1 << 3 | (mcs))
 	run_write(sc, RT2860_LG_FBK_CFG0,
 	    OFDM(6) << 28 |	/* 54->48 */
 	    OFDM(5) << 24 |	/* 48->36 */
