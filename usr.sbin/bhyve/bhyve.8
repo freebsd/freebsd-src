@@ -32,7 +32,7 @@
 .Nd "run a guest operating system inside a virtual machine"
 .Sh SYNOPSIS
 .Nm
-.Op Fl aehAHPW
+.Op Fl aehwAHPW
 .Op Fl c Ar numcpus
 .Op Fl g Ar gdbport
 .Op Fl p Ar pinnedcpu
@@ -229,6 +229,8 @@ Force
 .Nm
 to exit when a guest issues an access to an I/O port that is not emulated.
 This is intended for debug purposes.
+.It Fl w 
+Ignore accesses to unimplemented Model Specific Registers (MSRs). This is intended for debug purposes.
 .It Fl h
 Print help message and exit.
 .It Ar vmname
