@@ -412,7 +412,7 @@ int		 vtfont_load(vfnt_t *f, struct vt_font **ret);
 /* Sysmouse. */
 void sysmouse_process_event(mouse_info_t *mi);
 #ifndef SC_NO_CUTPASTE
-void vt_mouse_event(int type, int x, int y, int event, int cnt);
+void vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel);
 void vt_mouse_state(int show);
 #endif
 #define	VT_MOUSE_SHOW 1
