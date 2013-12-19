@@ -253,6 +253,69 @@ xhci_ctx_get_le64(struct xhci_softc *sc, volatile uint64_t *ptr)
 }
 #endif
 
+static int
+xhci_reset_command_queue_locked(struct xhci_softc *sc)
+{
+	struct usb_page_search buf_res;
+	struct xhci_hw_root *phwr;
+	uint64_t addr;
+	uint32_t temp;
+
+	DPRINTF("\n");
+
+	temp = XREAD4(sc, oper, XHCI_CRCR_LO);
+	if (temp & XHCI_CRCR_LO_CRR) {
+		DPRINTF("Command ring running\n");
+		temp &= ~(XHCI_CRCR_LO_CS | XHCI_CRCR_LO_CA);
+
+		/*
+		 * Try to abort the last command as per section
+		 * 4.6.1.2 "Aborting a Command" of the XHCI
+		 * specification:
+		 */
+
+		/* stop and cancel */
+		XWRITE4(sc, oper, XHCI_CRCR_LO, temp | XHCI_CRCR_LO_CS);
+		XWRITE4(sc, oper, XHCI_CRCR_HI, 0);
+
+		XWRITE4(sc, oper, XHCI_CRCR_LO, temp | XHCI_CRCR_LO_CA);
+		XWRITE4(sc, oper, XHCI_CRCR_HI, 0);
+
+ 		/* wait 250ms */
+ 		usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 4);
+
+		/* check if command ring is still running */
+		temp = XREAD4(sc, oper, XHCI_CRCR_LO);
+		if (temp & XHCI_CRCR_LO_CRR) {
+			DPRINTF("Comand ring still running\n");
+			return (USB_ERR_IOERROR);
+		}
+	}
+
+	/* reset command ring */
+	sc->sc_command_ccs = 1;
+	sc->sc_command_idx = 0;
+
+	usbd_get_page(&sc->sc_hw.root_pc, 0, &buf_res);
+
+	/* setup command ring control base address */
+	addr = buf_res.physaddr;
+	phwr = buf_res.buffer;
+	addr += (uintptr_t)&((struct xhci_hw_root *)0)->hwr_commands[0];
+
+	DPRINTF("CRCR=0x%016llx\n", (unsigned long long)addr);
+
+	memset(phwr->hwr_commands, 0, sizeof(phwr->hwr_commands));
+	phwr->hwr_commands[XHCI_MAX_COMMANDS - 1].qwTrb0 = htole64(addr);
+
+	usb_pc_cpu_flush(&sc->sc_hw.root_pc);
+
+	XWRITE4(sc, oper, XHCI_CRCR_LO, ((uint32_t)addr) | XHCI_CRCR_LO_RCS);
+	XWRITE4(sc, oper, XHCI_CRCR_HI, (uint32_t)(addr >> 32));
+
+	return (0);
+}
+
 usb_error_t
 xhci_start_controller(struct xhci_softc *sc)
 {
@@ -1025,6 +1088,7 @@ xhci_do_command(struct xhci_softc *sc, struct xhci_trb *trb,
 	uint32_t temp;
 	uint8_t i;
 	uint8_t j;
+	uint8_t timeout = 0;
 	int err;
 
 	XHCI_CMD_ASSERT_LOCKED(sc);
@@ -1038,7 +1102,7 @@ xhci_do_command(struct xhci_softc *sc, struct xhci_trb *trb,
 	/* Queue command */
 
 	USB_BUS_LOCK(&sc->sc_bus);
-
+retry:
 	i = sc->sc_command_idx;
 	j = sc->sc_command_ccs;
 
@@ -1109,25 +1173,22 @@ xhci_do_command(struct xhci_softc *sc, struct xhci_trb *trb,
 		err = 0;
 	}
 	if (err != 0) {
-		DPRINTFN(0, "Command timeout!\n");
-
+		DPRINTF("Command timeout!\n");
 		/*
-		 * Try to abort the last command as per section
-		 * 4.6.1.2 "Aborting a Command" of the XHCI
-		 * specification:
+		 * After some weeks of continuous operation, it has
+		 * been observed that the ASMedia Technology, ASM1042
+		 * SuperSpeed USB Host Controller can suddenly stop
+		 * accepting commands via the command queue. Try to
+		 * first reset the command queue. If that fails do a
+		 * host controller reset.
 		 */
-		temp = XREAD4(sc, oper, XHCI_CRCR_LO);
-		XWRITE4(sc, oper, XHCI_CRCR_LO, temp | XHCI_CRCR_LO_CA);
-
-		/* wait for abort event, if any */
-		err = cv_timedwait(&sc->sc_cmd_cv, &sc->sc_bus.bus_mtx, hz / 16);
-
-		if (err != 0 && xhci_interrupt_poll(sc) != 0) {
-			DPRINTF("Command was completed when polling\n");
-			err = 0;
-		}
-		if (err != 0) {
-			DPRINTF("Command abort timeout!\n");
+		if (timeout == 0 &&
+		    xhci_reset_command_queue_locked(sc) == 0) {
+			timeout = 1;
+			goto retry;
+		} else {
+			DPRINTF("Controller reset!\n");
+			usb_bus_reset_async_locked(&sc->sc_bus);
 		}
 		err = USB_ERR_TIMEOUT;
 		trb->dwTrb2 = 0;
