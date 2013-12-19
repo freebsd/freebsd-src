@@ -994,10 +994,10 @@ default_parse_boot_param(struct arm_boot_params *abp)
 	if ((lastaddr = linux_parse_boot_param(abp)) != 0)
 		return lastaddr;
 #endif
+#endif
 #if defined(FREEBSD_BOOT_LOADER)
 	if ((lastaddr = freebsd_parse_boot_param(abp)) != 0)
 		return lastaddr;
-#endif
 #endif
 	/* Fall back to hardcoded metadata. */
 	lastaddr = fake_preload_metadata(abp);
