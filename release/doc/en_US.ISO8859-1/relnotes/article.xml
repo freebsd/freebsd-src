@@ -538,18 +538,10 @@
   <sect2 xml:id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para>The &man.pkg.create.1; utility now supports
-      <option>-n</option>.  When this option is specified and a
-      package tarball exists, it will not be overwritten.  This is
-      useful when multiple packages are saved with several consecutive
-      runs of &man.pkg.create.1; with the <option>-Rb</option>
-      options.</para>
-
-    <para>The pkg_sign and pkg_check utilities for cryptographically
-      signing &os; packages have been removed.  They were only useful
-      for packages compressed using &man.gzip.1;; however
-      &man.bzip2.1; compression has been the norm for some time
-      now.</para>
+    <para revision="257444">The pkg_add, pkg_create, pkg_delete, pkg_info,
+      pkg_updating, and pkg_version utilities have been removed.
+      &man.pkg.8; must now be used to install binary packages.  &man.pkg.8;
+      is the next generation &os; package manager, also referred to as "pkgng".</para>
 
   </sect2>
 
