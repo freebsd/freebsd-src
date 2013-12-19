@@ -540,7 +540,7 @@
 
     <para revision="257444">The pkg_add, pkg_create, pkg_delete, pkg_info,
       pkg_updating, and pkg_version utilities have been removed.
-      &man.pkg.8; must now be used to install binary packages.  &man.pkg.8;
+      &man.pkg.7; must now be used to install binary packages.  &man.pkg.7;
       is the next generation &os; package manager, also referred to as "pkgng".</para>
 
   </sect2>
