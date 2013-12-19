@@ -1858,7 +1858,16 @@ restart:
 		td->td_trb[x].dwTrb2 = htole32(dword);
 
 		dword = XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_LINK) |
-		    XHCI_TRB_3_CYCLE_BIT | XHCI_TRB_3_IOC_BIT;
+		    XHCI_TRB_3_CYCLE_BIT | XHCI_TRB_3_IOC_BIT |
+		    /*
+		     * CHAIN-BIT: Ensure that a multi-TRB IN-endpoint
+		     * frame only receives a single short packet event
+		     * by setting the CHAIN bit in the LINK field. In
+		     * addition some XHCI controllers have problems
+		     * sending a ZLP unless the CHAIN-BIT is set in
+		     * the LINK TRB.
+		     */
+		    XHCI_TRB_3_CHAIN_BIT;
 
 		td->td_trb[x].dwTrb3 = htole32(dword);
 
@@ -1896,9 +1905,11 @@ restart:
 	}
 
 	/* clear TD SIZE to zero, hence this is the last TRB */
-	/* remove chain bit because this is the last TRB in the chain */
+	/* remove chain bit because this is the last data TRB in the chain */
 	td->td_trb[td->ntrb - 1].dwTrb2 &= ~htole32(XHCI_TRB_2_TDSZ_SET(15));
 	td->td_trb[td->ntrb - 1].dwTrb3 &= ~htole32(XHCI_TRB_3_CHAIN_BIT);
+	/* remove CHAIN-BIT from last LINK TRB */
+	td->td_trb[td->ntrb].dwTrb3 &= ~htole32(XHCI_TRB_3_CHAIN_BIT);
 
 	usb_pc_cpu_flush(td->page_cache);
 
