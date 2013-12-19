@@ -8,6 +8,7 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wundef -Wno-pointer-sign -fformat-extensions \
 		-Wmissing-include-dirs -fdiagnostics-show-option \
 		${CWARNEXTRA}
+MK_CLANG_IS_CC ?= no
 #
 # The following flags are next up for working on:
 #	-Wextra

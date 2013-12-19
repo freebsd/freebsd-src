@@ -4,10 +4,11 @@
 # of the definitions that need to be before %BEFORE_DEPEND.
 
 .include <bsd.own.mk>
-.include <bsd.compiler.mk>
+.sinclude <bsd.compiler.mk>
 
 # backwards compat option for older systems.
 MACHINE_CPUARCH?=${MACHINE_ARCH:C/mipse[lb]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+COMPILER_TYPE?="gcc"
 
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL_KO?=	kernel
