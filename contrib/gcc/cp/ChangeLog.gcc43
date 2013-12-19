@@ -20,6 +20,12 @@
 	TREE_OVERFLOW_P is true for the result and not for any of the
 	operands.
 	
+2007-01-05  Manuel Lopez-Ibanez  <manu@gcc.gnu.org>
+
+	PR c/19978
+	* semantics.c (finish_unary_op_expr): Warn only if result
+	overflowed and operands did not.
+
 2006-10-31  Geoffrey Keating  <geoffk@apple.com> (r118360)
 
 	* name-lookup.c (get_anonymous_namespace_name): New.
