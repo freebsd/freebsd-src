@@ -25,6 +25,12 @@
 	* decl2.c (determine_visibility): Remove duplicate code for
 	handling type info.
 
+2007-06-12  Ian Lance Taylor  <iant@google.com> (r125653)
+
+	PR libstdc++/29286
+	* init.c (avoid_placement_new_aliasing): New static function.
+	(build_new_1): Call it.
+
 2007-05-31  Daniel Berlin  <dberlin@dberlin.org> (r125239)
 
 	* typeck.c (build_binary_op): Include types in error.
