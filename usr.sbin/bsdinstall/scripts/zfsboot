@@ -979,7 +979,8 @@ zfs_create_boot()
 		bootpool_options="$bootpool_options -m \"/$bootpool_name\" -f"
 		f_eval_catch $funcname zpool "$ZPOOL_CREATE_WITH_OPTIONS" \
 		             "$bootpool_options" "$bootpool_name" \
-		             $bootpool_vdevtype $boot_vdevs || return $FAILURE
+		             "$bootpool_vdevtype" "$boot_vdevs" ||
+		             return $FAILURE
 
 		f_eval_catch $funcname mkdir "$MKDIR_P" "$bootpool/boot" ||
 		             return $FAILURE
@@ -1048,7 +1049,8 @@ zfs_create_boot()
 	f_dprintf "$funcname: Creating root pool..."
 	f_eval_catch $funcname zpool "$ZPOOL_CREATE_WITH_OPTIONS" \
 	             "-o altroot=$BSDINSTALL_CHROOT -m none -f" \
-	             "$zroot_name" $zroot_vdevtype $zroot_vdevs
+	             "$zroot_name" "$zroot_vdevtype" "$zroot_vdevs" ||
+	             return $FAILURE
 
 	# Customize the zroot a bit...
 	local option
