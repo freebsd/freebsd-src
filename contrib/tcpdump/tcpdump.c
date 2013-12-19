@@ -710,24 +710,16 @@ capdns_setup(void)
 	capdnsloc = cap_service_open(capcas, "system.dns");
 	/* Casper capability no longer needed. */
 	cap_close(capcas);
-	if (capdnsloc == NULL) {
-		warning("unable to open system.dns service");
-		return (NULL);
-	}
+	if (capdnsloc == NULL)
+		error("unable to open system.dns service");
 	/* Limit system.dns to reverse DNS lookups. */
 	types[0] = "ADDR";
-	if (cap_dns_type_limit(capdnsloc, types, 1) < 0) {
-		warning("unable to limit access to system.dns service");
-		cap_close(capdnsloc);
-		return (NULL);
-	}
+	if (cap_dns_type_limit(capdnsloc, types, 1) < 0)
+		error("unable to limit access to system.dns service");
 	families[0] = AF_INET;
 	families[1] = AF_INET6;
-	if (cap_dns_family_limit(capdnsloc, families, 2) < 0) {
-		warning("unable to limit access to system.dns service");
-		cap_close(capdnsloc);
-		return (NULL);
-	}
+	if (cap_dns_family_limit(capdnsloc, families, 2) < 0)
+		error("unable to limit access to system.dns service");
 
 	return (capdnsloc);
 }
