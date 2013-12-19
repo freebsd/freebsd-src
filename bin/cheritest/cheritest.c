@@ -90,6 +90,7 @@ static void
 usage(void)
 {
 
+	fprintf(stderr, "cheritest creturn\n");
 	fprintf(stderr, "cheritest ccall_creturn\n");
 	fprintf(stderr, "cheritest ccall_nop_creturn\n");
 	fprintf(stderr, "cheritest copyregs\n");
@@ -201,6 +202,13 @@ cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
 	CHERI_CCLEARTAG(3);
 }
 #endif
+
+static void
+cheritest_creturn(void)
+{
+
+	CHERI_CRETURN();
+}
 
 static void
 cheritest_ccall_creturn(void)
@@ -454,6 +462,8 @@ main(__unused int argc, __unused char *argv[])
 			cheritest_ccall_creturn();
 		else if (strcmp(argv[i], "ccall_nop_creturn") == 0)
 			cheritest_ccall_nop_creturn();
+		else if (strcmp(argv[i], "creturn") == 0)
+			cheritest_creturn();
 		else if (strcmp(argv[i], "copyregs") == 0)
 			cheritest_copyregs();
 		else if (strcmp(argv[i], "invoke_abort") == 0)
