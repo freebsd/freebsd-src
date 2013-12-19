@@ -183,6 +183,8 @@ LDADD+=		-lvuln_magic -lz -lcompiler_rt
 
 NO_SHARED=	yes
 
+#USE_CHERI=	yes
+
 WARNS=4
 
 #
