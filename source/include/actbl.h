@@ -203,6 +203,9 @@ typedef struct acpi_table_xsdt
 
 } ACPI_TABLE_XSDT;
 
+#define ACPI_RSDT_ENTRY_SIZE        (sizeof (UINT32))
+#define ACPI_XSDT_ENTRY_SIZE        (sizeof (UINT64))
+
 
 /*******************************************************************************
  *

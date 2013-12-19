@@ -446,6 +446,15 @@ DtCompileTable (
         return (AE_BAD_PARAMETER);
     }
 
+    /* Ignore optional subtable if name does not match */
+
+    if ((Info->Flags & DT_OPTIONAL) &&
+        ACPI_STRCMP ((*Field)->Name, Info->Name))
+    {
+        *RetSubtable = NULL;
+        return (AE_OK);
+    }
+
     Length = DtGetSubtableLength (*Field, Info);
     if (Length == ASL_EOF)
     {

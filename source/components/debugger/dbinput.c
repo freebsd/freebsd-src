@@ -128,7 +128,7 @@ enum AcpiExDebuggerCommands
     CMD_METHODS,
     CMD_NAMESPACE,
     CMD_NOTIFY,
-    CMD_OBJECT,
+    CMD_OBJECTS,
     CMD_OPEN,
     CMD_OSI,
     CMD_OWNER,
@@ -201,7 +201,7 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"METHODS",      0},
     {"NAMESPACE",    0},
     {"NOTIFY",       2},
-    {"OBJECT",       1},
+    {"OBJECTS",      1},
     {"OPEN",         1},
     {"OSI",          0},
     {"OWNER",        1},
@@ -1000,7 +1000,7 @@ AcpiDbCommandDispatch (
         AcpiDbSendNotify (AcpiGbl_DbArgs[1], Temp);
         break;
 
-    case CMD_OBJECT:
+    case CMD_OBJECTS:
 
         AcpiUtStrupr (AcpiGbl_DbArgs[1]);
         Status = AcpiDbDisplayObjects (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);

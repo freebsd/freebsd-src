@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Module Name: acpibinh - Include file for AcpiBin utility
+ * Module Name: examples.h - Common include for Examples program
  *
  *****************************************************************************/
 
@@ -41,55 +41,19 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
+#ifndef _EXAMPLES_H
+#define _EXAMPLES_H
+
 #include "acpi.h"
 #include "accommon.h"
+#include "acapps.h"
+#include "../acpiexec/aecommon.h"
 
 #include <stdio.h>
-#include <fcntl.h>
-#include <errno.h>
 
-#define DB_CONSOLE_OUTPUT            0x02
-#define ACPI_DB_REDIRECTABLE_OUTPUT  0x01
 
-/*
- * Global variables. Defined in main.c only, externed in all other files
- */
-#ifdef _DECLARE_GLOBALS
-#define EXTERN
-#define INIT_GLOBAL(a,b)        a=b
-#else
-#define EXTERN                  extern
-#define INIT_GLOBAL(a,b)        a
+void
+ExInitializeAcpiTables (
+    void);
+
 #endif
-
-
-/* Globals */
-
-EXTERN BOOLEAN              INIT_GLOBAL (Gbl_TerseMode, FALSE);
-
-
-/* Prototypes */
-
-int
-AbCompareAmlFiles (
-    char                    *File1Path,
-    char                    *File2Path);
-
-int
-AbExtractAmlFile (
-    char                    *TableSig,
-    char                    *File1Path,
-    char                    *File2Path);
-
-int
-AbDumpAmlFile (
-    char                    *File1Path,
-    char                    *File2Path);
-
-void
-AbComputeChecksum (
-    char                    *File1Path);
-
-void
-AbDisplayHeader (
-    char                    *File1Path);

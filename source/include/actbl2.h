@@ -373,6 +373,14 @@ typedef struct acpi_table_dbg2
 } ACPI_TABLE_DBG2;
 
 
+typedef struct acpi_dbg2_header
+{
+    UINT32                  InfoOffset;
+    UINT32                  InfoCount;
+
+} ACPI_DBG2_HEADER;
+
+
 /* Debug Device Information Subtable */
 
 typedef struct acpi_dbg2_device

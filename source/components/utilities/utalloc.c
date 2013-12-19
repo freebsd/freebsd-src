@@ -324,9 +324,13 @@ AcpiUtInitializeBuffer (
         return (AE_BUFFER_OVERFLOW);
 
     case ACPI_ALLOCATE_BUFFER:
-
-        /* Allocate a new buffer */
-
+        /*
+         * Allocate a new buffer. We directectly call AcpiOsAllocate here to
+         * purposefully bypass the (optionally enabled) internal allocation
+         * tracking mechanism since we only want to track internal
+         * allocations. Note: The caller should use AcpiOsFree to free this
+         * buffer created via ACPI_ALLOCATE_BUFFER.
+         */
         Buffer->Pointer = AcpiOsAllocate (RequiredLength);
         break;
 

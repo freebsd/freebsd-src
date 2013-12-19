@@ -167,14 +167,16 @@ AcpiOsGetNextFilename (
             strcat (temp_str, dir_entry->d_name);
 
             err = stat (temp_str, &temp_stat);
-            free (temp_str);
             if (err == -1)
             {
                 fprintf (stderr,
                     "Cannot stat file (should not happen) - %s\n",
                     temp_str);
+                free (temp_str);
                 return (NULL);
             }
+
+            free (temp_str);
 
             if ((S_ISDIR (temp_stat.st_mode)
                 && (ExternalInfo->RequestedFileType == REQUEST_DIR_ONLY))

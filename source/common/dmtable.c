@@ -205,6 +205,12 @@ static const char           *AcpiDmMadtSubnames[] =
     "Unknown SubTable Type"         /* Reserved */
 };
 
+static const char           *AcpiDmPcctSubnames[] =
+{
+    "Generic Communications Subspace",  /* ACPI_PCCT_TYPE_GENERIC_SUBSPACE */
+    "Unknown SubTable Type"             /* Reserved */
+};
+
 static const char           *AcpiDmPmttSubnames[] =
 {
     "Socket",                       /* ACPI_PMTT_TYPE_SOCKET */
@@ -286,7 +292,7 @@ ACPI_DMTABLE_DATA    AcpiDmTableData[] =
     {ACPI_SIG_BOOT, AcpiDmTableInfoBoot,    NULL,           NULL,           TemplateBoot,   "Simple Boot Flag Table"},
     {ACPI_SIG_CPEP, NULL,                   AcpiDmDumpCpep, DtCompileCpep,  TemplateCpep,   "Corrected Platform Error Polling table"},
     {ACPI_SIG_CSRT, NULL,                   AcpiDmDumpCsrt, DtCompileCsrt,  TemplateCsrt,   "Core System Resource Table"},
-    {ACPI_SIG_DBG2, NULL,                   AcpiDmDumpDbg2, NULL,           NULL,           "Debug Port table type 2"},
+    {ACPI_SIG_DBG2, AcpiDmTableInfoDbg2,    AcpiDmDumpDbg2, DtCompileDbg2,  TemplateDbg2,   "Debug Port table type 2"},
     {ACPI_SIG_DBGP, AcpiDmTableInfoDbgp,    NULL,           NULL,           TemplateDbgp,   "Debug Port table"},
     {ACPI_SIG_DMAR, NULL,                   AcpiDmDumpDmar, DtCompileDmar,  TemplateDmar,   "DMA Remapping table"},
     {ACPI_SIG_ECDT, AcpiDmTableInfoEcdt,    NULL,           NULL,           TemplateEcdt,   "Embedded Controller Boot Resources Table"},
@@ -304,7 +310,7 @@ ACPI_DMTABLE_DATA    AcpiDmTableData[] =
     {ACPI_SIG_MPST, AcpiDmTableInfoMpst,    AcpiDmDumpMpst, DtCompileMpst,  TemplateMpst,   "Memory Power State Table"},
     {ACPI_SIG_MSCT, NULL,                   AcpiDmDumpMsct, DtCompileMsct,  TemplateMsct,   "Maximum System Characteristics Table"},
     {ACPI_SIG_MTMR, NULL,                   AcpiDmDumpMtmr, DtCompileMtmr,  TemplateMtmr,   "MID Timer Table"},
-    {ACPI_SIG_PCCT, NULL,                   AcpiDmDumpPcct, NULL,           NULL,           "Platform Communications Channel Table"},
+    {ACPI_SIG_PCCT, AcpiDmTableInfoPcct,    AcpiDmDumpPcct, DtCompilePcct,  TemplatePcct,   "Platform Communications Channel Table"},
     {ACPI_SIG_PMTT, NULL,                   AcpiDmDumpPmtt, DtCompilePmtt,  TemplatePmtt,   "Platform Memory Topology Table"},
     {ACPI_SIG_RSDT, NULL,                   AcpiDmDumpRsdt, DtCompileRsdt,  TemplateRsdt,   "Root System Description Table"},
     {ACPI_SIG_S3PT, NULL,                   NULL,           NULL,           TemplateS3pt,   "S3 Performance Table"},
@@ -650,6 +656,7 @@ AcpiDmDumpTable (
     UINT32                  ByteLength;
     UINT8                   Temp8;
     UINT16                  Temp16;
+    UINT64                  Value;
     ACPI_DMTABLE_DATA       *TableData;
     const char              *Name;
     BOOLEAN                 LastOutputBlankLine = FALSE;
@@ -692,6 +699,7 @@ AcpiDmDumpTable (
         case ACPI_DMT_ACCWIDTH:
         case ACPI_DMT_IVRS:
         case ACPI_DMT_MADT:
+        case ACPI_DMT_PCCT:
         case ACPI_DMT_PMTT:
         case ACPI_DMT_SRAT:
         case ACPI_DMT_ASF:
@@ -863,10 +871,19 @@ AcpiDmDumpTable (
              * Dump bytes - high byte first, low byte last.
              * Note: All ACPI tables are little-endian.
              */
+            Value = 0;
             for (Temp8 = (UINT8) ByteLength; Temp8 > 0; Temp8--)
             {
                 AcpiOsPrintf ("%2.2X", Target[Temp8 - 1]);
+                Value |= Target[Temp8 - 1];
+                Value <<= 8;
             }
+
+            if (!Value && (Info->Flags & DT_DESCRIBES_OPTIONAL))
+            {
+                AcpiOsPrintf (" [Optional field not present]");
+            }
+
             AcpiOsPrintf ("\n");
             break;
 
@@ -1120,6 +1137,19 @@ AcpiDmDumpTable (
             }
 
             AcpiOsPrintf (UINT8_FORMAT, *Target, AcpiDmMadtSubnames[Temp8]);
+            break;
+
+        case ACPI_DMT_PCCT:
+
+            /* PCCT subtable types */
+
+            Temp8 = *Target;
+            if (Temp8 > ACPI_PCCT_TYPE_RESERVED)
+            {
+                Temp8 = ACPI_PCCT_TYPE_RESERVED;
+            }
+
+            AcpiOsPrintf (UINT8_FORMAT, *Target, AcpiDmPcctSubnames[Temp8]);
             break;
 
         case ACPI_DMT_PMTT:

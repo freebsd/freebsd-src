@@ -1,8 +1,7 @@
 /*
  * Miscellaneous instructions for building and using the iASL compiler.
  */
-
-Last update: 24 October 2012
+Last update 9 December 2013.
 
 
 1) Generating iASL from source
@@ -30,16 +29,22 @@ be installed):
 1a) Notes for Linux/Unix generation
 -----------------------------------
 
+iASL has been generated with these versions of Flex/Bison:
+
+    flex:  Version 2.5.32
+    bison: Version 2.6.2
+
+Other required packages:
+
+    make
+    gcc C compiler
+    m4 (macro processor required by bison)
+
 On Linux/Unix systems, the following commands will build the compiler:
 
     cd acpica (or cd acpica/generate/unix)
     make clean
     make iasl
-
-iASL has been generated with these versions of Flex/Bison:
-
-    Flex:  Version 2.5.32
-    Bison: Version 2.6.2
 
 
 1b) Notes for Windows generation
@@ -58,12 +63,15 @@ iASL assumes that these tools are installed at this location:
     c:\GnuWin32
 
 Once the tools are installed, ensure that this path is added to the
-default system $PATH environment variable:
+default system $Path environment variable:
 
     c:\GnuWin32\bin
 
-At this point, you will need to reboot Windows to make system aware of
-the updated $PATH.
+Goto: ControlPanel/System/AdvancedSystemSettings/EnvironmentVariables
+
+Important: Now Windows must be rebooted to make the system aware of
+the updated $Path. Otherwise, Bison will not be able to find the M4
+interpreter library and will fail.
 
 iASL has been generated with these versions of Flex/Bison for Windows:
 

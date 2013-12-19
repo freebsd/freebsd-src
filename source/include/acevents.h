@@ -206,9 +206,10 @@ AcpiEvGetGpeDevice (
     ACPI_GPE_BLOCK_INFO     *GpeBlock,
     void                    *Context);
 
-ACPI_GPE_XRUPT_INFO *
+ACPI_STATUS
 AcpiEvGetGpeXruptBlock (
-    UINT32                  InterruptNumber);
+    UINT32                  InterruptNumber,
+    ACPI_GPE_XRUPT_INFO     **GpeXruptBlock);
 
 ACPI_STATUS
 AcpiEvDeleteGpeXrupt (

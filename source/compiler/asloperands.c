@@ -922,6 +922,7 @@ OpnDoDefinitionBlock (
         strcat (Filename, (char *) Child->Asl.Value.Buffer);
 
         Gbl_OutputFilenamePrefix = Filename;
+        UtConvertBackslashes (Gbl_OutputFilenamePrefix);
     }
     Child->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
 

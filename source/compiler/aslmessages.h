@@ -369,7 +369,7 @@ char                        *AslMessages [] =
 /*    ASL_MSG_NOT_METHOD */                 "Not a control method, cannot invoke",
 /*    ASL_MSG_NOT_PARAMETER */              "Not a parameter, used as local only",
 /*    ASL_MSG_NOT_REACHABLE */              "Object is not accessible from this scope",
-/*    ASL_MSG_NOT_REFERENCED */             "Namespace object is not referenced",
+/*    ASL_MSG_NOT_REFERENCED */             "Object is not referenced",
 /*    ASL_MSG_NULL_DESCRIPTOR */            "Min/Max/Length/Gran are all zero, but no resource tag",
 /*    ASL_MSG_NULL_STRING */                "Invalid zero-length (null) string",
 /*    ASL_MSG_OPEN */                       "Could not open file",

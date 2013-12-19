@@ -576,7 +576,8 @@ OptOptimizeNamePath (
         return_VOID;
     }
 
-    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS, "%5d [%12.12s] [%12.12s] ",
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS,
+        "PATH OPTIMIZE: Line %5d ParentOp [%12.12s] ThisOp [%12.12s] ",
         Op->Asl.LogicalLineNumber,
         AcpiPsGetOpcodeName (Op->Common.Parent->Common.AmlOpcode),
         AcpiPsGetOpcodeName (Op->Common.AmlOpcode)));
@@ -620,7 +621,7 @@ OptOptimizeNamePath (
     {
         /* This is the declaration of a new name */
 
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS, "NAME"));
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS, "NAME\n"));
 
         /*
          * The node of interest is the parent of this node (the containing
@@ -646,7 +647,7 @@ OptOptimizeNamePath (
     {
         /* This is a reference to an existing named object */
 
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS, "REF "));
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS, "REFERENCE\n"));
     }
 
     /*
@@ -688,9 +689,10 @@ OptOptimizeNamePath (
     }
 
     ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS,
-        "%37s (%2u) ==> %-32s(%2u) %-32s",
-        (char *) CurrentPath.Pointer, (UINT32) CurrentPath.Length,
-        (char *) TargetPath.Pointer, (UINT32) TargetPath.Length, ExternalNameString));
+        "CURRENT SCOPE: (%2u) %-37s FULL PATH TO NAME: (%2u) %-32s ACTUAL AML:%-32s\n",
+        (UINT32) CurrentPath.Length, (char *) CurrentPath.Pointer,
+        (UINT32) TargetPath.Length, (char *) TargetPath.Pointer,
+        ExternalNameString));
 
     ACPI_FREE (ExternalNameString);
 
@@ -747,7 +749,8 @@ OptOptimizeNamePath (
         HowMuchShorter = (AmlNameStringLength - ACPI_STRLEN (NewPath));
         OptTotal += HowMuchShorter;
 
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS, " REDUCED %2u (%u)",
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS, 
+            " REDUCED BY %2u (TOTAL SAVED %2u)",
             (UINT32) HowMuchShorter, OptTotal));
 
         if (Flags & AML_NAMED)
