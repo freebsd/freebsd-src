@@ -120,6 +120,11 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
+    <para arch="amd64" revision="245652">The BSD Hypervisor, &man.bhyve.8; is included
+      with &os;.  &man.bhyve.8; requires Intel CPUs with VT-x and Extended Page Table (EPT)
+      support. These features are on all Nehalem models and beyond
+      (e.g. Nehalem and newer), but not on the lower-end Atom CPUs.</para> 
+
     <para arch="amd64">The maximum amount of memory the &os; kernel
       can address has been increased from 1TB to 4TB.</para>
 
