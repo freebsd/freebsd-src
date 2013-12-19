@@ -1120,8 +1120,68 @@ finish_vt_acq(struct vt_window *vw)
 }
 
 #ifndef SC_NO_CUTPASTE
+static void
+vt_mouse_terminput_button(struct vt_device *vd, int button)
+{
+	struct vt_window *vw;
+	struct vt_font *vf;
+	char mouseb[6] = "\x1B[M";
+	int i, x, y;
+
+	vw = vd->vd_curwindow;
+	vf = vw->vw_font;
+
+	/* Translate to char position. */
+	x = vd->vd_mx / vf->vf_width;
+	y = vd->vd_my / vf->vf_height;
+	/* Avoid overflow. */
+	x = MIN(x, 255 - '!');
+	y = MIN(y, 255 - '!');
+
+	mouseb[3] = ' ' + button;
+	mouseb[4] = '!' + x;
+	mouseb[5] = '!' + y;
+
+	for (i = 0; i < sizeof(mouseb); i++ )
+		terminal_input_char(vw->vw_terminal, mouseb[i]);
+}
+
+static void
+vt_mouse_terminput(struct vt_device *vd, int type, int x, int y, int event,
+    int cnt)
+{
+
+	switch (type) {
+	case MOUSE_BUTTON_EVENT:
+		if (cnt > 0) {
+			/* Mouse button pressed. */
+			if (event & MOUSE_BUTTON1DOWN)
+				vt_mouse_terminput_button(vd, 0);
+			if (event & MOUSE_BUTTON2DOWN)
+				vt_mouse_terminput_button(vd, 1);
+			if (event & MOUSE_BUTTON3DOWN)
+				vt_mouse_terminput_button(vd, 2);
+		} else {
+			/* Mouse button released. */
+			vt_mouse_terminput_button(vd, 3);
+		}
+		break;
+#ifdef notyet
+	case MOUSE_MOTION_EVENT:
+		if (mouse->u.data.z < 0) {
+			/* Scroll up. */
+			sc_mouse_input_button(vd, 64);
+		} else if (mouse->u.data.z > 0) {
+			/* Scroll down. */
+			sc_mouse_input_button(vd, 65);
+		}
+		break;
+#endif
+	}
+}
+
 void
-vt_mouse_event(int type, int x, int y, int event, int cnt)
+vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 {
 	struct vt_device *vd;
 	struct vt_window *vw;
@@ -1145,6 +1205,9 @@ vt_mouse_event(int type, int x, int y, int event, int cnt)
 	 * TODO: add flag about pointer position changed, to not redraw chars
 	 * under mouse pointer when nothing changed.
 	 */
+
+	if (mlevel > 0)
+		vt_mouse_terminput(vd, type, x, y, event, cnt);
 
 	switch (type) {
 	case MOUSE_ACTION:
