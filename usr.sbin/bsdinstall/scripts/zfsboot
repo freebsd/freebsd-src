@@ -1152,7 +1152,7 @@ zfs_create_boot()
 	fi
 
 	# While this is apparently not needed, it seems to help MBR
-	f_dprintf "$funcname: Configuring zpool.cache..."
+	f_dprintf "$funcname: Configuring zpool.cache for zroot..."
 	f_eval_catch $funcname mkdir "$MKDIR_P" $BSDINSTALL_CHROOT/boot/zfs ||
 	             return $FAILURE
 	f_eval_catch $funcname zpool "$ZPOOL_SET" \
@@ -1173,6 +1173,12 @@ zfs_create_boot()
 
 	# We're all done unless we should go on for boot pool
 	[ "$ZFSBOOT_BOOT_POOL" ] || return $SUCCESS
+
+	# Set cachefile for boot pool so it auto-imports at system start
+	f_dprintf "$funcname: Configuring zpool.cache for boot pool..."
+	f_eval_catch $funcname zpool "$ZPOOL_SET" \
+	             "cachefile=\"$BSDINSTALL_CHROOT/boot/zfs/zpool.cache\"" \
+	             "$bootpool_name" || return $FAILURE
 
 	# Some additional geli(8) requirements for loader.conf(5)
 	for option in \
