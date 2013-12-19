@@ -137,9 +137,15 @@ CHERICCall:
 
 	/* Fourth, check permissions. */
 	cgetperm	k0, CHERI_REG_CCALLCODE
-	REG_LI		k1, CHERI_PERM_SEAL | CHERI_PERM_EXECUTE
+	REG_LI		k1, CHERI_PERM_SEAL
 	and		k0, k0, k1
-	bne		k0, k1, CCall_c1_perms
+	bne		k0, k1, CCall_c1_perm_seal
+	nop
+
+	cgetperm	k0, CHERI_REG_CCALLCODE
+	REG_LI		k1, CHERI_PERM_EXECUTE
+	and		k0, k0, k1
+	bne		k0, k1, CCall_c1_perm_execute
 	nop
 
 	/* Fifth, check proposed PC is not lower than base. */
@@ -243,13 +249,51 @@ CHERICCall:
 	eret
 
 CCall_c1_invalid:
+	dli	k0, ((CHERI_EXCCODE_TAG << 8) | 1)
+	b	CCall_throw_exception
+	csetcause	k0		/* Branch-delay slot. */
+
 CCall_c2_invalid:
+	dli	k0, ((CHERI_EXCCODE_TAG << 8) | 2)
+	b	CCall_throw_exception
+	csetcause	k0		/* Branch-delay slot. */
+
 CCall_c1_unsealed:
+	dli	k0, ((CHERI_EXCCODE_SEAL << 8) | 1)
+	b	CCall_throw_exception
+	csetcause	k0		/* Branch-delay slot. */
+
 CCall_c2_unsealed:
+	dli	k0, ((CHERI_EXCCODE_SEAL << 8) | 2)
+	b	CCall_throw_exception
+	csetcause	k0		/* Branch-delay slot. */
+
 CCall_c1_c2_type_mismatch:
-CCall_c1_perms:
+	dli	k0, ((CHERI_EXCCODE_TYPE << 8) | 1)
+	b	CCall_throw_exception
+	csetcause	k0		/* Branch-delay slot. */
+
+CCall_c1_perm_seal:
+	dli	k0, ((CHERI_EXCCODE_PERM_SEAL << 8) | 1)
+	b	CCall_throw_exception
+	csetcause	k0		/* Branch-delay slot. */
+
+CCall_c1_perm_execute:
+	dli	k0, ((CHERI_EXCCODE_PERM_EXECUTE << 8) | 1)
+	b	CCall_throw_exception
+	csetcause	k0		/* Branch-delay slot. */
+
 CCall_c1_range:
+	dli	k0, ((CHERI_EXCCODE_LENGTH << 8) | 1)
+	b	CCall_throw_exception
+	csetcause	k0		/* Branch-delay slot. */
+
 CCall_stack_overflow:
+	dli	k0, ((CHERI_EXCCODE_CALL << 8) | 0)
+	b	CCall_throw_exception
+	csetcause	k0		/* Branch-delay slot. */
+
+CCall_throw_exception:
 	/*
 	 * XXXRW: We would very much like to use CSetCause here to insert the
 	 * right cause for the failure mode detected ... but CHERI doesn't yet
@@ -327,6 +371,8 @@ CReturn_stack_underflow:
 	 * right cause for the failure mode detected ... but CHERI doesn't yet
 	 * support that.
 	 */
+	dli	k0, ((CHERI_EXCCODE_RETURN << 8) | 0)
+	csetcause	k0
 	j	_C_LABEL(MipsUserGenException)
 	nop
 
