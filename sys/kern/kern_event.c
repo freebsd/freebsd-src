@@ -526,7 +526,8 @@ knote_fork(struct knlist *list, int pid)
 static __inline sbintime_t 
 timer2sbintime(intptr_t data)
 {
-
+	if (data > LLONG_MAX / SBT_1MS)
+		return LLONG_MAX;
 	return (SBT_1MS * data);
 }
 
