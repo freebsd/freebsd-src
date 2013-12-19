@@ -243,7 +243,7 @@ AnMapEtypeToBtype (
 
             return (ACPI_BTYPE_INTEGER | ACPI_BTYPE_DDB_HANDLE);
 
-        case ACPI_BTYPE_DEBUG_OBJECT:
+        case ACPI_TYPE_DEBUG_OBJECT:
 
             /* Cannot be used as a source operand */
 

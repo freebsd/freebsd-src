@@ -954,8 +954,8 @@ typedef struct acpi_object_list
  * Miscellaneous common Data Structures used by the interfaces
  */
 #define ACPI_NO_BUFFER              0
-#define ACPI_ALLOCATE_BUFFER        (ACPI_SIZE) (-1)
-#define ACPI_ALLOCATE_LOCAL_BUFFER  (ACPI_SIZE) (-2)
+#define ACPI_ALLOCATE_BUFFER        (ACPI_SIZE) (-1)    /* Let ACPICA allocate buffer */
+#define ACPI_ALLOCATE_LOCAL_BUFFER  (ACPI_SIZE) (-2)    /* For internal use only (enables tracking) */
 
 typedef struct acpi_buffer
 {
@@ -963,10 +963,6 @@ typedef struct acpi_buffer
     void                            *Pointer;       /* pointer to buffer */
 
 } ACPI_BUFFER;
-
-/* Free a buffer created in an ACPI_BUFFER via ACPI_ALLOCATE_LOCAL_BUFFER */
-
-#define ACPI_FREE_BUFFER(b)         ACPI_FREE(b.Pointer)
 
 
 /*

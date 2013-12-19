@@ -720,12 +720,12 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoDbg2[] =
 ACPI_DMTABLE_INFO           AcpiDmTableInfoDbg2Device[] =
 {
     {ACPI_DMT_UINT8,    ACPI_DBG20_OFFSET (Revision),               "Revision", 0},
-    {ACPI_DMT_UINT16,   ACPI_DBG20_OFFSET (Length),                 "Length", 0},
+    {ACPI_DMT_UINT16,   ACPI_DBG20_OFFSET (Length),                 "Length", DT_LENGTH},
     {ACPI_DMT_UINT8,    ACPI_DBG20_OFFSET (RegisterCount),          "Register Count", 0},
     {ACPI_DMT_UINT16,   ACPI_DBG20_OFFSET (NamepathLength),         "Namepath Length", 0},
     {ACPI_DMT_UINT16,   ACPI_DBG20_OFFSET (NamepathOffset),         "Namepath Offset", 0},
-    {ACPI_DMT_UINT16,   ACPI_DBG20_OFFSET (OemDataLength),          "OEM Data Length", 0},
-    {ACPI_DMT_UINT16,   ACPI_DBG20_OFFSET (OemDataOffset),          "OEM Data Offset", 0},
+    {ACPI_DMT_UINT16,   ACPI_DBG20_OFFSET (OemDataLength),          "OEM Data Length", DT_DESCRIBES_OPTIONAL},
+    {ACPI_DMT_UINT16,   ACPI_DBG20_OFFSET (OemDataOffset),          "OEM Data Offset", DT_DESCRIBES_OPTIONAL},
     {ACPI_DMT_UINT16,   ACPI_DBG20_OFFSET (PortType),               "Port Type", 0},
     {ACPI_DMT_UINT16,   ACPI_DBG20_OFFSET (PortSubtype),            "Port Subtype", 0},
     {ACPI_DMT_UINT16,   ACPI_DBG20_OFFSET (Reserved),               "Reserved", 0},
@@ -751,6 +751,12 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoDbg2Size[] =
 ACPI_DMTABLE_INFO           AcpiDmTableInfoDbg2Name[] =
 {
     {ACPI_DMT_STRING,   0,                                          "Namepath", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoDbg2OemData[] =
+{
+    {ACPI_DMT_BUFFER,   0,                                          "OEM Data", DT_OPTIONAL},
     ACPI_DMT_TERMINATOR
 };
 
@@ -1677,25 +1683,32 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoPcct[] =
 {
     {ACPI_DMT_UINT32,   ACPI_PCCT_OFFSET (Flags),                   "Flags (decoded below)", DT_FLAG},
     {ACPI_DMT_FLAG0,    ACPI_PCCT_FLAG_OFFSET (Flags,0),            "Doorbell", 0},
-    {ACPI_DMT_UINT32,   ACPI_PCCT_OFFSET (Latency),                 "Command Latency", 0},
-    {ACPI_DMT_UINT32,   ACPI_PCCT_OFFSET (Reserved),                "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_PCCT_OFFSET (Reserved),                "Reserved", 0},
     ACPI_DMT_TERMINATOR
 };
 
 /* PCCT subtables */
 
+ACPI_DMTABLE_INFO           AcpiDmTableInfoPcctHdr[] =
+{
+    {ACPI_DMT_PCCT,     ACPI_PCCT0_OFFSET (Header.Type),            "Subtable Type", 0},
+    {ACPI_DMT_UINT8,    ACPI_PCCT0_OFFSET (Header.Length),          "Length", DT_LENGTH},
+    ACPI_DMT_TERMINATOR
+};
+
 /* 0: Generic Communications Subspace */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoPcct0[] =
 {
-    {ACPI_DMT_UINT8,    ACPI_PCCT0_OFFSET (Header.Type),            "Subtable Type", 0},
-    {ACPI_DMT_UINT8,    ACPI_PCCT0_OFFSET (Header.Length),          "Length", DT_LENGTH},
     {ACPI_DMT_UINT48,   ACPI_PCCT0_OFFSET (Reserved[0]),            "Reserved", 0},
     {ACPI_DMT_UINT64,   ACPI_PCCT0_OFFSET (BaseAddress),            "Base Address", 0},
     {ACPI_DMT_UINT64,   ACPI_PCCT0_OFFSET (Length),                 "Address Length", 0},
     {ACPI_DMT_GAS,      ACPI_PCCT0_OFFSET (DoorbellRegister),       "Doorbell Register", 0},
     {ACPI_DMT_UINT64,   ACPI_PCCT0_OFFSET (PreserveMask),           "Preserve Mask", 0},
     {ACPI_DMT_UINT64,   ACPI_PCCT0_OFFSET (WriteMask),              "Write Mask", 0},
+    {ACPI_DMT_UINT32,   ACPI_PCCT0_OFFSET (Latency),                "Command Latency", 0},
+    {ACPI_DMT_UINT32,   ACPI_PCCT0_OFFSET (MaxAccessRate),          "Maximum Access Rate", 0},
+    {ACPI_DMT_UINT16,   ACPI_PCCT0_OFFSET (MinTurnaroundTime),      "Minimum Turnaround Time", 0},
     ACPI_DMT_TERMINATOR
 };
 

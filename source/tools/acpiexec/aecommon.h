@@ -63,7 +63,6 @@
 #include <string.h>
 #include <signal.h>
 
-extern FILE                 *AcpiGbl_DebugFile;
 extern BOOLEAN              AcpiGbl_IgnoreErrors;
 extern UINT8                AcpiGbl_RegionFillValue;
 extern UINT8                AcpiGbl_UseHwReducedFadt;

@@ -400,6 +400,10 @@ DtCompileCsrt (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileDbg2 (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileDmar (
     void                    **PFieldList);
 
@@ -449,6 +453,10 @@ DtCompileMtmr (
 
 ACPI_STATUS
 DtCompilePmtt (
+    void                    **PFieldList);
+
+ACPI_STATUS
+DtCompilePcct (
     void                    **PFieldList);
 
 ACPI_STATUS
@@ -503,6 +511,7 @@ extern const unsigned char  TemplateBert[];
 extern const unsigned char  TemplateBgrt[];
 extern const unsigned char  TemplateCpep[];
 extern const unsigned char  TemplateCsrt[];
+extern const unsigned char  TemplateDbg2[];
 extern const unsigned char  TemplateDbgp[];
 extern const unsigned char  TemplateDmar[];
 extern const unsigned char  TemplateEcdt[];
@@ -520,6 +529,7 @@ extern const unsigned char  TemplateMchi[];
 extern const unsigned char  TemplateMpst[];
 extern const unsigned char  TemplateMsct[];
 extern const unsigned char  TemplateMtmr[];
+extern const unsigned char  TemplatePcct[];
 extern const unsigned char  TemplatePmtt[];
 extern const unsigned char  TemplateRsdt[];
 extern const unsigned char  TemplateS3pt[];

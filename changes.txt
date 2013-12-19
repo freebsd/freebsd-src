@@ -1,4 +1,106 @@
 ----------------------------------------
+18 December 2013. Summary of changes for version 20131218:
+
+Global note: The ACPI 5.0A specification was released this month. There 
+are no changes needed for ACPICA since this release of ACPI is an 
+errata/clarification release. The specification is available at 
+acpi.info. 
+
+
+1) ACPICA kernel-resident subsystem:
+
+Added validation of the XSDT root table if it is present. Some older 
+platforms contain an XSDT that is ill-formed or otherwise invalid (such 
+as containing some or all entries that are NULL pointers). This change 
+adds a new function to validate the XSDT before actually using it. If the 
+XSDT is found to be invalid, ACPICA will now automatically fall back to 
+using the RSDT instead. Original implementation by Zhao Yakui. Ported to 
+ACPICA and enhanced by Lv Zheng and Bob Moore.
+
+Added a runtime option to ignore the XSDT and force the use of the RSDT. 
+This change adds a runtime option that will force ACPICA to use the RSDT 
+instead of the XSDT (AcpiGbl_DoNotUseXsdt). Although the ACPI spec 
+requires that an XSDT be used instead of the RSDT, the XSDT has been 
+found to be corrupt or ill-formed on some machines. Lv Zheng.
+
+Added a runtime option to favor 32-bit FADT register addresses over the 
+64-bit addresses. This change adds an option to favor 32-bit FADT 
+addresses when there is a conflict between the 32-bit and 64-bit versions 
+of the same register. The default behavior is to use the 64-bit version 
+in accordance with the ACPI specification. This can now be overridden via 
+the AcpiGbl_Use32BitFadtAddresses flag. ACPICA BZ 885. Lv Zheng.
+
+During the change above, the internal "Convert FADT" and "Verify FADT" 
+functions have been merged to simplify the code, making it easier to 
+understand and maintain. ACPICA BZ 933.
+
+Improve exception reporting and handling for GPE block installation. 
+Return an actual status from AcpiEvGetGpeXruptBlock and don't clobber the 
+status when exiting AcpiEvInstallGpeBlock. ACPICA BZ 1019.
+
+Added helper macros to extract bus/segment numbers from the HEST table. 
+This change adds two macros to extract the encoded bus and segment 
+numbers from the HEST Bus field - ACPI_HEST_BUS and ACPI_HEST_SEGMENT. 
+Betty Dall <betty.dall@hp.com>
+
+Removed the unused ACPI_FREE_BUFFER macro. This macro is no longer used 
+by ACPICA. It is not a public macro, so it should have no effect on 
+existing OSV code. Lv Zheng.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version:  96.1K Code, 27.0K Data, 123.1K Total
+    Debug Version:     185.6K Code, 77.3K Data, 262.9K Total
+  Previous Release:
+    Non-Debug Version:  95.9K Code, 27.0K Data, 122.9K Total
+    Debug Version:     185.1K Code, 77.2K Data, 262.3K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+Disassembler: Improved pathname support for emitted External() 
+statements. This change adds full pathname support for external names 
+that have been resolved internally by the inclusion of additional ACPI 
+tables (via the iASL -e option). Without this change, the disassembler 
+can emit multiple externals for the same object, or it become confused 
+when the Scope() operator is used on an external object. Overall, greatly 
+improves the ability to actually recompile the emitted ASL code when 
+objects a referenced across multiple ACPI tables. Reported by Michael 
+Tsirkin (mst@redhat.com).
+
+Tests/ASLTS: Updated functional control suite to execute with no errors. 
+David Box. Fixed several errors related to the testing of the interpreter 
+slack mode. Lv Zheng.
+
+iASL: Added support to detect names that are declared within a control 
+method, but are unused (these are temporary names that are only valid 
+during the time the method is executing). A remark is issued for these 
+cases. ACPICA BZ 1022.
+
+iASL: Added full support for the DBG2 table. Adds full disassembler, 
+table compiler, and template generator support for the DBG2 table (Debug 
+Port 2 table).
+
+iASL: Added full support for the PCCT table, update the table definition. 
+Updates the PCCT table definition in the actbl3.h header and adds table 
+compiler and template generator support.
+
+iASL: Added an option to emit only error messages (no warnings/remarks). 
+The -ve option will enable only error messages, warnings and remarks are 
+suppressed. This can simplify debugging when only the errors are 
+important, such as when an ACPI table is disassembled and there are many 
+warnings and remarks -- but only the actual errors are of real interest.
+
+Example ACPICA code (source/tools/examples): Updated the example code so 
+that it builds to an actual working program, not just example code. Added 
+ACPI tables and execution of an example control method in the DSDT. Added 
+makefile support for Unix generation.
+
+----------------------------------------
 15 November 2013. Summary of changes for version 20131115:
 
 This release is available at https://acpica.org/downloads

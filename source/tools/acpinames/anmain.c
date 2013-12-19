@@ -49,7 +49,6 @@
 
 extern ACPI_TABLE_DESC  Tables[];
 
-FILE                    *AcpiGbl_DebugFile;
 static AE_TABLE_DESC    *AeTableListHead = NULL;
 
 

@@ -524,7 +524,7 @@ typedef struct acpi_hest_aer_common
     UINT8                   Enabled;
     UINT32                  RecordsToPreallocate;
     UINT32                  MaxSectionsPerRecord;
-    UINT32                  Bus;
+    UINT32                  Bus;                    /* Bus and Segment numbers */
     UINT16                  Device;
     UINT16                  Function;
     UINT16                  DeviceControl;
@@ -540,6 +540,14 @@ typedef struct acpi_hest_aer_common
 
 #define ACPI_HEST_FIRMWARE_FIRST        (1)
 #define ACPI_HEST_GLOBAL                (1<<1)
+
+/*
+ * Macros to access the bus/segment numbers in Bus field above:
+ *  Bus number is encoded in bits 7:0
+ *  Segment number is encoded in bits 23:8
+ */
+#define ACPI_HEST_BUS(Bus)              ((Bus) & 0xFF)
+#define ACPI_HEST_SEGMENT(Bus)          (((Bus) >> 8) & 0xFFFF)
 
 
 /* Hardware Error Notification */

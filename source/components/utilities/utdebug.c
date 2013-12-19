@@ -220,9 +220,9 @@ AcpiDebugPrint (
      */
     AcpiOsPrintf ("%9s-%04ld ", ModuleName, LineNumber);
 
-#ifdef ACPI_EXEC_APP
+#ifdef ACPI_APPLICATION
     /*
-     * For AcpiExec only, emit the thread ID and nesting level.
+     * For AcpiExec/iASL only, emit the thread ID and nesting level.
      * Note: nesting level is really only useful during a single-thread
      * execution. Otherwise, multiple threads will keep resetting the
      * level.

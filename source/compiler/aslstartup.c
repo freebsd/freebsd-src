@@ -326,6 +326,7 @@ AslDoOneFile (
     }
 
     Gbl_Files[ASL_FILE_INPUT].Filename = Filename;
+    UtConvertBackslashes (Filename);
 
     /*
      * AML Disassembly (Optional)

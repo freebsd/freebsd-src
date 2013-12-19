@@ -60,16 +60,6 @@
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbfileio")
 
-/*
- * NOTE: this is here for lack of a better place. It is used in all
- * flavors of the debugger, need LCD file
- */
-#ifdef ACPI_APPLICATION
-#include <stdio.h>
-FILE                        *AcpiGbl_DebugFile = NULL;
-#endif
-
-
 #ifdef ACPI_DEBUGGER
 
 /* Local prototypes */

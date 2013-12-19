@@ -344,31 +344,42 @@ ExecuteOSI (
         return (Status);
     }
 
+    Status = AE_ERROR;
+
     if (ReturnValue.Length < sizeof (ACPI_OBJECT))
     {
         AcpiOsPrintf ("Return value from _OSI method too small, %.8X\n",
             ReturnValue.Length);
-        return (AE_ERROR);
+        goto ErrorExit;
     }
 
     Obj = ReturnValue.Pointer;
     if (Obj->Type != ACPI_TYPE_INTEGER)
     {
         AcpiOsPrintf ("Invalid return type from _OSI method, %.2X\n", Obj->Type);
-        return (AE_ERROR);
+        goto ErrorExit;
     }
 
     if (Obj->Integer.Value != ExpectedResult)
     {
         AcpiOsPrintf ("Invalid return value from _OSI, expected %.8X found %.8X\n",
             ExpectedResult, (UINT32) Obj->Integer.Value);
-        return (AE_ERROR);
+        goto ErrorExit;
     }
+
+    Status = AE_OK;
 
     /* Reset the OSI data */
 
     AcpiGbl_OsiData = 0;
-    return (AE_OK);
+
+ErrorExit:
+
+    /* Free a buffer created via ACPI_ALLOCATE_BUFFER */
+
+    AcpiOsFree (ReturnValue.Pointer);
+
+    return (Status);
 }
 
 

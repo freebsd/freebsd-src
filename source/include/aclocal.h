@@ -1218,17 +1218,17 @@ typedef struct acpi_external_list
     struct acpi_external_list   *Next;
     UINT32                      Value;
     UINT16                      Length;
+    UINT16                      Flags;
     UINT8                       Type;
-    UINT8                       Flags;
-    BOOLEAN                     Resolved;
-    BOOLEAN                     Emitted;
 
 } ACPI_EXTERNAL_LIST;
 
 /* Values for Flags field above */
 
-#define ACPI_IPATH_ALLOCATED        0x01
-#define ACPI_FROM_REFERENCE_FILE    0x02
+#define ACPI_EXT_RESOLVED_REFERENCE         0x01    /* Object was resolved during cross ref */
+#define ACPI_EXT_ORIGIN_FROM_FILE           0x02    /* External came from a file */
+#define ACPI_EXT_INTERNAL_PATH_ALLOCATED    0x04    /* Deallocate internal path on completion */
+#define ACPI_EXT_EXTERNAL_EMITTED           0x08    /* External() statement has been emitted */
 
 
 typedef struct acpi_external_file

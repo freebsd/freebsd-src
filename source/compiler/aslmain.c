@@ -94,11 +94,21 @@ Usage (
     printf ("%s\n\n", ASL_COMPLIANCE);
     ACPI_USAGE_HEADER ("iasl [Options] [Files]");
 
-    printf ("\nGlobal:\n");
+    printf ("\nGeneral:\n");
     ACPI_OPTION ("-@ <file>",       "Specify command file");
     ACPI_OPTION ("-I <dir>",        "Specify additional include directory");
     ACPI_OPTION ("-T <sig>|ALL|*",  "Create table template file for ACPI <Sig>");
+    ACPI_OPTION ("-p <prefix>",     "Specify path/filename prefix for all output files");
     ACPI_OPTION ("-v",              "Display compiler version");
+    ACPI_OPTION ("-vo",             "Enable optimization comments");
+    ACPI_OPTION ("-vs",             "Disable signon");
+
+    printf ("\nHelp:\n");
+    ACPI_OPTION ("-h",              "This message");
+    ACPI_OPTION ("-hc",             "Display operators allowed in constant expressions");
+    ACPI_OPTION ("-hf",             "Display help for output filename generation");
+    ACPI_OPTION ("-hr",             "Display ACPI reserved method names");
+    ACPI_OPTION ("-ht",             "Display currently supported ACPI table names");
 
     printf ("\nPreprocessor:\n");
     ACPI_OPTION ("-D <symbol>",     "Define symbol for preprocessor use");
@@ -106,13 +116,11 @@ Usage (
     ACPI_OPTION ("-P",              "Preprocess only and create preprocessor output file (*.i)");
     ACPI_OPTION ("-Pn",             "Disable preprocessor");
 
-    printf ("\nGeneral Processing:\n");
-    ACPI_OPTION ("-p <prefix>",     "Specify path/filename prefix for all output files");
-    ACPI_OPTION ("-va",             "Disable all errors and warnings (summary only)");
+    printf ("\nErrors, Warnings, and Remarks:\n");
+    ACPI_OPTION ("-va",             "Disable all errors/warnings/remarks");
+    ACPI_OPTION ("-ve",             "Report only errors (ignore warnings and remarks)");
     ACPI_OPTION ("-vi",             "Less verbose errors and warnings for use with IDEs");
-    ACPI_OPTION ("-vo",             "Enable optimization comments");
     ACPI_OPTION ("-vr",             "Disable remarks");
-    ACPI_OPTION ("-vs",             "Disable signon");
     ACPI_OPTION ("-vw <messageid>", "Disable specific warning or remark");
     ACPI_OPTION ("-w1 -w2 -w3",     "Set warning reporting level");
     ACPI_OPTION ("-we",             "Report warnings as errors");
@@ -153,13 +161,6 @@ Usage (
     ACPI_OPTION ("-g",              "Get ACPI tables and write to files (*.dat)");
     ACPI_OPTION ("-in",             "Ignore NoOp opcodes");
     ACPI_OPTION ("-vt",             "Dump binary table data in hex format within output file");
-
-    printf ("\nHelp:\n");
-    ACPI_OPTION ("-h",              "This message");
-    ACPI_OPTION ("-hc",             "Display operators allowed in constant expressions");
-    ACPI_OPTION ("-hf",             "Display help for output filename generation");
-    ACPI_OPTION ("-hr",             "Display ACPI reserved method names");
-    ACPI_OPTION ("-ht",             "Display currently supported ACPI table names");
 
     printf ("\nDebug Options:\n");
     ACPI_OPTION ("-bf -bt",         "Create debug file (full or parse tree only) (*.txt)");
@@ -353,6 +354,7 @@ main (
         if (Gbl_UseDefaultAmlFilename)
         {
             Gbl_OutputFilenamePrefix = argv[Index2];
+            UtConvertBackslashes (Gbl_OutputFilenamePrefix);
         }
 
         Status = AslDoOneFile (argv[Index2]);

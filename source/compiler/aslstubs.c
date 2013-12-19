@@ -239,7 +239,7 @@ ACPI_THREAD_ID
 AcpiOsGetThreadId (
     void)
 {
-    return (0xFFFF);
+    return (1);
 }
 
 ACPI_STATUS

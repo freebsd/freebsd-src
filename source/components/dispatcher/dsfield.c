@@ -116,7 +116,7 @@ AcpiDsCreateExternalRegion (
      * OperationRegion not found. Generate an External for it, and
      * insert the name into the namespace.
      */
-    AcpiDmAddToExternalList (Op, Path, ACPI_TYPE_REGION, 0);
+    AcpiDmAddOpToExternalList (Op, Path, ACPI_TYPE_REGION, 0, 0);
     Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ACPI_TYPE_REGION,
        ACPI_IMODE_LOAD_PASS1, ACPI_NS_SEARCH_PARENT, WalkState, Node);
     if (ACPI_FAILURE (Status))

@@ -257,14 +257,6 @@ EarlyAcpiOsUnmapMemory (
     void __iomem            *Virt,
     ACPI_SIZE               Size);
 
-void
-AcpiOsGpeCount (
-    UINT32                  GpeNumber);
-
-void
-AcpiOsFixedEventCount (
-    UINT32                  FixedEventNumber);
-
 ACPI_STATUS
 AcpiOsHotplugExecute (
     ACPI_OSD_EXEC_CALLBACK  Function,

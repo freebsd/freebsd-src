@@ -121,6 +121,25 @@ UINT8       ACPI_INIT_GLOBAL (AcpiGbl_EnableAmlDebugObject, FALSE);
 UINT8       ACPI_INIT_GLOBAL (AcpiGbl_CopyDsdtLocally, FALSE);
 
 /*
+ * Optionally ignore an XSDT if present and use the RSDT instead.
+ * Although the ACPI specification requires that an XSDT be used instead
+ * of the RSDT, the XSDT has been found to be corrupt or ill-formed on
+ * some machines. Default behavior is to use the XSDT if present.
+ */
+UINT8       ACPI_INIT_GLOBAL (AcpiGbl_DoNotUseXsdt, FALSE);
+
+
+/*
+ * Optionally use 32-bit FADT addresses if and when there is a conflict
+ * (address mismatch) between the 32-bit and 64-bit versions of the
+ * address. Although ACPICA adheres to the ACPI specification which
+ * requires the use of the corresponding 64-bit address if it is non-zero,
+ * some machines have been found to have a corrupted non-zero 64-bit
+ * address. Default is FALSE, do not favor the 32-bit addresses.
+ */
+UINT8       ACPI_INIT_GLOBAL (AcpiGbl_Use32BitFadtAddresses, FALSE);
+
+/*
  * Optionally truncate I/O addresses to 16 bits. Provides compatibility
  * with other ACPI implementations. NOTE: During ACPICA initialization,
  * this value is set to TRUE if any Windows OSI strings have been
@@ -488,6 +507,19 @@ ACPI_EXTERN UINT32                      AcpiGbl_SizeOfNodeEntries;
 ACPI_EXTERN UINT32                      AcpiGbl_SizeOfAcpiObjects;
 
 #endif /* ACPI_DEBUGGER */
+
+
+/*****************************************************************************
+ *
+ * Application globals
+ *
+ ****************************************************************************/
+
+#ifdef ACPI_APPLICATION
+
+ACPI_FILE   ACPI_INIT_GLOBAL (AcpiGbl_DebugFile, NULL);
+
+#endif /* ACPI_APPLICATION */
 
 
 /*****************************************************************************

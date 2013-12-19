@@ -69,14 +69,14 @@ typedef const struct acpi_dmtable_info
 
 } ACPI_DMTABLE_INFO;
 
+/* Values for Flags field above */
+
 #define DT_LENGTH                       0x01    /* Field is a subtable length */
 #define DT_FLAG                         0x02    /* Field is a flag value */
 #define DT_NON_ZERO                     0x04    /* Field must be non-zero */
-
-/* TBD: Not used at this time */
-
-#define DT_OPTIONAL                     0x08
-#define DT_COUNT                        0x10
+#define DT_OPTIONAL                     0x08    /* Field is optional */
+#define DT_DESCRIBES_OPTIONAL           0x10    /* Field describes an optional field (length, etc.) */
+#define DT_COUNT                        0x20    /* Currently not used */
 
 /*
  * Values for Opcode above.
@@ -147,6 +147,7 @@ typedef enum
     ACPI_DMT_HESTNTYP,
     ACPI_DMT_IVRS,
     ACPI_DMT_MADT,
+    ACPI_DMT_PCCT,
     ACPI_DMT_PMTT,
     ACPI_DMT_SLIC,
     ACPI_DMT_SRAT,
@@ -244,6 +245,7 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbg2Device[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbg2Addr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbg2Size[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbg2Name[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbg2OemData[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDbgp[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDmar[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoDmarHdr[];
@@ -324,6 +326,7 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPmtt1a[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPmtt2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPmttHdr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPcct[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPcctHdr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoPcct0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRsdp1[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRsdp2[];
@@ -668,11 +671,19 @@ AcpiDmClearExternalFileList (
     void);
 
 void
-AcpiDmAddToExternalList (
+AcpiDmAddOpToExternalList (
     ACPI_PARSE_OBJECT       *Op,
     char                    *Path,
     UINT8                   Type,
-    UINT32                  Value);
+    UINT32                  Value,
+    UINT16                  Flags);
+
+void
+AcpiDmAddNodeToExternalList (
+    ACPI_NAMESPACE_NODE     *Node,
+    UINT8                   Type,
+    UINT32                  Value,
+    UINT16                  Flags);
 
 void
 AcpiDmAddExternalsToNamespace (

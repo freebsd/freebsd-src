@@ -340,7 +340,8 @@ DtCompileInteger (
 
     if (Value > MaxValue)
     {
-        sprintf (MsgBuffer, "%8.8X%8.8X", ACPI_FORMAT_UINT64 (Value));
+        sprintf (MsgBuffer, "%8.8X%8.8X - max %u bytes",
+            ACPI_FORMAT_UINT64 (Value), ByteLength);
         DtError (ASL_ERROR, ASL_MSG_INTEGER_SIZE, Field, MsgBuffer);
     }
 
