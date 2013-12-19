@@ -162,6 +162,14 @@ dos_mount(DOS_FS *fs, struct open_file *fd)
         (void)dosunmount(fs);
         return(err);
     }
+    fs->root = dot[0];
+    fs->root.name[0] = ' ';
+    if (fs->fatsz == 32) {
+        fs->root.clus[0] = fs->rdcl & 0xff;
+        fs->root.clus[1] = (fs->rdcl >> 8) & 0xff;
+        fs->root.dex.h_clus[0] = (fs->rdcl >> 16) & 0xff;
+        fs->root.dex.h_clus[1] = (fs->rdcl >> 24) & 0xff;
+    }
     return 0;
 }
 
@@ -494,10 +502,12 @@ namede(DOS_FS *fs, const char *path, DOS_DE **dep)
     int err;
 
     err = 0;
-    de = dot;
-    if (*path == '/')
-        path++;
+    de = &fs->root;
     while (*path) {
+        while (*path == '/')
+            path++;
+        if (*path == '\0')
+            break;
         if (!(s = strchr(path, '/')))
             s = strchr(path, 0);
         if ((n = s - path) > 255)
@@ -509,8 +519,6 @@ namede(DOS_FS *fs, const char *path, DOS_DE **dep)
             return ENOTDIR;
         if ((err = lookup(fs, stclus(fs->fatsz, de), name, &de)))
             return err;
-        if (*path == '/')
-            path++;
     }
     *dep = de;
     return 0;
