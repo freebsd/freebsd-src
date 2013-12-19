@@ -73,9 +73,14 @@ OBJCOPY?=	objcopy
 .endif
 
 .include <bsd.init.mk>
-.include <bsd.compiler.mk>
+.sinclude <bsd.compiler.mk>
+
+# backwards compat option for older systems.
+COMPILER_TYPE?="gcc"
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
+
+MK_CLANG_IS_CC ?= no
 
 # amd64 and mips use direct linking for kmod, all others use shared binaries
 .if ${MACHINE_CPUARCH} != amd64 && ${MACHINE_CPUARCH} != mips
