@@ -215,7 +215,7 @@ cappwdgrp_setup(cap_channel_t **cappwdp, cap_channel_t **capgrpp)
 	capcas = cap_init();
 	if (capcas == NULL) {
 		warn("unable to contact casperd");
-		return (NULL);
+		return (-1);
 	}
 	cappwdloc = cap_service_open(capcas, "system.pwd");
 	capgrploc = cap_service_open(capcas, "system.grp");
@@ -226,40 +226,26 @@ cappwdgrp_setup(cap_channel_t **cappwdp, cap_channel_t **capgrpp)
 			warn("unable to open system.pwd service");
 		if (capgrploc == NULL)
 			warn("unable to open system.grp service");
-		goto fail;
+		exit(1);
 	}
 	/* Limit system.pwd to only getpwuid() function and pw_name field. */
 	cmds[0] = "getpwuid";
-	if (cap_pwd_limit_cmds(cappwdloc, cmds, 1) < 0) {
-		warn("unable to limit access to system.pwd service");
-		goto fail;
-	}
+	if (cap_pwd_limit_cmds(cappwdloc, cmds, 1) < 0)
+		err(1, "unable to limit system.pwd service");
 	fields[0] = "pw_name";
-	if (cap_pwd_limit_fields(cappwdloc, fields, 1) < 0) {
-		warn("unable to limit access to system.pwd service");
-		goto fail;
-	}
+	if (cap_pwd_limit_fields(cappwdloc, fields, 1) < 0)
+		err(1, "unable to limit system.pwd service");
 	/* Limit system.grp to only getgrgid() function and gr_name field. */
 	cmds[0] = "getgrgid";
-	if (cap_grp_limit_cmds(capgrploc, cmds, 1) < 0) {
-		warn("unable to limit access to system.grp service");
-		goto fail;
-	}
+	if (cap_grp_limit_cmds(capgrploc, cmds, 1) < 0)
+		err(1, "unable to limit system.grp service");
 	fields[0] = "gr_name";
-	if (cap_grp_limit_fields(capgrploc, fields, 1) < 0) {
-		warn("unable to limit access to system.grp service");
-		goto fail;
-	}
+	if (cap_grp_limit_fields(capgrploc, fields, 1) < 0)
+		err(1, "unable to limit system.grp service");
 
 	*cappwdp = cappwdloc;
 	*capgrpp = capgrploc;
 	return (0);
-fail:
-	if (capgrploc == NULL)
-		cap_close(cappwdloc);
-	if (capgrploc == NULL)
-		cap_close(capgrploc);
-	return (-1);
 }
 #endif	/* HAVE_LIBCAPSICUM */
 
