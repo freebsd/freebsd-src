@@ -201,7 +201,7 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"cincbase", "+w,+b,m",	    0x48800002, 0xffe0003f, 0, 0, I1},
 {"cmove",    "+w,+b",	    0x48800002, 0xffe007ff, 0, 0, I1},
 {"csetlen",  "+w,+b,m",	    0x48800003, 0xffe0003f, 0, 0, I1},
-{"csetcause", "t",          0x48800004, 0xffe0ffff, 0, 0, I1},
+{"csetcause", "m",          0x48800004, 0xfffff83f, 0, 0, I1},
 {"ccleartag", "+w",	    0x48800005, 0xffe0ffff, 0, 0, I1},
 {"csc",      "+x,d,+o(+w)", 0xf8000000, 0xfc000000, 0, 0, I1},
 {"clc",      "+x,d,+o(+w)", 0xd8000000, 0xfc000000, 0, 0, I1},
