@@ -104,9 +104,6 @@ VECTOR_END(CHERICCallVector)
  * instruction to extract the capabilities to fixed ones targetable in
  * assembly and by the compiler.
  *
- * XXXRW: We'd like a CSetCause so that the general CP2 exception handling
- * code can pick up the pieces cleanly.
- *
  * NB: No attempt to make this pipeline well yet -- branch-delay slots not
  * well-utilised, some CP2 fields accessed multiple times.
  */
@@ -294,11 +291,6 @@ CCall_stack_overflow:
 	csetcause	k0		/* Branch-delay slot. */
 
 CCall_throw_exception:
-	/*
-	 * XXXRW: We would very much like to use CSetCause here to insert the
-	 * right cause for the failure mode detected ... but CHERI doesn't yet
-	 * support that.
-	 */
 	j	_C_LABEL(MipsUserGenException)
 	nop
 
@@ -307,9 +299,6 @@ CCall_throw_exception:
 /*
  * Software implementation of CReturn; this code does not need to be position-
  * independent as it is not relocated to an exception vector.
- *
- * XXXRW: We'd like a CSetCause so that the general CP2 exception handling
- * code can pick up the pieces cleanly.
  *
  * Possible failure modes:
  *
@@ -366,11 +355,6 @@ CHERICReturn:
 	eret
 
 CReturn_stack_underflow:
-	/*
-	 * XXXRW: We would very much like to use CSetCause here to insert the
-	 * right cause for the failure mode detected ... but CHERI doesn't yet
-	 * support that.
-	 */
 	dli	k0, ((CHERI_EXCCODE_RETURN << 8) | 0)
 	csetcause	k0
 	j	_C_LABEL(MipsUserGenException)
