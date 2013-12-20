@@ -35,6 +35,10 @@
 
 	* typeck.c (build_binary_op): Include types in error.
 
+2007-05-18  Geoffrey Keating  <geoffk@apple.com> (r124839)
+
+	* mangle.c (write_real_cst): Use 'unsigned long' for %lx.
+
 2007-05-05  Geoffrey Keating  <geoffk@apple.com> (r124467)
 
 	PR 31775
