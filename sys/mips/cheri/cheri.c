@@ -253,6 +253,7 @@ cheri_log_exception(struct trapframe *frame, int trap_type)
 	register_t cause;
 	u_int ctag;
 	uint8_t exccode, regnum;
+	register_t s;
 
 #ifdef SMP
 	printf("cpuid = %d\n", PCPU_GET(cpuid));
@@ -267,67 +268,67 @@ cheri_log_exception(struct trapframe *frame, int trap_type)
 	cheriframe = &(((struct pcb *)frame)->pcb_cheriframe);
 
 	/* C0 */
-	intr_disable();
+	s = intr_disable();
 	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &cheriframe->cf_c0, 0);
 	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
 	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
-	intr_enable();
+	intr_restore(s);
 	CHERI_REG_PRINT(c, ctag, 0);
 
 	/* C1 */
-	intr_disable();
+	s = intr_disable();
 	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &cheriframe->cf_c1, 0);
 	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
 	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
-	intr_enable();
+	intr_restore(s);
 	CHERI_REG_PRINT(c, ctag, 1);
 
 	/* C2 */
-	intr_disable();
+	s = intr_disable();
 	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &cheriframe->cf_c2, 0);
 	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
 	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
-	intr_enable();
+	intr_restore(s);
 	CHERI_REG_PRINT(c, ctag, 2);
 
 	/* C3 */
-	intr_disable();
+	s = intr_disable();
 	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &cheriframe->cf_c3, 0);
 	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
 	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
-	intr_enable();
+	intr_restore(s);
 	CHERI_REG_PRINT(c, ctag, 3);
 
 	/* C4 */
-	intr_disable();
+	s = intr_disable();
 	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &cheriframe->cf_c4, 0);
 	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
 	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
-	intr_enable();
+	intr_restore(s);
 	CHERI_REG_PRINT(c, ctag, 4);
 
 	/* C24 - RCC */
-	intr_disable();
+	s = intr_disable();
 	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &cheriframe->cf_rcc, 0);
 	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
 	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
-	intr_enable();
+	intr_restore(s);
 	CHERI_REG_PRINT(c, ctag, 24);
 
 	/* C26 - IDC */
-	intr_disable();
+	s = intr_disable();
 	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &cheriframe->cf_idc, 0);
 	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
 	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
-	intr_enable();
+	intr_restore(s);
 	CHERI_REG_PRINT(c, ctag, 26);
 
 	/* C31 - saved PCC */
-	intr_disable();
+	s = intr_disable();
 	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &cheriframe->cf_pcc, 0);
 	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
 	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
-	intr_enable();
+	intr_restore(s);
 	CHERI_REG_PRINT(c, ctag, 31);
 
 #if DDB
@@ -345,6 +346,7 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
     register_t *args)
 {
 	struct chericap c;
+	register_t s;
 
 	/*
 	 * Allow the cycle counter to be read via sysarch.
@@ -366,11 +368,11 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
 	 *
 	 * XXXRW: Possibly ECAPMODE should be EPROT or ESANDBOX?
 	 */
-	intr_disable();
+	s = intr_disable();
 	CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC,
 	    &td->td_pcb->pcb_cheriframe.cf_c0, 0);
 	CHERI_GETCAPREG(CHERI_CR_CTEMP, c);
-	intr_enable();
+	intr_restore(s);
 	if (c.c_perms != CHERI_CAP_USER_PERMS ||
 	    c.c_base != CHERI_CAP_USER_BASE ||
 	    c.c_length != CHERI_CAP_USER_LENGTH) {
