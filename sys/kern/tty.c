@@ -1007,11 +1007,6 @@ tty_alloc_mutex(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 	knlist_init_mtx(&tp->t_inpoll.si_note, tp->t_mtx);
 	knlist_init_mtx(&tp->t_outpoll.si_note, tp->t_mtx);
 
-	sx_xlock(&tty_list_sx);
-	TAILQ_INSERT_TAIL(&tty_list, tp, t_list);
-	tty_list_count++;
-	sx_xunlock(&tty_list_sx);
-
 	return (tp);
 }
 
@@ -1019,11 +1014,6 @@ static void
 tty_dealloc(void *arg)
 {
 	struct tty *tp = arg;
-
-	sx_xlock(&tty_list_sx);
-	TAILQ_REMOVE(&tty_list, tp, t_list);
-	tty_list_count--;
-	sx_xunlock(&tty_list_sx);
 
 	/* Make sure we haven't leaked buffers. */
 	MPASS(ttyinq_getsize(&tp->t_inq) == 0);
@@ -1064,6 +1054,11 @@ tty_rel_free(struct tty *tp)
 	dev = tp->t_dev;
 	tp->t_dev = NULL;
 	tty_unlock(tp);
+
+	sx_xlock(&tty_list_sx);
+	TAILQ_REMOVE(&tty_list, tp, t_list);
+	tty_list_count--;
+	sx_xunlock(&tty_list_sx);
 
 	if (dev != NULL)
 		destroy_dev_sched_cb(dev, tty_dealloc, tp);
@@ -1278,6 +1273,11 @@ tty_makedevf(struct tty *tp, struct ucred *cred, int flags,
 			clock->si_drv2 = &tp->t_termios_lock_out;
 		}
 	}
+
+	sx_xlock(&tty_list_sx);
+	TAILQ_INSERT_TAIL(&tty_list, tp, t_list);
+	tty_list_count++;
+	sx_xunlock(&tty_list_sx);
 
 	return (0);
 
