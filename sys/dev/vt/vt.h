@@ -244,6 +244,7 @@ struct vt_window {
 	int			 vw_kbdmode;	/* (?) Keyboard mode. */
 	char			*vw_kbdsq;	/* Escape sequence queue*/
 	unsigned int		 vw_flags;	/* (d) Per-window flags. */
+	int			 vw_mouse_level;/* Mouse op mode. */
 #define	VWF_BUSY	0x1	/* Busy reconfiguring device. */
 #define	VWF_OPENED	0x2	/* TTY in use. */
 #define	VWF_SCROLL	0x4	/* Keys influence scrollback. */

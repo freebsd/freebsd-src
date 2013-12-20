@@ -633,6 +633,9 @@ vtterm_param(struct terminal *tm, int cmd, unsigned int arg)
 	case TP_SHOWCURSOR:
 		vtbuf_cursor_visibility(&vw->vw_buf, arg);
 		break;
+	case TP_MOUSE:
+		vw->vw_mouse_level = arg;
+		break;
 	}
 }
 
@@ -1206,7 +1209,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 	 * under mouse pointer when nothing changed.
 	 */
 
-	if (mlevel > 0)
+	if (vw->vw_mouse_level > 0)
 		vt_mouse_terminput(vd, type, x, y, event, cnt);
 
 	switch (type) {
