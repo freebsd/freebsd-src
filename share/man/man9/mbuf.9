@@ -74,6 +74,8 @@
 .Ft struct mbuf *
 .Fn m_getm "struct mbuf *orig" "int len" "int how" "int type"
 .Ft struct mbuf *
+.Fn m_getjcl "int how" "short type" "int flags" "int size"
+.Ft struct mbuf *
 .Fn m_getcl "int how" "short type" "int flags"
 .Ft struct mbuf *
 .Fn m_getclr "int how" "int type"
@@ -592,6 +594,12 @@ together, as it avoids having to unlock/relock between allocations.
 Returns
 .Dv NULL
 on failure.
+.It Fn m_getjcl how type flags size
+This is like
+.Fn m_getcl
+but it the size of the cluster allocated will be large enough for
+.Fa size
+bytes.
 .It Fn m_getclr how type
 Allocate an
 .Vt mbuf
