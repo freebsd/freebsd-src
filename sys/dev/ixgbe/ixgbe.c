@@ -3592,8 +3592,10 @@ ixgbe_atr(struct tx_ring *txr, struct mbuf *mp)
 static void
 ixgbe_txeof(struct tx_ring *txr)
 {
+#ifdef DEV_NETMAP
 	struct adapter		*adapter = txr->adapter;
 	struct ifnet		*ifp = adapter->ifp;
+#endif
 	u32			work, processed = 0;
 	u16			limit = txr->process_limit;
 	struct ixgbe_tx_buf	*buf;
