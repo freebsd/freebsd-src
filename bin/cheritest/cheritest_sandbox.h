@@ -38,10 +38,10 @@ void	cheritest_ccall(__capability void *c1, __capability void *c2)
 void	cheritest_ccall(void);
 #endif
 
-extern void	*sandbox_creturn;
-extern void	*sandbox_creturn_end;
+extern void	sandbox_creturn;
+extern void	sandbox_creturn_end;
 
-extern void	*sandbox_nop_creturn;
-extern void	*sandbox_nop_creturn_end;
+extern void	sandbox_nop_creturn;
+extern void	sandbox_nop_creturn_end;
 
 #endif /* !_CHERITEST_SANDBOX_H_ */
