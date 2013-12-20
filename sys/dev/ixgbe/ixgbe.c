@@ -3696,7 +3696,6 @@ ixgbe_txeof(struct tx_ring *txr)
 		}
 		++txr->packets;
 		++processed;
-		++ifp->if_opackets;
 		txr->watchdog_time = ticks;
 
 		/* Try the next packet */
@@ -4553,7 +4552,6 @@ ixgbe_rxeof(struct ix_queue *que)
 			mp->m_next = nbuf->buf;
 		} else { /* Sending this frame */
 			sendmp->m_pkthdr.rcvif = ifp;
-			ifp->if_ipackets++;
 			rxr->rx_packets++;
 			/* capture data for AIM */
 			rxr->bytes += sendmp->m_pkthdr.len;
