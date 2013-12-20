@@ -269,7 +269,7 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 
 #ifdef USE_C_CAPS
 	/*
-	 * Construct a generic capability that desxribes the combined
+	 * Construct a generic capability that describes the combined
 	 * data/code segment that we will seal.
 	 */
 	sbcap = cheri_ptrtype(sb->sb_mem, sandboxlen, SANDBOX_ENTRY);
