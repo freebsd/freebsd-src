@@ -23,6 +23,7 @@ ident		GENERIC
 # This kernel supports ARMv6 and later
 machine		arm armv6
 cpu		CPU_ARM1176
+cpu		CPU_CORTEXA
 
 files		"../broadcom/bcm2835/files.bcm2835"
 files		"../ti/omap4/files.omap4"
@@ -87,12 +88,12 @@ device		pl310			#  PL310 L2 cache controller
 device		scbus		# SCSI bus (required for ATA/SCSI)
 device		da		# Direct Access (disks)
 
-device		kbdmux		# keyboard multiplexer
+#device		kbdmux		# keyboard multiplexer
 
 # syscons is the default console driver, resembling an SCO console
-device		sc
-options 	SC_DFLT_FONT    # compile font in
-makeoptions     SC_DFLT_FONT=cp437
+#device		sc
+#options 	SC_DFLT_FONT    # compile font in
+#makeoptions	SC_DFLT_FONT=cp437
 
 # Serial (COM) ports
 device		uart		# Generic UART driver
@@ -120,13 +121,13 @@ device		bpf		# Berkeley packet filter
 # USB support
 options 	USB_DEBUG	# enable debug msgs
 # One or more of these break RPi
-#device		uhci		# UHCI USB interface
-#device		ohci		# OHCI USB interface
-#device		ehci		# EHCI USB interface (USB 2.0)
+device		uhci		# UHCI USB interface
+device		ohci		# OHCI USB interface
+device		ehci		# EHCI USB interface (USB 2.0)
 #device		xhci		# XHCI USB interface (USB 3.0)
 device		dwcotg		# DWC OTG controller
 device		usb		# USB Bus (required)
-device		ukbd		# Keyboard
+#device		ukbd		# Keyboard
 device		umass		# Disks/Mass storage - Requires scbus and da
 
 # MMC/SD/SDIO Card slot support
