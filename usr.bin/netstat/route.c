@@ -139,7 +139,6 @@ int	do_rtent = 0;
 struct	rtentry rtentry;
 struct	radix_node rnode;
 struct	radix_mask rmask;
-struct	radix_node_head **rt_tables;
 
 int	NewTree = 1;
 
@@ -149,16 +148,17 @@ static struct sockaddr *kgetsa(struct sockaddr *);
 static void size_cols(int ef, struct radix_node *rn);
 static void size_cols_tree(struct radix_node *rn);
 static void size_cols_rtentry(struct rtentry *rt);
-static void p_tree(struct radix_node *);
-static void p_rtnode(void);
-static void ntreestuff(int fibnum, int af);
-static void np_rtentry(struct rt_msghdr *);
+static void p_rtnode_kvm(void);
+static void p_rtable_sysctl(int, int);
+static void p_rtable_kvm(int, int );
+static void p_rtree_kvm(struct radix_node *);
+static void p_rtentry_sysctl(struct rt_msghdr *);
 static void p_sockaddr(struct sockaddr *, struct sockaddr *, int, int);
 static const char *fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask,
     int flags);
 static void p_flags(int, const char *);
 static const char *fmt_flags(int f);
-static void p_rtentry(struct rtentry *);
+static void p_rtentry_kvm(struct rtentry *);
 static void domask(char *, in_addr_t, u_long);
 
 /*
@@ -167,10 +167,8 @@ static void domask(char *, in_addr_t, u_long);
 void
 routepr(int fibnum, int af)
 {
-	struct radix_node_head **rnhp, *rnh, head;
-	u_long rtree;
 	size_t intsize;
-	int fam, numfibs;
+	int numfibs;
 
 	intsize = sizeof(int);
 	if (fibnum == -1 &&
@@ -194,59 +192,11 @@ routepr(int fibnum, int af)
 	printf("\n");
 
 	if (Aflag == 0 && live != 0 && NewTree)
-		ntreestuff(fibnum, af);
-	else {
-		kresolve_list(rl);
-		if ((rtree = rl[N_RTREE].n_value) == 0) {
-			printf("rt_tables: symbol not in namelist\n");
-			return;
-		}
-
-		rt_tables = calloc(numfibs * (AF_MAX + 1),
-		    sizeof(struct radix_node_head *));
-		if (rt_tables == NULL)
-			err(EX_OSERR, "memory allocation failed");
-
-		if (kread((u_long)(rtree), (char *)(rt_tables), (numfibs *
-		    (AF_MAX+1) * sizeof(struct radix_node_head *))) != 0)
-			return;
-		for (fam = 0; fam <= AF_MAX; fam++) {
-			int tmpfib;
-
-			switch (fam) {
-			case AF_INET6:
-			case AF_INET:
-				tmpfib = fibnum;
-				break;
-			default:
-				tmpfib = 0;
-			}
-			rnhp = (struct radix_node_head **)*rt_tables;
-			/* Calculate the in-kernel address. */
-			rnhp += tmpfib * (AF_MAX+1) + fam;
-			/* Read the in kernel rhn pointer. */
-			if (kget(rnhp, rnh) != 0)
-				continue;
-			if (rnh == NULL)
-				continue;
-			/* Read the rnh data. */
-			if (kget(rnh, head) != 0)
-				continue;
-			if (fam == AF_UNSPEC) {
-				if (Aflag && af == 0) {
-					printf("Netmasks:\n");
-					p_tree(head.rnh_treetop);
-				}
-			} else if (af == AF_UNSPEC || af == fam) {
-				size_cols(fam, head.rnh_treetop);
-				pr_family(fam);
-				do_rtent = 1;
-				pr_rthdr(fam);
-				p_tree(head.rnh_treetop);
-			}
-		}
-	}
+		p_rtable_sysctl(fibnum, af);
+	else
+		p_rtable_kvm(fibnum, af);
 }
+
 
 /*
  * Print address family header before a section of the routing table.
@@ -451,8 +401,75 @@ kgetsa(struct sockaddr *dst)
 	return (&pt_u.u_sa);
 }
 
+/*
+ * Print kernel routing tables for given fib
+ * using debugging kvm(3) interface.
+ */
 static void
-p_tree(struct radix_node *rn)
+p_rtable_kvm(int fibnum, int af)
+{
+	struct radix_node_head **rnhp, *rnh, head;
+	struct radix_node_head **rt_tables;
+	u_long rtree;
+	int fam, af_size;
+
+	kresolve_list(rl);
+	if ((rtree = rl[N_RTREE].n_value) == 0) {
+		printf("rt_tables: symbol not in namelist\n");
+		return;
+	}
+
+	af_size = (AF_MAX + 1) * sizeof(struct radix_node_head *);
+	rt_tables = calloc(1, af_size);
+	if (rt_tables == NULL)
+		err(EX_OSERR, "memory allocation failed");
+
+	if (kread((u_long)(rtree), (char *)(rt_tables) + fibnum * af_size,
+	    af_size) != 0)
+		return;
+	for (fam = 0; fam <= AF_MAX; fam++) {
+		int tmpfib;
+
+		switch (fam) {
+		case AF_INET6:
+		case AF_INET:
+			tmpfib = fibnum;
+			break;
+		default:
+			tmpfib = 0;
+		}
+		rnhp = (struct radix_node_head **)*rt_tables;
+		/* Calculate the in-kernel address. */
+		rnhp += tmpfib * (AF_MAX + 1) + fam;
+		/* Read the in kernel rhn pointer. */
+		if (kget(rnhp, rnh) != 0)
+			continue;
+		if (rnh == NULL)
+			continue;
+		/* Read the rnh data. */
+		if (kget(rnh, head) != 0)
+			continue;
+		if (fam == AF_UNSPEC) {
+			if (Aflag && af == 0) {
+				printf("Netmasks:\n");
+				p_rtree_kvm(head.rnh_treetop);
+			}
+		} else if (af == AF_UNSPEC || af == fam) {
+			size_cols(fam, head.rnh_treetop);
+			pr_family(fam);
+			do_rtent = 1;
+			pr_rthdr(fam);
+			p_rtree_kvm(head.rnh_treetop);
+		}
+	}
+}
+
+/*
+ * Print given kernel radix tree using
+ * debugging kvm(3) interface.
+ */
+static void
+p_rtree_kvm(struct radix_node *rn)
 {
 
 again:
@@ -469,9 +486,9 @@ again:
 				    rnode.rn_dupedkey ? " =>\n" : "\n");
 		} else if (do_rtent) {
 			if (kget(rn, rtentry) == 0) {
-				p_rtentry(&rtentry);
+				p_rtentry_kvm(&rtentry);
 				if (Aflag)
-					p_rtnode();
+					p_rtnode_kvm();
 			}
 		} else {
 			p_sockaddr(kgetsa((struct sockaddr *)rnode.rn_key),
@@ -483,18 +500,18 @@ again:
 	} else {
 		if (Aflag && do_rtent) {
 			printf("%-8.8lx ", (u_long)rn);
-			p_rtnode();
+			p_rtnode_kvm();
 		}
 		rn = rnode.rn_right;
-		p_tree(rnode.rn_left);
-		p_tree(rn);
+		p_rtree_kvm(rnode.rn_left);
+		p_rtree_kvm(rn);
 	}
 }
 
 char	nbuf[20];
 
 static void
-p_rtnode(void)
+p_rtnode_kvm(void)
 {
 	struct radix_mask *rm = rnode.rn_mklist;
 
@@ -534,7 +551,7 @@ p_rtnode(void)
 }
 
 static void
-ntreestuff(int fibnum, int af)
+p_rtable_sysctl(int fibnum, int af)
 {
 	size_t needed;
 	int mib[7];
@@ -611,12 +628,12 @@ ntreestuff(int fibnum, int af)
 			pr_family(fam);
 			pr_rthdr(fam);
 		}
-		np_rtentry(rtm);
+		p_rtentry_sysctl(rtm);
 	}
 }
 
 static void
-np_rtentry(struct rt_msghdr *rtm)
+p_rtentry_sysctl(struct rt_msghdr *rtm)
 {
 	struct sockaddr *sa = (struct sockaddr *)(rtm + 1);
 	char buffer[128];
@@ -833,7 +850,7 @@ fmt_flags(int f)
 }
 
 static void
-p_rtentry(struct rtentry *rt)
+p_rtentry_kvm(struct rtentry *rt)
 {
 	static struct ifnet ifnet, *lastif;
 	static char buffer[128];
