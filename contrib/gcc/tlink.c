@@ -381,7 +381,7 @@ read_repo_file (file *f)
   FILE *stream = fopen (f->key, "r");
 
   if (tlink_verbose >= 2)
-    fprintf (stderr, _("collect: reading %s\n"), f->key);
+    fprintf (stderr, "%s", _("collect: reading %s\n"), f->key);
 
   while (fscanf (stream, "%c ", &c) == 1)
     {
