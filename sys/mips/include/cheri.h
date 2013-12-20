@@ -425,6 +425,8 @@ struct pcb;
 void	cheri_context_copy(struct pcb *dst, struct pcb *src);
 void	cheri_stack_copy(struct pcb *dst, struct pcb *src);
 void	cheri_stack_init(struct pcb *pcb);
+int	cheri_stack_sandboxexception(struct thread *td, struct trapframe *tf,
+	    int signum);
 #endif
 
 #endif /* _MIPS_INCLUDE_CHERI_H_ */

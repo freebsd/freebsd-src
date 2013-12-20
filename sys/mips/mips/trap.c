@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <net/netisr.h>
 
 #include <machine/trap.h>
+#include <machine/cheri.h>
 #include <machine/cpu.h>
 #include <machine/pte.h>
 #include <machine/pmap.h>
@@ -1186,7 +1187,24 @@ err:
 	ksi.ksi_code = ucode;
 	ksi.ksi_addr = (void *)addr;
 	ksi.ksi_trapno = type;
-	trapsignal(td, &ksi);
+#ifdef CPU_CHERI
+	/*
+	 * CHERI sandboxing may update register state and eat the signal, in
+	 * which case we fall out with a revised register file.
+	 *
+	 * NB: The definition of 'in a sandbox' used here is that the trusted
+	 * stack has a non-zero number of return frames.
+	 *
+	 * XXXRW: In the future, we'd like to instead remap the signal to
+	 * SIGSANDBOX delivered a userspace exception-handling capability
+	 * context.  Quite a bit of care will be required -- and some new
+	 * machinery to allow suitable contexts to be registered, rewrite the
+	 * trusted stack from userspace, etc.
+	 */
+	if (!cheri_stack_sandboxexception(td, trapframe, ksi.ksi_signo))
+
+#endif
+		trapsignal(td, &ksi);
 out:
 
 	/*
