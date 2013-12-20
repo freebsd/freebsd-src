@@ -868,7 +868,7 @@ build_fake_preload_metadata(struct arm_boot_params *abp __unused,
 	} else
 #endif
 		lastaddr = (vm_offset_t)&end;
-	if (preload_end)
+	if (preload_end != NULL)
 		*preload_end = &fake_preload[i];
 	fake_preload[i++] = 0;
 	fake_preload[i] = 0;
@@ -934,7 +934,7 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 #undef BOOT_PARAM_ADDR
 
 	walker = data;
-	if (ATAG_TAG(walker) != ATAG_CORE) {
+	if (ATAG_TAG(walker) == ATAG_CORE) {
 		/* TODO: Test this */
 #if 0
 		atag_list = walker;
@@ -988,7 +988,7 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 		/* Move the fdt data to lastaddr */
 		fdt_move(data, (void *)lastaddr, fdt_len);
 
-		preload_end[0] = MODINFOMD_DTBP;
+		preload_end[0] = MODINFO_METADATA | MODINFOMD_DTBP;
 		preload_end[1] = sizeof(vm_offset_t);
 		preload_end[2] = lastaddr;
 		preload_end[3] = 0;
