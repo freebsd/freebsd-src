@@ -221,6 +221,9 @@ virt_done:
 	str	ip, [r0, #12]		/* store r2 from boot loader */
 	str	fp, [r0, #16]		/* store r3 from boot loader */
 	str	r5, [r0, #20]		/* store the physical address */
+	adr	r4, Lpagetable		/* load the pagetable address */
+	ldr	r5, [r4, #4]
+	str	r5, [r0, #24]		/* store the pagetable address */
 	mov	fp, #0			/* trace back starts here */
 	bl	_C_LABEL(initarm)	/* Off we go */
 

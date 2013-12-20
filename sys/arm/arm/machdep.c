@@ -106,6 +106,7 @@ __FBSDID("$FreeBSD$");
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
+#include <contrib/libfdt/libfdt.h>
 #endif
 
 #define DEBUG
@@ -167,9 +168,8 @@ static struct pv_addr kernelstack;
 #define LBABI_MAX_BANKS	10
 
 uint32_t board_id;
-struct arm_lbabi_tag *atag_list;
 char linux_command_line[LBABI_MAX_COMMAND_LINE + 1];
-char atags[LBABI_MAX_COMMAND_LINE * 2];
+//char atags[LBABI_MAX_COMMAND_LINE * 2];
 uint32_t memstart[LBABI_MAX_BANKS];
 uint32_t memsize[LBABI_MAX_BANKS];
 uint32_t membanks;
@@ -823,14 +823,19 @@ arm_dump_avail_init(vm_offset_t ramsize, size_t max)
 /*
  * Fake up a boot descriptor table
  */
-vm_offset_t
-fake_preload_metadata(struct arm_boot_params *abp __unused)
+static vm_offset_t
+build_fake_preload_metadata(struct arm_boot_params *abp __unused,
+    uint32_t **preload_end)
 {
 #ifdef DDB
 	vm_offset_t zstart = 0, zend = 0;
 #endif
 	vm_offset_t lastaddr;
 	int i = 0;
+	/*
+	 * fake_preload needs space for 3 items over what we use here
+	 * for the Linux ABI.
+	 */
 	static uint32_t fake_preload[35];
 
 	fake_preload[i++] = MODINFO_NAME;
@@ -870,6 +875,12 @@ fake_preload_metadata(struct arm_boot_params *abp __unused)
 	return (lastaddr);
 }
 
+vm_offset_t
+fake_preload_metadata(struct arm_boot_params *abp)
+{
+	return build_fake_preload_metadata(abp, NULL);
+}
+
 void
 pcpu0_init(void)
 {
@@ -887,9 +898,14 @@ pcpu0_init(void)
 vm_offset_t
 linux_parse_boot_param(struct arm_boot_params *abp)
 {
+	//struct arm_lbabi_tag *atag_list;
+	vm_offset_t lastaddr, mapbase;
 	struct arm_lbabi_tag *walker;
-	uint32_t revision;
-	uint64_t serial;
+	//uint32_t revision;
+	//uint64_t serial;
+	uint32_t *preload_end;
+	int fdt_len;
+	void *data;
 
 	/*
 	 * Linux boot ABI: r0 = 0, r1 is the board type (!= 0) and r2
@@ -900,52 +916,90 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 		return 0;
 
 	board_id = abp->abp_r1;
-	walker = (struct arm_lbabi_tag *)
-	    (abp->abp_r2 + KERNVIRTADDR - abp->apb_physaddr);
 
-	/* xxx - Need to also look for binary device tree */
-	if (ATAG_TAG(walker) != ATAG_CORE)
-		return 0;
+	/*
+	 * Map the data at abp->abp_r2 into the kernel at 0xe0000000,
+	 * we will move it to a better location later.
+	 */
+#define	BOOT_PARAM_ADDR 0xe0000000U
+	mapbase = abp->abp_r2 & L1_S_FRAME;
+	pmap_map_chunk(abp->abp_pagetable, BOOT_PARAM_ADDR,
+	    mapbase, L1_S_SIZE,
+	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
-	atag_list = walker;
-	while (ATAG_TAG(walker) != ATAG_NONE) {
-		switch (ATAG_TAG(walker)) {
-		case ATAG_CORE:
-			break;
-		case ATAG_MEM:
-			if (membanks < LBABI_MAX_BANKS) {
-				memstart[membanks] = walker->u.tag_mem.start;
-				memsize[membanks] = walker->u.tag_mem.size;
+	data = (struct arm_lbabi_tag *)
+	    (abp->abp_r2 + BOOT_PARAM_ADDR - mapbase);
+#undef BOOT_PARAM_ADDR
+
+	walker = data;
+	if (ATAG_TAG(walker) != ATAG_CORE) {
+		/* TODO: Test this */
+#if 0
+		atag_list = walker;
+		while (ATAG_TAG(walker) != ATAG_NONE) {
+			switch (ATAG_TAG(walker)) {
+			case ATAG_CORE:
+				break;
+			case ATAG_MEM:
+				if (membanks < LBABI_MAX_BANKS) {
+					memstart[membanks] = walker->u.tag_mem.start;
+					memsize[membanks] = walker->u.tag_mem.size;
+				}
+				membanks++;
+				break;
+			case ATAG_INITRD2:
+				break;
+			case ATAG_SERIAL:
+				serial = walker->u.tag_sn.low |
+				    ((uint64_t)walker->u.tag_sn.high << 32);
+				board_set_serial(serial);
+				break;
+			case ATAG_REVISION:
+				revision = walker->u.tag_rev.rev;
+				board_set_revision(revision);
+				break;
+			case ATAG_CMDLINE:
+				/* XXX open question: Parse this for boothowto? */
+				bcopy(walker->u.tag_cmd.command, linux_command_line,
+				      ATAG_SIZE(walker));
+				break;
+			default:
+				break;
 			}
-			membanks++;
-			break;
-		case ATAG_INITRD2:
-			break;
-		case ATAG_SERIAL:
-			serial = walker->u.tag_sn.low |
-			    ((uint64_t)walker->u.tag_sn.high << 32);
-			board_set_serial(serial);
-			break;
-		case ATAG_REVISION:
-			revision = walker->u.tag_rev.rev;
-			board_set_revision(revision);
-			break;
-		case ATAG_CMDLINE:
-			/* XXX open question: Parse this for boothowto? */
-			bcopy(walker->u.tag_cmd.command, linux_command_line,
-			      ATAG_SIZE(walker));
-			break;
-		default:
-			break;
+			walker = ATAG_NEXT(walker);
 		}
-		walker = ATAG_NEXT(walker);
+
+		/* Save a copy for later */
+		bcopy(atag_list, atags,
+		    (char *)walker - (char *)atag_list + ATAG_SIZE(walker));
+#endif
+		return fake_preload_metadata(abp);
 	}
+#ifdef FDT
+	else if (fdt_check_header(data) == 0) {
+		/* We have a DTB */
 
-	/* Save a copy for later */
-	bcopy(atag_list, atags,
-	    (char *)walker - (char *)atag_list + ATAG_SIZE(walker));
+		/* Find how much data to copy, and where to copy it to */
+		fdt_len = fdt_totalsize(data);
+		lastaddr = build_fake_preload_metadata(abp, &preload_end);
 
-	return fake_preload_metadata(abp);
+		/* Move the fdt data to lastaddr */
+		fdt_move(data, (void *)lastaddr, fdt_len);
+
+		preload_end[0] = MODINFOMD_DTBP;
+		preload_end[1] = sizeof(vm_offset_t);
+		preload_end[2] = lastaddr;
+		preload_end[3] = 0;
+		preload_end[4] = 0;
+
+		/* Move lastaddr to skop the dtb */
+		lastaddr += fdt_len;
+
+		return roundup2(lastaddr, PAGE_SIZE);
+	}
+#endif
+
+	return 0;
 }
 #endif
 
@@ -979,7 +1033,7 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
 #endif
-	preload_addr_relocate = KERNVIRTADDR - abp->apb_physaddr;
+	preload_addr_relocate = KERNVIRTADDR - abp->abp_physaddr;
 	return lastaddr;
 }
 #endif
@@ -989,11 +1043,9 @@ default_parse_boot_param(struct arm_boot_params *abp)
 {
 	vm_offset_t lastaddr;
 
-#if 0
 #if defined(LINUX_BOOT_ABI)
 	if ((lastaddr = linux_parse_boot_param(abp)) != 0)
 		return lastaddr;
-#endif
 #endif
 #if defined(FREEBSD_BOOT_LOADER)
 	if ((lastaddr = freebsd_parse_boot_param(abp)) != 0)
@@ -1211,9 +1263,14 @@ initarm(struct arm_boot_params *abp)
 	vm_offset_t rstart, rend;
 	int curr;
 
+	/*
+	 * This needs to be before parse_boot_param as we may map memory in.
+	 * The pmap layer may use the CPUs cache functions which are defined
+	 * when set_cpufuncs has been called.
+	 */
+	set_cpufuncs();
 	lastaddr = parse_boot_param(abp);
 	memsize = 0;
-	set_cpufuncs();
 
 	/*
 	 * Find the dtb passed in by the boot loader.
@@ -1343,7 +1400,7 @@ initarm(struct arm_boot_params *abp)
 	/* Define a macro to simplify memory allocation */
 #define valloc_pages(var, np)						\
 	alloc_pages((var).pv_va, (np));					\
-	(var).pv_pa = (var).pv_va + (abp->apb_physaddr - KERNVIRTADDR);
+	(var).pv_pa = (var).pv_va + (abp->abp_physaddr - KERNVIRTADDR);
 
 #define alloc_pages(var, np)						\
 	(var) = freemempos;						\
@@ -1364,7 +1421,7 @@ initarm(struct arm_boot_params *abp)
 			    L2_TABLE_SIZE_REAL * (i - j);
 			kernel_pt_table[i].pv_pa =
 			    kernel_pt_table[i].pv_va - KERNVIRTADDR +
-			    abp->apb_physaddr;
+			    abp->abp_physaddr;
 
 		}
 	}
@@ -1409,7 +1466,7 @@ initarm(struct arm_boot_params *abp)
 	pmap_curmaxkvaddr = l2_start + (l2size - 1) * L1_S_SIZE;
 
 	/* Map kernel code and data */
-	pmap_map_chunk(l1pagetable, KERNVIRTADDR, abp->apb_physaddr,
+	pmap_map_chunk(l1pagetable, KERNVIRTADDR, abp->abp_physaddr,
 	   (((uint32_t)(lastaddr) - KERNVIRTADDR) + PAGE_MASK) & ~PAGE_MASK,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
@@ -1526,7 +1583,7 @@ initarm(struct arm_boot_params *abp)
 	/*
 	 * Prepare map of physical memory regions available to vm subsystem.
 	 */
-	physmap_init(availmem_regions, availmem_regions_sz, abp->apb_physaddr);
+	physmap_init(availmem_regions, availmem_regions_sz, abp->abp_physaddr);
 
 	init_param2(physmem);
 	kdb_init();
