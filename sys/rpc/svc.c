@@ -293,7 +293,7 @@ xprt_unregister_locked(SVCXPRT *xprt)
 {
 	SVCPOOL *pool = xprt->xp_pool;
 
-	mtx_assert(&xprt->xp_mlock, MA_OWNED);
+	mtx_assert(&pool->sp_lock, MA_OWNED);
 	KASSERT(xprt->xp_registered == TRUE,
 	    ("xprt_unregister_locked: not registered"));
 	xprt_inactive_locked(xprt);
@@ -327,7 +327,7 @@ xprt_assignthread(SVCXPRT *xprt)
 	SVCPOOL *pool = xprt->xp_pool;
 	SVCTHREAD *st;
 
-	mtx_assert(&xprt->xp_mlock, MA_OWNED);
+	mtx_assert(&pool->sp_lock, MA_OWNED);
 	st = LIST_FIRST(&pool->sp_idlethreads);
 	if (st) {
 		LIST_REMOVE(st, st_ilink);
@@ -387,7 +387,7 @@ xprt_inactive_locked(SVCXPRT *xprt)
 {
 	SVCPOOL *pool = xprt->xp_pool;
 
-	mtx_assert(&xprt->xp_mlock, MA_OWNED);
+	mtx_assert(&pool->sp_lock, MA_OWNED);
 	if (xprt->xp_active) {
 		if (xprt->xp_thread == NULL)
 			TAILQ_REMOVE(&pool->sp_active, xprt, xp_alink);
