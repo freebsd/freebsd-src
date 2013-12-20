@@ -150,6 +150,14 @@
 	regs_invalidated_by_call, rather than just checking the
 	membership of REGNO (REG).
 
+2007-05-18  Geoffrey Keating  <geoffk@apple.com> (r124839)
+ 
+	* dwarf2out.c (print_die): Use '%ld' not '%lu' to print a 'long'.
+	(output_die): Use 'unsigned long' with %x.
+	* sched-vis.c (print_value): Use 'unsigned HOST_WIDE_INT' and
+	HOST_WIDE_INT_PRINT_HEX to print HOST_WIDE_INT.
+	* tree-dump.c (dump_pointer): Use 'unsigned long' for %lx.
+
 2007-05-16  Eric Christopher  <echristo@apple.com> (r124763)
 
        * config/rs6000/rs6000.c (rs6000_emit_prologue): Move altivec register
@@ -469,6 +477,14 @@
 
 	* c-common.c (vector_types_convertible_p): Treat opaque types as
 	always convertible if they have the same size, but not otherwise.
+
+2007-01-08  Geoffrey Keating  <geoffk@apple.com> (r120611)
+ 
+	* target.h (struct gcc_target): New field library_rtti_comdat.
+	* target-def.h (TARGET_CXX_LIBRARY_RTTI_COMDAT): New.
+	(TARGET_CXX): Add TARGET_CXX_LIBRARY_RTTI_COMDAT.
+	* doc/tm.texi (C++ ABI): Document TARGET_CXX_LIBRARY_RTTI_COMDAT.
+	* config/darwin.h (TARGET_CXX_LIBRARY_RTTI_COMDAT): Define.
 
 2007-01-08  Mark Shinwell  <shinwell@codesourcery.com> (r120572)
 
