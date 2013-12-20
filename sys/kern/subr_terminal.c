@@ -128,7 +128,7 @@ static const teken_attr_t default_message = {
 };
 
 #define	TCHAR_CREATE(c, a)	((c) | \
-	(a)->ta_format << 22 | \
+	(a)->ta_format << 21 | \
 	teken_256to8((a)->ta_fgcolor) << 26 | \
 	teken_256to8((a)->ta_bgcolor) << 29)
 
