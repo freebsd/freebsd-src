@@ -868,6 +868,8 @@ build_fake_preload_metadata(struct arm_boot_params *abp __unused,
 	} else
 #endif
 		lastaddr = (vm_offset_t)&end;
+	if (preload_end)
+		*preload_end = &fake_preload[i];
 	fake_preload[i++] = 0;
 	fake_preload[i] = 0;
 	preload_metadata = (void *)fake_preload;
