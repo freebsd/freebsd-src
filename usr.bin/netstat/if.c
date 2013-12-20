@@ -223,7 +223,7 @@ next_ifma(struct ifmaddrs *ifma, const char *name, const sa_family_t family)
  * Print a description of the network interfaces.
  */
 void
-intpr(int interval, void (*pfunc)(char *))
+intpr(int interval, void (*pfunc)(char *), int af)
 {
 	struct ifaddrs *ifap, *ifa;
 	struct ifmaddrs *ifmap, *ifma;

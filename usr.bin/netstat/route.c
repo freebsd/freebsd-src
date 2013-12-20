@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <ifaddrs.h>
 #include <libutil.h>
 #include <netdb.h>
+#include <nlist.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -104,6 +105,19 @@ struct bits {
 	{ RTF_CLONING,	'C' },
 #endif
 	{ 0 , 0 }
+};
+
+/*
+ * kvm(3) bindings for every needed symbol
+ */
+static struct nlist rl[] = {
+#define	N_RTSTAT	0
+	{ .n_name = "_rtstat" },
+#define	N_RTREE		1
+	{ .n_name = "_rt_tables"},
+#define	N_RTTRASH	2
+	{ .n_name = "_rttrash" },
+	{ .n_name = NULL },
 };
 
 typedef union {
@@ -151,9 +165,10 @@ static void domask(char *, in_addr_t, u_long);
  * Print routing tables.
  */
 void
-routepr(u_long rtree, int fibnum)
+routepr(int fibnum, int af)
 {
 	struct radix_node_head **rnhp, *rnh, head;
+	u_long rtree;
 	size_t intsize;
 	int fam, numfibs;
 
@@ -165,10 +180,6 @@ routepr(u_long rtree, int fibnum)
 		numfibs = 1;
 	if (fibnum < 0 || fibnum > numfibs - 1)
 		errx(EX_USAGE, "%d: invalid fib", fibnum);
-	rt_tables = calloc(numfibs * (AF_MAX+1),
-	    sizeof(struct radix_node_head *));
-	if (rt_tables == NULL)
-		err(EX_OSERR, "memory allocation failed");
 	/*
 	 * Since kernel & userland use different timebase
 	 * (time_uptime vs time_second) and we are reading kernel memory
@@ -182,13 +193,19 @@ routepr(u_long rtree, int fibnum)
 		printf(" (fib: %d)", fibnum);
 	printf("\n");
 
-	if (Aflag == 0 && Mflag == 0 && NewTree)
+	if (Aflag == 0 && live != 0 && NewTree)
 		ntreestuff(fibnum, af);
 	else {
-		if (rtree == 0) {
+		kresolve_list(rl);
+		if ((rtree = rl[N_RTREE].n_value) == 0) {
 			printf("rt_tables: symbol not in namelist\n");
 			return;
 		}
+
+		rt_tables = calloc(numfibs * (AF_MAX + 1),
+		    sizeof(struct radix_node_head *));
+		if (rt_tables == NULL)
+			err(EX_OSERR, "memory allocation failed");
 
 		if (kread((u_long)(rtree), (char *)(rt_tables), (numfibs *
 		    (AF_MAX+1) * sizeof(struct radix_node_head *))) != 0)
@@ -572,14 +589,14 @@ ntreestuff(int fibnum, int af)
 	mib[5] = 0;
 	mib[6] = fibnum;
 	if (sysctl(mib, 7, NULL, &needed, NULL, 0) < 0) {
-		err(1, "sysctl: net.route.0.0.dump estimate");
+		err(1, "sysctl: net.route.0.%d.dump.%d estimate", af, fibnum);
 	}
 
 	if ((buf = malloc(needed)) == 0) {
 		errx(2, "malloc(%lu)", (unsigned long)needed);
 	}
 	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
-		err(1, "sysctl: net.route.0.0.dump");
+		err(1, "sysctl: net.route.0.%d.dump.%d", af, fibnum);
 	}
 	lim  = buf + needed;
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
@@ -1071,16 +1088,19 @@ routename6(struct sockaddr_in6 *sa6)
  * Print routing statistics
  */
 void
-rt_stats(u_long rtsaddr, u_long rttaddr)
+rt_stats(void)
 {
 	struct rtstat rtstat;
+	u_long rtsaddr, rttaddr;
 	int rttrash;
 
-	if (rtsaddr == 0) {
+	kresolve_list(rl);
+
+	if ((rtsaddr = rl[N_RTSTAT].n_value) == 0) {
 		printf("rtstat: symbol not in namelist\n");
 		return;
 	}
-	if (rttaddr == 0) {
+	if ((rttaddr = rl[N_RTTRASH].n_value) == 0) {
 		printf("rttrash: symbol not in namelist\n");
 		return;
 	}
