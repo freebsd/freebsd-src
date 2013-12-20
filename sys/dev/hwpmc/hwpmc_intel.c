@@ -173,6 +173,7 @@ pmc_intel_initialize(void)
 			nclasses = 3;
 			break;
 		case 0x3C:	/* Per Intel document 325462-045US 01/2013. */
+		case 0x45:
 			cputype = PMC_CPU_INTEL_HASWELL;
 			nclasses = 5;
 			break;
