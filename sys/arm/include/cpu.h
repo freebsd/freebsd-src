@@ -35,6 +35,11 @@ get_cyclecount(void)
 
 extern vm_offset_t vector_page;
 
+/*
+ * Params passed into initarm. If you change the size of this you will
+ * need to update locore.S to allocate more memory on the stack before
+ * it calls initarm.
+ */
 struct arm_boot_params {
 	register_t	abp_size;	/* Size of this structure */
 	register_t	abp_r0;		/* r0 from the boot loader */
