@@ -3124,6 +3124,21 @@ OLD_FILES+=usr/share/man/man8/ntptime.8.gz
 # to be filled in
 #.endif
 
+.if ${MK_SYSINSTALL} == no
+OLD_FILES+=usr/sbin/sysinstall
+OLD_FILES+=usr/share/man/man8/sysinstall.8.gz
+OLD_FILES+=usr/lib/libftpio.a
+OLD_FILES+=usr/lib/libftpio.so
+OLD_LIBS+=usr/lib/libftpio.so.8
+OLD_FILES+=usr/lib/libftpio_p.a
+OLD_FILES+=usr/lib32/libftpio.a
+OLD_FILES+=usr/lib32/libftpio.so
+OLD_LIBS+=usr/lib32/libftpio.so.8
+OLD_FILES+=usr/lib32/libftpio_p.a
+OLD_FILES+=usr/include/ftpio.h
+OLD_FILES+=usr/share/man/man3/ftpio.3.gz
+.endif
+
 .if ${MK_PC_SYSINSTALL} == no
 # backend-partmanager
 OLD_FILES+=usr/share/pc-sysinstall/backend-partmanager/create-part.sh
