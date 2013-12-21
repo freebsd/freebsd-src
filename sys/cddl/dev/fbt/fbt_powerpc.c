@@ -219,7 +219,7 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 		return (0);
 
 	instr = (u_int32_t *) symval->value;
-	limit = (u_int32_t *) (symval->value + symval->size / sizeof(u_int32_t));
+	limit = (u_int32_t *) (symval->value + symval->size);
 
 	for (; instr < limit; instr++)
 		if (*instr == FBT_MFLR_R0)
