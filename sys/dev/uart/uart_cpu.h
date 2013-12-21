@@ -43,6 +43,8 @@ struct uart_ops {
 	void (*putc)(struct uart_bas *, int);
 	int (*rxready)(struct uart_bas *);
 	int (*getc)(struct uart_bas *, struct mtx *);
+	void (*grab)(struct uart_bas *);
+	void (*ungrab)(struct uart_bas *);
 };
 
 extern bus_space_tag_t uart_bus_space_io;
@@ -134,6 +136,27 @@ uart_putc(struct uart_devinfo *di, int c)
 	di->ops->putc(&di->bas, c);
 	uart_unlock(di->hwmtx);
 }
+
+static __inline void
+uart_grab(struct uart_devinfo *di)
+{
+
+	uart_lock(di->hwmtx);
+	if (di->ops->grab)
+		di->ops->grab(&di->bas);
+	uart_unlock(di->hwmtx);
+}
+
+static __inline void
+uart_ungrab(struct uart_devinfo *di)
+{
+
+	uart_lock(di->hwmtx);
+	if (di->ops->ungrab)
+		di->ops->ungrab(&di->bas);
+	uart_unlock(di->hwmtx);
+}
+
 
 static __inline int
 uart_rxready(struct uart_devinfo *di)
