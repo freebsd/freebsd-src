@@ -388,11 +388,10 @@ struct vt_font_map {
 };
 
 struct vt_font {
-	struct vt_font_map	*vf_bold;
-	struct vt_font_map	*vf_normal;
+	struct vt_font_map	*vf_map[VFNT_MAPS];
 	uint8_t			*vf_bytes;
-	unsigned int		 vf_height, vf_width,
-				 vf_normal_length, vf_bold_length;
+	unsigned int		 vf_height, vf_width;
+	unsigned int		 vf_map_count[VFNT_MAPS];
 	unsigned int		 vf_refcount;
 };
 
