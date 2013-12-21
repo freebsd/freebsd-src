@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
+#include <machine/openpicreg.h>
 #include <machine/openpicvar.h>
 #include <machine/pio.h>
 #include <machine/resource.h>
