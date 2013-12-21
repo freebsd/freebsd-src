@@ -321,6 +321,8 @@ static int radeon_fence_wait_seq(struct radeon_device *rdev, u64 target_seq,
 				    &rdev->fence_queue_mtx,
 				    timeout);
 			}
+			if (r == EINTR)
+				r = ERESTARTSYS;
 			if (r != 0) {
 				if (r == EWOULDBLOCK) {
 					signaled =
@@ -334,7 +336,7 @@ static int radeon_fence_wait_seq(struct radeon_device *rdev, u64 target_seq,
 			mtx_unlock(&rdev->fence_queue_mtx);
 		}
 		radeon_irq_kms_sw_irq_put(rdev, ring);
-		if (unlikely(r == EINTR || r == ERESTART)) {
+		if (unlikely(r == ERESTARTSYS)) {
 			return -r;
 		}
 		CTR2(KTR_DRM, "radeon fence: wait end (ring=%d, seq=%d)",
@@ -514,6 +516,8 @@ static int radeon_fence_wait_any_seq(struct radeon_device *rdev,
 				    &rdev->fence_queue_mtx,
 				    timeout);
 			}
+			if (r == EINTR)
+				r = ERESTARTSYS;
 			if (r != 0) {
 				if (r == EWOULDBLOCK) {
 					signaled =
@@ -531,7 +535,7 @@ static int radeon_fence_wait_any_seq(struct radeon_device *rdev,
 				radeon_irq_kms_sw_irq_put(rdev, i);
 			}
 		}
-		if (unlikely(r == EINTR || r == ERESTART)) {
+		if (unlikely(r == ERESTARTSYS)) {
 			return -r;
 		}
 		CTR2(KTR_DRM, "radeon fence: wait end (ring=%d, target_seq=%d)",
