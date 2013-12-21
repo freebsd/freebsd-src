@@ -119,9 +119,12 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
       _Vector_base(size_t __n, const allocator_type& __a)
       : _M_impl(__a)
       {
-	this->_M_impl._M_start = this->_M_allocate(__n);
-	this->_M_impl._M_finish = this->_M_impl._M_start;
-	this->_M_impl._M_end_of_storage = this->_M_impl._M_start + __n;
+	  if (__n)
+	  {
+	    this->_M_impl._M_start = this->_M_allocate(__n);
+	    this->_M_impl._M_finish = this->_M_impl._M_start;
+	    this->_M_impl._M_end_of_storage = this->_M_impl._M_start + __n;
+	  }
       }
 
       ~_Vector_base()

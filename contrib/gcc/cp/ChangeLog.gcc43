@@ -1,3 +1,12 @@
+2007-07-09  Geoffrey Keating  <geoffk@apple.com> (r126529)
+
+	PR 32617
+	* decl.c (cxx_init_decl_processing): Don't set
+	force_align_functions_log.
+	(grokfndecl): Honour ptrmemfunc_vbit_in_pfn.
+	* typeck.c (cxx_alignof_expr): When alignof is used on a plain
+	FUNCTION_DECL, return its alignment.
+
 2007-06-28  Geoffrey Keating  <geoffk@apple.com> (r126080)
 
 	* decl2.c (start_objects): Mark constructor-runnning function
@@ -8,6 +17,13 @@
 	PR 31093
 	* decl2.c (determine_visibility): Remove duplicate code for
 	handling type info.
+
+2007-05-05  Geoffrey Keating  <geoffk@apple.com> (r124467)
+
+	PR 31775
+	* mangle.c (write_mangled_name): Mangle static variable names.
+	(write_unqualified_name): Use local-source-name for
+	namespace-scope static variables.
 
 2007-03-12  Seongbae Park <seongbae.park@gmail.com> (r122851)
 
