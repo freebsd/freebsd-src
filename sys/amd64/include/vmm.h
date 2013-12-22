@@ -146,7 +146,8 @@ enum vcpu_state {
 	VCPU_SLEEPING,
 };
 
-int vcpu_set_state(struct vm *vm, int vcpu, enum vcpu_state state);
+int vcpu_set_state(struct vm *vm, int vcpu, enum vcpu_state state,
+    bool from_idle);
 enum vcpu_state vcpu_get_state(struct vm *vm, int vcpu, int *hostcpu);
 
 static int __inline
