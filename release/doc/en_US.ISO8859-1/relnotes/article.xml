@@ -350,6 +350,14 @@
   <sect2 xml:id="userland">
     <title>Userland Changes</title>
 
+   <para revision="255321">On platforms where &man.clang.1; is the default
+      system compiler, (such as i386, amd64, arm) GCC and GNU libstdc++ are no
+      longer built by default.  &man.clang.1; and libc++ from LLVM are used on
+      these platforms by instead.  GCC 4.2.1 and libstdc++ are still built
+      and used by default on pc98 and all other platforms where &man.clang.1;
+      is not the default system compiler.
+   </para>
+
    <para revision="251662">&man.clang.1; and llvm have been updated to
      version 3.3 release.  Please refer to
      <link xlink:href="http://llvm.org/releases/3.3/tools/clang/docs/ReleaseNotes.html">
