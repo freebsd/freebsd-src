@@ -4,22 +4,24 @@ int foo(int);
 namespace N {
   void f1() {
     void foo(int); // okay
+    void bar(int); // expected-note 2{{previous declaration is here}}
   }
 
-  // FIXME: we shouldn't even need this declaration to detect errors
-  // below.
-  void foo(int); // expected-note{{previous declaration is here}}
+  void foo(int); // expected-note 2{{previous declaration is here}}
 
   void f2() {
-    int foo(int); // expected-error{{functions that differ only in their return type cannot be overloaded}}
+    int foo(int); // expected-error {{functions that differ only in their return type cannot be overloaded}}
+    int bar(int); // expected-error {{functions that differ only in their return type cannot be overloaded}}
+    int baz(int); // expected-note {{previous declaration is here}}
 
     {
       int foo;
+      int bar;
+      int baz;
       {
-        // FIXME: should diagnose this because it's incompatible with
-        // N::foo. However, name lookup isn't properly "skipping" the
-        // "int foo" above.
-        float foo(int); 
+        float foo(int); // expected-error {{functions that differ only in their return type cannot be overloaded}}
+        float bar(int); // expected-error {{functions that differ only in their return type cannot be overloaded}}
+        float baz(int); // expected-error {{functions that differ only in their return type cannot be overloaded}}
       }
     }
   }

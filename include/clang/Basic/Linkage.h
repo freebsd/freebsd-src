@@ -37,6 +37,10 @@ enum Linkage {
   /// point of view.
   UniqueExternalLinkage,
 
+  /// \brief No linkage according to the standard, but is visible from other
+  /// translation units because of types defined in a inline function.
+  VisibleNoLinkage,
+
   /// \brief External linkage, which indicates that the entity can
   /// be referred to from other translation units.
   ExternalLinkage
@@ -62,14 +66,40 @@ enum GVALinkage {
   GVA_ExplicitTemplateInstantiation
 };
 
-/// \brief Determine whether the given linkage is semantically external.
-inline bool isExternalLinkage(Linkage L) {
-  return L == UniqueExternalLinkage || L == ExternalLinkage;
+inline bool isExternallyVisible(Linkage L) {
+  return L == ExternalLinkage || L == VisibleNoLinkage;
 }
 
-/// \brief Compute the minimum linkage given two linages.
+inline Linkage getFormalLinkage(Linkage L) {
+  if (L == UniqueExternalLinkage)
+    return ExternalLinkage;
+  if (L == VisibleNoLinkage)
+    return NoLinkage;
+  return L;
+}
+
+inline bool isExternalFormalLinkage(Linkage L) {
+  return getFormalLinkage(L) == ExternalLinkage;
+}
+
+/// \brief Compute the minimum linkage given two linkages.
+///
+/// The linkage can be interpreted as a pair formed by the formal linkage and
+/// a boolean for external visibility. This is just what getFormalLinkage and
+/// isExternallyVisible return. We want the minimum of both components. The
+/// Linkage enum is defined in an order that makes this simple, we just need
+/// special cases for when VisibleNoLinkage would lose the visible bit and
+/// become NoLinkage.
 inline Linkage minLinkage(Linkage L1, Linkage L2) {
-  return L1 < L2? L1 : L2;
+  if (L2 == VisibleNoLinkage)
+    std::swap(L1, L2);
+  if (L1 == VisibleNoLinkage) {
+    if (L2 == InternalLinkage)
+      return NoLinkage;
+    if (L2 == UniqueExternalLinkage)
+      return NoLinkage;
+  }
+  return L1 < L2 ? L1 : L2;
 }
 
 } // end namespace clang

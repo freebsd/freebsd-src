@@ -1,0 +1,43 @@
+module XA {
+  header "a.h"
+}
+
+module XB {
+  header "b.h"
+}
+
+module XC {
+  header "c.h"
+  use XA
+}
+
+module XD {
+  header "d.h"
+  use XA
+}
+
+module XE {
+  header "e.h"
+  use XA
+  use XB
+}
+
+module XF {
+  header "f.h"
+  use XA
+  use XB
+}
+
+module XG {
+  header "g.h"
+  header "g1.h"
+  use XC
+  use XE
+}
+
+module XH {
+  header "h.h"
+  header "h1.h"
+  use XC
+  use XE
+}

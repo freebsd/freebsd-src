@@ -2,6 +2,7 @@ clang_CXCursorSet_contains
 clang_CXCursorSet_insert
 clang_CXIndex_getGlobalOptions
 clang_CXIndex_setGlobalOptions
+clang_CXXMethod_isPureVirtual
 clang_CXXMethod_isStatic
 clang_CXXMethod_isVirtual
 clang_Cursor_getArgument
@@ -19,6 +20,7 @@ clang_Cursor_getReceiverType
 clang_Cursor_isBitField
 clang_Cursor_isDynamicCall
 clang_Cursor_isNull
+clang_Cursor_isObjCOptional
 clang_Cursor_isVariadic
 clang_Cursor_getModule
 clang_Module_getASTFile
@@ -59,8 +61,10 @@ clang_TParamCommandComment_isParamPositionValid
 clang_TParamCommandComment_getDepth
 clang_TParamCommandComment_getIndex
 clang_Type_getAlignOf
+clang_Type_getClassType
 clang_Type_getSizeOf
 clang_Type_getOffsetOf
+clang_Type_getCXXRefQualifier
 clang_VerbatimBlockLineComment_getText
 clang_VerbatimLineComment_getText
 clang_HTMLTagComment_getAsString
@@ -253,6 +257,7 @@ clang_isVirtualBase
 clang_isVolatileQualifiedType
 clang_loadDiagnostics
 clang_Location_isInSystemHeader
+clang_Location_isFromMainFile
 clang_parseTranslationUnit
 clang_remap_dispose
 clang_remap_getFilenames

@@ -43,11 +43,13 @@
 
 using namespace clang;
 
-std::string CIndexer::getClangResourcesPath() {
+const std::string &CIndexer::getClangResourcesPath() {
   // Did we already compute the path?
   if (!ResourcesPath.empty())
-    return ResourcesPath.str();
-  
+    return ResourcesPath;
+
+  SmallString<128> LibClangPath;
+
   // Find the location where this library lives (libclang.dylib).
 #ifdef LLVM_ON_WIN32
   MEMORY_BASIC_INFORMATION mbi;
@@ -66,85 +68,20 @@ std::string CIndexer::getClangResourcesPath() {
 #endif
 #endif
 
-  llvm::sys::Path LibClangPath(path);
-  LibClangPath.eraseComponent();
+  LibClangPath += llvm::sys::path::parent_path(path);
 #else
   // This silly cast below avoids a C++ warning.
   Dl_info info;
   if (dladdr((void *)(uintptr_t)clang_createTranslationUnit, &info) == 0)
     llvm_unreachable("Call to dladdr() failed");
-  
-  llvm::sys::Path LibClangPath(info.dli_fname);
-  
+
   // We now have the CIndex directory, locate clang relative to it.
-  LibClangPath.eraseComponent();
+  LibClangPath += llvm::sys::path::parent_path(info.dli_fname);
 #endif
-  
-  LibClangPath.appendComponent("clang");
-  LibClangPath.appendComponent(CLANG_VERSION_STRING);
+
+  llvm::sys::path::append(LibClangPath, "clang", CLANG_VERSION_STRING);
 
   // Cache our result.
-  ResourcesPath = LibClangPath;
-  return LibClangPath.str();
+  ResourcesPath = LibClangPath.str();
+  return ResourcesPath;
 }
-
-static llvm::sys::Path GetTemporaryPath() {
-  // FIXME: This is lame; sys::Path should provide this function (in particular,
-  // it should know how to find the temporary files dir).
-  std::string Error;
-  const char *TmpDir = ::getenv("TMPDIR");
-  if (!TmpDir)
-    TmpDir = ::getenv("TEMP");
-  if (!TmpDir)
-    TmpDir = ::getenv("TMP");
-  if (!TmpDir)
-    TmpDir = "/tmp";
-  llvm::sys::Path P(TmpDir);
-  P.appendComponent("remap");
-  if (P.makeUnique(false, &Error))
-    return llvm::sys::Path("");
-
-  // FIXME: Grumble, makeUnique sometimes leaves the file around!?  PR3837.
-  P.eraseFromDisk(false, 0);
-
-  return P;
-}
-
-bool clang::RemapFiles(unsigned num_unsaved_files,
-                       struct CXUnsavedFile *unsaved_files,
-                       std::vector<std::string> &RemapArgs,
-                       std::vector<llvm::sys::Path> &TemporaryFiles) {
-  for (unsigned i = 0; i != num_unsaved_files; ++i) {
-    // Write the contents of this unsaved file into the temporary file.
-    llvm::sys::Path SavedFile(GetTemporaryPath());
-    if (SavedFile.empty())
-      return true;
-
-    std::string ErrorInfo;
-    llvm::raw_fd_ostream OS(SavedFile.c_str(), ErrorInfo,
-                            llvm::raw_fd_ostream::F_Binary);
-    if (!ErrorInfo.empty())
-      return true;
-    
-    OS.write(unsaved_files[i].Contents, unsaved_files[i].Length);
-    OS.close();
-    if (OS.has_error()) {
-      SavedFile.eraseFromDisk();
-      OS.clear_error();
-      return true;
-    }
-    
-    // Remap the file.
-    std::string RemapArg = unsaved_files[i].Filename;
-    RemapArg += ';';
-    RemapArg += SavedFile.str();
-    RemapArgs.push_back("-Xclang");
-    RemapArgs.push_back("-remap-file");
-    RemapArgs.push_back("-Xclang");
-    RemapArgs.push_back(RemapArg);
-    TemporaryFiles.push_back(SavedFile);
-  }
-  
-  return false;
-}
-

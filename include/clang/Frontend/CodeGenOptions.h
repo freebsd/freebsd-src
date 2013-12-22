@@ -71,6 +71,12 @@ public:
     FPC_Fast        // Aggressively fuse FP ops (E.g. FMA).
   };
 
+  enum StructReturnConventionKind {
+    SRCK_Default,  // No special option was passed.
+    SRCK_OnStack,  // Small structs on the stack (-fpcc-struct-return).
+    SRCK_InRegs    // Small structs in registers (-freg-struct-return).
+  };
+
   /// The code model to use (-mcmodel).
   std::string CodeModel;
 
@@ -121,6 +127,12 @@ public:
 
   /// A list of command-line options to forward to the LLVM backend.
   std::vector<std::string> BackendOptions;
+
+  /// A list of dependent libraries.
+  std::vector<std::string> DependentLibraries;
+
+  /// Name of the profile file to use with -fprofile-sample-use.
+  std::string SampleProfileFile;
 
 public:
   // Define accessors/mutators for code generation options of enumeration type.

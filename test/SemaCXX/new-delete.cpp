@@ -18,6 +18,13 @@ struct V : U
 {
 };
 
+inline void operator delete(void *); // expected-warning {{replacement function 'operator delete' cannot be declared 'inline'}}
+
+__attribute__((used))
+inline void *operator new(size_t) { // no warning, due to __attribute__((used))
+  return 0;
+}
+
 // PR5823
 void* operator new(const size_t); // expected-note 2 {{candidate}}
 void* operator new(size_t, int*); // expected-note 3 {{candidate}}
@@ -116,8 +123,8 @@ struct X1 {
 };
 
 struct X2 {
-  operator int*(); // expected-note {{candidate function}}
-  operator float*(); // expected-note {{candidate function}}
+  operator int*(); // expected-note {{conversion}}
+  operator float*(); // expected-note {{conversion}}
 };
 
 void test_delete_conv(X0 x0, X1 x1, X2 x2) {
@@ -209,7 +216,7 @@ struct X11 : X10 { // expected-error {{no suitable member 'operator delete' in '
 };
 
 void f() {
-  X11 x11; // expected-note {{implicit default destructor for 'X11' first required here}}
+  X11 x11; // expected-note {{implicit destructor for 'X11' first required here}}
 }
 
 struct X12 {
@@ -394,7 +401,7 @@ namespace ArrayNewNeedsDtor {
   struct A { A(); private: ~A(); }; // expected-note {{declared private here}}
   struct B { B(); A a; }; // expected-error {{field of type 'ArrayNewNeedsDtor::A' has private destructor}}
   B *test9() {
-    return new B[5]; // expected-note {{implicit default destructor for 'ArrayNewNeedsDtor::B' first required here}}
+    return new B[5]; // expected-note {{implicit destructor for 'ArrayNewNeedsDtor::B' first required here}}
   }
 }
 

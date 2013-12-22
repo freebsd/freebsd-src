@@ -27,10 +27,12 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Sema/CodeCompleteConsumer.h"
+#include "clang/Sema/Sema.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/Atomic.h"
 #include "llvm/Support/CrashRecoveryContext.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/Timer.h"
@@ -271,7 +273,7 @@ struct AllocatedCXCodeCompleteResults : public CXCodeCompleteResults {
   
   /// \brief Temporary files that should be removed once we have finished
   /// with the code-completion results.
-  std::vector<llvm::sys::Path> TemporaryFiles;
+  std::vector<std::string> TemporaryFiles;
 
   /// \brief Temporary buffers that will be deleted once we have finished with
   /// the code-completion results.
@@ -340,7 +342,7 @@ AllocatedCXCodeCompleteResults::~AllocatedCXCodeCompleteResults() {
   delete [] Results;
 
   for (unsigned I = 0, N = TemporaryFiles.size(); I != N; ++I)
-    TemporaryFiles[I].eraseFromDisk();
+    llvm::sys::fs::remove(TemporaryFiles[I]);
   for (unsigned I = 0, N = TemporaryBuffers.size(); I != N; ++I)
     delete TemporaryBuffers[I];
 
@@ -561,15 +563,13 @@ namespace {
       AllocatedResults.Contexts = getContextsForContextKind(contextKind, S);
       
       AllocatedResults.Selector = "";
-      if (Context.getNumSelIdents() > 0) {
-        for (unsigned i = 0; i < Context.getNumSelIdents(); i++) {
-          IdentifierInfo *selIdent = Context.getSelIdents()[i];
-          if (selIdent != NULL) {
-            StringRef selectorString = Context.getSelIdents()[i]->getName();
-            AllocatedResults.Selector += selectorString;
-          }
-          AllocatedResults.Selector += ":";
-        }
+      ArrayRef<IdentifierInfo *> SelIdents = Context.getSelIdents();
+      for (ArrayRef<IdentifierInfo *>::iterator I = SelIdents.begin(),
+                                                E = SelIdents.end();
+           I != E; ++I) {
+        if (IdentifierInfo *selIdent = *I)
+          AllocatedResults.Selector += selIdent->getName();
+        AllocatedResults.Selector += ":";
       }
       
       QualType baseType = Context.getBaseType();

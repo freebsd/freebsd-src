@@ -30,6 +30,20 @@ void __forceinline InterlockedBitTestAndSet (long *Base, long Bit)
   };
 #endif
 }
+
+// Both inline and __forceinline is OK.
+inline void __forceinline pr8264() {
+}
+__forceinline void inline pr8264_1() {
+}
+void inline __forceinline pr8264_2() {
+}
+void __forceinline inline pr8264_3() {
+}
+// But duplicate __forceinline causes warning.
+void __forceinline __forceinline pr8264_4() {  // expected-warning{{duplicate '__forceinline' declaration specifier}}
+}
+
 _inline int foo99() { return 99; }
 
 void test_ms_alignof_alias() {
@@ -105,3 +119,14 @@ __declspec() void quux( void ) {
   struct S7 s;
   int i = s.t;	/* expected-warning {{'t' is deprecated}} */
 }
+
+int * __sptr psp;
+int * __uptr pup;
+/* Either ordering is acceptable */
+int * __ptr32 __sptr psp32;
+int * __ptr32 __uptr pup32;
+int * __sptr __ptr64 psp64;
+int * __uptr __ptr64 pup64;
+
+/* Legal to have nested pointer attributes */
+int * __sptr * __ptr32 ppsp32;

@@ -1,7 +1,7 @@
 // For MSVC ABI compatibility, all structures returned by value using the
 // thiscall calling convention must use the hidden parameter.
 //
-// RUN: %clang_cc1 -triple i386-PC-Win32 %s -fms-compatibility -O0 -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 -triple i386-PC-Win32 %s -fms-compatibility -emit-llvm -o - | FileCheck %s
 
 // This structure would normally be returned via EAX
 struct S {
@@ -29,7 +29,7 @@ public:
   }
 };
 
-// CHECK: define void @_Z4testv()
+// CHECK-LABEL: define void @_Z4testv()
 void test( void ) {
 // CHECK: call void @_ZN1CC1Ev(%class.C* [[C:%.+]])
   C c;

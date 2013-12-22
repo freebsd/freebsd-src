@@ -31,10 +31,14 @@ namespace clang {
   class LangOptions;
   
   enum LanguageID {
-    C_LANG = 0x1,     // builtin for c only.
-    CXX_LANG = 0x2,   // builtin for cplusplus only.
-    OBJC_LANG = 0x4,  // builtin for objective-c and objective-c++
-    ALL_LANGUAGES = (C_LANG|CXX_LANG|OBJC_LANG) //builtin is for all languages.
+    GNU_LANG = 0x1,  // builtin requires GNU mode.
+    C_LANG = 0x2,    // builtin for c only.
+    CXX_LANG = 0x4,  // builtin for cplusplus only.
+    OBJC_LANG = 0x8, // builtin for objective-c and objective-c++
+    MS_LANG = 0x10,  // builtin requires MS mode.
+    ALL_LANGUAGES = C_LANG | CXX_LANG | OBJC_LANG, // builtin for all languages.
+    ALL_GNU_LANGUAGES = ALL_LANGUAGES | GNU_LANG,  // builtin requires GNU mode.
+    ALL_MS_LANGUAGES = ALL_LANGUAGES | MS_LANG     // builtin requires MS mode.
   };
   
 namespace Builtin {
@@ -73,9 +77,8 @@ public:
   /// such.
   void InitializeBuiltins(IdentifierTable &Table, const LangOptions& LangOpts);
 
-  /// \brief Popular the vector with the names of all of the builtins.
-  void GetBuiltinNames(SmallVectorImpl<const char *> &Names,
-                       bool NoBuiltins);
+  /// \brief Populate the vector with the names of all of the builtins.
+  void GetBuiltinNames(SmallVectorImpl<const char *> &Names);
 
   /// \brief Return the identifier name for the specified builtin,
   /// e.g. "__builtin_abs".
@@ -128,6 +131,13 @@ public:
     return strchr(GetRecord(ID).Attributes, 'f') != 0;
   }
 
+  /// \brief Determines whether this builtin is a predefined compiler-rt/libgcc
+  /// function, such as "__clear_cache", where we know the signature a
+  /// priori.
+  bool isPredefinedRuntimeFunction(unsigned ID) const {
+    return strchr(GetRecord(ID).Attributes, 'i') != 0;
+  }
+
   /// \brief Determines whether this builtin has custom typechecking.
   bool hasCustomTypechecking(unsigned ID) const {
     return strchr(GetRecord(ID).Attributes, 't') != 0;
@@ -163,6 +173,10 @@ public:
 
 private:
   const Info &GetRecord(unsigned ID) const;
+
+  /// \brief Is this builtin supported according to the given language options?
+  bool BuiltinIsSupported(const Builtin::Info &BuiltinInfo,
+                          const LangOptions &LangOpts);
 };
 
 }

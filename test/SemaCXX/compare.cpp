@@ -355,3 +355,70 @@ void test9(int x) {
   };
   (void)((E)x == 1);
 }
+
+namespace templates {
+  template<class T> T max();
+
+  template<> constexpr int max<int>() { return 2147483647; };
+
+  template<typename T>
+  bool less_than_max(short num, T value) {
+    const T vmax = max<T>();
+    return (vmax >= num);  // no warning
+  }
+
+  template<typename T>
+  bool less_than_max(short num) {
+    // This should trigger one warning on the template pattern, and not a
+    // warning per specialization.
+    return num < max<int>();  // expected-warning{{comparison of constant 2147483647 with expression of type 'short' is always true}}
+  }
+
+  void test10(short num, int x) {
+    less_than_max(num, x);
+    less_than_max<int>(num);
+    less_than_max<long>(num);
+    less_than_max<short>(num);
+  }
+
+  template<typename T>
+  inline bool less_than_zero(T num, T value) {
+    return num < 0;  // no warning
+  }
+
+  template<typename T>
+  inline bool less_than_zero(unsigned num) {
+    // This should trigger one warning on the template pattern, and not a
+    // warning per specialization.
+    return num < 0;  // expected-warning{{comparison of unsigned expression < 0 is always false}}
+  }
+
+  void test11(unsigned num) {
+    less_than_zero(num, num);
+    less_than_zero<int>(num);
+    less_than_zero<long>(num);
+    less_than_zero<short>(num);
+  }
+
+  template<unsigned n> bool compare(unsigned k) { return k >= n; }
+
+  void test12() {
+    compare<0>(42);
+  }
+
+  struct A { static int x; };
+  struct B { static int x; };
+  typedef A otherA;
+
+  template <typename T>
+  void testx() {
+    if (A::x == T::x &&  // no warning
+        A::x == otherA::x)  // expected-warning{{self-comparison always evaluates to true}}
+      return;
+  }
+
+  void test13() {
+    testx<A>();
+    testx<B>();
+  }
+}

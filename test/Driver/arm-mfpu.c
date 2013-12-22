@@ -46,3 +46,41 @@
 // RUN: %clang -target arm-linux-eabi -msoft-float %s -### -o %t.o 2>&1 \
 // RUN:   | FileCheck --check-prefix=CHECK-SOFT-FLOAT %s
 // CHECK-SOFT-FLOAT: "-target-feature" "-neon"
+
+// RUN: %clang -target armv8 -mfpu=fp-armv8 %s -### 2>&1 \
+// RUN:   | FileCheck --check-prefix=CHECK-ARMV8-SOFT-FLOAT %s
+// CHECK-ARMV8-SOFT-FLOAT: "-target-feature" "+fp-armv8"
+// CHECK-ARMV8-SOFT-FLOAT: "-target-feature" "-crypto"
+// CHECK-ARMV8-SOFT-FLOAT: "-target-feature" "-neon"
+
+// RUN: %clang -target armv8-linux-gnueabihf -mfpu=fp-armv8 %s -### 2>&1 \
+// RUN:   | FileCheck --check-prefix=CHECK-FP-ARMV8 %s
+// CHECK-FP-ARMV8-NOT: "-target-feature" "+neon"
+// CHECK-FP-ARMV8: "-target-feature" "+fp-armv8"
+// CHECK-FP-ARMV8: "-target-feature" "-neon"
+// CHECK-FP-ARMV8: "-target-feature" "-crypto"
+
+// RUN: %clang -target armv8-linux-gnueabihf -mfpu=neon-fp-armv8 %s -### 2>&1 \
+// RUN:   | FileCheck --check-prefix=CHECK-NEON-FP-ARMV8 %s
+// CHECK-NEON-FP-ARMV8: "-target-feature" "+fp-armv8"
+// CHECK-NEON-FP-ARMV8: "-target-feature" "+neon"
+// CHECK-NEON-FP-ARMV8: "-target-feature" "-crypto"
+
+// RUN: %clang -target armv8-linux-gnueabihf -mfpu=crypto-neon-fp-armv8 %s -### 2>&1 \
+// RUN:   | FileCheck --check-prefix=CHECK-CRYPTO-NEON-FP-ARMV8 %s
+// CHECK-CRYPTO-NEON-FP-ARMV8: "-target-feature" "+fp-armv8"
+// CHECK-CRYPTO-NEON-FP-ARMV8: "-target-feature" "+neon"
+// CHECK-CRYPTO-NEON-FP-ARMV8: "-target-feature" "+crypto"
+
+// RUN: %clang -target armv8-linux-gnueabi -mfpu=none %s -### 2>&1 \
+// RUN:   | FileCheck --check-prefix=CHECK-NO-FP %s
+// CHECK-NO-FP: "-target-feature" "-vfp2"
+// CHECK-NO-FP: "-target-feature" "-vfp3"
+// CHECK-NO-FP: "-target-feature" "-vfp4"
+// CHECK-NO-FP: "-target-feature" "-fp-armv8"
+// CHECK-NO-FP: "-target-feature" "-crypto"
+// CHECK-NO-FP: "-target-feature" "-neon"
+
+// RUN: %clang -target arm-linux-gnueabihf %s -### 2>&1 \
+// RUN:   | FileCheck --check-prefix=CHECK-HF %s
+// CHECK-HF: "-target-cpu" "arm1136jf-s"

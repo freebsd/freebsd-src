@@ -5,8 +5,7 @@
 // RUN: grep test_string %t
 
 namespace std {
-  template<typename T> class basic_string { // expected-note 2{{'basic_string' declared here}} \
-                                            // expected-note {{'otherstd::basic_string' declared here}}
+  template<typename T> class basic_string { // expected-note 3{{'basic_string' declared here}}
   public:
     int find(const char *substr); // expected-note{{'find' declared here}}
     static const int npos = -1; // expected-note{{'npos' declared here}}
@@ -84,8 +83,12 @@ namespace nonstd {
 yarn str4; // expected-error{{unknown type name 'yarn'; did you mean 'nonstd::yarn'?}}
 wibble::yarn str5; // expected-error{{no type named 'yarn' in namespace 'otherstd'; did you mean 'nonstd::yarn'?}}
 
+namespace another {
+  template<typename T> class wide_string {}; // expected-note {{'another::wide_string' declared here}}
+}
 int poit() {
-  nonstd::basic_string<char> str; // expected-error{{no template named 'basic_string' in namespace 'nonstd'; did you mean 'otherstd::basic_string'?}}
+  nonstd::basic_string<char> str; // expected-error{{no template named 'basic_string' in namespace 'nonstd'; did you mean simply 'basic_string'?}}
+  nonstd::wide_string<char> str2; // expected-error{{no template named 'wide_string' in namespace 'nonstd'; did you mean 'another::wide_string'?}}
   return wibble::narf; // expected-error{{no member named 'narf' in namespace 'otherstd'; did you mean 'nonstd::narf'?}}
 }
 
@@ -123,4 +126,12 @@ void func2() {
   // FIXME: we should offer a fix here. We do if the 'i' is misspelled, but we don't do name qualification changes
   //        to replace base::i with derived::i as we would for other qualified name misspellings.
   // d.base::i = 3;
+}
+
+class A {
+  void bar(int);
+};
+void bar(int, int);  // expected-note{{'::bar' declared here}}
+void A::bar(int x) {
+  bar(x, 5);  // expected-error{{too many arguments to function call, expected 1, have 2; did you mean '::bar'?}}
 }

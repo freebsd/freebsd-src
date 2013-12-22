@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -std=c++11 -verify %s
 
 template<typename T> struct A {
   void f() { }
@@ -79,4 +79,16 @@ namespace PR10883 {
 
     void foo(const Container& current); // expected-error {{unknown type name 'Container'}}
   };
+}
+
+template<typename T> class UsingTypenameNNS {
+  using typename T::X;
+  typename X::X x;
+};
+
+namespace aliastemplateinst {
+  template<typename T> struct A { };
+  template<typename T> using APtr = A<T*>; // expected-note{{previous use is here}}
+
+  template struct APtr<int>; // expected-error{{elaborated type refers to a non-tag type}}
 }

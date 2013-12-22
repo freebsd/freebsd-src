@@ -1,10 +1,10 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin11 -emit-llvm -fobjc-arc -O0 -o - %s | FileCheck %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin11 -emit-llvm -fobjc-arc -o - %s | FileCheck %s
 
 id makeObject1() __attribute__((ns_returns_retained));
 id makeObject2() __attribute__((ns_returns_retained));
 void releaseObject(__attribute__((ns_consumed)) id);
 
-// CHECK: define void @_Z10sanityTestv
+// CHECK-LABEL: define void @_Z10sanityTestv
 void sanityTest() {
   // CHECK: [[X:%.*]] = alloca i8*, align 8
   // CHECK-NEXT: [[OBJ1:%.*]] = call i8* @_Z11makeObject1v()
@@ -28,7 +28,7 @@ T makeObjectT2() __attribute__((ns_returns_retained));
 template <typename T>
 void releaseObjectT(__attribute__((ns_consumed)) T);  
 
-// CHECK: define void @_Z12templateTestv
+// CHECK-LABEL: define void @_Z12templateTestv
 void templateTest() {
   // CHECK: [[X:%.*]] = alloca i8*, align 8
   // CHECK-NEXT: [[OBJ1:%.*]] = call i8* @_Z12makeObjectT1IU8__strongP11objc_objectET_v()

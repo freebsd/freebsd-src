@@ -15,6 +15,8 @@
 // RUN: %clang_cc1 -fsyntax-only -verify %s -DTEST10
 // RUN: %clang_cc1 -fsyntax-only -verify %s -DTEST11
 // RUN: %clang_cc1 -fsyntax-only -verify %s -DTEST12
+// RUN: %clang_cc1 -fsyntax-only -verify %s -DTEST13
+// RUN: %clang_cc1 -fsyntax-only -verify %s -DTEST14
 
 #if TEST1
 
@@ -93,6 +95,20 @@ int main(int, charT* const *) {}
 // expected-no-diagnostics
 typedef char charT;
 int main(int, const charT* const *) {}
+
+#elif TEST13
+
+int main(void) {}
+
+template <typename T>
+int main(void); // expected-error{{'main' cannot be a template}}
+
+#elif TEST14
+
+template <typename T>
+int main(void); // expected-error{{'main' cannot be a template}}
+
+int main(void) {}
 
 #else
 

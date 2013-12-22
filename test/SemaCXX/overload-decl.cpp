@@ -26,8 +26,14 @@ class X {
   void g(int, float); // expected-note {{previous declaration is here}}
   int g(int, Float); // expected-error {{functions that differ only in their return type cannot be overloaded}}
 
-  static void g(float);
+  static void g(float); // expected-note {{previous declaration is here}}
   static void g(int); // expected-error {{static and non-static member functions with the same parameter types cannot be overloaded}}
+  static void g(float); // expected-error {{class member cannot be redeclared}}
+
+  void h(); // expected-note {{previous declaration is here}} \
+               expected-note {{previous declaration is here}}
+  void h() __restrict; // expected-error {{class member cannot be redeclared}} \
+                          expected-error {{conflicting types for 'h'}}
 };
 
 int main() {} // expected-note {{previous definition is here}}

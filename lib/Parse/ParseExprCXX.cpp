@@ -10,7 +10,7 @@
 // This file implements the Expression parsing implementation for C++.
 //
 //===----------------------------------------------------------------------===//
-
+#include "clang/AST/DeclTemplate.h"
 #include "clang/Parse/Parser.h"
 #include "RAIIObjectsForParser.h"
 #include "clang/Basic/PrettyStackTrace.h"
@@ -20,6 +20,7 @@
 #include "clang/Sema/ParsedTemplate.h"
 #include "clang/Sema/Scope.h"
 #include "llvm/Support/ErrorHandling.h"
+
 
 using namespace clang;
 
@@ -193,6 +194,13 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
                                                  SS);
     ConsumeToken();
     return false;
+  }
+
+  if (Tok.is(tok::annot_template_id)) {
+    // If the current token is an annotated template id, it may already have
+    // a scope specifier. Restore it.
+    TemplateIdAnnotation *TemplateId = takeTemplateIdAnnotation(Tok);
+    SS = TemplateId->SS;
   }
 
   if (LastII)
@@ -465,8 +473,8 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
                                     TemplateName, false))
           return true;
         continue;
-      } 
-      
+      }
+
       if (MemberOfUnknownSpecialization && (ObjectType || SS.isSet()) && 
           (IsTypename || IsTemplateArgumentList(1))) {
         // We have something like t::getAs<T>, where getAs is a 
@@ -583,7 +591,7 @@ ExprResult Parser::ParseCXXIdExpression(bool isAddressOfOperand) {
                                    Tok.is(tok::l_paren), isAddressOfOperand);
 }
 
-/// ParseLambdaExpression - Parse a C++0x lambda expression.
+/// ParseLambdaExpression - Parse a C++11 lambda expression.
 ///
 ///       lambda-expression:
 ///         lambda-introducer lambda-declarator[opt] compound-statement
@@ -605,9 +613,17 @@ ExprResult Parser::ParseCXXIdExpression(bool isAddressOfOperand) {
 ///         capture-list ',' capture
 ///
 ///       capture:
+///         simple-capture
+///         init-capture     [C++1y]
+///
+///       simple-capture:
 ///         identifier
 ///         '&' identifier
 ///         'this'
+///
+///       init-capture:      [C++1y]
+///         identifier initializer
+///         '&' identifier initializer
 ///
 ///       lambda-declarator:
 ///         '(' parameter-declaration-clause ')' attribute-specifier[opt]
@@ -617,13 +633,12 @@ ExprResult Parser::ParseCXXIdExpression(bool isAddressOfOperand) {
 ExprResult Parser::ParseLambdaExpression() {
   // Parse lambda-introducer.
   LambdaIntroducer Intro;
-
-  Optional<unsigned> DiagID(ParseLambdaIntroducer(Intro));
+  Optional<unsigned> DiagID = ParseLambdaIntroducer(Intro);
   if (DiagID) {
     Diag(Tok, DiagID.getValue());
-    SkipUntil(tok::r_square);
-    SkipUntil(tok::l_brace);
-    SkipUntil(tok::r_brace);
+    SkipUntil(tok::r_square, StopAtSemi);
+    SkipUntil(tok::l_brace, StopAtSemi);
+    SkipUntil(tok::r_brace, StopAtSemi);
     return ExprError();
   }
 
@@ -658,7 +673,7 @@ ExprResult Parser::TryParseLambdaExpression() {
   if (Next.is(tok::identifier) && After.is(tok::identifier)) {
     return ExprEmpty();
   }
-
+ 
   // Here, we're stuck: lambda introducers and Objective-C message sends are
   // unambiguous, but it requires arbitrary lookhead.  [a,b,c,d,e,f,g] is a
   // lambda, and [a,b,c,d,e,f,g h] is a Objective-C message send.  Instead of
@@ -668,13 +683,21 @@ ExprResult Parser::TryParseLambdaExpression() {
   LambdaIntroducer Intro;
   if (TryParseLambdaIntroducer(Intro))
     return ExprEmpty();
+
   return ParseLambdaExpressionAfterIntroducer(Intro);
 }
 
-/// ParseLambdaExpression - Parse a lambda introducer.
-///
-/// Returns a DiagnosticID if it hit something unexpected.
-Optional<unsigned> Parser::ParseLambdaIntroducer(LambdaIntroducer &Intro) {
+/// \brief Parse a lambda introducer.
+/// \param Intro A LambdaIntroducer filled in with information about the
+///        contents of the lambda-introducer.
+/// \param SkippedInits If non-null, we are disambiguating between an Obj-C
+///        message send and a lambda expression. In this mode, we will
+///        sometimes skip the initializers for init-captures and not fully
+///        populate \p Intro. This flag will be set to \c true if we do so.
+/// \return A DiagnosticID if it hit something unexpected. The location for
+///         for the diagnostic is that of the current token.
+Optional<unsigned> Parser::ParseLambdaIntroducer(LambdaIntroducer &Intro,
+                                                 bool *SkippedInits) {
   typedef Optional<unsigned> DiagResult;
 
   assert(Tok.is(tok::l_square) && "Lambda expressions begin with '['.");
@@ -737,6 +760,7 @@ Optional<unsigned> Parser::ParseLambdaIntroducer(LambdaIntroducer &Intro) {
     SourceLocation Loc;
     IdentifierInfo* Id = 0;
     SourceLocation EllipsisLoc;
+    ExprResult Init;
     
     if (Tok.is(tok::kw_this)) {
       Kind = LCK_This;
@@ -757,9 +781,6 @@ Optional<unsigned> Parser::ParseLambdaIntroducer(LambdaIntroducer &Intro) {
       if (Tok.is(tok::identifier)) {
         Id = Tok.getIdentifierInfo();
         Loc = ConsumeToken();
-        
-        if (Tok.is(tok::ellipsis))
-          EllipsisLoc = ConsumeToken();
       } else if (Tok.is(tok::kw_this)) {
         // FIXME: If we want to suggest a fixit here, will need to return more
         // than just DiagnosticID. Perhaps full DiagnosticBuilder that can be
@@ -768,14 +789,139 @@ Optional<unsigned> Parser::ParseLambdaIntroducer(LambdaIntroducer &Intro) {
       } else {
         return DiagResult(diag::err_expected_capture);
       }
-    }
 
-    Intro.addCapture(Kind, Loc, Id, EllipsisLoc);
+      if (Tok.is(tok::l_paren)) {
+        BalancedDelimiterTracker Parens(*this, tok::l_paren);
+        Parens.consumeOpen();
+
+        ExprVector Exprs;
+        CommaLocsTy Commas;
+        if (SkippedInits) {
+          Parens.skipToEnd();
+          *SkippedInits = true;
+        } else if (ParseExpressionList(Exprs, Commas)) {
+          Parens.skipToEnd();
+          Init = ExprError();
+        } else {
+          Parens.consumeClose();
+          Init = Actions.ActOnParenListExpr(Parens.getOpenLocation(),
+                                            Parens.getCloseLocation(),
+                                            Exprs);
+        }
+      } else if (Tok.is(tok::l_brace) || Tok.is(tok::equal)) {
+        // Each lambda init-capture forms its own full expression, which clears
+        // Actions.MaybeODRUseExprs. So create an expression evaluation context
+        // to save the necessary state, and restore it later.
+        EnterExpressionEvaluationContext EC(Actions,
+                                            Sema::PotentiallyEvaluated);
+        if (Tok.is(tok::equal))
+          ConsumeToken();
+
+        if (!SkippedInits)
+          Init = ParseInitializer();
+        else if (Tok.is(tok::l_brace)) {
+          BalancedDelimiterTracker Braces(*this, tok::l_brace);
+          Braces.consumeOpen();
+          Braces.skipToEnd();
+          *SkippedInits = true;
+        } else {
+          // We're disambiguating this:
+          //
+          //   [..., x = expr
+          //
+          // We need to find the end of the following expression in order to
+          // determine whether this is an Obj-C message send's receiver, or a
+          // lambda init-capture.
+          //
+          // Parse the expression to find where it ends, and annotate it back
+          // onto the tokens. We would have parsed this expression the same way
+          // in either case: both the RHS of an init-capture and the RHS of an
+          // assignment expression are parsed as an initializer-clause, and in
+          // neither case can anything be added to the scope between the '[' and
+          // here.
+          //
+          // FIXME: This is horrible. Adding a mechanism to skip an expression
+          // would be much cleaner.
+          // FIXME: If there is a ',' before the next ']' or ':', we can skip to
+          // that instead. (And if we see a ':' with no matching '?', we can
+          // classify this as an Obj-C message send.)
+          SourceLocation StartLoc = Tok.getLocation();
+          InMessageExpressionRAIIObject MaybeInMessageExpression(*this, true);
+          Init = ParseInitializer();
+
+          if (Tok.getLocation() != StartLoc) {
+            // Back out the lexing of the token after the initializer.
+            PP.RevertCachedTokens(1);
+
+            // Replace the consumed tokens with an appropriate annotation.
+            Tok.setLocation(StartLoc);
+            Tok.setKind(tok::annot_primary_expr);
+            setExprAnnotation(Tok, Init);
+            Tok.setAnnotationEndLoc(PP.getLastCachedTokenLocation());
+            PP.AnnotateCachedTokens(Tok);
+
+            // Consume the annotated initializer.
+            ConsumeToken();
+          }
+        }
+      } else if (Tok.is(tok::ellipsis))
+        EllipsisLoc = ConsumeToken();
+    }
+    // If this is an init capture, process the initialization expression
+    // right away.  For lambda init-captures such as the following:
+    // const int x = 10;
+    //  auto L = [i = x+1](int a) {
+    //    return [j = x+2,
+    //           &k = x](char b) { };
+    //  };
+    // keep in mind that each lambda init-capture has to have:
+    //  - its initialization expression executed in the context
+    //    of the enclosing/parent decl-context.
+    //  - but the variable itself has to be 'injected' into the
+    //    decl-context of its lambda's call-operator (which has
+    //    not yet been created).
+    // Each init-expression is a full-expression that has to get
+    // Sema-analyzed (for capturing etc.) before its lambda's
+    // call-operator's decl-context, scope & scopeinfo are pushed on their
+    // respective stacks.  Thus if any variable is odr-used in the init-capture
+    // it will correctly get captured in the enclosing lambda, if one exists.
+    // The init-variables above are created later once the lambdascope and
+    // call-operators decl-context is pushed onto its respective stack.
+
+    // Since the lambda init-capture's initializer expression occurs in the
+    // context of the enclosing function or lambda, therefore we can not wait
+    // till a lambda scope has been pushed on before deciding whether the
+    // variable needs to be captured.  We also need to process all
+    // lvalue-to-rvalue conversions and discarded-value conversions,
+    // so that we can avoid capturing certain constant variables.
+    // For e.g.,
+    //  void test() {
+    //   const int x = 10;
+    //   auto L = [&z = x](char a) { <-- don't capture by the current lambda
+    //     return [y = x](int i) { <-- don't capture by enclosing lambda
+    //          return y;
+    //     }
+    //   };
+    // If x was not const, the second use would require 'L' to capture, and
+    // that would be an error.
+
+    ParsedType InitCaptureParsedType;
+    if (Init.isUsable()) {
+      // Get the pointer and store it in an lvalue, so we can use it as an
+      // out argument.
+      Expr *InitExpr = Init.get();
+      // This performs any lvalue-to-rvalue conversions if necessary, which
+      // can affect what gets captured in the containing decl-context.
+      QualType InitCaptureType = Actions.performLambdaInitCaptureInitialization(
+        Loc, Kind == LCK_ByRef, Id, InitExpr);
+      Init = InitExpr;
+      InitCaptureParsedType.set(InitCaptureType);
+    }
+    Intro.addCapture(Kind, Loc, Id, EllipsisLoc, Init, InitCaptureParsedType);
   }
 
   T.consumeClose();
   Intro.Range.setEnd(T.getCloseLocation());
-
   return DiagResult();
 }
 
@@ -785,11 +931,21 @@ Optional<unsigned> Parser::ParseLambdaIntroducer(LambdaIntroducer &Intro) {
 bool Parser::TryParseLambdaIntroducer(LambdaIntroducer &Intro) {
   TentativeParsingAction PA(*this);
 
-  Optional<unsigned> DiagID(ParseLambdaIntroducer(Intro));
+  bool SkippedInits = false;
+  Optional<unsigned> DiagID(ParseLambdaIntroducer(Intro, &SkippedInits));
 
   if (DiagID) {
     PA.Revert();
     return true;
+  }
+
+  if (SkippedInits) {
+    // Parse it again, but this time parse the init-captures too.
+    PA.Revert();
+    Intro = LambdaIntroducer();
+    DiagID = ParseLambdaIntroducer(Intro);
+    assert(!DiagID && "parsing lambda-introducer failed on reparse");
+    return false;
   }
 
   PA.Commit();
@@ -806,9 +962,16 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
   PrettyStackTraceLoc CrashInfo(PP.getSourceManager(), LambdaBeginLoc,
                                 "lambda expression parsing");
 
+ 
+
+  // FIXME: Call into Actions to add any init-capture declarations to the
+  // scope while parsing the lambda-declarator and compound-statement.
+
   // Parse lambda-declarator[opt].
   DeclSpec DS(AttrFactory);
   Declarator D(DS, Declarator::LambdaExprContext);
+  TemplateParameterDepthRAII CurTemplateDepthTracker(TemplateParameterDepth);
+  Actions.PushLambdaScope();    
 
   if (Tok.is(tok::l_paren)) {
     ParseScope PrototypeScope(this,
@@ -826,9 +989,15 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
     SmallVector<DeclaratorChunk::ParamInfo, 16> ParamInfo;
     SourceLocation EllipsisLoc;
 
-    if (Tok.isNot(tok::r_paren))
+    
+    if (Tok.isNot(tok::r_paren)) {
+      Actions.RecordParsingTemplateParameterDepth(TemplateParameterDepth);
       ParseParameterDeclarationClause(D, Attr, ParamInfo, EllipsisLoc);
-
+      // For a generic lambda, each 'auto' within the parameter declaration 
+      // clause creates a template type parameter, so increment the depth.
+      if (Actions.getCurGenericLambda()) 
+        ++CurTemplateDepthTracker;
+    }
     T.consumeClose();
     SourceLocation RParenLoc = T.getCloseLocation();
     DeclEndLoc = RParenLoc;
@@ -1089,7 +1258,7 @@ ExprResult Parser::ParseCXXTypeid() {
 
     // Match the ')'.
     if (Result.isInvalid())
-      SkipUntil(tok::r_paren);
+      SkipUntil(tok::r_paren, StopAtSemi);
     else {
       T.consumeClose();
       RParenLoc = T.getCloseLocation();
@@ -1139,7 +1308,7 @@ ExprResult Parser::ParseCXXUuidof() {
 
     // Match the ')'.
     if (Result.isInvalid())
-      SkipUntil(tok::r_paren);
+      SkipUntil(tok::r_paren, StopAtSemi);
     else {
       T.consumeClose();
 
@@ -1325,7 +1494,7 @@ Parser::ParseCXXTypeConstructExpression(const DeclSpec &DS) {
 
     if (Tok.isNot(tok::r_paren)) {
       if (ParseExpressionList(Exprs, CommaLocs)) {
-        SkipUntil(tok::r_paren);
+        SkipUntil(tok::r_paren, StopAtSemi);
         return ExprError();
       }
     }
@@ -1411,7 +1580,7 @@ bool Parser::ParseCXXCondition(ExprResult &ExprOut,
     SourceLocation Loc;
     ExprResult AsmLabel(ParseSimpleAsm(&Loc));
     if (AsmLabel.isInvalid()) {
-      SkipUntil(tok::semi);
+      SkipUntil(tok::semi, StopAtSemi);
       return true;
     }
     DeclaratorInfo.setAsmLabel(AsmLabel.release());
@@ -1443,7 +1612,7 @@ bool Parser::ParseCXXCondition(ExprResult &ExprOut,
   } else if (Tok.is(tok::l_paren)) {
     // This was probably an attempt to initialize the variable.
     SourceLocation LParen = ConsumeParen(), RParen = LParen;
-    if (SkipUntil(tok::r_paren, true, /*DontConsume=*/true))
+    if (SkipUntil(tok::r_paren, StopAtSemi | StopBeforeMatch))
       RParen = ConsumeParen();
     Diag(DeclOut ? DeclOut->getLocation() : LParen,
          diag::err_expected_init_in_condition_lparen)
@@ -2303,14 +2472,14 @@ Parser::ParseCXXNewExpression(bool UseGlobal, SourceLocation Start) {
     T.consumeOpen();
     PlacementLParen = T.getOpenLocation();
     if (ParseExpressionListOrTypeId(PlacementArgs, DeclaratorInfo)) {
-      SkipUntil(tok::semi, /*StopAtSemi=*/true, /*DontConsume=*/true);
+      SkipUntil(tok::semi, StopAtSemi | StopBeforeMatch);
       return ExprError();
     }
 
     T.consumeClose();
     PlacementRParen = T.getCloseLocation();
     if (PlacementRParen.isInvalid()) {
-      SkipUntil(tok::semi, /*StopAtSemi=*/true, /*DontConsume=*/true);
+      SkipUntil(tok::semi, StopAtSemi | StopBeforeMatch);
       return ExprError();
     }
 
@@ -2353,7 +2522,7 @@ Parser::ParseCXXNewExpression(bool UseGlobal, SourceLocation Start) {
     }
   }
   if (DeclaratorInfo.isInvalidType()) {
-    SkipUntil(tok::semi, /*StopAtSemi=*/true, /*DontConsume=*/true);
+    SkipUntil(tok::semi, StopAtSemi | StopBeforeMatch);
     return ExprError();
   }
 
@@ -2368,14 +2537,14 @@ Parser::ParseCXXNewExpression(bool UseGlobal, SourceLocation Start) {
     if (Tok.isNot(tok::r_paren)) {
       CommaLocsTy CommaLocs;
       if (ParseExpressionList(ConstructorArgs, CommaLocs)) {
-        SkipUntil(tok::semi, /*StopAtSemi=*/true, /*DontConsume=*/true);
+        SkipUntil(tok::semi, StopAtSemi | StopBeforeMatch);
         return ExprError();
       }
     }
     T.consumeClose();
     ConstructorRParen = T.getCloseLocation();
     if (ConstructorRParen.isInvalid()) {
-      SkipUntil(tok::semi, /*StopAtSemi=*/true, /*DontConsume=*/true);
+      SkipUntil(tok::semi, StopAtSemi | StopBeforeMatch);
       return ExprError();
     }
     Initializer = Actions.ActOnParenListExpr(ConstructorLParen,
@@ -2416,7 +2585,7 @@ void Parser::ParseDirectNewDeclarator(Declarator &D) {
                                 : ParseConstantExpression());
     if (Size.isInvalid()) {
       // Recover
-      SkipUntil(tok::r_square);
+      SkipUntil(tok::r_square, StopAtSemi);
       return;
     }
     first = false;
@@ -2553,6 +2722,7 @@ static UnaryTypeTrait UnaryTypeTraitFromTokKind(tok::TokenKind kind) {
   case tok::kw___is_reference:               return UTT_IsReference;
   case tok::kw___is_rvalue_reference:        return UTT_IsRvalueReference;
   case tok::kw___is_scalar:                  return UTT_IsScalar;
+  case tok::kw___is_sealed:                  return UTT_IsSealed;
   case tok::kw___is_signed:                  return UTT_IsSigned;
   case tok::kw___is_standard_layout:         return UTT_IsStandardLayout;
   case tok::kw___is_trivial:                 return UTT_IsTrivial;
@@ -2645,18 +2815,18 @@ ExprResult Parser::ParseBinaryTypeTrait() {
 
   TypeResult LhsTy = ParseTypeName();
   if (LhsTy.isInvalid()) {
-    SkipUntil(tok::r_paren);
+    SkipUntil(tok::r_paren, StopAtSemi);
     return ExprError();
   }
 
   if (ExpectAndConsume(tok::comma, diag::err_expected_comma)) {
-    SkipUntil(tok::r_paren);
+    SkipUntil(tok::r_paren, StopAtSemi);
     return ExprError();
   }
 
   TypeResult RhsTy = ParseTypeName();
   if (RhsTy.isInvalid()) {
-    SkipUntil(tok::r_paren);
+    SkipUntil(tok::r_paren, StopAtSemi);
     return ExprError();
   }
 
@@ -2735,8 +2905,8 @@ ExprResult Parser::ParseArrayTypeTrait() {
 
   TypeResult Ty = ParseTypeName();
   if (Ty.isInvalid()) {
-    SkipUntil(tok::comma);
-    SkipUntil(tok::r_paren);
+    SkipUntil(tok::comma, StopAtSemi);
+    SkipUntil(tok::r_paren, StopAtSemi);
     return ExprError();
   }
 
@@ -2748,7 +2918,7 @@ ExprResult Parser::ParseArrayTypeTrait() {
   }
   case ATT_ArrayExtent: {
     if (ExpectAndConsume(tok::comma, diag::err_expected_comma)) {
-      SkipUntil(tok::r_paren);
+      SkipUntil(tok::r_paren, StopAtSemi);
       return ExprError();
     }
 
@@ -2905,7 +3075,7 @@ Parser::ParseCXXAmbiguousParenExpression(ParenParseOption &ExprType,
 
   // Match the ')'.
   if (Result.isInvalid()) {
-    SkipUntil(tok::r_paren);
+    SkipUntil(tok::r_paren, StopAtSemi);
     return ExprError();
   }
 

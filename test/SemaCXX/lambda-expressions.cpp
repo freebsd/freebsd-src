@@ -1,4 +1,5 @@
-// RUN: %clang_cc1 -std=c++0x -Wno-unused-value -fsyntax-only -verify -fblocks %s
+// RUN: %clang_cc1 -std=c++11 -Wno-unused-value -fsyntax-only -verify -fblocks %s
+// RUN: %clang_cc1 -std=c++1y -Wno-unused-value -fsyntax-only -verify -fblocks %s
 
 namespace std { class type_info; };
 
@@ -109,27 +110,30 @@ namespace PR12031 {
   }
 }
 
-namespace NullPtr {
+namespace Array {
   int &f(int *p);
   char &f(...);
   void g() {
-    int n = 0;
+    int n = -1;
     [=] {
-      char &k = f(n); // not a null pointer constant
+      int arr[n]; // VLA
     } ();
 
-    const int m = 0;
-    [=] {
-      int &k = f(m); // expected-warning{{expression which evaluates to zero treated as a null pointer constant of type 'int *'}}
+    const int m = -1;
+    [] {
+      int arr[m]; // expected-error{{negative size}}
     } ();
 
-    [=] () -> bool {
-      int &k = f(m); // expected-warning{{expression which evaluates to zero treated as a null pointer constant of type 'int *'}}
-      return &m == 0;
+    [&] {
+      int arr[m]; // expected-error{{negative size}}
+    } ();
+
+    [=] {
+      int arr[m]; // expected-error{{negative size}}
     } ();
 
     [m] {
-      int &k = f(m); // expected-warning{{expression which evaluates to zero treated as a null pointer constant of type 'int *'}}
+      int arr[m]; // expected-error{{negative size}}
     } ();
   }
 }
@@ -239,4 +243,43 @@ namespace PR13854 {
 
 namespace PR14518 {
   auto f = [](void) { return __func__; }; // no-warning
+}
+
+namespace PR16708 {
+  auto L = []() {
+    auto ret = 0;
+    return ret;
+    return 0;
+  };
+}
+
+namespace TypeDeduction {
+  struct S {};
+  void f() {
+    const S s {};
+    S &&t = [&] { return s; } ();
+#if __cplusplus <= 201103L
+    // expected-error@-2 {{drops qualifiers}}
+#else
+    S &&u = [&] () -> auto { return s; } ();
+#endif
+  }
+}
+
+
+namespace lambdas_in_NSDMIs {
+  template<class T>
+  struct L {
+      T t{};
+      T t2 = ([](int a) { return [](int b) { return b; };})(t)(t);    
+  };
+  L<int> l; 
+  
+  namespace non_template {
+    struct L {
+      int t = 0;
+      int t2 = ([](int a) { return [](int b) { return b; };})(t)(t);    
+    };
+    L l; 
+  }
 }

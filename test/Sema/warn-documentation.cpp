@@ -136,37 +136,33 @@ int test_duplicate_brief2(int);
 int test_duplicate_brief3(int);
 
 
-// expected-warning@+5 {{duplicated command '\return'}} expected-note@+1 {{previous command '\return' here}}
 /// \return Aaa
 ///
 /// Bbb
 ///
 /// \return Ccc
-int test_duplicate_returns1(int);
+int test_multiple_returns1(int);
 
-// expected-warning@+5 {{duplicated command '\returns'}} expected-note@+1 {{previous command '\returns' here}}
 /// \returns Aaa
 ///
 /// Bbb
 ///
 /// \returns Ccc
-int test_duplicate_returns2(int);
+int test_multiple_returns2(int);
 
-// expected-warning@+5 {{duplicated command '\result'}} expected-note@+1 {{previous command '\result' here}}
 /// \result Aaa
 ///
 /// Bbb
 ///
 /// \result Ccc
-int test_duplicate_returns3(int);
+int test_multiple_returns3(int);
 
-// expected-warning@+5 {{duplicated command '\return'}} expected-note@+1 {{previous command '\returns' (an alias of '\return') here}}
 /// \returns Aaa
 ///
 /// Bbb
 ///
 /// \return Ccc
-int test_duplicate_returns4(int);
+int test_multiple_returns4(int);
 
 
 // expected-warning@+1 {{'\param' command used in a comment that is not attached to a function declaration}}
@@ -307,6 +303,22 @@ typedef test_param27 test_param28;
 // expected-warning@+1 {{'@param' command used in a comment that is not attached to a function declaration}}
 /// @param aaa Meow.
 typedef unsigned int test_param29;
+
+
+/// \param aaa Aaa
+/// \param ... Vararg
+int test_vararg_param1(int aaa, ...);
+
+/// \param ... Vararg
+int test_vararg_param2(...);
+
+// expected-warning@+1 {{parameter '...' not found in the function declaration}} expected-note@+1 {{did you mean 'aaa'?}}
+/// \param ... Vararg
+int test_vararg_param3(int aaa);
+
+// expected-warning@+1 {{parameter '...' not found in the function declaration}}
+/// \param ... Vararg
+int test_vararg_param4();
 
 
 // expected-warning@+1 {{'\tparam' command used in a comment that is not attached to a template declaration}}
@@ -590,6 +602,25 @@ int test2, ///< \brief\author Aaa
 // expected-warning@+1 {{empty paragraph passed to '\brief' command}}
 int test4; ///< \brief
            ///< \author Aaa
+
+
+class TestRelates {};
+
+/// \relates TestRelates
+/// \brief Aaa
+void test_relates_1();
+
+/// \related TestRelates
+/// \brief Aaa
+void test_relates_2();
+
+/// \relatesalso TestRelates
+/// \brief Aaa
+void test_relates_3();
+
+/// \relatedalso TestRelates
+/// \brief Aaa
+void test_relates_4();
 
 
 // Check that we attach the comment to the declaration during parsing in the
@@ -950,3 +981,47 @@ class C1;
   @struct S3;
 */
 class S3;
+
+// rdar://14124702
+//----------------------------------------------------------------------
+/// @class Predicate Predicate.h "lldb/Host/Predicate.h"
+/// @brief A C++ wrapper class for providing threaded access to a value
+/// of type T.
+///
+/// A templatized class.
+/// specified values.
+//----------------------------------------------------------------------
+template <class T, class T1>
+class Predicate
+{
+};
+
+//----------------------------------------------------------------------
+/// @class Predicate<int, char> Predicate.h "lldb/Host/Predicate.h"
+/// @brief A C++ wrapper class for providing threaded access to a value
+/// of type T.
+///
+/// A template specilization class.
+//----------------------------------------------------------------------
+template<> class Predicate<int, char>
+{
+};
+
+//----------------------------------------------------------------------
+/// @class Predicate<T, int> Predicate.h "lldb/Host/Predicate.h"
+/// @brief A C++ wrapper class for providing threaded access to a value
+/// of type T.
+///
+/// A partial specialization template class.
+//----------------------------------------------------------------------
+template<class T> class Predicate<T, int>
+{
+};
+
+/*!     @function test_function
+*/
+template <class T> T test_function (T arg);
+
+/*!     @function test_function<int>
+*/
+template <> int test_function<int> (int arg);

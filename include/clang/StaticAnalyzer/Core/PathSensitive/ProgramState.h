@@ -232,22 +232,21 @@ public:
   /// \param IS the set of invalidated symbols.
   /// \param Call if non-null, the invalidated regions represent parameters to
   ///        the call and should be considered directly invalidated.
-  /// \param ConstRegions the set of regions whose contents are accessible,
-  ///        even though the regions themselves should not be invalidated.
+  /// \param ITraits information about special handling for a particular 
+  ///        region/symbol.
   ProgramStateRef
   invalidateRegions(ArrayRef<const MemRegion *> Regions, const Expr *E,
                     unsigned BlockCount, const LocationContext *LCtx,
                     bool CausesPointerEscape, InvalidatedSymbols *IS = 0,
                     const CallEvent *Call = 0,
-                    ArrayRef<const MemRegion *> ConstRegions =
-                      ArrayRef<const MemRegion *>()) const;
+                    RegionAndSymbolInvalidationTraits *ITraits = 0) const;
 
   ProgramStateRef
   invalidateRegions(ArrayRef<SVal> Regions, const Expr *E,
                     unsigned BlockCount, const LocationContext *LCtx,
                     bool CausesPointerEscape, InvalidatedSymbols *IS = 0,
                     const CallEvent *Call = 0,
-                    ArrayRef<SVal> ConstRegions = ArrayRef<SVal>()) const;
+                    RegionAndSymbolInvalidationTraits *ITraits = 0) const;
 
   /// enterStackFrame - Returns the state for entry to the given stack frame,
   ///  preserving the current state.
@@ -425,9 +424,9 @@ private:
                         const Expr *E, unsigned BlockCount,
                         const LocationContext *LCtx,
                         bool ResultsInSymbolEscape,
-                        InvalidatedSymbols &IS,
-                        const CallEvent *Call,
-                        ArrayRef<SVal> ConstValues) const;
+                        InvalidatedSymbols *IS,
+                        RegionAndSymbolInvalidationTraits *HTraits,
+                        const CallEvent *Call) const;
 };
 
 //===----------------------------------------------------------------------===//
@@ -516,8 +515,8 @@ public:
 
 public:
 
-  SVal ArrayToPointer(Loc Array) {
-    return StoreMgr->ArrayToPointer(Array);
+  SVal ArrayToPointer(Loc Array, QualType ElementTy) {
+    return StoreMgr->ArrayToPointer(Array, ElementTy);
   }
 
   // Methods that manipulate the GDM.
@@ -798,7 +797,7 @@ CB ProgramState::scanReachableSymbols(const MemRegion * const *beg,
 /// A Utility class that allows to visit the reachable symbols using a custom
 /// SymbolVisitor.
 class ScanReachableSymbols {
-  typedef llvm::DenseMap<const void*, unsigned> VisitedItems;
+  typedef llvm::DenseSet<const void*> VisitedItems;
 
   VisitedItems visited;
   ProgramStateRef state;
@@ -808,6 +807,7 @@ public:
   ScanReachableSymbols(ProgramStateRef st, SymbolVisitor& v)
     : state(st), visitor(v) {}
 
+  bool scan(nonloc::LazyCompoundVal val);
   bool scan(nonloc::CompoundVal val);
   bool scan(SVal val);
   bool scan(const MemRegion *R);

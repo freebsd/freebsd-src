@@ -154,20 +154,25 @@ def act_on_decl(declaration, comment, allowed_types):
       inner, name = m.groups()
       add_matcher('Type', name, 'Matcher<%s>...' % inner,
                   comment, is_dyncast=True)
-      add_matcher('TypeLoc', '%sLoc' % name, 'Matcher<%sLoc>...' % inner,
-                  comment, is_dyncast=True)
+      # FIXME: re-enable once we have implemented casting on the TypeLoc
+      # hierarchy.
+      # add_matcher('TypeLoc', '%sLoc' % name, 'Matcher<%sLoc>...' % inner,
+      #             comment, is_dyncast=True)
       return
 
     m = re.match(""".*AST_TYPE(LOC)?_TRAVERSE_MATCHER\(
                        \s*([^\s,]+\s*),
-                       \s*(?:[^\s,]+\s*)
+                       \s*(?:[^\s,]+\s*),
+                       \s*AST_POLYMORPHIC_SUPPORTED_TYPES_([^(]*)\(([^)]*)\)
                      \)\s*;\s*$""", declaration, flags=re.X)
     if m:
-      loc = m.group(1)
-      name = m.group(2)
-      result_types = extract_result_types(comment)
-      if not result_types:
-        raise Exception('Did not find allowed result types for: %s' % name)
+      loc, name, n_results, results = m.groups()[0:4]
+      result_types = [r.strip() for r in results.split(',')]
+
+      comment_result_types = extract_result_types(comment)
+      if (comment_result_types and
+          sorted(result_types) != sorted(comment_result_types)):
+        raise Exception('Inconsistent documentation for: %s' % name)
       for result_type in result_types:
         add_matcher(result_type, name, 'Matcher<Type>', comment)
         if loc:
@@ -175,7 +180,31 @@ def act_on_decl(declaration, comment, allowed_types):
                       comment)
       return
 
-    m = re.match(r"""^\s*AST_(POLYMORPHIC_)?MATCHER(_P)?(.?)(?:_OVERLOAD)?\(
+    m = re.match(r"""^\s*AST_POLYMORPHIC_MATCHER(_P)?(.?)(?:_OVERLOAD)?\(
+                          \s*([^\s,]+)\s*,
+                          \s*AST_POLYMORPHIC_SUPPORTED_TYPES_([^(]*)\(([^)]*)\)
+                       (?:,\s*([^\s,]+)\s*
+                          ,\s*([^\s,]+)\s*)?
+                       (?:,\s*([^\s,]+)\s*
+                          ,\s*([^\s,]+)\s*)?
+                       (?:,\s*\d+\s*)?
+                      \)\s*{\s*$""", declaration, flags=re.X)
+
+    if m:
+      p, n, name, n_results, results = m.groups()[0:5]
+      args = m.groups()[5:]
+      result_types = [r.strip() for r in results.split(',')]
+      if allowed_types and allowed_types != result_types:
+        raise Exception('Inconsistent documentation for: %s' % name)
+      if n not in ['', '2']:
+        raise Exception('Cannot parse "%s"' % declaration)
+      args = ', '.join('%s %s' % (args[i], args[i+1])
+                       for i in range(0, len(args), 2) if args[i])
+      for result_type in result_types:
+        add_matcher(result_type, name, args, comment)
+      return
+
+    m = re.match(r"""^\s*AST_MATCHER(_P)?(.?)(?:_OVERLOAD)?\(
                        (?:\s*([^\s,]+)\s*,)?
                           \s*([^\s,]+)\s*
                        (?:,\s*([^\s,]+)\s*
@@ -185,8 +214,8 @@ def act_on_decl(declaration, comment, allowed_types):
                        (?:,\s*\d+\s*)?
                       \)\s*{\s*$""", declaration, flags=re.X)
     if m:
-      p, n, result, name = m.groups()[1:5]
-      args = m.groups()[5:]
+      p, n, result, name = m.groups()[0:4]
+      args = m.groups()[4:]
       if not result:
         if not allowed_types:
           raise Exception('Did not find allowed result types for: %s' % name)
@@ -200,6 +229,26 @@ def act_on_decl(declaration, comment, allowed_types):
       for result_type in result_types:
         add_matcher(result_type, name, args, comment)
       return
+
+    # Parse ArgumentAdapting matchers.
+    m = re.match(
+        r"""^.*ArgumentAdaptingMatcherFunc<.*>\s*(?:LLVM_ATTRIBUTE_UNUSED\s*)
+              ([a-zA-Z]*)\s*=\s*{};$""",
+        declaration, flags=re.X)
+    if m:
+      name = m.groups()[0]
+      add_matcher('*', name, 'Matcher<*>', comment)
+      return
+
+    # Parse Variadic operator matchers.
+    m = re.match(
+        r"""^.*VariadicOperatorMatcherFunc\s*([a-zA-Z]*)\s*=\s*{.*};$""",
+        declaration, flags=re.X)
+    if m:
+      name = m.groups()[0]
+      add_matcher('*', name, 'Matcher<*>, ..., Matcher<*>', comment)
+      return
+
 
     # Parse free standing matcher functions, like:
     #   Matcher<ResultType> Name(Matcher<ArgumentType> InnerMatcher) {
@@ -270,7 +319,7 @@ for line in open(MATCHERS_FILE).read().splitlines():
     declaration += ' ' + line
     if ((not line.strip()) or 
         line.rstrip()[-1] == ';' or
-        line.rstrip()[-1] == '{'):
+        (line.rstrip()[-1] == '{' and line.rstrip()[-3:] != '= {')):
       if line.strip() and line.rstrip()[-1] == '{':
         body = True
       else:

@@ -166,3 +166,38 @@ namespace PR13136 {
     return 0;
   }
 }
+
+namespace PR16646 {
+  namespace test1 {
+    template <typename T> struct DefaultValue { const T value=0;};
+    template <typename ... Args> struct tuple {};
+    template <typename ... Args> using Zero = tuple<DefaultValue<Args> ...>;
+    template <typename ... Args> void f(const Zero<Args ...> &t);
+    void f() {
+        f(Zero<int,double,double>());
+    }
+  }
+
+  namespace test2 {
+    template<int x> struct X {};
+    template <template<int x> class temp> struct DefaultValue { const temp<0> value; };
+    template <typename ... Args> struct tuple {};
+    template <template<int x> class... Args> using Zero = tuple<DefaultValue<Args> ...>;
+    template <template<int x> class... Args> void f(const Zero<Args ...> &t);
+    void f() {
+      f(Zero<X,X,X>());
+    }
+  }
+}
+
+namespace PR16904 {
+  template <typename,typename>
+  struct base {
+    template <typename> struct derived;
+  };
+  // FIXME: The diagnostics here are terrible.
+  template <typename T, typename U, typename V>
+  using derived = base<T, U>::template derived<V>; // expected-error {{expected a type}} expected-error {{expected ';'}}
+  template <typename T, typename U, typename V>
+  using derived2 = ::PR16904::base<T, U>::template derived<V>; // expected-error {{expected a type}} expected-error {{expected ';'}}
+}

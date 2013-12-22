@@ -11,8 +11,10 @@
 #define PT_GUARDED_VAR      __attribute__ ((pt_guarded_var))
 #define ACQUIRED_AFTER(...) __attribute__ ((acquired_after(__VA_ARGS__)))
 #define ACQUIRED_BEFORE(...) __attribute__ ((acquired_before(__VA_ARGS__)))
-#define EXCLUSIVE_LOCK_FUNCTION(...)   __attribute__ ((exclusive_lock_function(__VA_ARGS__)))
-#define SHARED_LOCK_FUNCTION(...)      __attribute__ ((shared_lock_function(__VA_ARGS__)))
+#define EXCLUSIVE_LOCK_FUNCTION(...)    __attribute__ ((exclusive_lock_function(__VA_ARGS__)))
+#define SHARED_LOCK_FUNCTION(...)       __attribute__ ((shared_lock_function(__VA_ARGS__)))
+#define ASSERT_EXCLUSIVE_LOCK(...)      __attribute__ ((assert_exclusive_lock(__VA_ARGS__)))
+#define ASSERT_SHARED_LOCK(...)         __attribute__ ((assert_shared_lock(__VA_ARGS__)))
 #define EXCLUSIVE_TRYLOCK_FUNCTION(...) __attribute__ ((exclusive_trylock_function(__VA_ARGS__)))
 #define SHARED_TRYLOCK_FUNCTION(...)    __attribute__ ((shared_trylock_function(__VA_ARGS__)))
 #define UNLOCK_FUNCTION(...)            __attribute__ ((unlock_function(__VA_ARGS__)))
@@ -33,6 +35,9 @@ class  __attribute__((lockable)) Mutex {
   bool TryLock() __attribute__((exclusive_trylock_function(true)));
   bool ReaderTryLock() __attribute__((shared_trylock_function(true)));
   void LockWhen(const int &cond) __attribute__((exclusive_lock_function));
+
+  void AssertHeld()       ASSERT_EXCLUSIVE_LOCK();
+  void AssertReaderHeld() ASSERT_SHARED_LOCK();
 };
 
 class __attribute__((scoped_lockable)) MutexLock {
@@ -75,6 +80,7 @@ public:
   T* get()        const { return ptr_; }
   T* operator->() const { return ptr_; }
   T& operator*()  const { return *ptr_; }
+  T& operator[](int i) const { return ptr_[i]; }
 
 private:
   T* ptr_;
@@ -102,14 +108,14 @@ class MutexWrapper {
 public:
    Mutex mu;
    int x __attribute__((guarded_by(mu)));
-   void MyLock() __attribute__((exclusive_lock_function(mu))); 
+   void MyLock() __attribute__((exclusive_lock_function(mu)));
 };
 
 MutexWrapper sls_mw;
 
 void sls_fun_0() {
   sls_mw.mu.Lock();
-  sls_mw.x = 5; 
+  sls_mw.x = 5;
   sls_mw.mu.Unlock();
 }
 
@@ -3069,44 +3075,6 @@ void Foo::test1() {
 #endif
 }
 
-
-void Foo::test2() {
-/* FIXME: these tests depend on changes to the CFG.
- *
-  if (mu_.TryLock() && c) {
-    a = 0;
-    unlock();
-  }
-  else return;
-
-  if (c && mu_.TryLock()) {
-    a = 0;
-    unlock();
-  }
-  else return;
-
-  if (!(mu_.TryLock() && c))
-    return;
-  a = 0;
-  unlock();
-
-  if (!(c && mu_.TryLock()))
-    return;
-  a = 0;
-  unlock();
-
-  if (!(mu_.TryLock() == 0) && c) {
-    a = 0;
-    unlock();
-  }
-
-  if (!mu_.TryLock() || c)
-    return;
-  a = 0;
-  unlock();
-*/
-}
-
 } // end namespace TryLockEqTest
 
 
@@ -3984,4 +3952,365 @@ private:
 };
 
 }  // end namespace LockUnlockFunctionTest
+
+
+namespace AssertHeldTest {
+
+class Foo {
+public:
+  int c;
+  int a GUARDED_BY(mu_);
+  Mutex mu_;
+
+  void test1() {
+    mu_.AssertHeld();
+    int b = a;
+    a = 0;
+  }
+
+  void test2() {
+    mu_.AssertReaderHeld();
+    int b = a;
+    a = 0;   // expected-warning {{writing variable 'a' requires locking 'mu_' exclusively}}
+  }
+
+  void test3() {
+    if (c) {
+      mu_.AssertHeld();
+    }
+    else {
+      mu_.AssertHeld();
+    }
+    int b = a;
+    a = 0;
+  }
+
+  void test4() EXCLUSIVE_LOCKS_REQUIRED(mu_) {
+    mu_.AssertHeld();
+    int b = a;
+    a = 0;
+  }
+
+  void test5() UNLOCK_FUNCTION(mu_) {
+    mu_.AssertHeld();
+    mu_.Unlock();
+  }
+
+  void test6() {
+    mu_.AssertHeld();
+    mu_.Unlock();
+  }  // should this be a warning?
+
+  void test7() {
+    if (c) {
+      mu_.AssertHeld();
+    }
+    else {
+      mu_.Lock();
+    }
+    int b = a;
+    a = 0;
+    mu_.Unlock();
+  }
+
+  void test8() {
+    if (c) {
+      mu_.Lock();
+    }
+    else {
+      mu_.AssertHeld();
+    }
+    int b = a;
+    a = 0;
+    mu_.Unlock();
+  }
+
+  void test9() {
+    if (c) {
+      mu_.AssertHeld();
+    }
+    else {
+      mu_.Lock();  // expected-note {{mutex acquired here}}
+    }
+  }  // expected-warning {{mutex 'mu_' is still locked at the end of function}}
+
+  void test10() {
+    if (c) {
+      mu_.Lock();  // expected-note {{mutex acquired here}}
+    }
+    else {
+      mu_.AssertHeld();
+    }
+  }  // expected-warning {{mutex 'mu_' is still locked at the end of function}}
+
+  void assertMu() ASSERT_EXCLUSIVE_LOCK(mu_);
+
+  void test11() {
+    assertMu();
+    int b = a;
+    a = 0;
+  }
+};
+
+}  // end namespace AssertHeldTest
+
+
+namespace LogicalConditionalTryLock {
+
+class Foo {
+public:
+  Mutex mu;
+  int a GUARDED_BY(mu);
+  bool c;
+
+  bool newc();
+
+  void test1() {
+    if (c && mu.TryLock()) {
+      a = 0;
+      mu.Unlock();
+    }
+  }
+
+  void test2() {
+    bool b = mu.TryLock();
+    if (c && b) {
+      a = 0;
+      mu.Unlock();
+    }
+  }
+
+  void test3() {
+    if (c || !mu.TryLock())
+      return;
+    a = 0;
+    mu.Unlock();
+  }
+
+  void test4() {
+    while (c && mu.TryLock()) {
+      a = 0;
+      c = newc();
+      mu.Unlock();
+    }
+  }
+
+  void test5() {
+    while (c) {
+      if (newc() || !mu.TryLock())
+        break;
+      a = 0;
+      mu.Unlock();
+    }
+  }
+
+  void test6() {
+    mu.Lock();
+    do {
+      a = 0;
+      mu.Unlock();
+    } while (newc() && mu.TryLock());
+  }
+
+  void test7() {
+    for (bool b = mu.TryLock(); c && b;) {
+      a = 0;
+      mu.Unlock();
+    }
+  }
+
+  void test8() {
+    if (c && newc() && mu.TryLock()) {
+      a = 0;
+      mu.Unlock();
+    }
+  }
+
+  void test9() {
+    if (!(c && newc() && mu.TryLock()))
+      return;
+    a = 0;
+    mu.Unlock();
+  }
+
+  void test10() {
+    if (!(c || !mu.TryLock())) {
+      a = 0;
+      mu.Unlock();
+    }
+  }
+};
+
+}  // end namespace LogicalConditionalTryLock
+
+
+
+namespace PtGuardedByTest {
+
+void doSomething();
+
+class Cell {
+  public:
+  int a;
+};
+
+
+// This mainly duplicates earlier tests, but just to make sure...
+class PtGuardedBySanityTest {
+  Mutex  mu1;
+  Mutex  mu2;
+  int*   a GUARDED_BY(mu1) PT_GUARDED_BY(mu2);
+  Cell*  c GUARDED_BY(mu1) PT_GUARDED_BY(mu2);
+  int    sa[10] GUARDED_BY(mu1);
+  Cell   sc[10] GUARDED_BY(mu1);
+
+  void test1() {
+    mu1.Lock();
+    if (a == 0) doSomething();  // OK, we don't dereference.
+    a = 0;
+    c = 0;
+    if (sa[0] == 42) doSomething();
+    sa[0] = 57;
+    if (sc[0].a == 42) doSomething();
+    sc[0].a = 57;
+    mu1.Unlock();
+  }
+
+  void test2() {
+    mu1.ReaderLock();
+    if (*a == 0) doSomething();      // expected-warning {{reading the value pointed to by 'a' requires locking 'mu2'}}
+    *a = 0;                          // expected-warning {{writing the value pointed to by 'a' requires locking 'mu2' exclusively}}
+
+    if (c->a == 0) doSomething();    // expected-warning {{reading the value pointed to by 'c' requires locking 'mu2'}}
+    c->a = 0;                        // expected-warning {{writing the value pointed to by 'c' requires locking 'mu2' exclusively}}
+
+    if ((*c).a == 0) doSomething();  // expected-warning {{reading the value pointed to by 'c' requires locking 'mu2'}}
+    (*c).a = 0;                      // expected-warning {{writing the value pointed to by 'c' requires locking 'mu2' exclusively}}
+
+    if (a[0] == 42) doSomething();     // expected-warning {{reading the value pointed to by 'a' requires locking 'mu2'}}
+    a[0] = 57;                         // expected-warning {{writing the value pointed to by 'a' requires locking 'mu2' exclusively}}
+    if (c[0].a == 42) doSomething();   // expected-warning {{reading the value pointed to by 'c' requires locking 'mu2'}}
+    c[0].a = 57;                       // expected-warning {{writing the value pointed to by 'c' requires locking 'mu2' exclusively}}
+    mu1.Unlock();
+  }
+
+  void test3() {
+    mu2.Lock();
+    if (*a == 0) doSomething();      // expected-warning {{reading variable 'a' requires locking 'mu1'}}
+    *a = 0;                          // expected-warning {{reading variable 'a' requires locking 'mu1'}}
+
+    if (c->a == 0) doSomething();    // expected-warning {{reading variable 'c' requires locking 'mu1'}}
+    c->a = 0;                        // expected-warning {{reading variable 'c' requires locking 'mu1'}}
+
+    if ((*c).a == 0) doSomething();  // expected-warning {{reading variable 'c' requires locking 'mu1'}}
+    (*c).a = 0;                      // expected-warning {{reading variable 'c' requires locking 'mu1'}}
+
+    if (a[0] == 42) doSomething();     // expected-warning {{reading variable 'a' requires locking 'mu1'}}
+    a[0] = 57;                         // expected-warning {{reading variable 'a' requires locking 'mu1'}}
+    if (c[0].a == 42) doSomething();   // expected-warning {{reading variable 'c' requires locking 'mu1'}}
+    c[0].a = 57;                       // expected-warning {{reading variable 'c' requires locking 'mu1'}}
+    mu2.Unlock();
+  }
+
+  void test4() {  // Literal arrays
+    if (sa[0] == 42) doSomething();     // expected-warning {{reading variable 'sa' requires locking 'mu1'}}
+    sa[0] = 57;                         // expected-warning {{writing variable 'sa' requires locking 'mu1' exclusively}}
+    if (sc[0].a == 42) doSomething();   // expected-warning {{reading variable 'sc' requires locking 'mu1'}}
+    sc[0].a = 57;                       // expected-warning {{writing variable 'sc' requires locking 'mu1' exclusively}}
+
+    if (*sa == 42) doSomething();       // expected-warning {{reading variable 'sa' requires locking 'mu1'}}
+    *sa = 57;                           // expected-warning {{writing variable 'sa' requires locking 'mu1' exclusively}}
+    if ((*sc).a == 42) doSomething();   // expected-warning {{reading variable 'sc' requires locking 'mu1'}}
+    (*sc).a = 57;                       // expected-warning {{writing variable 'sc' requires locking 'mu1' exclusively}}
+    if (sc->a == 42) doSomething();     // expected-warning {{reading variable 'sc' requires locking 'mu1'}}
+    sc->a = 57;                         // expected-warning {{writing variable 'sc' requires locking 'mu1' exclusively}}
+  }
+
+  void test5() {
+    mu1.ReaderLock();    // OK -- correct use.
+    mu2.Lock();
+    if (*a == 0) doSomething();
+    *a = 0;
+
+    if (c->a == 0) doSomething();
+    c->a = 0;
+
+    if ((*c).a == 0) doSomething();
+    (*c).a = 0;
+    mu2.Unlock();
+    mu1.Unlock();
+  }
+};
+
+
+class SmartPtr_PtGuardedBy_Test {
+  Mutex mu1;
+  Mutex mu2;
+  SmartPtr<int>  sp GUARDED_BY(mu1) PT_GUARDED_BY(mu2);
+  SmartPtr<Cell> sq GUARDED_BY(mu1) PT_GUARDED_BY(mu2);
+
+  void test1() {
+    mu1.ReaderLock();
+    mu2.Lock();
+
+    sp.get();
+    if (*sp == 0) doSomething();
+    *sp = 0;
+    sq->a = 0;
+
+    if (sp[0] == 0) doSomething();
+    sp[0] = 0;
+
+    mu2.Unlock();
+    mu1.Unlock();
+  }
+
+  void test2() {
+    mu2.Lock();
+
+    sp.get();                      // expected-warning {{reading variable 'sp' requires locking 'mu1'}}
+    if (*sp == 0) doSomething();   // expected-warning {{reading variable 'sp' requires locking 'mu1'}}
+    *sp = 0;                       // expected-warning {{reading variable 'sp' requires locking 'mu1'}}
+    sq->a = 0;                     // expected-warning {{reading variable 'sq' requires locking 'mu1'}}
+
+    if (sp[0] == 0) doSomething();   // expected-warning {{reading variable 'sp' requires locking 'mu1'}}
+    sp[0] = 0;                       // expected-warning {{reading variable 'sp' requires locking 'mu1'}}
+    if (sq[0].a == 0) doSomething(); // expected-warning {{reading variable 'sq' requires locking 'mu1'}}
+    sq[0].a = 0;                     // expected-warning {{reading variable 'sq' requires locking 'mu1'}}
+
+    mu2.Unlock();
+  }
+
+  void test3() {
+    mu1.Lock();
+
+    sp.get();
+    if (*sp == 0) doSomething();   // expected-warning {{reading the value pointed to by 'sp' requires locking 'mu2'}}
+    *sp = 0;                       // expected-warning {{reading the value pointed to by 'sp' requires locking 'mu2'}}
+    sq->a = 0;                     // expected-warning {{reading the value pointed to by 'sq' requires locking 'mu2'}}
+
+    if (sp[0] == 0) doSomething();   // expected-warning {{reading the value pointed to by 'sp' requires locking 'mu2'}}
+    sp[0] = 0;                       // expected-warning {{reading the value pointed to by 'sp' requires locking 'mu2'}}
+    if (sq[0].a == 0) doSomething(); // expected-warning {{reading the value pointed to by 'sq' requires locking 'mu2'}}
+    sq[0].a = 0;                     // expected-warning {{reading the value pointed to by 'sq' requires locking 'mu2'}}
+
+    mu1.Unlock();
+  }
+};
+
+}  // end namespace PtGuardedByTest
+
+
+namespace NonMemberCalleeICETest {
+
+class A {
+  void Run() {
+  (RunHelper)();  // expected-warning {{calling function 'RunHelper' requires exclusive lock on 'M'}}
+ }
+
+ void RunHelper() __attribute__((exclusive_locks_required(M)));
+ Mutex M;
+};
+
+}  // end namespace NonMemberCalleeICETest
 

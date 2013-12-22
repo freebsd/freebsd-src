@@ -1,12 +1,12 @@
-// RUN: %clang_cc1  -fsyntax-only -fobjc-default-synthesize-properties -verify -Wno-objc-root-class %s
-// RUN: %clang_cc1 -x objective-c++ -fsyntax-only -fobjc-default-synthesize-properties -verify -Wno-objc-root-class %s
+// RUN: %clang_cc1  -fsyntax-only -verify -Wno-objc-root-class %s
+// RUN: %clang_cc1 -x objective-c++ -fsyntax-only -verify -Wno-objc-root-class %s
 // rdar://13178483
 
-@class NSMutableDictionary;
+@class NSMutableDictionary; // expected-note {{receiver is instance of class declared here}}
 
 @interface LaunchdJobs 
 
-@property (nonatomic,retain) NSMutableDictionary *uuids_jobs; // expected-note 2 {{'_uuids_jobs' declared here}}
+@property (nonatomic,retain) NSMutableDictionary *uuids_jobs; // expected-note {{'_uuids_jobs' declared here}}
 
 @end
 

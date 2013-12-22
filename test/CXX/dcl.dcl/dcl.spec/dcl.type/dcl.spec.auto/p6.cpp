@@ -55,7 +55,7 @@ void f() {
 
   auto *fail1 = 0; // expected-error {{variable 'fail1' with type 'auto *' has incompatible initializer of type 'int'}}
   int **p;
-  const auto **fail2(p); // expected-error {{variable 'fail2' with type 'auto const **' has incompatible initializer of type 'int **'}}
+  const auto **fail2(p); // expected-error {{variable 'fail2' with type 'const auto **' has incompatible initializer of type 'int **'}}
 }
 
 struct S {
@@ -85,8 +85,8 @@ struct S {
 
 namespace PR10939 {
   struct X {
-    int method(int);
-    int method(float); 
+    int method(int); // expected-note{{possible target for call}}
+    int method(float); // expected-note{{possible target for call}}
   };
 
   template<typename T> T g(T);

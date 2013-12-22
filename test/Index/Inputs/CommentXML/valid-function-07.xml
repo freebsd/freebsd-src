@@ -20,11 +20,24 @@
     <Direction isExplicit="1">in,out</Direction>
     <Discussion><Para>Ddd</Para></Discussion>
   </Parameter>
+  <Parameter>
+    <Name>x4</Name>
+    <IsVarArg />
+    <Direction isExplicit="0">in</Direction>
+    <Discussion><Para>Eee</Para></Discussion>
+  </Parameter>
 </Parameters>
-<ResultDiscussion><Para>Eee.</Para></ResultDiscussion>
+<Exceptions>
+  <Para>Fff.</Para>
+  <Para>Ggg</Para>
+</Exceptions>
+<ResultDiscussion>
+  <Para>Hhh.</Para>
+  <Para>Iii</Para>
+</ResultDiscussion>
 <Discussion>
-  <Para>Fff</Para>
-  <Verbatim xml:space="preserve" kind="verbatim">Ggg</Verbatim>
+  <Para>Jjj</Para>
+  <Verbatim xml:space="preserve" kind="verbatim">Kkk</Verbatim>
 </Discussion>
 </Function>
 

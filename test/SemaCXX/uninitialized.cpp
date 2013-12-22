@@ -340,7 +340,10 @@ namespace {
   };
 
   struct E {
-    int a, b, c;
+    int b = 1;
+    int c = 1;
+    int a;  // This field needs to be last to prevent the cross field
+            // uninitialized warning.
     E(char (*)[1]) : a(a ? b : c) {}  // expected-warning {{field 'a' is uninitialized when used here}}
     E(char (*)[2]) : a(b ? a : a) {} // expected-warning 2{{field 'a' is uninitialized when used here}}
     E(char (*)[3]) : a(b ? (a) : c) {} // expected-warning {{field 'a' is uninitialized when used here}}
@@ -459,7 +462,7 @@ namespace in_class_initializers {
   };
 
   struct U {
-    U() : a(b + 1), b(a + 1) {} // FIXME: Warn here.
+    U() : a(b + 1), b(a + 1) {} // expected-warning{{field 'b' is uninitialized when used here}}
     int a = 42; // Note: because a and b are in the member initializer list, these initializers are ignored.
     int b = 1;
   };
@@ -484,7 +487,8 @@ namespace references {
   }
 
   struct T {
-    T() : a(b), b(a) {} // FIXME: Warn here.
+    T() // expected-note{{during field initialization in this constructor}}
+     : a(b), b(a) {} // expected-warning{{reference 'b' is not yet bound to a value when used here}}
     int &a, &b;
     int &c = c; // expected-warning{{reference 'c' is not yet bound to a value when used here}}
   };
@@ -522,4 +526,205 @@ namespace lambdas {
     A a1([=] { return a1.x; }); // expected-warning{{variable 'a1' is uninitialized when used within its own initialization}}
     A a2([&] { return a2.x; }); // ok
   }
+}
+
+namespace record_fields {
+  struct A {
+    A() {}
+    A get();
+    static A num();
+    static A copy(A);
+    static A something(A&);
+  };
+
+  A ref(A&);
+  A const_ref(const A&);
+  A pointer(A*);
+  A normal(A);
+
+  struct B {
+    A a;
+    B(char (*)[1]) : a(a) {}  // expected-warning {{uninitialized}}
+    B(char (*)[2]) : a(a.get()) {}  // expected-warning {{uninitialized}}
+    B(char (*)[3]) : a(a.num()) {}
+    B(char (*)[4]) : a(a.copy(a)) {}  // expected-warning {{uninitialized}}
+    B(char (*)[5]) : a(a.something(a)) {}
+    B(char (*)[6]) : a(ref(a)) {}
+    B(char (*)[7]) : a(const_ref(a)) {}
+    B(char (*)[8]) : a(pointer(&a)) {}
+    B(char (*)[9]) : a(normal(a)) {}  // expected-warning {{uninitialized}}
+  };
+  struct C {
+    C() {} // expected-note4{{in this constructor}}
+    A a1 = a1;  // expected-warning {{uninitialized}}
+    A a2 = a2.get();  // expected-warning {{uninitialized}}
+    A a3 = a3.num();
+    A a4 = a4.copy(a4);  // expected-warning {{uninitialized}}
+    A a5 = a5.something(a5);
+    A a6 = ref(a6);
+    A a7 = const_ref(a7);
+    A a8 = pointer(&a8);
+    A a9 = normal(a9);  // expected-warning {{uninitialized}}
+  };
+  struct D {  // expected-note4{{in the implicit default constructor}}
+    A a1 = a1;  // expected-warning {{uninitialized}}
+    A a2 = a2.get();  // expected-warning {{uninitialized}}
+    A a3 = a3.num();
+    A a4 = a4.copy(a4);  // expected-warning {{uninitialized}}
+    A a5 = a5.something(a5);
+    A a6 = ref(a6);
+    A a7 = const_ref(a7);
+    A a8 = pointer(&a8);
+    A a9 = normal(a9);  // expected-warning {{uninitialized}}
+  };
+  D d;
+  struct E {
+    A a1 = a1;
+    A a2 = a2.get();
+    A a3 = a3.num();
+    A a4 = a4.copy(a4);
+    A a5 = a5.something(a5);
+    A a6 = ref(a6);
+    A a7 = const_ref(a7);
+    A a8 = pointer(&a8);
+    A a9 = normal(a9);
+  };
+}
+
+namespace cross_field_warnings {
+  struct A {
+    int a, b;
+    A() {}
+    A(char (*)[1]) : b(a) {}  // expected-warning{{field 'a' is uninitialized when used here}}
+    A(char (*)[2]) : a(b) {}  // expected-warning{{field 'b' is uninitialized when used here}}
+  };
+
+  struct B {
+    int a = b;  // expected-warning{{field 'b' is uninitialized when used here}}
+    int b;
+    B() {} // expected-note{{during field initialization in this constructor}}
+  };
+
+  struct C {
+    int a;
+    int b = a;  // expected-warning{{field 'a' is uninitialized when used here}}
+    C(char (*)[1]) : a(5) {}
+    C(char (*)[2]) {} // expected-note{{during field initialization in this constructor}}
+  };
+
+  struct D {
+    int a;
+    int &b;
+    int &c = a;
+    int d = b;
+    D() : b(a) {}
+  };
+
+  struct E {
+    int a;
+    int get();
+    static int num();
+    E() {}
+    E(int) {}
+  };
+
+  struct F {
+    int a;
+    E e;
+    int b;
+    F(char (*)[1]) : a(e.get()) {}  // expected-warning{{field 'e' is uninitialized when used here}}
+    F(char (*)[2]) : a(e.num()) {}
+    F(char (*)[3]) : e(a) {}  // expected-warning{{field 'a' is uninitialized when used here}}
+    F(char (*)[4]) : a(4), e(a) {}
+    F(char (*)[5]) : e(b) {}  // expected-warning{{field 'b' is uninitialized when used here}}
+    F(char (*)[6]) : e(b), b(4) {}  // expected-warning{{field 'b' is uninitialized when used here}}
+  };
+
+  struct G {
+    G(const A&) {};
+  };
+
+  struct H {
+    A a1;
+    G g;
+    A a2;
+    H() : g(a1) {}
+    H(int) : g(a2) {}
+  };
+
+  struct I {
+    I(int*) {}
+  };
+
+  struct J : public I {
+    int *a;
+    int *b;
+    int c;
+    J() : I((a = new int(5))), b(a), c(*a) {}
+  };
+
+  struct K {
+    int a = (b = 5);
+    int b = b + 5;
+  };
+
+  struct L {
+    int a = (b = 5);
+    int b = b + 5;  // expected-warning{{field 'b' is uninitialized when used here}}
+    L() : a(5) {}  // expected-note{{during field initialization in this constructor}}
+  };
+
+  struct M { };
+
+  struct N : public M {
+    int a;
+    int b;
+    N() : b(a) { }  // expected-warning{{field 'a' is uninitialized when used here}}
+  };
+
+  struct O {
+    int x = 42;
+    int get() { return x; }
+  };
+
+  struct P {
+    O o;
+    int x = o.get();
+    P() : x(o.get()) { }
+  };
+
+  struct Q {
+    int a;
+    int b;
+    int &c;
+    Q() :
+      a(c = 5),  // expected-warning{{reference 'c' is not yet bound to a value when used here}}
+      b(c),  // expected-warning{{reference 'c' is not yet bound to a value when used here}}
+      c(a) {}
+  };
+
+  struct R {
+    int a;
+    int b;
+    int c;
+    int d = a + b + c;
+    R() : a(c = 5), b(c), c(a) {}
+  };
+}
+
+namespace base_class {
+  struct A {
+    A (int) {}
+  };
+
+  struct B : public A {
+    int x;
+    B() : A(x) {}   // expected-warning{{field 'x' is uninitialized when used here}}
+  };
+
+  struct C : public A {
+    int x;
+    int y;
+    C() : A(y = 4), x(y) {}
+  };
 }

@@ -58,7 +58,7 @@ int TestExpr __attribute__((guarded_by(mu1)));
 //CHECK: {{^}}[[Blue]]| `-[[RESET]][[YELLOW]]FullComment[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]line:8:4[[RESET]], [[Yellow]]col:11[[RESET]]>{{$}}
 //CHECK: {{^}}[[Blue]]|   `-[[RESET]][[YELLOW]]ParagraphComment[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]col:4[[RESET]], [[Yellow]]col:11[[RESET]]>{{$}}
 //CHECK: {{^}}[[Blue]]|     `-[[RESET]][[YELLOW]]TextComment[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]col:4[[RESET]], [[Yellow]]col:11[[RESET]]> Text=" Comment"{{$}}
-//CHECK: {{^}}[[Blue]]|-[[RESET]][[GREEN]]CXXRecordDecl[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]line:18:1[[RESET]], [[Yellow]]line:25:1[[RESET]]> class[[CYAN]] Mutex[[RESET]]{{$}}
+//CHECK: {{^}}[[Blue]]|-[[RESET]][[GREEN]]CXXRecordDecl[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]line:18:1[[RESET]], [[Yellow]]line:25:1[[RESET]]> class[[CYAN]] Mutex[[RESET]] definition{{$}}
 //CHECK: {{^}}[[Blue]]| |-[[RESET]][[BLUE]]LockableAttr[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]line:18:22[[RESET]]>{{$}}
 //CHECK: {{^}}[[Blue]]| |-[[RESET]][[GREEN]]CXXRecordDecl[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]col:1[[RESET]], [[Yellow]]col:33[[RESET]]> class[[CYAN]] Mutex[[RESET]]{{$}}
 //CHECK: {{^}}[[Blue]]| |-[[RESET]][[GREEN]]FieldDecl[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]line:20:3[[RESET]], [[Yellow]]col:7[[RESET]]>[[CYAN]] var1[[RESET]] [[Green]]'int'[[RESET]]{{$}}
@@ -71,11 +71,11 @@ int TestExpr __attribute__((guarded_by(mu1)));
 //CHECK: {{^}}[[Blue]]| |   | `-[[RESET]][[YELLOW]]TextComment[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]col:6[[RESET]], [[Yellow]]col:22[[RESET]]> Text=" Another variable"{{$}}
 //CHECK: {{^}}[[Blue]]| |   `-[[RESET]][[YELLOW]]ParagraphComment[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]line:23:6[[RESET]], [[Yellow]]col:44[[RESET]]>{{$}}
 //CHECK: {{^}}[[Blue]]| |     `-[[RESET]][[YELLOW]]TextComment[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]col:6[[RESET]], [[Yellow]]col:44[[RESET]]> Text=" Like the other variable, but different"{{$}}
-//CHECK: {{^}}[[Blue]]| |-[[RESET]][[GREEN]]CXXConstructorDecl[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]line:18:33[[RESET]]>[[CYAN]] Mutex[[RESET]] [[Green]]'void (void)'[[RESET]] inline{{$}}
+//CHECK: {{^}}[[Blue]]| |-[[RESET]][[GREEN]]CXXConstructorDecl[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]line:18:33[[RESET]]>[[CYAN]] Mutex[[RESET]] [[Green]]'void (void)'[[RESET]] inline{{.*$}}
 //CHECK: {{^}}[[Blue]]| | `-[[RESET]][[MAGENTA]]CompoundStmt[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]col:33[[RESET]]>{{$}}
-//CHECK: {{^}}[[Blue]]| |-[[RESET]][[GREEN]]CXXConstructorDecl[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]col:33[[RESET]]>[[CYAN]] Mutex[[RESET]] [[Green]]'void (const class Mutex &)'[[RESET]] inline{{$}}
+//CHECK: {{^}}[[Blue]]| |-[[RESET]][[GREEN]]CXXConstructorDecl[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]col:33[[RESET]]>[[CYAN]] Mutex[[RESET]] [[Green]]'void (const class Mutex &)'[[RESET]] inline{{ .*$}}
 //CHECK: {{^}}[[Blue]]| | `-[[RESET]][[GREEN]]ParmVarDecl[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]col:33[[RESET]]> [[Green]]'const class Mutex &'[[RESET]]{{$}}
-//CHECK: {{^}}[[Blue]]| `-[[RESET]][[GREEN]]CXXConstructorDecl[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]col:33[[RESET]]>[[CYAN]] Mutex[[RESET]] [[Green]]'void (class Mutex &&)'[[RESET]] inline{{$}}
+//CHECK: {{^}}[[Blue]]| `-[[RESET]][[GREEN]]CXXConstructorDecl[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]col:33[[RESET]]>[[CYAN]] Mutex[[RESET]] [[Green]]'void (class Mutex &&)'[[RESET]] inline{{ .*$}}
 //CHECK: {{^}}[[Blue]]|   `-[[RESET]][[GREEN]]ParmVarDecl[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]col:33[[RESET]]> [[Green]]'class Mutex &&'[[RESET]]{{$}}
 //CHECK: {{^}}[[Blue]]|-[[RESET]][[GREEN]]VarDecl[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]col:1[[RESET]], [[Yellow]]line:25:3[[RESET]]>[[CYAN]] mu1[[RESET]] [[Green]]'class Mutex':'class Mutex'[[RESET]]{{$}}
 //CHECK: {{^}}[[Blue]]| `-[[RESET]][[MAGENTA]]CXXConstructExpr[[RESET]][[Yellow]] 0x{{[0-9a-fA-F]*}}[[RESET]] <[[Yellow]]col:3[[RESET]]> [[Green]]'class Mutex':'class Mutex'[[RESET]][[Cyan]][[RESET]][[Cyan]][[RESET]] [[Green]]'void (void)'[[RESET]]{{$}}

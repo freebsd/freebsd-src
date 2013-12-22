@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s 
 class X { 
 public:
   operator bool();
@@ -11,6 +11,8 @@ public:
   float g() {
     return operator float(); // expected-error{{use of undeclared 'operator float'}}
   }
+
+  static operator short(); // expected-error{{conversion function must be a non-static member function}}
 };
 
 operator int(); // expected-error{{conversion function must be a non-static member function}}

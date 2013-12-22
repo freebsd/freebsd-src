@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -std=c++98 -verify %s 
+// RUN: %clang_cc1 -fsyntax-only -std=c++98 -verify -fblocks %s 
 namespace A {
   struct C {
     static int cx;
@@ -50,6 +50,7 @@ namespace B {
 
 void f1() {
   void A::Af(); // expected-error {{definition or redeclaration of 'Af' not allowed inside a function}}
+  void (^x)() = ^{ void A::Af(); }; // expected-error {{definition or redeclaration of 'Af' not allowed inside a block}}
 }
 
 void f2() {
@@ -166,9 +167,7 @@ void N::f() { } // okay
 struct Y;  // expected-note{{forward declaration of 'Y'}}
 Y::foo y; // expected-error{{incomplete type 'Y' named in nested name specifier}}
 
-X::X() : a(5) { } // expected-error{{use of undeclared identifier 'X'}} \
-      // expected-error{{C++ requires a type specifier for all declarations}} \
-      // expected-error{{only constructors take base initializers}}
+X::X() : a(5) { } // expected-error{{use of undeclared identifier 'X'}}
 
 struct foo_S {
   static bool value;
@@ -260,7 +259,7 @@ namespace PR8159 {
 
 namespace rdar7980179 {
   class A { void f0(); }; // expected-note {{previous}}
-  int A::f0() {} // expected-error {{out-of-line definition of 'rdar7980179::A::f0' differs from the declaration in the return type}}
+  int A::f0() {} // expected-error {{return type of out-of-line definition of 'rdar7980179::A::f0' differs}}
 }
 
 namespace alias = A;
@@ -297,3 +296,16 @@ namespace NS {
 int foobar = a + longer_b; // expected-error {{use of undeclared identifier 'a'; did you mean 'NS::a'?}} \
                            // expected-error {{use of undeclared identifier 'longer_b'; did you mean 'NS::longer_b'?}}
 }
+
+// <rdar://problem/13853540>
+namespace N {
+  struct X { };
+  namespace N {
+    struct Foo {
+      struct N::X *foo(); // expected-error{{no struct named 'X' in namespace 'N::N'}}
+    };
+  }
+}
+
+namespace TypedefNamespace { typedef int F; };
+TypedefNamespace::F::NonexistentName BadNNSWithCXXScopeSpec; // expected-error {{expected a class or namespace}}

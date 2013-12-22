@@ -52,7 +52,7 @@ inline void f6() __attribute__((gnu_inline));
 inline void f7 [[gnu::gnu_inline]] ();
 
 // arguments printing
-// CHECK: __attribute__((format("printf", 2, 3)));
+// CHECK: __attribute__((format(printf, 2, 3)));
 void f8 (void *, const char *, ...) __attribute__ ((format (printf, 2, 3)));
 
 // CHECK: int m __attribute__((aligned(4
@@ -75,3 +75,6 @@ template <typename T> struct S {
 // CHECK: static int f() __attribute__((pure))
 // CHECK: static int g() {{\[}}[gnu::pure]]
 template struct S<int>;
+
+// CHECK: using Small2 {{\[}}[gnu::mode(byte)]] = int;
+using Small2 [[gnu::mode(byte)]] = int;

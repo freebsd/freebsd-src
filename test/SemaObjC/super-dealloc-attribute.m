@@ -40,9 +40,9 @@
   [super MyDealloc];
 } // expected-warning {{method possibly missing a [super XXX] call}}
 
-- (void) MyDeallocMeth {} // No warning here.
+- (void) MyDeallocMeth {} 
 - (void) AnnotMyDeallocMeth{} // expected-warning {{method possibly missing a [super AnnotMyDeallocMeth] call}}
-- (void) AnnotMeth{}; // No warning here. Annotation is in its class.
+- (void) AnnotMeth{};
 
 + (void)registerClass:(id)name {} // expected-warning {{method possibly missing a [super registerClass:] call}}
 @end
@@ -84,4 +84,49 @@
   [super registerClass:name]; // no-warning
 }
 
+@end
+
+// rdar://14251387
+#define IBAction void)__attribute__((ibaction)
+
+@interface UIViewController @end
+
+@interface ViewController : UIViewController
+- (void) someMethodRequiringSuper NS_REQUIRES_SUPER;
+- (IBAction) someAction;
+- (IBAction) someActionRequiringSuper NS_REQUIRES_SUPER;
+@end
+
+
+@implementation ViewController
+- (void) someMethodRequiringSuper
+{
+}
+- (IBAction) someAction
+{
+}
+- (IBAction) someActionRequiringSuper
+{
+} 
+@end
+
+// rdar://15385981
+@interface Barn
+- (void)openDoor __attribute__((objc_requires_super));
+@end
+
+@implementation Barn
+- (void) openDoor
+{
+    ;
+}
+@end
+
+@interface HorseBarn:Barn @end
+
+@implementation HorseBarn
+- (void) openDoor
+{
+    ;
+}	// expected-warning {{method possibly missing a [super openDoor] call}}
 @end

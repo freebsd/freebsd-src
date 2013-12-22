@@ -45,7 +45,7 @@ void f3() {
 // The bool can fill in between the header and the long long.
 // Add the appropriate amount of padding between them.
 void f4_helper(long long (^)(void));
-// CHECK: define void @f4()
+// CHECK-LABEL: define void @f4()
 void f4(void) {
   _Bool b = 0;
   long long ll = 0;
@@ -60,9 +60,21 @@ struct F5 {
   char buffer[32] __attribute((aligned));
 };
 void f5_helper(void (^)(struct F5 *));
-// CHECK: define void @f5()
+// CHECK-LABEL: define void @f5()
 void f5(void) {
   struct F5 value;
   // CHECK: alloca <{ i8*, i32, i32, i8*, {{%.*}}*, [12 x i8], [[F5:%.*]] }>, align 16
   f5_helper(^(struct F5 *slot) { *slot = value; });
 }
+
+// rdar://14085217
+void (^b)() = ^{};
+int main() {
+   (b?: ^{})();
+}
+// CHECK: [[ZERO:%.*]] = load void (...)** @b
+// CHECK-NEXT: [[TB:%.*]] = icmp ne void (...)* [[ZERO]], null
+// CHECK-NEXT: br i1 [[TB]], label [[CT:%.*]], label [[CF:%.*]]
+// CHECK: [[ONE:%.*]] = bitcast void (...)* [[ZERO]] to void ()*
+// CHECK-NEXT:   br label [[CE:%.*]]
+

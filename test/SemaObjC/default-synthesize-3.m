@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -x objective-c -fsyntax-only -fobjc-default-synthesize-properties -verify -Wno-objc-root-class %s
-// RUN: %clang_cc1 -x objective-c++ -fsyntax-only -fobjc-default-synthesize-properties -verify -Wno-objc-root-class %s
+// RUN: %clang_cc1 -x objective-c -fsyntax-only -verify -Wno-objc-root-class %s
+// RUN: %clang_cc1 -x objective-c++ -fsyntax-only -verify -Wno-objc-root-class %s
 
 #if __has_attribute(objc_requires_property_definitions)
 __attribute ((objc_requires_property_definitions)) 
@@ -111,3 +111,73 @@ __attribute ((objc_requires_property_definitions)) // expected-error {{objc_requ
 
 @implementation S
 @end
+
+// rdar://14085456
+// No warning must be issued in this test.
+@interface ParentObject
+@end
+
+@protocol TestObject 
+@property (readonly) int six;
+@end
+
+@interface TestObject : ParentObject <TestObject>
+@property int six;
+@end
+
+@implementation TestObject
+@synthesize six;
+@end
+
+// rdar://14094682
+// no warning in this test
+@interface ISAChallenge : NSObject {
+}
+
+@property (assign, readonly) int failureCount;
+@end
+
+@interface ISSAChallenge : ISAChallenge {
+    int _failureCount;
+}
+@property (assign, readwrite) int failureCount;
+@end
+
+@implementation ISAChallenge
+- (int)failureCount {
+    return 0;
+}
+@end
+
+@implementation ISSAChallenge
+
+@synthesize failureCount = _failureCount;
+@end
+
+__attribute ((objc_requires_property_definitions(1))) // expected-error {{'objc_requires_property_definitions' attribute takes no arguments}}
+@interface I1
+@end
+
+// rdar://15051465
+@protocol SubFooling
+  @property(nonatomic, readonly) id hoho; // expected-note 2 {{property declared here}}
+@end
+
+@protocol Fooing<SubFooling>
+  @property(nonatomic, readonly) id muahahaha; // expected-note 2 {{property declared here}}
+@end
+
+typedef NSObject<Fooing> FooObject;
+
+@interface Okay : NSObject<Fooing>
+@end
+
+@implementation Okay // expected-warning 2 {{auto property synthesis will not synthesize property declared in a protocol}}
+@end
+
+@interface Fail : FooObject
+@end
+
+@implementation Fail // expected-warning 2 {{auto property synthesis will not synthesize property declared in a protocol}}
+@end
+

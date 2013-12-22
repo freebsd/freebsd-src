@@ -22,12 +22,12 @@ TOOL_NO_EXPORTS = 1
 # LINK_COMPONENTS before including Makefile.rules
 include $(CLANG_LEVEL)/../../Makefile.config
 
-LINK_COMPONENTS := $(TARGETS_TO_BUILD) asmparser bitreader support mc
+LINK_COMPONENTS := $(TARGETS_TO_BUILD) asmparser bitreader support mc option
 
 # Note that 'USEDLIBS' must include all of the core clang libraries
 # when -static is given to linker on cygming.
 USEDLIBS = clang.a \
-	   clangFormat.a clangRewriteCore.a \
+	   clangIndex.a clangFormat.a clangRewriteCore.a \
 	   clangFrontend.a clangDriver.a \
 	   clangTooling.a \
 	   clangSerialization.a clangParse.a clangSema.a \
@@ -37,4 +37,12 @@ USEDLIBS = clang.a \
 include $(CLANG_LEVEL)/Makefile
 
 LIBS += $(LIBXML2_LIBS)
+
+# Headers in $(LIBXML2_INC) should not be checked with clang's -Wdocumentation.
+# Use -isystem instead of -I then.
+# FIXME: Could autoconf detect clang or availability of -isystem?
+ifneq ($(findstring -Wdocumentation,$(OPTIMIZE_OPTION)),)
+CPPFLAGS += $(subst -I,-isystem ,$(LIBXML2_INC))
+else
 CPPFLAGS += $(LIBXML2_INC)
+endif

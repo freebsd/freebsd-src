@@ -16,8 +16,7 @@ struct B { // expected-note 3 {{candidate constructor (the implicit copy constru
 int main () {
   B(10);	// expected-error {{no matching conversion for functional-style cast from 'int' to 'B'}}
   (B)10;	// expected-error {{no matching conversion for C-style cast from 'int' to 'B'}}
-  static_cast<B>(10);	// expected-error {{no matching conversion for static_cast from 'int' to 'B'}} \\
-			// expected-warning {{expression result unused}}
+  static_cast<B>(10);	// expected-error {{no matching conversion for static_cast from 'int' to 'B'}}
 }
 
 template<class T>
@@ -64,4 +63,19 @@ void *intToPointer4() {
 
 void *intToPointer5(long l) {
   return (void*)l;
+}
+
+struct AmbiguousCast {
+  operator int(); // expected-note {{candidate function}}
+  operator unsigned int(); // expected-note {{candidate function}}
+};
+long long AmbiguousCastFunc(AmbiguousCast& a) {
+  return static_cast<long long>(a); // expected-error {{ambiguous conversion for static_cast from 'AmbiguousCast' to 'long long'}}
+}
+
+namespace PR16680 {
+  void f(int (*__pf)());
+  int g() {
+    f(reinterpret_cast<int>(0.0f)); // expected-error {{reinterpret_cast from 'float' to 'int' is not allowed}}
+  }
 }

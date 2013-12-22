@@ -16,6 +16,7 @@ following types of bugs:
 * Use-after-free
 * Use-after-return (to some extent)
 * Double-free, invalid free
+* Memory leaks (experimental)
 
 Typical slowdown introduced by AddressSanitizer is **2x**.
 
@@ -114,8 +115,7 @@ function attribute
 (or a deprecated synonym `no_address_safety_analysis`)
 to disable instrumentation of a particular function. This attribute may not be
 supported by other compilers, so we suggest to use it together with
-``__has_feature(address_sanitizer)``. Note: currently, this attribute will be
-lost if the function is inlined.
+``__has_feature(address_sanitizer)``.
 
 Initialization order checking
 -----------------------------
@@ -125,6 +125,42 @@ when initialization of globals defined in one translation unit uses
 globals defined in another translation unit. To enable this check at runtime,
 you should set environment variable
 ``ASAN_OPTIONS=check_initialization_order=1``.
+
+Blacklist
+---------
+
+AddressSanitizer supports ``src`` and ``fun`` entity types in
+:doc:`SanitizerSpecialCaseList`, that can be used to suppress error reports
+in the specified source files or functions. Additionally, AddressSanitizer
+introduces ``global`` and ``type`` entity types that can be used to
+suppress error reports for out-of-bound access to globals with certain
+names and types (you may only specify class or struct types).
+
+You may use an ``init`` category to suppress reports about initialization-order
+problems happening in certain source files or with certain global variables.
+
+.. code-block:: bash
+
+    # Suppress error reports for code in a file or in a function:
+    src:bad_file.cpp
+    # Ignore all functions with names containing MyFooBar:
+    fun:*MyFooBar*
+    # Disable out-of-bound checks for global:
+    global:bad_array
+    # Disable out-of-bound checks for global instances of a given class ...
+    type:class.Namespace::BadClassName
+    # ... or a given struct. Use wildcard to deal with anonymous namespace.
+    type:struct.Namespace2::*::BadStructName
+    # Disable initialization-order checks for globals:
+    global:bad_init_global=init
+    type:*BadInitClassSubstring*=init
+    src:bad/init/files/*=init
+
+Memory leak detection
+---------------------
+
+For the experimental memory leak detector in AddressSanitizer, see
+:doc:`LeakSanitizer`.
 
 Supported Platforms
 ===================

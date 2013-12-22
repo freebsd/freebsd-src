@@ -232,6 +232,8 @@ void testInvalidFormatArgument(NSDictionary *dict) {
 // <rdar://problem/11825593>
 void testByValueObjectInFormat(Foo *obj) {
   printf("%d %d %d", 1L, *obj, 1L); // expected-error {{cannot pass object with interface type 'Foo' by value to variadic function; expected type from format string was 'int'}} expected-warning 2 {{format specifies type 'int' but the argument has type 'long'}}
+  printf("%!", *obj); // expected-error {{cannot pass object with interface type 'Foo' by value through variadic function}} expected-warning {{invalid conversion specifier}}
+  printf(0, *obj); // expected-error {{cannot pass object with interface type 'Foo' by value through variadic function}}
 
   [Bar log2:@"%d", *obj]; // expected-error {{cannot pass object with interface type 'Foo' by value to variadic method; expected type from format string was 'int'}}
 }
@@ -239,5 +241,10 @@ void testByValueObjectInFormat(Foo *obj) {
 // <rdar://problem/13557053>
 void testTypeOf(NSInteger dW, NSInteger dH) {
   NSLog(@"dW %d  dH %d",({ __typeof__(dW) __a = (dW); __a < 0 ? -__a : __a; }),({ __typeof__(dH) __a = (dH); __a < 0 ? -__a : __a; })); // expected-warning 2 {{values of type 'NSInteger' should not be used as format arguments; add an explicit cast to 'long' instead}}
+}
+
+void testUnicode() {
+  NSLog(@"%C", 0x2022); // no-warning
+  NSLog(@"%C", 0x202200); // expected-warning{{format specifies type 'unichar' (aka 'unsigned short') but the argument has type 'int'}}
 }
 

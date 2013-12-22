@@ -20,32 +20,76 @@
 #include "clang/Format/Format.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Rewrite/Core/Rewriter.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Signals.h"
+#include "llvm/ADT/StringMap.h"
 
 using namespace llvm;
 
 static cl::opt<bool> Help("h", cl::desc("Alias for -help"), cl::Hidden);
 
+// Mark all our options with this category, everything else (except for -version
+// and -help) will be hidden.
+cl::OptionCategory ClangFormatCategory("Clang-format options");
+
 static cl::list<unsigned>
-Offsets("offset", cl::desc("Format a range starting at this file offset. Can "
-                           "only be used with one input file."));
+    Offsets("offset",
+            cl::desc("Format a range starting at this byte offset.\n"
+                     "Multiple ranges can be formatted by specifying\n"
+                     "several -offset and -length pairs.\n"
+                     "Can only be used with one input file."),
+            cl::cat(ClangFormatCategory));
 static cl::list<unsigned>
-Lengths("length", cl::desc("Format a range of this length. "
-                           "When it's not specified, end of file is used. "
-                           "Can only be used with one input file."));
-static cl::opt<std::string> Style(
-    "style",
-    cl::desc("Coding style, currently supports: LLVM, Google, Chromium, Mozilla."),
-    cl::init("LLVM"));
+    Lengths("length",
+            cl::desc("Format a range of this length (in bytes).\n"
+                     "Multiple ranges can be formatted by specifying\n"
+                     "several -offset and -length pairs.\n"
+                     "When only a single -offset is specified without\n"
+                     "-length, clang-format will format up to the end\n"
+                     "of the file.\n"
+                     "Can only be used with one input file."),
+            cl::cat(ClangFormatCategory));
+static cl::list<std::string>
+LineRanges("lines", cl::desc("<start line>:<end line> - format a range of\n"
+                             "lines (both 1-based).\n"
+                             "Multiple ranges can be formatted by specifying\n"
+                             "several -lines arguments.\n"
+                             "Can't be used with -offset and -length.\n"
+                             "Can only be used with one input file."),
+           cl::cat(ClangFormatCategory));
+static cl::opt<std::string>
+    Style("style",
+          cl::desc(clang::format::StyleOptionHelpDescription),
+          cl::init("file"), cl::cat(ClangFormatCategory));
+
+static cl::opt<std::string>
+AssumeFilename("assume-filename",
+               cl::desc("When reading from stdin, clang-format assumes this\n"
+                        "filename to look for a style config file (with\n"
+                        "-style=file)."),
+               cl::cat(ClangFormatCategory));
+
 static cl::opt<bool> Inplace("i",
-                             cl::desc("Inplace edit <file>s, if specified."));
+                             cl::desc("Inplace edit <file>s, if specified."),
+                             cl::cat(ClangFormatCategory));
 
-static cl::opt<bool> OutputXML(
-    "output-replacements-xml", cl::desc("Output replacements as XML."));
+static cl::opt<bool> OutputXML("output-replacements-xml",
+                               cl::desc("Output replacements as XML."),
+                               cl::cat(ClangFormatCategory));
+static cl::opt<bool>
+    DumpConfig("dump-config",
+               cl::desc("Dump configuration options to stdout and exit.\n"
+                        "Can be used with -style option."),
+               cl::cat(ClangFormatCategory));
+static cl::opt<unsigned>
+    Cursor("cursor",
+           cl::desc("The position of the cursor when invoking\n"
+                    "clang-format from an editor integration"),
+           cl::init(0), cl::cat(ClangFormatCategory));
 
-static cl::list<std::string> FileNames(cl::Positional,
-                                       cl::desc("[<file> ...]"));
+static cl::list<std::string> FileNames(cl::Positional, cl::desc("[<file> ...]"),
+                                       cl::cat(ClangFormatCategory));
 
 namespace clang {
 namespace format {
@@ -59,34 +103,43 @@ static FileID createInMemoryFile(StringRef FileName, const MemoryBuffer *Source,
   return Sources.createFileID(Entry, SourceLocation(), SrcMgr::C_User);
 }
 
-static FormatStyle getStyle() {
-  FormatStyle TheStyle = getGoogleStyle();
-  if (Style == "LLVM")
-    TheStyle = getLLVMStyle();
-  else if (Style == "Chromium")
-    TheStyle = getChromiumStyle();
-  else if (Style == "Mozilla")
-    TheStyle = getMozillaStyle();
-  else if (Style != "Google")
-    llvm::errs() << "Unknown style " << Style << ", using Google style.\n";
-
-  return TheStyle;
+// Parses <start line>:<end line> input to a pair of line numbers.
+// Returns true on error.
+static bool parseLineRange(StringRef Input, unsigned &FromLine,
+                           unsigned &ToLine) {
+  std::pair<StringRef, StringRef> LineRange = Input.split(':');
+  return LineRange.first.getAsInteger(0, FromLine) ||
+         LineRange.second.getAsInteger(0, ToLine);
 }
 
-// Returns true on error.
-static bool format(std::string FileName) {
-  FileManager Files((FileSystemOptions()));
-  DiagnosticsEngine Diagnostics(
-      IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs),
-      new DiagnosticOptions);
-  SourceManager Sources(Diagnostics, Files);
-  OwningPtr<MemoryBuffer> Code;
-  if (error_code ec = MemoryBuffer::getFileOrSTDIN(FileName, Code)) {
-    llvm::errs() << ec.message() << "\n";
-    return true;
+static bool fillRanges(SourceManager &Sources, FileID ID,
+                       const MemoryBuffer *Code,
+                       std::vector<CharSourceRange> &Ranges) {
+  if (!LineRanges.empty()) {
+    if (!Offsets.empty() || !Lengths.empty()) {
+      llvm::errs() << "error: cannot use -lines with -offset/-length\n";
+      return true;
+    }
+
+    for (unsigned i = 0, e = LineRanges.size(); i < e; ++i) {
+      unsigned FromLine, ToLine;
+      if (parseLineRange(LineRanges[i], FromLine, ToLine)) {
+        llvm::errs() << "error: invalid <start line>:<end line> pair\n";
+        return true;
+      }
+      if (FromLine > ToLine) {
+        llvm::errs() << "error: start line should be less than end line\n";
+        return true;
+      }
+      SourceLocation Start = Sources.translateLineCol(ID, FromLine, 1);
+      SourceLocation End = Sources.translateLineCol(ID, ToLine, UINT_MAX);
+      if (Start.isInvalid() || End.isInvalid())
+        return true;
+      Ranges.push_back(CharSourceRange::getCharRange(Start, End));
+    }
+    return false;
   }
-  FileID ID = createInMemoryFile(FileName, Code.get(), Sources, Files);
-  Lexer Lex(ID, Sources.getBuffer(ID), Sources, getFormattingLangOpts());
+
   if (Offsets.empty())
     Offsets.push_back(0);
   if (Offsets.size() != Lengths.size() &&
@@ -95,7 +148,6 @@ static bool format(std::string FileName) {
         << "error: number of -offset and -length arguments must match.\n";
     return true;
   }
-  std::vector<CharSourceRange> Ranges;
   for (unsigned i = 0, e = Offsets.size(); i != e; ++i) {
     if (Offsets[i] >= Code->getBufferSize()) {
       llvm::errs() << "error: offset " << Offsets[i]
@@ -118,7 +170,33 @@ static bool format(std::string FileName) {
     }
     Ranges.push_back(CharSourceRange::getCharRange(Start, End));
   }
-  tooling::Replacements Replaces = reformat(getStyle(), Lex, Sources, Ranges);
+  return false;
+}
+
+// Returns true on error.
+static bool format(StringRef FileName) {
+  FileManager Files((FileSystemOptions()));
+  DiagnosticsEngine Diagnostics(
+      IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs),
+      new DiagnosticOptions);
+  SourceManager Sources(Diagnostics, Files);
+  OwningPtr<MemoryBuffer> Code;
+  if (error_code ec = MemoryBuffer::getFileOrSTDIN(FileName, Code)) {
+    llvm::errs() << ec.message() << "\n";
+    return true;
+  }
+  if (Code->getBufferSize() == 0)
+    return false; // Empty files are formatted correctly.
+  FileID ID = createInMemoryFile(FileName, Code.get(), Sources, Files);
+  std::vector<CharSourceRange> Ranges;
+  if (fillRanges(Sources, ID, Code.get(), Ranges))
+    return true;
+
+  FormatStyle FormatStyle =
+      getStyle(Style, (FileName == "-") ? AssumeFilename : FileName);
+  Lexer Lex(ID, Sources.getBuffer(ID), Sources,
+            getFormattingLangOpts(FormatStyle.Standard));
+  tooling::Replacements Replaces = reformat(FormatStyle, Lex, Sources, Ranges);
   if (OutputXML) {
     llvm::outs()
         << "<?xml version='1.0'?>\n<replacements xml:space='preserve'>\n";
@@ -135,19 +213,12 @@ static bool format(std::string FileName) {
     Rewriter Rewrite(Sources, LangOptions());
     tooling::applyAllReplacements(Replaces, Rewrite);
     if (Inplace) {
-      if (Replaces.size() == 0)
-        return false; // Nothing changed, don't touch the file.
-
-      std::string ErrorInfo;
-      llvm::raw_fd_ostream FileStream(FileName.c_str(), ErrorInfo,
-                                      llvm::raw_fd_ostream::F_Binary);
-      if (!ErrorInfo.empty()) {
-        llvm::errs() << "Error while writing file: " << ErrorInfo << "\n";
+      if (Rewrite.overwriteChangedFiles())
         return true;
-      }
-      Rewrite.getEditBuffer(ID).write(FileStream);
-      FileStream.flush();
     } else {
+      if (Cursor.getNumOccurrences() != 0)
+        outs() << "{ \"Cursor\": " << tooling::shiftedCodePosition(
+                                          Replaces, Cursor) << " }\n";
       Rewrite.getEditBuffer(ID).write(outs());
     }
   }
@@ -159,17 +230,36 @@ static bool format(std::string FileName) {
 
 int main(int argc, const char **argv) {
   llvm::sys::PrintStackTraceOnErrorSignal();
+
+  // Hide unrelated options.
+  StringMap<cl::Option*> Options;
+  cl::getRegisteredOptions(Options);
+  for (StringMap<cl::Option *>::iterator I = Options.begin(), E = Options.end();
+       I != E; ++I) {
+    if (I->second->Category != &ClangFormatCategory && I->first() != "help" &&
+        I->first() != "version")
+      I->second->setHiddenFlag(cl::ReallyHidden);
+  }
+
   cl::ParseCommandLineOptions(
       argc, argv,
       "A tool to format C/C++/Obj-C code.\n\n"
       "If no arguments are specified, it formats the code from standard input\n"
       "and writes the result to the standard output.\n"
-      "If <file>s are given, it reformats the files. If -i is specified \n"
-      "together with <file>s, the files are edited in-place. Otherwise, the \n"
+      "If <file>s are given, it reformats the files. If -i is specified\n"
+      "together with <file>s, the files are edited in-place. Otherwise, the\n"
       "result is written to the standard output.\n");
 
   if (Help)
     cl::PrintHelpMessage();
+
+  if (DumpConfig) {
+    std::string Config =
+        clang::format::configurationAsText(clang::format::getStyle(
+            Style, FileNames.empty() ? AssumeFilename : FileNames[0]));
+    llvm::outs() << Config << "\n";
+    return 0;
+  }
 
   bool Error = false;
   switch (FileNames.size()) {
@@ -180,8 +270,8 @@ int main(int argc, const char **argv) {
     Error = clang::format::format(FileNames[0]);
     break;
   default:
-    if (!Offsets.empty() || !Lengths.empty()) {
-      llvm::errs() << "error: \"-offset\" and \"-length\" can only be used for "
+    if (!Offsets.empty() || !Lengths.empty() || !LineRanges.empty()) {
+      llvm::errs() << "error: -offset, -length and -lines can only be used for "
                       "single file.\n";
       return 1;
     }

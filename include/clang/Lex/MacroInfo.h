@@ -251,7 +251,7 @@ public:
     return ReplacementTokens[Tok];
   }
 
-  typedef SmallVector<Token, 8>::const_iterator tokens_iterator;
+  typedef SmallVectorImpl<Token>::const_iterator tokens_iterator;
   tokens_iterator tokens_begin() const { return ReplacementTokens.begin(); }
   tokens_iterator tokens_end() const { return ReplacementTokens.end(); }
   bool tokens_empty() const { return ReplacementTokens.empty(); }
@@ -421,7 +421,7 @@ public:
     bool isValid() const { return DefDirective != 0; }
     bool isInvalid() const { return !isValid(); }
 
-    operator bool() const { return isValid(); }
+    LLVM_EXPLICIT operator bool() const { return isValid(); }
 
     inline DefInfo getPreviousDefinition(bool AllowHidden = false);
     const DefInfo getPreviousDefinition(bool AllowHidden = false) const {

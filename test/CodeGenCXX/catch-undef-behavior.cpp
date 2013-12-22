@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsanitize=signed-integer-overflow,integer-divide-by-zero,float-divide-by-zero,shift,unreachable,return,vla-bound,alignment,null,vptr,object-size,float-cast-overflow,bool,enum,bounds -emit-llvm %s -o - -triple x86_64-linux-gnu | FileCheck %s
+// RUN: %clang_cc1 -std=c++11 -fsanitize=signed-integer-overflow,integer-divide-by-zero,float-divide-by-zero,shift,unreachable,return,vla-bound,alignment,null,vptr,object-size,float-cast-overflow,bool,enum,array-bounds,function -emit-llvm %s -o - -triple x86_64-linux-gnu | FileCheck %s
 
 struct S {
   double d;
@@ -186,7 +186,7 @@ void bad_downcast_pointer(S *p) {
   // CHECK: %[[NONNULL:.*]] = icmp ne {{.*}}, null
   // CHECK: br i1 %[[NONNULL]],
 
-  // CHECK: %[[SIZE:.*]] = call i64 @llvm.objectsize.i64(
+  // CHECK: %[[SIZE:.*]] = call i64 @llvm.objectsize.i64.p0i8(
   // CHECK: %[[E1:.*]] = icmp uge i64 %[[SIZE]], 24
   // CHECK: %[[MISALIGN:.*]] = and i64 %{{.*}}, 7
   // CHECK: %[[E2:.*]] = icmp eq i64 %[[MISALIGN]], 0
@@ -207,7 +207,7 @@ void bad_downcast_pointer(S *p) {
 void bad_downcast_reference(S &p) {
   // CHECK: %[[E1:.*]] = icmp ne {{.*}}, null
   // CHECK-NOT: br i1
-  // CHECK: %[[SIZE:.*]] = call i64 @llvm.objectsize.i64(
+  // CHECK: %[[SIZE:.*]] = call i64 @llvm.objectsize.i64.p0i8(
   // CHECK: %[[E2:.*]] = icmp uge i64 %[[SIZE]], 24
   // CHECK: %[[E12:.*]] = and i1 %[[E1]], %[[E2]]
   // CHECK: %[[MISALIGN:.*]] = and i64 %{{.*}}, 7
@@ -319,6 +319,158 @@ char string_index(int n) {
   // CHECK: br i1 %[[IDX_OK]]
   // CHECK: call void @__ubsan_handle_out_of_bounds(
   return "Hello"[n];
+}
+
+class A // align=4
+{
+  int a1, a2, a3;
+};
+
+class B // align=8
+{
+  long b1, b2;
+};
+
+class C : public A, public B // align=16
+{
+  alignas(16) int c1;
+};
+
+// Make sure we check the alignment of the pointer after subtracting any
+// offset. The pointer before subtraction doesn't need to be aligned for
+// the destination type.
+
+// CHECK-LABEL: define void @_Z16downcast_pointerP1B(%class.B* %b)
+void downcast_pointer(B *b) {
+  (void) static_cast<C*>(b);
+  // Alignment check from EmitTypeCheck(TCK_DowncastPointer, ...)
+  // CHECK: [[SUB:%[.a-z0-9]*]] = getelementptr i8* {{.*}}, i64 -16
+  // CHECK-NEXT: [[C:%[0-9]*]] = bitcast i8* [[SUB]] to %class.C*
+  // null check goes here
+  // CHECK: [[FROM_PHI:%[0-9]*]] = phi %class.C* [ [[C]], {{.*}} ], {{.*}}
+  // Objectsize check goes here
+  // CHECK: [[C_INT:%[0-9]*]] = ptrtoint %class.C* [[FROM_PHI]] to i64
+  // CHECK-NEXT: [[MASKED:%[0-9]*]] = and i64 [[C_INT]], 15
+  // CHECK-NEXT: [[TEST:%[0-9]*]] = icmp eq i64 [[MASKED]], 0
+  // AND the alignment test with the objectsize test.
+  // CHECK-NEXT: [[AND:%[0-9]*]] = and i1 {{.*}}, [[TEST]]
+  // CHECK-NEXT: br i1 [[AND]]
+}
+
+// CHECK-LABEL: define void @_Z18downcast_referenceR1B(%class.B* %b)
+void downcast_reference(B &b) {
+  (void) static_cast<C&>(b);
+  // Alignment check from EmitTypeCheck(TCK_DowncastReference, ...)
+  // CHECK:      [[SUB:%[.a-z0-9]*]] = getelementptr i8* {{.*}}, i64 -16
+  // CHECK-NEXT: [[C:%[0-9]*]] = bitcast i8* [[SUB]] to %class.C*
+  // Objectsize check goes here
+  // CHECK:      [[C_INT:%[0-9]*]] = ptrtoint %class.C* [[C]] to i64
+  // CHECK-NEXT: [[MASKED:%[0-9]*]] = and i64 [[C_INT]], 15
+  // CHECK-NEXT: [[TEST:%[0-9]*]] = icmp eq i64 [[MASKED]], 0
+  // AND the alignment test with the objectsize test.
+  // CHECK-NEXT: [[AND:%[0-9]*]] = and i1 {{.*}}, [[TEST]]
+  // CHECK-NEXT: br i1 [[AND]]
+}
+
+// CHECK-LABEL: @_Z22indirect_function_callPFviE({{.*}} prefix <{ i32, i8* }> <{ i32 1413876459, i8* bitcast ({ i8*, i8* }* @_ZTIFvPFviEE to i8*) }>
+void indirect_function_call(void (*p)(int)) {
+  // CHECK: [[PTR:%[0-9]*]] = bitcast void (i32)* {{.*}} to <{ i32, i8* }>*
+
+  // Signature check
+  // CHECK-NEXT: [[SIGPTR:%[0-9]*]] = getelementptr <{ i32, i8* }>* [[PTR]], i32 0, i32 0
+  // CHECK-NEXT: [[SIG:%[0-9]*]] = load i32* [[SIGPTR]]
+  // CHECK-NEXT: [[SIGCMP:%[0-9]*]] = icmp eq i32 [[SIG]], 1413876459
+  // CHECK-NEXT: br i1 [[SIGCMP]]
+
+  // RTTI pointer check
+  // CHECK: [[RTTIPTR:%[0-9]*]] = getelementptr <{ i32, i8* }>* [[PTR]], i32 0, i32 1
+  // CHECK-NEXT: [[RTTI:%[0-9]*]] = load i8** [[RTTIPTR]]
+  // CHECK-NEXT: [[RTTICMP:%[0-9]*]] = icmp eq i8* [[RTTI]], bitcast ({ i8*, i8* }* @_ZTIFviE to i8*)
+  // CHECK-NEXT: br i1 [[RTTICMP]]
+  p(42);
+}
+
+namespace CopyValueRepresentation {
+  // CHECK-LABEL: define {{.*}} @_ZN23CopyValueRepresentation2S3aSERKS0_
+  // CHECK-NOT: call {{.*}} @__ubsan_handle_load_invalid_value
+  // CHECK-LABEL: define {{.*}} @_ZN23CopyValueRepresentation2S4aSEOS0_
+  // CHECK-NOT: call {{.*}} @__ubsan_handle_load_invalid_value
+  // CHECK-LABEL: define {{.*}} @_ZN23CopyValueRepresentation2S5C2ERKS0_
+  // CHECK-NOT: call {{.*}} __ubsan_handle_load_invalid_value
+  // CHECK-LABEL: define {{.*}} @_ZN23CopyValueRepresentation2S2C2ERKS0_
+  // CHECK: __ubsan_handle_load_invalid_value
+  // CHECK-LABEL: define {{.*}} @_ZN23CopyValueRepresentation2S1C2ERKS0_
+  // CHECK-NOT: call {{.*}} __ubsan_handle_load_invalid_value
+
+  struct CustomCopy { CustomCopy(); CustomCopy(const CustomCopy&); };
+  struct S1 {
+    CustomCopy CC;
+    bool b;
+  };
+  void callee1(S1);
+  void test1() {
+    S1 s11;
+    callee1(s11);
+    S1 s12;
+    s12 = s11;
+  }
+
+  static bool some_global_bool;
+  struct ExprCopy {
+    ExprCopy();
+    ExprCopy(const ExprCopy&, bool b = some_global_bool);
+  };
+  struct S2 {
+    ExprCopy EC;
+    bool b;
+  };
+  void callee2(S2);
+  void test2(void) {
+    S2 s21;
+    callee2(s21);
+    S2 s22;
+    s22 = s21;
+  }
+
+  struct CustomAssign { CustomAssign &operator=(const CustomAssign&); };
+  struct S3 {
+    CustomAssign CA;
+    bool b;
+  };
+  void test3() {
+    S3 x, y;
+    x = y;
+  }
+
+  struct CustomMove {
+    CustomMove();
+    CustomMove(const CustomMove&&);
+    CustomMove &operator=(const CustomMove&&);
+  };
+  struct S4 {
+    CustomMove CM;
+    bool b;
+  };
+  void test4() {
+    S4 x, y;
+    x = static_cast<S4&&>(y);
+  }
+
+  struct EnumCustomCopy {
+    EnumCustomCopy();
+    EnumCustomCopy(const EnumCustomCopy&);
+  };
+  struct S5 {
+    EnumCustomCopy ECC;
+    bool b;
+  };
+  void callee5(S5);
+  void test5() {
+    S5 s51;
+    callee5(s51);
+    S5 s52;
+    s52 = s51;
+  }
 }
 
 // CHECK: attributes [[NR_NUW]] = { noreturn nounwind }

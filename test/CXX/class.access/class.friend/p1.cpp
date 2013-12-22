@@ -7,8 +7,8 @@
 //   special access rights to the friends, but they do not make the nominated
 //   friends members of the befriending class.
 
-struct S { static void f(); };
-S* g() { return 0; }
+struct S { static void f(); }; // expected-note 2 {{'S' declared here}}
+S* g() { return 0; } // expected-note 2 {{'g' declared here}}
 
 struct X {
   friend struct S;
@@ -19,8 +19,8 @@ void test1() {
   S s;
   g()->f();
   S::f();
-  X::g(); // expected-error{{no member named 'g' in 'X'}}
-  X::S x_s; // expected-error{{no type named 'S' in 'X'}}
+  X::g(); // expected-error{{no member named 'g' in 'X'; did you mean simply 'g'?}}
+  X::S x_s; // expected-error{{no type named 'S' in 'X'; did you mean simply 'S'?}}
   X x;
   x.g(); // expected-error{{no member named 'g' in 'X'}}
 }
@@ -36,24 +36,24 @@ namespace N {
     friend struct S2* g2();
   };
 
-  struct S2 { static void f2(); };
-  S2* g2() { return 0; }
+  struct S2 { static void f2(); }; // expected-note 2 {{'S2' declared here}}
+  S2* g2() { return 0; } // expected-note 2 {{'g2' declared here}}
 
   void test() {
     g()->f();
     S s;
     S::f();
-    X::g(); // expected-error{{no member named 'g' in 'N::X'}}
-    X::S x_s; // expected-error{{no type named 'S' in 'N::X'}}
+    X::g(); // expected-error{{no member named 'g' in 'N::X'; did you mean simply 'g'?}}
+    X::S x_s; // expected-error{{no type named 'S' in 'N::X'; did you mean simply 'S'?}}
     X x;
     x.g(); // expected-error{{no member named 'g' in 'N::X'}}
 
     g2();
     S2 s2;
-    ::g2(); // expected-error{{no member named 'g2' in the global namespace}}
-    ::S2 g_s2; // expected-error{{no type named 'S2' in the global namespace}}
-    X::g2(); // expected-error{{no member named 'g2' in 'N::X'}}
-    X::S2 x_s2; // expected-error{{no type named 'S2' in 'N::X'}}
+    ::g2(); // expected-error{{no member named 'g2' in the global namespace; did you mean simply 'g2'?}}
+    ::S2 g_s2; // expected-error{{no type named 'S2' in the global namespace; did you mean simply 'S2'?}}
+    X::g2(); // expected-error{{no member named 'g2' in 'N::X'; did you mean simply 'g2'?}}
+    X::S2 x_s2; // expected-error{{no type named 'S2' in 'N::X'; did you mean simply 'S2'?}}
     x.g2(); // expected-error{{no member named 'g2' in 'N::X'}}
   }
 }
@@ -287,22 +287,22 @@ namespace test9 {
 
 // PR7230
 namespace test10 {
-  extern "C" void f(void);
-  extern "C" void g(void);
+  extern "C" void test10_f(void);
+  extern "C" void test10_g(void);
 
   namespace NS {
     class C {
       void foo(void); // expected-note {{declared private here}}
-      friend void test10::f(void);
+      friend void test10::test10_f(void);
     };
     static C* bar;
   }
 
-  void f(void) {
+  void test10_f(void) {
     NS::bar->foo();
   }
 
-  void g(void) {
+  void test10_g(void) {
     NS::bar->foo(); // expected-error {{private member}}
   }
 }

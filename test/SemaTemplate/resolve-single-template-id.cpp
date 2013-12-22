@@ -33,7 +33,7 @@ int main()
    oneT<int>;  // expected-warning {{expression result unused}}
    twoT<int>;  // expected-error {{reference to overloaded function could not be resolved; did you mean to call it?}}
    typeid(oneT<int>); // expected-warning{{expression result unused}}
-  sizeof(oneT<int>); // expected-warning {{expression result unused}}
+  sizeof(oneT<int>); // expected-error {{invalid application of 'sizeof' to a function type}}
   sizeof(twoT<int>); //expected-error {{reference to overloaded function could not be resolved; did you mean to call it?}}
   decltype(oneT<int>)* fun = 0;
   
@@ -74,7 +74,7 @@ int main()
 }
 
 struct rdar9108698 {
-  template<typename> void f();
+  template<typename> void f(); // expected-note{{possible target for call}}
 };
 
 void test_rdar9108698(rdar9108698 x) {

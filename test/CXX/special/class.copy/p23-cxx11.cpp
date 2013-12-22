@@ -1,5 +1,7 @@
 // RUN: %clang_cc1 -verify %s -std=c++11
 
+struct Trivial {};
+
 template<typename T> struct CopyAssign {
   static T t;
   void test() {
@@ -9,7 +11,15 @@ template<typename T> struct CopyAssign {
 template<typename T> struct MoveAssign {
   static T t;
   void test() {
-    t = static_cast<T&&>(t); // expected-error +{{deleted}}
+    // Overload resolution will ignore a defaulted, deleted move assignment,
+    // so check for it in a different way.
+    T &(T::*f)(T&&) = &T::operator=; // expected-error +{{deleted}}
+  }
+};
+template<typename T> struct MoveOrCopyAssign {
+  static T t;
+  void test() {
+    t = static_cast<T&&>(t); // expected-error +{{copy assignment operator is implicitly deleted}}
   }
 };
 
@@ -38,6 +48,9 @@ class InaccessibleCopyAssign {
 };
 class InaccessibleMoveAssign {
   InaccessibleMoveAssign &operator=(InaccessibleMoveAssign &&);
+};
+class NonConstCopyAssign {
+  NonConstCopyAssign &operator=(NonConstCopyAssign &);
 };
 
 // A defaulted copy/move assignment operator for class X is defined as deleted
@@ -89,29 +102,44 @@ struct D1 {
   AmbiguousCopyAssign a; // expected-note {{field 'a' has multiple copy}}
 };
 struct D2 {
-  D2 &operator=(D2 &&) = default; // expected-note {{here}}
+  D2 &operator=(D2 &&) = default; // expected-note {{here}} expected-note {{copy assignment operator is implicitly deleted}}
   AmbiguousMoveAssign a; // expected-note {{field 'a' has multiple move}}
 };
 struct D3 {
   DeletedCopyAssign a; // expected-note {{field 'a' has a deleted copy}}
 };
 struct D4 {
-  D4 &operator=(D4 &&) = default; // expected-note {{here}}
+  D4 &operator=(D4 &&) = default; // expected-note {{here}} expected-note {{copy assignment operator is implicitly deleted}}
   DeletedMoveAssign a; // expected-note {{field 'a' has a deleted move}}
 };
 struct D5 {
   InaccessibleCopyAssign a; // expected-note {{field 'a' has an inaccessible copy}}
 };
 struct D6 {
-  D6 &operator=(D6 &&) = default; // expected-note {{here}}
+  D6 &operator=(D6 &&) = default; // expected-note {{here}} expected-note {{copy assignment operator is implicitly deleted}}
   InaccessibleMoveAssign a; // expected-note {{field 'a' has an inaccessible move}}
+};
+struct D7 {
+  const Trivial a; // expected-note 3{{field 'a' has no }}
+};
+struct D8 {
+  volatile Trivial a; // expected-note 3{{field 'a' has no }}
 };
 template struct CopyAssign<D1>; // expected-note {{here}}
 template struct MoveAssign<D2>; // expected-note {{here}}
+template struct MoveOrCopyAssign<D2>; // expected-note {{here}}
 template struct CopyAssign<D3>; // expected-note {{here}}
 template struct MoveAssign<D4>; // expected-note {{here}}
+template struct MoveOrCopyAssign<D4>; // expected-note {{here}}
 template struct CopyAssign<D5>; // expected-note {{here}}
 template struct MoveAssign<D6>; // expected-note {{here}}
+template struct MoveOrCopyAssign<D6>; // expected-note {{here}}
+template struct CopyAssign<D7>; // expected-note {{here}}
+template struct MoveAssign<D7>; // expected-note {{here}}
+template struct MoveOrCopyAssign<D7>; // expected-note {{here}}
+template struct CopyAssign<D8>; // expected-note {{here}}
+template struct MoveAssign<D8>; // expected-note {{here}}
+template struct MoveOrCopyAssign<D8>; // expected-note {{here}}
 
 //   -- a direct or virtual base that cannot be copied/moved
 struct E1 : AmbiguousCopyAssign {}; // expected-note {{base class 'AmbiguousCopyAssign' has multiple copy}}
@@ -136,7 +164,7 @@ template struct MoveAssign<E6>; // expected-note {{here}}
 namespace PR13381 {
   struct S {
     S &operator=(const S&);
-    S &operator=(const volatile S&) = delete; // expected-note{{deleted here}}
+    S &operator=(const volatile S&) volatile = delete; // expected-note{{deleted here}}
   };
   struct T {
     volatile S s; // expected-note{{field 's' has a deleted copy assignment}}

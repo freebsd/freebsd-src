@@ -90,8 +90,16 @@ to disable uninitialized checks in a particular function.
 MemorySanitizer may still instrument such functions to avoid false positives.
 This attribute may not be
 supported by other compilers, so we suggest to use it together with
-``__has_feature(memory_sanitizer)``. Note: currently, this attribute will be
-lost if the function is inlined.
+``__has_feature(memory_sanitizer)``.
+
+Blacklist
+---------
+
+MemorySanitizer supports ``src`` and ``fun`` entity types in
+:doc:`SanitizerSpecialCaseList`, that can be used to relax MemorySanitizer
+checks for certain source files and functions. All "Use of uninitialized value"
+warnings will be suppressed and all values loaded from memory will be
+considered fully initialized.
 
 Origin Tracking
 ===============

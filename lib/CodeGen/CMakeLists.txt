@@ -41,6 +41,7 @@ add_clang_library(clangCodeGen
   CGStmt.cpp
   CGVTables.cpp
   CGVTT.cpp
+  CodeGenABITypes.cpp
   CodeGenAction.cpp
   CodeGenFunction.cpp
   CodeGenModule.cpp
@@ -48,6 +49,7 @@ add_clang_library(clangCodeGen
   CodeGenTypes.cpp
   ItaniumCXXABI.cpp
   MicrosoftCXXABI.cpp
+  MicrosoftVBTables.cpp
   ModuleBuilder.cpp
   TargetInfo.cpp
   )

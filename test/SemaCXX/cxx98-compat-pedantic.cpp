@@ -1,8 +1,10 @@
-// RUN: %clang_cc1 -fsyntax-only -std=c++1y -DCXX1Y -Wc++98-compat-pedantic -verify %s
-// RUN: %clang_cc1 -fsyntax-only -std=c++1y -DCXX1Y -Wc++98-compat -Werror %s
+// RUN: %clang_cc1 -fsyntax-only -std=c++1y -DCXX1Y -Wc++98-compat-pedantic -verify %s -DCXX1Y2
+// RUN: %clang_cc1 -fsyntax-only -std=c++1y -DCXX1Y -Wc++98-compat -Werror %s -DCXX1Y2
 // RUN: %clang_cc1 -fsyntax-only -std=c++11 -Wc++98-compat-pedantic -verify %s
 // RUN: %clang_cc1 -fsyntax-only -std=c++11 -Wc++98-compat -Werror %s
 // RUN: %clang_cc1 -fsyntax-only -std=c++98 -Werror %s
+
+// RUN: %clang_cc1 -fsyntax-only -std=c++1y -Wc++98-compat-pedantic -verify %s -Wno-c++98-c++11-compat-pedantic -DCXX1Y2
 
 // -Wc++98-compat-pedantic warns on C++11 features which we accept without a
 // warning in C++98 mode.
@@ -30,7 +32,12 @@ void *FnVoidPtr = (void*)&dlsym; // expected-warning {{cast between pointer-to-f
 struct ConvertToInt {
   operator int();
 };
-int *ArraySizeConversion = new int[ConvertToInt()]; // expected-warning {{implicit conversion from array size expression of type 'ConvertToInt' to integral type 'int' is incompatible with C++98}}
+int *ArraySizeConversion = new int[ConvertToInt()];
+#ifdef CXX1Y2
+// expected-warning@-2 {{implicit conversion from array size expression of type 'ConvertToInt' to integral type 'size_t' is incompatible with C++98}}
+#else
+// expected-warning@-4 {{implicit conversion from array size expression of type 'ConvertToInt' to integral type 'int' is incompatible with C++98}}
+#endif
 
 template<typename T> class ExternTemplate {};
 extern template class ExternTemplate<int>; // expected-warning {{extern templates are incompatible with C++98}}
@@ -43,9 +50,4 @@ unsigned long long ull1 = // expected-warning {{'long long' is incompatible with
 int k = 0b1001;
 #ifdef CXX1Y
 // expected-warning@-2 {{binary integer literals are incompatible with C++ standards before C++1y}}
-#endif
-
-void f(int n) { int a[n]; }
-#ifdef CXX1Y
-// expected-warning@-2 {{arrays of runtime bound are incompatible with C++ standards before C++1y}}
 #endif

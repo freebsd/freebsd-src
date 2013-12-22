@@ -44,7 +44,7 @@ namespace test2 {
 // PR5134
 namespace test3 {
   class Foo {
-    friend const int getInt(int inInt = 0);
+    friend const int getInt(int inInt = 0) {}
 
   };
 }
@@ -134,7 +134,7 @@ namespace test6_3 {
 namespace test7 {
   extern "C" {
     class X {
-      friend int f() { return 42; }
+      friend int test7_f() { return 42; }
     };
   }
 }
@@ -153,4 +153,138 @@ namespace test8 {
     template<class T> friend void ns1::f(T t); // expected-error {{cannot befriend target of using declaration}}
     friend void B::f(); // expected-error {{cannot befriend target of using declaration}}
   };
+}
+
+// PR16423
+namespace test9 {
+  class C {
+  };
+  struct A {
+    friend void C::f(int, int, int) {}  // expected-error {{no function named 'f' with type 'void (int, int, int)' was found in the specified scope}}
+  };
+}
+
+namespace test10 {
+  struct X {};
+  extern void f10_a();
+  extern void f10_a(X);
+  struct A {
+    friend void f10_a();
+    friend void f10_b();
+    friend void f10_c();
+    friend void f10_d();
+    friend void f10_a(X);
+    friend void f10_b(X);
+    friend void f10_c(X);
+    friend void f10_d(X);
+  };
+  extern void f10_b();
+  extern void f10_b(X);
+  struct B {
+    friend void f10_a();
+    friend void f10_b();
+    friend void f10_c();
+    friend void f10_d();
+    friend void f10_a(X);
+    friend void f10_b(X);
+    friend void f10_c(X);
+    friend void f10_d(X);
+  };
+  extern void f10_c();
+  extern void f10_c(X);
+
+  // FIXME: Give a better diagnostic for the case where a function exists but is
+  // not visible.
+  void g(X x) {
+    f10_a();
+    f10_b();
+    f10_c();
+    f10_d(); // expected-error {{undeclared identifier}}
+
+    ::test10::f10_a();
+    ::test10::f10_b();
+    ::test10::f10_c();
+    ::test10::f10_d(); // expected-error {{no member named 'f10_d'}}
+
+    f10_a(x);
+    f10_b(x);
+    f10_c(x);
+    f10_d(x); // PR16597: expected-error {{undeclared identifier}}
+
+    ::test10::f10_a(x);
+    ::test10::f10_b(x);
+    ::test10::f10_c(x);
+    ::test10::f10_d(x); // expected-error {{no type named 'f10_d'}}
+  }
+
+  struct Y : X {
+    friend void f10_d();
+    friend void f10_d(X);
+  };
+
+  struct Z {
+    operator X();
+    friend void f10_d();
+    friend void f10_d(X);
+  };
+
+  void g(X x, Y y, Z z) {
+    f10_d(); // expected-error {{undeclared identifier}}
+    ::test10::f10_d(); // expected-error {{no member named 'f10_d'}}
+
+    // f10_d is visible to ADL in the second and third cases.
+    f10_d(x); // expected-error {{undeclared identifier}}
+    f10_d(y);
+    f10_d(z);
+
+    // No ADL here.
+    ::test10::f10_d(x); // expected-error {{no type named 'f10_d'}}
+    ::test10::f10_d(y); // expected-error {{no type named 'f10_d'}}
+    ::test10::f10_d(z); // expected-error {{no type named 'f10_d'}}
+  }
+
+  void local_externs(X x, Y y) {
+    extern void f10_d();
+    extern void f10_d(X);
+    f10_d();
+    f10_d(x);
+    // FIXME: This lookup should fail, because the local extern declaration
+    // should suppress ADL.
+    f10_d(y);
+    {
+      int f10_d;
+      f10_d(); // expected-error {{not a function}}
+      f10_d(x); // expected-error {{not a function}}
+      f10_d(y); // expected-error {{not a function}}
+    }
+  }
+
+  void i(X x, Y y) {
+    f10_d(); // expected-error {{undeclared identifier}}
+    f10_d(x); // expected-error {{undeclared identifier}}
+    f10_d(y);
+  }
+
+  struct C {
+    friend void f10_d();
+    friend void f10_d(X);
+  };
+
+  void j(X x, Y y) {
+    f10_d(); // expected-error {{undeclared identifier}}
+    f10_d(x); // expected-error {{undeclared identifier}}
+    f10_d(y);
+  }
+
+  extern void f10_d();
+  extern void f10_d(X);
+  void k(X x, Y y, Z z) {
+    // All OK now.
+    f10_d();
+    f10_d(x);
+    ::test10::f10_d();
+    ::test10::f10_d(x);
+    ::test10::f10_d(y);
+    ::test10::f10_d(z);
+  }
 }

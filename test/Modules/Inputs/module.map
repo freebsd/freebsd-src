@@ -131,6 +131,10 @@ module MethodPoolA {
 module MethodPoolB {
   header "MethodPoolB.h"
 
+  explicit module Sub2 {
+    header "MethodPoolBSub2.h"
+  }
+
   explicit module Sub {
     header "MethodPoolBSub.h"
   }
@@ -184,6 +188,35 @@ module cxx_linkage_cache {
   header "cxx-linkage-cache.h"
 }
 
+module cxx_templates_common {
+  header "cxx-templates-common.h"
+}
+
+module cxx_templates_a {
+  header "cxx-templates-a.h"
+}
+
+module cxx_templates_b_impl {
+  header "cxx-templates-b-impl.h"
+}
+
+module cxx_templates_b {
+  header "cxx-templates-b.h"
+}
+
+module cxx_templates_c {
+  header "cxx-templates-c.h"
+}
+
+module cxx_decls {
+  module unimported {
+    header "cxx-decls-unimported.h"
+  }
+  module imported {
+    header "cxx-decls-imported.h"
+  }
+}
+
 module config {
   header "config.h"
   config_macros [exhaustive] WANT_FOO, WANT_BAR
@@ -191,6 +224,10 @@ module config {
 
 module diag_pragma {
   header "diag_pragma.h"
+}
+
+module dummy {
+  header "dummy.h"
 }
 
 module builtin {
@@ -208,4 +245,39 @@ module linkage_merge {
     header "linkage-merge-bar.h"
   }
 
+}
+
+module incomplete_mod {
+  header "incomplete_mod.h"
+}
+
+module warning {
+  header "warning.h"
+}
+
+module initializer_list {
+  header "initializer_list"
+}
+
+module using_decl {
+  module a { header "using-decl-a.h" export * }
+  module b { header "using-decl-b.h" export * }
+}
+
+module recursive_visibility_a1 {
+  module inner { header "recursive_visibility_a1_inner.h" }
+}
+module recursive_visibility_a2 {
+  module inner {
+    module more_inner {
+      header "recursive_visibility_a2_more_inner.h"
+    }
+  }
+}
+module recursive_visibility_b {
+  header "recursive_visibility_b.h"
+  export *
+}
+module recursive_visibility_c {
+  header "recursive_visibility_c.h"
 }

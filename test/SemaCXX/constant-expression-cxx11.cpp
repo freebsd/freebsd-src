@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple i686-linux -Wno-string-plus-int -fsyntax-only -fcxx-exceptions -verify -std=c++11 -pedantic %s -Wno-comment
+// RUN: %clang_cc1 -triple i686-linux -Wno-string-plus-int -Wno-pointer-arith -Wno-zero-length-array -fsyntax-only -fcxx-exceptions -verify -std=c++11 -pedantic %s -Wno-comment
 
 namespace StaticAssertFoldTest {
 
@@ -78,6 +78,11 @@ constexpr const int * const *n5 = const_cast<const int* const*>(&n3);
 constexpr int **n6 = const_cast<int**>(&n3);
 constexpr int n7 = **n5;
 constexpr int n8 = **n6;
+
+// const_cast from prvalue to xvalue.
+struct A { int n; };
+constexpr int n9 = (const_cast<A&&>(A{123})).n;
+static_assert(n9 == 123, "");
 
 }
 
@@ -339,6 +344,46 @@ static_assert(!same(4, 4), "");
 static_assert(same(n, n), "");
 static_assert(sameTemporary(9), "");
 
+struct A { int &&r; };
+struct B { A &&a1; A &&a2; };
+
+constexpr B b1 { { 1 }, { 2 } }; // expected-note {{temporary created here}}
+static_assert(&b1.a1 != &b1.a2, "");
+static_assert(&b1.a1.r != &b1.a2.r, ""); // expected-error {{constant expression}} expected-note {{outside the expression that created the temporary}}
+
+constexpr B &&b2 { { 3 }, { 4 } }; // expected-note {{temporary created here}}
+static_assert(&b1 != &b2, "");
+static_assert(&b1.a1 != &b2.a1, ""); // expected-error {{constant expression}} expected-note {{outside the expression that created the temporary}}
+
+constexpr thread_local B b3 { { 1 }, { 2 } }; // expected-error {{constant expression}} expected-note {{reference to temporary}} expected-note {{here}}
+void foo() {
+  constexpr static B b1 { { 1 }, { 2 } }; // ok
+  constexpr thread_local B b2 { { 1 }, { 2 } }; // expected-error {{constant expression}} expected-note {{reference to temporary}} expected-note {{here}}
+  constexpr B b3 { { 1 }, { 2 } }; // expected-error {{constant expression}} expected-note {{reference to temporary}} expected-note {{here}}
+}
+
+constexpr B &&b4 = ((1, 2), 3, 4, B { {10}, {{20}} }); // expected-warning 4{{unused}}
+static_assert(&b4 != &b2, "");
+
+// Proposed DR: copy-elision doesn't trigger lifetime extension.
+constexpr B b5 = B{ {0}, {0} }; // expected-error {{constant expression}} expected-note {{reference to temporary}} expected-note {{here}}
+
+namespace NestedNonStatic {
+  // Proposed DR: for a reference constant expression to refer to a static
+  // storage duration temporary, that temporary must itself be initialized
+  // by a constant expression (a core constant expression is not enough).
+  struct A { int &&r; };
+  struct B { A &&a; };
+  constexpr B a = { A{0} }; // ok
+  constexpr B b = { A(A{0}) }; // expected-error {{constant expression}} expected-note {{reference to temporary}} expected-note {{here}}
+}
+
+namespace FakeInitList {
+  struct init_list_3_ints { const int (&x)[3]; };
+  struct init_list_2_init_list_3_ints { const init_list_3_ints (&x)[2]; };
+  constexpr init_list_2_init_list_3_ints ils = { { { { 1, 2, 3 } }, { { 4, 5, 6 } } } };
+}
+
 }
 
 constexpr int strcmp_ce(const char *p, const char *q) {
@@ -572,7 +617,7 @@ struct E {
   constexpr E() : p(&p) {}
   void *p;
 };
-constexpr const E &e1 = E(); // expected-error {{constant expression}} expected-note {{reference to temporary is not a constant expression}} expected-note {{temporary created here}}
+constexpr const E &e1 = E();
 // This is a constant expression if we elide the copy constructor call, and
 // is not a constant expression if we don't! But we do, so it is.
 constexpr E e2 = E();
@@ -729,15 +774,22 @@ static_assert(&ok2 == pok2, "");
 static_assert((Base2*)(Derived*)(Base*)pb1 == pok2, "");
 static_assert((Derived*)(Base*)pb1 == (Derived*)pok2, "");
 
-constexpr Base *nullB = 42 - 6 * 7; // expected-warning {{expression which evaluates to zero treated as a null pointer constant of type 'Class::Base *const'}}
+// Core issue 903: we do not perform constant evaluation when checking for a
+// null pointer in C++11. Just check for an integer literal with value 0.
+constexpr Base *nullB = 42 - 6 * 7; // expected-error {{cannot initialize a variable of type 'Class::Base *const' with an rvalue of type 'int'}}
+constexpr Base *nullB1 = 0;
 static_assert((Bottom*)nullB == 0, "");
 static_assert((Derived*)nullB == 0, "");
 static_assert((void*)(Bottom*)nullB == (void*)(Derived*)nullB, "");
-Base * nullB2 = '\0'; // expected-warning {{expression which evaluates to zero treated as a null pointer constant of type 'Class::Base *'}}
-Base * nullB3 = (0);
-// We suppress the warning in unevaluated contexts to workaround some gtest
-// behavior. Once this becomes an error this isn't a problem anymore.
-static_assert(nullB == (1 - 1), "");
+Base *nullB2 = '\0'; // expected-error {{cannot initialize a variable of type 'Class::Base *' with an rvalue of type 'char'}}
+Base *nullB3 = (0);
+Base *nullB4 = false; // expected-error {{cannot initialize a variable of type 'Class::Base *' with an rvalue of type 'bool'}}
+Base *nullB5 = ((0ULL));
+Base *nullB6 = 0.; // expected-error {{cannot initialize a variable of type 'Class::Base *' with an rvalue of type 'double'}}
+enum Null { kNull };
+Base *nullB7 = kNull; // expected-error {{cannot initialize a variable of type 'Class::Base *' with an rvalue of type 'Class::Null'}}
+static_assert(nullB1 == (1 - 1), ""); // expected-error {{comparison between pointer and integer}}
+
 
 
 namespace ConversionOperators {
@@ -778,21 +830,26 @@ namespace Temporaries {
 struct S {
   constexpr S() {}
   constexpr int f() const;
+  constexpr int g() const;
 };
 struct T : S {
   constexpr T(int n) : S(), n(n) {}
   int n;
 };
 constexpr int S::f() const {
-  // 'this' must be the postfix-expression in a class member access expression,
-  // so we can't just use
-  //   return static_cast<T*>(this)->n;
-  return this->*(int(S::*))&T::n;
+  return static_cast<const T*>(this)->n; // expected-note {{cannot cast}}
+}
+constexpr int S::g() const {
+  // FIXME: Better diagnostic for this.
+  return this->*(int(S::*))&T::n; // expected-note {{subexpression}}
 }
 // The T temporary is implicitly cast to an S subobject, but we can recover the
 // T full-object via a base-to-derived cast, or a derived-to-base-casted member
 // pointer.
+static_assert(S().f(), ""); // expected-error {{constant expression}} expected-note {{in call to '&Temporaries::S()->f()'}}
+static_assert(S().g(), ""); // expected-error {{constant expression}} expected-note {{in call to '&Temporaries::S()->g()'}}
 static_assert(T(3).f() == 3, "");
+static_assert(T(4).g() == 4, "");
 
 constexpr int f(const S &s) {
   return static_cast<const T&>(s).n;
@@ -1138,6 +1195,31 @@ namespace ComplexConstexpr {
   static_assert(&__imag test6 == &__real test6 + 1, "");
 }
 
+// _Atomic(T) is exactly like T for the purposes of constant expression
+// evaluation..
+namespace Atomic {
+  constexpr _Atomic int n = 3;
+
+  struct S { _Atomic(double) d; };
+  constexpr S s = { 0.5 };
+  constexpr double d1 = s.d;
+  constexpr double d2 = n;
+  constexpr _Atomic double d3 = n;
+
+  constexpr _Atomic(int) n2 = d3;
+  static_assert(d1 == 0.5, "");
+  static_assert(d3 == 3.0, "");
+
+  namespace PR16056 {
+    struct TestVar {
+      _Atomic(int) value;
+      constexpr TestVar(int value) : value(value) {}
+    };
+    constexpr TestVar testVar{-1};
+    static_assert(testVar.value == -1, "");
+  }
+}
+
 namespace InstantiateCaseStmt {
   template<int x> constexpr int f() { return x; }
   template<int x> int g(int c) { switch(c) { case f<x>(): return 1; } return 0; }
@@ -1252,8 +1334,23 @@ struct Wrap {
 constexpr const Wrap &g(const Wrap &w) { return w; }
 constexpr int k2 = g({0}).value; // ok
 
-constexpr const int &i = 0; // expected-error {{constant expression}} expected-note {{temporary}} expected-note 2{{here}}
-constexpr const int j = i; // expected-error {{constant expression}} expected-note {{initializer of 'i' is not a constant expression}}
+// The temporary here has static storage duration, so we can bind a constexpr
+// reference to it.
+constexpr const int &i = 1;
+constexpr const int j = i;
+static_assert(j == 1, "");
+
+// The temporary here is not const, so it can't be read outside the expression
+// in which it was created (per the C++14 rules, which we use to avoid a C++11
+// defect).
+constexpr int &&k = 1; // expected-note {{temporary created here}}
+constexpr const int l = k; // expected-error {{constant expression}} expected-note {{read of temporary}}
+
+void f() {
+  // The temporary here has automatic storage duration, so we can't bind a
+  // constexpr reference to it.
+  constexpr const int &i = 1; // expected-error {{constant expression}} expected-note 2{{temporary}}
+}
 
 }
 
@@ -1502,4 +1599,267 @@ namespace PR15884 {
   // expected-error@-2 {{constexpr variable 'p' must be initialized by a constant expression}}
   // expected-note@-3 {{pointer to temporary is not a constant expression}}
   // expected-note@-4 {{temporary created here}}
+}
+
+namespace AfterError {
+  // FIXME: Suppress the 'no return statements' diagnostic if the body is invalid.
+  constexpr int error() { // expected-error {{no return statement}}
+    return foobar; // expected-error {{undeclared identifier}}
+  }
+  constexpr int k = error(); // expected-error {{must be initialized by a constant expression}}
+}
+
+namespace std {
+  typedef decltype(sizeof(int)) size_t;
+
+  template <class _E>
+  class initializer_list
+  {
+    const _E* __begin_;
+    size_t    __size_;
+
+    constexpr initializer_list(const _E* __b, size_t __s)
+      : __begin_(__b),
+        __size_(__s)
+    {}
+
+  public:
+    typedef _E        value_type;
+    typedef const _E& reference;
+    typedef const _E& const_reference;
+    typedef size_t    size_type;
+
+    typedef const _E* iterator;
+    typedef const _E* const_iterator;
+
+    constexpr initializer_list() : __begin_(nullptr), __size_(0) {}
+
+    constexpr size_t    size()  const {return __size_;}
+    constexpr const _E* begin() const {return __begin_;}
+    constexpr const _E* end()   const {return __begin_ + __size_;}
+  };
+}
+
+namespace InitializerList {
+  constexpr int sum(const int *b, const int *e) {
+    return b != e ? *b + sum(b+1, e) : 0;
+  }
+  constexpr int sum(std::initializer_list<int> ints) {
+    return sum(ints.begin(), ints.end());
+  }
+  static_assert(sum({1, 2, 3, 4, 5}) == 15, "");
+}
+
+namespace StmtExpr {
+  struct A { int k; };
+  void f() {
+    static_assert(({ const int x = 5; x * 3; }) == 15, ""); // expected-warning {{extension}}
+    constexpr auto a = ({ A(); }); // expected-warning {{extension}}
+  }
+  constexpr int g(int k) {
+    return ({ // expected-warning {{extension}}
+      const int x = k;
+      x * x;
+    });
+  }
+  static_assert(g(123) == 15129, "");
+  constexpr int h() { // expected-error {{never produces a constant}}
+    return ({ // expected-warning {{extension}}
+      return 0; // expected-note {{not supported}}
+      1;
+    });
+  }
+}
+
+namespace VirtualFromBase {
+  struct S1 {
+    virtual int f() const;
+  };
+  struct S2 {
+    virtual int f();
+  };
+  template <typename T> struct X : T {
+    constexpr X() {}
+    double d = 0.0;
+    constexpr int f() { return sizeof(T); } // expected-warning {{will not be implicitly 'const' in C++1y}}
+  };
+
+  // Virtual f(), not OK.
+  constexpr X<X<S1>> xxs1;
+  constexpr X<S1> *p = const_cast<X<X<S1>>*>(&xxs1);
+  static_assert(p->f() == sizeof(X<S1>), ""); // expected-error {{constant expression}} expected-note {{virtual function call}}
+
+  // Non-virtual f(), OK.
+  constexpr X<X<S2>> xxs2;
+  constexpr X<S2> *q = const_cast<X<X<S2>>*>(&xxs2);
+  static_assert(q->f() == sizeof(S2), "");
+}
+
+namespace ConstexprConstructorRecovery {
+  class X { 
+  public: 
+      enum E : short { 
+          headers = 0x1, 
+          middlefile = 0x2, 
+          choices = 0x4 
+      }; 
+      constexpr X() noexcept {}; 
+  protected: 
+      E val{0}; // expected-error {{cannot initialize a member subobject of type 'ConstexprConstructorRecovery::X::E' with an rvalue of type 'int'}}
+  }; 
+  constexpr X x{};
+}
+
+namespace Lifetime {
+  void f() {
+    constexpr int &n = n; // expected-error {{constant expression}} expected-note {{use of reference outside its lifetime}} expected-warning {{not yet bound to a value}}
+    constexpr int m = m; // expected-error {{constant expression}} expected-note {{read of object outside its lifetime}}
+  }
+
+  constexpr int &get(int &&n) { return n; }
+  struct S {
+    int &&r; // expected-note 2{{declared here}}
+    int &s;
+    int t;
+    constexpr S() : r(0), s(get(0)), t(r) {} // expected-warning {{temporary}}
+    constexpr S(int) : r(0), s(get(0)), t(s) {} // expected-warning {{temporary}} expected-note {{read of object outside its lifetime}}
+  };
+  constexpr int k1 = S().t; // ok, int is lifetime-extended to end of constructor
+  constexpr int k2 = S(0).t; // expected-error {{constant expression}} expected-note {{in call}}
+}
+
+namespace Bitfields {
+  struct A {
+    bool b : 1;
+    unsigned u : 5;
+    int n : 5;
+    bool b2 : 3;
+    unsigned u2 : 74; // expected-warning {{exceeds the size of its type}}
+    int n2 : 81; // expected-warning {{exceeds the size of its type}}
+  };
+
+  constexpr A a = { false, 33, 31, false, 0xffffffff, 0x7fffffff }; // expected-warning 2{{truncation}}
+  static_assert(a.b == 0 && a.u == 1 && a.n == -1 && a.b2 == 0 &&
+                a.u2 + 1 == 0 && a.n2 == 0x7fffffff,
+                "bad truncation of bitfield values");
+
+  struct B {
+    int n : 3;
+    constexpr B(int k) : n(k) {}
+  };
+  static_assert(B(3).n == 3, "");
+  static_assert(B(4).n == -4, "");
+  static_assert(B(7).n == -1, "");
+  static_assert(B(8).n == 0, "");
+  static_assert(B(-1).n == -1, "");
+  static_assert(B(-8889).n == -1, "");
+
+  namespace PR16755 {
+    struct X {
+      int x : 1;
+      constexpr static int f(int x) {
+        return X{x}.x;
+      }
+    };
+    static_assert(X::f(3) == -1, "3 should truncate to -1");
+  }
+}
+
+namespace ZeroSizeTypes {
+  constexpr int (*p1)[0] = 0, (*p2)[0] = 0;
+  constexpr int k = p2 - p1;
+  // expected-error@-1 {{constexpr variable 'k' must be initialized by a constant expression}}
+  // expected-note@-2 {{subtraction of pointers to type 'int [0]' of zero size}}
+
+  int arr[5][0];
+  constexpr int f() { // expected-error {{never produces a constant expression}}
+    return &arr[3] - &arr[0]; // expected-note {{subtraction of pointers to type 'int [0]' of zero size}}
+  }
+}
+
+namespace BadDefaultInit {
+  template<int N> struct X { static const int n = N; };
+
+  struct A { // expected-note {{subexpression}}
+    int k = X<A().k>::n; // expected-error {{defaulted default constructor of 'A' cannot be used}} expected-error {{not a constant expression}} expected-note {{in call to 'A()'}}
+  };
+
+  // FIXME: The "constexpr constructor must initialize all members" diagnostic
+  // here is bogus (we discard the k(k) initializer because the parameter 'k'
+  // has been marked invalid).
+  struct B { // expected-note 2{{candidate}}
+    constexpr B( // expected-error {{must initialize all members}} expected-note {{candidate}}
+        int k = X<B().k>::n) : // expected-error {{no matching constructor}}
+      k(k) {}
+    int k; // expected-note {{not initialized}}
+  };
+}
+
+namespace NeverConstantTwoWays {
+  // If we see something non-constant but foldable followed by something
+  // non-constant and not foldable, we want the first diagnostic, not the
+  // second.
+  constexpr int f(int n) { // expected-error {{never produces a constant expression}}
+    return (int *)(long)&n == &n ? // expected-note {{reinterpret_cast}}
+        1 / 0 : // expected-warning {{division by zero}}
+        0;
+  }
+
+  // FIXME: We should diagnose the cast to long here, not the division by zero.
+  constexpr int n = // expected-error {{must be initialized by a constant expression}}
+      (int *)(long)&n == &n ?
+        1 / 0 : // expected-warning {{division by zero}} expected-note {{division by zero}}
+        0;
+}
+
+namespace PR17800 {
+  struct A {
+    constexpr int operator()() const { return 0; }
+  };
+  template <typename ...T> constexpr int sink(T ...) {
+    return 0;
+  }
+  template <int ...N> constexpr int run() {
+    return sink(A()() + N ...);
+  }
+  constexpr int k = run<1, 2, 3>();
+}
+
+namespace BuiltinStrlen {
+  constexpr const char *a = "foo\0quux";
+  constexpr char b[] = "foo\0quux";
+  constexpr int f() { return 'u'; }
+  constexpr char c[] = { 'f', 'o', 'o', 0, 'q', f(), 'u', 'x', 0 };
+
+  static_assert(__builtin_strlen("foo") == 3, "");
+  static_assert(__builtin_strlen("foo\0quux") == 3, "");
+  static_assert(__builtin_strlen("foo\0quux" + 4) == 4, "");
+
+  constexpr bool check(const char *p) {
+    return __builtin_strlen(p) == 3 &&
+           __builtin_strlen(p + 1) == 2 &&
+           __builtin_strlen(p + 2) == 1 &&
+           __builtin_strlen(p + 3) == 0 &&
+           __builtin_strlen(p + 4) == 4 &&
+           __builtin_strlen(p + 5) == 3 &&
+           __builtin_strlen(p + 6) == 2 &&
+           __builtin_strlen(p + 7) == 1 &&
+           __builtin_strlen(p + 8) == 0;
+  }
+
+  static_assert(check(a), "");
+  static_assert(check(b), "");
+  static_assert(check(c), "");
+
+  constexpr int over1 = __builtin_strlen(a + 9); // expected-error {{constant expression}} expected-note {{one-past-the-end}}
+  constexpr int over2 = __builtin_strlen(b + 9); // expected-error {{constant expression}} expected-note {{one-past-the-end}}
+  constexpr int over3 = __builtin_strlen(c + 9); // expected-error {{constant expression}} expected-note {{one-past-the-end}}
+
+  constexpr int under1 = __builtin_strlen(a - 1); // expected-error {{constant expression}} expected-note {{cannot refer to element -1}}
+  constexpr int under2 = __builtin_strlen(b - 1); // expected-error {{constant expression}} expected-note {{cannot refer to element -1}}
+  constexpr int under3 = __builtin_strlen(c - 1); // expected-error {{constant expression}} expected-note {{cannot refer to element -1}}
+
+  // FIXME: The diagnostic here could be better.
+  constexpr char d[] = { 'f', 'o', 'o' }; // no nul terminator.
+  constexpr int bad = __builtin_strlen(d); // expected-error {{constant expression}} expected-note {{one-past-the-end}}
 }

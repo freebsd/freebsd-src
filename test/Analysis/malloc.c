@@ -627,7 +627,48 @@ void doNotInvalidateWhenPassedToSystemCalls(char *s) {
   char *p = malloc(12);
   strlen(p);
   strcpy(p, s);
+  strcpy(s, p);
+  strcpy(p, p);
+  memcpy(p, s, 1);
+  memcpy(s, p, 1);
+  memcpy(p, p, 1);
 } // expected-warning {{leak}}
+
+// Treat source buffer contents as escaped.
+void escapeSourceContents(char *s) {
+  char *p = malloc(12);
+  memcpy(s, &p, 12); // no warning
+
+  void *p1 = malloc(7);
+  char *a;
+  memcpy(&a, &p1, sizeof a);
+  // FIXME: No warning due to limitations imposed by current modelling of
+  // 'memcpy' (regions metadata is not copied).
+
+  int *ptrs[2];
+  int *allocated = (int *)malloc(4);
+  memcpy(&ptrs[0], &allocated, sizeof(int *));
+  // FIXME: No warning due to limitations imposed by current modelling of
+  // 'memcpy' (regions metadata is not copied).
+}
+
+void invalidateDestinationContents() {
+  int *null = 0;
+  int *p = (int *)malloc(4);
+  memcpy(&p, &null, sizeof(int *));
+
+  int *ptrs1[2]; // expected-warning {{Potential leak of memory pointed to by}}
+  ptrs1[0] = (int *)malloc(4);
+  memcpy(ptrs1,  &null, sizeof(int *));
+
+  int *ptrs2[2]; // expected-warning {{Potential memory leak}}
+  ptrs2[0] = (int *)malloc(4);
+  memcpy(&ptrs2[1],  &null, sizeof(int *));
+
+  int *ptrs3[2]; // expected-warning {{Potential memory leak}}
+  ptrs3[0] = (int *)malloc(4);
+  memcpy(&ptrs3[0],  &null, sizeof(int *));
+} // expected-warning {{Potential memory leak}}
 
 // Rely on the CString checker evaluation of the strcpy API to convey that the result of strcpy is equal to p.
 void symbolLostWithStrcpy(char *s) {
@@ -1057,12 +1098,6 @@ void testPassConstPointerIndirectly() {
   return; // expected-warning {{leak}}
 }
 
-void testPassToSystemHeaderFunctionIndirectly() {
-  int *p = malloc(4);
-  p++;
-  fakeSystemHeaderCallInt(p);
-} // expected-warning {{leak}}
-
 void testPassConstPointerIndirectlyStruct() {
   struct HasPtr hp;
   hp.p = malloc(10);
@@ -1073,8 +1108,32 @@ void testPassConstPointerIndirectlyStruct() {
 void testPassToSystemHeaderFunctionIndirectlyStruct() {
   SomeStruct ss;
   ss.p = malloc(1);
-  fakeSystemHeaderCall(&ss);
-} // expected-warning {{Potential leak of memory pointed to by 'ss.p'}}
+  fakeSystemHeaderCall(&ss); // invalidates ss, making ss.p unreachable
+  // Technically a false negative here -- we know the system function won't free
+  // ss.p, but nothing else will either!
+} // no-warning
+
+void testPassToSystemHeaderFunctionIndirectlyStructFree() {
+  SomeStruct ss;
+  ss.p = malloc(1);
+  fakeSystemHeaderCall(&ss); // invalidates ss, making ss.p unreachable
+  free(ss.p);
+} // no-warning
+
+void testPassToSystemHeaderFunctionIndirectlyArray() {
+  int *p[1];
+  p[0] = malloc(sizeof(int));
+  fakeSystemHeaderCallIntPtr(p); // invalidates p, making p[0] unreachable
+  // Technically a false negative here -- we know the system function won't free
+  // p[0], but nothing else will either!
+} // no-warning
+
+void testPassToSystemHeaderFunctionIndirectlyArrayFree() {
+  int *p[1];
+  p[0] = malloc(sizeof(int));
+  fakeSystemHeaderCallIntPtr(p); // invalidates p, making p[0] unreachable
+  free(p[0]);
+} // no-warning
 
 int *testOffsetAllocate(size_t size) {
   int *memoryBlock = (int *)malloc(size + sizeof(int));
@@ -1189,6 +1248,54 @@ void freeMemory() {
   }
 }
 
+// PR16730
+void testReallocEscaped(void **memory) {
+  *memory = malloc(47);
+  char *new_memory = realloc(*memory, 47);
+  if (new_memory != 0) {
+    *memory = new_memory;
+  }
+}
+
+// PR16558
+void *smallocNoWarn(size_t size) {
+  if (size == 0) {
+    return malloc(1); // this branch is never called
+  } 
+  else {
+    return malloc(size);
+  }
+}
+
+char *dupstrNoWarn(const char *s) {
+  const int len = strlen(s);
+  char *p = (char*) smallocNoWarn(len + 1);
+  strcpy(p, s); // no-warning
+  return p;
+}
+
+void *smallocWarn(size_t size) {
+  if (size == 2) {
+    return malloc(1);
+  }
+  else {
+    return malloc(size);
+  }
+}
+
+char *dupstrWarn(const char *s) {
+  const int len = strlen(s);
+  char *p = (char*) smallocWarn(len + 1);
+  strcpy(p, s); // expected-warning{{String copy function overflows destination buffer}}
+  return p;
+}
+
+int *radar15580979() {
+  int *data = (int *)malloc(32);
+  int *p = data ?: (int*)malloc(32); // no warning
+  return p;
+}
+
 // ----------------------------------------------------------------------------
 // False negatives.
 
@@ -1199,4 +1306,12 @@ void testMallocWithParam(int **p) {
 
 void testMallocWithParam_2(int **p) {
   *p = (int*) malloc(sizeof(int)); // no-warning
+}
+
+void testPassToSystemHeaderFunctionIndirectly() {
+  int *p = malloc(4);
+  p++;
+  fakeSystemHeaderCallInt(p);
+  // FIXME: This is a leak: if we think a system function won't free p, it
+  // won't free (p-1) either.
 }

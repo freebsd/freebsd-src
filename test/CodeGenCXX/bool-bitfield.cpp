@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-unknown-unknown -verify -emit-llvm -o - %s \
+// RUN: %clang_cc1 -triple x86_64-unknown-unknown -emit-llvm -o - %s \
 // RUN:   | FileCheck %s
 
 // PR14638; make sure this doesn't crash.
@@ -9,6 +9,6 @@ void func1(bool b, A& a1)
 {
     if ((a1.m_sorted = b)) {}
 }
-// CHECK: define void @_Z5func1bR1A
+// CHECK-LABEL: define void @_Z5func1bR1A
 // CHECK: br i1
 // CHECK: ret void

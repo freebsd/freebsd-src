@@ -63,9 +63,12 @@ typedef const void * CFTypeRef;
 typedef const struct __CFString * CFStringRef;
 typedef const struct __CFAllocator * CFAllocatorRef;
 extern const CFAllocatorRef kCFAllocatorDefault;
+
 extern CFTypeRef CFRetain(CFTypeRef cf);
 extern void CFRelease(CFTypeRef cf);
 extern CFTypeRef CFMakeCollectable(CFTypeRef cf);
+extern CFTypeRef CFAutorelease(CFTypeRef CF_CONSUMED cf);
+
 typedef struct {
 }
 CFArrayCallBacks;
@@ -2005,6 +2008,87 @@ static int Cond;
 @end
 
 //===----------------------------------------------------------------------===//
+// CFAutorelease
+//===----------------------------------------------------------------------===//
+
+CFTypeRef getAutoreleasedCFType() {
+  extern CFTypeRef CFCreateSomething();
+  return CFAutorelease(CFCreateSomething()); // no-warning
+}
+
+CFTypeRef getIncorrectlyAutoreleasedCFType() {
+  extern CFTypeRef CFGetSomething();
+  return CFAutorelease(CFGetSomething()); // expected-warning{{Object autoreleased too many times}}
+}
+
+CFTypeRef createIncorrectlyAutoreleasedCFType() {
+  extern CFTypeRef CFCreateSomething();
+  return CFAutorelease(CFCreateSomething()); // expected-warning{{Object with a +0 retain count returned to caller where a +1 (owning) retain count is expected}}
+}
+
+void useAfterAutorelease() {
+  extern CFTypeRef CFCreateSomething();
+  CFTypeRef obj = CFCreateSomething();
+  CFAutorelease(obj);
+
+  extern void useCF(CFTypeRef);
+  useCF(obj); // no-warning
+}
+
+void useAfterRelease() {
+  // Sanity check that the previous example would have warned with CFRelease.
+  extern CFTypeRef CFCreateSomething();
+  CFTypeRef obj = CFCreateSomething();
+  CFRelease(obj);
+
+  extern void useCF(CFTypeRef);
+  useCF(obj); // expected-warning{{Reference-counted object is used after it is released}}
+}
+
+void testAutoreleaseReturnsInput() {
+  extern CFTypeRef CFCreateSomething();
+  CFTypeRef obj = CFCreateSomething(); // expected-warning{{Potential leak of an object stored into 'obj'}}
+  CFTypeRef second = CFAutorelease(obj);
+  CFRetain(second);
+}
+
+CFTypeRef testAutoreleaseReturnsInputSilent() {
+  extern CFTypeRef CFCreateSomething();
+  CFTypeRef obj = CFCreateSomething();
+  CFTypeRef alias = CFAutorelease(obj);
+  CFRetain(alias);
+  CFRelease(obj);
+  return obj; // no-warning
+}
+
+void autoreleaseTypedObject() {
+  CFArrayRef arr = CFArrayCreateMutable(0, 10, &kCFTypeArrayCallBacks);
+  CFAutorelease((CFTypeRef)arr); // no-warning
+}
+
+void autoreleaseReturningTypedObject() {
+  CFArrayRef arr = CFArrayCreateMutable(0, 10, &kCFTypeArrayCallBacks); // expected-warning{{Potential leak of an object stored into 'arr'}}
+  CFArrayRef alias = (CFArrayRef)CFAutorelease((CFTypeRef)arr);
+  CFRetain(alias);
+}
+
+CFArrayRef autoreleaseReturningTypedObjectSilent() {
+  CFArrayRef arr = CFArrayCreateMutable(0, 10, &kCFTypeArrayCallBacks);
+  CFArrayRef alias = (CFArrayRef)CFAutorelease((CFTypeRef)arr);
+  CFRetain(alias);
+  CFRelease(arr);
+  return alias; // no-warning
+}
+
+void autoreleaseObjC() {
+  id obj = [@1 retain];
+  CFAutorelease(obj); // no-warning
+
+  id anotherObj = @1;
+  CFAutorelease(anotherObj);
+} // expected-warning{{Object autoreleased too many times}}
+
+//===----------------------------------------------------------------------===//
 // <rdar://problem/13783514> xpc_connection_set_finalizer_f
 //===----------------------------------------------------------------------===//
 
@@ -2022,6 +2106,20 @@ void rdar13783514(xpc_connection_t connection) {
   xpc_connection_set_finalizer_f(connection, releaseAfterXPC);
 } // no-warning
 
+// Do not report leaks when object is cleaned up with __attribute__((cleanup ..)).
+inline static void cleanupFunction(void *tp) {
+    CFTypeRef x = *(CFTypeRef *)tp;
+    if (x) {
+        CFRelease(x);
+    }
+}
+#define ADDCLEANUP __attribute__((cleanup(cleanupFunction)))
+void foo() {
+  ADDCLEANUP CFStringRef myString;
+  myString = CFStringCreateWithCString(0, "hello world", kCFStringEncodingUTF8);
+  ADDCLEANUP CFStringRef myString2 = 
+    CFStringCreateWithCString(0, "hello world", kCFStringEncodingUTF8);
+}
 
 // CHECK:  <key>diagnostics</key>
 // CHECK-NEXT:  <array>

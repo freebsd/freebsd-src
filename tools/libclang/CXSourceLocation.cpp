@@ -124,6 +124,8 @@ CXSourceLocation clang_getLocation(CXTranslationUnit TU,
                                    unsigned column) {
   if (!TU || !file)
     return clang_getNullLocation();
+  if (line == 0 || column == 0)
+    return clang_getNullLocation();
   
   LogRef Log = Logger::make(LLVM_FUNCTION_NAME);
   ASTUnit *CXXUnit = cxtu::getASTUnit(TU);
@@ -209,6 +211,17 @@ int clang_Location_isInSystemHeader(CXSourceLocation location) {
   return SM.isInSystemHeader(Loc);
 }
 
+int clang_Location_isFromMainFile(CXSourceLocation location) {
+  const SourceLocation Loc =
+    SourceLocation::getFromRawEncoding(location.int_data);
+  if (Loc.isInvalid())
+    return 0;
+
+  const SourceManager &SM =
+    *static_cast<const SourceManager*>(location.ptr_data[0]);
+  return SM.isWrittenInMainFile(Loc);
+}
+
 void clang_getExpansionLocation(CXSourceLocation location,
                                 CXFile *file,
                                 unsigned *line,
@@ -255,7 +268,7 @@ void clang_getPresumedLocation(CXSourceLocation location,
                                CXString *filename,
                                unsigned *line,
                                unsigned *column) {
-  
+
   if (!isASTUnitSourceLocation(location)) {
     // Other SourceLocation implementations do not support presumed locations
     // at this time.
@@ -265,20 +278,22 @@ void clang_getPresumedLocation(CXSourceLocation location,
 
   SourceLocation Loc = SourceLocation::getFromRawEncoding(location.int_data);
 
-  if (!location.ptr_data[0] || Loc.isInvalid())
+  if (!location.ptr_data[0] || Loc.isInvalid()) {
     createNullLocation(filename, line, column);
-  else {
-    const SourceManager &SM =
-    *static_cast<const SourceManager*>(location.ptr_data[0]);
-    PresumedLoc PreLoc = SM.getPresumedLoc(Loc);
-    
-    if (filename)
-      *filename = cxstring::createRef(PreLoc.getFilename());
-    if (line)
-      *line = PreLoc.getLine();
-    if (column)
-      *column = PreLoc.getColumn();
+    return;
   }
+
+  const SourceManager &SM =
+      *static_cast<const SourceManager *>(location.ptr_data[0]);
+  PresumedLoc PreLoc = SM.getPresumedLoc(Loc);
+  if (PreLoc.isInvalid()) {
+    createNullLocation(filename, line, column);
+    return;
+  }
+
+  if (filename) *filename = cxstring::createRef(PreLoc.getFilename());
+  if (line) *line = PreLoc.getLine();
+  if (column) *column = PreLoc.getColumn();
 }
 
 void clang_getInstantiationLocation(CXSourceLocation location,

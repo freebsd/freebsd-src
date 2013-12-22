@@ -44,6 +44,8 @@ as to improve functionality through Clang-specific features. The Clang
 driver and language features are intentionally designed to be as
 compatible with the GNU GCC compiler as reasonably possible, easing
 migration from GCC to Clang. In most cases, code "just works".
+Clang also provides an alternative driver, :ref:`clang-cl`, that is designed
+to be compatible with the Visual C++ compiler, cl.exe.
 
 In addition to language specific features, Clang has a variety of
 features that depend on what CPU architecture or operating system is
@@ -235,6 +237,11 @@ output format of the diagnostics that it generates.
                 ^
                 //
 
+**-fansi-escape-codes**
+   Controls whether ANSI escape codes are used instead of the Windows Console
+   API to output colored diagnostics. This option is only used on Windows and
+   defaults to off.
+
 .. option:: -fdiagnostics-format=clang/msvc/vi
 
    Changes diagnostic output format to better match IDEs and command line tools.
@@ -422,7 +429,7 @@ output format of the diagnostics that it generates.
            map<
              [...],
              map<
-               [float != float],
+               [float != double],
                [...]>>>
 
 .. _cl_diag_warning_groups:
@@ -853,7 +860,7 @@ Controlling Code Generation
 Clang provides a number of ways to control code generation. The options
 are listed below.
 
-**-fsanitize=check1,check2,...**
+**-f[no-]sanitize=check1,check2,...**
    Turn on runtime checks for various forms of undefined or suspicious
    behavior.
 
@@ -889,13 +896,14 @@ are listed below.
       includes all of the checks listed below other than
       ``unsigned-integer-overflow``.
 
-      ``-fsanitize=undefined-trap``: This includes all sanitizers
+   -  ``-fsanitize=undefined-trap``: This includes all sanitizers
       included by ``-fsanitize=undefined``, except those that require
-      runtime support.  This group of sanitizers are generally used
-      in conjunction with the ``-fsanitize-undefined-trap-on-error``
-      flag, which causes traps to be emitted, rather than calls to
-      runtime libraries. This includes all of the checks listed below
-      other than ``unsigned-integer-overflow`` and ``vptr``.
+      runtime support. This group of sanitizers is intended to be
+      used in conjunction with the ``-fsanitize-undefined-trap-on-error``
+      flag. This includes all of the checks listed below other than
+      ``unsigned-integer-overflow`` and ``vptr``.
+   -  ``-fsanitize=dataflow``: :doc:`DataFlowSanitizer`, a general data
+      flow analysis.
 
    The following more fine-grained checks are also available:
 
@@ -913,6 +921,8 @@ are listed below.
       destination.
    -  ``-fsanitize=float-divide-by-zero``: Floating point division by
       zero.
+   -  ``-fsanitize=function``: Indirect call of a function through a
+      function pointer of the wrong type (Linux, C++ and x86/x86_64 only).
    -  ``-fsanitize=integer-divide-by-zero``: Integer division by zero.
    -  ``-fsanitize=null``: Use of a null pointer or creation of a null
       reference.
@@ -941,6 +951,15 @@ are listed below.
       it is of the wrong dynamic type, or that its lifetime has not
       begun or has ended. Incompatible with ``-fno-rtti``.
 
+   You can turn off or modify checks for certain source files, functions
+   or even variables by providing a special file:
+
+   -  ``-fsanitize-blacklist=/path/to/blacklist/file``: disable or modify
+      sanitizer checks for objects listed in the file. See
+      :doc:`SanitizerSpecialCaseList` for file format description.
+   -  ``-fno-sanitize-blacklist``: don't use blacklist file, if it was
+      specified earlier in the command line.
+
    Experimental features of AddressSanitizer (not ready for widespread
    use, require explicit ``-fsanitize=address``):
 
@@ -958,10 +977,31 @@ are listed below.
       uninitialized bits came from. Slows down execution by additional
       1.5x-2x.
 
+   Extra features of UndefinedBehaviorSanitizer:
+
+   -  ``-fno-sanitize-recover``: By default, after a sanitizer diagnoses
+      an issue, it will attempt to continue executing the program if there
+      is a reasonable behavior it can give to the faulting operation. This
+      option causes the program to abort instead.
+   -  ``-fsanitize-undefined-trap-on-error``: Causes traps to be emitted
+      rather than calls to runtime libraries when a problem is detected.
+      This option is intended for use in cases where the sanitizer runtime
+      cannot be used (for instance, when building libc or a kernel module).
+      This is only compatible with the sanitizers in the ``undefined-trap``
+      group.
+
    The ``-fsanitize=`` argument must also be provided when linking, in
-   order to link to the appropriate runtime library. It is not possible
-   to combine the ``-fsanitize=address`` and ``-fsanitize=thread``
-   checkers in the same program.
+   order to link to the appropriate runtime library. When using
+   ``-fsanitize=vptr`` (or a group that includes it, such as
+   ``-fsanitize=undefined``) with a C++ program, the link must be
+   performed by ``clang++``, not ``clang``, in order to link against the
+   C++-specific parts of the runtime library.
+
+   It is not possible to combine more than one of the ``-fsanitize=address``,
+   ``-fsanitize=thread``, and ``-fsanitize=memory`` checkers in the same
+   program. The ``-fsanitize=undefined`` checks can be combined with other
+   sanitizers.
+
 **-f[no-]address-sanitizer**
    Deprecated synonym for :ref:`-f[no-]sanitize=address
    <opt_fsanitize_address>`.
@@ -1006,6 +1046,26 @@ are listed below.
    selected model is not supported by the target, or if a more
    efficient model can be used. The TLS model can be overridden per
    variable using the ``tls_model`` attribute.
+
+.. option:: -mhwdiv=[values]
+
+   Select the ARM modes (arm or thumb) that support hardware division
+   instructions.
+
+   Valid values are: ``arm``, ``thumb`` and ``arm,thumb``.
+   This option is used to indicate which mode (arm or thumb) supports
+   hardware division instructions. This only applies to the ARM
+   architecture.
+
+.. option:: -m[no-]crc
+
+   Enable or disable CRC instructions.
+
+   This option is used to indicate whether CRC instructions are to
+   be generated. This only applies to the ARM architecture.
+
+   CRC instructions are enabled by default on ARMv8.
+
 
 Controlling Size of Debug Information
 -------------------------------------
@@ -1178,30 +1238,40 @@ Microsoft extensions
 --------------------
 
 clang has some experimental support for extensions from Microsoft Visual
-C++; to enable it, use the -fms-extensions command-line option. This is
-the default for Windows targets. Note that the support is incomplete;
-enabling Microsoft extensions will silently drop certain constructs
-(including ``__declspec`` and Microsoft-style asm statements).
+C++; to enable it, use the ``-fms-extensions`` command-line option. This is
+the default for Windows targets. Note that the support is incomplete.
+Some constructs such as ``dllexport`` on classes are ignored with a warning,
+and others such as `Microsoft IDL annotations
+<http://msdn.microsoft.com/en-us/library/8tesw2eh.aspx>`_ are silently
+ignored.
 
-clang has a -fms-compatibility flag that makes clang accept enough
-invalid C++ to be able to parse most Microsoft headers. This flag is
-enabled by default for Windows targets.
+clang has a ``-fms-compatibility`` flag that makes clang accept enough
+invalid C++ to be able to parse most Microsoft headers. For example, it
+allows `unqualified lookup of dependent base class members
+<http://clang.llvm.org/compatibility.html#dep_lookup_bases>`_, which is
+a common compatibility issue with clang. This flag is enabled by default
+for Windows targets.
 
--fdelayed-template-parsing lets clang delay all template instantiation
-until the end of a translation unit. This flag is enabled by default for
-Windows targets.
+``-fdelayed-template-parsing`` lets clang delay parsing of function template
+definitions until the end of a translation unit. This flag is enabled by
+default for Windows targets.
 
 -  clang allows setting ``_MSC_VER`` with ``-fmsc-version=``. It defaults to
-   1300 which is the same as Visual C/C++ 2003. Any number is supported
+   1700 which is the same as Visual C/C++ 2012. Any number is supported
    and can greatly affect what Windows SDK and c++stdlib headers clang
-   can compile. This option will be removed when clang supports the full
-   set of MS extensions required for these headers.
+   can compile.
 -  clang does not support the Microsoft extension where anonymous record
    members can be declared using user defined typedefs.
--  clang supports the Microsoft "#pragma pack" feature for controlling
+-  clang supports the Microsoft ``#pragma pack`` feature for controlling
    record layout. GCC also contains support for this feature, however
    where MSVC and GCC are incompatible clang follows the MSVC
    definition.
+-  clang supports the Microsoft ``#pragma comment(lib, "foo.lib")`` feature for
+   automatically linking against the specified library.  Currently this feature
+   only works with the Visual C++ linker.
+-  clang supports the Microsoft ``#pragma comment(linker, "/flag:foo")`` feature
+   for adding linker flags to COFF object files.  The user is responsible for
+   ensuring that the linker understands the flags.
 -  clang defaults to C++11 for Windows targets.
 
 .. _cxx:
@@ -1210,8 +1280,8 @@ C++ Language Features
 =====================
 
 clang fully implements all of standard C++98 except for exported
-templates (which were removed in C++11), and `many C++11
-features <http://clang.llvm.org/cxx_status.html>`_ are also implemented.
+templates (which were removed in C++11), and all of standard C++11
+and the current draft standard for C++1y.
 
 Controlling implementation limits
 ---------------------------------
@@ -1229,7 +1299,12 @@ Controlling implementation limits
 .. option:: -ftemplate-depth=N
 
   Sets the limit for recursively nested template instantiations to N.  The
-  default is 1024.
+  default is 256.
+
+.. option:: -foperator-arrow-depth=N
+
+  Sets the limit for iterative calls to 'operator->' functions to N.  The
+  default is 256.
 
 .. _objc:
 
@@ -1258,8 +1333,8 @@ Darwin (Mac OS/X), Linux, FreeBSD, and Dragonfly BSD: it has been tested
 to correctly compile many large C, C++, Objective-C, and Objective-C++
 codebases.
 
-On ``x86_64-mingw32``, passing i128(by value) is incompatible to Microsoft
-x64 calling conversion. You might need to tweak
+On ``x86_64-mingw32``, passing i128(by value) is incompatible with the
+Microsoft x64 calling conversion. You might need to tweak
 ``WinX86_64ABIInfo::classify()`` in lib/CodeGen/TargetInfo.cpp.
 
 ARM
@@ -1271,11 +1346,19 @@ C++, Objective-C, and Objective-C++ codebases. Clang only supports a
 limited number of ARM architectures. It does not yet fully support
 ARMv5, for example.
 
+PowerPC
+^^^^^^^
+
+The support for PowerPC (especially PowerPC64) is considered stable
+on Linux and FreeBSD: it has been tested to correctly compile many
+large C and C++ codebases. PowerPC (32bit) is still missing certain
+features (e.g. PIC code on ELF platforms).
+
 Other platforms
 ^^^^^^^^^^^^^^^
 
-clang currently contains some support for PPC and Sparc; however,
-significant pieces of code generation are still missing, and they
+clang currently contains some support for other architectures (e.g. Sparc);
+however, significant pieces of code generation are still missing, and they
 haven't undergone significant testing.
 
 clang contains limited support for the MSP430 embedded processor, but
@@ -1302,9 +1385,10 @@ None
 Windows
 ^^^^^^^
 
-Experimental supports are on Cygming.
+Clang has experimental support for targeting "Cygming" (Cygwin / MinGW)
+platforms.
 
-See also `Microsoft Extensions <c_ms>`.
+See also :ref:`Microsoft Extensions <c_ms>`.
 
 Cygwin
 """"""
@@ -1349,3 +1433,111 @@ Clang expects the GCC executable "gcc.exe" compiled for
 
 `Some tests might fail <http://llvm.org/bugs/show_bug.cgi?id=9072>`_ on
 ``x86_64-w64-mingw32``.
+
+.. _clang-cl:
+
+clang-cl
+========
+
+clang-cl is an alternative command-line interface to Clang driver, designed for
+compatibility with the Visual C++ compiler, cl.exe.
+
+To enable clang-cl to find system headers, libraries, and the linker when run
+from the command-line, it should be executed inside a Visual Studio Native Tools
+Command Prompt or a regular Command Prompt where the environment has been set
+up using e.g. `vcvars32.bat <http://msdn.microsoft.com/en-us/library/f2ccy3wt.aspx>`_.
+
+clang-cl can also be used from inside Visual Studio  by using an LLVM Platform
+Toolset.
+
+Command-Line Options
+--------------------
+
+To be compatible with cl.exe, clang-cl supports most of the same command-line
+options. Those options can start with either ``/`` or ``-``. It also supports
+some of Clang's core options, such as the ``-W`` options.
+
+Options that are known to clang-cl, but not currently supported, are ignored
+with a warning. For example:
+
+  ::
+
+    clang-cl.exe: warning: argument unused during compilation: '/Zi'
+
+To suppress warnings about unused arguments, use the ``-Qunused-arguments`` option.
+
+Options that are not known to clang-cl will cause errors. If they are spelled with a
+leading ``/``, they will be mistaken for a filename:
+
+  ::
+
+    clang-cl.exe: error: no such file or directory: '/foobar'
+
+Please `file a bug <http://llvm.org/bugs/enter_bug.cgi?product=clang&component=Driver>`_
+for any valid cl.exe flags that clang-cl does not understand.
+
+Execute ``clang-cl /?`` to see a list of supported options:
+
+  ::
+
+    /?                     Display available options
+    /c                     Compile only
+    /D <macro[=value]>     Define macro
+    /fallback              Fall back to cl.exe if clang-cl fails to compile
+    /FA                    Output assembly code file during compilation
+    /Fa<file or directory> Output assembly code to this file during compilation
+    /Fe<file or directory> Set output executable file or directory (ends in / or \)
+    /FI<value>             Include file before parsing
+    /Fo<file or directory> Set output object file, or directory (ends in / or \)
+    /GF-                   Disable string pooling
+    /GR-                   Disable RTTI
+    /GR                    Enable RTTI
+    /help                  Display available options
+    /I <dir>               Add directory to include search path
+    /J                     Make char type unsigned
+    /LDd                   Create debug DLL
+    /LD                    Create DLL
+    /link <options>        Forward options to the linker
+    /MDd                   Use DLL debug run-time
+    /MD                    Use DLL run-time
+    /MTd                   Use static debug run-time
+    /MT                    Use static run-time
+    /Ob0                   Disable inlining
+    /Od                    Disable optimization
+    /Oi-                   Disable use of builtin functions
+    /Oi                    Enable use of builtin functions
+    /Os                    Optimize for size
+    /Ot                    Optimize for speed
+    /Ox                    Maximum optimization
+    /Oy-                   Disable frame pointer omission
+    /Oy                    Enable frame pointer omission
+    /O<n>                  Optimization level
+    /P                     Only run the preprocessor
+    /showIncludes          Print info about included files to stderr
+    /TC                    Treat all source files as C
+    /Tc <filename>         Specify a C source file
+    /TP                    Treat all source files as C++
+    /Tp <filename>         Specify a C++ source file
+    /U <macro>             Undefine macro
+    /W0                    Disable all warnings
+    /W1                    Enable -Wall
+    /W2                    Enable -Wall
+    /W3                    Enable -Wall
+    /W4                    Enable -Wall
+    /Wall                  Enable -Wall
+    /WX-                   Do not treat warnings as errors
+    /WX                    Treat warnings as errors
+    /w                     Disable all warnings
+    /Zs                    Syntax-check only
+
+The /fallback Option
+^^^^^^^^^^^^^^^^^^^^
+
+When clang-cl is run with the ``/fallback`` option, it will first try to
+compile files itself. For any file that it fails to compile, it will fall back
+and try to compile the file by invoking cl.exe.
+
+This option is intended to be used as a temporary means to build projects where
+clang-cl cannot successfully compile all the files. clang-cl may fail to compile
+a file either because it cannot generate code for some C++ feature, or because
+it cannot parse some Microsoft language extension.

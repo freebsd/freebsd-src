@@ -30,6 +30,10 @@ using a 'dot' format viewer (such as Graphviz on OS X) instead.
 - debug.DumpLiveVars: Show the results of live variable analysis for each
   top-level function being analyzed.
 
+- debug.ViewExplodedGraph: Show the Exploded Graphs generated for the
+  analysis of different functions in the input translation unit. When there
+  are several functions analyzed, display one graph per function. Beware 
+  that these graphs may grow very large, even for small functions.
 
 Path Tracking
 =============
@@ -119,6 +123,19 @@ ExprInspection checks
       int value = inlined();
       // This assertion will not be valid if the previous call was not inlined.
       clang_analyzer_eval(value == 42); // expected-warning{{TRUE}}
+    }
+
+- void clang_analyzer_warnIfReached();
+
+  Generate a warning if this line of code gets reached by the analyzer.
+
+  Example usage::
+
+    if (true) {
+      clang_analyzer_warnIfReached();  // expected-warning{{REACHABLE}}
+    }
+    else {
+      clang_analyzer_warnIfReached();  // no-warning
     }
 
 
