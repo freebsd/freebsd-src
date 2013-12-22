@@ -125,6 +125,14 @@
       support. These features are on all Nehalem models and beyond
       (e.g. Nehalem and newer), but not on the lower-end Atom CPUs.</para> 
 
+    <para revision="227652">&man.virtio.4; support has been added.  &man.virtio.4; is the
+      name for the paravirtualization interface developed for the Linux KVM, but
+      since adopted to other virtual machine hypervisors (with the notable exception of Xen).
+      This work brings in a BSD-licensed clean-room implementation of the virtio kernel drivers
+      for disk IO (&man.virtio_blk.4; and &man.virtio_scsi.4;), network IO (&man.vtnet.4;),
+      memory ballooning (&man.virtio_balloon.4;), and PCI.
+      Tested with on Qemu/KVM, VirtualBox, and &man.bhyve.4;.</para>
+
     <para arch="amd64">The maximum amount of memory the &os; kernel
       can address has been increased from 1TB to 4TB.</para>
 
