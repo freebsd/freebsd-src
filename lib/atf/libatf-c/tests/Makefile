@@ -10,12 +10,10 @@ ATF=		${.CURDIR:H:H:H:H}/contrib/atf
 
 CFLAGS+=	-I${ATF}
 
-.if ${COMPILER_TYPE} == "clang"
 # macros_test.c contains a double 'const const' which will be gone with
 # the import of atf-0.18.
 # TODO(jmmv): Remove this workaround once we do that update.
-CFLAGS+=	-Wno-duplicate-decl-specifier
-.endif
+CFLAGS.clang+=	-Wno-duplicate-decl-specifier
 
 FILESDIR=	${TESTSDIR}
 FILES=		macros_h_test.c

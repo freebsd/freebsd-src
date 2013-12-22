@@ -112,9 +112,7 @@ LIB2_DIVMOD_FUNCS = _divdi3 _moddi3 _udivdi3 _umoddi3 _udiv_w_sdiv _udivmoddi4
 .if ${TARGET_CPUARCH} == "arm"
 #	from config/arm/t-strongarm-elf
 CFLAGS+=	-Dinhibit_libc -fno-inline
-.if ${COMPILER_TYPE} == "clang"
-CFLAGS+=	-fheinous-gnu-extensions
-.endif
+CFLAGS.clang+=	-fheinous-gnu-extensions
 
 LIB1ASMSRC =	lib1funcs.asm
 LIB1ASMFUNCS =  _dvmd_tls _bb_init_func
