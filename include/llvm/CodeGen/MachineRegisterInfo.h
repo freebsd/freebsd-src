@@ -17,16 +17,29 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/IndexedMap.h"
 #include "llvm/CodeGen/MachineInstrBundle.h"
+#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include <vector>
 
 namespace llvm {
+class PSetIterator;
 
 /// MachineRegisterInfo - Keep track of information for virtual and physical
 /// registers, including vreg register classes, use/def chains for registers,
 /// etc.
 class MachineRegisterInfo {
-  const TargetRegisterInfo *const TRI;
+public:
+  class Delegate {
+    virtual void anchor();
+  public:
+    virtual void MRI_NoteNewVirtualRegister(unsigned Reg) = 0;
+
+    virtual ~Delegate() {}
+  };
+
+private:
+  const TargetMachine &TM;
+  Delegate *TheDelegate;
 
   /// IsSSA - True when the machine function is in SSA form and virtual
   /// registers have a single def.
@@ -108,8 +121,29 @@ class MachineRegisterInfo {
   MachineRegisterInfo(const MachineRegisterInfo&) LLVM_DELETED_FUNCTION;
   void operator=(const MachineRegisterInfo&) LLVM_DELETED_FUNCTION;
 public:
-  explicit MachineRegisterInfo(const TargetRegisterInfo &TRI);
+  explicit MachineRegisterInfo(const TargetMachine &TM);
   ~MachineRegisterInfo();
+
+  const TargetRegisterInfo *getTargetRegisterInfo() const {
+    return TM.getRegisterInfo();
+  }
+
+  void resetDelegate(Delegate *delegate) {
+    // Ensure another delegate does not take over unless the current
+    // delegate first unattaches itself. If we ever need to multicast
+    // notifications, we will need to change to using a list.
+    assert(TheDelegate == delegate &&
+           "Only the current delegate can perform reset!");
+    TheDelegate = 0;
+  }
+
+  void setDelegate(Delegate *delegate) {
+    assert(delegate && !TheDelegate &&
+           "Attempted to set delegate to null, or to change it without "
+           "first resetting it!");
+
+    TheDelegate = delegate;
+  }
 
   //===--------------------------------------------------------------------===//
   // Function State
@@ -294,6 +328,11 @@ public:
   /// a physreg.
   bool isConstantPhysReg(unsigned PhysReg, const MachineFunction &MF) const;
 
+  /// Get an iterator over the pressure sets affected by the given physical or
+  /// virtual register. If RegUnit is physical, it must be a register unit (from
+  /// MCRegUnitIterator).
+  PSetIterator getPressureSets(unsigned RegUnit) const;
+
   //===--------------------------------------------------------------------===//
   // Virtual Register Info
   //===--------------------------------------------------------------------===//
@@ -377,7 +416,8 @@ public:
   bool isPhysRegUsed(unsigned Reg) const {
     if (UsedPhysRegMask.test(Reg))
       return true;
-    for (MCRegUnitIterator Units(Reg, TRI); Units.isValid(); ++Units)
+    for (MCRegUnitIterator Units(Reg, getTargetRegisterInfo());
+         Units.isValid(); ++Units)
       if (UsedRegUnits.test(*Units))
         return true;
     return false;
@@ -392,7 +432,8 @@ public:
   /// setPhysRegUsed - Mark the specified register used in this function.
   /// This should only be called during and after register allocation.
   void setPhysRegUsed(unsigned Reg) {
-    for (MCRegUnitIterator Units(Reg, TRI); Units.isValid(); ++Units)
+    for (MCRegUnitIterator Units(Reg, getTargetRegisterInfo());
+         Units.isValid(); ++Units)
       UsedRegUnits.set(*Units);
   }
 
@@ -406,7 +447,8 @@ public:
   /// This should only be called during and after register allocation.
   void setPhysRegUnused(unsigned Reg) {
     UsedPhysRegMask.reset(Reg);
-    for (MCRegUnitIterator Units(Reg, TRI); Units.isValid(); ++Units)
+    for (MCRegUnitIterator Units(Reg, getTargetRegisterInfo());
+         Units.isValid(); ++Units)
       UsedRegUnits.reset(*Units);
   }
 
@@ -466,7 +508,8 @@ public:
   /// register, so a register allocator needs to track its liveness and
   /// availability.
   bool isAllocatable(unsigned PhysReg) const {
-    return TRI->isInAllocatableClass(PhysReg) && !isReserved(PhysReg);
+    return getTargetRegisterInfo()->isInAllocatableClass(PhysReg) &&
+      !isReserved(PhysReg);
   }
 
   //===--------------------------------------------------------------------===//
@@ -611,8 +654,48 @@ public:
       return Op->getParent();
     }
   };
-
 };
+
+/// Iterate over the pressure sets affected by the given physical or virtual
+/// register. If Reg is physical, it must be a register unit (from
+/// MCRegUnitIterator).
+class PSetIterator {
+  const int *PSet;
+  unsigned Weight;
+public:
+  PSetIterator(): PSet(0), Weight(0) {}
+  PSetIterator(unsigned RegUnit, const MachineRegisterInfo *MRI) {
+    const TargetRegisterInfo *TRI = MRI->getTargetRegisterInfo();
+    if (TargetRegisterInfo::isVirtualRegister(RegUnit)) {
+      const TargetRegisterClass *RC = MRI->getRegClass(RegUnit);
+      PSet = TRI->getRegClassPressureSets(RC);
+      Weight = TRI->getRegClassWeight(RC).RegWeight;
+    }
+    else {
+      PSet = TRI->getRegUnitPressureSets(RegUnit);
+      Weight = TRI->getRegUnitWeight(RegUnit);
+    }
+    if (*PSet == -1)
+      PSet = 0;
+  }
+  bool isValid() const { return PSet; }
+
+  unsigned getWeight() const { return Weight; }
+
+  unsigned operator*() const { return *PSet; }
+
+  void operator++() {
+    assert(isValid() && "Invalid PSetIterator.");
+    ++PSet;
+    if (*PSet == -1)
+      PSet = 0;
+  }
+};
+
+inline PSetIterator MachineRegisterInfo::
+getPressureSets(unsigned RegUnit) const {
+  return PSetIterator(RegUnit, this);
+}
 
 } // End llvm namespace
 

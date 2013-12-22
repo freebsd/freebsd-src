@@ -21,6 +21,9 @@
 /* Define if you want backtraces on crash */
 #cmakedefine ENABLE_BACKTRACES
 
+/* Define to enable crash overrides */
+#cmakedefine ENABLE_CRASH_OVERRIDES
+
 /* Define if position independent code is enabled */
 #cmakedefine ENABLE_PIC
 
@@ -32,27 +35,6 @@
 
 /* Define to 1 if you have the `arc4random' function. */
 #cmakedefine HAVE_ARC4RANDOM
-
-/* Define to 1 if you have the `argz_append' function. */
-#cmakedefine HAVE_ARGZ_APPEND ${HAVE_ARGZ_APPEND}
-
-/* Define to 1 if you have the `argz_create_sep' function. */
-#cmakedefine HAVE_ARGZ_CREATE_SEP ${HAVE_ARGZ_CREATE_SEP}
-
-/* Define to 1 if you have the <argz.h> header file. */
-#cmakedefine HAVE_ARGZ_H ${HAVE_ARGZ_H}
-
-/* Define to 1 if you have the `argz_insert' function. */
-#cmakedefine HAVE_ARGZ_INSERT ${HAVE_ARGZ_INSERT}
-
-/* Define to 1 if you have the `argz_next' function. */
-#cmakedefine HAVE_ARGZ_NEXT ${HAVE_ARGZ_NEXT}
-
-/* Define to 1 if you have the `argz_stringify' function. */
-#cmakedefine HAVE_ARGZ_STRINGIFY ${HAVE_ARGZ_STRINGIFY}
-
-/* Define to 1 if you have the <assert.h> header file. */
-#cmakedefine HAVE_ASSERT_H ${HAVE_ASSERT_H}
 
 /* Define to 1 if you have the `backtrace' function. */
 #cmakedefine HAVE_BACKTRACE ${HAVE_BACKTRACE}
@@ -78,9 +60,6 @@
 /* can use __crashreporter_info__ */
 #undef HAVE_CRASHREPORTER_INFO
 
-/* Define to 1 if you have the <ctype.h> header file. */
-#cmakedefine HAVE_CTYPE_H ${HAVE_CTYPE_H}
-
 /* Define to 1 if you have the declaration of `strerror_s', and to 0 if you
    don't. */
 #cmakedefine01 HAVE_DECL_STRERROR_S
@@ -92,9 +71,6 @@
 /* Define if you have the GNU dld library. */
 #undef HAVE_DLD
 
-/* Define to 1 if you have the <dld.h> header file. */
-#cmakedefine HAVE_DLD_H ${HAVE_DLD_H}
-
 /* Define to 1 if you have the `dlerror' function. */
 #cmakedefine HAVE_DLERROR ${HAVE_DLERROR}
 
@@ -103,9 +79,6 @@
 
 /* Define if dlopen() is available on this platform. */
 #cmakedefine HAVE_DLOPEN ${HAVE_DLOPEN}
-
-/* Define to 1 if you have the <dl.h> header file. */
-#cmakedefine HAVE_DL_H ${HAVE_DL_H}
 
 /* Define if the dot program is available */
 #cmakedefine HAVE_DOT ${HAVE_DOT}
@@ -118,9 +91,6 @@
 
 /* Define to 1 if you have the <errno.h> header file. */
 #cmakedefine HAVE_ERRNO_H ${HAVE_ERRNO_H}
-
-/* Define to 1 if the system has the type `error_t'. */
-#cmakedefine HAVE_ERROR_T ${HAVE_ERROR_T}
 
 /* Define to 1 if you have the <execinfo.h> header file. */
 #cmakedefine HAVE_EXECINFO_H ${HAVE_EXECINFO_H}
@@ -159,16 +129,22 @@
 #cmakedefine HAVE_LOG10 ${HAVE_LOG10}
 
 /* Define to 1 if you have the `exp' function. */
-#cmakedefine HAVE_EXP ${HAVE_LOG}
+#cmakedefine HAVE_EXP ${HAVE_EXP}
 
 /* Define to 1 if you have the `exp2' function. */
-#cmakedefine HAVE_EXP2 ${HAVE_LOG2}
+#cmakedefine HAVE_EXP2 ${HAVE_EXP2}
 
 /* Define to 1 if you have the `exp10' function. */
-#cmakedefine HAVE_EXP10 ${HAVE_LOG10}
+#cmakedefine HAVE_EXP10 ${HAVE_EXP10}
 
 /* Define to 1 if you have the `fmodf' function. */
 #cmakedefine HAVE_FMODF ${HAVE_FMODF}
+
+/* Define to 1 if you have the `futimes' function. */
+#cmakedefine HAVE_FUTIMES ${HAVE_FUTIMES}
+
+/* Define to 1 if you have the `futimens' function */
+#cmakedefine HAVE_FUTIMENS ${HAVE_FUTIMENS}
 
 /* Define to 1 if you have the `getcwd' function. */
 #cmakedefine HAVE_GETCWD ${HAVE_GETCWD}
@@ -190,9 +166,6 @@
 
 /* Define if the gv program is available */
 #cmakedefine HAVE_GV ${HAVE_GV}
-
-/* Define to 1 if you have the `index' function. */
-#cmakedefine HAVE_INDEX ${HAVE_INDEX}
 
 /* Define to 1 if the system has the type `int64_t'. */
 #cmakedefine HAVE_INT64_T ${HAVE_INT64_T}
@@ -230,6 +203,9 @@
 /* Define to 1 if you have the `pthread' library (-lpthread). */
 #cmakedefine HAVE_LIBPTHREAD ${HAVE_LIBPTHREAD}
 
+/* Define to 1 if you have the `shell32' library (-lshell32). */
+#cmakedefine HAVE_LIBSHELL32 ${HAVE_LIBSHELL32}
+
 /* Define to 1 if you have the `udis86' library (-ludis86). */
 #undef HAVE_LIBUDIS86
 
@@ -239,11 +215,8 @@
 /* Define to 1 if you have the <limits.h> header file. */
 #cmakedefine HAVE_LIMITS_H ${HAVE_LIMITS_H}
 
-/* Define if you can use -Wl,-export-dynamic. */
+/* Define if you can use -rdynamic. */
 #define HAVE_LINK_EXPORT_DYNAMIC 1
-
-/* Define to 1 if you have the <link.h> header file. */
-#cmakedefine HAVE_LINK_H ${HAVE_LINK_H}
 
 /* Define if you can use -Wl,-R. to pass -R. to the linker, in order to add
    the current directory to the dynamic linker search path. */
@@ -269,15 +242,6 @@
 
 /* Define to 1 if you have the `malloc_zone_statistics' function. */
 #cmakedefine HAVE_MALLOC_ZONE_STATISTICS ${HAVE_MALLOC_ZONE_STATISTICS}
-
-/* Define to 1 if you have the `memcpy' function. */
-#cmakedefine HAVE_MEMCPY ${HAVE_MEMCPY}
-
-/* Define to 1 if you have the `memmove' function. */
-#cmakedefine HAVE_MEMMOVE ${HAVE_MEMMOVE}
-
-/* Define to 1 if you have the <memory.h> header file. */
-#cmakedefine HAVE_MEMORY_H ${HAVE_MEMORY_H}
 
 /* Define to 1 if you have the `mkdtemp' function. */
 #cmakedefine HAVE_MKDTEMP ${HAVE_MKDTEMP}
@@ -344,10 +308,7 @@
 #cmakedefine HAVE_READDIR ${HAVE_READDIR}
 
 /* Define to 1 if you have the `realpath' function. */
-#undef HAVE_REALPATH
-
-/* Define to 1 if you have the `rindex' function. */
-#cmakedefine HAVE_RINDEX ${HAVE_RINDEX}
+#cmakedefine HAVE_REALPATH ${HAVE_REALPATH}
 
 /* Define to 1 if you have the `rintf' function. */
 #undef HAVE_RINTF
@@ -367,9 +328,6 @@
 /* Define to 1 if you have the `setjmp' function. */
 #cmakedefine HAVE_SETJMP ${HAVE_SETJMP}
 
-/* Define to 1 if you have the <setjmp.h> header file. */
-#cmakedefine HAVE_SETJMP_H ${HAVE_SETJMP_H}
-
 /* Define to 1 if you have the `setrlimit' function. */
 #cmakedefine HAVE_SETRLIMIT ${HAVE_SETRLIMIT}
 
@@ -388,23 +346,11 @@
 /* Define to 1 if you have the <stdint.h> header file. */
 #cmakedefine HAVE_STDINT_H ${HAVE_STDINT_H}
 
-/* Define to 1 if you have the <stdio.h> header file. */
-#cmakedefine HAVE_STDIO_H ${HAVE_STDIO_H}
-
-/* Define to 1 if you have the <stdlib.h> header file. */
-#cmakedefine HAVE_STDLIB_H ${HAVE_STDLIB_H}
-
 /* Set to 1 if the std::isinf function is found in <cmath> */
 #undef HAVE_STD_ISINF_IN_CMATH
 
 /* Set to 1 if the std::isnan function is found in <cmath> */
 #undef HAVE_STD_ISNAN_IN_CMATH
-
-/* Define to 1 if you have the `strchr' function. */
-#cmakedefine HAVE_STRCHR ${HAVE_STRCHR}
-
-/* Define to 1 if you have the `strcmp' function. */
-#cmakedefine HAVE_STRCMP ${HAVE_STRCMP}
 
 /* Define to 1 if you have the `strdup' function. */
 #cmakedefine HAVE_STRDUP ${HAVE_STRDUP}
@@ -414,15 +360,6 @@
 
 /* Define to 1 if you have the `strerror_r' function. */
 #cmakedefine HAVE_STRERROR_R ${HAVE_STRERROR_R}
-
-/* Define to 1 if you have the <strings.h> header file. */
-#cmakedefine HAVE_STRINGS_H ${HAVE_STRINGS_H}
-
-/* Define to 1 if you have the <string.h> header file. */
-#cmakedefine HAVE_STRING_H ${HAVE_STRING_H}
-
-/* Define to 1 if you have the `strrchr' function. */
-#cmakedefine HAVE_STRRCHR ${HAVE_STRRCHR}
 
 /* Define to 1 if you have the `strtof' function. */
 #cmakedefine HAVE_STRTOF ${HAVE_STRTOF}
@@ -439,9 +376,6 @@
 /* Define to 1 if you have the <sys/dir.h> header file, and it defines `DIR'.
    */
 #cmakedefine HAVE_SYS_DIR_H ${HAVE_SYS_DIR_H}
-
-/* Define to 1 if you have the <sys/dl.h> header file. */
-#cmakedefine HAVE_SYS_DL_H ${HAVE_SYS_DL_H}
 
 /* Define to 1 if you have the <sys/ioctl.h> header file. */
 #cmakedefine HAVE_SYS_IOCTL_H ${HAVE_SYS_IOCTL_H}
@@ -474,6 +408,9 @@
 /* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
 #cmakedefine HAVE_SYS_WAIT_H ${HAVE_SYS_WAIT_H}
 
+/* Define if the setupterm() function is supported this platform. */
+#cmakedefine HAVE_TERMINFO ${HAVE_TERMINFO}
+
 /* Define to 1 if you have the <termios.h> header file. */
 #cmakedefine HAVE_TERMIOS_H ${HAVE_TERMIOS_H}
 
@@ -495,14 +432,11 @@
 /* Define to 1 if you have the <valgrind/valgrind.h> header file. */
 #cmakedefine HAVE_VALGRIND_VALGRIND_H ${HAVE_VALGRIND_VALGRIND_H}
 
-/* Define to 1 if you have the <windows.h> header file. */
-#cmakedefine HAVE_WINDOWS_H ${HAVE_WINDOWS_H}
-
 /* Define to 1 if you have the `writev' function. */
 #cmakedefine HAVE_WRITEV ${HAVE_WRITEV}
 
 /* Define if the xdot.py program is available */
-#cmakedefine HAVE_XDOT_PY ${HAVE_XDOT_PY}
+#cmakedefine HAVE_XDOT ${HAVE_XDOT}
 
 /* Define to 1 if you have the <zlib.h> header file. */
 #cmakedefine HAVE_ZLIB_H ${HAVE_ZLIB_H}
@@ -597,9 +531,6 @@
 /* Installation directory for .info files */
 #cmakedefine LLVM_INFODIR "${LLVM_INFODIR}"
 
-/* Installation directory for libraries */
-#cmakedefine LLVM_LIBDIR "${LLVM_LIBDIR}"
-
 /* Installation directory for man pages */
 #cmakedefine LLVM_MANDIR "${LLVM_MANDIR}"
 
@@ -654,8 +585,8 @@
 /* Define to path to twopi program if found or 'echo twopi' otherwise */
 #cmakedefine LLVM_PATH_TWOPI "${LLVM_PATH_TWOPI}"
 
-/* Define to path to xdot.py program if found or 'echo xdot.py' otherwise */
-#cmakedefine LLVM_PATH_XDOT_PY "${LLVM_PATH_XDOT_PY}"
+/* Define to path to xdot.py program if found or 'echo xdot' otherwise */
+#cmakedefine LLVM_PATH_XDOT "${LLVM_PATH_XDOT}"
 
 /* Installation prefix directory */
 #cmakedefine LLVM_PREFIX "${LLVM_PREFIX}"
@@ -678,10 +609,6 @@
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
 #undef LTDL_OBJDIR
-
-/* Define to the name of the environment variable that determines the dynamic
-   library search path. */
-#cmakedefine LTDL_SHLIBPATH_VAR "${LTDL_SHLIBPATH_VAR}"
 
 /* Define to the extension used for shared libraries, say, ".so". */
 #cmakedefine LTDL_SHLIB_EXT "${LTDL_SHLIB_EXT}"
@@ -734,9 +661,6 @@
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
-
-/* Define to a type to use for `error_t' if it is not otherwise available. */
-#cmakedefine error_t ${error_t}
 
 /* Define to `int' if <sys/types.h> does not define. */
 #undef pid_t

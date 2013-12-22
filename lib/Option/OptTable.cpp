@@ -14,26 +14,27 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <cctype>
 #include <map>
 
 using namespace llvm;
 using namespace llvm::opt;
 
-// Ordering on Info. The ordering is *almost* lexicographic, with two
-// exceptions. First, '\0' comes at the end of the alphabet instead of
-// the beginning (thus options precede any other options which prefix
-// them). Second, for options with the same name, the less permissive
-// version should come first; a Flag option should precede a Joined
-// option, for example.
+namespace llvm {
+namespace opt {
 
-static int StrCmpOptionName(const char *A, const char *B) {
-  char a = *A, b = *B;
+// Ordering on Info. The ordering is *almost* case-insensitive lexicographic,
+// with an exceptions. '\0' comes at the end of the alphabet instead of the
+// beginning (thus options precede any other options which prefix them).
+static int StrCmpOptionNameIgnoreCase(const char *A, const char *B) {
+  const char *X = A, *Y = B;
+  char a = tolower(*A), b = tolower(*B);
   while (a == b) {
     if (a == '\0')
       return 0;
 
-    a = *++A;
-    b = *++B;
+    a = tolower(*++X);
+    b = tolower(*++Y);
   }
 
   if (a == '\0') // A is a prefix of B.
@@ -45,21 +46,25 @@ static int StrCmpOptionName(const char *A, const char *B) {
   return (a < b) ? -1 : 1;
 }
 
-namespace llvm {
-namespace opt {
+#ifndef NDEBUG
+static int StrCmpOptionName(const char *A, const char *B) {
+  if (int N = StrCmpOptionNameIgnoreCase(A, B))
+    return N;
+  return strcmp(A, B);
+}
 
 static inline bool operator<(const OptTable::Info &A, const OptTable::Info &B) {
   if (&A == &B)
     return false;
 
   if (int N = StrCmpOptionName(A.Name, B.Name))
-    return N == -1;
+    return N < 0;
 
   for (const char * const *APre = A.Prefixes,
                   * const *BPre = B.Prefixes;
                           *APre != 0 && *BPre != 0; ++APre, ++BPre) {
     if (int N = StrCmpOptionName(*APre, *BPre))
-      return N == -1;
+      return N < 0;
   }
 
   // Names are the same, check that classes are in order; exactly one
@@ -68,22 +73,22 @@ static inline bool operator<(const OptTable::Info &A, const OptTable::Info &B) {
          "Unexpected classes for options with same name.");
   return B.Kind == Option::JoinedClass;
 }
+#endif
 
 // Support lower_bound between info and an option name.
 static inline bool operator<(const OptTable::Info &I, const char *Name) {
-  return StrCmpOptionName(I.Name, Name) == -1;
-}
-static inline bool operator<(const char *Name, const OptTable::Info &I) {
-  return StrCmpOptionName(Name, I.Name) == -1;
+  return StrCmpOptionNameIgnoreCase(I.Name, Name) < 0;
 }
 }
 }
 
 OptSpecifier::OptSpecifier(const Option *Opt) : ID(Opt->getID()) {}
 
-OptTable::OptTable(const Info *_OptionInfos, unsigned _NumOptionInfos)
+OptTable::OptTable(const Info *_OptionInfos, unsigned _NumOptionInfos,
+                   bool _IgnoreCase)
   : OptionInfos(_OptionInfos),
     NumOptionInfos(_NumOptionInfos),
+    IgnoreCase(_IgnoreCase),
     TheInputOptionID(0),
     TheUnknownOptionID(0),
     FirstSearchableIndex(0)
@@ -160,10 +165,6 @@ const Option OptTable::getOption(OptSpecifier Opt) const {
   return Option(&getInfo(id), this);
 }
 
-bool OptTable::isOptionHelpHidden(OptSpecifier id) const {
-  return getInfo(id).Flags & HelpHidden;
-}
-
 static bool isInput(const llvm::StringSet<> &Prefixes, StringRef Arg) {
   if (Arg == "-")
     return true;
@@ -175,16 +176,25 @@ static bool isInput(const llvm::StringSet<> &Prefixes, StringRef Arg) {
 }
 
 /// \returns Matched size. 0 means no match.
-static unsigned matchOption(const OptTable::Info *I, StringRef Str) {
+static unsigned matchOption(const OptTable::Info *I, StringRef Str,
+                            bool IgnoreCase) {
   for (const char * const *Pre = I->Prefixes; *Pre != 0; ++Pre) {
     StringRef Prefix(*Pre);
-    if (Str.startswith(Prefix) && Str.substr(Prefix.size()).startswith(I->Name))
-      return Prefix.size() + StringRef(I->Name).size();
+    if (Str.startswith(Prefix)) {
+      StringRef Rest = Str.substr(Prefix.size());
+      bool Matched = IgnoreCase
+          ? Rest.startswith_lower(I->Name)
+          : Rest.startswith(I->Name);
+      if (Matched)
+        return Prefix.size() + StringRef(I->Name).size();
+    }
   }
   return 0;
 }
 
-Arg *OptTable::ParseOneArg(const ArgList &Args, unsigned &Index) const {
+Arg *OptTable::ParseOneArg(const ArgList &Args, unsigned &Index,
+                           unsigned FlagsToInclude,
+                           unsigned FlagsToExclude) const {
   unsigned Prev = Index;
   const char *Str = Args.getArgString(Index);
 
@@ -212,13 +222,20 @@ Arg *OptTable::ParseOneArg(const ArgList &Args, unsigned &Index) const {
     unsigned ArgSize = 0;
     // Scan for first option which is a proper prefix.
     for (; Start != End; ++Start)
-      if ((ArgSize = matchOption(Start, Str)))
+      if ((ArgSize = matchOption(Start, Str, IgnoreCase)))
         break;
     if (Start == End)
       break;
 
+    Option Opt(Start, this);
+
+    if (FlagsToInclude && !Opt.hasFlag(FlagsToInclude))
+      continue;
+    if (Opt.hasFlag(FlagsToExclude))
+      continue;
+
     // See if this option matches.
-    if (Arg *A = Option(Start, this).accept(Args, Index, ArgSize))
+    if (Arg *A = Opt.accept(Args, Index, ArgSize))
       return A;
 
     // Otherwise, see if this argument was missing values.
@@ -226,13 +243,20 @@ Arg *OptTable::ParseOneArg(const ArgList &Args, unsigned &Index) const {
       return 0;
   }
 
+  // If we failed to find an option and this arg started with /, then it's
+  // probably an input path.
+  if (Str[0] == '/')
+    return new Arg(getOption(TheInputOptionID), Str, Index++, Str);
+
   return new Arg(getOption(TheUnknownOptionID), Str, Index++, Str);
 }
 
-InputArgList *OptTable::ParseArgs(const char* const *ArgBegin,
-                                  const char* const *ArgEnd,
+InputArgList *OptTable::ParseArgs(const char *const *ArgBegin,
+                                  const char *const *ArgEnd,
                                   unsigned &MissingArgIndex,
-                                  unsigned &MissingArgCount) const {
+                                  unsigned &MissingArgCount,
+                                  unsigned FlagsToInclude,
+                                  unsigned FlagsToExclude) const {
   InputArgList *Args = new InputArgList(ArgBegin, ArgEnd);
 
   // FIXME: Handle '@' args (or at least error on them).
@@ -241,13 +265,14 @@ InputArgList *OptTable::ParseArgs(const char* const *ArgBegin,
   unsigned Index = 0, End = ArgEnd - ArgBegin;
   while (Index < End) {
     // Ignore empty arguments (other things may still take them as arguments).
-    if (Args->getArgString(Index)[0] == '\0') {
+    StringRef Str = Args->getArgString(Index);
+    if (Str == "") {
       ++Index;
       continue;
     }
 
     unsigned Prev = Index;
-    Arg *A = ParseOneArg(*Args, Index);
+    Arg *A = ParseOneArg(*Args, Index, FlagsToInclude, FlagsToExclude);
     assert(Index > Prev && "Parser failed to consume argument.");
 
     // Check for missing argument error.
@@ -281,6 +306,7 @@ static std::string getOptionHelpName(const OptTable &Opts, OptSpecifier Id) {
     break;
 
   case Option::SeparateClass: case Option::JoinedOrSeparateClass:
+  case Option::RemainingArgsClass:
     Name += ' ';
     // FALLTHROUGH
   case Option::JoinedClass: case Option::CommaJoinedClass:
@@ -346,8 +372,16 @@ static const char *getOptionHelpGroup(const OptTable &Opts, OptSpecifier Id) {
   return getOptionHelpGroup(Opts, GroupID);
 }
 
-void OptTable::PrintHelp(raw_ostream &OS, const char *Name,
-                         const char *Title, bool ShowHidden) const {
+void OptTable::PrintHelp(raw_ostream &OS, const char *Name, const char *Title,
+                         bool ShowHidden) const {
+  PrintHelp(OS, Name, Title, /*Include*/ 0, /*Exclude*/
+            (ShowHidden ? 0 : HelpHidden));
+}
+
+
+void OptTable::PrintHelp(raw_ostream &OS, const char *Name, const char *Title,
+                         unsigned FlagsToInclude,
+                         unsigned FlagsToExclude) const {
   OS << "OVERVIEW: " << Title << "\n";
   OS << '\n';
   OS << "USAGE: " << Name << " [options] <inputs>\n";
@@ -366,7 +400,10 @@ void OptTable::PrintHelp(raw_ostream &OS, const char *Name,
     if (getOptionKind(Id) == Option::GroupClass)
       continue;
 
-    if (!ShowHidden && isOptionHelpHidden(Id))
+    unsigned Flags = getInfo(Id).Flags;
+    if (FlagsToInclude && !(Flags & FlagsToInclude))
+      continue;
+    if (Flags & FlagsToExclude)
       continue;
 
     if (const char *Text = getOptionHelpText(Id)) {

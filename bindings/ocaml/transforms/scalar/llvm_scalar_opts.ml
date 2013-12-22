@@ -1,4 +1,4 @@
-(*===-- llvm_scalar_opts.ml - LLVM Ocaml Interface -------------*- OCaml -*-===*
+(*===-- llvm_scalar_opts.ml - LLVM OCaml Interface -------------*- OCaml -*-===*
  *
  *                     The LLVM Compiler Infrastructure
  *
@@ -109,3 +109,6 @@ external
 add_basic_alias_analysis : [<Llvm.PassManager.any] Llvm.PassManager.t -> unit
         = "llvm_add_basic_alias_analysis"
 
+external
+add_partially_inline_lib_calls : [<Llvm.PassManager.any] Llvm.PassManager.t -> unit
+        = "llvm_add_partially_inline_lib_calls"

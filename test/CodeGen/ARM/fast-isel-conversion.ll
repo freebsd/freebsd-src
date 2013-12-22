@@ -1,5 +1,6 @@
-; RUN: llc < %s -O0 -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=armv7-apple-ios | FileCheck %s --check-prefix=ARM
-; RUN: llc < %s -O0 -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=thumbv7-apple-ios | FileCheck %s --check-prefix=THUMB
+; RUN: llc < %s -verify-machineinstrs -O0 -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=armv7-apple-ios | FileCheck %s --check-prefix=ARM
+; RUN: llc < %s -verify-machineinstrs -O0 -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=armv7-linux-gnueabi | FileCheck %s --check-prefix=ARM
+; RUN: llc < %s -verify-machineinstrs -O0 -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=thumbv7-apple-ios | FileCheck %s --check-prefix=THUMB
 
 ; Test sitofp
 
@@ -130,11 +131,11 @@ entry:
 define void @uitofp_single_i8(i8 %a) nounwind ssp {
 entry:
 ; ARM: uitofp_single_i8
-; ARM: uxtb r0, r0
+; ARM: and r0, r0, #255
 ; ARM: vmov s0, r0
 ; ARM: vcvt.f32.u32 s0, s0
 ; THUMB: uitofp_single_i8
-; THUMB: uxtb r0, r0
+; THUMB: and r0, r0, #255
 ; THUMB: vmov s0, r0
 ; THUMB: vcvt.f32.u32 s0, s0
   %b.addr = alloca float, align 4
@@ -176,11 +177,11 @@ entry:
 define void @uitofp_double_i8(i8 %a, double %b) nounwind ssp {
 entry:
 ; ARM: uitofp_double_i8
-; ARM: uxtb r0, r0
+; ARM: and r0, r0, #255
 ; ARM: vmov s0, r0
 ; ARM: vcvt.f64.u32 d16, s0
 ; THUMB: uitofp_double_i8
-; THUMB: uxtb r0, r0
+; THUMB: and r0, r0, #255
 ; THUMB: vmov s0, r0
 ; THUMB: vcvt.f64.u32 d16, s0
   %b.addr = alloca double, align 8

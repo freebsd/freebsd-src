@@ -41,7 +41,6 @@
       <item> private </item>
       <item> linker_private </item>
       <item> linker_private_weak </item>
-      <item> linker_private_weak_def_auto </item>
       <item> internal </item>
       <item> available_externally </item>
       <item> linkonce </item>
@@ -85,6 +84,7 @@
       <item> noredzone </item>
       <item> noreturn </item>
       <item> nounwind </item>
+      <item> optnone </item>
       <item> optsize </item>
       <item> readnone </item>
       <item> readonly </item>
@@ -157,6 +157,7 @@
       <item> ptrtoint </item>
       <item> inttoptr </item>
       <item> bitcast </item>
+      <item> addrspacecast </item>
       <item> icmp </item>
       <item> fcmp </item>
       <item> phi </item>

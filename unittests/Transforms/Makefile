@@ -9,7 +9,7 @@
 
 LEVEL = ../..
 
-PARALLEL_DIRS = Utils
+PARALLEL_DIRS = DebugIR Utils
 
 include $(LEVEL)/Makefile.common
 

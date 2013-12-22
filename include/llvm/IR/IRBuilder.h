@@ -25,6 +25,7 @@
 #include "llvm/IR/Operator.h"
 #include "llvm/Support/CBindingWrapping.h"
 #include "llvm/Support/ConstantFolder.h"
+#include "llvm/Support/ValueHandle.h"
 
 namespace llvm {
   class MDNode;
@@ -49,17 +50,16 @@ protected:
 class IRBuilderBase {
   DebugLoc CurDbgLocation;
 protected:
-  /// Save the current debug location here while we are suppressing
-  /// line table entries.
-  llvm::DebugLoc SavedDbgLocation;
-
   BasicBlock *BB;
   BasicBlock::iterator InsertPt;
   LLVMContext &Context;
+
+  MDNode *DefaultFPMathTag;
+  FastMathFlags FMF;
 public:
 
-  IRBuilderBase(LLVMContext &context)
-    : Context(context) {
+  IRBuilderBase(LLVMContext &context, MDNode *FPMathTag = 0)
+    : Context(context), DefaultFPMathTag(FPMathTag), FMF() {
     ClearInsertionPoint();
   }
 
@@ -71,6 +71,7 @@ public:
   /// inserted into a block.
   void ClearInsertionPoint() {
     BB = 0;
+    InsertPt = 0;
   }
 
   BasicBlock *GetInsertBlock() const { return BB; }
@@ -89,6 +90,7 @@ public:
   void SetInsertPoint(Instruction *I) {
     BB = I->getParent();
     InsertPt = I;
+    assert(I != BB->end() && "Can't read debug loc from end()");
     SetCurrentDebugLocation(I->getDebugLoc());
   }
 
@@ -115,23 +117,6 @@ public:
   /// \brief Set location information used by debugging information.
   void SetCurrentDebugLocation(const DebugLoc &L) {
     CurDbgLocation = L;
-  }
-
-  /// \brief Temporarily suppress DebugLocations from being attached
-  /// to emitted instructions, until the next call to
-  /// SetCurrentDebugLocation() or EnableDebugLocations().  Use this
-  /// if you want an instruction to be counted towards the prologue or
-  /// if there is no useful source location.
-  void DisableDebugLocations() {
-    llvm::DebugLoc Empty;
-    SavedDbgLocation = getCurrentDebugLocation();
-    SetCurrentDebugLocation(Empty);
-  }
-
-  /// \brief Restore the previously saved DebugLocation.
-  void EnableDebugLocations() {
-    assert(CurDbgLocation.isUnknown());
-    SetCurrentDebugLocation(SavedDbgLocation);
   }
 
   /// \brief Get location information used by debugging information.
@@ -187,6 +172,68 @@ public:
     else
       ClearInsertionPoint();
   }
+
+  /// \brief Get the floating point math metadata being used.
+  MDNode *getDefaultFPMathTag() const { return DefaultFPMathTag; }
+
+  /// \brief Get the flags to be applied to created floating point ops
+  FastMathFlags getFastMathFlags() const { return FMF; }
+
+  /// \brief Clear the fast-math flags.
+  void clearFastMathFlags() { FMF.clear(); }
+
+  /// \brief Set the floating point math metadata to be used.
+  void SetDefaultFPMathTag(MDNode *FPMathTag) { DefaultFPMathTag = FPMathTag; }
+
+  /// \brief Set the fast-math flags to be used with generated fp-math operators
+  void SetFastMathFlags(FastMathFlags NewFMF) { FMF = NewFMF; }
+
+  //===--------------------------------------------------------------------===//
+  // RAII helpers.
+  //===--------------------------------------------------------------------===//
+
+  // \brief RAII object that stores the current insertion point and restores it
+  // when the object is destroyed. This includes the debug location.
+  class InsertPointGuard {
+    IRBuilderBase &Builder;
+    AssertingVH<BasicBlock> Block;
+    BasicBlock::iterator Point;
+    DebugLoc DbgLoc;
+
+    InsertPointGuard(const InsertPointGuard &) LLVM_DELETED_FUNCTION;
+    InsertPointGuard &operator=(const InsertPointGuard &) LLVM_DELETED_FUNCTION;
+
+  public:
+    InsertPointGuard(IRBuilderBase &B)
+        : Builder(B), Block(B.GetInsertBlock()), Point(B.GetInsertPoint()),
+          DbgLoc(B.getCurrentDebugLocation()) {}
+
+    ~InsertPointGuard() {
+      Builder.restoreIP(InsertPoint(Block, Point));
+      Builder.SetCurrentDebugLocation(DbgLoc);
+    }
+  };
+
+  // \brief RAII object that stores the current fast math settings and restores
+  // them when the object is destroyed.
+  class FastMathFlagGuard {
+    IRBuilderBase &Builder;
+    FastMathFlags FMF;
+    MDNode *FPMathTag;
+
+    FastMathFlagGuard(const FastMathFlagGuard &) LLVM_DELETED_FUNCTION;
+    FastMathFlagGuard &operator=(
+        const FastMathFlagGuard &) LLVM_DELETED_FUNCTION;
+
+  public:
+    FastMathFlagGuard(IRBuilderBase &B)
+        : Builder(B), FMF(B.FMF), FPMathTag(B.DefaultFPMathTag) {}
+
+    ~FastMathFlagGuard() {
+      Builder.FMF = FMF;
+      Builder.DefaultFPMathTag = FPMathTag;
+    }
+  };
 
   //===--------------------------------------------------------------------===//
   // Miscellaneous creation methods.
@@ -290,7 +337,7 @@ public:
   }
 
   /// \brief Fetch the type representing a pointer to an integer value.
-  IntegerType* getIntPtrTy(DataLayout *DL, unsigned AddrSpace = 0) {
+  IntegerType* getIntPtrTy(const DataLayout *DL, unsigned AddrSpace = 0) {
     return DL->getIntPtrType(Context, AddrSpace);
   }
 
@@ -373,75 +420,51 @@ template<bool preserveNames = true, typename T = ConstantFolder,
          typename Inserter = IRBuilderDefaultInserter<preserveNames> >
 class IRBuilder : public IRBuilderBase, public Inserter {
   T Folder;
-  MDNode *DefaultFPMathTag;
-  FastMathFlags FMF;
 public:
   IRBuilder(LLVMContext &C, const T &F, const Inserter &I = Inserter(),
             MDNode *FPMathTag = 0)
-    : IRBuilderBase(C), Inserter(I), Folder(F), DefaultFPMathTag(FPMathTag),
-      FMF() {
+    : IRBuilderBase(C, FPMathTag), Inserter(I), Folder(F) {
   }
 
   explicit IRBuilder(LLVMContext &C, MDNode *FPMathTag = 0)
-    : IRBuilderBase(C), Folder(), DefaultFPMathTag(FPMathTag), FMF() {
+    : IRBuilderBase(C, FPMathTag), Folder() {
   }
 
   explicit IRBuilder(BasicBlock *TheBB, const T &F, MDNode *FPMathTag = 0)
-    : IRBuilderBase(TheBB->getContext()), Folder(F),
-      DefaultFPMathTag(FPMathTag), FMF() {
+    : IRBuilderBase(TheBB->getContext(), FPMathTag), Folder(F) {
     SetInsertPoint(TheBB);
   }
 
   explicit IRBuilder(BasicBlock *TheBB, MDNode *FPMathTag = 0)
-    : IRBuilderBase(TheBB->getContext()), Folder(),
-      DefaultFPMathTag(FPMathTag), FMF() {
+    : IRBuilderBase(TheBB->getContext(), FPMathTag), Folder() {
     SetInsertPoint(TheBB);
   }
 
   explicit IRBuilder(Instruction *IP, MDNode *FPMathTag = 0)
-    : IRBuilderBase(IP->getContext()), Folder(), DefaultFPMathTag(FPMathTag),
-      FMF() {
+    : IRBuilderBase(IP->getContext(), FPMathTag), Folder() {
     SetInsertPoint(IP);
     SetCurrentDebugLocation(IP->getDebugLoc());
   }
 
   explicit IRBuilder(Use &U, MDNode *FPMathTag = 0)
-    : IRBuilderBase(U->getContext()), Folder(), DefaultFPMathTag(FPMathTag),
-      FMF() {
+    : IRBuilderBase(U->getContext(), FPMathTag), Folder() {
     SetInsertPoint(U);
     SetCurrentDebugLocation(cast<Instruction>(U.getUser())->getDebugLoc());
   }
 
   IRBuilder(BasicBlock *TheBB, BasicBlock::iterator IP, const T& F,
             MDNode *FPMathTag = 0)
-    : IRBuilderBase(TheBB->getContext()), Folder(F),
-      DefaultFPMathTag(FPMathTag), FMF() {
+    : IRBuilderBase(TheBB->getContext(), FPMathTag), Folder(F) {
     SetInsertPoint(TheBB, IP);
   }
 
   IRBuilder(BasicBlock *TheBB, BasicBlock::iterator IP, MDNode *FPMathTag = 0)
-    : IRBuilderBase(TheBB->getContext()), Folder(),
-      DefaultFPMathTag(FPMathTag), FMF() {
+    : IRBuilderBase(TheBB->getContext(), FPMathTag), Folder() {
     SetInsertPoint(TheBB, IP);
   }
 
   /// \brief Get the constant folder being used.
   const T &getFolder() { return Folder; }
-
-  /// \brief Get the floating point math metadata being used.
-  MDNode *getDefaultFPMathTag() const { return DefaultFPMathTag; }
-
-  /// \brief Get the flags to be applied to created floating point ops
-  FastMathFlags getFastMathFlags() const { return FMF; }
-
-  /// \brief Clear the fast-math flags.
-  void clearFastMathFlags() { FMF.clear(); }
-
-  /// \brief SetDefaultFPMathTag - Set the floating point math metadata to be used.
-  void SetDefaultFPMathTag(MDNode *FPMathTag) { DefaultFPMathTag = FPMathTag; }
-
-  /// \brief Set the fast-math flags to be used with generated fp-math operators
-  void SetFastMathFlags(FastMathFlags NewFMF) { FMF = NewFMF; }
 
   /// \brief Return true if this builder is configured to actually add the
   /// requested names to IR created through it.
@@ -1109,6 +1132,10 @@ public:
   Value *CreateBitCast(Value *V, Type *DestTy,
                        const Twine &Name = "") {
     return CreateCast(Instruction::BitCast, V, DestTy, Name);
+  }
+  Value *CreateAddrSpaceCast(Value *V, Type *DestTy,
+                             const Twine &Name = "") {
+    return CreateCast(Instruction::AddrSpaceCast, V, DestTy, Name);
   }
   Value *CreateZExtOrBitCast(Value *V, Type *DestTy,
                              const Twine &Name = "") {

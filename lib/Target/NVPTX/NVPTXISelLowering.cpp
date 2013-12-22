@@ -51,6 +51,8 @@ static bool IsPTXVectorType(MVT VT) {
   switch (VT.SimpleTy) {
   default:
     return false;
+  case MVT::v2i1:
+  case MVT::v4i1:
   case MVT::v2i8:
   case MVT::v4i8:
   case MVT::v2i16:
@@ -62,6 +64,37 @@ static bool IsPTXVectorType(MVT VT) {
   case MVT::v4f32:
   case MVT::v2f64:
     return true;
+  }
+}
+
+/// ComputePTXValueVTs - For the given Type \p Ty, returns the set of primitive
+/// EVTs that compose it.  Unlike ComputeValueVTs, this will break apart vectors
+/// into their primitive components.
+/// NOTE: This is a band-aid for code that expects ComputeValueVTs to return the
+/// same number of types as the Ins/Outs arrays in LowerFormalArguments,
+/// LowerCall, and LowerReturn.
+static void ComputePTXValueVTs(const TargetLowering &TLI, Type *Ty,
+                               SmallVectorImpl<EVT> &ValueVTs,
+                               SmallVectorImpl<uint64_t> *Offsets = 0,
+                               uint64_t StartingOffset = 0) {
+  SmallVector<EVT, 16> TempVTs;
+  SmallVector<uint64_t, 16> TempOffsets;
+
+  ComputeValueVTs(TLI, Ty, TempVTs, &TempOffsets, StartingOffset);
+  for (unsigned i = 0, e = TempVTs.size(); i != e; ++i) {
+    EVT VT = TempVTs[i];
+    uint64_t Off = TempOffsets[i];
+    if (VT.isVector())
+      for (unsigned j = 0, je = VT.getVectorNumElements(); j != je; ++j) {
+        ValueVTs.push_back(VT.getVectorElementType());
+        if (Offsets)
+          Offsets->push_back(Off+j*VT.getVectorElementType().getStoreSize());
+      }
+    else {
+      ValueVTs.push_back(VT);
+      if (Offsets)
+        Offsets->push_back(Off);
+    }
   }
 }
 
@@ -90,7 +123,6 @@ NVPTXTargetLowering::NVPTXTargetLowering(NVPTXTargetMachine &TM)
     setSchedulingPreference(Sched::Source);
 
   addRegisterClass(MVT::i1, &NVPTX::Int1RegsRegClass);
-  addRegisterClass(MVT::i8, &NVPTX::Int8RegsRegClass);
   addRegisterClass(MVT::i16, &NVPTX::Int16RegsRegClass);
   addRegisterClass(MVT::i32, &NVPTX::Int32RegsRegClass);
   addRegisterClass(MVT::i64, &NVPTX::Int64RegsRegClass);
@@ -106,10 +138,12 @@ NVPTXTargetLowering::NVPTXTargetLowering(NVPTXTargetMachine &TM)
   setOperationAction(ISD::BR_CC, MVT::i16, Expand);
   setOperationAction(ISD::BR_CC, MVT::i32, Expand);
   setOperationAction(ISD::BR_CC, MVT::i64, Expand);
-  setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i64, Expand);
-  setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i32, Expand);
-  setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i16, Expand);
-  setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i8, Expand);
+  // Some SIGN_EXTEND_INREG can be done using cvt instruction.
+  // For others we will expand to a SHL/SRA pair.
+  setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i64, Legal);
+  setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i32, Legal);
+  setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i16, Legal);
+  setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i8 , Legal);
   setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i1, Expand);
 
   if (nvptxSubtarget.hasROT64()) {
@@ -170,6 +204,9 @@ NVPTXTargetLowering::NVPTXTargetLowering(NVPTXTargetMachine &TM)
   // TRAP can be lowered to PTX trap
   setOperationAction(ISD::TRAP, MVT::Other, Legal);
 
+  setOperationAction(ISD::ADDC, MVT::i64, Expand);
+  setOperationAction(ISD::ADDE, MVT::i64, Expand);
+
   // Register custom handling for vector loads/stores
   for (int i = MVT::FIRST_VECTOR_VALUETYPE; i <= MVT::LAST_VECTOR_VALUETYPE;
        ++i) {
@@ -180,6 +217,25 @@ NVPTXTargetLowering::NVPTXTargetLowering(NVPTXTargetMachine &TM)
       setOperationAction(ISD::INTRINSIC_W_CHAIN, VT, Custom);
     }
   }
+
+  // Custom handling for i8 intrinsics
+  setOperationAction(ISD::INTRINSIC_W_CHAIN, MVT::i8, Custom);
+
+  setOperationAction(ISD::CTLZ, MVT::i16, Legal);
+  setOperationAction(ISD::CTLZ, MVT::i32, Legal);
+  setOperationAction(ISD::CTLZ, MVT::i64, Legal);
+  setOperationAction(ISD::CTLZ_ZERO_UNDEF, MVT::i16, Legal);
+  setOperationAction(ISD::CTLZ_ZERO_UNDEF, MVT::i32, Legal);
+  setOperationAction(ISD::CTLZ_ZERO_UNDEF, MVT::i64, Legal);
+  setOperationAction(ISD::CTTZ, MVT::i16, Expand);
+  setOperationAction(ISD::CTTZ, MVT::i32, Expand);
+  setOperationAction(ISD::CTTZ, MVT::i64, Expand);
+  setOperationAction(ISD::CTTZ_ZERO_UNDEF, MVT::i16, Expand);
+  setOperationAction(ISD::CTTZ_ZERO_UNDEF, MVT::i32, Expand);
+  setOperationAction(ISD::CTTZ_ZERO_UNDEF, MVT::i64, Expand);
+  setOperationAction(ISD::CTPOP, MVT::i16, Legal);
+  setOperationAction(ISD::CTPOP, MVT::i32, Legal);
+  setOperationAction(ISD::CTPOP, MVT::i64, Legal);
 
   // Now deduce the information based on the above mentioned
   // actions
@@ -196,8 +252,6 @@ const char *NVPTXTargetLowering::getTargetNodeName(unsigned Opcode) const {
     return "NVPTXISD::RET_FLAG";
   case NVPTXISD::Wrapper:
     return "NVPTXISD::Wrapper";
-  case NVPTXISD::NVBuiltin:
-    return "NVPTXISD::NVBuiltin";
   case NVPTXISD::DeclareParam:
     return "NVPTXISD::DeclareParam";
   case NVPTXISD::DeclareScalarParam:
@@ -210,14 +264,20 @@ const char *NVPTXTargetLowering::getTargetNodeName(unsigned Opcode) const {
     return "NVPTXISD::PrintCall";
   case NVPTXISD::LoadParam:
     return "NVPTXISD::LoadParam";
+  case NVPTXISD::LoadParamV2:
+    return "NVPTXISD::LoadParamV2";
+  case NVPTXISD::LoadParamV4:
+    return "NVPTXISD::LoadParamV4";
   case NVPTXISD::StoreParam:
     return "NVPTXISD::StoreParam";
+  case NVPTXISD::StoreParamV2:
+    return "NVPTXISD::StoreParamV2";
+  case NVPTXISD::StoreParamV4:
+    return "NVPTXISD::StoreParamV4";
   case NVPTXISD::StoreParamS32:
     return "NVPTXISD::StoreParamS32";
   case NVPTXISD::StoreParamU32:
     return "NVPTXISD::StoreParamU32";
-  case NVPTXISD::MoveToParam:
-    return "NVPTXISD::MoveToParam";
   case NVPTXISD::CallArgBegin:
     return "NVPTXISD::CallArgBegin";
   case NVPTXISD::CallArg:
@@ -236,12 +296,12 @@ const char *NVPTXTargetLowering::getTargetNodeName(unsigned Opcode) const {
     return "NVPTXISD::Prototype";
   case NVPTXISD::MoveParam:
     return "NVPTXISD::MoveParam";
-  case NVPTXISD::MoveRetval:
-    return "NVPTXISD::MoveRetval";
-  case NVPTXISD::MoveToRetval:
-    return "NVPTXISD::MoveToRetval";
   case NVPTXISD::StoreRetval:
     return "NVPTXISD::StoreRetval";
+  case NVPTXISD::StoreRetvalV2:
+    return "NVPTXISD::StoreRetvalV2";
+  case NVPTXISD::StoreRetvalV4:
+    return "NVPTXISD::StoreRetvalV4";
   case NVPTXISD::PseudoUseParam:
     return "NVPTXISD::PseudoUseParam";
   case NVPTXISD::RETURN:
@@ -250,6 +310,8 @@ const char *NVPTXTargetLowering::getTargetNodeName(unsigned Opcode) const {
     return "NVPTXISD::CallSeqBegin";
   case NVPTXISD::CallSeqEnd:
     return "NVPTXISD::CallSeqEnd";
+  case NVPTXISD::CallPrototype:
+    return "NVPTXISD::CallPrototype";
   case NVPTXISD::LoadV2:
     return "NVPTXISD::LoadV2";
   case NVPTXISD::LoadV4:
@@ -275,89 +337,68 @@ bool NVPTXTargetLowering::shouldSplitVectorElementType(EVT VT) const {
 
 SDValue
 NVPTXTargetLowering::LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const {
-  DebugLoc dl = Op.getDebugLoc();
+  SDLoc dl(Op);
   const GlobalValue *GV = cast<GlobalAddressSDNode>(Op)->getGlobal();
   Op = DAG.getTargetGlobalAddress(GV, dl, getPointerTy());
   return DAG.getNode(NVPTXISD::Wrapper, dl, getPointerTy(), Op);
 }
 
-std::string NVPTXTargetLowering::getPrototype(
-    Type *retTy, const ArgListTy &Args,
-    const SmallVectorImpl<ISD::OutputArg> &Outs, unsigned retAlignment) const {
+std::string
+NVPTXTargetLowering::getPrototype(Type *retTy, const ArgListTy &Args,
+                                  const SmallVectorImpl<ISD::OutputArg> &Outs,
+                                  unsigned retAlignment,
+                                  const ImmutableCallSite *CS) const {
 
   bool isABI = (nvptxSubtarget.getSmVersion() >= 20);
+  assert(isABI && "Non-ABI compilation is not supported");
+  if (!isABI)
+    return "";
 
   std::stringstream O;
   O << "prototype_" << uniqueCallSite << " : .callprototype ";
 
-  if (retTy->getTypeID() == Type::VoidTyID)
+  if (retTy->getTypeID() == Type::VoidTyID) {
     O << "()";
-  else {
+  } else {
     O << "(";
-    if (isABI) {
-      if (retTy->isPrimitiveType() || retTy->isIntegerTy()) {
-        unsigned size = 0;
-        if (const IntegerType *ITy = dyn_cast<IntegerType>(retTy)) {
-          size = ITy->getBitWidth();
-          if (size < 32)
-            size = 32;
-        } else {
-          assert(retTy->isFloatingPointTy() &&
-                 "Floating point type expected here");
-          size = retTy->getPrimitiveSizeInBits();
-        }
-
-        O << ".param .b" << size << " _";
-      } else if (isa<PointerType>(retTy))
-        O << ".param .b" << getPointerTy().getSizeInBits() << " _";
-      else {
-        if ((retTy->getTypeID() == Type::StructTyID) ||
-            isa<VectorType>(retTy)) {
-          SmallVector<EVT, 16> vtparts;
-          ComputeValueVTs(*this, retTy, vtparts);
-          unsigned totalsz = 0;
-          for (unsigned i = 0, e = vtparts.size(); i != e; ++i) {
-            unsigned elems = 1;
-            EVT elemtype = vtparts[i];
-            if (vtparts[i].isVector()) {
-              elems = vtparts[i].getVectorNumElements();
-              elemtype = vtparts[i].getVectorElementType();
-            }
-            for (unsigned j = 0, je = elems; j != je; ++j) {
-              unsigned sz = elemtype.getSizeInBits();
-              if (elemtype.isInteger() && (sz < 8))
-                sz = 8;
-              totalsz += sz / 8;
-            }
-          }
-          O << ".param .align " << retAlignment << " .b8 _[" << totalsz << "]";
-        } else {
-          assert(false && "Unknown return type");
-        }
+    if (retTy->isPrimitiveType() || retTy->isIntegerTy()) {
+      unsigned size = 0;
+      if (const IntegerType *ITy = dyn_cast<IntegerType>(retTy)) {
+        size = ITy->getBitWidth();
+        if (size < 32)
+          size = 32;
+      } else {
+        assert(retTy->isFloatingPointTy() &&
+               "Floating point type expected here");
+        size = retTy->getPrimitiveSizeInBits();
       }
-    } else {
-      SmallVector<EVT, 16> vtparts;
-      ComputeValueVTs(*this, retTy, vtparts);
-      unsigned idx = 0;
-      for (unsigned i = 0, e = vtparts.size(); i != e; ++i) {
-        unsigned elems = 1;
-        EVT elemtype = vtparts[i];
-        if (vtparts[i].isVector()) {
-          elems = vtparts[i].getVectorNumElements();
-          elemtype = vtparts[i].getVectorElementType();
-        }
 
-        for (unsigned j = 0, je = elems; j != je; ++j) {
-          unsigned sz = elemtype.getSizeInBits();
-          if (elemtype.isInteger() && (sz < 32))
-            sz = 32;
-          O << ".reg .b" << sz << " _";
-          if (j < je - 1)
-            O << ", ";
-          ++idx;
+      O << ".param .b" << size << " _";
+    } else if (isa<PointerType>(retTy)) {
+      O << ".param .b" << getPointerTy().getSizeInBits() << " _";
+    } else {
+      if ((retTy->getTypeID() == Type::StructTyID) || isa<VectorType>(retTy)) {
+        SmallVector<EVT, 16> vtparts;
+        ComputeValueVTs(*this, retTy, vtparts);
+        unsigned totalsz = 0;
+        for (unsigned i = 0, e = vtparts.size(); i != e; ++i) {
+          unsigned elems = 1;
+          EVT elemtype = vtparts[i];
+          if (vtparts[i].isVector()) {
+            elems = vtparts[i].getVectorNumElements();
+            elemtype = vtparts[i].getVectorElementType();
+          }
+          // TODO: no need to loop
+          for (unsigned j = 0, je = elems; j != je; ++j) {
+            unsigned sz = elemtype.getSizeInBits();
+            if (elemtype.isInteger() && (sz < 8))
+              sz = 8;
+            totalsz += sz / 8;
+          }
         }
-        if (i < e - 1)
-          O << ", ";
+        O << ".param .align " << retAlignment << " .b8 _[" << totalsz << "]";
+      } else {
+        assert(false && "Unknown return type");
       }
     }
     O << ") ";
@@ -367,14 +408,38 @@ std::string NVPTXTargetLowering::getPrototype(
   bool first = true;
   MVT thePointerTy = getPointerTy();
 
-  for (unsigned i = 0, e = Args.size(); i != e; ++i) {
-    const Type *Ty = Args[i].Ty;
+  unsigned OIdx = 0;
+  for (unsigned i = 0, e = Args.size(); i != e; ++i, ++OIdx) {
+    Type *Ty = Args[i].Ty;
     if (!first) {
       O << ", ";
     }
     first = false;
 
-    if (Outs[i].Flags.isByVal() == false) {
+    if (Outs[OIdx].Flags.isByVal() == false) {
+      if (Ty->isAggregateType() || Ty->isVectorTy()) {
+        unsigned align = 0;
+        const CallInst *CallI = cast<CallInst>(CS->getInstruction());
+        const DataLayout *TD = getDataLayout();
+        // +1 because index 0 is reserved for return type alignment
+        if (!llvm::getAlign(*CallI, i + 1, align))
+          align = TD->getABITypeAlignment(Ty);
+        unsigned sz = TD->getTypeAllocSize(Ty);
+        O << ".param .align " << align << " .b8 ";
+        O << "_";
+        O << "[" << sz << "]";
+        // update the index for Outs
+        SmallVector<EVT, 16> vtparts;
+        ComputeValueVTs(*this, Ty, vtparts);
+        if (unsigned len = vtparts.size())
+          OIdx += len - 1;
+        continue;
+      }
+       // i8 types in IR will be i16 types in SDAG
+      assert((getValueType(Ty) == Outs[OIdx].VT ||
+             (getValueType(Ty) == MVT::i8 && Outs[OIdx].VT == MVT::i16)) &&
+             "type mismatch between callee prototype and arguments");
+      // scalar type
       unsigned sz = 0;
       if (isa<IntegerType>(Ty)) {
         sz = cast<IntegerType>(Ty)->getBitWidth();
@@ -384,10 +449,7 @@ std::string NVPTXTargetLowering::getPrototype(
         sz = thePointerTy.getSizeInBits();
       else
         sz = Ty->getPrimitiveSizeInBits();
-      if (isABI)
-        O << ".param .b" << sz << " ";
-      else
-        O << ".reg .b" << sz << " ";
+      O << ".param .b" << sz << " ";
       O << "_";
       continue;
     }
@@ -395,50 +457,72 @@ std::string NVPTXTargetLowering::getPrototype(
     assert(PTy && "Param with byval attribute should be a pointer type");
     Type *ETy = PTy->getElementType();
 
-    if (isABI) {
-      unsigned align = Outs[i].Flags.getByValAlign();
-      unsigned sz = getDataLayout()->getTypeAllocSize(ETy);
-      O << ".param .align " << align << " .b8 ";
-      O << "_";
-      O << "[" << sz << "]";
-      continue;
-    } else {
-      SmallVector<EVT, 16> vtparts;
-      ComputeValueVTs(*this, ETy, vtparts);
-      for (unsigned i = 0, e = vtparts.size(); i != e; ++i) {
-        unsigned elems = 1;
-        EVT elemtype = vtparts[i];
-        if (vtparts[i].isVector()) {
-          elems = vtparts[i].getVectorNumElements();
-          elemtype = vtparts[i].getVectorElementType();
-        }
-
-        for (unsigned j = 0, je = elems; j != je; ++j) {
-          unsigned sz = elemtype.getSizeInBits();
-          if (elemtype.isInteger() && (sz < 32))
-            sz = 32;
-          O << ".reg .b" << sz << " ";
-          O << "_";
-          if (j < je - 1)
-            O << ", ";
-        }
-        if (i < e - 1)
-          O << ", ";
-      }
-      continue;
-    }
+    unsigned align = Outs[OIdx].Flags.getByValAlign();
+    unsigned sz = getDataLayout()->getTypeAllocSize(ETy);
+    O << ".param .align " << align << " .b8 ";
+    O << "_";
+    O << "[" << sz << "]";
   }
   O << ");";
   return O.str();
 }
 
+unsigned
+NVPTXTargetLowering::getArgumentAlignment(SDValue Callee,
+                                          const ImmutableCallSite *CS,
+                                          Type *Ty,
+                                          unsigned Idx) const {
+  const DataLayout *TD = getDataLayout();
+  unsigned Align = 0;
+  const Value *DirectCallee = CS->getCalledFunction();
+
+  if (!DirectCallee) {
+    // We don't have a direct function symbol, but that may be because of
+    // constant cast instructions in the call.
+    const Instruction *CalleeI = CS->getInstruction();
+    assert(CalleeI && "Call target is not a function or derived value?");
+
+    // With bitcast'd call targets, the instruction will be the call
+    if (isa<CallInst>(CalleeI)) {
+      // Check if we have call alignment metadata
+      if (llvm::getAlign(*cast<CallInst>(CalleeI), Idx, Align))
+        return Align;
+
+      const Value *CalleeV = cast<CallInst>(CalleeI)->getCalledValue();
+      // Ignore any bitcast instructions
+      while(isa<ConstantExpr>(CalleeV)) {
+        const ConstantExpr *CE = cast<ConstantExpr>(CalleeV);
+        if (!CE->isCast())
+          break;
+        // Look through the bitcast
+        CalleeV = cast<ConstantExpr>(CalleeV)->getOperand(0);
+      }
+
+      // We have now looked past all of the bitcasts.  Do we finally have a
+      // Function?
+      if (isa<Function>(CalleeV))
+        DirectCallee = CalleeV;
+    }
+  }
+
+  // Check for function alignment information if we found that the
+  // ultimate target is a Function
+  if (DirectCallee)
+    if (llvm::getAlign(*cast<Function>(DirectCallee), Idx, Align))
+      return Align;
+
+  // Call is indirect or alignment information is not available, fall back to
+  // the ABI type alignment
+  return TD->getABITypeAlignment(Ty);
+}
+
 SDValue NVPTXTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
                                        SmallVectorImpl<SDValue> &InVals) const {
   SelectionDAG &DAG = CLI.DAG;
-  DebugLoc &dl = CLI.DL;
-  SmallVector<ISD::OutputArg, 32> &Outs = CLI.Outs;
-  SmallVector<SDValue, 32> &OutVals = CLI.OutVals;
-  SmallVector<ISD::InputArg, 32> &Ins = CLI.Ins;
+  SDLoc dl = CLI.DL;
+  SmallVectorImpl<ISD::OutputArg> &Outs = CLI.Outs;
+  SmallVectorImpl<SDValue> &OutVals = CLI.OutVals;
+  SmallVectorImpl<ISD::InputArg> &Ins = CLI.Ins;
   SDValue Chain = CLI.Chain;
   SDValue Callee = CLI.Callee;
   bool &isTailCall = CLI.IsTailCall;
@@ -447,53 +531,258 @@ SDValue NVPTXTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   ImmutableCallSite *CS = CLI.CS;
 
   bool isABI = (nvptxSubtarget.getSmVersion() >= 20);
+  assert(isABI && "Non-ABI compilation is not supported");
+  if (!isABI)
+    return Chain;
+  const DataLayout *TD = getDataLayout();
+  MachineFunction &MF = DAG.getMachineFunction();
+  const Function *F = MF.getFunction();
 
   SDValue tempChain = Chain;
   Chain =
-      DAG.getCALLSEQ_START(Chain, DAG.getIntPtrConstant(uniqueCallSite, true));
+      DAG.getCALLSEQ_START(Chain, DAG.getIntPtrConstant(uniqueCallSite, true),
+                           dl);
   SDValue InFlag = Chain.getValue(1);
 
-  assert((Outs.size() == Args.size()) &&
-         "Unexpected number of arguments to function call");
   unsigned paramCount = 0;
+  // Args.size() and Outs.size() need not match.
+  // Outs.size() will be larger
+  //   * if there is an aggregate argument with multiple fields (each field
+  //     showing up separately in Outs)
+  //   * if there is a vector argument with more than typical vector-length
+  //     elements (generally if more than 4) where each vector element is
+  //     individually present in Outs.
+  // So a different index should be used for indexing into Outs/OutVals.
+  // See similar issue in LowerFormalArguments.
+  unsigned OIdx = 0;
   // Declare the .params or .reg need to pass values
   // to the function
-  for (unsigned i = 0, e = Outs.size(); i != e; ++i) {
-    EVT VT = Outs[i].VT;
+  for (unsigned i = 0, e = Args.size(); i != e; ++i, ++OIdx) {
+    EVT VT = Outs[OIdx].VT;
+    Type *Ty = Args[i].Ty;
 
-    if (Outs[i].Flags.isByVal() == false) {
+    if (Outs[OIdx].Flags.isByVal() == false) {
+      if (Ty->isAggregateType()) {
+        // aggregate
+        SmallVector<EVT, 16> vtparts;
+        ComputeValueVTs(*this, Ty, vtparts);
+
+        unsigned align = getArgumentAlignment(Callee, CS, Ty, paramCount + 1);
+        // declare .param .align <align> .b8 .param<n>[<size>];
+        unsigned sz = TD->getTypeAllocSize(Ty);
+        SDVTList DeclareParamVTs = DAG.getVTList(MVT::Other, MVT::Glue);
+        SDValue DeclareParamOps[] = { Chain, DAG.getConstant(align, MVT::i32),
+                                      DAG.getConstant(paramCount, MVT::i32),
+                                      DAG.getConstant(sz, MVT::i32), InFlag };
+        Chain = DAG.getNode(NVPTXISD::DeclareParam, dl, DeclareParamVTs,
+                            DeclareParamOps, 5);
+        InFlag = Chain.getValue(1);
+        unsigned curOffset = 0;
+        for (unsigned j = 0, je = vtparts.size(); j != je; ++j) {
+          unsigned elems = 1;
+          EVT elemtype = vtparts[j];
+          if (vtparts[j].isVector()) {
+            elems = vtparts[j].getVectorNumElements();
+            elemtype = vtparts[j].getVectorElementType();
+          }
+          for (unsigned k = 0, ke = elems; k != ke; ++k) {
+            unsigned sz = elemtype.getSizeInBits();
+            if (elemtype.isInteger() && (sz < 8))
+              sz = 8;
+            SDValue StVal = OutVals[OIdx];
+            if (elemtype.getSizeInBits() < 16) {
+              StVal = DAG.getNode(ISD::ANY_EXTEND, dl, MVT::i16, StVal);
+            }
+            SDVTList CopyParamVTs = DAG.getVTList(MVT::Other, MVT::Glue);
+            SDValue CopyParamOps[] = { Chain,
+                                       DAG.getConstant(paramCount, MVT::i32),
+                                       DAG.getConstant(curOffset, MVT::i32),
+                                       StVal, InFlag };
+            Chain = DAG.getMemIntrinsicNode(NVPTXISD::StoreParam, dl,
+                                            CopyParamVTs, &CopyParamOps[0], 5,
+                                            elemtype, MachinePointerInfo());
+            InFlag = Chain.getValue(1);
+            curOffset += sz / 8;
+            ++OIdx;
+          }
+        }
+        if (vtparts.size() > 0)
+          --OIdx;
+        ++paramCount;
+        continue;
+      }
+      if (Ty->isVectorTy()) {
+        EVT ObjectVT = getValueType(Ty);
+        unsigned align = getArgumentAlignment(Callee, CS, Ty, paramCount + 1);
+        // declare .param .align <align> .b8 .param<n>[<size>];
+        unsigned sz = TD->getTypeAllocSize(Ty);
+        SDVTList DeclareParamVTs = DAG.getVTList(MVT::Other, MVT::Glue);
+        SDValue DeclareParamOps[] = { Chain, DAG.getConstant(align, MVT::i32),
+                                      DAG.getConstant(paramCount, MVT::i32),
+                                      DAG.getConstant(sz, MVT::i32), InFlag };
+        Chain = DAG.getNode(NVPTXISD::DeclareParam, dl, DeclareParamVTs,
+                            DeclareParamOps, 5);
+        InFlag = Chain.getValue(1);
+        unsigned NumElts = ObjectVT.getVectorNumElements();
+        EVT EltVT = ObjectVT.getVectorElementType();
+        EVT MemVT = EltVT;
+        bool NeedExtend = false;
+        if (EltVT.getSizeInBits() < 16) {
+          NeedExtend = true;
+          EltVT = MVT::i16;
+        }
+
+        // V1 store
+        if (NumElts == 1) {
+          SDValue Elt = OutVals[OIdx++];
+          if (NeedExtend)
+            Elt = DAG.getNode(ISD::ZERO_EXTEND, dl, MVT::i16, Elt);
+
+          SDVTList CopyParamVTs = DAG.getVTList(MVT::Other, MVT::Glue);
+          SDValue CopyParamOps[] = { Chain,
+                                     DAG.getConstant(paramCount, MVT::i32),
+                                     DAG.getConstant(0, MVT::i32), Elt,
+                                     InFlag };
+          Chain = DAG.getMemIntrinsicNode(NVPTXISD::StoreParam, dl,
+                                          CopyParamVTs, &CopyParamOps[0], 5,
+                                          MemVT, MachinePointerInfo());
+          InFlag = Chain.getValue(1);
+        } else if (NumElts == 2) {
+          SDValue Elt0 = OutVals[OIdx++];
+          SDValue Elt1 = OutVals[OIdx++];
+          if (NeedExtend) {
+            Elt0 = DAG.getNode(ISD::ZERO_EXTEND, dl, MVT::i16, Elt0);
+            Elt1 = DAG.getNode(ISD::ZERO_EXTEND, dl, MVT::i16, Elt1);
+          }
+
+          SDVTList CopyParamVTs = DAG.getVTList(MVT::Other, MVT::Glue);
+          SDValue CopyParamOps[] = { Chain,
+                                     DAG.getConstant(paramCount, MVT::i32),
+                                     DAG.getConstant(0, MVT::i32), Elt0, Elt1,
+                                     InFlag };
+          Chain = DAG.getMemIntrinsicNode(NVPTXISD::StoreParamV2, dl,
+                                          CopyParamVTs, &CopyParamOps[0], 6,
+                                          MemVT, MachinePointerInfo());
+          InFlag = Chain.getValue(1);
+        } else {
+          unsigned curOffset = 0;
+          // V4 stores
+          // We have at least 4 elements (<3 x Ty> expands to 4 elements) and
+          // the
+          // vector will be expanded to a power of 2 elements, so we know we can
+          // always round up to the next multiple of 4 when creating the vector
+          // stores.
+          // e.g.  4 elem => 1 st.v4
+          //       6 elem => 2 st.v4
+          //       8 elem => 2 st.v4
+          //      11 elem => 3 st.v4
+          unsigned VecSize = 4;
+          if (EltVT.getSizeInBits() == 64)
+            VecSize = 2;
+
+          // This is potentially only part of a vector, so assume all elements
+          // are packed together.
+          unsigned PerStoreOffset = MemVT.getStoreSizeInBits() / 8 * VecSize;
+
+          for (unsigned i = 0; i < NumElts; i += VecSize) {
+            // Get values
+            SDValue StoreVal;
+            SmallVector<SDValue, 8> Ops;
+            Ops.push_back(Chain);
+            Ops.push_back(DAG.getConstant(paramCount, MVT::i32));
+            Ops.push_back(DAG.getConstant(curOffset, MVT::i32));
+
+            unsigned Opc = NVPTXISD::StoreParamV2;
+
+            StoreVal = OutVals[OIdx++];
+            if (NeedExtend)
+              StoreVal = DAG.getNode(ISD::ZERO_EXTEND, dl, MVT::i16, StoreVal);
+            Ops.push_back(StoreVal);
+
+            if (i + 1 < NumElts) {
+              StoreVal = OutVals[OIdx++];
+              if (NeedExtend)
+                StoreVal =
+                    DAG.getNode(ISD::ZERO_EXTEND, dl, MVT::i16, StoreVal);
+            } else {
+              StoreVal = DAG.getUNDEF(EltVT);
+            }
+            Ops.push_back(StoreVal);
+
+            if (VecSize == 4) {
+              Opc = NVPTXISD::StoreParamV4;
+              if (i + 2 < NumElts) {
+                StoreVal = OutVals[OIdx++];
+                if (NeedExtend)
+                  StoreVal =
+                      DAG.getNode(ISD::ZERO_EXTEND, dl, MVT::i16, StoreVal);
+              } else {
+                StoreVal = DAG.getUNDEF(EltVT);
+              }
+              Ops.push_back(StoreVal);
+
+              if (i + 3 < NumElts) {
+                StoreVal = OutVals[OIdx++];
+                if (NeedExtend)
+                  StoreVal =
+                      DAG.getNode(ISD::ZERO_EXTEND, dl, MVT::i16, StoreVal);
+              } else {
+                StoreVal = DAG.getUNDEF(EltVT);
+              }
+              Ops.push_back(StoreVal);
+            }
+
+            Ops.push_back(InFlag);
+
+            SDVTList CopyParamVTs = DAG.getVTList(MVT::Other, MVT::Glue);
+            Chain = DAG.getMemIntrinsicNode(Opc, dl, CopyParamVTs, &Ops[0],
+                                            Ops.size(), MemVT,
+                                            MachinePointerInfo());
+            InFlag = Chain.getValue(1);
+            curOffset += PerStoreOffset;
+          }
+        }
+        ++paramCount;
+        --OIdx;
+        continue;
+      }
       // Plain scalar
       // for ABI,    declare .param .b<size> .param<n>;
-      // for nonABI, declare .reg .b<size> .param<n>;
-      unsigned isReg = 1;
-      if (isABI)
-        isReg = 0;
       unsigned sz = VT.getSizeInBits();
-      if (VT.isInteger() && (sz < 32))
-        sz = 32;
+      bool needExtend = false;
+      if (VT.isInteger()) {
+        if (sz < 16)
+          needExtend = true;
+        if (sz < 32)
+          sz = 32;
+      }
       SDVTList DeclareParamVTs = DAG.getVTList(MVT::Other, MVT::Glue);
       SDValue DeclareParamOps[] = { Chain,
                                     DAG.getConstant(paramCount, MVT::i32),
                                     DAG.getConstant(sz, MVT::i32),
-                                    DAG.getConstant(isReg, MVT::i32), InFlag };
+                                    DAG.getConstant(0, MVT::i32), InFlag };
       Chain = DAG.getNode(NVPTXISD::DeclareScalarParam, dl, DeclareParamVTs,
                           DeclareParamOps, 5);
       InFlag = Chain.getValue(1);
+      SDValue OutV = OutVals[OIdx];
+      if (needExtend) {
+        // zext/sext i1 to i16
+        unsigned opc = ISD::ZERO_EXTEND;
+        if (Outs[OIdx].Flags.isSExt())
+          opc = ISD::SIGN_EXTEND;
+        OutV = DAG.getNode(opc, dl, MVT::i16, OutV);
+      }
       SDVTList CopyParamVTs = DAG.getVTList(MVT::Other, MVT::Glue);
       SDValue CopyParamOps[] = { Chain, DAG.getConstant(paramCount, MVT::i32),
-                                 DAG.getConstant(0, MVT::i32), OutVals[i],
-                                 InFlag };
+                                 DAG.getConstant(0, MVT::i32), OutV, InFlag };
 
       unsigned opcode = NVPTXISD::StoreParam;
-      if (isReg)
-        opcode = NVPTXISD::MoveToParam;
-      else {
-        if (Outs[i].Flags.isZExt())
-          opcode = NVPTXISD::StoreParamU32;
-        else if (Outs[i].Flags.isSExt())
-          opcode = NVPTXISD::StoreParamS32;
-      }
-      Chain = DAG.getNode(opcode, dl, CopyParamVTs, CopyParamOps, 5);
+      if (Outs[OIdx].Flags.isZExt())
+        opcode = NVPTXISD::StoreParamU32;
+      else if (Outs[OIdx].Flags.isSExt())
+        opcode = NVPTXISD::StoreParamS32;
+      Chain = DAG.getMemIntrinsicNode(opcode, dl, CopyParamVTs, CopyParamOps, 5,
+                                      VT, MachinePointerInfo());
 
       InFlag = Chain.getValue(1);
       ++paramCount;
@@ -505,55 +794,20 @@ SDValue NVPTXTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
     assert(PTy && "Type of a byval parameter should be pointer");
     ComputeValueVTs(*this, PTy->getElementType(), vtparts);
 
-    if (isABI) {
-      // declare .param .align 16 .b8 .param<n>[<size>];
-      unsigned sz = Outs[i].Flags.getByValSize();
-      SDVTList DeclareParamVTs = DAG.getVTList(MVT::Other, MVT::Glue);
-      // The ByValAlign in the Outs[i].Flags is alway set at this point, so we
-      // don't need to
-      // worry about natural alignment or not. See TargetLowering::LowerCallTo()
-      SDValue DeclareParamOps[] = {
-        Chain, DAG.getConstant(Outs[i].Flags.getByValAlign(), MVT::i32),
-        DAG.getConstant(paramCount, MVT::i32), DAG.getConstant(sz, MVT::i32),
-        InFlag
-      };
-      Chain = DAG.getNode(NVPTXISD::DeclareParam, dl, DeclareParamVTs,
-                          DeclareParamOps, 5);
-      InFlag = Chain.getValue(1);
-      unsigned curOffset = 0;
-      for (unsigned j = 0, je = vtparts.size(); j != je; ++j) {
-        unsigned elems = 1;
-        EVT elemtype = vtparts[j];
-        if (vtparts[j].isVector()) {
-          elems = vtparts[j].getVectorNumElements();
-          elemtype = vtparts[j].getVectorElementType();
-        }
-        for (unsigned k = 0, ke = elems; k != ke; ++k) {
-          unsigned sz = elemtype.getSizeInBits();
-          if (elemtype.isInteger() && (sz < 8))
-            sz = 8;
-          SDValue srcAddr =
-              DAG.getNode(ISD::ADD, dl, getPointerTy(), OutVals[i],
-                          DAG.getConstant(curOffset, getPointerTy()));
-          SDValue theVal =
-              DAG.getLoad(elemtype, dl, tempChain, srcAddr,
-                          MachinePointerInfo(), false, false, false, 0);
-          SDVTList CopyParamVTs = DAG.getVTList(MVT::Other, MVT::Glue);
-          SDValue CopyParamOps[] = { Chain,
-                                     DAG.getConstant(paramCount, MVT::i32),
-                                     DAG.getConstant(curOffset, MVT::i32),
-                                     theVal, InFlag };
-          Chain = DAG.getNode(NVPTXISD::StoreParam, dl, CopyParamVTs,
-                              CopyParamOps, 5);
-          InFlag = Chain.getValue(1);
-          curOffset += sz / 8;
-        }
-      }
-      ++paramCount;
-      continue;
-    }
-    // Non-abi, struct or vector
-    // Declare a bunch or .reg .b<size> .param<n>
+    // declare .param .align <align> .b8 .param<n>[<size>];
+    unsigned sz = Outs[OIdx].Flags.getByValSize();
+    SDVTList DeclareParamVTs = DAG.getVTList(MVT::Other, MVT::Glue);
+    // The ByValAlign in the Outs[OIdx].Flags is alway set at this point,
+    // so we don't need to worry about natural alignment or not.
+    // See TargetLowering::LowerCallTo().
+    SDValue DeclareParamOps[] = {
+      Chain, DAG.getConstant(Outs[OIdx].Flags.getByValAlign(), MVT::i32),
+      DAG.getConstant(paramCount, MVT::i32), DAG.getConstant(sz, MVT::i32),
+      InFlag
+    };
+    Chain = DAG.getNode(NVPTXISD::DeclareParam, dl, DeclareParamVTs,
+                        DeclareParamOps, 5);
+    InFlag = Chain.getValue(1);
     unsigned curOffset = 0;
     for (unsigned j = 0, je = vtparts.size(); j != je; ++j) {
       unsigned elems = 1;
@@ -564,107 +818,66 @@ SDValue NVPTXTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
       }
       for (unsigned k = 0, ke = elems; k != ke; ++k) {
         unsigned sz = elemtype.getSizeInBits();
-        if (elemtype.isInteger() && (sz < 32))
-          sz = 32;
-        SDVTList DeclareParamVTs = DAG.getVTList(MVT::Other, MVT::Glue);
-        SDValue DeclareParamOps[] = { Chain,
-                                      DAG.getConstant(paramCount, MVT::i32),
-                                      DAG.getConstant(sz, MVT::i32),
-                                      DAG.getConstant(1, MVT::i32), InFlag };
-        Chain = DAG.getNode(NVPTXISD::DeclareScalarParam, dl, DeclareParamVTs,
-                            DeclareParamOps, 5);
-        InFlag = Chain.getValue(1);
+        if (elemtype.isInteger() && (sz < 8))
+          sz = 8;
         SDValue srcAddr =
-            DAG.getNode(ISD::ADD, dl, getPointerTy(), OutVals[i],
+            DAG.getNode(ISD::ADD, dl, getPointerTy(), OutVals[OIdx],
                         DAG.getConstant(curOffset, getPointerTy()));
-        SDValue theVal =
-            DAG.getLoad(elemtype, dl, tempChain, srcAddr, MachinePointerInfo(),
-                        false, false, false, 0);
+        SDValue theVal = DAG.getLoad(elemtype, dl, tempChain, srcAddr,
+                                     MachinePointerInfo(), false, false, false,
+                                     0);
+        if (elemtype.getSizeInBits() < 16) {
+          theVal = DAG.getNode(ISD::ANY_EXTEND, dl, MVT::i16, theVal);
+        }
         SDVTList CopyParamVTs = DAG.getVTList(MVT::Other, MVT::Glue);
         SDValue CopyParamOps[] = { Chain, DAG.getConstant(paramCount, MVT::i32),
-                                   DAG.getConstant(0, MVT::i32), theVal,
+                                   DAG.getConstant(curOffset, MVT::i32), theVal,
                                    InFlag };
-        Chain = DAG.getNode(NVPTXISD::MoveToParam, dl, CopyParamVTs,
-                            CopyParamOps, 5);
+        Chain = DAG.getMemIntrinsicNode(NVPTXISD::StoreParam, dl, CopyParamVTs,
+                                        CopyParamOps, 5, elemtype,
+                                        MachinePointerInfo());
+
         InFlag = Chain.getValue(1);
-        ++paramCount;
+        curOffset += sz / 8;
       }
     }
+    ++paramCount;
   }
 
   GlobalAddressSDNode *Func = dyn_cast<GlobalAddressSDNode>(Callee.getNode());
   unsigned retAlignment = 0;
 
   // Handle Result
-  unsigned retCount = 0;
   if (Ins.size() > 0) {
     SmallVector<EVT, 16> resvtparts;
     ComputeValueVTs(*this, retTy, resvtparts);
 
-    // Declare one .param .align 16 .b8 func_retval0[<size>] for ABI or
-    // individual .reg .b<size> func_retval<0..> for non ABI
-    unsigned resultsz = 0;
-    for (unsigned i = 0, e = resvtparts.size(); i != e; ++i) {
-      unsigned elems = 1;
-      EVT elemtype = resvtparts[i];
-      if (resvtparts[i].isVector()) {
-        elems = resvtparts[i].getVectorNumElements();
-        elemtype = resvtparts[i].getVectorElementType();
-      }
-      for (unsigned j = 0, je = elems; j != je; ++j) {
-        unsigned sz = elemtype.getSizeInBits();
-        if (isABI == false) {
-          if (elemtype.isInteger() && (sz < 32))
-            sz = 32;
-        } else {
-          if (elemtype.isInteger() && (sz < 8))
-            sz = 8;
-        }
-        if (isABI == false) {
-          SDVTList DeclareRetVTs = DAG.getVTList(MVT::Other, MVT::Glue);
-          SDValue DeclareRetOps[] = { Chain, DAG.getConstant(2, MVT::i32),
-                                      DAG.getConstant(sz, MVT::i32),
-                                      DAG.getConstant(retCount, MVT::i32),
-                                      InFlag };
-          Chain = DAG.getNode(NVPTXISD::DeclareRet, dl, DeclareRetVTs,
-                              DeclareRetOps, 5);
-          InFlag = Chain.getValue(1);
-          ++retCount;
-        }
-        resultsz += sz;
-      }
-    }
-    if (isABI) {
-      if (retTy->isPrimitiveType() || retTy->isIntegerTy() ||
-          retTy->isPointerTy()) {
-        // Scalar needs to be at least 32bit wide
-        if (resultsz < 32)
-          resultsz = 32;
-        SDVTList DeclareRetVTs = DAG.getVTList(MVT::Other, MVT::Glue);
-        SDValue DeclareRetOps[] = { Chain, DAG.getConstant(1, MVT::i32),
-                                    DAG.getConstant(resultsz, MVT::i32),
-                                    DAG.getConstant(0, MVT::i32), InFlag };
-        Chain = DAG.getNode(NVPTXISD::DeclareRet, dl, DeclareRetVTs,
-                            DeclareRetOps, 5);
-        InFlag = Chain.getValue(1);
-      } else {
-        if (Func) { // direct call
-          if (!llvm::getAlign(*(CS->getCalledFunction()), 0, retAlignment))
-            retAlignment = getDataLayout()->getABITypeAlignment(retTy);
-        } else { // indirect call
-          const CallInst *CallI = dyn_cast<CallInst>(CS->getInstruction());
-          if (!llvm::getAlign(*CallI, 0, retAlignment))
-            retAlignment = getDataLayout()->getABITypeAlignment(retTy);
-        }
-        SDVTList DeclareRetVTs = DAG.getVTList(MVT::Other, MVT::Glue);
-        SDValue DeclareRetOps[] = { Chain,
-                                    DAG.getConstant(retAlignment, MVT::i32),
-                                    DAG.getConstant(resultsz / 8, MVT::i32),
-                                    DAG.getConstant(0, MVT::i32), InFlag };
-        Chain = DAG.getNode(NVPTXISD::DeclareRetParam, dl, DeclareRetVTs,
-                            DeclareRetOps, 5);
-        InFlag = Chain.getValue(1);
-      }
+    // Declare
+    //  .param .align 16 .b8 retval0[<size-in-bytes>], or
+    //  .param .b<size-in-bits> retval0
+    unsigned resultsz = TD->getTypeAllocSizeInBits(retTy);
+    if (retTy->isPrimitiveType() || retTy->isIntegerTy() ||
+        retTy->isPointerTy()) {
+      // Scalar needs to be at least 32bit wide
+      if (resultsz < 32)
+        resultsz = 32;
+      SDVTList DeclareRetVTs = DAG.getVTList(MVT::Other, MVT::Glue);
+      SDValue DeclareRetOps[] = { Chain, DAG.getConstant(1, MVT::i32),
+                                  DAG.getConstant(resultsz, MVT::i32),
+                                  DAG.getConstant(0, MVT::i32), InFlag };
+      Chain = DAG.getNode(NVPTXISD::DeclareRet, dl, DeclareRetVTs,
+                          DeclareRetOps, 5);
+      InFlag = Chain.getValue(1);
+    } else {
+      retAlignment = getArgumentAlignment(Callee, CS, retTy, 0);
+      SDVTList DeclareRetVTs = DAG.getVTList(MVT::Other, MVT::Glue);
+      SDValue DeclareRetOps[] = { Chain,
+                                  DAG.getConstant(retAlignment, MVT::i32),
+                                  DAG.getConstant(resultsz / 8, MVT::i32),
+                                  DAG.getConstant(0, MVT::i32), InFlag };
+      Chain = DAG.getNode(NVPTXISD::DeclareRetParam, dl, DeclareRetVTs,
+                          DeclareRetOps, 5);
+      InFlag = Chain.getValue(1);
     }
   }
 
@@ -674,25 +887,22 @@ SDValue NVPTXTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
     // proto_0 : .callprototype(.param .b32 _) _ (.param .b32 _);
     // to be emitted, and the label has to used as the last arg of call
     // instruction.
-    // The prototype is embedded in a string and put as the operand for an
-    // INLINEASM SDNode.
-    SDVTList InlineAsmVTs = DAG.getVTList(MVT::Other, MVT::Glue);
-    std::string proto_string = getPrototype(retTy, Args, Outs, retAlignment);
-    const char *asmstr = nvTM->getManagedStrPool()
-        ->getManagedString(proto_string.c_str())->c_str();
-    SDValue InlineAsmOps[] = {
-      Chain, DAG.getTargetExternalSymbol(asmstr, getPointerTy()),
-      DAG.getMDNode(0), DAG.getTargetConstant(0, MVT::i32), InFlag
+    // The prototype is embedded in a string and put as the operand for a
+    // CallPrototype SDNode which will print out to the value of the string.
+    SDVTList ProtoVTs = DAG.getVTList(MVT::Other, MVT::Glue);
+    std::string Proto = getPrototype(retTy, Args, Outs, retAlignment, CS);
+    const char *ProtoStr =
+      nvTM->getManagedStrPool()->getManagedString(Proto.c_str())->c_str();
+    SDValue ProtoOps[] = {
+      Chain, DAG.getTargetExternalSymbol(ProtoStr, MVT::i32), InFlag,
     };
-    Chain = DAG.getNode(ISD::INLINEASM, dl, InlineAsmVTs, InlineAsmOps, 5);
+    Chain = DAG.getNode(NVPTXISD::CallPrototype, dl, ProtoVTs, &ProtoOps[0], 3);
     InFlag = Chain.getValue(1);
   }
   // Op to just print "call"
   SDVTList PrintCallVTs = DAG.getVTList(MVT::Other, MVT::Glue);
   SDValue PrintCallOps[] = {
-    Chain,
-    DAG.getConstant(isABI ? ((Ins.size() == 0) ? 0 : 1) : retCount, MVT::i32),
-    InFlag
+    Chain, DAG.getConstant((Ins.size() == 0) ? 0 : 1, MVT::i32), InFlag
   };
   Chain = DAG.getNode(Func ? (NVPTXISD::PrintCallUni) : (NVPTXISD::PrintCall),
                       dl, PrintCallVTs, PrintCallOps, 3);
@@ -740,62 +950,183 @@ SDValue NVPTXTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
   // Generate loads from param memory/moves from registers for result
   if (Ins.size() > 0) {
-    if (isABI) {
-      unsigned resoffset = 0;
-      for (unsigned i = 0, e = Ins.size(); i != e; ++i) {
-        unsigned sz = Ins[i].VT.getSizeInBits();
-        if (Ins[i].VT.isInteger() && (sz < 8))
-          sz = 8;
-        EVT LoadRetVTs[] = { Ins[i].VT, MVT::Other, MVT::Glue };
-        SDValue LoadRetOps[] = { Chain, DAG.getConstant(1, MVT::i32),
-                                 DAG.getConstant(resoffset, MVT::i32), InFlag };
-        SDValue retval = DAG.getNode(NVPTXISD::LoadParam, dl, LoadRetVTs,
-                                     LoadRetOps, array_lengthof(LoadRetOps));
+    unsigned resoffset = 0;
+    if (retTy && retTy->isVectorTy()) {
+      EVT ObjectVT = getValueType(retTy);
+      unsigned NumElts = ObjectVT.getVectorNumElements();
+      EVT EltVT = ObjectVT.getVectorElementType();
+      assert(nvTM->getTargetLowering()->getNumRegisters(F->getContext(),
+                                                        ObjectVT) == NumElts &&
+             "Vector was not scalarized");
+      unsigned sz = EltVT.getSizeInBits();
+      bool needTruncate = sz < 16 ? true : false;
+
+      if (NumElts == 1) {
+        // Just a simple load
+        std::vector<EVT> LoadRetVTs;
+        if (needTruncate) {
+          // If loading i1 result, generate
+          //   load i16
+          //   trunc i16 to i1
+          LoadRetVTs.push_back(MVT::i16);
+        } else
+          LoadRetVTs.push_back(EltVT);
+        LoadRetVTs.push_back(MVT::Other);
+        LoadRetVTs.push_back(MVT::Glue);
+        std::vector<SDValue> LoadRetOps;
+        LoadRetOps.push_back(Chain);
+        LoadRetOps.push_back(DAG.getConstant(1, MVT::i32));
+        LoadRetOps.push_back(DAG.getConstant(0, MVT::i32));
+        LoadRetOps.push_back(InFlag);
+        SDValue retval = DAG.getMemIntrinsicNode(
+            NVPTXISD::LoadParam, dl,
+            DAG.getVTList(&LoadRetVTs[0], LoadRetVTs.size()), &LoadRetOps[0],
+            LoadRetOps.size(), EltVT, MachinePointerInfo());
         Chain = retval.getValue(1);
         InFlag = retval.getValue(2);
-        InVals.push_back(retval);
-        resoffset += sz / 8;
+        SDValue Ret0 = retval;
+        if (needTruncate)
+          Ret0 = DAG.getNode(ISD::TRUNCATE, dl, EltVT, Ret0);
+        InVals.push_back(Ret0);
+      } else if (NumElts == 2) {
+        // LoadV2
+        std::vector<EVT> LoadRetVTs;
+        if (needTruncate) {
+          // If loading i1 result, generate
+          //   load i16
+          //   trunc i16 to i1
+          LoadRetVTs.push_back(MVT::i16);
+          LoadRetVTs.push_back(MVT::i16);
+        } else {
+          LoadRetVTs.push_back(EltVT);
+          LoadRetVTs.push_back(EltVT);
+        }
+        LoadRetVTs.push_back(MVT::Other);
+        LoadRetVTs.push_back(MVT::Glue);
+        std::vector<SDValue> LoadRetOps;
+        LoadRetOps.push_back(Chain);
+        LoadRetOps.push_back(DAG.getConstant(1, MVT::i32));
+        LoadRetOps.push_back(DAG.getConstant(0, MVT::i32));
+        LoadRetOps.push_back(InFlag);
+        SDValue retval = DAG.getMemIntrinsicNode(
+            NVPTXISD::LoadParamV2, dl,
+            DAG.getVTList(&LoadRetVTs[0], LoadRetVTs.size()), &LoadRetOps[0],
+            LoadRetOps.size(), EltVT, MachinePointerInfo());
+        Chain = retval.getValue(2);
+        InFlag = retval.getValue(3);
+        SDValue Ret0 = retval.getValue(0);
+        SDValue Ret1 = retval.getValue(1);
+        if (needTruncate) {
+          Ret0 = DAG.getNode(ISD::TRUNCATE, dl, MVT::i1, Ret0);
+          InVals.push_back(Ret0);
+          Ret1 = DAG.getNode(ISD::TRUNCATE, dl, MVT::i1, Ret1);
+          InVals.push_back(Ret1);
+        } else {
+          InVals.push_back(Ret0);
+          InVals.push_back(Ret1);
+        }
+      } else {
+        // Split into N LoadV4
+        unsigned Ofst = 0;
+        unsigned VecSize = 4;
+        unsigned Opc = NVPTXISD::LoadParamV4;
+        if (EltVT.getSizeInBits() == 64) {
+          VecSize = 2;
+          Opc = NVPTXISD::LoadParamV2;
+        }
+        EVT VecVT = EVT::getVectorVT(F->getContext(), EltVT, VecSize);
+        for (unsigned i = 0; i < NumElts; i += VecSize) {
+          SmallVector<EVT, 8> LoadRetVTs;
+          if (needTruncate) {
+            // If loading i1 result, generate
+            //   load i16
+            //   trunc i16 to i1
+            for (unsigned j = 0; j < VecSize; ++j)
+              LoadRetVTs.push_back(MVT::i16);
+          } else {
+            for (unsigned j = 0; j < VecSize; ++j)
+              LoadRetVTs.push_back(EltVT);
+          }
+          LoadRetVTs.push_back(MVT::Other);
+          LoadRetVTs.push_back(MVT::Glue);
+          SmallVector<SDValue, 4> LoadRetOps;
+          LoadRetOps.push_back(Chain);
+          LoadRetOps.push_back(DAG.getConstant(1, MVT::i32));
+          LoadRetOps.push_back(DAG.getConstant(Ofst, MVT::i32));
+          LoadRetOps.push_back(InFlag);
+          SDValue retval = DAG.getMemIntrinsicNode(
+              Opc, dl, DAG.getVTList(&LoadRetVTs[0], LoadRetVTs.size()),
+              &LoadRetOps[0], LoadRetOps.size(), EltVT, MachinePointerInfo());
+          if (VecSize == 2) {
+            Chain = retval.getValue(2);
+            InFlag = retval.getValue(3);
+          } else {
+            Chain = retval.getValue(4);
+            InFlag = retval.getValue(5);
+          }
+
+          for (unsigned j = 0; j < VecSize; ++j) {
+            if (i + j >= NumElts)
+              break;
+            SDValue Elt = retval.getValue(j);
+            if (needTruncate)
+              Elt = DAG.getNode(ISD::TRUNCATE, dl, EltVT, Elt);
+            InVals.push_back(Elt);
+          }
+          Ofst += TD->getTypeAllocSize(VecVT.getTypeForEVT(F->getContext()));
+        }
       }
     } else {
-      SmallVector<EVT, 16> resvtparts;
-      ComputeValueVTs(*this, retTy, resvtparts);
-
-      assert(Ins.size() == resvtparts.size() &&
-             "Unexpected number of return values in non-ABI case");
-      unsigned paramNum = 0;
+      SmallVector<EVT, 16> VTs;
+      ComputePTXValueVTs(*this, retTy, VTs);
+      assert(VTs.size() == Ins.size() && "Bad value decomposition");
       for (unsigned i = 0, e = Ins.size(); i != e; ++i) {
-        assert(EVT(Ins[i].VT) == resvtparts[i] &&
-               "Unexpected EVT type in non-ABI case");
-        unsigned numelems = 1;
-        EVT elemtype = Ins[i].VT;
-        if (Ins[i].VT.isVector()) {
-          numelems = Ins[i].VT.getVectorNumElements();
-          elemtype = Ins[i].VT.getVectorElementType();
-        }
-        std::vector<SDValue> tempRetVals;
-        for (unsigned j = 0; j < numelems; ++j) {
-          EVT MoveRetVTs[] = { elemtype, MVT::Other, MVT::Glue };
-          SDValue MoveRetOps[] = { Chain, DAG.getConstant(0, MVT::i32),
-                                   DAG.getConstant(paramNum, MVT::i32),
-                                   InFlag };
-          SDValue retval = DAG.getNode(NVPTXISD::LoadParam, dl, MoveRetVTs,
-                                       MoveRetOps, array_lengthof(MoveRetOps));
-          Chain = retval.getValue(1);
-          InFlag = retval.getValue(2);
-          tempRetVals.push_back(retval);
-          ++paramNum;
-        }
-        if (Ins[i].VT.isVector())
-          InVals.push_back(DAG.getNode(ISD::BUILD_VECTOR, dl, Ins[i].VT,
-                                       &tempRetVals[0], tempRetVals.size()));
-        else
-          InVals.push_back(tempRetVals[0]);
+        unsigned sz = VTs[i].getSizeInBits();
+        bool needTruncate = sz < 8 ? true : false;
+        if (VTs[i].isInteger() && (sz < 8))
+          sz = 8;
+
+        SmallVector<EVT, 4> LoadRetVTs;
+        EVT TheLoadType = VTs[i];
+        if (retTy->isIntegerTy() &&
+            TD->getTypeAllocSizeInBits(retTy) < 32) {
+          // This is for integer types only, and specifically not for
+          // aggregates.
+          LoadRetVTs.push_back(MVT::i32);
+          TheLoadType = MVT::i32;
+        } else if (sz < 16) {
+          // If loading i1/i8 result, generate
+          //   load i8 (-> i16)
+          //   trunc i16 to i1/i8
+          LoadRetVTs.push_back(MVT::i16);
+        } else
+          LoadRetVTs.push_back(Ins[i].VT);
+        LoadRetVTs.push_back(MVT::Other);
+        LoadRetVTs.push_back(MVT::Glue);
+
+        SmallVector<SDValue, 4> LoadRetOps;
+        LoadRetOps.push_back(Chain);
+        LoadRetOps.push_back(DAG.getConstant(1, MVT::i32));
+        LoadRetOps.push_back(DAG.getConstant(resoffset, MVT::i32));
+        LoadRetOps.push_back(InFlag);
+        SDValue retval = DAG.getMemIntrinsicNode(
+            NVPTXISD::LoadParam, dl,
+            DAG.getVTList(&LoadRetVTs[0], LoadRetVTs.size()), &LoadRetOps[0],
+            LoadRetOps.size(), TheLoadType, MachinePointerInfo());
+        Chain = retval.getValue(1);
+        InFlag = retval.getValue(2);
+        SDValue Ret0 = retval.getValue(0);
+        if (needTruncate)
+          Ret0 = DAG.getNode(ISD::TRUNCATE, dl, Ins[i].VT, Ret0);
+        InVals.push_back(Ret0);
+        resoffset += sz / 8;
       }
     }
   }
+
   Chain = DAG.getCALLSEQ_END(Chain, DAG.getIntPtrConstant(uniqueCallSite, true),
                              DAG.getIntPtrConstant(uniqueCallSite + 1, true),
-                             InFlag);
+                             InFlag, dl);
   uniqueCallSite++;
 
   // set isTailCall to false for now, until we figure out how to express
@@ -810,7 +1141,7 @@ SDValue NVPTXTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 SDValue
 NVPTXTargetLowering::LowerCONCAT_VECTORS(SDValue Op, SelectionDAG &DAG) const {
   SDNode *Node = Op.getNode();
-  DebugLoc dl = Node->getDebugLoc();
+  SDLoc dl(Node);
   SmallVector<SDValue, 8> Ops;
   unsigned NumOperands = Node->getNumOperands();
   for (unsigned i = 0; i < NumOperands; ++i) {
@@ -861,17 +1192,17 @@ SDValue NVPTXTargetLowering::LowerLOAD(SDValue Op, SelectionDAG &DAG) const {
 
 // v = ld i1* addr
 //   =>
-// v1 = ld i8* addr
-// v = trunc v1 to i1
+// v1 = ld i8* addr (-> i16)
+// v = trunc i16 to i1
 SDValue NVPTXTargetLowering::LowerLOADi1(SDValue Op, SelectionDAG &DAG) const {
   SDNode *Node = Op.getNode();
   LoadSDNode *LD = cast<LoadSDNode>(Node);
-  DebugLoc dl = Node->getDebugLoc();
+  SDLoc dl(Node);
   assert(LD->getExtensionType() == ISD::NON_EXTLOAD);
   assert(Node->getValueType(0) == MVT::i1 &&
          "Custom lowering for i1 load only");
   SDValue newLD =
-      DAG.getLoad(MVT::i8, dl, LD->getChain(), LD->getBasePtr(),
+      DAG.getLoad(MVT::i16, dl, LD->getChain(), LD->getBasePtr(),
                   LD->getPointerInfo(), LD->isVolatile(), LD->isNonTemporal(),
                   LD->isInvariant(), LD->getAlignment());
   SDValue result = DAG.getNode(ISD::TRUNCATE, dl, MVT::i1, newLD);
@@ -896,7 +1227,7 @@ SDValue
 NVPTXTargetLowering::LowerSTOREVector(SDValue Op, SelectionDAG &DAG) const {
   SDNode *N = Op.getNode();
   SDValue Val = N->getOperand(1);
-  DebugLoc DL = N->getDebugLoc();
+  SDLoc DL(N);
   EVT ValVT = Val.getValueType();
 
   if (ValVT.isVector()) {
@@ -955,8 +1286,6 @@ NVPTXTargetLowering::LowerSTOREVector(SDValue Op, SelectionDAG &DAG) const {
       SDValue ExtVal = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, DL, EltVT, Val,
                                    DAG.getIntPtrConstant(i));
       if (NeedExt)
-        // ANY_EXTEND is correct here since the store will only look at the
-        // lower-order bits anyway.
         ExtVal = DAG.getNode(ISD::ANY_EXTEND, DL, MVT::i16, ExtVal);
       Ops.push_back(ExtVal);
     }
@@ -981,11 +1310,11 @@ NVPTXTargetLowering::LowerSTOREVector(SDValue Op, SelectionDAG &DAG) const {
 
 // st i1 v, addr
 //    =>
-// v1 = zxt v to i8
-// st i8, addr
+// v1 = zxt v to i16
+// st.u8 i16, addr
 SDValue NVPTXTargetLowering::LowerSTOREi1(SDValue Op, SelectionDAG &DAG) const {
   SDNode *Node = Op.getNode();
-  DebugLoc dl = Node->getDebugLoc();
+  SDLoc dl(Node);
   StoreSDNode *ST = cast<StoreSDNode>(Node);
   SDValue Tmp1 = ST->getChain();
   SDValue Tmp2 = ST->getBasePtr();
@@ -994,9 +1323,10 @@ SDValue NVPTXTargetLowering::LowerSTOREi1(SDValue Op, SelectionDAG &DAG) const {
   unsigned Alignment = ST->getAlignment();
   bool isVolatile = ST->isVolatile();
   bool isNonTemporal = ST->isNonTemporal();
-  Tmp3 = DAG.getNode(ISD::ZERO_EXTEND, dl, MVT::i8, Tmp3);
-  SDValue Result = DAG.getStore(Tmp1, dl, Tmp3, Tmp2, ST->getPointerInfo(),
-                                isVolatile, isNonTemporal, Alignment);
+  Tmp3 = DAG.getNode(ISD::ZERO_EXTEND, dl, MVT::i16, Tmp3);
+  SDValue Result = DAG.getTruncStore(Tmp1, dl, Tmp3, Tmp2,
+                                     ST->getPointerInfo(), MVT::i8, isNonTemporal,
+                                     isVolatile, Alignment);
   return Result;
 }
 
@@ -1011,7 +1341,15 @@ SDValue NVPTXTargetLowering::getExtSymb(SelectionDAG &DAG, const char *inname,
 
 SDValue
 NVPTXTargetLowering::getParamSymbol(SelectionDAG &DAG, int idx, EVT v) const {
-  return getExtSymb(DAG, ".PARAM", idx, v);
+  std::string ParamSym;
+  raw_string_ostream ParamStr(ParamSym);
+
+  ParamStr << DAG.getMachineFunction().getName() << "_param_" << idx;
+  ParamStr.flush();
+
+  std::string *SavedStr =
+    nvTM->getManagedStrPool()->getManagedString(ParamSym.c_str());
+  return DAG.getTargetExternalSymbol(SavedStr->c_str(), v);
 }
 
 SDValue NVPTXTargetLowering::getParamHelpSymbol(SelectionDAG &DAG, int idx) {
@@ -1046,19 +1384,23 @@ bool llvm::isImageOrSamplerVal(const Value *arg, const Module *context) {
 
 SDValue NVPTXTargetLowering::LowerFormalArguments(
     SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
-    const SmallVectorImpl<ISD::InputArg> &Ins, DebugLoc dl, SelectionDAG &DAG,
+    const SmallVectorImpl<ISD::InputArg> &Ins, SDLoc dl, SelectionDAG &DAG,
     SmallVectorImpl<SDValue> &InVals) const {
   MachineFunction &MF = DAG.getMachineFunction();
   const DataLayout *TD = getDataLayout();
 
   const Function *F = MF.getFunction();
   const AttributeSet &PAL = F->getAttributes();
+  const TargetLowering *TLI = nvTM->getTargetLowering();
 
   SDValue Root = DAG.getRoot();
   std::vector<SDValue> OutChains;
 
   bool isKernel = llvm::isKernelFunction(*F);
   bool isABI = (nvptxSubtarget.getSmVersion() >= 20);
+  assert(isABI && "Non-ABI compilation is not supported");
+  if (!isABI)
+    return Chain;
 
   std::vector<Type *> argTypes;
   std::vector<const Argument *> theArgs;
@@ -1067,15 +1409,20 @@ SDValue NVPTXTargetLowering::LowerFormalArguments(
     theArgs.push_back(I);
     argTypes.push_back(I->getType());
   }
-  //assert(argTypes.size() == Ins.size() &&
-  //       "Ins types and function types did not match");
+  // argTypes.size() (or theArgs.size()) and Ins.size() need not match.
+  // Ins.size() will be larger
+  //   * if there is an aggregate argument with multiple fields (each field
+  //     showing up separately in Ins)
+  //   * if there is a vector argument with more than typical vector-length
+  //     elements (generally if more than 4) where each vector element is
+  //     individually present in Ins.
+  // So a different index should be used for indexing into Ins.
+  // See similar issue in LowerCall.
+  unsigned InsIdx = 0;
 
   int idx = 0;
-  for (unsigned i = 0, e = argTypes.size(); i != e; ++i, ++idx) {
+  for (unsigned i = 0, e = theArgs.size(); i != e; ++i, ++idx, ++InsIdx) {
     Type *Ty = argTypes[i];
-    EVT ObjectVT = getValueType(Ty);
-    //assert(ObjectVT == Ins[i].VT &&
-    //       "Ins type did not match function type");
 
     // If the kernel argument is image*_t or sampler_t, convert it to
     // a i32 constant holding the parameter position. This can later
@@ -1091,142 +1438,248 @@ SDValue NVPTXTargetLowering::LowerFormalArguments(
 
     if (theArgs[i]->use_empty()) {
       // argument is dead
-      if (ObjectVT.isVector()) {
-        EVT EltVT = ObjectVT.getVectorElementType();
-        unsigned NumElts = ObjectVT.getVectorNumElements();
-        for (unsigned vi = 0; vi < NumElts; ++vi) {
-          InVals.push_back(DAG.getNode(ISD::UNDEF, dl, EltVT));
+      if (Ty->isAggregateType()) {
+        SmallVector<EVT, 16> vtparts;
+
+        ComputePTXValueVTs(*this, Ty, vtparts);
+        assert(vtparts.size() > 0 && "empty aggregate type not expected");
+        for (unsigned parti = 0, parte = vtparts.size(); parti != parte;
+             ++parti) {
+          EVT partVT = vtparts[parti];
+          InVals.push_back(DAG.getNode(ISD::UNDEF, dl, partVT));
+          ++InsIdx;
         }
-      } else {
-        InVals.push_back(DAG.getNode(ISD::UNDEF, dl, ObjectVT));
+        if (vtparts.size() > 0)
+          --InsIdx;
+        continue;
       }
+      if (Ty->isVectorTy()) {
+        EVT ObjectVT = getValueType(Ty);
+        unsigned NumRegs = TLI->getNumRegisters(F->getContext(), ObjectVT);
+        for (unsigned parti = 0; parti < NumRegs; ++parti) {
+          InVals.push_back(DAG.getNode(ISD::UNDEF, dl, Ins[InsIdx].VT));
+          ++InsIdx;
+        }
+        if (NumRegs > 0)
+          --InsIdx;
+        continue;
+      }
+      InVals.push_back(DAG.getNode(ISD::UNDEF, dl, Ins[InsIdx].VT));
       continue;
     }
 
     // In the following cases, assign a node order of "idx+1"
-    // to newly created nodes. The SDNOdes for params have to
+    // to newly created nodes. The SDNodes for params have to
     // appear in the same order as their order of appearance
     // in the original function. "idx+1" holds that order.
     if (PAL.hasAttribute(i + 1, Attribute::ByVal) == false) {
-      if (ObjectVT.isVector()) {
-        unsigned NumElts = ObjectVT.getVectorNumElements();
-        EVT EltVT = ObjectVT.getVectorElementType();
-        unsigned Offset = 0;
-        for (unsigned vi = 0; vi < NumElts; ++vi) {
-          SDValue A = getParamSymbol(DAG, idx, getPointerTy());
-          SDValue B = DAG.getIntPtrConstant(Offset);
-          SDValue Addr = DAG.getNode(ISD::ADD, dl, getPointerTy(),
-                                     //getParamSymbol(DAG, idx, EltVT),
-                                     //DAG.getConstant(Offset, getPointerTy()));
-                                     A, B);
-          Value *SrcValue = Constant::getNullValue(PointerType::get(
-              EltVT.getTypeForEVT(F->getContext()), llvm::ADDRESS_SPACE_PARAM));
-          SDValue Ld = DAG.getLoad(
-              EltVT, dl, Root, Addr, MachinePointerInfo(SrcValue), false, false,
-              false,
-              TD->getABITypeAlignment(EltVT.getTypeForEVT(F->getContext())));
-          Offset += EltVT.getStoreSizeInBits() / 8;
-          InVals.push_back(Ld);
+      if (Ty->isAggregateType()) {
+        SmallVector<EVT, 16> vtparts;
+        SmallVector<uint64_t, 16> offsets;
+
+        // NOTE: Here, we lose the ability to issue vector loads for vectors
+        // that are a part of a struct.  This should be investigated in the
+        // future.
+        ComputePTXValueVTs(*this, Ty, vtparts, &offsets, 0);
+        assert(vtparts.size() > 0 && "empty aggregate type not expected");
+        bool aggregateIsPacked = false;
+        if (StructType *STy = llvm::dyn_cast<StructType>(Ty))
+          aggregateIsPacked = STy->isPacked();
+
+        SDValue Arg = getParamSymbol(DAG, idx, getPointerTy());
+        for (unsigned parti = 0, parte = vtparts.size(); parti != parte;
+             ++parti) {
+          EVT partVT = vtparts[parti];
+          Value *srcValue = Constant::getNullValue(
+              PointerType::get(partVT.getTypeForEVT(F->getContext()),
+                               llvm::ADDRESS_SPACE_PARAM));
+          SDValue srcAddr =
+              DAG.getNode(ISD::ADD, dl, getPointerTy(), Arg,
+                          DAG.getConstant(offsets[parti], getPointerTy()));
+          unsigned partAlign =
+              aggregateIsPacked ? 1
+                                : TD->getABITypeAlignment(
+                                      partVT.getTypeForEVT(F->getContext()));
+          SDValue p;
+          if (Ins[InsIdx].VT.getSizeInBits() > partVT.getSizeInBits()) {
+            ISD::LoadExtType ExtOp = Ins[InsIdx].Flags.isSExt() ? 
+                                     ISD::SEXTLOAD : ISD::ZEXTLOAD;
+            p = DAG.getExtLoad(ExtOp, dl, Ins[InsIdx].VT, Root, srcAddr,
+                               MachinePointerInfo(srcValue), partVT, false,
+                               false, partAlign);
+          } else {
+            p = DAG.getLoad(partVT, dl, Root, srcAddr,
+                            MachinePointerInfo(srcValue), false, false, false,
+                            partAlign);
+          }
+          if (p.getNode())
+            p.getNode()->setIROrder(idx + 1);
+          InVals.push_back(p);
+          ++InsIdx;
         }
+        if (vtparts.size() > 0)
+          --InsIdx;
         continue;
       }
+      if (Ty->isVectorTy()) {
+        EVT ObjectVT = getValueType(Ty);
+        SDValue Arg = getParamSymbol(DAG, idx, getPointerTy());
+        unsigned NumElts = ObjectVT.getVectorNumElements();
+        assert(TLI->getNumRegisters(F->getContext(), ObjectVT) == NumElts &&
+               "Vector was not scalarized");
+        unsigned Ofst = 0;
+        EVT EltVT = ObjectVT.getVectorElementType();
 
-      // A plain scalar.
-      if (isABI || isKernel) {
-        // If ABI, load from the param symbol
-        SDValue Arg = getParamSymbol(DAG, idx);
-        // Conjure up a value that we can get the address space from.
-        // FIXME: Using a constant here is a hack.
-        Value *srcValue = Constant::getNullValue(
-            PointerType::get(ObjectVT.getTypeForEVT(F->getContext()),
-                             llvm::ADDRESS_SPACE_PARAM));
-        SDValue p = DAG.getLoad(
-            ObjectVT, dl, Root, Arg, MachinePointerInfo(srcValue), false, false,
-            false,
-            TD->getABITypeAlignment(ObjectVT.getTypeForEVT(F->getContext())));
-        if (p.getNode())
-          DAG.AssignOrdering(p.getNode(), idx + 1);
-        InVals.push_back(p);
-      } else {
-        // If no ABI, just move the param symbol
-        SDValue Arg = getParamSymbol(DAG, idx, ObjectVT);
-        SDValue p = DAG.getNode(NVPTXISD::MoveParam, dl, ObjectVT, Arg);
-        if (p.getNode())
-          DAG.AssignOrdering(p.getNode(), idx + 1);
-        InVals.push_back(p);
+        // V1 load
+        // f32 = load ...
+        if (NumElts == 1) {
+          // We only have one element, so just directly load it
+          Value *SrcValue = Constant::getNullValue(PointerType::get(
+              EltVT.getTypeForEVT(F->getContext()), llvm::ADDRESS_SPACE_PARAM));
+          SDValue SrcAddr = DAG.getNode(ISD::ADD, dl, getPointerTy(), Arg,
+                                        DAG.getConstant(Ofst, getPointerTy()));
+          SDValue P = DAG.getLoad(
+              EltVT, dl, Root, SrcAddr, MachinePointerInfo(SrcValue), false,
+              false, true,
+              TD->getABITypeAlignment(EltVT.getTypeForEVT(F->getContext())));
+          if (P.getNode())
+            P.getNode()->setIROrder(idx + 1);
+
+          if (Ins[InsIdx].VT.getSizeInBits() > EltVT.getSizeInBits())
+            P = DAG.getNode(ISD::ANY_EXTEND, dl, Ins[InsIdx].VT, P);
+          InVals.push_back(P);
+          Ofst += TD->getTypeAllocSize(EltVT.getTypeForEVT(F->getContext()));
+          ++InsIdx;
+        } else if (NumElts == 2) {
+          // V2 load
+          // f32,f32 = load ...
+          EVT VecVT = EVT::getVectorVT(F->getContext(), EltVT, 2);
+          Value *SrcValue = Constant::getNullValue(PointerType::get(
+              VecVT.getTypeForEVT(F->getContext()), llvm::ADDRESS_SPACE_PARAM));
+          SDValue SrcAddr = DAG.getNode(ISD::ADD, dl, getPointerTy(), Arg,
+                                        DAG.getConstant(Ofst, getPointerTy()));
+          SDValue P = DAG.getLoad(
+              VecVT, dl, Root, SrcAddr, MachinePointerInfo(SrcValue), false,
+              false, true,
+              TD->getABITypeAlignment(VecVT.getTypeForEVT(F->getContext())));
+          if (P.getNode())
+            P.getNode()->setIROrder(idx + 1);
+
+          SDValue Elt0 = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl, EltVT, P,
+                                     DAG.getIntPtrConstant(0));
+          SDValue Elt1 = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl, EltVT, P,
+                                     DAG.getIntPtrConstant(1));
+
+          if (Ins[InsIdx].VT.getSizeInBits() > EltVT.getSizeInBits()) {
+            Elt0 = DAG.getNode(ISD::ANY_EXTEND, dl, Ins[InsIdx].VT, Elt0);
+            Elt1 = DAG.getNode(ISD::ANY_EXTEND, dl, Ins[InsIdx].VT, Elt1);
+          }
+
+          InVals.push_back(Elt0);
+          InVals.push_back(Elt1);
+          Ofst += TD->getTypeAllocSize(VecVT.getTypeForEVT(F->getContext()));
+          InsIdx += 2;
+        } else {
+          // V4 loads
+          // We have at least 4 elements (<3 x Ty> expands to 4 elements) and
+          // the
+          // vector will be expanded to a power of 2 elements, so we know we can
+          // always round up to the next multiple of 4 when creating the vector
+          // loads.
+          // e.g.  4 elem => 1 ld.v4
+          //       6 elem => 2 ld.v4
+          //       8 elem => 2 ld.v4
+          //      11 elem => 3 ld.v4
+          unsigned VecSize = 4;
+          if (EltVT.getSizeInBits() == 64) {
+            VecSize = 2;
+          }
+          EVT VecVT = EVT::getVectorVT(F->getContext(), EltVT, VecSize);
+          for (unsigned i = 0; i < NumElts; i += VecSize) {
+            Value *SrcValue = Constant::getNullValue(
+                PointerType::get(VecVT.getTypeForEVT(F->getContext()),
+                                 llvm::ADDRESS_SPACE_PARAM));
+            SDValue SrcAddr =
+                DAG.getNode(ISD::ADD, dl, getPointerTy(), Arg,
+                            DAG.getConstant(Ofst, getPointerTy()));
+            SDValue P = DAG.getLoad(
+                VecVT, dl, Root, SrcAddr, MachinePointerInfo(SrcValue), false,
+                false, true,
+                TD->getABITypeAlignment(VecVT.getTypeForEVT(F->getContext())));
+            if (P.getNode())
+              P.getNode()->setIROrder(idx + 1);
+
+            for (unsigned j = 0; j < VecSize; ++j) {
+              if (i + j >= NumElts)
+                break;
+              SDValue Elt = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl, EltVT, P,
+                                        DAG.getIntPtrConstant(j));
+              if (Ins[InsIdx].VT.getSizeInBits() > EltVT.getSizeInBits())
+                Elt = DAG.getNode(ISD::ANY_EXTEND, dl, Ins[InsIdx].VT, Elt);
+              InVals.push_back(Elt);
+            }
+            Ofst += TD->getTypeAllocSize(VecVT.getTypeForEVT(F->getContext()));
+          }
+          InsIdx += NumElts;
+        }
+
+        if (NumElts > 0)
+          --InsIdx;
+        continue;
       }
+      // A plain scalar.
+      EVT ObjectVT = getValueType(Ty);
+      // If ABI, load from the param symbol
+      SDValue Arg = getParamSymbol(DAG, idx, getPointerTy());
+      Value *srcValue = Constant::getNullValue(PointerType::get(
+          ObjectVT.getTypeForEVT(F->getContext()), llvm::ADDRESS_SPACE_PARAM));
+      SDValue p;
+       if (ObjectVT.getSizeInBits() < Ins[InsIdx].VT.getSizeInBits()) {
+        ISD::LoadExtType ExtOp = Ins[InsIdx].Flags.isSExt() ? 
+                                       ISD::SEXTLOAD : ISD::ZEXTLOAD;
+        p = DAG.getExtLoad(ExtOp, dl, Ins[InsIdx].VT, Root, Arg,
+                           MachinePointerInfo(srcValue), ObjectVT, false, false,
+        TD->getABITypeAlignment(ObjectVT.getTypeForEVT(F->getContext())));
+      } else {
+        p = DAG.getLoad(Ins[InsIdx].VT, dl, Root, Arg,
+                        MachinePointerInfo(srcValue), false, false, false,
+        TD->getABITypeAlignment(ObjectVT.getTypeForEVT(F->getContext())));
+      }
+      if (p.getNode())
+        p.getNode()->setIROrder(idx + 1);
+      InVals.push_back(p);
       continue;
     }
 
     // Param has ByVal attribute
-    if (isABI || isKernel) {
-      // Return MoveParam(param symbol).
-      // Ideally, the param symbol can be returned directly,
-      // but when SDNode builder decides to use it in a CopyToReg(),
-      // machine instruction fails because TargetExternalSymbol
-      // (not lowered) is target dependent, and CopyToReg assumes
-      // the source is lowered.
-      SDValue Arg = getParamSymbol(DAG, idx, getPointerTy());
-      SDValue p = DAG.getNode(NVPTXISD::MoveParam, dl, ObjectVT, Arg);
-      if (p.getNode())
-        DAG.AssignOrdering(p.getNode(), idx + 1);
-      if (isKernel)
-        InVals.push_back(p);
-      else {
-        SDValue p2 = DAG.getNode(
-            ISD::INTRINSIC_WO_CHAIN, dl, ObjectVT,
-            DAG.getConstant(Intrinsic::nvvm_ptr_local_to_gen, MVT::i32), p);
-        InVals.push_back(p2);
-      }
-    } else {
-      // Have to move a set of param symbols to registers and
-      // store them locally and return the local pointer in InVals
-      const PointerType *elemPtrType = dyn_cast<PointerType>(argTypes[i]);
-      assert(elemPtrType && "Byval parameter should be a pointer type");
-      Type *elemType = elemPtrType->getElementType();
-      // Compute the constituent parts
-      SmallVector<EVT, 16> vtparts;
-      SmallVector<uint64_t, 16> offsets;
-      ComputeValueVTs(*this, elemType, vtparts, &offsets, 0);
-      unsigned totalsize = 0;
-      for (unsigned j = 0, je = vtparts.size(); j != je; ++j)
-        totalsize += vtparts[j].getStoreSizeInBits();
-      SDValue localcopy = DAG.getFrameIndex(
-          MF.getFrameInfo()->CreateStackObject(totalsize / 8, 16, false),
-          getPointerTy());
-      unsigned sizesofar = 0;
-      std::vector<SDValue> theChains;
-      for (unsigned j = 0, je = vtparts.size(); j != je; ++j) {
-        unsigned numElems = 1;
-        if (vtparts[j].isVector())
-          numElems = vtparts[j].getVectorNumElements();
-        for (unsigned k = 0, ke = numElems; k != ke; ++k) {
-          EVT tmpvt = vtparts[j];
-          if (tmpvt.isVector())
-            tmpvt = tmpvt.getVectorElementType();
-          SDValue arg = DAG.getNode(NVPTXISD::MoveParam, dl, tmpvt,
-                                    getParamSymbol(DAG, idx, tmpvt));
-          SDValue addr =
-              DAG.getNode(ISD::ADD, dl, getPointerTy(), localcopy,
-                          DAG.getConstant(sizesofar, getPointerTy()));
-          theChains.push_back(DAG.getStore(
-              Chain, dl, arg, addr, MachinePointerInfo(), false, false, 0));
-          sizesofar += tmpvt.getStoreSizeInBits() / 8;
-          ++idx;
-        }
-      }
-      --idx;
-      Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, &theChains[0],
-                          theChains.size());
-      InVals.push_back(localcopy);
+    // Return MoveParam(param symbol).
+    // Ideally, the param symbol can be returned directly,
+    // but when SDNode builder decides to use it in a CopyToReg(),
+    // machine instruction fails because TargetExternalSymbol
+    // (not lowered) is target dependent, and CopyToReg assumes
+    // the source is lowered.
+    EVT ObjectVT = getValueType(Ty);
+    assert(ObjectVT == Ins[InsIdx].VT &&
+           "Ins type did not match function type");
+    SDValue Arg = getParamSymbol(DAG, idx, getPointerTy());
+    SDValue p = DAG.getNode(NVPTXISD::MoveParam, dl, ObjectVT, Arg);
+    if (p.getNode())
+      p.getNode()->setIROrder(idx + 1);
+    if (isKernel)
+      InVals.push_back(p);
+    else {
+      SDValue p2 = DAG.getNode(
+          ISD::INTRINSIC_WO_CHAIN, dl, ObjectVT,
+          DAG.getConstant(Intrinsic::nvvm_ptr_local_to_gen, MVT::i32), p);
+      InVals.push_back(p2);
     }
   }
 
   // Clang will check explicit VarArg and issue error if any. However, Clang
   // will let code with
-  // implicit var arg like f() pass.
+  // implicit var arg like f() pass. See bug 617733.
   // We treat this case as if the arg list is empty.
-  //if (F.isVarArg()) {
+  // if (F.isVarArg()) {
   // assert(0 && "VarArg not supported yet!");
   //}
 
@@ -1237,42 +1690,184 @@ SDValue NVPTXTargetLowering::LowerFormalArguments(
   return Chain;
 }
 
-SDValue NVPTXTargetLowering::LowerReturn(
-    SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
-    const SmallVectorImpl<ISD::OutputArg> &Outs,
-    const SmallVectorImpl<SDValue> &OutVals, DebugLoc dl,
-    SelectionDAG &DAG) const {
+
+SDValue
+NVPTXTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
+                                 bool isVarArg,
+                                 const SmallVectorImpl<ISD::OutputArg> &Outs,
+                                 const SmallVectorImpl<SDValue> &OutVals,
+                                 SDLoc dl, SelectionDAG &DAG) const {
+  MachineFunction &MF = DAG.getMachineFunction();
+  const Function *F = MF.getFunction();
+  Type *RetTy = F->getReturnType();
+  const DataLayout *TD = getDataLayout();
 
   bool isABI = (nvptxSubtarget.getSmVersion() >= 20);
+  assert(isABI && "Non-ABI compilation is not supported");
+  if (!isABI)
+    return Chain;
 
-  unsigned sizesofar = 0;
-  unsigned idx = 0;
-  for (unsigned i = 0, e = Outs.size(); i != e; ++i) {
-    SDValue theVal = OutVals[i];
-    EVT theValType = theVal.getValueType();
-    unsigned numElems = 1;
-    if (theValType.isVector())
-      numElems = theValType.getVectorNumElements();
-    for (unsigned j = 0, je = numElems; j != je; ++j) {
-      SDValue tmpval = theVal;
-      if (theValType.isVector())
-        tmpval = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl,
-                             theValType.getVectorElementType(), tmpval,
-                             DAG.getIntPtrConstant(j));
-      Chain = DAG.getNode(
-          isABI ? NVPTXISD::StoreRetval : NVPTXISD::MoveToRetval, dl,
-          MVT::Other, Chain, DAG.getConstant(isABI ? sizesofar : idx, MVT::i32),
-          tmpval);
-      if (theValType.isVector())
-        sizesofar += theValType.getVectorElementType().getStoreSizeInBits() / 8;
-      else
-        sizesofar += theValType.getStoreSizeInBits() / 8;
-      ++idx;
+  if (VectorType *VTy = dyn_cast<VectorType>(RetTy)) {
+    // If we have a vector type, the OutVals array will be the scalarized
+    // components and we have combine them into 1 or more vector stores.
+    unsigned NumElts = VTy->getNumElements();
+    assert(NumElts == Outs.size() && "Bad scalarization of return value");
+
+    // const_cast can be removed in later LLVM versions
+    EVT EltVT = getValueType(RetTy).getVectorElementType();
+    bool NeedExtend = false;
+    if (EltVT.getSizeInBits() < 16)
+      NeedExtend = true;
+
+    // V1 store
+    if (NumElts == 1) {
+      SDValue StoreVal = OutVals[0];
+      // We only have one element, so just directly store it
+      if (NeedExtend)
+        StoreVal = DAG.getNode(ISD::ZERO_EXTEND, dl, MVT::i16, StoreVal);
+      SDValue Ops[] = { Chain, DAG.getConstant(0, MVT::i32), StoreVal };
+      Chain = DAG.getMemIntrinsicNode(NVPTXISD::StoreRetval, dl,
+                                      DAG.getVTList(MVT::Other), &Ops[0], 3,
+                                      EltVT, MachinePointerInfo());
+
+    } else if (NumElts == 2) {
+      // V2 store
+      SDValue StoreVal0 = OutVals[0];
+      SDValue StoreVal1 = OutVals[1];
+
+      if (NeedExtend) {
+        StoreVal0 = DAG.getNode(ISD::ZERO_EXTEND, dl, MVT::i16, StoreVal0);
+        StoreVal1 = DAG.getNode(ISD::ZERO_EXTEND, dl, MVT::i16, StoreVal1);
+      }
+
+      SDValue Ops[] = { Chain, DAG.getConstant(0, MVT::i32), StoreVal0,
+                        StoreVal1 };
+      Chain = DAG.getMemIntrinsicNode(NVPTXISD::StoreRetvalV2, dl,
+                                      DAG.getVTList(MVT::Other), &Ops[0], 4,
+                                      EltVT, MachinePointerInfo());
+    } else {
+      // V4 stores
+      // We have at least 4 elements (<3 x Ty> expands to 4 elements) and the
+      // vector will be expanded to a power of 2 elements, so we know we can
+      // always round up to the next multiple of 4 when creating the vector
+      // stores.
+      // e.g.  4 elem => 1 st.v4
+      //       6 elem => 2 st.v4
+      //       8 elem => 2 st.v4
+      //      11 elem => 3 st.v4
+
+      unsigned VecSize = 4;
+      if (OutVals[0].getValueType().getSizeInBits() == 64)
+        VecSize = 2;
+
+      unsigned Offset = 0;
+
+      EVT VecVT =
+          EVT::getVectorVT(F->getContext(), OutVals[0].getValueType(), VecSize);
+      unsigned PerStoreOffset =
+          TD->getTypeAllocSize(VecVT.getTypeForEVT(F->getContext()));
+
+      for (unsigned i = 0; i < NumElts; i += VecSize) {
+        // Get values
+        SDValue StoreVal;
+        SmallVector<SDValue, 8> Ops;
+        Ops.push_back(Chain);
+        Ops.push_back(DAG.getConstant(Offset, MVT::i32));
+        unsigned Opc = NVPTXISD::StoreRetvalV2;
+        EVT ExtendedVT = (NeedExtend) ? MVT::i16 : OutVals[0].getValueType();
+
+        StoreVal = OutVals[i];
+        if (NeedExtend)
+          StoreVal = DAG.getNode(ISD::ZERO_EXTEND, dl, ExtendedVT, StoreVal);
+        Ops.push_back(StoreVal);
+
+        if (i + 1 < NumElts) {
+          StoreVal = OutVals[i + 1];
+          if (NeedExtend)
+            StoreVal = DAG.getNode(ISD::ZERO_EXTEND, dl, ExtendedVT, StoreVal);
+        } else {
+          StoreVal = DAG.getUNDEF(ExtendedVT);
+        }
+        Ops.push_back(StoreVal);
+
+        if (VecSize == 4) {
+          Opc = NVPTXISD::StoreRetvalV4;
+          if (i + 2 < NumElts) {
+            StoreVal = OutVals[i + 2];
+            if (NeedExtend)
+              StoreVal =
+                  DAG.getNode(ISD::ZERO_EXTEND, dl, ExtendedVT, StoreVal);
+          } else {
+            StoreVal = DAG.getUNDEF(ExtendedVT);
+          }
+          Ops.push_back(StoreVal);
+
+          if (i + 3 < NumElts) {
+            StoreVal = OutVals[i + 3];
+            if (NeedExtend)
+              StoreVal =
+                  DAG.getNode(ISD::ZERO_EXTEND, dl, ExtendedVT, StoreVal);
+          } else {
+            StoreVal = DAG.getUNDEF(ExtendedVT);
+          }
+          Ops.push_back(StoreVal);
+        }
+
+        // Chain = DAG.getNode(Opc, dl, MVT::Other, &Ops[0], Ops.size());
+        Chain =
+            DAG.getMemIntrinsicNode(Opc, dl, DAG.getVTList(MVT::Other), &Ops[0],
+                                    Ops.size(), EltVT, MachinePointerInfo());
+        Offset += PerStoreOffset;
+      }
+    }
+  } else {
+    SmallVector<EVT, 16> ValVTs;
+    // const_cast is necessary since we are still using an LLVM version from
+    // before the type system re-write.
+    ComputePTXValueVTs(*this, RetTy, ValVTs);
+    assert(ValVTs.size() == OutVals.size() && "Bad return value decomposition");
+
+    unsigned SizeSoFar = 0;
+    for (unsigned i = 0, e = Outs.size(); i != e; ++i) {
+      SDValue theVal = OutVals[i];
+      EVT TheValType = theVal.getValueType();
+      unsigned numElems = 1;
+      if (TheValType.isVector())
+        numElems = TheValType.getVectorNumElements();
+      for (unsigned j = 0, je = numElems; j != je; ++j) {
+        SDValue TmpVal = theVal;
+        if (TheValType.isVector())
+          TmpVal = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl,
+                               TheValType.getVectorElementType(), TmpVal,
+                               DAG.getIntPtrConstant(j));
+        EVT TheStoreType = ValVTs[i];
+        if (RetTy->isIntegerTy() &&
+            TD->getTypeAllocSizeInBits(RetTy) < 32) {
+          // The following zero-extension is for integer types only, and
+          // specifically not for aggregates.
+          TmpVal = DAG.getNode(ISD::ZERO_EXTEND, dl, MVT::i32, TmpVal);
+          TheStoreType = MVT::i32;
+        }
+        else if (TmpVal.getValueType().getSizeInBits() < 16)
+          TmpVal = DAG.getNode(ISD::ANY_EXTEND, dl, MVT::i16, TmpVal);
+
+        SDValue Ops[] = { Chain, DAG.getConstant(SizeSoFar, MVT::i32), TmpVal };
+        Chain = DAG.getMemIntrinsicNode(NVPTXISD::StoreRetval, dl,
+                                        DAG.getVTList(MVT::Other), &Ops[0],
+                                        3, TheStoreType,
+                                        MachinePointerInfo());
+        if(TheValType.isVector())
+          SizeSoFar += 
+            TheStoreType.getVectorElementType().getStoreSizeInBits() / 8;
+        else
+          SizeSoFar += TheStoreType.getStoreSizeInBits()/8;
+      }
     }
   }
 
   return DAG.getNode(NVPTXISD::RET_FLAG, dl, MVT::Other, Chain);
 }
+
 
 void NVPTXTargetLowering::LowerAsmOperandForConstraint(
     SDValue Op, std::string &Constraint, std::vector<SDValue> &Ops,
@@ -1337,9 +1932,9 @@ bool NVPTXTargetLowering::getTgtMemIntrinsic(
 
     Info.opc = ISD::INTRINSIC_W_CHAIN;
     if (Intrinsic == Intrinsic::nvvm_ldu_global_i)
-      Info.memVT = MVT::i32;
+      Info.memVT = getValueType(I.getType());
     else if (Intrinsic == Intrinsic::nvvm_ldu_global_p)
-      Info.memVT = getPointerTy();
+      Info.memVT = getValueType(I.getType());
     else
       Info.memVT = MVT::f32;
     Info.ptrVal = I.getArgOperand(0);
@@ -1420,11 +2015,11 @@ NVPTXTargetLowering::getConstraintType(const std::string &Constraint) const {
 
 std::pair<unsigned, const TargetRegisterClass *>
 NVPTXTargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
-                                                  EVT VT) const {
+                                                  MVT VT) const {
   if (Constraint.size() == 1) {
     switch (Constraint[0]) {
     case 'c':
-      return std::make_pair(0U, &NVPTX::Int8RegsRegClass);
+      return std::make_pair(0U, &NVPTX::Int16RegsRegClass);
     case 'h':
       return std::make_pair(0U, &NVPTX::Int16RegsRegClass);
     case 'r':
@@ -1450,7 +2045,7 @@ unsigned NVPTXTargetLowering::getFunctionAlignment(const Function *) const {
 static void ReplaceLoadVector(SDNode *N, SelectionDAG &DAG,
                               SmallVectorImpl<SDValue> &Results) {
   EVT ResVT = N->getValueType(0);
-  DebugLoc DL = N->getDebugLoc();
+  SDLoc DL(N);
 
   assert(ResVT.isVector() && "Vector load must have vector type");
 
@@ -1543,7 +2138,7 @@ static void ReplaceINTRINSIC_W_CHAIN(SDNode *N, SelectionDAG &DAG,
                                      SmallVectorImpl<SDValue> &Results) {
   SDValue Chain = N->getOperand(0);
   SDValue Intrin = N->getOperand(1);
-  DebugLoc DL = N->getDebugLoc();
+  SDLoc DL(N);
 
   // Get the intrinsic ID
   unsigned IntrinNo = cast<ConstantSDNode>(Intrin.getNode())->getZExtValue();
@@ -1564,7 +2159,8 @@ static void ReplaceINTRINSIC_W_CHAIN(SDNode *N, SelectionDAG &DAG,
       unsigned NumElts = ResVT.getVectorNumElements();
       EVT EltVT = ResVT.getVectorElementType();
 
-      // Since LDU/LDG are target nodes, we cannot rely on DAG type legalization.
+      // Since LDU/LDG are target nodes, we cannot rely on DAG type
+      // legalization.
       // Therefore, we must ensure the type is legal.  For i1 and i8, we set the
       // loaded type to i16 and propogate the "real" type as the memory type.
       bool NeedTrunc = false;
@@ -1623,7 +2219,7 @@ static void ReplaceINTRINSIC_W_CHAIN(SDNode *N, SelectionDAG &DAG,
 
       OtherOps.push_back(Chain); // Chain
                                  // Skip operand 1 (intrinsic ID)
-                                 // Others
+      // Others
       for (unsigned i = 2, e = N->getNumOperands(); i != e; ++i)
         OtherOps.push_back(N->getOperand(i));
 
@@ -1671,7 +2267,8 @@ static void ReplaceINTRINSIC_W_CHAIN(SDNode *N, SelectionDAG &DAG,
           DAG.getMemIntrinsicNode(ISD::INTRINSIC_W_CHAIN, DL, LdResVTs, &Ops[0],
                                   Ops.size(), MVT::i8, MemSD->getMemOperand());
 
-      Results.push_back(NewLD.getValue(0));
+      Results.push_back(DAG.getNode(ISD::TRUNCATE, DL, MVT::i8,
+                                    NewLD.getValue(0)));
       Results.push_back(NewLD.getValue(1));
     }
   }
@@ -1690,4 +2287,30 @@ void NVPTXTargetLowering::ReplaceNodeResults(
     ReplaceINTRINSIC_W_CHAIN(N, DAG, Results);
     return;
   }
+}
+
+// Pin NVPTXSection's and NVPTXTargetObjectFile's vtables to this file.
+void NVPTXSection::anchor() {}
+
+NVPTXTargetObjectFile::~NVPTXTargetObjectFile() {
+  delete TextSection;
+  delete DataSection;
+  delete BSSSection;
+  delete ReadOnlySection;
+
+  delete StaticCtorSection;
+  delete StaticDtorSection;
+  delete LSDASection;
+  delete EHFrameSection;
+  delete DwarfAbbrevSection;
+  delete DwarfInfoSection;
+  delete DwarfLineSection;
+  delete DwarfFrameSection;
+  delete DwarfPubTypesSection;
+  delete DwarfDebugInlineSection;
+  delete DwarfStrSection;
+  delete DwarfLocSection;
+  delete DwarfARangesSection;
+  delete DwarfRangesSection;
+  delete DwarfMacroInfoSection;
 }

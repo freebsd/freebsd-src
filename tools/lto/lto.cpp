@@ -13,14 +13,70 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm-c/lto.h"
-#include "LTOCodeGenerator.h"
-#include "LTOModule.h"
+#include "llvm/CodeGen/CommandFlags.h"
+#include "llvm/LTO/LTOCodeGenerator.h"
+#include "llvm/LTO/LTOModule.h"
 #include "llvm-c/Core.h"
+#include "llvm-c/Target.h"
 
+// extra command-line flags needed for LTOCodeGenerator
+static cl::opt<bool>
+DisableOpt("disable-opt", cl::init(false),
+  cl::desc("Do not run any optimization passes"));
+
+static cl::opt<bool>
+DisableInline("disable-inlining", cl::init(false),
+  cl::desc("Do not run the inliner pass"));
+
+static cl::opt<bool>
+DisableGVNLoadPRE("disable-gvn-loadpre", cl::init(false),
+  cl::desc("Do not run the GVN load PRE pass"));
 
 // Holds most recent error string.
 // *** Not thread safe ***
 static std::string sLastErrorString;
+
+// Holds the initialization state of the LTO module.
+// *** Not thread safe ***
+static bool initialized = false;
+
+// Holds the command-line option parsing state of the LTO module.
+static bool parsedOptions = false;
+
+// Initialize the configured targets if they have not been initialized.
+static void lto_initialize() {
+  if (!initialized) {
+    LLVMInitializeAllTargetInfos();
+    LLVMInitializeAllTargets();
+    LLVMInitializeAllTargetMCs();
+    LLVMInitializeAllAsmParsers();
+    LLVMInitializeAllAsmPrinters();
+    LLVMInitializeAllDisassemblers();
+    initialized = true;
+  }
+}
+
+static void lto_set_target_options(llvm::TargetOptions &Options) {
+  Options.LessPreciseFPMADOption = EnableFPMAD;
+  Options.NoFramePointerElim = DisableFPElim;
+  Options.AllowFPOpFusion = FuseFPOps;
+  Options.UnsafeFPMath = EnableUnsafeFPMath;
+  Options.NoInfsFPMath = EnableNoInfsFPMath;
+  Options.NoNaNsFPMath = EnableNoNaNsFPMath;
+  Options.HonorSignDependentRoundingFPMathOption =
+    EnableHonorSignDependentRoundingFPMath;
+  Options.UseSoftFloat = GenerateSoftFloatCalls;
+  if (FloatABIForCalls != llvm::FloatABI::Default)
+    Options.FloatABIType = FloatABIForCalls;
+  Options.NoZerosInBSS = DontPlaceZerosInBSS;
+  Options.GuaranteedTailCallOpt = EnableGuaranteedTailCallOpt;
+  Options.DisableTailCalls = DisableTailCalls;
+  Options.StackAlignmentOverride = OverrideStackAlignment;
+  Options.TrapFuncName = TrapFuncName;
+  Options.PositionIndependentExecutable = EnablePIE;
+  Options.EnableSegmentedStacks = SegmentedStacks;
+  Options.UseInitArray = UseInitArray;
+}
 
 /// lto_get_version - Returns a printable string.
 extern const char* lto_get_version() {
@@ -63,13 +119,19 @@ lto_module_is_object_file_in_memory_for_target(const void* mem,
 /// lto_module_create - Loads an object file from disk. Returns NULL on error
 /// (check lto_get_error_message() for details).
 lto_module_t lto_module_create(const char* path) {
-  return LTOModule::makeLTOModule(path, sLastErrorString);
+  lto_initialize();
+  llvm::TargetOptions Options;
+  lto_set_target_options(Options);
+  return LTOModule::makeLTOModule(path, Options, sLastErrorString);
 }
 
 /// lto_module_create_from_fd - Loads an object file from disk. Returns NULL on
 /// error (check lto_get_error_message() for details).
 lto_module_t lto_module_create_from_fd(int fd, const char *path, size_t size) {
-  return LTOModule::makeLTOModule(fd, path, size, sLastErrorString);
+  lto_initialize();
+  llvm::TargetOptions Options;
+  lto_set_target_options(Options);
+  return LTOModule::makeLTOModule(fd, path, size, Options, sLastErrorString);
 }
 
 /// lto_module_create_from_fd_at_offset - Loads an object file from disk.
@@ -78,14 +140,20 @@ lto_module_t lto_module_create_from_fd_at_offset(int fd, const char *path,
                                                  size_t file_size,
                                                  size_t map_size,
                                                  off_t offset) {
-  return LTOModule::makeLTOModule(fd, path, file_size, map_size,
-                                  offset, sLastErrorString);
+  lto_initialize();
+  llvm::TargetOptions Options;
+  lto_set_target_options(Options);
+  return LTOModule::makeLTOModule(fd, path, map_size, offset, Options,
+                                  sLastErrorString);
 }
 
 /// lto_module_create_from_memory - Loads an object file from memory. Returns
 /// NULL on error (check lto_get_error_message() for details).
 lto_module_t lto_module_create_from_memory(const void* mem, size_t length) {
-  return LTOModule::makeLTOModule(mem, length, sLastErrorString);
+  lto_initialize();
+  llvm::TargetOptions Options;
+  lto_set_target_options(Options);
+  return LTOModule::makeLTOModule(mem, length, Options, sLastErrorString);
 }
 
 /// lto_module_dispose - Frees all memory for a module. Upon return the
@@ -128,7 +196,15 @@ lto_symbol_attributes lto_module_get_symbol_attribute(lto_module_t mod,
 /// lto_codegen_create - Instantiates a code generator. Returns NULL if there
 /// is an error.
 lto_code_gen_t lto_codegen_create(void) {
-  return new LTOCodeGenerator();
+  lto_initialize();
+
+  TargetOptions Options;
+  lto_set_target_options(Options);
+
+  LTOCodeGenerator *CodeGen = new LTOCodeGenerator();
+  if (CodeGen)
+    CodeGen->setTargetOptions(Options);
+  return CodeGen;
 }
 
 /// lto_codegen_dispose - Frees all memory for a code generator. Upon return the
@@ -141,20 +217,22 @@ void lto_codegen_dispose(lto_code_gen_t cg) {
 /// which code will be generated. Returns true on error (check
 /// lto_get_error_message() for details).
 bool lto_codegen_add_module(lto_code_gen_t cg, lto_module_t mod) {
-  return cg->addModule(mod, sLastErrorString);
+  return !cg->addModule(mod, sLastErrorString);
 }
 
 /// lto_codegen_set_debug_model - Sets what if any format of debug info should
 /// be generated. Returns true on error (check lto_get_error_message() for
 /// details).
 bool lto_codegen_set_debug_model(lto_code_gen_t cg, lto_debug_model debug) {
-  return cg->setDebugInfo(debug, sLastErrorString);
+  cg->setDebugInfo(debug);
+  return false;
 }
 
 /// lto_codegen_set_pic_model - Sets what code model to generated. Returns true
 /// on error (check lto_get_error_message() for details).
 bool lto_codegen_set_pic_model(lto_code_gen_t cg, lto_codegen_model model) {
-  return cg->setCodePICModel(model, sLastErrorString);
+  cg->setCodePICModel(model);
+  return false;
 }
 
 /// lto_codegen_set_cpu - Sets the cpu to generate code for.
@@ -186,7 +264,11 @@ void lto_codegen_add_must_preserve_symbol(lto_code_gen_t cg,
 /// that contains the merged contents of all modules added so far. Returns true
 /// on error (check lto_get_error_message() for details).
 bool lto_codegen_write_merged_modules(lto_code_gen_t cg, const char *path) {
-  return cg->writeMergedModules(path, sLastErrorString);
+  if (!parsedOptions) {
+    cg->parseCodeGenDebugOptions();
+    parsedOptions = true;
+  }
+  return !cg->writeMergedModules(path, sLastErrorString);
 }
 
 /// lto_codegen_compile - Generates code for all added modules into one native
@@ -196,14 +278,24 @@ bool lto_codegen_write_merged_modules(lto_code_gen_t cg, const char *path) {
 /// lto_codegen_compile() is called again. On failure, returns NULL (check
 /// lto_get_error_message() for details).
 const void *lto_codegen_compile(lto_code_gen_t cg, size_t *length) {
-  return cg->compile(length, sLastErrorString);
+  if (!parsedOptions) {
+    cg->parseCodeGenDebugOptions();
+    parsedOptions = true;
+  }
+  return cg->compile(length, DisableOpt, DisableInline, DisableGVNLoadPRE,
+                     sLastErrorString);
 }
 
 /// lto_codegen_compile_to_file - Generates code for all added modules into one
 /// native object file. The name of the file is written to name. Returns true on
 /// error.
 bool lto_codegen_compile_to_file(lto_code_gen_t cg, const char **name) {
-  return cg->compile_to_file(name, sLastErrorString);
+  if (!parsedOptions) {
+    cg->parseCodeGenDebugOptions();
+    parsedOptions = true;
+  }
+  return !cg->compile_to_file(name, DisableOpt, DisableInline, DisableGVNLoadPRE,
+                              sLastErrorString);
 }
 
 /// lto_codegen_debug_options - Used to pass extra options to the code

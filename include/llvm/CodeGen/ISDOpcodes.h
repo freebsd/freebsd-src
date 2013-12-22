@@ -77,18 +77,6 @@ namespace ISD {
     /// adjustment during unwind.
     FRAME_TO_ARGS_OFFSET,
 
-    /// RESULT, OUTCHAIN = EXCEPTIONADDR(INCHAIN) - This node represents the
-    /// address of the exception block on entry to an landing pad block.
-    EXCEPTIONADDR,
-
-    /// RESULT, OUTCHAIN = LSDAADDR(INCHAIN) - This node represents the
-    /// address of the Language Specific Data Area for the enclosing function.
-    LSDAADDR,
-
-    /// RESULT, OUTCHAIN = EHSELECTION(INCHAIN, EXCEPTION) - This node
-    /// represents the selection index of the exception thrown.
-    EHSELECTION,
-
     /// OUTCHAIN = EH_RETURN(INCHAIN, OFFSET, HANDLER) - This node represents
     /// 'eh_return' gcc dwarf builtin, which is used to return from
     /// exception. The general meaning is: adjust stack by OFFSET and pass
@@ -431,6 +419,10 @@ namespace ISD {
     /// getNode().
     BITCAST,
 
+    /// ADDRSPACECAST - This operator converts between pointers of different
+    /// address spaces.
+    ADDRSPACECAST,
+
     /// CONVERT_RNDSAT - This operator is used to support various conversions
     /// between various types (float, signed, unsigned and vectors of those
     /// types) with rounding and saturation. NOTE: Avoid using this operator as
@@ -452,11 +444,11 @@ namespace ISD {
 
     /// FNEG, FABS, FSQRT, FSIN, FCOS, FPOWI, FPOW,
     /// FLOG, FLOG2, FLOG10, FEXP, FEXP2,
-    /// FCEIL, FTRUNC, FRINT, FNEARBYINT, FFLOOR - Perform various unary
+    /// FCEIL, FTRUNC, FRINT, FNEARBYINT, FROUND, FFLOOR - Perform various unary
     /// floating point operations. These are inspired by libm.
     FNEG, FABS, FSQRT, FSIN, FCOS, FPOWI, FPOW,
     FLOG, FLOG2, FLOG10, FEXP, FEXP2,
-    FCEIL, FTRUNC, FRINT, FNEARBYINT, FFLOOR,
+    FCEIL, FTRUNC, FRINT, FNEARBYINT, FROUND, FFLOOR,
     
     /// FSINCOS - Compute both fsin and fcos as a single operation.
     FSINCOS,
@@ -616,11 +608,17 @@ namespace ISD {
     ATOMIC_STORE,
 
     /// Val, OUTCHAIN = ATOMIC_CMP_SWAP(INCHAIN, ptr, cmp, swap)
+    /// For double-word atomic operations:
+    /// ValLo, ValHi, OUTCHAIN = ATOMIC_CMP_SWAP(INCHAIN, ptr, cmpLo, cmpHi,
+    ///                                          swapLo, swapHi)
     /// This corresponds to the cmpxchg instruction.
     ATOMIC_CMP_SWAP,
 
     /// Val, OUTCHAIN = ATOMIC_SWAP(INCHAIN, ptr, amt)
     /// Val, OUTCHAIN = ATOMIC_LOAD_[OpName](INCHAIN, ptr, amt)
+    /// For double-word atomic operations:
+    /// ValLo, ValHi, OUTCHAIN = ATOMIC_SWAP(INCHAIN, ptr, amtLo, amtHi)
+    /// ValLo, ValHi, OUTCHAIN = ATOMIC_LOAD_[OpName](INCHAIN, ptr, amtLo, amtHi)
     /// These correspond to the atomicrmw instruction.
     ATOMIC_SWAP,
     ATOMIC_LOAD_ADD,
@@ -647,7 +645,7 @@ namespace ISD {
   /// which do not reference a specific memory location should be less than
   /// this value. Those that do must not be less than this value, and can
   /// be used with SelectionDAG::getMemIntrinsicNode.
-  static const int FIRST_TARGET_MEMORY_OPCODE = BUILTIN_OP_END+150;
+  static const int FIRST_TARGET_MEMORY_OPCODE = BUILTIN_OP_END+180;
 
   //===--------------------------------------------------------------------===//
   /// MemIndexedMode enum - This enum defines the load / store indexed

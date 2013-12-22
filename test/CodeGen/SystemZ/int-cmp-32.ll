@@ -4,9 +4,9 @@
 
 ; Check ordered comparisons with 0.
 define double @f1(double %a, double %b, i32 *%ptr) {
-; CHECK: f1:
+; CHECK-LABEL: f1:
 ; CHECK: chsi 0(%r2), 0
-; CHECK-NEXT: j{{g?}}l
+; CHECK-NEXT: jl
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
   %val = load i32 *%ptr
@@ -17,9 +17,9 @@ define double @f1(double %a, double %b, i32 *%ptr) {
 
 ; Check ordered comparisons with 1.
 define double @f2(double %a, double %b, i32 *%ptr) {
-; CHECK: f2:
-; CHECK: chsi 0(%r2), 1
-; CHECK-NEXT: j{{g?}}l
+; CHECK-LABEL: f2:
+; CHECK: chsi 0(%r2), 0
+; CHECK-NEXT: jle
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
   %val = load i32 *%ptr
@@ -30,9 +30,9 @@ define double @f2(double %a, double %b, i32 *%ptr) {
 
 ; Check ordered comparisons with the high end of the signed 16-bit range.
 define double @f3(double %a, double %b, i32 *%ptr) {
-; CHECK: f3:
+; CHECK-LABEL: f3:
 ; CHECK: chsi 0(%r2), 32767
-; CHECK-NEXT: j{{g?}}l
+; CHECK-NEXT: jl
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
   %val = load i32 *%ptr
@@ -43,7 +43,7 @@ define double @f3(double %a, double %b, i32 *%ptr) {
 
 ; Check the next value up, which can't use CHSI.
 define double @f4(double %a, double %b, i32 *%ptr) {
-; CHECK: f4:
+; CHECK-LABEL: f4:
 ; CHECK-NOT: chsi
 ; CHECK: br %r14
   %val = load i32 *%ptr
@@ -54,9 +54,9 @@ define double @f4(double %a, double %b, i32 *%ptr) {
 
 ; Check ordered comparisons with -1.
 define double @f5(double %a, double %b, i32 *%ptr) {
-; CHECK: f5:
+; CHECK-LABEL: f5:
 ; CHECK: chsi 0(%r2), -1
-; CHECK-NEXT: j{{g?}}l
+; CHECK-NEXT: jl
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
   %val = load i32 *%ptr
@@ -67,9 +67,9 @@ define double @f5(double %a, double %b, i32 *%ptr) {
 
 ; Check ordered comparisons with the low end of the 16-bit signed range.
 define double @f6(double %a, double %b, i32 *%ptr) {
-; CHECK: f6:
+; CHECK-LABEL: f6:
 ; CHECK: chsi 0(%r2), -32768
-; CHECK-NEXT: j{{g?}}l
+; CHECK-NEXT: jl
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
   %val = load i32 *%ptr
@@ -80,7 +80,7 @@ define double @f6(double %a, double %b, i32 *%ptr) {
 
 ; Check the next value down, which can't use CHSI.
 define double @f7(double %a, double %b, i32 *%ptr) {
-; CHECK: f7:
+; CHECK-LABEL: f7:
 ; CHECK-NOT: chsi
 ; CHECK: br %r14
   %val = load i32 *%ptr
@@ -91,9 +91,9 @@ define double @f7(double %a, double %b, i32 *%ptr) {
 
 ; Check equality comparisons with 0.
 define double @f8(double %a, double %b, i32 *%ptr) {
-; CHECK: f8:
+; CHECK-LABEL: f8:
 ; CHECK: chsi 0(%r2), 0
-; CHECK-NEXT: j{{g?}}e
+; CHECK-NEXT: je
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
   %val = load i32 *%ptr
@@ -104,9 +104,9 @@ define double @f8(double %a, double %b, i32 *%ptr) {
 
 ; Check equality comparisons with 1.
 define double @f9(double %a, double %b, i32 *%ptr) {
-; CHECK: f9:
+; CHECK-LABEL: f9:
 ; CHECK: chsi 0(%r2), 1
-; CHECK-NEXT: j{{g?}}e
+; CHECK-NEXT: je
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
   %val = load i32 *%ptr
@@ -117,9 +117,9 @@ define double @f9(double %a, double %b, i32 *%ptr) {
 
 ; Check equality comparisons with the high end of the signed 16-bit range.
 define double @f10(double %a, double %b, i32 *%ptr) {
-; CHECK: f10:
+; CHECK-LABEL: f10:
 ; CHECK: chsi 0(%r2), 32767
-; CHECK-NEXT: j{{g?}}e
+; CHECK-NEXT: je
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
   %val = load i32 *%ptr
@@ -130,7 +130,7 @@ define double @f10(double %a, double %b, i32 *%ptr) {
 
 ; Check the next value up, which can't use CHSI.
 define double @f11(double %a, double %b, i32 *%ptr) {
-; CHECK: f11:
+; CHECK-LABEL: f11:
 ; CHECK-NOT: chsi
 ; CHECK: br %r14
   %val = load i32 *%ptr
@@ -141,9 +141,9 @@ define double @f11(double %a, double %b, i32 *%ptr) {
 
 ; Check equality comparisons with -1.
 define double @f12(double %a, double %b, i32 *%ptr) {
-; CHECK: f12:
+; CHECK-LABEL: f12:
 ; CHECK: chsi 0(%r2), -1
-; CHECK-NEXT: j{{g?}}e
+; CHECK-NEXT: je
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
   %val = load i32 *%ptr
@@ -154,9 +154,9 @@ define double @f12(double %a, double %b, i32 *%ptr) {
 
 ; Check equality comparisons with the low end of the 16-bit signed range.
 define double @f13(double %a, double %b, i32 *%ptr) {
-; CHECK: f13:
+; CHECK-LABEL: f13:
 ; CHECK: chsi 0(%r2), -32768
-; CHECK-NEXT: j{{g?}}e
+; CHECK-NEXT: je
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
   %val = load i32 *%ptr
@@ -167,7 +167,7 @@ define double @f13(double %a, double %b, i32 *%ptr) {
 
 ; Check the next value down, which should be treated as a positive value.
 define double @f14(double %a, double %b, i32 *%ptr) {
-; CHECK: f14:
+; CHECK-LABEL: f14:
 ; CHECK-NOT: chsi
 ; CHECK: br %r14
   %val = load i32 *%ptr
@@ -178,9 +178,9 @@ define double @f14(double %a, double %b, i32 *%ptr) {
 
 ; Check the high end of the CHSI range.
 define double @f15(double %a, double %b, i32 %i1, i32 *%base) {
-; CHECK: f15:
+; CHECK-LABEL: f15:
 ; CHECK: chsi 4092(%r3), 0
-; CHECK-NEXT: j{{g?}}l
+; CHECK-NEXT: jl
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
   %ptr = getelementptr i32 *%base, i64 1023
@@ -192,10 +192,10 @@ define double @f15(double %a, double %b, i32 %i1, i32 *%base) {
 
 ; Check the next word up, which needs separate address logic,
 define double @f16(double %a, double %b, i32 *%base) {
-; CHECK: f16:
+; CHECK-LABEL: f16:
 ; CHECK: aghi %r2, 4096
 ; CHECK: chsi 0(%r2), 0
-; CHECK-NEXT: j{{g?}}l
+; CHECK-NEXT: jl
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
   %ptr = getelementptr i32 *%base, i64 1024
@@ -207,10 +207,10 @@ define double @f16(double %a, double %b, i32 *%base) {
 
 ; Check negative offsets, which also need separate address logic.
 define double @f17(double %a, double %b, i32 *%base) {
-; CHECK: f17:
+; CHECK-LABEL: f17:
 ; CHECK: aghi %r2, -4
 ; CHECK: chsi 0(%r2), 0
-; CHECK-NEXT: j{{g?}}l
+; CHECK-NEXT: jl
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
   %ptr = getelementptr i32 *%base, i64 -1
@@ -222,10 +222,10 @@ define double @f17(double %a, double %b, i32 *%base) {
 
 ; Check that CHSI does not allow indices.
 define double @f18(double %a, double %b, i64 %base, i64 %index) {
-; CHECK: f18:
+; CHECK-LABEL: f18:
 ; CHECK: agr {{%r2, %r3|%r3, %r2}}
 ; CHECK: chsi 0({{%r[23]}}), 0
-; CHECK-NEXT: j{{g?}}l
+; CHECK-NEXT: jl
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
   %add = add i64 %base, %index

@@ -4,11 +4,11 @@
 ; RUN: llc < %s -mtriple=s390x-linux-gnu | FileCheck %s
 
 define void @f1(float *%src, float %target) {
-; CHECK: f1:
+; CHECK-LABEL: f1:
 ; CHECK: .cfi_startproc
 ; CHECK: .L[[LABEL:.*]]:
 ; CHECK: ceb %f0, 0(%r2)
-; CHECK-NEXT: j{{g?}}e .L[[LABEL]]
+; CHECK-NEXT: je .L[[LABEL]]
   br label %loop
 loop:
   %val = load volatile float *%src
@@ -19,11 +19,11 @@ exit:
 }
 
 define void @f2(float *%src, float %target) {
-; CHECK: f2:
+; CHECK-LABEL: f2:
 ; CHECK: .cfi_startproc
 ; CHECK: .L[[LABEL:.*]]:
 ; CHECK: ceb %f0, 0(%r2)
-; CHECK-NEXT: j{{g?}}lh .L[[LABEL]]
+; CHECK-NEXT: jlh .L[[LABEL]]
   br label %loop
 loop:
   %val = load volatile float *%src
@@ -34,11 +34,11 @@ exit:
 }
 
 define void @f3(float *%src, float %target) {
-; CHECK: f3:
+; CHECK-LABEL: f3:
 ; CHECK: .cfi_startproc
 ; CHECK: .L[[LABEL:.*]]:
 ; CHECK: ceb %f0, 0(%r2)
-; CHECK-NEXT: j{{g?}}le .L[[LABEL]]
+; CHECK-NEXT: jle .L[[LABEL]]
   br label %loop
 loop:
   %val = load volatile float *%src
@@ -49,11 +49,11 @@ exit:
 }
 
 define void @f4(float *%src, float %target) {
-; CHECK: f4:
+; CHECK-LABEL: f4:
 ; CHECK: .cfi_startproc
 ; CHECK: .L[[LABEL:.*]]:
 ; CHECK: ceb %f0, 0(%r2)
-; CHECK-NEXT: j{{g?}}l .L[[LABEL]]
+; CHECK-NEXT: jl .L[[LABEL]]
   br label %loop
 loop:
   %val = load volatile float *%src
@@ -64,11 +64,11 @@ exit:
 }
 
 define void @f5(float *%src, float %target) {
-; CHECK: f5:
+; CHECK-LABEL: f5:
 ; CHECK: .cfi_startproc
 ; CHECK: .L[[LABEL:.*]]:
 ; CHECK: ceb %f0, 0(%r2)
-; CHECK-NEXT: j{{g?}}h .L[[LABEL]]
+; CHECK-NEXT: jh .L[[LABEL]]
   br label %loop
 loop:
   %val = load volatile float *%src
@@ -79,11 +79,11 @@ exit:
 }
 
 define void @f6(float *%src, float %target) {
-; CHECK: f6:
+; CHECK-LABEL: f6:
 ; CHECK: .cfi_startproc
 ; CHECK: .L[[LABEL:.*]]:
 ; CHECK: ceb %f0, 0(%r2)
-; CHECK-NEXT: j{{g?}}he .L[[LABEL]]
+; CHECK-NEXT: jhe .L[[LABEL]]
   br label %loop
 loop:
   %val = load volatile float *%src
@@ -94,11 +94,11 @@ exit:
 }
 
 define void @f7(float *%src, float %target) {
-; CHECK: f7:
+; CHECK-LABEL: f7:
 ; CHECK: .cfi_startproc
 ; CHECK: .L[[LABEL:.*]]:
 ; CHECK: ceb %f0, 0(%r2)
-; CHECK-NEXT: j{{g?}}nlh .L[[LABEL]]
+; CHECK-NEXT: jnlh .L[[LABEL]]
   br label %loop
 loop:
   %val = load volatile float *%src
@@ -109,11 +109,11 @@ exit:
 }
 
 define void @f8(float *%src, float %target) {
-; CHECK: f8:
+; CHECK-LABEL: f8:
 ; CHECK: .cfi_startproc
 ; CHECK: .L[[LABEL:.*]]:
 ; CHECK: ceb %f0, 0(%r2)
-; CHECK-NEXT: j{{g?}}ne .L[[LABEL]]
+; CHECK-NEXT: jne .L[[LABEL]]
   br label %loop
 loop:
   %val = load volatile float *%src
@@ -124,11 +124,11 @@ exit:
 }
 
 define void @f9(float *%src, float %target) {
-; CHECK: f9:
+; CHECK-LABEL: f9:
 ; CHECK: .cfi_startproc
 ; CHECK: .L[[LABEL:.*]]:
 ; CHECK: ceb %f0, 0(%r2)
-; CHECK-NEXT: j{{g?}}nh .L[[LABEL]]
+; CHECK-NEXT: jnh .L[[LABEL]]
   br label %loop
 loop:
   %val = load volatile float *%src
@@ -139,11 +139,11 @@ exit:
 }
 
 define void @f10(float *%src, float %target) {
-; CHECK: f10:
+; CHECK-LABEL: f10:
 ; CHECK: .cfi_startproc
 ; CHECK: .L[[LABEL:.*]]:
 ; CHECK: ceb %f0, 0(%r2)
-; CHECK-NEXT: j{{g?}}nhe .L[[LABEL]]
+; CHECK-NEXT: jnhe .L[[LABEL]]
   br label %loop
 loop:
   %val = load volatile float *%src
@@ -154,11 +154,11 @@ exit:
 }
 
 define void @f11(float *%src, float %target) {
-; CHECK: f11:
+; CHECK-LABEL: f11:
 ; CHECK: .cfi_startproc
 ; CHECK: .L[[LABEL:.*]]:
 ; CHECK: ceb %f0, 0(%r2)
-; CHECK-NEXT: j{{g?}}nle .L[[LABEL]]
+; CHECK-NEXT: jnle .L[[LABEL]]
   br label %loop
 loop:
   %val = load volatile float *%src
@@ -169,11 +169,11 @@ exit:
 }
 
 define void @f12(float *%src, float %target) {
-; CHECK: f12:
+; CHECK-LABEL: f12:
 ; CHECK: .cfi_startproc
 ; CHECK: .L[[LABEL:.*]]:
 ; CHECK: ceb %f0, 0(%r2)
-; CHECK-NEXT: j{{g?}}nl .L[[LABEL]]
+; CHECK-NEXT: jnl .L[[LABEL]]
   br label %loop
 loop:
   %val = load volatile float *%src
@@ -186,11 +186,11 @@ exit:
 ; "jno" == "jump if no overflow", which corresponds to "jump if ordered"
 ; rather than "jump if not ordered" after a floating-point comparison.
 define void @f13(float *%src, float %target) {
-; CHECK: f13:
+; CHECK-LABEL: f13:
 ; CHECK: .cfi_startproc
 ; CHECK: .L[[LABEL:.*]]:
 ; CHECK: ceb %f0, 0(%r2)
-; CHECK-NEXT: j{{g?}}no .L[[LABEL]]
+; CHECK-NEXT: jno .L[[LABEL]]
   br label %loop
 loop:
   %val = load volatile float *%src
@@ -203,11 +203,11 @@ exit:
 ; "jo" == "jump if overflow", which corresponds to "jump if not ordered"
 ; rather than "jump if ordered" after a floating-point comparison.
 define void @f14(float *%src, float %target) {
-; CHECK: f14:
+; CHECK-LABEL: f14:
 ; CHECK: .cfi_startproc
 ; CHECK: .L[[LABEL:.*]]:
 ; CHECK: ceb %f0, 0(%r2)
-; CHECK-NEXT: j{{g?}}o .L[[LABEL]]
+; CHECK-NEXT: jo .L[[LABEL]]
   br label %loop
 loop:
   %val = load volatile float *%src

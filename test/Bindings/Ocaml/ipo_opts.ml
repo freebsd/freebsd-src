@@ -1,4 +1,7 @@
-(* RUN: %ocamlopt -warn-error A llvm.cmxa llvm_ipo.cmxa llvm_target.cmxa %s -o %t
+(* RUN: rm -rf %t.builddir
+ * RUN: mkdir -p %t.builddir
+ * RUN: cp %s %t.builddir
+ * RUN: %ocamlopt -warn-error A llvm.cmxa llvm_ipo.cmxa llvm_target.cmxa %t.builddir/ipo_opts.ml -o %t
  * RUN: %t %t.bc
  * XFAIL: vg_leak
  *)
@@ -43,15 +46,13 @@ let test_transforms () =
       ignore (build_ret (build_call fn [| |] "" b) b);
   end;
 
-  let td = DataLayout.create (target_triple m) in
-  
   ignore (PassManager.create ()
-           ++ DataLayout.add td
            ++ add_argument_promotion
            ++ add_constant_merge
            ++ add_dead_arg_elimination
            ++ add_function_attrs
            ++ add_function_inlining
+           ++ add_always_inliner
            ++ add_global_dce
            ++ add_global_optimizer
            ++ add_ipc_propagation
@@ -61,9 +62,7 @@ let test_transforms () =
            ++ add_strip_dead_prototypes
            ++ add_strip_symbols
            ++ PassManager.run_module m
-           ++ PassManager.dispose);
-
-  DataLayout.dispose td
+           ++ PassManager.dispose)
 
 
 (*===-- Driver ------------------------------------------------------------===*)

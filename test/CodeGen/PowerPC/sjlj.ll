@@ -20,6 +20,7 @@ entry:
 ; CHECK: ld [[REG2:[0-9]+]], 8([[REG]])
 ; CHECK: ld 1, 16([[REG]])
 ; CHECK: mtctr [[REG2]]
+; CHECK: ld 30, 32([[REG]])
 ; CHECK: ld 2, 24([[REG]])
 ; CHECK: bctr
 
@@ -63,15 +64,16 @@ return:                                           ; preds = %if.end, %if.then
 ; CHECK: std
 ; Make sure that we're not saving VRSAVE on non-Darwin:
 ; CHECK-NOT: mfspr
-; CHECK: stfd
-; CHECK: stvx
 
-; CHECK: addis [[REG:[0-9]+]], 2, env_sigill@toc@ha
-; CHECK: std 31, env_sigill@toc@l([[REG]])
-; CHECK: addi [[REG]], [[REG]], env_sigill@toc@l
-; CHECK: std [[REG]], [[OFF:[0-9]+]](31)                  # 8-byte Folded Spill
-; CHECK: std 1, 16([[REG]])
-; CHECK: std 2, 24([[REG]])
+; CHECK-DAG: stfd
+; CHECK-DAG: stvx
+
+; CHECK-DAG: addis [[REG:[0-9]+]], 2, env_sigill@toc@ha
+; CHECK-DAG: std 31, env_sigill@toc@l([[REG]])
+; CHECK-DAG: addi [[REGA:[0-9]+]], [[REG]], env_sigill@toc@l
+; CHECK-DAG: std [[REGA]], [[OFF:[0-9]+]](31)                  # 8-byte Folded Spill
+; CHECK-DAG: std 1, 16([[REGA]])
+; CHECK-DAG: std 2, 24([[REGA]])
 ; CHECK: bcl 20, 31, .LBB1_1
 ; CHECK: li 3, 1
 ; CHECK: #EH_SjLj_Setup	.LBB1_1
@@ -99,13 +101,59 @@ return:                                           ; preds = %if.end, %if.then
 ; CHECK-NOAV: blr
 }
 
+define signext i32 @main2() #0 {
+entry:
+  %a = alloca i8, align 64
+  call void @bar(i8* %a)
+  %retval = alloca i32, align 4
+  store i32 0, i32* %retval
+  %0 = call i8* @llvm.frameaddress(i32 0)
+  store i8* %0, i8** bitcast ([1 x %struct.__jmp_buf_tag]* @env_sigill to i8**)
+  %1 = call i8* @llvm.stacksave()
+  store i8* %1, i8** getelementptr (i8** bitcast ([1 x %struct.__jmp_buf_tag]* @env_sigill to i8**), i32 2)
+  %2 = call i32 @llvm.eh.sjlj.setjmp(i8* bitcast ([1 x %struct.__jmp_buf_tag]* @env_sigill to i8*))
+  %tobool = icmp ne i32 %2, 0
+  br i1 %tobool, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  store i32 1, i32* %retval
+  br label %return
+
+if.else:                                          ; preds = %entry
+  call void @foo()
+  br label %if.end
+
+if.end:                                           ; preds = %if.else
+  store i32 0, i32* %retval
+  br label %return
+
+return:                                           ; preds = %if.end, %if.then
+  %3 = load i32* %retval
+  ret i32 %3
+
+; CHECK: @main2
+
+; CHECK: addis [[REG:[0-9]+]], 2, env_sigill@toc@ha
+; CHECK: std 31, env_sigill@toc@l([[REG]])
+; CHECK: addi [[REGB:[0-9]+]], [[REG]], env_sigill@toc@l
+; CHECK-DAG: std [[REGB]], [[OFF:[0-9]+]](31)                  # 8-byte Folded Spill
+; CHECK-DAG: std 1, 16([[REGB]])
+; CHECK-DAG: std 2, 24([[REGB]])
+; CHECK-DAG: std 30, 32([[REGB]])
+; CHECK: bcl 20, 31,
+
+; CHECK: blr
+}
+
+declare void @bar(i8*) #3
+
 declare i8* @llvm.frameaddress(i32) #2
 
 declare i8* @llvm.stacksave() #3
 
 declare i32 @llvm.eh.sjlj.setjmp(i8*) #3
 
-attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { noreturn nounwind }
 attributes #2 = { nounwind readnone }
 attributes #3 = { nounwind }

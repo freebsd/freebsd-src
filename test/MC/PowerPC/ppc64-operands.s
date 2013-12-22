@@ -40,6 +40,14 @@
 # CHECK: ori 1, 2, 65535                 # encoding: [0x60,0x41,0xff,0xff]
          ori 1, 2, 65535
 
+# Signed 16-bit immediate operands (extended range for addis)
+
+# CHECK: addis 1, 0, 0                   # encoding: [0x3c,0x20,0x00,0x00]
+         addis 1, 0, -65536
+
+# CHECK: addis 1, 0, -1                  # encoding: [0x3c,0x20,0xff,0xff]
+         addis 1, 0, 65535
+
 # D-Form memory operands
 
 # CHECK: lwz 1, 0(0)                     # encoding: [0x80,0x20,0x00,0x00]
@@ -85,3 +93,23 @@
 # CHECK: ld 1, -4(2)                     # encoding: [0xe8,0x22,0xff,0xfc]
          ld 1, -4(2)
 
+
+# Immediate branch operands
+
+# CHECK: b .+1024                        # encoding: [0x48,0x00,0x04,0x00]
+         b 1024
+
+# CHECK: ba 1024                         # encoding: [0x48,0x00,0x04,0x02]
+         ba 1024
+
+# CHECK: beq 0, .+1024                   # encoding: [0x41,0x82,0x04,0x00]
+         beq 1024
+
+# CHECK: beqa 0, 1024                    # encoding: [0x41,0x82,0x04,0x02]
+         beqa 1024
+
+# CHECK:                                 # encoding: [0x42,0x9f,A,0bAAAAAA01]
+         bcl 20, 31, $+4
+
+# CHECK:                                 # encoding: [0x42,0x00,A,0bAAAAAA00]
+         bdnz $-8

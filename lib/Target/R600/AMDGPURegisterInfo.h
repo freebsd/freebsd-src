@@ -30,10 +30,9 @@ class TargetInstrInfo;
 
 struct AMDGPURegisterInfo : public AMDGPUGenRegisterInfo {
   TargetMachine &TM;
-  const TargetInstrInfo &TII;
   static const uint16_t CalleeSavedReg;
 
-  AMDGPURegisterInfo(TargetMachine &tm, const TargetInstrInfo &tii);
+  AMDGPURegisterInfo(TargetMachine &tm);
 
   virtual BitVector getReservedRegs(const MachineFunction &MF) const {
     assert(!"Unimplemented");  return BitVector();
@@ -50,6 +49,14 @@ struct AMDGPURegisterInfo : public AMDGPUGenRegisterInfo {
   virtual const TargetRegisterClass* getCFGStructurizerRegClass(MVT VT) const {
     assert(!"Unimplemented"); return NULL;
   }
+
+  virtual unsigned getHWRegIndex(unsigned Reg) const {
+    assert(!"Unimplemented"); return 0;
+  }
+
+  /// \returns the sub reg enum value for the given \p Channel
+  /// (e.g. getSubRegFromChannel(0) -> AMDGPU::sub0)
+  unsigned getSubRegFromChannel(unsigned Channel) const;
 
   const uint16_t* getCalleeSavedRegs(const MachineFunction *MF) const;
   void eliminateFrameIndex(MachineBasicBlock::iterator MI, int SPAdj,

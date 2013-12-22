@@ -12,7 +12,7 @@ entry:
         store i32 %2, i32* @src
 	ret i32 %2
 ; This should fold one of the loads into the add.
-; CHECK: loadgv:
+; CHECK-LABEL: loadgv:
 ; CHECK: 	movl	L_src$non_lazy_ptr, %ecx
 ; CHECK: 	movl	(%ecx), %eax
 ; CHECK: 	addl	(%ecx), %eax
@@ -40,7 +40,7 @@ entry:
 ; CHECK:	movl	L_LotsStuff$non_lazy_ptr, %ecx
 
 ; ATOM: _t:
-; ATOM:         movl    L_LotsStuff$non_lazy_ptr, %ecx
-; ATOM:         movl    $0, %eax
+; ATOM:         movl    L_LotsStuff$non_lazy_ptr, %e{{..}}
+; ATOM:         movl    $0, %e{{..}}
 
 }

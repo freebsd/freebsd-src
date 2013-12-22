@@ -604,8 +604,6 @@ namespace llvm {
              LHS.Width == RHS.Width;
     }
   };
-  template <>
-  struct isPodLike<LoweredPHIRecord> { static const bool value = true; };
 }
 
 
@@ -688,10 +686,10 @@ Instruction *InstCombiner::SliceUpIllegalIntegerPHI(PHINode &FirstPhi) {
   // extracted out of it.  First, sort the users by their offset and size.
   array_pod_sort(PHIUsers.begin(), PHIUsers.end());
 
-  DEBUG(errs() << "SLICING UP PHI: " << FirstPhi << '\n';
-            for (unsigned i = 1, e = PHIsToSlice.size(); i != e; ++i)
-              errs() << "AND USER PHI #" << i << ": " << *PHIsToSlice[i] <<'\n';
-        );
+  DEBUG(dbgs() << "SLICING UP PHI: " << FirstPhi << '\n';
+        for (unsigned i = 1, e = PHIsToSlice.size(); i != e; ++i)
+          dbgs() << "AND USER PHI #" << i << ": " << *PHIsToSlice[i] << '\n';
+    );
 
   // PredValues - This is a temporary used when rewriting PHI nodes.  It is
   // hoisted out here to avoid construction/destruction thrashing.
@@ -772,7 +770,7 @@ Instruction *InstCombiner::SliceUpIllegalIntegerPHI(PHINode &FirstPhi) {
       }
       PredValues.clear();
 
-      DEBUG(errs() << "  Made element PHI for offset " << Offset << ": "
+      DEBUG(dbgs() << "  Made element PHI for offset " << Offset << ": "
                    << *EltPHI << '\n');
       ExtractedVals[LoweredPHIRecord(PN, Offset, Ty)] = EltPHI;
     }
@@ -792,7 +790,7 @@ Instruction *InstCombiner::SliceUpIllegalIntegerPHI(PHINode &FirstPhi) {
 // PHINode simplification
 //
 Instruction *InstCombiner::visitPHINode(PHINode &PN) {
-  if (Value *V = SimplifyInstruction(&PN, TD))
+  if (Value *V = SimplifyInstruction(&PN, TD, TLI))
     return ReplaceInstUsesWith(PN, V);
 
   // If all PHI operands are the same operation, pull them through the PHI,

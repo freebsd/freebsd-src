@@ -2,7 +2,7 @@
 
 define i16 @test1(float %f) {
 entry:
-; CHECK: @test1
+; CHECK-LABEL: @test1(
 ; CHECK: fmul float
 ; CHECK-NOT: insertelement {{.*}} 0.00
 ; CHECK-NOT: call {{.*}} @llvm.x86.sse.mul
@@ -22,7 +22,7 @@ entry:
 }
 
 define i32 @test2(float %f) {
-; CHECK: @test2
+; CHECK-LABEL: @test2(
 ; CHECK-NOT: insertelement
 ; CHECK-NOT: extractelement
 ; CHECK: ret
@@ -37,7 +37,7 @@ define i32 @test2(float %f) {
 }
 
 define i64 @test3(float %f, double %d) {
-; CHECK: @test3
+; CHECK-LABEL: @test3(
 ; CHECK-NOT: insertelement {{.*}} 0.00
 ; CHECK: ret
 entry:
@@ -85,7 +85,7 @@ entry:
 }
 
 define void @get_image() nounwind {
-; CHECK: @get_image
+; CHECK-LABEL: @get_image(
 ; CHECK-NOT: extractelement
 ; CHECK: unreachable
 entry:
@@ -105,7 +105,7 @@ bb3:            ; preds = %bb2, %entry
 
 ; PR4340
 define void @vac(<4 x float>* nocapture %a) nounwind {
-; CHECK: @vac
+; CHECK-LABEL: @vac(
 ; CHECK-NOT: load
 ; CHECK: ret
 entry:
@@ -155,7 +155,7 @@ declare <4 x i32> @llvm.x86.sse41.pmovzxwd(<8 x i16>) nounwind readnone
 
 define <4 x float> @dead_shuffle_elt(<4 x float> %x, <2 x float> %y) nounwind {
 entry:
-; CHECK: define <4 x float> @dead_shuffle_elt
+; CHECK-LABEL: define <4 x float> @dead_shuffle_elt(
 ; CHECK: shufflevector <2 x float> %y, <2 x float> undef, <4 x i32> <i32 0, i32 1, i32 undef, i32 undef>
   %shuffle.i = shufflevector <2 x float> %y, <2 x float> %y, <4 x i32> <i32 0, i32 1, i32 0, i32 1>
   %shuffle9.i = shufflevector <4 x float> %x, <4 x float> %shuffle.i, <4 x i32> <i32 4, i32 5, i32 2, i32 3>
@@ -163,7 +163,7 @@ entry:
 }
 
 define <2 x float> @test_fptrunc(double %f) {
-; CHECK: @test_fptrunc
+; CHECK-LABEL: @test_fptrunc(
 ; CHECK: insertelement
 ; CHECK: insertelement
 ; CHECK-NOT: insertelement
@@ -177,7 +177,7 @@ define <2 x float> @test_fptrunc(double %f) {
 }
 
 define <2 x double> @test_fpext(float %f) {
-; CHECK: @test_fpext
+; CHECK-LABEL: @test_fpext(
 ; CHECK: insertelement
 ; CHECK: insertelement
 ; CHECK-NOT: insertelement
@@ -191,7 +191,7 @@ define <2 x double> @test_fpext(float %f) {
 }
 
 define <4 x float> @test_select(float %f, float %g) {
-; CHECK: @test_select
+; CHECK-LABEL: @test_select(
 ; CHECK: %a0 = insertelement <4 x float> undef, float %f, i32 0
 ; CHECK-NOT: insertelement
 ; CHECK: %a3 = insertelement <4 x float> %a0, float 3.000000e+00, i32 3

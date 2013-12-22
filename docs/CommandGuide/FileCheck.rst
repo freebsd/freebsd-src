@@ -18,7 +18,8 @@ using :program:`grep`, but it is optimized for matching multiple different
 inputs in one file in a specific order.
 
 The ``match-filename`` file specifies the file that contains the patterns to
-match.  The file to verify is always read from standard input.
+match.  The file to verify is read from standard input unless the
+:option:`--input-file` option is used.
 
 OPTIONS
 -------
@@ -29,11 +30,13 @@ OPTIONS
 
 .. option:: --check-prefix prefix
 
- FileCheck searches the contents of ``match-filename`` for patterns to match.
- By default, these patterns are prefixed with "``CHECK:``".  If you'd like to
- use a different prefix (e.g. because the same input file is checking multiple
- different tool or options), the :option:`--check-prefix` argument allows you
- to specify a specific prefix to match.
+ FileCheck searches the contents of ``match-filename`` for patterns to
+ match.  By default, these patterns are prefixed with "``CHECK:``".
+ If you'd like to use a different prefix (e.g. because the same input
+ file is checking multiple different tool or options), the
+ :option:`--check-prefix` argument allows you to specify one or more
+ prefixes to match. Multiple prefixes are useful for tests which might
+ change for different run options, but most lines remain the same.
 
 .. option:: --input-file filename
 
@@ -44,7 +47,7 @@ OPTIONS
  By default, FileCheck canonicalizes input horizontal whitespace (spaces and
  tabs) which causes it to ignore these differences (a space will match a tab).
  The :option:`--strict-whitespace` argument disables this behavior. End-of-line
- sequences are canonicalized to UNIX-style '\n' in all modes.
+ sequences are canonicalized to UNIX-style ``\n`` in all modes.
 
 .. option:: -version
 
@@ -193,6 +196,134 @@ can be used:
    ; CHECK-NOT: load
    ; CHECK: ret i8
    }
+
+The "CHECK-DAG:" directive
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If it's necessary to match strings that don't occur in a strictly sequential
+order, "``CHECK-DAG:``" could be used to verify them between two matches (or
+before the first match, or after the last match). For example, clang emits
+vtable globals in reverse order. Using ``CHECK-DAG:``, we can keep the checks
+in the natural order:
+
+.. code-block:: c++
+
+    // RUN: %clang_cc1 %s -emit-llvm -o - | FileCheck %s
+
+    struct Foo { virtual void method(); };
+    Foo f;  // emit vtable
+    // CHECK-DAG: @_ZTV3Foo =
+
+    struct Bar { virtual void method(); };
+    Bar b;
+    // CHECK-DAG: @_ZTV3Bar =
+
+``CHECK-NOT:`` directives could be mixed with ``CHECK-DAG:`` directives to
+exclude strings between the surrounding ``CHECK-DAG:`` directives. As a result,
+the surrounding ``CHECK-DAG:`` directives cannot be reordered, i.e. all
+occurrences matching ``CHECK-DAG:`` before ``CHECK-NOT:`` must not fall behind
+occurrences matching ``CHECK-DAG:`` after ``CHECK-NOT:``. For example,
+
+.. code-block:: llvm
+
+   ; CHECK-DAG: BEFORE
+   ; CHECK-NOT: NOT
+   ; CHECK-DAG: AFTER
+
+This case will reject input strings where ``BEFORE`` occurs after ``AFTER``.
+
+With captured variables, ``CHECK-DAG:`` is able to match valid topological
+orderings of a DAG with edges from the definition of a variable to its use.
+It's useful, e.g., when your test cases need to match different output
+sequences from the instruction scheduler. For example,
+
+.. code-block:: llvm
+
+   ; CHECK-DAG: add [[REG1:r[0-9]+]], r1, r2
+   ; CHECK-DAG: add [[REG2:r[0-9]+]], r3, r4
+   ; CHECK:     mul r5, [[REG1]], [[REG2]]
+
+In this case, any order of that two ``add`` instructions will be allowed.
+
+If you are defining `and` using variables in the same ``CHECK-DAG:`` block,
+be aware that the definition rule can match `after` its use.
+
+So, for instance, the code below will pass:
+
+.. code-block:: llvm
+
+  ; CHECK-DAG: vmov.32 [[REG2:d[0-9]+]][0]
+  ; CHECK-DAG: vmov.32 [[REG2]][1]
+  vmov.32 d0[1]
+  vmov.32 d0[0]
+
+While this other code, will not:
+
+.. code-block:: llvm
+
+  ; CHECK-DAG: vmov.32 [[REG2:d[0-9]+]][0]
+  ; CHECK-DAG: vmov.32 [[REG2]][1]
+  vmov.32 d1[1]
+  vmov.32 d0[0]
+
+While this can be very useful, it's also dangerous, because in the case of
+register sequence, you must have a strong order (read before write, copy before
+use, etc). If the definition your test is looking for doesn't match (because
+of a bug in the compiler), it may match further away from the use, and mask
+real bugs away.
+
+In those cases, to enforce the order, use a non-DAG directive between DAG-blocks.
+
+The "CHECK-LABEL:" directive
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sometimes in a file containing multiple tests divided into logical blocks, one
+or more ``CHECK:`` directives may inadvertently succeed by matching lines in a
+later block. While an error will usually eventually be generated, the check
+flagged as causing the error may not actually bear any relationship to the
+actual source of the problem.
+
+In order to produce better error messages in these cases, the "``CHECK-LABEL:``"
+directive can be used. It is treated identically to a normal ``CHECK``
+directive except that FileCheck makes an additional assumption that a line
+matched by the directive cannot also be matched by any other check present in
+``match-filename``; this is intended to be used for lines containing labels or
+other unique identifiers. Conceptually, the presence of ``CHECK-LABEL`` divides
+the input stream into separate blocks, each of which is processed independently,
+preventing a ``CHECK:`` directive in one block matching a line in another block.
+For example,
+
+.. code-block:: llvm
+
+  define %struct.C* @C_ctor_base(%struct.C* %this, i32 %x) {
+  entry:
+  ; CHECK-LABEL: C_ctor_base:
+  ; CHECK: mov [[SAVETHIS:r[0-9]+]], r0
+  ; CHECK: bl A_ctor_base
+  ; CHECK: mov r0, [[SAVETHIS]]
+    %0 = bitcast %struct.C* %this to %struct.A*
+    %call = tail call %struct.A* @A_ctor_base(%struct.A* %0)
+    %1 = bitcast %struct.C* %this to %struct.B*
+    %call2 = tail call %struct.B* @B_ctor_base(%struct.B* %1, i32 %x)
+    ret %struct.C* %this
+  }
+
+  define %struct.D* @D_ctor_base(%struct.D* %this, i32 %x) {
+  entry:
+  ; CHECK-LABEL: D_ctor_base:
+
+The use of ``CHECK-LABEL:`` directives in this case ensures that the three
+``CHECK:`` directives only accept lines corresponding to the body of the
+``@C_ctor_base`` function, even if the patterns match lines found later in
+the file. Furthermore, if one of these three ``CHECK:`` directives fail,
+FileCheck will recover by continuing to the next block, allowing multiple test
+failures to be detected in a single invocation.
+
+There is no requirement that ``CHECK-LABEL:`` directives contain strings that
+correspond to actual syntactic labels in a source or output language: they must
+simply uniquely match a single line in the file being verified.
+
+``CHECK-LABEL:`` directives cannot contain variable definitions or uses.
 
 FileCheck Pattern Matching Syntax
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

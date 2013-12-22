@@ -36,10 +36,11 @@ static void dumpIdxVec(const SmallVectorImpl<unsigned> &V) {
 }
 #endif
 
+namespace {
 // (instrs a, b, ...) Evaluate and union all arguments. Identical to AddOp.
 struct InstrsOp : public SetTheory::Operator {
-  void apply(SetTheory &ST, DagInit *Expr, SetTheory::RecSet &Elts,
-             ArrayRef<SMLoc> Loc) {
+  virtual void apply(SetTheory &ST, DagInit *Expr, SetTheory::RecSet &Elts,
+                     ArrayRef<SMLoc> Loc) {
     ST.evaluate(Expr->arg_begin(), Expr->arg_end(), Elts, Loc);
   }
 };
@@ -84,6 +85,7 @@ struct InstRegexOp : public SetTheory::Operator {
     DeleteContainerPointers(RegexList);
   }
 };
+} // end anonymous namespace
 
 /// CodeGenModels ctor interprets machine model records and populates maps.
 CodeGenSchedModels::CodeGenSchedModels(RecordKeeper &RK,
@@ -710,16 +712,35 @@ void CodeGenSchedModels::createInstRWClass(Record *InstRWDef) {
     ArrayRef<Record*> InstDefs = ClassInstrs[CIdx].second;
     // If the all instrs in the current class are accounted for, then leave
     // them mapped to their old class.
-    if (OldSCIdx && SchedClasses[OldSCIdx].InstRWs.size() == InstDefs.size()) {
-      assert(SchedClasses[OldSCIdx].ProcIndices[0] == 0 &&
-             "expected a generic SchedClass");
-      continue;
+    if (OldSCIdx) {
+      const RecVec &RWDefs = SchedClasses[OldSCIdx].InstRWs;
+      if (!RWDefs.empty()) {
+        const RecVec *OrigInstDefs = Sets.expand(RWDefs[0]);
+        unsigned OrigNumInstrs = 0;
+        for (RecIter I = OrigInstDefs->begin(), E = OrigInstDefs->end();
+             I != E; ++I) {
+          if (InstrClassMap[*I] == OldSCIdx)
+            ++OrigNumInstrs;
+        }
+        if (OrigNumInstrs == InstDefs.size()) {
+          assert(SchedClasses[OldSCIdx].ProcIndices[0] == 0 &&
+                 "expected a generic SchedClass");
+          DEBUG(dbgs() << "InstRW: Reuse SC " << OldSCIdx << ":"
+                << SchedClasses[OldSCIdx].Name << " on "
+                << InstRWDef->getValueAsDef("SchedModel")->getName() << "\n");
+          SchedClasses[OldSCIdx].InstRWs.push_back(InstRWDef);
+          continue;
+        }
+      }
     }
     unsigned SCIdx = SchedClasses.size();
     SchedClasses.resize(SCIdx+1);
     CodeGenSchedClass &SC = SchedClasses.back();
     SC.Index = SCIdx;
     SC.Name = createSchedClassName(InstDefs);
+    DEBUG(dbgs() << "InstRW: New SC " << SCIdx << ":" << SC.Name << " on "
+          << InstRWDef->getValueAsDef("SchedModel")->getName() << "\n");
+
     // Preserve ItinDef and Writes/Reads for processors without an InstRW entry.
     SC.ItinClassDef = SchedClasses[OldSCIdx].ItinClassDef;
     SC.Writes = SchedClasses[OldSCIdx].Writes;
@@ -871,9 +892,10 @@ void CodeGenSchedModels::inferFromItinClass(Record *ItinClassDef,
 
 /// Infer classes from per-processor InstReadWrite definitions.
 void CodeGenSchedModels::inferFromInstRWs(unsigned SCIdx) {
-  const RecVec &RWDefs = SchedClasses[SCIdx].InstRWs;
-  for (RecIter RWI = RWDefs.begin(), RWE = RWDefs.end(); RWI != RWE; ++RWI) {
-    const RecVec *InstDefs = Sets.expand(*RWI);
+  for (unsigned I = 0, E = SchedClasses[SCIdx].InstRWs.size(); I != E; ++I) {
+    assert(SchedClasses[SCIdx].InstRWs.size() == E && "InstrRWs was mutated!");
+    Record *Rec = SchedClasses[SCIdx].InstRWs[I];
+    const RecVec *InstDefs = Sets.expand(Rec);
     RecIter II = InstDefs->begin(), IE = InstDefs->end();
     for (; II != IE; ++II) {
       if (InstrClassMap[*II] == SCIdx)
@@ -884,10 +906,10 @@ void CodeGenSchedModels::inferFromInstRWs(unsigned SCIdx) {
     if (II == IE)
       continue;
     IdxVec Writes, Reads;
-    findRWs((*RWI)->getValueAsListOfDefs("OperandReadWrites"), Writes, Reads);
-    unsigned PIdx = getProcModel((*RWI)->getValueAsDef("SchedModel")).Index;
+    findRWs(Rec->getValueAsListOfDefs("OperandReadWrites"), Writes, Reads);
+    unsigned PIdx = getProcModel(Rec->getValueAsDef("SchedModel")).Index;
     IdxVec ProcIndices(1, PIdx);
-    inferFromRW(Writes, Reads, SCIdx, ProcIndices);
+    inferFromRW(Writes, Reads, SCIdx, ProcIndices); // May mutate SchedClasses.
   }
 }
 
@@ -1082,7 +1104,7 @@ void PredTransitions::getIntersectingVariants(
     TransVariant &Variant = Variants[VIdx];
     // Don't expand variants if the processor models don't intersect.
     // A zero processor index means any processor.
-    SmallVector<unsigned, 4> &ProcIndices = TransVec[TransIdx].ProcIndices;
+    SmallVectorImpl<unsigned> &ProcIndices = TransVec[TransIdx].ProcIndices;
     if (ProcIndices[0] && Variants[VIdx].ProcIdx) {
       unsigned Cnt = std::count(ProcIndices.begin(), ProcIndices.end(),
                                 Variant.ProcIdx);
@@ -1153,6 +1175,8 @@ pushVariant(const TransVariant &VInfo, bool IsRead) {
     unsigned OperIdx = RWSequences.size()-1;
     // Make N-1 copies of this transition's last sequence.
     for (unsigned i = 1, e = SelectedRWs.size(); i != e; ++i) {
+      // Create a temporary copy the vector could reallocate.
+      RWSequences.reserve(RWSequences.size() + 1);
       RWSequences.push_back(RWSequences[OperIdx]);
     }
     // Push each of the N elements of the SelectedRWs onto a copy of the last
@@ -1453,6 +1477,19 @@ void CodeGenSchedModels::collectProcResources() {
   for (RecIter RAI = RADefs.begin(), RAE = RADefs.end(); RAI != RAE; ++RAI) {
     Record *ModelDef = (*RAI)->getValueAsDef("SchedModel");
     addReadAdvance(*RAI, getProcModel(ModelDef).Index);
+  }
+  // Add ProcResGroups that are defined within this processor model, which may
+  // not be directly referenced but may directly specify a buffer size.
+  RecVec ProcResGroups = Records.getAllDerivedDefinitions("ProcResGroup");
+  for (RecIter RI = ProcResGroups.begin(), RE = ProcResGroups.end();
+       RI != RE; ++RI) {
+    if (!(*RI)->getValueInit("SchedModel")->isComplete())
+      continue;
+    CodeGenProcModel &PM = getProcModel((*RI)->getValueAsDef("SchedModel"));
+    RecIter I = std::find(PM.ProcResourceDefs.begin(),
+                          PM.ProcResourceDefs.end(), *RI);
+    if (I == PM.ProcResourceDefs.end())
+      PM.ProcResourceDefs.push_back(*RI);
   }
   // Finalize each ProcModel by sorting the record arrays.
   for (unsigned PIdx = 0, PEnd = ProcModels.size(); PIdx != PEnd; ++PIdx) {

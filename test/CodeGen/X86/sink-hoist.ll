@@ -5,7 +5,7 @@
 ; evaluated, however with MachineSink we can sink the other side so
 ; that it's conditionally evaluated.
 
-; CHECK: foo:
+; CHECK-LABEL: foo:
 ; CHECK-NEXT: testb $1, %dil
 ; CHECK-NEXT: jne
 ; CHECK-NEXT: divsd
@@ -24,13 +24,12 @@ define double @foo(double %x, double %y, i1 %c) nounwind {
 ; the conditional branch.
 ; rdar://8454886
 
-; CHECK: split:
+; CHECK-LABEL: split:
 ; CHECK-NEXT: testb $1, %dil
-; CHECK-NEXT: jne
-; CHECK-NEXT: movaps
-; CHECK-NEXT: ret
+; CHECK-NEXT: je
 ; CHECK:      divsd
-; CHECK-NEXT: ret
+; CHECK:      movaps
+; CHECK:      ret
 define double @split(double %x, double %y, i1 %c) nounwind {
   %a = fdiv double %x, 3.2
   %z = select i1 %c, double %a, double %y
@@ -40,7 +39,7 @@ define double @split(double %x, double %y, i1 %c) nounwind {
 
 ; Hoist floating-point constant-pool loads out of loops.
 
-; CHECK: bar:
+; CHECK-LABEL: bar:
 ; CHECK: movsd
 ; CHECK: align
 define void @bar(double* nocapture %p, i64 %n) nounwind {
@@ -65,7 +64,7 @@ return:
 ; Sink instructions with dead EFLAGS defs.
 
 ; FIXME: Unfail the zzz test if we can correctly mark pregs with the kill flag.
-; 
+;
 ; See <rdar://problem/8030636>. This test isn't valid after we made machine
 ; sinking more conservative about sinking instructions that define a preg into a
 ; block when we don't know if the preg is killed within the current block.
@@ -87,7 +86,7 @@ return:
 
 ; Codegen should hoist and CSE these constants.
 
-; CHECK: vv:
+; CHECK-LABEL: vv:
 ; CHECK: LCPI3_0(%rip), %xmm0
 ; CHECK: LCPI3_1(%rip), %xmm1
 ; CHECK: LCPI3_2(%rip), %xmm2
@@ -151,7 +150,7 @@ declare <4 x float> @llvm.x86.sse2.cvtdq2ps(<4 x i32>) nounwind readnone
 ; CodeGen should use the correct register class when extracting
 ; a load from a zero-extending load for hoisting.
 
-; CHECK: default_get_pch_validity:
+; CHECK-LABEL: default_get_pch_validity:
 ; CHECK: movl cl_options_count(%rip), %ecx
 
 @cl_options_count = external constant i32         ; <i32*> [#uses=2]

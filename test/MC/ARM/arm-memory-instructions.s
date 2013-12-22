@@ -16,12 +16,14 @@ _func:
         ldr r2, [r4, #4095]!
         ldr r1, [r2], #30
         ldr r3, [r1], #-30
+        ldr r9, [r2], #-0
 
 @ CHECK: ldr	r5, [r7]                @ encoding: [0x00,0x50,0x97,0xe5]
 @ CHECK: ldr	r6, [r3, #63]           @ encoding: [0x3f,0x60,0x93,0xe5]
 @ CHECK: ldr	r2, [r4, #4095]!        @ encoding: [0xff,0x2f,0xb4,0xe5]
 @ CHECK: ldr	r1, [r2], #30           @ encoding: [0x1e,0x10,0x92,0xe4]
 @ CHECK: ldr	r3, [r1], #-30          @ encoding: [0x1e,0x30,0x11,0xe4]
+@ CHECK: ldr	r9, [r2], #-0           @ encoding: [0x00,0x90,0x12,0xe4]
 
 @------------------------------------------------------------------------------
 @ FIXME: LDR (literal)
@@ -112,21 +114,21 @@ _func:
 @------------------------------------------------------------------------------
 @ LDRD (immediate)
 @------------------------------------------------------------------------------
-        ldrd r3, r4, [r5]
-        ldrd r7, r8, [r2, #15]
-        ldrd r1, r2, [r9, #32]!
+        ldrd r2, r3, [r5]
+        ldrd r6, r7, [r2, #15]
+        ldrd r0, r1, [r9, #32]!
         ldrd r6, r7, [r1], #8
-        ldrd r1, r2, [r8], #0
-        ldrd r1, r2, [r8], #+0
-        ldrd r1, r2, [r8], #-0
+        ldrd r0, r1, [r8], #0
+        ldrd r0, r1, [r8], #+0
+        ldrd r0, r1, [r8], #-0
 
-@ CHECK: ldrd	r3, r4, [r5]            @ encoding: [0xd0,0x30,0xc5,0xe1]
-@ CHECK: ldrd	r7, r8, [r2, #15]       @ encoding: [0xdf,0x70,0xc2,0xe1]
-@ CHECK: ldrd	r1, r2, [r9, #32]!      @ encoding: [0xd0,0x12,0xe9,0xe1]
-@ CHECK: ldrd	r6, r7, [r1], #8        @ encoding: [0xd8,0x60,0xc1,0xe0]
-@ CHECK: ldrd	r1, r2, [r8], #0        @ encoding: [0xd0,0x10,0xc8,0xe0]
-@ CHECK: ldrd	r1, r2, [r8], #0        @ encoding: [0xd0,0x10,0xc8,0xe0]
-@ CHECK: ldrd	r1, r2, [r8], #-0       @ encoding: [0xd0,0x10,0x48,0xe0]
+@ CHECK: ldrd r2, r3, [r5]            @ encoding: [0xd0,0x20,0xc5,0xe1]
+@ CHECK: ldrd r6, r7, [r2, #15]       @ encoding: [0xdf,0x60,0xc2,0xe1]
+@ CHECK: ldrd r0, r1, [r9, #32]!      @ encoding: [0xd0,0x02,0xe9,0xe1]
+@ CHECK: ldrd r6, r7, [r1], #8        @ encoding: [0xd8,0x60,0xc1,0xe0]
+@ CHECK: ldrd r0, r1, [r8], #0        @ encoding: [0xd0,0x00,0xc8,0xe0]
+@ CHECK: ldrd r0, r1, [r8], #0        @ encoding: [0xd0,0x00,0xc8,0xe0]
+@ CHECK: ldrd r0, r1, [r8], #-0       @ encoding: [0xd0,0x00,0x48,0xe0]
 
 
 @------------------------------------------------------------------------------
@@ -141,15 +143,15 @@ Lbaz: .quad 0
 @------------------------------------------------------------------------------
 @ LDRD (register)
 @------------------------------------------------------------------------------
-        ldrd r3, r4, [r1, r3]
+        ldrd r4, r5, [r1, r3]
         ldrd r4, r5, [r7, r2]!
-        ldrd r1, r2, [r8], r12
-        ldrd r1, r2, [r8], -r12
+        ldrd r0, r1, [r8], r12
+        ldrd r0, r1, [r8], -r12
 
-@ CHECK: ldrd	r3, r4, [r1, r3]        @ encoding: [0xd3,0x30,0x81,0xe1]
-@ CHECK: ldrd	r4, r5, [r7, r2]!       @ encoding: [0xd2,0x40,0xa7,0xe1]
-@ CHECK: ldrd	r1, r2, [r8], r12       @ encoding: [0xdc,0x10,0x88,0xe0]
-@ CHECK: ldrd	r1, r2, [r8], -r12      @ encoding: [0xdc,0x10,0x08,0xe0]
+@ CHECK: ldrd r4, r5, [r1, r3]        @ encoding: [0xd3,0x40,0x81,0xe1]
+@ CHECK: ldrd r4, r5, [r7, r2]!       @ encoding: [0xd2,0x40,0xa7,0xe1]
+@ CHECK: ldrd r0, r1, [r8], r12       @ encoding: [0xdc,0x00,0x88,0xe0]
+@ CHECK: ldrd r0, r1, [r8], -r12      @ encoding: [0xdc,0x00,0x08,0xe0]
 
 
 @------------------------------------------------------------------------------
@@ -308,13 +310,14 @@ Lbaz: .quad 0
         str r3, [r5, #40]!
         str r9, [sp], #4095
         str r1, [r7], #-128
+        str r1, [r0], #-0
 
 @ CHECK: str	r8, [r12]               @ encoding: [0x00,0x80,0x8c,0xe5]
 @ CHECK: str	r7, [r1, #12]           @ encoding: [0x0c,0x70,0x81,0xe5]
 @ CHECK: str	r3, [r5, #40]!          @ encoding: [0x28,0x30,0xa5,0xe5]
 @ CHECK: str	r9, [sp], #4095         @ encoding: [0xff,0x9f,0x8d,0xe4]
 @ CHECK: str	r1, [r7], #-128         @ encoding: [0x80,0x10,0x07,0xe4]
-
+@ CHECK: str	r1, [r0], #-0           @ encoding: [0x00,0x10,0x00,0xe4]
 
 @------------------------------------------------------------------------------
 @ FIXME: STR (literal)

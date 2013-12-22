@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=x86-64 -mcpu=core-avx-i -mattr=+rdseed | FileCheck %s
+; RUN: llc < %s -mtriple=x86_64-unknown-unknown -mcpu=core-avx-i -mattr=+rdseed | FileCheck %s
 
 declare {i16, i32} @llvm.x86.rdseed.16()
 declare {i32, i32} @llvm.x86.rdseed.32()
@@ -10,12 +10,12 @@ define i32 @_rdseed16_step(i16* %random_val) {
   store i16 %randval, i16* %random_val
   %isvalid = extractvalue {i16, i32} %call, 1
   ret i32 %isvalid
-; CHECK: _rdseed16_step:
+; CHECK-LABEL: _rdseed16_step:
 ; CHECK: rdseedw	%ax
-; CHECK: movw	%ax, (%r[[A0:di|cx]])
 ; CHECK: movzwl	%ax, %ecx
 ; CHECK: movl	$1, %eax
 ; CHECK: cmovael	%ecx, %eax
+; CHECK: movw	%cx, (%r[[A0:di|cx]])
 ; CHECK: ret
 }
 
@@ -25,11 +25,11 @@ define i32 @_rdseed32_step(i32* %random_val) {
   store i32 %randval, i32* %random_val
   %isvalid = extractvalue {i32, i32} %call, 1
   ret i32 %isvalid
-; CHECK: _rdseed32_step:
+; CHECK-LABEL: _rdseed32_step:
 ; CHECK: rdseedl	%e[[T0:[a-z]+]]
-; CHECK: movl	%e[[T0]], (%r[[A0]])
 ; CHECK: movl	$1, %eax
 ; CHECK: cmovael	%e[[T0]], %eax
+; CHECK: movl	%e[[T0]], (%r[[A0]])
 ; CHECK: ret
 }
 
@@ -39,10 +39,10 @@ define i32 @_rdseed64_step(i64* %random_val) {
   store i64 %randval, i64* %random_val
   %isvalid = extractvalue {i64, i32} %call, 1
   ret i32 %isvalid
-; CHECK: _rdseed64_step:
+; CHECK-LABEL: _rdseed64_step:
 ; CHECK: rdseedq	%r[[T1:[a-z]+]]
-; CHECK: movq	%r[[T1]], (%r[[A0]])
 ; CHECK: movl	$1, %eax
 ; CHECK: cmovael	%e[[T1]], %eax
+; CHECK: movq	%r[[T1]], (%r[[A0]])
 ; CHECK: ret
 }

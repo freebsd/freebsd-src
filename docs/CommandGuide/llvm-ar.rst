@@ -21,64 +21,24 @@ LLVM program. However, the archive can contain any kind of file. By default,
 only the symbol table needs to be consulted, not each individual file member
 of the archive.
 
-The **llvm-ar** command can be used to *read* both SVR4 and BSD style archive
-files. However, it cannot be used to write them.  While the **llvm-ar** command
-produces files that are *almost* identical to the format used by other ``ar``
-implementations, it has two significant departures in order to make the
-archive appropriate for LLVM. The first departure is that **llvm-ar** only
-uses BSD4.4 style long path names (stored immediately after the header) and
-never contains a string table for long names. The second departure is that the
-symbol table is formated for efficient construction of an in-memory data
-structure that permits rapid (red-black tree) lookups. Consequently, archives
-produced with **llvm-ar** usually won't be readable or editable with any
-``ar`` implementation or useful for linking.  Using the ``f`` modifier to flatten
-file names will make the archive readable by other ``ar`` implementations
-but not for linking because the symbol table format for LLVM is unique. If an
+The **llvm-ar** command can be used to *read* SVR4, GNU and BSD style archive
+files. However, right now it can only write in the GNU format. If an
 SVR4 or BSD style archive is used with the ``r`` (replace) or ``q`` (quick
-update) operations, the archive will be reconstructed in LLVM format. This
-means that the string table will be dropped (in deference to BSD 4.4 long names)
-and an LLVM symbol table will be added (by default). The system symbol table
-will be retained.
+update) operations, the archive will be reconstructed in GNU format.
 
 Here's where **llvm-ar** departs from previous ``ar`` implementations:
 
 
 *Symbol Table*
 
- Since **llvm-ar** is intended to archive bitcode files, the symbol table
- won't make much sense to anything but LLVM. Consequently, the symbol table's
- format has been simplified. It consists simply of a sequence of pairs
- of a file member index number as an LSB 4byte integer and a null-terminated
- string.
-
+ Since **llvm-ar** supports bitcode files. The symbol table it creates
+ is in GNU format and includes both native and bitcode files.
 
 
 *Long Paths*
 
- Some ``ar`` implementations (SVR4) use a separate file member to record long
- path names (> 15 characters). **llvm-ar** takes the BSD 4.4 and Mac OS X
- approach which is to simply store the full path name immediately preceding
- the data for the file. The path name is null terminated and may contain the
- slash (/) character.
-
-
-
-*Directory Recursion*
-
- Most ``ar`` implementations do not recurse through directories but simply
- ignore directories if they are presented to the program in the *files*
- option. **llvm-ar**, however, can recurse through directory structures and
- add all the files under a directory, if requested.
-
-
-
-*TOC Verbose Output*
-
- When **llvm-ar** prints out the verbose table of contents (``tv`` option), it
- precedes the usual output with a character indicating the basic kind of
- content in the file. A blank means the file is a regular file. A 'B' means
- the file is an LLVM bitcode file. An 'S' means the file is the symbol table.
-
+ Currently **llvm-ar** can read GNU and BSD long file names, but only writes
+ archives with the GNU format.
 
 
 
@@ -124,20 +84,19 @@ m[abi]
 
 
 
-p[k]
+p
 
- Print files to the standard output. The *k* modifier applies to this
- operation. This operation simply prints the *files* indicated to the
- standard output. If no *files* are specified, the entire archive is printed.
- Printing bitcode files is ill-advised as they might confuse your terminal
- settings. The *p* operation never modifies the archive.
+ Print files to the standard output. This operation simply prints the
+ *files* indicated to the standard output. If no *files* are
+ specified, the entire  archive is printed.  Printing bitcode files is
+ ill-advised as they might confuse your terminal settings. The *p*
+ operation never modifies the archive.
 
 
 
-q[Rf]
+q
 
- Quickly append files to the end of the archive. The *R*, and *f*
- modifiers apply to this operation.  This operation quickly adds the
+ Quickly append files to the end of the archive.  This operation quickly adds the
  *files* to the archive without checking for duplicates that should be
  removed first. If no *files* are specified, the archive is not modified.
  Because of the way that **llvm-ar** constructs the archive file, its dubious
@@ -145,9 +104,9 @@ q[Rf]
 
 
 
-r[Rabfu]
+r[abu]
 
- Replace or insert file members. The *R*, *a*, *b*, *f*, and *u*
+ Replace or insert file members. The *a*, *b*,  and *u*
  modifiers apply to this operation. This operation will replace existing
  *files* or insert them at the end of the archive if they do not exist. If no
  *files* are specified, the archive is not modified.
@@ -201,34 +160,9 @@ section (above) to determine which modifiers are applicable to which operations.
 
 
 
-[f]
-
- Normally, **llvm-ar** stores the full path name to a file as presented to it on
- the command line. With this option, truncated (15 characters max) names are
- used. This ensures name compatibility with older versions of ``ar`` but may also
- thwart correct extraction of the files (duplicates may overwrite). If used with
- the *R* option, the directory recursion will be performed but the file names
- will all be flattened to simple file names.
-
-
-
 [i]
 
  A synonym for the *b* option.
-
-
-
-[k]
-
- Normally, **llvm-ar** will not print the contents of bitcode files when the
- *p* operation is used. This modifier defeats the default and allows the
- bitcode members to be printed.
-
-
-
-[N]
-
- This option is ignored by **llvm-ar** but provided for compatibility.
 
 
 
@@ -236,22 +170,6 @@ section (above) to determine which modifiers are applicable to which operations.
 
  When extracting files, this option will cause **llvm-ar** to preserve the
  original modification times of the files it writes.
-
-
-
-[P]
-
- use full path names when matching
-
-
-
-[R]
-
- This modifier instructions the *r* option to recursively process directories.
- Without *R*, directories are ignored and only those *files* that refer to
- files will be added to the archive. When *R* is used, any directories specified
- with *files* will be scanned (recursively) to find files to be added to the
- archive. Any file whose name begins with a dot will not be added.
 
 
 
@@ -283,8 +201,7 @@ The modifiers below may be applied to any operation.
  This modifier requests that an archive index (or symbol table) be added to the
  archive. This is the default mode of operation. The symbol table will contain
  all the externally visible functions and global variables defined by all the
- bitcode files in the archive. Using this modifier is more efficient that using
- llvm-ranlib|llvm-ranlib which also creates the symbol table.
+ bitcode files in the archive.
 
 
 
@@ -401,14 +318,6 @@ fmag - char[2]
  utility in identifying archive files that have been corrupted.
 
 
-
-The LLVM symbol table has the special name "#_LLVM_SYM_TAB_#". It is presumed
-that no regular archive member file will want this name. The LLVM symbol table
-is simply composed of a sequence of triplets: byte offset, length of symbol,
-and the symbol itself. Symbols are not null or newline terminated. Here are
-the details on each of these items:
-
-
 offset - vbr encoded 32-bit integer
 
  The offset item provides the offset into the archive file where the bitcode
@@ -455,4 +364,4 @@ SEE ALSO
 --------
 
 
-llvm-ranlib|llvm-ranlib, ar(1)
+ar(1)

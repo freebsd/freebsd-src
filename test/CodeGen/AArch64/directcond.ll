@@ -1,7 +1,8 @@
 ; RUN: llc -verify-machineinstrs < %s -mtriple=aarch64-none-linux-gnu | FileCheck %s
+; RUN: llc -verify-machineinstrs < %s -mtriple=aarch64-none-linux-gnu -mattr=-fp-armv8 | FileCheck --check-prefix=CHECK-NOFP %s
 
 define i32 @test_select_i32(i1 %bit, i32 %a, i32 %b) {
-; CHECK: test_select_i32:
+; CHECK-LABEL: test_select_i32:
   %val = select i1 %bit, i32 %a, i32 %b
 ; CHECK: movz [[ONE:w[0-9]+]], #1
 ; CHECK: tst w0, [[ONE]]
@@ -11,7 +12,7 @@ define i32 @test_select_i32(i1 %bit, i32 %a, i32 %b) {
 }
 
 define i64 @test_select_i64(i1 %bit, i64 %a, i64 %b) {
-; CHECK: test_select_i64:
+; CHECK-LABEL: test_select_i64:
   %val = select i1 %bit, i64 %a, i64 %b
 ; CHECK: movz [[ONE:w[0-9]+]], #1
 ; CHECK: tst w0, [[ONE]]
@@ -21,27 +22,28 @@ define i64 @test_select_i64(i1 %bit, i64 %a, i64 %b) {
 }
 
 define float @test_select_float(i1 %bit, float %a, float %b) {
-; CHECK: test_select_float:
+; CHECK-LABEL: test_select_float:
   %val = select i1 %bit, float %a, float %b
 ; CHECK: movz [[ONE:w[0-9]+]], #1
 ; CHECK: tst w0, [[ONE]]
 ; CHECK-NEXT: fcsel s0, s0, s1, ne
-
+; CHECK-NOFP-NOT: fcsel
   ret float %val
 }
 
 define double @test_select_double(i1 %bit, double %a, double %b) {
-; CHECK: test_select_double:
+; CHECK-LABEL: test_select_double:
   %val = select i1 %bit, double %a, double %b
 ; CHECK: movz [[ONE:w[0-9]+]], #1
 ; CHECK: tst w0, [[ONE]]
 ; CHECK-NEXT: fcsel d0, d0, d1, ne
+; CHECK-NOFP-NOT: fcsel
 
   ret double %val
 }
 
 define i32 @test_brcond(i1 %bit) {
-; CHECK: test_brcond:
+; CHECK-LABEL: test_brcond:
   br i1 %bit, label %true, label %false
 ; CHECK: tbz {{w[0-9]+}}, #0, .LBB
 
@@ -56,6 +58,7 @@ define i1 @test_setcc_float(float %lhs, float %rhs) {
   %val = fcmp oeq float %lhs, %rhs
 ; CHECK: fcmp s0, s1
 ; CHECK: csinc w0, wzr, wzr, ne
+; CHECK-NOFP-NOT: fcmp
   ret i1 %val
 }
 
@@ -64,6 +67,7 @@ define i1 @test_setcc_double(double %lhs, double %rhs) {
   %val = fcmp oeq double %lhs, %rhs
 ; CHECK: fcmp d0, d1
 ; CHECK: csinc w0, wzr, wzr, ne
+; CHECK-NOFP-NOT: fcmp
   ret i1 %val
 }
 

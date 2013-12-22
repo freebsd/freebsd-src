@@ -8,6 +8,7 @@ add_llvm_library(LLVMTransformUtils
   CmpInstAnalysis.cpp
   CodeExtractor.cpp
   DemoteRegToStack.cpp
+  GlobalStatus.cpp
   InlineFunction.cpp
   InstructionNamer.cpp
   IntegerDivision.cpp
@@ -25,9 +26,11 @@ add_llvm_library(LLVMTransformUtils
   PromoteMemoryToRegister.cpp
   SSAUpdater.cpp
   SimplifyCFG.cpp
+  FlattenCFG.cpp
   SimplifyIndVar.cpp
   SimplifyInstructions.cpp
   SimplifyLibCalls.cpp
+  SpecialCaseList.cpp
   UnifyFunctionExitNodes.cpp
   Utils.cpp
   ValueMapper.cpp

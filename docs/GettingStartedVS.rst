@@ -45,13 +45,13 @@ and software you will need.
 
 Hardware
 --------
-Any system that can adequately run Visual Studio 2008 is fine. The LLVM
+Any system that can adequately run Visual Studio 2010 is fine. The LLVM
 source tree and object files, libraries and executables will consume
 approximately 3GB.
 
 Software
 --------
-You will need Visual Studio 2008 or higher.  Earlier versions of Visual
+You will need Visual Studio 2010 or higher.  Earlier versions of Visual
 Studio have bugs, are not completely compatible, or do not support the C++
 standard well enough.
 
@@ -164,7 +164,7 @@ An Example Using the LLVM Tool Chain
         return 0;
       }
 
-2. Next, compile the C file into a LLVM bitcode file:
+2. Next, compile the C file into an LLVM bitcode file:
 
    .. code-block:: bat
 

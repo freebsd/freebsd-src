@@ -15,8 +15,10 @@
 #include "llvm/Config/config.h" // plugin-api.h requires HAVE_STDINT_H
 #include "plugin-api.h"
 #include "llvm-c/lto.h"
+#include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/Errno.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
@@ -64,8 +66,9 @@ namespace {
   lto_codegen_model output_type = LTO_CODEGEN_PIC_MODEL_STATIC;
   std::string output_name = "";
   std::list<claimed_file> Modules;
-  std::vector<sys::Path> Cleanup;
+  std::vector<std::string> Cleanup;
   lto_code_gen_t code_gen = NULL;
+  StringSet<> CannotBeHidden;
 }
 
 namespace options {
@@ -196,7 +199,7 @@ ld_plugin_status onload(ld_plugin_tv *tv) {
       case LDPT_ADD_SYMBOLS:
         add_symbols = tv->tv_u.tv_add_symbols;
         break;
-      case LDPT_GET_SYMBOLS:
+      case LDPT_GET_SYMBOLS_V2:
         get_symbols = tv->tv_u.tv_get_symbols;
         break;
       case LDPT_ADD_INPUT_FILE:
@@ -251,9 +254,8 @@ static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
     if (file->offset) {
       offset = file->offset;
     }
-    if (error_code ec =
-        MemoryBuffer::getOpenFile(file->fd, file->name, buffer, file->filesize,
-                                  -1, offset, false)) {
+    if (error_code ec = MemoryBuffer::getOpenFileSlice(
+            file->fd, file->name, buffer, file->filesize, offset)) {
       (*message)(LDPL_ERROR, ec.message().c_str());
       return LDPS_ERR;
     }
@@ -297,6 +299,9 @@ static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
     sym.version = NULL;
 
     int scope = attrs & LTO_SYMBOL_SCOPE_MASK;
+    bool CanBeHidden = scope == LTO_SYMBOL_SCOPE_DEFAULT_CAN_BE_HIDDEN;
+    if (!CanBeHidden)
+      CannotBeHidden.insert(sym.name);
     switch (scope) {
       case LTO_SYMBOL_SCOPE_HIDDEN:
         sym.visibility = LDPV_HIDDEN;
@@ -306,6 +311,7 @@ static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
         break;
       case 0: // extern
       case LTO_SYMBOL_SCOPE_DEFAULT:
+      case LTO_SYMBOL_SCOPE_DEFAULT_CAN_BE_HIDDEN:
         sym.visibility = LDPV_DEFAULT;
         break;
       default:
@@ -351,12 +357,25 @@ static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
     }
   }
 
-  if (code_gen)
-    lto_codegen_add_module(code_gen, M);
+  if (code_gen) {
+    if (lto_codegen_add_module(code_gen, M)) {
+      (*message)(LDPL_ERROR, "Error linking module: %s",
+                 lto_get_error_message());
+      return LDPS_ERR;
+    }
+  }
 
   lto_module_dispose(M);
 
   return LDPS_OK;
+}
+
+static bool mustPreserve(const claimed_file &F, int i) {
+  if (F.syms[i].resolution == LDPR_PREVAILING_DEF)
+    return true;
+  if (F.syms[i].resolution == LDPR_PREVAILING_DEF_IRONLY_EXP)
+    return CannotBeHidden.count(F.syms[i].name);
+  return false;
 }
 
 /// all_symbols_read_hook - gold informs us that all symbols have been read.
@@ -381,7 +400,7 @@ static ld_plugin_status all_symbols_read_hook(void) {
       continue;
     (*get_symbols)(I->handle, I->syms.size(), &I->syms[0]);
     for (unsigned i = 0, e = I->syms.size(); i != e; i++) {
-      if (I->syms[i].resolution == LDPR_PREVAILING_DEF) {
+      if (mustPreserve(*I, i)) {
         lto_codegen_add_must_preserve_symbol(code_gen, I->syms[i].name);
 
         if (options::generate_api_file)
@@ -417,12 +436,19 @@ static ld_plugin_status all_symbols_read_hook(void) {
     bool err = lto_codegen_write_merged_modules(code_gen, path.c_str());
     if (err)
       (*message)(LDPL_FATAL, "Failed to write the output file.");
-    if (options::generate_bc_file == options::BC_ONLY)
+    if (options::generate_bc_file == options::BC_ONLY) {
+      lto_codegen_dispose(code_gen);
       exit(0);
+    }
   }
-  const char *objPath;
-  if (lto_codegen_compile_to_file(code_gen, &objPath)) {
-    (*message)(LDPL_ERROR, "Could not produce a combined object file\n");
+
+  std::string ObjPath;
+  {
+    const char *Temp;
+    if (lto_codegen_compile_to_file(code_gen, &Temp)) {
+      (*message)(LDPL_ERROR, "Could not produce a combined object file\n");
+    }
+    ObjPath = Temp;
   }
 
   lto_codegen_dispose(code_gen);
@@ -434,9 +460,9 @@ static ld_plugin_status all_symbols_read_hook(void) {
     }
   }
 
-  if ((*add_input_file)(objPath) != LDPS_OK) {
+  if ((*add_input_file)(ObjPath.c_str()) != LDPS_OK) {
     (*message)(LDPL_ERROR, "Unable to add .o file to the link.");
-    (*message)(LDPL_ERROR, "File left behind in: %s", objPath);
+    (*message)(LDPL_ERROR, "File left behind in: %s", ObjPath.c_str());
     return LDPS_ERR;
   }
 
@@ -447,18 +473,18 @@ static ld_plugin_status all_symbols_read_hook(void) {
   }
 
   if (options::obj_path.empty())
-    Cleanup.push_back(sys::Path(objPath));
+    Cleanup.push_back(ObjPath);
 
   return LDPS_OK;
 }
 
 static ld_plugin_status cleanup_hook(void) {
-  std::string ErrMsg;
-
-  for (int i = 0, e = Cleanup.size(); i != e; ++i)
-    if (Cleanup[i].eraseFromDisk(false, &ErrMsg))
+  for (int i = 0, e = Cleanup.size(); i != e; ++i) {
+    error_code EC = sys::fs::remove(Cleanup[i]);
+    if (EC)
       (*message)(LDPL_ERROR, "Failed to delete '%s': %s", Cleanup[i].c_str(),
-                 ErrMsg.c_str());
+                 EC.message().c_str());
+  }
 
   return LDPS_OK;
 }

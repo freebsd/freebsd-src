@@ -199,12 +199,13 @@ declare float @copysignf(float, float) nounwind readnone
 declare void @llvm.dbg.value(metadata, i64, metadata) nounwind readnone
 
 !llvm.dbg.cu = !{!3}
+!llvm.module.flags = !{!48}
 
 !0 = metadata !{i32 786689, metadata !1, metadata !"a", metadata !2, i32 1921, metadata !9, i32 0, null} ; [ DW_TAG_arg_variable ]
-!1 = metadata !{i32 786478, metadata !2, metadata !"__divsc3", metadata !"__divsc3", metadata !"__divsc3", metadata !2, i32 1922, metadata !4, i1 false, i1 true, i32 0, i32 0, null, i1 false, i1 true, %0 (float, float, float, float)* @__divsc3, null, null, metadata !43, i32 1922} ; [ DW_TAG_subprogram ]
+!1 = metadata !{i32 786478, metadata !45, metadata !2, metadata !"__divsc3", metadata !"__divsc3", metadata !"__divsc3", i32 1922, metadata !4, i1 false, i1 true, i32 0, i32 0, null, i1 false, i1 true, %0 (float, float, float, float)* @__divsc3, null, null, metadata !43, i32 1922} ; [ DW_TAG_subprogram ]
 !2 = metadata !{i32 786473, metadata !45} ; [ DW_TAG_file_type ]
-!3 = metadata !{i32 786449, i32 1, metadata !2, metadata !"4.2.1 (Based on Apple Inc. build 5658) (LLVM build)", i1 true, metadata !"", i32 0, null, null, metadata !44, null,  null, metadata !""} ; [ DW_TAG_compile_unit ]
-!4 = metadata !{i32 786453, metadata !45, metadata !2, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !5, i32 0, null} ; [ DW_TAG_subroutine_type ]
+!3 = metadata !{i32 786449, metadata !45, i32 1, metadata !"4.2.1 (Based on Apple Inc. build 5658) (LLVM build)", i1 true, metadata !"", i32 0, metadata !47, metadata !47, metadata !44, null,  null, metadata !""} ; [ DW_TAG_compile_unit ]
+!4 = metadata !{i32 786453, metadata !45, metadata !2, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !5, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
 !5 = metadata !{metadata !6, metadata !9, metadata !9, metadata !9, metadata !9}
 !6 = metadata !{i32 786454, metadata !46, metadata !7, metadata !"SCtype", i32 170, i64 0, i64 0, i64 0, i32 0, metadata !8} ; [ DW_TAG_typedef ]
 !7 = metadata !{i32 786473, metadata !46} ; [ DW_TAG_file_type ]
@@ -215,7 +216,7 @@ declare void @llvm.dbg.value(metadata, i64, metadata) nounwind readnone
 !12 = metadata !{i32 786689, metadata !1, metadata !"c", metadata !2, i32 1921, metadata !9, i32 0, null} ; [ DW_TAG_arg_variable ]
 !13 = metadata !{i32 786689, metadata !1, metadata !"d", metadata !2, i32 1921, metadata !9, i32 0, null} ; [ DW_TAG_arg_variable ]
 !14 = metadata !{i32 786688, metadata !15, metadata !"denom", metadata !2, i32 1923, metadata !9, i32 0, null} ; [ DW_TAG_auto_variable ]
-!15 = metadata !{i32 786443, metadata !2, metadata !1, i32 1922, i32 0} ; [ DW_TAG_lexical_block ]
+!15 = metadata !{i32 786443, metadata !45, metadata !1, i32 1922, i32 0, i32 0} ; [ DW_TAG_lexical_block ]
 !16 = metadata !{i32 786688, metadata !15, metadata !"ratio", metadata !2, i32 1923, metadata !9, i32 0, null} ; [ DW_TAG_auto_variable ]
 !17 = metadata !{i32 786688, metadata !15, metadata !"x", metadata !2, i32 1923, metadata !9, i32 0, null} ; [ DW_TAG_auto_variable ]
 !18 = metadata !{i32 786688, metadata !15, metadata !"y", metadata !2, i32 1923, metadata !9, i32 0, null} ; [ DW_TAG_auto_variable ]
@@ -247,3 +248,5 @@ declare void @llvm.dbg.value(metadata, i64, metadata) nounwind readnone
 !44 = metadata !{metadata !1}
 !45 = metadata !{metadata !"libgcc2.c", metadata !"/Users/yash/clean/LG.D/gcc/../../llvmgcc/gcc"}
 !46 = metadata !{metadata !"libgcc2.h", metadata !"/Users/yash/clean/LG.D/gcc/../../llvmgcc/gcc"}
+!47 = metadata !{i32 0}
+!48 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}

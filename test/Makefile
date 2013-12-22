@@ -31,14 +31,8 @@ endif
 
 ifdef TESTSUITE
 LIT_TESTSUITE := $(TESTSUITE)
-CLEANED_TESTSUITE := $(patsubst %/,%,$(TESTSUITE))
-CLEANED_TESTSUITE := $(patsubst test/%,%,$(CLEANED_TESTSUITE))
 else
 LIT_TESTSUITE := .
-endif
-
-ifdef VG
-VALGRIND := valgrind --tool=memcheck --quiet --trace-children=yes --error-exitcode=3 --leak-check=full $(VALGRIND_EXTRA_ARGS)
 endif
 
 # Check what to run for -all.
@@ -65,6 +59,15 @@ LIT_ALL_TESTSUITES += $(PROJ_OBJ_DIR)/../tools/clang/tools/extra/test
 clang-tools-site-cfg: FORCE
 	$(MAKE) -C $(PROJ_OBJ_DIR)/../tools/clang/tools/extra/test lit.site.cfg
 extra-site-cfgs:: clang-tools-site-cfg
+endif
+
+ifeq ($(shell test -f $(PROJ_OBJ_DIR)/../tools/polly/Makefile && echo OK), OK)
+LIT_ALL_TESTSUITES += $(PROJ_OBJ_DIR)/../tools/polly/test
+
+# Force creation of Polly's lit.site.cfg.
+polly-tools-site-cfg: FORCE
+	$(MAKE) -C $(PROJ_OBJ_DIR)/../tools/polly/test lit.site.cfg
+extra-site-cfgs:: polly-tools-site-cfg
 endif
 endif
 endif
@@ -113,16 +116,6 @@ else
 ENABLE_ASSERTIONS=1
 endif
 
-# Derive whether or not LTO is enabled by checking the extra options.
-LTO_IS_ENABLED := 0
-ifneq ($(findstring -flto,$(CompileCommonOpts)),)
-LTO_IS_ENABLED := 1
-else
-ifneq ($(findstring -O4,$(CompileCommonOpts)),)
-LTO_IS_ENABLED := 1
-endif
-endif
-
 lit.site.cfg: FORCE
 	@echo "Making LLVM 'lit.site.cfg' file..."
 	@$(ECHOPATH) s=@LLVM_HOST_TRIPLE@=$(HOST_TRIPLE)=g > lit.tmp
@@ -133,10 +126,9 @@ lit.site.cfg: FORCE
 	@$(ECHOPATH) s=@SHLIBDIR@=$(SharedLibDir)=g >> lit.tmp
 	@$(ECHOPATH) s=@SHLIBEXT@=$(SHLIBEXT)=g >> lit.tmp
 	@$(ECHOPATH) s=@PYTHON_EXECUTABLE@=$(PYTHON)=g >> lit.tmp
-	@$(ECHOPATH) s=@OCAMLOPT@=$(OCAMLOPT) -cc $(subst *,'\\\"',*$(subst =,"\\=",$(CXX_FOR_OCAMLOPT))*) -I $(LibDir)/ocaml=g >> lit.tmp
+	@$(ECHOPATH) s=@OCAMLOPT@=$(OCAMLOPT) -cc $(subst *,'\\\"',*$(subst =,"\\=",$(CXX_FOR_OCAMLOPT))*) -cclib -L$(LibDir) -I $(LibDir)/ocaml=g >> lit.tmp
 	@$(ECHOPATH) s=@ENABLE_SHARED@=$(ENABLE_SHARED)=g >> lit.tmp
 	@$(ECHOPATH) s=@ENABLE_ASSERTIONS@=$(ENABLE_ASSERTIONS)=g >> lit.tmp
-	@$(ECHOPATH) s=@LTO_IS_ENABLED@=$(LTO_IS_ENABLED)=g >> lit.tmp
 	@$(ECHOPATH) s=@TARGETS_TO_BUILD@=$(TARGETS_TO_BUILD)=g >> lit.tmp
 	@$(ECHOPATH) s=@LLVM_BINDINGS@=$(BINDINGS_TO_BUILD)=g >> lit.tmp
 	@$(ECHOPATH) s=@HOST_OS@=$(HOST_OS)=g >> lit.tmp

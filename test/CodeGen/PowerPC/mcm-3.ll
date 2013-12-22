@@ -17,7 +17,7 @@ entry:
   ret i32 %0
 }
 
-; MEDIUM: test_file_static:
+; MEDIUM-LABEL: test_file_static:
 ; MEDIUM: addis [[REG1:[0-9]+]], 2, [[VAR:[a-z0-9A-Z_.]+]]@toc@ha
 ; MEDIUM: addi [[REG2:[0-9]+]], [[REG1]], [[VAR]]@toc@l
 ; MEDIUM: lwz {{[0-9]+}}, 0([[REG2]])
@@ -28,14 +28,16 @@ entry:
 ; MEDIUM: [[VAR]]:
 ; MEDIUM: .long 5
 
-; LARGE: test_file_static:
+; LARGE-LABEL: test_file_static:
 ; LARGE: addis [[REG1:[0-9]+]], 2, [[VAR:[a-z0-9A-Z_.]+]]@toc@ha
 ; LARGE: ld [[REG2:[0-9]+]], [[VAR]]@toc@l([[REG1]])
 ; LARGE: lwz {{[0-9]+}}, 0([[REG2]])
 ; LARGE: stw {{[0-9]+}}, 0([[REG2]])
-; LARGE: .type [[VAR]],@object
-; LARGE: .data
-; LARGE: .globl [[VAR]]
 ; LARGE: [[VAR]]:
+; LARGE: .tc [[VAR2:[a-z0-9A-Z_.]+]][TC],[[VAR2]]
+; LARGE: .type [[VAR2]],@object
+; LARGE: .data
+; LARGE: .globl [[VAR2]]
+; LARGE: [[VAR2]]:
 ; LARGE: .long 5
 

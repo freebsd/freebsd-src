@@ -2,9 +2,11 @@
 ;
 ; RUN: llc < %s -mtriple=s390x-linux-gnu | FileCheck %s
 
+declare float @foo()
+
 ; Check register multiplication.
 define float @f1(float %f1, float %f2) {
-; CHECK: f1:
+; CHECK-LABEL: f1:
 ; CHECK: meebr %f0, %f2
 ; CHECK: br %r14
   %res = fmul float %f1, %f2
@@ -13,7 +15,7 @@ define float @f1(float %f1, float %f2) {
 
 ; Check the low end of the MEEB range.
 define float @f2(float %f1, float *%ptr) {
-; CHECK: f2:
+; CHECK-LABEL: f2:
 ; CHECK: meeb %f0, 0(%r2)
 ; CHECK: br %r14
   %f2 = load float *%ptr
@@ -23,7 +25,7 @@ define float @f2(float %f1, float *%ptr) {
 
 ; Check the high end of the aligned MEEB range.
 define float @f3(float %f1, float *%base) {
-; CHECK: f3:
+; CHECK-LABEL: f3:
 ; CHECK: meeb %f0, 4092(%r2)
 ; CHECK: br %r14
   %ptr = getelementptr float *%base, i64 1023
@@ -35,7 +37,7 @@ define float @f3(float %f1, float *%base) {
 ; Check the next word up, which needs separate address logic.
 ; Other sequences besides this one would be OK.
 define float @f4(float %f1, float *%base) {
-; CHECK: f4:
+; CHECK-LABEL: f4:
 ; CHECK: aghi %r2, 4096
 ; CHECK: meeb %f0, 0(%r2)
 ; CHECK: br %r14
@@ -47,7 +49,7 @@ define float @f4(float %f1, float *%base) {
 
 ; Check negative displacements, which also need separate address logic.
 define float @f5(float %f1, float *%base) {
-; CHECK: f5:
+; CHECK-LABEL: f5:
 ; CHECK: aghi %r2, -4
 ; CHECK: meeb %f0, 0(%r2)
 ; CHECK: br %r14
@@ -59,7 +61,7 @@ define float @f5(float %f1, float *%base) {
 
 ; Check that MEEB allows indices.
 define float @f6(float %f1, float *%base, i64 %index) {
-; CHECK: f6:
+; CHECK-LABEL: f6:
 ; CHECK: sllg %r1, %r3, 2
 ; CHECK: meeb %f0, 400(%r1,%r2)
 ; CHECK: br %r14
@@ -68,4 +70,50 @@ define float @f6(float %f1, float *%base, i64 %index) {
   %f2 = load float *%ptr2
   %res = fmul float %f1, %f2
   ret float %res
+}
+
+; Check that multiplications of spilled values can use MEEB rather than MEEBR.
+define float @f7(float *%ptr0) {
+; CHECK-LABEL: f7:
+; CHECK: brasl %r14, foo@PLT
+; CHECK: meeb %f0, 16{{[04]}}(%r15)
+; CHECK: br %r14
+  %ptr1 = getelementptr float *%ptr0, i64 2
+  %ptr2 = getelementptr float *%ptr0, i64 4
+  %ptr3 = getelementptr float *%ptr0, i64 6
+  %ptr4 = getelementptr float *%ptr0, i64 8
+  %ptr5 = getelementptr float *%ptr0, i64 10
+  %ptr6 = getelementptr float *%ptr0, i64 12
+  %ptr7 = getelementptr float *%ptr0, i64 14
+  %ptr8 = getelementptr float *%ptr0, i64 16
+  %ptr9 = getelementptr float *%ptr0, i64 18
+  %ptr10 = getelementptr float *%ptr0, i64 20
+
+  %val0 = load float *%ptr0
+  %val1 = load float *%ptr1
+  %val2 = load float *%ptr2
+  %val3 = load float *%ptr3
+  %val4 = load float *%ptr4
+  %val5 = load float *%ptr5
+  %val6 = load float *%ptr6
+  %val7 = load float *%ptr7
+  %val8 = load float *%ptr8
+  %val9 = load float *%ptr9
+  %val10 = load float *%ptr10
+
+  %ret = call float @foo()
+
+  %mul0 = fmul float %ret, %val0
+  %mul1 = fmul float %mul0, %val1
+  %mul2 = fmul float %mul1, %val2
+  %mul3 = fmul float %mul2, %val3
+  %mul4 = fmul float %mul3, %val4
+  %mul5 = fmul float %mul4, %val5
+  %mul6 = fmul float %mul5, %val6
+  %mul7 = fmul float %mul6, %val7
+  %mul8 = fmul float %mul7, %val8
+  %mul9 = fmul float %mul8, %val9
+  %mul10 = fmul float %mul9, %val10
+
+  ret float %mul10
 }

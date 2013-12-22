@@ -1,27 +1,46 @@
-; RUN: llvm-link %s %p/unnamed-addr1-b.ll -S -o - | sort | FileCheck %s
+; RUN: llvm-link %s %p/unnamed-addr1-b.ll -S -o - | FileCheck %s
 
 ; Only in this file
-@a = common global i32 0
-; CHECK: @a = common global i32 0
-@b = common unnamed_addr global i32 0
-; CHECK: @b = common unnamed_addr global i32 0
+@global-a = common global i32 0
+; CHECK-DAG: @global-a = common global i32 0
+@global-b = common unnamed_addr global i32 0
+; CHECK-DAG: @global-b = common unnamed_addr global i32 0
+
+define weak void @func-a() { ret void }
+; CHECK-DAG: define weak void @func-a() {
+define weak void @func-b() unnamed_addr { ret void }
+; CHECK-DAG: define weak void @func-b() unnamed_addr {
 
 ; Other file has unnamed_addr definition
-@c = common unnamed_addr global i32 0
-; CHECK: @c = common unnamed_addr global i32 0
-@d = external global i32
-; CHECK: @d = unnamed_addr global i32 42
-@e = external unnamed_addr global i32
-; CHECK: @e = unnamed_addr global i32 42
-@f = weak global i32 42
-; CHECK: @f = unnamed_addr global i32 42
+@global-c = common unnamed_addr global i32 0
+; CHECK-DAG: @global-c = common unnamed_addr global i32 0
+@global-d = external global i32
+; CHECK-DAG: @global-d = global i32 42
+@global-e = external unnamed_addr global i32
+; CHECK-DAG: @global-e = unnamed_addr global i32 42
+@global-f = weak global i32 42
+; CHECK-DAG: @global-f = global i32 42
+
+declare void @func-c()
+; CHECK-DAG: define weak void @func-c() {
+define weak void @func-d() { ret void }
+; CHECK-DAG: define weak void @func-d() {
+define weak void @func-e() unnamed_addr { ret void }
+; CHECK-DAG: define weak void @func-e() unnamed_addr {
 
 ; Other file has non-unnamed_addr definition
-@g = common unnamed_addr global i32 0
-; CHECK: @g = common unnamed_addr global i32 0
-@h = external global i32
-; CHECK: @h = global i32 42
-@i = external unnamed_addr global i32
-; CHECK: @i = global i32 42
-@j = weak global i32 42
-; CHECK: @j = global i32 42
+@global-g = common unnamed_addr global i32 0
+; CHECK-DAG: @global-g = common global i32 0
+@global-h = external global i32
+; CHECK-DAG: @global-h = global i32 42
+@global-i = external unnamed_addr global i32
+; CHECK-DAG: @global-i = global i32 42
+@global-j = weak global i32 42
+; CHECK-DAG: @global-j = global i32 42
+
+declare void @func-g()
+; CHECK-DAG: define weak void @func-g() {
+define weak void @func-h() { ret void }
+; CHECK-DAG: define weak void @func-h() {
+define weak void @func-i() unnamed_addr { ret void }
+; CHECK-DAG: define weak void @func-i() {

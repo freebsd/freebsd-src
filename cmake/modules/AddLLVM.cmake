@@ -12,6 +12,11 @@ macro(add_llvm_library name)
 
   if( BUILD_SHARED_LIBS )
     llvm_config( ${name} ${LLVM_LINK_COMPONENTS} )
+    if (MSVC)
+      set_target_properties(${name}
+        PROPERTIES
+        IMPORT_SUFFIX ".imp")
+    endif ()
   endif()
 
   # Ensure that the system libraries always comes last on the
@@ -21,9 +26,11 @@ macro(add_llvm_library name)
   if( EXCLUDE_FROM_ALL )
     set_target_properties( ${name} PROPERTIES EXCLUDE_FROM_ALL ON)
   else()
-    install(TARGETS ${name}
-      LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX}
-      ARCHIVE DESTINATION lib${LLVM_LIBDIR_SUFFIX})
+    if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY OR ${name} STREQUAL "LTO")
+      install(TARGETS ${name}
+        LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX}
+        ARCHIVE DESTINATION lib${LLVM_LIBDIR_SUFFIX})
+    endif()
   endif()
   set_target_properties(${name} PROPERTIES FOLDER "Libraries")
 
@@ -65,9 +72,11 @@ ${name} ignored.")
     if( EXCLUDE_FROM_ALL )
       set_target_properties( ${name} PROPERTIES EXCLUDE_FROM_ALL ON)
     else()
-      install(TARGETS ${name}
-        LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX}
-        ARCHIVE DESTINATION lib${LLVM_LIBDIR_SUFFIX})
+      if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
+        install(TARGETS ${name}
+          LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX}
+          ARCHIVE DESTINATION lib${LLVM_LIBDIR_SUFFIX})
+      endif()
     endif()
   endif()
 
@@ -91,14 +100,23 @@ macro(add_llvm_executable name)
 endmacro(add_llvm_executable name)
 
 
+set (LLVM_TOOLCHAIN_TOOLS
+  llvm-ar
+  llvm-objdump
+  )
+
 macro(add_llvm_tool name)
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${LLVM_TOOLS_BINARY_DIR})
   if( NOT LLVM_BUILD_TOOLS )
     set(EXCLUDE_FROM_ALL ON)
   endif()
   add_llvm_executable(${name} ${ARGN})
-  if( LLVM_BUILD_TOOLS )
-    install(TARGETS ${name} RUNTIME DESTINATION bin)
+
+  list(FIND LLVM_TOOLCHAIN_TOOLS ${name} LLVM_IS_${name}_TOOLCHAIN_TOOL)
+  if (LLVM_IS_${name}_TOOLCHAIN_TOOL GREATER -1 OR NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
+    if( LLVM_BUILD_TOOLS )
+      install(TARGETS ${name} RUNTIME DESTINATION bin)
+    endif()
   endif()
   set_target_properties(${name} PROPERTIES FOLDER "Tools")
 endmacro(add_llvm_tool name)
@@ -141,6 +159,7 @@ macro(add_llvm_external_project name)
   if("${add_llvm_external_dir}" STREQUAL "")
     set(add_llvm_external_dir ${name})
   endif()
+  list(APPEND LLVM_IMPLICIT_PROJECT_IGNORE "${CMAKE_CURRENT_SOURCE_DIR}/${add_llvm_external_dir}")
   string(REPLACE "-" "_" nameUNDERSCORE ${name})
   string(TOUPPER ${nameUNDERSCORE} nameUPPER)
   set(LLVM_EXTERNAL_${nameUPPER}_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${add_llvm_external_dir}"
@@ -154,6 +173,34 @@ macro(add_llvm_external_project name)
     endif()
   endif()
 endmacro(add_llvm_external_project)
+
+macro(add_llvm_tool_subdirectory name)
+  list(APPEND LLVM_IMPLICIT_PROJECT_IGNORE "${CMAKE_CURRENT_SOURCE_DIR}/${name}")
+  add_subdirectory(${name})
+endmacro(add_llvm_tool_subdirectory)
+
+macro(ignore_llvm_tool_subdirectory name)
+  list(APPEND LLVM_IMPLICIT_PROJECT_IGNORE "${CMAKE_CURRENT_SOURCE_DIR}/${name}")
+endmacro(ignore_llvm_tool_subdirectory)
+
+function(add_llvm_implicit_external_projects)
+  set(list_of_implicit_subdirs "")
+  file(GLOB sub-dirs "${CMAKE_CURRENT_SOURCE_DIR}/*")
+  foreach(dir ${sub-dirs})
+    if(IS_DIRECTORY "${dir}")
+      list(FIND LLVM_IMPLICIT_PROJECT_IGNORE "${dir}" tool_subdir_ignore)
+      if( tool_subdir_ignore EQUAL -1
+          AND EXISTS "${dir}/CMakeLists.txt")
+        get_filename_component(fn "${dir}" NAME)
+        list(APPEND list_of_implicit_subdirs "${fn}")
+      endif()
+    endif()
+  endforeach()
+
+  foreach(external_proj ${list_of_implicit_subdirs})
+    add_llvm_external_project("${external_proj}")
+  endforeach()
+endfunction(add_llvm_implicit_external_projects)
 
 # Generic support for adding a unittest.
 function(add_unittest test_suite test_name)
@@ -191,7 +238,7 @@ function(add_unittest test_suite test_name)
   if (LLVM_COMPILER_IS_GCC_COMPATIBLE)
     set(target_compile_flags "${target_compile_flags} -fno-rtti")
   elseif (MSVC)
-    set(target_compile_flags "${target_compile_flags} /GR-")
+    llvm_replace_compiler_option(target_compile_flags "/GR" "/GR-")
   endif ()
 
   if (SUPPORTS_NO_VARIADIC_MACROS_FLAG)
@@ -248,6 +295,22 @@ function(configure_lit_site_cfg input output)
 
   set(HOST_OS ${CMAKE_SYSTEM_NAME})
   set(HOST_ARCH ${CMAKE_SYSTEM_PROCESSOR})
+
+  if (CLANG_ENABLE_ARCMT)
+    set(ENABLE_CLANG_ARCMT "1")
+  else()
+    set(ENABLE_CLANG_ARCMT "0")
+  endif()
+  if (CLANG_ENABLE_REWRITER)
+    set(ENABLE_CLANG_REWRITER "1")
+  else()
+    set(ENABLE_CLANG_REWRITER "0")
+  endif()
+  if (CLANG_ENABLE_STATIC_ANALYZER)
+    set(ENABLE_CLANG_STATIC_ANALYZER "1")
+  else()
+    set(ENABLE_CLANG_STATIC_ANALYZER "0")
+  endif()
 
   configure_file(${input} ${output} @ONLY)
 endfunction()

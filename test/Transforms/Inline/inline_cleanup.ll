@@ -52,7 +52,7 @@ UnifiedReturnBlock:		; preds = %cond_next13
 declare void @ext(i32*)
 
 define void @test() {
-; CHECK: @test
+; CHECK-LABEL: @test(
 ; CHECK-NOT: ret
 ;
 ; FIXME: This should be a CHECK-NOT, but currently we have a bug that causes us
@@ -128,7 +128,7 @@ end4:
 define void @outer2(i32 %z, i1 %b) {
 ; Ensure that after inlining, none of the blocks with a call to @f actually
 ; make it through inlining.
-; CHECK: define void @outer2
+; CHECK-LABEL: define void @outer2(
 ; CHECK-NOT: call
 ; CHECK: ret void
 
@@ -164,7 +164,7 @@ define void @PR12470_outer() {
 ; This previously crashed during inliner cleanup and folding inner return
 ; instructions. Check that we don't crash and we produce a function with a single
 ; return instruction due to merging the returns of the inlined function.
-; CHECK: define void @PR12470_outer
+; CHECK-LABEL: define void @PR12470_outer(
 ; CHECK-NOT: call
 ; CHECK: ret void
 ; CHECK-NOT: ret void
@@ -202,7 +202,7 @@ for.cond12.for.inc26_crit_edge.2:
 }
 
 define void @crasher_outer() {
-; CHECK: @crasher_outer
+; CHECK-LABEL: @crasher_outer(
 ; CHECK-NOT: call
 ; CHECK: ret void
 ; CHECK-NOT: ret

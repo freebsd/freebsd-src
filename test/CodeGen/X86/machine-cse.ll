@@ -8,7 +8,7 @@
 
 define fastcc i8* @t(i32 %base) nounwind {
 entry:
-; CHECK: t:
+; CHECK-LABEL: t:
 ; CHECK: leaq (%rax,%rax,4)
   %0 = zext i32 %base to i64
   %1 = getelementptr inbounds %struct.s2* null, i64 %0
@@ -43,7 +43,7 @@ declare fastcc i8* @foo(%struct.s2*) nounwind
 declare void @printf(...) nounwind
 
 define void @commute(i32 %test_case, i32 %scale) nounwind ssp {
-; CHECK: commute:
+; CHECK-LABEL: commute:
 entry:
   switch i32 %test_case, label %sw.bb307 [
     i32 1, label %sw.bb
@@ -52,13 +52,14 @@ entry:
   ]
 
 sw.bb:                                            ; preds = %entry, %entry, %entry
+; CHECK: %sw.bb
+; CHECK: imull
   %mul = mul nsw i32 %test_case, 3
   %mul20 = mul nsw i32 %mul, %scale
   br i1 undef, label %if.end34, label %sw.bb307
 
 if.end34:                                         ; preds = %sw.bb
 ; CHECK: %if.end34
-; CHECK: imull
 ; CHECK: leal
 ; CHECK-NOT: imull
   tail call void (...)* @printf(i32 %test_case, i32 %mul20) nounwind
@@ -82,7 +83,7 @@ sw.bb307:                                         ; preds = %sw.bb, %entry
 ; rdar://10660865
 define i32 @cross_mbb_phys_cse(i32 %a, i32 %b) nounwind ssp {
 entry:
-; CHECK: cross_mbb_phys_cse:
+; CHECK-LABEL: cross_mbb_phys_cse:
 ; CHECK: cmpl
 ; CHECK: ja
   %cmp = icmp ugt i32 %a, %b
@@ -152,7 +153,7 @@ a:
 b:
   ret i32 0
 
-; CHECK: t2:
+; CHECK-LABEL: t2:
 ; CHECK: t2_global@GOTPCREL(%rip)
 ; CHECK-NOT: t2_global@GOTPCREL(%rip)
 }

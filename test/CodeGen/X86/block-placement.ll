@@ -1,11 +1,11 @@
-; RUN: llc -mtriple=i686-linux < %s | FileCheck %s
+; RUN: llc -mtriple=i686-linux -pre-RA-sched=source < %s | FileCheck %s
 
 declare void @error(i32 %i, i32 %a, i32 %b)
 
 define i32 @test_ifchains(i32 %i, i32* %a, i32 %b) {
 ; Test a chain of ifs, where the block guarded by the if is error handling code
 ; that is not expected to run.
-; CHECK: test_ifchains:
+; CHECK-LABEL: test_ifchains:
 ; CHECK: %entry
 ; CHECK-NOT: .align
 ; CHECK: %else1
@@ -79,7 +79,7 @@ exit:
 
 define i32 @test_loop_cold_blocks(i32 %i, i32* %a) {
 ; Check that we sink cold loop blocks after the hot loop body.
-; CHECK: test_loop_cold_blocks:
+; CHECK-LABEL: test_loop_cold_blocks:
 ; CHECK: %entry
 ; CHECK-NOT: .align
 ; CHECK: %unlikely1
@@ -128,7 +128,7 @@ exit:
 
 define i32 @test_loop_early_exits(i32 %i, i32* %a) {
 ; Check that we sink early exit blocks out of loop bodies.
-; CHECK: test_loop_early_exits:
+; CHECK-LABEL: test_loop_early_exits:
 ; CHECK: %entry
 ; CHECK: %body1
 ; CHECK: %body2
@@ -180,7 +180,7 @@ exit:
 define i32 @test_loop_rotate(i32 %i, i32* %a) {
 ; Check that we rotate conditional exits from the loop to the bottom of the
 ; loop, eliminating unconditional branches to the top.
-; CHECK: test_loop_rotate:
+; CHECK-LABEL: test_loop_rotate:
 ; CHECK: %entry
 ; CHECK: %body1
 ; CHECK: %body0
@@ -210,7 +210,7 @@ exit:
 define i32 @test_no_loop_rotate(i32 %i, i32* %a) {
 ; Check that we don't try to rotate a loop which is already laid out with
 ; fallthrough opportunities into the top and out of the bottom.
-; CHECK: test_no_loop_rotate:
+; CHECK-LABEL: test_no_loop_rotate:
 ; CHECK: %entry
 ; CHECK: %body0
 ; CHECK: %body1
@@ -278,7 +278,7 @@ exit:
 define i32 @test_loop_align(i32 %i, i32* %a) {
 ; Check that we provide basic loop body alignment with the block placement
 ; pass.
-; CHECK: test_loop_align:
+; CHECK-LABEL: test_loop_align:
 ; CHECK: %entry
 ; CHECK: .align [[ALIGN:[0-9]+]],
 ; CHECK-NEXT: %body
@@ -303,7 +303,7 @@ exit:
 
 define i32 @test_nested_loop_align(i32 %i, i32* %a, i32* %b) {
 ; Check that we provide nested loop body alignment.
-; CHECK: test_nested_loop_align:
+; CHECK-LABEL: test_nested_loop_align:
 ; CHECK: %entry
 ; CHECK: .align [[ALIGN]],
 ; CHECK-NEXT: %loop.body.1
@@ -997,7 +997,7 @@ define void @benchmark_heapsort(i32 %n, double* nocapture %ra) {
 ; CHECK: %while.body
 ; CHECK: %land.lhs.true
 ; CHECK: %if.then19
-; CHECK: %if.then19
+; CHECK: %if.end20
 ; CHECK: %if.then8
 ; CHECK: ret
 
@@ -1088,4 +1088,36 @@ while.end:
   %arrayidx34 = getelementptr inbounds double* %ra, i64 %idxprom33
   store double %rra.0, double* %arrayidx34, align 8
   br label %for.cond
+}
+
+declare void @cold_function() cold
+
+define i32 @test_cold_calls(i32* %a) {
+; Test that edges to blocks post-dominated by cold calls are
+; marked as not expected to be taken.  They should be laid out
+; at the bottom.
+; CHECK-LABEL: test_cold_calls:
+; CHECK: %entry
+; CHECK: %else
+; CHECK: %exit
+; CHECK: %then
+
+entry:
+  %gep1 = getelementptr i32* %a, i32 1
+  %val1 = load i32* %gep1
+  %cond1 = icmp ugt i32 %val1, 1
+  br i1 %cond1, label %then, label %else
+
+then:
+  call void @cold_function()
+  br label %exit
+
+else:
+  %gep2 = getelementptr i32* %a, i32 2
+  %val2 = load i32* %gep2
+  br label %exit
+
+exit:
+  %ret = phi i32 [ %val1, %then ], [ %val2, %else ]
+  ret i32 %ret
 }

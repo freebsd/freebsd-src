@@ -16,10 +16,13 @@ def HaswellModel : SchedMachineModel {
   // All x86 instructions are modeled as a single micro-op, and HW can decode 4
   // instructions per cycle.
   let IssueWidth = 4;
-  let MinLatency = 0; // 0 = Out-of-order execution.
+  let MicroOpBufferSize = 192; // Based on the reorder buffer.
   let LoadLatency = 4;
-  let ILPWindow = 30;
   let MispredictPenalty = 16;
+
+  // FIXME: SSE4 and AVX are unimplemented. This flag is set to allow
+  // the scheduler to assign a default model to unrecognized opcodes.
+  let CompleteModel = 0;
 }
 
 let SchedModel = HaswellModel in {
@@ -49,6 +52,12 @@ def HWPort056 : ProcResGroup<[HWPort0, HWPort5, HWPort6]>;
 def HWPort15  : ProcResGroup<[HWPort1, HWPort5]>;
 def HWPort015 : ProcResGroup<[HWPort0, HWPort1, HWPort5]>;
 def HWPort0156: ProcResGroup<[HWPort0, HWPort1, HWPort5, HWPort6]>;
+
+// 60 Entry Unified Scheduler
+def HWPortAny : ProcResGroup<[HWPort0, HWPort1, HWPort2, HWPort3, HWPort4,
+                              HWPort5, HWPort6, HWPort7]> {
+  let BufferSize=60;
+}
 
 // Integer division issued on port 0.
 def HWDivider : ProcResource<1>;
@@ -86,6 +95,7 @@ def : WriteRes<WriteZero,  []>;
 
 defm : HWWriteResPair<WriteALU,   HWPort0156, 1>;
 defm : HWWriteResPair<WriteIMul,  HWPort1,   3>;
+def  : WriteRes<WriteIMulH, []> { let Latency = 3; }
 defm : HWWriteResPair<WriteShift, HWPort056,  1>;
 defm : HWWriteResPair<WriteJump,  HWPort5,   1>;
 

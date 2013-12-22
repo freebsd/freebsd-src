@@ -42,18 +42,6 @@ struct ELFRelocationEntry {
                      const MCSymbol *Sym, uint64_t Addend, const MCFixup &Fixup)
     : r_offset(RelocOffset), Index(Idx), Type(RelType), Symbol(Sym),
       r_addend(Addend), Fixup(&Fixup) {}
-
-  // Support lexicographic sorting.
-  bool operator<(const ELFRelocationEntry &RE) const {
-    if (RE.r_offset != r_offset)
-      return RE.r_offset < r_offset;
-    if (Type != RE.Type)
-      return Type < RE.Type;
-    if (Index != RE.Index)
-      return Index < RE.Index;
-    llvm_unreachable("ELFRelocs might be unstable!");
-    return 0;
-  }
 };
 
 class MCELFObjectTargetWriter {
@@ -94,8 +82,6 @@ public:
   virtual const MCSymbol *undefinedExplicitRelSym(const MCValue &Target,
                                                   const MCFixup &Fixup,
                                                   bool IsPCRel) const;
-  virtual void adjustFixupOffset(const MCFixup &Fixup,
-                                 uint64_t &RelocOffset);
 
   virtual void sortRelocs(const MCAssembler &Asm,
                           std::vector<ELFRelocationEntry> &Relocs);

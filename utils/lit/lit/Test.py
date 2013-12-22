@@ -1,8 +1,21 @@
 import os
 
-# Test results.
+# Test result codes.
 
-class TestResult:
+class ResultCode(object):
+    """Test result codes."""
+
+    # We override __new__ and __getnewargs__ to ensure that pickling still
+    # provides unique ResultCode objects in any particular instance.
+    _instances = {}
+    def __new__(cls, name, isFailure):
+        res = cls._instances.get(name)
+        if res is None:
+            cls._instances[name] = res = super(ResultCode, cls).__new__(cls)
+        return res
+    def __getnewargs__(self):
+        return (self.name, self.isFailure)
+
     def __init__(self, name, isFailure):
         self.name = name
         self.isFailure = isFailure
@@ -11,20 +24,87 @@ class TestResult:
         return '%s%r' % (self.__class__.__name__,
                          (self.name, self.isFailure))
 
-PASS        = TestResult('PASS', False)
-XFAIL       = TestResult('XFAIL', False)
-FAIL        = TestResult('FAIL', True)
-XPASS       = TestResult('XPASS', True)
-UNRESOLVED  = TestResult('UNRESOLVED', True)
-UNSUPPORTED = TestResult('UNSUPPORTED', False)
+PASS        = ResultCode('PASS', False)
+XFAIL       = ResultCode('XFAIL', False)
+FAIL        = ResultCode('FAIL', True)
+XPASS       = ResultCode('XPASS', True)
+UNRESOLVED  = ResultCode('UNRESOLVED', True)
+UNSUPPORTED = ResultCode('UNSUPPORTED', False)
+
+# Test metric values.
+
+class MetricValue(object):
+    def format(self):
+        """
+        format() -> str
+
+        Convert this metric to a string suitable for displaying as part of the
+        console output.
+        """
+        raise RuntimeError("abstract method")
+
+    def todata(self):
+        """
+        todata() -> json-serializable data
+
+        Convert this metric to content suitable for serializing in the JSON test
+        output.
+        """
+        raise RuntimeError("abstract method")
+
+class IntMetricValue(MetricValue):
+    def __init__(self, value):
+        self.value = value
+
+    def format(self):
+        return str(self.value)
+
+    def todata(self):
+        return self.value
+
+class RealMetricValue(MetricValue):
+    def __init__(self, value):
+        self.value = value
+
+    def format(self):
+        return '%.4f' % self.value
+
+    def todata(self):
+        return self.value
+
+# Test results.
+
+class Result(object):
+    """Wrapper for the results of executing an individual test."""
+
+    def __init__(self, code, output='', elapsed=None):
+        # The result code.
+        self.code = code
+        # The test output.
+        self.output = output
+        # The wall timing to execute the test, if timing.
+        self.elapsed = elapsed
+        # The metrics reported by this test.
+        self.metrics = {}
+
+    def addMetric(self, name, value):
+        """
+        addMetric(name, value)
+
+        Attach a test metric to the test result, with the given name and list of
+        values. It is an error to attempt to attach the metrics with the same
+        name multiple times.
+
+        Each value must be an instance of a MetricValue subclass.
+        """
+        if name in self.metrics:
+            raise ValueError("result already includes metrics for %r" % (
+                    name,))
+        if not isinstance(value, MetricValue):
+            raise TypeError("unexpected metric value: %r" % (value,))
+        self.metrics[name] = value
 
 # Test classes.
-
-class TestFormat:
-    """TestFormat - Test information provider."""
-
-    def __init__(self, name):
-        self.name = name
 
 class TestSuite:
     """TestSuite - Information on a group of tests.
@@ -52,27 +132,28 @@ class Test:
         self.suite = suite
         self.path_in_suite = path_in_suite
         self.config = config
-        # The test result code, once complete.
+        # A list of conditions under which this test is expected to fail. These
+        # can optionally be provided by test format handlers, and will be
+        # honored when the test result is supplied.
+        self.xfails = []
+        # The test result, once complete.
         self.result = None
-        # Any additional output from the test, once complete.
-        self.output = None
-        # The wall time to execute this test, if timing and once complete.
-        self.elapsed = None
-        # The repeat index of this test, or None.
-        self.index = None
 
-    def copyWithIndex(self, index):
-        import copy
-        res = copy.copy(self)
-        res.index = index
-        return res
+    def setResult(self, result):
+        if self.result is not None:
+            raise ArgumentError("test result already set")
+        if not isinstance(result, Result):
+            raise ArgumentError("unexpected result type")
 
-    def setResult(self, result, output, elapsed):
-        assert self.result is None, "Test result already set!"
         self.result = result
-        self.output = output
-        self.elapsed = elapsed
 
+        # Apply the XFAIL handling to resolve the result exit code.
+        if self.isExpectedToFail():
+            if self.result.code == PASS:
+                self.result.code = XPASS
+            elif self.result.code == FAIL:
+                self.result.code = XFAIL
+        
     def getFullName(self):
         return self.suite.config.name + ' :: ' + '/'.join(self.path_in_suite)
 
@@ -81,3 +162,29 @@ class Test:
 
     def getExecPath(self):
         return self.suite.getExecPath(self.path_in_suite)
+
+    def isExpectedToFail(self):
+        """
+        isExpectedToFail() -> bool
+
+        Check whether this test is expected to fail in the current
+        configuration. This check relies on the test xfails property which by
+        some test formats may not be computed until the test has first been
+        executed.
+        """
+
+        # Check if any of the xfails match an available feature or the target.
+        for item in self.xfails:
+            # If this is the wildcard, it always fails.
+            if item == '*':
+                return True
+
+            # If this is an exact match for one of the features, it fails.
+            if item in self.config.available_features:
+                return True
+
+            # If this is a part of the target triple, it fails.
+            if item in self.suite.config.target_triple:
+                return True
+
+        return False

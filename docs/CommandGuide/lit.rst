@@ -149,12 +149,11 @@ ADDITIONAL OPTIONS
 
 .. option:: --show-suites
 
- List the discovered test suites as part of the standard output.
+ List the discovered test suites and exit.
 
-.. option:: --repeat=N
+.. option:: --show-tests
 
- Run each test ``N`` times.  Currently this is primarily useful for timing
- tests, other results are not collated in any reasonable fashion.
+ List all of the the discovered tests and exit.
 
 EXIT STATUS
 -----------
@@ -283,7 +282,7 @@ executed, two important global variables are predefined:
  discover and run tests in the test suite.  Generally this will be a builtin test
  format available from the *lit.formats* module.
 
- **test_src_root** The filesystem path to the test suite root.  For out-of-dir
+ **test_source_root** The filesystem path to the test suite root.  For out-of-dir
  builds this is the directory that will be scanned for tests.
 
  **test_exec_root** For out-of-dir builds, the path to the test suite root inside
@@ -316,11 +315,15 @@ executed, two important global variables are predefined:
  *on_clone* function will generally modify), and (3) the test path to the new
  directory being scanned.
 
+ **pipefail** Normally a test using a shell pipe fails if any of the commands
+ on the pipe fail. If this is not desired, setting this variable to false
+ makes the test fail only if the last command in the pipe fails.
+
 TEST DISCOVERY
 ~~~~~~~~~~~~~~
 
 Once test suites are located, :program:`lit` recursively traverses the source
-directory (following *test_src_root*) looking for tests.  When :program:`lit`
+directory (following *test_source_root*) looking for tests.  When :program:`lit`
 enters a sub-directory, it first checks to see if a nested test suite is
 defined in that directory.  If so, it loads that test suite recursively,
 otherwise it instantiates a local test config for the directory (see

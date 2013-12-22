@@ -25,9 +25,9 @@
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCValue.h"
-#include "llvm/Object/MachOFormat.h"
 #include "llvm/Support/ELF.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/MachO.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
@@ -152,7 +152,7 @@ static unsigned getRelaxedOpcode(unsigned Op) {
   switch (Op) {
   default: return Op;
   case ARM::tBcc:       return ARM::t2Bcc;
-  case ARM::tLDRpciASM: return ARM::t2LDRpci;
+  case ARM::tLDRpci:    return ARM::t2LDRpci;
   case ARM::tADR:       return ARM::t2ADR;
   case ARM::tB:         return ARM::t2B;
   }
@@ -419,7 +419,7 @@ static unsigned adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
      uint32_t J2Bit = (I2Bit ^ 0x1) ^ signBit;
      uint32_t imm10Bits = (offset & 0x1FF800) >> 11;
      uint32_t imm11Bits = (offset & 0x000007FF);
- 
+
      uint32_t Binary = 0;
      uint32_t firstHalf = (((uint16_t)signBit << 10) | (uint16_t)imm10Bits);
      uint32_t secondHalf = (((uint16_t)J1Bit << 13) | ((uint16_t)J2Bit << 11) |
@@ -434,8 +434,8 @@ static unsigned adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
      // four (see fixup_arm_thumb_cp). The 32-bit immediate value is encoded as
      //   imm32 = SignExtend(S:I1:I2:imm10H:imm10L:00)
      // where I1 = NOT(J1 ^ S) and I2 = NOT(J2 ^ S).
-     // The value is encoded into disjoint bit positions in the destination 
-     // opcode. x = unchanged, I = immediate value bit, S = sign extension bit, 
+     // The value is encoded into disjoint bit positions in the destination
+     // opcode. x = unchanged, I = immediate value bit, S = sign extension bit,
      // J = either J1 or J2 bit, 0 = zero.
      //
      //   BLX: xxxxxSIIIIIIIIII xxJxJIIIIIIIIII0
@@ -450,10 +450,10 @@ static unsigned adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
      uint32_t J2Bit = (I2Bit ^ 0x1) ^ signBit;
      uint32_t imm10HBits = (offset & 0xFFC00) >> 10;
      uint32_t imm10LBits = (offset & 0x3FF);
- 
+
      uint32_t Binary = 0;
      uint32_t firstHalf = (((uint16_t)signBit << 10) | (uint16_t)imm10HBits);
-     uint32_t secondHalf = (((uint16_t)J1Bit << 13) | ((uint16_t)J2Bit << 11) | 
+     uint32_t secondHalf = (((uint16_t)J1Bit << 13) | ((uint16_t)J2Bit << 11) |
                            ((uint16_t)imm10LBits) << 1);
      Binary |= secondHalf << 16;
      Binary |= firstHalf;
@@ -640,16 +640,16 @@ public:
 // FIXME: This should be in a separate file.
 class DarwinARMAsmBackend : public ARMAsmBackend {
 public:
-  const object::mach::CPUSubtypeARM Subtype;
+  const MachO::CPUSubTypeARM Subtype;
   DarwinARMAsmBackend(const Target &T, const StringRef TT,
-                      object::mach::CPUSubtypeARM st)
+                      MachO::CPUSubTypeARM st)
     : ARMAsmBackend(T, TT), Subtype(st) {
       HasDataInCodeSupport = true;
     }
 
   MCObjectWriter *createObjectWriter(raw_ostream &OS) const {
     return createARMMachObjectWriter(OS, /*Is64Bit=*/false,
-                                     object::mach::CTM_ARM,
+                                     MachO::CPU_TYPE_ARM,
                                      Subtype);
   }
 
@@ -660,28 +660,33 @@ public:
 
 } // end anonymous namespace
 
-MCAsmBackend *llvm::createARMAsmBackend(const Target &T, StringRef TT, StringRef CPU) {
+MCAsmBackend *llvm::createARMAsmBackend(const Target &T,
+                                        const MCRegisterInfo &MRI,
+                                        StringRef TT, StringRef CPU) {
   Triple TheTriple(TT);
 
   if (TheTriple.isOSDarwin()) {
-    object::mach::CPUSubtypeARM CS =
-      StringSwitch<object::mach::CPUSubtypeARM>(TheTriple.getArchName())
-      .Cases("armv4t", "thumbv4t", object::mach::CSARM_V4T)
-      .Cases("armv5e", "thumbv5e",object::mach::CSARM_V5TEJ)
-      .Cases("armv6", "thumbv6", object::mach::CSARM_V6)
-      .Cases("armv6m", "thumbv6m", object::mach::CSARM_V6M)
-      .Cases("armv7em", "thumbv7em", object::mach::CSARM_V7EM)
-      .Cases("armv7f", "thumbv7f", object::mach::CSARM_V7F)
-      .Cases("armv7k", "thumbv7k", object::mach::CSARM_V7K)
-      .Cases("armv7m", "thumbv7m", object::mach::CSARM_V7M)
-      .Cases("armv7s", "thumbv7s", object::mach::CSARM_V7S)
-      .Default(object::mach::CSARM_V7);
+    MachO::CPUSubTypeARM CS =
+      StringSwitch<MachO::CPUSubTypeARM>(TheTriple.getArchName())
+      .Cases("armv4t", "thumbv4t", MachO::CPU_SUBTYPE_ARM_V4T)
+      .Cases("armv5e", "thumbv5e", MachO::CPU_SUBTYPE_ARM_V5TEJ)
+      .Cases("armv6", "thumbv6", MachO::CPU_SUBTYPE_ARM_V6)
+      .Cases("armv6m", "thumbv6m", MachO::CPU_SUBTYPE_ARM_V6M)
+      .Cases("armv7em", "thumbv7em", MachO::CPU_SUBTYPE_ARM_V7EM)
+      .Cases("armv7f", "thumbv7f", MachO::CPU_SUBTYPE_ARM_V7F)
+      .Cases("armv7k", "thumbv7k", MachO::CPU_SUBTYPE_ARM_V7K)
+      .Cases("armv7m", "thumbv7m", MachO::CPU_SUBTYPE_ARM_V7M)
+      .Cases("armv7s", "thumbv7s", MachO::CPU_SUBTYPE_ARM_V7S)
+      .Default(MachO::CPU_SUBTYPE_ARM_V7);
 
     return new DarwinARMAsmBackend(T, TT, CS);
   }
 
-  if (TheTriple.isOSWindows())
+#if 0
+  // FIXME: Introduce yet another checker but assert(0).
+  if (TheTriple.isOSBinFormatCOFF())
     assert(0 && "Windows not supported on ARM");
+#endif
 
   uint8_t OSABI = MCELFObjectTargetWriter::getOSABI(Triple(TT).getOS());
   return new ELFARMAsmBackend(T, TT, OSABI);

@@ -16,62 +16,13 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ExecutionEngine/ObjectBuffer.h"
+#include "llvm/ExecutionEngine/RTDyldMemoryManager.h"
 #include "llvm/Support/Memory.h"
 
 namespace llvm {
 
 class RuntimeDyldImpl;
 class ObjectImage;
-
-// RuntimeDyld clients often want to handle the memory management of
-// what gets placed where. For JIT clients, this is the subset of
-// JITMemoryManager required for dynamic loading of binaries.
-//
-// FIXME: As the RuntimeDyld fills out, additional routines will be needed
-//        for the varying types of objects to be allocated.
-class RTDyldMemoryManager {
-  RTDyldMemoryManager(const RTDyldMemoryManager&) LLVM_DELETED_FUNCTION;
-  void operator=(const RTDyldMemoryManager&) LLVM_DELETED_FUNCTION;
-public:
-  RTDyldMemoryManager() {}
-  virtual ~RTDyldMemoryManager();
-
-  /// Allocate a memory block of (at least) the given size suitable for
-  /// executable code. The SectionID is a unique identifier assigned by the JIT
-  /// engine, and optionally recorded by the memory manager to access a loaded
-  /// section.
-  virtual uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
-                                       unsigned SectionID) = 0;
-
-  /// Allocate a memory block of (at least) the given size suitable for data.
-  /// The SectionID is a unique identifier assigned by the JIT engine, and
-  /// optionally recorded by the memory manager to access a loaded section.
-  virtual uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
-                                       unsigned SectionID, bool IsReadOnly) = 0;
-
-  /// This method returns the address of the specified function. As such it is
-  /// only useful for resolving library symbols, not code generated symbols.
-  ///
-  /// If AbortOnFailure is false and no function with the given name is
-  /// found, this function returns a null pointer. Otherwise, it prints a
-  /// message to stderr and aborts.
-  virtual void *getPointerToNamedFunction(const std::string &Name,
-                                          bool AbortOnFailure = true) = 0;
-
-  /// This method is called when object loading is complete and section page
-  /// permissions can be applied.  It is up to the memory manager implementation
-  /// to decide whether or not to act on this method.  The memory manager will
-  /// typically allocate all sections as read-write and then apply specific
-  /// permissions when this method is called.
-  ///
-  /// Returns true if an error occurred, false otherwise.
-  virtual bool applyPermissions(std::string *ErrMsg = 0) = 0;
-
-  /// Register the EH frames with the runtime so that c++ exceptions work. The
-  /// default implementation does nothing. Look at SectionMemoryManager for one
-  /// that uses __register_frame.
-  virtual void registerEHFrames(StringRef SectionData);
-};
 
 class RuntimeDyld {
   RuntimeDyld(const RuntimeDyld &) LLVM_DELETED_FUNCTION;
@@ -113,9 +64,16 @@ public:
   /// This is the address which will be used for relocation resolution.
   void mapSectionAddress(const void *LocalAddress, uint64_t TargetAddress);
 
-  StringRef getErrorString();
+  /// Register any EH frame sections that have been loaded but not previously
+  /// registered with the memory manager.  Note, RuntimeDyld is responsible
+  /// for identifying the EH frame and calling the memory manager with the
+  /// EH frame section data.  However, the memory manager itself will handle
+  /// the actual target-specific EH frame registration.
+  void registerEHFrames();
 
-  StringRef getEHFrameSection();
+  void deregisterEHFrames();
+
+  StringRef getErrorString();
 };
 
 } // end namespace llvm

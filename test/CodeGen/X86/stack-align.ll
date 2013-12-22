@@ -1,4 +1,4 @@
-; RUN: llc < %s -relocation-model=static -realign-stack=1 -mcpu=yonah | FileCheck %s
+; RUN: llc < %s -relocation-model=static -mcpu=yonah | FileCheck %s
 
 ; The double argument is at 4(esp) which is 16-byte aligned, allowing us to
 ; fold the load into the andpd.
@@ -45,7 +45,7 @@ entry:
   %0 = ptrtoint [2048 x i8]* %buffer to i32
   %and = and i32 %0, -16
   ret i32 %and
-; CHECK: test4:
+; CHECK-LABEL: test4:
 ; CHECK-NOT: and
 ; CHECK: ret
 }

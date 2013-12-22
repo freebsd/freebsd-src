@@ -5,6 +5,10 @@
 
 import sys, re, time
 
+def to_bytes(str):
+    # Encode to Latin1 to get binary data.
+    return str.encode('ISO-8859-1')
+
 class TerminalController:
     """
     A class that can be used to portably generate formatted output to
@@ -16,13 +20,13 @@ class TerminalController:
     output to the terminal:
 
         >>> term = TerminalController()
-        >>> print 'This is '+term.GREEN+'green'+term.NORMAL
+        >>> print('This is '+term.GREEN+'green'+term.NORMAL)
 
     Alternatively, the `render()` method can used, which replaces
     '${action}' with the string required to perform 'action':
 
         >>> term = TerminalController()
-        >>> print term.render('This is ${GREEN}green${NORMAL}')
+        >>> print(term.render('This is ${GREEN}green${NORMAL}'))
 
     If the terminal doesn't support a given action, then the value of
     the corresponding instance variable will be set to ''.  As a
@@ -34,7 +38,7 @@ class TerminalController:
 
         >>> term = TerminalController()
         >>> if term.CLEAR_SCREEN:
-        ...     print 'This terminal supports clearning the screen.'
+        ...     print('This terminal supports clearning the screen.')
 
     Finally, if the width and height of the terminal are known, then
     they will be stored in the `COLS` and `LINES` attributes.
@@ -116,26 +120,34 @@ class TerminalController:
         set_fg = self._tigetstr('setf')
         if set_fg:
             for i,color in zip(range(len(self._COLORS)), self._COLORS):
-                setattr(self, color, curses.tparm(set_fg, i) or '')
+                setattr(self, color, self._tparm(set_fg, i))
         set_fg_ansi = self._tigetstr('setaf')
         if set_fg_ansi:
             for i,color in zip(range(len(self._ANSICOLORS)), self._ANSICOLORS):
-                setattr(self, color, curses.tparm(set_fg_ansi, i) or '')
+                setattr(self, color, self._tparm(set_fg_ansi, i))
         set_bg = self._tigetstr('setb')
         if set_bg:
             for i,color in zip(range(len(self._COLORS)), self._COLORS):
-                setattr(self, 'BG_'+color, curses.tparm(set_bg, i) or '')
+                setattr(self, 'BG_'+color, self._tparm(set_bg, i))
         set_bg_ansi = self._tigetstr('setab')
         if set_bg_ansi:
             for i,color in zip(range(len(self._ANSICOLORS)), self._ANSICOLORS):
-                setattr(self, 'BG_'+color, curses.tparm(set_bg_ansi, i) or '')
+                setattr(self, 'BG_'+color, self._tparm(set_bg_ansi, i))
+
+    def _tparm(self, arg, index):
+        import curses
+        return curses.tparm(to_bytes(arg), index).decode('ascii') or ''
 
     def _tigetstr(self, cap_name):
         # String capabilities can include "delays" of the form "$<2>".
         # For any modern terminal, we should be able to just ignore
         # these, so strip them out.
         import curses
-        cap = curses.tigetstr(cap_name) or ''
+        cap = curses.tigetstr(cap_name)
+        if cap is None:
+            cap = ''
+        else:
+            cap = cap.decode('ascii')
         return re.sub(r'\$<\d+>[/*]?', '', cap)
 
     def render(self, template):
@@ -269,7 +281,6 @@ class ProgressBar:
             self.cleared = 1
 
 def test():
-    import time
     tc = TerminalController()
     p = ProgressBar(tc, 'Tests')
     for i in range(101):

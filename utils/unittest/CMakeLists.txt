@@ -14,6 +14,7 @@
 # Where gtest's .h files can be found.
 include_directories(
   googletest/include
+  googletest
   )
 
 if(WIN32)
@@ -27,6 +28,10 @@ endif()
 set(LLVM_REQUIRES_RTTI 1)
 add_definitions( -DGTEST_HAS_RTTI=0 )
 
+if (NOT LLVM_ENABLE_THREADS)
+  add_definitions( -DGTEST_HAS_PTHREAD=0 )
+endif()
+
 # Visual Studio 2012 only supports up to 8 template parameters in
 # std::tr1::tuple by default, but gtest requires 10
 if(MSVC AND MSVC_VERSION EQUAL 1700)
@@ -34,13 +39,7 @@ if(MSVC AND MSVC_VERSION EQUAL 1700)
 endif ()
 
 add_llvm_library(gtest
-  googletest/gtest.cc
-  googletest/gtest-death-test.cc
-  googletest/gtest-filepath.cc
-  googletest/gtest-port.cc
-  googletest/gtest-printers.cc
-  googletest/gtest-test-part.cc
-  googletest/gtest-typed-test.cc
+  googletest/src/gtest-all.cc
   )
 
 add_llvm_library(gtest_main

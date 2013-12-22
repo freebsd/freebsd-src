@@ -5,9 +5,9 @@
 ; Check register additions.  The XOR ensures that we don't instead zero-extend
 ; %b into a register and use memory addition.
 define void @f1(i128 *%aptr, i32 %b) {
-; CHECK: f1:
+; CHECK-LABEL: f1:
 ; CHECK: algfr {{%r[0-5]}}, %r3
-; CHECK: alcgr
+; CHECK: alcg
 ; CHECK: br %r14
   %a = load i128 *%aptr
   %xor = xor i128 %a, 127
@@ -19,9 +19,9 @@ define void @f1(i128 *%aptr, i32 %b) {
 
 ; Like f1, but using an "in-register" extension.
 define void @f2(i128 *%aptr, i64 %b) {
-; CHECK: f2:
+; CHECK-LABEL: f2:
 ; CHECK: algfr {{%r[0-5]}}, %r3
-; CHECK: alcgr
+; CHECK: alcg
 ; CHECK: br %r14
   %a = load i128 *%aptr
   %xor = xor i128 %a, 127
@@ -35,9 +35,9 @@ define void @f2(i128 *%aptr, i64 %b) {
 ; Test register addition in cases where the second operand is zero extended
 ; from i64 rather than i32, but is later masked to i32 range.
 define void @f3(i128 *%aptr, i64 %b) {
-; CHECK: f3:
+; CHECK-LABEL: f3:
 ; CHECK: algfr {{%r[0-5]}}, %r3
-; CHECK: alcgr
+; CHECK: alcg
 ; CHECK: br %r14
   %a = load i128 *%aptr
   %xor = xor i128 %a, 127
@@ -50,9 +50,9 @@ define void @f3(i128 *%aptr, i64 %b) {
 
 ; Test ALGF with no offset.
 define void @f4(i128 *%aptr, i32 *%bsrc) {
-; CHECK: f4:
+; CHECK-LABEL: f4:
 ; CHECK: algf {{%r[0-5]}}, 0(%r3)
-; CHECK: alcgr
+; CHECK: alcg
 ; CHECK: br %r14
   %a = load i128 *%aptr
   %xor = xor i128 %a, 127
@@ -65,9 +65,9 @@ define void @f4(i128 *%aptr, i32 *%bsrc) {
 
 ; Check the high end of the ALGF range.
 define void @f5(i128 *%aptr, i32 *%bsrc) {
-; CHECK: f5:
+; CHECK-LABEL: f5:
 ; CHECK: algf {{%r[0-5]}}, 524284(%r3)
-; CHECK: alcgr
+; CHECK: alcg
 ; CHECK: br %r14
   %a = load i128 *%aptr
   %xor = xor i128 %a, 127
@@ -82,10 +82,10 @@ define void @f5(i128 *%aptr, i32 *%bsrc) {
 ; Check the next word up, which must use separate address logic.
 ; Other sequences besides this one would be OK.
 define void @f6(i128 *%aptr, i32 *%bsrc) {
-; CHECK: f6:
+; CHECK-LABEL: f6:
 ; CHECK: agfi %r3, 524288
 ; CHECK: algf {{%r[0-5]}}, 0(%r3)
-; CHECK: alcgr
+; CHECK: alcg
 ; CHECK: br %r14
   %a = load i128 *%aptr
   %xor = xor i128 %a, 127
@@ -99,9 +99,9 @@ define void @f6(i128 *%aptr, i32 *%bsrc) {
 
 ; Check the high end of the negative aligned ALGF range.
 define void @f7(i128 *%aptr, i32 *%bsrc) {
-; CHECK: f7:
+; CHECK-LABEL: f7:
 ; CHECK: algf {{%r[0-5]}}, -4(%r3)
-; CHECK: alcgr
+; CHECK: alcg
 ; CHECK: br %r14
   %a = load i128 *%aptr
   %xor = xor i128 %a, 127
@@ -115,9 +115,9 @@ define void @f7(i128 *%aptr, i32 *%bsrc) {
 
 ; Check the low end of the ALGF range.
 define void @f8(i128 *%aptr, i32 *%bsrc) {
-; CHECK: f8:
+; CHECK-LABEL: f8:
 ; CHECK: algf {{%r[0-5]}}, -524288(%r3)
-; CHECK: alcgr
+; CHECK: alcg
 ; CHECK: br %r14
   %a = load i128 *%aptr
   %xor = xor i128 %a, 127
@@ -132,10 +132,10 @@ define void @f8(i128 *%aptr, i32 *%bsrc) {
 ; Check the next word down, which needs separate address logic.
 ; Other sequences besides this one would be OK.
 define void @f9(i128 *%aptr, i32 *%bsrc) {
-; CHECK: f9:
+; CHECK-LABEL: f9:
 ; CHECK: agfi %r3, -524292
 ; CHECK: algf {{%r[0-5]}}, 0(%r3)
-; CHECK: alcgr
+; CHECK: alcg
 ; CHECK: br %r14
   %a = load i128 *%aptr
   %xor = xor i128 %a, 127
@@ -149,7 +149,7 @@ define void @f9(i128 *%aptr, i32 *%bsrc) {
 
 ; Check that ALGF allows an index.
 define void @f10(i128 *%aptr, i64 %src, i64 %index) {
-; CHECK: f10:
+; CHECK-LABEL: f10:
 ; CHECK: algf {{%r[0-5]}}, 524284({{%r4,%r3|%r3,%r4}})
 ; CHECK: br %r14
   %a = load i128 *%aptr

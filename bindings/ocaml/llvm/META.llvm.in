@@ -46,6 +46,14 @@ package "ipo" (
     archive(native) = "llvm_ipo.cmxa"
 )
 
+package "irreader" (
+    requires = "llvm"
+    version  = "@PACKAGE_VERSION@"
+    description = "IR assembly reader for LLVM"
+    archive(byte) = "llvm_irreader.cma"
+    archive(native) = "llvm_irreader.cmxa"
+)
+
 package "scalar_opts" (
     requires = "llvm"
     version = "@PACKAGE_VERSION@"
@@ -54,10 +62,34 @@ package "scalar_opts" (
     archive(native) = "llvm_scalar_opts.cmxa"
 )
 
+package "vectorize" (
+    requires = "llvm"
+    version = "@PACKAGE_VERSION@"
+    description = "Vector Transforms for LLVM"
+    archive(byte) = "llvm_vectorize.cma"
+    archive(native) = "llvm_vectorize.cmxa"
+)
+
+package "passmgr_builder" (
+    requires = "llvm"
+    version = "@PACKAGE_VERSION@"
+    description = "Pass Manager Builder for LLVM"
+    archive(byte) = "llvm_passmgr_builder.cma"
+    archive(native) = "llvm_passmgr_builder.cmxa"
+)
+
 package "target" (
     requires = "llvm"
     version  = "@PACKAGE_VERSION@"
     description = "Target Information for LLVM"
     archive(byte) = "llvm_target.cma"
     archive(native) = "llvm_target.cmxa"
+)
+
+package "linker" (
+    requires = "llvm"
+    version  = "@PACKAGE_VERSION@"
+    description = "Intermediate Representation Linker for LLVM"
+    archive(byte) = "llvm_linker.cma"
+    archive(native) = "llvm_linker.cmxa"
 )

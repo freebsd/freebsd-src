@@ -224,7 +224,8 @@ static bool IsConstantOffsetFromGlobal(Constant *C, GlobalValue *&GV,
                                        APInt &Offset, const DataLayout &TD) {
   // Trivial case, constant is the global.
   if ((GV = dyn_cast<GlobalValue>(C))) {
-    Offset.clearAllBits();
+    unsigned BitWidth = TD.getPointerTypeSizeInBits(GV->getType());
+    Offset = APInt(BitWidth, 0);
     return true;
   }
 
@@ -238,16 +239,23 @@ static bool IsConstantOffsetFromGlobal(Constant *C, GlobalValue *&GV,
     return IsConstantOffsetFromGlobal(CE->getOperand(0), GV, Offset, TD);
 
   // i32* getelementptr ([5 x i32]* @a, i32 0, i32 5)
-  if (GEPOperator *GEP = dyn_cast<GEPOperator>(CE)) {
-    // If the base isn't a global+constant, we aren't either.
-    if (!IsConstantOffsetFromGlobal(CE->getOperand(0), GV, Offset, TD))
-      return false;
+  GEPOperator *GEP = dyn_cast<GEPOperator>(CE);
+  if (!GEP)
+    return false;
 
-    // Otherwise, add any offset that our operands provide.
-    return GEP->accumulateConstantOffset(TD, Offset);
-  }
+  unsigned BitWidth = TD.getPointerTypeSizeInBits(GEP->getType());
+  APInt TmpOffset(BitWidth, 0);
 
-  return false;
+  // If the base isn't a global+constant, we aren't either.
+  if (!IsConstantOffsetFromGlobal(CE->getOperand(0), GV, TmpOffset, TD))
+    return false;
+
+  // Otherwise, add any offset that our operands provide.
+  if (!GEP->accumulateConstantOffset(TD, TmpOffset))
+    return false;
+
+  Offset = TmpOffset;
+  return true;
 }
 
 /// ReadDataFromGlobal - Recursive helper to read bits out of global.  C is the
@@ -324,12 +332,12 @@ static bool ReadDataFromGlobal(Constant *C, uint64_t ByteOffset,
       // If we read all of the bytes we needed from this element we're done.
       uint64_t NextEltOffset = SL->getElementOffset(Index);
 
-      if (BytesLeft <= NextEltOffset-CurEltOffset-ByteOffset)
+      if (BytesLeft <= NextEltOffset - CurEltOffset - ByteOffset)
         return true;
 
       // Move to the next element of the struct.
-      CurPtr += NextEltOffset-CurEltOffset-ByteOffset;
-      BytesLeft -= NextEltOffset-CurEltOffset-ByteOffset;
+      CurPtr += NextEltOffset - CurEltOffset - ByteOffset;
+      BytesLeft -= NextEltOffset - CurEltOffset - ByteOffset;
       ByteOffset = 0;
       CurEltOffset = NextEltOffset;
     }
@@ -338,7 +346,7 @@ static bool ReadDataFromGlobal(Constant *C, uint64_t ByteOffset,
 
   if (isa<ConstantArray>(C) || isa<ConstantVector>(C) ||
       isa<ConstantDataSequential>(C)) {
-    Type *EltTy = cast<SequentialType>(C->getType())->getElementType();
+    Type *EltTy = C->getType()->getSequentialElementType();
     uint64_t EltSize = TD.getTypeAllocSize(EltTy);
     uint64_t Index = ByteOffset / EltSize;
     uint64_t Offset = ByteOffset - Index * EltSize;
@@ -346,7 +354,7 @@ static bool ReadDataFromGlobal(Constant *C, uint64_t ByteOffset,
     if (ArrayType *AT = dyn_cast<ArrayType>(C->getType()))
       NumElts = AT->getNumElements();
     else
-      NumElts = cast<VectorType>(C->getType())->getNumElements();
+      NumElts = C->getType()->getVectorNumElements();
 
     for (; Index != NumElts; ++Index) {
       if (!ReadDataFromGlobal(C->getAggregateElement(Index), Offset, CurPtr,
@@ -367,9 +375,10 @@ static bool ReadDataFromGlobal(Constant *C, uint64_t ByteOffset,
 
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(C)) {
     if (CE->getOpcode() == Instruction::IntToPtr &&
-        CE->getOperand(0)->getType() == TD.getIntPtrType(CE->getContext()))
+        CE->getOperand(0)->getType() == TD.getIntPtrType(CE->getType())) {
       return ReadDataFromGlobal(CE->getOperand(0), ByteOffset, CurPtr,
                                 BytesLeft, TD);
+    }
   }
 
   // Otherwise, unknown initializer type.
@@ -378,26 +387,29 @@ static bool ReadDataFromGlobal(Constant *C, uint64_t ByteOffset,
 
 static Constant *FoldReinterpretLoadFromConstPtr(Constant *C,
                                                  const DataLayout &TD) {
-  Type *LoadTy = cast<PointerType>(C->getType())->getElementType();
+  PointerType *PTy = cast<PointerType>(C->getType());
+  Type *LoadTy = PTy->getElementType();
   IntegerType *IntType = dyn_cast<IntegerType>(LoadTy);
 
   // If this isn't an integer load we can't fold it directly.
   if (!IntType) {
+    unsigned AS = PTy->getAddressSpace();
+
     // If this is a float/double load, we can try folding it as an int32/64 load
     // and then bitcast the result.  This can be useful for union cases.  Note
     // that address spaces don't matter here since we're not going to result in
     // an actual new load.
     Type *MapTy;
     if (LoadTy->isHalfTy())
-      MapTy = Type::getInt16PtrTy(C->getContext());
+      MapTy = Type::getInt16PtrTy(C->getContext(), AS);
     else if (LoadTy->isFloatTy())
-      MapTy = Type::getInt32PtrTy(C->getContext());
+      MapTy = Type::getInt32PtrTy(C->getContext(), AS);
     else if (LoadTy->isDoubleTy())
-      MapTy = Type::getInt64PtrTy(C->getContext());
+      MapTy = Type::getInt64PtrTy(C->getContext(), AS);
     else if (LoadTy->isVectorTy()) {
-      MapTy = IntegerType::get(C->getContext(),
-                               TD.getTypeAllocSizeInBits(LoadTy));
-      MapTy = PointerType::getUnqual(MapTy);
+      MapTy = PointerType::getIntNPtrTy(C->getContext(),
+                                        TD.getTypeAllocSizeInBits(LoadTy),
+                                        AS);
     } else
       return 0;
 
@@ -408,10 +420,11 @@ static Constant *FoldReinterpretLoadFromConstPtr(Constant *C,
   }
 
   unsigned BytesLoaded = (IntType->getBitWidth() + 7) / 8;
-  if (BytesLoaded > 32 || BytesLoaded == 0) return 0;
+  if (BytesLoaded > 32 || BytesLoaded == 0)
+    return 0;
 
   GlobalValue *GVal;
-  APInt Offset(TD.getPointerSizeInBits(), 0);
+  APInt Offset;
   if (!IsConstantOffsetFromGlobal(C, GVal, Offset, TD))
     return 0;
 
@@ -422,7 +435,8 @@ static Constant *FoldReinterpretLoadFromConstPtr(Constant *C,
 
   // If we're loading off the beginning of the global, some bytes may be valid,
   // but we don't try to handle this.
-  if (Offset.isNegative()) return 0;
+  if (Offset.isNegative())
+    return 0;
 
   // If we're not accessing anything in this constant, the result is undefined.
   if (Offset.getZExtValue() >=
@@ -439,7 +453,7 @@ static Constant *FoldReinterpretLoadFromConstPtr(Constant *C,
     ResultVal = RawBytes[BytesLoaded - 1];
     for (unsigned i = 1; i != BytesLoaded; ++i) {
       ResultVal <<= 8;
-      ResultVal |= RawBytes[BytesLoaded-1-i];
+      ResultVal |= RawBytes[BytesLoaded - 1 - i];
     }
   } else {
     ResultVal = RawBytes[0];
@@ -464,14 +478,17 @@ Constant *llvm::ConstantFoldLoadFromConstPtr(Constant *C,
 
   // If the loaded value isn't a constant expr, we can't handle it.
   ConstantExpr *CE = dyn_cast<ConstantExpr>(C);
-  if (!CE) return 0;
+  if (!CE)
+    return 0;
 
   if (CE->getOpcode() == Instruction::GetElementPtr) {
-    if (GlobalVariable *GV = dyn_cast<GlobalVariable>(CE->getOperand(0)))
-      if (GV->isConstant() && GV->hasDefinitiveInitializer())
+    if (GlobalVariable *GV = dyn_cast<GlobalVariable>(CE->getOperand(0))) {
+      if (GV->isConstant() && GV->hasDefinitiveInitializer()) {
         if (Constant *V =
              ConstantFoldLoadThroughGEPConstantExpr(GV->getInitializer(), CE))
           return V;
+      }
+    }
   }
 
   // Instead of loading constant c string, use corresponding integer value
@@ -576,13 +593,13 @@ static Constant *SymbolicallyEvaluateBinop(unsigned Opc, Constant *Op0,
   // constant.  This happens frequently when iterating over a global array.
   if (Opc == Instruction::Sub && DL) {
     GlobalValue *GV1, *GV2;
-    unsigned PtrSize = DL->getPointerSizeInBits();
-    unsigned OpSize = DL->getTypeSizeInBits(Op0->getType());
-    APInt Offs1(PtrSize, 0), Offs2(PtrSize, 0);
+    APInt Offs1, Offs2;
 
     if (IsConstantOffsetFromGlobal(Op0, GV1, Offs1, *DL))
       if (IsConstantOffsetFromGlobal(Op1, GV2, Offs2, *DL) &&
           GV1 == GV2) {
+        unsigned OpSize = DL->getTypeSizeInBits(Op0->getType());
+
         // (&GV+C1) - (&GV+C2) -> C1-C2, pointer arithmetic cannot overflow.
         // PtrToInt may change the bitwidth so we have convert to the right size
         // first.
@@ -600,15 +617,18 @@ static Constant *SymbolicallyEvaluateBinop(unsigned Opc, Constant *Op0,
 static Constant *CastGEPIndices(ArrayRef<Constant *> Ops,
                                 Type *ResultTy, const DataLayout *TD,
                                 const TargetLibraryInfo *TLI) {
-  if (!TD) return 0;
-  Type *IntPtrTy = TD->getIntPtrType(ResultTy->getContext());
+  if (!TD)
+    return 0;
+
+  Type *IntPtrTy = TD->getIntPtrType(ResultTy);
 
   bool Any = false;
   SmallVector<Constant*, 32> NewIdxs;
   for (unsigned i = 1, e = Ops.size(); i != e; ++i) {
     if ((i == 1 ||
-         !isa<StructType>(GetElementPtrInst::getIndexedType(Ops[0]->getType(),
-                                                        Ops.slice(1, i-1)))) &&
+         !isa<StructType>(GetElementPtrInst::getIndexedType(
+                            Ops[0]->getType(),
+                            Ops.slice(1, i - 1)))) &&
         Ops[i]->getType() != IntPtrTy) {
       Any = true;
       NewIdxs.push_back(ConstantExpr::getCast(CastInst::getCastOpcode(Ops[i],
@@ -619,13 +639,16 @@ static Constant *CastGEPIndices(ArrayRef<Constant *> Ops,
     } else
       NewIdxs.push_back(Ops[i]);
   }
-  if (!Any) return 0;
 
-  Constant *C =
-    ConstantExpr::getGetElementPtr(Ops[0], NewIdxs);
-  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(C))
+  if (!Any)
+    return 0;
+
+  Constant *C = ConstantExpr::getGetElementPtr(Ops[0], NewIdxs);
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(C)) {
     if (Constant *Folded = ConstantFoldConstantExpression(CE, TD, TLI))
       C = Folded;
+  }
+
   return C;
 }
 
@@ -640,7 +663,7 @@ static Constant* StripPtrCastKeepAS(Constant* Ptr) {
   if (NewPtrTy->getAddressSpace() != OldPtrTy->getAddressSpace()) {
     NewPtrTy = NewPtrTy->getElementType()->getPointerTo(
       OldPtrTy->getAddressSpace());
-    Ptr = ConstantExpr::getBitCast(Ptr, NewPtrTy);
+    Ptr = ConstantExpr::getPointerCast(Ptr, NewPtrTy);
   }
   return Ptr;
 }
@@ -651,11 +674,12 @@ static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
                                          Type *ResultTy, const DataLayout *TD,
                                          const TargetLibraryInfo *TLI) {
   Constant *Ptr = Ops[0];
-  if (!TD || !cast<PointerType>(Ptr->getType())->getElementType()->isSized() ||
+  if (!TD || !Ptr->getType()->getPointerElementType()->isSized() ||
       !Ptr->getType()->isPointerTy())
     return 0;
 
-  Type *IntPtrTy = TD->getIntPtrType(Ptr->getContext());
+  Type *IntPtrTy = TD->getIntPtrType(Ptr->getType());
+  Type *ResultElementTy = ResultTy->getPointerElementType();
 
   // If this is a constant expr gep that is effectively computing an
   // "offsetof", fold it into 'cast int Size to T*' instead of 'gep 0, 0, 12'
@@ -664,8 +688,7 @@ static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
 
       // If this is "gep i8* Ptr, (sub 0, V)", fold this as:
       // "inttoptr (sub (ptrtoint Ptr), V)"
-      if (Ops.size() == 2 &&
-          cast<PointerType>(ResultTy)->getElementType()->isIntegerTy(8)) {
+      if (Ops.size() == 2 && ResultElementTy->isIntegerTy(8)) {
         ConstantExpr *CE = dyn_cast<ConstantExpr>(Ops[1]);
         assert((CE == 0 || CE->getType() == IntPtrTy) &&
                "CastGEPIndices didn't canonicalize index types!");
@@ -692,7 +715,7 @@ static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
 
   // If this is a GEP of a GEP, fold it all into a single GEP.
   while (GEPOperator *GEP = dyn_cast<GEPOperator>(Ptr)) {
-    SmallVector<Value *, 4> NestedOps(GEP->op_begin()+1, GEP->op_end());
+    SmallVector<Value *, 4> NestedOps(GEP->op_begin() + 1, GEP->op_end());
 
     // Do not try the incorporate the sub-GEP if some index is not a number.
     bool AllConstantInt = true;
@@ -713,12 +736,15 @@ static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
   // If the base value for this address is a literal integer value, fold the
   // getelementptr to the resulting integer value casted to the pointer type.
   APInt BasePtr(BitWidth, 0);
-  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Ptr))
-    if (CE->getOpcode() == Instruction::IntToPtr)
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Ptr)) {
+    if (CE->getOpcode() == Instruction::IntToPtr) {
       if (ConstantInt *Base = dyn_cast<ConstantInt>(CE->getOperand(0)))
         BasePtr = Base->getValue().zextOrTrunc(BitWidth);
+    }
+  }
+
   if (Ptr->isNullValue() || BasePtr != 0) {
-    Constant *C = ConstantInt::get(Ptr->getContext(), Offset+BasePtr);
+    Constant *C = ConstantInt::get(Ptr->getContext(), Offset + BasePtr);
     return ConstantExpr::getIntToPtr(C, ResultTy);
   }
 
@@ -728,7 +754,8 @@ static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
   // Also, this helps GlobalOpt do SROA on GlobalVariables.
   Type *Ty = Ptr->getType();
   assert(Ty->isPointerTy() && "Forming regular GEP of non-pointer type");
-  SmallVector<Constant*, 32> NewIdxs;
+  SmallVector<Constant *, 32> NewIdxs;
+
   do {
     if (SequentialType *ATy = dyn_cast<SequentialType>(Ty)) {
       if (ATy->isPointerTy()) {
@@ -743,7 +770,6 @@ static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
 
       // Determine which element of the array the offset points into.
       APInt ElemSize(BitWidth, TD->getTypeAllocSize(ATy->getElementType()));
-      IntegerType *IntPtrTy = TD->getIntPtrType(Ty->getContext());
       if (ElemSize == 0)
         // The element size is 0. This may be [0 x Ty]*, so just use a zero
         // index for this level and proceed to the next level to see if it can
@@ -778,7 +804,7 @@ static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
       // We've reached some non-indexable type.
       break;
     }
-  } while (Ty != cast<PointerType>(ResultTy)->getElementType());
+  } while (Ty != ResultElementTy);
 
   // If we haven't used up the entire offset by descending the static
   // type, then the offset is pointing into the middle of an indivisible
@@ -787,14 +813,13 @@ static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
     return 0;
 
   // Create a GEP.
-  Constant *C =
-    ConstantExpr::getGetElementPtr(Ptr, NewIdxs);
-  assert(cast<PointerType>(C->getType())->getElementType() == Ty &&
+  Constant *C = ConstantExpr::getGetElementPtr(Ptr, NewIdxs);
+  assert(C->getType()->getPointerElementType() == Ty &&
          "Computed GetElementPtr has unexpected type!");
 
   // If we ended up indexing a member with a type that doesn't match
   // the type of what the original indices indexed, add a cast.
-  if (Ty != cast<PointerType>(ResultTy)->getElementType())
+  if (Ty != ResultElementTy)
     C = FoldBitCast(C, ResultTy, *TD);
 
   return C;
@@ -867,16 +892,18 @@ Constant *llvm::ConstantFoldInstruction(Instruction *I,
   if (const LoadInst *LI = dyn_cast<LoadInst>(I))
     return ConstantFoldLoadInst(LI, TD);
 
-  if (InsertValueInst *IVI = dyn_cast<InsertValueInst>(I))
+  if (InsertValueInst *IVI = dyn_cast<InsertValueInst>(I)) {
     return ConstantExpr::getInsertValue(
                                 cast<Constant>(IVI->getAggregateOperand()),
                                 cast<Constant>(IVI->getInsertedValueOperand()),
                                 IVI->getIndices());
+  }
 
-  if (ExtractValueInst *EVI = dyn_cast<ExtractValueInst>(I))
+  if (ExtractValueInst *EVI = dyn_cast<ExtractValueInst>(I)) {
     return ConstantExpr::getExtractValue(
                                     cast<Constant>(EVI->getAggregateOperand()),
                                     EVI->getIndices());
+  }
 
   return ConstantFoldInstOperands(I->getOpcode(), I->getType(), Ops, TD, TLI);
 }
@@ -930,9 +957,10 @@ Constant *llvm::ConstantFoldInstOperands(unsigned Opcode, Type *DestTy,
                                          const TargetLibraryInfo *TLI) {
   // Handle easy binops first.
   if (Instruction::isBinaryOp(Opcode)) {
-    if (isa<ConstantExpr>(Ops[0]) || isa<ConstantExpr>(Ops[1]))
+    if (isa<ConstantExpr>(Ops[0]) || isa<ConstantExpr>(Ops[1])) {
       if (Constant *C = SymbolicallyEvaluateBinop(Opcode, Ops[0], Ops[1], TD))
         return C;
+    }
 
     return ConstantExpr::get(Opcode, Ops[0], Ops[1]);
   }
@@ -953,10 +981,11 @@ Constant *llvm::ConstantFoldInstOperands(unsigned Opcode, Type *DestTy,
       if (TD && CE->getOpcode() == Instruction::IntToPtr) {
         Constant *Input = CE->getOperand(0);
         unsigned InWidth = Input->getType()->getScalarSizeInBits();
-        if (TD->getPointerSizeInBits() < InWidth) {
+        unsigned PtrWidth = TD->getPointerTypeSizeInBits(CE->getType());
+        if (PtrWidth < InWidth) {
           Constant *Mask =
-            ConstantInt::get(CE->getContext(), APInt::getLowBitsSet(InWidth,
-                                                  TD->getPointerSizeInBits()));
+            ConstantInt::get(CE->getContext(),
+                             APInt::getLowBitsSet(InWidth, PtrWidth));
           Input = ConstantExpr::getAnd(Input, Mask);
         }
         // Do a zext or trunc to get to the dest size.
@@ -966,13 +995,22 @@ Constant *llvm::ConstantFoldInstOperands(unsigned Opcode, Type *DestTy,
     return ConstantExpr::getCast(Opcode, Ops[0], DestTy);
   case Instruction::IntToPtr:
     // If the input is a ptrtoint, turn the pair into a ptr to ptr bitcast if
-    // the int size is >= the ptr size.  This requires knowing the width of a
-    // pointer, so it can't be done in ConstantExpr::getCast.
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Ops[0]))
-      if (TD &&
-          TD->getPointerSizeInBits() <= CE->getType()->getScalarSizeInBits() &&
-          CE->getOpcode() == Instruction::PtrToInt)
-        return FoldBitCast(CE->getOperand(0), DestTy, *TD);
+    // the int size is >= the ptr size and the address spaces are the same.
+    // This requires knowing the width of a pointer, so it can't be done in
+    // ConstantExpr::getCast.
+    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Ops[0])) {
+      if (TD && CE->getOpcode() == Instruction::PtrToInt) {
+        Constant *SrcPtr = CE->getOperand(0);
+        unsigned SrcPtrSize = TD->getPointerTypeSizeInBits(SrcPtr->getType());
+        unsigned MidIntSize = CE->getType()->getScalarSizeInBits();
+
+        if (MidIntSize >= SrcPtrSize) {
+          unsigned SrcAS = SrcPtr->getType()->getPointerAddressSpace();
+          if (SrcAS == DestTy->getPointerAddressSpace())
+            return FoldBitCast(CE->getOperand(0), DestTy, *TD);
+        }
+      }
+    }
 
     return ConstantExpr::getCast(Opcode, Ops[0], DestTy);
   case Instruction::Trunc:
@@ -984,6 +1022,7 @@ Constant *llvm::ConstantFoldInstOperands(unsigned Opcode, Type *DestTy,
   case Instruction::SIToFP:
   case Instruction::FPToUI:
   case Instruction::FPToSI:
+  case Instruction::AddrSpaceCast:
       return ConstantExpr::getCast(Opcode, Ops[0], DestTy);
   case Instruction::BitCast:
     if (TD)
@@ -1024,8 +1063,8 @@ Constant *llvm::ConstantFoldCompareInstOperands(unsigned Predicate,
   // around to know if bit truncation is happening.
   if (ConstantExpr *CE0 = dyn_cast<ConstantExpr>(Ops0)) {
     if (TD && Ops1->isNullValue()) {
-      Type *IntPtrTy = TD->getIntPtrType(CE0->getContext());
       if (CE0->getOpcode() == Instruction::IntToPtr) {
+        Type *IntPtrTy = TD->getIntPtrType(CE0->getType());
         // Convert the integer value to the right size to ensure we get the
         // proper extension or truncation.
         Constant *C = ConstantExpr::getIntegerCast(CE0->getOperand(0),
@@ -1036,19 +1075,21 @@ Constant *llvm::ConstantFoldCompareInstOperands(unsigned Predicate,
 
       // Only do this transformation if the int is intptrty in size, otherwise
       // there is a truncation or extension that we aren't modeling.
-      if (CE0->getOpcode() == Instruction::PtrToInt &&
-          CE0->getType() == IntPtrTy) {
-        Constant *C = CE0->getOperand(0);
-        Constant *Null = Constant::getNullValue(C->getType());
-        return ConstantFoldCompareInstOperands(Predicate, C, Null, TD, TLI);
+      if (CE0->getOpcode() == Instruction::PtrToInt) {
+        Type *IntPtrTy = TD->getIntPtrType(CE0->getOperand(0)->getType());
+        if (CE0->getType() == IntPtrTy) {
+          Constant *C = CE0->getOperand(0);
+          Constant *Null = Constant::getNullValue(C->getType());
+          return ConstantFoldCompareInstOperands(Predicate, C, Null, TD, TLI);
+        }
       }
     }
 
     if (ConstantExpr *CE1 = dyn_cast<ConstantExpr>(Ops1)) {
       if (TD && CE0->getOpcode() == CE1->getOpcode()) {
-        Type *IntPtrTy = TD->getIntPtrType(CE0->getContext());
-
         if (CE0->getOpcode() == Instruction::IntToPtr) {
+          Type *IntPtrTy = TD->getIntPtrType(CE0->getType());
+
           // Convert the integer value to the right size to ensure we get the
           // proper extension or truncation.
           Constant *C0 = ConstantExpr::getIntegerCast(CE0->getOperand(0),
@@ -1060,11 +1101,17 @@ Constant *llvm::ConstantFoldCompareInstOperands(unsigned Predicate,
 
         // Only do this transformation if the int is intptrty in size, otherwise
         // there is a truncation or extension that we aren't modeling.
-        if ((CE0->getOpcode() == Instruction::PtrToInt &&
-             CE0->getType() == IntPtrTy &&
-             CE0->getOperand(0)->getType() == CE1->getOperand(0)->getType()))
-          return ConstantFoldCompareInstOperands(Predicate, CE0->getOperand(0),
-                                                 CE1->getOperand(0), TD, TLI);
+        if (CE0->getOpcode() == Instruction::PtrToInt) {
+          Type *IntPtrTy = TD->getIntPtrType(CE0->getOperand(0)->getType());
+          if (CE0->getType() == IntPtrTy &&
+              CE0->getOperand(0)->getType() == CE1->getOperand(0)->getType()) {
+            return ConstantFoldCompareInstOperands(Predicate,
+                                                   CE0->getOperand(0),
+                                                   CE1->getOperand(0),
+                                                   TD,
+                                                   TLI);
+          }
+        }
       }
     }
 
@@ -1101,7 +1148,8 @@ Constant *llvm::ConstantFoldLoadThroughGEPConstantExpr(Constant *C,
   // addressing.
   for (unsigned i = 2, e = CE->getNumOperands(); i != e; ++i) {
     C = C->getAggregateElement(CE->getOperand(i));
-    if (C == 0) return 0;
+    if (C == 0)
+      return 0;
   }
   return C;
 }
@@ -1116,7 +1164,8 @@ Constant *llvm::ConstantFoldLoadThroughGEPIndices(Constant *C,
   // addressing.
   for (unsigned i = 0, e = Indices.size(); i != e; ++i) {
     C = C->getAggregateElement(Indices[i]);
-    if (C == 0) return 0;
+    if (C == 0)
+      return 0;
   }
   return C;
 }
@@ -1128,8 +1177,7 @@ Constant *llvm::ConstantFoldLoadThroughGEPIndices(Constant *C,
 
 /// canConstantFoldCallTo - Return true if its even possible to fold a call to
 /// the specified function.
-bool
-llvm::canConstantFoldCallTo(const Function *F) {
+bool llvm::canConstantFoldCallTo(const Function *F) {
   switch (F->getIntrinsicID()) {
   case Intrinsic::fabs:
   case Intrinsic::log:
@@ -1167,7 +1215,8 @@ llvm::canConstantFoldCallTo(const Function *F) {
   case 0: break;
   }
 
-  if (!F->hasName()) return false;
+  if (!F->hasName())
+    return false;
   StringRef Name = F->getName();
 
   // In these cases, the check of the length is required.  We don't want to
@@ -1250,7 +1299,7 @@ static Constant *ConstantFoldBinaryFP(double (*NativeFP)(double, double),
 static Constant *ConstantFoldConvertToInt(const APFloat &Val,
                                           bool roundTowardZero, Type *Ty) {
   // All of these conversion intrinsics form an integer of at most 64bits.
-  unsigned ResultWidth = cast<IntegerType>(Ty)->getBitWidth();
+  unsigned ResultWidth = Ty->getIntegerBitWidth();
   assert(ResultWidth <= 64 &&
          "Can only constant fold conversions to 64 and 32 bit ints");
 
@@ -1271,7 +1320,8 @@ static Constant *ConstantFoldConvertToInt(const APFloat &Val,
 Constant *
 llvm::ConstantFoldCall(Function *F, ArrayRef<Constant *> Operands,
                        const TargetLibraryInfo *TLI) {
-  if (!F->hasName()) return 0;
+  if (!F->hasName())
+    return 0;
   StringRef Name = F->getName();
 
   Type *Ty = F->getReturnType();

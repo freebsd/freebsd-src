@@ -8,14 +8,14 @@
 target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64-S128"
 
 ; Verify that nothing uses the "dead" ptrtoint from "undef".
-; CHECK: @VerifyDiagnosticConsumerTest
+; CHECK-LABEL: @VerifyDiagnosticConsumerTest(
 ; CHECK: bb:
-; CHECK: %0 = ptrtoint i8* undef to i64
-; CHECK-NOT: %0
+; "dead" ptrpoint not emitted (or dead code eliminated) with
+; current LSR cost model.
+; CHECK-NOT: = ptrtoint i8* undef to i64
 ; CHECK: .lr.ph
-; CHECK-NOT: %0
-; CHECK: sub i64 %7, %tmp6
-; CHECK-NOT: %0
+; CHECK: [[TMP:%[^ ]+]] = add i64 %tmp5, 1
+; CHECK: sub i64 [[TMP]], %tmp6
 ; CHECK: ret void
 define void @VerifyDiagnosticConsumerTest() unnamed_addr nounwind uwtable align 2 {
 bb:

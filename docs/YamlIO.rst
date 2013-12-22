@@ -109,7 +109,7 @@ ScalarEnumerationTraits on that type and define the enumeration() method:
 
 As with all YAML I/O template specializations, the ScalarEnumerationTraits is used for 
 both reading and writing YAML. That is, the mapping between in-memory enum
-values and the YAML string representation is only in place.
+values and the YAML string representation is only in one place.
 This assures that the code for writing and parsing of YAML stays in sync.
 
 To specify a YAML mappings, you define a specialization on 
@@ -353,7 +353,7 @@ had the following bit flags defined:
       flagsRound  = 8
     };
 
-    LLVM_YAML_UNIQUE_TYPE(MyFlags, uint32_t)
+    LLVM_YAML_STRONG_TYPEDEF(uint32_t, MyFlags)
     
 To support reading and writing of MyFlags, you specialize ScalarBitSetTraits<>
 on MyFlags and provide the bit values and their names.   
@@ -408,7 +408,7 @@ some time format (e.g. 4-May-2012 10:30pm).  YAML I/O has a way to support
 custom formatting and parsing of scalar types by specializing ScalarTraits<> on
 your data type.  When writing, YAML I/O will provide the native type and
 your specialization must create a temporary llvm::StringRef.  When reading,
-YAML I/O will provide a llvm::StringRef of scalar and your specialization
+YAML I/O will provide an llvm::StringRef of scalar and your specialization
 must convert that to your native data type.  An outline of a custom scalar type
 looks like:
 
@@ -533,7 +533,7 @@ coordinates into polar when reading YAML.
             y(polar.distance * sin(polar.angle)) {
         }
         Polar denormalize(IO &) {
-          return Polar(sqrt(x*x+y*y, arctan(x,y));
+          return Polar(sqrt(x*x+y*y), arctan(x,y));
         }
          
         float        x;
@@ -549,7 +549,7 @@ coordinates into polar when reading YAML.
     };
 
 When writing YAML, the local variable "keys" will be a stack allocated 
-instance of NormalizedPolar, constructed from the suppled polar object which
+instance of NormalizedPolar, constructed from the supplied polar object which
 initializes it x and y fields.  The mapRequired() methods then write out the x
 and y values as key/value pairs.  
 
@@ -633,6 +633,20 @@ This works for both reading and writing. For example:
     };
 
 
+Tags
+----
+
+The YAML syntax supports tags as a way to specify the type of a node before
+it is parsed. This allows dynamic types of nodes.  But the YAML I/O model uses
+static typing, so there are limits to how you can use tags with the YAML I/O
+model. Recently, we added support to YAML I/O for checking/setting the optional 
+tag on a map. Using this functionality it is even possbile to support differnt 
+mappings, as long as they are convertable.  
+
+To check a tag, inside your mapping() method you can use io.mapTag() to specify
+what the tag should be.  This will also add that tag when writing yaml.
+
+
 Sequence
 ========
 
@@ -646,7 +660,7 @@ llvm::yaml::SequenceTraits on T and implement two methods:
   template <>
   struct SequenceTraits<MySeq> {
     static size_t size(IO &io, MySeq &list) { ... }
-    static MySeqEl element(IO &io, MySeq &list, size_t index) { ... }
+    static MySeqEl &element(IO &io, MySeq &list, size_t index) { ... }
   };
 
 The size() method returns how many elements are currently in your sequence.
@@ -669,7 +683,7 @@ add "static const bool flow = true;".  For instance:
   template <>
   struct SequenceTraits<MyList> {
     static size_t size(IO &io, MyList &list) { ... }
-    static MyListEl element(IO &io, MyList &list, size_t index) { ... }
+    static MyListEl &element(IO &io, MyList &list, size_t index) { ... }
     
     // The existence of this member causes YAML I/O to use a flow sequence
     static const bool flow = true;

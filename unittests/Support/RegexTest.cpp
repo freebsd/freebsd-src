@@ -112,4 +112,27 @@ TEST_F(RegexTest, Substitution) {
   EXPECT_EQ(Error, "invalid backreference string '100'");
 }
 
+TEST_F(RegexTest, IsLiteralERE) {
+  EXPECT_TRUE(Regex::isLiteralERE("abc"));
+  EXPECT_FALSE(Regex::isLiteralERE("a(bc)"));
+  EXPECT_FALSE(Regex::isLiteralERE("^abc"));
+  EXPECT_FALSE(Regex::isLiteralERE("abc$"));
+  EXPECT_FALSE(Regex::isLiteralERE("a|bc"));
+  EXPECT_FALSE(Regex::isLiteralERE("abc*"));
+  EXPECT_FALSE(Regex::isLiteralERE("abc+"));
+  EXPECT_FALSE(Regex::isLiteralERE("abc?"));
+  EXPECT_FALSE(Regex::isLiteralERE("abc."));
+  EXPECT_FALSE(Regex::isLiteralERE("a[bc]"));
+  EXPECT_FALSE(Regex::isLiteralERE("abc\\1"));
+  EXPECT_FALSE(Regex::isLiteralERE("abc{1,2}"));
+}
+
+TEST_F(RegexTest, IsValid) {
+  std::string Error;
+  EXPECT_FALSE(Regex("(foo").isValid(Error));
+  EXPECT_EQ("parentheses not balanced", Error);
+  EXPECT_FALSE(Regex("a[b-").isValid(Error));
+  EXPECT_EQ("invalid character range", Error);
+}
+
 }

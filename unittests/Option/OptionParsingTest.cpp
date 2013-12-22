@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/Option/Option.h"
@@ -18,8 +19,8 @@ using namespace llvm::opt;
 
 enum ID {
   OPT_INVALID = 0, // This is not an option ID.
-#define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, FLAGS, PARAM, \
-              HELPTEXT, METAVAR) OPT_##ID,
+#define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM, \
+               HELPTEXT, METAVAR) OPT_##ID,
 #include "Opts.inc"
   LastOption
 #undef OPTION
@@ -29,11 +30,17 @@ enum ID {
 #include "Opts.inc"
 #undef PREFIX
 
+enum OptionFlags {
+  OptFlag1 = (1 << 4),
+  OptFlag2 = (1 << 5),
+  OptFlag3 = (1 << 6)
+};
+
 static const OptTable::Info InfoTable[] = {
-#define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, FLAGS, PARAM, \
+#define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM, \
                HELPTEXT, METAVAR)   \
   { PREFIX, NAME, HELPTEXT, METAVAR, OPT_##ID, Option::KIND##Class, PARAM, \
-    FLAGS, OPT_##GROUP, OPT_##ALIAS },
+    FLAGS, OPT_##GROUP, OPT_##ALIAS, ALIASARGS },
 #include "Opts.inc"
 #undef OPTION
 };
@@ -41,8 +48,8 @@ static const OptTable::Info InfoTable[] = {
 namespace {
 class TestOptTable : public OptTable {
 public:
-  TestOptTable()
-    : OptTable(InfoTable, sizeof(InfoTable) / sizeof(InfoTable[0])) {}
+  TestOptTable(bool IgnoreCase = false)
+    : OptTable(InfoTable, array_lengthof(InfoTable), IgnoreCase) {}
 };
 }
 
@@ -58,14 +65,10 @@ const char *Args[] = {
   "-Gchuu", "2"
   };
 
-TEST(Support, OptionParsing) {
+TEST(Option, OptionParsing) {
   TestOptTable T;
   unsigned MAI, MAC;
-  OwningPtr<InputArgList>
-    AL(T.ParseArgs(Args,
-                   Args + (sizeof(Args) / sizeof(Args[0])),
-                   MAI,
-                   MAC));
+  OwningPtr<InputArgList> AL(T.ParseArgs(Args, array_endof(Args), MAI, MAC));
 
   // Check they all exist.
   EXPECT_TRUE(AL->hasArg(OPT_A));
@@ -103,4 +106,100 @@ TEST(Support, OptionParsing) {
   ASSERT_EQ(ASL.size(), 2u);
   EXPECT_EQ(StringRef(ASL[0]), "-C");
   EXPECT_EQ(StringRef(ASL[1]), "desu");
+}
+
+TEST(Option, ParseWithFlagExclusions) {
+  TestOptTable T;
+  unsigned MAI, MAC;
+  OwningPtr<InputArgList> AL;
+
+  // Exclude flag3 to avoid parsing as OPT_SLASH_C.
+  AL.reset(T.ParseArgs(Args, array_endof(Args), MAI, MAC,
+                       /*FlagsToInclude=*/0,
+                       /*FlagsToExclude=*/OptFlag3));
+  EXPECT_TRUE(AL->hasArg(OPT_A));
+  EXPECT_TRUE(AL->hasArg(OPT_C));
+  EXPECT_FALSE(AL->hasArg(OPT_SLASH_C));
+
+  // Exclude flag1 to avoid parsing as OPT_C.
+  AL.reset(T.ParseArgs(Args, array_endof(Args), MAI, MAC,
+                       /*FlagsToInclude=*/0,
+                       /*FlagsToExclude=*/OptFlag1));
+  EXPECT_TRUE(AL->hasArg(OPT_B));
+  EXPECT_FALSE(AL->hasArg(OPT_C));
+  EXPECT_TRUE(AL->hasArg(OPT_SLASH_C));
+
+  const char *NewArgs[] = { "/C", "foo", "--C=bar" };
+  AL.reset(T.ParseArgs(NewArgs, array_endof(NewArgs), MAI, MAC));
+  EXPECT_TRUE(AL->hasArg(OPT_SLASH_C));
+  EXPECT_TRUE(AL->hasArg(OPT_C));
+  EXPECT_EQ(AL->getLastArgValue(OPT_SLASH_C), "foo");
+  EXPECT_EQ(AL->getLastArgValue(OPT_C), "bar");
+}
+
+TEST(Option, ParseAliasInGroup) {
+  TestOptTable T;
+  unsigned MAI, MAC;
+
+  const char *MyArgs[] = { "-I" };
+  OwningPtr<InputArgList> AL(T.ParseArgs(MyArgs, array_endof(MyArgs), MAI, MAC));
+  EXPECT_TRUE(AL->hasArg(OPT_H));
+}
+
+TEST(Option, AliasArgs) {
+  TestOptTable T;
+  unsigned MAI, MAC;
+
+  const char *MyArgs[] = { "-J", "-Joo" };
+  OwningPtr<InputArgList> AL(T.ParseArgs(MyArgs, array_endof(MyArgs), MAI, MAC));
+  EXPECT_TRUE(AL->hasArg(OPT_B));
+  EXPECT_EQ(AL->getAllArgValues(OPT_B)[0], "foo");
+  EXPECT_EQ(AL->getAllArgValues(OPT_B)[1], "bar");
+}
+
+TEST(Option, IgnoreCase) {
+  TestOptTable T(true);
+  unsigned MAI, MAC;
+
+  const char *MyArgs[] = { "-a", "-joo" };
+  OwningPtr<InputArgList> AL(T.ParseArgs(MyArgs, array_endof(MyArgs), MAI, MAC));
+  EXPECT_TRUE(AL->hasArg(OPT_A));
+  EXPECT_TRUE(AL->hasArg(OPT_B));
+}
+
+TEST(Option, DoNotIgnoreCase) {
+  TestOptTable T;
+  unsigned MAI, MAC;
+
+  const char *MyArgs[] = { "-a", "-joo" };
+  OwningPtr<InputArgList> AL(T.ParseArgs(MyArgs, array_endof(MyArgs), MAI, MAC));
+  EXPECT_FALSE(AL->hasArg(OPT_A));
+  EXPECT_FALSE(AL->hasArg(OPT_B));
+}
+
+TEST(Option, SlurpEmpty) {
+  TestOptTable T;
+  unsigned MAI, MAC;
+
+  const char *MyArgs[] = { "-A", "-slurp" };
+  OwningPtr<InputArgList> AL(T.ParseArgs(MyArgs, array_endof(MyArgs), MAI, MAC));
+  EXPECT_TRUE(AL->hasArg(OPT_A));
+  EXPECT_TRUE(AL->hasArg(OPT_Slurp));
+  EXPECT_EQ(AL->getAllArgValues(OPT_Slurp).size(), 0U);
+}
+
+TEST(Option, Slurp) {
+  TestOptTable T;
+  unsigned MAI, MAC;
+
+  const char *MyArgs[] = { "-A", "-slurp", "-B", "--", "foo" };
+  OwningPtr<InputArgList> AL(T.ParseArgs(MyArgs, array_endof(MyArgs), MAI, MAC));
+  EXPECT_EQ(AL->size(), 2U);
+  EXPECT_TRUE(AL->hasArg(OPT_A));
+  EXPECT_FALSE(AL->hasArg(OPT_B));
+  EXPECT_TRUE(AL->hasArg(OPT_Slurp));
+  EXPECT_EQ(AL->getAllArgValues(OPT_Slurp).size(), 3U);
+  EXPECT_EQ(AL->getAllArgValues(OPT_Slurp)[0], "-B");
+  EXPECT_EQ(AL->getAllArgValues(OPT_Slurp)[1], "--");
+  EXPECT_EQ(AL->getAllArgValues(OPT_Slurp)[2], "foo");
 }

@@ -9,7 +9,8 @@
 
 LEVEL := ../..
 TOOLNAME := llvm-ar
-LINK_COMPONENTS := archive
+TOOLALIAS = llvm-ranlib
+LINK_COMPONENTS := bitreader support object
 
 # This tool has no plugins, optimize startup time.
 TOOL_NO_EXPORTS := 1

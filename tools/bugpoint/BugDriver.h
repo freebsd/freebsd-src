@@ -191,7 +191,7 @@ public:
   /// this function.
   ///
   bool createReferenceFile(Module *M, const std::string &Filename
-                                            = "bugpoint.reference.out");
+                                            = "bugpoint.reference.out-%%%%%%%");
 
   /// diffProgram - This method executes the specified module and diffs the
   /// output against the file specified by ReferenceOutputFile.  If the output
@@ -275,6 +275,8 @@ public:
   /// bitcode file.  If an error occurs, true is returned.
   ///
   bool writeProgramToFile(const std::string &Filename, const Module *M) const;
+  bool writeProgramToFile(const std::string &Filename, int FD,
+                          const Module *M) const;
 
 private:
   /// runPasses - Just like the method above, but this just returns true or

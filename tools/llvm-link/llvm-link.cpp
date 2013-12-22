@@ -55,18 +55,11 @@ DumpAsm("d", cl::desc("Print assembly as linked"), cl::Hidden);
 //
 static inline Module *LoadFile(const char *argv0, const std::string &FN,
                                LLVMContext& Context) {
-  sys::Path Filename;
-  if (!Filename.set(FN)) {
-    errs() << "Invalid file name: '" << FN << "'\n";
-    return NULL;
-  }
-
   SMDiagnostic Err;
-  if (Verbose) errs() << "Loading '" << Filename.c_str() << "'\n";
+  if (Verbose) errs() << "Loading '" << FN << "'\n";
   Module* Result = 0;
-  
-  const std::string &FNStr = Filename.str();
-  Result = ParseIRFile(FNStr, Err, Context);
+
+  Result = ParseIRFile(FN, Err, Context);
   if (Result) return Result;   // Load successful!
 
   Err.print(argv0, errs());
@@ -77,7 +70,7 @@ int main(int argc, char **argv) {
   // Print a stack trace if we signal out.
   sys::PrintStackTraceOnErrorSignal();
   PrettyStackTraceProgram X(argc, argv);
-  
+
   LLVMContext &Context = getGlobalContext();
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
   cl::ParseCommandLineOptions(argc, argv, "llvm linker\n");
@@ -113,8 +106,7 @@ int main(int argc, char **argv) {
   if (DumpAsm) errs() << "Here's the assembly:\n" << *Composite;
 
   std::string ErrorInfo;
-  tool_output_file Out(OutputFilename.c_str(), ErrorInfo,
-                       raw_fd_ostream::F_Binary);
+  tool_output_file Out(OutputFilename.c_str(), ErrorInfo, sys::fs::F_Binary);
   if (!ErrorInfo.empty()) {
     errs() << ErrorInfo << '\n';
     return 1;

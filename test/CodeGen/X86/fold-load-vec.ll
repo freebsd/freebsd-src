@@ -1,12 +1,12 @@
-; RUN: llc < %s -march=x86-64 -mcpu=corei7 -mattr=+sse41 | FileCheck %s
+; RUN: llc < %s -march=x86-64 -mcpu=corei7 -mattr=+sse4.1 | FileCheck %s
 
 ; rdar://12721174
 ; We should not fold movss into pshufd since pshufd expects m128 while movss
 ; loads from m32.
 define void @sample_test(<4 x float>* %source, <2 x float>* %dest) nounwind {
 ; CHECK: sample_test
-; CHECK: movss
-; CHECK: pshufd
+; CHECK: movaps
+; CHECK: insertps
 entry:
   %source.addr = alloca <4 x float>*, align 8
   %dest.addr = alloca <2 x float>*, align 8

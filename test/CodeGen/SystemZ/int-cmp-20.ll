@@ -6,9 +6,9 @@
 ; Check unsigned comparison near the low end of the CLI range, using zero
 ; extension.
 define double @f1(double %a, double %b, i8 *%ptr) {
-; CHECK: f1:
+; CHECK-LABEL: f1:
 ; CHECK: cli 0(%r2), 1
-; CHECK-NEXT: j{{g?}}h
+; CHECK-NEXT: jh
 ; CHECK: br %r14
   %val = load i8 *%ptr
   %ext = zext i8 %val to i32
@@ -20,9 +20,9 @@ define double @f1(double %a, double %b, i8 *%ptr) {
 ; Check unsigned comparison near the low end of the CLI range, using sign
 ; extension.
 define double @f2(double %a, double %b, i8 *%ptr) {
-; CHECK: f2:
+; CHECK-LABEL: f2:
 ; CHECK: cli 0(%r2), 1
-; CHECK-NEXT: j{{g?}}h
+; CHECK-NEXT: jh
 ; CHECK: br %r14
   %val = load i8 *%ptr
   %ext = sext i8 %val to i32
@@ -34,9 +34,9 @@ define double @f2(double %a, double %b, i8 *%ptr) {
 ; Check unsigned comparison near the high end of the CLI range, using zero
 ; extension.
 define double @f3(double %a, double %b, i8 *%ptr) {
-; CHECK: f3:
+; CHECK-LABEL: f3:
 ; CHECK: cli 0(%r2), 254
-; CHECK-NEXT: j{{g?}}l
+; CHECK-NEXT: jl
 ; CHECK: br %r14
   %val = load i8 *%ptr
   %ext = zext i8 %val to i32
@@ -48,9 +48,9 @@ define double @f3(double %a, double %b, i8 *%ptr) {
 ; Check unsigned comparison near the high end of the CLI range, using sign
 ; extension.
 define double @f4(double %a, double %b, i8 *%ptr) {
-; CHECK: f4:
+; CHECK-LABEL: f4:
 ; CHECK: cli 0(%r2), 254
-; CHECK-NEXT: j{{g?}}l
+; CHECK-NEXT: jl
 ; CHECK: br %r14
   %val = load i8 *%ptr
   %ext = sext i8 %val to i32
@@ -62,8 +62,8 @@ define double @f4(double %a, double %b, i8 *%ptr) {
 ; Check unsigned comparison above the high end of the CLI range, using zero
 ; extension.  The condition is always true.
 define double @f5(double %a, double %b, i8 *%ptr) {
-; CHECK: f5:
-; CHECK-NOT: cli
+; CHECK-LABEL: f5:
+; CHECK-NOT: cli {{.*}}
 ; CHECK: br %r14
   %val = load i8 *%ptr
   %ext = zext i8 %val to i32
@@ -78,8 +78,8 @@ define double @f5(double %a, double %b, i8 *%ptr) {
 ; unlikely to occur in practice, we don't bother optimizing the second case,
 ; and simply ignore CLI for this range.  First check the low end of the range.
 define double @f6(double %a, double %b, i8 *%ptr) {
-; CHECK: f6:
-; CHECK-NOT: cli
+; CHECK-LABEL: f6:
+; CHECK-NOT: cli {{.*}}
 ; CHECK: br %r14
   %val = load i8 *%ptr
   %ext = sext i8 %val to i32
@@ -90,8 +90,8 @@ define double @f6(double %a, double %b, i8 *%ptr) {
 
 ; ...and then the high end.
 define double @f7(double %a, double %b, i8 *%ptr) {
-; CHECK: f7:
-; CHECK-NOT: cli
+; CHECK-LABEL: f7:
+; CHECK-NOT: cli {{.*}}
 ; CHECK: br %r14
   %val = load i8 *%ptr
   %ext = sext i8 %val to i32
@@ -103,9 +103,9 @@ define double @f7(double %a, double %b, i8 *%ptr) {
 ; Check signed comparison near the low end of the CLI range, using zero
 ; extension.  This is equivalent to unsigned comparison.
 define double @f8(double %a, double %b, i8 *%ptr) {
-; CHECK: f8:
+; CHECK-LABEL: f8:
 ; CHECK: cli 0(%r2), 1
-; CHECK-NEXT: j{{g?}}h
+; CHECK-NEXT: jh
 ; CHECK: br %r14
   %val = load i8 *%ptr
   %ext = zext i8 %val to i32
@@ -117,8 +117,8 @@ define double @f8(double %a, double %b, i8 *%ptr) {
 ; Check signed comparison near the low end of the CLI range, using sign
 ; extension.  This cannot use CLI.
 define double @f9(double %a, double %b, i8 *%ptr) {
-; CHECK: f9:
-; CHECK-NOT: cli
+; CHECK-LABEL: f9:
+; CHECK-NOT: cli {{.*}}
 ; CHECK: br %r14
   %val = load i8 *%ptr
   %ext = sext i8 %val to i32
@@ -130,9 +130,9 @@ define double @f9(double %a, double %b, i8 *%ptr) {
 ; Check signed comparison near the high end of the CLI range, using zero
 ; extension.  This is equivalent to unsigned comparison.
 define double @f10(double %a, double %b, i8 *%ptr) {
-; CHECK: f10:
+; CHECK-LABEL: f10:
 ; CHECK: cli 0(%r2), 254
-; CHECK-NEXT: j{{g?}}l
+; CHECK-NEXT: jl
 ; CHECK: br %r14
   %val = load i8 *%ptr
   %ext = zext i8 %val to i32
@@ -144,8 +144,8 @@ define double @f10(double %a, double %b, i8 *%ptr) {
 ; Check signed comparison near the high end of the CLI range, using sign
 ; extension.  This cannot use CLI.
 define double @f11(double %a, double %b, i8 *%ptr) {
-; CHECK: f11:
-; CHECK-NOT: cli
+; CHECK-LABEL: f11:
+; CHECK-NOT: cli {{.*}}
 ; CHECK: br %r14
   %val = load i8 *%ptr
   %ext = sext i8 %val to i32
@@ -157,8 +157,8 @@ define double @f11(double %a, double %b, i8 *%ptr) {
 ; Check signed comparison above the high end of the CLI range, using zero
 ; extension.  The condition is always true.
 define double @f12(double %a, double %b, i8 *%ptr) {
-; CHECK: f12:
-; CHECK-NOT: cli
+; CHECK-LABEL: f12:
+; CHECK-NOT: cli {{.*}}
 ; CHECK: br %r14
   %val = load i8 *%ptr
   %ext = zext i8 %val to i32
@@ -169,9 +169,9 @@ define double @f12(double %a, double %b, i8 *%ptr) {
 
 ; Check tests for nonnegative values.
 define double @f13(double %a, double %b, i8 *%ptr) {
-; CHECK: f13:
+; CHECK-LABEL: f13:
 ; CHECK: cli 0(%r2), 128
-; CHECK-NEXT: j{{g?}}l
+; CHECK-NEXT: jl
 ; CHECK: br %r14
   %val = load i8 *%ptr
   %ext = sext i8 %val to i32
@@ -182,9 +182,9 @@ define double @f13(double %a, double %b, i8 *%ptr) {
 
 ; ...and another form
 define double @f14(double %a, double %b, i8 *%ptr) {
-; CHECK: f14:
+; CHECK-LABEL: f14:
 ; CHECK: cli 0(%r2), 128
-; CHECK-NEXT: j{{g?}}l
+; CHECK-NEXT: jl
 ; CHECK: br %r14
   %val = load i8 *%ptr
   %ext = sext i8 %val to i32
@@ -195,9 +195,9 @@ define double @f14(double %a, double %b, i8 *%ptr) {
 
 ; Check tests for negative values.
 define double @f15(double %a, double %b, i8 *%ptr) {
-; CHECK: f15:
+; CHECK-LABEL: f15:
 ; CHECK: cli 0(%r2), 127
-; CHECK-NEXT: j{{g?}}h
+; CHECK-NEXT: jh
 ; CHECK: br %r14
   %val = load i8 *%ptr
   %ext = sext i8 %val to i32
@@ -208,9 +208,9 @@ define double @f15(double %a, double %b, i8 *%ptr) {
 
 ; ...and another form
 define double @f16(double %a, double %b, i8 *%ptr) {
-; CHECK: f16:
+; CHECK-LABEL: f16:
 ; CHECK: cli 0(%r2), 127
-; CHECK-NEXT: j{{g?}}h
+; CHECK-NEXT: jh
 ; CHECK: br %r14
   %val = load i8 *%ptr
   %ext = sext i8 %val to i32

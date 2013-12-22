@@ -476,7 +476,7 @@ transformation obviously invalidates the CFG, but can update forward dominator
 -------------------------------------------------
 
 This pass munges the code in the input function to better prepare it for
-SelectionDAG-based code generation.  This works around limitations in it's
+SelectionDAG-based code generation.  This works around limitations in its
 basic-block-at-a-time approach.  It should eventually be removed.
 
 ``-constmerge``: Merge Duplicate Global Constants
@@ -490,7 +490,7 @@ string is available.
 ``-constprop``: Simple constant propagation
 -------------------------------------------
 
-This file implements constant propagation and merging.  It looks for
+This pass implements constant propagation and merging.  It looks for
 instructions involving only constant operands and replaces them with a constant
 value instead of an instruction.  For example:
 
@@ -505,8 +505,8 @@ becomes
   i32 3
 
 NOTE: this pass has a habit of making definitions be dead.  It is a good idea
-to to run a :ref:`Dead Instruction Elimination <passes-die>` pass sometime
-after running this pass.
+to run a :ref:`Dead Instruction Elimination <passes-die>` pass sometime after
+running this pass.
 
 .. _passes-dce:
 
@@ -1037,7 +1037,7 @@ as:
 * Proves conditional branches to be unconditional
 
 Note that this pass has a habit of making definitions be dead.  It is a good
-idea to to run a :ref:`DCE <passes-dce>` pass sometime after running this pass.
+idea to run a :ref:`DCE <passes-dce>` pass sometime after running this pass.
 
 ``-simplify-libcalls``: Simplify well-known library calls
 ---------------------------------------------------------

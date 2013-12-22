@@ -81,7 +81,7 @@ Here's the short story for getting up and running quickly with LLVM:
 
    * ``make [-j]`` --- The ``-j`` specifies the number of jobs (commands) to run
      simultaneously.  This builds both LLVM and Clang for Debug+Asserts mode.
-     The ``--enabled-optimized`` configure option is used to specify a Release
+     The ``--enable-optimized`` configure option is used to specify a Release
      build.
 
    * ``make check-all`` --- This run the regression tests to ensure everything
@@ -217,9 +217,7 @@ uses the package and provides other details.
 +--------------------------------------------------------------+-----------------+---------------------------------------------+
 | `SVN <http://subversion.tigris.org/project_packages.html>`_  | >=1.3           | Subversion access to LLVM\ :sup:`2`         |
 +--------------------------------------------------------------+-----------------+---------------------------------------------+
-| `python <http://www.python.org/>`_                           | >=2.4           | Automated test suite\ :sup:`3`              |
-+--------------------------------------------------------------+-----------------+---------------------------------------------+
-| `perl <http://www.perl.com/download.csp>`_                   | >=5.6.0         | Utilities                                   |
+| `python <http://www.python.org/>`_                           | >=2.5           | Automated test suite\ :sup:`3`              |
 +--------------------------------------------------------------+-----------------+---------------------------------------------+
 | `GNU M4 <http://savannah.gnu.org/projects/m4>`_              | 1.4             | Macro processor for configuration\ :sup:`4` |
 +--------------------------------------------------------------+-----------------+---------------------------------------------+
@@ -459,15 +457,6 @@ The files are as follows, with *x.y* marking the version number:
 
   Source release for the LLVM test-suite.
 
-``llvm-gcc-4.2-x.y.source.tar.gz``
-
-  Source release of the llvm-gcc-4.2 front end.  See README.LLVM in the root
-  directory for build instructions.
-
-``llvm-gcc-4.2-x.y-platform.tar.gz``
-
-  Binary release of the llvm-gcc-4.2 front end for a specific platform.
-
 .. _checkout:
 
 Checkout LLVM from Subversion
@@ -490,6 +479,8 @@ you can checkout it from the '``tags``' directory (instead of '``trunk``'). The
 following releases are located in the following subdirectories of the '``tags``'
 directory:
 
+* Release 3.3: **RELEASE_33/final**
+* Release 3.2: **RELEASE_32/final**
 * Release 3.1: **RELEASE_31/final**
 * Release 3.0: **RELEASE_30/final**
 * Release 2.9: **RELEASE_29/final**
@@ -758,7 +749,7 @@ The following options can be used to set or enable LLVM specific options:
   target names that you want available in llc. The target names use all lower
   case. The current set of targets is:
 
-    ``arm, cpp, hexagon, mblaze, mips, mipsel, msp430, powerpc, ptx, sparc, spu,
+    ``arm, cpp, hexagon, mips, mipsel, msp430, powerpc, ptx, sparc, spu,
     systemz, x86, x86_64, xcore``.
 
 ``--enable-doxygen``
@@ -939,6 +930,10 @@ GCC compiler supports.
 The result of such a build is executables that are not runnable on on the build
 host (--build option) but can be executed on the compile host (--host option).
 
+Check :doc:`HowToCrossCompileLLVM` and `Clang docs on how to cross-compile in general
+<http://clang.llvm.org/docs/CrossCompilation.html>`_ for more information
+about cross-compiling.
+
 The Location of LLVM Object Files
 ---------------------------------
 
@@ -1074,7 +1069,7 @@ different `tools`_.
   This directory holds the source code for the LLVM assembly language parser
   library.
 
-``llvm/lib/BitCode/``
+``llvm/lib/Bitcode/``
 
   This directory holds code for reading and write LLVM bitcode.
 
@@ -1312,7 +1307,7 @@ Example with clang
      Clang works just like GCC by default.  The standard -S and -c arguments
      work as usual (producing a native .s or .o file, respectively).
 
-#. Next, compile the C file into a LLVM bitcode file:
+#. Next, compile the C file into an LLVM bitcode file:
 
    .. code-block:: console
 

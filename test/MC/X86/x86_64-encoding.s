@@ -120,6 +120,66 @@ movd %mm1, %edx
 // CHECK:  fixup A - offset: 5, value: CPI1_0-4
 pshufb	CPI1_0(%rip), %xmm1
 
+// CHECK: sha1rnds4 $1, %xmm1, %xmm2
+// CHECK:   encoding: [0x0f,0x3a,0xcc,0xd1,0x01]
+sha1rnds4 $1, %xmm1, %xmm2
+
+// CHECK: sha1rnds4 $1, (%rax), %xmm2
+// CHECK:   encoding: [0x0f,0x3a,0xcc,0x10,0x01]
+sha1rnds4 $1, (%rax), %xmm2
+
+// CHECK: sha1nexte %xmm1, %xmm2
+// CHECK:   encoding: [0x0f,0x38,0xc8,0xd1]
+sha1nexte %xmm1, %xmm2
+
+// CHECK: sha1msg1 %xmm1, %xmm2
+// CHECK:   encoding: [0x0f,0x38,0xc9,0xd1]
+sha1msg1 %xmm1, %xmm2
+
+// CHECK: sha1msg1 (%rax), %xmm2
+// CHECK:   encoding: [0x0f,0x38,0xc9,0x10]
+sha1msg1 (%rax), %xmm2
+
+// CHECK: sha1msg2 %xmm1, %xmm2
+// CHECK:   encoding: [0x0f,0x38,0xca,0xd1]
+sha1msg2 %xmm1, %xmm2
+
+// CHECK: sha1msg2 (%rax), %xmm2
+// CHECK:   encoding: [0x0f,0x38,0xca,0x10]
+sha1msg2 (%rax), %xmm2
+
+// CHECK: sha256rnds2 (%rax), %xmm2
+// CHECK:   encoding: [0x0f,0x38,0xcb,0x10]
+sha256rnds2 (%rax), %xmm2
+
+// CHECK: sha256rnds2 %xmm1, %xmm2
+// CHECK:   encoding: [0x0f,0x38,0xcb,0xd1]
+sha256rnds2 %xmm1, %xmm2
+
+// CHECK: sha256rnds2 (%rax), %xmm2
+// CHECK:   encoding: [0x0f,0x38,0xcb,0x10]
+sha256rnds2 %xmm0, (%rax), %xmm2
+
+// CHECK: sha256rnds2 %xmm1, %xmm2
+// CHECK:   encoding: [0x0f,0x38,0xcb,0xd1]
+sha256rnds2 %xmm0, %xmm1, %xmm2
+
+// CHECK: sha256msg1 %xmm1, %xmm2
+// CHECK:   encoding: [0x0f,0x38,0xcc,0xd1]
+sha256msg1 %xmm1, %xmm2
+
+// CHECK: sha256msg1 (%rax), %xmm2
+// CHECK:   encoding: [0x0f,0x38,0xcc,0x10]
+sha256msg1 (%rax), %xmm2
+
+// CHECK: sha256msg2 %xmm1, %xmm2
+// CHECK:   encoding: [0x0f,0x38,0xcd,0xd1]
+sha256msg2 %xmm1, %xmm2
+
+// CHECK: sha256msg2 (%rax), %xmm2
+// CHECK:   encoding: [0x0f,0x38,0xcd,0x10]
+sha256msg2 (%rax), %xmm2
+
 // CHECK: movq  57005(,%riz), %rbx
 // CHECK: encoding: [0x48,0x8b,0x1c,0x25,0xad,0xde,0x00,0x00]
           movq  57005(,%riz), %rbx
@@ -171,3 +231,15 @@ pshufb	CPI1_0(%rip), %xmm1
 // CHECK: filds	(%rdi)
 // CHECK:  encoding: [0xdf,0x07]
         	filds	(%rdi)
+
+// CHECK: pmovmskb	%xmm5, %ecx
+// CHECK:  encoding: [0x66,0x0f,0xd7,0xcd]
+        	pmovmskb	%xmm5,%rcx
+
+// CHECK: pinsrw $3, %ecx, %xmm5
+// CHECK: encoding: [0x66,0x0f,0xc4,0xe9,0x03]
+          pinsrw $3, %ecx, %xmm5
+
+// CHECK: pinsrw $3, %ecx, %xmm5
+// CHECK: encoding: [0x66,0x0f,0xc4,0xe9,0x03]
+          pinsrw $3, %rcx, %xmm5

@@ -129,12 +129,13 @@ def SEG_ALLOCA_64 : I<0, Pseudo, (outs GR64:$dst), (ins GR64:$size),
 
 // The MSVC runtime contains an _ftol2 routine for converting floating-point
 // to integer values. It has a strange calling convention: the input is
-// popped from the x87 stack, and the return value is given in EDX:EAX. No
-// other registers (aside from flags) are touched.
+// popped from the x87 stack, and the return value is given in EDX:EAX. ECX is
+// used as a temporary register. No other registers (aside from flags) are
+// touched.
 // Microsoft toolchains do not support 80-bit precision, so a WIN_FTOL_80
 // variant is unnecessary.
 
-let Defs = [EAX, EDX, EFLAGS], FPForm = SpecialFP in {
+let Defs = [EAX, EDX, ECX, EFLAGS], FPForm = SpecialFP in {
   def WIN_FTOL_32 : I<0, Pseudo, (outs), (ins RFP32:$src),
                       "# win32 fptoui",
                       [(X86WinFTOL RFP32:$src)]>,
@@ -216,48 +217,38 @@ def MORESTACK_RET_RESTORE_R10 : I<0, Pseudo, (outs), (ins),
 // Alias Instructions
 //===----------------------------------------------------------------------===//
 
-// Alias instructions that map movr0 to xor.
+// Alias instruction mapping movr0 to xor.
 // FIXME: remove when we can teach regalloc that xor reg, reg is ok.
 // FIXME: Set encoding to pseudo.
 let Defs = [EFLAGS], isReMaterializable = 1, isAsCheapAsAMove = 1,
-    isCodeGenOnly = 1 in {
-def MOV8r0   : I<0x30, MRMInitReg, (outs GR8 :$dst), (ins), "",
-                 [(set GR8:$dst, 0)], IIC_ALU_NONMEM>, Sched<[WriteZero]>;
-
-// We want to rewrite MOV16r0 in terms of MOV32r0, because it's a smaller
-// encoding and avoids a partial-register update sometimes, but doing so
-// at isel time interferes with rematerialization in the current register
-// allocator. For now, this is rewritten when the instruction is lowered
-// to an MCInst.
-def MOV16r0   : I<0x31, MRMInitReg, (outs GR16:$dst), (ins),
-                 "",
-                 [(set GR16:$dst, 0)], IIC_ALU_NONMEM>, OpSize,
-                 Sched<[WriteZero]>;
-
-// FIXME: Set encoding to pseudo.
+    isCodeGenOnly = 1 in
 def MOV32r0  : I<0x31, MRMInitReg, (outs GR32:$dst), (ins), "",
                  [(set GR32:$dst, 0)], IIC_ALU_NONMEM>, Sched<[WriteZero]>;
-}
 
-// We want to rewrite MOV64r0 in terms of MOV32r0, because it's sometimes a
-// smaller encoding, but doing so at isel time interferes with rematerialization
-// in the current register allocator. For now, this is rewritten when the
-// instruction is lowered to an MCInst.
-// FIXME: AddedComplexity gives this a higher priority than MOV64ri32. Remove
-// when we have a better way to specify isel priority.
-let Defs = [EFLAGS], isCodeGenOnly=1,
-    AddedComplexity = 1, isReMaterializable = 1, isAsCheapAsAMove = 1 in
-def MOV64r0   : I<0x31, MRMInitReg, (outs GR64:$dst), (ins), "",
-                 [(set GR64:$dst, 0)], IIC_ALU_NONMEM>, Sched<[WriteZero]>;
+// Other widths can also make use of the 32-bit xor, which may have a smaller
+// encoding and avoid partial register updates.
+def : Pat<(i8 0), (EXTRACT_SUBREG (MOV32r0), sub_8bit)>;
+def : Pat<(i16 0), (EXTRACT_SUBREG (MOV32r0), sub_16bit)>;
+def : Pat<(i64 0), (SUBREG_TO_REG (i64 0), (MOV32r0), sub_32bit)> {
+  let AddedComplexity = 20;
+}
 
 // Materialize i64 constant where top 32-bits are zero. This could theoretically
 // use MOV32ri with a SUBREG_TO_REG to represent the zero-extension, however
 // that would make it more difficult to rematerialize.
 let AddedComplexity = 1, isReMaterializable = 1, isAsCheapAsAMove = 1,
-    isCodeGenOnly = 1 in
-def MOV64ri64i32 : Ii32<0xB8, AddRegFrm, (outs GR64:$dst), (ins i64i32imm:$src),
-                        "", [(set GR64:$dst, i64immZExt32:$src)],
-                        IIC_ALU_NONMEM>, Sched<[WriteALU]>;
+    isCodeGenOnly = 1, neverHasSideEffects = 1 in
+def MOV32ri64 : Ii32<0xb8, AddRegFrm, (outs GR32:$dst), (ins i64i32imm:$src),
+                     "", [], IIC_ALU_NONMEM>, Sched<[WriteALU]>;
+
+// This 64-bit pseudo-move can be used for both a 64-bit constant that is
+// actually the zero-extension of a 32-bit constant, and for labels in the
+// x86-64 small code model.
+def mov64imm32 : ComplexPattern<i64, 1, "SelectMOV64Imm32", [imm, X86Wrapper]>;
+
+let AddedComplexity = 1 in
+def : Pat<(i64 mov64imm32:$src),
+          (SUBREG_TO_REG (i64 0), (MOV32ri64 mov64imm32:$src), sub_32bit)>;
 
 // Use sbb to materialize carry bit.
 let Uses = [EFLAGS], Defs = [EFLAGS], isPseudo = 1, SchedRW = [WriteALU] in {
@@ -893,6 +884,24 @@ let Uses = [EFLAGS], usesCustomInserter = 1 in {
                     [(set VR256:$dst,
                       (v4i64 (X86cmov VR256:$t, VR256:$f, imm:$cond,
                                           EFLAGS)))]>;
+  def CMOV_V8I64 : I<0, Pseudo,
+                    (outs VR512:$dst), (ins VR512:$t, VR512:$f, i8imm:$cond),
+                    "#CMOV_V8I64 PSEUDO!",
+                    [(set VR512:$dst,
+                      (v8i64 (X86cmov VR512:$t, VR512:$f, imm:$cond,
+                                          EFLAGS)))]>;
+  def CMOV_V8F64 : I<0, Pseudo,
+                    (outs VR512:$dst), (ins VR512:$t, VR512:$f, i8imm:$cond),
+                    "#CMOV_V8F64 PSEUDO!",
+                    [(set VR512:$dst,
+                      (v8f64 (X86cmov VR512:$t, VR512:$f, imm:$cond,
+                                          EFLAGS)))]>;
+  def CMOV_V16F32 : I<0, Pseudo,
+                    (outs VR512:$dst), (ins VR512:$t, VR512:$f, i8imm:$cond),
+                    "#CMOV_V16F32 PSEUDO!",
+                    [(set VR512:$dst,
+                      (v16f32 (X86cmov VR512:$t, VR512:$f, imm:$cond,
+                                          EFLAGS)))]>;
 }
 
 
@@ -926,8 +935,6 @@ def : Pat<(store (i32 (X86Wrapper texternalsym:$src)), addr:$dst),
 def : Pat<(store (i32 (X86Wrapper tblockaddress:$src)), addr:$dst),
           (MOV32mi addr:$dst, tblockaddress:$src)>;
 
-
-
 // ConstantPool GlobalAddress, ExternalSymbol, and JumpTable when not in small
 // code model mode, should use 'movabs'.  FIXME: This is really a hack, the
 //  'movabs' predicate should handle this sort of thing.
@@ -941,20 +948,6 @@ def : Pat<(i64 (X86Wrapper texternalsym:$dst)),
           (MOV64ri texternalsym:$dst)>, Requires<[FarData]>;
 def : Pat<(i64 (X86Wrapper tblockaddress:$dst)),
           (MOV64ri tblockaddress:$dst)>, Requires<[FarData]>;
-
-// In static codegen with small code model, we can get the address of a label
-// into a register with 'movl'.  FIXME: This is a hack, the 'imm' predicate of
-// the MOV64ri64i32 should accept these.
-def : Pat<(i64 (X86Wrapper tconstpool  :$dst)),
-          (MOV64ri64i32 tconstpool  :$dst)>, Requires<[SmallCode]>;
-def : Pat<(i64 (X86Wrapper tjumptable  :$dst)),
-          (MOV64ri64i32 tjumptable  :$dst)>, Requires<[SmallCode]>;
-def : Pat<(i64 (X86Wrapper tglobaladdr :$dst)),
-          (MOV64ri64i32 tglobaladdr :$dst)>, Requires<[SmallCode]>;
-def : Pat<(i64 (X86Wrapper texternalsym:$dst)),
-          (MOV64ri64i32 texternalsym:$dst)>, Requires<[SmallCode]>;
-def : Pat<(i64 (X86Wrapper tblockaddress:$dst)),
-          (MOV64ri64i32 tblockaddress:$dst)>, Requires<[SmallCode]>;
 
 // In kernel code model, we can get the address of a label
 // into a register with 'movq'.  FIXME: This is a hack, the 'imm' predicate of
@@ -989,14 +982,12 @@ def : Pat<(store (i64 (X86Wrapper tblockaddress:$src)), addr:$dst),
           (MOV64mi32 addr:$dst, tblockaddress:$src)>,
           Requires<[NearData, IsStatic]>;
 
-
-
 // Calls
 
 // tls has some funny stuff here...
 // This corresponds to movabs $foo@tpoff, %rax
 def : Pat<(i64 (X86Wrapper tglobaltlsaddr :$dst)),
-          (MOV64ri tglobaltlsaddr :$dst)>;
+          (MOV64ri32 tglobaltlsaddr :$dst)>;
 // This corresponds to add $foo@tpoff, %rax
 def : Pat<(add GR64:$src1, (X86Wrapper tglobaltlsaddr :$dst)),
           (ADD64ri32 GR64:$src1, tglobaltlsaddr :$dst)>;
@@ -1119,7 +1110,8 @@ defm : CMOVmr<X86_COND_NO, CMOVO16rm , CMOVO32rm , CMOVO64rm>;
 def : Pat<(zextloadi8i1  addr:$src), (MOV8rm     addr:$src)>;
 def : Pat<(zextloadi16i1 addr:$src), (MOVZX16rm8 addr:$src)>;
 def : Pat<(zextloadi32i1 addr:$src), (MOVZX32rm8 addr:$src)>;
-def : Pat<(zextloadi64i1 addr:$src), (MOVZX64rm8 addr:$src)>;
+def : Pat<(zextloadi64i1 addr:$src),
+          (SUBREG_TO_REG (i64 0), (MOVZX32rm8 addr:$src), sub_32bit)>;
 
 // extload bool -> extload byte
 // When extloading from 16-bit and smaller memory locations into 64-bit
@@ -1133,14 +1125,16 @@ def : Pat<(extloadi16i8 addr:$src),  (MOVZX16rm8  addr:$src)>;
 def : Pat<(extloadi32i8 addr:$src),  (MOVZX32rm8  addr:$src)>;
 def : Pat<(extloadi32i16 addr:$src), (MOVZX32rm16 addr:$src)>;
 
-def : Pat<(extloadi64i1 addr:$src),  (MOVZX64rm8  addr:$src)>;
-def : Pat<(extloadi64i8 addr:$src),  (MOVZX64rm8  addr:$src)>;
-def : Pat<(extloadi64i16 addr:$src), (MOVZX64rm16 addr:$src)>;
 // For other extloads, use subregs, since the high contents of the register are
 // defined after an extload.
+def : Pat<(extloadi64i1 addr:$src),
+          (SUBREG_TO_REG (i64 0), (MOVZX32rm8 addr:$src), sub_32bit)>;
+def : Pat<(extloadi64i8 addr:$src),
+          (SUBREG_TO_REG (i64 0), (MOVZX32rm8 addr:$src), sub_32bit)>;
+def : Pat<(extloadi64i16 addr:$src),
+          (SUBREG_TO_REG (i64 0), (MOVZX32rm16 addr:$src), sub_32bit)>;
 def : Pat<(extloadi64i32 addr:$src),
-          (SUBREG_TO_REG (i64 0), (MOV32rm addr:$src),
-                         sub_32bit)>;
+          (SUBREG_TO_REG (i64 0), (MOV32rm addr:$src), sub_32bit)>;
 
 // anyext. Define these to do an explicit zero-extend to
 // avoid partial-register updates.
@@ -1152,8 +1146,10 @@ def : Pat<(i32 (anyext GR8 :$src)), (MOVZX32rr8  GR8 :$src)>;
 def : Pat<(i32 (anyext GR16:$src)),
           (INSERT_SUBREG (i32 (IMPLICIT_DEF)), GR16:$src, sub_16bit)>;
 
-def : Pat<(i64 (anyext GR8 :$src)), (MOVZX64rr8  GR8  :$src)>;
-def : Pat<(i64 (anyext GR16:$src)), (MOVZX64rr16 GR16 :$src)>;
+def : Pat<(i64 (anyext GR8 :$src)),
+          (SUBREG_TO_REG (i64 0), (MOVZX32rr8  GR8  :$src), sub_32bit)>;
+def : Pat<(i64 (anyext GR16:$src)),
+          (SUBREG_TO_REG (i64 0), (MOVZX32rr16 GR16 :$src), sub_32bit)>;
 def : Pat<(i64 (anyext GR32:$src)),
           (SUBREG_TO_REG (i64 0), GR32:$src, sub_32bit)>;
 
@@ -1318,13 +1314,19 @@ def : Pat<(and GR16:$src1, 0xff),
 
 // r & (2^32-1) ==> movz
 def : Pat<(and GR64:$src, 0x00000000FFFFFFFF),
-          (MOVZX64rr32 (EXTRACT_SUBREG GR64:$src, sub_32bit))>;
+          (SUBREG_TO_REG (i64 0),
+                         (MOV32rr (EXTRACT_SUBREG GR64:$src, sub_32bit)),
+                         sub_32bit)>;
 // r & (2^16-1) ==> movz
 def : Pat<(and GR64:$src, 0xffff),
-          (MOVZX64rr16 (i16 (EXTRACT_SUBREG GR64:$src, sub_16bit)))>;
+          (SUBREG_TO_REG (i64 0),
+                      (MOVZX32rr16 (i16 (EXTRACT_SUBREG GR64:$src, sub_16bit))),
+                      sub_32bit)>;
 // r & (2^8-1) ==> movz
 def : Pat<(and GR64:$src, 0xff),
-          (MOVZX64rr8 (i8 (EXTRACT_SUBREG GR64:$src, sub_8bit)))>;
+          (SUBREG_TO_REG (i64 0),
+                         (MOVZX32rr8 (i8 (EXTRACT_SUBREG GR64:$src, sub_8bit))),
+                         sub_32bit)>;
 // r & (2^8-1) ==> movz
 def : Pat<(and GR32:$src1, 0xff),
            (MOVZX32rr8 (EXTRACT_SUBREG GR32:$src1, sub_8bit))>,

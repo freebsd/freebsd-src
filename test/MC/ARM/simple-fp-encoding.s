@@ -157,6 +157,10 @@
         vmrs  r0, fpexc
 @ CHECK: vmrs  r0, fpsid             @ encoding: [0x10,0x0a,0xf0,0xee]
         vmrs  r0, fpsid
+@ CHECK: vmrs	r1, fpinst           @ encoding: [0x10,0x1a,0xf9,0xee]
+        vmrs r1, fpinst
+@ CHECK: vmrs	r8, fpinst2          @ encoding: [0x10,0x8a,0xfa,0xee]
+        vmrs r8, fpinst2
 
 @ CHECK: vmsr fpscr, r0              @ encoding: [0x10,0x0a,0xe1,0xee]
         vmsr    fpscr, r0
@@ -164,6 +168,10 @@
         vmsr  fpexc, r0
 @ CHECK: vmsr  fpsid, r0             @ encoding: [0x10,0x0a,0xe0,0xee]
         vmsr  fpsid, r0
+@ CHECK: vmsr	fpinst, r3           @ encoding: [0x10,0x3a,0xe9,0xee]
+        vmsr fpinst, r3	
+@ CHECK: vmsr	fpinst2, r4          @ encoding: [0x10,0x4a,0xea,0xee]
+        vmsr fpinst2, r4
 
         vmov.f64        d16, #3.000000e+00
         vmov.f32        s0, #3.000000e+00
@@ -288,6 +296,20 @@
         vstmia  r1, {d2,d3-d6,d7}
         vstmia  r1, {s2,s3-s6,s7}
         vstmdb sp!, {q4-q7}
+
+        fldmiax r5!, {d0-d2}
+        fldmiaxeq r0, {d4,d5}
+        fldmdbxne r5!, {d4,d5,d6}
+@ CHECK: fldmiax r5!, {d0, d1, d2}      @ encoding: [0x07,0x0b,0xb5,0xec]
+@ CHECK: fldmiaxeq r0, {d4, d5}         @ encoding: [0x05,0x4b,0x90,0x0c]
+@ CHECK: fldmdbxne r5!, {d4, d5, d6}    @ encoding: [0x07,0x4b,0x35,0x1d]
+
+        fstmiax r5!, {d0-d7}
+        fstmiaxeq r4, {d8,d9}
+        fstmdbxne r7!, {d2-d4}
+@ CHECK: fstmiax r5!, {d0, d1, d2, d3, d4, d5, d6, d7} @ encoding: [0x11,0x0b,0xa5,0xec]
+@ CHECK: fstmiaxeq r4, {d8, d9}         @ encoding: [0x05,0x8b,0x84,0x0c]
+@ CHECK: fstmdbxne r7!, {d2, d3, d4}    @ encoding: [0x07,0x2b,0x27,0x1d]
 
 @ CHECK: vcvtr.s32.f64  s0, d0 @ encoding: [0x40,0x0b,0xbd,0xee]
 @ CHECK: vcvtr.s32.f32  s0, s1 @ encoding: [0x60,0x0a,0xbd,0xee]

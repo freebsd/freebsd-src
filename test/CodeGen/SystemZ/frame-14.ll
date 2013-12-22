@@ -1,9 +1,13 @@
 ; Test the handling of base + displacement addresses for large frames,
 ; in cases where both 12-bit and 20-bit displacements are allowed.
+; The tests here assume z10 register pressure, without the high words
+; being available.
 ;
-; RUN: llc < %s -mtriple=s390x-linux-gnu | FileCheck -check-prefix=CHECK-NOFP %s
-; RUN: llc < %s -mtriple=s390x-linux-gnu -disable-fp-elim | FileCheck -check-prefix=CHECK-FP %s
-
+; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z10 | \
+; RUN:   FileCheck -check-prefix=CHECK-NOFP %s
+; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z10 -disable-fp-elim | \
+; RUN:   FileCheck -check-prefix=CHECK-FP %s
+;
 ; This file tests what happens when a displacement is converted from
 ; being relative to the start of a frame object to being relative to
 ; the frame itself.  In some cases the test is only possible if two
@@ -16,21 +20,21 @@
 
 ; First check the highest offset that is in range of the 12-bit form.
 ;
-; The last in-range doubleword offset is 4088.  Since the frame has an
-; emergency spill slot at 160(%r15), the amount that we need to allocate
-; in order to put another object at offset 4088 is 4088 - 168 = 3920 bytes.
+; The last in-range doubleword offset is 4088.  Since the frame has two
+; emergency spill slots at 160(%r15), the amount that we need to allocate
+; in order to put another object at offset 4088 is 4088 - 176 = 3912 bytes.
 define void @f1() {
-; CHECK-NOFP: f1:
+; CHECK-NOFP-LABEL: f1:
 ; CHECK-NOFP: mvi 4095(%r15), 42
 ; CHECK-NOFP: br %r14
 ;
-; CHECK-FP: f1:
+; CHECK-FP-LABEL: f1:
 ; CHECK-FP: mvi 4095(%r11), 42
 ; CHECK-FP: br %r14
-  %region1 = alloca [3920 x i8], align 8
-  %region2 = alloca [3920 x i8], align 8
-  %ptr1 = getelementptr inbounds [3920 x i8]* %region1, i64 0, i64 7
-  %ptr2 = getelementptr inbounds [3920 x i8]* %region2, i64 0, i64 7
+  %region1 = alloca [3912 x i8], align 8
+  %region2 = alloca [3912 x i8], align 8
+  %ptr1 = getelementptr inbounds [3912 x i8]* %region1, i64 0, i64 7
+  %ptr2 = getelementptr inbounds [3912 x i8]* %region2, i64 0, i64 7
   store volatile i8 42, i8 *%ptr1
   store volatile i8 42, i8 *%ptr2
   ret void
@@ -38,17 +42,17 @@ define void @f1() {
 
 ; Test the first offset that is out-of-range of the 12-bit form.
 define void @f2() {
-; CHECK-NOFP: f2:
+; CHECK-NOFP-LABEL: f2:
 ; CHECK-NOFP: mviy 4096(%r15), 42
 ; CHECK-NOFP: br %r14
 ;
-; CHECK-FP: f2:
+; CHECK-FP-LABEL: f2:
 ; CHECK-FP: mviy 4096(%r11), 42
 ; CHECK-FP: br %r14
-  %region1 = alloca [3920 x i8], align 8
-  %region2 = alloca [3920 x i8], align 8
-  %ptr1 = getelementptr inbounds [3920 x i8]* %region1, i64 0, i64 8
-  %ptr2 = getelementptr inbounds [3920 x i8]* %region2, i64 0, i64 8
+  %region1 = alloca [3912 x i8], align 8
+  %region2 = alloca [3912 x i8], align 8
+  %ptr1 = getelementptr inbounds [3912 x i8]* %region1, i64 0, i64 8
+  %ptr2 = getelementptr inbounds [3912 x i8]* %region2, i64 0, i64 8
   store volatile i8 42, i8 *%ptr1
   store volatile i8 42, i8 *%ptr2
   ret void
@@ -57,19 +61,19 @@ define void @f2() {
 ; Test the last offset that is in range of the 20-bit form.
 ;
 ; The last in-range doubleword offset is 524280, so by the same reasoning
-; as above, we need to allocate objects of 524280 - 168 = 524122 bytes.
+; as above, we need to allocate objects of 524280 - 176 = 524104 bytes.
 define void @f3() {
-; CHECK-NOFP: f3:
+; CHECK-NOFP-LABEL: f3:
 ; CHECK-NOFP: mviy 524287(%r15), 42
 ; CHECK-NOFP: br %r14
 ;
-; CHECK-FP: f3:
+; CHECK-FP-LABEL: f3:
 ; CHECK-FP: mviy 524287(%r11), 42
 ; CHECK-FP: br %r14
-  %region1 = alloca [524112 x i8], align 8
-  %region2 = alloca [524112 x i8], align 8
-  %ptr1 = getelementptr inbounds [524112 x i8]* %region1, i64 0, i64 7
-  %ptr2 = getelementptr inbounds [524112 x i8]* %region2, i64 0, i64 7
+  %region1 = alloca [524104 x i8], align 8
+  %region2 = alloca [524104 x i8], align 8
+  %ptr1 = getelementptr inbounds [524104 x i8]* %region1, i64 0, i64 7
+  %ptr2 = getelementptr inbounds [524104 x i8]* %region2, i64 0, i64 7
   store volatile i8 42, i8 *%ptr1
   store volatile i8 42, i8 *%ptr2
   ret void
@@ -79,21 +83,21 @@ define void @f3() {
 ; and the offset is also out of LAY's range, so expect a constant load
 ; followed by an addition.
 define void @f4() {
-; CHECK-NOFP: f4:
+; CHECK-NOFP-LABEL: f4:
 ; CHECK-NOFP: llilh %r1, 8
 ; CHECK-NOFP: agr %r1, %r15
 ; CHECK-NOFP: mvi 0(%r1), 42
 ; CHECK-NOFP: br %r14
 ;
-; CHECK-FP: f4:
+; CHECK-FP-LABEL: f4:
 ; CHECK-FP: llilh %r1, 8
 ; CHECK-FP: agr %r1, %r11
 ; CHECK-FP: mvi 0(%r1), 42
 ; CHECK-FP: br %r14
-  %region1 = alloca [524112 x i8], align 8
-  %region2 = alloca [524112 x i8], align 8
-  %ptr1 = getelementptr inbounds [524112 x i8]* %region1, i64 0, i64 8
-  %ptr2 = getelementptr inbounds [524112 x i8]* %region2, i64 0, i64 8
+  %region1 = alloca [524104 x i8], align 8
+  %region2 = alloca [524104 x i8], align 8
+  %ptr1 = getelementptr inbounds [524104 x i8]* %region1, i64 0, i64 8
+  %ptr2 = getelementptr inbounds [524104 x i8]* %region2, i64 0, i64 8
   store volatile i8 42, i8 *%ptr1
   store volatile i8 42, i8 *%ptr2
   ret void
@@ -102,21 +106,21 @@ define void @f4() {
 ; Add 4095 to the previous offset, to test the other end of the MVI range.
 ; The instruction will actually be STCY before frame lowering.
 define void @f5() {
-; CHECK-NOFP: f5:
+; CHECK-NOFP-LABEL: f5:
 ; CHECK-NOFP: llilh %r1, 8
 ; CHECK-NOFP: agr %r1, %r15
 ; CHECK-NOFP: mvi 4095(%r1), 42
 ; CHECK-NOFP: br %r14
 ;
-; CHECK-FP: f5:
+; CHECK-FP-LABEL: f5:
 ; CHECK-FP: llilh %r1, 8
 ; CHECK-FP: agr %r1, %r11
 ; CHECK-FP: mvi 4095(%r1), 42
 ; CHECK-FP: br %r14
-  %region1 = alloca [524112 x i8], align 8
-  %region2 = alloca [524112 x i8], align 8
-  %ptr1 = getelementptr inbounds [524112 x i8]* %region1, i64 0, i64 4103
-  %ptr2 = getelementptr inbounds [524112 x i8]* %region2, i64 0, i64 4103
+  %region1 = alloca [524104 x i8], align 8
+  %region2 = alloca [524104 x i8], align 8
+  %ptr1 = getelementptr inbounds [524104 x i8]* %region1, i64 0, i64 4103
+  %ptr2 = getelementptr inbounds [524104 x i8]* %region2, i64 0, i64 4103
   store volatile i8 42, i8 *%ptr1
   store volatile i8 42, i8 *%ptr2
   ret void
@@ -124,21 +128,21 @@ define void @f5() {
 
 ; Test the next offset after that, which uses MVIY instead of MVI.
 define void @f6() {
-; CHECK-NOFP: f6:
+; CHECK-NOFP-LABEL: f6:
 ; CHECK-NOFP: llilh %r1, 8
 ; CHECK-NOFP: agr %r1, %r15
 ; CHECK-NOFP: mviy 4096(%r1), 42
 ; CHECK-NOFP: br %r14
 ;
-; CHECK-FP: f6:
+; CHECK-FP-LABEL: f6:
 ; CHECK-FP: llilh %r1, 8
 ; CHECK-FP: agr %r1, %r11
 ; CHECK-FP: mviy 4096(%r1), 42
 ; CHECK-FP: br %r14
-  %region1 = alloca [524112 x i8], align 8
-  %region2 = alloca [524112 x i8], align 8
-  %ptr1 = getelementptr inbounds [524112 x i8]* %region1, i64 0, i64 4104
-  %ptr2 = getelementptr inbounds [524112 x i8]* %region2, i64 0, i64 4104
+  %region1 = alloca [524104 x i8], align 8
+  %region2 = alloca [524104 x i8], align 8
+  %ptr1 = getelementptr inbounds [524104 x i8]* %region1, i64 0, i64 4104
+  %ptr2 = getelementptr inbounds [524104 x i8]* %region2, i64 0, i64 4104
   store volatile i8 42, i8 *%ptr1
   store volatile i8 42, i8 *%ptr2
   ret void
@@ -149,21 +153,21 @@ define void @f6() {
 ; anchors 0x10000 bytes apart, so that the high part can be loaded using
 ; LLILH while still using MVI in more cases than 0x40000 anchors would.
 define void @f7() {
-; CHECK-NOFP: f7:
+; CHECK-NOFP-LABEL: f7:
 ; CHECK-NOFP: llilh %r1, 23
 ; CHECK-NOFP: agr %r1, %r15
 ; CHECK-NOFP: mviy 65535(%r1), 42
 ; CHECK-NOFP: br %r14
 ;
-; CHECK-FP: f7:
+; CHECK-FP-LABEL: f7:
 ; CHECK-FP: llilh %r1, 23
 ; CHECK-FP: agr %r1, %r11
 ; CHECK-FP: mviy 65535(%r1), 42
 ; CHECK-FP: br %r14
-  %region1 = alloca [1048408 x i8], align 8
-  %region2 = alloca [1048408 x i8], align 8
-  %ptr1 = getelementptr inbounds [1048408 x i8]* %region1, i64 0, i64 524287
-  %ptr2 = getelementptr inbounds [1048408 x i8]* %region2, i64 0, i64 524287
+  %region1 = alloca [1048400 x i8], align 8
+  %region2 = alloca [1048400 x i8], align 8
+  %ptr1 = getelementptr inbounds [1048400 x i8]* %region1, i64 0, i64 524287
+  %ptr2 = getelementptr inbounds [1048400 x i8]* %region2, i64 0, i64 524287
   store volatile i8 42, i8 *%ptr1
   store volatile i8 42, i8 *%ptr2
   ret void
@@ -172,21 +176,21 @@ define void @f7() {
 ; Keep the object-relative offset the same but bump the size of the
 ; objects by one doubleword.
 define void @f8() {
-; CHECK-NOFP: f8:
+; CHECK-NOFP-LABEL: f8:
 ; CHECK-NOFP: llilh %r1, 24
 ; CHECK-NOFP: agr %r1, %r15
 ; CHECK-NOFP: mvi 7(%r1), 42
 ; CHECK-NOFP: br %r14
 ;
-; CHECK-FP: f8:
+; CHECK-FP-LABEL: f8:
 ; CHECK-FP: llilh %r1, 24
 ; CHECK-FP: agr %r1, %r11
 ; CHECK-FP: mvi 7(%r1), 42
 ; CHECK-FP: br %r14
-  %region1 = alloca [1048416 x i8], align 8
-  %region2 = alloca [1048416 x i8], align 8
-  %ptr1 = getelementptr inbounds [1048416 x i8]* %region1, i64 0, i64 524287
-  %ptr2 = getelementptr inbounds [1048416 x i8]* %region2, i64 0, i64 524287
+  %region1 = alloca [1048408 x i8], align 8
+  %region2 = alloca [1048408 x i8], align 8
+  %ptr1 = getelementptr inbounds [1048408 x i8]* %region1, i64 0, i64 524287
+  %ptr2 = getelementptr inbounds [1048408 x i8]* %region2, i64 0, i64 524287
   store volatile i8 42, i8 *%ptr1
   store volatile i8 42, i8 *%ptr2
   ret void
@@ -200,56 +204,56 @@ define void @f8() {
 ; The LA then gets lowered into the LLILH/LA form.  The exact sequence
 ; isn't that important though.
 define void @f9() {
-; CHECK-NOFP: f9:
+; CHECK-NOFP-LABEL: f9:
 ; CHECK-NOFP: llilh [[R1:%r[1-5]]], 16
 ; CHECK-NOFP: la [[R2:%r[1-5]]], 8([[R1]],%r15)
 ; CHECK-NOFP: agfi [[R2]], 524288
 ; CHECK-NOFP: mvi 0([[R2]]), 42
 ; CHECK-NOFP: br %r14
 ;
-; CHECK-FP: f9:
+; CHECK-FP-LABEL: f9:
 ; CHECK-FP: llilh [[R1:%r[1-5]]], 16
 ; CHECK-FP: la [[R2:%r[1-5]]], 8([[R1]],%r11)
 ; CHECK-FP: agfi [[R2]], 524288
 ; CHECK-FP: mvi 0([[R2]]), 42
 ; CHECK-FP: br %r14
-  %region1 = alloca [1048416 x i8], align 8
-  %region2 = alloca [1048416 x i8], align 8
-  %ptr1 = getelementptr inbounds [1048416 x i8]* %region1, i64 0, i64 524288
-  %ptr2 = getelementptr inbounds [1048416 x i8]* %region2, i64 0, i64 524288
+  %region1 = alloca [1048408 x i8], align 8
+  %region2 = alloca [1048408 x i8], align 8
+  %ptr1 = getelementptr inbounds [1048408 x i8]* %region1, i64 0, i64 524288
+  %ptr2 = getelementptr inbounds [1048408 x i8]* %region2, i64 0, i64 524288
   store volatile i8 42, i8 *%ptr1
   store volatile i8 42, i8 *%ptr2
   ret void
 }
 
-; Repeat f4 in a case that needs the emergency spill slot (because all
+; Repeat f4 in a case that needs the emergency spill slots (because all
 ; call-clobbered registers are live and no call-saved ones have been
 ; allocated).
 define void @f10(i32 *%vptr) {
-; CHECK-NOFP: f10:
-; CHECK-NOFP: stg [[REGISTER:%r[1-9][0-4]?]], 160(%r15)
+; CHECK-NOFP-LABEL: f10:
+; CHECK-NOFP: stg [[REGISTER:%r[1-9][0-4]?]], [[OFFSET:160|168]](%r15)
 ; CHECK-NOFP: llilh [[REGISTER]], 8
 ; CHECK-NOFP: agr [[REGISTER]], %r15
 ; CHECK-NOFP: mvi 0([[REGISTER]]), 42
-; CHECK-NOFP: lg [[REGISTER]], 160(%r15)
+; CHECK-NOFP: lg [[REGISTER]], [[OFFSET]](%r15)
 ; CHECK-NOFP: br %r14
 ;
-; CHECK-FP: f10:
-; CHECK-FP: stg [[REGISTER:%r[1-9][0-4]?]], 160(%r11)
+; CHECK-FP-LABEL: f10:
+; CHECK-FP: stg [[REGISTER:%r[1-9][0-4]?]], [[OFFSET:160|168]](%r11)
 ; CHECK-FP: llilh [[REGISTER]], 8
 ; CHECK-FP: agr [[REGISTER]], %r11
 ; CHECK-FP: mvi 0([[REGISTER]]), 42
-; CHECK-FP: lg [[REGISTER]], 160(%r11)
+; CHECK-FP: lg [[REGISTER]], [[OFFSET]](%r11)
 ; CHECK-FP: br %r14
   %i0 = load volatile i32 *%vptr
   %i1 = load volatile i32 *%vptr
   %i3 = load volatile i32 *%vptr
   %i4 = load volatile i32 *%vptr
   %i5 = load volatile i32 *%vptr
-  %region1 = alloca [524112 x i8], align 8
-  %region2 = alloca [524112 x i8], align 8
-  %ptr1 = getelementptr inbounds [524112 x i8]* %region1, i64 0, i64 8
-  %ptr2 = getelementptr inbounds [524112 x i8]* %region2, i64 0, i64 8
+  %region1 = alloca [524104 x i8], align 8
+  %region2 = alloca [524104 x i8], align 8
+  %ptr1 = getelementptr inbounds [524104 x i8]* %region1, i64 0, i64 8
+  %ptr2 = getelementptr inbounds [524104 x i8]* %region2, i64 0, i64 8
   store volatile i8 42, i8 *%ptr1
   store volatile i8 42, i8 *%ptr2
   store volatile i32 %i0, i32 *%vptr
@@ -260,28 +264,28 @@ define void @f10(i32 *%vptr) {
   ret void
 }
 
-; And again with maximum register pressure.  The only spill slot that the
-; NOFP case needs is the emergency one, so the offsets are the same as for f4.
+; And again with maximum register pressure.  The only spill slots that the
+; NOFP case needs are the emergency ones, so the offsets are the same as for f4.
 ; However, the FP case uses %r11 as the frame pointer and must therefore
 ; spill a second register.  This leads to an extra displacement of 8.
 define void @f11(i32 *%vptr) {
-; CHECK-NOFP: f11:
+; CHECK-NOFP-LABEL: f11:
 ; CHECK-NOFP: stmg %r6, %r15,
-; CHECK-NOFP: stg [[REGISTER:%r[1-9][0-4]?]], 160(%r15)
+; CHECK-NOFP: stg [[REGISTER:%r[1-9][0-4]?]], [[OFFSET:160|168]](%r15)
 ; CHECK-NOFP: llilh [[REGISTER]], 8
 ; CHECK-NOFP: agr [[REGISTER]], %r15
 ; CHECK-NOFP: mvi 0([[REGISTER]]), 42
-; CHECK-NOFP: lg [[REGISTER]], 160(%r15)
+; CHECK-NOFP: lg [[REGISTER]], [[OFFSET]](%r15)
 ; CHECK-NOFP: lmg %r6, %r15,
 ; CHECK-NOFP: br %r14
 ;
-; CHECK-FP: f11:
+; CHECK-FP-LABEL: f11:
 ; CHECK-FP: stmg %r6, %r15,
-; CHECK-FP: stg [[REGISTER:%r[1-9][0-4]?]], 160(%r11)
+; CHECK-FP: stg [[REGISTER:%r[1-9][0-4]?]], [[OFFSET:160|168]](%r11)
 ; CHECK-FP: llilh [[REGISTER]], 8
 ; CHECK-FP: agr [[REGISTER]], %r11
 ; CHECK-FP: mvi 8([[REGISTER]]), 42
-; CHECK-FP: lg [[REGISTER]], 160(%r11)
+; CHECK-FP: lg [[REGISTER]], [[OFFSET]](%r11)
 ; CHECK-FP: lmg %r6, %r15,
 ; CHECK-FP: br %r14
   %i0 = load volatile i32 *%vptr
@@ -298,10 +302,10 @@ define void @f11(i32 *%vptr) {
   %i12 = load volatile i32 *%vptr
   %i13 = load volatile i32 *%vptr
   %i14 = load volatile i32 *%vptr
-  %region1 = alloca [524112 x i8], align 8
-  %region2 = alloca [524112 x i8], align 8
-  %ptr1 = getelementptr inbounds [524112 x i8]* %region1, i64 0, i64 8
-  %ptr2 = getelementptr inbounds [524112 x i8]* %region2, i64 0, i64 8
+  %region1 = alloca [524104 x i8], align 8
+  %region2 = alloca [524104 x i8], align 8
+  %ptr1 = getelementptr inbounds [524104 x i8]* %region1, i64 0, i64 8
+  %ptr2 = getelementptr inbounds [524104 x i8]* %region2, i64 0, i64 8
   store volatile i8 42, i8 *%ptr1
   store volatile i8 42, i8 *%ptr2
   store volatile i32 %i0, i32 *%vptr

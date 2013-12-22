@@ -1,8 +1,8 @@
-; RUN: llc < %s -march=x86 | FileCheck %s
+; RUN: llc < %s -march=x86 -mattr=-bmi | FileCheck %s
 
 define fastcc i32 @t() nounwind  {
 entry:
-; CHECK: t:
+; CHECK-LABEL: t:
 ; CHECK: movzwl 0, %eax
 ; CHECK: orl $2, %eax
 ; CHECK: movw %ax, 0

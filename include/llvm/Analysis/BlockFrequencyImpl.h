@@ -1,4 +1,4 @@
-//===---- BlockFrequencyImpl.h - Machine Block Frequency Implementation ---===//
+//===-- BlockFrequencyImpl.h - Block Frequency Implementation --*- C++ -*--===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -33,7 +33,7 @@ class BlockFrequencyInfo;
 class MachineBlockFrequencyInfo;
 
 /// BlockFrequencyImpl implements block frequency algorithm for IR and
-/// Machine Instructions. Algorithm starts with value 1024 (START_FREQ)
+/// Machine Instructions. Algorithm starts with value ENTRY_FREQ
 /// for the entry block and then propagates frequencies using branch weights
 /// from (Machine)BranchProbabilityInfo. LoopInfo is not required because
 /// algorithm can find "backedges" by itself.
@@ -85,31 +85,16 @@ class BlockFrequencyImpl {
                  << " --> " << Freqs[BB] << "\n");
   }
 
-  /// divBlockFreq - Divide BB block frequency by PROB. If Prob = 0 do nothing.
-  ///
-  void divBlockFreq(BlockT *BB, BranchProbability Prob) {
-    uint64_t N = Prob.getNumerator();
-    assert(N && "Illegal division by zero!");
-    uint64_t D = Prob.getDenominator();
-    uint64_t Freq = (Freqs[BB].getFrequency() * D) / N;
-
-    // Should we assert it?
-    if (Freq > UINT32_MAX)
-      Freq = UINT32_MAX;
-
-    Freqs[BB] = BlockFrequency(Freq);
-    DEBUG(dbgs() << "Frequency(" << getBlockName(BB) << ") /= (" << Prob
-                 << ") --> " << Freqs[BB] << "\n");
-  }
-
   // All blocks in postorder.
   std::vector<BlockT *> POT;
 
   // Map Block -> Position in reverse-postorder list.
   DenseMap<BlockT *, unsigned> RPO;
 
-  // Cycle Probability for each bloch.
-  DenseMap<BlockT *, uint32_t> CycleProb;
+  // For each loop header, record the per-iteration probability of exiting the
+  // loop. This is the reciprocal of the expected number of loop iterations.
+  typedef DenseMap<BlockT*, BranchProbability> LoopExitProbMap;
+  LoopExitProbMap LoopExitProb;
 
   // (reverse-)postorder traversal iterators.
   typedef typename std::vector<BlockT *>::iterator pot_iterator;
@@ -123,7 +108,7 @@ class BlockFrequencyImpl {
 
   rpot_iterator rpot_at(BlockT *BB) {
     rpot_iterator I = rpot_begin();
-    unsigned idx = RPO[BB];
+    unsigned idx = RPO.lookup(BB);
     assert(idx);
     std::advance(I, idx - 1);
 
@@ -131,22 +116,14 @@ class BlockFrequencyImpl {
     return I;
   }
 
-
-  /// isReachable - Returns if BB block is reachable from the entry.
+  /// isBackedge - Return if edge Src -> Dst is a reachable backedge.
   ///
-  bool isReachable(BlockT *BB) {
-    return RPO.count(BB);
-  }
-
-  /// isBackedge - Return if edge Src -> Dst is a backedge.
-  ///
-  bool isBackedge(BlockT *Src, BlockT *Dst) {
-    assert(isReachable(Src));
-    assert(isReachable(Dst));
-
-    unsigned a = RPO[Src];
-    unsigned b = RPO[Dst];
-
+  bool isBackedge(BlockT *Src, BlockT *Dst) const {
+    unsigned a = RPO.lookup(Src);
+    if (!a)
+      return false;
+    unsigned b = RPO.lookup(Dst);
+    assert(b && "Destination block should be reachable");
     return a >= b;
   }
 
@@ -196,7 +173,7 @@ class BlockFrequencyImpl {
          PI != PE; ++PI) {
       BlockT *Pred = *PI;
 
-      if (isReachable(Pred) && isBackedge(Pred, BB)) {
+      if (isBackedge(Pred, BB)) {
         isLoopHead = true;
       } else if (BlocksInLoop.count(Pred)) {
         incBlockFreq(BB, getEdgeFreq(Pred, BB));
@@ -211,10 +188,13 @@ class BlockFrequencyImpl {
     if (!isLoopHead)
       return;
 
-    assert(EntryFreq >= CycleProb[BB]);
-    uint32_t CProb = CycleProb[BB];
-    uint32_t Numerator = EntryFreq - CProb ? EntryFreq - CProb : 1;
-    divBlockFreq(BB, BranchProbability(Numerator, EntryFreq));
+    // This block is a loop header, so boost its frequency by the expected
+    // number of loop iterations. The loop blocks will be revisited so they all
+    // get this boost.
+    typename LoopExitProbMap::const_iterator I = LoopExitProb.find(BB);
+    assert(I != LoopExitProb.end() && "Loop header missing from table");
+    Freqs[BB] /= I->second;
+    DEBUG(dbgs() << "Loop header scaled to " << Freqs[BB] << ".\n");
   }
 
   /// doLoop - Propagate block frequency down through the loop.
@@ -234,24 +214,50 @@ class BlockFrequencyImpl {
     }
 
     // Compute loop's cyclic probability using backedges probabilities.
+    BlockFrequency BackFreq;
     for (typename GT::ChildIteratorType
          PI = GraphTraits< Inverse<BlockT *> >::child_begin(Head),
          PE = GraphTraits< Inverse<BlockT *> >::child_end(Head);
          PI != PE; ++PI) {
       BlockT *Pred = *PI;
       assert(Pred);
-      if (isReachable(Pred) && isBackedge(Pred, Head)) {
-        uint64_t N = getEdgeFreq(Pred, Head).getFrequency();
-        uint64_t D = getBlockFreq(Head).getFrequency();
-        assert(N <= EntryFreq && "Backedge frequency must be <= EntryFreq!");
-        uint64_t Res = (N * EntryFreq) / D;
-
-        assert(Res <= UINT32_MAX);
-        CycleProb[Head] += (uint32_t) Res;
-        DEBUG(dbgs() << "  CycleProb[" << getBlockName(Head) << "] += " << Res
-                     << " --> " << CycleProb[Head] << "\n");
-      }
+      if (isBackedge(Pred, Head))
+        BackFreq += getEdgeFreq(Pred, Head);
     }
+
+    // The cyclic probability is freq(BackEdges) / freq(Head), where freq(Head)
+    // only counts edges entering the loop, not the loop backedges.
+    // The probability of leaving the loop on each iteration is:
+    //
+    //   ExitProb = 1 - CyclicProb
+    //
+    // The Expected number of loop iterations is:
+    //
+    //   Iterations = 1 / ExitProb
+    //
+    uint64_t D = std::max(getBlockFreq(Head).getFrequency(), UINT64_C(1));
+    uint64_t N = std::max(BackFreq.getFrequency(), UINT64_C(1));
+    if (N < D)
+      N = D - N;
+    else
+      // We'd expect N < D, but rounding and saturation means that can't be
+      // guaranteed.
+      N = 1;
+
+    // Now ExitProb = N / D, make sure it fits in an i32/i32 fraction.
+    assert(N <= D);
+    if (D > UINT32_MAX) {
+      unsigned Shift = 32 - countLeadingZeros(D);
+      D >>= Shift;
+      N >>= Shift;
+      if (N == 0)
+        N = 1;
+    }
+    BranchProbability LEP = BranchProbability(N, D);
+    LoopExitProb.insert(std::make_pair(Head, LEP));
+    DEBUG(dbgs() << "LoopExitProb[" << getBlockName(Head) << "] = " << LEP
+                 << " from 1 - " << BackFreq << " / " << getBlockFreq(Head)
+                 << ".\n");
   }
 
   friend class BlockFrequencyInfo;
@@ -266,7 +272,7 @@ class BlockFrequencyImpl {
     // Clear everything.
     RPO.clear();
     POT.clear();
-    CycleProb.clear();
+    LoopExitProb.clear();
     Freqs.clear();
 
     BlockT *EntryBlock = fn->begin();
@@ -292,8 +298,7 @@ class BlockFrequencyImpl {
            PI != PE; ++PI) {
 
         BlockT *Pred = *PI;
-        if (isReachable(Pred) && isBackedge(Pred, BB)
-            && (!LastTail || RPO[Pred] > RPO[LastTail]))
+        if (isBackedge(Pred, BB) && (!LastTail || RPO[Pred] > RPO[LastTail]))
           LastTail = Pred;
       }
 

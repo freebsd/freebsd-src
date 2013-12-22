@@ -29,7 +29,7 @@ to load 103.  This seems to be a general target-independent problem.
 
 --
 
-The tuning of the choice between Load Address (LA) and addition in
+The tuning of the choice between LOAD ADDRESS (LA) and addition in
 SystemZISelDAGToDAG.cpp is suspect.  It should be tweaked based on
 performance measurements.
 
@@ -39,22 +39,35 @@ There is no scheduling support.
 
 --
 
-We don't use the Branch on Count or Branch on Index families of instruction.
+We don't use the BRANCH ON INDEX instructions.
 
 --
 
-We don't use the condition code results of anything except comparisons.
-
-Implementing this may need something more finely grained than the z_cmp
-and z_ucmp that we have now.  It might (or might not) also be useful to
-have a mask of "don't care" values in conditional branches.  For example,
-integer comparisons never set CC to 3, so the bottom bit of the CC mask
-isn't particularly relevant.  JNLH and JE are equally good for testing
-equality after an integer comparison, etc.
+We might want to use BRANCH ON CONDITION for conditional indirect calls
+and conditional returns.
 
 --
 
-We don't optimize string and block memory operations.
+We don't use the TEST DATA CLASS instructions.
+
+--
+
+We could use the generic floating-point forms of LOAD COMPLEMENT,
+LOAD NEGATIVE and LOAD POSITIVE in cases where we don't need the
+condition codes.  For example, we could use LCDFR instead of LCDBR.
+
+--
+
+We only use MVC, XC and CLC for constant-length block operations.
+We could extend them to variable-length operations too,
+using EXECUTE RELATIVE LONG.
+
+MVCIN, MVCLE and CLCLE may be worthwhile too.
+
+--
+
+We don't use CUSE or the TRANSLATE family of instructions for string
+operations.  The TRANSLATE ones are probably more difficult to exploit.
 
 --
 
@@ -63,9 +76,21 @@ conventions require f128s to be returned by invisible reference.
 
 --
 
-DAGCombiner can detect integer absolute, but there's not yet an associated
-ISD opcode.  We could add one and implement it using Load Positive.
-Negated absolutes could use Load Negative.
+ADD LOGICAL WITH SIGNED IMMEDIATE could be useful when we need to
+produce a carry.  SUBTRACT LOGICAL IMMEDIATE could be useful when we
+need to produce a borrow.  (Note that there are no memory forms of
+ADD LOGICAL WITH CARRY and SUBTRACT LOGICAL WITH BORROW, so the high
+part of 128-bit memory operations would probably need to be done
+via a register.)
+
+--
+
+We don't use the halfword forms of LOAD REVERSED and STORE REVERSED
+(LRVH and STRVH).
+
+--
+
+We don't use ICM or STCM.
 
 --
 
@@ -142,5 +167,15 @@ See CodeGen/SystemZ/alloca-01.ll for an example.
 --
 
 Atomic loads and stores use the default compare-and-swap based implementation.
-This is probably much too conservative in practice, and the overhead is
-especially bad for 8- and 16-bit accesses.
+This is much too conservative in practice, since the architecture guarantees
+that 1-, 2-, 4- and 8-byte loads and stores to aligned addresses are
+inherently atomic.
+
+--
+
+If needed, we can support 16-byte atomics using LPQ, STPQ and CSDG.
+
+--
+
+We might want to model all access registers and use them to spill
+32-bit values.

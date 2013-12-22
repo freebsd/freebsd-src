@@ -87,7 +87,7 @@ names are case-sensitive. Example:
 
 .. code-block:: console
 
-  $ cmake -G "Visual Studio 9 2008" path/to/llvm/source/root
+  $ cmake -G "Visual Studio 10" path/to/llvm/source/root
 
 For a given development platform there can be more than one adequate
 generator. If you use Visual Studio "NMake Makefiles" is a generator you can use
@@ -275,6 +275,11 @@ LLVM-specific variables
   Build with zlib to support compression/uncompression in LLVM tools.
   Defaults to ON.
 
+**LLVM_USE_SANITIZER**:STRING
+  Define the sanitizer used to build LLVM binaries and tests. Possible values
+  are ``Address``, ``Memory`` and ``MemoryWithOrigins``. Defaults to empty
+  string.
+
 Executing the test suite
 ========================
 
@@ -417,6 +422,5 @@ Microsoft Visual C++
 
 **LLVM_COMPILER_JOBS**:STRING
   Specifies the maximum number of parallell compiler jobs to use per project
-  when building with msbuild or Visual Studio. Only supported for Visual Studio
-  2008 and Visual Studio 2010 CMake generators. 0 means use all
-  processors. Default is 0.
+  when building with msbuild or Visual Studio. Only supported for the Visual
+  Studio 2010 CMake generator. 0 means use all processors. Default is 0.

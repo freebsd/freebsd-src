@@ -63,12 +63,15 @@ namespace {
     unsigned get_crbitm_encoding(const MachineInstr &MI, unsigned OpNo) const;
     unsigned getDirectBrEncoding(const MachineInstr &MI, unsigned OpNo) const;
     unsigned getCondBrEncoding(const MachineInstr &MI, unsigned OpNo) const;
+    unsigned getAbsDirectBrEncoding(const MachineInstr &MI,
+                                    unsigned OpNo) const;
+    unsigned getAbsCondBrEncoding(const MachineInstr &MI, unsigned OpNo) const;
 
-    unsigned getHA16Encoding(const MachineInstr &MI, unsigned OpNo) const;
-    unsigned getLO16Encoding(const MachineInstr &MI, unsigned OpNo) const;
+    unsigned getImm16Encoding(const MachineInstr &MI, unsigned OpNo) const;
     unsigned getMemRIEncoding(const MachineInstr &MI, unsigned OpNo) const;
     unsigned getMemRIXEncoding(const MachineInstr &MI, unsigned OpNo) const;
     unsigned getTLSRegEncoding(const MachineInstr &MI, unsigned OpNo) const;
+    unsigned getTLSCallEncoding(const MachineInstr &MI, unsigned OpNo) const;
 
     const char *getPassName() const { return "PowerPC Machine Code Emitter"; }
 
@@ -139,8 +142,8 @@ void PPCCodeEmitter::emitBasicBlock(MachineBasicBlock &MBB) {
 unsigned PPCCodeEmitter::get_crbitm_encoding(const MachineInstr &MI,
                                              unsigned OpNo) const {
   const MachineOperand &MO = MI.getOperand(OpNo);
-  assert((MI.getOpcode() == PPC::MTCRF || MI.getOpcode() == PPC::MTCRF8 ||
-            MI.getOpcode() == PPC::MFOCRF) &&
+  assert((MI.getOpcode() == PPC::MTOCRF || MI.getOpcode() == PPC::MTOCRF8 ||
+          MI.getOpcode() == PPC::MFOCRF || MI.getOpcode() == PPC::MFOCRF8) &&
          (MO.getReg() >= PPC::CR0 && MO.getReg() <= PPC::CR7));
   return 0x80 >> TM.getRegisterInfo()->getEncodingValue(MO.getReg());
 }
@@ -194,21 +197,32 @@ unsigned PPCCodeEmitter::getCondBrEncoding(const MachineInstr &MI,
   return 0;
 }
 
-unsigned PPCCodeEmitter::getHA16Encoding(const MachineInstr &MI,
-                                         unsigned OpNo) const {
+unsigned PPCCodeEmitter::getAbsDirectBrEncoding(const MachineInstr &MI,
+                                                unsigned OpNo) const {
   const MachineOperand &MO = MI.getOperand(OpNo);
   if (MO.isReg() || MO.isImm()) return getMachineOpValue(MI, MO);
 
-  MCE.addRelocation(GetRelocation(MO, PPC::reloc_absolute_high));
-  return 0;
+  llvm_unreachable("Absolute branch relocations unsupported on the old JIT.");
 }
 
-unsigned PPCCodeEmitter::getLO16Encoding(const MachineInstr &MI,
-                                         unsigned OpNo) const {
+unsigned PPCCodeEmitter::getAbsCondBrEncoding(const MachineInstr &MI,
+                                              unsigned OpNo) const {
+  llvm_unreachable("Absolute branch relocations unsupported on the old JIT.");
+}
+
+unsigned PPCCodeEmitter::getImm16Encoding(const MachineInstr &MI,
+                                          unsigned OpNo) const {
   const MachineOperand &MO = MI.getOperand(OpNo);
   if (MO.isReg() || MO.isImm()) return getMachineOpValue(MI, MO);
-  
-  MCE.addRelocation(GetRelocation(MO, PPC::reloc_absolute_low));
+
+  unsigned RelocID;
+  switch (MO.getTargetFlags() & PPCII::MO_ACCESS_MASK) {
+    default: llvm_unreachable("Unsupported target operand flags!");
+    case PPCII::MO_LO: RelocID = PPC::reloc_absolute_low; break;
+    case PPCII::MO_HA: RelocID = PPC::reloc_absolute_high; break;
+  }
+
+  MCE.addRelocation(GetRelocation(MO, RelocID));
   return 0;
 }
 
@@ -237,7 +251,7 @@ unsigned PPCCodeEmitter::getMemRIXEncoding(const MachineInstr &MI,
   
   const MachineOperand &MO = MI.getOperand(OpNo);
   if (MO.isImm())
-    return (getMachineOpValue(MI, MO) & 0x3FFF) | RegBits;
+    return ((getMachineOpValue(MI, MO) >> 2) & 0x3FFF) | RegBits;
   
   MCE.addRelocation(GetRelocation(MO, PPC::reloc_absolute_low_ix));
   return RegBits;
@@ -250,15 +264,20 @@ unsigned PPCCodeEmitter::getTLSRegEncoding(const MachineInstr &MI,
   return 0;
 }
 
+unsigned PPCCodeEmitter::getTLSCallEncoding(const MachineInstr &MI,
+                                            unsigned OpNo) const {
+  llvm_unreachable("TLS not supported on the old JIT.");
+  return 0;
+}
 
 unsigned PPCCodeEmitter::getMachineOpValue(const MachineInstr &MI,
                                            const MachineOperand &MO) const {
 
   if (MO.isReg()) {
-    // MTCRF/MFOCRF should go through get_crbitm_encoding for the CR operand.
+    // MTOCRF/MFOCRF should go through get_crbitm_encoding for the CR operand.
     // The GPR operand should come through here though.
-    assert((MI.getOpcode() != PPC::MTCRF && MI.getOpcode() != PPC::MTCRF8 &&
-             MI.getOpcode() != PPC::MFOCRF) ||
+    assert((MI.getOpcode() != PPC::MTOCRF && MI.getOpcode() != PPC::MTOCRF8 &&
+            MI.getOpcode() != PPC::MFOCRF && MI.getOpcode() != PPC::MFOCRF8) ||
            MO.getReg() < PPC::CR0 || MO.getReg() > PPC::CR7);
     return TM.getRegisterInfo()->getEncodingValue(MO.getReg());
   }

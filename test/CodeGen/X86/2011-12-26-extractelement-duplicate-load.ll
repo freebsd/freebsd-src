@@ -1,11 +1,11 @@
-; RUN: llc -march=x86-64 -mattr=-sse42,+sse41 < %s | FileCheck %s
+; RUN: llc -march=x86-64 -mattr=-sse4.2,+sse4.1 < %s | FileCheck %s
 ; Make sure we don't load from the location pointed to by %p
 ; twice: it has non-obvious performance implications, and
 ; the relevant transformation doesn't know how to update
 ; the chains correctly.
 ; PR10747
 
-; CHECK: test:
+; CHECK-LABEL: test:
 ; CHECK: pextrd $2, %xmm
 define <4 x i32> @test(<4 x i32>* %p) {
   %v = load <4 x i32>* %p

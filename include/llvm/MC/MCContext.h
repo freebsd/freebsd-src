@@ -11,6 +11,7 @@
 #define LLVM_MC_MCCONTEXT_H
 
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/MC/MCDwarf.h"
@@ -37,6 +38,7 @@ namespace llvm {
   class Twine;
   class MCSectionMachO;
   class MCSectionELF;
+  class MCSectionCOFF;
 
   /// MCContext - Context object for machine code objects.  This class owns all
   /// of the sections that it creates.
@@ -51,10 +53,10 @@ namespace llvm {
     const SourceMgr *SrcMgr;
 
     /// The MCAsmInfo for this target.
-    const MCAsmInfo &MAI;
+    const MCAsmInfo *MAI;
 
     /// The MCRegisterInfo for this target.
-    const MCRegisterInfo &MRI;
+    const MCRegisterInfo *MRI;
 
     /// The MCObjectFileInfo for this target.
     const MCObjectFileInfo *MOFI;
@@ -97,7 +99,7 @@ namespace llvm {
     bool SecureLogUsed;
 
     /// The compilation directory to use for DW_AT_comp_dir.
-    std::string CompilationDir;
+    SmallString<128> CompilationDir;
 
     /// The main file name if passed in explicitly.
     std::string MainFileName;
@@ -163,16 +165,16 @@ namespace llvm {
     MCSymbol *CreateSymbol(StringRef Name);
 
   public:
-    explicit MCContext(const MCAsmInfo &MAI, const MCRegisterInfo &MRI,
+    explicit MCContext(const MCAsmInfo *MAI, const MCRegisterInfo *MRI,
                        const MCObjectFileInfo *MOFI, const SourceMgr *Mgr = 0,
                        bool DoAutoReset = true);
     ~MCContext();
 
     const SourceMgr *getSourceManager() const { return SrcMgr; }
 
-    const MCAsmInfo &getAsmInfo() const { return MAI; }
+    const MCAsmInfo *getAsmInfo() const { return MAI; }
 
-    const MCRegisterInfo &getRegisterInfo() const { return MRI; }
+    const MCRegisterInfo *getRegisterInfo() const { return MRI; }
 
     const MCObjectFileInfo *getObjectFileInfo() const { return MOFI; }
 
@@ -254,14 +256,18 @@ namespace llvm {
 
     const MCSectionELF *CreateELFGroupSection();
 
-    const MCSection *getCOFFSection(StringRef Section, unsigned Characteristics,
-                                    int Selection, SectionKind Kind);
+    const MCSectionCOFF *getCOFFSection(StringRef Section,
+                                        unsigned Characteristics,
+                                        SectionKind Kind,
+                                        StringRef COMDATSymName,
+                                        int Selection,
+                                        const MCSectionCOFF *Assoc = 0);
 
-    const MCSection *getCOFFSection(StringRef Section, unsigned Characteristics,
-                                    SectionKind Kind) {
-      return getCOFFSection (Section, Characteristics, 0, Kind);
-    }
+    const MCSectionCOFF *getCOFFSection(StringRef Section,
+                                        unsigned Characteristics,
+                                        SectionKind Kind);
 
+    const MCSectionCOFF *getCOFFSection(StringRef Section);
 
     /// @}
 
@@ -272,7 +278,7 @@ namespace llvm {
     /// This can be overridden by clients which want to control the reported
     /// compilation directory and have it be something other than the current
     /// working directory.
-    const std::string &getCompilationDir() const { return CompilationDir; }
+    StringRef getCompilationDir() const { return CompilationDir; }
 
     /// \brief Set the compilation directory for DW_AT_comp_dir
     /// Override the default (CWD) compilation directory.
@@ -406,7 +412,7 @@ namespace llvm {
     void Deallocate(void *Ptr) {
     }
 
-    // Unrecoverable error has occured. Display the best diagnostic we can
+    // Unrecoverable error has occurred. Display the best diagnostic we can
     // and bail via exit(1). For now, most MC backend errors are unrecoverable.
     // FIXME: We should really do something about that.
     LLVM_ATTRIBUTE_NORETURN void FatalError(SMLoc L, const Twine &Msg);

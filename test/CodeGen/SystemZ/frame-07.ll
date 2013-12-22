@@ -5,11 +5,11 @@
 
 ; Test a frame size that requires some FPRs to be saved and loaded using
 ; the 20-bit STDY and LDY while others can use the 12-bit STD and LD.
-; The frame is big enough to require an emergency spill slot at 160(%r15),
+; The frame is big enough to require two emergency spill slots at 160(%r15),
 ; as well as the 8 FPR save slots.  Get a frame of size 4128 by allocating
-; (4128 - 168 - 8 * 8) / 8 = 487 extra doublewords.
+; (4128 - 176 - 8 * 8) / 8 = 486 extra doublewords.
 define void @f1(double *%ptr, i64 %x) {
-; CHECK-NOFP: f1:
+; CHECK-NOFP-LABEL: f1:
 ; CHECK-NOFP: aghi %r15, -4128
 ; CHECK-NOFP: .cfi_def_cfa_offset 4288
 ; CHECK-NOFP: stdy %f8, 4120(%r15)
@@ -40,7 +40,7 @@ define void @f1(double *%ptr, i64 %x) {
 ; CHECK-NOFP: aghi %r15, 4128
 ; CHECK-NOFP: br %r14
 ;
-; CHECK-FP: f1:
+; CHECK-FP-LABEL: f1:
 ; CHECK-FP: stmg %r11, %r15, 88(%r15)
 ; CHECK-FP: aghi %r15, -4128
 ; CHECK-FP: .cfi_def_cfa_offset 4288
@@ -65,8 +65,8 @@ define void @f1(double *%ptr, i64 %x) {
 ; CHECK-FP: ld %f15, 4064(%r11)
 ; CHECK-FP: lmg %r11, %r15, 4216(%r11)
 ; CHECK-FP: br %r14
-  %y = alloca [487 x i64], align 8
-  %elem = getelementptr inbounds [487 x i64]* %y, i64 0, i64 0
+  %y = alloca [486 x i64], align 8
+  %elem = getelementptr inbounds [486 x i64]* %y, i64 0, i64 0
   store volatile i64 %x, i64* %elem
   %l0 = load volatile double *%ptr
   %l1 = load volatile double *%ptr
@@ -127,9 +127,9 @@ define void @f1(double *%ptr, i64 %x) {
 ; good optimisation but is really a different test.
 ;
 ; As above, get a frame of size 524320 by allocating
-; (524320 - 168 - 8 * 8) / 8 = 65511 extra doublewords.
+; (524320 - 176 - 8 * 8) / 8 = 65510 extra doublewords.
 define void @f2(double *%ptr, i64 %x) {
-; CHECK-NOFP: f2:
+; CHECK-NOFP-LABEL: f2:
 ; CHECK-NOFP: agfi %r15, -524320
 ; CHECK-NOFP: .cfi_def_cfa_offset 524480
 ; CHECK-NOFP: llilh [[INDEX:%r[1-5]]], 8
@@ -161,7 +161,7 @@ define void @f2(double *%ptr, i64 %x) {
 ; CHECK-NOFP: agfi %r15, 524320
 ; CHECK-NOFP: br %r14
 ;
-; CHECK-FP: f2:
+; CHECK-FP-LABEL: f2:
 ; CHECK-FP: stmg %r11, %r15, 88(%r15)
 ; CHECK-FP: agfi %r15, -524320
 ; CHECK-FP: .cfi_def_cfa_offset 524480
@@ -194,8 +194,8 @@ define void @f2(double *%ptr, i64 %x) {
 ; CHECK-FP: aghi %r11, 128
 ; CHECK-FP: lmg %r11, %r15, 524280(%r11)
 ; CHECK-FP: br %r14
-  %y = alloca [65511 x i64], align 8
-  %elem = getelementptr inbounds [65511 x i64]* %y, i64 0, i64 0
+  %y = alloca [65510 x i64], align 8
+  %elem = getelementptr inbounds [65510 x i64]* %y, i64 0, i64 0
   store volatile i64 %x, i64* %elem
   %l0 = load volatile double *%ptr
   %l1 = load volatile double *%ptr

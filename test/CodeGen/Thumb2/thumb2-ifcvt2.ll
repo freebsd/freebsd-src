@@ -1,8 +1,10 @@
 ; RUN: llc < %s -mtriple=thumbv7-apple-ios | FileCheck %s
+; RUN: llc < %s -mtriple=thumbv7-apple-ios -arm-default-it | FileCheck %s
+; RUN: llc < %s -mtriple=thumbv8-apple-ios -arm-no-restrict-it | FileCheck %s
 
 define void @foo(i32 %X, i32 %Y) {
 entry:
-; CHECK: foo:
+; CHECK-LABEL: foo:
 ; CHECK: it ne
 ; CHECK: cmpne
 ; CHECK: it hi
@@ -28,14 +30,14 @@ declare i32 @bar(...)
 
 define fastcc i32 @CountTree(%struct.quad_struct* %tree) {
 entry:
-; CHECK: CountTree:
-; CHECK: itt eq
-; CHECK: moveq
-; CHECK: popeq
+; CHECK-LABEL: CountTree:
 ; CHECK: bne
 ; CHECK: cmp
 ; CHECK: it eq
 ; CHECK: cmpeq
+; CHECK: itt eq
+; CHECK: moveq
+; CHECK: popeq
 	br label %tailrecurse
 
 tailrecurse:		; preds = %bb, %entry
@@ -65,7 +67,7 @@ declare void @abort()
 
 define fastcc void @t1(%struct.SString* %word, i8 signext  %c) {
 entry:
-; CHECK: t1:
+; CHECK-LABEL: t1:
 ; CHECK: it ne
 ; CHECK: popne {r7, pc}
 	%tmp1 = icmp eq %struct.SString* %word, null		; <i1> [#uses=1]
@@ -81,7 +83,7 @@ cond_false:		; preds = %entry
 
 define fastcc void @t2() nounwind {
 entry:
-; CHECK: t2:
+; CHECK-LABEL: t2:
 ; CHECK: cmp r0, #0
 ; CHECK: %growMapping.exit
 	br i1 undef, label %bb.i.i3, label %growMapping.exit

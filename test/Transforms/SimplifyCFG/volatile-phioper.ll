@@ -7,7 +7,7 @@
 ; it can no longer use language standard as an excuse. The compiler
 ; needs to expose the volatile access to the platform.
 ;
-; CHECK: @test
+; CHECK-LABEL: @test(
 ; CHECK: entry:
 ; CHECK: @Trace
 ; CHECK: while.body:
@@ -41,8 +41,8 @@ end:
 }
 declare i32 @Trace(...) #1
 
-attributes #0 = { nounwind ssp uwtable "fp-contract-model"="standard" "no-frame-pointer-elim" "no-frame-pointer-elim-non-leaf" "realign-stack" "relocation-model"="pic" "ssp-buffers-size"="8" }
-attributes #1 = { "fp-contract-model"="standard" "no-frame-pointer-elim" "no-frame-pointer-elim-non-leaf" "realign-stack" "relocation-model"="pic" "ssp-buffers-size"="8" }
+attributes #0 = { nounwind ssp uwtable "fp-contract-model"="standard" "no-frame-pointer-elim" "no-frame-pointer-elim-non-leaf" "relocation-model"="pic" "ssp-buffers-size"="8" }
+attributes #1 = { "fp-contract-model"="standard" "no-frame-pointer-elim" "no-frame-pointer-elim-non-leaf" "relocation-model"="pic" "ssp-buffers-size"="8" }
 attributes #2 = { nounwind }
 
 !0 = metadata !{i32 1039}

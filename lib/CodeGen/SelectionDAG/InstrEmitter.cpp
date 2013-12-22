@@ -21,6 +21,7 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/StackMaps.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -211,6 +212,7 @@ void InstrEmitter::CreateVirtualRegisters(SDNode *Node,
   assert(Node->getMachineOpcode() != TargetOpcode::IMPLICIT_DEF &&
          "IMPLICIT_DEF should have been handled as a special case elsewhere!");
 
+  unsigned NumResults = CountResults(Node);
   for (unsigned i = 0; i < II.getNumDefs(); ++i) {
     // If the specific node value is only used by a CopyToReg and the dest reg
     // is a vreg in the same register class, use the CopyToReg'd destination
@@ -218,6 +220,10 @@ void InstrEmitter::CreateVirtualRegisters(SDNode *Node,
     unsigned VRBase = 0;
     const TargetRegisterClass *RC =
       TRI->getAllocatableClass(TII->getRegClass(II, i, TRI, *MF));
+    // If the register class is unknown for the given definition, then try to
+    // infer one from the value type.
+    if (!RC && i < NumResults)
+      RC = TLI->getRegClassFor(Node->getSimpleValueType(i));
     if (II.OpInfo[i].isOptionalDef()) {
       // Optional def must be a physical register.
       unsigned NumResults = CountResults(Node);
@@ -639,8 +645,8 @@ InstrEmitter::EmitDbgValue(SDDbgValue *SD,
   if (SD->getKind() == SDDbgValue::FRAMEIX) {
     // Stack address; this needs to be lowered in target-dependent fashion.
     // EmitTargetCodeForFrameDebugValue is responsible for allocation.
-    unsigned FrameIx = SD->getFrameIx();
-    return TII->emitFrameIndexDebugValue(*MF, FrameIx, Offset, MDPtr, DL);
+    return BuildMI(*MF, DL, TII->get(TargetOpcode::DBG_VALUE))
+        .addFrameIndex(SD->getFrameIx()).addImm(Offset).addMetadata(MDPtr);
   }
   // Otherwise, we're going to create an instruction here.
   const MCInstrDesc &II = TII->get(TargetOpcode::DBG_VALUE);
@@ -678,7 +684,13 @@ InstrEmitter::EmitDbgValue(SDDbgValue *SD,
     MIB.addReg(0U);
   }
 
-  MIB.addImm(Offset).addMetadata(MDPtr);
+  if (Offset != 0) // Indirect addressing.
+    MIB.addImm(Offset);
+  else
+    MIB.addReg(0U, RegState::Debug);
+
+  MIB.addMetadata(MDPtr);
+
   return &*MIB;
 }
 
@@ -716,10 +728,20 @@ EmitMachineNode(SDNode *Node, bool IsClone, bool IsCloned,
 
   const MCInstrDesc &II = TII->get(Opc);
   unsigned NumResults = CountResults(Node);
+  unsigned NumDefs = II.getNumDefs();
+  const uint16_t *ScratchRegs = NULL;
+
+  // Handle PATCHPOINT specially and then use the generic code.
+  if (Opc == TargetOpcode::PATCHPOINT) {
+    unsigned CC = Node->getConstantOperandVal(PatchPointOpers::CCPos);
+    NumDefs = NumResults;
+    ScratchRegs = TLI->getScratchRegisters((CallingConv::ID) CC);
+  }
+
   unsigned NumImpUses = 0;
   unsigned NodeOperands =
-    countOperands(Node, II.getNumOperands() - II.getNumDefs(), NumImpUses);
-  bool HasPhysRegOuts = NumResults > II.getNumDefs() && II.getImplicitDefs()!=0;
+    countOperands(Node, II.getNumOperands() - NumDefs, NumImpUses);
+  bool HasPhysRegOuts = NumResults > NumDefs && II.getImplicitDefs()!=0;
 #ifndef NDEBUG
   unsigned NumMIOperands = NodeOperands + NumResults;
   if (II.isVariadic())
@@ -742,13 +764,19 @@ EmitMachineNode(SDNode *Node, bool IsClone, bool IsCloned,
 
   // Emit all of the actual operands of this instruction, adding them to the
   // instruction as appropriate.
-  bool HasOptPRefs = II.getNumDefs() > NumResults;
+  bool HasOptPRefs = NumDefs > NumResults;
   assert((!HasOptPRefs || !HasPhysRegOuts) &&
          "Unable to cope with optional defs and phys regs defs!");
-  unsigned NumSkip = HasOptPRefs ? II.getNumDefs() - NumResults : 0;
+  unsigned NumSkip = HasOptPRefs ? NumDefs - NumResults : 0;
   for (unsigned i = NumSkip; i != NodeOperands; ++i)
-    AddOperand(MIB, Node->getOperand(i), i-NumSkip+II.getNumDefs(), &II,
+    AddOperand(MIB, Node->getOperand(i), i-NumSkip+NumDefs, &II,
                VRBaseMap, /*IsDebug=*/false, IsClone, IsCloned);
+
+  // Add scratch registers as implicit def and early clobber
+  if (ScratchRegs)
+    for (unsigned i = 0; ScratchRegs[i]; ++i)
+      MIB.addReg(ScratchRegs[i], RegState::ImplicitDefine |
+                                 RegState::EarlyClobber);
 
   // Transfer all of the memory reference descriptions of this instruction.
   MIB.setMemRefs(cast<MachineSDNode>(Node)->memoperands_begin(),
@@ -778,8 +806,8 @@ EmitMachineNode(SDNode *Node, bool IsClone, bool IsCloned,
 
   // Additional results must be physical register defs.
   if (HasPhysRegOuts) {
-    for (unsigned i = II.getNumDefs(); i < NumResults; ++i) {
-      unsigned Reg = II.getImplicitDefs()[i - II.getNumDefs()];
+    for (unsigned i = NumDefs; i < NumResults; ++i) {
+      unsigned Reg = II.getImplicitDefs()[i - NumDefs];
       if (!Node->hasAnyUseOfValue(i))
         continue;
       // This implicitly defined physreg has a use.

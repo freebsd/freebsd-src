@@ -1,13 +1,13 @@
 ; RUN: llc -mtriple=x86_64-darwin -mcpu=generic < %s | FileCheck %s
 ; RUN: llc -mtriple=x86_64-darwin -mcpu=atom < %s | FileCheck -check-prefix=ATOM %s
 
-; CHECK: t:
-; CHECK: decq
-; CHECK-NEXT: movl (%r9,%rax,4), %eax
+; CHECK-LABEL: t:
+; CHECK: movl (%r9,%rax,4), %e{{..}}
+; CHECK-NEXT: decq
 ; CHECK-NEXT: jne
 
-; ATOM: t:
-; ATOM: movl (%r9,%rax,4), %eax
+; ATOM-LABEL: t:
+; ATOM: movl (%r9,%r{{.+}},4), %e{{..}}
 ; ATOM-NEXT: decq
 ; ATOM-NEXT: jne
 
@@ -148,14 +148,14 @@ bb2:		; preds = %bb
 ; is equal to the stride.
 ; It must not fold (cmp (add iv, 1), 1) --> (cmp iv, 0).
 
-; CHECK: f:
+; CHECK-LABEL: f:
 ; CHECK: %for.body
 ; CHECK: incl [[IV:%e..]]
 ; CHECK: cmpl $1, [[IV]]
 ; CHECK: jne
 ; CHECK: ret
 
-; ATOM: f:
+; ATOM-LABEL: f:
 ; ATOM: %for.body
 ; ATOM: incl [[IV:%e..]]
 ; ATOM: cmpl $1, [[IV]]
@@ -190,4 +190,3 @@ for.end:                                          ; preds = %for.body, %entry
   %bi.0.lcssa = phi i32 [ 0, %entry ], [ %i.addr.0.bi.0, %for.body ]
   ret i32 %bi.0.lcssa
 }
-

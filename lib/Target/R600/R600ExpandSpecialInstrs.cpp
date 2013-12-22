@@ -38,7 +38,7 @@ private:
 
 public:
   R600ExpandSpecialInstrsPass(TargetMachine &tm) : MachineFunctionPass(ID),
-    TII (static_cast<const R600InstrInfo *>(tm.getInstrInfo())) { }
+    TII(0) { }
 
   virtual bool runOnMachineFunction(MachineFunction &MF);
 
@@ -56,6 +56,7 @@ FunctionPass *llvm::createR600ExpandSpecialInstrsPass(TargetMachine &TM) {
 }
 
 bool R600ExpandSpecialInstrsPass::runOnMachineFunction(MachineFunction &MF) {
+  TII = static_cast<const R600InstrInfo *>(MF.getTarget().getInstrInfo());
 
   const R600RegisterInfo &TRI = TII->getRegisterInfo();
 
@@ -66,6 +67,23 @@ bool R600ExpandSpecialInstrsPass::runOnMachineFunction(MachineFunction &MF) {
     while (I != MBB.end()) {
       MachineInstr &MI = *I;
       I = llvm::next(I);
+
+      // Expand LDS_*_RET instructions
+      if (TII->isLDSRetInstr(MI.getOpcode())) {
+        int DstIdx = TII->getOperandIdx(MI.getOpcode(), AMDGPU::OpName::dst);
+        assert(DstIdx != -1);
+        MachineOperand &DstOp = MI.getOperand(DstIdx);
+        MachineInstr *Mov = TII->buildMovInstr(&MBB, I,
+                                               DstOp.getReg(), AMDGPU::OQAP);
+        DstOp.setReg(AMDGPU::OQAP);
+        int LDSPredSelIdx = TII->getOperandIdx(MI.getOpcode(),
+                                           AMDGPU::OpName::pred_sel);
+        int MovPredSelIdx = TII->getOperandIdx(Mov->getOpcode(),
+                                           AMDGPU::OpName::pred_sel);
+        // Copy the pred_sel bit
+        Mov->getOperand(MovPredSelIdx).setReg(
+            MI.getOperand(LDSPredSelIdx).getReg());
+      }
 
       switch (MI.getOpcode()) {
       default: break;
@@ -81,25 +99,10 @@ bool R600ExpandSpecialInstrsPass::runOnMachineFunction(MachineFunction &MF) {
                                             AMDGPU::ZERO);             // src1
         TII->addFlag(PredSet, 0, MO_FLAG_MASK);
         if (Flags & MO_FLAG_PUSH) {
-          TII->setImmOperand(PredSet, R600Operands::UPDATE_EXEC_MASK, 1);
+          TII->setImmOperand(PredSet, AMDGPU::OpName::update_exec_mask, 1);
         } else {
-          TII->setImmOperand(PredSet, R600Operands::UPDATE_PREDICATE, 1);
+          TII->setImmOperand(PredSet, AMDGPU::OpName::update_pred, 1);
         }
-        MI.eraseFromParent();
-        continue;
-        }
-      case AMDGPU::BREAK: {
-        MachineInstr *PredSet = TII->buildDefaultInstruction(MBB, I,
-                                          AMDGPU::PRED_SETE_INT,
-                                          AMDGPU::PREDICATE_BIT,
-                                          AMDGPU::ZERO,
-                                          AMDGPU::ZERO);
-        TII->addFlag(PredSet, 0, MO_FLAG_MASK);
-        TII->setImmOperand(PredSet, R600Operands::UPDATE_EXEC_MASK, 1);
-
-        BuildMI(MBB, I, MBB.findDebugLoc(I),
-                TII->get(AMDGPU::PREDICATED_BREAK))
-                .addReg(AMDGPU::PREDICATE_BIT);
         MI.eraseFromParent();
         continue;
         }
@@ -182,6 +185,45 @@ bool R600ExpandSpecialInstrsPass::runOnMachineFunction(MachineFunction &MF) {
         MI.eraseFromParent();
         continue;
         }
+      case AMDGPU::DOT_4: {
+
+        const R600RegisterInfo &TRI = TII->getRegisterInfo();
+
+        unsigned DstReg = MI.getOperand(0).getReg();
+        unsigned DstBase = TRI.getEncodingValue(DstReg) & HW_REG_MASK;
+
+        for (unsigned Chan = 0; Chan < 4; ++Chan) {
+          bool Mask = (Chan != TRI.getHWRegChan(DstReg));
+          unsigned SubDstReg =
+              AMDGPU::R600_TReg32RegClass.getRegister((DstBase * 4) + Chan);
+          MachineInstr *BMI =
+              TII->buildSlotOfVectorInstruction(MBB, &MI, Chan, SubDstReg);
+          if (Chan > 0) {
+            BMI->bundleWithPred();
+          }
+          if (Mask) {
+            TII->addFlag(BMI, 0, MO_FLAG_MASK);
+          }
+          if (Chan != 3)
+            TII->addFlag(BMI, 0, MO_FLAG_NOT_LAST);
+          unsigned Opcode = BMI->getOpcode();
+          // While not strictly necessary from hw point of view, we force
+          // all src operands of a dot4 inst to belong to the same slot.
+          unsigned Src0 = BMI->getOperand(
+              TII->getOperandIdx(Opcode, AMDGPU::OpName::src0))
+              .getReg();
+          unsigned Src1 = BMI->getOperand(
+              TII->getOperandIdx(Opcode, AMDGPU::OpName::src1))
+              .getReg();
+          (void) Src0;
+          (void) Src1;
+          if ((TRI.getEncodingValue(Src0) & 0xff) < 127 &&
+              (TRI.getEncodingValue(Src1) & 0xff) < 127)
+            assert(TRI.getHWRegChan(Src0) == TRI.getHWRegChan(Src1));
+        }
+        MI.eraseFromParent();
+        continue;
+      }
       }
 
       bool IsReduction = TII->isReductionOp(MI.getOpcode());
@@ -218,14 +260,14 @@ bool R600ExpandSpecialInstrsPass::runOnMachineFunction(MachineFunction &MF) {
       // T0_W = CUBE T1_Y, T1_Z
       for (unsigned Chan = 0; Chan < 4; Chan++) {
         unsigned DstReg = MI.getOperand(
-                            TII->getOperandIdx(MI, R600Operands::DST)).getReg();
+                            TII->getOperandIdx(MI, AMDGPU::OpName::dst)).getReg();
         unsigned Src0 = MI.getOperand(
-                           TII->getOperandIdx(MI, R600Operands::SRC0)).getReg();
+                           TII->getOperandIdx(MI, AMDGPU::OpName::src0)).getReg();
         unsigned Src1 = 0;
 
         // Determine the correct source registers
         if (!IsCube) {
-          int Src1Idx = TII->getOperandIdx(MI, R600Operands::SRC1);
+          int Src1Idx = TII->getOperandIdx(MI, AMDGPU::OpName::src1);
           if (Src1Idx != -1) {
             Src1 = MI.getOperand(Src1Idx).getReg();
           }
@@ -267,12 +309,6 @@ bool R600ExpandSpecialInstrsPass::runOnMachineFunction(MachineFunction &MF) {
           break;
         case AMDGPU::CUBE_eg_pseudo:
           Opcode = AMDGPU::CUBE_eg_real;
-          break;
-        case AMDGPU::DOT4_r600_pseudo:
-          Opcode = AMDGPU::DOT4_r600_real;
-          break;
-        case AMDGPU::DOT4_eg_pseudo:
-          Opcode = AMDGPU::DOT4_eg_real;
           break;
         default:
           break;

@@ -1,4 +1,4 @@
-/*===-- ipo_ocaml.c - LLVM Ocaml Glue -------------------*- C++ -*-===*\
+/*===-- ipo_ocaml.c - LLVM OCaml Glue ---------------------------*- C++ -*-===*\
 |*                                                                            *|
 |*                     The LLVM Compiler Infrastructure                       *|
 |*                                                                            *|
@@ -7,7 +7,7 @@
 |*                                                                            *|
 |*===----------------------------------------------------------------------===*|
 |*                                                                            *|
-|* This file glues LLVM's ocaml interface to its C interface. These functions *|
+|* This file glues LLVM's OCaml interface to its C interface. These functions *|
 |* are by and large transparent wrappers to the corresponding C functions.    *|
 |*                                                                            *|
 |* Note that these functions intentionally take liberties with the CAMLparamX *|
@@ -46,6 +46,12 @@ CAMLprim value llvm_add_function_attrs(LLVMPassManagerRef PM) {
 /* [`Module] Llvm.PassManager.t -> unit */
 CAMLprim value llvm_add_function_inlining(LLVMPassManagerRef PM) {
   LLVMAddFunctionInliningPass(PM);
+  return Val_unit;
+}
+
+/* [`Module] Llvm.PassManager.t -> unit */
+CAMLprim value llvm_add_always_inliner(LLVMPassManagerRef PM) {
+  LLVMAddAlwaysInlinerPass(PM);
   return Val_unit;
 }
 

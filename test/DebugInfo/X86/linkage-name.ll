@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=x86_64-macosx -darwin-gdb-compat=Disable %s -o %t -filetype=obj
+; RUN: llc -mtriple=x86_64-macosx %s -o %t -filetype=obj
 ; RUN: llvm-dwarfdump -debug-dump=info %t | FileCheck %s
 
 ; CHECK: DW_TAG_subprogram [9] *
@@ -25,19 +25,20 @@ entry:
 declare void @llvm.dbg.declare(metadata, metadata) nounwind readnone
 
 !llvm.dbg.cu = !{!0}
+!llvm.module.flags = !{!29}
 
-!0 = metadata !{i32 786449, i32 4, metadata !6, metadata !"clang version 3.1 (trunk 152691) (llvm/trunk 152692)", i1 false, metadata !"", i32 0, metadata !1, metadata !1, metadata !3, metadata !18,  metadata !18, metadata !""} ; [ DW_TAG_compile_unit ]
+!0 = metadata !{i32 786449, metadata !28, i32 4, metadata !"clang version 3.1 (trunk 152691) (llvm/trunk 152692)", i1 false, metadata !"", i32 0, metadata !1, metadata !1, metadata !3, metadata !18,  metadata !18, metadata !""} ; [ DW_TAG_compile_unit ]
 !1 = metadata !{i32 0}
 !3 = metadata !{metadata !5}
 !5 = metadata !{i32 786478, metadata !6, null, metadata !"a", metadata !"a", metadata !"_ZN1A1aEi", i32 5, metadata !7, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, i32 (%class.A*, i32)* @_ZN1A1aEi, null, metadata !13, metadata !16, i32 5} ; [ DW_TAG_subprogram ]
 !6 = metadata !{i32 786473, metadata !28} ; [ DW_TAG_file_type ]
-!7 = metadata !{i32 786453, i32 0, metadata !"", i32 0, i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !8, i32 0, i32 0} ; [ DW_TAG_subroutine_type ]
+!7 = metadata !{i32 786453, i32 0, null, i32 0, i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !8, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
 !8 = metadata !{metadata !9, metadata !10, metadata !9}
 !9 = metadata !{i32 786468, null, null, metadata !"int", i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ]
-!10 = metadata !{i32 786447, i32 0, metadata !"", i32 0, i32 0, i64 64, i64 64, i64 0, i32 64, metadata !11} ; [ DW_TAG_pointer_type ]
-!11 = metadata !{i32 786434, metadata !28, null, metadata !"A", i32 1, i64 8, i64 8, i32 0, i32 0, null, metadata !12, i32 0, null, null} ; [ DW_TAG_class_type ]
+!10 = metadata !{i32 786447, i32 0, null, i32 0, i32 0, i64 64, i64 64, i64 0, i32 64, metadata !11} ; [ DW_TAG_pointer_type ]
+!11 = metadata !{i32 786434, metadata !28, null, metadata !"A", i32 1, i64 8, i64 8, i32 0, i32 0, null, metadata !12, i32 0, null, null, null} ; [ DW_TAG_class_type ] [A] [line 1, size 8, align 8, offset 0] [def] [from ]
 !12 = metadata !{metadata !13}
-!13 = metadata !{i32 786478, metadata !6, metadata !11, metadata !"a", metadata !"a", metadata !"_ZN1A1aEi", i32 2, metadata !7, i1 false, i1 false, i32 0, i32 0, null, i32 257, i1 false, null, null, i32 0, metadata !14} ; [ DW_TAG_subprogram ]
+!13 = metadata !{i32 786478, metadata !6, metadata !11, metadata !"a", metadata !"a", metadata !"_ZN1A1aEi", i32 2, metadata !7, i1 false, i1 false, i32 0, i32 0, null, i32 257, i1 false, null, null, i32 0, metadata !14, i32 0} ; [ DW_TAG_subprogram ]
 !14 = metadata !{metadata !15}
 !15 = metadata !{i32 786468}                      ; [ DW_TAG_base_type ]
 !16 = metadata !{metadata !17}
@@ -52,3 +53,4 @@ declare void @llvm.dbg.declare(metadata, metadata) nounwind readnone
 !26 = metadata !{i32 6, i32 4, metadata !27, null}
 !27 = metadata !{i32 786443, metadata !6, metadata !5, i32 5, i32 17, i32 0} ; [ DW_TAG_lexical_block ]
 !28 = metadata !{metadata !"foo.cpp", metadata !"/Users/echristo"}
+!29 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}

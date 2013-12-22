@@ -14,19 +14,15 @@
 #include "SystemZTargetMachine.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/IR/Function.h"
 
 using namespace llvm;
 
-SystemZFrameLowering::SystemZFrameLowering(const SystemZTargetMachine &tm,
-                                           const SystemZSubtarget &sti)
-  : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, 8,
-                        -SystemZMC::CallFrameSize),
-    TM(tm),
-    STI(sti) {
+namespace {
   // The ABI-defined register save slots, relative to the incoming stack
   // pointer.
-  static const unsigned SpillOffsetTable[][2] = {
+  static const TargetFrameLowering::SpillSlot SpillOffsetTable[] = {
     { SystemZ::R2D,  0x10 },
     { SystemZ::R3D,  0x18 },
     { SystemZ::R4D,  0x20 },
@@ -46,11 +42,23 @@ SystemZFrameLowering::SystemZFrameLowering(const SystemZTargetMachine &tm,
     { SystemZ::F4D,  0x90 },
     { SystemZ::F6D,  0x98 }
   };
+}
 
+SystemZFrameLowering::SystemZFrameLowering(const SystemZTargetMachine &tm,
+                                           const SystemZSubtarget &sti)
+  : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, 8,
+                        -SystemZMC::CallFrameSize, 8),
+    TM(tm), STI(sti) {
   // Create a mapping from register number to save slot offset.
   RegSpillOffsets.grow(SystemZ::NUM_TARGET_REGS);
   for (unsigned I = 0, E = array_lengthof(SpillOffsetTable); I != E; ++I)
-    RegSpillOffsets[SpillOffsetTable[I][0]] = SpillOffsetTable[I][1];
+    RegSpillOffsets[SpillOffsetTable[I].Reg] = SpillOffsetTable[I].Offset;
+}
+
+const TargetFrameLowering::SpillSlot *
+SystemZFrameLowering::getCalleeSavedSpillSlots(unsigned &NumEntries) const {
+  NumEntries = array_lengthof(SpillOffsetTable);
+  return SpillOffsetTable;
 }
 
 void SystemZFrameLowering::
@@ -103,7 +111,7 @@ static void addSavedGPR(MachineBasicBlock &MBB, MachineInstrBuilder &MIB,
                         const SystemZTargetMachine &TM,
                         unsigned GPR64, bool IsImplicit) {
   const SystemZRegisterInfo *RI = TM.getRegisterInfo();
-  unsigned GPR32 = RI->getSubReg(GPR64, SystemZ::subreg_32bit);
+  unsigned GPR32 = RI->getSubReg(GPR64, SystemZ::subreg_l32);
   bool IsLive = MBB.isLiveIn(GPR64) || MBB.isLiveIn(GPR32);
   if (!IsLive || !IsImplicit) {
     MIB.addReg(GPR64, getImplRegState(IsImplicit) | getKillRegState(!IsLive));
@@ -127,14 +135,12 @@ spillCalleeSavedRegisters(MachineBasicBlock &MBB,
   DebugLoc DL = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
 
   // Scan the call-saved GPRs and find the bounds of the register spill area.
-  unsigned SavedGPRFrameSize = 0;
   unsigned LowGPR = 0;
   unsigned HighGPR = SystemZ::R15D;
   unsigned StartOffset = -1U;
   for (unsigned I = 0, E = CSI.size(); I != E; ++I) {
     unsigned Reg = CSI[I].getReg();
     if (SystemZ::GR64BitRegClass.contains(Reg)) {
-      SavedGPRFrameSize += 8;
       unsigned Offset = RegSpillOffsets[Reg];
       assert(Offset && "Unexpected GPR save");
       if (StartOffset > Offset) {
@@ -144,9 +150,7 @@ spillCalleeSavedRegisters(MachineBasicBlock &MBB,
     }
   }
 
-  // Save information about the range and location of the call-saved
-  // registers, for use by the epilogue inserter.
-  ZFI->setSavedGPRFrameSize(SavedGPRFrameSize);
+  // Save the range of call-saved registers, for use by the epilogue inserter.
   ZFI->setLowSavedGPR(LowGPR);
   ZFI->setHighSavedGPR(HighGPR);
 
@@ -260,6 +264,22 @@ restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
   return true;
 }
 
+void SystemZFrameLowering::
+processFunctionBeforeFrameFinalized(MachineFunction &MF,
+                                    RegScavenger *RS) const {
+  MachineFrameInfo *MFFrame = MF.getFrameInfo();
+  uint64_t MaxReach = (MFFrame->estimateStackSize(MF) +
+                       SystemZMC::CallFrameSize * 2);
+  if (!isUInt<12>(MaxReach)) {
+    // We may need register scavenging slots if some parts of the frame
+    // are outside the reach of an unsigned 12-bit displacement.
+    // Create 2 for the case where both addresses in an MVC are
+    // out of range.
+    RS->addScavengingFrameIndex(MFFrame->CreateStackObject(8, 8, false));
+    RS->addScavengingFrameIndex(MFFrame->CreateStackObject(8, 8, false));
+  }
+}
+
 // Emit instructions before MBBI (in MBB) to add NumBytes to Reg.
 static void emitIncrement(MachineBasicBlock &MBB,
                           MachineBasicBlock::iterator &MBBI,
@@ -283,7 +303,7 @@ static void emitIncrement(MachineBasicBlock &MBB,
     }
     MachineInstr *MI = BuildMI(MBB, MBBI, DL, TII->get(Opcode), Reg)
       .addReg(Reg).addImm(ThisVal);
-    // The PSW implicit def is dead.
+    // The CC implicit def is dead.
     MI->getOperand(3).setIsDead();
     NumBytes -= ThisVal;
   }
@@ -297,7 +317,7 @@ void SystemZFrameLowering::emitPrologue(MachineFunction &MF) const {
   SystemZMachineFunctionInfo *ZFI = MF.getInfo<SystemZMachineFunctionInfo>();
   MachineBasicBlock::iterator MBBI = MBB.begin();
   MachineModuleInfo &MMI = MF.getMMI();
-  std::vector<MachineMove> &Moves = MMI.getFrameMoves();
+  const MCRegisterInfo *MRI = MMI.getContext().getRegisterInfo();
   const std::vector<CalleeSavedInfo> &CSI = MFFrame->getCalleeSavedInfo();
   bool HasFP = hasFP(MF);
   DebugLoc DL = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
@@ -321,9 +341,8 @@ void SystemZFrameLowering::emitPrologue(MachineFunction &MF) const {
       unsigned Reg = I->getReg();
       if (SystemZ::GR64BitRegClass.contains(Reg)) {
         int64_t Offset = SPOffsetFromCFA + RegSpillOffsets[Reg];
-        MachineLocation StackSlot(MachineLocation::VirtualFP, Offset);
-        MachineLocation RegValue(Reg);
-        Moves.push_back(MachineMove(GPRSaveLabel, StackSlot, RegValue));
+        MMI.addFrameInst(MCCFIInstruction::createOffset(
+            GPRSaveLabel, MRI->getDwarfRegNum(Reg, true), Offset));
       }
     }
   }
@@ -338,9 +357,8 @@ void SystemZFrameLowering::emitPrologue(MachineFunction &MF) const {
     MCSymbol *AdjustSPLabel = MMI.getContext().CreateTempSymbol();
     BuildMI(MBB, MBBI, DL, ZII->get(TargetOpcode::PROLOG_LABEL))
       .addSym(AdjustSPLabel);
-    MachineLocation FPDest(MachineLocation::VirtualFP);
-    MachineLocation FPSrc(MachineLocation::VirtualFP, SPOffsetFromCFA + Delta);
-    Moves.push_back(MachineMove(AdjustSPLabel, FPDest, FPSrc));
+    MMI.addFrameInst(MCCFIInstruction::createDefCfaOffset(
+        AdjustSPLabel, SPOffsetFromCFA + Delta));
     SPOffsetFromCFA += Delta;
   }
 
@@ -353,9 +371,9 @@ void SystemZFrameLowering::emitPrologue(MachineFunction &MF) const {
     MCSymbol *SetFPLabel = MMI.getContext().CreateTempSymbol();
     BuildMI(MBB, MBBI, DL, ZII->get(TargetOpcode::PROLOG_LABEL))
       .addSym(SetFPLabel);
-    MachineLocation HardFP(SystemZ::R11D);
-    MachineLocation VirtualFP(MachineLocation::VirtualFP);
-    Moves.push_back(MachineMove(SetFPLabel, HardFP, VirtualFP));
+    unsigned HardFP = MRI->getDwarfRegNum(SystemZ::R11D, true);
+    MMI.addFrameInst(
+        MCCFIInstruction::createDefCfaRegister(SetFPLabel, HardFP));
 
     // Mark the FramePtr as live at the beginning of every block except
     // the entry block.  (We'll have marked R11 as live on entry when
@@ -381,12 +399,10 @@ void SystemZFrameLowering::emitPrologue(MachineFunction &MF) const {
       // Add CFI for the this save.
       if (!FPRSaveLabel)
         FPRSaveLabel = MMI.getContext().CreateTempSymbol();
-      unsigned Reg = I->getReg();
+      unsigned Reg = MRI->getDwarfRegNum(I->getReg(), true);
       int64_t Offset = getFrameIndexOffset(MF, I->getFrameIdx());
-      MachineLocation Slot(MachineLocation::VirtualFP,
-                           SPOffsetFromCFA + Offset);
-      MachineLocation RegValue(Reg);
-      Moves.push_back(MachineMove(FPRSaveLabel, Slot, RegValue));
+      MMI.addFrameInst(MCCFIInstruction::createOffset(
+          FPRSaveLabel, Reg, SPOffsetFromCFA + Offset));
     }
   }
   // Complete the CFI for the FPR saves, modelling them as taking effect
@@ -404,8 +420,7 @@ void SystemZFrameLowering::emitEpilogue(MachineFunction &MF,
   SystemZMachineFunctionInfo *ZFI = MF.getInfo<SystemZMachineFunctionInfo>();
 
   // Skip the return instruction.
-  assert(MBBI->getOpcode() == SystemZ::RET &&
-         "Can only insert epilogue into returning blocks");
+  assert(MBBI->isReturn() && "Can only insert epilogue into returning blocks");
 
   uint64_t StackSize = getAllocatedStackSize(MF);
   if (ZFI->getLowSavedGPR()) {
@@ -453,11 +468,6 @@ int SystemZFrameLowering::getFrameIndexOffset(const MachineFunction &MF,
   // offset is therefore negative.
   int64_t Offset = (MFFrame->getObjectOffset(FI) +
                     MFFrame->getOffsetAdjustment());
-  if (FI >= 0)
-    // Non-fixed objects are allocated below the incoming stack pointer.
-    // Account for the space at the top of the frame that we choose not
-    // to allocate.
-    Offset += getUnallocatedTopBytes(MF);
 
   // Make the offset relative to the incoming stack pointer.
   Offset -= getOffsetOfLocalArea();
@@ -469,22 +479,11 @@ int SystemZFrameLowering::getFrameIndexOffset(const MachineFunction &MF,
 }
 
 uint64_t SystemZFrameLowering::
-getUnallocatedTopBytes(const MachineFunction &MF) const {
-  return MF.getInfo<SystemZMachineFunctionInfo>()->getSavedGPRFrameSize();
-}
-
-uint64_t SystemZFrameLowering::
 getAllocatedStackSize(const MachineFunction &MF) const {
   const MachineFrameInfo *MFFrame = MF.getFrameInfo();
 
   // Start with the size of the local variables and spill slots.
   uint64_t StackSize = MFFrame->getStackSize();
-
-  // Remove any bytes that we choose not to allocate.
-  StackSize -= getUnallocatedTopBytes(MF);
-
-  // Include space for an emergency spill slot, if one might be needed.
-  StackSize += getEmergencySpillSlotSize(MF);
 
   // We need to allocate the ABI-defined 160-byte base area whenever
   // we allocate stack space for our own use and whenever we call another
@@ -493,19 +492,6 @@ getAllocatedStackSize(const MachineFunction &MF) const {
     StackSize += SystemZMC::CallFrameSize;
 
   return StackSize;
-}
-
-unsigned SystemZFrameLowering::
-getEmergencySpillSlotSize(const MachineFunction &MF) const {
-  const MachineFrameInfo *MFFrame = MF.getFrameInfo();
-  uint64_t MaxReach = MFFrame->getStackSize() + SystemZMC::CallFrameSize * 2;
-  return isUInt<12>(MaxReach) ? 0 : 8;
-}
-
-unsigned SystemZFrameLowering::
-getEmergencySpillSlotOffset(const MachineFunction &MF) const {
-  assert(getEmergencySpillSlotSize(MF) && "No emergency spill slot");
-  return SystemZMC::CallFrameSize;
 }
 
 bool

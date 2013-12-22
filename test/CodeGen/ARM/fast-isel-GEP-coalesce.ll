@@ -1,4 +1,5 @@
 ; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=armv7-apple-darwin | FileCheck %s --check-prefix=ARM
+; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=armv7-linux-gnueabi | FileCheck %s --check-prefix=ARM
 ; RUN: llc < %s -O0 -verify-machineinstrs -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=thumbv7-apple-darwin | FileCheck %s --check-prefix=THUMB
 
 %struct.A = type { i32, [2 x [2 x i32]], i8, [3 x [3 x [3 x i32]]] }
@@ -26,8 +27,8 @@ entry:
 ; THUMB: t2
   %addr = alloca i32*, align 4
   store i32* getelementptr inbounds ([3 x [3 x %struct.A]]* @A, i32 0, i32 2, i32 2, i32 3, i32 1, i32 2, i32 2), i32** %addr, align 4
-; ARM: movw r1, #1148
-; ARM: add r0, r0, r1
+; ARM: movw [[R:r[0-9]+]], #1148
+; ARM: add r0, r{{[0-9]+}}, [[R]]
 ; THUMB: addw r0, r0, #1148
   %0 = load i32** %addr, align 4
   ret i32* %0

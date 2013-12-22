@@ -85,11 +85,15 @@ _func:
 @ ADR
 @------------------------------------------------------------------------------
         adr r2, _baz
-        adr	r2, #3
+        adr r5, #0
+        adr r2, #4
+        adr r3, #1020
 
 @ CHECK: adr	r2, _baz                @ encoding: [A,0xa2]
             @   fixup A - offset: 0, value: _baz, kind: fixup_thumb_adr_pcrel_10
-@ CHECK: adr	r2, #3                  @ encoding: [0x03,0xa2]
+@ CHECK: adr	r5, #0                  @ encoding: [0x00,0xa5]
+@ CHECK: adr	r2, #4                  @ encoding: [0x01,0xa2]
+@ CHECK: adr	r3, #1020               @ encoding: [0xff,0xa3]
 
 @------------------------------------------------------------------------------
 @ ASR (immediate)
@@ -124,7 +128,7 @@ _func:
         beq _bar
         b       #1838
         b       #-420
-        beq     #336
+        beq     #-256
         beq     #160
 
 @ CHECK: b	_baz                    @ encoding: [A,0xe0'A']
@@ -133,7 +137,7 @@ _func:
              @   fixup A - offset: 0, value: _bar, kind: fixup_arm_thumb_bcc
 @ CHECK: b       #1838                   @ encoding: [0x97,0xe3]
 @ CHECK: b       #-420                   @ encoding: [0x2e,0xe7]
-@ CHECK: beq     #336                    @ encoding: [0xa8,0xd0]
+@ CHECK: beq     #-256                   @ encoding: [0x80,0xd0]
 @ CHECK: beq     #160                    @ encoding: [0x50,0xd0]
 
 @------------------------------------------------------------------------------
@@ -210,6 +214,16 @@ _func:
 @ CHECK: cmp	r6, #32                 @ encoding: [0x20,0x2e]
 @ CHECK: cmp	r3, r4                  @ encoding: [0xa3,0x42]
 @ CHECK: cmp	r8, r1                  @ encoding: [0x88,0x45]
+
+@------------------------------------------------------------------------------
+@ CPS
+@------------------------------------------------------------------------------
+
+        cpsie f
+        cpsid a
+
+@ CHECK: cpsie f                        @ encoding: [0x61,0xb6]
+@ CHECK: cpsid a                        @ encoding: [0x74,0xb6]
 
 @------------------------------------------------------------------------------
 @ EOR

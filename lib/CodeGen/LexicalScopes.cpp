@@ -212,15 +212,15 @@ LexicalScope *LexicalScopes::getOrCreateAbstractScope(const MDNode *N) {
 
 /// constructScopeNest
 void LexicalScopes::constructScopeNest(LexicalScope *Scope) {
-  assert (Scope && "Unable to calculate scop edominance graph!");
+  assert (Scope && "Unable to calculate scope dominance graph!");
   SmallVector<LexicalScope *, 4> WorkStack;
   WorkStack.push_back(Scope);
   unsigned Counter = 0;
   while (!WorkStack.empty()) {
     LexicalScope *WS = WorkStack.back();
-    const SmallVector<LexicalScope *, 4> &Children = WS->getChildren();
+    const SmallVectorImpl<LexicalScope *> &Children = WS->getChildren();
     bool visitedChildren = false;
-    for (SmallVector<LexicalScope *, 4>::const_iterator SI = Children.begin(),
+    for (SmallVectorImpl<LexicalScope *>::const_iterator SI = Children.begin(),
            SE = Children.end(); SI != SE; ++SI) {
       LexicalScope *ChildScope = *SI;
       if (!ChildScope->getDFSOut()) {
@@ -279,8 +279,8 @@ getMachineBasicBlocks(DebugLoc DL,
     return;
   }
 
-  SmallVector<InsnRange, 4> &InsnRanges = Scope->getRanges();
-  for (SmallVector<InsnRange, 4>::iterator I = InsnRanges.begin(),
+  SmallVectorImpl<InsnRange> &InsnRanges = Scope->getRanges();
+  for (SmallVectorImpl<InsnRange>::iterator I = InsnRanges.begin(),
          E = InsnRanges.end(); I != E; ++I) {
     InsnRange &R = *I;
     MBBs.insert(R.first->getParent());

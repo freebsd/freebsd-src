@@ -4,17 +4,21 @@ declare void @use_addr(i8*)
 @addr = global i8* null
 
 define void @test_bigframe() {
-; CHECK: test_bigframe:
+; CHECK-LABEL: test_bigframe:
+; CHECK: .cfi_startproc
 
   %var1 = alloca i8, i32 20000000
   %var2 = alloca i8, i32 16
   %var3 = alloca i8, i32 20000000
 ; CHECK: sub sp, sp, #496
+; CHECK: .cfi_def_cfa sp, 496
 ; CHECK: str x30, [sp, #488]
   ; Total adjust is 39999536
 ; CHECK: movz [[SUBCONST:x[0-9]+]], #22576
 ; CHECK: movk [[SUBCONST]], #610, lsl #16
 ; CHECK: sub sp, sp, [[SUBCONST]]
+; CHECK: .cfi_def_cfa sp, 40000032
+; CHECK: .cfi_offset x30, -8
 
   ; Total offset is 20000024
 ; CHECK: movz [[VAR1OFFSET:x[0-9]+]], #11544
@@ -41,11 +45,12 @@ define void @test_bigframe() {
 ; CHECK: movz [[ADDCONST:x[0-9]+]], #22576
 ; CHECK: movk [[ADDCONST]], #610, lsl #16
 ; CHECK: add sp, sp, [[ADDCONST]]
+; CHECK: .cfi_endproc
   ret void
 }
 
 define void @test_mediumframe() {
-; CHECK: test_mediumframe:
+; CHECK-LABEL: test_mediumframe:
   %var1 = alloca i8, i32 1000000
   %var2 = alloca i8, i32 16
   %var3 = alloca i8, i32 1000000
@@ -88,7 +93,7 @@ define void @test_mediumframe() {
 ; If temporary registers are allocated for adjustment, they should *not* clobber
 ; argument registers.
 define void @test_tempallocation([8 x i64] %val) nounwind {
-; CHECK: test_tempallocation:
+; CHECK-LABEL: test_tempallocation:
   %var = alloca i8, i32 1000000
 ; CHECK: sub sp, sp,
 

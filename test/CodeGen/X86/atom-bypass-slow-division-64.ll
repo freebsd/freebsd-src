@@ -3,9 +3,10 @@
 ; Additional tests for 64-bit divide bypass
 
 define i64 @Test_get_quotient(i64 %a, i64 %b) nounwind {
-; CHECK: Test_get_quotient:
-; CHECK: orq %rsi, %rcx
-; CHECK-NEXT: testq $-65536, %rcx
+; CHECK-LABEL: Test_get_quotient:
+; CHECK: movq %rdi, %rax
+; CHECK: orq %rsi, %rax
+; CHECK-NEXT: testq $-65536, %rax
 ; CHECK-NEXT: je
 ; CHECK: idivq
 ; CHECK: ret
@@ -16,9 +17,10 @@ define i64 @Test_get_quotient(i64 %a, i64 %b) nounwind {
 }
 
 define i64 @Test_get_remainder(i64 %a, i64 %b) nounwind {
-; CHECK: Test_get_remainder:
-; CHECK: orq %rsi, %rcx
-; CHECK-NEXT: testq $-65536, %rcx
+; CHECK-LABEL: Test_get_remainder:
+; CHECK: movq %rdi, %rax
+; CHECK: orq %rsi, %rax
+; CHECK-NEXT: testq $-65536, %rax
 ; CHECK-NEXT: je
 ; CHECK: idivq
 ; CHECK: ret
@@ -29,9 +31,10 @@ define i64 @Test_get_remainder(i64 %a, i64 %b) nounwind {
 }
 
 define i64 @Test_get_quotient_and_remainder(i64 %a, i64 %b) nounwind {
-; CHECK: Test_get_quotient_and_remainder:
-; CHECK: orq %rsi, %rcx
-; CHECK-NEXT: testq $-65536, %rcx
+; CHECK-LABEL: Test_get_quotient_and_remainder:
+; CHECK: movq %rdi, %rax
+; CHECK: orq %rsi, %rax
+; CHECK-NEXT: testq $-65536, %rax
 ; CHECK-NEXT: je
 ; CHECK: idivq
 ; CHECK: divw

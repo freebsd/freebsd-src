@@ -19,7 +19,7 @@ namespace {
 
   class MCNullStreamer : public MCStreamer {
   public:
-    MCNullStreamer(MCContext &Context) : MCStreamer(SK_NullStreamer, Context) {}
+    MCNullStreamer(MCContext &Context) : MCStreamer(Context, 0) {}
 
     /// @name MCStreamer Interface
     /// @{
@@ -37,7 +37,7 @@ namespace {
     virtual void EmitLabel(MCSymbol *Symbol) {
       assert(Symbol->isUndefined() && "Cannot define a symbol twice!");
       assert(getCurrentSection().first &&"Cannot emit before setting section!");
-      Symbol->setSection(*getCurrentSection().first);
+      AssignSection(Symbol, getCurrentSection().first);
     }
     virtual void EmitDebugLabel(MCSymbol *Symbol) {
       EmitLabel(Symbol);
@@ -52,7 +52,9 @@ namespace {
                                           const MCSymbol *Label,
                                           unsigned PointerSize) {}
 
-    virtual void EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute){}
+    virtual bool EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute){
+      return true;
+    }
 
     virtual void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) {}
 
@@ -71,10 +73,9 @@ namespace {
                               uint64_t Size = 0, unsigned ByteAlignment = 0) {}
     virtual void EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
                                 uint64_t Size, unsigned ByteAlignment) {}
-    virtual void EmitBytes(StringRef Data, unsigned AddrSpace) {}
+    virtual void EmitBytes(StringRef Data) {}
 
-    virtual void EmitValueImpl(const MCExpr *Value, unsigned Size,
-                               unsigned AddrSpace) {}
+    virtual void EmitValueImpl(const MCExpr *Value, unsigned Size) {}
     virtual void EmitULEB128Value(const MCExpr *Value) {}
     virtual void EmitSLEB128Value(const MCExpr *Value) {}
     virtual void EmitGPRel32Value(const MCExpr *Value) {}
@@ -108,13 +109,6 @@ namespace {
     virtual void EmitCFIEndProcImpl(MCDwarfFrameInfo &Frame) {
       RecordProcEnd(Frame);
     }
-
-    /// @}
-
-    static bool classof(const MCStreamer *S) {
-      return S->getKind() == SK_NullStreamer;
-    }
-
   };
 
 }

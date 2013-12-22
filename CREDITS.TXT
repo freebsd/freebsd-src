@@ -253,7 +253,8 @@ D: Release manager (1.7+)
 
 N: Sylvestre Ledru
 E: sylvestre@debian.org
-W: http://sylvesre.ledru.info/
+W: http://sylvestre.ledru.info/
+W: http://llvm.org/apt/
 D: Debian and Ubuntu packaging
 D: Continous integration with jenkins
 
@@ -300,6 +301,7 @@ D: Added STI Cell SPU backend.
 N: Kai Nacke
 E: kai@redstar.de
 D: Support for implicit TLS model used with MS VC runtime
+D: Dumping of Win64 EH structures
 
 N: Takumi Nakamura
 E: geek4civic@gmail.com
@@ -364,7 +366,7 @@ I: arosenberg
 D: ARM calling conventions rewrite, hard float support
 
 N: Chad Rosier
-E: mcrosier@apple.com
+E: mcrosier@codeaurora.org
 D: ARM fast-isel improvements
 D: Performance monitoring
 
@@ -410,6 +412,11 @@ E: rspencer@reidspencer.com
 W: http://reidspencer.com/
 D: Lots of stuff, see: http://wiki.llvm.org/index.php/User:Reid
 
+N: Alp Toker
+E: alp@nuanti.com
+W: http://atoker.com/
+D: C++ frontend next generation standards implementation
+
 N: Craig Topper
 E: craig.topper@gmail.com
 D: X86 codegen and disassembler improvements. AVX2 support.
@@ -428,10 +435,11 @@ D: ARM backend improvements
 D: Thread Local Storage implementation
 
 N: Bill Wendling
-E: wendling@apple.com
-D: Release manager
+I: wendling
+E: isanbard@gmail.com
+D: Release manager, IR Linker, LTO
 D: Bunches of stuff
 
 N: Bob Wilson
 E: bob.wilson@acm.org
-D: Advanced SIMD (NEON) support in the ARM backend
+D: Advanced SIMD (NEON) support in the ARM backend.

@@ -615,7 +615,10 @@ void DAGTypeLegalizer::RemapValue(SDValue &N) {
     // replaced with other values.
     RemapValue(I->second);
     N = I->second;
-    assert(N.getNode()->getNodeId() != NewNode && "Mapped to new node!");
+
+    // Note that it is possible to have N.getNode()->getNodeId() == NewNode at
+    // this point because it is possible for a node to be put in the map before
+    // being processed.
   }
 }
 
@@ -735,9 +738,6 @@ void DAGTypeLegalizer::SetPromotedInteger(SDValue Op, SDValue Result) {
   SDValue &OpEntry = PromotedIntegers[Op];
   assert(OpEntry.getNode() == 0 && "Node is already promoted!");
   OpEntry = Result;
-
-  // Propagate node ordering
-  DAG.AssignOrdering(Result.getNode(), DAG.GetOrdering(Op.getNode()));
 }
 
 void DAGTypeLegalizer::SetSoftenedFloat(SDValue Op, SDValue Result) {
@@ -749,9 +749,6 @@ void DAGTypeLegalizer::SetSoftenedFloat(SDValue Op, SDValue Result) {
   SDValue &OpEntry = SoftenedFloats[Op];
   assert(OpEntry.getNode() == 0 && "Node is already converted to integer!");
   OpEntry = Result;
-
-  // Propagate node ordering
-  DAG.AssignOrdering(Result.getNode(), DAG.GetOrdering(Op.getNode()));
 }
 
 void DAGTypeLegalizer::SetScalarizedVector(SDValue Op, SDValue Result) {
@@ -766,9 +763,6 @@ void DAGTypeLegalizer::SetScalarizedVector(SDValue Op, SDValue Result) {
   SDValue &OpEntry = ScalarizedVectors[Op];
   assert(OpEntry.getNode() == 0 && "Node is already scalarized!");
   OpEntry = Result;
-
-  // Propagate node ordering
-  DAG.AssignOrdering(Result.getNode(), DAG.GetOrdering(Op.getNode()));
 }
 
 void DAGTypeLegalizer::GetExpandedInteger(SDValue Op, SDValue &Lo,
@@ -796,10 +790,6 @@ void DAGTypeLegalizer::SetExpandedInteger(SDValue Op, SDValue Lo,
   assert(Entry.first.getNode() == 0 && "Node already expanded");
   Entry.first = Lo;
   Entry.second = Hi;
-
-  // Propagate ordering
-  DAG.AssignOrdering(Lo.getNode(), DAG.GetOrdering(Op.getNode()));
-  DAG.AssignOrdering(Hi.getNode(), DAG.GetOrdering(Op.getNode()));
 }
 
 void DAGTypeLegalizer::GetExpandedFloat(SDValue Op, SDValue &Lo,
@@ -827,10 +817,6 @@ void DAGTypeLegalizer::SetExpandedFloat(SDValue Op, SDValue Lo,
   assert(Entry.first.getNode() == 0 && "Node already expanded");
   Entry.first = Lo;
   Entry.second = Hi;
-
-  // Propagate ordering
-  DAG.AssignOrdering(Lo.getNode(), DAG.GetOrdering(Op.getNode()));
-  DAG.AssignOrdering(Hi.getNode(), DAG.GetOrdering(Op.getNode()));
 }
 
 void DAGTypeLegalizer::GetSplitVector(SDValue Op, SDValue &Lo,
@@ -860,10 +846,6 @@ void DAGTypeLegalizer::SetSplitVector(SDValue Op, SDValue Lo,
   assert(Entry.first.getNode() == 0 && "Node already split");
   Entry.first = Lo;
   Entry.second = Hi;
-
-  // Propagate ordering
-  DAG.AssignOrdering(Lo.getNode(), DAG.GetOrdering(Op.getNode()));
-  DAG.AssignOrdering(Hi.getNode(), DAG.GetOrdering(Op.getNode()));
 }
 
 void DAGTypeLegalizer::SetWidenedVector(SDValue Op, SDValue Result) {
@@ -875,9 +857,6 @@ void DAGTypeLegalizer::SetWidenedVector(SDValue Op, SDValue Result) {
   SDValue &OpEntry = WidenedVectors[Op];
   assert(OpEntry.getNode() == 0 && "Node already widened!");
   OpEntry = Result;
-
-  // Propagate node ordering
-  DAG.AssignOrdering(Result.getNode(), DAG.GetOrdering(Op.getNode()));
 }
 
 
@@ -888,7 +867,7 @@ void DAGTypeLegalizer::SetWidenedVector(SDValue Op, SDValue Result) {
 /// BitConvertToInteger - Convert to an integer of the same size.
 SDValue DAGTypeLegalizer::BitConvertToInteger(SDValue Op) {
   unsigned BitWidth = Op.getValueType().getSizeInBits();
-  return DAG.getNode(ISD::BITCAST, Op.getDebugLoc(),
+  return DAG.getNode(ISD::BITCAST, SDLoc(Op),
                      EVT::getIntegerVT(*DAG.getContext(), BitWidth), Op);
 }
 
@@ -899,13 +878,13 @@ SDValue DAGTypeLegalizer::BitConvertVectorToIntegerVector(SDValue Op) {
   unsigned EltWidth = Op.getValueType().getVectorElementType().getSizeInBits();
   EVT EltNVT = EVT::getIntegerVT(*DAG.getContext(), EltWidth);
   unsigned NumElts = Op.getValueType().getVectorNumElements();
-  return DAG.getNode(ISD::BITCAST, Op.getDebugLoc(),
+  return DAG.getNode(ISD::BITCAST, SDLoc(Op),
                      EVT::getVectorVT(*DAG.getContext(), EltNVT, NumElts), Op);
 }
 
 SDValue DAGTypeLegalizer::CreateStackStoreLoad(SDValue Op,
                                                EVT DestVT) {
-  DebugLoc dl = Op.getDebugLoc();
+  SDLoc dl(Op);
   // Create the stack frame object.  Make sure it is aligned for both
   // the source and destination types.
   SDValue StackPtr = DAG.CreateStackTemporary(Op.getValueType(), DestVT);
@@ -945,8 +924,6 @@ bool DAGTypeLegalizer::CustomLowerNode(SDNode *N, EVT VT, bool LegalizeResult) {
          "Custom lowering returned the wrong number of results!");
   for (unsigned i = 0, e = Results.size(); i != e; ++i) {
     ReplaceValueWith(SDValue(N, i), Results[i]);
-    // Propagate node ordering
-    DAG.AssignOrdering(Results[i].getNode(), DAG.GetOrdering(N));
   }
   return true;
 }
@@ -981,25 +958,11 @@ SDValue DAGTypeLegalizer::DisintegrateMERGE_VALUES(SDNode *N, unsigned ResNo) {
   return SDValue(N->getOperand(ResNo));
 }
 
-/// GetSplitDestVTs - Compute the VTs needed for the low/hi parts of a type
-/// which is split into two not necessarily identical pieces.
-void DAGTypeLegalizer::GetSplitDestVTs(EVT InVT, EVT &LoVT, EVT &HiVT) {
-  // Currently all types are split in half.
-  if (!InVT.isVector()) {
-    LoVT = HiVT = TLI.getTypeToTransformTo(*DAG.getContext(), InVT);
-  } else {
-    unsigned NumElements = InVT.getVectorNumElements();
-    assert(!(NumElements & 1) && "Splitting vector, but not in half!");
-    LoVT = HiVT = EVT::getVectorVT(*DAG.getContext(),
-                                   InVT.getVectorElementType(), NumElements/2);
-  }
-}
-
 /// GetPairElements - Use ISD::EXTRACT_ELEMENT nodes to extract the low and
 /// high parts of the given value.
 void DAGTypeLegalizer::GetPairElements(SDValue Pair,
                                        SDValue &Lo, SDValue &Hi) {
-  DebugLoc dl = Pair.getDebugLoc();
+  SDLoc dl(Pair);
   EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), Pair.getValueType());
   Lo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, NVT, Pair,
                    DAG.getIntPtrConstant(0));
@@ -1009,12 +972,9 @@ void DAGTypeLegalizer::GetPairElements(SDValue Pair,
 
 SDValue DAGTypeLegalizer::GetVectorElementPointer(SDValue VecPtr, EVT EltVT,
                                                   SDValue Index) {
-  DebugLoc dl = Index.getDebugLoc();
+  SDLoc dl(Index);
   // Make sure the index type is big enough to compute in.
-  if (Index.getValueType().bitsGT(TLI.getPointerTy()))
-    Index = DAG.getNode(ISD::TRUNCATE, dl, TLI.getPointerTy(), Index);
-  else
-    Index = DAG.getNode(ISD::ZERO_EXTEND, dl, TLI.getPointerTy(), Index);
+  Index = DAG.getZExtOrTrunc(Index, dl, TLI.getPointerTy());
 
   // Calculate the element offset and add it to the pointer.
   unsigned EltSize = EltVT.getSizeInBits() / 8; // FIXME: should be ABI size.
@@ -1026,9 +986,9 @@ SDValue DAGTypeLegalizer::GetVectorElementPointer(SDValue VecPtr, EVT EltVT,
 
 /// JoinIntegers - Build an integer with low bits Lo and high bits Hi.
 SDValue DAGTypeLegalizer::JoinIntegers(SDValue Lo, SDValue Hi) {
-  // Arbitrarily use dlHi for result DebugLoc
-  DebugLoc dlHi = Hi.getDebugLoc();
-  DebugLoc dlLo = Lo.getDebugLoc();
+  // Arbitrarily use dlHi for result SDLoc
+  SDLoc dlHi(Hi);
+  SDLoc dlLo(Lo);
   EVT LVT = Lo.getValueType();
   EVT HVT = Hi.getValueType();
   EVT NVT = EVT::getIntegerVT(*DAG.getContext(),
@@ -1045,22 +1005,25 @@ SDValue DAGTypeLegalizer::JoinIntegers(SDValue Lo, SDValue Hi) {
 SDValue DAGTypeLegalizer::LibCallify(RTLIB::Libcall LC, SDNode *N,
                                      bool isSigned) {
   unsigned NumOps = N->getNumOperands();
-  DebugLoc dl = N->getDebugLoc();
+  SDLoc dl(N);
   if (NumOps == 0) {
-    return TLI.makeLibCall(DAG, LC, N->getValueType(0), 0, 0, isSigned, dl);
+    return TLI.makeLibCall(DAG, LC, N->getValueType(0), 0, 0, isSigned,
+                           dl).first;
   } else if (NumOps == 1) {
     SDValue Op = N->getOperand(0);
-    return TLI.makeLibCall(DAG, LC, N->getValueType(0), &Op, 1, isSigned, dl);
+    return TLI.makeLibCall(DAG, LC, N->getValueType(0), &Op, 1, isSigned,
+                           dl).first;
   } else if (NumOps == 2) {
     SDValue Ops[2] = { N->getOperand(0), N->getOperand(1) };
-    return TLI.makeLibCall(DAG, LC, N->getValueType(0), Ops, 2, isSigned, dl);
+    return TLI.makeLibCall(DAG, LC, N->getValueType(0), Ops, 2, isSigned,
+                           dl).first;
   }
   SmallVector<SDValue, 8> Ops(NumOps);
   for (unsigned i = 0; i < NumOps; ++i)
     Ops[i] = N->getOperand(i);
 
   return TLI.makeLibCall(DAG, LC, N->getValueType(0),
-                         &Ops[0], NumOps, isSigned, dl);
+                         &Ops[0], NumOps, isSigned, dl).first;
 }
 
 // ExpandChainLibCall - Expand a node into a call to a libcall. Similar to
@@ -1090,7 +1053,7 @@ DAGTypeLegalizer::ExpandChainLibCall(RTLIB::Libcall LC,
   CallLoweringInfo CLI(InChain, RetTy, isSigned, !isSigned, false, false,
                     0, TLI.getLibcallCallingConv(LC), /*isTailCall=*/false,
                     /*doesNotReturn=*/false, /*isReturnValueUsed=*/true,
-                    Callee, Args, DAG, Node->getDebugLoc());
+                    Callee, Args, DAG, SDLoc(Node));
   std::pair<SDValue, SDValue> CallInfo = TLI.LowerCallTo(CLI);
 
   return CallInfo;
@@ -1100,7 +1063,7 @@ DAGTypeLegalizer::ExpandChainLibCall(RTLIB::Libcall LC,
 /// of the given type.  A target boolean is an integer value, not necessarily of
 /// type i1, the bits of which conform to getBooleanContents.
 SDValue DAGTypeLegalizer::PromoteTargetBoolean(SDValue Bool, EVT VT) {
-  DebugLoc dl = Bool.getDebugLoc();
+  SDLoc dl(Bool);
   ISD::NodeType ExtendCode =
     TargetLowering::getExtendForContent(TLI.getBooleanContents(VT.isVector()));
   return DAG.getNode(ExtendCode, dl, VT, Bool);
@@ -1111,7 +1074,7 @@ SDValue DAGTypeLegalizer::PromoteTargetBoolean(SDValue Bool, EVT VT) {
 void DAGTypeLegalizer::SplitInteger(SDValue Op,
                                     EVT LoVT, EVT HiVT,
                                     SDValue &Lo, SDValue &Hi) {
-  DebugLoc dl = Op.getDebugLoc();
+  SDLoc dl(Op);
   assert(LoVT.getSizeInBits() + HiVT.getSizeInBits() ==
          Op.getValueType().getSizeInBits() && "Invalid integer splitting!");
   Lo = DAG.getNode(ISD::TRUNCATE, dl, LoVT, Op);

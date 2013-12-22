@@ -28,7 +28,7 @@ public:
 
   virtual ~TestObjectCache() {
     // Free any buffers we've allocated.
-    SmallVector<MemoryBuffer *, 2>::iterator it, end;
+    SmallVectorImpl<MemoryBuffer *>::iterator it, end;
     end = AllocatedBuffers.end();
     for (it = AllocatedBuffers.begin(); it != end; ++it) {
       delete *it;
@@ -43,6 +43,16 @@ public:
       DuplicateInserted = true;
     // Store a copy of the buffer in our map.
     ObjMap[ModuleID] = copyBuffer(Obj);
+  }
+
+  virtual MemoryBuffer* getObject(const Module* M) {
+    const MemoryBuffer* BufferFound = getObjectInternal(M);
+    ModulesLookedUp.insert(M->getModuleIdentifier());
+    if (!BufferFound)
+      return NULL;
+    // Our test cache wants to maintain ownership of its object buffers
+    // so we make a copy here for the execution engine.
+    return MemoryBuffer::getMemBufferCopy(BufferFound->getBuffer());
   }
 
   // Test-harness-specific functions
@@ -60,13 +70,6 @@ public:
     if (it == ObjMap.end())
       return 0;
     return it->second;
-  }
-
-protected:
-  virtual const MemoryBuffer* getObject(const Module* M) {
-    const MemoryBuffer* BufferFound = getObjectInternal(M);
-    ModulesLookedUp.insert(M->getModuleIdentifier());
-    return BufferFound;
   }
 
 private:
@@ -98,13 +101,12 @@ protected:
 
   void compileAndRun(int ExpectedRC = OriginalRC) {
     // This function shouldn't be called until after SetUp.
-    ASSERT_TRUE(0 != TheJIT);
+    ASSERT_TRUE(TheJIT.isValid());
     ASSERT_TRUE(0 != Main);
 
+    // We may be using a null cache, so ensure compilation is valid.
     TheJIT->finalizeObject();
     void *vPtr = TheJIT->getPointerToFunction(Main);
-
-    static_cast<SectionMemoryManager*>(MM)->invalidateInstructionCache();
 
     EXPECT_TRUE(0 != vPtr)
       << "Unable to get pointer to main() from JIT";

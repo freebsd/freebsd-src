@@ -851,6 +851,18 @@ PROFILE_INTEGER_INFO(unsigned long long)
 
 #undef PROFILE_INTEGER_INFO
 
+/// Profile traits for booleans.
+template <>
+struct ImutProfileInfo<bool> {
+  typedef const bool  value_type;
+  typedef const bool& value_type_ref;
+
+  static inline void Profile(FoldingSetNodeID& ID, value_type_ref X) {
+    ID.AddBoolean(X);
+  }
+};
+
+
 /// Generic profile trait for pointer types.  We treat pointers as
 /// references to unique objects.
 template <typename T>
@@ -1060,6 +1072,7 @@ public:
     friend class ImmutableSet<ValT,ValInfo>;
 
   public:
+    typedef ptrdiff_t difference_type;
     typedef typename ImmutableSet<ValT,ValInfo>::value_type value_type;
     typedef typename ImmutableSet<ValT,ValInfo>::value_type_ref reference;
     typedef typename iterator::value_type *pointer;

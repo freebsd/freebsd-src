@@ -112,21 +112,20 @@ bool Value::hasNUsesOrMore(unsigned N) const {
 /// isUsedInBasicBlock - Return true if this value is used in the specified
 /// basic block.
 bool Value::isUsedInBasicBlock(const BasicBlock *BB) const {
-  // Start by scanning over the instructions looking for a use before we start
-  // the expensive use iteration.
-  unsigned MaxBlockSize = 3;
-  for (BasicBlock::const_iterator I = BB->begin(), E = BB->end(); I != E; ++I) {
-    if (std::find(I->op_begin(), I->op_end(), this) != I->op_end())
+  // This can be computed either by scanning the instructions in BB, or by
+  // scanning the use list of this Value. Both lists can be very long, but
+  // usually one is quite short.
+  //
+  // Scan both lists simultaneously until one is exhausted. This limits the
+  // search to the shorter list.
+  BasicBlock::const_iterator BI = BB->begin(), BE = BB->end();
+  const_use_iterator UI = use_begin(), UE = use_end();
+  for (; BI != BE && UI != UE; ++BI, ++UI) {
+    // Scan basic block: Check if this Value is used by the instruction at BI.
+    if (std::find(BI->op_begin(), BI->op_end(), this) != BI->op_end())
       return true;
-    if (--MaxBlockSize == 0) // If the block is larger fall back to use_iterator
-      break;
-  }
-
-  if (MaxBlockSize != 0) // We scanned the entire block and found no use.
-    return false;
-
-  for (const_use_iterator I = use_begin(), E = use_end(); I != E; ++I) {
-    const Instruction *User = dyn_cast<Instruction>(*I);
+    // Scan use list: Check if the use at UI is in BB.
+    const Instruction *User = dyn_cast<Instruction>(*UI);
     if (User && User->getParent() == BB)
       return true;
   }
@@ -366,7 +365,8 @@ static Value *stripPointerCastsAndOffsets(Value *V) {
         break;
       }
       V = GEP->getPointerOperand();
-    } else if (Operator::getOpcode(V) == Instruction::BitCast) {
+    } else if (Operator::getOpcode(V) == Instruction::BitCast ||
+               Operator::getOpcode(V) == Instruction::AddrSpaceCast) {
       V = cast<Operator>(V)->getOperand(0);
     } else if (GlobalAlias *GA = dyn_cast<GlobalAlias>(V)) {
       if (StripKind == PSK_ZeroIndices || GA->mayBeOverridden())
@@ -392,6 +392,42 @@ Value *Value::stripPointerCastsNoFollowAliases() {
 
 Value *Value::stripInBoundsConstantOffsets() {
   return stripPointerCastsAndOffsets<PSK_InBoundsConstantIndices>(this);
+}
+
+Value *Value::stripAndAccumulateInBoundsConstantOffsets(const DataLayout &DL,
+                                                        APInt &Offset) {
+  if (!getType()->isPointerTy())
+    return this;
+
+  assert(Offset.getBitWidth() == DL.getPointerSizeInBits(cast<PointerType>(
+                                     getType())->getAddressSpace()) &&
+         "The offset must have exactly as many bits as our pointer.");
+
+  // Even though we don't look through PHI nodes, we could be called on an
+  // instruction in an unreachable block, which may be on a cycle.
+  SmallPtrSet<Value *, 4> Visited;
+  Visited.insert(this);
+  Value *V = this;
+  do {
+    if (GEPOperator *GEP = dyn_cast<GEPOperator>(V)) {
+      if (!GEP->isInBounds())
+        return V;
+      APInt GEPOffset(Offset);
+      if (!GEP->accumulateConstantOffset(DL, GEPOffset))
+        return V;
+      Offset = GEPOffset;
+      V = GEP->getPointerOperand();
+    } else if (Operator::getOpcode(V) == Instruction::BitCast) {
+      V = cast<Operator>(V)->getOperand(0);
+    } else if (GlobalAlias *GA = dyn_cast<GlobalAlias>(V)) {
+      V = GA->getAliasee();
+    } else {
+      return V;
+    }
+    assert(V->getType()->isPointerTy() && "Unexpected operand type!");
+  } while (Visited.insert(V));
+
+  return V;
 }
 
 Value *Value::stripInBoundsOffsets() {
@@ -699,9 +735,5 @@ void ValueHandleBase::ValueIsRAUWd(Value *Old, Value *New) {
 #endif
 }
 
-// Default implementation for CallbackVH.
-void CallbackVH::allUsesReplacedWith(Value *) {}
-
-void CallbackVH::deleted() {
-  setValPtr(NULL);
-}
+// Pin the vtable to this file.
+void CallbackVH::anchor() {}

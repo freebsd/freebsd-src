@@ -1,10 +1,10 @@
-; RUN: llc < %s -mtriple=x86_64-apple-darwin -mcpu=corei7 -mattr=+sse41 | FileCheck %s
+; RUN: llc < %s -mtriple=x86_64-apple-darwin -mcpu=corei7 -mattr=+sse4.1 | FileCheck %s
 
 
 ; In this test we check that sign-extend of the mask bit is performed by
 ; shifting the needed bit to the MSB, and not using shl+sra.
 
-;CHECK: vsel_float
+;CHECK-LABEL: vsel_float:
 ;CHECK: movl $-2147483648
 ;CHECK-NEXT: movd
 ;CHECK-NEXT: blendvps
@@ -14,7 +14,7 @@ define <4 x float> @vsel_float(<4 x float> %v1, <4 x float> %v2) {
   ret <4 x float> %vsel
 }
 
-;CHECK: vsel_4xi8
+;CHECK-LABEL: vsel_4xi8:
 ;CHECK: movl $-2147483648
 ;CHECK-NEXT: movd
 ;CHECK-NEXT: blendvps
@@ -28,7 +28,7 @@ define <4 x i8> @vsel_4xi8(<4 x i8> %v1, <4 x i8> %v2) {
 ; We do not have native support for v8i16 blends and we have to use the
 ; blendvb instruction or a sequence of NAND/OR/AND. Make sure that we do not r
 ; reduce the mask in this case.
-;CHECK: vsel_8xi16
+;CHECK-LABEL: vsel_8xi16:
 ;CHECK: psllw
 ;CHECK: psraw
 ;CHECK: pblendvb

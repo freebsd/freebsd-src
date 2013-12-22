@@ -1,41 +1,41 @@
-; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=cortex-a5 | FileCheck %s -check-prefix=LINUXA5
-; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=cortex-a8 | FileCheck %s -check-prefix=LINUXA8
-; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=cortex-a9 | FileCheck %s -check-prefix=LINUXA9
-; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=cortex-a15 | FileCheck %s -check-prefix=LINUXA15
-; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=swift | FileCheck %s -check-prefix=LINUXSWIFT
+; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=cortex-a5 | FileCheck %s -check-prefix=CHECK-LINUXA5
+; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=cortex-a8 | FileCheck %s -check-prefix=CHECK-LINUXA8
+; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=cortex-a9 | FileCheck %s -check-prefix=CHECK-LINUXA9
+; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=cortex-a15 | FileCheck %s -check-prefix=CHECK-LINUXA15
+; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=swift | FileCheck %s -check-prefix=CHECK-LINUXSWIFT
 
-; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=cortex-a5 --enable-unsafe-fp-math | FileCheck %s -check-prefix=UNSAFEA5
-; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=cortex-a8 --enable-unsafe-fp-math | FileCheck %s -check-prefix=UNSAFEA8
-; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=cortex-a9 --enable-unsafe-fp-math | FileCheck %s -check-prefix=UNSAFEA9
-; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=cortex-a15 --enable-unsafe-fp-math | FileCheck %s -check-prefix=UNSAFEA15
-; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=swift --enable-unsafe-fp-math | FileCheck %s -check-prefix=UNSAFESWIFT
+; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=cortex-a5 --enable-unsafe-fp-math | FileCheck %s -check-prefix=CHECK-UNSAFEA5
+; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=cortex-a8 --enable-unsafe-fp-math | FileCheck %s -check-prefix=CHECK-UNSAFEA8
+; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=cortex-a9 --enable-unsafe-fp-math | FileCheck %s -check-prefix=CHECK-UNSAFEA9
+; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=cortex-a15 --enable-unsafe-fp-math | FileCheck %s -check-prefix=CHECK-UNSAFEA15
+; RUN: llc < %s -mtriple armv7a-none-linux-gnueabihf -mcpu=swift --enable-unsafe-fp-math | FileCheck %s -check-prefix=CHECK-UNSAFESWIFT
 
-; RUN: llc < %s -mtriple armv7a-none-darwin -mcpu=cortex-a5 | FileCheck %s -check-prefix=DARWINA5
-; RUN: llc < %s -mtriple armv7a-none-darwin -mcpu=cortex-a8 | FileCheck %s -check-prefix=DARWINA8
-; RUN: llc < %s -mtriple armv7a-none-darwin -mcpu=cortex-a9 | FileCheck %s -check-prefix=DARWINA9
-; RUN: llc < %s -mtriple armv7a-none-darwin -mcpu=cortex-a15 | FileCheck %s -check-prefix=DARWINA15
-; RUN: llc < %s -mtriple armv7a-none-darwin -mcpu=swift | FileCheck %s -check-prefix=DARWINSWIFT
+; RUN: llc < %s -mtriple armv7a-none-darwin -mcpu=cortex-a5 | FileCheck %s -check-prefix=CHECK-DARWINA5
+; RUN: llc < %s -mtriple armv7a-none-darwin -mcpu=cortex-a8 | FileCheck %s -check-prefix=CHECK-DARWINA8
+; RUN: llc < %s -mtriple armv7a-none-darwin -mcpu=cortex-a9 | FileCheck %s -check-prefix=CHECK-DARWINA9
+; RUN: llc < %s -mtriple armv7a-none-darwin -mcpu=cortex-a15 | FileCheck %s -check-prefix=CHECK-DARWINA15
+; RUN: llc < %s -mtriple armv7a-none-darwin -mcpu=swift | FileCheck %s -check-prefix=CHECK-DARWINSWIFT
 
 ; This test makes sure we're not lowering VMUL.f32 D* (aka. NEON) for single-prec. FP ops, since
 ; NEON is not fully IEEE 754 compliant, unless unsafe-math is selected.
 
 @.str = private unnamed_addr constant [12 x i8] c"S317\09%.5g \0A\00", align 1
 
-; CHECK-LINUXA5: main:
-; CHECK-LINUXA8: main:
-; CHECK-LINUXA9: main:
-; CHECK-LINUXA15: main:
-; CHECK-LINUXSWIFT: main:
-; CHECK-UNSAFEA5: main:
-; CHECK-UNSAFEA8: main:
-; CHECK-UNSAFEA9: main:
-; CHECK-UNSAFEA15: main:
-; CHECK-UNSAFESWIFT: main:
-; CHECK-DARWINA5: main:
-; CHECK-DARWINA8: main:
-; CHECK-DARWINA9: main:
-; CHECK-DARWINA15: main:
-; CHECK-DARWINSWIFT: main:
+; CHECK-LINUXA5-LABEL: main:
+; CHECK-LINUXA8-LABEL: main:
+; CHECK-LINUXA9-LABEL: main:
+; CHECK-LINUXA15-LABEL: main:
+; CHECK-LINUXSWIFT-LABEL: main:
+; CHECK-UNSAFEA5-LABEL: main:
+; CHECK-UNSAFEA8-LABEL: main:
+; CHECK-UNSAFEA9-LABEL: main:
+; CHECK-UNSAFEA15-LABEL: main:
+; CHECK-UNSAFESWIFT-LABEL: main:
+; CHECK-DARWINA5-LABEL: main:
+; CHECK-DARWINA8-LABEL: main:
+; CHECK-DARWINA9-LABEL: main:
+; CHECK-DARWINA15-LABEL: main:
+; CHECK-DARWINSWIFT-LABEL: main:
 define i32 @main() {
 entry:
   br label %for.body

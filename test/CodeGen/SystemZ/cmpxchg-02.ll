@@ -11,24 +11,23 @@
 ;   being used in the RISBG (in contrast to things like atomic addition,
 ;   which shift %r3 left so that %b is at the high end of the word).
 define i16 @f1(i16 %dummy, i16 *%src, i16 %cmp, i16 %swap) {
-; CHECK-MAIN: f1:
+; CHECK-MAIN-LABEL: f1:
 ; CHECK-MAIN: sllg [[SHIFT:%r[1-9]+]], %r3, 3
 ; CHECK-MAIN: nill %r3, 65532
 ; CHECK-MAIN: l [[OLD:%r[0-9]+]], 0(%r3)
 ; CHECK-MAIN: [[LOOP:\.[^ ]*]]:
 ; CHECK-MAIN: rll %r2, [[OLD]], 16([[SHIFT]])
 ; CHECK-MAIN: risbg %r4, %r2, 32, 47, 0
-; CHECK-MAIN: cr %r2, %r4
-; CHECK-MAIN: j{{g?}}lh [[EXIT:\.[^ ]*]]
+; CHECK-MAIN: crjlh %r2, %r4, [[EXIT:\.[^ ]*]]
 ; CHECK-MAIN: risbg %r5, %r2, 32, 47, 0
 ; CHECK-MAIN: rll [[NEW:%r[0-9]+]], %r5, -16({{%r[1-9]+}})
 ; CHECK-MAIN: cs [[OLD]], [[NEW]], 0(%r3)
-; CHECK-MAIN: j{{g?}}lh [[LOOP]]
+; CHECK-MAIN: jl [[LOOP]]
 ; CHECK-MAIN: [[EXIT]]:
 ; CHECK-MAIN-NOT: %r2
 ; CHECK-MAIN: br %r14
 ;
-; CHECK-SHIFT: f1:
+; CHECK-SHIFT-LABEL: f1:
 ; CHECK-SHIFT: sllg [[SHIFT:%r[1-9]+]], %r3, 3
 ; CHECK-SHIFT: lcr [[NEGSHIFT:%r[1-9]+]], [[SHIFT]]
 ; CHECK-SHIFT: rll
@@ -40,13 +39,13 @@ define i16 @f1(i16 %dummy, i16 *%src, i16 %cmp, i16 %swap) {
 ; Check compare and swap with constants.  We should force the constants into
 ; registers and use the sequence above.
 define i16 @f2(i16 *%src) {
-; CHECK: f2:
+; CHECK-LABEL: f2:
 ; CHECK: lhi [[CMP:%r[0-9]+]], 42
 ; CHECK: risbg [[CMP]], {{%r[0-9]+}}, 32, 47, 0
 ; CHECK: risbg
 ; CHECK: br %r14
 ;
-; CHECK-SHIFT: f2:
+; CHECK-SHIFT-LABEL: f2:
 ; CHECK-SHIFT: lhi [[SWAP:%r[0-9]+]], 88
 ; CHECK-SHIFT: risbg
 ; CHECK-SHIFT: risbg [[SWAP]], {{%r[0-9]+}}, 32, 47, 0

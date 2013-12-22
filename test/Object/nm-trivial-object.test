@@ -18,16 +18,17 @@ COFF:          U {{_?}}SomeOtherFunction
 COFF: 00000000 T {{_?}}main
 COFF:          U {{_?}}puts
 
+ELF-NOT:      U
 ELF:          U SomeOtherFunction
 ELF: 00000000 T main
 ELF:          U puts
 
 
 macho: 00000000 U _SomeOtherFunction
-macho: 00000000 s _main
+macho: 00000000 T _main
 macho: 00000000 U _puts
 
 macho64: 00000028 s L_.str
-macho64: 00000000 u _SomeOtherFunction
-macho64: 00000000 s _main
-macho64: 00000000 u _puts
+macho64: 00000000 U _SomeOtherFunction
+macho64: 00000000 T _main
+macho64: 00000000 U _puts

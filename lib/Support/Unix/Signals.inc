@@ -55,8 +55,7 @@ static std::vector<std::pair<void(*)(void*), void*> > CallBacksToRun;
 static const int IntSigs[] = {
   SIGHUP, SIGINT, SIGPIPE, SIGTERM, SIGUSR1, SIGUSR2
 };
-static const int *const IntSigsEnd =
-  IntSigs + sizeof(IntSigs) / sizeof(IntSigs[0]);
+static const int *const IntSigsEnd = array_endof(IntSigs);
 
 // KillSigs - Signals that represent that we have a bug, and our prompt
 // termination has been ordered.
@@ -75,8 +74,7 @@ static const int KillSigs[] = {
   , SIGEMT
 #endif
 };
-static const int *const KillSigsEnd =
-  KillSigs + sizeof(KillSigs) / sizeof(KillSigs[0]);
+static const int *const KillSigsEnd = array_endof(KillSigs);
 
 static unsigned NumRegisteredSignals = 0;
 static struct {
@@ -211,11 +209,11 @@ void llvm::sys::SetInterruptFunction(void (*IF)()) {
 }
 
 // RemoveFileOnSignal - The public API
-bool llvm::sys::RemoveFileOnSignal(const sys::Path &Filename,
+bool llvm::sys::RemoveFileOnSignal(StringRef Filename,
                                    std::string* ErrMsg) {
   SignalsMutex.acquire();
   std::string *OldPtr = FilesToRemove.empty() ? 0 : &FilesToRemove[0];
-  FilesToRemove.push_back(Filename.str());
+  FilesToRemove.push_back(Filename);
 
   // We want to call 'c_str()' on every std::string in this vector so that if
   // the underlying implementation requires a re-allocation, it happens here
@@ -235,10 +233,10 @@ bool llvm::sys::RemoveFileOnSignal(const sys::Path &Filename,
 }
 
 // DontRemoveFileOnSignal - The public API
-void llvm::sys::DontRemoveFileOnSignal(const sys::Path &Filename) {
+void llvm::sys::DontRemoveFileOnSignal(StringRef Filename) {
   SignalsMutex.acquire();
   std::vector<std::string>::reverse_iterator RI =
-    std::find(FilesToRemove.rbegin(), FilesToRemove.rend(), Filename.str());
+    std::find(FilesToRemove.rbegin(), FilesToRemove.rend(), Filename);
   std::vector<std::string>::iterator I = FilesToRemove.end();
   if (RI != FilesToRemove.rend())
     I = FilesToRemove.erase(RI.base()-1);
@@ -335,7 +333,7 @@ static void PrintStackTraceSignalHandler(void *) {
 void llvm::sys::PrintStackTraceOnErrorSignal() {
   AddSignalHandler(PrintStackTraceSignalHandler, 0);
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) && defined(ENABLE_CRASH_OVERRIDES)
   // Environment variable to disable any kind of crash dialog.
   if (getenv("LLVM_DISABLE_CRASH_REPORT")) {
     mach_port_t self = mach_task_self();
@@ -361,7 +359,7 @@ void llvm::sys::PrintStackTraceOnErrorSignal() {
 // the same linkage unit by just defining our own versions of the assert handler
 // and abort.
 
-#ifdef __APPLE__
+#if defined(__APPLE__) && defined(ENABLE_CRASH_OVERRIDES)
 
 #include <signal.h>
 #include <pthread.h>

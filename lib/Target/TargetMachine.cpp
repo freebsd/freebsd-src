@@ -78,7 +78,6 @@ void TargetMachine::resetTargetOptions(const MachineFunction *MF) const {
   } while (0)
 
   RESET_OPTION(NoFramePointerElim, "no-frame-pointer-elim");
-  RESET_OPTION(NoFramePointerElimNonLeaf, "no-frame-pointer-elim-non-leaf");
   RESET_OPTION(LessPreciseFPMADOption, "less-precise-fpmad");
   RESET_OPTION(UnsafeFPMath, "unsafe-fp-math");
   RESET_OPTION(NoInfsFPMath, "no-infs-fp-math");
@@ -163,6 +162,11 @@ CodeGenOpt::Level TargetMachine::getOptLevel() const {
   if (!CodeGenInfo)
     return CodeGenOpt::Default;
   return CodeGenInfo->getOptLevel();
+}
+
+void TargetMachine::setOptLevel(CodeGenOpt::Level Level) const {
+  if (CodeGenInfo)
+    CodeGenInfo->setOptLevel(Level);
 }
 
 bool TargetMachine::getAsmVerbosityDefault() {

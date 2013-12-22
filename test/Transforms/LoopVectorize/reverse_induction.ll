@@ -5,7 +5,7 @@ target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f3
 ; Make sure consecutive vector generates correct negative indices.
 ; PR15882
 
-; CHECK: reverse_induction_i64
+; CHECK-LABEL: @reverse_induction_i64(
 ; CHECK: add <4 x i64> %[[SPLAT:.*]], <i64 0, i64 -1, i64 -2, i64 -3>
 ; CHECK: add <4 x i64> %[[SPLAT]], <i64 -4, i64 -5, i64 -6, i64 -7>
 
@@ -29,7 +29,7 @@ loopend:
   ret i32 %inc.redux
 }
 
-; CHECK: reverse_induction_i128
+; CHECK-LABEL: @reverse_induction_i128(
 ; CHECK: add <4 x i128> %[[SPLAT:.*]], <i128 0, i128 -1, i128 -2, i128 -3>
 ; CHECK: add <4 x i128> %[[SPLAT]], <i128 -4, i128 -5, i128 -6, i128 -7>
 define i32 @reverse_induction_i128(i128 %startval, i32 * %ptr) {
@@ -52,7 +52,7 @@ loopend:
   ret i32 %inc.redux
 }
 
-; CHECK: reverse_induction_i16
+; CHECK-LABEL: @reverse_induction_i16(
 ; CHECK: add <4 x i16> %[[SPLAT:.*]], <i16 0, i16 -1, i16 -2, i16 -3>
 ; CHECK: add <4 x i16> %[[SPLAT]], <i16 -4, i16 -5, i16 -6, i16 -7>
 
@@ -77,3 +77,72 @@ loopend:
 }
 
 
+@a = common global [1024 x i32] zeroinitializer, align 16
+
+; We incorrectly transformed this loop into an empty one because we left the
+; induction variable in i8 type and truncated the exit value 1024 to 0.
+; int a[1024];
+;
+; void fail() {
+;   int reverse_induction = 1023;
+;   unsigned char forward_induction = 0;
+;   while ((reverse_induction) >= 0) {
+;     forward_induction++;
+;     a[reverse_induction] = forward_induction;
+;     --reverse_induction;
+;   }
+; }
+
+; CHECK-LABEL: @reverse_forward_induction_i64_i8(
+; CHECK: vector.body
+; CHECK: %index = phi i64 [ 0, %vector.ph ], [ %index.next, %vector.body ]
+; CHECK: %normalized.idx = sub i64 %index, 0
+; CHECK: %reverse.idx = sub i64 1023, %normalized.idx
+; CHECK: trunc i64 %index to i8
+
+define void @reverse_forward_induction_i64_i8() {
+entry:
+  br label %while.body
+
+while.body:
+  %indvars.iv = phi i64 [ 1023, %entry ], [ %indvars.iv.next, %while.body ]
+  %forward_induction.05 = phi i8 [ 0, %entry ], [ %inc, %while.body ]
+  %inc = add i8 %forward_induction.05, 1
+  %conv = zext i8 %inc to i32
+  %arrayidx = getelementptr inbounds [1024 x i32]* @a, i64 0, i64 %indvars.iv
+  store i32 %conv, i32* %arrayidx, align 4
+  %indvars.iv.next = add i64 %indvars.iv, -1
+  %0 = trunc i64 %indvars.iv to i32
+  %cmp = icmp sgt i32 %0, 0
+  br i1 %cmp, label %while.body, label %while.end
+
+while.end:
+  ret void
+}
+
+; CHECK-LABEL: @reverse_forward_induction_i64_i8_signed(
+; CHECK: vector.body:
+; CHECK:  %index = phi i64 [ 129, %vector.ph ], [ %index.next, %vector.body ]
+; CHECK:  %normalized.idx = sub i64 %index, 129
+; CHECK:  %reverse.idx = sub i64 1023, %normalized.idx
+; CHECK:  trunc i64 %index to i8
+
+define void @reverse_forward_induction_i64_i8_signed() {
+entry:
+  br label %while.body
+
+while.body:
+  %indvars.iv = phi i64 [ 1023, %entry ], [ %indvars.iv.next, %while.body ]
+  %forward_induction.05 = phi i8 [ -127, %entry ], [ %inc, %while.body ]
+  %inc = add i8 %forward_induction.05, 1
+  %conv = sext i8 %inc to i32
+  %arrayidx = getelementptr inbounds [1024 x i32]* @a, i64 0, i64 %indvars.iv
+  store i32 %conv, i32* %arrayidx, align 4
+  %indvars.iv.next = add i64 %indvars.iv, -1
+  %0 = trunc i64 %indvars.iv to i32
+  %cmp = icmp sgt i32 %0, 0
+  br i1 %cmp, label %while.body, label %while.end
+
+while.end:
+  ret void
+}

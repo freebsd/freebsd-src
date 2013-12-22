@@ -30,7 +30,10 @@ namespace llvm {
   class AsmPrinter;
   class MCInst;
 
-  FunctionPass *createPPCCTRLoops();
+  FunctionPass *createPPCCTRLoops(PPCTargetMachine &TM);
+#ifndef NDEBUG
+  FunctionPass *createPPCCTRLoopsVerify();
+#endif
   FunctionPass *createPPCEarlyReturnPass();
   FunctionPass *createPPCBranchSelectionPass();
   FunctionPass *createPPCISelDag(PPCTargetMachine &TM);
@@ -71,18 +74,21 @@ namespace llvm {
     /// The next are not flags but distinct values.
     MO_ACCESS_MASK = 0xf0,
 
-    /// MO_LO16, MO_HA16 - lo16(symbol) and ha16(symbol)
-    MO_LO16 = 1 << 4,
-    MO_HA16 = 2 << 4,
+    /// MO_LO, MO_HA - lo16(symbol) and ha16(symbol)
+    MO_LO = 1 << 4,
+    MO_HA = 2 << 4,
 
-    MO_TPREL16_HA = 3 << 4,
-    MO_TPREL16_LO = 4 << 4,
+    MO_TPREL_LO = 4 << 4,
+    MO_TPREL_HA = 3 << 4,
 
     /// These values identify relocations on immediates folded
     /// into memory operations.
-    MO_DTPREL16_LO = 5 << 4,
-    MO_TLSLD16_LO  = 6 << 4,
-    MO_TOC16_LO    = 7 << 4
+    MO_DTPREL_LO = 5 << 4,
+    MO_TLSLD_LO  = 6 << 4,
+    MO_TOC_LO    = 7 << 4,
+
+    // Symbol for VK_PPC_TLS fixup attached to an ADD instruction
+    MO_TLS       = 8 << 4
   };
   } // end namespace PPCII
   

@@ -6,7 +6,7 @@ define internal i32 @callee1(i32 %A, i32 %B) {
 }
 
 define i32 @caller1() {
-; CHECK: define i32 @caller1
+; CHECK-LABEL: define i32 @caller1(
 ; CHECK-NEXT: ret i32 3
 
   %X = call i32 @callee1( i32 10, i32 3 )
@@ -21,7 +21,7 @@ define i32 @caller2() {
 ; inline and be cheap. We should eventually do that and lower the threshold here
 ; to 1.
 ;
-; CHECK: @caller2
+; CHECK-LABEL: @caller2(
 ; CHECK-NOT: call void @callee2
 ; CHECK: ret
 
@@ -61,7 +61,7 @@ define i32 @caller3() {
 ; it doesn't count toward the inline cost when constant-prop proves those paths
 ; dead.
 ;
-; CHECK: @caller3
+; CHECK-LABEL: @caller3(
 ; CHECK-NOT: call
 ; CHECK: ret i32 6
 
@@ -119,7 +119,7 @@ define i8 @caller4(i8 %z) {
 ; as they are used heavily in standard library code and generic C++ code where
 ; the arguments are oftent constant but complete generality is required.
 ;
-; CHECK: @caller4
+; CHECK-LABEL: @caller4(
 ; CHECK-NOT: call
 ; CHECK: ret i8 -1
 
@@ -153,7 +153,7 @@ define i64 @caller5(i64 %y) {
 ; Check that we can round trip constants through various kinds of casts etc w/o
 ; losing track of the constant prop in the inline cost analysis.
 ;
-; CHECK: @caller5
+; CHECK-LABEL: @caller5(
 ; CHECK-NOT: call
 ; CHECK: ret i64 -1
 
@@ -186,6 +186,37 @@ bb.false:
   %y8 = add i64 %y7, 1
   ret i64 %y8
 }
+
+define float @caller6() {
+; Check that we can constant-prop through fcmp instructions
+;
+; CHECK-LABEL: @caller6(
+; CHECK-NOT: call
+; CHECK: ret
+  %x = call float @callee6(float 42.0)
+  ret float %x
+}
+
+define float @callee6(float %x) {
+  %icmp = fcmp ugt float %x, 42.0
+  br i1 %icmp, label %bb.true, label %bb.false
+
+bb.true:
+  ; This block musn't be counted in the inline cost.
+  %x1 = fadd float %x, 1.0
+  %x2 = fadd float %x1, 1.0
+  %x3 = fadd float %x2, 1.0
+  %x4 = fadd float %x3, 1.0
+  %x5 = fadd float %x4, 1.0
+  %x6 = fadd float %x5, 1.0
+  %x7 = fadd float %x6, 1.0
+  %x8 = fadd float %x7, 1.0
+  ret float %x8
+
+bb.false:
+  ret float %x
+}
+
 
 
 define i32 @PR13412.main() {

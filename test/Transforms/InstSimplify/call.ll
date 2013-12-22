@@ -3,7 +3,7 @@
 declare {i8, i1} @llvm.uadd.with.overflow.i8(i8 %a, i8 %b)
 
 define i1 @test_uadd1() {
-; CHECK: @test_uadd1
+; CHECK-LABEL: @test_uadd1(
   %x = call {i8, i1} @llvm.uadd.with.overflow.i8(i8 254, i8 3)
   %overflow = extractvalue {i8, i1} %x, 1
   ret i1 %overflow
@@ -11,7 +11,7 @@ define i1 @test_uadd1() {
 }
 
 define i8 @test_uadd2() {
-; CHECK: @test_uadd2
+; CHECK-LABEL: @test_uadd2(
   %x = call {i8, i1} @llvm.uadd.with.overflow.i8(i8 254, i8 44)
   %result = extractvalue {i8, i1} %x, 0
   ret i8 %result
@@ -21,7 +21,7 @@ define i8 @test_uadd2() {
 declare i256 @llvm.cttz.i256(i256 %src, i1 %is_zero_undef)
 
 define i256 @test_cttz() {
-; CHECK: @test_cttz
+; CHECK-LABEL: @test_cttz(
   %x = call i256 @llvm.cttz.i256(i256 10, i1 false)
   ret i256 %x
 ; CHECK-NEXT: ret i256 1
@@ -30,7 +30,7 @@ define i256 @test_cttz() {
 declare i256 @llvm.ctpop.i256(i256 %src)
 
 define i256 @test_ctpop() {
-; CHECK: @test_ctpop
+; CHECK-LABEL: @test_ctpop(
   %x = call i256 @llvm.ctpop.i256(i256 10)
   ret i256 %x
 ; CHECK-NEXT: ret i256 2
@@ -40,7 +40,7 @@ define i256 @test_ctpop() {
 declare float @fabs(float %x)
 
 define float @test_fabs_libcall() {
-; CHECK: @test_fabs_libcall
+; CHECK-LABEL: @test_fabs_libcall(
 
   %x = call float @fabs(float -42.0)
 ; This is still a real function call, so instsimplify won't nuke it -- other
@@ -61,7 +61,7 @@ declare float @llvm.nearbyint.f32(float) nounwind readnone
 
 ; Test idempotent intrinsics
 define float @test_idempotence(float %a) {
-; CHECK: @test_idempotence
+; CHECK-LABEL: @test_idempotence(
 
 ; CHECK: fabs
 ; CHECK-NOT: fabs
@@ -101,3 +101,66 @@ define float @test_idempotence(float %a) {
 
   ret float %r4
 }
+
+define i8* @operator_new() {
+entry:
+  %call = tail call noalias i8* @_Znwm(i64 8)
+  %cmp = icmp eq i8* %call, null
+  br i1 %cmp, label %cast.end, label %cast.notnull
+
+cast.notnull:                                     ; preds = %entry
+  %add.ptr = getelementptr inbounds i8* %call, i64 4
+  br label %cast.end
+
+cast.end:                                         ; preds = %cast.notnull, %entry
+  %cast.result = phi i8* [ %add.ptr, %cast.notnull ], [ null, %entry ]
+  ret i8* %cast.result
+
+; CHECK-LABEL: @operator_new
+; CHECK: br i1 false, label %cast.end, label %cast.notnull
+}
+
+declare noalias i8* @_Znwm(i64)
+
+%"struct.std::nothrow_t" = type { i8 }
+@_ZSt7nothrow = external global %"struct.std::nothrow_t"
+
+define i8* @operator_new_nothrow_t() {
+entry:
+  %call = tail call noalias i8* @_ZnamRKSt9nothrow_t(i64 8, %"struct.std::nothrow_t"* @_ZSt7nothrow)
+  %cmp = icmp eq i8* %call, null
+  br i1 %cmp, label %cast.end, label %cast.notnull
+
+cast.notnull:                                     ; preds = %entry
+  %add.ptr = getelementptr inbounds i8* %call, i64 4
+  br label %cast.end
+
+cast.end:                                         ; preds = %cast.notnull, %entry
+  %cast.result = phi i8* [ %add.ptr, %cast.notnull ], [ null, %entry ]
+  ret i8* %cast.result
+
+; CHECK-LABEL: @operator_new_nothrow_t
+; CHECK: br i1 %cmp, label %cast.end, label %cast.notnull
+}
+
+declare i8* @_ZnamRKSt9nothrow_t(i64, %"struct.std::nothrow_t"*) nounwind
+
+define i8* @malloc_can_return_null() {
+entry:
+  %call = tail call noalias i8* @malloc(i64 8)
+  %cmp = icmp eq i8* %call, null
+  br i1 %cmp, label %cast.end, label %cast.notnull
+
+cast.notnull:                                     ; preds = %entry
+  %add.ptr = getelementptr inbounds i8* %call, i64 4
+  br label %cast.end
+
+cast.end:                                         ; preds = %cast.notnull, %entry
+  %cast.result = phi i8* [ %add.ptr, %cast.notnull ], [ null, %entry ]
+  ret i8* %cast.result
+
+; CHECK-LABEL: @malloc_can_return_null
+; CHECK: br i1 %cmp, label %cast.end, label %cast.notnull
+}
+
+declare noalias i8* @malloc(i64)

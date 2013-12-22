@@ -2,10 +2,16 @@ RUN: llvm-readobj -h %p/Inputs/trivial.obj.coff-i386 \
 RUN:   | FileCheck %s -check-prefix COFF32
 RUN: llvm-readobj -h %p/Inputs/trivial.obj.coff-x86-64 \
 RUN:   | FileCheck %s -check-prefix COFF64
+RUN: llvm-readobj -h %p/Inputs/trivial.exe.coff-i386 \
+RUN:   | FileCheck %s -check-prefix PE32
 RUN: llvm-readobj -h %p/Inputs/trivial.obj.elf-i386 \
 RUN:   | FileCheck %s -check-prefix ELF32
 RUN: llvm-readobj -h %p/Inputs/trivial.obj.elf-x86-64 \
 RUN:   | FileCheck %s -check-prefix ELF64
+RUN: llvm-readobj -h %p/Inputs/magic.coff-unknown \
+RUN:   | FileCheck %s -check-prefix COFF-UNKNOWN
+RUN: llvm-readobj -h %p/Inputs/magic.coff-importlib \
+RUN:   | FileCheck %s -check-prefix COFF-IMPORTLIB
 
 COFF32:      File: {{(.*[/\\])?}}trivial.obj.coff-i386
 COFF32-NEXT: Format: COFF-i386
@@ -98,3 +104,115 @@ ELF64-NEXT:   SectionHeaderEntrySize: 64
 ELF64-NEXT:   SectionHeaderCount: 10
 ELF64-NEXT:   StringTableSectionIndex: 7
 ELF64-NEXT: }
+
+PE32:      File: {{(.*[/\\])?}}trivial.exe.coff-i386
+PE32-NEXT: Format: COFF-i386
+PE32-NEXT: Arch: i386
+PE32-NEXT: AddressSize: 32bit
+PE32-NEXT: ImageFileHeader {
+PE32-NEXT:   Machine: IMAGE_FILE_MACHINE_I386 (0x14C)
+PE32-NEXT:   SectionCount: 3
+PE32-NEXT:   TimeDateStamp: 2013-07-16 00:39:15 (0x51E49633)
+PE32-NEXT:   PointerToSymbolTable: 0x0
+PE32-NEXT:   SymbolCount: 0
+PE32-NEXT:   OptionalHeaderSize: 224
+PE32-NEXT:   Characteristics [ (0x102)
+PE32-NEXT:     IMAGE_FILE_32BIT_MACHINE (0x100)
+PE32-NEXT:     IMAGE_FILE_EXECUTABLE_IMAGE (0x2)
+PE32-NEXT:   ]
+PE32-NEXT: }
+PE32-NEXT: ImageOptionalHeader {
+PE32-NEXT:   MajorLinkerVersion: 11
+PE32-NEXT:   MinorLinkerVersion: 0
+PE32-NEXT:   SizeOfCode: 512
+PE32-NEXT:   SizeOfInitializedData: 1024
+PE32-NEXT:   SizeOfUninitializedData: 0
+PE32-NEXT:   AddressOfEntryPoint: 0x1000
+PE32-NEXT:   BaseOfCode: 0x1000
+PE32-NEXT:   BaseOfData: 0x2000
+PE32-NEXT:   ImageBase: 0x400000
+PE32-NEXT:   SectionAlignment: 4096
+PE32-NEXT:   FileAlignment: 512
+PE32-NEXT:   MajorOperatingSystemVersion: 6
+PE32-NEXT:   MinorOperatingSystemVersion: 0
+PE32-NEXT:   MajorImageVersion: 0
+PE32-NEXT:   MinorImageVersion: 0
+PE32-NEXT:   MajorSubsystemVersion: 6
+PE32-NEXT:   MinorSubsystemVersion: 0
+PE32-NEXT:   SizeOfImage: 16384
+PE32-NEXT:   SizeOfHeaders: 1024
+PE32-NEXT:   Subsystem: IMAGE_SUBSYSTEM_WINDOWS_CUI (0x3)
+PE32-NEXT:   Subsystem [ (0x8140)
+PE32-NEXT:     IMAGE_DLL_CHARACTERISTICS_DYNAMIC_BASE (0x40)
+PE32-NEXT:     IMAGE_DLL_CHARACTERISTICS_NX_COMPAT (0x100)
+PE32-NEXT:     IMAGE_DLL_CHARACTERISTICS_TERMINAL_SERVER_AWARE (0x8000)
+PE32-NEXT:   ]
+PE32-NEXT:   SizeOfStackReserve: 1048576
+PE32-NEXT:   SizeOfStackCommit: 4096
+PE32-NEXT:   SizeOfHeapReserve: 1048576
+PE32-NEXT:   SizeOfHeapCommit: 4096
+PE32-NEXT:   NumberOfRvaAndSize: 16
+PE32-NEXT:   DataDirectory {
+PE32-NEXT:     ExportTableRVA: 0x0
+PE32-NEXT:     ExportTableSize: 0x0
+PE32-NEXT:     ImportTableRVA: 0x0
+PE32-NEXT:     ImportTableSize: 0x0
+PE32-NEXT:     ResourceTableRVA: 0x0
+PE32-NEXT:     ResourceTableSize: 0x0
+PE32-NEXT:     ExceptionTableRVA: 0x0
+PE32-NEXT:     ExceptionTableSize: 0x0
+PE32-NEXT:     CertificateTableRVA: 0x0
+PE32-NEXT:     CertificateTableSize: 0x0
+PE32-NEXT:     BaseRelocationTableRVA: 0x3000
+PE32-NEXT:     BaseRelocationTableSize: 0xC
+PE32-NEXT:     DebugRVA: 0x0
+PE32-NEXT:     DebugSize: 0x0
+PE32-NEXT:     ArchitectureRVA: 0x0
+PE32-NEXT:     ArchitectureSize: 0x0
+PE32-NEXT:     GlobalPtrRVA: 0x0
+PE32-NEXT:     GlobalPtrSize: 0x0
+PE32-NEXT:     TLSTableRVA: 0x0
+PE32-NEXT:     TLSTableSize: 0x0
+PE32-NEXT:     LoadConfigTableRVA: 0x0
+PE32-NEXT:     LoadConfigTableSize: 0x0
+PE32-NEXT:     BoundImportRVA: 0x0
+PE32-NEXT:     BoundImportSize: 0x0
+PE32-NEXT:     IATRVA: 0x0
+PE32-NEXT:     IATSize: 0x0
+PE32-NEXT:     DelayImportDescriptorRVA: 0x0
+PE32-NEXT:     DelayImportDescriptorSize: 0x0
+PE32-NEXT:     CLRRuntimeHeaderRVA: 0x0
+PE32-NEXT:     CLRRuntimeHeaderSize: 0x0
+PE32-NEXT:     ReservedRVA: 0x0
+PE32-NEXT:     ReservedSize: 0x0
+PE32-NEXT:   }
+PE32-NEXT: }
+
+COFF-UNKNOWN:      Format: COFF-<unknown arch>
+COFF-UNKNOWN-NEXT: Arch: unknown
+COFF-UNKNOWN-NEXT: AddressSize: 32bit
+COFF-UNKNOWN-NEXT: ImageFileHeader {
+COFF-UNKNOWN-NEXT:   Machine: IMAGE_FILE_MACHINE_UNKNOWN (0x0)
+COFF-UNKNOWN-NEXT:   SectionCount: 3
+COFF-UNKNOWN-NEXT:   TimeDateStamp: 2013-11-14 21:19:28 (0x52853E60)
+COFF-UNKNOWN-NEXT:   PointerToSymbolTable: 0xF8
+COFF-UNKNOWN-NEXT:   SymbolCount: 11
+COFF-UNKNOWN-NEXT:   OptionalHeaderSize: 0
+COFF-UNKNOWN-NEXT:   Characteristics [ (0x0)
+COFF-UNKNOWN-NEXT:   ]
+COFF-UNKNOWN-NEXT: }
+
+COFF-IMPORTLIB:      Format: COFF-<unknown arch>
+COFF-IMPORTLIB-NEXT: Arch: unknown
+COFF-IMPORTLIB-NEXT: AddressSize: 32bit
+COFF-IMPORTLIB-NEXT: ImageFileHeader {
+COFF-IMPORTLIB-NEXT:   Machine: IMAGE_FILE_MACHINE_UNKNOWN (0x0)
+COFF-IMPORTLIB-NEXT:   SectionCount: 65535
+COFF-IMPORTLIB-NEXT:   TimeDateStamp: 1970-09-09 19:52:32 (0x14C0000)
+COFF-IMPORTLIB-NEXT:   PointerToSymbolTable: 0x528542EB
+COFF-IMPORTLIB-NEXT:   SymbolCount: 20
+COFF-IMPORTLIB-NEXT:   OptionalHeaderSize: 0
+COFF-IMPORTLIB-NEXT:   Characteristics [ (0x8)
+COFF-IMPORTLIB-NEXT:     IMAGE_FILE_LOCAL_SYMS_STRIPPED (0x8)
+COFF-IMPORTLIB-NEXT:   ]
+COFF-IMPORTLIB-NEXT: }
