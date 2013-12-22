@@ -343,6 +343,14 @@
         by a snapshot, both copies of the block are kept even though
         both contain the same data.</para>
 
+      <sect4 xml:id="fs-zfs">
+	<title>ZFS</title>
+
+        <para revision="240868">TRIM support has been added for
+          ZFS.</para>
+
+      </sect4>
+
     </sect3>
 
   </sect2>
