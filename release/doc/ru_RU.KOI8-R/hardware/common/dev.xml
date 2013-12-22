@@ -7,7 +7,6 @@
 
      Original revision: 1.282
 -->
-
 <!--
 	The "Supported Devices" section of the release notes.
 	Generally processor-independent, with conditional text
@@ -35,13 +34,12 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 -->
-
-<sect1 id="support">
-  <sect1info>
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="support">
+  <info><title>Поддерживаемые устройства</title>
     <pubdate>$FreeBSD$</pubdate>
-  </sect1info>
+  </info>
 
-  <title>Поддерживаемые устройства</title>
+  
 
   <para>В этом разделе описаны устройства, поддерживаемые &os; на платформе
     &arch.print;.  Другие конфигурации также могут работать, они просто еще
@@ -62,7 +60,7 @@
       появляться несколько раз.</para>
   </note>
 
-  <sect2 id="disk">
+  <sect2 xml:id="disk">
     <title>Контроллеры дисков</title>
 
     <para arch="i386,alpha,sparc64,ia64,pc98,amd64">IDE/ATA контроллеры
@@ -176,7 +174,7 @@
       CD-ROM, поддерживаются с доступом только для чтения приводами CD-ROM
       (такими как &man.cd.4;).  Поддержка записи WORM/CD-R/CD-RW
       предоставляется &man.cdrecord.1;, который является частью порта
-      <filename role="package">sysutils/cdrtools</filename> из коллекции
+      <package>sysutils/cdrtools</package> из коллекции
       портов.</para>
 
     <para>На данный момент поддерживаются следующие системы CD-ROM
@@ -213,7 +211,7 @@
     </para>
 
   </sect2>
-  <sect2 id="ethernet">
+  <sect2 xml:id="ethernet">
     <title>Ethernet интерфейсы</title>
 
     &hwlist.sf;
@@ -311,13 +309,13 @@
 
   </sect2>
 
-  <sect2 id="fddi">
+  <sect2 xml:id="fddi">
     <title>FDDI интерфейсы</title>
     <para arch="i386,pc98,alpha">DEC DEFPA PCI (драйвер &man.fpa.4;)</para>
     <para arch="i386">DEC DEFEA EISA (драйвер &man.fpa.4;)</para>
   </sect2>
 
-  <sect2 id="atm">
+  <sect2 xml:id="atm">
     <title>ATM интерфейсы</title>
 
     <para arch="i386,pc98">Midway ATM интерфейсы (драйвер &man.en.4;)</para>
@@ -335,7 +333,7 @@
       &man.patm.4;)</para>
 
   </sect2>
-  <sect2 id="wlan">
+  <sect2 xml:id="wlan">
     <title>Беспроводные сетевые интерфейсы</title>
 
     <para arch="i386">NCR / AT&amp;T / Lucent Technologies WaveLan T1-speed
@@ -359,7 +357,7 @@
 
   </sect2>
 
-  <sect2 id="misc-network">
+  <sect2 xml:id="misc-network">
     <title>Различные сетевые устройства</title>
 
     &hwlist.cx;
@@ -378,7 +376,7 @@
 
   </sect2>
 
-  <sect2 id="isdn">
+  <sect2 xml:id="isdn">
     <title>ISDN интерфейсы</title>
     <para arch="i386">AcerISDN P10 ISA PnP (экспериментальный)</para>
     <para arch="i386">Asuscom ISDNlink 128K ISA</para>
@@ -472,7 +470,7 @@
     <para arch="i386">Winbond W6692 based PCI карты</para>
   </sect2>
 
-  <sect2 id="serial">
+  <sect2 xml:id="serial">
     <title>Последовательные интерфейсы</title>
 
     <para arch="i386,alpha,ia64,amd64"><quote>PC standard</quote> 8250, 16450,
@@ -672,7 +670,7 @@
       </note>
 
   </sect2>
-  <sect2 id="sound">
+  <sect2 xml:id="sound">
     <title>Звуковые устройства</title>
 
     &hwlist.snd.ad1816;
@@ -744,7 +742,7 @@
     </para>
   </sect2>
 
-  <sect2 id="camera">
+  <sect2 xml:id="camera">
     <title>Камеры и устройства видеозахвата</title>
 
     &hwlist.bktr;
@@ -752,7 +750,7 @@
     <para arch="i386">Connectix QuickCam</para>
   </sect2>
 
-  <sect2 id="usb">
+  <sect2 xml:id="usb">
     <title>Устройства USB</title>
 
     <para arch="alpha,i386,pc98,amd64">Поддерживается большой диапазон USB
@@ -762,13 +760,11 @@
       работать, даже если оно явно не приведено здесь.</para>
 
     <note arch="alpha,i386,pc98,amd64">
-      <para>USB Ethernet адаптеры могут быть найдены в разделе <link
-      linkend="ethernet">Ethernet интерфейсы</link>.</para>
+      <para>USB Ethernet адаптеры могут быть найдены в разделе <link linkend="ethernet">Ethernet интерфейсы</link>.</para>
     </note>
 
     <note arch="alpha,i386,pc98,amd64">
-      <para>USB Bluetooth адаптеры могут быть найдены в разделе <link
-      linkend="bluetooth">Bluetooth</link>.</para>
+      <para>USB Bluetooth адаптеры могут быть найдены в разделе <link linkend="bluetooth">Bluetooth</link>.</para>
     </note>
 
     &hwlist.ohci;
@@ -830,7 +826,7 @@
 
  </sect2>
 
-  <sect2 id="firewire">
+  <sect2 xml:id="firewire">
     <title>IEEE 1394 (Firewire) устройства</title>
 
     &hwlist.fwohci;
@@ -840,7 +836,7 @@
 
   </sect2>
 
-  <sect2 id="bluetooth">
+  <sect2 xml:id="bluetooth">
     <title>Bluetooth устройства</title>
 
     &hwlist.ng.bt3c;
@@ -849,7 +845,7 @@
 
   </sect2>
 
-  <sect2 id="crypto-accel">
+  <sect2 xml:id="crypto-accel">
     <title>Криптографические акселераторы</title>
 
     &hwlist.hifn;
@@ -860,7 +856,7 @@
 
   </sect2>
 
-  <sect2 id="misc">
+  <sect2 xml:id="misc">
     <title>Другие устройства</title>
 
     <para arch="i386,pc98,amd64">Факс-модем/PCCARD
@@ -882,8 +878,7 @@
       <note>
 	<para>Информация, относящаяся к отдельным видеокартам и
 	  совместимости с <application>Xorg</application>, может быть
-	  найдена на <ulink
-	  url="http://www.x.org/"></ulink>.</para>
+	  найдена на <uri xlink:href="http://www.x.org/">http://www.x.org/</uri>.</para>
       </note>
 
       </para>
@@ -927,7 +922,7 @@
 	  информация по использованию курсорных устройств в &os;.
 	  Информация по использованию курсорных устройств с
 	  <application>Xorg</application> может быть найдена по
-	  адресу <ulink url="http://www.x.org/"></ulink>.</para>
+	  адресу <uri xlink:href="http://www.x.org/">http://www.x.org/</uri>.</para>
       </note>
     </para>
 
@@ -955,8 +950,8 @@
     </para>
 
     <para arch="i386">Xilinx XC6200 перенастраиваемые аппаратные карты,
-      совместимые с HOT1 от <ulink url="http://www.vcc.com/">Virtual
-      Computers</ulink> (драйвер xrpu).</para>
+      совместимые с HOT1 от <link xlink:href="http://www.vcc.com/">Virtual
+      Computers</link> (драйвер xrpu).</para>
 
     <para arch="pc98">Power Management Controller на NEC PC-98 Note (драйвер
       pmc)</para>

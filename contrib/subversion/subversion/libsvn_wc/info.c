@@ -548,7 +548,7 @@ svn_wc__get_info(svn_wc_context_t *wc_ctx,
                                                   &repos_uuid,
                                                   wc_ctx->db,
                                                   svn_dirent_dirname(
-                                                            local_abspath,
+                                                            this_abspath,
                                                             iterpool),
                                                   scratch_pool,
                                                   iterpool));

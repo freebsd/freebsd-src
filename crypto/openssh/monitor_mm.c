@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_mm.c,v 1.17 2013/05/17 00:13:13 djm Exp $ */
+/* $OpenBSD: monitor_mm.c,v 1.18 2013/11/08 00:39:15 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
@@ -65,7 +65,7 @@ mm_make_entry(struct mm_master *mm, struct mmtree *head,
 	struct mm_share *tmp, *tmp2;
 
 	if (mm->mmalloc == NULL)
-		tmp = xmalloc(sizeof(struct mm_share));
+		tmp = xcalloc(1, sizeof(struct mm_share));
 	else
 		tmp = mm_xmalloc(mm->mmalloc, sizeof(struct mm_share));
 	tmp->address = address;
@@ -88,7 +88,7 @@ mm_create(struct mm_master *mmalloc, size_t size)
 	struct mm_master *mm;
 
 	if (mmalloc == NULL)
-		mm = xmalloc(sizeof(struct mm_master));
+		mm = xcalloc(1, sizeof(struct mm_master));
 	else
 		mm = mm_xmalloc(mmalloc, sizeof(struct mm_master));
 
@@ -161,6 +161,7 @@ mm_xmalloc(struct mm_master *mm, size_t size)
 	address = mm_malloc(mm, size);
 	if (address == NULL)
 		fatal("%s: mm_malloc(%lu)", __func__, (u_long)size);
+	memset(address, 0, size);
 	return (address);
 }
 

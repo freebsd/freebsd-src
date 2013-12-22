@@ -701,7 +701,23 @@ svn_client_update4(apr_array_header_t **result_revs,
 
  cleanup:
   if (sleep)
-    svn_io_sleep_for_timestamps((paths->nelts == 1) ? path : NULL, pool);
+    {
+      const char *wcroot_abspath;
+
+      if (paths->nelts == 1)
+        {
+          const char *abspath;
+
+          /* PATH iteslf may have been removed by the update. */
+          SVN_ERR(svn_dirent_get_absolute(&abspath, path, pool));
+          SVN_ERR(svn_wc__get_wcroot(&wcroot_abspath, ctx->wc_ctx, abspath,
+                                     pool, pool));
+        }
+      else
+        wcroot_abspath = NULL;
+
+      svn_io_sleep_for_timestamps(wcroot_abspath, pool);
+    }
 
   return svn_error_trace(err);
 }

@@ -30,6 +30,7 @@
 LIB=		atf-c
 SHLIB_MAJOR=	1
 
+ATF=		${.CURDIR:H:H:H}/contrib/atf
 .PATH:		${ATF}
 .PATH:		${ATF}/atf-c
 .PATH:		${ATF}/atf-c/detail
@@ -72,5 +73,9 @@ INCS+=		atf-c.h
 INCSDIR_atf-c.h= ${INCLUDEDIR}
 
 MAN=		atf-c-api.3
+
+.if ${MK_TESTS} != "no"
+SUBDIR=		tests
+.endif
 
 .include <bsd.lib.mk>

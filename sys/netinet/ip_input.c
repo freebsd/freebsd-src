@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipfw.h"
 #include "opt_ipstealth.h"
 #include "opt_ipsec.h"
-#include "opt_kdtrace.h"
 #include "opt_route.h"
 
 #include <sys/param.h>
@@ -603,7 +602,9 @@ passin:
 		 */
 		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr && 
 		    (!checkif || ia->ia_ifp == ifp)) {
-			ifa_ref(&ia->ia_ifa);
+			counter_u64_add(ia->ia_ifa.ifa_ipackets, 1);
+			counter_u64_add(ia->ia_ifa.ifa_ibytes,
+			    m->m_pkthdr.len);
 			/* IN_IFADDR_RUNLOCK(); */
 			goto ours;
 		}
@@ -626,13 +627,17 @@ passin:
 			ia = ifatoia(ifa);
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
 			    ip->ip_dst.s_addr) {
-				ifa_ref(ifa);
+				counter_u64_add(ia->ia_ifa.ifa_ipackets, 1);
+				counter_u64_add(ia->ia_ifa.ifa_ibytes,
+				    m->m_pkthdr.len);
 				IF_ADDR_RUNLOCK(ifp);
 				goto ours;
 			}
 #ifdef BOOTP_COMPAT
 			if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY) {
-				ifa_ref(ifa);
+				counter_u64_add(ia->ia_ifa.ifa_ipackets, 1);
+				counter_u64_add(ia->ia_ifa.ifa_ibytes,
+				    m->m_pkthdr.len);
 				IF_ADDR_RUNLOCK(ifp);
 				goto ours;
 			}
@@ -717,19 +722,9 @@ ours:
 	 * IPSTEALTH: Process non-routing options only
 	 * if the packet is destined for us.
 	 */
-	if (V_ipstealth && hlen > sizeof (struct ip) && ip_dooptions(m, 1)) {
-		if (ia != NULL)
-			ifa_free(&ia->ia_ifa);
+	if (V_ipstealth && hlen > sizeof (struct ip) && ip_dooptions(m, 1))
 		return;
-	}
 #endif /* IPSTEALTH */
-
-	/* Count the packet in the ip address stats */
-	if (ia != NULL) {
-		ia->ia_ifa.if_ipackets++;
-		ia->ia_ifa.if_ibytes += m->m_pkthdr.len;
-		ifa_free(&ia->ia_ifa);
-	}
 
 	/*
 	 * Attempt reassembly; if it succeeds, proceed.

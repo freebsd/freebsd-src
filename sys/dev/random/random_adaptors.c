@@ -104,12 +104,13 @@ void
 random_adaptor_choose(struct random_adaptor **adaptor)
 {
 	char			 rngs[128], *token, *cp;
-	struct random_adaptors  *rpp;
+	struct random_adaptors	*rppi, *ramax;
+	unsigned		 primax;
 
 	KASSERT(adaptor != NULL, ("pre-conditions failed"));
 
 	*adaptor = NULL;
-	if (TUNABLE_STR_FETCH("rngs_want", rngs, sizeof(rngs))) {
+	if (TUNABLE_STR_FETCH("kern.random.active_adaptor", rngs, sizeof(rngs))) {
 		cp = rngs;
 
 		while ((token = strsep(&cp, ",")) != NULL)
@@ -120,16 +121,23 @@ random_adaptor_choose(struct random_adaptor **adaptor)
 				    " skipping\n", token);
 	}
 
+	primax = 0U;
 	if (*adaptor == NULL) {
 		/*
-		 * Fallback to the first thing that's on the list of
-		 * available RNGs.
+		 * Fall back to the highest priority item on the available
+		 * RNG list.
 		 */
 		sx_slock(&adaptors_lock);
 
-		rpp = LIST_FIRST(&adaptors);
-		if (rpp != NULL)
-			*adaptor = rpp->rsp;
+		ramax = NULL;
+		LIST_FOREACH(rppi, &adaptors, entries) {
+			if (rppi->rsp->priority >= primax) {
+				ramax = rppi;
+				primax = rppi->rsp->priority;
+			}
+		}
+		if (ramax != NULL)
+			*adaptor = ramax->rsp;
 
 		sx_sunlock(&adaptors_lock);
 

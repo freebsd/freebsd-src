@@ -136,6 +136,7 @@ device		em		# Intel PRO/1000 Gigabit Ethernet Family
 device		igb		# Intel PRO/1000 PCIE Server Gigabit Family
 device		ixgbe		# Intel PRO/10GbE PCIE Ethernet Family
 device		glc		# Sony Playstation 3 Ethernet
+device		llan		# IBM pSeries Virtual Ethernet
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus		# MII bus support

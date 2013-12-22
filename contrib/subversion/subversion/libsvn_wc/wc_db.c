@@ -2248,6 +2248,12 @@ db_base_remove(svn_wc__db_wcroot_t *wcroot,
        * might introduce actual-only nodes without direct parents,
        * and we're not yet sure if other existing code is prepared
        * to handle such nodes. To be revisited post-1.8.
+       *
+       * ### In case of a conflict we are most likely creating WORKING nodes
+       *     describing a copy of what was in BASE. The move information
+       *     should be updated to describe a move from the WORKING layer.
+       *     When stored that way the resolver of the tree conflict still has
+       *     the knowledge of what was moved.
        */
       SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
                                         STMT_SELECT_MOVED_OUTSIDE));
@@ -6388,6 +6394,7 @@ op_revert_txn(void *baton,
     {
       SVN_ERR(svn_wc__db_resolve_break_moved_away_internal(wcroot,
                                                            local_relpath,
+                                                           op_depth,
                                                            scratch_pool));
     }
   else
@@ -6554,10 +6561,12 @@ op_revert_recursive_txn(void *baton,
   while (have_row)
     {
       const char *move_src_relpath = svn_sqlite__column_text(stmt, 0, NULL);
+      int move_op_depth = svn_sqlite__column_int(stmt, 2);
       svn_error_t *err;
 
       err = svn_wc__db_resolve_break_moved_away_internal(wcroot,
                                                          move_src_relpath,
+                                                         move_op_depth,
                                                          scratch_pool);
       if (err)
         return svn_error_compose_create(err, svn_sqlite__reset(stmt));

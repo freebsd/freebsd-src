@@ -70,8 +70,10 @@ extern int vm_guest;		/* Running as virtual machine guest? */
  * Detected virtual machine guest types. The intention is to expand
  * and/or add to the VM_GUEST_VM type if specific VM functionality is
  * ever implemented (e.g. vendor-specific paravirtualization features).
+ * Keep in sync with vm_guest_sysctl_names[].
  */
-enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
+enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN, VM_GUEST_HV,
+		VM_LAST };
 
 #if defined(WITNESS) || defined(INVARIANTS)
 void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
@@ -146,7 +148,9 @@ extern const void *zero_region;	/* address space maps to a zeroed page	*/
 
 extern int unmapped_buf_allowed;
 extern int iosize_max_clamp;
+extern int devfs_iosize_max_clamp;
 #define	IOSIZE_MAX	(iosize_max_clamp ? INT_MAX : SSIZE_MAX)
+#define	DEVFS_IOSIZE_MAX	(devfs_iosize_max_clamp ? INT_MAX : SSIZE_MAX)
 
 /*
  * General function declarations.

@@ -14,7 +14,6 @@
 #include <string>
 #include <map>
 
-#include <getopt.h>
 #include <stdlib.h>
 #include <ctype.h>
 
@@ -1099,6 +1098,7 @@ CommandObject::g_arguments_data[] =
     { eArgTypeCount, "count", CommandCompletions::eNoCompletion, { NULL, false }, "An unsigned integer." },
     { eArgTypeDirectoryName, "directory", CommandCompletions::eDiskDirectoryCompletion, { NULL, false }, "A directory name." },
     { eArgTypeDisassemblyFlavor, "disassembly-flavor", CommandCompletions::eNoCompletion, { NULL, false }, "A disassembly flavor recognized by your disassembly plugin.  Currently the only valid options are \"att\" and \"intel\" for Intel targets" },
+    { eArgTypeDescriptionVerbosity, "description-verbosity", CommandCompletions::eNoCompletion, { NULL, false }, "How verbose the output of 'po' should be." },
     { eArgTypeEndAddress, "end-address", CommandCompletions::eNoCompletion, { NULL, false }, "Help text goes here." },
     { eArgTypeExpression, "expr", CommandCompletions::eNoCompletion, { NULL, false }, "Help text goes here." },
     { eArgTypeExpressionPath, "expr-path", CommandCompletions::eNoCompletion, { ExprPathHelpTextCallback, true }, NULL },
@@ -1123,6 +1123,9 @@ CommandObject::g_arguments_data[] =
     { eArgTypeOffset, "offset", CommandCompletions::eNoCompletion, { NULL, false }, "Help text goes here." },
     { eArgTypeOldPathPrefix, "old-path-prefix", CommandCompletions::eNoCompletion, { NULL, false }, "Help text goes here." },
     { eArgTypeOneLiner, "one-line-command", CommandCompletions::eNoCompletion, { NULL, false }, "A command that is entered as a single line of text." },
+    { eArgTypePath, "path", CommandCompletions::eDiskFileCompletion, { NULL, false }, "Path." },
+    { eArgTypePermissionsNumber, "perms-numeric", CommandCompletions::eNoCompletion, { NULL, false }, "Permissions given as an octal number (e.g. 755)." },
+    { eArgTypePermissionsString, "perms=string", CommandCompletions::eNoCompletion, { NULL, false }, "Permissions given as a string value (e.g. rw-r-xr--)." },
     { eArgTypePid, "pid", CommandCompletions::eNoCompletion, { NULL, false }, "The process ID number." },
     { eArgTypePlugin, "plugin", CommandCompletions::eNoCompletion, { NULL, false }, "Help text goes here." },
     { eArgTypeProcessName, "process-name", CommandCompletions::eNoCompletion, { NULL, false }, "The name of the process." },

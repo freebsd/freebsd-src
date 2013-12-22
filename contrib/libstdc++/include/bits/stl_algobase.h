@@ -373,7 +373,7 @@ _GLIBCXX_BEGIN_NAMESPACE(std)
    *  @param  first  An input iterator.
    *  @param  last   An input iterator.
    *  @param  result An output iterator.
-   *  @return   result + (first - last)
+   *  @return   result + (last - first)
    *
    *  This inline function will boil down to a call to @c memmove whenever
    *  possible.  Failing that, if random access iterators are passed, then the

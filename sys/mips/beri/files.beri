@@ -1,4 +1,7 @@
 # $FreeBSD$
+dev/altera/atse/if_atse.c		optional altera_atse
+dev/altera/atse/if_atse_fdt.c		optional altera_atse fdt
+dev/altera/atse/if_atse_nexus.c		optional altera_atse
 dev/altera/jtag_uart/altera_jtag_uart_cons.c	optional altera_jtag_uart
 dev/altera/jtag_uart/altera_jtag_uart_tty.c	optional altera_jtag_uart
 dev/altera/jtag_uart/altera_jtag_uart_fdt.c	optional altera_jtag_uart fdt
@@ -14,5 +17,6 @@ dev/terasic/mtl/terasic_mtl_reg.c	optional terasic_mtl
 dev/terasic/mtl/terasic_mtl_syscons.c	optional terasic_mtl
 dev/terasic/mtl/terasic_mtl_text.c	optional terasic_mtl
 mips/beri/beri_machdep.c		standard
+mips/beri/beri_pic.c			optional fdt
 mips/mips/intr_machdep.c		standard
 mips/mips/tick.c			standard

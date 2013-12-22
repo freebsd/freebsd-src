@@ -16,7 +16,7 @@ arm/allwinner/a10_ehci.c		optional	ehci
 arm/allwinner/a10_wdog.c		standard
 arm/allwinner/timer.c			standard
 arm/allwinner/aintc.c			standard
-arm/allwinner/bus_space.c		standard
+arm/arm/bus_space-v6.c			standard
 arm/allwinner/common.c			standard
 #arm/allwinner/console.c			standard
 arm/allwinner/a10_machdep.c		standard

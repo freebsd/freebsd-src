@@ -29,7 +29,7 @@
 : ${DIALOG_OK=0}
 
 if [ -f $BSDINSTALL_TMPETC/rc.conf.services ]; then
-	eval `sed -e s/YES/on/I -e s/NO/off/I $BSDINSTALL_TMPETC/rc.conf.services`
+	eval `sed -e s/YES/on/i -e s/NO/off/i $BSDINSTALL_TMPETC/rc.conf.services`
 else
 	# Default service states. Everything is off if not enabled.
 	sshd_enable="on"
@@ -50,13 +50,12 @@ DAEMONS=$(dialog --backtitle "FreeBSD Installer" \
 2>&1 1>&3)
 exec 3>&-
 
-local havedump=
+havedump=
 for daemon in $DAEMONS; do
 	if [ "$daemon" == "dumpdev" ]; then
 		havedump=1
-		echo \# Set dumpdev to \"AUTO\" to enable crash dumps, \
-			\"NO\" to disable >> \ 
-			$BSDINSTALL_TMPETC/rc.conf.services
+		echo '# Set dumpdev to "AUTO" to enable crash dumps, "NO"' \
+		     'to disable' >> $BSDINSTALL_TMPETC/rc.conf.services
 		echo dumpdev=\"AUTO\" >> $BSDINSTALL_TMPETC/rc.conf.services
 		continue
 	fi

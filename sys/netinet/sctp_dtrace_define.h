@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #ifndef _NETINET_SCTP_DTRACE_DEFINE_H_
 #define _NETINET_SCTP_DTRACE_DEFINE_H_
 
-#include "opt_kdtrace.h"
 #include <sys/kernel.h>
 #include <sys/sdt.h>
 
@@ -45,7 +44,7 @@ SDT_PROVIDER_DEFINE(sctp);
 /* Cwnd probe - tracks changes in the congestion window on a netp */
 /********************************************************/
 /* Initial */
-SDT_PROBE_DEFINE5(sctp, cwnd, net, init, init,
+SDT_PROBE_DEFINE5(sctp, cwnd, net, init,
     "uint32_t",		/* The Vtag for this end */
     "uint32_t",		/*
 			 * The port number of the local side << 16 | port number
@@ -56,7 +55,7 @@ SDT_PROBE_DEFINE5(sctp, cwnd, net, init, init,
     "int");		/* The new value of the cwnd */
 
 /* ACK-INCREASE */
-SDT_PROBE_DEFINE5(sctp, cwnd, net, ack, ack,
+SDT_PROBE_DEFINE5(sctp, cwnd, net, ack,
     "uint32_t",		/* The Vtag for this end */
     "uint32_t",		/*
 			 * The port number of the local side << 16 | port number
@@ -67,14 +66,14 @@ SDT_PROBE_DEFINE5(sctp, cwnd, net, ack, ack,
     "int");		/* The new value of the cwnd */
 
 /* ACK-INCREASE */
-SDT_PROBE_DEFINE5(sctp, cwnd, net, rttvar, rttvar,
+SDT_PROBE_DEFINE5(sctp, cwnd, net, rttvar,
     "uint64_t",		/* The Vtag << 32 | localport << 16 | remoteport */
     "uint64_t",		/* obw | nbw */
     "uint64_t",		/* bwrtt | newrtt */
     "uint64_t",		/* flight */
     "uint64_t");	/* (cwnd << 32) | point << 16 | retval(0/1) */
 
-SDT_PROBE_DEFINE5(sctp, cwnd, net, rttstep, rttstep,
+SDT_PROBE_DEFINE5(sctp, cwnd, net, rttstep,
     "uint64_t",		/* The Vtag << 32 | localport << 16 | remoteport */
     "uint64_t",		/* obw | nbw */
     "uint64_t",		/* bwrtt | newrtt */
@@ -82,7 +81,7 @@ SDT_PROBE_DEFINE5(sctp, cwnd, net, rttstep, rttstep,
     "uint64_t");	/* (cwnd << 32) | point << 16 | retval(0/1) */
 
 /* FastRetransmit-DECREASE */
-SDT_PROBE_DEFINE5(sctp, cwnd, net, fr, fr,
+SDT_PROBE_DEFINE5(sctp, cwnd, net, fr,
     "uint32_t",		/* The Vtag for this end */
     "uint32_t",		/*
 			 * The port number of the local side << 16 | port number
@@ -93,7 +92,7 @@ SDT_PROBE_DEFINE5(sctp, cwnd, net, fr, fr,
     "int");		/* The new value of the cwnd */
 
 /* TimeOut-DECREASE */
-SDT_PROBE_DEFINE5(sctp, cwnd, net, to, to,
+SDT_PROBE_DEFINE5(sctp, cwnd, net, to,
     "uint32_t",		/* The Vtag for this end */
     "uint32_t",		/*
 			 * The port number of the local side << 16 | port number
@@ -104,7 +103,7 @@ SDT_PROBE_DEFINE5(sctp, cwnd, net, to, to,
     "int");		/* The new value of the cwnd */
 
 /* BurstLimit-DECREASE */
-SDT_PROBE_DEFINE5(sctp, cwnd, net, bl, bl,
+SDT_PROBE_DEFINE5(sctp, cwnd, net, bl,
     "uint32_t",		/* The Vtag for this end */
     "uint32_t",		/*
 			 * The port number of the local side << 16 | port number
@@ -115,7 +114,7 @@ SDT_PROBE_DEFINE5(sctp, cwnd, net, bl, bl,
     "int");		/* The new value of the cwnd */
 
 /* ECN-DECREASE */
-SDT_PROBE_DEFINE5(sctp, cwnd, net, ecn, ecn,
+SDT_PROBE_DEFINE5(sctp, cwnd, net, ecn,
     "uint32_t",		/* The Vtag for this end */
     "uint32_t",		/*
 			 * The port number of the local side << 16 | port number
@@ -126,7 +125,7 @@ SDT_PROBE_DEFINE5(sctp, cwnd, net, ecn, ecn,
     "int");		/* The new value of the cwnd */
 
 /* PacketDrop-DECREASE */
-SDT_PROBE_DEFINE5(sctp, cwnd, net, pd, pd,
+SDT_PROBE_DEFINE5(sctp, cwnd, net, pd,
     "uint32_t",		/* The Vtag for this end */
     "uint32_t",		/*
 			 * The port number of the local side << 16 | port number
@@ -139,7 +138,7 @@ SDT_PROBE_DEFINE5(sctp, cwnd, net, pd, pd,
 /********************************************************/
 /* Rwnd probe - tracks changes in the receiver window for an assoc */
 /********************************************************/
-SDT_PROBE_DEFINE4(sctp, rwnd, assoc, val, val,
+SDT_PROBE_DEFINE4(sctp, rwnd, assoc, val,
     "uint32_t",		/* The Vtag for this end */
     "uint32_t",		/*
 			 * The port number of the local side << 16 | port number
@@ -151,7 +150,7 @@ SDT_PROBE_DEFINE4(sctp, rwnd, assoc, val, val,
 /********************************************************/
 /* flight probe - tracks changes in the flight size on a net or assoc */
 /********************************************************/
-SDT_PROBE_DEFINE5(sctp, flightsize, net, val, val,
+SDT_PROBE_DEFINE5(sctp, flightsize, net, val,
     "uint32_t",		/* The Vtag for this end */
     "uint32_t",		/*
 			 * The port number of the local side << 16 | port number
@@ -164,7 +163,7 @@ SDT_PROBE_DEFINE5(sctp, flightsize, net, val, val,
 /********************************************************/
 /* The total flight version */
 /********************************************************/
-SDT_PROBE_DEFINE4(sctp, flightsize, assoc, val, val,
+SDT_PROBE_DEFINE4(sctp, flightsize, assoc, val,
     "uint32_t",		/* The Vtag for this end */
     "uint32_t",		/*
 			 * The port number of the local side << 16 | port number

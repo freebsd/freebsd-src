@@ -14,6 +14,7 @@
 
 #include <string>
 
+#include "llvm/Support/COFF.h"
 #include "llvm/Support/ELF.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/MachO.h"
@@ -55,6 +56,7 @@ static const CoreDefinition g_core_definitions[ArchSpec::kNumCores] =
     { eByteOrderLittle, 4, 2, 4, llvm::Triple::arm    , ArchSpec::eCore_arm_armv5e      , "armv5e"    },
     { eByteOrderLittle, 4, 2, 4, llvm::Triple::arm    , ArchSpec::eCore_arm_armv5t      , "armv5t"    },
     { eByteOrderLittle, 4, 2, 4, llvm::Triple::arm    , ArchSpec::eCore_arm_armv6       , "armv6"     },
+    { eByteOrderLittle, 4, 2, 4, llvm::Triple::arm    , ArchSpec::eCore_arm_armv6m      , "armv6m"    },
     { eByteOrderLittle, 4, 2, 4, llvm::Triple::arm    , ArchSpec::eCore_arm_armv7       , "armv7"     },
     { eByteOrderLittle, 4, 2, 4, llvm::Triple::arm    , ArchSpec::eCore_arm_armv7f      , "armv7f"    },
     { eByteOrderLittle, 4, 2, 4, llvm::Triple::arm    , ArchSpec::eCore_arm_armv7s      , "armv7s"    },
@@ -67,13 +69,15 @@ static const CoreDefinition g_core_definitions[ArchSpec::kNumCores] =
     { eByteOrderLittle, 4, 2, 4, llvm::Triple::thumb  , ArchSpec::eCore_thumbv5         , "thumbv5"   },
     { eByteOrderLittle, 4, 2, 4, llvm::Triple::thumb  , ArchSpec::eCore_thumbv5e        , "thumbv5e"  },
     { eByteOrderLittle, 4, 2, 4, llvm::Triple::thumb  , ArchSpec::eCore_thumbv6         , "thumbv6"   },
+    { eByteOrderLittle, 4, 2, 4, llvm::Triple::thumb  , ArchSpec::eCore_thumbv6m        , "thumbv6m"  },
     { eByteOrderLittle, 4, 2, 4, llvm::Triple::thumb  , ArchSpec::eCore_thumbv7         , "thumbv7"   },
     { eByteOrderLittle, 4, 2, 4, llvm::Triple::thumb  , ArchSpec::eCore_thumbv7f        , "thumbv7f"  },
     { eByteOrderLittle, 4, 2, 4, llvm::Triple::thumb  , ArchSpec::eCore_thumbv7s        , "thumbv7s"  },
     { eByteOrderLittle, 4, 2, 4, llvm::Triple::thumb  , ArchSpec::eCore_thumbv7k        , "thumbv7k"  },
     { eByteOrderLittle, 4, 2, 4, llvm::Triple::thumb  , ArchSpec::eCore_thumbv7m        , "thumbv7m"  },
     { eByteOrderLittle, 4, 2, 4, llvm::Triple::thumb  , ArchSpec::eCore_thumbv7em       , "thumbv7em" },
-    
+
+    { eByteOrderBig   , 8, 4, 4, llvm::Triple::mips64 , ArchSpec::eCore_mips64          , "mips64"    },
     
     { eByteOrderBig   , 4, 4, 4, llvm::Triple::ppc    , ArchSpec::eCore_ppc_generic     , "ppc"       },
     { eByteOrderBig   , 4, 4, 4, llvm::Triple::ppc    , ArchSpec::eCore_ppc_ppc601      , "ppc601"    },
@@ -159,6 +163,7 @@ static const ArchDefinitionEntry g_macho_arch_entries[] =
     { ArchSpec::eCore_arm_armv4       , llvm::MachO::CPUTypeARM       , 5      , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_arm_armv4t      , llvm::MachO::CPUTypeARM       , 5      , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_arm_armv6       , llvm::MachO::CPUTypeARM       , 6      , UINT32_MAX , SUBTYPE_MASK },
+    { ArchSpec::eCore_arm_armv6m      , llvm::MachO::CPUTypeARM       , 14     , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_arm_armv5       , llvm::MachO::CPUTypeARM       , 7      , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_arm_armv5e      , llvm::MachO::CPUTypeARM       , 7      , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_arm_armv5t      , llvm::MachO::CPUTypeARM       , 7      , UINT32_MAX , SUBTYPE_MASK },
@@ -174,6 +179,7 @@ static const ArchDefinitionEntry g_macho_arch_entries[] =
     { ArchSpec::eCore_thumbv5         , llvm::MachO::CPUTypeARM       , 7      , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_thumbv5e        , llvm::MachO::CPUTypeARM       , 7      , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_thumbv6         , llvm::MachO::CPUTypeARM       , 6      , UINT32_MAX , SUBTYPE_MASK },
+    { ArchSpec::eCore_thumbv6m        , llvm::MachO::CPUTypeARM       , 14     , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_thumbv7         , llvm::MachO::CPUTypeARM       , 9      , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_thumbv7f        , llvm::MachO::CPUTypeARM       , 10     , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_thumbv7s        , llvm::MachO::CPUTypeARM       , 11     , UINT32_MAX , SUBTYPE_MASK },
@@ -228,7 +234,8 @@ static const ArchDefinitionEntry g_elf_arch_entries[] =
     { ArchSpec::eCore_ppc64_generic   , llvm::ELF::EM_PPC64  , LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // PowerPC64
     { ArchSpec::eCore_arm_generic     , llvm::ELF::EM_ARM    , LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // ARM
     { ArchSpec::eCore_sparc9_generic  , llvm::ELF::EM_SPARCV9, LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // SPARC V9
-    { ArchSpec::eCore_x86_64_x86_64   , llvm::ELF::EM_X86_64 , LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }  // AMD64
+    { ArchSpec::eCore_x86_64_x86_64   , llvm::ELF::EM_X86_64 , LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // AMD64
+    { ArchSpec::eCore_mips64          , llvm::ELF::EM_MIPS   , LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }  // MIPS
 };
 
 static const ArchDefinition g_elf_arch_def = {
@@ -238,11 +245,30 @@ static const ArchDefinition g_elf_arch_def = {
     "elf",
 };
 
+static const ArchDefinitionEntry g_coff_arch_entries[] =
+{
+    { ArchSpec::eCore_x86_32_i386  , llvm::COFF::IMAGE_FILE_MACHINE_I386     , LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // Intel 80386
+    { ArchSpec::eCore_ppc_generic  , llvm::COFF::IMAGE_FILE_MACHINE_POWERPC  , LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // PowerPC
+    { ArchSpec::eCore_ppc_generic  , llvm::COFF::IMAGE_FILE_MACHINE_POWERPCFP, LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // PowerPC (with FPU)
+    { ArchSpec::eCore_arm_generic  , llvm::COFF::IMAGE_FILE_MACHINE_ARM      , LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // ARM
+    { ArchSpec::eCore_arm_armv7    , llvm::COFF::IMAGE_FILE_MACHINE_ARMV7    , LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // ARMv7
+    { ArchSpec::eCore_thumb        , llvm::COFF::IMAGE_FILE_MACHINE_THUMB    , LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }, // ARMv7
+    { ArchSpec::eCore_x86_64_x86_64, llvm::COFF::IMAGE_FILE_MACHINE_AMD64    , LLDB_INVALID_CPUTYPE, 0xFFFFFFFFu, 0xFFFFFFFFu }  // AMD64
+};
+
+static const ArchDefinition g_coff_arch_def = {
+    eArchTypeCOFF,
+    sizeof(g_coff_arch_entries)/sizeof(g_coff_arch_entries[0]),
+    g_coff_arch_entries,
+    "pe-coff",
+};
+
 //===----------------------------------------------------------------------===//
 // Table of all ArchDefinitions
 static const ArchDefinition *g_arch_definitions[] = {
     &g_macho_arch_def,
-    &g_elf_arch_def
+    &g_elf_arch_def,
+    &g_coff_arch_def
 };
 
 static const size_t k_num_arch_definitions =
@@ -861,6 +887,15 @@ cores_match (const ArchSpec::Core core1, const ArchSpec::Core core2, bool try_in
     case ArchSpec::kCore_ppc64_any:
         if ((core2 >= ArchSpec::kCore_ppc64_first && core2 <= ArchSpec::kCore_ppc64_last) || (core2 == ArchSpec::kCore_ppc64_any))
             return true;
+        break;
+
+    case ArchSpec::eCore_arm_armv6m:
+        if (!enforce_exact_match)
+        {
+            try_inverse = false;
+            if (core2 == ArchSpec::eCore_arm_armv7)
+                return true;
+        }
         break;
 
     case ArchSpec::eCore_arm_armv7m:

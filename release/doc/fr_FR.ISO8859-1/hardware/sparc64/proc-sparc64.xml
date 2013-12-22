@@ -7,7 +7,7 @@
      $FreeBSD$
      Original revision: 1.4
 -->
-<sect1>
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
   <title>Syst&egrave;mes support&eacute;s</title>
 
   <para>Des ajouts, retours, mises &agrave; jour et corrections a
@@ -111,7 +111,7 @@
       pas &eacute;t&eacute; tr&egrave;s test&eacute;es avec &os;. Ces
       syst&egrave;mes ne sont pas tr&egrave;s bien support&eacute;s,
       mais il est possible d'installer &os; sur une Ultra-1e disposant
-      d'une interface Ethernet <devicename>hme</devicename>.</para>
+      d'une interface Ethernet <filename>hme</filename>.</para>
     </sect3>
 
     <sect3>
@@ -123,7 +123,7 @@
       <itemizedlist>
         <listitem><para>1 ou 2 processeurs UltraSPARC II</para></listitem>
         <listitem><para>Carte Ethernet int&eacute;gr&eacute;e
-          (compatible <devicename>hme</devicename>)</para></listitem>
+          (compatible <filename>hme</filename>)</para></listitem>
         <listitem><para>4 emplacements SBus</para></listitem>
         <listitem><para>1 emplacement UPA</para></listitem>
         <listitem><para>Ports s&eacute;rie et
@@ -143,7 +143,7 @@
         <listitem><para>Processeur UltraSPARC IIi</para></listitem>
         <listitem><para>Trois bus PCI</para></listitem>
         <listitem><para>Carte Ethernet int&eacute;gr&eacute;e
-          (compatible <devicename>hme</devicename>)</para></listitem>
+          (compatible <filename>hme</filename>)</para></listitem>
         <listitem><para>Controleur PCI-IDE int&eacute;gr&eacute;
         &perforce;</para></listitem> 
         <listitem><para>2 ports de communication de type PC-AT pour
@@ -175,7 +175,7 @@
         <listitem><para>Un controleur UltraSCSI bas&eacute; sur
         &man.sym.4;</para></listitem>
         <listitem><para>Carte Ethernet int&eacute;gr&eacute;e (compatible
-        <devicename>hme</devicename>)</para></listitem>
+        <filename>hme</filename>)</para></listitem>
         <listitem><para>Ports s&eacute;rie et
         parall&egrave;le</para></listitem>
         <listitem><para>Son 16-bit</para></listitem>
@@ -194,7 +194,7 @@
         <listitem><para>Processeur UltraSPARC IIe</para></listitem>
         <listitem><para>Trois bus PCI</para></listitem>
         <listitem><para>Carte Ethernet int&eacute;gr&eacute;e (compatible
-        <devicename>gem</devicename>)</para></listitem>
+        <filename>gem</filename>)</para></listitem>
         <listitem><para>Deux ports USB &unsupported;</para></listitem>
         <listitem><para>2 ports Firewire &unsupported;</para></listitem>
         <listitem><para>Controleur PCI-IDE int&eacute;gr&eacute;
@@ -256,8 +256,8 @@
     par la console OpenBoot.</para>
 
     <para>P&eacute;riph&eacute;riques r&eacute;seaux bas&eacute;es sur
-    <devicename>hme</devicename>, <devicename>gem</devicename>, et
-    <devicename>eri</devicename>.</para>
+    <filename>hme</filename>, <filename>gem</filename>, et
+    <filename>eri</filename>.</para>
 
     <para>Les ports s&eacute;ries <quote>PC standard</quote> trouv&eacute;s
     sur la plupart des stations de travail Sun sont support&eacute;s.</para>

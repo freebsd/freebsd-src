@@ -57,7 +57,7 @@ case $# in
 	;;
 esac
 
-if [ -n "$2" -a -f "$2" ]; then
+if [ -n "$2" ]; then
 	. $2
 fi
 
@@ -326,6 +326,7 @@ s/\$//g
 		for (cap in capenabled) {
 			if (funcname == capenabled[cap]) {
 				flags = "SYF_CAPENABLED";
+				break;
 			}
 		}
 
@@ -459,7 +460,7 @@ s/\$//g
 		printf("\t{ %s, (sy_call_t *)", argssize) > sysent
 		column = 8 + 2 + length(argssize) + 15
 		if (flag("NOSTD")) {
-			printf("%s },", "lkmressys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT") > sysent
+			printf("lkmressys, AUE_NULL, NULL, 0, 0, %s, SY_THR_ABSENT },", flags) > sysent
 			column = column + length("lkmressys") + length("AUE_NULL") + 3
 		} else {
 			if (funcname == "nosys" || funcname == "sysarch" || 

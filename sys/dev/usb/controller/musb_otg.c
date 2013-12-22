@@ -99,11 +99,11 @@ SYSCTL_INT(_hw_usb_musbotg, OID_AUTO, debug, CTLFLAG_RW,
 
 /* prototypes */
 
-struct usb_bus_methods musbotg_bus_methods;
-struct usb_pipe_methods musbotg_device_bulk_methods;
-struct usb_pipe_methods musbotg_device_ctrl_methods;
-struct usb_pipe_methods musbotg_device_intr_methods;
-struct usb_pipe_methods musbotg_device_isoc_methods;
+static const struct usb_bus_methods musbotg_bus_methods;
+static const struct usb_pipe_methods musbotg_device_bulk_methods;
+static const struct usb_pipe_methods musbotg_device_ctrl_methods;
+static const struct usb_pipe_methods musbotg_device_intr_methods;
+static const struct usb_pipe_methods musbotg_device_isoc_methods;
 
 /* Control transfers: Device mode */
 static musbotg_cmd_t musbotg_dev_ctrl_setup_rx;
@@ -1661,7 +1661,7 @@ repeat:
 	}
 
 	/* Max packet size */
-	MUSB2_WRITE_1(sc, MUSB2_REG_TXMAXP, td->max_packet);
+	MUSB2_WRITE_2(sc, MUSB2_REG_TXMAXP, td->reg_max_packet);
 
 	/* write command */
 	MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
@@ -1726,13 +1726,16 @@ repeat:
 		    td->hport);
 
 		/* RX NAK timeout */
-		MUSB2_WRITE_1(sc, MUSB2_REG_RXNAKLIMIT, MAX_NAK_TO);
+		if (td->transfer_type & MUSB2_MASK_TI_PROTO_ISOC)
+			MUSB2_WRITE_1(sc, MUSB2_REG_RXNAKLIMIT, 0);
+		else
+			MUSB2_WRITE_1(sc, MUSB2_REG_RXNAKLIMIT, MAX_NAK_TO);
 
 		/* Protocol, speed, device endpoint */
 		MUSB2_WRITE_1(sc, MUSB2_REG_RXTI, td->transfer_type);
 
 		/* Max packet size */
-		MUSB2_WRITE_1(sc, MUSB2_REG_RXMAXP, td->max_packet);
+		MUSB2_WRITE_2(sc, MUSB2_REG_RXMAXP, td->reg_max_packet);
 
 		/* Data Toggle */
 		csrh = MUSB2_READ_1(sc, MUSB2_REG_RXCSRH);
@@ -1938,7 +1941,7 @@ musbotg_host_data_tx(struct musbotg_td *td)
 		return (0);	/* complete */
 	}
 
-	if (csr & MUSB2_MASK_CSRL_TXNAKTO ) {
+	if (csr & MUSB2_MASK_CSRL_TXNAKTO) {
 		/* 
 		 * Flush TX FIFO before clearing NAK TO
 		 */
@@ -2069,13 +2072,16 @@ musbotg_host_data_tx(struct musbotg_td *td)
 	    td->hport);
 
 	/* TX NAK timeout */
-	MUSB2_WRITE_1(sc, MUSB2_REG_TXNAKLIMIT, MAX_NAK_TO);
+	if (td->transfer_type & MUSB2_MASK_TI_PROTO_ISOC)
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXNAKLIMIT, 0);
+	else
+		MUSB2_WRITE_1(sc, MUSB2_REG_TXNAKLIMIT, MAX_NAK_TO);
 
 	/* Protocol, speed, device endpoint */
 	MUSB2_WRITE_1(sc, MUSB2_REG_TXTI, td->transfer_type);
 
 	/* Max packet size */
-	MUSB2_WRITE_1(sc, MUSB2_REG_TXMAXP, td->max_packet);
+	MUSB2_WRITE_2(sc, MUSB2_REG_TXMAXP, td->reg_max_packet);
 
 	if (!td->transaction_started) {
 		csrh = MUSB2_READ_1(sc, MUSB2_REG_TXCSRH);
@@ -2406,7 +2412,6 @@ musbotg_setup_standard_chain(struct usb_xfer *xfer)
 
 	if (xfer->flags_int.usb_mode == USB_MODE_HOST) {
 		speed =  usbd_get_speed(xfer->xroot->udev);
-		xfer_type = xfer->endpoint->edesc->bmAttributes & UE_XFERTYPE;
 
 		switch (speed) {
 			case USB_SPEED_LOW:
@@ -2444,7 +2449,6 @@ musbotg_setup_standard_chain(struct usb_xfer *xfer)
 		}
 
 		temp.transfer_type |= ep_no;
-		td->max_packet = xfer->max_packet_size;
 		td->toggle = xfer->endpoint->toggle_next;
 	}
 
@@ -2469,9 +2473,9 @@ musbotg_setup_standard_chain(struct usb_xfer *xfer)
 		x = 0;
 	}
 
-	if (x != xfer->nframes) {
-		tx = 0;
+	tx = 0;
 
+	if (x != xfer->nframes) {
 		if (xfer->endpointno & UE_DIR_IN)
 		    	tx = 1;
 
@@ -2532,9 +2536,14 @@ musbotg_setup_standard_chain(struct usb_xfer *xfer)
 
 		} else {
 
-			/* regular data transfer */
-
-			temp.short_pkt = (xfer->flags.force_short_xfer) ? 0 : 1;
+			if (xfer->flags_int.isochronous_xfr) {
+				/* isochronous data transfer */
+				/* don't force short */
+				temp.short_pkt = 1;
+			} else {
+				/* regular data transfer */
+				temp.short_pkt = (xfer->flags.force_short_xfer ? 0 : 1);
+			}
 		}
 
 		musbotg_setup_standard_chain_sub(&temp);
@@ -3158,7 +3167,12 @@ musbotg_init(struct musbotg_softc *sc)
 
 		if (dynfifo) {
 			if (frx && (temp <= nrx)) {
-				if (temp < 8) {
+				if (temp == 1) {
+					frx = 12;	/* 4K */
+					MUSB2_WRITE_1(sc, MUSB2_REG_RXFIFOSZ, 
+					    MUSB2_VAL_FIFOSZ_4096 |
+					    MUSB2_MASK_FIFODB);
+				} else if (temp < 8) {
 					frx = 10;	/* 1K */
 					MUSB2_WRITE_1(sc, MUSB2_REG_RXFIFOSZ, 
 					    MUSB2_VAL_FIFOSZ_512 |
@@ -3175,7 +3189,12 @@ musbotg_init(struct musbotg_softc *sc)
 				offset += (1 << frx);
 			}
 			if (ftx && (temp <= ntx)) {
-				if (temp < 8) {
+				if (temp == 1) {
+					ftx = 12;	/* 4K */
+					MUSB2_WRITE_1(sc, MUSB2_REG_TXFIFOSZ,
+	 				    MUSB2_VAL_FIFOSZ_4096 |
+	 				    MUSB2_MASK_FIFODB);
+				} else if (temp < 8) {
 					ftx = 10;	/* 1K */
 					MUSB2_WRITE_1(sc, MUSB2_REG_TXFIFOSZ,
 	 				    MUSB2_VAL_FIFOSZ_512 |
@@ -3316,7 +3335,7 @@ musbotg_device_bulk_start(struct usb_xfer *xfer)
 	musbotg_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods musbotg_device_bulk_methods =
+static const struct usb_pipe_methods musbotg_device_bulk_methods =
 {
 	.open = musbotg_device_bulk_open,
 	.close = musbotg_device_bulk_close,
@@ -3353,7 +3372,7 @@ musbotg_device_ctrl_start(struct usb_xfer *xfer)
 	musbotg_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods musbotg_device_ctrl_methods =
+static const struct usb_pipe_methods musbotg_device_ctrl_methods =
 {
 	.open = musbotg_device_ctrl_open,
 	.close = musbotg_device_ctrl_close,
@@ -3390,7 +3409,7 @@ musbotg_device_intr_start(struct usb_xfer *xfer)
 	musbotg_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods musbotg_device_intr_methods =
+static const struct usb_pipe_methods musbotg_device_intr_methods =
 {
 	.open = musbotg_device_intr_open,
 	.close = musbotg_device_intr_close,
@@ -3479,7 +3498,7 @@ musbotg_device_isoc_start(struct usb_xfer *xfer)
 	musbotg_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods musbotg_device_isoc_methods =
+static const struct usb_pipe_methods musbotg_device_isoc_methods =
 {
 	.open = musbotg_device_isoc_open,
 	.close = musbotg_device_isoc_close,
@@ -4042,7 +4061,7 @@ musbotg_xfer_setup(struct usb_setup_params *parm)
 	 * reasonable dummies:
 	 */
 	parm->hc_max_packet_size = 0x400;
-	parm->hc_max_frame_size = 0x400;
+	parm->hc_max_frame_size = 0xc00;
 
 	if ((parm->methods == &musbotg_device_isoc_methods) ||
 	    (parm->methods == &musbotg_device_intr_methods))
@@ -4117,6 +4136,8 @@ musbotg_xfer_setup(struct usb_setup_params *parm)
 
 			/* init TD */
 			td->max_frame_size = xfer->max_frame_size;
+			td->reg_max_packet = xfer->max_packet_size |
+			    ((xfer->max_packet_count - 1) << 11);
 			td->ep_no = ep_no;
 			td->obj_next = last_obj;
 
@@ -4197,7 +4218,7 @@ musbotg_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
 	}
 }
 
-struct usb_bus_methods musbotg_bus_methods =
+static const struct usb_bus_methods musbotg_bus_methods =
 {
 	.endpoint_init = &musbotg_ep_init,
 	.get_dma_delay = &musbotg_get_dma_delay,

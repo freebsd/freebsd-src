@@ -71,10 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/spr.h>
 
-#ifdef FPU_EMU
-#include <powerpc/fpu/fpu_extern.h>
-#endif
-
 #define	FAULTBUF_LR	0
 #define	FAULTBUF_R1	1
 #define	FAULTBUF_R2	2
@@ -90,12 +86,6 @@ static int	trap_pfault(struct trapframe *frame, int user);
 static int	fix_unaligned(struct thread *td, struct trapframe *frame);
 static int	handle_onfault(struct trapframe *frame);
 static void	syscall(struct trapframe *frame);
-
-int	setfault(faultbuf);		/* defined in locore.S */
-
-/* Why are these not defined in a header? */
-int	badaddr(void *, size_t);
-int	badaddr_read(void *, size_t, int *);
 
 struct powerpc_exception {
 	u_int	vector;
@@ -193,13 +183,7 @@ trap(struct trapframe *frame)
 			break;
 
 		case EXC_PGM:	/* Program exception */
-#ifdef FPU_EMU
-			sig = fpu_emulate(frame,
-			    (struct fpreg *)&td->td_pcb->pcb_fpu);
-#else
-			/* XXX SIGILL for non-trap instructions. */
-			sig = SIGTRAP;
-#endif
+			sig = ppc_instr_emulate(frame, td->td_pcb);
 			break;
 
 		default:
@@ -469,60 +453,6 @@ trap_pfault(struct trapframe *frame, int user)
 		return (0);
 
 	return ((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
-}
-
-int
-badaddr(void *addr, size_t size)
-{
-
-	return (badaddr_read(addr, size, NULL));
-}
-
-int
-badaddr_read(void *addr, size_t size, int *rptr)
-{
-	struct thread	*td;
-	faultbuf	env;
-	int		x;
-
-	/* Get rid of any stale machine checks that have been waiting.  */
-	__asm __volatile ("sync; isync");
-
-	td = curthread;
-
-	if (setfault(env)) {
-		td->td_pcb->pcb_onfault = 0;
-		__asm __volatile ("sync");
-		return (1);
-	}
-
-	__asm __volatile ("sync");
-
-	switch (size) {
-	case 1:
-		x = *(volatile int8_t *)addr;
-		break;
-	case 2:
-		x = *(volatile int16_t *)addr;
-		break;
-	case 4:
-		x = *(volatile int32_t *)addr;
-		break;
-	default:
-		panic("badaddr: invalid size (%d)", size);
-	}
-
-	/* Make sure we took the machine check, if we caused one. */
-	__asm __volatile ("sync; isync");
-
-	td->td_pcb->pcb_onfault = 0;
-	__asm __volatile ("sync");	/* To be sure. */
-
-	/* Use the value to avoid reorder. */
-	if (rptr)
-		*rptr = x;
-
-	return (0);
 }
 
 /*

@@ -271,7 +271,6 @@ arm_get_next_irq(int last_irq)
 			printf("Spurious interrupt detected [0x%08x]\n", active_irq);
 		return -1;
 	}
-	gic_c_write_4(GICC_EOIR, active_irq);
 
 	return active_irq;
 }
@@ -279,14 +278,15 @@ arm_get_next_irq(int last_irq)
 void
 arm_mask_irq(uintptr_t nb)
 {
+
 	gic_d_write_4(GICD_ICENABLER(nb >> 5), (1UL << (nb & 0x1F)));
+	gic_c_write_4(GICC_EOIR, nb);
 }
 
 void
 arm_unmask_irq(uintptr_t nb)
 {
 
-	gic_c_write_4(GICC_EOIR, nb);
 	gic_d_write_4(GICD_ISENABLER(nb >> 5), (1UL << (nb & 0x1F)));
 }
 

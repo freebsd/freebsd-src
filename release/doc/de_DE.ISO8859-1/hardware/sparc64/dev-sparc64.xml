@@ -3,13 +3,12 @@
   $Id: dev-sparc64.xml,v 1.4 2002/03/10 15:37:16 ue Exp $
   basiert auf: 1.3
 -->
-
-<sect1 id="support-dev">
-  <sect1info>
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="support-dev">
+  <info><title>Unterst&uuml;tzte Ger&auml;te</title>
     <pubdate>$FreeBSD$</pubdate>
-  </sect1info>
+  </info>
 
-  <title>Unterst&uuml;tzte Ger&auml;te</title>
+  
 
   <para>Dieses Kapitel enth&auml;lt alle Ger&auml;te, die auf jeden
     Fall von &os; auf &arch; Systemen unterst&uuml;tzt werden.  Andere
@@ -50,13 +49,13 @@
       </listitem>
 
       <listitem>
-        <para>&man.ata.4;, <devicename>atadisk</devicename>,
-          <devicename>atapicd</devicename> (allerdings weder atapift
+        <para>&man.ata.4;, <filename>atadisk</filename>,
+          <filename>atapicd</filename> (allerdings weder atapift
           noch atapist)</para>
       </listitem>
 
       <listitem>
-        <para><devicename>gem</devicename> (Sun GEM/ERI Ethernet, ist
+        <para><filename>gem</filename> (Sun GEM/ERI Ethernet, ist
           in der Blade 100 eingebaut)</para>
       </listitem>
 
@@ -150,7 +149,7 @@
       <listitem>
         <para>Graphikkarten/Bildschirmspeicher, Tastatur (au&szlig;er
           der indirekten Unterst&uuml;tzung im Textmodus durch den
-          <devicename>ofw_console</devicename> Treiber)</para>
+          <filename>ofw_console</filename> Treiber)</para>
       </listitem>
 
       <listitem>
@@ -164,7 +163,7 @@
       <listitem>
         <para>serielle Tastaturen (au&szlig;er der indirekten
           Unterst&uuml;tzung durch den
-          <devicename>ofw_console</devicename> Treiber)</para>
+          <filename>ofw_console</filename> Treiber)</para>
       </listitem>
 
       <listitem>

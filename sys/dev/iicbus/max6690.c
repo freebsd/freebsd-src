@@ -362,7 +362,7 @@ max6690_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 	struct max6690_softc *sc;
 	struct max6690_sensor *sens;
 	int error;
-	unsigned int temp;
+	int temp;
 
 	dev = arg1;
 	sc = device_get_softc(dev);

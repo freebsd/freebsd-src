@@ -5,7 +5,7 @@
 
 	This section contains the contents of the old LAYOUT.TXT file.
 -->
-<sect1 id="layout">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="layout">
   <title>Format der Distribution</title>
 
   <para>Ein Verzeichnis mit einer typischen &os; Distribution sieht
@@ -85,8 +85,7 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
     <listitem>
       <para>Das Verzeichnis <filename>floppies/</filename>
         enth&auml;lt die Images der Bootdisketten.  Informationen, wie
-        man diese Images benutzt, finden Sie in <xref
-        linkend="floppies"/>.</para>
+        man diese Images benutzt, finden Sie in <xref linkend="floppies"/>.</para>
     </listitem>
 
     <listitem>
@@ -105,8 +104,7 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
       <para>Die Ports Collection kann wie jede andere Distribution
         installiert werden und belegt dann rund 100 MByte
         Plattenplatz.  Weitere Informationen &uuml;ber die Ports
-        Collection finden Sie auf <ulink
-        url="http://www.FreeBSD.org/ports/">http://www.FreeBSD.org/ports/</ulink>.
+        Collection finden Sie auf <link xlink:href="http://www.FreeBSD.org/ports/">http://www.FreeBSD.org/ports/</link>.
         Wenn Sie die <filename>doc</filename> Distribution installiert
         haben, sind diese Informationen auch unter
         <filename>/usr/share/doc/handbook</filename>

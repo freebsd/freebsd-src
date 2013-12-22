@@ -139,7 +139,7 @@ struct usb_hw_ep_scratch {
 	struct usb_hw_ep_scratch_sub *ep_max;
 	struct usb_config_descriptor *cd;
 	struct usb_device *udev;
-	struct usb_bus_methods *methods;
+	const struct usb_bus_methods *methods;
 	uint8_t	bmOutAlloc[(USB_EP_MAX + 15) / 16];
 	uint8_t	bmInAlloc[(USB_EP_MAX + 15) / 16];
 };
@@ -238,6 +238,9 @@ struct usb_device {
 	uint8_t	driver_added_refcount;	/* our driver added generation count */
 	uint8_t	power_mode;		/* see USB_POWER_XXX */
 	uint8_t re_enumerate_wait;	/* set if re-enum. is in progress */
+#define	USB_RE_ENUM_DONE	0
+#define	USB_RE_ENUM_START	1
+#define	USB_RE_ENUM_PWR_OFF	2
 	uint8_t ifaces_max;		/* number of interfaces present */
 	uint8_t endpoints_max;		/* number of endpoints present */
 

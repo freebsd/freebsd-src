@@ -26,6 +26,8 @@
         ..
         bluetooth
         ..
+        casper
+        ..
         defaults
         ..
         devd
@@ -52,6 +54,8 @@
             weekly
             ..
         ..
+        pkg
+        ..
         ppp
         ..
         rc.d
@@ -72,6 +76,8 @@
         ..
     ..
     libexec
+        casper
+        ..
         resolvconf
         ..
     ..

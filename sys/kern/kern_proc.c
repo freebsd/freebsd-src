@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 #include "opt_ddb.h"
-#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_kstack_pages.h"
 #include "opt_stack.h"
@@ -92,17 +91,17 @@ __FBSDID("$FreeBSD$");
 #endif
 
 SDT_PROVIDER_DEFINE(proc);
-SDT_PROBE_DEFINE4(proc, kernel, ctor, entry, entry, "struct proc *", "int",
+SDT_PROBE_DEFINE4(proc, kernel, ctor, entry, "struct proc *", "int",
     "void *", "int");
-SDT_PROBE_DEFINE4(proc, kernel, ctor, return, return, "struct proc *", "int",
+SDT_PROBE_DEFINE4(proc, kernel, ctor, return, "struct proc *", "int",
     "void *", "int");
-SDT_PROBE_DEFINE4(proc, kernel, dtor, entry, entry, "struct proc *", "int",
+SDT_PROBE_DEFINE4(proc, kernel, dtor, entry, "struct proc *", "int",
     "void *", "struct thread *");
-SDT_PROBE_DEFINE3(proc, kernel, dtor, return, return, "struct proc *", "int",
+SDT_PROBE_DEFINE3(proc, kernel, dtor, return, "struct proc *", "int",
     "void *");
-SDT_PROBE_DEFINE3(proc, kernel, init, entry, entry, "struct proc *", "int",
+SDT_PROBE_DEFINE3(proc, kernel, init, entry, "struct proc *", "int",
     "int");
-SDT_PROBE_DEFINE3(proc, kernel, init, return, return, "struct proc *", "int",
+SDT_PROBE_DEFINE3(proc, kernel, init, return, "struct proc *", "int",
     "int");
 
 MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
@@ -2632,6 +2631,60 @@ errout:
 	return (error);
 }
 
+static int
+sysctl_kern_proc_sigtramp(SYSCTL_HANDLER_ARGS)
+{
+	int *name = (int *)arg1;
+	u_int namelen = arg2;
+	struct proc *p;
+	struct kinfo_sigtramp kst;
+	const struct sysentvec *sv;
+	int error;
+#ifdef COMPAT_FREEBSD32
+	struct kinfo_sigtramp32 kst32;
+#endif
+
+	if (namelen != 1)
+		return (EINVAL);
+
+	error = pget((pid_t)name[0], PGET_CANDEBUG, &p);
+	if (error != 0)
+		return (error);
+	sv = p->p_sysent;
+#ifdef COMPAT_FREEBSD32
+	if ((req->flags & SCTL_MASK32) != 0) {
+		bzero(&kst32, sizeof(kst32));
+		if (SV_PROC_FLAG(p, SV_ILP32)) {
+			if (sv->sv_sigcode_base != 0) {
+				kst32.ksigtramp_start = sv->sv_sigcode_base;
+				kst32.ksigtramp_end = sv->sv_sigcode_base +
+				    *sv->sv_szsigcode;
+			} else {
+				kst32.ksigtramp_start = sv->sv_psstrings -
+				    *sv->sv_szsigcode;
+				kst32.ksigtramp_end = sv->sv_psstrings;
+			}
+		}
+		PROC_UNLOCK(p);
+		error = SYSCTL_OUT(req, &kst32, sizeof(kst32));
+		return (error);
+	}
+#endif
+	bzero(&kst, sizeof(kst));
+	if (sv->sv_sigcode_base != 0) {
+		kst.ksigtramp_start = (char *)sv->sv_sigcode_base;
+		kst.ksigtramp_end = (char *)sv->sv_sigcode_base +
+		    *sv->sv_szsigcode;
+	} else {
+		kst.ksigtramp_start = (char *)sv->sv_psstrings -
+		    *sv->sv_szsigcode;
+		kst.ksigtramp_end = (char *)sv->sv_psstrings;
+	}
+	PROC_UNLOCK(p);
+	error = SYSCTL_OUT(req, &kst, sizeof(kst));
+	return (error);
+}
+
 SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
 
 SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT|
@@ -2740,3 +2793,7 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_UMASK, umask, CTLFLAG_RD |
 static SYSCTL_NODE(_kern_proc, KERN_PROC_OSREL, osrel, CTLFLAG_RW |
 	CTLFLAG_ANYBODY | CTLFLAG_MPSAFE, sysctl_kern_proc_osrel,
 	"Process binary osreldate");
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_SIGTRAMP, sigtramp, CTLFLAG_RD |
+	CTLFLAG_MPSAFE, sysctl_kern_proc_sigtramp,
+	"Process signal trampoline location");

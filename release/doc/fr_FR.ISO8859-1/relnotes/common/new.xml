@@ -7,12 +7,12 @@
      $FreeBSD$
      Original revision: 1.423
 -->
-<articleinfo>
-  <title>&os;/&arch; &release.current; notes de version</title>
+<info xmlns="http://docbook.org/ns/docbook"><title>&os;/&arch; &release.current; notes de version</title>
+  
 
   <pubdate>$FreeBSD$</pubdate>
 
-  <corpauthor>Le Projet FreeBSD</corpauthor>
+  <author><orgname>Le Projet FreeBSD</orgname></author>
 
   <copyright>
     <year>2000</year>
@@ -34,7 +34,7 @@
   contiennent &eacute;galement quelques br&egrave;ves remarques sur la
   mise &agrave; jour.</para>
   </abstract>
-</articleinfo>
+</info>
 
 <sect1>
   <title>Introduction</title>
@@ -50,18 +50,16 @@ de version repr&eacute;sente une &eacute;tape sur la branche de
 d&eacute;veloppement &release.branch; entre &release.prev; et la
 future	&release.next;. Quelques distributions binaires
 pr&eacute;-compil&eacute;es de la version snapshot pour cette branche
-sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
+sont pr&eacute;sentes sur <uri xlink:href="&release.url;">&release.url;</uri>.</para>
 
   <para releasetype="release">Cette distribution de &os; &release.current; est une distribution
-  de type &release.type;. Elle est disponible &agrave; <ulink
-  url="&release.url;"></ulink> 
+  de type &release.type;. Elle est disponible &agrave; <uri xlink:href="&release.url;">&release.url;</uri> 
   ou sur un des mirroirs. Pour plus d'informations sur la façon d'obtenir 
   cette (ou une autre) distribution &release.type;  de &os; voyez 
-  le chapitre <ulink
-  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors.html">
-  <quote>Obtenir FreeBSD</quote></ulink> du 
-  <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">
-  guide de r&eacute;f&eacute;rence de FreeBSD</ulink>.</para>
+  le chapitre <link xlink:href="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors.html">
+  <quote>Obtenir FreeBSD</quote></link> du 
+  <link xlink:href="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">
+  guide de r&eacute;f&eacute;rence de FreeBSD</link>.</para>
 
 </sect1>
 
@@ -107,7 +105,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
   corrig&eacute; et le code source a &eacute;t&eacute; remis au
   propre.</para>
 
-  <sect2 id="kernel">
+  <sect2 xml:id="kernel">
     <title>Changements concernant le noyau</title>
 
     <para arch="i386">L'&eacute;x&eacute;cution des programmes en
@@ -220,7 +218,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     accessible (de façon ind&eacute;pendante de l'architecture) via
     la variable sysctl <varname>kern.msgbuf</varname>; &man.dmesg.8;
     n'a plus besoin d'&ecirc;tre SGID
-    <groupname>kmem</groupname>.&merged;</para>
+    <systemitem class="groupname">kmem</systemitem>.&merged;</para>
 
     <para>L'environnement du noyau est maintenant dynamique, et peut
     &ecirc;tre chang&eacute; via l'appel syst&egrave;me
@@ -250,7 +248,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
     <para role="historic">L'&eacute;mulation Linux supporte maintenant
     les fonctionnalit&eacute;s noyau n&eacute;cessaires au port
-    <filename role="package">emulators/linux_base-7</filename>
+    <package>emulators/linux_base-7</package>
     (&eacute;mulation RedHat 7.X). &merged;</para>
 
     <para role="historic">L'&eacute;mulation linux n&eacute;cessite
@@ -450,8 +448,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     <para arch="i386,pc98" role="historic">Un gestionnaire de
     p&eacute;riph&eacute;riques &man.uscanner.4; permettant le support
     basique de scanner USB utilisant SANE a &eacute;t&eacute;
-    ajout&eacute;. R&eacute;f&eacute;rez vous a <ulink
-    url="http://www.mostang.com/sane/">la page SANE</ulink> pour la
+    ajout&eacute;. R&eacute;f&eacute;rez vous a <link xlink:href="http://www.mostang.com/sane/">la page SANE</link> pour la
     liste des scanners support&eacute;s Les scanners HP ScanJet 4100C,
     5200C et 6300C sont support&eacute;s. &merged;</para>
     
@@ -503,13 +500,13 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     &eacute;t&eacute; ajout&eacute;.</para>
 
     <para role="historic">La cible
-    <maketarget>buildkernel</maketarget> prend en compte la variable
+    <buildtarget>buildkernel</buildtarget> prend en compte la variable
     <varname>KERNCONF</varname> et non plus <varname>KERNEL</varname>
     pour savoir quel fichier du noyau cr&eacute;er. Il n'est plus
     n&eacute;cessaire, dans certains cas, de faire
-    pr&eacute;c&eacute;der un <maketarget>buildkernel</maketarget> par
-    un <maketarget>buildworld</maketarget>. (Un
-    <maketarget>buildworld</maketarget> est n&eacute;cessaire pour la
+    pr&eacute;c&eacute;der un <buildtarget>buildkernel</buildtarget> par
+    un <buildtarget>buildworld</buildtarget>. (Un
+    <buildtarget>buildworld</buildtarget> est n&eacute;cessaire pour la
     mise &agrave; jour lors des version majeures, ou de la mise
     &agrave; jour de <application>binutil</application> et lors de
     changements dans &man.config.8;.) &merged;</para>
@@ -1001,8 +998,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
       <para arch="i386" role="historic">Le gestionnaire de
       p&eacute;riph&eacute;riques sbni, permettant de supporter les
       interfaces de comunications Granch SBNI12,  point a point ISA et
-      PCI a &eacute;t&eacute; ajout&eacute;. Le port <filename
-      role="package">sysutils/sbniconfig</filename> contenu dans la
+      PCI a &eacute;t&eacute; ajout&eacute;. Le port <package>sysutils/sbniconfig</package> contenu dans la
       collection des ports de &os; peut etre utilis&eacute; pour
       configurer ces p&eacute;riph&eacute;riques.&merged;</para>
 
@@ -1408,7 +1404,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
       a acc&egrave;s en &eacute;criture al&eacute;atoire, et pas les p&eacute;riph&eacute;riques a acc&egrave;s
       en &eacute;criture s&eacute;quentielle comme les lecteurs CD-R, qui sont eux 
       support&eacute;s par &man.cdrecord.1; (via 
-      <filename role="package">sysutils/cdrtools</filename> de la 
+      <package>sysutils/cdrtools</package> de la 
       collection des Ports. &merged;</para>
 
       <para arch="i386">Le gestionnaire ciss, pour les p&eacute;riph&eacute;riques
@@ -1477,7 +1473,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
       des gestionnaires de p&eacute;riph&eacute;riques &man.ata.4;. &merged;</para>
 
 
-      <para></para>
+      <para/>
     </sect3>
 
     <sect3>
@@ -1518,7 +1514,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
       <para>Le syst&egrave;me de fichiers ISO-9660 dispose maintenant
       d'une routine chargeable a la demande de convertion de
-      caract&egrave;res. Le port <filename role="package">sysutils/cd9660_unicode</filename>
+      caract&egrave;res. Le port <package>sysutils/cd9660_unicode</package>
       comporte un ensemble de base de conversions.</para>
 
       <para>&man.kernfs.5; est obsol&egrave;te et a &eacute;t&eacute; retir&eacute;.</para>
@@ -1693,7 +1689,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
     <sect3>
       <title>Logiciels externes</title>
-      <para></para>
+      <para/>
 
       <para>Le language de commande inspir&eacute; sur Forth
       (<application>FICL</application>) du gestionnaire de 
@@ -1765,7 +1761,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 	 num&eacute;rique d'un PABX &merged;</para>
       </sect4>
 
-      <sect4 id="kame-kernel">
+      <sect4 xml:id="kame-kernel">
         <title>KAME</title>
 
         <para>La couche IPv6 est maintenant bas&eacute;e sur la snapshot
@@ -1803,7 +1799,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
      </sect4>
    </sect3>
   </sect2>
-  <sect2 id="security">
+  <sect2 xml:id="security">
     <title>Changements li&eacute;s a la s&eacute;curit&eacute;</title>
 
     <para>&man.sysinstall.8; permet maintenant a un utilisateur de choisir
@@ -1882,7 +1878,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
     <para>La vuln&eacute;rabilit&eacute; dans &man.inetd.8; permettant l'acc&egrave;s
     en lecture aux 16 bytes initiaux des fichiers accessibles 
-    par le groupe <groupname>wheel</groupname> a &eacute;t&eacute; corrig&eacute;(voir
+    par le groupe <systemitem class="groupname">wheel</systemitem> a &eacute;t&eacute; corrig&eacute;(voir
     l'avis de s&eacute;crurit&eacute; FreeBSD-SA-01:11). &merged;</para>
 
     <para>Un bogue dans &man.periodic.8; qui utilisait des fichiers
@@ -2010,15 +2006,15 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
     <para>Un bogue dans <application>UUCP</application> a &eacute;t&eacute;
     corrig&eacute; (voyez l'avis de s&eacute;curit&eacute; FreeBSD-SA-01:62). Tous
-    les binaires n'appartenant pas a <username>root</username>
+    les binaires n'appartenant pas a <systemitem class="username">root</systemitem>
     dans les "path" syst&egrave;me standard ont maintenant le drapeau
     <literal>schg</literal> permettant d'empecher l'exploitation
-    de bogues via &man.cron.8;, par <username>root</username>,
+    de bogues via &man.cron.8;, par <systemitem class="username">root</systemitem>,
     ou par un utilisateur autre que celui auquel appartient
     le binaire. De plus &man.uustat.1; est lanc&eacute; maintenant
     via <filename>/etc/periodic/daily/410.status-uucp</filename> 
-    sous l'utilisateur <username>uucp</username>, et non
-    plus <username>root</username>. Dans &os; -CURRENT, 
+    sous l'utilisateur <systemitem class="username">uucp</systemitem>, et non
+    plus <systemitem class="username">root</systemitem>. Dans &os; -CURRENT, 
     <application>UUCP</application> ne fait plus partie des binaires
     syst&egrave;mes, et a &eacute;t&eacute; d&eacute;plac&eacute; dans la collection des Ports. &merged;</para>
 
@@ -2049,7 +2045,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
   </sect2>
 
 
-  <sect2 id="userland">
+  <sect2 xml:id="userland">
     <title>Changements dans les programmes utilisateurs</title>
 
     <para>Si le premier argument de  &man.ancontrol.8; ou de 
@@ -2537,14 +2533,14 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     via <varname>CFLAGS</varname> de façon neutre. &merged;</para>
 
     <para>&man.man.1; n'est plus install&eacute; SUID
-    <username>man</username>, dans le but de r&eacute;duire les vuln&eacute;rabilit&eacute;s
+    <systemitem class="username">man</systemitem>, dans le but de r&eacute;duire les vuln&eacute;rabilit&eacute;s
     associ&eacute;es lors de la g&eacute;n&eacute;ration de <quote>catpages</quote>
     (les pages de manuel cach&eacute;es pour leur lecture r&eacute;p&eacute;t&eacute;es). 
     Comme r&eacute;sultat &man.man.1; ne peut plus cr&eacute;er des pages de manuels
     cach&eacute;es pour un utilisateur. Il peut continuer a le faire si l'utilisateur
     &agrave; la possibilit&eacute; d'&eacute;crire dans le r&eacute;pertoire des catpages (
     par ex une page de manuel lui appartenant) ou si l'utilisateur le lancant est 
-    <username>root</username>.</para>
+    <systemitem class="username">root</systemitem>.</para>
 
     <para>La commande &man.mdmfs.8; a &eacute;t&eacute; ajout&eacute;e; c'est un wrapper
     de &man.mdconfig.8;, &man.disklabel.8;, &man.newfs.8; et &man.mount.8; qui
@@ -2600,7 +2596,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     fix&eacute;e &agrave; 16. Cela augmente les performances de &man.fsck.8; tout en 
     r&eacute;duisant la fragmentation. &merged;</para>
 
-    <para><anchor id="newfs-block-frag-sizes"/>La taille des blocs et des fragments
+    <para><anchor xml:id="newfs-block-frag-sizes"/>La taille des blocs et des fragments
     lors de la cr&eacute;ation de syst&egrave;mes de fichiers par &man.newfs.8; sont 
     respectivement de 16384 bytes et 2048 bytes (les anciennes valeurs
     &eacute;taient de 8192 bytes et 1024 bytes). Ce changement augmente la performance
@@ -2669,7 +2665,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
     <para>&man.pppd.8; (le programme controlant au niveau noyau PPP) est maintenant
     install&eacute; en mode <literal>4550</literal> et 
-    <username>root</username><literal>:</literal><groupname>dialer</groupname>,
+    <systemitem class="username">root</systemitem><literal>:</literal><systemitem class="groupname">dialer</systemitem>,
     plutot que en mode <literal>4555</literal> (en d'autre termes, cela veut dire
     qu'il n'est plus executable par tout le monde.) Les utilisateurs de &man.pppd.8; 
     doivent donc changer leur configuration de groupes. &merged;</para>
@@ -2699,7 +2695,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
     <para>&man.rdist.1; a &eacute;t&eacute; retir&eacute; du syst&egrave;me de base, mais reste
     disponible dans la collection des Ports sous 
-    <filename role="package">net/44bsd-rdist</filename>.</para>
+    <package>net/44bsd-rdist</package>.</para>
 
     <para>Le &man.resolver.3; de &os; impl&eacute;mente maintenant le support
     EDNS0, qui est n&eacute;cessaire lorsque l'on utilise des serveurs DNS/resolveurs
@@ -2718,9 +2714,9 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     la meme que la route existante. &merged;</para>
 
     <para>&man.route.8; utilise maintenant la syntax 
-    <literal><replaceable>host</replaceable>/<replaceable>bits</replaceable></literal>
+    <literal>host/bits</literal>
     plutot que la syntaxe
-    <literal><replaceable>net</replaceable>/<replaceable>bits</replaceable></literal>
+    <literal>net/bits</literal>
     syntax, pour la compatibilit&eacute; avec &man.netstat.1;. &merged;</para>
 
     <para>&man.route.8; peut maintenant cr&eacute;er des entr&eacute;e ARP 
@@ -2743,7 +2739,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     <para>RSA Security a lib&eacute;r&eacute; les droits sur l'algorithme 
     <application>RSA</application>. Cela permet d'activer par d&eacute;faut
     dans <application>OpenSSL</application> l'algorithme RSA. Cela permet
-    de lib&eacute;rer le port <filename role="package">security/rsaref</filename>
+    de lib&eacute;rer le port <package>security/rsaref</package>
     des d&eacute;pendences des librairies <filename>librsaUSA</filename> et
     <filename>librsaINTL</filename> repectivement pour les r&eacute;sidents am&eacute;ricains
     et non am&eacute;ricains. &merged;</para>
@@ -2937,7 +2933,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 
     <para><application>UUCP</application> a &eacute;t&eacute; retir&eacute; du syst&egrave;me
     de base. Il se trouve maintenant dans la collection des Ports, 
-    dans <filename role="package">net/freebsd-uucp</filename>.</para>
+    dans <package>net/freebsd-uucp</package>.</para>
 
     <para>&man.units.1; a reçu diff&eacute;rentes corrections de bogues 
     et mise &agrave; jour. &merged;</para>
@@ -2960,7 +2956,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
     <para>&man.vidcontrol.1; dispose de l'option <option>-p</option>
     permettant d'obtenir une copie du tampon vid&eacute;o de &man.syscons.4;.
     Ces copies peuvent ensuite etre utilis&eacute;es avec l'utilitaire 
-    <filename role="package">graphics/scr2png</filename> de la collection
+    <package>graphics/scr2png</package> de la collection
     des Ports. &merged;</para>
 
     <para>&man.vidcontrol.1; dispose maintenant de l'option
@@ -3217,15 +3213,15 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 	<para><application>CVSup</application>, un utilitaire fr&eacute;quemment 
 	utilis&eacute; dans la collection des ports de &os;, &eacute;tait 
 	installable pr&eacute;cedemment via plusieurs ports et pacquetages. Les 
-	ports ou pacquetages <filename role="package">net/cvsup-bin</filename> et 
-	<filename role="package">net/cvsupd-bin</filename> ne sont plus 
+	ports ou pacquetages <package>net/cvsup-bin</package> et 
+	<package>net/cvsupd-bin</package> ne sont plus 
 	n&eacute;cessaires ou plus disponibles; il faut utilis&eacute; le port 
-	<filename role="package">net/cvsup</filename> &agrave; la place. 
+	<package>net/cvsup</package> &agrave; la place. 
 	&merged;</para>
 
 	<para><application>CVSup</application> a &eacute;t&eacute; mis &agrave; 
 	jour en version 16.1_3, qui est disponible dans la collection des ports de 
-	&os; sous <filename role="package">net/cvsup</filename>. Cette mise 
+	&os; sous <package>net/cvsup</package>. Cette mise 
 	&agrave; jour fixe le tr&egrave;s vieux bogue (mais rencontr&eacute; que 
 	tr&egrave;s r&eacute;cemment) qui affecte les marquages de temps 
 	apr&egrave;s le dimanche 9 Septembre 2001 01:46:40 UTC 
@@ -3233,7 +3229,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
       </sect4>
 
 
-      <sect4 id="kame-userland">
+      <sect4 xml:id="kame-userland">
         <title>KAME</title>
 	
 	 <para>La couche IPv6 est maintenant bas&eacute;e sur la snapshot
@@ -3259,8 +3255,8 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
         <para>&man.pim6dd.8; et &man.pim6sd.8; ont &eacute;t&eacute; 
 	retir&eacute;s du a des conditions de restrictions de license.  Ces 
 	progrgammes sont disponibles dans la collections des ports sous 
-	<filename role="package">net/pim6dd</filename> et
-        <filename role="package">net/pim6sd</filename>. &merged;</para>
+	<package>net/pim6dd</package> et
+        <package>net/pim6sd</package>. &merged;</para>
 
 	<para>&man.route6d.8; dispose maintenant d'une option 
 	<option>-n</option> permettant d'emp&eacute;cher de mettre &agrave; 
@@ -3269,7 +3265,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 	<para>L'option <option>-R</option> (num&eacute;rotation de router) de 
 	&man.rtadvd.8; est actuellement ignor&eacute;e. &merged;</para>
 
-      <para></para>
+      <para/>
       </sect4>
 
       <sect4>
@@ -3357,7 +3353,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 	<para><application>sendmail</application> a &eacute;t&eacute; mis 
 	&agrave; jour de la version 8.9.3 vers la version 8.12.2. Les 
 	changements importants incluent : &man.sendmail.8; n'est plus 
-	install&eacute; set-user-ID <username>root</username> (mais en 
+	install&eacute; set-user-ID <systemitem class="username">root</systemitem> (mais en 
 	set-group-ID smmsp); un nouveau r&eacute;pertoire où se trouvent les 
 	fichiers par d&eacute;faut (voir 
 	<filename>/usr/src/contrib/sendmail/cf/README</filename>); 
@@ -3368,7 +3364,7 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 	plus d'informations. &merged;</para>
 
 	<para>&man.mail.local.8; n'est plus install&eacute; par d&eacute;faut 
-	set-user-ID  <username>bin</username>. Si vous utilisez un fichier 
+	set-user-ID  <systemitem class="username">bin</systemitem>. Si vous utilisez un fichier 
 	<filename>/etc/mail/sendmail.cf</filename> de la configuration par 
 	d&eacute;faut <filename>sendmail.cf</filename> inclue avec &os; d'une 
 	version sup&eacute;rieure &agrave; 3.1.0, tout va bien. Si vous 
@@ -3415,22 +3411,22 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
 	  d&eacute;marrer ou relancer  <application>sendmail</application>. 
 	  &merged;</para>
 
-	<para>Les utilisateurs <username>smmsp</username> et 
-	<username>mailnull</username> ont &eacute;t&eacute; ajout&eacute;s 
+	<para>Les utilisateurs <systemitem class="username">smmsp</systemitem> et 
+	<systemitem class="username">mailnull</systemitem> ont &eacute;t&eacute; ajout&eacute;s 
 	dans <filename>/etc/master.passwd</filename>. En l'absence de valeur 
 	<literal>confDEF_USER_ID</literal>, l'utilisateur 
-	<username>mailnull</username> sera utilis&eacute; par d&eacute;faut 
+	<systemitem class="username">mailnull</systemitem> sera utilis&eacute; par d&eacute;faut 
 	pour augmenter le niveau de s&eacute;curit&eacute;. 
 	Pr&eacute;c&eacute;demment, si l'utilisateur 
-	<username>mailnull</username> &eacute;tait inexistant, l'utilisateur 
-	<username>daemon</username> &eacute;tait utilis&eacute;. Cette 
+	<systemitem class="username">mailnull</systemitem> &eacute;tait inexistant, l'utilisateur 
+	<systemitem class="username">daemon</systemitem> &eacute;tait utilis&eacute;. Cette 
 	modification peut g&eacute;n&eacute;rer des probl&egrave;mes de 
 	droits lors de l'envoi de courrier a des programmes (comme pour 
-	<filename role="package">mail/majordomo</filename>).&merged; 
+	<package>mail/majordomo</package>).&merged; 
 	L'ancienne  fonctionnalit&eacute; peut &ecirc;tre 
 	r&eacute;activ&eacute;e en ajoutant la ligne 
 	<programlisting>define(`confDEF_USER_ID', `daemon')</programlisting> 
-	aux fichiers <filename><replaceable>*</replaceable>.mc</filename> de 
+	aux fichiers <filename>*.mc</filename> de 
 	configuration.</para>
       </sect4>
 
@@ -3575,9 +3571,9 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
         <para>Enfin, si vous d&eacute;sirez utiliser un des moyens de suivre
         les branches -STABLE ou -CURRENT de &os;, veuillez
         consulter la section 
-       <ulink url="http://www.FreeBSD.org/handbook/current-stable.html"><quote>-CURRENT
-       vs. -STABLE</quote></ulink>  <ulink url="http://www.FreeBSD.org/handbook/">du manuel 
-       de r&eacute;f&eacute;rence de FreeBSD</ulink>.
+       <link xlink:href="http://www.FreeBSD.org/handbook/current-stable.html"><quote>-CURRENT
+       vs. -STABLE</quote></link>  <link xlink:href="http://www.FreeBSD.org/handbook/">du manuel 
+       de r&eacute;f&eacute;rence de FreeBSD</link>.
        </para>
 
         <important>
@@ -3588,4 +3584,3 @@ sont pr&eacute;sentes sur <ulink url="&release.url;"></ulink>.</para>
         </important>
 
 </sect1>
-

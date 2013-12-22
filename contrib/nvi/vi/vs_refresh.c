@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "$Id: vs_refresh.c,v 10.52 2011/12/16 11:06:25 zy Exp $";
+static const char sccsid[] = "$Id: vs_refresh.c,v 10.53 2013/11/01 11:57:36 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -331,7 +331,8 @@ small_fill:			(void)gp->scr_move(sp, LASTLINE(sp), 0);
 				if (vs_sm_1down(sp))
 					return (1);
 			goto adjust;
-		}
+		} else
+			goto top;	/* XXX No such line. */
 
 		/*
 		 * If less than a half screen from the bottom of the file,

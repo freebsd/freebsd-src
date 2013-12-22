@@ -1099,7 +1099,7 @@ usb_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int fflag, struct thread* 
 
 	/* Wait for re-enumeration, if any */
 
-	while (f->udev->re_enumerate_wait != 0) {
+	while (f->udev->re_enumerate_wait != USB_RE_ENUM_DONE) {
 
 		usb_unref_device(cpd, &refs);
 

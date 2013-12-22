@@ -100,14 +100,14 @@ cn_drvinit(void *unused)
 		    sizeof(output)) == -1)
 			return;
 		if (strlen(output) > 0)
-			tty_makealias(tp, output);
+			tty_makealias(tp, "%s", output);
 	}
 }
 
 SYSINIT(cndev, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE, cn_drvinit, NULL);
 
-static int	stdin;
-static int	stdout;
+static pcell_t	stdin;
+static pcell_t	stdout;
 
 static int
 ofwtty_open(struct tty *tp)
@@ -170,12 +170,12 @@ ofw_cnprobe(struct consdev *cp)
 		return;
 	}
 
-	if (OF_getprop(chosen, "stdin", &stdin, sizeof(stdin)) == -1) {
+	if (OF_getencprop(chosen, "stdin", &stdin, sizeof(stdin)) == -1) {
 		cp->cn_pri = CN_DEAD;
 		return;
 	}
 
-	if (OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1) {
+	if (OF_getencprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1) {
 		cp->cn_pri = CN_DEAD;
 		return;
 	}

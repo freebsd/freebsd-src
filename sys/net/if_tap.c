@@ -63,6 +63,7 @@
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -205,7 +206,7 @@ vmnet_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	i = clone_create(&tapclones, &tap_cdevsw, &unit, &dev, VMNET_DEV_MASK);
 	if (i) {
 		dev = make_dev(&tap_cdevsw, unit | VMNET_DEV_MASK, UID_ROOT,
-		    GID_WHEEL, 0600, "%s%d", tapname, unit);
+		    GID_WHEEL, 0600, "%s%d", vmnetname, unit);
 	}
 
 	tapcreate(dev);
@@ -828,8 +829,7 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 			mtx_unlock(&tp->tap_mtx);
 			break;
 
-		case OSIOCGIFADDR:	/* get MAC address of the remote side */
-		case SIOCGIFADDR:
+		case SIOCGIFADDR:	/* get MAC address of the remote side */
 			mtx_lock(&tp->tap_mtx);
 			bcopy(tp->ether_addr, data, sizeof(tp->ether_addr));
 			mtx_unlock(&tp->tap_mtx);

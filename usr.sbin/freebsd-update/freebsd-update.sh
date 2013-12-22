@@ -1200,7 +1200,7 @@ fetch_metadata_sanity () {
 	# Some aliases to save space later: ${P} is a character which can
 	# appear in a path; ${M} is the four numeric metadata fields; and
 	# ${H} is a sha256 hash.
-	P="[-+./:=%@_[[:alnum:]]"
+	P="[-+./:=%@_[~[:alnum:]]"
 	M="[0-9]+\|[0-9]+\|[0-9]+\|[0-9]+"
 	H="[0-9a-f]{64}"
 
@@ -2814,16 +2814,24 @@ Kernel updates have been installed.  Please reboot and run
 
 	# If we haven't already dealt with the world, deal with it.
 	if ! [ -f $1/worlddone ]; then
+		# Create any necessary directories first
+		grep -vE '^/boot/' $1/INDEX-NEW |
+		    grep -E '^[^|]+\|d\|' > INDEX-NEW
+		install_from_index INDEX-NEW || return 1
+
 		# Install new shared libraries next
 		grep -vE '^/boot/' $1/INDEX-NEW |
-		    grep -E '/lib/.*\.so\.[0-9]+\|' > INDEX-NEW
+		    grep -vE '^[^|]+\|d\|' |
+		    grep -E '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-NEW
 		install_from_index INDEX-NEW || return 1
 
 		# Deal with everything else
 		grep -vE '^/boot/' $1/INDEX-OLD |
-		    grep -vE '/lib/.*\.so\.[0-9]+\|' > INDEX-OLD
+		    grep -vE '^[^|]+\|d\|' |
+		    grep -vE '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-OLD
 		grep -vE '^/boot/' $1/INDEX-NEW |
-		    grep -vE '/lib/.*\.so\.[0-9]+\|' > INDEX-NEW
+		    grep -vE '^[^|]+\|d\|' |
+		    grep -vE '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-NEW
 		install_from_index INDEX-NEW || return 1
 		install_delete INDEX-OLD INDEX-NEW || return 1
 
@@ -2844,11 +2852,11 @@ Kernel updates have been installed.  Please reboot and run
 
 		# Do we need to ask the user to portupgrade now?
 		grep -vE '^/boot/' $1/INDEX-NEW |
-		    grep -E '/lib/.*\.so\.[0-9]+\|' |
+		    grep -E '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' |
 		    cut -f 1 -d '|' |
 		    sort > newfiles
 		if grep -vE '^/boot/' $1/INDEX-OLD |
-		    grep -E '/lib/.*\.so\.[0-9]+\|' |
+		    grep -E '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' |
 		    cut -f 1 -d '|' |
 		    sort |
 		    join -v 1 - newfiles |
@@ -2868,9 +2876,18 @@ again to finish installing updates.
 
 	# Remove old shared libraries
 	grep -vE '^/boot/' $1/INDEX-NEW |
-	    grep -E '/lib/.*\.so\.[0-9]+\|' > INDEX-NEW
+	    grep -vE '^[^|]+\|d\|' |
+	    grep -E '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-NEW
 	grep -vE '^/boot/' $1/INDEX-OLD |
-	    grep -E '/lib/.*\.so\.[0-9]+\|' > INDEX-OLD
+	    grep -vE '^[^|]+\|d\|' |
+	    grep -E '^[^|]*/lib/[^|]*\.so\.[0-9]+\|' > INDEX-OLD
+	install_delete INDEX-OLD INDEX-NEW || return 1
+
+	# Remove old directories
+	grep -vE '^/boot/' $1/INDEX-NEW |
+	    grep -E '^[^|]+\|d\|' > INDEX-NEW
+	grep -vE '^/boot/' $1/INDEX-OLD |
+	    grep -E '^[^|]+\|d\|' > INDEX-OLD
 	install_delete INDEX-OLD INDEX-NEW || return 1
 
 	# Remove temporary files
@@ -3033,21 +3050,8 @@ IDS_compare () {
 	mv INDEX-NOTMATCHING.tmp INDEX-NOTMATCHING
 
 	# Go through the lines and print warnings.
-	while read LINE; do
-		FPATH=`echo "${LINE}" | cut -f 1 -d '|'`
-		TYPE=`echo "${LINE}" | cut -f 2 -d '|'`
-		OWNER=`echo "${LINE}" | cut -f 3 -d '|'`
-		GROUP=`echo "${LINE}" | cut -f 4 -d '|'`
-		PERM=`echo "${LINE}" | cut -f 5 -d '|'`
-		HASH=`echo "${LINE}" | cut -f 6 -d '|'`
-		LINK=`echo "${LINE}" | cut -f 7 -d '|'`
-		P_TYPE=`echo "${LINE}" | cut -f 8 -d '|'`
-		P_OWNER=`echo "${LINE}" | cut -f 9 -d '|'`
-		P_GROUP=`echo "${LINE}" | cut -f 10 -d '|'`
-		P_PERM=`echo "${LINE}" | cut -f 11 -d '|'`
-		P_HASH=`echo "${LINE}" | cut -f 12 -d '|'`
-		P_LINK=`echo "${LINE}" | cut -f 13 -d '|'`
-
+	local IFS='|'
+	while read FPATH TYPE OWNER GROUP PERM HASH LINK P_TYPE P_OWNER P_GROUP P_PERM P_HASH P_LINK; do
 		# Warn about different object types.
 		if ! [ "${TYPE}" = "${P_TYPE}" ]; then
 			echo -n "${FPATH} is a "

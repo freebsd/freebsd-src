@@ -46,7 +46,7 @@ VALID_VARNAME_CHARS="0-9ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
 
 ############################################################ FUNCTIONS
 
-# f_substr "$string" $start [ $length ]
+# f_substr "$string" $start [$length]
 #
 # Simple wrapper to awk(1)'s `substr' function.
 #
@@ -56,17 +56,18 @@ f_substr()
 	echo "$string" | awk "{ print substr(\$0, $start, $len) }"
 }
 
-# f_snprintf $var_to_set $size $format ...
+# f_snprintf $var_to_set $size $format [$arguments ...]
 #
 # Similar to snprintf(3), write at most $size number of bytes into $var_to_set
-# using printf(1) syntax (`$format ...'). The value of $var_to_set is NULL
-# unless at-least one byte is stored from the output.
+# using printf(1) syntax (`$format [$arguments ...]'). The value of $var_to_set
+# is NULL unless at-least one byte is stored from the output.
 #
 f_snprintf()
 {
 	local __var_to_set="$1" __size="$2"
-	shift 2 # var_to_set/size
-	eval "$__var_to_set"=\$\( printf \"\$@\" \| awk -v max=\"\$__size\" \''
+	shift 2 # var_to_set size
+	eval "$__var_to_set"=\$\( printf -- \"\$@\" \| \
+		awk -v max=\"\$__size\" \''
 	{
 		len = length($0)
 		max -= len
@@ -74,6 +75,18 @@ f_snprintf()
 		if ( max < 0 ) exit
 		max--
 	}'\' \)
+}
+
+# f_sprintf $var_to_set $format [$arguments ...]
+#
+# Similar to sprintf(3), write a string into $var_to_set using printf(1) syntax
+# (`$format [$arguments ...]').
+#
+f_sprintf()
+{
+	local __var_to_set="$1"
+	shift 1 # var_to_set
+	eval "$__var_to_set"=\$\( printf -- \"\$@\" \)
 }
 
 # f_vsnprintf $var_to_set $size $format $format_args
@@ -109,6 +122,16 @@ f_snprintf()
 f_vsnprintf()
 {
 	eval f_snprintf \"\$1\" \"\$2\" \"\$3\" $4
+}
+
+# f_vsprintf $var_to_set $format $format_args
+#
+# Similar to vsprintf(3), write a string into $var_to_set using printf(1)
+# syntax (`$format $format_args').
+#
+f_vsprintf()
+{
+	eval f_sprintf \"\$1\" \"\$2\" $3
 }
 
 # f_longest_line_length
@@ -165,15 +188,8 @@ f_number_of_lines()
 #
 f_isinteger()
 {
-	local arg="$1"
-
-	# Prevent division-by-zero
-	[ "$arg" = "0" ] && return $SUCCESS
-
-	# Attempt to perform arithmetic divison (an operation which will exit
-	# with error unless arg is a valid positive/negative whole integer).
-	#
-	( : $((0/$arg)) ) > /dev/null 2>&1
+	local arg="${1#-}"
+	[ "${arg:-x}" = "${arg#[!0-9]*}" ]
 }
 
 # f_uriencode [$text]

@@ -70,9 +70,9 @@
 			};
 
 			/* UART1, console */
-			UART1: serial@53fbc000 {
+			console: serial@53fbc000 {
 				status = "okay";
-				clock-frequency = <3000000>; /* XXX */
+				clock-frequency = <0>; /* won't load w/o this */
 			};
 
 			clock@53fd4000 {
@@ -90,11 +90,21 @@
 			gpio@53f90000 {
 				status = "okay";
 			};
+			usb@53f80000 /* OTG */ {
+				status = "okay";
+			};
+			usb@53f80200 /* Host 1 */ {
+				status = "okay";
+			};
 			wdog@53f98000 {
 				status = "okay";
 			};
 		};
 		aips@60000000 {
+			ethernet@63fec000 {
+				status = "okay";
+				phy-mode = "rmii";
+			};
 			i2c@63fc4000 {
 				status = "okay";
 			};
@@ -111,13 +121,12 @@
 	};
 
 	aliases {
-		UART1 = &UART1;
 		SSI2 = &SSI2;
 	};
 
 	chosen {
 		bootargs = "-v";
-		stdin = "UART1";
-		stdout = "UART1";
+		stdin  = &console;
+		stdout = &console;
 	};
 };

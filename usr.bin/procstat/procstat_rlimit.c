@@ -46,7 +46,7 @@
 static struct {
 	const char *name;
 	const char *suffix;
-} rlimit_param[13] = {
+} rlimit_param[14] = {
 	{"cputime",          "sec"},
 	{"filesize",         "B  "},
 	{"datasize",         "B  "},
@@ -60,9 +60,10 @@ static struct {
 	{"vmemoryuse",       "B  "},
 	{"pseudo-terminals", "   "},
 	{"swapuse",          "B  "},
+	{"kqueues",          "   "},
 };
 
-#if RLIM_NLIMITS > 13
+#if RLIM_NLIMITS > 14
 #error "Resource limits have grown. Add new entries to rlimit_param[]."
 #endif
 

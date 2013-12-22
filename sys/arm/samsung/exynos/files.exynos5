@@ -10,12 +10,12 @@ arm/arm/cpufunc_asm_arm11.S			standard
 arm/arm/cpufunc_asm_armv7.S			standard
 arm/arm/irq_dispatch.S				standard
 
+arm/arm/bus_space-v6.c				standard
 arm/arm/gic.c					standard
 arm/arm/generic_timer.c				standard
 
 arm/samsung/exynos/arch_timer.c			standard
 arm/samsung/exynos/exynos5_mp.c			optional	smp
-arm/samsung/exynos/bus_space.c			standard
 arm/samsung/exynos/common.c			standard
 arm/samsung/exynos/exynos5_machdep.c		standard
 arm/samsung/exynos/uart.c			optional	uart

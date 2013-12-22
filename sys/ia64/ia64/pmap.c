@@ -195,12 +195,12 @@ extern struct ia64_lpte ***ia64_kptdir;
 
 vm_offset_t kernel_vm_end;
 
-/* Values for ptc.e. XXX values for SKI. */
-static uint64_t pmap_ptc_e_base = 0x100000000;
-static uint64_t pmap_ptc_e_count1 = 3;
-static uint64_t pmap_ptc_e_count2 = 2;
-static uint64_t pmap_ptc_e_stride1 = 0x2000;
-static uint64_t pmap_ptc_e_stride2 = 0x100000000;
+/* Defaults for ptc.e. */
+static uint64_t pmap_ptc_e_base = 0;
+static uint32_t pmap_ptc_e_count1 = 1;
+static uint32_t pmap_ptc_e_count2 = 1;
+static uint32_t pmap_ptc_e_stride1 = 0;
+static uint32_t pmap_ptc_e_stride2 = 0;
 
 struct mtx pmap_ptc_mutex;
 
@@ -262,7 +262,6 @@ static vm_page_t pmap_pv_reclaim(pmap_t locked_pmap);
 static void	pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
 		    vm_page_t m, vm_prot_t prot);
 static void	pmap_free_pte(struct ia64_lpte *pte, vm_offset_t va);
-static void	pmap_invalidate_all(void);
 static int	pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte,
 		    vm_offset_t va, pv_entry_t pv, int freepte);
 static int	pmap_remove_vhpt(vm_offset_t va);
@@ -325,12 +324,12 @@ pmap_bootstrap()
 		panic("Can't configure ptc.e parameters");
 	pmap_ptc_e_base = res.pal_result[0];
 	pmap_ptc_e_count1 = res.pal_result[1] >> 32;
-	pmap_ptc_e_count2 = res.pal_result[1] & ((1L<<32) - 1);
+	pmap_ptc_e_count2 = res.pal_result[1];
 	pmap_ptc_e_stride1 = res.pal_result[2] >> 32;
-	pmap_ptc_e_stride2 = res.pal_result[2] & ((1L<<32) - 1);
+	pmap_ptc_e_stride2 = res.pal_result[2];
 	if (bootverbose)
-		printf("ptc.e base=0x%lx, count1=%ld, count2=%ld, "
-		       "stride1=0x%lx, stride2=0x%lx\n",
+		printf("ptc.e base=0x%lx, count1=%u, count2=%u, "
+		       "stride1=0x%x, stride2=0x%x\n",
 		       pmap_ptc_e_base,
 		       pmap_ptc_e_count1,
 		       pmap_ptc_e_count2,
@@ -537,13 +536,12 @@ pmap_invalidate_page(vm_offset_t va)
 	critical_exit();
 }
 
-static void
-pmap_invalidate_all_1(void *arg)
+void
+pmap_invalidate_all(void)
 {
 	uint64_t addr;
 	int i, j;
 
-	critical_enter();
 	addr = pmap_ptc_e_base;
 	for (i = 0; i < pmap_ptc_e_count1; i++) {
 		for (j = 0; j < pmap_ptc_e_count2; j++) {
@@ -552,20 +550,7 @@ pmap_invalidate_all_1(void *arg)
 		}
 		addr += pmap_ptc_e_stride1;
 	}
-	critical_exit();
-}
-
-static void
-pmap_invalidate_all(void)
-{
-
-#ifdef SMP
-	if (mp_ncpus > 1) {
-		smp_rendezvous(NULL, pmap_invalidate_all_1, NULL, NULL);
-		return;
-	}
-#endif
-	pmap_invalidate_all_1(NULL);
+	ia64_srlz_i();
 }
 
 static uint32_t
@@ -2118,19 +2103,16 @@ pmap_remove_pages(pmap_t pmap)
 {
 	struct pv_chunk *pc, *npc;
 	struct ia64_lpte *pte;
+	pmap_t oldpmap;
 	pv_entry_t pv;
 	vm_offset_t va;
 	vm_page_t m;
 	u_long inuse, bitmask;
 	int allfree, bit, field, idx;
 
-	if (pmap != vmspace_pmap(curthread->td_proc->p_vmspace)) {
-		printf("warning: %s called with non-current pmap\n",
-		    __func__);
-		return;
-	}
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
+	oldpmap = pmap_switch(pmap);
 	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_list, npc) {
 		allfree = 1;
 		for (field = 0; field < _NPCM; field++) {
@@ -2170,8 +2152,9 @@ pmap_remove_pages(pmap_t pmap)
 			free_pv_chunk(pc);
 		}
 	}
-	rw_wunlock(&pvh_global_lock);
+	pmap_switch(oldpmap);
 	PMAP_UNLOCK(pmap);
+	rw_wunlock(&pvh_global_lock);
 }
 
 /*

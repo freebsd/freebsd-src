@@ -11,6 +11,7 @@ SUBDIR=	${_colldef} \
 	dtrace \
 	${_examples} \
 	${_i18n} \
+	keys \
 	${_man} \
 	${_me} \
 	misc \
@@ -25,6 +26,7 @@ SUBDIR=	${_colldef} \
 	${_syscons} \
 	tabset \
 	termcap \
+	${_tests} \
 	${_timedef} \
 	${_zoneinfo}
 
@@ -77,6 +79,10 @@ _doc=		doc
 
 .if ${MK_SYSCONS} != "no"
 _syscons=	syscons
+.endif
+
+.if ${MK_TESTS} != "no"
+_tests=		tests
 .endif
 
 .if ${MK_ZONEINFO} != "no"

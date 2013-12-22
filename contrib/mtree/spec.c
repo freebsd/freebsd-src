@@ -1,4 +1,4 @@
-/*	$NetBSD: spec.c,v 1.85 2012/12/20 16:43:16 christos Exp $	*/
+/*	$NetBSD: spec.c,v 1.88 2013/10/17 17:22:59 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -67,7 +67,7 @@
 #if 0
 static char sccsid[] = "@(#)spec.c	8.2 (Berkeley) 4/28/95";
 #else
-__RCSID("$NetBSD: spec.c,v 1.85 2012/12/20 16:43:16 christos Exp $");
+__RCSID("$NetBSD: spec.c,v 1.88 2013/10/17 17:22:59 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -81,6 +81,7 @@ __RCSID("$NetBSD: spec.c,v 1.85 2012/12/20 16:43:16 christos Exp $");
 #include <pwd.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -217,6 +218,12 @@ noparent:		mtree_err("no parent node");
 				/*
 				 * empty tree
 				 */
+			/*
+			 * Allow a bare "." root node by forcing it to
+			 * type=dir for compatibility with FreeBSD.
+			 */
+			if (strcmp(centry->name, ".") == 0 && centry->type == 0)
+				centry->type = F_DIR;
 			if (strcmp(centry->name, ".") != 0 ||
 			    centry->type != F_DIR)
 				mtree_err(
@@ -350,16 +357,18 @@ dump_nodes(const char *dir, NODE *root, int pathlast)
 			appendfield(pathlast, "mode=%#o", cur->st_mode);
 		if (MATCHFLAG(F_DEV) &&
 		    (cur->type == F_BLOCK || cur->type == F_CHAR))
-			appendfield(pathlast, "device=%#llx", (long long)cur->st_rdev);
+			appendfield(pathlast, "device=%#jx",
+			    (uintmax_t)cur->st_rdev);
 		if (MATCHFLAG(F_NLINK))
 			appendfield(pathlast, "nlink=%d", cur->st_nlink);
 		if (MATCHFLAG(F_SLINK))
 			appendfield(pathlast, "link=%s", vispath(cur->slink));
 		if (MATCHFLAG(F_SIZE))
-			appendfield(pathlast, "size=%lld", (long long)cur->st_size);
+			appendfield(pathlast, "size=%ju",
+			    (uintmax_t)cur->st_size);
 		if (MATCHFLAG(F_TIME))
-			appendfield(pathlast, "time=%lld.%09ld",
-			    (long long)cur->st_mtimespec.tv_sec,
+			appendfield(pathlast, "time=%jd.%09ld",
+			    (intmax_t)cur->st_mtimespec.tv_sec,
 			    cur->st_mtimespec.tv_nsec);
 		if (MATCHFLAG(F_CKSUM))
 			appendfield(pathlast, "cksum=%lu", cur->cksum);

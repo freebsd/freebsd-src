@@ -118,7 +118,6 @@ typedef enum {
 typedef enum {
 	CD_CCB_PROBE		= 0x01,
 	CD_CCB_BUFFER_IO	= 0x02,
-	CD_CCB_WAITING		= 0x03,
 	CD_CCB_TUR		= 0x04,
 	CD_CCB_TYPE_MASK	= 0x0F,
 	CD_CCB_RETRY_UA		= 0x10
@@ -428,7 +427,6 @@ cdoninvalidate(struct cam_periph *periph)
 		camq_remove(&softc->changer->devq, softc->pinfo.index);
 
 	disk_gone(softc->disk);
-	xpt_print(periph->path, "lost device, %d refs\n", periph->refcount);
 }
 
 static void
@@ -437,8 +435,6 @@ cdcleanup(struct cam_periph *periph)
 	struct cd_softc *softc;
 
 	softc = (struct cd_softc *)periph->softc;
-
-	xpt_print(periph->path, "removing device entry\n");
 
 	/*
 	 * In the queued, non-active case, the device in question
@@ -552,7 +548,7 @@ cdasync(void *callback_arg, u_int32_t code,
 		status = cam_periph_alloc(cdregister, cdoninvalidate,
 					  cdcleanup, cdstart,
 					  "cd", CAM_PERIPH_BIO,
-					  cgd->ccb_h.path, cdasync,
+					  path, cdasync,
 					  AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP
@@ -983,9 +979,9 @@ cdregister(struct cam_periph *periph, void *arg)
 			STAILQ_INIT(&nchanger->chluns);
 
 			callout_init_mtx(&nchanger->long_handle,
-			    periph->sim->mtx, 0);
+			    cam_periph_mtx(periph), 0);
 			callout_init_mtx(&nchanger->short_handle,
-			    periph->sim->mtx, 0);
+			    cam_periph_mtx(periph), 0);
 
 			mtx_lock(&changerq_mtx);
 			num_changers++;
@@ -1054,7 +1050,7 @@ cdregister(struct cam_periph *periph, void *arg)
 	/*
 	 * Schedule a periodic media polling events.
 	 */
-	callout_init_mtx(&softc->mediapoll_c, periph->sim->mtx, 0);
+	callout_init_mtx(&softc->mediapoll_c, cam_periph_mtx(periph), 0);
 	if ((softc->flags & CD_FLAG_DISC_REMOVABLE) &&
 	    (softc->flags & CD_FLAG_CHANGER) == 0 &&
 	    (cgd->inq_flags & SID_AEN) == 0 &&
@@ -1538,14 +1534,7 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 	case CD_STATE_NORMAL:
 	{
 		bp = bioq_first(&softc->bio_queue);
-		if (periph->immediate_priority <= periph->pinfo.priority) {
-			start_ccb->ccb_h.ccb_state = CD_CCB_WAITING;
-
-			SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-					  periph_links.sle);
-			periph->immediate_priority = CAM_PRIORITY_NONE;
-			wakeup(&periph->ccb_list);
-		} else if (bp == NULL) {
+		if (bp == NULL) {
 			if (softc->tur) {
 				softc->tur = 0;
 				csio = &start_ccb->csio;
@@ -1609,11 +1598,9 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 
 			xpt_action(start_ccb);
 		}
-		if (bp != NULL || softc->tur ||
-		    periph->immediate_priority != CAM_PRIORITY_NONE) {
+		if (bp != NULL || softc->tur) {
 			/* Have more work to do, so ensure we stay scheduled */
-			xpt_schedule(periph, min(CAM_PRIORITY_NORMAL,
-			    periph->immediate_priority));
+			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 		}
 		break;
 	}
@@ -1896,15 +1883,6 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		 */
 		xpt_release_ccb(done_ccb);
 		cam_periph_unhold(periph);
-		return;
-	}
-	case CD_CCB_WAITING:
-	{
-		/* Caller will release the CCB */
-		CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, 
-			  ("trying to wakeup ccbwait\n"));
-
-		wakeup(&done_ccb->ccb_h.cbfcnp);
 		return;
 	}
 	case CD_CCB_TUR:

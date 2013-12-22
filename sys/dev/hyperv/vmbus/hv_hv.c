@@ -218,7 +218,7 @@ hv_vmbus_init(void)
 	    0,
 	    sizeof(hv_vmbus_handle) * MAXCPU);
 
-	if (!hv_vmbus_query_hypervisor_presence())
+	if (vm_guest != VM_GUEST_HV)
 	    goto cleanup;
 
 	max_leaf = hv_vmbus_get_hypervisor_version();

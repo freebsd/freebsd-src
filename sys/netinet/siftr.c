@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/alq.h>
 #include <sys/errno.h>
+#include <sys/eventhandler.h>
 #include <sys/hash.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -81,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/pfil.h>
 
 #include <netinet/in.h>

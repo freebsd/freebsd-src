@@ -75,9 +75,13 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
-int iosize_max_clamp = 1;
+int iosize_max_clamp = 0;
 SYSCTL_INT(_debug, OID_AUTO, iosize_max_clamp, CTLFLAG_RW,
     &iosize_max_clamp, 0, "Clamp max i/o size to INT_MAX");
+int devfs_iosize_max_clamp = 1;
+SYSCTL_INT(_debug, OID_AUTO, devfs_iosize_max_clamp, CTLFLAG_RW,
+    &devfs_iosize_max_clamp, 0, "Clamp max i/o size to INT_MAX for devices");
+
 /*
  * Assert that the return value of read(2) and write(2) syscalls fits
  * into a register.  If not, an architecture will need to provide the
@@ -1191,8 +1195,9 @@ getselfd_cap(struct filedesc *fdp, int fd, struct file **fpp)
 {
 	cap_rights_t rights;
 
-	return (fget_unlocked(fdp, fd, cap_rights_init(&rights, CAP_POLL_EVENT),
-	    0, fpp, NULL));
+	cap_rights_init(&rights, CAP_EVENT);
+
+	return (fget_unlocked(fdp, fd, &rights, 0, fpp, NULL));
 }
 
 /*
@@ -1388,7 +1393,7 @@ pollrescan(struct thread *td)
 #ifdef CAPABILITIES
 		if (fp == NULL ||
 		    cap_check(cap_rights(fdp, fd->fd),
-		    cap_rights_init(&rights, CAP_POLL_EVENT)) != 0)
+		    cap_rights_init(&rights, CAP_EVENT)) != 0)
 #else
 		if (fp == NULL)
 #endif
@@ -1463,7 +1468,7 @@ pollscan(td, fds, nfd)
 #ifdef CAPABILITIES
 			if (fp == NULL ||
 			    cap_check(cap_rights(fdp, fds->fd),
-			    cap_rights_init(&rights, CAP_POLL_EVENT)) != 0)
+			    cap_rights_init(&rights, CAP_EVENT)) != 0)
 #else
 			if (fp == NULL)
 #endif

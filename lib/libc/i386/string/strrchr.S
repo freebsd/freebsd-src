@@ -64,6 +64,6 @@ L2:
 	ret
 END(strrchr)
 
-WEAK_ALIAS(rindex, strrchr)
+WEAK_REFERENCE(strrchr, rindex)
 
 	.section .note.GNU-stack,"",%progbits

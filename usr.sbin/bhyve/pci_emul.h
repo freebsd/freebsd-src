@@ -103,15 +103,16 @@ struct pci_devinst {
 	struct pci_devemu *pi_d;
 	struct vmctx *pi_vmctx;
 	uint8_t	  pi_bus, pi_slot, pi_func;
-	uint8_t   pi_lintr_pin;
+	int8_t    pi_lintr_pin;
+	int8_t	  pi_lintr_state;
 	char	  pi_name[PI_NAMESZ];
 	int	  pi_bar_getsize;
 
 	struct {
-		int	enabled;
-		int	cpu;
-		int	vector;
-		int	msgnum;
+		int		enabled;
+		uint64_t	addr;
+		uint64_t	msg_data;
+		int		maxmsgnum;
 	} pi_msi;
 
 	struct {

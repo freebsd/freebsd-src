@@ -1,8 +1,8 @@
 #!/bin/sh
 #-
 # Copyright (c) 2011 Nathan Whitehorn
-# All rights reserved.
 # Copyright (c) 2011 The FreeBSD Foundation
+# Copyright (c) 2013 Devin Teske
 # All rights reserved.
 #
 # Portions of this software were developed by Bjoern Zeeb
@@ -30,18 +30,20 @@
 # SUCH DAMAGE.
 #
 # $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+
+############################################################ MAIN
 
 #
 # TODO: 
 # - Add DHCPv6 support once FreeBSD ships with it.
 # 
-
-: ${DIALOG_OK=0}
-: ${DIALOG_CANCEL=1}
-: ${DIALOG_HELP=2}
-: ${DIALOG_EXTRA=3}
-: ${DIALOG_ITEM_HELP=4}
-: ${DIALOG_ESC=255}
 
 INTERFACE=$1
 case "${INTERFACE}" in
@@ -61,8 +63,9 @@ while : ; do
 			dialog --backtitle 'FreeBSD Installer' \
 			    --infobox "Sending Router Solicitation ..." 0 0
 			ifconfig ${INTERFACE} inet6 -ifdisabled accept_rtadv up
-			rtsol -F $INTERFACE 2>> $BSDINSTALL_LOG
+			err=$( rtsol -F $INTERFACE 2>&1 )
 			if [ $? -ne 0 ]; then
+				f_dprintf "%s" "$err"
 				dialog --backtitle 'FreeBSD Installer' --msgbox "SLAAC failed." 0 0
 				AGAIN=" again"
 				continue
@@ -148,3 +151,6 @@ if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
 	fi
 fi
 
+################################################################################
+# END
+################################################################################

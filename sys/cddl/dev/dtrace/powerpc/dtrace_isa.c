@@ -49,7 +49,8 @@
 
 /* Offset to the LR Save word (ppc32) */
 #define RETURN_OFFSET	4
-#define RETURN_OFFSET64	8
+/* Offset to LR Save word (ppc64).  CR Save area sits between back chain and LR */
+#define RETURN_OFFSET64	16
 
 #define INKERNEL(x)	((x) <= VM_MAX_KERNEL_ADDRESS && \
 		(x) >= VM_MIN_KERNEL_ADDRESS)

@@ -7,8 +7,7 @@
 
      Original revision: 1.14
 -->
-
-<sect1 id="proc">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="proc">
   <title>Поддерживаемые процессоры и материнские платы</title>
 
   <para>&os;/i386 работает на самых разнообразных <quote>IBM PC
@@ -92,10 +91,8 @@
   <para>ACPI зависит от Differentiated System Descriptor Table
     (DSDT), находящейся в BIOS каждого компьютера.  DSDT некоторых
     компьютеров неполна, что не позволяет ACPI работать правильно.
-    Замену DSDT для некоторых компьютеров можно найти в разделе <ulink
-    url="http://acpi.sourceforge.net/dsdt/index.php">DSDT</ulink>
-    сайта проекта <ulink
-    url="http://acpi.sourceforge.net/">ACPI4Linux</ulink>.
+    Замену DSDT для некоторых компьютеров можно найти в разделе <link xlink:href="http://acpi.sourceforge.net/dsdt/index.php">DSDT</link>
+    сайта проекта <link xlink:href="http://acpi.sourceforge.net/">ACPI4Linux</link>.
     &os; может использовать эти DSDT для перезаписи DSDT, находящихся
     в BIOS; обратитесь к странице справочника &man.acpi.4; за более
     подробной информацией.</para>

@@ -248,7 +248,8 @@ uhub_explore_sub(struct uhub_softc *sc, struct usb_port *up)
 		uint8_t do_unlock;
 		
 		do_unlock = usbd_enum_lock(child);
-		if (child->re_enumerate_wait) {
+		switch (child->re_enumerate_wait) {
+		case USB_RE_ENUM_START:
 			err = usbd_set_config_index(child,
 			    USB_UNCONFIG_INDEX);
 			if (err != 0) {
@@ -263,8 +264,33 @@ uhub_explore_sub(struct uhub_softc *sc, struct usb_port *up)
 				err = usb_probe_and_attach(child,
 				    USB_IFACE_INDEX_ANY);
 			}
-			child->re_enumerate_wait = 0;
+			child->re_enumerate_wait = USB_RE_ENUM_DONE;
 			err = 0;
+			break;
+
+		case USB_RE_ENUM_PWR_OFF:
+			/* get the device unconfigured */
+			err = usbd_set_config_index(child,
+			    USB_UNCONFIG_INDEX);
+			if (err) {
+				DPRINTFN(0, "Could not unconfigure "
+				    "device (ignored)\n");
+			}
+
+			/* clear port enable */
+			err = usbd_req_clear_port_feature(child->parent_hub,
+			    NULL, child->port_no, UHF_PORT_ENABLE);
+			if (err) {
+				DPRINTFN(0, "Could not disable port "
+				    "(ignored)\n");
+			}
+			child->re_enumerate_wait = USB_RE_ENUM_DONE;
+			err = 0;
+			break;
+
+		default:
+			child->re_enumerate_wait = USB_RE_ENUM_DONE;
+			break;
 		}
 		if (do_unlock)
 			usbd_enum_unlock(child);
@@ -2086,7 +2112,7 @@ usb_peer_should_wakeup(struct usb_device *udev)
 	return (((udev->power_mode == USB_POWER_MODE_ON) &&
 	    (udev->flags.usb_mode == USB_MODE_HOST)) ||
 	    (udev->driver_added_refcount != udev->bus->driver_added_refcount) ||
-	    (udev->re_enumerate_wait != 0) ||
+	    (udev->re_enumerate_wait != USB_RE_ENUM_DONE) ||
 	    (udev->pwr_save.type_refs[UE_ISOCHRONOUS] != 0) ||
 	    (udev->pwr_save.write_refs != 0) ||
 	    ((udev->pwr_save.read_refs != 0) &&
@@ -2502,6 +2528,8 @@ usbd_set_power_mode(struct usb_device *udev, uint8_t power_mode)
 
 #if USB_HAVE_POWERD
 	usb_bus_power_update(udev->bus);
+#else
+	usb_needs_explore(udev->bus, 0 /* no probe */ );
 #endif
 }
 
@@ -2513,7 +2541,7 @@ usbd_set_power_mode(struct usb_device *udev, uint8_t power_mode)
 uint8_t
 usbd_filter_power_mode(struct usb_device *udev, uint8_t power_mode)
 {
-	struct usb_bus_methods *mtod;
+	const struct usb_bus_methods *mtod;
 	int8_t temp;
 
 	mtod = udev->bus->methods;
@@ -2540,8 +2568,8 @@ usbd_filter_power_mode(struct usb_device *udev, uint8_t power_mode)
 void
 usbd_start_re_enumerate(struct usb_device *udev)
 {
-	if (udev->re_enumerate_wait == 0) {
-		udev->re_enumerate_wait = 1;
+	if (udev->re_enumerate_wait == USB_RE_ENUM_DONE) {
+		udev->re_enumerate_wait = USB_RE_ENUM_START;
 		usb_needs_explore(udev->bus, 0);
 	}
 }

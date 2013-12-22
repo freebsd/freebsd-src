@@ -1572,7 +1572,7 @@ msgstr ""
 
 #: elf32-score.c:2549
 #, c-format
-msgid "%s: Malformed reloc detected for section %s"
+msgid "%B: Malformed reloc detected for section %s"
 msgstr ""
 
 #: elf32-score.c:2600
@@ -2440,7 +2440,7 @@ msgstr ""
 
 #: elflink.c:4309
 #, c-format
-msgid "%s: invalid DSO for symbol `%s' definition"
+msgid "%B: invalid DSO for symbol `%s' definition"
 msgstr ""
 
 #: elflink.c:5535

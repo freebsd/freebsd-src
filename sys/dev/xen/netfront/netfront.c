@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -43,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -51,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 
 #include <net/if_types.h>
-#include <net/if.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -165,7 +166,6 @@ static int  xn_configure_features(struct netfront_info *np);
 static void xn_watchdog(struct ifnet *);
 #endif
 
-static void show_device(struct netfront_info *sc);
 #ifdef notyet
 static void netfront_closing(device_t dev);
 #endif
@@ -644,8 +644,6 @@ setup_device(device_t dev, struct netfront_info *info)
 		goto fail;
 	}
 
-	show_device(info);
-	
 	return (0);
 	
  fail:
@@ -967,7 +965,7 @@ static void
 xn_rxeof(struct netfront_info *np)
 {
 	struct ifnet *ifp;
-#if __FreeBSD_version >= 700000
+#if __FreeBSD_version >= 700000 && (defined(INET) || defined(INET6))
 	struct lro_ctrl *lro = &np->xn_lro;
 	struct lro_entry *queued;
 #endif
@@ -1064,7 +1062,7 @@ xn_rxeof(struct netfront_info *np)
 			 * Do we really need to drop the rx lock?
 			 */
 			XN_RX_UNLOCK(np);
-#if __FreeBSD_version >= 700000
+#if __FreeBSD_version >= 700000 && (defined(INET) || defined(INET6))
 			/* Use LRO if possible */
 			if ((ifp->if_capenable & IFCAP_LRO) == 0 ||
 			    lro->lro_cnt == 0 || tcp_lro_rx(lro, m, 0)) {
@@ -1082,7 +1080,7 @@ xn_rxeof(struct netfront_info *np)
 	
 		np->rx.rsp_cons = i;
 
-#if __FreeBSD_version >= 700000
+#if __FreeBSD_version >= 700000 && (defined(INET) || defined(INET6))
 		/*
 		 * Flush any outstanding LRO work
 		 */
@@ -1969,25 +1967,6 @@ network_connect(struct netfront_info *np)
 	return (0);
 }
 
-static void 
-show_device(struct netfront_info *sc)
-{
-#ifdef DEBUG
-	if (sc) {
-		IPRINTK("<vif handle=%u %s(%s) evtchn=%u irq=%u tx=%p rx=%p>\n",
-			sc->xn_ifno,
-			be_state_name[sc->xn_backend_state],
-			sc->xn_user_state ? "open" : "closed",
-			sc->xn_evtchn,
-			sc->xn_irq,
-			sc->xn_tx_if,
-			sc->xn_rx_if);
-	} else {
-		IPRINTK("<vif NULL>\n");
-	}
-#endif
-}
-
 static void
 xn_query_features(struct netfront_info *np)
 {
@@ -2024,14 +2003,14 @@ xn_configure_features(struct netfront_info *np)
 	int err;
 
 	err = 0;
-#if __FreeBSD_version >= 700000
+#if __FreeBSD_version >= 700000 && (defined(INET) || defined(INET6))
 	if ((np->xn_ifp->if_capenable & IFCAP_LRO) != 0)
 		tcp_lro_free(&np->xn_lro);
 #endif
     	np->xn_ifp->if_capenable =
 	    np->xn_ifp->if_capabilities & ~(IFCAP_LRO|IFCAP_TSO4);
 	np->xn_ifp->if_hwassist &= ~CSUM_TSO;
-#if __FreeBSD_version >= 700000
+#if __FreeBSD_version >= 700000 && (defined(INET) || defined(INET6))
 	if (xn_enable_lro && (np->xn_ifp->if_capabilities & IFCAP_LRO) != 0) {
 		err = tcp_lro_init(&np->xn_lro);
 		if (err) {

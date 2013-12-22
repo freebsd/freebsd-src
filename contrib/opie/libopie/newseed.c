@@ -18,6 +18,9 @@ $FreeBSD$
 */
 
 #include "opie_cfg.h"
+#ifndef HAVE_TIME_H
+#define HAVE_TIME_H 1
+#endif
 #if HAVE_TIME_H
 #include <time.h>
 #endif /* HAVE_TIME_H */
@@ -35,6 +38,8 @@ $FreeBSD$
 #if DEBUG
 #include <syslog.h>
 #endif /* DEBUG */
+#include <stdio.h>
+#include <stdlib.h>
 #include "opie.h"
 
 int opienewseed FUNCTION((seed), char *seed)

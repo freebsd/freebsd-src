@@ -366,6 +366,7 @@ create menuset_y        1   allot
 	\ 	menuset1_command[x]		-> menu_command[x]
 	\ 	menuset1_init			-> ``evaluated''
 	\ 	menuset1_init[x]		-> menu_init[x]
+	\ 	menuset1_kernel			-> menu_kernel
 	\ 	menuset1_keycode[x]		-> menu_keycode[x]
 	\ 	menuset1_options		-> menu_options
 	\ 	menuset1_optionstext		-> menu_optionstext
@@ -382,6 +383,7 @@ create menuset_y        1   allot
 	\ 	{name}menu_command[x]		-> menu_command[x]
 	\ 	{name}menu_init			-> ``evaluated''
 	\ 	{name}menu_init[x]		-> menu_init[x]
+	\ 	{name}menu_kernel		-> menu_kernel
 	\ 	{name}menu_keycode[x]		-> menu_keycode[x]
 	\ 	{name}menu_options		-> menu_options
 	\ 	{name}menu_optionstext		-> menu_optionstext
@@ -520,6 +522,10 @@ create menuset_y        1   allot
 	s" set var=acpi" evaluate
 	menuset-loadmenuvar
 
+	\ ... menu_kernel ...
+	s" set var=kernel" evaluate
+	menuset-loadmenuvar
+
 	\ ... menu_options ...
 	s" set var=options" evaluate
 	menuset-loadmenuvar
@@ -597,6 +603,7 @@ create menuset_y        1   allot
 
 		s" set var=acpi"        evaluate menuset-unloadmenuvar
 		s" set var=init"        evaluate menuset-unloadmenuvar
+		s" set var=kernel"      evaluate menuset-unloadmenuvar
 		s" set var=options"     evaluate menuset-unloadmenuvar
 		s" set var=optionstext" evaluate menuset-unloadmenuvar
 		s" set var=reboot"      evaluate menuset-unloadmenuvar

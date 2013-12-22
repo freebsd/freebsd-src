@@ -35,7 +35,7 @@
  *
  */
 
-#define ORB_NOTIFY	(1 << 31)
+#define ORB_NOTIFY	(1U << 31)
 #define	ORB_FMT_STD	(0 << 29)
 #define	ORB_FMT_VED	(2 << 29)
 #define	ORB_FMT_NOP	(3 << 29)

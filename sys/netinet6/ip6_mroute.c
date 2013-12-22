@@ -82,7 +82,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet6.h"
-#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/callout.h>
@@ -106,6 +105,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/raw_cb.h>
 #include <net/vnet.h>

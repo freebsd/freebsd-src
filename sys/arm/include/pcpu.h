@@ -33,7 +33,6 @@
 #ifdef _KERNEL
 
 #include <machine/cpuconf.h>
-#include <machine/frame.h>
 
 #define	ALT_STACK_SIZE	128
 

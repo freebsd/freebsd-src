@@ -1200,7 +1200,7 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
 
 	mnew->object = object;
 	mnew->pindex = pindex;
-	mold = vm_radix_replace(&object->rtree, mnew, pindex);
+	mold = vm_radix_replace(&object->rtree, mnew);
 	KASSERT(mold->queue == PQ_NONE,
 	    ("vm_page_replace: mold is on a paging queue"));
 

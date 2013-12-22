@@ -61,13 +61,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/radix_mpath.h>
 #include <net/vnet.h>
 
 #include <net/pfvar.h>
-#include <net/pf_mtag.h>
 #include <net/if_pflog.h>
 #include <net/if_pfsync.h>
 
@@ -210,6 +210,8 @@ static void		 pf_change_ap(struct pf_addr *, u_int16_t *,
 			    u_int16_t, u_int8_t, sa_family_t);
 static int		 pf_modulate_sack(struct mbuf *, int, struct pf_pdesc *,
 			    struct tcphdr *, struct pf_state_peer *);
+static int		 pf_icmp_mapping(struct pf_pdesc *, uint8_t, int *,
+			    int *, uint16_t *, uint16_t *);
 static void		 pf_change_icmp(struct pf_addr *, u_int16_t *,
 			    struct pf_addr *, struct pf_addr *, u_int16_t,
 			    u_int16_t *, u_int16_t *, u_int16_t *,
@@ -256,6 +258,10 @@ static int		 pf_test_state_tcp(struct pf_state **, int,
 static int		 pf_test_state_udp(struct pf_state **, int,
 			    struct pfi_kif *, struct mbuf *, int,
 			    void *, struct pf_pdesc *);
+static int		 pf_icmp_state_lookup(struct pf_state_key_cmp *,
+			    struct pf_pdesc *, struct pf_state **, struct mbuf *,
+			    int, struct pfi_kif *, uint16_t, uint16_t,
+			    int, int *, int);
 static int		 pf_test_state_icmp(struct pf_state **, int,
 			    struct pfi_kif *, struct mbuf *, int,
 			    void *, struct pf_pdesc *, u_short *);
@@ -304,13 +310,15 @@ VNET_DECLARE(int, pf_end_threads);
 
 VNET_DEFINE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
 
+enum { PF_ICMP_MULTI_NONE, PF_ICMP_MULTI_SOLICITED, PF_ICMP_MULTI_LINK };
+
 #define	PACKET_LOOPED(pd)	((pd)->pf_mtag &&			\
 				 (pd)->pf_mtag->flags & PF_PACKET_LOOPED)
 
 #define	STATE_LOOKUP(i, k, d, s, pd)					\
 	do {								\
 		(s) = pf_find_state((i), (k), (d));			\
-		if ((s) == NULL || (s)->timeout == PFTM_PURGE)		\
+		if ((s) == NULL)					\
 			return (PF_DROP);				\
 		if (PACKET_LOOPED(pd))					\
 			return (PF_PASS);				\
@@ -673,20 +681,53 @@ pf_insert_src_node(struct pf_src_node **sn, struct pf_rule *rule,
 	return (0);
 }
 
-static void
-pf_remove_src_node(struct pf_src_node *src)
+void
+pf_unlink_src_node_locked(struct pf_src_node *src)
+{
+#ifdef INVARIANTS
+	struct pf_srchash *sh;
+
+	sh = &V_pf_srchash[pf_hashsrc(&src->addr, src->af)];
+	PF_HASHROW_ASSERT(sh);
+#endif
+	LIST_REMOVE(src, entry);
+	if (src->rule.ptr)
+		src->rule.ptr->src_nodes--;
+	V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
+	V_pf_status.src_nodes--;
+}
+
+void
+pf_unlink_src_node(struct pf_src_node *src)
 {
 	struct pf_srchash *sh;
 
 	sh = &V_pf_srchash[pf_hashsrc(&src->addr, src->af)];
 	PF_HASHROW_LOCK(sh);
-	LIST_REMOVE(src, entry);
+	pf_unlink_src_node_locked(src);
 	PF_HASHROW_UNLOCK(sh);
+}
 
-	V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
-	V_pf_status.src_nodes--;
+static void
+pf_free_src_node(struct pf_src_node *sn)
+{
 
-	uma_zfree(V_pf_sources_z, src);
+	KASSERT(sn->states == 0, ("%s: %p has refs", __func__, sn));
+	uma_zfree(V_pf_sources_z, sn);
+}
+
+u_int
+pf_free_src_nodes(struct pf_src_node_list *head)
+{
+	struct pf_src_node *sn, *tmp;
+	u_int count = 0;
+
+	LIST_FOREACH_SAFE(sn, head, entry, tmp) {
+		pf_free_src_node(sn);
+		count++;
+	}
+
+	return (count);
 }
 
 /* Data storage structures initialization. */
@@ -1222,11 +1263,11 @@ pf_find_state(struct pfi_kif *kif, struct pf_state_key_cmp *key, u_int dir)
 		if (s->kif == V_pfi_all || s->kif == kif) {
 			PF_STATE_LOCK(s);
 			PF_HASHROW_UNLOCK(kh);
-			if (s->timeout == PFTM_UNLINKED) {
+			if (s->timeout >= PFTM_MAX) {
 				/*
-				 * State is being processed
-				 * by pf_unlink_state() in
-				 * an other thread.
+				 * State is either being processed by
+				 * pf_unlink_state() in an other thread, or
+				 * is scheduled for immediate expiry.
 				 */
 				PF_STATE_UNLOCK(s);
 				return (NULL);
@@ -1427,8 +1468,6 @@ pf_state_expires(const struct pf_state *state)
 	/* handle all PFTM_* > PFTM_MAX here */
 	if (state->timeout == PFTM_PURGE)
 		return (time_uptime);
-	if (state->timeout == PFTM_UNTIL_PACKET)
-		return (0);
 	KASSERT(state->timeout != PFTM_UNLINKED,
 	    ("pf_state_expires: timeout == PFTM_UNLINKED"));
 	KASSERT((state->timeout < PFTM_MAX),
@@ -1458,24 +1497,24 @@ pf_state_expires(const struct pf_state *state)
 void
 pf_purge_expired_src_nodes()
 {
+	struct pf_src_node_list	 freelist;
 	struct pf_srchash	*sh;
 	struct pf_src_node	*cur, *next;
 	int i;
 
+	LIST_INIT(&freelist);
 	for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask; i++, sh++) {
 	    PF_HASHROW_LOCK(sh);
 	    LIST_FOREACH_SAFE(cur, &sh->nodes, entry, next)
-		if (cur->states <= 0 && cur->expire <= time_uptime) {
-			if (cur->rule.ptr != NULL)
-				cur->rule.ptr->src_nodes--;
-			LIST_REMOVE(cur, entry);
-			V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
-			V_pf_status.src_nodes--;
-			uma_zfree(V_pf_sources_z, cur);
+		if (cur->states == 0 && cur->expire <= time_uptime) {
+			pf_unlink_src_node_locked(cur);
+			LIST_INSERT_HEAD(&freelist, cur, entry);
 		} else if (cur->rule.ptr != NULL)
 			cur->rule.ptr->rule_flag |= PFRULE_REFS;
 	    PF_HASHROW_UNLOCK(sh);
 	}
+
+	pf_free_src_nodes(&freelist);
 }
 
 static void
@@ -1486,7 +1525,7 @@ pf_src_tree_remove_state(struct pf_state *s)
 	if (s->src_node != NULL) {
 		if (s->src.tcp_est)
 			--s->src_node->conn;
-		if (--s->src_node->states <= 0) {
+		if (--s->src_node->states == 0) {
 			timeout = s->rule.ptr->timeout[PFTM_SRC_NODE];
 			if (!timeout)
 				timeout =
@@ -1495,7 +1534,7 @@ pf_src_tree_remove_state(struct pf_state *s)
 		}
 	}
 	if (s->nat_src_node != s->src_node && s->nat_src_node != NULL) {
-		if (--s->nat_src_node->states <= 0) {
+		if (--s->nat_src_node->states == 0) {
 			timeout = s->rule.ptr->timeout[PFTM_SRC_NODE];
 			if (!timeout)
 				timeout =
@@ -2017,6 +2056,155 @@ pf_change_a6(struct pf_addr *a, u_int16_t *c, struct pf_addr *an, u_int8_t u)
 	    ao.addr16[7], an->addr16[7], u);
 }
 #endif /* INET6 */
+
+static int
+pf_icmp_mapping(struct pf_pdesc *pd, uint8_t type,
+    int *icmp_dir, int *multi, uint16_t *icmpid, uint16_t *icmptype)
+{
+	/*
+	 * ICMP types marked with PF_OUT are typically responses to
+	 * PF_IN, and will match states in the opposite direction.
+	 * PF_IN ICMP types need to match a state with that type.
+	 */
+	*icmp_dir = PF_OUT;
+	*multi = PF_ICMP_MULTI_LINK;
+	/* Queries (and responses) */
+	switch (type) {
+	case ICMP_ECHO:
+		*icmp_dir = PF_IN;
+	case ICMP_ECHOREPLY:
+		*icmptype = ICMP_ECHO;
+		*icmpid = pd->hdr.icmp->icmp_id;
+		break;
+
+	case ICMP_TSTAMP:
+		*icmp_dir = PF_IN;
+	case ICMP_TSTAMPREPLY:
+		*icmptype = ICMP_TSTAMP;
+		*icmpid = pd->hdr.icmp->icmp_id;
+		break;
+
+	case ICMP_IREQ:
+		*icmp_dir = PF_IN;
+	case ICMP_IREQREPLY:
+		*icmptype = ICMP_IREQ;
+		*icmpid = pd->hdr.icmp->icmp_id;
+		break;
+
+	case ICMP_MASKREQ:
+		*icmp_dir = PF_IN;
+	case ICMP_MASKREPLY:
+		*icmptype = ICMP_MASKREQ;
+		*icmpid = pd->hdr.icmp->icmp_id;
+		break;
+
+	case ICMP_IPV6_WHEREAREYOU:
+		*icmp_dir = PF_IN;
+	case ICMP_IPV6_IAMHERE:
+		*icmptype = ICMP_IPV6_WHEREAREYOU;
+		*icmpid = 0; /* Nothing sane to match on! */
+		break;
+
+	case ICMP_MOBILE_REGREQUEST:
+		*icmp_dir = PF_IN;
+	case ICMP_MOBILE_REGREPLY:
+		*icmptype = ICMP_MOBILE_REGREQUEST;
+		*icmpid = 0; /* Nothing sane to match on! */
+		break;
+
+	case ICMP_ROUTERSOLICIT:
+		*icmp_dir = PF_IN;
+	case ICMP_ROUTERADVERT:
+		*icmptype = ICMP_MOBILE_REGREQUEST;
+		*icmpid = 0; /* Nothing sane to match on! */
+		break;
+
+#ifdef INET6
+	case ICMP6_ECHO_REQUEST:
+		*icmp_dir = PF_IN;
+	case ICMP6_ECHO_REPLY:
+		*icmptype = ICMP6_ECHO_REPLY;
+		*icmpid = 0; /* Nothing sane to match on! */
+		break;
+
+	case MLD_LISTENER_QUERY:
+		*icmp_dir = PF_IN;
+	case MLD_LISTENER_REPORT: {
+		struct mld_hdr *mld = (void *)pd->hdr.icmp6;
+
+		*icmptype = MLD_LISTENER_QUERY;
+		/* generate fake id for these messages */
+		*icmpid = (mld->mld_addr.s6_addr32[0] ^
+			mld->mld_addr.s6_addr32[1] ^
+			mld->mld_addr.s6_addr32[2] ^
+			mld->mld_addr.s6_addr32[3]) & 0xffff;
+		break;
+	}
+
+	/* ICMP6_FQDN and ICMP6_NI query/reply are the same type as ICMP6_WRU */
+	case ICMP6_WRUREQUEST:
+		*icmp_dir = PF_IN;
+	case ICMP6_WRUREPLY:
+		*icmptype = ICMP6_WRUREQUEST;
+		*icmpid = 0; /* Nothing sane to match on! */
+		break;
+
+	case MLD_MTRACE:
+		*icmp_dir = PF_IN;
+	case MLD_MTRACE_RESP:
+		*icmptype = MLD_MTRACE;
+		*icmpid = 0; /* Nothing sane to match on! */
+		break;
+
+	case ND_NEIGHBOR_SOLICIT:
+		*icmp_dir = PF_IN;
+	case ND_NEIGHBOR_ADVERT: {
+		struct nd_neighbor_solicit *nd = (void *)pd->hdr.icmp6;
+
+		*icmptype = ND_NEIGHBOR_SOLICIT;
+		*multi = PF_ICMP_MULTI_SOLICITED;
+		/* generate fake id for these messages */
+		*icmpid = (nd->nd_ns_target.s6_addr32[0] ^
+			nd->nd_ns_target.s6_addr32[1] ^
+			nd->nd_ns_target.s6_addr32[2] ^
+			nd->nd_ns_target.s6_addr32[3]) & 0xffff;
+		break;
+	}
+
+#endif /* INET6 */
+	/* These ICMP types map to other connections */
+	case ICMP_UNREACH:
+	case ICMP_SOURCEQUENCH:
+	case ICMP_REDIRECT:
+	case ICMP_TIMXCEED:
+	case ICMP_PARAMPROB:
+#ifdef INET6
+	/*
+	 * ICMP6_TIME_EXCEEDED is the same type as ICMP_UNREACH
+	 * ND_REDIRECT can't be in this list because the triggering packet
+	 * header is optional.
+	 */
+	case ICMP6_PACKET_TOO_BIG:
+#endif /* INET6 */
+		/* These will not be used, but set them anyways */
+		*icmp_dir = PF_IN;
+		*icmptype = htons(type);
+		*icmpid = 0;
+		return (1);	/* These types are matched to other state */
+	/*
+	 * All remaining ICMP types get their own states,
+	 * and will only match in one direction.
+	 */
+	default:
+		*icmp_dir = PF_IN;
+		*icmptype = type;
+		*icmpid = 0;
+		break;
+	}
+	*icmptype = htons(*icmptype);
+
+	return (0);
+}
 
 static void
 pf_change_icmp(struct pf_addr *ia, u_int16_t *ip, struct pf_addr *oa,
@@ -2992,8 +3180,8 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 	int			 tag = -1, rtableid = -1;
 	int			 asd = 0;
 	int			 match = 0;
-	int			 state_icmp = 0;
-	u_int16_t		 sport = 0, dport = 0;
+	int			 state_icmp = 0, icmp_dir, multi;
+	uint16_t		 sport = 0 , dport = 0, virtual_type = 0, virtual_id = 0;
 	u_int16_t		 bproto_sum = 0, bip_sum = 0;
 	u_int8_t		 icmptype = 0, icmpcode = 0;
 	struct pf_anchor_stackframe	anchor_stack[PF_ANCHOR_STACKSIZE];
@@ -3022,33 +3210,38 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 	case IPPROTO_ICMP:
 		if (pd->af != AF_INET)
 			break;
-		sport = dport = pd->hdr.icmp->icmp_id;
 		hdrlen = sizeof(*pd->hdr.icmp);
 		icmptype = pd->hdr.icmp->icmp_type;
 		icmpcode = pd->hdr.icmp->icmp_code;
 
-		if (icmptype == ICMP_UNREACH ||
-		    icmptype == ICMP_SOURCEQUENCH ||
-		    icmptype == ICMP_REDIRECT ||
-		    icmptype == ICMP_TIMXCEED ||
-		    icmptype == ICMP_PARAMPROB)
-			state_icmp++;
+		state_icmp = pf_icmp_mapping(pd, icmptype,
+		    &icmp_dir, &multi, &virtual_id, &virtual_type);
+		if (icmp_dir == PF_IN) {
+			sport = virtual_id;
+			dport = virtual_type;
+		} else {
+			sport = virtual_type;
+			dport = virtual_id;
+		}
 		break;
 #endif /* INET */
 #ifdef INET6
 	case IPPROTO_ICMPV6:
 		if (af != AF_INET6)
 			break;
-		sport = dport = pd->hdr.icmp6->icmp6_id;
 		hdrlen = sizeof(*pd->hdr.icmp6);
 		icmptype = pd->hdr.icmp6->icmp6_type;
 		icmpcode = pd->hdr.icmp6->icmp6_code;
 
-		if (icmptype == ICMP6_DST_UNREACH ||
-		    icmptype == ICMP6_PACKET_TOO_BIG ||
-		    icmptype == ICMP6_TIME_EXCEEDED ||
-		    icmptype == ICMP6_PARAM_PROB)
-			state_icmp++;
+		state_icmp = pf_icmp_mapping(pd, icmptype,
+		    &icmp_dir, &multi, &virtual_id, &virtual_type);
+		if (icmp_dir == PF_IN) {
+			sport = virtual_id;
+			dport = virtual_type;
+		} else {
+			sport = virtual_type;
+			dport = virtual_id;
+		}
 		break;
 #endif /* INET6 */
 	default:
@@ -3118,7 +3311,6 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 			break;
 #ifdef INET
 		case IPPROTO_ICMP:
-			nk->port[0] = nk->port[1];
 			if (PF_ANEQ(saddr, &nk->addr[pd->sidx], AF_INET))
 				pf_change_a(&saddr->v4.s_addr, pd->ip_sum,
 				    nk->addr[pd->sidx].v4.s_addr, 0);
@@ -3127,11 +3319,12 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 				pf_change_a(&daddr->v4.s_addr, pd->ip_sum,
 				    nk->addr[pd->didx].v4.s_addr, 0);
 
-			if (nk->port[1] != pd->hdr.icmp->icmp_id) {
+			if (virtual_type == ICMP_ECHO &&
+			     nk->port[pd->sidx] != pd->hdr.icmp->icmp_id) {
 				pd->hdr.icmp->icmp_cksum = pf_cksum_fixup(
 				    pd->hdr.icmp->icmp_cksum, sport,
-				    nk->port[1], 0);
-				pd->hdr.icmp->icmp_id = nk->port[1];
+				    nk->port[pd->sidx], 0);
+				pd->hdr.icmp->icmp_id = nk->port[pd->sidx];
 				pd->sport = &pd->hdr.icmp->icmp_id;
 			}
 			m_copyback(m, off, ICMP_MINLEN, (caddr_t)pd->hdr.icmp);
@@ -3611,11 +3804,15 @@ csfailed:
 	if (nk != NULL)
 		uma_zfree(V_pf_state_key_z, nk);
 
-	if (sn != NULL && sn->states == 0 && sn->expire == 0)
-		pf_remove_src_node(sn);
+	if (sn != NULL && sn->states == 0 && sn->expire == 0) {
+		pf_unlink_src_node(sn);
+		pf_free_src_node(sn);
+	}
 
-	if (nsn != sn && nsn != NULL && nsn->states == 0 && nsn->expire == 0)
-		pf_remove_src_node(nsn);
+	if (nsn != sn && nsn != NULL && nsn->states == 0 && nsn->expire == 0) {
+		pf_unlink_src_node(nsn);
+		pf_free_src_node(nsn);
+	}
 
 	return (PF_DROP);
 }
@@ -4348,13 +4545,69 @@ pf_test_state_udp(struct pf_state **state, int direction, struct pfi_kif *kif,
 }
 
 static int
+pf_icmp_state_lookup(struct pf_state_key_cmp *key, struct pf_pdesc *pd,
+    struct pf_state **state, struct mbuf *m, int direction, struct pfi_kif *kif,
+    uint16_t icmpid, uint16_t type, int icmp_dir, int *iidx, int multi)
+{
+
+	key->af = pd->af;
+	key->proto = pd->proto;
+	if (icmp_dir == PF_IN) {
+		*iidx = pd->sidx;
+		key->port[pd->sidx] = icmpid;
+		key->port[pd->didx] = type;
+	} else {
+		*iidx = pd->didx;
+		key->port[pd->sidx] = type;
+		key->port[pd->didx] = icmpid;
+	}
+#ifdef INET6
+	if (pd->af == AF_INET6 && multi != PF_ICMP_MULTI_NONE) {
+		switch (multi) {
+		case PF_ICMP_MULTI_SOLICITED:
+			key->addr[pd->sidx].addr32[0] = IPV6_ADDR_INT32_MLL;
+			key->addr[pd->sidx].addr32[1] = 0;
+			key->addr[pd->sidx].addr32[2] = IPV6_ADDR_INT32_ONE;
+			key->addr[pd->sidx].addr32[3] = pd->src->addr32[3];
+			key->addr[pd->sidx].addr8[12] = 0xff;
+			break;
+		case PF_ICMP_MULTI_LINK:
+			key->addr[pd->sidx].addr32[0] = IPV6_ADDR_INT32_MLL;
+			key->addr[pd->sidx].addr32[1] = 0;
+			key->addr[pd->sidx].addr32[2] = 0;
+			key->addr[pd->sidx].addr32[3] = IPV6_ADDR_INT32_ONE;
+			break;
+		}
+	} else
+#endif
+		PF_ACPY(&key->addr[pd->sidx], pd->src, key->af);
+	PF_ACPY(&key->addr[pd->didx], pd->dst, key->af);
+
+	STATE_LOOKUP(kif, key, direction, *state, pd);
+
+	/* Is this ICMP message flowing in right direction? */
+	if ((*state)->rule.ptr->type &&
+	    (((*state)->direction == direction) ?
+	    PF_IN : PF_OUT) != icmp_dir) {
+		if (V_pf_status.debug >= PF_DEBUG_MISC) {
+			printf("pf: icmp type %d in wrong direction (%d): ",
+			    icmp_dir, direction);
+			pf_print_state(*state);
+			printf("\n");
+		}
+		return (PF_DROP);
+	}
+	return (-1);
+}
+
+static int
 pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
     struct mbuf *m, int off, void *h, struct pf_pdesc *pd, u_short *reason)
 {
 	struct pf_addr  *saddr = pd->src, *daddr = pd->dst;
-	u_int16_t	 icmpid = 0, *icmpsum;
+	u_int16_t	 icmpid = 0, *icmpsum, virtual_id, virtual_type;
 	u_int8_t	 icmptype;
-	int		 state_icmp = 0;
+	int		 icmp_dir, iidx, ret, multi;
 	struct pf_state_key_cmp key;
 
 	bzero(&key, sizeof(key));
@@ -4365,12 +4618,6 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 		icmpid = pd->hdr.icmp->icmp_id;
 		icmpsum = &pd->hdr.icmp->icmp_cksum;
 
-		if (icmptype == ICMP_UNREACH ||
-		    icmptype == ICMP_SOURCEQUENCH ||
-		    icmptype == ICMP_REDIRECT ||
-		    icmptype == ICMP_TIMXCEED ||
-		    icmptype == ICMP_PARAMPROB)
-			state_icmp++;
 		break;
 #endif /* INET */
 #ifdef INET6
@@ -4379,33 +4626,34 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 		icmpid = pd->hdr.icmp6->icmp6_id;
 		icmpsum = &pd->hdr.icmp6->icmp6_cksum;
 
-		if (icmptype == ICMP6_DST_UNREACH ||
-		    icmptype == ICMP6_PACKET_TOO_BIG ||
-		    icmptype == ICMP6_TIME_EXCEEDED ||
-		    icmptype == ICMP6_PARAM_PROB)
-			state_icmp++;
 		break;
 #endif /* INET6 */
+	default:
+		panic("%s: proto %d\n", __func__, pd->proto);
 	}
 
-	if (!state_icmp) {
-
+	if (pf_icmp_mapping(pd, icmptype, &icmp_dir, &multi,
+	    &virtual_id, &virtual_type) == 0) {
 		/*
 		 * ICMP query/reply message not related to a TCP/UDP packet.
 		 * Search for an ICMP state.
 		 */
-		key.af = pd->af;
-		key.proto = pd->proto;
-		key.port[0] = key.port[1] = icmpid;
-		if (direction == PF_IN)	{	/* wire side, straight */
-			PF_ACPY(&key.addr[0], pd->src, key.af);
-			PF_ACPY(&key.addr[1], pd->dst, key.af);
-		} else {			/* stack side, reverse */
-			PF_ACPY(&key.addr[1], pd->src, key.af);
-			PF_ACPY(&key.addr[0], pd->dst, key.af);
+		ret = pf_icmp_state_lookup(&key, pd, state, m, direction,
+		    kif, virtual_id, virtual_type, icmp_dir, &iidx,
+		    PF_ICMP_MULTI_NONE);
+		if (ret >= 0) {
+			if (ret == PF_DROP && pd->af == AF_INET6 &&
+			    icmp_dir == PF_OUT) {
+				if (*state)
+					PF_STATE_UNLOCK(*state);
+				ret = pf_icmp_state_lookup(&key, pd, state, m,
+				    direction, kif, virtual_id, virtual_type,
+				    icmp_dir, &iidx, multi);
+				if (ret >= 0)
+					return (ret);
+			} else
+				return (ret);
 		}
-
-		STATE_LOOKUP(kif, &key, direction, *state, pd);
 
 		(*state)->expire = time_uptime;
 		(*state)->timeout = PFTM_ICMP_ERROR_REPLY;
@@ -4429,14 +4677,13 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 					    pd->ip_sum,
 					    nk->addr[pd->didx].v4.s_addr, 0);
 
-				if (nk->port[0] !=
+				if (nk->port[iidx] !=
 				    pd->hdr.icmp->icmp_id) {
 					pd->hdr.icmp->icmp_cksum =
 					    pf_cksum_fixup(
 					    pd->hdr.icmp->icmp_cksum, icmpid,
-					    nk->port[pd->sidx], 0);
-					pd->hdr.icmp->icmp_id =
-					    nk->port[pd->sidx];
+					    nk->port[iidx], 0);
+					pd->hdr.icmp->icmp_id = nk->port[iidx];
 				}
 
 				m_copyback(m, off, ICMP_MINLEN,
@@ -4786,13 +5033,15 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 				return (PF_DROP);
 			}
 
-			key.af = pd2.af;
-			key.proto = IPPROTO_ICMP;
-			PF_ACPY(&key.addr[pd2.sidx], pd2.src, key.af);
-			PF_ACPY(&key.addr[pd2.didx], pd2.dst, key.af);
-			key.port[0] = key.port[1] = iih.icmp_id;
+			pd2.hdr.icmp = &iih;
+			pf_icmp_mapping(&pd2, iih.icmp_type,
+			    &icmp_dir, &multi, &virtual_id, &virtual_type);
 
-			STATE_LOOKUP(kif, &key, direction, *state, pd);
+			ret = pf_icmp_state_lookup(&key, &pd2, state, m,
+			    direction, kif, virtual_id, virtual_type,
+			    icmp_dir, &iidx, PF_ICMP_MULTI_NONE);
+			if (ret >= 0)
+				return (ret);
 
 			/* translate source/destination address, if necessary */
 			if ((*state)->key[PF_SK_WIRE] !=
@@ -4802,20 +5051,20 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 
 				if (PF_ANEQ(pd2.src,
 				    &nk->addr[pd2.sidx], pd2.af) ||
-				    nk->port[pd2.sidx] != iih.icmp_id)
-					pf_change_icmp(pd2.src, &iih.icmp_id,
+				    (virtual_type == ICMP_ECHO &&
+				    nk->port[iidx] != iih.icmp_id))
+					pf_change_icmp(pd2.src,
+					    (virtual_type == ICMP_ECHO) ?
+					    &iih.icmp_id : NULL,
 					    daddr, &nk->addr[pd2.sidx],
 					    nk->port[pd2.sidx], NULL,
 					    pd2.ip_sum, icmpsum,
 					    pd->ip_sum, 0, AF_INET);
 
 				if (PF_ANEQ(pd2.dst,
-				    &nk->addr[pd2.didx], pd2.af) ||
-				    nk->port[pd2.didx] != iih.icmp_id)
-					pf_change_icmp(pd2.dst, &iih.icmp_id,
-					    NULL, /* XXX Inbound NAT? */
-					    &nk->addr[pd2.didx],
-					    nk->port[pd2.didx], NULL,
+				    &nk->addr[pd2.didx], pd2.af))
+                                       pf_change_icmp(pd2.dst, NULL, NULL,
+					    &nk->addr[pd2.didx], 0, NULL,
 					    pd2.ip_sum, icmpsum,
 					    pd->ip_sum, 0, AF_INET);
 
@@ -4839,13 +5088,26 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 				return (PF_DROP);
 			}
 
-			key.af = pd2.af;
-			key.proto = IPPROTO_ICMPV6;
-			PF_ACPY(&key.addr[pd2.sidx], pd2.src, key.af);
-			PF_ACPY(&key.addr[pd2.didx], pd2.dst, key.af);
-			key.port[0] = key.port[1] = iih.icmp6_id;
-
-			STATE_LOOKUP(kif, &key, direction, *state, pd);
+			pd2.hdr.icmp6 = &iih;
+			pf_icmp_mapping(&pd2, iih.icmp6_type,
+			    &icmp_dir, &multi, &virtual_id, &virtual_type);
+			ret = pf_icmp_state_lookup(&key, &pd2, state, m,
+			    direction, kif, virtual_id, virtual_type,
+			    icmp_dir, &iidx, PF_ICMP_MULTI_NONE);
+			if (ret >= 0) {
+				if (ret == PF_DROP && pd->af == AF_INET6 &&
+				    icmp_dir == PF_OUT) {
+					if (*state)
+						PF_STATE_UNLOCK(*state);
+					ret = pf_icmp_state_lookup(&key, pd,
+					    state, m, direction, kif,
+					    virtual_id, virtual_type,
+					    icmp_dir, &iidx, multi);
+					if (ret >= 0)
+						return (ret);
+				} else
+					return (ret);
+			}
 
 			/* translate source/destination address, if necessary */
 			if ((*state)->key[PF_SK_WIRE] !=
@@ -4855,20 +5117,21 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 
 				if (PF_ANEQ(pd2.src,
 				    &nk->addr[pd2.sidx], pd2.af) ||
-				    nk->port[pd2.sidx] != iih.icmp6_id)
-					pf_change_icmp(pd2.src, &iih.icmp6_id,
+			 	    ((virtual_type == ICMP6_ECHO_REQUEST) &&
+				    nk->port[pd2.sidx] != iih.icmp6_id))
+					pf_change_icmp(pd2.src,
+					    (virtual_type == ICMP6_ECHO_REQUEST)
+					    ? &iih.icmp6_id : NULL,
 					    daddr, &nk->addr[pd2.sidx],
-					    nk->port[pd2.sidx], NULL,
+					    (virtual_type == ICMP6_ECHO_REQUEST)
+					    ? nk->port[iidx] : 0, NULL,
 					    pd2.ip_sum, icmpsum,
 					    pd->ip_sum, 0, AF_INET6);
 
 				if (PF_ANEQ(pd2.dst,
-				    &nk->addr[pd2.didx], pd2.af) ||
-				    nk->port[pd2.didx] != iih.icmp6_id)
-					pf_change_icmp(pd2.dst, &iih.icmp6_id,
-					    NULL, /* XXX Inbound NAT? */
-					    &nk->addr[pd2.didx],
-					    nk->port[pd2.didx], NULL,
+				    &nk->addr[pd2.didx], pd2.af))
+					pf_change_icmp(pd2.dst, NULL, NULL,
+					    &nk->addr[pd2.didx], 0, NULL,
 					    pd2.ip_sum, icmpsum,
 					    pd->ip_sum, 0, AF_INET6);
 
@@ -6192,10 +6455,32 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 	}
 
 	case IPPROTO_ICMPV6: {
-		struct icmp6_hdr	ih;
+		union {
+			struct icmp6_hdr		icmp6;
+			struct mld_hdr			mld;
+			struct nd_neighbor_solicit	nd;
+		} ih;
+		size_t	icmp_hlen = sizeof(struct icmp6_hdr);
 
-		pd.hdr.icmp6 = &ih;
-		if (!pf_pull_hdr(m, off, &ih, sizeof(ih),
+		pd.hdr.icmp6 = &ih.icmp6;
+		if (!pf_pull_hdr(m, off, &ih, icmp_hlen,
+		    &action, &reason, AF_INET6)) {
+			log = action != PF_PASS;
+			goto done;
+		}
+		/* ICMP headers we look further into to match state */
+		switch (ih.icmp6.icmp6_type) {
+		case MLD_LISTENER_QUERY:
+		case MLD_LISTENER_REPORT:
+			icmp_hlen = sizeof(struct mld_hdr);
+			break;
+		case ND_NEIGHBOR_SOLICIT:
+		case ND_NEIGHBOR_ADVERT:
+			icmp_hlen = sizeof(struct nd_neighbor_solicit);
+			break;
+		}
+		if (icmp_hlen > sizeof(struct icmp6_hdr) &&
+		    !pf_pull_hdr(m, off, &ih, icmp_hlen,
 		    &action, &reason, AF_INET6)) {
 			log = action != PF_PASS;
 			goto done;

@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/rwlock.h>
 #include <sys/sf_buf.h>
+#include <sys/sf_sync.h>
 #include <sys/sysent.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -91,6 +92,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/uma.h>
 
 #if defined(INET) || defined(INET6)
 #ifdef SCTP
@@ -129,6 +131,7 @@ static int sfreadahead = 1;
 SYSCTL_INT(_kern_ipc_sendfile, OID_AUTO, readahead, CTLFLAG_RW,
     &sfreadahead, 0, "Number of sendfile(2) read-ahead MAXBSIZE blocks");
 
+static uma_zone_t	zone_sfsync;
 
 static void
 sfstat_init(const void *unused)
@@ -138,6 +141,18 @@ sfstat_init(const void *unused)
 	    M_WAITOK);
 }
 SYSINIT(sfstat, SI_SUB_MBUF, SI_ORDER_FIRST, sfstat_init, NULL);
+
+static void
+sf_sync_init(const void *unused)
+{
+
+	zone_sfsync = uma_zcreate("sendfile_sync", sizeof(struct sendfile_sync),
+	    NULL, NULL,
+	    NULL, NULL,
+	    UMA_ALIGN_CACHE,
+	    0);
+}
+SYSINIT(sf_sync, SI_SUB_MBUF, SI_ORDER_FIRST, sf_sync_init, NULL);
 
 static int
 sfstat_sysctl(SYSCTL_HANDLER_ARGS)
@@ -1844,12 +1859,6 @@ getsockaddr(namp, uaddr, len)
 	return (error);
 }
 
-struct sendfile_sync {
-	struct mtx	mtx;
-	struct cv	cv;
-	unsigned	count;
-};
-
 /*
  * Detach mapped page and release resources back to the system.
  */
@@ -1871,15 +1880,94 @@ sf_buf_mext(struct mbuf *mb, void *addr, void *args)
 	if (m->wire_count == 0 && m->object == NULL)
 		vm_page_free(m);
 	vm_page_unlock(m);
-	if (addr == NULL)
-		return (EXT_FREE_OK);
-	sfs = addr;
+	if (addr != NULL) {
+		sfs = addr;
+		sf_sync_deref(sfs);
+	}
+	return (EXT_FREE_OK);
+}
+
+void
+sf_sync_deref(struct sendfile_sync *sfs)
+{
+
+	if (sfs == NULL)
+		return;
+
 	mtx_lock(&sfs->mtx);
 	KASSERT(sfs->count> 0, ("Sendfile sync botchup count == 0"));
 	if (--sfs->count == 0)
 		cv_signal(&sfs->cv);
 	mtx_unlock(&sfs->mtx);
-	return (EXT_FREE_OK);
+}
+
+/*
+ * Allocate a sendfile_sync state structure.
+ *
+ * For now this only knows about the "sleep" sync, but later it will
+ * grow various other personalities.
+ */
+struct sendfile_sync *
+sf_sync_alloc(uint32_t flags)
+{
+	struct sendfile_sync *sfs;
+
+	sfs = uma_zalloc(zone_sfsync, M_WAITOK | M_ZERO);
+	mtx_init(&sfs->mtx, "sendfile", NULL, MTX_DEF);
+	cv_init(&sfs->cv, "sendfile");
+	sfs->flags = flags;
+
+	return (sfs);
+}
+
+/*
+ * Take a reference to a sfsync instance.
+ *
+ * This has to map 1:1 to free calls coming in via sf_buf_mext(),
+ * so typically this will be referenced once for each mbuf allocated.
+ */
+void
+sf_sync_ref(struct sendfile_sync *sfs)
+{
+
+	if (sfs == NULL)
+		return;
+
+	mtx_lock(&sfs->mtx);
+	sfs->count++;
+	mtx_unlock(&sfs->mtx);
+}
+
+void
+sf_sync_syscall_wait(struct sendfile_sync *sfs)
+{
+
+	if (sfs == NULL)
+		return;
+
+	mtx_lock(&sfs->mtx);
+	if (sfs->count != 0)
+		cv_wait(&sfs->cv, &sfs->mtx);
+	KASSERT(sfs->count == 0, ("sendfile sync still busy"));
+	mtx_unlock(&sfs->mtx);
+}
+
+void
+sf_sync_free(struct sendfile_sync *sfs)
+{
+
+	if (sfs == NULL)
+		return;
+
+	/*
+	 * XXX we should ensure that nothing else has this
+	 * locked before freeing.
+	 */
+	mtx_lock(&sfs->mtx);
+	KASSERT(sfs->count == 0, ("sendfile sync still busy"));
+	cv_destroy(&sfs->cv);
+	mtx_destroy(&sfs->mtx);
+	uma_zfree(zone_sfsync, sfs);
 }
 
 /*
@@ -1908,6 +1996,8 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	struct file *fp;
 	cap_rights_t rights;
 	int error;
+	off_t sbytes;
+	struct sendfile_sync *sfs;
 
 	/*
 	 * File offset must be positive.  If it goes beyond EOF
@@ -1917,6 +2007,7 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 		return (EINVAL);
 
 	hdr_uio = trl_uio = NULL;
+	sfs = NULL;
 
 	if (uap->hdtr != NULL) {
 		error = copyin(uap->hdtr, &hdtr, sizeof(hdtr));
@@ -1946,10 +2037,34 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 		goto out;
 	}
 
+	/*
+	 * If we need to wait for completion, initialise the sfsync
+	 * state here.
+	 */
+	if (uap->flags & SF_SYNC)
+		sfs = sf_sync_alloc(uap->flags & SF_SYNC);
+
 	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, uap->offset,
-	    uap->nbytes, uap->sbytes, uap->flags, compat ? SFK_COMPAT : 0, td);
+	    uap->nbytes, &sbytes, uap->flags, compat ? SFK_COMPAT : 0, sfs, td);
+
+	/*
+	 * If appropriate, do the wait and free here.
+	 */
+	if (sfs != NULL) {
+		sf_sync_syscall_wait(sfs);
+		sf_sync_free(sfs);
+	}
+
+	/*
+	 * XXX Should we wait until the send has completed before freeing the source
+	 * file handle? It's the previous behaviour, sure, but is it required?
+	 * We've wired down the page references after all.
+	 */
 	fdrop(fp, td);
 
+	if (uap->sbytes != NULL) {
+		copyout(&sbytes, uap->sbytes, sizeof(off_t));
+	}
 out:
 	free(hdr_uio, M_IOV);
 	free(trl_uio, M_IOV);
@@ -2070,7 +2185,8 @@ free_page:
 	}
 	KASSERT(error != 0 || (m->wire_count > 0 &&
 	    vm_page_is_valid(m, off & PAGE_MASK, xfsize)),
-	    ("wrong page state m %p", m));
+	    ("wrong page state m %p off %#jx xfsize %d", m, (uintmax_t)off,
+	    xfsize));
 	VM_OBJECT_WUNLOCK(obj);
 	return (error);
 }
@@ -2173,7 +2289,7 @@ kern_sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
 int
 vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
-    int kflags, struct thread *td)
+    int kflags, struct sendfile_sync *sfs, struct thread *td)
 {
 	struct file *sock_fp;
 	struct vnode *vp;
@@ -2183,22 +2299,18 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	struct sf_buf *sf;
 	struct vm_page *pg;
 	struct shmfd *shmfd;
-	struct sendfile_sync *sfs;
 	struct vattr va;
 	off_t off, xfsize, fsbytes, sbytes, rem, obj_size;
 	int error, bsize, nd, hdrlen, mnw;
-	bool inflight_called;
 
 	pg = NULL;
 	obj = NULL;
 	so = NULL;
 	m = NULL;
-	sfs = NULL;
 	fsbytes = sbytes = 0;
 	hdrlen = mnw = 0;
 	rem = nbytes;
 	obj_size = 0;
-	inflight_called = false;
 
 	error = sendfile_getobj(td, fp, &obj, &vp, &shmfd, &obj_size, &bsize);
 	if (error != 0)
@@ -2217,12 +2329,6 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	 */
 	if (flags & SF_MNOWAIT)
 		mnw = 1;
-
-	if (flags & SF_SYNC) {
-		sfs = malloc(sizeof *sfs, M_TEMP, M_WAITOK | M_ZERO);
-		mtx_init(&sfs->mtx, "sendfile", NULL, MTX_DEF);
-		cv_init(&sfs->cv, "sendfile");
-	}
 
 #ifdef MAC
 	error = mac_socket_check_send(td->td_ucred, so);
@@ -2468,11 +2574,12 @@ retry_space:
 			loopbytes += xfsize;
 			off += xfsize;
 
-			if (sfs != NULL) {
-				mtx_lock(&sfs->mtx);
-				sfs->count++;
-				mtx_unlock(&sfs->mtx);
-			}
+			/*
+			 * XXX eventually this should be a sfsync
+			 * method call!
+			 */
+			if (sfs != NULL)
+				sf_sync_ref(sfs);
 		}
 
 		if (vp != NULL)
@@ -2545,7 +2652,7 @@ out:
 		td->td_retval[0] = 0;
 	}
 	if (sent != NULL) {
-		copyout(&sbytes, sent, sizeof(off_t));
+		(*sent) = sbytes;
 	}
 	if (obj != NULL)
 		vm_object_deallocate(obj);
@@ -2553,16 +2660,6 @@ out:
 		fdrop(sock_fp, td);
 	if (m)
 		m_freem(m);
-
-	if (sfs != NULL) {
-		mtx_lock(&sfs->mtx);
-		if (sfs->count != 0)
-			cv_wait(&sfs->cv, &sfs->mtx);
-		KASSERT(sfs->count == 0, ("sendfile sync still busy"));
-		cv_destroy(&sfs->cv);
-		mtx_destroy(&sfs->mtx);
-		free(sfs, M_TEMP);
-	}
 
 	if (error == ERESTART)
 		error = EINTR;

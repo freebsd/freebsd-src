@@ -61,8 +61,8 @@ _reloc(unsigned long ImageBase, ElfW_Dyn *dynamic, EFI_HANDLE image_handle,
 	relent = 0;
 	for (dynp = dynamic; dynp->d_tag != DT_NULL; dynp++) {
 		switch (dynp->d_tag) {
-		case DT_RELA:
 		case DT_REL:
+		case DT_RELA:
 			rel = (ElfW_Rel *) ((unsigned long) dynp->d_un.d_ptr +
 			    ImageBase);
 			break;

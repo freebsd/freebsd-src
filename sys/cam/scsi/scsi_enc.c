@@ -69,7 +69,6 @@ static	periph_init_t	enc_init;
 static  periph_ctor_t	enc_ctor;
 static	periph_oninv_t	enc_oninvalidate;
 static  periph_dtor_t   enc_dtor;
-static  periph_start_t  enc_start;
 
 static void enc_async(void *, uint32_t, struct cam_path *, void *);
 static enctyp enc_type(struct ccb_getdev *);
@@ -113,16 +112,15 @@ enc_init(void)
 static void
 enc_devgonecb(void *arg)
 {
-	struct cam_sim    *sim;
 	struct cam_periph *periph;
 	struct enc_softc  *enc;
+	struct mtx *mtx;
 	int i;
 
 	periph = (struct cam_periph *)arg;
-	sim = periph->sim;
+	mtx = cam_periph_mtx(periph);
+	mtx_lock(mtx);
 	enc = (struct enc_softc *)periph->softc;
-
-	mtx_lock(sim->mtx);
 
 	/*
 	 * When we get this callback, we will get no more close calls from
@@ -140,13 +138,13 @@ enc_devgonecb(void *arg)
 	cam_periph_release_locked(periph);
 
 	/*
-	 * We reference the SIM lock directly here, instead of using
+	 * We reference the lock directly here, instead of using
 	 * cam_periph_unlock().  The reason is that the final call to
 	 * cam_periph_release_locked() above could result in the periph
 	 * getting freed.  If that is the case, dereferencing the periph
 	 * with a cam_periph_unlock() call would cause a page fault.
 	 */
-	mtx_unlock(sim->mtx);
+	mtx_unlock(mtx);
 }
 
 static void
@@ -178,8 +176,6 @@ enc_oninvalidate(struct cam_periph *periph)
 	callout_drain(&enc->status_updater);
 
 	destroy_dev_sched_cb(enc->enc_dev, enc_devgonecb, periph);
-
-	xpt_print(periph->path, "lost device\n");
 }
 
 static void
@@ -188,9 +184,6 @@ enc_dtor(struct cam_periph *periph)
 	struct enc_softc *enc;
 
 	enc = periph->softc;
-
-	xpt_print(periph->path, "removing device entry\n");
-
 
 	/* If the sub-driver has a cleanup routine, call it */
 	if (enc->enc_vec.softc_cleanup != NULL)
@@ -248,8 +241,8 @@ enc_async(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		}
 
 		status = cam_periph_alloc(enc_ctor, enc_oninvalidate,
-		    enc_dtor, enc_start, "ses", CAM_PERIPH_BIO,
-		    cgd->ccb_h.path, enc_async, AC_FOUND_DEVICE, cgd);
+		    enc_dtor, NULL, "ses", CAM_PERIPH_BIO,
+		    path, enc_async, AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP && status != CAM_REQ_INPROG) {
 			printf("enc_async: Unable to probe new device due to "
@@ -304,25 +297,23 @@ out:
 static int
 enc_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
-	struct cam_sim    *sim;
 	struct cam_periph *periph;
 	struct enc_softc  *enc;
+	struct mtx *mtx;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
+	mtx = cam_periph_mtx(periph);
+	mtx_lock(mtx);
 
-	sim = periph->sim;
 	enc = periph->softc;
-
-	mtx_lock(sim->mtx);
-
 	enc->open_count--;
 
 	cam_periph_release_locked(periph);
 
 	/*
-	 * We reference the SIM lock directly here, instead of using
+	 * We reference the lock directly here, instead of using
 	 * cam_periph_unlock().  The reason is that the call to
 	 * cam_periph_release_locked() above could result in the periph
 	 * getting freed.  If that is the case, dereferencing the periph
@@ -333,32 +324,9 @@ enc_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 	 * protect the open count and avoid another lock acquisition and
 	 * release.
 	 */
-	mtx_unlock(sim->mtx);
+	mtx_unlock(mtx);
 
 	return (0);
-}
-
-static void
-enc_start(struct cam_periph *p, union ccb *sccb)
-{
-	struct enc_softc *enc;
-
-	enc = p->softc;
-	ENC_DLOG(enc, "%s enter imm=%d prio=%d\n",
-	    __func__, p->immediate_priority, p->pinfo.priority);
-	if (p->immediate_priority <= p->pinfo.priority) {
-		SLIST_INSERT_HEAD(&p->ccb_list, &sccb->ccb_h, periph_links.sle);
-		p->immediate_priority = CAM_PRIORITY_NONE;
-		wakeup(&p->ccb_list);
-	} else
-		xpt_release_ccb(sccb);
-	ENC_DLOG(enc, "%s exit\n", __func__);
-}
-
-void
-enc_done(struct cam_periph *periph, union ccb *dccb)
-{
-	wakeup(&dccb->ccb_h.cbfcnp);
 }
 
 int
@@ -619,7 +587,7 @@ enc_runcmd(struct enc_softc *enc, char *cdb, int cdbl, char *dptr, int *dlenp)
 	if (enc->enc_type == ENC_SEMB_SES || enc->enc_type == ENC_SEMB_SAFT) {
 		tdlen = min(dlen, 1020);
 		tdlen = (tdlen + 3) & ~3;
-		cam_fill_ataio(&ccb->ataio, 0, enc_done, ddf, 0, dptr, tdlen,
+		cam_fill_ataio(&ccb->ataio, 0, NULL, ddf, 0, dptr, tdlen,
 		    30 * 1000);
 		if (cdb[0] == RECEIVE_DIAGNOSTIC)
 			ata_28bit_cmd(&ccb->ataio,
@@ -637,7 +605,7 @@ enc_runcmd(struct enc_softc *enc, char *cdb, int cdbl, char *dptr, int *dlenp)
 			    0x80, tdlen / 4);
 	} else {
 		tdlen = dlen;
-		cam_fill_csio(&ccb->csio, 0, enc_done, ddf, MSG_SIMPLE_Q_TAG,
+		cam_fill_csio(&ccb->csio, 0, NULL, ddf, MSG_SIMPLE_Q_TAG,
 		    dptr, dlen, sizeof (struct scsi_sense_data), cdbl,
 		    60 * 1000);
 		bcopy(cdb, ccb->csio.cdb_io.cdb_bytes, cdbl);
@@ -891,7 +859,7 @@ enc_kproc_init(enc_softc_t *enc)
 {
 	int result;
 
-	callout_init_mtx(&enc->status_updater, enc->periph->sim->mtx, 0);
+	callout_init_mtx(&enc->status_updater, cam_periph_mtx(enc->periph), 0);
 
 	if (cam_periph_acquire(enc->periph) != CAM_REQ_CMP)
 		return (ENXIO);

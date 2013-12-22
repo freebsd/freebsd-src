@@ -31,6 +31,7 @@
 
 #include <sys/bus.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/sx.h>
 #include <sys/taskqueue.h>
@@ -122,7 +123,8 @@ MALLOC_DECLARE(M_NAND);
 
 #define NAND_MAN_SAMSUNG		0xec
 #define NAND_MAN_HYNIX			0xad
-#define	NAND_MAN_STMICRO		0x20
+#define NAND_MAN_STMICRO		0x20
+#define NAND_MAN_MICRON			0x2c
 
 struct nand_id {
 	uint8_t man_id;
@@ -176,12 +178,17 @@ struct onfi_params {
 	uint16_t	rev;
 	uint16_t	features;
 	uint16_t	optional_commands;
-	uint8_t		res1[22];
+	uint8_t		primary_advanced_command;
+	uint8_t		res1;
+	uint16_t	extended_parameter_page_length;
+	uint8_t		parameter_page_count;
+	uint8_t		res2[17];
 	char		manufacturer_name[12];
 	char		device_model[20];
 	uint8_t		manufacturer_id;
-	uint16_t	date;
-	uint8_t		res2[13];
+	uint8_t		manufacture_date_yy;
+	uint8_t		manufacture_date_ww;
+	uint8_t		res3[13];
 	uint32_t	bytes_per_page;
 	uint16_t	spare_bytes_per_page;
 	uint32_t	bytes_per_partial_page;
@@ -200,7 +207,8 @@ struct onfi_params {
 	uint8_t		bits_of_ecc;
 	uint8_t		interleaved_addr_bits;
 	uint8_t		interleaved_oper_attr;
-	uint8_t		res3[13];
+	uint8_t		eznand_support;
+	uint8_t		res4[12];
 	uint8_t		pin_capacitance;
 	uint16_t	asynch_timing_mode_support;
 	uint16_t	asynch_prog_cache_timing_mode_support;
@@ -215,11 +223,31 @@ struct onfi_params {
 	uint16_t	input_capacitance;
 	uint8_t		input_capacitance_max;
 	uint8_t		driver_strength_support;
-	uint8_t		res4[12];
+	uint16_t	t_r_interleaved;
+	uint16_t	t_adl;
+	uint16_t	t_r_eznand;
+	uint8_t		nv_ddr2_features;
+	uint8_t		nv_ddr2_warmup_cycles;
+	uint8_t		res5[4];
 	uint16_t	vendor_rev;
-	uint8_t		vendor_spec[8];
+	uint8_t		vendor_spec[88];
 	uint16_t	crc;
 }__attribute__((packed));
+CTASSERT(sizeof(struct onfi_params) == 256);
+
+struct onfi_chip_params {
+	uint32_t blocks_per_lun;
+	uint32_t pages_per_block;
+	uint32_t bytes_per_page;
+	uint32_t spare_bytes_per_page;
+	uint16_t t_bers;
+	uint16_t t_prog;
+	uint16_t t_r;
+	uint16_t t_ccs;
+	uint16_t features;
+	uint8_t address_cycles;
+	uint8_t luns;
+};
 
 struct nand_ecc_data {
 	int	eccsize;		/* Number of data bytes per ECC step */
@@ -353,7 +381,7 @@ void nand_init(struct nand_softc *nand, device_t dev, int ecc_mode,
 void nand_detach(struct nand_softc *nand);
 struct nand_params *nand_get_params(struct nand_id *id);
 
-void nand_onfi_set_params(struct nand_chip *chip, struct onfi_params *params);
+void nand_onfi_set_params(struct nand_chip *chip, struct onfi_chip_params *params);
 void nand_set_params(struct nand_chip *chip, struct nand_params *params);
 int  nand_init_stat(struct nand_chip *chip);
 void nand_destroy_stat(struct nand_chip *chip);

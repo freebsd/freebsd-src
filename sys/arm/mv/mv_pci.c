@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -81,7 +82,7 @@ __FBSDID("$FreeBSD$");
 #define debugf(fmt, args...)
 #endif
 
-#define PCI_CFG_ENA		(1 << 31)
+#define PCI_CFG_ENA		(1U << 31)
 #define PCI_CFG_BUS(bus)	(((bus) & 0xff) << 16)
 #define PCI_CFG_DEV(dev)	(((dev) & 0x1f) << 11)
 #define PCI_CFG_FUN(fun)	(((fun) & 0x7) << 8)
@@ -142,7 +143,7 @@ struct mv_pcib_softc {
 	int		sc_type;
 	int		sc_mode;		/* Endpoint / Root Complex */
 
-	struct fdt_pci_intr	sc_intr_info;
+	struct ofw_bus_iinfo	sc_pci_iinfo;
 };
 
 /* Local forward prototypes */
@@ -155,7 +156,6 @@ static void mv_pcib_hw_cfgwrite(struct mv_pcib_softc *, u_int, u_int,
 static int mv_pcib_init(struct mv_pcib_softc *, int, int);
 static int mv_pcib_init_all_bars(struct mv_pcib_softc *, int, int, int, int);
 static void mv_pcib_init_bridge(struct mv_pcib_softc *, int, int, int);
-static int mv_pcib_intr_info(phandle_t, struct mv_pcib_softc *);
 static inline void pcib_write_irq_mask(struct mv_pcib_softc *, uint32_t);
 static void mv_pcib_enable(struct mv_pcib_softc *, uint32_t);
 static int mv_pcib_mem_init(struct mv_pcib_softc *);
@@ -230,7 +230,7 @@ static driver_t mv_pcib_driver = {
 
 devclass_t pcib_devclass;
 
-DRIVER_MODULE(pcib, fdtbus, mv_pcib_driver, pcib_devclass, 0, 0);
+DRIVER_MODULE(pcib, nexus, mv_pcib_driver, pcib_devclass, 0, 0);
 
 static struct mtx pcicfg_mtx;
 
@@ -243,8 +243,8 @@ mv_pcib_probe(device_t self)
 	if (!fdt_is_type(node, "pci"))
 		return (ENXIO);
 
-	if (!(fdt_is_compatible(node, "mrvl,pcie") ||
-	    fdt_is_compatible(node, "mrvl,pci")))
+	if (!(ofw_bus_is_compatible(self, "mrvl,pcie") ||
+	    ofw_bus_is_compatible(self, "mrvl,pci")))
 		return (ENXIO);
 
 	device_set_desc(self, "Marvell Integrated PCI/PCI-E Controller");
@@ -299,11 +299,8 @@ mv_pcib_attach(device_t self)
 	/*
 	 * Get PCI interrupt info.
 	 */
-	if ((sc->sc_mode == MV_MODE_ROOT) &&
-	    (mv_pcib_intr_info(node, sc) != 0)) {
-		device_printf(self, "could not retrieve interrupt info\n");
-		return (ENXIO);
-	}
+	if (sc->sc_mode == MV_MODE_ROOT)
+		ofw_bus_setup_iinfo(node, &sc->sc_pci_iinfo, sizeof(pcell_t));
 
 	/*
 	 * Configure decode windows for PCI(E) access.
@@ -881,19 +878,32 @@ mv_pcib_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 }
 
 static int
-mv_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
+mv_pcib_route_interrupt(device_t bus, device_t dev, int pin)
 {
 	struct mv_pcib_softc *sc;
-	int err, interrupt;
+	struct ofw_pci_register reg;
+	uint32_t pintr, mintr;
+	phandle_t iparent;
 
-	sc = device_get_softc(pcib);
+	sc = device_get_softc(bus);
+	pintr = pin;
 
-	err = fdt_pci_route_intr(pci_get_bus(dev), pci_get_slot(dev),
-	    pci_get_function(dev), pin, &sc->sc_intr_info, &interrupt);
-	if (err == 0)
-		return (interrupt);
+	/* Fabricate imap information in case this isn't an OFW device */
+	bzero(&reg, sizeof(reg));
+	reg.phys_hi = (pci_get_bus(dev) << OFW_PCI_PHYS_HI_BUSSHIFT) |
+	    (pci_get_slot(dev) << OFW_PCI_PHYS_HI_DEVICESHIFT) |
+	    (pci_get_function(dev) << OFW_PCI_PHYS_HI_FUNCTIONSHIFT);
 
-	device_printf(pcib, "could not route pin %d for device %d.%d\n",
+	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo, &reg,
+	    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
+	    &iparent))
+		return (ofw_bus_map_intr(dev, iparent, mintr));
+
+	/* Maybe it's a real interrupt, not an intpin */
+	if (pin > 4)
+		return (pin);
+
+	device_printf(bus, "could not route pin %d for device %d.%d\n",
 	    pin, pci_get_slot(dev), pci_get_function(dev));
 	return (PCI_INVALID_IRQ);
 }
@@ -934,17 +944,6 @@ mv_pcib_decode_win(phandle_t node, struct mv_pcib_softc *sc)
 
 	sc->sc_mem_base = mem_space.base_parent;
 	sc->sc_mem_size = mem_space.len;
-
-	return (0);
-}
-
-static int
-mv_pcib_intr_info(phandle_t node, struct mv_pcib_softc *sc)
-{
-	int error;
-
-	if ((error = fdt_pci_intr_info(node, &sc->sc_intr_info)) != 0)
-		return (error);
 
 	return (0);
 }

@@ -83,15 +83,7 @@ _netipx=	netipx
 
 # Handle the #define aliases for libiconv
 .if ${MK_ICONV} == "yes"
-CLEANFILES+=	_libiconv_compat.h
-INCS+=		_libiconv_compat.h iconv.h
-_libiconv_compat.h:	${.CURDIR}/Makefile
-	echo "/* Indicate whether libiconv symbols are present */" > _libiconv_compat.h
-.if ${MK_LIBICONV_COMPAT} == "yes"
-	echo "#define __LIBICONV_COMPAT" >> _libiconv_compat.h
-.else
-	echo "#undef __LIBICONV_COMPAT" >> _libiconv_compat.h
-.endif
+INCS+=		iconv.h
 .endif
 	
 
@@ -195,6 +187,11 @@ copies:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/netinet
 .endif
+.if ${MK_PF} != "no"
+	cd ${.CURDIR}/../sys/netpfil/pf; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	    ${DESTDIR}${INCLUDEDIR}/netpfil/pf
+.endif
 	cd ${.CURDIR}/../sys/crypto; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 rijndael/rijndael.h \
 	    ${DESTDIR}${INCLUDEDIR}/crypto
@@ -228,6 +225,9 @@ copies:
 	cd ${.CURDIR}/../sys/rpc; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 types.h \
 	    ${DESTDIR}${INCLUDEDIR}/rpc
+	cd ${.CURDIR}/../sys/teken; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
+	    ${DESTDIR}${INCLUDEDIR}/teken
 
 symlinks:
 	@${ECHO} "Setting up symlinks to kernel source tree..."
@@ -286,6 +286,13 @@ symlinks:
 	for h in *.h; do \
 		ln -fs ../../../sys/contrib/ipfilter/netinet/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/netinet; \
+	done
+.endif
+.if ${MK_PF} != "no"
+	cd ${.CURDIR}/../sys/netpfil/pf; \
+	for h in *.h; do \
+		ln -fs ../../../../sys/netpfil/pf/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/netpfil/pf; \
 	done
 .endif
 	cd ${.CURDIR}/../sys/crypto; \

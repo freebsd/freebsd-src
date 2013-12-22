@@ -15,6 +15,7 @@ SRCS=	CF.cpp \
 	LibCxx.cpp \
 	LibCxxList.cpp \
 	LibCxxMap.cpp \
+	LibCxxUnorderedMap.cpp \
 	LibStdcpp.cpp \
 	NSArray.cpp \
 	NSDictionary.cpp \
@@ -23,7 +24,8 @@ SRCS=	CF.cpp \
 	TypeCategoryMap.cpp \
 	TypeFormat.cpp \
 	TypeSummary.cpp \
-	TypeSynthetic.cpp
+	TypeSynthetic.cpp \
+	ValueObjectPrinter.cpp
 
 TGHDRS=	DiagnosticCommonKinds \
 	DeclNodes \

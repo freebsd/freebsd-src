@@ -634,7 +634,7 @@ extern int fixuplabelno;
 %{profile: -p}"
 
 /* Don't put -Y P,<path> for cross compilers.  */
-#ifndef CROSS_COMPILE
+#ifndef CROSS_DIRECTORY_STRUCTURE
 #define LINK_PATH_SPEC "\
 %{!R*:%{L*:-R %*}} \
 %{!nostdlib: %{!YP,*: \

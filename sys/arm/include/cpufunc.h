@@ -188,7 +188,7 @@ extern u_int cputype;
 #else
 void tlb_broadcast(int);
 
-#ifdef CPU_CORTEXA
+#if defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
 #define TLB_BROADCAST	/* No need to explicitely send an IPI */
 #else
 #define TLB_BROADCAST	tlb_broadcast(7)
@@ -463,7 +463,7 @@ void	sheeva_l2cache_wbinv_all	(void);
 #endif
 
 #if defined(CPU_ARM1136) || defined(CPU_ARM1176) || \
-	defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
+	defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 void	arm11_setttb		(u_int);
 void	arm11_sleep		(int);
 
@@ -481,14 +481,6 @@ void	arm11_tlb_flushD_SE	(u_int va);
 void	arm11_drain_writebuf	(void);
 
 void	pj4b_setttb			(u_int);
-
-void	pj4b_icache_sync_range		(vm_offset_t, vm_size_t);
-
-void	pj4b_dcache_wbinv_range		(vm_offset_t, vm_size_t);
-void	pj4b_dcache_inv_range		(vm_offset_t, vm_size_t);
-void	pj4b_dcache_wb_range		(vm_offset_t, vm_size_t);
-
-void	pj4b_idcache_wbinv_range	(vm_offset_t, vm_size_t);
 
 void	pj4b_drain_readbuf		(void);
 void	pj4b_flush_brnchtgt_all		(void);
@@ -523,7 +515,6 @@ void	armv7_drain_writebuf		(void);
 void	armv7_sev			(void);
 u_int	armv7_auxctrl			(u_int, u_int);
 void	pj4bv7_setup			(char *string);
-void	pj4bv6_setup			(char *string);
 void	pj4b_config			(void);
 
 int	get_core_id			(void);

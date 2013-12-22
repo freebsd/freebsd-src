@@ -63,10 +63,11 @@
 #endif
 #define PTE_CACHE	6
 #define PTE_DEVICE	2
-#define PTE_PAGETABLE	4
+#define PTE_PAGETABLE	6
 #else
 #define PTE_NOCACHE	1
 #define PTE_CACHE	2
+#define PTE_DEVICE	PTE_NOCACHE
 #define PTE_PAGETABLE	3
 #endif
 
@@ -254,6 +255,7 @@ void	pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa);
+void	pmap_kenter_device(vm_offset_t va, vm_paddr_t pa);
 void	*pmap_kenter_temp(vm_paddr_t pa, int i);
 void 	pmap_kenter_user(vm_offset_t va, vm_paddr_t pa);
 vm_paddr_t pmap_kextract(vm_offset_t va);
@@ -489,7 +491,7 @@ extern int pmap_needs_pte_sync;
 #if (ARM_MMU_SA1 == 1) && (ARM_NMMUS == 1)
 #define	PMAP_NEEDS_PTE_SYNC	1
 #define	PMAP_INCLUDE_PTE_SYNC
-#elif defined(CPU_XSCALE_81342)
+#elif defined(CPU_XSCALE_81342) || ARM_ARCH_6 || ARM_ARCH_7A
 #define PMAP_NEEDS_PTE_SYNC	1
 #define PMAP_INCLUDE_PTE_SYNC
 #elif (ARM_MMU_SA1 == 0)
@@ -559,11 +561,18 @@ extern int pmap_needs_pte_sync;
 #define	PMAP_INCLUDE_PTE_SYNC
 #endif
 
+#ifdef ARM_L2_PIPT
+#define _sync_l2(pte, size) 	cpu_l2cache_wb_range(vtophys(pte), size)
+#else
+#define _sync_l2(pte, size) 	cpu_l2cache_wb_range(pte, size)
+#endif
+
 #define	PTE_SYNC(pte)							\
 do {									\
 	if (PMAP_NEEDS_PTE_SYNC) {					\
 		cpu_dcache_wb_range((vm_offset_t)(pte), sizeof(pt_entry_t));\
-		cpu_l2cache_wb_range((vm_offset_t)(pte), sizeof(pt_entry_t));\
+		cpu_drain_writebuf();					\
+		_sync_l2((vm_offset_t)(pte), sizeof(pt_entry_t));\
 	} else								\
 		cpu_drain_writebuf();					\
 } while (/*CONSTCOND*/0)
@@ -573,7 +582,8 @@ do {									\
 	if (PMAP_NEEDS_PTE_SYNC) {					\
 		cpu_dcache_wb_range((vm_offset_t)(pte),			\
 		    (cnt) << 2); /* * sizeof(pt_entry_t) */		\
-		cpu_l2cache_wb_range((vm_offset_t)(pte), 		\
+		cpu_drain_writebuf();					\
+		_sync_l2((vm_offset_t)(pte),		 		\
 		    (cnt) << 2); /* * sizeof(pt_entry_t) */		\
 	} else								\
 		cpu_drain_writebuf();					\
@@ -687,24 +697,6 @@ void	pmap_use_minicache(vm_offset_t, vm_size_t);
 
 void vector_page_setprot(int);
 
-/*
- * This structure is used by machine-dependent code to describe
- * static mappings of devices, created at bootstrap time.
- */
-struct pmap_devmap {
-	vm_offset_t	pd_va;		/* virtual address */
-	vm_paddr_t	pd_pa;		/* physical address */
-	vm_size_t	pd_size;	/* size of region */
-	vm_prot_t	pd_prot;	/* protection code */
-	int		pd_cache;	/* cache attributes */
-};
-
-const struct pmap_devmap *pmap_devmap_find_pa(vm_paddr_t, vm_size_t);
-const struct pmap_devmap *pmap_devmap_find_va(vm_offset_t, vm_size_t);
-
-void	pmap_devmap_bootstrap(vm_offset_t, const struct pmap_devmap *);
-void	pmap_devmap_register(const struct pmap_devmap *);
-
 #define SECTION_CACHE	0x1
 #define SECTION_PT	0x2
 void	pmap_kenter_section(vm_offset_t, vm_paddr_t, int flags);
@@ -726,11 +718,6 @@ struct arm_small_page {
 };
 
 #endif
-
-#define ARM_NOCACHE_KVA_SIZE 0x1000000
-extern vm_offset_t arm_nocache_startaddr;
-void *arm_remap_nocache(void *, vm_size_t);
-void arm_unmap_nocache(void *, vm_size_t);
 
 extern vm_paddr_t dump_avail[];
 #endif	/* _KERNEL */

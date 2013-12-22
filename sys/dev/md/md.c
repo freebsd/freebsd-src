@@ -189,6 +189,7 @@ struct md_s {
 	LIST_ENTRY(md_s) list;
 	struct bio_queue_head bio_queue;
 	struct mtx queue_mtx;
+	struct mtx stat_mtx;
 	struct cdev *dev;
 	enum md_types type;
 	off_t mediasize;
@@ -415,8 +416,11 @@ g_md_start(struct bio *bp)
 	struct md_s *sc;
 
 	sc = bp->bio_to->geom->softc;
-	if ((bp->bio_cmd == BIO_READ) || (bp->bio_cmd == BIO_WRITE))
+	if ((bp->bio_cmd == BIO_READ) || (bp->bio_cmd == BIO_WRITE)) {
+		mtx_lock(&sc->stat_mtx);
 		devstat_start_transaction_bio(sc->devstat, bp);
+		mtx_unlock(&sc->stat_mtx);
+	}
 	mtx_lock(&sc->queue_mtx);
 	bioq_disksort(&sc->bio_queue, bp);
 	mtx_unlock(&sc->queue_mtx);
@@ -742,12 +746,12 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		return (error);
 	}
 
-	KASSERT(bp->bio_length <= MAXPHYS, ("bio_length %jd",
-	    (uintmax_t)bp->bio_length));
 	if ((bp->bio_flags & BIO_UNMAPPED) == 0) {
 		pb = NULL;
 		aiov.iov_base = bp->bio_data;
 	} else {
+		KASSERT(bp->bio_length <= MAXPHYS, ("bio_length %jd",
+		    (uintmax_t)bp->bio_length));
 		pb = getpbuf(&md_vnode_pbuf_freecnt);
 		pmap_qenter((vm_offset_t)pb->b_data, bp->bio_ma, bp->bio_ma_n);
 		aiov.iov_base = (void *)((vm_offset_t)pb->b_data +
@@ -904,6 +908,22 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 	return (rv != VM_PAGER_ERROR ? 0 : ENOSPC);
 }
 
+static int
+mdstart_null(struct md_s *sc, struct bio *bp)
+{
+
+	switch (bp->bio_cmd) {
+	case BIO_READ:
+		bzero(bp->bio_data, bp->bio_length);
+		cpu_flush_dcache(bp->bio_data, bp->bio_length);
+		break;
+	case BIO_WRITE:
+		break;
+	}
+	bp->bio_resid = 0;
+	return (0);
+}
+
 static void
 md_kthread(void *arg)
 {
@@ -987,6 +1007,7 @@ mdnew(int unit, int *errp, enum md_types type)
 	sc->type = type;
 	bioq_init(&sc->bio_queue);
 	mtx_init(&sc->queue_mtx, "md bio queue", NULL, MTX_DEF);
+	mtx_init(&sc->stat_mtx, "md stat", NULL, MTX_DEF);
 	sc->unit = unit;
 	sprintf(sc->name, "md%d", unit);
 	LIST_INSERT_HEAD(&md_softc_list, sc, list);
@@ -994,6 +1015,7 @@ mdnew(int unit, int *errp, enum md_types type)
 	if (error == 0)
 		return (sc);
 	LIST_REMOVE(sc, list);
+	mtx_destroy(&sc->stat_mtx);
 	mtx_destroy(&sc->queue_mtx);
 	free_unr(md_uh, sc->unit);
 	free(sc, M_MD);
@@ -1011,6 +1033,7 @@ mdinit(struct md_s *sc)
 	gp = g_new_geomf(&g_md_class, "md%d", sc->unit);
 	gp->softc = sc;
 	pp = g_new_providerf(gp, "md%d", sc->unit);
+	pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 	pp->mediasize = sc->mediasize;
 	pp->sectorsize = sc->sectorsize;
 	switch (sc->type) {
@@ -1020,6 +1043,7 @@ mdinit(struct md_s *sc)
 		pp->flags |= G_PF_ACCEPT_UNMAPPED;
 		break;
 	case MD_PRELOAD:
+	case MD_NULL:
 		break;
 	}
 	sc->gp = gp;
@@ -1206,6 +1230,7 @@ mddestroy(struct md_s *sc, struct thread *td)
 	while (!(sc->flags & MD_EXITING))
 		msleep(sc->procp, &sc->queue_mtx, PRIBIO, "mddestroy", hz / 10);
 	mtx_unlock(&sc->queue_mtx);
+	mtx_destroy(&sc->stat_mtx);
 	mtx_destroy(&sc->queue_mtx);
 	if (sc->vnode != NULL) {
 		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY);
@@ -1237,6 +1262,7 @@ mdresize(struct md_s *sc, struct md_ioctl *mdio)
 
 	switch (sc->type) {
 	case MD_VNODE:
+	case MD_NULL:
 		break;
 	case MD_SWAP:
 		if (mdio->md_mediasize <= 0 ||
@@ -1294,8 +1320,8 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	int error;
 
 	/*
-	 * Range check.  Disallow negative sizes or any size less then the
-	 * size of a page.  Then round to a page.
+	 * Range check.  Disallow negative sizes and sizes not being
+	 * multiple of page size.
 	 */
 	if (sc->mediasize <= 0 || (sc->mediasize % PAGE_SIZE) != 0)
 		return (EDOM);
@@ -1331,6 +1357,19 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	return (error);
 }
 
+static int
+mdcreate_null(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
+{
+
+	/*
+	 * Range check.  Disallow negative sizes and sizes not being
+	 * multiple of page size.
+	 */
+	if (sc->mediasize <= 0 || (sc->mediasize % PAGE_SIZE) != 0)
+		return (EDOM);
+
+	return (0);
+}
 
 static int
 xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
@@ -1363,6 +1402,7 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		case MD_PRELOAD:
 		case MD_VNODE:
 		case MD_SWAP:
+		case MD_NULL:
 			break;
 		default:
 			return (EINVAL);
@@ -1407,6 +1447,10 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		case MD_SWAP:
 			sc->start = mdstart_swap;
 			error = mdcreate_swap(sc, mdio, td);
+			break;
+		case MD_NULL:
+			sc->start = mdstart_null;
+			error = mdcreate_null(sc, mdio, td);
 			break;
 		}
 		if (error != 0) {
@@ -1577,6 +1621,9 @@ g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		break;
 	case MD_SWAP:
 		type = "swap";
+		break;
+	case MD_NULL:
+		type = "null";
 		break;
 	default:
 		type = "unknown";

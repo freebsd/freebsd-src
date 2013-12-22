@@ -70,4 +70,16 @@ ofw_bus_get_type(device_t dev)
 	return (OFW_BUS_GET_TYPE(device_get_parent(dev), dev));
 }
 
+static __inline int
+ofw_bus_map_intr(device_t dev, phandle_t iparent, int irq)
+{
+	return (OFW_BUS_MAP_INTR(dev, dev, iparent, irq));
+}
+
+static __inline int
+ofw_bus_config_intr(device_t dev, int irq, int sense)
+{
+	return (OFW_BUS_CONFIG_INTR(dev, dev, irq, sense));
+}
+
 #endif /* !_DEV_OFW_OFW_BUS_H_ */

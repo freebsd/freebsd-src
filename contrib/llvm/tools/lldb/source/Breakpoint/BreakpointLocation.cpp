@@ -291,9 +291,11 @@ BreakpointLocation::ConditionSaysStop (ExecutionContext &exe_ctx, Error &error)
     // constructor errors up to the debugger's Async I/O.
         
     ValueObjectSP result_value_sp;
-    const bool unwind_on_error = true;
-    const bool ignore_breakpoints = true;
-    const bool try_all_threads = true;
+    
+    EvaluateExpressionOptions options;
+    options.SetUnwindOnError(true);
+    options.SetIgnoreBreakpoints(true);
+    options.SetTryAllThreads(true);
     
     Error expr_error;
     
@@ -304,12 +306,9 @@ BreakpointLocation::ConditionSaysStop (ExecutionContext &exe_ctx, Error &error)
     ExecutionResults result_code =
     m_user_expression_sp->Execute(execution_errors,
                                   exe_ctx,
-                                  unwind_on_error,
-                                  ignore_breakpoints,
+                                  options,
                                   m_user_expression_sp,
-                                  result_variable_sp,
-                                  try_all_threads,
-                                  ClangUserExpression::kDefaultTimeout);
+                                  result_variable_sp);
     
     bool ret;
     
@@ -484,7 +483,7 @@ BreakpointLocation::ResolveBreakpointSite ()
     if (process == NULL)
         return false;
 
-    lldb::break_id_t new_id = process->CreateBreakpointSite (shared_from_this(), false);
+    lldb::break_id_t new_id = process->CreateBreakpointSite (shared_from_this(), m_owner.IsHardware());
 
     if (new_id == LLDB_INVALID_BREAK_ID)
     {

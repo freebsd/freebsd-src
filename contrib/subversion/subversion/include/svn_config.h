@@ -732,6 +732,12 @@ typedef svn_error_t *
  * under @a config_dir.  If the callback sets its delete_cred return
  * flag, delete the associated credential.
  *
+ * If @a config_dir is not NULL, it must point to an alternative
+ * config directory location. If it is NULL, the default location
+ * is used.
+ *
+ * @note @a config_dir may only be NULL in 1.8.2 and later.
+ *
  * @note Removing credentials from the config-based disk store will
  * not purge them from any open svn_auth_baton_t instance.  Consider
  * using svn_auth_forget_credentials() -- from the @a cleanup_func,

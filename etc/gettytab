@@ -214,6 +214,8 @@ al.115200:\
 	:al=root:tc=std.115200:
 al.230400:\
 	:al=root:tc=std.230400:
+al.Pc:\
+	:al=root:tc=Pc
 
 #
 # Entries for 3-wire serial terminals.  These don't supply carrier, so

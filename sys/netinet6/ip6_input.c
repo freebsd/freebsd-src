@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_ipfw.h"
 #include "opt_ipsec.h"
-#include "opt_kdtrace.h"
 #include "opt_route.h"
 
 #include <sys/param.h>
@@ -86,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/route.h>
@@ -724,8 +724,9 @@ passin:
 		ia6 = (struct in6_ifaddr *)ifa;
 		if (!(ia6->ia6_flags & IN6_IFF_NOTREADY)) {
 			/* Count the packet in the ip address stats */
-			ia6->ia_ifa.if_ipackets++;
-			ia6->ia_ifa.if_ibytes += m->m_pkthdr.len;
+			counter_u64_add(ia6->ia_ifa.ifa_ipackets, 1);
+			counter_u64_add(ia6->ia_ifa.ifa_ibytes,
+			    m->m_pkthdr.len);
 
 			/*
 			 * record address information into m_tag.
@@ -840,9 +841,10 @@ passin:
 			ours = 1;
 			deliverifp = ia6->ia_ifp;	/* correct? */
 			/* Count the packet in the ip address stats */
-			ia6->ia_ifa.if_ipackets++;
-			ia6->ia_ifa.if_ibytes += m->m_pkthdr.len;
-			if (ia6 != NULL && free_ia6 != 0)
+			counter_u64_add(ia6->ia_ifa.ifa_ipackets, 1);
+			counter_u64_add(ia6->ia_ifa.ifa_ibytes,
+			    m->m_pkthdr.len);
+			if (free_ia6)
 				ifa_free(&ia6->ia_ifa);
 			goto hbhcheck;
 		} else {
@@ -854,7 +856,7 @@ passin:
 			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
 			    ip6_sprintf(ip6bufd, &ip6->ip6_dst)));
 
-			if (ia6 != NULL && free_ia6 != 0)
+			if (free_ia6)
 				ifa_free(&ia6->ia_ifa);
 			goto bad;
 		}

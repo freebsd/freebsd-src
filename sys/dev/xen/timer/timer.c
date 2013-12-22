@@ -142,7 +142,7 @@ xentimer_probe(device_t dev)
 	           "VCPUOPs interface unavailable\n");
 #undef XTREQUIRES
 	device_set_desc(dev, "Xen PV Clock");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 /*

@@ -23,6 +23,7 @@ SRCS=	ABI.cpp \
 	StackFrameList.cpp \
 	StackID.cpp \
 	StopInfo.cpp \
+	SystemRuntime.cpp \
 	Target.cpp \
 	TargetList.cpp \
 	Thread.cpp \

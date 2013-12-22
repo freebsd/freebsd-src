@@ -98,24 +98,27 @@ main(int argc, char *argv[])
 	char obuf[BUFSIZ];
 	char ibuf[BUFSIZ];
 	fd_set rfd;
-	int aflg, kflg, pflg, ch, k, n;
+	int aflg, Fflg, kflg, pflg, ch, k, n;
 	int flushtime, readstdin;
 	int fm_fd, fm_log;
 
-	aflg = kflg = pflg = 0;
+	aflg = Fflg = kflg = pflg = 0;
 	usesleep = 1;
 	rawout = 0;
 	flushtime = 30;
 	fm_fd = -1;	/* Shut up stupid "may be used uninitialized" GCC
 			   warning. (not needed w/clang) */
 
-	while ((ch = getopt(argc, argv, "adfkpqrt:")) != -1)
+	while ((ch = getopt(argc, argv, "adFfkpqrt:")) != -1)
 		switch(ch) {
 		case 'a':
 			aflg = 1;
 			break;
 		case 'd':
 			usesleep = 0;
+			break;
+		case 'F':
+			Fflg = 1;
 			break;
 		case 'f':
 			fflg = 1;
@@ -283,6 +286,8 @@ main(int argc, char *argv[])
 			fflush(fscript);
 			start = tvec;
 		}
+		if (Fflg)
+			fflush(fscript);
 	}
 	finish();
 	done(0);

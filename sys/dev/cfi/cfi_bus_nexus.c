@@ -50,14 +50,25 @@ __FBSDID("$FreeBSD$");
 static int
 cfi_nexus_probe(device_t dev)
 {
+	return (BUS_PROBE_NOWILDCARD);
+}
 
-	return cfi_probe(dev);
+static int
+cfi_nexus_attach(device_t dev)
+{
+	int error;
+
+	error = cfi_probe(dev);
+	if (error != 0)
+		return (error);
+
+	return cfi_attach(dev);
 }
 
 static device_method_t cfi_nexus_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		cfi_nexus_probe),
-	DEVMETHOD(device_attach,	cfi_attach),
+	DEVMETHOD(device_attach,	cfi_nexus_attach),
 	DEVMETHOD(device_detach,	cfi_detach),
 
 	{0, 0}

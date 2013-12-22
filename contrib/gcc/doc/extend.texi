@@ -1577,6 +1577,7 @@ The keyword @code{__attribute__} allows you to specify special
 attributes when making a declaration.  This keyword is followed by an
 attribute specification inside double parentheses.  The following
 attributes are currently defined for functions on all targets:
+@code{aligned},
 @code{noreturn}, @code{returns_twice}, @code{noinline}, @code{always_inline},
 @code{flatten}, @code{pure}, @code{const}, @code{nothrow}, @code{sentinel},
 @code{format}, @code{format_arg}, @code{no_instrument_function},
@@ -1614,6 +1615,27 @@ mangled name for the target must be used.  It is an error if @samp{__f}
 is not defined in the same translation unit.
 
 Not all target machines support this attribute.
+
+@item aligned (@var{alignment})
+@cindex @code{aligned} attribute
+This attribute specifies a minimum alignment for the function,
+measured in bytes.
+
+You cannot use this attribute to decrease the alignment of a function,
+only to increase it.  However, when you explicitly specify a function
+alignment this will override the effect of the
+@option{-falign-functions} (@pxref{Optimize Options}) option for this
+function.
+
+Note that the effectiveness of @code{aligned} attributes may be
+limited by inherent limitations in your linker.  On many systems, the
+linker is only able to arrange for functions to be aligned up to a
+certain maximum alignment.  (For some linkers, the maximum supported
+alignment may be very very small.)  See your linker documentation for
+further information.
+
+The @code{aligned} attribute can also be used for variables and fields
+(@pxref{Variable Attributes}.)
 
 @item always_inline
 @cindex @code{always_inline} function attribute
@@ -3043,6 +3065,9 @@ be very very small.)  If your linker is only able to align variables
 up to a maximum of 8 byte alignment, then specifying @code{aligned(16)}
 in an @code{__attribute__} will still only provide you with 8 byte
 alignment.  See your linker documentation for further information.
+
+The @code{aligned} attribute can also be used for functions 
+(@pxref{Function Attributes}.)
 
 @item cleanup (@var{cleanup_function})
 @cindex @code{cleanup} attribute
@@ -6146,6 +6171,16 @@ Similar to @code{__builtin_powi}, except the argument and return types
 are @code{long double}.
 @end deftypefn
 
+@deftypefn {Built-in Function} int32_t __builtin_bswap32 (int32_t x)
+Returns @var{x} with the order of the bytes reversed; for example,
+@code{0xaabbccdd} becomes @code{0xddccbbaa}.  Byte here always means
+exactly 8 bits.
+@end deftypefn
+
+@deftypefn {Built-in Function} int64_t __builtin_bswap64 (int64_t x)
+Similar to @code{__builtin_bswap32}, except the argument and return types
+are 64-bit.
+@end deftypefn
 
 @node Target Builtins
 @section Built-in Functions Specific to Particular Target Machines

@@ -34,7 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define BXE_DRIVER_VERSION "1.78.18"
+#define BXE_DRIVER_VERSION "1.78.75"
 
 #include "bxe.h"
 #include "ecore_sp.h"
@@ -303,70 +303,70 @@ static int load_count[2][3] = { {0} }; /* per-path: 0-common, 1-port0, 2-port1 *
 SYSCTL_NODE(_hw, OID_AUTO, bxe, CTLFLAG_RD, 0, "bxe driver parameters");
 
 /* Debug */
-uint32_t bxe_debug = 0;
-TUNABLE_INT("hw.bxe.debug", &bxe_debug);
-SYSCTL_UINT(_hw_bxe, OID_AUTO, debug, (CTLFLAG_RDTUN),
-            &bxe_debug, 0, "Debug logging mode");
+unsigned long bxe_debug = 0;
+TUNABLE_ULONG("hw.bxe.debug", &bxe_debug);
+SYSCTL_ULONG(_hw_bxe, OID_AUTO, debug, (CTLFLAG_RDTUN),
+             &bxe_debug, 0, "Debug logging mode");
 
 /* Interrupt Mode: 0 (IRQ), 1 (MSI/IRQ), and 2 (MSI-X/MSI/IRQ) */
 static int bxe_interrupt_mode = INTR_MODE_MSIX;
 TUNABLE_INT("hw.bxe.interrupt_mode", &bxe_interrupt_mode);
-SYSCTL_UINT(_hw_bxe, OID_AUTO, interrupt_mode, CTLFLAG_RDTUN,
-            &bxe_interrupt_mode, 0, "Interrupt (MSI-X/MSI/INTx) mode");
+SYSCTL_INT(_hw_bxe, OID_AUTO, interrupt_mode, CTLFLAG_RDTUN,
+           &bxe_interrupt_mode, 0, "Interrupt (MSI-X/MSI/INTx) mode");
 
 /* Number of Queues: 0 (Auto) or 1 to 16 (fixed queue number) */
 static int bxe_queue_count = 4;
 TUNABLE_INT("hw.bxe.queue_count", &bxe_queue_count);
-SYSCTL_UINT(_hw_bxe, OID_AUTO, queue_count, CTLFLAG_RDTUN,
-            &bxe_queue_count, 0, "Multi-Queue queue count");
+SYSCTL_INT(_hw_bxe, OID_AUTO, queue_count, CTLFLAG_RDTUN,
+           &bxe_queue_count, 0, "Multi-Queue queue count");
 
 /* max number of buffers per queue (default RX_BD_USABLE) */
-static uint32_t bxe_max_rx_bufs = 0;
+static int bxe_max_rx_bufs = 0;
 TUNABLE_INT("hw.bxe.max_rx_bufs", &bxe_max_rx_bufs);
-SYSCTL_UINT(_hw_bxe, OID_AUTO, max_rx_bufs, CTLFLAG_RDTUN,
-            &bxe_max_rx_bufs, 0, "Maximum Number of Rx Buffers Per Queue");
+SYSCTL_INT(_hw_bxe, OID_AUTO, max_rx_bufs, CTLFLAG_RDTUN,
+           &bxe_max_rx_bufs, 0, "Maximum Number of Rx Buffers Per Queue");
 
 /* Host interrupt coalescing RX tick timer (usecs) */
-static uint32_t bxe_hc_rx_ticks = 25;
+static int bxe_hc_rx_ticks = 25;
 TUNABLE_INT("hw.bxe.hc_rx_ticks", &bxe_hc_rx_ticks);
-SYSCTL_UINT(_hw_bxe, OID_AUTO, hc_rx_ticks, CTLFLAG_RDTUN,
-            &bxe_hc_rx_ticks, 0, "Host Coalescing Rx ticks");
+SYSCTL_INT(_hw_bxe, OID_AUTO, hc_rx_ticks, CTLFLAG_RDTUN,
+           &bxe_hc_rx_ticks, 0, "Host Coalescing Rx ticks");
 
 /* Host interrupt coalescing TX tick timer (usecs) */
-static uint32_t bxe_hc_tx_ticks = 50;
+static int bxe_hc_tx_ticks = 50;
 TUNABLE_INT("hw.bxe.hc_tx_ticks", &bxe_hc_tx_ticks);
-SYSCTL_UINT(_hw_bxe, OID_AUTO, hc_tx_ticks, CTLFLAG_RDTUN,
-            &bxe_hc_tx_ticks, 0, "Host Coalescing Tx ticks");
+SYSCTL_INT(_hw_bxe, OID_AUTO, hc_tx_ticks, CTLFLAG_RDTUN,
+           &bxe_hc_tx_ticks, 0, "Host Coalescing Tx ticks");
 
 /* Maximum number of Rx packets to process at a time */
-static uint32_t bxe_rx_budget = 0xffffffff;
+static int bxe_rx_budget = 0xffffffff;
 TUNABLE_INT("hw.bxe.rx_budget", &bxe_rx_budget);
-SYSCTL_UINT(_hw_bxe, OID_AUTO, rx_budget, CTLFLAG_TUN,
-            &bxe_rx_budget, 0, "Rx processing budget");
+SYSCTL_INT(_hw_bxe, OID_AUTO, rx_budget, CTLFLAG_TUN,
+           &bxe_rx_budget, 0, "Rx processing budget");
 
 /* Maximum LRO aggregation size */
-static uint32_t bxe_max_aggregation_size = 0;
+static int bxe_max_aggregation_size = 0;
 TUNABLE_INT("hw.bxe.max_aggregation_size", &bxe_max_aggregation_size);
-SYSCTL_UINT(_hw_bxe, OID_AUTO, max_aggregation_size, CTLFLAG_TUN,
-            &bxe_max_aggregation_size, 0, "max aggregation size");
+SYSCTL_INT(_hw_bxe, OID_AUTO, max_aggregation_size, CTLFLAG_TUN,
+           &bxe_max_aggregation_size, 0, "max aggregation size");
 
 /* PCI MRRS: -1 (Auto), 0 (128B), 1 (256B), 2 (512B), 3 (1KB) */
 static int bxe_mrrs = -1;
 TUNABLE_INT("hw.bxe.mrrs", &bxe_mrrs);
-SYSCTL_UINT(_hw_bxe, OID_AUTO, mrrs, CTLFLAG_RDTUN,
-            &bxe_mrrs, 0, "PCIe maximum read request size");
+SYSCTL_INT(_hw_bxe, OID_AUTO, mrrs, CTLFLAG_RDTUN,
+           &bxe_mrrs, 0, "PCIe maximum read request size");
 
 /* AutoGrEEEn: 0 (hardware default), 1 (force on), 2 (force off) */
 static int bxe_autogreeen = 0;
 TUNABLE_INT("hw.bxe.autogreeen", &bxe_autogreeen);
-SYSCTL_UINT(_hw_bxe, OID_AUTO, autogreeen, CTLFLAG_RDTUN,
-            &bxe_autogreeen, 0, "AutoGrEEEn support");
+SYSCTL_INT(_hw_bxe, OID_AUTO, autogreeen, CTLFLAG_RDTUN,
+           &bxe_autogreeen, 0, "AutoGrEEEn support");
 
 /* 4-tuple RSS support for UDP: 0 (disabled), 1 (enabled) */
 static int bxe_udp_rss = 0;
 TUNABLE_INT("hw.bxe.udp_rss", &bxe_udp_rss);
-SYSCTL_UINT(_hw_bxe, OID_AUTO, udp_rss, CTLFLAG_RDTUN,
-            &bxe_udp_rss, 0, "UDP RSS support");
+SYSCTL_INT(_hw_bxe, OID_AUTO, udp_rss, CTLFLAG_RDTUN,
+           &bxe_udp_rss, 0, "UDP RSS support");
 
 
 #define STAT_NAME_LEN 32 /* no stat names below can be longer than this */
@@ -3604,9 +3604,9 @@ bxe_watchdog(struct bxe_softc    *sc,
         return (0);
     }
 
-    BXE_FP_TX_UNLOCK(fp);
-
     BLOGE(sc, "TX watchdog timeout on fp[%02d], resetting!\n", fp->index);
+
+    BXE_FP_TX_UNLOCK(fp);
 
     atomic_store_rel_long(&sc->chip_tq_flags, CHIP_TQ_REINIT);
     taskqueue_enqueue(sc->chip_tq, &sc->chip_tq_task);
@@ -3652,21 +3652,21 @@ bxe_txeof(struct bxe_softc    *sc,
 
     tx_bd_avail = bxe_tx_avail(sc, fp);
 
-    /* reset the watchdog timer if there are pending transmits */
-    if (tx_bd_avail >= BXE_TX_CLEANUP_THRESHOLD) {
+    if (tx_bd_avail < BXE_TX_CLEANUP_THRESHOLD) {
+        ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+    } else {
         ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-
-        if (tx_bd_avail >= (TX_BD_USABLE - 1)) {
-            /* clear watchdog if the tx chain is empty */
-            fp->watchdog_timer = 0;
-            return (FALSE);
-        }
-
-        /* reset watchdog if there are pending transmits */
-        fp->watchdog_timer = BXE_TX_TIMEOUT;
     }
 
-    return (TRUE);
+    if (fp->tx_pkt_prod != fp->tx_pkt_cons) {
+        /* reset the watchdog timer if there are pending transmits */
+        fp->watchdog_timer = BXE_TX_TIMEOUT;
+        return (TRUE);
+    } else {
+        /* clear watchdog when there are no pending transmits */
+        fp->watchdog_timer = 0;
+        return (FALSE);
+    }
 }
 
 static void
@@ -5879,13 +5879,11 @@ bxe_tx_start_locked(struct bxe_softc    *sc,
 
         /* handle any completions if we're running low */
         if (tx_bd_avail < BXE_TX_CLEANUP_THRESHOLD) {
+            /* bxe_txeof will set IFF_DRV_OACTIVE appropriately */
             bxe_txeof(sc, fp);
-        }
-
-        /* close TX if we're still running low */
-        if (tx_bd_avail < BXE_TX_CLEANUP_THRESHOLD) {
-            ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-            break;
+            if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+                break;
+            }
         }
     }
 
@@ -6008,13 +6006,11 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
 
         /* handle any completions if we're running low */
         if (tx_bd_avail < BXE_TX_CLEANUP_THRESHOLD) {
+            /* bxe_txeof will set IFF_DRV_OACTIVE appropriately */
             bxe_txeof(sc, fp);
-        }
-
-        /* close TX if we're still running low */
-        if (tx_bd_avail < BXE_TX_CLEANUP_THRESHOLD) {
-            ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-            break;
+            if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+                break;
+            }
         }
 
         next = drbr_dequeue(ifp, tx_br);
@@ -14173,7 +14169,7 @@ bxe_get_tunable_params(struct bxe_softc *sc)
 
     BLOGD(sc, DBG_LOAD,
           "User Config: "
-          "debug=0x%x "
+          "debug=0x%lx "
           "interrupt_mode=%d "
           "queue_count=%d "
           "hc_rx_ticks=%d "

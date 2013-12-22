@@ -49,6 +49,7 @@ ak [label="Alex Kozlov\nak@FreeBSD.org\n2012/02/29"]
 ale [label="Alex Dupre\nale@FreeBSD.org\n2004/01/12"]
 alepulver [label="Alejandro Pulver\nalepulver@FreeBSD.org\n2006/04/01"]
 alexbl [label="Alexander Botero-Lowry\nalexbl@FreeBSD.org\n2006/09/11"]
+alexey [label="Alexey Degtyarev\nalexey@FreeBSD.org\n2013/11/09"]
 amdmi3 [label="Dmitry Marakasov\namdmi3@FreeBSD.org\n2008/06/19"]
 anray [label="Andrey Slusar\nanray@FreeBSD.org\n2005/12/11"]
 antoine [label="Antoine Brodin\nantoine@FreeBSD.org\n2013/04/03"]
@@ -153,6 +154,7 @@ mat [label="Mathieu Arnold\nmat@FreeBSD.org\n2003/08/15"]
 matthew [label="Matthew Seaman\nmatthew@FreeBSD.org\n2012/02/07"]
 mezz [label="Jeremy Messenger\nmezz@FreeBSD.org\n2004/04/30"]
 mharo [label="Michael Haro\nmharo@FreeBSD.org\n1999/04/13"]
+milki [label="Jonathan Chu\nmilki@FreeBSD.org\n2013/12/15"]
 miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2006/06/04"]
 mm [label="Martin Matuska\nmm@FreeBSD.org\n2007/04/04"]
 mnag [label="Marcus Alves Grando\nmnag@FreeBSD.org\n2005/09/15"]
@@ -207,6 +209,7 @@ tmclaugh [label="Tom McLaughlin\ntmclaugh@FreeBSD.org\n2005/09/15"]
 tota [label="TAKATSU Tomonari\ntota@FreeBSD.org\n2009/03/30"]
 trasz [label="Edward Tomasz Napierala\ntrasz@FreeBSD.org\n2007/04/12"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2004/07/06"]
+trociny [label="Mikolaj Golub\ntrociny@FreeBSD.org\n2013/10/17"]
 uqs [label="Ulrich Spoerlein\nuqs@FreeBSD.org\n2012/01/19"]
 vd [label="Vasil Dimov\nvd@FreeBSD.org\n2006/01/19"]
 vg [label="Veniamin Gvozdikov\nvg@FreeBSD.org\n2013/06/11"]
@@ -246,6 +249,7 @@ avilla -> jhale
 avilla -> rakuco
 
 bdrewery -> dbn
+bdrewery -> trociny
 
 bapt -> bdrewery
 bapt -> eadler
@@ -298,6 +302,7 @@ eadler -> antoine
 eadler -> dbn
 eadler -> bdrewery
 eadler -> gjb
+eadler -> milki
 eadler -> tj
 eadler -> vg
 
@@ -507,6 +512,7 @@ stas -> araujo
 steve -> netchild
 
 swills -> feld
+swills -> milki
 swills -> pclin
 
 tabthorpe -> ashish
@@ -534,6 +540,7 @@ wen -> cs
 wen -> culot
 wen -> pawel
 
+wg -> alexey
 wg -> danilo
 wg -> nemysis
 

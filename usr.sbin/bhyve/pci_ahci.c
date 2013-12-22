@@ -165,6 +165,7 @@ struct ahci_cmd_hdr {
 struct ahci_prdt_entry {
 	uint64_t dba;
 	uint32_t reserved;
+#define	DBCMASK		0x3fffff
 	uint32_t dbc;
 };
 
@@ -461,10 +462,13 @@ ahci_handle_dma(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done,
 	 * Build up the iovec based on the prdt
 	 */
 	for (i = 0; i < iovcnt; i++) {
+		uint32_t dbcsz;
+
+		dbcsz = (prdt->dbc & DBCMASK) + 1;
 		breq->br_iov[i].iov_base = paddr_guest2host(ahci_ctx(sc),
-				prdt->dba, prdt->dbc + 1);
-		breq->br_iov[i].iov_len = prdt->dbc + 1;
-		aior->done += (prdt->dbc + 1);
+		    prdt->dba, dbcsz);
+		breq->br_iov[i].iov_len = dbcsz;
+		aior->done += dbcsz;
 		prdt++;
 	}
 	if (readop)
@@ -513,11 +517,14 @@ write_prdt(struct ahci_port *p, int slot, uint8_t *cfis,
 	from = buf;
 	prdt = (struct ahci_prdt_entry *)(cfis + 0x80);
 	for (i = 0; i < hdr->prdtl && len; i++) {
-		uint8_t *ptr = paddr_guest2host(ahci_ctx(p->pr_sc),
-				prdt->dba, prdt->dbc + 1);
-		memcpy(ptr, from, prdt->dbc + 1);
-		len -= (prdt->dbc + 1);
-		from += (prdt->dbc + 1);
+		uint8_t *ptr;
+		uint32_t dbcsz;
+
+		dbcsz = (prdt->dbc & DBCMASK) + 1;
+		ptr = paddr_guest2host(ahci_ctx(p->pr_sc), prdt->dba, dbcsz);
+		memcpy(ptr, from, dbcsz);
+		len -= dbcsz;
+		from += dbcsz;
 		prdt++;
 	}
 	hdr->prdbc = size - len;
@@ -663,8 +670,7 @@ atapi_read_capacity(struct ahci_port *p, int slot, uint8_t *cfis)
 	uint8_t buf[8];
 	uint64_t sectors;
 
-	sectors = blockif_size(p->bctx) / blockif_sectsz(p->bctx);
-	sectors >>= 2;
+	sectors = blockif_size(p->bctx) / 2048;
 	be32enc(buf, sectors - 1);
 	be32enc(buf + 4, 2048);
 	cfis[4] = (cfis[4] & ~7) | ATA_I_CMD | ATA_I_IN;
@@ -908,11 +914,14 @@ atapi_read(struct ahci_port *p, int slot, uint8_t *cfis,
 	/*
 	 * Build up the iovec based on the prdt
 	 */
-	for (i = 0; i < hdr->prdtl; i++) {
+	for (i = 0; i < iovcnt; i++) {
+		uint32_t dbcsz;
+
+		dbcsz = (prdt->dbc & DBCMASK) + 1;
 		breq->br_iov[i].iov_base = paddr_guest2host(ahci_ctx(sc),
-				prdt->dba, prdt->dbc + 1);
-		breq->br_iov[i].iov_len = prdt->dbc + 1;
-		aior->done += (prdt->dbc + 1);
+		    prdt->dba, dbcsz);
+		breq->br_iov[i].iov_len = dbcsz;
+		aior->done += dbcsz;
 		prdt++;
 	}
 	err = blockif_read(p->bctx, breq);
@@ -1543,7 +1552,7 @@ pci_ahci_host_write(struct pci_ahci_softc *sc, uint64_t offset, uint64_t value)
 	case AHCI_PI:
 	case AHCI_VS:
 	case AHCI_CAP2:
-		WPRINTF("pci_ahci_host: read only registers 0x%"PRIx64"\n", offset);
+		DPRINTF("pci_ahci_host: read only registers 0x%"PRIx64"\n", offset);
 		break;
 	case AHCI_GHC:
 		if (value & AHCI_GHC_HR)
@@ -1715,11 +1724,9 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 
 	/*
 	 * Attempt to open the backing image. Use the PCI
-	 * slot/func/ahci_port for the identifier string
-	 * since that uniquely identifies a storage device.
+	 * slot/func for the identifier string.
 	 */
-	snprintf(bident, sizeof(bident), "%d:%d:%d", pi->pi_slot, pi->pi_func,
-	    0);
+	snprintf(bident, sizeof(bident), "%d:%d", pi->pi_slot, pi->pi_func);
 	bctxt = blockif_open(opts, bident);
 	if (bctxt == NULL) {       	
 		ret = 1;

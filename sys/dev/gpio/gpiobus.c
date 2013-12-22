@@ -175,7 +175,8 @@ static int
 gpiobus_probe(device_t dev)
 {
 	device_set_desc(dev, "GPIO bus");
-	return (0);
+
+	return (BUS_PROBE_GENERIC);
 }
 
 static int
@@ -190,12 +191,12 @@ gpiobus_attach(device_t dev)
 	if (res)
 		return (ENXIO);
 
+	KASSERT(sc->sc_npins != 0, ("GPIO device with no pins"));
+
 	/*
 	 * Increase to get number of pins
 	 */
 	sc->sc_npins++;
-
-	KASSERT(sc->sc_npins != 0, ("GPIO device with no pins"));
 
 	sc->sc_pins_mapped = malloc(sizeof(int) * sc->sc_npins, M_DEVBUF, 
 	    M_NOWAIT | M_ZERO);
@@ -209,7 +210,9 @@ gpiobus_attach(device_t dev)
 	/*
 	 * Get parent's pins and mark them as unmapped
 	 */
+	bus_generic_probe(dev);
 	bus_enumerate_hinted_children(dev);
+
 	return (bus_generic_attach(dev));
 }
 

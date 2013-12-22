@@ -82,9 +82,9 @@ int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
 
 /* Forward declarations. */
 static int ipfw_divert(struct mbuf **, int, struct ipfw_rule_ref *, int);
-static int ipfw_check_packet(void *, struct mbuf **, struct ifnet *, int,
+int ipfw_check_packet(void *, struct mbuf **, struct ifnet *, int,
 	struct inpcb *);
-static int ipfw_check_frame(void *, struct mbuf **, struct ifnet *, int,
+int ipfw_check_frame(void *, struct mbuf **, struct ifnet *, int,
 	struct inpcb *);
 
 #ifdef SYSCTL_NODE
@@ -116,7 +116,7 @@ SYSEND
  * dummynet, divert, netgraph or other modules.
  * The packet may be consumed.
  */
-static int
+int
 ipfw_check_packet(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
@@ -292,7 +292,7 @@ again:
  * Inteface is NULL from ether_demux, and ifp from
  * ether_output_frame.
  */
-static int
+int
 ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *dst, int dir,
     struct inpcb *inp)
 {

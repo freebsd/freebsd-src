@@ -47,14 +47,6 @@ struct fdt_pci_range {
 	u_long	len;
 };
 
-struct fdt_pci_intr {
-	int	addr_cells;
-	int	intr_cells;
-	int	map_len;
-	pcell_t	*map;
-	pcell_t	*mask;
-};
-
 struct fdt_sense_level {
 	enum intr_trigger	trig;
 	enum intr_polarity	pol;
@@ -69,6 +61,13 @@ struct fdt_fixup_entry {
 	fdt_fixup_t	handler;
 };
 extern struct fdt_fixup_entry fdt_fixup_table[];
+
+extern SLIST_HEAD(fdt_ic_list, fdt_ic) fdt_ic_list_head;
+struct fdt_ic {
+	SLIST_ENTRY(fdt_ic)	fdt_ics;
+	ihandle_t		iph;
+	device_t		dev;
+};
 
 extern vm_paddr_t fdt_immr_pa;
 extern vm_offset_t fdt_immr_va;
@@ -103,11 +102,9 @@ int fdt_is_enabled(phandle_t);
 int fdt_pm_is_enabled(phandle_t);
 int fdt_is_type(phandle_t, const char *);
 int fdt_parent_addr_cells(phandle_t);
-int fdt_pci_intr_info(phandle_t, struct fdt_pci_intr *);
 int fdt_pci_ranges(phandle_t, struct fdt_pci_range *, struct fdt_pci_range *);
 int fdt_pci_ranges_decode(phandle_t, struct fdt_pci_range *,
     struct fdt_pci_range *);
-int fdt_pci_route_intr(int, int, int, int, struct fdt_pci_intr *, int *);
 int fdt_ranges_verify(pcell_t *, int, int, int, int);
 int fdt_reg_to_rl(phandle_t, struct resource_list *);
 int fdt_pm(phandle_t);

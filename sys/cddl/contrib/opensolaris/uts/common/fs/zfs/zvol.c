@@ -2153,6 +2153,7 @@ zvol_geom_create(const char *name)
 	gp->start = zvol_geom_start;
 	gp->access = zvol_geom_access;
 	pp = g_new_providerf(gp, "%s/%s", ZVOL_DRIVER, name);
+	pp->flags |= G_PF_DIRECT_RECEIVE | G_PF_DIRECT_SEND;
 	pp->sectorsize = DEV_BSIZE;
 
 	zv = kmem_zalloc(sizeof(*zv), KM_SLEEP);
@@ -2256,18 +2257,20 @@ zvol_geom_start(struct bio *bp)
 	zvol_state_t *zv;
 	boolean_t first;
 
+	zv = bp->bio_to->private;
+	ASSERT(zv != NULL);
 	switch (bp->bio_cmd) {
+	case BIO_FLUSH:
+		if (!THREAD_CAN_SLEEP())
+			goto enqueue;
+		zil_commit(zv->zv_zilog, ZVOL_OBJ);
+		g_io_deliver(bp, 0);
+		break;
 	case BIO_READ:
 	case BIO_WRITE:
-	case BIO_FLUSH:
-		zv = bp->bio_to->private;
-		ASSERT(zv != NULL);
-		mtx_lock(&zv->zv_queue_mtx);
-		first = (bioq_first(&zv->zv_queue) == NULL);
-		bioq_insert_tail(&zv->zv_queue, bp);
-		mtx_unlock(&zv->zv_queue_mtx);
-		if (first)
-			wakeup_one(&zv->zv_queue);
+		if (!THREAD_CAN_SLEEP())
+			goto enqueue;
+		zvol_strategy(bp);
 		break;
 	case BIO_GETATTR:
 	case BIO_DELETE:
@@ -2275,6 +2278,15 @@ zvol_geom_start(struct bio *bp)
 		g_io_deliver(bp, EOPNOTSUPP);
 		break;
 	}
+	return;
+
+enqueue:
+	mtx_lock(&zv->zv_queue_mtx);
+	first = (bioq_first(&zv->zv_queue) == NULL);
+	bioq_insert_tail(&zv->zv_queue, bp);
+	mtx_unlock(&zv->zv_queue_mtx);
+	if (first)
+		wakeup_one(&zv->zv_queue);
 }
 
 static void
@@ -2449,6 +2461,7 @@ zvol_rename_minor(struct g_geom *gp, const char *newname)
 	g_wither_provider(pp, ENXIO);
 
 	pp = g_new_providerf(gp, "%s/%s", ZVOL_DRIVER, newname);
+	pp->flags |= G_PF_DIRECT_RECEIVE | G_PF_DIRECT_SEND;
 	pp->sectorsize = DEV_BSIZE;
 	pp->mediasize = zv->zv_volsize;
 	pp->private = zv;

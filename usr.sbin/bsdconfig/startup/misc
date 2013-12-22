@@ -38,15 +38,8 @@ f_include $BSDCFG_SHARE/sysrc.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="140.startup"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
-
-############################################################ GLOBALS
-
-#
-# Operating environment
-#
-UNAME_P=$( uname -p ) # Processor Architecture (i.e. i386)
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ FUNCTIONS
 
@@ -346,87 +339,61 @@ while :; do
 
 	case "$mtag" in
 	"X $msg_exit") break ;;
-	?" [X] "*) toggled=1 ;;
-	        *) toggled=
+	?" [X] "*) toggled=1 reverse=NO ;;
+	        *) toggled= reverse=YES
 	esac
 
 	case "$mtag" in
 	# Simple On/Off toggle bits
 	?" ["?"] $msg_apm")
-		if [ "$toggled" ]; then
-			err=$( f_sysrc_set apm_enable NO 2>&1 )
-		else
-			err=$( f_sysrc_set apm_enable YES 2>&1 )
-		fi
-		;;
+		f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set apm_enable "%s"' "$reverse" ;;
 	?" ["?"] $msg_named")
-		if [ "$toggled" ]; then
-			err=$( f_sysrc_set named_enable NO 2>&1 )
-		else
-			err=$( f_sysrc_set named_enable YES 2>&1 )
-		fi
-		;;
+		f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set named_enable "%s"' "$reverse" ;;
 	?" ["?"] $msg_accounting")
-		if [ "$toggled" ]; then
-			err=$( f_sysrc_set accounting_enable NO 2>&1 )
-		else
-			err=$( f_sysrc_set accounting_enable YES 2>&1 )
-		fi
-		;;
+		f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set accounting_enable "%s"' "$reverse" ;;
 	?" ["?"] $msg_lpd")
-		if [ "$toggled" ]; then
-			err=$( f_sysrc_set lpd_enable NO 2>&1 )
-		else
-			err=$( f_sysrc_set lpd_enable YES 2>&1 )
-		fi
-		;;
+		f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set lpd_enable "%s"' "$reverse" ;;
 	?" ["?"] $msg_sco")
-		if [ "$toggled" ]; then
-			err=$( f_sysrc_set ibcs2_enable NO 2>&1 )
-		else
-			err=$( f_sysrc_set ibcs2_enable YES 2>&1 )
-		fi
-		;;
+		f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set ibcs2_enable "%s"' "$reverse" ;;
 	?" ["?"] $msg_svr4")
-		if [ "$toggled" ]; then
-			err=$( f_sysrc_set svr4_enable NO 2>&1 )
-		else
-			err=$( f_sysrc_set svr4_enable YES 2>&1 )
-		fi
-		;;
+		f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set svr4_enable "%s"' "$reverse" ;;
 	# Multi-variable On/Off toggle bits
 	?" ["?"] $msg_nis_client")
-		if [ "$toggled" ]; then
-			err=$( f_sysrc_set nis_client_enable NO 2>&1 )
-		else
-			err=$( f_sysrc_set nis_client_enable YES 2>&1 ) \
-			&& err=$( f_sysrc_set rpcbind_enable YES 2>&1 )
-		fi
-		;;
+		if f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set nis_client_enable "%s"' "$reverse"
+		then
+			[ "$reverse" = "NO" ] || f_eval_catch -dk err "$0" \
+				f_sysrc_set 'f_sysrc_set rpcbind_enable YES'
+		fi ;;
 	?" ["?"] $msg_nis_server")
-		if [ "$toggled" ]; then
-			err=$( f_sysrc_set nis_server_enable NO 2>&1 )
-		else
-			err=$( f_sysrc_set nis_server_enable YES 2>&1 ) \
-			&& err=$( f_sysrc_set rpcbind_enable YES 2>&1 )
-		fi
-		;;
+		if f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set nis_server_enable "%s"' "$reverse"
+		then
+			[ "$reverse" = "NO" ] || f_eval_catch -dk err "$0" \
+				f_sysrc_set 'f_sysrc_set rpcbind_enable YES'
+		fi ;;
 	# Checkboxes for non-boolean options
 	?" ["?"] $msg_nis_domainname")
 		dialog_input_value "$msg_nis_domainname_desc" \
 		                   "$( f_sysrc_get nisdomainname )" || continue
-		err=$( f_sysrc_set nisdomainname "$value" 2>&1 )
-		;;
+		f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set nisdomainname "%s"' "$value" ;;
 	?" ["?"] $msg_startup_dirs")
 		dialog_input_value "$msg_startup_dirs_desc" \
 		                   "$( f_sysrc_get local_startup )" || continue
-		err=$( f_sysrc_set local_startup "$value" 2>&1 )
-		;;
+		f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set local_startup "%s"' "$value" ;;
 	?" ["?"] $msg_named_flags")
 		dialog_input_value "$msg_named_flags_desc" \
 		                   "$( f_sysrc_get named_flags )" || continue
-		err=$( f_sysrc_set named_flags "$value" 2>&1 )
-		;;
+		f_eval_catch -dk err "$0" f_sysrc_set \
+			'f_sysrc_set named_flags "%s"' "$value" ;;
 	esac
 
 	[ $? -eq $DIALOG_OK ] || f_dialog_msgbox "$err\n"

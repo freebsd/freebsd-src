@@ -40,7 +40,9 @@ LDADD+=	-lbsdxml -lsbuf
 
 SRCS+=	carp.c			# SIOC[GS]VH support
 SRCS+=	ifgroup.c		# ...
+.if ${MK_PF} != "no"
 SRCS+=	ifpfsync.c		# pfsync(4) support
+.endif
 
 SRCS+=	ifbridge.c		# bridge support
 SRCS+=	iflagg.c		# lagg support

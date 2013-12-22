@@ -35,6 +35,7 @@ MAN=	aac.4 \
 	alc.4 \
 	ale.4 \
 	alpm.4 \
+	altera_atse.4 \
 	altera_avgen.4 \
 	altera_jtag_uart.4 \
 	altera_sdcard.4 \
@@ -66,6 +67,7 @@ MAN=	aac.4 \
 	auditpipe.4 \
 	aue.4 \
 	axe.4 \
+	axge.4 \
 	bce.4 \
 	bfe.4 \
 	bge.4 \
@@ -155,6 +157,8 @@ MAN=	aac.4 \
 	gif.4 \
 	gpib.4 \
 	gpio.4 \
+	gpioiic.4 \
+	gpioled.4 \
 	gre.4 \
 	h_ertt.4 \
 	hatm.4 \
@@ -195,7 +199,6 @@ MAN=	aac.4 \
 	ipwfw.4 \
 	isci.4 \
 	iscsi_initiator.4 \
-	isf.4 \
 	isp.4 \
 	ispfw.4 \
 	iwi.4 \
@@ -295,7 +298,6 @@ MAN=	aac.4 \
 	ng_etf.4 \
 	ng_ether.4 \
 	ng_ether_echo.4 \
-	ng_fec.4 \
 	ng_frame_relay.4 \
 	ng_gif.4 \
 	ng_gif_demux.4 \
@@ -383,6 +385,7 @@ MAN=	aac.4 \
 	rc.4 \
 	re.4 \
 	rgephy.4 \
+	rights.4 \
 	rl.4 \
 	rndtest.4 \
 	route.4 \
@@ -524,6 +527,7 @@ MAN=	aac.4 \
 	urio.4 \
 	${_urtw.4} \
 	urtwn.4 \
+	urtwnfw.4 \
 	usb.4 \
 	usb_quirk.4 \
 	uslcom.4 \
@@ -574,6 +578,7 @@ MLINKS+=age.4 if_age.4
 MLINKS+=agp.4 agpgart.4
 MLINKS+=alc.4 if_alc.4
 MLINKS+=ale.4 if_ale.4
+MLINKS+=altera_atse.4 atse.4
 MLINKS+=altera_sdcard.4 altera_sdcardc.4
 MLINKS+=altq.4 ALTQ.4
 MLINKS+=ath.4 if_ath.4
@@ -827,7 +832,7 @@ _nvram2env.4=	nvram2env.4
 SUBDIR=	man4.${MACHINE_CPUARCH}
 .endif
 
-.if ${MK_ATF} != "no"
+.if ${MK_TESTS} != "no"
 ATF=            ${.CURDIR}/../../../contrib/atf
 .PATH:          ${ATF}/doc
 _atf_test_case.4=	atf-test-case.4

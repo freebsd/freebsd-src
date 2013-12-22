@@ -12,11 +12,7 @@
 
 #include <algorithm>
 
-#if defined (__APPLE__)
-#include <Python/Python.h>
-#else
-#include <Python.h>
-#endif
+#include "lldb/lldb-python.h"
 
 namespace lldb_private {
 

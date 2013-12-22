@@ -111,6 +111,7 @@
 # include <sys/bus.h>
 # include <sys/lock.h>
 # include <net/if.h>
+# include <net/if_var.h>
 # include <net/if_types.h>
 # include <net/if_media.h>
 # include <net/netisr.h>
@@ -168,6 +169,7 @@
 # include <sys/device.h>
 # include <sys/lock.h>
 # include <net/if.h>
+# include <net/if_var.h>
 # include <net/if_types.h>
 # include <net/if_media.h>
 # include <net/netisr.h>

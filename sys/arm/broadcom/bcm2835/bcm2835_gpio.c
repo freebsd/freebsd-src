@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/resource.h>
 #include <machine/fdt.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -55,8 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/broadcom/bcm2835/bcm2835_gpio.h>
 
 #include "gpio_if.h"
-
-#undef	DEBUG
 
 #ifdef DEBUG
 #define dprintf(fmt, args...) do { printf("%s(): ", __func__);   \
@@ -592,7 +589,7 @@ bcm_gpio_sysctl_init(struct bcm_gpio_softc *sc)
  	tree_node = device_get_sysctl_tree(sc->sc_dev);
  	tree = SYSCTL_CHILDREN(tree_node);
 	pin_node = SYSCTL_ADD_NODE(ctx, tree, OID_AUTO, "pin",
-	    CTLFLAG_RW, NULL, "GPIO Pins");
+	    CTLFLAG_RD, NULL, "GPIO Pins");
 	pin_tree = SYSCTL_CHILDREN(pin_node);
 
 	for (i = 0; i < sc->sc_gpio_npins; i++) {

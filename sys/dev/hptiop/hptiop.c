@@ -2641,10 +2641,10 @@ static void hptiop_post_scsi_command(void *arg, bus_dma_segment_t *segs,
 	struct hpt_iop_hba *hba = srb->hba;
 
 	if (error || nsegs > hba->max_sg_count) {
-		KdPrint(("hptiop: func_code=%x tid=%x lun=%x nsegs=%d\n",
+		KdPrint(("hptiop: func_code=%x tid=%x lun=%jx nsegs=%d\n",
 			ccb->ccb_h.func_code,
 			ccb->ccb_h.target_id,
-			ccb->ccb_h.target_lun, nsegs));
+			(uintmax_t)ccb->ccb_h.target_lun, nsegs));
 		ccb->ccb_h.status = CAM_BUSY;
 		bus_dmamap_unload(hba->io_dmat, srb->dma_map);
 		hptiop_free_srb(hba, srb);

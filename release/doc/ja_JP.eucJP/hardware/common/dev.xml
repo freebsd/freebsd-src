@@ -30,13 +30,12 @@
         $FreeBSD$
         Original revision: 1.282
 -->
-
-<sect1 id="support">
-  <sect1info>
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="support">
+  <info><title>対応ハードウェア</title>
     <pubdate>$FreeBSD$</pubdate>
-  </sect1info>
+  </info>
 
-  <title>対応ハードウェア</title>
+  
 
   <para>この節には、現在 &arch.print; 版 &os;
     で動作が確認されている機器がまとめられています。
@@ -58,7 +57,7 @@
       そのデバイスが複数回、重複してリストに登場します。</para>
   </note>
   
-  <sect2 id="disk">
+  <sect2 xml:id="disk">
     <title>ディスクコントローラ</title>
 
     <para arch="i386,alpha,sparc64,ia64,pc98,amd64">IDE/ATA コントローラ
@@ -174,7 +173,7 @@
       CD-ROM コマンドに対応している WORM デバイスの読み込み専用のアクセスは
       (&man.cd.4; のような) CD-ROM ドライバが対応しており、
       WORM/CD-R/CD-RW の書き込みは、Ports Collection にある
-      <filename role="package">sysutils/cdrtools</filename> という port
+      <package>sysutils/cdrtools</package> という port
       に含まれる &man.cdrecord.1; が対応しています。</para>
 
     <para>現時点で、以下の CD-ROM 型システムに対応しています。
@@ -209,7 +208,7 @@
     </para>
 
   </sect2>
-  <sect2 id="ethernet">
+  <sect2 xml:id="ethernet">
     <title>Ethernet インタフェース</title>
 
     &hwlist.sf;
@@ -305,13 +304,13 @@
 
   </sect2>
 
-  <sect2 id="fddi">
+  <sect2 xml:id="fddi">
     <title>FDDI インタフェース</title>
     <para arch="i386,pc98,alpha">DEC DEFPA PCI (&man.fpa.4; ドライバ)</para>
     <para arch="i386">DEC DEFEA EISA (&man.fpa.4; ドライバ)</para>
   </sect2>
 
-  <sect2 id="atm">
+  <sect2 xml:id="atm">
     <title>ATM インタフェース</title>
 
     <para arch="i386,pc98">Midway ベースの ATM インタフェース (&man.en.4;
@@ -330,7 +329,7 @@
       (&man.patm.4; ドライバ)</para>
   </sect2>
 
-  <sect2 id="wlan">
+  <sect2 xml:id="wlan">
     <title>無線ネットワークインタフェース</title>
     
     <para arch="i386">NCR / AT&amp;T / Lucent Technologies WaveLan T1-speed
@@ -350,7 +349,7 @@
     &hwlist.ath;
   </sect2>
 
-  <sect2 id="misc-network">
+  <sect2 xml:id="misc-network">
     <title>その他のネットワーク機器</title>
 
     &hwlist.cx;
@@ -369,7 +368,7 @@
 
   </sect2>
 
-  <sect2 id="isdn">
+  <sect2 xml:id="isdn">
     <title>ISDN インタフェース</title>
     <para arch="i386">AcerISDN P10 ISA PnP (実験段階)</para>
     <para arch="i386">Asuscom ISDNlink 128K ISA</para>
@@ -463,7 +462,7 @@
     <para arch="i386">Winbond W6692 ベースの PCI カード</para>
   </sect2>
 
-  <sect2 id="serial">
+  <sect2 xml:id="serial">
     <title>シリアルインタフェース</title>
     <para arch="i386,alpha,ia64,amd64"><quote>PC に標準で搭載されている</quote>
       8250, 16450, 16550 ベースのシリアルポート (&man.sio.4; ドライバ)</para>
@@ -656,7 +655,7 @@
 
   </sect2>
 
-  <sect2 id="sound">
+  <sect2 xml:id="sound">
     <title>サウンドデバイス</title>
 
     &hwlist.snd.ad1816;
@@ -728,7 +727,7 @@
     </para>
   </sect2>
 
-  <sect2 id="camera">
+  <sect2 xml:id="camera">
     <title>カメラおよびビデオキャプチャデバイス</title>
 
     &hwlist.bktr;
@@ -736,7 +735,7 @@
     <para arch="i386">Connectix QuickCam</para>
   </sect2>
 
-  <sect2 id="usb">
+  <sect2 xml:id="usb">
     <title>USB デバイス</title>
 
     <para arch="alpha,i386,pc98,amd64">この節では、対応しているいくつかの種類の USB 周辺機器のうち、
@@ -753,8 +752,7 @@
     </note>
 
     <note arch="alpha,i386,pc98,amd64">
-      <para>USB Bluetooth アダプタは <link
-      linkend="bluetooth">Bluetooth</link> の節にまとめられています。</para>
+      <para>USB Bluetooth アダプタは <link linkend="bluetooth">Bluetooth</link> の節にまとめられています。</para>
     </note>
 
     &hwlist.ohci;
@@ -814,7 +812,7 @@
 
  </sect2>
 
-  <sect2 id="firewire">
+  <sect2 xml:id="firewire">
     <title>IEEE 1394 (FireWire) デバイス</title>
 
     &hwlist.fwohci;
@@ -823,7 +821,7 @@
       ストレージデバイス (&man.sbp.4; ドライバ)</para>
   </sect2>
 
-  <sect2 id="bluetooth">
+  <sect2 xml:id="bluetooth">
     <title>Bluetooth デバイス</title>
 
     &hwlist.ng.bt3c;
@@ -832,7 +830,7 @@
  
    </sect2>
 
-  <sect2 id="crypto-accel">
+  <sect2 xml:id="crypto-accel">
     <title>暗号処理アクセラレータ</title>
 
     &hwlist.hifn;
@@ -843,7 +841,7 @@
 
   </sect2>
 
-  <sect2 id="misc">
+  <sect2 xml:id="misc">
     <title>その他のデバイス</title>
 
     <para arch="i386,pc98,amd64">FAX モデム/PCCARD
@@ -864,8 +862,7 @@
 
       <note>
         <para>特定のビデオカードについての情報と
-          <application>Xorg</application> との互換性は <ulink
-            url="http://www.x.org/"></ulink> をご覧ください。</para>
+          <application>Xorg</application> との互換性は <uri xlink:href="http://www.x.org/">http://www.x.org/</uri> をご覧ください。</para>
       </note>
     </para>
 
@@ -907,7 +904,7 @@
        <para>&os; でポインティングデバイスを利用する際の詳しい情報は
          マニュアルページ &man.moused.8; に記載されています。
          <application>Xorg</application> で利用する際の情報は
-         <ulink url="http://www.x.org/"></ulink> をご覧ください。</para>
+         <uri xlink:href="http://www.x.org/">http://www.x.org/</uri> をご覧ください。</para>
       </note>
 
     </para>
@@ -937,7 +934,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386"><ulink url="http://www.vcc.com/">Virtual Computers</ulink> 製 HOT1 と互換性のある
+    <para arch="i386"><link xlink:href="http://www.vcc.com/">Virtual Computers</link> 製 HOT1 と互換性のある
       Xilinx XC6200 ベースの再構成可能ハードウェアカード
       (xrpu ドライバ).</para>
 

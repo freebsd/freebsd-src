@@ -426,7 +426,7 @@ vscsi_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->target_sprt = 0;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 0;
-		cpi->max_lun = ~(lun_id_t)(0);
+		cpi->max_lun = 0;
 		cpi->initiator_id = ~0;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "IBM", HBA_IDLEN);
@@ -548,12 +548,6 @@ vscsi_task_management(struct vscsi_softc *sc, union ccb *ccb)
 	TAILQ_REMOVE(&sc->free_xferq, xp, queue);
 	TAILQ_INSERT_TAIL(&sc->active_xferq, xp, queue);
 
-	if (!(ccb->ccb_h.xflags & CAM_EXTLUN_VALID)) {
-		ccb->ccb_h.xflags |= CAM_EXTLUN_VALID;
-		ccb->ccb_h.ext_lun.lun64 = (0x1UL << 62) |
-		    ((uint64_t)ccb->ccb_h.target_lun << 48);
-	}
-
 	xp->srp_iu_size = crq.iu_length = sizeof(*cmd);
 	err = vmem_alloc(xp->sc->srp_iu_arena, xp->srp_iu_size,
 	    M_BESTFIT | M_NOWAIT, &xp->srp_iu_offset);
@@ -565,7 +559,7 @@ vscsi_task_management(struct vscsi_softc *sc, union ccb *ccb)
 	bzero(cmd, xp->srp_iu_size);
 	cmd->type = SRP_TSK_MGMT;
 	cmd->tag = (uint64_t)xp;
-	cmd->lun = ccb->ccb_h.ext_lun.lun64;
+	cmd->lun = htobe64(CAM_EXTLUN_BYTE_SWIZZLE(ccb->ccb_h.target_lun));
 
 	switch (ccb->ccb_h.func_code) {
 	case XPT_RESET_DEV:
@@ -608,12 +602,6 @@ vscsi_scsi_command(void *xxp, bus_dma_segment_t *segs, int nsegs, int err)
 	cdb = (ccb->ccb_h.flags & CAM_CDB_POINTER) ?
 	    ccb->csio.cdb_io.cdb_ptr : ccb->csio.cdb_io.cdb_bytes;
 
-	if (!(ccb->ccb_h.xflags & CAM_EXTLUN_VALID)) {
-		ccb->ccb_h.xflags |= CAM_EXTLUN_VALID;
-		ccb->ccb_h.ext_lun.lun64 = (0x1UL << 62) |
-		    ((uint64_t)ccb->ccb_h.target_lun << 48);
-	}
-
 	/* Command format from Table 20, page 37 of SRP spec */
 	crq.iu_length = 48 + ((nsegs > 1) ? 20 : 16) + 
 	    ((ccb->csio.cdb_len > 16) ? (ccb->csio.cdb_len - 16) : 0);
@@ -635,7 +623,7 @@ vscsi_scsi_command(void *xxp, bus_dma_segment_t *segs, int nsegs, int err)
 	memcpy(cmd->cdb, cdb, ccb->csio.cdb_len);
 
 	cmd->tag = (uint64_t)(xp); /* Let the responder find this again */
-	cmd->lun = ccb->ccb_h.ext_lun.lun64;
+	cmd->lun = htobe64(CAM_EXTLUN_BYTE_SWIZZLE(ccb->ccb_h.target_lun));
 
 	if (nsegs > 1) {
 		/* Use indirect descriptors */

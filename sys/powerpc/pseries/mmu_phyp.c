@@ -165,8 +165,13 @@ mphyp_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 				nptlp--;
 			}
 		}
+
+		/* For now we allow shift only to be <= 0x18. */
+		if (shift >= 0x18)
+		    shift = 0x18;
+
 		moea64_large_page_shift = shift;
-		moea64_large_page_size = 1 << shift;
+		moea64_large_page_size = 1ULL << shift;
 	}
 
 	moea64_mid_bootstrap(mmup, kernelstart, kernelend);

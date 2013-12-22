@@ -54,8 +54,20 @@ public:
     ProcessFreeBSD(lldb_private::Target& target,
                    lldb_private::Listener &listener);
 
+    virtual lldb_private::Error
+    DoDetach(bool keep_stopped);
+
     virtual bool
     UpdateThreadList(lldb_private::ThreadList &old_thread_list, lldb_private::ThreadList &new_thread_list);
+
+    virtual lldb_private::Error
+    DoResume();
+
+    virtual lldb_private::Error
+    WillResume();
+
+    virtual void
+    SendMessage(const ProcessMessage &message);
 
     //------------------------------------------------------------------
     // PluginInterface protocol
@@ -76,6 +88,16 @@ public:
     virtual lldb_private::Log *
     EnablePluginLogging(lldb_private::Stream *strm,
                         lldb_private::Args &command);
+
+protected:
+    friend class FreeBSDThread;
+
+    typedef std::vector<lldb::tid_t> tid_collection;
+    tid_collection m_suspend_tids;
+    tid_collection m_run_tids;
+    tid_collection m_step_tids;
+
+    int m_resume_signo;
 
 };
 

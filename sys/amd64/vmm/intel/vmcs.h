@@ -58,7 +58,26 @@ int	vmcs_getdesc(struct vmcs *vmcs, int ident,
 		     struct seg_desc *desc);
 int	vmcs_setdesc(struct vmcs *vmcs, int ident,
 		     struct seg_desc *desc);
-uint64_t vmcs_read(uint32_t encoding);
+
+static __inline uint64_t
+vmcs_read(uint32_t encoding)
+{
+	int error;
+	uint64_t val;
+
+	error = vmread(encoding, &val);
+	KASSERT(error == 0, ("vmcs_read(%u) error %d", encoding, error));
+	return (val);
+}
+
+static __inline void
+vmcs_write(uint32_t encoding, uint64_t val)
+{
+	int error;
+
+	error = vmwrite(encoding, val);
+	KASSERT(error == 0, ("vmcs_write(%u) error %d", encoding, error));
+}
 
 #define	vmexit_instruction_length()	vmcs_read(VMCS_EXIT_INSTRUCTION_LENGTH)
 #define	vmcs_guest_rip()		vmcs_read(VMCS_GUEST_RIP)
@@ -318,7 +337,7 @@ uint64_t vmcs_read(uint32_t encoding);
 /*
  * VMCS IDT-Vectoring information fields
  */
-#define	VMCS_IDT_VEC_VALID		(1 << 31)
+#define	VMCS_IDT_VEC_VALID		(1U << 31)
 #define	VMCS_IDT_VEC_ERRCODE_VALID	(1 << 11)
 
 /*

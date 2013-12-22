@@ -91,7 +91,7 @@ log() {	#	message
 # unconditionally log and wait for input
 logverbose() {	# message
     local foo
-    printf "\n*** %s\n" "$*"
+    printf "\n*** %s\n" "$*" >&2
     read -p "=== Press enter to continue" foo
     return 0
 }
@@ -166,7 +166,7 @@ create_includes_and_libraries2() { # opt_dir opt_target
     log "create_includes_and_libraries2() for ${SRC} $1"
     if [ ${OSVERSION} -ge 600000 ] ; then
 	no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R" # WITHOUT_CDDL=1"
-	no="$no -DWITHOUT_CLANG -DMALLOC_PRODUCTION"
+	no="$no -DMALLOC_PRODUCTION"
     else
 	no="-DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R"
     fi
@@ -437,7 +437,7 @@ do_kernel() {		# OK
 	[ "${o_do_modules}" = "yes" ] && export MODULES=""
 	# kernel build not parallelizable yet
 	${BINMAKE} KERNCONF=${l_kernconf}	\
-		-v -f ${PICO_TREE}/build/Makefile.conf ) || \
+		-f ${PICO_TREE}/build/Makefile.conf ) || \
 	    fail $? missing_kernel
 }
 
@@ -570,71 +570,89 @@ do_links() {	# rootdir varname
 #	cp -p ${u_progs} ${dst}/libexec # ignore errors
 #  }
 
+# find programs and required libraries. Accept -L libs -P path <progs>
+# if no argument default to objdir/SHLIBDIRPREFIX for both
 find_progs() {	# programs
-	local pass i old_libs="" tmp o=""
-	if [ x"$1" = "x-L" -a -d "$2" ] ; then # set lib search path
-		o="-P $2"; shift; shift
-	fi
-	# Result returned in global variables
-	u_libs="" ; u_progs="`find_progs_helper $*`"
+	# logverbose "find_progs: called with $*"
+	local i=`realpath ${o_objdir:-${_SHLIBDIRPREFIX}/..}`
+	# default values for -L and -P
+	local dir="-P $i"
+	local ldir="-L $i"
+
+	while [ "$1" != "" ] ; do
+		if [ x"$1" = "x-L" -a -d "$2" ] ; then # set lib search path
+			ldir="-L $2"; shift; shift
+		elif [ x"$1" = "x-P" -a -d "$2" ] ; then # set prog search path
+			dir="-P $2"; shift; shift
+		else
+			break
+		fi
+	done
+
+	# Results are returned in global variables
+	u_libs=""
+	u_progs="`find_progs_helper $dir $*`"
 	[ -z "${u_progs}" ] && return 1	# not found, error
-	# use objdump to find libraries. Iterate to fetch recursive
-	# dependencies.
-	tmp="${u_progs}" ; pass=1
+
+	# use objdump to find libraries.
+	# Iterate to fetch recursive dependencies.
+	local tmp="${u_progs}"
+	local old_libs=""
+	local pass=1
 	while [ $pass -lt 10 ] ; do
 		pass=$(($pass + 1))
 		i="`objdump -x ${tmp} | \
-			awk '$1 == "NEEDED" { print $2 }' | sort | uniq`"
+			awk '$1 == "NEEDED" { print $2 }' | sort | uniq | tr '\n' ' '`"
 		if [ "$old_libs" = "$i" ] ; then
-			log "libraries for: $my_progs ($u_progs) are ($i) $u_libs"
-			log "--- done find_progs ---"
+			# logverbose "find_progs: have `echo ${u_libs} | wc -w`/`echo ${i} | wc -w` libraries for: $my_progs ($u_progs)"
+			# logverbose "they are ($i) $u_libs"
 			return 0
 		else
 			# logverbose "old--- $old_libs --- new +++ $i +++"
 		fi
-		u_libs="`find_progs_helper $o $i`"
+		u_libs="`find_progs_helper $ldir $i`"
 		old_libs="$i"
 		tmp="$tmp $u_libs"
 	done
 	log "WARNING: Too many passes, giving up"
 }
 
-find_progs_helper() {	# programs
-	local dir=${o_objdir:-${_SHLIBDIRPREFIX}/..}
-	local ldir=""
-	if [ x"$1" = "x-P" -a -d "$2" ] ; then # set path
-		ldir=$2; shift; shift
-	fi
-	local progs="$*"
-	local subdirs=". local/bin local/sbin local/lib local/libexec \
-		bin sbin usr.bin usr.sbin libexec lib \
-		gnu/usr.bin gnu/lib \
-		secure/usr.bin secure/usr.sbin secure/libexec secure/lib"
-	local names=""	# files to search
-	local o=""
+# prints to stdout files and libs in the search paths
+find_progs_helper() {	# first arg is either -P or -L
+	local ty=$1 dir=$2 ; shift; shift
+	local progs="`echo $* | tr ' ' '\n' | sort -u | tr '\n' ' '`"
+	# first, extract absolute pathnames or files in this directory
+
+	# accumulate others in $names
+	local names=""
 	local i
 	for i in $progs ; do
-		# full pathnames are just listed
-		[ -f "$i" ] && echo $i && continue
-		names="${names} ${o} -name $i"
-		o="-o"
+		[ -f "$i" ] && echo `realpath $i` && continue
+		names="${names} $i"
 	done
+	# if nothing left, we are done
 	[ -z "${names}" ] && return 0
-	local places=""				# places to search
-	for i in $subdirs ; do
-		[ -d "${dir}/${i}" ] && places="${places} ${dir}/${i}"
-	done
-	if [ -n "${ldir}" ] ; then
-	    for i in $subdirs ; do
-		[ -d "${ldir}/${i}" ] && places="${places} ${ldir}/${i}"
-	    done
+
+	local depth p
+	local places=""			# places to search
+	if [ x-P = "x$ty" ] ; then # search programs
+		depth=2
+		p=". local/bin local/sbin local/libexec \
+		    bin sbin usr/bin usr/sbin libexec gnu/usr.bin \
+		    secure/usr.bin secure/usr.sbin secure/libexec "
+	else
+		depth=3
+		p="lib usr/lib gnu/lib secure/lib"
 	fi
-	for i in $progs ; do
-		# full pathnames are just listed
-		[ -f "$i" ] && echo $i && continue
-		find ${places} -maxdepth 3 -type f -name ${i} | head -1
+	for i in $p ; do
+		i="${dir}/${i}"
+		[ -d "${i}" ] && places="${places} `realpath ${i}`"
 	done
-	# use maxdepth 3 because some libs are way down
+	# logverbose "--- looking into $places"
+	places=`echo ${places} | tr ' ' '\n' | sort -u`
+	for i in $names ; do
+	    find ${places} -maxdepth $depth -type f -name ${i} | head -1
+	done
 }
 
 # Populate the memory filesystem with binaries and non-variable
@@ -677,7 +695,7 @@ populate_mfs_tree() {
     a=${BUILDDIR}/crunch1.conf
     ( export BUILDDIR SRC MY_TREE PICO_OBJ ;
 	${BINMAKE} \
-		-v -f ${PICO_TREE}/build/Makefile.conf ${BUILDDIR}/crunch.mk )
+		-f ${PICO_TREE}/build/Makefile.conf ${BUILDDIR}/crunch.mk )
     log "Libs are ${LIBS} "
     export SRC # used by crunch.mk
     # export LIBS CFLAGS
@@ -746,6 +764,7 @@ populate_mfs_tree() {
     fi
 
     log "for a shared 'crunch' take libraries and dynamic loader as well"
+    # /stand/crunch is our main binary, we extract its libs
     find_progs ${dst}/stand/crunch
     if [ -n "${u_libs}" ] ; then
 	mkdir -p ${dst}/lib && cp -p ${u_libs} ${dst}/lib
@@ -881,7 +900,7 @@ fill_floppy_image() {
     else
     	log "not loading mfs, size ${mfs_size} img ${imgsize}"
     fi
-    log "Compress with kgzip and copy to floppy image"
+    log "Compress with gzip and copy to floppy image"
 
     mkdir -p  ${dst}/boot/kernel
     # XXX loader.conf does not work unless we also load the .4th files
@@ -974,10 +993,17 @@ set_build_parameters() {
     if [ ${OSVERSION} -ge 500035 ] ; then
 	export MAKEOBJDIRPREFIX=${l_objtree}
 	export TARGET_ARCH=${o_arch} TARGET=${o_arch}
-	export WITHOUT_CLANG_IS_CC=1
+	# XXX 20131001 see if CLANG fixes the build
+	export WITHOUT_CLANG_IS_CC=yes
+	export WITH_GCC=yes
+	export WITH_GNUCXX=yes
+	export WITHOUT_CLANG=yes
+	export WITHOUT_ICONV=yes
+
 	# XXX why change machine_arch ?
 	#-- export MACHINE_ARCH=`uname -m` MACHINE=`uname -m`
 	# export CWARNFLAGS="-Wextra -Wno-sign-compare -Wno-missing-field-initializers"
+	# XXX BINMAKE does not really exist anymore
 	eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V BINMAKE`\""
 	[ "$BINMAKE" = "" ] && \
 	   eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V SUB_MAKE`\""

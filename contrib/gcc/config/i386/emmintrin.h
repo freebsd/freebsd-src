@@ -1126,9 +1126,9 @@ _mm_slli_epi64 (__m128i __A, int __B)
 #define _mm_slli_epi16(__A, __B) \
   ((__m128i)__builtin_ia32_psllwi128 ((__v8hi)(__A), __B))
 #define _mm_slli_epi32(__A, __B) \
-  ((__m128i)__builtin_ia32_pslldi128 ((__v8hi)(__A), __B))
+  ((__m128i)__builtin_ia32_pslldi128 ((__v4si)(__A), __B))
 #define _mm_slli_epi64(__A, __B) \
-  ((__m128i)__builtin_ia32_psllqi128 ((__v8hi)(__A), __B))
+  ((__m128i)__builtin_ia32_psllqi128 ((__v2di)(__A), __B))
 #endif
 
 #if 0
@@ -1147,7 +1147,7 @@ _mm_srai_epi32 (__m128i __A, int __B)
 #define _mm_srai_epi16(__A, __B) \
   ((__m128i)__builtin_ia32_psrawi128 ((__v8hi)(__A), __B))
 #define _mm_srai_epi32(__A, __B) \
-  ((__m128i)__builtin_ia32_psradi128 ((__v8hi)(__A), __B))
+  ((__m128i)__builtin_ia32_psradi128 ((__v4si)(__A), __B))
 #endif
 
 #if 0

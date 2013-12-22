@@ -1,0 +1,119 @@
+# RADXA -- Custom configuration for the RADXA ARM development
+# platform, check out http://www.radxa.com
+#
+# For more information on this file, please read the handbook section on
+# Kernel Configuration Files:
+#
+#    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (http://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
+# in NOTES.
+#
+# $FreeBSD$
+
+ident		RADXA
+
+include		"../rockchip/std.rk30xx"
+
+makeoptions	MODULES_OVERRIDE=""
+makeoptions	WITHOUT_MODULES="ahc"
+
+options		HZ=100
+options		SCHED_4BSD		#4BSD scheduler
+options		INET			#InterNETworking
+options		INET6			#IPv6 communications protocols
+options		FFS			#Berkeley Fast Filesystem
+options		SOFTUPDATES		#Enable FFS soft updates support
+options		UFS_ACL			#Support for access control lists
+options		UFS_DIRHASH		#Improve performance on big directories
+options		MSDOSFS			#MSDOS Filesystem
+options		CD9660			#ISO 9660 Filesystem
+options		PROCFS			#Process filesystem (requires PSEUDOFS)
+options		PSEUDOFS		#Pseudo-filesystem framework
+options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
+options		SCSI_DELAY=5000		#Delay (in ms) before probing SCSI
+options		KTRACE			#ktrace(1) support
+options		SYSVSHM			#SYSV-style shared memory
+options		SYSVMSG			#SYSV-style message queues
+options		SYSVSEM			#SYSV-style semaphores
+options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+options		KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options		PREEMPTION
+options		FREEBSD_BOOT_LOADER
+options		VFP		# vfp/neon
+
+# Debugging
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+options		BREAK_TO_DEBUGGER
+#options	VERBOSE_SYSINIT		#Enable verbose sysinit messages
+options		KDB
+options		DDB			#Enable the kernel debugger
+#options	INVARIANTS		#Enable calls of extra sanity checking
+#options	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
+options		WITNESS			#Enable checks to detect deadlocks and cycles
+options		WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
+options		DIAGNOSTIC
+
+# NFS support
+#options	NFSCL
+#options	NFSSERVER		#Network Filesystem Server
+#options	NFSCLIENT		#Network Filesystem Client
+
+# MMC/SD/SDIO card slot support
+#device		mmc			# mmc/sd bus
+#device		mmcsd			# mmc/sd flash cards
+
+# Boot device is 2nd slice on MMC/SD card
+options		ROOTDEVNAME=\"ufs:/dev/da0s2\"
+
+# Console and misc
+device		uart
+device		uart_ns8250
+device		pty
+device		snp
+device		md
+device		random			# Entropy device
+
+# I2C support
+#device		iicbus
+#device		iic
+
+# GPIO
+device		gpio
+
+device		scbus			# SCSI bus (required for SCSI)
+device		da			# Direct Access (disks)
+device		pass
+
+# USB support
+device		usb
+options		USB_DEBUG
+#options	USB_REQ_DEBUG
+#options	USB_VERBOSE
+device		dwcotg			#DWC OTG controller
+
+device		umass
+
+# Ethernet
+device		loop
+device		ether
+device		mii
+device		smscphy
+device		bpf
+
+# USB ethernet support, requires miibus
+device		miibus
+device		udav
+
+# Flattened Device Tree
+options		FDT
+options		FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=rk3188-radxa.dts
+

@@ -491,6 +491,7 @@ device		tdfx_linux		# Enable Linuxulator support
 
 device		acpi
 options 	ACPI_DEBUG
+options 	ACPI_DMAR
 
 # ACPI WMI Mapping driver
 device		acpi_wmi
@@ -799,6 +800,8 @@ device		vtnet		# VirtIO Ethernet device
 device		virtio_blk	# VirtIO Block device
 device		virtio_scsi	# VirtIO SCSI device
 device		virtio_balloon	# VirtIO Memory Balloon device
+
+device 		hyperv		# HyperV drivers
 
 #####################################################################
 

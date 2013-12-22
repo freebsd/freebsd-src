@@ -10,7 +10,7 @@
 	This section contains the contents of the old UPGRADE.TXT
 	file.
 -->
-<sect1 id="upgrading">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="upgrading">
   <title>Обновление &os;</title>
 
   <para>Эта инструкция описывает процедуру бинарного обновления с
@@ -192,7 +192,7 @@
 	дополнительные возможности.</para>
     </sect3>
 
-    <sect3 id="fstab">
+    <sect3 xml:id="fstab">
       <title>После установки</title>
 
       <para>После завершения процедуры установки администратору предлагается
@@ -208,9 +208,8 @@
 
     <para>Для тех, кто интересуется более гибким и
       <quote>интеллектуальным</quote> методом обновления, существует глава
-      Руководства &os; <ulink
-      url="&url.books.handbook;/cutting-edge.html">На
-      переднем крае разработок</ulink>.  Эта процедура относится к
+      Руководства &os; <link xlink:href="&url.books.handbook;/cutting-edge.html">На
+      переднем крае разработок</link>.  Эта процедура относится к
       пересборке &os; из исходных текстов.  Она требует хорошего
       сетевого подключения, свободного места на диске и времени,
       но имеет преимущества при сетевых и других более сложных установках.

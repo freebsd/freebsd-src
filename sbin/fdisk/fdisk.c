@@ -75,7 +75,8 @@ static int secsize = 0;		/* the sensed sector size */
 
 static char *disk;
 
-static int cyls, sectors, heads, cylsecs, disksecs;
+static int cyls, sectors, heads, cylsecs;
+static u_int32_t disksecs;
 
 struct mboot {
 	unsigned char *bootinst;  /* boot code */
@@ -873,10 +874,13 @@ get_params()
 	o = g_mediasize(fd);
 	if (o < 0)
 		return (-1);
-	disksecs = o / u;
+	if (o / u <= NO_DISK_SECTORS)
+		disksecs = o / u;
+	else
+		disksecs = NO_DISK_SECTORS;
 	cyls = dos_cyls = o / (u * dos_heads * dos_sectors);
 
-	return (disksecs);
+	return (0);
 }
 
 static int

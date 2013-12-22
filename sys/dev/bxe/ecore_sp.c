@@ -168,16 +168,6 @@ static inline void __ecore_exe_queue_reset_pending(
 	}
 }
 
-static inline void ecore_exe_queue_reset_pending(struct bxe_softc *sc,
-						 struct ecore_exe_queue_obj *o)
-{
-	ECORE_SPIN_LOCK_BH(&o->lock);
-
-	__ecore_exe_queue_reset_pending(sc, o);
-
-	ECORE_SPIN_UNLOCK_BH(&o->lock);
-}
-
 /**
  * ecore_exe_queue_step - execute one execution chunk atomically
  *
@@ -188,7 +178,6 @@ static inline void ecore_exe_queue_reset_pending(struct bxe_softc *sc,
  * (Should be called while holding the exe_queue->lock).
  */
 static inline int ecore_exe_queue_step(struct bxe_softc *sc,
-				       struct ecore_vlan_mac_obj *vobj,
 				       struct ecore_exe_queue_obj *o,
 				       unsigned long *ramrod_flags)
 {
@@ -491,7 +480,7 @@ static void __ecore_vlan_mac_h_exec_pending(struct bxe_softc *sc,
 		  ramrod_flags);
 	o->head_exe_request = FALSE;
 	o->saved_ramrod_flags = 0;
-	rc = ecore_exe_queue_step(sc, o, &o->exe_queue, &ramrod_flags);
+	rc = ecore_exe_queue_step(sc, &o->exe_queue, &ramrod_flags);
 	if (rc != ECORE_SUCCESS) {
 		ECORE_ERR("execution of pending commands failed with rc %d\n",
 			  rc);
@@ -667,7 +656,8 @@ static int ecore_get_n_elements(struct bxe_softc *sc, struct ecore_vlan_mac_obj 
 {
 	struct ecore_vlan_mac_registry_elem *pos;
 	uint8_t *next = base;
-	int counter = 0, read_lock;
+	int counter = 0;
+	int read_lock;
 
 	ECORE_MSG(sc, "get_n_elements - taking vlan_mac_lock (reader)\n");
 	read_lock = ecore_vlan_mac_h_read_lock(sc, o);
@@ -680,7 +670,7 @@ static int ecore_get_n_elements(struct bxe_softc *sc, struct ecore_vlan_mac_obj 
 		if (counter < n) {
 			ECORE_MEMCPY(next, &pos->u, size);
 			counter++;
-			ECORE_MSG(sc, "copied element number %d to address %p element was:",
+			ECORE_MSG(sc, "copied element number %d to address %p element was:\n",
 				  counter, next);
 			next += stride + size;
 		}
@@ -1669,7 +1659,7 @@ static int __ecore_vlan_mac_execute_step(struct bxe_softc *sc,
 		 */
 		rc = ECORE_PENDING;
 	} else {
-		rc = ecore_exe_queue_step(sc, o, &o->exe_queue, ramrod_flags);
+		rc = ecore_exe_queue_step(sc, &o->exe_queue, ramrod_flags);
 	}
 	ECORE_SPIN_UNLOCK_BH(&o->exe_queue.lock);
 
@@ -1693,11 +1683,18 @@ static int ecore_complete_vlan_mac(struct bxe_softc *sc,
 	struct ecore_raw_obj *r = &o->raw;
 	int rc;
 
+	/* Clearing the pending list & raw state should be made
+	 * atomically (as execution flow assumes they represent the same)
+	 */
+	ECORE_SPIN_LOCK_BH(&o->exe_queue.lock);
+
 	/* Reset pending list */
-	ecore_exe_queue_reset_pending(sc, &o->exe_queue);
+	__ecore_exe_queue_reset_pending(sc, &o->exe_queue);
 
 	/* Clear pending */
 	r->clear_pending(r);
+
+	ECORE_SPIN_UNLOCK_BH(&o->exe_queue.lock);
 
 	/* If ramrod failed this is most likely a SW bug */
 	if (cqe->message.error)
@@ -1857,6 +1854,7 @@ static int ecore_execute_vlan_mac(struct bxe_softc *sc,
 	 * and exit. Otherwise send a ramrod to FW.
 	 */
 	if (!drv_only) {
+		ECORE_DBG_BREAK_IF(r->check_pending(r));
 
 		/* Set pending */
 		r->set_pending(r);
@@ -2090,10 +2088,11 @@ static int ecore_vlan_mac_del_all(struct bxe_softc *sc,
 				  unsigned long *ramrod_flags)
 {
 	struct ecore_vlan_mac_registry_elem *pos = NULL;
-	int rc = 0, read_lock;
 	struct ecore_vlan_mac_ramrod_params p;
 	struct ecore_exe_queue_obj *exeq = &o->exe_queue;
 	struct ecore_exeq_elem *exeq_pos, *exeq_pos_n;
+	int read_lock;
+	int rc = 0;
 
 	/* Clear pending commands first */
 
@@ -2529,7 +2528,8 @@ static int ecore_set_rx_mode_e2(struct bxe_softc *sc,
 			ETH_FILTER_RULES_CMD_TX_CMD;
 
 		ecore_rx_mode_set_cmd_state_e2(sc, &p->tx_accept_flags,
-			&(data->rules[rule_idx++]), FALSE);
+					       &(data->rules[rule_idx++]),
+					       FALSE);
 	}
 
 	/* Rx */
@@ -2541,7 +2541,8 @@ static int ecore_set_rx_mode_e2(struct bxe_softc *sc,
 			ETH_FILTER_RULES_CMD_RX_CMD;
 
 		ecore_rx_mode_set_cmd_state_e2(sc, &p->rx_accept_flags,
-			&(data->rules[rule_idx++]), FALSE);
+					       &(data->rules[rule_idx++]),
+					       FALSE);
 	}
 
 	/* If FCoE Queue configuration has been requested configure the Rx and
@@ -2559,10 +2560,10 @@ static int ecore_set_rx_mode_e2(struct bxe_softc *sc,
 			data->rules[rule_idx].cmd_general_data =
 						ETH_FILTER_RULES_CMD_TX_CMD;
 
-			ecore_rx_mode_set_cmd_state_e2(sc,
-							 &p->tx_accept_flags,
-						     &(data->rules[rule_idx++]),
+			ecore_rx_mode_set_cmd_state_e2(sc, &p->tx_accept_flags,
+						       &(data->rules[rule_idx]),
 						       TRUE);
+			rule_idx++;
 		}
 
 		/* Rx */
@@ -2573,10 +2574,10 @@ static int ecore_set_rx_mode_e2(struct bxe_softc *sc,
 			data->rules[rule_idx].cmd_general_data =
 						ETH_FILTER_RULES_CMD_RX_CMD;
 
-			ecore_rx_mode_set_cmd_state_e2(sc,
-							 &p->rx_accept_flags,
-						     &(data->rules[rule_idx++]),
+			ecore_rx_mode_set_cmd_state_e2(sc, &p->rx_accept_flags,
+						       &(data->rules[rule_idx]),
 						       TRUE);
+			rule_idx++;
 		}
 	}
 
@@ -2718,7 +2719,7 @@ static int ecore_mcast_enqueue_cmd(struct bxe_softc *sc,
 	if (!new_cmd)
 		return ECORE_NOMEM;
 
-	ECORE_MSG(sc, "About to enqueue a new %d command. macs_list_len=%d\n", \
+	ECORE_MSG(sc, "About to enqueue a new %d command. macs_list_len=%d\n",
 		  cmd, macs_list_len);
 
 	ECORE_LIST_INIT(&new_cmd->data.macs_head);
@@ -4259,9 +4260,22 @@ void ecore_init_mac_credit_pool(struct bxe_softc *sc,
 		 * CAM credit is equaly divided between all active functions
 		 * on the PATH.
 		 */
-		if ((func_num > 0)) {
+		if ((func_num > 1)) {
 			if (!CHIP_REV_IS_SLOW(sc))
-				cam_sz = (MAX_MAC_CREDIT_E2 / func_num);
+				cam_sz = (MAX_MAC_CREDIT_E2
+				- GET_NUM_VFS_PER_PATH(sc))
+				/ func_num 
+				+ GET_NUM_VFS_PER_PF(sc);
+			else
+				cam_sz = ECORE_CAM_SIZE_EMUL;
+
+			/* No need for CAM entries handling for 57712 and
+			 * newer.
+			 */
+			ecore_init_credit_pool(p, -1, cam_sz);
+		} else if (func_num == 1) {
+			if (!CHIP_REV_IS_SLOW(sc))
+				cam_sz = MAX_MAC_CREDIT_E2;
 			else
 				cam_sz = ECORE_CAM_SIZE_EMUL;
 
@@ -4332,6 +4346,10 @@ static int ecore_setup_rss(struct bxe_softc *sc,
 		rss_mode = ETH_RSS_MODE_DISABLED;
 	else if (ECORE_TEST_BIT(ECORE_RSS_MODE_REGULAR, &p->rss_flags))
 		rss_mode = ETH_RSS_MODE_REGULAR;
+#if defined(__VMKLNX__) && (VMWARE_ESX_DDK_VERSION < 55000) /* ! BNX2X_UPSTREAM */
+	else if (ECORE_TEST_BIT(ECORE_RSS_MODE_ESX51, &p->rss_flags))
+		rss_mode = ETH_RSS_MODE_ESX51;
+#endif
 
 	data->rss_mode = rss_mode;
 
@@ -4454,6 +4472,16 @@ void ecore_init_rss_config_obj(struct bxe_softc *sc,
 
 	rss_obj->engine_id  = engine_id;
 	rss_obj->config_rss = ecore_setup_rss;
+}
+
+int validate_vlan_mac(struct bxe_softc *sc,
+		      struct ecore_vlan_mac_obj *vlan_mac)
+{
+	if (!vlan_mac->get_n_elements) {
+		ECORE_ERR("vlan mac object was not intialized\n");
+		return ECORE_INVAL;
+	}
+	return 0;
 }
 
 /********************** Queue state object ***********************************/

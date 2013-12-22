@@ -1,5 +1,5 @@
 #
-# $FreeBSD: projects/virtio/lib/libz/Makefile 224196 2011-07-18 19:23:50Z delphij $
+# $FreeBSD$
 #
 
 LIB=		z

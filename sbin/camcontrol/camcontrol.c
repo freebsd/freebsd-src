@@ -566,11 +566,11 @@ getdevtree(void)
 				}
 
 				fprintf(stdout, "%-33s  at scbus%d "
-					"target %d lun %d (",
+					"target %d lun %jx (",
 					tmpstr,
 					dev_result->path_id,
 					dev_result->target_id,
-					dev_result->target_lun);
+					(uintmax_t)dev_result->target_lun);
 
 				need_close = 1;
 

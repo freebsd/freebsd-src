@@ -58,6 +58,7 @@
 #include "private/svn_cmdline_private.h"
 #include "private/svn_fspath.h"
 #include "private/svn_io_private.h"
+#include "private/svn_subr_private.h"
 
 #include "svn_private_config.h"
 
@@ -397,7 +398,7 @@ check_lib_versions(void)
     };
   SVN_VERSION_DEFINE(my_version);
 
-  return svn_ver_check_list(&my_version, checklist);
+  return svn_ver_check_list2(&my_version, checklist, svn_ver_equal);
 }
 
 

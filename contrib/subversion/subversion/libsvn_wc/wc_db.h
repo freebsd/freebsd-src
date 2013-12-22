@@ -3382,7 +3382,14 @@ svn_wc__db_resolve_delete_raise_moved_away(svn_wc__db_t *db,
                                            apr_pool_t *scratch_pool);
 
 /* Like svn_wc__db_resolve_delete_raise_moved_away this should be
-   combined. */
+   combined.
+   
+   ### LOCAL_ABSPATH specifies the move origin, but the move origin
+   ### is not necessary unique enough. This function needs an op_root_abspath
+   ### argument to differentiate between different origins.
+
+   ### See move_tests.py: move_many_update_delete for an example case.
+   */
 svn_error_t *
 svn_wc__db_resolve_break_moved_away(svn_wc__db_t *db,
                                     const char *local_abspath,

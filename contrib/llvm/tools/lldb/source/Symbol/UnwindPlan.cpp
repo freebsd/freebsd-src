@@ -10,6 +10,7 @@
 #include "lldb/Symbol/UnwindPlan.h"
 
 #include "lldb/Core/ConstString.h"
+#include "lldb/Core/Log.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/Thread.h"
@@ -373,6 +374,49 @@ UnwindPlan::SetPlanValidAddressRange (const AddressRange& range)
 bool
 UnwindPlan::PlanValidAtAddress (Address addr)
 {
+    // If this UnwindPlan has no rows, it is an invalid UnwindPlan.
+    if (GetRowCount() == 0)
+    {
+        Log *log(GetLogIfAllCategoriesSet (LIBLLDB_LOG_UNWIND));
+        if (log)
+        {
+            StreamString s;
+            if (addr.Dump (&s, NULL, Address::DumpStyleSectionNameOffset))
+            {
+                log->Printf ("UnwindPlan is invalid -- no unwind rows for UnwindPlan '%s' at address %s",
+                             m_source_name.GetCString(), s.GetData());
+            }
+            else
+            {
+                log->Printf ("UnwindPlan is invalid -- no unwind rows for UnwindPlan '%s'",
+                             m_source_name.GetCString());
+            }
+        }
+        return false;
+    }
+
+    // If the 0th Row of unwind instructions is missing, or if it doesn't provide
+    // a register to use to find the Canonical Frame Address, this is not a valid UnwindPlan.
+    if (GetRowAtIndex(0).get() == NULL || GetRowAtIndex(0)->GetCFARegister() == LLDB_INVALID_REGNUM)
+    {
+        Log *log(GetLogIfAllCategoriesSet (LIBLLDB_LOG_UNWIND));
+        if (log)
+        {
+            StreamString s;
+            if (addr.Dump (&s, NULL, Address::DumpStyleSectionNameOffset))
+            {
+                log->Printf ("UnwindPlan is invalid -- no CFA register defined in row 0 for UnwindPlan '%s' at address %s",
+                             m_source_name.GetCString(), s.GetData());
+            }
+            else
+            {
+                log->Printf ("UnwindPlan is invalid -- no CFA register defined in row 0 for UnwindPlan '%s'",
+                             m_source_name.GetCString());
+            }
+        }
+        return false;
+    }
+
     if (!m_plan_valid_address_range.GetBaseAddress().IsValid() || m_plan_valid_address_range.GetByteSize() == 0)
         return true;
 

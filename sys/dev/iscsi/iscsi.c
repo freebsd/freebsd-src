@@ -1247,6 +1247,18 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 		sx_sunlock(&sc->sc_lock);
 		return (EINVAL);
 	}
+	if (is->is_connected) {
+		/*
+		 * This might have happened because another iscsid(8)
+		 * instance handed off the connection in the meantime.
+		 * Just return.
+		 */
+		ISCSI_SESSION_WARN(is, "handoff on already connected "
+		    "session");
+		ISCSI_SESSION_UNLOCK(is);
+		sx_sunlock(&sc->sc_lock);
+		return (EBUSY);
+	}
 
 	strlcpy(is->is_target_alias, handoff->idh_target_alias,
 	    sizeof(is->is_target_alias));
@@ -2110,10 +2122,12 @@ iscsi_load(void)
 	sc->sc_cdev->si_drv1 = sc;
 
 	/*
-	 * XXX: For some reason this doesn't do its job; active sessions still hang out there
-	 * 	after final sync, making the reboot effectively hang.
+	 * Note that this needs to get run before dashutdown().  Otherwise,
+	 * when rebooting with iSCSI session with outstanding requests,
+	 * but disconnected, dashutdown() will hang on cam_periph_runccb().
 	 */
-	sc->sc_shutdown_eh = EVENTHANDLER_REGISTER(shutdown_post_sync, iscsi_shutdown, sc, SHUTDOWN_PRI_DEFAULT);
+	sc->sc_shutdown_eh = EVENTHANDLER_REGISTER(shutdown_post_sync,
+	    iscsi_shutdown, sc, SHUTDOWN_PRI_FIRST);
 
 	return (0);
 }

@@ -35,15 +35,23 @@ type_info::~type_info() {}
 
 bool type_info::operator==(const type_info &other) const
 {
+#ifdef LIBCXXRT_MERGED_TYPEINFO	
 	return __type_name == other.__type_name;
+#else
+	return __type_name == other.__type_name || strcmp(__type_name, other.__type_name) == 0;
+#endif
 }
 bool type_info::operator!=(const type_info &other) const
 {
-	return __type_name != other.__type_name;
+	return !operator==(other);
 }
 bool type_info::before(const type_info &other) const
 {
+#ifdef LIBCXXRT_MERGED_TYPEINFO
 	return __type_name < other.__type_name;
+#else
+	return strcmp(__type_name, other.__type_name) < 0;
+#endif
 }
 const char* type_info::name() const
 {

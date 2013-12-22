@@ -114,7 +114,6 @@ typedef enum {
 #define ccb_bp	 	ppriv_ptr1
 
 #define	SA_CCB_BUFFER_IO	0x0
-#define	SA_CCB_WAITING		0x1
 #define	SA_CCB_TYPEMASK		0x1
 #define	SA_POSITION_UPDATED	0x2
 
@@ -1401,9 +1400,6 @@ saoninvalidate(struct cam_periph *periph)
 	 */
 	bioq_flush(&softc->bio_queue, NULL, ENXIO);
 	softc->queue_count = 0;
-
-	xpt_print(periph->path, "lost device\n");
-
 }
 
 static void
@@ -1414,7 +1410,6 @@ sacleanup(struct cam_periph *periph)
 
 	softc = (struct sa_softc *)periph->softc;
 
-	xpt_print(periph->path, "removing device entry\n");
 	devstat_remove_entry(softc->device_stats);
 	cam_periph_unlock(periph);
 	destroy_dev(softc->devs.ctl_dev);
@@ -1457,7 +1452,7 @@ saasync(void *callback_arg, u_int32_t code,
 		 */
 		status = cam_periph_alloc(saregister, saoninvalidate,
 					  sacleanup, sastart,
-					  "sa", CAM_PERIPH_BIO, cgd->ccb_h.path,
+					  "sa", CAM_PERIPH_BIO, path,
 					  saasync, AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP
@@ -1726,15 +1721,7 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 		 * See if there is a buf with work for us to do..
 		 */
 		bp = bioq_first(&softc->bio_queue);
-		if (periph->immediate_priority <= periph->pinfo.priority) {
-			CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
-					("queuing for immediate ccb\n"));
-			Set_CCB_Type(start_ccb, SA_CCB_WAITING);
-			SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-					  periph_links.sle);
-			periph->immediate_priority = CAM_PRIORITY_NONE;
-			wakeup(&periph->ccb_list);
-		} else if (bp == NULL) {
+		if (bp == NULL) {
 			xpt_release_ccb(start_ccb);
 		} else if ((softc->flags & SA_FLAG_ERR_PENDING) != 0) {
 			struct bio *done_bp;
@@ -1956,12 +1943,6 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 		biofinish(bp, softc->device_stats, 0);
 		break;
-	}
-	case SA_CCB_WAITING:
-	{
-		/* Caller will release the CCB */
-		wakeup(&done_ccb->ccb_h.cbfcnp);
-		return;
 	}
 	}
 	xpt_release_ccb(done_ccb);
@@ -2549,7 +2530,8 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 		/*
 		 * If a read/write command, we handle it here.
 		 */
-		if (CCB_Type(csio) != SA_CCB_WAITING) {
+		if (csio->cdb_io.cdb_bytes[0] == SA_READ ||
+		    csio->cdb_io.cdb_bytes[0] == SA_WRITE) {
 			break;
 		}
 		/*

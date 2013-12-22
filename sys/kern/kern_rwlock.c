@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_hwpmc_hooks.h"
-#include "opt_kdtrace.h"
 #include "opt_no_adaptive_rwlocks.h"
 
 #include <sys/param.h>
@@ -322,8 +321,6 @@ _rw_wunlock_cookie(volatile uintptr_t *c, const char *file, int line)
 	WITNESS_UNLOCK(&rw->lock_object, LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("WUNLOCK", &rw->lock_object, 0, rw->rw_recurse, file,
 	    line);
-	if (!rw_recursed(rw))
-		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_RW_WUNLOCK_RELEASE, rw);
 	__rw_wunlock(rw, curthread, file, line);
 	curthread->td_locks--;
 }
@@ -443,6 +440,9 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 					break;
 				cpu_spinwait();
 			}
+#ifdef KDTRACE_HOOKS
+			spin_cnt += rowner_loops - i;
+#endif
 			if (i != rowner_loops)
 				continue;
 		}

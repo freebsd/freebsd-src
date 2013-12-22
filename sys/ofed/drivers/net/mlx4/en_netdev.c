@@ -52,6 +52,9 @@ static void mlx4_en_vlan_rx_add_vid(void *arg, struct net_device *dev, u16 vid)
 	int idx;
 	u8 field;
 
+	if (arg != priv)
+		return;
+
 	if ((vid == 0) || (vid > 4095))    /* Invalid */
 		return;
 	en_dbg(HW, priv, "adding VLAN:%d\n", vid);
@@ -72,6 +75,9 @@ static void mlx4_en_vlan_rx_kill_vid(void *arg, struct net_device *dev, u16 vid)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	int idx;
 	u8 field;
+
+	if (arg != priv)
+		return;
 
 	if ((vid == 0) || (vid > 4095))    /* Invalid */
 		return;
@@ -147,6 +153,19 @@ restart:
 	return (i);
 }
 
+static void mlx4_en_stop_port(struct net_device *dev)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+ 
+	queue_work(priv->mdev->workqueue, &priv->stop_port_task);
+}
+
+static void mlx4_en_start_port(struct net_device *dev)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+
+	queue_work(priv->mdev->workqueue, &priv->start_port_task);
+}
 
 static void mlx4_en_set_multicast(struct net_device *dev)
 {
@@ -318,6 +337,9 @@ static void mlx4_en_set_default_moderation(struct mlx4_en_priv *priv)
 		cq = &priv->rx_cq[i];
 		cq->moder_cnt = priv->rx_frames;
 		cq->moder_time = priv->rx_usecs;
+		priv->last_moder_time[i] = MLX4_EN_AUTO_CONF;
+		priv->last_moder_packets[i] = 0;
+		priv->last_moder_bytes[i] = 0;
 	}
 
 	for (i = 0; i < priv->tx_ring_num; i++) {
@@ -333,11 +355,8 @@ static void mlx4_en_set_default_moderation(struct mlx4_en_priv *priv)
 	priv->rx_usecs_high = MLX4_EN_RX_COAL_TIME_HIGH;
 	priv->sample_interval = MLX4_EN_SAMPLE_INTERVAL;
 	priv->adaptive_rx_coal = 1;
-	priv->last_moder_time = MLX4_EN_AUTO_CONF;
 	priv->last_moder_jiffies = 0;
-	priv->last_moder_packets = 0;
 	priv->last_moder_tx_packets = 0;
-	priv->last_moder_bytes = 0;
 }
 
 static void mlx4_en_auto_moderation(struct mlx4_en_priv *priv)
@@ -349,43 +368,29 @@ static void mlx4_en_auto_moderation(struct mlx4_en_priv *priv)
 	unsigned long avg_pkt_size;
 	unsigned long rx_packets;
 	unsigned long rx_bytes;
-	unsigned long tx_packets;
-	unsigned long tx_pkt_diff;
 	unsigned long rx_pkt_diff;
 	int moder_time;
-	int i, err;
+	int ring, err;
 
 	if (!priv->adaptive_rx_coal || period < priv->sample_interval * HZ)
 		return;
+	for (ring = 0; ring < priv->rx_ring_num; ring++) {
+		spin_lock(&priv->stats_lock);
+		rx_packets = priv->rx_ring[ring].packets;
+		rx_bytes = priv->rx_ring[ring].bytes;
+		spin_unlock(&priv->stats_lock);
 
-	spin_lock(&priv->stats_lock);
-	rx_packets = priv->dev->if_ipackets;
-	rx_bytes = priv->dev->if_ibytes;
-	tx_packets = priv->dev->if_opackets;
-	spin_unlock(&priv->stats_lock);
+		rx_pkt_diff = ((unsigned long) (rx_packets -
+				priv->last_moder_packets[ring]));
+		packets = rx_pkt_diff;
+		rate = packets * HZ / period;
+		avg_pkt_size = packets ? ((unsigned long) (rx_bytes -
+				priv->last_moder_bytes[ring])) / packets : 0;
 
-	if (!priv->last_moder_jiffies || !period)
-		goto out;
-
-	tx_pkt_diff = ((unsigned long) (tx_packets -
-					priv->last_moder_tx_packets));
-	rx_pkt_diff = ((unsigned long) (rx_packets -
-					priv->last_moder_packets));
-	packets = max(tx_pkt_diff, rx_pkt_diff);
-	rate = packets * HZ / period;
-	avg_pkt_size = packets ? ((unsigned long) (rx_bytes -
-				 priv->last_moder_bytes)) / packets : 0;
-
-	/* Apply auto-moderation only when packet rate exceeds a rate that
-	 * it matters */
-	if (rate > MLX4_EN_RX_RATE_THRESH) {
-		/* If tx and rx packet rates are not balanced, assume that
-		 * traffic is mainly BW bound and apply maximum moderation.
-		 * Otherwise, moderate according to packet rate */
-		if (2 * tx_pkt_diff > 3 * rx_pkt_diff ||
-		    2 * rx_pkt_diff > 3 * tx_pkt_diff) {
-			moder_time = priv->rx_usecs_high;
-		} else {
+		/* Apply auto-moderation only when packet rate
+		* exceeds a rate that it matters */
+		if (rate > (MLX4_EN_RX_RATE_THRESH / priv->rx_ring_num) &&
+				avg_pkt_size > MLX4_EN_AVG_PKT_SMALL) {
 			if (rate < priv->pkt_rate_low ||
 			    avg_pkt_size < MLX4_EN_AVG_PKT_SMALL)
 				moder_time = priv->rx_usecs_low;
@@ -396,38 +401,23 @@ static void mlx4_en_auto_moderation(struct mlx4_en_priv *priv)
 					(priv->rx_usecs_high - priv->rx_usecs_low) /
 					(priv->pkt_rate_high - priv->pkt_rate_low) +
 					priv->rx_usecs_low;
+		} else {
+			moder_time = priv->rx_usecs_low;
 		}
-	} else {
-		/* When packet rate is low, use default moderation rather than
-		 * 0 to prevent interrupt storms if traffic suddenly increases */
-		moder_time = priv->rx_usecs;
-	}
 
-	en_dbg(INTR, priv, "tx rate:%lu rx_rate:%lu\n",
-	       tx_pkt_diff * HZ / period, rx_pkt_diff * HZ / period);
-
-	en_dbg(INTR, priv, "Rx moder_time changed from:%d to %d period:%lu "
-	       "[jiff] packets:%lu avg_pkt_size:%lu rate:%lu [p/s])\n",
-		 priv->last_moder_time, moder_time, period, packets,
-		 avg_pkt_size, rate);
-
-	if (moder_time != priv->last_moder_time) {
-		priv->last_moder_time = moder_time;
-		for (i = 0; i < priv->rx_ring_num; i++) {
-			cq = &priv->rx_cq[i];
+		if (moder_time != priv->last_moder_time[ring]) {
+			priv->last_moder_time[ring] = moder_time;
+			cq = &priv->rx_cq[ring];
 			cq->moder_time = moder_time;
 			err = mlx4_en_set_cq_moder(priv, cq);
-			if (err) {
-				en_err(priv, "Failed modifying moderation for cq:%d\n", i);
-				break;
-			}
+			if (err)
+				en_err(priv, "Failed modifying moderation "
+					"for cq:%d\n", ring);
 		}
+		priv->last_moder_packets[ring] = rx_packets;
+		priv->last_moder_bytes[ring] = rx_bytes;
 	}
 
-out:
-	priv->last_moder_packets = rx_packets;
-	priv->last_moder_tx_packets = tx_packets;
-	priv->last_moder_bytes = rx_bytes;
 	priv->last_moder_jiffies = jiffies;
 }
 
@@ -496,6 +486,7 @@ static void mlx4_en_do_get_stats(struct work_struct *work)
 
 		queue_delayed_work(mdev->workqueue, &priv->stats_task, STATS_DELAY);
 	}
+	mlx4_en_QUERY_PORT(priv->mdev, priv->port);
 	mutex_unlock(&mdev->state_lock);
 }
 
@@ -521,8 +512,31 @@ static void mlx4_en_linkstate(struct work_struct *work)
 	mutex_unlock(&mdev->state_lock);
 }
 
+static void mlx4_en_lock_and_stop_port(struct work_struct *work)
+{
+	struct mlx4_en_priv *priv = container_of(work, struct mlx4_en_priv,
+						 stop_port_task);
+	struct net_device *dev = priv->dev;
+	struct mlx4_en_dev *mdev = priv->mdev;
+ 
+	mutex_lock(&mdev->state_lock);
+	mlx4_en_do_stop_port(dev);
+	mutex_unlock(&mdev->state_lock);
+}
 
-int mlx4_en_start_port(struct net_device *dev)
+static void mlx4_en_lock_and_start_port(struct work_struct *work)
+{
+	struct mlx4_en_priv *priv = container_of(work, struct mlx4_en_priv,
+						 start_port_task);
+	struct net_device *dev = priv->dev;
+	struct mlx4_en_dev *mdev = priv->mdev;
+
+	mutex_lock(&mdev->state_lock);
+	mlx4_en_do_start_port(dev);
+	mutex_unlock(&mdev->state_lock);
+}
+
+int mlx4_en_do_start_port(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -633,8 +647,8 @@ int mlx4_en_start_port(struct net_device *dev)
 	en_dbg(DRV, priv, "Setting mac for port %d\n", priv->port);
 	err = mlx4_register_mac(mdev->dev, priv->port,
 				mlx4_en_mac_to_u64(IF_LLADDR(dev)));
-	if (err) {
-		en_err(priv, "Failed setting port mac\n");
+	if (err < 0) {
+		en_err(priv, "Failed setting port mac err=%d\n", err);
 		goto tx_err;
 	}
 	mdev->mac_removed[priv->port] = 0;
@@ -714,7 +728,7 @@ cq_err:
 }
 
 
-void mlx4_en_stop_port(struct net_device *dev)
+void mlx4_en_do_stop_port(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -784,8 +798,8 @@ reset:
 
 	mutex_lock(&mdev->state_lock);
 	if (priv->port_up) {
-		mlx4_en_stop_port(dev);
-		if (mlx4_en_start_port(dev))
+		mlx4_en_do_stop_port(dev);
+		if (mlx4_en_do_start_port(dev))
 			en_err(priv, "Failed restarting port %d\n", priv->port);
 	}
 	mutex_unlock(&mdev->state_lock);
@@ -816,7 +830,7 @@ mlx4_en_init_locked(struct mlx4_en_priv *priv)
 	dev = priv->dev;
 	mdev = priv->mdev;
 	if (dev->if_drv_flags & IFF_DRV_RUNNING)
-		mlx4_en_stop_port(dev);
+		mlx4_en_do_stop_port(dev);
 
 	if (!mdev->device_up) {
 		en_err(priv, "Cannot open - device down/disabled\n");
@@ -839,7 +853,7 @@ mlx4_en_init_locked(struct mlx4_en_priv *priv)
 	}
 
 	mlx4_en_set_default_moderation(priv);
-	if (mlx4_en_start_port(dev))
+	if (mlx4_en_do_start_port(dev))
 		en_err(priv, "Failed starting port:%d\n", priv->port);
 }
 
@@ -927,11 +941,8 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	if (priv->allocated)
 		mlx4_free_hwq_res(mdev->dev, &priv->res, MLX4_EN_PAGE_SIZE);
 
-	if (priv->sysctl)
-		sysctl_ctx_free(&priv->conf_ctx);
-
 	mutex_lock(&mdev->state_lock);
-	mlx4_en_stop_port(dev);
+	mlx4_en_do_stop_port(dev);
 	mutex_unlock(&mdev->state_lock);
 
 	cancel_delayed_work(&priv->stats_task);
@@ -945,6 +956,9 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	mutex_unlock(&mdev->state_lock);
 
 	mlx4_en_free_resources(priv);
+
+	if (priv->sysctl)
+		sysctl_ctx_free(&priv->conf_ctx);
 
 	mtx_destroy(&priv->stats_lock.m);
 	mtx_destroy(&priv->vlan_lock.m);
@@ -973,9 +987,9 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 			 * the port */
 			en_dbg(DRV, priv, "Change MTU called with card down!?\n");
 		} else {
-			mlx4_en_stop_port(dev);
+			mlx4_en_do_stop_port(dev);
 			mlx4_en_set_default_moderation(priv);
-			err = mlx4_en_start_port(dev);
+			err = mlx4_en_do_start_port(dev);
 			if (err) {
 				en_err(priv, "Failed restarting port:%d\n",
 					 priv->port);
@@ -995,8 +1009,13 @@ static int mlx4_en_calc_media(struct mlx4_en_priv *priv)
 	active = IFM_ETHER;
 	if (priv->last_link_state == MLX4_DEV_EVENT_PORT_DOWN)
 		return (active);
-	if (mlx4_en_QUERY_PORT(priv->mdev, priv->port))
-		return (active);
+	/*
+	 * [ShaharK] mlx4_en_QUERY_PORT sleeps and cannot be called under a
+	 * non-sleepable lock.
+	 * I moved it to the periodic mlx4_en_do_get_stats.
+ 	if (mlx4_en_QUERY_PORT(priv->mdev, priv->port))
+ 		return (active);
+	*/
 	active |= IFM_FDX;
 	trans_type = priv->port_state.transciver;
 	/* XXX I don't know all of the transceiver values. */
@@ -1100,7 +1119,6 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 		error = -mlx4_en_change_mtu(dev, ifr->ifr_mtu);
 		break;
 	case SIOCSIFFLAGS:
-		mutex_lock(&mdev->state_lock);
 		if (dev->if_flags & IFF_UP) {
 			if ((dev->if_drv_flags & IFF_DRV_RUNNING) == 0)
 				mlx4_en_start_port(dev);
@@ -1109,16 +1127,24 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 		} else {
 			if (dev->if_drv_flags & IFF_DRV_RUNNING) {
 				mlx4_en_stop_port(dev);
-				if_link_state_change(dev, LINK_STATE_DOWN);
+                                if_link_state_change(dev, LINK_STATE_DOWN);
+                                /*
+				 * Since mlx4_en_stop_port is defered we
+				 * have to wait till it's finished.
+				 */
+                                for (int count=0; count<10; count++) {
+                                        if (dev->if_drv_flags & IFF_DRV_RUNNING) {
+                                                DELAY(20000);
+                                        } else {
+                                                break;
+                                        }
+                                }
 			}
 		}
-		mutex_unlock(&mdev->state_lock);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		mutex_lock(&mdev->state_lock);
 		mlx4_en_set_multicast(dev);
-		mutex_unlock(&mdev->state_lock);
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
@@ -1175,7 +1201,7 @@ static int mlx4_en_set_ring_size(struct net_device *dev,
 	mutex_lock(&mdev->state_lock);
 	if (priv->port_up) {
 		port_up = 1;
-		mlx4_en_stop_port(dev);
+		mlx4_en_do_stop_port(dev);
 	}
 	mlx4_en_free_resources(priv);
 	priv->prof->tx_ring_size = tx_size;
@@ -1186,7 +1212,7 @@ static int mlx4_en_set_ring_size(struct net_device *dev,
 		goto out;
 	}
 	if (port_up) {
-		err = mlx4_en_start_port(dev);
+		err = mlx4_en_do_start_port(dev);
 		if (err)
 			en_err(priv, "Failed starting port\n");
 	}
@@ -1278,7 +1304,7 @@ static int mlx4_en_set_rx_ppp(SYSCTL_HANDLER_ARGS)
 		mutex_lock(&mdev->state_lock);
 		if (priv->port_up) {
 			port_up = 1;
-			mlx4_en_stop_port(priv->dev);
+			mlx4_en_do_stop_port(priv->dev);
 		}
 		mlx4_en_free_resources(priv);
 		priv->tx_ring_num = tx_ring_num;
@@ -1287,7 +1313,7 @@ static int mlx4_en_set_rx_ppp(SYSCTL_HANDLER_ARGS)
 		if (error)
 			en_err(priv, "Failed reallocating port resources\n");
 		if (error == 0 && port_up) {
-			error = -mlx4_en_start_port(priv->dev);
+			error = -mlx4_en_do_start_port(priv->dev);
 			if (error)
 				en_err(priv, "Failed starting port\n");
 		}
@@ -1540,6 +1566,8 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->ip_reasm = priv->mdev->profile.ip_reasm;
 	mtx_init(&priv->stats_lock.m, "mlx4 stats", NULL, MTX_DEF);
 	mtx_init(&priv->vlan_lock.m, "mlx4 vlan", NULL, MTX_DEF);
+	INIT_WORK(&priv->start_port_task, mlx4_en_lock_and_start_port);
+	INIT_WORK(&priv->stop_port_task, mlx4_en_lock_and_stop_port);
 	INIT_WORK(&priv->mcast_task, mlx4_en_do_set_multicast);
 	INIT_WORK(&priv->watchdog_task, mlx4_en_restart);
 	INIT_WORK(&priv->linkstate_task, mlx4_en_linkstate);

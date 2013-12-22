@@ -410,48 +410,48 @@ kernel_list(int iscsi_fd, const struct target *targ __unused,
 			state = &states[i];
 			conf = &state->iss_conf;
 
-			printf("Session ID:      %d\n", state->iss_id);
-			printf("Initiator name:  %s\n", conf->isc_initiator);
-			printf("Initiator addr:  %s\n",
+			printf("Session ID:       %d\n", state->iss_id);
+			printf("Initiator name:   %s\n", conf->isc_initiator);
+			printf("Initiator portal: %s\n",
 			    conf->isc_initiator_addr);
-			printf("Initiator alias: %s\n",
+			printf("Initiator alias:  %s\n",
 			    conf->isc_initiator_alias);
-			printf("Target name:     %s\n", conf->isc_target);
-			printf("Target addr:     %s\n",
+			printf("Target name:      %s\n", conf->isc_target);
+			printf("Target portal:    %s\n",
 			    conf->isc_target_addr);
-			printf("Target alias:    %s\n",
+			printf("Target alias:     %s\n",
 			    state->iss_target_alias);
-			printf("User:            %s\n", conf->isc_user);
-			printf("Secret:          %s\n", conf->isc_secret);
-			printf("Mutual user:     %s\n",
+			printf("User:             %s\n", conf->isc_user);
+			printf("Secret:           %s\n", conf->isc_secret);
+			printf("Mutual user:      %s\n",
 			    conf->isc_mutual_user);
-			printf("Mutual secret:   %s\n",
+			printf("Mutual secret:    %s\n",
 			    conf->isc_mutual_secret);
-			printf("Session type:    %s\n",
+			printf("Session type:     %s\n",
 			    conf->isc_discovery ? "Discovery" : "Normal");
-			printf("Session state:   %s\n",
+			printf("Session state:    %s\n",
 			    state->iss_connected ?
 			    "Connected" : "Disconnected");
-			printf("Failure reason:  %s\n", state->iss_reason);
-			printf("Header digest:   %s\n",
+			printf("Failure reason:   %s\n", state->iss_reason);
+			printf("Header digest:    %s\n",
 			    state->iss_header_digest == ISCSI_DIGEST_CRC32C ?
 			    "CRC32C" : "None");
-			printf("Data digest:     %s\n",
+			printf("Data digest:      %s\n",
 			    state->iss_data_digest == ISCSI_DIGEST_CRC32C ?
 			    "CRC32C" : "None");
-			printf("DataSegmentLen:  %d\n",
+			printf("DataSegmentLen:   %d\n",
 			    state->iss_max_data_segment_length);
-			printf("ImmediateData:   %s\n",
+			printf("ImmediateData:    %s\n",
 			    state->iss_immediate_data ? "Yes" : "No");
-			printf("iSER (RDMA):     %s\n",
+			printf("iSER (RDMA):      %s\n",
 			    conf->isc_iser ? "Yes" : "No");
-			printf("Device nodes:	 ");
+			printf("Device nodes:     ");
 			print_periphs(state->iss_id);
 			printf("\n\n");
 		}
 	} else {
 		printf("%-36s %-16s %s\n",
-		    "Target name", "Target addr", "State");
+		    "Target name", "Target portal", "State");
 		for (i = 0; i < isl.isl_nentries; i++) {
 			state = &states[i];
 			conf = &state->iss_conf;
@@ -483,13 +483,13 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: iscsictl -A -h host -t target "
+	fprintf(stderr, "usage: iscsictl -A -p portal -t target "
 	    "[-u user -s secret]\n");
 	fprintf(stderr, "       iscsictl -A -d discovery-host "
 	    "[-u user -s secret]\n");
 	fprintf(stderr, "       iscsictl -A -a [-c path]\n");
 	fprintf(stderr, "       iscsictl -A -n nickname [-c path]\n");
-	fprintf(stderr, "       iscsictl -R [-h host] [-t target]\n");
+	fprintf(stderr, "       iscsictl -R [-p portal] [-t target]\n");
 	fprintf(stderr, "       iscsictl -R -a\n");
 	fprintf(stderr, "       iscsictl -R -n nickname [-c path]\n");
 	fprintf(stderr, "       iscsictl -L [-v]\n");
@@ -519,7 +519,7 @@ main(int argc, char **argv)
 	struct conf *conf;
 	struct target *targ;
 
-	while ((ch = getopt(argc, argv, "ARLac:d:n:h:t:u:s:v")) != -1) {
+	while ((ch = getopt(argc, argv, "ARLac:d:n:p:t:u:s:v")) != -1) {
 		switch (ch) {
 		case 'A':
 			Aflag = 1;
@@ -542,7 +542,7 @@ main(int argc, char **argv)
 		case 'n':
 			nickname = optarg;
 			break;
-		case 'h':
+		case 'p':
 			host = optarg;
 			break;
 		case 't':
@@ -579,7 +579,7 @@ main(int argc, char **argv)
 	if (Aflag != 0) {
 		if (aflag != 0) {
 			if (host != NULL)
-				errx(1, "-a and -h and mutually exclusive");
+				errx(1, "-a and -p and mutually exclusive");
 			if (target != NULL)
 				errx(1, "-a and -t and mutually exclusive");
 			if (user != NULL)
@@ -592,7 +592,7 @@ main(int argc, char **argv)
 				errx(1, "-a and -d and mutually exclusive");
 		} else if (nickname != NULL) {
 			if (host != NULL)
-				errx(1, "-n and -h and mutually exclusive");
+				errx(1, "-n and -p and mutually exclusive");
 			if (target != NULL)
 				errx(1, "-n and -t and mutually exclusive");
 			if (user != NULL)
@@ -603,17 +603,17 @@ main(int argc, char **argv)
 				errx(1, "-n and -d and mutually exclusive");
 		} else if (discovery_host != NULL) {
 			if (host != NULL)
-				errx(1, "-d and -h and mutually exclusive");
+				errx(1, "-d and -p and mutually exclusive");
 			if (target != NULL)
 				errx(1, "-d and -t and mutually exclusive");
 		} else {
 			if (target == NULL && host == NULL)
-				errx(1, "must specify -a, -n or -t/-h");
+				errx(1, "must specify -a, -n or -t/-p");
 
 			if (target != NULL && host == NULL)
-				errx(1, "-t must always be used with -h");
+				errx(1, "-t must always be used with -p");
 			if (host != NULL && target == NULL)
-				errx(1, "-h must always be used with -t");
+				errx(1, "-p must always be used with -t");
 		}
 
 		if (user != NULL && secret == NULL)
@@ -634,24 +634,24 @@ main(int argc, char **argv)
 
 		if (aflag != 0) {
 			if (host != NULL)
-				errx(1, "-a and -h and mutually exclusive");
+				errx(1, "-a and -p and mutually exclusive");
 			if (target != NULL)
 				errx(1, "-a and -t and mutually exclusive");
 			if (nickname != NULL)
 				errx(1, "-a and -n and mutually exclusive");
 		} else if (nickname != NULL) {
 			if (host != NULL)
-				errx(1, "-n and -h and mutually exclusive");
+				errx(1, "-n and -p and mutually exclusive");
 			if (target != NULL)
 				errx(1, "-n and -t and mutually exclusive");
 		} else if (host != NULL) {
 			if (target != NULL)
-				errx(1, "-h and -t and mutually exclusive");
+				errx(1, "-p and -t and mutually exclusive");
 		} else if (target != NULL) {
 			if (host != NULL)
-				errx(1, "-t and -h and mutually exclusive");
+				errx(1, "-t and -p and mutually exclusive");
 		} else
-			errx(1, "must specify either-a, -n, -t, or -h");
+			errx(1, "must specify either -a, -n, -t, or -p");
 
 		if (vflag != 0)
 			errx(1, "-v cannot be used with -R");
@@ -660,7 +660,7 @@ main(int argc, char **argv)
 		assert(Lflag != 0);
 
 		if (host != NULL)
-			errx(1, "-L and -h and mutually exclusive");
+			errx(1, "-L and -p and mutually exclusive");
 		if (target != NULL)
 			errx(1, "-L and -t and mutually exclusive");
 		if (user != NULL)

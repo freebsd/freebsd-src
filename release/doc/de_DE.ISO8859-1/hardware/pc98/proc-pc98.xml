@@ -3,8 +3,7 @@
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/pc98/proc-pc98.xml,v 1.3 2003/01/13 20:30:49 ue Exp $
   basiert auf: 1.4
 -->
-
-<sect1 id="support-sys">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="support-sys">
   <title>Unterst&uuml;tzte Systeme</title>
 
   <para>NEC PC-9801/9821 Systeme mit fast allen i386-kompatiblen

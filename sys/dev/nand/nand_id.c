@@ -47,6 +47,8 @@ struct nand_params nand_ids[] = {
 	    0x80, 0x200, 0x10, 0x20, 0 },
 	{ { NAND_MAN_STMICRO, 0xf1 }, "STMicro 128MB 3,3V 8-bit",
 	    0x80, 2048, 64, 0x40, 0 },
+	{ { NAND_MAN_MICRON, 0xcc }, "Micron NAND 512MiB 3,3V 16-bit",
+	    0x200, 2048, 64, 0x40, 0 },
 };
 
 struct nand_params *nand_get_params(struct nand_id *id)

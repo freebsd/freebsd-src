@@ -723,11 +723,7 @@ icl_receive_thread(void *arg)
 	for (;;) {
 		if (ic->ic_disconnecting) {
 			//ICL_DEBUG("terminating");
-			ICL_CONN_LOCK(ic);
-			ic->ic_receive_running = false;
-			ICL_CONN_UNLOCK(ic);
-			kthread_exit();
-			return;
+			break;
 		}
 
 		SOCKBUF_LOCK(&so->so_rcv);
@@ -740,6 +736,11 @@ icl_receive_thread(void *arg)
 
 		icl_conn_receive_pdus(ic, available);
 	}
+
+	ICL_CONN_LOCK(ic);
+	ic->ic_receive_running = false;
+	ICL_CONN_UNLOCK(ic);
+	kthread_exit();
 }
 
 static int
@@ -879,22 +880,19 @@ icl_send_thread(void *arg)
 
 	ICL_CONN_LOCK(ic);
 	ic->ic_send_running = true;
-	ICL_CONN_UNLOCK(ic);
 
 	for (;;) {
-		ICL_CONN_LOCK(ic);
 		if (ic->ic_disconnecting) {
 			//ICL_DEBUG("terminating");
-			ic->ic_send_running = false;
-			ICL_CONN_UNLOCK(ic);
-			kthread_exit();
-			return;
+			break;
 		}
-		if (TAILQ_EMPTY(&ic->ic_to_send))
-			cv_wait(&ic->ic_send_cv, &ic->ic_lock);
 		icl_conn_send_pdus(ic);
-		ICL_CONN_UNLOCK(ic);
+		cv_wait(&ic->ic_send_cv, &ic->ic_lock);
 	}
+
+	ic->ic_send_running = false;
+	ICL_CONN_UNLOCK(ic);
+	kthread_exit();
 }
 
 static int

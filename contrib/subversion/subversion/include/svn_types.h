@@ -219,6 +219,16 @@ svn__apr_hash_index_val(const apr_hash_index_t *hi);
                       || ((s) == APR_OS_START_SYSERR + ERROR_INVALID_NAME))
 #endif
 
+/** On Windows, APR_STATUS_IS_EPIPE does not include ERROR_NO_DATA error.
+ * So we include it.*/
+/* ### These fixes should go into APR. */
+#ifndef WIN32
+#define SVN__APR_STATUS_IS_EPIPE(s)  APR_STATUS_IS_EPIPE(s)
+#else
+#define SVN__APR_STATUS_IS_EPIPE(s)  (APR_STATUS_IS_EPIPE(s) \
+                      || ((s) == APR_OS_START_SYSERR + ERROR_NO_DATA))
+#endif
+
 /** @} */
 
 

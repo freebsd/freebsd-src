@@ -9,8 +9,7 @@
      specifique aux systemes sparc64.
 
 -->
-
-<sect1>
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
   <title>***Non traduit***Installing &os;</title>
 
   <para>This text describes how to install and boot the &arch; port.
@@ -61,7 +60,7 @@
       more permanent URLs have been determined.</para>
   </important>
 
-  <sect2 id="getting-to-prom-prompt">
+  <sect2 xml:id="getting-to-prom-prompt">
     <title>Getting to the PROM Prompt</title>
 
     <para>Most &arch; systems are set up to boot automatically from
@@ -79,10 +78,8 @@ OpenBoot 4.2, 128 MB memory installed, Serial #51090132.
 Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
 
     <para>If your system proceeds to boot from disk at this point, you
-      need to press <keycombo
-      action="simul"><keycap>L1</keycap><keycap>A</keycap></keycombo>
-      or <keycombo
-      action="simul"><keycap>Stop</keycap><keycap>A</keycap></keycombo>
+      need to press <keycombo action="simul"><keycap>L1</keycap><keycap>A</keycap></keycombo>
+      or <keycombo action="simul"><keycap>Stop</keycap><keycap>A</keycap></keycombo>
       on the keyboard, or send a <command>BREAK</command> over the
       serial console (using for example <command>~#</command> in
       &man.tip.1; or &man.cu.1;) to get to the PROM prompt.  It looks
@@ -90,8 +87,8 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
 
     <screenco>
       <areaspec>
-	<area id="prompt-single" coords="1 5"/>
-	<area id="prompt-smp" coords="2 5"/>
+	<area xml:id="prompt-single" coords="1 5"/>
+	<area xml:id="prompt-smp" coords="2 5"/>
       </areaspec>
 
       <screen><prompt>ok     </prompt>
@@ -111,12 +108,11 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
     </screenco>
   </sect2>
 
-  <sect2 id="prepare-cd">
+  <sect2 xml:id="prepare-cd">
     <title>Preparing for a CDROM Installation</title>
 
     <para>If you want to do a CDROM installation, an ISO image with a
-      snapshot of &os;/&arch; can be found at <ulink
-      url="&release.url;"></ulink>.  This file can be used to create a
+      snapshot of &os;/&arch; can be found at <uri xlink:href="&release.url;">&release.url;</uri>.  This file can be used to create a
       bootable CDROM which contains everything necessary to boot and
       load at least a minimal &os; installation.</para>
 
@@ -125,12 +121,10 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
       described above.  On the PROM prompt, type <command>boot
       cdrom</command>.  The system should boot into single-user mode
       now, and you can create the disk label and install the base
-      system archive as described in <xref
-      linkend="creating-disk-label"/> and <xref
-      linkend="creating-root-filesystem"/>.</para>
+      system archive as described in <xref linkend="creating-disk-label"/> and <xref linkend="creating-root-filesystem"/>.</para>
   </sect2>
 
-  <sect2 id="prepare-network">
+  <sect2 xml:id="prepare-network">
     <title>Preparing for a Network Installation</title>
 
     <para>A &os;/&arch; kernel is booted by having the firmware
@@ -142,7 +136,7 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
       The loader can fetch a kernel using TFTP or NFS.  All of this is
       covered in detail below.</para>
 
-    <sect3 id="downloading">
+    <sect3 xml:id="downloading">
       <title>Getting the Required Files</title>
 
       <para>For a network installation, you will need several files.
@@ -156,25 +150,22 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
 
       <itemizedlist>
 	<listitem>
-	  <para><ulink
-	    url="&release.url;loader-tftp.gz"></ulink></para>
+	  <para><uri xlink:href="&release.url;loader-tftp.gz">&release.url;loader-tftp.gz</uri></para>
 	</listitem>
 
 	<listitem>
-	  <para><ulink
-	    url="&release.url;loader-nfs.gz"></ulink></para>
+	  <para><uri xlink:href="&release.url;loader-nfs.gz">&release.url;loader-nfs.gz</uri></para>
 	</listitem>
       </itemizedlist>
 
       <para>A network installation also requires a kernel to be served
 	to the netboot client.  A suitable kernel can be found at
-	<ulink url="&release.url;"></ulink>.</para>
+	<uri xlink:href="&release.url;">&release.url;</uri>.</para>
 <!-- XXX kernel filename?-->
 
       <para>Finally, you will need a &man.tar.1; archive which
 	contains the binaries and configuration files from the base
-	system.  This file is available from <ulink
-	url="&release.url;distrib.tar.gz"></ulink>.</para>
+	system.  This file is available from <uri xlink:href="&release.url;distrib.tar.gz">&release.url;distrib.tar.gz</uri>.</para>
     </sect3>
 
 <!-- put the words "netboot server" in here -->
@@ -190,7 +181,7 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
       <para>The Ethernet address is usually displayed in the boot
 	message.</para>
 
-      <para>Make sure <hostid>your.host.name</hostid> is in
+      <para>Make sure <systemitem>your.host.name</systemitem> is in
 	<filename>/etc/hosts</filename> or has a valid DNS entry (or
 	use an IP address).  Then, start &man.rarpd.8; on a network
 	interface that is on the same subnet as the &os;/&arch;
@@ -212,9 +203,9 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
 	&os;/&arch; host's IP address in upper-case hexadecimal
 	notation without dots (or use appropriately-named symbolic
 	links).  For example, your setup may look like this, for an IP
-	address of <hostid>192.168.0.16</hostid>:</para>
+	address of <systemitem>192.168.0.16</systemitem>:</para>
 
-      <screen>  lrwx------  1 tmm users       9 Jul 24 17:05 /tftpboot/C0A80010 -> boot/loader
+      <screen>  lrwx------  1 tmm users       9 Jul 24 17:05 /tftpboot/C0A80010 -&gt; boot/loader
   -rw-r--r--  1 tmm users 1643021 Oct 20 18:04 /tftpboot/boot/loader</screen>
 
       <para>If you have trouble booting, it is very helpful to use
@@ -270,8 +261,7 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
       <para>For a DHCP server, add an entry similar to the following
 	to your <filename>dhcpd.conf</filename> file.  An example
 	entry for <application>ISC DHCP</application> version 2
-	(available in the &os; Ports Collection as <filename
-	role="package">net/isc-dhcp2</filename>) is shown
+	(available in the &os; Ports Collection as <package>net/isc-dhcp2</package>) is shown
 	below:</para>
 
       <programlisting>host <replaceable>name-of-entry</replaceable> {
@@ -354,15 +344,14 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
 	server, you probably will want to edit the &arch;'s
 	<filename>/etc/fstab</filename> and
 	<filename>/etc/rc.conf</filename> and set a
-	<username>root</username> password.</para>
+	<systemitem class="username">root</systemitem> password.</para>
     </sect3>
 
     <sect3>
       <title>Booting</title>
 
       <para>If all goes well, you can now boot the &os; on your &arch;
-	machine by dropping into the PROM prompt as described in <xref
-	linkend="getting-to-prom-prompt"/>.  Now, just type
+	machine by dropping into the PROM prompt as described in <xref linkend="getting-to-prom-prompt"/>.  Now, just type
 	<command>boot net</command> and the system should boot.
 	Specifically, the loader is retrieved via TFTP, it then does a
 	BOOTP request and will proceed to load the kernel (either
@@ -372,8 +361,7 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
 
       <para>If something does not work in between, and you suspect
 	TFTP/NFS/BOOTP problems, <application>Ethereal</application>
-	(available in the &os; Ports Collection as <filename
-	role="package"> net/ethereal</filename>) is usually helpful.
+	(available in the &os; Ports Collection as <package> net/ethereal</package>) is usually helpful.
 	The most common problems are related to bad file permissions.
 	Also note that &man.rarpd.8; will not answer to packets under
 	some circumstances, refer to the manual page for
@@ -381,7 +369,7 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
     </sect3>
   </sect2>
 
-  <sect2 id="creating-disk-label">
+  <sect2 xml:id="creating-disk-label">
     <title>Creating a Disk Label</title>
 
     <para>The kernel supports the Sun disk label format, so you can
@@ -389,9 +377,8 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
 
     <para>&os; disk labels must currently be created by hand, as
       &man.sysinstall.8; is not yet available on &os;/&arch;.  Please
-      refer to the <ulink
-      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
-      Handbook</ulink> for more information about labels and special
+      refer to the <link xlink:href="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
+      Handbook</link> for more information about labels and special
       partitions.</para>
 
     <para>On &os;/&arch;, a Sun compatibility label is embedded in the
@@ -405,16 +392,16 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
     <procedure>
       <step>
 	<para>Run <command>disklabel -w -r
-	  <replaceable>device</replaceable> auto</command> to create a
+	  device auto</command> to create a
 	  basic disk label.  The third argument you need specify here
 	  is just the name of the device, not the complete path to the
-	  device node (e.g. <devicename>ad0</devicename> for the first
+	  device node (e.g. <filename>ad0</filename> for the first
 	  ATA disk).</para>
       </step>
 
       <step>
 	<para> Use <command>disklabel -e
-	  <replaceable>device</replaceable></command> to open an
+	  device</command> to open an
 	  editor in which you can edit the disk label.  The
 	  information presented to you should look like:</para>
 
@@ -466,7 +453,7 @@ drivedata: 0
 
 	<para>If you want to double-check that your partitions end on
 	  cylinder boundaries, run <command>disklabel -e
-	  <replaceable>device</replaceable></command> again.  The
+	  device</command> again.  The
 	  editor will display the cylinders used by a particular
 	  partition on the right hand side of the output.  If any of
 	  the partitions you defined (i.e. anything except partition
@@ -491,13 +478,12 @@ drivedata: 0
 	  possible to load the <application>loader</application> via
 	  TFTP as described above, but have it boot the kernel from
 	  disk.  This requires a special loader binary, which is
-	  available at <ulink
-	  url="ftp://ftp.FreeBSD.org/pub/FreeBSD/development/sparc64/loader-ufs.gz"></ulink></para>
+	  available at <uri xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/development/sparc64/loader-ufs.gz">ftp://ftp.FreeBSD.org/pub/FreeBSD/development/sparc64/loader-ufs.gz</uri></para>
       </step>
     </procedure>
   </sect2>
 
-  <sect2 id="creating-root-filesystem">
+  <sect2 xml:id="creating-root-filesystem">
     <title>Creating the Root Fileystem</title>
 
     <para>If you want to boot from a local disk, you will need to
@@ -525,7 +511,7 @@ drivedata: 0
       root partition into <filename>/etc/fstab</filename> yet, you may
       need to specify your root partition on the mountroot prompt when
       booting (use a format like
-      <command>ufs:<replaceable>disk</replaceable><replaceable>partition</replaceable></command>,
+      <command>ufs:diskpartition</command>,
       i.e. leave the slice specification out).  If the kernel does
       automatically attempt to boot from another filesystem, press a
       key other than <keycap>Enter</keycap> on the
@@ -545,7 +531,7 @@ drivedata: 0
       the root filesystem via NFS.</para>
   </sect2>
 
-  <sect2 id="installing-base-system">
+  <sect2 xml:id="installing-base-system">
     <title>Installing the Base System</title>
 
     <para>If you booted the kernel from the network, you downloaded a
@@ -560,7 +546,7 @@ drivedata: 0
     <para>Before booting the system stand-alone, you will want to edit
       <filename>/etc/fstab</filename> and
       <filename>/etc/rc.conf</filename> and set a
-      <username>root</username> password.</para>
+      <systemitem class="username">root</systemitem> password.</para>
 
     <para>Note that some programs from the base system may not be
       present in the archive, or may not work properly yet.</para>

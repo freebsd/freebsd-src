@@ -72,7 +72,7 @@ int
 iq80321_probe(device_t dev)
 {
 	device_set_desc(dev, "Intel 80321");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 void

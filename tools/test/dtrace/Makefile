@@ -59,7 +59,6 @@ IGNORE=		\
 	${TESTSRCDIR}/tst/common/proc/tst.discard.ksh			\
 	${TESTSRCDIR}/tst/common/proc/tst.signal.ksh			\
 	${TESTSRCDIR}/tst/common/proc/tst.startexit.ksh			\
-	${TESTSRCDIR}/tst/common/profile-n/tst.ufuncsort.c		\
 	${TESTSRCDIR}/tst/common/scalars/tst.misc.d			\
 	${TESTSRCDIR}/tst/common/scalars/tst.selfarray2.d		\
 	${TESTSRCDIR}/tst/common/sysevent/tst.post.c			\
@@ -115,10 +114,6 @@ NOTWORK+= \
 	${TESTSRCDIR}/tst/common/profile-n/tst.func.ksh			\
 	${TESTSRCDIR}/tst/common/profile-n/tst.mod.ksh			\
 	${TESTSRCDIR}/tst/common/profile-n/tst.sym.ksh			\
-	${TESTSRCDIR}/tst/common/profile-n/tst.ufunc.ksh		\
-	${TESTSRCDIR}/tst/common/profile-n/tst.ufuncsort.ksh		\
-	${TESTSRCDIR}/tst/common/profile-n/tst.umod.ksh			\
-	${TESTSRCDIR}/tst/common/profile-n/tst.usym.ksh			\
 	${TESTSRCDIR}/tst/common/safety/tst.basename.d			\
 	${TESTSRCDIR}/tst/common/safety/tst.caller.d			\
 	${TESTSRCDIR}/tst/common/safety/tst.cleanpath.d			\

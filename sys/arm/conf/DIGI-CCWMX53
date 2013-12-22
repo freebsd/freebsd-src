@@ -65,7 +65,7 @@ options 	VFP			# vfp/neon
 #options 	BOOTP_COMPAT
 #options 	BOOTP_NFSROOT
 #options 	BOOTP_NFSV3
-#options 	BOOTP_WIRED_TO=ue0
+#options 	BOOTP_WIRED_TO=ffec0
 
 #options 	ROOTDEVNAME=\"ufs:ada0s2a\"
 
@@ -105,8 +105,12 @@ device		ether		# Ethernet support
 #device		faith		# IPv6-to-IPv4 relaying (translation)
 #device		firmware	# firmware assist module
 
+# Ethernet
+device		ffec		# Freescale Fast Ethernet Controller
+device		miibus		# Standard mii bus
+
 # Serial (COM) ports
-#device		uart		# Multi-uart driver
+device		uart		# Multi-uart driver
 options 	ALT_BREAK_TO_DEBUGGER
 
 device		ata
@@ -130,13 +134,13 @@ device		cd		# CD
 device		pass		# Passthrough device (direct SCSI access)
 
 # USB support
-#options 	USB_DEBUG	# enable debug msgs
-#device		ehci		# OHCI USB interface
-#device		usb		# USB Bus (required)
-#device		umass		# Disks/Mass storage - Requires scbus and da
-#device		uhid		# "Human Interface Devices"
+options 	USB_DEBUG	# enable debug msgs
+device		ehci		# OHCI USB interface
+device		usb		# USB Bus (required)
+device		umass		# Disks/Mass storage - Requires scbus and da
+device		uhid		# "Human Interface Devices"
 #device		ukbd		# Allow keyboard like HIDs to control console
-#device		ums
+device		ums
 
 # USB Ethernet, requires miibus
 #device		miibus

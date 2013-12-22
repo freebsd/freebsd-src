@@ -10,9 +10,10 @@
 #ifndef liblldb_Process_h_
 #define liblldb_Process_h_
 
+#include "lldb/Host/Config.h"
+
 // C Includes
 #include <limits.h>
-#include <spawn.h>
 
 // C++ Includes
 #include <list>
@@ -237,6 +238,12 @@ public:
     GetArchitecture () const
     {
         return m_arch;
+    }
+    
+    void
+    SetArchitecture (ArchSpec arch)
+    {
+        m_arch = arch;
     }
     
     lldb::pid_t
@@ -475,11 +482,13 @@ public:
         bool
         Open (int fd, const char *path, bool read, bool write);
         
+#ifndef LLDB_DISABLE_POSIX
         static bool
-        AddPosixSpawnFileAction (posix_spawn_file_actions_t *file_actions,
+        AddPosixSpawnFileAction (void *file_actions,
                                  const FileAction *info,
                                  Log *log, 
                                  Error& error);
+#endif
 
         int
         GetFD () const
@@ -777,7 +786,8 @@ public:
     ConvertArgumentsForLaunchingInShell (Error &error,
                                          bool localhost,
                                          bool will_debug,
-                                         bool first_arg_is_full_shell_command);
+                                         bool first_arg_is_full_shell_command,
+                                         int32_t num_resumes);
     
     void
     SetMonitorProcessCallback (Host::MonitorChildProcessCallback callback, 
@@ -1358,9 +1368,7 @@ class Process :
 {
 friend class ThreadList;
 friend class ClangFunction; // For WaitForStateChangeEventsPrivate
-friend class CommandObjectProcessLaunch;
 friend class ProcessEventData;
-friend class CommandObjectBreakpointCommand;
 friend class StopInfo;
 
 public:
@@ -1737,7 +1745,7 @@ public:
     ///     the error object is success.
     //------------------------------------------------------------------
     virtual Error
-    Launch (const ProcessLaunchInfo &launch_info);
+    Launch (ProcessLaunchInfo &launch_info);
 
     virtual Error
     LoadCore ();
@@ -1749,7 +1757,7 @@ public:
         error.SetErrorStringWithFormat("error: %s does not support loading core files.", GetPluginName().GetCString());
         return error;
     }
-    
+
     //------------------------------------------------------------------
     /// Get the dynamic loader plug-in for this process. 
     ///
@@ -1761,6 +1769,16 @@ public:
     //------------------------------------------------------------------
     virtual DynamicLoader *
     GetDynamicLoader ();
+
+    //------------------------------------------------------------------
+    /// Get the system runtime plug-in for this process. 
+    ///
+    /// @return
+    ///   Returns a pointer to the SystemRuntime plugin for this Process
+    ///   if one is available.  Else returns NULL.
+    //------------------------------------------------------------------
+    virtual SystemRuntime *
+    GetSystemRuntime ();
 
     //------------------------------------------------------------------
     /// Attach to an existing process using the process attach info.
@@ -2484,11 +2502,7 @@ public:
     ExecutionResults
     RunThreadPlan (ExecutionContext &exe_ctx,    
                     lldb::ThreadPlanSP &thread_plan_sp,
-                    bool stop_others,
-                    bool run_others,
-                    bool unwind_on_error,
-                    bool ignore_breakpoints,
-                    uint32_t timeout_usec,
+                    const EvaluateExpressionOptions &options,
                     Stream &errors);
 
     static const char *
@@ -3286,6 +3300,23 @@ public:
     {
         return m_thread_list;
     }
+
+    // When ExtendedBacktraces are requested, the HistoryThreads that are
+    // created need an owner -- they're saved here in the Process.  The
+    // threads in this list are not iterated over - driver programs need to
+    // request the extended backtrace calls starting from a root concrete
+    // thread one by one.
+    ThreadList &
+    GetExtendedThreadList ()
+    {
+        return m_extended_thread_list;
+    }
+
+    ThreadList::ThreadIterable
+    Threads ()
+    {
+        return m_thread_list.Threads();
+    }
     
     uint32_t
     GetNextThreadIndexID (uint64_t thread_id);
@@ -3308,8 +3339,11 @@ public:
     lldb::StateType
     GetNextEvent (lldb::EventSP &event_sp);
 
+    // Returns the process state when it is stopped. If specified, event_sp_ptr
+    // is set to the event which triggered the stop. If wait_always = false,
+    // and the process is already stopped, this function returns immediately.
     lldb::StateType
-    WaitForProcessToStop (const TimeValue *timeout, lldb::EventSP *event_sp_ptr = NULL);
+    WaitForProcessToStop (const TimeValue *timeout, lldb::EventSP *event_sp_ptr = NULL, bool wait_always = true);
 
     lldb::StateType
     WaitForStateChangedEvents (const TimeValue *timeout, lldb::EventSP &event_sp);
@@ -3649,6 +3683,8 @@ protected:
     ThreadList                  m_thread_list_real;     ///< The threads for this process as are known to the protocol we are debugging with
     ThreadList                  m_thread_list;          ///< The threads for this process as the user will see them. This is usually the same as
                                                         ///< m_thread_list_real, but might be different if there is an OS plug-in creating memory threads
+    ThreadList                  m_extended_thread_list; ///< Owner for extended threads that may be generated, cleared on natural stops
+    uint32_t                    m_extended_thread_stop_id; ///< The natural stop id when extended_thread_list was last updated
     std::vector<Notifications>  m_notifications;        ///< The list of notifications that this process can deliver.
     std::vector<lldb::addr_t>   m_image_tokens;
     Listener                    &m_listener;
@@ -3656,6 +3692,7 @@ protected:
     std::unique_ptr<DynamicLoader> m_dyld_ap;
     std::unique_ptr<DynamicCheckerFunctions> m_dynamic_checkers_ap; ///< The functions used by the expression parser to validate data that expressions use.
     std::unique_ptr<OperatingSystem> m_os_ap;
+    std::unique_ptr<SystemRuntime> m_system_runtime_ap;
     UnixSignals                 m_unix_signals;         /// This is the current signal set for this process.
     lldb::ABISP                 m_abi_sp;
     lldb::InputReaderSP         m_process_input_reader;
@@ -3711,10 +3748,10 @@ protected:
     void
     ResumePrivateStateThread ();
 
-    static void *
+    static lldb::thread_result_t
     PrivateStateThread (void *arg);
 
-    void *
+    lldb::thread_result_t
     RunPrivateStateThread ();
 
     void

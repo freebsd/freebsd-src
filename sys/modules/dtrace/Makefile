@@ -9,7 +9,6 @@ SUBDIR=		dtmalloc	\
 		dtrace		\
 		dtraceall	\
 		dtrace_test	\
-		dtio		\
 		lockstat	\
 		profile		\
 		prototype	\
@@ -20,7 +19,7 @@ SUBDIR=		dtmalloc	\
 SUBDIR+=	fasttrap fbt systrace_linux32
 .endif
 .if ${MACHINE_CPUARCH} == "powerpc"
-SUBDIR+=	fbt
+SUBDIR+=	fbt fasttrap
 .endif
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
 SUBDIR+=	systrace_freebsd32

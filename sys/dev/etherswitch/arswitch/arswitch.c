@@ -31,6 +31,7 @@
 #include <sys/bus.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -38,6 +39,7 @@
 #include <sys/systm.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -64,6 +66,7 @@
 #include <dev/etherswitch/arswitch/arswitch_8216.h>
 #include <dev/etherswitch/arswitch/arswitch_8226.h>
 #include <dev/etherswitch/arswitch/arswitch_8316.h>
+#include <dev/etherswitch/arswitch/arswitch_9340.h>
 
 #include "mdio_if.h"
 #include "miibus_if.h"
@@ -93,23 +96,34 @@ arswitch_probe(device_t dev)
 	if (ar7240_probe(dev) == 0) {
 		chipname = "AR7240";
 		sc->sc_switchtype = AR8X16_SWITCH_AR7240;
+		sc->is_internal_switch = 1;
+		id = 0;
+		goto done;
+	}
+
+	/* AR9340 probe */
+	if (ar9340_probe(dev) == 0) {
+		chipname = "AR9340";
+		sc->sc_switchtype = AR8X16_SWITCH_AR9340;
+		sc->is_internal_switch = 1;
 		id = 0;
 		goto done;
 	}
 
 	/* AR8xxx probe */
 	id = arswitch_readreg(dev, AR8X16_REG_MASK_CTRL);
-	switch ((id & AR8X16_MASK_CTRL_VER_MASK) >>
-	    AR8X16_MASK_CTRL_VER_SHIFT) {
-	case 1:
+	switch (id & (AR8X16_MASK_CTRL_VER_MASK | AR8X16_MASK_CTRL_REV_MASK)) {
+	case 0x0101:
 		chipname = "AR8216";
 		sc->sc_switchtype = AR8X16_SWITCH_AR8216;
 		break;
-	case 2:
+	case 0x0201:
 		chipname = "AR8226";
 		sc->sc_switchtype = AR8X16_SWITCH_AR8226;
 		break;
-	case 16:
+	/* 0x0301 - AR8236 */
+	case 0x1000:
+	case 0x1001:
 		chipname = "AR8316";
 		sc->sc_switchtype = AR8X16_SWITCH_AR8316;
 		break;
@@ -118,8 +132,8 @@ arswitch_probe(device_t dev)
 	}
 
 done:
-	DPRINTF(dev, "chipname=%s, rev=%02x\n", chipname,
-	    id & AR8X16_MASK_CTRL_REV_MASK);
+
+	DPRINTF(dev, "chipname=%s, id=%08x\n", chipname, id);
 	if (chipname != NULL) {
 		snprintf(desc, sizeof(desc),
 		    "Atheros %s Ethernet Switch",
@@ -250,6 +264,8 @@ arswitch_attach(device_t dev)
 	 */
 	if (AR8X16_IS_SWITCH(sc, AR7240))
 		ar7240_attach(sc);
+	else if (AR8X16_IS_SWITCH(sc, AR9340))
+		ar9340_attach(sc);
 	else if (AR8X16_IS_SWITCH(sc, AR8216))
 		ar8216_attach(sc);
 	else if (AR8X16_IS_SWITCH(sc, AR8226))
@@ -267,6 +283,7 @@ arswitch_attach(device_t dev)
 	sc->phy4cpu = 1;
 	sc->is_rgmii = 1;
 	sc->is_gmii = 0;
+	sc->is_mii = 0;
 
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "numphys", &sc->numphys);
@@ -276,6 +293,8 @@ arswitch_attach(device_t dev)
 	    "is_rgmii", &sc->is_rgmii);
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "is_gmii", &sc->is_gmii);
+	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "is_mii", &sc->is_mii);
 
 	if (sc->numphys > AR8X16_NUM_PHYS)
 		sc->numphys = AR8X16_NUM_PHYS;
@@ -283,6 +302,10 @@ arswitch_attach(device_t dev)
 	/* Reset the switch. */
 	if (arswitch_reset(dev))
 		return (ENXIO);
+
+	err = sc->hal.arswitch_hw_setup(sc);
+	if (err != 0)
+		return (err);
 
 	err = sc->hal.arswitch_hw_global_setup(sc);
 	if (err != 0)
@@ -300,10 +323,6 @@ arswitch_attach(device_t dev)
 
 	/* Default to ingress filters off. */
 	err = arswitch_set_vlan_mode(sc, 0);
-	if (err != 0)
-		return (err);
-
-	err = sc->hal.arswitch_hw_setup(sc);
 	if (err != 0)
 		return (err);
 
@@ -435,7 +454,7 @@ arswitch_miipollstat(struct arswitch_softc *sc)
 		    AR8X16_REG_PORT_STS(arswitch_portforphy(i)));
 #if 0
 		DPRINTF(sc->sc_dev, "p[%d]=%b\n",
-		    arge_portforphy(i),
+		    i,
 		    portstatus,
 		    "\20\3TXMAC\4RXMAC\5TXFLOW\6RXFLOW\7"
 		    "DUPLEX\11LINK_UP\12LINK_AUTO\13LINK_PAUSE");

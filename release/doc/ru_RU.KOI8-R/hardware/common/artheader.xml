@@ -7,11 +7,10 @@
 
      Original revision: 1.7
 -->
+<info xmlns="http://docbook.org/ns/docbook"><title>Информация о оборудовании &os;/&arch; &release.current;</title>
+  
 
-<articleinfo>
-  <title>Информация о оборудовании &os;/&arch; &release.current;</title>
-
-  <corpauthor>Проект документирования &os;</corpauthor>
+  <author><orgname>Проект документирования &os;</orgname></author>
 
   <copyright>
     <year>2000</year>
@@ -22,4 +21,12 @@
     <year>2005</year>
     <holder role="mailto:doc@FreeBSD.org">Проект документирования &os;</holder>
   </copyright>
-</articleinfo>
+
+<abstract>
+  <para>Эта статья дает краткие инструкции по установке
+  &os;/&arch; &release.current;, особое внимание уделено
+  получению дистрибутива &os;.  Представлены также
+  отдельные заметки по решению проблем и часто задаваемые
+  вопросы.</para>
+</abstract>
+</info>

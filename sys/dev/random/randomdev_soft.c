@@ -84,6 +84,7 @@ static struct random_adaptor random_context = {
 	.poll = randomdev_poll,
 	.reseed = randomdev_flush_reseed,
 	.seeded = 0, /* This will be seeded during entropy processing */
+	.priority = 90, /* High priority, so top of the list. Fortuna may still win. */
 };
 #define RANDOM_MODULE_NAME	yarrow
 #define RANDOM_CSPRNG_NAME	"yarrow"
@@ -99,6 +100,7 @@ static struct random_adaptor random_context = {
 	.poll = randomdev_poll,
 	.reseed = randomdev_flush_reseed,
 	.seeded = 0, /* This will be excplicitly seeded at startup when secured */
+	.priority = 100, /* High priority, so top of the list. Beat Yarrow. */
 };
 #define RANDOM_MODULE_NAME	fortuna
 #define RANDOM_CSPRNG_NAME	"fortuna"

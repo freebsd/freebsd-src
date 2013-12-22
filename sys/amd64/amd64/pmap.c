@@ -371,6 +371,8 @@ int pmap_pcid_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_enabled, CTLFLAG_RDTUN, &pmap_pcid_enabled,
     0, "Is TLB Context ID enabled ?");
 int invpcid_works = 0;
+SYSCTL_INT(_vm_pmap, OID_AUTO, invpcid_works, CTLFLAG_RD, &invpcid_works, 0,
+    "Is the invpcid instruction available ?");
 
 static int
 pmap_pcid_save_cnt_proc(SYSCTL_HANDLER_ARGS)
@@ -1293,6 +1295,7 @@ pmap_invalidate_page_pcid(pmap_t pmap, vm_offset_t va)
 static __inline void
 pmap_invalidate_ept(pmap_t pmap)
 {
+	int ipinum;
 
 	sched_pin();
 	KASSERT(!CPU_ISSET(curcpu, &pmap->pm_active),
@@ -1317,11 +1320,9 @@ pmap_invalidate_ept(pmap_t pmap)
 
 	/*
 	 * Force the vcpu to exit and trap back into the hypervisor.
-	 *
-	 * XXX this is not optimal because IPI_AST builds a trapframe
-	 * whereas all we need is an 'eoi' followed by 'iret'.
 	 */
-	ipi_selected(pmap->pm_active, IPI_AST);
+	ipinum = pmap->pm_flags & PMAP_NESTED_IPIMASK;
+	ipi_selected(pmap->pm_active, ipinum);
 	sched_unpin();
 }
 

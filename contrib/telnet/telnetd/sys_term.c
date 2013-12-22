@@ -1052,11 +1052,11 @@ start_login(char *host undef1, int autologin undef1, char *name undef1)
 	 */
 	if ((auth_level < 0) || (autologin != AUTH_VALID))
 # endif
+#endif /* AUTHENTICATION */
 	{
 		argv = addarg(argv, "-h");
 		argv = addarg(argv, host);
 	}
-#endif /* AUTHENTICATION */
 #endif
 #if	!defined(NO_LOGIN_P)
 	argv = addarg(argv, "-p");

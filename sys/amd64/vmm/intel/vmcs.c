@@ -39,12 +39,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/segments.h>
-#include <machine/pmap.h>
-
 #include <machine/vmm.h>
 #include "vmm_host.h"
-#include "vmcs.h"
 #include "vmx_cpufunc.h"
+#include "vmcs.h"
 #include "ept.h"
 #include "vmx.h"
 
@@ -454,19 +452,6 @@ vmcs_set_defaults(struct vmcs *vmcs,
 done:
 	VMCLEAR(vmcs);
 	return (error);
-}
-
-uint64_t
-vmcs_read(uint32_t encoding)
-{
-	int error;
-	uint64_t val;
-
-	error = vmread(encoding, &val);
-	if (error != 0)
-		panic("vmcs_read(%u) error %d", encoding, error);
-
-	return (val);
 }
 
 #ifdef DDB

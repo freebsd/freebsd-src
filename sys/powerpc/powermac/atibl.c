@@ -52,10 +52,15 @@ __FBSDID("$FreeBSD$");
 #define  RADEON_LVDS_BL_MOD_EN        (1   << 16)
 #define  RADEON_LVDS_DIGON            (1   << 18)
 #define  RADEON_LVDS_BLON             (1   << 19)
+#define RADEON_LVDS_PLL_CNTL         0x02d4
+#define  RADEON_LVDS_PLL_EN           (1   << 16)
+#define  RADEON_LVDS_PLL_RESET        (1   << 17)
+#define RADEON_PIXCLKS_CNTL          0x002d
+#define  RADEON_PIXCLK_LVDS_ALWAYS_ONb (1   << 14)
 
 struct atibl_softc {
-	device_t	 dev;
 	struct resource *sc_memr;
+	int		 sc_level;
 };
 
 static void atibl_identify(driver_t *driver, device_t parent);
@@ -63,13 +68,17 @@ static int atibl_probe(device_t dev);
 static int atibl_attach(device_t dev);
 static int atibl_setlevel(struct atibl_softc *sc, int newlevel);
 static int atibl_getlevel(struct atibl_softc *sc);
+static int atibl_resume(device_t dev);
+static int atibl_suspend(device_t dev);
 static int atibl_sysctl(SYSCTL_HANDLER_ARGS);
 
 static device_method_t atibl_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify, atibl_identify),
-	DEVMETHOD(device_probe, atibl_probe),
-	DEVMETHOD(device_attach, atibl_attach),
+	DEVMETHOD(device_identify,	atibl_identify),
+	DEVMETHOD(device_probe,		atibl_probe),
+	DEVMETHOD(device_attach,	atibl_attach),
+	DEVMETHOD(device_suspend,	atibl_suspend),
+	DEVMETHOD(device_resume,	atibl_resume),
 	{0, 0},
 };
 
@@ -136,8 +145,8 @@ atibl_attach(device_t dev)
 	tree = device_get_sysctl_tree(dev);
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"level", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			atibl_sysctl, "I", "Backlight level (0-100)");
+	    "level", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+	    atibl_sysctl, "I", "Backlight level (0-100)");
 
 	return (0);
 }
@@ -146,6 +155,8 @@ static int
 atibl_setlevel(struct atibl_softc *sc, int newlevel)
 {
 	uint32_t lvds_gen_cntl;
+	uint32_t lvds_pll_cntl;
+	uint32_t pixclks_cntl;
 
 	if (newlevel > 100)
 		newlevel = 100;
@@ -153,13 +164,38 @@ atibl_setlevel(struct atibl_softc *sc, int newlevel)
 	if (newlevel < 0)
 		newlevel = 0;
 
-	newlevel = (newlevel * 5) / 2 + 5;
 	lvds_gen_cntl = bus_read_4(sc->sc_memr, RADEON_LVDS_GEN_CNTL);
-	lvds_gen_cntl |= RADEON_LVDS_BL_MOD_EN;
-	lvds_gen_cntl &= ~RADEON_LVDS_BL_MOD_LEVEL_MASK;
-	lvds_gen_cntl |= (newlevel << RADEON_LVDS_BL_MOD_LEVEL_SHIFT) &
-		RADEON_LVDS_BL_MOD_LEVEL_MASK;
-	bus_write_4(sc->sc_memr, RADEON_LVDS_GEN_CNTL, lvds_gen_cntl);
+
+	if (newlevel > 0) {
+		newlevel = (newlevel * 5) / 2 + 5;
+		lvds_pll_cntl = bus_read_4(sc->sc_memr, RADEON_LVDS_PLL_CNTL);
+		lvds_pll_cntl |= RADEON_LVDS_PLL_EN;
+		bus_write_4(sc->sc_memr, RADEON_LVDS_PLL_CNTL, lvds_pll_cntl);
+		lvds_pll_cntl &= ~RADEON_LVDS_PLL_RESET;
+		bus_write_4(sc->sc_memr, RADEON_LVDS_PLL_CNTL, lvds_pll_cntl);
+
+		lvds_gen_cntl &= ~(RADEON_LVDS_DISPLAY_DIS | 
+		    RADEON_LVDS_BL_MOD_LEVEL_MASK);
+		lvds_gen_cntl |= RADEON_LVDS_ON | RADEON_LVDS_EN |
+		    RADEON_LVDS_DIGON | RADEON_LVDS_BLON;
+		lvds_gen_cntl |= (newlevel << RADEON_LVDS_BL_MOD_LEVEL_SHIFT) &
+		    RADEON_LVDS_BL_MOD_LEVEL_MASK;
+		lvds_gen_cntl |= RADEON_LVDS_BL_MOD_EN;
+		DELAY(2000);
+		bus_write_4(sc->sc_memr, RADEON_LVDS_GEN_CNTL, lvds_gen_cntl);
+	} else {
+		pixclks_cntl = bus_read_4(sc->sc_memr, RADEON_PIXCLKS_CNTL);
+		bus_write_4(sc->sc_memr, RADEON_PIXCLKS_CNTL,
+		    pixclks_cntl & ~RADEON_PIXCLK_LVDS_ALWAYS_ONb);
+		lvds_gen_cntl |= RADEON_LVDS_DISPLAY_DIS;
+		lvds_gen_cntl &= RADEON_LVDS_BL_MOD_EN;
+		bus_write_4(sc->sc_memr, RADEON_LVDS_GEN_CNTL, lvds_gen_cntl);
+		lvds_gen_cntl &= ~(RADEON_LVDS_ON | RADEON_LVDS_EN);
+		DELAY(2000);
+		bus_write_4(sc->sc_memr, RADEON_LVDS_GEN_CNTL, lvds_gen_cntl);
+
+		bus_write_4(sc->sc_memr, RADEON_PIXCLKS_CNTL, pixclks_cntl);
+	}
 
 	return (0);
 }
@@ -173,10 +209,36 @@ atibl_getlevel(struct atibl_softc *sc)
 	lvds_gen_cntl = bus_read_4(sc->sc_memr, RADEON_LVDS_GEN_CNTL);
 
 	level = ((lvds_gen_cntl & RADEON_LVDS_BL_MOD_LEVEL_MASK) >>
-			RADEON_LVDS_BL_MOD_LEVEL_SHIFT);
-	level = ((level - 5) * 2) / 5;
+	    RADEON_LVDS_BL_MOD_LEVEL_SHIFT);
+	if (level != 0)
+		level = ((level - 5) * 2) / 5;
 
 	return (level);
+}
+
+static int
+atibl_suspend(device_t dev)
+{
+	struct atibl_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	sc->sc_level = atibl_getlevel(sc);
+	atibl_setlevel(sc, 0);
+
+	return (0);
+}
+
+static int
+atibl_resume(device_t dev)
+{
+	struct atibl_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	atibl_setlevel(sc, sc->sc_level);
+
+	return (0);
 }
 
 static int

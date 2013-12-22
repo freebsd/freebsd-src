@@ -2317,6 +2317,7 @@ int drm_mode_getfb(struct drm_device *dev,
 	r->depth = fb->depth;
 	r->bpp = fb->bits_per_pixel;
 	r->pitch = fb->pitches[0];
+	r->handle = 0;
 	fb->funcs->create_handle(fb, file_priv, &r->handle);
 
 out:
