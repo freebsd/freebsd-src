@@ -23,7 +23,13 @@ ResourceDir := $(PROJ_OBJ_ROOT)/$(BuildMode)/lib/clang/$(CLANG_VERSION)
 PROJ_resources := $(DESTDIR)$(PROJ_prefix)/lib/clang/$(CLANG_VERSION)
 
 ResourceLibDir := $(ResourceDir)/lib
+ResourceIncludeDir := $(ResourceDir)/include
 PROJ_resources_lib := $(PROJ_resources)/lib
+PROJ_resources_include := $(PROJ_resources)/include
+
+# Initialize a variable to use for extra flags to pass to the
+# compiler-rt make process.
+COMPILERRT_MAKE_FLAGS :=
 
 # Expect compiler-rt to be in llvm/projects/compiler-rt
 COMPILERRT_SRC_ROOT := $(LLVM_SRC_ROOT)/projects/compiler-rt
@@ -72,12 +78,29 @@ ifeq ($(shell test -d $(COMPILERRT_SRC_ROOT) && echo OK),OK)
 # support.
 RuntimeDirs :=
 ifeq ($(OS),Darwin)
-RuntimeDirs += darwin
+RuntimeDirs += darwin darwin_embedded
 RuntimeLibrary.darwin.Configs := \
 	eprintf.a 10.4.a osx.a ios.a cc_kext.a cc_kext_ios5.a \
-	asan_osx.a asan_osx_dynamic.dylib \
+	asan_osx_dynamic.dylib \
 	profile_osx.a profile_ios.a \
 	ubsan_osx.a
+RuntimeLibrary.darwin_embedded.Configs := \
+	soft_static.a hard_static.a soft_pic.a hard_pic.a
+
+# Support building compiler-rt with relocatable SDKs.
+#
+# This will cause make to put SDKROOT in the environment, and since we
+# are using the built Clang to build compiler-rt, it to pick up that
+# location as the default value for the include system root.
+ACTIVE_SDK_PATH := $(shell xcrun --show-sdk-path 2> /dev/null)
+ifneq ($(ACTIVE_SDK_PATH),)
+COMPILERRT_MAKE_FLAGS := SDKROOT=$(ACTIVE_SDK_PATH)
+endif
+IOSSIM_SDK_PATH := $(shell xcrun --show-sdk-path -sdk iphonesimulator 2> /dev/null)
+ifneq ($(IOSSIM_SDK_PATH),)
+RuntimeLibrary.darwin.Configs += asan_iossim_dynamic.dylib
+endif
+
 endif
 
 # On Linux, include a library which has all the runtime functions.
@@ -96,17 +119,21 @@ TryCompile = \
     $(1) $$cflags $(2) -o /dev/null > /dev/null 2> /dev/null ; \
     echo $$?)
 
-# We currently only try to generate runtime libraries on x86.
-ifeq ($(ARCH),x86)
-RuntimeLibrary.linux.Configs += \
+# We try to build 32-bit runtimes both on 32-bit hosts and 64-bit hosts.
+Runtime32BitConfigs = \
 	full-i386.a profile-i386.a san-i386.a asan-i386.a ubsan-i386.a \
 	ubsan_cxx-i386.a
+
+# We currently only try to generate runtime libraries on x86.
+ifeq ($(ARCH),x86)
+RuntimeLibrary.linux.Configs += $(Runtime32BitConfigs)
 endif
 
 ifeq ($(ARCH),x86_64)
 RuntimeLibrary.linux.Configs += \
 	full-x86_64.a profile-x86_64.a san-x86_64.a asan-x86_64.a \
-	tsan-x86_64.a msan-x86_64.a ubsan-x86_64.a ubsan_cxx-x86_64.a
+	tsan-x86_64.a msan-x86_64.a ubsan-x86_64.a ubsan_cxx-x86_64.a \
+	dfsan-x86_64.a lsan-x86_64.a
 # We need to build 32-bit ASan/UBsan libraries on 64-bit platform, and add them
 # to the list of runtime libraries to make
 # "clang -fsanitize=(address|undefined) -m32" work.
@@ -114,8 +141,7 @@ RuntimeLibrary.linux.Configs += \
 # executable.
 test_source = $(LLVM_SRC_ROOT)/tools/clang/runtime/compiler-rt/clang_linux_test_input.c
 ifeq ($(call TryCompile,$(ToolDir)/clang,$(test_source),-m32),0)
-RuntimeLibrary.linux.Configs += san-i386.a asan-i386.a ubsan-i386.a \
-                                ubsan_cxx-i386.a
+RuntimeLibrary.linux.Configs += $(Runtime32BitConfigs)
 endif
 ifneq ($(LLVM_ANDROID_TOOLCHAIN_DIR),)
 RuntimeLibrary.linux.Configs += asan-arm-android.so
@@ -139,17 +165,27 @@ BuildRuntimeLibraries:
 	  ProjObjRoot=$(PROJ_OBJ_DIR) \
 	  CC="$(ToolDir)/clang" \
 	  LLVM_ANDROID_TOOLCHAIN_DIR="$(LLVM_ANDROID_TOOLCHAIN_DIR)" \
+	  $(COMPILERRT_MAKE_FLAGS) \
 	  $(RuntimeDirs:%=clang_%)
 .PHONY: BuildRuntimeLibraries
 CleanRuntimeLibraries:
 	$(Verb) $(MAKE) -C $(COMPILERRT_SRC_ROOT) \
 	  ProjSrcRoot=$(COMPILERRT_SRC_ROOT) \
 	  ProjObjRoot=$(PROJ_OBJ_DIR) \
+	  $(COMPILERRT_MAKE_FLAGS) \
 	  clean
 .PHONY: CleanRuntimeLibraries
+RuntimeHeader: $(ResourceIncludeDir)/sanitizer
 
 $(PROJ_resources_lib):
 	$(Verb) $(MKDIR) $@
+
+$(ResourceIncludeDir):
+	$(Verb) $(MKDIR) $@
+
+$(ResourceIncludeDir)/sanitizer: $(ResourceIncludeDir)
+	$(Verb) $(MKDIR) $@
+	$(Verb) cp $(COMPILERRT_SRC_ROOT)/include/sanitizer/*.h $@
 
 # Expand rules for copying/installing each individual library. We can't use
 # implicit rules here because we need to match against multiple things.
@@ -207,9 +243,21 @@ RuntimeLibraryInstall.$1: \
 endef
 $(foreach lib,$(RuntimeDirs), $(eval $(call RuntimeLibraryTemplate,$(lib))))
 
+$(PROJ_resources_include):
+	$(Verb) $(MKDIR) $@
+
+$(PROJ_resources_include)/sanitizer: $(ResourceIncludeDir)/sanitizer $(PROJ_resources_include)
+	$(Verb) $(MKDIR) $@
+	$(Echo) Installing compiler runtime headers
+	$(Verb) $(DataInstall) $(ResourceIncludeDir)/sanitizer/* \
+                               $(PROJ_resources_include)/sanitizer
+
+RuntimeHeaderInstall: $(PROJ_resources_include)/sanitizer
+.PHONY: RuntimeHeaderInstall
+
 # Hook into the standard Makefile rules.
-all-local:: $(RuntimeDirs:%=RuntimeLibrary.%)
-install-local:: $(RuntimeDirs:%=RuntimeLibraryInstall.%)
+all-local:: $(RuntimeDirs:%=RuntimeLibrary.%) RuntimeHeader
+install-local:: $(RuntimeDirs:%=RuntimeLibraryInstall.%) RuntimeHeaderInstall
 clean-local:: CleanRuntimeLibraries
 
 endif

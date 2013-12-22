@@ -38,12 +38,16 @@ def note_constexpr_nonliteral : Note<
 def note_constexpr_non_global : Note<
   "%select{pointer|reference}0 to %select{|subobject of }1"
   "%select{temporary|%3}2 is not a constant expression">;
+def note_constexpr_uninitialized : Note<
+  "%select{|sub}0object of type %1 is not initialized">;
 def note_constexpr_array_index : Note<"cannot refer to element %0 of "
   "%select{array of %2 elements|non-array object}1 in a constant expression">;
 def note_constexpr_float_arithmetic : Note<
   "floating point arithmetic produces %select{an infinity|a NaN}0">;
 def note_constexpr_pointer_subtraction_not_same_array : Note<
   "subtracted pointers are not elements of the same array">;
+def note_constexpr_pointer_subtraction_zero_size : Note<
+  "subtraction of pointers to type %0 of zero size">;
 def note_constexpr_pointer_comparison_base_classes : Note<
   "comparison of addresses of subobjects of different base classes "
   "has unspecified value">;
@@ -83,12 +87,17 @@ def note_constexpr_depth_limit_exceeded : Note<
   "constexpr evaluation exceeded maximum depth of %0 calls">;
 def note_constexpr_call_limit_exceeded : Note<
   "constexpr evaluation hit maximum call limit">;
+def note_constexpr_step_limit_exceeded : Note<
+  "constexpr evaluation hit maximum step limit; possible infinite loop?">;
 def note_constexpr_lifetime_ended : Note<
   "%select{read of|assignment to|increment of|decrement of}0 "
   "%select{temporary|variable}1 whose lifetime has ended">;
 def note_constexpr_access_uninit : Note<
   "%select{read of|assignment to|increment of|decrement of}0 "
   "object outside its lifetime is not allowed in a constant expression">;
+def note_constexpr_use_uninit_reference : Note<
+  "use of reference outside its lifetime "
+  "is not allowed in a constant expression">;
 def note_constexpr_modify_const_type : Note<
   "modification of object of const-qualified type %0 is not allowed "
   "in a constant expression">;
@@ -115,9 +124,16 @@ def note_constexpr_access_inactive_union_member : Note<
   "%select{read of|assignment to|increment of|decrement of}0 "
   "member %1 of union with %select{active member %3|no active member}2 "
   "is not allowed in a constant expression">;
+def note_constexpr_access_static_temporary : Note<
+  "%select{read of|assignment to|increment of|decrement of}0 temporary "
+  "is not allowed in a constant expression outside the expression that "
+  "created the temporary">;
 def note_constexpr_modify_global : Note<
   "a constant expression cannot modify an object that is visible outside "
   "that expression">;
+def note_constexpr_stmt_expr_unsupported : Note<
+  "this use of statement expressions is not supported in a "
+  "constant expression">;
 def note_constexpr_calls_suppressed : Note<
   "(skipping %0 call%s0 in backtrace; use -fconstexpr-backtrace-limit=0 to "
   "see all)">;

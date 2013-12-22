@@ -275,9 +275,7 @@ namespace UndefinedBehavior {
 
 // - a lambda-expression (5.1.2);
 struct Lambda {
-  // FIXME: clang crashes when trying to parse this! Revisit this check once
-  // lambdas are fully implemented.
-  //int n : []{ return 1; }();
+  int n : []{ return 1; }(); // expected-error {{constant expression}} expected-error {{integral constant expression}}
 };
 
 // - an lvalue-to-rvalue conversion (4.1) unless it is applied to
@@ -322,7 +320,7 @@ namespace LValueToRValue {
   //   constant expression;
   constexpr volatile S f() { return S(); }
   static_assert(f().i, ""); // ok! there's no lvalue-to-rvalue conversion here!
-  static_assert(((volatile const S&&)(S)0).i, ""); // expected-error {{constant expression}}
+  static_assert(((volatile const S&&)(S)0).i, ""); // expected-error {{constant expression}} expected-note {{read of volatile-qualified type}}
 }
 
 // DR1312: The proposed wording for this defect has issues, so we ignore this
@@ -481,17 +479,19 @@ namespace UnspecifiedRelations {
   public:
     constexpr A() : a(0), b(0) {}
     int a;
-    constexpr bool cmp() const { return &a < &b; } // expected-error {{constexpr function never produces a constant expression}} expected-note {{comparison of address of fields 'a' and 'b' of 'A' with differing access specifiers (public vs private) has unspecified value}}
+    constexpr bool cmp() const { return &a < &b; } // expected-note {{comparison of address of fields 'a' and 'b' of 'A' with differing access specifiers (public vs private) has unspecified value}}
   private:
     int b;
   };
+  static_assert(A().cmp(), ""); // expected-error {{constant expression}} expected-note {{in call}}
   class B {
   public:
     A a;
-    constexpr bool cmp() const { return &a.a < &b.a; } // expected-error {{constexpr function never produces a constant expression}} expected-note {{comparison of address of fields 'a' and 'b' of 'B' with differing access specifiers (public vs protected) has unspecified value}}
+    constexpr bool cmp() const { return &a.a < &b.a; } // expected-note {{comparison of address of fields 'a' and 'b' of 'B' with differing access specifiers (public vs protected) has unspecified value}}
   protected:
     A b;
   };
+  static_assert(B().cmp(), ""); // expected-error {{constant expression}} expected-note {{in call}}
 
   // If two pointers point to different base sub-objects of the same object, or
   // one points to a base subobject and the other points to a member, the result

@@ -1,5 +1,5 @@
 // REQUIRES: arm-registered-target
-// RUN: %clang_cc1 -triple armv7 %s -emit-llvm -o /dev/null
+// RUN: %clang_cc1 -triple armv7 -target-feature +neon %s -emit-llvm -o /dev/null
 
 char bar();
 
@@ -12,6 +12,7 @@ void t1(int x, char y) {
                    : "+r" (x),
                      "+r" (y)
                    :);
+  __asm__ volatile("ldrb %0, [%1]" : "=r" (y) : "r" (x)); // no warning
 }
 
 // <rdar://problem/12284092>
@@ -22,10 +23,10 @@ typedef struct int64x2x4_t {
 int64x2x4_t t2(const long long a[]) {
   int64x2x4_t r;
   __asm__("vldm %[a], { %q[r0], %q[r1], %q[r2], %q[r3] }"
-          : [r0] "=r"(r.val[0]), // expected-warning {{the value is truncated when put into register, use a modifier to specify the size}}
-            [r1] "=r"(r.val[1]), // expected-warning {{the value is truncated when put into register, use a modifier to specify the size}}
-            [r2] "=r"(r.val[2]), // expected-warning {{the value is truncated when put into register, use a modifier to specify the size}}
-            [r3] "=r"(r.val[3])  // expected-warning {{the value is truncated when put into register, use a modifier to specify the size}}
+          : [r0] "=r"(r.val[0]), // expected-warning {{value size does not match register size specified by the constraint and modifier}}
+            [r1] "=r"(r.val[1]), // expected-warning {{value size does not match register size specified by the constraint and modifier}}
+            [r2] "=r"(r.val[2]), // expected-warning {{value size does not match register size specified by the constraint and modifier}}
+            [r3] "=r"(r.val[3])  // expected-warning {{value size does not match register size specified by the constraint and modifier}}
           : [a] "r"(a));
   return r;
 }

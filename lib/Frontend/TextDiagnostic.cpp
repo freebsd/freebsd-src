@@ -336,12 +336,9 @@ static void selectInterestingSourceRegion(std::string &SourceLine,
   if (MaxColumns <= Columns)
     return;
 
-  // no special characters allowed in CaretLine or FixItInsertionLine
+  // No special characters are allowed in CaretLine.
   assert(CaretLine.end() ==
          std::find_if(CaretLine.begin(), CaretLine.end(),
-         char_out_of_range(' ','~')));
-  assert(FixItInsertionLine.end() ==
-         std::find_if(FixItInsertionLine.begin(), FixItInsertionLine.end(),
          char_out_of_range(' ','~')));
 
   // Find the slice that we need to display the full caret line
@@ -370,8 +367,15 @@ static void selectInterestingSourceRegion(std::string &SourceLine,
       if (!isWhitespace(FixItInsertionLine[FixItEnd - 1]))
         break;
 
-    CaretStart = std::min(FixItStart, CaretStart);
-    CaretEnd = std::max(FixItEnd, CaretEnd);
+    // We can safely use the byte offset FixItStart as the column offset
+    // because the characters up until FixItStart are all ASCII whitespace
+    // characters.
+    unsigned FixItStartCol = FixItStart;
+    unsigned FixItEndCol
+      = llvm::sys::locale::columnWidth(FixItInsertionLine.substr(0, FixItEnd));
+
+    CaretStart = std::min(FixItStartCol, CaretStart);
+    CaretEnd = std::max(FixItEndCol, CaretEnd);
   }
 
   // CaretEnd may have been set at the middle of a character
@@ -689,7 +693,8 @@ TextDiagnostic::emitDiagnosticMessage(SourceLocation Loc,
   if (DiagOpts->ShowColors)
     OS.resetColor();
   
-  printDiagnosticLevel(OS, Level, DiagOpts->ShowColors);
+  printDiagnosticLevel(OS, Level, DiagOpts->ShowColors,
+                       DiagOpts->CLFallbackMode);
   printDiagnosticMessage(OS, Level, Message,
                          OS.tell() - StartOfLocationInfo,
                          DiagOpts->MessageLength, DiagOpts->ShowColors);
@@ -698,7 +703,8 @@ TextDiagnostic::emitDiagnosticMessage(SourceLocation Loc,
 /*static*/ void
 TextDiagnostic::printDiagnosticLevel(raw_ostream &OS,
                                      DiagnosticsEngine::Level Level,
-                                     bool ShowColors) {
+                                     bool ShowColors,
+                                     bool CLFallbackMode) {
   if (ShowColors) {
     // Print diagnostic category in bold and color
     switch (Level) {
@@ -714,11 +720,20 @@ TextDiagnostic::printDiagnosticLevel(raw_ostream &OS,
   switch (Level) {
   case DiagnosticsEngine::Ignored:
     llvm_unreachable("Invalid diagnostic type");
-  case DiagnosticsEngine::Note:    OS << "note: "; break;
-  case DiagnosticsEngine::Warning: OS << "warning: "; break;
-  case DiagnosticsEngine::Error:   OS << "error: "; break;
-  case DiagnosticsEngine::Fatal:   OS << "fatal error: "; break;
+  case DiagnosticsEngine::Note:    OS << "note"; break;
+  case DiagnosticsEngine::Warning: OS << "warning"; break;
+  case DiagnosticsEngine::Error:   OS << "error"; break;
+  case DiagnosticsEngine::Fatal:   OS << "fatal error"; break;
   }
+
+  // In clang-cl /fallback mode, print diagnostics as "error(clang):". This
+  // makes it more clear whether a message is coming from clang or cl.exe,
+  // and it prevents MSBuild from concluding that the build failed just because
+  // there is an "error:" in the output.
+  if (CLFallbackMode)
+    OS << "(clang)";
+
+  OS << ": ";
 
   if (ShowColors)
     OS.resetColor();
@@ -774,11 +789,8 @@ void TextDiagnostic::emitDiagnosticLoc(SourceLocation Loc, PresumedLoc PLoc,
       const FileEntry* FE = SM.getFileEntryForID(FID);
       if (FE && FE->getName()) {
         OS << FE->getName();
-        if (FE->getDevice() == 0 && FE->getInode() == 0
-            && FE->getFileMode() == 0) {
-          // in PCH is a guess, but a good one:
+        if (FE->isInPCH())
           OS << " (in PCH)";
-        }
         OS << ": ";
       }
     }
@@ -1023,24 +1035,18 @@ static std::string buildFixItInsertionLine(unsigned LineNo,
         if (HintCol < PrevHintEndCol)
           HintCol = PrevHintEndCol + 1;
 
-        // FIXME: This function handles multibyte characters in the source, but
-        // not in the fixits. This assertion is intended to catch unintended
-        // use of multibyte characters in fixits. If we decide to do this, we'll
-        // have to track separate byte widths for the source and fixit lines.
-        assert((size_t)llvm::sys::locale::columnWidth(I->CodeToInsert) ==
-               I->CodeToInsert.size());
-
-        // This relies on one byte per column in our fixit hints.
         // This should NOT use HintByteOffset, because the source might have
         // Unicode characters in earlier columns.
-        unsigned LastColumnModified = HintCol + I->CodeToInsert.size();
-        if (LastColumnModified > FixItInsertionLine.size())
-          FixItInsertionLine.resize(LastColumnModified, ' ');
+        unsigned NewFixItLineSize = FixItInsertionLine.size() +
+          (HintCol - PrevHintEndCol) + I->CodeToInsert.size();
+        if (NewFixItLineSize > FixItInsertionLine.size())
+          FixItInsertionLine.resize(NewFixItLineSize, ' ');
 
         std::copy(I->CodeToInsert.begin(), I->CodeToInsert.end(),
-                  FixItInsertionLine.begin() + HintCol);
+                  FixItInsertionLine.end() - I->CodeToInsert.size());
 
-        PrevHintEndCol = LastColumnModified;
+        PrevHintEndCol =
+          HintCol + llvm::sys::locale::columnWidth(I->CodeToInsert);
       } else {
         FixItInsertionLine.clear();
         break;

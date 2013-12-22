@@ -16,6 +16,7 @@
 #define LLVM_CLANG_GR_BUGREPORTER
 
 #include "clang/Basic/SourceLocation.h"
+#include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporterVisitor.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
@@ -375,6 +376,7 @@ public:
   virtual ArrayRef<PathDiagnosticConsumer*> getPathDiagnosticConsumers() = 0;
   virtual ASTContext &getASTContext() = 0;
   virtual SourceManager& getSourceManager() = 0;
+  virtual AnalyzerOptions& getAnalyzerOptions() = 0;
 };
 
 /// BugReporter is a utility class for generating PathDiagnostics for analysis.
@@ -442,6 +444,8 @@ public:
 
   SourceManager& getSourceManager() { return D.getSourceManager(); }
 
+  AnalyzerOptions& getAnalyzerOptions() { return D.getAnalyzerOptions(); }
+
   virtual bool generatePathDiagnostic(PathDiagnostic& pathDiagnostic,
                                       PathDiagnosticConsumer &PC,
                                       ArrayRef<BugReport *> &bugReports) {
@@ -462,20 +466,7 @@ public:
   void EmitBasicReport(const Decl *DeclWithIssue,
                        StringRef BugName, StringRef BugCategory,
                        StringRef BugStr, PathDiagnosticLocation Loc,
-                       SourceRange* RangeBeg, unsigned NumRanges);
-
-  void EmitBasicReport(const Decl *DeclWithIssue,
-                       StringRef BugName, StringRef BugCategory,
-                       StringRef BugStr, PathDiagnosticLocation Loc) {
-    EmitBasicReport(DeclWithIssue, BugName, BugCategory, BugStr, Loc, 0, 0);
-  }
-
-  void EmitBasicReport(const Decl *DeclWithIssue,
-                       StringRef BugName, StringRef Category,
-                       StringRef BugStr, PathDiagnosticLocation Loc,
-                       SourceRange R) {
-    EmitBasicReport(DeclWithIssue, BugName, Category, BugStr, Loc, &R, 1);
-  }
+                       ArrayRef<SourceRange> Ranges = None);
 
 private:
   llvm::StringMap<BugType *> StrBugTypes;

@@ -1,4 +1,4 @@
-//===--- LangOptions.def - Language option database --------------- C++ -*-===//
+//===--- LangOptions.def - Language option database -------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 //
 // This file defines the language options. Users of this file must
-// define the LANGOPT macro to make use of this information. 
+// define the LANGOPT macro to make use of this information.
 // Optionally, the user may also define BENIGN_LANGOPT
 // (for options that don't affect the construction of the AST in an
 // incompatible way), ENUM_LANGOPT (for options that have enumeration,
@@ -52,11 +52,11 @@ LANGOPT(CPlusPlus11       , 1, 0, "C++0x")
 LANGOPT(CPlusPlus1y       , 1, 0, "C++1y")
 LANGOPT(ObjC1             , 1, 0, "Objective-C 1")
 LANGOPT(ObjC2             , 1, 0, "Objective-C 2")
-BENIGN_LANGOPT(ObjCDefaultSynthProperties , 1, 0, 
+BENIGN_LANGOPT(ObjCDefaultSynthProperties , 1, 0,
                "Objective-C auto-synthesized properties")
-BENIGN_LANGOPT(EncodeExtendedBlockSig , 1, 0, 
+BENIGN_LANGOPT(EncodeExtendedBlockSig , 1, 0,
                "Encoding extended block type signature")
-BENIGN_LANGOPT(ObjCInferRelatedResultType , 1, 1, 
+BENIGN_LANGOPT(ObjCInferRelatedResultType , 1, 1,
                "Objective-C related result type inference")
 LANGOPT(Trigraphs         , 1, 0,"trigraphs")
 LANGOPT(LineComment       , 1, 0, "'//' comments")
@@ -85,6 +85,7 @@ LANGOPT(RTTI              , 1, 1, "run-time type information")
 LANGOPT(MSBitfields       , 1, 0, "Microsoft-compatible structure layout")
 LANGOPT(Freestanding, 1, 0, "freestanding implementation")
 LANGOPT(NoBuiltin         , 1, 0, "disable builtin functions")
+LANGOPT(NoMathBuiltin     , 1, 0, "disable math builtin functions")
 
 BENIGN_LANGOPT(ThreadsafeStatics , 1, 1, "thread-safe static initializers")
 LANGOPT(POSIXThreads      , 1, 0, "POSIX thread support")
@@ -93,10 +94,11 @@ BENIGN_LANGOPT(EmitAllDecls      , 1, 0, "support for emitting all declarations"
 LANGOPT(MathErrno         , 1, 1, "errno support for math functions")
 BENIGN_LANGOPT(HeinousExtensions , 1, 0, "Extensions that we really don't like and may be ripped out at any time")
 LANGOPT(Modules           , 1, 0, "modules extension to C")
+LANGOPT(ModulesDeclUse    , 1, 0, "require declaration of module uses")
 LANGOPT(Optimize          , 1, 0, "__OPTIMIZE__ predefined macro")
 LANGOPT(OptimizeSize      , 1, 0, "__OPTIMIZE_SIZE__ predefined macro")
 LANGOPT(Static            , 1, 0, "__STATIC__ predefined macro (as opposed to __DYNAMIC__)")
-VALUE_LANGOPT(PackStruct  , 32, 0, 
+VALUE_LANGOPT(PackStruct  , 32, 0,
               "default struct packing maximum alignment")
 VALUE_LANGOPT(PICLevel    , 2, 0, "__PIC__ level")
 VALUE_LANGOPT(PIELevel    , 2, 0, "__PIE__ level")
@@ -121,6 +123,7 @@ LANGOPT(CUDA              , 1, 0, "CUDA")
 LANGOPT(OpenMP            , 1, 0, "OpenMP support")
 
 LANGOPT(AssumeSaneOperatorNew , 1, 1, "implicit __attribute__((malloc)) for C++'s new operators")
+LANGOPT(SizedDeallocation , 1, 0, "enable sized deallocation functions")
 BENIGN_LANGOPT(ElideConstructors , 1, 1, "C++ copy constructor elision")
 BENIGN_LANGOPT(DumpRecordLayouts , 1, 0, "dumping the layout of IRgen'd records")
 BENIGN_LANGOPT(DumpRecordLayoutsSimple , 1, 0, "dumping the layout of IRgen'd records in a simple form")
@@ -140,31 +143,37 @@ LANGOPT(NoBitFieldTypeAlign , 1, 0, "bit-field type alignment")
 LANGOPT(HexagonQdsp6Compat , 1, 0, "hexagon-qdsp6 backward compatibility")
 LANGOPT(ObjCAutoRefCount , 1, 0, "Objective-C automated reference counting")
 LANGOPT(ObjCARCWeak         , 1, 0, "__weak support in the ARC runtime")
+LANGOPT(ObjCSubscriptingLegacyRuntime         , 1, 0, "Subscripting support in legacy ObjectiveC runtime")
 LANGOPT(FakeAddressSpaceMap , 1, 0, "OpenCL fake address space map")
+ENUM_LANGOPT(AddressSpaceMapMangling , AddrSpaceMapMangling, 2, ASMM_Target, "OpenCL address space map mangling mode")
 
 LANGOPT(MRTD , 1, 0, "-mrtd calling convention")
 BENIGN_LANGOPT(DelayedTemplateParsing , 1, 0, "delayed template parsing")
 LANGOPT(BlocksRuntimeOptional , 1, 0, "optional blocks runtime")
 
 ENUM_LANGOPT(GC, GCMode, 2, NonGC, "Objective-C Garbage Collection mode")
-ENUM_LANGOPT(ValueVisibilityMode, Visibility, 3, DefaultVisibility, 
+ENUM_LANGOPT(ValueVisibilityMode, Visibility, 3, DefaultVisibility,
              "value symbol visibility")
-ENUM_LANGOPT(TypeVisibilityMode, Visibility, 3, DefaultVisibility, 
+ENUM_LANGOPT(TypeVisibilityMode, Visibility, 3, DefaultVisibility,
              "type symbol visibility")
-ENUM_LANGOPT(StackProtector, StackProtectorMode, 2, SSPOff, 
+ENUM_LANGOPT(StackProtector, StackProtectorMode, 2, SSPOff,
              "stack protector mode")
 ENUM_LANGOPT(SignedOverflowBehavior, SignedOverflowBehaviorTy, 2, SOB_Undefined,
              "signed integer overflow handling")
 
-BENIGN_LANGOPT(InstantiationDepth, 32, 256, 
+BENIGN_LANGOPT(ArrowDepth, 32, 256,
+               "maximum number of operator->s to follow")
+BENIGN_LANGOPT(InstantiationDepth, 32, 256,
                "maximum template instantiation depth")
 BENIGN_LANGOPT(ConstexprCallDepth, 32, 512,
                "maximum constexpr call depth")
+BENIGN_LANGOPT(ConstexprStepLimit, 32, 1048576,
+               "maximum constexpr evaluation steps")
 BENIGN_LANGOPT(BracketDepth, 32, 256,
                "maximum bracket nesting depth")
-BENIGN_LANGOPT(NumLargeByValueCopy, 32, 0, 
+BENIGN_LANGOPT(NumLargeByValueCopy, 32, 0,
         "if non-zero, warn about parameter or return Warn if parameter/return value is larger in bytes than this setting. 0 is no check.")
-VALUE_LANGOPT(MSCVersion, 32, 0, 
+VALUE_LANGOPT(MSCVersion, 32, 0,
               "version of Microsoft Visual C/C++")
 
 LANGOPT(ApplePragmaPack, 1, 0, "Apple gcc-compatible #pragma pack handling")

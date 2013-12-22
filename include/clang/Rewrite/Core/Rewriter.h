@@ -40,20 +40,18 @@ class RewriteBuffer {
   /// Deltas - Keep track of all the deltas in the source code due to insertions
   /// and deletions.
   DeltaTree Deltas;
-
-  /// Buffer - This is the actual buffer itself.  Note that using a vector or
-  /// string is a horribly inefficient way to do this, we should use a rope
-  /// instead.
-  typedef RewriteRope BufferTy;
-  BufferTy Buffer;
+  RewriteRope Buffer;
 public:
-  typedef BufferTy::const_iterator iterator;
+  typedef RewriteRope::const_iterator iterator;
   iterator begin() const { return Buffer.begin(); }
   iterator end() const { return Buffer.end(); }
   unsigned size() const { return Buffer.size(); }
 
   /// \brief Write to \p Stream the result of applying all changes to the
   /// original buffer.
+  /// Note that it isn't safe to use this function to overwrite memory mapped
+  /// files in-place (PR17960). Consider using a higher-level utility such as
+  /// Rewriter::overwriteChangedFiles() instead.
   ///
   /// The original buffer is not actually changed.
   raw_ostream &write(raw_ostream &Stream) const;
@@ -149,6 +147,7 @@ public:
   };
 
   typedef std::map<FileID, RewriteBuffer>::iterator buffer_iterator;
+  typedef std::map<FileID, RewriteBuffer>::const_iterator const_buffer_iterator;
 
   explicit Rewriter(SourceManager &SM, const LangOptions &LO)
     : SourceMgr(&SM), LangOpts(&LO) {}
@@ -282,10 +281,12 @@ public:
   // Iterators over rewrite buffers.
   buffer_iterator buffer_begin() { return RewriteBuffers.begin(); }
   buffer_iterator buffer_end() { return RewriteBuffers.end(); }
+  const_buffer_iterator buffer_begin() const { return RewriteBuffers.begin(); }
+  const_buffer_iterator buffer_end() const { return RewriteBuffers.end(); }
 
   /// overwriteChangedFiles - Save all changed files to disk.
   ///
-  /// Returns whether not all changes were saved successfully.
+  /// Returns true if any files were not saved successfully.
   /// Outputs diagnostics via the source manager's diagnostic engine
   /// in case of an error.
   bool overwriteChangedFiles();

@@ -77,6 +77,13 @@ public:
     TraverseStmt(body);
   }
 
+  bool TraverseBlockDecl(BlockDecl *D) {
+    // ParentMap does not enter into a BlockDecl to record its stmts, so use a
+    // new UnbridgedCastRewriter to handle the block.
+    UnbridgedCastRewriter(Pass).transformBody(D->getBody(), D);
+    return true;
+  }
+
   bool VisitCastExpr(CastExpr *E) {
     if (E->getCastKind() != CK_CPointerToObjCPointerCast &&
         E->getCastKind() != CK_BitCast &&
@@ -148,7 +155,7 @@ private:
             if (FD->getName() == "CFRetain" && 
                 FD->getNumParams() == 1 &&
                 FD->getParent()->isTranslationUnit() &&
-                FD->hasExternalLinkage()) {
+                FD->isExternallyVisible()) {
               Expr *Arg = callE->getArg(0);
               if (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(Arg)) {
                 const Expr *sub = ICE->getSubExpr();
@@ -413,7 +420,7 @@ private:
             FD = dyn_cast_or_null<FunctionDecl>(callE->getCalleeDecl()))
         if (FD->getName() == "CFRetain" && FD->getNumParams() == 1 &&
             FD->getParent()->isTranslationUnit() &&
-            FD->hasExternalLinkage())
+            FD->isExternallyVisible())
           return true;
 
     return false;

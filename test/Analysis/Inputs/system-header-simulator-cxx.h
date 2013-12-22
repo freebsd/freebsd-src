@@ -5,6 +5,8 @@
 // suppressed.
 #pragma clang system_header
 
+typedef unsigned char uint8_t;
+
 namespace std {
   template <class T1, class T2>
   struct pair {
@@ -74,6 +76,34 @@ namespace std {
 
   extern const nothrow_t nothrow;
 
+  // libc++'s implementation
+  template <class _E>
+  class initializer_list
+  {
+    const _E* __begin_;
+    size_t    __size_;
+
+    initializer_list(const _E* __b, size_t __s)
+      : __begin_(__b),
+        __size_(__s)
+    {}
+
+  public:
+    typedef _E        value_type;
+    typedef const _E& reference;
+    typedef const _E& const_reference;
+    typedef size_t    size_type;
+
+    typedef const _E* iterator;
+    typedef const _E* const_iterator;
+
+    initializer_list() : __begin_(0), __size_(0) {}
+
+    size_t    size()  const {return __size_;}
+    const _E* begin() const {return __begin_;}
+    const _E* end()   const {return __begin_ + __size_;}
+  };
+
   template<class InputIter, class OutputIter>
   OutputIter copy(InputIter II, InputIter IE, OutputIter OI) {
     while (II != IE)
@@ -86,6 +116,65 @@ namespace std {
   struct forward_iterator_tag : public input_iterator_tag { };
   struct bidirectional_iterator_tag : public forward_iterator_tag { };
   struct random_access_iterator_tag : public bidirectional_iterator_tag { };
+
+  template <class _Tp>
+  class allocator {
+  public:
+    void deallocate(void *p) {
+      ::delete p;
+    }
+  };
+
+  template <class _Alloc>
+  class allocator_traits {
+  public:
+    static void deallocate(void *p) {
+      _Alloc().deallocate(p);
+    }
+  };
+
+  template <class _Tp, class _Alloc>
+  class __list_imp
+  {};
+
+  template <class _Tp, class _Alloc = allocator<_Tp> >
+  class list
+  : private __list_imp<_Tp, _Alloc>
+  {
+  public:
+    void pop_front() {
+      // Fake use-after-free.
+      // No warning is expected as we are suppressing warning comming
+      // out of std::list.
+      int z = 0;
+      z = 5/z;
+    }
+    bool empty() const;
+  };
+
+  // basic_string
+  template<class _CharT, class _Alloc = allocator<_CharT> >
+  class __attribute__ ((__type_visibility__("default"))) basic_string {
+    _CharT localStorage[4];
+
+    typedef allocator_traits<_Alloc> __alloc_traits;
+
+  public:
+    void push_back(int c) {
+      // Fake error trigger.
+      // No warning is expected as we are suppressing warning comming
+      // out of std::basic_string.
+      int z = 0;
+      z = 5/z;
+    }
+
+    basic_string &operator +=(int c) {
+      // Fake deallocate stack-based storage.
+      // No warning is expected as we are suppressing warnings within
+      // allocators being used by std::basic_string.
+      __alloc_traits::deallocate(&localStorage);
+    }
+  };
 }
 
 void* operator new(std::size_t, const std::nothrow_t&) throw();

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fsyntax-only -verify -std=gnu++11 %s 
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fsyntax-only -verify -std=gnu++11 -fms-extensions -Wno-microsoft %s
 #define T(b) (b) ? 1 : -1
 #define F(b) (b) ? -1 : 1
 
@@ -306,6 +306,37 @@ void is_final()
 	{ int arr[F(__is_final(IntArNB))]; }
 	{ int arr[F(__is_final(HasAnonymousUnion))]; }
 	{ int arr[F(__is_final(PotentiallyFinal<float>))]; }
+}
+
+struct SealedClass sealed {
+};
+
+template<typename T>
+struct PotentiallySealed { };
+
+template<typename T>
+struct PotentiallySealed<T*> sealed { };
+
+template<>
+struct PotentiallySealed<int> sealed { };
+
+void is_sealed()
+{
+	{ int arr[T(__is_sealed(SealedClass))]; }
+	{ int arr[T(__is_sealed(PotentiallySealed<float*>))]; }
+	{ int arr[T(__is_sealed(PotentiallySealed<int>))]; }
+
+	{ int arr[F(__is_sealed(int))]; }
+	{ int arr[F(__is_sealed(Union))]; }
+	{ int arr[F(__is_sealed(Int))]; }
+	{ int arr[F(__is_sealed(IntAr))]; }
+	{ int arr[F(__is_sealed(UnionAr))]; }
+	{ int arr[F(__is_sealed(Derives))]; }
+	{ int arr[F(__is_sealed(ClassType))]; }
+	{ int arr[F(__is_sealed(cvoid))]; }
+	{ int arr[F(__is_sealed(IntArNB))]; }
+	{ int arr[F(__is_sealed(HasAnonymousUnion))]; }
+	{ int arr[F(__is_sealed(PotentiallyFinal<float>))]; }
 }
 
 typedef HasVirt Polymorph;
@@ -1072,6 +1103,9 @@ void is_trivially_copyable2()
   int t31[F(__is_trivially_copyable(SuperNonTrivialStruct))];
   int t32[F(__is_trivially_copyable(NonTCStruct))];
   int t33[F(__is_trivially_copyable(ExtDefaulted))];
+
+  int t34[T(__is_trivially_copyable(const int))];
+  int t35[F(__is_trivially_copyable(volatile int))];
 }
 
 struct CStruct {
@@ -1244,14 +1278,14 @@ void has_trivial_default_constructor() {
 
 void has_trivial_move_constructor() {
   // n3376 12.8 [class.copy]/12
-  // A copy/move constructor for class X is trivial if it is not 
-  // user-provided, its declared parameter type is the same as 
+  // A copy/move constructor for class X is trivial if it is not
+  // user-provided, its declared parameter type is the same as
   // if it had been implicitly declared, and if
-  //   — class X has no virtual functions (10.3) and no virtual 
+  //   - class X has no virtual functions (10.3) and no virtual
   //     base classes (10.1), and
-  //   — the constructor selected to copy/move each direct base 
+  //   - the constructor selected to copy/move each direct base
   //     class subobject is trivial, and
-  //   — for each non-static data member of X that is of class 
+  //   - for each non-static data member of X that is of class
   //     type (or array thereof), the constructor selected
   //     to copy/move that member is trivial;
   // otherwise the copy/move constructor is non-trivial.
@@ -1445,14 +1479,14 @@ void has_nothrow_move_assign() {
 
 void has_trivial_move_assign() {
   // n3376 12.8 [class.copy]/25
-  // A copy/move assignment operator for class X is trivial if it 
-  // is not user-provided, its declared parameter type is the same 
+  // A copy/move assignment operator for class X is trivial if it
+  // is not user-provided, its declared parameter type is the same
   // as if it had been implicitly declared, and if:
-  //  — class X has no virtual functions (10.3) and no virtual base 
+  //  - class X has no virtual functions (10.3) and no virtual base
   //    classes (10.1), and
-  //  — the assignment operator selected to copy/move each direct 
+  //  - the assignment operator selected to copy/move each direct
   //    base class subobject is trivial, and
-  //  — for each non-static data member of X that is of class type 
+  //  - for each non-static data member of X that is of class type
   //    (or array thereof), the assignment operator
   //    selected to copy/move that member is trivial;
   { int arr[T(__has_trivial_move_assign(Int))]; }
@@ -1571,7 +1605,7 @@ template<typename T> struct DerivedB : BaseA<T> { };
 template<typename T> struct CrazyDerived : T { };
 
 
-class class_forward; // expected-note {{forward declaration of 'class_forward'}}
+class class_forward; // expected-note 2 {{forward declaration of 'class_forward'}}
 
 template <typename Base, typename Derived>
 void isBaseOfT() {
@@ -1770,6 +1804,8 @@ void is_trivial()
   { int arr[F(__is_trivial(cvoid))]; }
 }
 
+template<typename T> struct TriviallyConstructibleTemplate {};
+
 void trivial_checks()
 {
   { int arr[T(__is_trivially_copyable(int))]; }
@@ -1847,6 +1883,11 @@ void trivial_checks()
                                             const ExtDefaulted &)))]; }
   { int arr[F((__is_trivially_constructible(ExtDefaulted,
                                             ExtDefaulted &&)))]; }
+
+  { int arr[T((__is_trivially_constructible(TriviallyConstructibleTemplate<int>)))]; }
+  { int arr[F((__is_trivially_constructible(class_forward)))]; } // expected-error {{incomplete type 'class_forward' used in type trait expression}}
+  { int arr[F((__is_trivially_constructible(class_forward[])))]; }
+  { int arr[F((__is_trivially_constructible(void)))]; }
 
   { int arr[T((__is_trivially_assignable(int&, int)))]; }
   { int arr[T((__is_trivially_assignable(int&, int&)))]; }

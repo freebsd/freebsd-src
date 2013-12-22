@@ -1,5 +1,6 @@
 // RUN: %clang_cc1 %s -triple=x86_64-pc-linux-gnu -munwind-tables -emit-llvm -o - | FileCheck %s
-// RUN: %clang_cc1 %s -triple=x86_64-pc-linux-gnu -munwind-tables -fhidden-weak-vtables -emit-llvm -o - | FileCheck -check-prefix=HIDDEN %s
+// RUN: %clang_cc1 %s -triple=x86_64-pc-linux-gnu -munwind-tables -emit-llvm -o - -O1 -disable-llvm-optzns | FileCheck %s
+// RUN: %clang_cc1 %s -triple=x86_64-pc-linux-gnu -munwind-tables -fhidden-weak-vtables -emit-llvm -o - | FileCheck -check-prefix=CHECK-HIDDEN %s
 
 namespace Test1 {
 
@@ -19,7 +20,7 @@ struct C : A, B {
   virtual void f();
 };
 
-// CHECK: define void @_ZThn8_N5Test11C1fEv(
+// CHECK-LABEL: define void @_ZThn8_N5Test11C1fEv(
 void C::f() { }
 
 }
@@ -37,7 +38,7 @@ struct B : virtual A {
   virtual void f();
 };
 
-// CHECK: define void @_ZTv0_n24_N5Test21B1fEv(
+// CHECK-LABEL: define void @_ZTv0_n24_N5Test21B1fEv(
 void B::f() { }
 
 }
@@ -82,7 +83,7 @@ struct __attribute__((visibility("protected"))) C : A, B {
   virtual void f();
 };
 
-// CHECK: define protected void @_ZThn8_N5Test41C1fEv(
+// CHECK-LABEL: define protected void @_ZThn8_N5Test41C1fEv(
 void C::f() { }
 
 }
@@ -165,7 +166,7 @@ namespace Test6 {
     virtual X f();
   };
 
-  // CHECK: define void @_ZThn16_N5Test66Thunks1fEv
+  // CHECK-LABEL: define void @_ZThn16_N5Test66Thunks1fEv
   // CHECK-NOT: memcpy
   // CHECK: {{call void @_ZN5Test66Thunks1fEv.*sret}}
   // CHECK: ret void
@@ -211,7 +212,7 @@ namespace Test7 {
 
   void D::baz(X, X&, _Complex float, Small, Small&, Large) { }
 
-  // CHECK: define void @_ZThn8_N5Test71D3bazENS_1XERS1_CfNS_5SmallERS4_NS_5LargeE(
+  // CHECK-LABEL: define void @_ZThn8_N5Test71D3bazENS_1XERS1_CfNS_5SmallERS4_NS_5LargeE(
   // CHECK-NOT: memcpy
   // CHECK: ret void
   void testD() { D d; }
@@ -226,7 +227,7 @@ namespace Test8 {
   // CHECK: define void @_ZN5Test81C6helperENS_6NonPODE([[NONPODTYPE:%.*]]*
   void C::helper(NonPOD var) {}
 
-  // CHECK: define void @_ZThn8_N5Test81C3barENS_6NonPODE(
+  // CHECK-LABEL: define void @_ZThn8_N5Test81C3barENS_6NonPODE(
   // CHECK-NOT: load [[NONPODTYPE]]*
   // CHECK-NOT: memcpy
   // CHECK: ret void
@@ -250,8 +251,8 @@ namespace Test10 {
   struct B { virtual void foo(); };
   struct C : A, B { void foo() {} };
 
-  // CHECK-HIDDEN: define linkonce_odr void @_ZN6Test101C3fooEv
-  // CHECK-HIDDEN: define linkonce_odr hidden void @_ZThn8_N6Test101C3fooEv
+  // CHECK-HIDDEN-LABEL: define linkonce_odr void @_ZN6Test101C3fooEv
+  // CHECK-HIDDEN-LABEL: define linkonce_odr hidden void @_ZThn8_N6Test101C3fooEv
 
   void test() {
     C c;
@@ -342,10 +343,31 @@ namespace Test14 {
   // CHECK: define void @_ZThn8_N6Test141C1fEv({{.*}}) unnamed_addr [[NUW:#[0-9]+]]
 }
 
+// Varargs non-covariant thunk test.
+// PR18098
+namespace Test15 {
+  struct A {
+    virtual ~A();
+  };
+  struct B {
+    virtual void f(int x, ...);
+  };
+  struct C : A, B {
+    virtual void c();
+    virtual void f(int x, ...);
+  };
+  void C::c() {}
+
+  // C::c
+  // CHECK: declare void @_ZN6Test151C1fEiz
+  // non-virtual thunk to C::f
+  // CHECK: declare void @_ZThn8_N6Test151C1fEiz
+}
+
 /**** The following has to go at the end of the file ****/
 
 // This is from Test5:
-// CHECK: define linkonce_odr void @_ZTv0_n24_N5Test51B1fEv
-// CHECK: define internal void @_ZThn8_N6Test4B12_GLOBAL__N_11C1fEv(
+// CHECK-LABEL: define linkonce_odr void @_ZTv0_n24_N5Test51B1fEv
+// CHECK-LABEL: define internal void @_ZThn8_N6Test4B12_GLOBAL__N_11C1fEv(
 
 // CHECK: attributes [[NUW]] = { nounwind uwtable{{.*}} }

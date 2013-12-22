@@ -1,40 +1,56 @@
 =======================
-Clang 3.3 Release Notes
+Clang 3.4 Release Notes
 =======================
 
 .. contents::
    :local:
    :depth: 2
 
-Written by the `LLVM Team <http://llvm.org/>`_
-
 Introduction
 ============
 
 This document contains the release notes for the Clang C/C++/Objective-C
-frontend, part of the LLVM Compiler Infrastructure, release 3.3. Here we
-describe the status of Clang in some detail, including major improvements from
-the previous release and new feature work. For the general LLVM release notes,
-see `the LLVM documentation <http://llvm.org/docs/ReleaseNotes.html>`_. All LLVM
-releases may be downloaded from the `LLVM releases web site
-<http://llvm.org/releases/>`_.
+frontend, part of the LLVM Compiler Infrastructure, release 3.4. Here we
+describe the status of Clang in some detail, including major
+improvements from the previous release and new feature work. For the
+general LLVM release notes, see `the LLVM
+documentation <http://llvm.org/docs/ReleaseNotes.html>`_. All LLVM
+releases may be downloaded from the `LLVM releases web
+site <http://llvm.org/releases/>`_.
 
-For more information about Clang or LLVM, including information about the latest
-release, please check out the main please see the `Clang Web Site
-<http://clang.llvm.org>`_ or the `LLVM Web Site <http://llvm.org>`_.
+For more information about Clang or LLVM, including information about
+the latest release, please check out the main `Clang Web
+Site <http://clang.llvm.org>`_ or the `LLVM Web
+Site <http://llvm.org>`_.
 
-Note that if you are reading this file from a Subversion checkout or the main
-Clang web page, this document applies to the *next* release, not the current
-one. To see the release notes for a specific release, please see the `releases
-page <http://llvm.org/releases/>`_.
+Note that if you are reading this file from a Subversion checkout or the
+main Clang web page, this document applies to the *next* release, not
+the current one. To see the release notes for a specific release, please
+see the `releases page <http://llvm.org/releases/>`_.
 
-What's New in Clang 3.3?
+What's New in Clang 3.4?
 ========================
 
 Some of the major new features and improvements to Clang are listed
 here. Generic improvements to Clang as a whole or to its underlying
-infrastructure are described first, followed by language-specific sections with
-improvements to Clang's support for those languages.
+infrastructure are described first, followed by language-specific
+sections with improvements to Clang's support for those languages.
+
+Last release which will build as C++98
+--------------------------------------
+
+This is expected to be the last release of Clang which compiles using a C++98
+toolchain. We expect to start using some C++11 features in Clang starting after
+this release. That said, we are committed to supporting a reasonable set of
+modern C++ toolchains as the host compiler on all of the platforms. This will
+at least include Visual Studio 2012 on Windows, and Clang 3.1 or GCC 4.7.x on
+Mac and Linux. The final set of compilers (and the C++11 features they support)
+is not set in stone, but we wanted users of Clang to have a heads up that the
+next release will involve a substantial change in the host toolchain
+requirements.
+
+Note that this change is part of a change for the entire LLVM project, not just
+Clang.
 
 Major New Features
 ------------------
@@ -44,90 +60,210 @@ Improvements to Clang's diagnostics
 
 Clang's diagnostics are constantly being improved to catch more issues,
 explain them more clearly, and provide more accurate source information
-about them. The improvements since the 3.2 release include:
+about them. The improvements since the 3.3 release include:
 
-Extended Identifiers: Unicode Support and Universal Character Names
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+- -Wheader-guard warns on mismatches between the #ifndef and #define lines
+  in a header guard.
 
-Clang 3.3 includes support for *extended identifiers* in C99 and C++.
-This feature allows identifiers to contain certain Unicode characters, as
-specified by the active language standard; these characters can be written
-directly in the source file using the UTF-8 encoding, or referred to using
-*universal character names* (``\u00E0``, ``\U000000E0``).
+  .. code-block:: c
+
+    #ifndef multiple
+    #define multi
+    #endif
+
+  returns
+  `warning: 'multiple' is used as a header guard here, followed by #define of a different macro [-Wheader-guard]`
+
+- -Wlogical-not-parentheses warns when a logical not ('!') only applies to the
+  left-hand side of a comparison.  This warning is part of -Wparentheses.
+
+  .. code-block:: c++
+
+    int i1 = 0, i2 = 1;
+    bool ret;
+    ret = !i1 == i2;
+
+  returns
+  `warning: logical not is only applied to the left hand side of this comparison [-Wlogical-not-parentheses]`
+
+
+- Boolean increment, a deprecated feature, has own warning flag
+  -Wdeprecated-increment-bool, and is still part of -Wdeprecated.
+- Clang errors on builtin enum increments and decrements.
+
+  .. code-block:: c++
+
+    enum A { A1, A2 };
+    void test() {
+    	A a;
+    	a++;
+    }
+
+  returns
+  `error: must use 'enum' tag to refer to type 'A'`
+
+
+- -Wloop-analysis now warns on for-loops which have the same increment or
+  decrement in the loop header as the last statement in the loop.
+
+  .. code-block:: c
+
+    void foo(char *a, char *b, unsigned c) {
+	  for (unsigned i = 0; i < c; ++i) {
+		a[i] = b[i];
+		++i;
+	  }
+    }
+
+  returns
+  `warning: variable 'i' is incremented both in the loop header and in the loop body [-Wloop-analysis]`
+
+- -Wuninitialized now performs checking across field initializers to detect
+  when one field in used uninitialized in another field initialization.
+
+  .. code-block:: c++
+
+    class A {
+      int x;
+      int y;
+      A() : x(y) {}
+    };
+
+  returns
+  `warning: field 'y' is uninitialized when used here [-Wuninitialized]`
+
+- Clang can detect initializer list use inside a macro and suggest parentheses
+  if possible to fix.
+- Many improvements to Clang's typo correction facilities, such as:
+
+  + Adding global namespace qualifiers so that corrections can refer to shadowed
+    or otherwise ambiguous or unreachable namespaces.
+  + Including accessible class members in the set of typo correction candidates,
+    so that corrections requiring a class name in the name specifier are now
+    possible.
+  + Allowing typo corrections that involve removing a name specifier.
+  + In some situations, correcting function names when a function was given the
+    wrong number of arguments, including situations where the original function
+    name was correct but was shadowed by a lexically closer function with the
+    same name yet took a different number of arguments.
+  + Offering typo suggestions for 'using' declarations.
+  + Providing better diagnostics and fixit suggestions in more situations when
+    a '->' was used instead of '.' or vice versa.
+  + Providing more relevant suggestions for typos followed by '.' or '='.
+  + Various performance improvements when searching for typo correction
+    candidates.
+
+- `LeakSanitizer <LeakSanitizer.html>`_ is an experimental memory leak detector
+  which can be combined with AddressSanitizer.
+
+New Compiler Flags
+------------------
+
+- Clang no longer special cases -O4 to enable lto. Explicitly pass -flto to
+  enable it.
+- Clang no longer fails on >= -O5. These flags are mapped to -O3 instead.
+- Command line "clang -O3 -flto a.c -c" and "clang -emit-llvm a.c -c"
+  are no longer equivalent.
+- Clang now errors on unknown -m flags (``-munknown-to-clang``),
+  unknown -f flags (``-funknown-to-clang``) and unknown
+  options (``-what-is-this``).
 
 C Language Changes in Clang
 ---------------------------
 
+- Added new checked arithmetic builtins for security critical applications.
+
 C++ Language Changes in Clang
 -----------------------------
 
-- Clang now correctly implements language linkage for functions and variables.
-  This means that, for example, it is now possible to overload static functions
-  declared in an ``extern "C"`` context. For backwards compatibility, an alias
-  with the unmangled name is still emitted if it is the only one and has the
-  ``used`` attribute.
+- Fixed an ABI regression, introduced in Clang 3.2, which affected
+  member offsets for classes inheriting from certain classes with tail padding.
+  See PR16537.
+
+- Clang 3.4 supports the 2013-08-28 draft of the ISO WG21 SG10 feature test
+  macro recommendations. These aim to provide a portable method to determine
+  whether a compiler supports a language feature, much like Clang's
+  |has_feature macro|_.
+
+.. |has_feature macro| replace:: ``__has_feature`` macro
+.. _has_feature macro: LanguageExtensions.html#has-feature-and-has-extension
+
+C++1y Feature Support
+^^^^^^^^^^^^^^^^^^^^^
+
+Clang 3.4 supports all the features in the current working draft of the
+upcoming C++ standard, provisionally named C++1y. Support for the following
+major new features has been added since Clang 3.3:
+
+- Generic lambdas and initialized lambda captures.
+- Deduced function return types (``auto f() { return 0; }``).
+- Generalized ``constexpr`` support (variable mutation and loops).
+- Variable templates and static data member templates.
+- Use of ``'`` as a digit separator in numeric literals.
+- Support for sized ``::operator delete`` functions.
+
+In addition, ``[[deprecated]]`` is now accepted as a synonym for Clang's
+existing ``deprecated`` attribute.
+
+Use ``-std=c++1y`` to enable C++1y mode.
+
+OpenCL C Language Changes in Clang
+----------------------------------
+
+- OpenCL C "long" now always has a size of 64 bit, and all OpenCL C
+  types are aligned as specified in the OpenCL C standard. Also,
+  "char" is now always signed.
 
 Internal API Changes
 --------------------
 
-These are major API changes that have happened since the 3.2 release of
+These are major API changes that have happened since the 3.3 release of
 Clang. If upgrading an external codebase that uses Clang as a library,
 this section should help get you past the largest hurdles of upgrading.
 
-Value Casting
-^^^^^^^^^^^^^
+Wide Character Types
+^^^^^^^^^^^^^^^^^^^^
 
-Certain type hierarchies (TypeLoc, CFGElement, ProgramPoint, and SVal) were
-misusing the llvm::cast machinery to perform undefined operations. Their APIs
-have been changed to use two member function templates that return values
-instead of pointers or references - "T castAs" and "Optional<T> getAs" (in the
-case of the TypeLoc hierarchy the latter is "T getAs" and you can use the
-boolean testability of a TypeLoc (or its 'validity') to verify that the cast
-succeeded). Essentially all previous 'cast' usage should be replaced with
-'castAs' and 'dyn_cast' should be replaced with 'getAs'. See r175462 for the
-first example of such a change along with many examples of how code was
-migrated to the new API.
-
-Storage Class
-^^^^^^^^^^^^^
-
-For each variable and function Clang used to keep the storage class as written
-in the source, the linkage and a semantic storage class. This was a bit
-redundant and the semantic storage class has been removed. The method
-getStorageClass now returns what is written in the source code for that decl.
-
-libclang
---------
-
-The clang_CXCursorSet_contains() function previously incorrectly returned 0
-if it contained a CXCursor, contrary to what the documentation stated.  This
-has been fixed so that the function returns a non-zero value if the set
-contains a cursor.  This is API breaking change, but matches the intended
-original behavior.  Moreover, this also fixes the issue of an invalid CXCursorSet
-appearing to contain any CXCursor.
+The ASTContext class now keeps track of two different types for wide character
+types: WCharTy and WideCharTy. WCharTy represents the built-in wchar_t type
+available in C++. WideCharTy is the type used for wide character literals; in
+C++ it is the same as WCharTy, but in C99, where wchar_t is a typedef, it is an
+integer type.
 
 Static Analyzer
 ---------------
 
-The static analyzer (which contains additional code checking beyond compiler
-warnings) has improved significantly in both in the core analysis engine and 
-also in the kinds of issues it can find.
+The static analyzer has been greatly improved. This impacts the overall analyzer quality and reduces a number of false positives.
+In particular, this release provides enhanced C++ support, reasoning about initializer lists, zeroing constructors, noreturn destructors and modeling of destructor calls on calls to delete.
 
-Core Analysis Improvements
-==========================
+Clang Format
+------------
 
-- Support for interprocedural reasoning about constructors and destructors.
-- New false positive suppression mechanisms that reduced the number of false
-  null pointer dereference warnings due to interprocedural analysis.
-- Major performance enhancements to speed up interprocedural analysis
+Clang now includes a new tool ``clang-format`` which can be used to
+automatically format C, C++ and Objective-C source code. ``clang-format``
+automatically chooses linebreaks and indentation and can be easily integrated
+into editors, IDEs and version control systems. It supports several pre-defined
+styles as well as precise style control using a multitude of formatting
+options. ``clang-format`` itself is just a thin wrapper around a library which
+can also be used directly from code refactoring and code translation tools.
+More information can be found on `Clang Format's
+site <http://clang.llvm.org/docs/ClangFormat.html>`_.
 
-New Issues Found
-================
+Windows Support
+---------------
 
-- New memory error checks such as use-after-free with C++ 'delete'.
-- Detection of mismatched allocators and deallocators (e.g., using 'new' with
-  'free()', 'malloc()' with 'delete').
-- Additional checks for misuses of Apple Foundation framework collection APIs.
+- `clang-cl <UsersManual.html#clang-cl>`_ provides a new driver mode that is
+  designed for compatibility with Visual Studio's compiler, cl.exe. This driver
+  mode makes Clang accept the same kind of command-line options as cl.exe. The
+  installer will attempt to expose clang-cl in any Visual Studio installations
+  on the system as a Platform Toolset, e.g. "LLVM-vs2012". clang-cl targets the
+  Microsoft ABI by default. Please note that this driver mode and compatibility
+  with the MS ABI is highly experimental.
+
+Python Binding Changes
+----------------------
+
+The following methods have been added:
 
 Significant Known Problems
 ==========================
@@ -135,11 +271,13 @@ Significant Known Problems
 Additional Information
 ======================
 
-A wide variety of additional information is available on the `Clang web page
-<http://clang.llvm.org/>`_. The web page contains versions of the API
-documentation which are up-to-date with the Subversion version of the source
-code. You can access versions of these documents specific to this release by
-going into the "``clang/docs/``" directory in the Clang tree.
+A wide variety of additional information is available on the `Clang web
+page <http://clang.llvm.org/>`_. The web page contains versions of the
+API documentation which are up-to-date with the Subversion revision of
+the source code. You can access versions of these documents specific to
+this release by going into the "``clang/docs/``" directory in the Clang
+tree.
 
-If you have any questions or comments about Clang, please feel free to contact
-us via the `mailing list <http://lists.cs.uiuc.edu/mailman/listinfo/cfe-dev>`_.
+If you have any questions or comments about Clang, please feel free to
+contact us via the `mailing
+list <http://lists.cs.uiuc.edu/mailman/listinfo/cfe-dev>`_.

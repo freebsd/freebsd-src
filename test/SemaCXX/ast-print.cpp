@@ -103,6 +103,7 @@ int test11() {
 struct DefaultArgClass
 {
   DefaultArgClass(int a = 1) {}
+  DefaultArgClass(int a, int b, int c = 1) {}
 };
 
 struct NoArgClass
@@ -124,6 +125,8 @@ struct ConstrWithCleanupsClass
 // CHECK: test12
 // CHECK-NEXT: DefaultArgClass useDefaultArg;
 // CHECK-NEXT: DefaultArgClass overrideDefaultArg(1);
+// CHECK-NEXT: DefaultArgClass(1, 2);
+// CHECK-NEXT: DefaultArgClass(1, 2, 3);
 // CHECK-NEXT: NoArgClass noArg;
 // CHECK-NEXT: ConstrWithCleanupsClass cwcNoArg;
 // CHECK-NEXT: ConstrWithCleanupsClass cwcOverrideArg(48);
@@ -131,6 +134,8 @@ struct ConstrWithCleanupsClass
 void test12() {
   DefaultArgClass useDefaultArg;
   DefaultArgClass overrideDefaultArg(1);
+  DefaultArgClass tempWithDefaultArg = DefaultArgClass(1, 2);
+  DefaultArgClass tempWithExplictArg = DefaultArgClass(1, 2, 3);
   NoArgClass noArg;
   ConstrWithCleanupsClass cwcNoArg;
   ConstrWithCleanupsClass cwcOverrideArg(48);
@@ -148,3 +153,14 @@ void test13() {
   __c11_atomic_load(&i, 0);
 }
 
+
+// CHECK: void test14() {
+// CHECK:     struct X {
+// CHECK:         union {
+// CHECK:             int x;
+// CHECK:         } x;
+// CHECK:     };
+// CHECK: }
+void test14() {
+  struct X { union { int x; } x; };
+}

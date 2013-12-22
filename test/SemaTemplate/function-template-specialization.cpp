@@ -1,6 +1,7 @@
 // RUN: %clang_cc1 -fsyntax-only -verify %s
 
-template<int N> void f0(int (&array)[N]);
+template <int N>
+void f0(int (&array)[N]); // expected-note {{candidate template ignored: could not match 'int' against 'char'}}
 
 // Simple function template specialization (using overloading)
 template<> void f0(int (&array)[1]);
@@ -46,3 +47,12 @@ namespace PR8295 {
   template <typename T> void f(T t) {}
   template <typename T> void f<T*>(T* t) {} // expected-error{{function template partial specialization is not allowed}}
 }
+
+class Foo {
+  template<class T>
+  static void Bar(const T& input);
+
+  // Don't crash here.
+  template<>
+  static void Bar(const long& input) {}  // expected-error{{explicit specialization of 'Bar' in class scope}}
+};

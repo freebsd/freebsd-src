@@ -55,11 +55,10 @@ NamedDecl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS,
                                            TemplateParams, 0,
                                            VS, ICIS_NoInit);
     if (FnD) {
-      Actions.ProcessDeclAttributeList(getCurScope(), FnD, AccessAttrs,
-                                       false, true);
+      Actions.ProcessDeclAttributeList(getCurScope(), FnD, AccessAttrs);
       bool TypeSpecContainsAuto = D.getDeclSpec().containsPlaceholderType();
       if (Init.isUsable())
-        Actions.AddInitializerToDecl(FnD, Init.get(), false, 
+        Actions.AddInitializerToDecl(FnD, Init.get(), false,
                                      TypeSpecContainsAuto);
       else
         Actions.ActOnUninitializedDecl(FnD, TypeSpecContainsAuto);
@@ -110,28 +109,27 @@ NamedDecl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS,
 
     return FnD;
   }
-
+  
   // In delayed template parsing mode, if we are within a class template
   // or if we are about to parse function member template then consume
   // the tokens and store them for parsing at the end of the translation unit.
-  if (getLangOpts().DelayedTemplateParsing && 
-      DefinitionKind == FDK_Definition && 
+  if (getLangOpts().DelayedTemplateParsing &&
+      DefinitionKind == FDK_Definition &&
+      !D.getDeclSpec().isConstexprSpecified() && 
+      !(FnD && getFunctionDecl(FnD) && 
+          getFunctionDecl(FnD)->getResultType()->getContainedAutoType()) &&
       ((Actions.CurContext->isDependentContext() ||
-        TemplateInfo.Kind != ParsedTemplateInfo::NonTemplate) && 
-        !Actions.IsInsideALocalClassWithinATemplateFunction())) {
+        (TemplateInfo.Kind != ParsedTemplateInfo::NonTemplate &&
+         TemplateInfo.Kind != ParsedTemplateInfo::ExplicitSpecialization)) &&
+       !Actions.IsInsideALocalClassWithinATemplateFunction())) {
+
+    CachedTokens Toks;
+    LexTemplateFunctionForLateParsing(Toks);
 
     if (FnD) {
-      LateParsedTemplatedFunction *LPT = new LateParsedTemplatedFunction(FnD);
-
       FunctionDecl *FD = getFunctionDecl(FnD);
       Actions.CheckForFunctionRedefinition(FD);
-
-      LateParsedTemplateMap[FD] = LPT;
-      Actions.MarkAsLateParsedTemplate(FD);
-      LexTemplateFunctionForLateParsing(LPT->Toks);
-    } else {
-      CachedTokens Toks;
-      LexTemplateFunctionForLateParsing(Toks);
+      Actions.MarkAsLateParsedTemplate(FD, FnD, Toks);
     }
 
     return FnD;
@@ -151,9 +149,9 @@ NamedDecl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS,
     // We didn't find the left-brace we expected after the
     // constructor initializer; we already printed an error, and it's likely
     // impossible to recover, so don't try to parse this method later.
-    // If we stopped at a semicolon, consume it to avoid an extra warning.
-     if (Tok.is(tok::semi))
-      ConsumeToken();
+    // Skip over the rest of the decl and back to somewhere that looks
+    // reasonable.
+    SkipMalformedDecl();
     delete getCurrentClass().LateParsedDeclarations.back();
     getCurrentClass().LateParsedDeclarations.pop_back();
     return FnD;
@@ -170,25 +168,26 @@ NamedDecl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS,
     }
   }
 
-
-  if (!FnD) {
+  if (FnD) {
+    // If this is a friend function, mark that it's late-parsed so that
+    // it's still known to be a definition even before we attach the
+    // parsed body.  Sema needs to treat friend function definitions
+    // differently during template instantiation, and it's possible for
+    // the containing class to be instantiated before all its member
+    // function definitions are parsed.
+    //
+    // If you remove this, you can remove the code that clears the flag
+    // after parsing the member.
+    if (D.getDeclSpec().isFriendSpecified()) {
+      FunctionDecl *FD = getFunctionDecl(FnD);
+      Actions.CheckForFunctionRedefinition(FD);
+      FD->setLateTemplateParsed(true);
+    }
+  } else {
     // If semantic analysis could not build a function declaration,
     // just throw away the late-parsed declaration.
     delete getCurrentClass().LateParsedDeclarations.back();
     getCurrentClass().LateParsedDeclarations.pop_back();
-  }
-
-  // If this is a friend function, mark that it's late-parsed so that
-  // it's still known to be a definition even before we attach the
-  // parsed body.  Sema needs to treat friend function definitions
-  // differently during template instantiation, and it's possible for
-  // the containing class to be instantiated before all its member
-  // function definitions are parsed.
-  //
-  // If you remove this, you can remove the code that clears the flag
-  // after parsing the member.
-  if (D.getDeclSpec().isFriendSpecified()) {
-    getFunctionDecl(FnD)->setLateTemplateParsed(true);
   }
 
   return FnD;
@@ -222,8 +221,7 @@ void Parser::ParseCXXNonStaticMemberInitializer(Decl *VarD) {
     ConsumeAndStoreUntil(tok::r_brace, Toks, /*StopAtSemi=*/true);
   } else {
     // Consume everything up to (but excluding) the comma or semicolon.
-    ConsumeAndStoreUntil(tok::comma, Toks, /*StopAtSemi=*/true,
-                         /*ConsumeFinalToken=*/false);
+    ConsumeAndStoreInitializer(Toks, CIK_DefaultInitializer);
   }
 
   // Store an artificial EOF token to ensure that we don't run off the end of
@@ -352,8 +350,15 @@ void Parser::ParseLexedMethodDeclaration(LateParsedMethodDeclaration &LM) {
       else {
         if (Tok.is(tok::cxx_defaultarg_end))
           ConsumeToken();
-        else
-          Diag(Tok.getLocation(), diag::err_default_arg_unparsed);
+        else {
+          // The last two tokens are the terminator and the saved value of
+          // Tok; the last token in the default argument is the one before
+          // those.
+          assert(Toks->size() >= 3 && "expected a token in default arg");
+          Diag(Tok.getLocation(), diag::err_default_arg_unparsed)
+            << SourceRange(Tok.getLocation(),
+                           (*Toks)[Toks->size() - 3].getLocation());
+        }
         Actions.ActOnParamDefaultArgument(LM.DefaultArgs[I].Param, EqualLoc,
                                           DefArgResult.take());
       }
@@ -653,83 +658,444 @@ bool Parser::ConsumeAndStoreUntil(tok::TokenKind T1, tok::TokenKind T2,
 /// the opening brace of the function body. The opening brace will be consumed
 /// if and only if there was no error.
 ///
-/// \return True on error. 
+/// \return True on error.
 bool Parser::ConsumeAndStoreFunctionPrologue(CachedTokens &Toks) {
   if (Tok.is(tok::kw_try)) {
     Toks.push_back(Tok);
     ConsumeToken();
   }
-  bool ReadInitializer = false;
-  if (Tok.is(tok::colon)) {
-    // Initializers can contain braces too.
+
+  if (Tok.isNot(tok::colon)) {
+    // Easy case, just a function body.
+
+    // Grab any remaining garbage to be diagnosed later. We stop when we reach a
+    // brace: an opening one is the function body, while a closing one probably
+    // means we've reached the end of the class.
+    ConsumeAndStoreUntil(tok::l_brace, tok::r_brace, Toks,
+                         /*StopAtSemi=*/true,
+                         /*ConsumeFinalToken=*/false);
+    if (Tok.isNot(tok::l_brace))
+      return Diag(Tok.getLocation(), diag::err_expected_lbrace);
+
     Toks.push_back(Tok);
-    ConsumeToken();
-
-    while (Tok.is(tok::identifier) || Tok.is(tok::coloncolon)) {
-      if (Tok.is(tok::eof) || Tok.is(tok::semi))
-        return Diag(Tok.getLocation(), diag::err_expected_lbrace);
-
-      // Grab the identifier.
-      if (!ConsumeAndStoreUntil(tok::l_paren, tok::l_brace, Toks,
-                                /*StopAtSemi=*/true,
-                                /*ConsumeFinalToken=*/false))
-        return Diag(Tok.getLocation(), diag::err_expected_lparen);
-
-      tok::TokenKind kind = Tok.getKind();
-      Toks.push_back(Tok);
-      bool IsLParen = (kind == tok::l_paren);
-      SourceLocation LOpen = Tok.getLocation();
-
-      if (IsLParen) {
-        ConsumeParen();
-      } else {
-        assert(kind == tok::l_brace && "Must be left paren or brace here.");
-        ConsumeBrace();
-        // In C++03, this has to be the start of the function body, which
-        // means the initializer is malformed; we'll diagnose it later.
-        if (!getLangOpts().CPlusPlus11)
-          return false;
-      }
-
-      // Grab the initializer
-      if (!ConsumeAndStoreUntil(IsLParen ? tok::r_paren : tok::r_brace,
-                                Toks, /*StopAtSemi=*/true)) {
-        Diag(Tok, IsLParen ? diag::err_expected_rparen :
-                             diag::err_expected_rbrace);
-        Diag(LOpen, diag::note_matching) << (IsLParen ? "(" : "{");
-        return true;
-      }
-
-      // Grab pack ellipsis, if present
-      if (Tok.is(tok::ellipsis)) {
-        Toks.push_back(Tok);
-        ConsumeToken();
-      }
-
-      // Grab the separating comma, if any.
-      if (Tok.is(tok::comma)) {
-        Toks.push_back(Tok);
-        ConsumeToken();
-      } else if (Tok.isNot(tok::l_brace)) {
-        ReadInitializer = true;
-        break;
-      }
-    }
-  }
-
-  // Grab any remaining garbage to be diagnosed later. We stop when we reach a
-  // brace: an opening one is the function body, while a closing one probably
-  // means we've reached the end of the class.
-  ConsumeAndStoreUntil(tok::l_brace, tok::r_brace, Toks,
-                       /*StopAtSemi=*/true,
-                       /*ConsumeFinalToken=*/false);
-  if (Tok.isNot(tok::l_brace)) {
-    if (ReadInitializer)
-      return Diag(Tok.getLocation(), diag::err_expected_lbrace_or_comma);
-    return Diag(Tok.getLocation(), diag::err_expected_lbrace);
+    ConsumeBrace();
+    return false;
   }
 
   Toks.push_back(Tok);
-  ConsumeBrace();
-  return false;
+  ConsumeToken();
+
+  // We can't reliably skip over a mem-initializer-id, because it could be
+  // a template-id involving not-yet-declared names. Given:
+  //
+  //   S ( ) : a < b < c > ( e )
+  //
+  // 'e' might be an initializer or part of a template argument, depending
+  // on whether 'b' is a template.
+
+  // Track whether we might be inside a template argument. We can give
+  // significantly better diagnostics if we know that we're not.
+  bool MightBeTemplateArgument = false;
+
+  while (true) {
+    // Skip over the mem-initializer-id, if possible.
+    if (Tok.is(tok::kw_decltype)) {
+      Toks.push_back(Tok);
+      SourceLocation OpenLoc = ConsumeToken();
+      if (Tok.isNot(tok::l_paren))
+        return Diag(Tok.getLocation(), diag::err_expected_lparen_after)
+                 << "decltype";
+      Toks.push_back(Tok);
+      ConsumeParen();
+      if (!ConsumeAndStoreUntil(tok::r_paren, Toks, /*StopAtSemi=*/true)) {
+        Diag(Tok.getLocation(), diag::err_expected_rparen);
+        Diag(OpenLoc, diag::note_matching) << "(";
+        return true;
+      }
+    }
+    do {
+      // Walk over a component of a nested-name-specifier.
+      if (Tok.is(tok::coloncolon)) {
+        Toks.push_back(Tok);
+        ConsumeToken();
+
+        if (Tok.is(tok::kw_template)) {
+          Toks.push_back(Tok);
+          ConsumeToken();
+        }
+      }
+
+      if (Tok.is(tok::identifier) || Tok.is(tok::kw_template)) {
+        Toks.push_back(Tok);
+        ConsumeToken();
+      } else if (Tok.is(tok::code_completion)) {
+        Toks.push_back(Tok);
+        ConsumeCodeCompletionToken();
+        // Consume the rest of the initializers permissively.
+        // FIXME: We should be able to perform code-completion here even if
+        //        there isn't a subsequent '{' token.
+        MightBeTemplateArgument = true;
+        break;
+      } else {
+        break;
+      }
+    } while (Tok.is(tok::coloncolon));
+
+    if (Tok.is(tok::less))
+      MightBeTemplateArgument = true;
+
+    if (MightBeTemplateArgument) {
+      // We may be inside a template argument list. Grab up to the start of the
+      // next parenthesized initializer or braced-init-list. This *might* be the
+      // initializer, or it might be a subexpression in the template argument
+      // list.
+      // FIXME: Count angle brackets, and clear MightBeTemplateArgument
+      //        if all angles are closed.
+      if (!ConsumeAndStoreUntil(tok::l_paren, tok::l_brace, Toks,
+                                /*StopAtSemi=*/true,
+                                /*ConsumeFinalToken=*/false)) {
+        // We're not just missing the initializer, we're also missing the
+        // function body!
+        return Diag(Tok.getLocation(), diag::err_expected_lbrace);
+      }
+    } else if (Tok.isNot(tok::l_paren) && Tok.isNot(tok::l_brace)) {
+      // We found something weird in a mem-initializer-id.
+      return Diag(Tok.getLocation(), getLangOpts().CPlusPlus11
+                                         ? diag::err_expected_lparen_or_lbrace
+                                         : diag::err_expected_lparen);
+    }
+
+    tok::TokenKind kind = Tok.getKind();
+    Toks.push_back(Tok);
+    bool IsLParen = (kind == tok::l_paren);
+    SourceLocation OpenLoc = Tok.getLocation();
+
+    if (IsLParen) {
+      ConsumeParen();
+    } else {
+      assert(kind == tok::l_brace && "Must be left paren or brace here.");
+      ConsumeBrace();
+      // In C++03, this has to be the start of the function body, which
+      // means the initializer is malformed; we'll diagnose it later.
+      if (!getLangOpts().CPlusPlus11)
+        return false;
+    }
+
+    // Grab the initializer (or the subexpression of the template argument).
+    // FIXME: If we support lambdas here, we'll need to set StopAtSemi to false
+    //        if we might be inside the braces of a lambda-expression.
+    if (!ConsumeAndStoreUntil(IsLParen ? tok::r_paren : tok::r_brace,
+                              Toks, /*StopAtSemi=*/true)) {
+      Diag(Tok, IsLParen ? diag::err_expected_rparen :
+                           diag::err_expected_rbrace);
+      Diag(OpenLoc, diag::note_matching) << (IsLParen ? "(" : "{");
+      return true;
+    }
+
+    // Grab pack ellipsis, if present.
+    if (Tok.is(tok::ellipsis)) {
+      Toks.push_back(Tok);
+      ConsumeToken();
+    }
+
+    // If we know we just consumed a mem-initializer, we must have ',' or '{'
+    // next.
+    if (Tok.is(tok::comma)) {
+      Toks.push_back(Tok);
+      ConsumeToken();
+    } else if (Tok.is(tok::l_brace)) {
+      // This is the function body if the ')' or '}' is immediately followed by
+      // a '{'. That cannot happen within a template argument, apart from the
+      // case where a template argument contains a compound literal:
+      //
+      //   S ( ) : a < b < c > ( d ) { }
+      //   // End of declaration, or still inside the template argument?
+      //
+      // ... and the case where the template argument contains a lambda:
+      //
+      //   S ( ) : a < 0 && b < c > ( d ) + [ ] ( ) { return 0; }
+      //     ( ) > ( ) { }
+      //
+      // FIXME: Disambiguate these cases. Note that the latter case is probably
+      //        going to be made ill-formed by core issue 1607.
+      Toks.push_back(Tok);
+      ConsumeBrace();
+      return false;
+    } else if (!MightBeTemplateArgument) {
+      return Diag(Tok.getLocation(), diag::err_expected_lbrace_or_comma);
+    }
+  }
+}
+
+/// \brief Consume and store tokens from the '?' to the ':' in a conditional
+/// expression.
+bool Parser::ConsumeAndStoreConditional(CachedTokens &Toks) {
+  // Consume '?'.
+  assert(Tok.is(tok::question));
+  Toks.push_back(Tok);
+  ConsumeToken();
+
+  while (Tok.isNot(tok::colon)) {
+    if (!ConsumeAndStoreUntil(tok::question, tok::colon, Toks, /*StopAtSemi*/true,
+                              /*ConsumeFinalToken*/false))
+      return false;
+
+    // If we found a nested conditional, consume it.
+    if (Tok.is(tok::question) && !ConsumeAndStoreConditional(Toks))
+      return false;
+  }
+
+  // Consume ':'.
+  Toks.push_back(Tok);
+  ConsumeToken();
+  return true;
+}
+
+/// \brief A tentative parsing action that can also revert token annotations.
+class Parser::UnannotatedTentativeParsingAction : public TentativeParsingAction {
+public:
+  explicit UnannotatedTentativeParsingAction(Parser &Self,
+                                             tok::TokenKind EndKind)
+      : TentativeParsingAction(Self), Self(Self), EndKind(EndKind) {
+    // Stash away the old token stream, so we can restore it once the
+    // tentative parse is complete.
+    TentativeParsingAction Inner(Self);
+    Self.ConsumeAndStoreUntil(EndKind, Toks, true, /*ConsumeFinalToken*/false);
+    Inner.Revert();
+  }
+
+  void RevertAnnotations() {
+    Revert();
+
+    // Put back the original tokens.
+    Self.SkipUntil(EndKind, StopAtSemi | StopBeforeMatch);
+    if (Toks.size()) {
+      Token *Buffer = new Token[Toks.size()];
+      std::copy(Toks.begin() + 1, Toks.end(), Buffer);
+      Buffer[Toks.size() - 1] = Self.Tok;
+      Self.PP.EnterTokenStream(Buffer, Toks.size(), true, /*Owned*/true);
+
+      Self.Tok = Toks.front();
+    }
+  }
+
+private:
+  Parser &Self;
+  CachedTokens Toks;
+  tok::TokenKind EndKind;
+};
+
+/// ConsumeAndStoreInitializer - Consume and store the token at the passed token
+/// container until the end of the current initializer expression (either a
+/// default argument or an in-class initializer for a non-static data member).
+/// The final token is not consumed.
+bool Parser::ConsumeAndStoreInitializer(CachedTokens &Toks,
+                                        CachedInitKind CIK) {
+  // We always want this function to consume at least one token if not at EOF.
+  bool IsFirstTokenConsumed = true;
+
+  // Number of possible unclosed <s we've seen so far. These might be templates,
+  // and might not, but if there were none of them (or we know for sure that
+  // we're within a template), we can avoid a tentative parse.
+  unsigned AngleCount = 0;
+  unsigned KnownTemplateCount = 0;
+
+  while (1) {
+    switch (Tok.getKind()) {
+    case tok::comma:
+      // If we might be in a template, perform a tentative parse to check.
+      if (!AngleCount)
+        // Not a template argument: this is the end of the initializer.
+        return true;
+      if (KnownTemplateCount)
+        goto consume_token;
+
+      // We hit a comma inside angle brackets. This is the hard case. The
+      // rule we follow is:
+      //  * For a default argument, if the tokens after the comma form a
+      //    syntactically-valid parameter-declaration-clause, in which each
+      //    parameter has an initializer, then this comma ends the default
+      //    argument.
+      //  * For a default initializer, if the tokens after the comma form a
+      //    syntactically-valid init-declarator-list, then this comma ends
+      //    the default initializer.
+      {
+        UnannotatedTentativeParsingAction PA(*this,
+                                             CIK == CIK_DefaultInitializer
+                                               ? tok::semi : tok::r_paren);
+        Sema::TentativeAnalysisScope Scope(Actions);
+
+        TPResult Result = TPResult::Error();
+        ConsumeToken();
+        switch (CIK) {
+        case CIK_DefaultInitializer:
+          Result = TryParseInitDeclaratorList();
+          // If we parsed a complete, ambiguous init-declarator-list, this
+          // is only syntactically-valid if it's followed by a semicolon.
+          if (Result == TPResult::Ambiguous() && Tok.isNot(tok::semi))
+            Result = TPResult::False();
+          break;
+
+        case CIK_DefaultArgument:
+          bool InvalidAsDeclaration = false;
+          Result = TryParseParameterDeclarationClause(
+              &InvalidAsDeclaration, /*VersusTemplateArgument*/true);
+          // If this is an expression or a declaration with a missing
+          // 'typename', assume it's not a declaration.
+          if (Result == TPResult::Ambiguous() && InvalidAsDeclaration)
+            Result = TPResult::False();
+          break;
+        }
+
+        // If what follows could be a declaration, it is a declaration.
+        if (Result != TPResult::False() && Result != TPResult::Error()) {
+          PA.Revert();
+          return true;
+        }
+
+        // In the uncommon case that we decide the following tokens are part
+        // of a template argument, revert any annotations we've performed in
+        // those tokens. We're not going to look them up until we've parsed
+        // the rest of the class, and that might add more declarations.
+        PA.RevertAnnotations();
+      }
+
+      // Keep going. We know we're inside a template argument list now.
+      ++KnownTemplateCount;
+      goto consume_token;
+
+    case tok::eof:
+      // Ran out of tokens.
+      return false;
+
+    case tok::less:
+      // FIXME: A '<' can only start a template-id if it's preceded by an
+      // identifier, an operator-function-id, or a literal-operator-id.
+      ++AngleCount;
+      goto consume_token;
+
+    case tok::question:
+      // In 'a ? b : c', 'b' can contain an unparenthesized comma. If it does,
+      // that is *never* the end of the initializer. Skip to the ':'.
+      if (!ConsumeAndStoreConditional(Toks))
+        return false;
+      break;
+
+    case tok::greatergreatergreater:
+      if (!getLangOpts().CPlusPlus11)
+        goto consume_token;
+      if (AngleCount) --AngleCount;
+      if (KnownTemplateCount) --KnownTemplateCount;
+      // Fall through.
+    case tok::greatergreater:
+      if (!getLangOpts().CPlusPlus11)
+        goto consume_token;
+      if (AngleCount) --AngleCount;
+      if (KnownTemplateCount) --KnownTemplateCount;
+      // Fall through.
+    case tok::greater:
+      if (AngleCount) --AngleCount;
+      if (KnownTemplateCount) --KnownTemplateCount;
+      goto consume_token;
+
+    case tok::kw_template:
+      // 'template' identifier '<' is known to start a template argument list,
+      // and can be used to disambiguate the parse.
+      // FIXME: Support all forms of 'template' unqualified-id '<'.
+      Toks.push_back(Tok);
+      ConsumeToken();
+      if (Tok.is(tok::identifier)) {
+        Toks.push_back(Tok);
+        ConsumeToken();
+        if (Tok.is(tok::less)) {
+          ++KnownTemplateCount;
+          Toks.push_back(Tok);
+          ConsumeToken();
+        }
+      }
+      break;
+
+    case tok::kw_operator:
+      // If 'operator' precedes other punctuation, that punctuation loses
+      // its special behavior.
+      Toks.push_back(Tok);
+      ConsumeToken();
+      switch (Tok.getKind()) {
+      case tok::comma:
+      case tok::greatergreatergreater:
+      case tok::greatergreater:
+      case tok::greater:
+      case tok::less:
+        Toks.push_back(Tok);
+        ConsumeToken();
+        break;
+      default:
+        break;
+      }
+      break;
+
+    case tok::l_paren:
+      // Recursively consume properly-nested parens.
+      Toks.push_back(Tok);
+      ConsumeParen();
+      ConsumeAndStoreUntil(tok::r_paren, Toks, /*StopAtSemi=*/false);
+      break;
+    case tok::l_square:
+      // Recursively consume properly-nested square brackets.
+      Toks.push_back(Tok);
+      ConsumeBracket();
+      ConsumeAndStoreUntil(tok::r_square, Toks, /*StopAtSemi=*/false);
+      break;
+    case tok::l_brace:
+      // Recursively consume properly-nested braces.
+      Toks.push_back(Tok);
+      ConsumeBrace();
+      ConsumeAndStoreUntil(tok::r_brace, Toks, /*StopAtSemi=*/false);
+      break;
+
+    // Okay, we found a ']' or '}' or ')', which we think should be balanced.
+    // Since the user wasn't looking for this token (if they were, it would
+    // already be handled), this isn't balanced.  If there is a LHS token at a
+    // higher level, we will assume that this matches the unbalanced token
+    // and return it.  Otherwise, this is a spurious RHS token, which we skip.
+    case tok::r_paren:
+      if (CIK == CIK_DefaultArgument)
+        return true; // End of the default argument.
+      if (ParenCount && !IsFirstTokenConsumed)
+        return false;  // Matches something.
+      goto consume_token;
+    case tok::r_square:
+      if (BracketCount && !IsFirstTokenConsumed)
+        return false;  // Matches something.
+      goto consume_token;
+    case tok::r_brace:
+      if (BraceCount && !IsFirstTokenConsumed)
+        return false;  // Matches something.
+      goto consume_token;
+
+    case tok::code_completion:
+      Toks.push_back(Tok);
+      ConsumeCodeCompletionToken();
+      break;
+
+    case tok::string_literal:
+    case tok::wide_string_literal:
+    case tok::utf8_string_literal:
+    case tok::utf16_string_literal:
+    case tok::utf32_string_literal:
+      Toks.push_back(Tok);
+      ConsumeStringToken();
+      break;
+    case tok::semi:
+      if (CIK == CIK_DefaultInitializer)
+        return true; // End of the default initializer.
+      // FALL THROUGH.
+    default:
+    consume_token:
+      Toks.push_back(Tok);
+      ConsumeToken();
+      break;
+    }
+    IsFirstTokenConsumed = false;
+  }
 }

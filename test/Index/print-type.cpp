@@ -29,6 +29,16 @@ T tbar(int);
 template <typename T>
 T tbar(int[5]);
 
+template <typename T, int size>
+T tbar(int[size]);
+
+void foo(int i, int incomplete_array[]) { int variable_array[i]; }
+
+struct Blob {
+  int i;
+};
+int Blob::*member_pointer;
+
 // RUN: c-index-test -test-print-type %s | FileCheck %s
 // CHECK: Namespace=outer:1:11 (Definition) [type=] [typekind=Invalid] [isPOD=0]
 // CHECK: ClassTemplate=Foo:4:8 (Definition) [type=] [typekind=Invalid] [isPOD=0]
@@ -64,3 +74,8 @@ T tbar(int[5]);
 // CHECK: TemplateTypeParameter=T:26:20 (Definition) [type=T] [typekind=Unexposed] [canonicaltype=type-parameter-0-0] [canonicaltypekind=Unexposed] [isPOD=0]
 // CHECK: FunctionTemplate=tbar:30:3 [type=T (int *)] [typekind=FunctionProto] [canonicaltype=type-parameter-0-0 (int *)] [canonicaltypekind=FunctionProto] [resulttype=T] [resulttypekind=Unexposed] [isPOD=0]
 // CHECK: ParmDecl=:30:11 (Definition) [type=int [5]] [typekind=ConstantArray] [isPOD=1]
+// CHECK: FunctionTemplate=tbar:33:3 [type=T (int *)] [typekind=FunctionProto] [canonicaltype=type-parameter-0-0 (int *)] [canonicaltypekind=FunctionProto] [resulttype=T] [resulttypekind=Unexposed] [isPOD=0]
+// CHECK: ParmDecl=:33:11 (Definition) [type=int [size]] [typekind=DependentSizedArray] [isPOD=0]
+// CHECK: ParmDecl=incomplete_array:35:21 (Definition) [type=int []] [typekind=IncompleteArray] [isPOD=1]
+// CHECK: VarDecl=variable_array:35:47 (Definition) [type=int [i]] [typekind=VariableArray] [isPOD=1]
+// CHECK: VarDecl=member_pointer:40:12 (Definition) [type=int Blob::*] [typekind=MemberPointer] [isPOD=1]

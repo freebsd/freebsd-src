@@ -2,7 +2,7 @@
 // This test needs to set the target because it uses __builtin_ia32_vec_ext_v4si
 
 int test1(float a, int b) {
-  return __builtin_isless(a, b);
+  return __builtin_isless(a, b); // expected-note {{declared here}}
 }
 int test2(int a, int b) {
   return __builtin_islessequal(a, b);  // expected-error {{floating point type}}
@@ -190,4 +190,10 @@ void test18() {
   ptr = __builtin___memccpy_chk(dst, src, '\037', sizeof(src));      // expected-error {{too few arguments to function call}}
   ptr = __builtin___strlcpy_chk(dst, src, sizeof(src), sizeof(dst)); // expected-warning {{incompatible integer to pointer conversion}}
   ptr = __builtin___strlcat_chk(dst, src, sizeof(src), sizeof(dst)); // expected-warning {{incompatible integer to pointer conversion}}
+}
+
+void no_ms_builtins() {
+  __assume(1); // expected-warning {{implicit declaration}}
+  __noop(1); // expected-warning {{implicit declaration}}
+  __debugbreak(); // expected-warning {{implicit declaration}}
 }

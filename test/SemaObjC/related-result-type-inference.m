@@ -173,7 +173,7 @@ void test_inference() {
 @interface Fail @end
 @protocol X @end
 @implementation Fail
-- (id<X>) initWithX
+- (id<X>) initWithX // expected-note {{compiler has implicitly changed method 'initWithX' return type}}
 {
   return (id)self; // expected-warning {{casting 'Fail *' to incompatible type 'id<X>'}}
 }
@@ -183,4 +183,20 @@ void test_inference() {
 
 @interface WeirdNSString : NSString
 - (id)initWithCString:(const char*)string, void *blah;
+@end
+
+
+// rdar://14121570
+@protocol PMFilterManager
+@end
+
+@interface UIViewController : NSObject
+@end
+
+@implementation UIViewController
++ (UIViewController<PMFilterManager> *)newFilterViewControllerForType // expected-note {{compiler has implicitly changed method 'newFilterViewControllerForType' return type}}
+{
+        UIViewController<PMFilterManager> *filterVC;
+        return filterVC; // expected-warning {{incompatible pointer types casting 'UIViewController *' to type 'UIViewController<PMFilterManager> *'}}
+}
 @end

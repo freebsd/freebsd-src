@@ -8,8 +8,10 @@
 #define PT_GUARDED_VAR      __attribute__ ((pt_guarded_var))
 #define ACQUIRED_AFTER(...) __attribute__ ((acquired_after(__VA_ARGS__)))
 #define ACQUIRED_BEFORE(...) __attribute__ ((acquired_before(__VA_ARGS__)))
-#define EXCLUSIVE_LOCK_FUNCTION(...)   __attribute__ ((exclusive_lock_function(__VA_ARGS__)))
-#define SHARED_LOCK_FUNCTION(...)      __attribute__ ((shared_lock_function(__VA_ARGS__)))
+#define EXCLUSIVE_LOCK_FUNCTION(...)    __attribute__ ((exclusive_lock_function(__VA_ARGS__)))
+#define SHARED_LOCK_FUNCTION(...)       __attribute__ ((shared_lock_function(__VA_ARGS__)))
+#define ASSERT_EXCLUSIVE_LOCK(...)      __attribute__ ((assert_exclusive_lock(__VA_ARGS__)))
+#define ASSERT_SHARED_LOCK(...)         __attribute__ ((assert_shared_lock(__VA_ARGS__)))
 #define EXCLUSIVE_TRYLOCK_FUNCTION(...) __attribute__ ((exclusive_trylock_function(__VA_ARGS__)))
 #define SHARED_TRYLOCK_FUNCTION(...)    __attribute__ ((shared_trylock_function(__VA_ARGS__)))
 #define UNLOCK_FUNCTION(...)            __attribute__ ((unlock_function(__VA_ARGS__)))
@@ -24,7 +26,15 @@
 
 class LOCKABLE Mutex {
   public:
-  void Lock();
+  void Lock()          EXCLUSIVE_LOCK_FUNCTION();
+  void ReaderLock()    SHARED_LOCK_FUNCTION();
+  void Unlock()        UNLOCK_FUNCTION();
+
+  bool TryLock()       EXCLUSIVE_TRYLOCK_FUNCTION(true);
+  bool ReaderTryLock() SHARED_TRYLOCK_FUNCTION(true);
+
+  void AssertHeld()       ASSERT_EXCLUSIVE_LOCK();
+  void AssertReaderHeld() ASSERT_SHARED_LOCK();
 };
 
 class UnlockableMu{
@@ -93,7 +103,7 @@ class Bar {
 void noanal_fun() NO_THREAD_SAFETY_ANALYSIS;
 
 void noanal_fun_args() __attribute__((no_thread_safety_analysis(1))); // \
-  // expected-error {{attribute takes no arguments}}
+  // expected-error {{'no_thread_safety_analysis' attribute takes no arguments}}
 
 int noanal_testfn(int y) NO_THREAD_SAFETY_ANALYSIS;
 
@@ -132,13 +142,13 @@ void noanal_fun_params(int lvar NO_THREAD_SAFETY_ANALYSIS); // \
 int gv_var_noargs GUARDED_VAR;
 
 int gv_var_args __attribute__((guarded_var(1))); // \
-  // expected-error {{attribute takes no arguments}}
+  // expected-error {{'guarded_var' attribute takes no arguments}}
 
 class GVFoo {
  private:
   int gv_field_noargs GUARDED_VAR;
   int gv_field_args __attribute__((guarded_var(1))); // \
-    // expected-error {{attribute takes no arguments}}
+    // expected-error {{'guarded_var' attribute takes no arguments}}
 };
 
 class GUARDED_VAR GV { // \
@@ -178,7 +188,7 @@ class PGVFoo {
   int field_noargs PT_GUARDED_VAR; // \
     // expected-warning {{'pt_guarded_var' only applies to pointer types; type here is 'int'}}
   int *gv_field_args __attribute__((pt_guarded_var(1))); // \
-    // expected-error {{attribute takes no arguments}}
+    // expected-error {{'pt_guarded_var' attribute takes no arguments}}
 };
 
 class PT_GUARDED_VAR PGV { // \
@@ -186,7 +196,7 @@ class PT_GUARDED_VAR PGV { // \
 };
 
 int *pgv_var_args __attribute__((pt_guarded_var(1))); // \
-  // expected-error {{attribute takes no arguments}}
+  // expected-error {{'pt_guarded_var' attribute takes no arguments}}
 
 
 void pgv_function() PT_GUARDED_VAR; // \
@@ -215,7 +225,7 @@ class LOCKABLE LTestClass {
 };
 
 class __attribute__((lockable (1))) LTestClass_args { // \
-    // expected-error {{attribute takes no arguments}}
+    // expected-error {{'lockable' attribute takes no arguments}}
 };
 
 void l_test_function() LOCKABLE;  // \
@@ -255,7 +265,7 @@ class SCOPED_LOCKABLE SLTestClass {
 };
 
 class __attribute__((scoped_lockable (1))) SLTestClass_args { // \
-  // expected-error {{attribute takes no arguments}}
+  // expected-error {{'scoped_lockable' attribute takes no arguments}}
 };
 
 void sl_test_function() SCOPED_LOCKABLE;  // \
@@ -297,16 +307,18 @@ void sl_function_params(int lvar SCOPED_LOCKABLE); // \
 
 int gb_var_arg GUARDED_BY(mu1);
 
+int gb_non_ascii GUARDED_BY(L"wide"); // expected-warning {{ignoring 'guarded_by' attribute because its argument is invalid}}
+
 int gb_var_args __attribute__((guarded_by(mu1, mu2))); // \
-  // expected-error {{attribute takes one argument}}
+  // expected-error {{'guarded_by' attribute takes one argument}}
 
 int gb_var_noargs __attribute__((guarded_by)); // \
-  // expected-error {{attribute takes one argument}}
+  // expected-error {{'guarded_by' attribute takes one argument}}
 
 class GBFoo {
  private:
   int gb_field_noargs __attribute__((guarded_by)); // \
-    // expected-error {{attribute takes one argument}}
+    // expected-error {{'guarded_by' attribute takes one argument}}
   int gb_field_args GUARDED_BY(mu1);
 };
 
@@ -364,12 +376,12 @@ int gb_var_arg_bad_4 GUARDED_BY(umu); // \
 //1. Check applied to the right types & argument number
 
 int *pgb_var_noargs __attribute__((pt_guarded_by)); // \
-  // expected-error {{attribute takes one argument}}
+  // expected-error {{'pt_guarded_by' attribute takes one argument}}
 
 int *pgb_ptr_var_arg PT_GUARDED_BY(mu1);
 
 int *pgb_ptr_var_args __attribute__((pt_guarded_by(mu1, mu2))); // \
-  // expected-error {{attribute takes one argument}}
+  // expected-error {{'pt_guarded_by' attribute takes one argument}}
 
 int pgb_var_args PT_GUARDED_BY(mu1); // \
   // expected-warning {{'pt_guarded_by' only applies to pointer types; type here is 'int'}}
@@ -377,7 +389,7 @@ int pgb_var_args PT_GUARDED_BY(mu1); // \
 class PGBFoo {
  private:
   int *pgb_field_noargs __attribute__((pt_guarded_by)); // \
-    // expected-error {{attribute takes one argument}}
+    // expected-error {{'pt_guarded_by' attribute takes one argument}}
   int *pgb_field_args PT_GUARDED_BY(mu1);
 };
 
@@ -750,11 +762,11 @@ int etf_function_9() EXCLUSIVE_TRYLOCK_FUNCTION(true);
 
 // illegal attribute arguments
 int etf_function_bad_1() EXCLUSIVE_TRYLOCK_FUNCTION(mu1); // \
-  // expected-error {{'exclusive_trylock_function' attribute first argument must be of int or bool type}}
+  // expected-error {{'exclusive_trylock_function' attribute requires parameter 1 to be int or bool}}
 int etf_function_bad_2() EXCLUSIVE_TRYLOCK_FUNCTION("mu"); // \
-  // expected-error {{'exclusive_trylock_function' attribute first argument must be of int or bool type}}
+  // expected-error {{'exclusive_trylock_function' attribute requires parameter 1 to be int or bool}}
 int etf_function_bad_3() EXCLUSIVE_TRYLOCK_FUNCTION(muDoublePointer); // \
-  // expected-error {{'exclusive_trylock_function' attribute first argument must be of int or bool type}}
+  // expected-error {{'exclusive_trylock_function' attribute requires parameter 1 to be int or bool}}
 
 int etf_function_bad_4() EXCLUSIVE_TRYLOCK_FUNCTION(1, "mu"); // \
   // expected-warning {{ignoring 'exclusive_trylock_function' attribute because its argument is invalid}}
@@ -824,11 +836,11 @@ int stf_function_9() SHARED_TRYLOCK_FUNCTION(true);
 
 // illegal attribute arguments
 int stf_function_bad_1() SHARED_TRYLOCK_FUNCTION(mu1); // \
-  // expected-error {{'shared_trylock_function' attribute first argument must be of int or bool type}}
+  // expected-error {{'shared_trylock_function' attribute requires parameter 1 to be int or bool}}
 int stf_function_bad_2() SHARED_TRYLOCK_FUNCTION("mu"); // \
-  // expected-error {{'shared_trylock_function' attribute first argument must be of int or bool type}}
+  // expected-error {{'shared_trylock_function' attribute requires parameter 1 to be int or bool}}
 int stf_function_bad_3() SHARED_TRYLOCK_FUNCTION(muDoublePointer); // \
-  // expected-error {{'shared_trylock_function' attribute first argument must be of int or bool type}}
+  // expected-error {{'shared_trylock_function' attribute requires parameter 1 to be int or bool}}
 
 int stf_function_bad_4() SHARED_TRYLOCK_FUNCTION(1, "mu"); // \
   // expected-warning {{ignoring 'shared_trylock_function' attribute because its argument is invalid}}
@@ -921,12 +933,12 @@ int uf_function_bad_7() UNLOCK_FUNCTION(0); // \
 // Takes exactly one argument, a var/field
 
 void lr_function() __attribute__((lock_returned)); // \
-  // expected-error {{attribute takes one argument}}
+  // expected-error {{'lock_returned' attribute takes one argument}}
 
 void lr_function_arg() LOCK_RETURNED(mu1);
 
 void lr_function_args() __attribute__((lock_returned(mu1, mu2))); // \
-  // expected-error {{attribute takes one argument}}
+  // expected-error {{'lock_returned' attribute takes one argument}}
 
 int lr_testfn(int y) LOCK_RETURNED(mu1);
 

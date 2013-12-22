@@ -1,6 +1,6 @@
 // RUN: %clang_cc1 -fcxx-exceptions -fexceptions -triple x86_64-apple-darwin10 -emit-llvm %s -o - > %t
-// RUN: FileCheck %s -check-prefix=1 < %t
-// RUN: FileCheck %s -check-prefix=2 < %t
+// RUN: FileCheck %s -check-prefix=CHECK-1 < %t
+// RUN: FileCheck %s -check-prefix=CHECK-2 < %t
 
 int f();
 
@@ -28,12 +28,12 @@ namespace {
     struct E : public virtual EBase { virtual ~E() {} };
   };
 
-  // CHECK-1: define internal i32 @_ZN12_GLOBAL__N_13fooEv()
+  // CHECK-1-LABEL: define internal i32 @_ZN12_GLOBAL__N_13fooEv()
   int foo() {
     return 32;
   }
 
-  // CHECK-1: define internal i32 @_ZN12_GLOBAL__N_11A3fooEv()
+  // CHECK-1-LABEL: define internal i32 @_ZN12_GLOBAL__N_11A3fooEv()
   namespace A {
     int foo() {
       return 45;
@@ -58,11 +58,20 @@ namespace test2 {
     struct C;
   }
 
-  // CHECK-2: define void @_ZN5test24testEv()
+  // CHECK-2-LABEL: define void @_ZN5test24testEv()
   // CHECK-2:   call void @_ZN5test21A1BINS_12_GLOBAL__N_11CEE3fooEv()
   void test() {
     A::B<C>::foo();
   }
 
-  // CHECK-2: define internal void @_ZN5test21A1BINS_12_GLOBAL__N_11CEE3fooEv()
+  // CHECK-2-LABEL: define internal void @_ZN5test21A1BINS_12_GLOBAL__N_11CEE3fooEv()
 }
+
+namespace {
+
+int bar() {
+  extern int a;
+  return a;
+}
+
+} // namespace

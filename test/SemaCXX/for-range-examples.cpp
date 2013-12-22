@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s -std=c++11
+// RUN: %clang_cc1 -fsyntax-only -verify %s -std=c++11 
 
 namespace value_range_detail {
   template<typename T>
@@ -178,5 +178,34 @@ namespace test4 {
     for (: {1, 2, 3}) {} // expected-error {{expected expression}} expected-error {{expected ';'}}
     for (x : {1, 2, 3}) {} // expected-error {{undeclared identifier}} expected-error {{expected ';'}}
     for (y : {1, 2, 3}) {} // expected-error {{must declare a variable}} expected-warning {{result unused}}
+  }
+}
+
+namespace test5 {
+  // Test error-recovery.
+  void f() {
+    for (auto x : undeclared_identifier) // expected-error {{undeclared identifier}}
+      for (auto y : x->foo)
+        y->bar();
+    for (auto x : 123) // expected-error {{no viable 'begin'}}
+      x->foo();
+  }
+}
+
+namespace test6 {
+  void foo(int arr[]) {  // expected-note {{declared here}}
+    for (auto i : arr) { }
+      // expected-error@-1 {{cannot build range expression with array function parameter 'arr' since parameter with array type 'int []' is treated as pointer type 'int *'}}
+  }
+
+  struct vector {
+    int *begin() { return 0; }
+    int *end() { return 0; }
+  };
+
+  void foo(vector arr[]) {  // expected-note {{declared here}}
+    // Don't suggest to dereference arr.
+    for (auto i : arr) { }
+      // expected-error@-1 {{cannot build range expression with array function parameter 'arr' since parameter with array type 'test6::vector []' is treated as pointer type 'test6::vector *'}}
   }
 }

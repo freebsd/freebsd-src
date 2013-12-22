@@ -72,7 +72,7 @@ namespace PR7114 {
   int f() { return B<int>::value; }
 
   void test_typeid(B<float>::Inner bfi) {
-    (void)typeid(bfi); // expected-note{{implicit default destructor}}
+    (void)typeid(bfi); // expected-note{{implicit destructor}}
   }
 
   template<typename T>
@@ -83,4 +83,16 @@ namespace PR7114 {
   void test_X(X<int> xi, X<float> xf) {
     xi.f();
   }
+}
+
+namespace DynamicCast {
+  struct Y {};
+  template<typename T> struct X : virtual Y {
+    virtual void foo() { T x; } // expected-error {{variable has incomplete type 'void'}}
+  };
+  template<typename T> struct X2 : virtual Y {
+    virtual void foo() { T x; }
+  };
+  Y* f(X<void>* x) { return dynamic_cast<Y*>(x); } // expected-note {{in instantiation of member function 'DynamicCast::X<void>::foo' requested here}}
+  Y* f2(X<void>* x) { return dynamic_cast<Y*>(x); }
 }

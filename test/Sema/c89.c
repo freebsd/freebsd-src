@@ -90,7 +90,7 @@ void test16() {
   printg("Hello, world!\n"); /* expected-warning {{implicit declaration of function 'printg'}} */
 }
 
-struct x { int x,y[]; }; /* expected-warning {{Flexible array members are a C99-specific feature}} */
+struct x { int x,y[]; }; /* expected-warning {{flexible array members are a C99 feature}} */
 
 /* Duplicated type-qualifiers aren't allowed by C90 */
 const const int c_i; /* expected-warning {{duplicate 'const' declaration specifier}} */
@@ -115,4 +115,13 @@ long long ll1 = /* expected-warning {{'long long' is an extension when C99 mode 
          -42LL; /* expected-warning {{'long long' is an extension when C99 mode is not enabled}} */
 unsigned long long ull1 = /* expected-warning {{'long long' is an extension when C99 mode is not enabled}} */
                    42ULL; /* expected-warning {{'long long' is an extension when C99 mode is not enabled}} */
+
+struct Test17 { int a; };
+struct Test17 test17_aux(void);
+
+void test17(int v, int w) {
+  int a[2] = { v, w }; /* expected-warning {{initializer for aggregate is not a compile-time constant}} */
+  struct Test17 t0 = { v }; /* expected-warning {{initializer for aggregate is not a compile-time constant}} */
+  struct Test17 t1 = test17_aux(); /* this is allowed */
+}
 

@@ -16,21 +16,21 @@ LINK_LIBS_IN_SHARED = 1
 SHARED_LIBRARY = 1
 
 include $(CLANG_LEVEL)/../../Makefile.config
-LINK_COMPONENTS := $(TARGETS_TO_BUILD) asmparser bitreader support mc
-USEDLIBS = clangFrontend.a clangDriver.a \
+LINK_COMPONENTS := $(TARGETS_TO_BUILD) asmparser bitreader support mc option
+USEDLIBS = clangIndex.a clangFrontend.a clangDriver.a \
 	   clangTooling.a \
 	   clangSerialization.a \
 	   clangParse.a clangSema.a \
 	   clangARCMigrate.a clangRewriteFrontend.a clangRewriteCore.a \
 	   clangAnalysis.a clangEdit.a \
 	   clangAST.a clangLex.a clangBasic.a \
-	   clangFormat.a 
+	   clangFormat.a
 
 include $(CLANG_LEVEL)/Makefile
 
 # Add soname to the library.
-ifeq ($(HOST_OS), $(filter $(HOST_OS), Linux FreeBSD GNU))
-        LDFLAGS += -Wl,-soname,lib$(LIBRARYNAME)$(SHLIBEXT)
+ifeq ($(HOST_OS), $(filter $(HOST_OS), Linux FreeBSD GNU GNU/kFreeBSD))
+        LLVMLibsOptions += -Wl,-soname,lib$(LIBRARYNAME)$(SHLIBEXT)
 endif
 
 ##===----------------------------------------------------------------------===##

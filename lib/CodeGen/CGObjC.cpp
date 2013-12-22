@@ -20,6 +20,7 @@
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/Basic/Diagnostic.h"
+#include "clang/CodeGen/CGFunctionInfo.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/IR/DataLayout.h"
@@ -468,8 +469,8 @@ void CodeGenFunction::StartObjCMethod(const ObjCMethodDecl *OMD,
                                       SourceLocation StartLoc) {
   FunctionArgList args;
   // Check if we should generate debug info for this method.
-  if (!OMD->hasAttr<NoDebugAttr>())
-    maybeInitializeDebugInfo();
+  if (OMD->hasAttr<NoDebugAttr>())
+    DebugInfo = NULL; // disable debug info indefinitely for this function
 
   llvm::Function *Fn = CGM.getObjCRuntime().GenerateMethod(OMD, CD);
 
@@ -925,7 +926,7 @@ CodeGenFunction::generateObjCGetterBody(const ObjCImplementationDecl *classImpl,
     QualType ivarType = ivar->getType();
     switch (getEvaluationKind(ivarType)) {
     case TEK_Complex: {
-      ComplexPairTy pair = EmitLoadOfComplex(LV);
+      ComplexPairTy pair = EmitLoadOfComplex(LV, SourceLocation());
       EmitStoreOfComplex(pair,
                          MakeNaturalAlignAddrLValue(ReturnValue, ivarType),
                          /*init*/ true);
@@ -949,7 +950,7 @@ CodeGenFunction::generateObjCGetterBody(const ObjCImplementationDecl *classImpl,
         // Otherwise we want to do a simple load, suppressing the
         // final autorelease.
         } else {
-          value = EmitLoadOfLValue(LV).getScalarVal();
+          value = EmitLoadOfLValue(LV, SourceLocation()).getScalarVal();
           AutoreleaseResult = false;
         }
 
@@ -1048,8 +1049,6 @@ static void emitCPPObjectAtomicSetterCall(CodeGenFunction &CGF,
                                                       FunctionType::ExtInfo(),
                                                       RequiredArgs::All),
                copyCppAtomicObjectFn, ReturnValueSlot(), args);
-  
-
 }
 
 
@@ -1404,7 +1403,7 @@ llvm::Value *CodeGenFunction::LoadObjCSelf() {
   VarDecl *Self = cast<ObjCMethodDecl>(CurFuncDecl)->getSelfDecl();
   DeclRefExpr DRE(Self, /*is enclosing local*/ (CurFuncDecl != CurCodeDecl),
                   Self->getType(), VK_LValue, SourceLocation());
-  return EmitLoadOfScalar(EmitDeclRefLValue(&DRE));
+  return EmitLoadOfScalar(EmitDeclRefLValue(&DRE), SourceLocation());
 }
 
 QualType CodeGenFunction::TypeOfSelfObject() {
@@ -2084,7 +2083,7 @@ llvm::Value *CodeGenFunction::EmitARCStoreStrong(LValue dst,
   newValue = EmitARCRetain(type, newValue);
 
   // Read the old value.
-  llvm::Value *oldValue = EmitLoadOfScalar(dst);
+  llvm::Value *oldValue = EmitLoadOfScalar(dst, SourceLocation());
 
   // Store.  We do this before the release so that any deallocs won't
   // see the old value.
@@ -2355,7 +2354,8 @@ static TryEmitResult tryEmitARCRetainLoadOfScalar(CodeGenFunction &CGF,
   case Qualifiers::OCL_ExplicitNone:
   case Qualifiers::OCL_Strong:
   case Qualifiers::OCL_Autoreleasing:
-    return TryEmitResult(CGF.EmitLoadOfLValue(lvalue).getScalarVal(),
+    return TryEmitResult(CGF.EmitLoadOfLValue(lvalue,
+                                              SourceLocation()).getScalarVal(),
                          false);
 
   case Qualifiers::OCL_Weak:
@@ -2381,7 +2381,8 @@ static TryEmitResult tryEmitARCRetainLoadOfScalar(CodeGenFunction &CGF,
     LValue lv = CGF.EmitLValue(e);
     
     // Load the object pointer.
-    llvm::Value *result = CGF.EmitLoadOfLValue(lv).getScalarVal();
+    llvm::Value *result = CGF.EmitLoadOfLValue(lv,
+                                               SourceLocation()).getScalarVal();
     
     // Set the source pointer to NULL.
     CGF.EmitStoreOfScalar(getNullForVariable(lv.getAddress()), lv);
@@ -2784,8 +2785,7 @@ CodeGenFunction::EmitARCStoreStrong(const BinaryOperator *e,
 
   // If the RHS was emitted retained, expand this.
   if (hasImmediateRetain) {
-    llvm::Value *oldValue =
-      EmitLoadOfScalar(lvalue);
+    llvm::Value *oldValue = EmitLoadOfScalar(lvalue, SourceLocation());
     EmitStoreOfScalar(value, lvalue);
     EmitARCRelease(oldValue, lvalue.isARCPreciseLifetime());
   } else {
@@ -2905,9 +2905,6 @@ CodeGenFunction::GenerateObjCAtomicSetterCopyHelperFunction(
                            "__assign_helper_atomic_property_",
                            &CGM.getModule());
   
-  // Initialize debug info if needed.
-  maybeInitializeDebugInfo();
-  
   StartFunction(FD, C.VoidTy, Fn, FI, args, SourceLocation());
   
   DeclRefExpr DstExpr(&dstDecl, false, DestTy,
@@ -2987,9 +2984,6 @@ CodeGenFunction::GenerateObjCAtomicGetterCopyHelperFunction(
   llvm::Function *Fn =
   llvm::Function::Create(LTy, llvm::GlobalValue::InternalLinkage,
                          "__copy_helper_atomic_property_", &CGM.getModule());
-  
-  // Initialize debug info if needed.
-  maybeInitializeDebugInfo();
   
   StartFunction(FD, C.VoidTy, Fn, FI, args, SourceLocation());
   

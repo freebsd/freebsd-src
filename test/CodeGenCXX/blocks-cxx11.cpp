@@ -46,7 +46,7 @@ namespace test_complex_int {
   void test() {
     constexpr _Complex int x = 500;
     takeABlock(^{ takeItByValue(x); });
-    // CHECK:      store i32 500,
+    // CHECK:      store { i32, i32 } { i32 500, i32 0 },
 
     // CHECK:      store i32 500,
     // CHECK-NEXT: store i32 0,
@@ -100,7 +100,7 @@ namespace test_block_in_lambda {
     };
     lambda(); // make sure we emit the invocation function
   }
-  // CHECK:    define internal void @"_ZZN20test_block_in_lambda4testENS_1AEENK3$_0clEv"(
+  // CHECK-LABEL:    define internal void @"_ZZN20test_block_in_lambda4testENS_1AEENK3$_0clEv"(
   // CHECK:      [[BLOCK:%.*]] = alloca [[BLOCK_T:<{.*}>]], align 8
   // CHECK:      [[THIS:%.*]] = load [[LAMBDA_T:%.*]]**
   // CHECK:      [[TO_DESTROY:%.*]] = getelementptr inbounds [[BLOCK_T]]* [[BLOCK]], i32 0, i32 5

@@ -17,10 +17,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/AST/ASTConsumer.h"
-#include "clang/Driver/OptTable.h"
 #include "clang/Driver/Options.h"
 #include "clang/Frontend/ASTConsumers.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "clang/StaticAnalyzer/Frontend/FrontendActions.h"
 #include "clang/Rewrite/Frontend/FixItRewriter.h"
 #include "clang/Rewrite/Frontend/FrontendActions.h"
 #include "clang/Tooling/CommonOptionsParser.h"
@@ -28,10 +28,12 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Signals.h"
+#include "llvm/Option/OptTable.h"
 
 using namespace clang::driver;
 using namespace clang::tooling;
 using namespace llvm;
+using namespace llvm::opt;
 
 static cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
 static cl::extrahelp MoreHelp(
@@ -62,6 +64,9 @@ static cl::opt<bool> ASTPrint(
 static cl::opt<std::string> ASTDumpFilter(
     "ast-dump-filter",
     cl::desc(Options->getOptionHelpText(options::OPT_ast_dump_filter)));
+static cl::opt<bool> Analyze(
+    "analyze",
+    cl::desc(Options->getOptionHelpText(options::OPT_analyze)));
 
 static cl::opt<bool> Fixit(
     "fixit",
@@ -69,6 +74,11 @@ static cl::opt<bool> Fixit(
 static cl::opt<bool> FixWhatYouCan(
     "fix-what-you-can",
     cl::desc(Options->getOptionHelpText(options::OPT_fix_what_you_can)));
+
+static cl::list<std::string> ArgsAfter("extra-arg",
+    cl::desc("Additional argument to append to the compiler command line"));
+static cl::list<std::string> ArgsBefore("extra-arg-before",
+    cl::desc("Additional argument to prepend to the compiler command line"));
 
 namespace {
 
@@ -123,6 +133,39 @@ public:
   }
 };
 
+class InsertAdjuster: public clang::tooling::ArgumentsAdjuster {
+public:
+  enum Position { BEGIN, END };
+
+  InsertAdjuster(const CommandLineArguments &Extra, Position Pos)
+    : Extra(Extra), Pos(Pos) {
+  }
+
+  InsertAdjuster(const char *Extra, Position Pos)
+    : Extra(1, std::string(Extra)), Pos(Pos) {
+  }
+
+  virtual CommandLineArguments
+  Adjust(const CommandLineArguments &Args) LLVM_OVERRIDE {
+    CommandLineArguments Return(Args);
+
+    CommandLineArguments::iterator I;
+    if (Pos == END) {
+      I = Return.end();
+    } else {
+      I = Return.begin();
+      ++I; // To leave the program name in place
+    }
+
+    Return.insert(I, Extra.begin(), Extra.end());
+    return Return;
+  }
+
+private:
+  const CommandLineArguments Extra;
+  const Position Pos;
+};
+
 } // namespace
 
 // Anonymous namespace here causes problems with gcc <= 4.4 on MacOS 10.6.
@@ -147,8 +190,34 @@ int main(int argc, const char **argv) {
   CommonOptionsParser OptionsParser(argc, argv);
   ClangTool Tool(OptionsParser.getCompilations(),
                  OptionsParser.getSourcePathList());
-  if (Fixit)
-    return Tool.run(newFrontendActionFactory<FixItAction>());
-  clang_check::ClangCheckActionFactory Factory;
-  return Tool.run(newFrontendActionFactory(&Factory));
+
+  // Clear adjusters because -fsyntax-only is inserted by the default chain.
+  Tool.clearArgumentsAdjusters();
+  Tool.appendArgumentsAdjuster(new ClangStripOutputAdjuster());
+  if (ArgsAfter.size() > 0) {
+    Tool.appendArgumentsAdjuster(new InsertAdjuster(ArgsAfter,
+          InsertAdjuster::END));
+  }
+  if (ArgsBefore.size() > 0) {
+    Tool.appendArgumentsAdjuster(new InsertAdjuster(ArgsBefore,
+          InsertAdjuster::BEGIN));
+  }
+
+  // Running the analyzer requires --analyze. Other modes can work with the
+  // -fsyntax-only option.
+  Tool.appendArgumentsAdjuster(new InsertAdjuster(
+        Analyze ? "--analyze" : "-fsyntax-only", InsertAdjuster::BEGIN));
+
+  clang_check::ClangCheckActionFactory CheckFactory;
+  FrontendActionFactory *FrontendFactory;
+
+  // Choose the correct factory based on the selected mode.
+  if (Analyze)
+    FrontendFactory = newFrontendActionFactory<clang::ento::AnalysisAction>();
+  else if (Fixit)
+    FrontendFactory = newFrontendActionFactory<FixItAction>();
+  else
+    FrontendFactory = newFrontendActionFactory(&CheckFactory);
+
+  return Tool.run(FrontendFactory);
 }

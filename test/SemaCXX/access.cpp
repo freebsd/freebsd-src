@@ -26,9 +26,11 @@ private:
 namespace test1 {
   class A {
   private:
-    class X; // expected-note {{previously declared 'private' here}}
+    class X; // expected-note {{previously declared 'private' here}} \
+             // expected-note {{previous declaration is here}}
   public:
-    class X; // expected-error {{'X' redeclared with 'public' access}}
+    class X; // expected-error {{'X' redeclared with 'public' access}} \
+             // expected-warning {{class member cannot be redeclared}}
     class X {};
   };
 }
@@ -104,5 +106,33 @@ namespace PR15209 {
     {
       (void)A::x;  // expected-error {{'x' is a private member of 'PR15209::templates::A'}}
     }
+  }
+}
+
+namespace PR7434 {
+  namespace comment0 {
+    template <typename T> struct X;
+    namespace N {
+    class Y {
+      template<typename T> friend struct X;
+      int t; // expected-note {{here}}
+    };
+    }
+    template<typename T> struct X {
+      X() { (void)N::Y().t; } // expected-error {{private}}
+    };
+    X<char> x;
+  }
+  namespace comment2 {
+    struct X;
+    namespace N {
+    class Y {
+      friend struct X;
+      int t; // expected-note {{here}}
+    };
+    }
+    struct X {
+      X() { (void)N::Y().t; } // expected-error {{private}}
+    };
   }
 }

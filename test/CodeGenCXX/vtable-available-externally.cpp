@@ -1,19 +1,11 @@
-// RUN: %clang_cc1 %s -I%S -triple=x86_64-apple-darwin10 -emit-llvm -O3 -o %t 
+// RUN: %clang_cc1 %s -I%S -triple=x86_64-apple-darwin10 -emit-llvm -o %t 
 // RUN: FileCheck --check-prefix=CHECK-TEST1 %s < %t
 // RUN: FileCheck --check-prefix=CHECK-TEST2 %s < %t
 // RUN: FileCheck --check-prefix=CHECK-TEST5 %s < %t
-// RUN: FileCheck --check-prefix=CHECK-TEST7 %s < %t
 
 #include <typeinfo>
 
-// Test1::A's key function (f) is not defined in this translation
-// unit, but in order to devirtualize calls, we emit the v-table with
-// available_externally linkage.
-//
-// There's no real reason to do this to the RTTI, though.
-
-// CHECK-TEST1: @_ZTVN5Test11AE = available_externally
-// CHECK-TEST1: @_ZTIN5Test11AE = external constant i8*
+// CHECK-TEST1: @_ZTVN5Test11AE = external unnamed_addr constant
 namespace Test1 {
 
 struct A {
@@ -28,7 +20,7 @@ void f(A* a) {
   a->f();
 };
 
-// CHECK: define void @_ZN5Test11gEv
+// CHECK-LABEL: define void @_ZN5Test11gEv
 // CHECK: call void @_ZN5Test11A1fEv
 void g() {
   A a;
@@ -106,7 +98,7 @@ void f() {
 }
 
 // PR9130, test that we emit a definition of A::f.
-// CHECK-TEST5: define linkonce_odr void @_ZN5Test51A1fEv
+// CHECK-TEST5-LABEL: define linkonce_odr void @_ZN5Test51A1fEv
 namespace Test5 {
 
 struct A {
@@ -159,14 +151,4 @@ struct c11 : c10, c1{
 struct c28 : virtual c11{
   void f6 ();
 };
-
-// CHECK-TEST7: define void @_ZN5Test79check_c28Ev
-// CHECK-TEST7: call void @_ZN5Test73c282f6Ev
-// CHECK-TEST7: ret void
-void check_c28 () {
-  c28 obj;
-  c11 *ptr = &obj;
-  ptr->f6 ();
-}
-
 }

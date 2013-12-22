@@ -12,6 +12,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
+#include "clang/Basic/CharInfo.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -41,14 +42,16 @@ good implements_child_begin_end(Comment::child_iterator (T::*)() const) {
   return good();
 }
 
+LLVM_ATTRIBUTE_UNUSED
 static inline bad implements_child_begin_end(
                       Comment::child_iterator (Comment::*)() const) {
   return bad();
 }
 
 #define ASSERT_IMPLEMENTS_child_begin(function) \
-  (void) sizeof(good(implements_child_begin_end(function)))
+  (void) good(implements_child_begin_end(function))
 
+LLVM_ATTRIBUTE_UNUSED
 static inline void CheckCommentASTNodes() {
 #define ABSTRACT_COMMENT(COMMENT)
 #define COMMENT(CLASS, PARENT) \
@@ -94,9 +97,7 @@ Comment::child_iterator Comment::child_end() const {
 bool TextComment::isWhitespaceNoCache() const {
   for (StringRef::const_iterator I = Text.begin(), E = Text.end();
        I != E; ++I) {
-    const char C = *I;
-    if (C != ' ' && C != '\n' && C != '\r' &&
-        C != '\t' && C != '\f' && C != '\v')
+    if (!clang::isWhitespace(*I))
       return false;
   }
   return true;
@@ -293,12 +294,14 @@ void DeclInfo::fill() {
 
 StringRef ParamCommandComment::getParamName(const FullComment *FC) const {
   assert(isParamIndexValid());
-  return FC->getThisDeclInfo()->ParamVars[getParamIndex()]->getName();
+  if (isVarArgParam())
+    return "...";
+  return FC->getDeclInfo()->ParamVars[getParamIndex()]->getName();
 }
 
 StringRef TParamCommandComment::getParamName(const FullComment *FC) const {
   assert(isPositionValid());
-  const TemplateParameterList *TPL = FC->getThisDeclInfo()->TemplateParameters;
+  const TemplateParameterList *TPL = FC->getDeclInfo()->TemplateParameters;
   for (unsigned i = 0, e = getDepth(); i != e; ++i) {
     if (i == e-1)
       return TPL->getParam(getIndex(i))->getName();

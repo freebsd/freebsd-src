@@ -14,12 +14,9 @@
 
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/DiagnosticOptions.h"
-#include "clang/Driver/ArgList.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
-#include "clang/Driver/OptTable.h"
-#include "clang/Driver/Option.h"
 #include "clang/Driver/Options.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
@@ -28,6 +25,11 @@
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/Option/ArgList.h"
+#include "llvm/Option/OptTable.h"
+#include "llvm/Option/Option.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Host.h"
@@ -35,6 +37,7 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/PrettyStackTrace.h"
+#include "llvm/Support/Process.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/Regex.h"
 #include "llvm/Support/Signals.h"
@@ -45,15 +48,16 @@
 #include "llvm/Support/system_error.h"
 using namespace clang;
 using namespace clang::driver;
+using namespace llvm::opt;
 
-llvm::sys::Path GetExecutablePath(const char *Argv0, bool CanonicalPrefixes) {
+std::string GetExecutablePath(const char *Argv0, bool CanonicalPrefixes) {
   if (!CanonicalPrefixes)
-    return llvm::sys::Path(Argv0);
+    return Argv0;
 
   // This just needs to be some symbol in the binary; C++ doesn't
   // allow taking the address of ::main however.
   void *P = (void*) (intptr_t) GetExecutablePath;
-  return llvm::sys::Path::GetMainExecutable(Argv0, P);
+  return llvm::sys::fs::getMainExecutable(Argv0, P);
 }
 
 static const char *SaveStringInSet(std::set<std::string> &SavedStrings,
@@ -187,78 +191,6 @@ extern int cc1_main(const char **ArgBegin, const char **ArgEnd,
 extern int cc1as_main(const char **ArgBegin, const char **ArgEnd,
                       const char *Argv0, void *MainAddr);
 
-static void ExpandArgsFromBuf(const char *Arg,
-                              SmallVectorImpl<const char*> &ArgVector,
-                              std::set<std::string> &SavedStrings) {
-  const char *FName = Arg + 1;
-  OwningPtr<llvm::MemoryBuffer> MemBuf;
-  if (llvm::MemoryBuffer::getFile(FName, MemBuf)) {
-    ArgVector.push_back(SaveStringInSet(SavedStrings, Arg));
-    return;
-  }
-
-  const char *Buf = MemBuf->getBufferStart();
-  char InQuote = ' ';
-  std::string CurArg;
-
-  for (const char *P = Buf; ; ++P) {
-    if (*P == '\0' || (isWhitespace(*P) && InQuote == ' ')) {
-      if (!CurArg.empty()) {
-
-        if (CurArg[0] != '@') {
-          ArgVector.push_back(SaveStringInSet(SavedStrings, CurArg));
-        } else {
-          ExpandArgsFromBuf(CurArg.c_str(), ArgVector, SavedStrings);
-        }
-
-        CurArg = "";
-      }
-      if (*P == '\0')
-        break;
-      else
-        continue;
-    }
-
-    if (isWhitespace(*P)) {
-      if (InQuote != ' ')
-        CurArg.push_back(*P);
-      continue;
-    }
-
-    if (*P == '"' || *P == '\'') {
-      if (InQuote == *P)
-        InQuote = ' ';
-      else if (InQuote == ' ')
-        InQuote = *P;
-      else
-        CurArg.push_back(*P);
-      continue;
-    }
-
-    if (*P == '\\') {
-      ++P;
-      if (*P != '\0')
-        CurArg.push_back(*P);
-      continue;
-    }
-    CurArg.push_back(*P);
-  }
-}
-
-static void ExpandArgv(int argc, const char **argv,
-                       SmallVectorImpl<const char*> &ArgVector,
-                       std::set<std::string> &SavedStrings) {
-  for (int i = 0; i < argc; ++i) {
-    const char *Arg = argv[i];
-    if (Arg[0] != '@') {
-      ArgVector.push_back(SaveStringInSet(SavedStrings, std::string(Arg)));
-      continue;
-    }
-
-    ExpandArgsFromBuf(Arg, ArgVector, SavedStrings);
-  }
-}
-
 static void ParseProgName(SmallVectorImpl<const char *> &ArgVector,
                           std::set<std::string> &SavedStrings,
                           Driver &TheDriver)
@@ -279,21 +211,24 @@ static void ParseProgName(SmallVectorImpl<const char *> &ArgVector,
   // is gets added via -target as implicit first argument.
   static const struct {
     const char *Suffix;
-    bool IsCXX;
-    bool IsCPP;
+    const char *ModeFlag;
   } suffixes [] = {
-    { "clang", false, false },
-    { "clang++", true, false },
-    { "clang-c++", true, false },
-    { "clang-cc", false, false },
-    { "clang-cpp", false, true },
-    { "clang-g++", true, false },
-    { "clang-gcc", false, false },
-    { "cc", false, false },
-    { "cpp", false, true },
-    { "++", true, false },
+    { "clang",     0 },
+    { "clang++",   "--driver-mode=g++" },
+    { "clang-c++", "--driver-mode=g++" },
+    { "clang-cc",  0 },
+    { "clang-cpp", "--driver-mode=cpp" },
+    { "clang-g++", "--driver-mode=g++" },
+    { "clang-gcc", 0 },
+    { "clang-cl",  "--driver-mode=cl"  },
+    { "cc",        0 },
+    { "cpp",       "--driver-mode=cpp" },
+    { "cl" ,       "--driver-mode=cl"  },
+    { "++",        "--driver-mode=g++" },
   };
   std::string ProgName(llvm::sys::path::stem(ArgVector[0]));
+  std::transform(ProgName.begin(), ProgName.end(), ProgName.begin(),
+                 toLowercase);
   StringRef ProgNameRef(ProgName);
   StringRef Prefix;
 
@@ -304,10 +239,11 @@ static void ParseProgName(SmallVectorImpl<const char *> &ArgVector,
     for (i = 0; i < sizeof(suffixes) / sizeof(suffixes[0]); ++i) {
       if (ProgNameRef.endswith(suffixes[i].Suffix)) {
         FoundMatch = true;
-        if (suffixes[i].IsCXX)
-          TheDriver.CCCIsCXX = true;
-        if (suffixes[i].IsCPP)
-          TheDriver.CCCIsCPP = true;
+        SmallVectorImpl<const char *>::iterator it = ArgVector.begin();
+        if (it != ArgVector.end())
+          ++it;
+        if (suffixes[i].ModeFlag)
+          ArgVector.insert(it, suffixes[i].ModeFlag);
         break;
       }
     }
@@ -334,20 +270,41 @@ static void ParseProgName(SmallVectorImpl<const char *> &ArgVector,
     SmallVectorImpl<const char *>::iterator it = ArgVector.begin();
     if (it != ArgVector.end())
       ++it;
-    ArgVector.insert(it, SaveStringInSet(SavedStrings, Prefix));
-    ArgVector.insert(it,
-      SaveStringInSet(SavedStrings, std::string("-target")));
+    const char* Strings[] =
+      { SaveStringInSet(SavedStrings, std::string("-target")),
+        SaveStringInSet(SavedStrings, Prefix) };
+    ArgVector.insert(it, Strings, Strings + llvm::array_lengthof(Strings));
   }
+}
+
+namespace {
+  class StringSetSaver : public llvm::cl::StringSaver {
+  public:
+    StringSetSaver(std::set<std::string> &Storage) : Storage(Storage) {}
+    const char *SaveString(const char *Str) LLVM_OVERRIDE {
+      return SaveStringInSet(Storage, Str);
+    }
+  private:
+    std::set<std::string> &Storage;
+  };
 }
 
 int main(int argc_, const char **argv_) {
   llvm::sys::PrintStackTraceOnErrorSignal();
   llvm::PrettyStackTraceProgram X(argc_, argv_);
 
-  std::set<std::string> SavedStrings;
-  SmallVector<const char*, 256> argv;
+  SmallVector<const char *, 256> argv;
+  llvm::SpecificBumpPtrAllocator<char> ArgAllocator;
+  llvm::error_code EC = llvm::sys::Process::GetArgumentVector(
+      argv, llvm::ArrayRef<const char *>(argv_, argc_), ArgAllocator);
+  if (EC) {
+    llvm::errs() << "error: couldn't get arguments: " << EC.message() << '\n';
+    return 1;
+  }
 
-  ExpandArgv(argc_, argv_, argv, SavedStrings);
+  std::set<std::string> SavedStrings;
+  StringSetSaver Saver(SavedStrings);
+  llvm::cl::ExpandResponseFiles(Saver, llvm::cl::TokenizeGNUCommandLine, argv);
 
   // Handle -cc1 integrated tools.
   if (argv.size() > 1 && StringRef(argv[1]).startswith("-cc1")) {
@@ -378,36 +335,17 @@ int main(int argc_, const char **argv_) {
   if (const char *OverrideStr = ::getenv("QA_OVERRIDE_GCC3_OPTIONS")) {
     // FIXME: Driver shouldn't take extra initial argument.
     ApplyQAOverride(argv, OverrideStr, SavedStrings);
-  } else if (const char *Cur = ::getenv("CCC_ADD_ARGS")) {
-    // FIXME: Driver shouldn't take extra initial argument.
-    std::vector<const char*> ExtraArgs;
-
-    for (;;) {
-      const char *Next = strchr(Cur, ',');
-
-      if (Next) {
-        ExtraArgs.push_back(SaveStringInSet(SavedStrings,
-                                            std::string(Cur, Next)));
-        Cur = Next + 1;
-      } else {
-        if (*Cur != '\0')
-          ExtraArgs.push_back(SaveStringInSet(SavedStrings, Cur));
-        break;
-      }
-    }
-
-    argv.insert(&argv[1], ExtraArgs.begin(), ExtraArgs.end());
   }
 
-  llvm::sys::Path Path = GetExecutablePath(argv[0], CanonicalPrefixes);
+  std::string Path = GetExecutablePath(argv[0], CanonicalPrefixes);
 
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions;
   {
-    // Note that ParseDiagnosticArgs() uses the cc1 option table.
-    OwningPtr<OptTable> CC1Opts(createDriverOptTable());
+    OwningPtr<OptTable> Opts(createDriverOptTable());
     unsigned MissingArgIndex, MissingArgCount;
-    OwningPtr<InputArgList> Args(CC1Opts->ParseArgs(argv.begin()+1, argv.end(),
-                                            MissingArgIndex, MissingArgCount));
+    OwningPtr<InputArgList> Args(Opts->ParseArgs(argv.begin()+1, argv.end(),
+                                                 MissingArgIndex,
+                                                 MissingArgCount));
     // We ignore MissingArgCount and the return value of ParseDiagnosticArgs.
     // Any errors that would be diagnosed here will also be diagnosed later,
     // when the DiagnosticsEngine actually exists.
@@ -417,14 +355,20 @@ int main(int argc_, const char **argv_) {
   // DiagnosticOptions instance.
   TextDiagnosticPrinter *DiagClient
     = new TextDiagnosticPrinter(llvm::errs(), &*DiagOpts);
-  DiagClient->setPrefix(llvm::sys::path::filename(Path.str()));
+
+  // If the clang binary happens to be named cl.exe for compatibility reasons,
+  // use clang-cl.exe as the prefix to avoid confusion between clang and MSVC.
+  StringRef ExeBasename(llvm::sys::path::filename(Path));
+  if (ExeBasename.equals_lower("cl.exe"))
+    ExeBasename = "clang-cl.exe";
+  DiagClient->setPrefix(ExeBasename);
+
   IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
 
   DiagnosticsEngine Diags(DiagID, &*DiagOpts, DiagClient);
   ProcessWarningOptions(Diags, *DiagOpts, /*ReportDiags=*/false);
 
-  Driver TheDriver(Path.str(), llvm::sys::getDefaultTargetTriple(),
-                   "a.out", Diags);
+  Driver TheDriver(Path, llvm::sys::getDefaultTargetTriple(), "a.out", Diags);
 
   // Attempt to find the original path used to invoke the driver, to determine
   // the installed path. We do this manually, because we want to support that
@@ -434,10 +378,10 @@ int main(int argc_, const char **argv_) {
 
     // Do a PATH lookup, if there are no directory components.
     if (llvm::sys::path::filename(InstalledPath) == InstalledPath) {
-      llvm::sys::Path Tmp = llvm::sys::Program::FindProgramByName(
+      std::string Tmp = llvm::sys::FindProgramByName(
         llvm::sys::path::filename(InstalledPath.str()));
       if (!Tmp.empty())
-        InstalledPath = Tmp.str();
+        InstalledPath = Tmp;
     }
     llvm::sys::fs::make_absolute(InstalledPath);
     InstalledPath = llvm::sys::path::parent_path(InstalledPath);

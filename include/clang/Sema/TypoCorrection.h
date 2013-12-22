@@ -39,31 +39,35 @@ public:
   static const unsigned CallbackDistanceWeight = 150U;
 
   TypoCorrection(const DeclarationName &Name, NamedDecl *NameDecl,
-                 NestedNameSpecifier *NNS=0, unsigned CharDistance=0,
-                 unsigned QualifierDistance=0)
+                 NestedNameSpecifier *NNS = 0, unsigned CharDistance = 0,
+                 unsigned QualifierDistance = 0)
       : CorrectionName(Name), CorrectionNameSpec(NNS),
-      CharDistance(CharDistance), QualifierDistance(QualifierDistance),
-      CallbackDistance(0) {
+        CharDistance(CharDistance), QualifierDistance(QualifierDistance),
+        CallbackDistance(0), ForceSpecifierReplacement(false),
+        RequiresImport(false) {
     if (NameDecl)
       CorrectionDecls.push_back(NameDecl);
   }
 
-  TypoCorrection(NamedDecl *Name, NestedNameSpecifier *NNS=0,
-                 unsigned CharDistance=0)
+  TypoCorrection(NamedDecl *Name, NestedNameSpecifier *NNS = 0,
+                 unsigned CharDistance = 0)
       : CorrectionName(Name->getDeclName()), CorrectionNameSpec(NNS),
-      CharDistance(CharDistance), QualifierDistance(0), CallbackDistance(0) {
+        CharDistance(CharDistance), QualifierDistance(0), CallbackDistance(0),
+        ForceSpecifierReplacement(false), RequiresImport(false) {
     if (Name)
       CorrectionDecls.push_back(Name);
   }
 
-  TypoCorrection(DeclarationName Name, NestedNameSpecifier *NNS=0,
-                 unsigned CharDistance=0)
+  TypoCorrection(DeclarationName Name, NestedNameSpecifier *NNS = 0,
+                 unsigned CharDistance = 0)
       : CorrectionName(Name), CorrectionNameSpec(NNS),
-      CharDistance(CharDistance), QualifierDistance(0), CallbackDistance(0) {}
+        CharDistance(CharDistance), QualifierDistance(0), CallbackDistance(0),
+        ForceSpecifierReplacement(false), RequiresImport(false) {}
 
   TypoCorrection()
       : CorrectionNameSpec(0), CharDistance(0), QualifierDistance(0),
-      CallbackDistance(0) {}
+        CallbackDistance(0), ForceSpecifierReplacement(false),
+        RequiresImport(false) {}
 
   /// \brief Gets the DeclarationName of the typo correction
   DeclarationName getCorrection() const { return CorrectionName; }
@@ -77,6 +81,15 @@ public:
   }
   void setCorrectionSpecifier(NestedNameSpecifier* NNS) {
     CorrectionNameSpec = NNS;
+    ForceSpecifierReplacement = (NNS != 0);
+  }
+
+  void WillReplaceSpecifier(bool ForceReplacement) {
+    ForceSpecifierReplacement = ForceReplacement;
+  }
+
+  bool WillReplaceSpecifier() const {
+    return ForceSpecifierReplacement;
   }
 
   void setQualifierDistance(unsigned ED) {
@@ -116,18 +129,29 @@ public:
   }
 
   /// \brief Gets the pointer to the declaration of the typo correction
-  NamedDecl* getCorrectionDecl() const {
+  NamedDecl *getCorrectionDecl() const {
     return hasCorrectionDecl() ? *(CorrectionDecls.begin()) : 0;
   }
   template <class DeclClass>
   DeclClass *getCorrectionDeclAs() const {
     return dyn_cast_or_null<DeclClass>(getCorrectionDecl());
   }
-  
+
+  /// \brief Clears the list of NamedDecls.
+  void ClearCorrectionDecls() {
+    CorrectionDecls.clear();
+  }
+
   /// \brief Clears the list of NamedDecls before adding the new one.
   void setCorrectionDecl(NamedDecl *CDecl) {
     CorrectionDecls.clear();
     addCorrectionDecl(CDecl);
+  }
+
+  /// \brief Clears the list of NamedDecls and adds the given set.
+  void setCorrectionDecls(ArrayRef<NamedDecl*> Decls) {
+    CorrectionDecls.clear();
+    CorrectionDecls.insert(CorrectionDecls.begin(), Decls.begin(), Decls.end());
   }
 
   /// \brief Add the given NamedDecl to the list of NamedDecls that are the
@@ -140,7 +164,7 @@ public:
   }
 
   /// \brief Returns whether this TypoCorrection has a non-empty DeclarationName
-  operator bool() const { return bool(CorrectionName); }
+  LLVM_EXPLICIT operator bool() const { return bool(CorrectionName); }
 
   /// \brief Mark this TypoCorrection as being a keyword.
   /// Since addCorrectionDeclsand setCorrectionDecl don't allow NULL to be
@@ -149,6 +173,7 @@ public:
   void makeKeyword() {
     CorrectionDecls.clear();
     CorrectionDecls.push_back(0);
+    ForceSpecifierReplacement = true;
   }
 
   // Check if this TypoCorrection is a keyword by checking if the first
@@ -171,10 +196,11 @@ public:
     return CorrectionDecls.size() > 1;
   }
 
-  void setCorrectionRange(CXXScopeSpec* SS,
+  void setCorrectionRange(CXXScopeSpec *SS,
                           const DeclarationNameInfo &TypoName) {
-    CorrectionRange.setBegin(CorrectionNameSpec && SS ? SS->getBeginLoc()
-                                                      : TypoName.getLoc());
+    CorrectionRange.setBegin(ForceSpecifierReplacement && SS && !SS->isEmpty()
+                                 ? SS->getBeginLoc()
+                                 : TypoName.getLoc());
     CorrectionRange.setEnd(TypoName.getLoc());
   }
 
@@ -182,16 +208,21 @@ public:
     return CorrectionRange;
   }
 
-  typedef SmallVector<NamedDecl *, 1>::iterator decl_iterator;
+  typedef SmallVectorImpl<NamedDecl *>::iterator decl_iterator;
   decl_iterator begin() {
     return isKeyword() ? CorrectionDecls.end() : CorrectionDecls.begin();
   }
   decl_iterator end() { return CorrectionDecls.end(); }
-  typedef SmallVector<NamedDecl *, 1>::const_iterator const_decl_iterator;
+  typedef SmallVectorImpl<NamedDecl *>::const_iterator const_decl_iterator;
   const_decl_iterator begin() const {
     return isKeyword() ? CorrectionDecls.end() : CorrectionDecls.begin();
   }
   const_decl_iterator end() const { return CorrectionDecls.end(); }
+
+  /// \brief Returns whether this typo correction is correcting to a
+  /// declaration that was declared in a module that has not been imported.
+  bool requiresImport() const { return RequiresImport; }
+  void setRequiresImport(bool Req) { RequiresImport = Req; }
 
 private:
   bool hasCorrectionDecl() const {
@@ -206,12 +237,14 @@ private:
   unsigned QualifierDistance;
   unsigned CallbackDistance;
   SourceRange CorrectionRange;
+  bool ForceSpecifierReplacement;
+  bool RequiresImport;
 };
 
 /// @brief Base class for callback objects used by Sema::CorrectTypo to check
 /// the validity of a potential typo correction.
 class CorrectionCandidateCallback {
- public:
+public:
   static const unsigned InvalidDistance = TypoCorrection::InvalidDistance;
 
   CorrectionCandidateCallback()
@@ -260,9 +293,39 @@ class CorrectionCandidateCallback {
 /// to ones having a single Decl* of the given type.
 template <class C>
 class DeclFilterCCC : public CorrectionCandidateCallback {
- public:
+public:
   virtual bool ValidateCandidate(const TypoCorrection &candidate) {
     return candidate.getCorrectionDeclAs<C>();
+  }
+};
+
+// @brief Callback class to limit the allowed keywords and to only accept typo
+// corrections that are keywords or whose decls refer to functions (or template
+// functions) that accept the given number of arguments.
+class FunctionCallFilterCCC : public CorrectionCandidateCallback {
+public:
+  FunctionCallFilterCCC(Sema &SemaRef, unsigned NumArgs,
+                        bool HasExplicitTemplateArgs);
+
+  virtual bool ValidateCandidate(const TypoCorrection &candidate);
+
+ private:
+  unsigned NumArgs;
+  bool HasExplicitTemplateArgs;
+};
+
+// @brief Callback class that effectively disabled typo correction
+class NoTypoCorrectionCCC : public CorrectionCandidateCallback {
+public:
+  NoTypoCorrectionCCC() {
+    WantTypeSpecifiers = false;
+    WantExpressionKeywords = false;
+    WantCXXNamedCasts = false;
+    WantRemainingKeywords = false;
+  }
+
+  virtual bool ValidateCandidate(const TypoCorrection &candidate) {
+    return false;
   }
 };
 

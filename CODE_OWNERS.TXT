@@ -32,7 +32,7 @@ E: rjmccall@apple.com
 D: Clang LLVM IR generation
 
 N: Chad Rosier
-E: mcrosier@apple.com
+E: mcrosier@codeaurora.org
 D: MS-inline asm, and the compiler driver
 
 N: Richard Smith

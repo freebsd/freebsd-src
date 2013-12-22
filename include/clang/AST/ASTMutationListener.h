@@ -27,8 +27,11 @@ namespace clang {
   class ObjCContainerDecl;
   class ObjCInterfaceDecl;
   class ObjCPropertyDecl;
+  class QualType;
   class TagDecl;
   class VarDecl;
+  class VarTemplateDecl;
+  class VarTemplateSpecializationDecl;
 
 /// \brief An abstract interface that should be implemented by listeners
 /// that want to be notified when an AST entity gets modified after its
@@ -53,8 +56,17 @@ public:
 
   /// \brief A template specialization (or partial one) was added to the
   /// template declaration.
+  virtual void
+  AddedCXXTemplateSpecialization(const VarTemplateDecl *TD,
+                                 const VarTemplateSpecializationDecl *D) {}
+
+  /// \brief A template specialization (or partial one) was added to the
+  /// template declaration.
   virtual void AddedCXXTemplateSpecialization(const FunctionTemplateDecl *TD,
                                               const FunctionDecl *D) {}
+
+  /// \brief A function's return type has been deduced.
+  virtual void DeducedReturnType(const FunctionDecl *FD, QualType ReturnType);
 
   /// \brief An implicit member got a definition.
   virtual void CompletedImplicitDefinition(const FunctionDecl *D) {}
@@ -77,6 +89,11 @@ public:
   virtual void AddedObjCPropertyInClassExtension(const ObjCPropertyDecl *Prop,
                                             const ObjCPropertyDecl *OrigProp,
                                             const ObjCCategoryDecl *ClassExt) {}
+
+  /// \brief A declaration is marked used which was not previously marked used.
+  ///
+  /// \param D the declaration marked used
+  virtual void DeclarationMarkedUsed(const Decl *D) {}
 
   // NOTE: If new methods are added they should also be added to
   // MultiplexASTMutationListener.

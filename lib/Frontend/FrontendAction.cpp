@@ -429,9 +429,9 @@ void FrontendAction::EndSourceFile() {
     llvm::errs() << "\n";
   }
 
-  // Cleanup the output streams, and erase the output files if we encountered
-  // an error.
-  CI.clearOutputFiles(/*EraseFiles=*/CI.getDiagnostics().hasErrorOccurred());
+  // Cleanup the output streams, and erase the output files if instructed by the
+  // FrontendAction.
+  CI.clearOutputFiles(/*EraseFiles=*/shouldEraseOutputFiles());
 
   if (isCurrentFileAST()) {
     CI.takeSema();
@@ -445,12 +445,18 @@ void FrontendAction::EndSourceFile() {
   setCurrentInput(FrontendInputFile());
 }
 
+bool FrontendAction::shouldEraseOutputFiles() {
+  return getCompilerInstance().getDiagnostics().hasErrorOccurred();
+}
+
 //===----------------------------------------------------------------------===//
 // Utility Actions
 //===----------------------------------------------------------------------===//
 
 void ASTFrontendAction::ExecuteAction() {
   CompilerInstance &CI = getCompilerInstance();
+  if (!CI.hasPreprocessor())
+    return;
 
   // FIXME: Move the truncation aspect of this into Sema, we delayed this till
   // here so the source manager would be initialized.

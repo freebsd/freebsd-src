@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -O3 -triple=x86_64-apple-darwin -target-feature +avx2 -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 %s -O3 -triple=x86_64-apple-darwin -target-feature +avx2 -emit-llvm -o - -Werror | FileCheck %s
 
 // Don't include mm_malloc.h, it's system specific.
 #define __MM_MALLOC_H
@@ -606,9 +606,9 @@ __m256d test_mm256_broadcastsd_pd(__m128d a) {
   return _mm256_broadcastsd_pd(a);
 }
 
-__m256i test_mm_broadcastsi128_si256(__m128i *a) {
+__m256i test_mm256_broadcastsi128_si256(__m128i a) {
   // CHECK: @llvm.x86.avx2.vbroadcasti128
-  return _mm_broadcastsi128_si256(a);
+  return _mm256_broadcastsi128_si256(a);
 }
 
 __m128i test_mm_blend_epi32(__m128i a, __m128i b) {
@@ -850,22 +850,22 @@ __m128i test_mm256_mask_i64gather_epi32(__m128i a, int const *b, __m256i c,
   return _mm256_mask_i64gather_epi32(a, b, c, d, 2);
 }
 
-__m128i test_mm_mask_i32gather_epi64(__m128i a, int const *b, __m128i c,
+__m128i test_mm_mask_i32gather_epi64(__m128i a, long long const *b, __m128i c,
                                      __m128i d) {
   // CHECK: @llvm.x86.avx2.gather.d.q
   return _mm_mask_i32gather_epi64(a, b, c, d, 2);
 }
-__m256i test_mm256_mask_i32gather_epi64(__m256i a, int const *b, __m128i c,
+__m256i test_mm256_mask_i32gather_epi64(__m256i a, long long const *b, __m128i c,
                                         __m256i d) {
   // CHECK: @llvm.x86.avx2.gather.d.q.256
   return _mm256_mask_i32gather_epi64(a, b, c, d, 2);
 }
-__m128i test_mm_mask_i64gather_epi64(__m128i a, int const *b, __m128i c,
+__m128i test_mm_mask_i64gather_epi64(__m128i a, long long const *b, __m128i c,
                                      __m128i d) {
   // CHECK: @llvm.x86.avx2.gather.q.q
   return _mm_mask_i64gather_epi64(a, b, c, d, 2);
 }
-__m256i test_mm256_mask_i64gather_epi64(__m256i a, int const *b, __m256i c,
+__m256i test_mm256_mask_i64gather_epi64(__m256i a, long long const *b, __m256i c,
                                         __m256i d) {
   // CHECK: @llvm.x86.avx2.gather.q.q.256
   return _mm256_mask_i64gather_epi64(a, b, c, d, 2);
@@ -920,19 +920,19 @@ __m128i test_mm256_i64gather_epi32(int const *b, __m256i c) {
   // CHECK: @llvm.x86.avx2.gather.q.d.256
   return _mm256_i64gather_epi32(b, c, 2);
 }
-__m128i test_mm_i32gather_epi64(int const *b, __m128i c) {
+__m128i test_mm_i32gather_epi64(long long const *b, __m128i c) {
   // CHECK: @llvm.x86.avx2.gather.d.q
   return _mm_i32gather_epi64(b, c, 2);
 }
-__m256i test_mm256_i32gather_epi64(int const *b, __m128i c) {
+__m256i test_mm256_i32gather_epi64(long long const *b, __m128i c) {
   // CHECK: @llvm.x86.avx2.gather.d.q.256
   return _mm256_i32gather_epi64(b, c, 2);
 }
-__m128i test_mm_i64gather_epi64(int const *b, __m128i c) {
+__m128i test_mm_i64gather_epi64(long long const *b, __m128i c) {
   // CHECK: @llvm.x86.avx2.gather.q.q
   return _mm_i64gather_epi64(b, c, 2);
 }
-__m256i test_mm256_i64gather_epi64(int const *b, __m256i c) {
+__m256i test_mm256_i64gather_epi64(long long const *b, __m256i c) {
   // CHECK: @llvm.x86.avx2.gather.q.q.256
   return _mm256_i64gather_epi64(b, c, 2);
 }

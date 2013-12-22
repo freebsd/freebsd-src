@@ -35,17 +35,11 @@ namespace diagtool {
 
 
   struct GroupRecord {
-    // Be safe with the size of 'NameLen' because we don't statically check if
-    // the size will fit in the field; the struct size won't decrease with a
-    // shorter type anyway.
-    size_t NameLen;
-    const char *NameStr;
-    const short *Members;
-    const short *SubGroups;
-    
-    llvm::StringRef getName() const {
-      return llvm::StringRef(NameStr, NameLen);
-    }
+    uint16_t NameOffset;
+    uint16_t Members;
+    uint16_t SubGroups;
+
+    llvm::StringRef getName() const;
 
     template<typename RecordType>
     class group_iterator {
@@ -90,23 +84,15 @@ namespace diagtool {
     };
 
     typedef group_iterator<GroupRecord> subgroup_iterator;
-    subgroup_iterator subgroup_begin() const {
-      return SubGroups;
-    }
-    subgroup_iterator subgroup_end() const {
-      return 0;
-    }
+    subgroup_iterator subgroup_begin() const;
+    subgroup_iterator subgroup_end() const;
 
     typedef group_iterator<DiagnosticRecord> diagnostics_iterator;
-    diagnostics_iterator diagnostics_begin() const {
-      return Members;
-    }
-    diagnostics_iterator diagnostics_end() const {
-      return 0;
-    }
+    diagnostics_iterator diagnostics_begin() const;
+    diagnostics_iterator diagnostics_end() const;
 
-    bool operator<(const GroupRecord &Other) const {
-      return getName() < Other.getName();
+    bool operator<(llvm::StringRef Other) const {
+      return getName() < Other;
     }
   };
 

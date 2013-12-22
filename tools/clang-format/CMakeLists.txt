@@ -12,6 +12,10 @@ target_link_libraries(clang-format
   clangRewriteFrontend
   )
 
-install(TARGETS clang-format
-  RUNTIME DESTINATION bin)
-
+install(TARGETS clang-format RUNTIME DESTINATION bin)
+install(PROGRAMS clang-format-bbedit.applescript DESTINATION share/clang)
+install(PROGRAMS clang-format-diff.py DESTINATION share/clang)
+install(PROGRAMS clang-format-sublime.py DESTINATION share/clang)
+install(PROGRAMS clang-format.el DESTINATION share/clang)
+install(PROGRAMS clang-format.py DESTINATION share/clang)
+install(PROGRAMS git-clang-format DESTINATION bin)

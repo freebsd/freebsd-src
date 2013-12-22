@@ -137,7 +137,6 @@ void test() {
   };
 }
 
-// FIXME: How do we test that this initializes the long properly?
 union { char c; long l; } u1 = { .l = 0xFFFF };
 
 extern float global_float;
@@ -223,6 +222,55 @@ struct Enigma enigma = {
 };
 
 
+/// PR16644
+typedef union {
+  struct {
+    int zero;
+    int one;
+    int two;
+    int three;
+  } a;
+  int b[4];
+} union_16644_t;
+
+union_16644_t union_16644_instance_0 =
+{
+  .b[0]    = 0, //                               expected-note{{previous}}
+  .a.one   = 1, // expected-warning{{overrides}} expected-note{{previous}}
+  .b[2]    = 2, // expected-warning{{overrides}} expected-note{{previous}}
+  .a.three = 3, // expected-warning{{overrides}}
+};
+
+union_16644_t union_16644_instance_1 =
+{
+  .a.three = 13, //                               expected-note{{previous}}
+  .b[2]    = 12, // expected-warning{{overrides}} expected-note{{previous}}
+  .a.one   = 11, // expected-warning{{overrides}} expected-note{{previous}}
+  .b[0]    = 10, // expected-warning{{overrides}}
+};
+
+union_16644_t union_16644_instance_2 =
+{
+  .a.one   = 21, //                               expected-note{{previous}}
+  .b[1]    = 20, // expected-warning{{overrides}}
+};
+
+union_16644_t union_16644_instance_3 =
+{
+  .b[1]    = 30, //                               expected-note{{previous}}
+  .a = {         // expected-warning{{overrides}}
+    .one = 31
+  }
+};
+
+union_16644_t union_16644_instance_4[2] =
+{
+  [0].a.one  = 2,
+  [1].a.zero = 3,//                               expected-note{{previous}}
+  [0].a.zero = 5,
+  [1].b[1]   = 4 // expected-warning{{overrides}}
+};
+
 /// PR4073
 /// Should use evaluate to fold aggressively and emit a warning if not an ice.
 extern int crazy_x;
@@ -277,3 +325,19 @@ struct ds ds2 = { { {
     .a = 0,
     .b = 1 // expected-error{{field designator 'b' does not refer to any field}}
 } } };
+
+// Check initializer override warnings overriding a character in a string
+struct overwrite_string_struct {
+  char L[6];
+  int M;
+} overwrite_string[] = {
+  { { "foo" }, 1 }, // expected-note {{previous initialization is here}}
+  [0].L[2] = 'x' // expected-warning{{initializer overrides prior initialization of this subobject}}
+};
+struct overwrite_string_struct2 {
+  char L[6];
+  int M;
+} overwrite_string2[] = {
+    { { "foo" }, 1 },
+    [0].L[4] = 'x' // no-warning
+  };

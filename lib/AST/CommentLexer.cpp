@@ -157,7 +157,7 @@ const char *skipDecimalCharacterReference(const char *BufferPtr,
 }
 
 const char *skipHexCharacterReference(const char *BufferPtr,
-                                          const char *BufferEnd) {
+                                      const char *BufferEnd) {
   for ( ; BufferPtr != BufferEnd; ++BufferPtr) {
     if (!isHTMLHexCharacterReferenceCharacter(*BufferPtr))
       return BufferPtr;
@@ -265,6 +265,7 @@ const char *findCCommentEnd(const char *BufferPtr, const char *BufferEnd) {
   }
   llvm_unreachable("buffer end hit before '*/' was seen");
 }
+    
 } // unnamed namespace
 
 void Lexer::lexCommentText(Token &T) {
@@ -352,10 +353,20 @@ void Lexer::lexCommentText(Token &T) {
 
         const CommandInfo *Info = Traits.getCommandInfoOrNULL(CommandName);
         if (!Info) {
-          formTokenWithChars(T, TokenPtr, tok::unknown_command);
-          T.setUnknownCommandName(CommandName);
-          Diag(T.getLocation(), diag::warn_unknown_comment_command_name);
-          return;
+          if ((Info = Traits.getTypoCorrectCommandInfo(CommandName))) {
+            StringRef CorrectedName = Info->Name;
+            SourceLocation Loc = getSourceLocation(BufferPtr);
+            SourceRange CommandRange(Loc.getLocWithOffset(1),
+                                     getSourceLocation(TokenPtr));
+            Diag(Loc, diag::warn_correct_comment_command_name)
+              << CommandName << CorrectedName
+              << FixItHint::CreateReplacement(CommandRange, CorrectedName);
+          } else {
+            formTokenWithChars(T, TokenPtr, tok::unknown_command);
+            T.setUnknownCommandName(CommandName);
+            Diag(T.getLocation(), diag::warn_unknown_comment_command_name);
+            return;
+          }
         }
         if (Info->IsVerbatimBlockCommand) {
           setupAndLexVerbatimBlock(T, TokenPtr, *BufferPtr, Info);

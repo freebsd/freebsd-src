@@ -15,4 +15,11 @@
 // The format of this database matches clang/Basic/Builtins.def.
 
 // In libgcc
-BUILTIN(__clear_cache, "vv*v*", "")
+BUILTIN(__clear_cache, "vv*v*", "i")
+// NEON
+#define GET_NEON_AARCH64_BUILTINS
+#include "clang/Basic/arm_neon.inc"
+#undef GET_NEON_AARCH64_BUILTINS
+#undef GET_NEON_BUILTINS
+
+#undef BUILTIN

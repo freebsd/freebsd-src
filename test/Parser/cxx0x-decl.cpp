@@ -73,3 +73,34 @@ enum E
 [[]] e;
 
 }
+
+namespace PR5066 {
+  using T = int (*f)(); // expected-error {{type-id cannot have a name}}
+  template<typename T> using U = int (*f)(); // expected-error {{type-id cannot have a name}}
+  auto f() -> int (*f)(); // expected-error {{type-id cannot have a name}}
+  auto g = []() -> int (*f)() {}; // expected-error {{type-id cannot have a name}}
+}
+
+namespace FinalOverride {
+  struct Base {
+    virtual void *f();
+    virtual void *g();
+    virtual void *h();
+    virtual void *i();
+  };
+  struct Derived : Base {
+    virtual auto f() -> void *final;
+    virtual auto g() -> void *override;
+    virtual auto h() -> void *final override;
+    virtual auto i() -> void *override final;
+  };
+}
+
+namespace UsingDeclAttrs {
+  using T __attribute__((aligned(1))) = int;
+  using T [[gnu::aligned(1)]] = int;
+  static_assert(alignof(T) == 1, "");
+
+  using [[gnu::aligned(1)]] T = int; // expected-error {{an attribute list cannot appear here}}
+  using T = int [[gnu::aligned(1)]]; // expected-error {{'aligned' attribute cannot be applied to types}}
+}

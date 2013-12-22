@@ -58,7 +58,7 @@ typedef void * CXCompileCommand;
  */
 typedef enum  {
   /*
-   * \brief No error occured
+   * \brief No error occurred
    */
   CXCompilationDatabase_NoError = 0,
 
@@ -140,6 +140,24 @@ clang_CompileCommand_getNumArgs(CXCompileCommand);
  */
 CINDEX_LINKAGE CXString
 clang_CompileCommand_getArg(CXCompileCommand, unsigned I);
+
+/**
+ * \brief Get the number of source mappings for the compiler invocation.
+ */
+CINDEX_LINKAGE unsigned
+clang_CompileCommand_getNumMappedSources(CXCompileCommand);
+
+/**
+ * \brief Get the I'th mapped source path for the compiler invocation.
+ */
+CINDEX_LINKAGE CXString
+clang_CompileCommand_getMappedSourcePath(CXCompileCommand, unsigned I);
+
+/**
+ * \brief Get the I'th mapped source content for the compiler invocation.
+ */
+CINDEX_LINKAGE CXString
+clang_CompileCommand_getMappedSourceContent(CXCompileCommand, unsigned I);
 
 /**
  * @}

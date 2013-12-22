@@ -5,8 +5,16 @@
 // RUN:   | FileCheck --check-prefix=CHECK-ASAN %s
 
 // CHECK-ASAN: "{{.*}}ld{{(.exe)?}}"
-// CHECK-ASAN: libclang_rt.asan_osx_dynamic.dylib"
 // CHECK-ASAN: stdc++
+// CHECK-ASAN: libclang_rt.asan_osx_dynamic.dylib"
+
+// RUN: %clang -no-canonical-prefixes -### -target x86_64-darwin \
+// RUN:   -fsanitize=address -mios-simulator-version-min=7.0 %s -o %t.o 2>&1 \
+// RUN:   | FileCheck --check-prefix=CHECK-ASAN-IOSSIM %s
+
+// CHECK-ASAN-IOSSIM: "{{.*}}ld{{(.exe)?}}"
+// CHECK-ASAN-IOSSIM: lc++
+// CHECK-ASAN-IOSSIM: libclang_rt.asan_iossim_dynamic.dylib"
 
 // RUN: %clang -no-canonical-prefixes -### -target x86_64-darwin \
 // RUN:   -fPIC -shared -fsanitize=address %s -o %t.so 2>&1 \
@@ -14,10 +22,7 @@
 
 // CHECK-DYN-ASAN: "{{.*}}ld{{(.exe)?}}"
 // CHECK-DYN-ASAN: "-dylib"
-// CHECK-DYN-ASAN-NOT: libclang_rt.asan_osx_dynamic.dylib
-// CHECK-DYN-ASAN: "-undefined"
-// CHECK-DYN-ASAN: "dynamic_lookup"
-// CHECK-DYN-ASAN-NOT: libclang_rt.asan_osx_dynamic.dylib
+// CHECK-DYN-ASAN: libclang_rt.asan_osx_dynamic.dylib
 
 // RUN: %clang -no-canonical-prefixes -### -target x86_64-darwin \
 // RUN:   -fsanitize=undefined %s -o %t.o 2>&1 \

@@ -144,7 +144,7 @@ namespace PR12119 {
   template<typename T> void g(std::initializer_list<std::initializer_list<T>>);
 
   void foo() {
-    f({0, {1}});
+    f({0, {1}}); // expected-warning{{braces around scalar initializer}}
     g({{0, 1}, {2, 3}});
     std::initializer_list<int> il = {1, 2};
     g({il, {2, 3}});
@@ -207,4 +207,26 @@ namespace init_list_deduction_failure {
   // expected-note@-1 {{candidate template ignored: couldn't resolve reference to overloaded function 'f'}}
   void h() { g({f}); }
   // expected-error@-1 {{no matching function for call to 'g'}}
+}
+
+namespace deleted_copy {
+  struct X {
+    X(int i) {}
+    X(const X& x) = delete; // expected-note {{here}}
+    void operator=(const X& x) = delete;
+  };
+
+  std::initializer_list<X> x{1}; // expected-error {{invokes deleted constructor}}
+}
+
+namespace RefVersusInitList {
+  struct S {};
+  void f(const S &) = delete;
+  void f(std::initializer_list<S>);
+  void g(S s) { f({S()}); }
+}
+
+namespace PR18013 {
+  int f();
+  std::initializer_list<long (*)()> x = {f}; // expected-error {{cannot initialize an array element of type 'long (*const)()' with an lvalue of type 'int ()': different return type ('long' vs 'int')}}
 }

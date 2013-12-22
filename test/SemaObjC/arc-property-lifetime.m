@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin11 -fobjc-default-synthesize-properties -fobjc-runtime-has-weak -fsyntax-only -fobjc-arc -verify -Wno-objc-root-class %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin11 -fobjc-runtime-has-weak -fsyntax-only -fobjc-arc -verify -Wno-objc-root-class %s
 // rdar://9340606
 
 @interface Foo {
@@ -171,7 +171,12 @@ void foo(Baz *f) {
 
 // rdar://11253688
 @interface Boom 
-@property (readonly) const void * innerPointer __attribute__((objc_returns_inner_pointer)); // expected-error {{'objc_returns_inner_pointer' attribute only applies to methods}}
+{
+  const void * innerPointerIvar __attribute__((objc_returns_inner_pointer)); // expected-error {{'objc_returns_inner_pointer' attribute only applies to methods and properties}}
+}
+@property (readonly) Boom * NotInnerPointer __attribute__((objc_returns_inner_pointer)); // expected-warning {{'objc_returns_inner_pointer' attribute only applies to properties that return a non-retainable pointer}}
+- (Boom *) NotInnerPointerMethod __attribute__((objc_returns_inner_pointer)); // expected-warning {{'objc_returns_inner_pointer' attribute only applies to methods that return a non-retainable pointer}}
+@property (readonly) const void * innerPointer __attribute__((objc_returns_inner_pointer));
 @end
 
 @interface Foo2 {
@@ -182,3 +187,26 @@ void foo(Baz *f) {
 
 @implementation Foo2
 @end
+
+// rdar://13885083
+@interface NSObject 
+-(id)init;
+@end
+
+typedef char BOOL;
+@interface Test13885083 : NSObject
+
+@property (nonatomic, assign) BOOL retain; // expected-error {{ARC forbids synthesis of 'retain'}}
+
+-(id)init;
+
+@end
+
+@implementation Test13885083
+-(id) init
+{
+  self = [super init];
+  return self;
+}
+@end
+

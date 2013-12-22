@@ -159,12 +159,16 @@ include paths, or 0 otherwise:
   # include "myinclude.h"
   #endif
 
+To test for this feature, use ``#if defined(__has_include)``:
+
+.. code-block:: c++
+
   // To avoid problem with non-clang compilers not having this macro.
-  #if defined(__has_include) && __has_include("myinclude.h")
+  #if defined(__has_include)
+  #if __has_include("myinclude.h")
   # include "myinclude.h"
   #endif
-
-To test for this feature, use ``#if defined(__has_include)``.
+  #endif
 
 .. _langext-__has_include_next:
 
@@ -185,8 +189,10 @@ or 0 otherwise:
   #endif
 
   // To avoid problem with non-clang compilers not having this macro.
-  #if defined(__has_include_next) && __has_include_next("myinclude.h")
+  #if defined(__has_include_next)
+  #if __has_include_next("myinclude.h")
   # include_next "myinclude.h"
+  #endif
   #endif
 
 Note that ``__has_include_next``, like the GNU extension ``#include_next``
@@ -801,8 +807,7 @@ Use ``__has_feature(cxx_contextual_conversions)`` or
 ``__has_extension(cxx_contextual_conversions)`` to determine if the C++1y rules
 are used when performing an implicit conversion for an array bound in a
 *new-expression*, the operand of a *delete-expression*, an integral constant
-expression, or a condition in a ``switch`` statement. Clang does not yet
-support this feature.
+expression, or a condition in a ``switch`` statement.
 
 C++1y decltype(auto)
 ^^^^^^^^^^^^^^^^^^^^
@@ -821,9 +826,9 @@ for default initializers in aggregate members is enabled.
 C++1y generalized lambda capture
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Use ``__has_feature(cxx_generalized_capture)`` or
-``__has_extension(cxx_generalized_capture`` to determine if support for
-generalized lambda captures is enabled
+Use ``__has_feature(cxx_init_capture)`` or
+``__has_extension(cxx_init_capture)`` to determine if support for
+lambda captures with explicit initializers is enabled
 (for instance, ``[n(0)] { return ++n; }``).
 Clang does not yet support this feature.
 
@@ -843,7 +848,6 @@ Use ``__has_feature(cxx_relaxed_constexpr)`` or
 ``__has_extension(cxx_relaxed_constexpr)`` to determine if variable
 declarations, local variable modification, and control flow constructs
 are permitted in ``constexpr`` functions.
-Clang's implementation of this feature is incomplete.
 
 C++1y return type deduction
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -852,7 +856,6 @@ Use ``__has_feature(cxx_return_type_deduction)`` or
 ``__has_extension(cxx_return_type_deduction)`` to determine if support
 for return type deduction for functions (using ``auto`` as a return type)
 is enabled.
-Clang's implementation of this feature is incomplete.
 
 C++1y runtime-sized arrays
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -918,8 +921,8 @@ enabled.
 C11 ``_Thread_local``
 ^^^^^^^^^^^^^^^^^^^^^
 
-Use ``__has_feature(c_thread_local)`` to determine if support for
-``_Thread_local`` variables is enabled.
+Use ``__has_feature(c_thread_local)`` or ``__has_extension(c_thread_local)``
+to determine if support for ``_Thread_local`` variables is enabled.
 
 Checks for Type Traits
 ======================
@@ -1173,8 +1176,52 @@ of this feature in version of clang being used.
 
 .. _langext-objc_method_family:
 
-The ``objc_method_family`` attribute
-------------------------------------
+
+Objective-C requiring a call to ``super`` in an override
+--------------------------------------------------------
+
+Some Objective-C classes allow a subclass to override a particular method in a
+parent class but expect that the overriding method also calls the overridden
+method in the parent class. For these cases, we provide an attribute to
+designate that a method requires a "call to ``super``" in the overriding
+method in the subclass.
+
+**Usage**: ``__attribute__((objc_requires_super))``.  This attribute can only
+be placed at the end of a method declaration:
+
+.. code-block:: objc
+
+  - (void)foo __attribute__((objc_requires_super));
+
+This attribute can only be applied the method declarations within a class, and
+not a protocol.  Currently this attribute does not enforce any placement of
+where the call occurs in the overriding method (such as in the case of
+``-dealloc`` where the call must appear at the end).  It checks only that it
+exists.
+
+Note that on both OS X and iOS that the Foundation framework provides a
+convenience macro ``NS_REQUIRES_SUPER`` that provides syntactic sugar for this
+attribute:
+
+.. code-block:: objc
+
+  - (void)foo NS_REQUIRES_SUPER;
+
+This macro is conditionally defined depending on the compiler's support for
+this attribute.  If the compiler does not support the attribute the macro
+expands to nothing.
+
+Operationally, when a method has this annotation the compiler will warn if the
+implementation of an override in a subclass does not call super.  For example:
+
+.. code-block:: objc
+
+   warning: method possibly missing a [super AnnotMeth] call
+   - (void) AnnotMeth{};
+                      ^
+
+Objective-C Method Families
+---------------------------
 
 Many methods in Objective-C have conventional meanings determined by their
 selectors. It is sometimes useful to be able to mark a method as having a
@@ -1252,6 +1299,21 @@ Further examples of these attributes are available in the static analyzer's `lis
 Query for these features with ``__has_attribute(ns_consumed)``,
 ``__has_attribute(ns_returns_retained)``, etc.
 
+
+Objective-C++ ABI: protocol-qualifier mangling of parameters
+------------------------------------------------------------
+
+Starting with LLVM 3.4, Clang produces a new mangling for parameters whose
+type is a qualified-``id`` (e.g., ``id<Foo>``).  This mangling allows such
+parameters to be differentiated from those with the regular unqualified ``id``
+type.
+
+This was a non-backward compatible mangling change to the ABI.  This change
+allows proper overloading, and also prevents mangling conflicts with template
+parameters of protocol-qualified type.
+
+Query the presence of this new mangling with
+``__has_feature(objc_protocol_qualifier_mangling)``.
 
 Function Overloading in C
 =========================
@@ -1411,7 +1473,9 @@ should only be used for timing small intervals.  When not supported by the
 target, the return value is always zero.  This builtin takes no arguments and
 produces an unsigned long long result.
 
-Query for this feature with ``__has_builtin(__builtin_readcyclecounter)``.
+Query for this feature with ``__has_builtin(__builtin_readcyclecounter)``. Note
+that even if present, its use may depend on run-time privilege or other OS
+controlled state.
 
 .. _langext-__builtin_shufflevector:
 
@@ -1433,8 +1497,8 @@ for the implementation of various target-specific header files like
 
 .. code-block:: c++
 
-  // Identity operation - return 4-element vector V1.
-  __builtin_shufflevector(V1, V1, 0, 1, 2, 3)
+  // identity operation - return 4-element vector v1.
+  __builtin_shufflevector(v1, v1, 0, 1, 2, 3)
 
   // "Splat" element 0 of V1 into a 4-element result.
   __builtin_shufflevector(V1, V1, 0, 0, 0, 0)
@@ -1448,6 +1512,9 @@ for the implementation of various target-specific header files like
   // Concatenate every other element of 8-element vectors V1 and V2.
   __builtin_shufflevector(V1, V2, 0, 2, 4, 6, 8, 10, 12, 14)
 
+  // Shuffle v1 with some elements being undefined
+  __builtin_shufflevector(v1, v1, 3, -1, 1, -1)
+
 **Description**:
 
 The first two arguments to ``__builtin_shufflevector`` are vectors that have
@@ -1456,13 +1523,58 @@ specify the elements indices of the first two vectors that should be extracted
 and returned in a new vector.  These element indices are numbered sequentially
 starting with the first vector, continuing into the second vector.  Thus, if
 ``vec1`` is a 4-element vector, index 5 would refer to the second element of
-``vec2``.
+``vec2``. An index of -1 can be used to indicate that the corresponding element
+in the returned vector is a don't care and can be optimized by the backend.
 
 The result of ``__builtin_shufflevector`` is a vector with the same element
 type as ``vec1``/``vec2`` but that has an element count equal to the number of
 indices specified.
 
 Query for this feature with ``__has_builtin(__builtin_shufflevector)``.
+
+``__builtin_convertvector``
+---------------------------
+
+``__builtin_convertvector`` is used to express generic vector
+type-conversion operations. The input vector and the output vector
+type must have the same number of elements.
+
+**Syntax**:
+
+.. code-block:: c++
+
+  __builtin_convertvector(src_vec, dst_vec_type)
+
+**Examples**:
+
+.. code-block:: c++
+
+  typedef double vector4double __attribute__((__vector_size__(32)));
+  typedef float  vector4float  __attribute__((__vector_size__(16)));
+  typedef short  vector4short  __attribute__((__vector_size__(8)));
+  vector4float vf; vector4short vs;
+
+  // convert from a vector of 4 floats to a vector of 4 doubles.
+  __builtin_convertvector(vf, vector4double)
+  // equivalent to:
+  (vector4double) { (double) vf[0], (double) vf[1], (double) vf[2], (double) vf[3] }
+
+  // convert from a vector of 4 shorts to a vector of 4 floats.
+  __builtin_convertvector(vs, vector4float)
+  // equivalent to:
+  (vector4float) { (float) vf[0], (float) vf[1], (float) vf[2], (float) vf[3] }
+
+**Description**:
+
+The first argument to ``__builtin_convertvector`` is a vector, and the second
+argument is a vector type with the same number of elements as the first
+argument.
+
+The result of ``__builtin_convertvector`` is a vector with the same element
+type as the second argument, with a value defined in terms of the action of a
+C-style cast applied to each element of the first argument.
+
+Query for this feature with ``__has_builtin(__builtin_convertvector)``.
 
 ``__builtin_unreachable``
 -------------------------
@@ -1526,6 +1638,22 @@ correct code by avoiding expensive loops around
 implementation details of ``__sync_lock_test_and_set()``.  The
 ``__sync_swap()`` builtin is a full barrier.
 
+``__builtin_addressof``
+-----------------------
+
+``__builtin_addressof`` performs the functionality of the built-in ``&``
+operator, ignoring any ``operator&`` overload.  This is useful in constant
+expressions in C++11, where there is no other way to take the address of an
+object that overloads ``operator&``.
+
+**Example of use**:
+
+.. code-block:: c++
+
+  template<typename T> constexpr T *addressof(T &value) {
+    return __builtin_addressof(value);
+  }
+
 Multiprecision Arithmetic Builtins
 ----------------------------------
 
@@ -1554,14 +1682,59 @@ The complete list of builtins are:
 
 .. code-block:: c
 
+  unsigned char      __builtin_addcb (unsigned char x, unsigned char y, unsigned char carryin, unsigned char *carryout);
   unsigned short     __builtin_addcs (unsigned short x, unsigned short y, unsigned short carryin, unsigned short *carryout);
   unsigned           __builtin_addc  (unsigned x, unsigned y, unsigned carryin, unsigned *carryout);
   unsigned long      __builtin_addcl (unsigned long x, unsigned long y, unsigned long carryin, unsigned long *carryout);
   unsigned long long __builtin_addcll(unsigned long long x, unsigned long long y, unsigned long long carryin, unsigned long long *carryout);
+  unsigned char      __builtin_subcb (unsigned char x, unsigned char y, unsigned char carryin, unsigned char *carryout);
   unsigned short     __builtin_subcs (unsigned short x, unsigned short y, unsigned short carryin, unsigned short *carryout);
   unsigned           __builtin_subc  (unsigned x, unsigned y, unsigned carryin, unsigned *carryout);
   unsigned long      __builtin_subcl (unsigned long x, unsigned long y, unsigned long carryin, unsigned long *carryout);
   unsigned long long __builtin_subcll(unsigned long long x, unsigned long long y, unsigned long long carryin, unsigned long long *carryout);
+
+Checked Arithmetic Builtins
+---------------------------
+
+Clang provides a set of builtins that implement checked arithmetic for security
+critical applications in a manner that is fast and easily expressable in C. As
+an example of their usage:
+
+.. code-block:: c
+
+  errorcode_t security_critical_application(...) {
+    unsigned x, y, result;
+    ...
+    if (__builtin_umul_overflow(x, y, &result))
+      return kErrorCodeHackers;
+    ...
+    use_multiply(result);
+    ...
+  }
+
+A complete enumeration of the builtins are:
+
+.. code-block:: c
+
+  bool __builtin_uadd_overflow  (unsigned x, unsigned y, unsigned *sum);
+  bool __builtin_uaddl_overflow (unsigned long x, unsigned long y, unsigned long *sum);
+  bool __builtin_uaddll_overflow(unsigned long long x, unsigned long long y, unsigned long long *sum);
+  bool __builtin_usub_overflow  (unsigned x, unsigned y, unsigned *diff);
+  bool __builtin_usubl_overflow (unsigned long x, unsigned long y, unsigned long *diff);
+  bool __builtin_usubll_overflow(unsigned long long x, unsigned long long y, unsigned long long *diff);
+  bool __builtin_umul_overflow  (unsigned x, unsigned y, unsigned *prod);
+  bool __builtin_umull_overflow (unsigned long x, unsigned long y, unsigned long *prod);
+  bool __builtin_umulll_overflow(unsigned long long x, unsigned long long y, unsigned long long *prod);
+  bool __builtin_sadd_overflow  (int x, int y, int *sum);
+  bool __builtin_saddl_overflow (long x, long y, long *sum);
+  bool __builtin_saddll_overflow(long long x, long long y, long long *sum);
+  bool __builtin_ssub_overflow  (int x, int y, int *diff);
+  bool __builtin_ssubl_overflow (long x, long y, long *diff);
+  bool __builtin_ssubll_overflow(long long x, long long y, long long *diff);
+  bool __builtin_smul_overflow  (int x, int y, int *prod);
+  bool __builtin_smull_overflow (long x, long y, long *prod);
+  bool __builtin_smulll_overflow(long long x, long long y, long long *prod);
+
 
 .. _langext-__c11_atomic:
 
@@ -1587,6 +1760,37 @@ C11's ``<stdatomic.h>`` header.  These builtins provide the semantics of the
 * ``__c11_atomic_fetch_and``
 * ``__c11_atomic_fetch_or``
 * ``__c11_atomic_fetch_xor``
+
+Low-level ARM exclusive memory builtins
+---------------------------------------
+
+Clang provides overloaded builtins giving direct access to the three key ARM
+instructions for implementing atomic operations.
+
+.. code-block:: c
+
+  T __builtin_arm_ldrex(const volatile T *addr);
+  int __builtin_arm_strex(T val, volatile T *addr);
+  void __builtin_arm_clrex(void);
+
+The types ``T`` currently supported are:
+* Integer types with width at most 64 bits.
+* Floating-point types
+* Pointer types.
+
+Note that the compiler does not guarantee it will not insert stores which clear
+the exclusive monitor in between an ``ldrex`` and its paired ``strex``. In
+practice this is only usually a risk when the extra store is on the same cache
+line as the variable being modified and Clang will only insert stack stores on
+its own, so it is best not to use these operations on variables with automatic
+storage duration.
+
+Also, loads and stores may be implicit in code written between the ``ldrex`` and
+``strex``. Clang will not necessarily mitigate the effects of these either, so
+care should be exercised.
+
+For these reasons the higher level atomic primitives should be preferred where
+possible.
 
 Non-standard C++11 Attributes
 =============================
@@ -1649,7 +1853,7 @@ are accepted with the ``__attribute__((foo))`` syntax are also accepted as
 <http://gcc.gnu.org/onlinedocs/gcc/Function-Attributes.html>`_, `GCC variable
 attributes <http://gcc.gnu.org/onlinedocs/gcc/Variable-Attributes.html>`_, and
 `GCC type attributes
-<http://gcc.gnu.org/onlinedocs/gcc/Type-Attributes.html>`_. As with the GCC
+<http://gcc.gnu.org/onlinedocs/gcc/Type-Attributes.html>`_). As with the GCC
 implementation, these attributes must appertain to the *declarator-id* in a
 declaration, which means they must go either at the start of the declaration or
 immediately after the name being declared.
@@ -1698,6 +1902,48 @@ Which compiles to (on X86-32):
           movl    %gs:(%eax), %eax
           ret
 
+ARM Language Extensions
+-----------------------
+
+Interrupt attribute
+^^^^^^^^^^^^^^^^^^^
+
+Clang supports the GNU style ``__attribute__((interrupt("TYPE")))`` attribute on
+ARM targets. This attribute may be attached to a function definition and
+instructs the backend to generate appropriate function entry/exit code so that
+it can be used directly as an interrupt service routine.
+
+ The parameter passed to the interrupt attribute is optional, but if
+provided it must be a string literal with one of the following values: "IRQ",
+"FIQ", "SWI", "ABORT", "UNDEF".
+
+The semantics are as follows:
+
+- If the function is AAPCS, Clang instructs the backend to realign the stack to
+  8 bytes on entry. This is a general requirement of the AAPCS at public
+  interfaces, but may not hold when an exception is taken. Doing this allows
+  other AAPCS functions to be called.
+- If the CPU is M-class this is all that needs to be done since the architecture
+  itself is designed in such a way that functions obeying the normal AAPCS ABI
+  constraints are valid exception handlers.
+- If the CPU is not M-class, the prologue and epilogue are modified to save all
+  non-banked registers that are used, so that upon return the user-mode state
+  will not be corrupted. Note that to avoid unnecessary overhead, only
+  general-purpose (integer) registers are saved in this way. If VFP operations
+  are needed, that state must be saved manually.
+
+  Specifically, interrupt kinds other than "FIQ" will save all core registers
+  except "lr" and "sp". "FIQ" interrupts will save r0-r7.
+- If the CPU is not M-class, the return instruction is changed to one of the
+  canonical sequences permitted by the architecture for exception return. Where
+  possible the function itself will make the necessary "lr" adjustments so that
+  the "preferred return address" is selected.
+
+  Unfortunately the compiler is unable to make this guarantee for an "UNDEF"
+  handler, where the offset from "lr" to the preferred return address depends on
+  the execution state of the code which generated the exception. In this case
+  a sequence equivalent to "movs pc, lr" will be used.
+
 Extensions for Static Analysis
 ==============================
 
@@ -1735,8 +1981,8 @@ with :doc:`ThreadSanitizer`.
 Use ``__attribute__((no_sanitize_thread))`` on a function declaration
 to specify that checks for data races on plain (non-atomic) memory accesses
 should not be inserted by ThreadSanitizer.
-The function may still be instrumented by the tool
-to avoid false positives in other places.
+The function is still instrumented by the tool to avoid false positives and
+provide meaningful stack traces.
 
 .. _langext-memory_sanitizer:
 
@@ -1905,15 +2151,72 @@ to specify that the function must be called while holding the listed shared
 locks.  Arguments must be lockable type, and there must be at least one
 argument.
 
+Consumed Annotation Checking
+============================
+
+Clang supports additional attributes for checking basic resource management
+properties, specifically for unique objects that have a single owning reference.
+The following attributes are currently supported, although **the implementation
+for these annotations is currently in development and are subject to change.**
+
+``consumable``
+--------------
+
+Each class that uses any of the following annotations must first be marked
+using the consumable attribute.  Failure to do so will result in a warning.
+
+``set_typestate(new_state)``
+----------------------------
+
+Annotate methods that transition an object into a new state with
+``__attribute__((set_typestate(new_state)))``.  The new new state must be
+unconsumed, consumed, or unknown.
+
+``callable_when(...)``
+----------------------
+
+Use ``__attribute__((callable_when(...)))`` to indicate what states a method
+may be called in.  Valid states are unconsumed, consumed, or unknown.  Each
+argument to this attribute must be a quoted string.  E.g.:
+
+``__attribute__((callable_when("unconsumed", "unknown")))``
+
+``tests_typestate(tested_state)``
+---------------------------------
+
+Use ``__attribute__((tests_typestate(tested_state)))`` to indicate that a method
+returns true if the object is in the specified state..
+
+``param_typestate(expected_state)``
+-----------------------------------
+
+This attribute specifies expectations about function parameters.  Calls to an
+function with annotated parameters will issue a warning if the corresponding
+argument isn't in the expected state.  The attribute is also used to set the
+initial state of the parameter when analyzing the function's body.
+
+``return_typestate(ret_state)``
+-------------------------------
+
+The ``return_typestate`` attribute can be applied to functions or parameters.
+When applied to a function the attribute specifies the state of the returned
+value.  The function's body is checked to ensure that it always returns a value
+in the specified state.  On the caller side, values returned by the annotated
+function are initialized to the given state.
+
+If the attribute is applied to a function parameter it modifies the state of
+an argument after a call to the function returns.  The function's body is
+checked to ensure that the parameter is in the expected state before returning. 
+
 Type Safety Checking
 ====================
 
 Clang supports additional attributes to enable checking type safety properties
-that can't be enforced by C type system.  Usecases include:
+that can't be enforced by the C type system.  Use cases include:
 
 * MPI library implementations, where these attributes enable checking that
-  buffer type matches the passed ``MPI_Datatype``;
-* for HDF5 library there is a similar usecase as MPI;
+  the buffer type matches the passed ``MPI_Datatype``;
+* for HDF5 library there is a similar use case to MPI;
 * checking types of variadic functions' arguments for functions like
   ``fcntl()`` and ``ioctl()``.
 
@@ -1948,7 +2251,7 @@ accepts a type tag that determines the type of some other argument.
 applicable type tags.
 
 This attribute is primarily useful for checking arguments of variadic functions
-(``pointer_with_type_tag`` can be used in most of non-variadic cases).
+(``pointer_with_type_tag`` can be used in most non-variadic cases).
 
 For example:
 

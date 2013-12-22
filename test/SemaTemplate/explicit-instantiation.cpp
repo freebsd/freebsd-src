@@ -15,9 +15,9 @@ struct X0 {
     return x + 1;  // expected-error{{invalid operands}}
   } 
   T* f0(T*, T*) { return T(); } // expected-warning{{expression which evaluates to zero treated as a null pointer constant of type 'int *'}}
-  
-  template<typename U>
-  T f0(T, U) { return T(); }
+
+  template <typename U> T f0(T, U) { return T(); } // expected-note {{candidate template ignored: could not match 'int (int, U)' against 'int (int) const'}} \
+                                                   // expected-note {{candidate template ignored: could not match 'int' against 'int *'}}
 };
 
 template<typename T>
@@ -59,13 +59,14 @@ template int *X2::f1(int *); // okay
 
 template void X2::f2(int *, int *); // expected-error{{ambiguous}}
 
-
-template<typename T> void print_type() { }
+template <typename T>
+void print_type() {} // expected-note {{candidate template ignored: could not match 'void ()' against 'void (float *)'}}
 
 template void print_type<int>();
 template void print_type<float>();
 
-template<typename T> void print_type(T*) { }
+template <typename T>
+void print_type(T *) {} // expected-note {{candidate template ignored: could not match 'void (int *)' against 'void (float *)'}}
 
 template void print_type(int*);
 template void print_type<int>(float*); // expected-error{{does not refer}}
@@ -94,7 +95,7 @@ namespace PR7622 {
 
   template<typename,typename>
   struct basic_streambuf{friend bob<>()}; // expected-error{{unknown type name 'bob'}} \
-  // expected-error{{expected member name or ';' after declaration specifiers}}
+                                          // expected-error{{expected member name or ';' after declaration specifiers}}
   template struct basic_streambuf<int>;
 }
 
@@ -105,3 +106,46 @@ class TC1 {
     void foo() { }
    };
 };
+
+namespace PR8020 {
+  template <typename T> struct X { X() {} };
+  template<> struct X<int> { X(); };
+  template X<int>::X() {}  // expected-error{{function cannot be defined in an explicit instantiation}}
+}
+
+namespace PR10086 {
+  template void foobar(int i) {}  // expected-error{{function cannot be defined in an explicit instantiation}}
+  int func() {
+    foobar(5);
+  }
+}
+
+namespace undefined_static_data_member {
+  template<typename T> struct A {
+    static int a; // expected-note {{here}}
+    template<typename U> static int b; // expected-note {{here}} expected-warning {{extension}}
+  };
+  struct B {
+    template<typename U> static int c; // expected-note {{here}} expected-warning {{extension}}
+  };
+
+  template int A<int>::a; // expected-error {{explicit instantiation of undefined static data member 'a' of class template 'undefined_static_data_member::A<int>'}}
+  template int A<int>::b<int>; // expected-error {{explicit instantiation of undefined variable template 'undefined_static_data_member::A<int>::b<int>'}}
+  template int B::c<int>; // expected-error {{explicit instantiation of undefined variable template 'undefined_static_data_member::B::c<int>'}}
+
+
+  template<typename T> struct C {
+    static int a;
+    template<typename U> static int b; // expected-warning {{extension}}
+  };
+  struct D {
+    template<typename U> static int c; // expected-warning {{extension}}
+  };
+  template<typename T> int C<T>::a;
+  template<typename T> template<typename U> int C<T>::b; // expected-warning {{extension}}
+  template<typename U> int D::c; // expected-warning {{extension}}
+
+  template int C<int>::a;
+  template int C<int>::b<int>;
+  template int D::c<int>;
+}

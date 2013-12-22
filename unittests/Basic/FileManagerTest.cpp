@@ -24,18 +24,15 @@ class FakeStatCache : public FileSystemStatCache {
 private:
   // Maps a file/directory path to its desired stat result.  Anything
   // not in this map is considered to not exist in the file system.
-  llvm::StringMap<struct stat, llvm::BumpPtrAllocator> StatCalls;
+  llvm::StringMap<FileData, llvm::BumpPtrAllocator> StatCalls;
 
   void InjectFileOrDirectory(const char *Path, ino_t INode, bool IsFile) {
-    struct stat statBuf;
-    memset(&statBuf, 0, sizeof(statBuf));
-    statBuf.st_dev = 1;
-#ifndef _WIN32  // struct stat has no st_ino field on Windows.
-    statBuf.st_ino = INode;
-#endif
-    statBuf.st_mode = IsFile ? (0777 | S_IFREG)  // a regular file
-        : (0777 | S_IFDIR);  // a directory
-    StatCalls[Path] = statBuf;
+    FileData Data;
+    memset(&Data, 0, sizeof(FileData));
+    llvm::sys::fs::UniqueID ID(1, INode);
+    Data.UniqueID = ID;
+    Data.IsDirectory = !IsFile;
+    StatCalls[Path] = Data;
   }
 
 public:
@@ -50,10 +47,10 @@ public:
   }
 
   // Implement FileSystemStatCache::getStat().
-  virtual LookupResult getStat(const char *Path, struct stat &StatBuf,
-                               bool isFile, int *FileDescriptor) {
+  virtual LookupResult getStat(const char *Path, FileData &Data, bool isFile,
+                               int *FileDescriptor) {
     if (StatCalls.count(Path) != 0) {
-      StatBuf = StatCalls[Path];
+      Data = StatCalls[Path];
       return CacheExists;
     }
 
@@ -125,6 +122,14 @@ TEST_F(FileManagerTest, getFileReturnsValidFileEntryForExistingRealFile) {
   FakeStatCache *statCache = new FakeStatCache;
   statCache->InjectDirectory("/tmp", 42);
   statCache->InjectFile("/tmp/test", 43);
+
+#ifdef _WIN32
+  const char *DirName = "C:.";
+  const char *FileName = "C:test";
+  statCache->InjectDirectory(DirName, 44);
+  statCache->InjectFile(FileName, 45);
+#endif
+
   manager.addStatCache(statCache);
 
   const FileEntry *file = manager.getFile("/tmp/test");
@@ -134,6 +139,15 @@ TEST_F(FileManagerTest, getFileReturnsValidFileEntryForExistingRealFile) {
   const DirectoryEntry *dir = file->getDir();
   ASSERT_TRUE(dir != NULL);
   EXPECT_STREQ("/tmp", dir->getName());
+
+#ifdef _WIN32
+  file = manager.getFile(FileName);
+  ASSERT_TRUE(file != NULL);
+
+  dir = file->getDir();
+  ASSERT_TRUE(dir != NULL);
+  EXPECT_STREQ(DirName, dir->getName());
+#endif
 }
 
 // getFile() returns non-NULL if a virtual file exists at the given path.

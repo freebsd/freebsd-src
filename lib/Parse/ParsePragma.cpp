@@ -728,6 +728,7 @@ PragmaOpenCLExtensionHandler::HandlePragma(Preprocessor &PP,
     PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_enable_disable);
     return;
   }
+  SourceLocation StateLoc = Tok.getLocation();
 
   PP.Lex(Tok);
   if (Tok.isNot(tok::eod)) {
@@ -747,6 +748,10 @@ PragmaOpenCLExtensionHandler::HandlePragma(Preprocessor &PP,
   Toks[0].setAnnotationValue(data.getOpaqueValue());
   PP.EnterTokenStream(Toks, 1, /*DisableMacroExpansion=*/true,
                       /*OwnsTokens=*/false);
+
+  if (PP.getPPCallbacks())
+    PP.getPPCallbacks()->PragmaOpenCLExtension(NameLoc, ename, 
+                                               StateLoc, state);
 }
 
 /// \brief Handle '#pragma omp ...' when OpenMP is disabled.
@@ -794,6 +799,63 @@ PragmaOpenMPHandler::HandlePragma(Preprocessor &PP,
                       /*DisableMacroExpansion=*/true, /*OwnsTokens=*/true);
 }
 
+/// \brief Handle the Microsoft \#pragma detect_mismatch extension.
+///
+/// The syntax is:
+/// \code
+///   #pragma detect_mismatch("name", "value")
+/// \endcode
+/// Where 'name' and 'value' are quoted strings.  The values are embedded in
+/// the object file and passed along to the linker.  If the linker detects a
+/// mismatch in the object file's values for the given name, a LNK2038 error
+/// is emitted.  See MSDN for more details.
+void PragmaDetectMismatchHandler::HandlePragma(Preprocessor &PP,
+                                               PragmaIntroducerKind Introducer,
+                                               Token &Tok) {
+  SourceLocation CommentLoc = Tok.getLocation();
+  PP.Lex(Tok);
+  if (Tok.isNot(tok::l_paren)) {
+    PP.Diag(CommentLoc, diag::err_expected_lparen);
+    return;
+  }
+
+  // Read the name to embed, which must be a string literal.
+  std::string NameString;
+  if (!PP.LexStringLiteral(Tok, NameString,
+                           "pragma detect_mismatch",
+                           /*MacroExpansion=*/true))
+    return;
+
+  // Read the comma followed by a second string literal.
+  std::string ValueString;
+  if (Tok.isNot(tok::comma)) {
+    PP.Diag(Tok.getLocation(), diag::err_pragma_detect_mismatch_malformed);
+    return;
+  }
+
+  if (!PP.LexStringLiteral(Tok, ValueString, "pragma detect_mismatch",
+                           /*MacroExpansion=*/true))
+    return;
+
+  if (Tok.isNot(tok::r_paren)) {
+    PP.Diag(Tok.getLocation(), diag::err_expected_rparen);
+    return;
+  }
+  PP.Lex(Tok);  // Eat the r_paren.
+
+  if (Tok.isNot(tok::eod)) {
+    PP.Diag(Tok.getLocation(), diag::err_pragma_detect_mismatch_malformed);
+    return;
+  }
+
+  // If the pragma is lexically sound, notify any interested PPCallbacks.
+  if (PP.getPPCallbacks())
+    PP.getPPCallbacks()->PragmaDetectMismatch(CommentLoc, NameString,
+                                              ValueString);
+
+  Actions.ActOnPragmaDetectMismatch(NameString, ValueString);
+}
+
 /// \brief Handle the microsoft \#pragma comment extension.
 ///
 /// The syntax is:
@@ -821,10 +883,16 @@ void PragmaCommentHandler::HandlePragma(Preprocessor &PP,
   }
 
   // Verify that this is one of the 5 whitelisted options.
-  // FIXME: warn that 'exestr' is deprecated.
-  const IdentifierInfo *II = Tok.getIdentifierInfo();
-  if (!II->isStr("compiler") && !II->isStr("exestr") && !II->isStr("lib") &&
-      !II->isStr("linker") && !II->isStr("user")) {
+  IdentifierInfo *II = Tok.getIdentifierInfo();
+  Sema::PragmaMSCommentKind Kind =
+    llvm::StringSwitch<Sema::PragmaMSCommentKind>(II->getName())
+    .Case("linker",   Sema::PCK_Linker)
+    .Case("lib",      Sema::PCK_Lib)
+    .Case("compiler", Sema::PCK_Compiler)
+    .Case("exestr",   Sema::PCK_ExeStr)
+    .Case("user",     Sema::PCK_User)
+    .Default(Sema::PCK_Unknown);
+  if (Kind == Sema::PCK_Unknown) {
     PP.Diag(Tok.getLocation(), diag::err_pragma_comment_unknown_kind);
     return;
   }
@@ -837,11 +905,12 @@ void PragmaCommentHandler::HandlePragma(Preprocessor &PP,
                                                  /*MacroExpansion=*/true))
     return;
 
+  // FIXME: warn that 'exestr' is deprecated.
   // FIXME: If the kind is "compiler" warn if the string is present (it is
   // ignored).
-  // FIXME: 'lib' requires a comment string.
-  // FIXME: 'linker' requires a comment string, and has a specific list of
-  // things that are allowable.
+  // The MSDN docs say that "lib" and "linker" require a string and have a short
+  // whitelist of linker options they support, but in practice MSVC doesn't
+  // issue a diagnostic.  Therefore neither does clang.
 
   if (Tok.isNot(tok::r_paren)) {
     PP.Diag(Tok.getLocation(), diag::err_pragma_comment_malformed);
@@ -857,4 +926,6 @@ void PragmaCommentHandler::HandlePragma(Preprocessor &PP,
   // If the pragma is lexically sound, notify any interested PPCallbacks.
   if (PP.getPPCallbacks())
     PP.getPPCallbacks()->PragmaComment(CommentLoc, II, ArgumentString);
+
+  Actions.ActOnPragmaMSComment(Kind, ArgumentString);
 }

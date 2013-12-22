@@ -1,5 +1,5 @@
 // REQUIRES: x86-64-registered-target
-// RUN: %clang_cc1 -x c++ %s -triple i386-apple-darwin10 -O0 -fasm-blocks -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 -x c++ %s -triple i386-apple-darwin10 -fasm-blocks -emit-llvm -o - | FileCheck %s
 
 // rdar://13645930
 
@@ -39,7 +39,7 @@ void t2() {
 // CHECK: call void asm sideeffect inteldialect "mov eax, $0", "r,~{eax},~{dirflag},~{fpsr},~{flags}"(i32** @_ZN3Foo3Bar3ptrE)
 }
 
-// CHECK: define void @_Z2t3v()
+// CHECK-LABEL: define void @_Z2t3v()
 void t3() {
   __asm mov eax, LENGTH Foo::ptr
 // CHECK: call void asm sideeffect inteldialect "mov eax, $$1", "~{eax},~{dirflag},~{fpsr},~{flags}"()
@@ -76,7 +76,7 @@ struct T4 {
   void test();
 };
 
-// CHECK: define void @_ZN2T44testEv(
+// CHECK-LABEL: define void @_ZN2T44testEv(
 void T4::test() {
 // CHECK: [[T0:%.*]] = alloca [[T4:%.*]]*,
 // CHECK: [[THIS:%.*]] = load [[T4]]** [[T0]]
@@ -91,7 +91,7 @@ template <class T> struct T5 {
   template <class U> static T create(U);
   void run();
 };
-// CHECK: define void @_Z5test5v()
+// CHECK-LABEL: define void @_Z5test5v()
 void test5() {
   // CHECK: [[X:%.*]] = alloca i32
   // CHECK: [[Y:%.*]] = alloca i32
@@ -102,4 +102,12 @@ void test5() {
   // CHECK: call void asm sideeffect inteldialect "call $0", "r,~{dirflag},~{fpsr},~{flags}"(i32 (float)* @_ZN2T5IiE6createIfEEiT_)
   __asm mov x, eax
   // CHECK: call void asm sideeffect inteldialect "mov dword ptr $0, eax", "=*m,~{dirflag},~{fpsr},~{flags}"(i32* [[X]])
+}
+
+// Just verify this doesn't emit an error.
+void test6() {
+  __asm {
+   a:
+   jmp a
+  }
 }

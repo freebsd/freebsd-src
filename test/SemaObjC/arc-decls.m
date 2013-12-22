@@ -99,3 +99,27 @@ void test7(void) {
   I *y;
   J **py = &y; // expected-error {{pointer to non-const type 'J *' with no explicit ownership}} expected-warning {{incompatible pointer types initializing}}
 }
+
+void func(void) __attribute__((objc_ownership(none)));  // expected-warning {{'objc_ownership' only applies to Objective-C object or block pointer types; type here is 'void (void)'}}
+struct __attribute__((objc_ownership(none))) S2 {}; // expected-error {{'objc_ownership' attribute only applies to variables}}
+@interface I2
+    @property __attribute__((objc_ownership(frob))) id i; // expected-warning {{'objc_ownership' attribute argument not supported: 'frob'}}
+@end
+
+// rdar://15304886
+@interface NSObject @end
+
+@interface ControllerClass : NSObject @end
+
+@interface SomeClassOwnedByController
+@property (readonly) ControllerClass *controller; // expected-note {{property declared here}}
+
+// rdar://15465916
+@property (readonly, weak) ControllerClass *weak_controller;
+@end
+
+@interface SomeClassOwnedByController ()
+@property (readwrite, weak) ControllerClass *controller; // expected-warning {{primary property declaration is implicitly strong while redeclaration in class extension is weak}}
+
+@property (readwrite, weak) ControllerClass *weak_controller;
+@end

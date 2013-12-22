@@ -72,8 +72,15 @@
 11: T11(b)
 // CHECK-Identifiers-True: 11: #0
 
+// Universal character names can specify basic ascii and control characters
+12: \u0020\u0030\u0080\u0000
+// CHECK-Identifiers-False: 12: \u0020\u0030\u0080\u0000
 
 // This should not crash
 // rdar://8823139
 # ##
 // CHECK-Identifiers-False: # ##
+
+#define X(a) # # # 1
+X(1)
+// CHECK-Identifiers-False: # # # 1

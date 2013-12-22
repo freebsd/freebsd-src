@@ -65,6 +65,7 @@ Preprocessor::Preprocessor(IntrusiveRefCntPtr<PreprocessorOptions> PPOpts,
       TheModuleLoader(TheModuleLoader), ExternalSource(0),
       Identifiers(opts, IILookup), IncrementalProcessing(IncrProcessing),
       CodeComplete(0), CodeCompletionFile(0), CodeCompletionOffset(0),
+      LastTokenWasAt(false), ModuleImportExpectsIdentifier(false),
       CodeCompletionReached(0), SkipMainFilePreamble(0, true), CurPPLexer(0),
       CurDirLookup(0), CurLexerKind(CLK_Lexer), Callbacks(0),
       MacroArgCache(0), Record(0), MIChainHead(0), MICache(0),
@@ -614,7 +615,7 @@ void Preprocessor::HandlePoisonedIdentifier(Token & Identifier) {
 /// IdentifierInfo's 'isHandleIdentifierCase' bit.  If this method changes, the
 /// IdentifierInfo methods that compute these properties will need to change to
 /// match.
-void Preprocessor::HandleIdentifier(Token &Identifier) {
+bool Preprocessor::HandleIdentifier(Token &Identifier) {
   assert(Identifier.getIdentifierInfo() &&
          "Can't handle identifiers without identifier info!");
 
@@ -648,8 +649,10 @@ void Preprocessor::HandleIdentifier(Token &Identifier) {
     MacroInfo *MI = MD->getMacroInfo();
     if (!DisableMacroExpansion) {
       if (!Identifier.isExpandDisabled() && MI->isEnabled()) {
-        if (!HandleMacroExpandedIdentifier(Identifier, MD))
-          return;
+        // C99 6.10.3p10: If the preprocessing token immediately after the
+        // macro name isn't a '(', this macro should not be expanded.
+        if (!MI->isFunctionLike() || isNextPPTokenLParen())
+          return HandleMacroExpandedIdentifier(Identifier, MD);
       } else {
         // C99 6.10.3.4p2 says that a disabled macro may never again be
         // expanded, even if it's in a context where it could be expanded in the
@@ -685,20 +688,51 @@ void Preprocessor::HandleIdentifier(Token &Identifier) {
   if (II.isExtensionToken() && !DisableMacroExpansion)
     Diag(Identifier, diag::ext_token_used);
   
-  // If this is the 'import' contextual keyword, note
+  // If this is the 'import' contextual keyword following an '@', note
   // that the next token indicates a module name.
   //
   // Note that we do not treat 'import' as a contextual
   // keyword when we're in a caching lexer, because caching lexers only get
   // used in contexts where import declarations are disallowed.
-  if (II.isModulesImport() && !InMacroArgs && !DisableMacroExpansion &&
-      getLangOpts().Modules && CurLexerKind != CLK_CachingLexer) {
+  if (LastTokenWasAt && II.isModulesImport() && !InMacroArgs && 
+      !DisableMacroExpansion && getLangOpts().Modules && 
+      CurLexerKind != CLK_CachingLexer) {
     ModuleImportLoc = Identifier.getLocation();
     ModuleImportPath.clear();
     ModuleImportExpectsIdentifier = true;
     CurLexerKind = CLK_LexAfterModuleImport;
   }
+  return true;
 }
+
+void Preprocessor::Lex(Token &Result) {
+  // We loop here until a lex function retuns a token; this avoids recursion.
+  bool ReturnedToken;
+  do {
+    switch (CurLexerKind) {
+    case CLK_Lexer:
+      ReturnedToken = CurLexer->Lex(Result);
+      break;
+    case CLK_PTHLexer:
+      ReturnedToken = CurPTHLexer->Lex(Result);
+      break;
+    case CLK_TokenLexer:
+      ReturnedToken = CurTokenLexer->Lex(Result);
+      break;
+    case CLK_CachingLexer:
+      CachingLex(Result);
+      ReturnedToken = true;
+      break;
+    case CLK_LexAfterModuleImport:
+      LexAfterModuleImport(Result);
+      ReturnedToken = true;
+      break;
+    }
+  } while (!ReturnedToken);
+
+  LastTokenWasAt = Result.is(tok::at);
+}
+
 
 /// \brief Lex a token following the 'import' contextual keyword.
 ///
@@ -734,7 +768,7 @@ void Preprocessor::LexAfterModuleImport(Token &Result) {
   }
 
   // If we have a non-empty module path, load the named module.
-  if (!ModuleImportPath.empty()) {
+  if (!ModuleImportPath.empty() && getLangOpts().Modules) {
     Module *Imported = TheModuleLoader.loadModule(ModuleImportLoc,
                                                   ModuleImportPath,
                                                   Module::MacrosVisible,

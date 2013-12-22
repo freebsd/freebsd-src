@@ -32,7 +32,9 @@ my $TERM = $ENV{'TERM'};
 my $UseColor = (defined $TERM and $TERM =~ 'xterm-.*color' and -t STDOUT
                 and defined $ENV{'SCAN_BUILD_COLOR'});
 
-my $UserName = HtmlEscape(getpwuid($<) || 'unknown');
+# Portability: getpwuid is not implemented for Win32 (see Perl language 
+# reference, perlport), use getlogin instead.
+my $UserName = HtmlEscape(getlogin() || getpwuid($<) || 'unknown');
 my $HostName = HtmlEscape(hostname() || 'unknown');
 my $CurrentDir = HtmlEscape(getcwd());
 my $CurrentDirSuffix = basename($CurrentDir);
@@ -121,8 +123,7 @@ sub GetHTMLRunDir {
   my $Dir = shift @_;    
   my $TmpMode = 0;
   if (!defined $Dir) {
-    $Dir = $ENV{'TMPDIR'};
-    if (!defined $Dir) { $Dir = "/tmp"; }
+    $Dir = $ENV{'TMPDIR'} || $ENV{'TEMP'} || $ENV{'TMP'} || "/tmp";
     $TmpMode = 1;
   }
   
@@ -134,7 +135,13 @@ sub GetHTMLRunDir {
   my $year  = $CurrentTime[5] + 1900;
   my $day   = $CurrentTime[3];
   my $month = $CurrentTime[4] + 1;
-  my $DateString = sprintf("%d-%02d-%02d", $year, $month, $day);
+  my $hour =  $CurrentTime[2];
+  my $min =   $CurrentTime[1];
+  my $sec =   $CurrentTime[0];
+
+  my $TimeString = sprintf("%02d%02d%02d", $hour, $min, $sec);
+  my $DateString = sprintf("%d-%02d-%02d-%s-$$",
+                           $year, $month, $day, $TimeString);
   
   # Determine the run number.  
   my $RunNumber;
@@ -161,9 +168,11 @@ sub GetHTMLRunDir {
       next if ($x[0] != $year);
       next if ($x[1] != $month);
       next if ($x[2] != $day);
+      next if ($x[3] != $TimeString);
+      next if ($x[4] != $$);
       
-      if ($x[3] > $max) {
-        $max = $x[3];
+      if ($x[5] > $max) {
+        $max = $x[5];
       }      
     }
     
@@ -896,6 +905,9 @@ sub SetEnv {
   }
 }
 
+# The flag corresponding to the --override-compiler command line option.
+my $OverrideCompiler = 0; 
+
 sub RunXcodebuild {
   my $Args = shift;
   my $IgnoreErrors = shift;
@@ -910,7 +922,7 @@ sub RunXcodebuild {
   # Detect the version of Xcode.  If Xcode 4.6 or higher, use new
   # in situ support for analyzer interposition without needed to override
   # the compiler.
-  open(DETECT_XCODE, "xcodebuild -version |") or
+  open(DETECT_XCODE, "-|", $Args->[0], "-version") or
     die "error: cannot detect version of xcodebuild\n";
 
   my $oldBehavior = 1;
@@ -927,6 +939,12 @@ sub RunXcodebuild {
     }
   }
   close(DETECT_XCODE);
+  
+  # If --override-compiler is explicitely requested, resort to the old 
+  # behavior regardless of Xcode version.
+  if ($OverrideCompiler) {
+    $oldBehavior = 1;
+  }
   
   if ($oldBehavior == 0) {
     my $OutputDir = $Options->{"OUTPUT_DIR"};
@@ -976,16 +994,11 @@ sub RunBuildCommand {
   my $CCAnalyzer = shift;
   my $CXXAnalyzer = shift;
   my $Options = shift;
-  
-  # Get only the part of the command after the last '/'.
-  if ($Cmd =~ /\/([^\/]+)$/) {
-    $Cmd = $1;
-  }
-  
-  if ($Cmd eq "xcodebuild") {
+
+  if ($Cmd =~ /\bxcodebuild$/) {
     return RunXcodebuild($Args, $IgnoreErrors, $CCAnalyzer, $CXXAnalyzer, $Options);
   }
-  
+
   # Setup the environment.
   SetEnv($Options);
   
@@ -1013,10 +1026,10 @@ sub RunBuildCommand {
     shift @$Args;
     unshift @$Args, $CXXAnalyzer;
   }
-  elsif ($IgnoreErrors) {
-    if ($Cmd eq "make" or $Cmd eq "gmake") {
-      AddIfNotPresent($Args, "CC=$CCAnalyzer");
-      AddIfNotPresent($Args, "CXX=$CXXAnalyzer");
+  elsif ($Cmd eq "make" or $Cmd eq "gmake") {
+    AddIfNotPresent($Args, "CC=$CCAnalyzer");
+    AddIfNotPresent($Args, "CXX=$CXXAnalyzer");
+    if ($IgnoreErrors) {
       AddIfNotPresent($Args,"-k");
       AddIfNotPresent($Args,"-i");
     }
@@ -1148,6 +1161,10 @@ ADVANCED OPTIONS:
 
    Don't remove the build results directory even if no issues were reported.
 
+ --override-compiler 
+   Always resort to the ccc-analyzer even when better interposition methods 
+   are available.
+   
 CONTROLLING CHECKERS:
 
  A default group of checkers are always run unless explicitly disabled.
@@ -1511,6 +1528,12 @@ while (@ARGV) {
     $KeepEmpty = 1;
     next;
   }
+
+  if ($arg eq "--override-compiler") {
+    shift @ARGV;
+    $OverrideCompiler = 1;
+    next;
+  }
   
   DieDiag("unrecognized option '$arg'\n") if ($arg =~ /^-/);
   
@@ -1589,13 +1612,17 @@ my $AbsRealBin = Cwd::realpath($RealBin);
 my $Cmd = "$AbsRealBin/libexec/ccc-analyzer";
 my $CmdCXX = "$AbsRealBin/libexec/c++-analyzer";
 
-if (!defined $Cmd || ! -x $Cmd) {
+# Portability: use less strict but portable check -e (file exists) instead of 
+# non-portable -x (file is executable). On some windows ports -x just checks
+# file extension to determine if a file is executable (see Perl language 
+# reference, perlport)
+if (!defined $Cmd || ! -e $Cmd) {
   $Cmd = "$AbsRealBin/ccc-analyzer";
-  DieDiag("Executable 'ccc-analyzer' does not exist at '$Cmd'\n") if(! -x $Cmd);
+  DieDiag("'ccc-analyzer' does not exist at '$Cmd'\n") if(! -e $Cmd);
 }
-if (!defined $CmdCXX || ! -x $CmdCXX) {
+if (!defined $CmdCXX || ! -e $CmdCXX) {
   $CmdCXX = "$AbsRealBin/c++-analyzer";
-  DieDiag("Executable 'c++-analyzer' does not exist at '$CmdCXX'\n") if(! -x $CmdCXX);
+  DieDiag("'c++-analyzer' does not exist at '$CmdCXX'\n") if(! -e $CmdCXX);
 }
 
 Diag("Using '$Clang' for static analysis\n");

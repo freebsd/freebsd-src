@@ -29,8 +29,7 @@ llvm::ArrayRef<DiagnosticRecord> diagtool::getBuiltinDiagnosticsByName() {
 // out of sync easily?
 static const DiagnosticRecord BuiltinDiagnosticsByID[] = {
 #define DIAG(ENUM,CLASS,DEFAULT_MAPPING,DESC,GROUP,               \
-             SFINAE,ACCESS,NOWERROR,SHOWINSYSHEADER,              \
-             CATEGORY)                                            \
+             SFINAE,NOWERROR,SHOWINSYSHEADER,CATEGORY)            \
   { #ENUM, diag::ENUM, STR_SIZE(#ENUM, uint8_t) },
 #include "clang/Basic/DiagnosticCommonKinds.inc"
 #include "clang/Basic/DiagnosticDriverKinds.inc"
@@ -72,6 +71,26 @@ static const GroupRecord OptionTable[] = {
 #include "clang/Basic/DiagnosticGroups.inc"
 #undef GET_DIAG_TABLE
 };
+
+llvm::StringRef GroupRecord::getName() const {
+  return StringRef(DiagGroupNames + NameOffset + 1, DiagGroupNames[NameOffset]);
+}
+
+GroupRecord::subgroup_iterator GroupRecord::subgroup_begin() const {
+  return DiagSubGroups + SubGroups;
+}
+
+GroupRecord::subgroup_iterator GroupRecord::subgroup_end() const {
+  return 0;
+}
+
+GroupRecord::diagnostics_iterator GroupRecord::diagnostics_begin() const {
+  return DiagArrays + Members;
+}
+
+GroupRecord::diagnostics_iterator GroupRecord::diagnostics_end() const {
+  return 0;
+}
 
 llvm::ArrayRef<GroupRecord> diagtool::getDiagnosticGroups() {
   return llvm::makeArrayRef(OptionTable);

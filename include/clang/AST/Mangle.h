@@ -19,6 +19,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
 
 namespace clang {
@@ -64,18 +65,29 @@ private:
 /// MangleContext - Context for tracking state which persists across multiple
 /// calls to the C++ name mangler.
 class MangleContext {
+public:
+  enum ManglerKind {
+    MK_Itanium,
+    MK_Microsoft
+  };
+
+private:
   virtual void anchor();
 
   ASTContext &Context;
   DiagnosticsEngine &Diags;
+  const ManglerKind Kind;
 
   llvm::DenseMap<const BlockDecl*, unsigned> GlobalBlockIds;
   llvm::DenseMap<const BlockDecl*, unsigned> LocalBlockIds;
-  
+
 public:
+  ManglerKind getKind() const { return Kind; }
+
   explicit MangleContext(ASTContext &Context,
-                         DiagnosticsEngine &Diags)
-    : Context(Context), Diags(Diags) { }
+                         DiagnosticsEngine &Diags,
+                         ManglerKind Kind)
+      : Context(Context), Diags(Diags), Kind(Kind) {}
 
   virtual ~MangleContext() { }
 
@@ -96,8 +108,12 @@ public:
   /// @name Mangler Entry Points
   /// @{
 
-  virtual bool shouldMangleDeclName(const NamedDecl *D) = 0;
-  virtual void mangleName(const NamedDecl *D, raw_ostream &)=0;
+  bool shouldMangleDeclName(const NamedDecl *D);
+  virtual bool shouldMangleCXXName(const NamedDecl *D) = 0;
+
+  // FIXME: consider replacing raw_ostream & with something like SmallString &.
+  void mangleName(const NamedDecl *D, raw_ostream &);
+  virtual void mangleCXXName(const NamedDecl *D, raw_ostream &) = 0;
   virtual void mangleThunk(const CXXMethodDecl *MD,
                           const ThunkInfo &Thunk,
                           raw_ostream &) = 0;
@@ -106,13 +122,6 @@ public:
                                   raw_ostream &) = 0;
   virtual void mangleReferenceTemporary(const VarDecl *D,
                                         raw_ostream &) = 0;
-  virtual void mangleCXXVTable(const CXXRecordDecl *RD,
-                               raw_ostream &) = 0;
-  virtual void mangleCXXVTT(const CXXRecordDecl *RD,
-                            raw_ostream &) = 0;
-  virtual void mangleCXXCtorVTable(const CXXRecordDecl *RD, int64_t Offset,
-                                   const CXXRecordDecl *Type,
-                                   raw_ostream &) = 0;
   virtual void mangleCXXRTTI(QualType T, raw_ostream &) = 0;
   virtual void mangleCXXRTTIName(QualType T, raw_ostream &) = 0;
   virtual void mangleCXXCtor(const CXXConstructorDecl *D, CXXCtorType Type,
@@ -129,36 +138,78 @@ public:
                        const BlockDecl *BD, raw_ostream &Out);
   void mangleBlock(const DeclContext *DC, const BlockDecl *BD,
                    raw_ostream &Out);
-  // Do the right thing.
-  void mangleBlock(const BlockDecl *BD, raw_ostream &Out,
-                   const NamedDecl *ID=0);
 
-  void mangleObjCMethodName(const ObjCMethodDecl *MD,
-                            raw_ostream &);
+  void mangleObjCMethodName(const ObjCMethodDecl *MD, raw_ostream &);
 
-  // This is pretty lame.
-  virtual void mangleItaniumGuardVariable(const VarDecl *D,
-                                          raw_ostream &) {
-    llvm_unreachable("Target does not support mangling guard variables");
-  }
-  // FIXME: Revisit this once we know what we need to do for MSVC compatibility.
-  virtual void mangleItaniumThreadLocalInit(const VarDecl *D,
-                                            raw_ostream &) {
-    llvm_unreachable("Target does not support mangling thread_local variables");
-  }
-  virtual void mangleItaniumThreadLocalWrapper(const VarDecl *D,
-                                               raw_ostream &) {
-    llvm_unreachable("Target does not support mangling thread_local variables");
-  }
+  virtual void mangleStaticGuardVariable(const VarDecl *D, raw_ostream &) = 0;
+
+  virtual void mangleDynamicInitializer(const VarDecl *D, raw_ostream &) = 0;
+
+  virtual void mangleDynamicAtExitDestructor(const VarDecl *D,
+                                             raw_ostream &) = 0;
+
+  /// Generates a unique string for an externally visible type for use with TBAA
+  /// or type uniquing.
+  /// TODO: Extend this to internal types by generating names that are unique
+  /// across translation units so it can be used with LTO.
+  virtual void mangleTypeName(QualType T, raw_ostream &) = 0;
 
   /// @}
 };
 
-MangleContext *createItaniumMangleContext(ASTContext &Context,
-                                          DiagnosticsEngine &Diags);
-MangleContext *createMicrosoftMangleContext(ASTContext &Context,
-                                            DiagnosticsEngine &Diags);
+class ItaniumMangleContext : public MangleContext {
+public:
+  explicit ItaniumMangleContext(ASTContext &C, DiagnosticsEngine &D)
+      : MangleContext(C, D, MK_Itanium) {}
 
+  virtual void mangleCXXVTable(const CXXRecordDecl *RD, raw_ostream &) = 0;
+  virtual void mangleCXXVTT(const CXXRecordDecl *RD, raw_ostream &) = 0;
+  virtual void mangleCXXCtorVTable(const CXXRecordDecl *RD, int64_t Offset,
+                                   const CXXRecordDecl *Type,
+                                   raw_ostream &) = 0;
+  virtual void mangleItaniumThreadLocalInit(const VarDecl *D,
+                                            raw_ostream &) = 0;
+  virtual void mangleItaniumThreadLocalWrapper(const VarDecl *D,
+                                               raw_ostream &) = 0;
+
+  static bool classof(const MangleContext *C) {
+    return C->getKind() == MK_Itanium;
+  }
+
+  static ItaniumMangleContext *create(ASTContext &Context,
+                                      DiagnosticsEngine &Diags);
+};
+
+class MicrosoftMangleContext : public MangleContext {
+public:
+  explicit MicrosoftMangleContext(ASTContext &C, DiagnosticsEngine &D)
+      : MangleContext(C, D, MK_Microsoft) {}
+
+  /// \brief Mangle vftable symbols.  Only a subset of the bases along the path
+  /// to the vftable are included in the name.  It's up to the caller to pick
+  /// them correctly.
+  virtual void mangleCXXVFTable(const CXXRecordDecl *Derived,
+                                ArrayRef<const CXXRecordDecl *> BasePath,
+                                raw_ostream &Out) = 0;
+
+  /// \brief Mangle vbtable symbols.  Only a subset of the bases along the path
+  /// to the vbtable are included in the name.  It's up to the caller to pick
+  /// them correctly.
+  virtual void mangleCXXVBTable(const CXXRecordDecl *Derived,
+                                ArrayRef<const CXXRecordDecl *> BasePath,
+                                raw_ostream &Out) = 0;
+
+  virtual void mangleVirtualMemPtrThunk(const CXXMethodDecl *MD,
+                                        uint64_t OffsetInVFTable,
+                                        raw_ostream &) = 0;
+
+  static bool classof(const MangleContext *C) {
+    return C->getKind() == MK_Microsoft;
+  }
+
+  static MicrosoftMangleContext *create(ASTContext &Context,
+                                        DiagnosticsEngine &Diags);
+};
 }
 
 #endif

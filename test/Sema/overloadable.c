@@ -1,6 +1,7 @@
 // RUN: %clang_cc1 -fsyntax-only -verify %s
 
 int var __attribute__((overloadable)); // expected-error{{'overloadable' attribute can only be applied to a function}}
+void params(void) __attribute__((overloadable(12))); // expected-error {{'overloadable' attribute takes no arguments}}
 
 int *f(int) __attribute__((overloadable)); // expected-note 2{{previous overload of function is here}}
 float *f(float); // expected-error{{overloaded function 'f' must have the 'overloadable' attribute}}
@@ -65,7 +66,22 @@ extern int __attribute__((overloadable)) f0(); // expected-error{{'overloadable'
 typedef int f1_type();
 f1_type __attribute__((overloadable)) f1; // expected-error{{'overloadable' function 'f1' must have a prototype}}
 
-void test() { 
+void test() {
   f0();
   f1();
 }
+
+void before_local_1(int) __attribute__((overloadable)); // expected-note {{here}}
+void before_local_2(int); // expected-note {{here}}
+void before_local_3(int) __attribute__((overloadable));
+void local() {
+  void before_local_1(char); // expected-error {{must have the 'overloadable' attribute}}
+  void before_local_2(char) __attribute__((overloadable)); // expected-error {{conflicting types}}
+  void before_local_3(char) __attribute__((overloadable));
+  void after_local_1(char); // expected-note {{here}}
+  void after_local_2(char) __attribute__((overloadable)); // expected-note {{here}}
+  void after_local_3(char) __attribute__((overloadable));
+}
+void after_local_1(int) __attribute__((overloadable)); // expected-error {{conflicting types}}
+void after_local_2(int); // expected-error {{must have the 'overloadable' attribute}}
+void after_local_3(int) __attribute__((overloadable));

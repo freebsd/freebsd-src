@@ -15,6 +15,8 @@
 #include "CGCall.h"
 #include "CodeGenModule.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/CodeGen/CGFunctionInfo.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Operator.h"
@@ -92,7 +94,7 @@ namespace {
       return (ValueSizeInBits != AtomicSizeInBits);
     }
 
-    void emitMemSetZeroIfNecessary(LValue dest) const;
+    bool emitMemSetZeroIfNecessary(LValue dest) const;
 
     llvm::Value *getAtomicSizeValue() const {
       CharUnits size = CGF.getContext().toCharUnitsFromBits(AtomicSizeInBits);
@@ -105,7 +107,8 @@ namespace {
 
     /// Turn an atomic-layout object into an r-value.
     RValue convertTempToRValue(llvm::Value *addr,
-                               AggValueSlot resultSlot) const;
+                               AggValueSlot resultSlot,
+                               SourceLocation loc) const;
 
     /// Copy an atomic r-value into atomic-layout memory.
     void emitCopyIntoMemory(RValue rvalue, LValue lvalue) const;
@@ -163,21 +166,22 @@ bool AtomicInfo::requiresMemSetZero(llvm::Type *type) const {
     return !isFullSizeType(CGF.CGM, type->getStructElementType(0),
                            AtomicSizeInBits / 2);
 
-  // Just be pessimistic about aggregates.
+  // Padding in structs has an undefined bit pattern.  User beware.
   case TEK_Aggregate:
-    return true;
+    return false;
   }
   llvm_unreachable("bad evaluation kind");
 }
 
-void AtomicInfo::emitMemSetZeroIfNecessary(LValue dest) const {
+bool AtomicInfo::emitMemSetZeroIfNecessary(LValue dest) const {
   llvm::Value *addr = dest.getAddress();
   if (!requiresMemSetZero(addr->getType()->getPointerElementType()))
-    return;
+    return false;
 
   CGF.Builder.CreateMemSet(addr, llvm::ConstantInt::get(CGF.Int8Ty, 0),
                            AtomicSizeInBits / 8,
                            dest.getAlignment().getQuantity());
+  return true;
 }
 
 static void
@@ -317,6 +321,22 @@ EmitValToTemp(CodeGenFunction &CGF, Expr *E) {
   return DeclPtr;
 }
 
+static void
+AddDirectArgument(CodeGenFunction &CGF, CallArgList &Args,
+                  bool UseOptimizedLibcall, llvm::Value *Val, QualType ValTy,
+                  SourceLocation Loc) {
+  if (UseOptimizedLibcall) {
+    // Load value and pass it to the function directly.
+    unsigned Align = CGF.getContext().getTypeAlignInChars(ValTy).getQuantity();
+    Val = CGF.EmitLoadOfScalar(Val, false, Align, ValTy, Loc);
+    Args.add(RValue::get(Val), ValTy);
+  } else {
+    // Non-optimized functions always take a reference.
+    Args.add(RValue::get(CGF.EmitCastToVoidPtr(Val)),
+                         CGF.getContext().VoidPtrTy);
+  }
+}
+
 RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E, llvm::Value *Dest) {
   QualType AtomicTy = E->getPtr()->getType()->getPointeeType();
   QualType MemTy = AtomicTy;
@@ -424,66 +444,141 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E, llvm::Value *Dest) {
 
   // Use a library call.  See: http://gcc.gnu.org/wiki/Atomic/GCCMM/LIbrary .
   if (UseLibcall) {
+    bool UseOptimizedLibcall = false;
+    switch (E->getOp()) {
+    case AtomicExpr::AO__c11_atomic_fetch_add:
+    case AtomicExpr::AO__atomic_fetch_add:
+    case AtomicExpr::AO__c11_atomic_fetch_and:
+    case AtomicExpr::AO__atomic_fetch_and:
+    case AtomicExpr::AO__c11_atomic_fetch_or:
+    case AtomicExpr::AO__atomic_fetch_or:
+    case AtomicExpr::AO__c11_atomic_fetch_sub:
+    case AtomicExpr::AO__atomic_fetch_sub:
+    case AtomicExpr::AO__c11_atomic_fetch_xor:
+    case AtomicExpr::AO__atomic_fetch_xor:
+      // For these, only library calls for certain sizes exist.
+      UseOptimizedLibcall = true;
+      break;
+    default:
+      // Only use optimized library calls for sizes for which they exist.
+      if (Size == 1 || Size == 2 || Size == 4 || Size == 8)
+        UseOptimizedLibcall = true;
+      break;
+    }
 
-    SmallVector<QualType, 5> Params;
     CallArgList Args;
-    // Size is always the first parameter
-    Args.add(RValue::get(llvm::ConstantInt::get(SizeTy, Size)),
-             getContext().getSizeType());
-    // Atomic address is always the second parameter
-    Args.add(RValue::get(EmitCastToVoidPtr(Ptr)),
-             getContext().VoidPtrTy);
+    if (!UseOptimizedLibcall) {
+      // For non-optimized library calls, the size is the first parameter
+      Args.add(RValue::get(llvm::ConstantInt::get(SizeTy, Size)),
+               getContext().getSizeType());
+    }
+    // Atomic address is the first or second parameter
+    Args.add(RValue::get(EmitCastToVoidPtr(Ptr)), getContext().VoidPtrTy);
 
-    const char* LibCallName;
-    QualType RetTy = getContext().VoidTy;
+    std::string LibCallName;
+    QualType RetTy;
+    bool HaveRetTy = false;
     switch (E->getOp()) {
     // There is only one libcall for compare an exchange, because there is no
     // optimisation benefit possible from a libcall version of a weak compare
     // and exchange.
-    // bool __atomic_compare_exchange(size_t size, void *obj, void *expected,
+    // bool __atomic_compare_exchange(size_t size, void *mem, void *expected,
     //                                void *desired, int success, int failure)
+    // bool __atomic_compare_exchange_N(T *mem, T *expected, T desired,
+    //                                  int success, int failure)
     case AtomicExpr::AO__c11_atomic_compare_exchange_weak:
     case AtomicExpr::AO__c11_atomic_compare_exchange_strong:
     case AtomicExpr::AO__atomic_compare_exchange:
     case AtomicExpr::AO__atomic_compare_exchange_n:
       LibCallName = "__atomic_compare_exchange";
       RetTy = getContext().BoolTy;
-      Args.add(RValue::get(EmitCastToVoidPtr(Val1)),
-               getContext().VoidPtrTy);
-      Args.add(RValue::get(EmitCastToVoidPtr(Val2)),
-               getContext().VoidPtrTy);
-      Args.add(RValue::get(Order),
-               getContext().IntTy);
+      HaveRetTy = true;
+      Args.add(RValue::get(EmitCastToVoidPtr(Val1)), getContext().VoidPtrTy);
+      AddDirectArgument(*this, Args, UseOptimizedLibcall, Val2, MemTy,
+                        E->getExprLoc());
+      Args.add(RValue::get(Order), getContext().IntTy);
       Order = OrderFail;
       break;
     // void __atomic_exchange(size_t size, void *mem, void *val, void *return,
     //                        int order)
+    // T __atomic_exchange_N(T *mem, T val, int order)
     case AtomicExpr::AO__c11_atomic_exchange:
     case AtomicExpr::AO__atomic_exchange_n:
     case AtomicExpr::AO__atomic_exchange:
       LibCallName = "__atomic_exchange";
-      Args.add(RValue::get(EmitCastToVoidPtr(Val1)),
-               getContext().VoidPtrTy);
-      Args.add(RValue::get(EmitCastToVoidPtr(Dest)),
-               getContext().VoidPtrTy);
+      AddDirectArgument(*this, Args, UseOptimizedLibcall, Val1, MemTy,
+                        E->getExprLoc());
       break;
     // void __atomic_store(size_t size, void *mem, void *val, int order)
+    // void __atomic_store_N(T *mem, T val, int order)
     case AtomicExpr::AO__c11_atomic_store:
     case AtomicExpr::AO__atomic_store:
     case AtomicExpr::AO__atomic_store_n:
       LibCallName = "__atomic_store";
-      Args.add(RValue::get(EmitCastToVoidPtr(Val1)),
-               getContext().VoidPtrTy);
+      RetTy = getContext().VoidTy;
+      HaveRetTy = true;
+      AddDirectArgument(*this, Args, UseOptimizedLibcall, Val1, MemTy,
+                        E->getExprLoc());
       break;
     // void __atomic_load(size_t size, void *mem, void *return, int order)
+    // T __atomic_load_N(T *mem, int order)
     case AtomicExpr::AO__c11_atomic_load:
     case AtomicExpr::AO__atomic_load:
     case AtomicExpr::AO__atomic_load_n:
       LibCallName = "__atomic_load";
-      Args.add(RValue::get(EmitCastToVoidPtr(Dest)),
-               getContext().VoidPtrTy);
+      break;
+    // T __atomic_fetch_add_N(T *mem, T val, int order)
+    case AtomicExpr::AO__c11_atomic_fetch_add:
+    case AtomicExpr::AO__atomic_fetch_add:
+      LibCallName = "__atomic_fetch_add";
+      AddDirectArgument(*this, Args, UseOptimizedLibcall, Val1, MemTy,
+                        E->getExprLoc());
+      break;
+    // T __atomic_fetch_and_N(T *mem, T val, int order)
+    case AtomicExpr::AO__c11_atomic_fetch_and:
+    case AtomicExpr::AO__atomic_fetch_and:
+      LibCallName = "__atomic_fetch_and";
+      AddDirectArgument(*this, Args, UseOptimizedLibcall, Val1, MemTy,
+                        E->getExprLoc());
+      break;
+    // T __atomic_fetch_or_N(T *mem, T val, int order)
+    case AtomicExpr::AO__c11_atomic_fetch_or:
+    case AtomicExpr::AO__atomic_fetch_or:
+      LibCallName = "__atomic_fetch_or";
+      AddDirectArgument(*this, Args, UseOptimizedLibcall, Val1, MemTy,
+                        E->getExprLoc());
+      break;
+    // T __atomic_fetch_sub_N(T *mem, T val, int order)
+    case AtomicExpr::AO__c11_atomic_fetch_sub:
+    case AtomicExpr::AO__atomic_fetch_sub:
+      LibCallName = "__atomic_fetch_sub";
+      AddDirectArgument(*this, Args, UseOptimizedLibcall, Val1, MemTy,
+                        E->getExprLoc());
+      break;
+    // T __atomic_fetch_xor_N(T *mem, T val, int order)
+    case AtomicExpr::AO__c11_atomic_fetch_xor:
+    case AtomicExpr::AO__atomic_fetch_xor:
+      LibCallName = "__atomic_fetch_xor";
+      AddDirectArgument(*this, Args, UseOptimizedLibcall, Val1, MemTy,
+                        E->getExprLoc());
       break;
     default: return EmitUnsupportedRValue(E, "atomic library call");
+    }
+
+    // Optimized functions have the size in their name.
+    if (UseOptimizedLibcall)
+      LibCallName += "_" + llvm::utostr(Size);
+    // By default, assume we return a value of the atomic type.
+    if (!HaveRetTy) {
+      if (UseOptimizedLibcall) {
+        // Value is returned directly.
+        RetTy = MemTy;
+      } else {
+        // Value is returned through parameter before the order.
+        RetTy = getContext().VoidTy;
+        Args.add(RValue::get(EmitCastToVoidPtr(Dest)),
+                 getContext().VoidPtrTy);
+      }
     }
     // order is always the last parameter
     Args.add(RValue::get(Order),
@@ -495,11 +590,11 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E, llvm::Value *Dest) {
     llvm::FunctionType *FTy = CGM.getTypes().GetFunctionType(FuncInfo);
     llvm::Constant *Func = CGM.CreateRuntimeFunction(FTy, LibCallName);
     RValue Res = EmitCall(FuncInfo, Func, ReturnValueSlot(), Args);
-    if (E->isCmpXChg())
+    if (!RetTy->isVoidType())
       return Res;
     if (E->getType()->isVoidType())
       return RValue::get(0);
-    return convertTempToRValue(Dest, E->getType());
+    return convertTempToRValue(Dest, E->getType(), E->getExprLoc());
   }
 
   bool IsStore = E->getOp() == AtomicExpr::AO__c11_atomic_store ||
@@ -554,7 +649,7 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E, llvm::Value *Dest) {
     }
     if (E->getType()->isVoidType())
       return RValue::get(0);
-    return convertTempToRValue(OrigDest, E->getType());
+    return convertTempToRValue(OrigDest, E->getType(), E->getExprLoc());
   }
 
   // Long case, when Order isn't obviously constant.
@@ -616,7 +711,7 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E, llvm::Value *Dest) {
   Builder.SetInsertPoint(ContBB);
   if (E->getType()->isVoidType())
     return RValue::get(0);
-  return convertTempToRValue(OrigDest, E->getType());
+  return convertTempToRValue(OrigDest, E->getType(), E->getExprLoc());
 }
 
 llvm::Value *AtomicInfo::emitCastToAtomicIntPointer(llvm::Value *addr) const {
@@ -628,48 +723,30 @@ llvm::Value *AtomicInfo::emitCastToAtomicIntPointer(llvm::Value *addr) const {
 }
 
 RValue AtomicInfo::convertTempToRValue(llvm::Value *addr,
-                                       AggValueSlot resultSlot) const {
-  if (EvaluationKind == TEK_Aggregate) {
-    // Nothing to do if the result is ignored.
-    if (resultSlot.isIgnored()) return resultSlot.asRValue();
-
-    assert(resultSlot.getAddr() == addr || hasPadding());
-
-    // In these cases, we should have emitted directly into the result slot.
-    if (!hasPadding() || resultSlot.isValueOfAtomic())
-      return resultSlot.asRValue();
-
-    // Otherwise, fall into the common path.
-  }
+                                       AggValueSlot resultSlot,
+                                       SourceLocation loc) const {
+  if (EvaluationKind == TEK_Aggregate)
+    return resultSlot.asRValue();
 
   // Drill into the padding structure if we have one.
   if (hasPadding())
     addr = CGF.Builder.CreateStructGEP(addr, 0);
 
-  // If we're emitting to an aggregate, copy into the result slot.
-  if (EvaluationKind == TEK_Aggregate) {
-    CGF.EmitAggregateCopy(resultSlot.getAddr(), addr, getValueType(),
-                          resultSlot.isVolatile());
-    return resultSlot.asRValue();
-  }
-
   // Otherwise, just convert the temporary to an r-value using the
   // normal conversion routine.
-  return CGF.convertTempToRValue(addr, getValueType());
+  return CGF.convertTempToRValue(addr, getValueType(), loc);
 }
 
 /// Emit a load from an l-value of atomic type.  Note that the r-value
 /// we produce is an r-value of the atomic *value* type.
-RValue CodeGenFunction::EmitAtomicLoad(LValue src, AggValueSlot resultSlot) {
+RValue CodeGenFunction::EmitAtomicLoad(LValue src, SourceLocation loc,
+                                       AggValueSlot resultSlot) {
   AtomicInfo atomics(*this, src);
 
   // Check whether we should use a library call.
   if (atomics.shouldUseLibcall()) {
     llvm::Value *tempAddr;
-    if (resultSlot.isValueOfAtomic()) {
-      assert(atomics.getEvaluationKind() == TEK_Aggregate);
-      tempAddr = resultSlot.getPaddedAtomicAddr();
-    } else if (!resultSlot.isIgnored() && !atomics.hasPadding()) {
+    if (!resultSlot.isIgnored()) {
       assert(atomics.getEvaluationKind() == TEK_Aggregate);
       tempAddr = resultSlot.getAddr();
     } else {
@@ -690,7 +767,7 @@ RValue CodeGenFunction::EmitAtomicLoad(LValue src, AggValueSlot resultSlot) {
     emitAtomicLibcall(*this, "__atomic_load", getContext().VoidTy, args);
 
     // Produce the r-value.
-    return atomics.convertTempToRValue(tempAddr, resultSlot);
+    return atomics.convertTempToRValue(tempAddr, resultSlot, loc);
   }
 
   // Okay, we're doing this natively.
@@ -733,16 +810,10 @@ RValue CodeGenFunction::EmitAtomicLoad(LValue src, AggValueSlot resultSlot) {
   llvm::Value *temp;
   bool tempIsVolatile = false;
   CharUnits tempAlignment;
-  if (atomics.getEvaluationKind() == TEK_Aggregate &&
-      (!atomics.hasPadding() || resultSlot.isValueOfAtomic())) {
+  if (atomics.getEvaluationKind() == TEK_Aggregate) {
     assert(!resultSlot.isIgnored());
-    if (resultSlot.isValueOfAtomic()) {
-      temp = resultSlot.getPaddedAtomicAddr();
-      tempAlignment = atomics.getAtomicAlignment();
-    } else {
-      temp = resultSlot.getAddr();
-      tempAlignment = atomics.getValueAlignment();
-    }
+    temp = resultSlot.getAddr();
+    tempAlignment = atomics.getValueAlignment();
     tempIsVolatile = resultSlot.isVolatile();
   } else {
     temp = CreateMemTemp(atomics.getAtomicType(), "atomic-load-temp");
@@ -754,7 +825,7 @@ RValue CodeGenFunction::EmitAtomicLoad(LValue src, AggValueSlot resultSlot) {
   Builder.CreateAlignedStore(result, castTemp, tempAlignment.getQuantity())
     ->setVolatile(tempIsVolatile);
 
-  return atomics.convertTempToRValue(temp, resultSlot);
+  return atomics.convertTempToRValue(temp, resultSlot, loc);
 }
 
 
@@ -812,8 +883,7 @@ llvm::Value *AtomicInfo::materializeRValue(RValue rvalue) const {
 /// Note that the r-value is expected to be an r-value *of the atomic
 /// type*; this means that for aggregate r-values, it should include
 /// storage for any padding that was necessary.
-void CodeGenFunction::EmitAtomicStore(RValue rvalue, LValue dest,
-                                      bool isInit) {
+void CodeGenFunction::EmitAtomicStore(RValue rvalue, LValue dest, bool isInit) {
   // If this is an aggregate r-value, it should agree in type except
   // maybe for address-space qualification.
   assert(!rvalue.isAggregate() ||
@@ -910,13 +980,11 @@ void CodeGenFunction::EmitAtomicInit(Expr *init, LValue dest) {
   }
 
   case TEK_Aggregate: {
-    // Memset the buffer first if there's any possibility of
-    // uninitialized internal bits.
-    atomics.emitMemSetZeroIfNecessary(dest);
-
-    // HACK: whether the initializer actually has an atomic type
-    // doesn't really seem reliable right now.
+    // Fix up the destination if the initializer isn't an expression
+    // of atomic type.
+    bool Zeroed = false;
     if (!init->getType()->isAtomicType()) {
+      Zeroed = atomics.emitMemSetZeroIfNecessary(dest);
       dest = atomics.projectValue(dest);
     }
 
@@ -924,7 +992,10 @@ void CodeGenFunction::EmitAtomicInit(Expr *init, LValue dest) {
     AggValueSlot slot = AggValueSlot::forLValue(dest,
                                         AggValueSlot::IsNotDestructed,
                                         AggValueSlot::DoesNotNeedGCBarriers,
-                                        AggValueSlot::IsNotAliased);
+                                        AggValueSlot::IsNotAliased,
+                                        Zeroed ? AggValueSlot::IsZeroed :
+                                                 AggValueSlot::IsNotZeroed);
+
     EmitAggExpr(init, slot);
     return;
   }

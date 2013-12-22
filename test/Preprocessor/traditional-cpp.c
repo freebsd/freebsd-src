@@ -3,9 +3,9 @@
  * things like using /usr/bin/cpp to preprocess non-source files. */
 
 /*
- RUN: %clang_cc1 -traditional-cpp %s -E -o %t
- RUN: FileCheck -strict-whitespace < %t %s
+ RUN: %clang_cc1 -traditional-cpp %s -E | FileCheck -strict-whitespace %s
  RUN: %clang_cc1 -traditional-cpp %s -E -C | FileCheck -check-prefix=CHECK-COMMENTS %s
+ RUN: %clang_cc1 -traditional-cpp -x c++ %s -E | FileCheck -check-prefix=CHECK-CXX %s
 */
 
 /* -traditional-cpp should eliminate all C89 comments. */
@@ -13,7 +13,9 @@
  * CHECK-COMMENTS: {{^}}/* -traditional-cpp should eliminate all C89 comments. *{{/$}}
  */
 
+/* -traditional-cpp should only eliminate "//" comments in C++ mode. */
 /* CHECK: {{^}}foo // bar{{$}}
+ * CHECK-CXX: {{^}}foo {{$}}
  */
 foo // bar
 
@@ -87,4 +89,21 @@ a b c in skipped block
 
 Preserve URLs: http://clang.llvm.org
 /* CHECK: {{^}}Preserve URLs: http://clang.llvm.org{{$}}
+ */
+
+/* The following tests ensure we ignore # and ## in macro bodies */
+
+#define FOO_NO_STRINGIFY(a) test(# a)
+FOO_NO_STRINGIFY(foobar)
+/* CHECK: {{^}}test(# foobar){{$}}
+ */
+
+#define FOO_NO_PASTE(a, b) test(b##a)
+FOO_NO_PASTE(foo,bar)
+/* CHECK {{^}}test(bar##foo){{$}}
+ */
+
+#define BAR_NO_STRINGIFY(a) test(#a)
+BAR_NO_STRINGIFY(foobar)
+/* CHECK: {{^}}test(#foobar){{$}}
  */

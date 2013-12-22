@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 // rdar://9584012
 
 typedef struct {
@@ -19,3 +19,4 @@ int main(void) {
 	Class_init(obj, "Hello World");
 }
 
+void foo(const char *str) __attribute__((nonnull("foo"))); // expected-error{{'nonnull' attribute requires parameter 1 to be an integer constant}}

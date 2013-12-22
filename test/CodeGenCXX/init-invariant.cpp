@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple i686-linux-gnu -emit-llvm %s -O0 -o - | FileCheck %s --check-prefix=CHECK-O0
+// RUN: %clang_cc1 -triple i686-linux-gnu -emit-llvm %s -o - | FileCheck %s --check-prefix=CHECK-O0
 // RUN: %clang_cc1 -triple i686-linux-gnu -emit-llvm %s -O1 -o - | FileCheck %s
 
 // Check that we add an llvm.invariant.start to mark when a global becomes
@@ -54,7 +54,7 @@ void e() {
 // CHECK: store {{.*}}, i32* @d
 // CHECK: call {{.*}}@llvm.invariant.start(i64 4, i8* bitcast ({{.*}} @d to i8*))
 
-// CHECK: define void @_Z1ev(
+// CHECK-LABEL: define void @_Z1ev(
 // CHECK: call void @_ZN1AC1Ev(%struct.A* @_ZZ1evE1a)
 // CHECK: call {{.*}}@llvm.invariant.start(i64 4, i8* bitcast ({{.*}} @_ZZ1evE1a to i8*))
 // CHECK-NOT: llvm.invariant.end

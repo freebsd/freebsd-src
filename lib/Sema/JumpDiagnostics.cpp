@@ -175,8 +175,9 @@ static ScopePair GetDiagForGotoScopeDecl(ASTContext &Context, const Decl *D) {
       const MaterializeTemporaryExpr *M = NULL;
       Init = Init->findMaterializedTemporary(M);
 
+      SmallVector<const Expr *, 2> CommaLHSs;
       SmallVector<SubobjectAdjustment, 2> Adjustments;
-      Init = Init->skipRValueSubobjectAdjustments(Adjustments);
+      Init = Init->skipRValueSubobjectAdjustments(CommaLHSs, Adjustments);
 
       QualType QT = Init->getType();
       if (QT.isNull())
@@ -198,7 +199,11 @@ static ScopePair GetDiagForGotoScopeDecl(ASTContext &Context, const Decl *D) {
 
       if (const CXXConstructExpr *cce = dyn_cast<CXXConstructExpr>(Init)) {
         const CXXConstructorDecl *ctor = cce->getConstructor();
-        if (ctor->isTrivial() && ctor->isDefaultConstructor()) {
+        // For a variable declared without an initializer, we will have
+        // call-style initialization and the initializer will be the
+        // CXXConstructExpr with no intervening nodes.
+        if (ctor->isTrivial() && ctor->isDefaultConstructor() &&
+            VD->getInit() == Init && VD->getInitStyle() == VarDecl::CallInit) {
           if (OutDiag)
             InDiag = diag::note_protected_by_variable_nontriv_destructor;
           else if (!Record->isPOD())

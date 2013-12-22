@@ -8,18 +8,18 @@ static int bar1 = 42;
 
 extern int g1;
 extern int g1 __attribute((alias("g0")));
-// CHECKBASIC: @g1 = alias i32* @g0
+// CHECKBASIC-DAG: @g1 = alias i32* @g0
 
 void f0(void) { }
 extern void f1(void);
 extern void f1(void) __attribute((alias("f0")));
-// CHECKBASIC: @f1 = alias void ()* @f0
+// CHECKBASIC-DAG: @f1 = alias void ()* @f0
 // CHECKBASIC: define void @f0() [[NUW:#[0-9]+]] {
 
 // Make sure that aliases cause referenced values to be emitted.
 // PR3200
 static inline int foo1() { return 0; }
-// CHECKBASIC: define internal i32 @foo1()
+// CHECKBASIC-LABEL: define internal i32 @foo1()
 int foo() __attribute__((alias("foo1")));
 int bar() __attribute__((alias("bar1")));
 
