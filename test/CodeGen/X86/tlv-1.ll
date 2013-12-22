@@ -5,7 +5,7 @@
 @c = external thread_local global %struct.A, align 4
 
 define void @main() nounwind ssp {
-; CHECK: main:
+; CHECK-LABEL: main:
 entry:
   call void @llvm.memset.p0i8.i64(i8* getelementptr inbounds (%struct.A* @c, i32 0, i32 0, i32 0), i8 0, i64 60, i32 1, i1 false)
   unreachable  
@@ -18,7 +18,7 @@ entry:
 ; rdar://10291355
 define i32 @test() nounwind readonly ssp {
 entry:
-; CHECK: test:
+; CHECK-LABEL: test:
 ; CHECK: movq _a@TLVP(%rip),
 ; CHECK: callq *
 ; CHECK: movl (%rax), [[REGISTER:%[a-z]+]]

@@ -35,6 +35,7 @@ add_llvm_library(LLVMCodeGen
   LiveRangeCalc.cpp
   LiveRangeEdit.cpp
   LiveRegMatrix.cpp
+  LiveRegUnits.cpp
   LiveStackAnalysis.cpp
   LiveVariables.cpp
   LocalStackSlotAllocation.cpp
@@ -88,7 +89,6 @@ add_llvm_library(LLVMCodeGen
   ScheduleDAGPrinter.cpp
   ScoreboardHazardRecognizer.cpp
   ShadowStackGC.cpp
-  ShrinkWrapping.cpp
   SjLjEHPrepare.cpp
   SlotIndexes.cpp
   SpillPlacement.cpp
@@ -97,7 +97,7 @@ add_llvm_library(LLVMCodeGen
   StackColoring.cpp
   StackProtector.cpp
   StackSlotColoring.cpp
-  StrongPHIElimination.cpp
+  StackMaps.cpp
   TailDuplication.cpp
   TargetFrameLoweringImpl.cpp
   TargetInstrInfo.cpp

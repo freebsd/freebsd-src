@@ -20,6 +20,8 @@ ARM
 
 * `ABI <http://www.arm.com/products/DevTools/ABI.html>`_
 
+* `ABI Addenda and Errata <http://infocenter.arm.com/help/topic/com.arm.doc.ihi0045d/IHI0045D_ABI_addenda.pdf>`_
+
 * `ARM C Language Extensions <http://infocenter.arm.com/help/topic/com.arm.doc.ihi0053a/IHI0053A_acle.pdf>`_
 
 AArch64
@@ -37,7 +39,7 @@ Itanium (ia64)
 MIPS
 ----
 
-* `MIPS Processor Architecture <http://mips.com/content/Documentation/MIPSDocumentation/ProcessorArchitecture/doclibrary>`_
+* `MIPS Processor Architecture <http://imgtec.com/mips/mips-architectures.asp>`_
 
 PowerPC
 -------
@@ -64,11 +66,27 @@ Other documents, collections, notes
 * `PowerPC64 alignment of long doubles (from GCC) <http://gcc.gnu.org/ml/gcc-patches/2003-09/msg00997.html>`_
 * `Long branch stubs for powerpc64-linux (from binutils) <http://sources.redhat.com/ml/binutils/2002-04/msg00573.html>`_
 
+R600
+----
+
+* `AMD R6xx shader ISA <http://developer.amd.com/wordpress/media/2012/10/R600_Instruction_Set_Architecture.pdf>`_
+* `AMD R7xx shader ISA <http://developer.amd.com/wordpress/media/2012/10/R700-Family_Instruction_Set_Architecture.pdf>`_
+* `AMD Evergreen shader ISA <http://developer.amd.com/wordpress/media/2012/10/AMD_Evergreen-Family_Instruction_Set_Architecture.pdf>`_
+* `AMD Cayman/Trinity shader ISA <http://developer.amd.com/wordpress/media/2012/10/AMD_HD_6900_Series_Instruction_Set_Architecture.pdf>`_
+* `AMD Southern Islands Series ISA <http://developer.amd.com/wordpress/media/2012/12/AMD_Southern_Islands_Instruction_Set_Architecture.pdf>`_
+* `AMD GPU Programming Guide <http://developer.amd.com/download/AMD_Accelerated_Parallel_Processing_OpenCL_Programming_Guide.pdf>`_
+* `AMD Compute Resources <http://developer.amd.com/tools/heterogeneous-computing/amd-accelerated-parallel-processing-app-sdk/documentation/>`_
+
 SPARC
 -----
 
 * `SPARC resources <http://www.sparc.org/resource.htm>`_
 * `SPARC standards <http://www.sparc.org/standards.html>`_
+
+SystemZ
+-------
+
+* `z/Architecture Principles of Operation (registration required, free sign-up) <http://www-01.ibm.com/support/docview.wss?uid=isg2b9de5f05a9d57819852571c500428f9a>`_
 
 X86
 ---
@@ -98,18 +116,28 @@ Other relevant lists
 ABI
 ===
 
+* `System V Application Binary Interface <http://www.sco.com/developers/gabi/latest/contents.html>`_
+* `Itanium C++ ABI <http://mentorembedded.github.io/cxx-abi/>`_
+
 Linux
 -----
 
 * `PowerPC 64-bit ELF ABI Supplement <http://www.linuxbase.org/spec/ELF/ppc64/>`_
 * `Procedure Call Standard for the AArch64 Architecture <http://infocenter.arm.com/help/topic/com.arm.doc.ihi0055a/IHI0055A_aapcs64.pdf>`_
+* `ELF for the ARM Architecture <http://infocenter.arm.com/help/topic/com.arm.doc.ihi0044e/IHI0044E_aaelf.pdf>`_
 * `ELF for the ARM 64-bit Architecture (AArch64) <http://infocenter.arm.com/help/topic/com.arm.doc.ihi0056a/IHI0056A_aaelf64.pdf>`_
+* `System z ELF ABI Supplement <http://legacy.redhat.com/pub/redhat/linux/7.1/es/os/s390x/doc/lzsabi0.pdf>`_
 
 OS X
 ----
 
 * `Mach-O Runtime Architecture <http://developer.apple.com/documentation/Darwin/RuntimeArchitecture-date.html>`_
 * `Notes on Mach-O ABI <http://www.unsanity.org/archives/000044.php>`_
+
+Windows
+-------
+
+* `Microsoft PE/COFF Specification <http://www.microsoft.com/whdc/system/platform/firmware/pecoff.mspx>`_
 
 NVPTX
 =====

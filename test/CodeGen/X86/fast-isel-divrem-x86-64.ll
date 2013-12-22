@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=x86_64-none-linux -fast-isel -fast-isel-abort < %s | FileCheck %s
+; RUN: llc -mtriple=x86_64-none-linux -fast-isel -fast-isel-abort -verify-machineinstrs < %s | FileCheck %s
 
 define i64 @test_sdiv64(i64 %dividend, i64 %divisor) nounwind {
 entry:
@@ -6,7 +6,7 @@ entry:
   ret i64 %result
 }
 
-; CHECK: test_sdiv64:
+; CHECK-LABEL: test_sdiv64:
 ; CHECK: cqto
 ; CHECK: idivq
 
@@ -16,7 +16,7 @@ entry:
   ret i64 %result
 }
 
-; CHECK: test_srem64:
+; CHECK-LABEL: test_srem64:
 ; CHECK: cqto
 ; CHECK: idivq
 
@@ -26,7 +26,7 @@ entry:
   ret i64 %result
 }
 
-; CHECK: test_udiv64:
+; CHECK-LABEL: test_udiv64:
 ; CHECK: xorl
 ; CHECK: divq
 
@@ -36,6 +36,6 @@ entry:
   ret i64 %result
 }
 
-; CHECK: test_urem64:
+; CHECK-LABEL: test_urem64:
 ; CHECK: xorl
 ; CHECK: divq

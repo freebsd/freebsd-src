@@ -1,6 +1,6 @@
-; RUN: llc -O0 -mcpu=pwr7 -code-model=medium -filetype=obj %s -o - | \
+; RUN: llc -O0 -mcpu=pwr7 -code-model=medium -filetype=obj -fast-isel=false %s -o - | \
 ; RUN: llvm-readobj -r | FileCheck -check-prefix=MEDIUM %s
-; RUN: llc -O0 -mcpu=pwr7 -code-model=large -filetype=obj %s -o - | \
+; RUN: llc -O0 -mcpu=pwr7 -code-model=large -filetype=obj -fast-isel=false %s -o - | \
 ; RUN: llvm-readobj -r | FileCheck -check-prefix=LARGE %s
 
 ; FIXME: When asm-parse is available, could make this an assembly test.
@@ -22,12 +22,12 @@ entry:
 ; accessing external variable ei.
 ;
 ; MEDIUM:      Relocations [
-; MEDIUM:        Section (1) .text {
+; MEDIUM:        Section (2) .rela.text {
 ; MEDIUM-NEXT:     0x{{[0-9,A-F]+}} R_PPC64_TOC16_HA [[SYM1:[^ ]+]]
 ; MEDIUM-NEXT:     0x{{[0-9,A-F]+}} R_PPC64_TOC16_LO_DS [[SYM1]]
 ;
 ; LARGE:       Relocations [
-; LARGE:         Section (1) .text {
+; LARGE:         Section (2) .rela.text {
 ; LARGE-NEXT:      0x{{[0-9,A-F]+}} R_PPC64_TOC16_HA [[SYM1:[^ ]+]]
 ; LARGE-NEXT:      0x{{[0-9,A-F]+}} R_PPC64_TOC16_LO_DS [[SYM1]]
 

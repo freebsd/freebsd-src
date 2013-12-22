@@ -107,6 +107,8 @@ namespace llvm {
     };
     DenseMap<Instruction*, std::vector<MDRef> > ForwardRefInstMetadata;
 
+    SmallVector<Instruction*, 64> InstsWithTBAATag;
+
     // Type resolution handling data structures.  The location is set when we
     // have processed a use of the type but not a definition yet.
     StringMap<std::pair<Type*, LocTy> > NamedTypes;
@@ -242,7 +244,7 @@ namespace llvm {
     bool ParseUnnamedAttrGrp();
     bool ParseFnAttributeValuePairs(AttrBuilder &B,
                                     std::vector<unsigned> &FwdRefAttrGrps,
-                                    bool inAttrGrp, LocTy &NoBuiltinLoc);
+                                    bool inAttrGrp, LocTy &BuiltinLoc);
 
     // Type Parsing.
     bool ParseType(Type *&Result, bool AllowVoid = false);

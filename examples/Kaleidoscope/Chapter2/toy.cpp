@@ -1,3 +1,4 @@
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <map>
@@ -74,7 +75,7 @@ static int gettok() {
 //===----------------------------------------------------------------------===//
 // Abstract Syntax Tree (aka Parse Tree)
 //===----------------------------------------------------------------------===//
-
+namespace {
 /// ExprAST - Base class for all expression nodes.
 class ExprAST {
 public:
@@ -83,9 +84,8 @@ public:
 
 /// NumberExprAST - Expression class for numeric literals like "1.0".
 class NumberExprAST : public ExprAST {
-  double Val;
 public:
-  NumberExprAST(double val) : Val(val) {}
+  NumberExprAST(double val) {}
 };
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".
@@ -97,11 +97,8 @@ public:
 
 /// BinaryExprAST - Expression class for a binary operator.
 class BinaryExprAST : public ExprAST {
-  char Op;
-  ExprAST *LHS, *RHS;
 public:
-  BinaryExprAST(char op, ExprAST *lhs, ExprAST *rhs) 
-    : Op(op), LHS(lhs), RHS(rhs) {}
+  BinaryExprAST(char op, ExprAST *lhs, ExprAST *rhs) {}
 };
 
 /// CallExprAST - Expression class for function calls.
@@ -127,13 +124,10 @@ public:
 
 /// FunctionAST - This class represents a function definition itself.
 class FunctionAST {
-  PrototypeAST *Proto;
-  ExprAST *Body;
 public:
-  FunctionAST(PrototypeAST *proto, ExprAST *body)
-    : Proto(proto), Body(body) {}
-  
+  FunctionAST(PrototypeAST *proto, ExprAST *body) {}
 };
+} // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
 // Parser
@@ -165,7 +159,6 @@ static int GetTokPrecedence() {
 /// Error* - These are little helper functions for error handling.
 ExprAST *Error(const char *Str) { fprintf(stderr, "Error: %s\n", Str);return 0;}
 PrototypeAST *ErrorP(const char *Str) { Error(Str); return 0; }
-FunctionAST *ErrorF(const char *Str) { Error(Str); return 0; }
 
 static ExprAST *ParseExpression();
 

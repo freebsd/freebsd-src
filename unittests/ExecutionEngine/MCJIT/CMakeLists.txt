@@ -2,7 +2,6 @@ set(LLVM_LINK_COMPONENTS
   asmparser
   bitreader
   bitwriter
-  jit
   mcjit
   nativecodegen
   )
@@ -11,6 +10,7 @@ set(MCJITTestsSources
   MCJITTest.cpp
   MCJITCAPITest.cpp
   MCJITMemoryManagerTest.cpp
+  MCJITMultipleModuleTest.cpp
   MCJITObjectCacheTest.cpp
   )
 

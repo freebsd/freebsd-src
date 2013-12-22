@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
 #include "gtest/gtest.h"
@@ -18,6 +19,20 @@
 #elif !defined(_MSC_VER)
 // Forward declare environ in case it's not provided by stdlib.h.
 extern char **environ;
+#endif
+
+#if defined(LLVM_ON_UNIX)
+#include <unistd.h>
+void sleep_for(unsigned int seconds) {
+  sleep(seconds);
+}
+#elif defined(LLVM_ON_WIN32)
+#include <windows.h>
+void sleep_for(unsigned int seconds) {
+  Sleep(seconds * 1000);
+}
+#else
+#error sleep_for is not implemented on your platform.
 #endif
 
 // From TestMain.cpp.
@@ -55,10 +70,11 @@ TEST(ProgramTest, CreateProcessTrailingSlash) {
     exit(1);
   }
 
-  Path my_exe = Path::GetMainExecutable(TestMainArgv0, &ProgramTestStringArg1);
+  std::string my_exe =
+      sys::fs::getMainExecutable(TestMainArgv0, &ProgramTestStringArg1);
   const char *argv[] = {
     my_exe.c_str(),
-    "--gtest_filter=ProgramTest.CreateProcessTrailingSlashChild",
+    "--gtest_filter=ProgramTest.CreateProcessTrailingSlash",
     "-program-test-string-arg1", "has\\\\ trailing\\",
     "-program-test-string-arg2", "has\\\\ trailing\\",
     0
@@ -74,16 +90,105 @@ TEST(ProgramTest, CreateProcessTrailingSlash) {
   bool ExecutionFailed;
   // Redirect stdout and stdin to NUL, but let stderr through.
 #ifdef LLVM_ON_WIN32
-  Path nul("NUL");
+  StringRef nul("NUL");
 #else
-  Path nul("/dev/null");
+  StringRef nul("/dev/null");
 #endif
-  const Path *redirects[] = { &nul, &nul, 0 };
-  int rc = Program::ExecuteAndWait(my_exe, argv, &envp[0], redirects,
-                                   /*secondsToWait=*/10, /*memoryLimit=*/0,
-                                   &error, &ExecutionFailed);
+  const StringRef *redirects[] = { &nul, &nul, 0 };
+  int rc = ExecuteAndWait(my_exe, argv, &envp[0], redirects,
+                          /*secondsToWait=*/ 10, /*memoryLimit=*/ 0, &error,
+                          &ExecutionFailed);
   EXPECT_FALSE(ExecutionFailed) << error;
   EXPECT_EQ(0, rc);
+}
+
+TEST(ProgramTest, TestExecuteNoWait) {
+  using namespace llvm::sys;
+
+  if (getenv("LLVM_PROGRAM_TEST_EXECUTE_NO_WAIT")) {
+    sleep_for(/*seconds*/ 1);
+    exit(0);
+  }
+
+  std::string Executable =
+      sys::fs::getMainExecutable(TestMainArgv0, &ProgramTestStringArg1);
+  const char *argv[] = {
+    Executable.c_str(),
+    "--gtest_filter=ProgramTest.TestExecuteNoWait",
+    0
+  };
+
+  // Add LLVM_PROGRAM_TEST_EXECUTE_NO_WAIT to the environment of the child.
+  std::vector<const char *> envp;
+  CopyEnvironment(envp);
+  envp.push_back("LLVM_PROGRAM_TEST_EXECUTE_NO_WAIT=1");
+  envp.push_back(0);
+
+  std::string Error;
+  bool ExecutionFailed;
+  ProcessInfo PI1 =
+      ExecuteNoWait(Executable, argv, &envp[0], 0, 0, &Error, &ExecutionFailed);
+  ASSERT_FALSE(ExecutionFailed) << Error;
+  ASSERT_NE(PI1.Pid, 0) << "Invalid process id";
+
+  unsigned LoopCount = 0;
+
+  // Test that Wait() with WaitUntilTerminates=true works. In this case,
+  // LoopCount should only be incremented once.
+  while (true) {
+    ++LoopCount;
+    ProcessInfo WaitResult = Wait(PI1, 0, true, &Error);
+    ASSERT_TRUE(Error.empty());
+    if (WaitResult.Pid == PI1.Pid)
+      break;
+  }
+
+  EXPECT_EQ(LoopCount, 1u) << "LoopCount should be 1";
+
+  ProcessInfo PI2 =
+      ExecuteNoWait(Executable, argv, &envp[0], 0, 0, &Error, &ExecutionFailed);
+  ASSERT_FALSE(ExecutionFailed) << Error;
+  ASSERT_NE(PI2.Pid, 0) << "Invalid process id";
+
+  // Test that Wait() with SecondsToWait=0 performs a non-blocking wait. In this
+  // cse, LoopCount should be greater than 1 (more than one increment occurs).
+  while (true) {
+    ++LoopCount;
+    ProcessInfo WaitResult = Wait(PI2, 0, false, &Error);
+    ASSERT_TRUE(Error.empty());
+    if (WaitResult.Pid == PI2.Pid)
+      break;
+  }
+
+  ASSERT_GT(LoopCount, 1u) << "LoopCount should be >1";
+}
+
+TEST(ProgramTest, TestExecuteNegative) {
+  std::string Executable = "i_dont_exist";
+  const char *argv[] = { Executable.c_str(), 0 };
+
+  {
+    std::string Error;
+    bool ExecutionFailed;
+    int RetCode =
+        ExecuteAndWait(Executable, argv, 0, 0, 0, 0, &Error, &ExecutionFailed);
+    ASSERT_TRUE(RetCode < 0) << "On error ExecuteAndWait should return 0 or "
+                                "positive value indicating the result code";
+    ASSERT_TRUE(ExecutionFailed);
+    ASSERT_FALSE(Error.empty());
+  }
+
+  {
+    std::string Error;
+    bool ExecutionFailed;
+    ProcessInfo PI =
+        ExecuteNoWait(Executable, argv, 0, 0, 0, &Error, &ExecutionFailed);
+    ASSERT_EQ(PI.Pid, 0)
+        << "On error ExecuteNoWait should return an invalid ProcessInfo";
+    ASSERT_TRUE(ExecutionFailed);
+    ASSERT_FALSE(Error.empty());
+  }
+
 }
 
 } // end anonymous namespace

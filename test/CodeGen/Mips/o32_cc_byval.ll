@@ -10,22 +10,23 @@
 
 define void @f1() nounwind {
 entry:
-; CHECK: lw  $[[R1:[0-9]+]], %got(f1.s1)
-; CHECK: addiu $[[R0:[0-9]+]], $[[R1]], %lo(f1.s1)
-; CHECK: lw  $[[R7:[0-9]+]], 12($[[R0]])
-; CHECK: lw  $[[R3:[0-9]+]], 16($[[R0]])
-; CHECK: lw  $[[R4:[0-9]+]], 20($[[R0]])
-; CHECK: lw  $[[R5:[0-9]+]], 24($[[R0]])
-; CHECK: lw  $[[R6:[0-9]+]], 28($[[R0]])
-; CHECK: sw  $[[R6]], 36($sp)
-; CHECK: sw  $[[R5]], 32($sp)
-; CHECK: sw  $[[R4]], 28($sp)
-; CHECK: sw  $[[R3]], 24($sp)
-; CHECK: sw  $[[R7]], 20($sp)
-; CHECK: lw  $[[R2:[0-9]+]], 8($[[R0]])
-; CHECK: sw  $[[R2]], 16($sp)
-; CHECK: lw  $6, %lo(f1.s1)($[[R1]])
-; CHECK: lw  $7, 4($[[R0]])
+; CHECK-LABEL: f1:
+; CHECK-DAG: lw  $[[R1:[0-9]+]], %got(f1.s1)
+; CHECK-DAG: addiu $[[R0:[0-9]+]], $[[R1]], %lo(f1.s1)
+; CHECK-DAG: lw  $[[R7:[0-9]+]], 12($[[R0]])
+; CHECK-DAG: lw  $[[R3:[0-9]+]], 16($[[R0]])
+; CHECK-DAG: lw  $[[R4:[0-9]+]], 20($[[R0]])
+; CHECK-DAG: lw  $[[R5:[0-9]+]], 24($[[R0]])
+; CHECK-DAG: lw  $[[R6:[0-9]+]], 28($[[R0]])
+; CHECK-DAG: sw  $[[R6]], 36($sp)
+; CHECK-DAG: sw  $[[R5]], 32($sp)
+; CHECK-DAG: sw  $[[R4]], 28($sp)
+; CHECK-DAG: sw  $[[R3]], 24($sp)
+; CHECK-DAG: sw  $[[R7]], 20($sp)
+; CHECK-DAG: lw  $[[R2:[0-9]+]], 8($[[R0]])
+; CHECK-DAG: sw  $[[R2]], 16($sp)
+; CHECK-DAG: lw  $6, %lo(f1.s1)($[[R1]])
+; CHECK-DAG: lw  $7, 4($[[R0]])
   %agg.tmp10 = alloca %struct.S3, align 4
   call void @callee1(float 2.000000e+01, %struct.S1* byval bitcast (%0* @f1.s1 to %struct.S1*)) nounwind
   call void @callee2(%struct.S2* byval @f1.s2) nounwind
@@ -61,17 +62,17 @@ entry:
 ; CHECK: mfc1 $6, $f[[F0]]
 
   %i2 = getelementptr inbounds %struct.S1* %s1, i32 0, i32 5
-  %tmp = load i32* %i2, align 4, !tbaa !0
+  %tmp = load i32* %i2, align 4
   %d = getelementptr inbounds %struct.S1* %s1, i32 0, i32 4
-  %tmp1 = load double* %d, align 8, !tbaa !3
+  %tmp1 = load double* %d, align 8
   %ll = getelementptr inbounds %struct.S1* %s1, i32 0, i32 3
-  %tmp2 = load i64* %ll, align 8, !tbaa !4
+  %tmp2 = load i64* %ll, align 8
   %i = getelementptr inbounds %struct.S1* %s1, i32 0, i32 2
-  %tmp3 = load i32* %i, align 4, !tbaa !0
+  %tmp3 = load i32* %i, align 4
   %s = getelementptr inbounds %struct.S1* %s1, i32 0, i32 1
-  %tmp4 = load i16* %s, align 2, !tbaa !5
+  %tmp4 = load i16* %s, align 2
   %c = getelementptr inbounds %struct.S1* %s1, i32 0, i32 0
-  %tmp5 = load i8* %c, align 1, !tbaa !1
+  %tmp5 = load i8* %c, align 1
   tail call void @callee4(i32 %tmp, double %tmp1, i64 %tmp2, i32 %tmp3, i16 signext %tmp4, i8 signext %tmp5, float %f) nounwind
   ret void
 }
@@ -90,9 +91,9 @@ entry:
 ; CHECK: sw  $[[R0]], 24($sp)
 
   %arrayidx = getelementptr inbounds %struct.S2* %s2, i32 0, i32 0, i32 0
-  %tmp = load i32* %arrayidx, align 4, !tbaa !0
+  %tmp = load i32* %arrayidx, align 4
   %arrayidx2 = getelementptr inbounds %struct.S2* %s2, i32 0, i32 0, i32 3
-  %tmp3 = load i32* %arrayidx2, align 4, !tbaa !0
+  %tmp3 = load i32* %arrayidx2, align 4
   tail call void @callee4(i32 %tmp, double 2.000000e+00, i64 3, i32 %tmp3, i16 signext 4, i8 signext 5, float 6.000000e+00) nounwind
   ret void
 }
@@ -110,11 +111,11 @@ entry:
 ; CHECK: sw  $[[R1]], 24($sp)
 
   %i = getelementptr inbounds %struct.S1* %s1, i32 0, i32 2
-  %tmp = load i32* %i, align 4, !tbaa !0
+  %tmp = load i32* %i, align 4
   %i2 = getelementptr inbounds %struct.S1* %s1, i32 0, i32 5
-  %tmp1 = load i32* %i2, align 4, !tbaa !0
+  %tmp1 = load i32* %i2, align 4
   %c = getelementptr inbounds %struct.S3* %s3, i32 0, i32 0
-  %tmp2 = load i8* %c, align 1, !tbaa !1
+  %tmp2 = load i8* %c, align 1
   tail call void @callee4(i32 %tmp, double 2.000000e+00, i64 3, i32 %tmp1, i16 signext 4, i8 signext %tmp2, float 6.000000e+00) nounwind
   ret void
 }
@@ -128,10 +129,3 @@ entry:
 }
 
 declare void @f6(%struct.S4* nocapture byval, i64)
-
-!0 = metadata !{metadata !"int", metadata !1}
-!1 = metadata !{metadata !"omnipotent char", metadata !2}
-!2 = metadata !{metadata !"Simple C/C++ TBAA", null}
-!3 = metadata !{metadata !"double", metadata !1}
-!4 = metadata !{metadata !"long long", metadata !1}
-!5 = metadata !{metadata !"short", metadata !1}

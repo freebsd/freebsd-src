@@ -4,7 +4,7 @@
 @rhs = global fp128 zeroinitializer
 
 define fp128 @test_add() {
-; CHECK: test_add:
+; CHECK-LABEL: test_add:
 
   %lhs = load fp128* @lhs
   %rhs = load fp128* @rhs
@@ -17,7 +17,7 @@ define fp128 @test_add() {
 }
 
 define fp128 @test_sub() {
-; CHECK: test_sub:
+; CHECK-LABEL: test_sub:
 
   %lhs = load fp128* @lhs
   %rhs = load fp128* @rhs
@@ -30,7 +30,7 @@ define fp128 @test_sub() {
 }
 
 define fp128 @test_mul() {
-; CHECK: test_mul:
+; CHECK-LABEL: test_mul:
 
   %lhs = load fp128* @lhs
   %rhs = load fp128* @rhs
@@ -43,7 +43,7 @@ define fp128 @test_mul() {
 }
 
 define fp128 @test_div() {
-; CHECK: test_div:
+; CHECK-LABEL: test_div:
 
   %lhs = load fp128* @lhs
   %rhs = load fp128* @rhs
@@ -59,7 +59,7 @@ define fp128 @test_div() {
 @var64 = global i64 0
 
 define void @test_fptosi() {
-; CHECK: test_fptosi:
+; CHECK-LABEL: test_fptosi:
   %val = load fp128* @lhs
 
   %val32 = fptosi fp128 %val to i32
@@ -74,7 +74,7 @@ define void @test_fptosi() {
 }
 
 define void @test_fptoui() {
-; CHECK: test_fptoui:
+; CHECK-LABEL: test_fptoui:
   %val = load fp128* @lhs
 
   %val32 = fptoui fp128 %val to i32
@@ -89,7 +89,7 @@ define void @test_fptoui() {
 }
 
 define void @test_sitofp() {
-; CHECK: test_sitofp:
+; CHECK-LABEL: test_sitofp:
 
   %src32 = load i32* @var32
   %val32 = sitofp i32 %src32 to fp128
@@ -105,7 +105,7 @@ define void @test_sitofp() {
 }
 
 define void @test_uitofp() {
-; CHECK: test_uitofp:
+; CHECK-LABEL: test_uitofp:
 
   %src32 = load i32* @var32
   %val32 = uitofp i32 %src32 to fp128
@@ -121,7 +121,7 @@ define void @test_uitofp() {
 }
 
 define i1 @test_setcc1() {
-; CHECK: test_setcc1:
+; CHECK-LABEL: test_setcc1:
 
   %lhs = load fp128* @lhs
   %rhs = load fp128* @rhs
@@ -140,7 +140,7 @@ define i1 @test_setcc1() {
 }
 
 define i1 @test_setcc2() {
-; CHECK: test_setcc2:
+; CHECK-LABEL: test_setcc2:
 
   %lhs = load fp128* @lhs
   %rhs = load fp128* @rhs
@@ -150,14 +150,14 @@ define i1 @test_setcc2() {
 ; Technically, everything after the call to __letf2 is redundant, but we'll let
 ; LLVM have its fun for now.
   %val = fcmp ugt fp128 %lhs, %rhs
-; CHECK: bl      __unordtf2
-; CHECK: mov     x[[UNORDERED:[0-9]+]], x0
-
 ; CHECK: bl      __gttf2
 ; CHECK: cmp w0, #0
 ; CHECK: csinc   [[GT:w[0-9]+]], wzr, wzr, le
-; CHECK: cmp w[[UNORDERED]], #0
+
+; CHECK: bl      __unordtf2
+; CHECK: cmp w0, #0
 ; CHECK: csinc   [[UNORDERED:w[0-9]+]], wzr, wzr, eq
+
 ; CHECK: orr     w0, [[UNORDERED]], [[GT]]
 
   ret i1 %val
@@ -165,7 +165,7 @@ define i1 @test_setcc2() {
 }
 
 define i32 @test_br_cc() {
-; CHECK: test_br_cc:
+; CHECK-LABEL: test_br_cc:
 
   %lhs = load fp128* @lhs
   %rhs = load fp128* @rhs
@@ -174,15 +174,14 @@ define i32 @test_br_cc() {
 
   ; olt == !uge, which LLVM unfortunately "optimizes" this to.
   %cond = fcmp olt fp128 %lhs, %rhs
-; CHECK: bl      __unordtf2
-; CHECK: mov     x[[UNORDERED:[0-9]+]], x0
-
 ; CHECK: bl      __getf2
 ; CHECK: cmp w0, #0
-
 ; CHECK: csinc   [[OGE:w[0-9]+]], wzr, wzr, lt
-; CHECK: cmp w[[UNORDERED]], #0
+
+; CHECK: bl      __unordtf2
+; CHECK: cmp w0, #0
 ; CHECK: csinc   [[UNORDERED:w[0-9]+]], wzr, wzr, eq
+
 ; CHECK: orr     [[UGE:w[0-9]+]], [[UNORDERED]], [[OGE]]
 ; CHECK: cbnz [[UGE]], [[RET29:.LBB[0-9]+_[0-9]+]]
   br i1 %cond, label %iftrue, label %iffalse
@@ -202,7 +201,7 @@ iffalse:
 }
 
 define void @test_select(i1 %cond, fp128 %lhs, fp128 %rhs) {
-; CHECK: test_select:
+; CHECK-LABEL: test_select:
 
   %val = select i1 %cond, fp128 %lhs, fp128 %rhs
   store fp128 %val, fp128* @lhs
@@ -222,7 +221,7 @@ define void @test_select(i1 %cond, fp128 %lhs, fp128 %rhs) {
 @vardouble = global double 0.0
 
 define void @test_round() {
-; CHECK: test_round:
+; CHECK-LABEL: test_round:
 
   %val = load fp128* @lhs
 
@@ -240,7 +239,7 @@ define void @test_round() {
 }
 
 define void @test_extend() {
-; CHECK: test_extend:
+; CHECK-LABEL: test_extend:
 
   %val = load fp128* @lhs
 
@@ -265,7 +264,7 @@ define fp128 @test_neg(fp128 %in) {
 ; Make sure the weird hex constant below *is* -0.0
 ; CHECK-NEXT: fp128 -0
 
-; CHECK: test_neg:
+; CHECK-LABEL: test_neg:
 
   ; Could in principle be optimized to fneg which we can't select, this makes
   ; sure that doesn't happen.

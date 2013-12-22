@@ -4,7 +4,7 @@
 ; rdar://9266679
 
 define zeroext i1 @t(i32* nocapture %A, i32 %size, i32 %value) nounwind readonly ssp {
-; CHECK: t:
+; CHECK-LABEL: t:
 entry:
   br label %for.cond
 
@@ -15,14 +15,13 @@ for.cond:
 
 for.body:
 ; CHECK: %for.
-; CHECK: movs r{{[0-9]+}}, #{{[01]}}
+; CHECK: mov{{.*}} r{{[0-9]+}}, #{{[01]}}
+; CHECK: mov{{.*}} r{{[0-9]+}}, #{{[01]}}
+; CHECK-NOT: mov r{{[0-9]+}}, #{{[01]}}
   %arrayidx = getelementptr i32* %A, i32 %0
   %tmp4 = load i32* %arrayidx, align 4
   %cmp6 = icmp eq i32 %tmp4, %value
   br i1 %cmp6, label %return, label %for.inc
-
-; CHECK: %for.
-; CHECK: movs r{{[0-9]+}}, #{{[01]}}
 
 for.inc:
   %inc = add i32 %0, 1

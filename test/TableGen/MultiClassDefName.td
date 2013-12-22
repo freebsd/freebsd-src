@@ -1,4 +1,8 @@
-// RUN: llvm-tblgen %s | grep WorldHelloCC | count 1
+// RUN: llvm-tblgen %s | FileCheck %s
+// XFAIL: vg_leak
+
+// CHECK: WorldHelloCC
+// CHECK-NOT: WorldHelloCC
 
 class C<string n> {
   string name = n;

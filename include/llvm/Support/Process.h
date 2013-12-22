@@ -25,11 +25,17 @@
 #ifndef LLVM_SUPPORT_PROCESS_H
 #define LLVM_SUPPORT_PROCESS_H
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/Config/llvm-config.h"
+#include "llvm/Support/Allocator.h"
+#include "llvm/Support/system_error.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/TimeValue.h"
 
 namespace llvm {
+class StringRef;
+
 namespace sys {
 
 class self_process;
@@ -50,13 +56,13 @@ protected:
 public:
   /// \brief Operating system specific type to identify a process.
   ///
-  /// Note that the windows one is defined to 'void *' as this is the
-  /// documented type for HANDLE on windows, and we don't want to pull in the
+  /// Note that the windows one is defined to 'unsigned long' as this is the
+  /// documented type for DWORD on windows, and we don't want to pull in the
   /// Windows headers here.
 #if defined(LLVM_ON_UNIX)
   typedef pid_t id_type;
 #elif defined(LLVM_ON_WIN32)
-  typedef void *id_type; // Must match the type of HANDLE.
+  typedef unsigned long id_type; // Must match the type of DWORD.
 #else
 #error Unsupported operating system.
 #endif
@@ -155,21 +161,23 @@ public:
   static void GetTimeUsage(TimeValue &elapsed, TimeValue &user_time,
                            TimeValue &sys_time);
 
-  /// This static function will return the process' current user id number.
-  /// Not all operating systems support this feature. Where it is not
-  /// supported, the function should return 65536 as the value.
-  static int GetCurrentUserId();
-
-  /// This static function will return the process' current group id number.
-  /// Not all operating systems support this feature. Where it is not
-  /// supported, the function should return 65536 as the value.
-  static int GetCurrentGroupId();
-
   /// This function makes the necessary calls to the operating system to
   /// prevent core files or any other kind of large memory dumps that can
   /// occur when a program fails.
   /// @brief Prevent core file generation.
   static void PreventCoreFiles();
+
+  // This function returns the environment variable \arg name's value as a UTF-8
+  // string. \arg Name is assumed to be in UTF-8 encoding too.
+  static Optional<std::string> GetEnv(StringRef name);
+
+  /// This function returns a SmallVector containing the arguments passed from
+  /// the operating system to the program.  This function expects to be handed
+  /// the vector passed in from main.
+  static error_code
+  GetArgumentVector(SmallVectorImpl<const char *> &Args,
+                    ArrayRef<const char *> ArgsFromMain,
+                    SpecificBumpPtrAllocator<char> &ArgAllocator);
 
   /// This function determines if the standard input is connected directly
   /// to a user's input (keyboard probably), rather than coming from a file
@@ -218,6 +226,12 @@ public:
   /// error supports colors. If standard error is not connected to a
   /// terminal, this function returns false.
   static bool StandardErrHasColors();
+
+  /// Enables or disables whether ANSI escape sequences are used to output
+  /// colors. This only has an effect on Windows.
+  /// Note: Setting this option is not thread-safe and should only be done
+  /// during initialization.
+  static void UseANSIEscapeCodes(bool enable);
 
   /// Whether changing colors requires the output to be flushed.
   /// This is needed on systems that don't support escape sequences for

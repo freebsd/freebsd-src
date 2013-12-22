@@ -62,25 +62,23 @@ ReducePassList::TestResult
 ReducePassList::doTest(std::vector<std::string> &Prefix,
                        std::vector<std::string> &Suffix,
                        std::string &Error) {
-  sys::Path PrefixOutput;
+  std::string PrefixOutput;
   Module *OrigProgram = 0;
   if (!Prefix.empty()) {
     outs() << "Checking to see if these passes crash: "
            << getPassesString(Prefix) << ": ";
-    std::string PfxOutput;
-    if (BD.runPasses(BD.getProgram(), Prefix, PfxOutput))
+    if (BD.runPasses(BD.getProgram(), Prefix, PrefixOutput))
       return KeepPrefix;
 
-    PrefixOutput.set(PfxOutput);
     OrigProgram = BD.Program;
 
-    BD.Program = ParseInputFile(PrefixOutput.str(), BD.getContext());
+    BD.Program = ParseInputFile(PrefixOutput, BD.getContext());
     if (BD.Program == 0) {
       errs() << BD.getToolName() << ": Error reading bitcode file '"
-             << PrefixOutput.str() << "'!\n";
+             << PrefixOutput << "'!\n";
       exit(1);
     }
-    PrefixOutput.eraseFromDisk();
+    sys::fs::remove(PrefixOutput);
   }
 
   outs() << "Checking to see if these passes crash: "
@@ -197,10 +195,10 @@ namespace {
 }
 
 bool ReduceCrashingFunctions::TestFuncs(std::vector<Function*> &Funcs) {
-
-  //if main isn't present, claim there is no problem
-  if (KeepMain && find(Funcs.begin(), Funcs.end(),
-                       BD.getProgram()->getFunction("main")) == Funcs.end())
+  // If main isn't present, claim there is no problem.
+  if (KeepMain && std::find(Funcs.begin(), Funcs.end(),
+                            BD.getProgram()->getFunction("main")) ==
+                      Funcs.end())
     return false;
 
   // Clone the program to try hacking it apart...

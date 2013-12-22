@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Config/config.h"
 #include "gtest/gtest.h"
@@ -116,6 +117,48 @@ TEST(CommandLineTest, UseOptionCategory) {
 
   ASSERT_EQ(&TestCategory,TestOption2.Category) << "Failed to assign Option "
                                                   "Category.";
+}
+
+class StrDupSaver : public cl::StringSaver {
+  const char *SaveString(const char *Str) LLVM_OVERRIDE {
+    return strdup(Str);
+  }
+};
+
+typedef void ParserFunction(StringRef Source, llvm::cl::StringSaver &Saver,
+                            SmallVectorImpl<const char *> &NewArgv);
+
+
+void testCommandLineTokenizer(ParserFunction *parse, const char *Input,
+                              const char *const Output[], size_t OutputSize) {
+  SmallVector<const char *, 0> Actual;
+  StrDupSaver Saver;
+  parse(Input, Saver, Actual);
+  EXPECT_EQ(OutputSize, Actual.size());
+  for (unsigned I = 0, E = Actual.size(); I != E; ++I) {
+    if (I < OutputSize)
+      EXPECT_STREQ(Output[I], Actual[I]);
+    free(const_cast<char *>(Actual[I]));
+  }
+}
+
+TEST(CommandLineTest, TokenizeGNUCommandLine) {
+  const char *Input = "foo\\ bar \"foo bar\" \'foo bar\' 'foo\\\\bar' "
+                      "foo\"bar\"baz C:\\src\\foo.cpp \"C:\\src\\foo.cpp\"";
+  const char *const Output[] = { "foo bar", "foo bar", "foo bar", "foo\\bar",
+                                 "foobarbaz", "C:\\src\\foo.cpp",
+                                 "C:\\src\\foo.cpp" };
+  testCommandLineTokenizer(cl::TokenizeGNUCommandLine, Input, Output,
+                           array_lengthof(Output));
+}
+
+TEST(CommandLineTest, TokenizeWindowsCommandLine) {
+  const char *Input = "a\\b c\\\\d e\\\\\"f g\" h\\\"i j\\\\\\\"k \"lmn\" o pqr "
+                      "\"st \\\"u\" \\v";
+  const char *const Output[] = { "a\\b", "c\\\\d", "e\\f g", "h\"i", "j\\\"k",
+                                 "lmn", "o", "pqr", "st \"u", "\\v" };
+  testCommandLineTokenizer(cl::TokenizeWindowsCommandLine, Input, Output,
+                           array_lengthof(Output));
 }
 
 }  // anonymous namespace

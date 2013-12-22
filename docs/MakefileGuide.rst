@@ -153,7 +153,7 @@ libraries are the default. For example:
 
   LIBRARYNAME = mylib
   SHARED_LIBRARY = 1
-  ARCHIVE_LIBRARY = 1
+  BUILD_ARCHIVE = 1
 
 says to build a library named ``mylib`` with both a shared library
 (``mylib.so``) and an archive library (``mylib.a``) version. The contents of all
@@ -168,29 +168,9 @@ openable with the ``dlopen`` function and searchable with the ``dlsym`` function
 (or your operating system's equivalents). While this isn't strictly necessary on
 Linux and a few other platforms, it is required on systems like HP-UX and
 Darwin. You should use ``LOADABLE_MODULE`` for any shared library that you
-intend to be loaded into an tool via the ``-load`` option.  `Pass documentation
-<writing-an-llvm-pass-makefile>`_ has an example of why you might want to do
-this.
-
-Bitcode Modules
-^^^^^^^^^^^^^^^
-
-In some situations, it is desirable to build a single bitcode module from a
-variety of sources, instead of an archive, shared library, or bitcode
-library. Bitcode modules can be specified in addition to any of the other types
-of libraries by defining the `MODULE_NAME`_ variable. For example:
-
-.. code-block:: makefile
-
-  LIBRARYNAME = mylib
-  BYTECODE_LIBRARY = 1
-  MODULE_NAME = mymod
-
-will build a module named ``mymod.bc`` from the sources in the directory. This
-module will be an aggregation of all the bitcode modules derived from the
-sources. The example will also build a bitcode archive containing a bitcode
-module for each compiled source file. The difference is subtle, but important
-depending on how the module or library is to be linked.
+intend to be loaded into an tool via the ``-load`` option.  :ref:`Pass
+documentation <writing-an-llvm-pass-makefile>` has an example of why you might
+want to do this.
 
 Loadable Modules
 ^^^^^^^^^^^^^^^^
@@ -256,7 +236,7 @@ the ``-l`` option). In this case, only the symbols that are unresolved *at
 that point* will be resolved from the library, if they exist. Other
 (unreferenced) symbols will not be included when the ``.a`` syntax is used. Note
 that in order to use the ``.a`` suffix, the library in question must have been
-built with the ``ARCHIVE_LIBRARY`` option set.
+built with the ``BUILD_ARCHIVE`` option set.
 
 JIT Tools
 ^^^^^^^^^
@@ -486,9 +466,6 @@ system that tell it what to do for the current directory.
     files. These sources will be built before any other target processing to
     ensure they are present.
 
-``BYTECODE_LIBRARY``
-    If set to any value, causes a bitcode library (.bc) to be built.
-
 ``CONFIG_FILES``
     Specifies a set of configuration files to be installed.
 
@@ -589,13 +566,6 @@ system that tell it what to do for the current directory.
     and searched with dlsym (or the operating system's equivalent). Note that
     setting this variable without also setting ``SHARED_LIBRARY`` will have no
     effect.
-
-.. _MODULE_NAME:
-
-``MODULE_NAME``
-    Specifies the name of a bitcode module to be created. A bitcode module can
-    be specified in conjunction with other kinds of library builds or by
-    itself. It constructs from the sources a single linked bitcode file.
 
 ``NO_INSTALL``
     Specifies that the build products of the directory should not be installed
@@ -738,12 +708,6 @@ The override variables are given below:
 
 ``LLVMAS`` (defaulted)
     Specifies the path to the ``llvm-as`` tool.
-
-``LLVMCC``
-    Specifies the path to the LLVM capable compiler.
-
-``LLVMCXX``
-    Specifies the path to the LLVM C++ capable compiler.
 
 ``LLVMGCC`` (defaulted)
     Specifies the path to the LLVM version of the GCC 'C' Compiler.
@@ -888,8 +852,6 @@ internal. You should not use these variables under any circumstances.
     Archive
     AR.Flags
     BaseNameSources
-    BCCompile.C
-    BCCompile.CXX
     BCLinkLib
     C.Flags
     Compile.C
@@ -936,7 +898,6 @@ internal. You should not use these variables under any circumstances.
     LLVMUsedLibs
     LocalTargets
     Module
-    ObjectsBC
     ObjectsLO
     ObjectsO
     ObjMakefiles

@@ -65,8 +65,10 @@
          fnabs 2, 3
 # CHECK: fnabs. 2, 3                     # encoding: [0xfc,0x40,0x19,0x11]
          fnabs. 2, 3
-# FIXME: fcpsgn 2, 3
-# FIXME: fcpsgn. 2, 3
+# CHECK: fcpsgn 2, 3, 4                  # encoding: [0xfc,0x43,0x20,0x10]
+         fcpsgn 2, 3, 4
+# CHECK: fcpsgn. 2, 3, 4                 # encoding: [0xfc,0x43,0x20,0x11]
+         fcpsgn. 2, 3, 4
 
 # Floating-point arithmetic instructions
 
@@ -171,8 +173,10 @@
 # CHECK: frsp. 2, 3                      # encoding: [0xfc,0x40,0x18,0x19]
          frsp. 2, 3
 
-# FIXME: fctid 2, 3
-# FIXME: fctid. 2, 3
+# CHECK: fctid 2, 3                      # encoding: [0xfc,0x40,0x1e,0x5c]
+         fctid 2, 3
+# CHECK: fctid. 2, 3                     # encoding: [0xfc,0x40,0x1e,0x5d]
+         fctid. 2, 3
 # CHECK: fctidz 2, 3                     # encoding: [0xfc,0x40,0x1e,0x5e]
          fctidz 2, 3
 # CHECK: fctidz. 2, 3                    # encoding: [0xfc,0x40,0x1e,0x5f]
@@ -183,8 +187,10 @@
          fctiduz 2, 3
 # CHECK: fctiduz. 2, 3                   # encoding: [0xfc,0x40,0x1f,0x5f]
          fctiduz. 2, 3
-# FIXME: fctiw 2, 3
-# FIXME: fctiw. 2, 3
+# CHECK: fctiw 2, 3                      # encoding: [0xfc,0x40,0x18,0x1c]
+         fctiw 2, 3
+# CHECK: fctiw. 2, 3                     # encoding: [0xfc,0x40,0x18,0x1d]
+         fctiw. 2, 3
 # CHECK: fctiwz 2, 3                     # encoding: [0xfc,0x40,0x18,0x1e]
          fctiwz 2, 3
 # CHECK: fctiwz. 2, 3                    # encoding: [0xfc,0x40,0x18,0x1f]

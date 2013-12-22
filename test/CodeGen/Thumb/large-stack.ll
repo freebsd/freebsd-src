@@ -1,7 +1,7 @@
 ; RUN: llc < %s -mtriple=thumb-apple-ios | FileCheck %s
 
 define void @test1() {
-; CHECK: test1:
+; CHECK-LABEL: test1:
 ; CHECK: sub sp, #256
 ; CHECK: add sp, #256
     %tmp = alloca [ 64 x i32 ] , align 4
@@ -9,8 +9,8 @@ define void @test1() {
 }
 
 define void @test2() {
-; CHECK: test2:
-; CHECK: ldr.n r0, LCPI
+; CHECK-LABEL: test2:
+; CHECK: ldr r0, LCPI
 ; CHECK: add sp, r0
 ; CHECK: subs r4, r7, #4
 ; CHECK: mov sp, r4
@@ -19,10 +19,10 @@ define void @test2() {
 }
 
 define i32 @test3() {
-; CHECK: test3:
-; CHECK: ldr.n r1, LCPI
+; CHECK-LABEL: test3:
+; CHECK: ldr r1, LCPI
 ; CHECK: add sp, r1
-; CHECK: ldr.n r1, LCPI
+; CHECK: ldr r1, LCPI
 ; CHECK: add r1, sp
 ; CHECK: subs r4, r7, #4
 ; CHECK: mov sp, r4

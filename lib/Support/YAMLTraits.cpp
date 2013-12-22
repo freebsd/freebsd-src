@@ -15,6 +15,7 @@
 #include "llvm/Support/YAMLParser.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cstring>
+#include <cctype>
 using namespace llvm;
 using namespace yaml;
 
@@ -40,32 +41,43 @@ void IO::setContext(void *Context) {
 //  Input
 //===----------------------------------------------------------------------===//
 
-Input::Input(StringRef InputContent, void *Ctxt) 
-  : IO(Ctxt), 
+Input::Input(StringRef InputContent,
+             void *Ctxt,
+             SourceMgr::DiagHandlerTy DiagHandler,
+             void *DiagHandlerCtxt)
+  : IO(Ctxt),
     Strm(new Stream(InputContent, SrcMgr)),
     CurrentNode(NULL) {
+  if (DiagHandler)
+    SrcMgr.setDiagHandler(DiagHandler, DiagHandlerCtxt);
   DocIterator = Strm->begin();
 }
 
 Input::~Input() {
-  
 }
 
 error_code Input::error() {
   return EC;
 }
 
-void Input::setDiagHandler(SourceMgr::DiagHandlerTy Handler, void *Ctxt) {
-  SrcMgr.setDiagHandler(Handler, Ctxt);
-}
+// Pin the vtables to this file.
+void Input::HNode::anchor() {}
+void Input::EmptyHNode::anchor() {}
+void Input::ScalarHNode::anchor() {}
 
-bool Input::outputting() {
+bool Input::outputting() const {
   return false;
 }
 
 bool Input::setCurrentDocument() {
   if (DocIterator != Strm->end()) {
     Node *N = DocIterator->getRoot();
+    if (!N) {
+      assert(Strm->failed() && "Root is NULL iff parsing failed");
+      EC = make_error_code(errc::invalid_argument);
+      return false;
+    }
+
     if (isa<NullNode>(N)) {
       // Empty files are allowed and ignored
       ++DocIterator;
@@ -82,10 +94,21 @@ void Input::nextDocument() {
   ++DocIterator;
 }
 
+bool Input::mapTag(StringRef Tag, bool Default) {
+  std::string foundTag = CurrentNode->_node->getVerbatimTag();
+  if (foundTag.empty()) {
+    // If no tag found and 'Tag' is the default, say it was found.
+    return Default;
+  }
+  // Return true iff found tag matches supplied tag.
+  return Tag.equals(foundTag);
+}
+
 void Input::beginMapping() {
   if (EC)
     return;
-  MapHNode *MN = dyn_cast<MapHNode>(CurrentNode);
+  // CurrentNode can be null if the document is empty.
+  MapHNode *MN = dyn_cast_or_null<MapHNode>(CurrentNode);
   if (MN) {
     MN->ValidKeys.clear();
   }
@@ -96,6 +119,15 @@ bool Input::preflightKey(const char *Key, bool Required, bool, bool &UseDefault,
   UseDefault = false;
   if (EC)
     return false;
+
+  // CurrentNode is null for empty documents, which is an error in case required
+  // nodes are present.
+  if (!CurrentNode) {
+    if (Required)
+      EC = make_error_code(errc::invalid_argument);
+    return false;
+  }
+
   MapHNode *MN = dyn_cast<MapHNode>(CurrentNode);
   if (!MN) {
     setError(CurrentNode, "not a mapping");
@@ -122,13 +154,14 @@ void Input::postflightKey(void *saveInfo) {
 void Input::endMapping() {
   if (EC)
     return;
-  MapHNode *MN = dyn_cast<MapHNode>(CurrentNode);
+  // CurrentNode can be null if the document is empty.
+  MapHNode *MN = dyn_cast_or_null<MapHNode>(CurrentNode);
   if (!MN)
     return;
   for (MapHNode::NameToNode::iterator i = MN->Mapping.begin(),
        End = MN->Mapping.end(); i != End; ++i) {
-    if (!MN->isValidKey(i->first)) {
-      setError(i->second, Twine("unknown key '") + i->first + "'");
+    if (!MN->isValidKey(i->first())) {
+      setError(i->second, Twine("unknown key '") + i->first() + "'");
       break;
     }
   }
@@ -263,6 +296,7 @@ void Input::scalarString(StringRef &S) {
 }
 
 void Input::setError(HNode *hnode, const Twine &message) {
+  assert(hnode && "HNode must not be NULL");
   this->setError(hnode->_node, message);
 }
 
@@ -322,7 +356,7 @@ Input::HNode *Input::createHNodes(Node *N) {
 }
 
 bool Input::MapHNode::isValidKey(StringRef Key) {
-  for (SmallVector<const char *, 6>::iterator i = ValidKeys.begin(),
+  for (SmallVectorImpl<const char *>::iterator i = ValidKeys.begin(),
        End = ValidKeys.end(); i != End; ++i) {
     if (Key.equals(*i))
       return true;
@@ -332,6 +366,10 @@ bool Input::MapHNode::isValidKey(StringRef Key) {
 
 void Input::setError(const Twine &Message) {
   this->setError(CurrentNode, Message);
+}
+
+bool Input::canElideEmptySequence() {
+  return false;
 }
 
 Input::MapHNode::~MapHNode() {
@@ -368,13 +406,21 @@ Output::Output(raw_ostream &yout, void *context)
 Output::~Output() {
 }
 
-bool Output::outputting() {
+bool Output::outputting() const {
   return true;
 }
 
 void Output::beginMapping() {
   StateStack.push_back(inMapFirstKey);
   NeedsNewLine = true;
+}
+
+bool Output::mapTag(StringRef Tag, bool Use) {
+  if (Use) {
+    this->output(" ");
+    this->output(Tag);
+  }
+  return Use;
 }
 
 void Output::endMapping() {
@@ -505,9 +551,20 @@ void Output::endBitSetScalar() {
 }
 
 void Output::scalarString(StringRef &S) {
+  const char ScalarSafeChars[] = "abcdefghijklmnopqrstuvwxyz"
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-/^., \t";
+
   this->newLineCheck();
-  if (S.find('\n') == StringRef::npos) {
-    // No embedded new-line chars, just print string.
+  if (S.empty()) {
+    // Print '' for the empty string because leaving the field empty is not
+    // allowed.
+    this->outputUpToEndOfLine("''");
+    return;
+  }
+  if (S.find_first_not_of(ScalarSafeChars) == StringRef::npos &&
+      !isspace(S.front()) && !isspace(S.back())) {
+    // If the string consists only of safe characters, print it out without
+    // quotes.
     this->outputUpToEndOfLine(S);
     return;
   }
@@ -530,6 +587,19 @@ void Output::scalarString(StringRef &S) {
 }
 
 void Output::setError(const Twine &message) {
+}
+
+bool Output::canElideEmptySequence() {
+  // Normally, with an optional key/value where the value is an empty sequence,
+  // the whole key/value can be not written.  But, that produces wrong yaml
+  // if the key/value is the only thing in the map and the map is used in
+  // a sequence.  This detects if the this sequence is the first key/value
+  // in map that itself is embedded in a sequnce.
+  if (StateStack.size() < 2)
+    return true;
+  if (StateStack.back() != inMapFirstKey)
+    return true;
+  return (StateStack[StateStack.size()-2] != inSeq);
 }
 
 void Output::output(StringRef s) {

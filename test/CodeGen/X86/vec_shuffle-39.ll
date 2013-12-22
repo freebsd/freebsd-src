@@ -3,7 +3,7 @@
 
 define <4 x float> @t1(<4 x float> %a, <1 x i64>* nocapture %p) nounwind {
 entry:
-; CHECK: t1:
+; CHECK-LABEL: t1:
 ; CHECK: movlps (%rdi), %xmm0
 ; CHECK: ret
   %p.val = load <1 x i64>* %p, align 1
@@ -15,7 +15,7 @@ entry:
 
 define <4 x float> @t1a(<4 x float> %a, <1 x i64>* nocapture %p) nounwind {
 entry:
-; CHECK: t1a:
+; CHECK-LABEL: t1a:
 ; CHECK: movlps (%rdi), %xmm0
 ; CHECK: ret
   %0 = bitcast <1 x i64>* %p to double*
@@ -28,7 +28,7 @@ entry:
 
 define void @t2(<1 x i64>* nocapture %p, <4 x float> %a) nounwind {
 entry:
-; CHECK: t2:
+; CHECK-LABEL: t2:
 ; CHECK: movlps %xmm0, (%rdi)
 ; CHECK: ret
   %cast.i = bitcast <4 x float> %a to <2 x i64>
@@ -40,7 +40,7 @@ entry:
 
 define void @t2a(<1 x i64>* nocapture %p, <4 x float> %a) nounwind {
 entry:
-; CHECK: t2a:
+; CHECK-LABEL: t2a:
 ; CHECK: movlps %xmm0, (%rdi)
 ; CHECK: ret
   %0 = bitcast <1 x i64>* %p to double*
@@ -53,9 +53,9 @@ entry:
 ; rdar://10436044
 define <2 x double> @t3() nounwind readonly {
 bb:
-; CHECK: t3:
-; CHECK: punpcklqdq %xmm1, %xmm0
+; CHECK-LABEL: t3:
 ; CHECK: movq (%rax), %xmm1
+; CHECK: punpcklqdq %xmm2, %xmm0
 ; CHECK: movsd %xmm1, %xmm0
   %tmp0 = load i128* null, align 1
   %tmp1 = load <2 x i32>* undef, align 8
@@ -71,10 +71,10 @@ bb:
 ; rdar://10450317
 define <2 x i64> @t4() nounwind readonly {
 bb:
-; CHECK: t4:
-; CHECK: punpcklqdq %xmm0, %xmm1
+; CHECK-LABEL: t4:
 ; CHECK: movq (%rax), %xmm0
-; CHECK: movsd %xmm1, %xmm0
+; CHECK: punpcklqdq %{{xmm.}}, %[[XMM:xmm[0-9]]]
+; CHECK: movsd %[[XMM]], %xmm0
   %tmp0 = load i128* null, align 1
   %tmp1 = load <2 x i32>* undef, align 8
   %tmp2 = bitcast i128 %tmp0 to <16 x i8>

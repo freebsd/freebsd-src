@@ -4,18 +4,18 @@
 
 define i32 @t1(i32 %c) nounwind readnone {
 entry:
-; ARM: t1:
+; ARM-LABEL: t1:
 ; ARM: mov [[R1:r[0-9]+]], #101
 ; ARM: orr [[R1b:r[0-9]+]], [[R1]], #256
-; ARM: movgt r0, #123
+; ARM: movgt {{r[0-1]}}, #123
 
-; ARMT2: t1:
-; ARMT2: movw r0, #357
-; ARMT2: movgt r0, #123
+; ARMT2-LABEL: t1:
+; ARMT2: movw [[R:r[0-1]]], #357
+; ARMT2: movwgt [[R]], #123
 
-; THUMB2: t1:
-; THUMB2: movw r0, #357
-; THUMB2: movgt r0, #123
+; THUMB2-LABEL: t1:
+; THUMB2: movw [[R:r[0-1]]], #357
+; THUMB2: movgt [[R]], #123
 
   %0 = icmp sgt i32 %c, 1
   %1 = select i1 %0, i32 123, i32 357
@@ -24,18 +24,18 @@ entry:
 
 define i32 @t2(i32 %c) nounwind readnone {
 entry:
-; ARM: t2:
-; ARM: mov r0, #123
-; ARM: movgt r0, #101
-; ARM: orrgt r0, r0, #256
+; ARM-LABEL: t2:
+; ARM: mov [[R:r[0-9]+]], #101
+; ARM: orr [[R]], [[R]], #256
+; ARM: movle [[R]], #123
 
-; ARMT2: t2:
-; ARMT2: mov r0, #123
-; ARMT2: movwgt r0, #357
+; ARMT2-LABEL: t2:
+; ARMT2: mov [[R:r[0-1]]], #123
+; ARMT2: movwgt [[R]], #357
 
-; THUMB2: t2:
-; THUMB2: mov{{(s|\.w)}} r0, #123
-; THUMB2: movwgt r0, #357
+; THUMB2-LABEL: t2:
+; THUMB2: mov{{(s|\.w)}} [[R:r[0-1]]], #123
+; THUMB2: movwgt [[R]], #357
 
   %0 = icmp sgt i32 %c, 1
   %1 = select i1 %0, i32 357, i32 123
@@ -44,17 +44,17 @@ entry:
 
 define i32 @t3(i32 %a) nounwind readnone {
 entry:
-; ARM: t3:
-; ARM: mov r0, #0
-; ARM: moveq r0, #1
+; ARM-LABEL: t3:
+; ARM: mov [[R:r[0-1]]], #0
+; ARM: moveq [[R]], #1
 
-; ARMT2: t3:
-; ARMT2: mov r0, #0
-; ARMT2: moveq r0, #1
+; ARMT2-LABEL: t3:
+; ARMT2: mov [[R:r[0-1]]], #0
+; ARMT2: movweq [[R]], #1
 
-; THUMB2: t3:
-; THUMB2: mov{{(s|\.w)}} r0, #0
-; THUMB2: moveq r0, #1
+; THUMB2-LABEL: t3:
+; THUMB2: mov{{(s|\.w)}} [[R:r[0-1]]], #0
+; THUMB2: moveq [[R]], #1
   %0 = icmp eq i32 %a, 160
   %1 = zext i1 %0 to i32
   ret i32 %1
@@ -62,15 +62,15 @@ entry:
 
 define i32 @t4(i32 %a, i32 %b, i32 %x) nounwind {
 entry:
-; ARM: t4:
+; ARM-LABEL: t4:
 ; ARM: ldr
 ; ARM: mov{{lt|ge}}
 
-; ARMT2: t4:
+; ARMT2-LABEL: t4:
 ; ARMT2: movwlt [[R0:r[0-9]+]], #65365
 ; ARMT2: movtlt [[R0]], #65365
 
-; THUMB2: t4:
+; THUMB2-LABEL: t4:
 ; THUMB2: mvnlt [[R0:r[0-9]+]], #11141290
   %0 = icmp slt i32 %a, %b
   %1 = select i1 %0, i32 4283826005, i32 %x
@@ -80,13 +80,13 @@ entry:
 ; rdar://9758317
 define i32 @t5(i32 %a) nounwind {
 entry:
-; ARM: t5:
+; ARM-LABEL: t5:
 ; ARM-NOT: mov
 ; ARM: cmp r0, #1
 ; ARM-NOT: mov
 ; ARM: movne r0, #0
 
-; THUMB2: t5:
+; THUMB2-LABEL: t5:
 ; THUMB2-NOT: mov
 ; THUMB2: cmp r0, #1
 ; THUMB2: it ne
@@ -98,12 +98,12 @@ entry:
 
 define i32 @t6(i32 %a) nounwind {
 entry:
-; ARM: t6:
+; ARM-LABEL: t6:
 ; ARM-NOT: mov
 ; ARM: cmp r0, #0
 ; ARM: movne r0, #1
 
-; THUMB2: t6:
+; THUMB2-LABEL: t6:
 ; THUMB2-NOT: mov
 ; THUMB2: cmp r0, #0
 ; THUMB2: it ne

@@ -144,7 +144,7 @@ namespace {
     // not be erased.
     bool isBulkSpilling;
 
-    enum {
+    enum LLVM_ENUM_INT_TYPE(unsigned) {
       spillClean = 1,
       spillDirty = 100,
       spillImpossible = ~0u
@@ -293,29 +293,26 @@ void RAFast::spillVirtReg(MachineBasicBlock::iterator MI,
     // If this register is used by DBG_VALUE then insert new DBG_VALUE to
     // identify spilled location as the place to find corresponding variable's
     // value.
-    SmallVector<MachineInstr *, 4> &LRIDbgValues =
+    SmallVectorImpl<MachineInstr *> &LRIDbgValues =
       LiveDbgValueMap[LRI->VirtReg];
     for (unsigned li = 0, le = LRIDbgValues.size(); li != le; ++li) {
       MachineInstr *DBG = LRIDbgValues[li];
-      const MDNode *MDPtr =
-        DBG->getOperand(DBG->getNumOperands()-1).getMetadata();
-      int64_t Offset = 0;
-      if (DBG->getOperand(1).isImm())
-        Offset = DBG->getOperand(1).getImm();
+      const MDNode *MDPtr = DBG->getOperand(2).getMetadata();
+      bool IsIndirect = DBG->isIndirectDebugValue();
+      uint64_t Offset = IsIndirect ? DBG->getOperand(1).getImm() : 0;
       DebugLoc DL;
       if (MI == MBB->end()) {
         // If MI is at basic block end then use last instruction's location.
         MachineBasicBlock::iterator EI = MI;
         DL = (--EI)->getDebugLoc();
-      }
-      else
+      } else
         DL = MI->getDebugLoc();
-      if (MachineInstr *NewDV =
-          TII->emitFrameIndexDebugValue(*MF, FI, Offset, MDPtr, DL)) {
-        MachineBasicBlock *MBB = DBG->getParent();
-        MBB->insert(MI, NewDV);
-        DEBUG(dbgs() << "Inserting debug info due to spill:" << "\n" << *NewDV);
-      }
+      MachineBasicBlock *MBB = DBG->getParent();
+      MachineInstr *NewDV =
+          BuildMI(*MBB, MI, DL, TII->get(TargetOpcode::DBG_VALUE))
+              .addFrameIndex(FI).addImm(Offset).addMetadata(MDPtr);
+      (void)NewDV;
+      DEBUG(dbgs() << "Inserting debug info due to spill:" << "\n" << *NewDV);
     }
     // Now this register is spilled there is should not be any DBG_VALUE
     // pointing to this register because they are all pointing to spilled value
@@ -572,7 +569,10 @@ RAFast::LiveRegMap::iterator RAFast::allocVirtReg(MachineInstr *MI,
   }
 
   // Nothing we can do. Report an error and keep going with a bad allocation.
-  MI->emitError("ran out of registers during register allocation");
+  if (MI->isInlineAsm())
+    MI->emitError("inline assembly requires more registers than available");
+  else
+    MI->emitError("ran out of registers during register allocation");
   definePhysReg(MI, *AO.begin(), regFree);
   return assignVirtToPhysReg(VirtReg, *AO.begin());
 }
@@ -859,25 +859,21 @@ void RAFast::AllocateBasicBlock() {
             }
             else {
               // Modify DBG_VALUE now that the value is in a spill slot.
-              int64_t Offset = MI->getOperand(1).getImm();
+              bool IsIndirect = MI->isIndirectDebugValue();
+              uint64_t Offset = IsIndirect ? MI->getOperand(1).getImm() : 0;
               const MDNode *MDPtr =
                 MI->getOperand(MI->getNumOperands()-1).getMetadata();
               DebugLoc DL = MI->getDebugLoc();
-              if (MachineInstr *NewDV =
-                  TII->emitFrameIndexDebugValue(*MF, SS, Offset, MDPtr, DL)) {
-                DEBUG(dbgs() << "Modifying debug info due to spill:" <<
-                      "\t" << *MI);
-                MachineBasicBlock *MBB = MI->getParent();
-                MBB->insert(MBB->erase(MI), NewDV);
-                // Scan NewDV operands from the beginning.
-                MI = NewDV;
-                ScanDbgValue = true;
-                break;
-              } else {
-                // We can't allocate a physreg for a DebugValue; sorry!
-                DEBUG(dbgs() << "Unable to allocate vreg used by DBG_VALUE");
-                MO.setReg(0);
-              }
+              MachineBasicBlock *MBB = MI->getParent();
+              MachineInstr *NewDV = BuildMI(*MBB, MBB->erase(MI), DL,
+                                            TII->get(TargetOpcode::DBG_VALUE))
+                  .addFrameIndex(SS).addImm(Offset).addMetadata(MDPtr);
+              DEBUG(dbgs() << "Modifying debug info due to spill:"
+                           << "\t" << *NewDV);
+              // Scan NewDV operands from the beginning.
+              MI = NewDV;
+              ScanDbgValue = true;
+              break;
             }
           }
           LiveDbgValueMap[Reg].push_back(MI);

@@ -29,7 +29,7 @@ entry:
 
 ; Radar 8407927: Make sure that VMOVRRD gets optimized away when the result is
 ; converted back to be used as a vector type.
-; CHECK: test_vmovrrd_combine
+; CHECK-LABEL: test_vmovrrd_combine:
 define <4 x i32> @test_vmovrrd_combine() nounwind {
 entry:
   br i1 undef, label %bb1, label %bb2
@@ -136,7 +136,7 @@ define i16 @foldBuildVectors() {
 
 ; Test that we are generating vrev and vext for reverse shuffles of v8i16
 ; shuffles.
-; CHECK: reverse_v8i16
+; CHECK-LABEL: reverse_v8i16:
 define void @reverse_v8i16(<8 x i16>* %loadaddr, <8 x i16>* %storeaddr) {
   %v0 = load <8 x i16>* %loadaddr
   ; CHECK: vrev64.16
@@ -149,7 +149,7 @@ define void @reverse_v8i16(<8 x i16>* %loadaddr, <8 x i16>* %storeaddr) {
 
 ; Test that we are generating vrev and vext for reverse shuffles of v16i8
 ; shuffles.
-; CHECK: reverse_v16i8
+; CHECK-LABEL: reverse_v16i8:
 define void @reverse_v16i8(<16 x i8>* %loadaddr, <16 x i8>* %storeaddr) {
   %v0 = load <16 x i8>* %loadaddr
   ; CHECK: vrev64.8
@@ -159,4 +159,88 @@ define void @reverse_v16i8(<16 x i8>* %loadaddr, <16 x i8>* %storeaddr) {
                    i32 7, i32 6, i32 5, i32 4, i32 3, i32 2, i32 1, i32 0>
   store <16 x i8> %v1, <16 x i8>* %storeaddr
   ret void
+}
+
+; <rdar://problem/14170854>.
+; vldr cannot handle unaligned loads.
+; Fall back to vld1.32, which can, instead of using the general purpose loads
+; followed by a costly sequence of instructions to build the vector register.
+; CHECK-LABEL: t3:
+; CHECK: vld1.32 {[[REG:d[0-9]+]][0]}
+; CHECK: vld1.32 {[[REG]][1]}
+; CHECK: vmull.u8 q{{[0-9]+}}, [[REG]], [[REG]]
+define <8 x i16> @t3(i8 zeroext %xf, i8* nocapture %sp0, i8* nocapture %sp1, i32* nocapture %outp) {
+entry:
+  %pix_sp0.0.cast = bitcast i8* %sp0 to i32*
+  %pix_sp0.0.copyload = load i32* %pix_sp0.0.cast, align 1
+  %pix_sp1.0.cast = bitcast i8* %sp1 to i32*
+  %pix_sp1.0.copyload = load i32* %pix_sp1.0.cast, align 1
+  %vecinit = insertelement <2 x i32> undef, i32 %pix_sp0.0.copyload, i32 0
+  %vecinit1 = insertelement <2 x i32> %vecinit, i32 %pix_sp1.0.copyload, i32 1
+  %0 = bitcast <2 x i32> %vecinit1 to <8 x i8>
+  %vmull.i = tail call <8 x i16> @llvm.arm.neon.vmullu.v8i16(<8 x i8> %0, <8 x i8> %0)
+  ret <8 x i16> %vmull.i
+}
+
+; Function Attrs: nounwind readnone
+declare <8 x i16> @llvm.arm.neon.vmullu.v8i16(<8 x i8>, <8 x i8>)
+
+; Check that (insert_vector_elt (load)) => (vector_load).
+; Thus, check that scalar_to_vector do not interfer with that.
+define <8 x i16> @t4(i8* nocapture %sp0) {
+; CHECK-LABEL: t4:
+; CHECK: vld1.32 {{{d[0-9]+}}[0]}, [r0]
+entry:
+  %pix_sp0.0.cast = bitcast i8* %sp0 to i32*
+  %pix_sp0.0.copyload = load i32* %pix_sp0.0.cast, align 1
+  %vec = insertelement <2 x i32> undef, i32 %pix_sp0.0.copyload, i32 0
+  %0 = bitcast <2 x i32> %vec to <8 x i8>
+  %vmull.i = tail call <8 x i16> @llvm.arm.neon.vmullu.v8i16(<8 x i8> %0, <8 x i8> %0)
+  ret <8 x i16> %vmull.i
+}
+
+; Make sure vector load is used for all three loads.
+; Lowering to build vector was breaking the single use property of the load of
+;  %pix_sp0.0.copyload.
+; CHECK-LABEL: t5:
+; CHECK: vld1.32 {[[REG1:d[0-9]+]][1]}, [r0]
+; CHECK: vorr [[REG2:d[0-9]+]], [[REG1]], [[REG1]]
+; CHECK: vld1.32 {[[REG1]][0]}, [r1]
+; CHECK: vld1.32 {[[REG2]][0]}, [r2]
+; CHECK: vmull.u8 q{{[0-9]+}}, [[REG1]], [[REG2]]
+define <8 x i16> @t5(i8* nocapture %sp0, i8* nocapture %sp1, i8* nocapture %sp2) {
+entry:
+  %pix_sp0.0.cast = bitcast i8* %sp0 to i32*
+  %pix_sp0.0.copyload = load i32* %pix_sp0.0.cast, align 1
+  %pix_sp1.0.cast = bitcast i8* %sp1 to i32*
+  %pix_sp1.0.copyload = load i32* %pix_sp1.0.cast, align 1
+  %pix_sp2.0.cast = bitcast i8* %sp2 to i32*
+  %pix_sp2.0.copyload = load i32* %pix_sp2.0.cast, align 1
+  %vec = insertelement <2 x i32> undef, i32 %pix_sp0.0.copyload, i32 1
+  %vecinit1 = insertelement <2 x i32> %vec, i32 %pix_sp1.0.copyload, i32 0
+  %vecinit2 = insertelement <2 x i32> %vec, i32 %pix_sp2.0.copyload, i32 0
+  %0 = bitcast <2 x i32> %vecinit1 to <8 x i8>
+  %1 = bitcast <2 x i32> %vecinit2 to <8 x i8>
+  %vmull.i = tail call <8 x i16> @llvm.arm.neon.vmullu.v8i16(<8 x i8> %0, <8 x i8> %1)
+  ret <8 x i16> %vmull.i
+}
+
+; <rdar://problem/14989896> Make sure we manage to truncate a vector from an
+; illegal type to a legal type.
+define <2 x i8> @test_truncate(<2 x i128> %in) {
+; CHECK-LABEL: test_truncate:
+; CHECK: mov [[BASE:r[0-9]+]], sp
+; CHECK-NEXT: vld1.32 {[[REG1:d[0-9]+]][0]}, {{\[}}[[BASE]]:32]
+; CHECK-NEXT: add [[BASE2:r[0-9]+]], [[BASE]], #4
+; CHECK-NEXT: vld1.32 {[[REG1]][1]}, {{\[}}[[BASE2]]:32]
+; REG2 Should map on the same Q register as REG1, i.e., REG2 = REG1 - 1, but we
+; cannot express that.
+; CHECK-NEXT: vmov.32 [[REG2:d[0-9]+]][0], r0
+; CHECK-NEXT: vmov.32 [[REG2]][1], r1
+; The Q register used here should match floor(REG1/2), but we cannot express that.
+; CHECK-NEXT: vmovn.i64 [[RES:d[0-9]+]], q{{[0-9]+}}
+; CHECK-NEXT: vmov r0, r1, [[RES]]
+entry:
+  %res = trunc <2 x i128> %in to <2 x i8>
+  ret <2 x i8> %res
 }

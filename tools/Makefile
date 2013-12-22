@@ -27,15 +27,11 @@ OPTIONAL_DIRS := lldb
 # large and three small executables. This is done to minimize memory load
 # in parallel builds.  Please retain this ordering.
 DIRS := llvm-config
-PARALLEL_DIRS := opt llvm-as llvm-dis \
-                 llc llvm-ranlib llvm-ar llvm-nm \
-                 llvm-prof llvm-link \
-                 lli llvm-extract llvm-mc \
-                 bugpoint llvm-bcanalyzer \
-                 llvm-diff macho-dump llvm-objdump llvm-readobj \
-	         llvm-rtdyld llvm-dwarfdump llvm-cov \
-	         llvm-size llvm-stress llvm-mcmarkup \
-	         llvm-symbolizer obj2yaml yaml2obj
+PARALLEL_DIRS := opt llvm-as llvm-dis llc llvm-ar llvm-nm llvm-link \
+                 lli llvm-extract llvm-mc bugpoint llvm-bcanalyzer llvm-diff \
+                 macho-dump llvm-objdump llvm-readobj llvm-rtdyld \
+                 llvm-dwarfdump llvm-cov llvm-size llvm-stress llvm-mcmarkup \
+                 llvm-symbolizer obj2yaml yaml2obj llvm-c-test
 
 # If Intel JIT Events support is configured, build an extra tool to test it.
 ifeq ($(USE_INTEL_JITEVENTS), 1)
@@ -54,11 +50,10 @@ endif
 ifndef ONLY_TOOLS
 ifeq ($(ENABLE_PIC),1)
   # gold only builds if binutils is around.  It requires "lto" to build before
-  # it so it is added to DIRS.
+  # it so it is added to DIRS. llvm-lto also requires lto
+  DIRS += lto llvm-lto
   ifdef BINUTILS_INCDIR
-    DIRS += lto gold
-  else
-    PARALLEL_DIRS += lto
+    DIRS += gold
   endif
 
   PARALLEL_DIRS += bugpoint-passes

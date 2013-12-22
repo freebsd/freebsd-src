@@ -1,10 +1,10 @@
 ; RUN: opt < %s -instcombine -S | FileCheck %s
-target datalayout = "E-p:64:64:64-a0:0:8-f32:32:32-f64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-v64:64:64-v128:128:128"
+target datalayout = "E-p:64:64:64-p1:32:32:32-a0:0:8-f32:32:32-f64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-v64:64:64-v128:128:128"
 
 ; Instcombine should be able to prove vector alignment in the
 ; presence of a few mild address computation tricks.
 
-; CHECK: @test0(
+; CHECK-LABEL: @test0(
 ; CHECK: align 16
 
 define void @test0(i8* %b, i64 %n, i64 %u, i64 %y) nounwind  {
@@ -35,7 +35,7 @@ return:
 ; When we see a unaligned load from an insufficiently aligned global or
 ; alloca, increase the alignment of the load, turning it into an aligned load.
 
-; CHECK: @test1(
+; CHECK-LABEL: @test1(
 ; CHECK: tmp = load
 ; CHECK: GLOBAL{{.*}}align 16
 
@@ -47,9 +47,30 @@ entry:
 	ret <16 x i8> %tmp
 }
 
+@GLOBAL_as1 = internal addrspace(1) global [4 x i32] zeroinitializer
+
+define <16 x i8> @test1_as1(<2 x i64> %x) {
+; CHECK-LABEL: @test1_as1(
+; CHECK: tmp = load
+; CHECK: GLOBAL_as1{{.*}}align 16
+  %tmp = load <16 x i8> addrspace(1)* bitcast ([4 x i32] addrspace(1)* @GLOBAL_as1 to <16 x i8> addrspace(1)*), align 1
+  ret <16 x i8> %tmp
+}
+
+@GLOBAL_as1_gep = internal addrspace(1) global [8 x i32] zeroinitializer
+
+define <16 x i8> @test1_as1_gep(<2 x i64> %x) {
+; CHECK-LABEL: @test1_as1_gep(
+; CHECK: tmp = load
+; CHECK: GLOBAL_as1_gep{{.*}}align 16
+  %tmp = load <16 x i8> addrspace(1)* bitcast (i32 addrspace(1)* getelementptr ([8 x i32] addrspace(1)* @GLOBAL_as1_gep, i16 0, i16 4) to <16 x i8> addrspace(1)*), align 1
+  ret <16 x i8> %tmp
+}
+
+
 ; When a load or store lacks an explicit alignment, add one.
 
-; CHECK: @test2(
+; CHECK-LABEL: @test2(
 ; CHECK: load double* %p, align 8
 ; CHECK: store double %n, double* %p, align 8
 
@@ -67,7 +88,7 @@ declare void @use(i8*)
 
 define void @test3(%struct.s* sret %a4) {
 ; Check that the alignment is bumped up the alignment of the sret type.
-; CHECK: @test3
+; CHECK-LABEL: @test3(
   %a4.cast = bitcast %struct.s* %a4 to i8*
   call void @llvm.memset.p0i8.i64(i8* %a4.cast, i8 0, i64 16, i32 1, i1 false)
 ; CHECK: call void @llvm.memset.p0i8.i64(i8* %a4.cast, i8 0, i64 16, i32 4, i1 false)

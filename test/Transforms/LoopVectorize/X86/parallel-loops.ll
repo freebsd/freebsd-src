@@ -12,7 +12,7 @@ target triple = "x86_64-unknown-linux-gnu"
 ;    }
 ;}
 
-;CHECK: @loop
+;CHECK-LABEL: @loop(
 ;CHECK-NOT: <4 x i32>
 define void @loop(i32* nocapture %a, i32* nocapture %b) nounwind uwtable {
 entry:
@@ -42,7 +42,7 @@ for.end:                                          ; preds = %for.body
 ; The same loop with parallel loop metadata added to the loop branch
 ; and the memory instructions.
 
-;CHECK: @parallel_loop
+;CHECK-LABEL: @parallel_loop(
 ;CHECK: <4 x i32>
 define void @parallel_loop(i32* nocapture %a, i32* nocapture %b) nounwind uwtable {
 entry:
@@ -65,7 +65,7 @@ for.body:                                         ; preds = %for.body, %entry
   store i32 %2, i32* %arrayidx2, align 4, !llvm.mem.parallel_loop_access !3
   %lftr.wideiv = trunc i64 %indvars.iv.next to i32
   %exitcond = icmp eq i32 %lftr.wideiv, 512
-  br i1 %exitcond, label %for.end, label %for.body, !llvm.loop.parallel !3
+  br i1 %exitcond, label %for.end, label %for.body, !llvm.loop !3
 
 for.end:                                          ; preds = %for.body
   ret void
@@ -74,7 +74,7 @@ for.end:                                          ; preds = %for.body
 ; The same loop with an illegal parallel loop metadata: the memory
 ; accesses refer to a different loop's identifier.
 
-;CHECK: @mixed_metadata
+;CHECK-LABEL: @mixed_metadata(
 ;CHECK-NOT: <4 x i32>
 
 define void @mixed_metadata(i32* nocapture %a, i32* nocapture %b) nounwind uwtable {
@@ -98,7 +98,7 @@ for.body:                                         ; preds = %for.body, %entry
   store i32 %2, i32* %arrayidx2, align 4, !llvm.mem.parallel_loop_access !6
   %lftr.wideiv = trunc i64 %indvars.iv.next to i32
   %exitcond = icmp eq i32 %lftr.wideiv, 512
-  br i1 %exitcond, label %for.end, label %for.body, !llvm.loop.parallel !6
+  br i1 %exitcond, label %for.end, label %for.body, !llvm.loop !6
 
 for.end:                                          ; preds = %for.body
   ret void

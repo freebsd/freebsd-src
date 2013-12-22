@@ -350,6 +350,7 @@ struct cat {
 struct GenericOptionValue {
   virtual ~GenericOptionValue() {}
   virtual bool compare(const GenericOptionValue &V) const = 0;
+
 private:
   virtual void anchor();
 };
@@ -1710,8 +1711,8 @@ void PrintVersionMessage();
 ///
 /// NOTE: THIS FUNCTION TERMINATES THE PROGRAM!
 ///
-/// \param hidden if true will print hidden options
-/// \param categorized if true print options in categories
+/// \param Hidden if true will print hidden options
+/// \param Categorized if true print options in categories
 void PrintHelpMessage(bool Hidden=false, bool Categorized=false);
 
 
@@ -1722,7 +1723,7 @@ void PrintHelpMessage(bool Hidden=false, bool Categorized=false);
 /// \brief Use this to get a StringMap to all registered named options
 /// (e.g. -help). Note \p Map Should be an empty StringMap.
 ///
-/// \param [out] map will be filled with mappings where the key is the
+/// \param [out] Map will be filled with mappings where the key is the
 /// Option argument string (e.g. "help") and value is the corresponding
 /// Option*.
 ///
@@ -1746,6 +1747,60 @@ void PrintHelpMessage(bool Hidden=false, bool Categorized=false);
 /// the control of the client. The options should be modified before calling
 /// llvm::cl::ParseCommandLineOptions().
 void getRegisteredOptions(StringMap<Option*> &Map);
+
+//===----------------------------------------------------------------------===//
+// Standalone command line processing utilities.
+//
+
+/// \brief Saves strings in the inheritor's stable storage and returns a stable
+/// raw character pointer.
+class StringSaver {
+  virtual void anchor();
+public:
+  virtual const char *SaveString(const char *Str) = 0;
+  virtual ~StringSaver() {};  // Pacify -Wnon-virtual-dtor.
+};
+
+/// \brief Tokenizes a command line that can contain escapes and quotes.
+//
+/// The quoting rules match those used by GCC and other tools that use
+/// libiberty's buildargv() or expandargv() utilities, and do not match bash.
+/// They differ from buildargv() on treatment of backslashes that do not escape
+/// a special character to make it possible to accept most Windows file paths.
+///
+/// \param [in] Source The string to be split on whitespace with quotes.
+/// \param [in] Saver Delegates back to the caller for saving parsed strings.
+/// \param [out] NewArgv All parsed strings are appended to NewArgv.
+void TokenizeGNUCommandLine(StringRef Source, StringSaver &Saver,
+                            SmallVectorImpl<const char *> &NewArgv);
+
+/// \brief Tokenizes a Windows command line which may contain quotes and escaped
+/// quotes.
+///
+/// See MSDN docs for CommandLineToArgvW for information on the quoting rules.
+/// http://msdn.microsoft.com/en-us/library/windows/desktop/17w5ykft(v=vs.85).aspx
+///
+/// \param [in] Source The string to be split on whitespace with quotes.
+/// \param [in] Saver Delegates back to the caller for saving parsed strings.
+/// \param [out] NewArgv All parsed strings are appended to NewArgv.
+void TokenizeWindowsCommandLine(StringRef Source, StringSaver &Saver,
+                                SmallVectorImpl<const char *> &NewArgv);
+
+/// \brief String tokenization function type.  Should be compatible with either
+/// Windows or Unix command line tokenizers.
+typedef void (*TokenizerCallback)(StringRef Source, StringSaver &Saver,
+                                  SmallVectorImpl<const char *> &NewArgv);
+
+/// \brief Expand response files on a command line recursively using the given
+/// StringSaver and tokenization strategy.  Argv should contain the command line
+/// before expansion and will be modified in place.
+///
+/// \param [in] Saver Delegates back to the caller for saving parsed strings.
+/// \param [in] Tokenizer Tokenization strategy. Typically Unix or Windows.
+/// \param [in,out] Argv Command line into which to expand response files.
+/// \return true if all @files were expanded successfully or there were none.
+bool ExpandResponseFiles(StringSaver &Saver, TokenizerCallback Tokenizer,
+                         SmallVectorImpl<const char *> &Argv);
 
 } // End namespace cl
 

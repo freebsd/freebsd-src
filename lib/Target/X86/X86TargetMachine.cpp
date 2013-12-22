@@ -49,6 +49,7 @@ X86_32TargetMachine::X86_32TargetMachine(const Target &T, StringRef TT,
     TLInfo(*this),
     TSInfo(*this),
     JITInfo(*this) {
+  initAsmInfo();
 }
 
 void X86_64TargetMachine::anchor() { }
@@ -69,6 +70,7 @@ X86_64TargetMachine::X86_64TargetMachine(const Target &T, StringRef TT,
     TLInfo(*this),
     TSInfo(*this),
     JITInfo(*this) {
+  initAsmInfo();
 }
 
 /// X86TargetMachine ctor - Create an X86 target.
@@ -90,7 +92,7 @@ X86TargetMachine::X86TargetMachine(const Target &T, StringRef TT,
   } else if (Subtarget.is64Bit()) {
     // PIC in 64 bit mode is always rip-rel.
     Subtarget.setPICStyle(PICStyles::RIPRel);
-  } else if (Subtarget.isTargetCygMing()) {
+  } else if (Subtarget.isTargetCOFF()) {
     Subtarget.setPICStyle(PICStyles::None);
   } else if (Subtarget.isTargetDarwin()) {
     if (getRelocationModel() == Reloc::PIC_)
@@ -112,14 +114,14 @@ X86TargetMachine::X86TargetMachine(const Target &T, StringRef TT,
 // Command line options for x86
 //===----------------------------------------------------------------------===//
 static cl::opt<bool>
-UseVZeroUpper("x86-use-vzeroupper",
+UseVZeroUpper("x86-use-vzeroupper", cl::Hidden,
   cl::desc("Minimize AVX to SSE transition penalty"),
   cl::init(true));
 
 // Temporary option to control early if-conversion for x86 while adding machine
 // models.
 static cl::opt<bool>
-X86EarlyIfConv("x86-early-ifcvt",
+X86EarlyIfConv("x86-early-ifcvt", cl::Hidden,
 	       cl::desc("Enable early if-conversion on X86"));
 
 //===----------------------------------------------------------------------===//
@@ -130,7 +132,7 @@ void X86TargetMachine::addAnalysisPasses(PassManagerBase &PM) {
   // Add first the target-independent BasicTTI pass, then our X86 pass. This
   // allows the X86 pass to delegate to the target independent layer when
   // appropriate.
-  PM.add(createBasicTargetTransformInfoPass(getTargetLowering()));
+  PM.add(createBasicTargetTransformInfoPass(this));
   PM.add(createX86TargetTransformInfoPass(this));
 }
 

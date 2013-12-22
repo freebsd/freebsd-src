@@ -24,11 +24,11 @@
 // Both of these are conservative weaknesses;
 // that is, not a source of correctness problems.
 //
-// The implementation depends on the GEP instruction to
-// differentiate subscripts. Since Clang linearizes subscripts
-// for most arrays, we give up some precision (though the existing MIV tests
-// will help). We trust that the GEP instruction will eventually be extended.
-// In the meantime, we should explore Maslov's ideas about delinearization.
+// The implementation depends on the GEP instruction to differentiate
+// subscripts. Since Clang linearizes some array subscripts, the dependence
+// analysis is using SCEV->delinearize to recover the representation of multiple
+// subscripts, and thus avoid the more expensive and less precise MIV tests. The
+// delinearization is controlled by the flag -da-delinearize.
 //
 // We should pay some careful attention to the possibility of integer overflow
 // in the implementation of the various tests. This could happen with Add,
@@ -61,6 +61,7 @@
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/Operator.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/InstIterator.h"
@@ -103,6 +104,10 @@ STATISTIC(GCDindependence, "GCD independence");
 STATISTIC(BanerjeeApplications, "Banerjee applications");
 STATISTIC(BanerjeeIndependence, "Banerjee independence");
 STATISTIC(BanerjeeSuccesses, "Banerjee successes");
+
+static cl::opt<bool>
+Delinearize("da-delinearize", cl::init(false), cl::Hidden, cl::ZeroOrMore,
+            cl::desc("Try to delinearize array references."));
 
 //===----------------------------------------------------------------------===//
 // basics
@@ -508,7 +513,7 @@ bool DependenceAnalysis::intersectConstraints(Constraint *X,
       APInt Xr = Xtop; // though they're just going to be overwritten
       APInt::sdivrem(Xtop, Xbot, Xq, Xr);
       APInt Yq = Ytop;
-      APInt Yr = Ytop;;
+      APInt Yr = Ytop;
       APInt::sdivrem(Ytop, Ybot, Yq, Yr);
       if (Xr != 0 || Yr != 0) {
         X->setEmpty();
@@ -2951,6 +2956,11 @@ const SCEV *DependenceAnalysis::addToCoefficient(const SCEV *Expr,
                              AddRec->getLoop(),
                              AddRec->getNoWrapFlags());
   }
+  if (SE->isLoopInvariant(AddRec, TargetLoop))
+    return SE->getAddRecExpr(AddRec,
+			     Value,
+			     TargetLoop,
+			     SCEV::FlagAnyWrap);
   return SE->getAddRecExpr(addToCoefficient(AddRec->getStart(),
                                             TargetLoop, Value),
                            AddRec->getStepRecurrence(*SE),
@@ -2972,7 +2982,7 @@ const SCEV *DependenceAnalysis::addToCoefficient(const SCEV *Expr,
 bool DependenceAnalysis::propagate(const SCEV *&Src,
                                    const SCEV *&Dst,
                                    SmallBitVector &Loops,
-                                   SmallVector<Constraint, 4> &Constraints,
+                                   SmallVectorImpl<Constraint> &Constraints,
                                    bool &Consistent) {
   bool Result = false;
   for (int LI = Loops.find_first(); LI >= 0; LI = Loops.find_next(LI)) {
@@ -3166,6 +3176,55 @@ void DependenceAnalysis::updateDirection(Dependence::DVEntry &Level,
     llvm_unreachable("constraint has unexpected kind");
 }
 
+/// Check if we can delinearize the subscripts. If the SCEVs representing the
+/// source and destination array references are recurrences on a nested loop,
+/// this function flattens the nested recurrences into seperate recurrences
+/// for each loop level.
+bool
+DependenceAnalysis::tryDelinearize(const SCEV *SrcSCEV, const SCEV *DstSCEV,
+                                   SmallVectorImpl<Subscript> &Pair) const {
+  const SCEVAddRecExpr *SrcAR = dyn_cast<SCEVAddRecExpr>(SrcSCEV);
+  const SCEVAddRecExpr *DstAR = dyn_cast<SCEVAddRecExpr>(DstSCEV);
+  if (!SrcAR || !DstAR || !SrcAR->isAffine() || !DstAR->isAffine())
+    return false;
+
+  SmallVector<const SCEV *, 4> SrcSubscripts, DstSubscripts, SrcSizes, DstSizes;
+  SrcAR->delinearize(*SE, SrcSubscripts, SrcSizes);
+  DstAR->delinearize(*SE, DstSubscripts, DstSizes);
+
+  int size = SrcSubscripts.size();
+  int dstSize = DstSubscripts.size();
+  if (size != dstSize || size < 2)
+    return false;
+
+#ifndef NDEBUG
+  DEBUG(errs() << "\nSrcSubscripts: ");
+  for (int i = 0; i < size; i++)
+    DEBUG(errs() << *SrcSubscripts[i]);
+  DEBUG(errs() << "\nDstSubscripts: ");
+  for (int i = 0; i < size; i++)
+    DEBUG(errs() << *DstSubscripts[i]);
+#endif
+
+  // The delinearization transforms a single-subscript MIV dependence test into
+  // a multi-subscript SIV dependence test that is easier to compute. So we
+  // resize Pair to contain as many pairs of subscripts as the delinearization
+  // has found, and then initialize the pairs following the delinearization.
+  Pair.resize(size);
+  for (int i = 0; i < size; ++i) {
+    Pair[i].Src = SrcSubscripts[i];
+    Pair[i].Dst = DstSubscripts[i];
+
+    // FIXME: we should record the bounds SrcSizes[i] and DstSizes[i] that the
+    // delinearization has found, and add these constraints to the dependence
+    // check to avoid memory accesses overflow from one dimension into another.
+    // This is related to the problem of determining the existence of data
+    // dependences in array accesses using a different number of subscripts: in
+    // C one can access an array A[100][100]; as A[0][9999], *A[9999], etc.
+  }
+
+  return true;
+}
 
 //===----------------------------------------------------------------------===//
 
@@ -3273,6 +3332,12 @@ Dependence *DependenceAnalysis::depends(Instruction *Src,
     DEBUG(dbgs() << "    DstSCEV = " << *DstSCEV << "\n");
     Pair[0].Src = SrcSCEV;
     Pair[0].Dst = DstSCEV;
+  }
+
+  if (Delinearize && Pairs == 1 && CommonLevels > 1 &&
+      tryDelinearize(Pair[0].Src, Pair[0].Dst, Pair)) {
+    DEBUG(dbgs() << "    delinerized GEP\n");
+    Pairs = Pair.size();
   }
 
   for (unsigned P = 0; P < Pairs; ++P) {
@@ -3691,6 +3756,12 @@ const  SCEV *DependenceAnalysis::getSplitIteration(const Dependence *Dep,
     const SCEV *DstSCEV = SE->getSCEV(DstPtr);
     Pair[0].Src = SrcSCEV;
     Pair[0].Dst = DstSCEV;
+  }
+
+  if (Delinearize && Pairs == 1 && CommonLevels > 1 &&
+      tryDelinearize(Pair[0].Src, Pair[0].Dst, Pair)) {
+    DEBUG(dbgs() << "    delinerized GEP\n");
+    Pairs = Pair.size();
   }
 
   for (unsigned P = 0; P < Pairs; ++P) {

@@ -23,13 +23,13 @@ namespace llvm {
 template <typename T> class SmallVectorImpl;
 struct LandingPadInfo;
 class MachineModuleInfo;
-class MachineMove;
 class MachineInstr;
 class MachineFunction;
 class MCAsmInfo;
 class MCExpr;
 class MCSymbol;
 class Function;
+class ARMTargetStreamer;
 class AsmPrinter;
 
 //===----------------------------------------------------------------------===//
@@ -178,6 +178,8 @@ public:
 
 class ARMException : public DwarfException {
   void EmitTypeInfos(unsigned TTypeEncoding);
+  ARMTargetStreamer &getTargetStreamer();
+
 public:
   //===--------------------------------------------------------------------===//
   // Main entry points.

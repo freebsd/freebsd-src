@@ -41,6 +41,7 @@
 
 #define DEBUG_TYPE "isel"
 #include "llvm/CodeGen/FastISel.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/Loads.h"
 #include "llvm/CodeGen/Analysis.h"
@@ -75,15 +76,12 @@ STATISTIC(NumFastIselDead, "Number of dead insts removed on failure");
 void FastISel::startNewBlock() {
   LocalValueMap.clear();
 
+  // Instructions are appended to FuncInfo.MBB. If the basic block already
+  // contains labels or copies, use the last instruction as the last local
+  // value.
   EmitStartPt = 0;
-
-  // Advance the emit start point past any EH_LABEL instructions.
-  MachineBasicBlock::iterator
-    I = FuncInfo.MBB->begin(), E = FuncInfo.MBB->end();
-  while (I != E && I->getOpcode() == TargetOpcode::EH_LABEL) {
-    EmitStartPt = I;
-    ++I;
-  }
+  if (!FuncInfo.MBB->empty())
+    EmitStartPt = &FuncInfo.MBB->back();
   LastLocalValue = EmitStartPt;
 }
 
@@ -92,18 +90,16 @@ bool FastISel::LowerArguments() {
     // Fallback to SDISel argument lowering code to deal with sret pointer
     // parameter.
     return false;
-  
+
   if (!FastLowerArguments())
     return false;
 
-  // Enter non-dead arguments into ValueMap for uses in non-entry BBs.
+  // Enter arguments into ValueMap for uses in non-entry BBs.
   for (Function::const_arg_iterator I = FuncInfo.Fn->arg_begin(),
          E = FuncInfo.Fn->arg_end(); I != E; ++I) {
-    if (!I->use_empty()) {
-      DenseMap<const Value *, unsigned>::iterator VI = LocalValueMap.find(I);
-      assert(VI != LocalValueMap.end() && "Missed an argument?");
-      FuncInfo.ValueMap[I] = VI->second;
-    }
+    DenseMap<const Value *, unsigned>::iterator VI = LocalValueMap.find(I);
+    assert(VI != LocalValueMap.end() && "Missed an argument?");
+    FuncInfo.ValueMap[I] = VI->second;
   }
   return true;
 }
@@ -601,7 +597,10 @@ bool FastISel::SelectCall(const User *I) {
 
   case Intrinsic::dbg_declare: {
     const DbgDeclareInst *DI = cast<DbgDeclareInst>(Call);
-    if (!DIVariable(DI->getVariable()).Verify() ||
+    DIVariable DIVar(DI->getVariable());
+    assert((!DIVar || DIVar.isVariable()) &&
+      "Variable in DbgDeclareInst should be either null or a DIVariable.");
+    if (!DIVar ||
         !FuncInfo.MF->getMMI().hasDebugInfo()) {
       DEBUG(dbgs() << "Dropping debug info for " << *DI << "\n");
       return true;
@@ -613,16 +612,16 @@ bool FastISel::SelectCall(const User *I) {
       return true;
     }
 
-    unsigned Reg = 0;
     unsigned Offset = 0;
-    if (const Argument *Arg = dyn_cast<Argument>(Address)) {
+    Optional<MachineOperand> Op;
+    if (const Argument *Arg = dyn_cast<Argument>(Address))
       // Some arguments' frame index is recorded during argument lowering.
       Offset = FuncInfo.getArgumentFrameIndex(Arg);
-      if (Offset)
-        Reg = TRI.getFrameRegister(*FuncInfo.MF);
-    }
-    if (!Reg)
-      Reg = lookUpRegForValue(Address);
+    if (Offset)
+        Op = MachineOperand::CreateFI(Offset);
+    if (!Op)
+      if (unsigned Reg = lookUpRegForValue(Address))
+        Op = MachineOperand::CreateReg(Reg, false);
 
     // If we have a VLA that has a "use" in a metadata node that's then used
     // here but it has no other uses, then we have a problem. E.g.,
@@ -635,20 +634,29 @@ bool FastISel::SelectCall(const User *I) {
     // If we assign 'a' a vreg and fast isel later on has to use the selection
     // DAG isel, it will want to copy the value to the vreg. However, there are
     // no uses, which goes counter to what selection DAG isel expects.
-    if (!Reg && !Address->use_empty() && isa<Instruction>(Address) &&
+    if (!Op && !Address->use_empty() && isa<Instruction>(Address) &&
         (!isa<AllocaInst>(Address) ||
          !FuncInfo.StaticAllocaMap.count(cast<AllocaInst>(Address))))
-      Reg = FuncInfo.InitializeRegForValue(Address);
+      Op = MachineOperand::CreateReg(FuncInfo.InitializeRegForValue(Address),
+                                     false);
 
-    if (Reg)
-      BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL,
-              TII.get(TargetOpcode::DBG_VALUE))
-        .addReg(Reg, RegState::Debug).addImm(Offset)
-        .addMetadata(DI->getVariable());
-    else
+    if (Op) {
+      if (Op->isReg()) {
+        Op->setIsDebug(true);
+        BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL,
+                TII.get(TargetOpcode::DBG_VALUE), false, Op->getReg(), 0,
+                DI->getVariable());
+      } else
+        BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL,
+                TII.get(TargetOpcode::DBG_VALUE))
+            .addOperand(*Op)
+            .addImm(0)
+            .addMetadata(DI->getVariable());
+    } else {
       // We can't yet handle anything else here because it would require
       // generating code, thus altering codegen because of debug info.
-      DEBUG(dbgs() << "Dropping debug info for " << DI);
+      DEBUG(dbgs() << "Dropping debug info for " << *DI << "\n");
+    }
     return true;
   }
   case Intrinsic::dbg_value: {
@@ -676,13 +684,14 @@ bool FastISel::SelectCall(const User *I) {
         .addFPImm(CF).addImm(DI->getOffset())
         .addMetadata(DI->getVariable());
     } else if (unsigned Reg = lookUpRegForValue(V)) {
-      BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL, II)
-        .addReg(Reg, RegState::Debug).addImm(DI->getOffset())
-        .addMetadata(DI->getVariable());
+      // FIXME: This does not handle register-indirect values at offset 0.
+      bool IsIndirect = DI->getOffset() != 0;
+      BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DL, II, IsIndirect,
+              Reg, DI->getOffset(), DI->getVariable());
     } else {
       // We can't yet handle anything else here because it would require
       // generating code, thus altering codegen because of debug info.
-      DEBUG(dbgs() << "Dropping debug info for " << DI);
+      DEBUG(dbgs() << "Dropping debug info for " << *DI << "\n");
     }
     return true;
   }
@@ -1562,4 +1571,19 @@ bool FastISel::tryToFoldLoad(const LoadInst *LI, const Instruction *FoldInst) {
   return tryToFoldLoadIntoMI(User, RI.getOperandNo(), LI);
 }
 
+bool FastISel::canFoldAddIntoGEP(const User *GEP, const Value *Add) {
+  // Must be an add.
+  if (!isa<AddOperator>(Add))
+    return false;
+  // Type size needs to match.
+  if (TD.getTypeSizeInBits(GEP->getType()) !=
+      TD.getTypeSizeInBits(Add->getType()))
+    return false;
+  // Must be in the same basic block.
+  if (isa<Instruction>(Add) &&
+      FuncInfo.MBBMap[cast<Instruction>(Add)->getParent()] != FuncInfo.MBB)
+    return false;
+  // Must have a constant operand.
+  return isa<ConstantInt>(cast<AddOperator>(Add)->getOperand(1));
+}
 

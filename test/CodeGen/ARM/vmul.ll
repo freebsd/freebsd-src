@@ -1,7 +1,7 @@
 ; RUN: llc < %s -march=arm -mcpu=cortex-a8 | FileCheck %s
 
 define <8 x i8> @vmuli8(<8 x i8>* %A, <8 x i8>* %B) nounwind {
-;CHECK: vmuli8:
+;CHECK-LABEL: vmuli8:
 ;CHECK: vmul.i8
 	%tmp1 = load <8 x i8>* %A
 	%tmp2 = load <8 x i8>* %B
@@ -10,7 +10,7 @@ define <8 x i8> @vmuli8(<8 x i8>* %A, <8 x i8>* %B) nounwind {
 }
 
 define <4 x i16> @vmuli16(<4 x i16>* %A, <4 x i16>* %B) nounwind {
-;CHECK: vmuli16:
+;CHECK-LABEL: vmuli16:
 ;CHECK: vmul.i16
 	%tmp1 = load <4 x i16>* %A
 	%tmp2 = load <4 x i16>* %B
@@ -19,7 +19,7 @@ define <4 x i16> @vmuli16(<4 x i16>* %A, <4 x i16>* %B) nounwind {
 }
 
 define <2 x i32> @vmuli32(<2 x i32>* %A, <2 x i32>* %B) nounwind {
-;CHECK: vmuli32:
+;CHECK-LABEL: vmuli32:
 ;CHECK: vmul.i32
 	%tmp1 = load <2 x i32>* %A
 	%tmp2 = load <2 x i32>* %B
@@ -28,7 +28,7 @@ define <2 x i32> @vmuli32(<2 x i32>* %A, <2 x i32>* %B) nounwind {
 }
 
 define <2 x float> @vmulf32(<2 x float>* %A, <2 x float>* %B) nounwind {
-;CHECK: vmulf32:
+;CHECK-LABEL: vmulf32:
 ;CHECK: vmul.f32
 	%tmp1 = load <2 x float>* %A
 	%tmp2 = load <2 x float>* %B
@@ -37,7 +37,7 @@ define <2 x float> @vmulf32(<2 x float>* %A, <2 x float>* %B) nounwind {
 }
 
 define <8 x i8> @vmulp8(<8 x i8>* %A, <8 x i8>* %B) nounwind {
-;CHECK: vmulp8:
+;CHECK-LABEL: vmulp8:
 ;CHECK: vmul.p8
 	%tmp1 = load <8 x i8>* %A
 	%tmp2 = load <8 x i8>* %B
@@ -46,7 +46,7 @@ define <8 x i8> @vmulp8(<8 x i8>* %A, <8 x i8>* %B) nounwind {
 }
 
 define <16 x i8> @vmulQi8(<16 x i8>* %A, <16 x i8>* %B) nounwind {
-;CHECK: vmulQi8:
+;CHECK-LABEL: vmulQi8:
 ;CHECK: vmul.i8
 	%tmp1 = load <16 x i8>* %A
 	%tmp2 = load <16 x i8>* %B
@@ -55,7 +55,7 @@ define <16 x i8> @vmulQi8(<16 x i8>* %A, <16 x i8>* %B) nounwind {
 }
 
 define <8 x i16> @vmulQi16(<8 x i16>* %A, <8 x i16>* %B) nounwind {
-;CHECK: vmulQi16:
+;CHECK-LABEL: vmulQi16:
 ;CHECK: vmul.i16
 	%tmp1 = load <8 x i16>* %A
 	%tmp2 = load <8 x i16>* %B
@@ -64,7 +64,7 @@ define <8 x i16> @vmulQi16(<8 x i16>* %A, <8 x i16>* %B) nounwind {
 }
 
 define <4 x i32> @vmulQi32(<4 x i32>* %A, <4 x i32>* %B) nounwind {
-;CHECK: vmulQi32:
+;CHECK-LABEL: vmulQi32:
 ;CHECK: vmul.i32
 	%tmp1 = load <4 x i32>* %A
 	%tmp2 = load <4 x i32>* %B
@@ -73,7 +73,7 @@ define <4 x i32> @vmulQi32(<4 x i32>* %A, <4 x i32>* %B) nounwind {
 }
 
 define <4 x float> @vmulQf32(<4 x float>* %A, <4 x float>* %B) nounwind {
-;CHECK: vmulQf32:
+;CHECK-LABEL: vmulQf32:
 ;CHECK: vmul.f32
 	%tmp1 = load <4 x float>* %A
 	%tmp2 = load <4 x float>* %B
@@ -82,7 +82,7 @@ define <4 x float> @vmulQf32(<4 x float>* %A, <4 x float>* %B) nounwind {
 }
 
 define <16 x i8> @vmulQp8(<16 x i8>* %A, <16 x i8>* %B) nounwind {
-;CHECK: vmulQp8:
+;CHECK-LABEL: vmulQp8:
 ;CHECK: vmul.p8
 	%tmp1 = load <16 x i8>* %A
 	%tmp2 = load <16 x i8>* %B
@@ -95,7 +95,7 @@ declare <16 x i8>  @llvm.arm.neon.vmulp.v16i8(<16 x i8>, <16 x i8>) nounwind rea
 
 define arm_aapcs_vfpcc <2 x float> @test_vmul_lanef32(<2 x float> %arg0_float32x2_t, <2 x float> %arg1_float32x2_t) nounwind readnone {
 entry:
-; CHECK: test_vmul_lanef32:
+; CHECK-LABEL: test_vmul_lanef32:
 ; CHECK: vmul.f32 d0, d0, d1[0]
   %0 = shufflevector <2 x float> %arg1_float32x2_t, <2 x float> undef, <2 x i32> zeroinitializer ; <<2 x float>> [#uses=1]
   %1 = fmul <2 x float> %0, %arg0_float32x2_t     ; <<2 x float>> [#uses=1]
@@ -104,7 +104,7 @@ entry:
 
 define arm_aapcs_vfpcc <4 x i16> @test_vmul_lanes16(<4 x i16> %arg0_int16x4_t, <4 x i16> %arg1_int16x4_t) nounwind readnone {
 entry:
-; CHECK: test_vmul_lanes16:
+; CHECK-LABEL: test_vmul_lanes16:
 ; CHECK: vmul.i16 d0, d0, d1[1]
   %0 = shufflevector <4 x i16> %arg1_int16x4_t, <4 x i16> undef, <4 x i32> <i32 1, i32 1, i32 1, i32 1> ; <<4 x i16>> [#uses$
   %1 = mul <4 x i16> %0, %arg0_int16x4_t          ; <<4 x i16>> [#uses=1]
@@ -113,7 +113,7 @@ entry:
 
 define arm_aapcs_vfpcc <2 x i32> @test_vmul_lanes32(<2 x i32> %arg0_int32x2_t, <2 x i32> %arg1_int32x2_t) nounwind readnone {
 entry:
-; CHECK: test_vmul_lanes32:
+; CHECK-LABEL: test_vmul_lanes32:
 ; CHECK: vmul.i32 d0, d0, d1[1]
   %0 = shufflevector <2 x i32> %arg1_int32x2_t, <2 x i32> undef, <2 x i32> <i32 1, i32 1> ; <<2 x i32>> [#uses=1]
   %1 = mul <2 x i32> %0, %arg0_int32x2_t          ; <<2 x i32>> [#uses=1]
@@ -122,7 +122,7 @@ entry:
 
 define arm_aapcs_vfpcc <4 x float> @test_vmulQ_lanef32(<4 x float> %arg0_float32x4_t, <2 x float> %arg1_float32x2_t) nounwind readnone {
 entry:
-; CHECK: test_vmulQ_lanef32:
+; CHECK-LABEL: test_vmulQ_lanef32:
 ; CHECK: vmul.f32 q0, q0, d2[1]
   %0 = shufflevector <2 x float> %arg1_float32x2_t, <2 x float> undef, <4 x i32> <i32 1, i32 1, i32 1, i32 1> ; <<4 x float>$
   %1 = fmul <4 x float> %0, %arg0_float32x4_t     ; <<4 x float>> [#uses=1]
@@ -131,7 +131,7 @@ entry:
 
 define arm_aapcs_vfpcc <8 x i16> @test_vmulQ_lanes16(<8 x i16> %arg0_int16x8_t, <4 x i16> %arg1_int16x4_t) nounwind readnone {
 entry:
-; CHECK: test_vmulQ_lanes16:
+; CHECK-LABEL: test_vmulQ_lanes16:
 ; CHECK: vmul.i16 q0, q0, d2[1]
   %0 = shufflevector <4 x i16> %arg1_int16x4_t, <4 x i16> undef, <8 x i32> <i32 1, i32 1, i32 1, i32 1, i32 1, i32 1, i32 1, i32 1>
   %1 = mul <8 x i16> %0, %arg0_int16x8_t          ; <<8 x i16>> [#uses=1]
@@ -140,7 +140,7 @@ entry:
 
 define arm_aapcs_vfpcc <4 x i32> @test_vmulQ_lanes32(<4 x i32> %arg0_int32x4_t, <2 x i32> %arg1_int32x2_t) nounwind readnone {
 entry:
-; CHECK: test_vmulQ_lanes32:
+; CHECK-LABEL: test_vmulQ_lanes32:
 ; CHECK: vmul.i32 q0, q0, d2[1]
   %0 = shufflevector <2 x i32> %arg1_int32x2_t, <2 x i32> undef, <4 x i32> <i32 1, i32 1, i32 1, i32 1> ; <<4 x i32>> [#uses$
   %1 = mul <4 x i32> %0, %arg0_int32x4_t          ; <<4 x i32>> [#uses=1]
@@ -148,7 +148,7 @@ entry:
 }
 
 define <8 x i16> @vmulls8(<8 x i8>* %A, <8 x i8>* %B) nounwind {
-;CHECK: vmulls8:
+;CHECK-LABEL: vmulls8:
 ;CHECK: vmull.s8
 	%tmp1 = load <8 x i8>* %A
 	%tmp2 = load <8 x i8>* %B
@@ -159,7 +159,7 @@ define <8 x i16> @vmulls8(<8 x i8>* %A, <8 x i8>* %B) nounwind {
 }
 
 define <8 x i16> @vmulls8_int(<8 x i8>* %A, <8 x i8>* %B) nounwind {
-;CHECK: vmulls8_int:
+;CHECK-LABEL: vmulls8_int:
 ;CHECK: vmull.s8
 	%tmp1 = load <8 x i8>* %A
 	%tmp2 = load <8 x i8>* %B
@@ -168,7 +168,7 @@ define <8 x i16> @vmulls8_int(<8 x i8>* %A, <8 x i8>* %B) nounwind {
 }
 
 define <4 x i32> @vmulls16(<4 x i16>* %A, <4 x i16>* %B) nounwind {
-;CHECK: vmulls16:
+;CHECK-LABEL: vmulls16:
 ;CHECK: vmull.s16
 	%tmp1 = load <4 x i16>* %A
 	%tmp2 = load <4 x i16>* %B
@@ -179,7 +179,7 @@ define <4 x i32> @vmulls16(<4 x i16>* %A, <4 x i16>* %B) nounwind {
 }
 
 define <4 x i32> @vmulls16_int(<4 x i16>* %A, <4 x i16>* %B) nounwind {
-;CHECK: vmulls16_int:
+;CHECK-LABEL: vmulls16_int:
 ;CHECK: vmull.s16
 	%tmp1 = load <4 x i16>* %A
 	%tmp2 = load <4 x i16>* %B
@@ -188,7 +188,7 @@ define <4 x i32> @vmulls16_int(<4 x i16>* %A, <4 x i16>* %B) nounwind {
 }
 
 define <2 x i64> @vmulls32(<2 x i32>* %A, <2 x i32>* %B) nounwind {
-;CHECK: vmulls32:
+;CHECK-LABEL: vmulls32:
 ;CHECK: vmull.s32
 	%tmp1 = load <2 x i32>* %A
 	%tmp2 = load <2 x i32>* %B
@@ -199,7 +199,7 @@ define <2 x i64> @vmulls32(<2 x i32>* %A, <2 x i32>* %B) nounwind {
 }
 
 define <2 x i64> @vmulls32_int(<2 x i32>* %A, <2 x i32>* %B) nounwind {
-;CHECK: vmulls32_int:
+;CHECK-LABEL: vmulls32_int:
 ;CHECK: vmull.s32
 	%tmp1 = load <2 x i32>* %A
 	%tmp2 = load <2 x i32>* %B
@@ -208,7 +208,7 @@ define <2 x i64> @vmulls32_int(<2 x i32>* %A, <2 x i32>* %B) nounwind {
 }
 
 define <8 x i16> @vmullu8(<8 x i8>* %A, <8 x i8>* %B) nounwind {
-;CHECK: vmullu8:
+;CHECK-LABEL: vmullu8:
 ;CHECK: vmull.u8
 	%tmp1 = load <8 x i8>* %A
 	%tmp2 = load <8 x i8>* %B
@@ -219,7 +219,7 @@ define <8 x i16> @vmullu8(<8 x i8>* %A, <8 x i8>* %B) nounwind {
 }
 
 define <8 x i16> @vmullu8_int(<8 x i8>* %A, <8 x i8>* %B) nounwind {
-;CHECK: vmullu8_int:
+;CHECK-LABEL: vmullu8_int:
 ;CHECK: vmull.u8
 	%tmp1 = load <8 x i8>* %A
 	%tmp2 = load <8 x i8>* %B
@@ -228,7 +228,7 @@ define <8 x i16> @vmullu8_int(<8 x i8>* %A, <8 x i8>* %B) nounwind {
 }
 
 define <4 x i32> @vmullu16(<4 x i16>* %A, <4 x i16>* %B) nounwind {
-;CHECK: vmullu16:
+;CHECK-LABEL: vmullu16:
 ;CHECK: vmull.u16
 	%tmp1 = load <4 x i16>* %A
 	%tmp2 = load <4 x i16>* %B
@@ -239,7 +239,7 @@ define <4 x i32> @vmullu16(<4 x i16>* %A, <4 x i16>* %B) nounwind {
 }
 
 define <4 x i32> @vmullu16_int(<4 x i16>* %A, <4 x i16>* %B) nounwind {
-;CHECK: vmullu16_int:
+;CHECK-LABEL: vmullu16_int:
 ;CHECK: vmull.u16
 	%tmp1 = load <4 x i16>* %A
 	%tmp2 = load <4 x i16>* %B
@@ -248,7 +248,7 @@ define <4 x i32> @vmullu16_int(<4 x i16>* %A, <4 x i16>* %B) nounwind {
 }
 
 define <2 x i64> @vmullu32(<2 x i32>* %A, <2 x i32>* %B) nounwind {
-;CHECK: vmullu32:
+;CHECK-LABEL: vmullu32:
 ;CHECK: vmull.u32
 	%tmp1 = load <2 x i32>* %A
 	%tmp2 = load <2 x i32>* %B
@@ -259,7 +259,7 @@ define <2 x i64> @vmullu32(<2 x i32>* %A, <2 x i32>* %B) nounwind {
 }
 
 define <2 x i64> @vmullu32_int(<2 x i32>* %A, <2 x i32>* %B) nounwind {
-;CHECK: vmullu32_int:
+;CHECK-LABEL: vmullu32_int:
 ;CHECK: vmull.u32
 	%tmp1 = load <2 x i32>* %A
 	%tmp2 = load <2 x i32>* %B
@@ -268,7 +268,7 @@ define <2 x i64> @vmullu32_int(<2 x i32>* %A, <2 x i32>* %B) nounwind {
 }
 
 define <8 x i16> @vmullp8(<8 x i8>* %A, <8 x i8>* %B) nounwind {
-;CHECK: vmullp8:
+;CHECK-LABEL: vmullp8:
 ;CHECK: vmull.p8
 	%tmp1 = load <8 x i8>* %A
 	%tmp2 = load <8 x i8>* %B
@@ -441,7 +441,7 @@ define <2 x i64> @vmull_extvec_u32(<2 x i32> %arg) nounwind {
 ; rdar://9197392
 define void @distribute(i16* %dst, i8* %src, i32 %mul) nounwind {
 entry:
-; CHECK: distribute:
+; CHECK-LABEL: distribute:
 ; CHECK: vmull.u8 [[REG1:(q[0-9]+)]], d{{.*}}, [[REG2:(d[0-9]+)]]
 ; CHECK: vmlal.u8 [[REG1]], d{{.*}}, [[REG2]]
   %0 = trunc i32 %mul to i8
@@ -513,6 +513,17 @@ entry:
   %11 = getelementptr inbounds %struct.uint8x8_t* %dst, i32 0, i32 0
   store <8 x i8> %10, <8 x i8>* %11, align 8
   ret void
+}
+
+define <8 x i8> @no_distribute(<8 x i8> %a, <8 x i8> %b) nounwind {
+entry:
+; CHECK: no_distribute
+; CHECK: vadd.i8
+; CHECK: vmul.i8
+; CHECK-NOT: vmla.i8
+  %0 = add <8 x i8> %a, %b
+  %1 = mul <8x i8> %0, %0
+  ret <8 x i8> %1
 }
 
 ; If one operand has a zero-extend and the other a sign-extend, vmull
@@ -621,5 +632,23 @@ entry:
   %2 = mul nsw <4 x i32> %1, %1
   %predphi290.v.i = select <4 x i1> undef, <4 x i32> undef, <4 x i32> %2
   store <4 x i32> %predphi290.v.i, <4 x i32>* undef, align 4
+  ret void
+}
+
+define void @foo(<4 x float> * %a, <4 x float>* nocapture %dst, float* nocapture readonly %src) nounwind {
+;   Look for doing a normal scalar FP load rather than an to-all-lanes load.
+;   e.g., "ldr s0, [r2]" rathern than "vld1.32  {d18[], d19[]}, [r2:32]"
+;   Then check that the vector multiply has folded the splat to all lanes
+;   and used a vector * scalar instruction.
+; CHECK: vldr  {{s[0-9]+}}, [r2]
+; CHECK: vmul.f32  q8, q8, d0[0]
+  %tmp = load float* %src, align 4
+  %tmp5 = load <4 x float>* %a, align 4
+  %tmp6 = insertelement <4 x float> undef, float %tmp, i32 0
+  %tmp7 = insertelement <4 x float> %tmp6, float %tmp, i32 1
+  %tmp8 = insertelement <4 x float> %tmp7, float %tmp, i32 2
+  %tmp9 = insertelement <4 x float> %tmp8, float %tmp, i32 3
+  %tmp10 = fmul <4 x float> %tmp9, %tmp5
+  store <4 x float> %tmp10, <4 x float>* %dst, align 4
   ret void
 }

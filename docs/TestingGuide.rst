@@ -21,9 +21,9 @@ tests.
 Requirements
 ============
 
-In order to use the LLVM testing infrastructure, you will need all of
-the software required to build LLVM, as well as
-`Python <http://python.org>`_ 2.4 or later.
+In order to use the LLVM testing infrastructure, you will need all of the
+software required to build LLVM, as well as `Python <http://python.org>`_ 2.5 or
+later.
 
 LLVM testing infrastructure organization
 ========================================
@@ -120,12 +120,14 @@ can run the LLVM and Clang tests simultaneously using:
 
     % make check-all
 
-To run the tests with Valgrind (Memcheck by default), just append
-``VG=1`` to the commands above, e.g.:
+To run the tests with Valgrind (Memcheck by default), use the ``LIT_ARGS`` make
+variable to pass the required options to lit. For example, you can use:
 
 .. code-block:: bash
 
-    % make check VG=1
+    % make check LIT_ARGS="-v --vg --vg-leak"
+
+to enable testing with valgrind and with leak checking enabled.
 
 To run individual tests or subsets of tests, you can use the ``llvm-lit``
 script which is built as part of LLVM. For example, to run the
@@ -274,6 +276,66 @@ This test will fail if placed into a ``download`` directory.
 
 To make your tests robust, always use ``opt ... < %s`` in the RUN line.
 :program:`opt` does not output a ``ModuleID`` when input comes from stdin.
+
+Platform-Specific Tests
+-----------------------
+
+Whenever adding tests that require the knowledge of a specific platform,
+either related to code generated, specific output or back-end features,
+you must make sure to isolate the features, so that buildbots that
+run on different architectures (and don't even compile all back-ends),
+don't fail.
+
+The first problem is to check for target-specific output, for example sizes
+of structures, paths and architecture names, for example:
+
+* Tests containing Windows paths will fail on Linux and vice-versa.
+* Tests that check for ``x86_64`` somewhere in the text will fail anywhere else.
+* Tests where the debug information calculates the size of types and structures.
+
+Also, if the test rely on any behaviour that is coded in any back-end, it must
+go in its own directory. So, for instance, code generator tests for ARM go
+into ``test/CodeGen/ARM`` and so on. Those directories contain a special
+``lit`` configuration file that ensure all tests in that directory will
+only run if a specific back-end is compiled and available.
+
+For instance, on ``test/CodeGen/ARM``, the ``lit.local.cfg`` is:
+
+.. code-block:: python
+
+  config.suffixes = ['.ll', '.c', '.cpp', '.test']
+  targets = set(config.root.targets_to_build.split())
+  if not 'ARM' in targets:
+    config.unsupported = True
+
+Other platform-specific tests are those that depend on a specific feature
+of a specific sub-architecture, for example only to Intel chips that support ``AVX2``.
+
+For instance, ``test/CodeGen/X86/psubus.ll`` tests three sub-architecture
+variants:
+
+.. code-block:: llvm
+
+  ; RUN: llc -mcpu=core2 < %s | FileCheck %s -check-prefix=SSE2
+  ; RUN: llc -mcpu=corei7-avx < %s | FileCheck %s -check-prefix=AVX1
+  ; RUN: llc -mcpu=core-avx2 < %s | FileCheck %s -check-prefix=AVX2
+
+And the checks are different:
+
+.. code-block:: llvm
+
+  ; SSE2: @test1
+  ; SSE2: psubusw LCPI0_0(%rip), %xmm0
+  ; AVX1: @test1
+  ; AVX1: vpsubusw LCPI0_0(%rip), %xmm0, %xmm0
+  ; AVX2: @test1
+  ; AVX2: vpsubusw LCPI0_0(%rip), %xmm0, %xmm0
+
+So, if you're testing for a behaviour that you know is platform-specific or
+depends on special features of sub-architectures, you must add the specific
+triple, test with the specific FileCheck and put it into the specific
+directory that will filter out all other architectures.
+
 
 Variables and substitutions
 ---------------------------

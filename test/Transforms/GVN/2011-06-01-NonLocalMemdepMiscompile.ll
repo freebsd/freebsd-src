@@ -7,7 +7,7 @@ target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f3
 target triple = "x86_64-apple-macosx10.7.0"
 
 define i1 @rb_intern() nounwind ssp {
-; CHECK: @rb_intern
+; CHECK-LABEL: @rb_intern(
 
 bb:
   %tmp = alloca i8*, align 8
@@ -19,10 +19,10 @@ bb1:
   br i1 undef, label %bb3, label %bb15
 
 ; CHECK: bb1:
-; CHECK: %tmp16 = phi i8* [ getelementptr (i8* null, i64 undef), %bb10 ], [ null, %bb ]
+; CHECK: [[TMP:%.*]] = phi i8* [ getelementptr (i8* null, i64 undef), %bb10 ], [ null, %bb ]
 
 ; CHECK: bb1.bb15_crit_edge:
-; CHECK: %tmp17.pre = load i8* %tmp16, align 1
+; CHECK: %tmp17.pre = load i8* [[TMP]], align 1
 
 bb3:
   call void @isalnum()

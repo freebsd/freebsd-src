@@ -1,5 +1,4 @@
-; RUN: llc < %s -march=x86-64 -mcpu=core2 -pre-RA-sched=source -enable-misched \
-; RUN:          -verify-machineinstrs | FileCheck %s
+; RUN: llc < %s -mtriple=x86_64-unknown-linux-gnu -mcpu=core2 -pre-RA-sched=source -enable-misched -verify-machineinstrs | FileCheck %s
 ;
 ; Verify that misched resource/latency balancy heuristics are sane.
 
@@ -16,7 +15,7 @@ entry:
 ; Since mmult1 IR is already in good order, this effectively ensure
 ; the scheduler maintains source order.
 ;
-; CHECK: %for.body
+; CHECK-LABEL: %for.body
 ; CHECK-NOT: %rsp
 ; CHECK: imull 4
 ; CHECK-NOT: {{imull|rsp}}
@@ -46,7 +45,7 @@ entry:
 ; CHECK-NOT: {{imull|rsp}}
 ; CHECK: addl
 ; CHECK-NOT: {{imull|rsp}}
-; CHECK: %end
+; CHECK-LABEL: %end
 for.body:
   %indvars.iv42.i = phi i64 [ %indvars.iv.next43.i, %for.body ], [ 0, %entry ]
   %tmp57 = load i32* %tmp56, align 4
@@ -121,7 +120,7 @@ end:
 ; Unlike the above loop, this IR starts out bad and must be
 ; rescheduled.
 ;
-; CHECK: %for.body
+; CHECK-LABEL: %for.body
 ; CHECK-NOT: %rsp
 ; CHECK: imull 4
 ; CHECK-NOT: {{imull|rsp}}
@@ -151,7 +150,7 @@ end:
 ; CHECK-NOT: {{imull|rsp}}
 ; CHECK: addl
 ; CHECK-NOT: {{imull|rsp}}
-; CHECK: %end
+; CHECK-LABEL: %end
 define void @unrolled_mmult2(i32* %tmp55, i32* %tmp56, i32* %pre, i32* %pre94,
   i32* %pre95, i32* %pre96, i32* %pre97, i32* %pre98, i32* %pre99,
   i32* %pre100, i32* %pre101, i32* %pre102, i32* %pre103, i32* %pre104)
@@ -227,4 +226,52 @@ for.body:
 
 end:
   ret void
+}
+
+; A mildly interesting little block extracted from a cipher.  The
+; balanced heuristics are interesting here because we have resource,
+; latency, and register limits all at once. For now, simply check that
+; we don't use any callee-saves.
+; CHECK-LABEL: @encpc1
+; CHECK-LABEL: %entry
+; CHECK-NOT: push
+; CHECK-NOT: pop
+; CHECK: ret
+@a = external global i32, align 4
+@b = external global i32, align 4
+@c = external global i32, align 4
+@d = external global i32, align 4
+define i32 @encpc1() nounwind {
+entry:
+  %l1 = load i32* @a, align 16
+  %conv = shl i32 %l1, 8
+  %s5 = lshr i32 %l1, 8
+  %add = or i32 %conv, %s5
+  store i32 %add, i32* @b
+  %l6 = load i32* @a
+  %l7 = load i32* @c
+  %add.i = add i32 %l7, %l6
+  %idxprom.i = zext i32 %l7 to i64
+  %arrayidx.i = getelementptr inbounds i32* @d, i64 %idxprom.i
+  %l8 = load i32* %arrayidx.i
+  store i32 346, i32* @c
+  store i32 20021, i32* @d
+  %l9 = load i32* @a
+  store i32 %l8, i32* @a
+  store i32 %l9, i32* @b
+  store i32 %add.i, i32* @c
+  store i32 %l9, i32* @d
+  %cmp.i = icmp eq i32 %add.i, 0
+  %s10 = lshr i32 %l1, 16
+  %s12 = lshr i32 %l1, 24
+  %s14 = lshr i32 %l1, 30
+  br i1 %cmp.i, label %if, label %return
+if:
+  %sa = add i32 %s5, %s10
+  %sb = add i32 %sa, %s12
+  %sc = add i32 %sb, %s14
+  br label %return
+return:
+  %result = phi i32 [0, %entry], [%sc, %if]
+  ret i32 %result
 }

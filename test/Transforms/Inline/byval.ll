@@ -104,3 +104,26 @@ entry:
 ; CHECK: ret i32 4
 }
 
+%struct.S0 = type { i32 }
+
+@b = global %struct.S0 { i32 1 }, align 4
+@a = common global i32 0, align 4
+
+define internal void @f5(%struct.S0* byval nocapture readonly align 4 %p) {
+entry:
+	store i32 0, i32* getelementptr inbounds (%struct.S0* @b, i64 0, i32 0), align 4
+	%f2 = getelementptr inbounds %struct.S0* %p, i64 0, i32 0
+	%0 = load i32* %f2, align 4
+	store i32 %0, i32* @a, align 4
+	ret void
+}
+
+define i32 @test5() {
+entry:
+	tail call void @f5(%struct.S0* byval align 4 @b)
+	%0 = load i32* @a, align 4
+	ret i32 %0
+; CHECK: @test5()
+; CHECK: store i32 0, i32* getelementptr inbounds (%struct.S0* @b, i64 0, i32 0), align 4
+; CHECK-NOT: load i32* getelementptr inbounds (%struct.S0* @b, i64 0, i32 0), align 4
+}

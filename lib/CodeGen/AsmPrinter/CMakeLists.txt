@@ -4,6 +4,7 @@ add_llvm_library(LLVMAsmPrinter
   AsmPrinterDwarf.cpp
   AsmPrinterInlineAsm.cpp
   DIE.cpp
+  DIEHash.cpp
   DwarfAccelTable.cpp
   DwarfCFIException.cpp
   DwarfCompileUnit.cpp
@@ -13,3 +14,5 @@ add_llvm_library(LLVMAsmPrinter
   OcamlGCPrinter.cpp
   Win64Exception.cpp
   )
+
+add_dependencies(LLVMAsmPrinter intrinsics_gen)

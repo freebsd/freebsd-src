@@ -24,10 +24,11 @@ namespace {
 
 TEST(VerifierTest, Branch_i1) {
   LLVMContext &C = getGlobalContext();
+  Module M("M", C);
   FunctionType *FTy = FunctionType::get(Type::getVoidTy(C), /*isVarArg=*/false);
-  OwningPtr<Function> F(Function::Create(FTy, GlobalValue::ExternalLinkage));
-  BasicBlock *Entry = BasicBlock::Create(C, "entry", F.get());
-  BasicBlock *Exit = BasicBlock::Create(C, "exit", F.get());
+  Function *F = cast<Function>(M.getOrInsertFunction("foo", FTy));
+  BasicBlock *Entry = BasicBlock::Create(C, "entry", F);
+  BasicBlock *Exit = BasicBlock::Create(C, "exit", F);
   ReturnInst::Create(C, Exit);
 
   // To avoid triggering an assertion in BranchInst::Create, we first create
@@ -60,5 +61,21 @@ TEST(VerifierTest, AliasUnnamedAddr) {
   EXPECT_TRUE(verifyModule(M, ReturnStatusAction, &Error));
   EXPECT_TRUE(StringRef(Error).startswith("Alias cannot have unnamed_addr"));
 }
+
+TEST(VerifierTest, InvalidRetAttribute) {
+  LLVMContext &C = getGlobalContext();
+  Module M("M", C);
+  FunctionType *FTy = FunctionType::get(Type::getInt32Ty(C), /*isVarArg=*/false);
+  Function *F = cast<Function>(M.getOrInsertFunction("foo", FTy));
+  AttributeSet AS = F->getAttributes();
+  F->setAttributes(AS.addAttribute(C, AttributeSet::ReturnIndex,
+                                   Attribute::UWTable));
+
+  std::string Error;
+  EXPECT_TRUE(verifyModule(M, ReturnStatusAction, &Error));
+  EXPECT_TRUE(StringRef(Error).
+              startswith("Attribute 'uwtable' only applies to functions!"));
+}
+
 }
 }

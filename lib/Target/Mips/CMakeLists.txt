@@ -15,6 +15,7 @@ add_public_tablegen_target(MipsCommonTableGen)
 
 add_llvm_target(MipsCodeGen
   Mips16FrameLowering.cpp
+  Mips16HardFloat.cpp
   Mips16InstrInfo.cpp
   Mips16ISelDAGToDAG.cpp
   Mips16ISelLowering.cpp
@@ -46,10 +47,11 @@ add_llvm_target(MipsCodeGen
   MipsSelectionDAGInfo.cpp
   )
 
-add_dependencies(LLVMMipsCodeGen intrinsics_gen)
+add_dependencies(LLVMMipsCodeGen MipsCommonTableGen intrinsics_gen)
 
 add_subdirectory(InstPrinter)
 add_subdirectory(Disassembler)
 add_subdirectory(TargetInfo)
 add_subdirectory(MCTargetDesc)
 add_subdirectory(AsmParser)
+

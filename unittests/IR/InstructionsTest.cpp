@@ -116,14 +116,40 @@ TEST(InstructionsTest, BranchInst) {
 TEST(InstructionsTest, CastInst) {
   LLVMContext &C(getGlobalContext());
 
-  Type* Int8Ty = Type::getInt8Ty(C);
-  Type* Int64Ty = Type::getInt64Ty(C);
-  Type* V8x8Ty = VectorType::get(Int8Ty, 8);
-  Type* V8x64Ty = VectorType::get(Int64Ty, 8);
-  Type* X86MMXTy = Type::getX86_MMXTy(C);
+  Type *Int8Ty = Type::getInt8Ty(C);
+  Type *Int16Ty = Type::getInt16Ty(C);
+  Type *Int32Ty = Type::getInt32Ty(C);
+  Type *Int64Ty = Type::getInt64Ty(C);
+  Type *V8x8Ty = VectorType::get(Int8Ty, 8);
+  Type *V8x64Ty = VectorType::get(Int64Ty, 8);
+  Type *X86MMXTy = Type::getX86_MMXTy(C);
+
+  Type *HalfTy = Type::getHalfTy(C);
+  Type *FloatTy = Type::getFloatTy(C);
+  Type *DoubleTy = Type::getDoubleTy(C);
+
+  Type *V2Int32Ty = VectorType::get(Int32Ty, 2);
+  Type *V2Int64Ty = VectorType::get(Int64Ty, 2);
+  Type *V4Int16Ty = VectorType::get(Int16Ty, 4);
+
+  Type *Int32PtrTy = PointerType::get(Int32Ty, 0);
+  Type *Int64PtrTy = PointerType::get(Int64Ty, 0);
+
+  Type *Int32PtrAS1Ty = PointerType::get(Int32Ty, 1);
+  Type *Int64PtrAS1Ty = PointerType::get(Int64Ty, 1);
+
+  Type *V2Int32PtrAS1Ty = VectorType::get(Int32PtrAS1Ty, 2);
+  Type *V2Int64PtrAS1Ty = VectorType::get(Int64PtrAS1Ty, 2);
+  Type *V4Int32PtrAS1Ty = VectorType::get(Int32PtrAS1Ty, 4);
+  Type *V4Int64PtrAS1Ty = VectorType::get(Int64PtrAS1Ty, 4);
+
+  Type *V2Int64PtrTy = VectorType::get(Int64PtrTy, 2);
+  Type *V2Int32PtrTy = VectorType::get(Int32PtrTy, 2);
 
   const Constant* c8 = Constant::getNullValue(V8x8Ty);
   const Constant* c64 = Constant::getNullValue(V8x64Ty);
+
+  const Constant *v2ptr32 = Constant::getNullValue(V2Int32PtrTy);
 
   EXPECT_TRUE(CastInst::isCastable(V8x8Ty, X86MMXTy));
   EXPECT_TRUE(CastInst::isCastable(X86MMXTy, V8x8Ty));
@@ -132,16 +158,70 @@ TEST(InstructionsTest, CastInst) {
   EXPECT_TRUE(CastInst::isCastable(V8x8Ty, V8x64Ty));
   EXPECT_EQ(CastInst::Trunc, CastInst::getCastOpcode(c64, true, V8x8Ty, true));
   EXPECT_EQ(CastInst::SExt, CastInst::getCastOpcode(c8, true, V8x64Ty, true));
+
+  EXPECT_FALSE(CastInst::isBitCastable(V8x8Ty, X86MMXTy));
+  EXPECT_FALSE(CastInst::isBitCastable(X86MMXTy, V8x8Ty));
+  EXPECT_FALSE(CastInst::isBitCastable(Int64Ty, X86MMXTy));
+  EXPECT_FALSE(CastInst::isBitCastable(V8x64Ty, V8x8Ty));
+  EXPECT_FALSE(CastInst::isBitCastable(V8x8Ty, V8x64Ty));
+
+  // Check address space casts are rejected since we don't know the sizes here
+  EXPECT_FALSE(CastInst::isBitCastable(Int32PtrTy, Int32PtrAS1Ty));
+  EXPECT_FALSE(CastInst::isBitCastable(Int32PtrAS1Ty, Int32PtrTy));
+  EXPECT_FALSE(CastInst::isBitCastable(V2Int32PtrTy, V2Int32PtrAS1Ty));
+  EXPECT_FALSE(CastInst::isBitCastable(V2Int32PtrAS1Ty, V2Int32PtrTy));
+  EXPECT_TRUE(CastInst::isBitCastable(V2Int32PtrAS1Ty, V2Int64PtrAS1Ty));
+  EXPECT_TRUE(CastInst::isCastable(V2Int32PtrAS1Ty, V2Int32PtrTy));
+  EXPECT_EQ(CastInst::AddrSpaceCast, CastInst::getCastOpcode(v2ptr32, true,
+                                                             V2Int32PtrAS1Ty,
+                                                             true));
+
+  // Test mismatched number of elements for pointers
+  EXPECT_FALSE(CastInst::isBitCastable(V2Int32PtrAS1Ty, V4Int64PtrAS1Ty));
+  EXPECT_FALSE(CastInst::isBitCastable(V4Int64PtrAS1Ty, V2Int32PtrAS1Ty));
+  EXPECT_FALSE(CastInst::isBitCastable(V2Int32PtrAS1Ty, V4Int32PtrAS1Ty));
+  EXPECT_FALSE(CastInst::isBitCastable(Int32PtrTy, V2Int32PtrTy));
+  EXPECT_FALSE(CastInst::isBitCastable(V2Int32PtrTy, Int32PtrTy));
+
+  EXPECT_TRUE(CastInst::isBitCastable(Int32PtrTy, Int64PtrTy));
+  EXPECT_FALSE(CastInst::isBitCastable(DoubleTy, FloatTy));
+  EXPECT_FALSE(CastInst::isBitCastable(FloatTy, DoubleTy));
+  EXPECT_TRUE(CastInst::isBitCastable(FloatTy, FloatTy));
+  EXPECT_TRUE(CastInst::isBitCastable(FloatTy, FloatTy));
+  EXPECT_TRUE(CastInst::isBitCastable(FloatTy, Int32Ty));
+  EXPECT_TRUE(CastInst::isBitCastable(Int16Ty, HalfTy));
+  EXPECT_TRUE(CastInst::isBitCastable(Int32Ty, FloatTy));
+  EXPECT_TRUE(CastInst::isBitCastable(V2Int32Ty, Int64Ty));
+
+  EXPECT_TRUE(CastInst::isBitCastable(V2Int32Ty, V4Int16Ty));
+  EXPECT_FALSE(CastInst::isBitCastable(Int32Ty, Int64Ty));
+  EXPECT_FALSE(CastInst::isBitCastable(Int64Ty, Int32Ty));
+
+  EXPECT_FALSE(CastInst::isBitCastable(V2Int32PtrTy, Int64Ty));
+  EXPECT_FALSE(CastInst::isBitCastable(Int64Ty, V2Int32PtrTy));
+  EXPECT_TRUE(CastInst::isBitCastable(V2Int64PtrTy, V2Int32PtrTy));
+  EXPECT_TRUE(CastInst::isBitCastable(V2Int32PtrTy, V2Int64PtrTy));
+  EXPECT_FALSE(CastInst::isBitCastable(V2Int32Ty, V2Int64Ty));
+  EXPECT_FALSE(CastInst::isBitCastable(V2Int64Ty, V2Int32Ty));
+
+
+  // Check that assertion is not hit when creating a cast with a vector of
+  // pointers
+  // First form
+  BasicBlock *BB = BasicBlock::Create(C);
+  Constant *NullV2I32Ptr = Constant::getNullValue(V2Int32PtrTy);
+  CastInst::CreatePointerCast(NullV2I32Ptr, V2Int32Ty, "foo", BB);
+
+  // Second form
+  CastInst::CreatePointerCast(NullV2I32Ptr, V2Int32Ty);
 }
-
-
 
 TEST(InstructionsTest, VectorGep) {
   LLVMContext &C(getGlobalContext());
 
   // Type Definitions
   PointerType *Ptri8Ty = PointerType::get(IntegerType::get(C, 8), 0);
-  PointerType *Ptri32Ty = PointerType::get(IntegerType::get(C, 8), 0);
+  PointerType *Ptri32Ty = PointerType::get(IntegerType::get(C, 32), 0);
 
   VectorType *V2xi8PTy = VectorType::get(Ptri8Ty, 2);
   VectorType *V2xi32PTy = VectorType::get(Ptri32Ty, 2);
@@ -255,6 +335,7 @@ TEST(InstructionsTest, FPMathOperator) {
 TEST(InstructionsTest, isEliminableCastPair) {
   LLVMContext &C(getGlobalContext());
 
+  Type* Int16Ty = Type::getInt16Ty(C);
   Type* Int32Ty = Type::getInt32Ty(C);
   Type* Int64Ty = Type::getInt64Ty(C);
   Type* Int64PtrTy = Type::getInt64PtrTy(C);
@@ -266,11 +347,20 @@ TEST(InstructionsTest, isEliminableCastPair) {
                                            Int32Ty, 0, Int32Ty),
             CastInst::BitCast);
 
-  // Source and destination pointers have different sizes -> fail.
+  // Source and destination have unknown sizes, but the same address space and
+  // the intermediate int is the maximum pointer size -> bitcast
   EXPECT_EQ(CastInst::isEliminableCastPair(CastInst::PtrToInt,
                                            CastInst::IntToPtr,
                                            Int64PtrTy, Int64Ty, Int64PtrTy,
-                                           Int32Ty, 0, Int64Ty),
+                                           0, 0, 0),
+            CastInst::BitCast);
+
+  // Source and destination have unknown sizes, but the same address space and
+  // the intermediate int is not the maximum pointer size -> nothing
+  EXPECT_EQ(CastInst::isEliminableCastPair(CastInst::PtrToInt,
+                                           CastInst::IntToPtr,
+                                           Int64PtrTy, Int32Ty, Int64PtrTy,
+                                           0, 0, 0),
             0U);
 
   // Middle pointer big enough -> bitcast.
@@ -286,7 +376,43 @@ TEST(InstructionsTest, isEliminableCastPair) {
                                            Int64Ty, Int64PtrTy, Int64Ty,
                                            0, Int32Ty, 0),
             0U);
+
+  // Test that we don't eliminate bitcasts between different address spaces,
+  // or if we don't have available pointer size information.
+  DataLayout DL("e-p:32:32:32-p1:16:16:16-p2:64:64:64-i1:8:8-i8:8:8-i16:16:16"
+                "-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64"
+                "-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64-S128");
+
+  Type* Int64PtrTyAS1 = Type::getInt64PtrTy(C, 1);
+  Type* Int64PtrTyAS2 = Type::getInt64PtrTy(C, 2);
+
+  IntegerType *Int16SizePtr = DL.getIntPtrType(C, 1);
+  IntegerType *Int64SizePtr = DL.getIntPtrType(C, 2);
+
+  // Cannot simplify inttoptr, addrspacecast
+  EXPECT_EQ(CastInst::isEliminableCastPair(CastInst::IntToPtr,
+                                           CastInst::AddrSpaceCast,
+                                           Int16Ty, Int64PtrTyAS1, Int64PtrTyAS2,
+                                           0, Int16SizePtr, Int64SizePtr),
+            0U);
+
+  // Cannot simplify addrspacecast, ptrtoint
+  EXPECT_EQ(CastInst::isEliminableCastPair(CastInst::AddrSpaceCast,
+                                           CastInst::PtrToInt,
+                                           Int64PtrTyAS1, Int64PtrTyAS2, Int16Ty,
+                                           Int64SizePtr, Int16SizePtr, 0),
+            0U);
+
+  // Pass since the bitcast address spaces are the same
+  EXPECT_EQ(CastInst::isEliminableCastPair(CastInst::IntToPtr,
+                                           CastInst::BitCast,
+                                           Int16Ty, Int64PtrTyAS1, Int64PtrTyAS1,
+                                           0, 0, 0),
+            CastInst::IntToPtr);
+
 }
 
 }  // end anonymous namespace
 }  // end namespace llvm
+
+

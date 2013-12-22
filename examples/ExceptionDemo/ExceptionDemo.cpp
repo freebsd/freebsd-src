@@ -339,7 +339,7 @@ void deleteOurException(OurUnwindException *expToDelete) {
 /// This function is the struct _Unwind_Exception API mandated delete function
 /// used by foreign exception handlers when deleting our exception
 /// (OurException), instances.
-/// @param reason @link http://mentorembedded.github.com/cxx-abi/abi-eh.html
+/// @param reason See @link http://mentorembedded.github.com/cxx-abi/abi-eh.html
 /// @unlink
 /// @param expToDelete exception instance to delete
 void deleteFromUnwindOurException(_Unwind_Reason_Code reason,
@@ -1562,7 +1562,7 @@ llvm::Function *createUnwindExceptionTest(llvm::Module &module,
   return(outerCatchFunct);
 }
 
-
+namespace {
 /// Represents our foreign exceptions
 class OurCppRunException : public std::runtime_error {
 public:
@@ -1577,9 +1577,9 @@ public:
                                  std::runtime_error::operator=(toCopy)));
   }
 
-  ~OurCppRunException (void) throw () {}
+  virtual ~OurCppRunException (void) throw () {}
 };
-
+} // end anonymous namespace
 
 /// Throws foreign C++ exception.
 /// @param ignoreIt unused parameter that allows function to match implied
@@ -1950,7 +1950,6 @@ int main(int argc, char *argv[]) {
 
   // If not set, exception handling will not be turned on
   llvm::TargetOptions Opts;
-  Opts.JITExceptionHandling = true;
 
   llvm::InitializeNativeTarget();
   llvm::InitializeNativeTargetAsmPrinter();
@@ -1960,14 +1959,14 @@ int main(int argc, char *argv[]) {
   // Make the module, which holds all the code.
   llvm::Module *module = new llvm::Module("my cool jit", context);
 
-  llvm::JITMemoryManager *MemMgr = new llvm::SectionMemoryManager();
+  llvm::RTDyldMemoryManager *MemMgr = new llvm::SectionMemoryManager();
 
   // Build engine with JIT
   llvm::EngineBuilder factory(module);
   factory.setEngineKind(llvm::EngineKind::JIT);
   factory.setAllocateGVsWithCode(false);
   factory.setTargetOptions(Opts);
-  factory.setJITMemoryManager(MemMgr);
+  factory.setMCJITMemoryManager(MemMgr);
   factory.setUseMCJIT(true);
   llvm::ExecutionEngine *executionEngine = factory.create();
 

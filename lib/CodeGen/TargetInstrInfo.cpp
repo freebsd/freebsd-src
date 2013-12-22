@@ -17,6 +17,7 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/CodeGen/ScoreboardHazardRecognizer.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/Support/CommandLine.h"
@@ -276,6 +277,36 @@ bool TargetInstrInfo::hasStoreToStackSlot(const MachineInstr *MI,
   return false;
 }
 
+bool TargetInstrInfo::getStackSlotRange(const TargetRegisterClass *RC,
+                                        unsigned SubIdx, unsigned &Size,
+                                        unsigned &Offset,
+                                        const TargetMachine *TM) const {
+  if (!SubIdx) {
+    Size = RC->getSize();
+    Offset = 0;
+    return true;
+  }
+  unsigned BitSize = TM->getRegisterInfo()->getSubRegIdxSize(SubIdx);
+  // Convert bit size to byte size to be consistent with
+  // MCRegisterClass::getSize().
+  if (BitSize % 8)
+    return false;
+
+  int BitOffset = TM->getRegisterInfo()->getSubRegIdxOffset(SubIdx);
+  if (BitOffset < 0 || BitOffset % 8)
+    return false;
+
+  Size = BitSize /= 8;
+  Offset = (unsigned)BitOffset / 8;
+
+  assert(RC->getSize() >= (Offset + Size) && "bad subregister range");
+
+  if (!TM->getDataLayout()->isLittleEndian()) {
+    Offset = RC->getSize() - (Offset + Size);
+  }
+  return true;
+}
+
 void TargetInstrInfo::reMaterialize(MachineBasicBlock &MBB,
                                     MachineBasicBlock::iterator I,
                                     unsigned DestReg,
@@ -364,6 +395,7 @@ TargetInstrInfo::foldMemoryOperand(MachineBasicBlock::iterator MI,
 
   // Ask the target to do the actual folding.
   if (MachineInstr *NewMI = foldMemoryOperandImpl(MF, MI, Ops, FI)) {
+    NewMI->setMemRefs(MI->memoperands_begin(), MI->memoperands_end());
     // Add a memory operand, foldMemoryOperandImpl doesn't do that.
     assert((!(Flags & MachineMemOperand::MOStore) ||
             NewMI->mayStore()) &&
@@ -424,9 +456,19 @@ TargetInstrInfo::foldMemoryOperand(MachineBasicBlock::iterator MI,
   NewMI = MBB.insert(MI, NewMI);
 
   // Copy the memoperands from the load to the folded instruction.
-  NewMI->setMemRefs(LoadMI->memoperands_begin(),
-                    LoadMI->memoperands_end());
-
+  if (MI->memoperands_empty()) {
+    NewMI->setMemRefs(LoadMI->memoperands_begin(),
+                      LoadMI->memoperands_end());
+  }
+  else {
+    // Handle the rare case of folding multiple loads.
+    NewMI->setMemRefs(MI->memoperands_begin(),
+                      MI->memoperands_end());
+    for (MachineInstr::mmo_iterator I = LoadMI->memoperands_begin(),
+           E = LoadMI->memoperands_end(); I != E; ++I) {
+      NewMI->addMemOperand(MF, *I);
+    }
+  }
   return NewMI;
 }
 
@@ -630,6 +672,10 @@ unsigned TargetInstrInfo::defaultDefLatency(const MCSchedModel *SchedModel,
   return 1;
 }
 
+unsigned TargetInstrInfo::getPredicationCost(const MachineInstr *) const {
+  return 0;
+}
+
 unsigned TargetInstrInfo::
 getInstrLatency(const InstrItineraryData *ItinData,
                 const MachineInstr *MI,
@@ -668,27 +714,13 @@ getOperandLatency(const InstrItineraryData *ItinData,
 /// lookup, do so. Otherwise return -1.
 int TargetInstrInfo::computeDefOperandLatency(
   const InstrItineraryData *ItinData,
-  const MachineInstr *DefMI, bool FindMin) const {
+  const MachineInstr *DefMI) const {
 
   // Let the target hook getInstrLatency handle missing itineraries.
   if (!ItinData)
     return getInstrLatency(ItinData, DefMI);
 
-  // Return a latency based on the itinerary properties and defining instruction
-  // if possible. Some common subtargets don't require per-operand latency,
-  // especially for minimum latencies.
-  if (FindMin) {
-    // If MinLatency is valid, call getInstrLatency. This uses Stage latency if
-    // it exists before defaulting to MinLatency.
-    if (ItinData->SchedModel->MinLatency >= 0)
-      return getInstrLatency(ItinData, DefMI);
-
-    // If MinLatency is invalid, OperandLatency is interpreted as MinLatency.
-    // For empty itineraries, short-cirtuit the check and default to one cycle.
-    if (ItinData->isEmpty())
-      return 1;
-  }
-  else if(ItinData->isEmpty())
+  if(ItinData->isEmpty())
     return defaultDefLatency(ItinData->SchedModel, DefMI);
 
   // ...operand lookup required
@@ -709,10 +741,9 @@ int TargetInstrInfo::computeDefOperandLatency(
 unsigned TargetInstrInfo::
 computeOperandLatency(const InstrItineraryData *ItinData,
                       const MachineInstr *DefMI, unsigned DefIdx,
-                      const MachineInstr *UseMI, unsigned UseIdx,
-                      bool FindMin) const {
+                      const MachineInstr *UseMI, unsigned UseIdx) const {
 
-  int DefLatency = computeDefOperandLatency(ItinData, DefMI, FindMin);
+  int DefLatency = computeDefOperandLatency(ItinData, DefMI);
   if (DefLatency >= 0)
     return DefLatency;
 
@@ -732,8 +763,7 @@ computeOperandLatency(const InstrItineraryData *ItinData,
   unsigned InstrLatency = getInstrLatency(ItinData, DefMI);
 
   // Expected latency is the max of the stage latency and itinerary props.
-  if (!FindMin)
-    InstrLatency = std::max(InstrLatency,
-                            defaultDefLatency(ItinData->SchedModel, DefMI));
+  InstrLatency = std::max(InstrLatency,
+                          defaultDefLatency(ItinData->SchedModel, DefMI));
   return InstrLatency;
 }

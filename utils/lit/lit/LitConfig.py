@@ -1,3 +1,13 @@
+from __future__ import absolute_import
+import inspect
+import os
+import sys
+
+import lit.Test
+import lit.formats
+import lit.TestingConfig
+import lit.util
+
 class LitConfig:
     """LitConfig - Configuration data for a 'lit' test runner instance, shared
     across all tests.
@@ -8,29 +18,19 @@ class LitConfig:
     easily.
     """
 
-    # Provide access to Test module.
-    import Test
-
-    # Provide access to built-in formats.
-    import TestFormats as formats
-
-    # Provide access to built-in utility functions.
-    import Util as util
-
     def __init__(self, progname, path, quiet,
                  useValgrind, valgrindLeakCheck, valgrindArgs,
-                 noExecute, ignoreStdErr, debug, isWindows,
+                 noExecute, debug, isWindows,
                  params, config_prefix = None):
         # The name of the test runner.
         self.progname = progname
         # The items to add to the PATH environment variable.
-        self.path = list(map(str, path))
+        self.path = [str(p) for p in path]
         self.quiet = bool(quiet)
         self.useValgrind = bool(useValgrind)
         self.valgrindLeakCheck = bool(valgrindLeakCheck)
         self.valgrindUserArgs = list(valgrindArgs)
         self.noExecute = noExecute
-        self.ignoreStdErr = ignoreStdErr
         self.debug = debug
         self.isWindows = bool(isWindows)
         self.params = dict(params)
@@ -61,27 +61,19 @@ class LitConfig:
     def load_config(self, config, path):
         """load_config(config, path) - Load a config object from an alternate
         path."""
-        from TestingConfig import TestingConfig
         if self.debug:
             self.note('load_config from %r' % path)
-        return TestingConfig.frompath(path, config.parent, self,
-                                      mustExist = True,
-                                      config = config)
+        config.load_from_path(path, self)
+        return config
 
     def getBashPath(self):
         """getBashPath - Get the path to 'bash'"""
-        import os, Util
-
         if self.bashPath is not None:
             return self.bashPath
 
-        self.bashPath = Util.which('bash', os.pathsep.join(self.path))
+        self.bashPath = lit.util.which('bash', os.pathsep.join(self.path))
         if self.bashPath is None:
-            # Check some known paths.
-            for path in ('/bin/bash', '/usr/bin/bash', '/usr/local/bin/bash'):
-                if os.path.exists(path):
-                    self.bashPath = path
-                    break
+            self.bashPath = lit.util.which('bash')
 
         if self.bashPath is None:
             self.warning("Unable to find 'bash'.")
@@ -90,15 +82,14 @@ class LitConfig:
         return self.bashPath
 
     def getToolsPath(self, dir, paths, tools):
-        import os, Util
         if dir is not None and os.path.isabs(dir) and os.path.isdir(dir):
-            if not Util.checkToolsPath(dir, tools):
+            if not lit.util.checkToolsPath(dir, tools):
                 return None
         else:
-            dir = Util.whichTools(tools, paths)
+            dir = lit.util.whichTools(tools, paths)
 
         # bash
-        self.bashPath = Util.which('bash', dir)
+        self.bashPath = lit.util.which('bash', dir)
         if self.bashPath is None:
             self.note("Unable to find 'bash.exe'.")
             self.bashPath = ''
@@ -106,8 +97,6 @@ class LitConfig:
         return dir
 
     def _write_message(self, kind, message):
-        import inspect, os, sys
-
         # Get the file/line where this message was generated.
         f = inspect.currentframe()
         # Step out of _write_message, and then out of wrapper.
@@ -115,8 +104,8 @@ class LitConfig:
         file,line,_,_,_ = inspect.getframeinfo(f)
         location = '%s:%d' % (os.path.basename(file), line)
 
-        print >>sys.stderr, '%s: %s: %s: %s' % (self.progname, location,
-                                                kind, message)
+        sys.stderr.write('%s: %s: %s: %s\n' % (self.progname, location,
+                                               kind, message))
 
     def note(self, message):
         self._write_message('note', message)
@@ -130,6 +119,5 @@ class LitConfig:
         self.numErrors += 1
 
     def fatal(self, message):
-        import sys
         self._write_message('fatal', message)
         sys.exit(2)

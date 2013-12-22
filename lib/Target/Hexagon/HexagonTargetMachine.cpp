@@ -15,6 +15,7 @@
 #include "Hexagon.h"
 #include "HexagonISelLowering.h"
 #include "HexagonMachineScheduler.h"
+#include "HexagonTargetObjectFile.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/IR/Module.h"
 #include "llvm/PassManager.h"
@@ -78,6 +79,7 @@ HexagonTargetMachine::HexagonTargetMachine(const Target &T, StringRef TT,
     FrameLowering(Subtarget),
     InstrItins(&Subtarget.getInstrItineraryData()) {
     setMCUseCFI(false);
+    initAsmInfo();
 }
 
 // addPassesForOptimizations - Allow the backend (target) to add Target
@@ -100,15 +102,23 @@ class HexagonPassConfig : public TargetPassConfig {
 public:
   HexagonPassConfig(HexagonTargetMachine *TM, PassManagerBase &PM)
     : TargetPassConfig(TM, PM) {
-    // Enable MI scheduler.
-    if (!DisableHexagonMISched) {
+    // FIXME: Rather than calling enablePass(&MachineSchedulerID) below, define
+    // HexagonSubtarget::enableMachineScheduler() { return true; }.
+    // That will bypass the SelectionDAG VLIW scheduler, which is probably just
+    // hurting compile time and will be removed eventually anyway.
+    if (DisableHexagonMISched)
+      disablePass(&MachineSchedulerID);
+    else
       enablePass(&MachineSchedulerID);
-      MachineSchedRegistry::setDefault(createVLIWMachineSched);
-    }
   }
 
   HexagonTargetMachine &getHexagonTargetMachine() const {
     return getTM<HexagonTargetMachine>();
+  }
+
+  virtual ScheduleDAGInstrs *
+  createMachineScheduler(MachineSchedContext *C) const {
+    return createVLIWMachineSched(C);
   }
 
   virtual bool addInstSelector();
@@ -124,7 +134,7 @@ TargetPassConfig *HexagonTargetMachine::createPassConfig(PassManagerBase &PM) {
 }
 
 bool HexagonPassConfig::addInstSelector() {
-  const HexagonTargetMachine &TM = getHexagonTargetMachine();
+  HexagonTargetMachine &TM = getHexagonTargetMachine();
   bool NoOpt = (getOptLevel() == CodeGenOpt::None);
 
   if (!NoOpt)
@@ -156,9 +166,18 @@ bool HexagonPassConfig::addPostRegAlloc() {
 }
 
 bool HexagonPassConfig::addPreSched2() {
+  const HexagonTargetMachine &TM = getHexagonTargetMachine();
+  const HexagonTargetObjectFile &TLOF =
+    (const HexagonTargetObjectFile &)getTargetLowering()->getObjFileLowering();
+
+  addPass(createHexagonCopyToCombine());
   if (getOptLevel() != CodeGenOpt::None)
     addPass(&IfConverterID);
-  return false;
+  if (!TLOF.IsSmallDataEnabled()) {
+    addPass(createHexagonSplitConst32AndConst64(TM));
+    printAndVerify("After hexagon split const32/64 pass");
+  }
+  return true;
 }
 
 bool HexagonPassConfig::addPreEmitPass() {

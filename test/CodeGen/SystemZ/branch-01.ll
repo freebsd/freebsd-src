@@ -3,10 +3,10 @@
 ; RUN: llc < %s -mtriple=s390x-linux-gnu | FileCheck %s
 
 define void @f1(i8 *%dest) {
-; CHECK: f1:
+; CHECK-LABEL: f1:
 ; CHECK: .L[[LABEL:.*]]:
 ; CHECK: mvi 0(%r2), 1
-; CHECK: j{{g?}} .L[[LABEL]]
+; CHECK: j .L[[LABEL]]
   br label %loop
 loop:
   store volatile i8 1, i8 *%dest

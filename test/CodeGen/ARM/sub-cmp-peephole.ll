@@ -1,8 +1,11 @@
 ; RUN: llc < %s -mtriple=arm-apple-darwin | FileCheck %s
+; RUN: llc < %s -mtriple=arm-apple-darwin | FileCheck %s --check-prefix=V7
+; RUN: llc < %s -mtriple=armv8-none-linux-gnueabi | FileCheck %s -check-prefix=V8
+
 
 define i32 @f(i32 %a, i32 %b) nounwind ssp {
 entry:
-; CHECK: f:
+; CHECK-LABEL: f:
 ; CHECK: subs
 ; CHECK-NOT: cmp
   %cmp = icmp sgt i32 %a, %b
@@ -13,7 +16,7 @@ entry:
 
 define i32 @g(i32 %a, i32 %b) nounwind ssp {
 entry:
-; CHECK: g:
+; CHECK-LABEL: g:
 ; CHECK: subs
 ; CHECK-NOT: cmp
   %cmp = icmp slt i32 %a, %b
@@ -24,7 +27,7 @@ entry:
 
 define i32 @h(i32 %a, i32 %b) nounwind ssp {
 entry:
-; CHECK: h:
+; CHECK-LABEL: h:
 ; CHECK: subs
 ; CHECK-NOT: cmp
   %cmp = icmp sgt i32 %a, 3
@@ -36,7 +39,7 @@ entry:
 ; rdar://11725965
 define i32 @i(i32 %a, i32 %b) nounwind readnone ssp {
 entry:
-; CHECK: i:
+; CHECK-LABEL: i:
 ; CHECK: subs
 ; CHECK-NOT: cmp
   %cmp = icmp ult i32 %a, %b
@@ -48,7 +51,7 @@ entry:
 ; a swapped sub.
 define i32 @j(i32 %a, i32 %b) nounwind {
 entry:
-; CHECK: j:
+; CHECK-LABEL: j:
 ; CHECK: sub
 ; CHECK: cmp
   %cmp = icmp eq i32 %b, %a
@@ -83,4 +86,61 @@ land.lhs.true:                                    ; preds = %num2long.exit
 
 if.end11:                                         ; preds = %num2long.exit
   ret i32 23
+}
+
+define float @float_sel(i32 %a, i32 %b, float %x, float %y) {
+entry:
+; CHECK-LABEL: float_sel:
+; CHECK-NOT: cmp
+; V8-LABEL: float_sel:
+; V8-NOT: cmp
+; V8: vseleq.f32
+  %sub = sub i32 %a, %b
+  %cmp = icmp eq i32 %sub, 0
+  %ret = select i1 %cmp, float %x, float %y
+  ret float %ret
+}
+
+define double @double_sel(i32 %a, i32 %b, double %x, double %y) {
+entry:
+; CHECK-LABEL: double_sel:
+; CHECK-NOT: cmp
+; V8-LABEL: double_sel:
+; V8-NOT: cmp
+; V8: vseleq.f64
+  %sub = sub i32 %a, %b
+  %cmp = icmp eq i32 %sub, 0
+  %ret = select i1 %cmp, double %x, double %y
+  ret double %ret
+}
+
+@t = common global i32 0
+define double @double_sub(i32 %a, i32 %b, double %x, double %y) {
+entry:
+; CHECK-LABEL: double_sub:
+; CHECK: subs
+; CHECK-NOT: cmp
+; V8-LABEL: double_sub:
+; V8: vsel
+  %cmp = icmp sgt i32 %a, %b
+  %sub = sub i32 %a, %b
+  store i32 %sub, i32* @t
+  %ret = select i1 %cmp, double %x, double %y
+  ret double %ret
+}
+
+define double @double_sub_swap(i32 %a, i32 %b, double %x, double %y) {
+entry:
+; V7-LABEL: double_sub_swap:
+; V7-NOT: cmp
+; V7: subs
+; V8-LABEL: double_sub_swap:
+; V8-NOT: subs
+; V8: cmp
+; V8: vsel
+  %cmp = icmp sgt i32 %a, %b
+  %sub = sub i32 %b, %a
+  %ret = select i1 %cmp, double %x, double %y
+  store i32 %sub, i32* @t
+  ret double %ret
 }

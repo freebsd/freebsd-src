@@ -2,9 +2,11 @@
 ;
 ; RUN: llc < %s -mtriple=s390x-linux-gnu | FileCheck %s
 
+declare float @foo()
+
 ; Check register addition.
 define float @f1(float %f1, float %f2) {
-; CHECK: f1:
+; CHECK-LABEL: f1:
 ; CHECK: aebr %f0, %f2
 ; CHECK: br %r14
   %res = fadd float %f1, %f2
@@ -13,7 +15,7 @@ define float @f1(float %f1, float %f2) {
 
 ; Check the low end of the AEB range.
 define float @f2(float %f1, float *%ptr) {
-; CHECK: f2:
+; CHECK-LABEL: f2:
 ; CHECK: aeb %f0, 0(%r2)
 ; CHECK: br %r14
   %f2 = load float *%ptr
@@ -23,7 +25,7 @@ define float @f2(float %f1, float *%ptr) {
 
 ; Check the high end of the aligned AEB range.
 define float @f3(float %f1, float *%base) {
-; CHECK: f3:
+; CHECK-LABEL: f3:
 ; CHECK: aeb %f0, 4092(%r2)
 ; CHECK: br %r14
   %ptr = getelementptr float *%base, i64 1023
@@ -35,7 +37,7 @@ define float @f3(float %f1, float *%base) {
 ; Check the next word up, which needs separate address logic.
 ; Other sequences besides this one would be OK.
 define float @f4(float %f1, float *%base) {
-; CHECK: f4:
+; CHECK-LABEL: f4:
 ; CHECK: aghi %r2, 4096
 ; CHECK: aeb %f0, 0(%r2)
 ; CHECK: br %r14
@@ -47,7 +49,7 @@ define float @f4(float %f1, float *%base) {
 
 ; Check negative displacements, which also need separate address logic.
 define float @f5(float %f1, float *%base) {
-; CHECK: f5:
+; CHECK-LABEL: f5:
 ; CHECK: aghi %r2, -4
 ; CHECK: aeb %f0, 0(%r2)
 ; CHECK: br %r14
@@ -59,7 +61,7 @@ define float @f5(float %f1, float *%base) {
 
 ; Check that AEB allows indices.
 define float @f6(float %f1, float *%base, i64 %index) {
-; CHECK: f6:
+; CHECK-LABEL: f6:
 ; CHECK: sllg %r1, %r3, 2
 ; CHECK: aeb %f0, 400(%r1,%r2)
 ; CHECK: br %r14
@@ -68,4 +70,50 @@ define float @f6(float %f1, float *%base, i64 %index) {
   %f2 = load float *%ptr2
   %res = fadd float %f1, %f2
   ret float %res
+}
+
+; Check that additions of spilled values can use AEB rather than AEBR.
+define float @f7(float *%ptr0) {
+; CHECK-LABEL: f7:
+; CHECK: brasl %r14, foo@PLT
+; CHECK: aeb %f0, 16{{[04]}}(%r15)
+; CHECK: br %r14
+  %ptr1 = getelementptr float *%ptr0, i64 2
+  %ptr2 = getelementptr float *%ptr0, i64 4
+  %ptr3 = getelementptr float *%ptr0, i64 6
+  %ptr4 = getelementptr float *%ptr0, i64 8
+  %ptr5 = getelementptr float *%ptr0, i64 10
+  %ptr6 = getelementptr float *%ptr0, i64 12
+  %ptr7 = getelementptr float *%ptr0, i64 14
+  %ptr8 = getelementptr float *%ptr0, i64 16
+  %ptr9 = getelementptr float *%ptr0, i64 18
+  %ptr10 = getelementptr float *%ptr0, i64 20
+
+  %val0 = load float *%ptr0
+  %val1 = load float *%ptr1
+  %val2 = load float *%ptr2
+  %val3 = load float *%ptr3
+  %val4 = load float *%ptr4
+  %val5 = load float *%ptr5
+  %val6 = load float *%ptr6
+  %val7 = load float *%ptr7
+  %val8 = load float *%ptr8
+  %val9 = load float *%ptr9
+  %val10 = load float *%ptr10
+
+  %ret = call float @foo()
+
+  %add0 = fadd float %ret, %val0
+  %add1 = fadd float %add0, %val1
+  %add2 = fadd float %add1, %val2
+  %add3 = fadd float %add2, %val3
+  %add4 = fadd float %add3, %val4
+  %add5 = fadd float %add4, %val5
+  %add6 = fadd float %add5, %val6
+  %add7 = fadd float %add6, %val7
+  %add8 = fadd float %add7, %val8
+  %add9 = fadd float %add8, %val9
+  %add10 = fadd float %add9, %val10
+
+  ret float %add10
 }

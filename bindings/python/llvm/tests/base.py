@@ -30,3 +30,9 @@ class TestBase(unittest.TestCase):
 
         raise Exception('No suitable test binaries available!')
     get_test_binary.__test__ = False
+
+    def get_test_file(self):
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_file")
+
+    def get_test_bc(self):
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), "test.bc")

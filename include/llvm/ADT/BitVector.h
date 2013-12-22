@@ -138,8 +138,15 @@ public:
 
   /// all - Returns true if all bits are set.
   bool all() const {
-    // TODO: Optimize this.
-    return count() == size();
+    for (unsigned i = 0; i < Size / BITWORD_SIZE; ++i)
+      if (Bits[i] != ~0UL)
+        return false;
+
+    // If bits remain check that they are ones. The unused bits are always zero.
+    if (unsigned Remainder = Size % BITWORD_SIZE)
+      return Bits[Size / BITWORD_SIZE] == (1UL << Remainder) - 1;
+
+    return true;
   }
 
   /// none - Returns true if none of the bits are set.
@@ -153,9 +160,9 @@ public:
     for (unsigned i = 0; i < NumBitWords(size()); ++i)
       if (Bits[i] != 0) {
         if (sizeof(BitWord) == 4)
-          return i * BITWORD_SIZE + CountTrailingZeros_32((uint32_t)Bits[i]);
+          return i * BITWORD_SIZE + countTrailingZeros((uint32_t)Bits[i]);
         if (sizeof(BitWord) == 8)
-          return i * BITWORD_SIZE + CountTrailingZeros_64(Bits[i]);
+          return i * BITWORD_SIZE + countTrailingZeros(Bits[i]);
         llvm_unreachable("Unsupported!");
       }
     return -1;
@@ -176,9 +183,9 @@ public:
 
     if (Copy != 0) {
       if (sizeof(BitWord) == 4)
-        return WordPos * BITWORD_SIZE + CountTrailingZeros_32((uint32_t)Copy);
+        return WordPos * BITWORD_SIZE + countTrailingZeros((uint32_t)Copy);
       if (sizeof(BitWord) == 8)
-        return WordPos * BITWORD_SIZE + CountTrailingZeros_64(Copy);
+        return WordPos * BITWORD_SIZE + countTrailingZeros(Copy);
       llvm_unreachable("Unsupported!");
     }
 
@@ -186,9 +193,9 @@ public:
     for (unsigned i = WordPos+1; i < NumBitWords(size()); ++i)
       if (Bits[i] != 0) {
         if (sizeof(BitWord) == 4)
-          return i * BITWORD_SIZE + CountTrailingZeros_32((uint32_t)Bits[i]);
+          return i * BITWORD_SIZE + countTrailingZeros((uint32_t)Bits[i]);
         if (sizeof(BitWord) == 8)
-          return i * BITWORD_SIZE + CountTrailingZeros_64(Bits[i]);
+          return i * BITWORD_SIZE + countTrailingZeros(Bits[i]);
         llvm_unreachable("Unsupported!");
       }
     return -1;

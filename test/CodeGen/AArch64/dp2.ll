@@ -6,7 +6,7 @@
 @var64_1 = global i64 0
 
 define void @rorv_i64() {
-; CHECK: rorv_i64:
+; CHECK-LABEL: rorv_i64:
     %val0_tmp = load i64* @var64_0
     %val1_tmp = load i64* @var64_1
     %val2_tmp = sub i64 64, %val1_tmp
@@ -19,7 +19,7 @@ define void @rorv_i64() {
 }
 
 define void @asrv_i64() {
-; CHECK: asrv_i64:
+; CHECK-LABEL: asrv_i64:
     %val0_tmp = load i64* @var64_0
     %val1_tmp = load i64* @var64_1
     %val4_tmp = ashr i64 %val0_tmp, %val1_tmp
@@ -29,7 +29,7 @@ define void @asrv_i64() {
 }
 
 define void @lsrv_i64() {
-; CHECK: lsrv_i64:
+; CHECK-LABEL: lsrv_i64:
     %val0_tmp = load i64* @var64_0
     %val1_tmp = load i64* @var64_1
     %val4_tmp = lshr i64 %val0_tmp, %val1_tmp
@@ -39,7 +39,7 @@ define void @lsrv_i64() {
 }
 
 define void @lslv_i64() {
-; CHECK: lslv_i64:
+; CHECK-LABEL: lslv_i64:
     %val0_tmp = load i64* @var64_0
     %val1_tmp = load i64* @var64_1
     %val4_tmp = shl i64 %val0_tmp, %val1_tmp
@@ -49,7 +49,7 @@ define void @lslv_i64() {
 }
 
 define void @udiv_i64() {
-; CHECK: udiv_i64:
+; CHECK-LABEL: udiv_i64:
     %val0_tmp = load i64* @var64_0
     %val1_tmp = load i64* @var64_1
     %val4_tmp = udiv i64 %val0_tmp, %val1_tmp
@@ -59,7 +59,7 @@ define void @udiv_i64() {
 }
 
 define void @sdiv_i64() {
-; CHECK: sdiv_i64:
+; CHECK-LABEL: sdiv_i64:
     %val0_tmp = load i64* @var64_0
     %val1_tmp = load i64* @var64_1
     %val4_tmp = sdiv i64 %val0_tmp, %val1_tmp
@@ -70,7 +70,7 @@ define void @sdiv_i64() {
 
 
 define void @lsrv_i32() {
-; CHECK: lsrv_i32:
+; CHECK-LABEL: lsrv_i32:
     %val0_tmp = load i32* @var32_0
     %val1_tmp = load i32* @var32_1
     %val2_tmp = add i32 1, %val1_tmp
@@ -81,7 +81,7 @@ define void @lsrv_i32() {
 }
 
 define void @lslv_i32() {
-; CHECK: lslv_i32:
+; CHECK-LABEL: lslv_i32:
     %val0_tmp = load i32* @var32_0
     %val1_tmp = load i32* @var32_1
     %val2_tmp = add i32 1, %val1_tmp
@@ -92,7 +92,7 @@ define void @lslv_i32() {
 }
 
 define void @rorv_i32() {
-; CHECK: rorv_i32:
+; CHECK-LABEL: rorv_i32:
     %val0_tmp = load i32* @var32_0
     %val6_tmp = load i32* @var32_1
     %val1_tmp = add i32 1, %val6_tmp
@@ -106,7 +106,7 @@ define void @rorv_i32() {
 }
 
 define void @asrv_i32() {
-; CHECK: asrv_i32:
+; CHECK-LABEL: asrv_i32:
     %val0_tmp = load i32* @var32_0
     %val1_tmp = load i32* @var32_1
     %val2_tmp = add i32 1, %val1_tmp
@@ -117,7 +117,7 @@ define void @asrv_i32() {
 }
 
 define void @sdiv_i32() {
-; CHECK: sdiv_i32:
+; CHECK-LABEL: sdiv_i32:
     %val0_tmp = load i32* @var32_0
     %val1_tmp = load i32* @var32_1
     %val4_tmp = sdiv i32 %val0_tmp, %val1_tmp
@@ -127,7 +127,7 @@ define void @sdiv_i32() {
 }
 
 define void @udiv_i32() {
-; CHECK: udiv_i32:
+; CHECK-LABEL: udiv_i32:
     %val0_tmp = load i32* @var32_0
     %val1_tmp = load i32* @var32_1
     %val4_tmp = udiv i32 %val0_tmp, %val1_tmp
@@ -139,7 +139,7 @@ define void @udiv_i32() {
 ; The point of this test is that we may not actually see (shl GPR32:$Val, (zext GPR32:$Val2))
 ; in the DAG (the RHS may be natively 64-bit), but we should still use the lsl instructions.
 define i32 @test_lsl32() {
-; CHECK: test_lsl32:
+; CHECK-LABEL: test_lsl32:
 
   %val = load i32* @var32_0
   %ret = shl i32 1, %val
@@ -149,7 +149,7 @@ define i32 @test_lsl32() {
 }
 
 define i32 @test_lsr32() {
-; CHECK: test_lsr32:
+; CHECK-LABEL: test_lsr32:
 
   %val = load i32* @var32_0
   %ret = lshr i32 1, %val
@@ -159,7 +159,7 @@ define i32 @test_lsr32() {
 }
 
 define i32 @test_asr32(i32 %in) {
-; CHECK: test_asr32:
+; CHECK-LABEL: test_asr32:
 
   %val = load i32* @var32_0
   %ret = ashr i32 %in, %val

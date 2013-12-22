@@ -7,6 +7,7 @@ tablegen(LLVM PPCGenMCCodeEmitter.inc -gen-emitter -mc-emitter)
 tablegen(LLVM PPCGenRegisterInfo.inc -gen-register-info)
 tablegen(LLVM PPCGenInstrInfo.inc -gen-instr-info)
 tablegen(LLVM PPCGenDAGISel.inc -gen-dag-isel)
+tablegen(LLVM PPCGenFastISel.inc -gen-fast-isel)
 tablegen(LLVM PPCGenCallingConv.inc -gen-callingconv)
 tablegen(LLVM PPCGenSubtargetInfo.inc -gen-subtarget)
 add_public_tablegen_target(PowerPCCommonTableGen)
@@ -20,6 +21,7 @@ add_llvm_target(PowerPCCodeGen
   PPCInstrInfo.cpp
   PPCISelDAGToDAG.cpp
   PPCISelLowering.cpp
+  PPCFastISel.cpp
   PPCFrameLowering.cpp
   PPCJITInfo.cpp
   PPCMCInstLower.cpp
@@ -27,11 +29,12 @@ add_llvm_target(PowerPCCodeGen
   PPCRegisterInfo.cpp
   PPCSubtarget.cpp
   PPCTargetMachine.cpp
+  PPCTargetObjectFile.cpp
   PPCTargetTransformInfo.cpp
   PPCSelectionDAGInfo.cpp
   )
 
-add_dependencies(LLVMPowerPCCodeGen intrinsics_gen)
+add_dependencies(LLVMPowerPCCodeGen PowerPCCommonTableGen intrinsics_gen)
 
 add_subdirectory(AsmParser)
 add_subdirectory(InstPrinter)

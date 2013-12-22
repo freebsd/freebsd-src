@@ -18,7 +18,7 @@ else
     MAKE=make
 fi
 
-projects="llvm cfe dragonegg compiler-rt test-suite"
+projects="llvm cfe dragonegg compiler-rt libcxx test-suite clang-tools-extra"
 
 # Base SVN URL for the sources.
 Base_url="http://llvm.org/svn/llvm-project"
@@ -26,6 +26,8 @@ Base_url="http://llvm.org/svn/llvm-project"
 Release=""
 Release_no_dot=""
 RC=""
+Triple=""
+use_gzip="no"
 do_checkout="yes"
 do_ada="no"
 do_clang="yes"
@@ -35,7 +37,7 @@ do_objc="yes"
 do_64bit="yes"
 do_debug="no"
 do_asserts="no"
-do_compare="no"
+do_compare="yes"
 BuildDir="`pwd`"
 
 function usage() {
@@ -44,6 +46,7 @@ function usage() {
     echo " -release X.Y      The release number to test."
     echo " -rc NUM           The pre-release candidate number."
     echo " -final            The final release candidate."
+    echo " -triple TRIPLE    The target triple for this machine."
     echo " -j NUM            Number of compile jobs to run. [default: 3]"
     echo " -build-dir DIR    Directory to perform testing in. [default: pwd]"
     echo " -no-checkout      Don't checkout the sources from SVN."
@@ -56,6 +59,7 @@ function usage() {
     echo " -test-debug       Test the debug build. [default: no]"
     echo " -test-asserts     Test with asserts on. [default: no]"
     echo " -no-compare-files Don't test that phase 2 and 3 files are identical."
+    echo " -use-gzip         Use gzip instead of xz."
 }
 
 while [ $# -gt 0 ]; do
@@ -71,6 +75,10 @@ while [ $# -gt 0 ]; do
             ;;
         -final | --final )
             RC=final
+            ;;
+        -triple | --triple )
+            shift
+            Triple="$1"
             ;;
         -j* )
             NumJobs="`echo $1 | sed -e 's,-j\([0-9]*\),\1,g'`"
@@ -113,6 +121,9 @@ while [ $# -gt 0 ]; do
         -no-compare-files | --no-compare-files )
             do_compare="no"
             ;;
+        -use-gzip | --use-gzip )
+            use_gzip="yes"
+            ;;
         -help | --help | -h | --h | -\? )
             usage
             exit 0
@@ -133,6 +144,10 @@ if [ -z "$Release" ]; then
 fi
 if [ -z "$RC" ]; then
     echo "error: no release candidate number specified"
+    exit 1
+fi
+if [ -z "$Triple" ]; then
+    echo "error: no target triple specified"
     exit 1
 fi
 
@@ -159,6 +174,13 @@ cd $BuildDir
 LogDir=$BuildDir/logs
 mkdir -p $LogDir
 
+# Final package name.
+Package=clang+llvm-$Release
+if [ $RC != "final" ]; then
+  Package=$Package-$RC
+fi
+Package=$Package-$Triple
+
 # Find compilers.
 if [ "$do_dragonegg" = "yes" ]; then
     gcc_compiler="$GCC"
@@ -180,6 +202,20 @@ if [ "$do_dragonegg" = "yes" ]; then
     fi
 fi
 
+# Make sure that a required program is available
+function check_program_exists() {
+  local program="$1"
+  if ! type -P $program > /dev/null 2>&1 ; then
+    echo "program '$1' not found !"
+    exit 1
+  fi
+}
+
+if [ `uname -s` != "Darwin" ]; then
+  check_program_exists 'chrpath'
+  check_program_exists 'file'
+  check_program_exists 'objdump'
+fi
 
 # Make sure that the URLs are valid.
 function check_valid_urls() {
@@ -210,12 +246,19 @@ function export_sources() {
     if [ ! -h clang ]; then
         ln -s ../../cfe.src clang
     fi
+    cd $BuildDir/llvm.src/tools/clang/tools
+    if [ ! -h clang-tools-extra ]; then
+        ln -s ../../../../clang-tools-extra.src extra
+    fi
     cd $BuildDir/llvm.src/projects
-    if [ ! -h llvm-test ]; then
-        ln -s ../../test-suite.src llvm-test
+    if [ ! -h test-suite ]; then
+        ln -s ../../test-suite.src test-suite
     fi
     if [ ! -h compiler-rt ]; then
         ln -s ../../compiler-rt.src compiler-rt
+    fi
+    if [ ! -h libcxx ]; then
+        ln -s ../../libcxx.src libcxx
     fi
     cd $BuildDir
 }
@@ -321,6 +364,38 @@ function test_llvmCore() {
     cd $BuildDir
 }
 
+# Clean RPATH. Libtool adds the build directory to the search path, which is
+# not necessary --- and even harmful --- for the binary packages we release.
+function clean_RPATH() {
+  if [ `uname -s` = "Darwin" ]; then
+    return
+  fi
+  local InstallPath="$1"
+  for Candidate in `find $InstallPath/{bin,lib} -type f`; do
+    if file $Candidate | grep ELF | egrep 'executable|shared object' > /dev/null 2>&1 ; then
+      rpath=`objdump -x $Candidate | grep 'RPATH' | sed -e's/^ *RPATH *//'`
+      if [ -n "$rpath" ]; then
+        newrpath=`echo $rpath | sed -e's/.*\(\$ORIGIN[^:]*\).*/\1/'`
+        chrpath -r $newrpath $Candidate 2>&1 > /dev/null 2>&1
+      fi
+    fi
+  done
+}
+
+# Create a package of the release binaries.
+function package_release() {
+    cwd=`pwd`
+    cd $BuildDir/Phase3/Release
+    mv llvmCore-$Release-$RC.install $Package
+    if [ "$use_gzip" = "yes" ]; then
+      tar cfz $BuildDir/$Package.tar.gz $Package
+    else
+      tar cfJ $BuildDir/$Package.tar.xz $Package
+    fi
+    mv $Package llvmCore-$Release-$RC.install
+    cd $cwd
+}
+
 set -e                          # Exit if any command fails
 
 if [ "$do_checkout" = "yes" ]; then
@@ -408,6 +483,7 @@ for Flavor in $Flavors ; do
         $llvmCore_phase1_objdir $llvmCore_phase1_installdir
     build_llvmCore 1 $Flavor \
         $llvmCore_phase1_objdir
+    clean_RPATH $llvmCore_phase1_installdir
 
     # Test clang
     if [ "$do_clang" = "yes" ]; then
@@ -420,6 +496,7 @@ for Flavor in $Flavors ; do
             $llvmCore_phase2_objdir $llvmCore_phase2_installdir
         build_llvmCore 2 $Flavor \
             $llvmCore_phase2_objdir
+        clean_RPATH $llvmCore_phase2_installdir
 
         ########################################################################
         # Phase 3: Build llvmCore with newly built clang from phase 2.
@@ -430,6 +507,7 @@ for Flavor in $Flavors ; do
             $llvmCore_phase3_objdir $llvmCore_phase3_installdir
         build_llvmCore 3 $Flavor \
             $llvmCore_phase3_objdir
+        clean_RPATH $llvmCore_phase3_installdir
 
         ########################################################################
         # Testing: Test phase 3
@@ -471,9 +549,10 @@ for Flavor in $Flavors ; do
         build_llvmCore 2 $Flavor \
             $llvmCore_de_phase2_objdir
         build_dragonegg 2 $Flavor $llvmCore_de_phase2_installdir $dragonegg_phase2_objdir
+        clean_RPATH $llvmCore_de_phase2_installdir
 
         ########################################################################
-        # Phase 3: Build llvmCore with newly built clang from phase 2.
+        # Phase 3: Build llvmCore with newly built dragonegg from phase 2.
         c_compiler="$gcc_compiler -fplugin=$dragonegg_phase2_objdir/dragonegg.so"
         cxx_compiler="$gxx_compiler -fplugin=$dragonegg_phase2_objdir/dragonegg.so"
         echo "# Phase 3: Building llvmCore with dragonegg"
@@ -482,6 +561,7 @@ for Flavor in $Flavors ; do
         build_llvmCore 3 $Flavor \
             $llvmCore_de_phase3_objdir
         build_dragonegg 3 $Flavor $llvmCore_de_phase3_installdir $dragonegg_phase3_objdir
+        clean_RPATH $llvmCore_de_phase3_installdir
 
         ########################################################################
         # Testing: Test phase 3
@@ -511,9 +591,16 @@ for Flavor in $Flavors ; do
 done
 ) 2>&1 | tee $LogDir/testing.$Release-$RC.log
 
+package_release
+
 set +e
 
 # Woo hoo!
 echo "### Testing Finished ###"
+if [ "$use_gzip" = "yes" ]; then
+  echo "### Package: $Package.tar.gz"
+else
+  echo "### Package: $Package.tar.xz"
+fi
 echo "### Logs: $LogDir"
 exit 0

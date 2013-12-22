@@ -5,11 +5,11 @@
 
 define void @foo(i32 %x, i32 %y, i32* nocapture %P) nounwind ssp {
 entry:
-; A8: foo:
+; A8-LABEL: foo:
 ; A8: bl ___divmodsi4
 ; A8-NOT: bl ___divmodsi4
 
-; SWIFT: foo:
+; SWIFT-LABEL: foo:
 ; SWIFT: sdiv
 ; SWIFT: mls
 ; SWIFT-NOT: bl __divmodsi4
@@ -23,11 +23,11 @@ entry:
 
 define void @bar(i32 %x, i32 %y, i32* nocapture %P) nounwind ssp {
 entry:
-; A8: bar:
+; A8-LABEL: bar:
 ; A8: bl ___udivmodsi4
 ; A8-NOT: bl ___udivmodsi4
 
-; SWIFT: bar:
+; SWIFT-LABEL: bar:
 ; SWIFT: udiv
 ; SWIFT: mls
 ; SWIFT-NOT: bl __udivmodsi4
@@ -45,8 +45,8 @@ entry:
 
 define void @do_indent(i32 %cols) nounwind {
 entry:
-; A8: do_indent:
-; SWIFT: do_indent:
+; A8-LABEL: do_indent:
+; SWIFT-LABEL: do_indent:
   %0 = load i32* @flags, align 4
   %1 = and i32 %0, 67108864
   %2 = icmp eq i32 %1, 0
@@ -60,7 +60,7 @@ bb:
   %3 = load i32* @tabsize, align 4
   %4 = srem i32 %cols, %3
   %5 = sdiv i32 %cols, %3
-  %6 = tail call i32 @llvm.objectsize.i32(i8* null, i1 false)
+  %6 = tail call i32 @llvm.objectsize.i32.p0i8(i8* null, i1 false)
   %7 = tail call i8* @__memset_chk(i8* null, i32 9, i32 %5, i32 %6) nounwind
   br label %bb1
 
@@ -71,17 +71,17 @@ bb1:
   ret void
 }
 
-declare i32 @llvm.objectsize.i32(i8*, i1) nounwind readnone
+declare i32 @llvm.objectsize.i32.p0i8(i8*, i1) nounwind readnone
 declare i8* @__memset_chk(i8*, i32, i32, i32) nounwind
 
 ; rdar://11714607
 define i32 @howmany(i32 %x, i32 %y) nounwind {
 entry:
-; A8: howmany:
+; A8-LABEL: howmany:
 ; A8: bl ___udivmodsi4
 ; A8-NOT: ___udivsi3
 
-; SWIFT: howmany:
+; SWIFT-LABEL: howmany:
 ; SWIFT: udiv
 ; SWIFT: mls
 ; SWIFT-NOT: bl __udivmodsi4

@@ -1,4 +1,4 @@
-; RUN: llc < %s -o - -mcpu=generic -march=x86-64 -mattr=+sse42 | FileCheck %s
+; RUN: llc < %s -o - -mcpu=generic -march=x86-64 -mattr=+sse4.2 | FileCheck %s
 
 ; Test based on pr5626 to load/store
 ;
@@ -73,10 +73,7 @@ define void @add12i32(%i32vec12*  sret %ret, %i32vec12* %ap, %i32vec12* %bp)  {
 ; CHECK: add3i16
 %i16vec3 = type <3 x i16>
 define void @add3i16(%i16vec3* nocapture sret %ret, %i16vec3* %ap, %i16vec3* %bp) nounwind {
-; CHECK: add3i16
-; CHECK: addl
-; CHECK: addl
-; CHECK: addl
+; CHECK: paddd
 ; CHECK: ret
 	%a = load %i16vec3* %ap, align 16
 	%b = load %i16vec3* %bp, align 16
@@ -88,7 +85,6 @@ define void @add3i16(%i16vec3* nocapture sret %ret, %i16vec3* %ap, %i16vec3* %bp
 ; CHECK: add4i16
 %i16vec4 = type <4 x i16>
 define void @add4i16(%i16vec4* nocapture sret %ret, %i16vec4* %ap, %i16vec4* %bp) nounwind {
-; CHECK: add4i16
 ; CHECK: paddd
 ; CHECK: movq
 	%a = load %i16vec4* %ap, align 16
@@ -137,9 +133,7 @@ define void @add18i16(%i16vec18* nocapture sret %ret, %i16vec18* %ap, %i16vec18*
 ; CHECK: add3i8
 %i8vec3 = type <3 x i8>
 define void @add3i8(%i8vec3* nocapture sret %ret, %i8vec3* %ap, %i8vec3* %bp) nounwind {
-; CHECK: addb
-; CHECK: addb
-; CHECK: addb
+; CHECK: paddd
 ; CHECK: ret
 	%a = load %i8vec3* %ap, align 16
 	%b = load %i8vec3* %bp, align 16
@@ -148,7 +142,7 @@ define void @add3i8(%i8vec3* nocapture sret %ret, %i8vec3* %ap, %i8vec3* %bp) no
 	ret void
 }
 
-; CHECK: add31i8:
+; CHECK-LABEL: add31i8:
 %i8vec31 = type <31 x i8>
 define void @add31i8(%i8vec31* nocapture sret %ret, %i8vec31* %ap, %i8vec31* %bp) nounwind {
 ; CHECK: movdqa

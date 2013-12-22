@@ -30,16 +30,16 @@ using namespace llvm;
 //===----------------------------------------------------------------------===//
 
 static inline bool isInteger(MVT::SimpleValueType VT) {
-  return EVT(VT).isInteger();
+  return MVT(VT).isInteger();
 }
 static inline bool isFloatingPoint(MVT::SimpleValueType VT) {
-  return EVT(VT).isFloatingPoint();
+  return MVT(VT).isFloatingPoint();
 }
 static inline bool isVector(MVT::SimpleValueType VT) {
-  return EVT(VT).isVector();
+  return MVT(VT).isVector();
 }
 static inline bool isScalar(MVT::SimpleValueType VT) {
-  return !EVT(VT).isVector();
+  return !MVT(VT).isVector();
 }
 
 EEVT::TypeSet::TypeSet(MVT::SimpleValueType VT, TreePattern &TP) {
@@ -385,8 +385,8 @@ bool EEVT::TypeSet::EnforceSmallerThan(EEVT::TypeSet &Other, TreePattern &TP) {
     // Otherwise, if these are both vector types, either this vector
     // must have a larger bitsize than the other, or this element type
     // must be larger than the other.
-    EVT Type(TypeVec[0]);
-    EVT OtherType(Other.TypeVec[0]);
+    MVT Type(TypeVec[0]);
+    MVT OtherType(Other.TypeVec[0]);
 
     if (hasVectorTypes() && Other.hasVectorTypes()) {
       if (Type.getSizeInBits() >= OtherType.getSizeInBits())
@@ -397,8 +397,7 @@ bool EEVT::TypeSet::EnforceSmallerThan(EEVT::TypeSet &Other, TreePattern &TP) {
                    Other.getName() +"'!");
           return false;
         }
-    }
-    else
+    } else
       // For scalar types, the bitsize of this type must be larger
       // than that of the other.
       if (Type.getSizeInBits() >= OtherType.getSizeInBits()) {
@@ -438,7 +437,7 @@ bool EEVT::TypeSet::EnforceSmallerThan(EEVT::TypeSet &Other, TreePattern &TP) {
 
   int OtherIntSize = 0;
   int OtherFPSize = 0;
-  for (SmallVector<MVT::SimpleValueType, 2>::iterator TVI =
+  for (SmallVectorImpl<MVT::SimpleValueType>::iterator TVI =
          Other.TypeVec.begin();
        TVI != Other.TypeVec.end();
        /* NULL */) {
@@ -450,8 +449,7 @@ bool EEVT::TypeSet::EnforceSmallerThan(EEVT::TypeSet &Other, TreePattern &TP) {
         MadeChange = true;
         continue;
       }
-    }
-    else if (isFloatingPoint(*TVI)) {
+    } else if (isFloatingPoint(*TVI)) {
       ++OtherFPSize;
       if (*TVI == SmallestFP) {
         TVI = Other.TypeVec.erase(TVI);
@@ -465,8 +463,8 @@ bool EEVT::TypeSet::EnforceSmallerThan(EEVT::TypeSet &Other, TreePattern &TP) {
 
   // If this is the only type in the large set, the constraint can never be
   // satisfied.
-  if ((Other.hasIntegerTypes() && OtherIntSize == 0)
-      || (Other.hasFloatingPointTypes() && OtherFPSize == 0)) {
+  if ((Other.hasIntegerTypes() && OtherIntSize == 0) ||
+      (Other.hasFloatingPointTypes() && OtherFPSize == 0)) {
     TP.error("Type inference contradiction found, '" +
              Other.getName() + "' has nothing larger than '" + getName() +"'!");
     return false;
@@ -496,7 +494,7 @@ bool EEVT::TypeSet::EnforceSmallerThan(EEVT::TypeSet &Other, TreePattern &TP) {
 
   int IntSize = 0;
   int FPSize = 0;
-  for (SmallVector<MVT::SimpleValueType, 2>::iterator TVI =
+  for (SmallVectorImpl<MVT::SimpleValueType>::iterator TVI =
          TypeVec.begin();
        TVI != TypeVec.end();
        /* NULL */) {
@@ -508,8 +506,7 @@ bool EEVT::TypeSet::EnforceSmallerThan(EEVT::TypeSet &Other, TreePattern &TP) {
         MadeChange = true;
         continue;
       }
-    }
-    else if (isFloatingPoint(*TVI)) {
+    } else if (isFloatingPoint(*TVI)) {
       ++FPSize;
       if (*TVI == LargestFP) {
         TVI = TypeVec.erase(TVI);
@@ -523,8 +520,8 @@ bool EEVT::TypeSet::EnforceSmallerThan(EEVT::TypeSet &Other, TreePattern &TP) {
 
   // If this is the only type in the small set, the constraint can never be
   // satisfied.
-  if ((hasIntegerTypes() && IntSize == 0)
-      || (hasFloatingPointTypes() && FPSize == 0)) {
+  if ((hasIntegerTypes() && IntSize == 0) ||
+      (hasFloatingPointTypes() && FPSize == 0)) {
     TP.error("Type inference contradiction found, '" +
              getName() + "' has nothing smaller than '" + Other.getName()+"'!");
     return false;
@@ -547,10 +544,10 @@ bool EEVT::TypeSet::EnforceVectorEltTypeIs(EEVT::TypeSet &VTOperand,
 
   // If we know the vector type, it forces the scalar to agree.
   if (isConcrete()) {
-    EVT IVT = getConcrete();
+    MVT IVT = getConcrete();
     IVT = IVT.getVectorElementType();
     return MadeChange |
-      VTOperand.MergeInTypeInfo(IVT.getSimpleVT().SimpleTy, TP);
+      VTOperand.MergeInTypeInfo(IVT.SimpleTy, TP);
   }
 
   // If the scalar type is known, filter out vector types whose element types
@@ -565,7 +562,7 @@ bool EEVT::TypeSet::EnforceVectorEltTypeIs(EEVT::TypeSet &VTOperand,
   // Filter out all the types which don't have the right element type.
   for (unsigned i = 0; i != TypeVec.size(); ++i) {
     assert(isVector(TypeVec[i]) && "EnforceVector didn't work");
-    if (EVT(TypeVec[i]).getVectorElementType().getSimpleVT().SimpleTy != VT) {
+    if (MVT(TypeVec[i]).getVectorElementType().SimpleTy != VT) {
       TypeVec.erase(TypeVec.begin()+i--);
       MadeChange = true;
     }
@@ -593,16 +590,16 @@ bool EEVT::TypeSet::EnforceVectorSubVectorTypeIs(EEVT::TypeSet &VTOperand,
 
   // If we know the vector type, it forces the scalar types to agree.
   if (isConcrete()) {
-    EVT IVT = getConcrete();
+    MVT IVT = getConcrete();
     IVT = IVT.getVectorElementType();
 
-    EEVT::TypeSet EltTypeSet(IVT.getSimpleVT().SimpleTy, TP);
+    EEVT::TypeSet EltTypeSet(IVT.SimpleTy, TP);
     MadeChange |= VTOperand.EnforceVectorEltTypeIs(EltTypeSet, TP);
   } else if (VTOperand.isConcrete()) {
-    EVT IVT = VTOperand.getConcrete();
+    MVT IVT = VTOperand.getConcrete();
     IVT = IVT.getVectorElementType();
 
-    EEVT::TypeSet EltTypeSet(IVT.getSimpleVT().SimpleTy, TP);
+    EEVT::TypeSet EltTypeSet(IVT.SimpleTy, TP);
     MadeChange |= EnforceVectorEltTypeIs(EltTypeSet, TP);
   }
 
@@ -1522,7 +1519,7 @@ bool TreePatternNode::ApplyTypeConstraints(TreePattern &TP, bool NotRegisters) {
       if (VT == MVT::iPTR || VT == MVT::iPTRAny)
         return MadeChange;
 
-      unsigned Size = EVT(VT).getSizeInBits();
+      unsigned Size = MVT(VT).getSizeInBits();
       // Make sure that the value is representable for this type.
       if (Size >= 32) return MadeChange;
 
@@ -2678,54 +2675,13 @@ static bool checkOperandClass(CGIOperandList::OperandInfo &OI,
   return false;
 }
 
-/// ParseInstructions - Parse all of the instructions, inlining and resolving
-/// any fragments involved.  This populates the Instructions list with fully
-/// resolved instructions.
-void CodeGenDAGPatterns::ParseInstructions() {
-  std::vector<Record*> Instrs = Records.getAllDerivedDefinitions("Instruction");
+const DAGInstruction &CodeGenDAGPatterns::parseInstructionPattern(
+    CodeGenInstruction &CGI, ListInit *Pat, DAGInstMap &DAGInsts) {
 
-  for (unsigned i = 0, e = Instrs.size(); i != e; ++i) {
-    ListInit *LI = 0;
-
-    if (isa<ListInit>(Instrs[i]->getValueInit("Pattern")))
-      LI = Instrs[i]->getValueAsListInit("Pattern");
-
-    // If there is no pattern, only collect minimal information about the
-    // instruction for its operand list.  We have to assume that there is one
-    // result, as we have no detailed info. A pattern which references the
-    // null_frag operator is as-if no pattern were specified. Normally this
-    // is from a multiclass expansion w/ a SDPatternOperator passed in as
-    // null_frag.
-    if (!LI || LI->getSize() == 0 || hasNullFragReference(LI)) {
-      std::vector<Record*> Results;
-      std::vector<Record*> Operands;
-
-      CodeGenInstruction &InstInfo = Target.getInstruction(Instrs[i]);
-
-      if (InstInfo.Operands.size() != 0) {
-        if (InstInfo.Operands.NumDefs == 0) {
-          // These produce no results
-          for (unsigned j = 0, e = InstInfo.Operands.size(); j < e; ++j)
-            Operands.push_back(InstInfo.Operands[j].Rec);
-        } else {
-          // Assume the first operand is the result.
-          Results.push_back(InstInfo.Operands[0].Rec);
-
-          // The rest are inputs.
-          for (unsigned j = 1, e = InstInfo.Operands.size(); j < e; ++j)
-            Operands.push_back(InstInfo.Operands[j].Rec);
-        }
-      }
-
-      // Create and insert the instruction.
-      std::vector<Record*> ImpResults;
-      Instructions.insert(std::make_pair(Instrs[i],
-                          DAGInstruction(0, Results, Operands, ImpResults)));
-      continue;  // no pattern.
-    }
+    assert(!DAGInsts.count(CGI.TheDef) && "Instruction already parsed!");
 
     // Parse the instruction.
-    TreePattern *I = new TreePattern(Instrs[i], LI, true, *this);
+    TreePattern *I = new TreePattern(CGI.TheDef, Pat, true, *this);
     // Inline pattern fragments into it.
     I->InlinePatternFragments();
 
@@ -2764,7 +2720,6 @@ void CodeGenDAGPatterns::ParseInstructions() {
 
     // Parse the operands list from the (ops) list, validating it.
     assert(I->getArgList().empty() && "Args list should still be empty here!");
-    CodeGenInstruction &CGI = Target.getInstruction(Instrs[i]);
 
     // Check that all of the results occur first in the list.
     std::vector<Record*> Results;
@@ -2863,18 +2818,71 @@ void CodeGenDAGPatterns::ParseInstructions() {
     // Create and insert the instruction.
     // FIXME: InstImpResults should not be part of DAGInstruction.
     DAGInstruction TheInst(I, Results, Operands, InstImpResults);
-    Instructions.insert(std::make_pair(I->getRecord(), TheInst));
+    DAGInsts.insert(std::make_pair(I->getRecord(), TheInst));
 
     // Use a temporary tree pattern to infer all types and make sure that the
     // constructed result is correct.  This depends on the instruction already
-    // being inserted into the Instructions map.
+    // being inserted into the DAGInsts map.
     TreePattern Temp(I->getRecord(), ResultPattern, false, *this);
     Temp.InferAllTypes(&I->getNamedNodesMap());
 
-    DAGInstruction &TheInsertedInst = Instructions.find(I->getRecord())->second;
+    DAGInstruction &TheInsertedInst = DAGInsts.find(I->getRecord())->second;
     TheInsertedInst.setResultPattern(Temp.getOnlyTree());
 
-    DEBUG(I->dump());
+    return TheInsertedInst;
+  }
+
+/// ParseInstructions - Parse all of the instructions, inlining and resolving
+/// any fragments involved.  This populates the Instructions list with fully
+/// resolved instructions.
+void CodeGenDAGPatterns::ParseInstructions() {
+  std::vector<Record*> Instrs = Records.getAllDerivedDefinitions("Instruction");
+
+  for (unsigned i = 0, e = Instrs.size(); i != e; ++i) {
+    ListInit *LI = 0;
+
+    if (isa<ListInit>(Instrs[i]->getValueInit("Pattern")))
+      LI = Instrs[i]->getValueAsListInit("Pattern");
+
+    // If there is no pattern, only collect minimal information about the
+    // instruction for its operand list.  We have to assume that there is one
+    // result, as we have no detailed info. A pattern which references the
+    // null_frag operator is as-if no pattern were specified. Normally this
+    // is from a multiclass expansion w/ a SDPatternOperator passed in as
+    // null_frag.
+    if (!LI || LI->getSize() == 0 || hasNullFragReference(LI)) {
+      std::vector<Record*> Results;
+      std::vector<Record*> Operands;
+
+      CodeGenInstruction &InstInfo = Target.getInstruction(Instrs[i]);
+
+      if (InstInfo.Operands.size() != 0) {
+        if (InstInfo.Operands.NumDefs == 0) {
+          // These produce no results
+          for (unsigned j = 0, e = InstInfo.Operands.size(); j < e; ++j)
+            Operands.push_back(InstInfo.Operands[j].Rec);
+        } else {
+          // Assume the first operand is the result.
+          Results.push_back(InstInfo.Operands[0].Rec);
+
+          // The rest are inputs.
+          for (unsigned j = 1, e = InstInfo.Operands.size(); j < e; ++j)
+            Operands.push_back(InstInfo.Operands[j].Rec);
+        }
+      }
+
+      // Create and insert the instruction.
+      std::vector<Record*> ImpResults;
+      Instructions.insert(std::make_pair(Instrs[i],
+                          DAGInstruction(0, Results, Operands, ImpResults)));
+      continue;  // no pattern.
+    }
+
+    CodeGenInstruction &CGI = Target.getInstruction(Instrs[i]);
+    const DAGInstruction &DI = parseInstructionPattern(CGI, LI, Instructions);
+
+    (void)DI;
+    DEBUG(DI.getPattern()->dump());
   }
 
   // If we can, convert the instructions to be patterns that are matched!

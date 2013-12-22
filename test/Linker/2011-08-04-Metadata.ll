@@ -15,15 +15,19 @@ entry:
 }
 
 !llvm.dbg.cu = !{!0}
+!llvm.module.flags = !{!11}
 !llvm.dbg.sp = !{!1}
 !llvm.dbg.gv = !{!5}
 
-!0 = metadata !{i32 589841, i32 0, i32 12, metadata !"/tmp/one.c", metadata !"/Volumes/Lalgate/Slate/D", metadata !"clang version 3.0 ()", i1 true, i1 false, metadata !"", i32 0}
-!1 = metadata !{i32 589870, i32 0, metadata !2, metadata !"foo", metadata !"foo", metadata !"", metadata !2, i32 3, metadata !3, i1 false, i1 true, i32 0, i32 0, i32 0, i32 0, i1 false, void ()* @foo, null, null}
-!2 = metadata !{i32 589865, metadata !"/tmp/one.c", metadata !"/Volumes/Lalgate/Slate/D", metadata !0}
-!3 = metadata !{i32 589845, metadata !2, metadata !"", metadata !2, i32 0, i64 0, i64 0, i32 0, i32 0, i32 0, metadata !4, i32 0, i32 0}
+!0 = metadata !{i32 589841, metadata !9, i32 12, metadata !"clang version 3.0 ()", i1 true, metadata !"", i32 0, metadata !4, metadata !4, metadata !10, null, null, metadata !""}
+!1 = metadata !{i32 589870, metadata !9, metadata !2, metadata !"foo", metadata !"foo", metadata !"", i32 3, metadata !3, i1 false, i1 true, i32 0, i32 0, null, i32 0, i1 false, void ()* @foo, null, null, null, i32 0} ; [ DW_TAG_subprogram ] [line 3] [def] [scope 0] [foo]
+!2 = metadata !{i32 589865, metadata !9}
+!3 = metadata !{i32 589845, metadata !9, metadata !2, metadata !"", i32 0, i64 0, i64 0, i32 0, i32 0, null, metadata !4, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
 !4 = metadata !{null}
 !5 = metadata !{i32 589876, i32 0, metadata !0, metadata !"x", metadata !"x", metadata !"", metadata !2, i32 2, metadata !6, i32 1, i32 1, i32* @x}
-!6 = metadata !{i32 589860, metadata !0, metadata !"int", null, i32 0, i64 32, i64 32, i64 0, i32 0, i32 5}
+!6 = metadata !{i32 589860, null, metadata !0, metadata !"int", i32 0, i64 32, i64 32, i64 0, i32 0, i32 5}
 !7 = metadata !{i32 3, i32 14, metadata !8, null}
-!8 = metadata !{i32 589835, metadata !1, i32 3, i32 12, metadata !2, i32 0}
+!8 = metadata !{i32 589835, metadata !9, metadata !1, i32 3, i32 12, i32 0}
+!9 = metadata !{metadata !"/tmp/one.c", metadata !"/Volumes/Lalgate/Slate/D"}
+!10 = metadata !{metadata !1}
+!11 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}

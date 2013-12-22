@@ -1,4 +1,10 @@
-; RUN: llc < %s -mtriple x86_64-apple-macosx10.8.0 -disable-cfi | FileCheck %s
+; RUN: llc < %s -mtriple x86_64-apple-macosx10.8.0 -mcpu corei7 -filetype=obj -o - \
+; RUN:  | llvm-objdump -triple x86_64-apple-macosx10.8.0 -s - \
+; RUN:  | FileCheck -check-prefix=CU %s
+; RUN: llc < %s -mtriple x86_64-apple-darwin11 -mcpu corei7 \
+; RUN:  | llvm-mc -triple x86_64-apple-darwin11 -filetype=obj -o - \
+; RUN:  | llvm-objdump -triple x86_64-apple-darwin11 -s - \
+; RUN:  | FileCheck -check-prefix=FROM-ASM %s
 
 %"struct.dyld::MappedRanges" = type { [400 x %struct.anon], %"struct.dyld::MappedRanges"* }
 %struct.anon = type { %class.ImageLoader*, i64, i64 }
@@ -12,13 +18,15 @@ declare void @OSMemoryBarrier() optsize
 ; This compact unwind encoding indicates that we could not generate correct
 ; compact unwind encodings for this function. This then defaults to using the
 ; DWARF EH frame.
-;
-; CHECK: .section __LD,__compact_unwind,regular,debug
-; CHECK: .quad _func
-; CHECK: .long 67108864                ## Compact Unwind Encoding: 0x4000000
-; CHECK: .quad 0                       ## Personality Function
-; CHECK: .quad 0                       ## LSDA
-;
+
+; CU:      Contents of section __compact_unwind:
+; CU-NEXT: 0048 00000000 00000000 42000000 00000004
+; CU-NEXT: 0058 00000000 00000000 00000000 00000000
+
+; FROM-ASM:      Contents of section __compact_unwind:
+; FROM-ASM-NEXT: 0048 00000000 00000000 42000000 00000004
+; FROM-ASM-NEXT: 0058 00000000 00000000 00000000 00000000
+
 define void @func(%class.ImageLoader* %image) optsize ssp uwtable {
 entry:
   br label %for.cond1.preheader

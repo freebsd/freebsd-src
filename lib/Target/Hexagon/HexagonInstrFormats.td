@@ -54,6 +54,7 @@ def AbsoluteSet    : AddrModeType<2>;  // Absolute set addressing mode
 def BaseImmOffset  : AddrModeType<3>;  // Indirect with offset
 def BaseLongOffset : AddrModeType<4>;  // Indirect with long offset
 def BaseRegOffset  : AddrModeType<5>;  // Indirect with register offset
+def PostInc        : AddrModeType<6>;  // Post increment addressing mode
 
 class MemAccessSize<bits<3> value> {
   bits<3> Value = value;
@@ -62,7 +63,7 @@ class MemAccessSize<bits<3> value> {
 def NoMemAccess      : MemAccessSize<0>;// Not a memory acces instruction.
 def ByteAccess       : MemAccessSize<1>;// Byte access instruction (memb).
 def HalfWordAccess   : MemAccessSize<2>;// Half word access instruction (memh).
-def WordAccess       : MemAccessSize<3>;// Word access instrution (memw).
+def WordAccess       : MemAccessSize<3>;// Word access instruction (memw).
 def DoubleWordAccess : MemAccessSize<4>;// Double word access instruction (memd)
 
 
@@ -157,6 +158,7 @@ class InstHexagon<dag outs, dag ins, string asmstr, list<dag> pattern,
   string CextOpcode = "";
   string PredSense = "";
   string PNewValue = "";
+  string NValueST  = "";    // Set to "true" for new-value stores.
   string InputType = "";    // Input is "imm" or "reg" type.
   string isMEMri = "false"; // Set to "true" for load/store with MEMri operand.
   string isFloat = "false"; // Set to "true" for the floating-point load/store.
@@ -165,6 +167,7 @@ class InstHexagon<dag outs, dag ins, string asmstr, list<dag> pattern,
   let PredSense = !if(isPredicated, !if(isPredicatedFalse, "false", "true"),
                                     "");
   let PNewValue = !if(isPredicatedNew, "new", "");
+  let NValueST = !if(isNVStore, "true", "false");
 
   // *** Must match MCTargetDesc/HexagonBaseInfo.h ***
 }

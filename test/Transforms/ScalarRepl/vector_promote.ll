@@ -14,7 +14,7 @@ entry:
 	%tmp6 = fadd <4 x float> %tmp4, %tmp4		; <<4 x float>> [#uses=1]
 	store <4 x float> %tmp6, <4 x float>* %F
 	ret void
-; CHECK: @test1
+; CHECK-LABEL: @test1(
 ; CHECK-NOT: alloca
 ; CHECK: %tmp = load <4 x float>* %F
 ; CHECK: fadd <4 x float> %tmp, %tmp
@@ -33,7 +33,7 @@ entry:
 	%tmp6 = fadd <4 x float> %tmp4, %tmp4		; <<4 x float>> [#uses=1]
 	store <4 x float> %tmp6, <4 x float>* %F
 	ret void
-; CHECK: @test2
+; CHECK-LABEL: @test2(
 ; CHECK-NOT: alloca
 ; CHECK: %tmp = load <4 x float>* %F
 ; CHECK: fadd <4 x float> %tmp, %tmp
@@ -50,7 +50,7 @@ entry:
 	%tmp.upgrd.4 = load float* %tmp.upgrd.3		; <float> [#uses=1]
 	store float %tmp.upgrd.4, float* %f
 	ret void
-; CHECK: @test3
+; CHECK-LABEL: @test3(
 ; CHECK-NOT: alloca
 ; CHECK: %tmp = load <4 x float>* %F
 ; CHECK: fadd <4 x float> %tmp, %tmp
@@ -67,7 +67,7 @@ entry:
 	%tmp.upgrd.6 = load float* %G.upgrd.5		; <float> [#uses=1]
 	store float %tmp.upgrd.6, float* %f
 	ret void
-; CHECK: @test4
+; CHECK-LABEL: @test4(
 ; CHECK-NOT: alloca
 ; CHECK: %tmp = load <4 x float>* %F
 ; CHECK: fadd <4 x float> %tmp, %tmp
@@ -81,7 +81,7 @@ define i32 @test5(float %X) {  ;; should turn into bitcast.
 	%a = bitcast float* %X1 to i32*
 	%tmp = load i32* %a
 	ret i32 %tmp
-; CHECK: @test5
+; CHECK-LABEL: @test5(
 ; CHECK-NEXT: bitcast float %X to i32
 ; CHECK-NEXT: ret i32
 }
@@ -92,7 +92,7 @@ define i64 @test6(<2 x float> %X) {
 	%P = bitcast <2 x float>* %X_addr to i64*
 	%tmp = load i64* %P
 	ret i64 %tmp
-; CHECK: @test6
+; CHECK-LABEL: @test6(
 ; CHECK: bitcast <2 x float> %X to i64
 ; CHECK: ret i64
 }
@@ -107,7 +107,31 @@ entry:
   %1 = getelementptr inbounds %struct.test7* %memtmp, i64 0, i32 0, i64 5
   store i32 0, i32* %1, align 4
   ret void
-; CHECK: @test7
+; CHECK-LABEL: @test7(
 ; CHECK-NOT: alloca
 ; CHECK: and i192
+}
+
+; When promoting an alloca to a 1-element vector type, instructions that
+; produce that same vector type should not be changed to insert one element
+; into a new vector. <rdar://problem/14249078>
+define <1 x i64> @test8(<1 x i64> %a) {
+entry:
+  %a.addr = alloca <1 x i64>, align 8
+  %__a = alloca <1 x i64>, align 8
+  %tmp = alloca <1 x i64>, align 8
+  store <1 x i64> %a, <1 x i64>* %a.addr, align 8
+  %0 = load <1 x i64>* %a.addr, align 8
+  store <1 x i64> %0, <1 x i64>* %__a, align 8
+  %1 = load <1 x i64>* %__a, align 8
+  %2 = bitcast <1 x i64> %1 to <8 x i8>
+  %3 = bitcast <8 x i8> %2 to <1 x i64>
+  %vshl_n = shl <1 x i64> %3, <i64 4>
+  store <1 x i64> %vshl_n, <1 x i64>* %tmp
+  %4 = load <1 x i64>* %tmp
+  ret <1 x i64> %4
+; CHECK-LABEL: @test8(
+; CHECK-NOT: alloca
+; CHECK-NOT: insertelement
+; CHECK: ret <1 x i64>
 }

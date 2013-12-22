@@ -22,11 +22,11 @@
 ;}
 
 define i32 @test3(i32 %a, i32 %b) nounwind readnone {
-; CHECK: @test3
+; CHECK-LABEL: @test3(
 entry:
-; CHECK: xor i32 %a, %b
-; CHECK: lshr i32 %0, 31
-; CHECK: xor i32 %1, 1
+; CHECK: [[XOR1:%.*]] = xor i32 %a, %b
+; CHECK: [[SHIFT:%.*]] = lshr i32 [[XOR1]], 31
+; CHECK: [[XOR2:%.*]] = xor i32 [[SHIFT]], 1
         %0 = lshr i32 %a, 31            ; <i32> [#uses=1]
         %1 = lshr i32 %b, 31            ; <i32> [#uses=1]
         %2 = icmp eq i32 %0, %1         ; <i1> [#uses=1]
@@ -34,13 +34,13 @@ entry:
         ret i32 %3
 ; CHECK-NOT: icmp
 ; CHECK-NOT: zext
-; CHECK: ret i32 %2
+; CHECK: ret i32 [[XOR2]]
 }
 
 ; Variation on @test3: checking the 2nd bit in a situation where the 5th bit
 ; is one, not zero.
 define i32 @test3i(i32 %a, i32 %b) nounwind readnone {
-; CHECK: @test3i
+; CHECK-LABEL: @test3i(
 entry:
 ; CHECK: xor i32 %a, %b
 ; CHECK: lshr i32 %0, 31

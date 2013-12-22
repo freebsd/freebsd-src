@@ -8,7 +8,7 @@ target triple = "x86_64-apple-macosx10.6.0"
 
 @aux_temp = external global %struct.dfa, align 8
 
-declare i64 @llvm.objectsize.i64(i8*, i1) nounwind readnone
+declare i64 @llvm.objectsize.i64.p0i8(i8*, i1) nounwind readnone
 
 declare void @__memset_chk() nounwind
 
@@ -21,12 +21,12 @@ if.end.i:                                         ; preds = %entry
   br i1 undef, label %land.end.thread.i, label %land.end.i
 
 land.end.thread.i:                                ; preds = %if.end.i
-  %0 = call i64 @llvm.objectsize.i64(i8* undef, i1 false) nounwind
+  %0 = call i64 @llvm.objectsize.i64.p0i8(i8* undef, i1 false) nounwind
   %cmp1710.i = icmp eq i64 %0, -1
   br i1 %cmp1710.i, label %cond.false156.i, label %cond.true138.i
 
 land.end.i:                                       ; preds = %if.end.i
-  %1 = call i64 @llvm.objectsize.i64(i8* undef, i1 false) nounwind
+  %1 = call i64 @llvm.objectsize.i64.p0i8(i8* undef, i1 false) nounwind
   %cmp17.i = icmp eq i64 %1, -1
   br i1 %cmp17.i, label %cond.false156.i, label %cond.true138.i
 
@@ -41,13 +41,8 @@ cond.false156.i:                                  ; preds = %for.end.i, %land.en
 
 cond.end166.i:                                    ; preds = %cond.false156.i, %cond.true138.i
   %idxprom1113.i = phi i64 [ %idxprom1114.i, %cond.false156.i ], [ undef, %cond.true138.i ]
-  %tmp235.i = load %struct.state** getelementptr inbounds (%struct.dfa* @aux_temp, i64 0, i32 2), align 8, !tbaa !0
+  %tmp235.i = load %struct.state** getelementptr inbounds (%struct.dfa* @aux_temp, i64 0, i32 2), align 8
   %att.i = getelementptr inbounds %struct.state* %tmp235.i, i64 %idxprom1113.i, i32 0
-  store i32 0, i32* %att.i, align 4, !tbaa !3
+  store i32 0, i32* %att.i, align 4
   ret void
 }
-
-!0 = metadata !{metadata !"any pointer", metadata !1}
-!1 = metadata !{metadata !"omnipotent char", metadata !2}
-!2 = metadata !{metadata !"Simple C/C++ TBAA", null}
-!3 = metadata !{metadata !"int", metadata !1}

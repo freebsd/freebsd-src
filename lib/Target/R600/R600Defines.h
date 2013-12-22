@@ -41,7 +41,12 @@ namespace R600_InstFlag {
     OP1 = (1 << 10),
     OP2 = (1 << 11),
     VTX_INST  = (1 << 12),
-    TEX_INST = (1 << 13)
+    TEX_INST = (1 << 13),
+    ALU_INST = (1 << 14),
+    LDS_1A = (1 << 15),
+    LDS_1A1D = (1 << 16),
+    IS_EXPORT = (1 << 17),
+    LDS_1A2D = (1 << 18)
   };
 }
 
@@ -57,46 +62,81 @@ namespace R600_InstFlag {
 #define IS_VTX(desc) ((desc).TSFlags & R600_InstFlag::VTX_INST)
 #define IS_TEX(desc) ((desc).TSFlags & R600_InstFlag::TEX_INST)
 
-namespace R600Operands {
-  enum Ops {
-    DST,
-    UPDATE_EXEC_MASK,
-    UPDATE_PREDICATE,
-    WRITE,
-    OMOD,
-    DST_REL,
-    CLAMP,
-    SRC0,
-    SRC0_NEG,
-    SRC0_REL,
-    SRC0_ABS,
-    SRC0_SEL,
-    SRC1,
-    SRC1_NEG,
-    SRC1_REL,
-    SRC1_ABS,
-    SRC1_SEL,
-    SRC2,
-    SRC2_NEG,
-    SRC2_REL,
-    SRC2_SEL,
-    LAST,
-    PRED_SEL,
-    IMM,
-    BANK_SWIZZLE,
-    COUNT
- };
+namespace OpName {
 
-  const static int ALUOpTable[3][R600Operands::COUNT] = {
-//            W        C     S  S  S  S     S  S  S  S     S  S  S
-//            R  O  D  L  S  R  R  R  R  S  R  R  R  R  S  R  R  R  L  P
-//   D  U     I  M  R  A  R  C  C  C  C  R  C  C  C  C  R  C  C  C  A  R  I
-//   S  E  U  T  O  E  M  C  0  0  0  0  C  1  1  1  1  C  2  2  2  S  E  M  B
-//   T  M  P  E  D  L  P  0  N  R  A  S  1  N  R  A  S  2  N  R  S  T  D  M  S
-    {0,-1,-1, 1, 2, 3, 4, 5, 6, 7, 8, 9,-1,-1,-1,-1,-1,-1,-1,-1,-1,10,11,12,13},
-    {0, 1, 2, 3, 4 ,5 ,6 ,7, 8, 9,10,11,12,13,14,15,16,-1,-1,-1,-1,17,18,19,20},
-    {0,-1,-1,-1,-1, 1, 2, 3, 4, 5,-1, 6, 7, 8, 9,-1,10,11,12,13,14,15,16,17,18}
-  };
+  enum VecOps {
+    UPDATE_EXEC_MASK_X,
+    UPDATE_PREDICATE_X,
+    WRITE_X,
+    OMOD_X,
+    DST_REL_X,
+    CLAMP_X,
+    SRC0_X,
+    SRC0_NEG_X,
+    SRC0_REL_X,
+    SRC0_ABS_X,
+    SRC0_SEL_X,
+    SRC1_X,
+    SRC1_NEG_X,
+    SRC1_REL_X,
+    SRC1_ABS_X,
+    SRC1_SEL_X,
+    PRED_SEL_X,
+    UPDATE_EXEC_MASK_Y,
+    UPDATE_PREDICATE_Y,
+    WRITE_Y,
+    OMOD_Y,
+    DST_REL_Y,
+    CLAMP_Y,
+    SRC0_Y,
+    SRC0_NEG_Y,
+    SRC0_REL_Y,
+    SRC0_ABS_Y,
+    SRC0_SEL_Y,
+    SRC1_Y,
+    SRC1_NEG_Y,
+    SRC1_REL_Y,
+    SRC1_ABS_Y,
+    SRC1_SEL_Y,
+    PRED_SEL_Y,
+    UPDATE_EXEC_MASK_Z,
+    UPDATE_PREDICATE_Z,
+    WRITE_Z,
+    OMOD_Z,
+    DST_REL_Z,
+    CLAMP_Z,
+    SRC0_Z,
+    SRC0_NEG_Z,
+    SRC0_REL_Z,
+    SRC0_ABS_Z,
+    SRC0_SEL_Z,
+    SRC1_Z,
+    SRC1_NEG_Z,
+    SRC1_REL_Z,
+    SRC1_ABS_Z,
+    SRC1_SEL_Z,
+    PRED_SEL_Z,
+    UPDATE_EXEC_MASK_W,
+    UPDATE_PREDICATE_W,
+    WRITE_W,
+    OMOD_W,
+    DST_REL_W,
+    CLAMP_W,
+    SRC0_W,
+    SRC0_NEG_W,
+    SRC0_REL_W,
+    SRC0_ABS_W,
+    SRC0_SEL_W,
+    SRC1_W,
+    SRC1_NEG_W,
+    SRC1_REL_W,
+    SRC1_ABS_W,
+    SRC1_SEL_W,
+    PRED_SEL_W,
+    IMM_0,
+    IMM_1,
+    VEC_COUNT
+ };
 
 }
 
@@ -125,5 +165,7 @@ namespace R600Operands {
 #define R_028860_SQ_PGM_RESOURCES_VS                 0x028860
 #define R_028878_SQ_PGM_RESOURCES_GS                 0x028878
 #define R_0288D4_SQ_PGM_RESOURCES_LS                 0x0288d4
+
+#define R_0288E8_SQ_LDS_ALLOC                        0x0288E8
 
 #endif // R600DEFINES_H_

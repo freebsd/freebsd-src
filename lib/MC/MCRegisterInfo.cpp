@@ -46,6 +46,18 @@ unsigned MCRegisterInfo::getSubRegIndex(unsigned Reg, unsigned SubReg) const {
   return 0;
 }
 
+unsigned MCRegisterInfo::getSubRegIdxSize(unsigned Idx) const {
+  assert(Idx && Idx < getNumSubRegIndices() &&
+         "This is not a subregister index");
+  return SubRegIdxRanges[Idx].Size;
+}
+
+unsigned MCRegisterInfo::getSubRegIdxOffset(unsigned Idx) const {
+  assert(Idx && Idx < getNumSubRegIndices() &&
+         "This is not a subregister index");
+  return SubRegIdxRanges[Idx].Offset;
+}
+
 int MCRegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const {
   const DwarfLLVMRegPair *M = isEH ? EHL2DwarfRegs : L2DwarfRegs;
   unsigned Size = isEH ? EHL2DwarfRegsSize : L2DwarfRegsSize;

@@ -96,7 +96,7 @@ Start out with:
 .. code-block:: c++
 
   #include "llvm/Pass.h"
-  #include "llvm/Function.h"
+  #include "llvm/IR/Function.h"
   #include "llvm/Support/raw_ostream.h"
 
 Which are needed because we are writing a `Pass
@@ -131,7 +131,7 @@ Next, we declare our pass itself:
 
   struct Hello : public FunctionPass {
 
-This declares a "``Hello``" class that is a subclass of `FunctionPass
+This declares a "``Hello``" class that is a subclass of :ref:`FunctionPass
 <writing-an-llvm-pass-FunctionPass>`.  The different builtin pass subclasses
 are described in detail :ref:`later <writing-an-llvm-pass-pass-classes>`, but
 for now, know that ``FunctionPass`` operates on a function at a time.
@@ -184,7 +184,7 @@ As a whole, the ``.cpp`` file looks like:
 .. code-block:: c++
 
     #include "llvm/Pass.h"
-    #include "llvm/Function.h"
+    #include "llvm/IR/Function.h"
     #include "llvm/Support/raw_ostream.h"
 
     using namespace llvm;
@@ -454,7 +454,7 @@ external functions.
 
 To be explicit, ``FunctionPass`` subclasses are not allowed to:
 
-#. Modify a ``Function`` other than the one currently being processed.
+#. Inspect or modify a ``Function`` other than the one currently being processed.
 #. Add or remove ``Function``\ s from the current ``Module``.
 #. Add or remove global variables from the current ``Module``.
 #. Maintain state across invocations of:ref:`runOnFunction

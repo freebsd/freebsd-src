@@ -92,9 +92,6 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::RETURNADDR:                 return "RETURNADDR";
   case ISD::FRAMEADDR:                  return "FRAMEADDR";
   case ISD::FRAME_TO_ARGS_OFFSET:       return "FRAME_TO_ARGS_OFFSET";
-  case ISD::EXCEPTIONADDR:              return "EXCEPTIONADDR";
-  case ISD::LSDAADDR:                   return "LSDAADDR";
-  case ISD::EHSELECTION:                return "EHSELECTION";
   case ISD::EH_RETURN:                  return "EH_RETURN";
   case ISD::EH_SJLJ_SETJMP:             return "EH_SJLJ_SETJMP";
   case ISD::EH_SJLJ_LONGJMP:            return "EH_SJLJ_LONGJMP";
@@ -145,6 +142,7 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::FCEIL:                      return "fceil";
   case ISD::FRINT:                      return "frint";
   case ISD::FNEARBYINT:                 return "fnearbyint";
+  case ISD::FROUND:                     return "fround";
   case ISD::FEXP:                       return "fexp";
   case ISD::FEXP2:                      return "fexp2";
   case ISD::FLOG:                       return "flog";
@@ -226,6 +224,7 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::FP_TO_SINT:                 return "fp_to_sint";
   case ISD::FP_TO_UINT:                 return "fp_to_uint";
   case ISD::BITCAST:                    return "bitcast";
+  case ISD::ADDRSPACECAST:              return "addrspacecast";
   case ISD::FP16_TO_FP32:               return "fp16_to_fp32";
   case ISD::FP32_TO_FP16:               return "fp32_to_fp16";
 
@@ -487,10 +486,16 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
       OS << " " << offset;
     if (unsigned int TF = BA->getTargetFlags())
       OS << " [TF=" << TF << ']';
+  } else if (const AddrSpaceCastSDNode *ASC =
+               dyn_cast<AddrSpaceCastSDNode>(this)) {
+    OS << '['
+       << ASC->getSrcAddressSpace()
+       << " -> "
+       << ASC->getDestAddressSpace()
+       << ']';
   }
 
-  if (G)
-    if (unsigned Order = G->GetOrdering(this))
+  if (unsigned Order = getIROrder())
       OS << " [ORD=" << Order << ']';
 
   if (getNodeId() != -1)
@@ -501,8 +506,10 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
     DIScope
       Scope(dl.getScope(G->getMachineFunction().getFunction()->getContext()));
     OS << " dbg:";
+    assert((!Scope || Scope.isScope()) &&
+      "Scope of a DebugLoc should be null or a DIScope.");
     // Omit the directory, since it's usually long and uninteresting.
-    if (Scope.Verify())
+    if (Scope)
       OS << Scope.getFilename();
     else
       OS << "<unknown>";

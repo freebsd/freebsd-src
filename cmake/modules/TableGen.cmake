@@ -66,7 +66,8 @@ if(CMAKE_CROSSCOMPILING)
 
   add_custom_command(OUTPUT ${CX_NATIVE_TG_DIR}/CMakeCache.txt
     COMMAND ${CMAKE_COMMAND} -UMAKE_TOOLCHAIN_FILE -DCMAKE_BUILD_TYPE=Release
-                             -DLLVM_BUILD_POLLY=OFF ${CMAKE_SOURCE_DIR}
+                             -DLLVM_BUILD_POLLY=OFF
+                             -G "${CMAKE_GENERATOR}" ${CMAKE_SOURCE_DIR}
     WORKING_DIRECTORY ${CX_NATIVE_TG_DIR}
     DEPENDS ${CX_NATIVE_TG_DIR}
     COMMENT "Configuring native TableGen...")
@@ -83,6 +84,16 @@ macro(add_tablegen target project)
   set(LLVM_LINK_COMPONENTS ${LLVM_LINK_COMPONENTS} TableGen)
   add_llvm_utility(${target} ${ARGN})
   set(LLVM_LINK_COMPONENTS ${${target}_OLD_LLVM_LINK_COMPONENTS})
+
+  # For Xcode builds, symlink bin/<target> to bin/<Config>/<target> so that
+  # a separately-configured Clang project can still find llvm-tblgen.
+  if (XCODE)
+    add_custom_target(${target}-top ALL
+      ${CMAKE_COMMAND} -E create_symlink 
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/${target}${CMAKE_EXECUTABLE_SUFFIX}
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}${CMAKE_EXECUTABLE_SUFFIX}
+      DEPENDS ${target})
+  endif ()
 
   set(${project}_TABLEGEN "${target}" CACHE
       STRING "Native TableGen executable. Saves building one when cross-compiling.")
@@ -117,7 +128,7 @@ macro(add_tablegen target project)
   endif()
 
   if( MINGW )
-    target_link_libraries(${target} imagehlp psapi)
+    target_link_libraries(${target} imagehlp psapi shell32)
     if(CMAKE_SIZEOF_VOID_P MATCHES "8")
       set_target_properties(${target} PROPERTIES LINK_FLAGS -Wl,--stack,16777216)
     endif(CMAKE_SIZEOF_VOID_P MATCHES "8")
@@ -126,5 +137,7 @@ macro(add_tablegen target project)
     target_link_libraries(${target} pthread)
   endif()
 
-  install(TARGETS ${target} RUNTIME DESTINATION bin)
+  if (${project} STREQUAL LLVM AND NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
+    install(TARGETS ${target} RUNTIME DESTINATION bin)
+  endif()
 endmacro()

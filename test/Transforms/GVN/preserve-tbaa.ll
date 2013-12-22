@@ -4,7 +4,7 @@ target datalayout = "e-p:64:64:64"
 
 ; GVN should preserve the TBAA tag on loads when doing PRE.
 
-; CHECK: @test
+; CHECK-LABEL: @test(
 ; CHECK: %tmp33.pre = load i16* %P, align 2, !tbaa !0
 ; CHECK: br label %for.body
 define void @test(i16 *%P, i16* %Q) nounwind {
@@ -25,6 +25,7 @@ for.end:                                          ; preds = %for.body, %entry
   ret void
 }
 
-!0 = metadata !{metadata !"short", metadata !1}
+!0 = metadata !{metadata !3, metadata !3, i64 0}
 !1 = metadata !{metadata !"omnipotent char", metadata !2}
 !2 = metadata !{metadata !"Simple C/C++ TBAA", null}
+!3 = metadata !{metadata !"short", metadata !1}

@@ -58,8 +58,6 @@ OptimizeRegAlloc("optimize-regalloc", cl::Hidden,
 static cl::opt<cl::boolOrDefault>
 EnableMachineSched("enable-misched", cl::Hidden,
     cl::desc("Enable the machine instruction scheduling pass."));
-static cl::opt<bool> EnableStrongPHIElim("strong-phi-elim", cl::Hidden,
-    cl::desc("Use strong PHI elimination."));
 static cl::opt<bool> DisablePostRAMachineLICM("disable-postra-machine-licm",
     cl::Hidden,
     cl::desc("Disable Machine LICM"));
@@ -236,7 +234,7 @@ TargetPassConfig::TargetPassConfig(TargetMachine *tm, PassManagerBase &pm)
 
   // Temporarily disable experimental passes.
   const TargetSubtargetInfo &ST = TM->getSubtarget<TargetSubtargetInfo>();
-  if (!ST.enableMachineScheduler())
+  if (!ST.useMachineScheduler())
     disablePass(&MachineSchedulerID);
 }
 
@@ -300,6 +298,8 @@ void TargetPassConfig::addPass(Pass *P) {
 
   if (Started && !Stopped)
     PM->add(P);
+  else
+    delete P;
   if (StopAfter == PassID)
     Stopped = true;
   if (StartAfter == PassID)
@@ -331,7 +331,7 @@ AnalysisID TargetPassConfig::addPass(AnalysisID PassID) {
   addPass(P); // Ends the lifetime of P.
 
   // Add the passes after the pass P if there is any.
-  for (SmallVector<std::pair<AnalysisID, IdentifyingPassPtr>, 4>::iterator
+  for (SmallVectorImpl<std::pair<AnalysisID, IdentifyingPassPtr> >::iterator
          I = Impl->InsertedPasses.begin(), E = Impl->InsertedPasses.end();
        I != E; ++I) {
     if ((*I).first == PassID) {
@@ -396,7 +396,7 @@ void TargetPassConfig::addPassesToHandleExceptions() {
     // removed from the parent invoke(s). This could happen when a landing
     // pad is shared by multiple invokes and is also a target of a normal
     // edge from elsewhere.
-    addPass(createSjLjEHPreparePass(TM->getTargetLowering()));
+    addPass(createSjLjEHPreparePass(TM));
     // FALLTHROUGH
   case ExceptionHandling::DwarfCFI:
   case ExceptionHandling::ARM:
@@ -404,7 +404,7 @@ void TargetPassConfig::addPassesToHandleExceptions() {
     addPass(createDwarfEHPass(TM));
     break;
   case ExceptionHandling::None:
-    addPass(createLowerInvokePass(TM->getTargetLowering()));
+    addPass(createLowerInvokePass(TM));
 
     // The lower invoke pass may create unreachable code. Remove it.
     addPass(createUnreachableBlockEliminationPass());
@@ -416,13 +416,13 @@ void TargetPassConfig::addPassesToHandleExceptions() {
 /// before exception handling preparation passes.
 void TargetPassConfig::addCodeGenPrepare() {
   if (getOptLevel() != CodeGenOpt::None && !DisableCGP)
-    addPass(createCodeGenPreparePass(getTargetLowering()));
+    addPass(createCodeGenPreparePass(TM));
 }
 
 /// Add common passes that perform LLVM IR to IR transforms in preparation for
 /// instruction selection.
 void TargetPassConfig::addISelPrepare() {
-  addPass(createStackProtectorPass(getTargetLowering()));
+  addPass(createStackProtectorPass(TM));
 
   addPreISel();
 
@@ -673,24 +673,15 @@ void TargetPassConfig::addOptimizedRegAlloc(FunctionPass *RegAllocPass) {
   // preferably fix the scavenger to not depend on them).
   addPass(&LiveVariablesID);
 
-  // Add passes that move from transformed SSA into conventional SSA. This is a
-  // "copy coalescing" problem.
-  //
-  if (!EnableStrongPHIElim) {
-    // Edge splitting is smarter with machine loop info.
-    addPass(&MachineLoopInfoID);
-    addPass(&PHIEliminationID);
-  }
+  // Edge splitting is smarter with machine loop info.
+  addPass(&MachineLoopInfoID);
+  addPass(&PHIEliminationID);
 
   // Eventually, we want to run LiveIntervals before PHI elimination.
   if (EarlyLiveIntervals)
     addPass(&LiveIntervalsID);
 
   addPass(&TwoAddressInstructionPassID);
-
-  if (EnableStrongPHIElim)
-    addPass(&StrongPHIEliminationID);
-
   addPass(&RegisterCoalescerID);
 
   // PreRA instruction scheduling.

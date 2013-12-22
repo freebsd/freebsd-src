@@ -102,12 +102,16 @@ E: richard@xmos.com
 D: XCore Backend
 
 N: Chad Rosier
-E: mcrosier@apple.com
+E: mcrosier@codeaurora.org
 D: Fast-Isel
 
 N: Nadav Rotem
 E: nrotem@apple.com
 D: X86 Backend, Loop Vectorizer
+
+N: Daniel Sanders
+E: daniel.sanders@imgtec.com
+D: MIPS Backend (lib/Target/Mips/*)
 
 N: Richard Sandiford
 E: rsandifo@linux.vnet.ibm.com
@@ -116,6 +120,10 @@ D: SystemZ Backend
 N: Duncan Sands
 E: baldrick@free.fr
 D: DragonEgg
+
+N: Kostya Serebryany
+E: kcc@google.com
+D: AddressSanitizer, ThreadSanitizer (LLVM parts)
 
 N: Michael Spencer
 E: bigcheesegs@gmail.com
@@ -126,10 +134,18 @@ E: thomas.stellard@amd.com
 E: mesa-dev@lists.freedesktop.org
 D: R600 Backend
 
+N: Evgeniy Stepanov
+E: eugenis@google.com
+D: MemorySanitizer (LLVM part)
+
 N: Andrew Trick
 E: atrick@apple.com
 D: IndVar Simplify, Loop Strength Reduction, Instruction Scheduling
 
 N: Bill Wendling
-E: wendling@apple.com
+E: isanbard@gmail.com
 D: libLTO, IR Linker
+
+N: Peter Zotov
+E: whitequark@whitequark.org
+D: OCaml bindings

@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
@@ -60,6 +61,9 @@ TEST(StringRefTest, StringOps) {
   EXPECT_EQ( 0, StringRef("AaB").compare_lower("aab"));
   EXPECT_EQ( 1, StringRef("AaB").compare_lower("AAA"));
   EXPECT_EQ(-1, StringRef("AaB").compare_lower("aaBb"));
+  EXPECT_EQ(-1, StringRef("AaB").compare_lower("bb"));
+  EXPECT_EQ( 1, StringRef("aaBb").compare_lower("AaB"));
+  EXPECT_EQ( 1, StringRef("bb").compare_lower("AaB"));
   EXPECT_EQ( 1, StringRef("AaB").compare_lower("aA"));
   EXPECT_EQ( 1, StringRef("\xFF").compare_lower("\1"));
 
@@ -247,17 +251,39 @@ TEST(StringRefTest, Trim) {
 
 TEST(StringRefTest, StartsWith) {
   StringRef Str("hello");
+  EXPECT_TRUE(Str.startswith(""));
   EXPECT_TRUE(Str.startswith("he"));
   EXPECT_FALSE(Str.startswith("helloworld"));
   EXPECT_FALSE(Str.startswith("hi"));
 }
 
+TEST(StringRefTest, StartsWithLower) {
+  StringRef Str("heLLo");
+  EXPECT_TRUE(Str.startswith_lower(""));
+  EXPECT_TRUE(Str.startswith_lower("he"));
+  EXPECT_TRUE(Str.startswith_lower("hell"));
+  EXPECT_TRUE(Str.startswith_lower("HELlo"));
+  EXPECT_FALSE(Str.startswith_lower("helloworld"));
+  EXPECT_FALSE(Str.startswith_lower("hi"));
+}
+
 TEST(StringRefTest, EndsWith) {
   StringRef Str("hello");
+  EXPECT_TRUE(Str.endswith(""));
   EXPECT_TRUE(Str.endswith("lo"));
   EXPECT_FALSE(Str.endswith("helloworld"));
   EXPECT_FALSE(Str.endswith("worldhello"));
   EXPECT_FALSE(Str.endswith("so"));
+}
+
+TEST(StringRefTest, EndsWithLower) {
+  StringRef Str("heLLo");
+  EXPECT_TRUE(Str.endswith_lower(""));
+  EXPECT_TRUE(Str.endswith_lower("lo"));
+  EXPECT_TRUE(Str.endswith_lower("LO"));
+  EXPECT_TRUE(Str.endswith_lower("ELlo"));
+  EXPECT_FALSE(Str.endswith_lower("helloworld"));
+  EXPECT_FALSE(Str.endswith_lower("hi"));
 }
 
 TEST(StringRefTest, Find) {
@@ -477,6 +503,32 @@ TEST(StringRefTest, getAsUnsignedIntegerBadStrings) {
   }
 }
 
+static const char *join_input[] = { "a", "b", "c" };
+static const char join_result1[] = "a";
+static const char join_result2[] = "a:b:c";
+static const char join_result3[] = "a::b::c";
 
+TEST(StringRefTest, joinStrings) {
+  std::vector<StringRef> v1;
+  std::vector<std::string> v2;
+  for (size_t i = 0; i < array_lengthof(join_input); ++i) {
+    v1.push_back(join_input[i]);
+    v2.push_back(join_input[i]);
+  }
+
+  bool v1_join1 = join(v1.begin(), v1.begin() + 1, ":") == join_result1;
+  EXPECT_TRUE(v1_join1);
+  bool v1_join2 = join(v1.begin(), v1.end(), ":") == join_result2;
+  EXPECT_TRUE(v1_join2);
+  bool v1_join3 = join(v1.begin(), v1.end(), "::") == join_result3;
+  EXPECT_TRUE(v1_join3);
+
+  bool v2_join1 = join(v2.begin(), v2.begin() + 1, ":") == join_result1;
+  EXPECT_TRUE(v2_join1);
+  bool v2_join2 = join(v2.begin(), v2.end(), ":") == join_result2;
+  EXPECT_TRUE(v2_join2);
+  bool v2_join3 = join(v2.begin(), v2.end(), "::") == join_result3;
+  EXPECT_TRUE(v2_join3);
+}
 
 } // end anonymous namespace

@@ -18,14 +18,23 @@ foo2:
     .quad    bar2
 
 // CHECK:      Relocations [
-// CHECK-NEXT:   Section ({{[0-9]+}}) zed {
+// CHECK-NEXT:   Section ({{[0-9]+}}) .relazed {
 // CHECK-NEXT:     0x1 R_X86_64_PLT32 bar 0xFFFFFFFFFFFFFFFC
 // CHECK-NEXT:     0x5 R_X86_64_64 bar2 0x0
 // CHECK-NEXT:   }
 // CHECK-NEXT: ]
 
 // CHECK:      Symbols [
-// CHECK:        Symbol {
+// CHECK-NEXT:   Symbol {
+// CHECK-NEXT:     Name:  (0)
+// CHECK-NEXT:     Value: 0x0
+// CHECK-NEXT:     Size: 0
+// CHECK-NEXT:     Binding: Local (0x0)
+// CHECK-NEXT:     Type: None (0x0)
+// CHECK-NEXT:     Other: 0
+// CHECK-NEXT:     Section:  (0x0)
+// CHECK-NEXT:   }
+// CHECK-NEXT:   Symbol {
 // CHECK-NEXT:     Name: bar
 // CHECK-NEXT:     Value: 0x0
 // CHECK-NEXT:     Size: 0

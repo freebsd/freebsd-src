@@ -56,7 +56,7 @@ to upload your patch):
 To upload a new patch:
 
 * Click *Differential*.
-* Click *Create Revision*.
+* Click *Create Diff*.
 * Paste the text diff or upload the patch file.
   Note that TODO
 * Leave the drop down on *Create a new Revision...* and click *Continue*.
@@ -68,7 +68,7 @@ To upload a new patch:
 To submit an updated patch:
 
 * Click *Differential*.
-* Click *Create Revision*.
+* Click *Create Diff*.
 * Paste the updated diff.
 * Select the review you want to from the *Attach To* dropdown and click
   *Continue*.

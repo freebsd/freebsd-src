@@ -6,7 +6,7 @@ target triple = "i386-apple-darwin7"
 ; Test that we can thread through the block with the partially redundant load (%2).
 ; rdar://6402033
 define i32 @test1(i32* %P) nounwind {
-; CHECK: @test1
+; CHECK-LABEL: @test1(
 entry:
 	%0 = tail call i32 (...)* @f1() nounwind		; <i32> [#uses=1]
 	%1 = icmp eq i32 %0, 0		; <i1> [#uses=1]
@@ -45,7 +45,7 @@ declare i32 @f2(...)
 ; rdar://11039258
 
 define i32 @test2(i32* %P) nounwind {
-; CHECK: @test2
+; CHECK-LABEL: @test2(
 entry:
 	%0 = tail call i32 (...)* @f1() nounwind		; <i32> [#uses=1]
 	%1 = icmp eq i32 %0, 0		; <i1> [#uses=1]
@@ -75,7 +75,7 @@ bb3:		; preds = %bb1
 	ret i32 %res.0
 }
 
-!0 = metadata !{metadata !"int", metadata !1}
+!0 = metadata !{metadata !3, metadata !3, i64 0}
 !1 = metadata !{metadata !"omnipotent char", metadata !2}
 !2 = metadata !{metadata !"Simple C/C++ TBAA", null}
-
+!3 = metadata !{metadata !"int", metadata !1}

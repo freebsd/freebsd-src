@@ -14,13 +14,235 @@
 #ifndef LLVM_SUPPORT_MATHEXTRAS_H
 #define LLVM_SUPPORT_MATHEXTRAS_H
 
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/SwapByteOrder.h"
+#include "llvm/Support/type_traits.h"
+
+#include <cstring>
 
 #ifdef _MSC_VER
-# include <intrin.h>
+#include <intrin.h>
+#include <limits>
 #endif
 
 namespace llvm {
+/// \brief The behavior an operation has on an input of 0.
+enum ZeroBehavior {
+  /// \brief The returned value is undefined.
+  ZB_Undefined,
+  /// \brief The returned value is numeric_limits<T>::max()
+  ZB_Max,
+  /// \brief The returned value is numeric_limits<T>::digits
+  ZB_Width
+};
+
+/// \brief Count number of 0's from the least significant bit to the most
+///   stopping at the first 1.
+///
+/// Only unsigned integral types are allowed.
+///
+/// \param ZB the behavior on an input of 0. Only ZB_Width and ZB_Undefined are
+///   valid arguments.
+template <typename T>
+typename enable_if_c<std::numeric_limits<T>::is_integer &&
+                     !std::numeric_limits<T>::is_signed, std::size_t>::type
+countTrailingZeros(T Val, ZeroBehavior ZB = ZB_Width) {
+  (void)ZB;
+
+  if (!Val)
+    return std::numeric_limits<T>::digits;
+  if (Val & 0x1)
+    return 0;
+
+  // Bisection method.
+  std::size_t ZeroBits = 0;
+  T Shift = std::numeric_limits<T>::digits >> 1;
+  T Mask = std::numeric_limits<T>::max() >> Shift;
+  while (Shift) {
+    if ((Val & Mask) == 0) {
+      Val >>= Shift;
+      ZeroBits |= Shift;
+    }
+    Shift >>= 1;
+    Mask >>= Shift;
+  }
+  return ZeroBits;
+}
+
+// Disable signed.
+template <typename T>
+typename enable_if_c<std::numeric_limits<T>::is_integer &&
+                     std::numeric_limits<T>::is_signed, std::size_t>::type
+countTrailingZeros(T Val, ZeroBehavior ZB = ZB_Width) LLVM_DELETED_FUNCTION;
+
+#if __GNUC__ >= 4 || _MSC_VER
+template <>
+inline std::size_t countTrailingZeros<uint32_t>(uint32_t Val, ZeroBehavior ZB) {
+  if (ZB != ZB_Undefined && Val == 0)
+    return 32;
+
+#if __has_builtin(__builtin_ctz) || __GNUC_PREREQ(4, 0)
+  return __builtin_ctz(Val);
+#elif _MSC_VER
+  unsigned long Index;
+  _BitScanForward(&Index, Val);
+  return Index;
+#endif
+}
+
+#if !defined(_MSC_VER) || defined(_M_X64)
+template <>
+inline std::size_t countTrailingZeros<uint64_t>(uint64_t Val, ZeroBehavior ZB) {
+  if (ZB != ZB_Undefined && Val == 0)
+    return 64;
+
+#if __has_builtin(__builtin_ctzll) || __GNUC_PREREQ(4, 0)
+  return __builtin_ctzll(Val);
+#elif _MSC_VER
+  unsigned long Index;
+  _BitScanForward64(&Index, Val);
+  return Index;
+#endif
+}
+#endif
+#endif
+
+/// \brief Count number of 0's from the most significant bit to the least
+///   stopping at the first 1.
+///
+/// Only unsigned integral types are allowed.
+///
+/// \param ZB the behavior on an input of 0. Only ZB_Width and ZB_Undefined are
+///   valid arguments.
+template <typename T>
+typename enable_if_c<std::numeric_limits<T>::is_integer &&
+                     !std::numeric_limits<T>::is_signed, std::size_t>::type
+countLeadingZeros(T Val, ZeroBehavior ZB = ZB_Width) {
+  (void)ZB;
+
+  if (!Val)
+    return std::numeric_limits<T>::digits;
+
+  // Bisection method.
+  std::size_t ZeroBits = 0;
+  for (T Shift = std::numeric_limits<T>::digits >> 1; Shift; Shift >>= 1) {
+    T Tmp = Val >> Shift;
+    if (Tmp)
+      Val = Tmp;
+    else
+      ZeroBits |= Shift;
+  }
+  return ZeroBits;
+}
+
+// Disable signed.
+template <typename T>
+typename enable_if_c<std::numeric_limits<T>::is_integer &&
+                     std::numeric_limits<T>::is_signed, std::size_t>::type
+countLeadingZeros(T Val, ZeroBehavior ZB = ZB_Width) LLVM_DELETED_FUNCTION;
+
+#if __GNUC__ >= 4 || _MSC_VER
+template <>
+inline std::size_t countLeadingZeros<uint32_t>(uint32_t Val, ZeroBehavior ZB) {
+  if (ZB != ZB_Undefined && Val == 0)
+    return 32;
+
+#if __has_builtin(__builtin_clz) || __GNUC_PREREQ(4, 0)
+  return __builtin_clz(Val);
+#elif _MSC_VER
+  unsigned long Index;
+  _BitScanReverse(&Index, Val);
+  return Index ^ 31;
+#endif
+}
+
+#if !defined(_MSC_VER) || defined(_M_X64)
+template <>
+inline std::size_t countLeadingZeros<uint64_t>(uint64_t Val, ZeroBehavior ZB) {
+  if (ZB != ZB_Undefined && Val == 0)
+    return 64;
+
+#if __has_builtin(__builtin_clzll) || __GNUC_PREREQ(4, 0)
+  return __builtin_clzll(Val);
+#elif _MSC_VER
+  unsigned long Index;
+  _BitScanReverse64(&Index, Val);
+  return Index ^ 63;
+#endif
+}
+#endif
+#endif
+
+/// \brief Get the index of the first set bit starting from the least
+///   significant bit.
+///
+/// Only unsigned integral types are allowed.
+///
+/// \param ZB the behavior on an input of 0. Only ZB_Max and ZB_Undefined are
+///   valid arguments.
+template <typename T>
+typename enable_if_c<std::numeric_limits<T>::is_integer &&
+                     !std::numeric_limits<T>::is_signed, T>::type
+findFirstSet(T Val, ZeroBehavior ZB = ZB_Max) {
+  if (ZB == ZB_Max && Val == 0)
+    return std::numeric_limits<T>::max();
+
+  return countTrailingZeros(Val, ZB_Undefined);
+}
+
+// Disable signed.
+template <typename T>
+typename enable_if_c<std::numeric_limits<T>::is_integer &&
+                     std::numeric_limits<T>::is_signed, T>::type
+findFirstSet(T Val, ZeroBehavior ZB = ZB_Max) LLVM_DELETED_FUNCTION;
+
+/// \brief Get the index of the last set bit starting from the least
+///   significant bit.
+///
+/// Only unsigned integral types are allowed.
+///
+/// \param ZB the behavior on an input of 0. Only ZB_Max and ZB_Undefined are
+///   valid arguments.
+template <typename T>
+typename enable_if_c<std::numeric_limits<T>::is_integer &&
+                     !std::numeric_limits<T>::is_signed, T>::type
+findLastSet(T Val, ZeroBehavior ZB = ZB_Max) {
+  if (ZB == ZB_Max && Val == 0)
+    return std::numeric_limits<T>::max();
+
+  // Use ^ instead of - because both gcc and llvm can remove the associated ^
+  // in the __builtin_clz intrinsic on x86.
+  return countLeadingZeros(Val, ZB_Undefined) ^
+         (std::numeric_limits<T>::digits - 1);
+}
+
+// Disable signed.
+template <typename T>
+typename enable_if_c<std::numeric_limits<T>::is_integer &&
+                     std::numeric_limits<T>::is_signed, T>::type
+findLastSet(T Val, ZeroBehavior ZB = ZB_Max) LLVM_DELETED_FUNCTION;
+
+/// \brief Macro compressed bit reversal table for 256 bits.
+///
+/// http://graphics.stanford.edu/~seander/bithacks.html#BitReverseTable
+static const unsigned char BitReverseTable256[256] = {
+#define R2(n) n, n + 2 * 64, n + 1 * 64, n + 3 * 64
+#define R4(n) R2(n), R2(n + 2 * 16), R2(n + 1 * 16), R2(n + 3 * 16)
+#define R6(n) R4(n), R4(n + 2 * 4), R4(n + 1 * 4), R4(n + 3 * 4)
+  R6(0), R6(2), R6(1), R6(3)
+};
+
+/// \brief Reverse the bits in \p Val.
+template <typename T>
+T reverseBits(T Val) {
+  unsigned char in[sizeof(Val)];
+  unsigned char out[sizeof(Val)];
+  std::memcpy(in, &Val, sizeof(Val));
+  for (unsigned i = 0; i < sizeof(Val); ++i)
+    out[(sizeof(Val) - i) - 1] = BitReverseTable256[in[i]];
+  std::memcpy(&Val, out, sizeof(Val));
+  return Val;
+}
 
 // NOTE: The following support functions use the _32/_64 extensions instead of
 // type overloading so that signed and unsigned integers can be used without
@@ -157,84 +379,12 @@ inline uint64_t ByteSwap_64(uint64_t Value) {
   return sys::SwapByteOrder_64(Value);
 }
 
-/// CountLeadingZeros_32 - this function performs the platform optimal form of
-/// counting the number of zeros from the most significant bit to the first one
-/// bit.  Ex. CountLeadingZeros_32(0x00F000FF) == 8.
-/// Returns 32 if the word is zero.
-inline unsigned CountLeadingZeros_32(uint32_t Value) {
-  unsigned Count; // result
-#if __GNUC__ >= 4
-  // PowerPC is defined for __builtin_clz(0)
-#if !defined(__ppc__) && !defined(__ppc64__)
-  if (!Value) return 32;
-#endif
-  Count = __builtin_clz(Value);
-#else
-  if (!Value) return 32;
-  Count = 0;
-  // bisection method for count leading zeros
-  for (unsigned Shift = 32 >> 1; Shift; Shift >>= 1) {
-    uint32_t Tmp = Value >> Shift;
-    if (Tmp) {
-      Value = Tmp;
-    } else {
-      Count |= Shift;
-    }
-  }
-#endif
-  return Count;
-}
-
 /// CountLeadingOnes_32 - this function performs the operation of
 /// counting the number of ones from the most significant bit to the first zero
 /// bit.  Ex. CountLeadingOnes_32(0xFF0FFF00) == 8.
 /// Returns 32 if the word is all ones.
 inline unsigned CountLeadingOnes_32(uint32_t Value) {
-  return CountLeadingZeros_32(~Value);
-}
-
-/// CountLeadingZeros_64 - This function performs the platform optimal form
-/// of counting the number of zeros from the most significant bit to the first
-/// one bit (64 bit edition.)
-/// Returns 64 if the word is zero.
-inline unsigned CountLeadingZeros_64(uint64_t Value) {
-  unsigned Count; // result
-#if __GNUC__ >= 4
-  // PowerPC is defined for __builtin_clzll(0)
-#if !defined(__ppc__) && !defined(__ppc64__)
-  if (!Value) return 64;
-#endif
-  Count = __builtin_clzll(Value);
-#else
-  if (sizeof(long) == sizeof(int64_t)) {
-    if (!Value) return 64;
-    Count = 0;
-    // bisection method for count leading zeros
-    for (unsigned Shift = 64 >> 1; Shift; Shift >>= 1) {
-      uint64_t Tmp = Value >> Shift;
-      if (Tmp) {
-        Value = Tmp;
-      } else {
-        Count |= Shift;
-      }
-    }
-  } else {
-    // get hi portion
-    uint32_t Hi = Hi_32(Value);
-
-    // if some bits in hi portion
-    if (Hi) {
-        // leading zeros in hi portion plus all bits in lo portion
-        Count = CountLeadingZeros_32(Hi);
-    } else {
-        // get lo portion
-        uint32_t Lo = Lo_32(Value);
-        // same as 32 bit value
-        Count = CountLeadingZeros_32(Lo)+32;
-    }
-  }
-#endif
-  return Count;
+  return countLeadingZeros(~Value);
 }
 
 /// CountLeadingOnes_64 - This function performs the operation
@@ -242,27 +392,7 @@ inline unsigned CountLeadingZeros_64(uint64_t Value) {
 /// zero bit (64 bit edition.)
 /// Returns 64 if the word is all ones.
 inline unsigned CountLeadingOnes_64(uint64_t Value) {
-  return CountLeadingZeros_64(~Value);
-}
-
-/// CountTrailingZeros_32 - this function performs the platform optimal form of
-/// counting the number of zeros from the least significant bit to the first one
-/// bit.  Ex. CountTrailingZeros_32(0xFF00FF00) == 8.
-/// Returns 32 if the word is zero.
-inline unsigned CountTrailingZeros_32(uint32_t Value) {
-#if __GNUC__ >= 4
-  return Value ? __builtin_ctz(Value) : 32;
-#else
-  static const unsigned Mod37BitPosition[] = {
-    32, 0, 1, 26, 2, 23, 27, 0, 3, 16, 24, 30, 28, 11, 0, 13,
-    4, 7, 17, 0, 25, 22, 31, 15, 29, 10, 12, 6, 0, 21, 14, 9,
-    5, 20, 8, 19, 18
-  };
-  // Replace "-Value" by "1+~Value" in the following commented code to avoid 
-  // MSVC warning C4146
-  //    return Mod37BitPosition[(-Value & Value) % 37];
-  return Mod37BitPosition[((1 + ~Value) & Value) % 37];
-#endif
+  return countLeadingZeros(~Value);
 }
 
 /// CountTrailingOnes_32 - this function performs the operation of
@@ -270,29 +400,7 @@ inline unsigned CountTrailingZeros_32(uint32_t Value) {
 /// bit.  Ex. CountTrailingOnes_32(0x00FF00FF) == 8.
 /// Returns 32 if the word is all ones.
 inline unsigned CountTrailingOnes_32(uint32_t Value) {
-  return CountTrailingZeros_32(~Value);
-}
-
-/// CountTrailingZeros_64 - This function performs the platform optimal form
-/// of counting the number of zeros from the least significant bit to the first
-/// one bit (64 bit edition.)
-/// Returns 64 if the word is zero.
-inline unsigned CountTrailingZeros_64(uint64_t Value) {
-#if __GNUC__ >= 4
-  return Value ? __builtin_ctzll(Value) : 64;
-#else
-  static const unsigned Mod67Position[] = {
-    64, 0, 1, 39, 2, 15, 40, 23, 3, 12, 16, 59, 41, 19, 24, 54,
-    4, 64, 13, 10, 17, 62, 60, 28, 42, 30, 20, 51, 25, 44, 55,
-    47, 5, 32, 65, 38, 14, 22, 11, 58, 18, 53, 63, 9, 61, 27,
-    29, 50, 43, 46, 31, 37, 21, 57, 52, 8, 26, 49, 45, 36, 56,
-    7, 48, 35, 6, 34, 33, 0
-  };
-  // Replace "-Value" by "1+~Value" in the following commented code to avoid 
-  // MSVC warning C4146
-  //    return Mod67Position[(-Value & Value) % 67];
-  return Mod67Position[((1 + ~Value) & Value) % 67];
-#endif
+  return countTrailingZeros(~Value);
 }
 
 /// CountTrailingOnes_64 - This function performs the operation
@@ -300,7 +408,7 @@ inline unsigned CountTrailingZeros_64(uint64_t Value) {
 /// zero bit (64 bit edition.)
 /// Returns 64 if the word is all ones.
 inline unsigned CountTrailingOnes_64(uint64_t Value) {
-  return CountTrailingZeros_64(~Value);
+  return countTrailingZeros(~Value);
 }
 
 /// CountPopulation_32 - this function counts the number of set bits in a value.
@@ -333,26 +441,26 @@ inline unsigned CountPopulation_64(uint64_t Value) {
 /// -1 if the value is zero. (32 bit edition.)
 /// Ex. Log2_32(32) == 5, Log2_32(1) == 0, Log2_32(0) == -1, Log2_32(6) == 2
 inline unsigned Log2_32(uint32_t Value) {
-  return 31 - CountLeadingZeros_32(Value);
+  return 31 - countLeadingZeros(Value);
 }
 
 /// Log2_64 - This function returns the floor log base 2 of the specified value,
 /// -1 if the value is zero. (64 bit edition.)
 inline unsigned Log2_64(uint64_t Value) {
-  return 63 - CountLeadingZeros_64(Value);
+  return 63 - countLeadingZeros(Value);
 }
 
 /// Log2_32_Ceil - This function returns the ceil log base 2 of the specified
 /// value, 32 if the value is zero. (32 bit edition).
 /// Ex. Log2_32_Ceil(32) == 5, Log2_32_Ceil(1) == 0, Log2_32_Ceil(6) == 3
 inline unsigned Log2_32_Ceil(uint32_t Value) {
-  return 32-CountLeadingZeros_32(Value-1);
+  return 32 - countLeadingZeros(Value - 1);
 }
 
 /// Log2_64_Ceil - This function returns the ceil log base 2 of the specified
 /// value, 64 if the value is zero. (64 bit edition.)
 inline unsigned Log2_64_Ceil(uint64_t Value) {
-  return 64-CountLeadingZeros_64(Value-1);
+  return 64 - countLeadingZeros(Value - 1);
 }
 
 /// GreatestCommonDivisor64 - Return the greatest common divisor of the two
@@ -496,6 +604,13 @@ inline int64_t SignExtend64(uint64_t X, unsigned B) {
   return int64_t(X << (64 - B)) >> (64 - B);
 }
 
+#if defined(_MSC_VER)
+  // Visual Studio defines the HUGE_VAL class of macros using purposeful
+  // constant arithmetic overflow, which it then warns on when encountered.
+  const float huge_valf = std::numeric_limits<float>::infinity();
+#else
+  const float huge_valf = HUGE_VALF;
+#endif
 } // End llvm namespace
 
 #endif

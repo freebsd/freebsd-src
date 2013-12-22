@@ -2,9 +2,11 @@
 ;
 ; RUN: llc < %s -mtriple=s390x-linux-gnu | FileCheck %s
 
+declare i64 @foo()
+
 ; Check MSGR.
 define i64 @f1(i64 %a, i64 %b) {
-; CHECK: f1:
+; CHECK-LABEL: f1:
 ; CHECK: msgr %r2, %r3
 ; CHECK: br %r14
   %mul = mul i64 %a, %b
@@ -13,7 +15,7 @@ define i64 @f1(i64 %a, i64 %b) {
 
 ; Check MSG with no displacement.
 define i64 @f2(i64 %a, i64 *%src) {
-; CHECK: f2:
+; CHECK-LABEL: f2:
 ; CHECK: msg %r2, 0(%r3)
 ; CHECK: br %r14
   %b = load i64 *%src
@@ -23,7 +25,7 @@ define i64 @f2(i64 %a, i64 *%src) {
 
 ; Check the high end of the aligned MSG range.
 define i64 @f3(i64 %a, i64 *%src) {
-; CHECK: f3:
+; CHECK-LABEL: f3:
 ; CHECK: msg %r2, 524280(%r3)
 ; CHECK: br %r14
   %ptr = getelementptr i64 *%src, i64 65535
@@ -35,7 +37,7 @@ define i64 @f3(i64 %a, i64 *%src) {
 ; Check the next doubleword up, which needs separate address logic.
 ; Other sequences besides this one would be OK.
 define i64 @f4(i64 %a, i64 *%src) {
-; CHECK: f4:
+; CHECK-LABEL: f4:
 ; CHECK: agfi %r3, 524288
 ; CHECK: msg %r2, 0(%r3)
 ; CHECK: br %r14
@@ -47,7 +49,7 @@ define i64 @f4(i64 %a, i64 *%src) {
 
 ; Check the high end of the negative aligned MSG range.
 define i64 @f5(i64 %a, i64 *%src) {
-; CHECK: f5:
+; CHECK-LABEL: f5:
 ; CHECK: msg %r2, -8(%r3)
 ; CHECK: br %r14
   %ptr = getelementptr i64 *%src, i64 -1
@@ -58,7 +60,7 @@ define i64 @f5(i64 %a, i64 *%src) {
 
 ; Check the low end of the MSG range.
 define i64 @f6(i64 %a, i64 *%src) {
-; CHECK: f6:
+; CHECK-LABEL: f6:
 ; CHECK: msg %r2, -524288(%r3)
 ; CHECK: br %r14
   %ptr = getelementptr i64 *%src, i64 -65536
@@ -70,7 +72,7 @@ define i64 @f6(i64 %a, i64 *%src) {
 ; Check the next doubleword down, which needs separate address logic.
 ; Other sequences besides this one would be OK.
 define i64 @f7(i64 %a, i64 *%src) {
-; CHECK: f7:
+; CHECK-LABEL: f7:
 ; CHECK: agfi %r3, -524296
 ; CHECK: msg %r2, 0(%r3)
 ; CHECK: br %r14
@@ -82,7 +84,7 @@ define i64 @f7(i64 %a, i64 *%src) {
 
 ; Check that MSG allows an index.
 define i64 @f8(i64 %a, i64 %src, i64 %index) {
-; CHECK: f8:
+; CHECK-LABEL: f8:
 ; CHECK: msg %r2, 524280({{%r4,%r3|%r3,%r4}})
 ; CHECK: br %r14
   %add1 = add i64 %src, %index
@@ -91,4 +93,47 @@ define i64 @f8(i64 %a, i64 %src, i64 %index) {
   %b = load i64 *%ptr
   %mul = mul i64 %a, %b
   ret i64 %mul
+}
+
+; Check that multiplications of spilled values can use MSG rather than MSGR.
+define i64 @f9(i64 *%ptr0) {
+; CHECK-LABEL: f9:
+; CHECK: brasl %r14, foo@PLT
+; CHECK: msg %r2, 160(%r15)
+; CHECK: br %r14
+  %ptr1 = getelementptr i64 *%ptr0, i64 2
+  %ptr2 = getelementptr i64 *%ptr0, i64 4
+  %ptr3 = getelementptr i64 *%ptr0, i64 6
+  %ptr4 = getelementptr i64 *%ptr0, i64 8
+  %ptr5 = getelementptr i64 *%ptr0, i64 10
+  %ptr6 = getelementptr i64 *%ptr0, i64 12
+  %ptr7 = getelementptr i64 *%ptr0, i64 14
+  %ptr8 = getelementptr i64 *%ptr0, i64 16
+  %ptr9 = getelementptr i64 *%ptr0, i64 18
+
+  %val0 = load i64 *%ptr0
+  %val1 = load i64 *%ptr1
+  %val2 = load i64 *%ptr2
+  %val3 = load i64 *%ptr3
+  %val4 = load i64 *%ptr4
+  %val5 = load i64 *%ptr5
+  %val6 = load i64 *%ptr6
+  %val7 = load i64 *%ptr7
+  %val8 = load i64 *%ptr8
+  %val9 = load i64 *%ptr9
+
+  %ret = call i64 @foo()
+
+  %mul0 = mul i64 %ret, %val0
+  %mul1 = mul i64 %mul0, %val1
+  %mul2 = mul i64 %mul1, %val2
+  %mul3 = mul i64 %mul2, %val3
+  %mul4 = mul i64 %mul3, %val4
+  %mul5 = mul i64 %mul4, %val5
+  %mul6 = mul i64 %mul5, %val6
+  %mul7 = mul i64 %mul6, %val7
+  %mul8 = mul i64 %mul7, %val8
+  %mul9 = mul i64 %mul8, %val9
+
+  ret i64 %mul9
 }

@@ -2,6 +2,7 @@
 ; RUN: llc -mtriple=x86_64-pc-linux-gnu < %s -o - | FileCheck --check-prefix=LINUX-X64 %s
 ; RUN: llc -code-model=kernel -mtriple=x86_64-pc-linux-gnu < %s -o - | FileCheck --check-prefix=LINUX-KERNEL-X64 %s
 ; RUN: llc -mtriple=x86_64-apple-darwin < %s -o - | FileCheck --check-prefix=DARWIN-X64 %s
+; RUN: llc -mtriple=amd64-pc-openbsd < %s -o - | FileCheck --check-prefix=OPENBSD-AMD64 %s
 
 %struct.foo = type { [16 x i8] }
 %struct.foo.0 = type { [4 x i8] }
@@ -23,19 +24,19 @@
 ; Requires no protector.
 define void @test1a(i8* %a) nounwind uwtable {
 entry:
-; LINUX-I386: test1a:
+; LINUX-I386-LABEL: test1a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test1a:
+; LINUX-X64-LABEL: test1a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test1a:
+; LINUX-KERNEL-X64-LABEL: test1a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test1a:
+; DARWIN-X64-LABEL: test1a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a.addr = alloca i8*, align 8
@@ -54,21 +55,25 @@ entry:
 ; Requires protector.
 define void @test1b(i8* %a) nounwind uwtable ssp {
 entry:
-; LINUX-I386: test1b:
+; LINUX-I386-LABEL: test1b:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test1b:
+; LINUX-X64-LABEL: test1b:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test1b:
+; LINUX-KERNEL-X64-LABEL: test1b:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test1b:
+; DARWIN-X64-LABEL: test1b:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; OPENBSD-AMD64-LABEL: test1b:
+; OPENBSD-AMD64: movq __guard_local(%rip)
+; OPENBSD-AMD64: callq __stack_smash_handler
   %a.addr = alloca i8*, align 8
   %buf = alloca [16 x i8], align 16
   store i8* %a, i8** %a.addr, align 8
@@ -85,19 +90,19 @@ entry:
 ; Requires protector.
 define void @test1c(i8* %a) nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test1c:
+; LINUX-I386-LABEL: test1c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test1c:
+; LINUX-X64-LABEL: test1c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test1c:
+; LINUX-KERNEL-X64-LABEL: test1c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test1c:
+; DARWIN-X64-LABEL: test1c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a.addr = alloca i8*, align 8
@@ -116,19 +121,19 @@ entry:
 ; Requires protector.
 define void @test1d(i8* %a) nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test1d:
+; LINUX-I386-LABEL: test1d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test1d:
+; LINUX-X64-LABEL: test1d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test1d:
+; LINUX-KERNEL-X64-LABEL: test1d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test1d:
+; DARWIN-X64-LABEL: test1d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a.addr = alloca i8*, align 8
@@ -147,19 +152,19 @@ entry:
 ; Requires no protector.
 define void @test2a(i8* %a) nounwind uwtable {
 entry:
-; LINUX-I386: test2a:
+; LINUX-I386-LABEL: test2a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test2a:
+; LINUX-X64-LABEL: test2a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test2a:
+; LINUX-KERNEL-X64-LABEL: test2a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test2a:
+; DARWIN-X64-LABEL: test2a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a.addr = alloca i8*, align 8
@@ -180,19 +185,19 @@ entry:
 ; Requires protector.
 define void @test2b(i8* %a) nounwind uwtable ssp {
 entry:
-; LINUX-I386: test2b:
+; LINUX-I386-LABEL: test2b:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test2b:
+; LINUX-X64-LABEL: test2b:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test2b:
+; LINUX-KERNEL-X64-LABEL: test2b:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test2b:
+; DARWIN-X64-LABEL: test2b:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a.addr = alloca i8*, align 8
@@ -213,19 +218,19 @@ entry:
 ; Requires protector.
 define void @test2c(i8* %a) nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test2c:
+; LINUX-I386-LABEL: test2c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test2c:
+; LINUX-X64-LABEL: test2c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test2c:
+; LINUX-KERNEL-X64-LABEL: test2c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test2c:
+; DARWIN-X64-LABEL: test2c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a.addr = alloca i8*, align 8
@@ -246,19 +251,19 @@ entry:
 ; Requires protector.
 define void @test2d(i8* %a) nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test2d:
+; LINUX-I386-LABEL: test2d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test2d:
+; LINUX-X64-LABEL: test2d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test2d:
+; LINUX-KERNEL-X64-LABEL: test2d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test2d:
+; DARWIN-X64-LABEL: test2d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a.addr = alloca i8*, align 8
@@ -279,19 +284,19 @@ entry:
 ; Requires no protector.
 define void @test3a(i8* %a) nounwind uwtable {
 entry:
-; LINUX-I386: test3a:
+; LINUX-I386-LABEL: test3a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test3a:
+; LINUX-X64-LABEL: test3a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test3a:
+; LINUX-KERNEL-X64-LABEL: test3a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test3a:
+; DARWIN-X64-LABEL: test3a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a.addr = alloca i8*, align 8
@@ -310,19 +315,19 @@ entry:
 ; Requires no protector.
 define void @test3b(i8* %a) nounwind uwtable ssp {
 entry:
-; LINUX-I386: test3b:
+; LINUX-I386-LABEL: test3b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test3b:
+; LINUX-X64-LABEL: test3b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test3b:
+; LINUX-KERNEL-X64-LABEL: test3b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test3b:
+; DARWIN-X64-LABEL: test3b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a.addr = alloca i8*, align 8
@@ -341,19 +346,19 @@ entry:
 ; Requires protector.
 define void @test3c(i8* %a) nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test3c:
+; LINUX-I386-LABEL: test3c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test3c:
+; LINUX-X64-LABEL: test3c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test3c:
+; LINUX-KERNEL-X64-LABEL: test3c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test3c:
+; DARWIN-X64-LABEL: test3c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a.addr = alloca i8*, align 8
@@ -372,19 +377,19 @@ entry:
 ; Requires protector.
 define void @test3d(i8* %a) nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test3d:
+; LINUX-I386-LABEL: test3d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test3d:
+; LINUX-X64-LABEL: test3d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test3d:
+; LINUX-KERNEL-X64-LABEL: test3d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test3d:
+; DARWIN-X64-LABEL: test3d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a.addr = alloca i8*, align 8
@@ -403,19 +408,19 @@ entry:
 ; Requires no protector.
 define void @test4a(i8* %a) nounwind uwtable {
 entry:
-; LINUX-I386: test4a:
+; LINUX-I386-LABEL: test4a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test4a:
+; LINUX-X64-LABEL: test4a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test4a:
+; LINUX-KERNEL-X64-LABEL: test4a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test4a:
+; DARWIN-X64-LABEL: test4a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a.addr = alloca i8*, align 8
@@ -436,19 +441,19 @@ entry:
 ; Requires no protector.
 define void @test4b(i8* %a) nounwind uwtable ssp {
 entry:
-; LINUX-I386: test4b:
+; LINUX-I386-LABEL: test4b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test4b:
+; LINUX-X64-LABEL: test4b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test4b:
+; LINUX-KERNEL-X64-LABEL: test4b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test4b:
+; DARWIN-X64-LABEL: test4b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a.addr = alloca i8*, align 8
@@ -469,19 +474,19 @@ entry:
 ; Requires protector.
 define void @test4c(i8* %a) nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test4c:
+; LINUX-I386-LABEL: test4c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test4c:
+; LINUX-X64-LABEL: test4c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test4c:
+; LINUX-KERNEL-X64-LABEL: test4c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test4c:
+; DARWIN-X64-LABEL: test4c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a.addr = alloca i8*, align 8
@@ -502,19 +507,19 @@ entry:
 ; Requires protector.
 define void @test4d(i8* %a) nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test4d:
+; LINUX-I386-LABEL: test4d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test4d:
+; LINUX-X64-LABEL: test4d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test4d:
+; LINUX-KERNEL-X64-LABEL: test4d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test4d:
+; DARWIN-X64-LABEL: test4d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a.addr = alloca i8*, align 8
@@ -535,19 +540,19 @@ entry:
 ; Requires no protector.
 define void @test5a(i8* %a) nounwind uwtable {
 entry:
-; LINUX-I386: test5a:
+; LINUX-I386-LABEL: test5a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test5a:
+; LINUX-X64-LABEL: test5a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test5a:
+; LINUX-KERNEL-X64-LABEL: test5a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test5a:
+; DARWIN-X64-LABEL: test5a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a.addr = alloca i8*, align 8
@@ -562,19 +567,19 @@ entry:
 ; Requires no protector.
 define void @test5b(i8* %a) nounwind uwtable ssp {
 entry:
-; LINUX-I386: test5b:
+; LINUX-I386-LABEL: test5b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test5b:
+; LINUX-X64-LABEL: test5b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test5b:
+; LINUX-KERNEL-X64-LABEL: test5b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test5b:
+; DARWIN-X64-LABEL: test5b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a.addr = alloca i8*, align 8
@@ -589,19 +594,19 @@ entry:
 ; Requires no protector.
 define void @test5c(i8* %a) nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test5c:
+; LINUX-I386-LABEL: test5c:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test5c:
+; LINUX-X64-LABEL: test5c:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test5c:
+; LINUX-KERNEL-X64-LABEL: test5c:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test5c:
+; DARWIN-X64-LABEL: test5c:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a.addr = alloca i8*, align 8
@@ -616,19 +621,19 @@ entry:
 ; Requires protector.
 define void @test5d(i8* %a) nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test5d:
+; LINUX-I386-LABEL: test5d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test5d:
+; LINUX-X64-LABEL: test5d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test5d:
+; LINUX-KERNEL-X64-LABEL: test5d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test5d:
+; DARWIN-X64-LABEL: test5d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a.addr = alloca i8*, align 8
@@ -643,19 +648,19 @@ entry:
 ; Requires no protector.
 define void @test6a() nounwind uwtable {
 entry:
-; LINUX-I386: test6a:
+; LINUX-I386-LABEL: test6a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test6a:
+; LINUX-X64-LABEL: test6a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test6a:
+; LINUX-KERNEL-X64-LABEL: test6a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test6a:
+; DARWIN-X64-LABEL: test6a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %retval = alloca i32, align 4
@@ -674,19 +679,19 @@ entry:
 ; Requires no protector.
 define void @test6b() nounwind uwtable ssp {
 entry:
-; LINUX-I386: test6b:
+; LINUX-I386-LABEL: test6b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test6b:
+; LINUX-X64-LABEL: test6b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test6b:
+; LINUX-KERNEL-X64-LABEL: test6b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test6b:
+; DARWIN-X64-LABEL: test6b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %retval = alloca i32, align 4
@@ -705,19 +710,19 @@ entry:
 ; Requires protector.
 define void @test6c() nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test6c:
+; LINUX-I386-LABEL: test6c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test6c:
+; LINUX-X64-LABEL: test6c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test6c:
+; LINUX-KERNEL-X64-LABEL: test6c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test6c:
+; DARWIN-X64-LABEL: test6c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %retval = alloca i32, align 4
@@ -736,19 +741,19 @@ entry:
 ; Requires protector.
 define void @test6d() nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test6d:
+; LINUX-I386-LABEL: test6d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test6d:
+; LINUX-X64-LABEL: test6d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test6d:
+; LINUX-KERNEL-X64-LABEL: test6d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test6d:
+; DARWIN-X64-LABEL: test6d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %retval = alloca i32, align 4
@@ -767,19 +772,19 @@ entry:
 ; Requires no protector.
 define void @test7a() nounwind uwtable readnone {
 entry:
-; LINUX-I386: test7a:
+; LINUX-I386-LABEL: test7a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test7a:
+; LINUX-X64-LABEL: test7a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test7a:
+; LINUX-KERNEL-X64-LABEL: test7a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test7a:
+; DARWIN-X64-LABEL: test7a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a = alloca i32, align 4
@@ -793,19 +798,19 @@ entry:
 ; Requires no protector.
 define void @test7b() nounwind uwtable readnone ssp {
 entry:
-; LINUX-I386: test7b:
+; LINUX-I386-LABEL: test7b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test7b:
+; LINUX-X64-LABEL: test7b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test7b:
+; LINUX-KERNEL-X64-LABEL: test7b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test7b:
+; DARWIN-X64-LABEL: test7b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a = alloca i32, align 4
@@ -819,19 +824,19 @@ entry:
 ; Requires protector.
 define void @test7c() nounwind uwtable readnone sspstrong {
 entry:
-; LINUX-I386: test7c:
+; LINUX-I386-LABEL: test7c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test7c:
+; LINUX-X64-LABEL: test7c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test7c:
+; LINUX-KERNEL-X64-LABEL: test7c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test7c:
+; DARWIN-X64-LABEL: test7c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca i32, align 4
@@ -845,19 +850,19 @@ entry:
 ; Requires protector.
 define void @test7d() nounwind uwtable readnone sspreq {
 entry:
-; LINUX-I386: test7d:
+; LINUX-I386-LABEL: test7d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test7d:
+; LINUX-X64-LABEL: test7d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test7d:
+; LINUX-KERNEL-X64-LABEL: test7d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test7d:
+; DARWIN-X64-LABEL: test7d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca i32, align 4
@@ -871,19 +876,19 @@ entry:
 ; Requires no protector.
 define void @test8a() nounwind uwtable {
 entry:
-; LINUX-I386: test8a:
+; LINUX-I386-LABEL: test8a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test8a:
+; LINUX-X64-LABEL: test8a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test8a:
+; LINUX-KERNEL-X64-LABEL: test8a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test8a:
+; DARWIN-X64-LABEL: test8a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %b = alloca i32, align 4
@@ -896,19 +901,19 @@ entry:
 ; Requires no protector.
 define void @test8b() nounwind uwtable ssp {
 entry:
-; LINUX-I386: test8b:
+; LINUX-I386-LABEL: test8b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test8b:
+; LINUX-X64-LABEL: test8b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test8b:
+; LINUX-KERNEL-X64-LABEL: test8b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test8b:
+; DARWIN-X64-LABEL: test8b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %b = alloca i32, align 4
@@ -921,19 +926,19 @@ entry:
 ; Requires protector.
 define void @test8c() nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test8c:
+; LINUX-I386-LABEL: test8c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test8c:
+; LINUX-X64-LABEL: test8c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test8c:
+; LINUX-KERNEL-X64-LABEL: test8c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test8c:
+; DARWIN-X64-LABEL: test8c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %b = alloca i32, align 4
@@ -946,19 +951,19 @@ entry:
 ; Requires protector.
 define void @test8d() nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test8d:
+; LINUX-I386-LABEL: test8d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test8d:
+; LINUX-X64-LABEL: test8d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test8d:
+; LINUX-KERNEL-X64-LABEL: test8d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test8d:
+; DARWIN-X64-LABEL: test8d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %b = alloca i32, align 4
@@ -971,19 +976,19 @@ entry:
 ; Requires no protector.
 define void @test9a() nounwind uwtable {
 entry:
-; LINUX-I386: test9a:
+; LINUX-I386-LABEL: test9a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test9a:
+; LINUX-X64-LABEL: test9a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test9a:
+; LINUX-KERNEL-X64-LABEL: test9a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test9a:
+; DARWIN-X64-LABEL: test9a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %x = alloca double, align 8
@@ -1000,19 +1005,19 @@ entry:
 ; Requires no protector.
 define void @test9b() nounwind uwtable ssp {
 entry:
-; LINUX-I386: test9b:
+; LINUX-I386-LABEL: test9b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test9b:
+; LINUX-X64-LABEL: test9b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test9b:
+; LINUX-KERNEL-X64-LABEL: test9b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test9b:
+; DARWIN-X64-LABEL: test9b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %x = alloca double, align 8
@@ -1029,19 +1034,19 @@ entry:
 ; Requires protector.
 define void @test9c() nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test9c:
+; LINUX-I386-LABEL: test9c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test9c:
+; LINUX-X64-LABEL: test9c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test9c:
+; LINUX-KERNEL-X64-LABEL: test9c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test9c:
+; DARWIN-X64-LABEL: test9c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %x = alloca double, align 8
@@ -1058,19 +1063,19 @@ entry:
 ; Requires protector.
 define void @test9d() nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test9d:
+; LINUX-I386-LABEL: test9d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test9d:
+; LINUX-X64-LABEL: test9d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test9d:
+; LINUX-KERNEL-X64-LABEL: test9d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test9d:
+; DARWIN-X64-LABEL: test9d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %x = alloca double, align 8
@@ -1087,19 +1092,19 @@ entry:
 ; Requires no protector.
 define void @test10a() nounwind uwtable {
 entry:
-; LINUX-I386: test10a:
+; LINUX-I386-LABEL: test10a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test10a:
+; LINUX-X64-LABEL: test10a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test10a:
+; LINUX-KERNEL-X64-LABEL: test10a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test10a:
+; DARWIN-X64-LABEL: test10a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %x = alloca double, align 8
@@ -1131,19 +1136,19 @@ if.end4:                                          ; preds = %if.else, %if.then3,
 ; Requires no protector.
 define void @test10b() nounwind uwtable ssp {
 entry:
-; LINUX-I386: test10b:
+; LINUX-I386-LABEL: test10b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test10b:
+; LINUX-X64-LABEL: test10b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test10b:
+; LINUX-KERNEL-X64-LABEL: test10b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test10b:
+; DARWIN-X64-LABEL: test10b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %x = alloca double, align 8
@@ -1175,19 +1180,19 @@ if.end4:                                          ; preds = %if.else, %if.then3,
 ; Requires protector.
 define void @test10c() nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test10c:
+; LINUX-I386-LABEL: test10c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test10c:
+; LINUX-X64-LABEL: test10c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test10c:
+; LINUX-KERNEL-X64-LABEL: test10c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test10c:
+; DARWIN-X64-LABEL: test10c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %x = alloca double, align 8
@@ -1219,19 +1224,19 @@ if.end4:                                          ; preds = %if.else, %if.then3,
 ; Requires protector.
 define void @test10d() nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test10d:
+; LINUX-I386-LABEL: test10d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test10d:
+; LINUX-X64-LABEL: test10d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test10d:
+; LINUX-KERNEL-X64-LABEL: test10d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test10d:
+; DARWIN-X64-LABEL: test10d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %x = alloca double, align 8
@@ -1263,19 +1268,19 @@ if.end4:                                          ; preds = %if.else, %if.then3,
 ; Requires no protector.
 define void @test11a() nounwind uwtable {
 entry:
-; LINUX-I386: test11a:
+; LINUX-I386-LABEL: test11a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test11a:
+; LINUX-X64-LABEL: test11a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test11a:
+; LINUX-KERNEL-X64-LABEL: test11a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test11a:
+; DARWIN-X64-LABEL: test11a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %c = alloca %struct.pair, align 4
@@ -1292,19 +1297,19 @@ entry:
 ; Requires no protector.
 define void @test11b() nounwind uwtable ssp {
 entry:
-; LINUX-I386: test11b:
+; LINUX-I386-LABEL: test11b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test11b:
+; LINUX-X64-LABEL: test11b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test11b:
+; LINUX-KERNEL-X64-LABEL: test11b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test11b:
+; DARWIN-X64-LABEL: test11b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %c = alloca %struct.pair, align 4
@@ -1321,19 +1326,19 @@ entry:
 ; Requires protector.
 define void @test11c() nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test11c:
+; LINUX-I386-LABEL: test11c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test11c:
+; LINUX-X64-LABEL: test11c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test11c:
+; LINUX-KERNEL-X64-LABEL: test11c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test11c:
+; DARWIN-X64-LABEL: test11c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %c = alloca %struct.pair, align 4
@@ -1350,19 +1355,19 @@ entry:
 ; Requires protector.
 define void @test11d() nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test11d:
+; LINUX-I386-LABEL: test11d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test11d:
+; LINUX-X64-LABEL: test11d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test11d:
+; LINUX-KERNEL-X64-LABEL: test11d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test11d:
+; DARWIN-X64-LABEL: test11d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %c = alloca %struct.pair, align 4
@@ -1379,19 +1384,19 @@ entry:
 ; Requires no protector.
 define void @test12a() nounwind uwtable {
 entry:
-; LINUX-I386: test12a:
+; LINUX-I386-LABEL: test12a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test12a:
+; LINUX-X64-LABEL: test12a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test12a:
+; LINUX-KERNEL-X64-LABEL: test12a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test12a:
+; DARWIN-X64-LABEL: test12a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %c = alloca %struct.pair, align 4
@@ -1407,19 +1412,19 @@ entry:
 ; Requires no protector.
 define void @test12b() nounwind uwtable ssp {
 entry:
-; LINUX-I386: test12b:
+; LINUX-I386-LABEL: test12b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test12b:
+; LINUX-X64-LABEL: test12b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test12b:
+; LINUX-KERNEL-X64-LABEL: test12b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test12b:
+; DARWIN-X64-LABEL: test12b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %c = alloca %struct.pair, align 4
@@ -1435,19 +1440,19 @@ entry:
 ; Requires protector.
 define void @test12c() nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test12c:
+; LINUX-I386-LABEL: test12c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test12c:
+; LINUX-X64-LABEL: test12c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test12c:
+; LINUX-KERNEL-X64-LABEL: test12c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test12c:
+; DARWIN-X64-LABEL: test12c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %c = alloca %struct.pair, align 4
@@ -1463,19 +1468,19 @@ entry:
 ; Requires protector.
 define void @test12d() nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test12d:
+; LINUX-I386-LABEL: test12d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test12d:
+; LINUX-X64-LABEL: test12d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test12d:
+; LINUX-KERNEL-X64-LABEL: test12d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test12d:
+; DARWIN-X64-LABEL: test12d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %c = alloca %struct.pair, align 4
@@ -1491,19 +1496,19 @@ entry:
 ; Requires no protector.
 define void @test13a() nounwind uwtable {
 entry:
-; LINUX-I386: test13a:
+; LINUX-I386-LABEL: test13a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test13a:
+; LINUX-X64-LABEL: test13a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test13a:
+; LINUX-KERNEL-X64-LABEL: test13a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test13a:
+; DARWIN-X64-LABEL: test13a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %c = alloca %struct.pair, align 4
@@ -1517,19 +1522,19 @@ entry:
 ; Requires no protector.
 define void @test13b() nounwind uwtable ssp {
 entry:
-; LINUX-I386: test13b:
+; LINUX-I386-LABEL: test13b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test13b:
+; LINUX-X64-LABEL: test13b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test13b:
+; LINUX-KERNEL-X64-LABEL: test13b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test13b:
+; DARWIN-X64-LABEL: test13b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %c = alloca %struct.pair, align 4
@@ -1543,19 +1548,19 @@ entry:
 ; Requires protector.
 define void @test13c() nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test13c:
+; LINUX-I386-LABEL: test13c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test13c:
+; LINUX-X64-LABEL: test13c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test13c:
+; LINUX-KERNEL-X64-LABEL: test13c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test13c:
+; DARWIN-X64-LABEL: test13c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %c = alloca %struct.pair, align 4
@@ -1569,19 +1574,19 @@ entry:
 ; Requires protector.
 define void @test13d() nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test13d:
+; LINUX-I386-LABEL: test13d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test13d:
+; LINUX-X64-LABEL: test13d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test13d:
+; LINUX-KERNEL-X64-LABEL: test13d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test13d:
+; DARWIN-X64-LABEL: test13d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %c = alloca %struct.pair, align 4
@@ -1595,19 +1600,19 @@ entry:
 ; Requires no protector.
 define void @test14a() nounwind uwtable {
 entry:
-; LINUX-I386: test14a:
+; LINUX-I386-LABEL: test14a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test14a:
+; LINUX-X64-LABEL: test14a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test14a:
+; LINUX-KERNEL-X64-LABEL: test14a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test14a:
+; DARWIN-X64-LABEL: test14a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a = alloca i32, align 4
@@ -1621,19 +1626,19 @@ entry:
 ; Requires no protector.
 define void @test14b() nounwind uwtable ssp {
 entry:
-; LINUX-I386: test14b:
+; LINUX-I386-LABEL: test14b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test14b:
+; LINUX-X64-LABEL: test14b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test14b:
+; LINUX-KERNEL-X64-LABEL: test14b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test14b:
+; DARWIN-X64-LABEL: test14b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a = alloca i32, align 4
@@ -1647,19 +1652,19 @@ entry:
 ; Requires protector.
 define void @test14c() nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test14c:
+; LINUX-I386-LABEL: test14c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test14c:
+; LINUX-X64-LABEL: test14c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test14c:
+; LINUX-KERNEL-X64-LABEL: test14c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test14c:
+; DARWIN-X64-LABEL: test14c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca i32, align 4
@@ -1673,19 +1678,19 @@ entry:
 ; Requires protector.
 define void @test14d() nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test14d:
+; LINUX-I386-LABEL: test14d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test14d:
+; LINUX-X64-LABEL: test14d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test14d:
+; LINUX-KERNEL-X64-LABEL: test14d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test14d:
+; DARWIN-X64-LABEL: test14d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca i32, align 4
@@ -1700,19 +1705,19 @@ entry:
 ; Requires no protector.
 define void @test15a() nounwind uwtable {
 entry:
-; LINUX-I386: test15a:
+; LINUX-I386-LABEL: test15a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test15a:
+; LINUX-X64-LABEL: test15a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test15a:
+; LINUX-KERNEL-X64-LABEL: test15a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test15a:
+; DARWIN-X64-LABEL: test15a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a = alloca i32, align 4
@@ -1731,19 +1736,19 @@ entry:
 ; Requires no protector.
 define void @test15b() nounwind uwtable ssp {
 entry:
-; LINUX-I386: test15b:
+; LINUX-I386-LABEL: test15b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test15b:
+; LINUX-X64-LABEL: test15b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test15b:
+; LINUX-KERNEL-X64-LABEL: test15b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test15b:
+; DARWIN-X64-LABEL: test15b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a = alloca i32, align 4
@@ -1762,19 +1767,19 @@ entry:
 ; Requires protector.
 define void @test15c() nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test15c:
+; LINUX-I386-LABEL: test15c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test15c:
+; LINUX-X64-LABEL: test15c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test15c:
+; LINUX-KERNEL-X64-LABEL: test15c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test15c:
+; DARWIN-X64-LABEL: test15c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca i32, align 4
@@ -1793,19 +1798,19 @@ entry:
 ; Requires protector.
 define void @test15d() nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test15d:
+; LINUX-I386-LABEL: test15d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test15d:
+; LINUX-X64-LABEL: test15d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test15d:
+; LINUX-KERNEL-X64-LABEL: test15d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test15d:
+; DARWIN-X64-LABEL: test15d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca i32, align 4
@@ -1824,19 +1829,19 @@ entry:
 ; Requires no protector.
 define void @test16a() nounwind uwtable {
 entry:
-; LINUX-I386: test16a:
+; LINUX-I386-LABEL: test16a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test16a:
+; LINUX-X64-LABEL: test16a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test16a:
+; LINUX-KERNEL-X64-LABEL: test16a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test16a:
+; DARWIN-X64-LABEL: test16a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a = alloca i32, align 4
@@ -1852,19 +1857,19 @@ entry:
 ; Requires no protector.
 define void @test16b() nounwind uwtable ssp {
 entry:
-; LINUX-I386: test16b:
+; LINUX-I386-LABEL: test16b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test16b:
+; LINUX-X64-LABEL: test16b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test16b:
+; LINUX-KERNEL-X64-LABEL: test16b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test16b:
+; DARWIN-X64-LABEL: test16b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a = alloca i32, align 4
@@ -1880,19 +1885,19 @@ entry:
 ; Requires protector.
 define void @test16c() nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test16c:
+; LINUX-I386-LABEL: test16c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test16c:
+; LINUX-X64-LABEL: test16c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test16c:
+; LINUX-KERNEL-X64-LABEL: test16c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test16c:
+; DARWIN-X64-LABEL: test16c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca i32, align 4
@@ -1908,19 +1913,19 @@ entry:
 ; Requires protector.
 define void @test16d() nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test16d:
+; LINUX-I386-LABEL: test16d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test16d:
+; LINUX-X64-LABEL: test16d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test16d:
+; LINUX-KERNEL-X64-LABEL: test16d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test16d:
+; DARWIN-X64-LABEL: test16d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca i32, align 4
@@ -1935,19 +1940,19 @@ entry:
 ; Requires no protector.
 define void @test17a() nounwind uwtable {
 entry:
-; LINUX-I386: test17a:
+; LINUX-I386-LABEL: test17a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test17a:
+; LINUX-X64-LABEL: test17a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test17a:
+; LINUX-KERNEL-X64-LABEL: test17a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test17a:
+; DARWIN-X64-LABEL: test17a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %c = alloca %struct.vec, align 16
@@ -1962,19 +1967,19 @@ entry:
 ; Requires no protector.
 define void @test17b() nounwind uwtable ssp {
 entry:
-; LINUX-I386: test17b:
+; LINUX-I386-LABEL: test17b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test17b:
+; LINUX-X64-LABEL: test17b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test17b:
+; LINUX-KERNEL-X64-LABEL: test17b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test17b:
+; DARWIN-X64-LABEL: test17b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %c = alloca %struct.vec, align 16
@@ -1989,19 +1994,19 @@ entry:
 ; Requires protector.
 define void @test17c() nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test17c:
+; LINUX-I386-LABEL: test17c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test17c:
+; LINUX-X64-LABEL: test17c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test17c:
+; LINUX-KERNEL-X64-LABEL: test17c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test17c:
+; DARWIN-X64-LABEL: test17c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %c = alloca %struct.vec, align 16
@@ -2016,19 +2021,19 @@ entry:
 ; Requires protector.
 define void @test17d() nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test17d:
+; LINUX-I386-LABEL: test17d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test17d:
+; LINUX-X64-LABEL: test17d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test17d:
+; LINUX-KERNEL-X64-LABEL: test17d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test17d:
+; DARWIN-X64-LABEL: test17d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %c = alloca %struct.vec, align 16
@@ -2043,19 +2048,19 @@ entry:
 ; Requires no protector.
 define i32 @test18a() uwtable {
 entry:
-; LINUX-I386: test18a:
+; LINUX-I386-LABEL: test18a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test18a:
+; LINUX-X64-LABEL: test18a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test18a:
+; LINUX-KERNEL-X64-LABEL: test18a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test18a:
+; DARWIN-X64-LABEL: test18a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a = alloca i32, align 4
@@ -2079,19 +2084,19 @@ lpad:
 ; Requires no protector.
 define i32 @test18b() uwtable ssp {
 entry:
-; LINUX-I386: test18b:
+; LINUX-I386-LABEL: test18b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test18b:
+; LINUX-X64-LABEL: test18b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test18b:
+; LINUX-KERNEL-X64-LABEL: test18b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test18b:
+; DARWIN-X64-LABEL: test18b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a = alloca i32, align 4
@@ -2115,19 +2120,19 @@ lpad:
 ; Requires protector.
 define i32 @test18c() uwtable sspstrong {
 entry:
-; LINUX-I386: test18c:
+; LINUX-I386-LABEL: test18c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test18c:
+; LINUX-X64-LABEL: test18c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test18c:
+; LINUX-KERNEL-X64-LABEL: test18c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test18c:
+; DARWIN-X64-LABEL: test18c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca i32, align 4
@@ -2151,19 +2156,19 @@ lpad:
 ; Requires protector.
 define i32 @test18d() uwtable sspreq {
 entry:
-; LINUX-I386: test18d:
+; LINUX-I386-LABEL: test18d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test18d:
+; LINUX-X64-LABEL: test18d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test18d:
+; LINUX-KERNEL-X64-LABEL: test18d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test18d:
+; DARWIN-X64-LABEL: test18d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca i32, align 4
@@ -2188,19 +2193,19 @@ lpad:
 ; Requires no protector.
 define i32 @test19a() uwtable {
 entry:
-; LINUX-I386: test19a:
+; LINUX-I386-LABEL: test19a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test19a:
+; LINUX-X64-LABEL: test19a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test19a:
+; LINUX-KERNEL-X64-LABEL: test19a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test19a:
+; DARWIN-X64-LABEL: test19a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %c = alloca %struct.pair, align 4
@@ -2227,19 +2232,19 @@ lpad:
 ; Requires no protector.
 define i32 @test19b() uwtable ssp {
 entry:
-; LINUX-I386: test19b:
+; LINUX-I386-LABEL: test19b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test19b:
+; LINUX-X64-LABEL: test19b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test19b:
+; LINUX-KERNEL-X64-LABEL: test19b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test19b:
+; DARWIN-X64-LABEL: test19b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %c = alloca %struct.pair, align 4
@@ -2266,19 +2271,19 @@ lpad:
 ; Requires protector.
 define i32 @test19c() uwtable sspstrong {
 entry:
-; LINUX-I386: test19c:
+; LINUX-I386-LABEL: test19c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test19c:
+; LINUX-X64-LABEL: test19c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test19c:
+; LINUX-KERNEL-X64-LABEL: test19c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test19c:
+; DARWIN-X64-LABEL: test19c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %c = alloca %struct.pair, align 4
@@ -2305,21 +2310,25 @@ lpad:
 ; Requires protector.
 define i32 @test19d() uwtable sspreq {
 entry:
-; LINUX-I386: test19d:
+; LINUX-I386-LABEL: test19d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
+; LINUX-I386-NOT: calll __stack_chk_fail
 
-; LINUX-X64: test19d:
+; LINUX-X64-LABEL: test19d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
+; LINUX-X64-NOT: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test19d:
+; LINUX-KERNEL-X64-LABEL: test19d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
+; LINUX-KERNEL-X64-NOT: callq ___stack_chk_fail
 
-; DARWIN-X64: test19d:
+; DARWIN-X64-LABEL: test19d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+; DARWIN-X64-NOT: callq ___stack_chk_fail
   %c = alloca %struct.pair, align 4
   %exn.slot = alloca i8*
   %ehselector.slot = alloca i32
@@ -2343,19 +2352,19 @@ lpad:
 ; Requires no protector.
 define void @test20a() nounwind uwtable {
 entry:
-; LINUX-I386: test20a:
+; LINUX-I386-LABEL: test20a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test20a:
+; LINUX-X64-LABEL: test20a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test20a:
+; LINUX-KERNEL-X64-LABEL: test20a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test20a:
+; DARWIN-X64-LABEL: test20a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a = alloca i32*, align 8
@@ -2373,19 +2382,19 @@ entry:
 ; Requires no protector.
 define void @test20b() nounwind uwtable ssp {
 entry:
-; LINUX-I386: test20b:
+; LINUX-I386-LABEL: test20b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test20b:
+; LINUX-X64-LABEL: test20b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test20b:
+; LINUX-KERNEL-X64-LABEL: test20b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test20b:
+; DARWIN-X64-LABEL: test20b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a = alloca i32*, align 8
@@ -2403,19 +2412,19 @@ entry:
 ; Requires protector.
 define void @test20c() nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test20c:
+; LINUX-I386-LABEL: test20c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test20c:
+; LINUX-X64-LABEL: test20c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test20c:
+; LINUX-KERNEL-X64-LABEL: test20c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test20c:
+; DARWIN-X64-LABEL: test20c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca i32*, align 8
@@ -2433,19 +2442,19 @@ entry:
 ; Requires protector.
 define void @test20d() nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test20d:
+; LINUX-I386-LABEL: test20d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test20d:
+; LINUX-X64-LABEL: test20d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test20d:
+; LINUX-KERNEL-X64-LABEL: test20d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test20d:
+; DARWIN-X64-LABEL: test20d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca i32*, align 8
@@ -2463,19 +2472,19 @@ entry:
 ; Requires no protector.
 define void @test21a() nounwind uwtable {
 entry:
-; LINUX-I386: test21a:
+; LINUX-I386-LABEL: test21a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test21a:
+; LINUX-X64-LABEL: test21a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test21a:
+; LINUX-KERNEL-X64-LABEL: test21a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test21a:
+; DARWIN-X64-LABEL: test21a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a = alloca i32*, align 8
@@ -2494,19 +2503,19 @@ entry:
 ; Requires no protector.
 define void @test21b() nounwind uwtable ssp {
 entry:
-; LINUX-I386: test21b:
+; LINUX-I386-LABEL: test21b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test21b:
+; LINUX-X64-LABEL: test21b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test21b:
+; LINUX-KERNEL-X64-LABEL: test21b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test21b:
+; DARWIN-X64-LABEL: test21b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a = alloca i32*, align 8
@@ -2525,19 +2534,19 @@ entry:
 ; Requires protector.
 define void @test21c() nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test21c:
+; LINUX-I386-LABEL: test21c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test21c:
+; LINUX-X64-LABEL: test21c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test21c:
+; LINUX-KERNEL-X64-LABEL: test21c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test21c:
+; DARWIN-X64-LABEL: test21c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca i32*, align 8
@@ -2556,19 +2565,19 @@ entry:
 ; Requires protector.
 define void @test21d() nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test21d:
+; LINUX-I386-LABEL: test21d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test21d:
+; LINUX-X64-LABEL: test21d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test21d:
+; LINUX-KERNEL-X64-LABEL: test21d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test21d:
+; DARWIN-X64-LABEL: test21d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca i32*, align 8
@@ -2587,19 +2596,19 @@ entry:
 ; Requires no protector.
 define signext i8 @test22a() nounwind uwtable {
 entry:
-; LINUX-I386: test22a:
+; LINUX-I386-LABEL: test22a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test22a:
+; LINUX-X64-LABEL: test22a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test22a:
+; LINUX-KERNEL-X64-LABEL: test22a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test22a:
+; DARWIN-X64-LABEL: test22a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a = alloca %class.A, align 1
@@ -2614,19 +2623,19 @@ entry:
 ; Requires no protector.
 define signext i8 @test22b() nounwind uwtable ssp {
 entry:
-; LINUX-I386: test22b:
+; LINUX-I386-LABEL: test22b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test22b:
+; LINUX-X64-LABEL: test22b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test22b:
+; LINUX-KERNEL-X64-LABEL: test22b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test22b:
+; DARWIN-X64-LABEL: test22b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a = alloca %class.A, align 1
@@ -2641,19 +2650,19 @@ entry:
 ; Requires protector.
 define signext i8 @test22c() nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test22c:
+; LINUX-I386-LABEL: test22c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test22c:
+; LINUX-X64-LABEL: test22c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test22c:
+; LINUX-KERNEL-X64-LABEL: test22c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test22c:
+; DARWIN-X64-LABEL: test22c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca %class.A, align 1
@@ -2668,19 +2677,19 @@ entry:
 ; Requires protector.
 define signext i8 @test22d() nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test22d:
+; LINUX-I386-LABEL: test22d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test22d:
+; LINUX-X64-LABEL: test22d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test22d:
+; LINUX-KERNEL-X64-LABEL: test22d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test22d:
+; DARWIN-X64-LABEL: test22d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca %class.A, align 1
@@ -2695,19 +2704,19 @@ entry:
 ; Requires no protector.
 define signext i8 @test23a() nounwind uwtable {
 entry:
-; LINUX-I386: test23a:
+; LINUX-I386-LABEL: test23a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test23a:
+; LINUX-X64-LABEL: test23a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test23a:
+; LINUX-KERNEL-X64-LABEL: test23a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test23a:
+; DARWIN-X64-LABEL: test23a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %x = alloca %struct.deep, align 1
@@ -2726,19 +2735,19 @@ entry:
 ; Requires no protector.
 define signext i8 @test23b() nounwind uwtable ssp {
 entry:
-; LINUX-I386: test23b:
+; LINUX-I386-LABEL: test23b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test23b:
+; LINUX-X64-LABEL: test23b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test23b:
+; LINUX-KERNEL-X64-LABEL: test23b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test23b:
+; DARWIN-X64-LABEL: test23b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %x = alloca %struct.deep, align 1
@@ -2757,19 +2766,19 @@ entry:
 ; Requires protector.
 define signext i8 @test23c() nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test23c:
+; LINUX-I386-LABEL: test23c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test23c:
+; LINUX-X64-LABEL: test23c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test23c:
+; LINUX-KERNEL-X64-LABEL: test23c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test23c:
+; DARWIN-X64-LABEL: test23c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %x = alloca %struct.deep, align 1
@@ -2788,19 +2797,19 @@ entry:
 ; Requires protector.
 define signext i8 @test23d() nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test23d:
+; LINUX-I386-LABEL: test23d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test23d:
+; LINUX-X64-LABEL: test23d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test23d:
+; LINUX-KERNEL-X64-LABEL: test23d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test23d:
+; DARWIN-X64-LABEL: test23d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %x = alloca %struct.deep, align 1
@@ -2819,19 +2828,19 @@ entry:
 ; Requires no protector.
 define void @test24a(i32 %n) nounwind uwtable {
 entry:
-; LINUX-I386: test24a:
+; LINUX-I386-LABEL: test24a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test24a:
+; LINUX-X64-LABEL: test24a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test24a:
+; LINUX-KERNEL-X64-LABEL: test24a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test24a:
+; DARWIN-X64-LABEL: test24a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %n.addr = alloca i32, align 4
@@ -2850,19 +2859,19 @@ entry:
 ; Requires protector.
 define void @test24b(i32 %n) nounwind uwtable ssp {
 entry:
-; LINUX-I386: test24b:
+; LINUX-I386-LABEL: test24b:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test24b:
+; LINUX-X64-LABEL: test24b:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test24b:
+; LINUX-KERNEL-X64-LABEL: test24b:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test24b:
+; DARWIN-X64-LABEL: test24b:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %n.addr = alloca i32, align 4
@@ -2881,19 +2890,19 @@ entry:
 ; Requires protector.
 define void @test24c(i32 %n) nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test24c:
+; LINUX-I386-LABEL: test24c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test24c:
+; LINUX-X64-LABEL: test24c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test24c:
+; LINUX-KERNEL-X64-LABEL: test24c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test24c:
+; DARWIN-X64-LABEL: test24c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %n.addr = alloca i32, align 4
@@ -2912,19 +2921,19 @@ entry:
 ; Requires protector.
 define void @test24d(i32 %n) nounwind uwtable sspreq  {
 entry:
-; LINUX-I386: test24d:
+; LINUX-I386-LABEL: test24d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test24d:
+; LINUX-X64-LABEL: test24d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test24d:
+; LINUX-KERNEL-X64-LABEL: test24d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test24d:
+; DARWIN-X64-LABEL: test24d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %n.addr = alloca i32, align 4
@@ -2943,19 +2952,19 @@ entry:
 ; Requires no protector.
 define i32 @test25a() nounwind uwtable {
 entry:
-; LINUX-I386: test25a:
+; LINUX-I386-LABEL: test25a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test25a:
+; LINUX-X64-LABEL: test25a:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test25a:
+; LINUX-KERNEL-X64-LABEL: test25a:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test25a:
+; DARWIN-X64-LABEL: test25a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %a = alloca [4 x i32], align 16
@@ -2969,19 +2978,19 @@ entry:
 ; Requires no protector, except for Darwin which _does_ require a protector.
 define i32 @test25b() nounwind uwtable ssp {
 entry:
-; LINUX-I386: test25b:
+; LINUX-I386-LABEL: test25b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test25b:
+; LINUX-X64-LABEL: test25b:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test25b:
+; LINUX-KERNEL-X64-LABEL: test25b:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test25b:
+; DARWIN-X64-LABEL: test25b:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca [4 x i32], align 16
@@ -2995,19 +3004,19 @@ entry:
 ; Requires protector.
 define i32 @test25c() nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test25c:
+; LINUX-I386-LABEL: test25c:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test25c:
+; LINUX-X64-LABEL: test25c:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test25c:
+; LINUX-KERNEL-X64-LABEL: test25c:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test25c:
+; DARWIN-X64-LABEL: test25c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca [4 x i32], align 16
@@ -3021,19 +3030,19 @@ entry:
 ; Requires protector.
 define i32 @test25d() nounwind uwtable sspreq {
 entry:
-; LINUX-I386: test25d:
+; LINUX-I386-LABEL: test25d:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test25d:
+; LINUX-X64-LABEL: test25d:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test25d:
+; LINUX-KERNEL-X64-LABEL: test25d:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test25d:
+; DARWIN-X64-LABEL: test25d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %a = alloca [4 x i32], align 16
@@ -3049,19 +3058,19 @@ entry:
 ; Requires no protector.
 define void @test26() nounwind uwtable sspstrong {
 entry:
-; LINUX-I386: test26:
+; LINUX-I386-LABEL: test26:
 ; LINUX-I386-NOT: calll __stack_chk_fail
 ; LINUX-I386: .cfi_endproc
 
-; LINUX-X64: test26:
+; LINUX-X64-LABEL: test26:
 ; LINUX-X64-NOT: callq __stack_chk_fail
 ; LINUX-X64: .cfi_endproc
 
-; LINUX-KERNEL-X64: test26:
+; LINUX-KERNEL-X64-LABEL: test26:
 ; LINUX-KERNEL-X64-NOT: callq __stack_chk_fail
 ; LINUX-KERNEL-X64: .cfi_endproc
 
-; DARWIN-X64: test26:
+; DARWIN-X64-LABEL: test26:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
   %c = alloca %struct.nest, align 4
@@ -3080,19 +3089,19 @@ entry:
 ; Requires protector.
 define i32 @test27(i32 %arg) nounwind uwtable sspstrong {
 bb:
-; LINUX-I386: test27:
+; LINUX-I386-LABEL: test27:
 ; LINUX-I386: mov{{l|q}} %gs:
 ; LINUX-I386: calll __stack_chk_fail
 
-; LINUX-X64: test27:
+; LINUX-X64-LABEL: test27:
 ; LINUX-X64: mov{{l|q}} %fs:
 ; LINUX-X64: callq __stack_chk_fail
 
-; LINUX-KERNEL-X64: test27:
+; LINUX-KERNEL-X64-LABEL: test27:
 ; LINUX-KERNEL-X64: mov{{l|q}} %gs:
 ; LINUX-KERNEL-X64: callq __stack_chk_fail
 
-; DARWIN-X64: test27:
+; DARWIN-X64-LABEL: test27:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
   %tmp = alloca %struct.small*, align 8
