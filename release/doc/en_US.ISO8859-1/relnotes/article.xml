@@ -355,7 +355,7 @@
      <link xlink:href="http://llvm.org/releases/3.3/tools/clang/docs/ReleaseNotes.html">
      Clang 3.3 Release Notes.</link></para>
 
-    <para role="merged">BIND has been replaced by &man.unbound.8; for
+    <para role="merged" revision="255949">BIND has been replaced by &man.unbound.8; for
       local dns resolution in the base system.  With this change, nslookup
       and dig are no longer a part of the base system.  Users should
       instead use &man.host.1; and &man.drill.1; Alternatively,
