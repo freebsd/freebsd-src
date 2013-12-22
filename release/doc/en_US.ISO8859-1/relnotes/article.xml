@@ -120,25 +120,6 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
-    <para arch="amd64" revision="245652">The BSD Hypervisor, &man.bhyve.8; is included
-      with &os;.  &man.bhyve.8; requires Intel CPUs with VT-x and Extended Page Table (EPT)
-      support. These features are on all Nehalem models and beyond
-      (e.g. Nehalem and newer), but not on the lower-end Atom CPUs.</para> 
-
-    <para revision="227652">&man.virtio.4; support has been added.  &man.virtio.4; is the
-      name for the paravirtualization interface developed for the Linux KVM, but
-      since adopted to other virtual machine hypervisors (with the notable exception of Xen).
-      This work brings in a BSD-licensed clean-room implementation of the virtio kernel drivers
-      for disk IO (&man.virtio_blk.4; and &man.virtio_scsi.4;), network IO (&man.vtnet.4;),
-      memory ballooning (&man.virtio_balloon.4;), and PCI.
-      Tested with on Qemu/KVM, VirtualBox, and &man.bhyve.4;.</para>
-
-    <para arch="amd64,i386" revision="255524">A paravirtualized driver named "hyperv" which
-      which supports Microsoft Hyper-V has been imported and made
-      part of the amd64 GENERIC kernel.  For i386, this driver is not part of
-      GENERIC, so <literal>hyperv_load="YES"</literal> must be added to
-      <filename>/boot/loader.conf</filename> to load the driver.</para>
-
     <para arch="amd64">The maximum amount of memory the &os; kernel
       can address has been increased from 1TB to 4TB.</para>
 
@@ -190,6 +171,33 @@
     <para arch="amd64,i386,ia64,powerpc" role="merged">The ULE
       scheduler is now the default process scheduler
       in <filename>GENERIC</filename> kernels.</para>
+
+    <sect3 xml:id="kernel-virtualization">
+      <title>Virtualization support</title>
+      <para arch="amd64" revision="245652">The BSD Hypervisor, &man.bhyve.8; is included
+        with &os;.  &man.bhyve.8; requires Intel CPUs with VT-x and Extended Page Table (EPT)
+        support. These features are on all Nehalem models and beyond
+        (e.g. Nehalem and newer), but not on the lower-end Atom CPUs.</para> 
+  
+      <para revision="227652">&man.virtio.4; support has been added.  &man.virtio.4; is the
+        name for the paravirtualization interface developed for the Linux KVM, but
+        since adopted to other virtual machine hypervisors (with the notable exception of Xen).
+        This work brings in a BSD-licensed clean-room implementation of the virtio kernel drivers
+        for disk IO (&man.virtio_blk.4; and &man.virtio_scsi.4;), network IO (&man.vtnet.4;),
+        memory ballooning (&man.virtio_balloon.4;), and PCI.
+        Tested with on Qemu/KVM, VirtualBox, and &man.bhyve.4;.</para>
+  
+      <para arch="amd64,i386" revision="255524">A paravirtualized driver named "hyperv" which
+        which supports Microsoft Hyper-V has been imported and made
+        part of the amd64 GENERIC kernel.  For i386, this driver is not part of
+        GENERIC, so <literal>hyperv_load="YES"</literal> must be added to
+        <filename>/boot/loader.conf</filename> to load the driver.</para>
+
+      <para revision="254738">The &man.vmx.4; driver has been added.
+        &man.vmx.4; is a VMware VMXNET3 ethernet driver ported from
+        OpenBSD.</para>
+
+    </sect3>
 
     <sect3 xml:id="boot">
       <title>Boot Loader Changes</title>
@@ -266,10 +274,6 @@
 
 	<para arch="amd64,i386" role="merged">The &man.wpi.4; driver has
 	  been updated to include a number of stability fixes.</para>
-
-	<para revision="254738">The &man.vmx.4; driver has been added.
-          &man.vmx.4; is a VMware VMXNET3 ethernet driver ported from
-          OpenBSD.</para>
 
 	<para revision="248925">The &man.cxgbe.4; driver has been updated to support
 	  40G/10G Ethernet NICs based on Chelsio's Terminator 5 (T5) ASIC.</para>
