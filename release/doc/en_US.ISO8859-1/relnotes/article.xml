@@ -120,6 +120,16 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
+    <para revision="239922">Raspberry PI support has been added.
+      Refer to these <link xlink:href="http://kernelnomicon.org/?p=164">setup instructions</link>
+      and <link xlink:href="http://www.raspberrypi.org/quick-start-guide">quick start
+      guide</link>.</para>
+
+    <para revision="248508">The use of unmapped VMIO buffers eliminates the need to perform
+      TLB shootdown for mapping on buffer creation and reuse, greatly reducing the
+      amount of IPIs for shootdown on big-SMP machines and eliminating up to 25-30%
+      of the system time on i/o intensive workloads.</para>
+
     <para arch="amd64">The maximum amount of memory the &os; kernel
       can address has been increased from 1TB to 4TB.</para>
 
@@ -292,6 +302,13 @@
 	  for dynamically loading kernel modules for Infiniband core (ibcore) and
 	  IP over Infiniband (ipoib).</para>
 
+	<para revision="227614">&man.netmap.4; has been added.  &man.netmap.4; is a framework for
+          high-performance direct-to-hardware packet IO, offering low latency and high PPS
+          rates to userland applications while bypassing any kernel-side packet processing.
+          With &man.netmap.4; it is trivially possible to fully saturate a 10 Gbps network interface with
+          minimal packet sizes.  For more information, see:
+          <link xlink:href="http://info.iet.unipi.it/~luigi/netmap/">Netmap Project</link>.</para> 
+
       </sect4>
     </sect3>
 
@@ -337,6 +354,11 @@
 
       <para role="merged">The &man.hptrr.4; driver has been updated to version 1.2
         from Highpoint.</para>
+
+      <para revision="240616">&man.nvme.4; has been added and provides NVM Express support.
+        NVM Express is an optimized register interface, command set and feature set of
+        PCI Express (PCIe)-based Solid-State Drives (SSDs).  For more information,
+        see <link xlink:href="http://http://www.nvmexpress.org/">nvmexpress.org</link>.</para>
 
     </sect3>
 
