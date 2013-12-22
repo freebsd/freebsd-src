@@ -133,6 +133,12 @@
       memory ballooning (&man.virtio_balloon.4;), and PCI.
       Tested with on Qemu/KVM, VirtualBox, and &man.bhyve.4;.</para>
 
+    <para arch="amd64,i386" revision="255524">A paravirtualized driver named "hyperv" which
+      which supports Microsoft Hyper-V has been imported and made
+      part of the amd64 GENERIC kernel.  For i386, this driver is not part of
+      GENERIC, so <literal>hyperv_load="YES"</literal> must be added to
+      <filename>/boot/loader.conf</filename> to load the driver.</para>
+
     <para arch="amd64">The maximum amount of memory the &os; kernel
       can address has been increased from 1TB to 4TB.</para>
 
