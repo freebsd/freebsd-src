@@ -320,12 +320,12 @@
       <para revision="255570">A new kernel-based iSCSI target and initiator has been
         added</para>
 
-      <para>UFS filesystems can now be enlarged with &man.growfs.8; while
+      <para revision="243246">UFS filesystems can now be enlarged with &man.growfs.8; while
         mounted read-write. This is especially useful for virtual
         machines, allowing the addition of more harddrive space without
         interruption of service.</para>
 
-      <para>A state of the art FUSE implementation is now part of the
+      <para revision="241519">A state of the art FUSE implementation is now part of the
         base system. It allows the use of nearly all fusefs file
         systems</para>
 
