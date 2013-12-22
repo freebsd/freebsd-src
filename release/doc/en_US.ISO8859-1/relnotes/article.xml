@@ -217,7 +217,7 @@
       <sect4 xml:id="mm">
 	<title>Multimedia Support</title>
 
-        <para>Support for version 2.0 of the USB Audio reference design
+        <para revision="240609">Support for version 2.0 of the USB Audio reference design
           has been added. New devices should support higher bandwidth,
           increased sampling frequency and wider dynamic range.</para>
 
@@ -288,21 +288,25 @@
     <sect3 xml:id="net-proto">
       <title>Network Protocols</title>
 
-      <para>&man.carp.4; has been rewritten to make addresses
+      <para revision="228571">&man.carp.4; has been rewritten to make addresses
         more sane from the viewpoint of routing daemons such as
         quagga/zebra. It also brings support for a single redundant
         address on the subnet (carpdev), switching state with
-        ifconfig, better locking and using modern kernel
-        interfaces to allocate multicast memberships.</para>
+        &man.ifconfig.8;, better locking and using modern kernel
+        interfaces to allocate multicast memberships.
+        Configuration of the CARP protocol via &man.ifconfig.8; has changed, as well as format
+	of CARP events submitted to &man.devd.8; has changed. See &man.carp.4;
+	for more information. The arpbalance feature of &man.carp.4; is currently
+	not supported anymore.</para>
 
-      <para>The &man.pf.4; firewall now supports fine-grain locking
+      <para revision="240233">The &man.pf.4; firewall now supports fine-grain locking
         and better utilization on multi-cpu machines resulting in
         significant improvements in performance.</para>
 
-      <para>Support for up to 65536 routing tables has been
+      <para revision="250700">Support for up to 65536 routing tables has been
         introduced.</para>
 
-      <para>Support for setting/matching differentiated services
+      <para revision="248552">Support for setting/matching differentiated services
         codepoints (DSCP) in IP header has been added to
         &man.ipfw.8;.</para>
 
