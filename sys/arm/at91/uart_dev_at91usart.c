@@ -72,6 +72,7 @@ struct at91_usart_softc {
 	uint32_t flags;
 #define	HAS_TIMEOUT		0x1
 #define	USE_RTS0_WORKAROUND	0x2
+#define	NEEDS_RXRDY		0x4
 	bus_dma_tag_t rx_tag;
 	struct at91_usart_rx ping_pong[2];
 	struct at91_usart_rx *ping;
@@ -490,7 +491,13 @@ at91_usart_bus_attach(struct uart_softc *sc)
 		WR4(&sc->sc_bas, USART_IER, USART_CSR_TIMEOUT |
 		    USART_CSR_RXBUFF | USART_CSR_ENDRX);
 	} else {
-		WR4(&sc->sc_bas, USART_IER, USART_CSR_RXRDY);
+		/*
+		 * Defer turning on the RXRDY bit until we're opened. This is to make the
+		 * mountroot prompt work before we've opened the console. This is a workaround
+		 * for not being able to change the UART interface for the 10.0 release.
+		 */
+		atsc->flags |= NEEDS_RXRDY;
+		/* WR4(&sc->sc_bas, USART_IER, USART_CSR_RXRDY); */
 	}
 	WR4(&sc->sc_bas, USART_IER, USART_CSR_RXBRK | USART_DCE_CHANGE_BITS);
 
@@ -612,6 +619,12 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 	uart_lock(sc->sc_hwmtx);
 	csr = RD4(&sc->sc_bas, USART_CSR);
 
+	/* Kludge -- Enable the RXRDY we deferred in attach */
+	if (sc->sc_opened && (atsc->flags & NEEDS_RXRDY)) {
+		WR4(&sc->sc_bas, USART_IER, USART_CSR_RXRDY);
+		atsc->flags &= ~NEEDS_RXRDY;
+	}
+	
 	if (csr & USART_CSR_OVRE) {
 		WR4(&sc->sc_bas, USART_CR, USART_CR_RSTSTA);
 		ipend |= SER_INT_OVERRUN;
