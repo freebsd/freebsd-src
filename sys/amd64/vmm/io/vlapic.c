@@ -334,33 +334,24 @@ vlapic_update_errors(struct vlapic *vlapic)
 }
 
 static void
-vlapic_init_ipi(struct vlapic *vlapic)
+vlapic_reset(struct vlapic *vlapic)
 {
-	struct LAPIC    *lapic = &vlapic->apic;
+	struct LAPIC *lapic;
+	
+	lapic = &vlapic->apic;
+	bzero(lapic, sizeof(struct LAPIC));
+
 	lapic->version = VLAPIC_VERSION;
 	lapic->version |= (VLAPIC_MAXLVT_ENTRIES << MAXLVTSHIFT);
 	lapic->dfr = 0xffffffff;
 	lapic->svr = APIC_SVR_VECTOR;
 	vlapic_mask_lvts(&lapic->lvt_timer, VLAPIC_MAXLVT_ENTRIES+1);
-}
-
-static int
-vlapic_reset(struct vlapic *vlapic)
-{
-	struct LAPIC	*lapic = &vlapic->apic;
-
-	memset(lapic, 0, sizeof(*lapic));
-	lapic->apr = vlapic->vcpuid;
-	vlapic_init_ipi(vlapic);
 	vlapic_set_dcr(vlapic, 0);
 
 	if (vlapic->vcpuid == 0)
 		vlapic->boot_state = BS_RUNNING;	/* BSP */
 	else
 		vlapic->boot_state = BS_INIT;		/* AP */
-	
-	return 0;
-
 }
 
 void
