@@ -342,6 +342,14 @@
 
         <para revision="252140">Support for L2ARC compression has been added to ZFS.</para>
 
+        <para revision="243524">The zio nop-write improvement from Illumos
+          was imported into &os;. To reduce I/O, nop-write skips overwriting
+          data if the checksum (cryptographically secure) of new data
+          matches the checksum of existing data. It also saves space if
+          snapshots are in use.  This improvement only works only on
+          datasets with enabled compression, disabled deduplication and
+          sha256 checksums.</para>
+
         <para>ZFS will now compare the checksums of incoming writes to
           the checksum of the existing on-disk data and avoid issuing any
           write I/O for data that has not changed. This will reduce I/O
