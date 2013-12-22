@@ -49,4 +49,5 @@ arm/freescale/imx/i2c.c			optional fsliic
 
 # IPU - Image Processing Unit (frame buffer also)
 arm/freescale/imx/imx51_ipuv3.c		optional sc
-
+arm/freescale/imx/imx51_ipuv3_fbd.c	optional vt
+dev/vt/hw/fb/vt_early_fb.c		optional vt
