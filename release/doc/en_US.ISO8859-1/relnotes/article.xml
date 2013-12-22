@@ -253,6 +253,10 @@
 	<para arch="amd64,i386" role="merged">The &man.wpi.4; driver has
 	  been updated to include a number of stability fixes.</para>
 
+	<para revision="254738">The &man.vmx.4; driver has been added.
+          &man.vmx.4; is a VMware VMXNET3 ethernet driver ported from
+          OpenBSD.</para>
+
 	<para revision="248925">The &man.cxgbe.4; driver has been updated to support
 	  40G/10G Ethernet NICs based on Chelsio's Terminator 5 (T5) ASIC.</para>
 
