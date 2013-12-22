@@ -804,11 +804,25 @@ save_guest_fpustate(struct vcpu *vcpu)
 static VMM_STAT(VCPU_IDLE_TICKS, "number of ticks vcpu was idle");
 
 static int
-vcpu_set_state_locked(struct vcpu *vcpu, enum vcpu_state newstate)
+vcpu_set_state_locked(struct vcpu *vcpu, enum vcpu_state newstate,
+    bool from_idle)
 {
 	int error;
 
 	vcpu_assert_locked(vcpu);
+
+	/*
+	 * State transitions from the vmmdev_ioctl() must always begin from
+	 * the VCPU_IDLE state. This guarantees that there is only a single
+	 * ioctl() operating on a vcpu at any point.
+	 */
+	if (from_idle) {
+		while (vcpu->state != VCPU_IDLE)
+			msleep_spin(&vcpu->state, &vcpu->mtx, "vmstat", hz);
+	} else {
+		KASSERT(vcpu->state != VCPU_IDLE, ("invalid transition from "
+		    "vcpu idle state"));
+	}
 
 	/*
 	 * The following state transitions are allowed:
@@ -830,12 +844,14 @@ vcpu_set_state_locked(struct vcpu *vcpu, enum vcpu_state newstate)
 		break;
 	}
 
-	if (error == 0)
-		vcpu->state = newstate;
-	else
-		error = EBUSY;
+	if (error)
+		return (EBUSY);
 
-	return (error);
+	vcpu->state = newstate;
+	if (newstate == VCPU_IDLE)
+		wakeup(&vcpu->state);
+
+	return (0);
 }
 
 static void
@@ -843,7 +859,7 @@ vcpu_require_state(struct vm *vm, int vcpuid, enum vcpu_state newstate)
 {
 	int error;
 
-	if ((error = vcpu_set_state(vm, vcpuid, newstate)) != 0)
+	if ((error = vcpu_set_state(vm, vcpuid, newstate, false)) != 0)
 		panic("Error %d setting state to %d\n", error, newstate);
 }
 
@@ -852,7 +868,7 @@ vcpu_require_state_locked(struct vcpu *vcpu, enum vcpu_state newstate)
 {
 	int error;
 
-	if ((error = vcpu_set_state_locked(vcpu, newstate)) != 0)
+	if ((error = vcpu_set_state_locked(vcpu, newstate, false)) != 0)
 		panic("Error %d setting state to %d", error, newstate);
 }
 
@@ -1235,7 +1251,8 @@ vm_iommu_domain(struct vm *vm)
 }
 
 int
-vcpu_set_state(struct vm *vm, int vcpuid, enum vcpu_state newstate)
+vcpu_set_state(struct vm *vm, int vcpuid, enum vcpu_state newstate,
+    bool from_idle)
 {
 	int error;
 	struct vcpu *vcpu;
@@ -1246,7 +1263,7 @@ vcpu_set_state(struct vm *vm, int vcpuid, enum vcpu_state newstate)
 	vcpu = &vm->vcpu[vcpuid];
 
 	vcpu_lock(vcpu);
-	error = vcpu_set_state_locked(vcpu, newstate);
+	error = vcpu_set_state_locked(vcpu, newstate, from_idle);
 	vcpu_unlock(vcpu);
 
 	return (error);
