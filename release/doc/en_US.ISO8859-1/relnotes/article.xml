@@ -317,7 +317,7 @@
     <sect3 xml:id="fs">
       <title>File Systems</title>
 
-      <para>A new kernel-based iSCSI target and initiator has been
+      <para revision="255570">A new kernel-based iSCSI target and initiator has been
         added</para>
 
       <para>UFS filesystems can now be enlarged with &man.growfs.8; while
