@@ -329,25 +329,25 @@
         base system. It allows the use of nearly all fusefs file
         systems</para>
 
-      <para>Support for the high performance LZ4 compression algorithm
-        has been added to ZFS. LZ4 is usually faster and can achieve a
-        higher compression ratio than LZJB, the default compression
-        algorithm</para>
-
-      <para>Support for L2ARC compression has been added to ZFS.</para>
-
-      <para>ZFS will now compare the checksums of incoming writes to
-        the checksum of the existing on-disk data and avoid issuing any
-        write I/O for data that has not changed. This will reduce I/O
-        as well as space usage because if the old block is referenced
-        by a snapshot, both copies of the block are kept even though
-        both contain the same data.</para>
-
       <sect4 xml:id="fs-zfs">
 	<title>ZFS</title>
 
         <para revision="240868">TRIM support has been added for
           ZFS.</para>
+
+        <para revision="246586">Support for the high performance LZ4 compression algorithm
+          has been added to ZFS. LZ4 is usually faster and can achieve a
+          higher compression ratio than LZJB, the default compression
+          algorithm</para>
+
+        <para revision="252140">Support for L2ARC compression has been added to ZFS.</para>
+
+        <para>ZFS will now compare the checksums of incoming writes to
+          the checksum of the existing on-disk data and avoid issuing any
+          write I/O for data that has not changed. This will reduce I/O
+          as well as space usage because if the old block is referenced
+          by a snapshot, both copies of the block are kept even though
+          both contain the same data.</para>
 
       </sect4>
 
