@@ -350,6 +350,11 @@
   <sect2 xml:id="userland">
     <title>Userland Changes</title>
 
+   <para revision="251662">&man.clang.1; and llvm have been updated to
+     version 3.3 release.  Please refer to
+     <link xlink:href="http://llvm.org/releases/3.3/tools/clang/docs/ReleaseNotes.html">
+     Clang 3.3 Release Notes.</link></para>
+
     <para role="merged">BIND has been replaced by &man.unbound.8; for
       local dns resolution in the base system.  With this change, nslookup
       and dig are no longer a part of the base system.  Users should
