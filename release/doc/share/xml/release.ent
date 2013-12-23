@@ -25,7 +25,7 @@
 <!ENTITY release.branch "10.0-STABLE">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
-<!ENTITY release.url "http://www.FreeBSD.org/snapshots/">
+<!ENTITY release.url "http://www.FreeBSD.org/releases/">
 
 <!-- The type of release (usually this will be either "snapshot"
      or "release" -->
