@@ -120,11 +120,6 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
-    <para revision="239922">Raspberry PI support has been added.
-      Refer to these <link xlink:href="http://kernelnomicon.org/?p=164">setup instructions</link>
-      and <link xlink:href="http://www.raspberrypi.org/quick-start-guide">quick start
-      guide</link>.</para>
-
     <para revision="248508">The use of unmapped VMIO buffers eliminates the need to perform
       TLB shootdown for mapping on buffer creation and reuse, greatly reducing the
       amount of IPIs for shootdown on big-SMP machines and eliminating up to 25-30%
@@ -212,6 +207,32 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       <para revision="254738">The &man.vmx.4; driver has been added.
         &man.vmx.4; is a VMware VMXNET3 ethernet driver ported from
         OpenBSD.</para>
+
+    </sect3>
+
+    <sect3 xml:id="kernel-arm">
+      <title>ARM support</title>
+
+      <para revision="239922">Raspberry PI support has been added.
+        Refer to these <link xlink:href="http://kernelnomicon.org/?p=164">setup instructions</link>
+        and <link xlink:href="http://www.raspberrypi.org/quick-start-guide">quick start
+        guide</link>.</para>
+  
+      <para revision="253396">The default ABI on ARM is now the ARM EABI. This brings a number of
+        improvements and allows future support for VFP and Thumb-2.</para> 
+  
+      <para revision="239268">ARM support has been greatly improved, including support
+        for ARMv6 and ARMv7, SMP and thread-local storage (TLS).
+        Additionally support for some newer SoC like the MV78x60 and OMAP4 was added.
+        See <link xlink:href="http://lists.freebsd.org/pipermail/freebsd-arm/2012-August/003757.html">this announcement</link>
+        for further details.</para>
+  
+      <para revision="254918">Superpages support on ARM has been added.  Superpages support
+        provides improved performance and scalability by allowing TLB
+        translations to dynamically cover large physical memory regions.
+        All ARMv6 and ARMv7-based platforms can take advantage of this feature.
+        See <link xlink:href="https://wiki.freebsd.org/ARMSuperpages">this page</link>
+        for further details.</para>
 
     </sect3>
 
