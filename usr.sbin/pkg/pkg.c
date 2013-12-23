@@ -823,7 +823,7 @@ static const char confirmation_message[] =
 
 static const char non_interactive_message[] =
 "The package management tool is not yet installed on your system.\n"
-"Please set ASSUME_ALWAYS_YES=yes environment variable to be able to boostrap "
+"Please set ASSUME_ALWAYS_YES=yes environment variable to be able to bootstrap "
 "in non-interactive (stdin not being a tty)\n";
 
 static int
