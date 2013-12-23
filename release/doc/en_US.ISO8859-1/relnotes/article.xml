@@ -197,11 +197,17 @@
         memory ballooning (&man.virtio_balloon.4;), and PCI.
         Tested with on Qemu/KVM, VirtualBox, and &man.bhyve.4;.</para>
   
-      <para arch="amd64,i386" revision="255524">A paravirtualized driver named "hyperv" which
-        which supports Microsoft Hyper-V has been imported and made
-        part of the amd64 GENERIC kernel.  For i386, this driver is not part of
-        GENERIC, so <literal>hyperv_load="YES"</literal> must be added to
-        <filename>/boot/loader.conf</filename> to load the driver.</para>
+      <para arch="amd64,i386" revision="255524">Paravirtualized drivers which
+        support Microsoft Hyper-V have been imported and made
+        part of the amd64 GENERIC kernel.  For i386, these drivers are not part of
+        GENERIC, so the following lines must be added to
+        <filename>/boot/loader.conf</filename> to load these drivers:
+        <programlisting>hv_ata_pci_disengage_load="YES"
+hv_netsvc_load="YES"
+hv_utils_load="YES"
+hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be added to the i386
+        kernel by adding <literal>device hyperv</literal> to the kernel config, and then
+        recompiling the kernel.</para>
 
       <para revision="254738">The &man.vmx.4; driver has been added.
         &man.vmx.4; is a VMware VMXNET3 ethernet driver ported from
