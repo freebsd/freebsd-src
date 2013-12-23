@@ -95,6 +95,8 @@ typedef int tc_cngetc_t(struct terminal *tm);
 typedef void tc_opened_t(struct terminal *tm, int opened);
 typedef int tc_ioctl_t(struct terminal *tm, u_long cmd, caddr_t data,
     struct thread *td);
+typedef int tc_mmap_t(struct terminal *tm, vm_ooffset_t offset,
+    vm_paddr_t * paddr, int nprot, vm_memattr_t *memattr);
 typedef void tc_bell_t(struct terminal *tm);
 
 struct terminal_class {
@@ -109,10 +111,11 @@ struct terminal_class {
 	/* Low-level console interface. */
 	tc_cnprobe_t	*tc_cnprobe;
 	tc_cngetc_t	*tc_cngetc;
-	
+
 	/* Misc. */
 	tc_opened_t	*tc_opened;
 	tc_ioctl_t	*tc_ioctl;
+	tc_mmap_t	*tc_mmap;
 	tc_bell_t	*tc_bell;
 };
 

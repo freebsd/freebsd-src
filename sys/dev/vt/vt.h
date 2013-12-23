@@ -40,6 +40,7 @@
 #include <sys/_mutex.h>
 #include <sys/callout.h>
 #include <sys/condvar.h>
+#include <sys/conf.h>
 #include <sys/consio.h>
 #include <sys/kbio.h>
 #include <sys/mouse.h>
@@ -282,6 +283,9 @@ typedef void vd_bitbltchr_t(struct vt_device *vd, const uint8_t *src,
     unsigned int width, unsigned int height, term_color_t fg, term_color_t bg);
 typedef void vd_putchar_t(struct vt_device *vd, term_char_t,
     vt_axis_t top, vt_axis_t left, term_color_t fg, term_color_t bg);
+typedef int vd_fb_ioctl_t(struct vt_device *, u_long, caddr_t, struct thread *);
+typedef int vd_fb_mmap_t(struct vt_device *, vm_ooffset_t, vm_paddr_t *, int,
+    vm_memattr_t *);
 
 struct vt_driver {
 	/* Console attachment. */
@@ -290,6 +294,12 @@ struct vt_driver {
 	/* Drawing. */
 	vd_blank_t	*vd_blank;
 	vd_bitbltchr_t	*vd_bitbltchr;
+
+	/* Framebuffer ioctls, if present. */
+	vd_fb_ioctl_t	*vd_fb_ioctl;
+
+	/* Framebuffer mmap, if present. */
+	vd_fb_mmap_t	*vd_fb_mmap;
 
 	/* Text mode operation. */
 	vd_putchar_t	*vd_putchar;
