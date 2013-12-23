@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/clock.h>
+#include <machine/cpu.h>
 #include <machine/intr_machdep.h>
 #include <x86/mca.h>
 #include <machine/pcb.h>
@@ -266,6 +267,10 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 			restart_cpus(suspcpus);
 #endif
 		mca_resume();
+#ifdef __amd64__
+		if (vmm_resume_p != NULL)
+			vmm_resume_p();
+#endif
 		intr_resume(/*suspend_cancelled*/false);
 
 		AcpiSetFirmwareWakingVector(0);
