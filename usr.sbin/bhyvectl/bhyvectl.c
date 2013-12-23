@@ -190,13 +190,14 @@ usage(void)
 	"       [--get-lowmem]\n"
 	"       [--get-highmem]\n"
 	"       [--get-gpa-pmap]\n"
+	"       [--assert-lapic-lvt=<pin>]\n"
 	"       [--inject-nmi]\n",
 	progname);
 	exit(1);
 }
 
 static int get_stats, getcap, setcap, capval, get_gpa_pmap;
-static int inject_nmi;
+static int inject_nmi, assert_lapic_lvt;
 static const char *capname;
 static int create, destroy, get_lowmem, get_highmem;
 static uint64_t memsize;
@@ -381,6 +382,7 @@ enum {
 	CAPNAME,
 	UNASSIGN_PPTDEV,
 	GET_GPA_PMAP,
+	ASSERT_LAPIC_LVT,
 };
 
 int
@@ -433,6 +435,7 @@ main(int argc, char *argv[])
 		{ "unassign-pptdev", REQ_ARG,	0,	UNASSIGN_PPTDEV },
 		{ "setcap",	REQ_ARG,	0,	SET_CAP },
 		{ "get-gpa-pmap", REQ_ARG,	0,	GET_GPA_PMAP },
+		{ "assert-lapic-lvt", REQ_ARG,	0,	ASSERT_LAPIC_LVT },
 		{ "getcap",	NO_ARG,		&getcap,	1 },
 		{ "get-stats",	NO_ARG,		&get_stats,	1 },
 		{ "get-desc-ds",NO_ARG,		&get_desc_ds,	1 },
@@ -564,6 +567,7 @@ main(int argc, char *argv[])
 	};
 
 	vcpu = 0;
+	assert_lapic_lvt = -1;
 	progname = basename(argv[0]);
 
 	while ((ch = getopt_long(argc, argv, "", opts, NULL)) != -1) {
@@ -684,6 +688,9 @@ main(int argc, char *argv[])
 			unassign_pptdev = 1;
 			if (sscanf(optarg, "%d/%d/%d", &bus, &slot, &func) != 3)
 				usage();
+			break;
+		case ASSERT_LAPIC_LVT:
+			assert_lapic_lvt = atoi(optarg);
 			break;
 		default:
 			usage();
@@ -830,6 +837,10 @@ main(int argc, char *argv[])
 
 	if (!error && inject_nmi) {
 		error = vm_inject_nmi(ctx, vcpu);
+	}
+
+	if (!error && assert_lapic_lvt != -1) {
+		error = vm_lapic_local_irq(ctx, vcpu, assert_lapic_lvt);
 	}
 
 	if (!error && (get_lowmem || get_all)) {

@@ -84,5 +84,12 @@ lapic_intr_edge(struct vm *vm, int cpu, int vector)
 	return (lapic_set_intr(vm, cpu, vector, LAPIC_TRIG_EDGE));
 }
 
+/*
+ * Triggers the LAPIC local interrupt (LVT) 'vector' on 'cpu'.  'cpu' can
+ * be set to -1 to trigger the interrupt on all CPUs.
+ */
+int	lapic_set_local_intr(struct vm *vm, int cpu, int vector);
+
 int	lapic_intr_msi(struct vm *vm, uint64_t addr, uint64_t msg);
+
 #endif

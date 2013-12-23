@@ -297,6 +297,11 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		vmirq = (struct vm_lapic_irq *)data;
 		error = lapic_intr_edge(sc->vm, vmirq->cpuid, vmirq->vector);
 		break;
+	case VM_LAPIC_LOCAL_IRQ:
+		vmirq = (struct vm_lapic_irq *)data;
+		error = lapic_set_local_intr(sc->vm, vmirq->cpuid,
+		    vmirq->vector);
+		break;
 	case VM_LAPIC_MSI:
 		vmmsi = (struct vm_lapic_msi *)data;
 		error = lapic_intr_msi(sc->vm, vmmsi->addr, vmmsi->msg);
