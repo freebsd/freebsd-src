@@ -112,7 +112,7 @@
       <para releasetype="current">The basic requirements for using this &release.type; are
 	technical proficiency with &os; and an understanding of the
 	ongoing development process of &os; &release.branch; (as
-	discussed on the &a.current;).</para>
+	discussed on the &a.stable;).</para>
 
       <para releasetype="current">For those more interested in doing business with &os; than
 	in experimenting with new &os; technology, formal releases
@@ -130,7 +130,7 @@
       <para releasetype="snapshot">The basic requirements for using this &release.type; are
 	technical proficiency with &os; and an understanding of the
 	ongoing development process of &os; &release.branch; (as
-	discussed on the &a.current;).</para>
+	discussed on the &a.stable;).</para>
 
       <para releasetype="snapshot">For those more interested in doing business with &os; than
 	in experimenting with new &os; technology, formal releases
@@ -208,7 +208,7 @@
 	please send mail to the &a.questions;.</para>
 
       <para>If you're tracking the &release.branch; development efforts, you
-	<emphasis>must</emphasis> join the &a.current;, in order to
+	<emphasis>must</emphasis> join the &a.stable;, in order to
 	keep abreast of recent developments and changes that may
 	affect the way you use and maintain the system.</para>
 
