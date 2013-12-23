@@ -166,6 +166,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	struct inpcb *last = 0;
 	struct mbuf *opts = NULL;
 	struct sockaddr_in6 fromsa;
+	uint32_t zoneid;
 
 	RIP6STAT_INC(rip6s_ipackets);
 
@@ -176,8 +177,8 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	}
 
 	init_sin6(&fromsa, m); /* general init */
-
 	ifp = m->m_pkthdr.rcvif;
+	zoneid = in6_getscopezone(ifp, IPV6_ADDR_SCOPE_LINKLOCAL);
 
 	INP_INFO_RLOCK(&V_ripcbinfo);
 	LIST_FOREACH(in6p, &V_ripcb, inp_list) {
@@ -200,8 +201,8 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			 * and fall through into normal filter path if so.
 			 */
 			if (!IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) &&
-			    prison_check_ip6(in6p->inp_cred,
-			    &ip6->ip6_dst) != 0)
+			    prison_check_in6(in6p->inp_cred,
+			    &ip6->ip6_dst, zoneid) != 0)
 				continue;
 		}
 		INP_RLOCK(in6p);
@@ -465,9 +466,6 @@ rip6_output(struct mbuf *m, ...)
 	error = in6_selectsrc(dstsock, optp, in6p, &ro, so->so_cred,
 	    &oifp, &in6a);
 	if (error)
-		goto bad;
-	error = prison_check_ip6(in6p->inp_cred, &in6a);
-	if (error != 0)
 		goto bad;
 	ip6->ip6_src = in6a;
 	ip6->ip6_dst = dstsock->sin6_addr;
@@ -740,8 +738,6 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	if (nam->sa_len != sizeof(*addr))
 		return (EINVAL);
-	if ((error = prison_check_ip6(td->td_ucred, &addr->sin6_addr)) != 0)
-		return (error);
 	if (TAILQ_EMPTY(&V_ifnet) || addr->sin6_family != AF_INET6)
 		return (EADDRNOTAVAIL);
 	INP_RLOCK(inp);
@@ -749,6 +745,8 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	    inp->in6p_moptions, addr);
 	INP_RUNLOCK(inp);
 	if (error != 0)
+		return (error);
+	if ((error = prison_check_ip6(td->td_ucred, addr)) != 0)
 		return (error);
 	if (!IN6_IS_ADDR_UNSPECIFIED(&addr->sin6_addr)) {
 		ifa = in6ifa_ifwithaddr(&addr->sin6_addr, addr->sin6_scope_id);
