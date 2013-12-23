@@ -290,6 +290,16 @@ basl_fwrite_madt(FILE *fp)
 	EFPRINTF(fp, "\t\t\tTrigger Mode : 0\n");
 	EFPRINTF(fp, "\n");
 
+	/* Local APIC NMI is connected to LINT 1 on all CPUs */
+	EFPRINTF(fp, "[0001]\t\tSubtable Type : 04\n");
+	EFPRINTF(fp, "[0001]\t\tLength : 06\n");
+	EFPRINTF(fp, "[0001]\t\tProcessorId : FF\n");
+	EFPRINTF(fp, "[0002]\t\tFlags (decoded below) : 0005\n");
+	EFPRINTF(fp, "\t\t\tPolarity : 1\n");
+	EFPRINTF(fp, "\t\t\tTrigger Mode : 1\n");
+	EFPRINTF(fp, "[0001]\t\tInterrupt : 01\n");
+	EFPRINTF(fp, "\n");
+
 	EFFLUSH(fp);
 
 	return (0);
