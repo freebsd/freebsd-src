@@ -59,6 +59,10 @@
     It also provides some notes on upgrading
     from previous versions of &os;.</para>
 
+  <para>The latest, up-to-date version of the release notes are
+    available online at <uri
+      xlink:href="&release.url;10.0R/relnotes.html">&release.url;10.0R/relnotes.html</uri>.</para>
+
   <para releasetype="current">The &release.type; distribution to which these release notes
     apply represents the latest point along the &release.branch; development
     branch since &release.branch; was created.  Information regarding pre-built, binary
