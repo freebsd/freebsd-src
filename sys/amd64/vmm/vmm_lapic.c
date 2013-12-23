@@ -90,6 +90,33 @@ lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
 }
 
 int
+lapic_set_local_intr(struct vm *vm, int cpu, int vector)
+{
+	struct vlapic *vlapic;
+	cpuset_t dmask;
+	int error;
+
+	if (cpu < -1 || cpu >= VM_MAXCPU)
+		return (EINVAL);
+
+	if (cpu == -1)
+		dmask = vm_active_cpus(vm);
+	else
+		CPU_SETOF(cpu, &dmask);
+	error = 0;
+	while ((cpu = CPU_FFS(&dmask)) != 0) {
+		cpu--;
+		CPU_CLR(cpu, &dmask);
+		vlapic = vm_lapic(vm, cpu);
+		error = vlapic_trigger_lvt(vlapic, vector);
+		if (error)
+			break;
+	}
+
+	return (error);
+}
+
+int
 lapic_intr_msi(struct vm *vm, uint64_t addr, uint64_t msg)
 {
 	int delmode, vec;
