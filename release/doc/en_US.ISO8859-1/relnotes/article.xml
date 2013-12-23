@@ -117,7 +117,7 @@
   <sect2 xml:id="security">
     <title>Security Advisories</title>
 
-    <para/>
+    <para>No security advisories.</para>
 
   </sect2>
 
@@ -617,12 +617,14 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       to send probe packets with no upper-layer protocol, rather than
       the usual UDP probe packets.</para>
 
+    <!--
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
       <para/>
 
     </sect3>
+    -->
   </sect2>
 
   <sect2 xml:id="contrib">
@@ -714,12 +716,14 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
 
   </sect2>
 
+  <!--
   <sect2 xml:id="doc">
     <title>Documentation</title>
 
     <para/>
 
   </sect2>
+  -->
 </sect1>
 
 <sect1 xml:id="upgrade">
