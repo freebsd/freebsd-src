@@ -821,10 +821,10 @@ static const char confirmation_message[] =
 "The package management tool is not yet installed on your system.\n"
 "Do you want to fetch and install it now? [y/N]: ";
 
-static const char non_interractive_message[] =
+static const char non_interactive_message[] =
 "The package management tool is not yet installed on your system.\n"
-"Please set ASSUME_ALWAYS_YES=yes environement variable to be able to boostrap "
-"in non-interractive (stdin not being a tty)\n";
+"Please set ASSUME_ALWAYS_YES=yes environment variable to be able to boostrap "
+"in non-interactive (stdin not being a tty)\n";
 
 static int
 pkg_query_yes_no(void)
@@ -945,7 +945,7 @@ main(int argc, char *argv[])
 		config_bool(ASSUME_ALWAYS_YES, &yes);
 		if (!yes) {
 			if (!isatty(fileno(stdin))) {
-				fprintf(stderr, non_interractive_message);
+				fprintf(stderr, non_interactive_message);
 				exit(EXIT_FAILURE);
 			}
 
