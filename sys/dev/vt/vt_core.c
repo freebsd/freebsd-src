@@ -72,6 +72,7 @@ static tc_cngetc_t	vtterm_cngetc;
 
 static tc_opened_t	vtterm_opened;
 static tc_ioctl_t	vtterm_ioctl;
+static tc_mmap_t	vtterm_mmap;
 
 const struct terminal_class vt_termclass = {
 	.tc_bell	= vtterm_bell,
@@ -87,6 +88,7 @@ const struct terminal_class vt_termclass = {
 
 	.tc_opened	= vtterm_opened,
 	.tc_ioctl	= vtterm_ioctl,
+	.tc_mmap	= vtterm_mmap,
 };
 
 /*
@@ -1348,6 +1350,20 @@ vt_mouse_state(int show)
 #endif
 
 static int
+vtterm_mmap(struct terminal *tm, vm_ooffset_t offset, vm_paddr_t * paddr,
+    int nprot, vm_memattr_t *memattr)
+{
+	struct vt_window *vw = tm->tm_softc;
+	struct vt_device *vd = vw->vw_device;
+
+	if (vd->vd_driver->vd_fb_mmap)
+		return (vd->vd_driver->vd_fb_mmap(vd, offset, paddr, nprot,
+		    memattr));
+
+	return (ENXIO);
+}
+
+static int
 vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
     struct thread *td)
 {
@@ -1474,6 +1490,14 @@ skip_thunk:
 			return (EINVAL);
 		}
 	}
+	case FBIOGTYPE:
+	case FBIO_GETWINORG:	/* get frame buffer window origin */
+	case FBIO_GETDISPSTART:	/* get display start address */
+	case FBIO_GETLINEWIDTH:	/* get scan line width in bytes */
+	case FBIO_BLANK:	/* blank display */
+		if (vd->vd_driver->vd_fb_ioctl)
+			return (vd->vd_driver->vd_fb_ioctl(vd, cmd, data, td));
+		break;
 	case CONS_BLANKTIME:
 		/* XXX */
 		return (0);
