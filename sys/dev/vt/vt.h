@@ -244,6 +244,7 @@ struct vt_window {
 	int			 vw_kbdmode;	/* (?) Keyboard mode. */
 	char			*vw_kbdsq;	/* Escape sequence queue*/
 	unsigned int		 vw_flags;	/* (d) Per-window flags. */
+	int			 vw_mouse_level;/* Mouse op mode. */
 #define	VWF_BUSY	0x1	/* Busy reconfiguring device. */
 #define	VWF_OPENED	0x2	/* TTY in use. */
 #define	VWF_SCROLL	0x4	/* Keys influence scrollback. */
@@ -387,11 +388,10 @@ struct vt_font_map {
 };
 
 struct vt_font {
-	struct vt_font_map	*vf_bold;
-	struct vt_font_map	*vf_normal;
+	struct vt_font_map	*vf_map[VFNT_MAPS];
 	uint8_t			*vf_bytes;
-	unsigned int		 vf_height, vf_width,
-				 vf_normal_length, vf_bold_length;
+	unsigned int		 vf_height, vf_width;
+	unsigned int		 vf_map_count[VFNT_MAPS];
 	unsigned int		 vf_refcount;
 };
 
@@ -412,7 +412,7 @@ int		 vtfont_load(vfnt_t *f, struct vt_font **ret);
 /* Sysmouse. */
 void sysmouse_process_event(mouse_info_t *mi);
 #ifndef SC_NO_CUTPASTE
-void vt_mouse_event(int type, int x, int y, int event, int cnt);
+void vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel);
 void vt_mouse_state(int show);
 #endif
 #define	VT_MOUSE_SHOW 1

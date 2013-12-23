@@ -62,15 +62,14 @@ struct tty;
  *
  *  Bits  Meaning
  *  0-20: Character value
- *    21: Unused
- * 22-25: Bold, underline, blink, reverse
+ * 21-25: Bold, underline, blink, reverse, right part of CJK fullwidth character
  * 26-28: Foreground color
  * 29-31: Background color
  */
 
 typedef uint32_t term_char_t;
 #define	TCHAR_CHARACTER(c)	((c) & 0x1fffff)
-#define	TCHAR_FORMAT(c)		(((c) >> 22) & 0xf)
+#define	TCHAR_FORMAT(c)		(((c) >> 21) & 0x1f)
 #define	TCHAR_FGCOLOR(c)	(((c) >> 26) & 0x7)
 #define	TCHAR_BGCOLOR(c)	((c) >> 29)
 

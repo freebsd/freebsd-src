@@ -26,7 +26,7 @@ FILES=	DAEMON \
 	bridge \
 	bsnmpd \
 	${_bthidd} \
-	casperd \
+	${_casperd} \
 	ccd \
 	cleanvar \
 	cleartmp \
@@ -186,6 +186,10 @@ _bluetooth=	bluetooth
 _bthidd=	bthidd
 _hcsecd=	hcsecd
 _ubthidhci=	ubthidhci
+.endif
+
+.if ${MK_CASPER} != "no"
+_casperd=	casperd
 .endif
 
 .if ${MK_UNBOUND} != "no"

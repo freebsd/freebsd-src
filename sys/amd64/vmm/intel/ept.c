@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 
 #include "vmx_cpufunc.h"
+#include "vmm_ipi.h"
 #include "vmx_msr.h"
 #include "ept.h"
 
@@ -97,6 +98,8 @@ ept_init(void)
 	    !INVEPT_SUPPORTED(cap) ||
 	    !INVEPT_ALL_TYPES_SUPPORTED(cap))
 		return (EINVAL);
+
+	ept_pmap_flags = vmm_ipinum & PMAP_NESTED_IPIMASK;
 
 	use_superpages = 1;
 	TUNABLE_INT_FETCH("hw.vmm.ept.use_superpages", &use_superpages);

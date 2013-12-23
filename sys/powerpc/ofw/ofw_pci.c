@@ -256,9 +256,9 @@ ofw_pci_route_interrupt(device_t bus, device_t dev, int pin)
 {
 	struct ofw_pci_softc *sc;
 	struct ofw_pci_register reg;
-	uint32_t pintr, mintr;
+	uint32_t pintr, mintr[2];
+	int intrcells;
 	phandle_t iparent;
-	uint8_t maskbuf[sizeof(reg) + sizeof(pintr)];
 
 	sc = device_get_softc(bus);
 	pintr = pin;
@@ -269,10 +269,15 @@ ofw_pci_route_interrupt(device_t bus, device_t dev, int pin)
 	    (pci_get_slot(dev) << OFW_PCI_PHYS_HI_DEVICESHIFT) |
 	    (pci_get_function(dev) << OFW_PCI_PHYS_HI_FUNCTIONSHIFT);
 
-	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo, &reg,
-	    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
-	    &iparent, maskbuf))
-		return (ofw_bus_map_intr(dev, iparent, mintr));
+	intrcells = ofw_bus_lookup_imap(ofw_bus_get_node(dev),
+	    &sc->sc_pci_iinfo, &reg, sizeof(reg), &pintr, sizeof(pintr),
+	    mintr, sizeof(mintr), &iparent);
+	if (intrcells) {
+		pintr = ofw_bus_map_intr(dev, iparent, mintr[0]);
+		if (intrcells == 2)
+			ofw_bus_config_intr(dev, pintr, mintr[1]);
+		return (pintr);
+	}
 
 	/* Maybe it's a real interrupt, not an intpin */
 	if (pin > 4)

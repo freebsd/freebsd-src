@@ -76,13 +76,16 @@ static struct ttm_buffer_object *ttm_bo_vm_lookup_rb(struct ttm_bo_device *bdev,
 	struct ttm_buffer_object *bo;
 	struct ttm_buffer_object *best_bo = NULL;
 
-	RB_FOREACH(bo, ttm_bo_device_buffer_objects, &bdev->addr_space_rb) {
+	bo = RB_ROOT(&bdev->addr_space_rb);
+	while (bo != NULL) {
 		cur_offset = bo->vm_node->start;
 		if (page_start >= cur_offset) {
 			best_bo = bo;
 			if (page_start == cur_offset)
 				break;
-		}
+			bo = RB_RIGHT(bo, vm_rb);
+		} else
+			bo = RB_LEFT(bo, vm_rb);
 	}
 
 	if (unlikely(best_bo == NULL))

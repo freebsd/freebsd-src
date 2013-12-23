@@ -713,7 +713,6 @@ pf_free_src_node(struct pf_src_node *sn)
 {
 
 	KASSERT(sn->states == 0, ("%s: %p has refs", __func__, sn));
-	LIST_REMOVE(sn, entry);
 	uma_zfree(V_pf_sources_z, sn);
 }
 

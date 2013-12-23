@@ -791,21 +791,19 @@ teken_subr_do_putchar(teken_t *t, const teken_pos_t *tp, teken_char_t c,
 		teken_funcs_copy(t, &ctr, &ctp);
 	}
 
+	teken_funcs_putchar(t, tp, c, &t->t_curattr);
+
 	if (width == 2 && tp->tp_col + 1 < t->t_winsize.tp_col) {
 		teken_pos_t tp2;
+		teken_attr_t attr;
 
-		/*
-		 * Store a space behind double width characters before
-		 * actually printing them. This prevents artifacts when
-		 * the consumer doesn't render it using double width
-		 * glyphs.
-		 */
+		/* Print second half of CJK fullwidth character. */
 		tp2.tp_row = tp->tp_row;
 		tp2.tp_col = tp->tp_col + 1;
-		teken_funcs_putchar(t, &tp2, BLANK, &t->t_curattr);
+		attr = t->t_curattr;
+		attr.ta_format |= TF_CJK_RIGHT;
+		teken_funcs_putchar(t, &tp2, c, &attr);
 	}
-
-	teken_funcs_putchar(t, tp, c, &t->t_curattr);
 }
 
 static void

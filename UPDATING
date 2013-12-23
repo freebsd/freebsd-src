@@ -1943,7 +1943,7 @@ COMMON ITEMS:
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE
 	<maybe newfs current's root partition>
 	<mount current's root partition on directory ${CURRENT_ROOT}>
-	make installworld DESTDIR=${CURRENT_ROOT}
+	make installworld DESTDIR=${CURRENT_ROOT} -DDB_FROM_SRC
 	make distribution DESTDIR=${CURRENT_ROOT} # if newfs'd
 	make installkernel KERNCONF=YOUR_KERNEL_HERE DESTDIR=${CURRENT_ROOT}
 	cp /etc/fstab ${CURRENT_ROOT}/etc/fstab 		   # if newfs'd

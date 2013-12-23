@@ -162,6 +162,14 @@ dos_mount(DOS_FS *fs, struct open_file *fd)
         (void)dosunmount(fs);
         return(err);
     }
+    fs->root = dot[0];
+    fs->root.name[0] = ' ';
+    if (fs->fatsz == 32) {
+        fs->root.clus[0] = fs->rdcl & 0xff;
+        fs->root.clus[1] = (fs->rdcl >> 8) & 0xff;
+        fs->root.dex.h_clus[0] = (fs->rdcl >> 16) & 0xff;
+        fs->root.dex.h_clus[1] = (fs->rdcl >> 24) & 0xff;
+    }
     return 0;
 }
 
@@ -381,21 +389,32 @@ dos_readdir(struct open_file *fd, struct dirent *d)
 	if (dd.de.name[0] == 0xe5)
 	    continue;
 
-	/* Skip volume labels */
-	if (dd.de.attr & FA_LABEL)
-	    continue;
-
-	if ((dd.de.attr & FA_MASK) == FA_XDE) {
-	    if (dd.xde.seq & 0x40)
-		chk = dd.xde.chk;
-	    else if (dd.xde.seq != xdn - 1 || dd.xde.chk != chk)
-		continue;
-	    x = dd.xde.seq & ~0x40;
-	    if (x < 1 || x > 20) {
-		x = 0;
+	/* Check if directory entry is volume label */
+	if (dd.de.attr & FA_LABEL) {
+	    /* 
+	     * If volume label set, check if the current entry is
+	     * extended entry (FA_XDE) for long file names.
+	     */
+	    if ((dd.de.attr & FA_MASK) == FA_XDE) {
+		/*
+		 * Read through all following extended entries
+		 * to get the long file name. 0x40 marks the
+		 * last entry containing part of long file name.
+		 */
+		if (dd.xde.seq & 0x40)
+		    chk = dd.xde.chk;
+		else if (dd.xde.seq != xdn - 1 || dd.xde.chk != chk)
+		    continue;
+		x = dd.xde.seq & ~0x40;
+		if (x < 1 || x > 20) {
+		    x = 0;
+		    continue;
+		}
+		cp_xdnm(fn, &dd.xde);
+	    } else {
+		/* skip only volume label entries */
 		continue;
 	    }
-	    cp_xdnm(fn, &dd.xde);
 	} else {
 	    if (xdn == 1) {
 		x = 0;
@@ -483,10 +502,12 @@ namede(DOS_FS *fs, const char *path, DOS_DE **dep)
     int err;
 
     err = 0;
-    de = dot;
-    if (*path == '/')
-        path++;
+    de = &fs->root;
     while (*path) {
+        while (*path == '/')
+            path++;
+        if (*path == '\0')
+            break;
         if (!(s = strchr(path, '/')))
             s = strchr(path, 0);
         if ((n = s - path) > 255)
@@ -498,8 +519,6 @@ namede(DOS_FS *fs, const char *path, DOS_DE **dep)
             return ENOTDIR;
         if ((err = lookup(fs, stclus(fs->fatsz, de), name, &de)))
             return err;
-        if (*path == '/')
-            path++;
     }
     *dep = de;
     return 0;
