@@ -477,8 +477,30 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       dns/bind-tools port.</para>
 
     <para revision="225937">sysinstall has been removed from the base system.
-      sysinstall has been replaced by &man.bsdinstall.8; and &man.bsdconfig.8;.</para>
-      
+      Auxiliary libraries and tools used by sysinstall such as libdisk, libftpio,
+      and sade have also been removed.  sysinstall has been replaced by
+      &man.bsdinstall.8; and &man.bsdconfig.8;.</para>
+
+    <para revision="256106">&man.freebsd-version.1; has been added.  This tool
+      makes a best effort to determine the version and patch level of
+      the installed kernel and userland.</para>
+
+    <para revision="255191">GNU patch has been removed from the base system, and replaced
+      by a BSD-licensed &man.patch.1; program.</para>
+
+    <para revision="241511">GNU sort has been removed from the base system, and replaced
+      by a BSD-licensed &man.sort.1; program.</para>
+
+    <para revision="235723">Berkely yacc (byacc) has been imported
+      from <link xlink:href="http://invisible-island.net/byacc/">invisible island</link>.
+      This brings bison compatibilities to &man.yacc.1; while preserving full
+      backwards compatibility with previous version of &man.yacc.1;.</para>
+
+    <para revision="250881">&man.lex.1; has been replaced by flex 2.5.37</para>
+
+    <para revision="250699">&man.make.1; has been replaced with the 
+      "Portable" BSD make tool (bmake) from NetBSD.</para>
+
     <para role="merged">The &man.adduser.8; utility now supports
       a <option>-M</option> option to set the mode of a new user's
       home directory.</para>
@@ -611,29 +633,32 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
     <para role="merged"><application>bzip2</application> has been updated from 1.0.4
       to 1.0.5.</para>
 
-    <para><application>CVS</application> has been removed from the
+    <para revision="251794"><application>CVS</application> has been removed from the
     base system, but is still available from ports</para>
 
-    <para><application>FILE</application> has been updated from 4.23
-      to 5.03.</para>
+    <para revision="251886">Subversion has been imported into the base system and
+      is installed as <application>svnlite</application>.  <application>svnlite</application>
+      should only be used for checking out &os; source and committing, and does not
+      replace the full Subversion port.</para>
 
-    <para><application>hostapd</application> has been
+    <para revision="234449"><application>file</application> has been updated to 5.11.</para>
+
+    <para revision="252726"><application>hostapd</application> has been
       updated from 0.5.8 to 0.5.10.</para>
 
-    <para><application>IPFilter</application> has been updated from
-      4.1.23 to 4.1.28.</para>
+    <para><application>IPFilter</application> has been updated to 5.1.2.</para>
 
-    <para><application>less</application> has been updated from
-      v408 to v429.</para>
+    <para revision="250592"><application>less</application> has been updated to
+      v458.</para>
 
     <para><application>ncurses</application> has been updated from
-      5.6-20061217 to 5.6-20080503.</para>
+      to 5.7-20081102.</para>
 
     <para role="merged"><application>OpenSSH</application> has been updated
-      from 4.5p1 to 5.1p1.</para>
+      to 6.4.</para>
 
-    <para role="merged"><application>OpenPAM</application> has been updated from the
-      Figwort release to the Hydrangea release.</para>
+    <para revision="236109"><application>OpenPAM</application> has been updated to
+      the Micrampelis release.</para>
 
     <para role="merged"><application>sendmail</application> has been updated from
       8.14.1 to 8.14.7.</para>
@@ -649,11 +674,15 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       then please run &man.tzsetup.8; to install a new /etc/localtime.
       </para>
 
-    <para><application>WPA Supplicant</application> has been
-      updated from 0.5.8 to 0.5.10.</para>
+    <para revision="252726"><application>WPA Supplicant</application> has been
+      updated to 2.0.</para>
 
     <para role="merged"><application>xz</application> has been updated
       from snapshot as of 12 April 2010 to 5.0.0.</para>
+
+    <para revision="258231" role="merged">&man.nvi.1; has been updated to 2.1.2.</para>
+
+    <para revision="254225">&man.nvi.1; supports wide character locales.</para>
 
   </sect2>
 
