@@ -130,15 +130,10 @@ VNET_DEFINE(int, ip6_prefer_tempaddr) = 0;
 
 static int cached_rtlookup(const struct sockaddr_in6 *dst,
     struct route_in6 *ro, u_int fibnum);
-static int check_scopezones(const struct sockaddr_in6 *dst,
-    struct route_in6 *ro, u_int fibnum, const struct ip6_moptions *mopts,
-    const struct in6_addr *src, const struct ifnet *ifp);
 static int handle_nexthop(struct ip6po_nhinfo *nh, u_int fibnum,
     struct ifnet **ifpp);
-static int handle_pktinfo(const struct sockaddr_in6 *dst,
-    const struct in6_pktinfo* pi, const struct ip6_moptions *mopts,
-    struct route_in6 *ro, u_int fibnum, struct ifnet **ifpp,
-    struct in6_addr *srcp, int *done);
+static int handle_pktinfo(const struct in6_pktinfo* pi, struct ifnet **ifpp,
+    struct in6_addr *srcp);
 
 static int lookup_policy_label(const struct in6_addr *, uint32_t);
 
@@ -327,65 +322,20 @@ cached_rtlookup(const struct sockaddr_in6 *dst, struct route_in6 *ro,
 	return (0);
 }
 
-static int
-check_scopezones(const struct sockaddr_in6 *dst, struct route_in6 *ro,
-    u_int fibnum, const struct ip6_moptions *mopts, const struct in6_addr *src,
-    const struct ifnet *ifp)
-{
-	struct ifnet *oifp;
-
-	oifp = NULL;
-	/* Determine zone index of destination address. */
-	if (IN6_IS_SCOPE_LINKLOCAL(&dst->sin6_addr) ||
-	    IN6_IS_ADDR_MC_INTFACELOCAL(&dst->sin6_addr)) {
-		if (dst->sin6_scope_id == 0)
-			return (EHOSTUNREACH);
-		oifp = in6_getlinkifnet(dst->sin6_scope_id);
-	} else if (IN6_IS_ADDR_MULTICAST(&dst->sin6_addr) &&
-	    mopts != NULL && mopts->im6o_multicast_ifp != NULL) {
-		oifp = mopts->im6o_multicast_ifp;
-	} else {
-		if (cached_rtlookup(dst, ro, fibnum) == 0)
-			oifp = ro->ro_rt->rt_ifp;
-	}
-	if (oifp == NULL)
-		return (EHOSTUNREACH);
-
-	if (oifp != ifp &&
-	    in6_getscopezone(ifp, in6_srcaddrscope(src)) !=
-	    in6_getscopezone(oifp, in6_srcaddrscope(&dst->sin6_addr)))
-	    return (EHOSTUNREACH);
-
-	return (0);
-}
-
 /*
- * dst - original destination address;
  * pi - options configured via IPV6_PKTINFO;
- * mopts - options configured via IPV6_MULTICAST_IF;
- * ro - route to destination;
- * fibnum - FIB number
  *
  * These parameters are returned back to caller:
  * ifpp - determined outgoing interface;
  * srcp - determined source address;
- * done - if set, this means that outgoing interface and
- *        source address were determined.
- *
- * NOTE: don't forget to RTFREE(ro->ro_rt) after calling this function,
- * if needed of course.
  */
 static int
-handle_pktinfo(const struct sockaddr_in6 *dst,
-    const struct in6_pktinfo* pi, const struct ip6_moptions *mopts,
-    struct route_in6 *ro, u_int fibnum, struct ifnet **ifpp,
-    struct in6_addr *srcp, int *done)
+handle_pktinfo(const struct in6_pktinfo* pi, struct ifnet **ifpp,
+    struct in6_addr *srcp)
 {
-	struct in6_ifaddr *ia;
 	struct ifnet *ifp;
 
 	ifp = NULL;
-	*done = 0;
 	if (pi->ipi6_ifindex != 0) {
 		ifp = ifnet_byindex(pi->ipi6_ifindex);
 		if (ifp == NULL)
@@ -393,93 +343,11 @@ handle_pktinfo(const struct sockaddr_in6 *dst,
 		if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)
 			return (ENETDOWN);
 	}
-	if (ifp != NULL && IN6_IS_ADDR_UNSPECIFIED(&pi->ipi6_addr)) {
-		/*
-		 * If an interface is explicitly specified, use it.
-		 */
+	if (ifp != NULL)
 		*ifpp = ifp;
+	if (IN6_IS_ADDR_UNSPECIFIED(&pi->ipi6_addr))
 		return (0);
-	}
-	if (ifp != NULL && !IN6_IS_ADDR_UNSPECIFIED(&pi->ipi6_addr)) {
-		/*
-		 * If both, address and ifindex are specified via
-		 * IPV6_PKTINFO, then check that address is available
-		 * on this interface.
-		 */
-		ia = in6ifa_ifpwithaddr(ifp, &pi->ipi6_addr);
-	} else {
-		/*
-		 * If address is specified via IPV6_PKTINFO, but interface
-		 * isn't, we can determine interface for a global unicast
-		 * from the ifaddr hash.
-		 */
-		if (!IN6_IS_ADDR_LINKLOCAL(&pi->ipi6_addr)) {
-			/* ipi6_addr is global. */
-			ia = in6ifa_ifwithaddr(&pi->ipi6_addr, 0);
-		} else if (IN6_IS_ADDR_MULTICAST(&dst->sin6_addr)) {
-			/* ipi6_addr is link-local, dst is multicast. */
-			if (mopts != NULL &&
-			    mopts->im6o_multicast_ifp != NULL) {
-				/*
-				 * Outgoing interface is specified via
-				 * IPV6_MULTICAST_IF socket option.
-				 */
-				ia = in6ifa_ifpwithaddr(
-				    mopts->im6o_multicast_ifp, &pi->ipi6_addr);
-			} else if (dst->sin6_scope_id != 0 && ( /* XXX */
-			    IN6_IS_ADDR_MC_LINKLOCAL(&dst->sin6_addr) ||
-			    IN6_IS_ADDR_MC_INTFACELOCAL(&dst->sin6_addr))) {
-				/*
-				 * Destination multicast address is in the
-				 * link-local or interface-local scope.
-				 * Use its sin6_scope_id to determine
-				 * outgoing interface.
-				 */
-				ia = in6ifa_ifwithaddr(&pi->ipi6_addr,
-				    dst->sin6_scope_id);
-			} else {
-				/*
-				 * XXX: Try to lookup route for this multicast
-				 * destination address.
-				 */
-				if (cached_rtlookup(dst, ro, fibnum) != 0)
-					return (EHOSTUNREACH);
-				ia = in6ifa_ifpwithaddr(ro->ro_rt->rt_ifp,
-				    &pi->ipi6_addr);
-			}
-		} else if (IN6_IS_ADDR_LINKLOCAL(&dst->sin6_addr)) {
-			/* both are link-local. */
-			ia = in6ifa_ifwithaddr(&pi->ipi6_addr,
-			    dst->sin6_scope_id);
-		} else {
-			/* ipi6_addr is link-local, dst is global. */
-			if (cached_rtlookup(dst, ro, fibnum) != 0)
-				return (EHOSTUNREACH);
-			/* Check that address is available on interface. */
-			ia = in6ifa_ifpwithaddr(ro->ro_rt->rt_ifp,
-			    &pi->ipi6_addr);
-		}
-	}
-	if (ia == NULL || (
-	    ia->ia6_flags & (IN6_IFF_ANYCAST | IN6_IFF_NOTREADY))) {
-		RO_RTFREE(ro);
-		if (ia != NULL)
-			ifa_free(&ia->ia_ifa);
-		return (EADDRNOTAVAIL);
-	}
-	ifp = ia->ia_ifp;
-	ifa_free(&ia->ia_ifa);
-	/*
-	 * Source address can not break the destination zone.
-	 */
-	if (check_scopezones(dst, ro, fibnum, mopts, &pi->ipi6_addr,
-	    ifp) != 0) {
-		RO_RTFREE(ro);
-		return (EHOSTUNREACH);
-	}
-	*ifpp = ifp;
 	*srcp = pi->ipi6_addr;
-	*done = 1;
 	return (0);
 }
 
@@ -495,7 +363,6 @@ static int
 handle_nexthop(struct ip6po_nhinfo *nh, u_int fibnum, struct ifnet **ifpp)
 {
 	struct sockaddr_in6 *sa;
-	struct in6_ifaddr *ia;
 	struct route_in6 *ro;
 	struct ifnet *ifp, *oifp;
 
@@ -508,21 +375,11 @@ handle_nexthop(struct ip6po_nhinfo *nh, u_int fibnum, struct ifnet **ifpp)
 	 * was determined in the PKTINFO handling code.
 	 */
 	oifp = *ifpp;
-
-	/*
-	 * Check that the next hop address is our own.
-	 */
-	ia = in6ifa_ifwithaddr(&sa->sin6_addr, sa->sin6_scope_id);
-	if (ia != NULL) {
-		/* Address is our own. */
-		ifp = ia->ia_ifp;
-		ifa_free(&ia->ia_ifa);
-	} else {
+	if (IN6_IS_ADDR_LINKLOCAL(&sa->sin6_addr))
 		/*
-		 * Address is not our own.
+		 * Next hop is LLA, thus it should be neighbor.
 		 * Determine outgoing interface by zone index.
 		 */
-		if (IN6_IS_ADDR_LINKLOCAL(&sa->sin6_addr))
 			ifp = in6_getlinkifnet(sa->sin6_scope_id);
 		else {
 			if (cached_rtlookup(sa, ro, fibnum) != 0)
@@ -535,7 +392,6 @@ handle_nexthop(struct ip6po_nhinfo *nh, u_int fibnum, struct ifnet **ifpp)
 				return (EHOSTUNREACH);
 			ifp = ro->ro_rt->rt_ifp;
 		}
-	}
 	/*
 	 * When the outgoing interface is specified by IPV6_PKTINFO
 	 * as well, the next hop specified by this option must be
@@ -548,6 +404,34 @@ handle_nexthop(struct ip6po_nhinfo *nh, u_int fibnum, struct ifnet **ifpp)
 	return (0);
 }
 
+static int
+check_addrs(const struct sockaddr_in6 *src, const struct sockaddr_in6 *dst,
+    struct ifnet *ifp)
+{
+	struct in6_ifaddr *ia;
+
+	/*
+	 * Check that source address is available on the interface.
+	 */
+	ia = in6ifa_ifpwithaddr(ifp, &src->sin6_addr);
+	if (ia == NULL || (
+	    ia->ia6_flags & (IN6_IFF_ANYCAST | IN6_IFF_NOTREADY))) {
+		if (ia != NULL)
+			ifa_free(&ia->ia_ifa);
+		return (EADDRNOTAVAIL);
+	}
+	ifa_free(&ia->ia_ifa);
+	/*
+	 * Check that source address does not break the destination
+	 * zone.
+	 */
+	if (dst->sin6_scope_id != 0 &&
+	    dst->sin6_scope_id != in6_getscopezone(ifp,
+	    in6_srcaddrscope(&dst->sin6_addr)))
+		return (EHOSTUNREACH);
+	return (0);
+}
+
 int
 in6_selectsrc(struct sockaddr_in6 *dst, struct ip6_pktopts *opts,
     struct inpcb *inp, struct route_in6 *ro, struct ucred *cred,
@@ -556,37 +440,33 @@ in6_selectsrc(struct sockaddr_in6 *dst, struct ip6_pktopts *opts,
 	struct route_in6 ro6;
 	struct dstaddr_props dstprops;
 	struct srcaddr_choice best;
+	struct sockaddr_in6 srcsock;
 	struct ip6_moptions *mopts;
-	struct in6_pktinfo *pi;
 	struct in6_ifaddr *ia;
 	struct ifaddr *ifa;
 	struct ifnet *ifp, *oifp;
 	u_int fibnum;
-	int error, done;
+	int error;
 
 	KASSERT(srcp != NULL, ("%s: srcp is NULL", __func__));
 	KASSERT(ifpp != NULL, ("%s: ifpp is NULL", __func__));
 	KASSERT(sa6_checkzone(dst) == 0, ("%s: invalid zone information",
 	    __func__));
 
-	ifp = oifp = NULL;
-	if (ifpp) {
-		/*
-		 * Save a possibly passed in ifp for in6_selectsrc. Only
-		 * neighbor discovery code should use this feature, where
-		 * we may know the interface but not the FIB number holding
-		 * the connected subnet in case someone deleted it from the
-		 * default FIB and we need to check the interface.
-		 */
-		if (*ifpp != NULL)
-			oifp = *ifpp;
-		*ifpp = NULL;
-	}
-
+	ifp = NULL;
+	/*
+	 * XXX: Save a possibly passed in ifp for in6_selectsrc. Only
+	 * neighbor discovery code should use this feature, where
+	 * we may know the interface but not the FIB number holding
+	 * the connected subnet in case someone deleted it from the
+	 * default FIB and we need to check the interface.
+	 */
+	oifp = *ifpp;
 	if (inp != NULL) {
 		INP_LOCK_ASSERT(inp);
 		mopts = inp->in6p_moptions;
 		fibnum = inp->inp_inc.inc_fibnum;
+		/* Use "sticky" options if opts isn't specified. */
 		if (opts == NULL)
 			opts = inp->in6p_outputopts;
 	} else {
@@ -597,34 +477,32 @@ in6_selectsrc(struct sockaddr_in6 *dst, struct ip6_pktopts *opts,
 		ro = &ro6;
 		bzero(ro, sizeof(*ro));
 	}
-
-	/*
-	 * XXX: jail support MUST be added later!
-	 */
-	if (opts != NULL && (pi = opts->ip6po_pktinfo) != NULL) {
-		error = handle_pktinfo(dst, pi, mopts, ro, fibnum,
-		    &ifp, srcp, &done);
+	srcsock = sa6_any;
+	if (opts != NULL && opts->ip6po_pktinfo != NULL) {
+		error = handle_pktinfo(opts->ip6po_pktinfo, &ifp,
+		    &srcsock.sin6_addr);
 		if (error != 0)
 			return (error);
-		if (done != 0) {
+		if (ifp != NULL) {
 			/*
 			 * When the outgoing interface is specified by
 			 * IPV6_PKTINFO as well, the next hop specified by
 			 * this option must be reachable via the specified
-			 * interface. Also, we ignore next hop for multicast
-			 * destinations.
+			 * interface.
+			 * We ignore next hop for multicast destinations.
 			 */
 			if (!IN6_IS_ADDR_MULTICAST(&dst->sin6_addr) &&
-			    opts->ip6po_nexthop != NULL)
+			    opts->ip6po_nexthop != NULL) {
 				error = handle_nexthop(&opts->ip6po_nhinfo,
 				    fibnum, &ifp);
-			if (error != 0 || ro == &ro6)
-				RO_RTFREE(ro);
-			if (error == 0)
-				*ifpp = ifp;
-			return (error);
+				if (error != 0)
+					return (error);
+			}
 		}
-	} else if (IN6_IS_ADDR_MULTICAST(&dst->sin6_addr)) {
+	}
+	if (ifp != NULL)
+		goto oif_found;
+	if (IN6_IS_ADDR_MULTICAST(&dst->sin6_addr)) {
 		/*
 		 * If the destination address is a multicast address and
 		 * the IPV6_MULTICAST_IF socket option is specified for the
@@ -639,10 +517,11 @@ in6_selectsrc(struct sockaddr_in6 *dst, struct ip6_pktopts *opts,
 			 * or interface-local scope. Use its sin6_scope_id to
 			 * determine outgoing interface.
 			 */
-			ifp = in6_getlinkifnet(dst->sin6_scope_id);
+			if (dst->sin6_scope_id != 0)
+				ifp = in6_getlinkifnet(dst->sin6_scope_id);
 		} else {
 			/*
-			 * XXX: Try to lookup route for this multicast
+			 * Try to lookup route for this multicast
 			 * destination address.
 			 */
 			if (cached_rtlookup(dst, ro, fibnum) != 0)
@@ -659,9 +538,10 @@ in6_selectsrc(struct sockaddr_in6 *dst, struct ip6_pktopts *opts,
 		 * Use sin6_scope_id for link-local addresses.
 		 * Do a route lookup for global addresses.
 		 */
-		if (dst->sin6_scope_id != 0)
-			ifp = in6_getlinkifnet(dst->sin6_scope_id);
-		else {
+		if (IN6_IS_ADDR_LINKLOCAL(&dst->sin6_addr)) {
+			if (dst->sin6_scope_id != 0)
+				ifp = in6_getlinkifnet(dst->sin6_scope_id);
+		} else {
 			if (cached_rtlookup(dst, ro, fibnum) != 0)
 				return (EHOSTUNREACH);
 			ifp = ro->ro_rt->rt_ifp;
@@ -672,6 +552,26 @@ in6_selectsrc(struct sockaddr_in6 *dst, struct ip6_pktopts *opts,
 			return (EHOSTUNREACH);
 		/* Use outgoing interface specified by caller. */
 		ifp = oifp;
+	}
+oif_found:
+	if (!IN6_IS_ADDR_UNSPECIFIED(&srcsock.sin6_addr)) {
+		if (ro == &ro6)
+			RO_RTFREE(ro);
+		if (cred != NULL) {
+			srcsock.sin6_scope_id = in6_getscopezone(ifp,
+			    in6_srcaddrscope(&srcsock.sin6_addr));
+			error = prison_local_ip6(cred, &srcsock,
+			    (inp != NULL &&
+			    (inp->inp_flags & IN6P_IPV6_V6ONLY) != 0));
+			if (error != 0)
+				return (error);
+		}
+		error = check_addrs(&srcsock, dst, ifp);
+		if (error != 0)
+			return (error);
+		*ifpp = ifp;
+		*srcp = srcsock.sin6_addr;
+		return (0);
 	}
 	/*
 	 * Otherwise, if the socket has already bound the source, just use it.
@@ -684,13 +584,19 @@ in6_selectsrc(struct sockaddr_in6 *dst, struct ip6_pktopts *opts,
 		return (0);
 	}
 	/*
-	 * XXX: Bypass source address selection and use the primary jail IP
+	 * Bypass source address selection and use the primary jail IP
 	 * if requested.
 	 */
-#if 0
-	if (cred != NULL && !prison_saddrsel_ip6(cred, srcp))
+	if (cred != NULL && !prison_saddrsel_ip6(cred, &srcsock)) {
+		if (ro == &ro6)
+			RO_RTFREE(ro);
+		error = check_addrs(&srcsock, dst, ifp);
+		if (error != 0)
+			return (error);
+		*ifpp = ifp;
+		*srcp = srcsock.sin6_addr;
 		return (0);
-#endif
+	}
 
 	/*
 	 * If the address is not specified, choose the best one based on
