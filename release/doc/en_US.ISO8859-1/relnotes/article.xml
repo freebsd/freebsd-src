@@ -415,6 +415,13 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       <sect4 xml:id="fs-zfs">
 	<title>ZFS</title>
 
+        <para revision="">&man.bsdinstall.8; now supports installing
+          ZFS on the root file system.  It includes a single configuration menu
+          that allows you to select all of the required details, including
+          which drives to use, what ZFS RAID level to use (taking into consideration
+          the selected number of drives), GPT or MBR, GELI encryption, forcing 4K sectors,
+          pool name, etc.</para>
+
         <para revision="240868">TRIM support has been added for
           ZFS.</para>
 
@@ -469,6 +476,9 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       nslookup and dig can be obtained by installing the
       dns/bind-tools port.</para>
 
+    <para revision="225937">sysinstall has been removed from the base system.
+      sysinstall has been replaced by &man.bsdinstall.8; and &man.bsdconfig.8;.</para>
+      
     <para role="merged">The &man.adduser.8; utility now supports
       a <option>-M</option> option to set the mode of a new user's
       home directory.</para>
