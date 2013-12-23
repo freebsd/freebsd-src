@@ -35,7 +35,7 @@
 .\"
 .\"	@(#)bc.1	6.8 (Berkeley) 8/8/91
 .\"
-.Dd January 22, 2010
+.Dd December 6, 2013
 .Dt BC 1
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Nd arbitrary-precision arithmetic language and calculator
 .Sh SYNOPSIS
 .Nm bc
-.Op Fl chlqv
+.Op Fl chlv
 .Op Fl e Ar expression
 .Op Ar file ...
 .Sh DESCRIPTION
@@ -349,6 +349,14 @@ math library, read when the
 .Fl l
 option is specified on the command line.
 .El
+.Sh COMPATIBILITY
+The
+.Fl q
+and
+.Fl Fl quiet
+options are no-ops for compatibility with some other implementations of
+.Nm
+and their use is discouraged.
 .Sh SEE ALSO
 .Xr dc 1
 .Pp
