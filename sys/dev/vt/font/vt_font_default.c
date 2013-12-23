@@ -2194,8 +2194,12 @@ struct vt_font vt_font_default = {
 	.vf_width		= 8,
 	.vf_height		= 16,
 	.vf_bytes		= font_bytes,
-	.vf_map			= { font_mapping_normal, NULL,
-				    font_mapping_bold, NULL },
+	.vf_map			= {
+				    font_mapping_normal,
+				    NULL,
+				    font_mapping_bold,
+				    NULL,
+				  },
 	.vf_map_count		= { 248, 0, 260, 0 },
 	.vf_refcount		= 1,
 };
