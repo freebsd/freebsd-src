@@ -128,9 +128,16 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
 		lookupflags = INPLOOKUP_WILDCARD;
 	if (nam == NULL) {
-		if ((error = prison_local_ip6(cred, &inp->in6p_laddr,
-		    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
+		struct sockaddr_in6 tmp;
+
+		tmp = sa6_any;
+		error = prison_local_ip6(cred, &tmp,
+		    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0));
+		if (error != 0)
 			return (error);
+		inp->in6p_laddr = tmp.sin6_addr;
+		if (IN6_IS_ADDR_LINKLOCAL(&inp->in6p_laddr))
+			inp->in6p_zoneid = tmp.sin6_scope_id;
 	} else {
 		sin6 = (struct sockaddr_in6 *)nam;
 		if (nam->sa_len != sizeof(*sin6))
@@ -142,7 +149,7 @@ in6_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 		    inp->in6p_moptions, sin6)) != 0)
 			return (error);
 
-		if ((error = prison_local_ip6(cred, &sin6->sin6_addr,
+		if ((error = prison_local_ip6(cred, sin6,
 		    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
 			return (error);
 
@@ -328,7 +335,7 @@ in6_pcbconnect_mbuf(register struct inpcb *inp, struct sockaddr *nam,
 	    inp->in6p_moptions, sin6);
 	if (error != 0)
 		return (error);
-	if ((error = prison_remote_ip6(inp->inp_cred, &sin6->sin6_addr)) != 0)
+	if ((error = prison_remote_ip6(inp->inp_cred, sin6)) != 0)
 		return (error);
 	/*
 	 * Determine source address and outgoing interface.
@@ -884,8 +891,8 @@ in6_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
 
 			injail = prison_flag(inp->inp_cred, PR_IP6);
 			if (injail) {
-				if (prison_check_ip6(inp->inp_cred,
-				    laddr) != 0)
+				if (prison_check_in6(inp->inp_cred,
+				    laddr, zoneid) != 0)
 					continue;
 			} else {
 				if (local_exact != NULL)
@@ -1024,8 +1031,8 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 
 			injail = prison_flag(inp->inp_cred, PR_IP6);
 			if (injail) {
-				if (prison_check_ip6(inp->inp_cred,
-				    laddr) != 0)
+				if (prison_check_in6(inp->inp_cred,
+				    laddr, zoneid) != 0)
 					continue;
 			} else {
 				if (local_exact != NULL)
