@@ -1095,7 +1095,7 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 
 	/* Read and forward available mbuf's */
 	auio.uio_td = NULL;
-	auio.uio_resid = MJUMPAGESIZE;	/* XXXGL: sane limit? */
+	auio.uio_resid = 1000000000;
 	flags = MSG_DONTWAIT;
 	while (1) {
 		struct sockaddr *sa = NULL;
