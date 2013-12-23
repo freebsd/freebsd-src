@@ -125,7 +125,7 @@
       amount of IPIs for shootdown on big-SMP machines and eliminating up to 25-30%
       of the system time on i/o intensive workloads.</para>
 
-    <para arch="amd64">The maximum amount of memory the &os; kernel
+    <para arch="amd64" revision="254466">The maximum amount of memory the &os; kernel
       can address has been increased from 1TB to 4TB.</para>
 
     <para>A new &man.cpuset.2; API has been added
@@ -177,6 +177,11 @@
       scheduler is now the default process scheduler
       in <filename>GENERIC</filename> kernels.</para>
 
+    <para arch="amd64,i386" revision="240135">Support was added for
+      the new Intel on-CPU Bull Mountain random number
+      generator, found on IvyBridge and supposedly later CPUs,
+      accessible with RDRAND instruction.</para>
+
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
       <para arch="amd64" revision="245652">The BSD Hypervisor, &man.bhyve.8; is included
@@ -207,6 +212,9 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       <para revision="254738">The &man.vmx.4; driver has been added.
         &man.vmx.4; is a VMware VMXNET3 ethernet driver ported from
         OpenBSD.</para>
+
+      <para revision="255744" arch="amd64,i386">Xen PVHVM virtualization is now
+        part of the GENERIC kernel.</para>
 
     </sect3>
 
