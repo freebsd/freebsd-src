@@ -2089,52 +2089,44 @@ freebsd4_sendfile(struct thread *td, struct freebsd4_sendfile_args *uap)
 }
 #endif /* COMPAT_FREEBSD4 */
 
-struct page_descr {
-	off_t off;
-	off_t xfsize;
-};
-
 static void
-sendfile_swapin(vm_object_t obj, vm_page_t *pa, struct page_descr *pd,
-    int npages, off_t off, off_t len)
+sendfile_swapin(vm_object_t obj, vm_page_t *pa, int npages, off_t off,
+    off_t len)
 {
 	int rv;
 
-	KASSERT(npages * PAGE_SIZE >= len, ("%s: npages %d len %ju",
-	    __func__, npages, (uintmax_t)len));
+	/*
+	 * Macros to calculate size and offset for given (i) page,
+	 * starting from offset (o) with maximum length of (l).
+	 * Used in this function and vn_sendfile().
+	 */
+#define	XFSIZE(i, o, l)	((i) == 0 ?					\
+			   omin(PAGE_SIZE - ((o) & PAGE_MASK), (l)) :	\
+			   ((i) == (npages - 1) ?			\
+			   (((o) + (l)) & PAGE_MASK) : PAGE_SIZE))
+#define	OFFSET(i, o)	(vm_offset_t)((i) == 0 ? (o) :			\
+			   trunc_page((o) + i * PAGE_SIZE))
 
 	VM_OBJECT_WLOCK(obj);
-	for (int i = 0; i < npages; i++) {
-		vm_offset_t pgoff;
-		off_t xfsize;
-
-		pgoff = (vm_offset_t)(off & PAGE_MASK);
-		xfsize = omin(PAGE_SIZE - pgoff, len);
-
-		pd[i].off = off;
-		pd[i].xfsize = xfsize;
-		pa[i] = vm_page_grab(obj, OFF_TO_IDX(off),
+	for (int i = 0; i < npages; i++)
+		pa[i] = vm_page_grab(obj, OFF_TO_IDX(OFFSET(i, off)),
 		    VM_ALLOC_WIRED | VM_ALLOC_NORMAL);
-
-		off += xfsize;
-		len -= xfsize;
-	}
 
 	for (int i = 0; i < npages; i++) {
 		int j, a;
 
-		if (vm_page_is_valid(pa[i], pd[i].off & PAGE_MASK,
-		    pd[i].xfsize)) {
+		if (vm_page_is_valid(pa[i], OFFSET(i, off) & PAGE_MASK,
+		    XFSIZE(i, off, len))) {
 			vm_page_xunbusy(pa[i]);
 			continue;
 		}
 
 		for (j = i + 1; j < npages; j++)
-			if (vm_page_is_valid(pa[j], pd[j].off & PAGE_MASK,
-			    pd[j].xfsize))
+			if (vm_page_is_valid(pa[j], OFFSET(j, off) & PAGE_MASK,
+			    XFSIZE(j, off, len)))
 				break;
 
-		while (!vm_pager_has_page(obj, OFF_TO_IDX(pd[i].off),
+		while (!vm_pager_has_page(obj, OFF_TO_IDX(OFFSET(i, off)),
 		    NULL, &a) && i < j) {
 			pmap_zero_page(pa[i]);
 			pa[i]->valid = VM_PAGE_BITS_ALL;
@@ -2152,21 +2144,20 @@ sendfile_swapin(vm_object_t obj, vm_page_t *pa, struct page_descr *pd,
 
 		vm_page_xunbusy(pa[i]);
 		SFSTAT_INC(sf_iocnt);
-		for (; a > 0 && i < npages; a--, i++) {
-			vm_page_t p;
-
-			p = pa[i];
-			pa[i] = vm_page_lookup(obj, OFF_TO_IDX(pd[i].off));
-			if (p != pa[i])
-				printf("p %p pa[i] %p\n", p, pa[i]);
-		}
+		i += a;
+		for (j = i - a; a > 0 && j < npages; a--, j++)
+			KASSERT(pa[j] == vm_page_lookup(obj,
+			    OFF_TO_IDX(OFFSET(j, off))),
+			    ("pa[j] %p lookup %p\n", pa[j],
+			    vm_page_lookup(obj, OFF_TO_IDX(OFFSET(j, off)))));
 	}
 
 	for (int i = 0; i < npages; i++)
 		KASSERT((pa[i]->wire_count > 0 && vm_page_is_valid(pa[i],
-		    pd[i].off & PAGE_MASK, pd[i].xfsize)),
+		    OFFSET(i, off) & PAGE_MASK, XFSIZE(i, off, len))),
 		    ("wrong page %p state off 0x%jx len 0x%jx",
-		    pa[i], (uintmax_t)pd[i].off, (uintmax_t)pd[i].xfsize));
+		    pa[i], (uintmax_t)OFFSET(i, off),
+		    (uintmax_t)XFSIZE(i, off, len)));
 
 	VM_OBJECT_WUNLOCK(obj);
 }
@@ -2365,10 +2356,8 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	 */
 	for (off = offset; rem > 0; ) {
 		vm_page_t *pa;
-		struct page_descr *pd;
-		u_int npages;
 		struct mbuf *mtail;
-		int space;
+		int space, npages;
 
 		mtail = NULL;
 		/*
@@ -2458,22 +2447,17 @@ retry_space:
 		if (space > rem)
 			space = rem;
 
-		npages = howmany(space - (PAGE_SIZE - off & PAGE_MASK),
-		    PAGE_SIZE);
 		if (off & PAGE_MASK)
-			npages++;
+			npages = 1 + howmany(space -
+			    (PAGE_SIZE - (off & PAGE_MASK)), PAGE_SIZE);
+		else
+			npages = howmany(space, PAGE_SIZE);
 		pa = malloc(npages * sizeof(vm_page_t), M_TEMP, mwait);
 		if (pa == NULL) {
 			error = merror;
 			goto done;
 		}
-		pd = malloc(npages * sizeof(*pd), M_TEMP, mwait);
-		if (pd == NULL) {
-			free(pa, M_TEMP);
-			error = merror;
-			goto done;
-		}
-		sendfile_swapin(obj, pa, pd, npages, off, space);
+		sendfile_swapin(obj, pa, npages, off, space);
 
 		/*
 		 * Loop and construct maximum sized mbuf chain to be bulk
@@ -2529,8 +2513,8 @@ retry_space:
 				break;
 			}
 			m0->m_data = (char *)sf_buf_kva(sf) +
-			    (pd[i].off & PAGE_MASK);
-			m0->m_len = pd[i].xfsize;
+			    (OFFSET(i, off) & PAGE_MASK);
+			m0->m_len = XFSIZE(i, off, space);
 
 			/* Append to mbuf chain. */
 			if (mtail != NULL)
@@ -2538,10 +2522,6 @@ retry_space:
 			else
 				m = m0;
 			mtail = m0;
-
-			/* Keep track of bytes processed. */
-			off += pd[i].xfsize;
-			rem -= pd[i].xfsize;
 
 			/*
 			 * XXX eventually this should be a sfsync
@@ -2551,17 +2531,23 @@ retry_space:
 				sf_sync_ref(sfs);
 		}
 
+		/* Keep track of bytes processed. */
+		off += space;
+		rem -= space;
+
 		if (vp != NULL)
 			VOP_UNLOCK(vp, 0);
 
 		free(pa, M_TEMP);
-		free(pd, M_TEMP);
 
 		/* Prepend header, if any. */
 		if (hdrlen) {
 			mhtail->m_next = m;
 			m = mh;
 		}
+
+		if (error)
+			break;
 
 		/* Add the buffer chain to the socket buffer. */
 		KASSERT(m_length(m, NULL) == space + hdrlen,
