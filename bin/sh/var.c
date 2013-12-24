@@ -92,7 +92,6 @@ struct var vppid;
 struct var vps1;
 struct var vps2;
 struct var vps4;
-struct var vvers;
 static struct var voptind;
 struct var vdisvfork;
 
