@@ -14,7 +14,7 @@
 
     <copyright>
       <year>2013</year>
-      <holderrole="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
     <legalnotice xml:id="trademarks" role="trademarks">
