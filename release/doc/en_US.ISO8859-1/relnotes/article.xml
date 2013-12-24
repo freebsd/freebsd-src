@@ -617,14 +617,104 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       to send probe packets with no upper-layer protocol, rather than
       the usual UDP probe packets.</para>
 
-    <!--
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
-      <para/>
+      <para>The followoing &man.rc.8; scripts have been added:</para>
 
+      <informaltable frame="none" pgwide="0">
+	<tgroup cols="2">
+	  <colspec colwidth="1*" />
+	  <colspec colwidth="1*" />
+	  <thead>
+	    <row>
+	      <entry>&man.rc.8; Script</entry>
+	      <entry>Function</entry>
+	    </row>
+	  </thead>
+
+	  <tbody>
+	    <row>
+	      <entry><filename>ctld</filename></entry>
+	      <entry><para>iSCSI target daemon startup
+		  script</para></entry>
+	    </row>
+	    <row>
+	      <entry><filename>iscsictl</filename></entry>
+	      <entry><para>iSCSI initiator management utility
+		startup script</para></entry>
+	    </row>
+	    <row>
+	      <entry><filename>iscsid</filename></entry>
+	      <entry><para>iSCSI initiatior daemon startup
+		script</para></entry>
+	    </row>
+	    <row>
+	      <entry><filename>kfd</filename></entry>
+	      <entry><para>Kerberos ticket forwarding daemon
+		startup script</para></entry>
+	    </row>
+	    <row>
+	      <entry><filename>local_unbound</filename></entry>
+	      <entry><para>Unbound startup script for the local
+		caching resolver</para></entry>
+	    </row>
+	    <row>
+	      <entry><filename>postrandom</filename></entry>
+	      <entry><para>Generates a new entropy file at system
+		boot</para></entry>
+	    </row>
+	    <row>
+	      <entry><filename>swap</filename></entry>
+	      <entry><para>Replaces <filename>swap1</filename>;
+		enable swap at system boot</para></entry>
+	    </row>
+	    <row>
+	      <entry><filename>swaplate</filename></entry>
+	      <entry><para>Enables swap with <quote>late</quote>
+		set at system boot</para></entry>
+	    </row>
+	    <row>
+	      <entry><filename>utx</filename></entry>
+	      <entry><para>User accounting database startup and
+		shutdown script</para></entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </informaltable>
+
+      <para>The following &man.rc.8; scripts have been removed:</para>
+
+      <informaltable frame="none" pgwide="0">
+	<tgroup cols="2">
+	  <colspec colwidth="1*" />
+	  <thead>
+	    <row>
+	      <entry>&man.rc.8; Script</entry>
+	      <entry><para>blah;</para></entry>
+	    </row>
+	  </thead>
+
+	  <tbody>
+	    <row>
+	      <entry><filename>encswap</filename></entry>
+	      <entry><para>Replaced by <filename>swap</filename> and
+		<filename>swaplate</filename></para></entry>
+	    </row>
+	    <row>
+	      <entry><filename>named</filename></entry>
+	      <entry><para>Removed with
+		  <application>BIND</application></para></entry>
+	    </row>
+	    <row>
+	      <entry><filename>swap1</filename></entry>
+	      <entry><para>Replaced by <filename>swap</filename> and
+		<filename>swaplate</filename></para></entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </informaltable>
     </sect3>
-    -->
   </sect2>
 
   <sect2 xml:id="contrib">
