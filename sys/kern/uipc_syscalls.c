@@ -2089,44 +2089,62 @@ freebsd4_sendfile(struct thread *td, struct freebsd4_sendfile_args *uap)
 }
 #endif /* COMPAT_FREEBSD4 */
 
+ /*
+  * How much data to put into page i of n.
+  * Only first and last pages are special.
+  */
+static inline off_t
+xfsize(int i, int n, off_t off, off_t len)
+{
+
+	if (i == 0)
+		return (omin(PAGE_SIZE - (off & PAGE_MASK), len));
+
+	if (i == n - 1)
+		return ((off + len) & PAGE_MASK);
+
+	return (PAGE_SIZE);
+}
+
+/*
+ * Offset within object for i page.
+ */
+static inline vm_offset_t
+vmoff(int i, off_t off)
+{
+
+	if (i == 0)
+		return ((vm_offset_t)off);
+
+	return (trunc_page(off + i * PAGE_SIZE));
+}
+
 static void
 sendfile_swapin(vm_object_t obj, vm_page_t *pa, int npages, off_t off,
     off_t len)
 {
 	int rv;
 
-	/*
-	 * Macros to calculate size and offset for given (i) page,
-	 * starting from offset (o) with maximum length of (l).
-	 * Used in this function and vn_sendfile().
-	 */
-#define	XFSIZE(i, o, l)	((i) == 0 ?					\
-			   omin(PAGE_SIZE - ((o) & PAGE_MASK), (l)) :	\
-			   ((i) == (npages - 1) ?			\
-			   (((o) + (l)) & PAGE_MASK) : PAGE_SIZE))
-#define	OFFSET(i, o)	(vm_offset_t)((i) == 0 ? (o) :			\
-			   trunc_page((o) + i * PAGE_SIZE))
-
 	VM_OBJECT_WLOCK(obj);
 	for (int i = 0; i < npages; i++)
-		pa[i] = vm_page_grab(obj, OFF_TO_IDX(OFFSET(i, off)),
+		pa[i] = vm_page_grab(obj, OFF_TO_IDX(vmoff(i, off)),
 		    VM_ALLOC_WIRED | VM_ALLOC_NORMAL);
 
 	for (int i = 0; i < npages; i++) {
 		int j, a;
 
-		if (vm_page_is_valid(pa[i], OFFSET(i, off) & PAGE_MASK,
-		    XFSIZE(i, off, len))) {
+		if (vm_page_is_valid(pa[i], vmoff(i, off) & PAGE_MASK,
+		    xfsize(i, npages, off, len))) {
 			vm_page_xunbusy(pa[i]);
 			continue;
 		}
 
 		for (j = i + 1; j < npages; j++)
-			if (vm_page_is_valid(pa[j], OFFSET(j, off) & PAGE_MASK,
-			    XFSIZE(j, off, len)))
+			if (vm_page_is_valid(pa[j], vmoff(j, off) & PAGE_MASK,
+			    xfsize(j, npages, off, len)))
 				break;
 
-		while (!vm_pager_has_page(obj, OFF_TO_IDX(OFFSET(i, off)),
+		while (!vm_pager_has_page(obj, OFF_TO_IDX(vmoff(i, off)),
 		    NULL, &a) && i < j) {
 			pmap_zero_page(pa[i]);
 			pa[i]->valid = VM_PAGE_BITS_ALL;
@@ -2147,17 +2165,17 @@ sendfile_swapin(vm_object_t obj, vm_page_t *pa, int npages, off_t off,
 		i += a;
 		for (j = i - a; a > 0 && j < npages; a--, j++)
 			KASSERT(pa[j] == vm_page_lookup(obj,
-			    OFF_TO_IDX(OFFSET(j, off))),
+			    OFF_TO_IDX(vmoff(j, off))),
 			    ("pa[j] %p lookup %p\n", pa[j],
-			    vm_page_lookup(obj, OFF_TO_IDX(OFFSET(j, off)))));
+			    vm_page_lookup(obj, OFF_TO_IDX(vmoff(j, off)))));
 	}
 
 	for (int i = 0; i < npages; i++)
 		KASSERT((pa[i]->wire_count > 0 && vm_page_is_valid(pa[i],
-		    OFFSET(i, off) & PAGE_MASK, XFSIZE(i, off, len))),
+		    vmoff(i, off) & PAGE_MASK, xfsize(i, npages, off, len))),
 		    ("wrong page %p state off 0x%jx len 0x%jx",
-		    pa[i], (uintmax_t)OFFSET(i, off),
-		    (uintmax_t)XFSIZE(i, off, len)));
+		    pa[i], (uintmax_t)vmoff(i, off),
+		    (uintmax_t)xfsize(i, npages, off, len)));
 
 	VM_OBJECT_WUNLOCK(obj);
 }
@@ -2513,8 +2531,8 @@ retry_space:
 				break;
 			}
 			m0->m_data = (char *)sf_buf_kva(sf) +
-			    (OFFSET(i, off) & PAGE_MASK);
-			m0->m_len = XFSIZE(i, off, space);
+			    (vmoff(i, off) & PAGE_MASK);
+			m0->m_len = xfsize(i, npages, off, space);
 
 			/* Append to mbuf chain. */
 			if (mtail != NULL)
