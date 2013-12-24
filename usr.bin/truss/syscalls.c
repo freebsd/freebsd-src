@@ -39,12 +39,13 @@ static const char rcsid[] =
  * arguments.
  */
 
-#include <sys/mman.h>
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/ptrace.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/un.h>
+#include <sys/wait.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/ioccom.h>
@@ -263,6 +264,12 @@ struct syscall syscalls[] = {
 	  .args = { { Name , 0 } , { Name, 1 } } },
 	{ .name = "posix_openpt", .ret_type = 1, .nargs = 1,
 	  .args = { { Open, 0 } } },
+	{ .name = "wait4", .ret_type = 1, .nargs = 4,
+	  .args = { { Int, 0 }, { ExitStatus | OUT, 1 }, { Waitoptions, 2 },
+		    { Rusage | OUT, 3 } } },
+	{ .name = "wait6", .ret_type = 1, .nargs = 6,
+	  .args = { { Idtype, 0 }, { Int, 1 }, { ExitStatus | OUT, 2 },
+		    { Waitoptions, 3 }, { Rusage | OUT, 4 }, { Ptr, 5 } } },
 	{ .name = 0 },
 };
 
@@ -375,6 +382,17 @@ static struct xlat pathconf_arg[] = {
 static struct xlat rfork_flags[] = {
 	X(RFPROC) X(RFNOWAIT) X(RFFDG) X(RFCFDG) X(RFTHREAD) X(RFMEM)
 	X(RFSIGSHARE) X(RFTSIGZMB) X(RFLINUXTHPN) XEND
+};
+
+static struct xlat wait_options[] = {
+	X(WNOHANG) X(WUNTRACED) X(WCONTINUED) X(WNOWAIT) X(WEXITED)
+	X(WTRAPPED) XEND
+};
+
+static struct xlat idtype_arg[] = {
+	X(P_PID) X(P_PPID) X(P_PGID) X(P_SID) X(P_CID) X(P_UID) X(P_GID)
+	X(P_ALL) X(P_LWPID) X(P_TASKID) X(P_PROJID) X(P_POOLID) X(P_JAILID)
+	X(P_CTID) X(P_CPUID) X(P_PSETID) XEND
 };
 
 #undef X
@@ -533,6 +551,16 @@ get_string(pid_t pid, void *offset, int max)
 	}
 }
 
+static char *
+strsig2(int sig)
+{
+	char *tmp;
+
+	tmp = strsig(sig);
+	if (tmp == NULL)
+		asprintf(&tmp, "%d", sig);
+	return (tmp);
+}
 
 /*
  * print_arg
@@ -818,19 +846,14 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		free(fds);
 		break;
 	}
-	case Signal: {
-		long sig;
-
-		sig = args[sc->offset];
-		tmp = strsig(sig);
-		if (tmp == NULL)
-			asprintf(&tmp, "%ld", sig);
+	case Signal:
+		tmp = strsig2(args[sc->offset]);
 		break;
-	}
 	case Sigset: {
 		long sig;
 		sigset_t ss;
 		int i, used;
+		char *signame;
 
 		sig = args[sc->offset];
 		if (get_struct(pid, (void *)args[sc->offset], (void *)&ss,
@@ -841,8 +864,11 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		tmp = malloc(sys_nsig * 8); /* 7 bytes avg per signal name */
 		used = 0;
 		for (i = 1; i < sys_nsig; i++) {
-			if (sigismember(&ss, i))
-				used += sprintf(tmp + used, "%s|", strsig(i));
+			if (sigismember(&ss, i)) {
+				signame = strsig(i);
+				used += sprintf(tmp + used, "%s|", signame);
+				free(signame);
+			}
 		}
 		if (used)
 			tmp[used-1] = 0;
@@ -1139,6 +1165,35 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 			asprintf(&tmp, "0x%lx", args[sc->offset]);
 		break;
 	}
+	case ExitStatus: {
+		char *signame;
+		int status;
+		signame = NULL;
+		if (get_struct(pid, (void *)args[sc->offset], &status,
+		    sizeof(status)) != -1) {
+			if (WIFCONTINUED(status))
+				tmp = strdup("{ CONTINUED }");
+			else if (WIFEXITED(status))
+				asprintf(&tmp, "{ EXITED,val=%d }",
+				    WEXITSTATUS(status));
+			else if (WIFSIGNALED(status))
+				asprintf(&tmp, "{ SIGNALED,sig=%s%s }",
+				    signame = strsig2(WTERMSIG(status)),
+				    WCOREDUMP(status) ? ",cored" : "");
+			else
+				asprintf(&tmp, "{ STOPPED,sig=%s }",
+				    signame = strsig2(WTERMSIG(status)));
+		} else
+			asprintf(&tmp, "0x%lx", args[sc->offset]);
+		free(signame);
+		break;
+	}
+	case Waitoptions:
+		tmp = strdup(xlookup_bits(wait_options, args[sc->offset]));
+		break;
+	case Idtype:
+		tmp = strdup(xlookup(idtype_arg, args[sc->offset]));
+		break;
 	default:
 		errx(1, "Invalid argument type %d\n", sc->type & ARG_MASK);
 	}
