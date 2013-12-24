@@ -132,7 +132,9 @@ static int	in6_mc_get(struct ifnet *, const struct in6_addr *,
 static int	in6m_get_source(struct in6_multi *inm,
 		    const struct in6_addr *addr, const int noalloc,
 		    struct ip6_msource **pims);
+#ifdef KTR
 static int	in6m_is_ifp_detached(const struct in6_multi *);
+#endif
 static int	in6m_merge(struct in6_multi *, /*const*/ struct in6_mfilter *);
 static void	in6m_purge(struct in6_multi *);
 static void	in6m_reap(struct in6_multi *);
@@ -176,6 +178,7 @@ static SYSCTL_NODE(_net_inet6_ip6_mcast, OID_AUTO, filters,
     CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_ip6_mcast_filters,
     "Per-interface stack-wide source filters");
 
+#ifdef KTR
 /*
  * Inline function which wraps assertions for a valid ifp.
  * The ifnet layer will set the ifma's ifp pointer to NULL if the ifp
@@ -198,6 +201,7 @@ in6m_is_ifp_detached(const struct in6_multi *inm)
 
 	return (ifp == NULL);
 }
+#endif
 
 /*
  * Initialize an in6_mfilter structure to a known state at t0, t1
