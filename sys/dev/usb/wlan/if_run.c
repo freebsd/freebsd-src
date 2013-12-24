@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 
 #define	USB_DEBUG_VAR	run_debug
 #include <dev/usb/usb_debug.h>
+#include <dev/usb/usb_msctest.h>
 
 #include <dev/usb/wlan/if_runreg.h>
 #include <dev/usb/wlan/if_runvar.h>
@@ -98,6 +99,8 @@ SYSCTL_INT(_hw_usb_run, OID_AUTO, debug, CTLFLAG_RW, &run_debug, 0,
 
 static const STRUCT_USB_HOST_ID run_devs[] = {
 #define	RUN_DEV(v,p)	{ USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
+#define	RUN_DEV_EJECT(v,p)	\
+	{ USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, 0) }
     RUN_DEV(ABOCOM,		RT2770),
     RUN_DEV(ABOCOM,		RT2870),
     RUN_DEV(ABOCOM,		RT3070),
@@ -307,6 +310,8 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(ZINWELL,		RT3072_2),
     RUN_DEV(ZYXEL,		RT2870_1),
     RUN_DEV(ZYXEL,		RT2870_2),
+    RUN_DEV_EJECT(RALINK,	RT_STOR),
+#undef RUN_DEV_EJECT
 #undef RUN_DEV
 };
 
@@ -322,6 +327,9 @@ static usb_callback_t	run_bulk_tx_callback3;
 static usb_callback_t	run_bulk_tx_callback4;
 static usb_callback_t	run_bulk_tx_callback5;
 
+static void	run_autoinst(void *, struct usb_device *,
+		    struct usb_attach_arg *);
+static int	run_driver_loaded(struct module *, int, void *);
 static void	run_bulk_tx_callbackN(struct usb_xfer *xfer,
 		    usb_error_t error, u_int index);
 static struct ieee80211vap *run_vap_create(struct ieee80211com *,
@@ -437,6 +445,8 @@ static void	run_init(void *);
 static void	run_init_locked(struct run_softc *);
 static void	run_stop(void *);
 static void	run_delay(struct run_softc *, u_int);
+
+static eventhandler_tag run_etag;
 
 static const struct rt2860_rate {
 	uint8_t		rate;
@@ -613,6 +623,46 @@ static const struct usb_config run_config[RUN_N_XFER] = {
 	.callback = run_bulk_rx_callback,
     }
 };
+
+static void
+run_autoinst(void *arg, struct usb_device *udev,
+    struct usb_attach_arg *uaa)
+{
+	struct usb_interface *iface;
+	struct usb_interface_descriptor *id;
+
+	if (uaa->dev_state != UAA_DEV_READY)
+		return;
+
+	iface = usbd_get_iface(udev, 0);
+	if (iface == NULL)
+		return;
+	id = iface->idesc;
+	if (id == NULL || id->bInterfaceClass != UICLASS_MASS)
+		return;
+	if (usbd_lookup_id_by_uaa(run_devs, sizeof(run_devs), uaa))
+		return;
+
+	if (usb_msc_eject(udev, 0, MSC_EJECT_STOPUNIT) == 0)
+		uaa->dev_state = UAA_DEV_EJECTING;
+}
+
+static int
+run_driver_loaded(struct module *mod, int what, void *arg)
+{
+	switch (what) {
+	case MOD_LOAD:
+		run_etag = EVENTHANDLER_REGISTER(usb_dev_configured,
+		    run_autoinst, NULL, EVENTHANDLER_PRI_ANY);
+		break;
+	case MOD_UNLOAD:
+		EVENTHANDLER_DEREGISTER(usb_dev_configured, run_etag);
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+	return (0);
+}
 
 static int
 run_match(device_t self)
@@ -5793,7 +5843,7 @@ static driver_t run_driver = {
 
 static devclass_t run_devclass;
 
-DRIVER_MODULE(run, uhub, run_driver, run_devclass, NULL, NULL);
+DRIVER_MODULE(run, uhub, run_driver, run_devclass, run_driver_loaded, NULL);
 MODULE_DEPEND(run, wlan, 1, 1, 1);
 MODULE_DEPEND(run, usb, 1, 1, 1);
 MODULE_DEPEND(run, firmware, 1, 1, 1);
