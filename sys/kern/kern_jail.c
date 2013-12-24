@@ -2959,7 +2959,7 @@ prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6)
 				ii++;
 				continue;
 			}
-			switch (ij >= ppr->pr_ip4s ? -1 :
+			switch (ij >= ppr->pr_ip6s ? -1 :
 				qcmp_v6(&pr->pr_ip6[ii], &ppr->pr_ip6[ij])) {
 			case -1:
 				bcopy(pr->pr_ip6 + ii + 1, pr->pr_ip6 + ii,
