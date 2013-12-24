@@ -1295,6 +1295,7 @@ pmap_invalidate_page_pcid(pmap_t pmap, vm_offset_t va)
 static __inline void
 pmap_invalidate_ept(pmap_t pmap)
 {
+	int ipinum;
 
 	sched_pin();
 	KASSERT(!CPU_ISSET(curcpu, &pmap->pm_active),
@@ -1319,11 +1320,9 @@ pmap_invalidate_ept(pmap_t pmap)
 
 	/*
 	 * Force the vcpu to exit and trap back into the hypervisor.
-	 *
-	 * XXX this is not optimal because IPI_AST builds a trapframe
-	 * whereas all we need is an 'eoi' followed by 'iret'.
 	 */
-	ipi_selected(pmap->pm_active, IPI_AST);
+	ipinum = pmap->pm_flags & PMAP_NESTED_IPIMASK;
+	ipi_selected(pmap->pm_active, ipinum);
 	sched_unpin();
 }
 

@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/condvar.h>
-#include <sys/conf.h>
 #include <sys/consio.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
@@ -192,7 +191,8 @@ sysmouse_process_event(mouse_info_t *mi)
 
 #ifndef SC_NO_CUTPASTE
 	mtx_unlock(&sysmouse_lock);
-	vt_mouse_event(mi->operation, x, y, mi->u.event.id, mi->u.event.value);
+	vt_mouse_event(mi->operation, x, y, mi->u.event.id, mi->u.event.value,
+	    sysmouse_level);
 	return;
 #endif
 

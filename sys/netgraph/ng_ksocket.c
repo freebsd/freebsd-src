@@ -66,6 +66,7 @@
 #include <netgraph/ng_ksocket.h>
 
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #include <netatalk/at.h>
 
 #ifdef NG_SEPARATE_MALLOC
@@ -1043,8 +1044,7 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 	struct socket *so = arg1;
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mesg *response;
-	struct uio auio;
-	int flags, error;
+	int error;
 
 	KASSERT(so == priv->so, ("%s: wrong socket", __func__));
 
@@ -1093,20 +1093,27 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 	if (priv->hook == NULL)
 		return;
 
-	/* Read and forward available mbuf's */
-	auio.uio_td = NULL;
-	auio.uio_resid = MJUMPAGESIZE;	/* XXXGL: sane limit? */
-	flags = MSG_DONTWAIT;
+	/* Read and forward available mbufs. */
 	while (1) {
-		struct sockaddr *sa = NULL;
+		struct uio uio;
+		struct sockaddr *sa;
 		struct mbuf *m;
+		int flags;
 
-		/* Try to get next packet from socket */
+		/* Try to get next packet from socket. */
+		uio.uio_td = NULL;
+		uio.uio_resid = IP_MAXPACKET;
+		flags = MSG_DONTWAIT;
+		sa = NULL;
 		if ((error = soreceive(so, (so->so_state & SS_ISCONNECTED) ?
-		    NULL : &sa, &auio, &m, NULL, &flags)) != 0)
+		    NULL : &sa, &uio, &m, NULL, &flags)) != 0)
 			break;
 
-		/* See if we got anything */
+		/* See if we got anything. */
+		if (flags & MSG_TRUNC) {
+			m_freem(m);
+			m = NULL;
+		}
 		if (m == NULL) {
 			if (sa != NULL)
 				free(sa, M_SONAME);

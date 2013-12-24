@@ -91,7 +91,7 @@ static MALLOC_DEFINE(M_VLAPIC, "vlapic", "vlapic");
 #define	PRIO(x)			((x) >> 4)
 
 #define VLAPIC_VERSION		(16)
-#define VLAPIC_MAXLVT_ENTRIES	(5)
+#define VLAPIC_MAXLVT_ENTRIES	(APIC_LVT_CMCI)
 
 #define	x2apic(vlapic)	(((vlapic)->msr_apicbase & APICBASE_X2APIC) ? 1 : 0)
 
@@ -107,7 +107,8 @@ struct vlapic {
 
 	struct LAPIC		apic;
 
-	int			 esr_update;
+	uint32_t		esr_pending;
+	int			esr_firing;
 
 	struct callout	callout;	/* vlapic timer */
 	struct bintime	timer_fire_bt;	/* callout expiry time */
@@ -139,11 +140,89 @@ struct vlapic {
  * Note that the vlapic_callout_handler() does not write to any of these
  * registers so they can be safely read from the vcpu context without locking.
  */
-#define	VLAPIC_TIMER_LOCK(vlapic)	mtx_lock(&((vlapic)->timer_mtx))
-#define	VLAPIC_TIMER_UNLOCK(vlapic)	mtx_unlock(&((vlapic)->timer_mtx))
+#define	VLAPIC_TIMER_LOCK(vlapic)	mtx_lock_spin(&((vlapic)->timer_mtx))
+#define	VLAPIC_TIMER_UNLOCK(vlapic)	mtx_unlock_spin(&((vlapic)->timer_mtx))
 #define	VLAPIC_TIMER_LOCKED(vlapic)	mtx_owned(&((vlapic)->timer_mtx))
 
 #define VLAPIC_BUS_FREQ	tsc_freq
+
+static __inline uint32_t
+vlapic_get_id(struct vlapic *vlapic)
+{
+
+	if (x2apic(vlapic))
+		return (vlapic->vcpuid);
+	else
+		return (vlapic->vcpuid << 24);
+}
+
+static __inline uint32_t
+vlapic_get_ldr(struct vlapic *vlapic)
+{
+	struct LAPIC *lapic;
+	int apicid;
+	uint32_t ldr;
+
+	lapic = &vlapic->apic;
+	if (x2apic(vlapic)) {
+		apicid = vlapic_get_id(vlapic);
+		ldr = 1 << (apicid & 0xf);
+		ldr |= (apicid & 0xffff0) << 12;
+		return (ldr);
+	} else
+		return (lapic->ldr);
+}
+
+static __inline uint32_t
+vlapic_get_dfr(struct vlapic *vlapic)
+{
+	struct LAPIC *lapic;
+
+	lapic = &vlapic->apic;
+	if (x2apic(vlapic))
+		return (0);
+	else
+		return (lapic->dfr);
+}
+
+static void
+vlapic_set_dfr(struct vlapic *vlapic, uint32_t data)
+{
+	uint32_t dfr;
+	struct LAPIC *lapic;
+	
+	if (x2apic(vlapic)) {
+		VM_CTR1(vlapic->vm, "write to DFR in x2apic mode: %#x", data);
+		return;
+	}
+
+	lapic = &vlapic->apic;
+	dfr = (lapic->dfr & APIC_DFR_RESERVED) | (data & APIC_DFR_MODEL_MASK);
+	if ((dfr & APIC_DFR_MODEL_MASK) == APIC_DFR_MODEL_FLAT)
+		VLAPIC_CTR0(vlapic, "vlapic DFR in Flat Model");
+	else if ((dfr & APIC_DFR_MODEL_MASK) == APIC_DFR_MODEL_CLUSTER)
+		VLAPIC_CTR0(vlapic, "vlapic DFR in Cluster Model");
+	else
+		VLAPIC_CTR1(vlapic, "vlapic DFR in Unknown Model %#x", dfr);
+
+	lapic->dfr = dfr;
+}
+
+static void
+vlapic_set_ldr(struct vlapic *vlapic, uint32_t data)
+{
+	struct LAPIC *lapic;
+
+	/* LDR is read-only in x2apic mode */
+	if (x2apic(vlapic)) {
+		VLAPIC_CTR1(vlapic, "write to LDR in x2apic mode: %#x", data);
+		return;
+	}
+
+	lapic = &vlapic->apic;
+	lapic->ldr = data & ~APIC_LDR_RESERVED;
+	VLAPIC_CTR1(vlapic, "vlapic LDR set to %#x", lapic->ldr);
+}
 
 static int
 vlapic_timer_divisor(uint32_t dcr)
@@ -252,37 +331,30 @@ static void
 vlapic_update_errors(struct vlapic *vlapic)
 {
 	struct LAPIC    *lapic = &vlapic->apic;
-	lapic->esr = 0; // XXX 
+	lapic->esr = vlapic->esr_pending;
+	vlapic->esr_pending = 0;
 }
 
 static void
-vlapic_init_ipi(struct vlapic *vlapic)
-{
-	struct LAPIC    *lapic = &vlapic->apic;
-	lapic->version = VLAPIC_VERSION;
-	lapic->version |= (VLAPIC_MAXLVT_ENTRIES < MAXLVTSHIFT);
-	lapic->dfr = 0xffffffff;
-	lapic->svr = APIC_SVR_VECTOR;
-	vlapic_mask_lvts(&lapic->lvt_timer, VLAPIC_MAXLVT_ENTRIES+1);
-}
-
-static int
 vlapic_reset(struct vlapic *vlapic)
 {
-	struct LAPIC	*lapic = &vlapic->apic;
+	struct LAPIC *lapic;
+	
+	lapic = &vlapic->apic;
+	bzero(lapic, sizeof(struct LAPIC));
 
-	memset(lapic, 0, sizeof(*lapic));
-	lapic->apr = vlapic->vcpuid;
-	vlapic_init_ipi(vlapic);
+	lapic->version = VLAPIC_VERSION;
+	lapic->version |= (VLAPIC_MAXLVT_ENTRIES << MAXLVTSHIFT);
+	lapic->dfr = 0xffffffff;
+	lapic->svr = APIC_SVR_VECTOR;
+	vlapic_mask_lvts(&lapic->lvt_timer, 6);
+	vlapic_mask_lvts(&lapic->lvt_cmci, 1);
 	vlapic_set_dcr(vlapic, 0);
 
 	if (vlapic->vcpuid == 0)
 		vlapic->boot_state = BS_RUNNING;	/* BSP */
 	else
 		vlapic->boot_state = BS_INIT;		/* AP */
-	
-	return 0;
-
 }
 
 void
@@ -301,6 +373,11 @@ vlapic_set_intr_ready(struct vlapic *vlapic, int vector, bool level)
 		return;
 	}
 
+	if (vector < 16) {
+		vlapic_set_error(vlapic, APIC_ESR_RECEIVE_ILLEGAL_VECTOR);
+		return;
+	}
+		
 	idx = (vector / 32) * 4;
 	mask = 1 << (vector % 32);
 
@@ -327,11 +404,15 @@ vlapic_get_lvtptr(struct vlapic *vlapic, uint32_t offset)
 	struct LAPIC	*lapic = &vlapic->apic;
 	int 		 i;
 
-	if (offset < APIC_OFFSET_TIMER_LVT || offset > APIC_OFFSET_ERROR_LVT) {
+	switch (offset) {
+	case APIC_OFFSET_CMCI_LVT:
+		return (&lapic->lvt_cmci);
+	case APIC_OFFSET_TIMER_LVT ... APIC_OFFSET_ERROR_LVT:
+		i = (offset - APIC_OFFSET_TIMER_LVT) >> 2;
+		return ((&lapic->lvt_timer) + i);;
+	default:
 		panic("vlapic_get_lvt: invalid LVT\n");
 	}
-	i = (offset - APIC_OFFSET_TIMER_LVT) >> 2;
-	return ((&lapic->lvt_timer) + i);;
 }
 
 static __inline uint32_t
@@ -344,7 +425,7 @@ vlapic_get_lvt(struct vlapic *vlapic, uint32_t offset)
 static void
 vlapic_set_lvt(struct vlapic *vlapic, uint32_t offset, uint32_t val)
 {
-	uint32_t *lvtptr;
+	uint32_t *lvtptr, mask;
 	struct LAPIC *lapic;
 	
 	lapic = &vlapic->apic;
@@ -355,10 +436,55 @@ vlapic_set_lvt(struct vlapic *vlapic, uint32_t offset, uint32_t val)
 
 	if (!(lapic->svr & APIC_SVR_ENABLE))
 		val |= APIC_LVT_M;
-	*lvtptr = val;
+	mask = APIC_LVT_M | APIC_LVT_DS | APIC_LVT_VECTOR;
+	switch (offset) {
+	case APIC_OFFSET_TIMER_LVT:
+		mask |= APIC_LVTT_TM;
+		break;
+	case APIC_OFFSET_ERROR_LVT:
+		break;
+	case APIC_OFFSET_LINT0_LVT:
+	case APIC_OFFSET_LINT1_LVT:
+		mask |= APIC_LVT_TM | APIC_LVT_RIRR | APIC_LVT_IIPP;
+		/* FALLTHROUGH */
+	default:
+		mask |= APIC_LVT_DM;
+		break;
+	}
+	*lvtptr = val & mask;
 
 	if (offset == APIC_OFFSET_TIMER_LVT)
 		VLAPIC_TIMER_UNLOCK(vlapic);
+}
+
+static int
+vlapic_fire_lvt(struct vlapic *vlapic, uint32_t lvt)
+{
+	uint32_t vec, mode;
+
+	if (lvt & APIC_LVT_M)
+		return (0);
+
+	vec = lvt & APIC_LVT_VECTOR;
+	mode = lvt & APIC_LVT_DM;
+
+	switch (mode) {
+	case APIC_LVT_DM_FIXED:
+		if (vec < 16) {
+			vlapic_set_error(vlapic, APIC_ESR_SEND_ILLEGAL_VECTOR);
+			return (0);
+		}
+		vlapic_set_intr_ready(vlapic, vec, false);
+		vcpu_notify_event(vlapic->vm, vlapic->vcpuid);
+		break;
+	case APIC_LVT_DM_NMI:
+		vm_inject_nmi(vlapic->vm, vlapic->vcpuid);
+		break;
+	default:
+		// Other modes ignored
+		return (0);
+	}
+	return (1);
 }
 
 #if 1
@@ -499,24 +625,96 @@ vlapic_periodic_timer(struct vlapic *vlapic)
 	return (vlapic_get_lvt_field(lvt, APIC_LVTT_TM_PERIODIC));
 }
 
+static VMM_STAT(VLAPIC_INTR_ERROR, "error interrupts generated by vlapic");
+
+void
+vlapic_set_error(struct vlapic *vlapic, uint32_t mask)
+{
+	uint32_t lvt;
+
+	vlapic->esr_pending |= mask;
+	if (vlapic->esr_firing)
+		return;
+	vlapic->esr_firing = 1;
+
+	// The error LVT always uses the fixed delivery mode.
+	lvt = vlapic_get_lvt(vlapic, APIC_OFFSET_ERROR_LVT);
+	if (vlapic_fire_lvt(vlapic, lvt | APIC_LVT_DM_FIXED)) {
+		vmm_stat_incr(vlapic->vm, vlapic->vcpuid, VLAPIC_INTR_ERROR, 1);
+	}
+	vlapic->esr_firing = 0;
+}
+
 static VMM_STAT(VLAPIC_INTR_TIMER, "timer interrupts generated by vlapic");
 
 static void
 vlapic_fire_timer(struct vlapic *vlapic)
 {
-	int vector;
 	uint32_t lvt;
 
 	KASSERT(VLAPIC_TIMER_LOCKED(vlapic), ("vlapic_fire_timer not locked"));
 	
+	// The timer LVT always uses the fixed delivery mode.
 	lvt = vlapic_get_lvt(vlapic, APIC_OFFSET_TIMER_LVT);
-
-	if (!vlapic_get_lvt_field(lvt, APIC_LVTT_M)) {
+	if (vlapic_fire_lvt(vlapic, lvt | APIC_LVT_DM_FIXED)) {
 		vmm_stat_incr(vlapic->vm, vlapic->vcpuid, VLAPIC_INTR_TIMER, 1);
-		vector = vlapic_get_lvt_field(lvt, APIC_LVTT_VECTOR);
-		vlapic_set_intr_ready(vlapic, vector, false);
-		vcpu_notify_event(vlapic->vm, vlapic->vcpuid);
 	}
+}
+
+static VMM_STAT(VLAPIC_INTR_CMC,
+    "corrected machine check interrupts generated by vlapic");
+
+void
+vlapic_fire_cmci(struct vlapic *vlapic)
+{
+	uint32_t lvt;
+
+	lvt = vlapic_get_lvt(vlapic, APIC_OFFSET_CMCI_LVT);
+	if (vlapic_fire_lvt(vlapic, lvt)) {
+		vmm_stat_incr(vlapic->vm, vlapic->vcpuid, VLAPIC_INTR_CMC, 1);
+	}
+}
+
+static VMM_STAT_ARRAY(LVTS_TRIGGERRED, VLAPIC_MAXLVT_ENTRIES,
+    "lvts triggered");
+
+int
+vlapic_trigger_lvt(struct vlapic *vlapic, int vector)
+{
+	uint32_t lvt;
+
+	switch (vector) {
+	case APIC_LVT_LINT0:
+		lvt = vlapic_get_lvt(vlapic, APIC_OFFSET_LINT0_LVT);
+		break;
+	case APIC_LVT_LINT1:
+		lvt = vlapic_get_lvt(vlapic, APIC_OFFSET_LINT1_LVT);
+		break;
+	case APIC_LVT_TIMER:
+		lvt = vlapic_get_lvt(vlapic, APIC_OFFSET_TIMER_LVT);
+		lvt |= APIC_LVT_DM_FIXED;
+		break;
+	case APIC_LVT_ERROR:
+		lvt = vlapic_get_lvt(vlapic, APIC_OFFSET_ERROR_LVT);
+		lvt |= APIC_LVT_DM_FIXED;
+		break;
+	case APIC_LVT_PMC:
+		lvt = vlapic_get_lvt(vlapic, APIC_OFFSET_PERF_LVT);
+		break;
+	case APIC_LVT_THERMAL:
+		lvt = vlapic_get_lvt(vlapic, APIC_OFFSET_THERM_LVT);
+		break;
+	case APIC_LVT_CMCI:
+		lvt = vlapic_get_lvt(vlapic, APIC_OFFSET_CMCI_LVT);
+		break;
+	default:
+		return (EINVAL);
+	}
+	if (vlapic_fire_lvt(vlapic, lvt)) {
+		vmm_stat_array_incr(vlapic->vm, vlapic->vcpuid,
+		    LVTS_TRIGGERRED, vector, 1);
+	}
+	return (0);
 }
 
 static void
@@ -610,12 +808,115 @@ vlapic_set_icr_timer(struct vlapic *vlapic, uint32_t icr_timer)
 	VLAPIC_TIMER_UNLOCK(vlapic);
 }
 
+/*
+ * This function populates 'dmask' with the set of vcpus that match the
+ * addressing specified by the (dest, phys, lowprio) tuple.
+ * 
+ * 'x2apic_dest' specifies whether 'dest' is interpreted as x2APIC (32-bit)
+ * or xAPIC (8-bit) destination field.
+ */
+static void
+vlapic_calcdest(struct vm *vm, cpuset_t *dmask, uint32_t dest, bool phys,
+    bool lowprio, bool x2apic_dest)
+{
+	struct vlapic *vlapic;
+	uint32_t dfr, ldr, ldest, cluster;
+	uint32_t mda_flat_ldest, mda_cluster_ldest, mda_ldest, mda_cluster_id;
+	cpuset_t amask;
+	int vcpuid;
+
+	if ((x2apic_dest && dest == 0xffffffff) ||
+	    (!x2apic_dest && dest == 0xff)) {
+		/*
+		 * Broadcast in both logical and physical modes.
+		 */
+		*dmask = vm_active_cpus(vm);
+		return;
+	}
+
+	if (phys) {
+		/*
+		 * Physical mode: destination is APIC ID.
+		 */
+		CPU_ZERO(dmask);
+		vcpuid = vm_apicid2vcpuid(vm, dest);
+		if (vcpuid < VM_MAXCPU)
+			CPU_SET(vcpuid, dmask);
+	} else {
+		/*
+		 * In the "Flat Model" the MDA is interpreted as an 8-bit wide
+		 * bitmask. This model is only avilable in the xAPIC mode.
+		 */
+		mda_flat_ldest = dest & 0xff;
+
+		/*
+		 * In the "Cluster Model" the MDA is used to identify a
+		 * specific cluster and a set of APICs in that cluster.
+		 */
+		if (x2apic_dest) {
+			mda_cluster_id = dest >> 16;
+			mda_cluster_ldest = dest & 0xffff;
+		} else {
+			mda_cluster_id = (dest >> 4) & 0xf;
+			mda_cluster_ldest = dest & 0xf;
+		}
+
+		/*
+		 * Logical mode: match each APIC that has a bit set
+		 * in it's LDR that matches a bit in the ldest.
+		 */
+		CPU_ZERO(dmask);
+		amask = vm_active_cpus(vm);
+		while ((vcpuid = CPU_FFS(&amask)) != 0) {
+			vcpuid--;
+			CPU_CLR(vcpuid, &amask);
+
+			vlapic = vm_lapic(vm, vcpuid);
+			dfr = vlapic_get_dfr(vlapic);
+			ldr = vlapic_get_ldr(vlapic);
+
+			if ((dfr & APIC_DFR_MODEL_MASK) ==
+			    APIC_DFR_MODEL_FLAT) {
+				ldest = ldr >> 24;
+				mda_ldest = mda_flat_ldest;
+			} else if ((dfr & APIC_DFR_MODEL_MASK) ==
+			    APIC_DFR_MODEL_CLUSTER) {
+				if (x2apic(vlapic)) {
+					cluster = ldr >> 16;
+					ldest = ldr & 0xffff;
+				} else {
+					cluster = ldr >> 28;
+					ldest = (ldr >> 24) & 0xf;
+				}
+				if (cluster != mda_cluster_id)
+					continue;
+				mda_ldest = mda_cluster_ldest;
+			} else {
+				/*
+				 * Guest has configured a bad logical
+				 * model for this vcpu - skip it.
+				 */
+				VLAPIC_CTR1(vlapic, "vlapic has bad logical "
+				    "model %x - cannot deliver interrupt", dfr);
+				continue;
+			}
+
+			if ((mda_ldest & ldest) != 0) {
+				CPU_SET(vcpuid, dmask);
+				if (lowprio)
+					break;
+			}
+		}
+	}
+}
+
 static VMM_STAT_ARRAY(IPIS_SENT, VM_MAXCPU, "ipis sent to vcpu");
 
 static int
-lapic_process_icr(struct vlapic *vlapic, uint64_t icrval)
+lapic_process_icr(struct vlapic *vlapic, uint64_t icrval, bool *retu)
 {
 	int i;
+	bool phys;
 	cpuset_t dmask;
 	uint32_t dest, vec, mode;
 	struct vlapic *vlapic2;
@@ -628,10 +929,17 @@ lapic_process_icr(struct vlapic *vlapic, uint64_t icrval)
 	vec = icrval & APIC_VECTOR_MASK;
 	mode = icrval & APIC_DELMODE_MASK;
 
+	if (mode == APIC_DELMODE_FIXED && vec < 16) {
+		vlapic_set_error(vlapic, APIC_ESR_SEND_ILLEGAL_VECTOR);
+		return (0);
+	}
+	
 	if (mode == APIC_DELMODE_FIXED || mode == APIC_DELMODE_NMI) {
 		switch (icrval & APIC_DEST_MASK) {
 		case APIC_DEST_DESTFLD:
-			CPU_SETOF(dest, &dmask);
+			phys = ((icrval & APIC_DESTMODE_LOG) == 0);
+			vlapic_calcdest(vlapic->vm, &dmask, dest, phys, false,
+			    x2apic(vlapic));
 			break;
 		case APIC_DEST_SELF:
 			CPU_SETOF(vlapic->vcpuid, &dmask);
@@ -688,16 +996,17 @@ lapic_process_icr(struct vlapic *vlapic, uint64_t icrval)
 			if (vlapic2->boot_state != BS_SIPI)
 				return (0);
 
-			vmexit = vm_exitinfo(vlapic->vm, vlapic->vcpuid);
-			vmexit->exitcode = VM_EXITCODE_SPINUP_AP;
-			vmexit->u.spinup_ap.vcpu = dest;
-			vmexit->u.spinup_ap.rip = vec << PAGE_SHIFT;
-
 			/*
 			 * XXX this assumes that the startup IPI always succeeds
 			 */
 			vlapic2->boot_state = BS_RUNNING;
 			vm_activate_cpu(vlapic2->vm, dest);
+
+			*retu = true;
+			vmexit = vm_exitinfo(vlapic->vm, vlapic->vcpuid);
+			vmexit->exitcode = VM_EXITCODE_SPINUP_AP;
+			vmexit->u.spinup_ap.vcpu = dest;
+			vmexit->u.spinup_ap.rip = vec << PAGE_SHIFT;
 
 			return (0);
 		}
@@ -804,7 +1113,7 @@ lapic_set_svr(struct vlapic *vlapic, uint32_t new)
 }
 
 int
-vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data)
+vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data, bool *retu)
 {
 	struct LAPIC	*lapic = &vlapic->apic;
 	uint32_t	*reg;
@@ -819,10 +1128,7 @@ vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data)
 	switch(offset)
 	{
 		case APIC_OFFSET_ID:
-			if (x2apic(vlapic))
-				*data = vlapic->vcpuid;
-			else
-				*data = vlapic->vcpuid << 24;
+			*data = vlapic_get_id(vlapic);
 			break;
 		case APIC_OFFSET_VER:
 			*data = lapic->version;
@@ -840,10 +1146,10 @@ vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data)
 			*data = lapic->eoi;
 			break;
 		case APIC_OFFSET_LDR:
-			*data = lapic->ldr;
+			*data = vlapic_get_ldr(vlapic);
 			break;
 		case APIC_OFFSET_DFR:
-			*data = lapic->dfr;
+			*data = vlapic_get_dfr(vlapic);
 			break;
 		case APIC_OFFSET_SVR:
 			*data = lapic->svr;
@@ -872,6 +1178,7 @@ vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data)
 		case APIC_OFFSET_ICR_HI: 
 			*data = lapic->icr_hi;
 			break;
+		case APIC_OFFSET_CMCI_LVT:
 		case APIC_OFFSET_TIMER_LVT ... APIC_OFFSET_ERROR_LVT:
 			*data = vlapic_get_lvt(vlapic, offset);	
 			break;
@@ -895,7 +1202,7 @@ done:
 }
 
 int
-vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data)
+vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data, bool *retu)
 {
 	struct LAPIC	*lapic = &vlapic->apic;
 	int		retval;
@@ -920,8 +1227,10 @@ vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data)
 			vlapic_process_eoi(vlapic);
 			break;
 		case APIC_OFFSET_LDR:
+			vlapic_set_ldr(vlapic, data);
 			break;
 		case APIC_OFFSET_DFR:
+			vlapic_set_dfr(vlapic, data);
 			break;
 		case APIC_OFFSET_SVR:
 			lapic_set_svr(vlapic, data);
@@ -931,7 +1240,7 @@ vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data)
 				data &= 0xffffffff;
 				data |= (uint64_t)lapic->icr_hi << 32;
 			}
-			retval = lapic_process_icr(vlapic, data);
+			retval = lapic_process_icr(vlapic, data, retu);
 			break;
 		case APIC_OFFSET_ICR_HI:
 			if (!x2apic(vlapic)) {
@@ -939,6 +1248,7 @@ vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data)
 				lapic->icr_hi = data;
 			}
 			break;
+		case APIC_OFFSET_CMCI_LVT:
 		case APIC_OFFSET_TIMER_LVT ... APIC_OFFSET_ERROR_LVT:
 			vlapic_set_lvt(vlapic, offset, data);
 			break;
@@ -978,7 +1288,14 @@ vlapic_init(struct vm *vm, int vcpuid)
 	vlapic->vm = vm;
 	vlapic->vcpuid = vcpuid;
 
-	mtx_init(&vlapic->timer_mtx, "vlapic timer mtx", NULL, MTX_DEF);
+	/*
+	 * If the vlapic is configured in x2apic mode then it will be
+	 * accessed in the critical section via the MSR emulation code.
+	 *
+	 * Therefore the timer mutex must be a spinlock because blockable
+	 * mutexes cannot be acquired in a critical section.
+	 */
+	mtx_init(&vlapic->timer_mtx, "vlapic timer mtx", NULL, MTX_SPIN);
 	callout_init(&vlapic->callout, 1);
 
 	vlapic->msr_apicbase = DEFAULT_APIC_BASE | APICBASE_ENABLED;
@@ -1031,6 +1348,34 @@ vlapic_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state state)
 
 	if (state == X2APIC_DISABLED)
 		vlapic->msr_apicbase &= ~APICBASE_X2APIC;
+}
+
+void
+vlapic_deliver_intr(struct vm *vm, bool level, uint32_t dest, bool phys,
+    int delmode, int vec)
+{
+	bool lowprio;
+	int vcpuid;
+	cpuset_t dmask;
+
+	if (delmode != APIC_DELMODE_FIXED && delmode != APIC_DELMODE_LOWPRIO) {
+		VM_CTR1(vm, "vlapic intr invalid delmode %#x", delmode);
+		return;
+	}
+	lowprio = (delmode == APIC_DELMODE_LOWPRIO);
+
+	/*
+	 * We don't provide any virtual interrupt redirection hardware so
+	 * all interrupts originating from the ioapic or MSI specify the
+	 * 'dest' in the legacy xAPIC format.
+	 */
+	vlapic_calcdest(vm, &dmask, dest, phys, lowprio, false);
+
+	while ((vcpuid = CPU_FFS(&dmask)) != 0) {
+		vcpuid--;
+		CPU_CLR(vcpuid, &dmask);
+		lapic_set_intr(vm, vcpuid, vec, level);
+	}
 }
 
 bool

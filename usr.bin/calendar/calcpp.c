@@ -133,7 +133,7 @@ tokenscpp(char *buf, char *string)
 		s = p;
 		while(!isspace((unsigned char)*p))
 			p++;
-		strncpy(string, s, MAXPATHLEN);
+		strlcpy(string, s, MAXPATHLEN);
 		return(T_DEFINE);
 	} else if ((p = strstr(buf, "#ifndef")) != NULL) {
 		p += 8;

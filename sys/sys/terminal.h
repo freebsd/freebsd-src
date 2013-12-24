@@ -62,15 +62,14 @@ struct tty;
  *
  *  Bits  Meaning
  *  0-20: Character value
- *    21: Unused
- * 22-25: Bold, underline, blink, reverse
+ * 21-25: Bold, underline, blink, reverse, right part of CJK fullwidth character
  * 26-28: Foreground color
  * 29-31: Background color
  */
 
 typedef uint32_t term_char_t;
 #define	TCHAR_CHARACTER(c)	((c) & 0x1fffff)
-#define	TCHAR_FORMAT(c)		(((c) >> 22) & 0xf)
+#define	TCHAR_FORMAT(c)		(((c) >> 21) & 0x1f)
 #define	TCHAR_FGCOLOR(c)	(((c) >> 26) & 0x7)
 #define	TCHAR_BGCOLOR(c)	((c) >> 29)
 
@@ -96,6 +95,8 @@ typedef int tc_cngetc_t(struct terminal *tm);
 typedef void tc_opened_t(struct terminal *tm, int opened);
 typedef int tc_ioctl_t(struct terminal *tm, u_long cmd, caddr_t data,
     struct thread *td);
+typedef int tc_mmap_t(struct terminal *tm, vm_ooffset_t offset,
+    vm_paddr_t * paddr, int nprot, vm_memattr_t *memattr);
 typedef void tc_bell_t(struct terminal *tm);
 
 struct terminal_class {
@@ -110,10 +111,11 @@ struct terminal_class {
 	/* Low-level console interface. */
 	tc_cnprobe_t	*tc_cnprobe;
 	tc_cngetc_t	*tc_cngetc;
-	
+
 	/* Misc. */
 	tc_opened_t	*tc_opened;
 	tc_ioctl_t	*tc_ioctl;
+	tc_mmap_t	*tc_mmap;
 	tc_bell_t	*tc_bell;
 };
 

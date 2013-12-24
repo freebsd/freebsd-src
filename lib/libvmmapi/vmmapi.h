@@ -67,6 +67,8 @@ int	vm_inject_event(struct vmctx *ctx, int vcpu, enum vm_event_type type,
 int	vm_inject_event2(struct vmctx *ctx, int vcpu, enum vm_event_type type,
 			 int vector, int error_code);
 int	vm_lapic_irq(struct vmctx *ctx, int vcpu, int vector);
+int	vm_lapic_local_irq(struct vmctx *ctx, int vcpu, int vector);
+int	vm_lapic_msi(struct vmctx *ctx, uint64_t addr, uint64_t msg);
 int	vm_ioapic_assert_irq(struct vmctx *ctx, int irq);
 int	vm_ioapic_deassert_irq(struct vmctx *ctx, int irq);
 int	vm_ioapic_pulse_irq(struct vmctx *ctx, int irq);
@@ -81,10 +83,11 @@ int	vm_assign_pptdev(struct vmctx *ctx, int bus, int slot, int func);
 int	vm_unassign_pptdev(struct vmctx *ctx, int bus, int slot, int func);
 int	vm_map_pptdev_mmio(struct vmctx *ctx, int bus, int slot, int func,
 			   vm_paddr_t gpa, size_t len, vm_paddr_t hpa);
-int	vm_setup_msi(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
-		     int dest, int vector, int numvec);
-int	vm_setup_msix(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
-		      int idx, uint32_t msg, uint32_t vector_control, uint64_t addr);
+int	vm_setup_pptdev_msi(struct vmctx *ctx, int vcpu, int bus, int slot,
+	    int func, uint64_t addr, uint64_t msg, int numvec);
+int	vm_setup_pptdev_msix(struct vmctx *ctx, int vcpu, int bus, int slot,
+	    int func, int idx, uint64_t addr, uint64_t msg,
+	    uint32_t vector_control);
 
 /*
  * Return a pointer to the statistics buffer. Note that this is not MT-safe.
