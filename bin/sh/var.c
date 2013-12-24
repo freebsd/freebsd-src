@@ -188,6 +188,7 @@ initvar(void)
 			setvareq(*envp, VEXPORT|VTEXTFIXED);
 		}
 	}
+	setvareq("OPTIND=1", VTEXTFIXED);
 }
 
 /*
