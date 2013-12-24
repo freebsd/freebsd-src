@@ -691,7 +691,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
 	  <thead>
 	    <row>
 	      <entry>&man.rc.8; Script</entry>
-	      <entry><para>blah;</para></entry>
+	      <entry><para>Reason</para></entry>
 	    </row>
 	  </thead>
 
