@@ -207,7 +207,9 @@ hv_netsvc_load="YES"
 hv_utils_load="YES"
 hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be added to the i386
         kernel by adding <literal>device hyperv</literal> to the kernel config, and then
-        recompiling the kernel.</para>
+        recompiling the kernel.  Please refer to:
+        <link xlink:href="http://wiki.freebsd.org/HyperV">FreeBSD and Microsoft Windows Server Hyper-V support</link>
+        for full instructions on how to set up Hyper-V support under FreeBSD.</para>
 
       <para revision="254738">The &man.vmx.4; driver has been added.
         &man.vmx.4; is a VMware VMXNET3 ethernet driver ported from
