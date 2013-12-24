@@ -194,7 +194,7 @@ fifo_open(ap)
 	int error;
 
 	ASSERT_VOP_ELOCKED(vp, "fifo_open");
-	if (fp == NULL)
+	if (fp == NULL || (ap->a_mode & FEXEC) != 0)
 		return (EINVAL);
 	if ((fip = vp->v_fifoinfo) == NULL) {
 		fip = malloc(sizeof(*fip), M_VNODE, M_WAITOK);
