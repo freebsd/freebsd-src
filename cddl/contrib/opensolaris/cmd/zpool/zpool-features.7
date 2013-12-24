@@ -269,7 +269,6 @@ an existing space map is upgraded to the new format.
 Once the feature is
 .Sy active ,
 it will remain in that state until the pool is destroyed.
-.El
 .It Sy extensible_dataset
 .Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:extensible_dataset"
 .It GUID Ta com.delphix:extensible_dataset
@@ -287,6 +286,7 @@ and will be returned to the
 .Sy enabled
 state when all datasets that use
 this feature are destroyed.
+.El
 .Sh SEE ALSO
 .Xr zpool 8
 .Sh AUTHORS
