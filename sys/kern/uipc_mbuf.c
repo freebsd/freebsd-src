@@ -389,7 +389,7 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
  * cleaned too.
  */
 void
-m_demote(struct mbuf *m0, int all)
+m_demote(struct mbuf *m0, int all, int flags)
 {
 	struct mbuf *m;
 
@@ -405,7 +405,7 @@ m_demote(struct mbuf *m0, int all)
 			m_freem(m->m_nextpkt);
 			m->m_nextpkt = NULL;
 		}
-		m->m_flags = m->m_flags & (M_EXT|M_RDONLY|M_NOFREE);
+		m->m_flags = m->m_flags & (M_EXT | M_RDONLY | M_NOFREE | flags);
 	}
 }
 

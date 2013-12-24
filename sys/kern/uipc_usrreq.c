@@ -792,10 +792,9 @@ uipc_rcvd(struct socket *so, int flags)
 	u_long newhiwat;
 
 	unp = sotounpcb(so);
-	KASSERT(unp != NULL, ("uipc_rcvd: unp == NULL"));
-
-	if (so->so_type != SOCK_STREAM && so->so_type != SOCK_SEQPACKET)
-		panic("uipc_rcvd socktype %d", so->so_type);
+	KASSERT(unp != NULL, ("%s: unp == NULL", __func__));
+	KASSERT(so->so_type == SOCK_STREAM || so->so_type == SOCK_SEQPACKET,
+	    ("%s: socktype %d", __func__, so->so_type));
 
 	/*
 	 * Adjust backpressure on sender and wakeup any waiting to write.
@@ -809,7 +808,7 @@ uipc_rcvd(struct socket *so, int flags)
 	 */
 	SOCKBUF_LOCK(&so->so_rcv);
 	mbcnt = so->so_rcv.sb_mbcnt;
-	sbcc = so->so_rcv.sb_cc;
+	sbcc = sbavail(&so->so_rcv);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 	UNP_PCB_LOCK(unp);
 	unp2 = unp->unp_conn;
@@ -841,7 +840,10 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	int error = 0;
 
 	unp = sotounpcb(so);
-	KASSERT(unp != NULL, ("uipc_send: unp == NULL"));
+	KASSERT(unp != NULL, ("%s: unp == NULL", __func__));
+	KASSERT(so->so_type == SOCK_STREAM || so->so_type == SOCK_DGRAM ||
+	    so->so_type == SOCK_SEQPACKET,
+	    ("%s: socktype %d", __func__, so->so_type));
 
 	if (flags & PRUS_OOB) {
 		error = EOPNOTSUPP;
@@ -992,7 +994,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		 */
 		mbcnt_delta = so2->so_rcv.sb_mbcnt - unp2->unp_mbcnt;
 		unp2->unp_mbcnt = so2->so_rcv.sb_mbcnt;
-		sbcc = so2->so_rcv.sb_cc;
+		sbcc = sbavail(&so2->so_rcv);
 		sorwakeup_locked(so2);
 
 		SOCKBUF_LOCK(&so->so_snd);
@@ -1008,9 +1010,6 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		UNP_PCB_UNLOCK(unp2);
 		m = NULL;
 		break;
-
-	default:
-		panic("uipc_send unknown socktype");
 	}
 
 	/*
@@ -1055,7 +1054,7 @@ uipc_sense(struct socket *so, struct stat *sb)
 	if ((so->so_type == SOCK_STREAM || so->so_type == SOCK_SEQPACKET) &&
 	    unp2 != NULL) {
 		so2 = unp2->unp_socket;
-		sb->st_blksize += so2->so_rcv.sb_cc;
+		sb->st_blksize += sbavail(&so2->so_rcv);
 	}
 	sb->st_dev = NODEV;
 	if (unp->unp_ino == 0)

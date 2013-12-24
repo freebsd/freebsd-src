@@ -351,7 +351,7 @@ present:
 		if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 			m_freem(q->tqe_m);
 		else
-			sbappendstream_locked(&so->so_rcv, q->tqe_m);
+			sbappendstream_locked(&so->so_rcv, q->tqe_m, 0);
 		if (q != &tqs)
 			uma_zfree(V_tcp_reass_zone, q);
 		tp->t_segqlen--;
