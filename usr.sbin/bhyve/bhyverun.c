@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #define	VMEXIT_RESTART		2	/* restart current instruction */
 #define	VMEXIT_ABORT		3	/* abort the vm run loop */
 #define	VMEXIT_RESET		4	/* guest machine has reset */
+#define	VMEXIT_POWEROFF		5	/* guest machine has powered off */
 
 #define MB		(1024UL * 1024)
 #define GB		(1024UL * MB)
@@ -296,12 +297,17 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
                 return (vmexit_handle_notify(ctx, vme, pvcpu, eax));
 
 	error = emulate_inout(ctx, vcpu, in, port, bytes, &eax, strictio);
-	if (error == 0 && in)
+	if (error == INOUT_OK && in)
 		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_RAX, eax);
 
-	if (error == 0)
+	switch (error) {
+	case INOUT_OK:
 		return (VMEXIT_CONTINUE);
-	else {
+	case INOUT_RESET:
+		return (VMEXIT_RESET);
+	case INOUT_POWEROFF:
+		return (VMEXIT_POWEROFF);
+	default:
 		fprintf(stderr, "Unhandled %s%c 0x%04x\n",
 			in ? "in" : "out",
 			bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'), port);

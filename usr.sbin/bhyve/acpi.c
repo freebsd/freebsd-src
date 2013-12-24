@@ -85,6 +85,8 @@ __FBSDID("$FreeBSD$");
 #define BHYVE_ASL_SUFFIX	".aml"
 #define BHYVE_ASL_COMPILER	"/usr/sbin/iasl"
 
+#define BHYVE_PM1A_EVT_ADDR	0x400
+#define BHYVE_PM1A_CNT_ADDR	0x404
 #define BHYVE_PM_TIMER_ADDR	0x408
 
 static int basl_keep_temps;
@@ -342,9 +344,11 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp, "[0001]\t\tACPI Disable Value : 00\n");
 	EFPRINTF(fp, "[0001]\t\tS4BIOS Command : 00\n");
 	EFPRINTF(fp, "[0001]\t\tP-State Control : 00\n");
-	EFPRINTF(fp, "[0004]\t\tPM1A Event Block Address : 00000000\n");
+	EFPRINTF(fp, "[0004]\t\tPM1A Event Block Address : %08X\n",
+		 BHYVE_PM1A_EVT_ADDR);
 	EFPRINTF(fp, "[0004]\t\tPM1B Event Block Address : 00000000\n");
-	EFPRINTF(fp, "[0004]\t\tPM1A Control Block Address : 00000000\n");
+	EFPRINTF(fp, "[0004]\t\tPM1A Control Block Address : %08X\n",
+		 BHYVE_PM1A_CNT_ADDR);
 	EFPRINTF(fp, "[0004]\t\tPM1B Control Block Address : 00000000\n");
 	EFPRINTF(fp, "[0004]\t\tPM2 Control Block Address : 00000000\n");
 	EFPRINTF(fp, "[0004]\t\tPM Timer Block Address : %08X\n",
@@ -379,7 +383,7 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp, "[0004]\t\tFlags (decoded below) : 00000000\n");
 	EFPRINTF(fp, "\t\t\tWBINVD instruction is operational (V1) : 1\n");
 	EFPRINTF(fp, "\t\t\tWBINVD flushes all caches (V1) : 0\n");
-	EFPRINTF(fp, "\t\t\tAll CPUs support C1 (V1) : 0\n");
+	EFPRINTF(fp, "\t\t\tAll CPUs support C1 (V1) : 1\n");
 	EFPRINTF(fp, "\t\t\tC2 works on MP system (V1) : 0\n");
 	EFPRINTF(fp, "\t\t\tControl Method Power Button (V1) : 1\n");
 	EFPRINTF(fp, "\t\t\tControl Method Sleep Button (V1) : 1\n");
@@ -387,7 +391,7 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp, "\t\t\tRTC can wake system from S4 (V1) : 0\n");
 	EFPRINTF(fp, "\t\t\t32-bit PM Timer (V1) : 1\n");
 	EFPRINTF(fp, "\t\t\tDocking Supported (V1) : 0\n");
-	EFPRINTF(fp, "\t\t\tReset Register Supported (V2) : 0\n");
+	EFPRINTF(fp, "\t\t\tReset Register Supported (V2) : 1\n");
 	EFPRINTF(fp, "\t\t\tSealed Case (V3) : 0\n");
 	EFPRINTF(fp, "\t\t\tHeadless - No Video (V3) : 1\n");
 	EFPRINTF(fp, "\t\t\tUse native instr after SLP_TYPx (V3) : 0\n");
@@ -407,10 +411,10 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp, "[0001]\t\tBit Width : 08\n");
 	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
 	EFPRINTF(fp, "[0001]\t\tEncoded Access Width : 01 [Byte Access:8]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000001\n");
+	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000CF9\n");
 	EFPRINTF(fp, "\n");
 
-	EFPRINTF(fp, "[0001]\t\tValue to cause reset : 00\n");
+	EFPRINTF(fp, "[0001]\t\tValue to cause reset : 06\n");
 	EFPRINTF(fp, "[0003]\t\tReserved : 000000\n");
 	EFPRINTF(fp, "[0008]\t\tFACS Address : 00000000%08X\n",
 	    basl_acpi_base + FACS_OFFSET);
@@ -422,7 +426,8 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp, "[0001]\t\tBit Width : 20\n");
 	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
 	EFPRINTF(fp, "[0001]\t\tEncoded Access Width : 02 [Word Access:16]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000001\n");
+	EFPRINTF(fp, "[0008]\t\tAddress : 00000000%08X\n",
+	    BHYVE_PM1A_EVT_ADDR);
 	EFPRINTF(fp, "\n");
 	
 	EFPRINTF(fp,
@@ -441,7 +446,8 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp, "[0001]\t\tBit Width : 10\n");
 	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
 	EFPRINTF(fp, "[0001]\t\tEncoded Access Width : 02 [Word Access:16]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000001\n");
+	EFPRINTF(fp, "[0008]\t\tAddress : 00000000%08X\n",
+	    BHYVE_PM1A_CNT_ADDR);
 	EFPRINTF(fp, "\n");
 
 	EFPRINTF(fp,
@@ -613,6 +619,11 @@ basl_fwrite_dsdt(FILE *fp)
 	EFPRINTF(fp, "DefinitionBlock (\"bhyve_dsdt.aml\", \"DSDT\", 2,"
 		 "\"BHYVE \", \"BVDSDT  \", 0x00000001)\n");
 	EFPRINTF(fp, "{\n");
+	EFPRINTF(fp, "  Name (_S5, Package (0x02)\n");
+	EFPRINTF(fp, "  {\n");
+	EFPRINTF(fp, "      0x05,\n");
+	EFPRINTF(fp, "      Zero,\n");
+	EFPRINTF(fp, "  })\n");
 	EFPRINTF(fp, "  Scope (_SB)\n");
 	EFPRINTF(fp, "  {\n");
 	EFPRINTF(fp, "    Device (PCI0)\n");
