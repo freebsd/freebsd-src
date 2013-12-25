@@ -1699,7 +1699,7 @@ vm_pageout(void)
 		}
 	}
 #endif
-	vm_pageout_worker((uintptr_t)0);
+	vm_pageout_worker((void *)(uintptr_t)0);
 }
 
 /*
