@@ -216,16 +216,16 @@ proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
 
 	if ((map = proc_addr2map(p, addr)) == NULL)
 		return (-1);
-	if (!map->pr_mapname || (fd = open(map->pr_mapname, O_RDONLY, 0)) < 0) {
-		warn("ERROR: open %s failed", map->pr_mapname);
+	if ((fd = open(map->pr_mapname, O_RDONLY, 0)) < 0) {
+		DPRINTF("ERROR: open %s failed", map->pr_mapname);
 		goto err0;
 	}
 	if ((e = elf_begin(fd, ELF_C_READ, NULL)) == NULL) {
-		warn("ERROR: elf_begin() failed");
+		DPRINTFX("ERROR: elf_begin() failed: %s", elf_errmsg(-1));
 		goto err1;
 	}
 	if (gelf_getehdr(e, &ehdr) == NULL) {
-		warn("ERROR: gelf_getehdr() failed");
+		DPRINTFX("ERROR: gelf_getehdr() failed: %s", elf_errmsg(-1));
 		goto err2;
 	}
 	/*
@@ -253,7 +253,7 @@ proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
 	 * Then look up the string name in STRTAB (.dynstr)
 	 */
 	if ((data = elf_getdata(dynsymscn, NULL)) == NULL) {
-		DPRINTF("ERROR: elf_getdata() failed");
+		DPRINTFX("ERROR: elf_getdata() failed: %s", elf_errmsg(-1));
 		goto err2;
 	}
 	i = 0;
@@ -286,7 +286,7 @@ proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
 	if (symtabscn == NULL)
 		goto err2;
 	if ((data = elf_getdata(symtabscn, NULL)) == NULL) {
-		DPRINTF("ERROR: elf_getdata() failed");
+		DPRINTFX("ERROR: elf_getdata() failed: %s", elf_errmsg(-1));
 		goto err2;
 	}
 	i = 0;
@@ -391,7 +391,7 @@ proc_name2sym(struct proc_handle *p, const char *object, const char *symbol,
 	unsigned long symtabstridx = 0, dynsymstridx = 0;
 
 	if ((map = proc_name2map(p, object)) == NULL) {
-		DPRINTF("ERROR: couldn't find object %s", object);
+		DPRINTFX("ERROR: couldn't find object %s", object);
 		goto err0;
 	}
 	if ((fd = open(map->pr_mapname, O_RDONLY, 0)) < 0) {
@@ -399,11 +399,11 @@ proc_name2sym(struct proc_handle *p, const char *object, const char *symbol,
 		goto err0;
 	}
 	if ((e = elf_begin(fd, ELF_C_READ, NULL)) == NULL) {
-		warn("ERROR: elf_begin() failed");
+		DPRINTFX("ERROR: elf_begin() failed: %s", elf_errmsg(-1));
 		goto err1;
 	}
 	if (gelf_getehdr(e, &ehdr) == NULL) {
-		warn("ERROR: gelf_getehdr() failed");
+		DPRINTFX("ERROR: gelf_getehdr() failed: %s", elf_errmsg(-1));
 		goto err2;
 	}
 	/*
@@ -431,7 +431,6 @@ proc_name2sym(struct proc_handle *p, const char *object, const char *symbol,
 	 * Then look up the string name in STRTAB (.dynstr)
 	 */
 	if ((data = elf_getdata(dynsymscn, NULL)) == NULL) {
-		DPRINTF("ERROR: elf_getdata() failed");
 		goto err2;
 	}
 	i = 0;
@@ -493,11 +492,11 @@ proc_iter_symbyaddr(struct proc_handle *p, const char *object, int which,
 	if ((map = proc_name2map(p, object)) == NULL)
 		return (-1);
 	if ((fd = open(map->pr_mapname, O_RDONLY)) < 0) {
-		warn("ERROR: open %s failed", map->pr_mapname);
+		DPRINTF("ERROR: open %s failed", map->pr_mapname);
 		goto err0;
 	}
 	if ((e = elf_begin(fd, ELF_C_READ, NULL)) == NULL) {
-		warn("ERROR: elf_begin() failed");
+		DPRINTFX("ERROR: elf_begin() failed: %s", elf_errmsg(-1));
 		goto err1;
 	}
 	/*
@@ -520,7 +519,7 @@ proc_iter_symbyaddr(struct proc_handle *p, const char *object, int which,
 		return (-1);
 	stridx = shdr.sh_link;
 	if ((data = elf_getdata(foundscn, NULL)) == NULL) {
-		DPRINTF("ERROR: elf_getdata() failed");
+		DPRINTFX("ERROR: elf_getdata() failed: %s", elf_errmsg(-1));
 		goto err2;
 	}
 	i = 0;

@@ -68,7 +68,7 @@ proc_regget(struct proc_handle *phdl, proc_reg_t reg, unsigned long *regvalue)
 #endif
 		break;
 	default:
-		warn("ERROR: no support for reg number %d", reg);
+		DPRINTFX("ERROR: no support for reg number %d", reg);
 		return (-1);
 	}
 
@@ -103,7 +103,7 @@ proc_regset(struct proc_handle *phdl, proc_reg_t reg, unsigned long regvalue)
 #endif
 		break;
 	default:
-		warn("ERROR: no support for reg number %d", reg);
+		DPRINTFX("ERROR: no support for reg number %d", reg);
 		return (-1);
 	}
 	if (ptrace(PT_SETREGS, proc_getpid(phdl), (caddr_t)&regs, 0) < 0)
