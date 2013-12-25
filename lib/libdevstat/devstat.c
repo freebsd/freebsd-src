@@ -150,7 +150,9 @@ static const char *namelist[] = {
 	"_devstat_version",
 #define X_DEVICE_STATQ	3
 	"_device_statq",
-#define X_END		4
+#define X_TIME_UPTIME	4
+	"_time_uptime",
+#define X_END		5
 };
 
 /*
@@ -349,10 +351,10 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 	oldnumdevs = dinfo->numdevs;
 	oldgeneration = dinfo->generation;
 
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-	stats->snap_time = ts.tv_sec + ts.tv_nsec * 1e-9;
-
 	if (kd == NULL) {
+		clock_gettime(CLOCK_MONOTONIC, &ts);
+		stats->snap_time = ts.tv_sec + ts.tv_nsec * 1e-9;
+
 		/* If this is our first time through, mem_ptr will be null. */
 		if (dinfo->mem_ptr == NULL) {
 			/*
@@ -433,6 +435,11 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 		} 
 
 	} else {
+		if (KREADNL(kd, X_TIME_UPTIME, ts.tv_sec) == -1)
+			return(-1);
+		else
+			stats->snap_time = ts.tv_sec;
+
 		/* 
 		 * This is of course non-atomic, but since we are working
 		 * on a core dump, the generation is unlikely to change
