@@ -155,6 +155,20 @@ amdv_vmspace_free(struct vmspace *vmspace)
 	return;
 }
 
+static struct vlapic *
+amdv_vlapic_init(void *arg, int vcpuid)
+{
+
+	panic("amdv_vlapic_init: not implmented");
+}
+
+static void
+amdv_vlapic_cleanup(void *arg, struct vlapic *vlapic)
+{
+
+	panic("amdv_vlapic_cleanup: not implemented");
+}
+
 struct vmm_ops vmm_ops_amd = {
 	amdv_init,
 	amdv_cleanup,
@@ -171,6 +185,8 @@ struct vmm_ops vmm_ops_amd = {
 	amdv_setcap,
 	amdv_vmspace_alloc,
 	amdv_vmspace_free,
+	amdv_vlapic_init,
+	amdv_vlapic_cleanup,
 };
 
 static int
