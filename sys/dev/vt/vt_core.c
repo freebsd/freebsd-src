@@ -589,6 +589,11 @@ vt_allocate_keyboard(struct vt_device *vd)
 static void
 vtterm_bell(struct terminal *tm)
 {
+	struct vt_window *vw = tm->tm_softc;
+	struct vt_device *vd = vw->vw_device;
+
+	if (vd->vd_flags & VDF_QUIET_BELL)
+		return;
 
 	sysbeep(1193182 / VT_BELLPITCH, VT_BELLDURATION);
 }
@@ -1504,6 +1509,12 @@ skip_thunk:
 	case CONS_GET:
 		/* XXX */
 		*(int *)data = M_CG640x480;
+		return (0);
+	case CONS_BELLTYPE: 	/* set bell type sound */
+		if ((*(int *)data) & CONS_QUIET_BELL)
+			vd->vd_flags |= VDF_QUIET_BELL;
+		else
+			vd->vd_flags &= ~VDF_QUIET_BELL;
 		return (0);
 	case CONS_GETINFO: {
 		vid_info_t *vi = (vid_info_t *)data;
