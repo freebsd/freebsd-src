@@ -82,8 +82,22 @@ struct proto_handler {
 	int (*protohandler)(struct libalias *, struct ip *,
 	    struct alias_data *);
 	LIST_ENTRY(proto_handler) entries;
-};
+}
+;
+/* End of handlers. */
+#define EOH     -1
 
+/* Functions used with protocol handlers. */
+void handler_chain_init(void);
+void handler_chain_destroy(void);
+int LibAliasAttachHandlers(struct proto_handler *);
+int LibAliasDetachHandlers(struct proto_handler *);
+int detach_handler(struct proto_handler *);
+int find_handler(int8_t, int8_t, struct libalias *, struct ip *,
+    struct alias_data *);
+struct proto_handler *first_handler(void);
+
+#ifndef _KERNEL
 /*
  * Used only in userland when libalias needs to keep track of all
  * module loaded. In kernel land (kld mode) we don't need to care
@@ -101,16 +115,6 @@ struct dll {
 	SLIST_ENTRY(dll)	next;
 };
 
-/* Functions used with protocol handlers. */
-void handler_chain_init(void);
-void handler_chain_destroy(void);
-int LibAliasAttachHandlers(struct proto_handler *);
-int LibAliasDetachHandlers(struct proto_handler *);
-int detach_handler(struct proto_handler *);
-int find_handler(int8_t, int8_t, struct libalias *, struct ip *,
-    struct alias_data *);
-struct proto_handler *first_handler(void);
-
 /* Functions used with dll module. */
 void dll_chain_init(void);
 void dll_chain_destroy(void);
@@ -118,14 +122,10 @@ int attach_dll(struct dll *);
 void *detach_dll(char *);
 struct dll *walk_dll_chain(void);
 
-/* End of handlers. */
-#define EOH     -1
-
 /*
  * Some defines borrowed from sys/module.h used to compile a kld
  * in userland as a shared lib.
  */
-#ifndef _KERNEL
 typedef enum modeventtype {
 	MOD_LOAD,
 	MOD_UNLOAD,
@@ -144,6 +144,6 @@ typedef struct moduledata {
 	modeventhand_t	evhand;	/* event handler */
 	void		*priv;	/* extra data */
 } moduledata_t;
-#endif
+#endif /* !_KERNEL */
 
 #endif /* !_ALIAS_MOD_H_ */
