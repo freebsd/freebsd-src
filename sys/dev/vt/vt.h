@@ -135,6 +135,7 @@ struct vt_device {
 #define	VDF_DEAD	0x10	/* Early probing found nothing. */
 #define	VDF_INITIALIZED	0x20	/* vtterm_cnprobe already done. */
 #define	VDF_MOUSECURSOR	0x40	/* Mouse cursor visible. */
+#define	VDF_QUIET_BELL	0x80	/* Disable bell. */
 	int			 vd_keyboard;	/* (G) Keyboard index. */
 	unsigned int		 vd_kbstate;	/* (?) Device unit. */
 	unsigned int		 vd_unit;	/* (c) Device unit. */
