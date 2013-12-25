@@ -245,8 +245,8 @@ first_handler(void)
 	return (LIST_FIRST(&handler_chain));
 }
 
+#ifndef _KERNEL
 /* Dll manipulation code - this code is not thread safe... */
-
 int
 attach_dll(struct dll *p)
 {
@@ -288,3 +288,4 @@ walk_dll_chain(void)
 	SLIST_REMOVE_HEAD(&dll_chain, next);
 	return (t);
 }
+#endif /* !_KERNEL */
