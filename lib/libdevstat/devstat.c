@@ -201,7 +201,7 @@ devstat_getnumdevs(kvm_t *kd)
  * supplied in a more atmoic manner by the kern.devstat.all sysctl.
  * Because this generation sysctl is separate from the statistics sysctl,
  * the device list and the generation could change between the time that
- * this function is called and the device list is retreived.
+ * this function is called and the device list is retrieved.
  */
 long
 devstat_getgeneration(kvm_t *kd)
