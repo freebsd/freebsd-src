@@ -292,6 +292,12 @@ Wnested-externs
 C ObjC Var(warn_nested_externs)
 Warn about \"extern\" declarations not at file scope
 
+; APPLE LOCAL begin -Wnewline-eof
+Wnewline-eof
+C ObjC C++ ObjC++
+Warn about files missing a newline at the end of the file
+; APPLE LOCAL end -Wnewline-eof
+
 Wnon-template-friend
 C++ ObjC++ Var(warn_nontemplate_friend) Init(1)
 Warn when non-templatized friend functions are declared within a template
