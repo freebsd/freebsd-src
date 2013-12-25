@@ -51,26 +51,6 @@ __FBSDID("$FreeBSD$");
 #define	MSI_X86_ADDR_LOG	0x00000004	/* Destination Mode */
 
 int
-lapic_pending_intr(struct vm *vm, int cpu)
-{
-	struct vlapic *vlapic;
-
-	vlapic = vm_lapic(vm, cpu);
-
-	return (vlapic_pending_intr(vlapic));
-}
-
-void
-lapic_intr_accepted(struct vm *vm, int cpu, int vector)
-{
-	struct vlapic *vlapic;
-
-	vlapic = vm_lapic(vm, cpu);
-
-	vlapic_intr_accepted(vlapic, vector);
-}
-
-int
 lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
 {
 	struct vlapic *vlapic;
@@ -83,9 +63,7 @@ lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
 
 	vlapic = vm_lapic(vm, cpu);
 	vlapic_set_intr_ready(vlapic, vector, level);
-
-	vcpu_notify_event(vm, cpu);
-
+	vcpu_notify_event(vm, cpu, true);
 	return (0);
 }
 

@@ -156,6 +156,10 @@ static struct vmm_ops *ops;
 	(ops != NULL ? (*ops->vmgetcap)(vmi, vcpu, num, retval) : ENXIO)
 #define	VMSETCAP(vmi, vcpu, num, val)		\
 	(ops != NULL ? (*ops->vmsetcap)(vmi, vcpu, num, val) : ENXIO)
+#define	VLAPIC_INIT(vmi, vcpu)			\
+	(ops != NULL ? (*ops->vlapic_init)(vmi, vcpu) : NULL)
+#define	VLAPIC_CLEANUP(vmi, vlapic)		\
+	(ops != NULL ? (*ops->vlapic_cleanup)(vmi, vlapic) : NULL)
 
 #define	fpu_start_emulating()	load_cr0(rcr0() | CR0_TS)
 #define	fpu_stop_emulating()	clts()
@@ -167,9 +171,11 @@ CTASSERT(VMM_MSR_NUM <= 64);	/* msr_mask can keep track of up to 64 msrs */
 static VMM_STAT(VCPU_TOTAL_RUNTIME, "vcpu total runtime");
 
 static void
-vcpu_cleanup(struct vcpu *vcpu)
+vcpu_cleanup(struct vm *vm, int i)
 {
-	vlapic_cleanup(vcpu->vlapic);
+	struct vcpu *vcpu = &vm->vcpu[i];
+
+	VLAPIC_CLEANUP(vm->cookie, vcpu->vlapic);
 	vmm_stat_free(vcpu->stats);	
 	fpu_save_area_free(vcpu->guestfpu);
 }
@@ -184,7 +190,7 @@ vcpu_init(struct vm *vm, uint32_t vcpu_id)
 	vcpu_lock_init(vcpu);
 	vcpu->hostcpu = NOCPU;
 	vcpu->vcpuid = vcpu_id;
-	vcpu->vlapic = vlapic_init(vm, vcpu_id);
+	vcpu->vlapic = VLAPIC_INIT(vm->cookie, vcpu_id);
 	vm_set_x2apic_state(vm, vcpu_id, X2APIC_ENABLED);
 	vcpu->guestfpu = fpu_save_area_alloc();
 	fpu_save_area_reset(vcpu->guestfpu);
@@ -360,7 +366,7 @@ vm_destroy(struct vm *vm)
 	vm->num_mem_segs = 0;
 
 	for (i = 0; i < VM_MAXCPU; i++)
-		vcpu_cleanup(&vm->vcpu[i]);
+		vcpu_cleanup(vm, i);
 
 	VMSPACE_FREE(vm->vmspace);
 
@@ -1127,7 +1133,7 @@ vm_inject_nmi(struct vm *vm, int vcpuid)
 	vcpu = &vm->vcpu[vcpuid];
 
 	vcpu->nmi_pending = 1;
-	vcpu_notify_event(vm, vcpuid);
+	vcpu_notify_event(vm, vcpuid, false);
 	return (0);
 }
 
@@ -1356,7 +1362,7 @@ vm_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state state)
  *   to the host_cpu to cause the vcpu to trap into the hypervisor.
  */
 void
-vcpu_notify_event(struct vm *vm, int vcpuid)
+vcpu_notify_event(struct vm *vm, int vcpuid, bool lapic_intr)
 {
 	int hostcpu;
 	struct vcpu *vcpu;
@@ -1371,8 +1377,12 @@ vcpu_notify_event(struct vm *vm, int vcpuid)
 	} else {
 		if (vcpu->state != VCPU_RUNNING)
 			panic("invalid vcpu state %d", vcpu->state);
-		if (hostcpu != curcpu)
-			ipi_cpu(hostcpu, vmm_ipinum);
+		if (hostcpu != curcpu) {
+			if (lapic_intr)
+				vlapic_post_intr(vcpu->vlapic, hostcpu);
+			else
+				ipi_cpu(hostcpu, vmm_ipinum);
+		}
 	}
 	vcpu_unlock(vcpu);
 }

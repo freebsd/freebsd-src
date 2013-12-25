@@ -50,10 +50,11 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/vmm.h>
 #include "vmm_host.h"
-#include "vmm_lapic.h"
 #include "vmm_msr.h"
 #include "vmm_ktr.h"
 #include "vmm_stat.h"
+#include "vlapic.h"
+#include "vlapic_priv.h"
 
 #include "vmx_msr.h"
 #include "ept.h"
@@ -112,7 +113,8 @@ __FBSDID("$FreeBSD$");
 #define	HANDLED		1
 #define	UNHANDLED	0
 
-MALLOC_DEFINE(M_VMX, "vmx", "vmx");
+static MALLOC_DEFINE(M_VMX, "vmx", "vmx");
+static MALLOC_DEFINE(M_VLAPIC, "vlapic", "vlapic");
 
 SYSCTL_DECL(_hw_vmm);
 SYSCTL_NODE(_hw_vmm, OID_AUTO, vmx, CTLFLAG_RW, NULL, NULL);
@@ -1033,7 +1035,7 @@ nmiblocked:
 }
 
 static void
-vmx_inject_interrupts(struct vmx *vmx, int vcpu)
+vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 {
 	int vector;
 	uint64_t info, rflags, interruptibility;
@@ -1059,7 +1061,7 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu)
 		return;
 
 	/* Ask the local apic for a vector to inject */
-	vector = lapic_pending_intr(vmx->vm, vcpu);
+	vector = vlapic_pending_intr(vlapic);
 	if (vector < 0)
 		return;
 
@@ -1081,7 +1083,7 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu)
 	vmcs_write(VMCS_ENTRY_INTR_INFO, info);
 
 	/* Update the Local APIC ISR */
-	lapic_intr_accepted(vmx->vm, vcpu, vector);
+	vlapic_intr_accepted(vlapic, vector);
 
 	VCPU_CTR1(vmx->vm, vcpu, "Injecting hwintr at vector %d", vector);
 
@@ -1459,11 +1461,13 @@ vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap)
 	struct vmxctx *vmxctx;
 	struct vmcs *vmcs;
 	struct vm_exit *vmexit;
+	struct vlapic *vlapic;
 
 	vmx = arg;
 	vmcs = &vmx->vmcs[vcpu];
 	vmxctx = &vmx->ctx[vcpu];
 	vmxctx->launched = 0;
+	vlapic = vm_lapic(vmx->vm, vcpu);
 
 	astpending = 0;
 	vmexit = vm_exitinfo(vmx->vm, vcpu);
@@ -1491,7 +1495,7 @@ vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap)
 	vmx_set_pcpu_defaults(vmx, vcpu);
 
 	do {
-		vmx_inject_interrupts(vmx, vcpu);
+		vmx_inject_interrupts(vmx, vcpu, vlapic);
 		vmx_run_trace(vmx, vcpu);
 		rc = vmx_setjmp(vmxctx);
 #ifdef SETJMP_TRACE
@@ -1963,6 +1967,32 @@ vmx_setcap(void *arg, int vcpu, int type, int val)
         return (retval);
 }
 
+static struct vlapic *
+vmx_vlapic_init(void *arg, int vcpuid)
+{
+	struct vmx *vmx;
+	struct vlapic *vlapic;
+	
+	vmx = arg;
+
+	vlapic = malloc(sizeof(struct vlapic), M_VLAPIC, M_WAITOK | M_ZERO);
+	vlapic->vm = vmx->vm;
+	vlapic->vcpuid = vcpuid;
+	vlapic->apic_page = (struct LAPIC *)&vmx->apic_page[vcpuid];
+
+	vlapic_init(vlapic);
+
+	return (vlapic);
+}
+
+static void
+vmx_vlapic_cleanup(void *arg, struct vlapic *vlapic)
+{
+
+	vlapic_cleanup(vlapic);
+	free(vlapic, M_VLAPIC);
+}
+
 struct vmm_ops vmm_ops_intel = {
 	vmx_init,
 	vmx_cleanup,
@@ -1979,4 +2009,6 @@ struct vmm_ops vmm_ops_intel = {
 	vmx_setcap,
 	ept_vmspace_alloc,
 	ept_vmspace_free,
+	vmx_vlapic_init,
+	vmx_vlapic_cleanup,
 };
