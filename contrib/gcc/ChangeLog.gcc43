@@ -65,6 +65,12 @@
 	fvisibility-ms-compat.
 	* c.opt (fvisibility-ms-compat): New.
 
+2007-06-23  Richard Earnshaw  <rearnsha@arm.com> (r125973)
+
+	PR target/31152
+	* arm.md (negscc): Match the correct operand for optimized LT0 test.
+	Remove optimization for GT.
+
 2007-06-05  Joerg Wunsch  <j.gnu@uriah.heep.sax.de> (r125346)
 
 	PR preprocessor/23479
@@ -588,6 +594,14 @@
 	* libgcc2.h: Remove transformation of bswap routines.
 	* config/i386/i386.md (bswapsi2): New.
 	(bswapdi2): Ditto.
+
+2006-11-03  Paul Brook  <paul@codesourcery.com> (r118461)
+
+	gcc/
+	* config/arm/arm.c (arm_file_start): New function.
+	(TARGET_ASM_FILE_START): Define.
+	(arm_default_cpu): New variable.
+	(arm_override_options): Set arm_default_cpu.
 
 2006-10-31  Geoffrey Keating  <geoffk@apple.com> (r118360)
  
