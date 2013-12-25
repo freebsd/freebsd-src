@@ -88,7 +88,6 @@ struct var vifs;
 struct var vmail;
 struct var vmpath;
 struct var vpath;
-struct var vppid;
 struct var vps1;
 struct var vps2;
 struct var vps4;
@@ -110,8 +109,6 @@ static const struct varinit varinit[] = {
 	  NULL },
 	{ &vpath,	0,				"PATH=" _PATH_DEFPATH,
 	  changepath },
-	{ &vppid,	VUNSET,				"PPID=",
-	  NULL },
 	/*
 	 * vps1 depends on uid
 	 */
@@ -179,10 +176,8 @@ initvar(void)
 		vps1.text = __DECONST(char *, geteuid() ? "PS1=$ " : "PS1=# ");
 		vps1.flags = VSTRFIXED|VTEXTFIXED;
 	}
-	if ((vppid.flags & VEXPORT) == 0) {
-		fmtstr(ppid, sizeof(ppid), "%d", (int)getppid());
-		setvarsafe("PPID", ppid, 0);
-	}
+	fmtstr(ppid, sizeof(ppid), "%d", (int)getppid());
+	setvarsafe("PPID", ppid, 0);
 	for (envp = environ ; *envp ; envp++) {
 		if (strchr(*envp, '=')) {
 			setvareq(*envp, VEXPORT|VTEXTFIXED);
