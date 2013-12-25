@@ -45,14 +45,15 @@ MALLOC_DECLARE(M_ALIAS);
 #endif
 #endif
 
-/* Packet flow direction. */
-#define IN	1
-#define OUT	2
+/* Packet flow direction flags. */
+#define IN	0x0001
+#define OUT	0x0002
+#define	NODIR	0x4000
 
-/* Working protocol. */
-#define IP	1
-#define TCP	2
-#define UDP	4
+/* Working protocol flags. */
+#define IP	0x01
+#define TCP	0x02
+#define UDP	0x04
 
 /*
  * Data passed to protocol handler module, it must be filled
@@ -81,18 +82,15 @@ struct proto_handler {
 	/* Aliasing * function. */
 	int (*protohandler)(struct libalias *, struct ip *,
 	    struct alias_data *);
-	LIST_ENTRY(proto_handler) entries;
-}
-;
+	TAILQ_ENTRY(proto_handler) link;
+};
+
 /* End of handlers. */
-#define EOH     -1
+#define EOH	.dir = NODIR
 
 /* Functions used with protocol handlers. */
-void handler_chain_init(void);
-void handler_chain_destroy(void);
 int LibAliasAttachHandlers(struct proto_handler *);
 int LibAliasDetachHandlers(struct proto_handler *);
-int detach_handler(struct proto_handler *);
 int find_handler(int8_t, int8_t, struct libalias *, struct ip *,
     struct alias_data *);
 struct proto_handler *first_handler(void);

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 4, 2011
+.Dd December 25, 2013
 .Dt LIBALIAS 3
 .Os
 .Sh NAME
@@ -1103,7 +1103,7 @@ struct proto_handler {
 		 struct ip *pip, struct alias_data *ah);
 	int (*protohandler)(struct libalias *la,
 		 struct ip *pip, struct alias_data *ah);
-	LIST_ENTRY(proto_handler) entries;
+	TAILQ_ENTRY(proto_handler) link;
 };
 .Ed
 .Pp
@@ -1262,8 +1262,16 @@ Here we analyse some parts of that module.
 From
 .Pa alias_dummy.c :
 .Bd -literal
-struct proto_handler handlers [] = {{666, IN|OUT, UDP|TCP,
-				    &fingerprint, &protohandler}};
+struct proto_handler handlers[] = {
+    {
+	.pri = 666,
+	.dir = IN|OUT,
+	.proto = UDP|TCP,
+	.fingerprint = fingerprint,
+	.protohandler= protohandler,
+    },
+    { EOH }
+};
 .Ed
 .Pp
 The variable
@@ -1299,12 +1307,10 @@ mod_handler(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		error = 0;
-		attach_handlers(handlers);
+		error = LibAliasAttachHandlers(handlers);
 		break;
 	case MOD_UNLOAD:
-		error = 0;
-		detach_handlers(handlers;
+		error = LibAliasDetachHandlers(handlers);
 		break;
 	default:
 		error = EINVAL;
@@ -1315,9 +1321,9 @@ mod_handler(module_t mod, int type, void *data)
 When running as KLD,
 .Fn mod_handler
 registers/deregisters the module using
-.Fn attach_handlers
+.Fn LibAliasAttachHandlers
 and
-.Fn detach_handlers ,
+.Fn LibAliasDetachHandlers ,
 respectively.
 .Pp
 Every module must contain at least 2 functions: one fingerprint
